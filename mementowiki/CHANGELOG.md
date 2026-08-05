@@ -1,7 +1,16 @@
-# MEMENTO - Cursed Camp Simulator
-*Poslední update: 2026-02-23 (16:34 CET)*
+# CHANGELOG (historical) — Cursed Camp Simulator
 
-Toto je hlavní onboarding pro agenty. Když je konflikt dokumentace vs. kód, kód je source of truth.
+> ⚠️ **Superseded.** This file was the agent onboarding document until 2026-08-05.
+> It is kept only as a record of the February 2026 development sessions and is
+> **out of date in places** — most notably it still describes the guest assignment /
+> cleaning flow, which was removed from the code and whose UI was deleted in the
+> 2026-08-05 cleanup pass.
+>
+> Current documentation lives at the repository root:
+> [AGENTS.md](../AGENTS.md) · [PRODUCT.md](../PRODUCT.md) · [DESIGN.md](../DESIGN.md) ·
+> [ARCHITECTURE.md](../ARCHITECTURE.md) · [AUDIT.md](../AUDIT.md) · [TODO.md](../TODO.md)
+
+*Last updated as onboarding doc: 2026-02-23 (16:34 CET)*
 
 ## Projekt
 - Engine: Godot 4.x
