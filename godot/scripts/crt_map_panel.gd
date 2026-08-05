@@ -1,8 +1,13 @@
 extends Control
 
-signal status_changed(text: String)
+signal status_changed(text: String, kind: int)
 signal tool_canceled
 signal submenu_close_requested
+
+## Status severity, consumed by builder_module for colour + audio feedback.
+const STATUS_INFO := 0
+const STATUS_GOOD := 1
+const STATUS_DENY := 2
 
 const BG_COLOR := Color(0.09, 0.09, 0.08, 1.0)
 const GRID_LINE := Color(0.20, 0.20, 0.18, 0.95)
@@ -285,7 +290,7 @@ func _handle_structure_press(local_pos: Vector2) -> void:
 
 	if not _can_place(coord, footprint, selected_building):
 		_ghost_locked = false
-		_emit_status("Cannot place %s here." % _display_name(selected_building))
+		_emit_status("Cannot place %s here." % _display_name(selected_building), STATUS_DENY)
 		return
 
 	if not _ghost_locked:
@@ -395,7 +400,7 @@ func _send_build_request(building_type: String, coord: Vector2i, rot: int) -> vo
 		_emit_status("Build request: %s [%d,%d]" % [_display_name(building_type), coord.x, coord.y])
 	else:
 		_pending_build_wait = false
-		_emit_status("Build request channel unavailable.")
+		_emit_status("Build request channel unavailable.", STATUS_DENY)
 
 
 func _send_demolish_request(rect: Rect2i) -> void:
@@ -406,12 +411,12 @@ func _send_demolish_request(rect: Rect2i) -> void:
 		_emit_status("Demolish request: %dx%d" % [rect.size.x, rect.size.y])
 	else:
 		_pending_demolish_wait = false
-		_emit_status("Demolish request channel unavailable.")
+		_emit_status("Demolish request channel unavailable.", STATUS_DENY)
 
 
 func _rotate_building(step: int) -> void:
 	if selected_building == "" or selected_building == "path" or selected_building == "demolish":
-		_emit_status("Select a structure to rotate.")
+		_emit_status("Select a structure to rotate.", STATUS_DENY)
 		return
 	_rotation_steps = wrapi(_rotation_steps + step, 0, 4)
 	_ghost_locked = false
@@ -471,9 +476,9 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 	if building_type == "path":
 		# Keep drag status calm while drawing roads.
 		if not _path_drag_active:
-			_emit_status("Path built at [%d,%d]." % [pos.x, pos.y])
+			_emit_status("Path built at [%d,%d]." % [pos.x, pos.y], STATUS_GOOD)
 	else:
-		_emit_status("Built: %s" % _display_name(building_type))
+		_emit_status("Built: %s" % _display_name(building_type), STATUS_GOOD)
 	queue_redraw()
 
 
@@ -482,7 +487,7 @@ func _on_build_rejected(building_type: String, pos: Vector2i, rot: int, reason: 
 		_pending_build_wait = false
 		_pending_build_type = ""
 		_pending_build_coord = Vector2i(-1, -1)
-	_emit_status("Build rejected: %s" % _reason_text(reason))
+	_emit_status("Build rejected: %s" % _reason_text(reason), STATUS_DENY)
 	queue_redraw()
 
 
@@ -490,14 +495,14 @@ func _on_demolish_confirmed(area: Rect2i, removed_count: int, fee_paid: int, ref
 	if _pending_demolish_wait and _rect_equals(area, _pending_demolish_rect):
 		_pending_demolish_wait = false
 	_demolish_selection_active = false
-	_emit_status("Demolished %d target(s). Refund +$%d, fee -$%d." % [removed_count, refund_total, fee_paid])
+	_emit_status("Demolished %d target(s). Refund +$%d, fee -$%d." % [removed_count, refund_total, fee_paid], STATUS_GOOD)
 	queue_redraw()
 
 
 func _on_demolish_rejected(area: Rect2i, reason: String) -> void:
 	if _pending_demolish_wait and _rect_equals(area, _pending_demolish_rect):
 		_pending_demolish_wait = false
-	_emit_status("Demolish rejected: %s" % _reason_text(reason))
+	_emit_status("Demolish rejected: %s" % _reason_text(reason), STATUS_DENY)
 	queue_redraw()
 
 
@@ -996,11 +1001,14 @@ func _reason_text(reason: String) -> String:
 			return reason
 
 
-func _emit_status(text: String) -> void:
-	if text == _last_status:
-		return
+## Push a status line to the builder window.
+##
+## Repeats are NOT suppressed. Retrying the same failing action is exactly when the
+## player most needs confirmation that the click registered -- swallowing the second
+## identical message made the UI look frozen.
+func _emit_status(text: String, kind: int = STATUS_INFO) -> void:
 	_last_status = text
-	status_changed.emit(text)
+	status_changed.emit(text, kind)
 
 
 func _any_pending_interaction() -> bool:

@@ -650,6 +650,28 @@ func get_liminal_forecast_data() -> Dictionary:
 	}
 
 
+## What accepting a booking would do to liminal pressure for its archetype.
+##
+## This is the game's central trade (DESIGN.md): income now, spawn odds tonight.
+## CampMail shows it at the moment of decision so the player is taking a known risk
+## rather than being ambushed by one.
+func get_liminal_booking_impact(archetype: String, party_size: int) -> Dictionary:
+	_ensure_guest_state_defaults()
+	var normalized := _normalize_archetype(archetype)
+	var counts := _collect_active_archetype_counts()
+	var current := int(counts.get(normalized, 0))
+	var after := current + maxi(1, party_size)
+	return {
+		"archetype": normalized,
+		"label": str(LIMINAL_ARCHETYPE_LABELS.get(normalized, normalized)),
+		"safe_count": LIMINAL_FORECAST_SAFE_COUNT,
+		"current_count": current,
+		"after_count": after,
+		"current": _evaluate_liminal_archetype_pressure(normalized, current),
+		"after": _evaluate_liminal_archetype_pressure(normalized, after),
+	}
+
+
 func _collect_active_archetype_counts() -> Dictionary:
 	var counts := {}
 	for archetype in LIMINAL_ARCHETYPE_ORDER:

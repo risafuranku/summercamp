@@ -611,30 +611,34 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _is_any_interior_open():
 			return
 
-	if event.is_action_pressed("debug_damage_player"):
-		_debug_damage_player()
-		return
+	# Debug actions only exist in debug builds (see _ensure_input_actions).
+	# Querying an unregistered action would push an InputMap error every frame.
+	if OS.is_debug_build():
+		if event.is_action_pressed("debug_damage_player"):
+			_debug_damage_player()
+			return
 
-	if event.is_action_pressed("debug_add_money"):
-		_debug_add_money()
-		return
+		if event.is_action_pressed("debug_add_money"):
+			_debug_add_money()
+			return
 
-	if event.is_action_pressed("toggle_liminal_debug"):
-		_toggle_liminal_debug_window()
-		return
+		if event.is_action_pressed("toggle_liminal_debug"):
+			_toggle_liminal_debug_window()
+			return
 
 	# Block all gameplay input while any UI is open.
 	if _is_any_interior_open():
 		return
 
-	if event.is_action_pressed("toggle_day_night"):
-		time_system.step_time_hours(DEBUG_TIME_STEP_HOURS)
-		_sync_runtime_state_from_systems(true)
+	if OS.is_debug_build():
+		if event.is_action_pressed("toggle_day_night"):
+			time_system.step_time_hours(DEBUG_TIME_STEP_HOURS)
+			_sync_runtime_state_from_systems(true)
 
-	if event.is_action_pressed("toggle_weather"):
-		var next = (_weather_state + 1) % WEATHER_STATE_COUNT
-		weather_system.set_weather(next)
-		_sync_runtime_state_from_systems()
+		if event.is_action_pressed("toggle_weather"):
+			var next = (_weather_state + 1) % WEATHER_STATE_COUNT
+			weather_system.set_weather(next)
+			_sync_runtime_state_from_systems()
 
 	if event.is_action_pressed("interact"):
 		_try_interact()
@@ -779,14 +783,19 @@ func _apply_pending_loaded_player_state() -> void:
 
 
 func _ensure_input_actions() -> void:
-	_add_key_action("toggle_day_night", KEY_T)
-	_add_key_action("toggle_day_night", KEY_U)
-	_add_key_action("toggle_weather", KEY_Y)
 	_add_key_action("interact", KEY_E)
-	_add_key_action("debug_damage_player", KEY_P)
-	_add_key_action("debug_add_money", KEY_K)
-	_add_key_action("toggle_liminal_debug", KEY_L)
 	_add_mouse_button_action("interact", MOUSE_BUTTON_LEFT)
+
+	# Debug-only bindings. In a release build these must not exist: a player probing
+	# the keyboard to discover controls would otherwise skip hours (T/U), reroll the
+	# weather (Y), hand themselves money (K) or damage themselves (P).
+	if OS.is_debug_build():
+		_add_key_action("toggle_day_night", KEY_T)
+		_add_key_action("toggle_day_night", KEY_U)
+		_add_key_action("toggle_weather", KEY_Y)
+		_add_key_action("debug_damage_player", KEY_P)
+		_add_key_action("debug_add_money", KEY_K)
+		_add_key_action("toggle_liminal_debug", KEY_L)
 	_add_key_action("service_room_prev", KEY_A)
 	_add_key_action("service_room_next", KEY_D)
 	if UTILITY_REPAIRS_ENABLED:
@@ -855,7 +864,9 @@ func _sync_liminal_forecast_hud(force: bool = false) -> void:
 
 	_liminal_forecast_snapshot = payload.duplicate(true)
 	_liminal_forecast_hud_level = hud_level
-	if _hud_manager != null and _hud_manager.has_method("set_liminal_forecast_count"):
+	if _hud_manager != null and _hud_manager.has_method("set_liminal_forecast"):
+		_hud_manager.set_liminal_forecast(payload)
+	elif _hud_manager != null and _hud_manager.has_method("set_liminal_forecast_count"):
 		_hud_manager.set_liminal_forecast_count(_liminal_forecast_hud_level)
 	_refresh_liminal_debug_window()
 

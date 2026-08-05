@@ -15,6 +15,13 @@ const C_BTN_LAMP := Color(0.56, 0.48, 0.12, 1.0)
 const C_TEXT := Color(0.94, 0.90, 0.80, 1.0)
 const C_TEXT_DIM := Color(0.66, 0.62, 0.54, 1.0)
 const C_MONEY := Color(0.56, 0.98, 0.52, 1.0)
+const C_STATUS_GOOD := Color(0.56, 0.94, 0.54, 1.0)
+const C_STATUS_DENY := Color(0.98, 0.46, 0.38, 1.0)
+
+## Reused system blip. Deny plays it detuned downward -- a "wrong" version of the
+## sound the player already associates with the terminal accepting input.
+const SFX_UI_BLIP := "res://assets/sfx/crtui/tudu.mp3"
+const STATUS_FLASH_SEC := 0.45
 
 const BTN_SIZE := Vector2(38, 38)
 const TOOLBAR_HEIGHT := 52
@@ -59,6 +66,8 @@ var _building_manager
 var _map_panel: Control
 var _money_label: Label
 var _status_label: Label
+var _status_sfx_player: AudioStreamPlayer
+var _status_flash_tween: Tween
 var _submenu_shell: Panel
 
 var _group_rows: Dictionary = {}
@@ -367,9 +376,49 @@ func _on_map_submenu_close_requested() -> void:
 	_set_active_group("")
 
 
-func _on_map_status_changed(text: String) -> void:
-	if _status_label != null:
-		_status_label.text = text
+func _on_map_status_changed(text: String, kind: int = 0) -> void:
+	if _status_label == null:
+		return
+	_status_label.text = text
+
+	var col := C_TEXT_DIM
+	if kind == MAP_PANEL_SCRIPT.STATUS_GOOD:
+		col = C_STATUS_GOOD
+	elif kind == MAP_PANEL_SCRIPT.STATUS_DENY:
+		col = C_STATUS_DENY
+	_status_label.add_theme_color_override("font_color", col)
+
+	if kind == MAP_PANEL_SCRIPT.STATUS_INFO:
+		return
+
+	# Flash back to the resting colour so a repeated identical message still reads
+	# as a fresh event rather than a stuck label.
+	_play_status_sfx(kind)
+	if _status_flash_tween != null and _status_flash_tween.is_valid():
+		_status_flash_tween.kill()
+	_status_flash_tween = create_tween()
+	_status_flash_tween.tween_property(_status_label, "modulate", Color(1.0, 1.0, 1.0, 0.35), STATUS_FLASH_SEC * 0.5)
+	_status_flash_tween.tween_property(_status_label, "modulate", Color(1.0, 1.0, 1.0, 1.0), STATUS_FLASH_SEC * 0.5)
+
+
+func _play_status_sfx(kind: int) -> void:
+	if _status_sfx_player == null:
+		_status_sfx_player = AudioStreamPlayer.new()
+		_status_sfx_player.name = "BuilderStatusSfx"
+		_status_sfx_player.bus = "Master"
+		if ResourceLoader.exists(SFX_UI_BLIP):
+			_status_sfx_player.stream = load(SFX_UI_BLIP) as AudioStream
+		add_child(_status_sfx_player)
+	if _status_sfx_player.stream == null:
+		return
+	if kind == MAP_PANEL_SCRIPT.STATUS_DENY:
+		_status_sfx_player.pitch_scale = 0.62
+		_status_sfx_player.volume_db = -12.0
+	else:
+		_status_sfx_player.pitch_scale = 1.18
+		_status_sfx_player.volume_db = -16.0
+	_status_sfx_player.stop()
+	_status_sfx_player.play()
 
 
 func _on_money_changed(amount: int) -> void:

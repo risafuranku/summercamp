@@ -104,7 +104,7 @@ const DESKTOP_ICON_ROW_GAP := 118.0
 const UPS_BANNER_HEIGHT := 42.0
 const UPS_BANNER_BOTTOM_MARGIN := 6.0
 const UPS_BANNER_BLINK_PERIOD := 0.42
-const CAMP_STATUS_TABS: Array[String] = ["electricity", "billing", "utilities", "archive"]
+const CAMP_STATUS_TABS: Array[String] = ["electricity", "billing", "night_risk", "utilities", "archive"]
 const DESKTOP_ICON_SLOT_META := "layout_slot"
 const DESKTOP_ICON_ORDER: Array[String] = [
 	"builder",
@@ -2067,9 +2067,63 @@ func _email_customer_panel_text(mail: Dictionary) -> String:
 	lines.append("Arrival: %s" % arrival_time)
 	lines.append("Difficulty: %d/5" % difficulty)
 	lines.append("Payment per day: $%d" % daily_total)
+	lines.append("Total if accepted: $%d" % (daily_total * stay_nights))
 	if not trouble_time.is_empty():
 		lines.append("Night trouble window: ~%s" % trouble_time)
+
+	var risk_lines := _email_liminal_impact_lines(panel, mail, party_size)
+	if not risk_lines.is_empty():
+		lines.append("")
+		lines.append_array(risk_lines)
 	return "\n".join(lines)
+
+
+## The risk half of the accept/reject trade. Without this the player sees only the
+## payout and is making the game's core decision blind.
+func _email_liminal_impact_lines(panel: Dictionary, mail: Dictionary, party_size: int) -> Array[String]:
+	var out: Array[String] = []
+	if GuestManager == null or not GuestManager.has_method("get_liminal_booking_impact"):
+		return out
+	var raw_archetype := str(panel.get("archetype", mail.get("archetype", ""))).strip_edges()
+	if raw_archetype.is_empty():
+		return out
+
+	var impact_any = GuestManager.call("get_liminal_booking_impact", raw_archetype, party_size)
+	if not (impact_any is Dictionary):
+		return out
+	var impact: Dictionary = impact_any
+
+	var label := str(impact.get("label", raw_archetype))
+	var safe := int(impact.get("safe_count", 3))
+	var before := int(impact.get("current_count", 0))
+	var after := int(impact.get("after_count", 0))
+
+	out.append("=== NIGHT RISK ===")
+	out.append("%s in camp: %d -> %d  (safe up to %d)" % [label, before, after, safe])
+
+	var after_entry_any = impact.get("after", {})
+	if not (after_entry_any is Dictionary):
+		return out
+	var after_entry: Dictionary = after_entry_any
+
+	if int(after_entry.get("guaranteed_spawns", 0)) > 0:
+		out.append("Result: SPAWN GUARANTEED tonight.")
+		return out
+
+	var tier := str(after_entry.get("chance_tier", "none"))
+	if tier == "none" or tier.is_empty():
+		out.append("Result: still within safe count.")
+	else:
+		var pct := int(round(float(after_entry.get("chance_probability", 0.0)) * 100.0))
+		out.append("Result: %s spawn chance (~%d%%)." % [tier.to_upper(), pct])
+
+	var thresholds_any = after_entry.get("next_thresholds", {})
+	if thresholds_any is Dictionary:
+		var thresholds: Dictionary = thresholds_any
+		var guaranteed_at := int(thresholds.get("guaranteed_at", 0))
+		if guaranteed_at > after:
+			out.append("Guaranteed spawn at %d %s." % [guaranteed_at, label])
+	return out
 
 
 func _email_compose_preview_body(mail: Dictionary) -> String:
@@ -2691,6 +2745,8 @@ func _camp_status_tab_title(tab_id: String) -> String:
 			return "Electricity"
 		"billing":
 			return "Billing"
+		"night_risk":
+			return "Night Risk"
 		"utilities":
 			return "Utilities"
 		"archive":
@@ -2869,8 +2925,79 @@ func _build_status_app_text_with_snapshot(snapshot: Dictionary) -> String:
 			return _build_status_electricity_text(snapshot)
 		"billing":
 			return _build_status_billing_text(snapshot)
+		"night_risk":
+			return _build_status_night_risk_text()
 		_:
 			return _build_status_placeholder_text(_camp_status_active_tab)
+
+
+## Player-facing view of the liminal forecast.
+##
+## This data drives the game's main risk decision but used to be reachable only from
+## a debug window, leaving the HUD bulbs as the sole (unlabelled) signal.
+func _build_status_night_risk_text() -> String:
+	if GuestManager == null or not GuestManager.has_method("get_liminal_forecast_data"):
+		return "[b]NIGHT RISK[/b]\n\n[color=#7d2f24]Guest telemetry unavailable.[/color]"
+	var payload_any = GuestManager.call("get_liminal_forecast_data")
+	if not (payload_any is Dictionary) or not bool((payload_any as Dictionary).get("ok", false)):
+		return "[b]NIGHT RISK[/b]\n\n[color=#7d2f24]Forecast unavailable.[/color]"
+	var payload: Dictionary = payload_any
+
+	var totals_any = payload.get("totals", {})
+	var totals: Dictionary = totals_any if totals_any is Dictionary else {}
+	var safe_count := int(payload.get("safe_count", 3))
+
+	var text := "[b]OVERNIGHT ANOMALY FORECAST[/b]\n"
+	text += "Guests in camp: %d  |  Safe count per archetype: %d\n" % [
+		int(totals.get("guests", 0)), safe_count]
+	text += "Expected spawns tonight: [b]%.2f[/b]  |  Guaranteed: [b]%d[/b]\n\n" % [
+		float(totals.get("expected_spawns", 0.0)), int(totals.get("guaranteed_spawns", 0))]
+
+	text += "[b]Pressure by archetype[/b]\n"
+	var entries_any = payload.get("archetypes", [])
+	var entries: Array = entries_any if entries_any is Array else []
+	if entries.is_empty():
+		text += "(No archetype data.)\n"
+	for entry_any in entries:
+		if not (entry_any is Dictionary):
+			continue
+		var entry: Dictionary = entry_any
+		var label := str(entry.get("label", "?"))
+		var count := int(entry.get("count", 0))
+		var guaranteed := int(entry.get("guaranteed_spawns", 0))
+		var tier := str(entry.get("chance_tier", "none"))
+		var pct := int(round(float(entry.get("chance_probability", 0.0)) * 100.0))
+
+		var verdict := ""
+		var colour := "#3f6f34"
+		if guaranteed > 0:
+			verdict = "GUARANTEED x%d" % guaranteed
+			colour = "#7d2f24"
+		elif tier == "none" or tier.is_empty():
+			verdict = "safe"
+		else:
+			verdict = "%s ~%d%%" % [tier.to_upper(), pct]
+			colour = "#7d6220" if pct < 40 else "#7d2f24"
+
+		text += "  %-12s %2d in camp   [color=%s]%s[/color]\n" % [label, count, colour, verdict]
+
+		var thresholds_any = entry.get("next_thresholds", {})
+		if thresholds_any is Dictionary:
+			var thresholds: Dictionary = thresholds_any
+			var next_at := 0
+			var next_name := ""
+			for key in ["small_at", "medium_at", "large_at", "guaranteed_at"]:
+				var at := int(thresholds.get(key, 0))
+				if at > count:
+					next_at = at
+					next_name = str(key).replace("_at", "").to_upper()
+					break
+			if next_at > 0:
+				text += "               next tier %s at %d (+%d more)\n" % [next_name, next_at, next_at - count]
+
+	text += "\n[i]Accepting more guests of one archetype raises that archetype's odds.\n"
+	text += "A wide mixed camp is safer than a deep single-archetype camp.[/i]"
+	return text
 
 
 func _build_status_electricity_text(snapshot: Dictionary) -> String:

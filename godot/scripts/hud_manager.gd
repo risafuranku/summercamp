@@ -1,9 +1,52 @@
 extends Node
 ## Bottom skeuomorphic HUD bar inspired by vintage brass/wood instrument panels.
-## Module order: CASH (left) | CLOCK (center) | HEALTH (right)
+##
+## Module order:
+##   CASH + MAIL | CLOCK + DAY/PHASE | CONDITIONS (weather + beds) | HEALTH + NIGHT RISK
+##
+## Every meter carries a caption. An unlabelled row of bulbs is not information --
+## the NIGHT RISK meter in particular encodes the game's central risk/reward trade
+## (see DESIGN.md) and previously shipped with no legend at all.
+##
+## A status strip sits directly above the bar for transient feedback (build rejected,
+## booking accepted, phase change). See `push_status()`.
 
 const HUD_LAYER_INDEX := 65
 const HINT_LAYER_INDEX := 70
+
+const BAR_HEIGHT := 132.0
+
+# Status strip kinds.
+const STATUS_INFO := 0
+const STATUS_GOOD := 1
+const STATUS_WARN := 2
+const STATUS_DENY := 3
+
+const STATUS_HOLD_SEC := 3.2
+const STATUS_FADE_SEC := 0.7
+
+# Time phases, mirroring main.gd / TimeSystem.
+const PHASE_DAY := 0
+const PHASE_EVENING := 1
+const PHASE_NIGHT := 2
+
+const PHASE_LABELS := ["DAY", "EVENING", "NIGHT"]
+
+const WEATHER_LABELS := [
+	"CLEAR", "WINDY", "FOG", "LIGHT RAIN", "RAIN", "STORM", "ANOMALY"
+]
+
+## NIGHT RISK legend. Index matches the HUD level derived from expected spawns
+## (`GuestManager.LIMINAL_HUD_EXPECTED_THRESHOLDS`).
+const RISK_LEVEL_LABELS := ["CLEAR", "LOW", "RAISED", "HIGH", "CRITICAL"]
+
+const RISK_TIER_LABELS := {
+	"none": "clear",
+	"tiny": "tiny",
+	"small": "small",
+	"medium": "medium",
+	"large": "large",
+}
 
 const COL_WOOD_A := Color(0.30, 0.18, 0.09, 0.98)
 const COL_WOOD_B := Color(0.24, 0.14, 0.07, 0.98)
@@ -336,6 +379,143 @@ class BulbMeterControl:
 			_target_intensities[i] = 1.0 if is_lit else 0.0
 
 
+class WeatherGlyphControl:
+	extends Control
+
+	## Hand-drawn weather pictogram. Drawn rather than textured so it matches the
+	## etched-instrument register of the rest of the bar and scales cleanly.
+
+	var _state: int = 0
+	var _anim_phase: float = 0.0
+
+	func set_weather_state(value: int) -> void:
+		var safe := clampi(value, 0, 6)
+		if safe == _state:
+			return
+		_state = safe
+		set_process(_state != 0)
+		queue_redraw()
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			queue_redraw()
+
+	func _process(delta: float) -> void:
+		_anim_phase = fmod(_anim_phase + delta, TAU)
+		queue_redraw()
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r: float = minf(size.x, size.y) * 0.40
+		var ink := Color(0.14, 0.09, 0.05, 1.0)
+		var accent := Color(0.30, 0.22, 0.13, 1.0)
+
+		match _state:
+			0:  # CLEAR - sun
+				draw_arc(c, r * 0.52, 0.0, TAU, 28, ink, 2.0, true)
+				for i in range(8):
+					var a := (float(i) / 8.0) * TAU + (_anim_phase * 0.12)
+					var dir := Vector2(cos(a), sin(a))
+					draw_line(c + dir * r * 0.72, c + dir * r * 0.98, ink, 1.6, false)
+			1:  # WINDY - streaks
+				for i in range(3):
+					var y := c.y + (float(i) - 1.0) * r * 0.46
+					var wobble := sin(_anim_phase * 1.6 + float(i)) * r * 0.10
+					draw_line(Vector2(c.x - r, y), Vector2(c.x + r * 0.55 + wobble, y), ink, 1.8, false)
+					draw_arc(Vector2(c.x + r * 0.55 + wobble, y), r * 0.22, -PI * 0.5, PI * 0.85, 14, ink, 1.8, true)
+			2:  # FOG - stacked bands
+				for i in range(4):
+					var y2 := c.y + (float(i) - 1.5) * r * 0.40
+					var off := sin(_anim_phase * 0.8 + float(i) * 0.9) * r * 0.16
+					draw_line(Vector2(c.x - r + off, y2), Vector2(c.x + r + off, y2), accent, 2.4, false)
+			_:  # rain family - cloud plus drops
+				_draw_cloud(c + Vector2(0.0, -r * 0.30), r, ink)
+				var drop_count := 2
+				if _state == 4:
+					drop_count = 3
+				elif _state >= 5:
+					drop_count = 4
+				for i in range(drop_count):
+					var dx := c.x + (float(i) - (float(drop_count) - 1.0) * 0.5) * r * 0.44
+					var fall := fmod(_anim_phase * 0.9 + float(i) * 0.6, 1.0)
+					var y0 := c.y + r * 0.26 + fall * r * 0.44
+					draw_line(Vector2(dx, y0), Vector2(dx - r * 0.07, y0 + r * 0.26), accent, 1.8, false)
+				if _state >= 5:
+					var bolt := PackedVector2Array([
+						c + Vector2(r * 0.10, r * 0.16),
+						c + Vector2(-r * 0.16, r * 0.60),
+						c + Vector2(r * 0.02, r * 0.58),
+						c + Vector2(-r * 0.10, r * 0.98),
+						c + Vector2(r * 0.30, r * 0.46),
+						c + Vector2(r * 0.10, r * 0.48),
+					])
+					var flash: float = 0.55 + 0.45 * absf(sin(_anim_phase * 2.4))
+					draw_polygon(bolt, PackedColorArray([Color(0.86, 0.66, 0.18, flash)]))
+				if _state == 6:
+					draw_arc(c, r * 1.02, 0.0, TAU, 30, Color(0.55, 0.10, 0.10, 0.75), 2.0, true)
+
+	func _draw_cloud(center: Vector2, r: float, ink: Color) -> void:
+		draw_circle(center + Vector2(-r * 0.34, 0.0), r * 0.34, ink)
+		draw_circle(center + Vector2(r * 0.30, r * 0.04), r * 0.30, ink)
+		draw_circle(center + Vector2(-r * 0.02, -r * 0.20), r * 0.40, ink)
+		draw_rect(Rect2(center.x - r * 0.36, center.y - r * 0.02, r * 0.70, r * 0.34), ink, true)
+
+
+class OccupancyBarControl:
+	extends Control
+
+	## Bed occupancy as a segmented brass slide gauge. Reads at a glance whether
+	## there is room to accept the booking currently open in CampMail.
+
+	var _occupied: int = 0
+	var _capacity: int = 0
+
+	func set_metrics(occupied: int, capacity: int) -> void:
+		var o := maxi(0, occupied)
+		var c := maxi(0, capacity)
+		if o == _occupied and c == _capacity:
+			return
+		_occupied = o
+		_capacity = c
+		queue_redraw()
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			queue_redraw()
+
+	func _draw() -> void:
+		var track := Rect2(0.0, size.y * 0.20, size.x, size.y * 0.60)
+		draw_rect(track, Color(0.16, 0.11, 0.07, 1.0), true)
+		draw_rect(track, Color(0.44, 0.33, 0.20, 1.0), false, 1.5)
+
+		if _capacity <= 0:
+			return
+
+		var seg_count: int = mini(_capacity, 24)
+		var gap := 2.0
+		var seg_w: float = maxf(2.0, (track.size.x - gap * float(seg_count + 1)) / float(seg_count))
+		# Occupied segments are proportional when capacity exceeds the segment budget.
+		var filled: int = int(round((float(_occupied) / float(_capacity)) * float(seg_count)))
+		if _occupied > 0:
+			filled = maxi(1, filled)
+		for i in range(seg_count):
+			var x := track.position.x + gap + float(i) * (seg_w + gap)
+			var seg := Rect2(x, track.position.y + 3.0, seg_w, track.size.y - 6.0)
+			var col := Color(0.24, 0.20, 0.14, 1.0)
+			if i < filled:
+				var ratio := float(i + 1) / float(seg_count)
+				col = Color(0.36, 0.62, 0.30, 1.0)
+				if ratio > 0.85:
+					col = Color(0.78, 0.24, 0.16, 1.0)
+				elif ratio > 0.60:
+					col = Color(0.88, 0.70, 0.20, 1.0)
+			draw_rect(seg, col, true)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STATE
+# ═══════════════════════════════════════════════════════════════════════════════
+
 var _hud_layer: CanvasLayer
 var _hud_root: Control
 var _hint_layer: CanvasLayer
@@ -345,8 +525,24 @@ var _clock_widget: AnalogClockControl
 var _health_gauge: HealthGaugeControl
 var _forecast_lights: BulbMeterControl
 var _email_lights: BulbMeterControl
+var _weather_glyph: WeatherGlyphControl
+var _occupancy_bar: OccupancyBarControl
+
 var _cash_value_label: Label
 var _cash_glow_overlay: ColorRect
+var _day_label: Label
+var _phase_label: Label
+var _digital_time_label: Label
+var _weather_label: Label
+var _occupancy_label: Label
+var _risk_level_label: Label
+var _risk_detail_label: Label
+var _mail_caption_label: Label
+
+var _status_panel: PanelContainer
+var _status_label: Label
+var _status_timer: float = 0.0
+var _status_text: String = ""
 
 var _health_ratio: float = 1.0
 var _forecast_count: int = 2
@@ -359,8 +555,18 @@ var _cash_glow_duration: float = 1.0
 var _cash_poll_accum: float = 0.0
 var _cash_poll_interval_sec: float = 10.0
 
+var _current_day: int = 1
+var _current_phase: int = PHASE_DAY
+var _current_weather: int = 0
+var _bed_capacity: int = 0
+var _bed_occupied: int = 0
+var _bed_poll_accum: float = 0.0
+var _bed_poll_interval_sec: float = 2.0
 
-# -- Public setup API --
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PUBLIC SETUP API  (called from main.gd)
+# ═══════════════════════════════════════════════════════════════════════════════
 
 func setup_interaction_hint() -> void:
 	if _hint_layer != null:
@@ -392,7 +598,6 @@ func setup_money_hud() -> void:
 
 
 func setup_weather_hud() -> void:
-	# Kept for main.gd compatibility.
 	_ensure_world_hud()
 
 
@@ -400,20 +605,29 @@ func setup_time_hud() -> void:
 	_ensure_world_hud()
 
 
-# -- Public update API --
+# ═══════════════════════════════════════════════════════════════════════════════
+# PUBLIC UPDATE API
+# ═══════════════════════════════════════════════════════════════════════════════
 
-func update_weather(_state: int) -> void:
-	# No standalone weather widget in this layout.
-	pass
-
-
-func update_time(time_str: String, _day: int) -> void:
+func update_weather(state: int) -> void:
 	_ensure_world_hud()
-	if _clock_widget == null:
-		return
+	_current_weather = clampi(state, 0, WEATHER_LABELS.size() - 1)
+	if _weather_glyph != null:
+		_weather_glyph.set_weather_state(_current_weather)
+	if _weather_label != null:
+		_weather_label.text = str(WEATHER_LABELS[_current_weather])
+
+
+func update_time(time_str: String, day: int) -> void:
+	_ensure_world_hud()
 	var minute := _parse_time_to_minutes(time_str)
-	_clock_widget.set_minute_of_day(minute)
-	_try_trigger_clock_phase(minute)
+	if _clock_widget != null:
+		_clock_widget.set_minute_of_day(minute)
+		_try_trigger_clock_phase(minute)
+	if _digital_time_label != null:
+		_digital_time_label.text = time_str
+	_set_day(day)
+	_set_phase(_phase_for_minute(minute))
 
 
 func on_money_changed(new_amount: int) -> void:
@@ -439,18 +653,47 @@ func set_health_ratio(value: float) -> void:
 		_health_gauge.set_value(_health_ratio)
 
 
+## Legacy entry point: bulb count only. Prefer `set_liminal_forecast()`.
 func set_liminal_forecast_count(value: int) -> void:
-	_forecast_count = maxi(0, value)
+	_forecast_count = clampi(value, 0, 4)
 	if _forecast_lights != null:
 		_forecast_lights.set_active_count(_forecast_count)
+	if _risk_level_label != null:
+		_risk_level_label.text = str(RISK_LEVEL_LABELS[_forecast_count])
+		_risk_level_label.add_theme_color_override("font_color", _risk_level_color(_forecast_count))
 
 
-func _process(delta: float) -> void:
-	_cash_poll_accum += delta
-	if _cash_poll_accum >= _cash_poll_interval_sec:
-		_cash_poll_accum = 0.0
-		_poll_money_from_core()
-	_update_cash_glow(delta)
+## Full forecast payload from `GuestManager.get_liminal_forecast_data()`.
+## Drives the bulb meter, the level caption and the "which archetype" detail line.
+func set_liminal_forecast(payload: Dictionary) -> void:
+	_ensure_world_hud()
+	set_liminal_forecast_count(int(payload.get("hud_level", 0)))
+	if _risk_detail_label == null:
+		return
+	_risk_detail_label.text = _compose_risk_detail(payload)
+
+
+## Transient feedback line above the bar. `kind` is one of the STATUS_* constants.
+func push_status(text: String, kind: int = STATUS_INFO) -> void:
+	_ensure_world_hud()
+	if _status_label == null or _status_panel == null:
+		return
+	_status_text = text
+	_status_label.text = text
+	_status_label.add_theme_color_override("font_color", _status_color(kind))
+	_status_panel.modulate.a = 1.0
+	_status_panel.visible = not text.is_empty()
+	_status_timer = STATUS_HOLD_SEC + STATUS_FADE_SEC if not text.is_empty() else 0.0
+
+
+func set_bed_metrics(occupied: int, capacity: int) -> void:
+	_ensure_world_hud()
+	_bed_occupied = maxi(0, occupied)
+	_bed_capacity = maxi(0, capacity)
+	if _occupancy_bar != null:
+		_occupancy_bar.set_metrics(_bed_occupied, _bed_capacity)
+	if _occupancy_label != null:
+		_occupancy_label.text = "BEDS %d/%d" % [_bed_occupied, _bed_capacity]
 
 
 func cycle_item_slot(_step: int) -> void:
@@ -463,7 +706,22 @@ func set_selected_slot(_index: int) -> void:
 	pass
 
 
-# -- Private layout --
+func _process(delta: float) -> void:
+	_cash_poll_accum += delta
+	if _cash_poll_accum >= _cash_poll_interval_sec:
+		_cash_poll_accum = 0.0
+		_poll_money_from_core()
+	_bed_poll_accum += delta
+	if _bed_poll_accum >= _bed_poll_interval_sec:
+		_bed_poll_accum = 0.0
+		_poll_bed_metrics()
+	_update_cash_glow(delta)
+	_update_status_strip(delta)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LAYOUT
+# ═══════════════════════════════════════════════════════════════════════════════
 
 func _ensure_world_hud() -> void:
 	if _hud_layer != null:
@@ -480,13 +738,15 @@ func _ensure_world_hud() -> void:
 	_hud_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_hud_layer.add_child(_hud_root)
 
+	_build_status_strip(_hud_root)
+
 	var bar := WoodBarBackdrop.new()
 	bar.name = "BottomBar"
 	bar.anchor_left = 0.0
 	bar.anchor_right = 1.0
 	bar.anchor_top = 1.0
 	bar.anchor_bottom = 1.0
-	bar.offset_top = -126.0
+	bar.offset_top = -BAR_HEIGHT
 	bar.offset_bottom = 0.0
 	_hud_root.add_child(bar)
 
@@ -504,28 +764,65 @@ func _ensure_world_hud() -> void:
 	margin.add_child(modules)
 
 	_build_cash_cluster(modules)
-	_build_clock_module(modules)
+	_build_clock_cluster(modules)
+	_build_conditions_cluster(modules)
 	_build_health_cluster(modules)
 
 	_set_control_mouse_passthrough(_hud_root)
 	_ensure_email_binding()
 	_on_unread_count_changed(_get_unread_count())
-	if _forecast_lights != null:
-		_forecast_lights.set_active_count(_forecast_count)
+	set_liminal_forecast_count(_forecast_count)
 	_poll_money_from_core()
+	_poll_bed_metrics()
 	set_process(true)
+
+
+func _build_status_strip(parent: Control) -> void:
+	var panel := PanelContainer.new()
+	panel.name = "StatusStrip"
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_top = 1.0
+	panel.anchor_bottom = 1.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.offset_top = -(BAR_HEIGHT + 40.0)
+	panel.offset_bottom = -(BAR_HEIGHT + 10.0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.visible = false
+	panel.add_theme_stylebox_override("panel", _status_panel_style())
+	parent.add_child(panel)
+	_status_panel = panel
+
+	var inner := MarginContainer.new()
+	inner.add_theme_constant_override("margin_left", 14)
+	inner.add_theme_constant_override("margin_right", 14)
+	inner.add_theme_constant_override("margin_top", 3)
+	inner.add_theme_constant_override("margin_bottom", 3)
+	panel.add_child(inner)
+
+	var label := Label.new()
+	label.text = ""
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_color_override("font_color", COL_TEXT)
+	label.add_theme_color_override("font_shadow_color", Color(0.02, 0.01, 0.01, 0.92))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	inner.add_child(label)
+	_status_label = label
 
 
 func _build_cash_cluster(parent: BoxContainer) -> void:
 	var cluster := VBoxContainer.new()
 	cluster.name = "CashCluster"
-	cluster.custom_minimum_size = Vector2(176.0, 104.0)
-	cluster.add_theme_constant_override("separation", 5)
+	cluster.custom_minimum_size = Vector2(178.0, 110.0)
+	cluster.add_theme_constant_override("separation", 3)
 	parent.add_child(cluster)
 
 	var panel := PanelContainer.new()
 	panel.name = "CashModule"
-	panel.custom_minimum_size = Vector2(176.0, 76.0)
+	panel.custom_minimum_size = Vector2(178.0, 72.0)
 	panel.add_theme_stylebox_override("panel", _brass_panel_style(10))
 	cluster.add_child(panel)
 	_decorate_module_panel(panel, 15.0)
@@ -533,26 +830,18 @@ func _build_cash_cluster(parent: BoxContainer) -> void:
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 10)
 	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_bottom", 6)
+	margin.add_theme_constant_override("margin_top", 5)
+	margin.add_theme_constant_override("margin_bottom", 5)
 	panel.add_child(margin)
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
 	margin.add_child(box)
 
-	var title := Label.new()
-	title.text = "CASH"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 16)
-	title.add_theme_color_override("font_color", Color(0.11, 0.07, 0.04, 1.0))
-	title.add_theme_color_override("font_shadow_color", Color(0.95, 0.84, 0.58, 0.22))
-	title.add_theme_constant_override("shadow_offset_x", 1)
-	title.add_theme_constant_override("shadow_offset_y", 1)
-	box.add_child(title)
+	box.add_child(_make_module_caption("CASH"))
 
 	var display := PanelContainer.new()
-	display.custom_minimum_size = Vector2(0.0, 42.0)
+	display.custom_minimum_size = Vector2(0.0, 40.0)
 	display.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	display.add_theme_stylebox_override("panel", _digital_display_style())
 	box.add_child(display)
@@ -570,7 +859,7 @@ func _build_cash_cluster(parent: BoxContainer) -> void:
 	value.set_anchors_preset(Control.PRESET_FULL_RECT)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	value.add_theme_font_size_override("font_size", 32)
+	value.add_theme_font_size_override("font_size", 30)
 	value.add_theme_color_override("font_color", Color(0.97, 0.67, 0.14, 1.0))
 	value.add_theme_color_override("font_shadow_color", Color(0.18, 0.08, 0.02, 0.98))
 	value.add_theme_constant_override("shadow_offset_x", 2)
@@ -580,7 +869,7 @@ func _build_cash_cluster(parent: BoxContainer) -> void:
 
 	var bulbs := BulbMeterControl.new()
 	bulbs.name = "EmailBulbs"
-	bulbs.custom_minimum_size = Vector2(176.0, 20.0)
+	bulbs.custom_minimum_size = Vector2(178.0, 16.0)
 	bulbs.configure(3, [
 		Color(0.72, 0.12, 0.12, 1.0),
 		Color(0.95, 0.78, 0.20, 1.0),
@@ -589,39 +878,68 @@ func _build_cash_cluster(parent: BoxContainer) -> void:
 	cluster.add_child(bulbs)
 	_email_lights = bulbs
 
-
-func _build_clock_module(parent: BoxContainer) -> void:
-	var panel := PanelContainer.new()
-	panel.name = "ClockModule"
-	panel.custom_minimum_size = Vector2(196.0, 104.0)
-	panel.add_theme_stylebox_override("panel", _brass_panel_style(18))
-	parent.add_child(panel)
-	_decorate_module_panel(panel, 18.0)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_bottom", 8)
-	panel.add_child(margin)
-
-	var clock := AnalogClockControl.new()
-	clock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	clock.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	margin.add_child(clock)
-	_clock_widget = clock
+	_mail_caption_label = _make_meter_caption("UNREAD MAIL")
+	cluster.add_child(_mail_caption_label)
 
 
-func _build_health_cluster(parent: BoxContainer) -> void:
+func _build_clock_cluster(parent: BoxContainer) -> void:
 	var cluster := VBoxContainer.new()
-	cluster.name = "HealthCluster"
-	cluster.custom_minimum_size = Vector2(226.0, 104.0)
-	cluster.add_theme_constant_override("separation", 5)
+	cluster.name = "ClockCluster"
+	cluster.custom_minimum_size = Vector2(172.0, 110.0)
+	cluster.add_theme_constant_override("separation", 3)
 	parent.add_child(cluster)
 
 	var panel := PanelContainer.new()
-	panel.name = "HealthModule"
-	panel.custom_minimum_size = Vector2(226.0, 76.0)
+	panel.name = "ClockModule"
+	panel.custom_minimum_size = Vector2(172.0, 72.0)
+	panel.add_theme_stylebox_override("panel", _brass_panel_style(14))
+	cluster.add_child(panel)
+	_decorate_module_panel(panel, 15.0)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_bottom", 4)
+	panel.add_child(margin)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	margin.add_child(row)
+
+	var clock := AnalogClockControl.new()
+	clock.custom_minimum_size = Vector2(62.0, 62.0)
+	row.add_child(clock)
+	_clock_widget = clock
+
+	var readout := VBoxContainer.new()
+	readout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	readout.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	readout.add_theme_constant_override("separation", 1)
+	row.add_child(readout)
+
+	_day_label = _make_readout_label("DAY 1", 19, Color(0.13, 0.08, 0.05, 1.0))
+	readout.add_child(_day_label)
+
+	_digital_time_label = _make_readout_label("09:00", 22, Color(0.10, 0.06, 0.03, 1.0))
+	readout.add_child(_digital_time_label)
+
+	_phase_label = _make_readout_label("DAY", 15, Color(0.32, 0.24, 0.13, 1.0))
+	readout.add_child(_phase_label)
+
+	cluster.add_child(_make_meter_caption("CAMP CLOCK"))
+
+
+func _build_conditions_cluster(parent: BoxContainer) -> void:
+	var cluster := VBoxContainer.new()
+	cluster.name = "ConditionsCluster"
+	cluster.custom_minimum_size = Vector2(186.0, 110.0)
+	cluster.add_theme_constant_override("separation", 3)
+	parent.add_child(cluster)
+
+	var panel := PanelContainer.new()
+	panel.name = "ConditionsModule"
+	panel.custom_minimum_size = Vector2(186.0, 72.0)
 	panel.add_theme_stylebox_override("panel", _brass_panel_style(10))
 	cluster.add_child(panel)
 	_decorate_module_panel(panel, 15.0)
@@ -629,8 +947,60 @@ func _build_health_cluster(parent: BoxContainer) -> void:
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 9)
 	margin.add_theme_constant_override("margin_right", 9)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_bottom", 4)
+	margin.add_theme_constant_override("margin_top", 5)
+	margin.add_theme_constant_override("margin_bottom", 5)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	margin.add_child(box)
+
+	var weather_row := HBoxContainer.new()
+	weather_row.add_theme_constant_override("separation", 7)
+	box.add_child(weather_row)
+
+	var glyph := WeatherGlyphControl.new()
+	glyph.custom_minimum_size = Vector2(34.0, 34.0)
+	weather_row.add_child(glyph)
+	_weather_glyph = glyph
+
+	_weather_label = _make_readout_label("CLEAR", 17, Color(0.12, 0.07, 0.04, 1.0))
+	_weather_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_weather_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_weather_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	weather_row.add_child(_weather_label)
+
+	var bar := OccupancyBarControl.new()
+	bar.custom_minimum_size = Vector2(0.0, 14.0)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(bar)
+	_occupancy_bar = bar
+
+	_occupancy_label = _make_readout_label("BEDS 0/0", 14, Color(0.14, 0.09, 0.05, 1.0))
+	box.add_child(_occupancy_label)
+
+	cluster.add_child(_make_meter_caption("CONDITIONS"))
+
+
+func _build_health_cluster(parent: BoxContainer) -> void:
+	var cluster := VBoxContainer.new()
+	cluster.name = "HealthCluster"
+	cluster.custom_minimum_size = Vector2(232.0, 110.0)
+	cluster.add_theme_constant_override("separation", 3)
+	parent.add_child(cluster)
+
+	var panel := PanelContainer.new()
+	panel.name = "HealthModule"
+	panel.custom_minimum_size = Vector2(232.0, 72.0)
+	panel.add_theme_stylebox_override("panel", _brass_panel_style(10))
+	cluster.add_child(panel)
+	_decorate_module_panel(panel, 15.0)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 9)
+	margin.add_theme_constant_override("margin_right", 9)
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_bottom", 3)
 	panel.add_child(margin)
 
 	var box := VBoxContainer.new()
@@ -644,31 +1014,139 @@ func _build_health_cluster(parent: BoxContainer) -> void:
 	_health_gauge = gauge
 	_health_gauge.set_value(_health_ratio)
 
-	var health_label := Label.new()
-	health_label.text = "HEALTH"
-	health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	health_label.add_theme_font_size_override("font_size", 16)
-	health_label.add_theme_color_override("font_color", Color(0.11, 0.08, 0.05, 1.0))
-	health_label.add_theme_color_override("font_shadow_color", Color(0.83, 0.71, 0.47, 0.16))
-	health_label.add_theme_constant_override("shadow_offset_x", 1)
-	health_label.add_theme_constant_override("shadow_offset_y", 1)
-	box.add_child(health_label)
+	box.add_child(_make_module_caption("HEALTH"))
+
+	var risk_row := HBoxContainer.new()
+	risk_row.add_theme_constant_override("separation", 6)
+	cluster.add_child(risk_row)
 
 	var bulbs := BulbMeterControl.new()
 	bulbs.name = "ForecastBulbs"
-	bulbs.custom_minimum_size = Vector2(226.0, 20.0)
+	bulbs.custom_minimum_size = Vector2(118.0, 16.0)
 	bulbs.configure(4, [
 		Color(0.32, 0.74, 0.34, 1.0),
 		Color(0.95, 0.80, 0.24, 1.0),
 		Color(0.83, 0.18, 0.16, 1.0),
 		Color(0.48, 0.07, 0.07, 1.0)
 	], false, [3])
-	cluster.add_child(bulbs)
+	risk_row.add_child(bulbs)
 	_forecast_lights = bulbs
-	_forecast_lights.set_active_count(_forecast_count)
+
+	_risk_level_label = _make_readout_label("RAISED", 14, Color(0.90, 0.80, 0.55, 1.0))
+	_risk_level_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_risk_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	risk_row.add_child(_risk_level_label)
+
+	cluster.add_child(_make_meter_caption("NIGHT RISK"))
+
+	_risk_detail_label = _make_meter_caption("")
+	_risk_detail_label.add_theme_color_override("font_color", Color(0.83, 0.72, 0.50, 0.92))
+	cluster.add_child(_risk_detail_label)
 
 
-# -- Runtime bindings --
+# ═══════════════════════════════════════════════════════════════════════════════
+# LABEL / STYLE HELPERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+## Engraved caption sitting inside a brass module (dark on brass).
+func _make_module_caption(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", Color(0.11, 0.07, 0.04, 1.0))
+	label.add_theme_color_override("font_shadow_color", Color(0.95, 0.84, 0.58, 0.22))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	return label
+
+
+## Small caption under a meter, painted on the wood itself (light on dark).
+func _make_meter_caption(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 11)
+	label.add_theme_color_override("font_color", Color(0.74, 0.62, 0.42, 0.94))
+	label.add_theme_color_override("font_shadow_color", Color(0.03, 0.02, 0.01, 0.85))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	return label
+
+
+func _make_readout_label(text: String, font_size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_shadow_color", Color(0.92, 0.81, 0.55, 0.18))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	return label
+
+
+func _brass_panel_style(corner: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = COL_BRASS_MID
+	style.border_color = COL_BRASS_DARK
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(corner)
+	style.shadow_color = Color(0.02, 0.01, 0.01, 0.45)
+	style.shadow_size = 3
+	style.content_margin_left = 0.0
+	style.content_margin_right = 0.0
+	return style
+
+
+func _digital_display_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.09, 0.06, 0.03, 1.0)
+	style.border_color = Color(0.30, 0.22, 0.12, 1.0)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(3)
+	return style
+
+
+func _status_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.07, 0.04, 0.90)
+	style.border_color = COL_BRASS_DARK
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(0)
+	return style
+
+
+## Brass screw heads in the module corners. Purely decorative.
+func _decorate_module_panel(panel: Control, inset: float) -> void:
+	for i in range(4):
+		var screw := ScrewHead.new()
+		screw.custom_minimum_size = Vector2(7.0, 7.0)
+		screw.size = Vector2(7.0, 7.0)
+		screw.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		screw.anchor_left = 0.0 if i % 2 == 0 else 1.0
+		screw.anchor_right = screw.anchor_left
+		screw.anchor_top = 0.0 if i < 2 else 1.0
+		screw.anchor_bottom = screw.anchor_top
+		var dx: float = inset * 0.32 if i % 2 == 0 else -inset * 0.32 - 7.0
+		var dy: float = 4.0 if i < 2 else -11.0
+		screw.offset_left = dx
+		screw.offset_top = dy
+		screw.offset_right = dx + 7.0
+		screw.offset_bottom = dy + 7.0
+		panel.add_child(screw)
+
+
+func _set_control_mouse_passthrough(node: Node) -> void:
+	if node is Control:
+		(node as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child in node.get_children():
+		_set_control_mouse_passthrough(child)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RUNTIME BINDINGS + DERIVED VALUES
+# ═══════════════════════════════════════════════════════════════════════════════
 
 func _ensure_email_binding() -> void:
 	if _mail_bound:
@@ -683,19 +1161,146 @@ func _ensure_email_binding() -> void:
 
 
 func _on_unread_count_changed(count: int) -> void:
-	if _email_lights == null:
-		return
-	_email_lights.set_active_count(maxi(0, count))
+	var safe := maxi(0, count)
+	if _email_lights != null:
+		_email_lights.set_active_count(safe)
+	if _mail_caption_label != null:
+		_mail_caption_label.text = "UNREAD MAIL" if safe == 0 else "UNREAD MAIL %d" % safe
 
 
-func _try_trigger_clock_phase(minute: int) -> void:
-	if _clock_widget == null:
+func _get_unread_count() -> int:
+	if EmailManager == null:
+		return 0
+	if EmailManager.has_method("get_unread_count"):
+		return int(EmailManager.call("get_unread_count"))
+	return 0
+
+
+func _set_day(day: int) -> void:
+	var safe := maxi(1, day)
+	if safe == _current_day and _day_label != null and not _day_label.text.is_empty():
 		return
-	if minute == 390 and _last_clock_marker_minute != 390:
-		_clock_widget.trigger_phase_pulse(Color(1.0, 0.83, 0.33, 1.0))
-	elif minute == 1200 and _last_clock_marker_minute != 1200:
-		_clock_widget.trigger_phase_pulse(Color(0.42, 0.58, 0.95, 1.0))
-	_last_clock_marker_minute = minute
+	_current_day = safe
+	if _day_label != null:
+		_day_label.text = "DAY %d" % _current_day
+
+
+func _set_phase(phase: int) -> void:
+	var safe := clampi(phase, 0, PHASE_LABELS.size() - 1)
+	if safe == _current_phase and _phase_label != null and not _phase_label.text.is_empty():
+		return
+	_current_phase = safe
+	if _phase_label == null:
+		return
+	_phase_label.text = str(PHASE_LABELS[_current_phase])
+	# Night is the phase the player must read instantly -- the builder is locked and
+	# whatever was rolled at nightfall is already out there.
+	var col := Color(0.32, 0.24, 0.13, 1.0)
+	if _current_phase == PHASE_EVENING:
+		col = Color(0.52, 0.31, 0.10, 1.0)
+	elif _current_phase == PHASE_NIGHT:
+		col = Color(0.60, 0.13, 0.11, 1.0)
+	_phase_label.add_theme_color_override("font_color", col)
+
+
+## Mirrors TimeSystem thresholds: day 06:30, evening 18:00, night 20:00.
+func _phase_for_minute(minute: int) -> int:
+	if minute >= 20 * 60 or minute < 390:
+		return PHASE_NIGHT
+	if minute >= 18 * 60:
+		return PHASE_EVENING
+	return PHASE_DAY
+
+
+func _risk_level_color(level: int) -> Color:
+	match clampi(level, 0, 4):
+		0:
+			return Color(0.58, 0.80, 0.55, 0.95)
+		1:
+			return Color(0.86, 0.83, 0.55, 0.95)
+		2:
+			return Color(0.93, 0.72, 0.32, 0.98)
+		3:
+			return Color(0.92, 0.42, 0.26, 1.0)
+		_:
+			return Color(0.96, 0.28, 0.24, 1.0)
+
+
+## One line naming the archetype closest to tipping, so the meter is actionable
+## rather than merely ominous.
+func _compose_risk_detail(payload: Dictionary) -> String:
+	var entries_any = payload.get("archetypes", [])
+	if not (entries_any is Array):
+		return ""
+	var entries: Array = entries_any
+
+	var worst: Dictionary = {}
+	var worst_score := -1.0
+	for entry_any in entries:
+		if not (entry_any is Dictionary):
+			continue
+		var entry: Dictionary = entry_any
+		var score := float(entry.get("expected_spawns", 0.0))
+		if int(entry.get("guaranteed_spawns", 0)) > 0:
+			score += 10.0
+		if score > worst_score:
+			worst_score = score
+			worst = entry
+
+	if worst.is_empty():
+		return ""
+
+	var label := str(worst.get("label", "?"))
+	var count := int(worst.get("count", 0))
+	var guaranteed := int(worst.get("guaranteed_spawns", 0))
+	if guaranteed > 0:
+		return "%s x%d - SPAWN GUARANTEED" % [label, count]
+
+	var tier := str(worst.get("chance_tier", "none"))
+	if tier == "none" or tier.is_empty():
+		var thresholds_any = worst.get("next_thresholds", {})
+		if thresholds_any is Dictionary:
+			var small_at := int((thresholds_any as Dictionary).get("small_at", 0))
+			if small_at > count:
+				return "safe - %s risk starts at %d" % [label, small_at]
+		return "all archetypes within safe count"
+
+	var pct := int(round(float(worst.get("chance_probability", 0.0)) * 100.0))
+	return "%s x%d - %s risk %d%%" % [label, count, str(RISK_TIER_LABELS.get(tier, tier)).to_upper(), pct]
+
+
+func _status_color(kind: int) -> Color:
+	match kind:
+		STATUS_GOOD:
+			return Color(0.55, 0.86, 0.52, 1.0)
+		STATUS_WARN:
+			return Color(0.96, 0.80, 0.36, 1.0)
+		STATUS_DENY:
+			return Color(0.96, 0.42, 0.34, 1.0)
+		_:
+			return COL_TEXT
+
+
+func _update_status_strip(delta: float) -> void:
+	if _status_panel == null or not _status_panel.visible:
+		return
+	_status_timer -= delta
+	if _status_timer <= 0.0:
+		_status_panel.visible = false
+		_status_panel.modulate.a = 1.0
+		return
+	if _status_timer < STATUS_FADE_SEC:
+		_status_panel.modulate.a = clampf(_status_timer / STATUS_FADE_SEC, 0.0, 1.0)
+
+
+func _poll_bed_metrics() -> void:
+	if GuestManager == null or not GuestManager.has_method("get_bed_metrics"):
+		return
+	var metrics_any = GuestManager.call("get_bed_metrics")
+	if not (metrics_any is Dictionary):
+		return
+	var metrics: Dictionary = metrics_any
+	set_bed_metrics(int(metrics.get("occupied", 0)), int(metrics.get("capacity", 0)))
 
 
 func _poll_money_from_core() -> void:
@@ -705,131 +1310,61 @@ func _poll_money_from_core() -> void:
 
 
 func _apply_money_amount(amount: int) -> void:
-	if not _cash_known:
-		_cash_known = true
-		_cash_amount = amount
-		_set_cash_label(amount)
-		return
-	if amount == _cash_amount:
-		return
-	if amount > _cash_amount:
-		_cash_glow_time = _cash_glow_duration
-	_cash_amount = amount
-	_set_cash_label(amount)
-
-
-func _set_cash_label(amount: int) -> void:
 	if _cash_value_label == null:
 		return
+	if _cash_known and amount == _cash_amount:
+		return
+	var delta := amount - _cash_amount if _cash_known else 0
+	_cash_amount = amount
+	_cash_known = true
 	_cash_value_label.text = "$%s" % _format_money(amount)
+	if delta != 0:
+		_trigger_cash_glow(delta)
+
+
+func _trigger_cash_glow(delta: int) -> void:
+	if _cash_glow_overlay == null:
+		return
+	_cash_glow_duration = 0.85
+	_cash_glow_time = _cash_glow_duration
+	_cash_glow_overlay.color = Color(0.35, 1.0, 0.45, 0.0) if delta > 0 else Color(1.0, 0.32, 0.22, 0.0)
 
 
 func _update_cash_glow(delta: float) -> void:
-	if _cash_glow_time <= 0.0:
-		_apply_cash_glow_visual(0.0, 0.0, 0.0)
+	if _cash_glow_overlay == null or _cash_glow_time <= 0.0:
 		return
 	_cash_glow_time = maxf(0.0, _cash_glow_time - delta)
-	var life := _cash_glow_time / _cash_glow_duration
-	var progress := 1.0 - life
-	var pulse := sin(progress * PI)
-	var wobble := sin(progress * TAU * 2.4) * life * 0.45
-	var intensity := clampf((pulse * 0.88) + wobble, 0.0, 1.0)
-	_apply_cash_glow_visual(intensity, progress, life)
-	if _cash_glow_time <= 0.0:
-		_apply_cash_glow_visual(0.0, 0.0, 0.0)
-
-
-func _apply_cash_glow_visual(intensity: float, progress: float, life: float) -> void:
-	if _cash_glow_overlay != null:
-		_cash_glow_overlay.color = Color(1.0, 0.82, 0.25, 0.30 * intensity)
-	if _cash_value_label != null:
-		var base := Color(0.97, 0.67, 0.14, 1.0)
-		var bright := Color(1.0, 0.92, 0.47, 1.0)
-		_cash_value_label.add_theme_color_override("font_color", base.lerp(bright, intensity * 0.78))
-		_cash_value_label.pivot_offset = _cash_value_label.size * 0.5
-		var bump := 1.0 + (0.08 * sin(progress * PI * 2.0) * life)
-		_cash_value_label.scale = Vector2.ONE * bump
-
-
-# -- Helpers --
-
-func _brass_panel_style(corner_radius: int = 10) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.49, 0.37, 0.22, 0.97)
-	style.border_color = Color(0.69, 0.56, 0.33, 1.0)
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(corner_radius)
-	style.shadow_color = Color(0.05, 0.03, 0.02, 0.60)
-	style.shadow_size = 3
-	return style
-
-
-func _digital_display_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.07, 0.07, 0.96)
-	style.border_color = Color(0.33, 0.31, 0.28, 1.0)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(3)
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.68)
-	style.shadow_size = 2
-	return style
-
-
-func _decorate_module_panel(panel: PanelContainer, screw_size: float = 12.0) -> void:
-	if panel == null:
-		return
-	var highlight := ColorRect.new()
-	highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	highlight.anchor_left = 0.0
-	highlight.anchor_right = 1.0
-	highlight.anchor_top = 0.0
-	highlight.anchor_bottom = 0.0
-	highlight.offset_top = 1.0
-	highlight.offset_bottom = 18.0
-	highlight.color = Color(1.0, 0.95, 0.83, 0.12)
-	panel.add_child(highlight)
-	_add_screw(panel, 0.0, 0.0, screw_size)
-	_add_screw(panel, 1.0, 0.0, screw_size)
-	_add_screw(panel, 0.0, 1.0, screw_size)
-	_add_screw(panel, 1.0, 1.0, screw_size)
-
-
-func _add_screw(panel: PanelContainer, ax: float, ay: float, screw_size: float) -> void:
-	var screw := ScrewHead.new()
-	var half := maxf(4.0, screw_size * 0.5)
-	screw.custom_minimum_size = Vector2(screw_size, screw_size)
-	screw.anchor_left = ax
-	screw.anchor_right = ax
-	screw.anchor_top = ay
-	screw.anchor_bottom = ay
-	screw.offset_left = -half
-	screw.offset_right = half
-	screw.offset_top = -half
-	screw.offset_bottom = half
-	panel.add_child(screw)
-
-
-func _set_control_mouse_passthrough(node: Node) -> void:
-	if node is Control:
-		(node as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for child in node.get_children():
-		_set_control_mouse_passthrough(child)
-
-
-func _parse_time_to_minutes(time_str: String) -> int:
-	var parts := time_str.split(":")
-	if parts.size() < 2:
-		return 0
-	var hour := clampi(int(parts[0]), 0, 23)
-	var minute := clampi(int(parts[1]), 0, 59)
-	return (hour * 60) + minute
+	var t := _cash_glow_time / maxf(_cash_glow_duration, 0.0001)
+	_cash_glow_overlay.color.a = 0.30 * t * t
 
 
 func _format_money(amount: int) -> String:
-	return str(amount)
+	var negative := amount < 0
+	var digits := str(absi(amount))
+	var out := ""
+	var counter := 0
+	for i in range(digits.length() - 1, -1, -1):
+		out = digits[i] + out
+		counter += 1
+		if counter % 3 == 0 and i > 0:
+			out = "," + out
+	return ("-" + out) if negative else out
 
 
-func _get_unread_count() -> int:
-	if EmailManager == null or not EmailManager.has_method("get_unread_count"):
-		return 0
-	return int(EmailManager.get_unread_count())
+func _parse_time_to_minutes(time_str: String) -> int:
+	var parts := time_str.strip_edges().split(":")
+	if parts.size() < 2:
+		return 9 * 60
+	return (int(parts[0]) * 60) + int(parts[1])
+
+
+func _try_trigger_clock_phase(minute: int) -> void:
+	if _clock_widget == null:
+		return
+	if minute == 390 and _last_clock_marker_minute != 390:
+		_clock_widget.trigger_phase_pulse(Color(1.0, 0.83, 0.33, 1.0))
+		push_status("DAY MODE - builder unlocked", STATUS_GOOD)
+	elif minute == 1200 and _last_clock_marker_minute != 1200:
+		_clock_widget.trigger_phase_pulse(Color(0.42, 0.58, 0.95, 1.0))
+		push_status("NIGHT MODE - builder locked", STATUS_WARN)
+	_last_clock_marker_minute = minute
