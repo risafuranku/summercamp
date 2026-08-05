@@ -22,14 +22,10 @@ signal BuildRejected(building_type: String, pos: Vector2i, rot: int, reason: Str
 signal DemolishConfirmed(area: Rect2i, removed_count: int, fee_paid: int, refund_total: int)
 signal DemolishRejected(area: Rect2i, reason: String)
 
-signal open_builder_requested
-signal open_guestrack_requested
-
 signal day_advanced(day_index: int, income: int)
 signal day_tick(day_index: int)
 signal time_tick(hour: int, minute: int)
 signal night_tick(night_index: int)
-signal event_tick
 
 signal email_received(email: Dictionary)
 signal customer_booking_confirmed(email: Dictionary)
@@ -41,16 +37,8 @@ signal guest_review_posted(review: Dictionary)
 signal guest_payment_received(amount: int, guest_id: int)
 
 # Beeternet / install system
-signal file_downloaded(filename: String)   # Beeternet → desktop: soubor stažen do Downloads
-signal program_installed(app_id: String)   # Wizard → desktop: program nainstalován, odemkni ikony
-
-signal spatnej1
-signal spatnej2
-signal spatnej3
-
-signal dobrej1
-signal dobrej2
-signal dobrej3
+signal file_downloaded(filename: String)   # Beeternet -> desktop: file landed in Downloads
+signal program_installed(app_id: String)   # Wizard -> desktop: program installed, unlock icons
 @warning_ignore_restore("unused_signal")
 
 # Allow global access to ease refactoring

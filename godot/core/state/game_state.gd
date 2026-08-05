@@ -30,13 +30,13 @@ extends Resource
 @export var next_guest_id: int = 1
 
 func _init() -> void:
-    # Dynamically load GridModel script
-    var GridModelScript = load("res://core/state/grid_model.gd")
-    grid = GridModelScript.new()
-    failures = {}
-    guests = []
-    accommodation_states = {}
-    guest_reviews = []
-    guest_transactions = []
-    next_guest_id = 1
-    hrotfaktor = 0.0
+	# Dynamically load GridModel script
+	var GridModelScript = load("res://core/state/grid_model.gd")
+	grid = GridModelScript.new()
+	failures = {}
+	guests = []
+	accommodation_states = {}
+	guest_reviews = []
+	guest_transactions = []
+	next_guest_id = 1
+	hrotfaktor = 0.0

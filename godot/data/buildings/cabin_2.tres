@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="BuildingDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/data/building_def.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"cabin_2"
+display_name = "Cabin Lv2 (2x2)"
+category = &"housing"
+cost = 420
+radius = 0
+power_draw = 3.0
+power_production = 0.0
+infra_load = 7.0
+hygiene_delta = -1.5
+fun_delta = 0.0
+passive_income = 120.0
+karma_delta = 0.0
+capacity = 3
+power_use = 3
+water_use = 3
+sewage_use = 2
+waste_use = 2
+power_provide = 0
+water_provide = 0
+sewage_provide = 0
+waste_provide = 0
+maintenance_decay = 0.10
+tags = PackedStringArray("tier2", "comfort")
+footprint = Vector2i(2, 2)

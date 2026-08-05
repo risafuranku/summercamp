@@ -86,12 +86,39 @@ func get_failed_entries() -> Array:
 
 func _ready() -> void:
 	_rng.randomize()
+	if OS.is_debug_build():
+		_validate_against_building_registry()
 	var money_cb = Callable(self, "_on_eventbus_money_changed")
 	if EventBus.has_signal("money_changed") and not EventBus.money_changed.is_connected(money_cb):
 		EventBus.money_changed.connect(money_cb)
 	var day_cb = Callable(self, "_on_eventbus_day_advanced")
 	if EventBus.has_signal("day_advanced") and not EventBus.day_advanced.is_connected(day_cb):
 		EventBus.day_advanced.connect(day_cb)
+
+
+## Drift guard for the two building catalogs.
+##
+## `BUILDING_DATA` here and `res://data/buildings/*.tres` describe the same buildings.
+## The .tres set is canonical (BuildingRegistry + the pure core systems read it); this
+## dictionary is the legacy builder-UI catalog that is being strangled out. Until it is
+## gone, a mismatch means the simulation and the shop disagree -- so shout in debug builds.
+func _validate_against_building_registry() -> void:
+	if CoreRoot == null or CoreRoot.registry == null:
+		return
+	for building_type in BUILDING_DATA.keys():
+		if UPGRADE_ONLY_TYPES.has(building_type) and building_type in ["water_pump", "sewage_tank"]:
+			continue
+		if building_type == "demolish":
+			continue
+		var def = CoreRoot.registry.get_def(building_type)
+		if def == null:
+			push_warning("EconomyManager: '%s' has no BuildingDef in res://data/buildings/." % building_type)
+			continue
+		var legacy: Dictionary = BUILDING_DATA[building_type]
+		if int(def.cost) != int(legacy.get("cost", 0)):
+			push_warning("EconomyManager: cost drift for '%s' (tres=%d, legacy=%d)." % [building_type, def.cost, legacy.get("cost", 0)])
+		if def.footprint != legacy.get("footprint", Vector2i(1, 1)):
+			push_warning("EconomyManager: footprint drift for '%s'." % building_type)
 
 
 func _on_eventbus_money_changed(new_amount: int) -> void:

@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="BuildingDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/data/building_def.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"tent_1"
+display_name = "Tent Lv1 (1x1)"
+category = &"housing"
+cost = 80
+radius = 0
+power_draw = 0.0
+power_production = 0.0
+infra_load = 3.0
+hygiene_delta = -0.5
+fun_delta = 0.0
+passive_income = 25.0
+karma_delta = 0.0
+capacity = 1
+power_use = 0
+water_use = 1
+sewage_use = 1
+waste_use = 1
+power_provide = 0
+water_provide = 0
+sewage_provide = 0
+waste_provide = 0
+maintenance_decay = 0.10
+tags = PackedStringArray("tier1", "basic")
+footprint = Vector2i(1, 1)

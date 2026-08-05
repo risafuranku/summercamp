@@ -102,7 +102,6 @@ var _last_known_day: int = 1
 var _last_known_hour: int = 9
 var _last_known_minute: int = 0
 var _last_income_abs_minute: int = -1
-var auto_assignment_enabled: bool = false
 
 
 func _ready() -> void:
@@ -133,7 +132,6 @@ func export_runtime_state() -> Dictionary:
 		"last_known_hour": clampi(int(_last_known_hour), 0, 23),
 		"last_known_minute": clampi(int(_last_known_minute), 0, 59),
 		"last_income_abs_minute": int(_last_income_abs_minute),
-		"auto_assignment_enabled": bool(auto_assignment_enabled),
 	}
 
 
@@ -153,7 +151,6 @@ func import_runtime_state(data: Dictionary) -> void:
 	_last_tick_signature = str(data.get("last_tick_signature", _runtime_signature()))
 	if _last_tick_signature.is_empty():
 		_last_tick_signature = _runtime_signature()
-	auto_assignment_enabled = bool(data.get("auto_assignment_enabled", auto_assignment_enabled))
 
 	_ensure_guest_lodging_assignments()
 	_sync_accommodation_states_from_guests(false)
@@ -871,37 +868,6 @@ func get_accommodation_guest_visuals_by_coord(coord: Vector2i) -> Array:
 	return entries.duplicate(true)
 
 
-# Compatibility API (assignment system removed)
-func set_auto_assignment_enabled(enabled: bool) -> void:
-	auto_assignment_enabled = enabled
-
-
-func is_auto_assignment_enabled() -> bool:
-	return auto_assignment_enabled
-
-
-func get_waiting_guests() -> Array:
-	return []
-
-
-func get_assignment_snapshot() -> Dictionary:
-	_ensure_guest_lodging_assignments()
-	_sync_accommodation_states_from_guests(false)
-	var beds = get_bed_metrics()
-	var accommodations = get_accommodation_states()
-	return {
-		"disabled": true,
-		"reason": "Assignment system removed. Accept now checks in immediately.",
-		"day": _last_known_day,
-		"hour": _last_known_hour,
-		"minute": _last_known_minute,
-		"waiting_guests": [],
-		"accommodations": accommodations,
-		"capacity": int(beds.get("capacity", 0)),
-		"occupied": int(beds.get("occupied", 0)),
-	}
-
-
 func get_accommodation_states() -> Dictionary:
 	_ensure_guest_lodging_assignments()
 	_sync_accommodation_states_from_guests(false)
@@ -909,50 +875,6 @@ func get_accommodation_states() -> Dictionary:
 	if state == null or not (state.accommodation_states is Dictionary):
 		return {}
 	return (state.accommodation_states as Dictionary).duplicate(true)
-
-
-func request_assignment(_guest_id: int, _coord: Vector2i, actor: String = "player") -> Dictionary:
-	return {"ok": false, "reason": "assignment_removed", "actor": actor}
-
-
-func request_assignment_by_key(_guest_id: int, _acc_key: String, actor: String = "player") -> Dictionary:
-	return {"ok": false, "reason": "assignment_removed", "actor": actor}
-
-
-func request_cleaning(_coord: Vector2i, actor: String = "player") -> Dictionary:
-	return {"ok": false, "reason": "cleaning_removed", "actor": actor}
-
-
-func request_cleaning_by_key(_acc_key: String, actor: String = "player") -> Dictionary:
-	return {"ok": false, "reason": "cleaning_removed", "actor": actor}
-
-
-func request_clean_all_dirty(actor: String = "player") -> Dictionary:
-	return {"ok": false, "reason": "cleaning_removed", "actor": actor, "cleaned_count": 0}
-
-
-func enqueue_staff_task(_task: Dictionary) -> bool:
-	return false
-
-
-func process_staff_tasks(_max_tasks: int = 1, _actor: String = "staff") -> Array:
-	return []
-
-
-func clean_accommodation(_coord: Vector2i) -> bool:
-	return false
-
-
-func clean_accommodation_by_key(_acc_key: String) -> bool:
-	return false
-
-
-func clean_all_dirty_accommodations() -> int:
-	return 0
-
-
-func assign_guest_to_accommodation(_guest_id: int, _coord: Vector2i) -> bool:
-	return false
 
 
 func _is_guest_in_stay_status(status: String) -> bool:

@@ -3351,8 +3351,12 @@ func _start_menu_music() -> void:
 
 
 func _stop_menu_music() -> void:
-	if _menu_music_player != null and _menu_music_player.playing:
-		_menu_music_player.stop()
+	if _menu_music_player != null:
+		if _menu_music_player.playing:
+			_menu_music_player.stop()
+		# Drop the stream reference too. Holding it kept ambience3A.mp3 alive past
+		# shutdown, which surfaced as "resources still in use at exit".
+		_menu_music_player.stream = null
 	_menu_music_retry_pending = false
 
 
@@ -4551,3 +4555,11 @@ func _notification(what: int) -> void:
 		if _gameplay_started:
 			_write_autosave("Autosave")
 		get_tree().quit()
+
+
+func _exit_tree() -> void:
+	_stop_menu_music()
+	if _menu_music_player != null and is_instance_valid(_menu_music_player):
+		_menu_music_player.queue_free()
+	_menu_music_player = null
+	_stop_active_enemy_brain()

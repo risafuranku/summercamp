@@ -4,7 +4,8 @@
       "Bash(wc:*)",
       "Bash(find:*)",
       "Bash(python3:*)",
-      "Bash(/tmp/crt_builder_clean.gd:*)"
+      "Bash(/tmp/crt_builder_clean.gd:*)",
+      "Bash(git rm *)"
     ]
   }
 }

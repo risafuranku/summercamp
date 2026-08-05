@@ -3,7 +3,6 @@ extends CanvasLayer
 const INTERIOR_BARREL_SHADER = preload("res://materials/interior_barrel_post.gdshader")
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const CRT_UI_SCENE = preload("res://scripts/crt_os_shell.gd")
-const GUEST_ASSIGNMENT_NOTEBOOK_SCRIPT = preload("res://scripts/guest_assignment_notebook.gd")
 
 const TIME_DAY: int = 0
 const TIME_EVENING: int = 1
@@ -150,7 +149,6 @@ var _radio_dropout_remaining: float = 0.0
 var _radio_dropout_duration: float = 0.0
 var _radio_power_click_body: StaticBody3D
 var _reception_notebook_click_body: StaticBody3D
-var _guest_assignment_notebook: Control
 
 # Window / outdoor scene
 var _window_quad: MeshInstance3D
@@ -175,7 +173,6 @@ func _ready() -> void:
 	_sync_interior_viewport_to_window()
 	_build_crt_viewport() # Build CRT internal UI
 	_build_room()
-	_setup_guest_assignment_notebook()
 	_configure_crt_ui()
 	_setup_radio_character()
 	_setup_radio()
@@ -198,7 +195,6 @@ func setup(grid_mgr, building_mgr, ui_adapter = null, player_ref: Node3D = null)
 	_player_ref = player_ref
 	_main_building_ref = null
 	_configure_crt_ui()
-	_setup_guest_assignment_notebook()
 
 
 func export_crt_desktop_state() -> Dictionary:
@@ -225,25 +221,6 @@ func _apply_pending_crt_desktop_state() -> void:
 		return
 	_crt_ui.call("import_persistent_state", _pending_crt_desktop_state.duplicate(true))
 	_pending_crt_desktop_state.clear()
-
-
-func _setup_guest_assignment_notebook() -> void:
-	# Assignment notebook is intentionally disabled in instant check-in flow.
-	if _guest_assignment_notebook != null and is_instance_valid(_guest_assignment_notebook):
-		_guest_assignment_notebook.queue_free()
-	_guest_assignment_notebook = null
-
-
-func _open_guest_assignment_notebook() -> void:
-	return
-
-
-func _close_guest_assignment_notebook() -> void:
-	return
-
-
-func _is_guest_assignment_notebook_open() -> bool:
-	return false
 
 
 func is_open() -> bool:
@@ -320,7 +297,6 @@ func close_interior() -> void:
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
-	_close_guest_assignment_notebook()
 	_set_crt_viewport_live(false)
 	if _viewport != null:
 		_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -1168,10 +1144,6 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event.is_action_pressed("ui_cancel"):
-		if _is_guest_assignment_notebook_open():
-			_close_guest_assignment_notebook()
-			get_viewport().set_input_as_handled()
-			return
 		if _crt_active:
 			_exit_crt_view()
 			get_viewport().set_input_as_handled()
@@ -1194,9 +1166,6 @@ func _input(event: InputEvent) -> void:
 			_crt_viewport.push_input(key_event, true)
 			get_viewport().set_input_as_handled()
 			return
-
-	if _is_guest_assignment_notebook_open():
-		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.physical_keycode == KEY_L:
@@ -1528,6 +1497,8 @@ func _create_reception_notebook() -> void:
 	var click_body = StaticBody3D.new()
 	click_body.name = "ReceptionNotebookClickBody"
 	click_body.position = NOTEBOOK_CLICK_CENTER_LOCAL
+	# Reserved interaction slot: the reception desk UI was cut with the assignment
+	# system. `_try_click_room()` has no handler for it, so the click falls through.
 	click_body.set_meta("interior_click_type", "reception_notebook")
 	var click_shape = CollisionShape3D.new()
 	var box_shape = BoxShape3D.new()
@@ -2221,37 +2192,19 @@ func _find_node3d_by_name_fragment(root: Node, fragment: String) -> Node3D:
 
 
 func _try_click_room(event: InputEventMouseButton) -> bool:
-	var clicked_notebook = _is_mouse_over_reception_notebook(event.position)
-	var clicked_radio = _is_mouse_over_radio(event.position)
-	var hit = _raycast_room(event.position)
-	if hit.is_empty():
-		if clicked_notebook:
-			_open_guest_assignment_notebook()
-			return true
-		if clicked_radio:
-			_toggle_radio_power()
-			return true
-		return false
-	var collider = hit.get("collider", null) as Node
-	if collider == null:
-		if clicked_notebook:
-			_open_guest_assignment_notebook()
-			return true
-		if clicked_radio:
-			_toggle_radio_power()
-			return true
-		return false
-	if clicked_notebook:
-		_open_guest_assignment_notebook()
-		return true
-	if clicked_radio:
+	# AABB hotspots take priority over the physics raycast: the props are small and
+	# the collider mesh is easy to miss, so the box test is the forgiving path.
+	if _is_mouse_over_radio(event.position):
 		_toggle_radio_power()
 		return true
+
+	var hit = _raycast_room(event.position)
+	var collider = hit.get("collider", null) as Node
+	if collider == null:
+		return false
+
 	if _node_has_click_type(collider, "office_light_switch"):
 		_toggle_office_lights()
-		return true
-	if _node_has_click_type(collider, "reception_notebook"):
-		_open_guest_assignment_notebook()
 		return true
 	if _node_has_click_type(collider, "radio_power_toggle"):
 		_toggle_radio_power()
@@ -2291,17 +2244,6 @@ func _is_mouse_over_radio(mouse_pos: Vector2) -> bool:
 	var ray_dir = _interior_camera.project_ray_normal(local_mouse)
 	var center_global = _room_root.to_global(RADIO_CLICK_CENTER_LOCAL)
 	var half_extents = RADIO_CLICK_SIZE * 0.5
-	return _ray_intersects_aabb(ray_origin, ray_dir, center_global, half_extents)
-
-
-func _is_mouse_over_reception_notebook(mouse_pos: Vector2) -> bool:
-	if _interior_camera == null or _room_root == null:
-		return false
-	var local_mouse = _to_interior_viewport_pos(mouse_pos)
-	var ray_origin = _interior_camera.project_ray_origin(local_mouse)
-	var ray_dir = _interior_camera.project_ray_normal(local_mouse)
-	var center_global = _room_root.to_global(NOTEBOOK_CLICK_CENTER_LOCAL)
-	var half_extents = NOTEBOOK_CLICK_SIZE * 0.5
 	return _ray_intersects_aabb(ray_origin, ray_dir, center_global, half_extents)
 
 

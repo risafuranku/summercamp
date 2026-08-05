@@ -9,6 +9,9 @@ const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 var _state
 var _registry
 var _warned_legacy_end_day: bool = false
+# Cached because _get_building_cost() runs once per cell during demolish previews;
+# an uncached find_child(recursive) there walks the whole scene tree per building.
+var _economy_manager_cache: Node = null
 
 func _init(state, registry) -> void:
 	_state = state
@@ -249,12 +252,14 @@ func _get_building_refund(building_id: String) -> int:
 
 
 func _find_economy_manager() -> Node:
+	if _economy_manager_cache != null and is_instance_valid(_economy_manager_cache):
+		return _economy_manager_cache
 	var main_loop = Engine.get_main_loop()
 	if main_loop is SceneTree:
 		var scene_tree = main_loop as SceneTree
 		if scene_tree.root != null:
-			return scene_tree.root.find_child("EconomyManager", true, false)
-	return null
+			_economy_manager_cache = scene_tree.root.find_child("EconomyManager", true, false)
+	return _economy_manager_cache
 
 
 func _remove_visual_tree(cell: Vector2i) -> bool:

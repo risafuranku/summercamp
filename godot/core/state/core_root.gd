@@ -6,7 +6,6 @@ extends Node
 signal state_changed(changes: Dictionary)
 
 # The single source of truth for runtime state
-# The single source of truth for runtime state
 var _state
 var state:
 	get:
@@ -29,8 +28,7 @@ func _ready() -> void:
 	# Load Scripts Dynamically
 	var BuildingRegistryScript = load("res://core/data/building_registry.gd")
 	registry = BuildingRegistryScript.new()
-	add_child(registry)
-	registry.load_all()
+	add_child(registry)  # BuildingRegistry._ready() performs load_all()
 
 	var GameStateScript = load("res://core/state/game_state.gd")
 	_state = GameStateScript.new()
