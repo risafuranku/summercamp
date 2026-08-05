@@ -698,12 +698,12 @@ func _on_tent_upgrade_requested() -> void:
 
 	if current_type == "tent_3":
 		_pending_upgrade_context.clear()
-		_open_upgrade_menu("Stan: Max level", "Stan je uz na Lv3. Dalsi upgrade neni mozny.", "MAX", false)
+		_open_upgrade_menu("Tent: Max Level", "This tent is already Lv3. No further upgrade available.", "MAX", false)
 		return
 
 	if next_type == "":
 		_pending_upgrade_context.clear()
-		_open_upgrade_menu("Stan: Upgrade", "Neplatny level stanu.", "N/A", false)
+		_open_upgrade_menu("Tent: Upgrade", "Invalid tent level.", "N/A", false)
 		return
 
 	var cost = max(20, _economy_manager.get_cost(next_type) - _economy_manager.get_cost(current_type))
@@ -715,8 +715,8 @@ func _on_tent_upgrade_requested() -> void:
 		"cost": cost,
 	}
 	var can_pay = _economy_manager.get_money() >= cost
-	var desc = "Upgrade %s -> %s (lepsi komfort + kapacita)." % [_economy_manager.get_label(current_type), _economy_manager.get_label(next_type)]
-	_open_upgrade_menu("Stan: Upgrade", desc, "$%d" % cost, can_pay)
+	var desc = "Upgrade %s -> %s (better comfort + capacity)." % [_economy_manager.get_label(current_type), _economy_manager.get_label(next_type)]
+	_open_upgrade_menu("Tent: Upgrade", desc, "$%d" % cost, can_pay)
 
 
 func _on_cabin_upgrade_requested() -> void:
@@ -740,12 +740,12 @@ func _on_cabin_upgrade_requested() -> void:
 
 	if current_type == "cabin_3":
 		_pending_upgrade_context.clear()
-		_open_upgrade_menu("Chatka: Max level", "Chatka je uz na Lv3. Dalsi upgrade neni mozny.", "MAX", false)
+		_open_upgrade_menu("Cabin: Max Level", "This cabin is already Lv3. No further upgrade available.", "MAX", false)
 		return
 
 	if next_type == "":
 		_pending_upgrade_context.clear()
-		_open_upgrade_menu("Chatka: Upgrade", "Neplatny level chatky.", "N/A", false)
+		_open_upgrade_menu("Cabin: Upgrade", "Invalid cabin level.", "N/A", false)
 		return
 
 	var cost = max(30, _economy_manager.get_cost(next_type) - _economy_manager.get_cost(current_type))
@@ -757,8 +757,8 @@ func _on_cabin_upgrade_requested() -> void:
 		"cost": cost,
 	}
 	var can_pay = _economy_manager.get_money() >= cost
-	var desc = "Upgrade %s -> %s (vetsi komfort + kapacita)." % [_economy_manager.get_label(current_type), _economy_manager.get_label(next_type)]
-	_open_upgrade_menu("Chatka: Upgrade", desc, "$%d" % cost, can_pay)
+	var desc = "Upgrade %s -> %s (bigger comfort + capacity)." % [_economy_manager.get_label(current_type), _economy_manager.get_label(next_type)]
+	_open_upgrade_menu("Cabin: Upgrade", desc, "$%d" % cost, can_pay)
 
 
 func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String, enabled: bool) -> void:

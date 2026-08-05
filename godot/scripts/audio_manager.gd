@@ -219,6 +219,32 @@ func _ready() -> void:
 	_ambient_music_rng.randomize()
 
 
+## Release every AudioStream this manager holds.
+##
+## The ambient OST array plus each player's `stream` keep the decoded streams alive.
+## Without this, shutdown reports "resources still in use" for the OST tracks, because
+## node teardown does not run before the resource cache is cleared.
+func _exit_tree() -> void:
+	if _ambient_music_fade_tween != null and _ambient_music_fade_tween.is_valid():
+		_ambient_music_fade_tween.kill()
+	_ambient_music_tracks.clear()
+	_ambient_music_track_names.clear()
+	_release_stream_players(self)
+
+
+func _release_stream_players(node: Node) -> void:
+	for child in node.get_children():
+		if child is AudioStreamPlayer:
+			var player := child as AudioStreamPlayer
+			player.stop()
+			player.stream = null
+		elif child is AudioStreamPlayer3D:
+			var player_3d := child as AudioStreamPlayer3D
+			player_3d.stop()
+			player_3d.stream = null
+		_release_stream_players(child)
+
+
 func setup_audio() -> void:
 	_ensure_outdoor_ambience_bus()
 	_apply_default_bus_levels()

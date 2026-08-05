@@ -60,18 +60,10 @@ func remove_building(cell: Vector2i) -> bool:
 	var root = data.get("root_coord", cell)
 	var type = data.get("type", "")
 	
-	# Calculate refund (simplified)
 	var refund = _get_building_refund(type)
-	
-	# Execute
-	# We need to find all cells with this instance ID to clear them
-	# The GridModel doesn't have a reverse lookup yet, but we know the root and could store footprint?
-	# For now, let's just clear the cell we clicked and maybe the root?
-	# Better: Store footprint in GridModel data or look it up.
-	# Let's simple-clear the root and let the visual system handle the rest for now, 
-	# OR brute force clear neighbors that share ID.
-	
-	# Brute force clearing for now (GridModel is small enough usually)
+
+	# GridModel has no instance_id -> cells reverse index, so sweep the whole grid to
+	# collect every cell of this footprint. Fine at 20x20; add an index if the map grows.
 	var cells_to_clear: Array = []
 	for c in _state.grid.cells:
 		var cell_data = _state.grid.cells[c] as Dictionary
@@ -96,9 +88,7 @@ func remove_building(cell: Vector2i) -> bool:
 
 
 func maintenance_shift(amount: float) -> bool:
-	# Cost calculation: 20 money per building for the shift?
-	# User request: "stojí peníze, zvýší maintenance všech budov o X (cap 1)"
-	
+	# Costs money, raises maintenance on every building by `amount` (capped at 1.0).
 	var unique_buildings_count = 0 
 	var visited_ids = {}
 	

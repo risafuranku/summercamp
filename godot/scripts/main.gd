@@ -4560,6 +4560,8 @@ func _notification(what: int) -> void:
 func _exit_tree() -> void:
 	_stop_menu_music()
 	if _menu_music_player != null and is_instance_valid(_menu_music_player):
-		_menu_music_player.queue_free()
+		# free(), not queue_free(): on quit the deferred queue may never be flushed,
+		# which leaves the MP3 stream alive and trips the resource-leak check at exit.
+		_menu_music_player.free()
 	_menu_music_player = null
 	_stop_active_enemy_brain()

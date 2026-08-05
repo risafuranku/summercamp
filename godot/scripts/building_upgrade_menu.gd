@@ -114,7 +114,7 @@ func _build_ui() -> void:
 	_panel.add_child(_confirm_btn)
 
 	_cancel_btn = Button.new()
-	_cancel_btn.text = "Zavrit"
+	_cancel_btn.text = "Close"
 	_cancel_btn.position = Vector2(356.0, 180.0)
 	_cancel_btn.size = Vector2(106.0, 30.0)
 	_cancel_btn.pressed.connect(close_menu)
