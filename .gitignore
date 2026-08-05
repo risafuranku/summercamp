@@ -15,3 +15,6 @@ desktop.ini
 
 # Claude Code scratch
 .claude/worktrees/
+
+# MCP server local overrides
+.mcp.local.json

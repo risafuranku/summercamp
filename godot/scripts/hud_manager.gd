@@ -14,7 +14,11 @@ extends Node
 const HUD_LAYER_INDEX := 65
 const HINT_LAYER_INDEX := 70
 
-const BAR_HEIGHT := 132.0
+## Bar height must clear the tallest module's combined minimum size plus the
+## 8px/6px margins. tools/hud_layout_check.tscn asserts this.
+const BAR_HEIGHT := 138.0
+const BAR_MARGIN_TOP := 8
+const BAR_MARGIN_BOTTOM := 6
 
 # Status strip kinds.
 const STATUS_INFO := 0
@@ -670,7 +674,8 @@ func set_liminal_forecast(payload: Dictionary) -> void:
 	set_liminal_forecast_count(int(payload.get("hud_level", 0)))
 	if _risk_detail_label == null:
 		return
-	_risk_detail_label.text = _compose_risk_detail(payload)
+	var detail := _compose_risk_detail(payload)
+	_risk_detail_label.text = "NIGHT RISK" if detail.is_empty() else "NIGHT RISK - %s" % detail
 
 
 ## Transient feedback line above the bar. `kind` is one of the STATUS_* constants.
@@ -754,8 +759,8 @@ func _ensure_world_hud() -> void:
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 14)
 	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_bottom", 6)
+	margin.add_theme_constant_override("margin_top", BAR_MARGIN_TOP)
+	margin.add_theme_constant_override("margin_bottom", BAR_MARGIN_BOTTOM)
 	bar.add_child(margin)
 
 	var modules := HBoxContainer.new()
@@ -1037,10 +1042,9 @@ func _build_health_cluster(parent: BoxContainer) -> void:
 	_risk_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	risk_row.add_child(_risk_level_label)
 
-	cluster.add_child(_make_meter_caption("NIGHT RISK"))
-
-	_risk_detail_label = _make_meter_caption("")
-	_risk_detail_label.add_theme_color_override("font_color", Color(0.83, 0.72, 0.50, 0.92))
+	# Caption and detail share one line: the cluster is the tallest in the bar and a
+	# second text row pushed it past the available height.
+	_risk_detail_label = _make_meter_caption("NIGHT RISK")
 	cluster.add_child(_risk_detail_label)
 
 

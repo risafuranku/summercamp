@@ -96,7 +96,41 @@ Anything containing `SCRIPT ERROR`, `Parse Error`, or a `push_warning` about bui
 catalog drift is a regression. An occasional `ObjectDB instances were leaked at exit`
 for `ambience3A.mp3` is a known benign audio-thread shutdown race — see [AUDIT.md](AUDIT.md).
 
-There is **no automated test suite.** Verify gameplay changes by running the game.
+### Godot MCP — run the real game and read its output
+
+`.mcp.json` registers the [godot-mcp](https://github.com/Coding-Solo/godot-mcp) server,
+so `mcp__godot__*` tools (`run_project`, `get_debug_output`, `stop_project`,
+`get_project_info`, `launch_editor`, …) are available **after a Claude Code restart**.
+
+This matters: `--headless` suppresses GDScript parse warnings and never exercises
+rendering. A real windowed run surfaces both. Baseline is **22 warnings, 0 errors** —
+any new diagnostic in a file you touched is yours.
+
+For a session that started before the server was registered, or for scripting, drive the
+same server over stdio. Tools that hold state across calls (`run_project` →
+`get_debug_output`) need `--seq` so they share one server session:
+
+```bash
+node tools/godot_mcp_call.mjs --seq 'run_project {"projectPath":"godot"}' sleep:20000 get_debug_output stop_project
+```
+
+### Checks
+
+There is **no general test suite.** Two harnesses exist; add more in `godot/tools/`:
+
+```bash
+godot --headless --path godot res://tools/hud_layout_check.tscn
+```
+
+Asserts the world HUD's module geometry at 1280/1600/1920 — widths fit, the tallest
+module clears the bar's inner height, and every caption and readout actually renders.
+It caught a 17px vertical overflow that headless startup did not.
+
+> Run tool scenes as **scenes**, not with `--script`. `--script` does not register
+> autoloads, so anything referencing `CoreRoot`/`EmailManager`/`GuestManager` fails to
+> compile and the harness reports a false pass.
+
+Everything else still needs a real playthrough.
 
 ### Useful debug keys (gameplay only, blocked while any interior UI is open)
 
