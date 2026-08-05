@@ -1,0 +1,9 @@
+{
+  "guest_name": "Late Hikers",
+  "party_size": 3,
+  "stay_nights": 2,
+  "arrival_time": "21:05",
+  "difficulty": 4,
+  "budget_hint": "tight",
+  "guestprofile_file": "late_hikers.json"
+}

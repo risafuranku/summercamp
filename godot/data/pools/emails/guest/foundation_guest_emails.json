@@ -1,0 +1,20 @@
+[
+  {
+    "sender": "Marek Vlcek <marek.vlcek@postbox.eu>",
+    "subject": "Booking inquiry: creek-side spot",
+    "body": "Hello camp,\n\nwe need a booking for tomorrow.\nPlease keep us near the creek if possible.\n\nThanks.",
+    "day": 1,
+    "time": "13:42",
+    "type": "guest",
+    "customer_panel": "random"
+  },
+  {
+    "sender": "Lenka Novak <lenka.novak@atlas.cz>",
+    "subject": "Weekend request for two",
+    "body": "Good day,\n\nrequesting a short stay this weekend.\nQuiet area preferred.\n\nRegards.",
+    "day": 2,
+    "time": "09:26",
+    "type": "guest",
+    "customer_panel": "night_fisher_duo.json"
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "guest_name": "Night Fisher Duo",
+  "party_size": 2,
+  "stay_nights": 1,
+  "arrival_time": "19:15",
+  "difficulty": 3,
+  "budget_hint": "value",
+  "guestprofile_file": "fisher_duo.json"
+}

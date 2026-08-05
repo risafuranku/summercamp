@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BuildingDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/data/building_def.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"toilet_lv1"
+category = &"hygiene"
+cost = 100
+radius = 4
+power_draw = 1.0
+infra_load = 1.5
+hygiene_delta = 5.0
+fun_delta = -1.0
+passive_income = 0.0
+karma_delta = 0.0
+maintenance_decay = 0.3
+tags = PackedStringArray("tier1", "essential")

@@ -1,0 +1,17 @@
+# Godot
+godot/.godot/
+godot/android/
+*.translation
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor backups
+*~
+*.tmp
+*.bak
+
+# Claude Code scratch
+.claude/worktrees/

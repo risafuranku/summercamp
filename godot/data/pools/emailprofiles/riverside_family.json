@@ -1,0 +1,9 @@
+{
+  "guest_name": "Riverside Family",
+  "party_size": 4,
+  "stay_nights": 2,
+  "arrival_time": "14:30",
+  "difficulty": 2,
+  "budget_hint": "balanced",
+  "guestprofile_file": "family_budget.json"
+}

@@ -1,0 +1,410 @@
+[
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "You are in charge this week",
+    "body": "I am out for seven days. You run the camp now.\n\nRead every booking, assign people manually, and do not let cabins stay dirty.",
+    "day": 1,
+    "time": "09:02",
+    "type": "story"
+  },
+  {
+    "from": "Nela <nela@chatmail.cz>",
+    "subject": "First day check",
+    "body": "Good luck on your first day.\n\nIf inbox starts screaming, breathe and sort by customer mail first.",
+    "day": 1,
+    "time": "09:11",
+    "type": "story"
+  },
+  {
+    "from": "unknown_sender <void@null.invalid>",
+    "subject": "you left the gate open",
+    "body": "there are footprints near cabin three\n\nno guest checked in there\n\nclose the gate before 02:00\n\n[day 1 transmission tag]",
+    "day": 1,
+    "time": "10:37",
+    "type": "story"
+  },
+  {
+    "from": "Nela <nela@chatmail.cz>",
+    "subject": "Reminder",
+    "body": "You promised to call me before midnight.\n\nAlso maybe stop accepting every suspicious booking just because the subject says URGENT.\n\n[day 1 transmission tag]",
+    "day": 1,
+    "time": "12:50",
+    "type": "story"
+  },
+  {
+    "from": "Weather Relay Node-2 <wx-node2@relay.local>",
+    "subject": "Forecast packet delayed",
+    "body": "Satellite relay delayed by atmospheric noise.\n\nExpect stale weather metadata for a few hours.\n\n[day 1 transmission tag]",
+    "day": 1,
+    "time": "16:23",
+    "type": "story"
+  },
+  {
+    "from": "CampNet Billing <billing@campnet.local>",
+    "subject": "Pending settlement batch",
+    "body": "Settlement batch will clear at end of day after guest departures are processed.\n\n[day 1 transmission tag]",
+    "day": 1,
+    "time": "16:30",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Supplies",
+    "body": "I left extra cleaning chemicals in the back room. Use them right after people leave.\n\nDirty cabins kill ratings.",
+    "day": 1,
+    "time": "19:00",
+    "type": "story"
+  },
+  {
+    "from": "no-reply <mirror@beeternet.node>",
+    "subject": "Re: Re: Re:",
+    "body": "The inbox remembers messages you deleted.\n\nDo not click messages without a sender.",
+    "day": 1,
+    "time": "19:21",
+    "type": "story"
+  },
+  {
+    "from": "Weather Relay Node-2 <wx-node2@relay.local>",
+    "subject": "Forecast packet delayed",
+    "body": "Satellite relay delayed by atmospheric noise.\n\nExpect stale weather metadata for a few hours.",
+    "day": 1,
+    "time": "23:03",
+    "type": "story"
+  },
+  {
+    "from": "unknown_sender <void@null.invalid>",
+    "subject": "you left the gate open",
+    "body": "there are footprints near cabin three\n\nno guest checked in there\n\nclose the gate before 02:00",
+    "day": 2,
+    "time": "01:16",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Checkin from your aunt",
+    "body": "Richarde,\n\nI checked the lockbox under the reception desk. There is emergency cash there for basic camp expenses. Do not waste it on junk.\n\nAlso please answer booking emails faster.\n\n- Teta Vera",
+    "day": 2,
+    "time": "03:21",
+    "type": "story"
+  },
+  {
+    "from": "CampNet Ops <ops@campnet.local>",
+    "subject": "Mailbox throughput report",
+    "body": "Automated report:\n- Mail feed active\n- Filter confidence: low\n- False positives expected\n\nRecommendation: manual review for all customer bookings.",
+    "day": 2,
+    "time": "04:30",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Water meter note",
+    "body": "Quick note: the old water meter still drifts at night. If guests complain, tell them we are scheduling service.\n\nKeep the cabins clean after checkout.\n\n[day 2 transmission tag]",
+    "day": 2,
+    "time": "04:42",
+    "type": "story"
+  },
+  {
+    "from": "CampNet Billing <billing@campnet.local>",
+    "subject": "Pending settlement batch",
+    "body": "Settlement batch will clear at end of day after guest departures are processed.",
+    "day": 2,
+    "time": "11:39",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Water meter note",
+    "body": "Quick note: the old water meter still drifts at night. If guests complain, tell them we are scheduling service.\n\nKeep the cabins clean after checkout.\n\n[day 2 transmission tag]",
+    "day": 2,
+    "time": "12:34",
+    "type": "story"
+  },
+  {
+    "from": "CampNet Ops <ops@campnet.local>",
+    "subject": "Mailbox throughput report",
+    "body": "Automated report:\n- Mail feed active\n- Filter confidence: low\n- False positives expected\n\nRecommendation: manual review for all customer bookings.",
+    "day": 2,
+    "time": "17:31",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Water meter note",
+    "body": "Quick note: the old water meter still drifts at night. If guests complain, tell them we are scheduling service.\n\nKeep the cabins clean after checkout.",
+    "day": 2,
+    "time": "18:24",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Water meter note",
+    "body": "Quick note: the old water meter still drifts at night. If guests complain, tell them we are scheduling service.\n\nKeep the cabins clean after checkout.",
+    "day": 2,
+    "time": "23:18",
+    "type": "story"
+  },
+  {
+    "from": "Nela <nela@chatmail.cz>",
+    "subject": "Still alive there?",
+    "body": "Hey,\n\nDid you sleep at all or are you still camping in that office chair?\n\nPlease eat something and do not answer chain mails.",
+    "day": 3,
+    "time": "00:54",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Checkin from your aunt",
+    "body": "Richarde,\n\nI checked the lockbox under the reception desk. There is emergency cash there for basic camp expenses. Do not waste it on junk.\n\nAlso please answer booking emails faster.\n\n- Teta Vera",
+    "day": 3,
+    "time": "03:47",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Checkin from your aunt",
+    "body": "Richarde,\n\nI checked the lockbox under the reception desk. There is emergency cash there for basic camp expenses. Do not waste it on junk.\n\nAlso please answer booking emails faster.\n\n- Teta Vera",
+    "day": 3,
+    "time": "12:54",
+    "type": "story"
+  },
+  {
+    "from": "observer <watcher@campgrid.void>",
+    "subject": "occupancy mismatch",
+    "body": "Scanner reports one occupied unit without assigned guest id.\n\nIf this repeats, restart the terminal.",
+    "day": 3,
+    "time": "13:48",
+    "type": "story"
+  },
+  {
+    "from": "Nela <nela@chatmail.cz>",
+    "subject": "Reminder",
+    "body": "You promised to call me before midnight.\n\nAlso maybe stop accepting every suspicious booking just because the subject says URGENT.\n\n[day 3 transmission tag]",
+    "day": 3,
+    "time": "14:20",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Supplies",
+    "body": "I left extra cleaning chemicals in the back room. Use them right after people leave.\n\nDirty cabins kill ratings.",
+    "day": 3,
+    "time": "14:35",
+    "type": "story"
+  },
+  {
+    "from": "Nela <nela@chatmail.cz>",
+    "subject": "Still alive there?",
+    "body": "Hey,\n\nDid you sleep at all or are you still camping in that office chair?\n\nPlease eat something and do not answer chain mails.",
+    "day": 3,
+    "time": "22:37",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Supplies",
+    "body": "I left extra cleaning chemicals in the back room. Use them right after people leave.\n\nDirty cabins kill ratings.",
+    "day": 4,
+    "time": "00:28",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Supplies",
+    "body": "I left extra cleaning chemicals in the back room. Use them right after people leave.\n\nDirty cabins kill ratings.",
+    "day": 4,
+    "time": "14:48",
+    "type": "story"
+  },
+  {
+    "from": "District Office <registry@okres.local>",
+    "subject": "Operator registry ping",
+    "body": "This is an automated registry ping.\n\nConfirming daily occupancy logs can be submitted retroactively.",
+    "day": 4,
+    "time": "16:35",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Checkin from your aunt",
+    "body": "Richarde,\n\nI checked the lockbox under the reception desk. There is emergency cash there for basic camp expenses. Do not waste it on junk.\n\nAlso please answer booking emails faster.\n\n- Teta Vera",
+    "day": 4,
+    "time": "17:30",
+    "type": "story"
+  },
+  {
+    "from": "Nela <nela@chatmail.cz>",
+    "subject": "Photo from town",
+    "body": "I walked past the old bus stop. Looks exactly like your camp computer wallpaper.\n\nTry to survive one more day.",
+    "day": 4,
+    "time": "20:53",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Water meter note",
+    "body": "Quick note: the old water meter still drifts at night. If guests complain, tell them we are scheduling service.\n\nKeep the cabins clean after checkout.",
+    "day": 4,
+    "time": "22:08",
+    "type": "story"
+  },
+  {
+    "from": "observer <watcher@campgrid.void>",
+    "subject": "occupancy mismatch",
+    "body": "Scanner reports one occupied unit without assigned guest id.\n\nIf this repeats, restart the terminal.",
+    "day": 5,
+    "time": "02:17",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Supplies",
+    "body": "I left extra cleaning chemicals in the back room. Use them right after people leave.\n\nDirty cabins kill ratings.",
+    "day": 5,
+    "time": "02:21",
+    "type": "story"
+  },
+  {
+    "from": "Nela <nela@chatmail.cz>",
+    "subject": "Still alive there?",
+    "body": "Hey,\n\nDid you sleep at all or are you still camping in that office chair?\n\nPlease eat something and do not answer chain mails.",
+    "day": 5,
+    "time": "06:34",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Weekend warning",
+    "body": "Weekend traffic is building. Expect larger groups asking for tomorrow arrivals.\n\nDo not confirm what you cannot host.",
+    "day": 5,
+    "time": "11:19",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Water meter note",
+    "body": "Quick note: the old water meter still drifts at night. If guests complain, tell them we are scheduling service.\n\nKeep the cabins clean after checkout.",
+    "day": 5,
+    "time": "11:36",
+    "type": "story"
+  },
+  {
+    "from": "Weather Relay Node-2 <wx-node2@relay.local>",
+    "subject": "Forecast packet delayed",
+    "body": "Satellite relay delayed by atmospheric noise.\n\nExpect stale weather metadata for a few hours.",
+    "day": 5,
+    "time": "12:17",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Checkin from your aunt",
+    "body": "Richarde,\n\nI checked the lockbox under the reception desk. There is emergency cash there for basic camp expenses. Do not waste it on junk.\n\nAlso please answer booking emails faster.\n\n- Teta Vera",
+    "day": 5,
+    "time": "16:36",
+    "type": "story"
+  },
+  {
+    "from": "CampNet Billing <billing@campnet.local>",
+    "subject": "Pending settlement batch",
+    "body": "Settlement batch will clear at end of day after guest departures are processed.",
+    "day": 5,
+    "time": "17:53",
+    "type": "story"
+  },
+  {
+    "from": "no-reply <mirror@beeternet.node>",
+    "subject": "Re: Re: Re:",
+    "body": "The inbox remembers messages you deleted.\n\nDo not click messages without a sender.",
+    "day": 6,
+    "time": "00:19",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Supplies",
+    "body": "I left extra cleaning chemicals in the back room. Use them right after people leave.\n\nDirty cabins kill ratings.",
+    "day": 6,
+    "time": "04:10",
+    "type": "story"
+  },
+  {
+    "from": "Nela <nela@chatmail.cz>",
+    "subject": "Reminder",
+    "body": "You promised to call me before midnight.\n\nAlso maybe stop accepting every suspicious booking just because the subject says URGENT.\n\n[day 6 transmission tag]",
+    "day": 6,
+    "time": "13:17",
+    "type": "story"
+  },
+  {
+    "from": "observer <watcher@campgrid.void>",
+    "subject": "occupancy mismatch",
+    "body": "Scanner reports one occupied unit without assigned guest id.\n\nIf this repeats, restart the terminal.",
+    "day": 6,
+    "time": "16:23",
+    "type": "story"
+  },
+  {
+    "from": "District Office <registry@okres.local>",
+    "subject": "Operator registry ping",
+    "body": "This is an automated registry ping.\n\nConfirming daily occupancy logs can be submitted retroactively.",
+    "day": 6,
+    "time": "17:18",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Checkin from your aunt",
+    "body": "Richarde,\n\nI checked the lockbox under the reception desk. There is emergency cash there for basic camp expenses. Do not waste it on junk.\n\nAlso please answer booking emails faster.\n\n- Teta Vera",
+    "day": 6,
+    "time": "22:19",
+    "type": "story"
+  },
+  {
+    "from": "District Office <registry@okres.local>",
+    "subject": "Operator registry ping",
+    "body": "This is an automated registry ping.\n\nConfirming daily occupancy logs can be submitted retroactively.",
+    "day": 7,
+    "time": "01:21",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Checkin from your aunt",
+    "body": "Richarde,\n\nI checked the lockbox under the reception desk. There is emergency cash there for basic camp expenses. Do not waste it on junk.\n\nAlso please answer booking emails faster.\n\n- Teta Vera",
+    "day": 7,
+    "time": "04:05",
+    "type": "story"
+  },
+  {
+    "from": "no-reply <mirror@beeternet.node>",
+    "subject": "Re: Re: Re:",
+    "body": "The inbox remembers messages you deleted.\n\nDo not click messages without a sender.",
+    "day": 7,
+    "time": "12:17",
+    "type": "story"
+  },
+  {
+    "from": "Nela <nela@chatmail.cz>",
+    "subject": "Still alive there?",
+    "body": "Hey,\n\nDid you sleep at all or are you still camping in that office chair?\n\nPlease eat something and do not answer chain mails.\n\n[day 7 transmission tag]",
+    "day": 7,
+    "time": "13:52",
+    "type": "story"
+  },
+  {
+    "from": "Weather Relay Node-2 <wx-node2@relay.local>",
+    "subject": "Forecast packet delayed",
+    "body": "Satellite relay delayed by atmospheric noise.\n\nExpect stale weather metadata for a few hours.",
+    "day": 7,
+    "time": "23:15",
+    "type": "story"
+  },
+  {
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Supplies",
+    "body": "I left extra cleaning chemicals in the back room. Use them right after people leave.\n\nDirty cabins kill ratings.",
+    "day": 7,
+    "time": "23:18",
+    "type": "story"
+  }
+]
