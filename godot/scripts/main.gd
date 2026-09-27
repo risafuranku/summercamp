@@ -1,5 +1,6 @@
 extends Node
 
+const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const PLAYER_SCRIPT = preload("res://scripts/player_controller.gd")
 const GRID_MANAGER_SCRIPT = preload("res://scripts/grid_manager.gd")
 const BUILDING_MANAGER_SCRIPT = preload("res://scripts/building_manager.gd")
@@ -408,6 +409,8 @@ func _bootstrap_runtime() -> void:
 
 	_bind_or_create_managers()
 	_setup_weather_visuals_module()
+	RETRO_RENDER.register(_sub_viewport_container)
+	get_viewport().size_changed.connect(func() -> void: RETRO_RENDER.refresh_all(get_tree()))
 	_generate_grid_world()
 	_rebuild_core_cells_from_visual_structures()
 	fallback_camera.current = true

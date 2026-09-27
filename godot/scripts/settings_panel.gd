@@ -1,5 +1,6 @@
 extends VBoxContainer
 
+const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const MODE_IDS := ["windowed", "fullscreen", "borderless"]
 const MODE_LABELS := [
 	"Windowed",
@@ -34,6 +35,8 @@ const DEBUG_CONTROL_REFERENCE := [
 var _mode_option: OptionButton
 var _resolution_option: OptionButton
 var _volume_slider: HSlider
+var _retro_option: OptionButton
+var _palette_check: CheckButton
 var _volume_label: Label
 var _resolutions: Array[Vector2i] = []
 var _refreshing: bool = false
@@ -85,6 +88,36 @@ func _build_ui() -> void:
 	_resolution_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mode_row_add(res_row, _resolution_option)
 	_resolution_option.item_selected.connect(_on_resolution_selected)
+
+	var retro_row := HBoxContainer.new()
+	retro_row.add_theme_constant_override("separation", 8)
+	add_child(retro_row)
+
+	var retro_label := Label.new()
+	retro_label.text = "Render Style"
+	retro_label.custom_minimum_size = Vector2(150.0, 0.0)
+	retro_row.add_child(retro_label)
+
+	_retro_option = OptionButton.new()
+	for i in RETRO_RENDER.PRESET_ORDER.size():
+		var preset_id: String = RETRO_RENDER.PRESET_ORDER[i]
+		_retro_option.add_item(str(RETRO_RENDER.PRESET_LABELS.get(preset_id, preset_id)), i)
+	_mode_row_add(retro_row, _retro_option)
+	_retro_option.item_selected.connect(_on_retro_selected)
+
+	var palette_row := HBoxContainer.new()
+	palette_row.add_theme_constant_override("separation", 8)
+	add_child(palette_row)
+
+	var palette_label := Label.new()
+	palette_label.text = "256-Colour Palette"
+	palette_label.custom_minimum_size = Vector2(150.0, 0.0)
+	palette_row.add_child(palette_label)
+
+	_palette_check = CheckButton.new()
+	_palette_check.text = "Build engine shade tables"
+	_mode_row_add(palette_row, _palette_check)
+	_palette_check.toggled.connect(_on_palette_toggled)
 
 	var audio_title := Label.new()
 	audio_title.text = "Audio"
@@ -212,6 +245,10 @@ func _reload_options() -> void:
 			break
 	_mode_option.select(mode_index)
 
+	var retro_index := RETRO_RENDER.PRESET_ORDER.find(GameSettings.get_retro_preset())
+	_retro_option.select(maxi(0, retro_index))
+	_palette_check.button_pressed = GameSettings.get_retro_palette_enabled()
+
 	_volume_slider.value = GameSettings.get_master_volume_db()
 	_volume_label.text = "%.1f dB" % _volume_slider.value
 	_refreshing = false
@@ -231,6 +268,20 @@ func _on_resolution_selected(index: int) -> void:
 	if index < 0 or index >= _resolutions.size():
 		return
 	GameSettings.set_resolution(_resolutions[index], true, true)
+
+
+func _on_retro_selected(index: int) -> void:
+	if _refreshing:
+		return
+	if index < 0 or index >= RETRO_RENDER.PRESET_ORDER.size():
+		return
+	GameSettings.set_retro_preset(RETRO_RENDER.PRESET_ORDER[index], true)
+
+
+func _on_palette_toggled(enabled: bool) -> void:
+	if _refreshing:
+		return
+	GameSettings.set_retro_palette_enabled(enabled, true)
 
 
 func _on_volume_changed(value: float) -> void:

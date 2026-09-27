@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+
 @warning_ignore("unused_signal")
 signal repair_completed(coord: Vector2i, building_type: String)
 signal repair_cancelled
@@ -193,6 +195,7 @@ func _build_shell() -> void:
 	_viewport_container.stretch = true
 	_viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_viewport_container)
+	RETRO_RENDER.register(_viewport_container)
 
 	_viewport = SubViewport.new()
 	_viewport.name = "SewerPipeViewport"

@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+
 signal request_close
 signal request_upgrade
 
@@ -325,6 +327,7 @@ func _build_viewport() -> void:
 	_viewport_container.stretch = true
 	_viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_viewport_container)
+	RETRO_RENDER.register(_viewport_container)
 
 	_viewport = SubViewport.new()
 	_viewport.name = "CabinViewport"
