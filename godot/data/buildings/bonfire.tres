@@ -25,6 +25,13 @@ power_provide = 0
 water_provide = 0
 sewage_provide = 0
 waste_provide = 0
+guest_services = {
+"fun": 45.0,
+"hunger": 12.0,
+"safety": 25.0
+}
+guest_capacity = 8
+use_minutes = 40
 maintenance_decay = 0.15
 tags = PackedStringArray("social", "noisy")
 footprint = Vector2i(1, 1)

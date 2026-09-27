@@ -6,6 +6,8 @@ extends Node
 ## reserves beds and starts stay countdown + rolling income.
 
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
+const GUEST_LIFE_SCRIPT = preload("res://scripts/guest_life.gd")
+const GUEST_NEEDS = preload("res://core/systems/guest_needs_system.gd")
 
 const STATUS_ACTIVE := "active"
 const STATUS_SLEEP := "sleep"
@@ -102,6 +104,7 @@ var _last_known_day: int = 1
 var _last_known_hour: int = 9
 var _last_known_minute: int = 0
 var _last_income_abs_minute: int = -1
+var _life = GUEST_LIFE_SCRIPT.new()
 
 
 func _ready() -> void:
@@ -197,9 +200,164 @@ func _on_time_tick(hour: int, minute: int) -> void:
 	if elapsed_minutes > 0:
 		changed = _process_income_minutes(elapsed_minutes) or changed
 	changed = _ensure_guest_lodging_assignments() or changed
+	changed = _advance_guest_life(now_abs) or changed
 	changed = _sync_accommodation_states_from_guests() or changed
 	_last_income_abs_minute = now_abs
 	_emit_guest_overview_state(changed)
+
+
+# ── guest life (needs / mood / activities) ────────────────────────────────────
+
+func _advance_guest_life(now_abs: int) -> bool:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return false
+	_life.refresh_world(state, CoreRoot.registry)
+	var weirdness := clampf(float(state.hrotfaktor), 0.0, 1.0)
+	var changed: bool = _life.advance_all(state, now_abs, Callable(self, "_is_night_abs"), weirdness)
+	for event in _life.take_events():
+		match str(event.get("type", "")):
+			"left":
+				_process_storm_off(int(event.get("guest_id", -1)))
+				changed = true
+			"bushes":
+				if CoreRoot.has_method("apply_changes"):
+					CoreRoot.apply_changes({"karma": float(state.karma) - 0.25})
+			"storm_off":
+				if EventBus.has_signal("guest_state_changed"):
+					EventBus.guest_state_changed.emit(int(event.get("guest_id", -1)), STATUS_ACTIVE, "storming_off")
+	return changed
+
+
+func _is_night_abs(abs_minute: int) -> bool:
+	var minute_of_day := posmod(abs_minute, 1440)
+	return _is_night_time(int(minute_of_day / 60), minute_of_day % 60)
+
+
+## A guest party that stormed off reaches the gate: no settlement, one-star review.
+func _process_storm_off(guest_id: int) -> void:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return
+	for i in range(state.guests.size() - 1, -1, -1):
+		var g_any = state.guests[i]
+		if not (g_any is Dictionary):
+			continue
+		var guest: Dictionary = g_any
+		if int(guest.get("id", -1)) != guest_id:
+			continue
+		var review = _build_review_for_guest(guest, max(1, _last_known_day))
+		review["stormed_off"] = true
+		state.guest_reviews.append(review)
+		_trim_array_history(state.guest_reviews, MAX_GUEST_REVIEW_HISTORY)
+		if EventBus.has_signal("guest_review_posted"):
+			EventBus.guest_review_posted.emit(review)
+		if CoreRoot.has_method("apply_changes"):
+			CoreRoot.apply_changes({"karma": float(state.karma) - 2.0})
+		if EventBus.has_signal("guest_state_changed"):
+			EventBus.guest_state_changed.emit(guest_id, str(guest.get("status", STATUS_ACTIVE)), "departed")
+		state.guests.remove_at(i)
+		_ensure_guest_lodging_assignments()
+		_sync_accommodation_states_from_guests()
+		return
+
+
+## Main tells us when the grid power is cut (unpaid bill) so powered facilities close.
+func set_camp_power_available(available: bool) -> void:
+	_life.set_power_available(available)
+
+
+## Something frightening happened near `tile` (an enemy, a scream). Guests nearby lose
+## safety for `minutes`. Called by the enemy brains through main.
+func report_threat(tile: Vector2i, strength: float, minutes: int = 30) -> void:
+	var now_abs = _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	_life.report_threat(tile, strength, now_abs + max(1, minutes))
+
+
+## Per-party snapshot for visual agents, GuestRack and the HUD.
+func get_guest_life_snapshot() -> Array:
+	var state = CoreRoot.get_state()
+	var out: Array = []
+	if state == null:
+		return out
+	var now_abs = _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	for g_any in state.guests:
+		if not (g_any is Dictionary):
+			continue
+		var g: Dictionary = g_any
+		var needs: Dictionary = g.get("needs", {}) if g.get("needs", {}) is Dictionary else {}
+		var mood := float(g.get("mood", 60.0))
+		out.append({
+			"id": int(g.get("id", -1)),
+			"name": str(g.get("name", "Guest")),
+			"archetype": _normalize_archetype(str(g.get("archetype", ARCHETYPE_QUIET_GUY))),
+			"party_size": max(1, int(g.get("party_size", g.get("beds_used", 1)))),
+			"status": str(g.get("status", STATUS_ACTIVE)),
+			"mood": mood,
+			"mood_label": GUEST_NEEDS.mood_label(mood),
+			"needs": needs.duplicate(),
+			"worst_need": GUEST_NEEDS.worst_need(needs) if not needs.is_empty() else {},
+			"activity": (g.get("activity", {}) as Dictionary).duplicate() if g.get("activity", {}) is Dictionary else {},
+			"tile": str(g.get("tile", "")),
+			"thought": str(g.get("thought", "")),
+			"thought_age": now_abs - int(g.get("thought_abs", now_abs - 9999)),
+			"lodging": _life.lodging_coord(g),
+			"sprite_path": _sprite_path_for_archetype(str(g.get("archetype", ""))),
+			"storming_off": bool(g.get("storming_off", false)),
+			"now_abs": now_abs,
+		})
+	return out
+
+
+## Camp-wide mood numbers for the HUD and the status apps.
+func get_camp_mood_summary() -> Dictionary:
+	var state = CoreRoot.get_state()
+	var total := 0.0
+	var count := 0
+	var unhappy := 0
+	var worst_counts: Dictionary = {}
+	if state != null:
+		for g_any in state.guests:
+			if not (g_any is Dictionary):
+				continue
+			var g: Dictionary = g_any
+			var mood := float(g.get("mood", 60.0))
+			var party: int = max(1, int(g.get("party_size", g.get("beds_used", 1))))
+			total += mood * party
+			count += party
+			if mood < GUEST_NEEDS.UNHAPPY_MOOD:
+				unhappy += party
+			var needs: Dictionary = g.get("needs", {}) if g.get("needs", {}) is Dictionary else {}
+			if not needs.is_empty():
+				var worst = GUEST_NEEDS.worst_need(needs)
+				if float(worst.get("value", 100.0)) < GUEST_NEEDS.SEEK_THRESHOLD:
+					var need := str(worst.get("need", ""))
+					worst_counts[need] = int(worst_counts.get(need, 0)) + party
+	var avg := total / float(count) if count > 0 else 0.0
+	var top_need := ""
+	var top_count := 0
+	for need in worst_counts.keys():
+		if int(worst_counts[need]) > top_count:
+			top_count = int(worst_counts[need])
+			top_need = str(need)
+	return {
+		"guests": count,
+		"avg_mood": avg,
+		"mood_label": GUEST_NEEDS.mood_label(avg) if count > 0 else "Empty",
+		"unhappy": unhappy,
+		"top_need": top_need,
+		"top_need_label": str(GUEST_NEEDS.NEED_LABELS.get(top_need, "")),
+		"top_need_count": top_count,
+		"thoughts": _life.get_thought_log(),
+	}
+
+
+func get_facility_status() -> Array:
+	return _life.get_facilities().duplicate(true)
+
+
+func get_gate_coord() -> Vector2i:
+	return _life.gate_coord()
 
 
 func can_accept_booking(mail: Dictionary) -> bool:
@@ -275,6 +433,14 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 	state.guests.append(guest)
 	_ensure_guest_lodging_assignments()
 	_sync_accommodation_states_from_guests(false)
+	_life.refresh_world(state, CoreRoot.registry)
+	for i in range(state.guests.size()):
+		var g_any = state.guests[i]
+		if g_any is Dictionary and int((g_any as Dictionary).get("id", -1)) == guest_id:
+			var g: Dictionary = g_any
+			_life.init_guest(g, now_abs)
+			state.guests[i] = g
+			break
 	var created_guest = _get_guest_by_id(guest_id)
 	if created_guest.is_empty():
 		created_guest = guest
@@ -437,6 +603,7 @@ func _maybe_trigger_night_trouble(guest: Dictionary, day: int, hour: int, minute
 		return false
 
 	guest["night_trouble_last_night_id"] = night_id
+	_life.start_night_out(guest, now_abs)
 
 	var state = CoreRoot.get_state()
 	if state != null and CoreRoot != null and CoreRoot.has_method("apply_changes"):
@@ -563,8 +730,16 @@ func get_bed_metrics() -> Dictionary:
 	}
 
 
+## Beds for a housing type, read from the canonical BuildingDef (tent_2 = 2, caravan = 6...).
+## The old hard-coded "tent = 1, cabin = 2" ignored upgrades entirely.
 func _capacity_for_building_type(building_type: String) -> int:
 	var t = building_type.to_lower().strip_edges()
+	if t == "tent":
+		t = "tent_1"
+	if CoreRoot != null and CoreRoot.registry != null:
+		var def = CoreRoot.registry.get_def(StringName(t))
+		if def != null and str(def.category) == "housing":
+			return maxi(0, int(def.capacity))
 	if t.begins_with("tent"):
 		return 1
 	if t.begins_with("cabin"):
@@ -690,6 +865,9 @@ func _collect_active_archetype_counts() -> Dictionary:
 			continue
 		var archetype = _normalize_archetype(str(guest.get("archetype", ARCHETYPE_QUIET_GUY)))
 		counts[archetype] = int(counts.get(archetype, 0)) + 1
+		# Unhappy guests count double: a miserable camp is what the woods listen for.
+		if float(guest.get("mood", 60.0)) < GUEST_NEEDS.UNHAPPY_MOOD:
+			counts[archetype] = int(counts.get(archetype, 0)) + 1
 	return counts
 
 
@@ -1325,8 +1503,12 @@ func _build_review_for_guest(guest: Dictionary, day: int) -> Dictionary:
 	var state = CoreRoot.get_state()
 	if state != null:
 		sat = float(state.satisfaction)
-	var rating_base = int(round(clampf(sat, 0.0, 100.0) / 25.0))
-	var rating = clampi(rating_base + _rng.randi_range(-1, 1), 1, 5)
+	# The guest's own mood over the stay drives the stars; camp-wide satisfaction
+	# (service coverage) nudges it. A storm-off is always one star.
+	var mood := float(guest.get("mood", sat))
+	var rating := GUEST_NEEDS.review_stars(mood, sat)
+	if bool(guest.get("storming_off", false)):
+		rating = 1
 
 	var text_pool = REVIEW_NEUTRAL
 	if rating >= 4:
@@ -1334,6 +1516,9 @@ func _build_review_for_guest(guest: Dictionary, day: int) -> Dictionary:
 	elif rating <= 2:
 		text_pool = REVIEW_NEGATIVE
 	var review_text = text_pool[_rng.randi_range(0, text_pool.size() - 1)]
+	var complaint := _review_complaint(guest)
+	if not complaint.is_empty() and rating <= 3:
+		review_text = "%s %s" % [review_text, complaint]
 
 	return {
 		"guest_id": int(guest.get("id", -1)),
@@ -1342,7 +1527,30 @@ func _build_review_for_guest(guest: Dictionary, day: int) -> Dictionary:
 		"text": review_text,
 		"day": day,
 		"stay_nights": int(guest.get("stay_nights", 1)),
+		"mood": mood,
+		"archetype": str(guest.get("archetype", "")),
 	}
+
+
+func _review_complaint(guest: Dictionary) -> String:
+	var needs: Dictionary = guest.get("needs", {})
+	if needs.is_empty():
+		return ""
+	var worst = GUEST_NEEDS.worst_need(needs)
+	match str(worst.get("need", "")):
+		"hunger":
+			return "Nowhere decent to eat."
+		"bladder":
+			return "The toilet situation was a disgrace."
+		"hygiene":
+			return "Showers? What showers?"
+		"fun":
+			return "Nothing to do all day."
+		"energy":
+			return "Could not sleep in that bed."
+		"safety":
+			return "Something was out there at night. Not joking."
+	return ""
 
 
 func _extract_sender_name(mail: Dictionary) -> String:

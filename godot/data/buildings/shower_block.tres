@@ -25,6 +25,12 @@ power_provide = 0
 water_provide = 0
 sewage_provide = 0
 waste_provide = 0
+guest_services = {
+"hygiene": 90.0
+}
+guest_capacity = 2
+use_minutes = 14
+requires = PackedStringArray("sewer", "power")
 maintenance_decay = 0.30
 tags = PackedStringArray("hygiene")
 footprint = Vector2i(1, 1)

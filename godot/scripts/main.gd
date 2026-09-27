@@ -1967,6 +1967,8 @@ func _refresh_electricity_power_cut_state(force_apply: bool = false) -> void:
 		_electricity_ups_active = false
 		_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
 	if changed or force_apply:
+		if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
+			GuestManager.set_camp_power_available(not _electricity_power_cut_active)
 		_apply_time_from_clock(true, false)
 		_emit_state_update()
 

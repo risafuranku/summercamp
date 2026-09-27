@@ -25,6 +25,7 @@ power_provide = 0
 water_provide = 0
 sewage_provide = 0
 waste_provide = 0
+comfort = 65.0
 maintenance_decay = 0.10
 tags = PackedStringArray("tier3", "comfort")
 footprint = Vector2i(1, 1)

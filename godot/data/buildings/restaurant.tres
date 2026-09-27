@@ -25,6 +25,13 @@ power_provide = 0
 water_provide = 0
 sewage_provide = 0
 waste_provide = 0
+guest_services = {
+"fun": 10.0,
+"hunger": 95.0
+}
+guest_capacity = 8
+use_minutes = 40
+requires = PackedStringArray("power")
 maintenance_decay = 0.30
 tags = PackedStringArray("food")
 footprint = Vector2i(2, 2)
