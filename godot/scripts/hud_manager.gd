@@ -1,600 +1,148 @@
 extends Node
-## Bottom skeuomorphic HUD bar inspired by vintage brass/wood instrument panels.
+## Build-engine style HUD.
 ##
-## Module order:
-##   CASH + MAIL | CLOCK + DAY/PHASE | CONDITIONS (weather + beds) | HEALTH + NIGHT RISK
+##   ┌ message feed (Duke3D quotes)                      objective tracker ┐
+##   │                              +                                        │
+##   │                       [E] ENTER RECEPTION                 guest card  │
+##   │                     ── centre banner (NIGHT 1) ──                    │
+##   └[HEALTH][STAM/LIGHT][CASH][DAY·CLOCK][GUESTS ☺][MAIL][NIGHT RISK]──────┘
 ##
-## Every meter carries a caption. An unlabelled row of bulbs is not information --
-## the NIGHT RISK meter in particular encodes the game's central risk/reward trade
-## (see DESIGN.md) and previously shipped with no legend at all.
+## Everything is laid out in virtual pixels (vp) times an integer UI scale so the pixel
+## fonts stay crisp (retro_ui.gd). The layout is rebuilt when the window size changes;
+## all displayed values are cached so a rebuild restores them.
 ##
-## A status strip sits directly above the bar for transient feedback (build rejected,
-## booking accepted, phase change). See `push_status()`.
+## Every meter carries a caption. The NIGHT RISK cell encodes the game's central
+## risk/reward trade (see DESIGN.md) and must stay legible.
+
+const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 
 const HUD_LAYER_INDEX := 65
 const HINT_LAYER_INDEX := 70
 
-## Bar height must clear the tallest module's combined minimum size plus the
-## 8px/6px margins. tools/hud_layout_check.tscn asserts this.
-const BAR_HEIGHT := 138.0
-const BAR_MARGIN_TOP := 8
-const BAR_MARGIN_BOTTOM := 6
-
-# Status strip kinds.
+# Message kinds (push_status). Kept for callers of the previous HUD.
 const STATUS_INFO := 0
 const STATUS_GOOD := 1
 const STATUS_WARN := 2
 const STATUS_DENY := 3
+const STATUS_QUOTE := 4
 
-const STATUS_HOLD_SEC := 3.2
-const STATUS_FADE_SEC := 0.7
+const BAR_HEIGHT_VP := 40
+const CELL_HEIGHT_VP := 34
+const FEED_MAX_LINES := 4
+const FEED_HOLD_SEC := 6.0
+const FEED_FADE_SEC := 0.8
+const CARD_HOLD_SEC := 7.0
 
 # Time phases, mirroring main.gd / TimeSystem.
 const PHASE_DAY := 0
 const PHASE_EVENING := 1
 const PHASE_NIGHT := 2
-
 const PHASE_LABELS := ["DAY", "EVENING", "NIGHT"]
 
-const WEATHER_LABELS := [
-	"CLEAR", "WINDY", "FOG", "LIGHT RAIN", "RAIN", "STORM", "ANOMALY"
-]
+const WEATHER_LABELS := ["CLEAR", "WINDY", "FOG", "DRIZZLE", "RAIN", "STORM", "ANOMALY"]
 
 ## NIGHT RISK legend. Index matches the HUD level derived from expected spawns
 ## (`GuestManager.LIMINAL_HUD_EXPECTED_THRESHOLDS`).
 const RISK_LEVEL_LABELS := ["CLEAR", "LOW", "RAISED", "HIGH", "CRITICAL"]
+const RISK_TIER_LABELS := {"none": "clear", "tiny": "tiny", "small": "small", "medium": "medium", "large": "large"}
 
-const RISK_TIER_LABELS := {
-	"none": "clear",
-	"tiny": "tiny",
-	"small": "small",
-	"medium": "medium",
-	"large": "large",
+const NEED_ROWS := [
+	["energy", "NRG"], ["hunger", "FOOD"], ["bladder", "WC"],
+	["hygiene", "WASH"], ["fun", "FUN"], ["safety", "SAFE"],
+]
+
+## vp widths of the status bar cells (also asserted by tools/hud_layout_check.tscn).
+const CELL_WIDTHS := {
+	"health": 46, "stamina": 44, "cash": 68, "clock": 76, "guests": 64, "mail": 30, "risk": 62,
+}
+const HUD_MOOD_WORDS := {
+	"Delighted": "GREAT", "Happy": "HAPPY", "Okay": "OKAY", "Grumpy": "GRUMPY",
+	"Unhappy": "UPSET", "Furious": "FURIOUS", "Empty": "EMPTY",
 }
 
-const COL_WOOD_A := Color(0.30, 0.18, 0.09, 0.98)
-const COL_WOOD_B := Color(0.24, 0.14, 0.07, 0.98)
-const COL_WOOD_BORDER := Color(0.09, 0.05, 0.03, 1.0)
-const COL_BRASS_DARK := Color(0.21, 0.15, 0.08, 1.0)
-const COL_BRASS_MID := Color(0.45, 0.34, 0.20, 1.0)
-const COL_BRASS_LIGHT := Color(0.75, 0.63, 0.41, 1.0)
-const COL_TEXT := Color(0.95, 0.88, 0.72, 1.0)
-const COL_TEXT_DARK := Color(0.13, 0.08, 0.05, 1.0)
-
-
-class WoodBarBackdrop:
-	extends Control
-
-	func _notification(what: int) -> void:
-		if what == NOTIFICATION_RESIZED:
-			queue_redraw()
-
-	func _draw() -> void:
-		var rect := Rect2(Vector2.ZERO, size)
-		draw_rect(rect, Color(0.19, 0.11, 0.06, 1.0), true)
-		var plank_h: float = 34.0
-		var y: float = 0.0
-		while y < size.y:
-			var h: float = minf(plank_h, size.y - y)
-			var t := clampf(y / maxf(size.y, 1.0), 0.0, 1.0)
-			var plank_col := COL_WOOD_A.lerp(COL_WOOD_B, fmod(t * 3.2, 1.0))
-			draw_rect(Rect2(0.0, y, size.x, h), plank_col, true)
-			draw_rect(Rect2(0.0, y, size.x, 2.0), Color(0.72, 0.53, 0.34, 0.15), true)
-			draw_rect(Rect2(0.0, y + h - 2.0, size.x, 2.0), Color(0.05, 0.03, 0.02, 0.30), true)
-			y += plank_h
-		var rail_h := 12.0
-		draw_rect(Rect2(0.0, 0.0, size.x, rail_h), Color(0.12, 0.07, 0.04, 0.85), true)
-		draw_rect(Rect2(0.0, size.y - rail_h, size.x, rail_h), Color(0.11, 0.06, 0.04, 0.88), true)
-		draw_rect(rect, COL_WOOD_BORDER, false, 2.0)
-		draw_line(Vector2(0.0, 2.0), Vector2(size.x, 2.0), Color(0.67, 0.48, 0.31, 0.20), 2.0, false)
-
-
-class ScrewHead:
-	extends Control
-
-	func _notification(what: int) -> void:
-		if what == NOTIFICATION_RESIZED:
-			queue_redraw()
-
-	func _draw() -> void:
-		var center := size * 0.5
-		var r := minf(size.x, size.y) * 0.48
-		draw_circle(center, r, COL_BRASS_DARK)
-		draw_circle(center, r * 0.80, COL_BRASS_MID)
-		draw_arc(center, r, 0.0, TAU, 32, COL_BRASS_LIGHT, 1.1, true)
-		draw_line(center + Vector2(-r * 0.40, -r * 0.16), center + Vector2(r * 0.40, r * 0.16), Color(0.13, 0.10, 0.08, 1.0), 1.2, false)
-
-
-class AnalogClockControl:
-	extends Control
-
-	var _minute_of_day: int = 9 * 60
-	var _phase_pulse: float = 0.0
-	var _phase_color: Color = Color(1.0, 0.86, 0.48, 1.0)
-
-	func set_minute_of_day(value: int) -> void:
-		var normalized := value % 1440
-		if normalized < 0:
-			normalized += 1440
-		if normalized == _minute_of_day:
-			return
-		_minute_of_day = normalized
-		queue_redraw()
-
-	func trigger_phase_pulse(color: Color) -> void:
-		_phase_color = color
-		_phase_pulse = 1.0
-		set_process(true)
-		queue_redraw()
-
-	func _notification(what: int) -> void:
-		if what == NOTIFICATION_RESIZED:
-			queue_redraw()
-
-	func _process(delta: float) -> void:
-		if _phase_pulse <= 0.0:
-			set_process(false)
-			return
-		_phase_pulse = maxf(0.0, _phase_pulse - (delta * 1.45))
-		queue_redraw()
-		if _phase_pulse <= 0.0:
-			set_process(false)
-
-	func _draw() -> void:
-		var center := size * 0.5
-		var radius: float = minf(size.x, size.y) * 0.46
-		draw_circle(center, radius * 1.11, Color(0.15, 0.11, 0.07, 1.0))
-		draw_circle(center, radius, Color(0.36, 0.28, 0.17, 1.0))
-		draw_circle(center, radius * 0.90, Color(0.50, 0.40, 0.24, 1.0))
-		for ring in range(7):
-			var rr := lerpf(radius * 0.20, radius * 0.86, float(ring) / 6.0)
-			var alpha := 0.07 if ring % 2 == 0 else 0.03
-			draw_arc(center, rr, 0.0, TAU, 64, Color(0.16, 0.12, 0.08, alpha), 1.0, true)
-		for tick in range(60):
-			var angle: float = (float(tick) / 60.0) * TAU - (PI * 0.5)
-			var outer := center + Vector2(cos(angle), sin(angle)) * radius * 0.82
-			var inner_scale: float = 0.62 if tick % 5 == 0 else 0.74
-			var inner := center + Vector2(cos(angle), sin(angle)) * radius * inner_scale
-			var width := 3.0 if tick % 5 == 0 else 1.0
-			draw_line(inner, outer, Color(0.22, 0.16, 0.10, 0.92), width, false)
-
-		var minute_angle := (float(_minute_of_day % 60) / 60.0) * TAU - (PI * 0.5)
-		var hour_angle := (fposmod(float(_minute_of_day) / 60.0, 12.0) / 12.0) * TAU - (PI * 0.5)
-		var hour_tip := center + Vector2(cos(hour_angle), sin(hour_angle)) * radius * 0.42
-		var minute_tip := center + Vector2(cos(minute_angle), sin(minute_angle)) * radius * 0.68
-		draw_line(center, hour_tip, Color(0.17, 0.11, 0.07, 1.0), 5.0, false)
-		draw_line(center, minute_tip, Color(0.19, 0.13, 0.08, 1.0), 3.0, false)
-		draw_circle(center, radius * 0.08, Color(0.23, 0.16, 0.10, 1.0))
-		if _phase_pulse > 0.0:
-			var pulse := _phase_pulse * _phase_pulse
-			var pulse_col := Color(_phase_color.r, _phase_color.g, _phase_color.b, 0.30 * pulse)
-			draw_arc(center, radius * 1.12, 0.0, TAU, 84, pulse_col, 4.0, true)
-			draw_circle(center, radius * 1.05, Color(_phase_color.r, _phase_color.g, _phase_color.b, 0.05 * pulse))
-
-
-class HealthGaugeControl:
-	extends Control
-
-	var _target_value: float = 1.0
-	var _display_value: float = 1.0
-	var _velocity: float = 0.0
-	var _wobble_phase: float = 0.0
-
-	func set_value(value: float) -> void:
-		var clamped := clampf(value, 0.0, 1.0)
-		if is_equal_approx(clamped, _target_value):
-			return
-		_target_value = clamped
-		set_process(true)
-		queue_redraw()
-
-	func _notification(what: int) -> void:
-		if what == NOTIFICATION_RESIZED:
-			queue_redraw()
-
-	func _process(delta: float) -> void:
-		var diff := _target_value - _display_value
-		var spring_accel := (diff * 31.0) - (_velocity * 9.6)
-		_velocity += spring_accel * delta
-		_display_value += _velocity * delta
-		_wobble_phase += delta * (6.0 + absf(_velocity) * 18.0)
-		if absf(diff) < 0.0007 and absf(_velocity) < 0.0007:
-			_display_value = _target_value
-			_velocity = 0.0
-			set_process(false)
-		queue_redraw()
-
-	func _draw() -> void:
-		var rect := Rect2(Vector2.ZERO, size)
-		draw_rect(rect, Color(0.64, 0.60, 0.54, 0.32), true)
-
-		var view := Rect2(8.0, 4.0, size.x - 16.0, size.y * 0.73)
-		draw_rect(view, Color(0.84, 0.82, 0.77, 0.95), true)
-		draw_rect(view, Color(0.43, 0.37, 0.29, 1.0), false, 2.0)
-
-		var center := Vector2(size.x * 0.5, view.position.y + view.size.y * 0.92)
-		var outer_r: float = minf(view.size.x * 0.52, view.size.y * 1.35)
-		var color_inner_r: float = outer_r * 0.67
-		var dial_r: float = outer_r * 0.60
-
-		var seg_colors := [
-			Color(0.76, 0.64, 0.15, 1.0),
-			Color(0.42, 0.60, 0.28, 1.0),
-			Color(0.63, 0.36, 0.18, 1.0),
-			Color(0.68, 0.15, 0.14, 1.0)
-		]
-		var seg_count := seg_colors.size()
-		for i in range(seg_count):
-			var start_angle := -PI + (PI * float(i) / float(seg_count))
-			var end_angle := -PI + (PI * float(i + 1) / float(seg_count))
-			_draw_ring_segment(center, outer_r, color_inner_r, start_angle, end_angle, seg_colors[i], 12)
-
-		draw_circle(center, dial_r, Color(0.94, 0.91, 0.84, 1.0))
-		draw_arc(center, dial_r, -PI, 0.0, 56, Color(0.40, 0.35, 0.28, 1.0), 2.0, true)
-		for tick in range(0, 31):
-			var ratio := float(tick) / 30.0
-			var angle := -PI + (ratio * PI)
-			var outer := center + Vector2(cos(angle), sin(angle)) * dial_r
-			var inner_len := 0.18 if tick % 5 == 0 else 0.10
-			var inner := center + Vector2(cos(angle), sin(angle)) * dial_r * (1.0 - inner_len)
-			draw_line(inner, outer, Color(0.19, 0.17, 0.14, 0.95), 1.0, false)
-
-		var wobble := sin(_wobble_phase) * minf(0.035, absf(_velocity) * 0.10)
-		var animated_value := clampf(_display_value + wobble, 0.0, 1.0)
-		var needle_angle := -PI + (animated_value * PI)
-		var needle_tip := center + Vector2(cos(needle_angle), sin(needle_angle)) * dial_r * 0.94
-		draw_line(center, needle_tip, Color(0.16, 0.12, 0.10, 1.0), 3.5, false)
-		draw_circle(center, 4.8, Color(0.42, 0.32, 0.24, 1.0))
-		var motion_glow := clampf(absf(_velocity) * 1.6, 0.0, 1.0)
-		if motion_glow > 0.01:
-			draw_arc(center, dial_r * 1.03, -PI, 0.0, 72, Color(1.0, 0.94, 0.72, 0.22 * motion_glow), 2.0, true)
-		var glare := PackedVector2Array([
-			Vector2(size.x * 0.12, size.y * 0.16),
-			Vector2(size.x * 0.72, size.y * 0.08),
-			Vector2(size.x * 0.64, size.y * 0.30),
-			Vector2(size.x * 0.18, size.y * 0.38)
-		])
-		draw_polygon(glare, PackedColorArray([Color(1.0, 1.0, 1.0, 0.14)]))
-
-	func _draw_ring_segment(center: Vector2, outer_r: float, inner_r: float, start_angle: float, end_angle: float, color: Color, steps: int) -> void:
-		var points := PackedVector2Array()
-		for i in range(steps + 1):
-			var t := float(i) / float(steps)
-			var angle := lerpf(start_angle, end_angle, t)
-			points.append(center + Vector2(cos(angle), sin(angle)) * outer_r)
-		for i in range(steps, -1, -1):
-			var t := float(i) / float(steps)
-			var angle := lerpf(start_angle, end_angle, t)
-			points.append(center + Vector2(cos(angle), sin(angle)) * inner_r)
-		draw_polygon(points, PackedColorArray([color]))
-
-
-class BulbMeterControl:
-	extends Control
-
-	var _lamp_count: int = 4
-	var _active_count: int = 0
-	var _lit_palette: Array[Color] = []
-	var _fill_from_right: bool = false
-	var _blink_indices: PackedInt32Array = PackedInt32Array()
-	var _blink_interval_ms: int = 360
-	var _intensities: PackedFloat32Array = PackedFloat32Array()
-	var _target_intensities: PackedFloat32Array = PackedFloat32Array()
-
-	func configure(lamp_count: int, lit_palette: Array[Color], fill_from_right: bool = false, blink_indices: Array[int] = []) -> void:
-		_lamp_count = maxi(1, lamp_count)
-		_lit_palette.clear()
-		for color in lit_palette:
-			_lit_palette.append(color)
-		_fill_from_right = fill_from_right
-		_blink_indices.clear()
-		for idx in blink_indices:
-			_blink_indices.append(idx)
-		_ensure_intensity_buffers()
-		_rebuild_target_intensities()
-		_refresh_process_state()
-		queue_redraw()
-
-	func set_active_count(value: int) -> void:
-		var safe := maxi(0, value)
-		if safe == _active_count:
-			return
-		_active_count = safe
-		_rebuild_target_intensities()
-		_refresh_process_state()
-		queue_redraw()
-
-	func _notification(what: int) -> void:
-		if what == NOTIFICATION_RESIZED:
-			queue_redraw()
-
-	func _process(delta: float) -> void:
-		var changed := false
-		for i in range(_lamp_count):
-			var current := _intensities[i]
-			var target := _target_intensities[i]
-			var next := move_toward(current, target, delta * 4.8)
-			if not is_equal_approx(next, current):
-				_intensities[i] = next
-				changed = true
-		var has_active_blink := false
-		for idx in _blink_indices:
-			if idx >= 0 and idx < _lamp_count and _target_intensities[idx] > 0.01:
-				has_active_blink = true
-				break
-		if changed or has_active_blink:
-			queue_redraw()
-		_refresh_process_state()
-
-	func _draw() -> void:
-		if _lamp_count <= 0:
-			return
-		var spacing: float = size.x / float(_lamp_count + 1)
-		var center_y: float = size.y * 0.5
-		var ring_r: float = minf(spacing * 0.33, size.y * 0.44)
-		var inner_r: float = ring_r * 0.72
-		for i in range(_lamp_count):
-			var x := spacing * float(i + 1)
-			var center := Vector2(x, center_y)
-			draw_circle(center, ring_r, Color(0.19, 0.13, 0.08, 1.0))
-			draw_arc(center, ring_r, 0.0, TAU, 32, Color(0.54, 0.40, 0.25, 1.0), 1.2, true)
-			var lit_color := _lamp_color(i)
-			var off_color := lit_color.darkened(0.76).lerp(Color(0.12, 0.11, 0.10, 1.0), 0.55)
-			var lit_strength := clampf(_intensities[i], 0.0, 1.0)
-			if _blink_indices.has(i) and _target_intensities[i] > 0.01:
-				var blink_wave := 0.5 + (0.5 * sin((float(Time.get_ticks_msec()) / float(_blink_interval_ms)) * PI))
-				lit_strength *= lerpf(0.18, 1.0, blink_wave)
-			var bulb := off_color.lerp(lit_color, lit_strength)
-			draw_circle(center, inner_r, bulb)
-			if lit_strength > 0.02:
-				draw_circle(center + Vector2(-inner_r * 0.18, -inner_r * 0.18), inner_r * 0.42, Color(1.0, 0.93, 0.70, 0.78 * lit_strength))
-				draw_circle(center, inner_r * 1.10, Color(lit_color.r, lit_color.g, lit_color.b, 0.16 * lit_strength))
-
-	func _lamp_color(index: int) -> Color:
-		if _lit_palette.is_empty():
-			return Color(0.91, 0.75, 0.25, 1.0)
-		var safe_idx := mini(index, _lit_palette.size() - 1)
-		return _lit_palette[safe_idx]
-
-	func _refresh_process_state() -> void:
-		var has_active_blink := false
-		for idx in _blink_indices:
-			if idx >= 0 and idx < _lamp_count and _target_intensities[idx] > 0.01:
-				has_active_blink = true
-				break
-		var has_fade_motion := false
-		for i in range(_lamp_count):
-			if not is_equal_approx(_intensities[i], _target_intensities[i]):
-				has_fade_motion = true
-				break
-		set_process(has_active_blink or has_fade_motion)
-
-	func _ensure_intensity_buffers() -> void:
-		_intensities.resize(_lamp_count)
-		_target_intensities.resize(_lamp_count)
-		for i in range(_lamp_count):
-			if _intensities[i] < 0.0 or _intensities[i] > 1.0:
-				_intensities[i] = 0.0
-
-	func _rebuild_target_intensities() -> void:
-		var lit_count: int = mini(_active_count, _lamp_count)
-		for i in range(_lamp_count):
-			var is_lit := i < lit_count if not _fill_from_right else i >= (_lamp_count - lit_count)
-			_target_intensities[i] = 1.0 if is_lit else 0.0
-
-
-class WeatherGlyphControl:
-	extends Control
-
-	## Hand-drawn weather pictogram. Drawn rather than textured so it matches the
-	## etched-instrument register of the rest of the bar and scales cleanly.
-
-	var _state: int = 0
-	var _anim_phase: float = 0.0
-
-	func set_weather_state(value: int) -> void:
-		var safe := clampi(value, 0, 6)
-		if safe == _state:
-			return
-		_state = safe
-		set_process(_state != 0)
-		queue_redraw()
-
-	func _notification(what: int) -> void:
-		if what == NOTIFICATION_RESIZED:
-			queue_redraw()
-
-	func _process(delta: float) -> void:
-		_anim_phase = fmod(_anim_phase + delta, TAU)
-		queue_redraw()
-
-	func _draw() -> void:
-		var c := size * 0.5
-		var r: float = minf(size.x, size.y) * 0.40
-		var ink := Color(0.14, 0.09, 0.05, 1.0)
-		var accent := Color(0.30, 0.22, 0.13, 1.0)
-
-		match _state:
-			0:  # CLEAR - sun
-				draw_arc(c, r * 0.52, 0.0, TAU, 28, ink, 2.0, true)
-				for i in range(8):
-					var a := (float(i) / 8.0) * TAU + (_anim_phase * 0.12)
-					var dir := Vector2(cos(a), sin(a))
-					draw_line(c + dir * r * 0.72, c + dir * r * 0.98, ink, 1.6, false)
-			1:  # WINDY - streaks
-				for i in range(3):
-					var y := c.y + (float(i) - 1.0) * r * 0.46
-					var wobble := sin(_anim_phase * 1.6 + float(i)) * r * 0.10
-					draw_line(Vector2(c.x - r, y), Vector2(c.x + r * 0.55 + wobble, y), ink, 1.8, false)
-					draw_arc(Vector2(c.x + r * 0.55 + wobble, y), r * 0.22, -PI * 0.5, PI * 0.85, 14, ink, 1.8, true)
-			2:  # FOG - stacked bands
-				for i in range(4):
-					var y2 := c.y + (float(i) - 1.5) * r * 0.40
-					var off := sin(_anim_phase * 0.8 + float(i) * 0.9) * r * 0.16
-					draw_line(Vector2(c.x - r + off, y2), Vector2(c.x + r + off, y2), accent, 2.4, false)
-			_:  # rain family - cloud plus drops
-				_draw_cloud(c + Vector2(0.0, -r * 0.30), r, ink)
-				var drop_count := 2
-				if _state == 4:
-					drop_count = 3
-				elif _state >= 5:
-					drop_count = 4
-				for i in range(drop_count):
-					var dx := c.x + (float(i) - (float(drop_count) - 1.0) * 0.5) * r * 0.44
-					var fall := fmod(_anim_phase * 0.9 + float(i) * 0.6, 1.0)
-					var y0 := c.y + r * 0.26 + fall * r * 0.44
-					draw_line(Vector2(dx, y0), Vector2(dx - r * 0.07, y0 + r * 0.26), accent, 1.8, false)
-				if _state >= 5:
-					var bolt := PackedVector2Array([
-						c + Vector2(r * 0.10, r * 0.16),
-						c + Vector2(-r * 0.16, r * 0.60),
-						c + Vector2(r * 0.02, r * 0.58),
-						c + Vector2(-r * 0.10, r * 0.98),
-						c + Vector2(r * 0.30, r * 0.46),
-						c + Vector2(r * 0.10, r * 0.48),
-					])
-					var flash: float = 0.55 + 0.45 * absf(sin(_anim_phase * 2.4))
-					draw_polygon(bolt, PackedColorArray([Color(0.86, 0.66, 0.18, flash)]))
-				if _state == 6:
-					draw_arc(c, r * 1.02, 0.0, TAU, 30, Color(0.55, 0.10, 0.10, 0.75), 2.0, true)
-
-	func _draw_cloud(center: Vector2, r: float, ink: Color) -> void:
-		draw_circle(center + Vector2(-r * 0.34, 0.0), r * 0.34, ink)
-		draw_circle(center + Vector2(r * 0.30, r * 0.04), r * 0.30, ink)
-		draw_circle(center + Vector2(-r * 0.02, -r * 0.20), r * 0.40, ink)
-		draw_rect(Rect2(center.x - r * 0.36, center.y - r * 0.02, r * 0.70, r * 0.34), ink, true)
-
-
-class OccupancyBarControl:
-	extends Control
-
-	## Bed occupancy as a segmented brass slide gauge. Reads at a glance whether
-	## there is room to accept the booking currently open in CampMail.
-
-	var _occupied: int = 0
-	var _capacity: int = 0
-
-	func set_metrics(occupied: int, capacity: int) -> void:
-		var o := maxi(0, occupied)
-		var c := maxi(0, capacity)
-		if o == _occupied and c == _capacity:
-			return
-		_occupied = o
-		_capacity = c
-		queue_redraw()
-
-	func _notification(what: int) -> void:
-		if what == NOTIFICATION_RESIZED:
-			queue_redraw()
-
-	func _draw() -> void:
-		var track := Rect2(0.0, size.y * 0.20, size.x, size.y * 0.60)
-		draw_rect(track, Color(0.16, 0.11, 0.07, 1.0), true)
-		draw_rect(track, Color(0.44, 0.33, 0.20, 1.0), false, 1.5)
-
-		if _capacity <= 0:
-			return
-
-		var seg_count: int = mini(_capacity, 24)
-		var gap := 2.0
-		var seg_w: float = maxf(2.0, (track.size.x - gap * float(seg_count + 1)) / float(seg_count))
-		# Occupied segments are proportional when capacity exceeds the segment budget.
-		var filled: int = int(round((float(_occupied) / float(_capacity)) * float(seg_count)))
-		if _occupied > 0:
-			filled = maxi(1, filled)
-		for i in range(seg_count):
-			var x := track.position.x + gap + float(i) * (seg_w + gap)
-			var seg := Rect2(x, track.position.y + 3.0, seg_w, track.size.y - 6.0)
-			var col := Color(0.24, 0.20, 0.14, 1.0)
-			if i < filled:
-				var ratio := float(i + 1) / float(seg_count)
-				col = Color(0.36, 0.62, 0.30, 1.0)
-				if ratio > 0.85:
-					col = Color(0.78, 0.24, 0.16, 1.0)
-				elif ratio > 0.60:
-					col = Color(0.88, 0.70, 0.20, 1.0)
-			draw_rect(seg, col, true)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# STATE
-# ═══════════════════════════════════════════════════════════════════════════════
-
-var _hud_layer: CanvasLayer
-var _hud_root: Control
+var _scale: int = 3
+var _layer: CanvasLayer
 var _hint_layer: CanvasLayer
+var _root: Control
+var _hint_root: Control
+var _world_visible: bool = true
+var _built_for_size: Vector2 = Vector2.ZERO
 
-var _interaction_hint_label: Label
-var _clock_widget: AnalogClockControl
-var _health_gauge: HealthGaugeControl
-var _forecast_lights: BulbMeterControl
-var _email_lights: BulbMeterControl
-var _weather_glyph: WeatherGlyphControl
-var _occupancy_bar: OccupancyBarControl
-
-var _cash_value_label: Label
-var _cash_glow_overlay: ColorRect
-var _day_label: Label
-var _phase_label: Label
-var _digital_time_label: Label
+# Widgets
+var _bar: Control
+var _cells: Dictionary = {}
+var _health_value: Label
+var _health_bar: Control
+var _stamina_bar: Control
+var _light_bar: Control
+var _cash_value: Label
+var _cash_delta: Label
+var _clock_caption: Label
+var _clock_value: Label
+var _clock_phase: Label
 var _weather_label: Label
-var _occupancy_label: Label
-var _risk_level_label: Label
-var _risk_detail_label: Label
-var _mail_caption_label: Label
+var _guest_face: Control
+var _guest_value: Label
+var _guest_mood: Label
+var _mail_value: Label
+var _mail_cell: Control
+var _risk_pips: Array[ColorRect] = []
+var _risk_level: Label
+var _risk_detail: Label
+var _feed_box: VBoxContainer
+var _objective_panel: Control
+var _objective_title: Label
+var _objective_text: Label
+var _objective_progress: Label
+var _hint_label: Label
+var _crosshair: Control
+var _card_panel: Control
+var _card_name: Label
+var _card_sub: Label
+var _card_face: Control
+var _card_quote: Label
+var _card_bars: Dictionary = {}
+var _banner_title: Label
+var _banner_sub: Label
+var _banner_box: Control
 
-var _status_panel: PanelContainer
-var _status_label: Label
-var _status_timer: float = 0.0
-var _status_text: String = ""
-
-var _health_ratio: float = 1.0
-var _forecast_count: int = 2
+# Cached state
+var _money: int = 0
+var _money_known: bool = false
+var _money_flash: float = 0.0
+var _day: int = 1
+var _time_str: String = "09:00"
+var _phase: int = PHASE_DAY
+var _weather: int = 0
+var _health: float = 1.0
+var _stamina: float = 1.0
+var _light: float = 1.0
+var _beds: Vector2i = Vector2i.ZERO
+var _mood: Dictionary = {}
+var _risk_level_index: int = 0
+var _risk_payload: Dictionary = {}
+var _unread: int = 0
+var _objective: Dictionary = {}
+var _hint_text: String = ""
+var _feed: Array[Dictionary] = []
+var _card_info: Dictionary = {}
+var _card_timer: float = 0.0
+var _banner_timer: float = 0.0
+var _banner_total: float = 0.0
+var _fear: float = 0.0
 var _mail_bound: bool = false
-var _last_clock_marker_minute: int = -1
-var _cash_known: bool = false
-var _cash_amount: int = 0
-var _cash_glow_time: float = 0.0
-var _cash_glow_duration: float = 1.0
-var _cash_poll_accum: float = 0.0
-var _cash_poll_interval_sec: float = 10.0
-
-var _current_day: int = 1
-var _current_phase: int = PHASE_DAY
-var _current_weather: int = 0
-var _bed_capacity: int = 0
-var _bed_occupied: int = 0
-var _bed_poll_accum: float = 0.0
-var _bed_poll_interval_sec: float = 2.0
+var _poll_money: float = 0.0
+var _poll_guests: float = 0.0
+var _blink_t: float = 0.0
+var _last_phase_announce: int = -1
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PUBLIC SETUP API  (called from main.gd)
+# SETUP API (called from main.gd)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 func setup_interaction_hint() -> void:
-	if _hint_layer != null:
-		return
-	_hint_layer = CanvasLayer.new()
-	_hint_layer.name = "InteractionHintLayer"
-	_hint_layer.layer = HINT_LAYER_INDEX
-	add_child(_hint_layer)
-
-	var label := Label.new()
-	label.name = "InteractionHint"
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.text = ""
-	label.anchor_left = 0.0
-	label.anchor_right = 1.0
-	label.position = Vector2(0.0, 18.0)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 18)
-	label.add_theme_color_override("font_color", COL_TEXT)
-	label.add_theme_color_override("font_shadow_color", Color(0.02, 0.01, 0.01, 0.95))
-	label.add_theme_constant_override("shadow_offset_x", 2)
-	label.add_theme_constant_override("shadow_offset_y", 2)
-	_hint_layer.add_child(label)
-	_interaction_hint_label = label
+	_ensure_world_hud()
 
 
 func setup_money_hud() -> void:
@@ -610,552 +158,803 @@ func setup_time_hud() -> void:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PUBLIC UPDATE API
+# UPDATE API
 # ═══════════════════════════════════════════════════════════════════════════════
 
 func update_weather(state: int) -> void:
-	_ensure_world_hud()
-	_current_weather = clampi(state, 0, WEATHER_LABELS.size() - 1)
-	if _weather_glyph != null:
-		_weather_glyph.set_weather_state(_current_weather)
-	if _weather_label != null:
-		_weather_label.text = str(WEATHER_LABELS[_current_weather])
+	_weather = clampi(state, 0, WEATHER_LABELS.size() - 1)
+	_refresh_clock()
 
 
 func update_time(time_str: String, day: int) -> void:
-	_ensure_world_hud()
+	_time_str = time_str
+	_day = maxi(1, day)
 	var minute := _parse_time_to_minutes(time_str)
-	if _clock_widget != null:
-		_clock_widget.set_minute_of_day(minute)
-		_try_trigger_clock_phase(minute)
-	if _digital_time_label != null:
-		_digital_time_label.text = time_str
-	_set_day(day)
-	_set_phase(_phase_for_minute(minute))
+	var phase := _phase_for_minute(minute)
+	if phase != _phase and _last_phase_announce >= 0:
+		_announce_phase(phase)
+	_phase = phase
+	_last_phase_announce = phase
+	_refresh_clock()
 
 
 func on_money_changed(new_amount: int) -> void:
-	_ensure_world_hud()
-	_apply_money_amount(new_amount)
+	_apply_money(new_amount)
 
 
 func set_world_hud_visible(visible: bool) -> void:
-	if _hud_layer != null:
-		_hud_layer.visible = visible
+	_world_visible = visible
+	if _layer != null:
+		_layer.visible = visible
 	if _hint_layer != null:
 		_hint_layer.visible = visible
 
 
 func set_hint_text(text: String) -> void:
-	if _interaction_hint_label != null:
-		_interaction_hint_label.text = text
+	_hint_text = text
+	if _hint_label != null:
+		_hint_label.text = text.to_upper()
+		_hint_label.visible = not text.is_empty()
 
 
 func set_health_ratio(value: float) -> void:
-	_health_ratio = clampf(value, 0.0, 1.0)
-	if _health_gauge != null:
-		_health_gauge.set_value(_health_ratio)
+	_health = clampf(value, 0.0, 1.0)
+	_refresh_health()
 
 
-## Legacy entry point: bulb count only. Prefer `set_liminal_forecast()`.
+func set_stamina_ratio(value: float) -> void:
+	_stamina = clampf(value, 0.0, 1.0)
+	if _stamina_bar != null:
+		_stamina_bar.set_value(_stamina)
+
+
+func set_light_ratio(value: float) -> void:
+	_light = clampf(value, 0.0, 1.0)
+	if _light_bar != null:
+		_light_bar.set_value(_light)
+
+
+## 0-1 fear from the night: tightens the face's eyes and tints the vignette.
+func set_fear(value: float) -> void:
+	_fear = clampf(value, 0.0, 1.0)
+	_refresh_guests()
+
+
+## Legacy entry point: level only. Prefer `set_liminal_forecast()`.
 func set_liminal_forecast_count(value: int) -> void:
-	_forecast_count = clampi(value, 0, 4)
-	if _forecast_lights != null:
-		_forecast_lights.set_active_count(_forecast_count)
-	if _risk_level_label != null:
-		_risk_level_label.text = str(RISK_LEVEL_LABELS[_forecast_count])
-		_risk_level_label.add_theme_color_override("font_color", _risk_level_color(_forecast_count))
+	_risk_level_index = clampi(value, 0, 4)
+	_refresh_risk()
 
 
 ## Full forecast payload from `GuestManager.get_liminal_forecast_data()`.
-## Drives the bulb meter, the level caption and the "which archetype" detail line.
 func set_liminal_forecast(payload: Dictionary) -> void:
-	_ensure_world_hud()
-	set_liminal_forecast_count(int(payload.get("hud_level", 0)))
-	if _risk_detail_label == null:
-		return
-	var detail := _compose_risk_detail(payload)
-	_risk_detail_label.text = "NIGHT RISK" if detail.is_empty() else "NIGHT RISK - %s" % detail
+	_risk_payload = payload.duplicate(true)
+	_risk_level_index = clampi(int(payload.get("hud_level", 0)), 0, 4)
+	_refresh_risk()
 
 
-## Transient feedback line above the bar. `kind` is one of the STATUS_* constants.
+## Message feed line (top-left). `kind` is one of the STATUS_* constants.
 func push_status(text: String, kind: int = STATUS_INFO) -> void:
-	_ensure_world_hud()
-	if _status_label == null or _status_panel == null:
+	if text.strip_edges().is_empty():
 		return
-	_status_text = text
-	_status_label.text = text
-	_status_label.add_theme_color_override("font_color", _status_color(kind))
-	_status_panel.modulate.a = 1.0
-	_status_panel.visible = not text.is_empty()
-	_status_timer = STATUS_HOLD_SEC + STATUS_FADE_SEC if not text.is_empty() else 0.0
+	_ensure_world_hud()
+	var color := RETRO_UI.C_BONE
+	match kind:
+		STATUS_GOOD:
+			color = RETRO_UI.C_GREEN
+		STATUS_WARN:
+			color = RETRO_UI.C_AMBER
+		STATUS_DENY:
+			color = Color(1.0, 0.42, 0.34)
+		STATUS_QUOTE:
+			color = Color(0.98, 0.88, 0.62)
+	_feed.append({"text": text, "color": color, "t": FEED_HOLD_SEC + FEED_FADE_SEC})
+	while _feed.size() > FEED_MAX_LINES:
+		_feed.remove_at(0)
+	_rebuild_feed()
+
+
+## A guest line in the Duke3D quote feed.
+func show_quote(guest_name: String, text: String, mood: float) -> void:
+	var prefix := ">:( " if mood < 35.0 else ""
+	push_status("%s%s: \"%s\"" % [prefix, guest_name, text], STATUS_QUOTE)
+
+
+## Talk interaction: a card with the guest's mood, needs and what they just said.
+func show_guest_card(info: Dictionary) -> void:
+	_ensure_world_hud()
+	_card_info = info.duplicate(true)
+	_card_timer = CARD_HOLD_SEC
+	_refresh_card()
+
+
+## Objective tracker (QuestManager). Keys: title, text, progress ("2/3"), reward, done.
+func set_objective(data: Dictionary) -> void:
+	_objective = data.duplicate(true)
+	_refresh_objective()
+
+
+func clear_objective() -> void:
+	_objective.clear()
+	_refresh_objective()
+
+
+## Big centred title that fades out ("NIGHT 1", "OBJECTIVE COMPLETE").
+func show_banner(title: String, subtitle: String = "", color: Color = Color(1.0, 0.72, 0.22), seconds: float = 3.6) -> void:
+	_ensure_world_hud()
+	if _banner_title == null:
+		return
+	_banner_title.text = title
+	_banner_title.add_theme_color_override("font_color", color)
+	_banner_sub.text = subtitle
+	_banner_sub.visible = not subtitle.is_empty()
+	_banner_total = maxf(0.8, seconds)
+	_banner_timer = _banner_total
+	_banner_box.visible = true
+	_banner_box.modulate.a = 0.0
 
 
 func set_bed_metrics(occupied: int, capacity: int) -> void:
-	_ensure_world_hud()
-	_bed_occupied = maxi(0, occupied)
-	_bed_capacity = maxi(0, capacity)
-	if _occupancy_bar != null:
-		_occupancy_bar.set_metrics(_bed_occupied, _bed_capacity)
-	if _occupancy_label != null:
-		_occupancy_label.text = "BEDS %d/%d" % [_bed_occupied, _bed_capacity]
+	_beds = Vector2i(maxi(0, occupied), maxi(0, capacity))
+	_refresh_guests()
 
 
 func cycle_item_slot(_step: int) -> void:
-	# Slot system removed by design request.
 	pass
 
 
 func set_selected_slot(_index: int) -> void:
-	# Slot system removed by design request.
 	pass
 
 
-func _process(delta: float) -> void:
-	_cash_poll_accum += delta
-	if _cash_poll_accum >= _cash_poll_interval_sec:
-		_cash_poll_accum = 0.0
-		_poll_money_from_core()
-	_bed_poll_accum += delta
-	if _bed_poll_accum >= _bed_poll_interval_sec:
-		_bed_poll_accum = 0.0
-		_poll_bed_metrics()
-	_update_cash_glow(delta)
-	_update_status_strip(delta)
+## Virtual-pixel width the status bar cells need (cells + gaps + margins).
+static func bar_width_vp() -> float:
+	var total := 0.0
+	for key in CELL_WIDTHS.keys():
+		total += float(CELL_WIDTHS[key])
+	return total + 3.0 * float(CELL_WIDTHS.size() - 1) + 10.0
+
+
+## Status bar height in real pixels (for code that must not draw under it).
+func get_bar_height_px() -> float:
+	return float(BAR_HEIGHT_VP * _scale)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# LAYOUT
+# FRAME
+# ═══════════════════════════════════════════════════════════════════════════════
+
+func _process(delta: float) -> void:
+	if _root == null:
+		return
+	var vp_size := get_viewport().get_visible_rect().size
+	if vp_size != _built_for_size:
+		_rebuild_layout()
+	_blink_t += delta
+	_poll_money -= delta
+	if _poll_money <= 0.0:
+		_poll_money = 0.5
+		if CoreRoot != null and CoreRoot.has_method("get_money"):
+			_apply_money(int(CoreRoot.get_money()))
+	_poll_guests -= delta
+	if _poll_guests <= 0.0:
+		_poll_guests = 1.5
+		_poll_guest_state()
+	_update_feed(delta)
+	_update_money_flash(delta)
+	_update_card(delta)
+	_update_banner(delta)
+	if _mail_cell != null:
+		_mail_value.modulate = Color(1, 1, 1, 1) if _unread == 0 or fmod(_blink_t, 1.0) < 0.6 else Color(1, 1, 1, 0.35)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUILD
 # ═══════════════════════════════════════════════════════════════════════════════
 
 func _ensure_world_hud() -> void:
-	if _hud_layer != null:
+	if _layer != null:
 		_ensure_email_binding()
 		return
+	_layer = CanvasLayer.new()
+	_layer.name = "RetroHudLayer"
+	_layer.layer = HUD_LAYER_INDEX
+	add_child(_layer)
+	_root = Control.new()
+	_root.name = "RetroHudRoot"
+	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_layer.add_child(_root)
 
-	_hud_layer = CanvasLayer.new()
-	_hud_layer.name = "RetroHudLayer"
-	_hud_layer.layer = HUD_LAYER_INDEX
-	add_child(_hud_layer)
+	_hint_layer = CanvasLayer.new()
+	_hint_layer.name = "InteractionHintLayer"
+	_hint_layer.layer = HINT_LAYER_INDEX
+	add_child(_hint_layer)
+	_hint_root = Control.new()
+	_hint_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hint_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_layer.add_child(_hint_root)
 
-	_hud_root = Control.new()
-	_hud_root.name = "RetroHudRoot"
-	_hud_root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_hud_layer.add_child(_hud_root)
-
-	_build_status_strip(_hud_root)
-
-	var bar := WoodBarBackdrop.new()
-	bar.name = "BottomBar"
-	bar.anchor_left = 0.0
-	bar.anchor_right = 1.0
-	bar.anchor_top = 1.0
-	bar.anchor_bottom = 1.0
-	bar.offset_top = -BAR_HEIGHT
-	bar.offset_bottom = 0.0
-	_hud_root.add_child(bar)
-
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", BAR_MARGIN_TOP)
-	margin.add_theme_constant_override("margin_bottom", BAR_MARGIN_BOTTOM)
-	bar.add_child(margin)
-
-	var modules := HBoxContainer.new()
-	modules.alignment = BoxContainer.ALIGNMENT_CENTER
-	modules.add_theme_constant_override("separation", 10)
-	margin.add_child(modules)
-
-	_build_cash_cluster(modules)
-	_build_clock_cluster(modules)
-	_build_conditions_cluster(modules)
-	_build_health_cluster(modules)
-
-	_set_control_mouse_passthrough(_hud_root)
+	_rebuild_layout()
 	_ensure_email_binding()
 	_on_unread_count_changed(_get_unread_count())
-	set_liminal_forecast_count(_forecast_count)
-	_poll_money_from_core()
-	_poll_bed_metrics()
+	_poll_guest_state()
 	set_process(true)
+	set_world_hud_visible(_world_visible)
 
 
-func _build_status_strip(parent: Control) -> void:
-	var panel := PanelContainer.new()
-	panel.name = "StatusStrip"
-	panel.anchor_left = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_top = 1.0
-	panel.anchor_bottom = 1.0
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.offset_top = -(BAR_HEIGHT + 40.0)
-	panel.offset_bottom = -(BAR_HEIGHT + 10.0)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.visible = false
-	panel.add_theme_stylebox_override("panel", _status_panel_style())
-	parent.add_child(panel)
-	_status_panel = panel
+func _rebuild_layout() -> void:
+	var vp_size := get_viewport().get_visible_rect().size
+	_built_for_size = vp_size
+	_scale = RETRO_UI.ui_scale(vp_size.y, vp_size.x, bar_width_vp())
+	for child in _root.get_children():
+		child.queue_free()
+	for child in _hint_root.get_children():
+		child.queue_free()
+	_cells.clear()
+	_risk_pips.clear()
+	_card_bars.clear()
 
-	var inner := MarginContainer.new()
-	inner.add_theme_constant_override("margin_left", 14)
-	inner.add_theme_constant_override("margin_right", 14)
-	inner.add_theme_constant_override("margin_top", 3)
-	inner.add_theme_constant_override("margin_bottom", 3)
-	panel.add_child(inner)
+	_build_status_bar()
+	_build_feed()
+	_build_objective()
+	_build_crosshair_and_hint()
+	_build_card()
+	_build_banner()
 
-	var label := Label.new()
-	label.text = ""
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 16)
-	label.add_theme_color_override("font_color", COL_TEXT)
-	label.add_theme_color_override("font_shadow_color", Color(0.02, 0.01, 0.01, 0.92))
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
-	inner.add_child(label)
-	_status_label = label
+	_refresh_all()
 
 
-func _build_cash_cluster(parent: BoxContainer) -> void:
-	var cluster := VBoxContainer.new()
-	cluster.name = "CashCluster"
-	cluster.custom_minimum_size = Vector2(178.0, 110.0)
-	cluster.add_theme_constant_override("separation", 3)
-	parent.add_child(cluster)
-
-	var panel := PanelContainer.new()
-	panel.name = "CashModule"
-	panel.custom_minimum_size = Vector2(178.0, 72.0)
-	panel.add_theme_stylebox_override("panel", _brass_panel_style(10))
-	cluster.add_child(panel)
-	_decorate_module_panel(panel, 15.0)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 10)
-	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_top", 5)
-	margin.add_theme_constant_override("margin_bottom", 5)
-	panel.add_child(margin)
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 2)
-	margin.add_child(box)
-
-	box.add_child(_make_module_caption("CASH"))
-
-	var display := PanelContainer.new()
-	display.custom_minimum_size = Vector2(0.0, 40.0)
-	display.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	display.add_theme_stylebox_override("panel", _digital_display_style())
-	box.add_child(display)
-
-	var glow := ColorRect.new()
-	glow.name = "CashGlow"
-	glow.set_anchors_preset(Control.PRESET_FULL_RECT)
-	glow.color = Color(1.0, 0.82, 0.25, 0.0)
-	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	display.add_child(glow)
-	_cash_glow_overlay = glow
-
-	var value := Label.new()
-	value.text = "$500"
-	value.set_anchors_preset(Control.PRESET_FULL_RECT)
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	value.add_theme_font_size_override("font_size", 30)
-	value.add_theme_color_override("font_color", Color(0.97, 0.67, 0.14, 1.0))
-	value.add_theme_color_override("font_shadow_color", Color(0.18, 0.08, 0.02, 0.98))
-	value.add_theme_constant_override("shadow_offset_x", 2)
-	value.add_theme_constant_override("shadow_offset_y", 2)
-	display.add_child(value)
-	_cash_value_label = value
-
-	var bulbs := BulbMeterControl.new()
-	bulbs.name = "EmailBulbs"
-	bulbs.custom_minimum_size = Vector2(178.0, 16.0)
-	bulbs.configure(3, [
-		Color(0.72, 0.12, 0.12, 1.0),
-		Color(0.95, 0.78, 0.20, 1.0),
-		Color(0.28, 0.72, 0.30, 1.0)
-	], true)
-	cluster.add_child(bulbs)
-	_email_lights = bulbs
-
-	_mail_caption_label = _make_meter_caption("UNREAD MAIL")
-	cluster.add_child(_mail_caption_label)
+func _bevel(recessed: bool, textured: bool = false) -> Control:
+	var p := RETRO_UI.BevelPanel.new()
+	p.ui_scale = _scale
+	p.recessed = recessed
+	if recessed:
+		p.fill = RETRO_UI.C_LCD
+		p.light = Color(0.40, 0.36, 0.30)
+		p.dark = Color(0.02, 0.02, 0.02)
+	if textured:
+		p.tile_texture = RETRO_UI.texture(RETRO_UI.PLATE_TEXTURE_PATH)
+	return p
 
 
-func _build_clock_cluster(parent: BoxContainer) -> void:
-	var cluster := VBoxContainer.new()
-	cluster.name = "ClockCluster"
-	cluster.custom_minimum_size = Vector2(172.0, 110.0)
-	cluster.add_theme_constant_override("separation", 3)
-	parent.add_child(cluster)
+func _vp(v: float) -> float:
+	return v * float(_scale)
 
-	var panel := PanelContainer.new()
-	panel.name = "ClockModule"
-	panel.custom_minimum_size = Vector2(172.0, 72.0)
-	panel.add_theme_stylebox_override("panel", _brass_panel_style(14))
-	cluster.add_child(panel)
-	_decorate_module_panel(panel, 15.0)
 
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 6)
-	margin.add_theme_constant_override("margin_right", 6)
-	margin.add_theme_constant_override("margin_top", 4)
-	margin.add_theme_constant_override("margin_bottom", 4)
-	panel.add_child(margin)
+func _build_status_bar() -> void:
+	_bar = _bevel(false, true)
+	_bar.name = "StatusBar"
+	_bar.anchor_left = 0.0
+	_bar.anchor_right = 1.0
+	_bar.anchor_top = 1.0
+	_bar.anchor_bottom = 1.0
+	_bar.offset_top = -_vp(BAR_HEIGHT_VP)
+	_root.add_child(_bar)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	margin.add_child(row)
+	row.name = "Cells"
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", int(_vp(3)))
+	row.offset_top = _vp(3)
+	row.offset_bottom = -_vp(3)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar.add_child(row)
 
-	var clock := AnalogClockControl.new()
-	clock.custom_minimum_size = Vector2(62.0, 62.0)
-	row.add_child(clock)
-	_clock_widget = clock
+	# Rows inside a 34vp cell (baseline-exact, like a Build status bar):
+	#   caption  y=1   Silkscreen 8
+	#   value    y=8   Pixelify 16
+	#   footer   y=23  Silkscreen 8   (or a bar at y=27)
+	var health := _cell(row, "health", "HEALTH")
+	_health_value = _put(health, RETRO_UI.label("100", RETRO_UI.FONT_TEXT, 16, RETRO_UI.C_BONE, _scale), 8)
+	_health_bar = _put_bar(health, _segment_bar(10, Color(0.9, 0.2, 0.15), Color(0.5, 0.05, 0.03), 3), 28, 3)
 
-	var readout := VBoxContainer.new()
-	readout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	readout.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	readout.add_theme_constant_override("separation", 1)
-	row.add_child(readout)
+	var stam := _cell(row, "stamina", "STAMINA")
+	_stamina_bar = _put_bar(stam, _segment_bar(8, RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, 4), 11, 4)
+	_put(stam, RETRO_UI.label("LIGHT", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false), 17)
+	_light_bar = _put_bar(stam, _segment_bar(8, Color(1.0, 0.92, 0.55), RETRO_UI.C_RED, 4), 27, 4)
 
-	_day_label = _make_readout_label("DAY 1", 19, Color(0.13, 0.08, 0.05, 1.0))
-	readout.add_child(_day_label)
+	var cash := _cell(row, "cash", "CASH")
+	_cash_value = _put(cash, RETRO_UI.label("$0", RETRO_UI.FONT_TEXT, 16, RETRO_UI.C_AMBER, _scale), 8)
+	_cash_delta = _put(cash, RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_GREEN, _scale, false), 23)
 
-	_digital_time_label = _make_readout_label("09:00", 22, Color(0.10, 0.06, 0.03, 1.0))
-	readout.add_child(_digital_time_label)
+	var clock := _cell(row, "clock", "DAY 1")
+	_clock_caption = clock.get_child(0) as Label
+	_clock_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_weather_label = _put(clock, RETRO_UI.label("CLEAR", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BLUE, _scale, false), 1)
+	_weather_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_clock_value = _put(clock, RETRO_UI.label("09:00", RETRO_UI.FONT_TEXT, 16, RETRO_UI.C_BONE, _scale), 8)
+	_clock_phase = _put(clock, RETRO_UI.label("DAY", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false), 23)
 
-	_phase_label = _make_readout_label("DAY", 15, Color(0.32, 0.24, 0.13, 1.0))
-	readout.add_child(_phase_label)
+	var guests := _cell(row, "guests", "GUESTS")
+	_guest_face = RETRO_UI.PixelFace.new()
+	_guest_face.ui_scale = _scale
+	_guest_face.position = Vector2(0.0, _vp(12))
+	_guest_face.size = Vector2(_vp(17), _vp(17))
+	guests.add_child(_guest_face)
+	_guest_value = _put(guests, RETRO_UI.label("0/0", RETRO_UI.FONT_TEXT, 8, RETRO_UI.C_BONE, _scale), 12, _vp(19))
+	_guest_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_guest_mood = _put(guests, RETRO_UI.label("EMPTY", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false), 23, _vp(19))
+	_guest_mood.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
-	cluster.add_child(_make_meter_caption("CAMP CLOCK"))
+	var mail := _cell(row, "mail", "MAIL")
+	_mail_cell = mail
+	_mail_value = _put(mail, RETRO_UI.label("0", RETRO_UI.FONT_TEXT, 16, RETRO_UI.C_BONE_DIM, _scale), 8)
+
+	var risk := _cell(row, "risk", "NIGHT RISK")
+	var pip_w := 10.0
+	var inner_w := float(CELL_WIDTHS["risk"]) - 4.0
+	var start_x := (inner_w - (pip_w * 4.0 + 2.0 * 3.0)) * 0.5
+	for i in 4:
+		var pip := ColorRect.new()
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pip.position = Vector2(_vp(start_x + float(i) * (pip_w + 2.0)), _vp(12))
+		pip.size = Vector2(_vp(pip_w), _vp(8))
+		risk.add_child(pip)
+		_risk_pips.append(pip)
+	_risk_level = _put(risk, RETRO_UI.label("CLEAR", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_GREEN, _scale, false), 23)
+
+	# Detail line for the risk sits just above the bar, right-aligned.
+	_risk_detail = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale)
+	_risk_detail.anchor_left = 0.0
+	_risk_detail.anchor_right = 1.0
+	_risk_detail.anchor_top = 1.0
+	_risk_detail.anchor_bottom = 1.0
+	_risk_detail.offset_top = -_vp(BAR_HEIGHT_VP + 11)
+	_risk_detail.offset_bottom = -_vp(BAR_HEIGHT_VP + 1)
+	_risk_detail.offset_right = -_vp(4)
+	_risk_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_root.add_child(_risk_detail)
 
 
-func _build_conditions_cluster(parent: BoxContainer) -> void:
-	var cluster := VBoxContainer.new()
-	cluster.name = "ConditionsCluster"
-	cluster.custom_minimum_size = Vector2(186.0, 110.0)
-	cluster.add_theme_constant_override("separation", 3)
-	parent.add_child(cluster)
+## A recessed LCD cell. Returns the content Control (inner area, 2vp padding) with the
+## caption label already placed at y=1.
+func _cell(row: HBoxContainer, id: String, caption: String) -> Control:
+	var panel := _bevel(true)
+	panel.name = "Cell_%s" % id
+	panel.custom_minimum_size = Vector2(_vp(float(CELL_WIDTHS.get(id, 50))), _vp(CELL_HEIGHT_VP))
+	row.add_child(panel)
+	var content := Control.new()
+	content.name = "Content"
+	content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = _vp(2)
+	content.offset_right = -_vp(2)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(content)
+	var cap := RETRO_UI.label(caption, RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false)
+	_put(content, cap, 1)
+	_cells[id] = panel
+	return content
 
-	var panel := PanelContainer.new()
-	panel.name = "ConditionsModule"
-	panel.custom_minimum_size = Vector2(186.0, 72.0)
-	panel.add_theme_stylebox_override("panel", _brass_panel_style(10))
-	cluster.add_child(panel)
-	_decorate_module_panel(panel, 15.0)
 
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 9)
-	margin.add_theme_constant_override("margin_right", 9)
-	margin.add_theme_constant_override("margin_top", 5)
-	margin.add_theme_constant_override("margin_bottom", 5)
-	panel.add_child(margin)
+## Places a label full-width at y (vp) inside a cell content control.
+func _put(content: Control, l: Label, y_vp: float, left_px: float = 0.0) -> Label:
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.anchor_left = 0.0
+	l.anchor_right = 1.0
+	l.offset_left = left_px
+	l.offset_right = 0.0
+	l.offset_top = _vp(y_vp)
+	l.offset_bottom = _vp(y_vp) + l.get_combined_minimum_size().y
+	content.add_child(l)
+	return l
 
+
+func _put_bar(content: Control, bar: Control, y_vp: float, h_vp: float) -> Control:
+	bar.anchor_left = 0.0
+	bar.anchor_right = 1.0
+	bar.offset_top = _vp(y_vp)
+	bar.offset_bottom = _vp(y_vp + h_vp)
+	content.add_child(bar)
+	return bar
+
+
+func _segment_bar(segments: int, full: Color, low: Color, height_vp: int) -> Control:
+	var bar := RETRO_UI.SegmentBar.new()
+	bar.ui_scale = _scale
+	bar.segments = segments
+	bar.color_full = full
+	bar.color_low = low
+	bar.custom_minimum_size = Vector2(0, _vp(height_vp))
+	return bar
+
+
+func _build_feed() -> void:
+	_feed_box = VBoxContainer.new()
+	_feed_box.name = "MessageFeed"
+	_feed_box.position = Vector2(_vp(4), _vp(3))
+	_feed_box.size = Vector2(_vp(250), _vp(60))
+	_feed_box.add_theme_constant_override("separation", 0)
+	_feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_feed_box)
+
+
+func _build_objective() -> void:
+	var panel := _bevel(false)
+	panel.fill = Color(0.07, 0.06, 0.05, 0.82)
+	panel.light = Color(0.45, 0.36, 0.20, 0.9)
+	panel.dark = Color(0.02, 0.02, 0.02, 0.9)
+	panel.name = "Objective"
+	panel.anchor_left = 1.0
+	panel.anchor_right = 1.0
+	panel.offset_left = -_vp(146)
+	panel.offset_right = -_vp(4)
+	panel.offset_top = _vp(4)
+	panel.offset_bottom = _vp(46)
+	_root.add_child(panel)
+	_objective_panel = panel
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 2)
-	margin.add_child(box)
-
-	var weather_row := HBoxContainer.new()
-	weather_row.add_theme_constant_override("separation", 7)
-	box.add_child(weather_row)
-
-	var glyph := WeatherGlyphControl.new()
-	glyph.custom_minimum_size = Vector2(34.0, 34.0)
-	weather_row.add_child(glyph)
-	_weather_glyph = glyph
-
-	_weather_label = _make_readout_label("CLEAR", 17, Color(0.12, 0.07, 0.04, 1.0))
-	_weather_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_weather_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_weather_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	weather_row.add_child(_weather_label)
-
-	var bar := OccupancyBarControl.new()
-	bar.custom_minimum_size = Vector2(0.0, 14.0)
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_child(bar)
-	_occupancy_bar = bar
-
-	_occupancy_label = _make_readout_label("BEDS 0/0", 14, Color(0.14, 0.09, 0.05, 1.0))
-	box.add_child(_occupancy_label)
-
-	cluster.add_child(_make_meter_caption("CONDITIONS"))
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = _vp(4)
+	box.offset_right = -_vp(4)
+	box.offset_top = _vp(3)
+	box.offset_bottom = -_vp(3)
+	box.add_theme_constant_override("separation", int(_vp(1)))
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(box)
+	_objective_title = RETRO_UI.label("VERA'S CHECKLIST", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_AMBER, _scale)
+	box.add_child(_objective_title)
+	_objective_text = RETRO_UI.label("", RETRO_UI.FONT_TEXT, 8, RETRO_UI.C_BONE, _scale)
+	_objective_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_objective_text.custom_minimum_size = Vector2(_vp(134), 0)
+	box.add_child(_objective_text)
+	_objective_progress = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_GREEN, _scale, false)
+	box.add_child(_objective_progress)
 
 
-func _build_health_cluster(parent: BoxContainer) -> void:
-	var cluster := VBoxContainer.new()
-	cluster.name = "HealthCluster"
-	cluster.custom_minimum_size = Vector2(232.0, 110.0)
-	cluster.add_theme_constant_override("separation", 3)
-	parent.add_child(cluster)
+func _build_crosshair_and_hint() -> void:
+	_crosshair = Control.new()
+	_crosshair.name = "Crosshair"
+	_crosshair.set_anchors_preset(Control.PRESET_CENTER)
+	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crosshair.draw.connect(func() -> void:
+		var s := float(_scale)
+		var c := Color(0.95, 0.9, 0.78, 0.55)
+		_crosshair.draw_rect(Rect2(Vector2(-2.0 * s, -0.5 * s), Vector2(4.0 * s, s)), c)
+		_crosshair.draw_rect(Rect2(Vector2(-0.5 * s, -2.0 * s), Vector2(s, 4.0 * s)), c)
+	)
+	_hint_root.add_child(_crosshair)
+	_crosshair.position = _built_for_size * 0.5 - Vector2(0, _vp(BAR_HEIGHT_VP) * 0.5)
+	_crosshair.queue_redraw()
 
-	var panel := PanelContainer.new()
-	panel.name = "HealthModule"
-	panel.custom_minimum_size = Vector2(232.0, 72.0)
-	panel.add_theme_stylebox_override("panel", _brass_panel_style(10))
-	cluster.add_child(panel)
-	_decorate_module_panel(panel, 15.0)
+	_hint_label = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE, _scale)
+	_hint_label.anchor_left = 0.0
+	_hint_label.anchor_right = 1.0
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label.offset_top = _crosshair.position.y + _vp(10)
+	_hint_label.offset_bottom = _hint_label.offset_top + _vp(12)
+	_hint_root.add_child(_hint_label)
 
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 9)
-	margin.add_theme_constant_override("margin_right", 9)
-	margin.add_theme_constant_override("margin_top", 4)
-	margin.add_theme_constant_override("margin_bottom", 3)
-	panel.add_child(margin)
 
+func _build_card() -> void:
+	var panel := _bevel(false)
+	panel.fill = Color(0.07, 0.06, 0.05, 0.9)
+	panel.name = "GuestCard"
+	panel.anchor_left = 1.0
+	panel.anchor_right = 1.0
+	panel.anchor_top = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -_vp(136)
+	panel.offset_right = -_vp(4)
+	panel.offset_top = -_vp(58)
+	panel.offset_bottom = _vp(46)
+	panel.visible = false
+	_root.add_child(panel)
+	_card_panel = panel
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 1)
-	margin.add_child(box)
-
-	var gauge := HealthGaugeControl.new()
-	gauge.custom_minimum_size = Vector2(0.0, 40.0)
-	gauge.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_child(gauge)
-	_health_gauge = gauge
-	_health_gauge.set_value(_health_ratio)
-
-	box.add_child(_make_module_caption("HEALTH"))
-
-	var risk_row := HBoxContainer.new()
-	risk_row.add_theme_constant_override("separation", 6)
-	cluster.add_child(risk_row)
-
-	var bulbs := BulbMeterControl.new()
-	bulbs.name = "ForecastBulbs"
-	bulbs.custom_minimum_size = Vector2(118.0, 16.0)
-	bulbs.configure(4, [
-		Color(0.32, 0.74, 0.34, 1.0),
-		Color(0.95, 0.80, 0.24, 1.0),
-		Color(0.83, 0.18, 0.16, 1.0),
-		Color(0.48, 0.07, 0.07, 1.0)
-	], false, [3])
-	risk_row.add_child(bulbs)
-	_forecast_lights = bulbs
-
-	_risk_level_label = _make_readout_label("RAISED", 14, Color(0.90, 0.80, 0.55, 1.0))
-	_risk_level_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_risk_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	risk_row.add_child(_risk_level_label)
-
-	# Caption and detail share one line: the cluster is the tallest in the bar and a
-	# second text row pushed it past the available height.
-	_risk_detail_label = _make_meter_caption("NIGHT RISK")
-	cluster.add_child(_risk_detail_label)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# LABEL / STYLE HELPERS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-## Engraved caption sitting inside a brass module (dark on brass).
-func _make_module_caption(text: String) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 15)
-	label.add_theme_color_override("font_color", Color(0.11, 0.07, 0.04, 1.0))
-	label.add_theme_color_override("font_shadow_color", Color(0.95, 0.84, 0.58, 0.22))
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
-	return label
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = _vp(4)
+	box.offset_right = -_vp(4)
+	box.offset_top = _vp(3)
+	box.offset_bottom = -_vp(3)
+	box.add_theme_constant_override("separation", int(_vp(1)))
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(box)
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_theme_constant_override("separation", int(_vp(3)))
+	box.add_child(head)
+	_card_face = RETRO_UI.PixelFace.new()
+	_card_face.ui_scale = _scale
+	_card_face.custom_minimum_size = Vector2(_vp(17), _vp(17))
+	head.add_child(_card_face)
+	var names := VBoxContainer.new()
+	names.add_theme_constant_override("separation", 0)
+	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(names)
+	_card_name = RETRO_UI.label("", RETRO_UI.FONT_TEXT, 8, RETRO_UI.C_AMBER, _scale)
+	names.add_child(_card_name)
+	_card_sub = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false)
+	names.add_child(_card_sub)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", int(_vp(3)))
+	grid.add_theme_constant_override("v_separation", int(_vp(1)))
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(grid)
+	for row in NEED_ROWS:
+		grid.add_child(RETRO_UI.label(str(row[1]), RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false))
+		var bar := _segment_bar(10, RETRO_UI.C_GREEN, RETRO_UI.C_RED, 4)
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		grid.add_child(bar)
+		_card_bars[str(row[0])] = bar
+	_card_quote = RETRO_UI.label("", RETRO_UI.FONT_TEXT, 8, Color(0.98, 0.88, 0.62), _scale)
+	_card_quote.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_card_quote.custom_minimum_size = Vector2(_vp(124), 0)
+	box.add_child(_card_quote)
 
 
-## Small caption under a meter, painted on the wood itself (light on dark).
-func _make_meter_caption(text: String) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 11)
-	label.add_theme_color_override("font_color", Color(0.74, 0.62, 0.42, 0.94))
-	label.add_theme_color_override("font_shadow_color", Color(0.03, 0.02, 0.01, 0.85))
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
-	return label
-
-
-func _make_readout_label(text: String, font_size: int, color: Color) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_shadow_color", Color(0.92, 0.81, 0.55, 0.18))
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
-	return label
-
-
-func _brass_panel_style(corner: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = COL_BRASS_MID
-	style.border_color = COL_BRASS_DARK
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(corner)
-	style.shadow_color = Color(0.02, 0.01, 0.01, 0.45)
-	style.shadow_size = 3
-	style.content_margin_left = 0.0
-	style.content_margin_right = 0.0
-	return style
-
-
-func _digital_display_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.09, 0.06, 0.03, 1.0)
-	style.border_color = Color(0.30, 0.22, 0.12, 1.0)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(3)
-	return style
-
-
-func _status_panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.07, 0.04, 0.90)
-	style.border_color = COL_BRASS_DARK
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(0)
-	return style
-
-
-## Brass screw heads in the module corners. Purely decorative.
-func _decorate_module_panel(panel: Control, inset: float) -> void:
-	for i in range(4):
-		var screw := ScrewHead.new()
-		screw.custom_minimum_size = Vector2(7.0, 7.0)
-		screw.size = Vector2(7.0, 7.0)
-		screw.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		screw.anchor_left = 0.0 if i % 2 == 0 else 1.0
-		screw.anchor_right = screw.anchor_left
-		screw.anchor_top = 0.0 if i < 2 else 1.0
-		screw.anchor_bottom = screw.anchor_top
-		var dx: float = inset * 0.32 if i % 2 == 0 else -inset * 0.32 - 7.0
-		var dy: float = 4.0 if i < 2 else -11.0
-		screw.offset_left = dx
-		screw.offset_top = dy
-		screw.offset_right = dx + 7.0
-		screw.offset_bottom = dy + 7.0
-		panel.add_child(screw)
-
-
-func _set_control_mouse_passthrough(node: Node) -> void:
-	if node is Control:
-		(node as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for child in node.get_children():
-		_set_control_mouse_passthrough(child)
+func _build_banner() -> void:
+	_banner_box = VBoxContainer.new()
+	_banner_box.name = "Banner"
+	_banner_box.anchor_left = 0.0
+	_banner_box.anchor_right = 1.0
+	_banner_box.anchor_top = 0.24
+	_banner_box.anchor_bottom = 0.24
+	_banner_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_banner_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner_box.visible = false
+	_root.add_child(_banner_box)
+	_banner_title = RETRO_UI.label("", RETRO_UI.FONT_TITLE, 22, RETRO_UI.C_AMBER, _scale)
+	_banner_title.add_theme_constant_override("outline_size", _scale * 2)
+	_banner_title.add_theme_color_override("font_outline_color", Color(0.1, 0.02, 0.01))
+	_banner_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner_box.add_child(_banner_title)
+	_banner_sub = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE, _scale)
+	_banner_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner_box.add_child(_banner_sub)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# RUNTIME BINDINGS + DERIVED VALUES
+# REFRESH
+# ═══════════════════════════════════════════════════════════════════════════════
+
+func _refresh_all() -> void:
+	_refresh_health()
+	if _stamina_bar != null:
+		_stamina_bar.set_value(_stamina)
+	if _light_bar != null:
+		_light_bar.set_value(_light)
+	if _cash_value != null and _money_known:
+		_cash_value.text = "$%s" % _format_money(_money)
+	_refresh_clock()
+	_refresh_guests()
+	_refresh_mail()
+	_refresh_risk()
+	_refresh_objective()
+	set_hint_text(_hint_text)
+	_rebuild_feed()
+	if _card_timer > 0.0:
+		_refresh_card()
+
+
+func _refresh_health() -> void:
+	if _health_value == null:
+		return
+	var hp := int(round(_health * 100.0))
+	_health_value.text = str(hp)
+	_health_value.add_theme_color_override("font_color", RETRO_UI.C_RED if hp < 35 else Color(0.98, 0.34, 0.26))
+	_health_bar.set_value(_health)
+	_health_bar.blink = _health < 0.3
+
+
+func _refresh_clock() -> void:
+	if _clock_value == null:
+		return
+	_clock_value.text = _time_str
+	_clock_caption.text = "DAY %d" % _day
+	_clock_phase.text = str(PHASE_LABELS[_phase])
+	var cap_col := RETRO_UI.C_BONE_DIM
+	var clock_col := RETRO_UI.C_BONE
+	if _phase == PHASE_EVENING:
+		cap_col = RETRO_UI.C_AMBER
+	elif _phase == PHASE_NIGHT:
+		cap_col = Color(1.0, 0.36, 0.30)
+		clock_col = Color(0.72, 0.80, 1.0)
+	_clock_phase.add_theme_color_override("font_color", cap_col)
+	_clock_value.add_theme_color_override("font_color", clock_col)
+	_weather_label.text = str(WEATHER_LABELS[_weather])
+
+
+func _refresh_guests() -> void:
+	if _guest_value == null:
+		return
+	_guest_value.text = "%d/%d" % [_beds.x, _beds.y]
+	var count := int(_mood.get("guests", 0))
+	var avg := float(_mood.get("avg_mood", 60.0))
+	var unhappy := int(_mood.get("unhappy", 0))
+	if count <= 0:
+		_guest_mood.text = "EMPTY"
+		_guest_mood.add_theme_color_override("font_color", RETRO_UI.C_BONE_DIM)
+	else:
+		var label := str(HUD_MOOD_WORDS.get(str(_mood.get("mood_label", "")), "OKAY"))
+		if unhappy > 0:
+			label = "%d UPSET" % unhappy
+		_guest_mood.text = label
+		var col := RETRO_UI.C_GREEN if avg >= 62.0 else (RETRO_UI.C_AMBER if avg >= 35.0 else Color(1.0, 0.36, 0.30))
+		_guest_mood.add_theme_color_override("font_color", col)
+	_guest_face.set_state(avg, _fear, count <= 0)
+
+
+func _refresh_mail() -> void:
+	if _mail_value == null:
+		return
+	_mail_value.text = str(_unread)
+	_mail_value.add_theme_color_override("font_color", RETRO_UI.C_AMBER if _unread > 0 else RETRO_UI.C_BONE_DIM)
+
+
+func _refresh_risk() -> void:
+	if _risk_level == null:
+		return
+	var level := _risk_level_index
+	for i in _risk_pips.size():
+		var lit := i < level
+		_risk_pips[i].color = _risk_color(i + 1) if lit else Color(0.12, 0.11, 0.10)
+	_risk_level.text = str(RISK_LEVEL_LABELS[level])
+	_risk_level.add_theme_color_override("font_color", _risk_color(level))
+	var detail := _compose_risk_detail(_risk_payload)
+	_risk_detail.text = "" if detail.is_empty() else "NIGHT RISK: %s" % detail.to_upper()
+
+
+func _refresh_objective() -> void:
+	if _objective_panel == null:
+		return
+	if _objective.is_empty():
+		_objective_panel.visible = false
+		return
+	_objective_panel.visible = true
+	_objective_title.text = str(_objective.get("title", "VERA'S CHECKLIST")).to_upper()
+	_objective_text.text = str(_objective.get("text", ""))
+	var progress := str(_objective.get("progress", ""))
+	var reward := str(_objective.get("reward", ""))
+	var parts: Array[String] = []
+	if not progress.is_empty():
+		parts.append(progress)
+	if not reward.is_empty():
+		parts.append("REWARD %s" % reward)
+	_objective_progress.text = "  ".join(parts)
+	_objective_progress.visible = not parts.is_empty()
+	# Let the panel grow with wrapped text.
+	await get_tree().process_frame
+	if _objective_panel == null or not is_instance_valid(_objective_panel):
+		return
+	var box := _objective_panel.get_child(0) as Control
+	if box != null:
+		_objective_panel.offset_bottom = _objective_panel.offset_top + box.get_combined_minimum_size().y + _vp(6)
+
+
+func _refresh_card() -> void:
+	if _card_panel == null or _card_info.is_empty():
+		return
+	_card_panel.visible = true
+	_card_panel.modulate.a = 1.0
+	_card_name.text = str(_card_info.get("name", "Guest"))
+	var archetype := str(_card_info.get("archetype", "")).replace("_", " ").to_upper()
+	var party := int(_card_info.get("party_size", 1))
+	_card_sub.text = "%s  x%d  %s" % [archetype, party, str(_card_info.get("mood_label", "")).to_upper()]
+	var mood := float(_card_info.get("mood", 60.0))
+	_card_face.set_state(mood, 1.0 - float((_card_info.get("needs", {}) as Dictionary).get("safety", 80.0)) / 100.0)
+	var needs: Dictionary = _card_info.get("needs", {})
+	for key in _card_bars.keys():
+		(_card_bars[key]).set_value(float(needs.get(key, 70.0)) / 100.0)
+	var thought := str(_card_info.get("thought", "")).strip_edges()
+	_card_quote.text = "\"%s\"" % thought if not thought.is_empty() else ""
+	await get_tree().process_frame
+	if _card_panel == null or not is_instance_valid(_card_panel):
+		return
+	var box := _card_panel.get_child(0) as Control
+	if box != null:
+		var h := box.get_combined_minimum_size().y + _vp(6)
+		_card_panel.offset_top = -h * 0.5 - _vp(10)
+		_card_panel.offset_bottom = h * 0.5 - _vp(10)
+
+
+func _rebuild_feed() -> void:
+	if _feed_box == null:
+		return
+	for child in _feed_box.get_children():
+		child.queue_free()
+	for entry in _feed:
+		var l := RETRO_UI.label(str(entry["text"]), RETRO_UI.FONT_TEXT, 8, entry["color"], _scale)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(_vp(250), 0)
+		_feed_box.add_child(l)
+		entry["label"] = l
+
+
+func _update_feed(delta: float) -> void:
+	var removed := false
+	for i in range(_feed.size() - 1, -1, -1):
+		var entry: Dictionary = _feed[i]
+		entry["t"] = float(entry["t"]) - delta
+		var l := entry.get("label", null) as Label
+		if l != null and is_instance_valid(l):
+			l.modulate.a = clampf(float(entry["t"]) / FEED_FADE_SEC, 0.0, 1.0)
+		if float(entry["t"]) <= 0.0:
+			_feed.remove_at(i)
+			removed = true
+	if removed:
+		_rebuild_feed()
+
+
+func _update_card(delta: float) -> void:
+	if _card_panel == null or _card_timer <= 0.0:
+		return
+	_card_timer -= delta
+	if _card_timer <= 0.0:
+		_card_panel.visible = false
+		_card_info.clear()
+	elif _card_timer < 0.6:
+		_card_panel.modulate.a = _card_timer / 0.6
+
+
+func _update_banner(delta: float) -> void:
+	if _banner_box == null or _banner_timer <= 0.0:
+		return
+	_banner_timer -= delta
+	var elapsed := _banner_total - _banner_timer
+	var a := 1.0
+	if elapsed < 0.35:
+		a = elapsed / 0.35
+	elif _banner_timer < 0.8:
+		a = _banner_timer / 0.8
+	_banner_box.modulate.a = clampf(a, 0.0, 1.0)
+	if _banner_timer <= 0.0:
+		_banner_box.visible = false
+
+
+func _apply_money(amount: int) -> void:
+	if _money_known and amount == _money:
+		return
+	var delta := amount - _money if _money_known else 0
+	_money = amount
+	_money_known = true
+	if _cash_value != null:
+		_cash_value.text = "$%s" % _format_money(amount)
+	if delta != 0 and _cash_delta != null:
+		_cash_delta.text = "%s$%s" % ["+" if delta > 0 else "-", _format_money(absi(delta))]
+		_cash_delta.add_theme_color_override("font_color", RETRO_UI.C_GREEN if delta > 0 else Color(1.0, 0.36, 0.30))
+		_money_flash = 2.0
+
+
+func _update_money_flash(delta: float) -> void:
+	if _money_flash <= 0.0 or _cash_delta == null:
+		return
+	_money_flash -= delta
+	_cash_delta.modulate.a = clampf(_money_flash, 0.0, 1.0)
+	if _money_flash <= 0.0:
+		_cash_delta.text = ""
+
+
+func _poll_guest_state() -> void:
+	if GuestManager == null:
+		return
+	if GuestManager.has_method("get_bed_metrics"):
+		var beds: Dictionary = GuestManager.get_bed_metrics()
+		_beds = Vector2i(int(beds.get("occupied", 0)), int(beds.get("capacity", 0)))
+	if GuestManager.has_method("get_camp_mood_summary"):
+		_mood = GuestManager.get_camp_mood_summary()
+	_refresh_guests()
+
+
+func _announce_phase(phase: int) -> void:
+	match phase:
+		PHASE_DAY:
+			show_banner("DAY %d" % _day, "THE BUILDER IS UNLOCKED. THE CAMP IS YOURS AGAIN.", RETRO_UI.C_AMBER, 3.2)
+		PHASE_EVENING:
+			push_status("Evening. Guests start drifting back to their beds.", STATUS_WARN)
+		PHASE_NIGHT:
+			show_banner("NIGHT %d" % _day, "BUILDER LOCKED. SURVIVE UNTIL 06:30.", Color(1.0, 0.30, 0.24), 4.2)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BINDINGS + HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 func _ensure_email_binding() -> void:
-	if _mail_bound:
-		return
-	if EmailManager == null:
+	if _mail_bound or EmailManager == null:
 		return
 	if EmailManager.has_signal("unread_count_changed"):
 		var callback := Callable(self, "_on_unread_count_changed")
@@ -1165,46 +964,14 @@ func _ensure_email_binding() -> void:
 
 
 func _on_unread_count_changed(count: int) -> void:
-	var safe := maxi(0, count)
-	if _email_lights != null:
-		_email_lights.set_active_count(safe)
-	if _mail_caption_label != null:
-		_mail_caption_label.text = "UNREAD MAIL" if safe == 0 else "UNREAD MAIL %d" % safe
+	_unread = maxi(0, count)
+	_refresh_mail()
 
 
 func _get_unread_count() -> int:
-	if EmailManager == null:
-		return 0
-	if EmailManager.has_method("get_unread_count"):
+	if EmailManager != null and EmailManager.has_method("get_unread_count"):
 		return int(EmailManager.call("get_unread_count"))
 	return 0
-
-
-func _set_day(day: int) -> void:
-	var safe := maxi(1, day)
-	if safe == _current_day and _day_label != null and not _day_label.text.is_empty():
-		return
-	_current_day = safe
-	if _day_label != null:
-		_day_label.text = "DAY %d" % _current_day
-
-
-func _set_phase(phase: int) -> void:
-	var safe := clampi(phase, 0, PHASE_LABELS.size() - 1)
-	if safe == _current_phase and _phase_label != null and not _phase_label.text.is_empty():
-		return
-	_current_phase = safe
-	if _phase_label == null:
-		return
-	_phase_label.text = str(PHASE_LABELS[_current_phase])
-	# Night is the phase the player must read instantly -- the builder is locked and
-	# whatever was rolled at nightfall is already out there.
-	var col := Color(0.32, 0.24, 0.13, 1.0)
-	if _current_phase == PHASE_EVENING:
-		col = Color(0.52, 0.31, 0.10, 1.0)
-	elif _current_phase == PHASE_NIGHT:
-		col = Color(0.60, 0.13, 0.11, 1.0)
-	_phase_label.add_theme_color_override("font_color", col)
 
 
 ## Mirrors TimeSystem thresholds: day 06:30, evening 18:00, night 20:00.
@@ -1216,18 +983,18 @@ func _phase_for_minute(minute: int) -> int:
 	return PHASE_DAY
 
 
-func _risk_level_color(level: int) -> Color:
+func _risk_color(level: int) -> Color:
 	match clampi(level, 0, 4):
 		0:
-			return Color(0.58, 0.80, 0.55, 0.95)
+			return RETRO_UI.C_GREEN
 		1:
-			return Color(0.86, 0.83, 0.55, 0.95)
+			return Color(0.86, 0.83, 0.45)
 		2:
-			return Color(0.93, 0.72, 0.32, 0.98)
+			return RETRO_UI.C_AMBER
 		3:
-			return Color(0.92, 0.42, 0.26, 1.0)
+			return Color(0.95, 0.42, 0.22)
 		_:
-			return Color(0.96, 0.28, 0.24, 1.0)
+			return RETRO_UI.C_RED
 
 
 ## One line naming the archetype closest to tipping, so the meter is actionable
@@ -1236,11 +1003,9 @@ func _compose_risk_detail(payload: Dictionary) -> String:
 	var entries_any = payload.get("archetypes", [])
 	if not (entries_any is Array):
 		return ""
-	var entries: Array = entries_any
-
 	var worst: Dictionary = {}
 	var worst_score := -1.0
-	for entry_any in entries:
+	for entry_any in entries_any:
 		if not (entry_any is Dictionary):
 			continue
 		var entry: Dictionary = entry_any
@@ -1250,16 +1015,12 @@ func _compose_risk_detail(payload: Dictionary) -> String:
 		if score > worst_score:
 			worst_score = score
 			worst = entry
-
 	if worst.is_empty():
 		return ""
-
 	var label := str(worst.get("label", "?"))
 	var count := int(worst.get("count", 0))
-	var guaranteed := int(worst.get("guaranteed_spawns", 0))
-	if guaranteed > 0:
-		return "%s x%d - SPAWN GUARANTEED" % [label, count]
-
+	if int(worst.get("guaranteed_spawns", 0)) > 0:
+		return "%s x%d - spawn guaranteed" % [label, count]
 	var tier := str(worst.get("chance_tier", "none"))
 	if tier == "none" or tier.is_empty():
 		var thresholds_any = worst.get("next_thresholds", {})
@@ -1268,78 +1029,8 @@ func _compose_risk_detail(payload: Dictionary) -> String:
 			if small_at > count:
 				return "safe - %s risk starts at %d" % [label, small_at]
 		return "all archetypes within safe count"
-
 	var pct := int(round(float(worst.get("chance_probability", 0.0)) * 100.0))
-	return "%s x%d - %s risk %d%%" % [label, count, str(RISK_TIER_LABELS.get(tier, tier)).to_upper(), pct]
-
-
-func _status_color(kind: int) -> Color:
-	match kind:
-		STATUS_GOOD:
-			return Color(0.55, 0.86, 0.52, 1.0)
-		STATUS_WARN:
-			return Color(0.96, 0.80, 0.36, 1.0)
-		STATUS_DENY:
-			return Color(0.96, 0.42, 0.34, 1.0)
-		_:
-			return COL_TEXT
-
-
-func _update_status_strip(delta: float) -> void:
-	if _status_panel == null or not _status_panel.visible:
-		return
-	_status_timer -= delta
-	if _status_timer <= 0.0:
-		_status_panel.visible = false
-		_status_panel.modulate.a = 1.0
-		return
-	if _status_timer < STATUS_FADE_SEC:
-		_status_panel.modulate.a = clampf(_status_timer / STATUS_FADE_SEC, 0.0, 1.0)
-
-
-func _poll_bed_metrics() -> void:
-	if GuestManager == null or not GuestManager.has_method("get_bed_metrics"):
-		return
-	var metrics_any = GuestManager.call("get_bed_metrics")
-	if not (metrics_any is Dictionary):
-		return
-	var metrics: Dictionary = metrics_any
-	set_bed_metrics(int(metrics.get("occupied", 0)), int(metrics.get("capacity", 0)))
-
-
-func _poll_money_from_core() -> void:
-	if CoreRoot == null or not CoreRoot.has_method("get_money"):
-		return
-	_apply_money_amount(int(CoreRoot.get_money()))
-
-
-func _apply_money_amount(amount: int) -> void:
-	if _cash_value_label == null:
-		return
-	if _cash_known and amount == _cash_amount:
-		return
-	var delta := amount - _cash_amount if _cash_known else 0
-	_cash_amount = amount
-	_cash_known = true
-	_cash_value_label.text = "$%s" % _format_money(amount)
-	if delta != 0:
-		_trigger_cash_glow(delta)
-
-
-func _trigger_cash_glow(delta: int) -> void:
-	if _cash_glow_overlay == null:
-		return
-	_cash_glow_duration = 0.85
-	_cash_glow_time = _cash_glow_duration
-	_cash_glow_overlay.color = Color(0.35, 1.0, 0.45, 0.0) if delta > 0 else Color(1.0, 0.32, 0.22, 0.0)
-
-
-func _update_cash_glow(delta: float) -> void:
-	if _cash_glow_overlay == null or _cash_glow_time <= 0.0:
-		return
-	_cash_glow_time = maxf(0.0, _cash_glow_time - delta)
-	var t := _cash_glow_time / maxf(_cash_glow_duration, 0.0001)
-	_cash_glow_overlay.color.a = 0.30 * t * t
+	return "%s x%d - %s risk %d%%" % [label, count, str(RISK_TIER_LABELS.get(tier, tier)), pct]
 
 
 func _format_money(amount: int) -> String:
@@ -1360,15 +1051,3 @@ func _parse_time_to_minutes(time_str: String) -> int:
 	if parts.size() < 2:
 		return 9 * 60
 	return (int(parts[0]) * 60) + int(parts[1])
-
-
-func _try_trigger_clock_phase(minute: int) -> void:
-	if _clock_widget == null:
-		return
-	if minute == 390 and _last_clock_marker_minute != 390:
-		_clock_widget.trigger_phase_pulse(Color(1.0, 0.83, 0.33, 1.0))
-		push_status("DAY MODE - builder unlocked", STATUS_GOOD)
-	elif minute == 1200 and _last_clock_marker_minute != 1200:
-		_clock_widget.trigger_phase_pulse(Color(0.42, 0.58, 0.95, 1.0))
-		push_status("NIGHT MODE - builder locked", STATUS_WARN)
-	_last_clock_marker_minute = minute

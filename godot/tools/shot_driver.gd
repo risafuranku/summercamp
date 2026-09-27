@@ -59,6 +59,21 @@ const SCENARIOS := {
 		["player", 8, 4, 150.0], ["wait", 2.0], ["shot", "24_close2"],
 		["timescale", 1.0],
 	],
+	"hud": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 5000], ["clear", 7, 3, 5, 5], ["build", "tent_1", 8, 5, 0], ["build", "tent_1", 9, 5, 0],
+		["build", "toilet_block", 10, 5, 0],
+		["book", "Pepa", "drunk", 2, 2],
+		["player", 9, 2, 180.0], ["wait", 2.0],
+		["eval", "_hud_manager.push_status('Build confirmed: Toilet Block', 1)"],
+		["eval", "_hud_manager.show_quote('Pepa', 'One more beer. Just one.', 70.0)"],
+		["eval", "_hud_manager.set_objective({'title': \"Vera's checklist\", 'text': 'Build a toilet block so guests stop using the bushes.', 'progress': '0/1', 'reward': '$150'})"],
+		["eval", "_hud_manager.set_hint_text('[E] Enter reception')"],
+		["eval", "_hud_manager.show_banner('NIGHT 1', 'BUILDER LOCKED. SURVIVE UNTIL 06:30.', Color(1.0, 0.3, 0.24), 6.0)"],
+		["wait", 1.0], ["shot", "30_hud"],
+		["guest_card"],
+		["wait", 0.5], ["shot", "31_hud_card"],
+	],
 	"tour": [
 		["wait_menu"], ["wait", 2.0], ["shot", "01_menu"],
 		["call", "_on_menu_new_game_pressed", []],
@@ -168,6 +183,10 @@ func _run_step(step: Array) -> void:
 			if player != null and gm != null:
 				player.global_position = gm.grid_to_world(Vector2i(int(step[1]), int(step[2]))) + Vector3(0, 0.2, 0)
 				player.rotation.y = deg_to_rad(float(step[3]))
+		"guest_card":
+			var snap: Array = GuestManager.get_guest_life_snapshot()
+			if not snap.is_empty():
+				_main.get("_hud_manager").show_guest_card(snap[0])
 		"timescale":
 			Engine.time_scale = float(step[1])
 		"hours":
