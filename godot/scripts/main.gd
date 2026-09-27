@@ -22,6 +22,7 @@ const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const WEATHER_VISUALS_SCRIPT = preload("res://scripts/weather_visuals.gd")
 const HUD_MANAGER_SCRIPT = preload("res://scripts/hud_manager.gd")
 const SETTINGS_PANEL_SCRIPT = preload("res://scripts/settings_panel.gd")
+const GUEST_AGENTS_SCRIPT = preload("res://scripts/guest_agents.gd")
 const MENU_THEME_PATH := "res://assets/sfx/ost/ambience3A.mp3"
 const MENU_THEME_VOLUME_DB := -5.0
 const SAVE_VERSION := 3
@@ -219,6 +220,9 @@ var _hud_manager: Node
 var _weather_visuals: Node
 var _interior_manager: Node
 var _interaction_controller: Node
+var _guest_agents: Node3D
+var _guest_quote_timer: float = 0.0
+var _guest_quotes_shown: Dictionary = {}
 var _menu_mode: bool = true
 var _gameplay_started: bool = false
 var _autosave_elapsed: float = 0.0
@@ -413,6 +417,7 @@ func _bootstrap_runtime() -> void:
 	get_viewport().size_changed.connect(func() -> void: RETRO_RENDER.refresh_all(get_tree()))
 	_generate_grid_world()
 	_rebuild_core_cells_from_visual_structures()
+	_setup_guest_agents()
 	fallback_camera.current = true
 
 	if _weather_visuals != null:
@@ -471,6 +476,71 @@ func _reapply_crt_desktop_state_next_frame() -> void:
 	if not _gameplay_started:
 		return
 	_apply_pending_crt_desktop_state()
+
+
+func _setup_guest_agents() -> void:
+	if _guest_agents != null and is_instance_valid(_guest_agents):
+		return
+	_guest_agents = GUEST_AGENTS_SCRIPT.new()
+	_world_3d.add_child(_guest_agents)
+	_guest_agents.setup(grid_manager, Callable(self, "_now_abs_minutes_float"))
+
+
+## Absolute game time in minutes (day 1 00:00 = 0), with the fractional minute.
+func _now_abs_minutes_float() -> float:
+	return float(maxi(1, _day_index) - 1) * 1440.0 + _time_of_day_hours * 60.0
+
+
+func _find_guest_in_view() -> Dictionary:
+	if _guest_agents == null or _is_any_interior_open():
+		return {}
+	var cam := _get_player_camera()
+	if cam == null:
+		return {}
+	return _guest_agents.find_guest_in_view(cam, INTERACT_DISTANCE + 0.8)
+
+
+## Duke3D-style quote line: what guests near the player just said shows in the HUD
+## message feed once per utterance.
+func _poll_guest_quotes(delta: float) -> void:
+	_guest_quote_timer -= delta
+	if _guest_quote_timer > 0.0:
+		return
+	_guest_quote_timer = 0.5
+	if _guest_agents == null or _hud_manager == null or _player == null or _is_any_interior_open():
+		return
+	var lines: Array = _guest_agents.nearby_thoughts(_player.global_position, 9.0, 6)
+	for entry_any in lines:
+		var entry: Dictionary = entry_any
+		var key := str(entry.get("key", ""))
+		if _guest_quotes_shown.has(key):
+			continue
+		_guest_quotes_shown[key] = true
+		if _guest_quotes_shown.size() > 200:
+			_guest_quotes_shown.clear()
+		if _hud_manager.has_method("show_quote"):
+			_hud_manager.show_quote(str(entry.get("name", "")), str(entry.get("text", "")), float(entry.get("mood", 60.0)))
+		else:
+			_hud_manager.push_status("%s: \"%s\"" % [entry.get("name", ""), entry.get("text", "")])
+		break
+
+
+func _talk_to_guest(info: Dictionary) -> void:
+	if _hud_manager == null:
+		return
+	var name_text := str(info.get("name", "Guest"))
+	var thought := str(info.get("thought", "")).strip_edges()
+	if thought.is_empty():
+		thought = "Nice evening." if _time_state != TIME_DAY else "Just looking around."
+	var worst: Dictionary = info.get("worst_need", {})
+	var need_line := ""
+	if not worst.is_empty() and float(worst.get("value", 100.0)) < 55.0:
+		need_line = "  [needs %s]" % str(worst.get("label", "")).to_lower()
+	var line := "%s (%s): \"%s\"%s" % [name_text, str(info.get("mood_label", "")), thought, need_line]
+	if _hud_manager.has_method("show_guest_card"):
+		_hud_manager.show_guest_card(info)
+	else:
+		_hud_manager.push_status(line)
 
 
 func _setup_weather_visuals_module() -> void:
@@ -596,6 +666,7 @@ func _process(delta: float) -> void:
 			_is_service_sewer_audio_active()
 		)
 	_tick_active_enemy_brain(delta)
+	_poll_guest_quotes(delta)
 	if visual_module != null and visual_module.has_method("sync_enemy_distortion_fx"):
 		visual_module.sync_enemy_distortion_fx(_time_state)
 	_tick_autosave(delta)
@@ -2170,6 +2241,10 @@ func _setup_audio() -> void:
 
 
 func _try_interact() -> void:
+	var guest_in_view := _find_guest_in_view()
+	if not guest_in_view.is_empty():
+		_talk_to_guest(guest_in_view)
+		return
 	if _interaction_controller == null or not _interaction_controller.has_method("resolve_interaction"):
 		return
 	var interaction = _interaction_controller.resolve_interaction(INTERACT_DISTANCE, UTILITY_REPAIRS_ENABLED)
@@ -2231,6 +2306,10 @@ func _update_interaction_hint() -> void:
 		return
 	if _is_any_interior_open():
 		_hud_manager.set_hint_text("")
+		return
+	var guest_in_view := _find_guest_in_view()
+	if not guest_in_view.is_empty():
+		_hud_manager.set_hint_text("[E] Talk to %s" % str(guest_in_view.get("name", "guest")))
 		return
 	if _interaction_controller == null or not _interaction_controller.has_method("build_hint_text"):
 		_hud_manager.set_hint_text("")

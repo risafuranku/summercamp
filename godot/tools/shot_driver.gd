@@ -16,6 +16,12 @@ extends Node
 ##   ["call_on", "prop", "method", args]  call a method on one of Main's members
 ##   ["hours", h]               advance the in-game clock by h hours
 ##   ["eval", "expr"]           evaluate a GDScript Expression with Main as base
+##   ["money", amount]          set cash
+##   ["clear", x, y, w, h]      bulldoze trees/buildings in a rect (<= 5x5, real builder path)
+##   ["build", type, x, y, rot] request a build through the real builder authority
+##   ["book", name, archetype, party, nights]  confirm a booking (GuestManager path)
+##   ["player", x, y, yaw_deg]  put the player on a grid tile facing yaw
+##   ["timescale", k]           Engine.time_scale
 ##
 ## Debug tooling only; never referenced by the game itself.
 
@@ -32,6 +38,26 @@ const SCENARIOS := {
 		["eval", "_player.rotate_y(PI * 0.5)"], ["wait", 1.0], ["shot", "11_day_side"],
 		["hours", 9.5], ["wait", 2.0], ["eval", "_player.rotate_y(PI * 0.5)"], ["wait", 1.0], ["shot", "12_dusk"],
 		["hours", 3.0], ["wait", 3.0], ["shot", "13_night"],
+	],
+	"guests": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 20000],
+		["clear", 2, 3, 5, 5], ["clear", 7, 3, 5, 5], ["clear", 12, 3, 5, 5],
+		["clear", 2, 8, 5, 5], ["clear", 7, 8, 5, 5], ["clear", 12, 8, 5, 5],
+		["build", "path", 9, 3, 0], ["build", "path", 9, 4, 0], ["build", "path", 9, 5, 0], ["build", "path", 9, 6, 0],
+		["build", "path", 10, 3, 0], ["build", "path", 8, 4, 0], ["build", "path", 7, 4, 0], ["build", "path", 11, 4, 0],
+		["build", "tent_1", 4, 5, 0], ["build", "tent_1", 5, 5, 0], ["build", "tent_1", 6, 6, 0],
+		["build", "cabin_1", 12, 6, 0], ["build", "toilet_block", 7, 7, 0], ["build", "shower_block", 8, 8, 0],
+		["build", "vecerka", 12, 9, 0], ["build", "bonfire", 5, 10, 0], ["build", "lamp_post", 10, 7, 0],
+		["wait", 0.5],
+		["book", "Novak family", "quiet_guy", 2, 2], ["book", "Pepa", "drunk", 1, 2], ["book", "Kristyna", "cheap_chick", 1, 1],
+		["player", 9, 2, 180.0], ["timescale", 3.0],
+		["wait", 3.0], ["shot", "20_arrivals"],
+		["wait", 10.0], ["shot", "21_camp_life"],
+		["hours", 3.0], ["wait", 4.0], ["shot", "22_camp_later"],
+		["player", 10, 6, 90.0], ["wait", 2.0], ["shot", "23_close"],
+		["player", 8, 4, 150.0], ["wait", 2.0], ["shot", "24_close2"],
+		["timescale", 1.0],
 	],
 	"tour": [
 		["wait_menu"], ["wait", 2.0], ["shot", "01_menu"],
@@ -125,6 +151,25 @@ func _run_step(step: Array) -> void:
 				target.callv(str(step[2]), args2)
 			else:
 				push_warning("SHOT DRIVER: %s has no method %s" % [step[1], step[2]])
+		"money":
+			CoreRoot.apply_changes({"money": int(step[1])})
+		"clear":
+			EventBus.RequestDemolish.emit(Rect2i(int(step[1]), int(step[2]), int(step[3]), int(step[4])))
+		"build":
+			EventBus.RequestBuild.emit(str(step[1]), Vector2i(int(step[2]), int(step[3])), int(step[4]))
+		"book":
+			EventBus.customer_booking_confirmed.emit({
+				"guest_name": str(step[1]), "archetype": str(step[2]),
+				"guests": int(step[3]), "nights": int(step[4]), "from": "%s <guest@mail>" % step[1],
+			})
+		"player":
+			var player = _main.get("_player")
+			var gm = _main.get("grid_manager")
+			if player != null and gm != null:
+				player.global_position = gm.grid_to_world(Vector2i(int(step[1]), int(step[2]))) + Vector3(0, 0.2, 0)
+				player.rotation.y = deg_to_rad(float(step[3]))
+		"timescale":
+			Engine.time_scale = float(step[1])
 		"hours":
 			var ts = _main.get("time_system")
 			if ts != null:

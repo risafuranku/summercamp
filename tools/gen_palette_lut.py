@@ -70,6 +70,7 @@ RAMP_FAMILIES = [
     ("rust", (5, 18), (150, 74, 44)),
     ("amber", (32, 46), (230, 168, 60)),
     ("yellow", (46, 62), (214, 196, 96)),
+    ("sand", None, (196, 168, 118)),
     ("moss", (62, 90), (124, 132, 70)),
     ("grass", (90, 140), (86, 132, 60)),
     ("lake", None, (54, 120, 118)),
@@ -78,7 +79,6 @@ RAMP_FAMILIES = [
     ("violet", None, (110, 78, 132)),
     ("blood", None, (196, 30, 26)),
     ("flesh", None, (214, 140, 120)),
-    ("skin", None, (200, 160, 118)),
     ("bone", None, (228, 218, 190)),
 ]
 
@@ -119,16 +119,32 @@ def build_palette(px):
     return pal
 
 
+def _srgb_to_lab(rgb):
+    c = rgb / 255.0
+    c = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    m = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9505]])
+    xyz = c @ m.T
+    xyz /= np.array([0.95047, 1.0, 1.08883])
+    f = np.where(xyz > 0.008856, np.cbrt(xyz), 7.787 * xyz + 16.0 / 116.0)
+    L = 116.0 * f[:, 1] - 16.0
+    a = 500.0 * (f[:, 0] - f[:, 1])
+    b = 200.0 * (f[:, 1] - f[:, 2])
+    return np.stack([L, a, b], axis=1)
+
+
 def build_lut(pal):
     lvl = np.linspace(0, 255, LUT_SIZE)
     r, g, b = np.meshgrid(lvl, lvl, lvl, indexing="ij")
     cols = np.stack([r, g, b], axis=-1).reshape(-1, 3)
-    # Weighted RGB distance (cheap perceptual approximation)
-    w = np.array([0.30, 0.59, 0.11]) * 3.0
+    cols_lab = _srgb_to_lab(cols)
+    pal_lab = _srgb_to_lab(pal.astype(np.float64))
+    # Lab distance with lightness slightly de-emphasised: the dither restores brightness
+    # steps, hue errors (tan -> pink) are what read as wrong.
+    w = np.array([0.8, 1.0, 1.0])
     best = np.zeros(len(cols), dtype=np.int32)
     best_d = np.full(len(cols), np.inf)
-    for i, c in enumerate(pal):
-        d = (((cols - c) ** 2) * w).sum(axis=1)
+    for i, c in enumerate(pal_lab):
+        d = (((cols_lab - c) ** 2) * w).sum(axis=1)
         m = d < best_d
         best[m] = i
         best_d[m] = d[m]

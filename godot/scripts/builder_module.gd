@@ -34,6 +34,7 @@ const GROUPS: Array = [
 		"items": [
 			{"type": "tent_1", "name": "Tent", "icon": "res://assets/textury/builder/stan1.png"},
 			{"type": "cabin_1", "name": "Cabin", "icon": "res://assets/textury/builder/chata1.PNG"},
+			{"type": "caravan_1", "name": "Caravan (6 beds, needs power)", "icon": "res://assets/textury/builder/caravan.png"},
 		],
 	},
 	{
@@ -44,6 +45,14 @@ const GROUPS: Array = [
 			{"type": "pub", "name": "Pub", "icon": "res://assets/textury/builder/hospoda1.PNG"},
 			{"type": "restaurant", "name": "Bistro", "icon": "res://assets/textury/builder/restaurace.PNG"},
 			{"type": "vecerka", "name": "Jednota Mart", "icon": "res://assets/textury/builder/vecerka.jpg"},
+		],
+	},
+	{
+		"id": "attractions",
+		"items": [
+			{"type": "bonfire", "name": "Bonfire (fun, food, feels safe at night)", "icon": "res://assets/textury/builder/bonfire.png"},
+			{"type": "sports_field", "name": "Sports Field (fun)", "icon": "res://assets/textury/builder/sports_field.png"},
+			{"type": "lake_slide", "name": "Lake Slide (fun, a quick wash)", "icon": "res://assets/textury/builder/lake_slide.png"},
 		],
 	},
 	{

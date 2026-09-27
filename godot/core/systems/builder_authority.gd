@@ -7,6 +7,10 @@ const DEMOLISH_MAX_SIZE: int = 5
 const ALLOWED_BUILD_TYPES: Dictionary = {
 	"tent_1": true,
 	"cabin_1": true,
+	"caravan_1": true,
+	"bonfire": true,
+	"sports_field": true,
+	"lake_slide": true,
 	"toilet_block": true,
 	"shower_block": true,
 	"pub": true,
