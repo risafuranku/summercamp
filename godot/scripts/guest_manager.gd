@@ -161,6 +161,7 @@ func import_runtime_state(data: Dictionary) -> void:
 
 
 func reset_runtime_state() -> void:
+	_life = GUEST_LIFE_SCRIPT.new()
 	_ensure_guest_state_defaults()
 	_last_tick_signature = ""
 	_last_guest_overview.clear()

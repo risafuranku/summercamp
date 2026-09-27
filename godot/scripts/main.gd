@@ -23,6 +23,7 @@ const WEATHER_VISUALS_SCRIPT = preload("res://scripts/weather_visuals.gd")
 const HUD_MANAGER_SCRIPT = preload("res://scripts/hud_manager.gd")
 const SETTINGS_PANEL_SCRIPT = preload("res://scripts/settings_panel.gd")
 const GUEST_AGENTS_SCRIPT = preload("res://scripts/guest_agents.gd")
+const QUEST_MANAGER_SCRIPT = preload("res://scripts/quest_manager.gd")
 const MENU_THEME_PATH := "res://assets/sfx/ost/ambience3A.mp3"
 const MENU_THEME_VOLUME_DB := -5.0
 const SAVE_VERSION := 3
@@ -221,6 +222,9 @@ var _weather_visuals: Node
 var _interior_manager: Node
 var _interaction_controller: Node
 var _guest_agents: Node3D
+var _quest_manager: Node
+var _pending_quest_state: Dictionary = {}
+var _pending_quest_state_loaded: bool = false
 var _guest_quote_timer: float = 0.0
 var _guest_quotes_shown: Dictionary = {}
 var _menu_mode: bool = true
@@ -455,6 +459,7 @@ func _start_gameplay_runtime() -> void:
 
 	_setup_interior_manager()
 	_setup_interaction_controller()
+	_setup_quest_manager()
 	_apply_pending_crt_desktop_state()
 	if SEWER_PIPE_REPAIR_ENABLED:
 		_setup_sewer_pipe_minigame()
@@ -476,6 +481,17 @@ func _reapply_crt_desktop_state_next_frame() -> void:
 	if not _gameplay_started:
 		return
 	_apply_pending_crt_desktop_state()
+
+
+func _setup_quest_manager() -> void:
+	if _quest_manager == null or not is_instance_valid(_quest_manager):
+		_quest_manager = QUEST_MANAGER_SCRIPT.new()
+		add_child(_quest_manager)
+	_quest_manager.setup(self)
+	if _pending_quest_state_loaded:
+		_quest_manager.import_state(_pending_quest_state)
+		_pending_quest_state.clear()
+		_pending_quest_state_loaded = false
 
 
 func _setup_guest_agents() -> void:
@@ -526,6 +542,8 @@ func _poll_guest_quotes(delta: float) -> void:
 
 
 func _talk_to_guest(info: Dictionary) -> void:
+	if _quest_manager != null:
+		_quest_manager.notify("talked_to_guest", info)
 	if _hud_manager == null:
 		return
 	var name_text := str(info.get("name", "Guest"))
@@ -799,6 +817,7 @@ func _spawn_player() -> void:
 	else:
 		_player.position = Vector3(0.0, 2.0, 0.0)
 	_world_3d.add_child(_player)
+	_face_player_toward_reception()
 	if _interior_manager != null and _interior_manager.has_method("setup"):
 		_interior_manager.setup(
 			_world_3d,
@@ -819,6 +838,44 @@ func _spawn_player() -> void:
 		)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	call_deferred("_sync_active_camera")
+
+
+## New sessions start looking at the reception door (the first objective), not at
+## whatever tree happened to be north of the spawn tile.
+func _face_player_toward_reception() -> void:
+	var door := get_reception_door_position()
+	if _player == null or door == Vector3.INF:
+		return
+	var reception := _find_reception_structure()
+	var out_dir := reception.global_transform.basis.z.normalized() if reception != null else Vector3(0, 0, 1)
+	out_dir.y = 0.0
+	_player.global_position = door + out_dir.normalized() * 5.0 + Vector3(0.0, 0.3, 0.0)
+	var look := door - _player.global_position
+	_player.rotation.y = atan2(-look.x, -look.z)
+
+
+func _find_reception_structure() -> Node3D:
+	if building_manager == null:
+		return null
+	var root := building_manager.get_node_or_null("Structures")
+	if root == null:
+		return null
+	for child in root.get_children():
+		var n := child as Node3D
+		if n != null and str(n.get_meta("building_type", "")) == "main_building":
+			return n
+	return null
+
+
+## World position of the reception door at ground level (Vector3.INF if missing).
+func get_reception_door_position() -> Vector3:
+	var reception := _find_reception_structure()
+	if reception == null:
+		return Vector3.INF
+	var door := reception.get_node_or_null("Door") as Node3D
+	var pos := door.global_position if door != null else reception.global_position
+	pos.y = 0.0
+	return pos
 
 
 func _apply_pending_loaded_player_state() -> void:
@@ -2487,6 +2544,8 @@ func _emit_state_update() -> void:
 
 func _enter_main_menu() -> void:
 	_stop_active_enemy_brain()
+	if _quest_manager != null:
+		_quest_manager.stop()
 	_clear_game_over_screen()
 	_game_over_active = false
 	_game_over_reason = GAME_OVER_REASON_DEATH
@@ -3354,7 +3413,10 @@ func _on_menu_new_game_pressed() -> void:
 		weather_system.set_weather(WEATHER_CLEAR)
 	_sync_runtime_state_from_systems(true)
 	await _hide_menu_loading_after(started, 520, false)
+	_pending_quest_state_loaded = false
 	_start_game_from_menu()
+	if _quest_manager != null:
+		_quest_manager.begin_new_game()
 
 
 func _start_game_from_menu() -> void:
@@ -3700,7 +3762,8 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		},
 		"crt_desktop": crt_desktop_state,
 		"email_runtime": email_runtime_state,
-		"guest_runtime": guest_runtime_state
+		"guest_runtime": guest_runtime_state,
+		"quests": _quest_manager.export_state() if _quest_manager != null else {}
 	}
 	if _player != null and is_instance_valid(_player):
 		snapshot["player"] = {
@@ -4227,6 +4290,13 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
 		weather_system.set_auto_cycle_enabled(preview_only)
+	if not preview_only:
+		var quests_any = snapshot.get("quests", {})
+		_pending_quest_state = (quests_any as Dictionary).duplicate(true) if quests_any is Dictionary else {}
+		_pending_quest_state_loaded = true
+		if _quest_manager != null and _gameplay_started:
+			_quest_manager.import_state(_pending_quest_state)
+			_pending_quest_state_loaded = false
 	var email_runtime_any = snapshot.get("email_runtime", {})
 	if email_runtime_any is Dictionary and EmailManager != null and EmailManager.has_method("import_runtime_state"):
 		EmailManager.import_runtime_state((email_runtime_any as Dictionary).duplicate(true))
@@ -4600,8 +4670,10 @@ func _reset_state_for_new_game() -> void:
 	state.next_guest_id = 1
 	if EmailManager != null and EmailManager.has_method("reset_runtime"):
 		EmailManager.reset_runtime(true)
-	if GuestManager != null and GuestManager.has_method("_seed_initial_guests"):
-		GuestManager._seed_initial_guests()
+	if GuestManager != null and GuestManager.has_method("reset_runtime_state"):
+		GuestManager.reset_runtime_state()
+	if _guest_agents != null:
+		_guest_agents.clear_agents()
 	if time_system != null and time_system.has_method("set_time_hours"):
 		time_system.set_time_hours(9.0)
 	if weather_system != null and weather_system.has_method("set_weather"):

@@ -125,3 +125,18 @@ def mood_markers():
 
 if __name__ == "__main__":
     mood_markers()
+
+
+def waypoint():
+    """Bobbing quest arrow shown over the current objective's location."""
+    out = os.path.join(os.path.dirname(__file__), "..", "godot", "assets", "textury", "npc")
+    im = Image.new("RGBA", (16, 20), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.polygon([(4, 0), (11, 0), (11, 9), (15, 9), (7, 19), (0, 9), (4, 9)], fill=(40, 22, 4, 255))
+    d.polygon([(5, 1), (10, 1), (10, 10), (13, 10), (7, 17), (2, 10), (5, 10)], fill=(255, 196, 44, 255))
+    d.line([(6, 2), (6, 10)], fill=(255, 240, 170, 255))
+    im.resize((32, 40), Image.NEAREST).save(os.path.join(out, "waypoint.png"))
+
+
+if __name__ == "__main__":
+    waypoint()

@@ -115,7 +115,7 @@ func build_hint_text(interact_distance: float, utility_repairs_enabled: bool) ->
 			var label = failed_type
 			if _economy_manager != null and _economy_manager.has_method("get_label"):
 				label = str(_economy_manager.get_label(failed_type))
-			return "[E] Opravit: %s" % label
+			return "[E] Repair: %s" % label
 
 	var collider = resolve_interactable_target(interact_distance)
 	if collider == null:

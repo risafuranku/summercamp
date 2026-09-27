@@ -164,6 +164,54 @@ func push_system_mail(seed_data: Dictionary) -> Dictionary:
 	return mail
 
 
+## Schedules a mail for its own "day"/"time" fields (story pool, quest follow-ups).
+## Mails due in the past are delivered on the next minute tick.
+func schedule_pool_mail(seed_data: Dictionary) -> void:
+	var mail := _new_mail_dict(seed_data)
+	var day: int = max(1, int(mail.get("day", 1)))
+	var parts := str(mail.get("time", "09:00")).split(":")
+	var hour := clampi(int(parts[0]) if parts.size() > 0 else 9, 0, 23)
+	var minute := clampi(int(parts[1]) if parts.size() > 1 else 0, 0, 59)
+	if str(mail.get("sender", "")).is_empty():
+		mail["sender"] = str(mail.get("from", "System"))
+	_schedule_mail_abs(_absolute_minutes(day, hour, minute), mail)
+
+
+## Loads data/pools/emails/story/*.json into the schedule. Mails whose subject is in
+## `skip_subjects` are left out (the questline delivers those itself).
+func load_story_pool(skip_subjects: Array = []) -> int:
+	var count := 0
+	var dir := DirAccess.open("res://data/pools/emails/story/")
+	if dir == null:
+		return 0
+	for file_name in dir.get_files():
+		if not file_name.ends_with(".json"):
+			continue
+		var text := FileAccess.get_file_as_string("res://data/pools/emails/story/" + file_name)
+		var parsed = JSON.parse_string(text)
+		if not (parsed is Array):
+			continue
+		for entry_any in parsed:
+			if not (entry_any is Dictionary):
+				continue
+			var entry: Dictionary = entry_any
+			if skip_subjects.has(str(entry.get("subject", ""))):
+				continue
+			var seed := entry.duplicate(true)
+			seed["type"] = "story"
+			schedule_pool_mail(seed)
+			count += 1
+	return count
+
+
+## First inbox mail carrying `key` == `value` (e.g. "task_id").
+func find_mail(key: String, value: Variant) -> Dictionary:
+	for mail in inbox:
+		if mail.get(key, null) == value:
+			return mail
+	return {}
+
+
 func export_runtime_state() -> Dictionary:
 	return {
 		"inbox": _sanitize_mail_array(inbox),

@@ -74,6 +74,28 @@ const SCENARIOS := {
 		["guest_card"],
 		["wait", 0.5], ["shot", "31_hud_card"],
 	],
+	"quest": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.5],
+		["eval", "_quest_manager.current_step_id()"], ["shot", "40_quest_start"],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 2.0],
+		["eval", "_quest_manager.current_step_id()"],
+		["mail_read", "task_id", "read_vera"], ["wait", 1.0],
+		["eval", "_quest_manager.current_step_id()"],
+		["signal", "program_installed", "builder"], ["wait", 1.0],
+		["eval", "_quest_manager.current_step_id()"],
+		["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
+		["clear", 7, 3, 5, 5], ["build", "tent_1", 8, 5, 0], ["wait", 1.0],
+		["eval", "_quest_manager.current_step_id()"],
+		["build", "toilet_block", 10, 5, 0], ["wait", 1.0],
+		["eval", "_quest_manager.current_step_id()"],
+		["mail_accept", "task_id", "accept_booking"], ["wait", 1.0],
+		["eval", "_quest_manager.current_step_id()"],
+		["player", 9, 2, 180.0], ["wait", 1.0], ["shot", "41_quest_welcome"],
+		["eval", "_quest_manager.notify('talked_to_guest')"], ["wait", 1.0],
+		["eval", "_quest_manager.current_step_id()"], ["shot", "42_quest_feed"],
+		["eval", "_quest_manager.export_state()"],
+		["eval", "EmailManager"],
+	],
 	"tour": [
 		["wait_menu"], ["wait", 2.0], ["shot", "01_menu"],
 		["call", "_on_menu_new_game_pressed", []],
@@ -183,6 +205,16 @@ func _run_step(step: Array) -> void:
 			if player != null and gm != null:
 				player.global_position = gm.grid_to_world(Vector2i(int(step[1]), int(step[2]))) + Vector3(0, 0.2, 0)
 				player.rotation.y = deg_to_rad(float(step[3]))
+		"mail_read":
+			var mail: Dictionary = EmailManager.find_mail(str(step[1]), step[2])
+			print("SHOT DRIVER mail_read: ", mail.get("subject", "(none)"))
+			if not mail.is_empty():
+				EmailManager.mark_read(mail)
+		"mail_accept":
+			var mail2: Dictionary = EmailManager.find_mail(str(step[1]), step[2])
+			print("SHOT DRIVER mail_accept: ", mail2.get("subject", "(none)"), " -> ", EmailManager.confirm_customer_booking(mail2) if not mail2.is_empty() else false)
+		"signal":
+			EventBus.emit_signal(str(step[1]), step[2])
 		"guest_card":
 			var snap: Array = GuestManager.get_guest_life_snapshot()
 			if not snap.is_empty():
