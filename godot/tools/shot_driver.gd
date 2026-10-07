@@ -96,6 +96,37 @@ const SCENARIOS := {
 		["eval", "_quest_manager.export_state()"],
 		["eval", "EmailManager"],
 	],
+	"menu": [
+		["wait_menu"], ["wait", 2.5], ["shot", "01_menu"],
+		["call_on", "_main_menu", "show_page", ["load"]], ["wait", 0.4], ["shot", "05_menu_load"],
+		["call_on", "_main_menu", "show_page", ["options"]], ["wait", 0.4], ["shot", "06_menu_options"],
+		["call_on", "_main_menu", "show_page", ["controls"]], ["wait", 0.4], ["shot", "07_menu_controls"],
+		["call_on", "_main_menu", "show_page", ["main"]],
+		["call_on", "_main_menu", "show_loading", ["Generating a fresh camp..."]], ["wait", 0.6], ["shot", "08_menu_loading"],
+	],
+	"pause": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["call", "_open_pause_menu", []], ["wait", 0.5], ["shot", "50_pause"],
+		["call_on", "_pause_menu", "_show", ["options"]], ["wait", 0.4], ["shot", "51_pause_options"],
+		["call_on", "_pause_menu", "_show", ["main"]],
+		["call", "_on_pause_save_requested", []], ["wait", 0.4], ["shot", "52_pause_saved"],
+		["call", "_close_pause_menu", [true]], ["wait", 0.5], ["shot", "53_resumed"],
+	],
+	"gameover": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.5],
+		["call", "_trigger_game_over", ["death"]], ["wait", 3.5], ["shot", "60_gameover"],
+	],
+	"crt": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0], ["shot", "70_crt_desktop"],
+	],
+	"probe": [
+		["wait_menu"], ["wait", 1.0],
+		["eval", "get_viewport().get_visible_rect().size"],
+		["eval", "get_tree().root.size"],
+		["eval", "get_tree().root.content_scale_factor"],
+		["eval", "DisplayServer.window_get_size()"],
+	],
 	"tour": [
 		["wait_menu"], ["wait", 2.0], ["shot", "01_menu"],
 		["call", "_on_menu_new_game_pressed", []],

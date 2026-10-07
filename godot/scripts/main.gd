@@ -21,18 +21,18 @@ const WEATHER_SYSTEM_SCRIPT = preload("res://core/systems/weather_system.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const WEATHER_VISUALS_SCRIPT = preload("res://scripts/weather_visuals.gd")
 const HUD_MANAGER_SCRIPT = preload("res://scripts/hud_manager.gd")
-const SETTINGS_PANEL_SCRIPT = preload("res://scripts/settings_panel.gd")
 const GUEST_AGENTS_SCRIPT = preload("res://scripts/guest_agents.gd")
 const QUEST_MANAGER_SCRIPT = preload("res://scripts/quest_manager.gd")
+const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
+const PAUSE_MENU_SCRIPT = preload("res://scripts/ui/pause_menu.gd")
+const GAME_OVER_SCREEN_SCRIPT = preload("res://scripts/ui/game_over_screen.gd")
+const BOOT_SCREEN_SCRIPT = preload("res://scripts/ui/boot_screen.gd")
 const MENU_THEME_PATH := "res://assets/sfx/ost/ambience3A.mp3"
 const MENU_THEME_VOLUME_DB := -5.0
 const SAVE_VERSION := 3
 const AUTOSAVE_INTERVAL_SEC := 60.0
-const MENU_TITLE := "Summer Camp Incident Simulator 2"
-const MENU_ACTION_CONTINUE := "CONTINUE SESSION"
-const MENU_ACTION_NEW := "START NEW SESSION"
-const MENU_LOGO_MAIN_TEXT := "SUMMER CAMP INCIDENT"
-const MENU_LOGO_SUB_TEXT := "SIMULATOR 2"
+const WINDOW_TITLE := "Cursed Camp Manager Simulator"
 const MENU_FPV_SPEED := 9.2
 const MENU_FPV_HEIGHT := 2.9
 const MENU_FPV_LOOK_HEIGHT := 2.8
@@ -42,23 +42,6 @@ const MENU_FPV_DRIFT_STRENGTH := 1.25
 const MENU_FPV_LOOK_AHEAD := 0.18
 const MENU_FPV_STEER_LERP := 3.2
 const MENU_FPV_REFRESH_SEC := 9.0
-const MENU_COL_WINDOW_BG := Color(0.63, 0.58, 0.48, 0.96)
-const MENU_COL_TITLE_BAR := Color(0.35, 0.19, 0.12, 0.96)
-const MENU_COL_TEXT_DARK := Color(0.12, 0.08, 0.06, 1.0)
-const MENU_COL_TEXT_LIGHT := Color(0.93, 0.89, 0.74, 1.0)
-const MENU_COL_BORDER := Color(0.31, 0.24, 0.16, 1.0)
-const MENU_COL_ACCENT := Color(0.45, 0.51, 0.30, 1.0)
-const MENU_COL_ACCENT_ALT := Color(0.59, 0.37, 0.20, 1.0)
-const MENU_COL_OVERLAY_DARK := Color(0.0, 0.0, 0.0, 0.46)
-const MENU_COL_OVERLAY_TINT := Color(0.19, 0.03, 0.03, 0.18)
-const MENU_COL_REDESIGN_PANEL_BG := Color(0.07, 0.07, 0.07, 0.85)
-const MENU_COL_REDESIGN_PANEL_BORDER := Color(0.52, 0.10, 0.10, 0.95)
-const MENU_COL_REDESIGN_LOGO_BG := Color(0.36, 0.05, 0.06, 0.94)
-const MENU_COL_REDESIGN_LOGO_BORDER := Color(0.67, 0.16, 0.11, 0.98)
-const MENU_COL_REDESIGN_TEXT := Color(0.90, 0.90, 0.90, 1.0)
-const MENU_COL_REDESIGN_TEXT_DIM := Color(0.72, 0.72, 0.72, 1.0)
-const MENU_COL_REDESIGN_HILITE := Color(0.98, 0.95, 0.81, 1.0)
-const MENU_COL_REDESIGN_FOOTER := Color(0.66, 0.66, 0.66, 0.94)
 
 @onready var _sub_viewport_container: SubViewportContainer = $SubViewportContainer
 @onready var _world_3d: Node3D = $SubViewportContainer/SubViewport/World3D
@@ -233,36 +216,8 @@ var _autosave_elapsed: float = 0.0
 var _active_save_path: String = ""
 var _menu_music_player: AudioStreamPlayer
 var _menu_music_retry_pending: bool = false
-var _menu_canvas: CanvasLayer
-var _menu_main_page: Control
-var _menu_load_page: Control
-var _menu_settings_page: Control
-var _menu_continue_row: Control
-var _menu_continue_placeholder: Control
-var _menu_continue_button: Button
-var _menu_main_buttons: Array[Button] = []
-var _menu_button_markers: Dictionary = {}
-var _menu_selected_main_button: Button
-var _menu_selector_anim_t: float = 0.0
-var _menu_scanline_layer: TextureRect
-var _menu_logo_panel: PanelContainer
-var _menu_logo_panel_style: StyleBoxFlat
-var _menu_logo_hovered: bool = false
-var _menu_logo_hover_mix: float = 0.0
-var _menu_logo_main_label: Label
-var _menu_logo_sub_label: Label
-var _menu_logo_glitch_t: float = 0.0
-var _menu_logo_glitch_hold: float = 0.0
-var _menu_logo_glitch_sign: float = 1.0
-var _menu_load_list: ItemList
-var _menu_load_button: Button
-var _menu_delete_button: Button
-var _menu_save_entries: Array[Dictionary] = []
-var _menu_loading_overlay: ColorRect
-var _menu_loading_panel: PanelContainer
-var _menu_loading_label: Label
-var _menu_loading_fill: ColorRect
-var _menu_loading_anim_t: float = 0.0
+var _main_menu: CanvasLayer
+var _pause_menu: CanvasLayer
 var _menu_flythrough_points: Array[Vector3] = []
 var _menu_flythrough_segment: int = 0
 var _menu_flythrough_segment_t: float = 0.0
@@ -272,7 +227,7 @@ var _menu_camera_bank: float = 0.0
 var _pending_loaded_player_state: Dictionary = {}
 var _pending_loaded_crt_state: Dictionary = {}
 var _last_known_crt_desktop_state: Dictionary = {}
-var _startup_loading_layer: CanvasLayer
+var _boot_screen: CanvasLayer
 var _player_health: int = PLAYER_MAX_HEALTH
 var _blood_fx_root: Node3D
 var _blood_decal_nodes: Array[Node3D] = []
@@ -284,7 +239,7 @@ var _blood_decal_material_cache: StandardMaterial3D
 var _blood_rng := RandomNumberGenerator.new()
 var _game_over_active: bool = false
 var _game_over_reason: String = GAME_OVER_REASON_DEATH
-var _game_over_layer: CanvasLayer
+var _game_over_screen: CanvasLayer
 var _liminal_forecast_snapshot: Dictionary = {}
 var _liminal_forecast_hud_level: int = 0
 var _liminal_forecast_rng := RandomNumberGenerator.new()
@@ -313,6 +268,10 @@ var _electricity_ups_seconds_left: float = ELECTRICITY_UPS_DURATION_SEC
 
 
 func _ready() -> void:
+	# config/name stays "icloud ccs2": it names the user:// folder that holds saves.
+	DisplayServer.window_set_title(WINDOW_TITLE)
+	_apply_integer_canvas_scale()
+	get_tree().root.size_changed.connect(_apply_integer_canvas_scale)
 	_blood_rng.randomize()
 	_liminal_forecast_rng.randomize()
 	_show_startup_loading_screen()
@@ -323,71 +282,35 @@ func _ready() -> void:
 	_enter_main_menu()
 
 
-func _show_startup_loading_screen() -> void:
-	if _startup_loading_layer != null:
+## The 2D layer (HUD, menus) is pixel art and must be scaled by whole numbers. The
+## project stretches canvas_items from a 1280x720 base, which on a 1080p screen is a
+## blurry 1.5x. Instead the logical size is chosen so the scale is always an integer and
+## the window is still filled: 1080p -> 1920x1080 at 1x, 1440p -> 1280x720 at 2x,
+## 4K -> 1280x720 at 3x. (The engine's own "integer" scale mode letterboxes instead.)
+func _apply_integer_canvas_scale() -> void:
+	var root := get_tree().root
+	var win := root.size
+	if win.x <= 0 or win.y <= 0:
 		return
-	_startup_loading_layer = CanvasLayer.new()
-	_startup_loading_layer.name = "StartupLoading"
-	_startup_loading_layer.layer = 200
-	add_child(_startup_loading_layer)
+	var base := Vector2(1280.0, 720.0)
+	var k := maxi(1, int(floor(minf(float(win.x) / base.x, float(win.y) / base.y))))
+	var logical := Vector2i(int(ceil(float(win.x) / float(k))), int(ceil(float(win.y) / float(k))))
+	if root.content_scale_size != logical:
+		root.content_scale_size = logical
 
-	var bg := ColorRect.new()
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.02, 0.02, 0.02, 1.0)
-	_startup_loading_layer.add_child(bg)
 
-	var panel := PanelContainer.new()
-	panel.anchor_left = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_top = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = -220.0
-	panel.offset_right = 220.0
-	panel.offset_top = -58.0
-	panel.offset_bottom = 58.0
-	panel.add_theme_stylebox_override("panel", _make_menu_panel_style(MENU_COL_WINDOW_BG, MENU_COL_BORDER, 3, 0))
-	bg.add_child(panel)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
-	panel.add_child(margin)
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	margin.add_child(box)
-
-	var title := Label.new()
-	title.text = MENU_TITLE
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", MENU_COL_TEXT_DARK)
-	box.add_child(title)
-
-	var subtitle := Label.new()
-	subtitle.text = "Loading systems..."
-	subtitle.add_theme_font_size_override("font_size", 14)
-	subtitle.add_theme_color_override("font_color", MENU_COL_TEXT_DARK.lightened(0.06))
-	box.add_child(subtitle)
-
-	var track := ColorRect.new()
-	track.custom_minimum_size = Vector2(0.0, 14.0)
-	track.color = MENU_COL_TITLE_BAR.darkened(0.10)
-	box.add_child(track)
-
-	var fill := ColorRect.new()
-	fill.position = Vector2(2.0, 2.0)
-	fill.size = Vector2(260.0, 10.0)
-	fill.color = MENU_COL_ACCENT
-	track.add_child(fill)
+func _show_startup_loading_screen() -> void:
+	if _boot_screen != null:
+		return
+	_boot_screen = BOOT_SCREEN_SCRIPT.new()
+	add_child(_boot_screen)
 
 
 func _hide_startup_loading_screen() -> void:
-	if _startup_loading_layer == null:
+	if _boot_screen == null:
 		return
-	_startup_loading_layer.queue_free()
-	_startup_loading_layer = null
+	_boot_screen.queue_free()
+	_boot_screen = null
 
 
 func _bootstrap_runtime() -> void:
@@ -434,6 +357,7 @@ func _bootstrap_runtime() -> void:
 
 	_day_index = CoreRoot.get_day()
 	_sync_runtime_state_from_systems(true)
+	_ensure_pause_menu()
 
 
 func _start_gameplay_runtime() -> void:
@@ -658,8 +582,6 @@ func _process(delta: float) -> void:
 
 	if _menu_mode:
 		_update_menu_cinematic_camera(delta)
-		_update_menu_loading_overlay(delta)
-		_update_menu_overlay_fx(delta)
 		return
 
 	_process_electricity_runtime(delta)
@@ -699,10 +621,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _game_over_active:
 		return
-	# Layered Esc handling: builder → interior → FPS.
+	# Layered Esc handling: interiors and the CRT consume Esc in their own _input;
+	# whatever reaches here is first-person play, where Esc pauses.
 	if event.is_action_pressed("ui_cancel"):
-		if _is_any_interior_open():
-			return
+		if not _is_any_interior_open():
+			_open_pause_menu()
+			get_viewport().set_input_as_handled()
+		return
 
 	# Debug actions only exist in debug builds (see _ensure_input_actions).
 	# Querying an unregistered action would push an InputMap error every frame.
@@ -1258,7 +1183,7 @@ func _ensure_liminal_debug_window() -> void:
 	_liminal_debug_panel.offset_right = 640.0
 	_liminal_debug_panel.offset_bottom = 420.0
 	_liminal_debug_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_liminal_debug_panel.add_theme_stylebox_override("panel", _make_menu_panel_style(Color(0.05, 0.05, 0.05, 0.84), MENU_COL_REDESIGN_PANEL_BORDER, 2, 3))
+	_liminal_debug_panel.add_theme_stylebox_override("panel", RETRO_UI.flat_box(Color(0.05, 0.05, 0.05, 0.84), Color(0.52, 0.10, 0.10, 0.95), 2, 1, 3))
 	root.add_child(_liminal_debug_panel)
 
 	var margin := MarginContainer.new()
@@ -1711,93 +1636,39 @@ func _get_player_camera() -> Camera3D:
 
 
 func _show_game_over_screen() -> void:
-	if _game_over_layer != null:
+	if _game_over_screen != null:
 		return
-	_game_over_layer = CanvasLayer.new()
-	_game_over_layer.name = "GameOverLayer"
-	_game_over_layer.layer = 220
-	add_child(_game_over_layer)
-
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_game_over_layer.add_child(root)
-
-	var shade := ColorRect.new()
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.color = Color(0.0, 0.0, 0.0, 0.72)
-	root.add_child(shade)
-
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_child(center)
-
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(520.0, 260.0)
-	panel.add_theme_stylebox_override("panel", _make_menu_panel_style(MENU_COL_WINDOW_BG, MENU_COL_BORDER, 3, 0))
-	center.add_child(panel)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	panel.add_child(margin)
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
-	margin.add_child(box)
-
-	var title := Label.new()
-	title.text = "GAME OVER"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 44)
-	title.add_theme_color_override("font_color", MENU_COL_TEXT_DARK)
-	title.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.80))
-	title.add_theme_constant_override("shadow_offset_x", 2)
-	title.add_theme_constant_override("shadow_offset_y", 2)
-	box.add_child(title)
-
-	var subtitle := Label.new()
+	var title := "YOU DIED"
+	var reason := "You collapsed in the dark. Something was standing over you."
 	if _game_over_reason == GAME_OVER_REASON_UPS:
-		subtitle.text = "UPS backup drained. Power collapsed."
-	else:
-		subtitle.text = "You collapsed in the dark."
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 16)
-	subtitle.add_theme_color_override("font_color", MENU_COL_TEXT_DARK.lightened(0.06))
-	box.add_child(subtitle)
-
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0.0, 10.0)
-	box.add_child(spacer)
-
-	var load_btn := Button.new()
-	load_btn.text = "Load Save"
-	load_btn.custom_minimum_size = Vector2(0.0, 44.0)
-	_apply_menu_button_style(load_btn, true, false)
-	load_btn.pressed.connect(_on_game_over_load_save_pressed)
-	box.add_child(load_btn)
-
-	var menu_btn := Button.new()
-	menu_btn.text = "Main Menu"
-	menu_btn.custom_minimum_size = Vector2(0.0, 44.0)
-	_apply_menu_button_style(menu_btn, false, false)
-	menu_btn.pressed.connect(_on_game_over_main_menu_pressed)
-	box.add_child(menu_btn)
+		title = "POWER LOST"
+		reason = "The UPS ran dry. The camp went dark, and so did you."
+	var state = CoreRoot.get_state()
+	var hosted := 0
+	var money := 0
+	if state != null:
+		hosted = (state.guest_reviews as Array).size() + (state.guests as Array).size()
+		money = int(state.money)
+	var stats := "Survived to day %d   $%d in the till   %d guests hosted" % [maxi(1, _day_index), money, hosted]
+	_game_over_screen = GAME_OVER_SCREEN_SCRIPT.new()
+	_game_over_screen.setup(title, reason, stats, SaveManager.has_saves())
+	_game_over_screen.load_last_requested.connect(_on_game_over_load_save_pressed)
+	_game_over_screen.main_menu_requested.connect(_on_game_over_main_menu_pressed)
+	add_child(_game_over_screen)
 
 
 func _clear_game_over_screen() -> void:
-	if _game_over_layer == null:
+	if _game_over_screen == null:
 		return
-	_game_over_layer.queue_free()
-	_game_over_layer = null
+	_game_over_screen.queue_free()
+	_game_over_screen = null
 
 
 func _on_game_over_load_save_pressed() -> void:
 	_game_over_active = false
 	_clear_game_over_screen()
 	_enter_main_menu()
-	_show_menu_page_load()
+	_main_menu.show_page("load")
 
 
 func _on_game_over_main_menu_pressed() -> void:
@@ -2573,666 +2444,18 @@ func _enter_main_menu() -> void:
 	_pending_loaded_crt_state.clear()
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
 		weather_system.set_auto_cycle_enabled(true)
-	_ensure_menu_ui()
-	_menu_canvas.visible = true
-	_show_menu_page_main()
+	_close_pause_menu(false)
+	_ensure_main_menu()
 	_load_preview_world_for_menu()
-	_refresh_menu_continue_button()
-	_refresh_load_game_list()
+	_main_menu.open()
 	_rebuild_menu_flythrough_path()
-	_hide_menu_loading_overlay()
 	_start_menu_music()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
-func _ensure_menu_ui() -> void:
-	if _menu_canvas != null:
-		return
-
-	_menu_main_buttons.clear()
-	_menu_button_markers.clear()
-	_menu_selected_main_button = null
-	_menu_selector_anim_t = 0.0
-	_menu_scanline_layer = null
-	_menu_logo_panel = null
-	_menu_logo_panel_style = null
-	_menu_logo_hovered = false
-	_menu_logo_hover_mix = 0.0
-	_menu_logo_main_label = null
-	_menu_logo_sub_label = null
-	_menu_logo_glitch_t = 0.0
-	_menu_logo_glitch_hold = 0.0
-	_menu_logo_glitch_sign = 1.0
-
-	_menu_canvas = CanvasLayer.new()
-	_menu_canvas.name = "MainMenu"
-	_menu_canvas.layer = 120
-	add_child(_menu_canvas)
-
-	var root := Control.new()
-	root.name = "Root"
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_menu_canvas.add_child(root)
-
-	var shade := ColorRect.new()
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.color = MENU_COL_OVERLAY_DARK
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(shade)
-
-	var tint := ColorRect.new()
-	tint.set_anchors_preset(Control.PRESET_FULL_RECT)
-	tint.color = MENU_COL_OVERLAY_TINT
-	tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(tint)
-
-	_menu_scanline_layer = TextureRect.new()
-	_menu_scanline_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_menu_scanline_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_menu_scanline_layer.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	_menu_scanline_layer.stretch_mode = TextureRect.STRETCH_TILE
-	_menu_scanline_layer.texture = _create_menu_scanline_texture()
-	_menu_scanline_layer.modulate = Color(1.0, 1.0, 1.0, 0.68)
-	root.add_child(_menu_scanline_layer)
-
-	var frame := PanelContainer.new()
-	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
-	frame.offset_left = 12.0
-	frame.offset_right = -12.0
-	frame.offset_top = 12.0
-	frame.offset_bottom = -12.0
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.add_theme_stylebox_override("panel", _make_menu_panel_style(Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0, 0.9), 10, 20))
-	root.add_child(frame)
-
-	var menu_host := MarginContainer.new()
-	menu_host.set_anchors_preset(Control.PRESET_FULL_RECT)
-	menu_host.add_theme_constant_override("margin_left", 18)
-	menu_host.add_theme_constant_override("margin_right", 18)
-	menu_host.add_theme_constant_override("margin_top", 18)
-	menu_host.add_theme_constant_override("margin_bottom", 18)
-	root.add_child(menu_host)
-
-	var menu_pages := Control.new()
-	menu_pages.set_anchors_preset(Control.PRESET_FULL_RECT)
-	menu_host.add_child(menu_pages)
-
-	_menu_main_page = Control.new()
-	_menu_main_page.set_anchors_preset(Control.PRESET_FULL_RECT)
-	menu_pages.add_child(_menu_main_page)
-
-	var main_margin := MarginContainer.new()
-	main_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	main_margin.add_theme_constant_override("margin_left", 20)
-	main_margin.add_theme_constant_override("margin_right", 20)
-	main_margin.add_theme_constant_override("margin_top", 20)
-	main_margin.add_theme_constant_override("margin_bottom", 20)
-	_menu_main_page.add_child(main_margin)
-
-	var main_box := VBoxContainer.new()
-	main_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_box.add_theme_constant_override("separation", 14)
-	main_margin.add_child(main_box)
-
-	var logo_panel := PanelContainer.new()
-	logo_panel.custom_minimum_size = Vector2(0.0, 164.0)
-	_menu_logo_panel_style = _apply_menu_logo_style(logo_panel)
-	_menu_logo_panel = logo_panel
-	logo_panel.mouse_entered.connect(func() -> void:
-		_menu_logo_hovered = true
-	)
-	logo_panel.mouse_exited.connect(func() -> void:
-		_menu_logo_hovered = false
-	)
-	main_box.add_child(logo_panel)
-
-	var logo_margin := MarginContainer.new()
-	logo_margin.add_theme_constant_override("margin_left", 12)
-	logo_margin.add_theme_constant_override("margin_right", 12)
-	logo_margin.add_theme_constant_override("margin_top", 10)
-	logo_margin.add_theme_constant_override("margin_bottom", 10)
-	logo_panel.add_child(logo_margin)
-
-	var logo_box := VBoxContainer.new()
-	logo_box.add_theme_constant_override("separation", -8)
-	logo_margin.add_child(logo_box)
-
-	var logo_main := Label.new()
-	logo_main.text = MENU_LOGO_MAIN_TEXT
-	logo_main.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	logo_main.add_theme_font_size_override("font_size", 70)
-	logo_main.add_theme_color_override("font_color", Color(0.94, 0.94, 0.94, 1.0))
-	logo_main.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.96))
-	logo_main.add_theme_constant_override("outline_size", 3)
-	logo_main.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
-	logo_main.add_theme_constant_override("shadow_offset_x", 2)
-	logo_main.add_theme_constant_override("shadow_offset_y", 2)
-	logo_box.add_child(logo_main)
-	_menu_logo_main_label = logo_main
-
-	var logo_sub := Label.new()
-	logo_sub.text = MENU_LOGO_SUB_TEXT
-	logo_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	logo_sub.add_theme_font_size_override("font_size", 44)
-	logo_sub.add_theme_color_override("font_color", Color(0.95, 0.95, 0.95, 1.0))
-	logo_sub.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.96))
-	logo_sub.add_theme_constant_override("outline_size", 3)
-	logo_sub.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
-	logo_sub.add_theme_constant_override("shadow_offset_x", 2)
-	logo_sub.add_theme_constant_override("shadow_offset_y", 2)
-	logo_box.add_child(logo_sub)
-	_menu_logo_sub_label = logo_sub
-
-	var actions_box := VBoxContainer.new()
-	actions_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	actions_box.add_theme_constant_override("separation", 4)
-	main_box.add_child(actions_box)
-
-	_menu_continue_placeholder = HBoxContainer.new()
-	var continue_placeholder_marker := Control.new()
-	continue_placeholder_marker.custom_minimum_size = Vector2(44.0, 46.0)
-	_menu_continue_placeholder.add_child(continue_placeholder_marker)
-	var continue_placeholder_fill := Control.new()
-	continue_placeholder_fill.custom_minimum_size = Vector2(0.0, 46.0)
-	continue_placeholder_fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_menu_continue_placeholder.add_child(continue_placeholder_fill)
-	actions_box.add_child(_menu_continue_placeholder)
-
-	var continue_row_data := _create_main_menu_action_row(actions_box, MENU_ACTION_CONTINUE, true, false)
-	_menu_continue_row = continue_row_data.get("row") as Control
-	_menu_continue_button = continue_row_data.get("button") as Button
-	_menu_continue_button.pressed.connect(_on_menu_continue_pressed)
-
-	var new_row_data := _create_main_menu_action_row(actions_box, MENU_ACTION_NEW, false, false)
-	var new_btn := new_row_data.get("button") as Button
-	new_btn.pressed.connect(_on_menu_new_game_pressed)
-
-	var load_row_data := _create_main_menu_action_row(actions_box, "LOAD SAVE DATA", false, false)
-	var load_btn := load_row_data.get("button") as Button
-	load_btn.pressed.connect(_show_menu_page_load)
-
-	var settings_row_data := _create_main_menu_action_row(actions_box, "CONFIGURATION", false, false)
-	var settings_btn := settings_row_data.get("button") as Button
-	settings_btn.pressed.connect(_show_menu_page_settings)
-
-	var exit_row_data := _create_main_menu_action_row(actions_box, "EXIT TO DOS", false, true)
-	var exit_btn := exit_row_data.get("button") as Button
-	exit_btn.pressed.connect(func() -> void:
-		get_tree().quit()
-	)
-
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_box.add_child(spacer)
-
-	var footer := HBoxContainer.new()
-	footer.add_theme_constant_override("separation", 10)
-	main_box.add_child(footer)
-
-	var footer_left := Label.new()
-	footer_left.text = "(C) 1998 Undo95 (PSX-PAL-E)"
-	footer_left.add_theme_font_size_override("font_size", 14)
-	footer_left.add_theme_color_override("font_color", MENU_COL_REDESIGN_FOOTER)
-	footer.add_child(footer_left)
-
-	var footer_gap := Control.new()
-	footer_gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	footer.add_child(footer_gap)
-
-	var footer_right := Label.new()
-	footer_right.text = "CRT SIMULATION MODE ACTIVE <>"
-	footer_right.add_theme_font_size_override("font_size", 14)
-	footer_right.add_theme_color_override("font_color", MENU_COL_REDESIGN_FOOTER)
-	footer.add_child(footer_right)
-
-	_menu_load_page = PanelContainer.new()
-	_menu_load_page.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_menu_load_page.visible = false
-	_apply_menu_window_style(_menu_load_page)
-	menu_pages.add_child(_menu_load_page)
-
-	var load_margin := MarginContainer.new()
-	load_margin.add_theme_constant_override("margin_left", 18)
-	load_margin.add_theme_constant_override("margin_right", 18)
-	load_margin.add_theme_constant_override("margin_top", 18)
-	load_margin.add_theme_constant_override("margin_bottom", 18)
-	_menu_load_page.add_child(load_margin)
-
-	var load_box := VBoxContainer.new()
-	load_box.add_theme_constant_override("separation", 12)
-	load_margin.add_child(load_box)
-
-	var load_title := Label.new()
-	load_title.text = "LOAD SAVE DATA"
-	load_title.add_theme_font_size_override("font_size", 32)
-	load_title.add_theme_color_override("font_color", MENU_COL_REDESIGN_HILITE)
-	load_title.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
-	load_title.add_theme_constant_override("shadow_offset_x", 2)
-	load_title.add_theme_constant_override("shadow_offset_y", 2)
-	load_box.add_child(load_title)
-
-	_menu_load_list = ItemList.new()
-	_menu_load_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_menu_load_list.select_mode = ItemList.SELECT_SINGLE
-	_menu_load_list.allow_reselect = true
-	_menu_load_list.fixed_column_width = 0
-	_menu_load_list.add_theme_color_override("font_color", MENU_COL_REDESIGN_TEXT)
-	_menu_load_list.add_theme_color_override("font_selected_color", MENU_COL_REDESIGN_HILITE)
-	_menu_load_list.add_theme_color_override("font_hovered_color", MENU_COL_REDESIGN_HILITE)
-	_menu_load_list.add_theme_color_override("font_hovered_selected_color", MENU_COL_REDESIGN_HILITE)
-	_menu_load_list.add_theme_color_override("guide_color", MENU_COL_REDESIGN_PANEL_BORDER.darkened(0.2))
-	_menu_load_list.add_theme_stylebox_override("panel", _make_menu_panel_style(Color(0.03, 0.03, 0.03, 0.92), MENU_COL_REDESIGN_PANEL_BORDER.darkened(0.2), 2, 2))
-	_menu_load_list.add_theme_stylebox_override("focus", _make_menu_panel_style(Color(0.0, 0.0, 0.0, 0.0), MENU_COL_REDESIGN_HILITE, 1, 0))
-	_menu_load_list.add_theme_stylebox_override("selected", _make_menu_panel_style(Color(0.30, 0.08, 0.08, 0.66), MENU_COL_REDESIGN_PANEL_BORDER, 1, 0))
-	_menu_load_list.add_theme_stylebox_override("selected_focus", _make_menu_panel_style(Color(0.36, 0.11, 0.10, 0.72), MENU_COL_REDESIGN_PANEL_BORDER, 1, 0))
-	_menu_load_list.add_theme_stylebox_override("hovered", _make_menu_panel_style(Color(0.20, 0.08, 0.08, 0.56), MENU_COL_REDESIGN_PANEL_BORDER.darkened(0.08), 1, 0))
-	_menu_load_list.add_theme_stylebox_override("hovered_selected", _make_menu_panel_style(Color(0.40, 0.12, 0.11, 0.74), MENU_COL_REDESIGN_PANEL_BORDER, 1, 0))
-	_menu_load_list.item_selected.connect(_on_menu_load_selected)
-	_menu_load_list.item_activated.connect(_on_menu_load_activated)
-	load_box.add_child(_menu_load_list)
-
-	var load_buttons := HBoxContainer.new()
-	load_buttons.add_theme_constant_override("separation", 10)
-	load_box.add_child(load_buttons)
-
-	_menu_load_button = Button.new()
-	_menu_load_button.text = "LOAD"
-	_menu_load_button.disabled = true
-	_apply_menu_button_style(_menu_load_button, true, false)
-	_menu_load_button.pressed.connect(_on_menu_load_button_pressed)
-	load_buttons.add_child(_menu_load_button)
-
-	_menu_delete_button = Button.new()
-	_menu_delete_button.text = "DELETE"
-	_menu_delete_button.disabled = true
-	_apply_menu_button_style(_menu_delete_button, false, true)
-	_menu_delete_button.pressed.connect(_on_menu_delete_button_pressed)
-	load_buttons.add_child(_menu_delete_button)
-
-	var load_back_btn := Button.new()
-	load_back_btn.text = "RETURN"
-	_apply_menu_button_style(load_back_btn, false, false)
-	load_back_btn.pressed.connect(_show_menu_page_main)
-	load_buttons.add_child(load_back_btn)
-
-	_menu_settings_page = PanelContainer.new()
-	_menu_settings_page.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_menu_settings_page.visible = false
-	_apply_menu_window_style(_menu_settings_page)
-	menu_pages.add_child(_menu_settings_page)
-
-	var settings_margin := MarginContainer.new()
-	settings_margin.add_theme_constant_override("margin_left", 18)
-	settings_margin.add_theme_constant_override("margin_right", 18)
-	settings_margin.add_theme_constant_override("margin_top", 18)
-	settings_margin.add_theme_constant_override("margin_bottom", 18)
-	_menu_settings_page.add_child(settings_margin)
-
-	var settings_box := VBoxContainer.new()
-	settings_box.add_theme_constant_override("separation", 12)
-	settings_margin.add_child(settings_box)
-
-	var settings_title := Label.new()
-	settings_title.text = "CONFIGURATION"
-	settings_title.add_theme_font_size_override("font_size", 32)
-	settings_title.add_theme_color_override("font_color", MENU_COL_REDESIGN_HILITE)
-	settings_title.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
-	settings_title.add_theme_constant_override("shadow_offset_x", 2)
-	settings_title.add_theme_constant_override("shadow_offset_y", 2)
-	settings_box.add_child(settings_title)
-
-	var settings_panel = SETTINGS_PANEL_SCRIPT.new()
-	settings_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	settings_box.add_child(settings_panel)
-
-	var settings_back_btn := Button.new()
-	settings_back_btn.text = "RETURN"
-	settings_back_btn.custom_minimum_size = Vector2(0.0, 40.0)
-	_apply_menu_button_style(settings_back_btn, false, false)
-	settings_back_btn.pressed.connect(_show_menu_page_main)
-	settings_box.add_child(settings_back_btn)
-
-	_menu_loading_overlay = ColorRect.new()
-	_menu_loading_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_menu_loading_overlay.color = Color(0.0, 0.0, 0.0, 0.64)
-	_menu_loading_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_menu_loading_overlay.visible = false
-	root.add_child(_menu_loading_overlay)
-
-	_menu_loading_panel = PanelContainer.new()
-	_menu_loading_panel.anchor_left = 0.5
-	_menu_loading_panel.anchor_right = 0.5
-	_menu_loading_panel.anchor_top = 0.5
-	_menu_loading_panel.anchor_bottom = 0.5
-	_menu_loading_panel.offset_left = -270.0
-	_menu_loading_panel.offset_right = 270.0
-	_menu_loading_panel.offset_top = -84.0
-	_menu_loading_panel.offset_bottom = 84.0
-	_apply_menu_window_style(_menu_loading_panel)
-	_menu_loading_overlay.add_child(_menu_loading_panel)
-
-	var loading_margin := MarginContainer.new()
-	loading_margin.add_theme_constant_override("margin_left", 14)
-	loading_margin.add_theme_constant_override("margin_right", 14)
-	loading_margin.add_theme_constant_override("margin_top", 14)
-	loading_margin.add_theme_constant_override("margin_bottom", 14)
-	_menu_loading_panel.add_child(loading_margin)
-
-	var loading_box := VBoxContainer.new()
-	loading_box.add_theme_constant_override("separation", 8)
-	loading_margin.add_child(loading_box)
-
-	var loading_title := Label.new()
-	loading_title.text = "INITIALIZING SESSION"
-	loading_title.add_theme_font_size_override("font_size", 24)
-	loading_title.add_theme_color_override("font_color", MENU_COL_REDESIGN_HILITE)
-	loading_title.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
-	loading_title.add_theme_constant_override("shadow_offset_x", 2)
-	loading_title.add_theme_constant_override("shadow_offset_y", 2)
-	loading_box.add_child(loading_title)
-
-	_menu_loading_label = Label.new()
-	_menu_loading_label.text = "Loading..."
-	_menu_loading_label.add_theme_font_size_override("font_size", 16)
-	_menu_loading_label.add_theme_color_override("font_color", MENU_COL_REDESIGN_TEXT)
-	loading_box.add_child(_menu_loading_label)
-
-	var loading_track := ColorRect.new()
-	loading_track.custom_minimum_size = Vector2(0.0, 18.0)
-	loading_track.color = Color(0.08, 0.08, 0.08, 0.96)
-	loading_box.add_child(loading_track)
-
-	_menu_loading_fill = ColorRect.new()
-	_menu_loading_fill.color = MENU_COL_REDESIGN_HILITE
-	_menu_loading_fill.position = Vector2(2.0, 2.0)
-	_menu_loading_fill.size = Vector2(60.0, 14.0)
-	loading_track.add_child(_menu_loading_fill)
-
-
-func _make_menu_panel_style(bg: Color, border: Color, border_width: int = 2, corner_radius: int = 0) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg
-	style.border_color = border
-	style.border_width_left = border_width
-	style.border_width_top = border_width
-	style.border_width_right = border_width
-	style.border_width_bottom = border_width
-	style.corner_radius_top_left = corner_radius
-	style.corner_radius_top_right = corner_radius
-	style.corner_radius_bottom_left = corner_radius
-	style.corner_radius_bottom_right = corner_radius
-	return style
-
-
-func _apply_menu_window_style(panel: PanelContainer) -> void:
-	if panel == null:
-		return
-	panel.add_theme_stylebox_override("panel", _make_menu_panel_style(MENU_COL_REDESIGN_PANEL_BG, MENU_COL_REDESIGN_PANEL_BORDER, 3, 3))
-
-
-func _apply_menu_button_style(btn: Button, is_primary: bool, is_danger: bool) -> void:
-	if btn == null:
-		return
-	btn.focus_mode = Control.FOCUS_ALL
-	btn.add_theme_font_size_override("font_size", 15)
-	btn.add_theme_constant_override("h_separation", 0)
-	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	btn.clip_text = false
-	btn.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
-	btn.add_theme_constant_override("shadow_offset_x", 2)
-	btn.add_theme_constant_override("shadow_offset_y", 2)
-
-	var base := Color(0.12, 0.12, 0.12, 0.95)
-	var border := MENU_COL_REDESIGN_PANEL_BORDER.darkened(0.08)
-	var text_color := MENU_COL_REDESIGN_TEXT
-	if is_primary:
-		base = Color(0.20, 0.24, 0.18, 0.95)
-		border = MENU_COL_REDESIGN_HILITE.darkened(0.28)
-		text_color = MENU_COL_REDESIGN_HILITE
-	elif is_danger:
-		base = Color(0.28, 0.08, 0.08, 0.95)
-		border = Color(0.68, 0.20, 0.20, 0.95)
-		text_color = Color(0.95, 0.88, 0.88, 1.0)
-
-	var normal := _make_menu_panel_style(base, border, 2, 2)
-	var hover := _make_menu_panel_style(base.lightened(0.08), border.lightened(0.10), 2, 2)
-	var pressed := _make_menu_panel_style(base.darkened(0.12), border.darkened(0.12), 2, 2)
-	var disabled := _make_menu_panel_style(base.darkened(0.22), border.darkened(0.24), 2, 2)
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", pressed)
-	btn.add_theme_stylebox_override("disabled", disabled)
-	btn.add_theme_color_override("font_color", text_color)
-	btn.add_theme_color_override("font_hover_color", text_color)
-	btn.add_theme_color_override("font_pressed_color", text_color)
-	btn.add_theme_color_override("font_disabled_color", text_color.darkened(0.45))
-
-
-func _apply_menu_logo_style(panel: PanelContainer) -> StyleBoxFlat:
-	if panel == null:
-		return null
-	var style := _make_menu_panel_style(MENU_COL_REDESIGN_LOGO_BG, MENU_COL_REDESIGN_LOGO_BORDER, 4, 5)
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.42)
-	style.shadow_size = 10
-	style.shadow_offset = Vector2(0.0, 4.0)
-	panel.add_theme_stylebox_override("panel", style)
-	return style
-
-
-func _apply_menu_list_button_style(btn: Button, is_primary: bool, is_danger: bool) -> void:
-	if btn == null:
-		return
-	btn.focus_mode = Control.FOCUS_ALL
-	btn.flat = true
-	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.add_theme_font_size_override("font_size", 32)
-	btn.add_theme_constant_override("h_separation", 0)
-	btn.add_theme_constant_override("outline_size", 2)
-	btn.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.95))
-	btn.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
-	btn.add_theme_constant_override("shadow_offset_x", 2)
-	btn.add_theme_constant_override("shadow_offset_y", 2)
-	btn.clip_text = false
-
-	var text_color := MENU_COL_REDESIGN_TEXT
-	if is_primary:
-		text_color = MENU_COL_REDESIGN_HILITE
-	elif is_danger:
-		text_color = MENU_COL_REDESIGN_TEXT_DIM
-
-	var normal := _make_menu_panel_style(Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0, 0.0), 0, 0)
-	var hover := _make_menu_panel_style(Color(0.33, 0.08, 0.08, 0.35), Color(0.60, 0.14, 0.13, 0.66), 1, 0)
-	var pressed := _make_menu_panel_style(Color(0.40, 0.10, 0.10, 0.42), Color(0.68, 0.19, 0.17, 0.82), 1, 0)
-	var disabled := _make_menu_panel_style(Color(0.0, 0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0, 0.0), 0, 0)
-	normal.content_margin_left = 4.0
-	hover.content_margin_left = 4.0
-	pressed.content_margin_left = 4.0
-	disabled.content_margin_left = 4.0
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", pressed)
-	btn.add_theme_stylebox_override("disabled", disabled)
-	btn.add_theme_color_override("font_color", text_color)
-	btn.add_theme_color_override("font_hover_color", MENU_COL_REDESIGN_HILITE)
-	btn.add_theme_color_override("font_pressed_color", MENU_COL_REDESIGN_HILITE)
-	btn.add_theme_color_override("font_disabled_color", MENU_COL_REDESIGN_TEXT_DIM.darkened(0.4))
-
-
-func _create_main_menu_action_row(parent: VBoxContainer, button_text: String, is_primary: bool = false, is_danger: bool = false) -> Dictionary:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	parent.add_child(row)
-
-	var marker := Label.new()
-	marker.text = ">>"
-	marker.custom_minimum_size = Vector2(44.0, 46.0)
-	marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	marker.add_theme_font_size_override("font_size", 28)
-	marker.add_theme_color_override("font_color", MENU_COL_REDESIGN_HILITE)
-	marker.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.95))
-	marker.add_theme_constant_override("shadow_offset_x", 2)
-	marker.add_theme_constant_override("shadow_offset_y", 2)
-	marker.visible = false
-	row.add_child(marker)
-
-	var btn := Button.new()
-	btn.text = button_text
-	btn.custom_minimum_size = Vector2(0.0, 46.0)
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_apply_menu_list_button_style(btn, is_primary, is_danger)
-	row.add_child(btn)
-
-	_register_main_menu_button(btn, marker)
-	return {"row": row, "button": btn, "marker": marker}
-
-
-func _register_main_menu_button(button: Button, marker: Label) -> void:
-	if button == null or marker == null:
-		return
-	_menu_main_buttons.append(button)
-	_menu_button_markers[button] = marker
-	button.mouse_entered.connect(func() -> void:
-		_set_main_menu_selected_button(button)
-	)
-	button.focus_entered.connect(func() -> void:
-		_set_main_menu_selected_button(button)
-	)
-
-
-func _set_main_menu_selected_button(button) -> void:
-	_menu_selected_main_button = button
-	_refresh_main_menu_selection_markers()
-
-
-func _refresh_main_menu_selection_markers() -> void:
-	var page_visible := _menu_main_page != null and _menu_main_page.visible
-	for key in _menu_button_markers.keys():
-		var btn := key as Button
-		var marker := _menu_button_markers[key] as Label
-		if marker == null:
-			continue
-		var selected := (
-			page_visible
-			and btn != null
-			and btn == _menu_selected_main_button
-			and btn.visible
-			and not btn.disabled
-		)
-		marker.visible = selected
-
-
-func _select_first_visible_main_menu_button() -> void:
-	for btn in _menu_main_buttons:
-		if btn != null and is_instance_valid(btn) and btn.visible and not btn.disabled:
-			_set_main_menu_selected_button(btn)
-			btn.grab_focus()
-			return
-	_set_main_menu_selected_button(null)
-
-
-func _update_menu_overlay_fx(delta: float) -> void:
-	_menu_selector_anim_t += maxf(delta, 0.0)
-	var marker_alpha := 0.58 + 0.42 * (0.5 + 0.5 * sin(_menu_selector_anim_t * 5.8))
-	for key in _menu_button_markers.keys():
-		var marker := _menu_button_markers[key] as Label
-		if marker != null and marker.visible:
-			marker.modulate = Color(1.0, 1.0, 1.0, marker_alpha)
-	if _menu_scanline_layer != null:
-		var scan_alpha := 0.64 + 0.08 * sin(_menu_selector_anim_t * 1.5)
-		_menu_scanline_layer.modulate = Color(1.0, 1.0, 1.0, clampf(scan_alpha, 0.45, 0.85))
-	_update_menu_title_disturbance(delta)
-
-
-func _update_menu_title_disturbance(delta: float) -> void:
-	_menu_logo_glitch_t += maxf(delta, 0.0)
-	_menu_logo_hover_mix = lerpf(_menu_logo_hover_mix, 1.0 if _menu_logo_hovered else 0.0, clampf(delta * 7.0, 0.0, 1.0))
-	_menu_logo_glitch_hold = maxf(0.0, _menu_logo_glitch_hold - maxf(delta, 0.0))
-	if _menu_logo_glitch_hold <= 0.0 and randf() < clampf(delta * (0.25 + 0.9 * _menu_logo_hover_mix), 0.0, 0.20):
-		_menu_logo_glitch_hold = randf_range(0.018, 0.050)
-		_menu_logo_glitch_sign = -1.0 if randf() < 0.5 else 1.0
-
-	var breath := 0.5 + 0.5 * sin(_menu_logo_glitch_t * 1.7)
-	var glow_strength := 0.06 + 0.10 * breath + 0.14 * _menu_logo_hover_mix
-	var glitch_strength := clampf(_menu_logo_glitch_hold * 28.0, 0.0, 1.0)
-
-	if _menu_logo_panel_style != null:
-		var bg_mix := clampf(glow_strength + glitch_strength * 0.06, 0.0, 0.32)
-		var border_mix := clampf(0.08 + 0.22 * _menu_logo_hover_mix + 0.08 * breath, 0.0, 0.45)
-		_menu_logo_panel_style.bg_color = MENU_COL_REDESIGN_LOGO_BG.lerp(MENU_COL_REDESIGN_LOGO_BG.lightened(0.06), bg_mix)
-		_menu_logo_panel_style.border_color = MENU_COL_REDESIGN_LOGO_BORDER.lerp(MENU_COL_REDESIGN_HILITE, border_mix)
-		_menu_logo_panel_style.shadow_color = Color(0.88, 0.20, 0.14, 0.18 + 0.22 * glow_strength)
-		_menu_logo_panel_style.shadow_size = int(round(10.0 + 4.0 * glow_strength))
-		_menu_logo_panel_style.shadow_offset = Vector2(0.0, 4.0 + 0.8 * breath)
-
-	if _menu_logo_main_label != null:
-		var main_pulse := 1.0 + 0.004 * sin(_menu_logo_glitch_t * 2.0) + 0.002 * _menu_logo_hover_mix
-		var main_rot := deg_to_rad(0.10 * sin(_menu_logo_glitch_t * 3.1) + 0.16 * glitch_strength * _menu_logo_glitch_sign)
-		var main_tint := 0.012 * glow_strength
-		_menu_logo_main_label.scale = Vector2(main_pulse, 1.0 + (main_pulse - 1.0) * 0.55)
-		_menu_logo_main_label.rotation = main_rot
-		_menu_logo_main_label.modulate = Color(1.0, 1.0 - main_tint, 1.0 - main_tint, 1.0)
-		_menu_logo_main_label.add_theme_constant_override("shadow_offset_x", 2 + int(round(glitch_strength * _menu_logo_glitch_sign)))
-		_menu_logo_main_label.add_theme_constant_override("shadow_offset_y", 2)
-
-	if _menu_logo_sub_label != null:
-		var sub_pulse := 1.0 + 0.003 * sin(_menu_logo_glitch_t * 2.2 + 0.6) + 0.0015 * _menu_logo_hover_mix
-		var sub_rot := deg_to_rad(-0.08 * sin(_menu_logo_glitch_t * 2.8 + 0.8) - 0.12 * glitch_strength * _menu_logo_glitch_sign)
-		var sub_tint := 0.010 * glow_strength
-		_menu_logo_sub_label.scale = Vector2(sub_pulse, 1.0 + (sub_pulse - 1.0) * 0.45)
-		_menu_logo_sub_label.rotation = sub_rot
-		_menu_logo_sub_label.modulate = Color(1.0 - sub_tint, 1.0, 1.0 - sub_tint, 1.0)
-		_menu_logo_sub_label.add_theme_constant_override("shadow_offset_x", 2)
-		_menu_logo_sub_label.add_theme_constant_override("shadow_offset_y", 2 + int(round(-glitch_strength * _menu_logo_glitch_sign)))
-
-
-func _create_menu_scanline_texture() -> Texture2D:
-	var image := Image.create(2, 4, false, Image.FORMAT_RGBA8)
-	for y in range(4):
-		var a := 0.20 if y % 2 == 0 else 0.02
-		for x in range(2):
-			image.set_pixel(x, y, Color(0.0, 0.0, 0.0, a))
-	return ImageTexture.create_from_image(image)
-
-
-func _show_menu_loading_overlay(message: String) -> void:
-	if _menu_loading_overlay == null:
-		return
-	if _menu_loading_label != null:
-		_menu_loading_label.text = message
-	if _menu_loading_panel != null:
-		_menu_loading_panel.move_to_front()
-	_menu_loading_anim_t = 0.0
-	if _menu_loading_fill != null:
-		_menu_loading_fill.position.x = 2.0
-	_menu_loading_overlay.visible = true
-
-
-func _hide_menu_loading_overlay() -> void:
-	if _menu_loading_overlay != null:
-		_menu_loading_overlay.visible = false
-
-
-func _update_menu_loading_overlay(delta: float) -> void:
-	if _menu_loading_overlay == null or not _menu_loading_overlay.visible:
-		return
-	if _menu_loading_fill == null:
-		return
-	_menu_loading_anim_t += maxf(delta, 0.0)
-	var track_width := 460.0
-	if _menu_loading_fill.get_parent() is Control:
-		var parent_control := _menu_loading_fill.get_parent() as Control
-		track_width = maxf(100.0, parent_control.size.x)
-	var fill_width := clampf(track_width * 0.28, 44.0, 220.0)
-	_menu_loading_fill.size.x = fill_width
-	var span := maxf(1.0, track_width - fill_width - 4.0)
-	var phase := fposmod(_menu_loading_anim_t * 2.1, 1.0)
-	_menu_loading_fill.position.x = 2.0 + span * phase
-	_menu_loading_fill.color = MENU_COL_REDESIGN_HILITE.lerp(MENU_COL_REDESIGN_PANEL_BORDER.lightened(0.12), 0.5 + 0.5 * sin(_menu_loading_anim_t * 4.2))
-
-
 func _show_menu_loading_for(label: String) -> void:
-	_show_menu_loading_overlay(label)
+	if _main_menu != null:
+		_main_menu.show_loading(label)
 	await get_tree().process_frame
 	await get_tree().create_timer(0.08).timeout
 
@@ -3241,131 +2464,32 @@ func _hide_menu_loading_after(start_msec: int, minimum_visible_msec: int = 520, 
 	var elapsed := Time.get_ticks_msec() - start_msec
 	if elapsed < minimum_visible_msec:
 		await get_tree().create_timer(float(minimum_visible_msec - elapsed) / 1000.0).timeout
-	if hide_after:
-		_hide_menu_loading_overlay()
+	if hide_after and _main_menu != null:
+		_main_menu.hide_loading()
 
 
-func _show_menu_page_main() -> void:
-	if _menu_main_page != null:
-		_menu_main_page.visible = true
-	if _menu_load_page != null:
-		_menu_load_page.visible = false
-	if _menu_settings_page != null:
-		_menu_settings_page.visible = false
-	_refresh_menu_continue_button()
-	_select_first_visible_main_menu_button()
-
-
-func _show_menu_page_load() -> void:
-	if _menu_main_page != null:
-		_menu_main_page.visible = false
-	if _menu_load_page != null:
-		_menu_load_page.visible = true
-	if _menu_settings_page != null:
-		_menu_settings_page.visible = false
-	_set_main_menu_selected_button(null)
-	_refresh_load_game_list()
-
-
-func _show_menu_page_settings() -> void:
-	if _menu_main_page != null:
-		_menu_main_page.visible = false
-	if _menu_load_page != null:
-		_menu_load_page.visible = false
-	if _menu_settings_page != null:
-		_menu_settings_page.visible = true
-	_set_main_menu_selected_button(null)
-
-
-func _refresh_menu_continue_button() -> void:
-	if _menu_continue_button == null:
+func _ensure_main_menu() -> void:
+	if _main_menu != null:
 		return
-	var has_continue := SaveManager.has_saves()
-	if _menu_continue_row != null:
-		_menu_continue_row.visible = has_continue
-	else:
-		_menu_continue_button.visible = has_continue
-	if _menu_continue_placeholder != null:
-		_menu_continue_placeholder.visible = not has_continue
-	if _menu_main_page != null and _menu_main_page.visible:
-		_select_first_visible_main_menu_button()
+	_main_menu = MAIN_MENU_SCRIPT.new()
+	add_child(_main_menu)
+	_main_menu.continue_requested.connect(_on_menu_continue_pressed)
+	_main_menu.new_game_requested.connect(_on_menu_new_game_pressed)
+	_main_menu.load_requested.connect(_on_menu_load_requested)
+	_main_menu.quit_requested.connect(func() -> void: get_tree().quit())
 
 
-func _refresh_load_game_list(select_index: int = -1) -> void:
-	if _menu_load_list == null:
-		return
-	_menu_save_entries = SaveManager.list_saves()
-	_menu_load_list.clear()
-	for i in _menu_save_entries.size():
-		var entry := _menu_save_entries[i]
-		var stamp := _format_unix_time(int(entry.get("updated_unix", 0)))
-		var line := "%s  [%s]" % [str(entry.get("slot_name", "Save")), stamp]
-		_menu_load_list.add_item(line)
-		_menu_load_list.set_item_metadata(i, str(entry.get("path", "")))
-
-	if select_index >= 0 and _menu_save_entries.size() > 0:
-		var clamped_index: int = clampi(select_index, 0, _menu_save_entries.size() - 1)
-		_menu_load_list.select(clamped_index)
-		_menu_load_list.ensure_current_is_visible()
-		_on_menu_load_selected(clamped_index)
-		return
-
-	if _menu_load_button != null:
-		_menu_load_button.disabled = true
-	if _menu_delete_button != null:
-		_menu_delete_button.disabled = true
-
-
-func _on_menu_load_selected(index: int) -> void:
-	var has_selection := index >= 0 and index < _menu_load_list.get_item_count()
-	if _menu_load_button != null:
-		_menu_load_button.disabled = not has_selection
-	if _menu_delete_button != null:
-		_menu_delete_button.disabled = not has_selection
-
-
-func _on_menu_load_activated(index: int) -> void:
-	await _load_game_from_index_with_loading(index)
-
-
-func _on_menu_load_button_pressed() -> void:
-	var selected := _menu_load_list.get_selected_items()
-	if selected.is_empty():
-		return
-	await _load_game_from_index_with_loading(int(selected[0]))
-
-
-func _on_menu_delete_button_pressed() -> void:
-	var selected := _menu_load_list.get_selected_items()
-	if selected.is_empty():
-		return
-	var idx: int = int(selected[0])
-	if idx < 0 or idx >= _menu_save_entries.size():
-		return
-	var path := str(_menu_save_entries[idx].get("path", ""))
-	if path.is_empty():
-		return
-	var deleted := SaveManager.delete_save(path)
-	if deleted:
-		print("Save deleted: %s" % path)
-	_refresh_menu_continue_button()
-	_refresh_load_game_list(idx)
-
-
-func _load_game_from_index_with_loading(index: int) -> void:
+func _on_menu_load_requested(path: String) -> void:
 	var started := Time.get_ticks_msec()
 	await _show_menu_loading_for("Loading save file...")
-	if not _start_loaded_game_from_index(index):
+	if not _start_loaded_game_from_path(path):
 		await _hide_menu_loading_after(started, 180)
 		return
 	await _hide_menu_loading_after(started, 520, false)
 	_start_game_from_menu()
 
 
-func _start_loaded_game_from_index(index: int) -> bool:
-	if index < 0 or index >= _menu_save_entries.size():
-		return false
-	var path := str(_menu_save_entries[index].get("path", ""))
+func _start_loaded_game_from_path(path: String) -> bool:
 	if path.is_empty():
 		return false
 	var snapshot := SaveManager.read_save(path)
@@ -3376,7 +2500,6 @@ func _start_loaded_game_from_index(index: int) -> bool:
 		push_warning("Save data is invalid or incompatible.")
 		return false
 	_active_save_path = path
-	print("Loaded save: %s" % str(_menu_save_entries[index].get("slot_name", "Save")))
 	return true
 
 
@@ -3422,9 +2545,8 @@ func _on_menu_new_game_pressed() -> void:
 
 func _start_game_from_menu() -> void:
 	_stop_menu_music()
-	_hide_menu_loading_overlay()
-	if _menu_canvas != null:
-		_menu_canvas.visible = false
+	if _main_menu != null:
+		_main_menu.close()
 	_start_gameplay_runtime()
 	call_deferred("_ensure_runtime_started_after_menu_load")
 	call_deferred("_write_startup_autosave")
@@ -3435,8 +2557,9 @@ func _ensure_runtime_started_after_menu_load() -> void:
 	if not _gameplay_started:
 		return
 	_menu_mode = false
-	if _menu_canvas != null:
-		_menu_canvas.visible = false
+	if _main_menu != null:
+		_main_menu.close()
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	if _player == null or not is_instance_valid(_player):
 		_spawn_player()
 		_apply_pending_loaded_player_state()
@@ -4705,24 +3828,90 @@ func _prune_preview_to_reception_only() -> void:
 			structure.queue_free()
 
 
-func _format_unix_time(timestamp: int) -> String:
-	if timestamp <= 0:
-		return "unknown"
-	var dt := Time.get_datetime_dict_from_unix_time(timestamp)
-	return "%04d-%02d-%02d %02d:%02d" % [
-		int(dt.get("year", 1970)),
-		int(dt.get("month", 1)),
-		int(dt.get("day", 1)),
-		int(dt.get("hour", 0)),
-		int(dt.get("minute", 0))
-	]
-
-
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		if _gameplay_started:
 			_write_autosave("Autosave")
 		get_tree().quit()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		# Alt-tab during the night should not cost the player their life.
+		if _can_pause_now():
+			_open_pause_menu()
+
+
+func _can_pause_now() -> bool:
+	return (
+		_startup_bootstrap_complete
+		and _gameplay_started
+		and not _menu_mode
+		and not _game_over_active
+		and not _is_any_interior_open()
+		and (_pause_menu == null or not _pause_menu.is_open())
+	)
+
+
+func _open_pause_menu() -> void:
+	if not _can_pause_now():
+		return
+	_ensure_pause_menu()
+	_pause_menu.open(_pause_info_line())
+	get_tree().paused = true
+
+
+## Built once at bootstrap so it is ready (and laid out) long before the first Esc.
+func _ensure_pause_menu() -> void:
+	if _pause_menu != null:
+		return
+	_pause_menu = PAUSE_MENU_SCRIPT.new()
+	add_child(_pause_menu)
+	_pause_menu.resume_requested.connect(func() -> void: _close_pause_menu(true))
+	_pause_menu.save_requested.connect(_on_pause_save_requested)
+	_pause_menu.quit_to_title_requested.connect(_on_pause_quit_requested)
+
+
+func _close_pause_menu(recapture_mouse: bool) -> void:
+	if _pause_menu == null or not _pause_menu.is_open():
+		return
+	_pause_menu.close()
+	get_tree().paused = false
+	if recapture_mouse:
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+
+func _pause_info_line() -> String:
+	var line := "DAY %d   %s" % [maxi(1, _day_index), _time_of_day_string()]
+	var saved := _last_save_unix()
+	if saved > 0:
+		var ago := int(Time.get_unix_time_from_system()) - saved
+		if ago < 90:
+			line += "   SAVED JUST NOW"
+		elif ago < 3600:
+			line += "   SAVED %d MIN AGO" % (ago / 60)
+		else:
+			line += "   SAVED %d H AGO" % (ago / 3600)
+	return line
+
+
+func _last_save_unix() -> int:
+	if _active_save_path.is_empty():
+		return 0
+	return int(FileAccess.get_modified_time(_active_save_path))
+
+
+func _on_pause_save_requested() -> void:
+	var path := request_manual_save()
+	if path.is_empty():
+		_pause_menu.set_info("SAVE FAILED")
+		return
+	_pause_menu.set_info(_pause_info_line())
+	if _hud_manager != null:
+		_hud_manager.push_status("Game saved.", 1)
+
+
+func _on_pause_quit_requested() -> void:
+	_write_autosave("Autosave")
+	_close_pause_menu(false)
+	_enter_main_menu()
 
 
 func _exit_tree() -> void:

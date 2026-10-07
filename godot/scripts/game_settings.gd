@@ -11,12 +11,17 @@ const DEFAULT_RESOLUTION := Vector2i(1280, 720)
 const DEFAULT_MASTER_DB := 0.0
 const DEFAULT_RETRO_PRESET := "build"
 const RETRO_PRESETS: Array[String] = ["chunky", "build", "crisp", "svga", "native"]
+const DEFAULT_MOUSE_SENSITIVITY := 1.0
+const MOUSE_SENSITIVITY_MIN := 0.25
+const MOUSE_SENSITIVITY_MAX := 3.0
 
 var _window_mode: String = MODE_WINDOWED
 var _resolution: Vector2i = DEFAULT_RESOLUTION
 var _master_db: float = DEFAULT_MASTER_DB
 var _retro_preset: String = DEFAULT_RETRO_PRESET
 var _retro_palette_enabled: bool = true
+var _mouse_sensitivity: float = DEFAULT_MOUSE_SENSITIVITY
+var _invert_mouse_y: bool = false
 
 
 func _ready() -> void:
@@ -55,6 +60,29 @@ func get_retro_preset() -> String:
 
 func get_retro_palette_enabled() -> bool:
 	return _retro_palette_enabled
+
+
+## Multiplier on the player's base look speed (1.0 = default).
+func get_mouse_sensitivity() -> float:
+	return _mouse_sensitivity
+
+
+func get_invert_mouse_y() -> bool:
+	return _invert_mouse_y
+
+
+func set_mouse_sensitivity(value: float, persist: bool = true) -> void:
+	_mouse_sensitivity = clampf(snappedf(value, 0.05), MOUSE_SENSITIVITY_MIN, MOUSE_SENSITIVITY_MAX)
+	if persist:
+		save_settings()
+	_emit_changed()
+
+
+func set_invert_mouse_y(enabled: bool, persist: bool = true) -> void:
+	_invert_mouse_y = enabled
+	if persist:
+		save_settings()
+	_emit_changed()
 
 
 func set_retro_preset(preset: String, persist: bool = true) -> void:
@@ -112,6 +140,8 @@ func reset_defaults() -> void:
 	_master_db = DEFAULT_MASTER_DB
 	_retro_preset = DEFAULT_RETRO_PRESET
 	_retro_palette_enabled = true
+	_mouse_sensitivity = DEFAULT_MOUSE_SENSITIVITY
+	_invert_mouse_y = false
 	apply_settings()
 	save_settings()
 	_emit_changed()
@@ -139,6 +169,8 @@ func load_settings() -> void:
 	var retro = str(cfg.get_value("video", "retro_preset", DEFAULT_RETRO_PRESET))
 	_retro_preset = retro if RETRO_PRESETS.has(retro) else DEFAULT_RETRO_PRESET
 	_retro_palette_enabled = bool(cfg.get_value("video", "retro_palette", true))
+	_mouse_sensitivity = clampf(float(cfg.get_value("input", "mouse_sensitivity", DEFAULT_MOUSE_SENSITIVITY)), MOUSE_SENSITIVITY_MIN, MOUSE_SENSITIVITY_MAX)
+	_invert_mouse_y = bool(cfg.get_value("input", "invert_mouse_y", false))
 
 	set_window_mode(mode, false, false)
 	set_resolution(Vector2i(w, h), false, false)
@@ -153,6 +185,8 @@ func save_settings() -> void:
 	cfg.set_value("video", "retro_preset", _retro_preset)
 	cfg.set_value("video", "retro_palette", _retro_palette_enabled)
 	cfg.set_value("audio", "master_db", _master_db)
+	cfg.set_value("input", "mouse_sensitivity", _mouse_sensitivity)
+	cfg.set_value("input", "invert_mouse_y", _invert_mouse_y)
 	cfg.save(SETTINGS_PATH)
 
 
@@ -163,6 +197,8 @@ func get_snapshot() -> Dictionary:
 		"master_db": _master_db,
 		"retro_preset": _retro_preset,
 		"retro_palette": _retro_palette_enabled,
+		"mouse_sensitivity": _mouse_sensitivity,
+		"invert_mouse_y": _invert_mouse_y,
 	}
 
 

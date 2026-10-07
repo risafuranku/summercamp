@@ -136,13 +136,21 @@ func _extract_meta(parsed: Dictionary, path: String, file_name: String) -> Dicti
 	var slot_name := str(meta.get("slot_name", file_name))
 	var kind := str(meta.get("kind", "manual"))
 
+	# Camp summary for the load list (the whole file is parsed here anyway).
+	var state: Dictionary = parsed.get("state", {}) if parsed.get("state", {}) is Dictionary else {}
+	var runtime: Dictionary = parsed.get("runtime", {}) if parsed.get("runtime", {}) is Dictionary else {}
+	var guests_any = state.get("guests", [])
 	return {
 		"path": path,
 		"file_name": file_name,
 		"slot_name": slot_name,
 		"kind": kind,
 		"created_unix": created_unix,
-		"updated_unix": updated_unix
+		"updated_unix": updated_unix,
+		"day": int(runtime.get("day_index", state.get("day", 1))),
+		"time_hours": float(runtime.get("time_of_day_hours", 9.0)),
+		"money": int(state.get("money", 0)),
+		"guests": (guests_any as Array).size() if guests_any is Array else 0,
 	}
 
 

@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const YAW_SENSITIVITY_FACTOR := 2.0
+
 @export var move_speed: float = 3.9
 @export var sprint_speed: float = 5.2
 @export var jump_velocity: float = 4.4
@@ -187,16 +189,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-		rotate_y(-event.relative.x * mouse_sensitivity)
+		var look_scale := 1.0
+		var invert := invert_vertical_look
+		if GameSettings != null:
+			look_scale = GameSettings.get_mouse_sensitivity()
+			invert = invert != GameSettings.get_invert_mouse_y()
+		# Yaw used to be applied twice by accident; the doubled speed is what the game
+		# was tuned with, so it is kept as an explicit factor.
+		rotate_y(-event.relative.x * mouse_sensitivity * YAW_SENSITIVITY_FACTOR * look_scale)
 		var pitch_input = -event.relative.y
-		if invert_vertical_look:
+		if invert:
 			pitch_input = -pitch_input
 		
 		# Add rotational tilt target based on mouse input
 		_current_tilt = lerp(_current_tilt, clamp(event.relative.x * rotation_tilt_amount, -0.1, 0.1), 0.15)
 		
-		_pitch_target += pitch_input * mouse_sensitivity * vertical_look_sensitivity_multiplier
+		_pitch_target += pitch_input * mouse_sensitivity * vertical_look_sensitivity_multiplier * look_scale
 		_pitch_target = clamp(_pitch_target, -deg_to_rad(vertical_look_limit_degrees), deg_to_rad(vertical_look_limit_degrees))
 		_mouse_impact += Vector2(0.0, -event.relative.x) * handheld_look_strength
 		_mouse_impact.y = clamp(_mouse_impact.y, -0.08, 0.08)
@@ -205,11 +213,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_flashlight_user_enabled = not _flashlight_user_enabled
 		_refresh_flashlight_state()
 
-	if event.is_action_pressed("ui_cancel"):
-		if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		else:
-			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	# Esc is the pause menu (main.gd), which releases and recaptures the mouse.
+	# A click recaptures it if something else (alt-tab, a closed window) let it go.
+	var click := event as InputEventMouseButton
+	if click != null and click.pressed and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func _physics_process(delta: float) -> void:
