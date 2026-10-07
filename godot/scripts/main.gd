@@ -24,6 +24,8 @@ const HUD_MANAGER_SCRIPT = preload("res://scripts/hud_manager.gd")
 const GUEST_AGENTS_SCRIPT = preload("res://scripts/guest_agents.gd")
 const QUEST_MANAGER_SCRIPT = preload("res://scripts/quest_manager.gd")
 const MAINTENANCE_CONTROLLER_SCRIPT = preload("res://scripts/maintenance_controller.gd")
+const BLOOD_FX_SCRIPT = preload("res://scripts/blood_fx.gd")
+const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
 const PAUSE_MENU_SCRIPT = preload("res://scripts/ui/pause_menu.gd")
@@ -77,18 +79,6 @@ const DAMAGE_TIER_MEDIUM: int = 1
 const DAMAGE_TIER_LARGE: int = 2
 const DAMAGE_TIER_MEGA: int = 3
 const DAMAGE_TIER_LETHAL: int = 4
-const DAMAGE_BLOOD_CHUNK_COUNTS := [6, 12, 18, 28, 40]
-const DAMAGE_BLOOD_SPREAD := [0.30, 0.45, 0.62, 0.86, 1.08]
-const DAMAGE_BLOOD_FADE_DELAY_SEC: float = 180.0
-const DAMAGE_BLOOD_FADE_DURATION_SEC: float = 34.0
-const DAMAGE_BLOOD_RAY_DISTANCE: float = 11.5
-const DAMAGE_BLOOD_CHUNK_SPEED_MIN: float = 12.0
-const DAMAGE_BLOOD_CHUNK_SPEED_MAX: float = 24.0
-const DAMAGE_BLOOD_PROJECTILE_GRAVITY: float = 34.0
-const DAMAGE_BLOOD_PROJECTILE_DRAG: float = 1.15
-const DAMAGE_BLOOD_PROJECTILE_LIFETIME_SEC: float = 1.35
-const DAMAGE_BLOOD_SPAWN_BUDGET_PER_FRAME: int = 8
-const DAMAGE_BLOOD_MAX_DECALS: int = 260
 const LAMP_FLASHLIGHT_START_HOUR: float = 19.5
 const GAME_OVER_FALL_DELAY_FALLBACK_SEC: float = 1.2
 const GAME_OVER_REASON_DEATH := "death"
@@ -96,96 +86,6 @@ const GAME_OVER_REASON_UPS := "ups_power_loss"
 const INTERACT_DISTANCE: float = 3.4
 const FIRST_PERSON_CAMERA_FAR: float = 1000.0
 const LIMINAL_ARCHETYPE_QUIET_GUY := "quiet_guy"
-const ELECTRICITY_BILL_ISSUE_HOUR: int = BALANCE_CONFIG.NIGHT_START_HOUR
-const ELECTRICITY_BILL_ISSUE_MINUTE: int = 0
-const ELECTRICITY_BILL_GRACE_DAYS: int = 3
-const ELECTRICITY_PRICE_PER_KWH: float = 2.2
-const ELECTRICITY_KWH_PER_POWER_UNIT: float = 3.0
-const ELECTRICITY_DAILY_BASE_FEE: int = 12
-const ELECTRICITY_UPS_DURATION_SEC: float = 360.0
-const ELECTRICITY_BILL_NOTICE_SENDER := "CampGrid Energy Billing <billing@campgrid.local>"
-const ELECTRICITY_BILL_NOTICE_TEMPLATES: Array[Dictionary] = [
-	{
-		"subject": "Electricity invoice {bill_id} issued - due Day {due_day}",
-		"body": "Hello reception,\n\nYour electricity invoice {bill_id} for service day {service_day} is now posted.\nAmount due: {amount_usd}.\nPayment deadline: Day {due_day} before {issue_time}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Payment reminder: {amount_usd} due for {bill_id}",
-		"body": "Billing notice,\n\nWe generated invoice {bill_id}.\nOutstanding amount: {amount_usd}.\nPlease settle by Day {due_day} before {issue_time} to avoid interruption.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Camp power account update - invoice {bill_id}",
-		"body": "Reception team,\n\nService day {service_day} usage has been billed under {bill_id}.\nTotal due now: {amount_usd}.\nDue date: Day {due_day} ({grace_days}-day window).\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Billing alert: Day {service_day} electricity charge ready",
-		"body": "Automated advisory,\n\nInvoice {bill_id} is available in your camp account.\nAmount: {amount_usd}.\nPlease pay before Day {due_day} at {issue_time}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Utility invoice {bill_id} now open",
-		"body": "Hello,\n\nA new utility invoice has been posted.\nInvoice ID: {bill_id}\nAmount due: {amount_usd}\nDeadline: Day {due_day} before {issue_time}\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "CampGrid notice: electricity due on Day {due_day}",
-		"body": "Reception,\n\nThis is a scheduled evening billing notice.\nInvoice {bill_id} totals {amount_usd} for service day {service_day}.\nPlease process payment no later than Day {due_day}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Invoice queued: {bill_id} ({amount_usd})",
-		"body": "System message,\n\nInvoice {bill_id} was queued to your mailbox.\nCurrent amount payable: {amount_usd}.\nGrace period ends on Day {due_day}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Evening utility statement - {bill_id}",
-		"body": "Hello reception,\n\nYour evening electricity statement has been finalized.\nReference: {bill_id}\nService day: {service_day}\nDue amount: {amount_usd}\nPay by Day {due_day} before {issue_time}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Action required: settle electricity invoice {bill_id}",
-		"body": "Camp operations,\n\nPlease review and pay invoice {bill_id}.\nBalance due: {amount_usd}.\nDeadline for payment: Day {due_day}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Grid account billing event - {bill_id}",
-		"body": "Automated account event,\n\nElectricity billing for day {service_day} has posted.\nInvoice number: {bill_id}\nAmount due: {amount_usd}\nPayment due: Day {due_day} ({issue_time}).\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Power service invoice posted ({bill_id})",
-		"body": "Reception desk,\n\nWe posted a new power service invoice.\nID: {bill_id}\nTotal: {amount_usd}\nPlease settle before Day {due_day} to keep account current.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Outstanding utility balance notice: {amount_usd}",
-		"body": "Reminder,\n\nInvoice {bill_id} entered unpaid status.\nAmount currently due: {amount_usd}.\nLast day to pay without penalty: Day {due_day}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Service day {service_day} consumption invoiced",
-		"body": "Hello,\n\nConsumption for service day {service_day} has been converted to invoice {bill_id}.\nBalance: {amount_usd}.\nDue date: Day {due_day} before {issue_time}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Camp energy billing cycle closed - invoice ready",
-		"body": "Operations update,\n\nThe latest billing cycle is closed.\nInvoice: {bill_id}\nAmount due: {amount_usd}\nGrace period: {grace_days} day(s), ending Day {due_day}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Notice of payable electricity charges ({bill_id})",
-		"body": "Reception,\n\nThis notice confirms payable electricity charges.\nInvoice ID: {bill_id}\nService day: {service_day}\nTotal due: {amount_usd}\nPayment deadline: Day {due_day}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Invoice {bill_id}: utility payment window active",
-		"body": "Billing center notice,\n\nYour payment window is now active for invoice {bill_id}.\nAmount: {amount_usd}.\nPlease complete payment by Day {due_day} at {issue_time}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "CampGrid account message - new electricity amount due",
-		"body": "Hello camp reception,\n\nA new electricity amount is due under invoice {bill_id}.\nCurrent balance: {amount_usd}.\nPlease pay by Day {due_day}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Utility debt prevention reminder ({bill_id})",
-		"body": "Preventive reminder,\n\nInvoice {bill_id} is pending in your account.\nTotal due: {amount_usd}.\nSettle by Day {due_day} to avoid overdue status.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Electricity ledger entry created for Day {service_day}",
-		"body": "Ledger update,\n\nA new ledger entry has been created as invoice {bill_id}.\nPayable amount: {amount_usd}.\nDue on Day {due_day} before {issue_time}.\n\nCampGrid Energy Billing",
-	},
-	{
-		"subject": "Final evening notice: invoice {bill_id} awaiting payment",
-		"body": "Evening dispatch,\n\nInvoice {bill_id} was added to your unpaid list.\nAmount due now: {amount_usd}.\nDeadline remains Day {due_day}.\n\nCampGrid Energy Billing",
-	},
-]
 var _time_state: int = TIME_DAY
 var _time_of_day_hours: float = 9.0
 var _day_index: int = 1
@@ -231,14 +131,7 @@ var _pending_loaded_crt_state: Dictionary = {}
 var _last_known_crt_desktop_state: Dictionary = {}
 var _boot_screen: CanvasLayer
 var _player_health: int = PLAYER_MAX_HEALTH
-var _blood_fx_root: Node3D
-var _blood_decal_nodes: Array[Node3D] = []
-var _active_blood_projectiles: Array[Dictionary] = []
-var _pending_blood_projectiles: Array[Dictionary] = []
-var _blood_texture_cache: Texture2D
-var _blood_chunk_material_cache: StandardMaterial3D
-var _blood_decal_material_cache: StandardMaterial3D
-var _blood_rng := RandomNumberGenerator.new()
+var _blood_fx: Node
 var _game_over_active: bool = false
 var _game_over_reason: String = GAME_OVER_REASON_DEATH
 var _game_over_screen: CanvasLayer
@@ -261,12 +154,7 @@ var _active_enemy_brain_id: String = ""
 var _active_enemy_spawned_this_night: int = 0
 var _lamp_flashlight_active: bool = false
 var _lamp_grid_power_available: bool = true
-var _electricity_bills: Array[Dictionary] = []
-var _electricity_last_billed_service_day: int = 0
-var _electricity_notice_template_cursor: int = 0
-var _electricity_power_cut_active: bool = false
-var _electricity_ups_active: bool = false
-var _electricity_ups_seconds_left: float = ELECTRICITY_UPS_DURATION_SEC
+var _billing: RefCounted = ELECTRICITY_BILLING_SCRIPT.new()
 
 
 func _ready() -> void:
@@ -274,7 +162,6 @@ func _ready() -> void:
 	DisplayServer.window_set_title(WINDOW_TITLE)
 	_apply_integer_canvas_scale()
 	get_tree().root.size_changed.connect(_apply_integer_canvas_scale)
-	_blood_rng.randomize()
 	_liminal_forecast_rng.randomize()
 	_show_startup_loading_screen()
 	await get_tree().process_frame
@@ -341,6 +228,7 @@ func _bootstrap_runtime() -> void:
 			EventBus.state_changed.connect(state_changed_cb)
 
 	_bind_or_create_managers()
+	_bind_billing()
 	_setup_weather_visuals_module()
 	RETRO_RENDER.register(_sub_viewport_container)
 	get_viewport().size_changed.connect(func() -> void: RETRO_RENDER.refresh_all(get_tree()))
@@ -1456,211 +1344,17 @@ func _finalize_game_over_sequence(delay_sec: float) -> void:
 func _spawn_blood_damage_fx(tier: int, fatal_hit: bool) -> void:
 	if _world_3d == null or not _gameplay_started or _menu_mode:
 		return
-	var camera := _get_player_camera()
-	if camera == null:
-		return
-	_ensure_blood_fx_root()
-	var tier_idx = clampi(tier, DAMAGE_TIER_SMALL, DAMAGE_TIER_LETHAL)
-	var chunk_count = int(DAMAGE_BLOOD_CHUNK_COUNTS[tier_idx])
-	if fatal_hit:
-		chunk_count += 10
-	for _i in range(chunk_count):
-		_spawn_single_blood_chunk(camera, tier_idx)
-
-
-func _spawn_single_blood_chunk(camera: Camera3D, tier_idx: int) -> void:
-	if _blood_fx_root == null or not is_instance_valid(_blood_fx_root):
-		return
-	var forward := -camera.global_transform.basis.z
-	var right := camera.global_transform.basis.x
-	var up := camera.global_transform.basis.y
-	var spread := float(DAMAGE_BLOOD_SPREAD[tier_idx])
-	var direction = (
-		forward * _blood_rng.randf_range(0.35, 1.0)
-		+ right * _blood_rng.randf_range(-spread, spread)
-		+ up * _blood_rng.randf_range(-0.38, 0.54 + spread * 0.2)
-	).normalized()
-	if direction.length_squared() < 0.0001:
-		direction = forward
-
-	var origin = camera.global_transform.origin + forward * 0.18 + up * -0.05
-	var hit = _raycast_blood_target(origin, direction)
-	var target_pos = origin + direction * _blood_rng.randf_range(2.4, 4.8)
-	var target_normal = Vector3.UP
-	if not hit.is_empty():
-		target_pos = hit.get("position", target_pos)
-		var hit_normal_any = hit.get("normal", Vector3.UP)
-		if hit_normal_any is Vector3:
-			target_normal = (hit_normal_any as Vector3).normalized()
-		if target_normal.length_squared() < 0.0001:
-			target_normal = Vector3.UP
-
-	var chunk_root := Node3D.new()
-	chunk_root.name = "BloodChunk"
-	chunk_root.global_position = origin
-	_blood_fx_root.add_child(chunk_root)
-
-	var chunk_mesh := MeshInstance3D.new()
-	var chunk_box := BoxMesh.new()
-	var chunk_size = _blood_rng.randf_range(0.010, 0.028) * (1.0 + float(tier_idx) * 0.20)
-	chunk_box.size = Vector3.ONE * chunk_size
-	chunk_mesh.mesh = chunk_box
-	chunk_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	chunk_mesh.material_override = _make_blood_chunk_material()
-	chunk_root.add_child(chunk_mesh)
-
-	var speed = _blood_rng.randf_range(DAMAGE_BLOOD_CHUNK_SPEED_MIN, DAMAGE_BLOOD_CHUNK_SPEED_MAX)
-	var duration = clampf(origin.distance_to(target_pos) / maxf(speed, 0.01), 0.08, 0.34)
-	var tween = create_tween()
-	tween.set_trans(Tween.TRANS_QUAD)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.tween_property(chunk_root, "global_position", target_pos, duration)
-	tween.finished.connect(func():
-		if not is_instance_valid(chunk_root):
-			return
-		_spawn_blood_decal(target_pos, target_normal, tier_idx)
-		chunk_root.queue_free()
-	)
-
-
-func _raycast_blood_target(origin: Vector3, direction: Vector3) -> Dictionary:
-	if _world_3d == null or _world_3d.get_world_3d() == null:
-		return {}
-	var query := PhysicsRayQueryParameters3D.create(origin, origin + direction * DAMAGE_BLOOD_RAY_DISTANCE)
-	query.collide_with_bodies = true
-	query.collide_with_areas = false
-	var exclude: Array = []
-	if _player != null and is_instance_valid(_player):
-		exclude.append(_player.get_rid())
-	query.exclude = exclude
-	return _world_3d.get_world_3d().direct_space_state.intersect_ray(query)
-
-
-func _spawn_blood_decal(hit_pos: Vector3, normal: Vector3, tier_idx: int) -> void:
-	if _blood_fx_root == null or not is_instance_valid(_blood_fx_root):
-		return
-	_cleanup_blood_decal_refs()
-	while _blood_decal_nodes.size() >= DAMAGE_BLOOD_MAX_DECALS:
-		var oldest = _blood_decal_nodes.pop_front()
-		if oldest != null and is_instance_valid(oldest):
-			oldest.queue_free()
-
-	var n = normal.normalized()
-	if n.length_squared() < 0.0001:
-		n = Vector3.UP
-
-	var decal_root := Node3D.new()
-	decal_root.name = "BloodDecal"
-	decal_root.global_position = hit_pos + n * 0.012
-	var up_hint := Vector3.UP
-	if absf(n.dot(up_hint)) > 0.94:
-		up_hint = Vector3.FORWARD
-	decal_root.look_at(decal_root.global_position + n, up_hint, true)
-	decal_root.rotate_object_local(Vector3.FORWARD, _blood_rng.randf_range(-PI, PI))
-	_blood_fx_root.add_child(decal_root)
-
-	var mesh := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	var base_size = 0.12 + (float(tier_idx) * 0.07)
-	var sx = base_size * _blood_rng.randf_range(0.72, 1.36)
-	var sy = base_size * _blood_rng.randf_range(0.64, 1.28)
-	quad.size = Vector2(sx, sy)
-	mesh.mesh = quad
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var decal_mat := _make_blood_decal_material()
-	var decal_alpha := _blood_rng.randf_range(0.74, 1.0)
-	if decal_mat != null:
-		var decal_col = decal_mat.albedo_color
-		decal_col.a = decal_alpha
-		decal_mat.albedo_color = decal_col
-	mesh.material_override = decal_mat
-	mesh.transparency = 0.0
-	decal_root.add_child(mesh)
-	_blood_decal_nodes.append(decal_root)
-
-	var fade_tween = decal_root.create_tween()
-	fade_tween.tween_interval(DAMAGE_BLOOD_FADE_DELAY_SEC)
-	fade_tween.tween_property(mesh, "transparency", 1.0, DAMAGE_BLOOD_FADE_DURATION_SEC)
-	fade_tween.finished.connect(func():
-		if is_instance_valid(decal_root):
-			decal_root.queue_free()
-	)
-
-
-func _ensure_blood_fx_root() -> void:
-	if _world_3d == null:
-		return
-	if _blood_fx_root != null and is_instance_valid(_blood_fx_root):
-		return
-	_blood_fx_root = Node3D.new()
-	_blood_fx_root.name = "BloodFxRoot"
-	_world_3d.add_child(_blood_fx_root)
+	if _blood_fx == null:
+		_blood_fx = BLOOD_FX_SCRIPT.new()
+		_blood_fx.name = "BloodFx"
+		add_child(_blood_fx)
+		_blood_fx.setup(_world_3d, Callable(self, "_get_player_camera"), Callable(self, "_get_player_ref"))
+	_blood_fx.spawn(tier, fatal_hit)
 
 
 func _clear_blood_fx() -> void:
-	_blood_decal_nodes.clear()
-	if _blood_fx_root != null and is_instance_valid(_blood_fx_root):
-		_blood_fx_root.queue_free()
-	_blood_fx_root = null
-
-
-func _cleanup_blood_decal_refs() -> void:
-	var live: Array[Node3D] = []
-	for decal in _blood_decal_nodes:
-		if decal != null and is_instance_valid(decal):
-			live.append(decal)
-	_blood_decal_nodes = live
-
-
-func _make_blood_chunk_material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.62, 0.04, 0.04, 1.0)
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return mat
-
-
-func _make_blood_decal_material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_texture = _get_or_create_blood_texture()
-	mat.albedo_color = Color(0.72, 0.05, 0.05, 0.98)
-	mat.emission_enabled = true
-	mat.emission = Color(0.24, 0.0, 0.0, 1.0)
-	mat.emission_energy_multiplier = 0.26
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return mat
-
-
-func _get_or_create_blood_texture() -> Texture2D:
-	if _blood_texture_cache != null:
-		return _blood_texture_cache
-	_blood_texture_cache = _build_pixel_blood_texture()
-	return _blood_texture_cache
-
-
-func _build_pixel_blood_texture() -> Texture2D:
-	var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var local_rng := RandomNumberGenerator.new()
-	local_rng.randomize()
-	var center := Vector2(15.5, 15.5)
-	for y in range(32):
-		for x in range(32):
-			var p := Vector2(float(x), float(y))
-			var dist = p.distance_to(center) / 16.0
-			var threshold = 0.28 + local_rng.randf_range(0.0, 0.62)
-			if dist > threshold:
-				continue
-			if local_rng.randf() < 0.18 and dist > 0.35:
-				continue
-			var shade = local_rng.randf_range(0.0, 0.22)
-			var alpha = clampf(1.0 - dist + local_rng.randf_range(-0.16, 0.22), 0.0, 1.0)
-			img.set_pixel(x, y, Color(0.78 - shade, 0.03, 0.03, alpha))
-	return ImageTexture.create_from_image(img)
+	if _blood_fx != null:
+		_blood_fx.clear()
 
 
 func _get_player_camera() -> Camera3D:
@@ -1801,339 +1495,54 @@ func _on_day_tick(day_index: int) -> void:
 func _process_electricity_runtime(delta: float) -> void:
 	if not _gameplay_started or _menu_mode:
 		return
-	_issue_pending_electricity_bills()
-	_refresh_electricity_power_cut_state()
-	if _electricity_power_cut_active:
-		if not _electricity_ups_active:
-			_electricity_ups_active = true
-			_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
-		_electricity_ups_seconds_left = maxf(0.0, _electricity_ups_seconds_left - maxf(delta, 0.0))
-		if _electricity_ups_seconds_left <= 0.0 and not _game_over_active:
-			_trigger_game_over(GAME_OVER_REASON_UPS)
-		return
-	if _electricity_ups_active or _electricity_ups_seconds_left < ELECTRICITY_UPS_DURATION_SEC:
-		_electricity_ups_active = false
-		_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
+	_sync_billing_clock()
+	_billing.tick(delta)
 
 
-func _issue_pending_electricity_bills() -> void:
-	var minute_of_day := _clock_minutes_from_hours(_time_of_day_hours)
-	var issue_minute := _electricity_issue_minute_of_day()
-	if minute_of_day < issue_minute:
-		return
-	var target_service_day := _day_index - 1
-	while _electricity_last_billed_service_day < target_service_day:
-		var service_day := _electricity_last_billed_service_day + 1
-		if service_day <= 0:
-			_electricity_last_billed_service_day = service_day
-			continue
-		_create_electricity_bill_for_day(service_day)
-		_electricity_last_billed_service_day = service_day
-		_emit_state_update()
+func _sync_billing_clock() -> void:
+	_billing.set_clock(_day_index, _clock_minutes_from_hours(_time_of_day_hours))
 
 
-func _electricity_issue_minute_of_day() -> int:
-	return (ELECTRICITY_BILL_ISSUE_HOUR * 60) + ELECTRICITY_BILL_ISSUE_MINUTE
-
-
-func _electricity_days_left_until_due(due_day: int) -> int:
-	var days_left := due_day - _day_index
-	if days_left == 0:
-		var minute_of_day := _clock_minutes_from_hours(_time_of_day_hours)
-		if minute_of_day >= _electricity_issue_minute_of_day():
-			return -1
-	return days_left
-
-
-func _create_electricity_bill_for_day(service_day: int) -> void:
-	var lines := _collect_electricity_consumption_lines()
-	var total_kwh := 0.0
-	var energy_charge := 0
-	var bill_lines: Array[Dictionary] = []
-	for line in lines:
-		total_kwh += float(line.get("kwh_per_day", 0.0))
-		energy_charge += int(line.get("cost_per_day", 0))
-		var power_units := int(line.get("power_units", 0))
-		if power_units <= 0:
-			continue
-		bill_lines.append({
-			"building_type": str(line.get("building_type", "")),
-			"label": str(line.get("label", "Unknown")),
-			"coord": _coord_to_save_dict(line.get("coord", Vector2i.ZERO)),
-			"power_units": power_units,
-			"kwh_per_day": snappedf(float(line.get("kwh_per_day", 0.0)), 0.1),
-			"cost_per_day": int(line.get("cost_per_day", 0)),
-		})
-	var base_fee := ELECTRICITY_DAILY_BASE_FEE if total_kwh > 0.001 else 0
-	var total_amount: int = maxi(0, energy_charge + base_fee)
-	var issue_time := "%02d:%02d" % [ELECTRICITY_BILL_ISSUE_HOUR, ELECTRICITY_BILL_ISSUE_MINUTE]
-	var issued_day := _day_index
-	var bill := {
-		"id": "elec_day_%d" % service_day,
-		"service_day": service_day,
-		"issued_day": issued_day,
-		"issued_time": issue_time,
-		"due_day": issued_day + ELECTRICITY_BILL_GRACE_DAYS,
-		"status": "unpaid",
-		"amount": total_amount,
-		"rate_per_kwh": ELECTRICITY_PRICE_PER_KWH,
-		"base_fee": base_fee,
-		"kwh_total": snappedf(total_kwh, 0.1),
-		"line_items": bill_lines,
-	}
-	_electricity_bills.append(bill)
-	_queue_electricity_due_notice_email(bill)
-
-
-func _queue_electricity_due_notice_email(bill: Dictionary) -> void:
-	if EmailManager == null or not EmailManager.has_method("push_system_mail"):
-		return
-	var template := _next_electricity_notice_template()
-	if template.is_empty():
-		return
-	var issue_day: int = maxi(1, int(bill.get("issued_day", _day_index)))
-	var service_day: int = maxi(1, int(bill.get("service_day", issue_day)))
-	var due_day: int = maxi(issue_day, int(bill.get("due_day", issue_day + ELECTRICITY_BILL_GRACE_DAYS)))
-	var issue_time := str(bill.get("issued_time", "%02d:%02d" % [ELECTRICITY_BILL_ISSUE_HOUR, ELECTRICITY_BILL_ISSUE_MINUTE])).strip_edges()
-	if issue_time.is_empty():
-		issue_time = "%02d:%02d" % [ELECTRICITY_BILL_ISSUE_HOUR, ELECTRICITY_BILL_ISSUE_MINUTE]
-	var amount := maxi(0, int(bill.get("amount", 0)))
-	var bill_id := str(bill.get("id", "elec_day_%d" % service_day)).strip_edges()
-	var placeholders := {
-		"bill_id": bill_id,
-		"service_day": str(service_day),
-		"issued_day": str(issue_day),
-		"issue_time": issue_time,
-		"due_day": str(due_day),
-		"grace_days": str(ELECTRICITY_BILL_GRACE_DAYS),
-		"amount": str(amount),
-		"amount_usd": "$%d" % amount,
-	}
-	var subject_template := str(template.get("subject", "Electricity invoice {bill_id} issued"))
-	var body_template := str(template.get("body", "Invoice {bill_id} is due on Day {due_day}."))
-	EmailManager.push_system_mail({
-		"sender": ELECTRICITY_BILL_NOTICE_SENDER,
-		"from": ELECTRICITY_BILL_NOTICE_SENDER,
-		"subject": _format_electricity_notice_template(subject_template, placeholders),
-		"body": _format_electricity_notice_template(body_template, placeholders),
-		"day": issue_day,
-		"time": issue_time,
-		"type": "system",
-		"category": "electricity_billing",
-		"bill_id": bill_id,
-		"amount": amount,
-		"due_day": due_day,
-	})
-
-
-func _next_electricity_notice_template() -> Dictionary:
-	if ELECTRICITY_BILL_NOTICE_TEMPLATES.is_empty():
-		return {}
-	_electricity_notice_template_cursor = _coerce_electricity_notice_cursor(_electricity_notice_template_cursor)
-	var template_any = ELECTRICITY_BILL_NOTICE_TEMPLATES[_electricity_notice_template_cursor]
-	_electricity_notice_template_cursor = _coerce_electricity_notice_cursor(_electricity_notice_template_cursor + 1)
-	if template_any is Dictionary:
-		return (template_any as Dictionary).duplicate(true)
-	return {}
-
-
-func _coerce_electricity_notice_cursor(value: int) -> int:
-	var template_count := ELECTRICITY_BILL_NOTICE_TEMPLATES.size()
-	if template_count <= 0:
-		return 0
-	return posmod(value, template_count)
-
-
-func _format_electricity_notice_template(template_text: String, placeholders: Dictionary) -> String:
-	var out := template_text
-	for key_any in placeholders.keys():
-		var key := str(key_any).strip_edges()
-		if key.is_empty():
-			continue
-		out = out.replace("{%s}" % key, str(placeholders.get(key_any, "")))
-	return out
-
-
-func _collect_electricity_consumption_lines() -> Array[Dictionary]:
-	var lines: Array[Dictionary] = []
-	if economy_manager == null or not economy_manager.has_method("get_power_draw_breakdown"):
-		return lines
-	var raw_any = economy_manager.get_power_draw_breakdown()
-	if not (raw_any is Array):
-		return lines
-	var raw_lines := raw_any as Array
-	for line_any in raw_lines:
-		if not (line_any is Dictionary):
-			continue
-		var raw_line := line_any as Dictionary
-		var power_units: int = maxi(0, int(raw_line.get("power_use", 0)))
-		if power_units <= 0:
-			continue
-		var kwh := float(power_units) * ELECTRICITY_KWH_PER_POWER_UNIT
-		var cost := int(round(kwh * ELECTRICITY_PRICE_PER_KWH))
-		lines.append({
-			"building_type": str(raw_line.get("type", "")),
-			"label": str(raw_line.get("label", "Unknown")),
-			"coord": _coord_from_variant(raw_line.get("coord", Vector2i.ZERO), Vector2i.ZERO),
-			"power_units": power_units,
-			"kwh_per_day": snappedf(kwh, 0.1),
-			"cost_per_day": cost,
-		})
-	lines.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var ap = int(a.get("power_units", 0))
-		var bp = int(b.get("power_units", 0))
-		if ap == bp:
-			return str(a.get("label", "")) < str(b.get("label", ""))
-		return ap > bp
+## Billing signals: wired once in _bootstrap_runtime.
+func _bind_billing() -> void:
+	_billing.setup(economy_manager)
+	_billing.state_changed.connect(_emit_state_update)
+	_billing.power_cut_changed.connect(func(cut: bool) -> void:
+		if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
+			GuestManager.set_camp_power_available(not cut)
+		_apply_time_from_clock(true, false)
 	)
-	return lines
+	_billing.ups_expired.connect(func() -> void:
+		if not _game_over_active:
+			_trigger_game_over(GAME_OVER_REASON_UPS)
+	)
 
 
 func _refresh_electricity_power_cut_state(force_apply: bool = false) -> void:
-	var now_cut := _has_overdue_electricity_bill()
-	var changed := now_cut != _electricity_power_cut_active
-	_electricity_power_cut_active = now_cut
-	if _electricity_power_cut_active:
-		if changed:
-			_electricity_ups_active = true
-			_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
-	else:
-		_electricity_ups_active = false
-		_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
-	if changed or force_apply:
-		if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
-			GuestManager.set_camp_power_available(not _electricity_power_cut_active)
-		_apply_time_from_clock(true, false)
-		_emit_state_update()
-
-
-func _has_overdue_electricity_bill() -> bool:
-	for bill_any in _electricity_bills:
-		if not (bill_any is Dictionary):
-			continue
-		var bill := bill_any as Dictionary
-		if str(bill.get("status", "unpaid")) == "paid":
-			continue
-		var due_day := int(bill.get("due_day", _day_index))
-		if _electricity_days_left_until_due(due_day) < 0:
-			return true
-	return false
+	_sync_billing_clock()
+	_billing.refresh_power_cut(force_apply)
 
 
 func _count_overdue_electricity_bills() -> int:
-	var count := 0
-	for bill_any in _electricity_bills:
-		if not (bill_any is Dictionary):
-			continue
-		var bill := bill_any as Dictionary
-		if str(bill.get("status", "unpaid")) == "paid":
-			continue
-		var due_day := int(bill.get("due_day", _day_index))
-		if _electricity_days_left_until_due(due_day) < 0:
-			count += 1
-	return count
+	return _billing.count_overdue()
 
 
+## CRT Camp Status reads billing through these two (it resolves Main as its host).
 func get_electricity_ui_snapshot() -> Dictionary:
-	var lines := _collect_electricity_consumption_lines()
-	var total_kwh := 0.0
-	var energy_charge := 0
-	for line in lines:
-		total_kwh += float(line.get("kwh_per_day", 0.0))
-		energy_charge += int(line.get("cost_per_day", 0))
-	var base_fee := ELECTRICITY_DAILY_BASE_FEE if total_kwh > 0.001 else 0
-	var daily_total_cost: int = maxi(0, energy_charge + base_fee)
-
-	var bills: Array[Dictionary] = []
-	var unpaid_total := 0
-	var overdue_total := 0
-	var unpaid_count := 0
-	var overdue_count := 0
-	for i in range(_electricity_bills.size() - 1, -1, -1):
-		var bill_any = _electricity_bills[i]
-		if not (bill_any is Dictionary):
-			continue
-		var bill := bill_any as Dictionary
-		var status := str(bill.get("status", "unpaid")).to_lower().strip_edges()
-		if status == "paid":
-			continue
-		var amount: int = maxi(0, int(bill.get("amount", 0)))
-		var due_day := int(bill.get("due_day", _day_index))
-		var days_left := _electricity_days_left_until_due(due_day)
-		var is_overdue := days_left < 0
-		unpaid_total += amount
-		unpaid_count += 1
-		if is_overdue:
-			overdue_total += amount
-			overdue_count += 1
-		bills.append({
-			"id": str(bill.get("id", "")),
-			"service_day": int(bill.get("service_day", 0)),
-			"issued_day": int(bill.get("issued_day", 0)),
-			"issued_time": str(bill.get("issued_time", "%02d:%02d" % [ELECTRICITY_BILL_ISSUE_HOUR, ELECTRICITY_BILL_ISSUE_MINUTE])),
-			"due_day": due_day,
-			"status": status,
-			"amount": amount,
-			"kwh_total": snappedf(float(bill.get("kwh_total", 0.0)), 0.1),
-			"days_left": days_left,
-			"is_overdue": is_overdue,
-			"line_items": _duplicate_dict_array(bill.get("line_items", [])),
-		})
-
-	return {
-		"day": _day_index,
-		"time": _time_of_day_string(),
-		"rate_per_kwh": ELECTRICITY_PRICE_PER_KWH,
-		"kwh_per_power_unit": ELECTRICITY_KWH_PER_POWER_UNIT,
-		"base_fee": base_fee,
-		"daily_kwh_total": snappedf(total_kwh, 0.1),
-		"daily_cost_energy": energy_charge,
-		"daily_cost_total": daily_total_cost,
-		"consumption_lines": lines,
-		"bills": bills,
-		"unpaid_total": unpaid_total,
-		"overdue_total": overdue_total,
-		"unpaid_count": unpaid_count,
-		"overdue_count": overdue_count,
-		"power_cut_active": _electricity_power_cut_active,
-		"ups_active": _electricity_ups_active and _electricity_power_cut_active,
-		"ups_seconds_left": snappedf(_electricity_ups_seconds_left, 0.1),
-		"bill_grace_days": ELECTRICITY_BILL_GRACE_DAYS,
-		"bill_issue_hour": ELECTRICITY_BILL_ISSUE_HOUR,
-		"bill_issue_minute": ELECTRICITY_BILL_ISSUE_MINUTE,
-	}
+	_sync_billing_clock()
+	return _billing.ui_snapshot(_time_of_day_string())
 
 
 func request_pay_electricity_bill(bill_id: String) -> Dictionary:
-	var trimmed_id := bill_id.strip_edges()
-	if trimmed_id.is_empty():
-		return {"ok": false, "reason": "invalid_bill"}
-	for i in _electricity_bills.size():
-		var bill_any = _electricity_bills[i]
-		if not (bill_any is Dictionary):
-			continue
-		var bill := bill_any as Dictionary
-		if str(bill.get("id", "")) != trimmed_id:
-			continue
-		if str(bill.get("status", "unpaid")) == "paid":
-			return {"ok": false, "reason": "already_paid"}
-		var amount: int = maxi(0, int(bill.get("amount", 0)))
-		if amount > 0:
-			if CoreRoot.actions == null or not CoreRoot.actions.has_method("spend_money"):
-				return {"ok": false, "reason": "money_system_missing"}
-			if not CoreRoot.actions.spend_money(amount):
-				return {"ok": false, "reason": "insufficient_funds", "amount": amount}
-		_electricity_bills.remove_at(i)
-		_refresh_electricity_power_cut_state(true)
-		return {"ok": true, "amount": amount}
-	return {"ok": false, "reason": "not_found"}
+	_sync_billing_clock()
+	return _billing.pay(bill_id)
 
 
 func _apply_time_from_clock(force_interior_sync: bool = false, force_sky_snap: bool = false) -> void:
 	var state_changed = force_interior_sync
 	var is_night = (_time_state == TIME_NIGHT)
 	var lamp_and_flashlight_active = _is_hour_in_window(_time_of_day_hours, LAMP_FLASHLIGHT_START_HOUR, float(BALANCE_CONFIG.DAY_START_HOUR))
-	var grid_power_available = not _electricity_power_cut_active
+	var grid_power_available = not _billing.power_cut_active
 	if CoreRoot.is_night() != is_night:
 		CoreRoot.apply_changes({"is_night": is_night})
 	if state_changed and _time_state == TIME_NIGHT:
@@ -2473,9 +1882,9 @@ func _emit_state_update() -> void:
 		"weather": weather_name,
 		"money": current_money,
 		"electricity": {
-			"power_cut_active": _electricity_power_cut_active,
-			"ups_active": _electricity_ups_active and _electricity_power_cut_active,
-			"ups_seconds_left": _electricity_ups_seconds_left,
+			"power_cut_active": _billing.power_cut_active,
+			"ups_active": _billing.ups_active and _billing.power_cut_active,
+			"ups_seconds_left": _billing.ups_seconds_left,
 			"overdue_count": _count_overdue_electricity_bills(),
 		},
 		"liminal_forecast": _liminal_forecast_snapshot.duplicate(true),
@@ -2493,8 +1902,8 @@ func _enter_main_menu() -> void:
 	_clear_game_over_screen()
 	_game_over_active = false
 	_game_over_reason = GAME_OVER_REASON_DEATH
-	_electricity_ups_active = false
-	_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
+	_billing.ups_active = false
+	_billing.ups_seconds_left = _billing.UPS_DURATION_SEC
 	_clear_blood_fx()
 	_reset_player_damage_feedback()
 	_set_player_health(PLAYER_MAX_HEALTH, false)
@@ -2941,7 +2350,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 			"guest_reviews": _duplicate_dict_array(state.guest_reviews),
 			"guest_transactions": _duplicate_dict_array(state.guest_transactions),
 			"next_guest_id": max(1, int(state.next_guest_id)),
-			"electricity": _serialize_electricity_state_for_save()
+			"electricity": _billing.export_state()
 		},
 		"runtime": {
 			"time_of_day_hours": _time_of_day_hours,
@@ -3153,83 +2562,6 @@ func _deserialize_failures_from_save(value: Variant) -> Dictionary:
 			"since_day": max(1, int(entry.get("since_day", 1))),
 			"repair_progress": clampf(float(entry.get("repair_progress", 0.0)), 0.0, 1.0)
 		}
-	return out
-
-
-func _serialize_electricity_state_for_save() -> Dictionary:
-	return {
-		"last_billed_service_day": max(0, _electricity_last_billed_service_day),
-		"notice_template_cursor": _coerce_electricity_notice_cursor(_electricity_notice_template_cursor),
-		"power_cut_active": _electricity_power_cut_active,
-		"ups_active": _electricity_ups_active,
-		"ups_seconds_left": clampf(_electricity_ups_seconds_left, 0.0, ELECTRICITY_UPS_DURATION_SEC),
-		"bills": _serialize_electricity_bills_for_save(_electricity_bills),
-	}
-
-
-func _serialize_electricity_bills_for_save(value: Variant) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	if not (value is Array):
-		return out
-	for bill_any in value:
-		if not (bill_any is Dictionary):
-			continue
-		var bill := (bill_any as Dictionary).duplicate(true)
-		var line_items: Array[Dictionary] = []
-		var line_items_any = bill.get("line_items", [])
-		if line_items_any is Array:
-			for line_any in line_items_any:
-				if not (line_any is Dictionary):
-					continue
-				var line := (line_any as Dictionary).duplicate(true)
-				line["coord"] = _coord_to_save_dict(line.get("coord", Vector2i.ZERO))
-				line["power_units"] = max(0, int(line.get("power_units", 0)))
-				line["kwh_per_day"] = snappedf(maxf(0.0, float(line.get("kwh_per_day", 0.0))), 0.1)
-				line["cost_per_day"] = max(0, int(line.get("cost_per_day", 0)))
-				line_items.append(line)
-		bill["service_day"] = max(1, int(bill.get("service_day", 1)))
-		bill["issued_day"] = max(1, int(bill.get("issued_day", 1)))
-		bill["due_day"] = max(1, int(bill.get("due_day", 1)))
-		bill["amount"] = max(0, int(bill.get("amount", 0)))
-		bill["status"] = "paid" if str(bill.get("status", "unpaid")) == "paid" else "unpaid"
-		bill["kwh_total"] = snappedf(maxf(0.0, float(bill.get("kwh_total", 0.0))), 0.1)
-		bill["base_fee"] = max(0, int(bill.get("base_fee", 0)))
-		bill["rate_per_kwh"] = maxf(0.0, float(bill.get("rate_per_kwh", ELECTRICITY_PRICE_PER_KWH)))
-		bill["line_items"] = line_items
-		out.append(bill)
-	return out
-
-
-func _deserialize_electricity_bills_from_save(value: Variant) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	if not (value is Array):
-		return out
-	for bill_any in value:
-		if not (bill_any is Dictionary):
-			continue
-		var bill := (bill_any as Dictionary).duplicate(true)
-		var line_items: Array[Dictionary] = []
-		var line_items_any = bill.get("line_items", [])
-		if line_items_any is Array:
-			for line_any in line_items_any:
-				if not (line_any is Dictionary):
-					continue
-				var line := (line_any as Dictionary).duplicate(true)
-				line["coord"] = _coord_from_variant(line.get("coord", Vector2i.ZERO), Vector2i.ZERO)
-				line["power_units"] = max(0, int(line.get("power_units", 0)))
-				line["kwh_per_day"] = snappedf(maxf(0.0, float(line.get("kwh_per_day", 0.0))), 0.1)
-				line["cost_per_day"] = max(0, int(line.get("cost_per_day", 0)))
-				line_items.append(line)
-		bill["service_day"] = max(1, int(bill.get("service_day", 1)))
-		bill["issued_day"] = max(1, int(bill.get("issued_day", 1)))
-		bill["due_day"] = max(1, int(bill.get("due_day", 1)))
-		bill["amount"] = max(0, int(bill.get("amount", 0)))
-		bill["status"] = "paid" if str(bill.get("status", "unpaid")) == "paid" else "unpaid"
-		bill["kwh_total"] = snappedf(maxf(0.0, float(bill.get("kwh_total", 0.0))), 0.1)
-		bill["base_fee"] = max(0, int(bill.get("base_fee", 0)))
-		bill["rate_per_kwh"] = maxf(0.0, float(bill.get("rate_per_kwh", ELECTRICITY_PRICE_PER_KWH)))
-		bill["line_items"] = line_items
-		out.append(bill)
 	return out
 
 
@@ -3450,30 +2782,10 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			"next_guest_id": max(1, int(state_data.get("next_guest_id", 1)))
 		})
 		var electricity_any = state_data.get("electricity", {})
-		if electricity_any is Dictionary:
-			var electricity := electricity_any as Dictionary
-			_electricity_last_billed_service_day = max(0, int(electricity.get("last_billed_service_day", max(0, _day_index - 1))))
-			var fallback_cursor := _coerce_electricity_notice_cursor(_electricity_last_billed_service_day)
-			_electricity_notice_template_cursor = _coerce_electricity_notice_cursor(int(electricity.get("notice_template_cursor", fallback_cursor)))
-			_electricity_bills = _deserialize_electricity_bills_from_save(electricity.get("bills", []))
-			_electricity_ups_seconds_left = clampf(float(electricity.get("ups_seconds_left", ELECTRICITY_UPS_DURATION_SEC)), 0.0, ELECTRICITY_UPS_DURATION_SEC)
-			_electricity_ups_active = bool(electricity.get("ups_active", false))
-		else:
-			_electricity_last_billed_service_day = max(0, _day_index - 1)
-			_electricity_notice_template_cursor = _coerce_electricity_notice_cursor(0)
-			_electricity_bills.clear()
-			_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
-			_electricity_ups_active = false
-		if preview_only:
-			_electricity_ups_active = false
-			_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
+		_billing.import_state(electricity_any if electricity_any is Dictionary else {}, _day_index, preview_only)
 		_refresh_electricity_power_cut_state(true)
 	else:
-		_electricity_last_billed_service_day = max(0, _day_index - 1)
-		_electricity_notice_template_cursor = _coerce_electricity_notice_cursor(0)
-		_electricity_bills.clear()
-		_electricity_ups_active = false
-		_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
+		_billing.reset(_day_index)
 		_refresh_electricity_power_cut_state(true)
 
 	var runtime_any = snapshot.get("runtime", {})
@@ -3832,12 +3144,7 @@ func _reset_state_for_new_game() -> void:
 	_pending_loaded_player_state.clear()
 	_pending_loaded_crt_state.clear()
 	_last_known_crt_desktop_state.clear()
-	_electricity_bills.clear()
-	_electricity_last_billed_service_day = 0
-	_electricity_notice_template_cursor = _coerce_electricity_notice_cursor(0)
-	_electricity_power_cut_active = false
-	_electricity_ups_active = false
-	_electricity_ups_seconds_left = ELECTRICITY_UPS_DURATION_SEC
+	_billing.reset(1)
 	_lamp_grid_power_available = true
 	_active_save_path = ""
 	_clear_blood_fx()

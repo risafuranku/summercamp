@@ -133,6 +133,12 @@ const SCENARIOS := {
 		["wait", 1.6], ["release", "maintain"], ["wait", 0.3], ["shot", "93_upkeep_done"],
 		["hours", 12.0], ["player", 9, 2, 180.0], ["wait", 2.0], ["shot", "94_upkeep_night"],
 	],
+	"blood": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["player", 9, 4, 180.0], ["wait", 0.5],
+		["call", "damage_player", [30]], ["wait", 1.0], ["shot", "95_blood"],
+		["call", "damage_player", [60]], ["wait", 1.2], ["shot", "96_blood_heavy"],
+	],
 	"weather": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["player", 9, 2, 180.0], ["wait", 1.0], ["shot", "80_clear"],
