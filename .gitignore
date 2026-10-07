@@ -18,3 +18,4 @@ desktop.ini
 
 # MCP server local overrides
 .mcp.local.json
+tools/artgen/out/

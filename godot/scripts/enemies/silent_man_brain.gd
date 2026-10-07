@@ -11,6 +11,12 @@ const SHUST2_PATH := "res://assets/sfx/shust2.mp3"
 const DISTRACT_A_PATH := "res://assets/sfx/npc/silentdistract1.mp3"
 const DISTRACT_B_PATH := "res://assets/sfx/npc/silentdistract2.mp3"
 
+const HATTER_SPRITE := "res://assets/textury/npc/hrot1.png"
+## Chance that a presence cue also shows him: standing where the sound came from,
+## gone the moment you turn to look (or after a couple of seconds).
+const PEEK_CHANCE := 0.4
+const PEEK_SECONDS := 2.4
+
 const TELEPORT_DESPAWN_THRESHOLD: float = 45.0
 const MAX_AUDIO_EVENTS: int = 48
 
@@ -73,6 +79,9 @@ var _flashlight_forced_off_until: float = 0.0
 var _flashlight_restore_pending: bool = false
 
 var _audio_root: Node3D
+var _body: Sprite3D
+var _peek_until: float = 0.0
+var _peek_seen_at: float = -1.0
 var _scheduled_audio_events: Array[Dictionary] = []
 var _shust_stream_1: AudioStream
 var _shust_stream_2: AudioStream
@@ -102,6 +111,7 @@ func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
 		_rng.randomize()
 	_load_resources()
 	_ensure_audio_root()
+	_ensure_body()
 	_apply_difficulty_scaling()
 
 	_night_active = true
@@ -132,6 +142,7 @@ func tick(delta: float) -> void:
 	active_entity_visible = false
 	player_is_looking = false
 
+	_update_peek()
 	match state:
 		STATE_HAUNTING:
 			_tick_haunting(dt)
@@ -375,11 +386,54 @@ func _emit_presence_cue() -> void:
 	var pos = _position_around_player(4.2, 8.2, true)
 	_play_3d_stream(stream, pos + Vector3(0.0, 1.0, 0.0), -6.2, _rng.randf_range(0.95, 1.05))
 	_footstep_bursts += 1
+	if _rng.randf() < PEEK_CHANCE:
+		_show_peek(pos)
 	_visual_spawns += 1
 	_cue_watch_active = true
 	_cue_watch_start_time = _elapsed
 	_cue_watch_start_yaw = _player.global_rotation.y
 	_cue_watch_start_pos = _player.global_position
+
+
+func _ensure_body() -> void:
+	if _body != null and is_instance_valid(_body):
+		return
+	_body = Sprite3D.new()
+	_body.texture = load(HATTER_SPRITE) as Texture2D
+	_body.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	_body.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_body.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	_body.shaded = true
+	if _body.texture != null:
+		_body.pixel_size = 1.85 / float(_body.texture.get_height())
+		_body.offset = Vector2(0.0, float(_body.texture.get_height()) * 0.5)
+	_body.visible = false
+	_audio_root.add_child(_body)
+
+
+func _show_peek(pos: Vector3) -> void:
+	if _body == null or not is_instance_valid(_body) or not _is_valid_world_point(pos):
+		return
+	_body.global_position = pos
+	_body.visible = true
+	_peek_until = _elapsed + PEEK_SECONDS
+	_peek_seen_at = -1.0
+
+
+## The peek ends a beat after the player's eyes land on him: long enough to register
+## that something was there, never long enough to be sure what.
+func _update_peek() -> void:
+	if _body == null or not is_instance_valid(_body) or not _body.visible:
+		return
+	if _elapsed >= _peek_until:
+		_body.visible = false
+		return
+	if _is_world_point_visible_to_player(_body.global_position + Vector3(0.0, 1.4, 0.0), 0.0):
+		if _peek_seen_at < 0.0:
+			_peek_seen_at = _elapsed
+			_threat_meter = maxf(0.0, _threat_meter - 0.4)
+		elif _elapsed - _peek_seen_at > 0.22:
+			_body.visible = false
 
 
 func _emit_attack_cue() -> void:

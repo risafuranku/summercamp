@@ -1,6 +1,16 @@
 extends CharacterBody3D
 
 const YAW_SENSITIVITY_FACTOR := 2.0
+## Stamina: a full bar is ~6 s of sprinting; it refills in ~9 s and, once empty,
+## sprinting stays locked until it is back to STAMINA_UNLOCK.
+const STAMINA_DRAIN_PER_SEC := 1.0 / 6.0
+const STAMINA_REGEN_PER_SEC := 1.0 / 9.0
+const STAMINA_UNLOCK := 0.25
+## Flashlight battery: ~7 real minutes of light on a charge; the night lasts ~10.
+## Off, it recovers slowly (a tired NiCd that "rests"). Below LOW it stutters.
+const BATTERY_DRAIN_PER_SEC := 1.0 / 420.0
+const BATTERY_REST_PER_SEC := 1.0 / 900.0
+const BATTERY_LOW := 0.15
 
 @export var move_speed: float = 3.9
 @export var sprint_speed: float = 5.2
@@ -101,6 +111,13 @@ var _flashlight_allowed: bool = false
 var _flashlight_user_enabled: bool = true
 var _flashlight_active: bool = false
 var _flashlight_flicker_time: float = 0.0
+var stamina: float = 1.0
+var _stamina_locked: bool = false
+var flashlight_battery: float = 1.0
+## Extra drain multiplier enemies may push for a frame (the Girl eats light).
+var flashlight_drain_boost: float = 0.0
+var _flashlight_user_chose_off: bool = false
+var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
 var _footstep_grass_player: AudioStreamPlayer
 var _footstep_gravel_player: AudioStreamPlayer
@@ -210,8 +227,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_mouse_impact.y = clamp(_mouse_impact.y, -0.08, 0.08)
 
 	if event.is_action_pressed("toggle_flashlight"):
-		_flashlight_user_enabled = not _flashlight_user_enabled
-		_refresh_flashlight_state()
+		if _flashlight_user_enabled or flashlight_battery > 0.02:
+			_flashlight_user_enabled = not _flashlight_user_enabled
+			_flashlight_user_chose_off = not _flashlight_user_enabled
+			_refresh_flashlight_state()
 
 	# Esc is the pause menu (main.gd), which releases and recaptures the mouse.
 	# A click recaptures it if something else (alt-tab, a closed window) let it go.
@@ -238,7 +257,10 @@ func _physics_process(delta: float) -> void:
 	var input_vec = Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
 	var local_dir = Vector3(input_vec.x, 0.0, input_vec.y)
 	var move_dir = (global_transform.basis * local_dir).normalized()
-	var current_speed = sprint_speed if Input.is_action_pressed("move_sprint") else move_speed
+	var wants_sprint := Input.is_action_pressed("move_sprint") and input_vec.length_squared() > 0.01
+	var sprinting := wants_sprint and not _stamina_locked and stamina > 0.0
+	_update_stamina(delta, sprinting)
+	var current_speed = sprint_speed if sprinting else move_speed
 	var target_x = move_dir.x * current_speed
 	var target_z = move_dir.z * current_speed
 	var accel = air_acceleration if not is_on_floor() else ground_acceleration
@@ -272,7 +294,7 @@ func _ensure_input_actions() -> void:
 	_add_key_action("move_right", KEY_D)
 	_add_key_action("move_jump", KEY_SPACE)
 	_add_key_action("move_sprint", KEY_SHIFT)
-	_add_key_action("toggle_flashlight", KEY_UNKNOWN) # Flashlight is automatic now
+	_add_key_action("toggle_flashlight", KEY_F) # comes on by itself at dusk; F saves battery
 	_add_key_action("toggle_interior_light", KEY_L)
 
 
@@ -301,10 +323,19 @@ func set_grid_manager(grid_manager: Node) -> void:
 	_grid_manager = grid_manager
 
 
+## Main allows the flashlight at dusk; enemies "blink" it off for a fraction of a
+## second. Coming back from a blink keeps the player's own on/off choice; coming back
+## after a real dark period (a new evening) switches it on again.
 func set_flashlight_allowed(allowed: bool) -> void:
+	var was_allowed := _flashlight_allowed
 	_flashlight_allowed = allowed
-	if _flashlight_allowed:
-		_flashlight_user_enabled = true
+	var now := Time.get_ticks_msec()
+	if not allowed and was_allowed:
+		_flashlight_disallowed_at = now
+	if allowed and not was_allowed:
+		if now - _flashlight_disallowed_at > 5000:
+			_flashlight_user_chose_off = false
+		_flashlight_user_enabled = not _flashlight_user_chose_off and flashlight_battery > 0.02
 	_refresh_flashlight_state()
 
 
@@ -636,7 +667,43 @@ func _refresh_flashlight_state() -> void:
 		_flashlight_fill.light_energy = flashlight_fill_energy if _flashlight_active else 0.0
 
 
+func _update_stamina(delta: float, sprinting: bool) -> void:
+	if sprinting:
+		stamina = maxf(0.0, stamina - STAMINA_DRAIN_PER_SEC * delta)
+		if stamina <= 0.0:
+			_stamina_locked = true
+	else:
+		stamina = minf(1.0, stamina + STAMINA_REGEN_PER_SEC * delta)
+		if _stamina_locked and stamina >= STAMINA_UNLOCK:
+			_stamina_locked = false
+
+
+## Restores the battery (sleeping, a new day).
+func recharge_flashlight() -> void:
+	flashlight_battery = 1.0
+
+
+func get_stamina_ratio() -> float:
+	return stamina
+
+
+func get_flashlight_battery() -> float:
+	return flashlight_battery
+
+
+func _update_flashlight_battery(delta: float) -> void:
+	if _flashlight_active:
+		flashlight_battery = maxf(0.0, flashlight_battery - BATTERY_DRAIN_PER_SEC * (1.0 + flashlight_drain_boost) * delta)
+		if flashlight_battery <= 0.0:
+			_flashlight_user_enabled = false
+			_refresh_flashlight_state()
+	else:
+		flashlight_battery = minf(1.0, flashlight_battery + BATTERY_REST_PER_SEC * delta)
+	flashlight_drain_boost = 0.0
+
+
 func _update_flashlight_effect(delta: float) -> void:
+	_update_flashlight_battery(delta)
 	if _flashlight == null or not _flashlight_active:
 		return
 
@@ -645,6 +712,12 @@ func _update_flashlight_effect(delta: float) -> void:
 	flicker += sin(_flashlight_flicker_time * 1.0) * flashlight_flicker_strength
 	flicker += sin(_flashlight_flicker_time * 2.3) * flashlight_flicker_strength * 0.45
 	flicker = clamp(flicker, 0.88, 1.12)
+	if flashlight_battery < BATTERY_LOW:
+		# A dying cell: dim, with hard dropouts that get longer as it empties.
+		var dying := 1.0 - flashlight_battery / BATTERY_LOW
+		flicker *= lerpf(1.0, 0.45, dying)
+		if fmod(_flashlight_flicker_time * 3.1, 1.0) < 0.12 + dying * 0.35:
+			flicker *= 0.08
 
 	_flashlight.light_energy = flashlight_energy * flicker
 	if _flashlight_fill != null:

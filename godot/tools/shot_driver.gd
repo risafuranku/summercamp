@@ -133,6 +133,21 @@ const SCENARIOS := {
 		["wait", 1.6], ["release", "maintain"], ["wait", 0.3], ["shot", "93_upkeep_done"],
 		["hours", 12.0], ["player", 9, 2, 180.0], ["wait", 2.0], ["shot", "94_upkeep_night"],
 	],
+	"night": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["player", 12, 8, 0.0], ["hours", 13.0], ["wait", 3.0],
+		["call", "debug_spawn_enemy", ["girl", 3]], ["wait", 1.0], ["enemy_dist"],
+		["look_at_enemy"], ["wait", 0.6], ["shot", "a0_girl_far"], ["enemy_dist"],
+		["eval", "_player.rotate_y(PI)"], ["wait", 9.0], ["look_at_enemy"], ["wait", 0.4], ["enemy_dist"], ["shot", "a1_girl_closer"],
+		["call", "_stop_active_enemy_brain", []],
+		["call", "debug_spawn_enemy", ["tourist", 3]], ["wait", 1.0], ["look_at_enemy"], ["enemy_dist"],
+		["wait", 6.5], ["shot", "a2_tourist_1"], ["wait", 0.5], ["shot", "a3_tourist_2"], ["wait", 0.6], ["shot", "a4_tourist_3"],
+		["call", "_stop_active_enemy_brain", []],
+		["call", "debug_spawn_enemy", ["silent_man", 3]], ["wait", 6.0], ["shot", "a5_hatter"],
+		["call", "_stop_active_enemy_brain", []],
+		["player", 1, 1, 225.0], ["call", "debug_spawn_enemy", ["stalker", 3]], ["wait", 1.0], ["look_at_enemy"], ["enemy_dist"], ["wait", 0.5], ["shot", "a6_stalker"],
+		["wait", 5.0], ["look_at_enemy"], ["enemy_dist"], ["shot", "a7_stalker_close"],
+	],
 	"saveload": [
 		["wait_menu"], ["wait", 1.0], ["shot", "01_menu"],
 		["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
@@ -315,6 +330,22 @@ func _run_step(step: Array) -> void:
 			var bstate = CoreRoot.get_state()
 			bstate.failures["%d:%d" % [bc.x, bc.y]] = {"type": "x", "coord": bc, "since_day": 1, "repair_progress": 0.0}
 			EventBus.building_failed.emit(bc, str(bstate.grid.cells[bc].get("type", "")))
+		"look_at_enemy":
+			# Turn the player toward the newest enemy's body.
+			var brains: Array = _main.get("_enemy_brains")
+			var pl = _main.get("_player")
+			if not brains.is_empty() and pl != null:
+				var body = brains.back().get("_body")
+				if body != null and is_instance_valid(body):
+					var to: Vector3 = body.global_position - pl.global_position
+					pl.rotation.y = atan2(-to.x, -to.z)
+		"enemy_dist":
+			var brains2: Array = _main.get("_enemy_brains")
+			var pl2 = _main.get("_player")
+			if not brains2.is_empty() and pl2 != null:
+				var b2 = brains2.back().get("_body")
+				if b2 != null:
+					print("SHOT DRIVER enemy %s at %.1f m visible=%s" % [brains2.back().get_enemy_id(), b2.global_position.distance_to(pl2.global_position), b2.visible])
 		"timescale":
 			Engine.time_scale = float(step[1])
 		"hours":

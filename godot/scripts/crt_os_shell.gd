@@ -3002,8 +3002,27 @@ func _build_status_night_risk_text() -> String:
 				text += "               next tier %s at %d (+%d more)\n" % [next_name, next_at, next_at - count]
 
 	text += "\n[i]Accepting more guests of one archetype raises that archetype's odds.\n"
-	text += "A wide mixed camp is safer than a deep single-archetype camp.[/i]"
+	text += "A wide mixed camp is safer than a deep single-archetype camp.[/i]\n\n"
+	text += _night_procedures_text()
 	return text
+
+
+## Staff guidance, in the voice of a camp operator that has clearly done this before.
+## It never says what these things are. It only says what to do.
+const NIGHT_PROCEDURES := [
+	["Quiet Guy", "SILENT MAN", "Footsteps behind staff. Respond to every sound: turn, move. Do not stand still in the dark."],
+	["Drunk", "THE TOURIST", "A flash charging somewhere in the field. Turn your back before it fires. Do not pose."],
+	["Cheap Chick", "THE GIRL", "She stays where the light ends. Keep her in sight, keep moving, keep to the lamps. Batteries are not covered by the camp."],
+	["Two or more", "THE ANTLERED MAN", "Walks the fence. Stay off the fence line after dark. He does not enter lamp light."],
+]
+
+
+func _night_procedures_text() -> String:
+	var t := "[b]STAFF PROCEDURES (NIGHT)[/b]  [color=#5b4a36]rev. 3, do not remove from terminal[/color]\n"
+	for row in NIGHT_PROCEDURES:
+		t += "[b]%s[/b] -> [color=#7d2f24]%s[/color]\n    %s\n" % [row[0], row[1], row[2]]
+	t += "[color=#5b4a36]Incidents are not to be reported to guests. Incidents are not to be reported.[/color]"
+	return t
 
 
 func _build_status_electricity_text(snapshot: Dictionary) -> String:

@@ -14,6 +14,16 @@ const SEWER_PIPE_MINIGAME_SCRIPT = preload("res://scripts/sewer_pipe_minigame.gd
 const INTERIOR_MANAGER_SCRIPT = preload("res://scripts/interior_manager.gd")
 const INTERACTION_CONTROLLER_SCRIPT = preload("res://scripts/interaction_controller.gd")
 const SILENT_MAN_BRAIN_SCRIPT = preload("res://scripts/enemies/silent_man_brain.gd")
+const TOURIST_BRAIN_SCRIPT = preload("res://scripts/enemies/tourist_brain.gd")
+const GIRL_BRAIN_SCRIPT = preload("res://scripts/enemies/girl_brain.gd")
+const STALKER_BRAIN_SCRIPT = preload("res://scripts/enemies/stalker_brain.gd")
+## Which enemy a guest archetype brings. Two or more different ones in one night also
+## bring the Antlered Man (stalker), the price of a camp booked without thought.
+const ENEMY_FOR_ARCHETYPE := {
+	"quiet_guy": SILENT_MAN_BRAIN_SCRIPT,
+	"drunk": TOURIST_BRAIN_SCRIPT,
+	"cheap_chick": GIRL_BRAIN_SCRIPT,
+}
 const VISUAL_MODULE_SCRIPT = preload("res://modules/visual/visual_module.gd")
 const LEGACY_UI_ADAPTER_SCRIPT = preload("res://modules/adapters/legacy_ui_adapter.gd")
 const TIME_SYSTEM_SCRIPT = preload("res://core/systems/time_system.gd")
@@ -139,6 +149,7 @@ var _liminal_debug_visible: bool = false
 var _liminal_debug_refresh_accum: float = 0.0
 var _active_enemy_brain: RefCounted
 var _active_enemy_brain_id: String = ""
+var _enemy_brains: Array = []
 var _active_enemy_spawned_this_night: int = 0
 var _lamp_flashlight_active: bool = false
 var _lamp_grid_power_available: bool = true
@@ -518,6 +529,7 @@ func _process(delta: float) -> void:
 			_is_service_sewer_audio_active()
 		)
 	_tick_active_enemy_brain(delta)
+	_sync_hud_player_meters()
 	if _maintenance != null:
 		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
 	_poll_guest_quotes(delta)
@@ -800,6 +812,15 @@ func _add_mouse_button_action(action_name: String, button_index: int) -> void:
 	InputMap.action_add_event(action_name, event)
 
 
+func _sync_hud_player_meters() -> void:
+	if _hud_manager == null or _player == null or not is_instance_valid(_player):
+		return
+	if _player.has_method("get_stamina_ratio"):
+		_hud_manager.set_stamina_ratio(_player.get_stamina_ratio())
+	if _player.has_method("get_flashlight_battery"):
+		_hud_manager.set_light_ratio(_player.get_flashlight_battery())
+
+
 func _sync_hud_health() -> void:
 	if _hud_manager == null or not _hud_manager.has_method("set_health_ratio"):
 		return
@@ -920,28 +941,30 @@ func _roll_liminal_night_spawn_snapshot(night_index: int) -> void:
 
 
 func _activate_runtime_enemy_for_night(night_index: int) -> void:
+	_stop_active_enemy_brain()
 	var entries_any = _liminal_night_roll_snapshot.get("entries", [])
 	var entries: Array = entries_any if entries_any is Array else []
-	var quiet_entry: Dictionary = {}
+	var total_spawned := 0
+	var kinds := 0
+	var worst := 1
 	for entry_any in entries:
 		if not (entry_any is Dictionary):
 			continue
 		var entry: Dictionary = entry_any
-		if str(entry.get("archetype", "")) != LIMINAL_ARCHETYPE_QUIET_GUY:
+		var spawned := int(entry.get("spawned", 0))
+		var script = ENEMY_FOR_ARCHETYPE.get(str(entry.get("archetype", "")), null)
+		if spawned <= 0 or script == null:
 			continue
-		quiet_entry = entry
-		break
-
-	var spawned = int(quiet_entry.get("spawned", 0))
-	_active_enemy_spawned_this_night = spawned
-	if spawned <= 0:
-		_stop_active_enemy_brain()
-		return
-
-	var claimed_virtual = mini(spawned, _liminal_virtual_enemy_count)
+		var difficulty := _resolve_silent_man_difficulty(entry)
+		worst = maxi(worst, difficulty)
+		_start_enemy_brain(script, night_index, difficulty, entry)
+		total_spawned += spawned
+		kinds += 1
+	if kinds >= 2:
+		_start_enemy_brain(STALKER_BRAIN_SCRIPT, night_index, mini(5, worst + kinds - 1), {})
+	_active_enemy_spawned_this_night = total_spawned
+	var claimed_virtual = mini(total_spawned, _liminal_virtual_enemy_count)
 	_liminal_virtual_enemy_count = maxi(0, _liminal_virtual_enemy_count - claimed_virtual)
-	var difficulty = _resolve_silent_man_difficulty(quiet_entry)
-	_start_silent_man_brain(night_index, difficulty, quiet_entry)
 
 
 func _resolve_silent_man_difficulty(entry: Dictionary) -> int:
@@ -966,12 +989,11 @@ func _resolve_silent_man_difficulty(entry: Dictionary) -> int:
 	return clampi(difficulty, 1, 5)
 
 
-func _start_silent_man_brain(night_index: int, difficulty: int, night_entry: Dictionary) -> void:
-	_stop_active_enemy_brain()
-	var brain = SILENT_MAN_BRAIN_SCRIPT.new()
+func _start_enemy_brain(script: Script, night_index: int, difficulty: int, night_entry: Dictionary) -> void:
+	var brain = script.new()
 	if brain == null:
 		return
-	var seed = int(_liminal_forecast_rng.randi()) ^ (night_index * 7919) ^ (_day_index * 104729) ^ int(Time.get_ticks_msec())
+	var seed = int(_liminal_forecast_rng.randi()) ^ (night_index * 7919) ^ (_day_index * 104729) ^ int(Time.get_ticks_msec()) ^ _enemy_brains.size()
 	var refs := {
 		"world_root": _world_3d,
 		"player": _player,
@@ -981,31 +1003,41 @@ func _start_silent_man_brain(night_index: int, difficulty: int, night_entry: Dic
 		"damage_callable": Callable(self, "damage_player"),
 		"is_night_callable": Callable(self, "_is_enemy_night_active"),
 		"allow_actions_callable": Callable(self, "_can_enemy_runtime_actions"),
+		"notify_callable": Callable(self, "_on_enemy_notice"),
 		"night_entry": night_entry.duplicate(true),
 	}
 	if brain.has_method("start_night"):
 		brain.start_night(seed, difficulty, refs)
-	_active_enemy_brain = brain
-	_active_enemy_brain_id = "silent_man"
+	_enemy_brains.append(brain)
+	if _active_enemy_brain == null:
+		_active_enemy_brain = brain
+		_active_enemy_brain_id = str(brain.get_enemy_id()) if brain.has_method("get_enemy_id") else "?"
+
+
+## An enemy's first sign of the night, as one feed line.
+func _on_enemy_notice(text: String) -> void:
+	if _hud_manager != null:
+		_hud_manager.push_status(text, 2)
+
+
+## Debug/test entry: start one enemy now regardless of the night roll.
+func debug_spawn_enemy(enemy_id: String, difficulty: int = 3) -> void:
+	var scripts := {"silent_man": SILENT_MAN_BRAIN_SCRIPT, "tourist": TOURIST_BRAIN_SCRIPT, "girl": GIRL_BRAIN_SCRIPT, "stalker": STALKER_BRAIN_SCRIPT}
+	if scripts.has(enemy_id):
+		_start_enemy_brain(scripts[enemy_id], _day_index, difficulty, {})
 
 
 func _tick_active_enemy_brain(delta: float) -> void:
-	if _active_enemy_brain == null:
-		return
-	if not is_instance_valid(_active_enemy_brain):
-		_active_enemy_brain = null
-		_active_enemy_brain_id = ""
-		return
-	if _active_enemy_brain.has_method("tick"):
-		_active_enemy_brain.tick(delta)
+	for brain in _enemy_brains:
+		if brain != null and brain.has_method("tick"):
+			brain.tick(delta)
 
 
 func _stop_active_enemy_brain() -> void:
-	if _active_enemy_brain == null:
-		_active_enemy_brain_id = ""
-		return
-	if is_instance_valid(_active_enemy_brain) and _active_enemy_brain.has_method("stop_night"):
-		_active_enemy_brain.stop_night()
+	for brain in _enemy_brains:
+		if brain != null and brain.has_method("stop_night"):
+			brain.stop_night()
+	_enemy_brains.clear()
 	_active_enemy_brain = null
 	_active_enemy_brain_id = ""
 
@@ -1028,6 +1060,8 @@ func _on_day_phase_started() -> void:
 	if not _gameplay_started or _menu_mode:
 		return
 	_stop_active_enemy_brain()
+	if _player != null and _player.has_method("recharge_flashlight"):
+		_player.recharge_flashlight()
 	var removed_scene_enemies = _despawn_all_runtime_enemies()
 	var removed_virtual = _liminal_virtual_enemy_count
 	_liminal_virtual_enemy_count = 0
