@@ -19,6 +19,7 @@ signal step_completed(step_id: String)
 const VERA := "Teta Vera <vera.kralova@rodina.cz>"
 const TRACKER_TITLE := "VERA'S CHECKLIST"
 const POLL_SEC := 0.5
+const WAYPOINT_LABELS := {"reception": "Office", "gate": "Gate"}
 const FIRST_BOOKING_NAME := "Mirek Dvorak"
 
 ## Story-pool mails the questline replaces with its own task mails.
@@ -126,8 +127,7 @@ var _completed: Array[String] = []
 var _flags: Dictionary = {}
 var _poll: float = 0.0
 var _active: bool = false
-var _waypoint: Sprite3D
-var _waypoint_t: float = 0.0
+var _waypoint_kind: String = ""
 var _finished_all: bool = false
 
 
@@ -208,7 +208,7 @@ func _process(delta: float) -> void:
 	if _poll <= 0.0:
 		_poll = POLL_SEC
 		_check_current()
-	_update_waypoint(delta)
+		_sync_waypoint()
 
 
 # ── progression ───────────────────────────────────────────────────────────────
@@ -449,14 +449,11 @@ func _push_tracker() -> void:
 		_hide_waypoint()
 		return
 	var step: Dictionary = STEPS[_index]
-	var text := str(step["text"])
-	var hint := str(step.get("hint", ""))
-	if not hint.is_empty():
-		text += "\n> " + hint
 	var reward := int(step.get("reward", 0))
 	hud.set_objective({
 		"title": "%s %d/%d" % [TRACKER_TITLE, _completed.size() + 1, STEPS.size()],
-		"text": text,
+		"text": str(step["text"]),
+		"hint": str(step.get("hint", "")),
 		"reward": "$%d" % reward if reward > 0 else "",
 	})
 	var wp := str(step.get("waypoint", ""))
@@ -466,43 +463,30 @@ func _push_tracker() -> void:
 		_show_waypoint(wp)
 
 
+## The marker itself is drawn by the HUD in screen space (constant size, clamps to the
+## screen edge); this only tracks which place it points at.
 func _show_waypoint(kind: String) -> void:
-	var pos := _waypoint_position(kind)
-	if pos == Vector3.INF:
-		_hide_waypoint()
-		return
-	if _waypoint == null or not is_instance_valid(_waypoint):
-		var world = _main.get("_world_3d") if _main != null else null
-		if world == null:
-			return
-		_waypoint = Sprite3D.new()
-		_waypoint.name = "QuestWaypoint"
-		_waypoint.texture = load("res://assets/textury/npc/waypoint.png")
-		_waypoint.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-		_waypoint.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		_waypoint.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-		_waypoint.pixel_size = 0.03
-		_waypoint.shaded = false
-		_waypoint.no_depth_test = true
-		_waypoint.render_priority = 10
-		world.add_child(_waypoint)
-	_waypoint.set_meta("base", pos)
-	_waypoint.visible = true
+	_waypoint_kind = kind
+	_sync_waypoint()
 
 
 func _hide_waypoint() -> void:
-	if _waypoint != null and is_instance_valid(_waypoint):
-		_waypoint.visible = false
+	_waypoint_kind = ""
+	var hud := _hud()
+	if hud != null and hud.has_method("clear_waypoint"):
+		hud.clear_waypoint()
 
 
-func _update_waypoint(delta: float) -> void:
-	if _waypoint == null or not is_instance_valid(_waypoint) or not _waypoint.visible:
+## Targets can move (the reception is placed after load), so re-resolve on the poll.
+func _sync_waypoint() -> void:
+	var hud := _hud()
+	if hud == null or not hud.has_method("set_waypoint"):
 		return
-	_waypoint_t += delta
-	var base: Vector3 = _waypoint.get_meta("base", Vector3.ZERO)
-	_waypoint.position = base + Vector3(0.0, sin(_waypoint_t * 2.4) * 0.25, 0.0)
-	var interior_open := _main_call("_is_any_interior_open", false)
-	_waypoint.visible = not interior_open
+	if _waypoint_kind.is_empty():
+		hud.clear_waypoint()
+		return
+	var pos := _waypoint_position(_waypoint_kind)
+	hud.set_waypoint(pos, WAYPOINT_LABELS.get(_waypoint_kind, ""))
 
 
 func _waypoint_position(kind: String) -> Vector3:
@@ -514,10 +498,10 @@ func _waypoint_position(kind: String) -> Vector3:
 			if _main.has_method("get_reception_door_position"):
 				var door: Vector3 = _main.get_reception_door_position()
 				if door != Vector3.INF:
-					return door + Vector3(0.0, 3.1, 0.0)
+					return door + Vector3(0.0, 2.4, 0.0)
 		"gate":
 			if GuestManager != null and GuestManager.has_method("get_gate_coord"):
-				return gm.grid_to_world(GuestManager.get_gate_coord()) + Vector3(0.0, 3.2, 0.0)
+				return gm.grid_to_world(GuestManager.get_gate_coord()) + Vector3(0.0, 1.6, 0.0)
 	return Vector3.INF
 
 

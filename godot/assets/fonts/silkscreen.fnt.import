@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://cpuapg48a51ed"
+path="res://.godot/imported/silkscreen.fnt-3218a5709fc995e22d4b19665ca4ac0b.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/silkscreen.fnt"
+dest_files=["res://.godot/imported/silkscreen.fnt-3218a5709fc995e22d4b19665ca4ac0b.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=1

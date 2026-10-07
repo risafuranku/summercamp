@@ -2,24 +2,33 @@ extends Node
 ## Build-engine style HUD.
 ##
 ##   ┌ message feed (Duke3D quotes)                      objective tracker ┐
-##   │                              +                                        │
-##   │                       [E] ENTER RECEPTION                 guest card  │
-##   │                     ── centre banner (NIGHT 1) ──                    │
-##   └[HEALTH][STAM/LIGHT][CASH][DAY·CLOCK][GUESTS ☺][MAIL][NIGHT RISK]──────┘
+##   │                                                     guest card     │
+##   │ ════════════════ centre banner band (NIGHT 1) ══════════════════  │
+##   │                              +   ▼ 24M (objective marker)          │
+##   │                       [E] ENTER RECEPTION                          │
+##   └[HEALTH][STAM/LIGHT][CASH][DAY·CLOCK][GUESTS ☺][MAIL][NIGHT RISK]──┘
 ##
 ## Everything is laid out in virtual pixels (vp) times an integer UI scale so the pixel
 ## fonts stay crisp (retro_ui.gd). The layout is rebuilt when the window size changes;
 ## all displayed values are cached so a rebuild restores them.
 ##
-## Every meter carries a caption. The NIGHT RISK cell encodes the game's central
-## risk/reward trade (see DESIGN.md) and must stay legible.
+## Layout rules (asserted by tools/hud_layout_check.tscn):
+## - every status-bar label sits on a fixed baseline inside its cell and fits its width;
+## - the guest card stacks under the objective tracker, never over it;
+## - the banner is a full-width band drawn above both, so it reads as a deliberate
+##   title card rather than text spilling over a panel;
+## - the objective marker is screen-space and constant-size; it hides close to the
+##   target, where the crosshair hint takes over.
+##
+## The NIGHT RISK cell encodes the game's central risk/reward trade (see DESIGN.md):
+## lamps for the level, the archetype closest to tipping and its odds underneath.
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 
 const HUD_LAYER_INDEX := 65
 const HINT_LAYER_INDEX := 70
 
-# Message kinds (push_status). Kept for callers of the previous HUD.
+# Message kinds (push_status).
 const STATUS_INFO := 0
 const STATUS_GOOD := 1
 const STATUS_WARN := 2
@@ -29,9 +38,19 @@ const STATUS_QUOTE := 4
 const BAR_HEIGHT_VP := 40
 const CELL_HEIGHT_VP := 34
 const FEED_MAX_LINES := 4
+const FEED_WIDTH_VP := 200
 const FEED_HOLD_SEC := 6.0
 const FEED_FADE_SEC := 0.8
 const CARD_HOLD_SEC := 7.0
+const TRACKER_WIDTH_VP := 150
+const CARD_WIDTH_VP := 132
+const WAYPOINT_HIDE_DISTANCE := 4.5
+const WAYPOINT_EDGE_VP := 14.0
+
+# Cell rows (baselines in vp from the cell top).
+const ROW_CAPTION := 8
+const ROW_VALUE := 22
+const ROW_FOOTER := 31
 
 # Time phases, mirroring main.gd / TimeSystem.
 const PHASE_DAY := 0
@@ -45,6 +64,7 @@ const WEATHER_LABELS := ["CLEAR", "WINDY", "FOG", "DRIZZLE", "RAIN", "STORM", "A
 ## (`GuestManager.LIMINAL_HUD_EXPECTED_THRESHOLDS`).
 const RISK_LEVEL_LABELS := ["CLEAR", "LOW", "RAISED", "HIGH", "CRITICAL"]
 const RISK_TIER_LABELS := {"none": "clear", "tiny": "tiny", "small": "small", "medium": "medium", "large": "large"}
+const RISK_SHORT_NAMES := {"quiet_guy": "QUIET", "drunk": "DRUNK", "cheap_chick": "CHICK"}
 
 const NEED_ROWS := [
 	["energy", "NRG"], ["hunger", "FOOD"], ["bladder", "WC"],
@@ -67,6 +87,7 @@ var _root: Control
 var _hint_root: Control
 var _world_visible: bool = true
 var _built_for_size: Vector2 = Vector2.ZERO
+var _camera_provider: Callable
 
 # Widgets
 var _bar: Control
@@ -88,23 +109,25 @@ var _mail_value: Label
 var _mail_cell: Control
 var _risk_pips: Array[ColorRect] = []
 var _risk_level: Label
-var _risk_detail: Label
 var _feed_box: VBoxContainer
 var _objective_panel: Control
 var _objective_title: Label
 var _objective_text: Label
+var _objective_hint: Label
 var _objective_progress: Label
+var _hint_plate: Control
 var _hint_label: Label
 var _crosshair: Control
+var _waypoint_marker: Control
 var _card_panel: Control
 var _card_name: Label
 var _card_sub: Label
 var _card_face: Control
 var _card_quote: Label
 var _card_bars: Dictionary = {}
-var _banner_title: Label
+var _banner_band: Control
+var _banner_title
 var _banner_sub: Label
-var _banner_box: Control
 
 # Cached state
 var _money: int = 0
@@ -120,6 +143,7 @@ var _light: float = 1.0
 var _beds: Vector2i = Vector2i.ZERO
 var _mood: Dictionary = {}
 var _risk_level_index: int = 0
+var _risk_level_known: bool = false
 var _risk_payload: Dictionary = {}
 var _unread: int = 0
 var _objective: Dictionary = {}
@@ -127,6 +151,9 @@ var _hint_text: String = ""
 var _feed: Array[Dictionary] = []
 var _card_info: Dictionary = {}
 var _card_timer: float = 0.0
+var _banner_title_text: String = ""
+var _banner_sub_text: String = ""
+var _banner_color: Color = RETRO_UI.C_AMBER
 var _banner_timer: float = 0.0
 var _banner_total: float = 0.0
 var _fear: float = 0.0
@@ -135,6 +162,8 @@ var _poll_money: float = 0.0
 var _poll_guests: float = 0.0
 var _blink_t: float = 0.0
 var _last_phase_announce: int = -1
+var _waypoint_pos: Vector3 = Vector3.INF
+var _waypoint_label: String = ""
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -155,6 +184,12 @@ func setup_weather_hud() -> void:
 
 func setup_time_hud() -> void:
 	_ensure_world_hud()
+
+
+## Callable returning the active Camera3D (player camera). Needed for the objective
+## marker, which projects a world position onto the screen.
+func set_camera_provider(provider: Callable) -> void:
+	_camera_provider = provider
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -192,9 +227,11 @@ func set_world_hud_visible(visible: bool) -> void:
 
 func set_hint_text(text: String) -> void:
 	_hint_text = text
-	if _hint_label != null:
-		_hint_label.text = text.to_upper()
-		_hint_label.visible = not text.is_empty()
+	if _hint_label == null:
+		return
+	_hint_label.text = text.to_upper()
+	_hint_plate.visible = not text.is_empty()
+	_hint_plate.size = Vector2.ZERO
 
 
 func set_health_ratio(value: float) -> void:
@@ -214,7 +251,7 @@ func set_light_ratio(value: float) -> void:
 		_light_bar.set_value(_light)
 
 
-## 0-1 fear from the night: tightens the face's eyes and tints the vignette.
+## 0-1 fear from the night: widens the status face's eyes.
 func set_fear(value: float) -> void:
 	_fear = clampf(value, 0.0, 1.0)
 	_refresh_guests()
@@ -222,19 +259,20 @@ func set_fear(value: float) -> void:
 
 ## Legacy entry point: level only. Prefer `set_liminal_forecast()`.
 func set_liminal_forecast_count(value: int) -> void:
-	_risk_level_index = clampi(value, 0, 4)
-	_refresh_risk()
+	_risk_payload.clear()
+	_set_risk_level(clampi(value, 0, 4), false)
 
 
 ## Full forecast payload from `GuestManager.get_liminal_forecast_data()`.
 func set_liminal_forecast(payload: Dictionary) -> void:
 	_risk_payload = payload.duplicate(true)
-	_risk_level_index = clampi(int(payload.get("hud_level", 0)), 0, 4)
-	_refresh_risk()
+	_set_risk_level(clampi(int(payload.get("hud_level", 0)), 0, 4), true)
 
 
-## Message feed line (top-left). `kind` is one of the STATUS_* constants.
-func push_status(text: String, kind: int = STATUS_INFO) -> void:
+## Message feed line (top-left). `kind` is one of the STATUS_* constants. Lines sharing
+## a non-empty `group` replace each other (a phase change makes the previous phase's
+## line stale, a new risk reading replaces the old one).
+func push_status(text: String, kind: int = STATUS_INFO, group: String = "") -> void:
 	if text.strip_edges().is_empty():
 		return
 	_ensure_world_hud()
@@ -245,10 +283,14 @@ func push_status(text: String, kind: int = STATUS_INFO) -> void:
 		STATUS_WARN:
 			color = RETRO_UI.C_AMBER
 		STATUS_DENY:
-			color = Color(1.0, 0.42, 0.34)
+			color = RETRO_UI.C_RED_LIGHT
 		STATUS_QUOTE:
-			color = Color(0.98, 0.88, 0.62)
-	_feed.append({"text": text, "color": color, "t": FEED_HOLD_SEC + FEED_FADE_SEC})
+			color = RETRO_UI.C_QUOTE
+	if not group.is_empty():
+		for i in range(_feed.size() - 1, -1, -1):
+			if str(_feed[i].get("group", "")) == group:
+				_feed.remove_at(i)
+	_feed.append({"text": text, "color": color, "group": group, "t": FEED_HOLD_SEC + FEED_FADE_SEC})
 	while _feed.size() > FEED_MAX_LINES:
 		_feed.remove_at(0)
 	_rebuild_feed()
@@ -268,7 +310,7 @@ func show_guest_card(info: Dictionary) -> void:
 	_refresh_card()
 
 
-## Objective tracker (QuestManager). Keys: title, text, progress ("2/3"), reward, done.
+## Objective tracker (QuestManager). Keys: title, text, hint, progress ("2/3"), reward.
 func set_objective(data: Dictionary) -> void:
 	_objective = data.duplicate(true)
 	_refresh_objective()
@@ -279,32 +321,32 @@ func clear_objective() -> void:
 	_refresh_objective()
 
 
-## Big centred title that fades out ("NIGHT 1", "OBJECTIVE COMPLETE").
-func show_banner(title: String, subtitle: String = "", color: Color = Color(1.0, 0.72, 0.22), seconds: float = 3.6) -> void:
+## Screen-space objective marker over a world position (Vector3.INF hides it).
+func set_waypoint(world_pos: Vector3, label: String = "") -> void:
+	_waypoint_pos = world_pos
+	_waypoint_label = label
+	if _waypoint_marker != null:
+		_waypoint_marker.queue_redraw()
+
+
+func clear_waypoint() -> void:
+	set_waypoint(Vector3.INF)
+
+
+## Full-width title band that fades out ("NIGHT 1", "TASK COMPLETE").
+func show_banner(title: String, subtitle: String = "", color: Color = RETRO_UI.C_AMBER, seconds: float = 3.6) -> void:
 	_ensure_world_hud()
-	if _banner_title == null:
-		return
-	_banner_title.text = title
-	_banner_title.add_theme_color_override("font_color", color)
-	_banner_sub.text = subtitle
-	_banner_sub.visible = not subtitle.is_empty()
+	_banner_title_text = title
+	_banner_sub_text = subtitle
+	_banner_color = color
 	_banner_total = maxf(0.8, seconds)
 	_banner_timer = _banner_total
-	_banner_box.visible = true
-	_banner_box.modulate.a = 0.0
+	_apply_banner()
 
 
 func set_bed_metrics(occupied: int, capacity: int) -> void:
 	_beds = Vector2i(maxi(0, occupied), maxi(0, capacity))
 	_refresh_guests()
-
-
-func cycle_item_slot(_step: int) -> void:
-	pass
-
-
-func set_selected_slot(_index: int) -> void:
-	pass
 
 
 ## Virtual-pixel width the status bar cells need (cells + gaps + margins).
@@ -344,6 +386,9 @@ func _process(delta: float) -> void:
 	_update_money_flash(delta)
 	_update_card(delta)
 	_update_banner(delta)
+	_stack_right_column()
+	if _waypoint_marker != null and _hint_layer.visible:
+		_waypoint_marker.queue_redraw()
 	if _mail_cell != null:
 		_mail_value.modulate = Color(1, 1, 1, 1) if _unread == 0 or fmod(_blink_t, 1.0) < 0.6 else Color(1, 1, 1, 0.35)
 
@@ -388,8 +433,10 @@ func _rebuild_layout() -> void:
 	_built_for_size = vp_size
 	_scale = RETRO_UI.ui_scale(vp_size.y, vp_size.x, bar_width_vp())
 	for child in _root.get_children():
+		_root.remove_child(child)
 		child.queue_free()
 	for child in _hint_root.get_children():
+		_hint_root.remove_child(child)
 		child.queue_free()
 	_cells.clear()
 	_risk_pips.clear()
@@ -398,14 +445,19 @@ func _rebuild_layout() -> void:
 	_build_status_bar()
 	_build_feed()
 	_build_objective()
-	_build_crosshair_and_hint()
 	_build_card()
 	_build_banner()
+	_build_crosshair_and_hint()
+	_build_waypoint_marker()
 
 	_refresh_all()
 
 
-func _bevel(recessed: bool, textured: bool = false) -> Control:
+func _vp(v: float) -> float:
+	return v * float(_scale)
+
+
+func _bevel(recessed: bool, textured: bool = false) -> RETRO_UI.BevelPanel:
 	var p := RETRO_UI.BevelPanel.new()
 	p.ui_scale = _scale
 	p.recessed = recessed
@@ -418,8 +470,14 @@ func _bevel(recessed: bool, textured: bool = false) -> Control:
 	return p
 
 
-func _vp(v: float) -> float:
-	return v * float(_scale)
+## Dark translucent plate that sizes itself to its content (tracker, card, hint).
+func _plate() -> RETRO_UI.BevelPanel:
+	var p := _bevel(false)
+	p.fit_children = true
+	p.fill = RETRO_UI.C_PANEL
+	p.light = RETRO_UI.C_PANEL_LIGHT
+	p.dark = Color(0.02, 0.02, 0.02, 0.9)
+	return p
 
 
 func _build_status_bar() -> void:
@@ -442,74 +500,75 @@ func _build_status_bar() -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_bar.add_child(row)
 
-	# Rows inside a 34vp cell (baseline-exact, like a Build status bar):
-	#   caption  y=1   Silkscreen 8
-	#   value    y=8   Pixelify 16
-	#   footer   y=23  Silkscreen 8   (or a bar at y=27)
+	# Rows inside a 34vp cell, all baseline-exact:
+	#   caption  baseline 8   Silkscreen
+	#   value    baseline 22  Jersey 10 (10px caps)
+	#   footer   baseline 31  Silkscreen   (or a 3vp bar at y 26)
 	var health := _cell(row, "health", "HEALTH")
-	_health_value = _put(health, RETRO_UI.label("100", RETRO_UI.FONT_TEXT, 16, RETRO_UI.C_BONE, _scale), 8)
-	_health_bar = _put_bar(health, _segment_bar(10, Color(0.9, 0.2, 0.15), Color(0.5, 0.05, 0.03), 3), 28, 3)
+	_health_value = _put(health, _big("100", RETRO_UI.C_BONE), ROW_VALUE)
+	_health_bar = _put_bar(health, _segment_bar(10, RETRO_UI.C_RED_LIGHT, RETRO_UI.C_RED_DARK), 26, 3)
 
 	var stam := _cell(row, "stamina", "STAMINA")
-	_stamina_bar = _put_bar(stam, _segment_bar(8, RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, 4), 11, 4)
-	_put(stam, RETRO_UI.label("LIGHT", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false), 17)
-	_light_bar = _put_bar(stam, _segment_bar(8, Color(1.0, 0.92, 0.55), RETRO_UI.C_RED, 4), 27, 4)
+	_stamina_bar = _put_bar(stam, _segment_bar(8, RETRO_UI.C_GREEN, RETRO_UI.C_AMBER), 11, 4)
+	_put(stam, _caption("LIGHT"), 22)
+	_light_bar = _put_bar(stam, _segment_bar(8, Color(1.0, 0.92, 0.55), RETRO_UI.C_RED), 25, 4)
 
 	var cash := _cell(row, "cash", "CASH")
-	_cash_value = _put(cash, RETRO_UI.label("$0", RETRO_UI.FONT_TEXT, 16, RETRO_UI.C_AMBER, _scale), 8)
-	_cash_delta = _put(cash, RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_GREEN, _scale, false), 23)
+	_cash_value = _put(cash, _big("$0", RETRO_UI.C_AMBER), ROW_VALUE)
+	_cash_delta = _put(cash, _caption(""), ROW_FOOTER)
 
 	var clock := _cell(row, "clock", "DAY 1")
 	_clock_caption = clock.get_child(0) as Label
 	_clock_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_weather_label = _put(clock, RETRO_UI.label("CLEAR", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BLUE, _scale, false), 1)
+	_weather_label = _put(clock, _caption("CLEAR", RETRO_UI.C_BLUE), ROW_CAPTION)
 	_weather_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_clock_value = _put(clock, RETRO_UI.label("09:00", RETRO_UI.FONT_TEXT, 16, RETRO_UI.C_BONE, _scale), 8)
-	_clock_phase = _put(clock, RETRO_UI.label("DAY", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false), 23)
+	_clock_value = _put(clock, _big("09:00", RETRO_UI.C_BONE), ROW_VALUE)
+	_clock_phase = _put(clock, _caption("DAY"), ROW_FOOTER)
 
 	var guests := _cell(row, "guests", "GUESTS")
 	_guest_face = RETRO_UI.PixelFace.new()
 	_guest_face.ui_scale = _scale
-	_guest_face.position = Vector2(0.0, _vp(12))
+	_guest_face.position = Vector2(0.0, _vp(11))
 	_guest_face.size = Vector2(_vp(17), _vp(17))
 	guests.add_child(_guest_face)
-	_guest_value = _put(guests, RETRO_UI.label("0/0", RETRO_UI.FONT_TEXT, 8, RETRO_UI.C_BONE, _scale), 12, _vp(19))
+	_guest_value = _put(guests, _big("0/0", RETRO_UI.C_BONE), ROW_VALUE, _vp(19))
 	_guest_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_guest_mood = _put(guests, RETRO_UI.label("EMPTY", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false), 23, _vp(19))
+	_guest_mood = _put(guests, _caption("EMPTY"), ROW_FOOTER, _vp(19))
 	_guest_mood.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	var mail := _cell(row, "mail", "MAIL")
 	_mail_cell = mail
-	_mail_value = _put(mail, RETRO_UI.label("0", RETRO_UI.FONT_TEXT, 16, RETRO_UI.C_BONE_DIM, _scale), 8)
+	_mail_value = _put(mail, _big("0", RETRO_UI.C_BONE_DIM), ROW_VALUE)
 
 	var risk := _cell(row, "risk", "NIGHT RISK")
-	var pip_w := 10.0
+	var pip_w := 11.0
+	var gap := 2.0
 	var inner_w := float(CELL_WIDTHS["risk"]) - 4.0
-	var start_x := (inner_w - (pip_w * 4.0 + 2.0 * 3.0)) * 0.5
+	var start_x := floorf((inner_w - (pip_w * 4.0 + gap * 3.0)) * 0.5)
 	for i in 4:
 		var pip := ColorRect.new()
 		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pip.position = Vector2(_vp(start_x + float(i) * (pip_w + 2.0)), _vp(12))
-		pip.size = Vector2(_vp(pip_w), _vp(8))
+		pip.position = Vector2(_vp(start_x + float(i) * (pip_w + gap)), _vp(12))
+		pip.size = Vector2(_vp(pip_w), _vp(9))
 		risk.add_child(pip)
 		_risk_pips.append(pip)
-	_risk_level = _put(risk, RETRO_UI.label("CLEAR", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_GREEN, _scale, false), 23)
-
-	# Detail line for the risk sits just above the bar, right-aligned.
-	_risk_detail = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale)
-	_risk_detail.anchor_left = 0.0
-	_risk_detail.anchor_right = 1.0
-	_risk_detail.anchor_top = 1.0
-	_risk_detail.anchor_bottom = 1.0
-	_risk_detail.offset_top = -_vp(BAR_HEIGHT_VP + 11)
-	_risk_detail.offset_bottom = -_vp(BAR_HEIGHT_VP + 1)
-	_risk_detail.offset_right = -_vp(4)
-	_risk_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_root.add_child(_risk_detail)
+	_risk_level = _put(risk, _caption("CLEAR", RETRO_UI.C_GREEN), ROW_FOOTER)
 
 
-## A recessed LCD cell. Returns the content Control (inner area, 2vp padding) with the
-## caption label already placed at y=1.
+func _caption(text: String, color: Color = RETRO_UI.C_BONE_DIM) -> Label:
+	return RETRO_UI.label(text, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, color, _scale, false)
+
+
+func _big(text: String, color: Color) -> Label:
+	return RETRO_UI.label(text, RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG, color, _scale, true)
+
+
+func _body(text: String, color: Color, shadow: bool = true) -> Label:
+	return RETRO_UI.label(text, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, color, _scale, shadow)
+
+
+## A recessed LCD cell. Returns the content Control (inner area, 2vp side padding) with
+## the caption label already placed on the caption baseline.
 func _cell(row: HBoxContainer, id: String, caption: String) -> Control:
 	var panel := _bevel(true)
 	panel.name = "Cell_%s" % id
@@ -522,21 +581,19 @@ func _cell(row: HBoxContainer, id: String, caption: String) -> Control:
 	content.offset_right = -_vp(2)
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(content)
-	var cap := RETRO_UI.label(caption, RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false)
-	_put(content, cap, 1)
+	_put(content, _caption(caption), ROW_CAPTION)
 	_cells[id] = panel
 	return content
 
 
-## Places a label full-width at y (vp) inside a cell content control.
-func _put(content: Control, l: Label, y_vp: float, left_px: float = 0.0) -> Label:
+## Places a label full-width with its baseline at `baseline_vp` inside a cell.
+func _put(content: Control, l: Label, baseline_vp: float, left_px: float = 0.0) -> Label:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.anchor_left = 0.0
 	l.anchor_right = 1.0
 	l.offset_left = left_px
 	l.offset_right = 0.0
-	l.offset_top = _vp(y_vp)
-	l.offset_bottom = _vp(y_vp) + l.get_combined_minimum_size().y
+	RETRO_UI.place_on_baseline(l, baseline_vp, _scale)
 	content.add_child(l)
 	return l
 
@@ -550,105 +607,75 @@ func _put_bar(content: Control, bar: Control, y_vp: float, h_vp: float) -> Contr
 	return bar
 
 
-func _segment_bar(segments: int, full: Color, low: Color, height_vp: int) -> Control:
+func _segment_bar(segments: int, full: Color, low: Color) -> RETRO_UI.SegmentBar:
 	var bar := RETRO_UI.SegmentBar.new()
 	bar.ui_scale = _scale
 	bar.segments = segments
 	bar.color_full = full
 	bar.color_low = low
-	bar.custom_minimum_size = Vector2(0, _vp(height_vp))
 	return bar
 
 
 func _build_feed() -> void:
 	_feed_box = VBoxContainer.new()
 	_feed_box.name = "MessageFeed"
-	_feed_box.position = Vector2(_vp(4), _vp(3))
-	_feed_box.size = Vector2(_vp(250), _vp(60))
-	_feed_box.add_theme_constant_override("separation", 0)
+	_feed_box.position = Vector2(_vp(4), _vp(4))
+	_feed_box.size = Vector2(_vp(_feed_width_vp()), 0)
+	_feed_box.add_theme_constant_override("separation", int(_vp(1)))
 	_feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_feed_box)
 
 
+## The feed may not run under the tracker: it gets whatever is left of the top row.
+func _feed_width_vp() -> float:
+	var screen_vp := _built_for_size.x / float(_scale)
+	return clampf(screen_vp - float(TRACKER_WIDTH_VP) - 16.0, 120.0, float(FEED_WIDTH_VP))
+
+
 func _build_objective() -> void:
-	var panel := _bevel(false)
-	panel.fill = Color(0.07, 0.06, 0.05, 0.82)
-	panel.light = Color(0.45, 0.36, 0.20, 0.9)
-	panel.dark = Color(0.02, 0.02, 0.02, 0.9)
+	var panel := _plate()
 	panel.name = "Objective"
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
-	panel.offset_left = -_vp(146)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	panel.offset_right = -_vp(4)
+	panel.offset_left = -_vp(4 + TRACKER_WIDTH_VP)
 	panel.offset_top = _vp(4)
-	panel.offset_bottom = _vp(46)
 	_root.add_child(panel)
 	_objective_panel = panel
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = _vp(4)
-	box.offset_right = -_vp(4)
-	box.offset_top = _vp(3)
-	box.offset_bottom = -_vp(3)
-	box.add_theme_constant_override("separation", int(_vp(1)))
+	box.add_theme_constant_override("separation", int(_vp(2)))
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(box)
-	_objective_title = RETRO_UI.label("VERA'S CHECKLIST", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_AMBER, _scale)
+	_objective_title = RETRO_UI.label("VERA'S CHECKLIST", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale)
 	box.add_child(_objective_title)
-	_objective_text = RETRO_UI.label("", RETRO_UI.FONT_TEXT, 8, RETRO_UI.C_BONE, _scale)
+	var wrap_w := _vp(TRACKER_WIDTH_VP - 8)
+	_objective_text = _body("", RETRO_UI.C_BONE)
 	_objective_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_objective_text.custom_minimum_size = Vector2(_vp(134), 0)
+	_objective_text.custom_minimum_size = Vector2(wrap_w, 0)
 	box.add_child(_objective_text)
-	_objective_progress = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_GREEN, _scale, false)
+	_objective_hint = _body("", RETRO_UI.C_BONE_DIM)
+	_objective_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_objective_hint.custom_minimum_size = Vector2(wrap_w, 0)
+	box.add_child(_objective_hint)
+	_objective_progress = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_GREEN, _scale, false)
 	box.add_child(_objective_progress)
 
 
-func _build_crosshair_and_hint() -> void:
-	_crosshair = Control.new()
-	_crosshair.name = "Crosshair"
-	_crosshair.set_anchors_preset(Control.PRESET_CENTER)
-	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_crosshair.draw.connect(func() -> void:
-		var s := float(_scale)
-		var c := Color(0.95, 0.9, 0.78, 0.55)
-		_crosshair.draw_rect(Rect2(Vector2(-2.0 * s, -0.5 * s), Vector2(4.0 * s, s)), c)
-		_crosshair.draw_rect(Rect2(Vector2(-0.5 * s, -2.0 * s), Vector2(s, 4.0 * s)), c)
-	)
-	_hint_root.add_child(_crosshair)
-	_crosshair.position = _built_for_size * 0.5 - Vector2(0, _vp(BAR_HEIGHT_VP) * 0.5)
-	_crosshair.queue_redraw()
-
-	_hint_label = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE, _scale)
-	_hint_label.anchor_left = 0.0
-	_hint_label.anchor_right = 1.0
-	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint_label.offset_top = _crosshair.position.y + _vp(10)
-	_hint_label.offset_bottom = _hint_label.offset_top + _vp(12)
-	_hint_root.add_child(_hint_label)
-
-
 func _build_card() -> void:
-	var panel := _bevel(false)
-	panel.fill = Color(0.07, 0.06, 0.05, 0.9)
+	var panel := _plate()
 	panel.name = "GuestCard"
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
-	panel.anchor_top = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = -_vp(136)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	panel.offset_right = -_vp(4)
-	panel.offset_top = -_vp(58)
-	panel.offset_bottom = _vp(46)
+	panel.offset_left = -_vp(4 + CARD_WIDTH_VP)
+	panel.offset_top = _vp(4)
 	panel.visible = false
 	_root.add_child(panel)
 	_card_panel = panel
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = _vp(4)
-	box.offset_right = -_vp(4)
-	box.offset_top = _vp(3)
-	box.offset_bottom = -_vp(3)
-	box.add_theme_constant_override("separation", int(_vp(1)))
+	box.add_theme_constant_override("separation", int(_vp(2)))
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(box)
 	var head := HBoxContainer.new()
@@ -660,51 +687,111 @@ func _build_card() -> void:
 	_card_face.custom_minimum_size = Vector2(_vp(17), _vp(17))
 	head.add_child(_card_face)
 	var names := VBoxContainer.new()
-	names.add_theme_constant_override("separation", 0)
+	names.add_theme_constant_override("separation", int(_vp(1)))
 	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	head.add_child(names)
-	_card_name = RETRO_UI.label("", RETRO_UI.FONT_TEXT, 8, RETRO_UI.C_AMBER, _scale)
+	_card_name = _body("", RETRO_UI.C_AMBER)
 	names.add_child(_card_name)
-	_card_sub = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false)
+	_card_sub = _caption("")
 	names.add_child(_card_sub)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", int(_vp(3)))
-	grid.add_theme_constant_override("v_separation", int(_vp(1)))
+	grid.add_theme_constant_override("v_separation", int(_vp(2)))
 	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(grid)
 	for row in NEED_ROWS:
-		grid.add_child(RETRO_UI.label(str(row[1]), RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false))
-		var bar := _segment_bar(10, RETRO_UI.C_GREEN, RETRO_UI.C_RED, 4)
+		var cap := _caption(str(row[1]))
+		cap.custom_minimum_size = Vector2(_vp(22), 0)
+		grid.add_child(cap)
+		var bar := _segment_bar(10, RETRO_UI.C_GREEN, RETRO_UI.C_RED)
+		bar.custom_minimum_size = Vector2(0, _vp(4))
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		grid.add_child(bar)
 		_card_bars[str(row[0])] = bar
-	_card_quote = RETRO_UI.label("", RETRO_UI.FONT_TEXT, 8, Color(0.98, 0.88, 0.62), _scale)
+	_card_quote = _body("", RETRO_UI.C_QUOTE)
 	_card_quote.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_card_quote.custom_minimum_size = Vector2(_vp(124), 0)
+	_card_quote.custom_minimum_size = Vector2(_vp(CARD_WIDTH_VP - 8), 0)
 	box.add_child(_card_quote)
 
 
 func _build_banner() -> void:
-	_banner_box = VBoxContainer.new()
-	_banner_box.name = "Banner"
-	_banner_box.anchor_left = 0.0
-	_banner_box.anchor_right = 1.0
-	_banner_box.anchor_top = 0.24
-	_banner_box.anchor_bottom = 0.24
-	_banner_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	_banner_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_banner_box.visible = false
-	_root.add_child(_banner_box)
-	_banner_title = RETRO_UI.label("", RETRO_UI.FONT_TITLE, 22, RETRO_UI.C_AMBER, _scale)
-	_banner_title.add_theme_constant_override("outline_size", _scale * 2)
-	_banner_title.add_theme_color_override("font_outline_color", Color(0.1, 0.02, 0.01))
-	_banner_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_banner_box.add_child(_banner_title)
-	_banner_sub = RETRO_UI.label("", RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE, _scale)
+	var band := _bevel(false)
+	band.name = "Banner"
+	band.fit_children = true
+	band.pad_vp = Vector4(0, 5, 0, 5)
+	band.fill = Color(0.03, 0.025, 0.02, 0.86)
+	band.light = RETRO_UI.C_PANEL_LIGHT
+	band.dark = Color(0.0, 0.0, 0.0, 0.9)
+	# Full width; the side bevels sit just off-screen so only the top and bottom edges show.
+	band.anchor_left = 0.0
+	band.anchor_right = 1.0
+	band.offset_left = -_vp(1)
+	band.offset_right = _vp(1)
+	var world_h := _built_for_size.y - _vp(BAR_HEIGHT_VP)
+	band.offset_top = floorf(world_h * 0.28 / float(_scale)) * float(_scale)
+	band.visible = false
+	_root.add_child(band)
+	_banner_band = band
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", int(_vp(3)))
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.add_child(box)
+	_banner_title = RETRO_UI.PixelTitle.new()
+	_banner_title.configure(RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG * 2, _scale)
+	box.add_child(_banner_title)
+	_banner_sub = _caption("", RETRO_UI.C_BONE)
 	_banner_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_banner_box.add_child(_banner_sub)
+	box.add_child(_banner_sub)
+
+
+func _build_crosshair_and_hint() -> void:
+	_crosshair = Control.new()
+	_crosshair.name = "Crosshair"
+	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crosshair.draw.connect(func() -> void:
+		var s := float(_scale)
+		var c := Color(0.95, 0.9, 0.78, 0.6)
+		_crosshair.draw_rect(Rect2(Vector2(-2.0 * s, 0.0), Vector2(s, s)), c)
+		_crosshair.draw_rect(Rect2(Vector2(s, 0.0), Vector2(s, s)), c)
+		_crosshair.draw_rect(Rect2(Vector2(0.0, -2.0 * s), Vector2(s, s)), c)
+		_crosshair.draw_rect(Rect2(Vector2(0.0, s), Vector2(s, s)), c)
+	)
+	_hint_root.add_child(_crosshair)
+	_crosshair.position = _crosshair_center().floor()
+	_crosshair.queue_redraw()
+
+	_hint_plate = _plate()
+	_hint_plate.name = "HintPlate"
+	_hint_plate.pad_vp = Vector4(4, 2, 4, 2)
+	_hint_plate.fill = Color(0.03, 0.025, 0.02, 0.72)
+	_hint_plate.light = Color(0.30, 0.26, 0.20, 0.8)
+	_hint_plate.anchor_left = 0.5
+	_hint_plate.anchor_right = 0.5
+	_hint_plate.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_hint_plate.offset_top = _crosshair.position.y + _vp(12)
+	_hint_plate.visible = false
+	_hint_root.add_child(_hint_plate)
+	_hint_label = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE, _scale)
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_plate.add_child(_hint_label)
+
+
+func _crosshair_center() -> Vector2:
+	return Vector2(_built_for_size.x * 0.5, (_built_for_size.y - _vp(BAR_HEIGHT_VP)) * 0.5)
+
+
+func _build_waypoint_marker() -> void:
+	_waypoint_marker = Control.new()
+	_waypoint_marker.name = "ObjectiveMarker"
+	_waypoint_marker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_waypoint_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_waypoint_marker.draw.connect(_draw_waypoint)
+	_hint_root.add_child(_waypoint_marker)
+	_hint_root.move_child(_waypoint_marker, 0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -728,6 +815,8 @@ func _refresh_all() -> void:
 	_rebuild_feed()
 	if _card_timer > 0.0:
 		_refresh_card()
+	if _banner_timer > 0.0:
+		_apply_banner()
 
 
 func _refresh_health() -> void:
@@ -735,7 +824,7 @@ func _refresh_health() -> void:
 		return
 	var hp := int(round(_health * 100.0))
 	_health_value.text = str(hp)
-	_health_value.add_theme_color_override("font_color", RETRO_UI.C_RED if hp < 35 else Color(0.98, 0.34, 0.26))
+	_health_value.add_theme_color_override("font_color", RETRO_UI.C_RED if hp < 35 else RETRO_UI.C_RED_LIGHT)
 	_health_bar.set_value(_health)
 	_health_bar.blink = _health < 0.3
 
@@ -751,11 +840,12 @@ func _refresh_clock() -> void:
 	if _phase == PHASE_EVENING:
 		cap_col = RETRO_UI.C_AMBER
 	elif _phase == PHASE_NIGHT:
-		cap_col = Color(1.0, 0.36, 0.30)
-		clock_col = Color(0.72, 0.80, 1.0)
+		cap_col = RETRO_UI.C_RED_LIGHT
+		clock_col = RETRO_UI.C_NIGHT
 	_clock_phase.add_theme_color_override("font_color", cap_col)
 	_clock_value.add_theme_color_override("font_color", clock_col)
 	_weather_label.text = str(WEATHER_LABELS[_weather])
+	_weather_label.add_theme_color_override("font_color", RETRO_UI.C_RED_LIGHT if _weather == WEATHER_LABELS.size() - 1 else RETRO_UI.C_BLUE)
 
 
 func _refresh_guests() -> void:
@@ -773,7 +863,7 @@ func _refresh_guests() -> void:
 		if unhappy > 0:
 			label = "%d UPSET" % unhappy
 		_guest_mood.text = label
-		var col := RETRO_UI.C_GREEN if avg >= 62.0 else (RETRO_UI.C_AMBER if avg >= 35.0 else Color(1.0, 0.36, 0.30))
+		var col := RETRO_UI.C_GREEN if avg >= 62.0 else (RETRO_UI.C_AMBER if avg >= 35.0 else RETRO_UI.C_RED_LIGHT)
 		_guest_mood.add_theme_color_override("font_color", col)
 	_guest_face.set_state(avg, _fear, count <= 0)
 
@@ -781,8 +871,24 @@ func _refresh_guests() -> void:
 func _refresh_mail() -> void:
 	if _mail_value == null:
 		return
-	_mail_value.text = str(_unread)
+	_mail_value.text = str(mini(_unread, 99))
 	_mail_value.add_theme_color_override("font_color", RETRO_UI.C_AMBER if _unread > 0 else RETRO_UI.C_BONE_DIM)
+
+
+func _set_risk_level(level: int, from_payload: bool) -> void:
+	var previous := _risk_level_index
+	var known := _risk_level_known
+	_risk_level_index = level
+	_risk_level_known = true
+	_refresh_risk()
+	if known and from_payload and level != previous:
+		var detail := _compose_risk_detail(_risk_payload)
+		var verb := "raised" if level > previous else "eased"
+		var kind := STATUS_WARN if level > previous else STATUS_GOOD
+		var line := "Night risk %s: %s" % [verb, RISK_LEVEL_LABELS[level].to_lower()]
+		if not detail.is_empty():
+			line += " (%s)" % detail
+		push_status(line, kind, "risk")
 
 
 func _refresh_risk() -> void:
@@ -792,10 +898,24 @@ func _refresh_risk() -> void:
 	for i in _risk_pips.size():
 		var lit := i < level
 		_risk_pips[i].color = _risk_color(i + 1) if lit else Color(0.12, 0.11, 0.10)
-	_risk_level.text = str(RISK_LEVEL_LABELS[level])
+	_risk_level.text = _risk_footer(level)
 	_risk_level.add_theme_color_override("font_color", _risk_color(level))
-	var detail := _compose_risk_detail(_risk_payload)
-	_risk_detail.text = "" if detail.is_empty() else "NIGHT RISK: %s" % detail.to_upper()
+
+
+## Footer under the risk lamps: "CLEAR", or the archetype closest to tipping and its
+## odds ("DRUNK 27%", "CHICK SURE") so the meter says what to do about it.
+func _risk_footer(level: int) -> String:
+	var worst := _worst_risk_entry(_risk_payload)
+	if level <= 0 or worst.is_empty():
+		return str(RISK_LEVEL_LABELS[level])
+	var name_id := str(worst.get("archetype", ""))
+	var short := str(RISK_SHORT_NAMES.get(name_id, str(worst.get("label", "?")).to_upper().left(5)))
+	if int(worst.get("guaranteed_spawns", 0)) > 0:
+		return "%s SURE" % short
+	var pct := int(round(float(worst.get("chance_probability", 0.0)) * 100.0))
+	if pct <= 0:
+		return str(RISK_LEVEL_LABELS[level])
+	return "%s %d%%" % [short, pct]
 
 
 func _refresh_objective() -> void:
@@ -806,7 +926,16 @@ func _refresh_objective() -> void:
 		return
 	_objective_panel.visible = true
 	_objective_title.text = str(_objective.get("title", "VERA'S CHECKLIST")).to_upper()
-	_objective_text.text = str(_objective.get("text", ""))
+	var text := str(_objective.get("text", ""))
+	var hint := str(_objective.get("hint", ""))
+	# Older callers fold the hint into the text after "\n> ".
+	var split := text.find("\n> ")
+	if hint.is_empty() and split >= 0:
+		hint = text.substr(split + 3)
+		text = text.substr(0, split)
+	_objective_text.text = text
+	_objective_hint.text = "> %s" % hint if not hint.is_empty() else ""
+	_objective_hint.visible = not hint.is_empty()
 	var progress := str(_objective.get("progress", ""))
 	var reward := str(_objective.get("reward", ""))
 	var parts: Array[String] = []
@@ -816,13 +945,7 @@ func _refresh_objective() -> void:
 		parts.append("REWARD %s" % reward)
 	_objective_progress.text = "  ".join(parts)
 	_objective_progress.visible = not parts.is_empty()
-	# Let the panel grow with wrapped text.
-	await get_tree().process_frame
-	if _objective_panel == null or not is_instance_valid(_objective_panel):
-		return
-	var box := _objective_panel.get_child(0) as Control
-	if box != null:
-		_objective_panel.offset_bottom = _objective_panel.offset_top + box.get_combined_minimum_size().y + _vp(6)
+	_objective_panel.size = Vector2(_vp(TRACKER_WIDTH_VP), 0)
 
 
 func _refresh_card() -> void:
@@ -835,33 +958,42 @@ func _refresh_card() -> void:
 	var party := int(_card_info.get("party_size", 1))
 	_card_sub.text = "%s  x%d  %s" % [archetype, party, str(_card_info.get("mood_label", "")).to_upper()]
 	var mood := float(_card_info.get("mood", 60.0))
-	_card_face.set_state(mood, 1.0 - float((_card_info.get("needs", {}) as Dictionary).get("safety", 80.0)) / 100.0)
 	var needs: Dictionary = _card_info.get("needs", {})
+	_card_face.set_state(mood, 1.0 - float(needs.get("safety", 80.0)) / 100.0)
 	for key in _card_bars.keys():
 		(_card_bars[key]).set_value(float(needs.get(key, 70.0)) / 100.0)
 	var thought := str(_card_info.get("thought", "")).strip_edges()
 	_card_quote.text = "\"%s\"" % thought if not thought.is_empty() else ""
-	await get_tree().process_frame
-	if _card_panel == null or not is_instance_valid(_card_panel):
+	_card_quote.visible = not thought.is_empty()
+	_card_panel.size = Vector2(_vp(CARD_WIDTH_VP), 0)
+	_stack_right_column()
+
+
+## The card hangs under the tracker; both are self-sizing, so this runs every frame.
+func _stack_right_column() -> void:
+	if _card_panel == null or not _card_panel.visible:
 		return
-	var box := _card_panel.get_child(0) as Control
-	if box != null:
-		var h := box.get_combined_minimum_size().y + _vp(6)
-		_card_panel.offset_top = -h * 0.5 - _vp(10)
-		_card_panel.offset_bottom = h * 0.5 - _vp(10)
+	var top := _vp(4)
+	if _objective_panel != null and _objective_panel.visible:
+		top = _objective_panel.position.y + _objective_panel.size.y + _vp(3)
+	_card_panel.offset_top = top
+	_card_panel.offset_bottom = top + _card_panel.get_combined_minimum_size().y
 
 
 func _rebuild_feed() -> void:
 	if _feed_box == null:
 		return
 	for child in _feed_box.get_children():
+		_feed_box.remove_child(child)
 		child.queue_free()
+	var width := _vp(_feed_width_vp())
 	for entry in _feed:
-		var l := RETRO_UI.label(str(entry["text"]), RETRO_UI.FONT_TEXT, 8, entry["color"], _scale)
+		var l := _body(str(entry["text"]), entry["color"])
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size = Vector2(_vp(250), 0)
+		l.custom_minimum_size = Vector2(width, 0)
 		_feed_box.add_child(l)
 		entry["label"] = l
+	_feed_box.size = Vector2(width, 0)
 
 
 func _update_feed(delta: float) -> void:
@@ -890,19 +1022,36 @@ func _update_card(delta: float) -> void:
 		_card_panel.modulate.a = _card_timer / 0.6
 
 
+func _apply_banner() -> void:
+	if _banner_band == null:
+		return
+	_banner_title.set_colors(_banner_color.lerp(Color.WHITE, 0.45), _banner_color)
+	_banner_title.set_text(_banner_title_text)
+	_banner_sub.text = _banner_sub_text.to_upper()
+	_banner_sub.visible = not _banner_sub_text.is_empty()
+	_banner_band.visible = _banner_timer > 0.0
+	_banner_band.size = Vector2(_banner_band.size.x, 0)
+	_update_banner(0.0)
+
+
+## The band opens vertically from its centre line (0.15s), holds, then fades. The open
+## is stepped in whole virtual pixels so the bevel never lands between pixels.
 func _update_banner(delta: float) -> void:
-	if _banner_box == null or _banner_timer <= 0.0:
+	if _banner_band == null or _banner_timer <= 0.0:
 		return
 	_banner_timer -= delta
 	var elapsed := _banner_total - _banner_timer
+	var open := clampf(elapsed / 0.15, 0.0, 1.0)
 	var a := 1.0
-	if elapsed < 0.35:
-		a = elapsed / 0.35
-	elif _banner_timer < 0.8:
+	if _banner_timer < 0.8:
 		a = _banner_timer / 0.8
-	_banner_box.modulate.a = clampf(a, 0.0, 1.0)
+	_banner_band.modulate.a = clampf(a, 0.0, 1.0)
+	var full_h := maxf(1.0, _banner_band.size.y / float(_scale))
+	var h := maxf(2.0, floorf(full_h * open))
+	_banner_band.scale = Vector2(1.0, h / full_h)
+	_banner_band.pivot_offset = Vector2(0.0, _banner_band.size.y * 0.5)
 	if _banner_timer <= 0.0:
-		_banner_box.visible = false
+		_banner_band.visible = false
 
 
 func _apply_money(amount: int) -> void:
@@ -913,9 +1062,10 @@ func _apply_money(amount: int) -> void:
 	_money_known = true
 	if _cash_value != null:
 		_cash_value.text = "$%s" % _format_money(amount)
+		_cash_value.add_theme_color_override("font_color", RETRO_UI.C_RED_LIGHT if amount < 0 else RETRO_UI.C_AMBER)
 	if delta != 0 and _cash_delta != null:
 		_cash_delta.text = "%s$%s" % ["+" if delta > 0 else "-", _format_money(absi(delta))]
-		_cash_delta.add_theme_color_override("font_color", RETRO_UI.C_GREEN if delta > 0 else Color(1.0, 0.36, 0.30))
+		_cash_delta.add_theme_color_override("font_color", RETRO_UI.C_GREEN if delta > 0 else RETRO_UI.C_RED_LIGHT)
 		_money_flash = 2.0
 
 
@@ -942,11 +1092,101 @@ func _poll_guest_state() -> void:
 func _announce_phase(phase: int) -> void:
 	match phase:
 		PHASE_DAY:
-			show_banner("DAY %d" % _day, "THE BUILDER IS UNLOCKED. THE CAMP IS YOURS AGAIN.", RETRO_UI.C_AMBER, 3.2)
+			push_status("Morning. The builder is unlocked again.", STATUS_GOOD, "phase")
+			show_banner("DAY %d" % _day, "The builder is unlocked. The camp is yours again.", RETRO_UI.C_AMBER, 3.2)
 		PHASE_EVENING:
-			push_status("Evening. Guests start drifting back to their beds.", STATUS_WARN)
+			push_status("Evening. Guests start drifting back to their beds.", STATUS_WARN, "phase")
 		PHASE_NIGHT:
-			show_banner("NIGHT %d" % _day, "BUILDER LOCKED. SURVIVE UNTIL 06:30.", Color(1.0, 0.30, 0.24), 4.2)
+			push_status("Night. The builder is locked until 06:30.", STATUS_DENY, "phase")
+			show_banner("NIGHT %d" % _day, "Builder locked. Survive until 06:30.", RETRO_UI.C_RED_LIGHT, 4.2)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OBJECTIVE MARKER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+func _active_camera() -> Camera3D:
+	if _camera_provider.is_valid():
+		return _camera_provider.call() as Camera3D
+	return null
+
+
+## A pixel chevron over the target with the distance under it. When the target is off
+## screen the marker clamps to the nearest edge and the chevron points the way; when it
+## is behind the player it sits on the left or right edge, whichever way is the shorter
+## turn.
+func _draw_waypoint() -> void:
+	if _waypoint_pos == Vector3.INF or _objective.is_empty():
+		return
+	var cam := _active_camera()
+	if cam == null or not is_instance_valid(cam) or not cam.is_inside_tree():
+		return
+	var dist := cam.global_position.distance_to(_waypoint_pos)
+	if dist < WAYPOINT_HIDE_DISTANCE:
+		return
+	var cam_vp := cam.get_viewport()
+	var src_size := cam_vp.get_visible_rect().size if cam_vp != null else _built_for_size
+	if src_size.x <= 0.0 or src_size.y <= 0.0:
+		return
+	var s := float(_scale)
+	var screen := _built_for_size
+	var world_h := screen.y - _vp(BAR_HEIGHT_VP)
+	var margin := _vp(WAYPOINT_EDGE_VP)
+	var local := cam.global_transform.affine_inverse() * _waypoint_pos
+	var at := Vector2.ZERO
+	var dir := Vector2.DOWN
+	var on_screen := false
+	if local.z < -0.1:
+		var p := cam.unproject_position(_waypoint_pos) / src_size * screen
+		var clamped := Vector2(clampf(p.x, margin, screen.x - margin), clampf(p.y, margin, world_h - margin))
+		on_screen = clamped.is_equal_approx(p)
+		at = clamped
+		if not on_screen:
+			var off := p - clamped
+			dir = Vector2(signf(off.x), 0.0) if absf(off.x) >= absf(off.y) else Vector2(0.0, signf(off.y))
+	else:
+		var right := local.x >= 0.0
+		at = Vector2(screen.x - margin if right else margin, world_h * 0.5)
+		dir = Vector2.RIGHT if right else Vector2.LEFT
+	at = (at / s).floor() * s
+	var bob := floorf(sin(_blink_t * 4.0) * 1.5 + 0.5) * s
+	var c := RETRO_UI.C_AMBER
+	var dark := RETRO_UI.C_OUTLINE
+	if on_screen:
+		_draw_chevron(at + Vector2(0.0, -_vp(8) + bob), Vector2.DOWN, c, dark)
+	else:
+		_draw_chevron(at + dir * (absf(bob) + s), dir, c, dark)
+	var text := "%dM" % int(round(dist))
+	if not _waypoint_label.is_empty():
+		text = "%s %s" % [_waypoint_label.to_upper(), text]
+	var font := RETRO_UI.FONT_LABEL
+	var fsize := RETRO_UI.SIZE_LABEL * _scale
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+	var tx := floorf(clampf(at.x - w * 0.5, s * 2.0, screen.x - w - s * 2.0) / s) * s
+	var ty := at.y + (_vp(4) if on_screen else _vp(12))
+	if not on_screen and dir.y < 0.0:
+		ty = at.y + _vp(14)
+	elif not on_screen and dir.y > 0.0:
+		ty = at.y - _vp(8)
+	_waypoint_marker.draw_string(font, Vector2(tx + s, ty + s), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, RETRO_UI.C_SHADOW)
+	_waypoint_marker.draw_string(font, Vector2(tx, ty), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, c)
+
+
+## A 7-pixel-wide chevron whose tip is at `tip`, pointing along a cardinal `dir`, with a
+## one-pixel dark outline.
+func _draw_chevron(tip: Vector2, dir: Vector2, c: Color, dark: Color) -> void:
+	var s := float(_scale)
+	var back := -dir
+	var side := Vector2(-dir.y, dir.x)
+	var cells: Array[Vector2] = []
+	for row in 4:
+		var half := row
+		for k in range(-half, half + 1):
+			cells.append(back * float(row) + side * float(k))
+	for cell in cells:
+		_waypoint_marker.draw_rect(Rect2(tip + cell * s - Vector2(s, s), Vector2(3.0 * s, 3.0 * s)), dark)
+	for cell in cells:
+		_waypoint_marker.draw_rect(Rect2(tip + cell * s, Vector2(s, s)), c)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -997,12 +1237,10 @@ func _risk_color(level: int) -> Color:
 			return RETRO_UI.C_RED
 
 
-## One line naming the archetype closest to tipping, so the meter is actionable
-## rather than merely ominous.
-func _compose_risk_detail(payload: Dictionary) -> String:
+func _worst_risk_entry(payload: Dictionary) -> Dictionary:
 	var entries_any = payload.get("archetypes", [])
 	if not (entries_any is Array):
-		return ""
+		return {}
 	var worst: Dictionary = {}
 	var worst_score := -1.0
 	for entry_any in entries_any:
@@ -1015,6 +1253,13 @@ func _compose_risk_detail(payload: Dictionary) -> String:
 		if score > worst_score:
 			worst_score = score
 			worst = entry
+	return worst
+
+
+## One line naming the archetype closest to tipping, so the meter is actionable
+## rather than merely ominous.
+func _compose_risk_detail(payload: Dictionary) -> String:
+	var worst := _worst_risk_entry(payload)
 	if worst.is_empty():
 		return ""
 	var label := str(worst.get("label", "?"))
@@ -1027,7 +1272,7 @@ func _compose_risk_detail(payload: Dictionary) -> String:
 		if thresholds_any is Dictionary:
 			var small_at := int((thresholds_any as Dictionary).get("small_at", 0))
 			if small_at > count:
-				return "safe - %s risk starts at %d" % [label, small_at]
+				return "%s risk starts at %d" % [label, small_at]
 		return "all archetypes within safe count"
 	var pct := int(round(float(worst.get("chance_probability", 0.0)) * 100.0))
 	return "%s x%d - %s risk %d%%" % [label, count, str(RISK_TIER_LABELS.get(tier, tier)), pct]

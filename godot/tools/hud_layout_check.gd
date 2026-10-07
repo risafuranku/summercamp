@@ -17,7 +17,7 @@ const HUD_MANAGER_SCRIPT = preload("res://scripts/hud_manager.gd")
 
 const TEST_SIZES := [Vector2i(1280, 720), Vector2i(1024, 576), Vector2i(1280, 960), Vector2i(1280, 800), Vector2i(1680, 720)]
 const EXPECTED_CAPTIONS := ["HEALTH", "STAMINA", "LIGHT", "CASH", "DAY 3", "EVENING", "GUESTS", "MAIL", "NIGHT RISK"]
-const EXPECTED_READOUTS := ["62", "$1,234", "18:42", "RAIN", "RAISED"]
+const EXPECTED_READOUTS := ["62", "$1,234", "18:42", "RAIN", "DRUNK 27%"]
 
 const SAMPLE_FORECAST := {
 	"ok": true,
@@ -65,9 +65,11 @@ func _check_size(size: Vector2i) -> Array[String]:
 	hud.set_health_ratio(0.62)
 	hud.set_liminal_forecast(SAMPLE_FORECAST)
 	hud.push_status("Build rejected: insufficient funds", 3)
-	hud.set_objective({"title": "Vera's checklist", "text": "Build a toilet block near the tents.", "progress": "0/1", "reward": "$150"})
-	await get_tree().process_frame
-	await get_tree().process_frame
+	hud.set_objective({"title": "Vera's checklist", "text": "Guests get hungry. Build a Jednota Mart, a Bistro or a Pub so nobody has to walk to the village.", "hint": "Builder: Services. Food needs power.", "reward": "$150"})
+	hud.show_guest_card({"name": "Pepa", "archetype": "drunk", "party_size": 2, "mood": 48.0, "mood_label": "Grumpy", "needs": {"energy": 80.0, "hunger": 30.0}, "thought": "One more beer. Just one, I promise."})
+	hud.show_banner("TASK COMPLETE", "+$150", Color(0.46, 0.86, 0.36), 5.0)
+	for i in 4:
+		await get_tree().process_frame
 
 	var root := hud.get_node_or_null("RetroHudLayer/RetroHudRoot") as Control
 	if root == null:
@@ -125,10 +127,27 @@ func _check_size(size: Vector2i) -> Array[String]:
 		if not labels.has(expected_value):
 			failures.append("%s: readout '%s' missing (labels: %s)" % [size, expected_value, ", ".join(labels)])
 	var objective := root.get_node_or_null("Objective") as Control
+	var card := root.get_node_or_null("GuestCard") as Control
+	var feed := root.get_node_or_null("MessageFeed") as Control
+	var banner := root.get_node_or_null("Banner") as Control
 	if objective == null or not objective.visible:
 		failures.append("%s: objective tracker not shown" % size)
-	elif objective.position.x + objective.size.x > float(size.x) + 0.5:
-		failures.append("%s: objective tracker off-screen" % size)
+	else:
+		var o_rect := objective.get_global_rect()
+		print("  tracker %s" % o_rect)
+		if o_rect.end.x > float(size.x) + 0.5 or o_rect.position.x < 0.0:
+			failures.append("%s: objective tracker off-screen" % size)
+		if card != null and card.visible:
+			var c_rect := card.get_global_rect()
+			print("  card    %s" % c_rect)
+			if c_rect.intersects(o_rect):
+				failures.append("%s: guest card overlaps the tracker" % size)
+			if c_rect.end.y > float(size.y) - bar_h:
+				failures.append("%s: guest card runs into the status bar" % size)
+		if feed != null and feed.get_global_rect().intersects(o_rect):
+			failures.append("%s: message feed runs under the tracker" % size)
+	if banner == null or not banner.visible:
+		failures.append("%s: banner not shown" % size)
 	hud.free()
 	return failures
 

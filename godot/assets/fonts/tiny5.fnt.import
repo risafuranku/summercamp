@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://bofap1twwldsa"
+path="res://.godot/imported/tiny5.fnt-0d64d588f77da830674caa3a51947061.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/tiny5.fnt"
+dest_files=["res://.godot/imported/tiny5.fnt-0d64d588f77da830674caa3a51947061.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=1

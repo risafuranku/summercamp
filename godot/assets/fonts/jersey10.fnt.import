@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://dqmr8ob8kckid"
+path="res://.godot/imported/jersey10.fnt-f4715ffeeb42a63dace81f24a71bff05.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/jersey10.fnt"
+dest_files=["res://.godot/imported/jersey10.fnt-f4715ffeeb42a63dace81f24a71bff05.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=1

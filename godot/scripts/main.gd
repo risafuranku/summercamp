@@ -590,6 +590,7 @@ func _ensure_hud_manager() -> void:
 	_hud_manager.setup_money_hud()
 	_hud_manager.setup_weather_hud()
 	_hud_manager.setup_time_hud()
+	_hud_manager.set_camera_provider(Callable(self, "_get_player_camera"))
 	_sync_hud_health()
 	_sync_liminal_forecast_hud(true)
 
