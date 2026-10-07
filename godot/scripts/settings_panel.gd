@@ -16,6 +16,8 @@ const CONTROL_REFERENCE := [
 	["Jump", "Space"],
 	["Look", "Mouse"],
 	["Interact / use", "E  or  Left Mouse"],
+	["Service / repair building (hold)", "R"],
+	["Pause", "Esc"],
 	["Back / close", "Esc"],
 	["Office lights (reception)", "L"],
 	["Service room: previous / next", "A / D"],

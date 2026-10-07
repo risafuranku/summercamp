@@ -116,6 +116,9 @@ var _objective_text: Label
 var _objective_hint: Label
 var _objective_progress: Label
 var _hint_plate: Control
+var _work_plate: Control
+var _work_label: Label
+var _work_bar: Control
 var _hint_label: Label
 var _crosshair: Control
 var _waypoint_marker: Control
@@ -164,6 +167,8 @@ var _blink_t: float = 0.0
 var _last_phase_announce: int = -1
 var _waypoint_pos: Vector3 = Vector3.INF
 var _waypoint_label: String = ""
+var _work_text: String = ""
+var _work_ratio: float = -1.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -321,6 +326,20 @@ func clear_objective() -> void:
 	_refresh_objective()
 
 
+## Hold-to-work bar under the crosshair (servicing / repairing a building).
+func set_work_progress(text: String, ratio: float) -> void:
+	_work_text = text
+	_work_ratio = clampf(ratio, 0.0, 1.0)
+	_refresh_work()
+
+
+func clear_work_progress() -> void:
+	if _work_ratio < 0.0:
+		return
+	_work_ratio = -1.0
+	_refresh_work()
+
+
 ## Screen-space objective marker over a world position (Vector3.INF hides it).
 func set_waypoint(world_pos: Vector3, label: String = "") -> void:
 	_waypoint_pos = world_pos
@@ -387,6 +406,8 @@ func _process(delta: float) -> void:
 	_update_card(delta)
 	_update_banner(delta)
 	_stack_right_column()
+	_center_plate(_hint_plate)
+	_center_plate(_work_plate)
 	if _waypoint_marker != null and _hint_layer.visible:
 		_waypoint_marker.queue_redraw()
 	if _mail_cell != null:
@@ -779,6 +800,26 @@ func _build_crosshair_and_hint() -> void:
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint_plate.add_child(_hint_label)
 
+	_work_plate = _plate()
+	_work_plate.name = "WorkPlate"
+	_work_plate.pad_vp = Vector4(4, 3, 4, 3)
+	_work_plate.anchor_left = 0.5
+	_work_plate.anchor_right = 0.5
+	_work_plate.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_work_plate.offset_top = _crosshair.position.y - _vp(34)
+	_work_plate.visible = false
+	_hint_root.add_child(_work_plate)
+	var work_box := VBoxContainer.new()
+	work_box.add_theme_constant_override("separation", int(_vp(2)))
+	work_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_work_plate.add_child(work_box)
+	_work_label = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale)
+	_work_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	work_box.add_child(_work_label)
+	_work_bar = _segment_bar(16, RETRO_UI.C_GREEN, RETRO_UI.C_AMBER)
+	_work_bar.custom_minimum_size = Vector2(_vp(96), _vp(4))
+	work_box.add_child(_work_bar)
+
 
 func _crosshair_center() -> Vector2:
 	return Vector2(_built_for_size.x * 0.5, (_built_for_size.y - _vp(BAR_HEIGHT_VP)) * 0.5)
@@ -812,11 +853,23 @@ func _refresh_all() -> void:
 	_refresh_risk()
 	_refresh_objective()
 	set_hint_text(_hint_text)
+	_refresh_work()
 	_rebuild_feed()
 	if _card_timer > 0.0:
 		_refresh_card()
 	if _banner_timer > 0.0:
 		_apply_banner()
+
+
+func _refresh_work() -> void:
+	if _work_plate == null:
+		return
+	_work_plate.visible = _work_ratio >= 0.0
+	if _work_ratio < 0.0:
+		return
+	_work_label.text = _work_text
+	_work_bar.set_value(_work_ratio)
+	_work_plate.size = Vector2.ZERO
 
 
 func _refresh_health() -> void:
@@ -967,6 +1020,19 @@ func _refresh_card() -> void:
 	_card_quote.visible = not thought.is_empty()
 	_card_panel.size = Vector2(_vp(CARD_WIDTH_VP), 0)
 	_stack_right_column()
+
+
+## Self-sizing plates resize a frame after their text changes; keep them centred on
+## whole virtual pixels instead of trusting grow-both to settle in time.
+func _center_plate(plate: Control) -> void:
+	if plate == null or not plate.visible:
+		return
+	var w := plate.get_combined_minimum_size().x
+	var x := floorf((_built_for_size.x - w) * 0.5 / float(_scale)) * float(_scale)
+	plate.anchor_left = 0.0
+	plate.anchor_right = 0.0
+	plate.offset_left = x
+	plate.offset_right = x + w
 
 
 ## The card hangs under the tracker; both are self-sizing, so this runs every frame.

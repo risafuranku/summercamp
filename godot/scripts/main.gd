@@ -23,6 +23,7 @@ const WEATHER_VISUALS_SCRIPT = preload("res://scripts/weather_visuals.gd")
 const HUD_MANAGER_SCRIPT = preload("res://scripts/hud_manager.gd")
 const GUEST_AGENTS_SCRIPT = preload("res://scripts/guest_agents.gd")
 const QUEST_MANAGER_SCRIPT = preload("res://scripts/quest_manager.gd")
+const MAINTENANCE_CONTROLLER_SCRIPT = preload("res://scripts/maintenance_controller.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
 const PAUSE_MENU_SCRIPT = preload("res://scripts/ui/pause_menu.gd")
@@ -206,6 +207,7 @@ var _interior_manager: Node
 var _interaction_controller: Node
 var _guest_agents: Node3D
 var _quest_manager: Node
+var _maintenance: Node
 var _pending_quest_state: Dictionary = {}
 var _pending_quest_state_loaded: bool = false
 var _guest_quote_timer: float = 0.0
@@ -386,6 +388,7 @@ func _start_gameplay_runtime() -> void:
 	_setup_interior_manager()
 	_setup_interaction_controller()
 	_setup_quest_manager()
+	_setup_maintenance()
 	_apply_pending_crt_desktop_state()
 	if SEWER_PIPE_REPAIR_ENABLED:
 		_setup_sewer_pipe_minigame()
@@ -418,6 +421,29 @@ func _setup_quest_manager() -> void:
 		_quest_manager.import_state(_pending_quest_state)
 		_pending_quest_state.clear()
 		_pending_quest_state_loaded = false
+
+
+func _setup_maintenance() -> void:
+	if _maintenance == null or not is_instance_valid(_maintenance):
+		_maintenance = MAINTENANCE_CONTROLLER_SCRIPT.new()
+		_maintenance.name = "MaintenanceController"
+		add_child(_maintenance)
+	_maintenance.setup(_world_3d, building_manager, Callable(self, "_get_player_camera"), _hud_manager)
+	if CoreRoot.failure_system != null:
+		CoreRoot.failure_system.enabled = true
+
+
+## Camp Status > Upkeep (CRT) reads and acts through these.
+func get_upkeep_snapshot() -> Dictionary:
+	if _maintenance == null:
+		return {}
+	return _maintenance.get_upkeep_snapshot()
+
+
+func request_maintenance_crew() -> Dictionary:
+	if _maintenance == null:
+		return {"ok": false, "reason": "unavailable"}
+	return _maintenance.request_maintenance_crew()
 
 
 func _setup_guest_agents() -> void:
@@ -612,6 +638,8 @@ func _process(delta: float) -> void:
 			_is_service_sewer_audio_active()
 		)
 	_tick_active_enemy_brain(delta)
+	if _maintenance != null:
+		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
 	_poll_guest_quotes(delta)
 	if visual_module != null and visual_module.has_method("sync_enemy_distortion_fx"):
 		visual_module.sync_enemy_distortion_fx(_time_state)
@@ -863,6 +891,7 @@ func _ensure_input_actions() -> void:
 	if UTILITY_REPAIRS_ENABLED:
 		_add_key_action("service_repair", KEY_R)
 	_add_key_action("service_secret_room", KEY_S)
+	_add_key_action("maintain", KEY_R)
 
 
 func _add_key_action(action_name: String, keycode: int) -> void:
@@ -2277,7 +2306,12 @@ func _update_interaction_hint() -> void:
 	if _interaction_controller == null or not _interaction_controller.has_method("build_hint_text"):
 		_hud_manager.set_hint_text("")
 		return
-	_hud_manager.set_hint_text(_interaction_controller.build_hint_text(INTERACT_DISTANCE, UTILITY_REPAIRS_ENABLED))
+	var hint := str(_interaction_controller.build_hint_text(INTERACT_DISTANCE, UTILITY_REPAIRS_ENABLED))
+	if _maintenance != null:
+		var upkeep: String = _maintenance.hint_for_view(not hint.is_empty())
+		if not upkeep.is_empty():
+			hint = upkeep if hint.is_empty() else "%s   %s" % [hint, upkeep]
+	_hud_manager.set_hint_text(hint)
 
 
 func _is_any_interior_open() -> bool:
@@ -2450,6 +2484,10 @@ func _emit_state_update() -> void:
 
 func _enter_main_menu() -> void:
 	_stop_active_enemy_brain()
+	if CoreRoot.failure_system != null:
+		CoreRoot.failure_system.enabled = false
+	if _maintenance != null:
+		_maintenance.stop()
 	if _quest_manager != null:
 		_quest_manager.stop()
 	_clear_game_over_screen()

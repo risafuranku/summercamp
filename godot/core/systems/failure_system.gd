@@ -1,73 +1,69 @@
 class_name FailureSystem
 extends "res://core/systems/system_base.gd"
 
-## core/systems/failure_system.gd
-## Simulates building failures and malfunctions based on type and chance.
+## Breakdowns. Once per in-game hour every building that can break rolls against
+## MaintenanceRules.hazard_per_hour(condition): above 50% condition nothing breaks,
+## below it the odds climb. A broken building is listed in GameState.failures, stops
+## serving guests, and announces itself through EventBus.building_failed.
+##
+## Runs only while `enabled` (main.gd switches it on for play). It used to run in the
+## main menu too, breaking the preview camp, and it rolled a flat 5% even on buildings
+## in perfect condition, so neglect and bad luck were indistinguishable.
 
+const RULES = preload("res://core/systems/maintenance_rules.gd")
+const ROLL_EVERY_MINUTES := 60.0
+
+var enabled: bool = false
 var _registry
 var _rng := RandomNumberGenerator.new()
-var _failure_timer: float = 0.0
-var _base_interval: float = 18.0
+var _minutes: float = 0.0
+
 
 func _init(registry) -> void:
 	_registry = registry
 	_rng.randomize()
 
+
 func _on_setup() -> void:
-	# Access state via game_state from SystemBase
 	pass
 
+
+## `delta` in real seconds; at TIME_SCALE 1.0 that is game minutes.
 func update(delta: float) -> void:
-	if not game_state: return
-	_failure_timer += delta
-	var current_interval = _calculate_dynamic_interval()
-	
-	if _failure_timer >= current_interval:
-		_failure_timer = 0.0
-		_try_trigger_failure()
-
-func _calculate_dynamic_interval() -> float:
-	# More buildings = more frequent checks
-	var b_count = game_state.grid.cells.size()
-	return clamp(_base_interval - (float(b_count) * 0.1), 8.0, 30.0)
-
-func _try_trigger_failure() -> void:
-	var candidates = []
-	for coord in game_state.grid.cells:
-		var data = game_state.grid.cells[coord]
-		var type = data.get("type", "")
-		var inst_id = data.get("id", "")
-		var root = data.get("root_coord", coord)
-		
-		# Only trigger on root cell of non-path buildings
-		if coord != root or type == "path" or type == "main_building":
-			continue
-			
-		var coord_str = "%d:%d" % [coord.x, coord.y]
-		if game_state.failures.has(coord_str):
-			continue
-			
-		candidates.append({"coord": coord, "type": type, "key": coord_str})
-
-	if candidates.is_empty():
+	if not enabled or game_state == null or game_state.grid == null:
 		return
+	_minutes += delta
+	if _minutes < ROLL_EVERY_MINUTES:
+		return
+	_minutes -= ROLL_EVERY_MINUTES
+	roll_hour()
 
-	# Higher failure chance if maintenance is low
-	var picked = candidates[_rng.randi() % candidates.size()]
-	var maintenance = game_state.grid.cells[picked.coord].get("maintenance", 1.0)
-	var failure_chance = 0.05 + (1.0 - maintenance) * 0.4
-	
-	if _rng.randf() < failure_chance:
-		_trigger_failure(picked.key, picked.type, picked.coord)
+
+## One hour of breakdown rolls. Public so harnesses can drive it directly.
+func roll_hour() -> void:
+	for coord_any in game_state.grid.cells.keys():
+		var coord: Vector2i = coord_any
+		var data: Dictionary = game_state.grid.cells[coord]
+		if data.get("root_coord", coord) != coord:
+			continue
+		var type := str(data.get("type", ""))
+		var def = _registry.get_def(StringName(type)) if _registry != null else null
+		if not RULES.can_break(type, def):
+			continue
+		var key := "%d:%d" % [coord.x, coord.y]
+		if game_state.failures.has(key):
+			continue
+		var condition := float(data.get("maintenance", 1.0))
+		if _rng.randf() < RULES.hazard_per_hour(condition):
+			_trigger_failure(key, type, coord)
+
 
 func _trigger_failure(key: String, type: String, coord: Vector2i) -> void:
-	var failure_data = {
+	game_state.failures[key] = {
 		"type": type,
 		"coord": coord,
 		"since_day": game_state.day,
-		"repair_progress": 0.0
+		"repair_progress": 0.0,
 	}
-	game_state.failures[key] = failure_data
 	EventBus.state_changed.emit({"failures": "new_failure"})
-	# Legacy signal bridge if needed, but we aim for state_changed
-	print("FailureSystem: Building %s at %s failed!" % [type, key])
+	EventBus.building_failed.emit(coord, type)

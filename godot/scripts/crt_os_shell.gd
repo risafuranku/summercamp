@@ -2698,6 +2698,8 @@ func _open_status_app() -> void:
 		var url := str(meta)
 		if url.begins_with("pay://"):
 			_on_camp_status_pay_bill_requested(url.substr(6))
+		elif url.begins_with("crew://"):
+			_on_camp_status_crew_requested()
 	)
 	body.add_child(content)
 	_camp_status_body = content
@@ -2748,9 +2750,9 @@ func _camp_status_tab_title(tab_id: String) -> String:
 		"night_risk":
 			return "Night Risk"
 		"utilities":
-			return "Utilities"
+			return "Upkeep"
 		"archive":
-			return "Archive"
+			return "Reviews"
 		_:
 			return tab_id.capitalize()
 
@@ -2927,8 +2929,12 @@ func _build_status_app_text_with_snapshot(snapshot: Dictionary) -> String:
 			return _build_status_billing_text(snapshot)
 		"night_risk":
 			return _build_status_night_risk_text()
+		"utilities":
+			return _build_status_upkeep_text()
+		"archive":
+			return _build_status_reviews_text()
 		_:
-			return _build_status_placeholder_text(_camp_status_active_tab)
+			return "[b]CAMP STATUS[/b]"
 
 
 ## Player-facing view of the liminal forecast.
@@ -3121,14 +3127,95 @@ func _build_status_billing_text(snapshot: Dictionary) -> String:
 	return text
 
 
-func _build_status_placeholder_text(tab_id: String) -> String:
-	match tab_id:
-		"utilities":
-			return "[b]UTILITIES BOARD[/b]\n\nPlaceholder tab.\n\n- Water pressure telemetry\n- Sewer strain map\n- Waste collection queue\n\n[i]Planned for next systems pass.[/i]"
-		"archive":
-			return "[b]ARCHIVE[/b]\n\nPlaceholder tab.\n\nHistorical CampStat exports and bill history snapshots will be listed here.\n\n[i]No archived data yet.[/i]"
+## Building condition, worst first. Buildings below 50% can break down; a broken one
+## stops serving guests until someone repairs it (walk up and hold R, or the crew).
+func _build_status_upkeep_text() -> String:
+	var host := _resolve_electricity_host()
+	if host == null or not host.has_method("get_upkeep_snapshot"):
+		return "[b]UPKEEP[/b]\n\n[color=#7d2f24]Maintenance telemetry unavailable.[/color]"
+	var snap: Dictionary = host.call("get_upkeep_snapshot")
+	var rows: Array = snap.get("rows", [])
+	var text := "[b]UPKEEP[/b]\n"
+	text += "[color=#5b4a36]Below 50% a building can break down. Broken buildings serve no one.\nWalk up to it and hold [b]R[/b] to service or repair it.[/color]\n\n"
+	if rows.is_empty():
+		return text + "[i]Nothing built that needs looking after yet.[/i]"
+	var broken := 0
+	for row_any in rows:
+		var row: Dictionary = row_any
+		var condition := float(row.get("condition", 1.0))
+		var is_broken := bool(row.get("broken", false))
+		if is_broken:
+			broken += 1
+		var cells := int(round(condition * 10.0))
+		var bar := "#".repeat(cells) + ".".repeat(10 - cells)
+		var color := "#2f5423"
+		var word := "GOOD"
+		if is_broken:
+			color = "#7d2f24"
+			word = "BROKEN"
+			bar = "XXXXXXXXXX"
+		elif condition < 0.5:
+			color = "#7d2f24"
+			word = "POOR"
+		elif condition < 0.75:
+			color = "#8a5a12"
+			word = "WORN"
+		text += "[code][color=%s]%s[/color][/code]  %3d%%  [color=%s]%-6s[/color]  %s  [color=#5b4a36]%s  $%d[/color]\n" % [
+			color, bar, int(round(condition * 100.0)), color, word,
+			str(row.get("label", "?")), "repair" if is_broken else "service", int(row.get("cost", 0))]
+	text += "\n"
+	var jobs := int(snap.get("crew_jobs", 0))
+	if jobs <= 0:
+		text += "[color=#2f5423]Everything is in working order.[/color]"
+	elif bool(snap.get("night", false)):
+		text += "[color=#5b4a36]Maintenance crew: %d job(s), $%d. The crew does not come out after dark.[/color]" % [jobs, int(snap.get("crew_cost", 0))]
+	else:
+		text += "[url=crew://all][color=#2f5c7b][b]CALL THE MAINTENANCE CREW[/b][/color][/url]  [color=#5b4a36]%d job(s), $%d (premium for not doing it yourself)[/color]" % [jobs, int(snap.get("crew_cost", 0))]
+	if broken > 0:
+		text = text.replace("[b]UPKEEP[/b]", "[b]UPKEEP[/b]  [color=#7d2f24]%d BROKEN[/color]" % broken)
+	return text
+
+
+func _on_camp_status_crew_requested() -> void:
+	var host := _resolve_electricity_host()
+	if host == null or not host.has_method("request_maintenance_crew"):
+		_set_camp_status_notice("Maintenance crew unavailable.", Color(0.78, 0.14, 0.12, 1.0))
+		return
+	var result: Dictionary = host.call("request_maintenance_crew")
+	_refresh_status_app_content()
+	if bool(result.get("ok", false)):
+		_set_camp_status_notice("Crew finished %d job(s). -$%d" % [int(result.get("jobs", 0)), int(result.get("amount", 0))], Color(0.18, 0.42, 0.19, 1.0))
+		_refresh_finance_app_content()
+		return
+	match str(result.get("reason", "")):
+		"night":
+			_set_camp_status_notice("The crew does not come out after dark.", Color(0.58, 0.42, 0.12, 1.0))
+		"insufficient_funds":
+			_set_camp_status_notice("Not enough cash for the crew ($%d)." % int(result.get("amount", 0)), Color(0.78, 0.14, 0.12, 1.0))
 		_:
-			return "[b]CAMP STATUS[/b]\n\nPlaceholder tab."
+			_set_camp_status_notice("Nothing for the crew to do.", Color(0.26, 0.25, 0.22, 1.0))
+
+
+## Guest reviews, newest first, with the running average.
+func _build_status_reviews_text() -> String:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var reviews: Array = state.guest_reviews if state != null else []
+	var text := "[b]GUEST REVIEWS[/b]\n\n"
+	if reviews.is_empty():
+		return text + "[i]No reviews yet. Guests write one when they check out.[/i]"
+	var total := 0.0
+	for r_any in reviews:
+		if r_any is Dictionary:
+			total += float((r_any as Dictionary).get("rating", 0))
+	text += "Average [b]%.1f / 5[/b] from %d review(s)\n\n" % [total / float(reviews.size()), reviews.size()]
+	for i in range(reviews.size() - 1, maxi(-1, reviews.size() - 31), -1):
+		var r: Dictionary = reviews[i] if reviews[i] is Dictionary else {}
+		var rating := clampi(int(r.get("rating", 0)), 0, 5)
+		var stars := "*".repeat(rating) + "-".repeat(5 - rating)
+		var color := "#2f5423" if rating >= 4 else ("#8a5a12" if rating == 3 else "#7d2f24")
+		text += "[code][color=%s]%s[/color][/code]  [b]%s[/b]  [color=#5b4a36]day %d[/color]\n    %s\n" % [
+			color, stars, str(r.get("name", "Guest")), int(r.get("day", 0)), str(r.get("text", ""))]
+	return text
 
 
 func _camp_status_due_label(days_left: int, is_paid: bool, is_overdue: bool) -> String:

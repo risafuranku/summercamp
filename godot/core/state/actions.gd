@@ -194,6 +194,34 @@ func get_demolish_summary(rect: Rect2i) -> Dictionary:
 		"targets": targets
 	}
 
+## Services (or, if broken, repairs) the building at `coord`, paying `cost`. Restores
+## condition to 100% on every cell of the building and clears its failure.
+## Returns false, changing nothing, if there is no building or not enough money.
+func service_building(coord: Vector2i, cost: int) -> bool:
+	if not _state.grid.cells.has(coord):
+		return false
+	var root: Vector2i = _state.grid.cells[coord].get("root_coord", coord)
+	if not _state.grid.cells.has(root):
+		return false
+	if _state.money < cost:
+		return false
+	var inst_id := str(_state.grid.cells[root].get("id", ""))
+	var type := str(_state.grid.cells[root].get("type", ""))
+	var key := "%d:%d" % [root.x, root.y]
+	var was_broken: bool = _state.failures.has(key)
+	_state.money -= maxi(0, cost)
+	_state.failures.erase(key)
+	for c in _state.grid.cells:
+		var cell_data = _state.grid.cells[c] as Dictionary
+		if str(cell_data.get("id", "")) == inst_id:
+			cell_data["maintenance"] = 1.0
+			_state.grid.cells[c] = cell_data
+	EventBus.money_changed.emit(_state.money)
+	EventBus.state_changed.emit({"maintenance": "serviced", "failures": "repaired" if was_broken else ""})
+	EventBus.building_serviced.emit(root, type, was_broken, cost)
+	return true
+
+
 func repair_building(coord: Vector2i, amount: float) -> bool:
 	var key = "%d:%d" % [coord.x, coord.y]
 	if not _state.failures.has(key):

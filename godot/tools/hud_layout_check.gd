@@ -35,6 +35,13 @@ const SAMPLE_FORECAST := {
 
 func _ready() -> void:
 	var failures: Array[String] = []
+	# A script that fails to compile still loads as a GDScript resource; without this the
+	# per-size checks error out silently and the harness would report a false PASS.
+	var hud_script: Script = load("res://scripts/hud_manager.gd")
+	if not hud_script.can_instantiate():
+		print("HUD LAYOUT CHECK: FAILED - hud_manager.gd does not compile")
+		get_tree().quit(1)
+		return
 	for size in TEST_SIZES:
 		failures.append_array(await _check_size(size))
 	print("")

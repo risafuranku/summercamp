@@ -36,6 +36,10 @@ signal accommodation_state_changed(accommodation_key: String, status: String, gu
 signal guest_review_posted(review: Dictionary)
 signal guest_payment_received(amount: int, guest_id: int)
 
+# Upkeep (FailureSystem / GameActions.service_building)
+signal building_failed(coord: Vector2i, building_type: String)
+signal building_serviced(coord: Vector2i, building_type: String, was_broken: bool, cost: int)
+
 # Beeternet / install system
 signal file_downloaded(filename: String)   # Beeternet -> desktop: file landed in Downloads
 signal program_installed(app_id: String)   # Wizard -> desktop: program installed, unlock icons

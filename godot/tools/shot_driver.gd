@@ -120,6 +120,19 @@ const SCENARIOS := {
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0], ["shot", "70_crt_desktop"],
 	],
+	"upkeep": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 5000], ["clear", 7, 3, 5, 5],
+		["build", "toilet_block", 8, 5, 0], ["build", "shower_block", 10, 5, 0], ["build", "lamp_post", 9, 7, 0],
+		["wait", 0.5],
+		["condition", 8, 5, 0.3], ["break", 10, 5], ["condition", 9, 7, 0.65],
+		["eval", "_maintenance.get_upkeep_snapshot()"], ["eval", "_maintenance._active"], ["eval", "CoreRoot.get_state().failures"],
+		["player", 9, 2, 180.0], ["wait", 1.5], ["shot", "90_upkeep_signs"], ["eval", "_maintenance._markers"],
+		["player", 8, 4, 180.0], ["wait", 1.0], ["shot", "91_upkeep_hint"],
+		["press", "maintain"], ["wait", 0.8], ["shot", "92_upkeep_working"],
+		["wait", 1.6], ["release", "maintain"], ["wait", 0.3], ["shot", "93_upkeep_done"],
+		["hours", 12.0], ["player", 9, 2, 180.0], ["wait", 2.0], ["shot", "94_upkeep_night"],
+	],
 	"weather": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["player", 9, 2, 180.0], ["wait", 1.0], ["shot", "80_clear"],
@@ -258,6 +271,24 @@ func _run_step(step: Array) -> void:
 			var snap: Array = GuestManager.get_guest_life_snapshot()
 			if not snap.is_empty():
 				_main.get("_hud_manager").show_guest_card(snap[0])
+		"press":
+			Input.action_press(str(step[1]))
+		"release":
+			Input.action_release(str(step[1]))
+		"condition":
+			# ["condition", x, y, value] sets a building's condition (0..1)
+			var st = CoreRoot.get_state()
+			var at := Vector2i(int(step[1]), int(step[2]))
+			for c in st.grid.cells.keys():
+				var d: Dictionary = st.grid.cells[c]
+				if d.get("root_coord", c) == at:
+					d["maintenance"] = float(step[3])
+					st.grid.cells[c] = d
+		"break":
+			var bc := Vector2i(int(step[1]), int(step[2]))
+			var bstate = CoreRoot.get_state()
+			bstate.failures["%d:%d" % [bc.x, bc.y]] = {"type": "x", "coord": bc, "since_day": 1, "repair_progress": 0.0}
+			EventBus.building_failed.emit(bc, str(bstate.grid.cells[bc].get("type", "")))
 		"timescale":
 			Engine.time_scale = float(step[1])
 		"hours":
