@@ -38,37 +38,12 @@ const UPGRADE_ONLY_TYPES: Dictionary = {
 	"sewage_tank": true,
 }
 
-const BUILDING_DATA: Dictionary = {
-	"tent_1": {"category": CATEGORY_HOUSING, "cost": 80, "income": 25, "label": "Tent Lv1 (1x1)", "footprint": Vector2i(1, 1), "capacity": 1, "power_use": 0, "water_use": 1, "sewage_use": 1, "waste_use": 1},
-	"tent_2": {"category": CATEGORY_HOUSING, "cost": 180, "income": 55, "label": "Tent Lv2 (1x1)", "footprint": Vector2i(1, 1), "capacity": 2, "power_use": 0, "water_use": 2, "sewage_use": 1, "waste_use": 1},
-	"tent_3": {"category": CATEGORY_HOUSING, "cost": 350, "income": 100, "label": "Tent Lv3 (1x1)", "footprint": Vector2i(1, 1), "capacity": 3, "power_use": 0, "water_use": 2, "sewage_use": 2, "waste_use": 1},
-	"cabin": {"category": CATEGORY_HOUSING, "cost": 260, "income": 70, "label": "Cabin Lv1 (2x2)", "footprint": Vector2i(2, 2), "capacity": 2, "power_use": 2, "water_use": 2, "sewage_use": 2, "waste_use": 1},
-	"cabin_1": {"category": CATEGORY_HOUSING, "cost": 260, "income": 70, "label": "Cabin Lv1 (2x2)", "footprint": Vector2i(2, 2), "capacity": 2, "power_use": 2, "water_use": 2, "sewage_use": 2, "waste_use": 1},
-	"cabin_2": {"category": CATEGORY_HOUSING, "cost": 420, "income": 120, "label": "Cabin Lv2 (2x2)", "footprint": Vector2i(2, 2), "capacity": 3, "power_use": 3, "water_use": 3, "sewage_use": 2, "waste_use": 2},
-	"cabin_3": {"category": CATEGORY_HOUSING, "cost": 620, "income": 180, "label": "Cabin Lv3 (2x2)", "footprint": Vector2i(2, 2), "capacity": 4, "power_use": 4, "water_use": 3, "sewage_use": 3, "waste_use": 2},
-	"caravan_1": {"category": CATEGORY_HOUSING, "cost": 420, "income": 140, "label": "Caravan Lv1 (2x1)", "footprint": Vector2i(2, 1), "capacity": 6, "power_use": 4, "water_use": 3, "sewage_use": 3, "waste_use": 2},
-
-	"toilet_block": {"category": CATEGORY_SERVICES, "cost": 180, "income": 0, "label": "Toilet Block (1x1)", "footprint": Vector2i(1, 1), "service_points": 3, "power_use": 1, "water_use": 2, "sewage_use": 2},
-	"shower_block": {"category": CATEGORY_SERVICES, "cost": 220, "income": 5, "label": "Shower Block (1x1)", "footprint": Vector2i(1, 1), "service_points": 2, "power_use": 1, "water_use": 3, "sewage_use": 2},
-	"pub": {"category": CATEGORY_SERVICES, "cost": 420, "income": 85, "label": "Pub (2x2)", "footprint": Vector2i(2, 2), "service_points": 4, "power_use": 3, "water_use": 2, "waste_use": 2},
-	"restaurant": {"category": CATEGORY_SERVICES, "cost": 640, "income": 140, "label": "Restaurant (2x2)", "footprint": Vector2i(2, 2), "service_points": 6, "power_use": 4, "water_use": 3, "sewage_use": 2, "waste_use": 3},
-	"vecerka": {"category": CATEGORY_SERVICES, "cost": 350, "income": 75, "label": "Convenience Store (2x2)", "footprint": Vector2i(2, 2), "service_points": 4, "power_use": 2, "water_use": 1, "waste_use": 2},
-
-	"bonfire": {"category": CATEGORY_ATTRACTIONS, "cost": 120, "income": 20, "label": "Bonfire (1x1)", "footprint": Vector2i(1, 1), "attraction_points": 2, "waste_use": 1},
-	"sports_field": {"category": CATEGORY_ATTRACTIONS, "cost": 260, "income": 35, "label": "Sports Field (2x1)", "footprint": Vector2i(2, 1), "attraction_points": 3, "power_use": 1},
-	"lake_slide": {"category": CATEGORY_ATTRACTIONS, "cost": 380, "income": 55, "label": "Lake Slide (2x1)", "footprint": Vector2i(2, 1), "attraction_points": 4, "power_use": 2, "water_use": 1},
-
-	"power_generator": {"category": CATEGORY_UTILITIES, "cost": 300, "income": 0, "label": "Generator (1x1)", "footprint": Vector2i(1, 1), "power_provide": 12},
-	"sewer": {"category": CATEGORY_UTILITIES, "cost": 320, "income": 0, "label": "Sewer (1x1)", "footprint": Vector2i(1, 1), "water_provide": 10, "sewage_provide": 10, "power_use": 2},
-	"lamp_post": {"category": CATEGORY_UTILITIES, "cost": 70, "income": 0, "label": "Lamp Post (1x1)", "footprint": Vector2i(1, 1), "power_use": 1},
-	# Legacy aliases kept for loading old saves/maps.
-	"water_pump": {"category": CATEGORY_UTILITIES, "cost": 320, "income": 0, "label": "Sewer (legacy)", "footprint": Vector2i(1, 1), "water_provide": 10, "sewage_provide": 10, "power_use": 2},
-	"sewage_tank": {"category": CATEGORY_UTILITIES, "cost": 320, "income": 0, "label": "Sewer (legacy)", "footprint": Vector2i(1, 1), "water_provide": 10, "sewage_provide": 10, "power_use": 2},
-	"dumpsters": {"category": CATEGORY_UTILITIES, "cost": 130, "income": 0, "label": "Dumpsters (1x1)", "footprint": Vector2i(1, 1), "waste_provide": 8},
-	"path": {"category": CATEGORY_UTILITIES, "cost": 10, "income": 0, "label": "Path (1x1)", "footprint": Vector2i(1, 1)},
-
-	"demolish": {"category": CATEGORY_UTILITIES, "cost": 0, "income": 0, "label": "Demolish / Bulldozer", "footprint": Vector2i(1, 1)},
-}
+## Building data comes from BuildingRegistry (res://data/buildings/*.tres) only. The
+## legacy BUILDING_DATA dictionary that used to duplicate it was retired; this manager
+## is now a thin read facade with the builder's policy (categories, upgrade-only types)
+## and a few derived reports.
+const DEMOLISH_TYPE := "demolish"
+const DEMOLISH_LABEL := "Demolish / Bulldozer"
 
 # var money: int = 500 # Moved to CoreRoot
 # var day_number: int = 1 # Moved to CoreRoot
@@ -86,8 +61,6 @@ func get_failed_entries() -> Array:
 
 func _ready() -> void:
 	_rng.randomize()
-	if OS.is_debug_build():
-		_validate_against_building_registry()
 	var money_cb = Callable(self, "_on_eventbus_money_changed")
 	if EventBus.has_signal("money_changed") and not EventBus.money_changed.is_connected(money_cb):
 		EventBus.money_changed.connect(money_cb)
@@ -96,29 +69,10 @@ func _ready() -> void:
 		EventBus.day_advanced.connect(day_cb)
 
 
-## Drift guard for the two building catalogs.
-##
-## `BUILDING_DATA` here and `res://data/buildings/*.tres` describe the same buildings.
-## The .tres set is canonical (BuildingRegistry + the pure core systems read it); this
-## dictionary is the legacy builder-UI catalog that is being strangled out. Until it is
-## gone, a mismatch means the simulation and the shop disagree -- so shout in debug builds.
-func _validate_against_building_registry() -> void:
+func _def(building_type: String):
 	if CoreRoot == null or CoreRoot.registry == null:
-		return
-	for building_type in BUILDING_DATA.keys():
-		if UPGRADE_ONLY_TYPES.has(building_type) and building_type in ["water_pump", "sewage_tank"]:
-			continue
-		if building_type == "demolish":
-			continue
-		var def = CoreRoot.registry.get_def(building_type)
-		if def == null:
-			push_warning("EconomyManager: '%s' has no BuildingDef in res://data/buildings/." % building_type)
-			continue
-		var legacy: Dictionary = BUILDING_DATA[building_type]
-		if int(def.cost) != int(legacy.get("cost", 0)):
-			push_warning("EconomyManager: cost drift for '%s' (tres=%d, legacy=%d)." % [building_type, def.cost, legacy.get("cost", 0)])
-		if def.footprint != legacy.get("footprint", Vector2i(1, 1)):
-			push_warning("EconomyManager: footprint drift for '%s'." % building_type)
+		return null
+	return CoreRoot.registry.get_def(StringName(building_type))
 
 
 func _on_eventbus_money_changed(new_amount: int) -> void:
@@ -130,31 +84,32 @@ func _on_eventbus_day_advanced(day: int, income: int) -> void:
 
 
 func can_afford(building_type: String) -> bool:
-	var data = BUILDING_DATA.get(building_type)
-	if data == null:
-		return false
-	return CoreRoot.get_money() >= int(data.get("cost", 0))
+	var def = _def(building_type)
+	if def == null:
+		return building_type == DEMOLISH_TYPE
+	return CoreRoot.get_money() >= int(def.cost)
 
 
 func get_cost(building_type: String) -> int:
-	var data = BUILDING_DATA.get(building_type)
-	if data == null:
-		return 0
-	return int(data.get("cost", 0))
+	var def = _def(building_type)
+	return int(def.cost) if def != null else 0
 
 
 func get_income(building_type: String) -> int:
-	var data = BUILDING_DATA.get(building_type)
-	if data == null:
-		return 0
-	return int(data.get("income", 0))
+	var def = _def(building_type)
+	return int(round(float(def.passive_income))) if def != null else 0
 
 
 func get_label(building_type: String) -> String:
-	var data = BUILDING_DATA.get(building_type)
-	if data == null:
-		return building_type
-	return str(data.get("label", building_type))
+	if building_type == DEMOLISH_TYPE:
+		return DEMOLISH_LABEL
+	var def = _def(building_type)
+	return str(def.display_name) if def != null else building_type
+
+
+func get_footprint(building_type: String) -> Vector2i:
+	var def = _def(building_type)
+	return def.footprint if def != null else Vector2i.ONE
 
 
 func get_category_label(category: String) -> String:
@@ -167,18 +122,16 @@ func get_builder_categories() -> Array[String]:
 
 func get_builder_catalog(category: String) -> Array:
 	var items: Array = []
-	for type in BUILDING_DATA.keys():
-		var data = BUILDING_DATA[type]
-		if str(data.get("category", "")) != category:
-			continue
-		if type == "demolish":
-			continue
-		if UPGRADE_ONLY_TYPES.has(type):
+	if CoreRoot == null or CoreRoot.registry == null:
+		return items
+	for def in CoreRoot.registry.get_all_defs():
+		var type := str(def.id)
+		if str(def.category) != category or UPGRADE_ONLY_TYPES.has(type):
 			continue
 		items.append({
 			"type": type,
-			"label": str(data.get("label", type)),
-			"cost": int(data.get("cost", 0)),
+			"label": str(def.display_name),
+			"cost": int(def.cost),
 		})
 	items.sort_custom(func(a, b): return int(a["cost"]) < int(b["cost"]))
 	return items
@@ -237,8 +190,6 @@ func calculate_day_income() -> int:
 		var def = CoreRoot.registry.get_def(btype)
 		if def:
 			income = int(round(float(def.passive_income)))
-		elif BUILDING_DATA.has(btype):
-			income = int(BUILDING_DATA[btype].get("income", 0))
 			
 		if income <= 0: continue
 		
@@ -295,18 +246,6 @@ func get_utility_balance() -> Dictionary:
 			used["water"] += def.water_use
 			used["sewage"] += def.sewage_use
 			used["waste"] += def.waste_use
-		elif BUILDING_DATA.has(btype):
-			var data = BUILDING_DATA[btype]
-			capacity_total += int(data.get("capacity", 0))
-			if not (is_failed and data.get("category") == CATEGORY_UTILITIES):
-				provided["power"] += int(data.get("power_provide", 0))
-				provided["water"] += int(data.get("water_provide", 0))
-				provided["sewage"] += int(data.get("sewage_provide", 0))
-				provided["waste"] += int(data.get("waste_provide", 0))
-			used["power"] += power_use
-			used["water"] += int(data.get("water_use", 0))
-			used["sewage"] += int(data.get("sewage_use", 0))
-			used["waste"] += int(data.get("waste_use", 0))
 
 	# Placeholder host consumption model (to be replaced later by real guest sim).
 	used["power"] += int(ceil(float(capacity_total) * 0.4))
@@ -423,10 +362,10 @@ func get_building_counts_by_category() -> Dictionary:
 	var counts: Dictionary = {}
 	for entry in _get_placed_buildings():
 		var btype = str(entry.get("type", ""))
-		var data = BUILDING_DATA.get(btype, {})
-		if data.is_empty():
+		var def = _def(btype)
+		if def == null:
 			continue
-		var cat = str(data.get("category", ""))
+		var cat = str(def.category)
 		if not counts.has(cat):
 			counts[cat] = 0
 		counts[cat] += 1
@@ -438,10 +377,7 @@ func get_income_breakdown() -> Array:
 	var type_totals: Dictionary = {}
 	for entry in _get_placed_buildings():
 		var btype = str(entry.get("type", ""))
-		var data = BUILDING_DATA.get(btype, {})
-		if data.is_empty():
-			continue
-		var base = int(data.get("income", 0))
+		var base := get_income(btype)
 		if base <= 0:
 			continue
 		if _is_failed_coord(entry.get("coord", Vector2i.ZERO)):
@@ -497,8 +433,6 @@ func _resolve_power_use_for_type(building_type: String) -> int:
 			return def_power_use
 		if float(def.power_draw) > 0.0:
 			return max(0, ceili(float(def.power_draw)))
-	if BUILDING_DATA.has(building_type):
-		return max(0, int(BUILDING_DATA[building_type].get("power_use", 0)))
 	return 0
 
 
@@ -530,6 +464,4 @@ func get_total_capacity() -> int:
 		var def = CoreRoot.registry.get_def(btype)
 		if def:
 			total += def.capacity
-		elif BUILDING_DATA.has(btype):
-			total += int(BUILDING_DATA[btype].get("capacity", 0))
 	return total

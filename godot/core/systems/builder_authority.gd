@@ -227,15 +227,10 @@ func _is_permanent_type(building_type: String) -> bool:
 
 
 func _resolve_footprint(building_type: String) -> Vector2i:
-	var econ = _resolve_economy_manager()
-	if econ != null:
-		var all_data = econ.get("BUILDING_DATA")
-		if all_data is Dictionary and all_data.has(building_type):
-			var row = all_data[building_type]
-			if row is Dictionary:
-				var row_fp = row.get("footprint", Vector2i.ONE)
-				if row_fp is Vector2i:
-					return row_fp
+	if _registry != null and _registry.has_method("get_def"):
+		var def = _registry.get_def(building_type)
+		if def != null:
+			return def.footprint
 	return Vector2i.ONE
 
 

@@ -952,13 +952,9 @@ func _resolve_economy_manager() -> Node:
 func _get_footprint(building_type: String) -> Vector2i:
 	if building_manager != null and building_manager.has_method("get_footprint_for_building"):
 		return building_manager.get_footprint_for_building(building_type)
-	var econ = _resolve_economy_manager()
-	if econ != null:
-		var table = econ.get("BUILDING_DATA")
-		if table is Dictionary and table.has(building_type):
-			var row = table[building_type]
-			if row is Dictionary and row.get("footprint", null) is Vector2i:
-				return row.get("footprint", Vector2i.ONE)
+	var def = CoreRoot.registry.get_def(StringName(building_type)) if CoreRoot != null and CoreRoot.registry != null else null
+	if def != null:
+		return def.footprint
 	return Vector2i.ONE
 
 

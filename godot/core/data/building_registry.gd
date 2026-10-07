@@ -19,8 +19,10 @@ func load_all() -> void:
 		dir.list_dir_begin()
 		var file_name = dir.get_next()
 		while file_name != "":
-			if !dir.current_is_dir() and (file_name.ends_with(".tres") or file_name.ends_with(".res")):
-				var full_path = "res://data/buildings/" + file_name
+			# Exported builds list "x.tres.remap"; load() resolves the remap itself.
+			var res_name := file_name.trim_suffix(".remap")
+			if !dir.current_is_dir() and (res_name.ends_with(".tres") or res_name.ends_with(".res")):
+				var full_path = "res://data/buildings/" + res_name
 				var res = load(full_path)
 				if res is BuildingDef:
 					if res.id == &"":
@@ -35,6 +37,16 @@ func load_all() -> void:
 
 func get_def(id: StringName) -> BuildingDef:
 	return _buildings.get(id)
+
+## Every definition, sorted by id (stable order for catalogs and reports).
+func get_all_defs() -> Array[BuildingDef]:
+	var ids := _buildings.keys()
+	ids.sort()
+	var result: Array[BuildingDef] = []
+	for id in ids:
+		result.append(_buildings[id])
+	return result
+
 
 func get_categories() -> Array:
 	var cats = {}
