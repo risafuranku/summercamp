@@ -2088,7 +2088,9 @@ func _update_radio_character_pitch(delta: float) -> void:
 func _distance_to_main_building() -> float:
 	var main_building = _resolve_main_building_node()
 	var listener_pos = _resolve_radio_listener_position()
-	if main_building == null or not is_finite(listener_pos.x):
+	# The reception is rebuilt on load/new game; for a frame the old node can be out of
+	# the tree, and asking it for a transform then is an engine error.
+	if main_building == null or not is_instance_valid(main_building) or not main_building.is_inside_tree() or not is_finite(listener_pos.x):
 		return RADIO_OUTSIDE_FAR_DISTANCE + 0.01
 	var shape_node = main_building.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	var box_shape = shape_node.shape as BoxShape3D if shape_node != null else null

@@ -691,6 +691,10 @@ func _set_stream_looping(stream: AudioStream, should_loop: bool) -> void:
 func _ensure_footstep_loops_running() -> void:
 	if _footstep_grass_player == null or _footstep_gravel_player == null:
 		return
+	# Called once from setup before the player is in the tree; the per-frame update
+	# (_update_footstep_loop) starts the loops as soon as it is.
+	if not _footstep_grass_player.is_inside_tree():
+		return
 	var sync_pos := 0.0
 	if _footstep_grass_player.playing:
 		sync_pos = _footstep_grass_player.get_playback_position()

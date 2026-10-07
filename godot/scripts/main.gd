@@ -25,6 +25,8 @@ const GUEST_AGENTS_SCRIPT = preload("res://scripts/guest_agents.gd")
 const QUEST_MANAGER_SCRIPT = preload("res://scripts/quest_manager.gd")
 const MAINTENANCE_CONTROLLER_SCRIPT = preload("res://scripts/maintenance_controller.gd")
 const BLOOD_FX_SCRIPT = preload("res://scripts/blood_fx.gd")
+const MENU_FLYTHROUGH_SCRIPT = preload("res://scripts/menu_flythrough.gd")
+const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
@@ -36,15 +38,6 @@ const MENU_THEME_VOLUME_DB := -5.0
 const SAVE_VERSION := 3
 const AUTOSAVE_INTERVAL_SEC := 60.0
 const WINDOW_TITLE := "Cursed Camp Manager Simulator"
-const MENU_FPV_SPEED := 9.2
-const MENU_FPV_HEIGHT := 2.9
-const MENU_FPV_LOOK_HEIGHT := 2.8
-const MENU_FPV_BOB_AMPLITUDE := 0.22
-const MENU_FPV_BANK_MAX_RAD := 0.16
-const MENU_FPV_DRIFT_STRENGTH := 1.25
-const MENU_FPV_LOOK_AHEAD := 0.18
-const MENU_FPV_STEER_LERP := 3.2
-const MENU_FPV_REFRESH_SEC := 9.0
 
 @onready var _sub_viewport_container: SubViewportContainer = $SubViewportContainer
 @onready var _world_3d: Node3D = $SubViewportContainer/SubViewport/World3D
@@ -120,12 +113,7 @@ var _menu_music_player: AudioStreamPlayer
 var _menu_music_retry_pending: bool = false
 var _main_menu: CanvasLayer
 var _pause_menu: CanvasLayer
-var _menu_flythrough_points: Array[Vector3] = []
-var _menu_flythrough_segment: int = 0
-var _menu_flythrough_segment_t: float = 0.0
-var _menu_flythrough_refresh: float = 0.0
-var _menu_camera_heading: Vector3 = Vector3.FORWARD
-var _menu_camera_bank: float = 0.0
+var _menu_flythrough: Node
 var _pending_loaded_player_state: Dictionary = {}
 var _pending_loaded_crt_state: Dictionary = {}
 var _last_known_crt_desktop_state: Dictionary = {}
@@ -229,6 +217,10 @@ func _bootstrap_runtime() -> void:
 
 	_bind_or_create_managers()
 	_bind_billing()
+	_menu_flythrough = MENU_FLYTHROUGH_SCRIPT.new()
+	_menu_flythrough.name = "MenuFlythrough"
+	add_child(_menu_flythrough)
+	_menu_flythrough.setup(fallback_camera, grid_manager, building_manager)
 	_setup_weather_visuals_module()
 	RETRO_RENDER.register(_sub_viewport_container)
 	get_viewport().size_changed.connect(func() -> void: RETRO_RENDER.refresh_all(get_tree()))
@@ -500,7 +492,7 @@ func _process(delta: float) -> void:
 		_weather_visuals.update_frame(delta)
 
 	if _menu_mode:
-		_update_menu_cinematic_camera(delta)
+		_menu_flythrough.update(delta)
 		return
 
 	_process_electricity_runtime(delta)
@@ -1929,7 +1921,7 @@ func _enter_main_menu() -> void:
 	_ensure_main_menu()
 	_load_preview_world_for_menu()
 	_main_menu.open()
-	_rebuild_menu_flythrough_path()
+	_menu_flythrough.rebuild()
 	_start_menu_music()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
@@ -2063,7 +2055,7 @@ func _load_preview_world_for_menu() -> void:
 		_generate_grid_world()
 		_prune_preview_to_reception_only()
 		_rebuild_core_cells_from_visual_structures()
-		_rebuild_menu_flythrough_path()
+		_menu_flythrough.rebuild()
 		return
 	var snapshot := SaveManager.read_save(latest)
 	if snapshot.is_empty() or not _apply_save_snapshot(snapshot, true):
@@ -2071,10 +2063,10 @@ func _load_preview_world_for_menu() -> void:
 		_generate_grid_world()
 		_prune_preview_to_reception_only()
 		_rebuild_core_cells_from_visual_structures()
-		_rebuild_menu_flythrough_path()
+		_menu_flythrough.rebuild()
 		return
 	_active_save_path = latest
-	_rebuild_menu_flythrough_path()
+	_menu_flythrough.rebuild()
 
 
 func _start_menu_music() -> void:
@@ -2134,139 +2126,6 @@ func _retry_menu_music_start() -> void:
 	_menu_music_player.play()
 	if not _menu_music_player.playing:
 		push_warning("Menu theme playback did not start: %s" % MENU_THEME_PATH)
-
-
-func _update_menu_cinematic_camera(delta: float) -> void:
-	if fallback_camera == null or grid_manager == null:
-		return
-	fallback_camera.current = true
-	fallback_camera.fov = move_toward(fallback_camera.fov, 63.0, maxf(7.0 * delta, 0.0))
-
-	_menu_flythrough_refresh -= maxf(delta, 0.0)
-	if _menu_flythrough_points.size() < 2 or _menu_flythrough_refresh <= 0.0:
-		_rebuild_menu_flythrough_path()
-
-	if _menu_flythrough_points.size() < 2:
-		var center: Vector3 = grid_manager.get_map_center_world()
-		fallback_camera.global_position = center + Vector3(0.0, MENU_FPV_HEIGHT + 0.4, -12.0)
-		fallback_camera.look_at(center + Vector3(0.0, MENU_FPV_LOOK_HEIGHT, 0.0), Vector3.UP)
-		return
-
-	var point_count := _menu_flythrough_points.size()
-	var from_idx := clampi(_menu_flythrough_segment, 0, point_count - 1)
-	var p0 := _menu_flythrough_points[(from_idx - 1 + point_count) % point_count]
-	var p1 := _menu_flythrough_points[from_idx]
-	var p2 := _menu_flythrough_points[(from_idx + 1) % point_count]
-	var p3 := _menu_flythrough_points[(from_idx + 2) % point_count]
-	var segment_len := maxf(p1.distance_to(p2), 1.0)
-	_menu_flythrough_segment_t += (MENU_FPV_SPEED / segment_len) * maxf(delta, 0.0)
-	while _menu_flythrough_segment_t >= 1.0:
-		_menu_flythrough_segment_t -= 1.0
-		_menu_flythrough_segment = (_menu_flythrough_segment + 1) % point_count
-		from_idx = clampi(_menu_flythrough_segment, 0, point_count - 1)
-		p0 = _menu_flythrough_points[(from_idx - 1 + point_count) % point_count]
-		p1 = _menu_flythrough_points[from_idx]
-		p2 = _menu_flythrough_points[(from_idx + 1) % point_count]
-		p3 = _menu_flythrough_points[(from_idx + 2) % point_count]
-
-	var t := _menu_flythrough_segment_t
-	var flat_pos := _menu_catmull_position(p0, p1, p2, p3, t)
-	var tangent := _menu_catmull_tangent(p0, p1, p2, p3, t)
-	var forward_flat := Vector3(tangent.x, 0.0, tangent.z).normalized()
-	if forward_flat.length_squared() < 0.001:
-		forward_flat = _menu_camera_heading
-	else:
-		_menu_camera_heading = _menu_camera_heading.slerp(forward_flat, clampf(delta * MENU_FPV_STEER_LERP, 0.0, 1.0)).normalized()
-		forward_flat = _menu_camera_heading
-
-	var tangent_ahead := _menu_catmull_tangent(p0, p1, p2, p3, minf(1.0, t + 0.06))
-	var ahead_dir := Vector3(tangent_ahead.x, 0.0, tangent_ahead.z).normalized()
-	var turn := clampf(forward_flat.cross(ahead_dir).y * 3.2, -1.0, 1.0)
-	var target_bank := -turn * MENU_FPV_BANK_MAX_RAD
-	_menu_camera_bank = lerpf(_menu_camera_bank, target_bank, clampf(delta * 2.9, 0.0, 1.0))
-
-	var right := forward_flat.cross(Vector3.UP).normalized()
-	var drift := right * (_menu_camera_bank * MENU_FPV_DRIFT_STRENGTH)
-	var bob := sin((Time.get_ticks_msec() * 0.001) * 1.35 + float(_menu_flythrough_segment) * 0.58) * MENU_FPV_BOB_AMPLITUDE
-	var cam_pos := Vector3(flat_pos.x, MENU_FPV_HEIGHT + bob, flat_pos.z) + drift
-	fallback_camera.global_position = cam_pos
-
-	var look_t := minf(1.0, t + MENU_FPV_LOOK_AHEAD)
-	var look_flat := _menu_catmull_position(p0, p1, p2, p3, look_t)
-	var look_pos := Vector3(look_flat.x, MENU_FPV_LOOK_HEIGHT + bob * 0.16, look_flat.z) + (right * (_menu_camera_bank * 0.75))
-	fallback_camera.look_at(look_pos, Vector3.UP)
-	fallback_camera.rotation.z = lerpf(fallback_camera.rotation.z, _menu_camera_bank, clampf(delta * 4.4, 0.0, 1.0))
-
-
-func _menu_catmull_position(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:
-	var tt := t * t
-	var ttt := tt * t
-	return 0.5 * (
-		(2.0 * p1)
-		+ (-p0 + p2) * t
-		+ (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * tt
-		+ (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * ttt
-	)
-
-
-func _menu_catmull_tangent(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:
-	var tt := t * t
-	return 0.5 * (
-		(-p0 + p2)
-		+ (4.0 * p0 - 10.0 * p1 + 8.0 * p2 - 2.0 * p3) * t
-		+ (-3.0 * p0 + 9.0 * p1 - 9.0 * p2 + 3.0 * p3) * tt
-	)
-
-
-func _rebuild_menu_flythrough_path() -> void:
-	if grid_manager == null:
-		_menu_flythrough_points.clear()
-		return
-	var center: Vector3 = grid_manager.get_map_center_world()
-	var map_size: Vector2 = grid_manager.get_map_size_world()
-	var half_x := maxf(7.5, map_size.x * 0.5 - 7.0)
-	var half_z := maxf(7.5, map_size.y * 0.5 - 7.0)
-	var points: Array[Vector3] = []
-
-	var structures_root := building_manager.get_node_or_null("Structures") if building_manager != null else null
-	if structures_root != null:
-		for child in structures_root.get_children():
-			var structure := child as Node3D
-			if structure == null:
-				continue
-			var pos := structure.global_position
-			var offset := Vector3(randf_range(-6.0, 6.0), 0.0, randf_range(-6.0, 6.0))
-			points.append(_clamp_menu_fly_point(pos + offset, center, half_x, half_z))
-
-	if points.size() < 6:
-		var rows := 8
-		for i in range(rows):
-			var t := float(i) / float(max(1, rows - 1))
-			var z := lerpf(center.z - half_z * 0.76, center.z + half_z * 0.76, t) + randf_range(-3.0, 3.0)
-			var x_amp := half_x * (0.68 + randf_range(-0.06, 0.06))
-			var x := center.x + (x_amp if i % 2 == 0 else -x_amp) + randf_range(-3.2, 3.2)
-			points.append(_clamp_menu_fly_point(Vector3(x, 0.0, z), center, half_x, half_z))
-
-	if points.size() >= 2:
-		points.append(points[0])
-
-	_menu_flythrough_points = points
-	_menu_flythrough_segment = 0
-	_menu_flythrough_segment_t = 0.0
-	_menu_flythrough_refresh = MENU_FPV_REFRESH_SEC
-	_menu_camera_bank = 0.0
-	if points.size() >= 2:
-		var init_dir := Vector3(points[1].x - points[0].x, 0.0, points[1].z - points[0].z).normalized()
-		if init_dir.length_squared() >= 0.001:
-			_menu_camera_heading = init_dir
-
-
-func _clamp_menu_fly_point(point: Vector3, center: Vector3, half_x: float, half_z: float) -> Vector3:
-	return Vector3(
-		clampf(point.x, center.x - half_x, center.x + half_x),
-		0.0,
-		clampf(point.z, center.z - half_z, center.z + half_z)
-	)
 
 
 func _tick_autosave(delta: float) -> void:
@@ -2344,11 +2203,11 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 			"hrotfaktor": float(state.hrotfaktor),
 			"energy_load": float(state.energy_load),
 			"infra_load": float(state.infra_load),
-			"guests": _serialize_guests_for_save(state.guests),
-			"accommodation_states": _serialize_accommodation_states_for_save(state.accommodation_states),
-			"failures": _serialize_failures_for_save(state.failures),
-			"guest_reviews": _duplicate_dict_array(state.guest_reviews),
-			"guest_transactions": _duplicate_dict_array(state.guest_transactions),
+			"guests": SAVE_CODEC.serialize_guests(state.guests),
+			"accommodation_states": SAVE_CODEC.serialize_accommodation_states(state.accommodation_states),
+			"failures": SAVE_CODEC.serialize_failures(state.failures),
+			"guest_reviews": SAVE_CODEC.duplicate_dict_array(state.guest_reviews),
+			"guest_transactions": SAVE_CODEC.duplicate_dict_array(state.guest_transactions),
 			"next_guest_id": max(1, int(state.next_guest_id)),
 			"electricity": _billing.export_state()
 		},
@@ -2414,199 +2273,6 @@ func _collect_guest_runtime_snapshot() -> Dictionary:
 	if data_any is Dictionary:
 		return (data_any as Dictionary).duplicate(true)
 	return {}
-
-
-func _serialize_guests_for_save(value: Variant) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	if not (value is Array):
-		return out
-	for guest_any in value:
-		if not (guest_any is Dictionary):
-			continue
-		var guest := (guest_any as Dictionary).duplicate(true)
-		guest["lodging_slots"] = _serialize_lodging_slots_for_save(guest.get("lodging_slots", []))
-		out.append(guest)
-	return out
-
-
-func _deserialize_guests_from_save(value: Variant) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	if not (value is Array):
-		return out
-	for guest_any in value:
-		if not (guest_any is Dictionary):
-			continue
-		var guest := (guest_any as Dictionary).duplicate(true)
-		guest["lodging_slots"] = _deserialize_lodging_slots_from_save(guest.get("lodging_slots", []))
-		out.append(guest)
-	return out
-
-
-func _serialize_lodging_slots_for_save(value: Variant) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	if not (value is Array):
-		return out
-	for slot_any in value:
-		if not (slot_any is Dictionary):
-			continue
-		var slot := (slot_any as Dictionary).duplicate(true)
-		var accommodation_key := str(slot.get("accommodation_key", slot.get("acc_key", ""))).strip_edges()
-		if accommodation_key.is_empty():
-			if not slot.has("coord"):
-				continue
-			var coord_from_slot := _coord_from_variant(slot.get("coord", null), Vector2i.ZERO)
-			accommodation_key = _coord_to_key(coord_from_slot)
-		if accommodation_key.is_empty():
-			continue
-		slot["accommodation_key"] = accommodation_key
-		slot["coord"] = _coord_to_save_dict(slot.get("coord", Vector2i.ZERO))
-		slot["slot_index"] = max(0, int(slot.get("slot_index", 0)))
-		slot["building_type"] = str(slot.get("building_type", ""))
-		out.append(slot)
-	return out
-
-
-func _deserialize_lodging_slots_from_save(value: Variant) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	if not (value is Array):
-		return out
-	for slot_any in value:
-		if not (slot_any is Dictionary):
-			continue
-		var slot := (slot_any as Dictionary).duplicate(true)
-		slot["accommodation_key"] = str(slot.get("accommodation_key", slot.get("acc_key", ""))).strip_edges()
-		slot["coord"] = _coord_from_variant(slot.get("coord", Vector2i.ZERO), Vector2i.ZERO)
-		slot["slot_index"] = max(0, int(slot.get("slot_index", 0)))
-		slot["building_type"] = str(slot.get("building_type", ""))
-		out.append(slot)
-	return out
-
-
-func _serialize_accommodation_states_for_save(value: Variant) -> Dictionary:
-	var out: Dictionary = {}
-	if not (value is Dictionary):
-		return out
-	for key_any in (value as Dictionary).keys():
-		var key := str(key_any).strip_edges()
-		if key.is_empty():
-			continue
-		var entry_any = (value as Dictionary).get(key_any, {})
-		if not (entry_any is Dictionary):
-			continue
-		var entry := entry_any as Dictionary
-		var sanitized_guest_ids: Array = []
-		var seen_ids: Dictionary = {}
-		var guest_ids_any = entry.get("guest_ids", [])
-		if guest_ids_any is Array:
-			for id_any in guest_ids_any:
-				var guest_id := int(id_any)
-				if guest_id <= 0 or seen_ids.has(guest_id):
-					continue
-				seen_ids[guest_id] = true
-				sanitized_guest_ids.append(guest_id)
-		out[key] = {
-			"status": str(entry.get("status", "clean")).to_lower().strip_edges(),
-			"building_type": str(entry.get("building_type", "")),
-			"capacity": max(0, int(entry.get("capacity", 0))),
-			"guest_ids": sanitized_guest_ids
-		}
-	return out
-
-
-func _deserialize_accommodation_states_from_save(value: Variant) -> Dictionary:
-	return _serialize_accommodation_states_for_save(value)
-
-
-func _serialize_failures_for_save(value: Variant) -> Dictionary:
-	var out: Dictionary = {}
-	if not (value is Dictionary):
-		return out
-	var src := value as Dictionary
-	for key_any in src.keys():
-		var key := str(key_any).strip_edges()
-		if key.is_empty():
-			continue
-		var entry_any = src.get(key_any, {})
-		if not (entry_any is Dictionary):
-			continue
-		var entry := entry_any as Dictionary
-		var fallback_coord := _coord_from_key_string(key)
-		var coord := _coord_from_variant(entry.get("coord", fallback_coord), fallback_coord)
-		out[key] = {
-			"type": str(entry.get("type", "")),
-			"coord": _coord_to_save_dict(coord),
-			"since_day": max(1, int(entry.get("since_day", 1))),
-			"repair_progress": clampf(float(entry.get("repair_progress", 0.0)), 0.0, 1.0)
-		}
-	return out
-
-
-func _deserialize_failures_from_save(value: Variant) -> Dictionary:
-	var out: Dictionary = {}
-	if not (value is Dictionary):
-		return out
-	var src := value as Dictionary
-	for key_any in src.keys():
-		var key := str(key_any).strip_edges()
-		if key.is_empty():
-			continue
-		var entry_any = src.get(key_any, {})
-		if not (entry_any is Dictionary):
-			continue
-		var entry := entry_any as Dictionary
-		var fallback_coord := _coord_from_key_string(key)
-		var coord := _coord_from_variant(entry.get("coord", fallback_coord), fallback_coord)
-		out[key] = {
-			"type": str(entry.get("type", "")),
-			"coord": coord,
-			"since_day": max(1, int(entry.get("since_day", 1))),
-			"repair_progress": clampf(float(entry.get("repair_progress", 0.0)), 0.0, 1.0)
-		}
-	return out
-
-
-func _duplicate_dict_array(value: Variant) -> Array:
-	var out: Array = []
-	if not (value is Array):
-		return out
-	for item_any in value:
-		if item_any is Dictionary:
-			out.append((item_any as Dictionary).duplicate(true))
-	return out
-
-
-func _duplicate_dictionary(value: Variant) -> Dictionary:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	return {}
-
-
-func _coord_from_variant(value: Variant, fallback: Vector2i = Vector2i.ZERO) -> Vector2i:
-	if value is Vector2i:
-		return value as Vector2i
-	if value is Vector2:
-		var vec2 := value as Vector2
-		return Vector2i(int(vec2.x), int(vec2.y))
-	if value is Dictionary:
-		var dict := value as Dictionary
-		return Vector2i(int(dict.get("x", fallback.x)), int(dict.get("y", fallback.y)))
-	if value is Array:
-		var arr := value as Array
-		if arr.size() >= 2:
-			return Vector2i(int(arr[0]), int(arr[1]))
-	return fallback
-
-
-func _coord_to_save_dict(value: Variant) -> Dictionary:
-	var coord := _coord_from_variant(value, Vector2i.ZERO)
-	return {"x": coord.x, "y": coord.y}
-
-
-func _coord_from_key_string(key: String) -> Vector2i:
-	var parts := key.split(":")
-	if parts.size() != 2:
-		return Vector2i.ZERO
-	return Vector2i(int(parts[0]), int(parts[1]))
 
 
 func _apply_pending_crt_desktop_state() -> void:
@@ -2774,11 +2440,11 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			"hrotfaktor": float(state_data.get("hrotfaktor", state.hrotfaktor)),
 			"energy_load": float(state_data.get("energy_load", state.energy_load)),
 			"infra_load": float(state_data.get("infra_load", state.infra_load)),
-			"guests": _deserialize_guests_from_save(state_data.get("guests", [])),
-			"accommodation_states": _deserialize_accommodation_states_from_save(state_data.get("accommodation_states", {})),
-			"failures": _deserialize_failures_from_save(state_data.get("failures", {})),
-			"guest_reviews": _duplicate_dict_array(state_data.get("guest_reviews", [])),
-			"guest_transactions": _duplicate_dict_array(state_data.get("guest_transactions", [])),
+			"guests": SAVE_CODEC.deserialize_guests(state_data.get("guests", [])),
+			"accommodation_states": SAVE_CODEC.deserialize_accommodation_states(state_data.get("accommodation_states", {})),
+			"failures": SAVE_CODEC.deserialize_failures(state_data.get("failures", {})),
+			"guest_reviews": SAVE_CODEC.duplicate_dict_array(state_data.get("guest_reviews", [])),
+			"guest_transactions": SAVE_CODEC.duplicate_dict_array(state_data.get("guest_transactions", [])),
 			"next_guest_id": max(1, int(state_data.get("next_guest_id", 1)))
 		})
 		var electricity_any = state_data.get("electricity", {})
@@ -3014,7 +2680,7 @@ func _sync_guest_accommodation_state() -> void:
 
 		var origin_any = structure.get_meta("grid_origin", Vector2i.ZERO)
 		var origin := origin_any as Vector2i if origin_any is Vector2i else Vector2i.ZERO
-		var key := _coord_to_key(origin)
+		var key := SAVE_CODEC.coord_to_key(origin)
 
 		var prev_any = previous_states.get(key, {})
 		var prev := prev_any as Dictionary if prev_any is Dictionary else {}
@@ -3134,10 +2800,6 @@ func _accommodation_capacity_for_building(building_type: String) -> int:
 	if normalized.begins_with("cabin"):
 		return 2
 	return 0
-
-
-func _coord_to_key(coord: Vector2i) -> String:
-	return "%d:%d" % [coord.x, coord.y]
 
 
 func _reset_state_for_new_game() -> void:
