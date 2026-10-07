@@ -174,6 +174,15 @@ var _base_horror_vignette_strength: float = 0.0
 var _storm_flash_strength: float = 0.0
 var _storm_flash_cooldown: float = 0.0
 
+# ── Weather blend ──────────────────────────────────────────────────────────────
+## Weather changes crossfade the fog/light/sky overlay instead of snapping, so the
+## gameplay auto-cycle reads as weather moving in, not a switch being flipped.
+const WEATHER_BLEND_SECONDS := 40.0
+var _weather_blend_target: int = -1
+var _weather_blend_from: Dictionary = {}
+var _weather_blend_now: Dictionary = {}
+var _weather_blend_t: float = 1.0
+
 # ── Sky texture cache / transition ─────────────────────────────────────────────
 var _sky_texture_cache: Dictionary = {}
 var _active_sky_texture_path: String = ""
@@ -331,6 +340,11 @@ func update_state(time_state: int, hours: float, weather: int) -> void:
 	_time_state = time_state
 	_time_of_day_hours = hours
 	_weather_state = weather
+	if weather != _weather_blend_target:
+		if _weather_blend_target >= 0 and not _weather_blend_now.is_empty():
+			_weather_blend_from = _weather_blend_now.duplicate()
+			_weather_blend_t = 0.0
+		_weather_blend_target = weather
 	_sun_direction_to_source = direction_to_source_from_hour(hours)
 	_moon_direction_to_source = direction_to_source_from_hour(hours - 12.0)
 
@@ -433,6 +447,8 @@ func update_weather_runtime(delta: float) -> void:
 
 ## Kombinovaný per-frame visual update. Volat z main._process() po update_state().
 func update_frame(delta: float) -> void:
+	if _weather_blend_t < 1.0:
+		_weather_blend_t = minf(1.0, _weather_blend_t + maxf(delta, 0.0) / WEATHER_BLEND_SECONDS)
 	# Drive time/light profile every frame so color and energy transitions stay fully continuous.
 	apply_time_from_clock(false)
 	update_sky_runtime(delta)
@@ -449,84 +465,32 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	_apply_weather_skybox(force_sky_snap)
 	set_cloud_targets_from_weather()
 
-	var fog_enabled = _base_fog_enabled
-	var fog_density = _base_fog_density
-	var fog_sky_affect = _base_fog_sky_affect
-	var fog_color = _base_fog_light_color
-	var sun_multiplier = 1.0
-	var ambient_multiplier = 1.0
-	var sky_desaturation = 0.0
-	var sky_darkening = 0.0
-	var grain_boost = 0.0
-	var vignette_boost = 0.0
-
-	match _weather_state:
-		WEATHER_WINDY:
-			fog_enabled = true
-			fog_density = max(_base_fog_density, 0.0065)
-			fog_sky_affect = max(_base_fog_sky_affect, 0.12)
-			fog_color = _weather_fog_color(0.16)
-			sun_multiplier = 0.90; ambient_multiplier = 0.88
-			sky_desaturation = 0.14; sky_darkening = 0.10; grain_boost = 0.0007
-		WEATHER_FOG:
-			fog_enabled = true
-			fog_density = max(_base_fog_density, 0.016)
-			fog_sky_affect = max(_base_fog_sky_affect, 0.28)
-			fog_color = _weather_fog_color(0.54)
-			sun_multiplier = 0.70; ambient_multiplier = 0.84
-			sky_desaturation = 0.34; sky_darkening = 0.22; grain_boost = 0.0012
-		WEATHER_LIGHT_RAIN:
-			fog_enabled = true
-			fog_density = max(_base_fog_density, 0.015)
-			fog_sky_affect = max(_base_fog_sky_affect, 0.22)
-			fog_color = _weather_fog_color(0.68)
-			sun_multiplier = 0.56; ambient_multiplier = 0.72
-			sky_desaturation = 0.46; sky_darkening = 0.34; grain_boost = 0.0023
-		WEATHER_RAIN:
-			fog_enabled = true
-			fog_density = max(_base_fog_density, 0.026)
-			fog_sky_affect = max(_base_fog_sky_affect, 0.32)
-			fog_color = _weather_fog_color(0.84)
-			sun_multiplier = 0.34; ambient_multiplier = 0.54
-			sky_desaturation = 0.68; sky_darkening = 0.56
-			grain_boost = 0.0054; vignette_boost = 0.015
-		WEATHER_STORM:
-			fog_enabled = true
-			fog_density = max(_base_fog_density, 0.036)
-			fog_sky_affect = max(_base_fog_sky_affect, 0.40)
-			fog_color = _weather_fog_color(0.93)
-			sun_multiplier = 0.18; ambient_multiplier = 0.34
-			sky_desaturation = 0.88; sky_darkening = 0.72
-			grain_boost = 0.0076; vignette_boost = 0.055
-		_:
-			pass
-
 	var sky_phase = _current_sky_phase()
+	var night: bool = sky_phase == SKY_PHASE_NIGHT
+	var target := _weather_params(_weather_state, night)
+	if force_sky_snap or _weather_blend_from.is_empty():
+		_weather_blend_t = 1.0
+	var w := target
+	if _weather_blend_t < 1.0:
+		w = _lerp_weather_params(_weather_blend_from, target, smoothstep(0.0, 1.0, _weather_blend_t))
+	_weather_blend_now = w
+
+	var fog_enabled: bool = _base_fog_enabled or float(w["fog_mix"]) > 0.001
+	var fog_density: float = lerpf(_base_fog_density, maxf(_base_fog_density, float(w["fog_density"])), float(w["fog_mix"]))
+	var fog_sky_affect: float = lerpf(_base_fog_sky_affect, maxf(_base_fog_sky_affect, float(w["fog_sky_affect"])), float(w["fog_mix"]))
+	if night:
+		fog_sky_affect = minf(fog_sky_affect, float(w["night_sky_affect_cap"]))
+	var fog_color: Color = _base_fog_light_color.lerp(w["fog_color"], float(w["fog_mix"]))
+	var sun_multiplier: float = float(w["sun"])
+	var ambient_multiplier: float = float(w["ambient"])
+	var sky_desaturation: float = float(w["desat"])
+	var sky_darkening: float = float(w["dark"])
+	var grain_boost: float = float(w["grain"])
+	var vignette_boost: float = float(w["vignette"])
+
 	if sky_phase == SKY_PHASE_DUSK:
 		ambient_multiplier *= 0.88
 		sky_darkening = min(0.92, sky_darkening + 0.08)
-	if sky_phase == SKY_PHASE_NIGHT:
-		sun_multiplier *= 0.58; ambient_multiplier *= 0.52
-		sky_darkening = min(0.94, sky_darkening + 0.18)
-		sky_desaturation = min(1.0, sky_desaturation + 0.10)
-		fog_sky_affect = min(fog_sky_affect, 0.14)
-		match _weather_state:
-			WEATHER_LIGHT_RAIN:
-				ambient_multiplier *= 0.90
-				sky_darkening = min(0.95, sky_darkening + 0.06)
-				fog_sky_affect = min(fog_sky_affect, 0.12)
-			WEATHER_RAIN:
-				ambient_multiplier *= 0.82; sun_multiplier *= 0.88
-				sky_darkening = min(0.96, sky_darkening + 0.10)
-				fog_sky_affect = min(fog_sky_affect, 0.11)
-			WEATHER_STORM:
-				ambient_multiplier *= 0.74; sun_multiplier *= 0.78
-				sky_darkening = min(0.97, sky_darkening + 0.14)
-				fog_density = max(fog_density, 0.042)
-				fog_sky_affect = min(fog_sky_affect, 0.10)
-				vignette_boost += 0.06
-			_:
-				pass
 
 	var flash = _storm_flash_strength if _weather_state == WEATHER_STORM else 0.0
 	var base_profile = sample_time_profile(_time_of_day_hours)
@@ -538,11 +502,12 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	if sky_phase == SKY_PHASE_NIGHT:
 		dark_target = Color(0.035, 0.042, 0.060, sky_color.a)
 	weather_sky = weather_sky.lerp(dark_target, clampf(sky_darkening, 0.0, 0.999))
+	weather_sky = weather_sky.lerp(w["tint"], float(w["tint_mix"]))
 	env.background_color = weather_sky
 	var ambient_col: Color = base_profile["ambient_color"]
 	var ambient_luma = (ambient_col.r * 0.2126) + (ambient_col.g * 0.7152) + (ambient_col.b * 0.0722)
 	var ambient_gray = Color(ambient_luma, ambient_luma, ambient_luma, ambient_col.a)
-	env.ambient_light_color = ambient_col.lerp(ambient_gray, clampf(sky_desaturation * 0.75, 0.0, 1.0))
+	env.ambient_light_color = ambient_col.lerp(ambient_gray, clampf(sky_desaturation * 0.75, 0.0, 1.0)).lerp(w["tint"], float(w["tint_mix"]) * 0.5)
 	env.fog_enabled = fog_enabled
 	env.fog_density = fog_density
 	env.fog_sky_affect = fog_sky_affect
@@ -552,6 +517,72 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	if _psx_post_mat != null:
 		_psx_post_mat.set_shader_parameter("vhs_grain_strength", _base_vhs_grain_strength + grain_boost + (0.003 * flash))
 		_psx_post_mat.set_shader_parameter("horror_vignette_strength", _base_horror_vignette_strength + vignette_boost + (0.03 * flash))
+
+
+## Overlay parameters for one weather state. `fog_mix` 0 keeps the time-of-day fog,
+## 1 uses this weather's fog. Night variants darken and keep fog off the night sky.
+func _weather_params(state: int, night: bool) -> Dictionary:
+	var p := {
+		"fog_mix": 0.0, "fog_density": 0.0, "fog_sky_affect": 0.0, "fog_color": _base_fog_light_color,
+		"sun": 1.0, "ambient": 1.0, "desat": 0.0, "dark": 0.0, "grain": 0.0, "vignette": 0.0,
+		"tint": Color(0, 0, 0, 1), "tint_mix": 0.0, "night_sky_affect_cap": 0.14,
+	}
+	match state:
+		WEATHER_WINDY:
+			p.merge({"fog_mix": 1.0, "fog_density": 0.0065, "fog_sky_affect": 0.12, "fog_color": _weather_fog_color(0.16),
+				"sun": 0.90, "ambient": 0.88, "desat": 0.14, "dark": 0.10, "grain": 0.0007}, true)
+		WEATHER_FOG:
+			p.merge({"fog_mix": 1.0, "fog_density": 0.016, "fog_sky_affect": 0.28, "fog_color": _weather_fog_color(0.54),
+				"sun": 0.70, "ambient": 0.84, "desat": 0.34, "dark": 0.22, "grain": 0.0012}, true)
+		WEATHER_LIGHT_RAIN:
+			p.merge({"fog_mix": 1.0, "fog_density": 0.015, "fog_sky_affect": 0.22, "fog_color": _weather_fog_color(0.68),
+				"sun": 0.56, "ambient": 0.72, "desat": 0.46, "dark": 0.34, "grain": 0.0023}, true)
+		WEATHER_RAIN:
+			p.merge({"fog_mix": 1.0, "fog_density": 0.026, "fog_sky_affect": 0.32, "fog_color": _weather_fog_color(0.84),
+				"sun": 0.34, "ambient": 0.54, "desat": 0.68, "dark": 0.56, "grain": 0.0054, "vignette": 0.015}, true)
+		WEATHER_STORM:
+			p.merge({"fog_mix": 1.0, "fog_density": 0.036, "fog_sky_affect": 0.40, "fog_color": _weather_fog_color(0.93),
+				"sun": 0.18, "ambient": 0.34, "desat": 0.88, "dark": 0.72, "grain": 0.0076, "vignette": 0.055}, true)
+		WEATHER_EVENT:
+			# The anomaly: a low red haze that has no business being there.
+			p.merge({"fog_mix": 1.0, "fog_density": 0.022, "fog_sky_affect": 0.30, "fog_color": Color(0.42, 0.07, 0.05),
+				"sun": 0.45, "ambient": 0.60, "desat": 0.55, "dark": 0.40, "grain": 0.0060, "vignette": 0.05,
+				"tint": Color(0.36, 0.04, 0.03, 1.0), "tint_mix": 0.42, "night_sky_affect_cap": 0.24}, true)
+	if night:
+		p["sun"] = float(p["sun"]) * 0.58
+		p["ambient"] = float(p["ambient"]) * 0.52
+		p["dark"] = minf(0.94, float(p["dark"]) + 0.18)
+		p["desat"] = minf(1.0, float(p["desat"]) + 0.10)
+		match state:
+			WEATHER_LIGHT_RAIN:
+				p["ambient"] = float(p["ambient"]) * 0.90
+				p["dark"] = minf(0.95, float(p["dark"]) + 0.06)
+				p["night_sky_affect_cap"] = 0.12
+			WEATHER_RAIN:
+				p["ambient"] = float(p["ambient"]) * 0.82
+				p["sun"] = float(p["sun"]) * 0.88
+				p["dark"] = minf(0.96, float(p["dark"]) + 0.10)
+				p["night_sky_affect_cap"] = 0.11
+			WEATHER_STORM:
+				p["ambient"] = float(p["ambient"]) * 0.74
+				p["sun"] = float(p["sun"]) * 0.78
+				p["dark"] = minf(0.97, float(p["dark"]) + 0.14)
+				p["fog_density"] = maxf(float(p["fog_density"]), 0.042)
+				p["night_sky_affect_cap"] = 0.10
+				p["vignette"] = float(p["vignette"]) + 0.06
+	return p
+
+
+func _lerp_weather_params(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
+	var out := {}
+	for key in b.keys():
+		var bv = b[key]
+		var av = a.get(key, bv)
+		if bv is Color:
+			out[key] = (av as Color).lerp(bv, t)
+		else:
+			out[key] = lerpf(float(av), float(bv), t)
+	return out
 
 
 func set_cloud_targets_from_weather() -> void:

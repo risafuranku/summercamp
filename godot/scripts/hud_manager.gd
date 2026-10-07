@@ -73,7 +73,7 @@ const NEED_ROWS := [
 
 ## vp widths of the status bar cells (also asserted by tools/hud_layout_check.tscn).
 const CELL_WIDTHS := {
-	"health": 46, "stamina": 44, "cash": 68, "clock": 76, "guests": 64, "mail": 30, "risk": 62,
+	"health": 46, "stamina": 44, "cash": 62, "clock": 86, "guests": 64, "mail": 30, "risk": 62,
 }
 const HUD_MOOD_WORDS := {
 	"Delighted": "GREAT", "Happy": "HAPPY", "Okay": "OKAY", "Grumpy": "GRUMPY",

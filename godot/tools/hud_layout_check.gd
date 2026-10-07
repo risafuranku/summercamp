@@ -118,6 +118,14 @@ func _check_size(size: Vector2i) -> Array[String]:
 	print("  cells total width %.0f of %d" % [total_w, size.x])
 	if total_w > float(size.x):
 		failures.append("%s: status bar needs %.0fpx, viewport is %d" % [size, total_w, size.x])
+	# The clock caption ("DAY 12") and the weather word share one row.
+	var clock_content := cells.get_node_or_null("Cell_clock/Content") as Control
+	if clock_content != null:
+		var cap_font := clock_content.get_child(0).get_theme_font("font") as Font
+		var fsize := (clock_content.get_child(0) as Label).get_theme_font_size("font_size")
+		var need := cap_font.get_string_size("DAY 12", HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + cap_font.get_string_size("ANOMALY", HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + float(scale) * 3.0
+		if need > clock_content.size.x + 0.5:
+			failures.append("%s: 'DAY 12' + 'ANOMALY' need %.0fpx, clock row has %.0fpx" % [size, need, clock_content.size.x])
 
 	var labels := _collect_labels(root)
 	for expected in EXPECTED_CAPTIONS:

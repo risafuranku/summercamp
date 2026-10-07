@@ -268,6 +268,11 @@ func set_camp_power_available(available: bool) -> void:
 	_life.set_power_available(available)
 
 
+## Rain closes outdoor attractions (BuildingDef.requires "dry").
+func set_camp_weather(weather_state: int) -> void:
+	_life.set_weather(weather_state)
+
+
 ## Something frightening happened near `tile` (an enemy, a scream). Guests nearby lose
 ## safety for `minutes`. Called by the enemy brains through main.
 func report_threat(tile: Vector2i, strength: float, minutes: int = 30) -> void:

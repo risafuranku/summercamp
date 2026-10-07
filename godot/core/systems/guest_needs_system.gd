@@ -179,7 +179,8 @@ static func step_mood(current: float, target: float, minutes: float) -> float:
 
 ## Scans the grid for guest facilities. Returns an Array of dictionaries:
 ##   {key, coord, type, services, capacity, use_minutes, working, reason, label}
-## `flags`: {power_available: bool, failures: Dictionary}
+## `flags`: {power_available: bool, failures: Dictionary, weather: int}
+## Facilities that require "dry" close in drizzle, rain and storm (weather 3..5).
 static func collect_facilities(grid, registry, flags: Dictionary) -> Array:
 	var out: Array = []
 	if grid == null or registry == null:
@@ -187,6 +188,8 @@ static func collect_facilities(grid, registry, flags: Dictionary) -> Array:
 	var failures: Dictionary = flags.get("failures", {})
 	var power_ok := bool(flags.get("power_available", true))
 	var sewer_ok := _has_working_sewer(grid, failures)
+	var weather := int(flags.get("weather", 0))
+	var dry := weather < 3 or weather > 5
 	for coord_any in grid.cells.keys():
 		if not (coord_any is Vector2i):
 			continue
@@ -210,6 +213,9 @@ static func collect_facilities(grid, registry, flags: Dictionary) -> Array:
 		elif def.requires.has("power") and not power_ok:
 			working = false
 			reason = "no_power"
+		elif def.requires.has("dry") and not dry:
+			working = false
+			reason = "rained_out"
 		out.append({
 			"key": key,
 			"coord": coord,
@@ -364,6 +370,8 @@ static func _thought_for_broken(need: String, facility: Dictionary) -> String:
 			return "%s is closed - something about the sewer." % label
 		"no_power":
 			return "%s is dark. No power?" % label
+		"rained_out":
+			return "Rained out. The %s is a puddle." % label.to_lower()
 	match need:
 		NEED_HUNGER:
 			return "The %s is broken and I'm starving." % label.to_lower()

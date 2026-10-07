@@ -33,5 +33,6 @@ guest_services = {
 guest_capacity = 10
 use_minutes = 45
 maintenance_decay = 0.15
+requires = PackedStringArray("dry")
 tags = PackedStringArray("social")
 footprint = Vector2i(2, 1)

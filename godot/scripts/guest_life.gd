@@ -35,6 +35,7 @@ var _path_tiles: Array[Vector2i] = []
 var _gate: Vector2i = Vector2i(10, 2)
 var _grid_size: Vector2i = Vector2i(20, 20)
 var _power_available: bool = true
+var _weather: int = 0
 var _threat_map: Dictionary = {}  # "x:y" -> {strength, until_abs}
 var _thought_log: Array[Dictionary] = []
 var _events: Array[Dictionary] = []
@@ -46,6 +47,10 @@ func _init() -> void:
 
 func set_power_available(available: bool) -> void:
 	_power_available = available
+
+
+func set_weather(weather_state: int) -> void:
+	_weather = weather_state
 
 
 func get_thought_log() -> Array[Dictionary]:
@@ -81,6 +86,7 @@ func refresh_world(state, registry) -> void:
 	_facilities = NEEDS.collect_facilities(grid, registry, {
 		"failures": state.failures,
 		"power_available": _power_available,
+		"weather": _weather,
 	})
 	_facility_by_key.clear()
 	for f in _facilities:

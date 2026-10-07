@@ -120,6 +120,14 @@ const SCENARIOS := {
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0], ["shot", "70_crt_desktop"],
 	],
+	"weather": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["player", 9, 2, 180.0], ["wait", 1.0], ["shot", "80_clear"],
+		["eval", "weather_system.set_weather(4)"], ["wait", 20.0], ["shot", "81_rain_half"],
+		["wait", 25.0], ["shot", "82_rain"],
+		["eval", "weather_system.set_weather(2)"], ["wait", 45.0], ["shot", "83_fog"],
+		["hours", 13.0], ["eval", "weather_system.set_weather(6)"], ["wait", 45.0], ["shot", "84_anomaly_night"],
+	],
 	"probe": [
 		["wait_menu"], ["wait", 1.0],
 		["eval", "get_viewport().get_visible_rect().size"],

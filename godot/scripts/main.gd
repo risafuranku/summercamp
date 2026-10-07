@@ -371,8 +371,10 @@ func _start_gameplay_runtime() -> void:
 	_clear_game_over_screen()
 	_clear_blood_fx()
 	_set_player_health(PLAYER_MAX_HEALTH, false)
+	# Weather runs in play too (it used to be menu-only, leaving the whole weather
+	# subsystem unseen in a real session). Transitions crossfade in WeatherVisuals.
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
-		weather_system.set_auto_cycle_enabled(false)
+		weather_system.set_auto_cycle_enabled(true)
 	_ensure_hud_manager()
 	_bind_or_create_managers()
 
@@ -574,7 +576,10 @@ func _process(delta: float) -> void:
 	if time_system:
 		time_system.process(delta)
 	if weather_system:
-		weather_system.process(delta)
+		var state = CoreRoot.get_state()
+		if state != null:
+			weather_system.set_anomaly_pressure(float(state.hrotfaktor))
+		weather_system.process(delta, _time_of_day_hours)
 	_sync_runtime_state_from_systems()
 	if _weather_visuals != null:
 		_weather_visuals.update_state(_time_state, _time_of_day_hours, _weather_state)
@@ -2156,7 +2161,36 @@ func _set_weather_state(new_state: int) -> void:
 		)
 	if _interior_manager != null and _interior_manager.has_method("sync_weather"):
 		_interior_manager.sync_weather(_weather_state)
-	print("Weather state -> %d" % _weather_state)
+	if GuestManager != null and GuestManager.has_method("set_camp_weather"):
+		GuestManager.set_camp_weather(_weather_state)
+	_announce_weather(_weather_state)
+
+
+const WEATHER_ANNOUNCEMENTS := {
+	WEATHER_CLEAR: ["The sky clears.", 1],
+	WEATHER_WINDY: ["The wind picks up.", 0],
+	WEATHER_FOG: ["Fog is rolling in off the lake.", 2],
+	WEATHER_LIGHT_RAIN: ["It starts to drizzle. The bonfire is out.", 2],
+	WEATHER_RAIN: ["Rain. Outdoor attractions are closed until it stops.", 2],
+	WEATHER_STORM: ["A storm breaks over the camp.", 3],
+	WEATHER_EVENT: ["The air turns red. That is not weather.", 3],
+}
+var _last_announced_weather: int = -1
+
+
+## One feed line per weather change during play, so the HUD readout is never the only
+## sign that the rules (closed attractions) just changed.
+func _announce_weather(state: int) -> void:
+	if state == _last_announced_weather:
+		return
+	var first := _last_announced_weather < 0
+	_last_announced_weather = state
+	if first or _menu_mode or not _gameplay_started or _hud_manager == null:
+		return
+	var entry: Array = WEATHER_ANNOUNCEMENTS.get(state, [])
+	if entry.is_empty():
+		return
+	_hud_manager.push_status(str(entry[0]), int(entry[1]), "weather")
 
 
 func _setup_audio() -> void:
@@ -3413,7 +3447,7 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			weather_system.set_weather(int(runtime.get("weather_state", WEATHER_CLEAR)))
 
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
-		weather_system.set_auto_cycle_enabled(preview_only)
+		weather_system.set_auto_cycle_enabled(true)
 	if not preview_only:
 		var quests_any = snapshot.get("quests", {})
 		_pending_quest_state = (quests_any as Dictionary).duplicate(true) if quests_any is Dictionary else {}
