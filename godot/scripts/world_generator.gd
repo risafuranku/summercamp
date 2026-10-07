@@ -21,6 +21,18 @@ var _terrain_root: Node3D
 var _nature_root: Node3D
 var _texture_style
 
+# Shared tree meshes/materials (a camp has hundreds of trees; one set of resources).
+var _tree_meshes: Dictionary = {}
+var _tree_materials: Dictionary = {}
+
+const TREE_KIND_SPRUCE := 0
+const TREE_KIND_BIRCH := 1
+const TREE_KIND_DEAD := 2
+## Spruce tiers: [bottom radius, height, y of the tier's base].
+const SPRUCE_TIERS := [[1.55, 1.7, 1.15], [1.2, 1.5, 2.15], [0.86, 1.3, 3.0], [0.5, 1.1, 3.75]]
+const HORIZON_TREE_COUNT := 900
+const HORIZON_HILL_COUNT := 14
+
 
 func _ready() -> void:
 	_ensure_roots()
@@ -286,6 +298,7 @@ func _generate_terrain() -> void:
 	lake_mesh.material_override = lake_mat
 	lake.add_child(lake_mesh)
 	_spawn_perimeter_fence(map_size, map_center)
+	_spawn_horizon(map_size, map_center, batch2_grass_tex)
 
 	_scatter_ground_litter()
 
@@ -482,52 +495,256 @@ func _create_tree(pos: Vector3) -> StaticBody3D:
 	var tree = StaticBody3D.new()
 	tree.name = "Tree"
 	tree.add_to_group("trees")
-	tree.position = pos
+	tree.position = pos + Vector3(_rng.randf_range(-0.6, 0.6), 0.0, _rng.randf_range(-0.6, 0.6))
 	tree.rotation.y = _rng.randf_range(0.0, TAU)
-
-	var scale_jitter = _rng.randf_range(0.92, 1.18)
-	tree.scale = Vector3.ONE * scale_jitter
+	var roll := _rng.randf()
+	var kind := TREE_KIND_SPRUCE
+	if roll < 0.06:
+		kind = TREE_KIND_DEAD
+	elif roll < 0.24:
+		kind = TREE_KIND_BIRCH
+	var s := _rng.randf_range(0.82, 1.32)
+	tree.scale = Vector3(s, s * _rng.randf_range(0.92, 1.12), s)
 
 	var trunk_collider = CollisionShape3D.new()
 	var trunk_shape = CylinderShape3D.new()
 	trunk_shape.height = 2.2
-	trunk_shape.radius = 0.28
+	trunk_shape.radius = 0.24
 	trunk_collider.shape = trunk_shape
 	trunk_collider.position = Vector3(0.0, 1.1, 0.0)
 	tree.add_child(trunk_collider)
 
-	var trunk_mesh = MeshInstance3D.new()
-	var trunk = CylinderMesh.new()
-	trunk.height = 2.2
-	trunk.top_radius = 0.22
-	trunk.bottom_radius = 0.30
-	trunk_mesh.mesh = trunk
-	trunk_mesh.position = Vector3(0.0, 1.1, 0.0)
-	trunk_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	trunk_mesh.visibility_range_end = 0.0
-	trunk_mesh.visibility_range_begin_margin = 0.0
-	trunk_mesh.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
-	var random_phase = _rng.randf_range(0.0, TAU)
-	var trunk_mat = _make_psx_material(Color(0.58, 0.42, 0.30), tree_wobble_intensity * 0.45, 24.0, 6.0, 0.90, random_phase, tree_wobble_speed * 0.65, 0.36, "tree_bark", 0.58)
-	trunk_mesh.material_override = trunk_mat
-	tree.add_child(trunk_mesh)
-
-	var canopy_mesh = MeshInstance3D.new()
-	var canopy = CylinderMesh.new()
-	canopy.height = 3.2
-	canopy.top_radius = 0.08
-	canopy.bottom_radius = 1.25
-	canopy_mesh.mesh = canopy
-	canopy_mesh.position = Vector3(0.0, 3.1, 0.0)
-	canopy_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	canopy_mesh.visibility_range_end = 0.0
-	canopy_mesh.visibility_range_begin_margin = 0.0
-	canopy_mesh.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
-	var leaves_mat = _make_psx_material(Color(0.26, 0.62, 0.28), tree_wobble_intensity * 0.58, 22.0, 6.0, 0.84, random_phase + _rng.randf_range(-0.25, 0.25), tree_wobble_speed * 0.70, 0.40, "tree_canopy", 0.62)
-	canopy_mesh.material_override = leaves_mat
-	tree.add_child(canopy_mesh)
-
+	match kind:
+		TREE_KIND_BIRCH:
+			_add_tree_part(tree, _tree_mesh("birch_trunk"), _tree_material("birch_bark", 0))
+			_add_tree_part(tree, _tree_mesh("birch_crown"), _tree_material("leaf", _rng.randi_range(1, 2)))
+		TREE_KIND_DEAD:
+			_add_tree_part(tree, _tree_mesh("dead"), _tree_material("bark", 1))
+		_:
+			_add_tree_part(tree, _tree_mesh("spruce_trunk"), _tree_material("bark", 0))
+			_add_tree_part(tree, _tree_mesh("spruce_crown"), _tree_material("needles", _rng.randi_range(0, 2)))
 	return tree
+
+
+func _add_tree_part(tree: Node3D, mesh: Mesh, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	tree.add_child(mi)
+
+
+## Low-poly tree meshes in the Build/PSX manner: few sides, hard facets, built once.
+func _tree_mesh(id: String) -> Mesh:
+	if _tree_meshes.has(id):
+		return _tree_meshes[id]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	match id:
+		"spruce_trunk":
+			_st_cone(st, Vector3.ZERO, 0.22, 0.12, 2.4, 6, 1.0)
+		"spruce_crown":
+			# Stacked drooping tiers, each slightly rotated so the silhouette is jagged.
+			for i in SPRUCE_TIERS.size():
+				var t: Array = SPRUCE_TIERS[i]
+				_st_cone(st, Vector3(0.0, float(t[2]), 0.0), float(t[0]), 0.04, float(t[1]), 7, 1.6, float(i) * 0.45)
+		"birch_trunk":
+			_st_cone(st, Vector3.ZERO, 0.16, 0.08, 4.2, 6, 1.0)
+		"birch_crown":
+			_st_blob(st, Vector3(0.0, 3.6, 0.0), Vector3(1.2, 1.3, 1.2))
+			_st_blob(st, Vector3(0.45, 4.4, 0.2), Vector3(0.85, 0.95, 0.85))
+			_st_blob(st, Vector3(-0.4, 3.2, -0.3), Vector3(0.8, 0.8, 0.8))
+		"dead":
+			_st_cone(st, Vector3.ZERO, 0.2, 0.05, 4.6, 5, 1.0)
+			_st_branch(st, Vector3(0.0, 2.2, 0.0), Vector3(0.9, 0.9, 0.1), 0.07)
+			_st_branch(st, Vector3(0.0, 2.9, 0.0), Vector3(-0.7, 0.8, 0.4), 0.06)
+			_st_branch(st, Vector3(0.0, 3.5, 0.0), Vector3(0.2, 0.7, -0.6), 0.05)
+	st.generate_normals()
+	var mesh := st.commit()
+	_tree_meshes[id] = mesh
+	return mesh
+
+
+## Open-bottomed cone/frustum with UVs that wrap the texture `uv_wrap` times around.
+func _st_cone(st: SurfaceTool, base: Vector3, r0: float, r1: float, h: float, sides: int, uv_wrap: float, twist: float = 0.0) -> void:
+	for i in sides:
+		var a0 := twist + TAU * float(i) / float(sides)
+		var a1 := twist + TAU * float(i + 1) / float(sides)
+		var b0 := base + Vector3(cos(a0) * r0, 0.0, sin(a0) * r0)
+		var b1 := base + Vector3(cos(a1) * r0, 0.0, sin(a1) * r0)
+		var t0 := base + Vector3(cos(a0) * r1, h, sin(a0) * r1)
+		var t1 := base + Vector3(cos(a1) * r1, h, sin(a1) * r1)
+		var u0 := uv_wrap * float(i) / float(sides)
+		var u1 := uv_wrap * float(i + 1) / float(sides)
+		st.set_uv(Vector2(u0, 1.0)); st.add_vertex(b0)
+		st.set_uv(Vector2(u1, 1.0)); st.add_vertex(b1)
+		st.set_uv(Vector2(u1, 0.0)); st.add_vertex(t1)
+		st.set_uv(Vector2(u0, 1.0)); st.add_vertex(b0)
+		st.set_uv(Vector2(u1, 0.0)); st.add_vertex(t1)
+		st.set_uv(Vector2(u0, 0.0)); st.add_vertex(t0)
+		# Underside, so a tier reads as a solid skirt from below.
+		st.set_uv(Vector2(u0, 1.0)); st.add_vertex(b0)
+		st.set_uv(Vector2(0.5, 0.5)); st.add_vertex(base + Vector3(0.0, h * 0.25, 0.0))
+		st.set_uv(Vector2(u1, 1.0)); st.add_vertex(b1)
+
+
+## Faceted blob (octahedron-ish, 6 around x 3 rings) for birch crowns.
+func _st_blob(st: SurfaceTool, c: Vector3, r: Vector3) -> void:
+	var rings := [[-1.0, 0.0], [-0.45, 0.85], [0.35, 0.95], [1.0, 0.0]]
+	var sides := 6
+	for ri in rings.size() - 1:
+		var y0: float = rings[ri][0]
+		var w0: float = rings[ri][1]
+		var y1: float = rings[ri + 1][0]
+		var w1: float = rings[ri + 1][1]
+		for i in sides:
+			var a0 := TAU * float(i) / float(sides) + float(ri) * 0.5
+			var a1 := TAU * float(i + 1) / float(sides) + float(ri) * 0.5
+			var p00 := c + Vector3(cos(a0) * w0 * r.x, y0 * r.y, sin(a0) * w0 * r.z)
+			var p01 := c + Vector3(cos(a1) * w0 * r.x, y0 * r.y, sin(a1) * w0 * r.z)
+			var p10 := c + Vector3(cos(a0) * w1 * r.x, y1 * r.y, sin(a0) * w1 * r.z)
+			var p11 := c + Vector3(cos(a1) * w1 * r.x, y1 * r.y, sin(a1) * w1 * r.z)
+			var u0 := float(i) / float(sides)
+			var u1 := float(i + 1) / float(sides)
+			st.set_uv(Vector2(u0, 1.0 - float(ri) / 3.0)); st.add_vertex(p00)
+			st.set_uv(Vector2(u1, 1.0 - float(ri) / 3.0)); st.add_vertex(p01)
+			st.set_uv(Vector2(u1, 1.0 - float(ri + 1) / 3.0)); st.add_vertex(p11)
+			st.set_uv(Vector2(u0, 1.0 - float(ri) / 3.0)); st.add_vertex(p00)
+			st.set_uv(Vector2(u1, 1.0 - float(ri + 1) / 3.0)); st.add_vertex(p11)
+			st.set_uv(Vector2(u0, 1.0 - float(ri + 1) / 3.0)); st.add_vertex(p10)
+
+
+func _st_branch(st: SurfaceTool, from: Vector3, dir: Vector3, r: float) -> void:
+	# A thin four-sided stick from `from` along `dir`.
+	var axis := dir.normalized()
+	var side := axis.cross(Vector3.UP).normalized()
+	if side.length_squared() < 0.01:
+		side = Vector3.RIGHT
+	var up := side.cross(axis).normalized()
+	var to := from + dir
+	var ring := [side * r, up * r, -side * r, -up * r]
+	for i in 4:
+		var a: Vector3 = ring[i]
+		var b: Vector3 = ring[(i + 1) % 4]
+		st.set_uv(Vector2(0, 1)); st.add_vertex(from + a)
+		st.set_uv(Vector2(1, 1)); st.add_vertex(from + b)
+		st.set_uv(Vector2(1, 0)); st.add_vertex(to + b * 0.3)
+		st.set_uv(Vector2(0, 1)); st.add_vertex(from + a)
+		st.set_uv(Vector2(1, 0)); st.add_vertex(to + b * 0.3)
+		st.set_uv(Vector2(0, 0)); st.add_vertex(to + a * 0.3)
+
+
+## Shared materials. `variant` shifts the tint so a stand of trees is not one colour.
+func _tree_material(kind: String, variant: int) -> Material:
+	var key := "%s_%d" % [kind, variant]
+	if _tree_materials.has(key):
+		return _tree_materials[key]
+	var mat: StandardMaterial3D
+	match kind:
+		"needles":
+			mat = _make_psx_material(Color(0.26, 0.5, 0.26), 0.0, 22.0, 6.0, 0.0, 0.0, 0.0, 0.0, "tree_canopy", 0.62) as StandardMaterial3D
+			mat.albedo_color = [Color(0.62, 0.78, 0.6), Color(0.5, 0.66, 0.5), Color(0.72, 0.8, 0.58)][variant % 3]
+			mat.uv1_scale = Vector3(2.0, 2.0, 1.0)
+		"leaf":
+			mat = _make_psx_material(Color(0.4, 0.6, 0.3), 0.0, 22.0, 6.0, 0.0, 0.0, 0.0, 0.0, "tree_canopy", 0.62) as StandardMaterial3D
+			mat.albedo_color = [Color(0.9, 1.0, 0.7), Color(0.98, 1.0, 0.62), Color(1.0, 0.92, 0.58)][variant % 3]
+		"birch_bark":
+			mat = _make_psx_material(Color(0.85, 0.83, 0.78), 0.0, 24.0, 6.0, 0.0, 0.0, 0.0, 0.0, "tree_bark", 0.58) as StandardMaterial3D
+			mat.albedo_color = Color(1.6, 1.58, 1.5)
+		_:
+			mat = _make_psx_material(Color(0.58, 0.42, 0.30), 0.0, 24.0, 6.0, 0.0, 0.0, 0.0, 0.0, "tree_bark", 0.58) as StandardMaterial3D
+			mat.albedo_color = Color(0.9, 0.85, 0.8) if variant == 0 else Color(0.62, 0.6, 0.58)
+	_tree_materials[key] = mat
+	return mat
+
+
+## Everything past the fence, so the camp sits in a forest valley instead of on a
+## plate in the void: an apron of ground, a dense spruce belt hugging the fence, and
+## low hills on the horizon that the weather fog swallows. Visual only, no collision.
+func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D) -> void:
+	var root := Node3D.new()
+	root.name = "Horizon"
+	_terrain_root.add_child(root)
+	var half := maxf(map_size.x, map_size.y) * 0.5
+
+	var apron := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(half * 12.0, half * 12.0)
+	apron.mesh = plane
+	apron.position = map_center + Vector3(0.0, -0.06, 0.0)
+	var apron_mat := StandardMaterial3D.new()
+	apron_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	apron_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	apron_mat.albedo_color = Color(0.62, 0.66, 0.56)
+	apron_mat.uv1_scale = Vector3(half * 3.0, half * 3.0, 1.0)
+	if grass_tex != null:
+		apron_mat.albedo_texture = grass_tex
+	apron.material_override = apron_mat
+	apron.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(apron)
+
+	# Spruce belt: one MultiMesh per part, dense at the fence, thinning outward.
+	var trunk_mm := MultiMesh.new()
+	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
+	trunk_mm.mesh = _tree_mesh("spruce_trunk")
+	var crown_mm := MultiMesh.new()
+	crown_mm.transform_format = MultiMesh.TRANSFORM_3D
+	crown_mm.mesh = _tree_mesh("spruce_crown")
+	var xforms: Array[Transform3D] = []
+	var tries := 0
+	while xforms.size() < HORIZON_TREE_COUNT and tries < HORIZON_TREE_COUNT * 4:
+		tries += 1
+		var dist := half + 3.0 + pow(_rng.randf(), 1.8) * half * 2.2
+		var ang := _rng.randf() * TAU
+		var p := map_center + Vector3(cos(ang), 0.0, sin(ang)) * dist
+		# Square map: keep trees outside the fenced rectangle.
+		if absf(p.x - map_center.x) < map_size.x * 0.5 + 2.0 and absf(p.z - map_center.z) < map_size.y * 0.5 + 2.0:
+			continue
+		var sc := _rng.randf_range(0.9, 1.7) * (1.0 + (dist - half) / (half * 4.0))
+		var b := Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc, sc * _rng.randf_range(0.9, 1.25), sc))
+		xforms.append(Transform3D(b, Vector3(p.x, 0.0, p.z)))
+	trunk_mm.instance_count = xforms.size()
+	crown_mm.instance_count = xforms.size()
+	for i in xforms.size():
+		trunk_mm.set_instance_transform(i, xforms[i])
+		crown_mm.set_instance_transform(i, xforms[i])
+	var trunks := MultiMeshInstance3D.new()
+	trunks.multimesh = trunk_mm
+	trunks.material_override = _tree_material("bark", 1)
+	trunks.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(trunks)
+	var crowns := MultiMeshInstance3D.new()
+	crowns.multimesh = crown_mm
+	crowns.material_override = _tree_material("needles", 1)
+	crowns.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(crowns)
+
+	# Hills: flattened faceted blobs far out, dark like distant forest.
+	var hill_mat := StandardMaterial3D.new()
+	hill_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	hill_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	hill_mat.albedo_color = Color(0.32, 0.4, 0.3)
+	var canopy_tex: Texture2D = _texture_style.pick_texture("tree_canopy", Color(0.26, 0.5, 0.26)) if _texture_style != null else null
+	if canopy_tex != null:
+		hill_mat.albedo_texture = canopy_tex
+		hill_mat.uv1_scale = Vector3(6.0, 2.0, 1.0)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_st_blob(st, Vector3.ZERO, Vector3(1.0, 1.0, 1.0))
+	st.generate_normals()
+	var hill_mesh := st.commit()
+	for i in HORIZON_HILL_COUNT:
+		var ang := TAU * (float(i) + _rng.randf_range(-0.3, 0.3)) / float(HORIZON_HILL_COUNT)
+		var dist := half * _rng.randf_range(3.2, 4.6)
+		var hill := MeshInstance3D.new()
+		hill.mesh = hill_mesh
+		hill.material_override = hill_mat
+		hill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var w := half * _rng.randf_range(0.9, 1.6)
+		hill.scale = Vector3(w, half * _rng.randf_range(0.18, 0.34), w * _rng.randf_range(0.6, 1.0))
+		hill.rotation.y = _rng.randf() * TAU
+		hill.position = map_center + Vector3(cos(ang) * dist, 0.0, sin(ang) * dist)
+		root.add_child(hill)
 
 
 func _clear_generated_nodes() -> void:
