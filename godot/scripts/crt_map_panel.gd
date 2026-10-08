@@ -53,6 +53,23 @@ const ICON_NO_MIRROR := {
 
 var grid_manager
 var building_manager
+
+# Guests on the map, RollerCoaster Tycoon style: the camp's real agents, drawn as
+# tiny people that walk the paths and vanish into buildings. guest_id -> state.
+const GUEST_SHIRTS := {
+	"quiet_guy": Color(0.42, 0.56, 0.30),
+	"drunk": Color(0.86, 0.72, 0.26),
+	"cheap_chick": Color(0.10, 0.09, 0.10),
+}
+const GUEST_SKIN := Color(0.86, 0.66, 0.50)
+var _guests: Dictionary = {}
+var _guest_poll: float = 0.0
+var _guest_time: float = 0.0
+# The extra one. Now and then, in the evening, there is a guest on the map that
+# nobody booked: standing still at the edge of the camp, facing the reception.
+var _extra_guest_until: float = 0.0
+var _extra_guest_cell: Vector2 = Vector2.ZERO
+var _extra_guest_rng := RandomNumberGenerator.new()
 var selected_building: String = ""
 var hover_coord: Vector2i = Vector2i(-1, -1)
 
@@ -146,6 +163,7 @@ func _process(delta: float) -> void:
 	_update_keyboard_pan(delta)
 	if not is_visible_in_tree():
 		return
+	_update_guests(delta)
 	var local = get_local_mouse_position()
 	if local.x >= 0.0 and local.y >= 0.0 and local.x <= size.x and local.y <= size.y:
 		hover_coord = _local_to_grid(local)
@@ -578,8 +596,25 @@ func _draw() -> void:
 		return ao < bo
 	)
 
+	_append_guest_entries(draw_entries, origin, tile_w, tile_h)
+	# Painter's order in display space; ties keep the structure tie-breakers.
+	draw_entries.sort_custom(func(a, b):
+		var ao := float(a.get("order", 0))
+		var bo := float(b.get("order", 0))
+		if not is_equal_approx(ao, bo):
+			return ao < bo
+		var ax := int(a.get("anchor_x", 0))
+		var bx := int(b.get("anchor_x", 0))
+		if ax != bx:
+			return ax < bx
+		return int(a.get("anchor_y", 0)) < int(b.get("anchor_y", 0))
+	)
+
 	for entry in draw_entries:
-		_draw_structure(entry, tile_w, tile_h)
+		if entry.has("guest"):
+			_draw_guest(entry, tile_h)
+		else:
+			_draw_structure(entry, tile_w, tile_h)
 
 	_draw_path_drag_preview(origin, tile_w, tile_h)
 	_draw_ghost_preview(origin, tile_w, tile_h)
@@ -590,6 +625,127 @@ func _draw() -> void:
 		_draw_diamond(hover_center, tile_w, tile_h, HOVER_FILL, HOVER_LINE, 1.8)
 
 	_draw_rotation_panel()
+
+
+# ── guests ────────────────────────────────────────────────────────────────────
+
+func _update_guests(delta: float) -> void:
+	_guest_time += delta
+	_guest_poll -= delta
+	if _guest_poll > 0.0:
+		return
+	_guest_poll = 0.1
+	var agents = get_tree().root.find_child("GuestAgents", true, false) if get_tree() != null else null
+	if agents == null or not agents.has_method("get_visible_guest_positions") or grid_manager == null:
+		_guests.clear()
+		return
+	var seen := {}
+	for g_any in agents.get_visible_guest_positions():
+		var g: Dictionary = g_any
+		var id := int(g.get("guest_id", -1))
+		var cell := _world_to_cell_f(g.get("position", Vector3.ZERO))
+		var prev: Dictionary = _guests.get(id, {})
+		var moving := not prev.is_empty() and Vector2(prev.get("cell", cell)).distance_to(cell) > 0.004
+		_guests[id] = {"cell": cell, "archetype": str(g.get("archetype", "")), "moving": moving, "phase": float(prev.get("phase", randf() * 10.0))}
+		seen[id] = true
+	for id in _guests.keys():
+		if not seen.has(id):
+			_guests.erase(id)
+	_update_extra_guest()
+
+
+func _update_extra_guest() -> void:
+	if _guest_time < _extra_guest_until or _guests.is_empty():
+		return
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null:
+		return
+	var hour := 0.0
+	var tree := get_tree()
+	var main = tree.current_scene if tree != null else null
+	if main != null:
+		hour = float(main.get("_time_of_day_hours")) if main.get("_time_of_day_hours") != null else 0.0
+	# Only from late afternoon, rarely (roughly once per in-game evening at the PC).
+	if hour < 16.5 or _extra_guest_rng.randf() > 0.0016:
+		return
+	var gw := float(grid_manager.grid_width)
+	var gh := float(grid_manager.grid_height)
+	var edge := _extra_guest_rng.randi_range(0, 3)
+	var t := _extra_guest_rng.randf_range(0.1, 0.9)
+	match edge:
+		0: _extra_guest_cell = Vector2(t * gw, 0.4)
+		1: _extra_guest_cell = Vector2(gw - 1.4, t * gh)
+		2: _extra_guest_cell = Vector2(t * gw, gh - 2.4)
+		_: _extra_guest_cell = Vector2(0.4, t * gh)
+	_extra_guest_until = _guest_time + _extra_guest_rng.randf_range(14.0, 26.0)
+
+
+func _world_to_cell_f(p: Vector3) -> Vector2:
+	var mc: Vector3 = grid_manager.get_map_min_corner() if grid_manager.has_method("get_map_min_corner") else Vector3.ZERO
+	var ts: float = float(grid_manager.tile_size)
+	return Vector2((p.x - mc.x) / ts - 0.5, (p.z - mc.z) / ts - 0.5)
+
+
+## Display-space cell (the map is drawn rotated), fractional.
+func _display_cell_f(c: Vector2) -> Vector2:
+	var gw := float(grid_manager.grid_width)
+	var gh := float(grid_manager.grid_height)
+	match wrapi(MAP_ROTATION_STEPS, 0, 4):
+		1: return Vector2(c.y, gw - 1.0 - c.x)
+		2: return Vector2(gw - 1.0 - c.x, gh - 1.0 - c.y)
+		3: return Vector2(gh - 1.0 - c.y, c.x)
+	return c
+
+
+## Same projection as _grid_to_iso, for fractional cells.
+func _cell_to_iso_f(c: Vector2, origin: Vector2, tile_w: float, tile_h: float) -> Vector2:
+	var d := _display_cell_f(c)
+	return origin + Vector2((d.x - d.y) * tile_w * 0.5, (d.x + d.y) * tile_h * 0.5)
+
+
+func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_h: float) -> void:
+	for id in _guests.keys():
+		var g: Dictionary = _guests[id]
+		var p := _cell_to_iso_f(g["cell"], origin, tile_w, tile_h)
+		var dc := _display_cell_f(g["cell"])
+		entries.append({"guest": true, "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"], "phase": g["phase"], "facing": 0})
+	if _guest_time < _extra_guest_until:
+		var p2 := _cell_to_iso_f(_extra_guest_cell, origin, tile_w, tile_h)
+		var dc2 := _display_cell_f(_extra_guest_cell)
+		entries.append({"guest": true, "pos": p2, "order": dc2.x + dc2.y + 0.6, "archetype": "", "moving": false, "phase": 0.0, "extra": true})
+
+
+## A guest as RCT drew them: a few pixels tall, shirt colour by archetype, head,
+## legs that scissor when walking. Sized to the tile so zoom keeps proportions.
+func _draw_guest(e: Dictionary, tile_h: float) -> void:
+	var u := maxf(2.0, roundf(tile_h * 0.12))
+	var p: Vector2 = (Vector2(e["pos"]) / u).floor() * u
+	var shirt: Color = GUEST_SHIRTS.get(str(e["archetype"]), Color(0.55, 0.52, 0.48))
+	var skin := GUEST_SKIN
+	if e.has("extra"):
+		# Greyer, darker, too tall by one pixel, perfectly still.
+		shirt = Color(0.20, 0.21, 0.22)
+		skin = Color(0.62, 0.64, 0.66)
+	var step := 0.0
+	if bool(e["moving"]):
+		step = 1.0 if fmod(_guest_time * 6.0 + float(e["phase"]), 2.0) < 1.0 else -1.0
+	var legs := Color(0.20, 0.20, 0.26)
+	var h := 7.0 if e.has("extra") else 6.0
+	# shadow
+	draw_rect(Rect2(p + Vector2(-1.5 * u, -0.5 * u), Vector2(3.0 * u, u)), Color(0, 0, 0, 0.35))
+	# legs
+	draw_rect(Rect2(p + Vector2(-u, -2.0 * u), Vector2(u, 2.0 * u + (step if step > 0 else 0.0) * 0.0)), legs)
+	draw_rect(Rect2(p + Vector2(0.0, -2.0 * u), Vector2(u, 2.0 * u)), legs)
+	if step != 0.0:
+		draw_rect(Rect2(p + Vector2(-u + step * u, -u), Vector2(u, u)), legs)
+	# body
+	draw_rect(Rect2(p + Vector2(-u, -(h - 2.0) * u), Vector2(2.0 * u, (h - 4.0) * u)), shirt)
+	# head
+	draw_rect(Rect2(p + Vector2(-u, -h * u), Vector2(2.0 * u, 2.0 * u)), skin)
+	if e.has("extra"):
+		# Two dots for eyes, which none of the others have.
+		draw_rect(Rect2(p + Vector2(-u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
+		draw_rect(Rect2(p + Vector2(0.5 * u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
 
 
 func _draw_ground_tile(center: Vector2, tile_w: float, tile_h: float, tile) -> void:

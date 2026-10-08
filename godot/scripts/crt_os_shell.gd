@@ -964,15 +964,26 @@ func _register_desktop_blink(node: CanvasItem) -> void:
 func _queue_window_open(win: Panel, play_email_ping: bool = false) -> void:
 	if win == null:
 		return
+	# The sequence is per window: a second window opening during the delay used to
+	# cancel the first one for good (e.g. a mail arriving as the Builder opened).
 	_window_open_sequence_id += 1
 	var seq_id = _window_open_sequence_id
+	win.set_meta("open_seq", seq_id)
 	win.visible = false
 	if _window_layer != null:
 		_window_layer.visible = true
-	get_tree().create_timer(WINDOW_OPEN_DELAY_SEC).timeout.connect(func():
-		if seq_id != _window_open_sequence_id:
+	_reveal_window_later(win, seq_id, play_email_ping, WINDOW_OPEN_DELAY_SEC, 40)
+
+
+## Shows a queued window once the desktop is up. A window requested while the OS is
+## still booting waits for the desktop instead of being dropped.
+func _reveal_window_later(win: Panel, seq_id: int, play_email_ping: bool, delay: float, tries_left: int) -> void:
+	get_tree().create_timer(delay).timeout.connect(func():
+		if not is_instance_valid(win) or int(win.get_meta("open_seq", -1)) != seq_id:
 			return
 		if _current_state != os_state.DESKTOP:
+			if tries_left > 0 and _monitor_powered:
+				_reveal_window_later(win, seq_id, play_email_ping, 0.3, tries_left - 1)
 			return
 		win.visible = true
 		win.move_to_front()

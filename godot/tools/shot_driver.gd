@@ -133,6 +133,21 @@ const SCENARIOS := {
 		["wait", 1.6], ["release", "maintain"], ["wait", 0.3], ["shot", "93_upkeep_done"],
 		["hours", 12.0], ["player", 9, 2, 180.0], ["wait", 2.0], ["shot", "94_upkeep_night"],
 	],
+	"crtmap": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 20000],
+		["clear", 2, 3, 5, 5], ["clear", 7, 3, 5, 5], ["clear", 12, 3, 5, 5], ["clear", 7, 8, 5, 5],
+		["build", "path", 9, 3, 0], ["build", "path", 9, 4, 0], ["build", "path", 9, 5, 0], ["build", "path", 9, 6, 0], ["build", "path", 8, 4, 0], ["build", "path", 10, 4, 0],
+		["build", "tent_1", 4, 5, 0], ["build", "tent_1", 5, 5, 0], ["build", "cabin_1", 12, 6, 0],
+		["build", "toilet_block", 7, 7, 0], ["build", "bonfire", 10, 9, 0], ["build", "lamp_post", 10, 7, 0],
+		["book", "Novak family", "quiet_guy", 2, 2], ["book", "Pepa", "drunk", 1, 2], ["book", "Kristyna", "cheap_chick", 1, 1],
+		["timescale", 3.0], ["wait", 6.0], ["timescale", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["signal", "program_installed", "builder"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior._crt_ui._open_builder_app()"], ["eval", "_interior_manager._building_interior._crt_ui._app_windows['builder'].visible"], ["wait", 0.8], ["eval", "_interior_manager._building_interior._crt_ui._app_windows['builder'].visible"], ["wait", 4.2], ["shot", "b0_crt_builder"], ["eval", "_interior_manager._building_interior._crt_ui._app_windows['builder'].visible"], ["eval", "_interior_manager._building_interior._crt_ui._current_state"], ["eval", "_interior_manager._building_interior._crt_ui._window_layer.visible"], ["eval", "_interior_manager._building_interior._crt_ui._app_windows['builder'].get_global_rect()"], ["eval", "_interior_manager._building_interior._crt_ui._is_day_mode"],
+		["wait", 1.5], ["shot", "b1_crt_builder_later"],
+		["crt_screen", "b2_crt_screen"], ["timescale", 3.0], ["wait", 4.0], ["timescale", 1.0], ["crt_screen", "b3_crt_screen_later"],
+	],
 	"night": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["player", 12, 8, 0.0], ["hours", 13.0], ["wait", 3.0],
@@ -330,6 +345,13 @@ func _run_step(step: Array) -> void:
 			var bstate = CoreRoot.get_state()
 			bstate.failures["%d:%d" % [bc.x, bc.y]] = {"type": "x", "coord": bc, "since_day": 1, "repair_progress": 0.0}
 			EventBus.building_failed.emit(bc, str(bstate.grid.cells[bc].get("type", "")))
+		"crt_screen":
+			# Save the CRT desktop's own viewport (what is drawn on the monitor).
+			var crt = _main.get("_interior_manager").get("_building_interior").get("_crt_ui")
+			if crt != null:
+				var img: Image = crt.get_viewport().get_texture().get_image()
+				img.save_png(_out_dir.path_join(str(step[1]) + ".png"))
+				print("SHOT DRIVER: crt %s %s" % [step[1], img.get_size()])
 		"look_at_enemy":
 			# Turn the player toward the newest enemy's body.
 			var brains: Array = _main.get("_enemy_brains")
