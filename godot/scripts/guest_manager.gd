@@ -1,16 +1,31 @@
 extends Node
-## GuestManager -- simplified stay runtime.
+## GuestManager -- bookings, arrivals, rooms and stays.
 ##
-## Assignment/waiting status flows were removed.
-## Accepting a customer booking now immediately checks in the guest group,
-## reserves beds and starts stay countdown + rolling income.
+## Accepting a booking reserves beds and puts the party on the road: it reaches the
+## barrier at the gate an hour or so later ("expected"), then waits there ("waiting")
+## until every room it was given is prepared (core/systems/room_rules.gd). Only then is
+## it let in ("active" / "sleep" at night): the stay countdown and the income start at
+## check-in. A party left standing at the barrier too long gives up and goes, with a
+## review. When the last guests leave a room it needs preparing again.
 
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const GUEST_LIFE_SCRIPT = preload("res://scripts/guest_life.gd")
 const GUEST_NEEDS = preload("res://core/systems/guest_needs_system.gd")
+const ROOM_RULES = preload("res://core/systems/room_rules.gd")
 
 const STATUS_ACTIVE := "active"
 const STATUS_SLEEP := "sleep"
+## Booked, on the way (beds reserved, not on site yet).
+const STATUS_EXPECTED := "expected"
+## At the barrier, waiting for a room to be ready.
+const STATUS_WAITING := "waiting"
+
+## Game minutes from accepting a booking to the party reaching the barrier.
+const ARRIVAL_DELAY_MIN := 60
+const ARRIVAL_DELAY_MAX := 110
+## How long a party waits at the barrier before it grumbles, and before it leaves.
+const GATE_COMPLAIN_MINUTES := 45
+const GATE_GIVE_UP_MINUTES := 150
 
 const MINUTES_PER_DAY := 1440.0
 const MAX_GUEST_REVIEW_HISTORY := 48
@@ -197,6 +212,7 @@ func _on_time_tick(hour: int, minute: int) -> void:
 	if elapsed_minutes < 0:
 		elapsed_minutes = 0
 	var changed := false
+	changed = _update_arrivals(now_abs) or changed
 	changed = _update_stay_states(_last_known_day, _last_known_hour, _last_known_minute) or changed
 	if elapsed_minutes > 0:
 		changed = _process_income_minutes(elapsed_minutes) or changed
@@ -291,8 +307,16 @@ func get_guest_life_snapshot() -> Array:
 		if not (g_any is Dictionary):
 			continue
 		var g: Dictionary = g_any
+		var g_status := str(g.get("status", STATUS_ACTIVE))
+		if g_status == STATUS_EXPECTED:
+			continue
 		var needs: Dictionary = g.get("needs", {}) if g.get("needs", {}) is Dictionary else {}
 		var mood := float(g.get("mood", 60.0))
+		var activity: Dictionary = (g.get("activity", {}) as Dictionary).duplicate() if g.get("activity", {}) is Dictionary else {}
+		if g_status == STATUS_WAITING:
+			var gate_key := "%d:%d" % [_life.gate_coord().x, _life.gate_coord().y]
+			var since := int(g.get("gate_since_abs", now_abs))
+			activity = {"kind": "wait_gate", "from": gate_key, "to": gate_key, "start": since, "arrive": since, "end": now_abs + 600, "queue_index": int(g.get("gate_queue_index", 0))}
 		out.append({
 			"id": int(g.get("id", -1)),
 			"name": str(g.get("name", "Guest")),
@@ -303,7 +327,7 @@ func get_guest_life_snapshot() -> Array:
 			"mood_label": GUEST_NEEDS.mood_label(mood),
 			"needs": needs.duplicate(),
 			"worst_need": GUEST_NEEDS.worst_need(needs) if not needs.is_empty() else {},
-			"activity": (g.get("activity", {}) as Dictionary).duplicate() if g.get("activity", {}) is Dictionary else {},
+			"activity": activity,
 			"tile": str(g.get("tile", "")),
 			"thought": str(g.get("thought", "")),
 			"thought_age": now_abs - int(g.get("thought_abs", now_abs - 9999)),
@@ -327,6 +351,8 @@ func get_camp_mood_summary() -> Dictionary:
 			if not (g_any is Dictionary):
 				continue
 			var g: Dictionary = g_any
+			if not _is_checked_in(str(g.get("status", STATUS_ACTIVE))):
+				continue
 			var mood := float(g.get("mood", 60.0))
 			var party: int = max(1, int(g.get("party_size", g.get("beds_used", 1))))
 			total += mood * party
@@ -387,7 +413,6 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 		return
 
 	var now_day = max(1, _last_known_day)
-	var now_minute_of_day = _last_known_hour * 60 + _last_known_minute
 	var now_abs = _absolute_minutes(now_day, _last_known_hour, _last_known_minute)
 
 	var stay_nights = max(1, int(mail.get("nights", mail.get("stay_nights", 1))))
@@ -403,28 +428,24 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 	if booking_name.is_empty():
 		booking_name = _extract_sender_name(mail)
 
-	var checkout_abs = now_abs + stay_nights * 1440
-	var checkout_parts = _from_absolute_minutes(checkout_abs)
 	var night_trouble_time = str(mail.get("night_trouble_time", _default_trouble_time_for_archetype(archetype))).strip_edges()
 	var night_trouble_minute = _parse_time_to_minutes(night_trouble_time, _parse_time_to_minutes(_default_trouble_time_for_archetype(archetype), 0))
 
 	var guest_id = int(state.next_guest_id)
 	state.next_guest_id += 1
 
+	var arrival_abs: int = now_abs + int(mail.get("arrival_minutes", _rng.randi_range(ARRIVAL_DELAY_MIN, ARRIVAL_DELAY_MAX)))
 	var guest := {
 		"id": guest_id,
 		"name": booking_name,
-		"status": STATUS_ACTIVE,
+		"status": STATUS_EXPECTED,
 		"archetype": archetype,
 		"booking_difficulty": difficulty,
 		"beds_used": beds_used,
 		"party_size": beds_used,
 		"stay_nights": stay_nights,
-		"checkin_day": now_day,
-		"checkin_minute_of_day": now_minute_of_day,
-		"checkout_abs_minute": checkout_abs,
-		"checkout_day": int(checkout_parts.get("day", now_day + stay_nights)),
-		"checkout_minute_of_day": int(checkout_parts.get("minute_of_day", now_minute_of_day)),
+		"booked_abs": now_abs,
+		"arrival_abs": arrival_abs,
 		"daily_income": daily_income,
 		"income_fraction": 0.0,
 		"income_paid_total": 0,
@@ -439,14 +460,6 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 	state.guests.append(guest)
 	_ensure_guest_lodging_assignments()
 	_sync_accommodation_states_from_guests(false)
-	_life.refresh_world(state, CoreRoot.registry)
-	for i in range(state.guests.size()):
-		var g_any = state.guests[i]
-		if g_any is Dictionary and int((g_any as Dictionary).get("id", -1)) == guest_id:
-			var g: Dictionary = g_any
-			_life.init_guest(g, now_abs)
-			state.guests[i] = g
-			break
 	var created_guest = _get_guest_by_id(guest_id)
 	if created_guest.is_empty():
 		created_guest = guest
@@ -454,6 +467,222 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 		EventBus.guest_created.emit(created_guest.duplicate(true))
 
 	_emit_guest_overview_state(true)
+
+
+# ── arrivals: the road, the barrier, check-in ─────────────────────────────────
+
+## Expected parties reach the barrier; waiting ones are let in once their rooms are
+## ready, or give up after GATE_GIVE_UP_MINUTES.
+func _update_arrivals(now_abs: int) -> bool:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return false
+	var changed := false
+	var queue := 0
+	for i in range(state.guests.size() - 1, -1, -1):
+		var g_any = state.guests[i]
+		if not (g_any is Dictionary):
+			continue
+		var guest: Dictionary = g_any
+		var status := str(guest.get("status", STATUS_ACTIVE))
+		if status == STATUS_EXPECTED and now_abs >= int(guest.get("arrival_abs", now_abs)):
+			guest["status"] = STATUS_WAITING
+			guest["gate_since_abs"] = now_abs
+			status = STATUS_WAITING
+			changed = true
+			if EventBus.has_signal("guest_at_gate"):
+				EventBus.guest_at_gate.emit(_arrival_row(guest, now_abs))
+		if status != STATUS_WAITING:
+			continue
+		if _rooms_ready_for(guest):
+			_check_in(guest, now_abs)
+			state.guests[i] = guest
+			changed = true
+			continue
+		var waited := now_abs - int(guest.get("gate_since_abs", now_abs))
+		if waited >= GATE_GIVE_UP_MINUTES:
+			_give_up_at_gate(i, guest, now_abs)
+			changed = true
+			continue
+		if waited >= GATE_COMPLAIN_MINUTES and not bool(guest.get("gate_complained", false)):
+			guest["gate_complained"] = true
+			guest["thought"] = "We have been standing at this barrier for ages. Is anyone even here?"
+			guest["thought_abs"] = now_abs
+		guest["gate_queue_index"] = queue
+		queue += 1
+		state.guests[i] = guest
+	return changed
+
+
+func _rooms_ready_for(guest: Dictionary) -> bool:
+	var state = CoreRoot.get_state()
+	var slots: Array = guest.get("lodging_slots", []) if guest.get("lodging_slots", []) is Array else []
+	if slots.is_empty():
+		return false
+	for slot_any in slots:
+		var key := str((slot_any as Dictionary).get("accommodation_key", "")) if slot_any is Dictionary else ""
+		var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
+		if ROOM_RULES.normalize_status(str(acc.get("status", ""))) != ROOM_RULES.STATUS_READY:
+			return false
+	return true
+
+
+## The barrier goes up: the stay starts now, the walk in starts from the gate. Time at
+## the barrier is remembered in the mood they arrive with.
+func _check_in(guest: Dictionary, now_abs: int) -> void:
+	var waited := now_abs - int(guest.get("gate_since_abs", now_abs))
+	var parts := _from_absolute_minutes(now_abs)
+	guest["status"] = STATUS_ACTIVE
+	guest["checkin_day"] = int(parts.get("day", _last_known_day))
+	guest["checkin_minute_of_day"] = int(parts.get("minute_of_day", 0))
+	var checkout_abs: int = now_abs + maxi(1, int(guest.get("stay_nights", 1))) * 1440
+	var out_parts := _from_absolute_minutes(checkout_abs)
+	guest["checkout_abs_minute"] = checkout_abs
+	guest["checkout_day"] = int(out_parts.get("day", 1))
+	guest["checkout_minute_of_day"] = int(out_parts.get("minute_of_day", 0))
+	guest["waited_at_gate"] = waited
+	_life.refresh_world(CoreRoot.get_state(), CoreRoot.registry)
+	_life.init_guest(guest, now_abs)
+	guest["mood"] = clampf(float(guest.get("mood", 68.0)) - float(waited) / 5.0, 25.0, 100.0)
+	if EventBus.has_signal("guest_checked_in"):
+		EventBus.guest_checked_in.emit(guest.duplicate(true))
+
+
+func _give_up_at_gate(index: int, guest: Dictionary, now_abs: int) -> void:
+	var state = CoreRoot.get_state()
+	var review := {
+		"guest_id": int(guest.get("id", -1)),
+		"name": str(guest.get("name", "Guest")),
+		"archetype": str(guest.get("archetype", "")),
+		"day": max(1, _last_known_day),
+		"rating": 1,
+		"mood": 10.0,
+		"text": "Booked, drove all the way, stood at the barrier for two hours. Nobody came. Never again.",
+		"gave_up": true,
+	}
+	state.guest_reviews.append(review)
+	_trim_array_history(state.guest_reviews, MAX_GUEST_REVIEW_HISTORY)
+	if EventBus.has_signal("guest_review_posted"):
+		EventBus.guest_review_posted.emit(review)
+	if CoreRoot.has_method("apply_changes"):
+		CoreRoot.apply_changes({"karma": float(state.karma) - 2.0})
+	if EventBus.has_signal("guest_gave_up"):
+		EventBus.guest_gave_up.emit(_arrival_row(guest, now_abs))
+	if EventBus.has_signal("guest_state_changed"):
+		EventBus.guest_state_changed.emit(int(guest.get("id", -1)), STATUS_WAITING, "departed")
+	state.guests.remove_at(index)
+	_ensure_guest_lodging_assignments()
+	_sync_accommodation_states_from_guests()
+
+
+## Parties on the way or at the barrier, those at the barrier first, for the HUD and
+## the terminal.
+func get_arrivals() -> Array:
+	var state = CoreRoot.get_state()
+	var out: Array = []
+	if state == null:
+		return out
+	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	for g_any in state.guests:
+		if g_any is Dictionary and str((g_any as Dictionary).get("status", "")) in [STATUS_EXPECTED, STATUS_WAITING]:
+			out.append(_arrival_row(g_any, now_abs))
+	out.sort_custom(func(a, b): return int(a["sort"]) < int(b["sort"]))
+	return out
+
+
+func _arrival_row(guest: Dictionary, now_abs: int) -> Dictionary:
+	var state = CoreRoot.get_state()
+	var status := str(guest.get("status", ""))
+	var rooms: Array = []
+	var slots: Array = guest.get("lodging_slots", []) if guest.get("lodging_slots", []) is Array else []
+	var seen := {}
+	for slot_any in slots:
+		var key := str((slot_any as Dictionary).get("accommodation_key", "")) if slot_any is Dictionary else ""
+		if key.is_empty() or seen.has(key):
+			continue
+		seen[key] = true
+		var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
+		rooms.append({
+			"key": key,
+			"label": room_label(key),
+			"ready": ROOM_RULES.normalize_status(str(acc.get("status", ""))) == ROOM_RULES.STATUS_READY,
+		})
+	var at_gate := status == STATUS_WAITING
+	var since := int(guest.get("gate_since_abs", now_abs))
+	var arrival := int(guest.get("arrival_abs", now_abs))
+	return {
+		"id": int(guest.get("id", -1)),
+		"name": str(guest.get("name", "Guest")),
+		"party_size": maxi(1, int(guest.get("party_size", 1))),
+		"archetype": str(guest.get("archetype", "")),
+		"at_gate": at_gate,
+		"minutes": (now_abs - since) if at_gate else maxi(0, arrival - now_abs),
+		"patience_left": maxi(0, GATE_GIVE_UP_MINUTES - (now_abs - since)) if at_gate else GATE_GIVE_UP_MINUTES,
+		"rooms": rooms,
+		"sort": (since - 100000) if at_gate else arrival,
+	}
+
+
+# ── rooms: preparation ─────────────────────────────────────────────────────────
+
+## "Tent 4:7", "Cabin 12:3".
+func room_label(key: String) -> String:
+	var state = CoreRoot.get_state()
+	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
+	var kind := ROOM_RULES.kind_for(str(acc.get("building_type", "")))
+	return "%s %s" % [kind.capitalize() if not kind.is_empty() else "Room", key]
+
+
+## Everything an interior needs to show a room's state.
+func get_room_state(key: String) -> Dictionary:
+	_sync_accommodation_states_from_guests(false)
+	var state = CoreRoot.get_state()
+	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
+	if acc.is_empty():
+		return {}
+	var building_type := str(acc.get("building_type", ""))
+	var done: Array = acc.get("prep_done", []) if acc.get("prep_done", []) is Array else []
+	return {
+		"key": key,
+		"label": room_label(key),
+		"building_type": building_type,
+		"status": ROOM_RULES.normalize_status(str(acc.get("status", ""))),
+		"done": done.duplicate(),
+		"tasks": ROOM_RULES.tasks_for(building_type),
+		"remaining": ROOM_RULES.remaining(building_type, done),
+		"occupied": int(acc.get("occupied", 0)) > 0,
+	}
+
+
+## A preparation task finished inside the interior. Returns true if it changed anything.
+func complete_room_task(key: String, task_id: String) -> bool:
+	_sync_accommodation_states_from_guests(false)
+	var state = CoreRoot.get_state()
+	if state == null or not state.accommodation_states.has(key):
+		return false
+	var acc: Dictionary = state.accommodation_states[key]
+	var building_type := str(acc.get("building_type", ""))
+	if ROOM_RULES.task(building_type, task_id).is_empty():
+		return false
+	var done: Array = (acc.get("prep_done", []) as Array).duplicate() if acc.get("prep_done", []) is Array else []
+	if done.has(task_id):
+		return false
+	done.append(task_id)
+	acc["prep_done"] = done
+	state.accommodation_states[key] = acc
+	if EventBus.has_signal("room_task_done"):
+		EventBus.room_task_done.emit(key, task_id)
+	if ROOM_RULES.all_done(building_type, done) and ROOM_RULES.normalize_status(str(acc.get("status", ""))) != ROOM_RULES.STATUS_READY:
+		acc["status"] = ROOM_RULES.STATUS_READY
+		state.accommodation_states[key] = acc
+		if EventBus.has_signal("room_prepared"):
+			EventBus.room_prepared.emit(key)
+		if EventBus.has_signal("accommodation_state_changed"):
+			EventBus.accommodation_state_changed.emit(key, ROOM_RULES.STATUS_READY, (acc.get("guest_ids", []) as Array).size())
+		# Someone may be waiting at the barrier for exactly this room.
+		_update_arrivals(_absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute))
+	_emit_guest_overview_state(true)
+	return true
 
 
 func _update_stay_states(day: int, hour: int, minute: int) -> bool:
@@ -471,6 +700,8 @@ func _update_stay_states(day: int, hour: int, minute: int) -> bool:
 			continue
 		var guest: Dictionary = guest_any
 		var status = str(guest.get("status", STATUS_ACTIVE)).to_lower().strip_edges()
+		if status == STATUS_EXPECTED or status == STATUS_WAITING:
+			continue
 		if status != STATUS_ACTIVE and status != STATUS_SLEEP:
 			guest["status"] = STATUS_ACTIVE
 			status = STATUS_ACTIVE
@@ -722,7 +953,7 @@ func get_bed_metrics() -> Dictionary:
 			continue
 		var guest: Dictionary = guest_any
 		var status = str(guest.get("status", STATUS_ACTIVE)).to_lower().strip_edges()
-		if status != STATUS_ACTIVE and status != STATUS_SLEEP:
+		if not _is_guest_in_stay_status(status):
 			continue
 		occupied_beds += max(1, int(guest.get("beds_used", guest.get("party_size", 1))))
 
@@ -867,7 +1098,8 @@ func _collect_active_archetype_counts() -> Dictionary:
 			continue
 		var guest: Dictionary = guest_any
 		var status = str(guest.get("status", STATUS_ACTIVE)).to_lower().strip_edges()
-		if status != STATUS_ACTIVE and status != STATUS_SLEEP:
+		# Those still on the road will be here tonight: they count.
+		if not _is_guest_in_stay_status(status):
 			continue
 		var archetype = _normalize_archetype(str(guest.get("archetype", ARCHETYPE_QUIET_GUY)))
 		counts[archetype] = int(counts.get(archetype, 0)) + 1
@@ -1071,7 +1303,11 @@ func get_accommodation_guest_visuals_by_coord(coord: Vector2i) -> Array:
 		return []
 	var entries_any = slot_lookup[acc_key]
 	var entries: Array = entries_any if entries_any is Array else []
-	return entries.duplicate(true)
+	var present: Array = []
+	for e in entries:
+		if e is Dictionary and bool((e as Dictionary).get("checked_in", true)):
+			present.append((e as Dictionary).duplicate(true))
+	return present
 
 
 func get_accommodation_states() -> Dictionary:
@@ -1083,7 +1319,13 @@ func get_accommodation_states() -> Dictionary:
 	return (state.accommodation_states as Dictionary).duplicate(true)
 
 
+## Holds beds: checked in, or booked and on the way / at the barrier.
 func _is_guest_in_stay_status(status: String) -> bool:
+	return status == STATUS_ACTIVE or status == STATUS_SLEEP or status == STATUS_EXPECTED or status == STATUS_WAITING
+
+
+## Physically in the camp (checked in).
+func _is_checked_in(status: String) -> bool:
 	return status == STATUS_ACTIVE or status == STATUS_SLEEP
 
 
@@ -1413,6 +1655,7 @@ func _build_guest_slot_lookup(accommodations: Dictionary) -> Dictionary:
 				"archetype": archetype,
 				"sprite_path": sprite_path,
 				"slot_index": slot_index,
+				"checked_in": _is_checked_in(status),
 			})
 			out[acc_key] = list
 
@@ -1459,16 +1702,31 @@ func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 		var slots_any = slot_lookup.get(key, [])
 		var slots: Array = slots_any if slots_any is Array else []
 		var guest_ids: Array = []
+		var occupied := 0
 		for slot_any in slots:
 			if slot_any is Dictionary:
 				guest_ids.append(int((slot_any as Dictionary).get("guest_id", -1)))
+				if bool((slot_any as Dictionary).get("checked_in", false)):
+					occupied += 1
+		# New rooms start unprepared; a room the last guests just left needs doing again.
+		var status := ROOM_RULES.normalize_status(str(prev.get("status", ROOM_RULES.STATUS_UNPREPARED)))
+		var done: Array = (prev.get("prep_done", []) as Array).duplicate() if prev.get("prep_done", []) is Array else []
+		if int(prev.get("occupied", 0)) > 0 and occupied == 0:
+			status = ROOM_RULES.STATUS_DIRTY
+			done = []
+		# An upgrade replaces the furniture: an empty room has to be made up again.
+		elif not prev.is_empty() and str(prev.get("building_type", "")) != str(acc.get("building_type", "")) and occupied == 0:
+			status = ROOM_RULES.STATUS_UNPREPARED
+			done = []
 		next[key] = {
 			"key": key,
 			"coord": acc.get("coord", Vector2i.ZERO),
 			"root_coord": acc.get("coord", Vector2i.ZERO),
 			"building_type": str(acc.get("building_type", "")),
 			"capacity": int(acc.get("capacity", 1)),
-			"status": str(prev.get("status", "clean")),
+			"status": status,
+			"prep_done": done,
+			"occupied": occupied,
 			"guest_ids": guest_ids,
 			"guest_slots": slots.duplicate(true),
 		}
@@ -1497,7 +1755,7 @@ func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 					var acc: Dictionary = acc_any
 					var guest_ids_any = acc.get("guest_ids", [])
 					var guest_ids: Array = guest_ids_any if guest_ids_any is Array else []
-					EventBus.accommodation_state_changed.emit(key, str(acc.get("status", "clean")), guest_ids.size())
+					EventBus.accommodation_state_changed.emit(key, str(acc.get("status", ROOM_RULES.STATUS_UNPREPARED)), guest_ids.size())
 			else:
 				EventBus.accommodation_state_changed.emit(key, "removed", 0)
 

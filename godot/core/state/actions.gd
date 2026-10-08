@@ -51,6 +51,25 @@ func place_building(building_id: String, origin: Vector2i, footprint: Vector2i =
 	return true
 
 
+## An upgrade in place (tent_1 -> tent_2, cabin_1 -> cabin_2): same footprint, same
+## instance, new type. Money is handled by the upgrade menu.
+func retype_building(origin: Vector2i, new_type: String) -> bool:
+	var data: Dictionary = _state.grid.get_cell_data(origin)
+	if data.is_empty():
+		return false
+	var instance_id := str(data.get("id", ""))
+	var root = data.get("root_coord", origin)
+	var changed := false
+	for c in _state.grid.cells:
+		var cell_data: Dictionary = _state.grid.cells[c]
+		var same: bool = (str(cell_data.get("id", "")) == instance_id) if instance_id != "" else (cell_data.get("root_coord", c) == root)
+		if same:
+			cell_data["type"] = new_type
+			_state.grid.cells[c] = cell_data
+			changed = true
+	return changed
+
+
 func remove_building(cell: Vector2i) -> bool:
 	if _state.grid.is_cell_free(cell):
 		return _remove_visual_tree(cell)

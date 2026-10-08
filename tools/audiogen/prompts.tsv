@@ -1,0 +1,10 @@
+# id	seconds	destination (relative to godot/)	prompt
+barrier_lift	3.0	assets/sfx/gate/barrier_lift.mp3	An old manual steel boom barrier at a rural camp entrance being lifted: a rusty pivot creaks and groans, the counterweight clunks, the arm stops with a metal knock. Outdoors, close, no music.
+barrier_drop	2.5	assets/sfx/gate/barrier_drop.mp3	An old steel boom barrier arm being lowered and dropping onto its rest post: squeal of a rusty hinge, a hollow metal clang, small rattle. Outdoors, close, no music.
+car_arrive	6.0	assets/sfx/gate/car_arrive.mp3	A small old 1980s Eastern European car (like a Skoda) rolling slowly over a gravel forest road and stopping, tyres crunching on stones, the engine idling then switched off, one door opening and slamming shut. Outdoors at a distance of about twenty metres, birds faintly in the background, no music.
+gate_voice	2.0	assets/sfx/gate/gate_hello.mp3	A tired middle-aged man outside calls out once, a short wordless questioning shout like hello?, slightly distant, outdoors in a forest, no music.
+task_bed	1.8	assets/sfx/rooms/task_bed.mp3	Making a bed by hand: a thick wool blanket is shaken out and smoothed over a mattress, fabric rustling and flapping, a pillow being patted. Small wooden room, close, no music.
+task_litter	1.6	assets/sfx/rooms/task_litter.mp3	Picking up litter from a wooden floor: empty glass beer bottles clinking together and dropped into a crinkling plastic bag. Small wooden room, close, no music.
+task_scrub	2.2	assets/sfx/rooms/task_scrub.mp3	Scrubbing a ceramic toilet bowl hard with a stiff plastic brush, wet bristle scraping and splashing water. Small tiled bathroom with a little echo, close, no music.
+task_done	0.8	assets/sfx/rooms/task_done.mp3	A short satisfying soft knock: someone sets a heavy wooden object down on a wooden table with a small thud. Close, dry, no music.
+room_ready	1.5	assets/sfx/rooms/room_ready.mp3	A small old brass bell on a reception desk is tapped once, clear ding with a soft ring-out. Small room, close, no music.

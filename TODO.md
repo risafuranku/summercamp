@@ -6,6 +6,8 @@
 
 ## P0 — the vision's missing pieces
 
+- [ ] Interiors visual pass: real toilet / sink / bed models, the camp textures
+      (lino, wallpaper, tiles, blanket) on the walls and floors; pub and cellar rooms.
 - [ ] Pipe crawl polish: a proper shoe/bucket sprite, junction props, playtest the
       thing's pace; consider a second map style (torn, partly wrong).
 - [ ] **Service minigames** inside the interiors (now that you can look around them):

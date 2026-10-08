@@ -19,7 +19,8 @@ extends Node
 ##   ["money", amount]          set cash
 ##   ["clear", x, y, w, h]      bulldoze trees/buildings in a rect (<= 5x5, real builder path)
 ##   ["build", type, x, y, rot] request a build through the real builder authority
-##   ["book", name, archetype, party, nights]  confirm a booking (GuestManager path)
+##   ["book", name, archetype, party, nights, arrival_min?]  confirm a booking (GuestManager path)
+##   ["prep_all"]                                    make every room up (as if done in the interiors)
 ##   ["player", x, y, yaw_deg]  put the player on a grid tile facing yaw
 ##   ["timescale", k]           Engine.time_scale
 ##
@@ -50,7 +51,7 @@ const SCENARIOS := {
 		["build", "cabin_1", 12, 6, 0], ["build", "toilet_block", 7, 7, 0], ["build", "shower_block", 8, 8, 0],
 		["build", "vecerka", 12, 9, 0], ["build", "bonfire", 5, 10, 0], ["build", "lamp_post", 10, 7, 0],
 		["wait", 0.5],
-		["book", "Novak family", "quiet_guy", 2, 2], ["book", "Pepa", "drunk", 1, 2], ["book", "Kristyna", "cheap_chick", 1, 1],
+		["prep_all"], ["book", "Novak family", "quiet_guy", 2, 2], ["prep_all"], ["book", "Pepa", "drunk", 1, 2], ["prep_all"], ["book", "Kristyna", "cheap_chick", 1, 1],
 		["player", 9, 2, 180.0], ["timescale", 3.0],
 		["wait", 3.0], ["shot", "20_arrivals"],
 		["wait", 10.0], ["shot", "21_camp_life"],
@@ -63,7 +64,7 @@ const SCENARIOS := {
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 5000], ["clear", 7, 3, 5, 5], ["build", "tent_1", 8, 5, 0], ["build", "tent_1", 9, 5, 0],
 		["build", "toilet_block", 10, 5, 0],
-		["book", "Pepa", "drunk", 2, 2],
+		["prep_all"], ["book", "Pepa", "drunk", 2, 2],
 		["player", 9, 2, 180.0], ["wait", 2.0],
 		["eval", "_hud_manager.push_status('Build confirmed: Toilet Block', 1)"],
 		["eval", "_hud_manager.show_quote('Pepa', 'One more beer. Just one.', 70.0)"],
@@ -140,7 +141,7 @@ const SCENARIOS := {
 		["build", "path", 9, 3, 0], ["build", "path", 9, 4, 0], ["build", "path", 9, 5, 0], ["build", "path", 9, 6, 0], ["build", "path", 8, 4, 0], ["build", "path", 10, 4, 0],
 		["build", "tent_1", 4, 5, 0], ["build", "tent_1", 5, 5, 0], ["build", "cabin_1", 12, 6, 0],
 		["build", "toilet_block", 7, 7, 0], ["build", "bonfire", 10, 9, 0], ["build", "lamp_post", 10, 7, 0],
-		["book", "Novak family", "quiet_guy", 2, 2], ["book", "Pepa", "drunk", 1, 2], ["book", "Kristyna", "cheap_chick", 1, 1],
+		["prep_all"], ["book", "Novak family", "quiet_guy", 2, 2], ["prep_all"], ["book", "Pepa", "drunk", 1, 2], ["prep_all"], ["book", "Kristyna", "cheap_chick", 1, 1],
 		["timescale", 3.0], ["wait", 6.0], ["timescale", 1.0],
 		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
 		["signal", "program_installed", "builder"], ["wait", 1.0],
@@ -183,7 +184,7 @@ const SCENARIOS := {
 		["eval", "[_senses.gaze, snappedf(_senses.hush, 0.01), snappedf(_senses.fear, 0.01)]"],
 		["shot", "s1_face_sees_it"],
 		["call", "_stop_active_enemy_brain", []],
-		["money", 5000], ["clear", 7, 3, 5, 5], ["build", "tent_1", 8, 5, 0], ["book", "Pepa", "drunk", 1, 3], ["wait", 0.5],
+		["money", 5000], ["clear", 7, 3, 5, 5], ["build", "tent_1", 8, 5, 0], ["prep_all"], ["book", "Pepa", "drunk", 1, 3], ["wait", 0.5],
 		["call", "debug_spawn_enemy", ["girl", 3]], ["wait", 1.0],
 		["look_at_enemy"], ["eval", "_player.rotate_y(deg_to_rad(-120))"], ["wait", 1.2],
 		["eval", "[_senses.gaze, snappedf(_senses.fear, 0.01)]"],
@@ -192,7 +193,7 @@ const SCENARIOS := {
 	"uncanny": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 5000], ["clear", 7, 3, 5, 5], ["build", "tent_1", 8, 5, 0], ["build", "tent_1", 10, 5, 0],
-		["book", "Pepa", "drunk", 1, 4], ["book", "Mirek", "quiet_guy", 1, 4], ["wait", 0.5],
+		["prep_all"], ["book", "Pepa", "drunk", 1, 4], ["book", "Mirek", "quiet_guy", 1, 4], ["wait", 0.5],
 		["hours", 33.0], ["wait", 1.0], ["eval", "[_day_index, _time_of_day_hours]"],
 		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 16.0],
 		["eval", "_interior_manager._building_interior._crt_ui._on_program_installed('guestrack')"],
@@ -232,12 +233,45 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._look.set('yaw_deg', 70)"], ["eval", "_interior_manager._building_interior._look.set('pitch_deg', -30)"], ["wait", 0.8], ["shot", "building_interior_5_left_down"],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.5],
 	],
+	"gate": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "[grid_manager.grid_width, get_tree().get_first_node_in_group('camp_gate').gap_center_x]"],
+		["money", 5000], ["clear", 16, 3, 3, 3], ["build", "tent_1", 17, 4, 0], ["build", "tent_1", 18, 4, 0], ["build", "tent_1", 17, 5, 0], ["wait", 0.5],
+		["book", "Pepa", "drunk", 1, 2, 0], ["book", "Mirek", "quiet_guy", 1, 1, 0], ["book", "Kristyna", "cheap_chick", 1, 1, 50], ["hours", 0.1], ["wait", 1.0],
+		["player", 15, 3, 0.0], ["wait", 1.0], ["shot", "g0_from_camp"],
+		["player", 15, -4, 180.0], ["wait", 1.0], ["shot", "g1_from_road"],
+		["player", 16, -4, 135.0], ["wait", 1.0], ["shot", "g2_booth"],
+		["prep_all"], ["hours", 0.05], ["player", 14, -3, 160.0], ["wait", 2.2], ["shot", "g3_barrier_up"],
+		["wait", 7.0], ["shot", "g4_barrier_down"],
+		["hours", 12.0], ["wait", 2.0], ["player", 15, -4, 180.0], ["wait", 1.0], ["shot", "g5_gate_night"], ["eval", "[get_tree().get_first_node_in_group('camp_gate')._booth_light.visible, _time_state, _time_of_day_hours]"],
+	],
+	"prep": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 5000], ["clear", 16, 3, 3, 3], ["build", "tent_1", 17, 4, 0], ["wait", 0.5],
+		["book", "Pepa", "drunk", 1, 2, 0], ["hours", 0.05], ["wait", 0.5],
+		["open_room", 17, 4], ["wait", 1.2], ["shot", "p0_tent_messy"],
+		["aim_task", "_tent_interior", "bed"], ["wait", 0.4], ["shot", "p1_hover_bed"],
+		["eval", "[_interior_manager._tent_interior._prep.tasks._target_under_cursor(), _interior_manager._tent_interior._prep.tasks._hover, _interior_manager._tent_interior._prep.tasks.is_visible_in_tree(), _interior_manager._tent_interior._prep.tasks._targets.keys()]"],
+		["lmb", true], ["wait", 0.9], ["shot", "p2_holding"], ["wait", 1.2], ["lmb", false], ["wait", 0.4], ["shot", "p3_bed_done"],
+		["aim_task", "_tent_interior", "floor"], ["wait", 0.3], ["lmb", true], ["wait", 1.8], ["lmb", false], ["wait", 0.6], ["shot", "p4_tent_ready"],
+		["eval", "GuestManager.get_room_state('17:4')"],
+	],
+	"prepcabin": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5], ["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5], ["gm", "get_room_state", "17:4"],
+		["open_room", 17, 4], ["wait", 1.2], ["shot", "q0_cabin_messy"],
+		["aim_task", "_cabin_interior", "bed"], ["wait", 0.4], ["shot", "q1_hover_bed"],
+		["lmb", true], ["wait", 2.4], ["lmb", false], ["wait", 0.4],
+		["aim_task", "_cabin_interior", "floor"], ["wait", 0.3], ["shot", "q2_hover_bottles"], ["lmb", true], ["wait", 1.8], ["lmb", false], ["wait", 0.4], ["shot", "q3_main_done"],
+		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 0.8], ["shot", "q4_bathroom_dirty"],
+		["aim_task", "_cabin_interior", "bathroom"], ["wait", 0.3], ["lmb", true], ["wait", 1.2], ["shot", "q5_scrubbing"], ["wait", 1.3], ["lmb", false], ["wait", 0.5], ["shot", "q6_cabin_ready"],
+	],
 	"saveload": [
 		["wait_menu"], ["wait", 1.0], ["shot", "01_menu"],
 		["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 5000], ["clear", 7, 3, 5, 5],
 		["build", "tent_1", 8, 5, 0], ["build", "toilet_block", 10, 5, 0], ["wait", 0.5],
-		["book", "Pepa", "drunk", 1, 3], ["condition", 10, 5, 0.4],
+		["prep_all"], ["book", "Pepa", "drunk", 1, 3], ["condition", 10, 5, 0.4],
 		["hours", 26.0], ["wait", 1.0],
 		["eval", "get_upkeep_snapshot()['rows'].size()"],
 		["eval", "get_electricity_ui_snapshot()['unpaid_count']"],
@@ -374,11 +408,22 @@ func _run_step(step: Array) -> void:
 		"build":
 			EventBus.RequestBuild.emit(str(step[1]), Vector2i(int(step[2]), int(step[3])), int(step[4]))
 		"book":
+			# Optional 6th field: minutes until the party reaches the barrier (default 0).
 			EventBus.customer_booking_confirmed.emit({
 				"guest_name": str(step[1]), "archetype": str(step[2]),
 				"guests": int(step[3]), "nights": int(step[4]), "from": "%s <guest@mail>" % step[1],
+				"arrival_minutes": int(step[5]) if step.size() > 5 else 0,
 			})
+		"gm":
+			# Call a GuestManager method (Expression cannot reach autoloads): [method, args...]
+			print("SHOT DRIVER gm %s -> %s" % [step[1], GuestManager.callv(str(step[1]), step.slice(2))])
+		"prep_all":
+			# Make every room up, as the player would in the interiors.
+			for key in GuestManager.get_accommodation_states().keys():
+				for t in GuestManager.get_room_state(str(key)).get("tasks", []):
+					GuestManager.complete_room_task(str(key), str(t["id"]))
 		"player":
+			_main.set("debug_camera", null)
 			var player = _main.get("_player")
 			var gm = _main.get("grid_manager")
 			if player != null and gm != null:
@@ -438,6 +483,79 @@ func _run_step(step: Array) -> void:
 				var img: Image = crt.get_viewport().get_texture().get_image()
 				img.save_png(_out_dir.path_join(str(step[1]) + ".png"))
 				print("SHOT DRIVER: crt %s %s" % [step[1], img.get_size()])
+		"topdown":
+			# A camera high above a point (grid x, y, height, tilt deg) for layout shots.
+			var gm2 = _main.get("grid_manager")
+			var world3d: Node3D = _main.get("_world_3d")
+			var cam3 := Camera3D.new()
+			world3d.add_child(cam3)
+			var at: Vector3 = gm2.grid_to_world(Vector2i(int(step[1]), int(step[2])))
+			cam3.global_position = at + Vector3(0, float(step[3]), float(step[3]) * tan(deg_to_rad(90.0 - float(step[4]))))
+			cam3.look_at(at, Vector3.FORWARD if float(step[4]) >= 89.0 else Vector3.UP)
+			cam3.far = 600.0
+			var env_src: Environment = cam3.get_world_3d().environment if cam3.get_world_3d() != null else null
+			if env_src == null:
+				var we = _main.find_child("WorldEnvironment", true, false)
+				if we != null:
+					env_src = we.environment
+			if env_src != null:
+				var env_clear: Environment = env_src.duplicate()
+				env_clear.fog_enabled = false
+				env_clear.volumetric_fog_enabled = false
+				cam3.environment = env_clear
+			var old_cam = _main.get("debug_camera")
+			if old_cam != null and is_instance_valid(old_cam):
+				old_cam.queue_free()
+			_main.set("debug_camera", cam3)
+		"open_room":
+			# Walk into the structure at grid (x, y) through the real interaction path.
+			var bm = _main.get("building_manager")
+			var root3 = bm.get_node_or_null("Structures")
+			for c in root3.get_children():
+				if c.get_meta("grid_origin", Vector2i(-99, -99)) == Vector2i(int(step[1]), int(step[2])):
+					var im = _main.get("_interior_manager")
+					print("SHOT DRIVER open_room %s type=%s module=%s" % [c.name, c.get_meta("building_type", ""), im._module_for_building_type(str(c.get_meta("building_type", "")))])
+					im.handle_structure_interact(c)
+					break
+		"aim_task":
+			# Turn the interior's head toward a room task, then put the OS cursor on it
+			# ([interior, id]), as a player would look at the thing before clicking it.
+			var interior = _main.get("_interior_manager").get(str(step[1]))
+			var tasks = interior.get("_prep").tasks
+			var target: Dictionary = tasks._targets.get(str(step[2]), {})
+			if not target.is_empty():
+				var cam: Camera3D = tasks._camera
+				var look = interior.get("_look")
+				var base: Vector3 = interior.get("_cam_base_rot")
+				var to: Vector3 = target["body"].global_position - cam.global_position
+				var yaw := rad_to_deg(atan2(-to.x, -to.z) - base.y)
+				var pitch := rad_to_deg(atan2(to.y, Vector2(to.x, to.z).length()) - base.x)
+				look.yaw_deg = clampf(yaw, -look.yaw_limit_deg, look.yaw_limit_deg)
+				look.pitch_deg = clampf(pitch, -look.pitch_down_deg, look.pitch_up_deg)
+				Input.warp_mouse(Vector2(DisplayServer.window_get_size()) * 0.5)
+				print("SHOT DRIVER aim look -> %.1f %.1f (base %s, to %s)" % [look.yaw_deg, look.pitch_deg, base, to])
+				# Let the head turn settle, then aim (an internal follow-up step).
+				_steps.insert(_step_index, ["_aim_cursor", step[1], step[2]])
+				_wait_left = 0.6
+		"_aim_cursor":
+			var interior2 = _main.get("_interior_manager").get(str(step[1]))
+			var tasks2 = interior2.get("_prep").tasks
+			var target2: Dictionary = tasks2._targets.get(str(step[2]), {})
+			if not target2.is_empty():
+				var cam2: Camera3D = tasks2._camera
+				var vp_size := Vector2(tasks2._viewport.size)
+				var screen := get_viewport().get_visible_rect().size
+				var sp: Vector2 = cam2.unproject_position(target2["body"].global_position) / vp_size * screen
+				# warp_mouse takes window pixels; the canvas may be scaled to the window.
+				Input.warp_mouse(sp * Vector2(DisplayServer.window_get_size()) / screen)
+				print("SHOT DRIVER aim_task %s at %s look now %.1f %.1f rot %s" % [step[2], sp, interior2.get("_look").yaw_deg, interior2.get("_look").pitch_deg, cam2.rotation_degrees])
+		"lmb":
+			var ev := InputEventMouseButton.new()
+			ev.button_index = MOUSE_BUTTON_LEFT
+			ev.pressed = bool(step[1])
+			ev.position = get_viewport().get_mouse_position()
+			ev.button_mask = MOUSE_BUTTON_MASK_LEFT if bool(step[1]) else 0
+			Input.parse_input_event(ev)
 		"look_at_enemy":
 			# Turn the player toward the newest enemy's body.
 			var brains: Array = _main.get("_enemy_brains")

@@ -12,6 +12,8 @@ sprite:  keys out the flat magenta background (and its anti-aliased fringe), cro
          pixel = the average of a block, like a hand-downsampled sprite), hard alpha,
          then snaps every opaque pixel to the game's 256-colour palette.
 texture: centre-crops square, scales to <size_px>, snaps to the palette (opaque).
+panel:   like texture but keeps the source aspect: <size_px> is the width, the height
+         follows (doors, windows).
 
 Source renders stay in tools/artgen/out/<id>/raw.png for regeneration.
 """
@@ -27,7 +29,7 @@ PALETTE = os.path.join(GODOT, "assets", "textury", "palette", "build_palette.png
 
 def palette_image():
     pal = Image.open(PALETTE).convert("RGB")
-    colours = list(pal.getdata())[:256]
+    colours = list(pal.get_flattened_data() if hasattr(pal, "get_flattened_data") else pal.getdata())[:256]
     flat = []
     for c in colours:
         flat.extend(c)
@@ -128,6 +130,13 @@ def texture(src, size):
     return snap(img, False)
 
 
+def panel(src, width):
+    img = Image.open(src).convert("RGB")
+    height = max(1, round(img.height * width / img.width))
+    img = img.resize((width, height), Image.Resampling.BOX)
+    return snap(img, False)
+
+
 def main():
     if len(sys.argv) < 5:
         print(__doc__)
@@ -138,6 +147,8 @@ def main():
         out = black_sprite(os.path.join(GODOT, art_id), size)
     elif kind == "sprite":
         out = sprite(src, size)
+    elif kind == "panel":
+        out = panel(src, size)
     else:
         out = texture(src, size)
     path = os.path.join(GODOT, dest)

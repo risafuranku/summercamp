@@ -2,6 +2,7 @@ extends Node
 ## Build-engine style HUD.
 ##
 ##   ┌ message feed (Duke3D quotes)                      objective tracker ┐
+##   │                                                     arrivals       │
 ##   │                                                     guest card     │
 ##   │ ════════════════ centre banner band (NIGHT 1) ══════════════════  │
 ##   │                              +   ▼ 24M (objective marker)          │
@@ -14,7 +15,7 @@ extends Node
 ##
 ## Layout rules (asserted by tools/hud_layout_check.tscn):
 ## - every status-bar label sits on a fixed baseline inside its cell and fits its width;
-## - the guest card stacks under the objective tracker, never over it;
+## - the right column stacks tracker -> arrivals -> guest card, never overlapping;
 ## - the banner is a full-width band drawn above both, so it reads as a deliberate
 ##   title card rather than text spilling over a panel;
 ## - the objective marker is screen-space and constant-size; it hides close to the
@@ -44,6 +45,8 @@ const FEED_FADE_SEC := 0.8
 const CARD_HOLD_SEC := 7.0
 const TRACKER_WIDTH_VP := 150
 const CARD_WIDTH_VP := 132
+## Arrivals panel: parties on the road / at the barrier and whether their room is ready.
+const ARRIVALS_MAX_ROWS := 4
 const WAYPOINT_HIDE_DISTANCE := 4.5
 const WAYPOINT_EDGE_VP := 14.0
 
@@ -111,6 +114,9 @@ var _risk_pips: Array[ColorRect] = []
 var _risk_level: Label
 var _feed_box: VBoxContainer
 var _objective_panel: Control
+var _arrivals_panel: Control
+var _arrivals_box: VBoxContainer
+var _arrivals: Array = []
 var _objective_title: Label
 var _objective_text: Label
 var _objective_hint: Label
@@ -477,6 +483,7 @@ func _rebuild_layout() -> void:
 	_build_status_bar()
 	_build_feed()
 	_build_objective()
+	_build_arrivals()
 	_build_card()
 	_build_banner()
 	_build_crosshair_and_hint()
@@ -694,6 +701,77 @@ func _build_objective() -> void:
 	box.add_child(_objective_progress)
 
 
+func _build_arrivals() -> void:
+	var panel := _plate()
+	panel.name = "Arrivals"
+	panel.anchor_left = 1.0
+	panel.anchor_right = 1.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	panel.offset_right = -_vp(4)
+	panel.offset_left = -_vp(4 + TRACKER_WIDTH_VP)
+	panel.offset_top = _vp(4)
+	panel.visible = false
+	_root.add_child(panel)
+	_arrivals_panel = panel
+	_arrivals_box = VBoxContainer.new()
+	_arrivals_box.add_theme_constant_override("separation", int(_vp(2)))
+	_arrivals_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(_arrivals_box)
+
+
+## Rows from GuestManager.get_arrivals(): who is coming, when, to which room, ready?
+func set_arrivals(rows: Array) -> void:
+	if rows == _arrivals:
+		return
+	_arrivals = rows.duplicate(true)
+	_refresh_arrivals()
+
+
+func _refresh_arrivals() -> void:
+	if _arrivals_panel == null:
+		return
+	for c in _arrivals_box.get_children():
+		_arrivals_box.remove_child(c)
+		c.queue_free()
+	if _arrivals.is_empty():
+		_arrivals_panel.visible = false
+		return
+	_arrivals_panel.visible = true
+	_arrivals_box.add_child(RETRO_UI.label("ARRIVALS", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale))
+	var shown := 0
+	for row_any in _arrivals:
+		if shown >= ARRIVALS_MAX_ROWS:
+			break
+		shown += 1
+		var row: Dictionary = row_any
+		var at_gate := bool(row.get("at_gate", false))
+		var minutes := int(row.get("minutes", 0))
+		var head := "%s x%d" % [str(row.get("name", "Guest")), int(row.get("party_size", 1))]
+		var when := ("AT GATE %d:%02d" % [minutes / 60, minutes % 60]) if at_gate else ("IN %d:%02d" % [minutes / 60, minutes % 60])
+		var line := HBoxContainer.new()
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var name_l := _body(head, RETRO_UI.C_BONE)
+		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_l.clip_text = true
+		line.add_child(name_l)
+		var when_col := RETRO_UI.C_RED_LIGHT if at_gate and int(row.get("patience_left", 999)) < 40 else (RETRO_UI.C_AMBER if at_gate else RETRO_UI.C_BONE_DIM)
+		line.add_child(_body(when, when_col))
+		_arrivals_box.add_child(line)
+		var rooms: Array = row.get("rooms", [])
+		var room_parts: Array[String] = []
+		var all_ready := not rooms.is_empty()
+		for r in rooms:
+			room_parts.append(str((r as Dictionary).get("label", "")).to_upper())
+			if not bool((r as Dictionary).get("ready", false)):
+				all_ready = false
+		var room_text := "%s  %s" % [", ".join(room_parts), "READY" if all_ready else "NOT READY"]
+		var room_l := _caption("  " + room_text, RETRO_UI.C_GREEN if all_ready else RETRO_UI.C_RED_LIGHT)
+		_arrivals_box.add_child(room_l)
+	if _arrivals.size() > shown:
+		_arrivals_box.add_child(_caption("+%d MORE" % (_arrivals.size() - shown)))
+	_arrivals_panel.size = Vector2(_vp(TRACKER_WIDTH_VP), 0)
+
+
 func _build_card() -> void:
 	var panel := _plate()
 	panel.name = "GuestCard"
@@ -870,6 +948,7 @@ func _refresh_all() -> void:
 		_refresh_card()
 	if _banner_timer > 0.0:
 		_apply_banner()
+	_refresh_arrivals()
 
 
 func _refresh_work() -> void:
@@ -1046,13 +1125,18 @@ func _center_plate(plate: Control) -> void:
 	plate.offset_right = x + w
 
 
-## The card hangs under the tracker; both are self-sizing, so this runs every frame.
+## Tracker, then arrivals, then the guest card; all self-sizing, so this runs every
+## frame.
 func _stack_right_column() -> void:
-	if _card_panel == null or not _card_panel.visible:
-		return
 	var top := _vp(4)
 	if _objective_panel != null and _objective_panel.visible:
 		top = _objective_panel.position.y + _objective_panel.size.y + _vp(3)
+	if _arrivals_panel != null and _arrivals_panel.visible:
+		_arrivals_panel.offset_top = top
+		_arrivals_panel.offset_bottom = top + _arrivals_panel.get_combined_minimum_size().y
+		top += _arrivals_panel.get_combined_minimum_size().y + _vp(3)
+	if _card_panel == null or not _card_panel.visible:
+		return
 	_card_panel.offset_top = top
 	_card_panel.offset_bottom = top + _card_panel.get_combined_minimum_size().y
 

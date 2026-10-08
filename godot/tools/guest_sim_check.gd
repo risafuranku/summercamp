@@ -42,10 +42,12 @@ func _ready() -> void:
 	var beds: Dictionary = GuestManager.get_bed_metrics()
 	_expect(int(beds.get("capacity", 0)) == 3 + 3 + 3 + 2, "bed capacity reads BuildingDef capacity (got %d)" % int(beds.get("capacity", 0)))
 
+	_prepare_all_rooms()
 	_book("Novak family", "quiet_guy", 3, 3)
 	_book("Pepa & Franta", "drunk", 2, 2)
 	_book("Kristýna", "cheap_chick", 1, 2)
 	_book("Mirek", "drunk", 1, 1)
+	_run_minutes(1)
 
 	var snap: Array = GuestManager.get_guest_life_snapshot()
 	_expect(snap.size() == 4, "4 guest parties checked in (got %d)" % snap.size())
@@ -125,6 +127,7 @@ func _ready() -> void:
 	CoreRoot.get_state().guest_reviews.clear()
 	_place("tent_3", Vector2i(6, 6))
 	_place("tent_3", Vector2i(7, 6))
+	_prepare_all_rooms()
 	_book("Unlucky Pair", "cheap_chick", 2, 4)
 	_run_minutes(30 * 60)
 	var bare: Dictionary = GuestManager.get_camp_mood_summary()
@@ -162,7 +165,16 @@ func _book(guest_name: String, archetype: String, party: int, nights: int) -> vo
 		"guests": party,
 		"nights": nights,
 		"from": "%s <x@y>" % guest_name,
+		"arrival_minutes": 0,
 	})
+
+
+## Rooms start unprepared now: make every one up, as the player would.
+func _prepare_all_rooms() -> void:
+	for key in GuestManager.get_accommodation_states().keys():
+		var room: Dictionary = GuestManager.get_room_state(str(key))
+		for t in room.get("tasks", []):
+			GuestManager.complete_room_task(str(key), str(t["id"]))
 
 
 func _run_minutes(total: int) -> void:

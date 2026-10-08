@@ -413,6 +413,7 @@ func _on_tent_interact(tent_node: Node) -> void:
 	_apply_time_to_interior(_tent_interior)
 	_tent_interior.open_tent(level)
 	_sync_tent_guest_visuals()
+	_push_room_state(_tent_interior, _active_tent_node)
 	_set_player_controls_enabled(false)
 
 
@@ -428,6 +429,8 @@ func _setup_tent_interior() -> void:
 		_tent_interior.request_close.connect(_on_tent_closed)
 	if _tent_interior.has_signal("request_upgrade"):
 		_tent_interior.request_upgrade.connect(_on_tent_upgrade_requested)
+	if _tent_interior.has_signal("room_task_completed"):
+		_tent_interior.room_task_completed.connect(func(task_id: String): _on_room_task_completed(_tent_interior, _active_tent_node, task_id))
 	_apply_grid_power_to_interior(_tent_interior)
 
 
@@ -450,6 +453,8 @@ func _setup_cabin_interior() -> void:
 		_cabin_interior.request_close.connect(_on_cabin_closed)
 	if _cabin_interior.has_signal("request_upgrade"):
 		_cabin_interior.request_upgrade.connect(_on_cabin_upgrade_requested)
+	if _cabin_interior.has_signal("room_task_completed"):
+		_cabin_interior.room_task_completed.connect(func(task_id: String): _on_room_task_completed(_cabin_interior, _active_cabin_node, task_id))
 	_apply_grid_power_to_interior(_cabin_interior)
 
 
@@ -474,6 +479,7 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 	_apply_time_to_interior(_cabin_interior)
 	_cabin_interior.open_cabin(level)
 	_sync_cabin_guest_visuals()
+	_push_room_state(_cabin_interior, _active_cabin_node)
 	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
@@ -486,6 +492,35 @@ func _on_cabin_closed() -> void:
 	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 		_audio_manager.play_door_close()
 	_set_player_controls_enabled(true)
+
+
+## Room preparation: the interior shows the mess for what is not done yet.
+func _room_key_for(structure: Node3D) -> String:
+	if structure == null or not is_instance_valid(structure):
+		return ""
+	var origin_any = structure.get_meta("grid_origin", null)
+	if not (origin_any is Vector2i):
+		return ""
+	return "%d:%d" % [(origin_any as Vector2i).x, (origin_any as Vector2i).y]
+
+
+func _push_room_state(interior: Object, structure: Node3D) -> void:
+	var key := _room_key_for(structure)
+	if interior == null or key.is_empty() or not interior.has_method("set_room"):
+		return
+	interior.set_room(GuestManager.get_room_state(key))
+
+
+func _on_room_task_completed(interior: Object, structure: Node3D, task_id: String) -> void:
+	var key := _room_key_for(structure)
+	if key.is_empty():
+		return
+	var was_ready := str(GuestManager.get_room_state(key).get("status", "")) == "ready"
+	GuestManager.complete_room_task(key, task_id)
+	var room: Dictionary = GuestManager.get_room_state(key)
+	interior.set_room(room)
+	if not was_ready and str(room.get("status", "")) == "ready" and interior.has_method("play_room_ready"):
+		interior.play_room_ready()
 
 
 func _setup_service_interior() -> void:
@@ -830,6 +865,9 @@ func _handle_replace_upgrade(origin: Vector2i, old_type: String, new_type: Strin
 		_refund_upgrade_cost(cost)
 		return
 
+	# The core grid is what guests, rooms and saves read: it must know the new type.
+	if CoreRoot != null and CoreRoot.actions != null:
+		CoreRoot.actions.retype_building(origin, new_type)
 	var removed_registered = _economy_manager.unregister_building_at(origin, old_type)
 	if not removed_registered and old_type == "cabin_1":
 		_economy_manager.unregister_building_at(origin, "cabin")

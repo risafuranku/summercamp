@@ -5,7 +5,9 @@ const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const TENT_HALF_WIDTH := 0.98
 const TENT_RIDGE_HEIGHT := 1.26
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 
+signal room_task_completed(task_id: String)
 signal request_close
 signal request_upgrade
 
@@ -49,6 +51,7 @@ var _look = INTERIOR_LOOK.new(48.0, 16.0, 30.0)
 
 # Screen-space zones for click detection.
 var _catalog_mesh: MeshInstance3D
+var _prep = INTERIOR_PREP.new()
 
 var _level2_nodes: Array[String] = [
 	"LanternStem",
@@ -161,6 +164,10 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		# A press on something to tidy belongs to the tidying, not to the catalog.
+		if _prep.is_busy():
+			get_viewport().set_input_as_handled()
+			return
 		_try_click()
 
 
@@ -320,8 +327,38 @@ func _build_tent_room() -> void:
 	mini_table.visible = false
 	mini_shelf.visible = false
 
+	_build_prep_props()
 	_apply_level_variant()
 	_apply_time_profile()
+
+
+## The tent as the last guests left it: the sleeping bag kicked into a heap with the
+## pillow thrown off, and litter by the door. Tidy versions are the normal props.
+func _build_prep_props() -> void:
+	var P := INTERIOR_PREP
+	var heap_mat := P.camp_material("blanket_check.png", Color(0.75, 0.72, 0.7))
+	var heap_a := P.box(_tent_root, Vector3(-0.24, 0.12, -0.30), Vector3(0.62, 0.22, 0.46), heap_mat, Vector3(0.12, 0.35, -0.08))
+	var heap_b := P.box(_tent_root, Vector3(-0.18, 0.06, -0.75), Vector3(0.5, 0.08, 0.5), heap_mat, Vector3(0.0, -0.4, 0.06))
+	var pillow_off := P.box(_tent_root, Vector3(-0.58, 0.07, 0.05), Vector3(0.36, 0.08, 0.22), P.flat(Color(0.42, 0.40, 0.36)), Vector3(0.0, 0.9, 0.5))
+	var tidy_bag := _tent_root.get_node_or_null("SleepingBag")
+	var tidy_pillow := _tent_root.get_node_or_null("Pillow")
+	if tidy_bag is MeshInstance3D:
+		(tidy_bag as MeshInstance3D).material_override = heap_mat
+	var bed_body := P.body(_tent_root, Vector3(-0.28, 0.15, -0.45), Vector3(0.9, 0.3, 1.2))
+	_prep.register("bed", bed_body, [heap_a, heap_b, pillow_off], [tidy_bag, tidy_pillow])
+
+	var litter := Node3D.new()
+	litter.name = "Litter"
+	_tent_root.add_child(litter)
+	P.can(litter, Vector3(0.30, 0.035, -0.72), true, Color(0.7, 0.12, 0.1), 0.4)
+	P.can(litter, Vector3(0.50, 0.035, -0.88), true, Color(0.75, 0.72, 0.68), 1.9)
+	P.bottle(litter, Vector3(0.22, 0.04, -0.98), true, 2.6)
+	P.paper(litter, Vector3(0.52, 0.03, -1.05), 0.7)
+	P.paper(litter, Vector3(0.40, 0.03, -0.62), 2.2)
+	var litter_body := P.body(_tent_root, Vector3(0.38, 0.08, -0.85), Vector3(0.55, 0.18, 0.6))
+	_prep.register("floor", litter_body, [litter], [])
+	_prep.setup_tasks(self, _interior_camera, _viewport, "tent")
+	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 
 
 func _apply_level_variant() -> void:
@@ -345,7 +382,7 @@ func _apply_level_variant() -> void:
 	_set_node_color("CeilingRidge", wall_col.darkened(0.26))
 	_set_node_color("ZipLine", wall_col.darkened(0.10))
 	_set_node_color("FloorMat", floor_col)
-	_set_node_color("SleepingBag", bag_col)
+	_set_node_color("SleepingBag", bag_col.lerp(Color(1, 1, 1), 0.55))
 
 	for node_name in _level2_nodes:
 		_set_node_visible(node_name, _tent_level >= 2)
@@ -551,3 +588,14 @@ func _category_for_node(node_name: String, color: Color) -> String:
 	if color.s < 0.20 and color.v > 0.55:
 		return "stone"
 	return "decor_fabric"
+
+
+
+# ── room preparation (see scripts/interior_prep.gd) ──────────────────────────
+
+func set_room(room: Dictionary) -> void:
+	_prep.set_room(room)
+
+
+func play_room_ready() -> void:
+	_prep.play_room_ready()

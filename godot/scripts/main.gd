@@ -535,6 +535,7 @@ func _process(delta: float) -> void:
 	_tick_active_enemy_brain(delta)
 	_update_threat_senses(delta)
 	_sync_hud_player_meters()
+	_poll_arrivals(delta)
 	if _maintenance != null:
 		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
 	_poll_guest_quotes(delta)
@@ -641,6 +642,11 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 		var force_sky_snap = force or (absf(_time_of_day_hours - previous_hour) >= (DEBUG_TIME_STEP_HOURS - 0.001))
 		var state_transition = force or (previous_time_state != _time_state)
 		_apply_time_from_clock(state_transition, force_sky_snap)
+		if state_transition:
+			var gate := get_tree().get_first_node_in_group("camp_gate")
+			if gate != null:
+				# The gatehouse bulb is on from the evening lamps (19:30) to dawn.
+				gate.set_night(_time_state == TIME_NIGHT or _time_of_day_hours >= 19.5)
 		if previous_time_state == TIME_NIGHT and _time_state == TIME_DAY:
 			_on_day_phase_started()
 
@@ -851,6 +857,54 @@ func _update_threat_senses(delta: float) -> void:
 	if _hud_manager != null:
 		_hud_manager.set_fear(_senses.fear)
 		_hud_manager.set_face_gaze(_senses.gaze)
+
+
+var _arrivals_poll: float = 0.0
+var _arrival_events_bound: bool = false
+
+
+## The arrivals panel, and a feed line (plus a sound) for each step of an arrival.
+func _poll_arrivals(delta: float) -> void:
+	if not _arrival_events_bound:
+		_arrival_events_bound = true
+		EventBus.guest_at_gate.connect(_on_guest_at_gate)
+		EventBus.guest_checked_in.connect(_on_guest_checked_in)
+		EventBus.guest_gave_up.connect(_on_guest_gave_up)
+		EventBus.room_prepared.connect(_on_room_prepared)
+	_arrivals_poll -= delta
+	if _arrivals_poll > 0.0 or _hud_manager == null:
+		return
+	_arrivals_poll = 0.5
+	_hud_manager.set_arrivals(GuestManager.get_arrivals())
+
+
+func _on_guest_at_gate(row: Dictionary) -> void:
+	if _hud_manager == null:
+		return
+	var rooms: Array = row.get("rooms", [])
+	var not_ready: Array[String] = []
+	for r in rooms:
+		if not bool((r as Dictionary).get("ready", false)):
+			not_ready.append(str((r as Dictionary).get("label", "")))
+	var line := "%s is at the gate." % str(row.get("name", "A guest"))
+	if not not_ready.is_empty():
+		line += " %s not ready." % ", ".join(not_ready)
+	_hud_manager.push_status(line, 2 if not not_ready.is_empty() else 0, "arrivals")
+
+
+func _on_guest_checked_in(guest: Dictionary) -> void:
+	if _hud_manager != null:
+		_hud_manager.push_status("%s checked in." % str(guest.get("name", "A guest")), 1, "arrivals")
+
+
+func _on_guest_gave_up(row: Dictionary) -> void:
+	if _hud_manager != null:
+		_hud_manager.push_status("%s gave up waiting at the barrier and drove off." % str(row.get("name", "A guest")), 3, "arrivals")
+
+
+func _on_room_prepared(key: String) -> void:
+	if _hud_manager != null:
+		_hud_manager.push_status("%s is ready." % GuestManager.room_label(key), 1, "rooms")
 
 
 func _sync_hud_health() -> void:
@@ -1521,7 +1575,14 @@ func _generate_grid_world() -> void:
 		world_generator.create_emergency_ground(_world_3d)
 
 
+## Tools (screenshot driver) may park a camera here to look at the camp from outside.
+var debug_camera: Camera3D
+
+
 func _sync_active_camera() -> void:
+	if debug_camera != null and is_instance_valid(debug_camera):
+		debug_camera.current = true
+		return
 	if _player == null:
 		fallback_camera.current = true
 		return
@@ -2696,179 +2757,27 @@ func _rebuild_core_cells_from_visual_structures() -> void:
 					state.grid.cells[coord] = cell_dict
 
 
+## GuestManager owns the room states (status, preparation, who is in it). This only
+## mirrors how many checked-in guests each lodging holds onto its 3D structure, for the
+## lights in the windows and the interiors. (It used to rebuild the states itself and
+## overwrote room preparation with a legacy "clean".)
 func _sync_guest_accommodation_state() -> void:
-	var state = CoreRoot.get_state()
-	if state == null:
+	if building_manager == null or GuestManager == null:
 		return
-	if state.guests == null:
-		state.guests = []
-	if state.accommodation_states == null:
-		state.accommodation_states = {}
-	if building_manager == null:
-		state.accommodation_states = {}
-		return
-
 	var structures_root := building_manager.get_node_or_null("Structures")
 	if structures_root == null:
-		state.accommodation_states = {}
 		return
-
-	var guest_beds: Dictionary = {}
-	var active_guest_ids: Array = []
-	for guest_any in state.guests:
-		if not (guest_any is Dictionary):
-			continue
-		var guest := guest_any as Dictionary
-		var guest_id := int(guest.get("id", -1))
-		if guest_id <= 0:
-			continue
-		var status := str(guest.get("status", "")).to_lower().strip_edges()
-		if status != "active" and status != "sleep":
-			continue
-		if guest_beds.has(guest_id):
-			continue
-		guest_beds[guest_id] = max(1, int(guest.get("beds_used", guest.get("party_size", 1))))
-		active_guest_ids.append(guest_id)
-	active_guest_ids.sort()
-
-	var previous_states: Dictionary = {}
-	if state.accommodation_states is Dictionary:
-		previous_states = state.accommodation_states
-	var entries: Array = []
-
+	var states: Dictionary = GuestManager.get_accommodation_states()
 	for child in structures_root.get_children():
 		var structure := child as Node3D
 		if structure == null:
 			continue
-		var building_type := str(structure.get_meta("building_type", "")).strip_edges()
-		var capacity := _accommodation_capacity_for_building(building_type)
-		if capacity <= 0:
-			structure.set_meta("guest_count", 0)
-			structure.set_meta("has_guest", false)
-			continue
-
 		var origin_any = structure.get_meta("grid_origin", Vector2i.ZERO)
 		var origin := origin_any as Vector2i if origin_any is Vector2i else Vector2i.ZERO
-		var key := SAVE_CODEC.coord_to_key(origin)
-
-		var prev_any = previous_states.get(key, {})
-		var prev := prev_any as Dictionary if prev_any is Dictionary else {}
-		var status := str(prev.get("status", "clean")).to_lower().strip_edges()
-		if status != "dirty":
-			status = "clean"
-
-		var preserved_ids: Array = []
-		var seen_ids: Dictionary = {}
-		var prev_ids_any = prev.get("guest_ids", [])
-		if prev_ids_any is Array:
-			for id_any in prev_ids_any:
-				var gid := int(id_any)
-				if gid <= 0 or seen_ids.has(gid):
-					continue
-				if not guest_beds.has(gid):
-					continue
-				seen_ids[gid] = true
-				preserved_ids.append(gid)
-
-		entries.append({
-			"key": key,
-			"structure": structure,
-			"building_type": building_type,
-			"capacity": capacity,
-			"status": status,
-			"guest_ids": preserved_ids,
-			"beds_used": 0
-		})
-
-	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return str(a.get("key", "")) < str(b.get("key", ""))
-	)
-
-	var assigned: Dictionary = {}
-	for entry_any in entries:
-		if not (entry_any is Dictionary):
-			continue
-		var entry := entry_any as Dictionary
-		var capacity := int(entry.get("capacity", 0))
-		var used_beds := 0
-		var kept_ids: Array = []
-		var ids_any = entry.get("guest_ids", [])
-		if ids_any is Array:
-			for id_any in ids_any:
-				var gid := int(id_any)
-				if gid <= 0 or assigned.has(gid):
-					continue
-				var beds := int(guest_beds.get(gid, 1))
-				if beds <= 0 or (used_beds + beds) > capacity:
-					continue
-				kept_ids.append(gid)
-				assigned[gid] = true
-				used_beds += beds
-		entry["guest_ids"] = kept_ids
-		entry["beds_used"] = used_beds
-
-	var remaining_ids: Array = []
-	for gid_any in active_guest_ids:
-		var gid := int(gid_any)
-		if gid <= 0 or assigned.has(gid):
-			continue
-		remaining_ids.append(gid)
-
-	var next_idx := 0
-	for entry_any in entries:
-		if not (entry_any is Dictionary):
-			continue
-		if next_idx >= remaining_ids.size():
-			break
-		var entry := entry_any as Dictionary
-		var capacity := int(entry.get("capacity", 0))
-		var used_beds := int(entry.get("beds_used", 0))
-		var ids_any = entry.get("guest_ids", [])
-		var ids: Array = ids_any if ids_any is Array else []
-		while next_idx < remaining_ids.size():
-			var gid := int(remaining_ids[next_idx])
-			var beds := int(guest_beds.get(gid, 1))
-			if beds <= 0 or (used_beds + beds) > capacity:
-				break
-			ids.append(gid)
-			assigned[gid] = true
-			used_beds += beds
-			next_idx += 1
-		entry["guest_ids"] = ids
-		entry["beds_used"] = used_beds
-
-	var rebuilt_states: Dictionary = {}
-	for entry_any in entries:
-		if not (entry_any is Dictionary):
-			continue
-		var entry := entry_any as Dictionary
-		var key := str(entry.get("key", ""))
-		var structure := entry.get("structure") as Node3D
-		var guest_ids_any = entry.get("guest_ids", [])
-		var guest_ids: Array = guest_ids_any if guest_ids_any is Array else []
-		var guest_count := guest_ids.size()
-		var base_status := str(entry.get("status", "clean")).to_lower().strip_edges()
-		var final_status := "occupied" if guest_count > 0 else ("dirty" if base_status == "dirty" else "clean")
-		rebuilt_states[key] = {
-			"status": final_status,
-			"building_type": str(entry.get("building_type", "")),
-			"capacity": int(entry.get("capacity", 0)),
-			"guest_ids": guest_ids.duplicate()
-		}
-		if structure != null and is_instance_valid(structure):
-			structure.set_meta("guest_count", guest_count)
-			structure.set_meta("has_guest", guest_count > 0)
-
-	state.accommodation_states = rebuilt_states
-
-
-func _accommodation_capacity_for_building(building_type: String) -> int:
-	var normalized := building_type.to_lower().strip_edges()
-	if normalized.begins_with("tent"):
-		return 1
-	if normalized.begins_with("cabin"):
-		return 2
-	return 0
+		var acc: Dictionary = states.get(SAVE_CODEC.coord_to_key(origin), {})
+		var present := int(acc.get("occupied", 0))
+		structure.set_meta("guest_count", present)
+		structure.set_meta("has_guest", present > 0)
 
 
 func _reset_state_for_new_game() -> void:

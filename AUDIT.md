@@ -25,6 +25,9 @@ was wrong. The real bugs found on the way:
 | 🟡 | Interiors: the tent's A-frame never met at the ridge (sky showed through), the cabin had no front wall and a gap round the door; Czech signs in the interiors ("HAJZLY"); the sewer's "R" hint hung behind the camera; `service_repair`/`service_kitchen_variant` actions were unregistered (an engine error per key press) | closed rooms, English signs, stateful sewer hint, actions always registered |
 | 🔴 | Blood drops that hit nothing stopped 2-5 m in front of the camera and left a stain in mid-air | ballistic drops, stains only where they land |
 | 🟠 | Up to nine booking mails and four spam mails an hour, around the clock | office-hours cadence rising through the week, one night false alarm at most |
+| 🟠 | Accepting a booking teleported the party into the camp at once | the road, the barrier, room preparation |
+| 🟠 | `main._sync_guest_accommodation_state` rebuilt the room states itself and overwrote them with a legacy "clean" | it only mirrors guest counts onto structures now |
+| 🟠 | Upgrades (tent_1 -> tent_2, cabin_1 -> cabin_2) swapped the 3D model but left the old type in the core grid: wrong capacity, wrong room tasks, wrong saves | `actions.retype_building` |
 | 🟡 | Story pool padded with re-sent copies tagged "[day N transmission tag]", read as a bug; two mails duplicated the questline | story week rewritten |
 
 ---

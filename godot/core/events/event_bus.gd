@@ -35,6 +35,13 @@ signal guest_state_changed(guest_id: int, old_state: String, new_state: String)
 signal accommodation_state_changed(accommodation_key: String, status: String, guest_count: int)
 signal guest_review_posted(review: Dictionary)
 signal guest_payment_received(amount: int, guest_id: int)
+# Arrivals (GuestManager): a booked party reached the barrier; it was let in; it gave up.
+signal guest_at_gate(guest: Dictionary)
+signal guest_checked_in(guest: Dictionary)
+signal guest_gave_up(guest: Dictionary)
+# Rooms (GuestManager + interiors): one preparation task done; a room became ready.
+signal room_task_done(room_key: String, task_id: String)
+signal room_prepared(room_key: String)
 
 # Upkeep (FailureSystem / GameActions.service_building)
 signal building_failed(coord: Vector2i, building_type: String)

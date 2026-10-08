@@ -8,6 +8,7 @@ extends Node3D
 @export_range(0.0, 1.0, 0.01) var grass_patch_chance: float = 0.0
 @export_range(0, 8, 1) var grass_clumps_per_patch: int = 0
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
+const CAMP_GATE_SCRIPT = preload("res://scripts/camp_gate.gd")
 const POWER_BUILDING_EDGE_PADDING: int = 2
 const POWER_BUILDING_WATER_PADDING: int = 2
 const POWER_BUILDING_ROTATION_STEPS: int = 2
@@ -142,13 +143,20 @@ func _mark_north_lake_row() -> void:
 		_grid_manager.set_tile_type(Vector2i(x, y), _grid_manager.TILE_LAKE)
 
 
+## The entrance: the reception (2x2) and, east of it, the gate lane (1 tile wide) with
+## a tile of forecourt in front of both. Reserved, so nothing is built in the way.
 func _mark_south_entrance_reserved_area() -> Vector2i:
 	var center_start_x = int(floor((_grid_manager.grid_width - 2) * 0.5))
 	for y in range(3):
-		for x in range(center_start_x, center_start_x + 2):
+		for x in range(center_start_x, center_start_x + 3):
 			_grid_manager.set_tile_type(Vector2i(x, y), _grid_manager.TILE_RESERVED)
 
 	return Vector2i(center_start_x, 0)
+
+
+## The gate lane tile on the south edge (east of the reception).
+func gate_tile() -> Vector2i:
+	return Vector2i(int(floor((_grid_manager.grid_width - 2) * 0.5)) + 2, 0)
 
 
 func _place_power_building_landmark() -> void:
@@ -299,6 +307,7 @@ func _generate_terrain() -> void:
 	lake.add_child(lake_mesh)
 	_spawn_perimeter_fence(map_size, map_center)
 	_spawn_horizon(map_size, map_center, batch2_grass_tex)
+	_spawn_camp_gate(map_size, map_center)
 
 	_scatter_ground_litter()
 
@@ -316,9 +325,36 @@ func _spawn_perimeter_fence(map_size: Vector2, map_center: Vector3) -> void:
 	var north_south_size = Vector3(map_size.x + 0.24, fence_height, fence_thickness)
 	var east_west_size = Vector3(fence_thickness, fence_height, map_size.y + 0.24)
 	_add_fence_segment(fence_root, "FenceNorth", map_center + Vector3(0.0, fence_height * 0.5, (map_size.y * 0.5) - inset), north_south_size)
-	_add_fence_segment(fence_root, "FenceSouth", map_center + Vector3(0.0, fence_height * 0.5, -(map_size.y * 0.5) + inset), north_south_size)
+	# The south fence has the gate gap east of the reception.
+	var south_z: float = map_center.z - (map_size.y * 0.5) + inset
+	var gap_x: float = _grid_manager.grid_to_world(gate_tile()).x
+	var west_end: float = map_center.x - map_size.x * 0.5 - 0.12
+	var east_end: float = map_center.x + map_size.x * 0.5 + 0.12
+	var gap_half := 2.3
+	_add_fence_segment(fence_root, "FenceSouthWest", Vector3((west_end + gap_x - gap_half) * 0.5, fence_height * 0.5, south_z), Vector3((gap_x - gap_half) - west_end, fence_height, fence_thickness))
+	_add_fence_segment(fence_root, "FenceSouthEast", Vector3((gap_x + gap_half + east_end) * 0.5, fence_height * 0.5, south_z), Vector3(east_end - (gap_x + gap_half), fence_height, fence_thickness))
 	_add_fence_segment(fence_root, "FenceEast", map_center + Vector3((map_size.x * 0.5) - inset, fence_height * 0.5, 0.0), east_west_size)
 	_add_fence_segment(fence_root, "FenceWest", map_center + Vector3(-(map_size.x * 0.5) + inset, fence_height * 0.5, 0.0), east_west_size)
+
+
+func _spawn_camp_gate(map_size: Vector2, map_center: Vector3) -> void:
+	var gate = CAMP_GATE_SCRIPT.new()
+	gate.add_to_group("camp_gate")
+	_terrain_root.add_child(gate)
+	var fence_z: float = map_center.z - map_size.y * 0.5 + 0.08
+	gate.build(_grid_manager.grid_to_world(gate_tile()), fence_z, _texture_style)
+
+
+func _on_gate_road(p: Vector3, map_size: Vector2, map_center: Vector3) -> bool:
+	var fence_z: float = map_center.z - map_size.y * 0.5
+	if p.z > fence_z:
+		return false
+	var gx: float = _grid_manager.grid_to_world(gate_tile()).x
+	var depth := fence_z - p.z
+	var road_x := gx + (2.0 * depth / 45.0 if depth < 45.0 else 2.0 + 12.0 * (depth - 45.0) / 75.0)
+	# The road, the gatehouse and a clearing either side of the barrier.
+	var half := 5.5 if depth > 10.0 else 10.0
+	return absf(p.x - road_x) < half
 
 
 func _add_fence_segment(parent: Node3D, node_name: String, pos: Vector3, size: Vector3) -> void:
@@ -699,6 +735,9 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 		var p := map_center + Vector3(cos(ang), 0.0, sin(ang)) * dist
 		# Square map: keep trees outside the fenced rectangle.
 		if absf(p.x - map_center.x) < map_size.x * 0.5 + 2.0 and absf(p.z - map_center.z) < map_size.y * 0.5 + 2.0:
+			continue
+		# And off the gate road (it runs south from the gate with a slight bend east).
+		if _on_gate_road(p, map_size, map_center):
 			continue
 		var sc := _rng.randf_range(0.9, 1.7) * (1.0 + (dist - half) / (half * 4.0))
 		var b := Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc, sc * _rng.randf_range(0.9, 1.25), sc))

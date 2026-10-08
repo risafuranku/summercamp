@@ -49,6 +49,8 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | --- | --- | --- |
 | Vera's Checklist (13-step onboarding questline) | ✅ | task mails, rewards, tracker, waypoint |
 | CampMail bookings with night-risk impact | ✅ | |
+| Arrivals: road, gatehouse, barrier, waiting parties | ✅ | HUD ARRIVALS panel counts down; parties wait at the barrier until their room is ready, give up after ~2.5 h |
+| Room preparation in the interiors | ✅ | hover-glow, hold to do it, sounds, checklist; tent 2 tasks, cabin 2-3 |
 | Builder with isometric map, guests walking on it | ✅ | the "extra guest" uncanny event |
 | Economy, power/water/sewage/waste balance | 🟡 | numbers want a balance pass |
 | Guest needs, moods, activities, reviews | ✅ | archetypes have different needs and favourite facilities |

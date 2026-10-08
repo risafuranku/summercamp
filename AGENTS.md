@@ -80,6 +80,7 @@ godot --headless --path godot res://tools/pipes_check.tscn
 godot --headless --path godot res://tools/uncanny_check.tscn
 godot --headless --path godot res://tools/look_check.tscn
 godot --headless --path godot res://tools/mail_check.tscn
+godot --headless --path godot res://tools/arrival_check.tscn
 godot --headless --path godot --script res://tools/weather_check.gd
 ```
 
@@ -95,7 +96,10 @@ godot --path godot --resolution 1280x720 res://tools/shot_driver.tscn -- --scena
 ```
 
 Scenarios: `boot menu views hud quest pause gameover crt crtmap weather upkeep blood night
-saveload guests pipes senses uncanny look probe`. Steps include `build`, `book`, `hours`, `player`, `money`, `press`,
+saveload guests pipes senses uncanny look gate prep prepcabin probe`.
+Useful steps for the new loops: `topdown` (a camera above the camp, no fog), `open_room`,
+`aim_task` (turns the head to a room task and puts the cursor on it), `lmb`, `gm` (call a
+GuestManager method: `eval` cannot reach autoloads), `prep_all`. Steps include `build`, `book`, `hours`, `player`, `money`, `press`,
 `condition`, `break`, `look_at_enemy`, `crt_screen` (saves the terminal's own frame),
 `eval` (Expression against Main; autoload names are not reachable from it).
 Check visual changes at 1280x720 **and** 1920x1080.
@@ -118,6 +122,10 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Electricity | `scripts/electricity_billing.gd` |
 | Save format helpers | `scripts/save_codec.gd`; snapshot build/apply in `main.gd` |
 | Player movement, flashlight battery, stamina | `scripts/player_controller.gd` |
+| Bookings, arrivals, the barrier, room states | `scripts/guest_manager.gd`, rules `core/systems/room_rules.gd` |
+| The gatehouse, barrier, road | `scripts/camp_gate.gd` (built by world_generator) |
+| Room tasks in interiors (hover, hold, checklist) | `scripts/interior_tasks.gd` + `scripts/interior_prep.gd` |
+| Generated sound effects | `tools/audiogen/` (ElevenLabs; key in the gitignored `.env`) |
 | Head turning inside interiors | `scripts/interior_look.gd` (limits set per interior script) |
 | Insects falling silent, the HUD face's glance | `scripts/threat_senses.gd` (reads `get_presence()`) |
 | Story mails (Vera, Nela, the odd ones) | `data/pools/emails/story/week01_story.json` |

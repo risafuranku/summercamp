@@ -87,6 +87,19 @@ Three archetypes, with different needs (`core/systems/guest_needs_system.gd`):
 - Guests mostly keep to themselves: a third are out in the open by day; the rest rest
   in their lodging, stand at the lake or walk out of the camp by the gate road, the
   forest edges or the lake path for hours. Twenty guests, and where is everybody?
+- **Arrival.** Accepting a booking does not put anyone in the camp. The party is on the
+  road for an hour or two (ARRIVALS in the HUD counts down), then stands outside the
+  barrier at the gatehouse. They are let in only when every room they were given is
+  made up; until then they wait, grumble after ~45 minutes and drive off after ~2.5
+  hours with a one-star review. Time at the barrier sours the mood they arrive with.
+- **Rooms.** A new tent or cabin is *unprepared*; when its last guests leave it is
+  *dirty*. Either way you go in and do it by hand: look at the mess (it glows under the
+  cursor), hold the mouse, hear the work, see it change. Tent: the sleeping bag, the
+  litter. Cabin: the bed, the bottles, and (from level 2) the toilet in the bathroom.
+  The checklist in the corner says what is left. An upgrade brings new furniture: the
+  empty room needs making up again. Rules: `core/systems/room_rules.gd`.
+- So five booked parties at the gate and five unmade cabins is a real rush: that is the
+  warden's job, and it is the day's main loop next to the Builder.
 - Facilities can be closed by circumstance: no power (unpaid bill), broken sewer, rain
   (outdoor attractions), a breakdown. Closed facilities make unhappy guests.
 

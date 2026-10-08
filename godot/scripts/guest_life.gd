@@ -135,6 +135,7 @@ func _refresh_exits(grid) -> void:
 		_exits.append(lake_far)
 
 
+## The gate lane: the free reserved tile on the south edge (east of the reception).
 func _find_gate(grid) -> Vector2i:
 	var best := Vector2i(-1, -1)
 	for coord_any in grid.tile_types.keys():
@@ -143,7 +144,7 @@ func _find_gate(grid) -> Vector2i:
 		var c: Vector2i = coord_any
 		if grid.cells.has(c):
 			continue
-		if best.x < 0 or c.y > best.y or (c.y == best.y and c.x < best.x):
+		if best.x < 0 or c.y < best.y or (c.y == best.y and c.x > best.x):
 			best = c
 	if best.x < 0:
 		return Vector2i(int(_grid_size.x / 2), 2)
@@ -198,6 +199,9 @@ func advance_all(state, now_abs: int, is_night_at: Callable, weirdness: float) -
 		if not (guest_any is Dictionary):
 			continue
 		var guest: Dictionary = guest_any
+		# Parties still on the road or at the barrier are not in the camp yet.
+		if str(guest.get("status", "")) in ["expected", "waiting"]:
+			continue
 		ensure_guest_fields(guest, now_abs)
 		if _advance_guest(guest, now_abs, is_night_at, weirdness):
 			changed = true

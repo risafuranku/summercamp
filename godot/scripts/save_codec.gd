@@ -1,5 +1,7 @@
 extends RefCounted
 
+const ROOM_RULES = preload("res://core/systems/room_rules.gd")
+
 ## Pure save-file encoding helpers (no state, no nodes). JSON has no Vector2i, so
 ## coordinates travel as {"x", "y"} dictionaries or "x:y" keys; guest, lodging,
 ## accommodation and failure records are normalised on the way in and out so a
@@ -93,10 +95,19 @@ static func serialize_accommodation_states(value: Variant) -> Dictionary:
 					continue
 				seen_ids[guest_id] = true
 				sanitized_guest_ids.append(guest_id)
+		var done: Array = []
+		var done_any = entry.get("prep_done", [])
+		if done_any is Array:
+			for t in done_any:
+				if not done.has(str(t)):
+					done.append(str(t))
 		out[key] = {
-			"status": str(entry.get("status", "clean")).to_lower().strip_edges(),
+			# Saves from before room preparation said "clean": those rooms were usable.
+			"status": ROOM_RULES.normalize_status(str(entry.get("status", "clean"))),
 			"building_type": str(entry.get("building_type", "")),
 			"capacity": max(0, int(entry.get("capacity", 0))),
+			"prep_done": done,
+			"occupied": max(0, int(entry.get("occupied", 0))),
 			"guest_ids": sanitized_guest_ids
 		}
 	return out

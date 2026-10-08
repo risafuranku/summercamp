@@ -2,7 +2,9 @@ extends CanvasLayer
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 
+signal room_task_completed(task_id: String)
 signal request_close
 signal request_upgrade
 
@@ -62,6 +64,7 @@ var _swipe_animating: bool = false
 
 # Screen-space active zones.
 var _catalog_mesh: MeshInstance3D
+var _prep = INTERIOR_PREP.new()
 
 
 func _ready() -> void:
@@ -168,6 +171,9 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		var mouse_event = event as InputEventMouseButton
+		if _prep.is_busy():
+			get_viewport().set_input_as_handled()
+			return
 		if _try_click_world(mouse_event):
 			get_viewport().set_input_as_handled()
 			return
@@ -446,6 +452,7 @@ func _build_cabin_room() -> void:
 	_add_box(_cabin_root, "DoorFrame", Vector3(w*0.5, h*0.35, 0.0), Vector3(0.12, h*0.7, d*0.4 + 0.02), Color(0.28, 0.20, 0.12))
 	
 	var nav_label = Label3D.new()
+	nav_label.name = "BathroomNav"
 	nav_label.text = "D > BATHROOM"
 	nav_label.position = Vector3(w*0.4, 1.5, 0.0)
 	nav_label.rotation_degrees = Vector3(0, -90, 0)
@@ -565,8 +572,58 @@ func _build_cabin_room() -> void:
 	_cabin_root.add_child(glass)
 	_build_light_switch()
 	_build_bathroom_room()
+	_build_prep_props()
 	_apply_level_variant()
 	_apply_time_profile()
+
+
+## The cabin as the last guests left it: the blanket kicked into a heap with the pillow
+## on the floor, empty bottles by the bed, and a toilet (or the bucket) nobody cleaned.
+func _build_prep_props() -> void:
+	var P := INTERIOR_PREP
+	var blanket := P.camp_material("blanket_check.png", Color(0.9, 0.86, 0.8))
+	var heap_a := P.box(_cabin_root, Vector3(-1.18, 0.86, -0.25), Vector3(0.72, 0.2, 0.6), blanket, Vector3(0.1, 0.4, -0.12))
+	var heap_b := P.box(_cabin_root, Vector3(-1.25, 0.81, -0.95), Vector3(0.6, 0.1, 0.5), blanket, Vector3(0.0, -0.3, 0.08))
+	var pillow_floor := P.box(_cabin_root, Vector3(-0.55, 0.07, -0.15), Vector3(0.6, 0.1, 0.3), P.flat(Color(0.7, 0.7, 0.7)), Vector3(0.0, 0.7, 0.25))
+	var made := P.box(_cabin_root, Vector3(-1.2, 0.79, -0.42), Vector3(0.84, 0.05, 1.3), blanket)
+	var made_fold := P.box(_cabin_root, Vector3(-1.2, 0.81, -1.02), Vector3(0.84, 0.07, 0.14), P.flat(Color(0.88, 0.86, 0.8)))
+	var pillow_bed := _cabin_root.get_node_or_null("Pillow")
+	var bed_body := P.body(_cabin_root, Vector3(-1.2, 0.6, -0.6), Vector3(1.0, 0.7, 1.9))
+	_prep.register("bed", bed_body, [heap_a, heap_b, pillow_floor], [made, made_fold, pillow_bed])
+
+	var bottles := Node3D.new()
+	bottles.name = "Bottles"
+	_cabin_root.add_child(bottles)
+	P.bottle(bottles, Vector3(-0.45, 0.18, -1.15), false)
+	P.bottle(bottles, Vector3(-0.32, 0.18, -1.24), false)
+	P.bottle(bottles, Vector3(-0.30, 0.06, -0.7), true, 1.2)
+	P.can(bottles, Vector3(-0.12, 0.04, -0.95), true, Color(0.7, 0.12, 0.1), 0.3)
+	P.paper(bottles, Vector3(0.05, 0.04, -0.55), 0.8)
+	P.paper(bottles, Vector3(-0.2, 0.04, -0.35), 2.0)
+	var floor_body := P.body(_cabin_root, Vector3(-0.25, 0.15, -0.8), Vector3(0.7, 0.35, 1.0))
+	_prep.register("floor", floor_body, [bottles], [])
+
+	var grime := Node3D.new()
+	grime.name = "Grime"
+	_bathroom_root.add_child(grime)
+	var dirt := P.flat(Color(0.25, 0.18, 0.08))
+	P.box(grime, Vector3(0.6, 0.71, -0.55), Vector3(0.42, 0.02, 0.5), dirt)
+	P.box(grime, Vector3(0.62, 0.56, -0.24), Vector3(0.3, 0.2, 0.02), dirt)
+	P.box(grime, Vector3(0.55, 0.012, -0.05), Vector3(0.6, 0.01, 0.45), P.flat(Color(0.3, 0.26, 0.12)), Vector3(0, 0.3, 0))
+	var wc_body := P.body(_bathroom_root, Vector3(0.6, 0.4, -0.5), Vector3(0.7, 0.8, 1.0))
+	_prep.register("bathroom", wc_body, [grime], [])
+	_prep.setup_tasks(self, _interior_camera, _viewport, "cabin")
+	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
+
+
+# ── room preparation (see scripts/interior_prep.gd) ──────────────────────────
+
+func set_room(room: Dictionary) -> void:
+	_prep.set_room(room)
+
+
+func play_room_ready() -> void:
+	_prep.play_room_ready()
 
 
 func _build_bathroom_room() -> void:
@@ -625,6 +682,9 @@ func _apply_level_variant() -> void:
 			bed_col = Color(0.64, 0.76, 0.92)
 
 	_refresh_level_textures()
+	var bathroom_nav := _cabin_root.get_node_or_null("BathroomNav")
+	if bathroom_nav != null:
+		bathroom_nav.visible = _cabin_level >= 2
 	_set_node_color("BackWall", wall_col)
 	_set_node_color("FrontWall", wall_col)
 	_set_node_color("LeftWall", wall_col)

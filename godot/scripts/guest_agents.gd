@@ -226,6 +226,11 @@ func _sync_party_plan(party: Dictionary, entry: Dictionary) -> void:
 	var goal_world := _tile_center(goal_tile)
 	var path := _find_path(_grid_manager.world_to_grid(start_world), goal_tile)
 	var points := PackedVector3Array()
+	# Coming in from the barrier: walk from the waiting spot through the gap first.
+	if str(act.get("kind", "")) == "arrive" and last_pos != Vector3.INF and _grid_manager.world_to_grid(last_pos).y < 0:
+		points.append(last_pos)
+		start_world = _tile_center(from_tile)
+		path = _find_path(from_tile, goal_tile)
 	points.append(start_world)
 	for p in path:
 		points.append(_tile_center(p))
@@ -266,6 +271,10 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		var t := clampf((now - start) / (arrive - start), 0.0, 1.0)
 		lead_pos = _sample_path(points, lengths, t * total)
 		walking = true
+	elif kind == "wait_gate":
+		# Outside the barrier, on the road, in the order they came.
+		dwell_phase = true
+		lead_pos = _gate_waiting_spot(int(act.get("queue_index", 0)))
 	else:
 		dwell_phase = true
 		lead_pos = points[points.size() - 1]
@@ -488,6 +497,13 @@ func _sample_path(points: PackedVector3Array, lengths: PackedFloat32Array, dist:
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
+func _gate_waiting_spot(i: int) -> Vector3:
+	var gate := get_tree().get_first_node_in_group("camp_gate") if is_inside_tree() else null
+	if gate != null and gate.has_method("waiting_spot"):
+		return gate.waiting_spot(i)
+	return _tile_center(Vector2i(10, 0)) + Vector3(0, 0, -5.0 - float(i) * 1.7)
+
 
 func _now_abs_float() -> float:
 	if _now_provider.is_valid():
