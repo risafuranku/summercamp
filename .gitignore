@@ -19,3 +19,7 @@ desktop.ini
 # MCP server local overrides
 .mcp.local.json
 tools/artgen/out/
+
+# Local secrets (ElevenLabs key for tools/audiogen)
+tools/audiogen/.env
+.env

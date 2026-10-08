@@ -500,7 +500,7 @@ func _process(delta: float) -> void:
 		var state = CoreRoot.get_state()
 		if state != null:
 			weather_system.set_anomaly_pressure(float(state.hrotfaktor))
-		weather_system.process(delta, _time_of_day_hours)
+		weather_system.process(delta * BALANCE_CONFIG.GAME_MINUTES_PER_SECOND, _time_of_day_hours)
 	_sync_runtime_state_from_systems()
 	if _weather_visuals != null:
 		_weather_visuals.update_state(_time_state, _time_of_day_hours, _weather_state)

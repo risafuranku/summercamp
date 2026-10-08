@@ -52,8 +52,27 @@ func _ready() -> void:
 	for g in snap:
 		_expect(str((g as Dictionary).get("activity", {}).get("kind", "")) == "arrive", "new guest starts by walking in from the gate")
 
-	# Day 1 09:00 -> day 2 18:00 with everything working.
-	_run_minutes(33 * 60)
+	# Day 1 09:00 -> day 2 18:00 with everything working. On the way, sample how many
+	# guests are out in the open in daytime: the camp should feel half empty.
+	var samples := 0
+	var outdoors := 0
+	var away_seen := false
+	for chunk in 33 * 6:
+		_run_minutes(10)
+		if _hour < 8 or _hour >= 19:
+			continue
+		var now := (_day - 1) * 1440 + _hour * 60 + _minute
+		for g in GuestManager.get_guest_life_snapshot():
+			var act: Dictionary = (g as Dictionary).get("activity", {})
+			samples += 1
+			if _is_out_in_the_open(act, now):
+				outdoors += 1
+			if str(act.get("kind", "")) == "away":
+				away_seen = true
+	var share := float(outdoors) / maxf(1.0, float(samples))
+	print("daytime share of guests out in the open: %.0f%%" % (share * 100.0))
+	_expect(share < 0.40, "the camp should feel half empty by day (%.0f%% outdoors)" % (share * 100.0))
+	_expect(away_seen, "idle guests sometimes leave the camp by an exit")
 	var summary: Dictionary = GuestManager.get_camp_mood_summary()
 	print("after 33h: ", _fmt_summary(summary))
 	var visits := 0
@@ -157,6 +176,20 @@ func _run_minutes(total: int) -> void:
 				_day += 1
 				CoreRoot.get_state().day = _day
 		EventBus.time_tick.emit(_hour, _minute)
+
+
+## Mirrors guest_agents.gd: walking, or dwelling somewhere visible.
+func _is_out_in_the_open(act: Dictionary, now: int) -> bool:
+	if act.is_empty():
+		return false
+	if now < int(act.get("arrive", now)):
+		return true
+	var kind := str(act.get("kind", ""))
+	if bool(act.get("queued", false)):
+		return true
+	if kind == "visit":
+		return ["bonfire", "sports_field", "lake_slide"].has(str(act.get("target_type", "")))
+	return kind in ["wander", "linger", "bushes", "night_out"]
 
 
 func _expect(ok: bool, what: String) -> void:

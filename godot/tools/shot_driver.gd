@@ -255,8 +255,10 @@ const SCENARIOS := {
 	"blood": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["player", 9, 4, 180.0], ["wait", 0.5],
-		["call", "damage_player", [30]], ["wait", 1.0], ["shot", "95_blood"],
-		["call", "damage_player", [60]], ["wait", 1.2], ["shot", "96_blood_heavy"],
+		["call", "damage_player", [30]], ["wait", 0.12], ["shot", "94_blood_flight"], ["eval", "_blood_fx._drops.size()"],
+		["wait", 1.0], ["shot", "95_blood"], ["eval", "[_blood_fx._drops.size(), _blood_fx._decals.size()]"],
+		["call", "damage_player", [60]], ["wait", 1.2], ["shot", "96_blood_heavy"], ["eval", "[_blood_fx._drops.size(), _blood_fx._decals.size()]"],
+		["eval", "_player.rotate_y(PI)"], ["wait", 0.5], ["shot", "97_blood_behind"],
 	],
 	"weather": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],

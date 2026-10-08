@@ -10,8 +10,12 @@ const BASE_INCOME_PER_GUEST: int = 15
 const REFUND_RATIO: float = 0.5 
 
 # --- Time ---
-## Real seconds per in-game minute
-const TIME_SCALE: float = 1.0 
+## In-game minutes per real second. 1.5 makes a day 16 real minutes and the night
+## (20:00-06:30) about 7. Everything that counts game time from real seconds (weather,
+## breakdowns) multiplies by this.
+const GAME_MINUTES_PER_SECOND: float = 1.5
+## Real seconds per in-game minute (the time system's view of the same number).
+const TIME_SCALE: float = 1.0 / GAME_MINUTES_PER_SECOND
 ## Hour when day starts (light)
 const DAY_START_HOUR: float = 6.5
 ## Hour when night starts (dark, flashlight needed)

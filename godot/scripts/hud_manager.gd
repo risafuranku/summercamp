@@ -149,6 +149,8 @@ var _risk_level_index: int = 0
 var _risk_level_known: bool = false
 var _risk_payload: Dictionary = {}
 var _unread: int = 0
+var _pager: AudioStreamPlayer
+const PAGER_SFX := "res://assets/sfx/ui/pager.wav"
 var _objective: Dictionary = {}
 var _hint_text: String = ""
 var _feed: Array[Dictionary] = []
@@ -1279,8 +1281,24 @@ func _ensure_email_binding() -> void:
 
 
 func _on_unread_count_changed(count: int) -> void:
+	var previous := _unread
 	_unread = maxi(0, count)
 	_refresh_mail()
+	if _unread > previous and _world_visible:
+		_page_new_mail()
+
+
+## The belt pager: when a mail lands while you are out in the camp, two beeps and a
+## line in the feed. It does not say what the mail is; you have to go and read it.
+func _page_new_mail() -> void:
+	if _pager == null:
+		_pager = AudioStreamPlayer.new()
+		_pager.stream = load(PAGER_SFX) as AudioStream
+		_pager.volume_db = -6.0
+		add_child(_pager)
+	if _pager.stream != null:
+		_pager.play()
+	push_status("Pager: new mail at the office", STATUS_INFO, "mail")
 
 
 func _get_unread_count() -> int:

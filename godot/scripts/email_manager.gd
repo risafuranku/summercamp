@@ -17,8 +17,6 @@ const ARCHETYPE_QUIET_GUY := "quiet_guy"
 const ARCHETYPE_DRUNK := "drunk"
 const ARCHETYPE_CHEAP_CHICK := "cheap_chick"
 
-const MAX_CUSTOMER_EMAILS_PER_HOUR := 9
-const MAX_SPAM_EMAILS_PER_HOUR := 4
 
 const CUSTOMER_ARCHETYPES: Dictionary = {
 	ARCHETYPE_QUIET_GUY: {
@@ -69,31 +67,57 @@ const MAIL_DOMAINS: Array[String] = [
 	"mail.cz", "postbox.eu", "campmail.net", "atlas.cz", "chatmail.cz"
 ]
 
+## Spam is the period kind: dial-up offers, chain letters, local shops. Plausible, a
+## little sad, never a joke.
 const SPAM_SENDERS: Array[String] = [
-	"NoFace Media <ads@noface.media>",
-	"Storm Warranty Dept <warranty@stormfix.market>",
-	"GigaHealth Drips <clinic@gigahealth-market.cc>",
-	"Lucky Barrel Lottery <jackpot@barrel-lotto.win>",
-	"Night Signal Shop <promo@night-signal.net>",
-	"SUPER DEAL BOT <deals@ultra-camp.biz>",
+	"Bohemia Online <info@bohemia-online.cz>",
+	"Autoservis Krejci <servis.krejci@quick.cz>",
+	"Reality Vysocina <nabidky@reality-vys.cz>",
+	"Jan Novak <jnovak@mail.inext.cz>",
+	"Lucky Draw Office <office@lucky-draw.com>",
+	"Kancelarske potreby <obchod@kancpotreby.cz>",
 ]
 
 const SPAM_SUBJECTS: Array[String] = [
-	"Generator warranty expired yesterday",
-	"YOUR CAMP WON A FREE BARREL",
-	"Delete fatigue in 3 minutes",
-	"Mandatory hydration compliance",
-	"LIMITED OFFER: SELF-HEATING PILLOW",
-	"Infrared crow repellent bundle",
+	"Internet 33.6k now with 10 free hours",
+	"FW: FW: FW: send this to 10 people",
+	"Summer tyres - last pieces",
+	"Recreational cottage for sale, quiet area",
+	"You have been selected",
+	"Toner, paper, diskettes - price list 1996",
 ]
 
 const SPAM_BODIES: Array[String] = [
-	"Renew now to avoid legal thunder and paperwork.\n\nCLICK HERE NOW: http://totally-safe-link.invalid/",
-	"Winner ID: CAMP-9981.\n\nPay handling fee and receive one mystery barrel.",
-	"Our intern verified this personally on one shift.\n\nWorks best if never removed.",
-	"Your camp appears vitamin-deficient from orbit telemetry.\n\nStart subscription now.",
-	"Buy two pillows and get one pocket fog machine free.\n\nPerfect for suspicious cabins.",
-	"Device emits ultrasonic tones that birds and inspectors hate.",
+	"Dear customer,
+
+connect from home or office at 33,600 baud. The first ten hours are free. Installation diskette by post within 14 days.
+
+Bohemia Online",
+	"This letter has been around the world nine times. Send it to ten people within four days. A man in Ostrava did not send it and lost his job.
+
+Do not break the chain.",
+	"Summer tyres, all sizes, last pieces at the old price. Fitting while you wait. Closed on Sundays.",
+	"Cottage near the reservoir, own well, electricity, quiet area, no neighbours. The previous owners left in a hurry, furniture included. Serious offers only.",
+	"Your address was drawn in our international draw. To claim the prize send the handling fee by postal order. Do not tell anyone until the prize arrives.",
+	"Price list for 1996 attached. Diskettes 3.5\" HD box of 10. Toner for most printers. We deliver to the whole district.",
+]
+
+## The mail that wakes you at night: it looks like trouble and is not. At most one a
+## night, so the HUD ping in the dark always means "go and look".
+const NIGHT_FALSE_ALARMS: Array[Dictionary] = [
+	{"from": "CampGrid Alarm Relay <alarm@campgrid.local>", "subject": "ALARM: ZONE 3", "body": "Zone 3 contact open.
+
+This was a scheduled test of the alarm relay. No action is required."},
+	{"from": "CampGrid Energy <billing@campgrid.local>", "subject": "Supply interruption notice", "body": "Planned maintenance on the line to your site is postponed.
+
+Your supply will not be interrupted tonight."},
+	{"from": "District Office <registry@okres.local>", "subject": "URGENT: occupancy record", "body": "Automated reminder: occupancy records may be submitted at any time during the season. There is no deadline."},
+	{"from": "Nela <nela@chatmail.cz>", "subject": "are you awake", "body": "sorry, wrong button. go back to sleep"},
+	{"from": "CampNet Ops <ops@campnet.local>", "subject": "Intrusion report", "body": "Automated report:
+- Perimeter sensor 2: triggered
+- Cause: animal (probable)
+
+Ticket closed."},
 ]
 
 const CUSTOMER_SUBJECT_VARIANTS: Array[String] = [
@@ -219,6 +243,7 @@ func export_runtime_state() -> Dictionary:
 		"next_runtime_mail_id": max(1, int(_next_runtime_mail_id)),
 		"last_tick_signature": str(_last_tick_signature),
 		"last_hourly_roll_signature": str(_last_hourly_roll_signature),
+		"false_alarm_night": _false_alarm_night,
 	}
 
 
@@ -231,6 +256,7 @@ func import_runtime_state(data: Dictionary) -> void:
 	_scheduled_mails = _sanitize_scheduled_mail_array(data.get("scheduled_mails", []))
 	_last_tick_signature = str(data.get("last_tick_signature", ""))
 	_last_hourly_roll_signature = str(data.get("last_hourly_roll_signature", ""))
+	_false_alarm_night = int(data.get("false_alarm_night", -1))
 
 	var max_seen_id: int = _max_runtime_mail_id(inbox, _scheduled_mails)
 	var loaded_next_id: int = maxi(1, int(data.get("next_runtime_mail_id", max_seen_id + 1)))
@@ -319,27 +345,29 @@ func _on_time_tick(hour: int, minute: int) -> void:
 			_run_hourly_roll(day, safe_hour, now_abs)
 
 
+## The hourly mail roll. The inbox used to take up to nine bookings and four spam mails
+## an hour; now the camp is slow to be found: bookings come in office hours, more
+## likely as the week goes on and the more beds stand empty, never more than a few
+## waiting at once. Spam is occasional. At night at most one false alarm.
 func _run_hourly_roll(day: int, hour: int, base_abs: int) -> void:
 	var bed_metrics = _collect_bed_metrics()
 	var hrotfaktor = _refresh_hrotfaktor(bed_metrics)
 	var intensity = _roll_intensity(bed_metrics, hrotfaktor)
 
-	var customer_count = _roll_customer_mail_count(bed_metrics, hrotfaktor)
+	var customer_count = _roll_customer_mail_count(bed_metrics, day, hour, intensity)
 	if customer_count > 0:
 		var archetypes = _roll_archetype_batch(customer_count, intensity)
 		var offsets = _spread_offsets(customer_count, 2, 58)
 		for i in range(customer_count):
 			var archetype_id = archetypes[i] if i < archetypes.size() else ARCHETYPE_QUIET_GUY
 			var mail = _build_customer_mail(archetype_id, day, hour)
-			var deliver_abs = base_abs + offsets[i]
-			_schedule_mail_abs(deliver_abs, mail)
+			_schedule_mail_abs(base_abs + offsets[i], mail)
 
-	var spam_count = _roll_spam_mail_count(bed_metrics, hrotfaktor)
-	if spam_count > 0:
-		var spam_offsets = _spread_offsets(spam_count, 1, 58)
-		for i in range(spam_count):
-			var spam_mail = _build_spam_mail(day, hour)
-			_schedule_mail_abs(base_abs + spam_offsets[i], spam_mail)
+	if _roll_spam(day, hour):
+		_schedule_mail_abs(base_abs + _rng.randi_range(1, 58), _build_spam_mail(day, hour))
+
+	if _roll_night_false_alarm(day, hour):
+		_schedule_mail_abs(base_abs + _rng.randi_range(5, 55), _build_night_false_alarm(day, hour))
 
 
 func _collect_bed_metrics() -> Dictionary:
@@ -477,30 +505,68 @@ func _roll_intensity(bed_metrics: Dictionary, hrotfaktor: float) -> float:
 	return clampf(cap_factor * 0.35 + occupancy * 0.35 + clampf(hrotfaktor, 0.0, 1.0) * 0.30, 0.0, 1.0)
 
 
-func _roll_customer_mail_count(bed_metrics: Dictionary, hrotfaktor: float) -> int:
-	var capacity = max(0, int(bed_metrics.get("capacity", 0)))
-	if capacity <= 0:
-		return 0
-	var occupancy = clampf(float(bed_metrics.get("occupied_ratio", 0.0)), 0.0, 1.0)
-	var intensity = _roll_intensity(bed_metrics, hrotfaktor)
-	var soft_cap = clampi(int(round(1.0 + float(capacity) * 0.35)), 1, MAX_CUSTOMER_EMAILS_PER_HOUR)
-	var base_count = int(round(lerpf(1.0, float(soft_cap), intensity)))
-	var noisy_count = base_count + _rng.randi_range(-1, 2)
-	if occupancy > 0.90:
-		noisy_count -= 1
-	if capacity <= 2:
-		noisy_count = min(noisy_count, 2)
-	return clampi(noisy_count, 0, soft_cap)
+const BOOKING_FIRST_HOUR := 7
+const BOOKING_LAST_HOUR := 20
+const NIGHT_ALARM_FIRST_HOUR := 22
+const NIGHT_ALARM_LAST_HOUR := 4
+var _false_alarm_night: int = -1
 
 
-func _roll_spam_mail_count(bed_metrics: Dictionary, hrotfaktor: float) -> int:
+func _roll_customer_mail_count(bed_metrics: Dictionary, day: int, hour: int, intensity: float) -> int:
 	var capacity = max(0, int(bed_metrics.get("capacity", 0)))
-	if capacity <= 0:
+	if capacity <= 0 or hour < BOOKING_FIRST_HOUR or hour > BOOKING_LAST_HOUR:
 		return 0
-	var intensity = _roll_intensity(bed_metrics, hrotfaktor)
-	var base = int(round(lerpf(0.0, float(MAX_SPAM_EMAILS_PER_HOUR - 1), 0.25 + intensity * 0.75)))
-	base += _rng.randi_range(0, 1)
-	return clampi(base, 0, MAX_SPAM_EMAILS_PER_HOUR)
+	var waiting := _count_unactioned_customer_mails() + _count_scheduled_customer_mails()
+	if waiting >= clampi(1 + day, 2, 6):
+		return 0
+	var free_ratio := float(bed_metrics.get("free", 0)) / float(capacity)
+	var chance := clampf(0.14 + 0.07 * float(day - 1) + 0.18 * free_ratio, 0.10, 0.70)
+	var count := 1 if _rng.randf() < chance else 0
+	if count > 0 and day >= 3 and _rng.randf() < 0.25 * intensity:
+		count += 1
+	return count
+
+
+func _roll_spam(day: int, hour: int) -> bool:
+	if hour < BOOKING_FIRST_HOUR or hour > BOOKING_LAST_HOUR:
+		return false
+	return _rng.randf() < clampf(0.05 + 0.015 * float(day), 0.05, 0.16)
+
+
+func _roll_night_false_alarm(day: int, hour: int) -> bool:
+	if day < 2 or not (hour >= NIGHT_ALARM_FIRST_HOUR or hour <= NIGHT_ALARM_LAST_HOUR):
+		return false
+	# The night belongs to the evening it started on.
+	var night := day if hour >= NIGHT_ALARM_FIRST_HOUR else day - 1
+	if _false_alarm_night == night:
+		return false
+	# ~7% an hour over seven night hours: about two nights in five.
+	if _rng.randf() > 0.07:
+		return false
+	_false_alarm_night = night
+	return true
+
+
+func _build_night_false_alarm(day: int, hour: int) -> Dictionary:
+	var pick: Dictionary = NIGHT_FALSE_ALARMS[_rng.randi_range(0, NIGHT_FALSE_ALARMS.size() - 1)]
+	return _new_mail_dict({
+		"sender": pick["from"],
+		"from": pick["from"],
+		"subject": pick["subject"],
+		"body": pick["body"],
+		"day": day,
+		"time": "%02d:00" % clampi(hour, 0, 23),
+		"type": "system",
+	})
+
+
+func _count_scheduled_customer_mails() -> int:
+	var count := 0
+	for entry in _scheduled_mails:
+		var mail_any = (entry as Dictionary).get("mail", {})
+		if mail_any is Dictionary and _is_customer_mail(mail_any):
+			count += 1
+	return count
 
 
 func _roll_archetype_batch(count: int, intensity: float) -> Array[String]:

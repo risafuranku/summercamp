@@ -6,9 +6,9 @@ const YAW_SENSITIVITY_FACTOR := 2.0
 const STAMINA_DRAIN_PER_SEC := 1.0 / 6.0
 const STAMINA_REGEN_PER_SEC := 1.0 / 9.0
 const STAMINA_UNLOCK := 0.25
-## Flashlight battery: ~7 real minutes of light on a charge; the night lasts ~10.
+## Flashlight battery: ~5 real minutes of light on a charge; the night lasts ~7.
 ## Off, it recovers slowly (a tired NiCd that "rests"). Below LOW it stutters.
-const BATTERY_DRAIN_PER_SEC := 1.0 / 420.0
+const BATTERY_DRAIN_PER_SEC := 1.0 / 300.0
 const BATTERY_REST_PER_SEC := 1.0 / 900.0
 const BATTERY_LOW := 0.15
 

@@ -33,6 +33,10 @@ var _usage: Dictionary = {}
 var _lamp_tiles: Array[Vector2i] = []
 var _path_tiles: Array[Vector2i] = []
 var _gate: Vector2i = Vector2i(10, 2)
+## Ways out of the camp: the gate road, the forest edges and the lake shore. Idle guests
+## leave by them for hours ("Twenty guests, so where is everybody?").
+var _exits: Array[Vector2i] = []
+var _lake_shore: Array[Vector2i] = []
 var _grid_size: Vector2i = Vector2i(20, 20)
 var _power_available: bool = true
 var _weather: int = 0
@@ -101,6 +105,34 @@ func refresh_world(state, registry) -> void:
 		elif type == "path":
 			_path_tiles.append(coord_any)
 	_gate = _find_gate(grid)
+	_refresh_exits(grid)
+
+
+func _refresh_exits(grid) -> void:
+	_lake_shore.clear()
+	var lake_far := Vector2i(-1, -1)
+	for coord_any in grid.tile_types.keys():
+		if int(grid.tile_types[coord_any]) != 1:  # TILE_LAKE
+			continue
+		var c: Vector2i = coord_any
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = c + d
+			if n.x < 0 or n.y < 0 or n.x >= _grid_size.x or n.y >= _grid_size.y:
+				continue
+			if int(grid.tile_types.get(n, 0)) == 1 or grid.cells.has(n):
+				continue
+			_lake_shore.append(n)
+			if lake_far.x < 0 or n.distance_squared_to(_gate) > lake_far.distance_squared_to(_gate):
+				lake_far = n
+	var mid_y := clampi(int(_grid_size.y / 2), 1, _grid_size.y - 2)
+	_exits = [
+		_gate,
+		Vector2i(0, mid_y),
+		Vector2i(_grid_size.x - 1, mid_y),
+		Vector2i(clampi(int(_grid_size.x / 2), 1, _grid_size.x - 2), _grid_size.y - 1),
+	]
+	if lake_far.x >= 0:
+		_exits.append(lake_far)
 
 
 func _find_gate(grid) -> Vector2i:
@@ -270,8 +302,37 @@ func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 	if not thought.is_empty():
 		guest["complaints"] = int(guest.get("complaints", 0)) + 1
 		_say(guest, thought, t)
+	if str(goal.get("need", "")).is_empty():
+		return _plan_idle(guest, here, t)
 	var spot := _wander_target(here, guest)
 	return _make_activity("wander", here, spot, t, _rng.randi_range(6, 18), str(goal.get("need", "")), {})
+
+
+## Nothing to do. A camp guest mostly keeps to themselves: shut in their cabin, gone
+## for a long walk out of the camp, or standing at the water. Only sometimes do they
+## stroll the paths where you can see them.
+func _plan_idle(guest: Dictionary, here: Vector2i, t: int) -> Dictionary:
+	var roll := _rng.randf()
+	var lodging := lodging_coord(guest)
+	if roll < 0.45 and lodging.x >= 0:
+		return _make_activity("rest", here, lodging, t, _rng.randi_range(70, 160), "", {})
+	if roll < 0.80 and not _exits.is_empty():
+		var exit := _exits[_rng.randi_range(0, _exits.size() - 1)]
+		if _rng.randf() < 0.3:
+			_say(guest, _away_thought(exit), t)
+		return _make_activity("away", here, exit, t, _rng.randi_range(120, 240), "", {})
+	if roll < 0.90 and not _lake_shore.is_empty():
+		var shore := _lake_shore[_rng.randi_range(0, _lake_shore.size() - 1)]
+		return _make_activity("linger", here, shore, t, _rng.randi_range(15, 40), "", {})
+	return _make_activity("wander", here, _wander_target(here, guest), t, _rng.randi_range(6, 18), "", {})
+
+
+func _away_thought(exit: Vector2i) -> String:
+	if exit == _gate:
+		return "Going to walk to the village and back."
+	if _lake_shore.has(exit):
+		return "Going round the lake. Back later."
+	return "There's a path into the woods. Going to see where it goes."
 
 
 func _plan_sleep(guest: Dictionary, t: int) -> Dictionary:

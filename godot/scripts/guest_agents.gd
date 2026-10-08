@@ -22,7 +22,9 @@ const MEMBER_SPREAD_M := 0.55
 const MAX_MEMBERS_PER_PARTY := 4
 const WALK_BOB_HZ := 2.6
 const OPEN_AIR_TYPES := ["bonfire", "sports_field", "lake_slide"]
-const HIDDEN_DWELL_KINDS := ["sleep", "rest", "arrive"]
+## Dwelling out of sight: in bed, resting in the lodging, arriving, or away from the
+## camp altogether (walked out by one of the exits).
+const HIDDEN_DWELL_KINDS := ["sleep", "rest", "arrive", "away"]
 const INTERACT_MAX_DISTANCE := 4.2
 const MARKER_ANGRY := preload("res://assets/textury/npc/mood_angry.png")
 const MARKER_HAPPY := preload("res://assets/textury/npc/mood_happy.png")

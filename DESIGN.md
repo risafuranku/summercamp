@@ -52,7 +52,8 @@ accept booking -> +income -> +guests of an archetype
 
 ## 3. Daily rhythm
 
-One in-game day = 24 real minutes (1 real second = 1 game minute).
+One in-game day = 16 real minutes (1 real second = 1.5 game minutes,
+`BalanceConfig.GAME_MINUTES_PER_SECOND`; an experiment, tune by feel). The night is ~7.
 
 | Time | Phase | The player |
 | --- | --- | --- |
@@ -79,6 +80,13 @@ Three archetypes, with different needs (`core/systems/guest_needs_system.gd`):
   taking the first booking that arrives fills the camp with whoever wrote first. Lazy
   booking makes a hard night; deliberate booking (mix + the right facilities, so nobody
   is unhappy) makes a quiet one.
+- The inbox is slow at first: bookings arrive 07:00-20:00, about three on day 1 rising
+  to ten on day 7, never more than a few waiting; spam now and then. At night at most
+  one false alarm (a relay test, a wrong number), and the belt pager beeps for every
+  new mail while you are out: you go to the office not knowing which kind it is.
+- Guests mostly keep to themselves: a third are out in the open by day; the rest rest
+  in their lodging, stand at the lake or walk out of the camp by the gate road, the
+  forest edges or the lake path for hours. Twenty guests, and where is everybody?
 - Facilities can be closed by circumstance: no power (unpaid bill), broken sewer, rain
   (outdoor attractions), a breakdown. Closed facilities make unhappy guests.
 
@@ -103,8 +111,8 @@ Within ~26 m the crickets, frogs and the owl fall silent, fast, and come back sl
 within ~18 m the HUD face widens its eyes and glances left or right toward it when it is
 outside your view. It is a tell for the attentive, never an arrow.
 
-Lamp posts (built by day) are the night's safe ground; the flashlight has ~7 minutes of
-light per charge for a ~10 minute night and stutters when low; stamina allows ~6 s of
+Lamp posts (built by day) are the night's safe ground; the flashlight has ~5 minutes of
+light per charge for a ~7 minute night and stutters when low; stamina allows ~6 s of
 sprint.
 
 ## 6. Upkeep

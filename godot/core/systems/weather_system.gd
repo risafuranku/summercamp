@@ -67,7 +67,8 @@ func _init() -> void:
 	_target_minutes = _roll_minutes(WEATHER_CLEAR)
 
 
-## `delta` in real seconds (= game minutes at TIME_SCALE 1.0). `hour` 0..24 when known.
+## `delta` in game minutes (main passes real seconds x GAME_MINUTES_PER_SECOND).
+## `hour` 0..24 when known.
 func process(delta: float, hour: float = -1.0) -> void:
 	if hour >= 0.0:
 		_hour = fposmod(hour, 24.0)

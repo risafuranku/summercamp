@@ -1,23 +1,26 @@
 extends Node
 
-## Blood spatter when the player is hurt: chunks fly from the camera along jittered
-## rays, land on whatever they hit and leave a pixel decal that fades after a few
-## minutes. Extracted from main.gd; main forwards damage tiers here.
+## Blood when the player is hurt: a short spray of drops leaves the body, flies on a
+## ballistic arc and lands. Where a drop lands it leaves a pixel stain that fades after
+## a few minutes; a drop that lands on nothing (off the edge of the world) just goes.
+## Nothing ever stops in mid-air. Extracted from main.gd; main forwards damage tiers.
 ##
-## Budget: at most MAX_DECALS decals live at once (oldest go first). Chunk and decal
-## materials are shared; per-decal opacity variation uses MeshInstance3D.transparency,
-## which the fade-out animates anyway.
+## Budget: at most MAX_DECALS stains live at once (oldest go first), a handful of drops
+## per hit. Drop and stain materials are shared; per-stain opacity variation uses
+## MeshInstance3D.transparency, which the fade-out animates anyway.
 
 const TIER_SMALL := 0
 const TIER_LETHAL := 4
-const CHUNK_COUNTS := [6, 12, 18, 28, 40]
-const SPREAD := [0.30, 0.45, 0.62, 0.86, 1.08]
+const DROP_COUNTS := [5, 7, 10, 14, 20]
+const SPREAD := [0.35, 0.45, 0.60, 0.80, 1.00]
 const FADE_DELAY_SEC := 180.0
 const FADE_DURATION_SEC := 34.0
-const RAY_DISTANCE := 11.5
-const CHUNK_SPEED_MIN := 12.0
-const CHUNK_SPEED_MAX := 24.0
-const MAX_DECALS := 260
+const DROP_SPEED_MIN := 2.6
+const DROP_SPEED_MAX := 5.2
+const GRAVITY := 9.8
+## A drop that has not landed by then (fell off the world) is dropped.
+const DROP_MAX_AGE := 2.0
+const MAX_DECALS := 160
 
 var _world: Node3D
 var _camera_getter: Callable
@@ -27,6 +30,8 @@ var _decals: Array[Node3D] = []
 var _rng := RandomNumberGenerator.new()
 var _chunk_mat: StandardMaterial3D
 var _decal_mat: StandardMaterial3D
+## Drops in flight: {node, pos, vel, age, tier}.
+var _drops: Array[Dictionary] = []
 
 
 ## `camera_getter` returns the player Camera3D; `exclude_getter` returns the body the
@@ -46,15 +51,14 @@ func spawn(tier: int, fatal_hit: bool) -> void:
 		return
 	_ensure_root()
 	var tier_idx := clampi(tier, TIER_SMALL, TIER_LETHAL)
-	var chunk_count := int(CHUNK_COUNTS[tier_idx])
-	if fatal_hit:
-		chunk_count += 10
-	for _i in range(chunk_count):
-		_spawn_chunk(camera, tier_idx)
+	var count := int(DROP_COUNTS[tier_idx]) + (6 if fatal_hit else 0)
+	for _i in range(count):
+		_spawn_drop(camera, tier_idx)
 
 
 func clear() -> void:
 	_decals.clear()
+	_drops.clear()
 	if _root != null and is_instance_valid(_root):
 		_root.queue_free()
 	_root = null
@@ -68,59 +72,73 @@ func _ensure_root() -> void:
 	_world.add_child(_root)
 
 
-func _spawn_chunk(camera: Camera3D, tier_idx: int) -> void:
-	var forward := -camera.global_transform.basis.z
-	var right := camera.global_transform.basis.x
-	var up := camera.global_transform.basis.y
+## Drops leave from chest height just in front of the eye, mostly forward and up, then
+## gravity brings them down onto the ground or a wall within a couple of metres.
+func _spawn_drop(camera: Camera3D, tier_idx: int) -> void:
+	var basis := camera.global_transform.basis
+	var forward := -basis.z
+	forward.y = 0.0
+	forward = forward.normalized() if forward.length_squared() > 0.0001 else Vector3.FORWARD
+	var right := basis.x
 	var spread := float(SPREAD[tier_idx])
-	var direction := (
-		forward * _rng.randf_range(0.35, 1.0)
+	var dir := (
+		forward * _rng.randf_range(0.5, 1.0)
 		+ right * _rng.randf_range(-spread, spread)
-		+ up * _rng.randf_range(-0.38, 0.54 + spread * 0.2)
+		+ Vector3.UP * _rng.randf_range(0.05, 0.55)
 	).normalized()
-	if direction.length_squared() < 0.0001:
-		direction = forward
+	var origin := camera.global_transform.origin + forward * 0.25 + Vector3.DOWN * 0.35
 
-	var origin := camera.global_transform.origin + forward * 0.18 + up * -0.05
-	var hit := _raycast(origin, direction)
-	var target_pos := origin + direction * _rng.randf_range(2.4, 4.8)
-	var target_normal := Vector3.UP
-	if not hit.is_empty():
-		target_pos = hit.get("position", target_pos)
-		var hit_normal_any = hit.get("normal", Vector3.UP)
-		if hit_normal_any is Vector3:
-			target_normal = (hit_normal_any as Vector3).normalized()
-		if target_normal.length_squared() < 0.0001:
-			target_normal = Vector3.UP
-
-	var chunk := MeshInstance3D.new()
-	chunk.name = "BloodChunk"
+	var drop := MeshInstance3D.new()
+	drop.name = "BloodDrop"
 	var box := BoxMesh.new()
-	box.size = Vector3.ONE * _rng.randf_range(0.010, 0.028) * (1.0 + float(tier_idx) * 0.20)
-	chunk.mesh = box
-	chunk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	chunk.material_override = _chunk_material()
-	_root.add_child(chunk)
-	chunk.global_position = origin
-
-	var speed := _rng.randf_range(CHUNK_SPEED_MIN, CHUNK_SPEED_MAX)
-	var duration := clampf(origin.distance_to(target_pos) / maxf(speed, 0.01), 0.08, 0.34)
-	var tween := chunk.create_tween()
-	tween.set_trans(Tween.TRANS_QUAD)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.tween_property(chunk, "global_position", target_pos, duration)
-	tween.finished.connect(func():
-		if not is_instance_valid(chunk):
-			return
-		_spawn_decal(target_pos, target_normal, tier_idx)
-		chunk.queue_free()
-	)
+	box.size = Vector3.ONE * _rng.randf_range(0.012, 0.03) * (1.0 + float(tier_idx) * 0.15)
+	drop.mesh = box
+	drop.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	drop.material_override = _chunk_material()
+	_root.add_child(drop)
+	drop.global_position = origin
+	_drops.append({
+		"node": drop,
+		"pos": origin,
+		"vel": dir * _rng.randf_range(DROP_SPEED_MIN, DROP_SPEED_MAX),
+		"age": 0.0,
+		"tier": tier_idx,
+	})
 
 
-func _raycast(origin: Vector3, direction: Vector3) -> Dictionary:
+func _physics_process(delta: float) -> void:
+	if _drops.is_empty():
+		return
+	var still: Array[Dictionary] = []
+	for d in _drops:
+		var node: MeshInstance3D = d["node"]
+		if not is_instance_valid(node):
+			continue
+		var pos: Vector3 = d["pos"]
+		var vel: Vector3 = d["vel"]
+		vel.y -= GRAVITY * delta
+		var next := pos + vel * delta
+		var hit := _raycast_segment(pos, next)
+		if not hit.is_empty():
+			var n: Vector3 = hit.get("normal", Vector3.UP)
+			_spawn_decal(hit["position"], n if n.length_squared() > 0.0001 else Vector3.UP, int(d["tier"]))
+			node.queue_free()
+			continue
+		d["age"] = float(d["age"]) + delta
+		if float(d["age"]) > DROP_MAX_AGE:
+			node.queue_free()
+			continue
+		d["pos"] = next
+		d["vel"] = vel
+		node.global_position = next
+		still.append(d)
+	_drops = still
+
+
+func _raycast_segment(from: Vector3, to: Vector3) -> Dictionary:
 	if _world.get_world_3d() == null:
 		return {}
-	var query := PhysicsRayQueryParameters3D.create(origin, origin + direction * RAY_DISTANCE)
+	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collide_with_bodies = true
 	query.collide_with_areas = false
 	var exclude_body = _exclude_getter.call() if _exclude_getter.is_valid() else null
@@ -157,7 +175,7 @@ func _spawn_decal(hit_pos: Vector3, normal: Vector3, tier_idx: int) -> void:
 
 	var mesh := MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	var base_size := 0.12 + (float(tier_idx) * 0.07)
+	var base_size := 0.10 + (float(tier_idx) * 0.05)
 	quad.size = Vector2(base_size * _rng.randf_range(0.72, 1.36), base_size * _rng.randf_range(0.64, 1.28))
 	mesh.mesh = quad
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

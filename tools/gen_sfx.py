@@ -18,6 +18,9 @@ it sits with the game's lo-fi samples. Deterministic (fixed seeds).
   station_pip.wav    one 1 kHz pip and its pause (the radio strings N of these)
   station_pip5.wav   the same pip with a longer pause: every fifth, like tally marks
   station_outro.wav  the phrase once more without its last note, then tuning noise
+    -> godot/assets/sfx/ui/*.wav
+
+  pager.wav          the belt pager: two short beeps from a tiny speaker (new mail)
 """
 import os
 import wave
@@ -27,6 +30,7 @@ import numpy as np
 SR = 22050
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "godot", "assets", "sfx", "npc")
 OUT_UNCANNY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "godot", "assets", "sfx", "uncanny")
+OUT_UI = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "godot", "assets", "sfx", "ui")
 
 
 def save(name, x, out=OUT):
@@ -223,7 +227,17 @@ def station_outro():
     ])
 
 
+def pager():
+    beep = int(0.09 * SR)
+    t = np.arange(beep) / SR
+    tone = np.sign(np.sin(2 * np.pi * 2900 * t)) * 0.18 * env(beep, 0.002, 0.004)
+    tone = lowpass(tone, 5000)
+    gap = np.zeros(int(0.07 * SR))
+    return np.concatenate([tone, gap, tone, np.zeros(int(0.1 * SR))])
+
+
 if __name__ == "__main__":
+    save("pager.wav", pager(), OUT_UI)
     save("station_intro.wav", station_intro(), OUT_UNCANNY)
     save("station_pip.wav", pip(0.46), OUT_UNCANNY)
     save("station_pip5.wav", pip(1.10), OUT_UNCANNY)

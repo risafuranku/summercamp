@@ -306,7 +306,7 @@ static func pick_goal(
 		return {"kind": "wander", "need": need, "facility": {}, "thought": _thought_for_missing(need)}
 
 	# Nothing pressing: leisure. Sometimes pick a loved attraction, else stroll.
-	if rng != null and rng.randf() < 0.45:
+	if rng != null and rng.randf() < 0.30:
 		var leisure := _best_facility_for(NEED_FUN, facilities, from_coord, usage, likes, true)
 		if not leisure.is_empty():
 			return {"kind": "visit", "need": NEED_FUN, "facility": leisure, "thought": "Nice day for the %s." % str(leisure.get("label", "camp")).to_lower()}

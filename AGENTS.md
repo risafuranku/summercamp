@@ -79,6 +79,7 @@ godot --headless --path godot res://tools/billing_check.tscn
 godot --headless --path godot res://tools/pipes_check.tscn
 godot --headless --path godot res://tools/uncanny_check.tscn
 godot --headless --path godot res://tools/look_check.tscn
+godot --headless --path godot res://tools/mail_check.tscn
 godot --headless --path godot --script res://tools/weather_check.gd
 ```
 

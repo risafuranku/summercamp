@@ -28,11 +28,11 @@ func _on_setup() -> void:
 	pass
 
 
-## `delta` in real seconds; at TIME_SCALE 1.0 that is game minutes.
+## `delta` in real seconds.
 func update(delta: float) -> void:
 	if not enabled or game_state == null or game_state.grid == null:
 		return
-	_minutes += delta
+	_minutes += delta * BalanceConfig.GAME_MINUTES_PER_SECOND
 	if _minutes < ROLL_EVERY_MINUTES:
 		return
 	_minutes -= ROLL_EVERY_MINUTES
