@@ -1,4 +1,29 @@
-# AUDIT.md — cleanup pass, 2026-08-05
+# AUDIT.md — history
+
+## Remaster pass, 2026-10-07/08
+
+Merged the cloud branch (Build-engine look, guest simulation, HUD, questline), then fixed
+and extended. Commits on `main` from `fe01223` to the docs commit; each message says what
+was wrong. The real bugs found on the way:
+
+| Severity | Finding | Fix |
+| --- | --- | --- |
+| 🔴 | Only Quiet Guy ever spawned an enemy; Drunk/Cheap Chick night odds did nothing | an enemy per archetype + the Antlered Man for mixed nights |
+| 🔴 | Any building could break, only the sewer could be repaired; FailureSystem ran in the main menu and broke things at 5% even at full condition | upkeep loop: condition-driven odds, hold R, crew |
+| 🔴 | An exported build would load zero buildings (registry matched `*.tres`, exports list `*.tres.remap`) | strip `.remap` |
+| 🟠 | Weather never ran during play (whole subsystem unseen) | designed cycle + crossfade |
+| 🟠 | Body text font not on a pixel grid (C read as G), fi ligature showed "Arst"; 1.5x blurry canvas at 1080p | baked bitmap fonts, runtime integer canvas scale |
+| 🟠 | HUD overlaps (banner over tracker, card over tracker), night risk shown twice, stale "Evening" line at night, waypoint sprite huge/clipped up close | HUD layout rewrite + screen-space marker |
+| 🟠 | No pause: Esc only toggled the mouse; no way to save or quit to title in play | pause menu |
+| 🟠 | CRT: a window opening during another's open delay never appeared; one requested during the splash was dropped | per-window reveal that waits for the desktop |
+| 🟡 | Mouse yaw applied twice per event; HUD stamina/light bars never fed | single yaw with explicit factor; stamina + battery |
+| 🟡 | Two hand-synced building catalogs | registry is the only catalog |
+| 🟡 | Radio asked a freed reception for its transform on every load; footsteps played before entering the tree | guards |
+| 🟡 | HUD harness reported PASS when hud_manager.gd failed to compile | can_instantiate guard |
+
+---
+
+## Cleanup pass, 2026-08-05
 
 Findings from a full read of the project after ~6 months dormant, and what was done
 about them. Kept as a record so the same ground isn't re-covered.

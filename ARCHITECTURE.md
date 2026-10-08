@@ -1,6 +1,6 @@
-# ARCHITECTURE.md — Summer Camp Incident Simulator 2
+# ARCHITECTURE.md — Cursed Camp Manager Simulator
 
-*Status snapshot: 2026-08-05. Engine: Godot 4.7.1.*
+*Status snapshot: 2026-10-08. Engine: Godot 4.7.1.*
 
 Technical wiring. For rules of engagement see [AGENTS.md](AGENTS.md); for intent see
 [DESIGN.md](DESIGN.md).
@@ -11,18 +11,24 @@ Technical wiring. For rules of engagement see [AGENTS.md](AGENTS.md); for intent
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ 6  View / UI      crt_os_shell, interiors, HUD, panels       │
+│ 6  View / UI      crt_os_shell, interiors, hud_manager,      │
+│                   ui/ (menus, pause, game over, boot)        │
 ├──────────────────────────────────────────────────────────────┤
-│ 5  Orchestration  main.gd  (+ extracted managers)            │
+│ 5  Orchestration  main.gd + extracted modules: blood_fx,     │
+│                   electricity_billing, menu_flythrough,      │
+│                   maintenance_controller, save_codec,        │
+│                   enemies/* (one brain per night threat)     │
 ├──────────────────────────────────────────────────────────────┤
-│ 4  Runtime mgrs   Guest, Email, Economy, Audio, Building     │
+│ 4  Runtime mgrs   Guest (+life, agents), Email, Economy,     │
+│                   Audio, Building, Quest                     │
 ├──────────────────────────────────────────────────────────────┤
 │ 3  Signal bus     EventBus                                   │
 ├──────────────────────────────────────────────────────────────┤
 │ 2  State/actions  CoreRoot → GameState + GameActions + Grid  │
 ├──────────────────────────────────────────────────────────────┤
 │ 1  Pure systems   Energy, Infra, Satisfaction, Karma, Time,  │
-│                   Weather, Maintenance, Failure, Builder     │
+│                   Weather, Maintenance, Failure, Builder,    │
+│                   GuestNeeds, MaintenanceRules               │
 ├──────────────────────────────────────────────────────────────┤
 │ 0  Data           BuildingRegistry ← data/buildings/*.tres   │
 └──────────────────────────────────────────────────────────────┘
@@ -99,6 +105,8 @@ The only cross-module signal hub. **Core emits, modules listen.**
 | `guest_created` / `guest_state_changed` | `GuestManager` | |
 | `accommodation_state_changed` / `guest_review_posted` / `guest_payment_received` | `GuestManager` | |
 | `file_downloaded` / `program_installed` | Beeternet / install wizard | |
+| `building_failed` | `FailureSystem` | coord, type |
+| `building_serviced` | `GameActions.service_building` | coord, type, was_broken, cost |
 
 ---
 
@@ -122,7 +130,7 @@ Builder UI
 ```
 main._process
   → TimeSystem.process(delta) → EventBus.time_tick / day_tick / night_tick
-  → WeatherSystem.process(delta)          [auto_cycle is OFF during gameplay]
+  → WeatherSystem.process(delta, hour)    [designed cycle; anomaly pressure = hrotfaktor]
   → main._sync_runtime_state_from_systems()
   → WeatherVisuals.apply(...) + AudioManager.refresh_ambient_audio(...)
 ```
@@ -146,10 +154,22 @@ Player presses CONFIRM
 
 ```
 TimeSystem crosses NIGHT_START_HOUR → EventBus.night_tick
-  → main._roll_liminal_night_spawn_snapshot()   [reads GuestManager forecast]
+  → main._roll_liminal_night_spawn_snapshot()   [per-archetype odds from GuestManager]
   → main._activate_runtime_enemy_for_night()
-  → SilentManBrain.setup(...) — ticked from main._process
-  → on day phase: main._despawn_all_runtime_enemies()
+       for each archetype that spawned: ENEMY_FOR_ARCHETYPE → brain.start_night()
+       two or more kinds → also StalkerBrain
+  → brains ticked from main._process (enemy_base: refs, body, sounds, view/light tests)
+  → on day phase: _stop_active_enemy_brain(), flashlight recharged
+```
+
+### Upkeep
+
+```
+day_tick → MaintenanceSystem decays cell "maintenance" by BuildingDef.maintenance_decay
+FailureSystem (enabled in play), every game hour → MaintenanceRules.hazard_per_hour
+  → GameState.failures + EventBus.building_failed → HUD feed, red sign, guests lose it
+Player holds R at a building (MaintenanceController) → GameActions.service_building
+  → condition 100%, failure cleared, money charged → EventBus.building_serviced
 ```
 
 ### Footsteps
@@ -232,12 +252,10 @@ Unlocked by default: `campmail`, `beeternet`, `downloads`, `bin`.
 
 | Item | Impact |
 | --- | --- |
-| **Two building catalogs** — `data/buildings/*.tres` (canonical) vs `EconomyManager.BUILDING_DATA` (legacy UI) | Must edit both. Debug-build drift guard added 2026-08-05 |
-| `main.gd` ≈ 4.5k lines | Menu, save/load, blood FX, electricity, enemies, liminal forecast, debug windows all in one file |
-| `crt_os_shell.gd` ≈ 4.8k lines | Every desktop app in one file |
+| `crt_os_shell.gd` ≈ 5k lines | Every terminal app in one file. Next: split per app (Camp Status text builders are pure and go first) |
+| `main.gd` ≈ 3k lines | Menu, billing, blood, flythrough and save helpers are out; liminal debug window, save snapshot build/apply and night orchestration remain |
 | `BuildingManager` is not a pure view over `GridModel` | Holds its own structure state |
-| `crt_map_panel.gd` reads `EconomyManager` directly | Should go through `CoreRoot`/`EventBus` |
-| `GameActions.end_day()` | Legacy, bypasses `day_tick`; warns once on use |
-| `WeatherSystem.auto_cycle_enabled` is false during gameplay | The weather subsystem never runs in a real session |
+| `GameActions.end_day()` | Legacy, bypasses `day_tick` |
+| Redneck Rampage texture rips | Licensing blocker for any public build (AGENTS.md §7) |
 
-See [AUDIT.md](AUDIT.md) for the full finding list and [TODO.md](TODO.md) for priorities.
+See [AUDIT.md](AUDIT.md) for history and [TODO.md](TODO.md) for priorities.
