@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://bmhnfk23e8bo1"
+path="res://.godot/imported/w95.fnt-ef5757c7c4237f4d4abb43183ae86f30.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/w95.fnt"
+dest_files=["res://.godot/imported/w95.fnt-ef5757c7c4237f4d4abb43183ae86f30.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=1
