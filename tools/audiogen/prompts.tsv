@@ -8,3 +8,8 @@ task_litter	1.6	assets/sfx/rooms/task_litter.mp3	Picking up litter from a wooden
 task_scrub	2.2	assets/sfx/rooms/task_scrub.mp3	Scrubbing a ceramic toilet bowl hard with a stiff plastic brush, wet bristle scraping and splashing water. Small tiled bathroom with a little echo, close, no music.
 task_done	0.8	assets/sfx/rooms/task_done.mp3	A short satisfying soft knock: someone sets a heavy wooden object down on a wooden table with a small thud. Close, dry, no music.
 room_ready	1.5	assets/sfx/rooms/room_ready.mp3	A small old brass bell on a reception desk is tapped once, clear ding with a soft ring-out. Small room, close, no music.
+steps_gravel	1.6	assets/sfx/npc/silent_steps.mp3	Two slow heavy footsteps of a man in old leather shoes on loose gravel and pine needles at night, deliberate, unhurried, then silence. Outdoors in a forest, about five metres away, no music, no voices.
+whisper_neck	1.6	assets/sfx/npc/silent_whisper.mp3	A man whispering very close behind the listener's ear, unintelligible dry breathy whisper, two or three syllables, then a slow exhale. Intimate, unsettling, no music.
+run_away	1.8	assets/sfx/npc/silent_away.mp3	Someone quickly walking away through bushes and dry branches at night, rustling and twigs snapping, fading into the forest. Outdoors, no music, no voices.
+film_advance	1.0	assets/sfx/npc/photo_advance.mp3	The thumb lever of an old 35mm film camera being wound: a ratcheting mechanical zip and a click. Close, dry, no music.
+twig_snap	0.8	assets/sfx/npc/twig_snap.mp3	A single dry twig snapping under a foot in a dark forest, sharp and close. No music.

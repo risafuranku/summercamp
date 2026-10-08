@@ -171,6 +171,18 @@ const SCENARIOS := {
 		["player", 1, 1, 225.0], ["call", "debug_spawn_enemy", ["stalker", 3]], ["wait", 1.0], ["look_at_enemy"], ["enemy_dist"], ["wait", 0.5], ["shot", "a6_stalker"],
 		["wait", 5.0], ["look_at_enemy"], ["enemy_dist"], ["shot", "a7_stalker_close"],
 	],
+	"night2": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["player", 12, 8, 0.0], ["hours", 13.0], ["wait", 3.0],
+		["call", "debug_spawn_enemy", ["tourist", 3]],
+		["until", "_enemy_brains[0]._phase == 1", 20.0], ["look_at_enemy"], ["wait", 1.2], ["shot", "n0_photo_framing"],
+		["eval", "_player.rotate_y(PI)"], ["until", "_enemy_brains[0]._flash_t > 0.2", 10.0], ["shot", "n1_photo_flash_behind"],
+		["eval", "_enemy_brains[0].get_debug_snapshot()"],
+		["call", "_stop_active_enemy_brain", []],
+		["call", "debug_spawn_enemy", ["silent_man", 3]], ["until", "_enemy_brains[0]._dist < 8.0", 40.0],
+		["eval", "_enemy_brains[0].get_debug_snapshot()"], ["look_at_enemy"], ["wait", 0.2], ["shot", "n2_hatter_in_light"],
+		["eval", "_enemy_brains[0].get_debug_snapshot()"],
+	],
 	"senses": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 4.0],
 		["eval", "[get_tree().root.find_child('RadioOutdoor', true, false).playing, snappedf(get_tree().root.find_child('RadioOutdoor', true, false).volume_db, 0.1), get_tree().root.find_child('RadioOutdoor', true, false).global_position.distance_to(_player.global_position), get_tree().root.find_child('RadioPlayer', true, false).volume_db]"],
@@ -345,6 +357,10 @@ func _detach_and_boot() -> void:
 	get_tree().change_scene_to_file(MAIN_SCENE)
 
 
+var _until_expr := ""
+var _until_deadline := 0
+
+
 func _process(delta: float) -> void:
 	if _main == null or not is_instance_valid(_main):
 		_main = get_tree().current_scene
@@ -357,6 +373,11 @@ func _process(delta: float) -> void:
 		if not _condition_met(_waiting_for):
 			return
 		_waiting_for = ""
+	if not _until_expr.is_empty():
+		var ex := Expression.new()
+		if ex.parse(_until_expr) == OK and bool(ex.execute([], _main)) == false and Time.get_ticks_msec() < _until_deadline:
+			return
+		_until_expr = ""
 	if _step_index >= _steps.size():
 		print("SHOT DRIVER: done")
 		get_tree().quit(0)
@@ -413,6 +434,10 @@ func _run_step(step: Array) -> void:
 				"guests": int(step[3]), "nights": int(step[4]), "from": "%s <guest@mail>" % step[1],
 				"arrival_minutes": int(step[5]) if step.size() > 5 else 0,
 			})
+		"until":
+			# Hold the script until an Expression on Main is true (or [2] seconds pass).
+			_until_expr = str(step[1])
+			_until_deadline = Time.get_ticks_msec() + int(float(step[2] if step.size() > 2 else 20.0) * 1000.0)
 		"gm":
 			# Call a GuestManager method (Expression cannot reach autoloads): [method, args...]
 			print("SHOT DRIVER gm %s -> %s" % [step[1], GuestManager.callv(str(step[1]), step.slice(2))])

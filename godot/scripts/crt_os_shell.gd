@@ -3027,8 +3027,8 @@ func _build_status_night_risk_text() -> String:
 ## Staff guidance, in the voice of a camp operator that has clearly done this before.
 ## It never says what these things are. It only says what to do.
 const NIGHT_PROCEDURES := [
-	["Quiet Guy", "SILENT MAN", "Footsteps behind staff. Respond to every sound: turn, move. Do not stand still in the dark."],
-	["Drunk", "THE TOURIST", "A flash charging somewhere in the field. Turn your back before it fires. Do not pose."],
+	["Quiet Guy", "SILENT MAN", "Footsteps on the gravel behind you that stop when you stop. Do not stand still in the dark. Turn round and put a light on him. If he whispers, turn round at once."],
+	["Drunk", "THE PHOTOGRAPHER", "A red light blinking in the trees, beeping faster. Turn your back or get behind something before the flash. Do not pose."],
 	["Cheap Chick", "THE GIRL", "She stays where the light ends. Keep her in sight, keep moving, keep to the lamps. Batteries are not covered by the camp."],
 	["Two or more", "THE ANTLERED MAN", "Walks the fence. Stay off the fence line after dark. He does not enter lamp light."],
 ]

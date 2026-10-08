@@ -21,6 +21,7 @@ it sits with the game's lo-fi samples. Deterministic (fixed seeds).
     -> godot/assets/sfx/ui/*.wav
 
   pager.wav          the belt pager: two short beeps from a tiny speaker (new mail)
+  af_beep.wav        a camera's autofocus confirmation beep (the Photographer framing you)
 """
 import os
 import wave
@@ -236,7 +237,15 @@ def pager():
     return np.concatenate([tone, gap, tone, np.zeros(int(0.1 * SR))])
 
 
+def af_beep():
+    n = int(0.06 * SR)
+    t = np.arange(n) / SR
+    x = np.sin(2 * np.pi * 3600 * t) * 0.22 * env(n, 0.002, 0.01)
+    return np.concatenate([x, np.zeros(int(0.03 * SR))])
+
+
 if __name__ == "__main__":
+    save("af_beep.wav", af_beep(), OUT)
     save("pager.wav", pager(), OUT_UI)
     save("station_intro.wav", station_intro(), OUT_UNCANNY)
     save("station_pip.wav", pip(0.46), OUT_UNCANNY)

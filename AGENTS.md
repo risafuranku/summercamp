@@ -81,6 +81,7 @@ godot --headless --path godot res://tools/uncanny_check.tscn
 godot --headless --path godot res://tools/look_check.tscn
 godot --headless --path godot res://tools/mail_check.tscn
 godot --headless --path godot res://tools/arrival_check.tscn
+godot --headless --path godot res://tools/enemy_check.tscn
 godot --headless --path godot --script res://tools/weather_check.gd
 ```
 
@@ -96,9 +97,9 @@ godot --path godot --resolution 1280x720 res://tools/shot_driver.tscn -- --scena
 ```
 
 Scenarios: `boot menu views hud quest pause gameover crt crtmap weather upkeep blood night
-saveload guests pipes senses uncanny look gate prep prepcabin probe`.
+saveload guests pipes senses uncanny look gate prep prepcabin night2 probe`.
 Useful steps for the new loops: `topdown` (a camera above the camp, no fog), `open_room`,
-`aim_task` (turns the head to a room task and puts the cursor on it), `lmb`, `gm` (call a
+`aim_task` (turns the head to a room task and puts the cursor on it), `lmb`, `until` (wait for an Expression on Main), `gm` (call a
 GuestManager method: `eval` cannot reach autoloads), `prep_all`. Steps include `build`, `book`, `hours`, `player`, `money`, `press`,
 `condition`, `break`, `look_at_enemy`, `crt_screen` (saves the terminal's own frame),
 `eval` (Expression against Main; autoload names are not reachable from it).

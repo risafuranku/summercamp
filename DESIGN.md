@@ -120,10 +120,14 @@ in the dark they exist only where the flashlight or a lamp touches them.
 
 | Enemy | From | Tell | Counter | Punishes |
 | --- | --- | --- | --- | --- |
-| Silent Man | Quiet Guy | footsteps / whispers behind you; sometimes he is standing there | react: turn, move | standing still in the dark |
-| The Tourist | Drunk | a flash charging somewhere (rising whine) | turn your back before it fires | looking at him |
+| Silent Man | Quiet Guy | footsteps on the gravel behind you, closer each time, stopping when you stop; a whisper at your ear | turn round and put light on him; under a lamp he will not come nearer; at the whisper, turn round at once | standing still in the dark |
+| The Photographer | Drunk | the ratchet of a film advance where he settles; a red focus lamp blinking in the trees with beeps that speed up; the flash whine | turn your back or get behind something before the flash (he gives ~3 s); the flash lights the place up from his side | looking at him when it fires |
 | The Girl | Cheap Chick | static and humming growing; she stands where the light ends | keep her in sight, keep to the lamps | looking away; she drains the battery while watched |
 | The Antlered Man | 2+ archetypes in one night | heavy footfalls along the fence | stay off the fence line, stay in lamp light | being near the fence in the dark |
+
+Every hit can be explained afterwards: each enemy says where it is and when it is about
+to strike, by sound first, and the counter always works (tools/enemy_check.tscn plays
+both the careless and the careful player against the Silent Man and the Photographer).
 
 Together they contradict each other (watch the Girl, never watch the Tourist, never stand
 still for the Silent Man), which is what makes a lazily booked camp lethal.

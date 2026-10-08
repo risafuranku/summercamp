@@ -28,6 +28,7 @@ was wrong. The real bugs found on the way:
 | 🟠 | Accepting a booking teleported the party into the camp at once | the road, the barrier, room preparation |
 | 🟠 | `main._sync_guest_accommodation_state` rebuilt the room states itself and overwrote them with a legacy "clean" | it only mirrors guest counts onto structures now |
 | 🟠 | Upgrades (tent_1 -> tent_2, cabin_1 -> cabin_2) swapped the 3D model but left the old type in the core grid: wrong capacity, wrong room tasks, wrong saves | `actions.retype_building` |
+| 🔴 | The Silent Man hurt you from hidden meters (no position, no warning you could read); the Photographer moved in front of you after each hit, so hits chained | both rebuilt around audible tells and a counter that always works; tools/enemy_check.tscn |
 | 🟡 | Story pool padded with re-sent copies tagged "[day N transmission tag]", read as a bug; two mails duplicated the questline | story week rewritten |
 
 ---

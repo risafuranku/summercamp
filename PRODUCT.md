@@ -65,8 +65,8 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Feature | State | Notes |
 | --- | --- | --- |
 | Night roll per archetype from the forecast | ✅ | |
-| Silent Man (Quiet Guy) | ✅ | audio stalker + rare visible peeks |
-| The Tourist (Drunk) | ✅ | camera flash; do not look |
+| Silent Man (Quiet Guy) | ✅ | footsteps that close in while you stand in the dark, a whisper, then the hit; light drives him off |
+| The Photographer (Drunk) | ✅ | film advance, red focus lamp and beeps, whine, flash; never look at him when it fires |
 | The Girl (Cheap Chick) | ✅ | advances when unwatched; eats the battery; cannot enter lamp light |
 | The Antlered Man (two or more archetypes) | ✅ | fence-line charger |
 | Flashlight battery, stamina | ✅ | |
