@@ -39,6 +39,8 @@ const MENU_FLYTHROUGH_SCRIPT = preload("res://scripts/menu_flythrough.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
 const THREAT_SENSES_SCRIPT = preload("res://scripts/threat_senses.gd")
+const NIGHT_JOBS_SCRIPT = preload("res://scripts/night_jobs.gd")
+const BREAKER_PANEL_SCRIPT = preload("res://scripts/breaker_panel.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
 const PAUSE_MENU_SCRIPT = preload("res://scripts/ui/pause_menu.gd")
@@ -152,6 +154,9 @@ var _active_enemy_brain: RefCounted
 var _active_enemy_brain_id: String = ""
 var _enemy_brains: Array = []
 var _senses = THREAT_SENSES_SCRIPT.new()
+var _night_jobs: Node
+var _breaker_panel: CanvasLayer
+var _pending_night_jobs: Dictionary = {}
 var _still_seconds: float = 0.0
 var _still_last_pos: Vector3 = Vector3.INF
 var _active_enemy_spawned_this_night: int = 0
@@ -284,6 +289,7 @@ func _start_gameplay_runtime() -> void:
 	_setup_interaction_controller()
 	_setup_quest_manager()
 	_setup_maintenance()
+	_setup_night_jobs()
 	_apply_pending_crt_desktop_state()
 	if SEWER_PIPE_REPAIR_ENABLED:
 		_setup_sewer_pipe_minigame()
@@ -316,6 +322,92 @@ func _setup_quest_manager() -> void:
 		_quest_manager.import_state(_pending_quest_state)
 		_pending_quest_state.clear()
 		_pending_quest_state_loaded = false
+
+
+## Night work: the director and the distribution board (scripts/night_jobs.gd).
+func _setup_night_jobs() -> void:
+	if _night_jobs == null or not is_instance_valid(_night_jobs):
+		_night_jobs = NIGHT_JOBS_SCRIPT.new()
+		_night_jobs.name = "NightJobs"
+		add_child(_night_jobs)
+		_night_jobs.setup(self)
+		_night_jobs.changed.connect(_on_night_jobs_changed)
+		EventBus.building_failed.connect(func(_c, _t): _sync_dark_lamps())
+		EventBus.building_serviced.connect(func(_c, _t, _b, _cost): _sync_dark_lamps())
+	if _breaker_panel == null or not is_instance_valid(_breaker_panel):
+		_breaker_panel = BREAKER_PANEL_SCRIPT.new()
+		_breaker_panel.name = "BreakerPanel"
+		add_child(_breaker_panel)
+		_breaker_panel.fixed.connect(func(fault: int): _night_jobs.on_breaker_fixed(fault))
+		_breaker_panel.closed.connect(func():
+			if _player != null and _player.has_method("set_controls_enabled"):
+				_player.set_controls_enabled(true)
+			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		)
+	if _interior_manager != null:
+		_interior_manager.structure_interact_override = Callable(self, "_on_structure_interact_override")
+	if not _pending_night_jobs.is_empty():
+		_night_jobs.import_state(_pending_night_jobs)
+		_pending_night_jobs.clear()
+
+
+func _tick_night_jobs() -> void:
+	if _night_jobs == null:
+		return
+	var minute_of_day := _clock_minutes_from_hours(_time_of_day_hours)
+	var abs_minute := (maxi(1, _day_index) - 1) * 1440 + minute_of_day
+	var night_index := _day_index if minute_of_day >= 12 * 60 else _day_index - 1
+	_night_jobs.tick(abs_minute, _time_state == TIME_NIGHT, night_index)
+
+
+func _on_night_jobs_changed() -> void:
+	var powered := _is_grid_powered()
+	if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
+		GuestManager.set_camp_power_available(powered)
+	_apply_time_from_clock(true, false)
+	_sync_dark_lamps()
+
+
+func _is_grid_powered() -> bool:
+	return not _billing.power_cut_active and not (_night_jobs != null and _night_jobs.breaker_tripped)
+
+
+## Lamps dark for their own reasons: a lamp breakdown, or the circuit left off.
+func _sync_dark_lamps() -> void:
+	if building_manager == null or not building_manager.has_method("set_broken_lamps"):
+		return
+	var state = CoreRoot.get_state()
+	var dark: Array = []
+	var all_lamps: Array = []
+	for coord in state.grid.cells.keys():
+		var cell: Dictionary = state.grid.cells[coord]
+		if str(cell.get("type", "")) == "lamp_post" and cell.get("root_coord", coord) == coord:
+			all_lamps.append("%d:%d" % [coord.x, coord.y])
+	for key in state.failures.keys():
+		if str(state.failures[key].get("type", "")) == "lamp_post":
+			dark.append(str(key))
+	if _night_jobs != null:
+		dark.append_array(_night_jobs.extra_dark_lamps(all_lamps, int(grid_manager.grid_height)))
+	building_manager.set_broken_lamps(dark)
+
+
+## The generator's distribution board while the main is tripped.
+func _on_structure_interact_override(structure: Node3D) -> bool:
+	if _night_jobs == null or not _night_jobs.breaker_tripped:
+		return false
+	if str(structure.get_meta("building_type", "")) != "power_generator":
+		return false
+	if _player != null and _player.has_method("set_controls_enabled"):
+		_player.set_controls_enabled(false)
+	_breaker_panel.open(_night_jobs.breaker_fault())
+	return true
+
+
+## For the HUD waypoint: the nearest open night job.
+func night_job_waypoint() -> Dictionary:
+	if _night_jobs == null or _player == null or not is_instance_valid(_player):
+		return {}
+	return _night_jobs.waypoint(_player.global_position)
 
 
 func _setup_maintenance() -> void:
@@ -536,6 +628,7 @@ func _process(delta: float) -> void:
 	_update_threat_senses(delta)
 	_sync_hud_player_meters()
 	_poll_arrivals(delta)
+	_tick_night_jobs()
 	if _maintenance != null:
 		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
 	_poll_guest_quotes(delta)
@@ -881,6 +974,8 @@ func _poll_arrivals(delta: float) -> void:
 		return
 	_arrivals_poll = 0.5
 	_hud_manager.set_arrivals(GuestManager.get_arrivals())
+	if _night_jobs != null:
+		_hud_manager.set_jobs(_night_jobs.hud_rows())
 
 
 func _on_guest_at_gate(row: Dictionary) -> void:
@@ -1152,6 +1247,8 @@ func _on_day_phase_started() -> void:
 	if not _gameplay_started or _menu_mode:
 		return
 	_stop_active_enemy_brain()
+	if _night_jobs != null:
+		_night_jobs.on_dawn()
 	if _player != null and _player.has_method("recharge_flashlight"):
 		_player.recharge_flashlight()
 	var removed_scene_enemies = _despawn_all_runtime_enemies()
@@ -1632,9 +1729,9 @@ func _sync_billing_clock() -> void:
 func _bind_billing() -> void:
 	_billing.setup(economy_manager)
 	_billing.state_changed.connect(_emit_state_update)
-	_billing.power_cut_changed.connect(func(cut: bool) -> void:
+	_billing.power_cut_changed.connect(func(_cut: bool) -> void:
 		if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
-			GuestManager.set_camp_power_available(not cut)
+			GuestManager.set_camp_power_available(_is_grid_powered())
 		_apply_time_from_clock(true, false)
 	)
 	_billing.ups_expired.connect(func() -> void:
@@ -1667,7 +1764,7 @@ func _apply_time_from_clock(force_interior_sync: bool = false, force_sky_snap: b
 	var state_changed = force_interior_sync
 	var is_night = (_time_state == TIME_NIGHT)
 	var lamp_and_flashlight_active = _is_hour_in_window(_time_of_day_hours, LAMP_FLASHLIGHT_START_HOUR, float(BALANCE_CONFIG.DAY_START_HOUR))
-	var grid_power_available = not _billing.power_cut_active
+	var grid_power_available = _is_grid_powered()
 	if CoreRoot.is_night() != is_night:
 		CoreRoot.apply_changes({"is_night": is_night})
 	if state_changed and _time_state == TIME_NIGHT:
@@ -2369,7 +2466,8 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"crt_desktop": crt_desktop_state,
 		"email_runtime": email_runtime_state,
 		"guest_runtime": guest_runtime_state,
-		"quests": _quest_manager.export_state() if _quest_manager != null else {}
+		"quests": _quest_manager.export_state() if _quest_manager != null else {},
+		"night_jobs": _night_jobs.export_state() if _night_jobs != null else {},
 	}
 	if _player != null and is_instance_valid(_player):
 		snapshot["player"] = {
@@ -2607,6 +2705,11 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
 		weather_system.set_auto_cycle_enabled(true)
 	if not preview_only:
+		var jobs_any = snapshot.get("night_jobs", {})
+		_pending_night_jobs = (jobs_any as Dictionary).duplicate(true) if jobs_any is Dictionary else {}
+		if _night_jobs != null and _gameplay_started:
+			_night_jobs.import_state(_pending_night_jobs)
+			_pending_night_jobs.clear()
 		var quests_any = snapshot.get("quests", {})
 		_pending_quest_state = (quests_any as Dictionary).duplicate(true) if quests_any is Dictionary else {}
 		_pending_quest_state_loaded = true
@@ -2794,6 +2897,9 @@ func _sync_guest_accommodation_state() -> void:
 
 func _reset_state_for_new_game() -> void:
 	_pending_loaded_player_state.clear()
+	_pending_night_jobs.clear()
+	if _night_jobs != null:
+		_night_jobs.reset()
 	_pending_loaded_crt_state.clear()
 	_last_known_crt_desktop_state.clear()
 	_billing.reset(1)

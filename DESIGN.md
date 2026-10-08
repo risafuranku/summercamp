@@ -141,6 +141,24 @@ Lamp posts (built by day) are the night's safe ground; the flashlight has ~5 min
 light per charge for a ~7 minute night and stutters when low; stamina allows ~6 s of
 sprint.
 
+## 5b. Night work
+
+The night is not for waiting. A director (`scripts/night_jobs.gd`) plans 2-4 jobs per
+night between 21:00 and 04:30 and pages you for each (HUD: TONIGHT, plus the waypoint):
+
+- **Breaker**: the main at the generator trips; every lamp is out and powered
+  facilities shut. At the distribution board one circuit has a fault that throws the
+  main again whenever it is up. The way to find it is written on Vera's note inside
+  the door: all down, main up, then one at a time; the one that throws it stays down.
+  If that was a lamp circuit, half the camp's lamps stay dark for the rest of the night.
+  Left until dawn, an electrician resets it for $60.
+- **Lamp**: one lamp post goes dark (hold R at it).
+- **Sewer**: the sewer blocks; toilets and showers close (crawl the pipes).
+- **Toilets**: the block blocks (hold R).
+
+So the night is "keep the camp running" and "something is out there" at the same time:
+the lamps you fix are the safe ground the enemies respect.
+
 ## 6. Upkeep
 
 Every building has a condition (0-100%) that drops daily by its `maintenance_decay`.

@@ -269,8 +269,14 @@ func is_service_restaurant_basement_active() -> bool:
 	return false
 
 
+## Main may take an interaction first (the distribution board while the breaker is out).
+var structure_interact_override: Callable
+
+
 func handle_structure_interact(structure: Node3D) -> void:
 	if structure == null:
+		return
+	if structure_interact_override.is_valid() and bool(structure_interact_override.call(structure)):
 		return
 	var building_type = str(structure.get_meta("building_type", ""))
 	match _module_for_building_type(building_type):

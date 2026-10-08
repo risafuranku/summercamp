@@ -115,6 +115,34 @@ func setup(grid_manager) -> void:
 	_ensure_structures_root()
 
 
+## Lamps whose bulb has gone (a breakdown, a night job): dark until repaired, whatever
+## the grid does. Keys are grid origins "x:y".
+var _broken_lamps: Dictionary = {}
+
+
+func set_broken_lamps(keys: Array) -> void:
+	var next := {}
+	for k in keys:
+		next[str(k)] = true
+	if next == _broken_lamps:
+		return
+	_broken_lamps = next
+	for lamp_id in _lamp_runtime.keys():
+		var entry: Dictionary = _lamp_runtime[lamp_id]
+		_apply_lamp_entry_base_state(entry, _lamps_active)
+		_lamp_runtime[lamp_id] = entry
+
+
+func _is_lamp_entry_broken(entry: Dictionary) -> bool:
+	var root = entry.get("root", null) as Node3D
+	if root == null or not is_instance_valid(root) or _broken_lamps.is_empty():
+		return false
+	var origin = root.get_meta("grid_origin", null)
+	if not (origin is Vector2i):
+		return false
+	return _broken_lamps.has("%d:%d" % [(origin as Vector2i).x, (origin as Vector2i).y])
+
+
 func set_lamps_active(active: bool) -> void:
 	_lamps_active = active
 	_lamp_flicker_roll_timer = _lamp_rng.randf_range(54.0, 68.0)
@@ -1465,6 +1493,7 @@ func _roll_lamp_flickers() -> void:
 
 
 func _apply_lamp_entry_base_state(entry: Dictionary, active: bool) -> void:
+	active = active and not _is_lamp_entry_broken(entry)
 	var spot = entry.get("spot", null) as SpotLight3D
 	var fill = entry.get("fill", null) as OmniLight3D
 	var beam = entry.get("beam", null) as MeshInstance3D
@@ -1505,7 +1534,7 @@ func _apply_lamp_entry_base_state(entry: Dictionary, active: bool) -> void:
 
 
 func _update_lamp_flicker(entry: Dictionary, delta: float) -> void:
-	if not _lamps_active:
+	if not _lamps_active or _is_lamp_entry_broken(entry):
 		return
 	var remaining = float(entry.get("flicker_remaining", 0.0))
 	if remaining <= 0.0:

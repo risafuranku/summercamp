@@ -511,11 +511,22 @@ func _sync_waypoint() -> void:
 	var hud := _hud()
 	if hud == null or not hud.has_method("set_waypoint"):
 		return
+	var job: Dictionary = _night_job_waypoint()
+	if not job.is_empty():
+		hud.set_waypoint(job["position"], str(job["label"]))
+		return
 	if _waypoint_kind.is_empty():
 		hud.clear_waypoint()
 		return
 	var pos := _waypoint_position(_waypoint_kind)
 	hud.set_waypoint(pos, WAYPOINT_LABELS.get(_waypoint_kind, ""))
+
+
+## A night job outranks the checklist: it is happening now.
+func _night_job_waypoint() -> Dictionary:
+	if _main != null and _main.has_method("night_job_waypoint"):
+		return _main.night_job_waypoint()
+	return {}
 
 
 func _waypoint_position(kind: String) -> Vector3:

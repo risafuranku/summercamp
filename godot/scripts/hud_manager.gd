@@ -117,6 +117,9 @@ var _objective_panel: Control
 var _arrivals_panel: Control
 var _arrivals_box: VBoxContainer
 var _arrivals: Array = []
+var _jobs_panel: Control
+var _jobs_box: VBoxContainer
+var _jobs: Array = []
 var _objective_title: Label
 var _objective_text: Label
 var _objective_hint: Label
@@ -484,6 +487,7 @@ func _rebuild_layout() -> void:
 	_build_feed()
 	_build_objective()
 	_build_arrivals()
+	_build_jobs()
 	_build_card()
 	_build_banner()
 	_build_crosshair_and_hint()
@@ -719,6 +723,50 @@ func _build_arrivals() -> void:
 	panel.add_child(_arrivals_box)
 
 
+func _build_jobs() -> void:
+	var panel := _plate()
+	panel.name = "NightJobs"
+	panel.anchor_left = 1.0
+	panel.anchor_right = 1.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	panel.offset_right = -_vp(4)
+	panel.offset_left = -_vp(4 + TRACKER_WIDTH_VP)
+	panel.offset_top = _vp(4)
+	panel.visible = false
+	_root.add_child(panel)
+	_jobs_panel = panel
+	_jobs_box = VBoxContainer.new()
+	_jobs_box.add_theme_constant_override("separation", int(_vp(2)))
+	_jobs_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(_jobs_box)
+
+
+## Rows from NightJobs.hud_rows(): what is broken tonight and where.
+func set_jobs(rows: Array) -> void:
+	if rows == _jobs:
+		return
+	_jobs = rows.duplicate(true)
+	_refresh_jobs()
+
+
+func _refresh_jobs() -> void:
+	if _jobs_panel == null:
+		return
+	for c in _jobs_box.get_children():
+		_jobs_box.remove_child(c)
+		c.queue_free()
+	_jobs_panel.visible = not _jobs.is_empty()
+	if _jobs.is_empty():
+		return
+	_jobs_box.add_child(RETRO_UI.label("TONIGHT", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_RED_LIGHT, _scale))
+	for row_any in _jobs:
+		var row: Dictionary = row_any
+		_jobs_box.add_child(_body(str(row.get("title", "")), RETRO_UI.C_BONE))
+		var where := _caption("  " + str(row.get("where", "")).to_upper(), RETRO_UI.C_AMBER)
+		_jobs_box.add_child(where)
+	_jobs_panel.size = Vector2(_vp(TRACKER_WIDTH_VP), 0)
+
+
 ## Rows from GuestManager.get_arrivals(): who is coming, when, to which room, ready?
 func set_arrivals(rows: Array) -> void:
 	if rows == _arrivals:
@@ -949,6 +997,7 @@ func _refresh_all() -> void:
 	if _banner_timer > 0.0:
 		_apply_banner()
 	_refresh_arrivals()
+	_refresh_jobs()
 
 
 func _refresh_work() -> void:
@@ -1131,10 +1180,11 @@ func _stack_right_column() -> void:
 	var top := _vp(4)
 	if _objective_panel != null and _objective_panel.visible:
 		top = _objective_panel.position.y + _objective_panel.size.y + _vp(3)
-	if _arrivals_panel != null and _arrivals_panel.visible:
-		_arrivals_panel.offset_top = top
-		_arrivals_panel.offset_bottom = top + _arrivals_panel.get_combined_minimum_size().y
-		top += _arrivals_panel.get_combined_minimum_size().y + _vp(3)
+	for panel in [_arrivals_panel, _jobs_panel]:
+		if panel != null and panel.visible:
+			panel.offset_top = top
+			panel.offset_bottom = top + panel.get_combined_minimum_size().y
+			top += panel.get_combined_minimum_size().y + _vp(3)
 	if _card_panel == null or not _card_panel.visible:
 		return
 	_card_panel.offset_top = top
@@ -1375,6 +1425,12 @@ func _on_unread_count_changed(count: int) -> void:
 ## The belt pager: when a mail lands while you are out in the camp, two beeps and a
 ## line in the feed. It does not say what the mail is; you have to go and read it.
 func _page_new_mail() -> void:
+	page()
+	push_status("Pager: new mail at the office", STATUS_INFO, "mail")
+
+
+## Two beeps from the belt pager (mail, night jobs).
+func page() -> void:
 	if _pager == null:
 		_pager = AudioStreamPlayer.new()
 		_pager.stream = load(PAGER_SFX) as AudioStream
@@ -1382,7 +1438,6 @@ func _page_new_mail() -> void:
 		add_child(_pager)
 	if _pager.stream != null:
 		_pager.play()
-	push_status("Pager: new mail at the office", STATUS_INFO, "mail")
 
 
 func _get_unread_count() -> int:

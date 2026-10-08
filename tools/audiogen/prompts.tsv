@@ -13,3 +13,9 @@ whisper_neck	1.6	assets/sfx/npc/silent_whisper.mp3	A man whispering very close b
 run_away	1.8	assets/sfx/npc/silent_away.mp3	Someone quickly walking away through bushes and dry branches at night, rustling and twigs snapping, fading into the forest. Outdoors, no music, no voices.
 film_advance	1.0	assets/sfx/npc/photo_advance.mp3	The thumb lever of an old 35mm film camera being wound: a ratcheting mechanical zip and a click. Close, dry, no music.
 twig_snap	0.8	assets/sfx/npc/twig_snap.mp3	A single dry twig snapping under a foot in a dark forest, sharp and close. No music.
+breaker_click	0.8	assets/sfx/power/breaker_click.mp3	A single old industrial circuit breaker toggle being flipped by hand inside a metal distribution box: a stiff plastic snap and a metallic clack. Close, slight metal box resonance, no music.
+main_switch	1.2	assets/sfx/power/main_switch.mp3	A heavy main power lever switch in an old electrical cabinet being thrown: a loud mechanical CLUNK with a spring and the box rattling. Close, no music.
+main_trip	1.5	assets/sfx/power/main_trip.mp3	An overloaded circuit tripping in an old electrical cabinet: a short sharp electrical arc crackle and pop followed by a loud mechanical clack of the breaker snapping off, then silence. Close, no music.
+power_hum	4.0	assets/sfx/power/power_hum.mp3	The steady low electrical hum and buzz of an old transformer and distribution board at night, 50 hertz mains hum with a faint crackle. Seamless, close, no music.
+power_back	2.5	assets/sfx/power/power_back.mp3	Power coming back on across a small rural camp at night: several old sodium street lamps clicking and buzzing as they start, a distant fridge compressor starting. Outdoors, no music.
+power_out	2.0	assets/sfx/power/power_out.mp3	The electricity failing across a small camp at night: a low hum dying away, a distant clunk, then the quiet of a forest with crickets. Outdoors, no music.

@@ -82,6 +82,7 @@ godot --headless --path godot res://tools/look_check.tscn
 godot --headless --path godot res://tools/mail_check.tscn
 godot --headless --path godot res://tools/arrival_check.tscn
 godot --headless --path godot res://tools/enemy_check.tscn
+godot --headless --path godot res://tools/nightjobs_check.tscn
 godot --headless --path godot --script res://tools/weather_check.gd
 ```
 
@@ -97,7 +98,7 @@ godot --path godot --resolution 1280x720 res://tools/shot_driver.tscn -- --scena
 ```
 
 Scenarios: `boot menu views hud quest pause gameover crt crtmap weather upkeep blood night
-saveload guests pipes senses uncanny look gate prep prepcabin night2 probe`.
+saveload guests pipes senses uncanny look gate prep prepcabin night2 breaker probe`.
 Useful steps for the new loops: `topdown` (a camera above the camp, no fog), `open_room`,
 `aim_task` (turns the head to a room task and puts the cursor on it), `lmb`, `until` (wait for an Expression on Main), `gm` (call a
 GuestManager method: `eval` cannot reach autoloads), `prep_all`. Steps include `build`, `book`, `hours`, `player`, `money`, `press`,
@@ -127,6 +128,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | The gatehouse, barrier, road | `scripts/camp_gate.gd` (built by world_generator) |
 | Room tasks in interiors (hover, hold, checklist) | `scripts/interior_tasks.gd` + `scripts/interior_prep.gd` |
 | Generated sound effects | `tools/audiogen/` (ElevenLabs; key in the gitignored `.env`) |
+| Night jobs, the distribution board | `scripts/night_jobs.gd`, `scripts/breaker_panel.gd` |
 | Head turning inside interiors | `scripts/interior_look.gd` (limits set per interior script) |
 | Insects falling silent, the HUD face's glance | `scripts/threat_senses.gd` (reads `get_presence()`) |
 | Story mails (Vera, Nela, the odd ones) | `data/pools/emails/story/week01_story.json` |

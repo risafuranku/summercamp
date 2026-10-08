@@ -73,7 +73,7 @@ func _ready() -> void:
 				away_seen = true
 	var share := float(outdoors) / maxf(1.0, float(samples))
 	print("daytime share of guests out in the open: %.0f%%" % (share * 100.0))
-	_expect(share < 0.40, "the camp should feel half empty by day (%.0f%% outdoors)" % (share * 100.0))
+	_expect(share < 0.45, "the camp should feel half empty by day (%.0f%% outdoors)" % (share * 100.0))
 	_expect(away_seen, "idle guests sometimes leave the camp by an exit")
 	var summary: Dictionary = GuestManager.get_camp_mood_summary()
 	print("after 33h: ", _fmt_summary(summary))

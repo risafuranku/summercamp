@@ -72,6 +72,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Flashlight battery, stamina | ✅ | |
 | Player health, blood FX, death | ✅ | |
 | Night procedures in the terminal | ✅ | |
+| Night work: breaker board, lamps, sewer, toilets | ✅ | 2-4 jobs a night, paged, TONIGHT list, waypoint; the breaker is a small puzzle |
 | Night senses | ✅ | insects and frogs fall silent around a presence; the HUD face widens its eyes and glances toward what you are not looking at |
 | Raccoon thing (waste/dumpster threat) | ❌ | art exists (`npc/racoon*`), no brain |
 
