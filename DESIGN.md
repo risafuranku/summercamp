@@ -50,7 +50,16 @@ accept booking -> +income -> +guests of an archetype
   stay with no booking at the bottom of GuestRack; Vera's mails knowing where your socks
   are. Checked by `tools/uncanny_check.tscn`.
 
-## 3. Daily rhythm
+## 3. The first hour
+
+A new week starts at the desk in the reception, the computer already booting. Vera's
+first mail, Beeternet, Builder 98, the first tent and toilet: all of it on the screen.
+Then the first booking is accepted and Vera writes "You can get up, you know": Esc, and
+you stand up from the computer into a camp you have only seen as a map. A title card
+(THE CAMP, DAY 1) marks it. From then on the day is split between the screen and the
+place. (Checklist: `scripts/quest_manager.gd`.)
+
+## 3b. Daily rhythm
 
 One in-game day = 16 real minutes (1 real second = 1.5 game minutes,
 `BalanceConfig.GAME_MINUTES_PER_SECOND`; an experiment, tune by feel). The night is ~7.

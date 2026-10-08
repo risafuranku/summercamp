@@ -859,6 +859,8 @@ func _update_threat_senses(delta: float) -> void:
 		_hud_manager.set_face_gaze(_senses.gaze)
 
 
+## The first time you leave the desk in a new game, the camp gets a title card.
+var _first_stand_up_pending: bool = false
 var _arrivals_poll: float = 0.0
 var _arrival_events_bound: bool = false
 
@@ -871,6 +873,9 @@ func _poll_arrivals(delta: float) -> void:
 		EventBus.guest_checked_in.connect(_on_guest_checked_in)
 		EventBus.guest_gave_up.connect(_on_guest_gave_up)
 		EventBus.room_prepared.connect(_on_room_prepared)
+	if _first_stand_up_pending and not _is_any_interior_open() and _hud_manager != null:
+		_first_stand_up_pending = false
+		_hud_manager.show_banner("THE CAMP", "DAY %d" % _day_index, RETRO_UI.C_AMBER, 4.0)
 	_arrivals_poll -= delta
 	if _arrivals_poll > 0.0 or _hud_manager == null:
 		return
@@ -2144,6 +2149,13 @@ func _on_menu_new_game_pressed() -> void:
 	_start_game_from_menu()
 	if _quest_manager != null:
 		_quest_manager.begin_new_game()
+	# A new week starts at the desk: the first part of the game is the computer, and
+	# getting up from it is something you find out you can do.
+	get_tree().create_timer(0.25).timeout.connect(func():
+		if _interior_manager != null and _gameplay_started:
+			_interior_manager.open_startup_crt_view()
+			_first_stand_up_pending = true
+	)
 
 
 func _start_game_from_menu() -> void:

@@ -19,20 +19,13 @@ signal step_completed(step_id: String)
 const VERA := "Teta Vera <vera.kralova@rodina.cz>"
 const TRACKER_TITLE := "VERA'S CHECKLIST"
 const POLL_SEC := 0.5
-const WAYPOINT_LABELS := {"reception": "Office", "gate": "Gate"}
+const WAYPOINT_LABELS := {"reception": "Office", "gate": "Gate", "unready_room": "Make up", "first_guest": "Guest"}
 const FIRST_BOOKING_NAME := "Mirek Dvorak"
 
 ## Story-pool mails the questline replaces with its own task mails.
 const STORY_SUBJECTS_OWNED := ["You are in charge this week"]
 
 const STEPS: Array[Dictionary] = [
-	{
-		"id": "reach_office",
-		"text": "Walk into the reception (the brick office at the gate) and sit at the computer.",
-		"hint": "Look at the door and press E.",
-		"reward": 0,
-		"waypoint": "reception",
-	},
 	{
 		"id": "read_vera",
 		"text": "Open CampMail and read Aunt Vera's email.",
@@ -71,11 +64,20 @@ const STEPS: Array[Dictionary] = [
 		"scripted_booking": true,
 	},
 	{
+		"id": "make_up_room",
+		"text": "Mirek reaches the barrier in about an hour. Get up from the desk, go to the tent and make it up.",
+		"hint": "Esc gets you up. Inside, hold the mouse on what needs doing.",
+		"reward": 60,
+		"waypoint": "unready_room",
+		"mail_subject": "You can get up, you know",
+		"mail_body": "Somebody is coming. He will be at the barrier within the hour and he will not stand there all day.\n\nThe computer is not the camp. Get up, go outside, find the tent you built and make it up: the sleeping bag, the rubbish the last people left. When it is ready the barrier goes up for him, not before.\n\nEvery bed, every time. That is the job.\n\n- V.",
+	},
+	{
 		"id": "welcome_guest",
-		"text": "Your first guest is walking in from the gate. Go outside and talk to them.",
+		"text": "Your first guest is in. Go and say hello.",
 		"hint": "Look at a guest and press E.",
 		"reward": 60,
-		"waypoint": "gate",
+		"waypoint": "first_guest",
 	},
 	{
 		"id": "feed_guests",
@@ -139,6 +141,7 @@ func setup(main_node: Node) -> void:
 		["customer_booking_confirmed", "_on_booking_confirmed"],
 		["guest_review_posted", "_on_review_posted"],
 		["day_tick", "_on_day_tick"],
+		["room_prepared", "_on_room_prepared"],
 	]
 	for pair in bindings:
 		if EventBus.has_signal(pair[0]):
@@ -162,6 +165,7 @@ func begin_new_game() -> void:
 func export_state() -> Dictionary:
 	return {
 		"index": _index,
+		"step_id": current_step_id(),
 		"completed": _completed.duplicate(),
 		"flags": _flags.duplicate(true),
 		"finished_all": _finished_all,
@@ -174,7 +178,19 @@ func import_state(data: Dictionary) -> void:
 		_completed.append(str(id))
 	_flags = (data.get("flags", {}) as Dictionary).duplicate(true) if data.get("flags", {}) is Dictionary else {}
 	_finished_all = bool(data.get("finished_all", false))
-	_index = clampi(int(data.get("index", -1)), -1, STEPS.size())
+	# Resolve the step by id: indexes shift when the checklist changes between versions.
+	_index = -1
+	var step_id := str(data.get("step_id", ""))
+	for i in STEPS.size():
+		if not step_id.is_empty() and str(STEPS[i]["id"]) == step_id:
+			_index = i
+	if _index < 0 and not bool(data.get("finished_all", false)):
+		for i in STEPS.size():
+			if not _completed.has(str(STEPS[i]["id"])):
+				_index = i
+				break
+	if bool(data.get("finished_all", false)):
+		_index = STEPS.size()
 	_active = true
 	if data.is_empty():
 		# Save from before the questline existed: start it, but skip steps already done.
@@ -189,7 +205,7 @@ func stop() -> void:
 	_hide_waypoint()
 
 
-## Events forwarded by main: "crt_opened", "talked_to_guest".
+## Events forwarded by main: "talked_to_guest".
 func notify(event_id: String, _data: Dictionary = {}) -> void:
 	_flags[event_id] = true
 	_check_current()
@@ -230,12 +246,11 @@ func _advance() -> void:
 
 ## Steps that must be *done* now, not merely already true.
 func _needs_action(step_id: String) -> bool:
-	return step_id in ["reach_office", "read_vera", "accept_booking", "welcome_guest", "survive_night"]
+	return step_id in ["read_vera", "accept_booking", "make_up_room", "welcome_guest", "survive_night"]
 
 
 func _start_step(step: Dictionary) -> void:
 	var id := str(step["id"])
-	_flags.erase("crt_opened")
 	if id == "welcome_guest":
 		_flags.erase("talked_to_guest")
 	if step.has("mail_subject"):
@@ -298,8 +313,6 @@ func _finish_all() -> void:
 
 func _is_satisfied(step_id: String) -> bool:
 	match step_id:
-		"reach_office":
-			return bool(_flags.get("crt_opened", false)) or _main_call("_is_crt_desktop_active", false)
 		"read_vera":
 			var mail: Dictionary = EmailManager.find_mail("task_id", "read_vera") if EmailManager != null else {}
 			return not mail.is_empty() and bool(mail.get("_read", false))
@@ -311,6 +324,8 @@ func _is_satisfied(step_id: String) -> bool:
 			return _count_buildings(["toilet_block"]) > 0
 		"accept_booking":
 			return bool(_flags.get("booking_accepted", false))
+		"make_up_room":
+			return bool(_flags.get("room_prepared", false)) or _first_guest_in()
 		"welcome_guest":
 			return bool(_flags.get("talked_to_guest", false))
 		"feed_guests":
@@ -344,6 +359,19 @@ func _on_review_posted(review: Dictionary) -> void:
 	if int(review.get("rating", 0)) >= 4:
 		_flags["good_review"] = true
 	_check_current()
+
+
+func _on_room_prepared(_key: String) -> void:
+	if current_step_id() == "make_up_room":
+		_flags["room_prepared"] = true
+	_check_current()
+
+
+func _first_guest_in() -> bool:
+	for g in GuestManager.get_guest_life_snapshot():
+		if str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
+			return true
+	return false
 
 
 func _on_day_tick(_day_index: int) -> void:
@@ -431,6 +459,7 @@ func _send_first_booking() -> void:
 		"arrival_time": _time_str(), "daily_total": 90,
 		"night_trouble_time": "22:40",
 		"guest_name": FIRST_BOOKING_NAME, "guest_names": [FIRST_BOOKING_NAME],
+		"arrival_minutes": 90,
 		"day": _day(), "time": _time_str(),
 	})
 
@@ -502,6 +531,19 @@ func _waypoint_position(kind: String) -> Vector3:
 		"gate":
 			if GuestManager != null and GuestManager.has_method("get_gate_coord"):
 				return gm.grid_to_world(GuestManager.get_gate_coord()) + Vector3(0.0, 1.6, 0.0)
+		"unready_room":
+			# The first room a coming party is waiting for.
+			for row in GuestManager.get_arrivals():
+				for r in (row as Dictionary).get("rooms", []):
+					if not bool((r as Dictionary).get("ready", true)):
+						var parts := str(r["key"]).split(":")
+						if parts.size() == 2:
+							return gm.grid_to_world(Vector2i(int(parts[0]), int(parts[1]))) + Vector3(0.0, 2.2, 0.0)
+		"first_guest":
+			for g in GuestManager.get_guest_life_snapshot():
+				var lodging = (g as Dictionary).get("lodging", Vector2i(-1, -1))
+				if lodging is Vector2i and (lodging as Vector2i).x >= 0:
+					return gm.grid_to_world(lodging) + Vector3(0.0, 2.2, 0.0)
 	return Vector3.INF
 
 
