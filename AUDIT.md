@@ -20,6 +20,9 @@ was wrong. The real bugs found on the way:
 | 🟡 | Two hand-synced building catalogs | registry is the only catalog |
 | 🟡 | Radio asked a freed reception for its transform on every load; footsteps played before entering the tree | guards |
 | 🟡 | HUD harness reported PASS when hud_manager.gd failed to compile | can_instantiate guard |
+| 🔴 | The sewer repair could never finish (`repair_completed` was never emitted) | pipe crawl rebuilt |
+| 🟡 | `hud.set_fear()` was never called: the status face never widened its eyes | night senses (`threat_senses.gd`) |
+| 🟡 | Story pool padded with re-sent copies tagged "[day N transmission tag]", read as a bug; two mails duplicated the questline | story week rewritten |
 
 ---
 

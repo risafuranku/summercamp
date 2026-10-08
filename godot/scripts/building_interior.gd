@@ -15,6 +15,20 @@ const RADIO_OUTSIDE_NEAR_DISTANCE: float = 2.70
 const RADIO_OUTSIDE_FAR_DISTANCE: float = 16.70
 const RADIO_VOLUME_LERP_SPEED: float = 1.15
 const RADIO_BUS_NAME := "Radio"
+## Outside, the radio is a positional source in the reception: across the field it is a
+## faint, muffled tune you can walk toward in the dark.
+const RADIO_OUTDOOR_VOLUME_DB: float = -3.0
+const RADIO_OUTDOOR_UNIT_SIZE: float = 4.0
+const RADIO_OUTDOOR_MAX_DISTANCE: float = 75.0
+const RADIO_OUTDOOR_HEIGHT: float = 1.4
+## The station that does not exist (DESIGN §2): late at night, once at most, from day 2,
+## the radio drifts onto a frequency with a music-box phrase and a row of pips. Count
+## them: one for each guest in the camp, and one more.
+const STATION_INTRO := "res://assets/sfx/uncanny/station_intro.wav"
+const STATION_PIP := "res://assets/sfx/uncanny/station_pip.wav"
+const STATION_PIP5 := "res://assets/sfx/uncanny/station_pip5.wav"
+const STATION_OUTRO := "res://assets/sfx/uncanny/station_outro.wav"
+const STATION_CHANCE_PER_TRACK: float = 0.14
 const RADIO_EXCLUDED_FILENAME := "pinknoise.mp3"
 const RADIO_NIGHT_TRACK_PREFIX := "night"
 const RADIO_INFRAVRANY_FILENAME := "song_infravrany.mp3"
@@ -148,6 +162,8 @@ var _radio_dropout_timer: float = 0.0
 var _radio_dropout_remaining: float = 0.0
 var _radio_dropout_duration: float = 0.0
 var _radio_power_click_body: StaticBody3D
+var _radio_outdoor: AudioStreamPlayer3D
+var _station_heard_day: int = -1
 var _reception_notebook_click_body: StaticBody3D
 
 # Window / outdoor scene
@@ -1798,6 +1814,8 @@ func _create_radio_layer_player(player_name: String, pitch_scale: float) -> Audi
 func _play_radio_next() -> void:
 	if _radio_player == null:
 		return
+	if _try_play_station():
+		return
 	if _radio_tracks.is_empty():
 		_rebuild_radio_tracks_for_time(false)
 	if _radio_tracks.is_empty():
@@ -1820,6 +1838,65 @@ func _play_radio_next() -> void:
 	_radio_player.play()
 	_radio_last_played_path = resolved_path
 	_radio_index = (selected_index + 1) % track_count
+
+
+func _try_play_station() -> bool:
+	if _time_state != TIME_NIGHT:
+		return false
+	var day := int(CoreRoot.get_day()) if CoreRoot != null else 1
+	if day < 2 or _station_heard_day == day:
+		return false
+	if _radio_rng.randf() > STATION_CHANCE_PER_TRACK:
+		return false
+	var playlist := build_station_stream(_count_guests_in_camp() + 1)
+	if playlist == null:
+		return false
+	_station_heard_day = day
+	_radio_current_track_is_night = false
+	_radio_last_played_path = ""
+	_radio_player.stream = playlist
+	_radio_player.play()
+	return true
+
+
+## The station as one stream: intro, `pips` pips (a longer pause after every fifth),
+## outro. Static so the debug/shot tooling can play it.
+static func build_station_stream(pips: int) -> AudioStream:
+	var intro := load(STATION_INTRO) as AudioStream
+	var pip := load(STATION_PIP) as AudioStream
+	var pip5 := load(STATION_PIP5) as AudioStream
+	var outro := load(STATION_OUTRO) as AudioStream
+	if intro == null or pip == null or pip5 == null or outro == null:
+		return null
+	var list: Array[AudioStream] = [intro]
+	# AudioStreamPlaylist holds 64 streams; two are the intro and outro.
+	for i in clampi(pips, 1, AudioStreamPlaylist.MAX_STREAMS - 2):
+		list.append(pip5 if (i + 1) % 5 == 0 else pip)
+	list.append(outro)
+	var playlist := AudioStreamPlaylist.new()
+	playlist.loop = false
+	playlist.fade_time = 0.0
+	playlist.stream_count = list.size()
+	for i in list.size():
+		playlist.set_list_stream(i, list[i])
+	return playlist
+
+
+## Debug/screenshot entry: tune to the station now.
+func debug_play_station() -> void:
+	_ensure_radio_playback()
+	if _radio_player == null:
+		return
+	var playlist := build_station_stream(_count_guests_in_camp() + 1)
+	if playlist != null:
+		_radio_player.stream = playlist
+		_radio_player.play()
+
+
+func _count_guests_in_camp() -> int:
+	if CoreRoot == null or CoreRoot.get_state() == null:
+		return 0
+	return int(CoreRoot.get_state().guests.size())
 
 
 func _on_radio_finished() -> void:
@@ -1996,11 +2073,58 @@ func _update_radio_mix(delta: float) -> void:
 	var final_target_db = target_db + character_db + night_track_db
 	if not _radio_power_on:
 		final_target_db = RADIO_POWER_OFF_VOLUME_DB
+	# Indoors the radio is in your ear; outdoors it is a place (the reception), heard
+	# through the positional mirror below, and the flat player only keeps the playlist.
+	var outdoor_db: float = RADIO_OUTDOOR_VOLUME_DB + character_db + night_track_db
+	if visible:
+		outdoor_db = RADIO_OUTSIDE_SILENT_DB
+	else:
+		final_target_db = RADIO_OUTSIDE_SILENT_DB
+	if not _radio_power_on:
+		final_target_db = RADIO_POWER_OFF_VOLUME_DB
+		outdoor_db = RADIO_POWER_OFF_VOLUME_DB
+	_sync_radio_outdoor(outdoor_db, delta)
 	if _radio_power_transition_time_left > 0.0:
 		_apply_radio_layer_volume_for_duration(_radio_player, final_target_db, delta, _radio_power_transition_time_left)
 		_radio_power_transition_time_left = max(0.0, _radio_power_transition_time_left - delta)
 		return
 	_apply_radio_layer_volume(_radio_player, final_target_db, delta)
+
+
+## Keeps a positional copy of the radio at the reception, playing the same stream at
+## the same position and pitch as the flat player.
+func _sync_radio_outdoor(target_db: float, delta: float) -> void:
+	var building := _resolve_main_building_node()
+	if _radio_player == null or building == null or not is_instance_valid(building) or not building.is_inside_tree():
+		if _radio_outdoor != null and _radio_outdoor.playing:
+			_radio_outdoor.stop()
+		return
+	if _radio_outdoor == null or not is_instance_valid(_radio_outdoor):
+		_radio_outdoor = AudioStreamPlayer3D.new()
+		_radio_outdoor.name = "RadioOutdoor"
+		_radio_outdoor.bus = RADIO_BUS_NAME
+		_radio_outdoor.unit_size = RADIO_OUTDOOR_UNIT_SIZE
+		_radio_outdoor.max_distance = RADIO_OUTDOOR_MAX_DISTANCE
+		_radio_outdoor.attenuation_filter_cutoff_hz = 2600.0
+		_radio_outdoor.attenuation_filter_db = -14.0
+		_radio_outdoor.volume_db = RADIO_OUTSIDE_SILENT_DB
+		building.add_child(_radio_outdoor)
+	elif _radio_outdoor.get_parent() != building:
+		_radio_outdoor.reparent(building, false)
+	_radio_outdoor.position = Vector3(0.0, RADIO_OUTDOOR_HEIGHT, 0.0)
+	_radio_outdoor.volume_db = move_toward(_radio_outdoor.volume_db, target_db, maxf(delta, 0.016) * RADIO_VOLUME_LERP_SPEED * 20.0)
+	# It keeps playing while muted (indoors): a playlist cannot be joined mid-way.
+	if not _radio_player.playing or _radio_player.stream == null:
+		if _radio_outdoor.playing:
+			_radio_outdoor.stop()
+		return
+	_radio_outdoor.pitch_scale = _radio_player.pitch_scale
+	var src_pos := _radio_player.get_playback_position()
+	if _radio_outdoor.stream != _radio_player.stream or not _radio_outdoor.playing:
+		_radio_outdoor.stream = _radio_player.stream
+		_radio_outdoor.play(src_pos)
+	elif not (_radio_player.stream is AudioStreamPlaylist) and absf(_radio_outdoor.get_playback_position() - src_pos) > 0.25:
+		_radio_outdoor.seek(src_pos)
 
 
 func _ensure_radio_playback() -> void:

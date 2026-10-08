@@ -70,6 +70,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Flashlight battery, stamina | ✅ | |
 | Player health, blood FX, death | ✅ | |
 | Night procedures in the terminal | ✅ | |
+| Night senses | ✅ | insects and frogs fall silent around a presence; the HUD face widens its eyes and glances toward what you are not looking at |
 | Raccoon thing (waste/dumpster threat) | ❌ | art exists (`npc/racoon*`), no brain |
 
 ### Interiors and minigames
@@ -81,6 +82,18 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Service interiors | ✅ | static views |
 | Pipe crawl (sewer repair) | ✅ | generated network, paper map without your position, no turning around, coordinates and landmarks, clamp the leak, the thing in the pipes (day 3+ / night) |
 | Interior look-around (restricted) | ❌ | planned |
+
+### Atmosphere and the uncanny
+
+| Feature | State | Notes |
+| --- | --- | --- |
+| Ambience bed: day, dusk birds, crickets, lake insects, owl, weather | ✅ | |
+| Reception radio audible across the camp | ✅ | positional source in the office, muffled with distance |
+| The station that does not exist | ✅ | late at night, at most once, from day 2: a music-box phrase and one pip per guest, plus one |
+| The night log stamped tomorrow | ✅ | one mail delivered at 03:00 dated the next day |
+| The unbooked sleeper in GuestRack | ✅ | some evenings, one row more than there are records |
+| The extra guest on the Builder map | ✅ | |
+| Vera knows too much | ✅ | her mails drift from instructions to the socks in your drawer |
 
 ## Known non-goals
 

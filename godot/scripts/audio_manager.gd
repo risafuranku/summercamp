@@ -150,6 +150,10 @@ const GRID_TILE_TYPE_LAKE: int = 1
 const INTERIOR_AUDIO_DUCK_DB: float = -10.0
 const INTERIOR_AUDIO_DUCK_FADE_SECONDS: float = 0.35
 const OUTDOOR_AMBIENCE_BUS_NAME := "OutdoorAmbience"
+## Crickets, frogs, the owl and the lake insects: a sub-bus of the outdoor ambience that
+## falls silent around a night presence (set_insect_hush, fed by threat_senses.gd).
+const INSECTS_BUS_NAME := "NightInsects"
+const INSECTS_HUSH_FLOOR := 0.03
 const MASTER_BUS_NAME := "Master"
 const MASTER_BUS_DEFAULT_DB: float = 3.0
 const OUTDOOR_AMBIENCE_BUS_DEFAULT_DB: float = 1.0
@@ -194,6 +198,8 @@ var _ambient_music_fade_tween: Tween
 var _interior_audio_duck_tween: Tween
 var _interior_audio_is_ducked: bool = false
 var _outdoor_ambience_bus_index: int = -1
+var _insects_bus_index: int = -1
+var _insect_hush: float = 0.0
 var _interior_audio_base_db: float = 0.0
 var _bird_call_cooldown_seconds: float = 0.0
 var _cricket_variant_a_cooldown_seconds: float = 0.0
@@ -259,9 +265,9 @@ func setup_audio() -> void:
 	_sfx_door_open = _create_sfx_player("DoorOpenSfx", SFX_DOOR_OPEN_PATH, false, -1.0, MASTER_BUS_NAME)
 	_sfx_door_close = _create_sfx_player("DoorCloseSfx", SFX_DOOR_CLOSE_PATH, false, -1.0, MASTER_BUS_NAME)
 	_sfx_morning_chime = _create_sfx_player("MorningChimeSfx", SFX_MORNING_CHIME_PATH, false, MORNING_CHIME_VOLUME_DB, MASTER_BUS_NAME)
-	_sfx_crickets = _create_sfx_player("CricketsSfx", SFX_CRICKETS_PATH, true, CRICKETS_SILENT_DB, OUTDOOR_AMBIENCE_BUS_NAME)
-	_sfx_cricket_variant_a = _create_spatial_sfx_player("CricketVariantA", SFX_CRICKET_VARIANT_A_PATH, CRICKET_VARIANT_VOLUME_DB, OUTDOOR_AMBIENCE_BUS_NAME)
-	_sfx_cricket_variant_b = _create_spatial_sfx_player("CricketVariantB", SFX_CRICKET_VARIANT_B_PATH, CRICKET_VARIANT_VOLUME_DB, OUTDOOR_AMBIENCE_BUS_NAME)
+	_sfx_crickets = _create_sfx_player("CricketsSfx", SFX_CRICKETS_PATH, true, CRICKETS_SILENT_DB, INSECTS_BUS_NAME)
+	_sfx_cricket_variant_a = _create_spatial_sfx_player("CricketVariantA", SFX_CRICKET_VARIANT_A_PATH, CRICKET_VARIANT_VOLUME_DB, INSECTS_BUS_NAME)
+	_sfx_cricket_variant_b = _create_spatial_sfx_player("CricketVariantB", SFX_CRICKET_VARIANT_B_PATH, CRICKET_VARIANT_VOLUME_DB, INSECTS_BUS_NAME)
 	_setup_ambient_music()
 	_setup_weather_layers()
 	_setup_dynamic_ambience_layers()
@@ -364,6 +370,17 @@ func try_roll_evening_ambient_music(day_index: int, time_of_day_label: String) -
 		roll,
 		track_name
 	])
+
+
+## 0 = the night is full of insects, 1 = they have all stopped. Smoothing is done by
+## the caller (threat_senses.gd): silence falls fast and lifts slowly.
+func set_insect_hush(value: float) -> void:
+	value = clampf(value, 0.0, 1.0)
+	if is_equal_approx(value, _insect_hush):
+		return
+	_insect_hush = value
+	if _insects_bus_index >= 0 and _insects_bus_index < AudioServer.get_bus_count():
+		AudioServer.set_bus_volume_db(_insects_bus_index, linear_to_db(lerpf(1.0, INSECTS_HUSH_FLOOR, value)))
 
 
 func play_door_open() -> void:
@@ -507,7 +524,7 @@ func _setup_dynamic_ambience_layers() -> void:
 		SFX_AMBIENCE_LAKE_INSECTS_PATH,
 		true,
 		AMBIENCE_LOOP_SILENT_DB,
-		OUTDOOR_AMBIENCE_BUS_NAME
+		INSECTS_BUS_NAME
 	)
 	_sfx_pipes_ambience = _create_sfx_player(
 		"PipesAmbienceLoop",
@@ -534,8 +551,8 @@ func _setup_redneck_ambience_layers() -> void:
 	_sfx_redneck_wind_short = _create_spatial_sfx_player("RedneckWindShort", SFX_REDNECK_WIND_SHORT_PATH, REDNECK_WIND_SHORT_VOLUME_DB, OUTDOOR_AMBIENCE_BUS_NAME)
 	_sfx_toilet_flies = _create_spatial_sfx_player("ToiletFliesLoop", SFX_REDNECK_FLIES_PATH, TOILET_FLIES_VOLUME_DB, OUTDOOR_AMBIENCE_BUS_NAME, true)
 	_sfx_toilet_misc = _create_spatial_sfx_player("ToiletMiscRandom", SFX_REDNECK_FART_1_PATH, TOILET_MISC_VOLUME_DB, OUTDOOR_AMBIENCE_BUS_NAME)
-	_sfx_night_owl = _create_spatial_sfx_player("NightOwlRandom", SFX_REDNECK_OWL_PATH, NIGHT_WILDLIFE_VOLUME_DB, OUTDOOR_AMBIENCE_BUS_NAME)
-	_sfx_night_zabascary = _create_spatial_sfx_player("NightZabaScaryRandom", SFX_REDNECK_ZABASCARY_PATH, NIGHT_WILDLIFE_VOLUME_DB, OUTDOOR_AMBIENCE_BUS_NAME)
+	_sfx_night_owl = _create_spatial_sfx_player("NightOwlRandom", SFX_REDNECK_OWL_PATH, NIGHT_WILDLIFE_VOLUME_DB, INSECTS_BUS_NAME)
+	_sfx_night_zabascary = _create_spatial_sfx_player("NightZabaScaryRandom", SFX_REDNECK_ZABASCARY_PATH, NIGHT_WILDLIFE_VOLUME_DB, INSECTS_BUS_NAME)
 
 	_configure_spatial_player(_sfx_redneck_wind_short, 26.0, 4.2)
 	_configure_spatial_player(_sfx_toilet_flies, 7.4, 1.75)
@@ -1546,3 +1563,9 @@ func _ensure_outdoor_ambience_bus() -> void:
 		AudioServer.set_bus_send(insert_index, MASTER_BUS_NAME)
 		_outdoor_ambience_bus_index = insert_index
 		print("Audio bus created: %s (index=%d)" % [OUTDOOR_AMBIENCE_BUS_NAME, insert_index])
+	_insects_bus_index = AudioServer.get_bus_index(INSECTS_BUS_NAME)
+	if _insects_bus_index < 0:
+		_insects_bus_index = AudioServer.get_bus_count()
+		AudioServer.add_bus(_insects_bus_index)
+		AudioServer.set_bus_name(_insects_bus_index, INSECTS_BUS_NAME)
+		AudioServer.set_bus_send(_insects_bus_index, OUTDOOR_AMBIENCE_BUS_NAME)

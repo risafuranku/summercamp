@@ -82,6 +82,8 @@ var _audio_root: Node3D
 var _body: Sprite3D
 var _peek_until: float = 0.0
 var _peek_seen_at: float = -1.0
+var _cue_pos: Vector3 = Vector3.INF
+var _cue_time: float = -999.0
 var _scheduled_audio_events: Array[Dictionary] = []
 var _shust_stream_1: AudioStream
 var _shust_stream_2: AudioStream
@@ -162,6 +164,17 @@ func stop_night() -> void:
 	if _audio_root != null and is_instance_valid(_audio_root):
 		_audio_root.queue_free()
 	_audio_root = null
+
+
+## He is sensed where he was last heard (for a few seconds) or while a peek shows him.
+func get_presence() -> Dictionary:
+	if not _night_active:
+		return {}
+	if _body != null and is_instance_valid(_body) and _body.visible:
+		return {"position": _body.global_position}
+	if _cue_pos != Vector3.INF and _elapsed - _cue_time <= 4.0:
+		return {"position": _cue_pos}
+	return {}
 
 
 func get_debug_snapshot() -> Dictionary:
@@ -722,6 +735,9 @@ func _play_3d_stream(stream: AudioStream, world_pos: Vector3, volume_db: float, 
 	parent.add_child(player)
 	player.global_position = world_pos
 	player.play()
+	if _player != null and Vector2(world_pos.x - _player.global_position.x, world_pos.z - _player.global_position.z).length() > 1.5:
+		_cue_pos = world_pos
+		_cue_time = _elapsed
 	var length = maxf(0.4, stream.get_length() / maxf(pitch_scale, 0.05))
 	var tree = parent.get_tree()
 	if tree == null:

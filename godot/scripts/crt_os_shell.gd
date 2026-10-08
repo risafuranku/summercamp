@@ -2020,13 +2020,19 @@ func _mail_time_to_minutes(raw_time: String) -> int:
 
 
 func _email_mail_sort_key(mail: Dictionary) -> int:
-	var day = max(0, int(mail.get("day", 0)))
+	var day = max(0, _email_stamp_day(mail))
 	var minutes = _mail_time_to_minutes(str(mail.get("time", "00:00")))
 	return (day * 1440) + minutes
 
 
 func _email_mail_datetime_label(mail: Dictionary) -> String:
-	return "Day %d  %s" % [int(mail.get("day", 0)), str(mail.get("time", "??:??"))]
+	return "Day %d  %s" % [_email_stamp_day(mail), str(mail.get("time", "??:??"))]
+
+
+## The day printed on a mail. A story mail may carry `stamp_day_offset`: delivered on
+## its day, stamped with a later one (the night log that arrives dated tomorrow).
+func _email_stamp_day(mail: Dictionary) -> int:
+	return int(mail.get("day", 0)) + int(mail.get("stamp_day_offset", 0))
 
 
 func _email_mail_snippet(mail: Dictionary) -> String:

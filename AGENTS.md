@@ -76,6 +76,8 @@ godot --headless --path godot res://tools/hud_layout_check.tscn
 godot --headless --path godot res://tools/guest_sim_check.tscn
 godot --headless --path godot res://tools/upkeep_check.tscn
 godot --headless --path godot res://tools/billing_check.tscn
+godot --headless --path godot res://tools/pipes_check.tscn
+godot --headless --path godot res://tools/uncanny_check.tscn
 godot --headless --path godot --script res://tools/weather_check.gd
 ```
 
@@ -91,7 +93,7 @@ godot --path godot --resolution 1280x720 res://tools/shot_driver.tscn -- --scena
 ```
 
 Scenarios: `boot menu views hud quest pause gameover crt crtmap weather upkeep blood night
-saveload guests probe`. Steps include `build`, `book`, `hours`, `player`, `money`, `press`,
+saveload guests pipes senses uncanny probe`. Steps include `build`, `book`, `hours`, `player`, `money`, `press`,
 `condition`, `break`, `look_at_enemy`, `crt_screen` (saves the terminal's own frame),
 `eval` (Expression against Main; autoload names are not reachable from it).
 Check visual changes at 1280x720 **and** 1920x1080.
@@ -114,6 +116,9 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Electricity | `scripts/electricity_billing.gd` |
 | Save format helpers | `scripts/save_codec.gd`; snapshot build/apply in `main.gd` |
 | Player movement, flashlight battery, stamina | `scripts/player_controller.gd` |
+| Insects falling silent, the HUD face's glance | `scripts/threat_senses.gd` (reads `get_presence()`) |
+| Story mails (Vera, Nela, the odd ones) | `data/pools/emails/story/week01_story.json` |
+| The radio (playlist, outdoor source, the station) | `scripts/building_interior.gd`, synth: `tools/gen_sfx.py` |
 
 ### Adding a building
 Create `data/buildings/<id>.tres` (BuildingDef). That is all for the data side; add it to
@@ -122,7 +127,8 @@ buildable.
 
 ### Adding an enemy
 Extend `scripts/enemies/enemy_base.gd`, implement `_on_start()` / `_on_tick(dt)`, give it a
-tell, a counter, an `_announce()` line, then map it in `main.ENEMY_FOR_ARCHETYPE` (or start
+tell, a counter, an `_announce()` line, keep `get_presence()` truthful (the base class
+tracks the body and its sounds; it drives the insects and the HUD face), then map it in `main.ENEMY_FOR_ARCHETYPE` (or start
 it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 `crt_os_shell.NIGHT_PROCEDURES`. Test with `debug_spawn_enemy(id)` and the `night` scenario.
 

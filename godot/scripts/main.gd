@@ -38,6 +38,7 @@ const BLOOD_FX_SCRIPT = preload("res://scripts/blood_fx.gd")
 const MENU_FLYTHROUGH_SCRIPT = preload("res://scripts/menu_flythrough.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
+const THREAT_SENSES_SCRIPT = preload("res://scripts/threat_senses.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
 const PAUSE_MENU_SCRIPT = preload("res://scripts/ui/pause_menu.gd")
@@ -150,6 +151,9 @@ var _liminal_debug_refresh_accum: float = 0.0
 var _active_enemy_brain: RefCounted
 var _active_enemy_brain_id: String = ""
 var _enemy_brains: Array = []
+var _senses = THREAT_SENSES_SCRIPT.new()
+var _still_seconds: float = 0.0
+var _still_last_pos: Vector3 = Vector3.INF
 var _active_enemy_spawned_this_night: int = 0
 var _lamp_flashlight_active: bool = false
 var _lamp_grid_power_available: bool = true
@@ -529,6 +533,7 @@ func _process(delta: float) -> void:
 			_is_service_sewer_audio_active()
 		)
 	_tick_active_enemy_brain(delta)
+	_update_threat_senses(delta)
 	_sync_hud_player_meters()
 	if _maintenance != null:
 		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
@@ -821,6 +826,31 @@ func _sync_hud_player_meters() -> void:
 		_hud_manager.set_light_ratio(_player.get_flashlight_battery())
 
 
+## The night through the player's skin: insects fall silent near a presence, the HUD
+## face widens its eyes and glances toward what you are not looking at.
+func _update_threat_senses(delta: float) -> void:
+	var outside_at_night := _time_state == TIME_NIGHT and not _is_any_interior_open() and not _game_over_active
+	if _player != null and is_instance_valid(_player):
+		var p := _player.global_position
+		if p.distance_to(_still_last_pos) > 0.05:
+			_still_last_pos = p
+			_still_seconds = 0.0
+		else:
+			_still_seconds += maxf(delta, 0.0)
+	_senses.update(
+		delta,
+		_enemy_brains if outside_at_night else [],
+		_player.get_node_or_null("Head/Camera3D") as Camera3D if _player != null and is_instance_valid(_player) else null,
+		_day_index if outside_at_night else -1,
+		_still_seconds
+	)
+	if _audio_manager != null and _audio_manager.has_method("set_insect_hush"):
+		_audio_manager.set_insect_hush(_senses.hush)
+	if _hud_manager != null:
+		_hud_manager.set_fear(_senses.fear)
+		_hud_manager.set_face_gaze(_senses.gaze)
+
+
 func _sync_hud_health() -> void:
 	if _hud_manager == null or not _hud_manager.has_method("set_health_ratio"):
 		return
@@ -1038,6 +1068,7 @@ func _stop_active_enemy_brain() -> void:
 		if brain != null and brain.has_method("stop_night"):
 			brain.stop_night()
 	_enemy_brains.clear()
+	_senses.reset()
 	_active_enemy_brain = null
 	_active_enemy_brain_id = ""
 

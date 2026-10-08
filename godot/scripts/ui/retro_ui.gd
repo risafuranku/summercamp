@@ -308,7 +308,8 @@ class SegmentBar:
 
 
 ## Doom-style status face drawn in pixels. `mood` 0-100 bends the mouth and colours the
-## skin; `fear` 0-1 widens the eyes. Used for the camp mood (and guest cards).
+## skin; `fear` 0-1 widens the eyes; `gaze` -1/0/1 makes it glance left or right.
+## Used for the camp mood (and guest cards).
 class PixelFace:
 	extends Control
 
@@ -316,6 +317,7 @@ class PixelFace:
 	var mood: float = 60.0
 	var fear: float = 0.0
 	var empty: bool = false
+	var gaze: int = 0
 	var _blink_t: float = 0.0
 	var _was_blinking: bool = false
 
@@ -328,6 +330,13 @@ class PixelFace:
 		mood = m
 		fear = f
 		empty = is_empty
+		queue_redraw()
+
+	func set_gaze(g: int) -> void:
+		g = clampi(g, -1, 1)
+		if g == gaze:
+			return
+		gaze = g
 		queue_redraw()
 
 	func _process(delta: float) -> void:
@@ -366,9 +375,20 @@ class PixelFace:
 		# eyes (blink every few seconds, wide when afraid)
 		var blinking := _was_blinking
 		var eye_h := 1 if blinking else (3 if fear > 0.5 else 2)
-		_px(4, 5, 2, eye_h, ink)
-		_px(10, 5, 2, eye_h, ink)
-		if fear > 0.5 and not blinking:
+		if gaze != 0 and not blinking:
+			# A glance: the pupil slides a pixel and the white of the eye shows behind it.
+			var white := Color(0.96, 0.94, 0.88) if not empty else Color(0.62, 0.60, 0.56)
+			for ex in [4, 10]:
+				if gaze < 0:
+					_px(ex - 1, 5, 2, eye_h, ink)
+					_px(ex + 1, 5, 1, eye_h, white)
+				else:
+					_px(ex, 5, 1, eye_h, white)
+					_px(ex + 1, 5, 2, eye_h, ink)
+		else:
+			_px(4, 5, 2, eye_h, ink)
+			_px(10, 5, 2, eye_h, ink)
+		if fear > 0.5 and not blinking and gaze == 0:
 			_px(5, 5, 1, 1, Color(1, 1, 1))
 			_px(11, 5, 1, 1, Color(1, 1, 1))
 		# mouth

@@ -11,6 +11,13 @@ it sits with the game's lo-fi samples. Deterministic (fixed seeds).
   static_loop.wav   seamless loop of hiss with a slow, uneven amplitude crawl
   hum_loop.wav      seamless loop: a low, slightly detuned humming voice, no melody
   thump.wav         one heavy footfall on dirt with a wooden creak tail
+
+    -> godot/assets/sfx/uncanny/*.wav  (the radio station that does not exist)
+
+  station_intro.wav  tuning noise into a carrier hum, a music-box phrase played twice
+  station_pip.wav    one 1 kHz pip and its pause (the radio strings N of these)
+  station_pip5.wav   the same pip with a longer pause: every fifth, like tally marks
+  station_outro.wav  the phrase once more without its last note, then tuning noise
 """
 import os
 import wave
@@ -19,13 +26,14 @@ import numpy as np
 
 SR = 22050
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "godot", "assets", "sfx", "npc")
+OUT_UNCANNY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "godot", "assets", "sfx", "uncanny")
 
 
-def save(name, x):
+def save(name, x, out=OUT):
     x = np.clip(x, -1.0, 1.0)
     data = (x * 32000).astype(np.int16)
-    os.makedirs(OUT, exist_ok=True)
-    with wave.open(os.path.join(OUT, name), "wb") as w:
+    os.makedirs(out, exist_ok=True)
+    with wave.open(os.path.join(out, name), "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(SR)
@@ -141,7 +149,85 @@ def thump():
     return (body * 0.9 + dirt + creak) * 0.8
 
 
+# ── the station ──────────────────────────────────────────────────────────────
+
+# A minor, a nursery-rhyme shape that does not resolve the way you expect.
+PHRASE = [659.26, 523.25, 587.33, 493.88, 523.25, 440.00]
+NOTE_GAP = 0.46
+
+
+def carrier(seconds, seed):
+    """The sound of a station with nobody talking: low hum and a little hiss."""
+    n = int(seconds * SR)
+    t = np.arange(n) / SR
+    hum = np.sin(2 * np.pi * 50 * t) * 0.05 + np.sin(2 * np.pi * 100 * t) * 0.025
+    hiss = highpass(np.random.default_rng(seed).standard_normal(n), 2500) * 0.012
+    return hum + hiss
+
+
+def tuning(seconds, seed, into_station):
+    """Dial noise with a heterodyne whistle sweeping onto (or off) the frequency."""
+    n = int(seconds * SR)
+    t = np.arange(n) / SR
+    noise = lowpass(np.random.default_rng(seed).standard_normal(n), 3800) * 0.22
+    u = t / t[-1]
+    f = 2400 - 2100 * u if into_station else 300 + 2100 * u
+    whistle = np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.06
+    level = (1.0 - u) if into_station else u
+    return (noise + whistle) * (0.25 + 0.75 * level) * env(n, 0.03, 0.05)
+
+
+def bell(freq, seconds):
+    n = int(seconds * SR)
+    t = np.arange(n) / SR
+    x = np.sin(2 * np.pi * freq * t) * np.exp(-t * 4.5)
+    x += 0.35 * np.sin(2 * np.pi * freq * 2.76 * t) * np.exp(-t * 9)
+    x += 0.18 * np.sin(2 * np.pi * freq * 5.40 * t) * np.exp(-t * 15)
+    return x * env(n, 0.002, 0.02) * 0.32
+
+
+def phrase(drop_last=False):
+    notes = PHRASE[:-1] if drop_last else PHRASE
+    total = int((len(PHRASE) * NOTE_GAP + 1.2) * SR)
+    out = np.zeros(total)
+    for i, f in enumerate(notes):
+        b = bell(f, 1.4)
+        p = int(i * NOTE_GAP * SR)
+        out[p: p + len(b)] += b[: max(0, min(len(b), total - p))]
+    return out
+
+
+def pip(pause):
+    tone = int(0.16 * SR)
+    t = np.arange(tone) / SR
+    x = np.sin(2 * np.pi * 1000 * t) * 0.3 * env(tone, 0.005, 0.005)
+    return np.concatenate([x, np.zeros(int(pause * SR))]) + carrier(0.16 + pause, 21)
+
+
+def station_intro():
+    return np.concatenate([
+        tuning(1.5, 31, True),
+        carrier(0.7, 32),
+        phrase() + carrier(len(PHRASE) * NOTE_GAP + 1.2, 33),
+        phrase() + carrier(len(PHRASE) * NOTE_GAP + 1.2, 34),
+        carrier(1.4, 35),
+    ])
+
+
+def station_outro():
+    return np.concatenate([
+        carrier(1.6, 41),
+        phrase(drop_last=True) + carrier(len(PHRASE) * NOTE_GAP + 1.2, 42),
+        carrier(0.9, 43),
+        tuning(1.3, 44, False),
+    ])
+
+
 if __name__ == "__main__":
+    save("station_intro.wav", station_intro(), OUT_UNCANNY)
+    save("station_pip.wav", pip(0.46), OUT_UNCANNY)
+    save("station_pip5.wav", pip(1.10), OUT_UNCANNY)
+    save("station_outro.wav", station_outro(), OUT_UNCANNY)
     save("shutter.wav", shutter())
     save("flash_whine.wav", flash_whine())
     save("static_loop.wav", static_loop())

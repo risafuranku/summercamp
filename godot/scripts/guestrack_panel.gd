@@ -20,7 +20,14 @@ const COL_ROW_EVEN := Color(0.76, 0.72, 0.63, 1.0)
 const COL_TAB_ACTIVE_BG := Color(0.83, 0.79, 0.69, 1.0)
 const COL_TAB_IDLE_BG := Color(0.66, 0.62, 0.53, 1.0)
 
+## One more row than there are records (DESIGN §2): from day 2, on some days, in the
+## last two hours before the terminal locks, a sleeping stay with no booking sits at
+## the bottom of the table. It never enters a count, a bed or a payment.
+const UNBOOKED_FROM_HOUR := 18
+const UNBOOKED_TO_HOUR := 20
+
 var _active_tab: String = TAB_OVERVIEW
+var _show_unbooked: bool = false
 var _cached_guests: Array = []
 var _tab_buttons: Dictionary = {}
 var _tab_pages: Dictionary = {}
@@ -465,6 +472,11 @@ func refresh() -> void:
 
 	var guests_any = payload.get("guests", [])
 	_cached_guests = guests_any if guests_any is Array else []
+	_show_unbooked = (
+		day >= 2 and day % 3 == 2
+		and hour >= UNBOOKED_FROM_HOUR and hour < UNBOOKED_TO_HOUR
+		and not _cached_guests.is_empty()
+	)
 	_status_label.text = "Overview synced. Guests sorted by nearest checkout."
 	_render_overview_rows()
 
@@ -510,6 +522,12 @@ func _render_overview_rows() -> void:
 		var row = _make_compact_row(guest, idx) if compact_mode else _make_table_row(guest, idx)
 		_overview_rows_box.add_child(row)
 		idx += 1
+	if _show_unbooked:
+		var nobody := {
+			"id": 0, "name": "-", "status": "sleep", "archetype": "", "beds_used": 0,
+			"daily_income": 0, "remaining_label": "-",
+		}
+		_overview_rows_box.add_child(_make_compact_row(nobody, idx) if compact_mode else _make_table_row(nobody, idx))
 
 
 func _make_table_row(guest: Dictionary, row_idx: int) -> Control:

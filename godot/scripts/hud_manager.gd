@@ -258,8 +258,17 @@ func set_light_ratio(value: float) -> void:
 
 ## 0-1 fear from the night: widens the status face's eyes.
 func set_fear(value: float) -> void:
-	_fear = clampf(value, 0.0, 1.0)
+	value = clampf(value, 0.0, 1.0)
+	if is_equal_approx(value, _fear):
+		return
+	_fear = value
 	_refresh_guests()
+
+
+## -1/0/1: the status face glances toward something you are not looking at.
+func set_face_gaze(direction: int) -> void:
+	if _guest_face != null:
+		_guest_face.set_gaze(direction)
 
 
 ## Legacy entry point: level only. Prefer `set_liminal_forecast()`.

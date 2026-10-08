@@ -42,6 +42,13 @@ accept booking -> +income -> +guests of an archetype
 - **Atmosphere is the product.** Dusk sky, crickets, the radio from the reception audible
   across the field, rain on the roof. A standing-still player should feel the place is
   alive and slightly watching.
+- **The details we have** (each used once, or rarely): the extra guest on the Builder map;
+  the insects falling silent before you see anything; the HUD face glancing at what is
+  behind you (and, on some still nights, at nothing); the radio drifting onto a station that
+  plays a music-box phrase and then one pip per guest, plus one; the 03:00 night log
+  stamped with tomorrow's date, reporting the operator asleep at the desk; a sleeping
+  stay with no booking at the bottom of GuestRack; Vera's mails knowing where your socks
+  are. Checked by `tools/uncanny_check.tscn`.
 
 ## 3. Daily rhythm
 
@@ -90,6 +97,11 @@ in the dark they exist only where the flashlight or a lamp touches them.
 
 Together they contradict each other (watch the Girl, never watch the Tourist, never stand
 still for the Silent Man), which is what makes a lazily booked camp lethal.
+
+Every enemy reports a *presence* (its visible body, or where its last sound came from).
+Within ~26 m the crickets, frogs and the owl fall silent, fast, and come back slowly;
+within ~18 m the HUD face widens its eyes and glances left or right toward it when it is
+outside your view. It is a tell for the attentive, never an arrow.
 
 Lamp posts (built by day) are the night's safe ground; the flashlight has ~7 minutes of
 light per charge for a ~10 minute night and stutters when low; stamina allows ~6 s of

@@ -27,6 +27,11 @@ var _difficulty: int = 1
 var _root: Node3D
 var _body: Sprite3D
 var _announced: bool = false
+var _cue_pos: Vector3 = Vector3.INF
+var _cue_time: float = -999.0
+
+## How long the place of a sound stays "sensed" after the sound.
+const CUE_MEMORY_SECONDS := 4.0
 
 
 func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
@@ -73,6 +78,17 @@ func stop_night() -> void:
 		_root.queue_free()
 	_root = null
 	_body = null
+	_cue_pos = Vector3.INF
+
+
+func get_presence() -> Dictionary:
+	if not _night_active:
+		return {}
+	if _body != null and is_instance_valid(_body) and _body.visible:
+		return {"position": _body.global_position}
+	if _cue_pos != Vector3.INF and _elapsed - _cue_time <= CUE_MEMORY_SECONDS:
+		return {"position": _cue_pos}
+	return {}
 
 
 # ── overridables ──────────────────────────────────────────────────────────────
@@ -257,6 +273,11 @@ func _sound(path: String, at: Vector3, volume_db: float = 0.0, pitch: float = 1.
 	p.global_position = at
 	p.play()
 	p.finished.connect(p.queue_free)
+	# A sound at the player's own position (the flash going off in your face) is not
+	# a place something is; everything else is.
+	if Vector2(at.x - _player.global_position.x, at.z - _player.global_position.z).length() > 1.5:
+		_cue_pos = at
+		_cue_time = _elapsed
 	return p
 
 
