@@ -4,6 +4,9 @@
     python tools/artgen/process.py <id> sprite <height_px> <dest relative to godot/>
     python tools/artgen/process.py <id> texture <size_px> <dest relative to godot/>
 
+blacksprite: like sprite, for art on a near-black background (flood-filled from the
+         borders; the generator's sparkle mark in the bottom-right corner is erased).
+         The source is <id> as a path relative to godot/ instead of an artgen id.
 sprite:  keys out the flat magenta background (and its anti-aliased fringe), crops
          to the figure, scales to <height_px> tall with a box filter (so 1 output
          pixel = the average of a block, like a hand-downsampled sprite), hard alpha,
@@ -87,6 +90,35 @@ def sprite(src, height):
     return snap(small, True)
 
 
+def black_sprite(src, height):
+    from collections import deque
+    img = Image.open(src).convert("RGBA")
+    w, h = img.size
+    px = img.load()
+    for y in range(int(h * 0.9), h):
+        for x in range(int(w * 0.9), w):
+            px[x, y] = (5, 4, 4, 255)
+    seen = bytearray(w * h)
+    q = deque([(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)])
+    while q:
+        x, y = q.popleft()
+        i = y * w + x
+        if seen[i]:
+            continue
+        seen[i] = 1
+        r, g, b, a = px[x, y]
+        if max(r, g, b) >= 26:
+            continue
+        px[x, y] = (0, 0, 0, 0)
+        if x > 0: q.append((x - 1, y))
+        if x < w - 1: q.append((x + 1, y))
+        if y > 0: q.append((x, y - 1))
+        if y < h - 1: q.append((x, y + 1))
+    img = img.crop(img.getchannel("A").getbbox())
+    small = img.resize((max(1, round(img.width * height / img.height)), height), Image.Resampling.BOX)
+    return snap(small, True)
+
+
 def texture(src, size):
     img = Image.open(src).convert("RGB")
     s = min(img.size)
@@ -102,7 +134,12 @@ def main():
         sys.exit(1)
     art_id, kind, size, dest = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
     src = os.path.join(HERE, "out", art_id, "raw.png")
-    out = sprite(src, size) if kind == "sprite" else texture(src, size)
+    if kind == "blacksprite":
+        out = black_sprite(os.path.join(GODOT, art_id), size)
+    elif kind == "sprite":
+        out = sprite(src, size)
+    else:
+        out = texture(src, size)
     path = os.path.join(GODOT, dest)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     out.save(path)

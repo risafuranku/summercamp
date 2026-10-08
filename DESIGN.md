@@ -113,13 +113,16 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
   12/day base), due 3 days later. An overdue bill cuts the grid: lamps off, power-hungry
   facilities closed, and a 6-minute UPS countdown to game over. Paying restores the grid.
 
-## 8. Planned: the pipe crawl (sewer repair)
+## 8. The pipe crawl (sewer repair)
 
 Inspired by pipe-crawler games: you crawl the sewer with only a hand-drawn paper map of
 the pipes. The map does **not** show where you are. You can only turn at junctions and
 never turn around 180°; you navigate by coordinates printed at junctions, by counting your
 turns, and by rare landmarks (cracks, scratches, junk). The broken section is marked on the
-map. Later nights put something in there with you. Claustrophobic, mapless, tense.
+map. Hold E at the leak to clamp it, then find the ladder again. From day 3 (or at night)
+something lives down there: it moves a junction at a time toward you, your light held on it
+down a straight pipe holds it back, and you hear it first. One red high-heeled shoe lies in
+one of the pipes. Code: `scripts/sewer_pipe_minigame.gd`, check: `tools/pipes_check.tscn`.
 
 ## 9. Weather
 

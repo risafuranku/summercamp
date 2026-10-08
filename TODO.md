@@ -6,8 +6,8 @@
 
 ## P0 — the vision's missing pieces
 
-- [ ] **Pipe crawl** (sewer repair redesign, DESIGN §8): paper map without your position,
-      turn only at junctions, no 180°, coordinates + landmarks; an enemy in later nights.
+- [ ] Pipe crawl polish: a proper shoe/bucket sprite, junction props, playtest the
+      thing's pace; consider a second map style (torn, partly wrong).
 - [ ] **Interiors: restricted look-around** in tents/cabins/services (claustrophobic, not
       free movement), plus small service minigames.
 - [ ] **More uncanny details** (DESIGN §2 rules). Candidates: a mail that arrives at 03:00

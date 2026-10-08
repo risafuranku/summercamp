@@ -1816,6 +1816,8 @@ func _setup_sewer_pipe_minigame() -> void:
 		_sewer_pipe_minigame.repair_completed.connect(_on_repair_completed)
 	if _sewer_pipe_minigame.has_signal("repair_cancelled"):
 		_sewer_pipe_minigame.repair_cancelled.connect(_on_repair_cancelled)
+	if _sewer_pipe_minigame.has_signal("player_hurt"):
+		_sewer_pipe_minigame.player_hurt.connect(damage_player)
 
 
 func _is_sewer_repair_building_type(building_type: String) -> bool:

@@ -79,7 +79,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Reception (CRT, radio, light switch) | ✅ | |
 | Tent / cabin interiors, upgrades | ✅ | static views |
 | Service interiors | ✅ | static views |
-| Sewer pipe repair minigame | 🟡 | works; redesign planned (blind pipe crawl, see DESIGN §8) |
+| Pipe crawl (sewer repair) | ✅ | generated network, paper map without your position, no turning around, coordinates and landmarks, clamp the leak, the thing in the pipes (day 3+ / night) |
 | Interior look-around (restricted) | ❌ | planned |
 
 ## Known non-goals

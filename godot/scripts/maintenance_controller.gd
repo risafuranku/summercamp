@@ -104,7 +104,10 @@ func hint_for_view(has_other_hint: bool) -> String:
 	var parts: Array[String] = []
 	if not has_other_hint:
 		parts.append("%s %d%%" % [str(_target["label"]), int(round(condition * 100.0))])
-	if broken:
+	if broken and str(_target["type"]) == "sewer":
+		# A broken sewer is fixed from the inside (the pipe crawl).
+		parts.append("BROKEN - [E] go down and fix it")
+	elif broken:
 		parts.append("[R] Repair $%d" % int(_target["cost"]))
 	elif condition < 0.9:
 		parts.append("[R] Service $%d" % int(_target["cost"]))
@@ -278,6 +281,8 @@ func _find_target() -> Dictionary:
 func _update_work(delta: float, can_act: bool) -> void:
 	var held := can_act and InputMap.has_action("maintain") and Input.is_action_pressed("maintain")
 	var workable := not _target.is_empty() and (bool(_target["broken"]) or float(_target["condition"]) < 0.9)
+	if workable and bool(_target["broken"]) and str(_target["type"]) == "sewer":
+		workable = false
 	if not held or not workable:
 		if not held:
 			_denied_key = ""

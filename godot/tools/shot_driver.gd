@@ -148,6 +148,14 @@ const SCENARIOS := {
 		["wait", 1.5], ["shot", "b1_crt_builder_later"],
 		["crt_screen", "b2_crt_screen"], ["timescale", 3.0], ["wait", 4.0], ["timescale", 1.0], ["crt_screen", "b3_crt_screen_later"],
 	],
+	"pipes": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_sewer_pipe_minigame.open_repair(Vector2i(0, 25), 'sewer')"], ["wait", 1.5], ["shot", "c0_pipes_ladder"], ["eval", "_sewer_pipe_minigame._rig.position"], ["eval", "_sewer_pipe_minigame._rig.rotation"], ["eval", "_sewer_pipe_minigame._links[_sewer_pipe_minigame._entry]"], ["eval", "_sewer_pipe_minigame._entry"],
+		["key", "W"], ["wait", 1.0], ["shot", "c1_pipes_fwd"],
+		["key", "W"], ["wait", 1.0], ["key", "D"], ["wait", 1.0], ["shot", "c2_pipes_turn"],
+		["keyhold", "Tab", true], ["wait", 0.4], ["shot", "c3_pipes_map"], ["keyhold", "Tab", false],
+		["eval", "_sewer_pipe_minigame._thing_on"],
+	],
 	"night": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["player", 12, 8, 0.0], ["hours", 13.0], ["wait", 3.0],
@@ -345,6 +353,21 @@ func _run_step(step: Array) -> void:
 			var bstate = CoreRoot.get_state()
 			bstate.failures["%d:%d" % [bc.x, bc.y]] = {"type": "x", "coord": bc, "since_day": 1, "repair_progress": 0.0}
 			EventBus.building_failed.emit(bc, str(bstate.grid.cells[bc].get("type", "")))
+		"key":
+			var ev := InputEventKey.new()
+			ev.physical_keycode = OS.find_keycode_from_string(str(step[1]))
+			ev.keycode = ev.physical_keycode
+			ev.pressed = true
+			Input.parse_input_event(ev)
+			var up := ev.duplicate()
+			up.pressed = false
+			Input.parse_input_event(up)
+		"keyhold":
+			var ev2 := InputEventKey.new()
+			ev2.physical_keycode = OS.find_keycode_from_string(str(step[1]))
+			ev2.keycode = ev2.physical_keycode
+			ev2.pressed = bool(step[2])
+			Input.parse_input_event(ev2)
 		"crt_screen":
 			# Save the CRT desktop's own viewport (what is drawn on the monitor).
 			var crt = _main.get("_interior_manager").get("_building_interior").get("_crt_ui")
