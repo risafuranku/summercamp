@@ -78,10 +78,10 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Feature | State | Notes |
 | --- | --- | --- |
 | Reception (CRT, radio, light switch) | ✅ | |
-| Tent / cabin interiors, upgrades | ✅ | static views |
-| Service interiors | ✅ | static views |
+| Tent / cabin interiors, upgrades | ✅ | closed rooms (the tent is a proper A-frame) |
+| Service interiors | ✅ | the sewer hatch says whether there is a leak; R crawls in only then |
 | Pipe crawl (sewer repair) | ✅ | generated network, paper map without your position, no turning around, coordinates and landmarks, clamp the leak, the thing in the pipes (day 3+ / night) |
-| Interior look-around (restricted) | ❌ | planned |
+| Interior look-around (restricted) | ✅ | you stay put and turn your head: cursor at the screen edge or the arrow keys; tent ±48°, services ±65°, office ±70°, cabin ±72° |
 
 ### Atmosphere and the uncanny
 

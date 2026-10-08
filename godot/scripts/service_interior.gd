@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 
 signal request_close
 signal request_repair
@@ -41,6 +42,10 @@ var _grid_power_available: bool = true
 var _manual_light_tween: Tween
 var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
+## Standing in a service building: you look around the room you are in.
+var _sewer_hint: Label3D
+var _sewer_broken: bool = false
+var _look = INTERIOR_LOOK.new(65.0, 20.0, 30.0)
 var _texture_style
 var _restaurant_dining_root: Node3D
 var _restaurant_kitchen_root: Node3D
@@ -127,13 +132,13 @@ func open_service(service_type: String) -> void:
 	if _interior_camera == null:
 		return
 	if _is_open:
-		_cam_base_rot = _interior_camera.rotation
 		_update_sewer_ambience_state()
 		return
 	_is_open = true
 	visible = true
 	_sync_viewport_to_window()
 	_cam_base_rot = _interior_camera.rotation
+	_look.reset()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_update_sewer_ambience_state()
 
@@ -156,16 +161,8 @@ func _process(delta: float) -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var screen_size = get_viewport().get_visible_rect().size
-	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
-		return
-	var mouse_pos = get_viewport().get_mouse_position()
-	var nx = clamp(((mouse_pos.x / screen_size.x) - 0.5) * 2.0, -1.0, 1.0)
-	var ny = clamp(((mouse_pos.y / screen_size.y) - 0.5) * 2.0, -1.0, 1.0)
-	var yaw = deg_to_rad(-nx * 3.2)
-	var pitch = deg_to_rad(-ny * 2.1)
-	var target = _cam_base_rot + Vector3(pitch, yaw, 0.0)
-	_interior_camera.rotation = _interior_camera.rotation.lerp(target, clamp(delta * 5.4, 0.0, 1.0))
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	_interior_camera.rotation = _interior_camera.rotation.lerp(_cam_base_rot + offset, clampf(delta * 12.0, 0.0, 1.0))
 
 
 func _input(event: InputEvent) -> void:
@@ -566,7 +563,7 @@ func _build_service_room(profile: String) -> void:
 		_restaurant_basement_root.name = "RestaurantBasement"
 		_room_root.add_child(_restaurant_basement_root)
 		# Restaurant dining now mirrors pub layout (pub is low-cost restaurant variant).
-		_build_pub_main_layout(_restaurant_dining_root, "JIDELNA", "D > KUCHYN", "service_rest_booth_restaurant")
+		_build_pub_main_layout(_restaurant_dining_root, "DINING ROOM", "D > KITCHEN", "service_rest_booth_restaurant")
 		_build_restaurant_kitchen_layout(_restaurant_kitchen_root)
 		_build_restaurant_basement_layout(_restaurant_basement_root)
 		_set_restaurant_room(_restaurant_room, true)
@@ -622,7 +619,7 @@ func _build_restaurant_dining_layout(parent: Node3D) -> void:
 	title.modulate = Color(0.88, 0.80, 0.62, 0.92)
 	parent.add_child(title)
 	var nav_label = Label3D.new()
-	nav_label.text = "D > KUCHYN"
+	nav_label.text = "D > KITCHEN"
 	nav_label.position = Vector3(2.10, 1.72, 2.12)
 	nav_label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 	nav_label.font_size = 20
@@ -669,13 +666,13 @@ func _build_restaurant_kitchen_layout(parent: Node3D) -> void:
 	_add_box("KitchenEmployeesSign", Vector3(0.0, 2.28, 2.36), Vector3(1.26, 0.34, 0.03), Color(0.86, 0.84, 0.70), "service_kitchen_sign", parent)
 
 	var title = Label3D.new()
-	title.text = "KUCHYN"
+	title.text = "KITCHEN"
 	title.position = Vector3(0.0, 2.16, -2.34)
 	title.font_size = 40
 	title.modulate = Color(0.88, 0.80, 0.62, 0.92)
 	parent.add_child(title)
 	var nav_label = Label3D.new()
-	nav_label.text = "< A JIDELNA | S SKLEP"
+	nav_label.text = "< A DINING ROOM | S CELLAR"
 	nav_label.position = Vector3(-2.14, 1.72, 2.12)
 	nav_label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 	nav_label.font_size = 20
@@ -704,21 +701,21 @@ func _build_restaurant_basement_layout(parent: Node3D) -> void:
 	_setup_basement_machine_animation([machine_core])
 
 	var title = Label3D.new()
-	title.text = "SKLEP"
+	title.text = "CELLAR"
 	title.position = Vector3(0.0, 2.10, -2.22)
 	title.font_size = 36
 	title.modulate = Color(0.82, 0.84, 0.88, 0.92)
 	parent.add_child(title)
 
 	var machine_title = Label3D.new()
-	machine_title.text = "PROTOTYP 540"
+	machine_title.text = "PROTOTYPE 540"
 	machine_title.position = Vector3(0.0, 1.80, 0.52)
 	machine_title.font_size = 22
 	machine_title.modulate = Color(0.88, 0.30, 0.24, 0.92)
 	parent.add_child(machine_title)
 
 	var nav_label = Label3D.new()
-	nav_label.text = "A > KUCHYN"
+	nav_label.text = "A > KITCHEN"
 	nav_label.position = Vector3(-2.20, 1.70, 2.06)
 	nav_label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 	nav_label.font_size = 20
@@ -882,14 +879,14 @@ func _build_vecerka_shop_layout(parent: Node3D) -> void:
 	_add_box("PosterB", Vector3(-1.7, 1.8, 0.6), Vector3(0.02, 0.8, 0.6), Color(0.8, 0.8, 0.8), "service_vecerka_poster", parent)
 
 	var title = Label3D.new()
-	title.text = "VECERKA"
+	title.text = "GROCERY"
 	title.position = Vector3(0.0, 2.4, -1.78)
 	title.font_size = 42
 	title.modulate = Color(1.0, 0.96, 0.84, 0.9)
 	parent.add_child(title)
 
 	var nav = Label3D.new()
-	nav.text = "D > SKLAD"
+	nav.text = "D > STOREROOM"
 	nav.position = Vector3(1.0, 1.5, 1.0)
 	nav.rotation_degrees = Vector3(0, 180, 0)
 	nav.font_size = 20
@@ -920,14 +917,14 @@ func _build_vecerka_storage_layout(parent: Node3D) -> void:
 		_add_box("CabLeft" + str(i), Vector3(-1.4, 1.0, z), Vector3(0.6, 2.0, 1.0), Color(0.44, 0.40, 0.36), "service_vecerka_storage", parent)
 
 	var title = Label3D.new()
-	title.text = "SKLAD"
+	title.text = "STOREROOM"
 	title.position = Vector3(0.0, 2.4, -1.6)
 	title.font_size = 42
 	title.modulate = Color(0.9, 0.9, 0.9, 0.9)
 	parent.add_child(title)
 	
 	var nav = Label3D.new()
-	nav.text = "< A PRODEJNA"
+	nav.text = "< A SHOP"
 	nav.position = Vector3(-1.0, 1.5, 1.0)
 	nav.rotation_degrees = Vector3(0, 180, 0)
 	nav.font_size = 20
@@ -1137,7 +1134,7 @@ func _build_wash_layout(shower_mode: bool, title_override: String = "") -> void:
 	_room_root.add_child(title)
 	
 	var nav_l = Label3D.new()
-	nav_l.text = "< A SPRCHY"
+	nav_l.text = "< A SHOWERS"
 	nav_l.position = Vector3(-1.4, 1.6, -0.8)
 	nav_l.rotation_degrees = Vector3(0, 45, 0)
 	nav_l.font_size = 18
@@ -1145,7 +1142,7 @@ func _build_wash_layout(shower_mode: bool, title_override: String = "") -> void:
 	_room_root.add_child(nav_l)
 	
 	var nav_r = Label3D.new()
-	nav_r.text = "SPRCHY D >"
+	nav_r.text = "SHOWERS D >"
 	nav_r.position = Vector3(1.4, 1.6, -0.8)
 	nav_r.rotation_degrees = Vector3(0, -45, 0)
 	nav_r.font_size = 18
@@ -1181,14 +1178,14 @@ func _build_toilet_layout() -> void:
 	_add_box("ToiletDrainB", Vector3(1.30, 0.06, -0.20), Vector3(0.28, 0.02, 0.28), Color(0.24, 0.24, 0.22), "service_toilet_fixture")
 
 	var title = Label3D.new()
-	title.text = "HAJZLY"
+	title.text = "TOILETS"
 	title.position = Vector3(0.0, 2.12, -1.76)
 	title.font_size = 34
 	title.modulate = Color(0.82, 0.86, 0.76, 0.88)
 	_room_root.add_child(title)
 
 	var nav_l = Label3D.new()
-	nav_l.text = "< A KABINKY"
+	nav_l.text = "< A STALLS"
 	nav_l.position = Vector3(-1.4, 1.6, -0.8)
 	nav_l.rotation_degrees = Vector3(0, 45, 0)
 	nav_l.font_size = 18
@@ -1196,7 +1193,7 @@ func _build_toilet_layout() -> void:
 	_room_root.add_child(nav_l)
 	
 	var nav_r = Label3D.new()
-	nav_r.text = "KABINKY D >"
+	nav_r.text = "STALLS D >"
 	nav_r.position = Vector3(1.4, 1.6, -0.8)
 	nav_r.rotation_degrees = Vector3(0, -45, 0)
 	nav_r.font_size = 18
@@ -1225,13 +1222,11 @@ func _build_sewer_layout() -> void:
 	title.modulate = Color(0.84, 0.86, 0.88, 0.88)
 	_room_root.add_child(title)
 
-	var hint = Label3D.new()
-	hint.text = "R > LEZT TRUBKAMI"
-	hint.position = Vector3(0.0, 1.62, 2.06)
-	hint.rotation_degrees = Vector3(0.0, 180.0, 0.0)
-	hint.font_size = 18
-	hint.modulate = Color(0.92, 0.94, 0.86, 0.84)
-	_room_root.add_child(hint)
+	_sewer_hint = Label3D.new()
+	_sewer_hint.position = Vector3(0.0, 1.70, -2.16)
+	_sewer_hint.font_size = 18
+	_room_root.add_child(_sewer_hint)
+	_apply_sewer_hint()
 
 
 func _build_generator_layout() -> void:
@@ -1277,9 +1272,28 @@ func _profile_for_service(service_type: String) -> String:
 
 
 func _try_request_service_repair() -> void:
-	if _current_profile != "sewer":
+	if _current_profile != "sewer" or not _sewer_broken:
 		return
 	request_repair.emit()
+
+
+## Whether the building behind this hatch is broken. Only then is there a leak to find
+## down there, and only then does R take you into the pipes.
+func set_sewer_broken(broken: bool) -> void:
+	_sewer_broken = broken
+	_apply_sewer_hint()
+
+
+func _apply_sewer_hint() -> void:
+	if _sewer_hint == null or not is_instance_valid(_sewer_hint):
+		return
+	if _sewer_broken:
+		_sewer_hint.text = "LEAK REPORTED
+R > CRAWL INTO THE PIPES"
+		_sewer_hint.modulate = Color(1.0, 0.62, 0.36, 0.95)
+	else:
+		_sewer_hint.text = "NO FAULTS"
+		_sewer_hint.modulate = Color(0.70, 0.76, 0.70, 0.70)
 
 
 func _apply_time_profile(animated: bool = false) -> void:

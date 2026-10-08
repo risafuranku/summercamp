@@ -517,6 +517,10 @@ func _on_service_interact(service_node: Node) -> void:
 	_active_service_node = structure
 	_apply_time_to_interior(_service_interior)
 	_service_interior.open_service(building_type)
+	if _service_interior.has_method("set_sewer_broken"):
+		var origin: Vector2i = structure.get_meta("grid_origin", Vector2i(-999, -999))
+		var state = CoreRoot.get_state() if CoreRoot != null else null
+		_service_interior.set_sewer_broken(state != null and state.failures.has("%d:%d" % [origin.x, origin.y]))
 	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)

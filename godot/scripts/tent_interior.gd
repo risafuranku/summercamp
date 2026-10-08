@@ -1,6 +1,10 @@
 extends CanvasLayer
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+## The tent's cross-section: floor half-width and ridge height (metres).
+const TENT_HALF_WIDTH := 0.98
+const TENT_RIDGE_HEIGHT := 1.26
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 
 signal request_close
 signal request_upgrade
@@ -40,9 +44,11 @@ var _tent_light: OmniLight3D
 var _grid_power_available: bool = true
 var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
+## Kneeling in a two-man tent: you can turn to the walls, not past them.
+var _look = INTERIOR_LOOK.new(48.0, 16.0, 30.0)
 
 # Screen-space zones for click detection.
-var _catalog_rect: Rect2 = Rect2(0.56, 0.50, 0.34, 0.38)
+var _catalog_mesh: MeshInstance3D
 
 var _level2_nodes: Array[String] = [
 	"LanternStem",
@@ -112,7 +118,6 @@ func open_tent(level: int = 1) -> void:
 		_apply_level_variant()
 		_apply_time_profile()
 		_refresh_guest_visuals()
-		_cam_base_rot = _interior_camera.rotation
 		return
 	_is_open = true
 	visible = true
@@ -123,6 +128,7 @@ func open_tent(level: int = 1) -> void:
 	_apply_time_profile()
 	_refresh_guest_visuals()
 	_cam_base_rot = _interior_camera.rotation
+	_look.reset()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
@@ -142,16 +148,8 @@ func _process(delta: float) -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var screen_size = get_viewport().get_visible_rect().size
-	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
-		return
-	var mouse_pos = get_viewport().get_mouse_position()
-	var nx = clamp(((mouse_pos.x / screen_size.x) - 0.5) * 2.0, -1.0, 1.0)
-	var ny = clamp(((mouse_pos.y / screen_size.y) - 0.5) * 2.0, -1.0, 1.0)
-	var yaw = deg_to_rad(-nx * 3.0)
-	var pitch = deg_to_rad(-ny * 1.8)
-	var target = _cam_base_rot + Vector3(pitch, yaw, 0.0)
-	_interior_camera.rotation = _interior_camera.rotation.lerp(target, clamp(delta * 5.4, 0.0, 1.0))
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	_interior_camera.rotation = _interior_camera.rotation.lerp(_cam_base_rot + offset, clampf(delta * 12.0, 0.0, 1.0))
 
 
 func _input(event: InputEvent) -> void:
@@ -166,6 +164,15 @@ func _input(event: InputEvent) -> void:
 		_try_click()
 
 
+## The upgrade catalog on screen (normalised), wherever the head is turned.
+func _catalog_screen_rect() -> Rect2:
+	if _viewport != null:
+		var r := INTERIOR_LOOK.screen_rect_of(_interior_camera, Vector2(_viewport.size), _catalog_mesh)
+		if r.has_area():
+			return r.grow(0.02)
+	return Rect2()
+
+
 func _try_click() -> void:
 	var main_vp = get_viewport()
 	if main_vp == null:
@@ -178,7 +185,7 @@ func _try_click() -> void:
 
 	# Exit is handled only by ESC.
 
-	if _catalog_rect.has_point(norm):
+	if _catalog_screen_rect().has_point(norm):
 		request_upgrade.emit()
 
 
@@ -268,15 +275,20 @@ func _build_tent_room() -> void:
 
 	_add_box("FloorMat", Vector3(0.0, 0.0, -0.10), Vector3(1.92, 0.04, 2.46), Color(0.42, 0.52, 0.70))
 
-	var left_wall = _add_box("LeftWall", Vector3(-0.66, 0.64, -0.10), Vector3(0.04, 1.34, 2.44), Color(0.74, 0.70, 0.52))
-	left_wall.rotation_degrees = Vector3(0.0, 0.0, -28.0)
-	var right_wall = _add_box("RightWall", Vector3(0.66, 0.64, -0.10), Vector3(0.04, 1.34, 2.44), Color(0.74, 0.70, 0.52))
-	right_wall.rotation_degrees = Vector3(0.0, 0.0, 28.0)
-	_add_box("CeilingRidge", Vector3(0.0, 1.23, -0.10), Vector3(0.06, 0.04, 2.42), Color(0.30, 0.28, 0.20))
+	# An A-frame: two cloth slopes meeting at the ridge, triangular gables front and back.
+	# (Closed all round, because the view can turn now.)
+	var half_w := TENT_HALF_WIDTH
+	var ridge := TENT_RIDGE_HEIGHT
+	var slope_len := sqrt(half_w * half_w + ridge * ridge) + 0.06
+	var slope_deg := rad_to_deg(atan2(half_w, ridge))
+	var left_wall = _add_box("LeftWall", Vector3(-half_w * 0.5, ridge * 0.5, -0.10), Vector3(0.04, slope_len, 2.50), Color(0.74, 0.70, 0.52))
+	left_wall.rotation_degrees = Vector3(0.0, 0.0, -slope_deg)
+	var right_wall = _add_box("RightWall", Vector3(half_w * 0.5, ridge * 0.5, -0.10), Vector3(0.04, slope_len, 2.50), Color(0.74, 0.70, 0.52))
+	right_wall.rotation_degrees = Vector3(0.0, 0.0, slope_deg)
+	_add_box("CeilingRidge", Vector3(0.0, ridge - 0.03, -0.10), Vector3(0.06, 0.05, 2.50), Color(0.30, 0.28, 0.20))
 
-	_add_box("BackWall", Vector3(0.0, 0.56, -1.34), Vector3(1.34, 1.12, 0.04), Color(0.60, 0.50, 0.42))
-	_add_box("FrontWallLeft", Vector3(-0.46, 0.56, 1.12), Vector3(0.48, 1.12, 0.04), Color(0.60, 0.50, 0.42))
-	_add_box("FrontWallRight", Vector3(0.46, 0.56, 1.12), Vector3(0.48, 1.12, 0.04), Color(0.60, 0.50, 0.42))
+	_add_gable("BackWall", Vector3(0.0, ridge * 0.5, -1.34), Color(0.60, 0.50, 0.42))
+	_add_gable("FrontWall", Vector3(0.0, ridge * 0.5, 1.12), Color(0.60, 0.50, 0.42))
 
 	_add_box("ZipLine", Vector3(0.0, 0.56, 1.10), Vector3(0.02, 0.98, 0.01), Color(0.74, 0.70, 0.52))
 	_add_box("ZipHandle", Vector3(0.0, 0.14, 1.09), Vector3(0.05, 0.06, 0.03), Color(0.84, 0.80, 0.56))
@@ -285,7 +297,7 @@ func _build_tent_room() -> void:
 	_add_box("Pillow", Vector3(-0.20, 0.11, -0.68), Vector3(0.40, 0.08, 0.24), Color(0.42, 0.40, 0.36))
 
 	# Visible paper catalog.
-	_add_box("CatalogBacker", Vector3(0.46, 0.055, -0.18), Vector3(0.36, 0.01, 0.46), Color(0.08, 0.08, 0.08))
+	_catalog_mesh = _add_box("CatalogBacker", Vector3(0.46, 0.055, -0.18), Vector3(0.36, 0.01, 0.46), Color(0.08, 0.08, 0.08))
 	_add_box("Catalog", Vector3(0.46, 0.062, -0.18), Vector3(0.32, 0.02, 0.42), Color(0.96, 0.90, 0.74))
 	_add_box("CatalogText1", Vector3(0.46, 0.075, -0.30), Vector3(0.20, 0.005, 0.02), Color(0.12, 0.12, 0.12))
 	_add_box("CatalogText2", Vector3(0.46, 0.075, -0.24), Vector3(0.18, 0.005, 0.02), Color(0.12, 0.12, 0.12))
@@ -329,8 +341,7 @@ func _apply_level_variant() -> void:
 	_set_node_color("LeftWall", wall_col)
 	_set_node_color("RightWall", wall_col)
 	_set_node_color("BackWall", wall_col.darkened(0.12))
-	_set_node_color("FrontWallLeft", wall_col.darkened(0.10))
-	_set_node_color("FrontWallRight", wall_col.darkened(0.10))
+	_set_node_color("FrontWall", wall_col.darkened(0.10))
 	_set_node_color("CeilingRidge", wall_col.darkened(0.26))
 	_set_node_color("ZipLine", wall_col.darkened(0.10))
 	_set_node_color("FloorMat", floor_col)
@@ -480,6 +491,17 @@ func _fit_sprite_height(sprite: Sprite3D, texture: Texture2D, target_height: flo
 		return
 	var scale_factor = target_height / base_world_height
 	sprite.scale = Vector3.ONE * scale_factor
+
+
+## A triangular end wall of the A-frame (same material rules as `_add_box`).
+func _add_gable(node_name: String, pos: Vector3, color: Color) -> MeshInstance3D:
+	var size := Vector3(TENT_HALF_WIDTH * 2.0 + 0.04, TENT_RIDGE_HEIGHT, 0.04)
+	var wall := _add_box(node_name, pos, size, color)
+	var prism := PrismMesh.new()
+	prism.size = size
+	prism.left_to_right = 0.5
+	wall.mesh = prism
+	return wall
 
 
 func _add_box(node_name: String, pos: Vector3, box_size: Vector3, color: Color) -> MeshInstance3D:

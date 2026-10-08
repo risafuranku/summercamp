@@ -22,6 +22,7 @@ was wrong. The real bugs found on the way:
 | 🟡 | HUD harness reported PASS when hud_manager.gd failed to compile | can_instantiate guard |
 | 🔴 | The sewer repair could never finish (`repair_completed` was never emitted) | pipe crawl rebuilt |
 | 🟡 | `hud.set_fear()` was never called: the status face never widened its eyes | night senses (`threat_senses.gd`) |
+| 🟡 | Interiors: the tent's A-frame never met at the ridge (sky showed through), the cabin had no front wall and a gap round the door; Czech signs in the interiors ("HAJZLY"); the sewer's "R" hint hung behind the camera; `service_repair`/`service_kitchen_variant` actions were unregistered (an engine error per key press) | closed rooms, English signs, stateful sewer hint, actions always registered |
 | 🟡 | Story pool padded with re-sent copies tagged "[day N transmission tag]", read as a bug; two mails duplicated the questline | story week rewritten |
 
 ---

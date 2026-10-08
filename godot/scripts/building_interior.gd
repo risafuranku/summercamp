@@ -2,6 +2,7 @@ extends CanvasLayer
 
 const INTERIOR_BARREL_SHADER = preload("res://materials/interior_barrel_post.gdshader")
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const CRT_UI_SCENE = preload("res://scripts/crt_os_shell.gd")
 
 const TIME_DAY: int = 0
@@ -118,6 +119,8 @@ var _initial_cam_pos: Vector3
 var _initial_cam_rot: Vector3
 var _initial_cam_fov: float = 54.0
 var _idle_cam_base_rot: Vector3 = Vector3.ZERO
+## In the office, away from the screen: turn your head around the room, not out of it.
+var _look = INTERIOR_LOOK.new(70.0, 22.0, 30.0)
 var _crt_orbit_anchor_pos: Vector3 = Vector3.ZERO
 var _crt_orbit_anchor_offset: Vector3 = Vector3.ZERO
 var _crt_orbit_pivot: Vector3 = Vector3.ZERO
@@ -299,6 +302,7 @@ func open_interior() -> void:
 	_initial_cam_rot = _interior_camera.rotation
 	_initial_cam_fov = _interior_camera.fov
 	_idle_cam_base_rot = _initial_cam_rot
+	_look.reset()
 	_capture_crt_orbit_anchor()
 	_apply_room_time_profile()
 	_collect_radio_tracks()
@@ -470,16 +474,8 @@ func _exit_crt_look_back() -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var screen_size = get_viewport().get_visible_rect().size
-	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
-		return
-	var mouse_pos = get_viewport().get_mouse_position()
-	var nx = clamp(((mouse_pos.x / screen_size.x) - 0.5) * 2.0, -1.0, 1.0)
-	var ny = clamp(((mouse_pos.y / screen_size.y) - 0.5) * 2.0, -1.0, 1.0)
-	var yaw = deg_to_rad(-nx * 3.8)
-	var pitch = deg_to_rad(-ny * 2.6)
-	var target_rot = _idle_cam_base_rot + Vector3(pitch, yaw, 0.0)
-	_interior_camera.rotation = _interior_camera.rotation.lerp(target_rot, clamp(delta * 5.2, 0.0, 1.0))
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	_interior_camera.rotation = _interior_camera.rotation.lerp(_idle_cam_base_rot + offset, clampf(delta * 12.0, 0.0, 1.0))
 
 
 func _apply_crt_mouse_orbit(delta: float) -> void:
@@ -1112,6 +1108,7 @@ func enter_crt_view() -> void:
 	if _crt_active: return
 	_reset_crt_look_back_state()
 	_crt_active = true
+	_look.reset()
 	_crt_orbit_enabled = true
 	_sync_crt_viewport_to_window()
 	_set_crt_viewport_live(true)

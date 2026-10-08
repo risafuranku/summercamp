@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 
 signal request_close
 signal request_upgrade
@@ -48,6 +49,8 @@ var _daylight_factor: float = 0.0
 var _sunlight_color: Color = Color(1.0, 0.95, 0.84)
 var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
+## Standing inside the door of the cabin: most of the room, never the door behind you.
+var _look = INTERIOR_LOOK.new(72.0, 20.0, 30.0)
 var _level2_nodes: Array[String] = ["WallLamp", "StorageChest"]
 var _level3_nodes: Array[String] = ["MiniFridge", "Rug", "WallShelf", "GuestTVTableBase", "GuestTVTableTop", "GuestTVBody", "GuestTVScreen", "GuestTVAntennaL", "GuestTVAntennaR", "WallPictureLv3"]
 var _texture_style
@@ -58,7 +61,7 @@ var _swipe_tween: Tween
 var _swipe_animating: bool = false
 
 # Screen-space active zones.
-var _catalog_rect: Rect2 = Rect2(0.58, 0.58, 0.30, 0.26)
+var _catalog_mesh: MeshInstance3D
 
 
 func _ready() -> void:
@@ -120,7 +123,6 @@ func open_cabin(level: int = 1) -> void:
 		_apply_level_variant()
 		_apply_time_profile()
 		_refresh_guest_visuals()
-		_cam_base_rot = _interior_camera.rotation
 		return
 	if _interior_camera == null:
 		return
@@ -152,16 +154,8 @@ func _process(delta: float) -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var screen_size = get_viewport().get_visible_rect().size
-	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
-		return
-	var mouse_pos = get_viewport().get_mouse_position()
-	var nx = clamp(((mouse_pos.x / screen_size.x) - 0.5) * 2.0, -1.0, 1.0)
-	var ny = clamp(((mouse_pos.y / screen_size.y) - 0.5) * 2.0, -1.0, 1.0)
-	var yaw = deg_to_rad(-nx * 3.4)
-	var pitch = deg_to_rad(-ny * 2.2)
-	var target = _cam_base_rot + Vector3(pitch, yaw, 0.0)
-	_interior_camera.rotation = _interior_camera.rotation.lerp(target, clamp(delta * 5.0, 0.0, 1.0))
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	_interior_camera.rotation = _interior_camera.rotation.lerp(_cam_base_rot + offset, clampf(delta * 12.0, 0.0, 1.0))
 
 
 func _input(event: InputEvent) -> void:
@@ -195,6 +189,15 @@ func _input(event: InputEvent) -> void:
 			return
 
 
+## The upgrade catalog on screen (normalised), wherever the head is turned.
+func _catalog_screen_rect() -> Rect2:
+	if _catalog_mesh != null and _catalog_mesh.is_visible_in_tree() and _viewport != null:
+		var r := INTERIOR_LOOK.screen_rect_of(_interior_camera, Vector2(_viewport.size), _catalog_mesh)
+		if r.has_area():
+			return r.grow(0.03)
+	return Rect2()
+
+
 func _try_click(_event: InputEventMouseButton) -> void:
 	var main_vp = get_viewport()
 	if main_vp == null:
@@ -206,7 +209,7 @@ func _try_click(_event: InputEventMouseButton) -> void:
 	var norm = mouse_pos / screen_size
 
 	# Upgrade catalog on table.
-	if _catalog_rect.has_point(norm):
+	if _catalog_screen_rect().has_point(norm):
 		request_upgrade.emit()
 		return
 
@@ -429,6 +432,8 @@ func _build_cabin_room() -> void:
 	_add_box(_cabin_root, "Ceiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), wall_col)
 	# Back wall.
 	_add_box(_cabin_root, "BackWall", Vector3(0.0, h*0.5, -d*0.5), Vector3(w, h, 0.1), wall_col)
+	# Front wall (behind you as you come in; the view turns far enough to see it).
+	_add_box(_cabin_root, "FrontWall", Vector3(0.0, h*0.5, d*0.5), Vector3(w, h, 0.1), wall_col)
 	# Left wall.
 	_add_box(_cabin_root, "LeftWall", Vector3(-w*0.5, h*0.5, 0.0), Vector3(0.1, h, d), wall_col)
 	# Right wall (with door gap).
@@ -437,13 +442,11 @@ func _build_cabin_room() -> void:
 	_add_box(_cabin_root, "RightWallFront", Vector3(w*0.5, h*0.5, d*0.35), Vector3(0.1, h, d*0.3), wall_col)
 	_add_box(_cabin_root, "RightWallTop", Vector3(w*0.5, h*0.85, 0.0), Vector3(0.1, h*0.3, d*0.4), wall_col)
 
-	# Door frame/visual on right wall.
-	_add_box(_cabin_root, "DoorFrame", Vector3(w*0.5, h*0.35, 0.0), Vector3(0.12, h*0.7, 0.9), Color(0.28, 0.20, 0.12))
-	# Door Frame (text labels removed as requested)
-	_add_box(_cabin_root, "DoorFrame", Vector3(w*0.5, h*0.35, 0.0), Vector3(0.12, h*0.7, 0.9), Color(0.28, 0.20, 0.12))
+	# Door on the right wall: fills the whole opening, so no daylight leaks round it.
+	_add_box(_cabin_root, "DoorFrame", Vector3(w*0.5, h*0.35, 0.0), Vector3(0.12, h*0.7, d*0.4 + 0.02), Color(0.28, 0.20, 0.12))
 	
 	var nav_label = Label3D.new()
-	nav_label.text = "D > KOUPELNA"
+	nav_label.text = "D > BATHROOM"
 	nav_label.position = Vector3(w*0.4, 1.5, 0.0)
 	nav_label.rotation_degrees = Vector3(0, -90, 0)
 	nav_label.font_size = 20
@@ -458,12 +461,12 @@ func _build_cabin_room() -> void:
 	# Small table (back right).
 	_add_box(_cabin_root, "Table", Vector3(0.8, 0.5, -1.0), Vector3(0.8, 0.05, 0.8), Color(0.54, 0.40, 0.26))
 	_add_box(_cabin_root, "TableLeg", Vector3(0.8, 0.25, -1.0), Vector3(0.1, 0.5, 0.1), Color(0.44, 0.32, 0.22))
-	_add_box(_cabin_root, "UpgradeCatalog", Vector3(0.86, 0.54, -1.02), Vector3(0.26, 0.02, 0.20), Color(0.84, 0.78, 0.68))
+	_catalog_mesh = _add_box(_cabin_root, "UpgradeCatalog", Vector3(0.86, 0.54, -1.02), Vector3(0.26, 0.02, 0.20), Color(0.84, 0.78, 0.68))
 	_add_box(_cabin_root, "UpgradeCatalogInk1", Vector3(0.86, 0.552, -1.08), Vector3(0.18, 0.004, 0.02), Color(0.18, 0.16, 0.14))
 	_add_box(_cabin_root, "UpgradeCatalogInk2", Vector3(0.86, 0.552, -1.02), Vector3(0.16, 0.004, 0.02), Color(0.18, 0.16, 0.14))
 	_add_box(_cabin_root, "UpgradeCatalogInk3", Vector3(0.86, 0.552, -0.96), Vector3(0.14, 0.004, 0.02), Color(0.18, 0.16, 0.14))
 	var up_lbl = Label3D.new()
-	up_lbl.text = "KATALOG"
+	up_lbl.text = "CATALOGUE"
 	up_lbl.position = Vector3(0.86, 0.57, -1.18)
 	up_lbl.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
 	up_lbl.font_size = 12
@@ -582,7 +585,7 @@ func _build_bathroom_room() -> void:
 	_add_box(_bathroom_root, "BWallRight", Vector3(w*0.5, h*0.5, 0.0), Vector3(0.1, h, d), wall_col)
 
 	var nav = Label3D.new()
-	nav.text = "< A POKOJ"
+	nav.text = "< A ROOM"
 	nav.position = Vector3(-w * 0.4, 1.5, 0.0)
 	nav.rotation_degrees = Vector3(0, 90, 0)
 	nav.font_size = 20
@@ -623,6 +626,7 @@ func _apply_level_variant() -> void:
 
 	_refresh_level_textures()
 	_set_node_color("BackWall", wall_col)
+	_set_node_color("FrontWall", wall_col)
 	_set_node_color("LeftWall", wall_col)
 	_set_node_color("RightWallBack", wall_col)
 	_set_node_color("RightWallFront", wall_col)
@@ -766,6 +770,7 @@ func _set_cabin_room(room: String, update_camera: bool = true) -> void:
 			_interior_camera.position = Vector3(0.0, 1.5, 1.0)
 			_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 	_cam_base_rot = _interior_camera.rotation
+	_look.reset()
 
 
 func _set_node_color(node_name: String, color: Color) -> void:

@@ -149,6 +149,10 @@ attractions.
 - Everything 2D is pixel art on an integer scale: baked bitmap fonts (Silkscreen, Tiny5,
   Jersey 10), bevelled plates, no rounded corners, no smooth gradients (darkening is a
   flat shade with ordered-dither edges, as the Build engine did with shade tables).
+- Interiors are places you stand in, not walk through: the head turns within limits
+  (cursor at the screen edge, or the arrow keys), the cursor stays free for clicking things,
+  and every room is closed on all sides because you can look at all of them
+  (`scripts/interior_look.gd`).
 - The terminal is a separate, period-correct Win95 aesthetic (it is a program inside the
   world), the HUD and menus are the game's own Build-engine chrome.
 - New art: generated with Grok Imagine (AGENTS.md §7), then keyed, downsampled and snapped

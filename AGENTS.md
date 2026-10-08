@@ -78,6 +78,7 @@ godot --headless --path godot res://tools/upkeep_check.tscn
 godot --headless --path godot res://tools/billing_check.tscn
 godot --headless --path godot res://tools/pipes_check.tscn
 godot --headless --path godot res://tools/uncanny_check.tscn
+godot --headless --path godot res://tools/look_check.tscn
 godot --headless --path godot --script res://tools/weather_check.gd
 ```
 
@@ -93,7 +94,7 @@ godot --path godot --resolution 1280x720 res://tools/shot_driver.tscn -- --scena
 ```
 
 Scenarios: `boot menu views hud quest pause gameover crt crtmap weather upkeep blood night
-saveload guests pipes senses uncanny probe`. Steps include `build`, `book`, `hours`, `player`, `money`, `press`,
+saveload guests pipes senses uncanny look probe`. Steps include `build`, `book`, `hours`, `player`, `money`, `press`,
 `condition`, `break`, `look_at_enemy`, `crt_screen` (saves the terminal's own frame),
 `eval` (Expression against Main; autoload names are not reachable from it).
 Check visual changes at 1280x720 **and** 1920x1080.
@@ -116,6 +117,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Electricity | `scripts/electricity_billing.gd` |
 | Save format helpers | `scripts/save_codec.gd`; snapshot build/apply in `main.gd` |
 | Player movement, flashlight battery, stamina | `scripts/player_controller.gd` |
+| Head turning inside interiors | `scripts/interior_look.gd` (limits set per interior script) |
 | Insects falling silent, the HUD face's glance | `scripts/threat_senses.gd` (reads `get_presence()`) |
 | Story mails (Vera, Nela, the odd ones) | `data/pools/emails/story/week01_story.json` |
 | The radio (playlist, outdoor source, the station) | `scripts/building_interior.gd`, synth: `tools/gen_sfx.py` |

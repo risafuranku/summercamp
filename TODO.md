@@ -8,8 +8,8 @@
 
 - [ ] Pipe crawl polish: a proper shoe/bucket sprite, junction props, playtest the
       thing's pace; consider a second map style (torn, partly wrong).
-- [ ] **Interiors: restricted look-around** in tents/cabins/services (claustrophobic, not
-      free movement), plus small service minigames.
+- [ ] **Service minigames** inside the interiors (now that you can look around them):
+      unclog a toilet, reset the generator breaker, restock the shop shelf.
 - [ ] Atmosphere: a proper dusk skybox (generated), wind in the trees by day, distant dogs
       or a train at night; listen through a whole day/night with headphones and mix.
 - [ ] Playtest the uncanny details' frequency (station 14%/track at night, phantom glance
@@ -47,4 +47,5 @@ battery, RCT guests on the Builder map. Details: AUDIT.md.
 
 Then: the pipe crawl (sewer repair rebuilt); night senses (insect hush, HUD face glance);
 the radio as a place; the station, the night log, the unbooked sleeper; the story week
-rewritten without filler.
+rewritten without filler; restricted look-around in every interior, closed rooms, English
+signs in the interiors.

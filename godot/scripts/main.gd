@@ -785,8 +785,10 @@ func _ensure_input_actions() -> void:
 		_add_key_action("toggle_liminal_debug", KEY_L)
 	_add_key_action("service_room_prev", KEY_A)
 	_add_key_action("service_room_next", KEY_D)
-	if UTILITY_REPAIRS_ENABLED:
-		_add_key_action("service_repair", KEY_R)
+	# Service interiors poll these on every key; an unregistered action is an engine
+	# error per event, so they always exist (R only acts where something is broken).
+	_add_key_action("service_repair", KEY_R)
+	_add_key_action("service_kitchen_variant", KEY_P)
 	_add_key_action("service_secret_room", KEY_S)
 	_add_key_action("maintain", KEY_R)
 
