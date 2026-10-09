@@ -155,6 +155,8 @@ var _active_enemy_brain_id: String = ""
 var _enemy_brains: Array = []
 var _senses = THREAT_SENSES_SCRIPT.new()
 var _night_jobs: Node
+var _paper_map: Node
+const PAPER_MAP_SCRIPT = preload("res://scripts/paper_map.gd")
 var _breaker_panel: CanvasLayer
 var _pending_night_jobs: Dictionary = {}
 var _still_seconds: float = 0.0
@@ -325,7 +327,16 @@ func _setup_quest_manager() -> void:
 
 
 ## Night work: the director and the distribution board (scripts/night_jobs.gd).
+func _setup_paper_map() -> void:
+	if _paper_map == null or not is_instance_valid(_paper_map):
+		_paper_map = PAPER_MAP_SCRIPT.new()
+		_paper_map.name = "PaperMap"
+		add_child(_paper_map)
+		_paper_map.setup(self)
+
+
 func _setup_night_jobs() -> void:
+	_setup_paper_map()
 	if _night_jobs == null or not is_instance_valid(_night_jobs):
 		_night_jobs = NIGHT_JOBS_SCRIPT.new()
 		_night_jobs.name = "NightJobs"

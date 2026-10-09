@@ -383,6 +383,15 @@ const SCENARIOS := {
 		["hours", 1.0], ["wait", 2.0], ["shot", "d2_room_late_dusk"],
 		["hours", 2.0], ["wait", 2.0], ["shot", "d3_room_night"],
 	],
+	"papermap": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["money", 9000], ["clear", 7, 3, 7, 6], ["wait", 2.0],
+		["build", "path", 9, 3, 0], ["build", "path", 9, 4, 0], ["build", "path", 9, 5, 0], ["build", "path", 10, 5, 0], ["build", "path", 11, 5, 0],
+		["build", "tent_1", 8, 4, 0], ["build", "tent_1", 8, 6, 0], ["build", "cabin_1", 10, 6, 0], ["build", "toilet_block", 12, 3, 0], ["build", "lamp_post", 9, 4, 0], ["wait", 0.5],
+		["prep_all"], ["auto_checkin", false], ["book", "Pepa", "drunk", 1, 2, 0], ["build", "tent_1", 12, 7, 0], ["hours", 0.2], ["wait", 1.0],
+		["eval", "_paper_map.set('force_open', true)"], ["wait", 1.2], ["shot", "m0_map"],
+	],
 	"probe": [
 		["wait_menu"], ["wait", 1.0],
 		["eval", "get_viewport().get_visible_rect().size"],
