@@ -392,6 +392,14 @@ const SCENARIOS := {
 		["prep_all"], ["auto_checkin", false], ["book", "Pepa", "drunk", 1, 2, 0], ["build", "tent_1", 12, 7, 0], ["hours", 0.2], ["wait", 1.0],
 		["eval", "_paper_map.set('force_open', true)"], ["wait", 1.2], ["shot", "m0_map"],
 	],
+	"corn": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["clear", 0, 12, 3, 4], ["wait", 1.0],
+		["player", 1, 14, 90.0], ["wait", 1.0], ["shot", "k0_a"],
+		["player", 1, 14, 270.0], ["wait", 1.0], ["shot", "k1_b"],
+		["hours", 12.0], ["wait", 2.0], ["player", 1, 14, 90.0], ["wait", 1.0], ["shot", "k2_night_a"], ["player", 1, 14, 270.0], ["wait", 1.0], ["shot", "k3_night_b"],
+	],
 	"probe": [
 		["wait_menu"], ["wait", 1.0],
 		["eval", "get_viewport().get_visible_rect().size"],

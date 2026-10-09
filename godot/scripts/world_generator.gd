@@ -34,6 +34,8 @@ const TREE_KIND_DEAD := 2
 ## Spruce tiers: [bottom radius, height, y of the tier's base].
 const SPRUCE_TIERS := [[1.55, 1.7, 1.15], [1.2, 1.5, 2.15], [0.86, 1.3, 3.0], [0.5, 1.1, 3.75]]
 const HORIZON_TREE_COUNT := 900
+const CORN_DEPTH := 24.0
+const CORNFIELD_SCRIPT = preload("res://scripts/cornfield.gd")
 const HORIZON_HILL_COUNT := 14
 
 
@@ -309,6 +311,7 @@ func _generate_terrain() -> void:
 	lake.add_child(lake_mesh)
 	_spawn_perimeter_fence(map_size, map_center)
 	_spawn_horizon(map_size, map_center, batch2_grass_tex)
+	_spawn_cornfield(map_size, map_center)
 	_spawn_camp_gate(map_size, map_center)
 
 	_scatter_ground_litter()
@@ -345,6 +348,16 @@ func _spawn_camp_gate(map_size: Vector2, map_center: Vector3) -> void:
 	_terrain_root.add_child(gate)
 	var fence_z: float = map_center.z - map_size.y * 0.5 + 0.08
 	gate.build(_grid_manager.grid_to_world(gate_tile()), fence_z, _texture_style)
+
+
+## West of the fence: a corn field with a scarecrow, a power line behind it.
+func _spawn_cornfield(map_size: Vector2, map_center: Vector3) -> void:
+	var west := map_center.x - map_size.x * 0.5
+	var field := Rect2(west - 3.0 - CORN_DEPTH, map_center.z - map_size.y * 0.5 - 8.0, CORN_DEPTH, map_size.y + 16.0)
+	var corn := CORNFIELD_SCRIPT.new()
+	corn.name = "CornField"
+	_terrain_root.add_child(corn)
+	corn.build(field, west - CORN_DEPTH - 10.0, Vector2(map_center.z - map_size.y * 0.5 - 90.0, map_center.z + map_size.y * 0.5 + 90.0), _rng)
 
 
 func _on_gate_road(p: Vector3, map_size: Vector2, map_center: Vector3) -> bool:
@@ -769,6 +782,10 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 			continue
 		# And off the gate road (it runs south from the gate with a slight bend east).
 		if _on_gate_road(p, map_size, map_center):
+			continue
+		# And out of the corn field and the power line west of the fence.
+		var west := map_center.x - map_size.x * 0.5
+		if p.x < west - 2.0 and p.x > west - CORN_DEPTH - 14.0 and absf(p.z - map_center.z) < map_size.y * 0.5 + 40.0:
 			continue
 		var sc := _rng.randf_range(0.9, 1.7) * (1.0 + (dist - half) / (half * 4.0))
 		var b := Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc, sc * _rng.randf_range(0.9, 1.25), sc))

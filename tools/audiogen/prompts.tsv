@@ -33,3 +33,5 @@ bld_bulldoze	2.0	assets/sfx/builder/bulldoze.mp3	A small pine tree being chopped
 bld_path	1.0	assets/sfx/builder/path.mp3	A shovel scraping and tipping a load of gravel onto a path, short crunchy pour of small stones. Close, dry, no music.
 bld_lamp	1.0	assets/sfx/builder/lamp.mp3	A metal lamp post being set into place: a ringing metallic clank and a small electrical buzz as the bulb comes on. Close, no music.
 bld_money	1.0	assets/sfx/builder/money.mp3	An old mechanical cash register: a short drawer ring and a coin clink. Close, dry, no music.
+pylon_hum	8.0	assets/sfx/world/pylon_hum.mp3	The steady electrical hum and faint crackle of high-voltage power lines on steel pylons heard from below in an empty field at night, a low 50 Hz drone with a slight buzzing overtone, occasional tiny sizzle, no wind, no music. Seamless loop.
+corn_rustle	6.0	assets/sfx/world/corn_rustle.mp3	Dry corn field leaves rustling in a light wind at night, close, a few stalks knocking together, no music. Seamless loop.

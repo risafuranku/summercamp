@@ -24,7 +24,7 @@
 - [x] P16 Remove the hold-S look-back at the PC
 - [x] P17 Hold TAB: paper map of the camp (no player dot) with tasks, broken things, room states at a glance
 - [x] P18 Trees and leaves sway in the wind; bare trunks too in a gale
-- [ ] P19 Corn field with a scarecrow and a power line (humming steel pylons, faint red lights at night) on one map edge
+- [x] P19 Corn field with a scarecrow and a power line (humming steel pylons, faint red lights at night) on one map edge
 - [x] P20 Storm: wind effects, rain blowing sideways, trees moving
 - [x] P21 No bloom indoors (the PC screen glows white, mail unreadable)
 - [x] P22 Leave an interior with S or by clicking the door behind you
