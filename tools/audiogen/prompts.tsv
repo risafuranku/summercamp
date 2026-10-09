@@ -27,3 +27,9 @@ os_ding	1.0	assets/sfx/os98/ding.mp3	A short error ding notification sound of an
 os_mail	1.5	assets/sfx/os98/mail.mp3	A short friendly two-note new mail notification chime from an old 1990s email program through a small cheap PC speaker. No music.
 os_shutdown	3.0	assets/sfx/os98/shutdown.mp3	A short descending synthesizer shutdown chime of an old 1990s office computer, soft and a little melancholic, through a cheap small PC speaker, then the faint whine of a CRT monitor fading. No vocals.
 os_modem	9.0	assets/sfx/os98/modem.mp3	A 1990s 33.6k dial-up modem connecting through a small speaker: dial tone, touch-tone dialing, ringing, then the screeching handshake of carrier tones, hisses and warbling static, ending abruptly in silence. No music.
+bld_place	1.5	assets/sfx/builder/place.mp3	A small wooden structure being set down on forest ground in a toy-like construction game: a hollow wooden thunk, two quick hammer taps and a tiny creak. Close, dry, no music.
+bld_tent	1.5	assets/sfx/builder/tent.mp3	A canvas camping tent being pitched quickly: fabric flapping once, a tent peg knocked into soil with two mallet taps. Close, outdoors, no music.
+bld_bulldoze	2.0	assets/sfx/builder/bulldoze.mp3	A small pine tree being chopped and pushed over in a construction game: a crunch of wood, branches rustling as it falls, a soft thud on the ground. Close, no music.
+bld_path	1.0	assets/sfx/builder/path.mp3	A shovel scraping and tipping a load of gravel onto a path, short crunchy pour of small stones. Close, dry, no music.
+bld_lamp	1.0	assets/sfx/builder/lamp.mp3	A metal lamp post being set into place: a ringing metallic clank and a small electrical buzz as the bulb comes on. Close, no music.
+bld_money	1.0	assets/sfx/builder/money.mp3	An old mechanical cash register: a short drawer ring and a coin clink. Close, dry, no music.

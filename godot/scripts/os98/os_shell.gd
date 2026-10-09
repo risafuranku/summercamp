@@ -267,10 +267,12 @@ func _open_builder_app() -> void:
 
 # ── services for the apps ─────────────────────────────────────────────────────
 
+## main.gd: billing, upkeep and the clock. (The interior proxies some of these, so the
+## clock is what tells main apart.)
 func main_node() -> Node:
 	var cur: Node = _host
 	while cur != null:
-		if cur.has_method("get_electricity_ui_snapshot"):
+		if cur.has_method("_time_of_day_string") and cur.has_method("get_electricity_ui_snapshot"):
 			return cur
 		cur = cur.get_parent()
 	return get_tree().current_scene if get_tree() != null else null
@@ -537,6 +539,14 @@ func open_app(app_id: String, args: Dictionary = {}, new_instance := false) -> C
 	_activate(win)
 	play("click", -8.0)
 	return win
+
+
+## The program running in the first window of that kind (tools, shot driver).
+func app_of(app_id: String) -> Control:
+	for w in _windows.get_children():
+		if w.app_id == app_id and not w.is_queued_for_deletion() and w.content.get_child_count() > 0:
+			return w.content.get_child(0)
+	return null
 
 
 func close_app_window(win: Control) -> void:

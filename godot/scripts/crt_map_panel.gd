@@ -3,14 +3,28 @@ extends Control
 signal status_changed(text: String, kind: int)
 signal tool_canceled
 signal submenu_close_requested
+## What is under the cursor, for the status bar ("12:7  Tent").
+signal hover_info(text: String)
+
+const T = preload("res://scripts/os98/os_theme.gd")
+const SFX_DIR := "res://assets/sfx/builder/"
 
 ## Status severity, consumed by builder_module for colour + audio feedback.
 const STATUS_INFO := 0
 const STATUS_GOOD := 1
 const STATUS_DENY := 2
 
-const BG_COLOR := Color(0.09, 0.09, 0.08, 1.0)
-const GRID_LINE := Color(0.20, 0.20, 0.18, 0.95)
+const BG_COLOR := Color(0.03, 0.05, 0.04, 1.0)
+const GRID_LINE := Color(0.0, 0.0, 0.0, 0.22)
+## Forest floor: moss and needles, varied per tile so the map is not a chessboard.
+const GROUND_A := Color(0.25, 0.33, 0.17)
+const GROUND_B := Color(0.31, 0.31, 0.18)
+const WATER := Color(0.13, 0.27, 0.36)
+const DIRT := Color(0.44, 0.37, 0.25)
+const EDGE_LEFT := Color(0.30, 0.22, 0.14)
+const EDGE_RIGHT := Color(0.22, 0.16, 0.10)
+## Buildings that smoke (fire or chimney).
+const SMOKERS := {"bonfire": 1.0, "pub": 0.6, "pub_2": 0.6, "restaurant": 0.6, "cabin_2": 0.35, "cabin_3": 0.35}
 const HOVER_FILL := Color(0.34, 0.64, 0.94, 0.22)
 const HOVER_LINE := Color(0.72, 0.88, 1.0, 0.96)
 const GHOST_OK_FILL := Color(0.20, 0.58, 0.96, 0.28)
@@ -42,6 +56,17 @@ const ICON_PATHS := {
 	"path": "res://assets/textury/builder/parking.PNG",
 	"lamp_post": "res://assets/textury/builder/gen.PNG",
 	"tree": "res://assets/textury/builder/strom.png",
+	"tent_2": "res://assets/textury/builder/stan2.png",
+	"tent_3": "res://assets/textury/builder/stan3.png",
+	"cabin_2": "res://assets/textury/builder/chata2.PNG",
+	"cabin_3": "res://assets/textury/builder/chata3.PNG",
+	"pub_2": "res://assets/textury/builder/hospoda2.png",
+	"caravan_1": "res://assets/textury/builder/iso_caravan.png",
+	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
+	"sports_field": "res://assets/textury/builder/iso_sports.png",
+	"lake_slide": "res://assets/textury/builder/iso_slide.png",
+	"vecerka_iso": "res://assets/textury/builder/iso_jednota.png",
+	"lamp_iso": "res://assets/textury/builder/iso_lamp.png",
 }
 
 const ICON_NO_MIRROR := {
@@ -49,6 +74,8 @@ const ICON_NO_MIRROR := {
 	"tree": true,
 	"path": true,
 	"lamp_post": true,
+	"lamp_iso": true,
+	"sports_field": true,
 }
 
 var grid_manager
@@ -105,6 +132,14 @@ var _pending_demolish_rect: Rect2i = Rect2i(Vector2i.ZERO, Vector2i.ZERO)
 var _icon_cache: Dictionary = {}
 var _economy_manager: Node = null
 var _last_status: String = ""
+
+# Feedback and life on the map.
+var _time := 0.0
+var _fx: Array = []            # {kind, cell: Vector2, t, life, text, color}
+var _dropped: Dictionary = {}  # structure origin -> time placed (it drops in)
+var _last_hover := Vector2i(-2, -2)
+var _sfx_players: Array = []
+var _night := 0.0              # 0 day .. 1 deep night, for the tint and the lamps
 
 
 func _ready() -> void:
@@ -163,12 +198,21 @@ func _process(delta: float) -> void:
 	_update_keyboard_pan(delta)
 	if not is_visible_in_tree():
 		return
+	_time += delta
+	for i in range(_fx.size() - 1, -1, -1):
+		_fx[i]["t"] = float(_fx[i]["t"]) + delta
+		if float(_fx[i]["t"]) >= float(_fx[i]["life"]):
+			_fx.remove_at(i)
+	_night = _night_amount()
 	_update_guests(delta)
 	var local = get_local_mouse_position()
 	if local.x >= 0.0 and local.y >= 0.0 and local.x <= size.x and local.y <= size.y:
 		hover_coord = _local_to_grid(local)
 	elif not _path_drag_active and not _demolish_drag_active:
 		hover_coord = Vector2i(-1, -1)
+	if hover_coord != _last_hover:
+		_last_hover = hover_coord
+		hover_info.emit(_describe(hover_coord))
 	queue_redraw()
 
 
@@ -300,25 +344,18 @@ func _handle_structure_press(local_pos: Vector2) -> void:
 			_emit_status("Placement canceled.")
 		return
 
+	# One click builds, as in every tycoon game since 1994; the preview under the
+	# cursor already says where, which way and whether it fits.
 	var footprint = _get_footprint(selected_building)
-	if _ghost_locked and coord != _ghost_coord:
-		_ghost_locked = false
-		_emit_status("Placement canceled.")
-		return
-
 	if not _can_place(coord, footprint, selected_building):
-		_ghost_locked = false
-		_emit_status("Cannot place %s here." % _display_name(selected_building), STATUS_DENY)
+		_emit_status("%s does not fit here." % _display_name(selected_building), STATUS_DENY)
+		_deny_fx(coord, "Blocked")
 		return
-
-	if not _ghost_locked:
-		_ghost_locked = true
-		_ghost_coord = coord
-		_emit_status("Ghost fixed at [%d,%d]. Click again to confirm." % [coord.x, coord.y])
+	if not _has_money(selected_building):
+		_emit_status("Not enough money: %s costs $%d." % [_display_name(selected_building), _get_cost(selected_building)], STATUS_DENY)
+		_deny_fx(coord, "$%d" % _get_cost(selected_building))
 		return
-
-	_send_build_request(selected_building, _ghost_coord, _rotation_steps)
-	_ghost_locked = false
+	_send_build_request(selected_building, coord, _rotation_steps)
 
 
 func _begin_path_drag(local_pos: Vector2) -> void:
@@ -491,12 +528,28 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 		_pending_build_wait = false
 		_pending_build_type = ""
 		_pending_build_coord = Vector2i(-1, -1)
+	var fp := _get_footprint(building_type)
+	var mid := Vector2(pos) + Vector2(fp - Vector2i.ONE) * 0.5
+	var cost := _get_cost(building_type)
 	if building_type == "path":
 		# Keep drag status calm while drawing roads.
 		if not _path_drag_active:
 			_emit_status("Path built at [%d,%d]." % [pos.x, pos.y], STATUS_GOOD)
+		_add_fx("dust", mid, 0.45)
+		_play("path", -14.0)
 	else:
 		_emit_status("Built: %s" % _display_name(building_type), STATUS_GOOD)
+		_dropped[pos] = _time
+		for k in 5:
+			_add_fx("dust", mid + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 0.7)
+		var snd := "place"
+		if building_type.begins_with("tent"):
+			snd = "tent"
+		elif building_type == "lamp_post":
+			snd = "lamp"
+		_play(snd, -6.0)
+	if cost > 0:
+		_add_fx("pop", mid, 1.3, "-$%d" % cost, Color8(255, 220, 80))
 	queue_redraw()
 
 
@@ -506,6 +559,7 @@ func _on_build_rejected(building_type: String, pos: Vector2i, rot: int, reason: 
 		_pending_build_type = ""
 		_pending_build_coord = Vector2i(-1, -1)
 	_emit_status("Build rejected: %s" % _reason_text(reason), STATUS_DENY)
+	_deny_fx(pos, "No")
 	queue_redraw()
 
 
@@ -513,7 +567,19 @@ func _on_demolish_confirmed(area: Rect2i, removed_count: int, fee_paid: int, ref
 	if _pending_demolish_wait and _rect_equals(area, _pending_demolish_rect):
 		_pending_demolish_wait = false
 	_demolish_selection_active = false
-	_emit_status("Demolished %d target(s). Refund +$%d, fee -$%d." % [removed_count, refund_total, fee_paid], STATUS_GOOD)
+	_emit_status("Cleared %d. Refund +$%d, bulldozer -$%d." % [removed_count, refund_total, fee_paid], STATUS_GOOD)
+	var n := 0
+	for y in range(area.position.y, area.end.y):
+		for x in range(area.position.x, area.end.x):
+			if n < 12:
+				_add_fx("dust", Vector2(x, y), 0.8)
+				n += 1
+	var mid := Vector2(area.position) + Vector2(area.size - Vector2i.ONE) * 0.5
+	if refund_total > 0:
+		_add_fx("pop", mid + Vector2(0, -0.3), 1.4, "+$%d" % refund_total, Color8(120, 255, 120))
+	if fee_paid > 0:
+		_add_fx("pop", mid, 1.3, "-$%d" % fee_paid, Color8(255, 220, 80))
+	_play("bulldoze", -6.0)
 	queue_redraw()
 
 
@@ -521,6 +587,7 @@ func _on_demolish_rejected(area: Rect2i, reason: String) -> void:
 	if _pending_demolish_wait and _rect_equals(area, _pending_demolish_rect):
 		_pending_demolish_wait = false
 	_emit_status("Demolish rejected: %s" % _reason_text(reason), STATUS_DENY)
+	_deny_fx(area.position, "No")
 	queue_redraw()
 
 
@@ -538,8 +605,10 @@ func _draw() -> void:
 	var origin: Vector2 = iso.origin
 
 	draw_rect(Rect2(Vector2.ZERO, size), BG_COLOR, true)
+	var dims := _display_grid_dimensions(grid_w, grid_h)
 
 	var draw_entries: Array = []
+	var lights: Array = []
 	var drawn_roots: Dictionary = {}
 
 	for diagonal in range(grid_w + grid_h):
@@ -552,7 +621,8 @@ func _draw() -> void:
 			if tile == null:
 				continue
 			var center = _grid_to_iso(coord, origin, tile_w, tile_h)
-			_draw_ground_tile(center, tile_w, tile_h, tile)
+			_draw_ground_tile(center, tile_w, tile_h, tile, coord)
+			_draw_map_edge(center, tile_w, tile_h, _rotate_coord_for_display(coord), dims)
 
 			if not tile.occupied or tile.occupant == null:
 				continue
@@ -615,6 +685,14 @@ func _draw() -> void:
 			_draw_guest(entry, tile_h)
 		else:
 			_draw_structure(entry, tile_w, tile_h)
+			var ty := str(entry.get("type", ""))
+			if SMOKERS.has(ty):
+				_draw_smoke(entry["center"], tile_h, float(SMOKERS[ty]), int(entry["origin"].x * 7 + entry["origin"].y * 13))
+			if ty == "lamp_post" or ty == "bonfire":
+				lights.append([entry["center"], ty])
+
+	_draw_night(lights, tile_w, tile_h)
+	_draw_fx(origin, tile_w, tile_h)
 
 	_draw_path_drag_preview(origin, tile_w, tile_h)
 	_draw_ghost_preview(origin, tile_w, tile_h)
@@ -748,16 +826,44 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 		draw_rect(Rect2(p + Vector2(0.5 * u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
 
 
-func _draw_ground_tile(center: Vector2, tile_w: float, tile_h: float, tile) -> void:
-	var fill = Color(0.32, 0.28, 0.22, 1.0)
-	var line = GRID_LINE
+func _draw_ground_tile(center: Vector2, tile_w: float, tile_h: float, tile, coord := Vector2i.ZERO) -> void:
+	var h := _hash01(coord)
+	var fill := GROUND_A.lerp(GROUND_B, h)
+	var line := GRID_LINE
 	if tile.tile_type == grid_manager.TILE_LAKE:
-		fill = Color(0.20, 0.28, 0.34, 1.0)
-		line = Color(0.14, 0.20, 0.24, 1.0)
+		fill = WATER.lightened(h * 0.05)
+		line = Color(0.0, 0.0, 0.0, 0.10)
+		_draw_diamond(center, tile_w, tile_h, fill, line, 1.0)
+		# Light on the water, moving.
+		var ph := _time * 1.3 + h * 6.28
+		var a := 0.18 + 0.14 * sin(ph)
+		var off := Vector2(sin(ph * 0.7) * tile_w * 0.12, cos(ph * 0.5) * tile_h * 0.10)
+		draw_line(center + off - Vector2(tile_w * 0.12, 0), center + off + Vector2(tile_w * 0.12, 0), Color(0.7, 0.85, 1.0, a), 1.0)
+		return
 	elif tile.tile_type == grid_manager.TILE_RESERVED:
-		fill = Color(0.36, 0.34, 0.28, 1.0)
-		line = Color(0.24, 0.24, 0.20, 1.0)
+		fill = DIRT.lerp(DIRT.darkened(0.1), h)
 	_draw_diamond(center, tile_w, tile_h, fill, line, 1.0)
+	# A few darker specks: needles, stones.
+	if tile_w >= 18.0:
+		var sp := Vector2((h - 0.5) * tile_w * 0.4, (_hash01(coord + Vector2i(7, 3)) - 0.5) * tile_h * 0.4)
+		draw_rect(Rect2((center + sp).floor(), Vector2(2, 1)), Color(0, 0, 0, 0.18))
+
+
+## The cut edge of the land along the two front sides of the map, like RCT.
+func _draw_map_edge(center: Vector2, tile_w: float, tile_h: float, d: Vector2i, dims: Vector2i) -> void:
+	var depth := tile_h * 0.9
+	var bottom := center + Vector2(0, tile_h * 0.5)
+	if d.y == dims.y - 1:
+		var left := center + Vector2(-tile_w * 0.5, 0)
+		draw_colored_polygon(PackedVector2Array([left, bottom, bottom + Vector2(0, depth), left + Vector2(0, depth)]), EDGE_LEFT)
+	if d.x == dims.x - 1:
+		var right := center + Vector2(tile_w * 0.5, 0)
+		draw_colored_polygon(PackedVector2Array([bottom, right, right + Vector2(0, depth), bottom + Vector2(0, depth)]), EDGE_RIGHT)
+
+
+func _hash01(c: Vector2i) -> float:
+	var n := (c.x * 73856093) ^ (c.y * 19349663)
+	return float(absi(n) % 1000) / 1000.0
 
 
 func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
@@ -782,6 +888,17 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 	if icon_key != "":
 		var scale_xy = maxf(1.0, (float(footprint.x) + float(footprint.y)) * 0.5)
 		var draw_size = Vector2(tile_w * scale_xy * 1.24, tile_h * scale_xy * 1.70)
+		# Freshly built: it drops in from above and settles with a little bounce.
+		var origin_c: Vector2i = entry.get("origin", Vector2i.ZERO)
+		if _dropped.has(origin_c):
+			var age := _time - float(_dropped[origin_c])
+			if age > 0.5:
+				_dropped.erase(origin_c)
+			else:
+				var k := clampf(age / 0.35, 0.0, 1.0)
+				center.y -= (1.0 - k) * (1.0 - k) * tile_h * 2.5
+				if k >= 1.0:
+					draw_size.y *= 1.0 - 0.08 * sin((age - 0.35) / 0.15 * PI)
 		if _draw_icon(center, draw_size, icon_key, rotation_steps, Color(1.0, 1.0, 1.0, 0.98)):
 			return
 
@@ -850,6 +967,17 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	if _supports_rotation(selected_building):
 		var dir = _rotation_to_screen_dir(_rotation_steps, tile_w, tile_h)
 		_draw_direction_arrow(center + Vector2(0.0, -tile_h * 0.10), dir, tile_h, Color(0.66, 0.90, 1.0, 0.98))
+	# The price on a little tag, red when it does not fit or you cannot pay.
+	var tag := "$%d" % _get_cost(selected_building)
+	if not can_fit:
+		tag = "Blocked"
+	elif not can_afford:
+		tag = "$%d - no money" % _get_cost(selected_building)
+	var tw := T.FONT.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+	var tp := (center + Vector2(tile_w * 0.45, -tile_h * 1.4)).floor()
+	draw_rect(Rect2(tp, Vector2(tw + 6, 14)), T.TOOLTIP if can_place else Color8(255, 210, 210))
+	draw_rect(Rect2(tp, Vector2(tw + 6, 14)), T.DARK, false, 1.0)
+	draw_string(T.FONT, tp + Vector2(3, 11), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 
 
 func _draw_path_drag_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
@@ -885,31 +1013,31 @@ func _draw_demolish_cells(rect: Rect2i, origin: Vector2, tile_w: float, tile_h: 
 
 
 func _draw_rotation_panel() -> void:
-	var panel_size = Vector2(86.0, 86.0)
-	var panel_pos = Vector2(size.x - panel_size.x - 10.0, 10.0)
+	if selected_building == "" or not _supports_rotation(selected_building):
+		return
+	var panel_size = Vector2(70.0, 76.0)
+	var panel_pos = Vector2(size.x - panel_size.x - 6.0, 6.0)
 	var panel_rect = Rect2(panel_pos, panel_size)
-	draw_rect(panel_rect, Color(0.14, 0.14, 0.12, 0.92), true)
-	draw_rect(panel_rect, Color(0.32, 0.30, 0.24, 1.0), false, 1.0)
+	draw_style_box(T.box("window", T.FACE, Vector4.ZERO), panel_rect)
 
 	var center = panel_rect.position + panel_rect.size * 0.5
 	var active = _rotation_steps
 	var arrows = [
-		{"id": 2, "pos": center + Vector2(0.0, -26.0), "dir": Vector2(0.0, -1.0)},
-		{"id": 1, "pos": center + Vector2(26.0, 0.0), "dir": Vector2(1.0, 0.0)},
-		{"id": 0, "pos": center + Vector2(0.0, 26.0), "dir": Vector2(0.0, 1.0)},
-		{"id": 3, "pos": center + Vector2(-26.0, 0.0), "dir": Vector2(-1.0, 0.0)},
+		{"id": 2, "pos": center + Vector2(0.0, -24.0), "dir": Vector2(0.0, -1.0)},
+		{"id": 1, "pos": center + Vector2(20.0, -6.0), "dir": Vector2(1.0, 0.0)},
+		{"id": 0, "pos": center + Vector2(0.0, 12.0), "dir": Vector2(0.0, 1.0)},
+		{"id": 3, "pos": center + Vector2(-20.0, -6.0), "dir": Vector2(-1.0, 0.0)},
 	]
 	for arrow in arrows:
 		var arrow_id = int(arrow.get("id", -1))
-		var color = Color(0.42, 0.44, 0.40, 1.0)
+		var color = T.SHADOW
 		if arrow_id == active:
-			color = Color(0.52, 0.84, 1.0, 1.0)
+			color = T.NAVY
 		_draw_panel_arrow(arrow.get("pos", center), arrow.get("dir", Vector2.RIGHT), color)
 
 	var label = ROTATION_LABELS[active]
-	var font = get_theme_default_font()
-	if font != null:
-		draw_string(font, panel_rect.position + Vector2(8.0, panel_rect.size.y - 10.0), label, HORIZONTAL_ALIGNMENT_LEFT, panel_rect.size.x - 16.0, 10, Color(0.76, 0.80, 0.74, 0.94))
+	var lw := T.FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+	draw_string(T.FONT, panel_rect.position + Vector2((panel_size.x - lw) * 0.5, panel_size.y - 5.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 
 
 func _draw_panel_arrow(pos: Vector2, direction: Vector2, color: Color) -> void:
@@ -1003,26 +1131,32 @@ func _icon_key_for_type(building_type: String) -> String:
 	match building_type:
 		"main_building":
 			return "main_building"
-		"tent_1", "tent_2", "tent_3":
+		"tent_1":
 			return "tent_1"
-		"cabin", "cabin_1", "cabin_2", "cabin_3":
+		"tent_2", "tent_3", "cabin_2", "cabin_3":
+			return building_type
+		"cabin", "cabin_1":
 			return "cabin_1"
+		"caravan_1", "bonfire", "sports_field", "lake_slide":
+			return building_type
 		"toilet_block":
 			return "toilet_block"
 		"shower_block":
 			return "shower_block"
-		"pub", "pub_2":
+		"pub":
 			return "pub"
+		"pub_2":
+			return "pub_2"
 		"restaurant":
 			return "restaurant"
 		"vecerka":
-			return "vecerka"
+			return "vecerka_iso" if _get_icon("vecerka_iso") != null else "vecerka"
 		"sewer", "water_pump", "sewage_tank":
 			return "sewer"
 		"power_generator":
 			return "power_generator"
 		"lamp_post":
-			return "lamp_post"
+			return "lamp_iso" if _get_icon("lamp_iso") != null else "lamp_post"
 		"path":
 			return "path"
 		_:
@@ -1123,7 +1257,10 @@ func _supports_rotation(building_type: String) -> bool:
 func _display_name(building_type: String) -> String:
 	var econ = _resolve_economy_manager()
 	if econ != null and econ.has_method("get_label"):
-		return str(econ.get_label(building_type))
+		# "Tent Lv1 (1x1)" -> "Tent Lv1": the footprint is the catalogue's business.
+		var label := str(econ.get_label(building_type))
+		var cut := label.find(" (")
+		return label.substr(0, cut) if cut > 0 else label
 	return building_type
 
 
@@ -1363,3 +1500,113 @@ func _rect_contains_coord(rect: Rect2i, coord: Vector2i) -> bool:
 
 func _rect_equals(a: Rect2i, b: Rect2i) -> bool:
 	return a.position == b.position and a.size == b.size
+
+
+
+# ── feedback and life ────────────────────────────────────────────────────────
+
+func _add_fx(kind: String, cell: Vector2, life: float, text := "", color := Color.WHITE) -> void:
+	_fx.append({"kind": kind, "cell": cell, "t": 0.0, "life": life, "text": text, "color": color, "seed": randf()})
+
+
+func _deny_fx(coord: Vector2i, text: String) -> void:
+	if _is_valid_coord(coord):
+		_add_fx("pop", Vector2(coord), 0.9, text, Color8(255, 90, 80))
+
+
+func _draw_fx(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	for f in _fx:
+		var k := float(f["t"]) / float(f["life"])
+		var p := _cell_to_iso_f(f["cell"], origin, tile_w, tile_h)
+		match str(f["kind"]):
+			"dust":
+				var sd := float(f["seed"])
+				for i in 4:
+					var a := sd * TAU + i * 1.7
+					var r := tile_h * (0.15 + k * 0.55)
+					var q := p + Vector2(cos(a) * r * 1.6, sin(a) * r * 0.7 - k * tile_h * 0.4)
+					draw_circle(q, tile_h * (0.14 + k * 0.18), Color(0.62, 0.56, 0.46, 0.55 * (1.0 - k)))
+			"pop":
+				var txt := str(f["text"])
+				var q := (p + Vector2(0, -tile_h * (1.2 + k * 1.6))).floor()
+				var col: Color = f["color"]
+				col.a = 1.0 - maxf(0.0, k - 0.6) / 0.4
+				var w := T.FONT_BOLD.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+				draw_string(T.FONT_BOLD, q + Vector2(-w * 0.5 + 1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color(0, 0, 0, col.a))
+				draw_string(T.FONT_BOLD, q + Vector2(-w * 0.5, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
+
+
+## Grey puffs rising from a fire or a chimney.
+func _draw_smoke(center: Vector2, tile_h: float, strength: float, seed: int) -> void:
+	for i in 4:
+		var ph := fmod(_time * 0.35 + float(i) * 0.25 + float(seed % 17) * 0.06, 1.0)
+		var q := center + Vector2(sin(ph * 5.0 + seed) * tile_h * 0.25 + ph * tile_h * 0.4, -tile_h * (1.0 + ph * 2.4))
+		draw_circle(q, tile_h * (0.10 + ph * 0.22), Color(0.72, 0.72, 0.70, 0.42 * strength * (1.0 - ph)))
+
+
+## Dusk and night: the map darkens, lamps and fires make pools of light.
+func _draw_night(lights: Array, tile_w: float, tile_h: float) -> void:
+	if _night <= 0.01:
+		return
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.03, 0.10, 0.55 * _night))
+	for l in lights:
+		var c: Vector2 = l[0]
+		var fire: bool = l[1] == "bonfire"
+		var col := Color(1.0, 0.55, 0.15) if fire else Color(1.0, 0.86, 0.45)
+		var flick := 1.0 + (0.12 * sin(_time * 11.0 + c.x) if fire else 0.0)
+		for r in 3:
+			var rr := tile_w * (0.9 - r * 0.25) * flick
+			col.a = (0.10 + r * 0.07) * _night
+			draw_set_transform(c, 0.0, Vector2(1.0, 0.5))
+			draw_circle(Vector2.ZERO, rr, col)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		if not fire:
+			draw_circle(c + Vector2(-tile_h * 0.15, -tile_h * 0.65), maxf(1.5, tile_h * 0.12), Color(1.0, 0.95, 0.7, _night))
+
+
+func _night_amount() -> float:
+	var tree := get_tree()
+	var main = tree.current_scene if tree != null else null
+	if main == null or main.get("_time_of_day_hours") == null:
+		return 0.0
+	var h := float(main.get("_time_of_day_hours"))
+	if h >= 7.0 and h <= 18.5:
+		return 0.0
+	if h > 18.5 and h < 21.0:
+		return (h - 18.5) / 2.0 if h < 20.5 else 1.0
+	if h > 5.0 and h < 7.0:
+		return (7.0 - h) / 2.0
+	return 1.0
+
+
+func _play(name: String, db := 0.0) -> void:
+	var path := SFX_DIR + name + ".mp3"
+	if not ResourceLoader.exists(path):
+		return
+	var p := AudioStreamPlayer.new()
+	p.stream = load(path)
+	p.volume_db = db
+	p.pitch_scale = randf_range(0.94, 1.06)
+	add_child(p)
+	p.play()
+	p.finished.connect(p.queue_free)
+
+
+## "12:7  Tent", "4:3  Forest", "20:1  Lake", for the status bar.
+func _describe(coord: Vector2i) -> String:
+	if not _is_valid_coord(coord):
+		return ""
+	var tile = grid_manager.get_tile(coord)
+	var what := "Forest floor"
+	if tile != null:
+		if tile.tile_type == grid_manager.TILE_LAKE:
+			what = "Lake"
+		elif tile.tile_type == grid_manager.TILE_RESERVED:
+			what = "Camp entrance"
+		if tile.occupied and tile.occupant != null:
+			var root = _resolve_occupant_root(tile.occupant)
+			if root != null and root.is_in_group("trees"):
+				what = "Pine tree"
+			elif root != null:
+				what = _display_name(str(root.get_meta("building_type", "")))
+	return "%d:%d  %s" % [coord.x, coord.y, what]
