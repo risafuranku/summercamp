@@ -611,7 +611,7 @@ func _process(delta: float) -> void:
 			_refresh_liminal_debug_window()
 
 	if _hud_manager != null:
-		_hud_manager.set_world_hud_visible(not _is_any_interior_open())
+		_hud_manager.set_world_hud_visible(not _is_any_interior_open(), true)
 	_update_player_control_lock()
 	if not _is_any_interior_open():
 		_sync_active_camera()

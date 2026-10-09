@@ -6,7 +6,7 @@
 
 ## PLAYTEST 2026-10-09 — the user's notes (do these next, tick as you go)
 
-- [ ] P1  Vera's checklist (quest tracker) visible while sitting at the PC
+- [x] P1  Vera's checklist (quest tracker) visible while sitting at the PC
 - [ ] P2  The barrier opens into the ground: fix the pivot/rotation
 - [ ] P3  Manual check-in: guests wait at reception, the player checks them in; nobody walks through the reception walls
 - [ ] P4  Remodel ALL building exteriors and ALL interiors to match the Builder pixel art (keep textures/atmosphere); finish sports field, caravan
@@ -16,19 +16,19 @@
 - [ ] P8  Too easy: two full cabins and nothing happens -> more pressure (needs, complaints, mess, events, nights)
 - [ ] P9  Three more guest archetypes (each with its own night threat)
 - [ ] P10 GuestRack: better visuals
-- [ ] P11 Higher look sensitivity in interiors
+- [x] P11 Higher look sensitivity in interiors
 - [ ] P12 Cleaning variety: sometimes a few items, sometimes many across rooms, mess in different places each time
 - [ ] P13 Shower/toilet maintenance done inside like cleaning, not hold-E outside
 - [ ] P14 Pipe monster: finish the mechanics (risk, logic that makes sense)
 - [ ] P15 Nicer icons in the Builder toolbar
-- [ ] P16 Remove the hold-S look-back at the PC
+- [x] P16 Remove the hold-S look-back at the PC
 - [ ] P17 Hold TAB: paper map of the camp (no player dot) with tasks, broken things, room states at a glance
 - [ ] P18 Trees and leaves sway in the wind; bare trunks too in a gale
 - [ ] P19 Corn field with a scarecrow and a power line (humming steel pylons, faint red lights at night) on one map edge
 - [ ] P20 Storm: wind effects, rain blowing sideways, trees moving
-- [ ] P21 No bloom indoors (the PC screen glows white, mail unreadable)
-- [ ] P22 Leave an interior with S or by clicking the door behind you
-- [ ] P23 No popup after accepting a booking
+- [x] P21 No bloom indoors (the PC screen glows white, mail unreadable)
+- [x] P22 Leave an interior with S or by clicking the door behind you
+- [x] P23 No popup after accepting a booking
 - [ ] P24 Reception lighting changes smoothly; a real view out of the window, visible from the PC
 - [ ] P25 Breaker minigame polish
 

@@ -53,6 +53,7 @@ var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Standing inside the door of the cabin: most of the room, never the door behind you.
 var _look = INTERIOR_LOOK.new(72.0, 20.0, 30.0)
+var _exit_hint: Control
 var _level2_nodes: Array[String] = ["WallLamp", "StorageChest"]
 var _level3_nodes: Array[String] = ["MiniFridge", "Rug", "WallShelf", "GuestTVTableBase", "GuestTVTableTop", "GuestTVBody", "GuestTVScreen", "GuestTVAntennaL", "GuestTVAntennaR", "WallPictureLv3"]
 var _texture_style
@@ -154,6 +155,9 @@ func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
 	_apply_idle_mouse_look(delta)
+	if _exit_hint == null:
+		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
+	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
@@ -165,6 +169,10 @@ func _input(event: InputEvent) -> void:
 	if not _is_open:
 		return
 	if event.is_action_pressed("ui_cancel"):
+		close_cabin()
+		get_viewport().set_input_as_handled()
+		return
+	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
 		close_cabin()
 		get_viewport().set_input_as_handled()
 		return

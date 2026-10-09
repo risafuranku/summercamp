@@ -115,6 +115,7 @@ var _crt_glow_sample_timer: float = 0.0
 
 # CRT 3D State
 var _crt_viewport: SubViewport
+var _exit_hint: Control
 var _crt_ui: Control
 var _crt_active: bool = false
 var _camera_tween: Tween
@@ -349,6 +350,9 @@ func _process(delta: float) -> void:
 	if _is_camera_tween_running():
 		return
 	_apply_idle_mouse_look(delta)
+	if _exit_hint == null:
+		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
+	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, not _crt_active)
 
 
 func _is_camera_tween_running() -> bool:
@@ -374,7 +378,7 @@ func _update_crt_look_back_hold(delta: float) -> void:
 	if not _crt_active:
 		_reset_crt_look_back_state()
 		return
-	var look_back_pressed := _is_crt_look_back_pressed_now() and not _is_crt_text_input_focused()
+	var look_back_pressed := false
 	if not look_back_pressed:
 		_crt_look_back_armed = false
 		_crt_look_back_hold_time = 0.0
@@ -396,23 +400,9 @@ func _update_crt_look_back_hold(delta: float) -> void:
 	_enter_crt_look_back()
 
 
-func _handle_crt_look_back_key(event: InputEventKey) -> bool:
-	if not _is_crt_look_back_key_event(event):
-		return false
-	# Typing an S into the address bar is typing, not turning round.
-	if _is_crt_text_input_focused():
-		return false
-	if event.echo:
-		return true
-	if event.pressed:
-		_crt_look_back_armed = true
-		_crt_look_back_hold_time = 0.0
-		return true
-	_crt_look_back_armed = false
-	_crt_look_back_hold_time = 0.0
-	if _crt_look_back_active:
-		_exit_crt_look_back()
-	return true
+func _handle_crt_look_back_key(_event: InputEventKey) -> bool:
+	# Turning round at the PC by holding S is gone (playtest): S is just a letter there.
+	return false
 
 
 func _is_crt_look_back_pressed_now() -> bool:
@@ -804,10 +794,11 @@ func _build_room() -> void:
 	var scr_mat = StandardMaterial3D.new()
 	if _crt_viewport:
 		var tex = _crt_viewport.get_texture()
+		# Unshaded: the picture is what the computer draws, not lit (and burnt white)
+		# by the room. Readable mail beats a glowing screen.
 		scr_mat.albedo_texture = tex
-		scr_mat.emission_enabled = true
-		scr_mat.emission_texture = tex
-		scr_mat.emission_energy_multiplier = 0.88
+		scr_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		scr_mat.albedo_color = Color(0.94, 0.94, 0.92)
 	else:
 		scr_mat.albedo_color = Color(0.08, 0.10, 0.13)
 		scr_mat.emission_enabled = true
@@ -1181,6 +1172,11 @@ func _input(event: InputEvent) -> void:
 			_crt_viewport.push_input(key_event, true)
 			get_viewport().set_input_as_handled()
 			return
+
+	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
+		close_interior()
+		get_viewport().set_input_as_handled()
+		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.physical_keycode == KEY_L:

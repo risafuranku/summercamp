@@ -48,6 +48,7 @@ var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Kneeling in a two-man tent: you can turn to the walls, not past them.
 var _look = INTERIOR_LOOK.new(48.0, 16.0, 30.0)
+var _exit_hint: Control
 
 # Screen-space zones for click detection.
 var _catalog_mesh: MeshInstance3D
@@ -148,6 +149,9 @@ func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
 	_apply_idle_mouse_look(delta)
+	if _exit_hint == null:
+		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
+	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
@@ -159,6 +163,10 @@ func _input(event: InputEvent) -> void:
 	if not _is_open:
 		return
 	if event.is_action_pressed("ui_cancel"):
+		close_tent()
+		get_viewport().set_input_as_handled()
+		return
+	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
 		close_tent()
 		get_viewport().set_input_as_handled()
 		return

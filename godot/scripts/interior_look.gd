@@ -10,12 +10,12 @@ extends RefCounted
 ## turn slows down before it stops.
 
 ## Outer share of the screen width/height that turns the head.
-const EDGE_BAND := 0.16
-const MAX_YAW_SPEED_DEG := 85.0
-const MAX_PITCH_SPEED_DEG := 50.0
-const KEY_YAW_SPEED_DEG := 70.0
+const EDGE_BAND := 0.20
+const MAX_YAW_SPEED_DEG := 150.0
+const MAX_PITCH_SPEED_DEG := 90.0
+const KEY_YAW_SPEED_DEG := 120.0
 ## How quickly the turn speed follows the cursor (higher = snappier).
-const RESPONSE := 7.0
+const RESPONSE := 10.0
 ## Small sway with the cursor anywhere on screen, like the old static views.
 const SWAY_YAW_DEG := 2.4
 const SWAY_PITCH_DEG := 1.6
@@ -139,3 +139,59 @@ static func screen_rect_of(camera: Camera3D, render_size: Vector2, mesh: MeshIns
 		lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
 		hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
 	return Rect2(lo, hi - lo)
+
+
+# ── leaving: S, or the door behind you (the bottom edge of the screen) ─────────
+
+## Bottom share of the screen where the door behind you is "under" the cursor.
+const EXIT_BAND := 0.07
+
+
+static func in_exit_zone(viewport: Viewport) -> bool:
+	var c := cursor_of(viewport)
+	return c.y >= 1.0 - EXIT_BAND
+
+
+static func is_exit_event(event: InputEvent, viewport: Viewport) -> bool:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_S:
+		return true
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		return in_exit_zone(viewport)
+	return false
+
+
+## A dark band along the bottom with "Leave", shown when the cursor reaches it.
+static func make_exit_hint(layer: CanvasLayer) -> Control:
+	var hint := Control.new()
+	hint.name = "ExitHint"
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hint.modulate.a = 0.0
+	hint.draw.connect(func():
+		var s := hint.size
+		var h := s.y * EXIT_BAND
+		for i in 8:
+			hint.draw_rect(Rect2(0, s.y - h * (1.0 - i / 8.0), s.x, h / 8.0), Color(0, 0, 0, 0.08 + i * 0.06))
+		var font := hint.get_theme_default_font()
+		var fs := int(maxf(14.0, s.y * 0.026))
+		var text := "Turn round and leave   [S]"
+		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var y := s.y - h * 0.35
+		# A small arrow pointing back over your shoulder.
+		var ax := s.x * 0.5 - w * 0.5 - fs * 1.4
+		hint.draw_colored_polygon(PackedVector2Array([Vector2(ax, y - fs * 0.6), Vector2(ax + fs, y - fs * 0.6), Vector2(ax + fs * 0.5, y)]), Color(0.95, 0.88, 0.62))
+		hint.draw_string(font, Vector2(s.x * 0.5 - w * 0.5 + 2, y + 2), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8))
+		hint.draw_string(font, Vector2(s.x * 0.5 - w * 0.5, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.95, 0.88, 0.62))
+	)
+	layer.add_child(hint)
+	return hint
+
+
+static func update_exit_hint(hint: Control, viewport: Viewport, delta: float, allowed := true) -> void:
+	if hint == null:
+		return
+	var target := 1.0 if allowed and in_exit_zone(viewport) else 0.0
+	hint.modulate.a = move_toward(hint.modulate.a, target, delta * 5.0)
+	hint.move_to_front()
+	if hint.modulate.a > 0.0:
+		hint.queue_redraw()

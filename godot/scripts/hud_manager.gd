@@ -28,6 +28,9 @@ const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 
 const HUD_LAYER_INDEX := 65
 const HINT_LAYER_INDEX := 70
+## The right column (checklist, arrivals, night jobs): above the interiors (80-85),
+## so it is there at the PC and in the rooms too.
+const SIDE_LAYER_INDEX := 90
 
 # Message kinds (push_status).
 const STATUS_INFO := 0
@@ -115,6 +118,8 @@ var _risk_level: Label
 var _feed_box: VBoxContainer
 var _objective_panel: Control
 var _arrivals_panel: Control
+var _side_layer: CanvasLayer
+var _side_root: Control
 var _arrivals_box: VBoxContainer
 var _arrivals: Array = []
 var _jobs_panel: Control
@@ -233,8 +238,11 @@ func on_money_changed(new_amount: int) -> void:
 	_apply_money(new_amount)
 
 
-func set_world_hud_visible(visible: bool) -> void:
+## `side`: the checklist column; it stays up in interiors (pass true there).
+func set_world_hud_visible(visible: bool, side := visible) -> void:
 	_world_visible = visible
+	if _side_layer != null:
+		_side_layer.visible = side
 	if _layer != null:
 		_layer.visible = visible
 	if _hint_layer != null:
@@ -452,6 +460,15 @@ func _ensure_world_hud() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_layer.add_child(_root)
 
+	_side_layer = CanvasLayer.new()
+	_side_layer.name = "SideColumnLayer"
+	_side_layer.layer = SIDE_LAYER_INDEX
+	add_child(_side_layer)
+	_side_root = Control.new()
+	_side_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_side_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_side_layer.add_child(_side_root)
+
 	_hint_layer = CanvasLayer.new()
 	_hint_layer.name = "InteractionHintLayer"
 	_hint_layer.layer = HINT_LAYER_INDEX
@@ -478,6 +495,9 @@ func _rebuild_layout() -> void:
 		child.queue_free()
 	for child in _hint_root.get_children():
 		_hint_root.remove_child(child)
+		child.queue_free()
+	for child in _side_root.get_children():
+		_side_root.remove_child(child)
 		child.queue_free()
 	_cells.clear()
 	_risk_pips.clear()
@@ -684,7 +704,7 @@ func _build_objective() -> void:
 	panel.offset_right = -_vp(4)
 	panel.offset_left = -_vp(4 + TRACKER_WIDTH_VP)
 	panel.offset_top = _vp(4)
-	_root.add_child(panel)
+	_side_root.add_child(panel)
 	_objective_panel = panel
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", int(_vp(2)))
@@ -715,7 +735,7 @@ func _build_arrivals() -> void:
 	panel.offset_left = -_vp(4 + TRACKER_WIDTH_VP)
 	panel.offset_top = _vp(4)
 	panel.visible = false
-	_root.add_child(panel)
+	_side_root.add_child(panel)
 	_arrivals_panel = panel
 	_arrivals_box = VBoxContainer.new()
 	_arrivals_box.add_theme_constant_override("separation", int(_vp(2)))
@@ -733,7 +753,7 @@ func _build_jobs() -> void:
 	panel.offset_left = -_vp(4 + TRACKER_WIDTH_VP)
 	panel.offset_top = _vp(4)
 	panel.visible = false
-	_root.add_child(panel)
+	_side_root.add_child(panel)
 	_jobs_panel = panel
 	_jobs_box = VBoxContainer.new()
 	_jobs_box.add_theme_constant_override("separation", int(_vp(2)))

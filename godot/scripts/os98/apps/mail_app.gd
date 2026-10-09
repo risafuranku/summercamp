@@ -188,16 +188,12 @@ func _on_accept() -> void:
 		_shell.message_box("CampMail", "The booking could not be accepted.\nThere are not enough free beds.", "error")
 		return
 	_shell.play("click")
-	var note := "Accepted."
+	refresh()
+	# No popup (playtest): the arrival shows in the HUD and in GuestRack. A line here.
 	for row in GuestManager.get_arrivals():
 		if str(row.get("name", "")) == name:
 			var mins := int(row.get("minutes", 60))
-			var rooms: Array = []
-			for r in row.get("rooms", []):
-				rooms.append(str(r.get("label", "")))
-			note = "Accepted. %s arrives in about %d:%02d.\n\nMake up %s before they reach the barrier:\nthey will wait there, and not for ever." % [name, mins / 60, mins % 60, ", ".join(rooms) if not rooms.is_empty() else "the room"]
-	_shell.message_box("CampMail", note, "info")
-	refresh()
+			_status.text = "Accepted. %s arrives in about %d:%02d - make up the room." % [name, mins / 60, mins % 60]
 	_show_message(_current)
 
 

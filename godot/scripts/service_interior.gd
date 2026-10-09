@@ -46,6 +46,7 @@ var _cam_base_rot: Vector3 = Vector3.ZERO
 var _sewer_hint: Label3D
 var _sewer_broken: bool = false
 var _look = INTERIOR_LOOK.new(65.0, 20.0, 30.0)
+var _exit_hint: Control
 var _texture_style
 var _restaurant_dining_root: Node3D
 var _restaurant_kitchen_root: Node3D
@@ -158,6 +159,9 @@ func _process(delta: float) -> void:
 		return
 	_update_basement_machine_animation(delta)
 	_apply_idle_mouse_look(delta)
+	if _exit_hint == null:
+		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
+	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
@@ -169,6 +173,10 @@ func _input(event: InputEvent) -> void:
 	if not _is_open:
 		return
 	if event.is_action_pressed("ui_cancel"):
+		close_service()
+		get_viewport().set_input_as_handled()
+		return
+	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
 		close_service()
 		get_viewport().set_input_as_handled()
 		return

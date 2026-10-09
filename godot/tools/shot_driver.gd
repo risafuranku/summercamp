@@ -300,7 +300,7 @@ const SCENARIOS := {
 	"prepcabin": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5], ["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5], ["gm", "get_room_state", "17:4"],
-		["open_room", 17, 4], ["wait", 1.2], ["shot", "q0_cabin_messy"],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8], ["open_room", 17, 4], ["wait", 1.2], ["shot", "q0_cabin_messy"],
 		["aim_task", "_cabin_interior", "bed"], ["wait", 0.4], ["shot", "q1_hover_bed"],
 		["lmb", true], ["wait", 2.4], ["lmb", false], ["wait", 0.4],
 		["aim_task", "_cabin_interior", "floor"], ["wait", 0.3], ["shot", "q2_hover_bottles"], ["lmb", true], ["wait", 1.8], ["lmb", false], ["wait", 0.4], ["shot", "q3_main_done"],
