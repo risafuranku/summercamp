@@ -11,9 +11,17 @@ extends CanvasLayer
 ## at some junctions only; between them you count turns, or recognise a landmark.
 ## At the leak, hold E to clamp it; then find your way back to the ladder and press E.
 ##
-## Something lives down here (from day 3, or at night): it moves one junction at a
-## time toward you, it is held back while your light is on it, and you hear it long
-## before you see it.
+## Something lives down here (from day 2, faster at night). The rules, which the old
+## worker's note on the map spells out:
+##   - It is blind. It hunts by sound: every step you take clanks in the pipe, and the
+##     clamp clanks louder. It goes to where it last heard you. Stand still and it
+##     wanders.
+##   - It hates light. Keep the torch on it down a straight pipe and it stops; hold
+##     the light on it and it backs off a junction.
+##   - You hear it before you see it: gurgling far off, breathing when it is one
+##     junction away.
+##   - If it reaches you it drags you back through the dark to the ladder (and hurts):
+##     a half-done clamp slips off. The job is not lost, the time is.
 
 signal repair_completed(coord: Vector2i, building_type: String)
 signal repair_cancelled
@@ -42,7 +50,13 @@ const EYE_Y := 0.78
 const MOVE_SECONDS := 0.6
 const CLAMP_SECONDS := 2.6
 const THING_STEP := Vector2(5.5, 8.5)
-const THING_DAMAGE := 25
+const THING_DAMAGE := 30
+## Seconds between its moves: hunting a sound, wandering; at night it is quicker.
+const THING_HUNT_SEC := 3.2
+const THING_WANDER_SEC := 7.5
+const THING_NIGHT_MULT := 0.7
+## Light held on it this long and it retreats a junction.
+const THING_LIGHT_SEC := 1.6
 
 const DIRS := [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]  # N E S W
 const DIR_YAW := [0.0, -PI * 0.5, PI, PI * 0.5]
@@ -82,6 +96,11 @@ var _thing_node: Vector2i
 var _thing_next: float = 0.0
 var _thing_t: float = 0.0
 var _thing: Sprite3D
+var _noise_at := Vector2i(-1, -1)   # where it last heard you
+var _lit_t := 0.0
+var _night := false
+var _breath: AudioStreamPlayer
+var _warned := 0
 
 # scene
 var _root: Control
@@ -134,7 +153,11 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	_clamp = 0.0
 	_map_open = false
 	var day := int(state.day) if state != null else 1
-	_thing_on = day >= 3 or (CoreRoot != null and CoreRoot.is_night())
+	_night = CoreRoot != null and CoreRoot.is_night()
+	_thing_on = day >= 2 or _night
+	_noise_at = Vector2i(-1, -1)
+	_lit_t = 0.0
+	_warned = 0
 	_place_thing_far()
 	_active = true
 	visible = true
@@ -156,6 +179,8 @@ func close_repair(cancelled: bool = true) -> void:
 			a.stop()
 	if _leak_audio != null:
 		_leak_audio.stop()
+	if _breath != null:
+		_breath.stop()
 	if cancelled:
 		repair_cancelled.emit()
 
@@ -662,7 +687,7 @@ func _draw_map() -> void:
 			continue
 		var mp: Vector2 = (to_px.call(lm["a"]) + to_px.call(lm["b"])) * 0.5
 		_ink.draw_string(font, mp + Vector2(-2.0, 10.0) * s, str(LANDMARK_MAP_GLYPH[lm["kind"]]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.25, 0.22, 0.2, 0.9))
-	_ink.draw_string(font, r.position + Vector2(margin.x, h - margin.y * 0.35), "leak past the bucket. dont stay long. - P.", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.2, 0.18, 0.3, 0.8))
+	_ink.draw_string(font, r.position + Vector2(margin.x, h - margin.y * 0.35), "it cant see. it hears boots + the clamp. stand still, keep the light on it. - P.", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.2, 0.18, 0.3, 0.8))
 
 
 # ── play ──────────────────────────────────────────────────────────────────────
@@ -720,6 +745,8 @@ func _try_move(d: int) -> void:
 	_move_target_node = nxt
 	_move_t = 0.0
 	_moving = true
+	# Boots on concrete: it hears every step.
+	_noise_at = _node
 
 
 func _process(delta: float) -> void:
@@ -765,6 +792,7 @@ func _update_clamp(delta: float) -> void:
 		_clamp += delta / CLAMP_SECONDS
 		if int(_clamp * 8.0) != int((_clamp - delta / CLAMP_SECONDS) * 8.0):
 			_clank()
+			_noise_at = _node
 		_set_status("Clamping... %d%%" % int(clampf(_clamp, 0.0, 1.0) * 100.0))
 		if _clamp >= 1.0:
 			_fixed = true
@@ -825,24 +853,97 @@ func _update_thing(delta: float) -> void:
 	if not _thing_on:
 		return
 	_thing.position = _world_pos(_thing_node) + Vector3(0, -0.15, 0)
-	_thing_t += delta
-	# Held back while the light is on it down a straight pipe.
+	_update_breath()
+	# The torch on it down a straight pipe: it stops, and if you hold it, it backs off.
 	var lit := _flashlight.visible and _thing_in_line_of_sight()
 	if lit:
-		_thing_next += delta * 0.8
-	if _thing_t < _thing_next:
+		_lit_t += delta
+		_thing_t = 0.0
+		if _lit_t >= THING_LIGHT_SEC:
+			_lit_t = 0.0
+			_retreat()
+		return
+	_lit_t = 0.0
+	_thing_t += delta
+	var hunting := _noise_at.x >= 0
+	var wait := (THING_HUNT_SEC if hunting else THING_WANDER_SEC) * (THING_NIGHT_MULT if _night else 1.0)
+	if _thing_t < wait:
 		return
 	_thing_t = 0.0
-	_thing_next = _rng.randf_range(THING_STEP.x, THING_STEP.y)
-	var step := _next_step_toward(_thing_node, _node)
+	var step := _thing_node
+	if hunting:
+		step = _next_step_toward(_thing_node, _noise_at)
+		if step == _thing_node:
+			_noise_at = Vector2i(-1, -1)   # got there; nobody. It listens again.
+	else:
+		var opts: Array = _links[_thing_node]
+		if not opts.is_empty():
+			step = _thing_node + DIRS[opts[_rng.randi() % opts.size()]]
 	if step == _thing_node:
 		return
 	_thing_node = step
 	_thing_sound()
 	if _thing_node == _node or (_moving and _thing_node == _move_target_node):
-		player_hurt.emit(THING_DAMAGE)
-		_set_status("Something wet went past you in the dark.")
-		_place_thing_far()
+		_caught()
+
+
+## It reached you: a blow, then a long drag through the dark back to the ladder.
+func _caught() -> void:
+	player_hurt.emit(THING_DAMAGE)
+	_moving = false
+	_at_leak = false
+	if not _fixed:
+		_clamp = 0.0
+	_node = _entry
+	_facing = 0
+	_noise_at = Vector2i(-1, -1)
+	_set_status("Something grabbed your ankle and dragged you back to the ladder.%s" % ("" if _fixed else " The clamp slipped off."))
+	_place_thing_far()
+	_update_rig(0.0)
+
+
+## Away from you, one junction, as far as the pipes allow.
+func _retreat() -> void:
+	var dist := _distances_from(_node)
+	var best := _thing_node
+	var best_d := int(dist.get(_thing_node, 0))
+	for d in _links[_thing_node]:
+		var n: Vector2i = _thing_node + DIRS[d]
+		if int(dist.get(n, 0)) > best_d and n != _node:
+			best_d = int(dist[n])
+			best = n
+	if best != _thing_node:
+		_thing_node = best
+		_thing_sound()
+		_set_status("It shrinks back from the light.")
+	_noise_at = Vector2i(-1, -1)
+
+
+## Breathing gets louder as it gets closer; one junction away it says so.
+func _update_breath() -> void:
+	if _breath == null:
+		_breath = AudioStreamPlayer.new()
+		if ResourceLoader.exists(SFX_THING):
+			_breath.stream = load(SFX_THING)
+			_set_loop(_breath.stream)
+		_breath.pitch_scale = 0.45
+		add_child(_breath)
+	var d := int(_distances_from(_node).get(_thing_node, 99))
+	var db := -60.0
+	if d <= 1:
+		db = -2.0
+	elif d == 2:
+		db = -14.0
+	elif d == 3:
+		db = -26.0
+	_breath.volume_db = lerpf(_breath.volume_db, db, 0.08)
+	if db > -50.0 and not _breath.playing and _breath.stream != null:
+		_breath.play()
+	if d <= 1 and _warned != 1:
+		_warned = 1
+		_set_status("Breathing. Wet, right around the corner. Light. Now.")
+	elif d >= 3:
+		_warned = 0
 
 
 func _thing_in_line_of_sight() -> bool:

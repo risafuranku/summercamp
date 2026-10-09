@@ -19,7 +19,7 @@
 - [x] P11 Higher look sensitivity in interiors
 - [ ] P12 Cleaning variety: sometimes a few items, sometimes many across rooms, mess in different places each time
 - [ ] P13 Shower/toilet maintenance done inside like cleaning, not hold-E outside
-- [ ] P14 Pipe monster: finish the mechanics (risk, logic that makes sense)
+- [x] P14 Pipe monster: finish the mechanics (risk, logic that makes sense)
 - [x] P15 Nicer icons in the Builder toolbar
 - [x] P16 Remove the hold-S look-back at the PC
 - [x] P17 Hold TAB: paper map of the camp (no player dot) with tasks, broken things, room states at a glance

@@ -22,6 +22,7 @@ const NIGHT_PROCEDURES := [
 	["Drunk", "THE PHOTOGRAPHER", "A red light blinking in the trees, beeping faster. Turn your back or get behind something before the flash. Do not pose."],
 	["Cheap Chick", "THE GIRL", "She stays where the light ends. Keep her in sight, keep moving, keep to the lamps. Batteries are not covered by the camp."],
 	["Two or more", "THE ANTLERED MAN", "Walks the fence. Stay off the fence line after dark. He does not enter lamp light."],
+	["In the sewer", "THE WET ONE", "It cannot see. It hears your boots and the clamp. Stand still and listen; keep the torch on it and it backs off. It drags you back to the ladder."],
 ]
 
 var _shell

@@ -38,6 +38,7 @@ func _ready() -> void:
 		if failures.size() > 10:
 			break
 	g.free()
+	_check_thing(failures)
 	print("")
 	print("PIPES CHECK: average leak distance %.1f junctions" % (float(far_sum) / 300.0))
 	if failures.is_empty():
@@ -60,3 +61,41 @@ func _signature(g) -> String:
 		parts.append("%s%s" % [c, dirs])
 	parts.append("leak %s-%s" % [g._leak_a, g._leak_b])
 	return ",".join(parts)
+
+
+## The thing's rules: it walks to a noise and catches you there (back to the ladder,
+## hurt, clamp lost); held light makes it back off.
+func _check_thing(failures: Array[String]) -> void:
+	var g = PIPES.new()
+	add_child(g)
+	g.open_repair(Vector2i(3, 3), "sewer")
+	var hurt := [0]
+	g.player_hurt.connect(func(a): hurt[0] += a)
+	g._thing_on = true
+	g._flashlight.visible = false
+	# Put the player two junctions from the ladder, the thing far away, and make a noise.
+	var dist: Dictionary = g._distances_from(g._entry)
+	for c in dist.keys():
+		if int(dist[c]) == 2:
+			g._node = c
+			break
+	g._clamp = 0.5
+	g._noise_at = g._node
+	var steps := 0
+	while g._node != g._entry and steps < 60:
+		g._update_thing(g.THING_HUNT_SEC + 0.1)
+		steps += 1
+	if g._node != g._entry:
+		failures.append("the thing never reached the noise")
+	if hurt[0] <= 0:
+		failures.append("being caught does not hurt")
+	if g._clamp != 0.0:
+		failures.append("being caught does not lose the half-done clamp")
+	# Retreat: one junction further from the player.
+	var before := int(g._distances_from(g._node).get(g._thing_node, 0))
+	g._retreat()
+	var after := int(g._distances_from(g._node).get(g._thing_node, 0))
+	if after < before:
+		failures.append("the light does not push it back (%d -> %d)" % [before, after])
+	g.close_repair(true)
+	g.queue_free()
