@@ -1,5 +1,7 @@
 extends Node3D
 
+const TREE_WIND_SHADER = preload("res://materials/tree_wind.gdshader")
+
 @export_range(0.0, 1.0, 0.01) var tree_spawn_chance: float = 0.30
 @export var wind_direction_degrees: float = 32.0
 @export var tree_wobble_intensity: float = 0.028
@@ -690,8 +692,37 @@ func _tree_material(kind: String, variant: int) -> Material:
 		_:
 			mat = _make_psx_material(Color(0.58, 0.42, 0.30), 0.0, 24.0, 6.0, 0.0, 0.0, 0.0, 0.0, "tree_bark", 0.58) as StandardMaterial3D
 			mat.albedo_color = Color(0.9, 0.85, 0.8) if variant == 0 else Color(0.62, 0.6, 0.58)
-	_tree_materials[key] = mat
-	return mat
+	var wind := _wind_material(mat, kind)
+	_tree_materials[key] = wind
+	return wind
+
+
+## The PSX look of `std` (texture, tint, tiling) on the wind shader. Crowns sway and
+## flutter, trunks lean a little, dead trunks lean more and rattle in a storm.
+func _wind_material(std: StandardMaterial3D, kind: String) -> Material:
+	var m := ShaderMaterial.new()
+	m.shader = TREE_WIND_SHADER
+	m.set_shader_parameter("albedo_tex", std.albedo_texture)
+	m.set_shader_parameter("albedo_color", std.albedo_color)
+	m.set_shader_parameter("uv_scale", Vector2(std.uv1_scale.x, std.uv1_scale.y))
+	match kind:
+		"needles":
+			m.set_shader_parameter("sway", 1.0)
+			m.set_shader_parameter("flutter", 0.6)
+			m.set_shader_parameter("height", 6.0)
+		"leaf":
+			m.set_shader_parameter("sway", 1.0)
+			m.set_shader_parameter("flutter", 1.4)
+			m.set_shader_parameter("height", 5.0)
+		"birch_bark":
+			m.set_shader_parameter("sway", 1.0)
+			m.set_shader_parameter("height", 5.0)
+		_:
+			# Bark of spruces (variant 0) and the dead trees (variant 1).
+			m.set_shader_parameter("sway", 0.9)
+			m.set_shader_parameter("flutter", 0.25)
+			m.set_shader_parameter("height", 5.5)
+	return m
 
 
 ## Everything past the fence, so the camp sits in a forest valley instead of on a

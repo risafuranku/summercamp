@@ -277,6 +277,18 @@ func setup_celestial_bodies() -> void:
 	_cloud_speed_current = _cloud_speed_target
 
 
+func _rain_streak_mesh(w: float, h: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for axis in [Vector3(1, 0, 0), Vector3(0, 0, 1)]:
+		var a: Vector3 = axis * w * 0.5
+		var up := Vector3(0, h * 0.5, 0)
+		for v in [-a - up, a - up, a + up, -a - up, a + up, -a + up]:
+			st.set_normal(Vector3(0, 0, 1))
+			st.add_vertex(v)
+	return st.commit()
+
+
 func setup_weather_particles() -> void:
 	if _world_3d.has_node("RainParticles"):
 		_rain_particles = _world_3d.get_node("RainParticles")
@@ -292,8 +304,11 @@ func setup_weather_particles() -> void:
 	process_mat.gravity = Vector3(0.0, 0.0, 0.0)
 	process_mat.initial_velocity_min = 20.0
 	process_mat.initial_velocity_max = 24.0
-	var mesh = QuadMesh.new()
-	mesh.size = Vector2(0.035, 0.52)
+	# Streaks point where they fly, so sideways rain reads as sideways.
+	process_mat.particle_flag_align_y = true
+	# Two crossed strips, not a billboard: the streak follows its velocity (align_y),
+	# so a storm's rain flies sideways instead of falling straight.
+	var mesh = _rain_streak_mesh(0.035, 0.52)
 	var mat = StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
@@ -301,9 +316,9 @@ func setup_weather_particles() -> void:
 	mat.roughness = 1.0
 	mat.metallic = 0.0
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
 	mat.vertex_color_use_as_albedo = false
-	mesh.material = mat
+	mesh.surface_set_material(0, mat)
 	_rain_particles.process_material = process_mat
 	_rain_particles.draw_pass_1 = mesh
 	_rain_particles.amount = 4000
@@ -446,7 +461,29 @@ func update_weather_runtime(delta: float) -> void:
 
 
 ## Kombinovaný per-frame visual update. Volat z main._process() po update_state().
+var _wind_now := 0.15
+
+
+## Wind for the trees (global shader parameters, see materials/tree_wind.gdshader).
+## Still on a clear day, a lean in the rain, a gale in a storm, and nothing at all
+## when the weather is wrong.
+func _update_wind(delta: float) -> void:
+	var target := 0.15
+	match _weather_state:
+		WEATHER_WINDY: target = 0.75
+		WEATHER_FOG: target = 0.04
+		WEATHER_LIGHT_RAIN: target = 0.3
+		WEATHER_RAIN: target = 0.5
+		WEATHER_STORM: target = 1.35
+		WEATHER_EVENT: target = 0.0
+	_wind_now = move_toward(_wind_now, target, delta * 0.25)
+	var dir := Vector2(0.94, 0.34).rotated(sin(_sky_anim_time * 0.05) * 0.35).normalized()
+	RenderingServer.global_shader_parameter_set("wind_strength", _wind_now)
+	RenderingServer.global_shader_parameter_set("wind_dir", dir)
+
+
 func update_frame(delta: float) -> void:
+	_update_wind(delta)
 	if _weather_blend_t < 1.0:
 		_weather_blend_t = minf(1.0, _weather_blend_t + maxf(delta, 0.0) / WEATHER_BLEND_SECONDS)
 	# Drive time/light profile every frame so color and energy transitions stay fully continuous.
@@ -1648,7 +1685,7 @@ func _rain_weather_wind() -> Vector2:
 	match _weather_state:
 		WEATHER_LIGHT_RAIN: base = Vector2(0.12, 0.05); sway_s = 0.04; gust_s = 0.03
 		WEATHER_RAIN:       base = Vector2(0.22, 0.10); sway_s = 0.07; gust_s = 0.06
-		WEATHER_STORM:      base = Vector2(0.34, 0.14); sway_s = 0.10; gust_s = 0.09
+		WEATHER_STORM:      base = Vector2(1.1, 0.42); sway_s = 0.25; gust_s = 0.35
 		_: return Vector2.ZERO
 	var sway = Vector2(sin((_sky_anim_time * 0.42) + 0.9), cos((_sky_anim_time * 0.35) - 0.6)) * sway_s
 	var gust = Vector2(sin((_sky_anim_time * 1.45) + 2.1), sin((_sky_anim_time * 1.12) - 0.7)) * gust_s
@@ -1658,8 +1695,8 @@ func _rain_weather_wind() -> Vector2:
 func _rain_tilt_strength_bounds() -> Vector2:
 	match _weather_state:
 		WEATHER_LIGHT_RAIN: return Vector2(0.20, 0.38)
-		WEATHER_RAIN:       return Vector2(0.30, 0.58)
-		WEATHER_STORM:      return Vector2(0.40, 0.86)
+		WEATHER_RAIN:       return Vector2(0.38, 0.70)
+		WEATHER_STORM:      return Vector2(0.95, 1.70)
 		_: return Vector2.ZERO
 
 
@@ -1680,9 +1717,9 @@ func _update_weather_particles(_delta: float) -> void:
 	elif _weather_state == WEATHER_RAIN: intensity = 0.8
 	elif _weather_state == WEATHER_STORM: intensity = 2.5; rain_speed = 35.0
 
-	var draw_mesh = _rain_particles.draw_pass_1 as QuadMesh
+	var draw_mesh = _rain_particles.draw_pass_1 as Mesh
 	if draw_mesh != null:
-		var rain_mat = draw_mesh.material as StandardMaterial3D
+		var rain_mat = draw_mesh.surface_get_material(0) as StandardMaterial3D
 		if rain_mat != null:
 			var daylight = clampf(compute_daylight_factor(), 0.0, 1.0)
 			var tint = Color(0.30, 0.34, 0.40).lerp(Color(0.84, 0.88, 0.92), daylight)

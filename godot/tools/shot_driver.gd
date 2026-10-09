@@ -369,6 +369,12 @@ const SCENARIOS := {
 		["eval", "weather_system.set_weather(2)"], ["wait", 45.0], ["shot", "83_fog"],
 		["hours", 13.0], ["eval", "weather_system.set_weather(6)"], ["wait", 45.0], ["shot", "84_anomaly_night"],
 	],
+	"storm": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["clear", 10, 10, 4, 4], ["player", 12, 12, 270.0], ["wait", 1.0], ["shot", "w0_calm"],
+		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 0.7], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"],
+	],
 	"probe": [
 		["wait_menu"], ["wait", 1.0],
 		["eval", "get_viewport().get_visible_rect().size"],

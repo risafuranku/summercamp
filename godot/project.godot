@@ -40,3 +40,14 @@ window/stretch/aspect="expand"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+
+[shader_globals]
+
+wind_strength={
+"type": "float",
+"value": 0.15
+}
+wind_dir={
+"type": "vec2",
+"value": Vector2(0.94, 0.34)
+}
