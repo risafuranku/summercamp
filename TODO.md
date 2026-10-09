@@ -7,8 +7,8 @@
 ## PLAYTEST 2026-10-09 — the user's notes (do these next, tick as you go)
 
 - [x] P1  Vera's checklist (quest tracker) visible while sitting at the PC
-- [ ] P2  The barrier opens into the ground: fix the pivot/rotation
-- [ ] P3  Manual check-in: guests wait at reception, the player checks them in; nobody walks through the reception walls
+- [x] P2  The barrier opens into the ground: fix the pivot/rotation
+- [x] P3  Manual check-in: guests wait at reception, the player checks them in; nobody walks through the reception walls
 - [ ] P4  Remodel ALL building exteriors and ALL interiors to match the Builder pixel art (keep textures/atmosphere); finish sports field, caravan
 - [ ] P5  Lamps can be placed on a path tile; the lamp snaps to the path edge
 - [ ] P6  Whole game in English with Czech in-jokes (world market): sweep signs, UI, mail

@@ -406,7 +406,9 @@ func _is_walkable(c: Vector2i) -> bool:
 		return false
 	if int(tile.tile_type) == 1:  # lake
 		return false
-	if not tile.occupied:
+	# Anything standing on the tile blocks it (the reception too, which is placed
+	# without a builder cell and used to be walked straight through).
+	if not tile.occupied and tile.occupant == null:
 		return true
 	return _is_path_tile(c)
 

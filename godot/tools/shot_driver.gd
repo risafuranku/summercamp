@@ -275,14 +275,17 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.5],
 	],
 	"gate": [
+		["auto_checkin", false],
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
 		["eval", "[grid_manager.grid_width, get_tree().get_first_node_in_group('camp_gate').gap_center_x]"],
 		["money", 5000], ["clear", 16, 3, 3, 3], ["build", "tent_1", 17, 4, 0], ["build", "tent_1", 18, 4, 0], ["build", "tent_1", 17, 5, 0], ["wait", 0.5],
 		["book", "Pepa", "drunk", 1, 2, 0], ["book", "Mirek", "quiet_guy", 1, 1, 0], ["book", "Kristyna", "cheap_chick", 1, 1, 50], ["hours", 0.1], ["wait", 1.0],
 		["player", 15, 3, 0.0], ["wait", 1.0], ["shot", "g0_from_camp"],
 		["player", 15, -4, 180.0], ["wait", 1.0], ["shot", "g1_from_road"],
 		["player", 16, -4, 135.0], ["wait", 1.0], ["shot", "g2_booth"],
-		["prep_all"], ["hours", 0.05], ["player", 14, -3, 160.0], ["wait", 2.2], ["shot", "g3_barrier_up"],
+		["player", 15, 1, 180.0], ["wait", 1.0], ["shot", "g2b_checkin_hint"], ["eval", "_find_guest_in_view()"],
+		["prep_all"], ["hours", 0.05], ["checkin"], ["player", 14, -3, 160.0], ["wait", 2.2], ["shot", "g3_barrier_up"],
 		["wait", 7.0], ["shot", "g4_barrier_down"],
 		["hours", 12.0], ["wait", 2.0], ["player", 15, -4, 180.0], ["wait", 1.0], ["shot", "g5_gate_night"], ["eval", "[get_tree().get_first_node_in_group('camp_gate')._booth_light.visible, _time_state, _time_of_day_hours]"],
 	],
@@ -391,7 +394,19 @@ var _until_expr := ""
 var _until_deadline := 0
 
 
+## Waiting parties are checked in by hand in the game; scenarios that are not about the
+## barrier get it done for them every second. ["auto_checkin", false] turns it off.
+var _auto_checkin := true
+var _checkin_timer := 0.0
+
+
 func _process(delta: float) -> void:
+	_checkin_timer -= delta
+	if _auto_checkin and _checkin_timer <= 0.0 and _main != null:
+		_checkin_timer = 1.0
+		for row in GuestManager.get_arrivals():
+			if bool(row.get("at_gate", false)):
+				GuestManager.request_check_in(int(row.get("id", -1)))
 	if _main == null or not is_instance_valid(_main):
 		_main = get_tree().current_scene
 		if _main == null or _main == self:
@@ -471,6 +486,11 @@ func _run_step(step: Array) -> void:
 		"gm":
 			# Call a GuestManager method (Expression cannot reach autoloads): [method, args...]
 			print("SHOT DRIVER gm %s -> %s" % [step[1], GuestManager.callv(str(step[1]), step.slice(2))])
+		"auto_checkin":
+			_auto_checkin = bool(step[1])
+		"checkin":
+			for row in GuestManager.get_arrivals():
+				print("SHOT DRIVER checkin %s -> %s" % [row.get("name", ""), GuestManager.request_check_in(int(row.get("id", -1)))])
 		"prep_all":
 			# Make every room up, as the player would in the interiors.
 			for key in GuestManager.get_accommodation_states().keys():

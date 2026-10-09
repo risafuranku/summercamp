@@ -58,12 +58,19 @@ func _ready() -> void:
 	_expect(_checked_in.is_empty(), "nobody is let in while the room is not ready")
 	_expect(str(GuestManager.get_guest_life_snapshot()[0]["thought"]).contains("barrier"), "a long wait is complained about")
 
-	# Make the room up: they are let in at once, and the wait shows in their mood.
+	# Checking in by hand is refused while the room is not made up.
+	var pepa_id := int(GuestManager.get_arrivals()[0]["id"])
+	var refused: Dictionary = GuestManager.request_check_in(pepa_id)
+	_expect(not bool(refused.get("ok", true)) and str(refused.get("reason", "")) == "room_not_ready", "check-in is refused while the room is not ready")
+
+	# Make the room up: still nobody goes in until the player checks them in.
 	var key := str(arrivals[0]["rooms"][0]["key"])
 	for t in GuestManager.get_room_state(key).get("tasks", []):
 		GuestManager.complete_room_task(key, str(t["id"]))
 	_expect(_prepared.has(key), "the room is announced ready")
-	_expect(_checked_in.size() == 1, "the waiting party is let in as soon as the room is ready")
+	_expect(_checked_in.is_empty(), "nobody walks in by themselves")
+	_expect(bool(GuestManager.request_check_in(pepa_id).get("ok", false)), "the player checks the party in")
+	_expect(_checked_in.size() == 1, "the waiting party is let in once checked in")
 	snap = GuestManager.get_guest_life_snapshot()
 	_expect(snap.size() == 1 and str(snap[0]["activity"].get("kind", "")) == "arrive", "and walks in from the gate")
 	_expect(snap.size() == 1 and float(snap[0]["mood"]) < 60.0, "an 80-minute wait sours the mood (%.0f)" % float(snap[0]["mood"]) if snap.size() == 1 else "")

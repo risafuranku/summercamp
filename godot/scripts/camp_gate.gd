@@ -90,7 +90,8 @@ func _swing(deg: float, seconds: float) -> void:
 		_arm_tween.kill()
 	_arm_tween = create_tween()
 	_arm_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_arm_tween.tween_property(_arm_pivot, "rotation:z", deg_to_rad(-deg), seconds)
+	# The arm runs along +X from the pivot: a positive turn about Z lifts it.
+	_arm_tween.tween_property(_arm_pivot, "rotation:z", deg_to_rad(deg), seconds)
 
 
 # ── geometry ──────────────────────────────────────────────────────────────────

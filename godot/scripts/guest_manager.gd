@@ -494,11 +494,7 @@ func _update_arrivals(now_abs: int) -> bool:
 				EventBus.guest_at_gate.emit(_arrival_row(guest, now_abs))
 		if status != STATUS_WAITING:
 			continue
-		if _rooms_ready_for(guest):
-			_check_in(guest, now_abs)
-			state.guests[i] = guest
-			changed = true
-			continue
+		# They wait for the player to come and check them in (request_check_in).
 		var waited := now_abs - int(guest.get("gate_since_abs", now_abs))
 		if waited >= GATE_GIVE_UP_MINUTES:
 			_give_up_at_gate(i, guest, now_abs)
@@ -525,6 +521,35 @@ func _rooms_ready_for(guest: Dictionary) -> bool:
 		if ROOM_RULES.normalize_status(str(acc.get("status", ""))) != ROOM_RULES.STATUS_READY:
 			return false
 	return true
+
+
+## The player at the barrier, pressing E on a waiting party. Lets them in when every
+## room they booked is made up. {ok, reason: "not_waiting" | "room_not_ready", rooms}
+func request_check_in(guest_id: int) -> Dictionary:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return {"ok": false, "reason": "not_waiting"}
+	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	for i in state.guests.size():
+		var g_any = state.guests[i]
+		if not (g_any is Dictionary) or int(g_any.get("id", -2)) != guest_id:
+			continue
+		var guest: Dictionary = g_any
+		if str(guest.get("status", "")) != STATUS_WAITING:
+			return {"ok": false, "reason": "not_waiting"}
+		var row := _arrival_row(guest, now_abs)
+		if not _rooms_ready_for(guest):
+			guest["thought"] = "Not ready? We booked this weeks ago."
+			guest["thought_abs"] = now_abs
+			state.guests[i] = guest
+			return {"ok": false, "reason": "room_not_ready", "rooms": row.get("rooms", [])}
+		_check_in(guest, now_abs)
+		state.guests[i] = guest
+		_ensure_guest_lodging_assignments()
+		_sync_accommodation_states_from_guests()
+		_emit_guest_overview_state(true)
+		return {"ok": true, "rooms": row.get("rooms", [])}
+	return {"ok": false, "reason": "not_waiting"}
 
 
 ## The barrier goes up: the stay starts now, the walk in starts from the gate. Time at

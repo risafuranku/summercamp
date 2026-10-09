@@ -98,8 +98,8 @@ Three archetypes, with different needs (`core/systems/guest_needs_system.gd`):
   forest edges or the lake path for hours. Twenty guests, and where is everybody?
 - **Arrival.** Accepting a booking does not put anyone in the camp. The party is on the
   road for an hour or two (ARRIVALS in the HUD counts down), then stands outside the
-  barrier at the gatehouse. They are let in only when every room they were given is
-  made up; until then they wait, grumble after ~45 minutes and drive off after ~2.5
+  barrier at the gatehouse. The player walks out and checks them in by hand (E on the
+  party); that works only when every room they were given is made up. Until then they wait, grumble after ~45 minutes and drive off after ~2.5
   hours with a one-star review. Time at the barrier sours the mood they arrive with.
 - **Rooms.** A new tent or cabin is *unprepared*; when its last guests leave it is
   *dirty*. Either way you go in and do it by hand: look at the mess (it glows under the

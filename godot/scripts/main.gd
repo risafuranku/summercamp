@@ -480,6 +480,26 @@ func _poll_guest_quotes(delta: float) -> void:
 		break
 
 
+## Checking a party in at the barrier, by hand: the room has to be made up first.
+func _check_in_guest(info: Dictionary) -> void:
+	var res: Dictionary = GuestManager.request_check_in(int(info.get("id", -1)))
+	var name_text := str(info.get("name", "Guest"))
+	if _hud_manager == null:
+		return
+	if bool(res.get("ok", false)):
+		var rooms: Array = []
+		for r in res.get("rooms", []):
+			rooms.append(str(r.get("label", "")))
+		_hud_manager.push_status("Checked in: %s -> %s" % [name_text, ", ".join(rooms)])
+		return
+	if str(res.get("reason", "")) == "room_not_ready":
+		var todo: Array = []
+		for r in res.get("rooms", []):
+			if not bool(r.get("ready", false)):
+				todo.append(str(r.get("label", "")))
+		_hud_manager.push_status("%s: \"Our room is not ready.\" Make up %s first." % [name_text, ", ".join(todo)])
+
+
 func _talk_to_guest(info: Dictionary) -> void:
 	if _quest_manager != null:
 		_quest_manager.notify("talked_to_guest", info)
@@ -1866,7 +1886,10 @@ func _setup_audio() -> void:
 func _try_interact() -> void:
 	var guest_in_view := _find_guest_in_view()
 	if not guest_in_view.is_empty():
-		_talk_to_guest(guest_in_view)
+		if str(guest_in_view.get("status", "")) == "waiting":
+			_check_in_guest(guest_in_view)
+		else:
+			_talk_to_guest(guest_in_view)
 		return
 	if _interaction_controller == null or not _interaction_controller.has_method("resolve_interaction"):
 		return
@@ -1932,7 +1955,10 @@ func _update_interaction_hint() -> void:
 		return
 	var guest_in_view := _find_guest_in_view()
 	if not guest_in_view.is_empty():
-		_hud_manager.set_hint_text("[E] Talk to %s" % str(guest_in_view.get("name", "guest")))
+		if str(guest_in_view.get("status", "")) == "waiting":
+			_hud_manager.set_hint_text("[E] Check in %s" % str(guest_in_view.get("name", "guest")))
+		else:
+			_hud_manager.set_hint_text("[E] Talk to %s" % str(guest_in_view.get("name", "guest")))
 		return
 	if _interaction_controller == null or not _interaction_controller.has_method("build_hint_text"):
 		_hud_manager.set_hint_text("")

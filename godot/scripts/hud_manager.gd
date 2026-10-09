@@ -832,7 +832,8 @@ func _refresh_arrivals() -> void:
 			room_parts.append(str((r as Dictionary).get("label", "")).to_upper())
 			if not bool((r as Dictionary).get("ready", false)):
 				all_ready = false
-		var room_text := "%s  %s" % [", ".join(room_parts), "READY" if all_ready else "NOT READY"]
+		var ready_word := ("READY - CHECK IN AT GATE" if at_gate else "READY") if all_ready else "NOT READY"
+		var room_text := "%s  %s" % [", ".join(room_parts), ready_word]
 		var room_l := _caption("  " + room_text, RETRO_UI.C_GREEN if all_ready else RETRO_UI.C_RED_LIGHT)
 		_arrivals_box.add_child(room_l)
 	if _arrivals.size() > shown:
