@@ -202,6 +202,18 @@ func occupy_footprint(origin: Vector2i, footprint: Vector2i, occupant_node: Node
 # BUILDING STATE (existing API, unchanged)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+## Every lamp: lamp posts of their own, and lamps standing at the edge of a path tile
+## (the cell stays a path, with "lamp": true).
+func lamp_coords() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for coord in cells.keys():
+		var cell: Dictionary = cells[coord]
+		var t := str(cell.get("type", ""))
+		if (t == "lamp_post" and cell.get("root_coord", coord) == coord) or (t == "path" and bool(cell.get("lamp", false))):
+			out.append(coord)
+	return out
+
+
 func is_cell_free(coord: Vector2i) -> bool:
 	return not cells.has(coord)
 

@@ -104,6 +104,8 @@ func refresh_world(state, registry) -> void:
 			_lamp_tiles.append(coord_any)
 		elif type == "path":
 			_path_tiles.append(coord_any)
+			if bool(cell.get("lamp", false)):
+				_lamp_tiles.append(coord_any)
 	_gate = _find_gate(grid)
 	_refresh_exits(grid)
 

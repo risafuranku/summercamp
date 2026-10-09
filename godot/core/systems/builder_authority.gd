@@ -62,6 +62,22 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 		EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "not_buildable")
 		return
 
+	# A lamp on a path: it stands at the path's edge and the tile stays walkable.
+	if normalized_type == "lamp_post" and str((_state.grid.cells.get(pos, {}) as Dictionary).get("type", "")) == "path":
+		var cell: Dictionary = _state.grid.cells[pos]
+		if bool(cell.get("lamp", false)):
+			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "blocked_or_out_of_bounds")
+			return
+		var lamp_cost = _get_build_cost(normalized_type)
+		if CoreRoot.get_money() < lamp_cost or not _actions.spend_money(lamp_cost):
+			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "insufficient_funds")
+			return
+		cell["lamp"] = true
+		_state.grid.cells[pos] = cell
+		EventBus.building_placed.emit("lamp_post", pos, Vector2i.ONE, normalized_rot)
+		EventBus.BuildConfirmed.emit(normalized_type, pos, normalized_rot)
+		return
+
 	var footprint = _resolve_footprint(normalized_type)
 	if not _state.grid.can_place_footprint(pos, footprint):
 		EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "blocked_or_out_of_bounds")

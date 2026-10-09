@@ -756,8 +756,12 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	_ensure_structures_root()
 	if _grid_manager == null:
 		return false
+	# On a path tile the lamp goes to the edge of the path; the path stays.
+	var path_root: Node3D = null
 	if not _grid_manager.can_place_footprint(origin, Vector2i(1, 1)):
-		return false
+		path_root = _get_path_root_at(origin)
+		if path_root == null or path_root.has_meta("lamp_node"):
+			return false
 
 	var lamp = StaticBody3D.new()
 	lamp.name = "LampPost"
@@ -768,6 +772,17 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 
 	var ts = _grid_manager.tile_size
 	lamp.position = _grid_manager.grid_to_world(origin) + Vector3(0.0, -0.05, 0.0)
+	if path_root != null:
+		# The side of the tile where the path does not continue; the head leans over it.
+		var side := Vector2i(0, 1)
+		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]:
+			if not _is_path_at(origin + d):
+				side = d
+				break
+		lamp.position += Vector3(side.x, 0.0, side.y) * ts * 0.40
+		lamp.rotation.y = atan2(-float(side.x), -float(side.y))
+		lamp.set_meta("on_path", true)
+		path_root.set_meta("lamp_node", lamp)
 
 	var base_size = Vector3(ts * 0.24, 0.24, ts * 0.24)
 	var base_mesh = MeshInstance3D.new()
@@ -929,7 +944,11 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	lamp.add_child(collider)
 
 	_set_structure_condition_internal(lamp, _default_condition_for_type("utility"))
-	_grid_manager.occupy_footprint(origin, Vector2i(1, 1), lamp)
+	if path_root == null:
+		_grid_manager.occupy_footprint(origin, Vector2i(1, 1), lamp)
+	else:
+		# Walk-through: no collider in the middle of the path's neighbours' way.
+		collider.position.x = 0.0
 	_register_lamp_runtime(lamp, lamp_spot, lamp_fill, beam_mesh, dust)
 	return true
 
@@ -1672,6 +1691,11 @@ func _lamp_line_of_sight_multiplier(
 
 
 func remove_structure(node: Node) -> bool:
+	# A path takes its lamp with it.
+	if node != null and node.has_meta("lamp_node"):
+		var lamp_node = node.get_meta("lamp_node")
+		if lamp_node != null and is_instance_valid(lamp_node):
+			(lamp_node as Node).queue_free()
 	if _grid_manager == null or node == null:
 		return false
 

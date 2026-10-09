@@ -690,6 +690,8 @@ func _draw() -> void:
 				_draw_smoke(entry["center"], tile_h, float(SMOKERS[ty]), int(entry["origin"].x * 7 + entry["origin"].y * 13))
 			if ty == "lamp_post" or ty == "bonfire":
 				lights.append([entry["center"], ty])
+			elif ty == "path" and _path_has_lamp(entry["origin"]):
+				lights.append([entry["center"] + Vector2(tile_w * 0.2, -tile_h * 0.05), "lamp_post"])
 
 	_draw_night(lights, tile_w, tile_h)
 	_draw_fx(origin, tile_w, tile_h)
@@ -882,6 +884,9 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 
 	if building_type == "path":
 		_draw_path(center, entry.get("origin", Vector2i.ZERO), tile_w, tile_h)
+		if _path_has_lamp(entry.get("origin", Vector2i.ZERO)):
+			var lc := center + Vector2(tile_w * 0.2, -tile_h * 0.05)
+			_draw_icon(lc, Vector2(tile_w * 0.6, tile_h * 1.5), _icon_key_for_type("lamp_post"), 0, Color.WHITE)
 		return
 
 	var icon_key = _icon_key_for_type(building_type)
@@ -1207,6 +1212,9 @@ func _can_place(coord: Vector2i, footprint: Vector2i, _building_type: String) ->
 		return false
 	if not _is_valid_coord(coord):
 		return false
+	# A lamp may go on a path tile; it stands at the edge.
+	if _building_type == "lamp_post" and _path_cell(coord) and not _path_has_lamp(coord):
+		return true
 	return grid_manager.can_place_footprint(coord, footprint)
 
 
@@ -1610,3 +1618,14 @@ func _describe(coord: Vector2i) -> String:
 			elif root != null:
 				what = _display_name(str(root.get_meta("building_type", "")))
 	return "%d:%d  %s" % [coord.x, coord.y, what]
+
+
+
+func _path_cell(coord: Vector2i) -> bool:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	return state != null and str((state.grid.cells.get(coord, {}) as Dictionary).get("type", "")) == "path"
+
+
+func _path_has_lamp(coord: Vector2i) -> bool:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	return state != null and bool((state.grid.cells.get(coord, {}) as Dictionary).get("lamp", false))

@@ -372,6 +372,15 @@ func _is_grid_powered() -> bool:
 	return not _billing.power_cut_active and not (_night_jobs != null and _night_jobs.breaker_tripped)
 
 
+## Tools: where the lamps are (the shot driver's Expression cannot reach autoloads).
+func _count_lamps_debug() -> Array:
+	return CoreRoot.get_state().grid.lamp_coords()
+
+
+func _cell_debug(x: int, y: int) -> Dictionary:
+	return CoreRoot.get_state().grid.cells.get(Vector2i(x, y), {})
+
+
 ## Lamps dark for their own reasons: a lamp breakdown, or the circuit left off.
 func _sync_dark_lamps() -> void:
 	if building_manager == null or not building_manager.has_method("set_broken_lamps"):
@@ -379,10 +388,8 @@ func _sync_dark_lamps() -> void:
 	var state = CoreRoot.get_state()
 	var dark: Array = []
 	var all_lamps: Array = []
-	for coord in state.grid.cells.keys():
-		var cell: Dictionary = state.grid.cells[coord]
-		if str(cell.get("type", "")) == "lamp_post" and cell.get("root_coord", coord) == coord:
-			all_lamps.append("%d:%d" % [coord.x, coord.y])
+	for coord in state.grid.lamp_coords():
+		all_lamps.append("%d:%d" % [coord.x, coord.y])
 	for key in state.failures.keys():
 		if str(state.failures[key].get("type", "")) == "lamp_post":
 			dark.append(str(key))
@@ -2571,6 +2578,8 @@ func _collect_structure_snapshot_entries() -> Array[Dictionary]:
 		var building_id := str(structure.get_meta("building_type", "")).strip_edges()
 		if building_id.is_empty():
 			continue
+		if structure.has_meta("on_path"):
+			continue
 		var origin_any = structure.get_meta("grid_origin", Vector2i.ZERO)
 		var footprint_any = structure.get_meta("grid_footprint", Vector2i.ONE)
 		var origin := origin_any as Vector2i if origin_any is Vector2i else Vector2i.ZERO
@@ -2638,6 +2647,11 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		if aid == "main_building" and bid != "main_building":
 			return true
 		if aid != "main_building" and bid == "main_building":
+			return false
+		# Paths before lamps: a lamp saved on a path needs its path first.
+		if aid == "path" and bid == "lamp_post":
+			return true
+		if aid == "lamp_post" and bid == "path":
 			return false
 		return aid < bid
 	)
@@ -2896,6 +2910,11 @@ func _rebuild_core_cells_from_visual_structures() -> void:
 					var cell_dict := cell as Dictionary
 					cell_dict["maintenance"] = condition
 					state.grid.cells[coord] = cell_dict
+	for child in structures_root.get_children():
+		if child is Node3D and child.has_meta("on_path"):
+			var o = child.get_meta("grid_origin", Vector2i.ZERO)
+			if state.grid.cells.has(o):
+				state.grid.cells[o]["lamp"] = true
 
 
 ## GuestManager owns the room states (status, preparation, who is in it). This only

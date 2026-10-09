@@ -243,6 +243,16 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._open_category('fun')"], ["wait", 0.3], ["crt_screen", "c3_builder_fun"],
 		["hours", 9.4], ["wait", 1.5], ["crt_screen", "c4_builder_dusk"],
 	],
+	"pathlamp": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["money", 3000], ["clear", 13, 3, 3, 6], ["wait", 0.5],
+		["build", "path", 14, 3, 0], ["build", "path", 14, 4, 0], ["build", "path", 14, 5, 0], ["build", "path", 14, 6, 0], ["build", "path", 14, 7, 0],
+		["build", "lamp_post", 14, 4, 0], ["build", "lamp_post", 14, 6, 0], ["wait", 0.5],
+		["eval", "_count_lamps_debug()"], ["eval", "_cell_debug(14, 6)"], ["eval", "_cell_debug(14, 5)"],
+		["player", 14, 9, 0.0], ["wait", 1.0], ["shot", "l0_day"],
+		["hours", 12.0], ["wait", 2.0], ["player", 14, 9, 0.0], ["wait", 1.0], ["shot", "l1_night"],
+	],
 	"look": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._tent_interior.open_tent(1)"], ["wait", 1.2], ["shot", "tent_interior_0_center"], ["eval", "_interior_manager._tent_interior._catalog_screen_rect()"],

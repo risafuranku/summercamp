@@ -261,6 +261,8 @@ func _coords_of(types: Array) -> Array[Vector2i]:
 		var cell: Dictionary = state.grid.cells[coord]
 		if cell.get("root_coord", coord) == coord and types.has(str(cell.get("type", ""))):
 			out.append(coord)
+		elif types.has("lamp_post") and str(cell.get("type", "")) == "path" and bool(cell.get("lamp", false)):
+			out.append(coord)
 	return out
 
 
