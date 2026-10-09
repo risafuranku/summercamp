@@ -32,12 +32,12 @@ const STEPS: Array[Dictionary] = [
 		"hint": "The envelope icon on the desktop.",
 		"reward": 0,
 		"mail_subject": "You are in charge this week",
-		"mail_body": "I am out for seven days. You run the camp now.\n\nEverything happens through this terminal. Read every mail. Bookings have an Accept and a Reject button - use both. Rejecting is not rude, it is management.\n\nFirst job: we have no beds. Open Beeternet, download Builder 98 and install it. Then clear some trees and put up a tent.\n\nI left you $850. Do not spend it on the slide.\n\n- Teta Vera",
+		"mail_body": "I am out for seven days. You run the camp now.\n\nEverything happens through this terminal. Read every mail. Bookings have an Accept and a Reject button - use both. Rejecting is not rude, it is management.\n\nFirst job: we have no beds. Open Beeternet (it dials the modem, let it squeal), go to www.stavitel98.cz and download Builder 98. The setup program lands in the Download folder on the desktop. Run it. Then clear some trees and put up a tent.\n\nI left you $850. Do not spend it on the slide.\n\n- Teta Vera",
 	},
 	{
 		"id": "install_builder",
-		"text": "Open Beeternet, download Builder 98 and install it from Downloads.",
-		"hint": "Beeternet > Downloads page > run the installer.",
+		"text": "Download Builder 98 from www.stavitel98.cz and run its setup.",
+		"hint": "Beeternet > Stavitel software > BLDR98SW.EXE, then open it from the Download folder.",
 		"reward": 50,
 	},
 	{
@@ -103,8 +103,8 @@ const STEPS: Array[Dictionary] = [
 	},
 	{
 		"id": "pay_bill",
-		"text": "The electricity bill arrived. Pay it in Camp Status before it is overdue.",
-		"hint": "Install Camp Status from Beeternet if you have not.",
+		"text": "The electricity bill arrived. Pay it in CampStat before it is overdue.",
+		"hint": "No CampStat yet? The power company gives it away at www.campgrid.cz.",
 		"reward": 50,
 	},
 	{

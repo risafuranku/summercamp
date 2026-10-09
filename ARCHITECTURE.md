@@ -11,7 +11,7 @@ Technical wiring. For rules of engagement see [AGENTS.md](AGENTS.md); for intent
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ 6  View / UI      crt_os_shell, interiors, hud_manager,      │
+│ 6  View / UI      os98 shell, interiors, hud_manager,      │
 │                   ui/ (menus, pause, game over, boot)        │
 ├──────────────────────────────────────────────────────────────┤
 │ 5  Orchestration  main.gd + extracted modules: blood_fx,     │
@@ -142,7 +142,7 @@ EventBus.time_tick
   → EmailManager delivers pool mail matching day+time, plus generated customer/spam
      mail scaled by hrotfaktor × bed metrics
   → EventBus.email_received
-  → crt_os_shell: MAIL counter + desktop toast + notification sfx
+  → os_shell: tray envelope blinks + mail sfx; CampMail refreshes
 
 Player presses CONFIRM
   → EmailManager.confirm_customer_booking()
@@ -183,55 +183,40 @@ PlayerController movement state
 
 ---
 
-## 5. The CRT desktop (`crt_os_shell.gd`)
+## 5. The camp computer (`scripts/os98/`)
 
-Render order, bottom → top:
-
-1. Wallpaper (`TextureRect`, full rect)
-2. Wall tint + noise (two `ColorRect`, `MOUSE_FILTER_IGNORE`)
-3. `_desktop_icons` (`Control`, full rect)
-4. `DreamClutter` (`Control`, `MOUSE_FILTER_IGNORE`) — tile tinting only
-5. `_window_layer` — application windows, `MOUSE_FILTER_STOP`
-6. `_taskbar` (`Panel`, `PRESET_BOTTOM_WIDE`, height `DESKTOP_TASKBAR_HEIGHT = 24`)
-7. `_start_menu` (`Panel`, above the taskbar, height 336)
-8. `_top_status_bar` (`Panel`, `PRESET_TOP_WIDE`, height 22)
-
-> **`_window_layer` must be `visible = false` when no window is open.** It uses
-> `MOUSE_FILTER_STOP` and will otherwise swallow every click on the desktop.
-
-### Top status bar
+"Okna 98" on a Camptronics PC. `building_interior` renders `os_shell.gd` into a fixed
+**640x480** SubViewport shown on the CRT quad (4:3); mouse events are raycast onto the
+quad and pushed into the viewport, keys too (S turns round unless a text field has focus:
+`os_shell.wants_keyboard()` / `_is_crt_text_input_focused()`).
 
 ```
-[CAMP-NODE-04 ::] | ←← scrolling ticker (clipped) ←← | DAY MODE | MAIL 01
+os_shell.gd     boot (BIOS -> OEM splash -> desktop), desktop icons, windows, taskbar,
+                Start menu, Run, message boxes, the UPS monitor, the drawn cursor,
+                save state (installed programs, downloads, Recycle Bin), sfx
+os_theme.gd     the Theme: bevelled StyleBoxTextures, W95FA bitmap font, colours
+os_window.gd    one window: frame, title bar, caption buttons, drag; app goes in .content
+os_files.gd     the disk: folders, Vera's text files, what each .EXE opens
+web_pages.gd    the 1998 web: pages as BBCode with {target|text} links and {{tokens}}
+apps/*_app.gd   one script per program, setup(shell, window, args) / reopen / refresh
 ```
 
-`_top_bar_ticker_clip` is a `Control` with `clip_contents = true`; the marquee label is
-its child so it can never escape the bar. Wrap condition: `position.x + size.x < 0`.
+The shell is the apps' service layer: `open_app`, `open_file`, `message_box`,
+`start_download` / `finish_download`, `install_program`, `play`, `main_node()` (for
+billing, upkeep and the clock), `icon()`.
 
-### Desktop icons — the drag/click gotcha
-
-- **Press** → `gui_input` on the icon sets `_dragging_icon`, `_dragging_icon_callback`,
-  `_icon_has_dragged = false`
-- **Release (LMB up) → handled in `_input()`, NOT `gui_input`.** `move_to_front()` in the
-  press handler disturbs Godot 4's GUI mouse-focus tracking and the `gui_input` release
-  is unreliable. The click callback fires only if `not _icon_has_dragged`.
-- **Motion** → `_input()`, 4px threshold, clamped between the top bar and the taskbar
-
-### App unlock model
-
-Apps are gated behind `DEFAULT_UNLOCK_STATE`. Locked apps must be downloaded from
-Beeternet and installed:
+Programs that are not there at the start come off the web:
 
 ```
-Beeternet.meta_clicked("download://cbuilder")
-  → EventBus.file_downloaded("_builder98_setup.exe")
-  → crt_os_shell._add_to_downloads()
-  → run from Downloads → _open_install_wizard("builder")
-  → EventBus.program_installed("builder")
-  → desktop icon + start menu entry appear
+Beeternet (dials the modem once) -> www.stavitel98.cz -> download://BLDR98SW.EXE
+  -> download_app (modem speed) -> C:\DOWNLOAD -> EventBus.file_downloaded
+  -> double-click -> setup_app (licence must be accepted) -> shell.install_program()
+  -> EventBus.program_installed("builder") -> icon, Start menu, setup file to the bin
 ```
 
-Unlocked by default: `campmail`, `beeternet`, `downloads`, `bin`.
+CampStat comes from www.campgrid.cz, GuestRack from www.okres-hlubocany.cz. Builder
+refuses to start between 20:00 and 06:30 and closes at nightfall (`set_is_day`).
+Harness: `tools/os98_check.tscn` (boots, opens every app and page, installs, saves).
 
 ---
 
@@ -252,7 +237,6 @@ Unlocked by default: `campmail`, `beeternet`, `downloads`, `bin`.
 
 | Item | Impact |
 | --- | --- |
-| `crt_os_shell.gd` ≈ 5k lines | Every terminal app in one file. Next: split per app (Camp Status text builders are pure and go first) |
 | `main.gd` ≈ 3k lines | Menu, billing, blood, flythrough and save helpers are out; liminal debug window, save snapshot build/apply and night orchestration remain |
 | `BuildingManager` is not a pure view over `GridModel` | Holds its own structure state |
 | `GameActions.end_day()` | Legacy, bypasses `day_tick` |

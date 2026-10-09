@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://cqd348ar8o0ke"
+path="res://.godot/imported/pomono.fnt-50a639fbb20a3f7fa1f785a64b5f8548.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/pomono.fnt"
+dest_files=["res://.godot/imported/pomono.fnt-50a639fbb20a3f7fa1f785a64b5f8548.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=1

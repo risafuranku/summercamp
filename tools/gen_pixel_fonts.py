@@ -16,6 +16,7 @@ Fonts (sources under tools/font_src/, licences next to the outputs):
   Jersey 10   10 px cap big numbers, titles, banners        -> jersey10.fnt
   W95FA       12 px em  the camp computer (a Windows-95-era system font) -> w95.fnt
   W95FA bold  the same, emboldened by one pixel (title bars, buttons)   -> w95b.fnt
+  Pixel Operator Mono  16 px em  the BIOS / text-mode screens (CC0)     -> pomono.fnt
 
 Run from the repo root:  python tools/gen_pixel_fonts.py
 Requires Pillow >= 10.1 (float font sizes) and fontTools.
@@ -39,6 +40,7 @@ FONTS = [
     ("jersey10", "Jersey10-Regular.ttf", 75, 10, 15, 5, 0, False),
     ("w95", "W95FA-Regular.otf", 80, 12, 10, 3, 0, False),
     ("w95b", "W95FA-Regular.otf", 80, 12, 10, 3, 1, True),
+    ("pomono", "PixelOperatorMono-Regular.ttf", 100, 16, 13, 3, 0, False),
 ]
 
 CHARSET = [c for c in range(0x20, 0x7F)] + [c for c in range(0xA0, 0x180)] + [

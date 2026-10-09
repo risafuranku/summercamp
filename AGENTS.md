@@ -46,7 +46,9 @@ godot/
   data/pools/                 # email + guest content
   scripts/
     main.gd                   # orchestration (~3k lines; still the biggest file)
-    crt_os_shell.gd           # the in-world Win95 terminal and its apps (~5k lines)
+    os98/                     # the camp computer "Okna 98" at 640x480: os_shell (desktop,
+                              # windows, taskbar, boot), os_theme, os_window, os_files
+                              # (the disk), web_pages (the 1998 web), apps/<app>_app.gd
     ui/                       # retro_ui (kit), retro_menu (menu parts), main_menu,
                               # pause_menu, game_over_screen, boot_screen
     enemies/                  # i_enemy_brain, enemy_base, silent_man, tourist, girl, stalker
@@ -83,6 +85,7 @@ godot --headless --path godot res://tools/mail_check.tscn
 godot --headless --path godot res://tools/arrival_check.tscn
 godot --headless --path godot res://tools/enemy_check.tscn
 godot --headless --path godot res://tools/nightjobs_check.tscn
+godot --headless --path godot res://tools/os98_check.tscn      # add -- --shots=<dir> (windowed) for screenshots
 godot --headless --path godot --script res://tools/weather_check.gd
 ```
 
@@ -120,7 +123,9 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Which enemy an archetype brings | `main.ENEMY_FOR_ARCHETYPE` + `scripts/enemies/` |
 | HUD | `scripts/hud_manager.gd` (+ `scripts/ui/retro_ui.gd` kit) |
 | Menus / pause / game over | `scripts/ui/` |
-| Terminal apps (CampMail, Builder, Camp Status…) | `scripts/crt_os_shell.gd`, map: `crt_map_panel.gd` |
+| The camp computer (desktop, boot, windows) | `scripts/os98/os_shell.gd`, look: `os_theme.gd` |
+| Its programs (CampMail, Beeternet, CampStat, GuestRack, Setup…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` + `crt_map_panel.gd` |
+| Web pages, the files on its disk | `scripts/os98/web_pages.gd`, `scripts/os98/os_files.gd` |
 | Electricity | `scripts/electricity_billing.gd` |
 | Save format helpers | `scripts/save_codec.gd`; snapshot build/apply in `main.gd` |
 | Player movement, flashlight battery, stamina | `scripts/player_controller.gd` |
@@ -144,7 +149,7 @@ Extend `scripts/enemies/enemy_base.gd`, implement `_on_start()` / `_on_tick(dt)`
 tell, a counter, an `_announce()` line, keep `get_presence()` truthful (the base class
 tracks the body and its sounds; it drives the insects and the HUD face), then map it in `main.ENEMY_FOR_ARCHETYPE` (or start
 it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
-`crt_os_shell.NIGHT_PROCEDURES`. Test with `debug_spawn_enemy(id)` and the `night` scenario.
+`scripts/os98/apps/campstat_app.gd` `NIGHT_PROCEDURES` (and the ghost webring in `web_pages.gd`). Test with `debug_spawn_enemy(id)` and the `night` scenario.
 
 ---
 

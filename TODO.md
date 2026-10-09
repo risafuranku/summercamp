@@ -22,20 +22,23 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [x] Inventory of what the old shell does (mail + bookings + risk, Beeternet + downloads,
       installer, Builder, GuestRack, Camp Status: power/upkeep/reviews/night, finance, notes, mines)
 - [x] A period system font: W95FA baked to BMFont (w95, w95b)
-- [ ] New OS at a fixed 640x480: real Win98 look (bevels, navy title bars, Start, taskbar, clock)
-- [ ] BIOS POST + OEM splash (Camptronics) + desktop; resumes instantly once booted
-- [ ] Deliberately empty: CampMail, Beeternet, Notepad (Vera's notes), Mines, My Computer, Recycle Bin
-- [ ] Builder 98 downloaded from a period shareware site, installed with a setup wizard
-- [ ] CampStat (power company site) and GuestRack (district office site) downloaded the same way
-- [ ] CampMail rebuilt: list, reader, booking panel (party, nights, pay, arrival, night-risk impact, Accept/Reject)
-- [ ] CampStat rebuilt: power bill (pay), upkeep (crew), reviews, night forecast + procedures, money
-- [ ] Web 1.0 internet: portal/directory, the camp's own homepage + guestbook, pub, Jednota,
+- [x] New OS at a fixed 640x480: real Win98 look (bevels, navy title bars, Start, taskbar, clock)
+- [x] BIOS POST + OEM splash (Camptronics) + desktop; resumes instantly once booted
+- [x] Deliberately empty: CampMail, Beeternet, Notepad (Vera's notes), Mines, My Computer, Recycle Bin
+- [x] Builder 98 downloaded from a period shareware site, installed with a setup wizard
+- [x] CampStat (power company site) and GuestRack (district office site) downloaded the same way
+- [x] CampMail rebuilt: list, reader, booking panel (party, nights, pay, arrival, night-risk impact, Accept/Reject)
+- [x] CampStat rebuilt: power bill (pay), upkeep (crew), reviews, night forecast + procedures, money
+- [x] Web 1.0 internet: portal/directory, the camp's own homepage + guestbook, pub, Jednota,
       bus timetable, regional newspaper archive (lore of the enemies), power company,
       district office, a webring, 404 - the player works out where and what this place is
-- [ ] Night use: mail and web work at night; Builder refuses (licence: daytime only)
-- [ ] Computer sounds (ElevenLabs): HDD seek, fan, keyboard, modem dial-up, boot chime-ish, clicks
-- [ ] Keep the old interface for the rest of the game (setup, open_panel, export/import state,
+- [x] Night use: mail and web work at night; Builder refuses (licence: daytime only)
+- [x] Computer sounds (ElevenLabs): HDD seek, fan, keyboard, modem dial-up, boot chime-ish, clicks
+- [x] Keep the old interface for the rest of the game (setup, open_panel, export/import state,
       desktop_ready, program unlocks, quest hooks, shot driver hooks); delete crt_os_shell.gd
+- [x] Harness tools/os98_check (boot, every app and page, download, setup, night lock, save/load)
+- [x] The monitor: 4:3 screen, beige plastic casing, dark bezel (was brick-textured, 16:10)
+- [ ] Later: keyboard clicks while typing; web images (Grok) on a few pages; hidden pages
 
 ### 3. Builder (a game of its own)
 - [ ] Rework HUD/UI for the new 640x480 OS: clear toolbar, categories, prices, tooltips

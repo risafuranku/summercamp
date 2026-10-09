@@ -3,7 +3,9 @@ extends CanvasLayer
 const INTERIOR_BARREL_SHADER = preload("res://materials/interior_barrel_post.gdshader")
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
-const CRT_UI_SCENE = preload("res://scripts/crt_os_shell.gd")
+const CRT_UI_SCENE = preload("res://scripts/os98/os_shell.gd")
+## The camp computer runs at 640x480, like it did.
+const CRT_RESOLUTION := Vector2i(640, 480)
 
 const TIME_DAY: int = 0
 const TIME_EVENING: int = 1
@@ -75,7 +77,8 @@ const CRT_GLOW_DISTANCE_CURVE_POWER: float = 1.85
 const CRT_SCREEN_EMISSION_NEAR: float = 0.24
 const CRT_SCREEN_EMISSION_FAR: float = 1.06
 const CRT_SCREEN_EMISSION_ACTIVE_MULT: float = 0.72
-const CRT_SCREEN_QUAD_SIZE := Vector2(0.60, 0.385)
+## 4:3, the shape of the 640x480 picture.
+const CRT_SCREEN_QUAD_SIZE := Vector2(0.50, 0.375)
 const CRT_SCREEN_LOCAL_POS := Vector3(0.0, 0.02, 0.356)
 
 var _viewport_container: SubViewportContainer
@@ -131,7 +134,7 @@ var _crt_look_back_hold_time: float = 0.0
 var _crt_look_back_armed: bool = false
 var _crt_look_back_active: bool = false
 
-var _crt_view_cam_pos: Vector3 = Vector3(0.28, 1.35, -0.24)
+var _crt_view_cam_pos: Vector3 = Vector3(0.24, 1.37, -0.24)
 var _crt_full_cam_pos: Vector3 = Vector3(0.28, 1.35, -0.34)
 var _grid_manager
 var _building_manager
@@ -371,7 +374,7 @@ func _update_crt_look_back_hold(delta: float) -> void:
 	if not _crt_active:
 		_reset_crt_look_back_state()
 		return
-	var look_back_pressed := _is_crt_look_back_pressed_now()
+	var look_back_pressed := _is_crt_look_back_pressed_now() and not _is_crt_text_input_focused()
 	if not look_back_pressed:
 		_crt_look_back_armed = false
 		_crt_look_back_hold_time = 0.0
@@ -395,6 +398,9 @@ func _update_crt_look_back_hold(delta: float) -> void:
 
 func _handle_crt_look_back_key(event: InputEventKey) -> bool:
 	if not _is_crt_look_back_key_event(event):
+		return false
+	# Typing an S into the address bar is typing, not turning round.
+	if _is_crt_text_input_focused():
 		return false
 	if event.echo:
 		return true
@@ -744,7 +750,7 @@ func _build_room() -> void:
 	var crt_case_box = BoxMesh.new()
 	crt_case_box.size = Vector3(0.82, 0.60, 0.62)
 	crt_case.mesh = crt_case_box
-	crt_case.material_override = _make_psx_material(pc_shell_col, 26.0, 5.0, 0.01, "office_pc_light")
+	crt_case.material_override = _make_psx_material(pc_shell_col, 26.0, 5.0, 0.01, "plastic")
 	_crt_body.add_child(crt_case)
 
 	var crt_top_cap = MeshInstance3D.new()
@@ -753,34 +759,34 @@ func _build_room() -> void:
 	crt_top_mesh.size = Vector3(0.80, 0.05, 0.56)
 	crt_top_cap.mesh = crt_top_mesh
 	crt_top_cap.position = Vector3(0.0, 0.28, -0.02)
-	crt_top_cap.material_override = _make_psx_material(pc_shell_dark_col, 24.0, 4.0, 0.0, "office_pc_light")
+	crt_top_cap.material_override = _make_psx_material(pc_shell_dark_col, 24.0, 4.0, 0.0, "plastic")
 	_crt_body.add_child(crt_top_cap)
 
 	var crt_front = MeshInstance3D.new()
 	crt_front.name = "CRTFrontFrame"
 	var crt_front_mesh = BoxMesh.new()
-	crt_front_mesh.size = Vector3(0.74, 0.50, 0.11)
+	crt_front_mesh.size = Vector3(0.72, 0.53, 0.11)
 	crt_front.mesh = crt_front_mesh
 	crt_front.position = Vector3(0.0, 0.02, 0.258)
-	crt_front.material_override = _make_psx_material(pc_shell_col.lightened(0.08), 26.0, 5.0, 0.0, "office_pc_light")
+	crt_front.material_override = _make_psx_material(pc_shell_col.lightened(0.08), 26.0, 5.0, 0.0, "plastic")
 	_crt_body.add_child(crt_front)
 
 	var crt_inner = MeshInstance3D.new()
 	crt_inner.name = "CRTInnerFrame"
 	var crt_inner_mesh = BoxMesh.new()
-	crt_inner_mesh.size = Vector3(0.62, 0.40, 0.07)
+	crt_inner_mesh.size = Vector3(0.61, 0.46, 0.07)
 	crt_inner.mesh = crt_inner_mesh
 	crt_inner.position = Vector3(0.0, 0.02, 0.292)
-	crt_inner.material_override = _make_psx_material(pc_panel_col, 22.0, 4.0, 0.0, "office_pc_light")
+	crt_inner.material_override = _make_psx_material(pc_panel_col, 22.0, 4.0, 0.0, "plastic")
 	_crt_body.add_child(crt_inner)
 
 	var crt_bezel_dark = MeshInstance3D.new()
 	crt_bezel_dark.name = "CRTBezelDark"
 	var crt_bezel_mesh = BoxMesh.new()
-	crt_bezel_mesh.size = Vector3(0.56, 0.36, 0.03)
+	crt_bezel_mesh.size = Vector3(0.54, 0.41, 0.03)
 	crt_bezel_dark.mesh = crt_bezel_mesh
-	crt_bezel_dark.position = Vector3(0.0, 0.02, 0.304)
-	crt_bezel_dark.material_override = _make_psx_material(pc_charcoal_col, 16.0, 3.0, 0.0, "office_pc_light")
+	crt_bezel_dark.position = Vector3(0.0, 0.02, 0.336)
+	crt_bezel_dark.material_override = _make_psx_material(pc_charcoal_col, 16.0, 3.0, 0.0, "plastic")
 	_crt_body.add_child(crt_bezel_dark)
 
 	var crt_col = CollisionShape3D.new()
@@ -827,7 +833,7 @@ func _build_room() -> void:
 	crt_led_mesh.size = Vector3(0.014, 0.014, 0.010)
 	crt_power_led.mesh = crt_led_mesh
 	crt_power_led.position = Vector3(0.32, -0.18, 0.336)
-	crt_power_led.material_override = _make_psx_material(Color(0.36, 0.74, 0.36), 0.0, 0.0, 0.0, "office_pc_light")
+	crt_power_led.material_override = _make_psx_material(Color(0.36, 0.74, 0.36), 0.0, 0.0, 0.0, "plastic")
 	_crt_body.add_child(crt_power_led)
 
 	for bi in range(3):
@@ -837,7 +843,7 @@ func _build_room() -> void:
 		crt_btn_mesh.size = Vector3(0.028, 0.010, 0.016)
 		crt_button.mesh = crt_btn_mesh
 		crt_button.position = Vector3(0.26 - float(bi) * 0.038, -0.18, 0.336)
-		crt_button.material_override = _make_psx_material(pc_shell_dark_col.darkened(0.10), 0.0, 0.0, 0.0, "office_pc_light")
+		crt_button.material_override = _make_psx_material(pc_shell_dark_col.darkened(0.10), 0.0, 0.0, 0.0, "plastic")
 		_crt_body.add_child(crt_button)
 
 	var crt_stand_neck = MeshInstance3D.new()
@@ -846,7 +852,7 @@ func _build_room() -> void:
 	stand_neck_mesh.size = Vector3(0.18, 0.11, 0.22)
 	crt_stand_neck.mesh = stand_neck_mesh
 	crt_stand_neck.position = Vector3(0.0, -0.33, -0.01)
-	crt_stand_neck.material_override = _make_psx_material(pc_shell_dark_col, 24.0, 4.0, 0.0, "office_pc_light")
+	crt_stand_neck.material_override = _make_psx_material(pc_shell_dark_col, 24.0, 4.0, 0.0, "plastic")
 	_crt_body.add_child(crt_stand_neck)
 
 	var crt_stand_foot = MeshInstance3D.new()
@@ -855,7 +861,7 @@ func _build_room() -> void:
 	stand_foot_mesh.size = Vector3(0.40, 0.05, 0.30)
 	crt_stand_foot.mesh = stand_foot_mesh
 	crt_stand_foot.position = Vector3(0.0, -0.40, -0.01)
-	crt_stand_foot.material_override = _make_psx_material(pc_shell_dark_col.lightened(0.06), 24.0, 4.0, 0.0, "office_pc_light")
+	crt_stand_foot.material_override = _make_psx_material(pc_shell_dark_col.lightened(0.06), 24.0, 4.0, 0.0, "plastic")
 	_crt_body.add_child(crt_stand_foot)
 
 	for vi in range(5):
@@ -1050,8 +1056,7 @@ func _build_crt_viewport() -> void:
 	if _crt_viewport != null: return
 	_crt_viewport = SubViewport.new()
 	_crt_viewport.name = "CRTViewport"
-	var main_size = get_viewport().get_visible_rect().size
-	_crt_viewport.size = Vector2i(max(640, int(main_size.x)), max(480, int(main_size.y)))
+	_crt_viewport.size = CRT_RESOLUTION
 	_crt_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_crt_viewport.handle_input_locally = true
 	_crt_viewport.gui_disable_input = false
@@ -1092,10 +1097,7 @@ func _sync_interior_viewport_to_window() -> void:
 func _sync_crt_viewport_to_window() -> void:
 	if _crt_viewport == null:
 		return
-	var screen_size = get_viewport().get_visible_rect().size
-	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
-		return
-	_crt_viewport.size = Vector2i(max(640, int(screen_size.x)), max(480, int(screen_size.y)))
+	_crt_viewport.size = CRT_RESOLUTION
 	if _crt_ui != null:
 		_crt_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_crt_ui.offset_left = 0.0
@@ -2509,7 +2511,8 @@ func _make_psx_material(base_color: Color, _snap: float = 18.0, _steps: float = 
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	if _texture_style != null:
+	# "plastic": the computer's own casing, smooth, no texture from the pack.
+	if _texture_style != null and texture_category != "plastic":
 		var category = texture_category if texture_category != "" else "generic"
 		var tex = _texture_style.pick_texture(category, base_color)
 		if tex != null:

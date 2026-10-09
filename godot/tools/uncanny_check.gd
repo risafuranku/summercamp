@@ -95,12 +95,7 @@ func _ready() -> void:
 		_expect(not pl.loop, "station must not loop")
 		print("UNCANNY CHECK: station with 12 pips = %.1f s" % station.get_length())
 
-	# A mail stamped later than it was delivered sorts and prints with its stamp.
-	var shell = load("res://scripts/crt_os_shell.gd").new()
-	var night_log := {"day": 4, "time": "03:00", "stamp_day_offset": 1}
-	_expect(shell._email_mail_datetime_label(night_log) == "Day 5  03:00", "night log label: %s" % shell._email_mail_datetime_label(night_log))
-	_expect(shell._email_mail_sort_key(night_log) > shell._email_mail_sort_key({"day": 4, "time": "23:59"}), "night log does not sort after its own day")
-	shell.free()
+	# A mail stamped later than it was delivered: see tools/os98_check.gd (CampMail).
 
 	# The story pool: every mail parses, no two mails share a subject and body, and
 	# there is exactly one mail stamped with a later day.
