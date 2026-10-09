@@ -15,10 +15,10 @@ const T = preload("res://scripts/os98/os_theme.gd")
 const MAP_PANEL_SCRIPT = preload("res://scripts/crt_map_panel.gd")
 
 const CATEGORIES: Array = [
-	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/stan1.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
-	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/hajzly.PNG", "items": ["toilet_block", "shower_block", "vecerka", "restaurant", "pub"]},
-	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/iso_bonfire.png", "items": ["bonfire", "sports_field", "lake_slide"]},
-	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/sewer.PNG", "items": ["sewer"]},
+	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/tb_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
+	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "vecerka", "restaurant", "pub"]},
+	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide"]},
+	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer"]},
 ]
 
 ## Catalogue pictures (the map has its own, isometric).
@@ -217,7 +217,7 @@ func _build_toolbar() -> void:
 	row.add_theme_constant_override("separation", 2)
 	_toolbar.add_child(row)
 	for id in TOOLS:
-		var b := _tool_button(_tool_icon(id), "%s\n%s" % [SHORT_NAMES[id], BLURBS[id]])
+		var b := _tool_button(_tool_art(id), "%s\n%s" % [SHORT_NAMES[id], BLURBS[id]])
 		var tool: String = id
 		b.pressed.connect(func():
 			_open_category("")
@@ -287,7 +287,7 @@ func _tool_button(icon: Texture2D, tip: String) -> Button:
 	b.expand_icon = true
 	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	b.tooltip_text = tip
-	b.add_theme_constant_override("icon_max_width", 24)
+	b.add_theme_constant_override("icon_max_width", 28)
 	return b
 
 
@@ -553,6 +553,13 @@ const PIX_COLORS := {
 	"T": Color8(110, 80, 40), "t": Color8(200, 170, 110), "d": Color8(160, 130, 80),
 	"y": Color8(255, 240, 140), "G": Color8(90, 90, 96),
 }
+
+
+## The painted toolbar icons, falling back to the little pixel ones.
+func _tool_art(id: String) -> Texture2D:
+	var name: String = {"demolish": "bulldoze", "path": "path", "lamp_post": "lamp"}.get(id, id)
+	var tex := _texture("res://assets/textury/builder/tb_%s.png" % name)
+	return tex if tex != null else _tool_icon(id)
 
 
 func _tool_icon(id: String) -> Texture2D:
