@@ -375,6 +375,14 @@ const SCENARIOS := {
 		["clear", 10, 10, 4, 4], ["player", 12, 12, 270.0], ["wait", 1.0], ["shot", "w0_calm"],
 		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 0.7], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"],
 	],
+	"deskview": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 7.0],
+		["eval", "_interior_manager._building_interior._window_vp.render_target_update_mode"], ["eval", "_interior_manager._building_interior._window_cam.global_position"],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.5], ["shot", "d0_room_day"],
+		["hours", 9.6], ["wait", 2.0], ["shot", "d1_room_dusk"],
+		["hours", 1.0], ["wait", 2.0], ["shot", "d2_room_late_dusk"],
+		["hours", 2.0], ["wait", 2.0], ["shot", "d3_room_night"],
+	],
 	"probe": [
 		["wait_menu"], ["wait", 1.0],
 		["eval", "get_viewport().get_visible_rect().size"],

@@ -29,7 +29,7 @@
 - [x] P21 No bloom indoors (the PC screen glows white, mail unreadable)
 - [x] P22 Leave an interior with S or by clicking the door behind you
 - [x] P23 No popup after accepting a booking
-- [ ] P24 Reception lighting changes smoothly; a real view out of the window, visible from the PC
+- [x] P24 Reception lighting changes smoothly; a real view out of the window, visible from the PC
 - [ ] P25 Breaker minigame polish
 
 ## CURRENT ITERATION — the brief of 2026-10-08 (work through this first)

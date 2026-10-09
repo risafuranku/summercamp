@@ -294,6 +294,8 @@ func open_interior() -> void:
 
 	if _viewport != null:
 		_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_set_window_view_live(true)
+	_update_window_texture()
 	visible = true
 	_sync_interior_viewport_to_window()
 	_sync_crt_viewport_to_window()
@@ -324,6 +326,7 @@ func close_interior() -> void:
 	_set_crt_viewport_live(false)
 	if _viewport != null:
 		_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_set_window_view_live(false)
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
@@ -683,6 +686,7 @@ func _build_room() -> void:
 	_window_quad.mesh = wq
 	_window_quad.position = Vector3(-0.4, 1.68, -2.51)
 	_room_root.add_child(_window_quad)
+	_setup_window_view()
 	_update_window_texture()
 
 	# ── FAKE OUTDOOR SCENE (past the front wall, aligned to shifted window) ───
@@ -1299,60 +1303,30 @@ func _focus_crt_full() -> void:
 	)
 
 
+## Night -> evening -> day by the daylight factor (0..1), so the room changes as the
+## light outside does, not in three jumps.
+func _tri(d: float, night, evening, day):
+	if d < 0.5:
+		return lerp(night, evening, d * 2.0)
+	return lerp(evening, day, (d - 0.5) * 2.0)
+
+
 func _apply_room_time_profile(animated: bool = false) -> void:
+	var d := clampf(_daylight_factor, 0.0, 1.0)
 	if _room_environment != null:
-		match _time_state:
-			TIME_DAY:
-				_room_environment.background_color = Color(0.66, 0.70, 0.74)
-				_room_environment.ambient_light_color = Color(0.82, 0.84, 0.80)
-				_room_environment.ambient_light_energy = 1.06
-				_room_environment.fog_light_color = Color(0.78, 0.82, 0.84)
-				_room_environment.fog_density = 0.004
-			TIME_EVENING:
-				_room_environment.background_color = Color(0.24, 0.20, 0.22)
-				_room_environment.ambient_light_color = Color(0.48, 0.40, 0.42)
-				_room_environment.ambient_light_energy = 0.54
-				_room_environment.fog_light_color = Color(0.34, 0.28, 0.30)
-				_room_environment.fog_density = 0.010
-			_:
-				_room_environment.background_color = Color(0.08, 0.10, 0.14)
-				_room_environment.ambient_light_color = Color(0.22, 0.26, 0.34)
-				_room_environment.ambient_light_energy = 0.05
-				_room_environment.fog_light_color = Color(0.14, 0.18, 0.24)
-				_room_environment.fog_density = 0.014
-
+		_room_environment.background_color = _tri(d, Color(0.08, 0.10, 0.14), Color(0.24, 0.20, 0.22), Color(0.66, 0.70, 0.74))
+		_room_environment.ambient_light_color = _tri(d, Color(0.22, 0.26, 0.34), Color(0.48, 0.40, 0.42), Color(0.82, 0.84, 0.80))
+		_room_environment.ambient_light_energy = _tri(d, 0.05, 0.54, 1.06)
+		_room_environment.fog_light_color = _tri(d, Color(0.14, 0.18, 0.24), Color(0.34, 0.28, 0.30), Color(0.78, 0.82, 0.84))
+		_room_environment.fog_density = _tri(d, 0.014, 0.010, 0.004)
 	if _ceiling_light != null:
-		match _time_state:
-			TIME_DAY:
-				_ceiling_light.light_color = Color(1.0, 0.96, 0.86)
-				_ceiling_light.light_energy = 1.88
-			TIME_EVENING:
-				_ceiling_light.light_color = Color(0.92, 0.76, 0.64)
-				_ceiling_light.light_energy = 0.88
-			_:
-				_ceiling_light.light_color = Color(0.66, 0.72, 0.90)
-				_ceiling_light.light_energy = 0.08
-
+		_ceiling_light.light_color = _tri(d, Color(0.66, 0.72, 0.90), Color(0.92, 0.76, 0.64), Color(1.0, 0.96, 0.86))
+		_ceiling_light.light_energy = _tri(d, 0.08, 0.88, 1.88)
 	if _desk_lamp != null:
-		match _time_state:
-			TIME_DAY:
-				_desk_lamp.light_energy = 0.70
-			TIME_EVENING:
-				_desk_lamp.light_energy = 0.44
-			_:
-				_desk_lamp.light_energy = 0.02
-
+		_desk_lamp.light_energy = _tri(d, 0.02, 0.44, 0.70)
 	if _window_light != null:
-		match _time_state:
-			TIME_DAY:
-				_window_light.light_color = Color(0.98, 0.98, 0.92)
-				_window_light.light_energy = 0.56
-			TIME_EVENING:
-				_window_light.light_color = Color(0.84, 0.66, 0.54)
-				_window_light.light_energy = 0.24
-			_:
-				_window_light.light_color = Color(0.54, 0.60, 0.84)
-				_window_light.light_energy = 0.01
+		_window_light.light_color = _tri(d, Color(0.54, 0.60, 0.84), Color(0.84, 0.66, 0.54), Color(0.98, 0.98, 0.92))
+		_window_light.light_energy = _tri(d, 0.01, 0.24, 0.56)
 
 	var daylight = clampf(_daylight_factor, 0.0, 1.0)
 	var sun_tint = _sunlight_color.lerp(Color(1.0, 0.96, 0.90), 0.25)
@@ -1369,6 +1343,65 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		_desk_lamp.light_energy = max(_desk_lamp.light_energy, lerpf(0.01, 0.04, 1.0 - daylight))
 	_apply_manual_office_light_profile(animated)
 	_update_window_texture()
+
+
+## A camera in the real camp, at the reception's front wall, looking out across the
+## site: what you see through the window from the desk is what is out there (the
+## guests, the lamps, and whatever walks between them at night).
+const WINDOW_VIEW_SIZE := Vector2i(320, 240)
+var _window_vp: SubViewport
+var _window_cam: Camera3D
+
+
+func _setup_window_view() -> void:
+	if _window_vp != null:
+		return
+	_window_vp = SubViewport.new()
+	_window_vp.name = "WindowView"
+	_window_vp.size = WINDOW_VIEW_SIZE
+	_window_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	# No own world: it sees the camp's world, as the player outside does.
+	add_child(_window_vp)
+	_window_cam = Camera3D.new()
+	_window_cam.fov = 62.0
+	_window_cam.far = 220.0
+	_window_vp.add_child(_window_cam)
+	for n in ["OutdoorGround", "OutdoorCeiling", "OutdoorWallL", "OutdoorWallR", "OutdoorBushL", "OutdoorBushR", "OutdoorBushR2", "OutdoorGravelStrip0", "OutdoorGravelStrip1", "OutdoorGravelStrip2"]:
+		var node := _room_root.get_node_or_null(n)
+		if node != null:
+			node.visible = false
+
+
+func _place_window_camera() -> bool:
+	if _window_cam == null:
+		return false
+	var scene := get_tree().current_scene if get_tree() != null else null
+	var reception: Node3D = scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
+	if reception == null:
+		return false
+	var grid = scene.get("grid_manager")
+	var center: Vector3 = grid.get_map_center_world() if grid != null and grid.has_method("get_map_center_world") else Vector3.ZERO
+	var base := reception.global_position
+	var out := center - base
+	out.y = 0.0
+	out = out.normalized() if out.length() > 0.1 else Vector3.FORWARD
+	var eye := base + out * 4.0
+	eye.y = 1.55
+	_window_cam.global_position = eye
+	_window_cam.look_at(eye + out * 10.0 + Vector3(0, -0.6, 0), Vector3.UP)
+	return true
+
+
+func _set_window_view_live(on: bool) -> void:
+	if _window_vp == null:
+		return
+	if on and not _place_window_camera():
+		on = false
+	_window_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+	if _window_quad != null:
+		var mat := _window_quad.material_override as StandardMaterial3D
+		if mat != null:
+			mat.albedo_texture = _window_vp.get_texture() if on else null
 
 
 func _update_window_texture() -> void:
@@ -1416,10 +1449,15 @@ func _update_window_texture() -> void:
 			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 			_window_quad.material_override = mat
-		mat.albedo_color = glass_color
-		mat.emission_enabled = true
-		mat.emission = glass_color
-		mat.emission_energy_multiplier = sky_energy * 0.30
+		if mat.albedo_texture != null:
+			# The real view: dirty glass, a touch of the room's colour.
+			mat.albedo_color = Color(0.86, 0.88, 0.86).lerp(glass_color, 0.12)
+			mat.emission_enabled = false
+		else:
+			mat.albedo_color = glass_color
+			mat.emission_enabled = true
+			mat.emission = glass_color
+			mat.emission_energy_multiplier = sky_energy * 0.30
 	if _window_outdoor_sky != null:
 		var sky_mat = _window_outdoor_sky.material_override as StandardMaterial3D
 		if sky_mat == null:
