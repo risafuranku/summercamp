@@ -15,7 +15,7 @@
 - [ ] P7  Daytime is dead: more life outside (guests doing things, sounds, small events)
 - [ ] P8  Too easy: two full cabins and nothing happens -> more pressure (needs, complaints, mess, events, nights)
 - [ ] P9  Three more guest archetypes (each with its own night threat)
-- [ ] P10 GuestRack: better visuals
+- [x] P10 GuestRack: better visuals
 - [x] P11 Higher look sensitivity in interiors
 - [ ] P12 Cleaning variety: sometimes a few items, sometimes many across rooms, mess in different places each time
 - [ ] P13 Shower/toilet maintenance done inside like cleaning, not hold-E outside
