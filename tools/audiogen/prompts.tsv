@@ -39,3 +39,15 @@ whistler_tune	7.0	assets/sfx/npc/whistler_tune.mp3	A man whistling a slow melanc
 child_hum	5.0	assets/sfx/npc/child_hum.mp3	A small child softly humming a simple nursery melody alone in the dark, close, breathy, slightly off-key, then a single quiet giggle. Eerie, no music, no other sounds.
 child_scream	2.0	assets/sfx/npc/child_scream.mp3	A sudden short piercing shriek of a small child, distorted, close, horrifying, cut off abruptly. No music.
 basket_creak	2.5	assets/sfx/npc/basket_creak.mp3	The slow creak of an old wicker basket handle swinging as someone walks, a few slow footsteps on wet leaves and the soft scrape of a small knife on wood, close, at night. No music.
+life_slide	8.0	assets/sfx/life/kids_slide.mp3	Children laughing and shouting happily at a lake water slide in summer, splashes into the water, heard from about forty metres away across a forest camp, birds faintly, no music. Seamless loop.
+life_football	8.0	assets/sfx/life/football.mp3	A few men playing football on a grass field at a summer camp, the dull thud of kicks, a ball bouncing, short wordless shouts and a whistle, heard from about forty metres away, no music. Seamless loop.
+life_guitar	10.0	assets/sfx/life/guitar_fire.mp3	An acoustic guitar strumming a simple slow folk song at a campfire with two or three voices humming along, a crackling fire, heard from about thirty metres away outdoors, a little out of tune. Seamless loop.
+life_pub	8.0	assets/sfx/life/pub_chatter.mp3	Muffled chatter and laughter inside a small village pub heard from outside through an open door, beer glasses clinking, an old radio playing faintly, no clear words. Seamless loop.
+life_axe	6.0	assets/sfx/life/axe.mp3	Someone chopping firewood with an axe in a forest camp, slow regular chops and a log splitting, heard from about fifty metres away, birds, no music.
+life_dog	4.0	assets/sfx/life/dog_far.mp3	A village dog barking a few times far away across fields on a summer afternoon, echoing, no music.
+life_moped	6.0	assets/sfx/life/moped.mp3	An old two-stroke moped passing along a distant country road behind the trees, rising and fading away, no music.
+life_kids	6.0	assets/sfx/life/kids_play.mp3	Two small children running and playing between tents at a summer camp, giggling and calling to each other without clear words, close, outdoors, no music.
+ev_raccoons	3.0	assets/sfx/life/raccoons_bin.mp3	Raccoons rummaging inside a metal rubbish bin, rustling plastic bags, a can rolling, the lid clattering, small chittering animal noises, close, outdoors, no music.
+ev_van	4.0	assets/sfx/life/van_horn.mp3	An old Eastern European delivery van idling on a gravel road and the driver honking the horn twice impatiently, outdoors, close, no music.
+ev_saw	3.0	assets/sfx/life/saw_log.mp3	A hand saw cutting quickly through a wet fallen branch outdoors, a few strokes and the branch cracking off, close, no music.
+ev_shoo	2.0	assets/sfx/life/shoo.mp3	A man clapping his hands loudly twice and shouting a short wordless shoo outdoors, then small animals scampering away over leaves, no music.

@@ -43,6 +43,7 @@ const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
 const THREAT_SENSES_SCRIPT = preload("res://scripts/threat_senses.gd")
 const NIGHT_JOBS_SCRIPT = preload("res://scripts/night_jobs.gd")
+const DAY_EVENTS_SCRIPT = preload("res://scripts/day_events.gd")
 const BREAKER_PANEL_SCRIPT = preload("res://scripts/breaker_panel.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
@@ -162,6 +163,8 @@ var _paper_map: Node
 const PAPER_MAP_SCRIPT = preload("res://scripts/paper_map.gd")
 var _breaker_panel: CanvasLayer
 var _pending_night_jobs: Dictionary = {}
+var _day_events: Node
+var _pending_day_events: Dictionary = {}
 var _still_seconds: float = 0.0
 var _still_last_pos: Vector3 = Vector3.INF
 var _active_enemy_spawned_this_night: int = 0
@@ -363,6 +366,23 @@ func _setup_night_jobs() -> void:
 	if not _pending_night_jobs.is_empty():
 		_night_jobs.import_state(_pending_night_jobs)
 		_pending_night_jobs.clear()
+	if _day_events == null or not is_instance_valid(_day_events):
+		_day_events = DAY_EVENTS_SCRIPT.new()
+		_day_events.name = "DayEvents"
+		add_child(_day_events)
+		_day_events.setup(self)
+	if not _pending_day_events.is_empty():
+		_day_events.import_state(_pending_day_events)
+		_pending_day_events.clear()
+
+
+func _tick_day_events() -> void:
+	if _day_events == null:
+		return
+	var minute_of_day := _clock_minutes_from_hours(_time_of_day_hours)
+	var abs_minute := (maxi(1, _day_index) - 1) * 1440 + minute_of_day
+	var can_act := not _is_any_interior_open() and not get_tree().paused
+	_day_events.tick(get_process_delta_time(), abs_minute, _time_state != TIME_NIGHT, _day_index, can_act)
 
 
 func _tick_night_jobs() -> void:
@@ -426,9 +446,15 @@ func _on_structure_interact_override(structure: Node3D) -> bool:
 
 ## For the HUD waypoint: the nearest open night job.
 func night_job_waypoint() -> Dictionary:
-	if _night_jobs == null or _player == null or not is_instance_valid(_player):
+	if _player == null or not is_instance_valid(_player):
 		return {}
-	return _night_jobs.waypoint(_player.global_position)
+	var best: Dictionary = _night_jobs.waypoint(_player.global_position) if _night_jobs != null else {}
+	var day: Dictionary = _day_events.waypoint(_player.global_position) if _day_events != null else {}
+	if best.is_empty():
+		return day
+	if not day.is_empty() and _player.global_position.distance_to(day["position"]) < _player.global_position.distance_to(best["position"]):
+		return day
+	return best
 
 
 func _setup_maintenance() -> void:
@@ -524,6 +550,8 @@ func _check_in_guest(info: Dictionary) -> void:
 func _talk_to_guest(info: Dictionary) -> void:
 	if _quest_manager != null:
 		_quest_manager.notify("talked_to_guest", info)
+	if _day_events != null:
+		_day_events.on_talked_to(info)
 	if _hud_manager == null:
 		return
 	var name_text := str(info.get("name", "Guest"))
@@ -670,6 +698,7 @@ func _process(delta: float) -> void:
 	_sync_hud_player_meters()
 	_poll_arrivals(delta)
 	_tick_night_jobs()
+	_tick_day_events()
 	if _maintenance != null:
 		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
 	_poll_guest_quotes(delta)
@@ -783,6 +812,8 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 				gate.set_night(_time_state == TIME_NIGHT or _time_of_day_hours >= 19.5)
 		if previous_time_state == TIME_NIGHT and _time_state == TIME_DAY:
 			_on_day_phase_started()
+		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null:
+			_day_events.on_night()
 
 	if weather_changed:
 		_set_weather_state(_weather_state)
@@ -1015,7 +1046,10 @@ func _poll_arrivals(delta: float) -> void:
 		return
 	_arrivals_poll = 0.5
 	_hud_manager.set_arrivals(GuestManager.get_arrivals())
-	if _night_jobs != null:
+	var day_rows: Array = _day_events.hud_rows() if _day_events != null else []
+	if not day_rows.is_empty() and _time_state != TIME_NIGHT:
+		_hud_manager.set_jobs(day_rows, "TODAY")
+	elif _night_jobs != null:
 		_hud_manager.set_jobs(_night_jobs.hud_rows())
 
 
@@ -1906,6 +1940,8 @@ func _setup_audio() -> void:
 
 
 func _try_interact() -> void:
+	if _day_events != null and not _is_any_interior_open() and _day_events.try_interact():
+		return
 	var guest_in_view := _find_guest_in_view()
 	if not guest_in_view.is_empty():
 		if str(guest_in_view.get("status", "")) == "waiting":
@@ -1974,6 +2010,10 @@ func _update_interaction_hint() -> void:
 		return
 	if _is_any_interior_open():
 		_hud_manager.set_hint_text("")
+		return
+	var day_hint: String = _day_events.hint() if _day_events != null else ""
+	if not day_hint.is_empty():
+		_hud_manager.set_hint_text(day_hint)
 		return
 	var guest_in_view := _find_guest_in_view()
 	if not guest_in_view.is_empty():
@@ -2516,6 +2556,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"guest_runtime": guest_runtime_state,
 		"quests": _quest_manager.export_state() if _quest_manager != null else {},
 		"night_jobs": _night_jobs.export_state() if _night_jobs != null else {},
+		"day_events": _day_events.export_state() if _day_events != null else {},
 	}
 	if _player != null and is_instance_valid(_player):
 		snapshot["player"] = {
@@ -2765,6 +2806,11 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		if _night_jobs != null and _gameplay_started:
 			_night_jobs.import_state(_pending_night_jobs)
 			_pending_night_jobs.clear()
+		var day_any = snapshot.get("day_events", {})
+		_pending_day_events = (day_any as Dictionary).duplicate(true) if day_any is Dictionary else {}
+		if _day_events != null and _gameplay_started:
+			_day_events.import_state(_pending_day_events)
+			_pending_day_events.clear()
 		var quests_any = snapshot.get("quests", {})
 		_pending_quest_state = (quests_any as Dictionary).duplicate(true) if quests_any is Dictionary else {}
 		_pending_quest_state_loaded = true
@@ -2960,6 +3006,9 @@ func _reset_state_for_new_game() -> void:
 	_pending_night_jobs.clear()
 	if _night_jobs != null:
 		_night_jobs.reset()
+	_pending_day_events.clear()
+	if _day_events != null:
+		_day_events.reset()
 	_pending_loaded_crt_state.clear()
 	_last_known_crt_desktop_state.clear()
 	_billing.reset(1)

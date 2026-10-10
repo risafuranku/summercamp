@@ -60,10 +60,13 @@ const GUEST_SPRITE_PATHS := {
 	ARCHETYPE_PICKER: "res://assets/textury/npc/host_pensioner.png",
 }
 
-const LIMINAL_FORECAST_SAFE_COUNT := 3
-const LIMINAL_FORECAST_STEP_GUESTS := 6
-const LIMINAL_FORECAST_FIRST_STAGE_OFFSET := 3
-const LIMINAL_FORECAST_GUARANTEED_OFFSET := 21
+## One guest of a kind is safe; from the second the woods start listening (playtest
+## 2026-10-09: "two full cabins and nothing happens"). Tiny at 2, small from 3, medium
+## from 7, large from 11, guaranteed at 15, then the curve repeats.
+const LIMINAL_FORECAST_SAFE_COUNT := 1
+const LIMINAL_FORECAST_STEP_GUESTS := 4
+const LIMINAL_FORECAST_FIRST_STAGE_OFFSET := 2
+const LIMINAL_FORECAST_GUARANTEED_OFFSET := 14
 const LIMINAL_FORECAST_LOOP_GUESTS := LIMINAL_FORECAST_STEP_GUESTS * 4
 
 const LIMINAL_CHANCE_TIER_NONE := "none"
@@ -544,6 +547,28 @@ func _rooms_ready_for(guest: Dictionary) -> bool:
 		if ROOM_RULES.normalize_status(str(acc.get("status", ""))) != ROOM_RULES.STATUS_READY:
 			return false
 	return true
+
+
+## Something happened in the camp that guests noticed (scripts/day_events.gd): moves
+## the mood of every guest in, or only of the given archetypes, and gives them `thought`.
+func apply_camp_event(mood_delta: float, thought: String, archetypes: Array = []) -> void:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return
+	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	for i in state.guests.size():
+		var g_any = state.guests[i]
+		if not (g_any is Dictionary) or str(g_any.get("status", "")) != STATUS_ACTIVE:
+			continue
+		var guest: Dictionary = g_any
+		if not archetypes.is_empty() and not archetypes.has(str(guest.get("archetype", ""))):
+			continue
+		guest["mood"] = clampf(float(guest.get("mood", 60.0)) + mood_delta, 0.0, 100.0)
+		if not thought.is_empty():
+			guest["thought"] = thought
+			guest["thought_abs"] = now_abs
+		state.guests[i] = guest
+	_emit_guest_overview_state(true)
 
 
 ## The player at the barrier, pressing E on a waiting party. Lets them in when every

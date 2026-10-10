@@ -11,7 +11,7 @@ extends Node
 ##            lamp circuit).
 ##   lamp     a lamp post's bulb goes: that lamp is dark until you hold R at it.
 ##   sewer    the sewer clogs: toilets and showers close until you crawl the pipes.
-##   toilet   the toilet block blocks: hold R at it.
+##   toilet   the toilet block blocks: go in and unblock it (service_interior).
 ## Each job pages you, shows in the HUD's TONIGHT list and gets the waypoint. Jobs left
 ## at dawn are not forgiven: a tripped breaker is reset by an electrician you pay.
 ##
@@ -213,7 +213,7 @@ func _make(kind: String, at: int) -> Dictionary:
 			job.merge({"title": "Sewer blocked", "short": "Sewer", "where": "The sewer hatch: crawl in", "coord": [s.x, s.y]}, true)
 		"toilet":
 			var t := _pick(["toilet_block"])
-			job.merge({"title": "Toilets blocked", "short": "Toilets", "where": "Toilet block %d:%d, hold R" % [t.x, t.y], "coord": [t.x, t.y]}, true)
+			job.merge({"title": "Toilets blocked", "short": "Toilets", "where": "Toilet block %d:%d: go in and unblock it" % [t.x, t.y], "coord": [t.x, t.y]}, true)
 	return job
 
 

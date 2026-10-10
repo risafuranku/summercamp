@@ -64,7 +64,8 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 
 | Feature | State | Notes |
 | --- | --- | --- |
-| Night roll per archetype from the forecast | ✅ | |
+| Night roll per archetype from the forecast | ✅ | one of a kind safe, risk from the second |
+| Day events (rubbish, raccoons, delivery, lost boy, noise, fallen branch) + camp life sounds | ✅ | `scripts/day_events.gd`, harness `dayevents_check` |
 | Silent Man (Quiet Guy) | ✅ | footsteps that close in while you stand in the dark, a whisper, then the hit; light drives him off |
 | The Photographer (Drunk) | ✅ | film advance, red focus lamp and beeps, whine, flash; never look at him when it fires |
 | The Girl (Cheap Chick) | ✅ | advances when unwatched; eats the battery; cannot enter lamp light |

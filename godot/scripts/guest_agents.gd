@@ -91,6 +91,16 @@ func _process(delta: float) -> void:
 
 ## Guest under the player's crosshair, for the talk interaction. Returns the snapshot
 ## entry (plus "distance") or {} when nobody is close enough and in view.
+## Where a party is standing right now (its first member), or Vector3.INF.
+func guest_world_position(guest_id: int) -> Vector3:
+	var party: Dictionary = _parties.get(guest_id, {})
+	for member_any in party.get("members", []):
+		var member := member_any as Node3D
+		if member != null and is_instance_valid(member) and member.is_visible_in_tree():
+			return member.global_position
+	return Vector3.INF
+
+
 func find_guest_in_view(camera: Camera3D, max_distance: float = INTERACT_MAX_DISTANCE) -> Dictionary:
 	if camera == null:
 		return {}

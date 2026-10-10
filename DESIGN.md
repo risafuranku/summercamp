@@ -86,8 +86,9 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
 | Family | 150 | everything at once: food, toilets, the field, the slide, safety | **The Extra Child** |
 | Mushroom Pickers | 90 | sleep, food, the shop; quiet; up at four | **The Basket Man** |
 
-- Per-archetype pressure curve: up to 3 guests safe, then tiny / small / medium / large
-  odds, guaranteed at 24 (repeats). Unhappy guests count double.
+- Per-archetype pressure curve: one guest of a kind is safe; tiny at 2, small from 3, medium
+  from 7, large from 11, guaranteed at 15 (repeats). Unhappy guests count double. (It
+  was 3 safe until the 2026-10-09 playtest: two full cabins and nothing ever happened.)
 - The puzzle: a wide mixed camp spreads the odds but needs more kinds of facilities;
   taking the first booking that arrives fills the camp with whoever wrote first. Lazy
   booking makes a hard night; deliberate booking (mix + the right facilities, so nobody
@@ -169,6 +170,29 @@ night between 21:00 and 04:30 and pages you for each (HUD: TONIGHT, plus the way
 
 So the night is "keep the camp running" and "something is out there" at the same time:
 the lamps you fix are the safe ground the enemies respect.
+
+## 5c. The day: life and small trouble
+
+By day the camp must sound and feel lived in, and the warden has more to do than the
+Builder (`scripts/day_events.gd`).
+
+- **Life.** While guests are about, the facilities make their noise: kids at the slide,
+  a football match, a guitar at the fire (tramps, or anyone after 19:00), the pub through
+  its door, children between the tents when a family is in. Far off: an axe, a village
+  dog, a moped on the road. Rain silences everything but the pub.
+- **Trouble.** Two events on day 1, up to five with a full camp, between 08:30 and 18:30.
+  Each pages, shows in the TODAY list with a waypoint, and has a deadline:
+
+| Event | When | Fix | Left alone |
+| --- | --- | --- | --- |
+| Rubbish dumped | always | hold E by it | every guest's mood -6 |
+| Raccoons in the bins | bistro / shop / pub | E: shoo | -$40, mood -4 |
+| Jednota delivery | bistro / shop / pub | E at the van by the gate | no bread, mood -5 |
+| A boy is missing | a family in camp | find him at the camp's edge, E | the family -20: "he came back by himself, humming" |
+| Noise complaint | tramps or lads next to pickers / quiet ones / families | talk to the loud party | the quiet ones -15 |
+| A branch across the path | paths; likelier in wind | hold E: saw it | mood -4 |
+
+Sorted ones give a little back (the lost boy's parents tip). Night ends the day's chances.
 
 ## 6. Upkeep
 

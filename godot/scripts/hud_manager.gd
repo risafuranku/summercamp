@@ -123,6 +123,7 @@ var _side_root: Control
 var _arrivals_box: VBoxContainer
 var _arrivals: Array = []
 var _jobs_panel: Control
+var _jobs_heading := "TONIGHT"
 var _jobs_box: VBoxContainer
 var _jobs: Array = []
 var _objective_title: Label
@@ -762,10 +763,12 @@ func _build_jobs() -> void:
 
 
 ## Rows from NightJobs.hud_rows(): what is broken tonight and where.
-func set_jobs(rows: Array) -> void:
-	if rows == _jobs:
+## `heading`: TONIGHT for the night's jobs, TODAY for the day's events.
+func set_jobs(rows: Array, heading: String = "TONIGHT") -> void:
+	if rows == _jobs and heading == _jobs_heading:
 		return
 	_jobs = rows.duplicate(true)
+	_jobs_heading = heading
 	_refresh_jobs()
 
 
@@ -778,7 +781,7 @@ func _refresh_jobs() -> void:
 	_jobs_panel.visible = not _jobs.is_empty()
 	if _jobs.is_empty():
 		return
-	_jobs_box.add_child(RETRO_UI.label("TONIGHT", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_RED_LIGHT, _scale))
+	_jobs_box.add_child(RETRO_UI.label(_jobs_heading, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_RED_LIGHT if _jobs_heading == "TONIGHT" else RETRO_UI.C_AMBER, _scale))
 	for row_any in _jobs:
 		var row: Dictionary = row_any
 		_jobs_box.add_child(_body(str(row.get("title", "")), RETRO_UI.C_BONE))
