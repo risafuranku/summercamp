@@ -93,7 +93,7 @@ func _build_ui() -> void:
 	_panel.add_child(_body_label)
 
 	_close_btn = Button.new()
-	_close_btn.text = "Konec dialogu"
+	_close_btn.text = "End conversation"
 	_close_btn.position = Vector2(290.0, 188.0)
 	_close_btn.size = Vector2(150.0, 30.0)
 	_close_btn.pressed.connect(close_dialog)

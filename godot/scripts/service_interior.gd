@@ -633,7 +633,7 @@ func _build_restaurant_dining_layout(parent: Node3D) -> void:
 	_add_box("DiningPosterB", Vector3(2.60, 1.54, 0.76), Vector3(0.04, 0.82, 0.82), Color(0.76, 0.68, 0.56), "service_rest_decor", parent)
 
 	var title = Label3D.new()
-	title.text = "DINER"
+	title.text = "BUFET\ndiner"
 	title.position = Vector3(0.0, 2.16, -2.34)
 	title.font_size = 42
 	title.modulate = Color(0.88, 0.80, 0.62, 0.92)
@@ -824,7 +824,7 @@ func _set_restaurant_room(room: String, update_camera: bool = true) -> void:
 
 func _build_pub_main_layout(
 	parent: Node3D,
-	title_text: String = "HOSPODA",
+	title_text: String = "HOSPODA\nthe pub",
 	nav_text: String = "",
 	seat_category: String = "service_rest_booth"
 ) -> void:
@@ -899,7 +899,7 @@ func _build_vecerka_shop_layout(parent: Node3D) -> void:
 	_add_box("PosterB", Vector3(-1.7, 1.8, 0.6), Vector3(0.02, 0.8, 0.6), Color(0.8, 0.8, 0.8), "service_vecerka_poster", parent)
 
 	var title = Label3D.new()
-	title.text = "GROCERY"
+	title.text = "VECERKA\nopen till 22:00"
 	title.position = Vector3(0.0, 2.4, -1.78)
 	title.font_size = 42
 	title.modulate = Color(1.0, 0.96, 0.84, 0.9)
@@ -1146,7 +1146,7 @@ func _build_wash_layout(shower_mode: bool, title_override: String = "") -> void:
 	_add_box("Bench", Vector3(0.0, 0.34, 0.22), Vector3(1.60, 0.26, 0.52), Color(0.58, 0.56, 0.52), "service_wash_fixture")
 
 	var title = Label3D.new()
-	var default_title = "SPRCHY" if shower_mode else "KOUPELNA"
+	var default_title = "SPRCHY\nshowers" if shower_mode else "UMYVARNA\nwashroom"
 	title.text = title_override if title_override != "" else default_title
 	title.position = Vector3(0.0, 2.20, -1.90)
 	title.font_size = 32
@@ -1198,7 +1198,7 @@ func _build_toilet_layout() -> void:
 	_add_box("ToiletDrainB", Vector3(1.30, 0.06, -0.20), Vector3(0.28, 0.02, 0.28), Color(0.24, 0.24, 0.22), "service_toilet_fixture")
 
 	var title = Label3D.new()
-	title.text = "TOILETS"
+	title.text = "WC\nZENY  MUZI"
 	title.position = Vector3(0.0, 2.12, -1.76)
 	title.font_size = 34
 	title.modulate = Color(0.82, 0.86, 0.76, 0.88)

@@ -105,7 +105,7 @@ func _build_ui() -> void:
 	_panel.add_child(_cost)
 
 	_confirm_btn = Button.new()
-	_confirm_btn.text = "Potvrdit"
+	_confirm_btn.text = "Confirm"
 	_confirm_btn.position = Vector2(240.0, 180.0)
 	_confirm_btn.size = Vector2(106.0, 30.0)
 	_confirm_btn.pressed.connect(func():

@@ -11,7 +11,7 @@
 - [x] P3  Manual check-in: guests wait at reception, the player checks them in; nobody walks through the reception walls
 - [ ] P4  Remodel ALL building exteriors and ALL interiors to match the Builder pixel art (keep textures/atmosphere); finish sports field, caravan
 - [x] P5  Lamps can be placed on a path tile; the lamp snaps to the path edge
-- [ ] P6  Whole game in English with Czech in-jokes (world market): sweep signs, UI, mail
+- [x] P6  Whole game in English with Czech in-jokes (world market): sweep signs, UI, mail
 - [x] P7  Daytime is dead: more life outside (guests doing things, sounds, small events)
 - [x] P8  Too easy: two full cabins and nothing happens -> more pressure (needs, complaints, mess, events, nights)
 - [x] P9  Three more guest archetypes (each with its own night threat)

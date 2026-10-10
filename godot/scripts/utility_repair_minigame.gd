@@ -121,7 +121,7 @@ func _build_ui() -> void:
 	_root.add_child(_panel)
 
 	_title_label = Label.new()
-	_title_label.text = "MINIHRA OPRAVY UTILIT"
+	_title_label.text = "UTILITY REPAIR"
 	_title_label.position = Vector2(16.0, 14.0)
 	_title_label.add_theme_font_size_override("font_size", 22)
 	_title_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.14))
@@ -135,7 +135,7 @@ func _build_ui() -> void:
 	_panel.add_child(_target_label)
 
 	_hint_label = Label.new()
-	_hint_label.text = "Mash LMB / SPACE pro opravu. ESC = zrusit."
+	_hint_label.text = "Mash LMB / SPACE to repair. ESC = cancel."
 	_hint_label.position = Vector2(16.0, 82.0)
 	_hint_label.add_theme_font_size_override("font_size", 16)
 	_hint_label.add_theme_color_override("font_color", Color(0.20, 0.22, 0.28))
