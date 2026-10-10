@@ -48,6 +48,7 @@ func _ready() -> void:
 	_book("Kristýna", "cheap_chick", 1, 2)
 	_book("Mirek", "drunk", 1, 1)
 	_run_minutes(1)
+	_check_in_all()
 
 	var snap: Array = GuestManager.get_guest_life_snapshot()
 	_expect(snap.size() == 4, "4 guest parties checked in (got %d)" % snap.size())
@@ -129,6 +130,8 @@ func _ready() -> void:
 	_place("tent_3", Vector2i(7, 6))
 	_prepare_all_rooms()
 	_book("Unlucky Pair", "cheap_chick", 2, 4)
+	_run_minutes(1)
+	_check_in_all()
 	_run_minutes(30 * 60)
 	var bare: Dictionary = GuestManager.get_camp_mood_summary()
 	print("bare camp 30h: ", _fmt_summary(bare))
@@ -167,6 +170,13 @@ func _book(guest_name: String, archetype: String, party: int, nights: int) -> vo
 		"from": "%s <x@y>" % guest_name,
 		"arrival_minutes": 0,
 	})
+
+
+## Guests wait at the barrier for the player now: let every waiting party in.
+func _check_in_all() -> void:
+	for g_any in CoreRoot.get_state().guests:
+		var res: Dictionary = GuestManager.request_check_in(int((g_any as Dictionary).get("id", -1)))
+		_expect(bool(res.get("ok", false)) or str(res.get("reason", "")) == "not_waiting", "check-in at the barrier (%s)" % str(res))
 
 
 ## Rooms start unprepared now: make every one up, as the player would.

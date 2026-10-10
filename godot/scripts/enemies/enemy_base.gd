@@ -128,6 +128,12 @@ func _announce(text: String) -> void:
 		_notify_callable.call(text)
 
 
+## A feed line every time (the outcome of an encounter, not its first sign).
+func _feed(text: String) -> void:
+	if _notify_callable.is_valid():
+		_notify_callable.call(text)
+
+
 func _hurt(amount: int) -> void:
 	if _damage_callable.is_valid():
 		_damage_callable.call(amount)

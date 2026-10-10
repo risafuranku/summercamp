@@ -53,7 +53,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Room preparation in the interiors | ✅ | hover-glow, hold to do it, sounds, checklist; tent 2 tasks, cabin 2-3 |
 | Builder with isometric map, guests walking on it | ✅ | the "extra guest" uncanny event |
 | Economy, power/water/sewage/waste balance | 🟡 | numbers want a balance pass |
-| Guest needs, moods, activities, reviews | ✅ | archetypes have different needs and favourite facilities |
+| Guest needs, moods, activities, reviews | ✅ | six archetypes (Quiet Guy, Drunk, Cheap Chick, Tramps, Family, Mushroom Pickers) with different needs and favourite facilities; bookings arrive as letters in their own voice |
 | Visible guest agents in the 3D camp | ✅ | |
 | Upkeep: wear, breakdowns, service/repair (hold R), crew | ✅ | Camp Status > Upkeep |
 | Electricity bills, power cut, UPS game over | ✅ | |
@@ -68,6 +68,9 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Silent Man (Quiet Guy) | ✅ | footsteps that close in while you stand in the dark, a whisper, then the hit; light drives him off |
 | The Photographer (Drunk) | ✅ | film advance, red focus lamp and beeps, whine, flash; never look at him when it fires |
 | The Girl (Cheap Chick) | ✅ | advances when unwatched; eats the battery; cannot enter lamp light |
+| The Whistler (Tramps) | ✅ | a tune in the trees; following it gets you hit from behind; lamp light makes it give up |
+| The Extra Child (Family) | ✅ | hums among the tents; a torch on it makes it run at you |
+| The Basket Man (Mushroom Pickers) | ✅ | 02:30-06:00; sees only movement; stand still |
 | The Antlered Man (two or more archetypes) | ✅ | fence-line charger |
 | Flashlight battery, stamina | ✅ | |
 | Player health, blood FX, death | ✅ | |

@@ -390,13 +390,19 @@ The former leader, Karel H., could not be reached.
 [color=#808080]by Kuba (14). all TRUE stories. if you dont believe it go there at night[/color][/center]
 """ + HR + """
 [b][color=#ffffff]CERNE JEZERO (the reservoir camp)[/color][/b]
-my uncle says this is the worst place in the district. there are FOUR
+my uncle says this is the worst place in the district. there are SEVEN (my sister says six but she is a baby)
 
 [color=#ff6666]THE MAN IN THE HAT[/color] - comes up behind you. you hear steps on the gravel and when you stop he stops. you have to turn round and look at him or he gets closer. he never talks. he just whispers when he is right behind you
 
 [color=#ff6666]THE PHOTOGRAPHER[/color] - you see a little red light in the trees and hear beeping. its his camera. if he takes your photo you are in his film for ever. DONT LOOK at the flash
 
 [color=#ff6666]THE GIRL[/color] - she stands where the lamp light ends. she went missing in 1987. if you look away she comes closer. she is looking for her shoe
+
+[color=#ff6666]THE WHISTLER[/color] - an old tramp who never came back from the potlach in 1974. you hear him whistling Okoli Zlate reky in the woods. DONT GO TO HIM. stand in the light and he stops in the middle of the song
+
+[color=#ff6666]THE EXTRA CHILD[/color] - count the kids at the camp. there is always one more. it stands with its back to you and hums. if you shine a torch on it it turns round. nobody has said what it looks like from the front
+
+[color=#ff6666]THE BASKET MAN[/color] - goes for mushrooms at 3 in the morning. my grandma met him and she says you have to stand still like a tree, he only sees what moves. she never went picking again (she says the boletes were not boletes)
 
 [color=#ff6666]PAROHAC[/color] - the antlered man on the fence. hes the oldest. he doesnt go into the light
 

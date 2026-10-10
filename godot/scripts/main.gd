@@ -23,6 +23,9 @@ const ENEMY_FOR_ARCHETYPE := {
 	"quiet_guy": SILENT_MAN_BRAIN_SCRIPT,
 	"drunk": TOURIST_BRAIN_SCRIPT,
 	"cheap_chick": GIRL_BRAIN_SCRIPT,
+	"tramp": preload("res://scripts/enemies/whistler_brain.gd"),
+	"family": preload("res://scripts/enemies/child_brain.gd"),
+	"picker": preload("res://scripts/enemies/basket_brain.gd"),
 }
 const VISUAL_MODULE_SCRIPT = preload("res://modules/visual/visual_module.gd")
 const LEGACY_UI_ADAPTER_SCRIPT = preload("res://modules/adapters/legacy_ui_adapter.gd")
@@ -1246,7 +1249,8 @@ func _on_enemy_notice(text: String) -> void:
 
 ## Debug/test entry: start one enemy now regardless of the night roll.
 func debug_spawn_enemy(enemy_id: String, difficulty: int = 3) -> void:
-	var scripts := {"silent_man": SILENT_MAN_BRAIN_SCRIPT, "tourist": TOURIST_BRAIN_SCRIPT, "girl": GIRL_BRAIN_SCRIPT, "stalker": STALKER_BRAIN_SCRIPT}
+	var scripts := {"silent_man": SILENT_MAN_BRAIN_SCRIPT, "tourist": TOURIST_BRAIN_SCRIPT, "girl": GIRL_BRAIN_SCRIPT, "stalker": STALKER_BRAIN_SCRIPT,
+		"whistler": ENEMY_FOR_ARCHETYPE["tramp"], "child": ENEMY_FOR_ARCHETYPE["family"], "basket": ENEMY_FOR_ARCHETYPE["picker"]}
 	if scripts.has(enemy_id):
 		_start_enemy_brain(scripts[enemy_id], _day_index, difficulty, {})
 

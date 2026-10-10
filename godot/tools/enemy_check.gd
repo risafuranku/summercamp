@@ -10,6 +10,17 @@ extends Node3D
 
 const SILENT := preload("res://scripts/enemies/silent_man_brain.gd")
 const PHOTO := preload("res://scripts/enemies/tourist_brain.gd")
+const WHISTLER := preload("res://scripts/enemies/whistler_brain.gd")
+const CHILD := preload("res://scripts/enemies/child_brain.gd")
+const BASKET := preload("res://scripts/enemies/basket_brain.gd")
+
+
+class FakePlayer:
+	extends CharacterBody3D
+	var torch := false
+
+	func is_flashlight_active() -> bool:
+		return torch
 
 
 class FakeLamps:
@@ -28,6 +39,8 @@ var _damage := 0
 var _player: CharacterBody3D
 var _camera: Camera3D
 var _lamps := FakeLamps.new()
+## Read by the Basket Man (it walks only in the small hours).
+var _time_of_day_hours := 3.5
 
 
 func _ready() -> void:
@@ -115,6 +128,67 @@ func _ready() -> void:
 	_expect(float(snap["distance"]) >= 8.0, "photographer: never ends up in your face (%.1f m)" % float(snap["distance"]))
 	p.stop_night()
 
+	# ── Whistler ──
+	# Walking towards the tune in the dark: it takes you.
+	_damage = 0
+	var w = _start(WHISTLER)
+	for i in 30 * 90:
+		w.tick(1.0 / 30.0)
+		if w._source != Vector3.INF:
+			var to: Vector3 = w._source - _player.global_position
+			to.y = 0.0
+			if to.length() > 0.5:
+				_player.global_position += to.normalized() * 2.5 / 30.0
+	print("ENEMY CHECK: whistler, following the tune: dmg %d" % _damage)
+	_expect(_damage > 0, "whistler: following the whistling into the dark hurts")
+	w.stop_night()
+	# Standing still (or under a lamp): never hurt.
+	for lit in [false, true]:
+		_damage = 0
+		_lamps.lit_center = Vector3.ZERO if lit else Vector3.INF
+		w = _start(WHISTLER)
+		for i in 30 * 120:
+			w.tick(1.0 / 30.0)
+		print("ENEMY CHECK: whistler, staying put (lamp %s): dmg %d" % [lit, _damage])
+		_expect(_damage == 0, "whistler: not going to it keeps you safe (lamp %s, took %d)" % [lit, _damage])
+		w.stop_night()
+	_lamps.lit_center = Vector3.INF
+
+	# ── Extra Child ──
+	# Torch on it: it runs at you. Torch off, looking at it: nothing happens.
+	for torch in [true, false]:
+		_damage = 0
+		var fp := _player as FakePlayer
+		fp.torch = torch
+		var c = _start(CHILD)
+		for i in 30 * 30:
+			c.tick(1.0 / 30.0)
+			if c._body.visible:
+				_face(c._body.global_position)
+		print("ENEMY CHECK: child, torch %s: dmg %d" % [torch, _damage])
+		if torch:
+			_expect(_damage > 0, "child: shining the torch on it makes it come for you")
+		else:
+			_expect(_damage == 0, "child: torch off, it leaves you alone (took %d)" % _damage)
+		c.stop_night()
+	(_player as FakePlayer).torch = false
+
+	# ── Basket Man ──
+	# Moving while it is near: it comes for you. Standing still: it passes by.
+	for moving in [true, false]:
+		_damage = 0
+		_player.velocity = Vector3(1.5, 0, 0) if moving else Vector3.ZERO
+		var bm = _start(BASKET)
+		for i in 30 * 60:
+			bm.tick(1.0 / 30.0)
+		print("ENEMY CHECK: basket man, moving %s: dmg %d" % [moving, _damage])
+		if moving:
+			_expect(_damage > 0, "basket man: moving near it gets you caught")
+		else:
+			_expect(_damage == 0, "basket man: standing still keeps you safe (took %d)" % _damage)
+		bm.stop_night()
+	_player.velocity = Vector3.ZERO
+
 	print("")
 	if _failures.is_empty():
 		print("ENEMY CHECK: PASS")
@@ -157,7 +231,7 @@ func _build_world() -> void:
 	ground.add_child(shape)
 	add_child(ground)
 	add_child(_lamps)
-	_player = CharacterBody3D.new()
+	_player = FakePlayer.new()
 	var col := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	col.shape = cap

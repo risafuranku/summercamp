@@ -365,6 +365,12 @@ func start_night_out(guest: Dictionary, t: int) -> void:
 			_say(guest, "One more beer. Just one. Where did everyone go?", t)
 		"cheap_chick":
 			_say(guest, "Can't sleep. Going to look at the lake.", t)
+		"tramp":
+			_say(guest, "Who's got a guitar? One more song at the fire.", t)
+		"family":
+			_say(guest, "Has anyone seen our boy? He was right here.", t)
+		"picker":
+			_say(guest, "Four o'clock. Best time for boletes. Off to the woods.", t)
 		_:
 			_say(guest, "Heard something outside. Probably nothing.", t)
 
@@ -576,11 +582,18 @@ func _night_out_target(from: Vector2i, archetype: String) -> Vector2i:
 			preferred = "pub"
 		"cheap_chick":
 			preferred = "lake_slide"
+		"tramp":
+			preferred = "bonfire"
+		"family":
+			preferred = "sports_field"
 	for f in _facilities:
 		if str(f.get("type", "")) == preferred:
 			return f.get("coord", from)
 	if archetype == "cheap_chick":
 		return Vector2i(clampi(from.x + _rng.randi_range(-3, 3), 1, _grid_size.x - 2), _grid_size.y - 2)
+	if archetype == "picker":
+		# Into the trees by the fence, basket on the arm.
+		return Vector2i(1, clampi(from.y + _rng.randi_range(-4, 4), 1, _grid_size.y - 3))
 	return Vector2i(
 		clampi(from.x + _rng.randi_range(-5, 5), 1, _grid_size.x - 2),
 		clampi(from.y + _rng.randi_range(-5, 5), 1, _grid_size.y - 3)

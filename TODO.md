@@ -14,7 +14,7 @@
 - [ ] P6  Whole game in English with Czech in-jokes (world market): sweep signs, UI, mail
 - [ ] P7  Daytime is dead: more life outside (guests doing things, sounds, small events)
 - [ ] P8  Too easy: two full cabins and nothing happens -> more pressure (needs, complaints, mess, events, nights)
-- [ ] P9  Three more guest archetypes (each with its own night threat)
+- [x] P9  Three more guest archetypes (each with its own night threat)
 - [x] P10 GuestRack: better visuals
 - [x] P11 Higher look sensitivity in interiors
 - [ ] P12 Cleaning variety: sometimes a few items, sometimes many across rooms, mess in different places each time

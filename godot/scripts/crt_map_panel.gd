@@ -87,6 +87,9 @@ const GUEST_SHIRTS := {
 	"quiet_guy": Color(0.42, 0.56, 0.30),
 	"drunk": Color(0.86, 0.72, 0.26),
 	"cheap_chick": Color(0.10, 0.09, 0.10),
+	"tramp": Color(0.48, 0.34, 0.20),
+	"family": Color(0.20, 0.45, 0.85),
+	"picker": Color(0.70, 0.50, 0.70),
 }
 const GUEST_SKIN := Color(0.86, 0.66, 0.50)
 var _guests: Dictionary = {}

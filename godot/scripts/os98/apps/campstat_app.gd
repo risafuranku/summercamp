@@ -22,6 +22,9 @@ const NIGHT_PROCEDURES := [
 	["Drunk", "THE PHOTOGRAPHER", "A red light blinking in the trees, beeping faster. Turn your back or get behind something before the flash. Do not pose."],
 	["Cheap Chick", "THE GIRL", "She stays where the light ends. Keep her in sight, keep moving, keep to the lamps. Batteries are not covered by the camp."],
 	["Two or more", "THE ANTLERED MAN", "Walks the fence. Stay off the fence line after dark. He does not enter lamp light."],
+	["Tramps", "THE WHISTLER", "Whistling in the trees, a campfire song. Do not go towards it. Stand under a lamp until it stops. It stops when it gives up on you."],
+	["Family", "THE EXTRA CHILD", "A child standing among the tents with its back to you. Do NOT put your torch on it. Torch off, walk past, do not look back."],
+	["Mushroom Pickers", "THE BASKET MAN", "Before dawn, out of the woods, a basket creaking. It sees only what moves. When you hear the basket, stand still until it has gone by."],
 	["In the sewer", "THE WET ONE", "It cannot see. It hears your boots and the clamp. Stand still and listen; keep the torch on it and it backs off. It drags you back to the ladder."],
 ]
 

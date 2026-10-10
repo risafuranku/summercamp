@@ -75,13 +75,16 @@ One in-game day = 16 real minutes (1 real second = 1.5 game minutes,
 
 ## 4. Guests and the booking puzzle
 
-Three archetypes, with different needs (`core/systems/guest_needs_system.gd`):
+Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
 
 | Archetype | Pays/day | Wants | Brings at night |
 | --- | --- | --- | --- |
 | Quiet Guy | 70 | hygiene, safety, the bonfire, food | **Silent Man** |
 | Drunk | 120 | the pub, the shop, fun; needs toilets often | **The Tourist** |
 | Cheap Chick | 190 | showers, the lake slide, comfort | **The Girl** |
+| Tramps | 55 | the bonfire, the pub, fun; barely wash, sleep anywhere | **The Whistler** |
+| Family | 150 | everything at once: food, toilets, the field, the slide, safety | **The Extra Child** |
+| Mushroom Pickers | 90 | sleep, food, the shop; quiet; up at four | **The Basket Man** |
 
 - Per-archetype pressure curve: up to 3 guests safe, then tiny / small / medium / large
   odds, guaranteed at 24 (repeats). Unhappy guests count double.
@@ -123,6 +126,9 @@ in the dark they exist only where the flashlight or a lamp touches them.
 | Silent Man | Quiet Guy | footsteps on the gravel behind you, closer each time, stopping when you stop; a whisper at your ear | turn round and put light on him; under a lamp he will not come nearer; at the whisper, turn round at once | standing still in the dark |
 | The Photographer | Drunk | the ratchet of a film advance where he settles; a red focus lamp blinking in the trees with beeps that speed up; the flash whine | turn your back or get behind something before the flash (he gives ~3 s); the flash lights the place up from his side | looking at him when it fires |
 | The Girl | Cheap Chick | static and humming growing; she stands where the light ends | keep her in sight, keep to the lamps | looking away; she drains the battery while watched |
+| The Whistler | Tramps | a campfire tune whistled out in the trees, moving | do not walk towards it; stand under a lamp until the tune breaks off | following the sound into the dark |
+| The Extra Child | Family | a child humming among the tents, back turned | torch off, walk past, never shine the light on it | looking at it with the torch |
+| The Basket Man | Mushroom Pickers | 02:30-06:00, a wicker basket creaking out of the trees, a knife scraping | stand still while it is near; it only sees movement | moving while it is close |
 | The Antlered Man | 2+ archetypes in one night | heavy footfalls along the fence | stay off the fence line, stay in lamp light | being near the fence in the dark |
 
 Every hit can be explained afterwards: each enemy says where it is and when it is about

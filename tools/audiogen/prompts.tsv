@@ -35,3 +35,7 @@ bld_lamp	1.0	assets/sfx/builder/lamp.mp3	A metal lamp post being set into place:
 bld_money	1.0	assets/sfx/builder/money.mp3	An old mechanical cash register: a short drawer ring and a coin clink. Close, dry, no music.
 pylon_hum	8.0	assets/sfx/world/pylon_hum.mp3	The steady electrical hum and faint crackle of high-voltage power lines on steel pylons heard from below in an empty field at night, a low 50 Hz drone with a slight buzzing overtone, occasional tiny sizzle, no wind, no music. Seamless loop.
 corn_rustle	6.0	assets/sfx/world/corn_rustle.mp3	Dry corn field leaves rustling in a light wind at night, close, a few stalks knocking together, no music. Seamless loop.
+whistler_tune	7.0	assets/sfx/npc/whistler_tune.mp3	A man whistling a slow melancholic folk campfire tune alone in a dark forest at night, the whistle slightly out of tune, echoing between trees, distant, then the tune stops abruptly mid-phrase. No other sounds, no music instruments.
+child_hum	5.0	assets/sfx/npc/child_hum.mp3	A small child softly humming a simple nursery melody alone in the dark, close, breathy, slightly off-key, then a single quiet giggle. Eerie, no music, no other sounds.
+child_scream	2.0	assets/sfx/npc/child_scream.mp3	A sudden short piercing shriek of a small child, distorted, close, horrifying, cut off abruptly. No music.
+basket_creak	2.5	assets/sfx/npc/basket_creak.mp3	The slow creak of an old wicker basket handle swinging as someone walks, a few slow footsteps on wet leaves and the soft scrape of a small knife on wood, close, at night. No music.

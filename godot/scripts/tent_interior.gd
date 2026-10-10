@@ -523,6 +523,11 @@ func _resolve_guest_texture(entry: Dictionary) -> Texture2D:
 			return HOST_DRUNK_TEXTURE
 		"cheap_chick", "cheapchick":
 			return HOST_CHEAP_TEXTURE
+		"tramp", "family", "picker":
+			var path := "res://assets/textury/npc/%s.png" % {"tramp": "host_tramp", "family": "host_family", "picker": "host_pensioner"}[archetype]
+			if ResourceLoader.exists(path):
+				return load(path)
+			return HOST_QUIET_TEXTURE
 		_:
 			return HOST_QUIET_TEXTURE
 

@@ -16,6 +16,9 @@ const MAIL_TYPE_SPAM := "spam"
 const ARCHETYPE_QUIET_GUY := "quiet_guy"
 const ARCHETYPE_DRUNK := "drunk"
 const ARCHETYPE_CHEAP_CHICK := "cheap_chick"
+const ARCHETYPE_TRAMP := "tramp"
+const ARCHETYPE_FAMILY := "family"
+const ARCHETYPE_PICKER := "picker"
 
 
 const CUSTOMER_ARCHETYPES: Dictionary = {
@@ -49,6 +52,65 @@ const CUSTOMER_ARCHETYPES: Dictionary = {
 		"stay_max": 4,
 		"night_trouble_time": "02:20",
 	},
+	ARCHETYPE_TRAMP: {
+		"label": "Tramps",
+		"difficulty": 2,
+		"daily_pay": 55,
+		"party_min": 2,
+		"party_max": 4,
+		"stay_min": 2,
+		"stay_max": 4,
+		"night_trouble_time": "23:30",
+	},
+	ARCHETYPE_FAMILY: {
+		"label": "Family",
+		"difficulty": 4,
+		"daily_pay": 150,
+		"party_min": 3,
+		"party_max": 4,
+		"stay_min": 2,
+		"stay_max": 5,
+		"night_trouble_time": "01:30",
+	},
+	ARCHETYPE_PICKER: {
+		"label": "Mushroom Pickers",
+		"difficulty": 3,
+		"daily_pay": 90,
+		"party_min": 1,
+		"party_max": 2,
+		"stay_min": 2,
+		"stay_max": 4,
+		"night_trouble_time": "04:10",
+	},
+}
+
+## What they write. %s placeholders: beds, nights, arrival time, name. The archetype
+## shows in how they write, not in a label; the booking card has the numbers.
+const BOOKING_LETTERS := {
+	ARCHETYPE_QUIET_GUY: [
+		"Good day,\n\nI would like a bed for %d person(s), %d night(s). I arrive around %s by bus. I need nothing special. A quiet place, if you have one.\n\nThank you.\n%s",
+		"Hello,\n\n%d bed(s), %d night(s). Arrival about %s. I will not be any trouble.\n\n%s",
+	],
+	ARCHETYPE_DRUNK: [
+		"AHOJ CAMP!!!\n\nwe are %d lads, %d nights, arriving %s-ish (depends on the pub in Lesna). is the beer cold? is there a pub? if no pub we bring our own. NA ZDRAVI\n\n%s",
+		"hi\n\nneed %d beds for %d nights. coming around %s. do you have a pub. asking for a friend. the friend is me.\n\n%s",
+	],
+	ARCHETYPE_CHEAP_CHICK: [
+		"Hiii :)\n\n%d of us, %d nights, we arrive at %s. Is there a slide? A shower with hot water?? We heard the lake is SO pretty at night.\n\nkisses, %s",
+		"Hello reception,\n\nGirls weekend!! %d beds, %d nights, arriving %s. Cheapest you have please, we are students.\n\n%s",
+	],
+	ARCHETYPE_TRAMP: [
+		"Ahoj,\n\nwe are %d from the Vlci stopa tramp settlement. %d nights, coming %s on foot from the station. We bring our own kotlik and guitars. Tent is fine, ground is fine. Is there a fire pit?\n\nTRAMP SE NEVZDAVA - %s",
+		"Hello camp,\n\n%d tramps, %d nights. Arriving around %s, depends on the trains. We sing until late, we warn you honestly. Kamarade, keep us a spot by the fire.\n\n%s",
+	],
+	ARCHETYPE_FAMILY: [
+		"Dear camp,\n\nwe are a family of %d (two kids, 6 and 9) looking for %d nights. We arrive by Skoda around %s. Is it safe for children? Is there a playground or a field? Our boy wanders off, is the lake fenced?\n\nKind regards, %s",
+		"Hello,\n\nFamily holiday: %d people, %d nights, arrival about %s. The kids want the slide and my wife wants a clean shower. I want a beer and quiet. Thank you.\n\n%s",
+	],
+	ARCHETYPE_PICKER: [
+		"Good day,\n\nWe are pensioners, %d person(s), %d nights. We arrive at %s. We go out for mushrooms very early (four o'clock), so we ask for a quiet place away from the young people. Are the boletes growing this year?\n\nRespectfully, %s",
+		"Dear Sir or Madam,\n\n%d bed(s), %d nights, arrival at %s. We pick mushrooms. We will be gone before you wake up and back by noon. We bring our own knife and basket.\n\n%s",
+	],
 }
 
 const FIRST_NAMES_QUIET: Array[String] = [
@@ -59,6 +121,16 @@ const FIRST_NAMES_DRUNK: Array[String] = [
 ]
 const FIRST_NAMES_CHEAP: Array[String] = [
 	"Sarka", "Lenka", "Michaela", "Karolina", "Sona", "Nela", "Bara", "Klara"
+]
+## Tramps go by their settlement nicknames.
+const FIRST_NAMES_TRAMP: Array[String] = [
+	"Sedy Vlk", "Kojot", "Bobr", "Rambo", "Sumak", "Vrba", "Dlouhej", "Bizon"
+]
+const FIRST_NAMES_FAMILY: Array[String] = [
+	"Jiri", "Pavel", "Martin", "Jana", "Petra", "Ivana", "Josef", "Hana"
+]
+const FIRST_NAMES_PICKER: Array[String] = [
+	"Bohumil", "Jaroslava", "Vlasta", "Zdenek", "Ludmila", "Miroslav", "Bozena", "Karel"
 ]
 const LAST_NAMES: Array[String] = [
 	"Novak", "Krizek", "Urban", "Bartos", "Kral", "Dvorak", "Janda", "Simek", "Blaha", "Nemec"
@@ -574,17 +646,18 @@ func _roll_archetype_batch(count: int, intensity: float) -> Array[String]:
 	if count <= 0:
 		return out
 
-	var archetype_ids: Array[String] = [ARCHETYPE_QUIET_GUY, ARCHETYPE_DRUNK, ARCHETYPE_CHEAP_CHICK]
+	var archetype_ids: Array[String] = [ARCHETYPE_QUIET_GUY, ARCHETYPE_DRUNK, ARCHETYPE_CHEAP_CHICK, ARCHETYPE_TRAMP, ARCHETYPE_FAMILY, ARCHETYPE_PICKER]
 	var weights: Dictionary = {
-		ARCHETYPE_QUIET_GUY: clampf(lerpf(0.72, 0.20, intensity), 0.18, 0.80),
-		ARCHETYPE_DRUNK: clampf(lerpf(0.22, 0.36, intensity), 0.14, 0.48),
-		ARCHETYPE_CHEAP_CHICK: clampf(lerpf(0.06, 0.44, intensity), 0.02, 0.55),
+		ARCHETYPE_QUIET_GUY: clampf(lerpf(0.55, 0.14, intensity), 0.12, 0.60),
+		ARCHETYPE_DRUNK: clampf(lerpf(0.16, 0.24, intensity), 0.10, 0.34),
+		ARCHETYPE_CHEAP_CHICK: clampf(lerpf(0.04, 0.26, intensity), 0.02, 0.36),
+		ARCHETYPE_TRAMP: clampf(lerpf(0.14, 0.18, intensity), 0.08, 0.26),
+		ARCHETYPE_FAMILY: clampf(lerpf(0.05, 0.22, intensity), 0.03, 0.30),
+		ARCHETYPE_PICKER: clampf(lerpf(0.10, 0.16, intensity), 0.06, 0.22),
 	}
-	var counts: Dictionary = {
-		ARCHETYPE_QUIET_GUY: 0,
-		ARCHETYPE_DRUNK: 0,
-		ARCHETYPE_CHEAP_CHICK: 0,
-	}
+	var counts: Dictionary = {}
+	for id in archetype_ids:
+		counts[id] = 0
 	var max_share = maxi(1, int(ceil(float(count) * 0.62)))
 
 	for _i in range(count):
@@ -675,24 +748,14 @@ func _build_customer_mail(archetype_id: String, day: int, hour: int) -> Dictiona
 	var archetype_label = str(cfg.get("label", "Customer"))
 	var subject = subject_template % [archetype_label, party_size, stay_nights]
 
-	var body_lines: Array[String] = []
-	body_lines.append("Hello reception,")
-	body_lines.append("")
-	body_lines.append("Need %d bed(s) for %d night(s)." % [party_size, stay_nights])
-	body_lines.append("Archetype: %s" % archetype_label)
-	body_lines.append("Arrival: %s" % arrival_time)
-	body_lines.append("Total payment per day: $%d" % daily_total)
-	body_lines.append("Night trouble window: around %s" % night_trouble_time)
-	body_lines.append("")
-	body_lines.append("Accept or refuse.")
-	body_lines.append("")
-	body_lines.append("- %s" % lead_name)
+	var letters: Array = BOOKING_LETTERS.get(archetype_id, BOOKING_LETTERS[ARCHETYPE_QUIET_GUY])
+	var letter := str(letters[_rng.randi_range(0, letters.size() - 1)]) % [party_size, stay_nights, arrival_time, lead_name]
 
 	return _new_mail_dict({
 		"sender": sender,
 		"from": sender,
 		"subject": subject,
-		"body": "\n".join(body_lines),
+		"body": letter,
 		"day": day,
 		"time": "%02d:00" % clampi(hour, 0, 23),
 		"type": MAIL_TYPE_CUSTOMER,
@@ -785,6 +848,12 @@ func _random_guest_name(archetype_id: String) -> String:
 		first_pool = FIRST_NAMES_DRUNK
 	elif archetype_id == ARCHETYPE_CHEAP_CHICK:
 		first_pool = FIRST_NAMES_CHEAP
+	elif archetype_id == ARCHETYPE_TRAMP:
+		return "%s" % _pick_random(FIRST_NAMES_TRAMP)
+	elif archetype_id == ARCHETYPE_FAMILY:
+		first_pool = FIRST_NAMES_FAMILY
+	elif archetype_id == ARCHETYPE_PICKER:
+		first_pool = FIRST_NAMES_PICKER
 	return "%s %s" % [_pick_random(first_pool), _pick_random(LAST_NAMES)]
 
 
@@ -807,6 +876,12 @@ func _roll_arrival_time(archetype_id: String) -> String:
 			minute = _rng.randi_range(17 * 60, 23 * 60 + 20)
 		ARCHETYPE_CHEAP_CHICK:
 			minute = _rng.randi_range(19 * 60, 23 * 60 + 50)
+		ARCHETYPE_TRAMP:
+			minute = _rng.randi_range(15 * 60, 21 * 60)
+		ARCHETYPE_FAMILY:
+			minute = _rng.randi_range(10 * 60, 16 * 60)
+		ARCHETYPE_PICKER:
+			minute = _rng.randi_range(9 * 60, 14 * 60)
 		_:
 			minute = _rng.randi_range(11 * 60, 21 * 60)
 	minute = clampi(minute, 0, (24 * 60) - 1)

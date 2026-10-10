@@ -70,7 +70,7 @@ const WEATHER_LABELS := ["CLEAR", "WINDY", "FOG", "DRIZZLE", "RAIN", "STORM", "A
 ## (`GuestManager.LIMINAL_HUD_EXPECTED_THRESHOLDS`).
 const RISK_LEVEL_LABELS := ["CLEAR", "LOW", "RAISED", "HIGH", "CRITICAL"]
 const RISK_TIER_LABELS := {"none": "clear", "tiny": "tiny", "small": "small", "medium": "medium", "large": "large"}
-const RISK_SHORT_NAMES := {"quiet_guy": "QUIET", "drunk": "DRUNK", "cheap_chick": "CHICK"}
+const RISK_SHORT_NAMES := {"quiet_guy": "QUIET", "drunk": "DRUNK", "cheap_chick": "CHICK", "tramp": "TRAMP", "family": "FAMILY", "picker": "PICKER"}
 
 const NEED_ROWS := [
 	["energy", "NRG"], ["hunger", "FOOD"], ["bladder", "WC"],

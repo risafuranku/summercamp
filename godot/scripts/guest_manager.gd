@@ -34,7 +34,14 @@ const MAX_GUEST_TRANSACTION_HISTORY := 96
 const ARCHETYPE_QUIET_GUY := "quiet_guy"
 const ARCHETYPE_DRUNK := "drunk"
 const ARCHETYPE_CHEAP_CHICK := "cheap_chick"
+const ARCHETYPE_TRAMP := "tramp"
+const ARCHETYPE_FAMILY := "family"
+const ARCHETYPE_PICKER := "picker"
 const ARCHETYPE_ALIASES := {
+	"tramps": ARCHETYPE_TRAMP,
+	"family": ARCHETYPE_FAMILY,
+	"picker": ARCHETYPE_PICKER,
+	"mushroom_picker": ARCHETYPE_PICKER,
 	"quietguy": ARCHETYPE_QUIET_GUY,
 	"quiet_guy": ARCHETYPE_QUIET_GUY,
 	"quiet guy": ARCHETYPE_QUIET_GUY,
@@ -47,6 +54,9 @@ const GUEST_SPRITE_PATHS := {
 	ARCHETYPE_QUIET_GUY: "res://assets/textury/npc/host1.png",
 	ARCHETYPE_DRUNK: "res://assets/textury/npc/host2.png",
 	ARCHETYPE_CHEAP_CHICK: "res://assets/textury/npc/host3.png",
+	ARCHETYPE_TRAMP: "res://assets/textury/npc/host_tramp.png",
+	ARCHETYPE_FAMILY: "res://assets/textury/npc/host_family.png",
+	ARCHETYPE_PICKER: "res://assets/textury/npc/host_pensioner.png",
 }
 
 const LIMINAL_FORECAST_SAFE_COUNT := 3
@@ -65,12 +75,18 @@ const LIMINAL_ARCHETYPE_ORDER := [
 	ARCHETYPE_QUIET_GUY,
 	ARCHETYPE_DRUNK,
 	ARCHETYPE_CHEAP_CHICK,
+	ARCHETYPE_TRAMP,
+	ARCHETYPE_FAMILY,
+	ARCHETYPE_PICKER,
 ]
 
 const LIMINAL_ARCHETYPE_LABELS := {
 	ARCHETYPE_QUIET_GUY: "Quiet Guy",
 	ARCHETYPE_DRUNK: "Drunk",
 	ARCHETYPE_CHEAP_CHICK: "Cheap Chick",
+	ARCHETYPE_TRAMP: "Tramps",
+	ARCHETYPE_FAMILY: "Family",
+	ARCHETYPE_PICKER: "Mushroom Pickers",
 }
 
 const LIMINAL_CHANCE_RANGES := {
@@ -86,12 +102,18 @@ const DEFAULT_DAILY_INCOME_BY_ARCHETYPE := {
 	ARCHETYPE_QUIET_GUY: 70,
 	ARCHETYPE_DRUNK: 120,
 	ARCHETYPE_CHEAP_CHICK: 190,
+	ARCHETYPE_TRAMP: 55,
+	ARCHETYPE_FAMILY: 150,
+	ARCHETYPE_PICKER: 90,
 }
 
 const DEFAULT_TROUBLE_TIME_BY_ARCHETYPE := {
 	ARCHETYPE_QUIET_GUY: "22:40",
 	ARCHETYPE_DRUNK: "00:30",
 	ARCHETYPE_CHEAP_CHICK: "02:20",
+	ARCHETYPE_TRAMP: "23:30",
+	ARCHETYPE_FAMILY: "01:30",
+	ARCHETYPE_PICKER: "04:10",
 }
 
 const REVIEW_POSITIVE := [
@@ -911,6 +933,12 @@ func _default_difficulty_for_archetype(archetype: String) -> int:
 			return 3
 		ARCHETYPE_CHEAP_CHICK:
 			return 5
+		ARCHETYPE_TRAMP:
+			return 2
+		ARCHETYPE_FAMILY:
+			return 4
+		ARCHETYPE_PICKER:
+			return 3
 		_:
 			return 1
 
@@ -1361,7 +1389,7 @@ func _normalize_archetype(raw: String) -> String:
 	normalized = normalized.replace("-", "_")
 	if ARCHETYPE_ALIASES.has(normalized):
 		return str(ARCHETYPE_ALIASES[normalized])
-	if normalized == ARCHETYPE_QUIET_GUY or normalized == ARCHETYPE_DRUNK or normalized == ARCHETYPE_CHEAP_CHICK:
+	if LIMINAL_ARCHETYPE_ORDER.has(normalized):
 		return normalized
 	return ARCHETYPE_QUIET_GUY
 
