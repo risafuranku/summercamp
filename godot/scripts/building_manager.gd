@@ -4,6 +4,7 @@ extends Node3D
 @export var tent_height: float = 1.8
 @export var cabin_height: float = 2.8
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
+const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const PSX_TEXTURE_DEFAULT_UV := Vector2(1.35, 1.35)
 const PATH_TEXTURES := {
 	"straight": "res://assets/textury/redneck/paths/gravel.png",
@@ -31,6 +32,7 @@ const LAMP_LIGHT_NORMALIZATION := 1.45
 var _grid_manager
 var _structures_root: Node3D
 var _texture_style
+var _models = null
 var _path_texture_cache: Dictionary = {}
 var _lamps_active: bool = false
 var _lamp_runtime: Dictionary = {}
@@ -424,6 +426,11 @@ func place_tent_at(origin: Vector2i, level: int = 1) -> bool:
 		tent_mesh.position = offsets[i]
 		tent_mesh.rotation.y = randf_range(-0.15, 0.15)
 		tent_root.add_child(tent_mesh)
+		# The camp's canvas, pegs, guy ropes, the door flap (stan1/2/3 in the Builder).
+		if _models == null:
+			_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
+		tent_mesh.material_override = _models.tent_cloth(tent_color)
+		_models.tent_details(tent_root, tent_w, tent_h, tent_d, offsets[i], tent_mesh.rotation.y, tent_color)
 
 	var collider = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -555,162 +562,18 @@ func place_cabin_at(origin: Vector2i, level: int = 1) -> bool:
 
 	var wall_w = ts * (1.56 + float(cabin_level - 1) * 0.06)
 	var wall_d = ts * (1.56 + float(cabin_level - 1) * 0.06)
-	var wall_h = cabin_height * (0.62 + float(cabin_level - 1) * 0.06)
-	var log_color = Color(0.62, 0.54, 0.46)
-	var log_dark = Color(0.54, 0.46, 0.40)
-	var roof_color = Color(0.48, 0.38, 0.34)
-	var cabin_wall_tex_category := "cabin_lv1_exterior_wall"
-	var cabin_wood_tex_category := "cabin_lv1_exterior_wood"
-	var cabin_roof_tex_category := "cabin_lv1_exterior_roof"
-	var cabin_stone_tex_category := "cabin_lv1_exterior_stone"
-	if cabin_level == 2:
-		log_color = Color(0.60, 0.50, 0.44)
-		log_dark = Color(0.52, 0.42, 0.36)
-		roof_color = Color(0.44, 0.34, 0.32)
-		cabin_wall_tex_category = "cabin_lv2_exterior_wall"
-		cabin_wood_tex_category = "cabin_lv2_exterior_wood"
-		cabin_roof_tex_category = "cabin_lv2_exterior_roof"
-		cabin_stone_tex_category = "cabin_lv2_exterior_stone"
-	elif cabin_level >= 3:
-		log_color = Color(0.56, 0.48, 0.42)
-		log_dark = Color(0.48, 0.40, 0.36)
-		roof_color = Color(0.36, 0.32, 0.36)
-		cabin_wall_tex_category = "cabin_lv3_exterior_wall"
-		cabin_wood_tex_category = "cabin_lv3_exterior_wood"
-		cabin_roof_tex_category = "cabin_lv3_exterior_roof"
-		cabin_stone_tex_category = "cabin_lv3_exterior_stone"
-
-	# Stacked horizontal log layers.
-	var log_count = 4
-	var log_h = wall_h / float(log_count)
-	for i in range(log_count):
-		var y = log_h * 0.5 + log_h * float(i)
-		var c = log_color if i % 2 == 0 else log_dark
-		var log_mesh = MeshInstance3D.new()
-		var log_box = BoxMesh.new()
-		log_box.size = Vector3(wall_w, log_h * 0.9, wall_d)
-		log_mesh.mesh = log_box
-		log_mesh.position = Vector3(0.0, y, 0.0)
-		var mat = _make_psx_material(c, 0.014, 24.0, 6.0, 0.16, cabin_wall_tex_category)
-		var mat_std = mat as StandardMaterial3D
-		if mat_std != null:
-			mat_std.uv1_scale = Vector3(3.0, 1.0, 1.0)
-			if mat_std.albedo_texture != null:
-				mat_std.albedo_color = c.lerp(Color(1.0, 1.0, 1.0, 1.0), 0.68)
-				mat_std.set_meta("base_albedo_color", mat_std.albedo_color)
-		log_mesh.material_override = mat
-		cabin.add_child(log_mesh)
-
-	# Door recess (darker area on front).
-	var door_mesh = MeshInstance3D.new()
-	var door_box = BoxMesh.new()
-	door_box.size = Vector3(0.6, wall_h * 0.8, 0.08)
-	door_mesh.mesh = door_box
-	door_mesh.position = Vector3(0.0, wall_h * 0.4, wall_d * 0.5 + 0.02)
-	var door_mat = _make_psx_material(Color(0.36, 0.30, 0.26), 0.012, 24.0, 6.0, 0.18, "building_door")
-	door_mesh.material_override = door_mat
-	cabin.add_child(door_mesh)
-
-	if cabin_level >= 2:
-		var frame = MeshInstance3D.new()
-		var frame_box = BoxMesh.new()
-		frame_box.size = Vector3(0.74, wall_h * 0.86, 0.05)
-		frame.mesh = frame_box
-		frame.position = Vector3(0.0, wall_h * 0.43, wall_d * 0.5 + 0.03)
-		frame.material_override = _make_psx_material(Color(0.86, 0.80, 0.62), 0.007, 24.0, 6.0, 0.06, "building_door")
-		cabin.add_child(frame)
-
-	# Triangular roof using SurfaceTool (ridge left-right to match cabin reference).
-	var roof_h = cabin_height * 0.45
-	var roof_overhang = 0.2
-	var rw = wall_w * 0.5 + roof_overhang
-	var rd = wall_d * 0.5 + roof_overhang
-	var ry = wall_h
-
-	var st = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var rbl = Vector3(-rw, ry, -rd)
-	var rbr = Vector3(rw, ry, -rd)
-	var rfl = Vector3(-rw, ry, rd)
-	var rfr = Vector3(rw, ry, rd)
-	var rtl = Vector3(-rw, ry + roof_h, 0.0)
-	var rtr = Vector3(rw, ry + roof_h, 0.0)
-
-	# Front slope.
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rfl)
-	st.set_uv(Vector2(1.0, 1.0)); st.add_vertex(rfr)
-	st.set_uv(Vector2(1.0, 0.0)); st.add_vertex(rtr)
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rfl)
-	st.set_uv(Vector2(1.0, 0.0)); st.add_vertex(rtr)
-	st.set_uv(Vector2(0.0, 0.0)); st.add_vertex(rtl)
-	# Back slope.
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rbr)
-	st.set_uv(Vector2(1.0, 1.0)); st.add_vertex(rbl)
-	st.set_uv(Vector2(1.0, 0.0)); st.add_vertex(rtl)
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rbr)
-	st.set_uv(Vector2(1.0, 0.0)); st.add_vertex(rtl)
-	st.set_uv(Vector2(0.0, 0.0)); st.add_vertex(rtr)
-	# Left gable.
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rbl)
-	st.set_uv(Vector2(1.0, 1.0)); st.add_vertex(rfl)
-	st.set_uv(Vector2(0.5, 0.0)); st.add_vertex(rtl)
-	# Right gable.
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rfr)
-	st.set_uv(Vector2(1.0, 1.0)); st.add_vertex(rbr)
-	st.set_uv(Vector2(0.5, 0.0)); st.add_vertex(rtr)
-
-	var roof_inst = MeshInstance3D.new()
-	st.generate_normals()
-	roof_inst.mesh = st.commit()
-	var roof_mat = _make_psx_material(roof_color, 0.015, 24.0, 6.0, 0.14, cabin_roof_tex_category, 0.48)
-	var roof_std = roof_mat as StandardMaterial3D
-	if roof_std != null:
-		roof_std.uv1_scale = Vector3(1.4, 1.4, 1.0)
-	roof_inst.material_override = roof_mat
-	cabin.add_child(roof_inst)
-
-	if cabin_level >= 2:
-		var porch = MeshInstance3D.new()
-		var porch_box = BoxMesh.new()
-		porch_box.size = Vector3(wall_w * 0.36, 0.08, 0.34)
-		porch.mesh = porch_box
-		porch.position = Vector3(0.0, 0.04, wall_d * 0.5 + 0.18)
-		porch.material_override = _make_psx_material(Color(0.54, 0.44, 0.38), 0.008, 24.0, 6.0, 0.12, cabin_wood_tex_category)
-		cabin.add_child(porch)
-
-	var front_window_mat = _make_psx_material(Color(0.56, 0.74, 0.90), 0.006, 24.0, 6.0, 0.04, "building_window")
-	for wx in [-1.0, 1.0]:
-		var front_window = MeshInstance3D.new()
-		var front_window_box = BoxMesh.new()
-		front_window_box.size = Vector3(0.42, 0.34, 0.05)
-		front_window.mesh = front_window_box
-		front_window.position = Vector3(float(wx) * wall_w * 0.23, wall_h * 0.60, wall_d * 0.5 + 0.03)
-		front_window.material_override = front_window_mat
-		cabin.add_child(front_window)
-
-	if cabin_level >= 3:
-		var chimney = MeshInstance3D.new()
-		var chimney_box = BoxMesh.new()
-		chimney_box.size = Vector3(0.22, 0.72, 0.22)
-		chimney.mesh = chimney_box
-		chimney.position = Vector3(wall_w * 0.28, wall_h + roof_h * 0.52, -wall_d * 0.18)
-		chimney.material_override = _make_psx_material(Color(0.56, 0.54, 0.54), 0.007, 22.0, 6.0, 0.18, cabin_stone_tex_category)
-		cabin.add_child(chimney)
-
-		var side_window = MeshInstance3D.new()
-		var side_window_box = BoxMesh.new()
-		side_window_box.size = Vector3(0.56, 0.40, 0.05)
-		side_window.mesh = side_window_box
-		side_window.position = Vector3(-wall_w * 0.5 - 0.01, wall_h * 0.62, 0.0)
-		side_window.material_override = _make_psx_material(Color(0.56, 0.74, 0.90), 0.006, 24.0, 6.0, 0.04, "building_window")
-		cabin.add_child(side_window)
+	var wall_h = cabin_height * (0.86 + float(cabin_level - 1) * 0.04)
+	if _models == null:
+		_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
+	# Modelled after the Builder's chata1/2/3 (scripts/building_models.gd).
+	var cabin_box: Vector3 = _models.cabin(cabin, cabin_level, wall_w, wall_d, wall_h, cabin_height * 0.45)
 
 	# Collider.
 	var collider = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(wall_w, cabin_height, wall_d)
+	shape.size = Vector3(wall_w, cabin_box.y, wall_d)
 	collider.shape = shape
-	collider.position = Vector3(0.0, cabin_height * 0.5, 0.0)
+	collider.position = Vector3(0.0, cabin_box.y * 0.5, 0.0)
 	cabin.add_child(collider)
 
 	_set_structure_condition_internal(cabin, _default_condition_for_type("cabin"))
@@ -1092,50 +955,11 @@ func _place_caravan_at(origin: Vector2i) -> bool:
 	caravan.position = _grid_manager.get_footprint_center(origin, footprint) + Vector3(0.0, -0.05, 0.0)
 
 	var ts = _grid_manager.tile_size
-	var body_size = Vector3(ts * 1.65, 1.05, ts * 0.72)
-	var body_mesh = MeshInstance3D.new()
-	var body_box = BoxMesh.new()
-	body_box.size = body_size
-	body_mesh.mesh = body_box
-	body_mesh.position = Vector3(0.0, body_size.y * 0.5, 0.0)
-	body_mesh.material_override = _make_psx_material(Color(0.80, 0.80, 0.76), 0.010, 26.0, 6.0, 0.06, "metal")
-	caravan.add_child(body_mesh)
-
-	var stripe_mesh = MeshInstance3D.new()
-	var stripe_box = BoxMesh.new()
-	stripe_box.size = Vector3(body_size.x * 0.94, 0.14, 0.05)
-	stripe_mesh.mesh = stripe_box
-	stripe_mesh.position = Vector3(0.0, body_size.y * 0.58, body_size.z * 0.51)
-	stripe_mesh.material_override = _make_psx_material(Color(0.36, 0.58, 0.74), 0.008, 24.0, 6.0, 0.05, "metal")
-	caravan.add_child(stripe_mesh)
-
-	var door_mesh = MeshInstance3D.new()
-	var door_box = BoxMesh.new()
-	door_box.size = Vector3(0.48, body_size.y * 0.72, 0.05)
-	door_mesh.mesh = door_box
-	door_mesh.position = Vector3(-body_size.x * 0.26, body_size.y * 0.44, body_size.z * 0.51)
-	door_mesh.material_override = _make_psx_material(Color(0.46, 0.30, 0.22), 0.006, 24.0, 6.0, 0.05, "building_door")
-	caravan.add_child(door_mesh)
-
-	var wheel_l = MeshInstance3D.new()
-	var wheel_r = MeshInstance3D.new()
-	var wheel = CylinderMesh.new()
-	wheel.height = 0.12
-	wheel.top_radius = 0.16
-	wheel.bottom_radius = 0.16
-	wheel_l.mesh = wheel
-	wheel_r.mesh = wheel
-	wheel_l.rotation.z = deg_to_rad(90.0)
-	wheel_r.rotation.z = deg_to_rad(90.0)
-	wheel_l.position = Vector3(-body_size.x * 0.27, 0.18, body_size.z * 0.53)
-	wheel_r.position = Vector3(body_size.x * 0.27, 0.18, body_size.z * 0.53)
-	var wheel_mat = _make_psx_material(Color(0.16, 0.16, 0.18), 0.005, 28.0, 6.0, 0.08, "metal")
-	wheel_l.material_override = wheel_mat
-	wheel_r.material_override = wheel_mat
-	caravan.add_child(wheel_l)
-	caravan.add_child(wheel_r)
-
-	_spawn_building_windows(caravan, body_size, "caravan_1")
+	if _models == null:
+		_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
+	# Modelled after the Builder's caravan (scripts/building_models.gd).
+	var body_size: Vector3 = _models.caravan(caravan, ts * 2.0, ts)
+	caravan.set_meta("interaction_target_local", Vector3(-body_size.x * 0.2, 1.1, body_size.z * 0.5))
 
 	var collider = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -1162,6 +986,28 @@ func _place_placeholder_at(origin: Vector2i, building_type: String, footprint: V
 	_tag_structure(structure, origin, footprint, building_type, false)
 	_structures_root.add_child(structure)
 	structure.position = _grid_manager.get_footprint_center(origin, footprint) + Vector3(0.0, -0.05, 0.0)
+
+	# Modelled after the Builder's pixel art (scripts/building_models.gd).
+	if BUILDING_MODELS.has_model(building_type):
+		if _models == null:
+			_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
+		var info: Dictionary = _models.build(building_type, structure, _grid_manager.tile_size, footprint)
+		var msize: Vector3 = info["size"]
+		structure.set_meta("interaction_target_local", info.get("target", Vector3(0.0, 1.0, msize.z * 0.5)))
+		var mcol := CollisionShape3D.new()
+		var mshape := BoxShape3D.new()
+		mshape.size = Vector3(msize.x, maxf(0.3, msize.y), msize.z)
+		mcol.shape = mshape
+		mcol.position = Vector3(0.0, mshape.size.y * 0.5, 0.0)
+		structure.add_child(mcol)
+		var mcondition := "attraction"
+		if group_name == "utilities":
+			mcondition = "utility"
+		elif group_name == "services":
+			mcondition = "service"
+		_set_structure_condition_internal(structure, _default_condition_for_type(mcondition))
+		_grid_manager.occupy_footprint(origin, footprint, structure)
+		return true
 
 	var ts = _grid_manager.tile_size
 	var body_size = Vector3(ts * footprint.x * 0.86, structure_height, ts * footprint.y * 0.86)

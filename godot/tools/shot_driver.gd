@@ -380,6 +380,28 @@ const SCENARIOS := {
 		["eval", "_day_events.open_events().map(func(e): return [e.kind, e.state])"],
 		["hours", 6.0], ["wait", 1.0], ["eval", "_day_events._events.map(func(e): return [e.kind, e.state])"],
 	],
+	"gallery": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["money", 90000], ["hours", 3.0],
+		["clear", 0, 3, 5, 5], ["clear", 5, 3, 5, 5], ["clear", 10, 3, 5, 5], ["clear", 15, 3, 5, 5],
+		["clear", 0, 8, 5, 4], ["clear", 5, 8, 5, 4], ["clear", 10, 8, 5, 4], ["clear", 15, 8, 5, 4],
+		["clear", 0, 12, 5, 5], ["clear", 5, 12, 5, 5], ["clear", 10, 12, 5, 5], ["clear", 15, 12, 5, 5],
+		["build", "tent_1", 1, 4, 0], ["build", "tent_2", 3, 4, 0], ["build", "tent_3", 5, 4, 0], ["build", "toilet_block", 7, 4, 0],
+		["build", "shower_block", 9, 4, 0], ["build", "power_generator", 11, 4, 0], ["build", "sewer", 13, 4, 0], ["build", "bonfire", 15, 4, 0], ["build", "lamp_post", 17, 4, 0],
+		["build", "cabin_1", 1, 8, 0], ["build", "cabin_2", 5, 8, 0], ["build", "cabin_3", 9, 8, 0], ["build", "pub", 13, 8, 0],
+		["build", "restaurant", 1, 12, 0], ["build", "vecerka", 5, 12, 0], ["build", "caravan_1", 9, 12, 0], ["build", "sports_field", 13, 12, 0],
+		["build", "lake_slide", 1, 15, 0], ["build", "dumpsters", 5, 15, 0], ["wait", 1.5],
+		["view", 1, 4, 1, 1, 3.2, 20], ["wait", 0.5], ["shot", "g_tent_1"], ["view", 3, 4, 1, 1, 3.2, 20], ["wait", 0.5], ["shot", "g_tent_2"],
+		["view", 5, 4, 1, 1, 3.2, 20], ["wait", 0.5], ["shot", "g_tent_3"], ["view", 7, 4, 1, 1, 4.0, 25], ["wait", 0.5], ["shot", "g_toilet"],
+		["view", 9, 4, 1, 1, 4.0, 25], ["wait", 0.5], ["shot", "g_shower"], ["view", 11, 4, 1, 1, 4.0, 25], ["wait", 0.5], ["shot", "g_generator"],
+		["view", 13, 4, 1, 1, 3.5, 25], ["wait", 0.5], ["shot", "g_sewer"], ["view", 15, 4, 1, 1, 3.0, 25], ["wait", 0.5], ["shot", "g_bonfire"],
+		["view", 1, 8, 2, 2, 6.0, 25], ["wait", 0.5], ["shot", "g_cabin_1"], ["view", 5, 8, 2, 2, 6.0, 25], ["wait", 0.5], ["shot", "g_cabin_2"],
+		["view", 9, 8, 2, 2, 6.0, 25], ["wait", 0.5], ["shot", "g_cabin_3"], ["view", 13, 8, 2, 2, 6.5, 25], ["wait", 0.5], ["shot", "g_pub"],
+		["view", 1, 12, 2, 2, 6.5, 25], ["wait", 0.5], ["shot", "g_restaurant"], ["view", 5, 12, 2, 2, 6.5, 25], ["wait", 0.5], ["shot", "g_vecerka"],
+		["view", 9, 12, 2, 1, 5.0, 25], ["wait", 0.5], ["shot", "g_caravan"], ["view", 13, 12, 2, 1, 6.0, 25], ["wait", 0.5], ["shot", "g_sports"],
+		["view", 1, 15, 2, 1, 5.0, 25], ["wait", 0.5], ["shot", "g_slide"], ["view", 5, 15, 1, 1, 3.0, 25], ["wait", 0.5], ["shot", "g_dumpsters"],
+		["view", 9, 0, 2, 2, 7.0, 25], ["wait", 0.5], ["shot", "g_reception"],
+	],
 	"prepcabin": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5], ["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5], ["gm", "get_room_state", "17:4"],
@@ -615,6 +637,23 @@ func _run_step(step: Array) -> void:
 			if player != null and gm != null:
 				player.global_position = gm.grid_to_world(Vector2i(int(step[1]), int(step[2]))) + Vector3(0, 0.2, 0)
 				player.rotation.y = deg_to_rad(float(step[3]))
+		"view":
+			# ["view", x, y, w, h, dist_m, angle_deg]: a camera `dist_m` from the footprint's
+			# centre on the side `angle_deg` (0 = its front, +Z), a little above eye height,
+			# looking at it (for model shots; the player stays where it is).
+			var gm_v = _main.get("grid_manager")
+			var world_v: Node3D = _main.get("_world_3d")
+			var center: Vector3 = gm_v.get_footprint_center(Vector2i(int(step[1]), int(step[2])), Vector2i(int(step[3]), int(step[4])))
+			var a := deg_to_rad(float(step[6]))
+			var cam_v := Camera3D.new()
+			world_v.add_child(cam_v)
+			cam_v.fov = 62.0
+			cam_v.global_position = center + Vector3(sin(a), 0.0, cos(a)) * float(step[5]) + Vector3(0, 1.7 + float(step[5]) * 0.18, 0)
+			cam_v.look_at(center + Vector3(0, 1.0, 0), Vector3.UP)
+			var old_v = _main.get("debug_camera")
+			if old_v != null and is_instance_valid(old_v):
+				old_v.queue_free()
+			_main.set("debug_camera", cam_v)
 		"mail_read":
 			var mail: Dictionary = EmailManager.find_mail(str(step[1]), step[2])
 			print("SHOT DRIVER mail_read: ", mail.get("subject", "(none)"))
