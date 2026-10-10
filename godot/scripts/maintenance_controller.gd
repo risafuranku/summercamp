@@ -22,6 +22,8 @@ const SYNC_EVERY := 0.5
 const VIEW_DISTANCE := 4.2
 const VIEW_DOT := 0.55
 const SIGN_PIXEL_SIZE := 0.05
+## Kept up from the inside (scripts/service_interior.gd), not with hold R.
+const CLEANED_INSIDE := ["toilet_block", "shower_block"]
 
 var _world: Node3D
 var _building_manager: Node
@@ -107,6 +109,14 @@ func hint_for_view(has_other_hint: bool) -> String:
 	if broken and str(_target["type"]) == "sewer":
 		# A broken sewer is fixed from the inside (the pipe crawl).
 		parts.append("BROKEN - [E] go down and fix it")
+	elif CLEANED_INSIDE.has(str(_target["type"])):
+		# Toilets and showers are cleaned (and unblocked) by hand, inside.
+		if broken:
+			parts.append("BROKEN - [E] go in and fix it")
+		elif condition < 0.9:
+			parts.append("DIRTY - [E] go in and clean it")
+		elif has_other_hint:
+			return ""
 	elif broken:
 		parts.append("[R] Repair $%d" % int(_target["cost"]))
 	elif condition < 0.9:
@@ -282,6 +292,8 @@ func _update_work(delta: float, can_act: bool) -> void:
 	var held := can_act and InputMap.has_action("maintain") and Input.is_action_pressed("maintain")
 	var workable := not _target.is_empty() and (bool(_target["broken"]) or float(_target["condition"]) < 0.9)
 	if workable and bool(_target["broken"]) and str(_target["type"]) == "sewer":
+		workable = false
+	if workable and CLEANED_INSIDE.has(str(_target["type"])):
 		workable = false
 	if not held or not workable:
 		if not held:

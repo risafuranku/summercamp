@@ -38,7 +38,8 @@ func _ready() -> void:
 	_run_minutes(1)
 	var room: Dictionary = GuestManager.get_room_state("6:6")
 	_expect(str(room.get("status", "")) == ROOM_RULES.STATUS_UNPREPARED, "a new tent starts unprepared (%s)" % room.get("status", "?"))
-	_expect((room.get("remaining", []) as Array).size() == 2, "a tent has two tasks")
+	var first: Array = room.get("remaining", [])
+	_expect(first.size() >= 2 and first.size() <= 3 and str(first[0]["id"]) == "bed", "a new tent: the bed and the builders' leftovers (%d tasks)" % first.size())
 
 	# Booking: on the road, beds reserved, nobody in the camp yet.
 	_book("Pepa", "drunk", 1, 1, 30)
@@ -77,7 +78,7 @@ func _ready() -> void:
 
 	# A second party for the second, unprepared tent: left at the barrier, it gives up.
 	_book("Mirek", "quiet_guy", 1, 1, 0)
-	_run_minutes(ROOM_RULES.TASKS.size() + GuestManager.GATE_GIVE_UP_MINUTES + 2)
+	_run_minutes(2 + GuestManager.GATE_GIVE_UP_MINUTES + 2)
 	_expect(_gave_up.size() == 1, "a party left at the barrier gives up")
 	var gave_up_review := false
 	for r in CoreRoot.get_state().guest_reviews:
@@ -91,6 +92,25 @@ func _ready() -> void:
 	room = GuestManager.get_room_state(key)
 	_expect(str(room.get("status", "")) == ROOM_RULES.STATUS_DIRTY, "the tent is dirty after the guests leave (%s)" % room.get("status", "?"))
 	_expect((room.get("done", []) as Array).is_empty(), "and every task is to do again")
+	var after: Array = room.get("tasks", [])
+	_expect(after.map(func(t): return t["id"]) != first.map(func(t): return t["id"]) or after.map(func(t): return t["mess"] if t.has("mess") else "") != first.map(func(t): return t["mess"] if t.has("mess") else ""), "the mess after guests is not the builders' mess")
+	var save_round: Dictionary = SAVE_CODEC.deserialize_accommodation_states(JSON.parse_string(JSON.stringify(SAVE_CODEC.serialize_accommodation_states(CoreRoot.get_state().accommodation_states))))
+	_expect(ROOM_RULES.tasks_for("tent_1", save_round[key]["mess"]) == after, "the same mess after save/load")
+
+	# Variety: dirty rooms differ from each other, and a lads' party leaves more than a pensioner.
+	var MR = preload("res://core/systems/mess_rules.gd")
+	var layouts := {}
+	var heavy := 0
+	var light := 0
+	for i in 40:
+		var t1: Array = ROOM_RULES.tasks_for("cabin_2", {"seed": 1000 + i, "level": MR.level_for(["drunk"], 3, 3, false), "archetypes": ["drunk"]})
+		var t2: Array = ROOM_RULES.tasks_for("cabin_2", {"seed": 2000 + i, "level": MR.level_for(["picker"], 1, 2, false), "archetypes": ["picker"]})
+		layouts[",".join(t1.map(func(t): return "%s:%s" % [t["id"], t.get("mess", "")]))] = true
+		heavy += t1.size()
+		light += t2.size()
+	print("ARRIVAL CHECK: 40 lads' cabins -> %d different messes, avg %.1f tasks; pickers avg %.1f" % [layouts.size(), heavy / 40.0, light / 40.0])
+	_expect(layouts.size() >= 30, "the mess is somewhere else each time (%d layouts of 40)" % layouts.size())
+	_expect(heavy > light + 40, "lads leave more mess than pensioners (%d vs %d)" % [heavy, light])
 
 	# Old saves said "clean": those rooms load as ready.
 	var legacy: Dictionary = SAVE_CODEC.deserialize_accommodation_states({"1:1": {"status": "clean", "building_type": "tent_1", "capacity": 1, "guest_ids": []}})

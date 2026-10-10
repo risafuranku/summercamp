@@ -13,21 +13,21 @@ extends RefCounted
 ##
 ## Each task is done inside the interior by holding the mouse on the thing that needs
 ## doing (scripts/interior_tasks.gd). `seconds` is how long the hold takes.
+##
+## The bed is always there; the rest is the mess (core/systems/mess_rules.gd): every
+## time a room goes dirty it gets a new seed and level, so the mess is somewhere else
+## each time and worse after a party of lads than after a quiet pensioner.
+
+const MESS_RULES = preload("res://core/systems/mess_rules.gd")
 
 const STATUS_UNPREPARED := "unprepared"
 const STATUS_DIRTY := "dirty"
 const STATUS_READY := "ready"
 
-const TASKS := {
-	"tent": [
-		{"id": "bed", "label": "Roll out the sleeping bag", "verb": "Rolling out", "seconds": 1.6},
-		{"id": "floor", "label": "Pick up the litter", "verb": "Picking up", "seconds": 1.3},
-	],
-	"cabin": [
-		{"id": "bed", "label": "Make the bed", "verb": "Making the bed", "seconds": 2.0},
-		{"id": "floor", "label": "Clear away the bottles", "verb": "Clearing up", "seconds": 1.5},
-		{"id": "bathroom", "label": "Scrub the toilet", "verb": "Scrubbing", "seconds": 2.2},
-	],
+## The bed task per room kind (the rest of the list is the mess).
+const BED_TASKS := {
+	"tent": {"id": "bed", "label": "Roll out the sleeping bag", "verb": "Rolling out", "seconds": 1.6, "sfx": "task_bed.mp3"},
+	"cabin": {"id": "bed", "label": "Make the bed", "verb": "Making the bed", "seconds": 2.0, "sfx": "task_bed.mp3"},
 }
 
 
@@ -41,12 +41,14 @@ static func kind_for(building_type: String) -> String:
 	return ""
 
 
-static func tasks_for(building_type: String) -> Array:
-	var out := (TASKS.get(kind_for(building_type), []) as Array).duplicate(true)
+## `mess` is the room's {seed, level, archetypes, fresh}; empty = a middling mess.
+static func tasks_for(building_type: String, mess: Dictionary = {}) -> Array:
+	var kind := kind_for(building_type)
+	if kind.is_empty():
+		return []
+	var m := mess if not mess.is_empty() else {"seed": building_type.hash(), "level": 1}
 	# The basic cabin has no bathroom (its bucket is outside the room you can enter).
-	if not has_bathroom(building_type):
-		out = out.filter(func(t): return str(t["id"]) != "bathroom")
-	return out
+	return MESS_RULES.room_tasks(kind, has_bathroom(building_type), m, (BED_TASKS[kind] as Dictionary).duplicate())
 
 
 static func has_bathroom(building_type: String) -> bool:
@@ -54,8 +56,8 @@ static func has_bathroom(building_type: String) -> bool:
 	return t == "cabin_2" or t == "cabin_3"
 
 
-static func task(building_type: String, task_id: String) -> Dictionary:
-	for t in tasks_for(building_type):
+static func task(building_type: String, task_id: String, mess: Dictionary = {}) -> Dictionary:
+	for t in tasks_for(building_type, mess):
 		if str(t["id"]) == task_id:
 			return t
 	return {}
@@ -71,16 +73,16 @@ static func normalize_status(status: String) -> String:
 			return STATUS_UNPREPARED
 
 
-static func all_done(building_type: String, done: Array) -> bool:
-	for t in tasks_for(building_type):
+static func all_done(building_type: String, done: Array, mess: Dictionary = {}) -> bool:
+	for t in tasks_for(building_type, mess):
 		if not done.has(str(t["id"])):
 			return false
 	return true
 
 
-static func remaining(building_type: String, done: Array) -> Array:
+static func remaining(building_type: String, done: Array, mess: Dictionary = {}) -> Array:
 	var out: Array = []
-	for t in tasks_for(building_type):
+	for t in tasks_for(building_type, mess):
 		if not done.has(str(t["id"])):
 			out.append(t)
 	return out

@@ -355,16 +355,10 @@ func _build_prep_props() -> void:
 	var bed_body := P.body(_tent_root, Vector3(-0.28, 0.15, -0.45), Vector3(0.9, 0.3, 1.2))
 	_prep.register("bed", bed_body, [heap_a, heap_b, pillow_off], [tidy_bag, tidy_pillow])
 
-	var litter := Node3D.new()
-	litter.name = "Litter"
-	_tent_root.add_child(litter)
-	P.can(litter, Vector3(0.30, 0.035, -0.72), true, Color(0.7, 0.12, 0.1), 0.4)
-	P.can(litter, Vector3(0.50, 0.035, -0.88), true, Color(0.75, 0.72, 0.68), 1.9)
-	P.bottle(litter, Vector3(0.22, 0.04, -0.98), true, 2.6)
-	P.paper(litter, Vector3(0.52, 0.03, -1.05), 0.7)
-	P.paper(litter, Vector3(0.40, 0.03, -0.62), 2.2)
-	var litter_body := P.body(_tent_root, Vector3(0.38, 0.08, -0.85), Vector3(0.55, 0.18, 0.6))
-	_prep.register("floor", litter_body, [litter], [])
+	# Where the mess can be this time (core/systems/mess_rules.gd ROOM_SPOTS).
+	for spot in [["f1", Vector3(0.38, 0.0, -0.85)], ["f2", Vector3(0.3, 0.0, 0.05)], ["f3", Vector3(-0.72, 0.0, -0.2)],
+			["f4", Vector3(0.12, 0.0, -1.08)], ["f5", Vector3(-0.7, 0.0, -0.9)]]:
+		_prep.add_spot(spot[0], _tent_root, spot[1])
 	_prep.setup_tasks(self, _interior_camera, _viewport, "tent")
 	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 

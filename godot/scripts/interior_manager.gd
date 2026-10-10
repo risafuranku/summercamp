@@ -558,6 +558,8 @@ func _on_service_interact(service_node: Node) -> void:
 	_active_service_node = structure
 	_apply_time_to_interior(_service_interior)
 	_service_interior.open_service(building_type)
+	if _service_interior.has_method("set_upkeep_target"):
+		_service_interior.set_upkeep_target(structure.get_meta("grid_origin", Vector2i(-999, -999)), building_type)
 	if _service_interior.has_method("set_sewer_broken"):
 		var origin: Vector2i = structure.get_meta("grid_origin", Vector2i(-999, -999))
 		var state = CoreRoot.get_state() if CoreRoot != null else null

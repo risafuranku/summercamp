@@ -2,6 +2,9 @@ extends CanvasLayer
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
+const MESS_RULES = preload("res://core/systems/mess_rules.gd")
+const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
 
 signal request_close
 signal request_repair
@@ -66,6 +69,14 @@ var _basement_machine_anim_materials: Array[StandardMaterial3D] = []
 var _basement_machine_anim_frames: Array[Texture2D] = []
 var _basement_machine_anim_timer: float = 0.0
 var _basement_machine_anim_frame: int = 0
+## Cleaning a toilet / shower block from the inside (core/systems/mess_rules.gd
+## block_tasks): the list is fixed when you first walk in and remembered per block
+## until it is serviced, so leaving halfway keeps what you did.
+var _upkeep_prep = null
+var _upkeep_key := ""
+var _upkeep_coord := Vector2i(-999, -999)
+var _upkeep_type := ""
+static var _upkeep_cache: Dictionary = {}   # key -> {tasks, done, broken}
 
 
 func _ready() -> void:
@@ -526,6 +537,7 @@ func _build_service_room(profile: String) -> void:
 	_basement_machine_anim_frames.clear()
 	_basement_machine_anim_timer = 0.0
 	_basement_machine_anim_frame = 0
+	_free_upkeep_prep()
 	if profile == "toilet":
 		_build_toilet_layout()
 		# _interior_camera set by _set_hygiene_room
@@ -1259,6 +1271,154 @@ func _build_generator_layout() -> void:
 	title.font_size = 38
 	title.modulate = Color(1.0, 0.88, 0.44, 0.94)
 	_room_root.add_child(title)
+
+
+# ── cleaning the block from the inside ────────────────────────────────────────
+
+func _free_upkeep_prep() -> void:
+	if _upkeep_prep != null and _upkeep_prep.tasks != null and is_instance_valid(_upkeep_prep.tasks):
+		_upkeep_prep.tasks.queue_free()
+	_upkeep_prep = null
+
+
+## Spots of the current hygiene layout, where the mess can be (MESS_RULES.BLOCK_SPOTS).
+func _build_upkeep_spots(block: String) -> void:
+	_free_upkeep_prep()
+	_upkeep_prep = INTERIOR_PREP.new()
+	var r := _room_root
+	if block == "toilet":
+		_upkeep_prep.add_spot("stall_l", r, Vector3(-1.34, 0.04, -0.95))
+		_upkeep_prep.add_spot("stall_r", r, Vector3(1.34, 0.04, -0.95))
+		_upkeep_prep.add_spot("urinal", r, Vector3(0.0, 0.04, -1.3))
+		_upkeep_prep.add_spot("door_l", r, Vector3(-1.34, 1.25, -1.33), 0.0, true)
+		_upkeep_prep.add_spot("door_r", r, Vector3(1.34, 1.25, -1.33), 0.0, true)
+		_upkeep_prep.add_spot("floor_c", r, Vector3(0.0, 0.04, -0.45))
+		_upkeep_prep.add_spot("wall_l", r, Vector3(-2.14, 1.35, -0.3), PI * 0.5, true)
+	else:
+		_upkeep_prep.add_spot("shower_l", r, Vector3(-1.2, 0.5, -1.94), 0.0, true)
+		_upkeep_prep.add_spot("shower_r", r, Vector3(1.2, 0.5, -1.94), 0.0, true)
+		_upkeep_prep.add_spot("drain_l", r, Vector3(-1.2, 0.07, -1.06))
+		_upkeep_prep.add_spot("drain_r", r, Vector3(1.2, 0.07, -1.06))
+		_upkeep_prep.add_spot("floor_c", r, Vector3(0.0, 0.04, -0.6))
+		_upkeep_prep.add_spot("floor_l", r, Vector3(-1.2, 0.04, -0.35))
+		_upkeep_prep.add_spot("floor_r", r, Vector3(1.2, 0.04, -0.35))
+	_upkeep_prep.setup_tasks(self, _interior_camera, _viewport)
+	_upkeep_prep.task_completed.connect(_on_upkeep_task_done)
+
+
+## InteriorManager, after open_service(): which block this is. Toilet and shower blocks
+## get their cleaning list; everything else ignores it.
+func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
+	_upkeep_coord = coord
+	_upkeep_type = building_type
+	_upkeep_key = "%d:%d" % [coord.x, coord.y]
+	var block := "toilet" if building_type == "toilet_block" else ("wash" if building_type == "shower_block" else "")
+	if block.is_empty() or _room_root == null:
+		_free_upkeep_prep()
+		return
+	if not EventBus.building_serviced.is_connected(_on_block_serviced):
+		EventBus.building_serviced.connect(_on_block_serviced)
+	var state = CoreRoot.get_state()
+	var cell: Dictionary = state.grid.cells.get(coord, {}) if state != null else {}
+	var condition := float(cell.get("maintenance", 1.0))
+	var broken: bool = state != null and state.failures.has(_upkeep_key)
+	var entry: Dictionary = _upkeep_cache.get(_upkeep_key, {})
+	if bool(entry.get("spent", false)):
+		entry = {}
+	# A breakdown since the last visit adds its job to the list.
+	if entry.is_empty() or (broken and not bool(entry.get("broken", false))):
+		var day := int(state.day) if state != null else 1
+		entry = {
+			"tasks": MESS_RULES.block_tasks(block, condition, broken, absi(("%s|%d" % [_upkeep_key, day]).hash())),
+			"done": (entry.get("done", []) as Array).duplicate() if not entry.is_empty() else [],
+			"broken": broken,
+		}
+		_upkeep_cache[_upkeep_key] = entry
+	_build_upkeep_spots(block)
+	_refresh_upkeep_room()
+	# Everything done last time but the bill was not paid: try again now.
+	if not (entry["tasks"] as Array).is_empty() and _all_upkeep_done(entry):
+		_finish_upkeep()
+
+
+func _upkeep_room_dict() -> Dictionary:
+	var entry: Dictionary = _upkeep_cache.get(_upkeep_key, {})
+	var tasks: Array = entry.get("tasks", [])
+	var clean := tasks.is_empty() or bool(entry.get("spent", false))
+	var label := "Toilets" if _upkeep_type == "toilet_block" else "Showers"
+	return {
+		"label": "%s %s" % [label, _upkeep_key],
+		"status": "ready" if clean else "dirty",
+		"ready_text": "CLEAN",
+		"dirty_text": "BROKEN DOWN" if bool(entry.get("broken", false)) else "NEEDS CLEANING",
+		"done": entry.get("done", []),
+		"tasks": tasks,
+		"occupied": false,
+		"note": "" if bool(entry.get("spent", false)) else str(entry.get("note", "")),
+	}
+
+
+func _refresh_upkeep_room() -> void:
+	if _upkeep_prep != null:
+		_upkeep_prep.set_room(_upkeep_room_dict())
+
+
+func _all_upkeep_done(entry: Dictionary) -> bool:
+	for t in entry.get("tasks", []):
+		if not (entry.get("done", []) as Array).has(str(t["id"])):
+			return false
+	return true
+
+
+func _on_upkeep_task_done(task_id: String) -> void:
+	var entry: Dictionary = _upkeep_cache.get(_upkeep_key, {})
+	if entry.is_empty():
+		return
+	var done: Array = entry.get("done", [])
+	if not done.has(task_id):
+		done.append(task_id)
+	entry["done"] = done
+	_upkeep_cache[_upkeep_key] = entry
+	if _all_upkeep_done(entry):
+		_finish_upkeep()
+	else:
+		_refresh_upkeep_room()
+
+
+## The last job done: the block is back to 100%. Cleaning costs the supplies, a
+## breakdown the spare part (the same prices as the crew's, minus the crew).
+func _finish_upkeep() -> void:
+	var entry: Dictionary = _upkeep_cache.get(_upkeep_key, {})
+	var def = CoreRoot.registry.get_def(StringName(_upkeep_type)) if CoreRoot != null else null
+	var state = CoreRoot.get_state()
+	var cell: Dictionary = state.grid.cells.get(_upkeep_coord, {}) if state != null else {}
+	var broken := bool(entry.get("broken", false))
+	var cost := UPKEEP_RULES.repair_cost(def) if broken else UPKEEP_RULES.service_cost(def, float(cell.get("maintenance", 1.0)))
+	if not CoreRoot.actions.service_building(_upkeep_coord, cost):
+		entry["note"] = "NO CASH FOR THE %s ($%d)" % ["SPARE PART" if broken else "SUPPLIES", cost]
+		_upkeep_cache[_upkeep_key] = entry
+		_refresh_upkeep_room()
+		return
+	if _upkeep_prep != null:
+		_upkeep_prep.play_room_ready()
+	_refresh_upkeep_room()
+
+
+func _on_block_serviced(coord: Vector2i, _type: String, _was_broken: bool, _cost: int) -> void:
+	var key := "%d:%d" % [coord.x, coord.y]
+	var entry: Dictionary = _upkeep_cache.get(key, {})
+	if entry.is_empty():
+		return
+	# Serviced (by you or the crew): the list is spent. Keep it shown as done while you
+	# are still standing in there.
+	if key == _upkeep_key and _is_open:
+		var all_ids: Array = (entry.get("tasks", []) as Array).map(func(t): return str(t["id"]))
+		entry["done"] = all_ids
+		entry["spent"] = true
+		_upkeep_cache[key] = entry
+		_refresh_upkeep_room()
+	else:
+		_upkeep_cache.erase(key)
 
 
 func _profile_for_service(service_type: String) -> String:

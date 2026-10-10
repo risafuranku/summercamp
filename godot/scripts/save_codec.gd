@@ -107,6 +107,8 @@ static func serialize_accommodation_states(value: Variant) -> Dictionary:
 			"building_type": str(entry.get("building_type", "")),
 			"capacity": max(0, int(entry.get("capacity", 0))),
 			"prep_done": done,
+			"mess": _mess_dict(entry.get("mess", {})),
+			"mess_hint": _mess_dict(entry.get("mess_hint", {})),
 			"occupied": max(0, int(entry.get("occupied", 0))),
 			"guest_ids": sanitized_guest_ids
 		}
@@ -211,3 +213,19 @@ static func coord_from_key(key: String) -> Vector2i:
 
 static func coord_to_key(coord: Vector2i) -> String:
 	return "%d:%d" % [coord.x, coord.y]
+
+
+## A room's mess {seed, level, archetypes, fresh} (core/systems/mess_rules.gd); JSON
+## brings numbers back as floats.
+static func _mess_dict(raw) -> Dictionary:
+	if not (raw is Dictionary) or (raw as Dictionary).is_empty():
+		return {}
+	var d: Dictionary = raw
+	var archetypes: Array = []
+	if d.get("archetypes", []) is Array:
+		for a in d.get("archetypes", []):
+			archetypes.append(str(a))
+	var out := {"seed": int(d.get("seed", 1)), "level": int(d.get("level", 1)), "archetypes": archetypes}
+	if bool(d.get("fresh", false)):
+		out["fresh"] = true
+	return out

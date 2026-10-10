@@ -141,7 +141,7 @@ func _check_size(size: Vector2i) -> Array[String]:
 	for expected_value in EXPECTED_READOUTS:
 		if not labels.has(expected_value):
 			failures.append("%s: readout '%s' missing (labels: %s)" % [size, expected_value, ", ".join(labels)])
-	var objective := root.get_node_or_null("Objective") as Control
+	var objective := hud.find_child("Objective", true, false) as Control
 	var card := root.get_node_or_null("GuestCard") as Control
 	var feed := root.get_node_or_null("MessageFeed") as Control
 	var banner := root.get_node_or_null("Banner") as Control

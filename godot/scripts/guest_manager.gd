@@ -12,6 +12,7 @@ const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const GUEST_LIFE_SCRIPT = preload("res://scripts/guest_life.gd")
 const GUEST_NEEDS = preload("res://core/systems/guest_needs_system.gd")
 const ROOM_RULES = preload("res://core/systems/room_rules.gd")
+const MESS_RULES = preload("res://core/systems/mess_rules.gd")
 
 const STATUS_ACTIVE := "active"
 const STATUS_SLEEP := "sleep"
@@ -689,14 +690,17 @@ func get_room_state(key: String) -> Dictionary:
 		return {}
 	var building_type := str(acc.get("building_type", ""))
 	var done: Array = acc.get("prep_done", []) if acc.get("prep_done", []) is Array else []
+	var mess: Dictionary = acc.get("mess", {}) if acc.get("mess", {}) is Dictionary else {}
 	return {
 		"key": key,
 		"label": room_label(key),
 		"building_type": building_type,
 		"status": ROOM_RULES.normalize_status(str(acc.get("status", ""))),
 		"done": done.duplicate(),
-		"tasks": ROOM_RULES.tasks_for(building_type),
-		"remaining": ROOM_RULES.remaining(building_type, done),
+		"mess_seed": int(mess.get("seed", 0)),
+		"mess_level": int(mess.get("level", 1)),
+		"tasks": ROOM_RULES.tasks_for(building_type, mess),
+		"remaining": ROOM_RULES.remaining(building_type, done, mess),
 		"occupied": int(acc.get("occupied", 0)) > 0,
 	}
 
@@ -709,7 +713,8 @@ func complete_room_task(key: String, task_id: String) -> bool:
 		return false
 	var acc: Dictionary = state.accommodation_states[key]
 	var building_type := str(acc.get("building_type", ""))
-	if ROOM_RULES.task(building_type, task_id).is_empty():
+	var mess: Dictionary = acc.get("mess", {}) if acc.get("mess", {}) is Dictionary else {}
+	if ROOM_RULES.task(building_type, task_id, mess).is_empty():
 		return false
 	var done: Array = (acc.get("prep_done", []) as Array).duplicate() if acc.get("prep_done", []) is Array else []
 	if done.has(task_id):
@@ -719,7 +724,7 @@ func complete_room_task(key: String, task_id: String) -> bool:
 	state.accommodation_states[key] = acc
 	if EventBus.has_signal("room_task_done"):
 		EventBus.room_task_done.emit(key, task_id)
-	if ROOM_RULES.all_done(building_type, done) and ROOM_RULES.normalize_status(str(acc.get("status", ""))) != ROOM_RULES.STATUS_READY:
+	if ROOM_RULES.all_done(building_type, done, mess) and ROOM_RULES.normalize_status(str(acc.get("status", ""))) != ROOM_RULES.STATUS_READY:
 		acc["status"] = ROOM_RULES.STATUS_READY
 		state.accommodation_states[key] = acc
 		if EventBus.has_signal("room_prepared"):
@@ -1732,6 +1737,30 @@ func _build_guest_slot_lookup(accommodations: Dictionary) -> Dictionary:
 	return out
 
 
+## Who is sleeping in a room, as the mess they will leave: the worst archetype's level,
+## bigger parties, long stays and unhappy guests make it worse.
+func _mess_hint_for(slots: Array, guests_by_id: Dictionary, prev_hint: Dictionary) -> Dictionary:
+	var archetypes: Array = []
+	var party := 0
+	var nights := 0
+	var unhappy := false
+	for slot_any in slots:
+		if not (slot_any is Dictionary) or not bool((slot_any as Dictionary).get("checked_in", false)):
+			continue
+		var g: Dictionary = guests_by_id.get(int((slot_any as Dictionary).get("guest_id", -1)), {})
+		if g.is_empty():
+			continue
+		var arch := str(g.get("archetype", ""))
+		if not archetypes.has(arch):
+			archetypes.append(arch)
+		party = maxi(party, int(g.get("party_size", 1)))
+		nights = maxi(nights, int(g.get("stay_nights", 1)))
+		unhappy = unhappy or float(g.get("mood", 60.0)) < 40.0
+	if archetypes.is_empty():
+		return prev_hint
+	return {"level": MESS_RULES.level_for(archetypes, party, nights, unhappy), "archetypes": archetypes}
+
+
 func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 	var state = CoreRoot.get_state()
 	if state == null:
@@ -1743,6 +1772,10 @@ func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 	var accommodations = _collect_current_accommodations()
 	var slot_lookup = _build_guest_slot_lookup(accommodations)
 	var next: Dictionary = {}
+	var guests_by_id := {}
+	for g_any in state.guests:
+		if g_any is Dictionary:
+			guests_by_id[int((g_any as Dictionary).get("id", -1))] = g_any
 
 	for key_any in accommodations.keys():
 		var key = str(key_any)
@@ -1764,13 +1797,25 @@ func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 		# New rooms start unprepared; a room the last guests just left needs doing again.
 		var status := ROOM_RULES.normalize_status(str(prev.get("status", ROOM_RULES.STATUS_UNPREPARED)))
 		var done: Array = (prev.get("prep_done", []) as Array).duplicate() if prev.get("prep_done", []) is Array else []
+		var btype := str(acc.get("building_type", ""))
+		# The mess the next cleaning finds (core/systems/mess_rules.gd). A new room has
+		# the builders' leftovers; while guests are in, remember who they are.
+		var mess: Dictionary = (prev.get("mess", {}) as Dictionary).duplicate() if prev.get("mess", {}) is Dictionary else {}
+		if mess.is_empty():
+			mess = {"seed": absi(("%s|%s" % [key, btype]).hash()), "level": 0, "fresh": true}
+		var hint: Dictionary = (prev.get("mess_hint", {}) as Dictionary).duplicate() if prev.get("mess_hint", {}) is Dictionary else {}
+		if occupied > 0:
+			hint = _mess_hint_for(slots, guests_by_id, hint)
 		if int(prev.get("occupied", 0)) > 0 and occupied == 0:
 			status = ROOM_RULES.STATUS_DIRTY
 			done = []
+			mess = {"seed": _rng.randi(), "level": int(hint.get("level", 1)), "archetypes": hint.get("archetypes", [])}
+			hint = {}
 		# An upgrade replaces the furniture: an empty room has to be made up again.
-		elif not prev.is_empty() and str(prev.get("building_type", "")) != str(acc.get("building_type", "")) and occupied == 0:
+		elif not prev.is_empty() and str(prev.get("building_type", "")) != btype and occupied == 0:
 			status = ROOM_RULES.STATUS_UNPREPARED
 			done = []
+			mess = {"seed": _rng.randi(), "level": 0, "fresh": true}
 		next[key] = {
 			"key": key,
 			"coord": acc.get("coord", Vector2i.ZERO),
@@ -1779,6 +1824,8 @@ func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 			"capacity": int(acc.get("capacity", 1)),
 			"status": status,
 			"prep_done": done,
+			"mess": mess,
+			"mess_hint": hint,
 			"occupied": occupied,
 			"guest_ids": guest_ids,
 			"guest_slots": slots.duplicate(true),

@@ -50,12 +50,12 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Vera's Checklist (13-step onboarding questline) | ✅ | task mails, rewards, tracker, waypoint |
 | CampMail bookings with night-risk impact | ✅ | |
 | Arrivals: road, gatehouse, barrier, waiting parties | ✅ | HUD ARRIVALS panel counts down; parties wait at the barrier until their room is ready, give up after ~2.5 h |
-| Room preparation in the interiors | ✅ | hover-glow, hold to do it, sounds, checklist; tent 2 tasks, cabin 2-3 |
+| Room preparation in the interiors | ✅ | hover-glow, hold to do it, sounds, checklist; a new mess every time (place, kind, amount by who stayed), 2-10 jobs |
 | Builder with isometric map, guests walking on it | ✅ | the "extra guest" uncanny event |
 | Economy, power/water/sewage/waste balance | 🟡 | numbers want a balance pass |
 | Guest needs, moods, activities, reviews | ✅ | six archetypes (Quiet Guy, Drunk, Cheap Chick, Tramps, Family, Mushroom Pickers) with different needs and favourite facilities; bookings arrive as letters in their own voice |
 | Visible guest agents in the 3D camp | ✅ | |
-| Upkeep: wear, breakdowns, service/repair (hold R), crew | ✅ | Camp Status > Upkeep |
+| Upkeep: wear, breakdowns, service/repair (hold R), crew | ✅ | Camp Status > Upkeep; toilet and shower blocks are cleaned and fixed by hand inside |
 | Electricity bills, power cut, UPS game over | ✅ | |
 | Weather cycle (7 states) with gameplay effect | ✅ | rain closes outdoor attractions; the red anomaly at night |
 | Camp Status > Reviews | ✅ | |

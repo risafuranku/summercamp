@@ -328,13 +328,41 @@ const SCENARIOS := {
 	"prep": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 5000], ["clear", 16, 3, 3, 3], ["build", "tent_1", 17, 4, 0], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.5],
 		["book", "Pepa", "drunk", 1, 2, 0], ["hours", 0.05], ["wait", 0.5],
-		["open_room", 17, 4], ["wait", 1.2], ["shot", "p0_tent_messy"],
+		["open_room", 17, 4], ["wait", 1.2], ["eval", "_interior_manager._tent_interior._look.set('pitch_deg', -26.0)"], ["wait", 0.8], ["shot", "p0_tent_messy"],
 		["aim_task", "_tent_interior", "bed"], ["wait", 0.4], ["shot", "p1_hover_bed"],
 		["eval", "[_interior_manager._tent_interior._prep.tasks._target_under_cursor(), _interior_manager._tent_interior._prep.tasks._hover, _interior_manager._tent_interior._prep.tasks.is_visible_in_tree(), _interior_manager._tent_interior._prep.tasks._targets.keys()]"],
 		["lmb", true], ["wait", 0.9], ["shot", "p2_holding"], ["wait", 1.2], ["lmb", false], ["wait", 0.4], ["shot", "p3_bed_done"],
-		["aim_task", "_tent_interior", "floor"], ["wait", 0.3], ["lmb", true], ["wait", 1.8], ["lmb", false], ["wait", 0.6], ["shot", "p4_tent_ready"],
-		["eval", "GuestManager.get_room_state('17:4')"],
+		["clean_room", "_tent_interior"], ["wait", 0.6], ["shot", "p4_tent_ready"],
+		["gm", "get_room_state", "17:4"],
+	],
+	"mess": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5], ["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["prep_all"], ["book", "Lads", "drunk", 3, 2, 0], ["hours", 0.05], ["checkin"], ["hours", 49.0], ["wait", 1.0],
+		["gm", "get_room_state", "17:4"], ["open_room", 17, 4], ["wait", 1.2], ["eval", "_interior_manager._cabin_interior._look.set('pitch_deg', -24.0)"], ["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 0.0)"], ["wait", 0.8], ["shot", "m0_after_lads"],
+		["clean_room", "_cabin_interior"], ["shot", "m1_main_clean"],
+		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 0.8], ["shot", "m2_bathroom"],
+		["clean_room", "_cabin_interior"], ["wait", 0.5], ["shot", "m3_ready"], ["gm", "get_room_state", "17:4"],
+	],
+	"blockclean": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"],
+		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "toilet_block", 17, 4, 0], ["clear", 16, 9, 4, 4], ["build", "shower_block", 17, 10, 0], ["wait", 0.5],
+		["condition", 17, 4, 0.2], ["break", 17, 4], ["condition", 17, 10, 0.45], ["wait", 0.6],
+		["player", 17, 6, 0.0], ["eval", "_player.rotate_y(PI)"], ["wait", 0.8], ["eval", "_hud_manager._hint_label.text if _hud_manager.get('_hint_label') != null else ''"], ["shot", "k0_outside_hint"],
+		["open_room", 17, 4], ["wait", 1.2], ["shot", "k1_toilets_center"],
+		["clean_room", "_service_interior"],
+		["eval", "_interior_manager._service_interior._apply_service_subroom('left')"], ["wait", 0.6], ["shot", "k2_toilets_left"], ["clean_room", "_service_interior"],
+		["eval", "_interior_manager._service_interior._apply_service_subroom('right')"], ["wait", 0.6], ["shot", "k3_toilets_right"], ["clean_room", "_service_interior"],
+		["wait", 0.4], ["shot", "k4_toilets_done"],
+		["eval", "[CoreRoot.get_state().grid.cells[Vector2i(17, 4)].get('maintenance'), CoreRoot.get_state().failures.keys(), CoreRoot.get_state().money]"],
+		["eval", "_interior_manager._service_interior.close_service()"], ["wait", 0.8],
+		["open_room", 17, 10], ["wait", 1.2], ["shot", "k5_showers_center"], ["clean_room", "_service_interior"],
+		["eval", "_interior_manager._service_interior._apply_service_subroom('left')"], ["wait", 0.6], ["shot", "k6_showers_left"], ["clean_room", "_service_interior"],
+		["eval", "_interior_manager._service_interior._apply_service_subroom('right')"], ["wait", 0.6], ["clean_room", "_service_interior"], ["wait", 0.4], ["shot", "k7_showers_done"],
+		["eval", "CoreRoot.get_state().grid.cells[Vector2i(17, 10)].get('maintenance')"],
 	],
 	"prepcabin": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
@@ -342,9 +370,10 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8], ["open_room", 17, 4], ["wait", 1.2], ["shot", "q0_cabin_messy"],
 		["aim_task", "_cabin_interior", "bed"], ["wait", 0.4], ["shot", "q1_hover_bed"],
 		["lmb", true], ["wait", 2.4], ["lmb", false], ["wait", 0.4],
-		["aim_task", "_cabin_interior", "floor"], ["wait", 0.3], ["shot", "q2_hover_bottles"], ["lmb", true], ["wait", 1.8], ["lmb", false], ["wait", 0.4], ["shot", "q3_main_done"],
+		["clean_room", "_cabin_interior"], ["wait", 0.4], ["shot", "q3_main_done"],
 		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 0.8], ["shot", "q4_bathroom_dirty"],
-		["aim_task", "_cabin_interior", "bathroom"], ["wait", 0.3], ["lmb", true], ["wait", 1.2], ["shot", "q5_scrubbing"], ["wait", 1.3], ["lmb", false], ["wait", 0.5], ["shot", "q6_cabin_ready"],
+		["aim_task", "_cabin_interior", "wc"], ["wait", 0.3], ["lmb", true], ["wait", 1.2], ["shot", "q5_scrubbing"], ["wait", 1.3], ["lmb", false], ["wait", 0.5],
+		["clean_room", "_cabin_interior"], ["wait", 0.5], ["shot", "q6_cabin_ready"],
 	],
 	"saveload": [
 		["wait_menu"], ["wait", 1.0], ["shot", "01_menu"],
@@ -662,7 +691,7 @@ func _run_step(step: Array) -> void:
 			# Turn the interior's head toward a room task, then put the OS cursor on it
 			# ([interior, id]), as a player would look at the thing before clicking it.
 			var interior = _main.get("_interior_manager").get(str(step[1]))
-			var tasks = interior.get("_prep").tasks
+			var tasks = _prep_of(interior).tasks
 			var target: Dictionary = tasks._targets.get(str(step[2]), {})
 			if not target.is_empty():
 				var cam: Camera3D = tasks._camera
@@ -678,9 +707,23 @@ func _run_step(step: Array) -> void:
 				# Let the head turn settle, then aim (an internal follow-up step).
 				_steps.insert(_step_index, ["_aim_cursor", step[1], step[2]])
 				_wait_left = 0.6
+		"clean_room":
+			# Clean everything visible in the interior's current room, as a player would:
+			# look at each thing, hold the button until it is done ([interior]).
+			var interior3 = _main.get("_interior_manager").get(str(step[1]))
+			var tasks3 = _prep_of(interior3).tasks
+			var queue: Array = []
+			for id in tasks3._targets.keys():
+				var t3: Dictionary = tasks3._targets[id]
+				if t3["done"] or not is_instance_valid(t3["body"]) or not t3["body"].is_visible_in_tree():
+					continue
+				queue.append_array([["aim_task", step[1], id], ["wait", 0.3], ["lmb", true], ["wait", float(t3["seconds"]) + 0.5], ["lmb", false], ["wait", 0.3]])
+			print("SHOT DRIVER clean_room %s: %d things" % [step[1], queue.size() / 6])
+			for i in queue.size():
+				_steps.insert(_step_index + i, queue[i])
 		"_aim_cursor":
 			var interior2 = _main.get("_interior_manager").get(str(step[1]))
-			var tasks2 = interior2.get("_prep").tasks
+			var tasks2 = _prep_of(interior2).tasks
 			var target2: Dictionary = tasks2._targets.get(str(step[2]), {})
 			if not target2.is_empty():
 				var cam2: Camera3D = tasks2._camera
@@ -737,3 +780,9 @@ func _save_shot(shot_name: String) -> void:
 	var path := _out_dir.path_join(shot_name + ".png")
 	var err := img.save_png(path)
 	print("SHOT DRIVER: %s -> %s (%s)" % [shot_name, path, error_string(err)])
+
+
+## Rooms keep their InteriorPrep in `_prep`; toilet / shower blocks in `_upkeep_prep`.
+func _prep_of(interior):
+	var p = interior.get("_prep")
+	return p if p != null else interior.get("_upkeep_prep")

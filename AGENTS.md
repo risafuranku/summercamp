@@ -101,9 +101,9 @@ godot --path godot --resolution 1280x720 res://tools/shot_driver.tscn -- --scena
 ```
 
 Scenarios: `boot menu views hud quest pause gameover crt crtmap weather upkeep blood night
-saveload guests pipes senses uncanny look gate prep prepcabin night2 breaker probe`.
+saveload guests pipes senses uncanny look gate prep prepcabin mess blockclean night2 night3 breaker probe`.
 Useful steps for the new loops: `topdown` (a camera above the camp, no fog), `open_room`,
-`aim_task` (turns the head to a room task and puts the cursor on it), `lmb`, `until` (wait for an Expression on Main), `gm` (call a
+`aim_task` (turns the head to a room task and puts the cursor on it), `clean_room` (does every task in the interior's current room), `lmb`, `until` (wait for an Expression on Main), `gm` (call a
 GuestManager method: `eval` cannot reach autoloads), `prep_all`. Steps include `build`, `book`, `hours`, `player`, `money`, `press`,
 `condition`, `break`, `look_at_enemy`, `crt_screen` (saves the terminal's own frame),
 `eval` (Expression against Main; autoload names are not reachable from it).
@@ -131,7 +131,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Player movement, flashlight battery, stamina | `scripts/player_controller.gd` |
 | Bookings, arrivals, the barrier, room states | `scripts/guest_manager.gd`, rules `core/systems/room_rules.gd` |
 | The gatehouse, barrier, road | `scripts/camp_gate.gd` (built by world_generator) |
-| Room tasks in interiors (hover, hold, checklist) | `scripts/interior_tasks.gd` + `scripts/interior_prep.gd` |
+| Room tasks in interiors (hover, hold, checklist) | `scripts/interior_tasks.gd` + `scripts/interior_prep.gd`; what the mess is: `core/systems/mess_rules.gd`; toilet/shower blocks: `service_interior.gd` `set_upkeep_target` |
 | Generated sound effects | `tools/audiogen/` (ElevenLabs; key in the gitignored `.env`) |
 | Night jobs, the distribution board | `scripts/night_jobs.gd`, `scripts/breaker_panel.gd` |
 | Head turning inside interiors | `scripts/interior_look.gd` (limits set per interior script) |

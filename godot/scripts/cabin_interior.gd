@@ -599,27 +599,14 @@ func _build_prep_props() -> void:
 	var bed_body := P.body(_cabin_root, Vector3(-1.2, 0.6, -0.6), Vector3(1.0, 0.7, 1.9))
 	_prep.register("bed", bed_body, [heap_a, heap_b, pillow_floor], [made, made_fold, pillow_bed])
 
-	var bottles := Node3D.new()
-	bottles.name = "Bottles"
-	_cabin_root.add_child(bottles)
-	P.bottle(bottles, Vector3(-0.45, 0.18, -1.15), false)
-	P.bottle(bottles, Vector3(-0.32, 0.18, -1.24), false)
-	P.bottle(bottles, Vector3(-0.30, 0.06, -0.7), true, 1.2)
-	P.can(bottles, Vector3(-0.12, 0.04, -0.95), true, Color(0.7, 0.12, 0.1), 0.3)
-	P.paper(bottles, Vector3(0.05, 0.04, -0.55), 0.8)
-	P.paper(bottles, Vector3(-0.2, 0.04, -0.35), 2.0)
-	var floor_body := P.body(_cabin_root, Vector3(-0.25, 0.15, -0.8), Vector3(0.7, 0.35, 1.0))
-	_prep.register("floor", floor_body, [bottles], [])
-
-	var grime := Node3D.new()
-	grime.name = "Grime"
-	_bathroom_root.add_child(grime)
-	var dirt := P.flat(Color(0.25, 0.18, 0.08))
-	P.box(grime, Vector3(0.6, 0.71, -0.55), Vector3(0.42, 0.02, 0.5), dirt)
-	P.box(grime, Vector3(0.62, 0.56, -0.24), Vector3(0.3, 0.2, 0.02), dirt)
-	P.box(grime, Vector3(0.55, 0.012, -0.05), Vector3(0.6, 0.01, 0.45), P.flat(Color(0.3, 0.26, 0.12)), Vector3(0, 0.3, 0))
-	var wc_body := P.body(_bathroom_root, Vector3(0.6, 0.4, -0.5), Vector3(0.7, 0.8, 1.0))
-	_prep.register("bathroom", wc_body, [grime], [])
+	# Where the mess can be this time (core/systems/mess_rules.gd ROOM_SPOTS, BATH_SPOTS).
+	for spot in [["f1", Vector3(-0.35, 0.04, -1.15)], ["f2", Vector3(0.05, 0.04, -0.5)], ["f3", Vector3(0.4, 0.04, 0.0)],
+			["f4", Vector3(-0.42, 0.04, 0.05)], ["f5", Vector3(0.75, 0.04, -0.3)], ["f6", Vector3(0.9, 0.04, 0.12)]]:
+		_prep.add_spot(spot[0], _cabin_root, spot[1])
+	# The toilet seat top, the basin, the floor in front of them.
+	_prep.add_spot("wc", _bathroom_root, Vector3(0.6, 0.71, -0.62))
+	_prep.add_spot("sink", _bathroom_root, Vector3(-0.6, 1.0, -0.8))
+	_prep.add_spot("bfloor", _bathroom_root, Vector3(0.05, 0.04, -0.7))
 	_prep.setup_tasks(self, _interior_camera, _viewport, "cabin")
 	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 

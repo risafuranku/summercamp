@@ -106,8 +106,13 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
   hours with a one-star review. Time at the barrier sours the mood they arrive with.
 - **Rooms.** A new tent or cabin is *unprepared*; when its last guests leave it is
   *dirty*. Either way you go in and do it by hand: look at the mess (it glows under the
-  cursor), hold the mouse, hear the work, see it change. Tent: the sleeping bag, the
-  litter. Cabin: the bed, the bottles, and (from level 2) the toilet in the bathroom.
+  cursor), hold the mouse, hear the work, see it change. The bed is always there; the
+  rest is a new mess every time (`core/systems/mess_rules.gd`): a seed and a level, so
+  the bottles are somewhere else each time and how bad it is depends on who stayed.
+  A new room has only the builders' sawdust and wrappers; a quiet pensioner leaves a
+  couple of things; three lads after three nights leave cans, sick and cigarette ends
+  all over the room and the bathroom (toilet, sink, floor). Families leave toys and
+  food, tramps ash and tent pegs, pickers rotten mushrooms.
   The checklist in the corner says what is left. An upgrade brings new furniture: the
   empty room needs making up again. Rules: `core/systems/room_rules.gd`.
 - So five booked parties at the gate and five unmade cabins is a real rush: that is the
@@ -160,7 +165,7 @@ night between 21:00 and 04:30 and pages you for each (HUD: TONIGHT, plus the way
   Left until dawn, an electrician resets it for $60.
 - **Lamp**: one lamp post goes dark (hold R at it).
 - **Sewer**: the sewer blocks; toilets and showers close (crawl the pipes).
-- **Toilets**: the block blocks (hold R).
+- **Toilets**: the block blocks (go in and unblock it).
 
 So the night is "keep the camp running" and "something is out there" at the same time:
 the lamps you fix are the safe ground the enemies respect.
@@ -171,7 +176,11 @@ Every building has a condition (0-100%) that drops daily by its `maintenance_dec
 **Above 50% nothing breaks.** Below it, each in-game hour it may break down (up to 10% per
 hour at 0%). Worn buildings look worn (darker, corroded); poor ones carry an amber hazard
 sign, broken ones a blinking red one. Walk up and **hold R**: servicing is cheap and quick,
-repairing a breakdown costs a quarter of the building. The maintenance crew (Camp Status >
+repairing a breakdown costs a quarter of the building. **Toilet and shower blocks are
+cleaned by hand inside** like the rooms: the worse the condition, the more there is to
+do (puddles, mould, hair in the drains, writing on the stall doors); a breakdown is one
+more job (unblock the toilet, screw the shower head back on). The last job done pays
+the supplies (or the spare part) and puts the block back to 100%. The maintenance crew (Camp Status >
 Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenance_rules.gd`.
 
 ## 7. Economy

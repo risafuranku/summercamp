@@ -73,6 +73,7 @@ func add_target(task: Dictionary, body: CollisionObject3D, meshes: Array) -> voi
 		"label": str(task.get("label", id)),
 		"verb": str(task.get("verb", "Working")),
 		"seconds": float(task.get("seconds", 1.5)),
+		"sfx": str(task.get("sfx", SFX_BY_TASK.get(id, "task_litter.mp3"))),
 		"done": false,
 	}
 
@@ -151,6 +152,13 @@ func _target_under_cursor() -> String:
 	var from := _camera.project_ray_origin(local)
 	var q := PhysicsRayQueryParameters3D.create(from, from + _camera.project_ray_normal(local) * 6.0)
 	q.collide_with_areas = false
+	# Things already done (a made bed, a scrubbed toilet) must not hide the mess behind them.
+	var skip: Array[RID] = []
+	for id in _targets.keys():
+		var b = _targets[id]["body"]
+		if _targets[id]["done"] and b != null and is_instance_valid(b):
+			skip.append((b as CollisionObject3D).get_rid())
+	q.exclude = skip
 	var hit := _camera.get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty():
 		return ""
@@ -184,7 +192,7 @@ func _apply_highlight(target: Dictionary, on: bool) -> void:
 func _start_hold(id: String) -> void:
 	_holding = id
 	_progress = 0.0
-	var path := SFX_DIR + str(SFX_BY_TASK.get(id, "task_litter.mp3"))
+	var path := SFX_DIR + str(_targets[id].get("sfx", "task_litter.mp3"))
 	if ResourceLoader.exists(path):
 		_work_player.stream = load(path)
 		_work_player.play()
@@ -245,9 +253,11 @@ func _refresh_checklist(room: Dictionary) -> void:
 	plate.visible = true
 	var occupied := bool(room.get("occupied", false))
 	var ready := _room_status == "ready"
-	var state := "OCCUPIED" if occupied else ("READY FOR GUESTS" if ready else ("NEEDS CLEANING" if _room_status == "dirty" else "NOT MADE UP"))
+	var state := "OCCUPIED" if occupied else (str(room.get("ready_text", "READY FOR GUESTS")) if ready else (str(room.get("dirty_text", "NEEDS CLEANING")) if _room_status == "dirty" else "NOT MADE UP"))
 	_checklist.add_child(RETRO_UI.label(_room_label.to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale))
 	_checklist.add_child(RETRO_UI.label(state, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_GREEN if (ready or occupied) else RETRO_UI.C_RED_LIGHT, _scale))
+	if not str(room.get("note", "")).is_empty():
+		_checklist.add_child(RETRO_UI.label(str(room["note"]), RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_RED_LIGHT, _scale))
 	if ready or occupied:
 		return
 	var done: Array = room.get("done", [])
