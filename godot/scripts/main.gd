@@ -712,6 +712,11 @@ func _setup_interior_manager() -> void:
 		add_child(_interior_manager)
 		if _interior_manager.has_signal("service_repair_requested"):
 			_interior_manager.service_repair_requested.connect(_on_service_repair_requested)
+		if _interior_manager.has_signal("notice"):
+			_interior_manager.notice.connect(func(text: String, kind: int) -> void:
+				if _hud_manager != null:
+					_hud_manager.push_status(text, kind)
+			)
 	if not _interior_manager.has_method("setup"):
 		return
 	_interior_manager.setup(
@@ -1393,6 +1398,11 @@ func _on_enemy_notice(text: String) -> void:
 		_hud_manager.push_status(text, 2)
 
 
+## Debug/test entry: the render style (GameSettings is an autoload the shot driver can't reach).
+func debug_render_preset(preset: String) -> void:
+	GameSettings.set_retro_preset(preset, false)
+
+
 ## Debug/test entry: the first structure of a building type (e.g. the pre-placed generator).
 func debug_structure_of_type(building_type: String) -> Node3D:
 	var root = building_manager.get_node_or_null("Structures") if building_manager != null else null
@@ -1460,6 +1470,11 @@ func _on_day_phase_started() -> void:
 		_night_jobs.on_dawn()
 	if _player != null and _player.has_method("recharge_flashlight"):
 		_player.recharge_flashlight()
+	# A night survived: you slept it off (or didn't sleep at all). Wounds mend by morning.
+	if _player_health < PLAYER_MAX_HEALTH and not _game_over_active:
+		_set_player_health(PLAYER_MAX_HEALTH, false)
+		if _hud_manager != null:
+			_hud_manager.push_status("Morning. You patched yourself up with Vera's first-aid box.", 1)
 	var removed_scene_enemies = _despawn_all_runtime_enemies()
 	var removed_virtual = _liminal_virtual_enemy_count
 	_liminal_virtual_enemy_count = 0

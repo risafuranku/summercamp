@@ -1,10 +1,10 @@
 extends CanvasLayer
 
-## Hold TAB: Vera's site plan, a folded sheet of paper with the camp drawn in pencil.
-## It does NOT show where you are (you have to know the camp). It shows what needs you:
-## every room with a sticker (made up, dirty, not made up yet, occupied), broken
-## buildings in red, tonight's jobs circled, who is waiting at the barrier, and the
-## to-do list in the margin.
+## Hold TAB: Vera's site plan, coloured pencil on paper, drawn as you see the camp from
+## the gate (gate at the bottom). It does NOT show where you are. It shows what needs
+## you: rooms coloured by state (ready, dirty, not made up, guests in), broken buildings
+## stamped, tonight's jobs circled in red, who waits at the gate, and three lines of
+## what to do next.
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const ROOM_RULES = preload("res://core/systems/room_rules.gd")
@@ -159,116 +159,199 @@ func _is_tree(n: Node) -> bool:
 
 # ── drawing ──────────────────────────────────────────────────────────────────
 
+## Category colours on the plan (soft washes, like coloured pencil).
+const WASH_GRASS := Color(0.70, 0.76, 0.52)
+const WASH_WOOD := Color(0.48, 0.60, 0.38, 0.45)
+const WASH_LAKE := Color(0.46, 0.62, 0.74)
+const WASH_PATH := Color(0.55, 0.40, 0.24)
+const WASH_FACILITY := Color(0.90, 0.88, 0.80)
+const WASH_UTILITY := Color(0.62, 0.62, 0.60)
+const WASH_FUN := Color(0.64, 0.80, 0.50)
+const WASH_OFFICE := Color(0.66, 0.46, 0.32)
+const ROOM_TYPES := ["tent_1", "tent_2", "tent_3", "cabin", "cabin_1", "cabin_2", "cabin_3", "caravan_1"]
+const UTILITY_TYPES := ["power_generator", "sewer", "water_pump", "sewage_tank", "dumpsters"]
+const FUN_TYPES := ["bonfire", "sports_field", "lake_slide"]
+
+
+## Grid cell -> point on the sheet. The plan is drawn as you see the camp walking in
+## through the gate: the gate at the bottom, the far fence at the top (and so left and
+## right as they are in front of you).
+func _to_sheet(o: Vector2, cell: float, c: Vector2, w: int, h: int) -> Vector2:
+	return o + Vector2(float(w) - c.x, float(h) - c.y) * cell
+
+
+func _cell_rect(o: Vector2, cell: float, at: Vector2i, fp: Vector2i, w: int, h: int) -> Rect2:
+	var a := _to_sheet(o, cell, Vector2(at), w, h)
+	var b := _to_sheet(o, cell, Vector2(at + fp), w, h)
+	return Rect2(Vector2(minf(a.x, b.x), minf(a.y, b.y)), (a - b).abs())
+
+
 func _draw_map() -> void:
 	if _data.is_empty():
 		return
 	var screen := _canvas.size
 	var k := ease(_open, 0.4)
-	_canvas.draw_rect(Rect2(Vector2.ZERO, screen), Color(0, 0, 0, 0.45 * k))
+	_canvas.draw_rect(Rect2(Vector2.ZERO, screen), Color(0, 0, 0, 0.5 * k))
 	var w := int(_data["w"])
 	var h := int(_data["h"])
-	var sheet_h := screen.y * 0.86
-	var cell := floorf((sheet_h - 120.0) / float(h))
-	var plan := Vector2(w, h) * cell
-	var margin_w := maxf(220.0, screen.x * 0.18)
-	var sheet := Vector2(plan.x + margin_w + 90.0, plan.y + 110.0)
-	var origin := ((screen - sheet) * 0.5 + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
-	_draw_paper(Rect2(origin, sheet))
-	var o := origin + Vector2(40, 74)
-	var fs := maxi(12, int(cell * 0.42))
+	var fs := maxi(14, int(screen.y * 0.02))
 	var font: Font = RETRO_UI.FONT_TEXT
 	var title: Font = RETRO_UI.FONT_BIG
-	_canvas.draw_string(title, origin + Vector2(40, 46), "KEMP CERNE JEZERO - site plan", HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * 1.9), PENCIL)
-	_canvas.draw_string(font, origin + Vector2(40, 64), "drawn by V., 1996. keep in the office. (not to scale)", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL.lightened(0.3))
-	# Fence: a dashed rectangle around the camp.
-	_dashed_rect(Rect2(o, plan), PENCIL, 2.0)
-	for c in _data["lake"]:
-		_hatch(Rect2(o + Vector2(c) * cell, Vector2(cell, cell)), INK_BLUE.lightened(0.25))
+	var footer := fs * 6.5
+	var header := fs * 3.6
+	var cell := floorf((screen.y * 0.9 - header - footer - 40.0) / float(h))
+	var plan := Vector2(w, h) * cell
+	var sheet := Vector2(plan.x + 64.0, plan.y + header + footer + 40.0)
+	var origin := ((screen - sheet) * 0.5 + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
+	_draw_paper(Rect2(origin, sheet))
+	var o := origin + Vector2(32, header + 12.0)
+	_canvas.draw_string(title, origin + Vector2(32, fs * 2.2), "KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * 1.8), PENCIL)
+	var sub := "site plan - V. 1996"
+	var sw := font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	_canvas.draw_string(font, origin + Vector2(sheet.x - 32 - sw, fs * 2.2), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL.lightened(0.35))
+
+	# The ground inside the fence, the woods, the lake.
+	_canvas.draw_rect(Rect2(o, plan), WASH_GRASS)
 	for c in _data["trees"]:
-		var p: Vector2 = o + (Vector2(c) + Vector2(0.5, 0.6)) * cell
-		var r := cell * 0.22
-		if (c.x * 7 + c.y * 3) % 3 == 0:
-			_canvas.draw_polyline(PackedVector2Array([p + Vector2(-r, r * 0.6), p + Vector2(0, -r), p + Vector2(r, r * 0.6)]), PENCIL.lightened(0.55), 1.0)
+		var p := _to_sheet(o, cell, Vector2(c) + Vector2(0.5, 0.5), w, h)
+		_canvas.draw_circle(p, cell * 0.5, WASH_WOOD)
+	for c in _data["lake"]:
+		_canvas.draw_rect(_cell_rect(o, cell, c, Vector2i.ONE, w, h).grow(0.5), WASH_LAKE)
+	for c in _data["lake"]:
+		if (c.x + c.y * 3) % 4 == 0:
+			var p := _to_sheet(o, cell, Vector2(c) + Vector2(0.5, 0.5), w, h)
+			_canvas.draw_polyline(PackedVector2Array([p + Vector2(-cell * 0.3, 0), p + Vector2(-cell * 0.1, -cell * 0.12), p + Vector2(cell * 0.1, 0), p + Vector2(cell * 0.3, -cell * 0.12)]), WASH_LAKE.darkened(0.3), 1.5)
+	_dashed_rect(Rect2(o, plan), PENCIL, 2.0)
+
+	# Paths, then lamps on them.
 	var paths: Dictionary = _data["paths"]
+	var pw := maxf(3.0, cell * 0.34)
 	for c in paths.keys():
-		var p: Vector2 = o + (Vector2(c) + Vector2(0.5, 0.5)) * cell
+		var p := _to_sheet(o, cell, Vector2(c) + Vector2(0.5, 0.5), w, h)
 		for d in [Vector2i(1, 0), Vector2i(0, 1)]:
 			if paths.has(c + d):
-				_canvas.draw_line(p, p + Vector2(d) * cell, Color(0.45, 0.32, 0.18), maxf(2.0, cell * 0.16))
-		_canvas.draw_circle(p, maxf(1.5, cell * 0.08), Color(0.45, 0.32, 0.18))
+				_canvas.draw_line(p, _to_sheet(o, cell, Vector2(c + d) + Vector2(0.5, 0.5), w, h), WASH_PATH, pw)
+		_canvas.draw_circle(p, pw * 0.5, WASH_PATH)
+	for c in paths.keys():
 		if bool(paths[c]):
-			_canvas.draw_circle(p + Vector2(cell * 0.3, -cell * 0.3), maxf(2.0, cell * 0.1), INK_AMBER)
+			var p := _to_sheet(o, cell, Vector2(c) + Vector2(0.5, 0.5), w, h)
+			_canvas.draw_circle(p + Vector2(cell * 0.28, -cell * 0.28), maxf(2.5, cell * 0.13), INK_AMBER)
+
+	# Buildings: a filled block per building, rooms coloured by what they need.
 	var rooms: Dictionary = _data["rooms"]
 	var broken: Dictionary = _data["broken"]
+	var labels: Array = []
 	for b in _data["buildings"]:
 		var t := str(b["type"])
 		var at: Vector2i = b["at"]
-		var r := Rect2(o + Vector2(at) * cell + Vector2(2, 2), Vector2(b["fp"]) * cell - Vector2(4, 4))
+		var r := _cell_rect(o, cell, at, b["fp"], w, h).grow(-2.0)
 		if t == "lamp_post":
-			_canvas.draw_circle(r.get_center(), maxf(2.0, cell * 0.12), INK_AMBER)
+			_canvas.draw_circle(r.get_center(), maxf(2.5, cell * 0.13), INK_AMBER)
 			continue
-		_canvas.draw_rect(r, PAPER.darkened(0.06))
-		_canvas.draw_rect(r, PENCIL, false, 1.5)
-		var label := str(NAMES.get(t, t.to_upper()))
-		# Written under the building, like on a hand-drawn plan.
-		var lw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		_canvas.draw_string(font, Vector2(r.get_center().x - lw * 0.5, r.end.y + fs + 1), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
 		var key := "%d:%d" % [at.x, at.y]
-		if rooms.has(key):
-			_room_sticker(r, rooms[key], fs)
+		var fill := WASH_FACILITY
+		if t in ROOM_TYPES:
+			fill = _room_colour(rooms.get(key, {}))
+		elif t in UTILITY_TYPES:
+			fill = WASH_UTILITY
+		elif t in FUN_TYPES:
+			fill = WASH_FUN
+		elif t == "main_building":
+			fill = WASH_OFFICE
+		_canvas.draw_rect(Rect2(r.position + Vector2(2, 3), r.size), Color(0, 0, 0, 0.18))
+		_canvas.draw_rect(r, fill)
+		_canvas.draw_rect(r, PENCIL, false, 2.0)
+		var label := str(NAMES.get(t, t.to_upper()))
+		if label != "":
+			labels.append([label, r])
 		if broken.has(key):
 			_stamp(r, "BROKEN", INK_RED, fs)
+
+	# Names: inside the block if they fit, else below, above, right or left of it,
+	# wherever they do not cover another name or building; left out if nowhere fits.
+	var taken: Array = []
+	for b in _data["buildings"]:
+		taken.append(_cell_rect(o, cell, b["at"], b["fp"], w, h))
+	var gate_rect := Rect2(_to_sheet(o, cell, Vector2(_data["gate"]), w, h) - Vector2(cell * 4, 0), Vector2(cell * 8, fs * 1.6))
+	taken.append(gate_rect)
+	for entry in labels:
+		var label: String = entry[0]
+		var r: Rect2 = entry[1]
+		var lw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var size := Vector2(lw + 6, fs + 3)
+		var spot := Rect2()
+		if r.size.x >= size.x + 2 and r.size.y >= fs * 1.6:
+			spot = Rect2(r.get_center() - size * 0.5, size)
+		else:
+			for cand in [Vector2(r.get_center().x - size.x * 0.5, r.end.y + 2), Vector2(r.get_center().x - size.x * 0.5, r.position.y - size.y - 2),
+					Vector2(r.end.x + 3, r.get_center().y - size.y * 0.5), Vector2(r.position.x - size.x - 3, r.get_center().y - size.y * 0.5)]:
+				var box := Rect2(cand, size)
+				if not Rect2(o, plan).encloses(box):
+					continue
+				if taken.any(func(t: Rect2): return t.intersects(box) and t != r):
+					continue
+				spot = box
+				break
+			if spot.size == Vector2.ZERO:
+				continue
+			_canvas.draw_rect(spot, Color(PAPER, 0.8))
+		taken.append(spot)
+		_canvas.draw_string(font, spot.position + Vector2(3, fs), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
+
+	# Tonight's jobs: circled in red.
 	for j in _data["jobs"]:
 		var jc: Array = j.get("coord", [-1, -1])
 		if int(jc[0]) < 0:
 			continue
-		var p: Vector2 = o + (Vector2(int(jc[0]), int(jc[1])) + Vector2(0.5, 0.5)) * cell
-		_canvas.draw_arc(p, cell * 0.9, 0, TAU, 24, INK_RED, 2.5)
-		_canvas.draw_string(font, p + Vector2(cell * 0.9, -cell * 0.6), str(j.get("short", "!")).to_upper() + "!", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, INK_RED)
-	# The gate and who is there.
+		var p := _to_sheet(o, cell, Vector2(int(jc[0]), int(jc[1])) + Vector2(0.5, 0.5), w, h)
+		_canvas.draw_arc(p, cell * 1.0, 0, TAU, 28, INK_RED, 3.0)
+
+	# The gate, at the bottom, and who is waiting there.
 	var g: Vector2i = _data["gate"]
-	var gp: Vector2 = o + (Vector2(g) + Vector2(0.5, 0.0)) * cell
-	_canvas.draw_line(gp - Vector2(cell, 0), gp + Vector2(cell, 0), INK_RED, 3.0)
-	_canvas.draw_string(font, gp + Vector2(-cell, -6), "GATE", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
-	if int(_data["waiting"]) > 0:
-		_stamp(Rect2(gp + Vector2(cell * 1.2, -cell * 1.4), Vector2(cell * 5, cell)), "%d WAITING!" % int(_data["waiting"]), INK_RED, fs)
-	# Legend and the to-do list in the margin.
-	var mx := o.x + plan.x + 40.0
-	var y := o.y
-	_canvas.draw_string(title, Vector2(mx, y + fs), "TO DO", HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * 1.5), PENCIL)
-	y += fs * 2.2
+	var gp := _to_sheet(o, cell, Vector2(g) + Vector2(0.5, 0.0), w, h)
+	_canvas.draw_line(gp - Vector2(cell, 0), gp + Vector2(cell, 0), Color(0.88, 0.84, 0.70), 5.0)
+	_canvas.draw_line(gp - Vector2(cell, 0), gp + Vector2(cell, 0), INK_RED, 2.0)
+	var gl := "GATE" if int(_data["waiting"]) == 0 else "GATE - %d WAITING" % int(_data["waiting"])
+	var gw := font.get_string_size(gl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	_canvas.draw_string(font, gp + Vector2(-gw * 0.5, fs + 6), gl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, INK_RED if int(_data["waiting"]) > 0 else PENCIL)
+
+	# Underneath: what needs you (three lines at most), and the key to the colours.
+	var y := o.y + plan.y + fs * 2.8
+	var lines: Array = []
 	for line in _data["todo"]:
-		for wl in _wrap("- " + str(line), margin_w - 20.0, font, fs):
-			_canvas.draw_string(font, Vector2(mx, y), wl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
-			y += fs * 1.25
-		y += fs * 0.4
+		lines.append(str(line))
 	if int(_data["coming"]) > 0:
-		_canvas.draw_string(font, Vector2(mx, y), "- %d more on the road" % int(_data["coming"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
-		y += fs * 1.6
-	y = maxf(y + fs, o.y + plan.y - fs * 7.5)
-	for row in [[INK_GREEN, "made up"], [INK_RED, "dirty - clean it"], [INK_AMBER, "not made up yet"], [INK_BLUE, "guests in"]]:
-		_canvas.draw_circle(Vector2(mx + 6, y - fs * 0.35), fs * 0.4, row[0])
-		_canvas.draw_string(font, Vector2(mx + 18, y), str(row[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
-		y += fs * 1.35
-	_canvas.draw_string(font, Vector2(mx, y + fs * 0.4), "you are not on this map.", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL.lightened(0.35))
+		lines.append("%d more on the road" % int(_data["coming"]))
+	for line in lines.slice(0, 3):
+		var wrapped: Array = _wrap("- " + line, plan.x, font, fs)
+		_canvas.draw_string(font, Vector2(o.x, y), str(wrapped[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
+		y += fs * 1.3
+	var lx := o.x
+	var ly2 := origin.y + sheet.y - 18.0
+	for row in [[ROOM_READY, "ready"], [ROOM_DIRTY, "dirty"], [ROOM_UNMADE, "not made up"], [ROOM_TAKEN, "guests in"]]:
+		_canvas.draw_rect(Rect2(lx, ly2 - fs * 0.8, fs * 0.9, fs * 0.9), row[0])
+		_canvas.draw_rect(Rect2(lx, ly2 - fs * 0.8, fs * 0.9, fs * 0.9), PENCIL, false, 1.0)
+		_canvas.draw_string(font, Vector2(lx + fs * 1.3, ly2), str(row[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
+		lx += fs * 1.3 + font.get_string_size(str(row[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 1.4
 
 
-func _room_sticker(r: Rect2, rs: Dictionary, fs: int) -> void:
-	var st := str(rs.get("status", ""))
-	var col := INK_GREEN
-	var mark := "OK"
+const ROOM_READY := Color(0.56, 0.78, 0.46)
+const ROOM_DIRTY := Color(0.86, 0.42, 0.34)
+const ROOM_UNMADE := Color(0.92, 0.72, 0.34)
+const ROOM_TAKEN := Color(0.50, 0.62, 0.86)
+
+
+func _room_colour(rs: Dictionary) -> Color:
+	if rs.is_empty():
+		return ROOM_UNMADE
 	if bool(rs.get("occupied", false)):
-		col = INK_BLUE
-		mark = "IN"
-	elif st == ROOM_RULES.STATUS_DIRTY:
-		col = INK_RED
-		mark = "X"
-	elif st == ROOM_RULES.STATUS_UNPREPARED:
-		col = INK_AMBER
-		mark = "!"
-	var c := r.position + Vector2(r.size.x - fs * 0.6, r.size.y - fs * 0.6)
-	_canvas.draw_circle(c, fs * 0.62, col)
-	_canvas.draw_string(RETRO_UI.FONT_TEXT, c + Vector2(-fs * 0.3, fs * 0.35), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PAPER)
+		return ROOM_TAKEN
+	var st := str(rs.get("status", ""))
+	if st == ROOM_RULES.STATUS_DIRTY:
+		return ROOM_DIRTY
+	if st == ROOM_RULES.STATUS_UNPREPARED:
+		return ROOM_UNMADE
+	return ROOM_READY
 
 
 func _stamp(r: Rect2, text: String, col: Color, fs: int) -> void:
@@ -289,15 +372,6 @@ func _draw_paper(r: Rect2) -> void:
 				img.set_pixel(x, y, PAPER.darkened(rng.randf_range(0.0, 0.07)))
 		_paper_tex = ImageTexture.create_from_image(img)
 	_canvas.draw_texture_rect(_paper_tex, r, true)
-	# Folds: the sheet has been in a pocket.
-	for f in [0.33, 0.66]:
-		var x: float = r.position.x + r.size.x * f
-		_canvas.draw_line(Vector2(x, r.position.y), Vector2(x, r.end.y), PAPER.darkened(0.16), 2.0)
-		_canvas.draw_line(Vector2(x + 2, r.position.y), Vector2(x + 2, r.end.y), PAPER.lightened(0.1), 1.0)
-	var y := r.position.y + r.size.y * 0.5
-	_canvas.draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), PAPER.darkened(0.14), 2.0)
-	# A coffee ring.
-	_canvas.draw_arc(r.end - Vector2(90, 70), 34, 0, TAU, 40, Color(0.45, 0.30, 0.15, 0.25), 4.0)
 
 
 func _dashed_rect(r: Rect2, col: Color, width: float) -> void:

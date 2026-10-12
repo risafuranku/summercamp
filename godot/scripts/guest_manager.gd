@@ -24,6 +24,10 @@ const STATUS_WAITING := "waiting"
 ## Game minutes from accepting a booking to the party reaching the barrier.
 const ARRIVAL_DELAY_MIN := 60
 const ARRIVAL_DELAY_MAX := 110
+## Parties only turn up at the gate between these hours (minute of day). A booking
+## accepted in the evening arrives the next morning.
+const ARRIVAL_WINDOW_FROM := 8 * 60
+const ARRIVAL_WINDOW_TO := 19 * 60 + 30
 ## How long a party waits at the barrier before it grumbles, and before it leaves.
 const GATE_COMPLAIN_MINUTES := 45
 const GATE_GIVE_UP_MINUTES := 150
@@ -460,7 +464,7 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 	var guest_id = int(state.next_guest_id)
 	state.next_guest_id += 1
 
-	var arrival_abs: int = now_abs + int(mail.get("arrival_minutes", _rng.randi_range(ARRIVAL_DELAY_MIN, ARRIVAL_DELAY_MAX)))
+	var arrival_abs: int = daytime_arrival(now_abs + int(mail.get("arrival_minutes", _rng.randi_range(ARRIVAL_DELAY_MIN, ARRIVAL_DELAY_MAX))), _rng.randi_range(0, 90))
 	var guest := {
 		"id": guest_id,
 		"name": booking_name,
@@ -1963,6 +1967,18 @@ func _parse_time_to_minutes(raw: String, fallback_minutes: int) -> int:
 	var h = clampi(int(parts[0]), 0, 23)
 	var m = clampi(int(parts[1]), 0, 59)
 	return h * 60 + m
+
+
+## `abs_minute` moved into the arrival window: unchanged by day, otherwise the next
+## morning at 08:00 + `morning_jitter` minutes.
+static func daytime_arrival(abs_minute: int, morning_jitter: int = 0) -> int:
+	var mod := posmod(abs_minute, 1440)
+	if mod >= ARRIVAL_WINDOW_FROM and mod <= ARRIVAL_WINDOW_TO:
+		return abs_minute
+	var day_start := abs_minute - mod
+	if mod > ARRIVAL_WINDOW_TO:
+		day_start += 1440
+	return day_start + ARRIVAL_WINDOW_FROM + maxi(0, morning_jitter)
 
 
 func _is_night_time(hour: int, minute: int) -> bool:

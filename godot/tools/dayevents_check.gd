@@ -10,7 +10,7 @@ const DAY_EVENTS := preload("res://scripts/day_events.gd")
 
 var _failures: Array[String] = []
 var _day := 1
-var _hour := 7
+var _hour := 9  # bookings arrive only 08:00-19:30 (guest_manager ARRIVAL_WINDOW)
 var _minute := 0
 var _events
 

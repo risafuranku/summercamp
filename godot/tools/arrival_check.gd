@@ -116,6 +116,12 @@ func _ready() -> void:
 	var legacy: Dictionary = SAVE_CODEC.deserialize_accommodation_states({"1:1": {"status": "clean", "building_type": "tent_1", "capacity": 1, "guest_ids": []}})
 	_expect(str(legacy["1:1"]["status"]) == ROOM_RULES.STATUS_READY, "a legacy clean room loads as ready")
 
+	# Nobody turns up at the gate at night: late bookings come the next morning.
+	var GM = load("res://scripts/guest_manager.gd")
+	_expect(GM.daytime_arrival(1440 + 10 * 60) == 1440 + 10 * 60, "a daytime arrival stays as it is")
+	_expect(GM.daytime_arrival(1440 + 22 * 60, 30) == 2 * 1440 + 8 * 60 + 30, "an arrival at 22:00 moves to 08:30 next day")
+	_expect(GM.daytime_arrival(2 * 1440 + 3 * 60) == 2 * 1440 + 8 * 60, "an arrival at 03:00 moves to 08:00 that morning")
+
 	print("")
 	if _failures.is_empty():
 		print("ARRIVAL CHECK: PASS")

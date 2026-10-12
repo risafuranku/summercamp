@@ -187,6 +187,57 @@ static func make_exit_hint(layer: CanvasLayer) -> Control:
 	return hint
 
 
+## Small tabs at the left and right edge, mid height, naming the room through the door
+## on that side and its key ("<  Kitchen  [A]"). Text via set_side_hints(); "" hides one.
+## (The rooms themselves carry no floating labels: this is the game's UI, not the room's.)
+static func make_side_hints(layer: CanvasLayer) -> Control:
+	var hint := Control.new()
+	hint.name = "SideHints"
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hint.set_meta("left", "")
+	hint.set_meta("right", "")
+	hint.draw.connect(func():
+		var s := hint.size
+		var font := hint.get_theme_default_font()
+		var fs := int(maxf(13.0, s.y * 0.022))
+		for side in ["left", "right"]:
+			var text := str(hint.get_meta(side, ""))
+			if text == "":
+				continue
+			var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			var pad := fs * 0.6
+			var arrow := fs * 0.9
+			var box_w := w + pad * 2.0 + arrow
+			var box_h := fs * 1.8
+			var y := s.y * 0.5 - box_h * 0.5
+			var x := 0.0 if side == "left" else s.x - box_w
+			hint.draw_rect(Rect2(x, y, box_w, box_h), Color(0, 0, 0, 0.55))
+			hint.draw_rect(Rect2(x + (box_w - 2 if side == "left" else 0), y, 2, box_h), Color(0.95, 0.88, 0.62, 0.7))
+			var ty := y + box_h * 0.5 + fs * 0.35
+			var cy := y + box_h * 0.5
+			if side == "left":
+				hint.draw_colored_polygon(PackedVector2Array([Vector2(pad, cy), Vector2(pad + arrow * 0.6, cy - fs * 0.45), Vector2(pad + arrow * 0.6, cy + fs * 0.45)]), Color(0.95, 0.88, 0.62))
+				hint.draw_string(font, Vector2(pad + arrow, ty), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.95, 0.88, 0.62))
+			else:
+				var ax := s.x - pad
+				hint.draw_colored_polygon(PackedVector2Array([Vector2(ax, cy), Vector2(ax - arrow * 0.6, cy - fs * 0.45), Vector2(ax - arrow * 0.6, cy + fs * 0.45)]), Color(0.95, 0.88, 0.62))
+				hint.draw_string(font, Vector2(x + pad, ty), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.95, 0.88, 0.62))
+	)
+	layer.add_child(hint)
+	return hint
+
+
+static func set_side_hints(hint: Control, left: String, right: String) -> void:
+	if hint == null:
+		return
+	if str(hint.get_meta("left", "")) == left and str(hint.get_meta("right", "")) == right:
+		return
+	hint.set_meta("left", left)
+	hint.set_meta("right", right)
+	hint.queue_redraw()
+
+
 static func update_exit_hint(hint: Control, viewport: Viewport, delta: float, allowed := true) -> void:
 	if hint == null:
 		return

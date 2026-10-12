@@ -80,6 +80,7 @@ var _swipe_animating: bool = false
 
 # Screen-space active zones.
 var _catalog_mesh: MeshInstance3D
+var _side_hints: Control
 var _prep = INTERIOR_PREP.new()
 
 
@@ -172,7 +173,12 @@ func _process(delta: float) -> void:
 	_apply_idle_mouse_look(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
+		_side_hints = INTERIOR_LOOK.make_side_hints(self)
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
+	if _active_room == "bathroom":
+		INTERIOR_LOOK.set_side_hints(_side_hints, "Room  [A]", "")
+	else:
+		INTERIOR_LOOK.set_side_hints(_side_hints, "", "Bathroom  [D]" if _cabin_level >= 2 else "")
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
@@ -493,14 +499,6 @@ func _build_cabin_room() -> void:
 	door.rotation_degrees.y = -90
 	_cabin_root.add_child(door)
 
-	var nav_label = Label3D.new()
-	nav_label.name = "BathroomNav"
-	nav_label.text = "D > BATHROOM"
-	nav_label.position = Vector3(w*0.4, 1.95, 0.0)
-	nav_label.rotation_degrees = Vector3(0, -90, 0)
-	nav_label.font_size = 20
-	nav_label.modulate = Color(1.0, 1.0, 1.0, 0.8)
-	_cabin_root.add_child(nav_label)
 
 	# The bed (left), a pillow that room prep moves, a table with the catalogue (back right).
 	K.prop(_cabin_root, "bed_wood", BED_POS)
@@ -670,13 +668,6 @@ func _build_bathroom_room() -> void:
 		(shell[key] as Node3D).position.y += 0.05
 	_bath_shell = shell
 
-	var nav = Label3D.new()
-	nav.text = "< A ROOM"
-	nav.position = Vector3(-w * 0.4, 1.95, 0.0)
-	nav.rotation_degrees = Vector3(0, 90, 0)
-	nav.font_size = 20
-	nav.modulate = Color(1.0, 1.0, 1.0, 0.8)
-	_bathroom_root.add_child(nav)
 
 	# Level 2+: the toilet, the basin and its mirror; level 3: a shower corner.
 	var wc := K.prop(_bathroom_root, "toilet", Vector3(0.6, 0.05, -0.95))
@@ -717,9 +708,6 @@ func _apply_level_variant() -> void:
 		var bath_wall := K.surface("tiles_bathroom", 0.9) if _cabin_level >= 3 else K.surface("oil_wall", 2.6)
 		for key in ["back", "front", "left", "right"]:
 			(_bath_shell[key] as MeshInstance3D).material_override = bath_wall
-	var bathroom_nav := _cabin_root.get_node_or_null("BathroomNav")
-	if bathroom_nav != null:
-		bathroom_nav.visible = _cabin_level >= 2
 
 	_set_node_visible("SlopBucket", _cabin_level == 1)
 	for node_name in _level2_nodes:

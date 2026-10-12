@@ -57,6 +57,10 @@ const SCENARIOS := {
 		["eval", "_player.look_at(_omens.debug_live()['by_the_office'] * Vector3(1, 0, 1) + Vector3(0, _player.global_position.y, 0))"], ["wait", 1.5], ["shot", "o2_by_the_office"],
 		["eval", "[_omens.debug_live(), _omens.hush, _omen_context()]"],
 	],
+	"deskchunky": [
+		["wait_menu"], ["eval", "debug_render_preset('chunky')"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 7.0], ["shot", "dc0_desk_chunky"], ["eval", "[_interior_manager._building_interior._crt_sharp.visible, _interior_manager._building_interior._crt_sharp.position, _interior_manager._building_interior._crt_sharp.size]"],
+		["eval", "debug_render_preset('build')"], ["wait", 1.0], ["shot", "dc1_desk_build"],
+	],
 	"deskstart": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"],
 		["wait", 0.3], ["shot", "d0_desk_03s"], ["wait", 0.9], ["shot", "d1_desk_12s"], ["wait", 2.8], ["shot", "d2_desk_40s"],
@@ -393,7 +397,9 @@ const SCENARIOS := {
 	],
 	"reception": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
-		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4], ["shot", "r0_desk"],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4], ["shot", "r0_desk"], ["money", 90000], ["clear", 8, 5, 6, 5], ["build", "tent_1", 9, 6, 0], ["build", "tent_1", 11, 6, 0], ["build", "cabin_1", 9, 8, 0], ["build", "toilet_block", 12, 8, 0], ["wait", 0.6],
+		["eval", "_interior_manager._building_interior._set_window_view_live(true)"], ["wait", 0.6],
+		["eval", "_interior_manager._building_interior._window_vp.get_texture().get_image().save_png('C:/Users/arnold/AppData/Local/Temp/claude/C--grimroot/5d9ab3a2-8011-5b82-9b20-9c1451cbc175/scratchpad/winview.png')"], ["shot", "r0b_desk_camp"], ["eval", "[_interior_manager._building_interior._window_cam.global_position, -_interior_manager._building_interior._window_cam.global_transform.basis.z, debug_structure_of_type('main_building').global_position, grid_manager.get_map_center_world()]"],
 		["eval", "_interior_manager._building_interior._look.set('yaw_deg', 65.0)"], ["wait", 0.8], ["shot", "r1_left"],
 		["eval", "_interior_manager._building_interior._look.set('yaw_deg', -65.0)"], ["wait", 0.8], ["shot", "r2_right"],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],

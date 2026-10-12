@@ -52,6 +52,7 @@ var _cam_base_rot: Vector3 = Vector3.ZERO
 var _sewer_hint: Label3D
 var _sewer_broken: bool = false
 var _look = INTERIOR_LOOK.new(65.0, 20.0, 30.0)
+var _side_hints: Control
 var _exit_hint: Control
 var _texture_style
 var _restaurant_dining_root: Node3D
@@ -175,7 +176,10 @@ func _process(delta: float) -> void:
 	_apply_idle_mouse_look(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
+		_side_hints = INTERIOR_LOOK.make_side_hints(self)
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
+	var sides := _side_hint_texts()
+	INTERIOR_LOOK.set_side_hints(_side_hints, sides[0], sides[1])
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
@@ -625,19 +629,7 @@ func _build_restaurant_dining_layout(parent: Node3D) -> void:
 	menu.outline_size = 0
 	menu.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	parent.add_child(menu)
-	var title = Label3D.new()
-	title.text = "BUFET\ndiner"
-	title.position = Vector3(-0.3, 2.6, -2.33)
-	title.font_size = 30
-	title.modulate = Color(0.88, 0.80, 0.62, 0.92)
-	parent.add_child(title)
-	var nav_label = Label3D.new()
-	nav_label.text = "D > KITCHEN"
-	nav_label.position = Vector3(2.10, 1.72, 2.12)
-	nav_label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
-	nav_label.font_size = 20
-	nav_label.modulate = Color(0.92, 0.86, 0.74, 0.86)
-	parent.add_child(nav_label)
+	_sign(parent, "BUFET\ndiner", Vector3(-0.3, 2.6, -2.33), 30, "enamel")
 
 
 func _build_restaurant_kitchen_layout(parent: Node3D) -> void:
@@ -657,19 +649,7 @@ func _build_restaurant_kitchen_layout(parent: Node3D) -> void:
 	K.prop(parent, "beer_crates", Vector3(-2.6, 0.05, 1.3), 90.0)
 	K.prop(parent, "cardboard_boxes", Vector3(-2.55, 0.05, 0.2), 80.0)
 	K.slab(parent, Vector3(1.7, 1.0, 0.04), Vector3(0.0, 1.6, 2.38), K.surface("steel_kitchen", 0.8), "KitchenPassDoor")
-	var title = Label3D.new()
-	title.text = "KITCHEN"
-	title.position = Vector3(0.0, 2.36, -2.33)
-	title.font_size = 32
-	title.modulate = Color(0.88, 0.80, 0.62, 0.92)
-	parent.add_child(title)
-	var nav_label = Label3D.new()
-	nav_label.text = "< A DINING ROOM | S CELLAR"
-	nav_label.position = Vector3(-2.14, 1.72, 2.12)
-	nav_label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
-	nav_label.font_size = 20
-	nav_label.modulate = Color(0.92, 0.86, 0.74, 0.86)
-	parent.add_child(nav_label)
+	_sign(parent, "KUCHYNE\nkitchen", Vector3(0.0, 2.36, -2.33), 32, "enamel")
 
 
 func _build_restaurant_basement_layout(parent: Node3D) -> void:
@@ -692,25 +672,8 @@ func _build_restaurant_basement_layout(parent: Node3D) -> void:
 	K.picture(parent, "poster_mushrooms", Vector2(0.6, 0.8), Vector3(-3.04, 1.5, 0.6), 90.0, "CellarChart")
 	_setup_basement_machine_animation([machine_core])
 
-	var title = Label3D.new()
-	title.text = "CELLAR"
-	title.position = Vector3(0.0, 2.25, -2.33)
-	title.font_size = 32
-	title.modulate = Color(0.82, 0.84, 0.88, 0.92)
-	parent.add_child(title)
-	var machine_title = Label3D.new()
-	machine_title.text = "PROTOTYPE 540"
-	machine_title.position = Vector3(0.0, 1.80, 0.62)
-	machine_title.font_size = 22
-	machine_title.modulate = Color(0.88, 0.30, 0.24, 0.92)
-	parent.add_child(machine_title)
-	var nav_label = Label3D.new()
-	nav_label.text = "A > KITCHEN"
-	nav_label.position = Vector3(-2.20, 1.70, 2.06)
-	nav_label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
-	nav_label.font_size = 20
-	nav_label.modulate = Color(0.86, 0.88, 0.92, 0.86)
-	parent.add_child(nav_label)
+	_sign(parent, "SKLEP\ncellar", Vector3(0.0, 2.25, -2.33), 32, "enamel")
+	_sign(parent, "PROTOTYPE 540", Vector3(0.0, 0.55, 0.41), 18, "plate")
 
 
 func _setup_basement_machine_animation(meshes: Array) -> void:
@@ -829,20 +792,7 @@ func _build_pub_main_layout(
 	dart.position = Vector3(-2.87, 1.7, -1.0)
 	dart.rotation_degrees = Vector3(0, 0, 90)
 	parent.add_child(dart)
-	var title = Label3D.new()
-	title.text = title_text
-	title.position = Vector3(0.0, 2.36, -2.24)
-	title.font_size = 30
-	title.modulate = Color(0.92, 0.78, 0.56, 0.90)
-	parent.add_child(title)
-	if nav_text != "":
-		var nav_label = Label3D.new()
-		nav_label.text = nav_text
-		nav_label.position = Vector3(2.06, 1.66, 2.06)
-		nav_label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
-		nav_label.font_size = 18
-		nav_label.modulate = Color(0.90, 0.82, 0.68, 0.84)
-		parent.add_child(nav_label)
+	_sign(parent, title_text, Vector3(0.0, 2.36, -2.24), 30, "enamel")
 
 
 func _build_vecerka_shop_layout(parent: Node3D) -> void:
@@ -861,19 +811,7 @@ func _build_vecerka_shop_layout(parent: Node3D) -> void:
 	K.slab(parent, Vector3(0.4, 0.1, 0.6), Vector3(-1.4, 0.82, 1.2), K.surface("steel_kitchen", 0.4, Color(0.6, 0.6, 0.62)), "HotdogGrill")
 	K.picture(parent, "poster_mushrooms", Vector2(0.5, 0.66), Vector3(-1.79, 2.1, -0.9), 90.0, "PosterA")
 	K.picture(parent, "poster_lake", Vector2(0.5, 0.66), Vector3(1.79, 2.25, 1.2), -90.0, "PosterB")
-	var title = Label3D.new()
-	title.text = "VECERKA\nopen till 22:00"
-	title.position = Vector3(0.0, 2.65, -1.76)
-	title.font_size = 34
-	title.modulate = Color(1.0, 0.96, 0.84, 0.9)
-	parent.add_child(title)
-	var nav = Label3D.new()
-	nav.text = "D > STOREROOM"
-	nav.position = Vector3(1.0, 1.5, 1.0)
-	nav.rotation_degrees = Vector3(0, 180, 0)
-	nav.font_size = 20
-	nav.modulate = Color(1.0, 1.0, 1.0, 0.8)
-	parent.add_child(nav)
+	_sign(parent, "VECERKA\nopen till 22:00", Vector3(0.0, 2.65, -1.76), 34, "enamel")
 
 
 ## A green rack with a row of goods on every shelf (assets/textury/camp/goods_*.png).
@@ -907,19 +845,7 @@ func _build_vecerka_storage_layout(parent: Node3D) -> void:
 	K.prop(parent, "cardboard_boxes", Vector3(-1.3, 0.05, 0.2), 90.0)
 	K.prop(parent, "beer_crates", Vector3(1.25, 0.05, 0.3), -90.0)
 	K.prop(parent, "cardboard_boxes", Vector3(1.2, 0.05, 1.1), -70.0)
-	var title = Label3D.new()
-	title.text = "STOREROOM"
-	title.position = Vector3(0.0, 2.6, -1.74)
-	title.font_size = 34
-	title.modulate = Color(0.9, 0.9, 0.9, 0.9)
-	parent.add_child(title)
-	var nav = Label3D.new()
-	nav.text = "< A SHOP"
-	nav.position = Vector3(-1.0, 1.5, 1.0)
-	nav.rotation_degrees = Vector3(0, 180, 0)
-	nav.font_size = 20
-	nav.modulate = Color(1.0, 1.0, 1.0, 0.8)
-	parent.add_child(nav)
+	_sign(parent, "SKLAD\nstaff only", Vector3(0.0, 2.6, -1.74), 34, "enamel")
 
 
 func _set_vecerka_room(room: String, update_camera: bool = true) -> void:
@@ -940,6 +866,35 @@ func _set_vecerka_room(room: String, update_camera: bool = true) -> void:
 	_cam_base_rot = _interior_camera.rotation
 
 
+## [left, right] door names for the side tabs (interior_look.make_side_hints).
+func _side_hint_texts() -> Array:
+	match _current_profile:
+		"rest":
+			match _restaurant_room:
+				"dining":
+					return ["", "Kitchen  [D]"]
+				"kitchen":
+					return ["Dining room  [A]", "Cellar  [D]"]
+				_:
+					return ["Kitchen  [A]", ""]
+		"vecerka":
+			return ["", "Storeroom  [D]"] if _active_subroom == "shop" else ["Shop  [A]", ""]
+		"sewer":
+			return ["", "Crawl into the pipes  [R]" if _sewer_broken else ""]
+		"generator":
+			return ["", "Repair the set  [R]" if _sewer_broken else ""]
+		"toilet", "wash":
+			var what := "Stall" if _current_profile == "toilet" else "Shower"
+			match _active_subroom:
+				"left":
+					return ["", "Back  [D]"]
+				"right":
+					return ["Back  [A]", ""]
+				_:
+					return [what + "  [A]", what + "  [D]"]
+	return ["", ""]
+
+
 func _switch_service_room(direction: int) -> void:
 	if _swipe_animating:
 		return
@@ -951,7 +906,8 @@ func _switch_service_room(direction: int) -> void:
 			target_room = "kitchen"
 		elif direction < 0 and _restaurant_room == "kitchen":
 			target_room = "dining"
-		# Add forward logic for kitchen -> basement if needed, or maybe it was secret only?
+		elif direction > 0 and _restaurant_room == "kitchen":
+			target_room = "basement"
 	elif _current_profile == "vecerka":
 		if direction > 0 and _active_subroom == "shop":
 			target_room = "storage"
@@ -1117,14 +1073,7 @@ func _build_toilet_layout() -> void:
 	bulb.material_override = bulb_mat
 	bulb.position = Vector3(0, h - 0.25, 0.2)
 	r.add_child(bulb)
-	var title = Label3D.new()
-	title.text = "WC\nZENY  MUZI"
-	title.position = Vector3(0.0, 2.18, -d * 0.5 + 0.12)
-	title.outline_size = 0
-	title.font_size = 26
-	title.modulate = Color(0.2, 0.18, 0.14, 0.9)
-	r.add_child(title)
-	_hygiene_nav(r, "< A STALL", "STALL D >")
+	_sign(r, "WC\nZENY  MUZI", Vector3(0.0, 2.12, -d * 0.5 + 0.03), 20, "enamel")
 	_interior_camera.position = Vector3(0.0, 1.5, 1.15)
 	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 
@@ -1191,28 +1140,50 @@ func _build_wash_layout(shower_mode: bool, title_override: String = "") -> void:
 	boiler.material_override = K.surface("enamel_white", 0.5)
 	boiler.position = Vector3(w * 0.5 - 0.35, h - 0.55, -0.6)
 	r.add_child(boiler)
-	var title = Label3D.new()
-	var default_title = "SPRCHY - showers" if shower_mode else "UMYVARNA - washroom"
-	title.text = title_override if title_override != "" else default_title
-	title.position = Vector3(0.0, 1.9, -0.45)
-	title.outline_size = 0
-	title.font_size = 26
-	title.modulate = Color(0.15, 0.25, 0.4, 0.9)
-	r.add_child(title)
-	_hygiene_nav(r, "< A SHOWER", "SHOWER D >")
+	var default_title = "SPRCHY\nshowers" if shower_mode else "UMYVARNA\nwashroom"
+	var sign := _sign(r, title_override if title_override != "" else default_title, Vector3(-w * 0.5 + 0.06, 1.95, -0.6), 24, "enamel")
+	sign.rotation_degrees.y = 90.0
 	_interior_camera.position = Vector3(0.0, 1.5, 1.15)
 	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 
 
-func _hygiene_nav(r: Node3D, left: String, right: String) -> void:
-	for pair in [[left, -1.0], [right, 1.0]]:
-		var nav = Label3D.new()
-		nav.text = pair[0]
-		nav.position = Vector3(float(pair[1]) * 1.3, 1.95, -0.2)
-		nav.rotation_degrees = Vector3(0, -float(pair[1]) * 40.0, 0)
-		nav.font_size = 16
-		nav.modulate = Color(1.0, 1.0, 1.0, 0.6)
-		r.add_child(nav)
+## A sign on a wall (facing +Z from `pos`, turn the returned node to put it elsewhere):
+## an enamel plate sized to the text, a dark rim and the lettering. Styles: "enamel"
+## (cream, dark ink), "danger" (yellow, red ink), "plate" (steel, black ink).
+func _sign(parent: Node3D, text: String, pos: Vector3, font_size: int, style: String = "enamel") -> Node3D:
+	var K := INTERIOR_KIT
+	var root := Node3D.new()
+	root.name = "Sign"
+	root.position = pos
+	parent.add_child(root)
+	var lines := text.split("\n")
+	var longest := 0
+	for line in lines:
+		longest = maxi(longest, line.length())
+	var char_h := float(font_size) * 0.005
+	var size := Vector2(longest * char_h * 0.62 + 0.16, lines.size() * char_h * 1.15 + 0.1)
+	var plate := Color(0.92, 0.9, 0.82)
+	var ink := Color(0.12, 0.12, 0.16)
+	var rim := Color(0.16, 0.2, 0.36)
+	if style == "danger":
+		plate = Color(0.95, 0.8, 0.2)
+		ink = Color(0.6, 0.06, 0.04)
+		rim = Color(0.1, 0.08, 0.06)
+	elif style == "plate":
+		plate = Color(0.62, 0.64, 0.66)
+		ink = Color(0.06, 0.06, 0.06)
+		rim = Color(0.3, 0.3, 0.32)
+	K.slab(root, Vector3(size.x + 0.05, size.y + 0.05, 0.015), Vector3(0, 0, -0.012), INTERIOR_PREP.flat(rim), "SignRim")
+	K.slab(root, Vector3(size.x, size.y, 0.02), Vector3(0, 0, -0.004), INTERIOR_PREP.flat(plate), "SignPlate")
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = font_size
+	label.outline_size = 0
+	label.modulate = ink
+	label.position = Vector3(0, 0, 0.008)
+	label.shaded = true
+	root.add_child(label)
+	return root
 
 
 func _build_sewer_layout() -> void:
@@ -1225,15 +1196,10 @@ func _build_sewer_layout() -> void:
 	for x: float in [-1.02, 1.02]:
 		K.slab(_room_root, Vector3(0.72, 0.06, d - 0.56), Vector3(x, 0.035, 0.0), K.surface("lake_water", 0.8, Color(0.45, 0.5, 0.4)), "SewerChannel")
 
-	var title = Label3D.new()
-	title.text = "SEWER"
-	title.position = Vector3(0.0, 2.08, -2.16)
-	title.font_size = 36
-	title.modulate = Color(0.84, 0.86, 0.88, 0.88)
-	_room_root.add_child(title)
+	_sign(_room_root, "KANAL\nsewer", Vector3(0.0, 2.08, -2.38), 36, "enamel")
 
 	_sewer_hint = Label3D.new()
-	_sewer_hint.position = Vector3(0.0, 1.70, -2.16)
+	_sewer_hint.position = Vector3(0.0, 1.62, -2.37)
 	_sewer_hint.font_size = 18
 	_room_root.add_child(_sewer_hint)
 	_apply_sewer_hint()
@@ -1252,14 +1218,9 @@ func _build_generator_layout() -> void:
 	K.prop(_room_root, "oil_drum", Vector3(-1.5, 0.05, 1.3), 30.0)
 	K.slab(_room_root, Vector3(0.1, 1.4, 0.1), Vector3(-0.9, 2.1, -0.35), K.surface("galvanized", 0.5), "GenPipes")
 
-	var title = Label3D.new()
-	title.text = "GENERATOR"
-	title.position = Vector3(0.0, 2.32, -1.92)
-	title.font_size = 34
-	title.modulate = Color(1.0, 0.88, 0.44, 0.94)
-	_room_root.add_child(title)
+	_sign(_room_root, "TRAFOSTANICE\nDANGER - high voltage", Vector3(0.0, 2.3, -1.98), 30, "danger")
 	_sewer_hint = Label3D.new()
-	_sewer_hint.position = Vector3(0.0, 1.95, -1.92)
+	_sewer_hint.position = Vector3(0.9, 1.5, -1.97)
 	_sewer_hint.font_size = 18
 	_room_root.add_child(_sewer_hint)
 	_apply_sewer_hint()
@@ -1448,12 +1409,10 @@ func _apply_sewer_hint() -> void:
 	if _sewer_hint == null or not is_instance_valid(_sewer_hint):
 		return
 	if _sewer_broken and _current_profile == "generator":
-		_sewer_hint.text = "FAULT REPORTED
-R > REPAIR THE SET"
+		_sewer_hint.text = "FAULT REPORTED"
 		_sewer_hint.modulate = Color(1.0, 0.62, 0.36, 0.95)
 	elif _sewer_broken:
-		_sewer_hint.text = "LEAK REPORTED
-R > CRAWL INTO THE PIPES"
+		_sewer_hint.text = "LEAK REPORTED"
 		_sewer_hint.modulate = Color(1.0, 0.62, 0.36, 0.95)
 	else:
 		_sewer_hint.text = "NO FAULTS"

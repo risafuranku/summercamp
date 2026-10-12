@@ -124,6 +124,9 @@ var _office_near_light_wall_meshes: Array[MeshInstance3D] = []
 var _is_day_mode: bool = true
 var _time_state: int = TIME_DAY
 var _barrel_overlay: ColorRect
+## The monitor picture redrawn crisp over the low-res room while you sit at it.
+var _crt_sharp: TextureRect
+var _crt_sharp_layer: CanvasLayer
 var _daylight_factor: float = 0.0
 var _sunlight_color: Color = Color(1.0, 0.95, 0.84)
 var _crt_glow_target_color: Color = Color(0.62, 0.78, 1.0)
@@ -350,6 +353,7 @@ func close_interior() -> void:
 
 func _process(delta: float) -> void:
 	_update_radio_mix(delta)
+	_update_crt_sharp()
 	if not visible:
 		return
 	_update_crt_monitor_light(delta)
@@ -1173,6 +1177,10 @@ func _exit_crt_view() -> void:
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
+	# The OS hides the system cursor while you use it (it draws its own); standing up
+	# gives the room its cursor back (and open_panel hides it again when you sit down).
+	if _crt_ui != null and _crt_ui.has_method("close_panel"):
+		_crt_ui.close_panel()
 
 	if _camera_tween: _camera_tween.kill()
 	_camera_tween = create_tween()
@@ -1247,6 +1255,66 @@ func _forward_input_to_crt(event: InputEventMouse) -> void:
 		var rel_scale = _get_main_to_crt_scale()
 		new_ev.relative = Vector2(event.relative.x * rel_scale.x, event.relative.y * rel_scale.y)
 	_crt_viewport.push_input(new_ev, true)
+
+
+## The monitor, crisp: the whole game (this room included) is drawn small and scaled up
+## for the chunky look, which smears the computer's text. So the OS picture is drawn a
+## second time in the full-resolution window (a layer just under the HUD), laid exactly
+## over the 3D screen: its four corners projected through the room camera and scaled
+## from the small render to the window. The tube around it stays chunky.
+func _ensure_crt_sharp() -> void:
+	if _crt_sharp != null and is_instance_valid(_crt_sharp):
+		return
+	_crt_sharp_layer = CanvasLayer.new()
+	_crt_sharp_layer.name = "CrtSharpLayer"
+	_crt_sharp_layer.layer = 64
+	get_tree().root.add_child(_crt_sharp_layer)
+	_crt_sharp = TextureRect.new()
+	_crt_sharp.name = "CrtSharp"
+	_crt_sharp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crt_sharp.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_crt_sharp.stretch_mode = TextureRect.STRETCH_SCALE
+	_crt_sharp.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var sharp_mat := ShaderMaterial.new()
+	sharp_mat.shader = load("res://materials/crt_sharp.gdshader")
+	_crt_sharp.material = sharp_mat
+	_crt_sharp.visible = false
+	_crt_sharp_layer.add_child(_crt_sharp)
+
+
+func _update_crt_sharp() -> void:
+	var show := visible and is_inside_tree() and _crt_active and _crt_screen != null and _crt_viewport != null and _interior_camera != null and _viewport != null
+	if not show:
+		if _crt_sharp != null and is_instance_valid(_crt_sharp):
+			_crt_sharp.visible = false
+		return
+	_ensure_crt_sharp()
+	var quad := _crt_screen.mesh as QuadMesh
+	var window := get_tree().root.get_visible_rect().size
+	var render := _interior_camera.get_viewport().get_visible_rect().size
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for corner in [Vector2(-0.5, -0.5), Vector2(0.5, -0.5), Vector2(-0.5, 0.5), Vector2(0.5, 0.5)]:
+		var world := _crt_screen.global_transform * Vector3(corner.x * quad.size.x, corner.y * quad.size.y, 0.0)
+		if _interior_camera.is_position_behind(world):
+			_crt_sharp.visible = false
+			return
+		var p := _interior_camera.unproject_position(world) / render * window
+		lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
+		hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
+	_crt_sharp.position = lo
+	_crt_sharp.size = hi - lo
+	if _crt_sharp.texture == null:
+		_crt_sharp.texture = _crt_viewport.get_texture()
+	# Fade in as the monitor fills the view (sharp when you are at it).
+	var fill := (hi.y - lo.y) / maxf(1.0, window.y)
+	(_crt_sharp.material as ShaderMaterial).set_shader_parameter("fade", clampf((fill - 0.18) / 0.22, 0.0, 1.0))
+	_crt_sharp.visible = true
+
+
+func _exit_tree() -> void:
+	if _crt_sharp_layer != null and is_instance_valid(_crt_sharp_layer):
+		_crt_sharp_layer.queue_free()
 
 
 func _map_mouse_to_crt(mouse_pos: Vector2, allow_fallback: bool = true) -> Vector2:
@@ -1417,14 +1485,35 @@ func _place_window_camera() -> bool:
 		return false
 	var grid = scene.get("grid_manager")
 	var center: Vector3 = grid.get_map_center_world() if grid != null and grid.has_method("get_map_center_world") else Vector3.ZERO
+	# Look at the camp you built: the middle of the rooms and facilities, so tents and
+	# cabins are in the window (the map centre while there is nothing yet).
+	var target := center
+	var structures := reception.get_parent()
+	if structures != null:
+		var sum := Vector3.ZERO
+		var n := 0
+		for child in structures.get_children():
+			var t := str(child.get_meta("building_type", ""))
+			if t == "" or t in ["main_building", "power_generator", "path", "lamp_post"]:
+				continue
+			sum += (child as Node3D).global_position
+			n += 1
+		if n > 0:
+			target = sum / float(n)
+	# From the front of the office, where its windows are (the camp side, by the door).
+	var door: Vector3 = scene.call("get_reception_door_position") if scene.has_method("get_reception_door_position") else Vector3.INF
 	var base := reception.global_position
-	var out := center - base
+	var front := (door - base) if door != Vector3.INF else Vector3(0, 0, 1)
+	front.y = 0.0
+	front = front.normalized() if front.length() > 0.1 else Vector3(0, 0, 1)
+	var eye := (door if door != Vector3.INF else base) + front * 0.5
+	eye.y = 2.4
+	var out := target - eye
 	out.y = 0.0
-	out = out.normalized() if out.length() > 0.1 else Vector3.FORWARD
-	var eye := base + out * 4.0
-	eye.y = 1.55
+	out = out.normalized() if out.length() > 0.1 else front
 	_window_cam.global_position = eye
-	_window_cam.look_at(eye + out * 10.0 + Vector3(0, -0.6, 0), Vector3.UP)
+	var dist := maxf(8.0, Vector2(target.x - eye.x, target.z - eye.z).length())
+	_window_cam.look_at(Vector3(target.x, 0.6, target.z) if dist < 40.0 else eye + out * 20.0 + Vector3(0, -1.6, 0), Vector3.UP)
 	return true
 
 

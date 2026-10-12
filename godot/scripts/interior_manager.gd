@@ -1,6 +1,10 @@
 extends Node
 
 signal service_repair_requested(coord: Vector2i, building_type: String)
+## A line for the HUD feed (e.g. a room you cannot go into).
+signal notice(text: String, kind: int)
+
+const KNOCK_SFX := "res://assets/sfx/rooms/door_knock.mp3"
 
 const BUILDING_INTERIOR_SCRIPT = preload("res://scripts/building_interior.gd")
 const CABIN_INTERIOR_SCRIPT = preload("res://scripts/cabin_interior.gd")
@@ -405,6 +409,8 @@ func _on_tent_interact(tent_node: Node) -> void:
 		return
 	if _tent_interior.is_open():
 		return
+	if _refuse_if_occupied(tent_node as Node3D, "tent"):
+		return
 	var level = 1
 	var tent_type = str(tent_node.get_meta("building_type", "tent_1"))
 	if tent_type == "tent_2":
@@ -469,6 +475,8 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 		return
 	if _cabin_interior.is_open():
 		return
+	if _refuse_if_occupied(cabin_node as Node3D, "cabin"):
+		return
 	var level = 1
 	var cabin_type = str(cabin_node.get_meta("building_type", "cabin_1"))
 	if cabin_type == "cabin_2":
@@ -508,6 +516,25 @@ func _room_key_for(structure: Node3D) -> String:
 	if not (origin_any is Vector2i):
 		return ""
 	return "%d:%d" % [(origin_any as Vector2i).x, (origin_any as Vector2i).y]
+
+
+## A room with guests checked in is theirs: you knock, somebody answers, you stay out.
+func _refuse_if_occupied(structure: Node3D, kind: String) -> bool:
+	var key := _room_key_for(structure)
+	if key.is_empty() or GuestManager == null:
+		return false
+	if not bool(GuestManager.get_room_state(key).get("occupied", false)):
+		return false
+	var knock := AudioStreamPlayer3D.new()
+	knock.stream = load(KNOCK_SFX)
+	knock.unit_size = 4.0
+	add_child(knock)
+	knock.global_position = structure.global_position + Vector3(0, 1.2, 0)
+	knock.finished.connect(knock.queue_free)
+	knock.play()
+	var replies := ["\"Occupied!\"", "\"We're asleep!\"", "\"Come back later.\"", "\"Who is it?\""]
+	notice.emit("The %s is taken. %s" % [kind, replies[randi() % replies.size()]], 1)
+	return true
 
 
 func _push_room_state(interior: Object, structure: Node3D) -> void:
