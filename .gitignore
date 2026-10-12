@@ -23,3 +23,4 @@ tools/artgen/out/
 # Local secrets (ElevenLabs key for tools/audiogen)
 tools/audiogen/.env
 .env
+__pycache__/
