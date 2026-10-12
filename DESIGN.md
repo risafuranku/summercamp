@@ -194,6 +194,25 @@ Builder (`scripts/day_events.gd`).
 
 Sorted ones give a little back (the lost boy's parents tip). Night ends the day's chances.
 
+## 5e. The week closes in
+
+Vera's story mails say strange things; from night 2 the camp quietly agrees with them,
+once a night, a little nearer the office each time (`scripts/week_story.gd`):
+
+| Night | When | What | The mail it answers |
+| --- | --- | --- | --- |
+| 2 | 22:30 | a torch walks along the fence nearest you, outside it | (day 6) "Do not walk along the fence after the lamps go out. Your uncle did." |
+| 3 | 23:00 | one person too many, standing 25-30 m off, facing the office | (day 3, 22:47) "count them again after 22:00" |
+| 4 | 02:58 | the barrier lifts and drops by itself | (day 4, 03:00) the night log: "02:58 gate closed" |
+| 6 | 01:00 | the office phone rings four times | (day 6) "somebody picked up and listened for a while" |
+| 7 | 23:30 | the person and the torch together, at the fence by the office; the insects stop | (day 7) "I will count them myself" |
+
+Rules as in §2: one specific thing, seen across the dark (never next to you, never behind
+a tree: a line-of-sight check), gone when you walk up to it or when its time is up. Each
+plays once a week and waits up to 90 minutes for you to be outdoors. The nights
+themselves harden too: whatever comes on nights 5-6 comes at least at difficulty 2, on
+night 7 at least 3.
+
 ## 5d. The end of the week
 
 Vera's last mail (day 7, 20:10): "Leave the books on the desk and the terminal on. I will

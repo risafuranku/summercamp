@@ -45,6 +45,7 @@ const THREAT_SENSES_SCRIPT = preload("res://scripts/threat_senses.gd")
 const NIGHT_JOBS_SCRIPT = preload("res://scripts/night_jobs.gd")
 const DAY_EVENTS_SCRIPT = preload("res://scripts/day_events.gd")
 const WEEK_LEDGER_SCRIPT = preload("res://scripts/week_ledger.gd")
+const WEEK_STORY_SCRIPT = preload("res://scripts/week_story.gd")
 const WEEK_REPORT_SCREEN_SCRIPT = preload("res://scripts/ui/week_report_screen.gd")
 const BREAKER_PANEL_SCRIPT = preload("res://scripts/breaker_panel.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
@@ -171,6 +172,8 @@ var _pending_day_events: Dictionary = {}
 var _week_ledger: Node
 var _pending_week_ledger: Dictionary = {}
 var _week_report_screen: CanvasLayer
+var _week_story: Node
+var _pending_week_story: Dictionary = {}
 var _still_seconds: float = 0.0
 var _still_last_pos: Vector3 = Vector3.INF
 var _active_enemy_spawned_this_night: int = 0
@@ -388,10 +391,23 @@ func _setup_night_jobs() -> void:
 	if not _pending_week_ledger.is_empty():
 		_week_ledger.import_state(_pending_week_ledger)
 		_pending_week_ledger.clear()
+	if _week_story == null or not is_instance_valid(_week_story):
+		_week_story = WEEK_STORY_SCRIPT.new()
+		_week_story.name = "WeekStory"
+		add_child(_week_story)
+		_week_story.setup(self)
+	if not _pending_week_story.is_empty():
+		_week_story.import_state(_pending_week_story)
+		_pending_week_story.clear()
 
 
 ## Day 8: the pager in the morning, Vera's report at 08:00 (scripts/week_ledger.gd).
 func _tick_week_ledger() -> void:
+	if _week_story != null and not _game_over_active and _player != null and is_instance_valid(_player):
+		var minute_of_day := int(round(_time_of_day_hours * 60.0))
+		var abs_minute := (maxi(1, _day_index) - 1) * 1440 + minute_of_day
+		var outdoors := not _is_any_interior_open() and not get_tree().paused
+		_week_story.tick(get_process_delta_time(), abs_minute, outdoors, _player.global_position)
 	if _week_ledger == null or _game_over_active or _week_report_screen != null:
 		return
 	if _week_ledger.should_page(_day_index, _time_of_day_hours) and _hud_manager != null:
@@ -1088,7 +1104,7 @@ func _update_threat_senses(delta: float) -> void:
 		_still_seconds
 	)
 	if _audio_manager != null and _audio_manager.has_method("set_insect_hush"):
-		_audio_manager.set_insect_hush(_senses.hush)
+		_audio_manager.set_insect_hush(maxf(_senses.hush, _week_story.hush if _week_story != null else 0.0))
 	if _hud_manager != null:
 		_hud_manager.set_fear(_senses.fear)
 		_hud_manager.set_face_gaze(_senses.gaze)
@@ -1286,7 +1302,7 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		var script = ENEMY_FOR_ARCHETYPE.get(str(entry.get("archetype", "")), null)
 		if spawned <= 0 or script == null:
 			continue
-		var difficulty := _resolve_silent_man_difficulty(entry)
+		var difficulty := maxi(_resolve_silent_man_difficulty(entry), _night_difficulty_floor(night_index))
 		worst = maxi(worst, difficulty)
 		_start_enemy_brain(script, night_index, difficulty, entry)
 		total_spawned += spawned
@@ -1296,6 +1312,15 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 	_active_enemy_spawned_this_night = total_spawned
 	var claimed_virtual = mini(total_spawned, _liminal_virtual_enemy_count)
 	_liminal_virtual_enemy_count = maxi(0, _liminal_virtual_enemy_count - claimed_virtual)
+
+
+## The week closes in: whatever comes on the last nights comes harder.
+func _night_difficulty_floor(night_index: int) -> int:
+	if night_index >= 7:
+		return 3
+	if night_index >= 5:
+		return 2
+	return 1
 
 
 func _resolve_silent_man_difficulty(entry: Dictionary) -> int:
@@ -2643,6 +2668,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"night_jobs": _night_jobs.export_state() if _night_jobs != null else {},
 		"day_events": _day_events.export_state() if _day_events != null else {},
 		"week_ledger": _week_ledger.export_state() if _week_ledger != null else {},
+		"week_story": _week_story.export_state() if _week_story != null else {},
 	}
 	if _player != null and is_instance_valid(_player):
 		snapshot["player"] = {
@@ -2905,6 +2931,11 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		if _week_ledger != null and _gameplay_started:
 			_week_ledger.import_state(_pending_week_ledger)
 			_pending_week_ledger.clear()
+		var story_any = snapshot.get("week_story", {})
+		_pending_week_story = (story_any as Dictionary).duplicate(true) if story_any is Dictionary else {}
+		if _week_story != null and _gameplay_started:
+			_week_story.import_state(_pending_week_story)
+			_pending_week_story.clear()
 		var quests_any = snapshot.get("quests", {})
 		_pending_quest_state = (quests_any as Dictionary).duplicate(true) if quests_any is Dictionary else {}
 		_pending_quest_state_loaded = true
@@ -3115,6 +3146,9 @@ func _reset_state_for_new_game() -> void:
 	_pending_week_ledger.clear()
 	if _week_ledger != null:
 		_week_ledger.reset(BALANCE_CONFIG.STARTING_MONEY)
+	_pending_week_story.clear()
+	if _week_story != null:
+		_week_story.reset()
 	CoreRoot.apply_changes({
 		"money": BALANCE_CONFIG.STARTING_MONEY,
 		"day": 1,

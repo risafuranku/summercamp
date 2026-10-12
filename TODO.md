@@ -76,7 +76,7 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [ ] Later: upgrades from the map (tent -> tent 2), terrain painting, a minimap
 
 ### 4. Campaign: survive one week
-- [ ] Scripted events across days 1-7 that escalate (story mails exist; add events in the camp)
+- [x] Scripted events across days 1-7 that escalate (story mails exist; add events in the camp) (DESIGN §5e)
 - [x] An ending on day 8 (Vera returns): what a good week means (DESIGN §5d, week_check)
 - [ ] Replayability: randomised offers, events, enemy mixes
 
