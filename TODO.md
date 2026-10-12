@@ -134,7 +134,7 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 
 ### 16. Infrastructure upkeep at night
 - [x] Breaker board puzzle at the generator; lamp failures go dark; sewer; toilets
-- [ ] Sound when the breaker trips (power_out.mp3 exists, not yet played)
+- [x] Sound when the breaker trips (power_out.mp3 exists, not yet played)
 
 ### 17. Photographer
 - [x] Readable cycle: film advance, red AF lamp + beeps, whine, flash from his side; backs off
@@ -150,7 +150,7 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [ ] Update DESIGN/PRODUCT/AGENTS after each block; commit + push per block
 
 ### Small leftovers found on the way
-- [ ] Gatehouse sign text spills past the board
+- [x] Gatehouse sign text spills past the board
 - [ ] Cabin level-1 has no bathroom; the bucket outside is decoration only
 - [ ] The bathroom toilet is a box (part of the interiors visual pass)
 - [ ] GitLab remote auth (needs the user to log in on the dev PC)

@@ -104,6 +104,7 @@ var _utility_repair_minigame
 var _sewer_pipe_minigame
 var _texture_style
 var _audio_manager
+var _grid_was_powered := true
 
 # New Systems
 var time_system
@@ -396,10 +397,18 @@ func _tick_night_jobs() -> void:
 
 func _on_night_jobs_changed() -> void:
 	var powered := _is_grid_powered()
+	_note_grid_power(powered)
 	if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
 		GuestManager.set_camp_power_available(powered)
 	_apply_time_from_clock(true, false)
 	_sync_dark_lamps()
+
+
+## The moment the camp goes dark it makes the sound of it (power_out.mp3).
+func _note_grid_power(powered: bool) -> void:
+	if _grid_was_powered and not powered and _audio_manager != null and _audio_manager.has_method("play_power_out"):
+		_audio_manager.play_power_out()
+	_grid_was_powered = powered
 
 
 func _is_grid_powered() -> bool:
@@ -1806,6 +1815,7 @@ func _bind_billing() -> void:
 	_billing.setup(economy_manager)
 	_billing.state_changed.connect(_emit_state_update)
 	_billing.power_cut_changed.connect(func(_cut: bool) -> void:
+		_note_grid_power(_is_grid_powered())
 		if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
 			GuestManager.set_camp_power_available(_is_grid_powered())
 		_apply_time_from_clock(true, false)

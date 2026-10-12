@@ -4,6 +4,7 @@ const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 
 const SFX_DOOR_OPEN_PATH := "res://assets/sfx/dvereotevrit.mp3"
 const SFX_DOOR_CLOSE_PATH := "res://assets/sfx/dverezavrit.mp3"
+const SFX_POWER_OUT_PATH := "res://assets/sfx/power/power_out.mp3"
 const SFX_MORNING_CHIME_PATH := "res://assets/sfx/rednecksfx/rrbimbam.wav"
 const SFX_CRICKETS_PATH := "res://assets/sfx/cricketi.mp3"
 const SFX_BOOT_TEST_PATH := "res://assets/sfx/shust.mp3"
@@ -163,6 +164,7 @@ var _time_of_day_hours: float = 6.0
 var _sfx_bus: Node
 var _sfx_door_open: AudioStreamPlayer
 var _sfx_door_close: AudioStreamPlayer
+var _sfx_power_out: AudioStreamPlayer
 var _sfx_morning_chime: AudioStreamPlayer
 var _sfx_crickets: AudioStreamPlayer
 var _spatial_sfx_root: Node3D
@@ -393,6 +395,13 @@ func play_door_close() -> void:
 	if _sfx_door_close == null:
 		_sfx_door_close = _create_sfx_player("DoorCloseSfx", SFX_DOOR_CLOSE_PATH, false, -1.0, MASTER_BUS_NAME)
 	_play_one_shot_sfx(_sfx_door_close, SFX_DOOR_CLOSE_PATH)
+
+
+## The camp goes dark: the main trips (or the power company cuts us off).
+func play_power_out() -> void:
+	if _sfx_power_out == null:
+		_sfx_power_out = _create_sfx_player("PowerOutSfx", SFX_POWER_OUT_PATH, false, -2.0, MASTER_BUS_NAME)
+	_play_one_shot_sfx(_sfx_power_out, SFX_POWER_OUT_PATH)
 
 
 func get_ambient_music_trigger_hour() -> float:

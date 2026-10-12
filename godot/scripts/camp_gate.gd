@@ -249,8 +249,9 @@ func _build_sign() -> void:
 	var label := Label3D.new()
 	label.text = "CAMP\nRECEPTION - STOP"
 	label.font = load("res://assets/fonts/jersey10.fnt")
+	# pixel_size keeps "RECEPTION - STOP" between the posts of the 1.7 m board.
 	label.font_size = 40
-	label.pixel_size = 0.004
+	label.pixel_size = 0.0027
 	label.modulate = Color(0.1, 0.08, 0.06)
 	label.outline_size = 0
 	label.position = Vector3(x, 1.72, z - 0.035)

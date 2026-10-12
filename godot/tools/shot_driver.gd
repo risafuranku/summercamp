@@ -319,6 +319,7 @@ const SCENARIOS := {
 		["book", "Pepa", "drunk", 1, 2, 0], ["book", "Mirek", "quiet_guy", 1, 1, 0], ["book", "Kristyna", "cheap_chick", 1, 1, 50], ["hours", 0.1], ["wait", 1.0],
 		["player", 15, 3, 0.0], ["wait", 1.0], ["shot", "g0_from_camp"],
 		["player", 15, -4, 180.0], ["wait", 1.0], ["shot", "g1_from_road"],
+		["player", 14, -3, 170.0], ["wait", 0.6], ["shot", "g1b_sign"],
 		["player", 16, -4, 135.0], ["wait", 1.0], ["shot", "g2_booth"],
 		["player", 15, 1, 180.0], ["wait", 1.0], ["shot", "g2b_checkin_hint"], ["eval", "_find_guest_in_view()"],
 		["prep_all"], ["hours", 0.05], ["checkin"], ["player", 14, -3, 160.0], ["wait", 2.2], ["shot", "g3_barrier_up"],
