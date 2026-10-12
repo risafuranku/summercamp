@@ -296,11 +296,11 @@
   ]
  },
  "seat": {
-  "tex": "knotty_pine.png",
+  "tex": "planks_grey.png",
   "tint": [
-   0.85,
    0.62,
-   0.42
+   0.46,
+   0.3
   ]
  },
  "shade": {

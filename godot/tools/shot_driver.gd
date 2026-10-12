@@ -391,6 +391,12 @@ const SCENARIOS := {
 		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'tent_2', 'tent_3', 0)"], ["wait", 0.5], ["eval", "_interior_manager._building_interior.close_interior()"], ["prep_all"], ["wait", 0.4],
 		["open_room", 17, 4], ["wait", 1.2], ["shot", "t3"], ["eval", "_interior_manager._tent_interior._look.set('yaw_deg', 160.0)"], ["wait", 0.6], ["shot", "t3_back"],
 	],
+	"reception": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4], ["shot", "r0_desk"],
+		["eval", "_interior_manager._building_interior._look.set('yaw_deg', 65.0)"], ["wait", 0.8], ["shot", "r1_left"],
+		["eval", "_interior_manager._building_interior._look.set('yaw_deg', -65.0)"], ["wait", 0.8], ["shot", "r2_right"],
+	],
 	"slop": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5],
@@ -472,7 +478,7 @@ const SCENARIOS := {
 		["open_room", 1, 4], ["wait", 1.2], ["shot", "i_toilets"], ["eval", "_interior_manager._service_interior._apply_service_subroom('left')"], ["wait", 0.5], ["shot", "i_toilets_l"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 0.6],
 		["open_room", 3, 4], ["wait", 1.2], ["shot", "i_showers"], ["eval", "_interior_manager._service_interior._apply_service_subroom('left')"], ["wait", 0.5], ["shot", "i_showers_l"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 0.6],
 		["open_room", 6, 4], ["wait", 1.2], ["shot", "i_pub"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 0.6],
-		["open_room", 10, 4], ["wait", 1.2], ["shot", "i_rest"], ["eval", "_interior_manager._service_interior._apply_service_subroom('kitchen')"], ["wait", 0.5], ["shot", "i_rest_kitchen"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 0.6],
+		["open_room", 10, 4], ["wait", 1.2], ["shot", "i_rest"], ["eval", "_interior_manager._service_interior._apply_service_subroom('kitchen')"], ["wait", 0.5], ["shot", "i_rest_kitchen"], ["eval", "_interior_manager._service_interior._set_restaurant_room('basement', true)"], ["wait", 0.5], ["shot", "i_rest_cellar"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 0.6],
 		["open_room", 1, 8], ["wait", 1.2], ["shot", "i_shop"], ["eval", "_interior_manager._service_interior._apply_service_subroom('storage')"], ["wait", 0.5], ["shot", "i_shop_storage"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 0.6],
 		["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["clear", 21, 3, 3, 3], ["build", "tent_1", 22, 4, 0], ["wait", 0.5],
 		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],

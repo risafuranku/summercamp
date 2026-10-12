@@ -5,6 +5,8 @@ const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const MESS_RULES = preload("res://core/systems/mess_rules.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
+const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
+const GOODS := ["goods_cans", "goods_jars", "goods_drinks", "goods_bread"]
 const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
 
 signal request_close
@@ -597,59 +599,27 @@ func _build_service_room(profile: String) -> void:
 
 
 func _build_restaurant_dining_layout(parent: Node3D) -> void:
-	var w = 6.2
-	var d = 4.8
-	var h = 2.9
-
-	_add_box("DiningFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.54, 0.42, 0.34), "service_rest_floor", parent)
-	_add_box("DiningCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.70, 0.66, 0.60), "service_rest_ceiling", parent)
-	_add_box("DiningWallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.64, 0.48, 0.36), "service_rest_wall", parent)
-	_add_box("DiningWallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.64, 0.48, 0.36), "service_rest_wall", parent)
-	_add_box("DiningWallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.62, 0.46, 0.34), "service_rest_wall", parent)
-	_add_box("DiningWallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.62, 0.46, 0.34), "service_rest_wall", parent)
-	_add_box("DiningWallBandBack", Vector3(0.0, 1.18, -2.41), Vector3(w * 0.96, 0.20, 0.04), Color(0.74, 0.64, 0.52), "service_rest_decor", parent)
-	_add_box("DiningWallBandFront", Vector3(0.0, 1.18, 2.41), Vector3(w * 0.96, 0.20, 0.04), Color(0.74, 0.64, 0.52), "service_rest_decor", parent)
-
-	_add_box("DiningCounterBase", Vector3(2.08, 0.52, -1.10), Vector3(1.80, 1.04, 0.88), Color(0.42, 0.30, 0.20), "service_rest_counter", parent)
-	_add_box("DiningCounterTop", Vector3(2.08, 1.08, -1.10), Vector3(1.92, 0.08, 0.98), Color(0.54, 0.42, 0.30), "service_rest_tabletop", parent)
-	_add_box("DiningCounterBack", Vector3(2.38, 1.54, -2.12), Vector3(1.28, 1.22, 0.30), Color(0.42, 0.30, 0.22), "service_rest_wall", parent)
-
-	_add_box("DiningBoothBackL", Vector3(-1.58, 0.66, -1.28), Vector3(1.52, 0.86, 0.28), Color(0.48, 0.28, 0.24), "service_rest_booth", parent)
-	_add_box("DiningBoothSeatL", Vector3(-1.58, 0.34, -0.82), Vector3(1.52, 0.16, 0.72), Color(0.52, 0.30, 0.26), "service_rest_booth", parent)
-	_add_box("DiningBoothBackR", Vector3(-1.58, 0.66, 1.28), Vector3(1.52, 0.86, 0.28), Color(0.48, 0.28, 0.24), "service_rest_booth", parent)
-	_add_box("DiningBoothSeatR", Vector3(-1.58, 0.34, 0.82), Vector3(1.52, 0.16, 0.72), Color(0.52, 0.30, 0.26), "service_rest_booth", parent)
-
-	_add_box("DiningTableBaseL", Vector3(-1.58, 0.42, -0.10), Vector3(0.12, 0.72, 0.12), Color(0.38, 0.28, 0.20), "service_rest_counter", parent)
-	_add_box("DiningTableTopL", Vector3(-1.58, 0.82, -0.10), Vector3(1.12, 0.08, 0.72), Color(0.52, 0.40, 0.28), "service_rest_tabletop", parent)
-	_add_box("DiningTableBaseR", Vector3(-1.58, 0.42, 0.10), Vector3(0.12, 0.72, 0.12), Color(0.38, 0.28, 0.20), "service_rest_counter", parent)
-	_add_box("DiningTableTopR", Vector3(-1.58, 0.82, 0.10), Vector3(1.12, 0.08, 0.72), Color(0.52, 0.40, 0.28), "service_rest_tabletop", parent)
-
-	_add_box("DiningCenterTableLeg", Vector3(0.32, 0.42, 0.88), Vector3(0.14, 0.72, 0.14), Color(0.36, 0.26, 0.18), "service_rest_counter", parent)
-	_add_box("DiningCenterTableTop", Vector3(0.32, 0.82, 0.88), Vector3(1.04, 0.08, 0.78), Color(0.52, 0.40, 0.28), "service_rest_tabletop", parent)
-	_add_box("DiningFloorInlay", Vector3(0.30, 0.06, 0.88), Vector3(1.40, 0.01, 1.02), Color(0.48, 0.30, 0.26), "service_rest_booth", parent)
-
-	var board := _add_box("DiningMenuBoard", Vector3(0.0, 1.9, -2.33), Vector3(2.0, 0.82, 0.04), Color(0.86, 0.82, 0.7), "service_rest_decor", parent)
-	var board_mat := StandardMaterial3D.new()
-	board_mat.albedo_color = Color(0.86, 0.82, 0.7)
-	board.material_override = board_mat
-	_add_box("DiningNeonStrip", Vector3(0.0, 2.52, -2.38), Vector3(1.40, 0.06, 0.06), Color(0.80, 0.72, 0.42), "service_rest_decor", parent)
-	_add_box("DiningPosterA", Vector3(-2.60, 1.56, -0.62), Vector3(0.04, 0.72, 0.96), Color(0.76, 0.68, 0.56), "service_rest_decor", parent)
-	_add_box("DiningPosterB", Vector3(2.60, 1.54, 0.76), Vector3(0.04, 0.82, 0.82), Color(0.76, 0.68, 0.56), "service_rest_decor", parent)
-
-	# Red-and-white tablecloths, and the menu in the old money.
-	var red := StandardMaterial3D.new()
-	red.albedo_color = Color(0.82, 0.18, 0.14)
-	var white := StandardMaterial3D.new()
-	white.albedo_color = Color(0.95, 0.94, 0.9)
-	for pos: Vector3 in [Vector3(-1.58, 0.87, -0.1), Vector3(-1.58, 0.87, 0.1), Vector3(0.32, 0.87, 0.88)]:
-		var cloth := _add_box("TableCloth", pos, Vector3(1.0, 0.02, 0.66), red.albedo_color, "service_rest_decor", parent)
-		cloth.material_override = red
-		for i in 3:
-			var sq := _add_box("Check", pos + Vector3(-0.33 + i * 0.33, 0.012, 0.0), Vector3(0.16, 0.005, 0.66), white.albedo_color, "service_rest_decor", parent)
-			sq.material_override = white
+	# A roadside bufet: oil-painted walls, checker lino, gingham tables, the till and its
+	# fridge at the back right, a deer over the tables and the mushroom chart.
+	var K := INTERIOR_KIT
+	var size := Vector3(6.2, 2.9, 4.8)
+	K.room(parent, size, "lino_checker", "oil_wall", "ceiling_board", size.y, 0.9, 0.05)
+	K.skirting(parent, size, "planks_dark", 0.05)
+	K.prop(parent, "shop_counter", Vector3(2.0, 0.05, -1.25))
+	K.prop(parent, "fridge_tall", Vector3(2.65, 0.05, -2.02))
+	K.prop(parent, "radio_set", Vector3(1.5, 0.99, -1.2), 10.0)
+	for t: Vector3 in [Vector3(-1.7, 0.05, -1.0), Vector3(-1.7, 0.05, 0.9), Vector3(0.35, 0.05, 0.6)]:
+		K.prop(parent, "gingham_table", t)
+		K.prop(parent, "chair_wood", t + Vector3(-0.55, 0, 0), 90.0)
+		K.prop(parent, "chair_wood", t + Vector3(0.55, 0, 0), -90.0)
+	K.picture(parent, "picture_deer", Vector2(0.6, 0.8), Vector3(-3.04, 1.75, -0.1), 90.0, "Deer")
+	K.picture(parent, "poster_mushrooms", Vector2(0.6, 0.8), Vector3(3.04, 1.6, 0.8), -90.0, "Mushrooms")
+	var board := K.slab(parent, Vector3(2.0, 0.82, 0.04), Vector3(-0.3, 1.9, -2.36), K.surface("ceiling_board", 4.0, Color(1.05, 1.02, 0.94)), "DiningMenuBoard")
+	K.slab(parent, Vector3(2.08, 0.9, 0.03), Vector3(-0.3, 1.9, -2.385), K.surface("planks_dark", 0.6), "MenuFrame")
+	board.name = "DiningMenuBoard"
 	var menu := Label3D.new()
 	menu.text = "DNES VARIME / TODAY\nGoulash & dumplings .. 32 Kcs\nFried cheese ......... 28 Kcs\nPork, knedlo, zelo ... 35 Kcs\nBeer 10 .............. 6 Kcs\nKofola ............... 4 Kcs"
-	menu.position = Vector3(0.0, 1.9, -2.29)
+	menu.position = Vector3(-0.3, 1.9, -2.33)
 	menu.font_size = 18
 	menu.modulate = Color(0.12, 0.1, 0.08, 0.95)
 	menu.outline_size = 0
@@ -657,7 +627,7 @@ func _build_restaurant_dining_layout(parent: Node3D) -> void:
 	parent.add_child(menu)
 	var title = Label3D.new()
 	title.text = "BUFET\ndiner"
-	title.position = Vector3(0.0, 2.6, -2.30)
+	title.position = Vector3(-0.3, 2.6, -2.33)
 	title.font_size = 30
 	title.modulate = Color(0.88, 0.80, 0.62, 0.92)
 	parent.add_child(title)
@@ -671,47 +641,26 @@ func _build_restaurant_dining_layout(parent: Node3D) -> void:
 
 
 func _build_restaurant_kitchen_layout(parent: Node3D) -> void:
-	var w = 6.2
-	var d = 4.8
-	var h = 2.9
-	var kitchen_wall_category := "service_kitchen_wall_alt" if _kitchen_texture_variant_alt else "service_kitchen_wall"
-	var kitchen_floor_category := "service_kitchen_floor_alt" if _kitchen_texture_variant_alt else "service_kitchen_floor"
-
-	_add_box("KitchenFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.48, 0.50, 0.54), kitchen_floor_category, parent)
-	_add_box("KitchenCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.60, 0.62, 0.66), "service_kitchen_ceiling", parent)
-	_add_box("KitchenWallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.56, 0.58, 0.62), kitchen_wall_category, parent)
-	_add_box("KitchenWallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.56, 0.58, 0.62), kitchen_wall_category, parent)
-	_add_box("KitchenWallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.54, 0.56, 0.60), kitchen_wall_category, parent)
-	_add_box("KitchenWallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.54, 0.56, 0.60), kitchen_wall_category, parent)
-	_add_box("KitchenWallSquareA", Vector3(-0.98, 1.86, -d * 0.5 + 0.056), Vector3(0.62, 0.62, 0.02), Color(0.90, 0.90, 0.88), "service_kitchen_wall_square_499", parent)
-	_add_box("KitchenWallSquareB", Vector3(0.98, 1.86, -d * 0.5 + 0.056), Vector3(0.62, 0.62, 0.02), Color(0.90, 0.90, 0.88), "service_kitchen_wall_square_500", parent)
-
-	_add_box("KitchenCounterA", Vector3(-1.70, 0.56, -1.48), Vector3(1.82, 1.12, 0.82), Color(0.44, 0.46, 0.50), "service_kitchen_cabinet", parent)
-	_add_box("KitchenCounterATop", Vector3(-1.70, 1.14, -1.48), Vector3(1.96, 0.08, 0.94), Color(0.64, 0.66, 0.70), "service_kitchen_tabletop", parent)
-	_add_box("KitchenCounterB", Vector3(1.76, 0.56, -1.48), Vector3(1.74, 1.12, 0.82), Color(0.44, 0.46, 0.50), "service_kitchen_cabinet", parent)
-	_add_box("KitchenCounterBTop", Vector3(1.76, 1.14, -1.48), Vector3(1.88, 0.08, 0.94), Color(0.64, 0.66, 0.70), "service_kitchen_tabletop", parent)
-
-	_add_box("KitchenPrepTableBase", Vector3(0.0, 0.46, 0.42), Vector3(1.86, 0.84, 0.96), Color(0.44, 0.46, 0.50), "service_kitchen_cabinet", parent)
-	_add_box("KitchenPrepTableTop", Vector3(0.0, 0.92, 0.42), Vector3(2.02, 0.08, 1.08), Color(0.64, 0.66, 0.70), "service_kitchen_island_top", parent)
-	_add_box("KitchenPrepTableFront", Vector3(0.0, 0.46, 0.92), Vector3(1.86, 0.84, 0.04), Color(0.42, 0.44, 0.48), "service_kitchen_island_front", parent)
-	_add_box("KitchenStoveBlock", Vector3(0.0, 0.58, -1.54), Vector3(1.46, 1.16, 0.66), Color(0.38, 0.40, 0.44), "service_kitchen_counter", parent)
-	_add_box("KitchenStoveTop", Vector3(0.0, 1.16, -1.54), Vector3(1.52, 0.08, 0.74), Color(0.62, 0.64, 0.68), "service_kitchen_stove_top", parent)
-
-	_add_box("KitchenShelfA", Vector3(-2.54, 1.58, 1.84), Vector3(1.12, 1.44, 0.26), Color(0.42, 0.44, 0.48), "service_kitchen_shelf", parent)
-	_add_box("KitchenShelfB", Vector3(2.54, 1.58, 1.84), Vector3(1.12, 1.44, 0.26), Color(0.42, 0.44, 0.48), "service_kitchen_shelf", parent)
-	_add_box("KitchenShelfItemA", Vector3(-2.54, 1.94, 1.86), Vector3(0.44, 0.24, 0.10), Color(0.74, 0.76, 0.80), "service_kitchen_decor", parent)
-	_add_box("KitchenShelfItemB", Vector3(2.54, 1.94, 1.86), Vector3(0.44, 0.24, 0.10), Color(0.74, 0.76, 0.80), "service_kitchen_decor", parent)
-	_add_box("KitchenPassDoor", Vector3(0.0, 1.66, 2.42), Vector3(1.70, 1.06, 0.04), Color(0.70, 0.72, 0.76), "service_kitchen_sign", parent)
-	_add_box("KitchenFreezerDoor", Vector3(-2.12, 1.02, -2.34), Vector3(0.82, 1.86, 0.06), Color(0.74, 0.78, 0.82), "service_kitchen_freezer_door", parent)
-	_add_box("KitchenFridgeDoor", Vector3(2.08, 1.02, -2.34), Vector3(0.82, 1.86, 0.06), Color(0.76, 0.80, 0.84), "service_kitchen_fridge_door", parent)
-	_add_box("KitchenDrainA", Vector3(-0.70, 0.06, 1.60), Vector3(0.78, 0.02, 0.32), Color(0.30, 0.32, 0.34), "service_kitchen_drain", parent)
-	_add_box("KitchenDrainB", Vector3(0.84, 0.06, 1.60), Vector3(0.78, 0.02, 0.32), Color(0.30, 0.32, 0.34), "service_kitchen_drain", parent)
-	_add_box("KitchenEmployeesSign", Vector3(0.0, 2.28, 2.36), Vector3(1.26, 0.34, 0.03), Color(0.86, 0.84, 0.70), "service_kitchen_sign", parent)
-
+	# The canteen kitchen: brown 70s tiles, checker lino, the range between two steel
+	# counters at the back, an island in the middle, the big fridge, pots on a shelf.
+	var K := INTERIOR_KIT
+	var size := Vector3(6.2, 2.9, 4.8)
+	K.room(parent, size, "lino_checker", "tiles_brown", "ceiling_board", 0.7, 0.9, 0.05)
+	K.skirting(parent, size, "steel_kitchen", 0.05)
+	K.prop(parent, "stove", Vector3(0.0, 0.05, -2.02))
+	K.prop(parent, "steel_counter", Vector3(-1.35, 0.05, -2.06))
+	K.prop(parent, "steel_counter", Vector3(1.35, 0.05, -2.06))
+	K.prop(parent, "steel_counter", Vector3(0.0, 0.05, 0.25))
+	K.prop(parent, "fridge_tall", Vector3(2.7, 0.05, -0.6), -90.0)
+	K.prop(parent, "fridge_tall", Vector3(2.7, 0.05, 0.2), -90.0)
+	K.prop(parent, "wall_shelf", Vector3(-2.9, 1.5, -0.6), 90.0, 1.6)
+	K.prop(parent, "beer_crates", Vector3(-2.6, 0.05, 1.3), 90.0)
+	K.prop(parent, "cardboard_boxes", Vector3(-2.55, 0.05, 0.2), 80.0)
+	K.slab(parent, Vector3(1.7, 1.0, 0.04), Vector3(0.0, 1.6, 2.38), K.surface("steel_kitchen", 0.8), "KitchenPassDoor")
 	var title = Label3D.new()
 	title.text = "KITCHEN"
-	title.position = Vector3(0.0, 2.16, -2.34)
-	title.font_size = 40
+	title.position = Vector3(0.0, 2.36, -2.33)
+	title.font_size = 32
 	title.modulate = Color(0.88, 0.80, 0.62, 0.92)
 	parent.add_child(title)
 	var nav_label = Label3D.new()
@@ -724,39 +673,37 @@ func _build_restaurant_kitchen_layout(parent: Node3D) -> void:
 
 
 func _build_restaurant_basement_layout(parent: Node3D) -> void:
-	var w = 6.2
-	var d = 4.8
-	var h = 2.7
-
-	_add_box("BasementFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.28, 0.30, 0.32), "service_basement_floor", parent)
-	_add_box("BasementCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.36, 0.38, 0.40), "service_basement_wall", parent)
-	_add_box("BasementWallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.34, 0.36, 0.38), "service_basement_wall", parent)
-	_add_box("BasementWallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.34, 0.36, 0.38), "service_basement_wall", parent)
-	_add_box("BasementWallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.32, 0.34, 0.36), "service_basement_wall", parent)
-	_add_box("BasementWallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.32, 0.34, 0.36), "service_basement_wall", parent)
-
-	_add_box("MachineBase", Vector3(0.0, 0.72, -0.20), Vector3(2.16, 1.44, 1.18), Color(0.24, 0.26, 0.28), "service_basement_machine", parent)
-	_add_box("MachineTop", Vector3(0.0, 1.48, -0.20), Vector3(2.28, 0.10, 1.30), Color(0.36, 0.40, 0.44), "service_basement_machine", parent)
+	# The cellar: brick, a concrete floor, crates and drums along the walls, and in the
+	# middle the machine nobody ordered (its core is animated, see _setup_basement_machine_animation).
+	var K := INTERIOR_KIT
+	var size := Vector3(6.2, 2.7, 4.8)
+	K.room(parent, size, "concrete", "brick_red", "concrete", 1.0, 1.2, 0.05)
+	var green := K.surface("metal_green", 0.8)
+	K.slab(parent, Vector3(2.16, 1.44, 1.18), Vector3(0.0, 0.77, -0.20), green, "MachineBase")
+	K.slab(parent, Vector3(2.28, 0.10, 1.30), Vector3(0.0, 1.53, -0.20), K.surface("steel_kitchen", 0.8), "MachineTop")
 	var machine_core = _add_box("MachineCore", Vector3(0.0, 1.14, 0.42), Vector3(1.12, 0.66, 0.36), Color(0.70, 0.24, 0.18), "service_basement_machine_anim_539", parent)
-	_add_box("MachinePipeL", Vector3(-1.28, 1.64, -0.70), Vector3(0.20, 0.84, 0.20), Color(0.34, 0.36, 0.38), "service_basement_machine", parent)
-	_add_box("MachinePipeR", Vector3(1.28, 1.64, -0.70), Vector3(0.20, 0.84, 0.20), Color(0.34, 0.36, 0.38), "service_basement_machine", parent)
-	_add_box("BasementWallPoster523", Vector3(0.0, 1.72, -2.34), Vector3(2.26, 0.92, 0.05), Color(0.86, 0.80, 0.68), "service_basement_rect_523", parent)
+	for x: float in [-1.28, 1.28]:
+		K.slab(parent, Vector3(0.2, 1.2, 0.2), Vector3(x, 2.1, -0.70), K.surface("galvanized", 0.6), "MachinePipe")
+	K.slab(parent, Vector3(2.76, 0.18, 0.18), Vector3(0.0, 2.6, -0.70), K.surface("galvanized", 0.6), "MachinePipeTop")
+	K.prop(parent, "oil_drum", Vector3(-2.6, 0.05, -1.9))
+	K.prop(parent, "oil_drum", Vector3(-2.0, 0.05, -2.0), 40.0)
+	K.prop(parent, "beer_crates", Vector3(2.5, 0.05, -1.9))
+	K.prop(parent, "cardboard_boxes", Vector3(2.5, 0.05, 1.2), -90.0)
+	K.picture(parent, "poster_mushrooms", Vector2(0.6, 0.8), Vector3(-3.04, 1.5, 0.6), 90.0, "CellarChart")
 	_setup_basement_machine_animation([machine_core])
 
 	var title = Label3D.new()
 	title.text = "CELLAR"
-	title.position = Vector3(0.0, 2.10, -2.22)
-	title.font_size = 36
+	title.position = Vector3(0.0, 2.25, -2.33)
+	title.font_size = 32
 	title.modulate = Color(0.82, 0.84, 0.88, 0.92)
 	parent.add_child(title)
-
 	var machine_title = Label3D.new()
 	machine_title.text = "PROTOTYPE 540"
-	machine_title.position = Vector3(0.0, 1.80, 0.52)
+	machine_title.position = Vector3(0.0, 1.80, 0.62)
 	machine_title.font_size = 22
 	machine_title.modulate = Color(0.88, 0.30, 0.24, 0.92)
 	parent.add_child(machine_title)
-
 	var nav_label = Label3D.new()
 	nav_label.text = "A > KITCHEN"
 	nav_label.position = Vector3(-2.20, 1.70, 2.06)
@@ -849,36 +796,43 @@ func _build_pub_main_layout(
 	parent: Node3D,
 	title_text: String = "HOSPODA\nthe pub",
 	nav_text: String = "",
-	seat_category: String = "service_rest_booth"
+	_seat_category: String = "service_rest_booth"
 ) -> void:
-	var w = 5.8
-	var d = 4.6
-	var h = 2.8
-	_add_box("PubFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.34, 0.28, 0.22), "service_rest_floor", parent)
-	_add_box("PubCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.44, 0.36, 0.30), "service_rest_ceiling", parent)
-	_add_box("PubWallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.36, 0.30, 0.24), "service_rest_wall", parent)
-	_add_box("PubWallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.36, 0.30, 0.24), "service_rest_wall", parent)
-	_add_box("PubWallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.34, 0.28, 0.22), "service_rest_wall", parent)
-	_add_box("PubWallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.34, 0.28, 0.22), "service_rest_wall", parent)
-	_add_box("PubBarBase", Vector3(1.56, 0.60, -1.34), Vector3(2.20, 1.20, 0.80), Color(0.26, 0.20, 0.16), "service_rest_counter", parent)
-	_add_box("PubBarTop", Vector3(1.56, 1.22, -1.34), Vector3(2.34, 0.09, 0.94), Color(0.46, 0.36, 0.28), "service_rest_tabletop", parent)
-	_add_box("PubBackShelf", Vector3(1.58, 1.66, -2.18), Vector3(2.00, 1.10, 0.20), Color(0.30, 0.24, 0.18), "service_pub_shelf", parent)
-	_add_box("PubBottleRowA", Vector3(1.58, 1.88, -2.10), Vector3(1.70, 0.16, 0.08), Color(0.70, 0.56, 0.36), "service_rest_decor", parent)
-	_add_box("PubBottleRowB", Vector3(1.58, 1.54, -2.10), Vector3(1.70, 0.16, 0.08), Color(0.62, 0.44, 0.28), "service_rest_decor", parent)
-	_add_box("PubBoothLeftBack", Vector3(-2.22, 0.66, -0.96), Vector3(0.24, 0.86, 1.42), Color(0.32, 0.22, 0.18), seat_category, parent)
-	_add_box("PubBoothLeftSeat", Vector3(-2.02, 0.34, -0.96), Vector3(0.44, 0.18, 1.22), Color(0.36, 0.24, 0.18), seat_category, parent)
-	_add_box("PubBoothRightBack", Vector3(-2.22, 0.66, 0.96), Vector3(0.24, 0.86, 1.42), Color(0.32, 0.22, 0.18), seat_category, parent)
-	_add_box("PubBoothRightSeat", Vector3(-2.02, 0.34, 0.96), Vector3(0.44, 0.18, 1.22), Color(0.36, 0.24, 0.18), seat_category, parent)
-	_add_box("PubTableLeftLeg", Vector3(-1.46, 0.40, -0.96), Vector3(0.10, 0.72, 0.10), Color(0.30, 0.22, 0.18), "service_rest_counter", parent)
-	_add_box("PubTableRightLeg", Vector3(-1.46, 0.40, 0.96), Vector3(0.10, 0.72, 0.10), Color(0.30, 0.22, 0.18), "service_rest_counter", parent)
-	_add_box("PubTableLeft", Vector3(-1.46, 0.80, -0.96), Vector3(0.72, 0.08, 0.90), Color(0.46, 0.36, 0.28), "service_rest_tabletop", parent)
-	_add_box("PubTableRight", Vector3(-1.46, 0.80, 0.96), Vector3(0.72, 0.08, 0.90), Color(0.46, 0.36, 0.28), "service_rest_tabletop", parent)
-	_add_box("PubDartBoard", Vector3(-2.84, 1.72, -1.26), Vector3(0.04, 0.62, 0.62), Color(0.66, 0.56, 0.40), "service_rest_decor", parent)
-	_add_box("PubPoster", Vector3(2.84, 1.58, 0.82), Vector3(0.04, 0.82, 0.62), Color(0.66, 0.56, 0.40), "service_rest_decor", parent)
+	# A village hospoda: dark panelled walls, worn plank floor, the bar on the right with
+	# its taps and a wall of bottles, crates by the cellar door, two tables with chairs on
+	# the left, a dartboard and the lake poster.
+	var K := INTERIOR_KIT
+	var size := Vector3(5.8, 2.8, 4.6)
+	K.room(parent, size, "planks_red", "pub_panel", "planks_dark", 1.4, 1.0, 0.05)
+	K.skirting(parent, size, "planks_dark", 0.05)
+	K.prop(parent, "bar_counter", Vector3(1.35, 0.05, -1.25))
+	K.prop(parent, "bottle_shelf", Vector3(1.35, 1.0, -2.16))
+	K.prop(parent, "beer_crates", Vector3(2.5, 0.05, -1.95))
+	K.prop(parent, "radio_set", Vector3(0.62, 1.13, -1.2), -15.0)
+	for x: float in [0.6, 1.3, 2.0]:
+		K.prop(parent, "bar_stool", Vector3(x, 0.05, -0.6))
+	for t: Vector3 in [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]:
+		K.prop(parent, "pub_table", t)
+		K.prop(parent, "chair_wood", t + Vector3(-0.55, 0, 0), 90.0)
+		K.prop(parent, "chair_wood", t + Vector3(0.55, 0, 0), -90.0)
+	K.prop(parent, "coat_hooks", Vector3(-1.6, 1.55, 2.27), 180.0)
+	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.85, 1.6, 0.8), -90.0, "PubPoster")
+	# The dartboard.
+	var dart := MeshInstance3D.new()
+	dart.name = "PubDartBoard"
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.24
+	disc.bottom_radius = 0.24
+	disc.height = 0.04
+	dart.mesh = disc
+	dart.material_override = K.surface("rug", 0.25)
+	dart.position = Vector3(-2.87, 1.7, -1.0)
+	dart.rotation_degrees = Vector3(0, 0, 90)
+	parent.add_child(dart)
 	var title = Label3D.new()
 	title.text = title_text
-	title.position = Vector3(0.0, 2.10, -2.20)
-	title.font_size = 36
+	title.position = Vector3(0.0, 2.36, -2.24)
+	title.font_size = 30
 	title.modulate = Color(0.92, 0.78, 0.56, 0.90)
 	parent.add_child(title)
 	if nav_text != "":
@@ -892,42 +846,27 @@ func _build_pub_main_layout(
 
 
 func _build_vecerka_shop_layout(parent: Node3D) -> void:
-	var w = 3.6
-	var d = 3.6
-	var h = 3.2
-	
-	_add_box("VFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.58, 0.56, 0.54), "service_kitchen_floor", parent)
-	_add_box("VCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.66, 0.64, 0.62), "service_rest_ceiling", parent)
-	_add_box("VWallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.64, 0.60, 0.58), "service_vecerka_wall", parent)
-	_add_box("VWallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.64, 0.60, 0.58), "service_vecerka_wall", parent)
-	_add_box("VWallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.62, 0.58, 0.56), "service_vecerka_wall", parent)
-	_add_box("VWallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.62, 0.58, 0.56), "service_vecerka_wall", parent)
-
-	# Main Counter
-	_add_box("CounterBase", Vector3(-0.8, 0.5, 0.8), Vector3(1.8, 1.0, 0.6), Color(0.48, 0.44, 0.40), "service_rest_counter", parent)
-	_add_box("CounterTop", Vector3(-0.8, 1.02, 0.8), Vector3(1.9, 0.05, 0.7), Color(0.56, 0.52, 0.48), "service_rest_tabletop", parent)
-	
-	# Shelves
-	_add_box("ShelfBackL", Vector3(-1.0, 1.2, -1.6), Vector3(1.2, 1.8, 0.4), Color(0.44, 0.40, 0.36), "service_vecerka_shelf", parent)
-	_add_box("ShelfBackR", Vector3(1.0, 1.2, -1.6), Vector3(1.2, 1.8, 0.4), Color(0.44, 0.40, 0.36), "service_vecerka_shelf", parent)
-	_add_box("ShelfRight", Vector3(1.6, 1.2, 0.0), Vector3(0.4, 1.8, 2.0), Color(0.44, 0.40, 0.36), "service_vecerka_shelf", parent)
-	
-	# Hotdog Counter (as requested)
-	_add_box("HotdogCounterBase", Vector3(0.6, 0.5, 0.8), Vector3(1.0, 1.0, 0.6), Color(0.44, 0.36, 0.30), "service_rest_counter", parent)
-	_add_box("HotdogCounterTop", Vector3(0.6, 1.02, 0.8), Vector3(1.1, 0.05, 0.7), Color(0.52, 0.46, 0.40), "service_rest_tabletop", parent)
-	_add_box("HotdogGrill", Vector3(0.6, 1.10, 0.8), Vector3(0.7, 0.12, 0.4), Color(0.36, 0.34, 0.32), "service_kitchen_island_top", parent)
-
-	# Posters
-	_add_box("PosterA", Vector3(-1.7, 1.8, -0.2), Vector3(0.02, 0.8, 0.6), Color(0.8, 0.8, 0.8), "service_vecerka_poster", parent)
-	_add_box("PosterB", Vector3(-1.7, 1.8, 0.6), Vector3(0.02, 0.8, 0.6), Color(0.8, 0.8, 0.8), "service_vecerka_poster", parent)
-
+	# The Jednota: oil-painted walls, brown lino, green racks of goods along the back and
+	# the right, the counter with its till and scale on the left, the hot-dog steel by the
+	# door, posters.
+	var K := INTERIOR_KIT
+	var size := Vector3(3.6, 3.2, 3.6)
+	K.room(parent, size, "lino_floor", "oil_wall", "ceiling_board", 3.2, 1.0, 0.05)
+	K.skirting(parent, size, "planks_dark", 0.05)
+	_shelf_with_goods(parent, Vector3(-0.85, 0.05, -1.52), 0.0, 0)
+	_shelf_with_goods(parent, Vector3(0.85, 0.05, -1.52), 0.0, 1)
+	_shelf_with_goods(parent, Vector3(1.52, 0.05, 0.1), -90.0, 2)
+	K.prop(parent, "shop_counter", Vector3(-1.38, 0.05, 0.05), 90.0)
+	K.prop(parent, "steel_counter", Vector3(-1.4, 0.05, 1.22), 90.0, 0.8)
+	K.slab(parent, Vector3(0.4, 0.1, 0.6), Vector3(-1.4, 0.82, 1.2), K.surface("steel_kitchen", 0.4, Color(0.6, 0.6, 0.62)), "HotdogGrill")
+	K.picture(parent, "poster_mushrooms", Vector2(0.5, 0.66), Vector3(-1.79, 2.1, -0.9), 90.0, "PosterA")
+	K.picture(parent, "poster_lake", Vector2(0.5, 0.66), Vector3(1.79, 2.25, 1.2), -90.0, "PosterB")
 	var title = Label3D.new()
 	title.text = "VECERKA\nopen till 22:00"
-	title.position = Vector3(0.0, 2.4, -1.78)
-	title.font_size = 42
+	title.position = Vector3(0.0, 2.65, -1.76)
+	title.font_size = 34
 	title.modulate = Color(1.0, 0.96, 0.84, 0.9)
 	parent.add_child(title)
-
 	var nav = Label3D.new()
 	nav.text = "D > STOREROOM"
 	nav.position = Vector3(1.0, 1.5, 1.0)
@@ -937,35 +876,38 @@ func _build_vecerka_shop_layout(parent: Node3D) -> void:
 	parent.add_child(nav)
 
 
-func _build_vecerka_storage_layout(parent: Node3D) -> void:
-	var w = 3.6
-	var d = 3.6
-	var h = 3.2
-	
-	_add_box("SFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.48, 0.46, 0.44), "service_kitchen_floor", parent)
-	_add_box("SCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.56, 0.54, 0.52), "service_rest_ceiling", parent)
-	# Walls using same texture as shop
-	_add_box("SWallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.54, 0.50, 0.48), "service_vecerka_wall", parent)
-	_add_box("SWallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.54, 0.50, 0.48), "service_vecerka_wall", parent)
-	_add_box("SWallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.52, 0.48, 0.46), "service_vecerka_wall", parent)
-	_add_box("SWallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.52, 0.48, 0.46), "service_vecerka_wall", parent)
-	
-	# Storage Cabinets (0513)
-	for i in range(3):
-		var x = -1.2 + i * 1.2
-		_add_box("CabBack" + str(i), Vector3(x, 1.0, -1.4), Vector3(1.0, 2.0, 0.6), Color(0.44, 0.40, 0.36), "service_vecerka_storage", parent)
-	
-	for i in range(2):
-		var z = -0.5 + i * 1.4
-		_add_box("CabLeft" + str(i), Vector3(-1.4, 1.0, z), Vector3(0.6, 2.0, 1.0), Color(0.44, 0.40, 0.36), "service_vecerka_storage", parent)
+## A green rack with a row of goods on every shelf (assets/textury/camp/goods_*.png).
+func _shelf_with_goods(parent: Node3D, pos: Vector3, yaw: float, first: int) -> void:
+	var K := INTERIOR_KIT
+	var pivot := Node3D.new()
+	pivot.name = "Rack"
+	pivot.position = pos
+	pivot.rotation_degrees.y = yaw
+	parent.add_child(pivot)
+	K.prop(pivot, "shop_shelf", Vector3.ZERO)
+	var levels := [0.12, 0.5, 0.88, 1.26, 1.64]
+	for i in levels.size():
+		var tex: String = GOODS[(first + i) % GOODS.size()]
+		K.picture(pivot, tex, Vector2(1.18, 0.34), Vector3(0, float(levels[i]) + 0.185, 0.04), 0.0, "Goods")
 
+
+func _build_vecerka_storage_layout(parent: Node3D) -> void:
+	# The storeroom: bare oil paint and concrete, staff lockers, a rack of tins, boxes and
+	# crates waiting to be unpacked.
+	var K := INTERIOR_KIT
+	var size := Vector3(3.6, 3.2, 3.6)
+	K.room(parent, size, "concrete", "oil_wall", "concrete", 3.2, 1.2, 0.05)
+	K.prop(parent, "locker", Vector3(-0.9, 0.05, -1.52))
+	_shelf_with_goods(parent, Vector3(0.85, 0.05, -1.52), 0.0, 3)
+	K.prop(parent, "cardboard_boxes", Vector3(-1.3, 0.05, 0.2), 90.0)
+	K.prop(parent, "beer_crates", Vector3(1.25, 0.05, 0.3), -90.0)
+	K.prop(parent, "cardboard_boxes", Vector3(1.2, 0.05, 1.1), -70.0)
 	var title = Label3D.new()
 	title.text = "STOREROOM"
-	title.position = Vector3(0.0, 2.4, -1.6)
-	title.font_size = 42
+	title.position = Vector3(0.0, 2.6, -1.74)
+	title.font_size = 34
 	title.modulate = Color(0.9, 0.9, 0.9, 0.9)
 	parent.add_child(title)
-	
 	var nav = Label3D.new()
 	nav.text = "< A SHOP"
 	nav.position = Vector3(-1.0, 1.5, 1.0)
@@ -1134,47 +1076,42 @@ func _sync_viewport_to_window() -> void:
 ## open on white bowls, a tin urinal trough between them, a basin and a cracked mirror
 ## on the left, the heart window on the right. Cleaning spots: MESS_RULES.BLOCK_SPOTS.
 func _build_toilet_layout() -> void:
-	var k = BUILDING_MODELS.new()
+	var K := INTERIOR_KIT
 	var w := 3.6
 	var d := 3.2
 	var h := 2.4
 	var r := _room_root
-	var planks = k._camp("planks_grey.png", Color(0.86, 0.84, 0.78), Vector3(3.0, 3.0, 1.0))
-	var floor_mat = k._camp("concrete.png", Color(0.62, 0.6, 0.56), Vector3(1.2, 1.2, 1.0))
-	k._box(r, "ToiletFloor", Vector3(w, 0.1, d), Vector3(0, -0.05, 0), floor_mat)
-	k._box(r, "ToiletCeiling", Vector3(w, 0.1, d), Vector3(0, h, 0), k._camp("planks_dark.png", Color(0.7, 0.64, 0.56)))
-	k._box(r, "ToiletWallBack", Vector3(w, h, 0.1), Vector3(0, h * 0.5, -d * 0.5), planks)
-	k._box(r, "ToiletWallFront", Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5), planks)
-	k._box(r, "ToiletWallLeft", Vector3(0.1, h, d), Vector3(-w * 0.5, h * 0.5, 0), planks)
-	k._box(r, "ToiletWallRight", Vector3(0.1, h, d), Vector3(w * 0.5, h * 0.5, 0), planks)
-	# Two stalls against the back wall.
-	var white = k._flat(Color(0.9, 0.9, 0.86))
-	var door = k._camp("door_wood.png", Color(0.8, 0.74, 0.64))
+	# Grey planks like the shack outside, a concrete floor, dark plank ceiling.
+	var shell := K.room(r, Vector3(w, h, d), "concrete", "planks_grey", "planks_dark", 1.2, 1.2)
+	(shell["ceiling"] as MeshInstance3D).material_override = K.surface("planks_dark", 1.0, Color(0.8, 0.74, 0.66))
+	var planks := K.surface("planks_grey", 1.2)
+	var door := K.surface("door_wood", 1.9)
+	# Two stalls against the back wall: a toilet, newspaper on a nail, the door open.
 	for side: float in [-1.0, 1.0]:
 		var cx := side * 0.95
-		k._box(r, "StallWall", Vector3(0.05, 2.0, 1.1), Vector3(cx - side * 0.62, 1.0, -d * 0.5 + 0.55), planks)
-		k._box(r, "StallWallOuter", Vector3(0.05, 2.0, 1.1), Vector3(cx + side * 0.62, 1.0, -d * 0.5 + 0.55), planks)
-		k._box(r, "Bowl", Vector3(0.42, 0.42, 0.55), Vector3(cx, 0.21, -d * 0.5 + 0.38), white)
-		k._box(r, "Seat", Vector3(0.44, 0.04, 0.5), Vector3(cx, 0.44, -d * 0.5 + 0.4), k._flat(Color(0.3, 0.22, 0.14)))
-		k._box(r, "Cistern", Vector3(0.4, 0.3, 0.18), Vector3(cx, 1.7, -d * 0.5 + 0.12), white)
-		k._cyl(r, "Chain", 0.01, 0.5, Vector3(cx + 0.18, 1.35, -d * 0.5 + 0.2), k._metal())
-		# Torn newspaper squares on a nail: the camp's toilet roll.
-		k._box(r, "Newspaper", Vector3(0.16, 0.2, 0.02), Vector3(cx - side * 0.5, 0.95, -d * 0.5 + 0.07), k._flat(Color(0.82, 0.8, 0.72)))
-		# The door stands open, flat against the outer partition.
-		k._box(r, "StallDoor", Vector3(0.05, 1.85, 0.75), Vector3(cx + side * 0.58, 0.98, -d * 0.5 + 1.1 + 0.38), door)
-	# The urinal trough and its pipe.
-	k._box(r, "Trough", Vector3(0.6, 0.12, 0.25), Vector3(0, 0.62, -d * 0.5 + 0.18), k._metal())
-	k._box(r, "TroughBack", Vector3(0.6, 0.7, 0.03), Vector3(0, 0.95, -d * 0.5 + 0.06), k._metal())
-	k._cyl(r, "Pipe", 0.025, 1.4, Vector3(0, 1.75, -d * 0.5 + 0.08), k._metal(), Vector3(0, 0, PI * 0.5))
-	# Basin, mirror, soap on the left wall.
-	k._box(r, "Basin", Vector3(0.36, 0.14, 0.5), Vector3(-w * 0.5 + 0.22, 0.86, 0.3), white)
-	k._box(r, "Mirror", Vector3(0.03, 0.5, 0.42), Vector3(-w * 0.5 + 0.07, 1.45, 0.3), k._flat(Color(0.5, 0.56, 0.6)))
-	k._box(r, "MirrorCrack", Vector3(0.035, 0.42, 0.02), Vector3(-w * 0.5 + 0.075, 1.45, 0.26), k._flat(Color(0.2, 0.22, 0.24))).rotation.x = 0.6
-	k._box(r, "Soap", Vector3(0.06, 0.04, 0.1), Vector3(-w * 0.5 + 0.22, 0.95, 0.5), k._flat(Color(0.86, 0.7, 0.3)))
-	# The heart window on the right: a little daylight.
-	k._box(r, "HeartWindow", Vector3(0.04, 0.22, 0.22), Vector3(w * 0.5 - 0.04, 1.75, 0.0), k._flat(Color(0.9, 0.92, 0.8))).rotation.x = PI * 0.25
-	k._cyl(r, "Bucket", 0.16, 0.3, Vector3(w * 0.5 - 0.3, 0.15, 0.9), k._flat(Color(0.32, 0.46, 0.38)))
-	k._cyl(r, "Bulb", 0.06, 0.12, Vector3(0, h - 0.25, 0.2), k._flat(Color(1.0, 0.96, 0.8)))
+		K.slab(r, Vector3(0.05, 2.0, 1.1), Vector3(cx - side * 0.62, 1.0, -d * 0.5 + 0.55), planks, "StallWall")
+		K.slab(r, Vector3(0.05, 2.0, 1.1), Vector3(cx + side * 0.62, 1.0, -d * 0.5 + 0.55), planks, "StallWallOuter")
+		K.prop(r, "toilet", Vector3(cx, 0.0, -d * 0.5 + 0.42))
+		K.slab(r, Vector3(0.16, 0.2, 0.02), Vector3(cx - side * 0.42, 0.95, -d * 0.5 + 0.02), INTERIOR_PREP.flat(Color(0.82, 0.8, 0.72)), "Newspaper")
+		K.slab(r, Vector3(0.05, 1.85, 0.75), Vector3(cx + side * 0.58, 0.98, -d * 0.5 + 1.1 + 0.38), door, "StallDoor")
+	K.prop(r, "urinal_trough", Vector3(0.0, 0.0, -d * 0.5 + 0.17), 0.0, 0.5)
+	# Basin and a cracked mirror on the left wall, a mop bucket, the heart window, a bulb.
+	K.prop(r, "sink_pedestal", Vector3(-w * 0.5 + 0.18, 0.0, 0.3), 90.0)
+	K.prop(r, "mirror_frame", Vector3(-w * 0.5 + 0.06, 1.25, 0.3), 90.0, 0.85)
+	K.slab(r, Vector3(0.012, 0.42, 0.02), Vector3(-w * 0.5 + 0.09, 1.52, 0.26), INTERIOR_PREP.flat(Color(0.2, 0.22, 0.24)), "MirrorCrack").rotation.x = 0.6
+	K.slab(r, Vector3(0.04, 0.22, 0.22), Vector3(w * 0.5 - 0.02, 1.75, 0.0), INTERIOR_PREP.flat(Color(0.95, 0.96, 0.85)), "HeartWindow").rotation.x = PI * 0.25
+	K.prop(r, "slop_bucket", Vector3(w * 0.5 - 0.32, 0.0, 0.95), 30.0)
+	var bulb := MeshInstance3D.new()
+	var bulb_mesh := SphereMesh.new()
+	bulb_mesh.radius = 0.05
+	bulb_mesh.height = 0.1
+	bulb.mesh = bulb_mesh
+	var bulb_mat := INTERIOR_PREP.flat(Color(1.0, 0.95, 0.8))
+	bulb_mat.emission_enabled = true
+	bulb_mat.emission = Color(1.0, 0.9, 0.7)
+	bulb.material_override = bulb_mat
+	bulb.position = Vector3(0, h - 0.25, 0.2)
+	r.add_child(bulb)
 	var title = Label3D.new()
 	title.text = "WC\nZENY  MUZI"
 	title.position = Vector3(0.0, 2.18, -d * 0.5 + 0.12)
@@ -1191,47 +1128,64 @@ func _build_toilet_layout() -> void:
 ## with curtains, drains, a bench with hooks on the left, sinks on the right, the
 ## boiler pipe along the ceiling.
 func _build_wash_layout(shower_mode: bool, title_override: String = "") -> void:
-	var k = BUILDING_MODELS.new()
+	var K := INTERIOR_KIT
 	var w := 3.6
 	var d := 3.2
 	var h := 2.5
 	var r := _room_root
-	var tiles = k._camp("tiles_bathroom.png", Color(0.92, 0.94, 0.92), Vector3(1.4, 1.4, 1.0))
-	var planks = k._camp("planks_grey.png", Color(0.7, 0.82, 0.68), Vector3(3.0, 3.0, 1.0))
-	k._box(r, "Floor", Vector3(w, 0.1, d), Vector3(0, -0.05, 0), k._camp("tiles_bathroom.png", Color(0.66, 0.7, 0.72), Vector3(2.0, 2.0, 1.0)))
-	k._box(r, "Ceiling", Vector3(w, 0.1, d), Vector3(0, h, 0), k._camp("concrete.png", Color(0.7, 0.7, 0.68)))
-	k._box(r, "WallBack", Vector3(w, h, 0.1), Vector3(0, h * 0.5, -d * 0.5), tiles)
-	k._box(r, "WallFront", Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5), planks)
-	k._box(r, "WallLeft", Vector3(0.1, h, d), Vector3(-w * 0.5, h * 0.5, 0), planks)
-	k._box(r, "WallRight", Vector3(0.1, h, d), Vector3(w * 0.5, h * 0.5, 0), tiles)
-	var white = k._flat(Color(0.88, 0.88, 0.84))
+	# Tiled cubicles at the back, oil-painted walls, a tiled floor, the boiler pipe.
+	var shell := K.room(r, Vector3(w, h, d), "tiles_green", ["tiles_bathroom", "oil_wall", "oil_wall", "tiles_bathroom"], "concrete", 0.9, 0.7)
+	for key in ["front", "left"]:
+		(shell[key] as MeshInstance3D).material_override = K.surface("oil_wall", h)
+	var tiles := K.surface("tiles_bathroom", 0.9)
 	for i in 3:
 		var cx := -1.15 + i * 1.15
 		if i < 2:
-			k._box(r, "Partition", Vector3(0.05, 2.0, 1.1), Vector3(cx + 0.575, 1.0, -d * 0.5 + 0.55), tiles)
+			K.slab(r, Vector3(0.05, 2.0, 1.1), Vector3(cx + 0.575, 1.0, -d * 0.5 + 0.55), tiles, "Partition")
 		if shower_mode:
-			k._cyl(r, "ShowerPipe", 0.02, 0.9, Vector3(cx, 1.75, -d * 0.5 + 0.08), k._metal())
-			k._cyl(r, "ShowerHead", 0.07, 0.05, Vector3(cx, 2.2, -d * 0.5 + 0.2), k._metal(), Vector3(0.5, 0, 0))
-			k._box(r, "Drain", Vector3(0.2, 0.01, 0.2), Vector3(cx, 0.005, -1.0), k._flat(Color(0.2, 0.22, 0.24)))
-			# A curtain pulled half across, faded.
-			var curtain = k._box(r, "Curtain", Vector3(0.3, 1.6, 0.03), Vector3(cx + 0.4, 1.15, -d * 0.5 + 1.1), k._flat([Color(0.5, 0.7, 0.62), Color(0.7, 0.6, 0.5), Color(0.56, 0.62, 0.74)][i]))
+			K.prop(r, "duckboard", Vector3(cx, 0.0, -1.05))
+			var pipe := K.slab(r, Vector3(0.04, 1.0, 0.04), Vector3(cx + 0.25, 1.7, -d * 0.5 + 0.06), K.surface("galvanized", 0.3), "ShowerPipe")
+			pipe.name = "ShowerPipe"
+			var head := MeshInstance3D.new()
+			var cone := CylinderMesh.new()
+			cone.top_radius = 0.03
+			cone.bottom_radius = 0.08
+			cone.height = 0.08
+			head.mesh = cone
+			head.material_override = K.surface("galvanized", 0.3)
+			head.position = Vector3(cx + 0.25, 2.18, -d * 0.5 + 0.16)
+			head.rotation.x = 0.6
+			r.add_child(head)
+			var curtain := K.slab(r, Vector3(0.36, 1.6, 0.02), Vector3(cx + 0.36, 1.15, -d * 0.5 + 1.1), K.surface("curtain_floral", 0.9), "Curtain")
 			curtain.rotation.y = 0.08
 		else:
-			k._box(r, "Basin", Vector3(0.5, 0.15, 0.4), Vector3(cx, 0.86, -d * 0.5 + 0.25), white)
-		k._cyl(r, "CurtainRail", 0.012, 1.1, Vector3(cx, 2.0, -d * 0.5 + 1.1), k._metal(), Vector3(0, 0, PI * 0.5))
-	# The bench and hooks on the left, sinks and a mirror on the right.
-	k._box(r, "Bench", Vector3(0.4, 0.06, 1.6), Vector3(-w * 0.5 + 0.3, 0.45, 0.6), k._wood())
-	for z: float in [0.0, 1.2]:
-		k._box(r, "BenchLeg", Vector3(0.36, 0.42, 0.06), Vector3(-w * 0.5 + 0.3, 0.21, z), k._wood())
-	for i in 4:
-		k._box(r, "Hook", Vector3(0.06, 0.04, 0.04), Vector3(-w * 0.5 + 0.08, 1.6, 0.0 + i * 0.4), k._metal())
-	k._box(r, "Towel", Vector3(0.03, 0.5, 0.3), Vector3(-w * 0.5 + 0.1, 1.33, 0.4), k._flat(Color(0.72, 0.32, 0.26)))
-	for i in 2:
-		k._box(r, "Sink", Vector3(0.4, 0.14, 0.5), Vector3(w * 0.5 - 0.25, 0.86, 0.1 + i * 0.75), white)
-		k._box(r, "Tap", Vector3(0.1, 0.12, 0.04), Vector3(w * 0.5 - 0.06, 1.02, 0.1 + i * 0.75), k._metal())
-	k._box(r, "Mirror", Vector3(0.03, 0.55, 1.2), Vector3(w * 0.5 - 0.06, 1.5, 0.48), k._flat(Color(0.5, 0.56, 0.6)))
-	k._cyl(r, "BoilerPipe", 0.04, w, Vector3(0, h - 0.18, -d * 0.5 + 0.25), k._psx_mat(Color(0.6, 0.44, 0.3), "metal"), Vector3(0, 0, PI * 0.5))
-	k._cyl(r, "Boiler", 0.25, 0.8, Vector3(w * 0.5 - 0.35, h - 0.55, -0.6), white, Vector3(0, 0, 0))
+			K.prop(r, "sink_pedestal", Vector3(cx, 0.0, -d * 0.5 + 0.25))
+		K.slab(r, Vector3(1.1, 0.025, 0.025), Vector3(cx, 2.0, -d * 0.5 + 1.1), K.surface("galvanized", 0.3), "CurtainRail")
+	# The bench and hooks on the left, the wash trough and a mirror on the right.
+	K.prop(r, "bench_slatted", Vector3(-w * 0.5 + 0.3, 0.0, 0.55), 90.0)
+	K.prop(r, "coat_hooks", Vector3(-w * 0.5 + 0.03, 1.55, 0.55), 90.0)
+	K.slab(r, Vector3(0.03, 0.5, 0.3), Vector3(-w * 0.5 + 0.1, 1.33, 0.4), K.surface("blanket_grey", 0.4, Color(1.0, 0.55, 0.5)), "Towel")
+	K.prop(r, "wash_trough", Vector3(w * 0.5 - 0.24, 0.0, 0.45), -90.0)
+	K.prop(r, "mirror_frame", Vector3(w * 0.5 - 0.05, 1.3, 0.45), -90.0, 1.2)
+	var boiler_pipe := MeshInstance3D.new()
+	var bp := CylinderMesh.new()
+	bp.top_radius = 0.04
+	bp.bottom_radius = 0.04
+	bp.height = w
+	boiler_pipe.mesh = bp
+	boiler_pipe.material_override = K.surface("galvanized", 0.5, Color(1.0, 0.8, 0.6))
+	boiler_pipe.position = Vector3(0, h - 0.18, -d * 0.5 + 0.25)
+	boiler_pipe.rotation.z = PI * 0.5
+	r.add_child(boiler_pipe)
+	var boiler := MeshInstance3D.new()
+	var bc := CylinderMesh.new()
+	bc.top_radius = 0.25
+	bc.bottom_radius = 0.25
+	bc.height = 0.8
+	boiler.mesh = bc
+	boiler.material_override = K.surface("enamel_white", 0.5)
+	boiler.position = Vector3(w * 0.5 - 0.35, h - 0.55, -0.6)
+	r.add_child(boiler)
 	var title = Label3D.new()
 	var default_title = "SPRCHY - showers" if shower_mode else "UMYVARNA - washroom"
 	title.text = title_override if title_override != "" else default_title
@@ -1261,14 +1215,10 @@ func _build_sewer_layout() -> void:
 	var d = 4.8
 	var h = 2.6
 
-	_add_box("SewerFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.28, 0.30, 0.30), "service_sewer_floor")
-	_add_box("SewerChannel521", Vector3(-1.02, 0.035, 0.0), Vector3(0.72, 0.06, d - 0.56), Color(0.30, 0.32, 0.34), "service_sewer_channel_521")
-	_add_box("SewerChannel522", Vector3(1.02, 0.035, 0.0), Vector3(0.72, 0.06, d - 0.56), Color(0.32, 0.34, 0.36), "service_sewer_channel_522")
-	_add_box("SewerCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.34, 0.36, 0.36), "service_sewer_ceiling")
-	_add_box("SewerWallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.34, 0.36, 0.36), "service_sewer_wall")
-	_add_box("SewerWallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.34, 0.36, 0.36), "service_sewer_wall")
-	_add_box("SewerWallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.32, 0.34, 0.34), "service_sewer_wall")
-	_add_box("SewerWallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.32, 0.34, 0.34), "service_sewer_wall")
+	var K := INTERIOR_KIT
+	K.room(_room_root, Vector3(w, h, d), "concrete", "pipe_concrete", "concrete", 1.2, 1.2, 0.05)
+	for x: float in [-1.02, 1.02]:
+		K.slab(_room_root, Vector3(0.72, 0.06, d - 0.56), Vector3(x, 0.035, 0.0), K.surface("lake_water", 0.8, Color(0.45, 0.5, 0.4)), "SewerChannel")
 
 	var title = Label3D.new()
 	title.text = "SEWER"
@@ -1289,16 +1239,13 @@ func _build_generator_layout() -> void:
 	var d = 4.0
 	var h = 2.8
 
-	_add_box("GenFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.24, 0.22, 0.20), "service_sewer_floor")
-	_add_box("GenCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.34, 0.32, 0.30), "utility_exterior_wall")
-	_add_box("GenWallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.36, 0.34, 0.32), "utility_exterior_wall")
-	_add_box("GenWallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.36, 0.34, 0.32), "utility_exterior_wall")
-	_add_box("GenWallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.34, 0.32, 0.30), "utility_power_side_610")
-	_add_box("GenWallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.34, 0.32, 0.30), "utility_power_back_609")
-
-	# Internal machinery
-	_add_box("GenCore", Vector3(0.0, 0.8, 0.0), Vector3(1.8, 1.6, 1.8), Color(0.4, 0.4, 0.4), "service_basement_machine")
-	_add_box("GenPipes", Vector3(0.0, 1.8, -0.6), Vector3(1.2, 0.4, 0.4), Color(0.3, 0.3, 0.3), "service_basement_machine")
+	# Concrete and brick, the diesel set on its skids, drums of fuel, a pipe to the roof.
+	var K := INTERIOR_KIT
+	K.room(_room_root, Vector3(w, h, d), "concrete", "brick_red", "concrete", 1.0, 1.2, 0.05)
+	K.prop(_room_root, "generator", Vector3(0.0, 0.05, -0.6))
+	K.prop(_room_root, "oil_drum", Vector3(-1.55, 0.05, -1.5))
+	K.prop(_room_root, "oil_drum", Vector3(-1.5, 0.05, 1.3), 30.0)
+	K.slab(_room_root, Vector3(0.1, 1.4, 0.1), Vector3(-0.9, 2.1, -0.35), K.surface("galvanized", 0.5), "GenPipes")
 
 	var title = Label3D.new()
 	title.text = "GENERATOR"

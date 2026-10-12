@@ -32,6 +32,8 @@ static func surface(tex: String, metres: float = 1.0, tint: Color = Color(1, 1, 
 		return _surfaces[key]
 	var m := _base(tint)
 	var path := TEX + tex + ".png"
+	if not ResourceLoader.exists(path):
+		path = "res://assets/textury/pipes/" + tex + ".png"
 	if ResourceLoader.exists(path):
 		m.albedo_texture = load(path)
 	m.uv1_triplanar = true
@@ -68,7 +70,7 @@ static func slab(parent: Node3D, size: Vector3, pos: Vector3, mat: Material, nam
 ## the origin of `parent`. `wall` may be one texture or an Array of four (back, front,
 ## left, right). Returns {floor, ceiling, back, front, left, right}.
 static func room(parent: Node3D, size: Vector3, floor_tex: String, wall, ceiling_tex: String,
-		wall_metres: float = 1.2, floor_metres: float = 1.0) -> Dictionary:
+		wall_metres: float = 1.2, floor_metres: float = 1.0, y0: float = 0.0) -> Dictionary:
 	var w := size.x
 	var h := size.y
 	var d := size.z
@@ -81,7 +83,21 @@ static func room(parent: Node3D, size: Vector3, floor_tex: String, wall, ceiling
 	out["front"] = slab(parent, Vector3(w, h, t), Vector3(0, h * 0.5, d * 0.5 + t * 0.5), surface(str(walls[1]), wall_metres), "WallFront")
 	out["left"] = slab(parent, Vector3(t, h, d), Vector3(-w * 0.5 - t * 0.5, h * 0.5, 0), surface(str(walls[2]), wall_metres), "WallLeft")
 	out["right"] = slab(parent, Vector3(t, h, d), Vector3(w * 0.5 + t * 0.5, h * 0.5, 0), surface(str(walls[3]), wall_metres), "WallRight")
+	if y0 != 0.0:
+		for key in out.keys():
+			(out[key] as Node3D).position.y += y0
 	return out
+
+
+## Wood skirting along the four walls of a `size` room with its floor at `y0`.
+static func skirting(parent: Node3D, size: Vector3, tex: String = "planks_dark", y0: float = 0.0) -> void:
+	var m := surface(tex, 0.6)
+	var w := size.x
+	var d := size.z
+	slab(parent, Vector3(w, 0.1, 0.03), Vector3(0, y0 + 0.05, -d * 0.5 + 0.015), m, "Skirting")
+	slab(parent, Vector3(w, 0.1, 0.03), Vector3(0, y0 + 0.05, d * 0.5 - 0.015), m, "Skirting")
+	slab(parent, Vector3(0.03, 0.1, d), Vector3(-w * 0.5 + 0.015, y0 + 0.05, 0), m, "Skirting")
+	slab(parent, Vector3(0.03, 0.1, d), Vector3(w * 0.5 - 0.015, y0 + 0.05, 0), m, "Skirting")
 
 
 ## A wall painted the Czech institutional way (oil_wall: green dado, red line, whitewash):

@@ -1,6 +1,23 @@
 extends CanvasLayer
 
 const INTERIOR_BARREL_SHADER = preload("res://materials/interior_barrel_post.gdshader")
+const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
+## Reception surfaces by node name (exact names first, then prefixes): [camp texture,
+## metres per repeat]. "" = not built (replaced by a prop or a picture, see _build_room).
+const RECEPTION_EXACT := {
+	"Floor": ["parquet", 0.9], "Ceiling": ["ceiling_board", 1.0], "CeilingTrim": ["planks_dark", 0.6],
+	"Desk": ["veneer_dark", 0.7], "DeskTop": ["veneer_dark", 0.7], "DeskDrawerA": ["veneer_dark", 0.5], "DeskDrawerB": ["veneer_dark", 0.5],
+	"Counter": ["pub_panel", 1.0], "CounterTop": ["veneer_dark", 0.8],
+	"ShelfA": ["knotty_pine", 0.5], "ShelfB": ["knotty_pine", 0.5],
+	"BackDoorFrame": ["planks_dark", 0.6], "DoorFrame": ["planks_dark", 0.6],
+	"BackDoorLeaf": ["door_wood", 2.04], "DoorLeaf": ["door_wood", 2.02],
+	"WindowSill": ["knotty_pine", 0.5],
+}
+const RECEPTION_PREFIX := {
+	"FloorTile": "", "FloorScatter": "", "FilingCab": "", "FilingDrawer": "", "FilingHandle": "",
+	"PosterFrame": "", "PosterPaper": "", "PosterTear": "", "PosterHang": "",
+	"Wall": ["knotty_pine", 1.2], "WindowFrame": ["knotty_pine", 0.5], "WindowMullion": ["knotty_pine", 0.5],
+}
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const CRT_UI_SCENE = preload("res://scripts/os98/os_shell.gd")
@@ -1032,6 +1049,15 @@ func _build_room() -> void:
 	_add_box(_room_root, "DoorFrame",  Vector3(-2.48, 1.10, 1.28), Vector3(0.06, 2.20, 1.12), Color(0.20, 0.14, 0.10))
 	_add_box(_room_root, "DoorLeaf",   Vector3(-2.43, 1.05, 1.28), Vector3(0.06, 2.02, 0.98), Color(0.32, 0.22, 0.14))
 	_add_box(_room_root, "DoorHandle", Vector3(-2.36, 0.92, 0.84), Vector3(0.04, 0.06, 0.08), Color(0.74, 0.62, 0.40))
+
+	# ── PROPS AND PICTURES (tools/blender, assets/textury/camp) ───────────────
+	var K := INTERIOR_KIT
+	K.prop(_room_root, "filing_cabinet", Vector3(2.2, 0.05, -1.1), -90.0)
+	K.prop(_room_root, "key_board", Vector3(-2.47, 1.2, 0.05), 90.0)
+	K.picture(_room_root, "poster_mushrooms", Vector2(0.44, 0.58), Vector3(-2.47, 1.56, -0.9), 90.0, "PosterA")
+	K.picture(_room_root, "poster_lake", Vector2(0.4, 0.53), Vector3(2.47, 1.6, -0.4), -90.0, "PosterB")
+	K.picture(_room_root, "picture_deer", Vector2(0.48, 0.64), Vector3(-1.26, 1.56, 2.47), 180.0, "PosterC")
+	K.slab(_room_root, Vector3(1.6, 0.012, 1.1), Vector3(-0.2, 0.056, -0.2), K.surface("rug", 1.6), "Rug")
 
 	# ── LIGHT SWITCH + DOOR HINT ──────────────────────────────────────────────
 	_setup_office_light_system()
@@ -2566,6 +2592,18 @@ func _make_psx_material(base_color: Color, _snap: float = 18.0, _steps: float = 
 
 
 func _add_box(parent: Node, name_str: String, pos: Vector3, size: Vector3, color: Color, use_triplanar: bool = false) -> void:
+	var spec = RECEPTION_EXACT.get(name_str, null)
+	if spec == null:
+		for prefix in RECEPTION_PREFIX.keys():
+			if name_str.begins_with(prefix):
+				spec = RECEPTION_PREFIX[prefix]
+				break
+	if spec is String:
+		return
+	if spec is Array:
+		var kit_mesh := INTERIOR_KIT.slab(parent, size, pos, INTERIOR_KIT.surface(str(spec[0]), float(spec[1])), name_str)
+		kit_mesh.material_override = (kit_mesh.material_override as StandardMaterial3D).duplicate()
+		return
 	var mesh_inst = MeshInstance3D.new()
 	mesh_inst.name = name_str
 	var box = BoxMesh.new()
@@ -2574,7 +2612,9 @@ func _add_box(parent: Node, name_str: String, pos: Vector3, size: Vector3, color
 	mesh_inst.position = pos
 	var uv_scale = Vector3(max(1.0, size.x * 1.5), 1.0, max(1.0, size.z * 1.5))
 	var category = _category_for_node(name_str, color)
-	var mat = _make_psx_material(color, 18.0, 5.0, 0.01, category)
+	# Small things not in the surface maps get their own flat colour (Build-style sprites
+	# of a single shade) rather than a random texture from the old pack.
+	var mat = _make_psx_material(color, 18.0, 5.0, 0.01, "plastic" if category != "office_wall" else category)
 	var base_mat := mat as BaseMaterial3D
 	if base_mat != null:
 		if use_triplanar:

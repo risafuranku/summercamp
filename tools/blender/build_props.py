@@ -34,7 +34,7 @@ def _base_materials():
         "galv": K.mat("galv", "galvanized.png", texel=0.6),
         "mattress": K.mat("mattress", "mattress.png", texel=0.9),
         "blanket": K.mat("blanket", "blanket_grey.png", texel=0.8),
-        "seat": K.mat("seat", "knotty_pine.png", (0.85, 0.62, 0.42), texel=0.4),
+        "seat": K.mat("seat", "planks_grey.png", (0.62, 0.46, 0.3), texel=0.4),
         "glass": K.mat("glass", None, (0.66, 0.74, 0.78)),
         "screen": K.mat("screen", None, (0.16, 0.2, 0.2)),
         "black": K.mat("black", None, (0.05, 0.05, 0.05)),
