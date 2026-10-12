@@ -77,7 +77,7 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 
 ### 4. Campaign: survive one week
 - [ ] Scripted events across days 1-7 that escalate (story mails exist; add events in the camp)
-- [ ] An ending on day 8 (Vera returns): what a good week means
+- [x] An ending on day 8 (Vera returns): what a good week means (DESIGN §5d, week_check)
 - [ ] Replayability: randomised offers, events, enemy mixes
 
 ### 5. Sandbox mode

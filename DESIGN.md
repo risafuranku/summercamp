@@ -194,6 +194,25 @@ Builder (`scripts/day_events.gd`).
 
 Sorted ones give a little back (the lost boy's parents tip). Night ends the day's chances.
 
+## 5d. The end of the week
+
+Vera's last mail (day 7, 20:10): "Leave the books on the desk and the terminal on. I will
+count them myself." On day 8 the pager says her train gets in at eight, and at 08:00 the
+game stops on THE BOOKS (`scripts/week_ledger.gd`, `scripts/ui/week_report_screen.gd`):
+
+- **The ledger.** Takings against the starting till; guests hosted, average stars, parties
+  who gave up at the barrier or stormed off; the seven nights, how many something came on
+  and what it was; how often you were hurt; night jobs left for the morning.
+- **The verdict.** A plain grade of money, reviews and nights: *good* ("the summer is
+  yours"), *fair* ("sleep more and accept less"), *poor* ("your bus is at ten").
+- **The count at breakfast.** If nothing ever came, the number in the book and at
+  breakfast agree ("I counted twice, because it is never right"). If anything came there
+  is one more at breakfast than in the book, "like when your uncle ran it"; if the
+  Antlered Man came, the extra one stood by the fence facing the office. The verdict
+  answers *how well*, the count answers *what you let in*.
+- **Then:** *Stay on* closes the week and the camp runs on with no end (Vera takes the noon
+  bus back to town: "You know the way."), or back to the main menu.
+
 ## 6. Upkeep
 
 Every building has a condition (0-100%) that drops daily by its `maintenance_decay`.
@@ -251,7 +270,7 @@ attractions.
 
 ## 11. Open questions
 
-1. Win condition: Vera returns on day 8. What does a "good" week look like, and what does
-   the ending say about what you let in?
+1. ~~Win condition~~: answered in §5d (the books on day 8). Still open: should a poor
+   week end the run outright instead of offering Stay on?
 2. How much may the terminal lie? (Section 2 rules apply: specific, never numeric.)
 3. The raccoon thing: tie it to waste (dumpsters overflowing) as a fifth threat?

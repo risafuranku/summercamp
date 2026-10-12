@@ -33,6 +33,16 @@ const SCENARIOS := {
 		["wait", 0.4], ["shot", "00_loading"],
 		["wait_menu"], ["wait", 2.5], ["shot", "01_menu"],
 	],
+	"weekend": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.5],
+		["eval", "_week_ledger.note_enemy('silent_man', 2)"], ["eval", "_week_ledger.note_enemy('tourist', 4)"], ["eval", "_week_ledger.note_enemy('silent_man', 5)"],
+		["eval", "_week_ledger.note_enemy('stalker', 5)"], ["eval", "_week_ledger.note_hit(20)"], ["eval", "_week_ledger.note_hit(14)"], ["eval", "_week_ledger.note_jobs_left(1)"],
+		["eval", "debug_jump_to(8, 6.9)"], ["wait", 0.5], ["shot", "w0_pager"],
+		["eval", "debug_jump_to(8, 8.01)"], ["wait", 1.5], ["shot", "w1_report"],
+		["eval", "_on_week_report_stay()"], ["wait", 1.0], ["shot", "w2_stayed"],
+		["eval", "[_week_ledger.closed, get_tree().paused]"],
+	],
 	"deskstart": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"],
 		["wait", 0.3], ["shot", "d0_desk_03s"], ["wait", 0.9], ["shot", "d1_desk_12s"], ["wait", 2.8], ["shot", "d2_desk_40s"],
