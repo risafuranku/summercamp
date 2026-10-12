@@ -9,7 +9,7 @@
 - [x] P1  Vera's checklist (quest tracker) visible while sitting at the PC
 - [x] P2  The barrier opens into the ground: fix the pivot/rotation
 - [x] P3  Manual check-in: guests wait at reception, the player checks them in; nobody walks through the reception walls
-- [ ] P4  Remodel ALL building exteriors and ALL interiors to match the Builder pixel art (keep textures/atmosphere); finish sports field, caravan
+- [x] P4  Remodel ALL building exteriors and ALL interiors to match the Builder pixel art (keep textures/atmosphere); finish sports field, caravan
 - [x] P5  Lamps can be placed on a path tile; the lamp snaps to the path edge
 - [x] P6  Whole game in English with Czech in-jokes (world market): sweep signs, UI, mail
 - [x] P7  Daytime is dead: more life outside (guests doing things, sounds, small events)

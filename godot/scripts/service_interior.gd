@@ -4,6 +4,7 @@ const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const MESS_RULES = preload("res://core/systems/mess_rules.gd")
+const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
 
 signal request_close
@@ -583,7 +584,7 @@ func _build_service_room(profile: String) -> void:
 		_restaurant_basement_root.name = "RestaurantBasement"
 		_room_root.add_child(_restaurant_basement_root)
 		# Restaurant dining now mirrors pub layout (pub is low-cost restaurant variant).
-		_build_pub_main_layout(_restaurant_dining_root, "DINING ROOM", "D > KITCHEN", "service_rest_booth_restaurant")
+		_build_restaurant_dining_layout(_restaurant_dining_root)
 		_build_restaurant_kitchen_layout(_restaurant_kitchen_root)
 		_build_restaurant_basement_layout(_restaurant_basement_root)
 		_set_restaurant_room(_restaurant_room, true)
@@ -627,15 +628,37 @@ func _build_restaurant_dining_layout(parent: Node3D) -> void:
 	_add_box("DiningCenterTableTop", Vector3(0.32, 0.82, 0.88), Vector3(1.04, 0.08, 0.78), Color(0.52, 0.40, 0.28), "service_rest_tabletop", parent)
 	_add_box("DiningFloorInlay", Vector3(0.30, 0.06, 0.88), Vector3(1.40, 0.01, 1.02), Color(0.48, 0.30, 0.26), "service_rest_booth", parent)
 
-	_add_box("DiningMenuBoard", Vector3(0.0, 1.98, -2.44), Vector3(1.90, 0.78, 0.04), Color(0.74, 0.66, 0.52), "service_rest_decor", parent)
+	var board := _add_box("DiningMenuBoard", Vector3(0.0, 1.9, -2.33), Vector3(2.0, 0.82, 0.04), Color(0.86, 0.82, 0.7), "service_rest_decor", parent)
+	var board_mat := StandardMaterial3D.new()
+	board_mat.albedo_color = Color(0.86, 0.82, 0.7)
+	board.material_override = board_mat
 	_add_box("DiningNeonStrip", Vector3(0.0, 2.52, -2.38), Vector3(1.40, 0.06, 0.06), Color(0.80, 0.72, 0.42), "service_rest_decor", parent)
 	_add_box("DiningPosterA", Vector3(-2.60, 1.56, -0.62), Vector3(0.04, 0.72, 0.96), Color(0.76, 0.68, 0.56), "service_rest_decor", parent)
 	_add_box("DiningPosterB", Vector3(2.60, 1.54, 0.76), Vector3(0.04, 0.82, 0.82), Color(0.76, 0.68, 0.56), "service_rest_decor", parent)
 
+	# Red-and-white tablecloths, and the menu in the old money.
+	var red := StandardMaterial3D.new()
+	red.albedo_color = Color(0.82, 0.18, 0.14)
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color(0.95, 0.94, 0.9)
+	for pos: Vector3 in [Vector3(-1.58, 0.87, -0.1), Vector3(-1.58, 0.87, 0.1), Vector3(0.32, 0.87, 0.88)]:
+		var cloth := _add_box("TableCloth", pos, Vector3(1.0, 0.02, 0.66), red.albedo_color, "service_rest_decor", parent)
+		cloth.material_override = red
+		for i in 3:
+			var sq := _add_box("Check", pos + Vector3(-0.33 + i * 0.33, 0.012, 0.0), Vector3(0.16, 0.005, 0.66), white.albedo_color, "service_rest_decor", parent)
+			sq.material_override = white
+	var menu := Label3D.new()
+	menu.text = "DNES VARIME / TODAY\nGoulash & dumplings .. 32 Kcs\nFried cheese ......... 28 Kcs\nPork, knedlo, zelo ... 35 Kcs\nBeer 10 .............. 6 Kcs\nKofola ............... 4 Kcs"
+	menu.position = Vector3(0.0, 1.9, -2.29)
+	menu.font_size = 18
+	menu.modulate = Color(0.12, 0.1, 0.08, 0.95)
+	menu.outline_size = 0
+	menu.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	parent.add_child(menu)
 	var title = Label3D.new()
 	title.text = "BUFET\ndiner"
-	title.position = Vector3(0.0, 2.16, -2.34)
-	title.font_size = 42
+	title.position = Vector3(0.0, 2.6, -2.30)
+	title.font_size = 30
 	title.modulate = Color(0.88, 0.80, 0.62, 0.92)
 	parent.add_child(title)
 	var nav_label = Label3D.new()
@@ -1044,15 +1067,14 @@ func _set_hygiene_room(room: String) -> void:
 		return
 	_active_subroom = room
 	if room == "left":
-		_interior_camera.position = Vector3(-1.2, 1.4, -0.2)
-		_interior_camera.rotation_degrees = Vector3(-4.0, 35.0, 0.0)
+		_interior_camera.position = Vector3(-0.95, 1.45, 0.6)
+		_interior_camera.rotation_degrees = Vector3(-14.0, 0.0, 0.0)
 	elif room == "right":
-		_interior_camera.position = Vector3(1.2, 1.4, -0.2)
-		_interior_camera.rotation_degrees = Vector3(-4.0, -35.0, 0.0)
+		_interior_camera.position = Vector3(0.95, 1.45, 0.6)
+		_interior_camera.rotation_degrees = Vector3(-14.0, 0.0, 0.0)
 	else:
-		# Center
-		_interior_camera.position = Vector3(0.0, 1.46, 0.52)
-		_interior_camera.rotation_degrees = Vector3(-7.0, 0.0, 0.0)
+		_interior_camera.position = Vector3(0.0, 1.5, 1.15)
+		_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 	_cam_base_rot = _interior_camera.rotation
 
 
@@ -1108,117 +1130,130 @@ func _sync_viewport_to_window() -> void:
 	)
 
 
-func _build_wash_layout(shower_mode: bool, title_override: String = "") -> void:
-	var w = 4.2
-	var d = 4.0
-	var h = 2.7
-
-	_add_box("Floor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.42, 0.48, 0.54), "service_wash_floor")
-	_add_box("Ceiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.72, 0.74, 0.78), "service_wash_wall")
-	_add_box("WallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.66, 0.72, 0.76), "service_wash_wall")
-	_add_box("WallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.66, 0.72, 0.76), "service_wash_wall")
-	var wl = _add_box("WallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.66, 0.72, 0.76), "service_wash_wall")
-	wl.rotation_degrees.y = 180
-	var wr = _add_box("WallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.66, 0.72, 0.76), "service_wash_wall")
-	wr.rotation_degrees.y = 180
-
-	_add_box("DividerA", Vector3(-0.54, 1.20, -0.42), Vector3(0.06, 2.0, 2.30), Color(0.72, 0.74, 0.78), "service_wash_wall")
-	_add_box("DividerB", Vector3(0.56, 1.20, -0.42), Vector3(0.06, 2.0, 2.30), Color(0.72, 0.74, 0.78), "service_wash_wall")
-
-	if shower_mode:
-		_add_box("ShowerPipeL", Vector3(-1.20, 1.86, -1.36), Vector3(0.06, 0.90, 0.06), Color(0.66, 0.70, 0.76), "service_wash_fixture")
-		_add_box("ShowerHeadL", Vector3(-1.20, 2.20, -1.20), Vector3(0.14, 0.06, 0.14), Color(0.72, 0.76, 0.82), "service_wash_fixture")
-		_add_box("ShowerDrainL", Vector3(-1.20, 0.06, -1.06), Vector3(0.30, 0.02, 0.30), Color(0.26, 0.30, 0.34), "service_wash_fixture")
-
-		_add_box("ShowerPipeR", Vector3(1.20, 1.86, -1.36), Vector3(0.06, 0.90, 0.06), Color(0.66, 0.70, 0.76), "service_wash_fixture")
-		_add_box("ShowerHeadR", Vector3(1.20, 2.20, -1.20), Vector3(0.14, 0.06, 0.14), Color(0.72, 0.76, 0.82), "service_wash_fixture")
-		_add_box("ShowerDrainR", Vector3(1.20, 0.06, -1.06), Vector3(0.30, 0.02, 0.30), Color(0.26, 0.30, 0.34), "service_wash_fixture")
-	else:
-		_add_box("StallDoorL", Vector3(-1.20, 1.00, -1.10), Vector3(0.76, 2.0, 0.04), Color(0.62, 0.66, 0.72), "service_wash_fixture")
-		_add_box("StallDoorR", Vector3(1.20, 1.00, -1.10), Vector3(0.76, 2.0, 0.04), Color(0.62, 0.66, 0.72), "service_wash_fixture")
-		_add_box("StallSeatL", Vector3(-1.20, 0.34, -1.52), Vector3(0.56, 0.50, 0.66), Color(0.70, 0.72, 0.76), "service_wash_fixture")
-		_add_box("StallSeatR", Vector3(1.20, 0.34, -1.52), Vector3(0.56, 0.50, 0.66), Color(0.70, 0.72, 0.76), "service_wash_fixture")
-
-	_add_box("SinkCounter", Vector3(0.0, 0.66, 1.26), Vector3(2.56, 0.76, 0.64), Color(0.70, 0.72, 0.76), "service_wash_fixture")
-	_add_box("SinkBasinL", Vector3(-0.76, 0.94, 1.26), Vector3(0.56, 0.16, 0.32), Color(0.82, 0.84, 0.88), "service_wash_fixture")
-	_add_box("SinkBasinR", Vector3(0.76, 0.94, 1.26), Vector3(0.56, 0.16, 0.32), Color(0.82, 0.84, 0.88), "service_wash_fixture")
-	_add_box("Mirror", Vector3(0.0, 1.74, 1.94), Vector3(1.90, 0.82, 0.04), Color(0.72, 0.78, 0.84), "service_wash_fixture")
-	_add_box("Bench", Vector3(0.0, 0.34, 0.22), Vector3(1.60, 0.26, 0.52), Color(0.58, 0.56, 0.52), "service_wash_fixture")
-
-	var title = Label3D.new()
-	var default_title = "SPRCHY\nshowers" if shower_mode else "UMYVARNA\nwashroom"
-	title.text = title_override if title_override != "" else default_title
-	title.position = Vector3(0.0, 2.20, -1.90)
-	title.font_size = 32
-	title.modulate = Color(0.90, 0.92, 0.96, 0.86)
-	_room_root.add_child(title)
-	
-	var nav_l = Label3D.new()
-	nav_l.text = "< A SHOWERS"
-	nav_l.position = Vector3(-1.4, 1.6, -0.8)
-	nav_l.rotation_degrees = Vector3(0, 45, 0)
-	nav_l.font_size = 18
-	nav_l.modulate = Color(1.0, 1.0, 1.0, 0.7)
-	_room_root.add_child(nav_l)
-	
-	var nav_r = Label3D.new()
-	nav_r.text = "SHOWERS D >"
-	nav_r.position = Vector3(1.4, 1.6, -0.8)
-	nav_r.rotation_degrees = Vector3(0, -45, 0)
-	nav_r.font_size = 18
-	nav_r.modulate = Color(1.0, 1.0, 1.0, 0.7)
-	_room_root.add_child(nav_r)
-
-
+## Inside the WC shack (hajzly in the Builder): grey planks, two stalls with their doors
+## open on white bowls, a tin urinal trough between them, a basin and a cracked mirror
+## on the left, the heart window on the right. Cleaning spots: MESS_RULES.BLOCK_SPOTS.
 func _build_toilet_layout() -> void:
-	var w = 4.4
-	var d = 3.8
-	var h = 2.6
-
-	_add_box("ToiletFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.34, 0.34, 0.32), "service_toilet_floor")
-	_add_box("ToiletCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.44, 0.42, 0.38), "service_toilet_ceiling")
-	_add_box("ToiletWallBack", Vector3(0.0, h * 0.5, -d * 0.5), Vector3(w, h, 0.1), Color(0.52, 0.50, 0.44), "service_toilet_wall")
-	_add_box("ToiletWallFront", Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.1), Color(0.52, 0.50, 0.44), "service_toilet_wall")
-	var wl = _add_box("ToiletWallLeft", Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.50, 0.48, 0.42), "service_toilet_wall")
-	wl.rotation_degrees.y = 180
-	var wr = _add_box("ToiletWallRight", Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.1, h, d), Color(0.50, 0.48, 0.42), "service_toilet_wall")
-	wr.rotation_degrees.y = 180
-
-	_add_box("ToiletStallDividerA", Vector3(-0.64, 1.12, -0.52), Vector3(0.08, 2.0, 2.06), Color(0.56, 0.54, 0.48), "service_toilet_wall")
-	_add_box("ToiletStallDividerB", Vector3(0.64, 1.12, -0.52), Vector3(0.08, 2.0, 2.06), Color(0.56, 0.54, 0.48), "service_toilet_wall")
-	_add_box("ToiletDoorL", Vector3(-1.34, 0.98, -1.36), Vector3(0.70, 1.86, 0.04), Color(0.30, 0.28, 0.24), "service_toilet_fixture")
-	_add_box("ToiletDoorR", Vector3(1.34, 0.98, -1.36), Vector3(0.70, 1.86, 0.04), Color(0.30, 0.28, 0.24), "service_toilet_fixture")
-	_add_box("ToiletSeatL", Vector3(-1.34, 0.34, -1.74), Vector3(0.54, 0.52, 0.62), Color(0.66, 0.66, 0.62), "service_toilet_fixture")
-	_add_box("ToiletSeatR", Vector3(1.34, 0.34, -1.74), Vector3(0.54, 0.52, 0.62), Color(0.66, 0.66, 0.62), "service_toilet_fixture")
-	_add_box("ToiletUrinalA", Vector3(-0.12, 0.88, -1.72), Vector3(0.32, 0.96, 0.28), Color(0.76, 0.74, 0.66), "service_toilet_fixture")
-	_add_box("ToiletUrinalB", Vector3(0.12, 0.88, -1.72), Vector3(0.32, 0.96, 0.28), Color(0.76, 0.74, 0.66), "service_toilet_fixture")
-	_add_box("ToiletSinkCounter", Vector3(0.0, 0.64, 1.08), Vector3(2.52, 0.72, 0.62), Color(0.58, 0.56, 0.50), "service_toilet_fixture")
-	_add_box("ToiletMirror", Vector3(0.0, 1.72, 1.82), Vector3(1.92, 0.72, 0.04), Color(0.58, 0.64, 0.66), "service_toilet_fixture")
-	_add_box("ToiletDrainA", Vector3(-1.30, 0.06, -0.20), Vector3(0.28, 0.02, 0.28), Color(0.24, 0.24, 0.22), "service_toilet_fixture")
-	_add_box("ToiletDrainB", Vector3(1.30, 0.06, -0.20), Vector3(0.28, 0.02, 0.28), Color(0.24, 0.24, 0.22), "service_toilet_fixture")
-
+	var k = BUILDING_MODELS.new()
+	var w := 3.6
+	var d := 3.2
+	var h := 2.4
+	var r := _room_root
+	var planks = k._camp("planks_grey.png", Color(0.86, 0.84, 0.78), Vector3(3.0, 3.0, 1.0))
+	var floor_mat = k._camp("concrete.png", Color(0.62, 0.6, 0.56), Vector3(1.2, 1.2, 1.0))
+	k._box(r, "ToiletFloor", Vector3(w, 0.1, d), Vector3(0, -0.05, 0), floor_mat)
+	k._box(r, "ToiletCeiling", Vector3(w, 0.1, d), Vector3(0, h, 0), k._camp("planks_dark.png", Color(0.7, 0.64, 0.56)))
+	k._box(r, "ToiletWallBack", Vector3(w, h, 0.1), Vector3(0, h * 0.5, -d * 0.5), planks)
+	k._box(r, "ToiletWallFront", Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5), planks)
+	k._box(r, "ToiletWallLeft", Vector3(0.1, h, d), Vector3(-w * 0.5, h * 0.5, 0), planks)
+	k._box(r, "ToiletWallRight", Vector3(0.1, h, d), Vector3(w * 0.5, h * 0.5, 0), planks)
+	# Two stalls against the back wall.
+	var white = k._flat(Color(0.9, 0.9, 0.86))
+	var door = k._camp("door_wood.png", Color(0.8, 0.74, 0.64))
+	for side: float in [-1.0, 1.0]:
+		var cx := side * 0.95
+		k._box(r, "StallWall", Vector3(0.05, 2.0, 1.1), Vector3(cx - side * 0.62, 1.0, -d * 0.5 + 0.55), planks)
+		k._box(r, "StallWallOuter", Vector3(0.05, 2.0, 1.1), Vector3(cx + side * 0.62, 1.0, -d * 0.5 + 0.55), planks)
+		k._box(r, "Bowl", Vector3(0.42, 0.42, 0.55), Vector3(cx, 0.21, -d * 0.5 + 0.38), white)
+		k._box(r, "Seat", Vector3(0.44, 0.04, 0.5), Vector3(cx, 0.44, -d * 0.5 + 0.4), k._flat(Color(0.3, 0.22, 0.14)))
+		k._box(r, "Cistern", Vector3(0.4, 0.3, 0.18), Vector3(cx, 1.7, -d * 0.5 + 0.12), white)
+		k._cyl(r, "Chain", 0.01, 0.5, Vector3(cx + 0.18, 1.35, -d * 0.5 + 0.2), k._metal())
+		# Torn newspaper squares on a nail: the camp's toilet roll.
+		k._box(r, "Newspaper", Vector3(0.16, 0.2, 0.02), Vector3(cx - side * 0.5, 0.95, -d * 0.5 + 0.07), k._flat(Color(0.82, 0.8, 0.72)))
+		# The door stands open, flat against the outer partition.
+		k._box(r, "StallDoor", Vector3(0.05, 1.85, 0.75), Vector3(cx + side * 0.58, 0.98, -d * 0.5 + 1.1 + 0.38), door)
+	# The urinal trough and its pipe.
+	k._box(r, "Trough", Vector3(0.6, 0.12, 0.25), Vector3(0, 0.62, -d * 0.5 + 0.18), k._metal())
+	k._box(r, "TroughBack", Vector3(0.6, 0.7, 0.03), Vector3(0, 0.95, -d * 0.5 + 0.06), k._metal())
+	k._cyl(r, "Pipe", 0.025, 1.4, Vector3(0, 1.75, -d * 0.5 + 0.08), k._metal(), Vector3(0, 0, PI * 0.5))
+	# Basin, mirror, soap on the left wall.
+	k._box(r, "Basin", Vector3(0.36, 0.14, 0.5), Vector3(-w * 0.5 + 0.22, 0.86, 0.3), white)
+	k._box(r, "Mirror", Vector3(0.03, 0.5, 0.42), Vector3(-w * 0.5 + 0.07, 1.45, 0.3), k._flat(Color(0.5, 0.56, 0.6)))
+	k._box(r, "MirrorCrack", Vector3(0.035, 0.42, 0.02), Vector3(-w * 0.5 + 0.075, 1.45, 0.26), k._flat(Color(0.2, 0.22, 0.24))).rotation.x = 0.6
+	k._box(r, "Soap", Vector3(0.06, 0.04, 0.1), Vector3(-w * 0.5 + 0.22, 0.95, 0.5), k._flat(Color(0.86, 0.7, 0.3)))
+	# The heart window on the right: a little daylight.
+	k._box(r, "HeartWindow", Vector3(0.04, 0.22, 0.22), Vector3(w * 0.5 - 0.04, 1.75, 0.0), k._flat(Color(0.9, 0.92, 0.8))).rotation.x = PI * 0.25
+	k._cyl(r, "Bucket", 0.16, 0.3, Vector3(w * 0.5 - 0.3, 0.15, 0.9), k._flat(Color(0.32, 0.46, 0.38)))
+	k._cyl(r, "Bulb", 0.06, 0.12, Vector3(0, h - 0.25, 0.2), k._flat(Color(1.0, 0.96, 0.8)))
 	var title = Label3D.new()
 	title.text = "WC\nZENY  MUZI"
-	title.position = Vector3(0.0, 2.12, -1.76)
-	title.font_size = 34
-	title.modulate = Color(0.82, 0.86, 0.76, 0.88)
-	_room_root.add_child(title)
+	title.position = Vector3(0.0, 2.18, -d * 0.5 + 0.12)
+	title.outline_size = 0
+	title.font_size = 26
+	title.modulate = Color(0.2, 0.18, 0.14, 0.9)
+	r.add_child(title)
+	_hygiene_nav(r, "< A STALL", "STALL D >")
+	_interior_camera.position = Vector3(0.0, 1.5, 1.15)
+	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 
-	var nav_l = Label3D.new()
-	nav_l.text = "< A STALLS"
-	nav_l.position = Vector3(-1.4, 1.6, -0.8)
-	nav_l.rotation_degrees = Vector3(0, 45, 0)
-	nav_l.font_size = 18
-	nav_l.modulate = Color(1.0, 1.0, 1.0, 0.7)
-	_room_root.add_child(nav_l)
-	
-	var nav_r = Label3D.new()
-	nav_r.text = "STALLS D >"
-	nav_r.position = Vector3(1.4, 1.6, -0.8)
-	nav_r.rotation_degrees = Vector3(0, -45, 0)
-	nav_r.font_size = 18
-	nav_r.modulate = Color(1.0, 1.0, 1.0, 0.7)
-	_room_root.add_child(nav_r)
+
+## Inside the shower block (sprchy in the Builder): three tiled cubicles at the back
+## with curtains, drains, a bench with hooks on the left, sinks on the right, the
+## boiler pipe along the ceiling.
+func _build_wash_layout(shower_mode: bool, title_override: String = "") -> void:
+	var k = BUILDING_MODELS.new()
+	var w := 3.6
+	var d := 3.2
+	var h := 2.5
+	var r := _room_root
+	var tiles = k._camp("tiles_bathroom.png", Color(0.92, 0.94, 0.92), Vector3(1.4, 1.4, 1.0))
+	var planks = k._camp("planks_grey.png", Color(0.7, 0.82, 0.68), Vector3(3.0, 3.0, 1.0))
+	k._box(r, "Floor", Vector3(w, 0.1, d), Vector3(0, -0.05, 0), k._camp("tiles_bathroom.png", Color(0.66, 0.7, 0.72), Vector3(2.0, 2.0, 1.0)))
+	k._box(r, "Ceiling", Vector3(w, 0.1, d), Vector3(0, h, 0), k._camp("concrete.png", Color(0.7, 0.7, 0.68)))
+	k._box(r, "WallBack", Vector3(w, h, 0.1), Vector3(0, h * 0.5, -d * 0.5), tiles)
+	k._box(r, "WallFront", Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5), planks)
+	k._box(r, "WallLeft", Vector3(0.1, h, d), Vector3(-w * 0.5, h * 0.5, 0), planks)
+	k._box(r, "WallRight", Vector3(0.1, h, d), Vector3(w * 0.5, h * 0.5, 0), tiles)
+	var white = k._flat(Color(0.88, 0.88, 0.84))
+	for i in 3:
+		var cx := -1.15 + i * 1.15
+		if i < 2:
+			k._box(r, "Partition", Vector3(0.05, 2.0, 1.1), Vector3(cx + 0.575, 1.0, -d * 0.5 + 0.55), tiles)
+		if shower_mode:
+			k._cyl(r, "ShowerPipe", 0.02, 0.9, Vector3(cx, 1.75, -d * 0.5 + 0.08), k._metal())
+			k._cyl(r, "ShowerHead", 0.07, 0.05, Vector3(cx, 2.2, -d * 0.5 + 0.2), k._metal(), Vector3(0.5, 0, 0))
+			k._box(r, "Drain", Vector3(0.2, 0.01, 0.2), Vector3(cx, 0.005, -1.0), k._flat(Color(0.2, 0.22, 0.24)))
+			# A curtain pulled half across, faded.
+			var curtain = k._box(r, "Curtain", Vector3(0.3, 1.6, 0.03), Vector3(cx + 0.4, 1.15, -d * 0.5 + 1.1), k._flat([Color(0.5, 0.7, 0.62), Color(0.7, 0.6, 0.5), Color(0.56, 0.62, 0.74)][i]))
+			curtain.rotation.y = 0.08
+		else:
+			k._box(r, "Basin", Vector3(0.5, 0.15, 0.4), Vector3(cx, 0.86, -d * 0.5 + 0.25), white)
+		k._cyl(r, "CurtainRail", 0.012, 1.1, Vector3(cx, 2.0, -d * 0.5 + 1.1), k._metal(), Vector3(0, 0, PI * 0.5))
+	# The bench and hooks on the left, sinks and a mirror on the right.
+	k._box(r, "Bench", Vector3(0.4, 0.06, 1.6), Vector3(-w * 0.5 + 0.3, 0.45, 0.6), k._wood())
+	for z: float in [0.0, 1.2]:
+		k._box(r, "BenchLeg", Vector3(0.36, 0.42, 0.06), Vector3(-w * 0.5 + 0.3, 0.21, z), k._wood())
+	for i in 4:
+		k._box(r, "Hook", Vector3(0.06, 0.04, 0.04), Vector3(-w * 0.5 + 0.08, 1.6, 0.0 + i * 0.4), k._metal())
+	k._box(r, "Towel", Vector3(0.03, 0.5, 0.3), Vector3(-w * 0.5 + 0.1, 1.33, 0.4), k._flat(Color(0.72, 0.32, 0.26)))
+	for i in 2:
+		k._box(r, "Sink", Vector3(0.4, 0.14, 0.5), Vector3(w * 0.5 - 0.25, 0.86, 0.1 + i * 0.75), white)
+		k._box(r, "Tap", Vector3(0.1, 0.12, 0.04), Vector3(w * 0.5 - 0.06, 1.02, 0.1 + i * 0.75), k._metal())
+	k._box(r, "Mirror", Vector3(0.03, 0.55, 1.2), Vector3(w * 0.5 - 0.06, 1.5, 0.48), k._flat(Color(0.5, 0.56, 0.6)))
+	k._cyl(r, "BoilerPipe", 0.04, w, Vector3(0, h - 0.18, -d * 0.5 + 0.25), k._psx_mat(Color(0.6, 0.44, 0.3), "metal"), Vector3(0, 0, PI * 0.5))
+	k._cyl(r, "Boiler", 0.25, 0.8, Vector3(w * 0.5 - 0.35, h - 0.55, -0.6), white, Vector3(0, 0, 0))
+	var title = Label3D.new()
+	var default_title = "SPRCHY - showers" if shower_mode else "UMYVARNA - washroom"
+	title.text = title_override if title_override != "" else default_title
+	title.position = Vector3(0.0, 1.9, -0.45)
+	title.outline_size = 0
+	title.font_size = 26
+	title.modulate = Color(0.15, 0.25, 0.4, 0.9)
+	r.add_child(title)
+	_hygiene_nav(r, "< A SHOWER", "SHOWER D >")
+	_interior_camera.position = Vector3(0.0, 1.5, 1.15)
+	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
+
+
+func _hygiene_nav(r: Node3D, left: String, right: String) -> void:
+	for pair in [[left, -1.0], [right, 1.0]]:
+		var nav = Label3D.new()
+		nav.text = pair[0]
+		nav.position = Vector3(float(pair[1]) * 1.3, 1.95, -0.2)
+		nav.rotation_degrees = Vector3(0, -float(pair[1]) * 40.0, 0)
+		nav.font_size = 16
+		nav.modulate = Color(1.0, 1.0, 1.0, 0.6)
+		r.add_child(nav)
 
 
 func _build_sewer_layout() -> void:
@@ -1287,21 +1322,21 @@ func _build_upkeep_spots(block: String) -> void:
 	_upkeep_prep = INTERIOR_PREP.new()
 	var r := _room_root
 	if block == "toilet":
-		_upkeep_prep.add_spot("stall_l", r, Vector3(-1.34, 0.04, -0.95))
-		_upkeep_prep.add_spot("stall_r", r, Vector3(1.34, 0.04, -0.95))
-		_upkeep_prep.add_spot("urinal", r, Vector3(0.0, 0.04, -1.3))
-		_upkeep_prep.add_spot("door_l", r, Vector3(-1.34, 1.25, -1.33), 0.0, true)
-		_upkeep_prep.add_spot("door_r", r, Vector3(1.34, 1.25, -1.33), 0.0, true)
-		_upkeep_prep.add_spot("floor_c", r, Vector3(0.0, 0.04, -0.45))
-		_upkeep_prep.add_spot("wall_l", r, Vector3(-2.14, 1.35, -0.3), PI * 0.5, true)
+		_upkeep_prep.add_spot("stall_l", r, Vector3(-0.95, 0.01, -0.75))
+		_upkeep_prep.add_spot("stall_r", r, Vector3(0.95, 0.01, -0.75))
+		_upkeep_prep.add_spot("urinal", r, Vector3(0.0, 0.01, -1.1))
+		_upkeep_prep.add_spot("door_l", r, Vector3(-0.95, 1.2, -1.54), 0.0, true)
+		_upkeep_prep.add_spot("door_r", r, Vector3(0.95, 1.2, -1.54), 0.0, true)
+		_upkeep_prep.add_spot("floor_c", r, Vector3(0.0, 0.01, 0.0))
+		_upkeep_prep.add_spot("wall_l", r, Vector3(-1.74, 1.3, -0.4), PI * 0.5, true)
 	else:
-		_upkeep_prep.add_spot("shower_l", r, Vector3(-1.2, 0.5, -1.94), 0.0, true)
-		_upkeep_prep.add_spot("shower_r", r, Vector3(1.2, 0.5, -1.94), 0.0, true)
-		_upkeep_prep.add_spot("drain_l", r, Vector3(-1.2, 0.07, -1.06))
-		_upkeep_prep.add_spot("drain_r", r, Vector3(1.2, 0.07, -1.06))
-		_upkeep_prep.add_spot("floor_c", r, Vector3(0.0, 0.04, -0.6))
-		_upkeep_prep.add_spot("floor_l", r, Vector3(-1.2, 0.04, -0.35))
-		_upkeep_prep.add_spot("floor_r", r, Vector3(1.2, 0.04, -0.35))
+		_upkeep_prep.add_spot("shower_l", r, Vector3(-1.15, 0.5, -1.54), 0.0, true)
+		_upkeep_prep.add_spot("shower_r", r, Vector3(1.15, 0.5, -1.54), 0.0, true)
+		_upkeep_prep.add_spot("drain_l", r, Vector3(-1.15, 0.01, -1.0))
+		_upkeep_prep.add_spot("drain_r", r, Vector3(1.15, 0.01, -1.0))
+		_upkeep_prep.add_spot("floor_c", r, Vector3(0.0, 0.01, -0.1))
+		_upkeep_prep.add_spot("floor_l", r, Vector3(-1.1, 0.01, 0.3))
+		_upkeep_prep.add_spot("floor_r", r, Vector3(1.1, 0.01, 0.5))
 	_upkeep_prep.setup_tasks(self, _interior_camera, _viewport)
 	_upkeep_prep.task_completed.connect(_on_upkeep_task_done)
 
