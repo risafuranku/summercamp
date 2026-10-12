@@ -267,6 +267,16 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			_cylinder(root, Vector3(0.36, -pos.y + 0.03, 0.3), 0.05, 0.07, 0.06, false, flat(Color(0.6, 0.12, 0.1)), 0.0)
 			size = Vector3(0.7, 0.8, 0.8)
 			body_pos = pos + Vector3(0, -0.2, 0.15)
+		"slop":
+			# `pos` is the rim of the bucket: the lid off on the floor beside it, and what
+			# is inside, nearly to the top.
+			# (The cabin floor is 0.05 up; the spot is the rim, 0.33 above the floor.)
+			var floor_y := -0.33
+			_cylinder(root, Vector3(0, -0.005, 0), 0.15, 0.15, 0.006, false, _wet(Color(0.28, 0.22, 0.08, 0.95)), 0.0)
+			_cylinder(root, Vector3(0.28, floor_y + 0.012, 0.06), 0.17, 0.17, 0.02, false, flat(Color(0.86, 0.84, 0.78)), 0.0)
+			box(root, Vector3(_j(rng, 0.1) - 0.05, floor_y + 0.004, 0.22), Vector3(0.3, 0.006, 0.22), _wet(Color(0.3, 0.26, 0.1, 0.7)), Vector3(0, _j(rng, 0.6), 0))
+			size = Vector3(0.5, 0.45, 0.5)
+			body_pos = pos + Vector3(0, -0.15, 0)
 		"showerhead":
 			_cylinder(root, Vector3(0.1, 0.03, 0.1), 0.05, 0.07, 0.05, true, flat(Color(0.7, 0.74, 0.8)), 0.6)
 			box(root, Vector3(0, 0.004, 0), Vector3(0.5, 0.004, 0.44), _wet(Color(0.2, 0.26, 0.3, 0.6)))

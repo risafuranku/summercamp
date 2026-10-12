@@ -365,6 +365,13 @@ const SCENARIOS := {
 		["clean_room", "_tent_interior"], ["wait", 0.6], ["shot", "p4_tent_ready"],
 		["gm", "get_room_state", "17:4"],
 	],
+	"slop": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["prep_all"], ["book", "Lads", "drunk", 2, 2, 0], ["hours", 0.05], ["checkin"], ["hours", 49.0], ["wait", 1.0],
+		["gm", "get_room_state", "17:4"], ["open_room", 17, 4], ["wait", 1.2], ["aim_task", "_cabin_interior", "pail"], ["wait", 0.6], ["shot", "sl0_slop"],
+		["lmb", true], ["wait", 2.6], ["lmb", false], ["wait", 0.5], ["shot", "sl1_emptied"],
+	],
 	"mess": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5], ["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5],

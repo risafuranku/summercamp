@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+const SLOP_BUCKET_POS := Vector3(1.12, 0.05, 0.62)
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 
@@ -500,6 +501,7 @@ func _build_cabin_room() -> void:
 	var guest_tv_screen = _add_box(_cabin_root, "GuestTVScreen", Vector3(0.74, 0.86, -1.03), Vector3(0.52, 0.24, 0.03), Color(0.56, 0.60, 0.68))
 	var guest_tv_antenna_l = _add_box(_cabin_root, "GuestTVAntennaL", Vector3(0.60, 1.12, -1.22), Vector3(0.02, 0.18, 0.02), Color(0.30, 0.34, 0.40))
 	var guest_tv_antenna_r = _add_box(_cabin_root, "GuestTVAntennaR", Vector3(0.88, 1.12, -1.22), Vector3(0.02, 0.18, 0.02), Color(0.30, 0.34, 0.40))
+	_build_slop_bucket()
 	var wall_picture_lv3 = _add_box(_cabin_root, "WallPictureLv3", Vector3(-0.02, 1.66, -1.45), Vector3(1.04, 0.70, 0.03), Color(0.76, 0.72, 0.64))
 	wall_lamp.visible = false
 	storage_chest.visible = false
@@ -604,9 +606,10 @@ func _build_prep_props() -> void:
 			["f4", Vector3(-0.42, 0.04, 0.05)], ["f5", Vector3(0.75, 0.04, -0.3)], ["f6", Vector3(0.9, 0.04, 0.12)]]:
 		_prep.add_spot(spot[0], _cabin_root, spot[1])
 	# The toilet seat top, the basin, the floor in front of them.
-	_prep.add_spot("wc", _bathroom_root, Vector3(0.6, 0.71, -0.62))
-	_prep.add_spot("sink", _bathroom_root, Vector3(-0.6, 1.0, -0.8))
+	_prep.add_spot("wc", _bathroom_root, Vector3(0.6, 0.45, -0.66))
+	_prep.add_spot("sink", _bathroom_root, Vector3(-0.6, 0.93, -0.9))
 	_prep.add_spot("bfloor", _bathroom_root, Vector3(0.05, 0.04, -0.7))
+	_prep.add_spot("pail", _cabin_root, SLOP_BUCKET_POS + Vector3(0, 0.33, 0))
 	_prep.setup_tasks(self, _interior_camera, _viewport, "cabin")
 	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 
@@ -644,22 +647,72 @@ func _build_bathroom_room() -> void:
 	nav.modulate = Color(1.0, 1.0, 1.0, 0.8)
 	_bathroom_root.add_child(nav)
 	
-	# Props based on level (will be controlled by _refresh_level_textures via visibility/replacement?)
-	# Or better, just build all and toggle visibility in _apply_level_variant.
-	
-	# Level 1: Bucket
-	_add_box(_bathroom_root, "Bucket", Vector3(0.6, 0.3, -0.6), Vector3(0.4, 0.5, 0.4), Color(0.40, 0.36, 0.32))
-	
-	# Level 2: Toilet + Sink
-	_add_box(_bathroom_root, "ToiletLv2", Vector3(0.6, 0.4, -0.6), Vector3(0.5, 0.6, 0.7), Color(0.70, 0.72, 0.74))
-	_add_box(_bathroom_root, "SinkLv2", Vector3(-0.6, 0.9, -0.8), Vector3(0.6, 0.2, 0.5), Color(0.80, 0.82, 0.84))
-	_add_box(_bathroom_root, "SinkMirror", Vector3(-0.6, 1.5, -1.1), Vector3(0.5, 0.6, 0.05), Color(0.60, 0.70, 0.80))
-	
+	# Level 2+: a real toilet and a washbasin (level 3 adds the shower).
+	_build_bathroom_fixtures()
+
 	# Level 3: Shower
 	_add_box(_bathroom_root, "ShowerBase", Vector3(-0.6, 0.1, 0.6), Vector3(0.8, 0.1, 0.8), Color(0.90, 0.92, 0.94))
 	_add_box(_bathroom_root, "ShowerHead", Vector3(-0.6, 1.9, 0.9), Vector3(0.2, 0.1, 0.2), Color(0.60, 0.64, 0.70))
 	_add_box(_bathroom_root, "ShowerCurtain", Vector3(-0.3, 1.2, 0.6), Vector3(0.05, 1.8, 0.8), Color(0.40, 0.60, 0.50))
 
+
+
+## The basic cabin's toilet: an enamel bucket in the corner by the door.
+func _build_slop_bucket() -> void:
+	var P := INTERIOR_PREP
+	var root := Node3D.new()
+	root.name = "SlopBucket"
+	root.position = SLOP_BUCKET_POS
+	_cabin_root.add_child(root)
+	var enamel := P.flat(Color(0.86, 0.84, 0.78))
+	P._cylinder(root, Vector3(0, 0.16, 0), 0.17, 0.14, 0.32, false, enamel, 0.0)
+	# A blue enamel rim round the open top, and the dark inside of it.
+	P._cylinder(root, Vector3(0, 0.3, 0), 0.178, 0.178, 0.03, false, P.flat(Color(0.18, 0.26, 0.5)), 0.0)
+	P._cylinder(root, Vector3(0, 0.3215, 0), 0.15, 0.15, 0.002, false, P.flat(Color(0.12, 0.11, 0.1)), 0.0)
+	# The wire handle; the lid lies on the floor while the bucket is full (the "slop" mess).
+	P.box(root, Vector3(0, 0.42, 0), Vector3(0.34, 0.012, 0.012), P.flat(Color(0.4, 0.4, 0.42)))
+
+
+## Level 2+ bathroom: a white bowl with a wooden seat, the lid up, a high cistern with
+## its pipe; a washbasin on a pedestal with two taps, a mirror in a thin frame.
+func _build_bathroom_fixtures() -> void:
+	var P := INTERIOR_PREP
+	var white := P.flat(Color(0.9, 0.9, 0.86))
+	var chrome := P.flat(Color(0.62, 0.64, 0.66))
+	var seat_wood := P.flat(Color(0.42, 0.28, 0.16))
+	var wc := Node3D.new()
+	wc.name = "ToiletLv2"
+	wc.position = Vector3(0.6, 0.0, -0.75)
+	_bathroom_root.add_child(wc)
+	P._cylinder(wc, Vector3(0, 0.2, 0.06), 0.2, 0.13, 0.4, false, white, 0.0)
+	P.box(wc, Vector3(0, 0.2, -0.16), Vector3(0.26, 0.4, 0.2), white)
+	P.box(wc, Vector3(0, 0.425, 0.04), Vector3(0.4, 0.035, 0.44), seat_wood)
+	P.box(wc, Vector3(0, 0.66, -0.24), Vector3(0.4, 0.46, 0.035), seat_wood, Vector3(-0.12, 0, 0))
+	P.box(wc, Vector3(0, 1.62, -0.36), Vector3(0.44, 0.26, 0.16), white)
+	P._cylinder(wc, Vector3(0.14, 1.0, -0.38), 0.022, 0.022, 1.0, false, chrome, 0.0)
+	P._cylinder(wc, Vector3(-0.16, 1.3, -0.32), 0.006, 0.006, 0.36, false, chrome, 0.0)
+	P.box(wc, Vector3(-0.16, 1.1, -0.32), Vector3(0.03, 0.06, 0.03), seat_wood)
+	# Newspaper squares on a nail.
+	P.box(wc, Vector3(-0.42, 0.75, -0.43), Vector3(0.14, 0.18, 0.015), P.flat(Color(0.82, 0.8, 0.72)))
+
+	var sink := Node3D.new()
+	sink.name = "SinkLv2"
+	sink.position = Vector3(-0.6, 0.0, -0.95)
+	_bathroom_root.add_child(sink)
+	P._cylinder(sink, Vector3(0, 0.4, 0.02), 0.07, 0.09, 0.8, false, white, 0.0)
+	P.box(sink, Vector3(0, 0.86, 0.05), Vector3(0.52, 0.14, 0.4), white)
+	P.box(sink, Vector3(0, 0.92, 0.08), Vector3(0.4, 0.03, 0.26), P.flat(Color(0.7, 0.72, 0.72)))
+	for x: float in [-0.12, 0.12]:
+		P._cylinder(sink, Vector3(x, 0.98, -0.1), 0.02, 0.02, 0.1, false, chrome, 0.0)
+		P.box(sink, Vector3(x, 1.04, -0.1), Vector3(0.07, 0.02, 0.02), P.flat(Color(0.7, 0.1, 0.08) if x < 0 else Color(0.1, 0.2, 0.7)))
+	P.box(sink, Vector3(0.18, 0.95, 0.12), Vector3(0.08, 0.03, 0.05), P.flat(Color(0.86, 0.7, 0.3)))
+
+	var mirror := Node3D.new()
+	mirror.name = "SinkMirror"
+	mirror.position = Vector3(-0.6, 1.5, -1.13)
+	_bathroom_root.add_child(mirror)
+	P.box(mirror, Vector3.ZERO, Vector3(0.5, 0.6, 0.02), P.flat(Color(0.3, 0.24, 0.18)))
+	P.box(mirror, Vector3(0, 0, 0.012), Vector3(0.44, 0.54, 0.01), P.flat(Color(0.52, 0.58, 0.62)))
 
 
 func _apply_level_variant() -> void:
@@ -690,6 +743,7 @@ func _apply_level_variant() -> void:
 	_set_node_color("Floor", floor_col)
 	_set_node_color("Mattress", bed_col)
 
+	_set_node_visible("SlopBucket", _cabin_level == 1)
 	for node_name in _level2_nodes:
 		_set_node_visible(node_name, _cabin_level >= 2)
 	for node_name in _level3_nodes:
@@ -702,7 +756,6 @@ func _set_bathroom_variant() -> void:
 	if _bathroom_root == null:
 		return
 	var lv = _cabin_level
-	_set_node_visible_in(_bathroom_root, "Bucket", lv == 1)
 	_set_node_visible_in(_bathroom_root, "ToiletLv2", lv >= 2)
 	_set_node_visible_in(_bathroom_root, "SinkLv2", lv >= 2)
 	_set_node_visible_in(_bathroom_root, "SinkMirror", lv >= 2)

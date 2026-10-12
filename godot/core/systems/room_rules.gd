@@ -47,7 +47,7 @@ static func tasks_for(building_type: String, mess: Dictionary = {}) -> Array:
 	if kind.is_empty():
 		return []
 	var m := mess if not mess.is_empty() else {"seed": building_type.hash(), "level": 1}
-	# The basic cabin has no bathroom (its bucket is outside the room you can enter).
+	# The basic cabin has no bathroom: its slop bucket stands in the room, by the door.
 	return MESS_RULES.room_tasks(kind, has_bathroom(building_type), m, (BED_TASKS[kind] as Dictionary).duplicate())
 
 

@@ -151,8 +151,8 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 
 ### Small leftovers found on the way
 - [x] Gatehouse sign text spills past the board
-- [ ] Cabin level-1 has no bathroom; the bucket outside is decoration only
-- [ ] The bathroom toilet is a box (part of the interiors visual pass)
+- [x] Cabin level-1 has no bathroom; the bucket outside is decoration only (now a slop bucket in the room: "Empty the slop bucket")
+- [x] The bathroom toilet is a box (part of the interiors visual pass)
 - [ ] GitLab remote auth (needs the user to log in on the dev PC)
 
 ---

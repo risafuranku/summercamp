@@ -38,6 +38,8 @@ const MESS := {
 	"graffiti": {"label": "Scrub the writing off the door", "verb": "Scrubbing", "seconds": 2.0, "sfx": "task_scrub.mp3"},
 	"blocked": {"label": "Unblock the toilet", "verb": "Plunging", "seconds": 3.2, "sfx": "task_scrub.mp3"},
 	"showerhead": {"label": "Screw the shower head back on", "verb": "Fixing", "seconds": 3.0, "sfx": "task_scrub.mp3"},
+	# The basic cabin has no bathroom: an enamel slop bucket by the door instead.
+	"slop": {"label": "Empty the slop bucket", "verb": "Emptying", "seconds": 2.0, "sfx": "task_scrub.mp3"},
 }
 
 ## Room spots, by room kind: floor spots and (cabins) bathroom spots.
@@ -101,7 +103,8 @@ static func level_for(archetypes: Array, party_size: int, nights: int, unhappy: 
 
 ## The cleaning list for a room. `mess` = {seed, level, archetypes, fresh}: `fresh` is
 ## a room nobody has slept in yet (the builders' leftovers). The bed task comes first
-## and is always there; the bathroom toilet whenever the room has one.
+## and is always there; the bathroom toilet whenever the room has one, and in a basic
+## cabin (no bathroom) the slop bucket once somebody has slept there.
 static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_task: Dictionary) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(mess.get("seed", 1))
@@ -144,6 +147,8 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 		if not fresh and (level >= 2 and rng.randf() < 0.25 + 0.15 * level):
 			var k2: Array = BATH_KINDS["bfloor"]
 			out.append(task_for("bfloor", str(k2[rng.randi_range(0, k2.size() - 1)])))
+	elif kind == "cabin" and not fresh:
+		out.append(task_for("pail", "slop"))
 	return out
 
 
