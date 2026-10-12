@@ -1393,6 +1393,17 @@ func _on_enemy_notice(text: String) -> void:
 		_hud_manager.push_status(text, 2)
 
 
+## Debug/test entry: the first structure of a building type (e.g. the pre-placed generator).
+func debug_structure_of_type(building_type: String) -> Node3D:
+	var root = building_manager.get_node_or_null("Structures") if building_manager != null else null
+	if root == null:
+		return null
+	for child in root.get_children():
+		if str(child.get_meta("building_type", "")) == building_type:
+			return child
+	return null
+
+
 ## Debug/test entry: put the clock on `day` at `hours` (no nights are played in between).
 func debug_jump_to(day: int, hours: float) -> void:
 	CoreRoot.apply_changes({"day": maxi(1, day)})

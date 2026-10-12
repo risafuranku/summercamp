@@ -396,6 +396,8 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4], ["shot", "r0_desk"],
 		["eval", "_interior_manager._building_interior._look.set('yaw_deg', 65.0)"], ["wait", 0.8], ["shot", "r1_left"],
 		["eval", "_interior_manager._building_interior._look.set('yaw_deg', -65.0)"], ["wait", 0.8], ["shot", "r2_right"],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
+		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('power_generator'))"], ["wait", 1.2], ["shot", "r3_generator"],
 	],
 	"slop": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],

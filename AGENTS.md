@@ -202,6 +202,25 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   box-downsamples, snaps to the game palette) or `texture <size> <dest>`.
   For sprites ask for a flat pure magenta `#FF00FF` background and pass an existing sprite
   as reference so pixel scale and palette match.
+- **Batches**: `tools/artgen/batch.sh <id>...` (textures, 128 px) and
+  `tools/artgen/batch_panels.sh <width> <id>...` (posters, views) generate and process one
+  after another; never start a second batch while one runs. `crop_goods.py` crops the
+  shop-goods renders (Grok puts the row at the bottom of a dark canvas).
+- **Interior props (Blender)**: `tools/blender/build_props.py` (+ `props_more.py`, kit in
+  `propkit.py`) builds every low-poly prop from parts and exports
+  `godot/assets/models/interior/<name>.glb` **without images** plus `materials.json`
+  (material name -> camp texture + tint). Run headless:
+  `"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --background --factory-startup --python tools/blender/build_props.py [-- name ...]`,
+  then `godot --headless --path godot --import`. `preview_props.py -- out.png` renders them all.
+  Conventions: metres, origin on the floor at the footprint centre, front towards Blender
+  -Y (Godot +Z). Wall-mounted props: mind that the origin is the footprint centre.
+  The user's Blender (with the MCP addon on :9876) may have another project open: do not
+  touch it, work headless.
+- **Interior kit** (`godot/scripts/interior_kit.gd`): `surface(tex, metres)` = a camp
+  texture mapped in world space (Build-style, seamless, nearest); `room()`, `slab()`,
+  `skirting()`, `picture()` and `prop()` (instances a .glb and puts the shared camp
+  materials back by name). New interior work uses it instead of `texture_style` (the old
+  colour-matched rips are left only on the cellar machine animation and a few small bits).
 - **Fonts**: `python tools/gen_pixel_fonts.py` bakes `tools/font_src/*.ttf` into
   `godot/assets/fonts/*.fnt/.png` on their native grid. Import setting `scaling_mode=1`.
 - **Synth SFX**: `python tools/gen_sfx.py` (shutter, flash whine, static/hum loops, thump).

@@ -203,7 +203,7 @@ func _input(event: InputEvent) -> void:
 		_try_request_service_repair()
 		get_viewport().set_input_as_handled()
 		return
-	if _current_profile == "sewer" and event.is_action_pressed("interact"):
+	if _current_profile in ["sewer", "generator"] and event.is_action_pressed("interact"):
 		_try_request_service_repair()
 		get_viewport().set_input_as_handled()
 		return
@@ -888,7 +888,12 @@ func _shelf_with_goods(parent: Node3D, pos: Vector3, yaw: float, first: int) -> 
 	var levels := [0.12, 0.5, 0.88, 1.26, 1.64]
 	for i in levels.size():
 		var tex: String = GOODS[(first + i) % GOODS.size()]
-		K.picture(pivot, tex, Vector2(1.18, 0.34), Vector3(0, float(levels[i]) + 0.185, 0.04), 0.0, "Goods")
+		var goods := K.picture(pivot, tex, Vector2(1.18, 0.34), Vector3(0, float(levels[i]) + 0.185, 0.04), 0.0, "Goods")
+		# Repeat the row sideways so the goods keep their shape on a long shelf.
+		var gmat := goods.material_override as StandardMaterial3D
+		if gmat != null and gmat.albedo_texture != null:
+			var t_size := gmat.albedo_texture.get_size()
+			gmat.uv1_scale = Vector3(maxf(1.0, round((1.18 / 0.34) / (t_size.x / t_size.y))), 1.0, 1.0)
 
 
 func _build_vecerka_storage_layout(parent: Node3D) -> void:
@@ -1249,10 +1254,15 @@ func _build_generator_layout() -> void:
 
 	var title = Label3D.new()
 	title.text = "GENERATOR"
-	title.position = Vector3(0.0, 2.22, -1.82)
-	title.font_size = 38
+	title.position = Vector3(0.0, 2.32, -1.92)
+	title.font_size = 34
 	title.modulate = Color(1.0, 0.88, 0.44, 0.94)
 	_room_root.add_child(title)
+	_sewer_hint = Label3D.new()
+	_sewer_hint.position = Vector3(0.0, 1.95, -1.92)
+	_sewer_hint.font_size = 18
+	_room_root.add_child(_sewer_hint)
+	_apply_sewer_hint()
 
 
 # ── cleaning the block from the inside ────────────────────────────────────────
@@ -1422,7 +1432,7 @@ func _profile_for_service(service_type: String) -> String:
 
 
 func _try_request_service_repair() -> void:
-	if _current_profile != "sewer" or not _sewer_broken:
+	if not (_current_profile in ["sewer", "generator"]) or not _sewer_broken:
 		return
 	request_repair.emit()
 
@@ -1437,7 +1447,11 @@ func set_sewer_broken(broken: bool) -> void:
 func _apply_sewer_hint() -> void:
 	if _sewer_hint == null or not is_instance_valid(_sewer_hint):
 		return
-	if _sewer_broken:
+	if _sewer_broken and _current_profile == "generator":
+		_sewer_hint.text = "FAULT REPORTED
+R > REPAIR THE SET"
+		_sewer_hint.modulate = Color(1.0, 0.62, 0.36, 0.95)
+	elif _sewer_broken:
 		_sewer_hint.text = "LEAK REPORTED
 R > CRAWL INTO THE PIPES"
 		_sewer_hint.modulate = Color(1.0, 0.62, 0.36, 0.95)

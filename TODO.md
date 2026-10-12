@@ -106,7 +106,7 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 ### 10. Interiors
 - [x] Restricted mouse look-around, hover highlight, hold LMB with a progress ring, sounds
 - [x] Room switching by keys (cabin bathroom); bathroom upkeep task
-- [ ] Visual finish: real models (bed, toilet, sink, table), camp textures on walls/floors
+- [x] Visual finish: real models (bed, toilet, sink, table), camp textures on walls/floors (interior_kit + tools/blender, 42 props)
 
 ### 11. More interiors
 - [x] Cabins: room, bed, bathroom/WC, cleaning, prep
@@ -116,7 +116,7 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 
 ### 12. 3D models and the camp's look
 - [x] New gatehouse (generated textures)
-- [ ] Remodel cabins, tents, restaurant/pub, toilets/showers, reception; reuse the existing
+- [x] Remodel cabins, tents, restaurant/pub, toilets/showers, reception; reuse the existing
       atmospheric textures first, generate missing ones in the same style (Grok)
 - [ ] Visible paths out of the camp where guests leave (forest trails, lake path)
 
