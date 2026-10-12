@@ -6,6 +6,14 @@ const TENT_HALF_WIDTH := 0.98
 const TENT_RIDGE_HEIGHT := 1.26
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
+const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
+## Node name prefix -> [camp texture, metres per repeat] (world mapped, see interior_kit).
+const SURFACES := {
+	"FloorMat": ["tent_floor", 0.8], "LeftWall": ["tarp_canvas", 0.9], "RightWall": ["tarp_canvas", 0.9],
+	"BackWall": ["tarp_canvas", 0.9], "FrontWall": ["tarp_canvas", 0.9], "CeilingRidge": ["planks_dark", 0.5],
+	"ZipLine": ["tarp_canvas", 0.4], "SleepingBag": ["blanket_check", 0.5], "Pillow": ["mattress", 0.4],
+	"Rug": ["rug", 1.1], "MiniTable": ["knotty_pine", 0.5], "MiniShelf": ["knotty_pine", 0.5],
+}
 
 signal room_task_completed(task_id: String)
 signal request_close
@@ -321,16 +329,19 @@ func _build_tent_room() -> void:
 	_add_box("CatalogMark", Vector3(0.56, 0.075, -0.08), Vector3(0.03, 0.005, 0.12), Color(0.92, 0.24, 0.22))
 
 	# Level-based props.
-	var lantern_stem = _add_box("LanternStem", Vector3(0.0, 0.90, -0.56), Vector3(0.03, 0.28, 0.03), Color(0.22, 0.20, 0.18))
-	var lantern_body = _add_box("LanternBody", Vector3(0.0, 1.04, -0.56), Vector3(0.12, 0.12, 0.12), Color(0.96, 0.84, 0.50))
-	var storage_crate = _add_box("StorageCrate", Vector3(-0.54, 0.10, 0.56), Vector3(0.30, 0.18, 0.28), Color(0.36, 0.24, 0.16))
+	# A storm lantern on a cord from the ridge, a rucksack by the door (level 2+).
+	var lantern_stem = _add_box("LanternStem", Vector3(0.0, 1.06, -0.56), Vector3(0.012, 0.36, 0.012), Color(0.22, 0.20, 0.18))
+	var lantern := INTERIOR_KIT.prop(_tent_root, "lantern", Vector3(0.0, 0.58, -0.56))
+	lantern.name = "LanternBody"
+	var storage_crate := INTERIOR_KIT.prop(_tent_root, "backpack", Vector3(-0.56, 0.0, 0.62), 70.0, 0.8)
+	storage_crate.name = "StorageCrate"
 	lantern_stem.visible = false
-	lantern_body.visible = false
+	lantern.visible = false
 	storage_crate.visible = false
 
 	var rug = _add_box("Rug", Vector3(0.0, 0.03, -0.40), Vector3(1.24, 0.01, 1.10), Color(0.28, 0.36, 0.54))
 	var mini_table = _add_box("MiniTable", Vector3(0.56, 0.16, -0.78), Vector3(0.34, 0.12, 0.24), Color(0.46, 0.34, 0.24))
-	var mini_shelf = _add_box("MiniShelf", Vector3(-0.56, 0.40, -1.08), Vector3(0.34, 0.40, 0.10), Color(0.40, 0.30, 0.22))
+	var mini_shelf = _add_box("MiniShelf", Vector3(-0.56, 0.12, -0.98), Vector3(0.36, 0.24, 0.3), Color(0.70, 0.56, 0.40))
 	rug.visible = false
 	mini_table.visible = false
 	mini_shelf.visible = false
@@ -413,7 +424,7 @@ func _set_node_color(node_name: String, color: Color) -> void:
 	var std_mat = mesh_inst.material_override as StandardMaterial3D
 	if std_mat != null:
 		if std_mat.albedo_texture != null:
-			std_mat.albedo_color = color.lerp(Color(1.0, 1.0, 1.0, 1.0), 0.20)
+			std_mat.albedo_color = color.lerp(Color(1.0, 1.0, 1.0, 1.0), 0.45)
 		else:
 			std_mat.albedo_color = color
 
@@ -555,7 +566,6 @@ func _add_box(node_name: String, pos: Vector3, box_size: Vector3, color: Color) 
 	box.size = box_size
 	mesh_inst.mesh = box
 	mesh_inst.position = pos
-	var category = _category_for_node(node_name, color)
 	var uv_scale = Vector3(max(1.0, box_size.x * 1.6), 1.0, max(1.0, box_size.z * 1.6))
 
 	var mat := StandardMaterial3D.new()
@@ -567,11 +577,13 @@ func _add_box(node_name: String, pos: Vector3, box_size: Vector3, color: Color) 
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.uv1_scale = uv_scale
-	if _texture_style != null:
-		var tex = _texture_style.pick_texture(category, color)
-		if tex != null:
-			mat.albedo_texture = tex
-			mat.albedo_color = color.lerp(Color(1.0, 1.0, 1.0, 1.0), 0.20)
+	for prefix in SURFACES.keys():
+		if node_name.begins_with(prefix):
+			var spec: Array = SURFACES[prefix]
+			mat = INTERIOR_KIT.surface(str(spec[0]), float(spec[1])).duplicate()
+			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+			mat.albedo_color = color.lerp(Color(1.0, 1.0, 1.0, 1.0), 0.45)
+			break
 	mesh_inst.material_override = mat
 
 	_tent_root.add_child(mesh_inst)

@@ -2,8 +2,18 @@ extends CanvasLayer
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const SLOP_BUCKET_POS := Vector3(1.12, 0.05, 0.62)
+## The bed: frame centre on the floor, and the top of its mattress.
+const BED_POS := Vector3(-1.0, 0.05, -0.6)
+const BED_TOP := 0.59
+## Surfaces per cabin level: walls, floor, ceiling (assets/textury/camp).
+const LEVEL_SURFACES := {
+	1: ["planks_grey", "planks_red", "planks_grey"],
+	2: ["knotty_pine", "lino_floor", "ceiling_board"],
+	3: ["wallpaper_70s", "parquet", "ceiling_board"],
+}
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
+const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 
 signal room_task_completed(task_id: String)
 signal request_close
@@ -55,8 +65,12 @@ var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Standing inside the door of the cabin: most of the room, never the door behind you.
 var _look = INTERIOR_LOOK.new(72.0, 20.0, 30.0)
 var _exit_hint: Control
-var _level2_nodes: Array[String] = ["WallLamp", "StorageChest"]
-var _level3_nodes: Array[String] = ["MiniFridge", "Rug", "WallShelf", "GuestTVTableBase", "GuestTVTableTop", "GuestTVBody", "GuestTVScreen", "GuestTVAntennaL", "GuestTVAntennaR", "WallPictureLv3"]
+var _level2_nodes: Array[String] = ["WallLamp", "Wardrobe", "FridgeSmall"]
+var _level2_only: Array[String] = ["PosterLake"]
+var _level3_nodes: Array[String] = ["Rug", "WallShelf", "TvOld", "Chair2", "PictureDeer"]
+## The room's surfaces, re-skinned per level: {walls: [...], floor, ceiling}.
+var _shell: Dictionary = {}
+var _bath_shell: Dictionary = {}
 var _texture_style
 var _bathroom_root: Node3D
 var _active_room: String = "main"
@@ -434,98 +448,111 @@ func _build_cabin_room() -> void:
 	_main_light.shadow_enabled = true
 	_cabin_root.add_child(_main_light)
 
-	# Dimensions.
+	# The room: 3 x 3 m, 2.6 m high, floor top at 0.05. Surfaces are skinned per level
+	# in _apply_level_variant (LEVEL_SURFACES); the door is on the right wall, the window
+	# is a real opening in the back wall.
+	var K := INTERIOR_KIT
 	var w = 3.0
 	var d = 3.0
 	var h = 2.6
-	var wall_col = Color(0.60, 0.46, 0.32)
-	var floor_col = Color(0.52, 0.40, 0.28)
+	var wall_mat := K.surface("planks_grey", 1.2)
+	var walls: Array = []
+	_shell["floor"] = K.slab(_cabin_root, Vector3(w, 0.1, d), Vector3(0, 0, 0), K.surface("planks_dark", 1.0), "Floor")
+	_shell["ceiling"] = K.slab(_cabin_root, Vector3(w, 0.1, d), Vector3(0, h, 0), K.surface("planks_grey", 1.0), "Ceiling")
+	# Back wall round the window (1.0 x 0.62 opening centred at y 1.6).
+	walls.append(K.slab(_cabin_root, Vector3(1.0, h, 0.1), Vector3(-1.0, h * 0.5, -d * 0.5), wall_mat, "BackWallL"))
+	walls.append(K.slab(_cabin_root, Vector3(1.0, h, 0.1), Vector3(1.0, h * 0.5, -d * 0.5), wall_mat, "BackWallR"))
+	walls.append(K.slab(_cabin_root, Vector3(1.0, 1.29, 0.1), Vector3(0, 0.645, -d * 0.5), wall_mat, "BackWallLow"))
+	walls.append(K.slab(_cabin_root, Vector3(1.0, h - 1.91, 0.1), Vector3(0, (h + 1.91) * 0.5, -d * 0.5), wall_mat, "BackWallHigh"))
+	walls.append(K.slab(_cabin_root, Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5), wall_mat, "FrontWall"))
+	walls.append(K.slab(_cabin_root, Vector3(0.1, h, d), Vector3(-w * 0.5, h * 0.5, 0), wall_mat, "LeftWall"))
+	walls.append(K.slab(_cabin_root, Vector3(0.1, h, d * 0.3), Vector3(w * 0.5, h * 0.5, -d * 0.35), wall_mat, "RightWallBack"))
+	walls.append(K.slab(_cabin_root, Vector3(0.1, h, d * 0.3), Vector3(w * 0.5, h * 0.5, d * 0.35), wall_mat, "RightWallFront"))
+	walls.append(K.slab(_cabin_root, Vector3(0.1, h * 0.3, d * 0.4), Vector3(w * 0.5, h * 0.85, 0), wall_mat, "RightWallTop"))
+	_shell["walls"] = walls
+	# Skirting and a ceiling cornice in dark wood, Build-style trim.
+	var trim := K.surface("planks_dark", 0.6)
+	for z: float in [-d * 0.5 + 0.06, d * 0.5 - 0.06]:
+		K.slab(_cabin_root, Vector3(w, 0.1, 0.03), Vector3(0, 0.1, z), trim, "Skirting")
+		K.slab(_cabin_root, Vector3(w, 0.06, 0.04), Vector3(0, h - 0.06, z), trim, "Cornice")
+	K.slab(_cabin_root, Vector3(0.03, 0.1, d), Vector3(-w * 0.5 + 0.06, 0.1, 0), trim, "Skirting")
 
-	# Floor.
-	_add_box(_cabin_root, "Floor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), floor_col)
-	# Ceiling.
-	_add_box(_cabin_root, "Ceiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), wall_col)
-	# Back wall.
-	_add_box(_cabin_root, "BackWall", Vector3(0.0, h*0.5, -d*0.5), Vector3(w, h, 0.1), wall_col)
-	# Front wall (behind you as you come in; the view turns far enough to see it).
-	_add_box(_cabin_root, "FrontWall", Vector3(0.0, h*0.5, d*0.5), Vector3(w, h, 0.1), wall_col)
-	# Left wall.
-	_add_box(_cabin_root, "LeftWall", Vector3(-w*0.5, h*0.5, 0.0), Vector3(0.1, h, d), wall_col)
-	# Right wall (with door gap).
-	#   We keep the door visual on the right wall for consistent room orientation.
-	_add_box(_cabin_root, "RightWallBack", Vector3(w*0.5, h*0.5, -d*0.35), Vector3(0.1, h, d*0.3), wall_col)
-	_add_box(_cabin_root, "RightWallFront", Vector3(w*0.5, h*0.5, d*0.35), Vector3(0.1, h, d*0.3), wall_col)
-	_add_box(_cabin_root, "RightWallTop", Vector3(w*0.5, h*0.85, 0.0), Vector3(0.1, h*0.3, d*0.4), wall_col)
+	# The door on the right wall: a textured panel in a dark frame, closing the opening.
+	K.slab(_cabin_root, Vector3(0.12, h * 0.7, d * 0.4 + 0.02), Vector3(w * 0.5 + 0.02, h * 0.35, 0), trim, "DoorFrame")
+	var door := MeshInstance3D.new()
+	door.name = "Door"
+	var door_q := QuadMesh.new()
+	door_q.size = Vector2(d * 0.4 - 0.12, h * 0.7 - 0.06)
+	door.mesh = door_q
+	var door_mat := StandardMaterial3D.new()
+	door_mat.albedo_texture = load("res://assets/textury/camp/door_wood.png")
+	door_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	door_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	door.material_override = door_mat
+	door.position = Vector3(w * 0.5 - 0.045, h * 0.35, 0)
+	door.rotation_degrees.y = -90
+	_cabin_root.add_child(door)
 
-	# Door on the right wall: fills the whole opening, so no daylight leaks round it.
-	_add_box(_cabin_root, "DoorFrame", Vector3(w*0.5, h*0.35, 0.0), Vector3(0.12, h*0.7, d*0.4 + 0.02), Color(0.28, 0.20, 0.12))
-	
 	var nav_label = Label3D.new()
 	nav_label.name = "BathroomNav"
 	nav_label.text = "D > BATHROOM"
-	nav_label.position = Vector3(w*0.4, 1.5, 0.0)
+	nav_label.position = Vector3(w*0.4, 1.95, 0.0)
 	nav_label.rotation_degrees = Vector3(0, -90, 0)
 	nav_label.font_size = 20
 	nav_label.modulate = Color(1.0, 1.0, 1.0, 0.8)
 	_cabin_root.add_child(nav_label)
 
-	# Bunk bed (left side).
-	_add_box(_cabin_root, "BedFrame", Vector3(-w*0.4, 0.4, -0.6), Vector3(0.9, 0.6, 1.8), Color(0.44, 0.32, 0.22))
-	_add_box(_cabin_root, "Mattress", Vector3(-w*0.4, 0.72, -0.6), Vector3(0.8, 0.1, 1.7), Color(0.46, 0.62, 0.84))
-	_add_box(_cabin_root, "Pillow", Vector3(-w*0.4, 0.8, -1.3), Vector3(0.6, 0.1, 0.3), Color(0.7, 0.7, 0.7))
-
-	# Small table (back right).
-	_add_box(_cabin_root, "Table", Vector3(0.8, 0.5, -1.0), Vector3(0.8, 0.05, 0.8), Color(0.54, 0.40, 0.26))
-	_add_box(_cabin_root, "TableLeg", Vector3(0.8, 0.25, -1.0), Vector3(0.1, 0.5, 0.1), Color(0.44, 0.32, 0.22))
-	_catalog_mesh = _add_box(_cabin_root, "UpgradeCatalog", Vector3(0.86, 0.54, -1.02), Vector3(0.26, 0.02, 0.20), Color(0.84, 0.78, 0.68))
-	_add_box(_cabin_root, "UpgradeCatalogInk1", Vector3(0.86, 0.552, -1.08), Vector3(0.18, 0.004, 0.02), Color(0.18, 0.16, 0.14))
-	_add_box(_cabin_root, "UpgradeCatalogInk2", Vector3(0.86, 0.552, -1.02), Vector3(0.16, 0.004, 0.02), Color(0.18, 0.16, 0.14))
-	_add_box(_cabin_root, "UpgradeCatalogInk3", Vector3(0.86, 0.552, -0.96), Vector3(0.14, 0.004, 0.02), Color(0.18, 0.16, 0.14))
+	# The bed (left), a pillow that room prep moves, a table with the catalogue (back right).
+	K.prop(_cabin_root, "bed_wood", BED_POS)
+	var pillow := K.slab(_cabin_root, Vector3(0.6, 0.12, 0.32), Vector3(BED_POS.x, BED_TOP + 0.06, BED_POS.z - 0.68), K.surface("mattress", 0.5, Color(1.0, 0.98, 0.94)), "Pillow")
+	pillow.rotation.x = -0.12
+	K.prop(_cabin_root, "table_wood", Vector3(0.75, 0.05, -1.0))
+	K.prop(_cabin_root, "chair_wood", Vector3(0.75, 0.05, -0.42), 180.0)
+	var chair2 := K.prop(_cabin_root, "chair_wood", Vector3(0.18, 0.05, -1.05), 95.0)
+	chair2.name = "Chair2"
+	_catalog_mesh = _add_box(_cabin_root, "UpgradeCatalog", Vector3(0.82, 0.815, -1.02), Vector3(0.26, 0.02, 0.20), Color(0.84, 0.78, 0.68))
+	_add_box(_cabin_root, "UpgradeCatalogInk1", Vector3(0.82, 0.827, -1.08), Vector3(0.18, 0.004, 0.02), Color(0.18, 0.16, 0.14))
+	_add_box(_cabin_root, "UpgradeCatalogInk2", Vector3(0.82, 0.827, -1.02), Vector3(0.16, 0.004, 0.02), Color(0.18, 0.16, 0.14))
+	_add_box(_cabin_root, "UpgradeCatalogInk3", Vector3(0.82, 0.827, -0.96), Vector3(0.14, 0.004, 0.02), Color(0.18, 0.16, 0.14))
 	var up_lbl = Label3D.new()
 	up_lbl.text = "CATALOGUE"
-	up_lbl.position = Vector3(0.86, 0.57, -1.18)
+	up_lbl.position = Vector3(0.82, 0.845, -1.18)
 	up_lbl.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
 	up_lbl.font_size = 12
 	up_lbl.modulate = Color(0.34, 0.28, 0.20, 0.8)
 	_cabin_root.add_child(up_lbl)
 
-	# Level props.
-	var wall_lamp = _add_box(_cabin_root, "WallLamp", Vector3(-1.36, 1.74, -0.38), Vector3(0.08, 0.22, 0.12), Color(0.90, 0.80, 0.52))
-	var storage_chest = _add_box(_cabin_root, "StorageChest", Vector3(-1.06, 0.22, 0.62), Vector3(0.44, 0.24, 0.30), Color(0.40, 0.28, 0.18))
-	var mini_fridge = _add_box(_cabin_root, "MiniFridge", Vector3(1.12, 0.38, 0.78), Vector3(0.36, 0.70, 0.34), Color(0.76, 0.80, 0.86))
-	var rug = _add_box(_cabin_root, "Rug", Vector3(0.0, 0.03, -0.20), Vector3(1.18, 0.01, 0.86), Color(0.34, 0.24, 0.20))
-	var wall_shelf = _add_box(_cabin_root, "WallShelf", Vector3(1.06, 1.22, -1.18), Vector3(0.44, 0.10, 0.16), Color(0.42, 0.30, 0.22))
-	var guest_tv_table_base = _add_box(_cabin_root, "GuestTVTableBase", Vector3(0.74, 0.26, -1.08), Vector3(0.76, 0.52, 0.44), Color(0.42, 0.30, 0.22))
-	var guest_tv_table_top = _add_box(_cabin_root, "GuestTVTableTop", Vector3(0.74, 0.56, -1.08), Vector3(0.84, 0.06, 0.50), Color(0.52, 0.38, 0.28))
-	var guest_tv_body = _add_box(_cabin_root, "GuestTVBody", Vector3(0.74, 0.86, -1.18), Vector3(0.62, 0.36, 0.28), Color(0.38, 0.42, 0.50))
-	var guest_tv_screen = _add_box(_cabin_root, "GuestTVScreen", Vector3(0.74, 0.86, -1.03), Vector3(0.52, 0.24, 0.03), Color(0.56, 0.60, 0.68))
-	var guest_tv_antenna_l = _add_box(_cabin_root, "GuestTVAntennaL", Vector3(0.60, 1.12, -1.22), Vector3(0.02, 0.18, 0.02), Color(0.30, 0.34, 0.40))
-	var guest_tv_antenna_r = _add_box(_cabin_root, "GuestTVAntennaR", Vector3(0.88, 1.12, -1.22), Vector3(0.02, 0.18, 0.02), Color(0.30, 0.34, 0.40))
-	_build_slop_bucket()
-	var wall_picture_lv3 = _add_box(_cabin_root, "WallPictureLv3", Vector3(-0.02, 1.66, -1.45), Vector3(1.04, 0.70, 0.03), Color(0.76, 0.72, 0.64))
-	wall_lamp.visible = false
-	storage_chest.visible = false
-	mini_fridge.visible = false
-	rug.visible = false
-	wall_shelf.visible = false
-	guest_tv_table_base.visible = false
-	guest_tv_table_top.visible = false
-	guest_tv_body.visible = false
-	guest_tv_screen.visible = false
-	guest_tv_antenna_l.visible = false
-	guest_tv_antenna_r.visible = false
-	wall_picture_lv3.visible = false
+	# Level props: the slop bucket (1); wardrobe, wall lamp, a small fridge (2+); a rug,
+	# a shelf, the TV and a second chair (3).
+	var bucket := K.prop(_cabin_root, "slop_bucket", SLOP_BUCKET_POS)
+	bucket.name = "SlopBucket"
+	K.prop(_cabin_root, "wardrobe", Vector3(-1.2, 0.05, 1.0), 90.0)
+	K.prop(_cabin_root, "wall_lamp", Vector3(-1.45, 1.5, -1.25), 90.0)
+	K.prop(_cabin_root, "fridge_small", Vector3(1.2, 0.05, 1.18), -90.0)
+	K.slab(_cabin_root, Vector3(1.3, 0.012, 0.95), Vector3(0.05, 0.056, -0.15), K.surface("rug", 1.3), "Rug")
+	K.prop(_cabin_root, "wall_shelf", Vector3(1.05, 1.45, -1.4))
+	K.prop(_cabin_root, "tv_old", Vector3(1.15, 0.05, 0.55), -90.0)
+	K.picture(_cabin_root, "poster_lake", Vector2(0.48, 0.64), Vector3(-1.44, 1.55, -0.1), 90.0, "PosterLake")
+	K.picture(_cabin_root, "picture_deer", Vector2(0.5, 0.66), Vector3(-1.44, 1.55, -0.1), 90.0, "PictureDeer")
+	for n in ["WallLamp", "Wardrobe", "FridgeSmall", "Rug", "WallShelf", "TvOld", "Chair2", "PosterLake", "PictureDeer"]:
+		_set_node_visible(n, false)
 
-	# Window (back wall).
-	var win = _add_box(_cabin_root, "WindowFrame", Vector3(0.0, 1.6, -d*0.48), Vector3(1.2, 0.8, 0.05), Color(0.2, 0.15, 0.1))
-	win.rotation_degrees = Vector3(0, 0, 0)
+	# The window in the back wall: a pine frame with a cross bar.
+	var frame := K.surface("knotty_pine", 0.6)
+	var wz: float = -d * 0.5 + 0.03
+	K.slab(_cabin_root, Vector3(1.1, 0.07, 0.1), Vector3(0, 1.255, wz), frame, "WindowSill")
+	K.slab(_cabin_root, Vector3(1.1, 0.06, 0.08), Vector3(0, 1.94, wz), frame, "WindowTop")
+	K.slab(_cabin_root, Vector3(0.06, 0.72, 0.08), Vector3(-0.53, 1.6, wz), frame, "WindowFrameL")
+	K.slab(_cabin_root, Vector3(0.06, 0.72, 0.08), Vector3(0.53, 1.6, wz), frame, "WindowFrameR")
+	K.slab(_cabin_root, Vector3(0.04, 0.62, 0.05), Vector3(0, 1.6, wz - 0.01), frame, "WindowMullion")
+	K.slab(_cabin_root, Vector3(1.0, 0.04, 0.05), Vector3(0, 1.62, wz - 0.01), frame, "WindowTransom")
 
 	# Placeholder view outside the window.
 	_window_view_sky = MeshInstance3D.new()
-	var sky_box = BoxMesh.new()
-	sky_box.size = Vector3(1.04, 0.62, 0.02)
+	var sky_box = QuadMesh.new()
+	sky_box.size = Vector2(1.7, 1.06)
 	_window_view_sky.mesh = sky_box
-	_window_view_sky.position = Vector3(0.0, 1.64, -d * 0.62)
+	_window_view_sky.position = Vector3(0.0, 1.6, -d * 0.58)
 	var sky_mat = StandardMaterial3D.new()
 	sky_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	sky_mat.albedo_color = Color(0.56, 0.74, 0.90)
@@ -534,6 +561,9 @@ func _build_cabin_room() -> void:
 		if sky_tex != null:
 			sky_mat.albedo_texture = sky_tex
 			sky_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	# The camp seen through the glass (assets/textury/camp/window_view.png), tinted by the hour.
+	sky_mat.albedo_texture = load("res://assets/textury/camp/window_view.png")
+	sky_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_window_view_sky.material_override = sky_mat
 	_cabin_root.add_child(_window_view_sky)
 
@@ -552,6 +582,7 @@ func _build_cabin_room() -> void:
 			ground_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_window_view_ground.material_override = ground_mat
 	_cabin_root.add_child(_window_view_ground)
+	_window_view_ground.visible = false
 
 	_window_view_trees = MeshInstance3D.new()
 	var trees_box = BoxMesh.new()
@@ -568,6 +599,7 @@ func _build_cabin_room() -> void:
 			trees_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_window_view_trees.material_override = trees_mat
 	_cabin_root.add_child(_window_view_trees)
+	_window_view_trees.visible = false
 
 	# Window glass (semi transparent overlay).
 	var glass = MeshInstance3D.new()
@@ -592,13 +624,15 @@ func _build_cabin_room() -> void:
 func _build_prep_props() -> void:
 	var P := INTERIOR_PREP
 	var blanket := P.camp_material("blanket_check.png", Color(0.9, 0.86, 0.8))
-	var heap_a := P.box(_cabin_root, Vector3(-1.18, 0.86, -0.25), Vector3(0.72, 0.2, 0.6), blanket, Vector3(0.1, 0.4, -0.12))
-	var heap_b := P.box(_cabin_root, Vector3(-1.25, 0.81, -0.95), Vector3(0.6, 0.1, 0.5), blanket, Vector3(0.0, -0.3, 0.08))
-	var pillow_floor := P.box(_cabin_root, Vector3(-0.55, 0.07, -0.15), Vector3(0.6, 0.1, 0.3), P.flat(Color(0.7, 0.7, 0.7)), Vector3(0.0, 0.7, 0.25))
-	var made := P.box(_cabin_root, Vector3(-1.2, 0.79, -0.42), Vector3(0.84, 0.05, 1.3), blanket)
-	var made_fold := P.box(_cabin_root, Vector3(-1.2, 0.81, -1.02), Vector3(0.84, 0.07, 0.14), P.flat(Color(0.88, 0.86, 0.8)))
+	var b := BED_POS
+	var top := BED_TOP
+	var heap_a := P.box(_cabin_root, Vector3(b.x + 0.02, top + 0.09, b.z + 0.35), Vector3(0.72, 0.2, 0.6), blanket, Vector3(0.1, 0.4, -0.12))
+	var heap_b := P.box(_cabin_root, Vector3(b.x - 0.05, top + 0.04, b.z - 0.35), Vector3(0.6, 0.1, 0.5), blanket, Vector3(0.0, -0.3, 0.08))
+	var pillow_floor := P.box(_cabin_root, Vector3(-0.3, 0.11, -0.15), Vector3(0.6, 0.1, 0.3), P.flat(Color(0.7, 0.7, 0.7)), Vector3(0.0, 0.7, 0.25))
+	var made := P.box(_cabin_root, Vector3(b.x, top + 0.025, b.z + 0.18), Vector3(0.84, 0.05, 1.3), blanket)
+	var made_fold := P.box(_cabin_root, Vector3(b.x, top + 0.04, b.z - 0.42), Vector3(0.84, 0.07, 0.14), P.flat(Color(0.88, 0.86, 0.8)))
 	var pillow_bed := _cabin_root.get_node_or_null("Pillow")
-	var bed_body := P.body(_cabin_root, Vector3(-1.2, 0.6, -0.6), Vector3(1.0, 0.7, 1.9))
+	var bed_body := P.body(_cabin_root, Vector3(b.x, 0.4, b.z), Vector3(1.0, 0.7, 1.9))
 	_prep.register("bed", bed_body, [heap_a, heap_b, pillow_floor], [made, made_fold, pillow_bed])
 
 	# Where the mess can be this time (core/systems/mess_rules.gd ROOM_SPOTS, BATH_SPOTS).
@@ -606,10 +640,10 @@ func _build_prep_props() -> void:
 			["f4", Vector3(-0.42, 0.04, 0.05)], ["f5", Vector3(0.75, 0.04, -0.3)], ["f6", Vector3(0.9, 0.04, 0.12)]]:
 		_prep.add_spot(spot[0], _cabin_root, spot[1])
 	# The toilet seat top, the basin, the floor in front of them.
-	_prep.add_spot("wc", _bathroom_root, Vector3(0.6, 0.45, -0.66))
-	_prep.add_spot("sink", _bathroom_root, Vector3(-0.6, 0.93, -0.9))
+	_prep.add_spot("wc", _bathroom_root, Vector3(0.6, 0.5, -0.88))
+	_prep.add_spot("sink", _bathroom_root, Vector3(-0.6, 0.97, -1.0))
 	_prep.add_spot("bfloor", _bathroom_root, Vector3(0.05, 0.04, -0.7))
-	_prep.add_spot("pail", _cabin_root, SLOP_BUCKET_POS + Vector3(0, 0.33, 0))
+	_prep.add_spot("pail", _cabin_root, SLOP_BUCKET_POS + Vector3(0, 0.31, 0))
 	_prep.setup_tasks(self, _interior_camera, _viewport, "cabin")
 	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 
@@ -627,92 +661,34 @@ func play_room_ready() -> void:
 func _build_bathroom_room() -> void:
 	if _bathroom_root == null:
 		return
+	var K := INTERIOR_KIT
 	var w = 2.4
 	var d = 2.4
 	var h = 2.6
-	
-	_add_box(_bathroom_root, "BFloor", Vector3(0.0, 0.0, 0.0), Vector3(w, 0.1, d), Color(0.36, 0.42, 0.48))
-	_add_box(_bathroom_root, "BCeiling", Vector3(0.0, h, 0.0), Vector3(w, 0.1, d), Color(0.60, 0.46, 0.32))
-	var wall_col = Color(0.50, 0.48, 0.44)
-	_add_box(_bathroom_root, "BWallBack", Vector3(0.0, h*0.5, -d*0.5), Vector3(w, h, 0.1), wall_col)
-	_add_box(_bathroom_root, "BWallFront", Vector3(0.0, h*0.5, d*0.5), Vector3(w, h, 0.1), wall_col)
-	_add_box(_bathroom_root, "BWallLeft", Vector3(-w*0.5, h*0.5, 0.0), Vector3(0.1, h, d), wall_col)
-	_add_box(_bathroom_root, "BWallRight", Vector3(w*0.5, h*0.5, 0.0), Vector3(0.1, h, d), wall_col)
+	var shell := K.room(_bathroom_root, Vector3(w, h, d), "tiles_green", "oil_wall", "ceiling_board", h, 0.8)
+	for key in shell.keys():
+		(shell[key] as Node3D).position.y += 0.05
+	_bath_shell = shell
 
 	var nav = Label3D.new()
 	nav.text = "< A ROOM"
-	nav.position = Vector3(-w * 0.4, 1.5, 0.0)
+	nav.position = Vector3(-w * 0.4, 1.95, 0.0)
 	nav.rotation_degrees = Vector3(0, 90, 0)
 	nav.font_size = 20
 	nav.modulate = Color(1.0, 1.0, 1.0, 0.8)
 	_bathroom_root.add_child(nav)
-	
-	# Level 2+: a real toilet and a washbasin (level 3 adds the shower).
-	_build_bathroom_fixtures()
 
-	# Level 3: Shower
-	_add_box(_bathroom_root, "ShowerBase", Vector3(-0.6, 0.1, 0.6), Vector3(0.8, 0.1, 0.8), Color(0.90, 0.92, 0.94))
-	_add_box(_bathroom_root, "ShowerHead", Vector3(-0.6, 1.9, 0.9), Vector3(0.2, 0.1, 0.2), Color(0.60, 0.64, 0.70))
-	_add_box(_bathroom_root, "ShowerCurtain", Vector3(-0.3, 1.2, 0.6), Vector3(0.05, 1.8, 0.8), Color(0.40, 0.60, 0.50))
-
-
-
-## The basic cabin's toilet: an enamel bucket in the corner by the door.
-func _build_slop_bucket() -> void:
-	var P := INTERIOR_PREP
-	var root := Node3D.new()
-	root.name = "SlopBucket"
-	root.position = SLOP_BUCKET_POS
-	_cabin_root.add_child(root)
-	var enamel := P.flat(Color(0.86, 0.84, 0.78))
-	P._cylinder(root, Vector3(0, 0.16, 0), 0.17, 0.14, 0.32, false, enamel, 0.0)
-	# A blue enamel rim round the open top, and the dark inside of it.
-	P._cylinder(root, Vector3(0, 0.3, 0), 0.178, 0.178, 0.03, false, P.flat(Color(0.18, 0.26, 0.5)), 0.0)
-	P._cylinder(root, Vector3(0, 0.3215, 0), 0.15, 0.15, 0.002, false, P.flat(Color(0.12, 0.11, 0.1)), 0.0)
-	# The wire handle; the lid lies on the floor while the bucket is full (the "slop" mess).
-	P.box(root, Vector3(0, 0.42, 0), Vector3(0.34, 0.012, 0.012), P.flat(Color(0.4, 0.4, 0.42)))
-
-
-## Level 2+ bathroom: a white bowl with a wooden seat, the lid up, a high cistern with
-## its pipe; a washbasin on a pedestal with two taps, a mirror in a thin frame.
-func _build_bathroom_fixtures() -> void:
-	var P := INTERIOR_PREP
-	var white := P.flat(Color(0.9, 0.9, 0.86))
-	var chrome := P.flat(Color(0.62, 0.64, 0.66))
-	var seat_wood := P.flat(Color(0.42, 0.28, 0.16))
-	var wc := Node3D.new()
+	# Level 2+: the toilet, the basin and its mirror; level 3: a shower corner.
+	var wc := K.prop(_bathroom_root, "toilet", Vector3(0.6, 0.05, -0.95))
 	wc.name = "ToiletLv2"
-	wc.position = Vector3(0.6, 0.0, -0.75)
-	_bathroom_root.add_child(wc)
-	P._cylinder(wc, Vector3(0, 0.2, 0.06), 0.2, 0.13, 0.4, false, white, 0.0)
-	P.box(wc, Vector3(0, 0.2, -0.16), Vector3(0.26, 0.4, 0.2), white)
-	P.box(wc, Vector3(0, 0.425, 0.04), Vector3(0.4, 0.035, 0.44), seat_wood)
-	P.box(wc, Vector3(0, 0.66, -0.24), Vector3(0.4, 0.46, 0.035), seat_wood, Vector3(-0.12, 0, 0))
-	P.box(wc, Vector3(0, 1.62, -0.36), Vector3(0.44, 0.26, 0.16), white)
-	P._cylinder(wc, Vector3(0.14, 1.0, -0.38), 0.022, 0.022, 1.0, false, chrome, 0.0)
-	P._cylinder(wc, Vector3(-0.16, 1.3, -0.32), 0.006, 0.006, 0.36, false, chrome, 0.0)
-	P.box(wc, Vector3(-0.16, 1.1, -0.32), Vector3(0.03, 0.06, 0.03), seat_wood)
-	# Newspaper squares on a nail.
-	P.box(wc, Vector3(-0.42, 0.75, -0.43), Vector3(0.14, 0.18, 0.015), P.flat(Color(0.82, 0.8, 0.72)))
-
-	var sink := Node3D.new()
+	var sink := K.prop(_bathroom_root, "sink_pedestal", Vector3(-0.6, 0.05, -1.03))
 	sink.name = "SinkLv2"
-	sink.position = Vector3(-0.6, 0.0, -0.95)
-	_bathroom_root.add_child(sink)
-	P._cylinder(sink, Vector3(0, 0.4, 0.02), 0.07, 0.09, 0.8, false, white, 0.0)
-	P.box(sink, Vector3(0, 0.86, 0.05), Vector3(0.52, 0.14, 0.4), white)
-	P.box(sink, Vector3(0, 0.92, 0.08), Vector3(0.4, 0.03, 0.26), P.flat(Color(0.7, 0.72, 0.72)))
-	for x: float in [-0.12, 0.12]:
-		P._cylinder(sink, Vector3(x, 0.98, -0.1), 0.02, 0.02, 0.1, false, chrome, 0.0)
-		P.box(sink, Vector3(x, 1.04, -0.1), Vector3(0.07, 0.02, 0.02), P.flat(Color(0.7, 0.1, 0.08) if x < 0 else Color(0.1, 0.2, 0.7)))
-	P.box(sink, Vector3(0.18, 0.95, 0.12), Vector3(0.08, 0.03, 0.05), P.flat(Color(0.86, 0.7, 0.3)))
-
-	var mirror := Node3D.new()
+	var mirror := K.prop(_bathroom_root, "mirror_frame", Vector3(-0.6, 1.3, -1.12))
 	mirror.name = "SinkMirror"
-	mirror.position = Vector3(-0.6, 1.5, -1.13)
-	_bathroom_root.add_child(mirror)
-	P.box(mirror, Vector3.ZERO, Vector3(0.5, 0.6, 0.02), P.flat(Color(0.3, 0.24, 0.18)))
-	P.box(mirror, Vector3(0, 0, 0.012), Vector3(0.44, 0.54, 0.01), P.flat(Color(0.52, 0.58, 0.62)))
+	var shower := K.prop(_bathroom_root, "shower_corner", Vector3(-0.78, 0.05, -0.2), 90.0)
+	shower.name = "ShowerCorner"
+	# Newspaper squares on a nail by the toilet.
+	K.slab(_bathroom_root, Vector3(0.14, 0.18, 0.015), Vector3(0.18, 0.85, -1.18), INTERIOR_PREP.flat(Color(0.82, 0.8, 0.72)), "Newspaper")
 
 
 func _apply_level_variant() -> void:
@@ -729,25 +705,29 @@ func _apply_level_variant() -> void:
 			floor_col = Color(0.34, 0.38, 0.46)
 			bed_col = Color(0.64, 0.76, 0.92)
 
-	_refresh_level_textures()
+	var K := INTERIOR_KIT
+	var surf: Array = LEVEL_SURFACES.get(_cabin_level, LEVEL_SURFACES[1])
+	for wall in _shell.get("walls", []):
+		(wall as MeshInstance3D).material_override = K.surface(str(surf[0]), 1.2)
+	if _shell.has("floor"):
+		(_shell["floor"] as MeshInstance3D).material_override = K.surface(str(surf[1]), 1.0)
+	if _shell.has("ceiling"):
+		(_shell["ceiling"] as MeshInstance3D).material_override = K.surface(str(surf[2]), 1.0, Color(0.7, 0.66, 0.6) if _cabin_level == 1 else Color(1, 1, 1))
+	if not _bath_shell.is_empty():
+		var bath_wall := K.surface("tiles_bathroom", 0.9) if _cabin_level >= 3 else K.surface("oil_wall", 2.6)
+		for key in ["back", "front", "left", "right"]:
+			(_bath_shell[key] as MeshInstance3D).material_override = bath_wall
 	var bathroom_nav := _cabin_root.get_node_or_null("BathroomNav")
 	if bathroom_nav != null:
 		bathroom_nav.visible = _cabin_level >= 2
-	_set_node_color("BackWall", wall_col)
-	_set_node_color("FrontWall", wall_col)
-	_set_node_color("LeftWall", wall_col)
-	_set_node_color("RightWallBack", wall_col)
-	_set_node_color("RightWallFront", wall_col)
-	_set_node_color("RightWallTop", wall_col.darkened(0.06))
-	_set_node_color("Ceiling", wall_col.darkened(0.10))
-	_set_node_color("Floor", floor_col)
-	_set_node_color("Mattress", bed_col)
 
 	_set_node_visible("SlopBucket", _cabin_level == 1)
 	for node_name in _level2_nodes:
 		_set_node_visible(node_name, _cabin_level >= 2)
 	for node_name in _level3_nodes:
 		_set_node_visible(node_name, _cabin_level >= 3)
+	for node_name in _level2_only:
+		_set_node_visible(node_name, _cabin_level == 2)
 	
 	_set_bathroom_variant()
 
@@ -759,9 +739,7 @@ func _set_bathroom_variant() -> void:
 	_set_node_visible_in(_bathroom_root, "ToiletLv2", lv >= 2)
 	_set_node_visible_in(_bathroom_root, "SinkLv2", lv >= 2)
 	_set_node_visible_in(_bathroom_root, "SinkMirror", lv >= 2)
-	_set_node_visible_in(_bathroom_root, "ShowerBase", lv == 3)
-	_set_node_visible_in(_bathroom_root, "ShowerHead", lv == 3)
-	_set_node_visible_in(_bathroom_root, "ShowerCurtain", lv == 3)
+	_set_node_visible_in(_bathroom_root, "ShowerCorner", lv == 3)
 
 
 func _refresh_level_textures() -> void:
@@ -929,11 +907,11 @@ func _apply_time_profile(animated: bool = false) -> void:
 		if sky_mat != null:
 			match _time_state:
 				TIME_DAY:
-					sky_mat.albedo_color = Color(0.58, 0.76, 0.94)
+					sky_mat.albedo_color = Color(1.0, 1.0, 1.0)
 				TIME_EVENING:
-					sky_mat.albedo_color = Color(0.70, 0.46, 0.34)
+					sky_mat.albedo_color = Color(0.86, 0.6, 0.48)
 				_:
-					sky_mat.albedo_color = Color(0.10, 0.14, 0.24)
+					sky_mat.albedo_color = Color(0.1, 0.13, 0.22)
 
 	if _window_view_ground != null:
 		var ground_mat = _window_view_ground.material_override as StandardMaterial3D
