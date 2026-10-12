@@ -194,24 +194,35 @@ Builder (`scripts/day_events.gd`).
 
 Sorted ones give a little back (the lost boy's parents tip). Night ends the day's chances.
 
-## 5e. The week closes in
+## 5e. Omens
 
-Vera's story mails say strange things; from night 2 the camp quietly agrees with them,
-once a night, a little nearer the office each time (`scripts/week_story.gd`):
+No scheduled events: the night camp produces its own small wrong things out of the
+simulation (`scripts/omens.gd`, checked by `tools/omens_check.gd`). Every in-game minute
+you are outdoors between 21:30 and 04:30 there is a chance of an omen, proportional to
+the **pressure** of the camp:
 
-| Night | When | What | The mail it answers |
-| --- | --- | --- | --- |
-| 2 | 22:30 | a torch walks along the fence nearest you, outside it | (day 6) "Do not walk along the fence after the lamps go out. Your uncle did." |
-| 3 | 23:00 | one person too many, standing 25-30 m off, facing the office | (day 3, 22:47) "count them again after 22:00" |
-| 4 | 02:58 | the barrier lifts and drops by itself | (day 4, 03:00) the night log: "02:58 gate closed" |
-| 6 | 01:00 | the office phone rings four times | (day 6) "somebody picked up and listened for a while" |
-| 7 | 23:30 | the person and the torch together, at the fence by the office; the insects stop | (day 7) "I will count them myself" |
+    pressure = 0.3 + 0.08 x guests + 0.35 x unhappy guests + 0.5 x kinds of thing that
+               have come so far + 0.3 x nights something came
+               + 0.4 if something hunts tonight + 0.6 if the camp is dark (breaker, cut)
 
-Rules as in §2: one specific thing, seen across the dark (never next to you, never behind
-a tree: a line-of-sight check), gone when you walk up to it or when its time is up. Each
-plays once a week and waits up to 90 minutes for you to be outdoors. The nights
-themselves harden too: whatever comes on nights 5-6 comes at least at difficulty 2, on
-night 7 at least 3.
+Which omen is a weighted draw from what fits where you stand and who is in the camp; an
+omen you have had is a third as likely next time:
+
+| Omen | Can happen when | Weight |
+| --- | --- | --- |
+| a torch walks along the fence nearest you, outside it | a fence 22-40 m off, in sight | 1, +0.8 in the dark |
+| one person too many, 25-30 m off, facing the office | guests in camp | 0.5 + 0.1/guest + 0.2/unhappy |
+| the barrier lifts and drops with nobody at it | you are within 45 m of the gate | 0.8 |
+| the office phone rings four times | you are 25 m+ from the office | 0.7 |
+| a person and a torch at the fence by the office; the insects stop | 2+ kinds have come, or pressure 3+ | 0.3 x pressure |
+
+At most one a night, then at least 15 hours of quiet. Rules as in §2: one specific thing,
+seen across open ground (line of sight, never next to you), gone when you walk up to it
+or when its time is up. Measured over 400 simulated weeks: an empty camp sees ~0.4 a week,
+an ordinary one ~1.6, an overfull troubled one ~3.7, never in the same order twice.
+
+What comes at night also comes back harder: every third night something came raises the
+enemies' minimum difficulty (1 -> 2 -> 3), from the ledger, not the calendar.
 
 ## 5d. The end of the week
 

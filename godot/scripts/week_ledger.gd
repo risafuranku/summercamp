@@ -49,6 +49,24 @@ func note_enemy(enemy_id: String, night_index: int) -> void:
 	_nights[key] = list
 
 
+## Nights on which anything came, so far.
+func nights_visited() -> int:
+	var n := 0
+	for key in _nights.keys():
+		if not (_nights[key] as Array).is_empty():
+			n += 1
+	return n
+
+
+## Different kinds of thing that have come, so far.
+func kinds_seen() -> int:
+	var kinds := {}
+	for key in _nights.keys():
+		for id in _nights[key]:
+			kinds[id] = true
+	return kinds.size()
+
+
 func note_hit(amount: int) -> void:
 	_hits += 1
 	_damage += maxi(0, amount)

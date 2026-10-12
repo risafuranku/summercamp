@@ -89,6 +89,7 @@ godot --headless --path godot res://tools/dayevents_check.tscn
 godot --headless --path godot res://tools/os98_check.tscn      # add -- --shots=<dir> (windowed) for screenshots
 godot --headless --path godot --script res://tools/weather_check.gd
 godot --headless --path godot --script res://tools/week_check.gd
+godot --headless --path godot --script res://tools/omens_check.gd
 ```
 
 - **Grep the smoke output for `SCRIPT ERROR` / `Parse Error`.** A tail of the log can hide
