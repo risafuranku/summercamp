@@ -4,6 +4,18 @@
 
 ---
 
+## PLAYTEST 2026-10-13 — the user's notes
+
+- [x] Q1  Guests turned up for a booking at night: arrivals only 08:00-19:30 (evening bookings come next morning)
+- [x] Q2  You could walk into occupied rooms: now you knock and are told off
+- [x] Q3  Remove the fourth-wall "D > TOILETS" labels from interiors (side tabs in the UI; room names are enamel signs)
+- [x] Q4  The reception window looked out of the camp, not into it
+- [x] Q5  No cursor in the reception after getting up from the PC
+- [x] Q6  At low render resolution the monitor was unreadable (crisp full-res overlay over the 3D screen)
+- [x] Q7  Health comes back in the morning
+- [x] Q8  Simpler, nicer TAB map
+- [ ] Q9  Polish, polish, polish (ongoing: see below)
+
 ## PLAYTEST 2026-10-09 — the user's notes (do these next, tick as you go)
 
 - [x] P1  Vera's checklist (quest tracker) visible while sitting at the PC
