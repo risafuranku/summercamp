@@ -485,6 +485,7 @@ const SCENARIOS := {
 		["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["clear", 21, 3, 3, 3], ["build", "tent_1", 22, 4, 0], ["wait", 0.5],
 		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
 		["open_room", 22, 4], ["wait", 1.2], ["shot", "i_tent"], ["eval", "_interior_manager._tent_interior.close_tent()"], ["wait", 0.6],
+		["clear", 21, 8, 3, 3], ["build", "sewer", 22, 9, 0], ["wait", 0.5], ["open_room", 22, 9], ["wait", 1.2], ["shot", "i_sewer"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 0.6],
 		["open_room", 17, 4], ["wait", 1.2], ["shot", "i_cabin"], ["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 0.8], ["shot", "i_cabin_bath"],
 	],
 	"prepcabin": [
