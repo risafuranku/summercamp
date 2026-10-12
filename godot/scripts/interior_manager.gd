@@ -298,7 +298,7 @@ func open_startup_crt_view() -> void:
 	_apply_time_to_interior(_building_interior)
 	_building_interior.open_interior()
 	_set_player_controls_enabled(false)
-	_building_interior.call_deferred("enter_crt_view")
+	_building_interior.call_deferred("enter_crt_view", true)
 
 
 func close_main_interior_if_open() -> void:

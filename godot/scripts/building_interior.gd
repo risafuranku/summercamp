@@ -1101,7 +1101,9 @@ func _sync_crt_viewport_to_window() -> void:
 		_crt_ui.offset_bottom = 0.0
 
 
-func enter_crt_view() -> void:
+## `instant`: a new game starts already seated, the monitor filling the view from the
+## first frame (no fly-in from the room view).
+func enter_crt_view(instant: bool = false) -> void:
 	if _crt_active: return
 	_reset_crt_look_back_state()
 	_crt_active = true
@@ -1111,6 +1113,14 @@ func enter_crt_view() -> void:
 	_set_crt_viewport_live(true)
 
 	if _camera_tween: _camera_tween.kill()
+	if instant:
+		_interior_camera.position = _crt_full_cam_pos
+		_interior_camera.rotation = Vector3.ZERO
+		_interior_camera.fov = CRT_READY_FOV
+		_capture_crt_orbit_anchor()
+		if _crt_ui:
+			_crt_ui.open_panel()
+		return
 	_camera_tween = create_tween()
 	_camera_tween.set_parallel(true)
 	_camera_tween.set_ease(Tween.EASE_OUT)

@@ -44,7 +44,7 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [x] A new game starts seated at the computer in the reception (boots with the CRT)
 - [x] The first part is all on the computer (Vera's mail, Builder, first tent, toilet, first booking)
 - [x] Getting up is a discovery: Vera's "You can get up, you know", title card THE CAMP / DAY 1
-- [ ] The camera at the desk frames the monitor properly from the first second (it starts zoomed out)
+- [x] The camera at the desk frames the monitor properly from the first second (it starts zoomed out)
 
 ### 2. The computer: a whole game inside the game (rebuild from scratch)
 - [x] Inventory of what the old shell does (mail + bookings + risk, Beeternet + downloads,

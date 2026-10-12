@@ -33,6 +33,10 @@ const SCENARIOS := {
 		["wait", 0.4], ["shot", "00_loading"],
 		["wait_menu"], ["wait", 2.5], ["shot", "01_menu"],
 	],
+	"deskstart": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"],
+		["wait", 0.3], ["shot", "d0_desk_03s"], ["wait", 0.9], ["shot", "d1_desk_12s"], ["wait", 2.8], ["shot", "d2_desk_40s"],
+	],
 	"views": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
 		["eval", "_player.rotate_y(PI)"], ["wait", 1.0], ["shot", "10_day_camp"],
