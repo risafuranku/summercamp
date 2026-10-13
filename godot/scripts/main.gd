@@ -1131,7 +1131,8 @@ func _update_threat_senses(delta: float) -> void:
 		_still_seconds
 	)
 	if _audio_manager != null and _audio_manager.has_method("set_insect_hush"):
-		_audio_manager.set_insect_hush(maxf(_senses.hush, _omens.hush if _omens != null else 0.0))
+		var corn_hush: float = float(_corn_hunt.hush) if _corn_hunt != null and is_instance_valid(_corn_hunt) else 0.0
+		_audio_manager.set_insect_hush(maxf(maxf(_senses.hush, _omens.hush if _omens != null else 0.0), corn_hush))
 	if _hud_manager != null:
 		_hud_manager.set_fear(_senses.fear)
 		_hud_manager.set_face_gaze(_senses.gaze)

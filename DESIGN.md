@@ -176,6 +176,13 @@ night between 21:00 and 04:30 and pages you for each (HUD: TONIGHT, plus the way
   (`scripts/corn_hunt.gd`). Hold the flashlight on it a moment and it is somewhere far
   off the next time you look away. If it reaches you: a hit, and the guest bolts back
   into the corn. Left until dawn, they walk out alone and won't say what they saw (-18).
+  The way in is readable: what they dropped (cans, a sock, a bottle) lies along the path
+  from the gate to them, and their lighter clicks on and off, a small warm glow over the
+  stalks. Following you, they talk ("Is it still behind us?"). The crickets go quiet
+  when the scarecrow is near; when it moves, leaves and husks come down where it went
+  through; held in the light it tilts its head, once. Mist lies in the corridors at
+  night, thickest before dawn. On the TAB plan the gate and the field are drawn, and the
+  job is circled there.
 
 So the night is "keep the camp running" and "something is out there" at the same time:
 the lamps you fix are the safe ground the enemies respect.

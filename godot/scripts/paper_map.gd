@@ -145,7 +145,18 @@ func _collect() -> Dictionary:
 		todo.append("%s - %s" % [j.get("title", ""), j.get("where", "")])
 	return {"w": w, "h": h, "lake": lake, "trees": trees, "paths": paths, "buildings": buildings,
 		"rooms": rooms, "broken": broken, "jobs": jobs, "waiting": waiting, "coming": coming,
-		"gate": GuestManager.get_gate_coord(), "todo": todo}
+		"gate": GuestManager.get_gate_coord(), "todo": todo, "corn_gate": _corn_gate_coord(grid)}
+
+
+## Grid row of the wicket gate into the corn (on the west fence), or (-1, -1).
+func _corn_gate_coord(grid) -> Vector2i:
+	if not _main.has_method("corn_gate_world"):
+		return Vector2i(-1, -1)
+	var p: Vector3 = _main.corn_gate_world()
+	if p == Vector3.INF:
+		return Vector2i(-1, -1)
+	var c: Vector2i = grid.world_to_grid(p + Vector3(1.0, 0, 0))
+	return Vector2i(0, c.y)
 
 
 func _is_tree(n: Node) -> bool:
@@ -201,7 +212,7 @@ func _draw_map() -> void:
 	var header := fs * 3.6
 	var cell := floorf((screen.y * 0.9 - header - footer - 40.0) / float(h))
 	var plan := Vector2(w, h) * cell
-	var sheet := Vector2(plan.x + 64.0, plan.y + header + footer + 40.0)
+	var sheet := Vector2(plan.x + 64.0 + fs * 3.0, plan.y + header + footer + 40.0)
 	var origin := ((screen - sheet) * 0.5 + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
 	_draw_paper(Rect2(origin, sheet))
 	var o := origin + Vector2(32, header + 12.0)
@@ -298,9 +309,25 @@ func _draw_map() -> void:
 		taken.append(spot)
 		_canvas.draw_string(font, spot.position + Vector2(3, fs), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
 
-	# Tonight's jobs: circled in red.
+	# The wicket gate into the corn: a gap in the west fence and the field beyond it
+	# (drawn in the margin: the plan is seen from the gate, so west is on the right).
+	var cg: Vector2i = _data.get("corn_gate", Vector2i(-1, -1))
+	var corn_p := Vector2.INF
+	if cg.x >= 0:
+		var gp := _to_sheet(o, cell, Vector2(0.0, float(cg.y) + 0.5), w, h)
+		_canvas.draw_line(gp - Vector2(0, cell * 0.5), gp + Vector2(0, cell * 0.5), Color(0.88, 0.84, 0.70), 5.0)
+		for i in 5:
+			var y := gp.y - cell * 2.0 + i * cell
+			_canvas.draw_line(Vector2(gp.x + 6, y), Vector2(gp.x + 6 + cell * 0.5, y - cell * 0.6), Color(0.62, 0.55, 0.22), 2.0)
+		_canvas.draw_string(font, gp + Vector2(6, cell * 2.2 + fs), "CORN", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
+		corn_p = gp + Vector2(cell * 0.6, 0)
+
+	# Tonight's jobs: circled in red (the corn job round its gate).
 	for j in _data["jobs"]:
 		var jc: Array = j.get("coord", [-1, -1])
+		if str(j.get("kind", "")) == "corn" and corn_p != Vector2.INF:
+			_canvas.draw_arc(corn_p, cell * 1.3, 0, TAU, 28, INK_RED, 3.0)
+			continue
 		if int(jc[0]) < 0:
 			continue
 		var p := _to_sheet(o, cell, Vector2(int(jc[0]), int(jc[1])) + Vector2(0.5, 0.5), w, h)

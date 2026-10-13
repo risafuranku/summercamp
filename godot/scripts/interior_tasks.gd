@@ -253,6 +253,30 @@ func _finish(id: String) -> void:
 
 func play_room_ready() -> void:
 	_play(SFX_READY)
+	_stamp()
+
+
+## A rubber stamp slams down in the middle of the screen: big, then down to size with a
+## jolt, held, then fades out, in steps (8 a second).
+func _stamp() -> void:
+	var lbl := RETRO_UI.label("READY", RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG * 3, RETRO_UI.C_GREEN_LIGHT, _scale)
+	lbl.add_theme_color_override("font_outline_color", Color(0.05, 0.2, 0.05))
+	lbl.add_theme_constant_override("outline_size", 2 * _scale)
+	add_child(lbl)
+	lbl.reset_size()
+	lbl.pivot_offset = lbl.size * 0.5
+	lbl.rotation = deg_to_rad(-8.0)
+	var screen := get_viewport().get_visible_rect().size
+	lbl.position = (screen - lbl.size) * 0.5 - Vector2(0, screen.y * 0.12)
+	var tw := lbl.create_tween()
+	for k in [2.2, 1.5, 0.92, 1.0]:
+		tw.tween_callback(func(): lbl.scale = Vector2.ONE * k)
+		tw.tween_interval(0.125)
+	tw.tween_interval(1.0)
+	for a in [0.7, 0.4, 0.15]:
+		tw.tween_callback(func(): lbl.modulate.a = a)
+		tw.tween_interval(0.125)
+	tw.tween_callback(lbl.queue_free)
 
 
 func _play(file: String) -> void:

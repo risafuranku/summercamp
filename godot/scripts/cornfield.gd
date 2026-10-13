@@ -32,6 +32,8 @@ var scarecrow: Sprite3D
 var _gate_leaf: Node3D
 var _gate_open := 0.0
 var _gate_sfx: AudioStreamPlayer3D
+var _mist: Array[MeshInstance3D] = []
+var _mist_mat: StandardMaterial3D
 var line_x := 0.0             # where the pylons stand
 var line_z := Vector2.ZERO    # from..to along z
 var _lights: Array[Node3D] = []
@@ -48,6 +50,7 @@ func build(p_field: Rect2, p_line_x: float, p_line_z: Vector2, rng: RandomNumber
 	_build_maze(rng)
 	_build_corn(rng)
 	_build_wicket_gate()
+	_build_mist(rng)
 	_build_scarecrow(rng)
 	_build_line()
 	_build_sound()
@@ -62,6 +65,15 @@ func _process(delta: float) -> void:
 	if _main != null and _main.get("_time_of_day_hours") != null:
 		var h := float(_main.get("_time_of_day_hours"))
 		night = h >= 19.5 or h < 6.0
+	# Ground mist in the corridors at night, thickest before dawn.
+	if _mist_mat != null and _main != null and _main.get("_time_of_day_hours") != null:
+		var h2 := float(_main.get("_time_of_day_hours"))
+		var a := 0.0
+		if h2 >= 20.5 or h2 < 7.0:
+			a = 0.16 if h2 >= 20.5 or h2 < 3.0 else 0.26
+		_mist_mat.albedo_color.a = move_toward(_mist_mat.albedo_color.a, a, delta * 0.1)
+		for i in _mist.size():
+			_mist[i].visible = _mist_mat.albedo_color.a > 0.01
 	# Slow red blink, all together, like the real ones.
 	var on := night and fmod(_t, 2.0) < 1.0
 	for l in _lights:
@@ -216,6 +228,36 @@ func path_between(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 ## The world point inside the camp just through the gate.
 func gate_inside() -> Vector3:
 	return Vector3(fence_x + 1.4, 0.0, gate_z)
+
+
+func _build_mist(rng: RandomNumberGenerator) -> void:
+	var img := Image.create(48, 16, false, Image.FORMAT_RGBA8)
+	for y in 16:
+		for x in 48:
+			var u := (float(x) - 23.5) / 24.0
+			var v := (float(y) - 11.0) / 9.0
+			var a := clampf(1.0 - (u * u + v * v), 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, floorf(a * 4.0) / 4.0))
+	_mist_mat = StandardMaterial3D.new()
+	_mist_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_mist_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_mist_mat.albedo_texture = ImageTexture.create_from_image(img)
+	_mist_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_mist_mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	_mist_mat.albedo_color = Color(0.3, 0.33, 0.38, 0.0)
+	var tiles: Array = maze_open.keys()
+	for i in mini(30, tiles.size()):
+		var t: Vector2i = tiles[rng.randi_range(0, tiles.size() - 1)]
+		var m := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(rng.randf_range(2.4, 4.0), rng.randf_range(0.7, 1.1))
+		m.mesh = q
+		m.material_override = _mist_mat
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.position = tile_world(t) + Vector3(0, q.size.y * 0.4, 0)
+		m.visible = false
+		add_child(m)
+		_mist.append(m)
 
 
 # ── the wicket gate ──────────────────────────────────────────────────────────

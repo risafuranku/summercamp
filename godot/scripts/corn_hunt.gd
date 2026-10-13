@@ -16,6 +16,7 @@ extends Node
 
 signal finished(rescued: bool)
 
+const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const CALL_SFX := "res://assets/sfx/world/corn_call.mp3"
 const RUSH_SFX := "res://assets/sfx/world/corn_rush.mp3"
 const STEP_FPS := 10.0
@@ -40,6 +41,22 @@ var _step_acc := 0.0
 var _elapsed := 0.0
 var _done := false
 var _hint_shown := ""
+## The insects fall silent when the scarecrow is near (main reads this, like the omens).
+var hush := 0.0
+var _trail: Array[Node3D] = []
+var _lighter: OmniLight3D
+var _lighter_timer := 1.0
+var _quote_timer := 6.0
+var _leaves: Array = []   # {node, v, life}
+var _leaf_mat: StandardMaterial3D
+var _tilted := false
+var _step_leaves_acc := 0.0
+
+const FOLLOW_LINES := [
+	"Is it still behind us?", "Don't turn round. Just don't.", "It was looking at me. All night.",
+	"Which way? They all look the same.", "I only went for a pee, I swear.", "Faster. Please, faster.",
+]
+const TRAIL_KINDS := ["cans", "papers", "clothes", "bottles", "cans"]
 
 
 func setup(main_node: Node, corn: Node, guest: Dictionary) -> bool:
@@ -69,6 +86,27 @@ func setup(main_node: Node, corn: Node, guest: Dictionary) -> bool:
 	_guest.global_position = corn.tile_world(pick)
 	_call_player = _sound(CALL_SFX, _guest, 7.0, -3.0)
 	_rush_player = _sound(RUSH_SFX, corn.scarecrow, 4.0, 0.0)
+	# What they dropped on the way in: a trail every few tiles from the gate to them.
+	var path: Array = corn.path_between(corn.entrance, pick)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var k := 4
+	while k < path.size() - 2:
+		var at: Vector3 = corn.tile_world(path[k]) + Vector3(rng.randf_range(-0.4, 0.4), 0.0, rng.randf_range(-0.4, 0.4))
+		var built: Dictionary = INTERIOR_PREP.build_mess(corn, at, TRAIL_KINDS[rng.randi_range(0, TRAIL_KINDS.size() - 1)], rng, rng.randf() * TAU)
+		(built["body"] as Node).queue_free()
+		_trail.append(built["root"])
+		k += rng.randi_range(4, 7)
+	# A lighter they keep clicking: a small warm light you can see over the stalks.
+	_lighter = OmniLight3D.new()
+	_lighter.light_color = Color(1.0, 0.72, 0.36)
+	_lighter.omni_range = 5.0
+	_lighter.light_energy = 0.0
+	_lighter.position = Vector3(0.25, 1.3, 0.0)
+	_guest.add_child(_lighter)
+	_leaf_mat = StandardMaterial3D.new()
+	_leaf_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_leaf_mat.albedo_color = Color(0.62, 0.55, 0.3)
 	# The scarecrow starts at another dead end, well away from both of you.
 	_scare_tile = _far_tile([pick, corn.entrance])
 	_place_scarecrow()
@@ -133,9 +171,66 @@ func _process(delta: float) -> void:
 			_finish(true)
 			return
 
-	# The scarecrow: only while you are in the corn.
+	_update_lighter(delta)
+	_update_leaves(delta)
+	if _following:
+		_quote_timer -= delta
+		if _quote_timer <= 0.0:
+			_quote_timer = randf_range(9.0, 16.0)
+			var hud = _main.get("_hud_manager")
+			if hud != null and hud.has_method("show_quote"):
+				hud.show_quote(guest_name, FOLLOW_LINES[randi_range(0, FOLLOW_LINES.size() - 1)], 20.0)
+	# The scarecrow: only while you are in the corn. The crickets know where it is.
+	var near := 0.0
+	if _corn.scarecrow != null:
+		near = clampf(1.0 - (_corn.scarecrow.global_position.distance_to(ppos) - 4.0) / 10.0, 0.0, 1.0)
+	hush = move_toward(hush, near if in_corn else 0.0, delta * 0.8)
 	if in_corn:
 		_update_scarecrow(delta, player)
+
+
+## Click... a flame for a moment... gone. Stepped, flickering, until they are found.
+func _update_lighter(delta: float) -> void:
+	if _lighter == null:
+		return
+	_lighter_timer -= delta
+	if _following:
+		_lighter.light_energy = 0.0
+		return
+	if _lighter_timer <= 0.0:
+		var lit := _lighter.light_energy > 0.0
+		_lighter_timer = randf_range(2.0, 4.5) if lit else randf_range(1.2, 2.5)
+		_lighter.light_energy = 0.0 if lit else 1.2
+	elif _lighter.light_energy > 0.0 and fmod(_elapsed, 0.1) < delta:
+		_lighter.light_energy = randf_range(0.9, 1.5)
+
+
+func _update_leaves(delta: float) -> void:
+	_step_leaves_acc += delta
+	if _step_leaves_acc < 0.1:
+		return
+	_step_leaves_acc = 0.0
+	for l in _leaves:
+		var n: MeshInstance3D = l["node"]
+		n.position += l["v"]
+		n.rotation.z += 0.6
+		l["life"] -= 1
+		if int(l["life"]) <= 0:
+			n.queue_free()
+	_leaves = _leaves.filter(func(l): return int(l["life"]) > 0)
+
+
+## Leaves and husks shaken off the stalks where it just went through.
+func _shed_leaves(at: Vector3) -> void:
+	for i in 7:
+		var n := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(0.12, 0.06)
+		n.mesh = q
+		n.material_override = _leaf_mat
+		_corn.add_child(n)
+		n.global_position = at + Vector3(randf_range(-0.8, 0.8), randf_range(1.4, 2.3), randf_range(-0.8, 0.8))
+		_leaves.append({"node": n, "v": Vector3(randf_range(-0.03, 0.03), -0.12, randf_range(-0.03, 0.03)), "life": randi_range(10, 18)})
 
 
 func _update_scarecrow(delta: float, player: Node3D) -> void:
@@ -147,6 +242,10 @@ func _update_scarecrow(delta: float, player: Node3D) -> void:
 		and scare.global_position.distance_to(player.global_position) < LIT_RANGE
 	if lit:
 		_lit_time += delta
+		# It does not move in the light. It tilts its head. Once.
+		if _lit_time > 0.6 and not _tilted:
+			_tilted = true
+			scare.rotation.z = 0.22 if randf() < 0.5 else -0.22
 		if _lit_time > 1.2:
 			_flee_pending = true
 	else:
@@ -174,6 +273,10 @@ func _update_scarecrow(delta: float, player: Node3D) -> void:
 		return
 	_scare_tile = path[1]
 	_place_scarecrow()
+	scare.flip_h = not scare.flip_h
+	scare.rotation.z = randf_range(-0.08, 0.08)
+	_tilted = false
+	_shed_leaves(scare.global_position)
 	if _rush_player != null and _rush_player.stream != null:
 		_rush_player.play()
 
@@ -267,6 +370,14 @@ func _notice(text: String, kind: int) -> void:
 
 
 func _exit_tree() -> void:
+	for t in _trail:
+		if is_instance_valid(t):
+			t.queue_free()
+	for l in _leaves:
+		if is_instance_valid(l["node"]):
+			l["node"].queue_free()
+	if _corn != null and _corn.scarecrow != null:
+		_corn.scarecrow.rotation.z = 0.0
 	if _guest != null and is_instance_valid(_guest):
 		_guest.queue_free()
 	for p in [_call_player, _rush_player]:

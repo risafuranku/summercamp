@@ -23,6 +23,66 @@ var _nodes: Dictionary = {}   # task id -> {body, mess: [Node3D], tidy: [Node3D]
 var _spots: Dictionary = {}   # spot id -> {parent, pos, yaw, vertical}
 var _built: Array = []        # nodes built for the current mess
 var _signature := ""
+var _room_key := ""
+var _was_tidy: Dictionary = {}   # task id -> tidy last time
+
+
+## Stepped (8 a second) shrink, then hidden; a little cloud where it was.
+func _poof_out(n: Node3D) -> void:
+	var rest := n.scale
+	var tw := n.create_tween()
+	for k in [0.8, 0.55, 0.25]:
+		tw.tween_callback(func(): n.scale = rest * k)
+		tw.tween_interval(0.125)
+	tw.tween_callback(func():
+		n.visible = false
+		n.scale = rest)
+	_puff(n)
+
+
+## Stepped pop: small, a touch too big, settled.
+func _pop_in(n: Node3D) -> void:
+	var rest := n.scale
+	n.visible = true
+	n.scale = rest * 0.4
+	var tw := n.create_tween()
+	for k in [0.75, 1.12, 1.0]:
+		tw.tween_interval(0.125)
+		tw.tween_callback(func(): n.scale = rest * k)
+
+
+func _puff(n: Node3D) -> void:
+	var parent := n.get_parent() as Node3D
+	if parent == null:
+		return
+	var at := n.position
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.82, 0.78, 0.7, 0.8)
+	var bits: Array[MeshInstance3D] = []
+	for i in 6:
+		var b := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3.ONE * 0.06
+		b.mesh = bm
+		b.material_override = mat
+		b.position = at + Vector3(randf_range(-0.12, 0.12), 0.05, randf_range(-0.12, 0.12))
+		parent.add_child(b)
+		bits.append(b)
+	var tw := parent.create_tween()
+	for f in 5:
+		tw.tween_interval(0.1)
+		tw.tween_callback(func():
+			for b in bits:
+				if is_instance_valid(b):
+					b.position += Vector3(randf_range(-0.03, 0.03), 0.06, randf_range(-0.03, 0.03))
+					b.scale *= 1.15
+			mat.albedo_color.a = maxf(0.0, mat.albedo_color.a - 0.16))
+	tw.tween_callback(func():
+		for b in bits:
+			if is_instance_valid(b):
+				b.queue_free())
 
 
 func register(task_id: String, body: StaticBody3D, mess: Array, tidy: Array) -> void:
@@ -44,17 +104,32 @@ func setup_tasks(host: Node, camera: Camera3D, viewport: SubViewport, _kind: Str
 
 
 ## Undone tasks show their mess; done ones (or a ready / occupied room) the tidy props.
+## A task done just now (it was untidy a moment ago, same room) is animated: the mess
+## shrinks away in three steps with a puff of dust, the tidy thing pops up in three.
 func set_room(room: Dictionary) -> void:
+	var key := str(room.get("key", ""))
+	var same_room := key == _room_key
+	_room_key = key
 	_rebuild_if_changed(room.get("tasks", []))
 	var done: Array = room.get("done", [])
 	var tidy_all := str(room.get("status", "")) == ROOM_RULES.STATUS_READY or bool(room.get("occupied", false))
 	for task_id in _nodes.keys():
 		var tidy := tidy_all or done.has(task_id)
+		var just_now: bool = same_room and tidy and _was_tidy.get(task_id, true) == false
+		_was_tidy[task_id] = tidy
 		for n in _nodes[task_id]["mess"]:
-			if is_instance_valid(n):
+			if not is_instance_valid(n):
+				continue
+			if just_now and n.visible:
+				_poof_out(n)
+			else:
 				n.visible = not tidy
 		for n in _nodes[task_id]["tidy"]:
-			if is_instance_valid(n):
+			if not is_instance_valid(n):
+				continue
+			if just_now and not n.visible:
+				_pop_in(n)
+			else:
 				n.visible = tidy
 	if tasks != null:
 		tasks.set_room(room)
