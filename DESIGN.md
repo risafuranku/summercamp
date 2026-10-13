@@ -204,7 +204,7 @@ Builder (`scripts/day_events.gd`).
 | Rubbish dumped | always | hold E by it | every guest's mood -6 |
 | Raccoons in the bins | bistro / shop / pub | E: shoo | -$40, mood -4 |
 | Jednota delivery | bistro / shop / pub | E at the van by the gate | no bread, mood -5 |
-| A boy is missing | a family in camp | find him at the camp's edge, E | the family -20: "he came back by himself, humming" |
+| A boy is missing | a family in camp | find him at the camp's edge, or (45%) at the end of a corridor in the corn maze, E | the family -20: "he came back by himself, humming" |
 | Noise complaint | tramps or lads next to pickers / quiet ones / families | talk to the loud party | the quiet ones -15 |
 | A branch across the path | paths; likelier in wind | hold E: saw it | mood -4 |
 

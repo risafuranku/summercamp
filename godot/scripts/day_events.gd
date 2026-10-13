@@ -314,6 +314,14 @@ func _make(kind: String, at: int, guests: Array) -> Dictionary:
 			var g: Dictionary = fam[_rng.randi_range(0, fam.size() - 1)]
 			var spot := _edge_spot()
 			ev.merge({"title": "A boy is missing", "short": "Boy", "where": "%s: he was here a minute ago" % str(g.get("name", "The family")), "coord": [spot.x, spot.y], "guest_id": int(g.get("id", -1)), "family": str(g.get("name", "The family"))}, true)
+			# Sometimes he has gone through the wicket gate into the corn maze.
+			var corn = _main.find_child("CornField", true, false) if _main != null else null
+			if corn != null and _rng.randf() < 0.45:
+				var ends: Array = corn.dead_ends()
+				if not ends.is_empty():
+					var t: Vector3 = corn.tile_world(ends[_rng.randi_range(0, ends.size() - 1)])
+					ev["pos"] = [t.x, t.y, t.z]
+					ev["where"] = "Small footprints through the wicket gate into the corn"
 		"noise":
 			var loud: Array = guests.filter(func(g): return ["tramp", "drunk"].has(str(g.get("archetype", ""))))
 			if loud.is_empty():
@@ -761,6 +769,9 @@ func _coord(ev: Dictionary) -> Vector2i:
 
 
 func _event_pos(ev: Dictionary) -> Vector3:
+	if ev.has("pos"):
+		var pp: Array = ev["pos"]
+		return Vector3(float(pp[0]), float(pp[1]), float(pp[2]))
 	if bool(ev.get("gate", false)):
 		var gate := get_tree().get_first_node_in_group("camp_gate") if is_inside_tree() else null
 		if gate == null:
