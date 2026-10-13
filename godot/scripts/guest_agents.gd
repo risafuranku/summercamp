@@ -21,6 +21,10 @@ const SPRITE_HEIGHT_M := 1.72
 const MEMBER_SPREAD_M := 0.55
 const MAX_MEMBERS_PER_PARTY := 4
 const WALK_BOB_HZ := 2.6
+## Guests move and animate in steps, like 1996 sprites: position updates this many times
+## a second, the walk cycle (bob, sway, turning) at ANIM_FPS.
+const MOVE_FPS := 12.0
+const ANIM_FPS := 8.0
 const OPEN_AIR_TYPES := ["bonfire", "sports_field", "lake_slide"]
 ## Dwelling out of sight: in bed, resting in the lodging, arriving, or away from the
 ## camp altogether (walked out by one of the exits).
@@ -30,6 +34,7 @@ const MARKER_ANGRY := preload("res://assets/textury/npc/mood_angry.png")
 const MARKER_HAPPY := preload("res://assets/textury/npc/mood_happy.png")
 const MARKER_NEED := preload("res://assets/textury/npc/mood_need.png")
 
+var _move_acc := 0.0
 var _grid_manager: Node
 var _now_provider: Callable
 var _astar := AStarGrid2D.new()
@@ -84,9 +89,14 @@ func _process(delta: float) -> void:
 	if _snapshot_timer <= 0.0:
 		_snapshot_timer = SNAPSHOT_INTERVAL_SEC
 		_refresh_snapshot()
+	_move_acc += delta
+	if _move_acc < 1.0 / MOVE_FPS:
+		return
+	var step := _move_acc
+	_move_acc = 0.0
 	var now := _now_abs_float()
 	for id in _parties.keys():
-		_update_party(_parties[id], now, delta)
+		_update_party(_parties[id], now, step)
 
 
 ## Guest under the player's crosshair, for the talk interaction. Returns the snapshot
@@ -328,7 +338,7 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		var pos := lead_pos + offset
 		var sprite := member.get_node_or_null("Sprite") as Sprite3D
 		if walking:
-			var phase := _time * WALK_BOB_HZ * TAU + float(i) * 1.7
+			var phase := floorf(_time * ANIM_FPS) / ANIM_FPS * WALK_BOB_HZ * TAU + float(i) * 1.7
 			pos.y = absf(sin(phase)) * 0.06
 			if sprite != null:
 				sprite.flip_h = sin(phase * 0.5) > 0.0

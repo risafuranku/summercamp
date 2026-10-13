@@ -21,7 +21,15 @@ const JETTY_W := 1.6
 const JETTY_Y := 0.42
 
 var _main: Node
-var _mist: Array[MeshInstance3D] = []
+## Fish: now and then by day a ring spreads on the water (in steps, 10 a second) with a plop.
+const PLOP_SFX := "res://assets/sfx/world/fish_plop.mp3"
+var _water_poly := PackedVector2Array()
+var _ripple_tex: ImageTexture
+var _ripple_timer := 5.0
+var _ripples: Array = []   # {node, frame}
+var _ripple_acc := 0.0
+var _rng_fx := RandomNumberGenerator.new()
+var _mist: Array[MeshInstance3D] = []  # mist puffs over the water
 var _mist_t := 0.0
 
 
@@ -57,6 +65,8 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 	rng.seed = texture_seed
 	var poly := water_polygon(shore_z, north_z, west, east, rng)
 	var far_z := north_z + 52.0
+	_water_poly = Geometry2D.offset_polygon(poly, -4.0)[0]
+	_rng_fx.randomize()
 
 	# The shore: the water outline grown by 3 m, mud and sand, just under the water.
 	var shore_poly: PackedVector2Array = Geometry2D.offset_polygon(poly, 3.2)[0]
@@ -109,34 +119,127 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 	_wall(Vector3((west + gap_l) * 0.5, 1.0, shore_z + 0.3), Vector3(gap_l - west, 2.0, 0.3))
 	_wall(Vector3((gap_r + east) * 0.5, 1.0, shore_z + 0.3), Vector3(east - gap_r, 2.0, 0.3))
 
-	# Morning mist: a few soft sheets low over the water, drifting.
-	var noise := NoiseTexture2D.new()
-	noise.width = 256
-	noise.height = 256
-	noise.seamless = true
-	var fn := FastNoiseLite.new()
-	fn.seed = texture_seed
-	fn.frequency = 0.012
-	noise.noise = fn
-	for i in 3:
-		var mist := MeshInstance3D.new()
-		mist.name = "LakeMist%d" % i
-		var plane := PlaneMesh.new()
-		plane.size = Vector2(east - west + 30.0, 52.0)
-		mist.mesh = plane
+	# Morning mist: soft banks standing over the water (camera-facing puffs: flat sheets
+	# vanish edge-on at eye height), drifting slowly along the lake.
+	var puff := _mist_texture(rng)
+	var shrunk: PackedVector2Array = Geometry2D.offset_polygon(poly, -3.0)[0]
+	var box := Rect2(shrunk[0], Vector2.ZERO)
+	for v in shrunk:
+		box = box.expand(v)
+	var tries := 0
+	while _mist.size() < 26 and tries < 400:
+		tries += 1
+		var p := Vector2(rng.randf_range(box.position.x, box.end.x), rng.randf_range(box.position.y, box.end.y))
+		if not Geometry2D.is_point_in_polygon(p, shrunk):
+			continue
+		var m := MeshInstance3D.new()
+		m.name = "LakeMist"
+		var q := QuadMesh.new()
+		q.size = Vector2(rng.randf_range(9.0, 16.0), rng.randf_range(2.0, 3.4))
+		m.mesh = q
 		var mm := StandardMaterial3D.new()
 		mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mm.albedo_texture = noise
-		mm.albedo_color = Color(0.86, 0.88, 0.86, 0.0)
-		mm.uv1_scale = Vector3(3.0 + i, 2.0 + i, 1.0)
-		mm.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mm.albedo_texture = puff
+		mm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		mm.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+		mm.albedo_color = Color(0.82, 0.85, 0.84, 0.0)
 		mm.disable_receive_shadows = true
-		mist.material_override = mm
-		mist.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mist.position = Vector3((west + east) * 0.5, 0.35 + 0.45 * i, north_z + 20.0)
-		add_child(mist)
-		_mist.append(mist)
+		mm.proximity_fade_enabled = true
+		mm.proximity_fade_distance = 1.5
+		m.material_override = mm
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.position = Vector3(p.x, WATER_Y + q.size.y * 0.42, p.y)
+		m.set_meta("x0", p.x)
+		m.set_meta("speed", rng.randf_range(0.15, 0.45))
+		m.set_meta("span", box.size.x)
+		m.set_meta("left", box.position.x)
+		add_child(m)
+		_mist.append(m)
+
+
+func _update_ripples(delta: float, hour: float) -> void:
+	if _water_poly.is_empty():
+		return
+	_ripple_timer -= delta
+	if _ripple_timer <= 0.0 and hour > 6.0 and hour < 21.0:
+		_ripple_timer = _rng_fx.randf_range(4.0, 13.0)
+		_spawn_ripple()
+	_ripple_acc += delta
+	if _ripple_acc < 0.1:
+		return
+	_ripple_acc = 0.0
+	for r in _ripples:
+		var n: MeshInstance3D = r["node"]
+		r["frame"] += 1
+		var f := int(r["frame"])
+		n.scale = Vector3.ONE * (0.4 + 0.28 * f)
+		(n.material_override as StandardMaterial3D).albedo_color.a = clampf(0.75 - 0.08 * f, 0.0, 1.0)
+		if f >= 9:
+			n.queue_free()
+	_ripples = _ripples.filter(func(r): return int(r["frame"]) < 9)
+
+
+func _spawn_ripple() -> void:
+	var box := Rect2(_water_poly[0], Vector2.ZERO)
+	for v in _water_poly:
+		box = box.expand(v)
+	for _try in 20:
+		var p := Vector2(_rng_fx.randf_range(box.position.x, box.end.x), _rng_fx.randf_range(box.position.y, box.end.y))
+		if not Geometry2D.is_point_in_polygon(p, _water_poly):
+			continue
+		if _ripple_tex == null:
+			var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+			for y in 32:
+				for x in 32:
+					var d := Vector2(x - 15.5, y - 15.5).length()
+					var a := 1.0 if (d > 12.0 and d < 15.0) or (d > 6.0 and d < 7.5) else 0.0
+					img.set_pixel(x, y, Color(0.85, 0.9, 0.92, a))
+			_ripple_tex = ImageTexture.create_from_image(img)
+		var n := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(1.6, 1.6)
+		n.mesh = q
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_texture = _ripple_tex
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.albedo_color = Color(1, 1, 1, 0.75)
+		n.material_override = m
+		n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		n.rotation.x = -PI * 0.5
+		n.position = Vector3(p.x, WATER_Y + 0.02, p.y)
+		add_child(n)
+		_ripples.append({"node": n, "frame": 0})
+		if ResourceLoader.exists(PLOP_SFX):
+			var a := AudioStreamPlayer3D.new()
+			a.stream = load(PLOP_SFX)
+			a.unit_size = 5.0
+			a.max_distance = 50.0
+			n.add_child(a)
+			a.play()
+		return
+
+
+## A soft lumpy blob of mist, transparent at the edges (64 x 32, palette-friendly steps).
+func _mist_texture(rng: RandomNumberGenerator) -> ImageTexture:
+	var img := Image.create(64, 32, false, Image.FORMAT_RGBA8)
+	var bumps: Array = []
+	for i in 7:
+		bumps.append(Vector3(rng.randf_range(0.15, 0.85), rng.randf_range(0.35, 0.7), rng.randf_range(0.14, 0.3)))
+	for y in 32:
+		for x in 64:
+			var u := float(x) / 63.0
+			var v := float(y) / 31.0
+			var a := 0.0
+			for b: Vector3 in bumps:
+				var d := Vector2((u - b.x) * 0.55, v - b.y).length() / b.z
+				a = maxf(a, 1.0 - d)
+			a = clampf(a, 0.0, 1.0) * clampf((1.0 - v) * 3.0, 0.0, 1.0)
+			a = floorf(a * 5.0) / 5.0
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	return ImageTexture.create_from_image(img)
 
 
 func _process(delta: float) -> void:
@@ -146,13 +249,16 @@ func _process(delta: float) -> void:
 	var h := float(_main.get("_time_of_day_hours")) if _main.get("_time_of_day_hours") != null else 12.0
 	# Thick at dawn (04:30-08:30), a breath of it at night, gone by day.
 	var dawn := clampf(1.0 - absf(h - 6.3) / 2.2, 0.0, 1.0)
-	var night := 0.25 if (h >= 21.5 or h < 4.5) else 0.0
+	var night := 0.3 if (h >= 21.5 or h < 4.5) else 0.0
 	var amount := maxf(dawn, night)
-	for i in _mist.size():
-		var mm := _mist[i].material_override as StandardMaterial3D
-		mm.albedo_color.a = amount * (0.42 - 0.1 * i)
-		mm.uv1_offset = Vector3(_mist_t * (0.004 + 0.002 * i), _mist_t * 0.0015 * (i - 1), 0.0)
-		_mist[i].visible = amount > 0.01
+	_update_ripples(delta, h)
+	for m in _mist:
+		var mm := m.material_override as StandardMaterial3D
+		mm.albedo_color.a = amount * 0.55
+		m.visible = amount > 0.01
+		if m.visible:
+			var span: float = m.get_meta("span")
+			m.position.x = float(m.get_meta("left")) + fposmod(float(m.get_meta("x0")) - float(m.get_meta("left")) + _mist_t * float(m.get_meta("speed")), span)
 
 
 func _build_jetty(start: Vector3) -> void:

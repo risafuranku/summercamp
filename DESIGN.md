@@ -252,6 +252,17 @@ game stops on THE BOOKS (`scripts/week_ledger.gd`, `scripts/ui/week_report_scree
 - **Then:** *Stay on* closes the week and the camp runs on with no end (Vera takes the noon
   bus back to town: "You know the way."), or back to the main menu.
 
+## 5f. Work you can see
+
+Every held job shows your hand doing it (`scripts/ui/work_hand.gd`): a Build-engine
+"weapon" sprite of a gloved hand with the right tool (brush, hand broom, mop, rag, bin
+bag, plunger, wrench, bare hand), rising from under the status bar and working the thing
+under the cursor or crosshair: circles for scrubbing, strokes for sweeping and mopping,
+picking up, patting the bed flat, plunging, turning the wrench, with suds, dust, drops
+or sparks flying. The mess itself jitters under the brush. All of it moves in steps,
+8-12 frames a second, never smooth: the guests' walk, the bonfire's flames and sparks,
+the desk fan, the wicket gate, the ripples where a fish jumps. That stutter is the look.
+
 ## 6. Upkeep
 
 Every building has a condition (0-100%) that drops daily by its `maintenance_decay`.

@@ -360,7 +360,8 @@ func _process(delta: float) -> void:
 	# Spin fan blades
 	if _fan_pivot != null:
 		_fan_spin += delta * 380.0
-		_fan_pivot.rotation_degrees.z = _fan_spin
+		# Drawn in steps (10 a second), like the rest of the old machinery.
+		_fan_pivot.rotation_degrees.z = floorf(_fan_spin / 38.0) * 38.0
 	if _interior_camera == null:
 		return
 	if _crt_active:

@@ -12,6 +12,9 @@ extends Control
 signal task_completed(task_id: String)
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
+## The thing being worked on shakes in steps, this many a second (see work_hand.gd).
+const SHAKE_FPS := 10.0
 const SFX_DIR := "res://assets/sfx/rooms/"
 const SFX_BY_TASK := {"bed": "task_bed.mp3", "floor": "task_litter.mp3", "bathroom": "task_scrub.mp3"}
 const SFX_DONE := "task_done.mp3"
@@ -33,6 +36,9 @@ var _scale := 3
 var _checklist: VBoxContainer
 var _prompt: Label
 var _t := 0.0
+var _hand: Control
+var _shake_acc := 0.0
+var _shaken: Dictionary = {}   # MeshInstance3D -> its rest position
 
 
 func _init() -> void:
@@ -55,6 +61,10 @@ func setup(camera: Camera3D, viewport: SubViewport) -> void:
 	_one_shot = AudioStreamPlayer.new()
 	_one_shot.volume_db = -3.0
 	add_child(_one_shot)
+	_hand = WORK_HAND.new()
+	_hand.show_behind_parent = true
+	_hand.name = "WorkHand"
+	add_child(_hand)
 	_build_overlay()
 
 
@@ -108,6 +118,8 @@ func _process(delta: float) -> void:
 			_cancel_hold()
 		else:
 			_progress += delta / maxf(0.2, float(_targets[_holding]["seconds"]))
+			_hand.aim(get_viewport().get_mouse_position())
+			_shake(_targets[_holding], delta)
 			if _progress >= 1.0:
 				_finish(_holding)
 	elif not lmb and not _holding.is_empty():
@@ -189,9 +201,32 @@ func _apply_highlight(target: Dictionary, on: bool) -> void:
 			(m as MeshInstance3D).material_overlay = _highlight if on else null
 
 
+## The mess jumps about under the brush, a few millimetres, in steps.
+func _shake(target: Dictionary, delta: float) -> void:
+	_shake_acc += delta
+	if _shake_acc < 1.0 / SHAKE_FPS:
+		return
+	_shake_acc = 0.0
+	for m in target["meshes"]:
+		if not (m is Node3D) or not is_instance_valid(m):
+			continue
+		var n := m as Node3D
+		if not _shaken.has(n):
+			_shaken[n] = n.position
+		n.position = (_shaken[n] as Vector3) + Vector3(randf_range(-0.012, 0.012), randf_range(0.0, 0.01), randf_range(-0.012, 0.012))
+
+
+func _unshake() -> void:
+	for n in _shaken.keys():
+		if is_instance_valid(n):
+			(n as Node3D).position = _shaken[n]
+	_shaken.clear()
+
+
 func _start_hold(id: String) -> void:
 	_holding = id
 	_progress = 0.0
+	_hand.start(str(_targets[id].get("verb", "")), get_viewport().get_mouse_position())
 	var path := SFX_DIR + str(_targets[id].get("sfx", "task_litter.mp3"))
 	if ResourceLoader.exists(path):
 		_work_player.stream = load(path)
@@ -201,6 +236,9 @@ func _start_hold(id: String) -> void:
 func _cancel_hold() -> void:
 	_holding = ""
 	_progress = 0.0
+	if _hand != null:
+		_hand.stop()
+	_unshake()
 	if _work_player != null and _work_player.playing:
 		_work_player.stop()
 

@@ -282,6 +282,10 @@ func _bonfire(r: Node3D, _w: float, _d: float) -> Dictionary:
 	light.omni_range = 6.0
 	light.position = Vector3(0, 0.8, 0)
 	r.add_child(light)
+	var flicker := Node3D.new()
+	flicker.name = "FireFlicker"
+	flicker.set_script(load("res://scripts/fire_flicker.gd"))
+	r.add_child(flicker)
 	# Log benches around the fire.
 	for i in 3:
 		var a := TAU * float(i) / 3.0 + 0.5

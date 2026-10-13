@@ -326,10 +326,13 @@ func _update_work(delta: float, can_act: bool) -> void:
 
 
 func _reset_work() -> void:
+	# Only take the bar (and the hand) down if this was what put it up: the day's
+	# chores use the same HUD bar.
+	var was_working := _work > 0.0 or _work_key != ""
 	_work = 0.0
 	_work_key = ""
 	_work_tick = 0.0
-	if _hud != null and _hud.has_method("clear_work_progress"):
+	if was_working and _hud != null and _hud.has_method("clear_work_progress"):
 		_hud.clear_work_progress()
 
 

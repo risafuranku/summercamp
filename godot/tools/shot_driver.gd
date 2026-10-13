@@ -409,7 +409,7 @@ const SCENARIOS := {
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
 		["player", 11, 25, 180.0], ["wait", 4.5], ["shot", "l0_lake_day"],
 		["player", 3, 24, 150.0], ["wait", 0.8], ["shot", "l1_lake_side"],
-		["eval", "debug_jump_to(2, 5.6)"], ["player", 14, 25, 180.0], ["wait", 1.5], ["shot", "l2_lake_dawn"],
+		["eval", "debug_jump_to(2, 6.6)"], ["player", 11, 25, 180.0], ["wait", 4.5], ["shot", "l2_lake_dawn"],
 		["eval", "debug_jump_to(2, 22.5)"], ["wait", 4.5], ["shot", "l3_lake_night"],
 	],
 	"cornmaze": [
@@ -429,6 +429,11 @@ const SCENARIOS := {
 		["eval", "debug_corn_face(_corn_field().scarecrow.global_position, 4.0)"], ["wait", 1.0], ["shot", "h2_scarecrow"],
 		["eval", "_corn_hunt.set('_following', true)"], ["eval", "debug_goto_corn_gate(3.0)"], ["eval", "_corn_hunt._guest.set('global_position', Vector3(_corn_field().fence_x + 1.5, 0.0, _corn_field().gate_z))"], ["wait", 1.0],
 		["eval", "[_corn_hunt == null, _corn_job]"], ["shot", "h3_rescued"],
+	],
+	"workhand": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
+		["player", 14, 6, 180.0], ["eval", "_hud_manager.set_work_progress('REPAIRING TOILETS', 0.4)"], ["wait", 0.6], ["shot", "w0_wrench"], ["eval", "[_hud_manager._work_hand != null, _hud_manager._hint_layer.visible, _hud_manager._work_hand.size, _hud_manager._work_hand._raise, _hud_manager._work_hand._active, _hud_manager._work_hand._tex]"],
+		["eval", "_hud_manager.clear_work_progress()"], ["wait", 0.5], ["eval", "_hud_manager.set_work_progress('BAGGING RUBBISH', 0.4)"], ["wait", 0.7], ["shot", "w1_bag"],
 	],
 	"slop": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],

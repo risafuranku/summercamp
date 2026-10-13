@@ -360,13 +360,43 @@ func set_work_progress(text: String, ratio: float) -> void:
 	_work_text = text
 	_work_ratio = clampf(ratio, 0.0, 1.0)
 	_refresh_work()
+	_work_hand_on(text)
 
 
 func clear_work_progress() -> void:
 	if _work_ratio < 0.0:
 		return
+	if _work_hand != null and is_instance_valid(_work_hand):
+		_work_hand.stop()
 	_work_ratio = -1.0
 	_refresh_work()
+
+
+## The hand doing the work out in the camp (scripts/ui/work_hand.gd), at the crosshair.
+var _work_hand: Control
+
+func _work_hand_on(text: String) -> void:
+	if _hint_layer == null:
+		return
+	if _work_hand == null or not is_instance_valid(_work_hand):
+		# Under the status bar, like a Build-engine weapon sprite.
+		var layer := CanvasLayer.new()
+		layer.name = "WorkHandLayer"
+		layer.layer = HUD_LAYER_INDEX - 1
+		add_child(layer)
+		_work_hand = load("res://scripts/ui/work_hand.gd").new()
+		_work_hand.name = "WorkHand"
+		layer.add_child(_work_hand)
+	var t := text.to_upper()
+	var verb := "Repairing"
+	if t.begins_with("SAWING"):
+		verb = "Sawing"
+	elif t.begins_with("BAGGING"):
+		verb = "Bagging"
+	elif t.begins_with("SERVICING"):
+		verb = "Fixing"
+	var vp := _hint_layer.get_viewport().get_visible_rect().size
+	_work_hand.start(verb, vp * 0.5 + Vector2(0, vp.y * 0.08))
 
 
 ## Screen-space objective marker over a world position (Vector3.INF hides it).
