@@ -66,14 +66,14 @@ const SCENARIOS := {
 		["wait", 0.3], ["shot", "d0_desk_03s"], ["wait", 0.9], ["shot", "d1_desk_12s"], ["wait", 2.8], ["shot", "d2_desk_40s"],
 	],
 	"views": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
 		["eval", "_player.rotate_y(PI)"], ["wait", 1.0], ["shot", "10_day_camp"],
 		["eval", "_player.rotate_y(PI * 0.5)"], ["wait", 1.0], ["shot", "11_day_side"],
 		["hours", 9.5], ["wait", 2.0], ["eval", "_player.rotate_y(PI * 0.5)"], ["wait", 1.0], ["shot", "12_dusk"],
 		["hours", 3.0], ["wait", 3.0], ["shot", "13_night"],
 	],
 	"guests": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["money", 20000],
 		["clear", 2, 3, 5, 5], ["clear", 7, 3, 5, 5], ["clear", 12, 3, 5, 5],
 		["clear", 2, 8, 5, 5], ["clear", 7, 8, 5, 5], ["clear", 12, 8, 5, 5],
@@ -93,7 +93,7 @@ const SCENARIOS := {
 		["timescale", 1.0],
 	],
 	"hud": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["money", 5000], ["clear", 7, 3, 5, 5], ["build", "tent_1", 8, 5, 0], ["build", "tent_1", 9, 5, 0],
 		["build", "toilet_block", 10, 5, 0],
 		["prep_all"], ["book", "Pepa", "drunk", 2, 2],
@@ -137,7 +137,7 @@ const SCENARIOS := {
 		["call_on", "_main_menu", "show_loading", ["Generating a fresh camp..."]], ["wait", 0.6], ["shot", "08_menu_loading"],
 	],
 	"pause": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
 		["call", "_open_pause_menu", []], ["wait", 0.5], ["shot", "50_pause"],
 		["call_on", "_pause_menu", "_show", ["options"]], ["wait", 0.4], ["shot", "51_pause_options"],
 		["call_on", "_pause_menu", "_show", ["main"]],
@@ -145,7 +145,7 @@ const SCENARIOS := {
 		["call", "_close_pause_menu", [true]], ["wait", 0.5], ["shot", "53_resumed"],
 	],
 	"gameover": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.5],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.5],
 		["call", "_trigger_game_over", ["death"]], ["wait", 3.5], ["shot", "60_gameover"],
 	],
 	"crt": [
@@ -153,7 +153,7 @@ const SCENARIOS := {
 		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0], ["shot", "70_crt_desktop"],
 	],
 	"upkeep": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["money", 5000], ["clear", 7, 3, 5, 5],
 		["build", "toilet_block", 8, 5, 0], ["build", "shower_block", 10, 5, 0], ["build", "lamp_post", 9, 7, 0],
 		["wait", 0.5],
@@ -182,7 +182,7 @@ const SCENARIOS := {
 		["crt_screen", "b2_crt_screen"], ["timescale", 3.0], ["wait", 4.0], ["timescale", 1.0], ["crt_screen", "b3_crt_screen_later"],
 	],
 	"pipes": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["eval", "_sewer_pipe_minigame.open_repair(Vector2i(0, 25), 'sewer')"], ["wait", 1.5], ["shot", "c0_pipes_ladder"], ["eval", "_sewer_pipe_minigame._rig.position"], ["eval", "_sewer_pipe_minigame._rig.rotation"], ["eval", "_sewer_pipe_minigame._links[_sewer_pipe_minigame._entry]"], ["eval", "_sewer_pipe_minigame._entry"],
 		["key", "W"], ["wait", 1.0], ["shot", "c1_pipes_fwd"],
 		["key", "W"], ["wait", 1.0], ["key", "D"], ["wait", 1.0], ["shot", "c2_pipes_turn"],
@@ -190,7 +190,7 @@ const SCENARIOS := {
 		["eval", "_sewer_pipe_minigame._thing_on"],
 	],
 	"night": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["player", 12, 8, 0.0], ["hours", 13.0], ["wait", 3.0],
 		["call", "debug_spawn_enemy", ["girl", 3]], ["wait", 1.0], ["enemy_dist"],
 		["look_at_enemy"], ["wait", 0.6], ["shot", "a0_girl_far"], ["enemy_dist"],
@@ -205,7 +205,7 @@ const SCENARIOS := {
 		["wait", 5.0], ["look_at_enemy"], ["enemy_dist"], ["shot", "a7_stalker_close"],
 	],
 	"night2": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["player", 12, 8, 0.0], ["hours", 13.0], ["wait", 3.0],
 		["call", "debug_spawn_enemy", ["tourist", 3]],
 		["until", "_enemy_brains[0]._phase == 1", 20.0], ["look_at_enemy"], ["wait", 1.2], ["shot", "n0_photo_framing"],
@@ -217,7 +217,7 @@ const SCENARIOS := {
 		["eval", "_enemy_brains[0].get_debug_snapshot()"],
 	],
 	"night3": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["call_on", "_interior_manager", "close_main_interior_if_open", []],
 		["player", 12, 8, 0.0], ["hours", 18.0], ["wait", 3.0],
 		["call", "debug_spawn_enemy", ["whistler", 3]], ["wait", 6.0], ["eval", "[_enemy_brains[0]._source, _enemy_brains[0]._lured]"],
@@ -230,7 +230,7 @@ const SCENARIOS := {
 		["eval", "_time_of_day_hours"],
 	],
 	"breaker": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["call_on", "_interior_manager", "close_main_interior_if_open", []],
 		["money", 5000], ["clear", 16, 3, 3, 3], ["build", "lamp_post", 17, 4, 0], ["build", "lamp_post", 17, 20, 0],
 		["hours", 12.5], ["wait", 2.0], ["player", 15, 5, 0.0], ["eval", "_player.rotate_y(PI)"], ["wait", 1.0], ["shot", "b0_lamps_on"],
@@ -243,7 +243,7 @@ const SCENARIOS := {
 		["wait", 2.0], ["shot", "b5_half_lamps"],
 	],
 	"senses": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 4.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 4.0],
 		["eval", "[get_tree().root.find_child('RadioOutdoor', true, false).playing, snappedf(get_tree().root.find_child('RadioOutdoor', true, false).volume_db, 0.1), get_tree().root.find_child('RadioOutdoor', true, false).global_position.distance_to(_player.global_position), get_tree().root.find_child('RadioPlayer', true, false).volume_db]"],
 		["hours", 13.0], ["wait", 2.0],
 		["player", 1, 1, 225.0], ["call", "debug_spawn_enemy", ["girl", 3]], ["wait", 1.0],
@@ -261,7 +261,7 @@ const SCENARIOS := {
 		["shot", "s2_guest_face_glances"],
 	],
 	"uncanny": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["money", 5000], ["clear", 7, 3, 5, 5], ["build", "tent_1", 8, 5, 0], ["build", "tent_1", 10, 5, 0],
 		["prep_all"], ["book", "Pepa", "drunk", 1, 4], ["book", "Mirek", "quiet_guy", 1, 4], ["wait", 0.5],
 		["hours", 33.0], ["wait", 1.0], ["eval", "[_day_index, _time_of_day_hours]"],
@@ -405,6 +405,13 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
 		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('power_generator'))"], ["wait", 1.2], ["shot", "r3_generator"],
 	],
+	"lake": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
+		["player", 11, 25, 180.0], ["wait", 4.5], ["shot", "l0_lake_day"],
+		["player", 3, 24, 150.0], ["wait", 0.8], ["shot", "l1_lake_side"],
+		["eval", "debug_jump_to(2, 5.6)"], ["player", 14, 25, 180.0], ["wait", 1.5], ["shot", "l2_lake_dawn"],
+		["eval", "debug_jump_to(2, 22.5)"], ["wait", 4.5], ["shot", "l3_lake_night"],
+	],
 	"slop": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5],
@@ -507,7 +514,7 @@ const SCENARIOS := {
 	],
 	"saveload": [
 		["wait_menu"], ["wait", 1.0], ["shot", "01_menu"],
-		["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["money", 5000], ["clear", 7, 3, 5, 5],
 		["build", "tent_1", 8, 5, 0], ["build", "toilet_block", 10, 5, 0], ["wait", 0.5],
 		["prep_all"], ["book", "Pepa", "drunk", 1, 3], ["condition", 10, 5, 0.4],
@@ -526,7 +533,7 @@ const SCENARIOS := {
 		["shot", "99_after_load"],
 	],
 	"blood": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["player", 9, 4, 180.0], ["wait", 0.5],
 		["call", "damage_player", [30]], ["wait", 0.12], ["shot", "94_blood_flight"], ["eval", "_blood_fx._drops.size()"],
 		["wait", 1.0], ["shot", "95_blood"], ["eval", "[_blood_fx._drops.size(), _blood_fx._decals.size()]"],
@@ -534,7 +541,7 @@ const SCENARIOS := {
 		["eval", "_player.rotate_y(PI)"], ["wait", 0.5], ["shot", "97_blood_behind"],
 	],
 	"weather": [
-		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["player", 9, 2, 180.0], ["wait", 1.0], ["shot", "80_clear"],
 		["eval", "weather_system.set_weather(4)"], ["wait", 20.0], ["shot", "81_rain_half"],
 		["wait", 25.0], ["shot", "82_rain"],
@@ -583,7 +590,7 @@ const SCENARIOS := {
 		["wait_menu"], ["wait", 2.0], ["shot", "01_menu"],
 		["call", "_on_menu_new_game_pressed", []],
 		["wait", 0.25], ["shot", "02_loading_new"],
-		["wait_gameplay"], ["wait", 2.5], ["shot", "03_gameplay"],
+		["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.5], ["shot", "03_gameplay"],
 		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 6.0], ["shot", "04_crt"],
 	],
 }
@@ -637,6 +644,8 @@ func _process(delta: float) -> void:
 		_main = get_tree().current_scene
 		if _main == null or _main == self:
 			return
+		if "pause_on_focus_loss" in _main:
+			_main.set("pause_on_focus_loss", false)
 	if _wait_left > 0.0:
 		_wait_left -= delta
 		return

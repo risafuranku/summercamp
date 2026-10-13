@@ -1,6 +1,7 @@
 extends Node3D
 
 const TREE_WIND_SHADER = preload("res://materials/tree_wind.gdshader")
+const CAMP_LAKE_SCRIPT = preload("res://scripts/camp_lake.gd")
 
 @export_range(0.0, 1.0, 0.01) var tree_spawn_chance: float = 0.30
 @export var wind_direction_degrees: float = 32.0
@@ -309,6 +310,9 @@ func _generate_terrain() -> void:
 		lake_base_mat.uv1_scale = lake_uv_scale
 	lake_mesh.material_override = lake_mat
 	lake.add_child(lake_mesh)
+	# The camp's shore row is drawn by the lake beyond it (scripts/camp_lake.gd).
+	lake_mesh.visible = false
+	_build_lake(map_size, map_center)
 	_spawn_perimeter_fence(map_size, map_center)
 	_spawn_horizon(map_size, map_center, batch2_grass_tex)
 	_spawn_cornfield(map_size, map_center)
@@ -329,7 +333,7 @@ func _spawn_perimeter_fence(map_size: Vector2, map_center: Vector3) -> void:
 	var fence_thickness = 0.12
 	var north_south_size = Vector3(map_size.x + 0.24, fence_height, fence_thickness)
 	var east_west_size = Vector3(fence_thickness, fence_height, map_size.y + 0.24)
-	_add_fence_segment(fence_root, "FenceNorth", map_center + Vector3(0.0, fence_height * 0.5, (map_size.y * 0.5) - inset), north_south_size)
+	# No fence across the north side: that is the lake shore (camp_lake.gd walls it off).
 	# The south fence has the gate gap east of the reception.
 	var south_z: float = map_center.z - (map_size.y * 0.5) + inset
 	var gap_x: float = _grid_manager.grid_to_world(gate_tile()).x
@@ -340,6 +344,24 @@ func _spawn_perimeter_fence(map_size: Vector2, map_center: Vector3) -> void:
 	_add_fence_segment(fence_root, "FenceSouthEast", Vector3((gap_x + gap_half + east_end) * 0.5, fence_height * 0.5, south_z), Vector3(east_end - (gap_x + gap_half), fence_height, fence_thickness))
 	_add_fence_segment(fence_root, "FenceEast", map_center + Vector3((map_size.x * 0.5) - inset, fence_height * 0.5, 0.0), east_west_size)
 	_add_fence_segment(fence_root, "FenceWest", map_center + Vector3(-(map_size.x * 0.5) + inset, fence_height * 0.5, 0.0), east_west_size)
+
+
+var _lake_poly := PackedVector2Array()
+
+
+func _build_lake(map_size: Vector2, map_center: Vector3) -> void:
+	var shore_z: float = _grid_manager.grid_to_world(Vector2i(0, _grid_manager.grid_height - 1)).z - _grid_manager.tile_size * 0.5
+	var north_z: float = map_center.z + map_size.y * 0.5
+	var west: float = map_center.x - map_size.x * 0.5
+	var east: float = map_center.x + map_size.x * 0.5
+	var lake_seed := _rng.randi()
+	var lake := CAMP_LAKE_SCRIPT.new()
+	_terrain_root.add_child(lake)
+	lake.build(get_parent(), shore_z, north_z, west, east, lake_seed)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = lake_seed
+	var poly := CAMP_LAKE_SCRIPT.water_polygon(shore_z, north_z, west, east, rng)
+	_lake_poly = Geometry2D.offset_polygon(poly, 4.0)[0]
 
 
 func _spawn_camp_gate(map_size: Vector2, map_center: Vector3) -> void:
@@ -779,6 +801,9 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 		var p := map_center + Vector3(cos(ang), 0.0, sin(ang)) * dist
 		# Square map: keep trees outside the fenced rectangle.
 		if absf(p.x - map_center.x) < map_size.x * 0.5 + 2.0 and absf(p.z - map_center.z) < map_size.y * 0.5 + 2.0:
+			continue
+		# Not in the lake.
+		if not _lake_poly.is_empty() and Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), _lake_poly):
 			continue
 		# And off the gate road (it runs south from the gate with a slight bend east).
 		if _on_gate_road(p, map_size, map_center):

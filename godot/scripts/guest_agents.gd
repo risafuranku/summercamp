@@ -317,6 +317,12 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		if not visible_now:
 			continue
 		var offset := side * (float(i) - float(members.size() - 1) * 0.5) * MEMBER_SPREAD_M
+		if not walking and members.size() > 1:
+			# Standing about: a loose huddle (so they never line up behind each other
+			# from where you look), turned a little differently for every party.
+			var turn := float(int(info.get("id", 0)) * 97 % 360) * PI / 180.0
+			var ang := turn + TAU * float(i) / float(members.size())
+			offset = Vector3(cos(ang), 0.0, sin(ang)) * (0.55 + 0.12 * float(members.size()))
 		if dwell_phase and bool(act.get("queued", false)):
 			offset = Vector3(float(i) * 0.4, 0.0, 0.9 + float(int(info.get("id", 0)) % 3) * 0.7)
 		var pos := lead_pos + offset

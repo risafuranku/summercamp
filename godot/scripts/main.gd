@@ -108,6 +108,8 @@ var _sewer_pipe_minigame
 var _texture_style
 var _audio_manager
 var _grid_was_powered := true
+## Tools (shot driver): an unattended window loses focus all the time.
+var pause_on_focus_loss := true
 
 # New Systems
 var time_system
@@ -3253,7 +3255,7 @@ func _notification(what: int) -> void:
 		get_tree().quit()
 	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		# Alt-tab during the night should not cost the player their life.
-		if _can_pause_now():
+		if pause_on_focus_loss and _can_pause_now():
 			_open_pause_menu()
 
 

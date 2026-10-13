@@ -364,6 +364,28 @@ def oil_drum(m):
     return parts
 
 
+# ── the lake ──
+
+def rowboat(m):
+    """A small wooden rowing boat: planked sides that taper to a pointed bow, a flat
+    stern, two thwarts, a pair of oars laid inside. 2.6 m long, bow towards -Y."""
+    hull = K.mat("hull", "planks_red.png", (0.8, 0.85, 0.9), texel=0.8)
+    inside = K.mat("hull_in", "planks_grey.png", (0.9, 0.85, 0.75), texel=0.8)
+    parts = [K.box((0.9, 1.7, 0.05), (0, 0.25, 0.06), inside)]
+    for s in (-1, 1):
+        # Midship side plank, then the two bow planks closing on the stem.
+        parts.append(K.box((0.04, 1.7, 0.42), (s * 0.47, 0.25, 0.24), hull, rot=(0, s * 0.12, 0)))
+        parts.append(K.box((0.04, 0.95, 0.42), (s * 0.25, -0.95, 0.26), hull, rot=(0, s * 0.1, s * -0.5)))
+    parts.append(K.box((0.86, 0.04, 0.42), (0, 1.1, 0.24), hull))
+    parts.append(K.box((0.06, 0.06, 0.5), (0, -1.38, 0.3), hull, rot=(0.35, 0, 0)))
+    for y in (-0.2, 0.6):
+        parts.append(K.box((0.88, 0.2, 0.03), (0, y, 0.33), m["pine"]))
+    for s in (-1, 1):
+        parts.append(K.box((0.05, 1.9, 0.03), (s * 0.18, 0.15, 0.37), m["pine"], rot=(0, 0, s * 0.08)))
+        parts.append(K.box((0.12, 0.4, 0.015), (s * 0.18, 1.0, 0.38), m["pine"]))
+    return parts
+
+
 PROPS = {
     "camp_bed": camp_bed,
     "sleeping_bag": sleeping_bag,
@@ -393,4 +415,5 @@ PROPS = {
     "radio_set": radio_set,
     "generator": generator,
     "oil_drum": oil_drum,
+    "rowboat": rowboat,
 }
