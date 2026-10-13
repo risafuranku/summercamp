@@ -3,7 +3,11 @@ extends Node3D
 ## Past the west fence: a field of tall corn with a scarecrow in it, and a high-voltage
 ## line marching along behind on steel pylons. The wires hum; at night the pylon tops
 ## blink red. A good place to be chased through, and a bad place to get lost in.
-## Visual and sound only (it is outside the fence); built by world_generator.gd.
+##
+## A wicket gate in the west fence lets you in. Behind it the corn has been cut into a
+## maze (new every game: a random walk with a few loops), the paths 1.6 m wide, the
+## stalks a wall you cannot push through. The night job "Someone is in the corn"
+## (scripts/corn_hunt.gd) sends you in after a lost guest. Built by world_generator.gd.
 
 const CORN_TEX := "res://assets/textury/world/corn.png"
 const SCARECROW_TEX := "res://assets/textury/world/scarecrow.png"
@@ -12,7 +16,22 @@ const RUSTLE_SFX := "res://assets/sfx/world/corn_rustle.mp3"
 const PYLON_H := 24.0
 const PYLON_STEP := 46.0
 
+const TILE := 1.6
+const GATE_SFX := "res://assets/sfx/world/gate_creak.mp3"
+
 var field_rect := Rect2()     # x/z of the field, world metres
+## The maze: a grid of TILE squares over `maze_rect`; true = path. Odd cells are rooms.
+var maze_rect := Rect2()
+var maze_cols := 0
+var maze_rows := 0
+var maze_open: Dictionary = {}   # Vector2i -> true for path tiles
+var entrance := Vector2i(-1, -1)
+var fence_x := 0.0
+var gate_z := 0.0
+var scarecrow: Sprite3D
+var _gate_leaf: Node3D
+var _gate_open := 0.0
+var _gate_sfx: AudioStreamPlayer3D
 var line_x := 0.0             # where the pylons stand
 var line_z := Vector2.ZERO    # from..to along z
 var _lights: Array[Node3D] = []
@@ -20,11 +39,15 @@ var _t := 0.0
 var _main: Node
 
 
-func build(p_field: Rect2, p_line_x: float, p_line_z: Vector2, rng: RandomNumberGenerator) -> void:
+func build(p_field: Rect2, p_line_x: float, p_line_z: Vector2, rng: RandomNumberGenerator, p_fence_x: float = 0.0, p_gate_z: float = 0.0) -> void:
 	field_rect = p_field
 	line_x = p_line_x
 	line_z = p_line_z
+	fence_x = p_fence_x
+	gate_z = p_gate_z
+	_build_maze(rng)
 	_build_corn(rng)
+	_build_wicket_gate()
 	_build_scarecrow(rng)
 	_build_line()
 	_build_sound()
@@ -32,6 +55,7 @@ func build(p_field: Rect2, p_line_x: float, p_line_z: Vector2, rng: RandomNumber
 
 func _process(delta: float) -> void:
 	_t += delta
+	_update_gate(delta)
 	if _main == null:
 		_main = get_tree().current_scene if get_tree() != null else null
 	var night := false
@@ -42,6 +66,204 @@ func _process(delta: float) -> void:
 	var on := night and fmod(_t, 2.0) < 1.0
 	for l in _lights:
 		l.visible = on
+
+
+# ── the maze ─────────────────────────────────────────────────────────────────
+
+func _build_maze(rng: RandomNumberGenerator) -> void:
+	var width := field_rect.size.x - 2.0
+	var depth := minf(field_rect.size.y - 6.0, 40.0)
+	maze_cols = int(width / TILE)
+	maze_rows = int(depth / TILE)
+	if maze_cols % 2 == 0:
+		maze_cols -= 1
+	if maze_rows % 2 == 0:
+		maze_rows -= 1
+	var w := maze_cols * TILE
+	var d := maze_rows * TILE
+	# East edge 1 m in from the field's fence side; centred on the gate.
+	maze_rect = Rect2(field_rect.end.x - 1.0 - w, clampf(gate_z - d * 0.5, field_rect.position.y + 2.0, field_rect.end.y - 2.0 - d), w, d)
+	maze_open.clear()
+	# A random walk from a random room, then a few walls knocked through for loops.
+	var start := Vector2i(1 + 2 * rng.randi_range(0, (maze_cols - 3) / 2), 1 + 2 * rng.randi_range(0, (maze_rows - 3) / 2))
+	var stack: Array[Vector2i] = [start]
+	maze_open[start] = true
+	while not stack.is_empty():
+		var cur: Vector2i = stack.back()
+		var dirs := [Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2)]
+		_shuffle(dirs, rng)
+		var moved := false
+		for dvec in dirs:
+			var nxt: Vector2i = cur + dvec
+			if nxt.x < 1 or nxt.y < 1 or nxt.x > maze_cols - 2 or nxt.y > maze_rows - 2 or maze_open.has(nxt):
+				continue
+			maze_open[cur + dvec / 2] = true
+			maze_open[nxt] = true
+			stack.append(nxt)
+			moved = true
+			break
+		if not moved:
+			stack.pop_back()
+	for i in int(maze_cols * maze_rows * 0.025):
+		var wall := Vector2i(rng.randi_range(1, maze_cols - 2), rng.randi_range(1, maze_rows - 2))
+		if (wall.x + wall.y) % 2 == 1:
+			maze_open[wall] = true
+	# The way in: the east edge, on the room row nearest the gate.
+	var row := clampi(int((gate_z - maze_rect.position.y) / TILE), 1, maze_rows - 2)
+	if row % 2 == 0:
+		row += 1 if row + 1 < maze_rows - 1 else -1
+	entrance = Vector2i(maze_cols - 1, row)
+	maze_open[entrance] = true
+	gate_z = tile_world(entrance).z
+	# Stalks you cannot walk through: one long box per run of wall tiles in a row.
+	var body := StaticBody3D.new()
+	body.name = "MazeWalls"
+	add_child(body)
+	# Solid ground under the maze and the path to it (the camp's ground stops at the fence).
+	var floor_rect := maze_rect.merge(Rect2(maze_rect.end.x - 1.0, gate_z - TILE, fence_x - maze_rect.end.x + 2.0, TILE * 2.0)).grow(1.0)
+	_wall_box(body, Vector3(floor_rect.get_center().x, -0.5, floor_rect.get_center().y), Vector3(floor_rect.size.x, 1.0, floor_rect.size.y))
+	for r in maze_rows:
+		var c := 0
+		while c < maze_cols:
+			if maze_open.has(Vector2i(c, r)):
+				c += 1
+				continue
+			var c0 := c
+			while c < maze_cols and not maze_open.has(Vector2i(c, r)):
+				c += 1
+			var a := tile_world(Vector2i(c0, r))
+			var b := tile_world(Vector2i(c - 1, r))
+			_wall_box(body, (a + b) * 0.5 + Vector3(0, 1.2, 0), Vector3(b.x - a.x + TILE, 2.4, TILE))
+	# The path from the gate to the way in: walled on both sides, through the cut corn.
+	var path_x0 := maze_rect.end.x
+	var path_len := fence_x - path_x0
+	if path_len > 0.1:
+		for side: float in [-1.0, 1.0]:
+			_wall_box(body, Vector3(path_x0 + path_len * 0.5, 1.2, gate_z + side * (TILE * 0.5 + 0.15)), Vector3(path_len, 2.4, 0.3))
+
+
+func _shuffle(a: Array, rng: RandomNumberGenerator) -> void:
+	for i in range(a.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var t = a[i]
+		a[i] = a[j]
+		a[j] = t
+
+
+func _on_gate_path(p: Vector2) -> bool:
+	return p.x > maze_rect.end.x - 0.2 and p.x < fence_x + 0.5 and absf(p.y - gate_z) < TILE * 0.8
+
+
+func _wall_box(body: StaticBody3D, center: Vector3, size: Vector3) -> void:
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	cs.shape = box
+	cs.position = center
+	body.add_child(cs)
+
+
+## The centre of maze tile `c` on the ground.
+func tile_world(c: Vector2i) -> Vector3:
+	return Vector3(maze_rect.position.x + (float(c.x) + 0.5) * TILE, 0.0, maze_rect.position.y + (float(c.y) + 0.5) * TILE)
+
+
+func world_tile(p: Vector3) -> Vector2i:
+	return Vector2i(int(floor((p.x - maze_rect.position.x) / TILE)), int(floor((p.z - maze_rect.position.y) / TILE)))
+
+
+func in_maze(p: Vector3) -> bool:
+	return maze_rect.has_point(Vector2(p.x, p.z))
+
+
+## Path tiles with one way out (the ends of the corridors), not the way in.
+func dead_ends() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for t in maze_open.keys():
+		if t == entrance:
+			continue
+		var n := 0
+		for dvec in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if maze_open.has(t + dvec):
+				n += 1
+		if n == 1:
+			out.append(t)
+	return out
+
+
+## Shortest way between two path tiles (tiles from `a` to `b`), empty if none.
+func path_between(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+	var prev := {a: a}
+	var queue: Array[Vector2i] = [a]
+	while not queue.is_empty():
+		var cur: Vector2i = queue.pop_front()
+		if cur == b:
+			break
+		for dvec in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = cur + dvec
+			if maze_open.has(n) and not prev.has(n):
+				prev[n] = cur
+				queue.append(n)
+	if not prev.has(b):
+		return []
+	var out: Array[Vector2i] = [b]
+	while out.back() != a:
+		out.append(prev[out.back()])
+	out.reverse()
+	return out
+
+
+## The world point inside the camp just through the gate.
+func gate_inside() -> Vector3:
+	return Vector3(fence_x + 1.4, 0.0, gate_z)
+
+
+# ── the wicket gate ──────────────────────────────────────────────────────────
+
+func _build_wicket_gate() -> void:
+	if fence_x == 0.0:
+		return
+	var K = load("res://scripts/interior_kit.gd")
+	var root := Node3D.new()
+	root.name = "WicketGate"
+	root.position = Vector3(fence_x, 0.0, gate_z)
+	add_child(root)
+	var posts = K.surface("planks_dark", 0.6)
+	for side: float in [-1.0, 1.0]:
+		K.slab(root, Vector3(0.16, 1.5, 0.16), Vector3(0, 0.75, side * (TILE * 0.5 + 0.08)), posts, "GatePost")
+	K.slab(root, Vector3(0.12, 0.12, TILE + 0.4), Vector3(0, 1.56, 0), posts, "GateLintel")
+	# The leaf: pickets on two rails, hinged on the south post.
+	var hinge := Node3D.new()
+	hinge.name = "GateHinge"
+	hinge.position = Vector3(0, 0, -TILE * 0.5)
+	root.add_child(hinge)
+	var planks = K.surface("planks_grey", 1.0)
+	for i in 6:
+		K.slab(hinge, Vector3(0.05, 1.05, 0.16), Vector3(0, 0.62, 0.15 + i * 0.25), planks, "Picket")
+	for y: float in [0.32, 0.92]:
+		K.slab(hinge, Vector3(0.06, 0.1, TILE - 0.05), Vector3(0.04, y, TILE * 0.5), planks, "Rail")
+	_gate_leaf = hinge
+	_gate_sfx = AudioStreamPlayer3D.new()
+	_gate_sfx.stream = load(GATE_SFX) if ResourceLoader.exists(GATE_SFX) else null
+	_gate_sfx.unit_size = 4.0
+	root.add_child(_gate_sfx)
+
+
+## The gate swings open as you come up to it (from either side) and falls shut after.
+func _update_gate(delta: float) -> void:
+	if _gate_leaf == null or _main == null:
+		return
+	var player = _main.get("_player")
+	if player == null or not is_instance_valid(player):
+		return
+	var near: bool = Vector2(player.global_position.x - fence_x, player.global_position.z - gate_z).length() < 2.6
+	var target := 1.0 if near else 0.0
+	if target > 0.5 and _gate_open < 0.05 and _gate_sfx != null and _gate_sfx.stream != null:
+		_gate_sfx.play()
+	_gate_open = move_toward(_gate_open, target, delta * (2.2 if near else 0.9))
+	# Stepped, like the rest of the old machinery: 10 positions a second.
+	var shown := floorf(ease(_gate_open, 0.6) * 10.0) / 10.0
+	_gate_leaf.rotation.y = shown * deg_to_rad(-100.0)
 
 
 # ── corn ─────────────────────────────────────────────────────────────────────
@@ -56,13 +278,24 @@ func _build_corn(rng: RandomNumberGenerator) -> void:
 	while row < field_rect.size.x:
 		var z := 0.0
 		while z < field_rect.size.y:
-			# A few gaps, as if something has walked through.
-			if rng.randf() > 0.06:
+			# A few gaps, as if something has walked through. The maze is planted below.
+			var here := Vector2(field_rect.position.x + row, field_rect.position.y + z)
+			if rng.randf() > 0.06 and not maze_rect.grow(0.3).has_point(here) and not _on_gate_path(here):
 				var p := Vector3(field_rect.position.x + row + rng.randf_range(-0.15, 0.15), 0.0, field_rect.position.y + z + rng.randf_range(-0.2, 0.2))
 				var s := rng.randf_range(0.8, 1.15)
 				xforms.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.9, 1.15), s)), p))
 			z += rng.randf_range(0.55, 0.8)
 		row += 1.0
+	# The maze walls: every wall tile a thicket of stalks.
+	for r in maze_rows:
+		for c in maze_cols:
+			if maze_open.has(Vector2i(c, r)):
+				continue
+			var centre := tile_world(Vector2i(c, r))
+			for k in 4:
+				var p := centre + Vector3(rng.randf_range(-0.7, 0.7), 0.0, rng.randf_range(-0.7, 0.7))
+				var s := rng.randf_range(0.85, 1.15)
+				xforms.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.95, 1.2), s)), p))
 	mm.instance_count = xforms.size()
 	for i in xforms.size():
 		mm.set_instance_transform(i, xforms[i])
@@ -114,6 +347,7 @@ func _build_scarecrow(rng: RandomNumberGenerator) -> void:
 	if tex == null:
 		return
 	var spr := Sprite3D.new()
+	scarecrow = spr
 	spr.name = "Scarecrow"
 	spr.texture = tex
 	spr.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
@@ -122,8 +356,9 @@ func _build_scarecrow(rng: RandomNumberGenerator) -> void:
 	spr.shaded = true
 	spr.pixel_size = 2.6 / float(tex.get_height())
 	spr.offset = Vector2(0, tex.get_height() * 0.5)
-	# Near the fence side of the field, in line with the middle of the camp.
-	spr.position = Vector3(field_rect.end.x - 5.0, 0.0, field_rect.get_center().y + rng.randf_range(-10.0, 10.0))
+	# Somewhere in the maze, at the end of a path.
+	var ends := dead_ends()
+	spr.position = tile_world(ends[rng.randi_range(0, ends.size() - 1)]) if not ends.is_empty() else Vector3(field_rect.end.x - 5.0, 0.0, field_rect.get_center().y)
 	add_child(spr)
 
 

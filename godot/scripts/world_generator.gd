@@ -56,6 +56,7 @@ func generate_world() -> void:
 
 
 func generate_base_world(spawn_default_buildings: bool = true, spawn_trees: bool = true) -> void:
+	_corn_gate_z = INF
 	_ensure_roots()
 	if _grid_manager == null or _building_manager == null:
 		push_error("WorldGenerator is missing GridManager or BuildingManager reference.")
@@ -343,7 +344,14 @@ func _spawn_perimeter_fence(map_size: Vector2, map_center: Vector3) -> void:
 	_add_fence_segment(fence_root, "FenceSouthWest", Vector3((west_end + gap_x - gap_half) * 0.5, fence_height * 0.5, south_z), Vector3((gap_x - gap_half) - west_end, fence_height, fence_thickness))
 	_add_fence_segment(fence_root, "FenceSouthEast", Vector3((gap_x + gap_half + east_end) * 0.5, fence_height * 0.5, south_z), Vector3(east_end - (gap_x + gap_half), fence_height, fence_thickness))
 	_add_fence_segment(fence_root, "FenceEast", map_center + Vector3((map_size.x * 0.5) - inset, fence_height * 0.5, 0.0), east_west_size)
-	_add_fence_segment(fence_root, "FenceWest", map_center + Vector3(-(map_size.x * 0.5) + inset, fence_height * 0.5, 0.0), east_west_size)
+	# The west fence has the wicket gate into the corn (cornfield.gd builds the gate).
+	var west_x: float = map_center.x - (map_size.x * 0.5) + inset
+	var z0: float = map_center.z - map_size.y * 0.5 - 0.12
+	var z1: float = map_center.z + map_size.y * 0.5 + 0.12
+	var gz := corn_gate_z(map_size, map_center)
+	var gh := 0.9
+	_add_fence_segment(fence_root, "FenceWestS", Vector3(west_x, fence_height * 0.5, (z0 + gz - gh) * 0.5), Vector3(fence_thickness, fence_height, (gz - gh) - z0))
+	_add_fence_segment(fence_root, "FenceWestN", Vector3(west_x, fence_height * 0.5, (gz + gh + z1) * 0.5), Vector3(fence_thickness, fence_height, z1 - (gz + gh)))
 
 
 var _lake_poly := PackedVector2Array()
@@ -372,6 +380,20 @@ func _spawn_camp_gate(map_size: Vector2, map_center: Vector3) -> void:
 	gate.build(_grid_manager.grid_to_world(gate_tile()), fence_z, _texture_style)
 
 
+var _corn_gate_z := INF
+
+
+## Where the wicket gate into the corn is: on the west fence, somewhere near the middle,
+## snapped to the maze grid (cornfield.gd TILE) so the way in lines up with it.
+func corn_gate_z(map_size: Vector2, map_center: Vector3) -> float:
+	if _corn_gate_z == INF:
+		var tile := 1.6
+		var field_z0 := map_center.z - map_size.y * 0.5 - 8.0
+		var want := map_center.z + _rng.randf_range(-map_size.y * 0.15, map_size.y * 0.15)
+		_corn_gate_z = field_z0 + (floor((want - field_z0) / tile) + 0.5) * tile
+	return _corn_gate_z
+
+
 ## West of the fence: a corn field with a scarecrow, a power line behind it.
 func _spawn_cornfield(map_size: Vector2, map_center: Vector3) -> void:
 	var west := map_center.x - map_size.x * 0.5
@@ -379,7 +401,7 @@ func _spawn_cornfield(map_size: Vector2, map_center: Vector3) -> void:
 	var corn := CORNFIELD_SCRIPT.new()
 	corn.name = "CornField"
 	_terrain_root.add_child(corn)
-	corn.build(field, west - CORN_DEPTH - 10.0, Vector2(map_center.z - map_size.y * 0.5 - 90.0, map_center.z + map_size.y * 0.5 + 90.0), _rng)
+	corn.build(field, west - CORN_DEPTH - 10.0, Vector2(map_center.z - map_size.y * 0.5 - 90.0, map_center.z + map_size.y * 0.5 + 90.0), _rng, west + 0.08, corn_gate_z(map_size, map_center))
 
 
 func _on_gate_road(p: Vector3, map_size: Vector2, map_center: Vector3) -> bool:
@@ -424,6 +446,9 @@ func _spawn_random_trees() -> void:
 		if tile.occupied:
 			continue
 		if _rng.randf() > tree_spawn_chance:
+			continue
+		# Keep the way to the wicket gate into the corn clear.
+		if coord.x <= 1 and _corn_gate_z != INF and absf(tile.world_position.z - _corn_gate_z) < _grid_manager.tile_size * 1.2:
 			continue
 
 		var tree = _create_tree(tile.world_position)

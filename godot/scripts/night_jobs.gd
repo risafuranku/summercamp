@@ -12,6 +12,9 @@ extends Node
 ##   lamp     a lamp post's bulb goes: that lamp is dark until you hold R at it.
 ##   sewer    the sewer clogs: toilets and showers close until you crawl the pipes.
 ##   toilet   the toilet block blocks: go in and unblock it (service_interior).
+##   corn     a guest has wandered into the corn maze past the west fence: find them and
+##            bring them back (scripts/corn_hunt.gd). Only with wanderers in camp
+##            (drunks, families, tramps, mushroom pickers).
 ## Each job pages you, shows in the HUD's TONIGHT list and gets the waypoint. Jobs left
 ## at dawn are not forgiven: a tripped breaker is reset by an electrician you pay.
 ##
@@ -72,6 +75,11 @@ func on_dawn() -> void:
 	dead_circuit = -1
 	for job in _jobs:
 		if str(job["state"]) == "pending":
+			job["state"] = "cancelled"
+		elif str(job["kind"]) == "corn" and str(job["state"]) == "open":
+			# Nobody went in after them: they come out on their own at first light.
+			if _main != null and _main.has_method("end_corn_hunt"):
+				_main.end_corn_hunt()
 			job["state"] = "cancelled"
 	_jobs = _jobs.filter(func(j): return str(j["state"]) == "open")
 	changed.emit()
@@ -148,7 +156,16 @@ func import_state(data: Dictionary) -> void:
 	for j in data.get("jobs", []):
 		if j is Dictionary:
 			_jobs.append(j)
+	call_deferred("_resume_corn")
 	changed.emit()
+
+
+## A save made while someone was lost in the corn: they are still in there.
+func _resume_corn() -> void:
+	for job in _jobs:
+		if str(job["kind"]) == "corn" and str(job["state"]) == "open" and not job.has("rescued"):
+			if _main == null or not _main.has_method("start_corn_hunt") or not _main.start_corn_hunt(job):
+				job["state"] = "cancelled"
 
 
 # ── planning ──────────────────────────────────────────────────────────────────
@@ -196,6 +213,8 @@ func _available_kinds() -> Array[String]:
 		out.append("sewer")
 	if not _coords_of(["toilet_block"]).is_empty():
 		out.append("toilet")
+	if _main != null and _main.has_method("corn_hunt_possible") and _main.corn_hunt_possible():
+		out.append("corn")
 	return out
 
 
@@ -211,6 +230,9 @@ func _make(kind: String, at: int) -> Dictionary:
 		"sewer":
 			var s := _pick(["sewer"])
 			job.merge({"title": "Sewer blocked", "short": "Sewer", "where": "The sewer hatch: crawl in", "coord": [s.x, s.y]}, true)
+		"corn":
+			var gate: Vector3 = _main.corn_gate_world() if _main != null and _main.has_method("corn_gate_world") else Vector3.INF
+			job.merge({"title": "Someone is in the corn", "short": "Corn", "where": "The wicket gate in the west fence", "pos": [gate.x, gate.y, gate.z]}, true)
 		"toilet":
 			var t := _pick(["toilet_block"])
 			job.merge({"title": "Toilets blocked", "short": "Toilets", "where": "Toilet block %d:%d: go in and unblock it" % [t.x, t.y], "coord": [t.x, t.y]}, true)
@@ -227,6 +249,10 @@ func _start(job: Dictionary) -> void:
 			breaker_tripped = true
 			dead_circuit = -1
 			_fault = _rng.randi_range(0, 5)
+		"corn":
+			if _main == null or not _main.has_method("start_corn_hunt") or not _main.start_corn_hunt(job):
+				job["state"] = "cancelled"
+				return
 		"lamp", "sewer", "toilet":
 			var state = CoreRoot.get_state()
 			var key := "%d:%d" % [c.x, c.y]
@@ -245,6 +271,8 @@ func _is_resolved(job: Dictionary) -> bool:
 	match str(job["kind"]):
 		"breaker":
 			return not breaker_tripped
+		"corn":
+			return job.has("rescued")
 		_:
 			var c: Array = job["coord"]
 			return not CoreRoot.get_state().failures.has("%d:%d" % [int(c[0]), int(c[1])])
@@ -275,6 +303,9 @@ func _pick(types: Array) -> Vector2i:
 
 func _world_pos(job: Dictionary) -> Vector3:
 	var gm = _main.get("grid_manager") if _main != null else null
+	if job.has("pos"):
+		var p: Array = job["pos"]
+		return Vector3(float(p[0]), float(p[1]), float(p[2])) if float(p[0]) != INF else Vector3.INF
 	var c: Array = job["coord"]
 	if gm == null or int(c[0]) < 0:
 		return Vector3.INF

@@ -575,6 +575,26 @@ func apply_camp_event(mood_delta: float, thought: String, archetypes: Array = []
 	_emit_guest_overview_state(true)
 
 
+## Something happened to one party (e.g. lost in the corn at night): their mood moves
+## and they think `thought`. Checked-in guests only.
+func apply_guest_event(guest_id: int, mood_delta: float, thought: String) -> void:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return
+	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	for i in state.guests.size():
+		var g_any = state.guests[i]
+		if not (g_any is Dictionary) or int(g_any.get("id", -1)) != guest_id:
+			continue
+		var guest: Dictionary = g_any
+		guest["mood"] = clampf(float(guest.get("mood", 60.0)) + mood_delta, 0.0, 100.0)
+		if not thought.is_empty():
+			guest["thought"] = thought
+			guest["thought_abs"] = now_abs
+		state.guests[i] = guest
+	_emit_guest_overview_state(true)
+
+
 ## The player at the barrier, pressing E on a waiting party. Lets them in when every
 ## room they booked is made up. {ok, reason: "not_waiting" | "room_not_ready", rooms}
 func request_check_in(guest_id: int) -> Dictionary:

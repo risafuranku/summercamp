@@ -46,6 +46,7 @@ const NIGHT_JOBS_SCRIPT = preload("res://scripts/night_jobs.gd")
 const DAY_EVENTS_SCRIPT = preload("res://scripts/day_events.gd")
 const WEEK_LEDGER_SCRIPT = preload("res://scripts/week_ledger.gd")
 const OMENS_SCRIPT = preload("res://scripts/omens.gd")
+const CORN_HUNT_SCRIPT = preload("res://scripts/corn_hunt.gd")
 const WEEK_REPORT_SCREEN_SCRIPT = preload("res://scripts/ui/week_report_screen.gd")
 const BREAKER_PANEL_SCRIPT = preload("res://scripts/breaker_panel.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
@@ -175,6 +176,8 @@ var _week_ledger: Node
 var _pending_week_ledger: Dictionary = {}
 var _week_report_screen: CanvasLayer
 var _omens: Node
+var _corn_hunt: Node
+var _corn_job: Dictionary = {}
 var _pending_omens: Dictionary = {}
 var _still_seconds: float = 0.0
 var _still_last_pos: Vector3 = Vector3.INF
@@ -1400,6 +1403,117 @@ func _on_enemy_notice(text: String) -> void:
 		_hud_manager.push_status(text, 2)
 
 
+# ── the corn (night job, scripts/corn_hunt.gd) ───────────────────────────────
+
+const CORN_WANDERERS := ["drunk", "family", "tramp", "picker"]
+
+
+func _corn_field() -> Node:
+	return find_child("CornField", true, false)
+
+
+func _corn_wanderers() -> Array:
+	var out: Array = []
+	if GuestManager == null:
+		return out
+	for g in GuestManager.get_guest_life_snapshot():
+		if CORN_WANDERERS.has(str(g.get("archetype", ""))) and str(g.get("status", "")) in ["active", "sleep"]:
+			out.append(g)
+	return out
+
+
+func corn_hunt_possible() -> bool:
+	return _corn_field() != null and not _corn_wanderers().is_empty()
+
+
+func corn_gate_world() -> Vector3:
+	var corn := _corn_field()
+	return Vector3(corn.fence_x, 0.0, corn.gate_z) if corn != null else Vector3.INF
+
+
+func start_corn_hunt(job: Dictionary) -> bool:
+	var corn := _corn_field()
+	var guests := _corn_wanderers()
+	if corn == null or guests.is_empty():
+		return false
+	end_corn_hunt()
+	var guest: Dictionary = guests[randi_range(0, guests.size() - 1)]
+	var hunt := CORN_HUNT_SCRIPT.new()
+	hunt.name = "CornHunt"
+	add_child(hunt)
+	if not hunt.setup(self, corn, guest):
+		hunt.queue_free()
+		return false
+	_corn_hunt = hunt
+	_corn_job = job
+	job["guest_id"] = int(guest.get("id", -1))
+	job["title"] = "%s is lost in the corn" % str(guest.get("name", "Someone"))
+	hunt.finished.connect(_on_corn_hunt_finished)
+	return true
+
+
+func end_corn_hunt() -> void:
+	if _corn_hunt != null and is_instance_valid(_corn_hunt):
+		_corn_hunt.abandon()
+
+
+func _on_corn_hunt_finished(rescued: bool) -> void:
+	var hunt := _corn_hunt
+	_corn_hunt = null
+	if hunt == null:
+		return
+	var who := str(hunt.guest_name)
+	if rescued:
+		_corn_job["rescued"] = true
+		GuestManager.apply_guest_event(int(hunt.guest_id), 15.0, "You came for me. In the dark. Thank you.")
+		if _hud_manager != null:
+			_hud_manager.push_status("%s is back in the camp, shaking. (mood +15)" % who, 1)
+	else:
+		GuestManager.apply_guest_event(int(hunt.guest_id), -18.0, "Nobody came. Something stood by me all night.")
+		if _hud_manager != null:
+			_hud_manager.push_status("At first light %s walked out of the corn alone. They won't say what they saw." % who, 3)
+	hunt.queue_free()
+
+
+## Debug/test entry: stand `dx` metres east of the wicket gate into the corn (negative:
+## west, in the corn), facing west.
+func debug_goto_corn_gate(dx: float) -> void:
+	var corn = find_child("CornField", true, false)
+	if corn == null or _player == null:
+		return
+	_player.global_position = Vector3(corn.fence_x + dx, 0.3, corn.gate_z)
+	_player.rotation.y = deg_to_rad(90.0)
+
+
+## Debug/test entry: stand on the maze path `dist` tiles before `at` (along the way from
+## the entrance), facing it.
+func debug_corn_face(at: Vector3, dist: float) -> void:
+	var corn := _corn_field()
+	if corn == null or _player == null:
+		return
+	var path: Array = corn.path_between(corn.entrance, corn.world_tile(at))
+	var stand: Vector3 = corn.tile_world(path[maxi(0, path.size() - 1 - int(dist))]) if not path.is_empty() else at + Vector3(2, 0, 0)
+	_player.global_position = stand + Vector3(0, 0.3, 0)
+	var to := at - stand
+	_player.rotation.y = atan2(-to.x, -to.z)
+
+
+## Debug/test entry: a camera high over the maze, looking down.
+func debug_corn_overview() -> void:
+	var corn = find_child("CornField", true, false)
+	if corn == null:
+		return
+	var cam := Camera3D.new()
+	_world_3d.add_child(cam)
+	cam.fov = 62.0
+	var c: Vector2 = corn.maze_rect.get_center()
+	cam.global_position = Vector3(c.x + 16.0, 38.0, c.y)
+	cam.look_at(Vector3(c.x, 0.0, c.y), Vector3.UP)
+	if debug_camera != null and is_instance_valid(debug_camera):
+		debug_camera.queue_free()
+	debug_camera = cam
+
+
 ## Debug/test entry: the render style (GameSettings is an autoload the shot driver can't reach).
 func debug_render_preset(preset: String) -> void:
 	GameSettings.set_retro_preset(preset, false)
@@ -2163,6 +2277,9 @@ func _update_interaction_hint() -> void:
 		return
 	if _is_any_interior_open():
 		_hud_manager.set_hint_text("")
+		return
+	if _corn_hunt != null and is_instance_valid(_corn_hunt) and str(_corn_hunt.hint()) != "":
+		_hud_manager.set_hint_text(str(_corn_hunt.hint()))
 		return
 	var day_hint: String = _day_events.hint() if _day_events != null else ""
 	if not day_hint.is_empty():

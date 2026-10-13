@@ -167,6 +167,15 @@ night between 21:00 and 04:30 and pages you for each (HUD: TONIGHT, plus the way
 - **Lamp**: one lamp post goes dark (hold R at it).
 - **Sewer**: the sewer blocks; toilets and showers close (crawl the pipes).
 - **Toilets**: the block blocks (go in and unblock it).
+- **Someone is in the corn**: only with wanderers in camp (drunks, families, tramps,
+  mushroom pickers). Past the wicket gate in the west fence the corn is cut into a maze,
+  new every game (`scripts/cornfield.gd`). The lost guest stands at the end of some
+  corridor and calls out every few seconds; press E and they follow you, walk them out
+  through the gate (+15 mood). The scarecrow is in there: it never moves while you can
+  see it, and steps one tile closer whenever you cannot, faster the longer you take
+  (`scripts/corn_hunt.gd`). Hold the flashlight on it a moment and it is somewhere far
+  off the next time you look away. If it reaches you: a hit, and the guest bolts back
+  into the corn. Left until dawn, they walk out alone and won't say what they saw (-18).
 
 So the night is "keep the camp running" and "something is out there" at the same time:
 the lamps you fix are the safe ground the enemies respect.

@@ -53,3 +53,6 @@ ev_saw	3.0	assets/sfx/life/saw_log.mp3	A hand saw cutting quickly through a wet 
 ev_shoo	2.0	assets/sfx/life/shoo.mp3	A man clapping his hands loudly twice and shouting a short wordless shoo outdoors, then small animals scampering away over leaves, no music.
 story_phone	6.0	assets/sfx/uncanny/office_phone.mp3	An old 1990s rotary desk telephone with a mechanical bell ringing four times in an empty wooden office at night, heard from outside through a closed window, slightly muffled, no music.
 door_knock	2.0	assets/sfx/rooms/door_knock.mp3	Knuckles knocking three times on a thin wooden cabin door, heard from outside, short, dry, no voice, no music.
+corn_call	3.0	assets/sfx/world/corn_call.mp3	A lost frightened man calling out hello, is anyone there, from far away inside a tall corn field at night, faint and muffled by the stalks, crickets, no music.
+corn_rush	1.5	assets/sfx/world/corn_rush.mp3	Something large pushing quickly through dry corn stalks a few metres away at night, a sudden short rustle and snap of leaves, then silence, no voice, no music.
+gate_creak	1.5	assets/sfx/world/gate_creak.mp3	An old wooden garden wicket gate swinging open on rusty hinges with a long creak, outdoors at night, no music.

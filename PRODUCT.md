@@ -59,6 +59,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Electricity bills, power cut, UPS game over | ✅ | |
 | Weather cycle (7 states) with gameplay effect | ✅ | rain closes outdoor attractions; the red anomaly at night |
 | Camp Status > Reviews | ✅ | |
+| Corn maze behind a wicket gate; night job: a lost guest in the corn, the scarecrow moves when unseen | ✅ | maze new every game, corn_check |
 | Omens: torch by the fence, one too many, the barrier, the phone, someone by the office | ✅ | no schedule: a hazard from the camp's pressure (guests, unhappy, what came, dark, hunting), weighted draw; omens_check |
 | The week's end: Vera returns on day 8 | ✅ | at 08:00 the books (takings, guests, reviews, what came at night, hurt, jobs left), her verdict and the breakfast count; Stay on = endless |
 
