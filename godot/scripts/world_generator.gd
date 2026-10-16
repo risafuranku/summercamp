@@ -73,6 +73,7 @@ func generate_base_world(spawn_default_buildings: bool = true, spawn_trees: bool
 	_generate_terrain()
 	if spawn_default_buildings:
 		_building_manager.place_main_building(entrance_origin, Vector2i(2, 2))
+		place_starter_path()
 		_place_power_building_landmark()
 		place_sewer_landmark()
 	if spawn_trees:
@@ -149,15 +150,49 @@ func _mark_north_lake_row() -> void:
 		_grid_manager.set_tile_type(Vector2i(x, y), _grid_manager.TILE_LAKE)
 
 
-## The entrance: the reception (2x2) and, east of it, the gate lane (1 tile wide) with
-## a tile of forecourt in front of both. Reserved, so nothing is built in the way.
+## The entrance: the gate lane (1 tile wide) on the south edge, the reception (2x2) west
+## of it one tile in from the fence, and the starter path in front of both. Reserved, so
+## nothing is built in the way.
 func _mark_south_entrance_reserved_area() -> Vector2i:
 	var center_start_x = int(floor((_grid_manager.grid_width - 2) * 0.5))
-	for y in range(3):
+	for y in range(4):
 		for x in range(center_start_x, center_start_x + 3):
 			_grid_manager.set_tile_type(Vector2i(x, y), _grid_manager.TILE_RESERVED)
 
-	return Vector2i(center_start_x, 0)
+	return Vector2i(center_start_x, 1)
+
+
+## The starter path: the gravel road goes on through the barrier, up the gate lane past
+## the reception, turns in front of the reception's door, and one tile on into the camp
+## for whatever gets built next. It cannot be bulldozed (builder_authority.gd), so the
+## camp always joins the entrance. On a loaded game the tiles that are already a path are
+## marked again, free ones are laid.
+func starter_path_tiles() -> Array[Vector2i]:
+	var g := gate_tile()
+	var out: Array[Vector2i] = []
+	for y in range(0, 5):
+		out.append(Vector2i(g.x, y))
+	out.append(Vector2i(g.x - 1, 3))
+	out.append(Vector2i(g.x - 2, 3))
+	return out
+
+
+func place_starter_path() -> void:
+	if _grid_manager == null or _building_manager == null:
+		return
+	for t in starter_path_tiles():
+		if not _grid_manager.is_in_bounds(t):
+			continue
+		var tile = _grid_manager.get_tile(t)
+		var occ = tile.occupant if tile != null else null
+		if occ != null:
+			var root := occ as Node
+			while root != null and not root.has_meta("grid_origin"):
+				root = root.get_parent()
+			if root != null and str(root.get_meta("building_type", "")) == "path":
+				root.set_meta("permanent", true)
+			continue
+		_building_manager.place_path_at(t, true)
 
 
 ## The gate lane tile on the south edge (east of the reception).

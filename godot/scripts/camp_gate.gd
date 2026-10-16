@@ -16,6 +16,7 @@ const SFX_LIFT := "res://assets/sfx/gate/barrier_lift.mp3"
 const SFX_DROP := "res://assets/sfx/gate/barrier_drop.mp3"
 const SFX_CAR := "res://assets/sfx/gate/car_arrive.mp3"
 const SFX_HELLO := "res://assets/sfx/gate/gate_hello.mp3"
+const PATH_TEX := "res://assets/textury/redneck/paths/gravel.png"
 
 const ROAD_LENGTH := 120.0
 const ROAD_WIDTH := 4.4
@@ -98,7 +99,16 @@ func _swing(deg: float, seconds: float) -> void:
 
 func _build_road() -> void:
 	# Two straight stretches with a slight bend, so the road disappears into the trees.
+	# The same dirt track as the camp's paths (building_manager.gd PATH_TEXTURES), turned
+	# to run along the road, so the starter path through the barrier carries it on.
 	var mat := _material("gravel_road.png", "road", Color(0.62, 0.58, 0.5))
+	if ResourceLoader.exists(PATH_TEX):
+		var img := (load(PATH_TEX) as Texture2D).get_image()
+		if img.is_compressed():
+			img.decompress()
+		img.rotate_90(CLOCKWISE)
+		mat.albedo_texture = ImageTexture.create_from_image(img)
+		mat.albedo_color = Color(1, 1, 1)
 	var a := Vector3(gap_center_x, 0.03, fence_z + 1.0)
 	var b := Vector3(gap_center_x + 2.0, 0.03, fence_z - 45.0)
 	var c := Vector3(gap_center_x + 14.0, 0.03, fence_z - ROAD_LENGTH)
@@ -106,6 +116,7 @@ func _build_road() -> void:
 	_road_segment(b, c, mat)
 	# The verge: darker trodden ground either side of the gate.
 	var verge_mat := _material("gravel_road.png", "road", Color(0.42, 0.40, 0.34))
+	verge_mat.albedo_color = Color(0.62, 0.5, 0.42)
 	var verge := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(ROAD_WIDTH * 3.2, 9.0)
@@ -134,7 +145,7 @@ func _road_segment(from: Vector3, to: Vector3, mat: Material) -> void:
 	seg.position = (from + to) * 0.5
 	seg.rotation.y = atan2(to.x - from.x, to.z - from.z)
 	var m := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
-	m.uv1_scale = Vector3(1.0, length / ROAD_WIDTH, 1.0)
+	m.uv1_scale = Vector3(1.0, (length + 1.0) / ROAD_WIDTH, 1.0)
 	seg.material_override = m
 	seg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(seg)

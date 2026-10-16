@@ -367,6 +367,18 @@ const SCENARIOS := {
 		["wait", 7.0], ["shot", "g4_barrier_down"],
 		["hours", 12.0], ["wait", 2.0], ["player", 15, -4, 180.0], ["wait", 1.0], ["shot", "g5_gate_night"], ["eval", "[get_tree().get_first_node_in_group('camp_gate')._booth_light.visible, _time_state, _time_of_day_hours]"],
 	],
+	"entrance": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["player", 15, 0, 180.0], ["wait", 1.0], ["shot", "e0_gate_inwards"],
+		["player", 15, 7, 0.0], ["wait", 1.0], ["shot", "e1_reception_front"],
+		["player", 11, 5, 120.0], ["wait", 1.0], ["shot", "e2_path_turn"],
+		["eval", "debug_structure_of_type('main_building').get_meta('grid_origin')"],
+		["eval", "debug_cells([Vector2i(15, 0), Vector2i(15, 2), Vector2i(15, 4), Vector2i(14, 3), Vector2i(13, 3), Vector2i(13, 1)])"],
+		["eval", "debug_demolish_rect(Rect2i(13, 0, 3, 5))"], ["wait", 0.5],
+		["eval", "debug_cells([Vector2i(15, 0), Vector2i(15, 2), Vector2i(15, 4), Vector2i(14, 3), Vector2i(13, 3), Vector2i(13, 1)])"],
+		["eval", "debug_overview_tile(Vector2i(14, 3))"], ["wait", 0.6], ["shot", "e3_from_above"],
+	],
 	"prep": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 5000], ["clear", 16, 3, 3, 3], ["build", "tent_1", 17, 4, 0], ["wait", 0.5],

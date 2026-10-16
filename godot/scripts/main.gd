@@ -1587,12 +1587,39 @@ func debug_corn_overview() -> void:
 	debug_camera = cam
 
 
+## Debug/test entry: a camera high over a grid tile, looking down at it (shot driver).
+func debug_overview_tile(tile: Vector2i, height: float = 26.0) -> void:
+	var cam := Camera3D.new()
+	_world_3d.add_child(cam)
+	cam.fov = 62.0
+	var c: Vector3 = grid_manager.grid_to_world(tile)
+	cam.global_position = Vector3(c.x, height, c.z - height * 0.45)
+	cam.look_at(Vector3(c.x, 0.0, c.z), Vector3.UP)
+	if debug_camera != null and is_instance_valid(debug_camera):
+		debug_camera.queue_free()
+	debug_camera = cam
+
+
 ## Debug/test entry: the render style (GameSettings is an autoload the shot driver can't reach).
 func debug_render_preset(preset: String) -> void:
 	GameSettings.set_retro_preset(preset, false)
 
 
 ## Debug/test entry: the first structure of a building type (e.g. the pre-placed generator).
+## What the core grid holds at these cells, and the money (shot driver).
+func debug_cells(coords: Array) -> Array:
+	var out: Array = []
+	for c in coords:
+		out.append(str(CoreRoot.get_state().grid.get_cell_data(c).get("type", "-")))
+	out.append(CoreRoot.get_money())
+	return out
+
+
+## The bulldozer over a rect, as the Builder would (shot driver, harnesses).
+func debug_demolish_rect(rect: Rect2i) -> void:
+	EventBus.RequestDemolish.emit(rect)
+
+
 func debug_structure_of_type(building_type: String) -> Node3D:
 	var root = building_manager.get_node_or_null("Structures") if building_manager != null else null
 	if root == null:
@@ -3215,6 +3242,8 @@ func _ensure_loaded_world_landmarks() -> void:
 		return
 	if not _has_structure_type("main_building"):
 		_place_default_reception_landmark()
+	if world_generator != null and world_generator.has_method("place_starter_path"):
+		world_generator.place_starter_path()
 	if not _has_structure_type("sewer"):
 		if world_generator != null and world_generator.has_method("place_sewer_landmark"):
 			world_generator.place_sewer_landmark()
@@ -3245,6 +3274,7 @@ func _place_default_reception_landmark() -> bool:
 	var footprint := Vector2i(2, 2)
 	var center_x := int(floor(float(grid_manager.grid_width - footprint.x) * 0.5))
 	var candidates: Array[Vector2i] = [
+		Vector2i(center_x, 1),
 		Vector2i(center_x, 0),
 		Vector2i(center_x - 1, 0),
 		Vector2i(center_x + 1, 0),

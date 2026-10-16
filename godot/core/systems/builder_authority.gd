@@ -183,7 +183,7 @@ func _collect_demolish_targets(rect: Rect2i) -> Dictionary:
 				var target_key = "%s@%d:%d" % [instance_id, origin.x, origin.y]
 				if not seen_instances.has(target_key):
 					seen_instances[target_key] = true
-					if _is_permanent_type(building_type):
+					if _is_permanent_type(building_type) or _is_permanent_cell(coord):
 						if not seen_blocked.has(target_key):
 							seen_blocked[target_key] = true
 							blocked_count += 1
@@ -202,7 +202,7 @@ func _collect_demolish_targets(rect: Rect2i) -> Dictionary:
 			seen_roots[root_id] = true
 
 			var root_type = str(occupant_root.get_meta("building_type", ""))
-			if _is_permanent_type(root_type):
+			if _is_permanent_type(root_type) or bool(occupant_root.get_meta("permanent", false)):
 				var blocked_key = "root_%d" % root_id
 				if not seen_blocked.has(blocked_key):
 					seen_blocked[blocked_key] = true
@@ -240,6 +240,13 @@ func _resolve_occupant_root(occupant: Variant) -> Node:
 
 func _is_permanent_type(building_type: String) -> bool:
 	return building_type == "main_building" or building_type == "power_generator"
+
+
+## A single structure marked permanent (the starter path from the gate to the reception,
+## world_generator.gd place_starter_path).
+func _is_permanent_cell(coord: Vector2i) -> bool:
+	var root = _resolve_occupant_root(_state.grid.get_occupant(coord))
+	return root != null and bool(root.get_meta("permanent", false))
 
 
 func _resolve_footprint(building_type: String) -> Vector2i:

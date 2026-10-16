@@ -581,17 +581,21 @@ func place_cabin_at(origin: Vector2i, level: int = 1) -> bool:
 	return true
 
 
-func place_path_at(origin: Vector2i) -> bool:
+## `permanent`: the starter path (world_generator.gd), laid on the reserved entrance
+## tiles; the bulldozer leaves it alone (builder_authority.gd).
+func place_path_at(origin: Vector2i, permanent := false) -> bool:
 	_ensure_structures_root()
 	if _grid_manager == null:
 		return false
-	if not _grid_manager.can_place_footprint(origin, Vector2i(1, 1)):
+	if not _grid_manager.can_place_footprint(origin, Vector2i(1, 1), permanent):
 		return false
 
 	var path_node = StaticBody3D.new()
-	path_node.name = "Path"
+	path_node.name = "StarterPath" if permanent else "Path"
 	path_node.add_to_group("paths")
-	_tag_structure(path_node, origin, Vector2i(1, 1), "path", false)
+	_tag_structure(path_node, origin, Vector2i(1, 1), "path", permanent)
+	if permanent:
+		path_node.set_meta("permanent", true)
 	_structures_root.add_child(path_node)
 
 	var ts = _grid_manager.tile_size
