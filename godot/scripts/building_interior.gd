@@ -1123,6 +1123,9 @@ func _sync_crt_viewport_to_window() -> void:
 ## first frame (no fly-in from the room view).
 func enter_crt_view(instant: bool = false) -> void:
 	if _crt_active: return
+	# Sitting down at it wakes the screen saver, as touching the mouse would.
+	if _crt_ui != null and _crt_ui.has_method("extras") and _crt_ui.extras() != null:
+		_crt_ui.extras().poke()
 	_reset_crt_look_back_state()
 	_crt_active = true
 	_look.reset()
@@ -1203,6 +1206,15 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if _crt_active:
+		# At the keyboard: whatever you touch wakes the screen saver, even with the
+		# pointer off the screen.
+		if (event is InputEventMouseMotion or event is InputEventKey or event is InputEventMouseButton) and _crt_ui != null and _crt_ui.has_method("extras") and _crt_ui.extras() != null:
+			var was_saving: bool = _crt_ui.extras().is_saving()
+			_crt_ui.extras().poke()
+			# The click that wakes it does nothing else.
+			if was_saving and (event is InputEventMouseButton or event is InputEventKey):
+				get_viewport().set_input_as_handled()
+				return
 		# Forward input to CRT Viewport
 		if event is InputEventMouse:
 			_forward_input_to_crt(event)

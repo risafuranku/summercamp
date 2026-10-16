@@ -131,6 +131,21 @@ func _run() -> void:
 	for f in _shell.FILES.TEXTS:
 		_expect(not _shell.FILES.text_of(f).is_empty(), "%s is empty" % f)
 
+	# The screen saver comes on when nobody touches it, and the slightest move wakes it
+	# (playtest 2026-10-16: it would not go away).
+	var ex = _shell.extras()
+	var old_wait: float = ex.saver_wait
+	ex.saver_wait = 0.3
+	await _wait(0.6)
+	_expect(ex.is_saving(), "the screen saver does not come on")
+	var mv := InputEventMouseMotion.new()
+	mv.position = _shell._mouse + Vector2(0.2, 0)
+	mv.relative = Vector2(0.2, 0)
+	_shell._input(mv)
+	_expect(not ex.is_saving(), "a slow mouse move does not wake the screen saver")
+	ex.saver_wait = old_wait
+	ex.poke()
+
 	# The web: the modem first.
 	_shell.open_app("browser")
 	await _frames(3)

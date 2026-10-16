@@ -1367,7 +1367,9 @@ func _refresh_ups(m: Node) -> void:
 # ── input, cursor ────────────────────────────────────────────────────────────
 
 func _input(event: InputEvent) -> void:
-	if _extras != null and (event is InputEventKey or event is InputEventMouseButton or (event is InputEventMouseMotion and event.relative.length() > 1.0)):
+	# Any touch wakes the screen saver. (The room scales mouse motion down to the
+	# monitor's pixels, so a slow move is under a pixel here: no threshold.)
+	if _extras != null and (event is InputEventKey or event is InputEventMouseButton or (event is InputEventMouseMotion and (event.relative != Vector2.ZERO or event.position != _mouse))):
 		var was: bool = _extras.is_saving()
 		_extras.poke()
 		if was:
