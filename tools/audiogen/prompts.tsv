@@ -72,3 +72,10 @@ pipe_clamp	2.0	assets/sfx/pipes/clamp.mp3	Tightening a steel pipe repair clamp w
 pipe_ladder	2.5	assets/sfx/pipes/ladder.mp3	Climbing down a rusty steel ladder into a sewer shaft: boots on iron rungs, clanks echoing below, a splash at the bottom, no music.
 pipe_rat	1.5	assets/sfx/pipes/rat.mp3	A rat squeaking and scurrying quickly across wet concrete inside a sewer pipe, small splashes, close, no music.
 pipe_hum	4.0	assets/sfx/pipes/hum.mp3	Deep in a sewer: a low distant groan of water moving in pipes, almost like a voice humming far away through concrete, subtle and unsettling, no music.
+row_stroke	1.6	assets/sfx/lake/stroke.mp3	One stroke of two wooden oars in a small rowing boat on a calm lake: the oars dip and pull through the water with a swirl, the iron rowlocks creak, close, outdoors, no music.
+row_lap	4.0	assets/sfx/lake/lap.mp3	Gentle water lapping against the wooden hull of a small rowing boat drifting on a still forest lake, close, quiet, outdoors, no music.
+row_bump	1.2	assets/sfx/lake/bump.mp3	A wooden rowing boat bumping softly against the posts of a wooden jetty, a hollow knock and a creak of ropes, no music.
+row_under	2.5	assets/sfx/lake/under.mp3	Something large brushing slowly along the underside of a wooden rowing boat in deep water, a long hollow scrape and a dull knock from below, the boat rocking, no music.
+fish_cast	1.2	assets/sfx/lake/cast.mp3	Casting a fishing rod: the whip of the rod, the line whirring off the reel, and a small float landing on still water with a light plop, no music.
+fish_bite	1.0	assets/sfx/lake/bite.mp3	A fishing float bobbing and being pulled under the water suddenly, a small splash and the reel clicking, close, no music.
+fish_reel	2.5	assets/sfx/lake/reel.mp3	Reeling in a fish quickly: the ratchet of an old fishing reel clicking fast, the line tight, a fish splashing at the surface as it is pulled out of the water, no music.

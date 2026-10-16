@@ -21,6 +21,15 @@ const JETTY_W := 1.6
 const JETTY_Y := 0.42
 
 var _main: Node
+## For the trip across (scripts/lake/lake_trip.gd): the boat, where it is tied up, the
+## water you can row on, and the far jetty by the keeper's boathouse.
+var boat: Node3D
+var boat_home := Transform3D()
+var water_poly := PackedVector2Array()
+var far_jetty_end := Vector3.ZERO
+var far_view := Vector3.ZERO
+var hut_window: OmniLight3D
+var hut_window_mesh: MeshInstance3D
 ## Fish: now and then by day a ring spreads on the water (in steps, 10 a second) with a plop.
 const PLOP_SFX := "res://assets/sfx/world/fish_plop.mp3"
 var _water_poly := PackedVector2Array()
@@ -109,9 +118,14 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 
 	# The jetty: planks on posts, from the camp shore out over the water, and the boat.
 	_build_jetty(Vector3(jetty_x, 0.0, shore_z - 1.0))
-	var boat := INTERIOR_KIT.prop(self, "rowboat", Vector3(jetty_x + 1.6, WATER_Y - 0.12, shore_z + JETTY_LEN * 0.55), 12.0)
+	boat = INTERIOR_KIT.prop(self, "rowboat", Vector3(jetty_x + 1.6, WATER_Y - 0.12, shore_z + JETTY_LEN * 0.55), 12.0)
 	if boat != null:
 		boat.name = "RowBoat"
+		boat_home = boat.transform
+	water_poly = Geometry2D.offset_polygon(poly, -2.5)[0]
+	# The far shore: the keeper's boathouse and its jetty, across the water from the camp.
+	var far := poly[2 + 11]
+	_build_far_shore(Vector3(far.x, 0.0, far.y))
 
 	# You cannot walk into the water: a wall along the camp shore with a gap for the jetty.
 	var gap_l := jetty_x - JETTY_W * 0.5
@@ -287,6 +301,93 @@ func _build_jetty(start: Vector3) -> void:
 	for side: float in [-1.0, 1.0]:
 		_collider(body, deck_center + Vector3(side * (JETTY_W * 0.5 + 0.1), 1.0, 0), Vector3(0.2, 2.0, JETTY_LEN))
 	_collider(body, start + Vector3(0, JETTY_Y + 1.0, JETTY_LEN + 0.1), Vector3(JETTY_W + 0.4, 2.0, 0.2))
+
+
+## Mr Hruby's boathouse on the far shore: tarred planks, a tin roof, the door ajar, a
+## short jetty out from it, a bench, a rod left leaning, the sluice's warning board. Its
+## window is dark. Some nights it is not.
+func _build_far_shore(shore: Vector3) -> void:
+	var K := INTERIOR_KIT
+	var root := Node3D.new()
+	root.name = "FarShore"
+	add_child(root)
+	var planks := K.surface("hut_planks", 1.0) if ResourceLoader.exists("res://assets/textury/camp/hut_planks.png") else K.surface("planks_dark", 1.0)
+	var grey := K.surface("planks_grey", 1.2)
+	var posts := K.surface("planks_dark", 0.6)
+	# Ground behind the shore (the forest floor round the boathouse).
+	var ground := _flat_mesh(PackedVector2Array([Vector2(shore.x - 9, shore.z - 1), Vector2(shore.x + 9, shore.z - 1), Vector2(shore.x + 9, shore.z + 12), Vector2(shore.x - 9, shore.z + 12)]), 0.04, "FarGround")
+	var gm := StandardMaterial3D.new()
+	gm.albedo_texture = load(SHORE_TEX)
+	gm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	gm.uv1_triplanar = true
+	gm.uv1_world_triplanar = true
+	gm.uv1_scale = Vector3.ONE / 2.5
+	gm.albedo_color = Color(0.7, 0.68, 0.6)
+	ground.material_override = gm
+	# The jetty: out from the shore toward the camp.
+	var jlen := 7.0
+	var start := shore + Vector3(0, 0, 1.0)
+	K.slab(root, Vector3(JETTY_W, 0.08, jlen), start + Vector3(0, JETTY_Y, -jlen * 0.5), grey, "FarDeck")
+	for i in 5:
+		var z := start.z - float(i) * jlen / 4.0
+		for side: float in [-1.0, 1.0]:
+			K.slab(root, Vector3(0.14, 1.1, 0.14), Vector3(start.x + side * (JETTY_W * 0.5 - 0.07), JETTY_Y - 0.45, z), posts, "FarPost")
+	far_jetty_end = start + Vector3(0, JETTY_Y, -jlen)
+	far_view = start + Vector3(0, JETTY_Y + 1.45, -jlen + 1.4)
+	# The boathouse.
+	var hut := shore + Vector3(2.6, 0.0, 5.0)
+	var w := 3.4
+	var d := 3.0
+	var h := 2.4
+	K.slab(root, Vector3(w, h, 0.12), hut + Vector3(0, h * 0.5, d * 0.5), planks, "HutBack")
+	K.slab(root, Vector3(0.12, h, d), hut + Vector3(-w * 0.5, h * 0.5, 0), planks, "HutLeft")
+	K.slab(root, Vector3(0.12, h, d), hut + Vector3(w * 0.5, h * 0.5, 0), planks, "HutRight")
+	K.slab(root, Vector3(1.1, h, 0.12), hut + Vector3(-w * 0.5 + 0.55, h * 0.5, -d * 0.5), planks, "HutFrontL")
+	K.slab(root, Vector3(1.4, h, 0.12), hut + Vector3(w * 0.5 - 0.7, h * 0.5, -d * 0.5), planks, "HutFrontR")
+	K.slab(root, Vector3(0.9, 0.3, 0.12), hut + Vector3(-0.15, h - 0.15, -d * 0.5), planks, "HutLintel")
+	var roof := K.slab(root, Vector3(w + 0.5, 0.06, d + 0.6), hut + Vector3(0, h + 0.2, 0), K.surface("corrugated_roof", 1.0), "HutRoof")
+	roof.rotation_degrees.x = -8.0
+	var door := K.slab(root, Vector3(0.9, 2.0, 0.05), hut + Vector3(-0.55, 1.0, -d * 0.5 - 0.3), K.surface("door_wood", 2.0, Color(0.6, 0.6, 0.6)), "HutDoor")
+	door.rotation_degrees.y = -55.0
+	# Inside it is black; the window beside the door.
+	K.slab(root, Vector3(w - 0.3, h - 0.1, 0.05), hut + Vector3(0, h * 0.5, d * 0.5 - 0.1), K.surface("planks_dark", 1.0, Color(0.05, 0.05, 0.05)), "HutDark")
+	hut_window_mesh = K.slab(root, Vector3(0.6, 0.5, 0.06), hut + Vector3(1.0, 1.45, -d * 0.5 - 0.02), K.surface("planks_dark", 1.0, Color(0.04, 0.04, 0.05)), "HutWindow")
+	hut_window = OmniLight3D.new()
+	hut_window.light_color = Color(1.0, 0.75, 0.4)
+	hut_window.light_energy = 0.9
+	hut_window.omni_range = 4.0
+	hut_window.position = hut + Vector3(1.0, 1.45, -d * 0.5 - 0.4)
+	hut_window.visible = false
+	root.add_child(hut_window)
+	K.prop(root, "bench_slatted", shore + Vector3(-1.8, 0.04, 3.2), 90.0)
+	K.prop(root, "oil_drum", hut + Vector3(w * 0.5 + 0.5, 0.04, -0.6), 20.0)
+	# A fishing rod left leaning on the hut.
+	var rod := K.slab(root, Vector3(0.025, 2.6, 0.025), hut + Vector3(-w * 0.5 - 0.25, 1.25, -0.6), posts, "Rod")
+	rod.rotation_degrees.z = 14.0
+	var board := Label3D.new()
+	board.text = "STAVIDLO\nsluice - no entry\nP. Hruby, keeper"
+	board.font_size = 26
+	board.pixel_size = 0.006
+	board.modulate = Color(0.85, 0.82, 0.7)
+	board.outline_size = 0
+	board.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	board.position = shore + Vector3(-3.4, 1.4, 1.2)
+	board.rotation_degrees.y = 180.0
+	root.add_child(board)
+	K.slab(root, Vector3(1.4, 0.8, 0.05), shore + Vector3(-3.4, 1.4, 1.24), posts, "SluiceBoard")
+	K.slab(root, Vector3(0.1, 1.6, 0.1), shore + Vector3(-3.4, 0.8, 1.3), posts, "SluicePost")
+
+
+## Some nights a lamp burns in the keeper's window. Nobody lives there.
+func set_hut_lit(lit: bool) -> void:
+	if hut_window != null:
+		hut_window.visible = lit
+	if hut_window_mesh != null:
+		var m := (hut_window_mesh.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+		m.emission_enabled = lit
+		m.emission = Color(1.0, 0.7, 0.35)
+		m.emission_energy_multiplier = 1.2
+		hut_window_mesh.material_override = m
 
 
 func _reed_clump(at: Vector3, rng: RandomNumberGenerator, tex: Texture2D) -> void:

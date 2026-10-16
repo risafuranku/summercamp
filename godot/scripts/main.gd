@@ -44,6 +44,7 @@ const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd
 const THREAT_SENSES_SCRIPT = preload("res://scripts/threat_senses.gd")
 const NIGHT_JOBS_SCRIPT = preload("res://scripts/night_jobs.gd")
 const CAMP_OFFICE_SCRIPT = preload("res://scripts/reception/camp_office.gd")
+const LAKE_TRIP_SCRIPT = preload("res://scripts/lake/lake_trip.gd")
 ## Nights with nothing out there (and no night jobs): the first one.
 const QUIET_NIGHTS := 1
 const DAY_EVENTS_SCRIPT = preload("res://scripts/day_events.gd")
@@ -184,6 +185,8 @@ var _corn_job: Dictionary = {}
 var _pending_omens: Dictionary = {}
 ## The office side of the reception: sleeping, the phone's consequences, the shed key.
 var camp_office: Node
+## Across the lake in the keeper's boat (scripts/lake/lake_trip.gd).
+var _lake_trip: Node
 var _pending_camp_office: Dictionary = {}
 var _still_seconds: float = 0.0
 var _still_last_pos: Vector3 = Vector3.INF
@@ -417,6 +420,11 @@ func _setup_night_jobs() -> void:
 	if not _pending_omens.is_empty():
 		_omens.import_state(_pending_omens)
 		_pending_omens.clear()
+	if _lake_trip == null or not is_instance_valid(_lake_trip):
+		_lake_trip = LAKE_TRIP_SCRIPT.new()
+		_lake_trip.name = "LakeTrip"
+		add_child(_lake_trip)
+		_lake_trip.setup(self)
 	if camp_office == null or not is_instance_valid(camp_office):
 		camp_office = CAMP_OFFICE_SCRIPT.new()
 		camp_office.name = "CampOffice"
@@ -852,7 +860,7 @@ func _process(delta: float) -> void:
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(not _is_any_interior_open(), true)
 	_update_player_control_lock()
-	if not _is_any_interior_open():
+	if not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()):
 		_sync_active_camera()
 	_update_interaction_hint()
 	if _audio_manager != null and _audio_manager.has_method("process_runtime"):
@@ -1636,6 +1644,8 @@ func _can_enemy_runtime_actions() -> bool:
 		return false
 	if _is_any_interior_open():
 		return false
+	if _lake_trip != null and _lake_trip.is_active():
+		return false
 	if _player == null or not is_instance_valid(_player):
 		return false
 	return true
@@ -2272,6 +2282,8 @@ func _setup_audio() -> void:
 
 
 func _try_interact() -> void:
+	if _lake_trip != null and not _is_any_interior_open() and _lake_trip.try_interact():
+		return
 	if _day_events != null and not _is_any_interior_open() and _day_events.try_interact():
 		return
 	var guest_in_view := _find_guest_in_view()
@@ -2335,7 +2347,7 @@ func _is_structure_interior_open() -> bool:
 func _update_player_control_lock() -> void:
 	if _player == null or not _player.has_method("set_controls_enabled"):
 		return
-	_player.set_controls_enabled(not _is_any_interior_open())
+	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()))
 
 func _update_interaction_hint() -> void:
 	if _hud_manager == null:
@@ -2345,6 +2357,13 @@ func _update_interaction_hint() -> void:
 		return
 	if _corn_hunt != null and is_instance_valid(_corn_hunt) and str(_corn_hunt.hint()) != "":
 		_hud_manager.set_hint_text(str(_corn_hunt.hint()))
+		return
+	var lake_hint: String = _lake_trip.hint() if _lake_trip != null else ""
+	if _lake_trip != null and _lake_trip.is_active():
+		_hud_manager.set_hint_text("")
+		return
+	if not lake_hint.is_empty():
+		_hud_manager.set_hint_text(lake_hint)
 		return
 	var day_hint: String = _day_events.hint() if _day_events != null else ""
 	if not day_hint.is_empty():
