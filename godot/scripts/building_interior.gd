@@ -1278,6 +1278,9 @@ func _input(event: InputEvent) -> void:
 			if _handle_crt_look_back_key(key_event):
 				get_viewport().set_input_as_handled()
 				return
+			# The keyboard under your fingers: a clack per key (the shell's own sound).
+			if key_event.pressed and not key_event.echo and _crt_ui != null and _crt_ui.has_method("play"):
+				_crt_ui.play("key", randf_range(-17.0, -13.0))
 			_crt_viewport.push_input(key_event, true)
 			get_viewport().set_input_as_handled()
 			return

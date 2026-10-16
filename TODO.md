@@ -1,8 +1,25 @@
 # TODO — Cursed Camp Manager Simulator
 
-*Updated: 2026-10-08. Vision: DESIGN.md. What exists: PRODUCT.md.*
+*Updated: 2026-10-16. Vision: DESIGN.md. What exists: PRODUCT.md.*
 
 ---
+
+## BRIEF 2026-10-16 — polish and depth (the user's notes)
+
+- [x] B1  The first night is quiet (no enemies, no jobs); Vera sends you to bed
+- [x] B2  The door in the office opens: the back room (bed, small analog TV, heavy curtains, wardrobe)
+- [x] B3  Sleep only when nothing is out there: lie down, the TV, eyes close, VFD alarm clock; skippable
+- [x] B4  Interior look was "on ice": crisp braking, spring parallax, no double easing
+- [x] B5  Cursor: the gloved hand (Grok), changes over usable things; glint highlight (Grok)
+- [x] B6  Mess as Grok sprites: shit, piss, sick, mould, grime, litter
+- [x] B7  Pipes: polish (descent, map, torch hand, water flow as guidance, drips, look back) and a director that plays with the player (not shown at first, then glimpses, then the hunt)
+- [x] B8  The electrician is real: phone (2D close-up, keys, tones, voices), number on the noticeboard, he drives out and fixes it
+- [x] B9  The fuse board in DOS close-up style, in a switch room behind junk and a locked door (key on the board)
+- [x] B10 The lake: row across, the keeper's boathouse, his logbook, fishing
+- [x] B11 Corn flows into the camp map, bulldozable in the Builder (Grok iso sprite); pylons stay
+- [x] B12 The web: pictures (Grok), interlaced loading; better boot (warm-up, POST table), download and setup animations
+- [ ] B13 Later: something hidden in the shed (beyond the coat), more to do on the far shore, the boat at night as its own scare
+- [ ] B14 Later: walk through the outside maze walls? (the maze is the corn job's; the camp corn is walkable)
 
 ## PLAYTEST 2026-10-13 — the user's notes
 
@@ -78,7 +95,8 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
       desktop_ready, program unlocks, quest hooks, shot driver hooks); delete crt_os_shell.gd
 - [x] Harness tools/os98_check (boot, every app and page, download, setup, night lock, save/load)
 - [x] The monitor: 4:3 screen, beige plastic casing, dark bezel (was brick-textured, 16:10)
-- [ ] Later: keyboard clicks while typing; web images (Grok) on a few pages; hidden pages
+- [x] Keyboard clicks while typing; web images (Grok) on most pages
+- [ ] Later: hidden pages
 
 ### 3. Builder (a game of its own)
 - [x] Rework HUD/UI for the new 640x480 OS: menu, toolbar, catalogue cards with prices, tooltips, status bar (message / tile / cost)

@@ -1,6 +1,6 @@
 # PRODUCT.md — Cursed Camp Manager Simulator
 
-*Status snapshot: 2026-10-08*
+*Status snapshot: 2026-10-16*
 
 ## What it is
 
@@ -50,7 +50,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Vera's Checklist (13-step onboarding questline) | ✅ | task mails, rewards, tracker, waypoint |
 | CampMail bookings with night-risk impact | ✅ | |
 | Arrivals: road, gatehouse, barrier, waiting parties | ✅ | HUD ARRIVALS panel counts down; parties wait at the barrier until their room is ready, give up after ~2.5 h |
-| Room preparation in the interiors | ✅ | hover-glow, hold to do it, sounds, checklist; a new mess every time (place, kind, amount by who stayed), 2-10 jobs |
+| Room preparation in the interiors | ✅ | hover-glow, hold to do it, sounds, checklist; a new mess every time (place, kind, amount by who stayed), 2-10 jobs; the mess is Grok floor sprites (sick, piss, shit, mould, footprints, cans, bottles, ends, wrappers, paper, food, clothes) |
 | Builder with isometric map, guests walking on it | ✅ | the "extra guest" uncanny event |
 | Economy, power/water/sewage/waste balance | 🟡 | numbers want a balance pass |
 | Guest needs, moods, activities, reviews | ✅ | six archetypes (Quiet Guy, Drunk, Cheap Chick, Tramps, Family, Mushroom Pickers) with different needs and favourite facilities; bookings arrive as letters in their own voice |
@@ -60,6 +60,10 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Weather cycle (7 states) with gameplay effect | ✅ | rain closes outdoor attractions; the red anomaly at night |
 | Camp Status > Reviews | ✅ | |
 | Corn maze behind a wicket gate; night job: a lost guest in the corn, the scarecrow moves when unseen | ✅ | maze new every game, corn_check |
+| Corn inside the camp | ✅ | the west columns are corn tiles (ragged edge), a "tree" for the Builder (Grok iso sprite, bulldoze clears it); you wade through it slower; the west fence is posts and wire |
+| The office phone | ✅ | 2D DOS-style close-up (Grok), keys, LCD, 425 Hz tones, DTMF; numbers on the noticeboard; 113 recorded lines (ElevenLabs): Novotny, Vera's machine, the district, Jednota, the pub, police, ambulance, buses, the talking clock |
+| The electrician | ✅ | rung on the phone he really comes: van on the gate road, walks in with a torch, fixes the main and the dead circuit at the generator, $60 / $120 after nine; nobody comes by themselves at dawn |
+| The noticeboard | ✅ | close-up: Vera's notes held up to read (numbers, bus, Novotny), the shed key hangs on it |
 | Visible work: a gloved hand with the tool for every held job, stepped 8-12 fps animation (guests, fire, fan, gate, ripples) | ✅ | 8 hand sprites from Grok |
 | Omens: torch by the fence, one too many, the barrier, the phone, someone by the office | ✅ | no schedule: a hazard from the camp's pressure (guests, unhappy, what came, dark, hunting), weighted draw; omens_check |
 | The week's end: Vera returns on day 8 | ✅ | at 08:00 the books (takings, guests, reviews, what came at night, hurt, jobs left), her verdict and the breakfast count; Stay on = endless |
@@ -80,7 +84,8 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Flashlight battery, stamina | ✅ | |
 | Player health, blood FX, death | ✅ | |
 | Night procedures in the terminal | ✅ | |
-| Night work: breaker board, lamps, sewer, toilets | ✅ | 2-4 jobs a night, paged, TONIGHT list, waypoint; the breaker is a small puzzle |
+| Night work: breaker board, lamps, sewer, toilets | ✅ | 2-4 jobs a night from the second night (the first is quiet), paged, TONIGHT list, waypoint; the breaker is a small puzzle in the shed's switch room |
+| The first night | ✅ | nothing comes and there are no jobs (main.QUIET_NIGHTS); Vera's 20:06 mail sends you to bed |
 | Night senses | ✅ | insects and frogs fall silent around a presence; the HUD face widens its eyes and glances toward what you are not looking at |
 | Raccoon thing (waste/dumpster threat) | ❌ | art exists (`npc/racoon*`), no brain |
 
@@ -88,10 +93,14 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 
 | Feature | State | Notes |
 | --- | --- | --- |
-| Reception (CRT, radio, light switch) | ✅ | |
+| Reception (CRT, radio, light switch, phone, noticeboard) | ✅ | everything usable glints under the cursor (pixel glints, Grok) and gets the gloved finger |
+| The back room and sleep | ✅ | through the door in the office: bed, little TV (programme, test card after midnight), VFD alarm clock, curtains, wardrobe; sleep only at night with nothing out there: lie down, the TV, eyelids, the night passes, the alarm; any key skips |
+| The cursor | ✅ | a gloved hand (Grok): carved arrow, pointing finger, flat palm for doors and the way out, fist while working |
+| Generator shed | ✅ | junk to shove aside, a locked switch room (the key from the noticeboard), the distribution board on the wall; the close-up is a Grok picture of the board with its states painted on; some nights a coat in the corner |
+| The lake trip | ✅ | row the keeper's boat across (oars sprite, W stroke, A/D), his boathouse on the far shore: the logbook close-up (1979-1993), fishing from his jetty; sometimes something passes under the boat at night |
 | Tent / cabin interiors, upgrades | ✅ | closed rooms (the tent is a proper A-frame) |
 | Service interiors | ✅ | the sewer hatch says whether there is a leak; R crawls in only then |
-| Pipe crawl (sewer repair) | ✅ | generated network, paper map without your position, no turning around, coordinates and landmarks, clamp the leak, the thing in the pipes (day 3+ / night) |
+| Pipe crawl (sewer repair) | ✅ | generated network, paper map without your position, no turning around, coordinates and landmarks (brick sections, scratches, the red shoe), clamp the leak; climbing down, the map unfolds, the torch hand, water running away from the leak, drips, look back (S); the thing and its director (scripts/pipes/pipe_director.gd): never shown the first time down, glimpses the second, the hunt after |
 | Interior look-around (restricted) | ✅ | you stay put and turn your head: cursor at the screen edge or the arrow keys; tent ±48°, services ±65°, office ±70°, cabin ±72° |
 
 ### Atmosphere and the uncanny

@@ -1,6 +1,6 @@
 # DESIGN.md — Cursed Camp Manager Simulator
 
-*Status snapshot: 2026-10-08*
+*Status snapshot: 2026-10-16*
 
 How the game is meant to feel and the rules that produce it. For what exists today see
 [PRODUCT.md](PRODUCT.md); for wiring see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -58,6 +58,31 @@ Then the first booking is accepted and Vera writes "You can get up, you know": E
 you stand up from the computer into a camp you have only seen as a map. A title card
 (THE CAMP, DAY 1) marks it. From then on the day is split between the screen and the
 place. (Checklist: `scripts/quest_manager.gd`.)
+
+The first night is quiet: nothing has been in the camp long enough to bring anything, and
+there are no night jobs (`main.QUIET_NIGHTS`). Vera's 20:06 mail says so and sends you to
+the room behind the office.
+
+## 3c. The office and the back room
+
+The reception is a place, not only a desk (`scripts/reception/`). Everything usable glints
+under the cursor (pixel glints, `materials/hover_glint.gdshader`) and the cursor is your
+gloved hand (`scripts/ui/hand_cursor.gd`): a carved arrow, the pointing finger over things,
+the flat palm at doors, the fist while you hold a job.
+
+- **The phone** on the counter opens a DOS-style close-up (`scripts/closeup/`): lift the
+  handset, dial, hear it ring. Who answers is `phone_book.gd`: the numbers are the ones on
+  the noticeboard (Vera's notes, held up to read in their own close-up). The electrician
+  Novotny comes when you ring him and only then: his van on the gate road, his torch, the
+  generator, the fee (double after nine). He refuses the nights the Antlered Man is out.
+  Other numbers are the world: the district, Jednota, the pub, the police who say lock
+  the door, the talking clock, Vera's answering machine (it changes after three bad
+  nights), and the lake keeper's crossed-out number, which after 23:00 is picked up once.
+- **The back room** through the door in the office's left wall: your bed, the little
+  set (the programme, the test card and its tone after midnight), the VFD alarm clock.
+  Sleep is only at night and only while nothing is out there (`camp_office.sleep_refusal`):
+  you lie down, watch the set, your eyes close, the night passes in quarter hours (so
+  the jobs, the dawn and the bills happen in order) and the alarm wakes you at 06:30.
 
 ## 3b. Daily rhythm
 
@@ -294,6 +319,21 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
 
 ## 8. The pipe crawl (sewer repair)
 
+*Reworked 2026-10-16: the staging of the thing is `scripts/pipes/pipe_director.gd`.*
+The thing is honest (blind, goes to the last noise, folds away from the light, takes you
+only after it has breathed at you from next door) and a director plays with you around it:
+build-up with signs only, stalking (closer, breathing, the torch stutters), one staged look
+(it crosses a junction ahead, peeks round the next corner, crouches at the end of your
+beam, is behind you: hold S to look back), then it backs off for a while. Unseen it may be
+moved to set a scene up, never closer than its sounds told you. What you meet grows with
+your visits (the camp office counts them): the first time down it never shows, only knocks
+that answer the clamp, the drip stopping, and wet long-fingered hand prints on the ladder
+when you come back; the second time glimpses; then the hunt. The water along the bottom
+runs away from the leak: follow it upstream. Lore: the lake keeper Hruby went down with
+the 1993 works and did not come up (the web's ghost page, his logbook, his phone number).
+
+The original design:
+
 Inspired by pipe-crawler games: you crawl the sewer with only a hand-drawn paper map of
 the pipes. The map does **not** show where you are. You can only turn at junctions and
 never turn around 180°; you navigate by coordinates printed at junctions, by counting your
@@ -302,6 +342,23 @@ map. Hold E at the leak to clamp it, then find the ladder again. From day 3 (or 
 something lives down there: it moves a junction at a time toward you, your light held on it
 down a straight pipe holds it back, and you hear it first. One red high-heeled shoe lies in
 one of the pipes. Code: `scripts/sewer_pipe_minigame.gd`, check: `tools/pipes_check.tscn`.
+
+## 8b. The generator shed and the board
+
+The shed is entered like any interior (`scripts/shed/generator_shed.gd`): the set room is
+full of junk in front of the steel door (shove it aside, once), the switch room behind is
+locked (the key hangs on the office noticeboard) and holds the distribution board. Its
+close-up is a Grok painting of the real board with the lever, the breakers, their lamps
+and the ammeter painted onto it (`scripts/breaker_panel.gd`). Some nights a coat hangs in
+the corner; after you have been at the board, it does not.
+
+## 8c. The lake trip
+
+The keeper's rowing boat (`scripts/lake/lake_trip.gd`): W pulls a stroke, A/D turn, the
+gloved hands on the oars. The far shore is his boathouse: looked at like an interior (the
+camp across the water, its lamps at night), his logbook in the doorway, his jetty to fish
+from (carp and pike to the kitchen, now and then a red shoe). Sometimes at night something
+long passes under the boat. Nothing there is required.
 
 ## 9. Weather
 

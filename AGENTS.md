@@ -104,7 +104,7 @@ godot --headless --path godot --script res://tools/corn_check.gd
 godot --path godot --resolution 1280x720 res://tools/shot_driver.tscn -- --scenario=<name> --out=<dir>
 ```
 
-Scenarios: `boot menu views hud quest pause gameover crt crtmap weather upkeep blood night
+Scenarios: `boot menu views hud quest pause gameover crt crtmap weather upkeep blood night backroom shed boat
 saveload guests pipes senses uncanny look gate prep prepcabin mess blockclean day night2 night3 breaker probe`.
 Useful steps for the new loops: `topdown` (a camera above the camp, no fog), `open_room`,
 `aim_task` (turns the head to a room task and puts the cursor on it), `clean_room` (does every task in the interior's current room), `lmb`, `until` (wait for an Expression on Main), `gm` (call a
@@ -143,6 +143,14 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Insects falling silent, the HUD face's glance | `scripts/threat_senses.gd` (reads `get_presence()`) |
 | Story mails (Vera, Nela, the odd ones) | `data/pools/emails/story/week01_story.json` |
 | The radio (playlist, outdoor source, the station) | `scripts/building_interior.gd`, synth: `tools/gen_sfx.py` |
+| The office: phone, noticeboard, back room, sleep | `scripts/reception/` (reception_extras, back_room, sleep_sequence, camp_office, electrician_visit) |
+| 2D close-ups (phone, noticeboard, logbook) | `scripts/closeup/closeup_view.gd` + subclasses; who answers the phone: `phone_book.gd`; voices `tools/audiogen/tts.py` + `voices.tsv` (needs a key with text_to_speech) |
+| The cursor and the hover glint | `scripts/ui/hand_cursor.gd` (`HandCursor.want(kind)` per frame), `scripts/ui/hover_glint.gd` |
+| The thing in the pipes, its staging | `scripts/pipes/pipe_director.gd` (the minigame keeps the network, movement, map, clamp) |
+| The generator shed (junk, switch room) | `scripts/shed/generator_shed.gd`; the board's close-up `scripts/breaker_panel.gd` |
+| The lake trip, far shore, fishing | `scripts/lake/lake_trip.gd`, far shore in `scripts/camp_lake.gd`, logbook `scripts/lake/logbook_closeup.gd` |
+| Corn tiles in the camp | `scripts/world_generator.gd` (`_corn_band`, `_create_corn_patch`), Builder icon in `crt_map_panel.gd` |
+| Web pictures | `{{img:name:w}}` in `scripts/os98/web_pages.gd`, files from `tools/artgen/web_image.py` |
 
 ### Adding a building
 Create `data/buildings/<id>.tres` (BuildingDef). That is all for the data side; add it to
@@ -177,6 +185,12 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   crossfade over 40 s (`weather_visuals`), don't snap the environment directly.
 - **Footstep pitch modulation must stay subtle** (whoosh artifact otherwise).
 - **Bash heredocs with long inline Python sometimes fail**; write the script to a file.
+- **Main resets the active camera every frame** (`_sync_active_camera`) unless an interior
+  or the lake trip is active: a mode with its own camera must be added to that check.
+- **The shot driver's mouse steers interior looks**: warp it to the centre
+  (`get_viewport().warp_mouse(...)`) before shots of a look-around view.
+- **Cursor art is a hardware cursor**: `HandCursor` swaps the ARROW shape's image; scale
+  is by whole numbers of the window height (not the logical 2D size).
 
 ---
 
