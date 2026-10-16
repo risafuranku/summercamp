@@ -229,10 +229,7 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 		"food":
 			decal(root, "litter_food", 0.42, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"clothes":
-			var shirt := [Color(0.2, 0.3, 0.6), Color(0.7, 0.2, 0.2), Color(0.85, 0.85, 0.8)]
-			box(root, Vector3(0, 0.02, 0), Vector3(0.42, 0.03, 0.34), flat(shirt[rng.randi_range(0, 2)]), Vector3(_j(rng, 0.1), _j(rng, 1.2), _j(rng, 0.1)))
-			box(root, Vector3(0.22, 0.02, 0.16), Vector3(0.08, 0.03, 0.22), flat(Color(0.9, 0.9, 0.86)), Vector3(0, _j(rng, 1.0), 0))
-			box(root, Vector3(0.28, 0.02, 0.05), Vector3(0.08, 0.03, 0.2), flat(Color(0.88, 0.88, 0.84)), Vector3(0, _j(rng, 1.0), 0))
+			decal(root, "litter_clothes", 0.56, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"mud":
 			decal(root, "dirt_footprints", 0.78, Vector3(0, 0.004, 0), rng.randf() * TAU)
 			size = Vector3(0.7, 0.12, 0.7)

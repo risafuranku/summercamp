@@ -350,8 +350,47 @@ func _spawn_perimeter_fence(map_size: Vector2, map_center: Vector3) -> void:
 	var z1: float = map_center.z + map_size.y * 0.5 + 0.12
 	var gz := corn_gate_z(map_size, map_center)
 	var gh := 0.9
-	_add_fence_segment(fence_root, "FenceWestS", Vector3(west_x, fence_height * 0.5, (z0 + gz - gh) * 0.5), Vector3(fence_thickness, fence_height, (gz - gh) - z0))
-	_add_fence_segment(fence_root, "FenceWestN", Vector3(west_x, fence_height * 0.5, (gz + gh + z1) * 0.5), Vector3(fence_thickness, fence_height, z1 - (gz + gh)))
+	# On the field side only posts and two wires: the corn runs on both sides of it, so
+	# the field reads as one with the camp's own corn (corn tiles below), not behind a wall.
+	_add_wire_fence(fence_root, "FenceWestS", west_x, z0, gz - gh, fence_height)
+	_add_wire_fence(fence_root, "FenceWestN", west_x, gz + gh, z1, fence_height)
+
+
+## A field fence along z at `x`: posts every 2.2 m, two wires, the same invisible barrier
+## the board fence had (the Antlered Man walks it like any other fence).
+func _add_wire_fence(parent: Node3D, node_name: String, x: float, z_from: float, z_to: float, height: float) -> void:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	body.position = Vector3(x, height * 0.5, (z_from + z_to) * 0.5)
+	parent.add_child(body)
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(0.12, height, absf(z_to - z_from))
+	col.shape = shape
+	body.add_child(col)
+	var post_mat := StandardMaterial3D.new()
+	post_mat.albedo_color = Color(0.36, 0.28, 0.2)
+	post_mat.roughness = 1.0
+	var wire_mat := StandardMaterial3D.new()
+	wire_mat.albedo_color = Color(0.42, 0.42, 0.4)
+	var n := int(absf(z_to - z_from) / 2.2)
+	for i in n + 1:
+		var post := MeshInstance3D.new()
+		var pm := BoxMesh.new()
+		pm.size = Vector3(0.1, height + 0.1, 0.1)
+		post.mesh = pm
+		post.material_override = post_mat
+		post.position = Vector3(0.0, 0.05, lerpf(z_from, z_to, float(i) / float(maxi(1, n))) - body.position.z)
+		post.rotation.z = _rng.randf_range(-0.04, 0.04)
+		body.add_child(post)
+	for h in [0.45, 0.95]:
+		var wire := MeshInstance3D.new()
+		var wm := BoxMesh.new()
+		wm.size = Vector3(0.015, 0.015, absf(z_to - z_from))
+		wire.mesh = wm
+		wire.material_override = wire_mat
+		wire.position = Vector3(0.0, h - height * 0.5, 0.0)
+		body.add_child(wire)
 
 
 var _lake_poly := PackedVector2Array()
@@ -445,15 +484,106 @@ func _spawn_random_trees() -> void:
 			continue
 		if tile.occupied:
 			continue
-		if _rng.randf() > tree_spawn_chance:
-			continue
 		# Keep the way to the wicket gate into the corn clear.
 		if coord.x <= 1 and _corn_gate_z != INF and absf(tile.world_position.z - _corn_gate_z) < _grid_manager.tile_size * 1.2:
+			continue
+		# The field comes in over the west fence: the first columns are corn, a ragged
+		# edge, not a line. Corn is cleared in the Builder like trees.
+		if coord.x <= _corn_band(coord.y):
+			var patch := _create_corn_patch(tile.world_position)
+			_nature_root.add_child(patch)
+			_grid_manager.set_tile_occupied(coord, true, patch)
+			continue
+		if _rng.randf() > tree_spawn_chance:
 			continue
 
 		var tree = _create_tree(tile.world_position)
 		_nature_root.add_child(tree)
 		_grid_manager.set_tile_occupied(coord, true, tree)
+
+
+## How far into the camp the corn reaches in this row (tile x, inclusive; -1 = none).
+func _corn_band(row: int) -> int:
+	var h := absi(hash("corn%d:%d" % [row, _corn_seed()])) % 100
+	var wave := sin(float(row) * 0.55 + float(_corn_seed() % 17)) * 0.9
+	return clampi(int(round(1.0 + wave + (0.6 if h > 70 else 0.0))), 0, 2)
+
+
+func _corn_seed() -> int:
+	if _corn_seed_value < 0:
+		_corn_seed_value = _rng.randi() % 100000
+	return _corn_seed_value
+
+
+var _corn_seed_value := -1
+const CORN_TEX := "res://assets/textury/world/corn.png"
+static var _corn_mat: StandardMaterial3D
+static var _corn_mesh: ArrayMesh
+
+
+## One tile of corn inside the camp: stalks you walk through (they rustle and slow you),
+## a "tree" for the Builder (bulldoze clears it) drawn there as corn.
+func _create_corn_patch(pos: Vector3) -> Node3D:
+	var patch := Node3D.new()
+	patch.name = "CornPatch"
+	patch.add_to_group("trees")
+	patch.add_to_group("corn")
+	patch.position = pos
+	var size: float = _grid_manager.tile_size
+	if _corn_mat == null:
+		_corn_mat = StandardMaterial3D.new()
+		_corn_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_corn_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_corn_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		if ResourceLoader.exists(CORN_TEX):
+			_corn_mat.albedo_texture = load(CORN_TEX)
+			_corn_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			_corn_mat.alpha_scissor_threshold = 0.5
+		else:
+			_corn_mat.albedo_color = Color(0.62, 0.6, 0.3)
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for k in 2:
+			var a := float(k) * PI * 0.5
+			var d := Vector3(cos(a), 0, sin(a)) * 0.35
+			var v := [Vector3(-d.x, 0, -d.z), Vector3(d.x, 0, d.z), Vector3(d.x, 2.4, d.z), Vector3(-d.x, 2.4, -d.z)]
+			var uv := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
+			for idx in [0, 1, 2, 0, 2, 3]:
+				st.set_uv(uv[idx])
+				st.set_normal(Vector3.UP)
+				st.add_vertex(v[idx])
+		_corn_mesh = st.commit()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = _corn_mesh
+	var xf: Array[Transform3D] = []
+	var x := -size * 0.5 + 0.35
+	while x < size * 0.5:
+		var z := -size * 0.5 + _rng.randf_range(0.1, 0.4)
+		while z < size * 0.5:
+			if _rng.randf() > 0.08:
+				var s := _rng.randf_range(0.8, 1.15)
+				xf.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.9, 1.15), s)), Vector3(x + _rng.randf_range(-0.15, 0.15), 0.0, z)))
+			z += _rng.randf_range(0.55, 0.8)
+		x += 1.0
+	mm.instance_count = xf.size()
+	for i in xf.size():
+		mm.set_instance_transform(i, xf[i])
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = mm
+	mi.material_override = _corn_mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	patch.add_child(mi)
+	var soil := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(size, size)
+	soil.mesh = plane
+	soil.position = Vector3(0, 0.012, 0)
+	var sm := StandardMaterial3D.new()
+	sm.albedo_color = Color(0.26, 0.2, 0.13)
+	soil.material_override = sm
+	patch.add_child(soil)
+	return patch
 
 
 func _spawn_stylized_grass() -> void:

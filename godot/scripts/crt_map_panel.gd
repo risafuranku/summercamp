@@ -56,6 +56,7 @@ const ICON_PATHS := {
 	"path": "res://assets/textury/builder/parking.PNG",
 	"lamp_post": "res://assets/textury/builder/gen.PNG",
 	"tree": "res://assets/textury/builder/strom.png",
+	"corn": "res://assets/textury/builder/iso_corn.png",
 	"tent_2": "res://assets/textury/builder/stan2.png",
 	"tent_3": "res://assets/textury/builder/stan3.png",
 	"cabin_2": "res://assets/textury/builder/chata2.PNG",
@@ -72,6 +73,7 @@ const ICON_PATHS := {
 const ICON_NO_MIRROR := {
 	"main_building": true,
 	"tree": true,
+	"corn": true,
 	"path": true,
 	"lamp_post": true,
 	"lamp_iso": true,
@@ -880,6 +882,9 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 	var rotation_steps: int = wrapi(int(entry.get("rotation", 0)), 0, 4)
 	var building_type = str(entry.get("type", ""))
 
+	if root.is_in_group("corn"):
+		if _draw_icon(center, Vector2(tile_w * 1.02, tile_h * 2.3), "corn", 0, Color(1.0, 1.0, 1.0, 0.98)):
+			return
 	if root.is_in_group("trees"):
 		if not _draw_icon(center, Vector2(maxf(12.0, tile_w * 1.22), maxf(12.0, tile_h * 1.85)), "tree", 0, Color(1.0, 1.0, 1.0, 0.98)):
 			_draw_tree_fallback(center, tile_w, tile_h)

@@ -580,6 +580,35 @@ func open_breaker_board() -> void:
 	_breaker_panel.open(_night_jobs.breaker_fault())
 
 
+var _corn_rustle: AudioStreamPlayer
+var _corn_rustle_t := 0.0
+
+
+## Pushing through the camp's own corn: slower, and the stalks rustle round you.
+func _update_corn_wading(delta: float) -> void:
+	if _player == null or not is_instance_valid(_player) or grid_manager == null:
+		return
+	var in_corn := false
+	var c: Vector2i = grid_manager.world_to_grid(_player.global_position)
+	var tile = grid_manager.get_tile(c) if grid_manager.is_in_bounds(c) else null
+	if tile != null and tile.occupant != null and is_instance_valid(tile.occupant) and (tile.occupant as Node).is_in_group("corn"):
+		in_corn = true
+	_player.set("terrain_speed_mult", 0.62 if in_corn else 1.0)
+	var moving: bool = in_corn and _player is CharacterBody3D and (_player as CharacterBody3D).velocity.length() > 0.6
+	if _corn_rustle == null:
+		_corn_rustle = AudioStreamPlayer.new()
+		_corn_rustle.volume_db = -9.0
+		var path := "res://assets/sfx/world/corn_rustle.mp3"
+		if ResourceLoader.exists(path):
+			_corn_rustle.stream = load(path)
+		add_child(_corn_rustle)
+	_corn_rustle_t -= delta
+	if moving and _corn_rustle_t <= 0.0 and _corn_rustle.stream != null:
+		_corn_rustle_t = randf_range(0.45, 0.8)
+		_corn_rustle.pitch_scale = randf_range(0.85, 1.15)
+		_corn_rustle.play()
+
+
 ## For the HUD waypoint: the nearest open night job.
 func night_job_waypoint() -> Dictionary:
 	if _player == null or not is_instance_valid(_player):
@@ -835,6 +864,7 @@ func _process(delta: float) -> void:
 			_is_service_sewer_audio_active()
 		)
 	_tick_active_enemy_brain(delta)
+	_update_corn_wading(delta)
 	_update_threat_senses(delta)
 	_sync_hud_player_meters()
 	_poll_arrivals(delta)

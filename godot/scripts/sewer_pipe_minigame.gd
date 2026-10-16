@@ -35,6 +35,10 @@ const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 
 const PIPE_TEXTURE := "res://assets/textury/pipes/pipe_concrete.png"
+## The old 1962 sections that the 1993 works did not reach: brick.
+const BRICK_TEXTURE := "res://assets/textury/pipes/pipe_brick.png"
+const SHOE_SPRITE := "res://assets/textury/pipes/red_shoe.png"
+const SCRATCHES := "res://assets/textury/mess/decal_scratches.png"
 const PAPER_TEXTURE := "res://assets/textury/pipes/paper_map.png"
 const DIRECTOR = preload("res://scripts/pipes/pipe_director.gd")
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
@@ -62,8 +66,8 @@ const MOVE_SECONDS := 0.6
 const CLAMP_SECONDS := 2.6
 const DIRS := [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]  # N E S W
 const DIR_YAW := [0.0, -PI * 0.5, PI, PI * 0.5]
-const LANDMARKS := ["crack", "tally", "rags", "bucket", "shoe"]
-const LANDMARK_MAP_GLYPH := {"crack": "~", "tally": "IIII", "rags": "#", "bucket": "o", "shoe": "!"}
+const LANDMARKS := ["crack", "tally", "rags", "bucket", "shoe", "scratches"]
+const LANDMARK_MAP_GLYPH := {"crack": "~", "tally": "IIII", "rags": "#", "bucket": "o", "shoe": "!", "scratches": "///"}
 
 var _active: bool = false
 var _coord: Vector2i = Vector2i.ZERO
@@ -134,6 +138,7 @@ var _map: Control
 var _paper: TextureRect
 var _ink: Control
 var _pipe_mat: StandardMaterial3D
+var _brick_mat: StandardMaterial3D
 var _scale: int = 3
 
 
@@ -284,7 +289,7 @@ func _generate() -> void:
 	# Landmarks on five other pipes; the last worker noted three of them on the map.
 	var pool := edges.filter(func(e): return not (_same_edge(e[0], e[1], _leak_a, _leak_b)))
 	_shuffle(pool)
-	for i in mini(5, pool.size()):
+	for i in mini(6, pool.size()):
 		_landmarks.append({"a": pool[i][0], "b": pool[i][1], "kind": LANDMARKS[i % LANDMARKS.size()], "on_map": i < 3})
 
 
@@ -401,6 +406,9 @@ func _build_shell() -> void:
 		_pipe_mat.albedo_texture = load(PIPE_TEXTURE)
 	else:
 		_pipe_mat.albedo_color = Color(0.3, 0.32, 0.31)
+	_brick_mat = _pipe_mat.duplicate() as StandardMaterial3D
+	if ResourceLoader.exists(BRICK_TEXTURE):
+		_brick_mat.albedo_texture = load(BRICK_TEXTURE)
 	_ambience = _make_player(SFX_AMBIENCE, -9.0, true)
 	_pipes_bed = _make_player(SFX_PIPES, -14.0, true)
 	_build_hud_nodes()
@@ -571,7 +579,8 @@ func _pipe(comb: CSGCombiner3D, a: Vector2i, b: Vector2i) -> void:
 	cyl.radius = PIPE_R
 	cyl.height = CELL
 	cyl.sides = SIDES
-	cyl.material = _pipe_mat
+	# A seeded third of the pipes are the old brick ones (also a landmark of sorts).
+	cyl.material = _brick_mat if (absi(hash("%s%s%d" % [a, b, _rng.seed])) % 3) == 0 else _pipe_mat
 	cyl.position = (_world_pos(a) + _world_pos(b)) * 0.5 - _floor_offset(PIPE_R)
 	cyl.rotation = Vector3(0, 0, PI * 0.5) if a.y == b.y else Vector3(PI * 0.5, 0, 0)
 	comb.add_child(cyl)
@@ -636,6 +645,22 @@ func _build_landmark(lm: Dictionary) -> void:
 	var p := _edge_mid(lm["a"], lm["b"])
 	var floor_y := EYE_Y - PIPE_R * 0.9 - 0.6
 	match str(lm["kind"]):
+		"scratches":
+			if ResourceLoader.exists(SCRATCHES):
+				var mi := MeshInstance3D.new()
+				var q := QuadMesh.new()
+				q.size = Vector2(0.6, 0.6)
+				mi.mesh = q
+				var m := StandardMaterial3D.new()
+				m.albedo_texture = load(SCRATCHES)
+				m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+				m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+				mi.material_override = m
+				var side2 := Vector3(lm["b"].y - lm["a"].y, 0, lm["a"].x - lm["b"].x).normalized()
+				mi.position = p + side2 * (PIPE_R * 0.7) + Vector3(0, 0.1, 0)
+				_geo.add_child(mi)
+				mi.look_at(p + Vector3(0, 0.1, 0), Vector3.UP)
+				mi.rotate_object_local(Vector3.UP, PI)
 		"crack", "tally":
 			var l := Label3D.new()
 			l.text = "\\/\\_/\\" if lm["kind"] == "crack" else "IIII IIII IIII II"
@@ -666,8 +691,18 @@ func _build_landmark(lm: Dictionary) -> void:
 			_geo.add_child(mi)
 		"shoe":
 			# One red high-heeled shoe. You have seen someone missing one.
-			_lump(p + Vector3(0.1, floor_y + 0.05, 0.0), Vector3(0.22, 0.08, 0.08), Color(0.62, 0.08, 0.06))
-			_lump(p + Vector3(0.2, floor_y + 0.1, 0.0), Vector3(0.03, 0.12, 0.03), Color(0.62, 0.08, 0.06))
+			if ResourceLoader.exists(SHOE_SPRITE):
+				var shoe := Sprite3D.new()
+				shoe.texture = load(SHOE_SPRITE)
+				shoe.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+				shoe.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+				shoe.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+				shoe.shaded = true
+				shoe.pixel_size = 0.22 / float(shoe.texture.get_width())
+				shoe.position = p + Vector3(0.12, floor_y + 0.62, 0.0)
+				_geo.add_child(shoe)
+			else:
+				_lump(p + Vector3(0.1, floor_y + 0.05, 0.0), Vector3(0.22, 0.08, 0.08), Color(0.62, 0.08, 0.06))
 
 
 func _lump(at: Vector3, size: Vector3, c: Color) -> void:
