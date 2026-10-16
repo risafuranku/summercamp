@@ -27,7 +27,8 @@
 - [x] B21 Corn: no falling through; second maze exit, the strip under the wires, the linemen's hut
 - [x] B22 A month instead of a week, through the autumn, snow at the end; frozen pipes and cold tents
 - [ ] B23 Later: lore in the linemen's hut; more winter challenges (snowed-in paths, the lake freezing, heating cabins)
-- [ ] B13 Later: something hidden in the shed (beyond the coat), more to do on the far shore, the boat at night as its own scare
+- [x] B13c The boat at night as its own scare (scripts/lake/night_row.gd: knocks, lantern, fog, the hand, the scrape)
+- [ ] B13 Later: something hidden in the shed (beyond the coat), more to do on the far shore
 - [ ] B14 Later: walk through the outside maze walls? (the maze is the corn job's; the camp corn is walkable)
 
 ## PLAYTEST 2026-10-13 — the user's notes

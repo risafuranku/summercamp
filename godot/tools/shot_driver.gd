@@ -499,6 +499,15 @@ const SCENARIOS := {
 		["eval", "debug_jump_to(1, 23.0)"], ["wait", 1.5], ["shot", "w8_far_night"],
 		["eval", "_lake_trip._look.set('yaw_deg', 150.0)"], ["wait", 0.8], ["shot", "w9_camp_night"],
 	],
+	"nightboat": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
+		["eval", "debug_jump_to(3, 22.5)"], ["wait", 1.0],
+		["eval", "_lake_trip._start_rowing('far')"], ["keyhold", "W", true], ["wait", 3.0], ["keyhold", "W", false],
+		["eval", "_lake_trip._night._start('lantern')"], ["wait", 2.5], ["shot", "n0_lantern"],
+		["eval", "_lake_trip._night._stop_active()"], ["eval", "_lake_trip._night._start('fog')"], ["wait", 6.0], ["shot", "n1_fog"],
+		["eval", "_lake_trip._night._stop_active()"], ["wait", 0.5], ["eval", "_lake_trip._night._start('hand')"], ["wait", 1.0], ["shot", "n2_hand"],
+		["wait", 3.0], ["eval", "_lake_trip._night._start('knock')"], ["wait", 1.0], ["shot", "n3_knock"],
+	],
 	"reception": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
 		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4], ["shot", "r0_desk"], ["money", 90000], ["clear", 8, 5, 6, 5], ["build", "tent_1", 9, 6, 0], ["build", "tent_1", 11, 6, 0], ["build", "cabin_1", 9, 8, 0], ["build", "toilet_block", 12, 8, 0], ["wait", 0.6],

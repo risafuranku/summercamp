@@ -197,6 +197,8 @@ var _sky_transition_duration_seconds: float = SKY_TRANSITION_DURATION
 var _rain_particles: GPUParticles3D
 ## The campaign day (core/systems/season.gd): the autumn shifts the light.
 var season_day := 1
+## Extra fog on top of the weather's (the lake at night, scripts/lake/night_row.gd).
+var fog_boost := 0.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -548,7 +550,7 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	var ambient_gray = Color(ambient_luma, ambient_luma, ambient_luma, ambient_col.a)
 	env.ambient_light_color = ambient_col.lerp(ambient_gray, clampf(sky_desaturation * 0.75, 0.0, 1.0)).lerp(w["tint"], float(w["tint_mix"]) * 0.5)
 	env.fog_enabled = fog_enabled
-	env.fog_density = fog_density
+	env.fog_density = fog_density + fog_boost
 	env.fog_sky_affect = fog_sky_affect
 	env.fog_light_color = fog_color.lerp(Color(0.90, 0.92, 1.0), flash * 0.85)
 	_sun.light_energy = (_base_sun_energy * sun_multiplier) + (0.9 * flash)
@@ -685,7 +687,7 @@ func apply_time_from_clock(force_sky_snap: bool = false) -> void:
 	env.ambient_light_energy = ambient_energy
 	env.fog_enabled = fog_density > 0.0001
 	env.fog_light_color = fog_color
-	env.fog_density = fog_density
+	env.fog_density = fog_density + fog_boost
 	env.fog_sky_affect = fog_sky_affect
 	if _sun != null:
 		var sun_source_dir = direction_to_source_from_hour(_time_of_day_hours)

@@ -12,11 +12,12 @@ extends Node
 ##
 ## Fishing: click the end of the jetty to cast, wait for the float to go under, click
 ## then. Carp and pike go to the camp kitchen for a few dollars; sometimes it is not a fish.
-## At night, once in a while, something passes under the boat.
+## At night the crossing is not empty (scripts/lake/night_row.gd decides what happens).
 
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
 const LOGBOOK = preload("res://scripts/lake/logbook_closeup.gd")
+const NIGHT_ROW = preload("res://scripts/lake/night_row.gd")
 const OARS := "res://assets/textury/hands/oars.png"
 const SFX := "res://assets/sfx/lake/"
 const MAX_SPEED := 2.8
@@ -46,7 +47,6 @@ var _glint = HOVER_GLINT.new()
 var _hot: Dictionary = {}
 var _hover := ""
 var _logbook
-var _under_done := false
 var _fish_state := ""       # "", "waiting", "bite", "show"
 var _fish_t := 0.0
 var _float: MeshInstance3D
@@ -54,10 +54,12 @@ var _catch := {}
 var _catch_card: TextureRect
 var _caught_today := 0
 var _rng := RandomNumberGenerator.new()
+var _night
 
 
 func setup(main_node: Node) -> void:
 	_main = main_node
+	_night = NIGHT_ROW.new(self)
 	_rng.randomize()
 
 
@@ -105,7 +107,6 @@ func _start_rowing(dest: String) -> void:
 	_dest = dest
 	_docking = false
 	_speed = 0.0
-	_under_done = false
 	_end_far_shore()
 	if _cam == null:
 		_cam = Camera3D.new()
@@ -132,6 +133,8 @@ func _start_rowing(dest: String) -> void:
 	_hands.visible = true
 	_lap.play()
 	_state = ROWING
+	var hh := float(_main.get("_time_of_day_hours"))
+	_night.begin(hh >= 20.5 or hh < 5.0)
 	_play("bump.mp3", -6.0)
 
 
@@ -188,28 +191,11 @@ func _update_rowing(delta: float) -> void:
 	var rock := sin(floorf(Time.get_ticks_msec() / 125.0) * 0.4) * 0.012 + (0.03 if _stroke_t >= 0.0 and _stroke_t < 0.4 else 0.0)
 	boat.rotation.x = rock
 	_update_hands()
-	_maybe_under(delta)
-
-
-## Once a trip, at night, a long scrape along the bottom of the boat.
-func _maybe_under(delta: float) -> void:
-	var h := float(_main.get("_time_of_day_hours"))
-	var night := h >= 21.0 or h < 5.0
-	if _under_done or not night or _docking:
-		return
-	if _rng.randf() < delta * 0.03:
-		_under_done = true
-		_play("under.mp3", 0.0)
-		_speed *= 0.3
-		var lake = _lake_node()
-		var tw := create_tween()
-		tw.tween_property(lake.boat, "rotation:z", 0.08, 0.4)
-		tw.tween_property(lake.boat, "rotation:z", -0.05, 0.5)
-		tw.tween_property(lake.boat, "rotation:z", 0.0, 0.8)
-		_say("Something long passes under the boat. Then nothing.")
+	_night.tick(delta, _stroke_t >= 0.0, _docking)
 
 
 func _arrive() -> void:
+	_night.end()
 	_docking = false
 	_stroke_t = -1.0
 	_hands.visible = false
@@ -509,6 +495,41 @@ func _update_hands() -> void:
 	if _catch_card != null:
 		_catch_card.size = Vector2(160, 160) * k
 		_catch_card.position = ((vp - _catch_card.size) * 0.5).floor()
+
+
+# ── for the night (night_row.gd) ─────────────────────────────────────────────
+
+func _boat() -> Node3D:
+	var lake = _lake_node()
+	return lake.boat if lake != null else null
+
+
+## The boat tips over to one side and rights itself.
+func _lurch(z: float) -> void:
+	var b := _boat()
+	if b == null:
+		return
+	var tw := create_tween()
+	tw.tween_property(b, "rotation:z", z, 0.35)
+	tw.tween_property(b, "rotation:z", -z * 0.6, 0.5)
+	tw.tween_property(b, "rotation:z", 0.0, 0.8)
+
+
+func _fog_density() -> float:
+	var wv = _main.get("_weather_visuals")
+	return float(wv.get("fog_boost")) if wv != null and wv.get("fog_boost") != null else 0.0
+
+
+func _set_fog_density(v: float) -> void:
+	var wv = _main.get("_weather_visuals")
+	if wv != null:
+		wv.set("fog_boost", v)
+
+
+func _light_boathouse() -> void:
+	var lake = _lake_node()
+	if lake != null and lake.get("hut_window") != null:
+		lake.hut_window.visible = true
 
 
 func _play(file: String, db: float) -> void:

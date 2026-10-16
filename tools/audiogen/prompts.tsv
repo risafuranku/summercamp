@@ -96,3 +96,7 @@ desk_key_hang	0.6	assets/sfx/desk/key_hang.mp3	A key on a ring hung back onto a 
 desk_bell	1.4	assets/sfx/desk/bell.mp3	A chrome reception desk service bell struck once by hand, a bright clear ding with a ringing tail, small wooden office room, no music.
 desk_door	2.0	assets/sfx/desk/door.mp3	The wooden front door of a small camp office opening, a small brass shop bell above the door tinkles, the latch clicks, footsteps on wooden floor, no music.
 desk_wrong	0.6	assets/sfx/desk/wrong.mp3	A short annoyed throat clearing and a tut of a middle aged person at a counter, close, indoors, no words.
+lake_knock	2.4	assets/sfx/lake/knock.mp3	Three slow dull knocks from underneath a small wooden rowing boat on a still lake at night, as if a fist hits the hull from below the water, muffled, hollow wood, a little water lapping, no music.
+lake_grab	1.6	assets/sfx/lake/grab.mp3	A wet heavy hand slapping onto the wooden edge of a rowing boat from the water, the boat creaks as it tips, water pours and drips back into the lake, close, at night, no music.
+lake_lantern	4.0	assets/sfx/lake/lantern.mp3	Far across a still lake at night, the faint creak of an old metal lantern swinging on its handle and slow oar strokes of another boat, very distant and quiet, no music.
+lake_fog	5.0	assets/sfx/lake/fog.mp3	A deep low dull hum and a faint distant church bell under water, muffled, lake at night in thick fog, eerie, quiet, no music, no voices.
