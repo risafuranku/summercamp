@@ -51,11 +51,13 @@ func _ready() -> void:
 		_expect(str(j["state"]) != "cancelled", "a planned %s job is not cancelled on a camp that has one" % j["kind"])
 	_expect(jobs.open_jobs().size() <= 1, "resolved breakdowns close their jobs (%d open)" % jobs.open_jobs().size())
 
-	# A breaker left tripped until dawn: the electrician resets it, for a fee.
+	# A breaker left tripped until dawn stays tripped: nobody comes unless you ring
+	# (scripts/reception/electrician_visit.gd), and nothing is charged.
 	jobs.breaker_tripped = true
 	jobs.on_dawn()
-	_expect(not jobs.breaker_tripped, "dawn resets the breaker")
-	_expect(CoreRoot.get_money() == money_before - JOBS.ELECTRICIAN_FEE, "and the electrician is paid (%d -> %d)" % [money_before, CoreRoot.get_money()])
+	_expect(jobs.breaker_tripped, "dawn does not reset the breaker by itself")
+	_expect(CoreRoot.get_money() == money_before, "and nobody is paid (%d -> %d)" % [money_before, CoreRoot.get_money()])
+	jobs.breaker_tripped = false
 
 	# Night 7: up to four jobs.
 	jobs.tick(6 * 1440 + 20 * 60, true, 7)

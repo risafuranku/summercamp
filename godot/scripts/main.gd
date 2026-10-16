@@ -43,6 +43,7 @@ const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
 const THREAT_SENSES_SCRIPT = preload("res://scripts/threat_senses.gd")
 const NIGHT_JOBS_SCRIPT = preload("res://scripts/night_jobs.gd")
+const CAMP_OFFICE_SCRIPT = preload("res://scripts/reception/camp_office.gd")
 const DAY_EVENTS_SCRIPT = preload("res://scripts/day_events.gd")
 const WEEK_LEDGER_SCRIPT = preload("res://scripts/week_ledger.gd")
 const OMENS_SCRIPT = preload("res://scripts/omens.gd")
@@ -179,6 +180,9 @@ var _omens: Node
 var _corn_hunt: Node
 var _corn_job: Dictionary = {}
 var _pending_omens: Dictionary = {}
+## The office side of the reception: sleeping, the phone's consequences, the shed key.
+var camp_office: Node
+var _pending_camp_office: Dictionary = {}
 var _still_seconds: float = 0.0
 var _still_last_pos: Vector3 = Vector3.INF
 var _active_enemy_spawned_this_night: int = 0
@@ -192,6 +196,7 @@ func _ready() -> void:
 	DisplayServer.window_set_title(WINDOW_TITLE)
 	_apply_integer_canvas_scale()
 	get_tree().root.size_changed.connect(_apply_integer_canvas_scale)
+	add_child(HandCursor.new())
 	_liminal_forecast_rng.randomize()
 	_show_startup_loading_screen()
 	await get_tree().process_frame
@@ -404,6 +409,14 @@ func _setup_night_jobs() -> void:
 	if not _pending_omens.is_empty():
 		_omens.import_state(_pending_omens)
 		_pending_omens.clear()
+	if camp_office == null or not is_instance_valid(camp_office):
+		camp_office = CAMP_OFFICE_SCRIPT.new()
+		camp_office.name = "CampOffice"
+		add_child(camp_office)
+		camp_office.setup(self)
+	if not _pending_camp_office.is_empty():
+		camp_office.import_state(_pending_camp_office)
+		_pending_camp_office.clear()
 
 
 ## Day 8: the pager in the morning, Vera's report at 08:00 (scripts/week_ledger.gd).
@@ -2111,9 +2124,9 @@ func _apply_time_from_clock(force_interior_sync: bool = false, force_sky_snap: b
 	var grid_power_available = _is_grid_powered()
 	if CoreRoot.is_night() != is_night:
 		CoreRoot.apply_changes({"is_night": is_night})
-	if state_changed and _time_state == TIME_NIGHT:
-		if _interior_manager != null and _interior_manager.has_method("close_main_interior_if_open"):
-			_interior_manager.close_main_interior_if_open()
+	# Night no longer throws you out of the office: only the Builder locks (its licence),
+	# mail, the web and the phone work, and the room behind the office is where you
+	# sleep (scripts/reception/camp_office.gd).
 	if _weather_visuals != null:
 		_weather_visuals.update_state(_time_state, _time_of_day_hours, _weather_state)
 		_weather_visuals.apply_time_from_clock(force_sky_snap)
@@ -2830,6 +2843,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"day_events": _day_events.export_state() if _day_events != null else {},
 		"week_ledger": _week_ledger.export_state() if _week_ledger != null else {},
 		"omens": _omens.export_state() if _omens != null else {},
+		"camp_office": camp_office.export_state() if camp_office != null else {},
 	}
 	if _player != null and is_instance_valid(_player):
 		snapshot["player"] = {
@@ -3079,6 +3093,11 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		if _night_jobs != null and _gameplay_started:
 			_night_jobs.import_state(_pending_night_jobs)
 			_pending_night_jobs.clear()
+		var office_any = snapshot.get("camp_office", {})
+		_pending_camp_office = (office_any as Dictionary).duplicate(true) if office_any is Dictionary else {}
+		if camp_office != null and _gameplay_started:
+			camp_office.import_state(_pending_camp_office)
+			_pending_camp_office.clear()
 		var day_any = snapshot.get("day_events", {})
 		_pending_day_events = (day_any as Dictionary).duplicate(true) if day_any is Dictionary else {}
 		if _day_events != null and _gameplay_started:
@@ -3292,6 +3311,9 @@ func _reset_state_for_new_game() -> void:
 	_pending_night_jobs.clear()
 	if _night_jobs != null:
 		_night_jobs.reset()
+	_pending_camp_office.clear()
+	if camp_office != null:
+		camp_office.reset()
 	_pending_day_events.clear()
 	if _day_events != null:
 		_day_events.reset()

@@ -55,6 +55,14 @@
    0.7
   ]
  },
+ "button_red": {
+  "tex": "",
+  "tint": [
+   0.62,
+   0.12,
+   0.1
+  ]
+ },
  "canvas": {
   "tex": "tarp_canvas.png",
   "tint": [
@@ -175,6 +183,14 @@
    0.6
   ]
  },
+ "lcd": {
+  "tex": "",
+  "tint": [
+   0.36,
+   0.44,
+   0.3
+  ]
+ },
  "mattress": {
   "tex": "mattress.png",
   "tint": [
@@ -199,6 +215,14 @@
    1.0
   ]
  },
+ "pillow": {
+  "tex": "mattress.png",
+  "tint": [
+   1.0,
+   0.97,
+   0.9
+  ]
+ },
  "pine": {
   "tex": "knotty_pine.png",
   "tint": [
@@ -213,6 +237,22 @@
    1.0,
    0.92,
    0.8
+  ]
+ },
+ "plastic_beige": {
+  "tex": "",
+  "tint": [
+   0.78,
+   0.72,
+   0.6
+  ]
+ },
+ "plastic_dark": {
+  "tex": "",
+  "tint": [
+   0.16,
+   0.15,
+   0.14
   ]
  },
  "porcelain": {
@@ -239,6 +279,14 @@
    0.4
   ]
  },
+ "rubber": {
+  "tex": "",
+  "tint": [
+   0.42,
+   0.42,
+   0.4
+  ]
+ },
  "screen": {
   "tex": "",
   "tint": [
@@ -261,6 +309,14 @@
    1,
    1,
    1
+  ]
+ },
+ "velvet": {
+  "tex": "velvet.png",
+  "tint": [
+   0.55,
+   0.16,
+   0.12
   ]
  },
  "veneer": {

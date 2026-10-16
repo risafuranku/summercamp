@@ -10,6 +10,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import propkit as K  # noqa: E402
 import props_more  # noqa: E402
+import props_room  # noqa: E402
 
 TAU = math.tau
 
@@ -19,6 +20,7 @@ TAU = math.tau
 def M():
     m = _base_materials()
     props_more.extend(m)
+    props_room.extend(m)
     return m
 
 
@@ -220,6 +222,7 @@ PROPS = {
     "wall_lamp": wall_lamp,
 }
 PROPS.update(props_more.PROPS)
+PROPS.update(props_room.PROPS)
 
 
 def main():

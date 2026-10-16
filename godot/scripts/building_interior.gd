@@ -20,6 +20,7 @@ const RECEPTION_PREFIX := {
 }
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const RECEPTION_EXTRAS = preload("res://scripts/reception/reception_extras.gd")
 const CRT_UI_SCENE = preload("res://scripts/os98/os_shell.gd")
 ## The camp computer runs at 640x480, like it did.
 const CRT_RESOLUTION := Vector2i(640, 480)
@@ -145,6 +146,8 @@ var _initial_cam_fov: float = 54.0
 var _idle_cam_base_rot: Vector3 = Vector3.ZERO
 ## In the office, away from the screen: turn your head around the room, not out of it.
 var _look = INTERIOR_LOOK.new(70.0, 22.0, 30.0)
+## The phone, the noticeboard, the door to the back room and the room behind it.
+var _extras
 var _crt_orbit_anchor_pos: Vector3 = Vector3.ZERO
 var _crt_orbit_anchor_offset: Vector3 = Vector3.ZERO
 var _crt_orbit_pivot: Vector3 = Vector3.ZERO
@@ -320,6 +323,8 @@ func open_interior() -> void:
 	_sync_interior_viewport_to_window()
 	_sync_crt_viewport_to_window()
 	_set_crt_viewport_live(true)
+	if _extras != null:
+		_extras.reset_to_office()
 	_interior_camera.rotation = Vector3(deg_to_rad(-9.0), 0.0, 0.0)
 	_interior_camera.position = Vector3(0.0, 1.4, 1.6) # Reset pos
 	_interior_camera.current = true
@@ -340,6 +345,8 @@ func open_interior() -> void:
 func close_interior() -> void:
 	if _camera_tween != null:
 		_camera_tween.kill()
+	if _extras != null:
+		_extras.reset_to_office()
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
@@ -374,10 +381,54 @@ func _process(delta: float) -> void:
 		return
 	if _is_camera_tween_running():
 		return
+	if _extras != null and _extras.process(delta, _hour_now()):
+		_update_exit_hint_only(delta)
+		return
+	_update_office_hover()
 	_apply_idle_mouse_look(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, not _crt_active)
+
+
+func _update_exit_hint_only(delta: float) -> void:
+	if _exit_hint == null:
+		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
+	var allowed: bool = _extras == null or not _extras.is_modal()
+	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, allowed)
+
+
+func _hour_now() -> float:
+	var main := _resolve_main_runtime_host()
+	return float(main.get("_time_of_day_hours")) if main != null else 12.0
+
+
+## The office's own clickables (the radio, the light switch, the screen): the gloved
+## finger and the glint, like the extras'. The way out behind you: the flat hand.
+func _update_office_hover() -> void:
+	if _extras == null or _extras.hovered() != "":
+		return
+	var vp := get_viewport()
+	if INTERIOR_LOOK.in_exit_zone(vp):
+		HandCursor.want(HandCursor.WALK)
+		return
+	var m := vp.get_mouse_position()
+	var meshes: Array = []
+	if _is_mouse_over_radio(m):
+		for n in ["RadioBody", "RadioSpeaker", "RadioDial", "RadioAntenna", "RadioSet"]:
+			var node := _room_root.get_node_or_null(n)
+			if node != null:
+				meshes.append(node)
+	else:
+		var hit := _raycast_room(m)
+		var collider = hit.get("collider", null) as Node
+		if collider != null and _node_has_click_type(collider, "office_light_switch") and _office_light_switch_mesh != null:
+			meshes.append(_office_light_switch_mesh)
+		elif _crt_screen != null and _map_mouse_to_crt(m, false) != Vector2.INF:
+			HandCursor.want(HandCursor.POINT)
+	if not meshes.is_empty():
+		HandCursor.want(HandCursor.POINT)
+	_extras.glint.show_on(meshes)
 
 
 func _is_camera_tween_running() -> bool:
@@ -1077,6 +1128,9 @@ func _build_room() -> void:
 	door_hint.rotation = Vector3(0.0, PI * 0.5, 0.0)
 	_room_root.add_child(door_hint)
 
+	_extras = RECEPTION_EXTRAS.new()
+	_extras.build(self, _room_root, _interior_camera)
+
 
 func _build_crt_viewport() -> void:
 	if _crt_viewport != null: return
@@ -1197,8 +1251,14 @@ func _exit_crt_view() -> void:
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
+	# The close-ups, the sleep and the walk through the door handle their own input.
+	if _extras != null and _extras.is_modal():
+		return
 
 	if event.is_action_pressed("ui_cancel"):
+		if not _crt_active and _extras != null and _extras.handle_exit():
+			get_viewport().set_input_as_handled()
+			return
 		if _crt_active:
 			_exit_crt_view()
 			get_viewport().set_input_as_handled()
@@ -1223,7 +1283,8 @@ func _input(event: InputEvent) -> void:
 			return
 
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
-		close_interior()
+		if _extras == null or not _extras.handle_exit():
+			close_interior()
 		get_viewport().set_input_as_handled()
 		return
 
@@ -1235,6 +1296,12 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		var mouse_event = event as InputEventMouseButton
+		if _extras != null and _extras.click():
+			get_viewport().set_input_as_handled()
+			return
+		if _extras != null and _extras.in_back_room():
+			get_viewport().set_input_as_handled()
+			return
 		if _try_click_room(mouse_event):
 			get_viewport().set_input_as_handled()
 			return

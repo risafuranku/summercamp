@@ -194,7 +194,14 @@ def export(obj, file_name):
 
 
 def write_manifest():
-    """materials.json next to the .glb files: material name -> {tex, tint}."""
+    """materials.json next to the .glb files: material name -> {tex, tint}. Merged with
+    what is there: a run for a few props must not drop materials only others create."""
     os.makedirs(OUT, exist_ok=True)
-    with open(os.path.join(OUT, "materials.json"), "w", encoding="utf-8", newline="\n") as f:
-        json.dump(dict(sorted(_manifest.items())), f, indent=1)
+    path = os.path.join(OUT, "materials.json")
+    merged = {}
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            merged = json.load(f)
+    merged.update(_manifest)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(dict(sorted(merged.items())), f, indent=1)

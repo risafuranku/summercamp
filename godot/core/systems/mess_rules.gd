@@ -37,6 +37,9 @@ const MESS := {
 	"hair": {"label": "Pull the hair out of the drain", "verb": "Pulling", "seconds": 1.8, "sfx": "task_scrub.mp3"},
 	"graffiti": {"label": "Scrub the writing off the door", "verb": "Scrubbing", "seconds": 2.0, "sfx": "task_scrub.mp3"},
 	"blocked": {"label": "Unblock the toilet", "verb": "Plunging", "seconds": 3.2, "sfx": "task_scrub.mp3"},
+	"piss": {"label": "Mop up the piss", "verb": "Mopping", "seconds": 2.0, "sfx": "task_scrub.mp3"},
+	"poop": {"label": "Scrape up what somebody left", "verb": "Scraping", "seconds": 2.8, "sfx": "task_scrub.mp3"},
+	"wads": {"label": "Pick up the used paper", "verb": "Picking up", "seconds": 1.3, "sfx": "task_litter.mp3"},
 	"showerhead": {"label": "Screw the shower head back on", "verb": "Fixing", "seconds": 3.0, "sfx": "task_scrub.mp3"},
 	# The basic cabin has no bathroom: an enamel slop bucket by the door instead.
 	"slop": {"label": "Empty the slop bucket", "verb": "Emptying", "seconds": 2.0, "sfx": "task_scrub.mp3"},
@@ -48,7 +51,7 @@ const ROOM_SPOTS := {
 	"cabin": ["f1", "f2", "f3", "f4", "f5", "f6"],
 }
 const BATH_SPOTS := ["wc", "sink", "bfloor"]
-const BATH_KINDS := {"wc": ["toilet_grime"], "sink": ["sink_grime", "hair"], "bfloor": ["puddle", "mud", "paper_out"]}
+const BATH_KINDS := {"wc": ["toilet_grime"], "sink": ["sink_grime", "hair"], "bfloor": ["puddle", "mud", "paper_out", "piss", "wads"]}
 
 ## Ordinary leftovers, then what each archetype adds (and how much worse they leave it).
 const COMMON := ["papers", "bottles", "cans", "clothes", "mud"]
@@ -70,9 +73,9 @@ const BLOCK_SPOTS := {
 	"wash": ["shower_l", "shower_r", "drain_l", "drain_r", "floor_c", "floor_l", "floor_r"],
 }
 const BLOCK_KINDS := {
-	"stall_l": ["puddle", "paper_out", "mud"], "stall_r": ["puddle", "paper_out", "mud"],
-	"urinal": ["butts", "puddle"], "door_l": ["graffiti"], "door_r": ["graffiti"], "wall_l": ["graffiti"],
-	"floor_c": ["puddle", "mud", "papers"],
+	"stall_l": ["piss", "paper_out", "poop", "wads", "mud"], "stall_r": ["piss", "paper_out", "wads", "poop", "puddle"],
+	"urinal": ["butts", "piss"], "door_l": ["graffiti"], "door_r": ["graffiti"], "wall_l": ["graffiti"],
+	"floor_c": ["puddle", "mud", "papers", "piss"],
 	"shower_l": ["shower_mould"], "shower_r": ["shower_mould"],
 	"drain_l": ["hair", "puddle"], "drain_r": ["hair", "puddle"],
 	"floor_l": ["puddle", "clothes", "sand"], "floor_r": ["sand", "clothes", "hair"],

@@ -214,43 +214,42 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 	var size := Vector3(0.5, 0.22, 0.5)
 	var body_pos := pos + Vector3(0, size.y * 0.5 - 0.02, 0)
 	match kind:
+		# Most mess is a Build-style floor sprite from Grok (assets/textury/mess), with a
+		# real 3D thing or two standing up out of it so it has depth.
 		"bottles":
-			for i in rng.randi_range(2, 4):
-				bottle(root, Vector3(_j(rng, 0.2), 0.0 if i % 2 else 0.13, _j(rng, 0.2)), i % 2 == 1, rng.randf() * TAU)
+			decal(root, "litter_bottles", 0.56, Vector3(0, 0.004, 0), rng.randf() * TAU)
+			bottle(root, Vector3(_j(rng, 0.14), 0.13, _j(rng, 0.14)), false, rng.randf() * TAU)
 		"cans":
-			var cols := [Color(0.7, 0.12, 0.1), Color(0.75, 0.72, 0.68), Color(0.15, 0.35, 0.7), Color(0.85, 0.7, 0.2)]
-			for i in rng.randi_range(3, 5):
-				can(root, Vector3(_j(rng, 0.22), 0.035, _j(rng, 0.22)), rng.randf() < 0.7, cols[i % cols.size()], rng.randf() * TAU)
+			decal(root, "litter_cans", 0.46, Vector3(0, 0.004, 0), rng.randf() * TAU)
+			can(root, Vector3(_j(rng, 0.16), 0.06, _j(rng, 0.16)), false, Color(0.7, 0.12, 0.1), rng.randf() * TAU)
 		"papers":
-			for i in rng.randi_range(3, 5):
-				paper(root, Vector3(_j(rng, 0.22), 0.03, _j(rng, 0.22)), rng.randf() * TAU)
+			decal(root, "litter_wrappers", 0.48, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"butts":
-			box(root, Vector3(0, 0.006, 0), Vector3(0.36, 0.006, 0.3), flat(Color(0.5, 0.48, 0.45)), Vector3(0, _j(rng, 1.0), 0))
-			for i in rng.randi_range(6, 10):
-				_cylinder(root, Vector3(_j(rng, 0.16), 0.012, _j(rng, 0.14)), 0.007, 0.007, 0.045, true, flat(Color(0.9, 0.86, 0.74) if i % 3 else Color(0.8, 0.5, 0.2)), rng.randf() * TAU)
+			decal(root, "litter_butts", 0.42, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"food":
-			_cylinder(root, Vector3(0, 0.012, 0), 0.13, 0.11, 0.025, false, flat(Color(0.88, 0.86, 0.8)), 0.0)
-			box(root, Vector3(_j(rng, 0.02), 0.03, _j(rng, 0.02)), Vector3(0.14, 0.03, 0.12), flat(Color(0.42, 0.22, 0.1)), Vector3(0, _j(rng, 1.0), 0))
-			box(root, Vector3(0.16, 0.012, 0.05), Vector3(0.02, 0.01, 0.16), flat(Color(0.7, 0.7, 0.72)), Vector3(0, _j(rng, 1.0), 0))
-			box(root, Vector3(-0.18, 0.004, 0.12), Vector3(0.12, 0.004, 0.09), flat(Color(0.38, 0.2, 0.08)), Vector3(0, _j(rng, 1.0), 0))
+			decal(root, "litter_food", 0.42, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"clothes":
 			var shirt := [Color(0.2, 0.3, 0.6), Color(0.7, 0.2, 0.2), Color(0.85, 0.85, 0.8)]
 			box(root, Vector3(0, 0.02, 0), Vector3(0.42, 0.03, 0.34), flat(shirt[rng.randi_range(0, 2)]), Vector3(_j(rng, 0.1), _j(rng, 1.2), _j(rng, 0.1)))
 			box(root, Vector3(0.22, 0.02, 0.16), Vector3(0.08, 0.03, 0.22), flat(Color(0.9, 0.9, 0.86)), Vector3(0, _j(rng, 1.0), 0))
 			box(root, Vector3(0.28, 0.02, 0.05), Vector3(0.08, 0.03, 0.2), flat(Color(0.88, 0.88, 0.84)), Vector3(0, _j(rng, 1.0), 0))
 		"mud":
-			var a := rng.randf() * TAU
-			for i in 4:
-				var p := Vector3(cos(a), 0, sin(a)) * (float(i) * 0.16 - 0.24) + Vector3(0.05 * (1 if i % 2 else -1), 0.006, 0)
-				box(root, p, Vector3(0.09, 0.006, 0.2), flat(Color(0.42, 0.3, 0.16)), Vector3(0, -a + PI * 0.5, 0))
+			decal(root, "dirt_footprints", 0.78, Vector3(0, 0.004, 0), rng.randf() * TAU)
 			size = Vector3(0.7, 0.12, 0.7)
 			body_pos = pos + Vector3(0, 0.04, 0)
 		"sand":
 			for i in 3:
 				box(root, Vector3(_j(rng, 0.18), 0.005 + i * 0.001, _j(rng, 0.18)), Vector3(rng.randf_range(0.18, 0.32), 0.005, rng.randf_range(0.14, 0.26)), flat(Color(0.82, 0.72, 0.5)), Vector3(0, rng.randf() * TAU, 0))
 		"vomit":
-			for i in 3:
-				box(root, Vector3(_j(rng, 0.12), 0.006 + i * 0.002, _j(rng, 0.12)), Vector3(rng.randf_range(0.14, 0.26), 0.008, rng.randf_range(0.12, 0.22)), flat(Color(0.6, 0.58, 0.28)), Vector3(0, rng.randf() * TAU, 0))
+			decal(root, "dirt_vomit", 0.56, Vector3(0, 0.005, 0), rng.randf() * TAU, false, true)
+		"piss":
+			decal(root, "dirt_piss", 0.62, Vector3(0, 0.004, 0), rng.randf() * TAU, false, true)
+			size = Vector3(0.7, 0.12, 0.7)
+		"poop":
+			decal(root, "dirt_poop", 0.6, Vector3(0, 0.005, 0), rng.randf() * TAU)
+			size = Vector3(0.6, 0.15, 0.6)
+		"wads":
+			decal(root, "litter_toiletpaper", 0.46, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"mushrooms":
 			box(root, Vector3(0, 0.004, 0), Vector3(0.36, 0.004, 0.28), flat(Color(0.8, 0.78, 0.7)), Vector3(0, _j(rng, 0.6), 0))
 			for i in rng.randi_range(4, 6):
@@ -286,15 +285,14 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 				box(root, Vector3(_j(rng, 0.2), 0.02, _j(rng, 0.2)), Vector3(0.22, 0.03, 0.06), flat(Color(0.62, 0.46, 0.28)), Vector3(0, rng.randf() * TAU, 0))
 		"toilet_grime":
 			# `pos` is the top of the bowl; the stain runs down its front onto the floor.
-			var dirt := flat(Color(0.3, 0.22, 0.1))
-			box(root, Vector3(0, 0.0, 0), Vector3(0.36, 0.02, 0.36), dirt, Vector3(0, _j(rng, 0.4), 0))
-			box(root, Vector3(0.0, -0.14, 0.2), Vector3(0.26, 0.16, 0.02), dirt)
-			box(root, Vector3(_j(rng, 0.1), -pos.y + 0.006, 0.32), Vector3(0.4, 0.008, 0.3), flat(Color(0.34, 0.3, 0.14)), Vector3(0, _j(rng, 0.6), 0))
+			decal(root, "dirt_grime", 0.34, Vector3(0, 0.012, 0), rng.randf() * TAU)
+			decal(root, "dirt_grime", 0.18, Vector3(0.0, -0.16, 0.205), 0.0, true)
+			decal(root, "dirt_piss", 0.5, Vector3(_j(rng, 0.08), -pos.y + 0.048, 0.36), rng.randf() * TAU, false, true)
 			size = Vector3(0.6, 0.75, 0.7)
 			body_pos = pos + Vector3(0, -0.2, 0.1)
 		"sink_grime":
-			box(root, Vector3(0, 0.0, 0), Vector3(0.34, 0.02, 0.22), flat(Color(0.4, 0.42, 0.3)))
-			box(root, Vector3(_j(rng, 0.06), 0.012, _j(rng, 0.04)), Vector3(0.1, 0.006, 0.02), flat(Color(0.08, 0.06, 0.05)), Vector3(0, rng.randf() * TAU, 0))
+			decal(root, "dirt_grime", 0.3, Vector3(0, 0.012, 0), rng.randf() * TAU)
+			box(root, Vector3(_j(rng, 0.06), 0.014, _j(rng, 0.04)), Vector3(0.1, 0.006, 0.02), flat(Color(0.08, 0.06, 0.05)), Vector3(0, rng.randf() * TAU, 0))
 			size = Vector3(0.5, 0.3, 0.4)
 			body_pos = pos
 		"hair":
@@ -309,12 +307,11 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			body_pos = pos + Vector3(0, 0.04, 0)
 		"paper_out":
 			_cylinder(root, Vector3(_j(rng, 0.1), 0.03, _j(rng, 0.1)), 0.03, 0.03, 0.1, true, flat(Color(0.62, 0.5, 0.34)), rng.randf() * TAU)
-			for i in 3:
-				paper(root, Vector3(_j(rng, 0.2), 0.02, _j(rng, 0.2)), rng.randf() * TAU)
+			decal(root, "litter_toiletpaper", 0.42, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"shower_mould":
 			# On a wall: `pos` is on the surface, the props face +Z of the root.
-			for i in rng.randi_range(4, 7):
-				box(root, Vector3(_j(rng, 0.3), rng.randf_range(-0.1, 0.9), 0.01), Vector3(rng.randf_range(0.06, 0.2), rng.randf_range(0.04, 0.16), 0.008), flat(Color(0.1, 0.16, 0.1)))
+			decal(root, "dirt_mould", rng.randf_range(0.6, 0.8), Vector3(_j(rng, 0.15), rng.randf_range(0.2, 0.6), 0.012), 0.0, true)
+			decal(root, "dirt_mould", rng.randf_range(0.3, 0.45), Vector3(_j(rng, 0.25), rng.randf_range(-0.05, 0.9), 0.014), 0.0, true)
 			size = Vector3(0.8, 1.2, 0.2)
 			body_pos = pos + Vector3(0, 0.4, 0)
 		"graffiti":
@@ -337,6 +334,7 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			# `pos` is the top of the bowl, like toilet_grime.
 			box(root, Vector3(0, 0.0, 0), Vector3(0.38, 0.02, 0.4), _wet(Color(0.32, 0.26, 0.12, 0.85)))
 			box(root, Vector3(0, -pos.y + 0.006, 0.36), Vector3(0.5, 0.006, 0.5), _wet(Color(0.32, 0.26, 0.12, 0.7)))
+			decal(root, "dirt_grime", 0.3, Vector3(0, 0.014, 0), rng.randf() * TAU)
 			# The plunger left for you.
 			_cylinder(root, Vector3(0.36, -pos.y + 0.34, 0.3), 0.012, 0.012, 0.6, false, flat(Color(0.55, 0.4, 0.22)), 0.0)
 			_cylinder(root, Vector3(0.36, -pos.y + 0.03, 0.3), 0.05, 0.07, 0.06, false, flat(Color(0.6, 0.12, 0.1)), 0.0)
@@ -369,6 +367,51 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 	b.rotation.y = yaw
 	parent.add_child(b)
 	return {"root": root, "body": b}
+
+
+const MESS_TEX := "res://assets/textury/mess/"
+static var _decal_mats: Dictionary = {}
+
+
+## A floor sprite of mess (Build-engine style flat sprite): `file` in assets/textury/mess,
+## `width` metres across, lying on the floor (or on a wall facing +Z: `vertical`). Wet
+## ones (sick, piss) catch a little light. Its hover look is the same picture glowing
+## (meta "hl_material", swapped in by interior_tasks), not a box round it.
+static func decal(parent: Node3D, file: String, width: float, pos: Vector3, yaw := 0.0, vertical := false, wet := false) -> MeshInstance3D:
+	var path := MESS_TEX + file + ".png"
+	var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
+	var mi := MeshInstance3D.new()
+	mi.name = "Decal_" + file
+	var q := QuadMesh.new()
+	var aspect := float(tex.get_height()) / float(tex.get_width()) if tex != null else 1.0
+	q.size = Vector2(width, width * aspect)
+	if not vertical:
+		q.orientation = PlaneMesh.FACE_Y
+	mi.mesh = q
+	var key := "%s|%s" % [file, wet]
+	if not _decal_mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = tex
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		m.alpha_scissor_threshold = 0.5
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.roughness = 0.25 if wet else 1.0
+		m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX if wet else BaseMaterial3D.SPECULAR_DISABLED
+		var hl := m.duplicate() as StandardMaterial3D
+		hl.emission_enabled = true
+		hl.emission = Color(1.0, 0.85, 0.5)
+		hl.emission_energy_multiplier = 0.35
+		hl.emission_texture = tex
+		_decal_mats[key] = [m, hl]
+	mi.material_override = _decal_mats[key][0]
+	mi.set_meta("hl_material", _decal_mats[key][1])
+	mi.set_meta("base_material", _decal_mats[key][0])
+	# Room floors sit at 0.05 with rugs just above; the spots are given at 0.04.
+	mi.position = pos + (Vector3.ZERO if vertical else Vector3(0, 0.022, 0))
+	mi.rotation.y = yaw
+	parent.add_child(mi)
+	return mi
 
 
 static func _j(rng: RandomNumberGenerator, r: float) -> float:

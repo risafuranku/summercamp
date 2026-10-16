@@ -16,7 +16,8 @@ extends Node
 ##            bring them back (scripts/corn_hunt.gd). Only with wanderers in camp
 ##            (drunks, families, tramps, mushroom pickers).
 ## Each job pages you, shows in the HUD's TONIGHT list and gets the waypoint. Jobs left
-## at dawn are not forgiven: a tripped breaker is reset by an electrician you pay.
+## at dawn are not forgiven: a tripped main stays off until somebody resets it, you at
+## the board or the electrician you ring (and pay).
 ##
 ## Lamp, sewer and toilet jobs are ordinary breakdowns (FailureSystem); the director
 ## only decides when they happen. The breaker is its own state, read by main.
@@ -24,6 +25,7 @@ extends Node
 signal changed
 
 const ELECTRICIAN_FEE := 60
+const CIRCUIT_NAMES := ["LAMPS NORTH", "LAMPS SOUTH", "OFFICE", "FOOD", "WASH BLOCK", "PUMP"]
 const FIRST_HOUR := 21.0
 const LAST_HOUR := 28.5  # 04:30 next morning
 
@@ -67,12 +69,13 @@ func tick(abs_minute: int, is_night: bool, night_index: int) -> void:
 
 ## Dawn: the night's leftovers.
 func on_dawn() -> void:
+	# Nobody comes by themselves: the main stays off until you reset it at the board, and
+	# a circuit that had to stay off stays off until the electrician has been (you ring
+	# him: his number is on the noticeboard, scripts/reception/electrician_visit.gd).
 	if breaker_tripped:
-		breaker_tripped = false
-		if CoreRoot.actions != null:
-			CoreRoot.actions.add_money(-ELECTRICIAN_FEE)
-		_report("The electrician came at six and reset the main: -$%d." % ELECTRICIAN_FEE, 3)
-	dead_circuit = -1
+		_report("Morning, and the main is still off. The board at the generator, or ring Novotny (the number is on the office noticeboard).", 3)
+	elif dead_circuit >= 0:
+		_report("The %s circuit is still off. Novotny can put it right: his number is on the noticeboard." % CIRCUIT_NAMES[clampi(dead_circuit, 0, CIRCUIT_NAMES.size() - 1)].to_lower(), 2)
 	for job in _jobs:
 		if str(job["state"]) == "pending":
 			job["state"] = "cancelled"

@@ -198,7 +198,12 @@ func _set_hover(id: String) -> void:
 func _apply_highlight(target: Dictionary, on: bool) -> void:
 	for m in target["meshes"]:
 		if m is MeshInstance3D and is_instance_valid(m):
-			(m as MeshInstance3D).material_overlay = _highlight if on else null
+			var mi := m as MeshInstance3D
+			# A flat mess sprite glows itself (an overlay would light its whole quad).
+			if mi.has_meta("hl_material"):
+				mi.material_override = mi.get_meta("hl_material") if on else mi.get_meta("base_material")
+			else:
+				mi.material_overlay = _highlight if on else null
 
 
 ## The mess jumps about under the brush, a few millimetres, in steps.
