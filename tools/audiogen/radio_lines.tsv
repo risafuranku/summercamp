@@ -1,0 +1,72 @@
+# Raw sources for the radio going wrong at night (tools/audiogen/radio_fetch.py, then
+# tools/gen_radio_dread.py processes them into godot/assets/sfx/radio_dread/).
+# id <TAB> kind <TAB> voice | seconds <TAB> text | prompt
+# kind tts = ElevenLabs text to speech (Czech, the voices below), sfx = sound generation.
+#
+# OK 76: an old Czechoslovak military transmitter nobody switched off. Its code words are
+# about this camp, and tonight's word names what tonight brings.
+v_callsign	tts	operator	Tady OK sedm šest. Tady OK sedm šest.
+v_jasna	tts	operator	Jasná. Jasná.
+v_vera	tts	operator	Věra. Věra. Věra se vrací. Osmého.
+v_hlidac	tts	operator	Hlídač spí. Hlídač spí u stolu. Nula tři. Nula nula.
+v_datum	tts	operator	Datum zítřejší.
+v_ponozky	tts	operator	Ponožky. Ponožky v šuplíku. Levá. Pravá. Levá.
+v_klobouk	tts	operator	Klobouk. Klobouk. Pán v klobouku vyšel.
+v_turista	tts	operator	Turista. Turista. Blesk.
+v_holka	tts	operator	Holka. Holka u vody.
+v_piskani	tts	operator	Pískání. Pískání. Kdo píská, nepouštět.
+v_dite	tts	operator	Dítě. Dítě na hřišti. Nikomu nepatří.
+v_kosik	tts	operator	Košík. Košík je plný.
+v_parohac	tts	operator	Paroháč. Paroháč u okna. Neotvírat.
+v_strasak	tts	operator	Strašák na místě. Strašák na místě. Strašák není na místě.
+v_hostu	tts	operator	Hostů.
+v_opakuji	tts	operator	Opakuji.
+v_zrusit	tts	operator	Zrušit.
+v_konec	tts	operator	Konec příjmu.
+v_n0	tts	operator	Nula.
+v_n1	tts	operator	Jedna.
+v_n2	tts	operator	Dva.
+v_n3	tts	operator	Tři.
+v_n4	tts	operator	Čtyři.
+v_n5	tts	operator	Pět.
+v_n6	tts	operator	Šest.
+v_n7	tts	operator	Sedm.
+v_n8	tts	operator	Osm.
+v_n9	tts	operator	Devět.
+v_n10	tts	operator	Deset.
+v_n11	tts	operator	Jedenáct.
+v_n12	tts	operator	Dvanáct.
+v_n13	tts	operator	Třináct.
+v_n14	tts	operator	Čtrnáct.
+v_n15	tts	operator	Patnáct.
+v_n16	tts	operator	Šestnáct.
+v_n17	tts	operator	Sedmnáct.
+v_n18	tts	operator	Osmnáct.
+v_n19	tts	operator	Devatenáct.
+v_n20	tts	operator	Dvacet.
+# A microphone left open in the transmitter room.
+l_a1	tts	other	Tady sto čtyřicet tři. Zakázka nepřevzata. Zase jsou u jezera.
+l_b1	tts	operator	Kdo to povolil?
+l_a2	tts	other	Nikdo. Šli sami.
+l_b2	tts	operator	Vypni to. Vypni to.
+# The woman who reads when something is close.
+f_neotvirej	tts	woman	Hlídači, neotvírej.
+f_vidime	tts	woman	Hlídači. Vidíme tě.
+f_count	tts	woman	Jedna. Dva. Tři. Čtyři. Pět. Šest. Sedm. Osm. Devět.
+f_count2	tts	woman	Jedna. Dva. Tři. Čtyři. Pět. Šest. Sedm. Osm. Devět. Deset.
+f_nedychejte	tts	woman	Prosíme, nedýchejte.
+f_dobrou	tts	woman	Dobrou noc. Na shledanou včera.
+# What else gets onto the frequency.
+s_nightjar	sfx	5.0	A European nightjar churring at night, a long dry mechanical purring trill that changes pitch, field recording, distant, no other sounds, no music.
+s_cuckoo	sfx	3.0	A single cuckoo calling twice in the middle of the night, outdoors, close, no other birds, no music.
+s_crows	sfx	4.0	Several crows cawing harshly close together right next to the microphone, outdoors, no music.
+s_owl	sfx	3.5	A tawny owl hoot, long and wavering, at night in a pine forest, distant, no music.
+s_dog	sfx	5.0	A lone dog howling far away at night in a small village, one long drawn out howl, no music.
+s_breath	sfx	4.0	Slow heavy breathing of a man very close to a microphone in a small quiet room, no words, no music.
+s_cough	sfx	2.0	A man clearing his throat and coughing once close to an old microphone in a small room, no music.
+s_chair	sfx	2.0	An old wooden chair creaking as someone shifts their weight, small quiet room, no music.
+s_kids	sfx	5.0	Children playing and laughing on a playground far away, faint, outdoors, no music.
+s_bell	sfx	5.0	A single toll of a small village church bell far away with a long decay, no music.
+s_frogs	sfx	5.0	A loud chorus of frogs at a pond at night that suddenly stops all at once, then silence, no music.
+s_whistle	sfx	3.0	A man whistling a few slow notes badly and out of tune, far away outdoors at night, no music instruments.
+s_knock	sfx	2.0	Three slow knocks on a wooden door heard from inside a small room, no music.

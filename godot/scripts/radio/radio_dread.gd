@@ -425,8 +425,11 @@ func _update_events(dt: float) -> void:
 	_event_t += dt
 	match _event:
 		Ev.STUTTER:
+			if _music == null or not _music.playing or _music.stream is AudioStreamPlaylist:
+				_end_event()
+				return
 			_event_step -= dt
-			if _event_step <= 0.0 and _music != null and _music.playing and not (_music.stream is AudioStreamPlaylist):
+			if _event_step <= 0.0:
 				_event_step = _event_value + 0.02
 				_music.seek(maxf(0.0, _music.get_playback_position() - _event_value))
 				_event_count -= 1
@@ -447,7 +450,7 @@ func _update_events(dt: float) -> void:
 			_music_target = 0.1
 			var static_l: Layer = _layers["static"]
 			static_l.target = maxf(static_l.target, 0.35)
-			(_layers["buzz"] as Layer).target = 0.75 if _event_t > 1.2 and _event_t < _event_len - 1.0 else 0.0
+			(_layers["buzz"] as Layer).target = 0.6 if _event_t > 1.2 and _event_t < _event_len - 1.0 else 0.0
 			if _event_count == 1 and _event_t > _event_len * 0.45:
 				_event_count = 0
 				_drift_insert()
@@ -585,6 +588,9 @@ func _update_phantom(dt: float, power_on: bool) -> void:
 		(_layers["buzz"] as Layer).target = 0.3 if _phantom_left > 3.0 else 0.0
 		if _phantom_left <= 3.0 and _phantom_left + dt > 3.0:
 			_one_shot("voice", "f_dobrou", 0.5)
+		if _phantom_left <= 0.0:
+			for id in ["buzz", "voice"]:
+				(_layers[id] as Layer).ignores_power = false
 		return
 	if power_on or not bool(_ctx.get("night", false)) or dread < 0.8 or _off_seconds < 25.0:
 		return
@@ -618,7 +624,7 @@ func take_interlude() -> AudioStream:
 ## the buzz alone, air: the open carrier, voice: someone reading, tune: the dial).
 func build_interlude(ctx: Dictionary, level: float) -> Dictionary:
 	var seq: Array = []
-	var tune := TUNES[_rng.randi() % TUNES.size()]
+	var tune: String = TUNES[_rng.randi() % TUNES.size()]
 	seq.append([_clip(tune), "tune"])
 	seq.append([_gap(_rng.randf_range(3.0, 4.0 + 5.0 * level)), "buzz"])
 	seq.append([_clip("v_callsign"), "voice"])
@@ -712,6 +718,6 @@ func _update_interlude(dt: float) -> void:
 		if _interlude_t >= float(p[0]) and _interlude_t < float(p[1]):
 			kind = str(p[2])
 			break
-	(_layers["buzz"] as Layer).target = 0.85 if kind == "buzz" else (0.2 if kind == "tune" else 0.0)
+	(_layers["buzz"] as Layer).target = 0.65 if kind == "buzz" else (0.2 if kind == "tune" else 0.0)
 	(_layers["carrier"] as Layer).target = 0.5 if kind in ["air", "voice"] else 0.0
 	(_layers["static"] as Layer).target = maxf((_layers["static"] as Layer).target, 0.14)

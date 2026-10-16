@@ -116,6 +116,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | --- | --- | --- |
 | Ambience bed: day, dusk birds, crickets, lake insects, owl, weather | ✅ | |
 | Reception radio audible across the camp | ✅ | positional source in the office, muffled with distance |
+| The radio going wrong with the night | ✅ | dread from NIGHT RISK, hour, tonight's enemies, proximity: static, skips, tape sag, ghost station, drift onto the OK 76 buzz, birds/dog/knock on the frequency, Czech numbers-station broadcasts (tonight's code word, the guest count plus one, an open-mic leak), dead carrier when something is close, the switched-off set murmuring once; ElevenLabs voices + synth (`tools/gen_radio_dread.py`) |
 | The station that does not exist | ✅ | late at night, at most once, from day 2: a music-box phrase and one pip per guest, plus one |
 | The night log stamped tomorrow | ✅ | one mail delivered at 03:00 dated the next day |
 | The unbooked sleeper in GuestRack | ✅ | some evenings, one row more than there are records |

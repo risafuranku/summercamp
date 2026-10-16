@@ -24,3 +24,4 @@ tools/artgen/out/
 tools/audiogen/.env
 .env
 __pycache__/
+tools/audiogen/raw_radio/

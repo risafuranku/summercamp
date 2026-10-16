@@ -49,6 +49,15 @@ accept booking -> +income -> +guests of an archetype
   stamped with tomorrow's date, reporting the operator asleep at the desk; a sleeping
   stay with no booking at the bottom of GuestRack; Vera's mails knowing where your socks
   are. Checked by `tools/uncanny_check.tscn`.
+- **The radio is a readable tell, not a detail.** It reads the NIGHT RISK lamps, the hour,
+  what is out tonight and how close it is (`scripts/radio/radio_dread.gd`), so it gets
+  worse exactly when the night does: by day a skip or a sag at most; then static under the
+  songs, another station bleeding through, the dial drifting onto the OK 76 buzz with a
+  bird or a knock on the frequency; at its worst, between songs, the transmitter reads its
+  code words in Czech (tonight's word names what is coming, then the guests, plus one).
+  With something close it drops to a dead carrier. Its broadcasts are Czech by design,
+  like the songs: the station is a place, not UI. Checked by `tools/radio_dread_check.gd`
+  and `tools/radio_game_check.tscn`.
 
 ## 3. The first hour
 

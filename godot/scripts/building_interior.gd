@@ -50,6 +50,11 @@ const STATION_PIP := "res://assets/sfx/uncanny/station_pip.wav"
 const STATION_PIP5 := "res://assets/sfx/uncanny/station_pip5.wav"
 const STATION_OUTRO := "res://assets/sfx/uncanny/station_outro.wav"
 const STATION_CHANCE_PER_TRACK: float = 0.14
+## The radio going wrong with the night (scripts/radio/radio_dread.gd): layers on top of
+## the songs, the song bus, and how the songs bend.
+const RADIO_DREAD_SCRIPT = preload("res://scripts/radio/radio_dread.gd")
+## How often the NIGHT RISK forecast is re-read for the radio (it walks every guest).
+const RADIO_DREAD_RISK_POLL_SEC: float = 3.0
 const RADIO_EXCLUDED_FILENAME := "pinknoise.mp3"
 const RADIO_NIGHT_TRACK_PREFIX := "night"
 const RADIO_INFRAVRANY_FILENAME := "song_infravrany.mp3"
@@ -201,6 +206,10 @@ var _radio_dropout_duration: float = 0.0
 var _radio_power_click_body: StaticBody3D
 var _radio_outdoor: AudioStreamPlayer3D
 var _station_heard_day: int = -1
+var _dread: Node
+var _dread_risk: float = 0.0
+var _dread_risk_poll: float = 0.0
+var _radio_main_ref: Node
 var _reception_notebook_click_body: StaticBody3D
 
 # Window / outdoor scene
@@ -1928,6 +1937,10 @@ func _ensure_radio_bus_effects(bus_index: int) -> void:
 
 func _setup_radio() -> void:
 	_ensure_radio_bus()
+	if _dread == null:
+		_dread = RADIO_DREAD_SCRIPT.new()
+		_dread.name = "RadioDread"
+		add_child(_dread)
 	_radio_load_paths = _collect_audio_paths_in_dir("res://assets/sfx/radio")
 	_radio_load_paths = _filter_radio_load_paths(_radio_load_paths)
 	if _radio_load_paths.is_empty():
@@ -1974,13 +1987,16 @@ func _create_radio_player() -> void:
 		return
 	_radio_player = _create_radio_layer_player("RadioPlayer", RADIO_PITCH_BASE)
 	_radio_player.finished.connect(_on_radio_finished)
+	if _dread != null:
+		_dread.bind_music(_radio_player)
+		_dread.set_tracks(_radio_tracks_all)
 	call_deferred("_play_radio_next")
 
 
 func _create_radio_layer_player(player_name: String, pitch_scale: float) -> AudioStreamPlayer:
 	var player = AudioStreamPlayer.new()
 	player.name = player_name
-	player.bus = RADIO_BUS_NAME
+	player.bus = RADIO_DREAD_SCRIPT.MUSIC_BUS
 	player.volume_db = RADIO_OUTSIDE_SILENT_DB
 	player.pitch_scale = pitch_scale
 	add_child(player)
@@ -1991,6 +2007,13 @@ func _play_radio_next() -> void:
 	if _radio_player == null:
 		return
 	if _try_play_station():
+		return
+	var interlude: AudioStream = _dread.take_interlude() if _dread != null else null
+	if interlude != null:
+		_radio_current_track_is_night = false
+		_radio_last_played_path = ""
+		_radio_player.stream = interlude
+		_radio_player.play()
 		return
 	if _radio_tracks.is_empty():
 		_rebuild_radio_tracks_for_time(false)
@@ -2246,6 +2269,14 @@ func _update_radio_mix(delta: float) -> void:
 	var target_db = _compute_radio_target_db()
 	var character_db = _compute_radio_character_volume_offset(delta)
 	var night_track_db = RADIO_NIGHT_TRACK_VOLUME_OFFSET_DB if _radio_current_track_is_night else 0.0
+	if _dread != null:
+		_dread.update(
+			delta, _radio_dread_context(delta),
+			target_db if visible else RADIO_OUTSIDE_SILENT_DB,
+			RADIO_OUTSIDE_SILENT_DB if visible else RADIO_OUTDOOR_VOLUME_DB,
+			_radio_power_on, _resolve_main_building_node()
+		)
+		character_db += linear_to_db(maxf(float(_dread.music_gain), 0.0001))
 	var final_target_db = target_db + character_db + night_track_db
 	if not _radio_power_on:
 		final_target_db = RADIO_POWER_OFF_VOLUME_DB
@@ -2278,7 +2309,7 @@ func _sync_radio_outdoor(target_db: float, delta: float) -> void:
 	if _radio_outdoor == null or not is_instance_valid(_radio_outdoor):
 		_radio_outdoor = AudioStreamPlayer3D.new()
 		_radio_outdoor.name = "RadioOutdoor"
-		_radio_outdoor.bus = RADIO_BUS_NAME
+		_radio_outdoor.bus = RADIO_DREAD_SCRIPT.MUSIC_BUS
 		_radio_outdoor.unit_size = RADIO_OUTDOOR_UNIT_SIZE
 		_radio_outdoor.max_distance = RADIO_OUTDOOR_MAX_DISTANCE
 		_radio_outdoor.attenuation_filter_cutoff_hz = 2600.0
@@ -2363,12 +2394,14 @@ func _compute_radio_character_volume_offset(delta: float) -> float:
 		_radio_dropout_remaining = max(0.0, _radio_dropout_remaining - delta)
 		var progress = 1.0 - (_radio_dropout_remaining / max(0.001, _radio_dropout_duration))
 		var envelope = sin(progress * PI)
-		return RADIO_DROPOUT_ATTENUATION_DB * envelope
+		var depth_scale: float = _dread.dropout_depth_scale() if _dread != null else 1.0
+		return RADIO_DROPOUT_ATTENUATION_DB * depth_scale * envelope
 	_radio_dropout_timer -= delta
 	if _radio_dropout_timer <= 0.0:
+		var interval_scale: float = _dread.dropout_interval_scale() if _dread != null else 1.0
 		_radio_dropout_duration = _radio_rng.randf_range(RADIO_DROPOUT_DURATION_MIN, RADIO_DROPOUT_DURATION_MAX)
 		_radio_dropout_remaining = _radio_dropout_duration
-		_radio_dropout_timer = _radio_rng.randf_range(RADIO_DROPOUT_INTERVAL_MIN, RADIO_DROPOUT_INTERVAL_MAX)
+		_radio_dropout_timer = _radio_rng.randf_range(RADIO_DROPOUT_INTERVAL_MIN, RADIO_DROPOUT_INTERVAL_MAX) * interval_scale
 	return 0.0
 
 
@@ -2377,12 +2410,77 @@ func _update_radio_character_pitch(delta: float) -> void:
 		return
 	_radio_wow_phase = fmod(_radio_wow_phase + TAU * RADIO_WOW_RATE_HZ * delta, TAU)
 	_radio_flutter_phase = fmod(_radio_flutter_phase + TAU * RADIO_FLUTTER_RATE_HZ * delta, TAU)
-	var wow = sin(_radio_wow_phase) * RADIO_WOW_DEPTH
+	var wobble: float = _dread.wobble_scale if _dread != null else 1.0
+	var sag: float = _dread.pitch_offset if _dread != null else 0.0
+	var wow = sin(_radio_wow_phase) * RADIO_WOW_DEPTH * wobble
 	var flutter = (
 		sin(_radio_flutter_phase) * RADIO_FLUTTER_DEPTH
 		+ sin(_radio_flutter_phase * 1.93 + 0.82) * (RADIO_FLUTTER_DEPTH * 0.45)
-	)
-	_radio_player.pitch_scale = clampf(RADIO_PITCH_BASE + wow + flutter, 0.93, 1.02)
+	) * wobble
+	_radio_player.pitch_scale = clampf(RADIO_PITCH_BASE + wow + flutter + sag, 0.72, 1.03)
+
+
+## What the radio reads off the night: the NIGHT RISK lamps (re-read every few seconds),
+## the clock, who is out tonight and how close the nearest of them is to the player.
+func _radio_dread_context(delta: float) -> Dictionary:
+	_dread_risk_poll -= delta
+	if _dread_risk_poll <= 0.0:
+		_dread_risk_poll = RADIO_DREAD_RISK_POLL_SEC
+		var forecast = GuestManager.get_liminal_forecast_data() if GuestManager != null and GuestManager.has_method("get_liminal_forecast_data") else {}
+		_dread_risk = clampf(float((forecast as Dictionary).get("hud_level", 0)) / 4.0, 0.0, 1.0) if forecast is Dictionary else 0.0
+	var night := _time_state == TIME_NIGHT
+	var main := _resolve_main_for_radio()
+	var hours_any = main.get("_time_of_day_hours") if main != null else null
+	var hours: float = float(hours_any) if hours_any != null else (1.0 if night else 12.0)
+	var tonight: Array = []
+	var nearest := INF
+	var brains_any = main.get("_enemy_brains") if main != null else null
+	if brains_any is Array:
+		var listener := _resolve_radio_listener_position()
+		for brain in brains_any:
+			if brain == null or (brain is Object and not is_instance_valid(brain)):
+				continue
+			if brain.get("_night_active") == false:
+				continue
+			if brain.has_method("get_enemy_id"):
+				tonight.append(str(brain.get_enemy_id()))
+			if brain.has_method("get_presence") and is_finite(listener.x):
+				var p: Dictionary = brain.get_presence()
+				if p.has("position"):
+					nearest = minf(nearest, listener.distance_to(p["position"]))
+	return {
+		"risk": _dread_risk,
+		"hours": hours,
+		"night": night,
+		"day": int(CoreRoot.get_day()) if CoreRoot != null else 1,
+		"tonight": tonight,
+		"nearest": nearest,
+		"guests": _count_guests_in_camp(),
+	}
+
+
+## Main is an ancestor (main > InteriorManager > here); the shot driver hosts Main
+## below its own scene, so the current scene is not always it.
+func _resolve_main_for_radio() -> Node:
+	if _radio_main_ref != null and is_instance_valid(_radio_main_ref):
+		return _radio_main_ref
+	var n: Node = get_parent()
+	while n != null:
+		if n.get("_enemy_brains") != null:
+			_radio_main_ref = n
+			return n
+		n = n.get_parent()
+	return get_tree().current_scene if get_tree() != null else null
+
+
+## Debug/screenshot entry: pin the radio's dread (-1 lets the night decide again).
+func debug_set_radio_dread(value: float) -> void:
+	if _dread != null:
+		_dread.debug_override = value
+
+
+func get_radio_dread() -> float:
+	return float(_dread.dread) if _dread != null else 0.0
 
 
 func _distance_to_main_building() -> float:

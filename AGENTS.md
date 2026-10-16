@@ -80,6 +80,8 @@ godot --headless --path godot res://tools/upkeep_check.tscn
 godot --headless --path godot res://tools/billing_check.tscn
 godot --headless --path godot res://tools/pipes_check.tscn
 godot --headless --path godot res://tools/uncanny_check.tscn
+godot --headless --path godot res://tools/radio_game_check.tscn
+godot --headless --path godot --script res://tools/radio_dread_check.gd
 godot --headless --path godot res://tools/look_check.tscn
 godot --headless --path godot res://tools/mail_check.tscn
 godot --headless --path godot res://tools/arrival_check.tscn
@@ -144,7 +146,8 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Head turning inside interiors | `scripts/interior_look.gd` (limits set per interior script) |
 | Insects falling silent, the HUD face's glance | `scripts/threat_senses.gd` (reads `get_presence()`) |
 | Story mails (Vera, Nela, the odd ones) | `data/pools/emails/story/week01_story.json` |
-| The radio (playlist, outdoor source, the station) | `scripts/building_interior.gd`, synth: `tools/gen_sfx.py` |
+| The radio (playlist, outdoor source, the station) | `scripts/building_interior.gd`, synth: `tools/gen_sfx.py`; songs in `assets/sfx/radio/` (8 kHz 32 kbps, a `night` prefix = night only; originals `ost/<name>_hq.mp3`) |
+| The radio going wrong with the night (layers, song bus, broadcasts) | `scripts/radio/radio_dread.gd`; sounds `tools/audiogen/radio_lines.tsv` → `radio_fetch.py` → `tools/gen_radio_dread.py` → `assets/sfx/radio_dread/`; listen: `tools/radio_dread_demo.gd` with `--write-movie` |
 | The office: phone, noticeboard, back room, sleep | `scripts/reception/` (reception_extras, back_room, sleep_sequence, camp_office, electrician_visit) |
 | 2D close-ups (phone, noticeboard, logbook) | `scripts/closeup/closeup_view.gd` + subclasses; who answers the phone: `phone_book.gd`; voices `tools/audiogen/tts.py` + `voices.tsv` (needs a key with text_to_speech) |
 | The cursor and the hover glint | `scripts/ui/hand_cursor.gd` (`HandCursor.want(kind)` per frame), `scripts/ui/hover_glint.gd` |
