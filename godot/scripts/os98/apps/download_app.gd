@@ -127,24 +127,58 @@ func _finish() -> void:
 	_set_buttons(["Open", "Open Folder", "Close"])
 
 
-## A sheet of paper flies from the globe to the folder while bytes come in.
+## A sheet of paper flies from the globe to the folder while bytes come in: the globe
+## turns, the page tumbles along its arc in steps (12 a second, like the real one), the
+## folder's flap lifts as each page drops in. The line stalls: so does the paper.
 func _draw_anim() -> void:
+	var t := floorf(_t * 12.0) / 12.0
 	var globe := Vector2(20, 16)
-	var folder := Vector2(_anim.size.x - 24, 16)
-	_anim.draw_circle(globe, 13, Color8(0, 96, 192))
-	_anim.draw_arc(globe, 13, 0, TAU, 24, T.DARK)
-	_anim.draw_line(globe - Vector2(13, 0), globe + Vector2(13, 0), Color8(0, 160, 64), 2.0)
-	_anim.draw_arc(globe, 7, -PI * 0.5, PI * 0.5, 10, Color8(0, 160, 64), 2.0)
-	_anim.draw_rect(Rect2(folder - Vector2(14, 8), Vector2(28, 20)), Color8(255, 220, 90))
-	_anim.draw_rect(Rect2(folder - Vector2(14, 12), Vector2(12, 5)), Color8(255, 220, 90))
-	_anim.draw_rect(Rect2(folder - Vector2(14, 8), Vector2(28, 20)), T.DARK, false, 1.0)
-	if _done:
-		return
+	var folder := Vector2(_anim.size.x - 24, 18)
+	_anim.draw_circle(globe, 13, Color8(0, 80, 176))
+	# Continents: two blobs sliding round as it turns.
 	for k in 2:
-		var f := fmod(_t * 0.9 + k * 0.5, 1.0)
-		var p := globe.lerp(folder, f) + Vector2(0, -sin(f * PI) * 10.0)
-		_anim.draw_rect(Rect2(p - Vector2(4, 5), Vector2(8, 10)), T.WHITE)
-		_anim.draw_rect(Rect2(p - Vector2(4, 5), Vector2(8, 10)), T.DARK, false, 1.0)
+		var x := fmod(t * 9.0 + k * 13.0, 26.0) - 13.0
+		var hw := sqrt(maxf(0.0, 169.0 - x * x)) * 0.35
+		_anim.draw_rect(Rect2(globe + Vector2(x - hw * 0.5, -5 + k * 6), Vector2(hw, 5)), Color8(0, 160, 64))
+	for m in 3:
+		var phase := fmod(t * 0.6 + m / 3.0, 1.0)
+		var rx := absf(cos(phase * PI)) * 13.0
+		_anim.draw_arc(globe, 13, 0, TAU, 20, T.DARK)
+		_anim.draw_line(globe + Vector2(-rx, -11), globe + Vector2(-rx, 11), Color8(120, 170, 230, 120), 1.0)
+	_anim.draw_line(globe - Vector2(13, 0), globe + Vector2(13, 0), Color8(120, 170, 230), 1.0)
+	var stalled := fmod(_t, 7.0) >= 6.2
+	var landing := 0.0
+	if not _done and not stalled:
+		for k in 2:
+			var f := fmod(t * 0.85 + k * 0.5, 1.0)
+			var p := globe.lerp(folder, f) + Vector2(0, -sin(f * PI) * 12.0)
+			var tilt := floorf(f * 6.0) * 0.5
+			_page(p, tilt)
+			if f > 0.85:
+				landing = maxf(landing, (f - 0.85) / 0.15)
+	# The folder, its flap lifting as a page goes in.
+	var c := Color8(255, 214, 80)
+	_anim.draw_rect(Rect2(folder - Vector2(14, 6), Vector2(28, 18)), c)
+	_anim.draw_rect(Rect2(folder - Vector2(14, 10), Vector2(11, 5)), c)
+	_anim.draw_rect(Rect2(folder - Vector2(14, 6), Vector2(28, 18)), T.DARK, false, 1.0)
+	var lift := floorf(landing * 3.0) * 2.0
+	_anim.draw_colored_polygon(PackedVector2Array([folder + Vector2(-14, 0 - lift), folder + Vector2(14, 0 - lift * 0.5), folder + Vector2(14, 12), folder + Vector2(-14, 12)]), Color8(240, 190, 60))
+	_anim.draw_polyline(PackedVector2Array([folder + Vector2(-14, 0 - lift), folder + Vector2(14, 0 - lift * 0.5), folder + Vector2(14, 12), folder + Vector2(-14, 12), folder + Vector2(-14, 0 - lift)]), T.DARK, 1.0)
+
+
+func _page(p: Vector2, tilt: float) -> void:
+	var w := 8.0
+	var h := 10.0
+	var xf := Transform2D(tilt * 0.3, p)
+	var pts := PackedVector2Array([Vector2(-w * 0.5, -h * 0.5), Vector2(w * 0.5 - 3, -h * 0.5), Vector2(w * 0.5, -h * 0.5 + 3), Vector2(w * 0.5, h * 0.5), Vector2(-w * 0.5, h * 0.5)])
+	var out := PackedVector2Array()
+	for q in pts:
+		out.append(xf * q)
+	_anim.draw_colored_polygon(out, T.WHITE)
+	out.append(out[0])
+	_anim.draw_polyline(out, T.DARK, 1.0)
+	for li in 3:
+		_anim.draw_line(xf * Vector2(-2.5, -2 + li * 2.5), xf * Vector2(2.5, -2 + li * 2.5), Color8(128, 128, 128), 1.0)
 
 
 func _host(url: String) -> String:

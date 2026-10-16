@@ -184,9 +184,17 @@ func _go(page: int) -> void:
 			bar.step = 0.0
 			bar.show_percentage = false
 			_body.add_child(bar)
+			# The billboard: what you get, in panels that change while it copies.
+			var board := Control.new()
+			board.name = "Billboard"
+			board.position = Vector2(0, 108)
+			board.size = Vector2(_body.size.x, _body.size.y - 112)
+			board.draw.connect(func(): _draw_billboard(board))
+			_body.add_child(board)
 			_next.disabled = true
 			_copy_t = 0.0
 			_shell.set_busy(true)
+			_shell.play("hdd_long", -12.0)
 		4:
 			_title("Setup Complete")
 			_text("Setup has finished installing %s on your computer.\n\nThe program can be started from the icon on the desktop or from Start > Programs." % info["name"], 30)
@@ -220,10 +228,42 @@ func _process(delta: float) -> void:
 		fl.text = "C:\\PROGRAM FILES\\%s\\%s" % [FILES.PROGRAM_DIRS[_program][0], files[mini(files.size() - 1, int(p * files.size()))]]
 	if fmod(_copy_t, 1.3) < delta:
 		_shell.play("hdd", -12.0)
+	var board: Control = _body.get_node_or_null("Billboard")
+	if board != null:
+		board.queue_redraw()
 	if p >= 1.0:
 		_shell.set_busy(false)
 		_shell.install_program(_program, true)
 		_go(4)
+
+
+const BILLBOARD := {
+	"builder": [["Plan the whole site", "Tents, chalets, toilets, the pub: tile by tile.", "res://assets/textury/web/web_camp.png"], ["Know what it costs", "Running costs before you build. No surprises.", "res://assets/textury/web/web_campfire.png"], ["Register for 990 Kc", "Your key comes by post. Stavitel, Jihlava.", ""]],
+	"camp_status": [["CampStat 98", "What every building draws, live, in kWh.", ""], ["Pay in the program", "Bills issued daily at 20:00. Payable within 3 days.", ""], ["Hlubocany District Power", "We keep the lights on. Up to the reservoir fence.", ""]],
+	"guestrack": [["GuestRack 98", "Every person who stays the night, in one register.", ""], ["Act no. 135/1993", "Keeping the register is the operator's duty.", ""], ["The register cannot be deleted.", "Persons not in the register are not the District's responsibility.", ""]],
+}
+
+
+## While it copies: a panel about the program, changing every few seconds, the way
+## every installer of the time sold you what you had already bought.
+func _draw_billboard(c: Control) -> void:
+	var slides: Array = BILLBOARD.get(_program, [["Thank you", "for choosing %s." % str(_info()["vendor"]), ""]])
+	var i := int(_copy_t / 2.6) % slides.size()
+	var sl: Array = slides[i]
+	var s := c.size
+	c.draw_rect(Rect2(Vector2.ZERO, s), Color8(0, 0, 96))
+	c.draw_rect(Rect2(Vector2.ZERO, s), T.DARK, false, 1.0)
+	var x := 8.0
+	var path := str(sl[2])
+	if path != "" and ResourceLoader.exists(path):
+		var tex: Texture2D = load(path)
+		var h := s.y - 12.0
+		var w := h * tex.get_width() / float(tex.get_height())
+		c.draw_texture_rect(tex, Rect2(6, 6, w, h), false)
+		c.draw_rect(Rect2(6, 6, w, h), T.WHITE, false, 1.0)
+		x = 14.0 + w
+	c.draw_string(T.FONT_BOLD, Vector2(x, 24), str(sl[0]), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 6, T.FONT_SIZE, Color8(255, 255, 120))
+	c.draw_multiline_string(T.FONT, Vector2(x, 44), str(sl[1]), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 6, T.FONT_SIZE, -1, T.WHITE)
 
 
 func closing() -> void:

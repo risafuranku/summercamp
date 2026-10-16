@@ -79,3 +79,8 @@ row_under	2.5	assets/sfx/lake/under.mp3	Something large brushing slowly along th
 fish_cast	1.2	assets/sfx/lake/cast.mp3	Casting a fishing rod: the whip of the rod, the line whirring off the reel, and a small float landing on still water with a light plop, no music.
 fish_bite	1.0	assets/sfx/lake/bite.mp3	A fishing float bobbing and being pulled under the water suddenly, a small splash and the reel clicking, close, no music.
 fish_reel	2.5	assets/sfx/lake/reel.mp3	Reeling in a fish quickly: the ratchet of an old fishing reel clicking fast, the line tight, a fish splashing at the surface as it is pulled out of the water, no music.
+os_degauss	1.6	assets/sfx/os98/degauss.mp3	An old CRT computer monitor switching on: the deep thunk and humming wobble of the degauss coil, then the high faint whine of the tube, indoors, close, no music.
+os_post_beep	0.5	assets/sfx/os98/post_beep.mp3	A single short high beep from the internal PC speaker of a 1990s computer as it starts up, no music.
+os_floppy	1.5	assets/sfx/os98/floppy.mp3	A 3.5 inch floppy disk drive in a 1990s PC seeking at boot: the head motor grinding and clicking twice, close, indoors, no music.
+os_key	0.6	assets/sfx/os98/key.mp3	One key press on an old mechanical computer keyboard from the 1990s, a crisp plastic clack, close, no music.
+os_hdd_long	3.0	assets/sfx/os98/hdd_long.mp3	A 1990s IDE hard disk drive working hard while software installs: rapid ticking and chattering head seeks over the hum of the spinning platters, close, indoors, no music.

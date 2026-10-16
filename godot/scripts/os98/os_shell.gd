@@ -62,7 +62,7 @@ const DESKTOP_ICONS := [
 const DOWNLOAD_SIZES_KB := {"BLDR98SW.EXE": 96, "CAMPSTAT.EXE": 48, "GUESTRAK.EXE": 72}
 const INSTALLERS := {"BLDR98SW.EXE": "builder", "CAMPSTAT.EXE": "camp_status", "GUESTRAK.EXE": "guestrack"}
 
-enum Boot { OFF, BIOS, SPLASH, DESKTOP, SAFE_OFF }
+enum Boot { OFF, WARMUP, BIOS, SPLASH, DESKTOP, SAFE_OFF }
 
 var _state := Boot.OFF
 var _open := false
@@ -648,15 +648,23 @@ func _refresh_folders() -> void:
 # ── boot ─────────────────────────────────────────────────────────────────────
 
 func _start_boot() -> void:
-	_state = Boot.BIOS
+	# The tube first: the thunk of the degauss coil, a line, then the picture.
+	_state = Boot.WARMUP
 	_boot_t = 0.0
 	_boot_lines.clear()
 	_apply_state()
 	play("power_on", -4.0)
+	play("degauss", -6.0)
 
 
 func _process(delta: float) -> void:
 	match _state:
+		Boot.WARMUP:
+			_boot_t += delta
+			_boot.queue_redraw()
+			if _boot_t >= 0.75:
+				_state = Boot.BIOS
+				_boot_t = 0.0
 		Boot.BIOS:
 			_tick_bios(delta)
 		Boot.SPLASH:
@@ -681,8 +689,10 @@ func _tick_bios(delta: float) -> void:
 		[2.1, "Detecting IDE Primary Slave  ... None"],
 		[2.3, "Detecting IDE Secondary Master... CAMPCD 24X"],
 		[2.6, "Detecting COM3 ... no response"],
-		[2.9, ""],
-		[3.0, "Starting Okna 98..."],
+		[2.9, "Floppy drive A: ... 1.44M, 3.5 in."],
+		[3.2, "TABLE"],
+		[4.4, "Verifying DMI Pool Data ............ Update Success"],
+		[4.8, "Starting Okna 98..."],
 	]
 	var lines: Array[String] = []
 	for row in script:
@@ -690,13 +700,19 @@ func _tick_bios(delta: float) -> void:
 			if str(row[1]) == "MEMTEST":
 				var kb := mini(16384, int((_boot_t - 0.3) / 1.2 * 16384.0))
 				lines.append("Memory Test : %6dK %s" % [kb, "OK" if kb >= 16384 else ""])
+			elif str(row[1]) == "TABLE":
+				lines.append("TABLE")
 			else:
 				lines.append(str(row[1]))
 	_boot_lines = lines
 	_boot.queue_redraw()
+	if _boot_t > 1.55 and _boot_t - delta <= 1.55:
+		play("post_beep", -10.0)
 	if _boot_t > 1.7 and _boot_t - delta <= 1.7:
 		play("hdd", -6.0)
-	if _boot_t >= 3.6:
+	if _boot_t > 2.9 and _boot_t - delta <= 2.9:
+		play("floppy", -8.0)
+	if _boot_t >= 5.3:
 		_state = Boot.SPLASH
 		_boot_t = 0.0
 		_apply_state()
@@ -706,6 +722,22 @@ func _enter_desktop() -> void:
 	_state = Boot.DESKTOP
 	_apply_state()
 	_refresh_desktop_icons()
+	# The desktop fills in as the disk catches up: the wallpaper, then one icon at a
+	# time, the taskbar last.
+	_taskbar.visible = false
+	var k := 0
+	for ic in _icons_layer.get_children():
+		(ic as Control).visible = false
+		get_tree().create_timer(0.25 + 0.11 * k).timeout.connect(func():
+			if is_instance_valid(ic):
+				(ic as Control).visible = true
+		)
+		k += 1
+	get_tree().create_timer(0.35 + 0.11 * k).timeout.connect(func():
+		if _state == Boot.DESKTOP:
+			_taskbar.visible = true
+	)
+	play("hdd_long", -14.0)
 	play("startup", -6.0)
 	desktop_ready.emit()
 	# CampMail is in the startup group (OKNA.INI: run=CAMPMAIL.EXE).
@@ -728,9 +760,18 @@ func _apply_state() -> void:
 func _draw_boot() -> void:
 	_boot.draw_rect(Rect2(Vector2.ZERO, SCREEN), Color.BLACK)
 	match _state:
+		Boot.WARMUP:
+			# A bright line that opens into a grey frame, the way a cold tube comes up.
+			var k := clampf(_boot_t / 0.6, 0.0, 1.0)
+			var h := maxf(2.0, SCREEN.y * k * k)
+			var bright := 1.0 - k * 0.8
+			_boot.draw_rect(Rect2(0, (SCREEN.y - h) * 0.5, SCREEN.x * clampf(k * 3.0, 0.1, 1.0), h).abs(), Color(bright, bright, bright * 1.05, 1.0))
 		Boot.BIOS:
 			var y := 24.0
 			for l in _boot_lines:
+				if l == "TABLE":
+					y = _draw_config_table(y)
+					continue
 				_boot.draw_string(BIOS_FONT, Vector2(16, y), l, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(170, 170, 170))
 				y += 16
 			_boot.draw_string(BIOS_FONT, Vector2(16, 462), "Press DEL to enter SETUP", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(170, 170, 170))
@@ -757,6 +798,33 @@ func _draw_boot() -> void:
 			for l in msg.split("\n"):
 				_boot.draw_string(T.FONT_BOLD, Vector2(220, y2), l, HORIZONTAL_ALIGNMENT_LEFT, -1, 12 * 2, Color8(255, 140, 0))
 				y2 += 30
+
+
+## The BIOS summary every machine of the time printed before the operating system: a
+## double-lined box of what was found.
+func _draw_config_table(y: float) -> float:
+	var rows := [
+		["CPU Type    : Pentium-S", "Base Memory     :    640K"],
+		["CPU Clock   : 133MHz", "Extended Memory :  15360K"],
+		["Diskette A  : 1.44M, 3.5 in.", "Display Type    : EGA/VGA"],
+		["Pri. Master : LBA, Mode 4, 1080MB", "Serial Port(s)  : 3F8 2F8"],
+		["Sec. Master : CDROM, Mode 4", "Parallel Port   : 378"],
+	]
+	var top := y + 4.0
+	var box := Rect2(16, top, SCREEN.x - 32, 16.0 * rows.size() + 30.0)
+	var cyan := Color8(0, 170, 170)
+	_boot.draw_rect(box, cyan, false, 1.0)
+	_boot.draw_rect(box.grow(-3), cyan, false, 1.0)
+	var title := "System Configurations"
+	var tw := BIOS_FONT.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	_boot.draw_rect(Rect2((SCREEN.x - tw) * 0.5 - 6, top - 7, tw + 12, 14), Color.BLACK)
+	_boot.draw_string(BIOS_FONT, Vector2((SCREEN.x - tw) * 0.5, top + 5), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(255, 255, 255))
+	var ry := top + 24.0
+	for r in rows:
+		_boot.draw_string(BIOS_FONT, Vector2(28, ry), str(r[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(170, 170, 170))
+		_boot.draw_string(BIOS_FONT, Vector2(330, ry), str(r[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(170, 170, 170))
+		ry += 16.0
+	return box.end.y + 18.0
 
 
 # ── desktop ──────────────────────────────────────────────────────────────────
@@ -1210,6 +1278,9 @@ func _refresh_ups(m: Node) -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouse:
 		_mouse = event.position
+	# Any key or click during the POST hurries it on (like holding Esc did).
+	if _state == Boot.BIOS and _boot_t < 4.6 and ((event is InputEventKey and event.pressed) or (event is InputEventMouseButton and event.pressed)):
+		_boot_t = 4.6
 	# A click anywhere in a window brings it forward (children eat the event).
 	if event is InputEventMouseButton and event.pressed and _state == Boot.DESKTOP:
 		var kids := _windows.get_children()
