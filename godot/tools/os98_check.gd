@@ -285,12 +285,17 @@ func _run() -> void:
 	_shell.import_persistent_state(saved)
 	_shell.open_panel()
 	t = 0.0
-	while not _shell.is_desktop_ready() and t < 10.0:
+	while not _shell.is_desktop_ready() and t < 16.0:  # the whole boot is about 13 s
 		await _wait(0.25)
 		t += 0.25
 	_shell.open_app("mail")
-	await _frames(2)
-	var mail = _app("mail")
+	var mail = null
+	t = 0.0
+	while mail == null and t < 5.0:
+		await _wait(0.25)
+		t += 0.25
+		mail = _app("mail")
+	_expect(mail != null, "CampMail did not open after a reboot")
 	if mail != null:
 		var night_log := {"day": 4, "time": "03:00", "stamp_day_offset": 1}
 		_expect(mail._date_label(night_log) == "Wed 23.9.  03:00", "night log label: %s" % mail._date_label(night_log))

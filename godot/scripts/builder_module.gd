@@ -498,6 +498,9 @@ func _build_splash() -> void:
 	_splash = Control.new()
 	_splash.mouse_filter = Control.MOUSE_FILTER_STOP
 	_splash.draw.connect(func():
+		# A draw can still be queued when the click skips the splash and frees it.
+		if _splash == null:
+			return
 		var sz := _splash.size
 		_splash.draw_rect(Rect2(Vector2.ZERO, sz), Color.BLACK)
 		var ts := tex.get_size()

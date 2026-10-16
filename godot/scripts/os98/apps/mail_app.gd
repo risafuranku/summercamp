@@ -401,7 +401,7 @@ func _on_list_key(e: InputEvent) -> void:
 func _header_height() -> float:
 	if _current.is_empty():
 		return 0.0
-	return 62.0 if _attachment_name(_current) != "" else 50.0
+	return 74.0 if _attachment_name(_current) != "" else 54.0
 
 
 func _draw_header() -> void:

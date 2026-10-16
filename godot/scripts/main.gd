@@ -1692,6 +1692,21 @@ func debug_render_preset(preset: String) -> void:
 
 ## Debug/test entry: the first structure of a building type (e.g. the pre-placed generator).
 ## Tools: frame timing (ms) and fps, for the performance scenarios.
+## Shot driver: what stands in the camp within r metres of the reception window's view.
+func debug_near_window(r: float = 4.0) -> Array:
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	if bi == null:
+		return []
+	var xf: Transform3D = bi.get("_portal_xform")
+	var at: Vector3 = xf * Vector3(-0.4, 1.0, -4.0)
+	var out := []
+	for n in find_children("*", "Node3D", true, false):
+		var n3 := n as Node3D
+		if n3.is_visible_in_tree() and (n3 is MeshInstance3D or n3 is StaticBody3D) and n3.global_position.distance_to(at) < r:
+			out.append("%s<%s> %s" % [n3.name, n3.get_parent().name, n3.global_position.snapped(Vector3.ONE * 0.1)])
+	return [at, out.slice(0, 30)]
+
+
 func debug_perf() -> Array:
 	return [Engine.get_frames_per_second(), snappedf(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, 0.01), snappedf(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, 0.01), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)]
 
