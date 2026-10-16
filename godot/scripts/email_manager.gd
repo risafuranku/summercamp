@@ -428,7 +428,7 @@ func _run_hourly_roll(day: int, hour: int, base_abs: int) -> void:
 
 	var customer_count = _roll_customer_mail_count(bed_metrics, day, hour, intensity)
 	if customer_count > 0:
-		var archetypes = _roll_archetype_batch(customer_count, intensity)
+		var archetypes = _roll_archetype_batch(customer_count, intensity, day)
 		var offsets = _spread_offsets(customer_count, 2, 58)
 		for i in range(customer_count):
 			var archetype_id = archetypes[i] if i < archetypes.size() else ARCHETYPE_QUIET_GUY
@@ -641,7 +641,7 @@ func _count_scheduled_customer_mails() -> int:
 	return count
 
 
-func _roll_archetype_batch(count: int, intensity: float) -> Array[String]:
+func _roll_archetype_batch(count: int, intensity: float, day: int = 1) -> Array[String]:
 	var out: Array[String] = []
 	if count <= 0:
 		return out
@@ -655,6 +655,15 @@ func _roll_archetype_batch(count: int, intensity: float) -> Array[String]:
 		ARCHETYPE_FAMILY: clampf(lerpf(0.05, 0.22, intensity), 0.03, 0.30),
 		ARCHETYPE_PICKER: clampf(lerpf(0.10, 0.16, intensity), 0.06, 0.22),
 	}
+	# Who comes in the autumn (core/systems/season.gd): the families stop after the
+	# school year starts, the mushroom pickers come in the wet weeks, the party girls
+	# thin out, the tramps and the loners stay on into the cold.
+	var p := Season.progress(day)
+	weights[ARCHETYPE_FAMILY] = float(weights[ARCHETYPE_FAMILY]) * lerpf(1.0, 0.2, p)
+	weights[ARCHETYPE_PICKER] = float(weights[ARCHETYPE_PICKER]) * (0.7 + 1.8 * exp(-pow((p - 0.4) / 0.2, 2.0)))
+	weights[ARCHETYPE_CHEAP_CHICK] = float(weights[ARCHETYPE_CHEAP_CHICK]) * lerpf(1.0, 0.35, p)
+	weights[ARCHETYPE_TRAMP] = float(weights[ARCHETYPE_TRAMP]) * lerpf(0.8, 1.6, p)
+	weights[ARCHETYPE_QUIET_GUY] = float(weights[ARCHETYPE_QUIET_GUY]) * lerpf(1.0, 1.3, p)
 	var counts: Dictionary = {}
 	for id in archetype_ids:
 		counts[id] = 0

@@ -523,6 +523,15 @@ const SCENARIOS := {
 		["eval", "debug_goto_corn_gate(-9.0)"], ["wait", 1.0], ["shot", "c2_maze_mouth"],
 		["eval", "debug_corn_overview()"], ["wait", 1.0], ["shot", "c3_maze_above"],
 	],
+	"autumn": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
+		["eval", "debug_jump_to(1, 18.2)"], ["player", 15, 4, 180.0], ["wait", 3.0], ["shot", "a0_day1_evening"],
+		["eval", "debug_jump_to(10, 13.0)"], ["wait", 3.0], ["shot", "a1_day10"],
+		["eval", "debug_jump_to(18, 15.0)"], ["wait", 3.0], ["shot", "a2_day18"],
+		["eval", "debug_jump_to(24, 11.0)"], ["eval", "weather_system.set_weather(2)"], ["wait", 3.0], ["shot", "a3_day24_fog"],
+		["eval", "debug_jump_to(28, 10.0)"], ["eval", "weather_system.set_weather(4)"], ["wait", 4.0], ["shot", "a4_day28_snow"], ["eval", "is_snowing()"],
+		["eval", "debug_jump_to(30, 21.0)"], ["eval", "weather_system.set_weather(3)"], ["wait", 4.0], ["shot", "a5_day30_night"],
+	],
 	"cornwalk": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
 		["eval", "debug_corn_spot('exit')"], ["wait", 1.5], ["shot", "w0_exit"], ["eval", "debug_player_y()"],

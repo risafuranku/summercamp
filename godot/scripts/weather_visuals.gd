@@ -195,6 +195,8 @@ var _sky_transition_active: bool = false
 var _sky_transition_material: ShaderMaterial
 var _sky_transition_duration_seconds: float = SKY_TRANSITION_DURATION
 var _rain_particles: GPUParticles3D
+## The campaign day (core/systems/season.gd): the autumn shifts the light.
+var season_day := 1
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -360,7 +362,7 @@ func update_state(time_state: int, hours: float, weather: int) -> void:
 			_weather_blend_from = _weather_blend_now.duplicate()
 			_weather_blend_t = 0.0
 		_weather_blend_target = weather
-	_sun_direction_to_source = direction_to_source_from_hour(hours)
+	_sun_direction_to_source = direction_to_source_from_hour(_season_hour(hours))
 	_moon_direction_to_source = direction_to_source_from_hour(hours - 12.0)
 
 
@@ -695,7 +697,7 @@ func apply_time_from_clock(force_sky_snap: bool = false) -> void:
 		_sun.look_at(_sun.global_position + light_forward, look_up)
 		_sun.light_energy = sun_energy
 		_sun.light_color = sun_color
-		var h = _normalized_hour(_time_of_day_hours)
+		var h = _season_hour(_time_of_day_hours)
 		var shadows_time_window = _is_hour_in_window(h, DAY_SKY_FADE_START_HOUR, NIGHT_SKY_FADE_START_HOUR)
 		_sun.shadow_enabled = shadows_time_window and (sun_height > -0.20)
 	if _psx_post_mat != null:
@@ -724,8 +726,31 @@ func apply_time_from_clock(force_sky_snap: bool = false) -> void:
 
 ## Vrací dict s barvami/energiemi pro danou hodinu.
 ## Public — main volá z _apply_time_from_clock, interně i apply_weather_profile.
+## The clock as the light sees it: as the autumn goes on the evening comes earlier and
+## the morning later (Season.evening_earlier / morning_later), so 17:30 in October looks
+## like 18:40 in September. Monotonic, back on the real hour by midnight and noon.
+func _season_hour(hour: float) -> float:
+	var h := _normalized_hour(hour)
+	var eve := Season.evening_earlier(season_day)
+	var morn := Season.morning_later(season_day)
+	var k_eve := 0.0
+	if h >= 12.0 and h < 17.0:
+		k_eve = (h - 12.0) / 5.0
+	elif h >= 17.0 and h < 22.0:
+		k_eve = 1.0
+	elif h >= 22.0:
+		k_eve = 1.0 - (h - 22.0) / 2.0
+	var k_morn := 0.0
+	if h >= 3.0 and h < 7.0:
+		k_morn = (h - 3.0) / 4.0
+	elif h >= 7.0 and h < 11.0:
+		k_morn = 1.0 - (h - 7.0) / 4.0
+	return _normalized_hour(h + eve * k_eve - morn * k_morn)
+
+
 func sample_time_profile(hour: float) -> Dictionary:
-	var h = _normalized_hour(hour)
+	var real_h := _normalized_hour(hour)
+	var h = _season_hour(hour)
 
 	var night_profile = _make_time_profile(
 		Color(0.090, 0.110, 0.170),
@@ -879,6 +904,20 @@ func sample_time_profile(hour: float) -> Dictionary:
 	sun_energy *= GLOBAL_WORLD_ENERGY_DARKEN
 	night_factor = clampf(night_factor + GLOBAL_WORLD_NIGHT_FACTOR_BOOST, 0.0, 1.0)
 	retro_tint_strength = clampf(retro_tint_strength + GLOBAL_WORLD_RETRO_TINT_BOOST, 0.0, 0.30)
+
+	# The end of summer: long gold afternoons. October: greyer, thinner sun.
+	var gold := Season.golden(season_day) * clampf(1.0 - absf(real_h - 18.0) / 2.5, 0.0, 1.0)
+	if gold > 0.0:
+		sun_color = sun_color.lerp(Color(sun_color.r * 1.10, sun_color.g * 0.86, sun_color.b * 0.55), gold * 0.7)
+		sun_energy *= 1.0 + 0.22 * gold
+		sky_color = sky_color.lerp(Color(1.0, 0.80, 0.46), gold * 0.3)
+		ambient_color = ambient_color.lerp(Color(0.86, 0.66, 0.46), gold * 0.25)
+	var grey := clampf((Season.progress(season_day) - 0.45) / 0.55, 0.0, 1.0)
+	if grey > 0.0:
+		var sl := sky_color.r * 0.3 + sky_color.g * 0.59 + sky_color.b * 0.11
+		sky_color = sky_color.lerp(Color(sl, sl, sl * 1.04), 0.35 * grey)
+		sun_energy *= 1.0 - 0.22 * grey
+		ambient_color = ambient_color.lerp(Color(0.62, 0.66, 0.72), 0.2 * grey)
 
 	var night_overlay = _night_overlay_factor(h)
 	if night_overlay > 0.0001:
@@ -1072,7 +1111,7 @@ func _night_overlay_factor(hour: float) -> float:
 
 
 func _current_sky_phase() -> int:
-	var h = _normalized_hour(_time_of_day_hours)
+	var h = _season_hour(_time_of_day_hours)
 	if h >= NIGHT_SKY_FADE_START_HOUR or h < DAY_SKY_FADE_START_HOUR:
 		return SKY_PHASE_NIGHT
 	if h >= DUSK_SKY_FADE_START_HOUR:
@@ -1154,6 +1193,9 @@ func _current_sky_candidates() -> Array:
 	var sky_phase = _current_sky_phase()
 	if sky_phase == SKY_PHASE_NIGHT: return SKY_TEX_NIGHT_PATHS
 	if _weather_state == WEATHER_FOG: return SKY_TEX_FOG_PATHS
+	# Snow comes out of a flat white sky.
+	if (_weather_state == WEATHER_LIGHT_RAIN or _weather_state == WEATHER_RAIN or _weather_state == WEATHER_STORM) and Season.precip_is_snow(season_day, _time_of_day_hours):
+		return SKY_TEX_FOG_PATHS
 	if _weather_state == WEATHER_LIGHT_RAIN: return SKY_TEX_LIGHT_RAIN_PATHS
 	if _weather_state == WEATHER_RAIN: return SKY_TEX_RAIN_PATHS
 	if _weather_state == WEATHER_STORM: return SKY_TEX_STORM_PATHS
@@ -1601,7 +1643,7 @@ func _cloud_daylight_profile() -> Dictionary:
 
 
 func _star_visibility_factor() -> float:
-	var h = _normalized_hour(_time_of_day_hours)
+	var h = _season_hour(_time_of_day_hours)
 	var time_factor = 0.0
 	if h >= STAR_FADE_IN_START_HOUR and h < NIGHT_SKY_FADE_END_HOUR:
 		time_factor = lerpf(
@@ -1709,6 +1751,9 @@ func _update_weather_particles(_delta: float) -> void:
 		_rain_particles.global_position = center_node.global_position + Vector3(0.0, 12.0, 0.0)
 	var is_raining = (_weather_state == WEATHER_LIGHT_RAIN
 		or _weather_state == WEATHER_RAIN or _weather_state == WEATHER_STORM)
+	# When it comes down as snow, scripts/season_look.gd lets it snow instead.
+	if is_raining and Season.precip_is_snow(season_day, _time_of_day_hours):
+		is_raining = false
 	_rain_particles.emitting = is_raining
 	if not is_raining: return
 

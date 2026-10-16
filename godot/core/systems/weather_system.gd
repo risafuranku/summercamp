@@ -51,6 +51,8 @@ const ANOMALY_PRESSURE_CHANCE := 0.25
 const ANOMALY_MAX_CHANCE := 0.22
 const ANOMALY_COOLDOWN_MINUTES := 1440.0
 
+## The campaign day (core/systems/season.gd): the autumn leans the odds.
+var season_day: int = 1
 var current_weather: int = WEATHER_CLEAR
 var auto_cycle_enabled: bool = false
 var _state_minutes: float = 0.0
@@ -104,6 +106,11 @@ func _pick_next(from_state: int) -> int:
 		weights[WEATHER_FOG] = float(weights[WEATHER_FOG]) * 3.0
 	if weights.has(WEATHER_STORM) and (_hour >= 16.0 or _hour < 2.0):
 		weights[WEATHER_STORM] = float(weights[WEATHER_STORM]) * 1.6
+	var bias: Dictionary = Season.weather_bias(season_day)
+	var kinds := {WEATHER_CLEAR: "clear", WEATHER_WINDY: "windy", WEATHER_FOG: "fog", WEATHER_LIGHT_RAIN: "rain", WEATHER_RAIN: "rain", WEATHER_STORM: "storm"}
+	for k in weights.keys():
+		if kinds.has(k):
+			weights[k] = float(weights[k]) * float(bias.get(kinds[k], 1.0))
 	var total := 0.0
 	for w in weights.values():
 		total += float(w)
@@ -154,13 +161,18 @@ func is_raining() -> bool:
 	return current_weather == WEATHER_LIGHT_RAIN or current_weather == WEATHER_RAIN or current_weather == WEATHER_STORM
 
 
+## Rain that comes down as snow (the last nights of the campaign).
+func is_snowing() -> bool:
+	return is_raining() and Season.precip_is_snow(season_day, _hour)
+
+
 func get_weather_name() -> String:
 	match current_weather:
 		WEATHER_CLEAR: return "Clear"
 		WEATHER_WINDY: return "Windy"
 		WEATHER_FOG: return "Fog"
-		WEATHER_LIGHT_RAIN: return "Drizzle"
-		WEATHER_RAIN: return "Rain"
-		WEATHER_STORM: return "Storm"
+		WEATHER_LIGHT_RAIN: return "Light snow" if is_snowing() else "Drizzle"
+		WEATHER_RAIN: return "Snow" if is_snowing() else "Rain"
+		WEATHER_STORM: return "Blizzard" if is_snowing() else "Storm"
 		WEATHER_EVENT: return "Anomaly"
 	return "Unknown"

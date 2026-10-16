@@ -979,9 +979,9 @@ func _time() -> String:
 	return str(m.call("_time_of_day_string")) if m != null and m.has_method("_time_of_day_string") else "--:--"
 
 
-## The game's first day is Saturday 4 July 1998.
+## The calendar: day 1 is Saturday 19 September 1998 (core/systems/season.gd).
 func _date(day: int) -> String:
-	return "%d.7.1998" % (3 + day)
+	return Season.date_str(day)
 
 
 ## The counter, in the black box with the green digits every page had.
@@ -1015,8 +1015,18 @@ const WX_ICONS := ["sun", "suncloud", "fog", "cloud", "rain", "storm", "fog"]
 
 func _weather() -> String:
 	var w := clampi(_weather_state(), 0, 6)
-	var t := "{{img:wx_%s:40}}  [b]Now, Vysocina:[/b] %s\n" % [WX_ICONS[w], WX_NAMES[w]]
-	t += "[b]Tonight:[/b] %s, 9 to 12 degrees.\n" % ("fog in the valleys" if w == 2 or w == 6 else "mostly clear, cool")
+	var day := _day()
+	var wx_name: String = WX_NAMES[w]
+	var icon: String = WX_ICONS[w]
+	if (w == 3 or w == 4 or w == 5) and Season.precip_is_snow(day, 12.0):
+		wx_name = "snow"
+		icon = "cloud"
+	var t := "{{img:wx_%s:40}}  [b]Now, Vysocina:[/b] %s, %d degrees\n" % [icon, wx_name, Season.temp_high(day) - 2]
+	var low := Season.temp_low(day)
+	var night_word := "fog in the valleys" if w == 2 or w == 6 else ("ground frost" if low <= 0 else "mostly clear, cool")
+	t += "[b]Tonight:[/b] %s, %d to %d degrees.\n" % [night_word, low, low + 3]
+	if Season.hard_frost(day):
+		t += "[color=#0044aa][b]Frost warning:[/b] drain outdoor water pipes and pumps.[/color]\n"
 	if w == 6:
 		t += "\n[color=#cc0000][blink]The reservoir station reports.[/blink] Reading: 0 0 0 0 0 0[/color]\n"
 	return t
@@ -1024,29 +1034,33 @@ func _weather() -> String:
 
 ## Three days ahead, each with its icon. The fourth day the forecast does not reach.
 func _forecast() -> String:
-	var names := ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1998 + _day()
 	var t := "[table=4]"
 	for i in 4:
 		var d := _day() + i + 1
-		t += "[cell padding=6,2,14,2][center][b]%s[/b] %d.7.\n" % [names[(d + 5) % 7], 3 + d]
+		t += "[cell padding=6,2,14,2][center][b]%s[/b] %s\n" % [Season.weekday_short(d), Season.date_short(d)]
 		if i == 3:
 			t += "{{img:wx_fog:40}}\n[color=#888888]no data[/color][/center][/cell]"
 		else:
-			var icon: String = ["sun", "suncloud", "cloud", "rain", "suncloud"][rng.randi_range(0, 4)]
-			var hi := rng.randi_range(19, 26)
-			t += "{{img:wx_%s:40}}\n%d / %d C[/center][/cell]" % [icon, hi, hi - rng.randi_range(9, 13)]
+			var p := Season.progress(d)
+			var pool: Array = ["sun", "suncloud", "suncloud", "cloud", "rain"] if p < 0.4 else ["suncloud", "cloud", "fog", "rain", "rain"]
+			var icon: String = pool[rng.randi_range(0, pool.size() - 1)]
+			var hi := Season.temp_high(d) + rng.randi_range(-2, 2)
+			var lo := Season.temp_low(d) + rng.randi_range(-1, 1)
+			if icon == "rain" and Season.precip_is_snow(d, 12.0):
+				icon = "cloud"
+			t += "{{img:wx_%s:40}}\n%d / %d C[/center][/cell]" % [icon, hi, lo]
 	return t + "[/table]"
 
 
-## The reservoir's water level by day: it should go down in a dry July. It does not.
+## The reservoir's water level by day: it should go down in a dry September. It does not.
 func _level() -> String:
 	var t := "[code]date         level    inflow  outflow\n"
 	var lvl := 512.40
 	for i in range(-6, 1):
 		var d := _day() + i
-		var label := ("%d.7.1998" % (3 + d)) if d >= 1 else ("%d.6.1998" % (30 + d))
+		var label := Season.date_str(d)
 		if d >= 1:
 			lvl += 0.04
 		t += "%-12s %6.2f m   %s     %s\n" % [label, lvl, "0.0" if d >= 1 else "0.4", "0.3"]
@@ -1068,11 +1082,11 @@ func _guestbook() -> String:
 	var night: bool = not _shell.is_day()
 	if day >= 2:
 		rows.append(["karel", _date(day - 1) + "  23:58", "whoever is minding the camp now: count them at ten and at midnight. write it down. dont stay up past one"])
-	if day >= 3:
+	if day >= 6:
 		rows.append(["Jana", _date(day - 1) + "  02:10", "has anyone seen my shoe"])
-	if day >= 4:
+	if day >= 11:
 		rows.append(["(no name)", _date(day - 1) + "  03:33", "smile :)"])
-	if day >= 5:
+	if day >= 16:
 		rows.append(["Vera", _date(day - 1) + "  21:15", "I am at my sister's. Please do not write here any more. The district reads it."])
 	if night and guests > 0:
 		rows.append(["(no name)", _date(day) + "  " + _time(), "you have %d in the camp tonight. we counted %d" % [guests, guests + 1]])

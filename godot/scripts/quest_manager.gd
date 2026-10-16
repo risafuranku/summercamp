@@ -23,7 +23,7 @@ const WAYPOINT_LABELS := {"reception": "Office", "gate": "Gate", "unready_room":
 const FIRST_BOOKING_NAME := "Mirek Dvorak"
 
 ## Story-pool mails the questline replaces with its own task mails.
-const STORY_SUBJECTS_OWNED := ["You are in charge this week"]
+const STORY_SUBJECTS_OWNED := ["You are in charge until October", "You are in charge this week"]
 
 const STEPS: Array[Dictionary] = [
 	{
@@ -31,8 +31,8 @@ const STEPS: Array[Dictionary] = [
 		"text": "Open CampMail and read Aunt Vera's email.",
 		"hint": "The envelope icon on the desktop.",
 		"reward": 0,
-		"mail_subject": "You are in charge this week",
-		"mail_body": "I am out for seven days. You run the camp now.\n\nEverything happens through this terminal. Read every mail. Bookings have an Accept and a Reject button - use both. Rejecting is not rude, it is management.\n\nFirst job: we have no beds. Open Beeternet (it dials the modem, let it squeal), go to www.stavitel98.cz and download Builder 98. The setup program lands in the Download folder on the desktop. Run it. Then clear some trees and put up a tent.\n\nI left you $850. Do not spend it on the slide.\n\n- Teta Vera",
+		"mail_subject": "You are in charge until October",
+		"mail_body": "I am away until the nineteenth of October. A month: the whole autumn. You run the camp now. The season is over, but people still come for the mushrooms, the fishing and the quiet.\n\nEverything happens through this terminal. Read every mail. Bookings have an Accept and a Reject button - use both. Rejecting is not rude, it is management.\n\nFirst job: we have no beds. Open Beeternet (it dials the modem, let it squeal), go to www.stavitel98.cz and download Builder 98. The setup program lands in the Download folder on the desktop. Run it. Then clear some trees and put up a tent.\n\nI left you $850. Do not spend it on the slide.\n\n- Teta Vera",
 	},
 	{
 		"id": "install_builder",

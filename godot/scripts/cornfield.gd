@@ -452,6 +452,7 @@ func _build_corn(rng: RandomNumberGenerator) -> void:
 		mat.albedo_color = Color(0.62, 0.6, 0.3)
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.add_to_group("season_crop")
 	add_child(mi)
 	# The soil under it: darker, ploughed.
 	var soil := MeshInstance3D.new()

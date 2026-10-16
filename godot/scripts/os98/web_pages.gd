@@ -594,7 +594,7 @@ the village of Zatopy (cleared 1961)[/cell]
 
 [b]WATER LEVEL[/b]  gauge at the camp jetty
 {{level}}
-[color=#cc0000]No water has flowed into the reservoir since 1 July. The level is rising. A team will come to look at the gauge.[/color]
+[color=#cc0000]No water has flowed into the reservoir since the end of August. The level is rising. A team will come to look at the gauge.[/color]
 
 [b]THE KEEPER[/b]
 [center]{{img:web_hruby:200}}

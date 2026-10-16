@@ -299,6 +299,7 @@ func _generate_terrain() -> void:
 			grass_base_mat.albedo_texture = batch2_grass_tex
 			grass_base_mat.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
 	ground_mesh.material_override = grass_mat
+	ground_mesh.add_to_group("season_ground")
 	ground.add_child(ground_mesh)
 
 	# Explicit grass overlay to guarantee visible ground texture.
@@ -318,6 +319,7 @@ func _generate_terrain() -> void:
 	if batch2_grass_tex != null:
 		grass_overlay_mat.albedo_texture = batch2_grass_tex
 	grass_overlay.material_override = grass_overlay_mat
+	grass_overlay.add_to_group("season_ground")
 	grass_overlay.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_terrain_root.add_child(grass_overlay)
 
@@ -939,6 +941,7 @@ func _wind_material(std: StandardMaterial3D, kind: String) -> Material:
 			m.set_shader_parameter("sway", 1.0)
 			m.set_shader_parameter("flutter", 1.4)
 			m.set_shader_parameter("height", 5.0)
+			m.set_shader_parameter("seasonal", 1.0)
 		"birch_bark":
 			m.set_shader_parameter("sway", 1.0)
 			m.set_shader_parameter("height", 5.0)
@@ -972,6 +975,7 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 	if grass_tex != null:
 		apron_mat.albedo_texture = grass_tex
 	apron.material_override = apron_mat
+	apron.add_to_group("season_ground")
 	apron.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(apron)
 

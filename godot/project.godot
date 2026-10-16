@@ -51,3 +51,15 @@ wind_dir={
 "type": "vec2",
 "value": Vector2(0.94, 0.34)
 }
+season_leaf_tint={
+"type": "vec3",
+"value": Vector3(1, 1, 1)
+}
+season_leaves={
+"type": "float",
+"value": 1.0
+}
+season_snow={
+"type": "float",
+"value": 0.0
+}

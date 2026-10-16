@@ -5,7 +5,7 @@
 ## What it is
 
 A two-halved game set in a decaying post-communist summer camp you mind for your aunt Vera
-for a week.
+for a month, through the autumn of 1998.
 
 - **Day: a tycoon on the office PC.** A Windows-95-like terminal in the reception: CampMail
   (bookings, story, bills), Builder (an isometric 1:1 map of your camp, RollerCoaster Tycoon
@@ -69,7 +69,10 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | The noticeboard | ✅ | close-up: Vera's notes held up to read (numbers, bus, Novotny), the shed key hangs on it |
 | Visible work: a gloved hand with the tool for every held job, stepped 8-12 fps animation (guests, fire, fan, gate, ripples) | ✅ | 8 hand sprites from Grok |
 | Omens: torch by the fence, one too many, the barrier, the phone, someone by the office | ✅ | no schedule: a hazard from the camp's pressure (guests, unhappy, what came, dark, hunting), weighted draw; omens_check |
-| The week's end: Vera returns on day 8 | ✅ | at 08:00 the books (takings, guests, reviews, what came at night, hurt, jobs left), her verdict and the breakfast count; Stay on = endless |
+| The month's end: Vera returns on day 31 (Monday 19 October 1998) | ✅ | at 08:00 the books (takings, guests, reviews, what came at night, hurt, jobs left), her verdict and the breakfast count; Stay on = endless |
+| The autumn (a month, 19 Sep - 18 Oct 1998) | ✅ | `core/systems/season.gd` + `scripts/season_look.gd`: golden end-of-summer evenings, the days draw in (light shifts ~1 h earlier), birch crowns gold then rust then bare, falling leaves, dry autumn grass (Grok) from day 10, greyer October, weather odds lean to fog and rain, snow from the evening of day 26 (rain falls as snow, snow sky, snow lies on the ground and the spruces), HUD date, web dates/temperatures/forecast, booking mix by season; season_check |
+| Winter trouble | ✅ | hard-frost nights freeze the pipes (night job "frozen": pump, showers or toilets out until thawed, twice on the coldest), frost nights in tents and caravans sour the mood at dawn |
+| Corn walk to the linemen's hut | ✅ | solid ground and bounds under the whole field; the maze's second exit, the strip under the wires, a concrete hut by a pylon (locked, lore later) |
 
 ### Night: horror
 

@@ -49,6 +49,7 @@ const LAKE_TRIP_SCRIPT = preload("res://scripts/lake/lake_trip.gd")
 const QUIET_NIGHTS := 1
 const DAY_EVENTS_SCRIPT = preload("res://scripts/day_events.gd")
 const WEEK_LEDGER_SCRIPT = preload("res://scripts/week_ledger.gd")
+const SEASON_LOOK_SCRIPT = preload("res://scripts/season_look.gd")
 const OMENS_SCRIPT = preload("res://scripts/omens.gd")
 const CORN_HUNT_SCRIPT = preload("res://scripts/corn_hunt.gd")
 const WEEK_REPORT_SCREEN_SCRIPT = preload("res://scripts/ui/week_report_screen.gd")
@@ -177,6 +178,8 @@ var _pending_night_jobs: Dictionary = {}
 var _day_events: Node
 var _pending_day_events: Dictionary = {}
 var _week_ledger: Node
+## The autumn on the camp (scripts/season_look.gd).
+var _season_look: Node3D
 var _pending_week_ledger: Dictionary = {}
 var _week_report_screen: CanvasLayer
 var _omens: Node
@@ -764,6 +767,10 @@ func _setup_weather_visuals_module() -> void:
 		_audio_manager,
 		grid_manager
 	)
+	if _season_look == null or not is_instance_valid(_season_look):
+		_season_look = SEASON_LOOK_SCRIPT.new()
+		_world_3d.add_child(_season_look)
+		_season_look.setup(func(): return _player if _player != null else fallback_camera)
 
 
 func _ensure_hud_manager() -> void:
@@ -831,6 +838,46 @@ func _get_player_ref() -> Node:
 	return _player
 
 
+## The calendar into everything that shows the autumn (core/systems/season.gd).
+func _sync_season() -> void:
+	if _weather_visuals != null:
+		_weather_visuals.season_day = _day_index
+	if _season_look != null:
+		_season_look.day = _day_index
+		_season_look.hour = _time_of_day_hours
+		var p := 0
+		match _weather_state:
+			WEATHER_LIGHT_RAIN:
+				p = 1
+			WEATHER_RAIN:
+				p = 2
+			WEATHER_STORM:
+				p = 3
+		_season_look.precip = p
+		var w := 0.15
+		match _weather_state:
+			WEATHER_WINDY:
+				w = 0.8
+			WEATHER_RAIN:
+				w = 0.5
+			WEATHER_STORM:
+				w = 1.4
+		_season_look.wind = Vector2(0.94, 0.34) * w
+	if _hud_manager != null:
+		_hud_manager.snowing = is_snowing()
+
+
+func is_snowing() -> bool:
+	return _season_look != null and _season_look.is_snowing()
+
+
+## Snow falls silently: the rain loops give way to the wind.
+func _audio_weather() -> int:
+	if not is_snowing():
+		return _weather_state
+	return WEATHER_WINDY if _weather_state == WEATHER_STORM or _weather_state == WEATHER_RAIN else WEATHER_CLEAR
+
+
 func _process(delta: float) -> void:
 	if not _startup_bootstrap_complete:
 		return
@@ -846,8 +893,10 @@ func _process(delta: float) -> void:
 		var state = CoreRoot.get_state()
 		if state != null:
 			weather_system.set_anomaly_pressure(float(state.hrotfaktor))
+		weather_system.season_day = _day_index
 		weather_system.process(delta * BALANCE_CONFIG.GAME_MINUTES_PER_SECOND, _time_of_day_hours)
 	_sync_runtime_state_from_systems()
+	_sync_season()
 	if _weather_visuals != null:
 		_weather_visuals.update_state(_time_state, _time_of_day_hours, _weather_state)
 		_weather_visuals.update_frame(delta)
@@ -873,7 +922,7 @@ func _process(delta: float) -> void:
 	if _audio_manager != null and _audio_manager.has_method("process_runtime"):
 		_audio_manager.process_runtime(
 			delta,
-			_weather_state,
+			_audio_weather(),
 			_is_audio_interior_active(),
 			_should_play_rain_inside_loop(),
 			_is_service_sewer_audio_active()
@@ -1228,7 +1277,7 @@ func _poll_arrivals(delta: float) -> void:
 		EventBus.room_prepared.connect(_on_room_prepared)
 	if _first_stand_up_pending and not _is_any_interior_open() and _hud_manager != null:
 		_first_stand_up_pending = false
-		_hud_manager.show_banner("THE CAMP", "DAY %d" % _day_index, RETRO_UI.C_AMBER, 4.0)
+		_hud_manager.show_banner("THE CAMP", Season.date_long(_day_index).to_upper(), RETRO_UI.C_AMBER, 4.0)
 	_arrivals_poll -= delta
 	if _arrivals_poll > 0.0 or _hud_manager == null:
 		return
@@ -2300,7 +2349,7 @@ func _set_weather_state(new_state: int) -> void:
 	if _audio_manager != null and _audio_manager.has_method("process_runtime"):
 		_audio_manager.process_runtime(
 			0.0,
-			_weather_state,
+			_audio_weather(),
 			_is_audio_interior_active(),
 			_should_play_rain_inside_loop(),
 			_is_service_sewer_audio_active()
@@ -2328,6 +2377,11 @@ var _last_announced_weather: int = -1
 ## sign that the rules (closed attractions) just changed.
 func _announce_weather(state: int) -> void:
 	if state == _last_announced_weather:
+		return
+	if (state == WEATHER_LIGHT_RAIN or state == WEATHER_RAIN or state == WEATHER_STORM) and Season.precip_is_snow(_day_index, _time_of_day_hours):
+		_last_announced_weather = state
+		if _hud_manager != null:
+			_hud_manager.push_status(["Snowflakes. The first ones settle on the path.", "It is snowing. The path is going white.", "A blizzard. You can barely see the lights."][state - WEATHER_LIGHT_RAIN], 2)
 		return
 	var first := _last_announced_weather < 0
 	_last_announced_weather = state

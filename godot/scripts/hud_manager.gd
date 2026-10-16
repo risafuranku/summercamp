@@ -66,6 +66,12 @@ const PHASE_NIGHT := 2
 const PHASE_LABELS := ["DAY", "EVENING", "NIGHT"]
 
 const WEATHER_LABELS := ["CLEAR", "WINDY", "FOG", "DRIZZLE", "RAIN", "STORM", "ANOMALY"]
+## Main sets it: the rain comes down as snow (core/systems/season.gd).
+var snowing := false:
+	set(v):
+		if v != snowing:
+			snowing = v
+			_refresh_clock()
 
 ## NIGHT RISK legend. Index matches the HUD level derived from expected spawns
 ## (`GuestManager.LIMINAL_HUD_EXPECTED_THRESHOLDS`).
@@ -1091,7 +1097,9 @@ func _refresh_clock() -> void:
 	if _clock_value == null:
 		return
 	_clock_value.text = _time_str
-	_clock_caption.text = "DAY %d" % _day
+	# The date, not a day count: the month runs 19 September - 19 October 1998.
+	var dt := Season.date_of(_day)
+	_clock_caption.text = "%d %s" % [int(dt["d"]), str(Season.MONTH_NAMES[int(dt["m"]) - 1]).substr(0, 3).to_upper()]
 	_clock_phase.text = str(PHASE_LABELS[_phase])
 	var cap_col := RETRO_UI.C_BONE_DIM
 	var clock_col := RETRO_UI.C_BONE
@@ -1103,6 +1111,8 @@ func _refresh_clock() -> void:
 	_clock_phase.add_theme_color_override("font_color", cap_col)
 	_clock_value.add_theme_color_override("font_color", clock_col)
 	_weather_label.text = str(WEATHER_LABELS[_weather])
+	if snowing and _weather >= 3 and _weather <= 5:
+		_weather_label.text = ["LT SNOW", "SNOW", "BLIZZARD"][_weather - 3]
 	_weather_label.add_theme_color_override("font_color", RETRO_UI.C_RED_LIGHT if _weather == WEATHER_LABELS.size() - 1 else RETRO_UI.C_BLUE)
 
 
@@ -1370,7 +1380,7 @@ func _announce_phase(phase: int) -> void:
 	match phase:
 		PHASE_DAY:
 			push_status("Morning. The builder is unlocked again.", STATUS_GOOD, "phase")
-			show_banner("DAY %d" % _day, "The builder is unlocked. The camp is yours again.", RETRO_UI.C_AMBER, 3.2)
+			show_banner("DAY %d OF %d" % [_day, Season.CAMPAIGN_DAYS], "The builder is unlocked. The camp is yours again.", RETRO_UI.C_AMBER, 3.2)
 		PHASE_EVENING:
 			push_status("Evening. Guests start drifting back to their beds.", STATUS_WARN, "phase")
 		PHASE_NIGHT:

@@ -70,7 +70,7 @@ func _rebuild() -> void:
 	title.set_text("THE BOOKS")
 	title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(title)
-	var sub := RETRO_UI.label("DAY 8, 08:00. VERA IS BACK.", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale, false)
+	var sub := RETRO_UI.label("%s, 08:00. VERA IS BACK." % Season.date_long(Season.RETURN_DAY).to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale, false)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
 	box.add_child(_gap(6))

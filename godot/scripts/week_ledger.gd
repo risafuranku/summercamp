@@ -1,7 +1,8 @@
 extends Node
 
-## The week's books (DESIGN.md §11.1). Vera is away seven days and comes back on the
-## morning train of day 8 (her last mail: "I will count them myself"). This node keeps
+## The month's books (DESIGN.md §11.1). Vera is away the whole autumn (core/systems/
+## season.gd: 19 September to 19 October 1998) and comes back on the morning train of
+## day 31 (her last mail: "I will count them myself"). This node keeps
 ## what she will read: the till at the start, what came at night and how often you were
 ## hurt, the jobs left for the electrician, and the reviews. At 08:00 on day 8 main asks
 ## for the report (report()) and shows scripts/ui/week_report_screen.gd.
@@ -9,7 +10,7 @@ extends Node
 ## The verdict is a plain grade of money, reviews and nights. The coda under it is the
 ## found-CD part: Vera counts the guests herself, and the count depends on what you let in.
 
-const RETURN_DAY := 8
+const RETURN_DAY := Season.RETURN_DAY
 const RETURN_HOUR := 8.0
 
 const ENEMY_NAMES := {
@@ -133,20 +134,20 @@ func report(state) -> Dictionary:
 
 	var delta := money - start_money
 	var score := 0
-	score += 2 if delta >= 1000 else (1 if delta >= 0 else -1)
+	score += 2 if delta >= 4000 else (1 if delta >= 0 else -1)
 	if rated > 0:
 		score += 2 if avg >= 3.8 else (1 if avg >= 3.0 else (-1 if avg < 2.3 else 0))
-	score -= 1 if gave_up + stormed >= 3 else 0
-	score -= 1 if _hits >= 6 else 0
-	score -= 1 if _jobs_left >= 3 else 0
+	score -= 1 if gave_up + stormed >= 8 else 0
+	score -= 1 if _hits >= 20 else 0
+	score -= 1 if _jobs_left >= 10 else 0
 	var grade := "good" if score >= 3 else ("poor" if score <= 0 else "fair")
 
 	var verdict := ""
 	match grade:
 		"good":
-			verdict = "The books balance and the guests write nice things. Nobody has done that here in years. The summer is yours, if you want it."
+			verdict = "The books balance and the guests write nice things. Nobody has done that here in years. The winter is yours, if you want it."
 		"fair":
-			verdict = "We are down in places, but standing. Next time sleep more and accept less. You may stay on, if you can bear it."
+			verdict = "We are down in places, but standing. Next time sleep more and accept less. You may stay on into the winter, if you can bear it."
 		_:
 			verdict = "I have read the reviews and the bank statement. I will take it from here. Your bus is at ten."
 
@@ -160,7 +161,7 @@ func report(state) -> Dictionary:
 
 	var rows: Array = [
 		["Takings", "%s$%d   (started with $%d, $%d in the till)" % ["+" if delta >= 0 else "-", absi(delta), start_money, money]],
-		["Guests hosted", "%d   reviews %s   left at the gate %d   stormed off %d" % [hosted, ("%.1f stars" % avg) if rated > 0 else "none", gave_up, stormed]],
+		["Guests hosted", "%d   reviews %s   turned away %d   stormed off %d" % [hosted, ("%.1f stars" % avg) if rated > 0 else "none", gave_up, stormed]],
 		["Nights", "%d   something came on %d   quiet %d" % [nights, mini(visited, nights), maxi(0, nights - visited)]],
 		["What came", ", ".join(came) if not came.is_empty() else "nothing you could see"],
 		["You were hurt", "%d times" % _hits if _hits != 1 else "once"],

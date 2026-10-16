@@ -12,9 +12,19 @@ uniform vec2 uv_scale = vec2(1.0, 1.0);
 uniform float sway = 1.0;
 uniform float flutter = 0.0;
 uniform float height = 5.0;
+// 1 on the crowns of the birches and the other leaf trees: they turn and fall.
+uniform float seasonal = 0.0;
 
 global uniform float wind_strength;
 global uniform vec2 wind_dir;
+// The autumn (scripts/season_look.gd): the leaves' colour, how many are left (1 all,
+// 0 bare), the snow lying on top of everything.
+global uniform vec3 season_leaf_tint;
+global uniform float season_leaves;
+global uniform float season_snow;
+
+varying vec3 v_wpos;
+varying float v_up;
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
@@ -27,11 +37,25 @@ void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float f = flutter * wind_strength * sin(TIME * 8.0 + wp.x * 3.1 + wp.y * 2.3 + wp.z * 2.7) * 0.08 * h;
 	vec3 off_world = vec3(wind_dir.x * bend + f, -abs(bend) * 0.12, wind_dir.y * bend + f * 0.6);
+	v_wpos = wp;
+	v_up = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz).y;
 	VERTEX += inverse(mat3(MODEL_MATRIX)) * off_world;
 }
 
 void fragment() {
 	vec4 t = texture(albedo_tex, UV * uv_scale);
-	ALBEDO = t.rgb * albedo_color.rgb;
+	vec3 c = t.rgb * albedo_color.rgb;
+	if (seasonal > 0.5) {
+		c *= season_leaf_tint;
+		// The crown thins in chunky clumps as the leaves come down.
+		vec3 q = floor(v_wpos * 5.0);
+		float n = fract(sin(dot(q, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+		if (n > season_leaves) {
+			discard;
+		}
+	}
+	// Snow lies on whatever faces up.
+	c = mix(c, vec3(0.88, 0.90, 0.95), clamp(season_snow * smoothstep(-0.05, 0.45, v_up) * 1.1, 0.0, 0.92));
+	ALBEDO = c;
 	ROUGHNESS = 1.0;
 }

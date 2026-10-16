@@ -15,6 +15,9 @@ extends Node
 ##   corn     a guest has wandered into the corn maze past the west fence: find them and
 ##            bring them back (scripts/corn_hunt.gd). Only with wanderers in camp
 ##            (drunks, families, tramps, mushroom pickers).
+##   frozen   on a hard frost (the last third of the autumn, core/systems/season.gd) the
+##            pipes freeze: the water pump, the showers or the toilets are out until you
+##            thaw them (the ordinary repair). On the coldest nights, twice.
 ## Each job pages you, shows in the HUD's TONIGHT list and gets the waypoint. Jobs left
 ## at dawn are not forgiven: a tripped main stays off until somebody resets it, you at
 ## the board or the electrician you ring (and pay).
@@ -70,6 +73,12 @@ func tick(abs_minute: int, is_night: bool, night_index: int) -> void:
 
 ## Dawn: the night's leftovers.
 func on_dawn() -> void:
+	# A frost night in a tent: they say so.
+	var night := _planned_night
+	if night >= 1 and Season.temp_low(night) <= 0 and GuestManager != null and GuestManager.has_method("apply_cold_night"):
+		var n: int = GuestManager.apply_cold_night(Season.temp_low(night))
+		if n > 0:
+			_report("A frost in the night. The people in the tents are not happy (%d)." % n, 2)
 	# Nobody comes by themselves: the main stays off until you reset it at the board, and
 	# a circuit that had to stay off stays off until the electrician has been (you ring
 	# him: his number is on the noticeboard, scripts/reception/electrician_visit.gd).
@@ -186,6 +195,12 @@ func _plan(night_index: int, abs_minute: int) -> void:
 	if pool.is_empty():
 		return
 	var kinds: Array = []
+	# The frost comes first: on a hard-frost night the pipes freeze, on the coldest twice.
+	var frozen := _coords_of(["water_pump", "shower_block", "toilet_block"])
+	if not frozen.is_empty() and Season.hard_frost(night_index) and _rng.randf() < 0.85:
+		kinds.append("frozen")
+		if Season.temp_low(night_index) <= -5 and frozen.size() > 1:
+			kinds.append("frozen")
 	# The breaker is the signature job: most nights have one.
 	if pool.has("breaker") and _rng.randf() < 0.8:
 		kinds.append("breaker")
@@ -196,7 +211,7 @@ func _plan(night_index: int, abs_minute: int) -> void:
 		if kinds.size() >= count:
 			break
 		var k: String = pool[_rng.randi_range(0, pool.size() - 1)]
-		if k == "breaker" or (kinds.has(k) and not (k == "lamp" and kinds.count("lamp") < lamp_count)):
+		if k == "breaker" or k == "frozen" or (kinds.has(k) and not (k == "lamp" and kinds.count("lamp") < lamp_count)):
 			continue
 		kinds.append(k)
 	kinds.shuffle()
@@ -241,6 +256,21 @@ func _make(kind: String, at: int) -> Dictionary:
 		"corn":
 			var gate: Vector3 = _main.corn_gate_world() if _main != null and _main.has_method("corn_gate_world") else Vector3.INF
 			job.merge({"title": "Someone is in the corn", "short": "Corn", "where": "The wicket gate in the west fence", "pos": [gate.x, gate.y, gate.z]}, true)
+		"frozen":
+			var taken: Array = []
+			for j in _jobs:
+				if str(j.get("kind", "")) == "frozen":
+					taken.append(Vector2i(int(j["coord"][0]), int(j["coord"][1])))
+			var f := Vector2i(-1, -1)
+			for c in _coords_of(["water_pump", "shower_block", "toilet_block"]):
+				if not taken.has(c):
+					f = c
+					break
+			var what := "The pipes"
+			var state = CoreRoot.get_state()
+			if f.x >= 0 and state != null and state.grid.cells.has(f):
+				what = {"water_pump": "The water pump", "shower_block": "The showers", "toilet_block": "The toilets"}.get(str(state.grid.cells[f].get("type", "")), "The pipes")
+			job.merge({"title": "%s froze" % what, "short": "Frozen", "where": "%d:%d: thaw the pipes" % [f.x, f.y], "coord": [f.x, f.y]}, true)
 		"toilet":
 			var t := _pick(["toilet_block"])
 			job.merge({"title": "Toilets blocked", "short": "Toilets", "where": "Toilet block %d:%d: go in and unblock it" % [t.x, t.y], "coord": [t.x, t.y]}, true)
@@ -261,7 +291,7 @@ func _start(job: Dictionary) -> void:
 			if _main == null or not _main.has_method("start_corn_hunt") or not _main.start_corn_hunt(job):
 				job["state"] = "cancelled"
 				return
-		"lamp", "sewer", "toilet":
+		"lamp", "sewer", "toilet", "frozen":
 			var state = CoreRoot.get_state()
 			var key := "%d:%d" % [c.x, c.y]
 			if c.x < 0 or state.failures.has(key) or not state.grid.cells.has(c):

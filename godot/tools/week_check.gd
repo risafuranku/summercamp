@@ -4,7 +4,7 @@ extends SceneTree
 ##
 ##   godot --headless --path godot --script res://tools/week_check.gd
 ##
-## Asserts: the report is due only from 08:00 on day 8 and once; the pager fires once;
+## Asserts: the report is due only from 08:00 on day 31 (a month: core/systems/season.gd) and once; the pager fires once;
 ## a profitable well-reviewed quiet week grades "good", a broke hurt one "poor"; the
 ## breakfast count is right only when nothing came; export/import keeps everything.
 
@@ -22,21 +22,24 @@ func _init() -> void:
 
 	var l = LEDGER.new()
 	l.reset(850)
-	if l.is_due(7, 23.9) or l.is_due(8, 7.9):
-		failures.append("report due before 08:00 on day 8")
-	if not l.is_due(8, 8.0) or not l.is_due(9, 3.0):
-		failures.append("report not due on day 8 08:00 / later")
-	if not l.should_page(8, 6.5) or l.should_page(8, 7.0):
+	var rd: int = LEDGER.RETURN_DAY
+	if rd != 31:
+		failures.append("Vera is not back after a month (day %d)" % rd)
+	if l.is_due(rd - 1, 23.9) or l.is_due(rd, 7.9) or l.is_due(8, 9.0):
+		failures.append("report due before 08:00 on day 31")
+	if not l.is_due(rd, 8.0) or not l.is_due(rd + 1, 3.0):
+		failures.append("report not due on day 31 08:00 / later")
+	if not l.should_page(rd, 6.5) or l.should_page(rd, 7.0):
 		failures.append("pager should fire exactly once")
 	l.closed = true
-	if l.is_due(8, 9.0):
+	if l.is_due(rd, 9.0):
 		failures.append("report due again after it was shown")
 
 	# A good week: +2000, 4.2 stars, nothing came.
 	var good = LEDGER.new()
 	good.reset(850)
 	var st := FakeState.new()
-	st.money = 2850
+	st.money = 5850
 	for i in 10:
 		st.guest_reviews.append({"rating": 4 if i % 5 else 5})
 	var r: Dictionary = good.report(st)

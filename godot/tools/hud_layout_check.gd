@@ -16,7 +16,7 @@ extends Node
 const HUD_MANAGER_SCRIPT = preload("res://scripts/hud_manager.gd")
 
 const TEST_SIZES := [Vector2i(1280, 720), Vector2i(1024, 576), Vector2i(1280, 960), Vector2i(1280, 800), Vector2i(1680, 720)]
-const EXPECTED_CAPTIONS := ["HEALTH", "STAMINA", "LIGHT", "CASH", "DAY 3", "EVENING", "GUESTS", "MAIL", "NIGHT RISK"]
+const EXPECTED_CAPTIONS := ["HEALTH", "STAMINA", "LIGHT", "CASH", "21 SEP", "EVENING", "GUESTS", "MAIL", "NIGHT RISK"]
 const EXPECTED_READOUTS := ["62", "$1,234", "18:42", "RAIN", "DRUNK 27%"]
 
 const SAMPLE_FORECAST := {

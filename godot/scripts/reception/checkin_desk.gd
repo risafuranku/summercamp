@@ -883,7 +883,7 @@ func _draw_book(c: Control) -> void:
 	var head := Color(0.42, 0.18, 0.14)
 	for h in [[left, "NO"], [left + 10, "NAME"], [right, "CARD NO"], [right + 38, "PERS"], [right + 56, "NTS"], [right + 70, "ROOM"], [right + 89, "KEY"]]:
 		_print3(c, Vector2(float(h[0]), hy), str(h[1]), head)
-	_print3(c, Vector2(BOOK.position.x + BOOK.size.x - 44, BOOK.position.y + 10), "%d.7.1998" % (3 + _day), head)
+	_print3(c, Vector2(BOOK.position.x + BOOK.size.x - 44, BOOK.position.y + 10), Season.date_str(_day), head)
 	# The rows: the last ones written, then the one being written now.
 	var rows: Array = []
 	var start := maxi(0, _history.size() - (ROWS - 1))

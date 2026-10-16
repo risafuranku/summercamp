@@ -133,8 +133,8 @@ reservoir and it will be here after it.
 What happened in 1987 was not our fault. I told the police
 everything I know, and I do not know anything.
 
-Come in June. Bring the boy if he wants to come. He can mind
-the place for a week while you are at your sister's. It is
+Come in September. Bring the boy if he wants to come. He can mind
+the place for a month while you are at your sister's. It is
 good for a young man to be responsible for something.
 
 Do not let him go to the lake after dark.

@@ -9,7 +9,7 @@ How the game is meant to feel and the rules that produce it. For what exists tod
 
 ## 1. The idea
 
-A week minding aunt Vera's camp. By day it is a pleasant, slightly fiddly tycoon you play
+A month minding aunt Vera's camp, through the autumn of 1998 (19 September to 19 October: the golden end of summer, the leaves, the fog and rain of October, bare trees and the first snow on the last nights). By day it is a pleasant, slightly fiddly tycoon you play
 on the reception PC. At 20:00 the PC locks and the consequences of your day walk around
 outside in the dark, and you have to go out there with a flashlight.
 

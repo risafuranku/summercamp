@@ -726,6 +726,38 @@ static func desk_card_for(guest_id: int, booking_name: String) -> Dictionary:
 	}
 
 
+## A frost night: whoever slept under canvas (tents, caravans) froze. Returns how many
+## parties it hit. `low` is the night's low in degrees C.
+func apply_cold_night(low: int) -> int:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return 0
+	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	var hit := 0
+	for i in state.guests.size():
+		var g_any = state.guests[i]
+		if not (g_any is Dictionary) or not str((g_any as Dictionary).get("status", "")) in [STATUS_ACTIVE, STATUS_SLEEP]:
+			continue
+		var guest: Dictionary = g_any
+		var cold := false
+		for slot_any in (guest.get("lodging_slots", []) if guest.get("lodging_slots", []) is Array else []):
+			var key := str((slot_any as Dictionary).get("accommodation_key", "")) if slot_any is Dictionary else ""
+			var acc: Dictionary = state.accommodation_states.get(key, {})
+			var bt := str(acc.get("building_type", ""))
+			if bt.begins_with("tent") or bt.begins_with("caravan"):
+				cold = true
+		if not cold:
+			continue
+		guest["mood"] = clampf(float(guest.get("mood", 60.0)) - (8.0 + 2.0 * float(maxi(0, -low))), 0.0, 100.0)
+		guest["thought"] = "We froze in that tent all night. There was ice on the zip." if low < -2 else "It was cold in the tent last night. Really cold."
+		guest["thought_abs"] = now_abs
+		state.guests[i] = guest
+		hit += 1
+	if hit > 0:
+		_emit_guest_overview_state(true)
+	return hit
+
+
 ## The key board behind the counter: every lodging, whether it is made up, and whether
 ## its key is out (someone checked in holds it).
 func get_key_board() -> Array:

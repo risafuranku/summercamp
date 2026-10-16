@@ -22,6 +22,11 @@
 - [x] B16 Starter path from the barrier to the reception door, cannot be bulldozed; reception one tile in
 - [x] B17 Reception redesign (behind the counter, PC left, keys right) and the Papers Please check-in desk, with the night stranger
 - [x] B18 Tasks only while TAB is held; outdoors the site plan moves left of them, indoors tasks alone
+- [x] B19 Screen saver would not wake (slow mouse moves were under a pixel on the monitor)
+- [x] B20 Reception clicks dead (room raycast used get_world_3d on an own-world viewport)
+- [x] B21 Corn: no falling through; second maze exit, the strip under the wires, the linemen's hut
+- [x] B22 A month instead of a week, through the autumn, snow at the end; frozen pipes and cold tents
+- [ ] B23 Later: lore in the linemen's hut; more winter challenges (snowed-in paths, the lake freezing, heating cabins)
 - [ ] B13 Later: something hidden in the shed (beyond the coat), more to do on the far shore, the boat at night as its own scare
 - [ ] B14 Later: walk through the outside maze walls? (the maze is the corn job's; the camp corn is walkable)
 
