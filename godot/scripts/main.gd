@@ -1691,6 +1691,33 @@ func debug_render_preset(preset: String) -> void:
 
 
 ## Debug/test entry: the first structure of a building type (e.g. the pre-placed generator).
+## Tools: real input through the whole pipeline (a small mouse move, a click, a key).
+func debug_input(kind: String) -> void:
+	var vp := get_viewport().get_visible_rect().size
+	match kind:
+		"move":
+			var m := InputEventMouseMotion.new()
+			m.position = vp * 0.5 + Vector2(randf_range(-3, 3), 1)
+			m.global_position = m.position
+			m.relative = Vector2(1.5, 0.5)
+			Input.parse_input_event(m)
+		"click":
+			for pressed in [true, false]:
+				var b := InputEventMouseButton.new()
+				b.button_index = MOUSE_BUTTON_LEFT
+				b.pressed = pressed
+				b.position = vp * 0.5
+				b.global_position = b.position
+				Input.parse_input_event(b)
+		"key":
+			for pressed in [true, false]:
+				var k := InputEventKey.new()
+				k.physical_keycode = KEY_SHIFT
+				k.keycode = KEY_SHIFT
+				k.pressed = pressed
+				Input.parse_input_event(k)
+
+
 ## Parties on the way or at reception, and who waits at the desk (shot driver).
 func debug_arrivals() -> Array:
 	return [GuestManager.get_arrivals(), GuestManager.get_desk_queue().size(), GuestManager.get_key_board()]

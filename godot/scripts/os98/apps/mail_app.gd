@@ -67,7 +67,7 @@ func _build() -> void:
 	add_child(_header)
 	_body = RichTextLabel.new()
 	_body.bbcode_enabled = true
-	_body.selection_enabled = true
+	_body.selection_enabled = false
 	add_child(_body)
 	_card = RichTextLabel.new()
 	_card.bbcode_enabled = true

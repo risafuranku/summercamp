@@ -196,7 +196,7 @@ func _go(page: int) -> void:
 			box.text = str(info["licence"])
 			box.position = Vector2(0, 26)
 			box.size = Vector2(_body.size.x, _body.size.y - 70)
-			box.selection_enabled = true
+			box.selection_enabled = false
 			_body.add_child(box)
 			var yes := CheckBox.new()
 			yes.text = "I accept the agreement"

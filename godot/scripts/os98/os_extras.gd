@@ -17,7 +17,9 @@ const SAVERS := ["Flying Okna", "Starfield", "Blank Screen", "(None)"]
 
 var shell
 var saver := "Flying Okna"
-var saver_wait := 60.0          # seconds of nobody at the keyboard
+## Seconds of nobody at the computer. It never comes on while you sit at it (playtest
+## 2026-10-17: it came on while reading and got in the way); only an empty desk gets it.
+var saver_wait := 120.0
 var _idle := 0.0
 var _saving := false
 var _zooms: Array = []          # {from, to, t}
@@ -43,7 +45,7 @@ func export_state() -> Dictionary:
 
 func import_state(d: Dictionary) -> void:
 	saver = str(d.get("saver", saver))
-	saver_wait = float(d.get("saver_wait", saver_wait))
+	saver_wait = maxf(60.0, float(d.get("saver_wait", saver_wait)))
 
 
 ## Somebody touched the keyboard or the mouse.
@@ -70,7 +72,8 @@ func _process(delta: float) -> void:
 	if shell == null:
 		return
 	if shell.is_desktop_ready():
-		_idle += delta
+		# Somebody is at it: no saver, and the wait starts again when they get up.
+		_idle = 0.0 if shell.is_open() else _idle + delta
 		if not _saving and saver != "(None)" and _idle >= saver_wait:
 			_saving = true
 			mouse_filter = Control.MOUSE_FILTER_STOP

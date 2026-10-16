@@ -137,7 +137,11 @@ func _run() -> void:
 	var old_wait: float = ex.saver_wait
 	ex.saver_wait = 0.3
 	await _wait(0.6)
-	_expect(ex.is_saving(), "the screen saver does not come on")
+	_expect(not ex.is_saving(), "the screen saver comes on while somebody sits at the computer")
+	_shell.close_panel()
+	await _wait(0.6)
+	_expect(ex.is_saving(), "the screen saver does not come on at an empty desk")
+	_shell.open_panel()
 	var mv := InputEventMouseMotion.new()
 	mv.position = _shell._mouse + Vector2(0.2, 0)
 	mv.relative = Vector2(0.2, 0)

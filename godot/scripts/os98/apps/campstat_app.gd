@@ -55,7 +55,7 @@ func setup(shell, win, _args: Dictionary) -> void:
 		var page := RichTextLabel.new()
 		page.name = str(t[1])
 		page.bbcode_enabled = true
-		page.selection_enabled = true
+		page.selection_enabled = false
 		page.meta_underlined = true
 		page.meta_clicked.connect(_on_link)
 		_tabs.add_child(page)

@@ -125,7 +125,7 @@ func _build() -> void:
 
 	# The menu bar.
 	var mx := 4.0
-	for m in ["File", "Edit", "View", "Go", "Favorites", "Help"]:
+	for m in ["File", "View", "Go", "Favorites", "Help"]:
 		var w := T.FONT.get_string_size(m, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 12.0
 		add_child(_menu_title(m, Vector2(mx, 1), Vector2(w, MENU_H - 2)))
 		mx += w
@@ -212,7 +212,7 @@ func _build() -> void:
 	add_child(_frame)
 	_page = RichTextLabel.new()
 	_page.bbcode_enabled = true
-	_page.selection_enabled = true
+	_page.selection_enabled = false
 	_page.meta_underlined = true
 	_page.position = Vector2(2, 2)
 	_page.install_effect(BlinkFx.new())
@@ -516,8 +516,6 @@ func _menu_entries(title: String) -> Array:
 	match title:
 		"File":
 			return [["Work Offline", func(): _work_offline()], ["Print...", _print], ["-"], ["Close", func(): _shell.close_app_window(_win)]]
-		"Edit":
-			return [["Select All", func(): _page.select_all()], ["Copy", func(): DisplayServer.clipboard_set(_page.get_selected_text())]]
 		"View":
 			return [["Stop", _stop], ["Refresh", func(): _load(_url, false)], ["-"], ["Source", func(): _shell.message_box("Beeternet Explorer", "The source of this page cannot be viewed. Notepad was not found in C:\\OKNA.", "warning")]]
 		"Go":
