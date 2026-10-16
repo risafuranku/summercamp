@@ -292,7 +292,7 @@ func _node_has_click_type(node: Node, click_type: String) -> bool:
 func _raycast_world(mouse_pos: Vector2) -> Dictionary:
 	if _interior_camera == null or _viewport == null:
 		return {}
-	var world = _viewport.get_world_3d()
+	var world = _viewport.find_world_3d()
 	if world == null:
 		return {}
 	var screen_size = get_viewport().get_visible_rect().size

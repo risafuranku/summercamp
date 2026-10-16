@@ -1578,6 +1578,35 @@ func debug_corn_face(at: Vector3, dist: float) -> void:
 	_player.rotation.y = atan2(-to.x, -to.z)
 
 
+## Debug/test entry: stand at a spot of the corn walk: "exit" (the maze's far way out,
+## facing west), "strip" (on the strip under the wires, facing the hut), "hut" (at its
+## door). Returns where.
+func debug_corn_spot(which: String) -> Vector3:
+	var corn = find_child("CornField", true, false)
+	if corn == null or _player == null:
+		return Vector3.INF
+	var p: Vector3
+	var look: Vector3
+	match which:
+		"exit":
+			p = corn.tile_world(corn.exit_tile) + Vector3(-0.2, 0, 0)
+			look = p + Vector3(-10, 0, 0)
+		"strip":
+			p = Vector3(corn.line_x + 5.0, 0, corn.tile_world(corn.exit_tile).z)
+			look = corn.booth_door
+		_:
+			p = corn.booth_door + Vector3(2.5, 0, 1.5)
+			look = corn.booth_door
+	_player.global_position = p + Vector3(0, 0.3, 0)
+	var to := look - p
+	_player.rotation.y = atan2(-to.x, -to.z)
+	return p
+
+
+func debug_player_y() -> float:
+	return _player.global_position.y if _player != null else 0.0
+
+
 ## Debug/test entry: a camera high over the maze, looking down.
 func debug_corn_overview() -> void:
 	var corn = find_child("CornField", true, false)
@@ -2325,6 +2354,13 @@ func _try_interact() -> void:
 		return
 	if _day_events != null and not _is_any_interior_open() and _day_events.try_interact():
 		return
+	var corn := _corn_field()
+	if corn != null and corn.has_method("try_interact") and _player != null and not _is_any_interior_open():
+		var said: String = corn.try_interact(_player.global_position)
+		if said != "":
+			if _hud_manager != null:
+				_hud_manager.push_status(said, 0)
+			return
 	var guest_in_view := _find_guest_in_view()
 	if not guest_in_view.is_empty():
 		if str(guest_in_view.get("status", "")) == "waiting":

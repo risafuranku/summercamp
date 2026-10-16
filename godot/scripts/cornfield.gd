@@ -8,6 +8,12 @@ extends Node3D
 ## maze (new every game: a random walk with a few loops), the paths 1.6 m wide, the
 ## stalks a wall you cannot push through. The night job "Someone is in the corn"
 ## (scripts/corn_hunt.gd) sends you in after a lost guest. Built by world_generator.gd.
+##
+## The maze has a second way out, on the far side: a trodden gap through the last rows
+## of corn onto the open strip under the wires, and along it to the linemen's hut by a
+## pylon (concrete blocks, a steel door, the lightning plate; locked for now). Solid
+## ground under all of it and invisible walls round it: the corn outside the maze is a
+## wall like the maze's, and the strip ends where the camp's fence line would.
 
 const CORN_TEX := "res://assets/textury/world/corn.png"
 const SCARECROW_TEX := "res://assets/textury/world/scarecrow.png"
@@ -17,6 +23,9 @@ const PYLON_H := 24.0
 const PYLON_STEP := 46.0
 
 const TILE := 1.6
+const K = preload("res://scripts/interior_kit.gd")
+## How far past the wires the open strip goes (metres west of the line).
+const STRIP_PAST_LINE := 9.0
 const GATE_SFX := "res://assets/sfx/world/gate_creak.mp3"
 
 var field_rect := Rect2()     # x/z of the field, world metres
@@ -26,6 +35,9 @@ var maze_cols := 0
 var maze_rows := 0
 var maze_open: Dictionary = {}   # Vector2i -> true for path tiles
 var entrance := Vector2i(-1, -1)
+var exit_tile := Vector2i(-1, -1)
+## The linemen's hut: its door, for E (try_interact).
+var booth_door := Vector3.INF
 var fence_x := 0.0
 var gate_z := 0.0
 var scarecrow: Sprite3D
@@ -53,6 +65,7 @@ func build(p_field: Rect2, p_line_x: float, p_line_z: Vector2, rng: RandomNumber
 	_build_mist(rng)
 	_build_scarecrow(rng)
 	_build_line()
+	_build_booth()
 	_build_sound()
 
 
@@ -127,13 +140,49 @@ func _build_maze(rng: RandomNumberGenerator) -> void:
 	entrance = Vector2i(maze_cols - 1, row)
 	maze_open[entrance] = true
 	gate_z = tile_world(entrance).z
+	# The way out on the far side: a room row on the west edge, away from the way in.
+	var rows: Array[int] = []
+	for r2 in range(1, maze_rows - 1, 2):
+		if absi(r2 - row) >= 4:
+			rows.append(r2)
+	var out_row := rows[rng.randi_range(0, rows.size() - 1)] if not rows.is_empty() else row
+	exit_tile = Vector2i(0, out_row)
+	maze_open[exit_tile] = true
 	# Stalks you cannot walk through: one long box per run of wall tiles in a row.
 	var body := StaticBody3D.new()
 	body.name = "MazeWalls"
 	add_child(body)
 	# Solid ground under the maze and the path to it (the camp's ground stops at the fence).
-	var floor_rect := maze_rect.merge(Rect2(maze_rect.end.x - 1.0, gate_z - TILE, fence_x - maze_rect.end.x + 2.0, TILE * 2.0)).grow(1.0)
+	# Ground under the whole field, the strip and the wires, to the fence.
+	var west := line_x - STRIP_PAST_LINE
+	var floor_rect := Rect2(west - 2.0, field_rect.position.y, fence_x + 2.0 - (west - 2.0), field_rect.size.y)
 	_wall_box(body, Vector3(floor_rect.get_center().x, -0.5, floor_rect.get_center().y), Vector3(floor_rect.size.x, 1.0, floor_rect.size.y))
+	# Where you can be: the camp's fence line north and south, past the wires west.
+	var z0 := field_rect.position.y + 8.0
+	var z1 := field_rect.end.y - 8.0
+	for zz: float in [z0, z1]:
+		_wall_box(body, Vector3((west + fence_x) * 0.5, 1.5, zz), Vector3(fence_x - west, 3.0, 0.4))
+	_wall_box(body, Vector3(west, 1.5, (z0 + z1) * 0.5), Vector3(0.4, 3.0, z1 - z0))
+	# The standing corn outside the maze is as solid as the maze walls.
+	var cx0 := field_rect.position.x
+	var cx1 := field_rect.end.x
+	if maze_rect.position.y > z0:
+		_wall_box(body, Vector3((cx0 + cx1) * 0.5, 1.2, (z0 + maze_rect.position.y) * 0.5), Vector3(cx1 - cx0, 2.4, maze_rect.position.y - z0))
+	if maze_rect.end.y < z1:
+		_wall_box(body, Vector3((cx0 + cx1) * 0.5, 1.2, (maze_rect.end.y + z1) * 0.5), Vector3(cx1 - cx0, 2.4, z1 - maze_rect.end.y))
+	# The thin rows west of the maze and east of it (between the maze and the fence),
+	# but for the two gaps.
+	var exit_z := tile_world(exit_tile).z
+	for seg in [[cx0, maze_rect.position.x, exit_z], [maze_rect.end.x, fence_x - 0.1, gate_z]]:
+		var xa: float = seg[0]
+		var xb: float = seg[1]
+		var gz: float = seg[2]
+		if xb - xa < 0.05:
+			continue
+		var top := maze_rect.position.y
+		var bot := maze_rect.end.y
+		_wall_box(body, Vector3((xa + xb) * 0.5, 1.2, (top + gz - TILE * 0.5) * 0.5), Vector3(xb - xa, 2.4, gz - TILE * 0.5 - top))
+		_wall_box(body, Vector3((xa + xb) * 0.5, 1.2, (gz + TILE * 0.5 + bot) * 0.5), Vector3(xb - xa, 2.4, bot - gz - TILE * 0.5))
 	for r in maze_rows:
 		var c := 0
 		while c < maze_cols:
@@ -146,12 +195,7 @@ func _build_maze(rng: RandomNumberGenerator) -> void:
 			var a := tile_world(Vector2i(c0, r))
 			var b := tile_world(Vector2i(c - 1, r))
 			_wall_box(body, (a + b) * 0.5 + Vector3(0, 1.2, 0), Vector3(b.x - a.x + TILE, 2.4, TILE))
-	# The path from the gate to the way in: walled on both sides, through the cut corn.
-	var path_x0 := maze_rect.end.x
-	var path_len := fence_x - path_x0
-	if path_len > 0.1:
-		for side: float in [-1.0, 1.0]:
-			_wall_box(body, Vector3(path_x0 + path_len * 0.5, 1.2, gate_z + side * (TILE * 0.5 + 0.15)), Vector3(path_len, 2.4, 0.3))
+
 
 
 func _shuffle(a: Array, rng: RandomNumberGenerator) -> void:
@@ -163,7 +207,59 @@ func _shuffle(a: Array, rng: RandomNumberGenerator) -> void:
 
 
 func _on_gate_path(p: Vector2) -> bool:
-	return p.x > maze_rect.end.x - 0.2 and p.x < fence_x + 0.5 and absf(p.y - gate_z) < TILE * 0.8
+	if p.x > maze_rect.end.x - 0.2 and p.x < fence_x + 0.5 and absf(p.y - gate_z) < TILE * 0.8:
+		return true
+	# The far way out, trodden through the last rows.
+	return exit_tile.x >= 0 and p.x < maze_rect.position.x + 0.2 and absf(p.y - tile_world(exit_tile).z) < TILE * 0.8
+
+
+## E by the hut's door. True when it was the hut.
+func try_interact(player_pos: Vector3) -> String:
+	if booth_door == Vector3.INF or Vector2(player_pos.x, player_pos.z).distance_to(Vector2(booth_door.x, booth_door.z)) > 2.2:
+		return ""
+	return "Locked. An old door, a new padlock. The hum is louder in here."
+
+
+## The linemen's hut under the wires, at the south end of the strip: grey blocks, a
+## steel door to the corn, a pent roof of corrugated iron. Build style: boxes, the look
+## in the textures (assets/textury/camp/booth_*.png, Grok).
+func _build_booth() -> void:
+	var root := Node3D.new()
+	root.name = "LinemenHut"
+	add_child(root)
+	var z := field_rect.position.y + 8.0 + 4.0
+	var at := Vector3(line_x + 3.4, 0.0, z)
+	var w := 2.6
+	var d := 2.4
+	var h := 2.5
+	var wall := K.surface("booth_wall", 1.2) if ResourceLoader.exists("res://assets/textury/camp/booth_wall.png") else K.surface("planks_grey", 1.2)
+	K.slab(root, Vector3(d, h, w), at + Vector3(0, h * 0.5, 0), wall, "HutBody")
+	var roof := K.surface("corrugated_roof", 1.0) if ResourceLoader.exists("res://assets/textury/camp/corrugated_roof.png") else K.surface("planks_dark", 1.0, Color(0.5, 0.5, 0.55))
+	var rs := K.slab(root, Vector3(d + 0.5, 0.08, w + 0.4), at + Vector3(0, h + 0.12, 0), roof, "HutRoof")
+	rs.rotation_degrees.z = -8.0
+	# The front, to the corn (east): the door and the plate are in the picture.
+	var front_tex := "booth_front" if ResourceLoader.exists("res://assets/textury/camp/booth_front.png") else "door_wood"
+	K.picture(root, front_tex, Vector2(w, h), at + Vector3(d * 0.5 + 0.012, h * 0.5, 0), 90.0, "HutFront")
+	booth_door = at + Vector3(d * 0.5 + 0.8, 0, 0)
+	var body := StaticBody3D.new()
+	body.name = "HutCollider"
+	root.add_child(body)
+	_wall_box(body, at + Vector3(0, h * 0.5, 0), Vector3(d, h, w))
+	# A cable comes down the nearest pylon into its roof.
+	var cable := SurfaceTool.new()
+	cable.begin(Mesh.PRIMITIVE_LINES)
+	var top := Vector3(line_x + 1.2, PYLON_H - 11.0, z)
+	var pts := [top, top.lerp(at + Vector3(0, h + 0.2, 0), 0.5) - Vector3(0, 2.5, 0), at + Vector3(0, h + 0.2, 0)]
+	for i in pts.size() - 1:
+		cable.add_vertex(pts[i])
+		cable.add_vertex(pts[i + 1])
+	var cm := MeshInstance3D.new()
+	cm.mesh = cable.commit()
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.08, 0.08, 0.09)
+	cm.material_override = mat
+	root.add_child(cm)
 
 
 func _wall_box(body: StaticBody3D, center: Vector3, size: Vector3) -> void:

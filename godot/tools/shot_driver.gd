@@ -367,6 +367,13 @@ const SCENARIOS := {
 		["wait", 7.0], ["shot", "g4_barrier_down"],
 		["hours", 12.0], ["wait", 2.0], ["player", 15, -4, 180.0], ["wait", 1.0], ["shot", "g5_gate_night"], ["eval", "[get_tree().get_first_node_in_group('camp_gate')._booth_light.visible, _time_state, _time_of_day_hours]"],
 	],
+	"hots": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4],
+		["eval", "[_interior_manager._building_interior.debug_hit_at(Vector3(1.1, 1.03, 0.32)), _interior_manager._building_interior.debug_hit_at(Vector3(0.98, 1.06, 0.02))]"],
+		["eval", "_interior_manager._building_interior._look.set('yaw_deg', -80.0)"], ["wait", 0.9], ["eval", "_interior_manager._building_interior.debug_hit_at(Vector3(2.4, 1.5, -0.45))"],
+		["eval", "_interior_manager._building_interior._look.set('yaw_deg', 80.0)"], ["wait", 0.9], ["eval", "_interior_manager._building_interior.debug_hit_at(Vector3(-2.45, 1.2, 1.28))"],
+	],
 	"checkin": [
 		["auto_checkin", false],
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
@@ -515,6 +522,13 @@ const SCENARIOS := {
 		["eval", "debug_goto_corn_gate(-0.6)"], ["wait", 1.5], ["shot", "c1_gate_open"],
 		["eval", "debug_goto_corn_gate(-9.0)"], ["wait", 1.0], ["shot", "c2_maze_mouth"],
 		["eval", "debug_corn_overview()"], ["wait", 1.0], ["shot", "c3_maze_above"],
+	],
+	"cornwalk": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
+		["eval", "debug_corn_spot('exit')"], ["wait", 1.5], ["shot", "w0_exit"], ["eval", "debug_player_y()"],
+		["eval", "debug_corn_spot('strip')"], ["wait", 1.5], ["shot", "w1_strip"], ["eval", "debug_player_y()"],
+		["eval", "debug_corn_spot('hut')"], ["wait", 1.5], ["shot", "w2_hut"], ["eval", "debug_player_y()"],
+		["eval", "debug_corn_overview()"], ["wait", 1.0], ["shot", "w3_above"],
 	],
 	"cornhunt": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],

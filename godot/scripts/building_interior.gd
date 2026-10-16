@@ -2544,7 +2544,7 @@ func _node_has_click_type(node: Node, click_type: String) -> bool:
 func _raycast_room(mouse_pos: Vector2) -> Dictionary:
 	if _interior_camera == null or _viewport == null:
 		return {}
-	var world = _viewport.get_world_3d()
+	var world = _viewport.find_world_3d()
 	if world == null:
 		return {}
 	var local_mouse = _to_interior_viewport_pos(mouse_pos)
@@ -2554,6 +2554,17 @@ func _raycast_room(mouse_pos: Vector2) -> Dictionary:
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	return world.direct_space_state.intersect_ray(query)
+
+
+## Tools: what a click on this point of the room (room coordinates) would hit.
+func debug_hit_at(room_point: Vector3) -> String:
+	var vp_pos := _interior_camera.unproject_position(_room_root.to_global(room_point))
+	var ray_origin = _interior_camera.project_ray_origin(vp_pos)
+	var ray_dir = _interior_camera.project_ray_normal(vp_pos)
+	var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + (ray_dir * 24.0))
+	var hit: Dictionary = _viewport.find_world_3d().direct_space_state.intersect_ray(query)
+	var n = hit.get("collider", null) as Node
+	return str(n.get_path()) if n != null else "-"
 
 
 func _is_mouse_over_radio(mouse_pos: Vector2) -> bool:
