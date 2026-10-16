@@ -17,7 +17,7 @@ const NOTES := {
 	"photo": {"rect": Rect2(24, 109, 78, 85), "paper": Color(0.86, 0.84, 0.78), "ink": Color(0.14, 0.12, 0.2),
 		"text": "Hruby, '91\n\n(the lake from the\njetty. Somebody has\npressed a thumbnail\ninto the water, in\nthe middle, hard\nenough to dent it.)"},
 	"bus": {"rect": Rect2(110, 126, 70, 81), "paper": Color(0.62, 0.7, 0.78), "ink": Color(0.08, 0.1, 0.22),
-		"text": "BUS  380\nto Hlubocany\n\n 6:10\n12:40\n17:50\n\nthe evening one does\nnot stop at the camp\nany more. Walk to the\ncrossroads.\n\nJednota van:\nTue + Fri, at the gate."},
+		"text": "BUS  380\nHlubocany - camp\n\n 6:15   9:40\n13:05  16:30\n18:40\n\nlast one back to\ntown: 19:15.\nthe 23:30 does not\nstop. do not wave.\n\nJednota van:\nTue + Fri, at the gate."},
 	"hruby": {"rect": Rect2(188, 130, 36, 71), "paper": Color(0.74, 0.7, 0.62), "ink": Color(0.14, 0.12, 0.12),
 		"text": "Hruby - lake\nkeeper - boats,\nthe sluice\n\n0663 21 224\n\n-- no longer --", "struck": [0, 4]},
 	"card": {"rect": Rect2(254, 157, 47, 55), "paper": Color(0.84, 0.78, 0.6), "ink": Color(0.12, 0.1, 0.08), "font": "label",

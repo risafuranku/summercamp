@@ -58,3 +58,17 @@ corn_rush	1.5	assets/sfx/world/corn_rush.mp3	Something large pushing quickly thr
 gate_creak	1.5	assets/sfx/world/gate_creak.mp3	An old wooden garden wicket gate swinging open on rusty hinges with a long creak, outdoors at night, no music.
 fish_plop	1.0	assets/sfx/world/fish_plop.mp3	A small fish jumping out of a calm forest lake and falling back with a soft plop and splash, some distance away, outdoors, no music.
 phone_hruby	7	assets/sfx/phone/voice/hruby.mp3	Heard down an old telephone line, close to the receiver: slow heavy drops of water falling into a puddle in a small tiled concrete space, a faint echo, and once a long slow wet breath through cloth, quiet line hiss underneath. No music.
+pipe_step	1.0	assets/sfx/pipes/step.mp3	One heavy rubber boot step splashing in ankle-deep sludge inside a narrow concrete sewer pipe, close, with a short hollow echo, no music.
+pipe_drip	2.0	assets/sfx/pipes/drip.mp3	Single water drips falling from a concrete ceiling into a shallow puddle inside a long sewer pipe, three drips with a hollow echo, quiet, no music.
+pipe_knock	2.5	assets/sfx/pipes/knock.mp3	Three slow dull knocks on the outside of a concrete sewer pipe, heard from inside the pipe some distance away, metallic ring and long hollow echo, as if someone answers, no music.
+pipe_scrape	2.0	assets/sfx/pipes/scrape.mp3	Long fingernails dragging slowly along a wet concrete pipe wall somewhere close behind, a scraping screech with echo inside a sewer, no music.
+pipe_splash_far	2.5	assets/sfx/pipes/splash_far.mp3	Something heavy moving through shallow water far away down a sewer tunnel, several sloshing steps, deep echo, no music.
+pipe_breath	3.0	assets/sfx/pipes/breath.mp3	A wet, rattling, slow breathing very close in the dark of a sewer pipe, something listening, slight gurgle, no music.
+pipe_crawl	2.5	assets/sfx/pipes/crawl.mp3	Something crawling fast on hands and knees through water in a concrete sewer pipe, slapping wet palms and splashes coming closer, echo, no music.
+pipe_hiss	1.5	assets/sfx/pipes/hiss.mp3	A wet hiss and a low guttural recoiling growl from a creature flinching back from a light inside a sewer pipe, short, echo, no music.
+pipe_grab	1.5	assets/sfx/pipes/grab.mp3	A sudden violent grab: a wet slap of a hand on a rubber boot, a body hitting water, a man's sharp gasp, inside a sewer pipe, no music.
+pipe_drag	4.0	assets/sfx/pipes/drag.mp3	A body being dragged quickly backwards through shallow water along a concrete sewer pipe, sloshing, scraping and bumping, fading, no music.
+pipe_clamp	2.0	assets/sfx/pipes/clamp.mp3	Tightening a steel pipe repair clamp with a ratchet spanner inside a sewer: metal clicks of the ratchet, a squeal of the band biting, water spraying against metal, echo, no music.
+pipe_ladder	2.5	assets/sfx/pipes/ladder.mp3	Climbing down a rusty steel ladder into a sewer shaft: boots on iron rungs, clanks echoing below, a splash at the bottom, no music.
+pipe_rat	1.5	assets/sfx/pipes/rat.mp3	A rat squeaking and scurrying quickly across wet concrete inside a sewer pipe, small splashes, close, no music.
+pipe_hum	4.0	assets/sfx/pipes/hum.mp3	Deep in a sewer: a low distant groan of water moving in pipes, almost like a voice humming far away through concrete, subtle and unsettling, no music.

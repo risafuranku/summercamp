@@ -4,9 +4,11 @@ extends RefCounted
 ## camp needs, the district, the shop, the pub, the bus, the local paper's archive, the
 ## camp's own home page with its guest book, and a teenager's ghost webring.
 ##
-## Pages are BBCode with two shorthands the browser expands:
+## Pages are BBCode with shorthands the browser expands:
 ##   {target|text}   a link; target is a URL or download://FILE.EXE
 ##   {{token}}       live content filled in by the browser (counter, guestbook, ...)
+##   {{img:name:w}}  a picture from assets/textury/web (Grok, tools/artgen/web_image.py),
+##                   w pixels wide; it comes down the modem after the text, interlaced
 ## Keys are URLs without "http://", "www." and the trailing slash.
 
 const HOME := "bohemia-online.cz"
@@ -89,6 +91,7 @@ const PAGES := {
 [i]planning software for builders, municipalities and recreational facilities[/i][/center]
 """ + HR + """
 [b][font_size=16]BUILDER 98[/font_size][/b]  version 1.2  [color=#008000](new!)[/color]
+[center]{{img:web_box:200}}[/center]
 
 Plan your site tile by tile: tents, chalets, sanitary blocks, catering, attractions, paths and lighting. Builder 98 keeps the plan in step with the camp's telemetry, so what you draw is what gets built.
 
@@ -179,7 +182,8 @@ Please note:
 		"title": "Jednota Lesna",
 		"bg": "#ffffff", "fg": "#000000", "link": "#cc0000",
 		"body": """[center][bgcolor=#cc0000][color=#ffffff][b][font_size=20] JEDNOTA [/font_size][/b][/color][/bgcolor]
-[b]Lesna 42[/b] - your shop by the reservoir[/center]
+[b]Lesna 42[/b] - your shop by the reservoir
+{{img:web_shop:224}}[/center]
 
 [b]OPEN[/b]  Mon-Fri 7:00-17:00, Sat 7:00-11:00
 
@@ -202,7 +206,8 @@ We do not deliver to the camp after the season.
 		"title": "Hostinec U Jezera",
 		"bg": "#2b1a0e", "fg": "#f0e0b0", "link": "#ffcc66",
 		"body": """[center][font_size=22][b]Hostinec U Jezera[/b][/font_size]
-[i]beer, a warm meal and a roof since 1921[/i][/center]
+[i]beer, a warm meal and a roof since 1921[/i]
+{{img:web_pub:224}}[/center]
 """ + HR + """
 [b]ON TAP[/b]  Budvar 10, Budvar 12, Kofola
 
@@ -226,6 +231,7 @@ The cellar is not open to guests.
 		"bg": "#ffffff", "fg": "#000000", "link": "#0000ee",
 		"body": """[b]CSAD Jihlava a.s. - TIMETABLE[/b]
 [b]Line 380   Hlubocany - Lesna - Cerne jezero, camp[/b]   valid from 31.5.1998
+[center]{{img:web_bus:224}}[/center]
 
 [code]                       Mo-Fr  Mo-Fr  daily  daily  daily    +
 Hlubocany, bus station  6:15   9:40  13:05  16:30  18:40  23:30
@@ -246,13 +252,17 @@ The last bus from the camp to Hlubocany leaves at 19:15.
 		"bg": "#000040", "fg": "#ffff99", "link": "#66ffff",
 		"body": """[center][font_size=24][b][color=#ff6600]WELCOME[/color] TO [color=#66ff66]KEMP CERNE JEZERO[/color]!!![/b][/font_size]
 [color=#ffffff]the best camp in the Vysocina woods - right by the water[/color]
-""" + UNDER + """[/center]
+{{img:web_camp:224}}
+{{img:web_digger:56}}""" + UNDER + """[/center]
 
 [b]WHAT WE HAVE[/b]
  * tents and wooden cabins
  * clean lake for swimming (the water is cold!!)
  * campfire every evening, disco on Saturdays
  * night games with Karel ;-)
+
+[center]{{img:web_campfire:224}}
+[color=#ffffff][i]Karel and the guitar, summer 97[/i][/color][/center]
 
 [b]PRICES 1997[/b]
  tent ................ 60 Kc a night
@@ -298,6 +308,8 @@ The last bus from the camp to Hlubocany leaves at 19:15.
 		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 14 August 1987[/color]
 [font_size=18][b]Search for girl from summer camp goes on[/b][/font_size]
+[center]{{img:news_1987:240}}
+[color=#666666][i]Volunteers and soldiers search the woods above the dam.[/i][/color][/center]
 
 Police, soldiers and volunteers from Lesna have searched the woods around the Cerne jezero reservoir for a fourth day. Jana K. (11) from Prague was last seen on Monday evening during the camp's evening programme.
 
@@ -314,6 +326,8 @@ Jana was wearing a blue tracksuit and [b]red sandals[/b]. Anyone who has seen he
 		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 3 October 1991[/color]
 [font_size=18][b]Photographer missing in the reservoir woods[/b][/font_size]
+[center]{{img:news_1991:240}}
+[color=#666666][i]The camera as it was found, by the fence above the camp.[/i][/color][/center]
 
 Ludek S., a nature photographer from Jihlava, has not come back from a night trip to photograph the deer rut at Cerne jezero. His car was found at the dam.
 
@@ -330,6 +344,8 @@ The camera has not been claimed and is kept at the District Office.
 		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 21 July 1984[/color]
 [font_size=18][b]The stranger in cabin 3[/b][/font_size]
+[center]{{img:news_1984:240}}
+[color=#666666][i]Cabin 3, the morning after. Photo: camp staff.[/i][/color][/center]
 
 Staff at the Cerne jezero camp found a man sitting on the bed in cabin 3 one morning. The cabin had been empty and locked all week. The man wore a dark coat and a hat, and he did not say a word.
 
@@ -344,10 +360,14 @@ He was taken to the hospital in Jihlava. Nobody of his description had been repo
 		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 9 June 1993[/color]
 [font_size=18][b]Works on the camp sewer finished[/b][/font_size]
+[center]{{img:news_1993:240}}
+[color=#666666][i]New pipes going in below the shower block.[/i][/color][/center]
 
 The water board has finished replacing the old sewer pipes at Cerne jezero camp. The pipes from 1962 were blocked along most of their length.
 
 Workers said the blockage was "mostly leaves and hair". In the pipe under the shower block they found a child's [b]red sandal[/b]. The police took a look at it and gave it back to the camp. "It is not connected to anything," a spokesman said.
+
+The lake keeper, Mr H., who had helped the workers clear the old pipes, has not been seen since the works ended. His boat is still tied up at the camp jetty.
 
 The camp will open as usual on 1 July.
 
@@ -358,6 +378,8 @@ The camp will open as usual on 1 July.
 		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 30 October 1996 - From our history[/color]
 [font_size=18][b]The Antlered Man[/b][/font_size]
+[center]{{img:news_1996:240}}
+[color=#666666][i]Parohac on a woodcut from Lesna, 19th century (district museum).[/i][/color][/center]
 
 Every village by the reservoir knows him. Children are told that "Parohac" walks the forest fence at night and takes those who are out after dark.
 
@@ -372,6 +394,8 @@ The gamekeeper's book ends a few weeks later. The fence was built to keep people
 		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 2 September 1998[/color]
 [font_size=18][b]District inspects Cerne jezero camp[/b][/font_size]
+[center]{{img:news_1998:240}}
+[color=#666666][i]The inspectors at the camp office.[/i][/color][/center]
 
 Inspectors from the District Office visited the Cerne jezero camp after complaints about the guest register. "The register says one thing and the beds say another," said the head of the accommodation department. "There were nights with more people in the camp than in the register."
 
@@ -386,11 +410,12 @@ The former leader, Karel H., could not be reached.
 	"volny.cz/~strasidla": {
 		"title": "GHOSTS OF SOUTH BOHEMIA",
 		"bg": "#000000", "fg": "#c0c0c0", "link": "#ff3333",
-		"body": """[center][font_size=24][b][color=#ff0000]GHOSTS[/color] OF SOUTH BOHEMIA[/b][/font_size]
+		"body": """[center]{{img:web_spooky:420}}
+[font_size=24][b][color=#ff0000]GHOSTS[/color] OF SOUTH BOHEMIA[/b][/font_size]
 [color=#808080]by Kuba (14). all TRUE stories. if you dont believe it go there at night[/color][/center]
 """ + HR + """
 [b][color=#ffffff]CERNE JEZERO (the reservoir camp)[/color][/b]
-my uncle says this is the worst place in the district. there are SEVEN (my sister says six but she is a baby)
+{{img:web_ghost:40}} my uncle says this is the worst place in the district. there are EIGHT (my sister says seven but she is a baby)
 
 [color=#ff6666]THE MAN IN THE HAT[/color] - comes up behind you. you hear steps on the gravel and when you stop he stops. you have to turn round and look at him or he gets closer. he never talks. he just whispers when he is right behind you
 
@@ -405,6 +430,8 @@ my uncle says this is the worst place in the district. there are SEVEN (my siste
 [color=#ff6666]THE BASKET MAN[/color] - goes for mushrooms at 3 in the morning. my grandma met him and she says you have to stand still like a tree, he only sees what moves. she never went picking again (she says the boletes were not boletes)
 
 [color=#ff6666]PAROHAC[/color] - the antlered man on the fence. hes the oldest. he doesnt go into the light
+
+[color=#ff6666]THE KEEPER[/color] - Mr Hruby who did the boats. he went down the drains in 1993 when they put the new pipes in and he never came up. my uncle says sometimes you hear knocking in the sewer like somebody wants to be let out. DONT KNOCK BACK. he cant see anymore, he goes for the noise
 
 my uncle says they only come when there are too many people of the same sort in the camp. i dont know what that means
 """ + HR + """

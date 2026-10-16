@@ -3,6 +3,7 @@ extends CanvasLayer
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
+const GENERATOR_SHED = preload("res://scripts/shed/generator_shed.gd")
 const MESS_RULES = preload("res://core/systems/mess_rules.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
@@ -53,6 +54,8 @@ var _sewer_hint: Label3D
 var _sewer_broken: bool = false
 var _look = INTERIOR_LOOK.new(65.0, 20.0, 30.0)
 var _side_hints: Control
+## The generator shed's two rooms, the junk and the board (scripts/shed/generator_shed.gd).
+var _shed
 var _exit_hint: Control
 var _texture_style
 var _restaurant_dining_root: Node3D
@@ -153,6 +156,9 @@ func open_service(service_type: String) -> void:
 	_is_open = true
 	visible = true
 	_sync_viewport_to_window()
+	if _current_profile == "generator" and _shed != null:
+		_active_subroom = "set"
+		_shed.on_open(_time_state == TIME_NIGHT, _nights_visited())
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -173,6 +179,10 @@ func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
 	_update_basement_machine_animation(delta)
+	if _current_profile == "generator" and _shed != null:
+		_shed.update_hover(get_viewport().get_mouse_position())
+	elif INTERIOR_LOOK.in_exit_zone(get_viewport()):
+		HandCursor.want(HandCursor.WALK)
 	_apply_idle_mouse_look(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
@@ -262,6 +272,8 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 	var collider = hit.get("collider", null) as Node
 	if collider == null:
 		return false
+	if _current_profile == "generator" and _shed != null and _shed.click():
+		return true
 	if _node_has_click_type(collider, "service_light_switch"):
 		_toggle_manual_service_lights()
 		return true
@@ -575,10 +587,9 @@ func _build_service_room(profile: String) -> void:
 		_set_vecerka_room("shop", true)
 	elif profile == "generator":
 		_build_generator_layout()
-		if _interior_camera != null:
-			_interior_camera.position = Vector3(0.0, 1.5, 1.8)
-			_interior_camera.rotation_degrees = Vector3(-12.0, 0.0, 0.0)
-			_cam_base_rot = _interior_camera.rotation
+		_active_subroom = "set"
+		_shed.set_room("set", _interior_camera)
+		_cam_base_rot = _interior_camera.rotation
 	else:
 		_restaurant_dining_root = Node3D.new()
 		_restaurant_dining_root.name = "RestaurantDining"
@@ -882,7 +893,11 @@ func _side_hint_texts() -> Array:
 		"sewer":
 			return ["", "Crawl into the pipes  [R]" if _sewer_broken else ""]
 		"generator":
-			return ["", "Repair the set  [R]" if _sewer_broken else ""]
+			if _active_subroom == "board":
+				return ["Back  [A]", ""]
+			if _sewer_broken:
+				return ["", "Repair the set  [R]"]
+			return ["", "Switch room  [D]" if _shed != null and _shed.can_enter_board() else ""]
 		"toilet", "wash":
 			var what := "Stall" if _current_profile == "toilet" else "Shower"
 			match _active_subroom:
@@ -913,6 +928,12 @@ func _switch_service_room(direction: int) -> void:
 			target_room = "storage"
 		elif direction < 0 and _active_subroom == "storage":
 			target_room = "shop"
+	elif _current_profile == "generator" and _shed != null:
+		if direction > 0 and _active_subroom == "set":
+			_shed.try_door()
+			return
+		elif direction < 0 and _active_subroom == "board":
+			target_room = "set"
 	elif _current_profile == "toilet" or _current_profile == "wash":
 		if _active_subroom == "center":
 			target_room = "left" if direction < 0 else "right"
@@ -963,6 +984,11 @@ func _apply_service_subroom(target_room: String, update_camera: bool = true) -> 
 		_set_vecerka_room(target_room, update_camera)
 	elif _current_profile == "toilet" or _current_profile == "wash":
 		_set_hygiene_room(target_room)
+	elif _current_profile == "generator" and _shed != null:
+		_active_subroom = target_room
+		_shed.set_room(target_room, _interior_camera)
+		_cam_base_rot = _interior_camera.rotation
+		_look.reset()
 
 
 func _set_hygiene_room(room: String) -> void:
@@ -1206,23 +1232,15 @@ func _build_sewer_layout() -> void:
 
 
 func _build_generator_layout() -> void:
-	var w = 4.0
-	var d = 4.0
-	var h = 2.8
-
-	# Concrete and brick, the diesel set on its skids, drums of fuel, a pipe to the roof.
-	var K := INTERIOR_KIT
-	K.room(_room_root, Vector3(w, h, d), "concrete", "brick_red", "concrete", 1.0, 1.2, 0.05)
-	K.prop(_room_root, "generator", Vector3(0.0, 0.05, -0.6))
-	K.prop(_room_root, "oil_drum", Vector3(-1.55, 0.05, -1.5))
-	K.prop(_room_root, "oil_drum", Vector3(-1.5, 0.05, 1.3), 30.0)
-	K.slab(_room_root, Vector3(0.1, 1.4, 0.1), Vector3(-0.9, 2.1, -0.35), K.surface("galvanized", 0.5), "GenPipes")
-
-	_sign(_room_root, "TRAFOSTANICE\nDANGER - high voltage", Vector3(0.0, 2.3, -1.98), 30, "danger")
+	# The set room (the diesel set, the drums, the junk, the steel door) and the switch
+	# room behind it with the board: scripts/shed/generator_shed.gd.
+	_shed = GENERATOR_SHED.new()
+	_shed.build(self, _room_root)
+	_sign(_shed.set_root, "TRAFOSTANICE\nDANGER - high voltage", Vector3(-0.6, 2.35, -1.98), 30, "danger")
 	_sewer_hint = Label3D.new()
-	_sewer_hint.position = Vector3(0.9, 1.5, -1.97)
+	_sewer_hint.position = Vector3(-0.6, 1.95, -1.97)
 	_sewer_hint.font_size = 18
-	_room_root.add_child(_sewer_hint)
+	_shed.set_root.add_child(_sewer_hint)
 	_apply_sewer_hint()
 
 
@@ -1518,3 +1536,19 @@ func _add_box(node_name: String, pos: Vector3, box_size: Vector3, color: Color, 
 	var parent_node = parent if parent != null else _room_root
 	parent_node.add_child(mesh_inst)
 	return mesh_inst
+
+
+func _nights_visited() -> int:
+	var n: Node = self
+	while n != null and not n.has_method("get_electricity_ui_snapshot"):
+		n = n.get_parent()
+	var ledger = n.get("_week_ledger") if n != null else null
+	return int(ledger.nights_visited()) if ledger != null and ledger.has_method("nights_visited") else 0
+
+
+## The shed's switch room when the board's close-up closes again.
+func on_breaker_board_closed() -> void:
+	if _shed != null:
+		_shed.on_board_closed()
+	if _is_open:
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)

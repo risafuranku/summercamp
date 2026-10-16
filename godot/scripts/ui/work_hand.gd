@@ -35,13 +35,14 @@ const BY_VERB := {
 	"Pulling": ["open", "pick", "drops"],
 	"Emptying": ["open", "pick", "drops"],
 	"Sawing": ["open", "sweep", "dust"],
+	"Clamping": ["clamp", "turn", "drops"],
 }
 ## Where on each sprite the tool does its work (share of width, height): that point goes
 ## on the target.
 const TIPS := {
 	"brush": Vector2(0.1, 0.4), "broom": Vector2(0.16, 0.45), "mop": Vector2(0.22, 0.22),
 	"rag": Vector2(0.2, 0.28), "bag": Vector2(0.28, 0.62), "plunger": Vector2(0.14, 0.14),
-	"wrench": Vector2(0.2, 0.14), "open": Vector2(0.22, 0.2),
+	"wrench": Vector2(0.2, 0.14), "open": Vector2(0.22, 0.2), "clamp": Vector2(0.24, 0.3),
 }
 const PARTICLE_COLORS := {
 	"suds": [Color(0.92, 0.94, 0.95), Color(0.78, 0.84, 0.88)],

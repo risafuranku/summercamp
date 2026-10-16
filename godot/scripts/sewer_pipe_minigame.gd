@@ -11,17 +11,21 @@ extends CanvasLayer
 ## at some junctions only; between them you count turns, or recognise a landmark.
 ## At the leak, hold E to clamp it; then find your way back to the ladder and press E.
 ##
-## Something lives down here (from day 2, faster at night). The rules, which the old
+## Something lives down here, and how much of it you meet grows with your visits; what
+## it is and how it is staged is scripts/pipes/pipe_director.gd. The rules, which the old
 ## worker's note on the map spells out:
-##   - It is blind. It hunts by sound: every step you take clanks in the pipe, and the
-##     clamp clanks louder. It goes to where it last heard you. Stand still and it
-##     wanders.
-##   - It hates light. Keep the torch on it down a straight pipe and it stops; hold
-##     the light on it and it backs off a junction.
-##   - You hear it before you see it: gurgling far off, breathing when it is one
-##     junction away.
+##   - It is blind. It hunts by sound: every step you take splashes, and the clamp rings
+##     louder. It goes to where it last heard you.
+##   - It hates light. Keep the torch on it down a straight pipe and it folds away.
+##   - You hear it before you see it: knocks and splashes far off, breathing when it is
+##     next to you. Hold S to look back over your shoulder.
 ##   - If it reaches you it drags you back through the dark to the ladder (and hurts):
 ##     a half-done clamp slips off. The job is not lost, the time is.
+##
+## The look of it: you climb down the ladder, the worker's map unfolds for a moment,
+## your gloved hand holds the torch in front of you (a Build-engine weapon sprite), the
+## water along the bottom of the pipes runs away from the leak (follow it upstream), it
+## drips, the torch stutters when something is close.
 
 signal repair_completed(coord: Vector2i, building_type: String)
 signal repair_cancelled
@@ -32,7 +36,14 @@ const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 
 const PIPE_TEXTURE := "res://assets/textury/pipes/pipe_concrete.png"
 const PAPER_TEXTURE := "res://assets/textury/pipes/paper_map.png"
-const THING_SPRITE := "res://assets/textury/npc/pipe_thing.png"
+const DIRECTOR = preload("res://scripts/pipes/pipe_director.gd")
+const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
+const WATER_SHADER = preload("res://materials/pipe_water.gdshader")
+const HAND_TORCH := "res://assets/textury/hands/torch.png"
+const LUNGE_SPRITE := "res://assets/textury/npc/pipe_lunge.png"
+const HANDPRINT := "res://assets/textury/mess/decal_handprint.png"
+const SCUM := "res://assets/textury/pipes/sludge.png"
+const SFX_DIR := "res://assets/sfx/pipes/"
 const SFX_AMBIENCE := "res://assets/sfx/rednecksfx/rrswerambience.wav"
 const SFX_PIPES := "res://assets/sfx/ambiencesfx/pipesambience.mp3"
 const SFX_LEAK := "res://assets/sfx/weather/calmrain.mp3"
@@ -49,15 +60,6 @@ const SIDES := 10
 const EYE_Y := 0.78
 const MOVE_SECONDS := 0.6
 const CLAMP_SECONDS := 2.6
-const THING_STEP := Vector2(5.5, 8.5)
-const THING_DAMAGE := 30
-## Seconds between its moves: hunting a sound, wandering; at night it is quicker.
-const THING_HUNT_SEC := 3.2
-const THING_WANDER_SEC := 7.5
-const THING_NIGHT_MULT := 0.7
-## Light held on it this long and it retreats a junction.
-const THING_LIGHT_SEC := 1.6
-
 const DIRS := [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]  # N E S W
 const DIR_YAW := [0.0, -PI * 0.5, PI, PI * 0.5]
 const LANDMARKS := ["crack", "tally", "rags", "bucket", "shoe"]
@@ -90,17 +92,27 @@ var _clamp: float = 0.0
 var _bob: float = 0.0
 var _map_open: bool = false
 
-# thing
-var _thing_on: bool = false
-var _thing_node: Vector2i
-var _thing_next: float = 0.0
-var _thing_t: float = 0.0
-var _thing: Sprite3D
-var _noise_at := Vector2i(-1, -1)   # where it last heard you
-var _lit_t := 0.0
+# the thing and its staging (pipe_director.gd)
+var _director
+var _visit := 1
+## Looking back over your shoulder (hold S): 0..1.
+var glancing := false
+var _glance := 0.0
+## Climbing down at the start, then the map unfolds for a moment.
+var _intro_t := -1.0
+## Caught: the lunge, the dark, the drag back to the ladder.
+var _caught_t := -1.0
+var _caught_hit := false
+var _torch_hand: TextureRect
+var _work_hand: Control
+var _lunge: TextureRect
+var _black: ColorRect
+var _drips: Array = []
+var _step_player: AudioStreamPlayer
+var _one: AudioStreamPlayer
+var _prints_placed := false
+var _flicker_t := 0.0
 var _night := false
-var _breath: AudioStreamPlayer
-var _warned := 0
 
 # scene
 var _root: Control
@@ -152,21 +164,39 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	_at_leak = false
 	_clamp = 0.0
 	_map_open = false
-	var day := int(state.day) if state != null else 1
 	_night = CoreRoot != null and CoreRoot.is_night()
-	_thing_on = day >= 2 or _night
-	_noise_at = Vector2i(-1, -1)
-	_lit_t = 0.0
-	_warned = 0
-	_place_thing_far()
+	_visit = _next_visit()
+	_director = DIRECTOR.new()
+	_director.start(self, _visit, _night, _rng.randi())
+	_prints_placed = false
+	glancing = false
+	_glance = 0.0
+	_caught_t = -1.0
+	_black.color.a = 0.0
+	_lunge.visible = false
 	_active = true
 	visible = true
 	_rebuild_hud()
-	_set_status("Down the ladder. The leak is marked on the map. Hold TAB to read it.")
+	_set_status("")
 	_play(_ambience)
 	_play(_pipes_bed)
+	for d in _drips:
+		(d as AudioStreamPlayer3D).play()
+	_intro_t = 0.0
+	_play_one("ladder.mp3", -4.0)
 	_update_rig(0.0)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+## How many times you have been down (the camp office keeps the count over the week).
+func _next_visit() -> int:
+	var main := get_parent()
+	var office = main.get("camp_office") if main != null else null
+	if office == null:
+		return 3
+	var n := int(office.get("pipe_visits")) + 1
+	office.set("pipe_visits", n)
+	return n
 
 
 func close_repair(cancelled: bool = true) -> void:
@@ -179,8 +209,12 @@ func close_repair(cancelled: bool = true) -> void:
 			a.stop()
 	if _leak_audio != null:
 		_leak_audio.stop()
-	if _breath != null:
-		_breath.stop()
+	if _director != null:
+		_director.stop()
+	for d in _drips:
+		(d as AudioStreamPlayer3D).stop()
+	if _work_hand != null:
+		_work_hand.stop()
 	if cancelled:
 		repair_cancelled.emit()
 
@@ -420,16 +454,102 @@ func _build_world() -> void:
 	for lm in _landmarks:
 		_build_landmark(lm)
 	_build_leak()
-	_thing = Sprite3D.new()
-	_thing.texture = load(THING_SPRITE) if ResourceLoader.exists(THING_SPRITE) else null
-	_thing.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	_thing.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_thing.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	_thing.shaded = true
-	if _thing.texture != null:
-		_thing.pixel_size = 1.3 / float(_thing.texture.get_height())
-	_thing.visible = false
-	_geo.add_child(_thing)
+	_build_water()
+	_build_drips()
+
+
+## The trickle along the bottom of every pipe, running away from the leak (the farther a
+## pipe is from the leak, the less there is). Follow it upstream.
+func _build_water() -> void:
+	var dist := _distances_from(_leak_a)
+	var mat_cache := {}
+	var scum: Texture2D = load(SCUM) if ResourceLoader.exists(SCUM) else null
+	# The pipe's invert is 0.08 below the junction floor: the water lies a little above it.
+	var floor_y := EYE_Y - PIPE_R * 0.9 - 0.02
+	for e in _edges():
+		var a: Vector2i = e[0]
+		var b: Vector2i = e[1]
+		var da := int(dist.get(a, 9))
+		var db := int(dist.get(b, 9))
+		# Flow from the end nearer the leak to the farther one.
+		var src := a if da <= db else b
+		var dst := b if src == a else a
+		var strength := clampf(1.0 - float(mini(da, db)) / 6.0, 0.15, 1.0)
+		var key := snappedf(strength, 0.1)
+		if not mat_cache.has(key):
+			var m := ShaderMaterial.new()
+			m.shader = WATER_SHADER
+			m.set_shader_parameter("strength", strength)
+			m.set_shader_parameter("speed", 0.25 + 0.5 * strength)
+			if scum != null:
+				m.set_shader_parameter("scum", scum)
+				m.set_shader_parameter("has_scum", true)
+			mat_cache[key] = m
+		var mi := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.orientation = PlaneMesh.FACE_Y
+		q.size = Vector2(PIPE_R * 0.9, CELL)
+		mi.mesh = q
+		mi.material_override = mat_cache[key]
+		var pa := _world_pos(src)
+		var pb := _world_pos(dst)
+		mi.position = (pa + pb) * 0.5
+		mi.position.y = floor_y
+		# The quad's +V runs along -Z before turning: face it from src to dst.
+		var dir := (pb - pa).normalized()
+		mi.rotation.y = atan2(dir.x, dir.z) + PI
+		_geo.add_child(mi)
+
+
+## A few places where it drips from the crown; they fall silent now and then.
+func _build_drips() -> void:
+	for d in _drips:
+		if is_instance_valid(d):
+			d.queue_free()
+	_drips.clear()
+	var nodes := _links.keys()
+	_shuffle(nodes)
+	for i in mini(4, nodes.size()):
+		var p := AudioStreamPlayer3D.new()
+		var path := SFX_DIR + "drip.mp3"
+		if ResourceLoader.exists(path):
+			var st := (load(path) as AudioStreamMP3).duplicate() as AudioStreamMP3
+			st.loop = true
+			p.stream = st
+		p.volume_db = -6.0
+		p.max_distance = 12.0
+		p.pitch_scale = _rng.randf_range(0.85, 1.15)
+		p.position = _world_pos(nodes[i]) + Vector3(0, 0.6, 0)
+		_geo.add_child(p)
+		_drips.append(p)
+
+
+## Wet hand prints on the ladder rungs and the wall by it: long fingers, still running.
+## The first time down, they are there when you come back to the ladder.
+func _place_handprints() -> void:
+	if _prints_placed:
+		return
+	_prints_placed = true
+	var p := _world_pos(_entry)
+	var tex: Texture2D = load(HANDPRINT) if ResourceLoader.exists(HANDPRINT) else null
+	for i in 4:
+		var mi := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(0.2, 0.2)
+		mi.mesh = q
+		var m := StandardMaterial3D.new()
+		if tex != null:
+			m.albedo_texture = tex
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		else:
+			m.albedo_color = Color(0.08, 0.07, 0.05)
+			q.size = Vector2(0.09, 0.14)
+		m.roughness = 0.2
+		mi.material_override = m
+		mi.position = p + Vector3(-0.18 + 0.36 * float(i % 2), -0.1 + 0.32 * float(i), 0.52)
+		mi.rotation = Vector3(0, PI, 0.4 * (1.0 if i % 2 == 0 else -1.0))
+		_geo.add_child(mi)
 
 
 func _floor_offset(r: float) -> Vector3:
@@ -598,6 +718,28 @@ func _build_leak() -> void:
 # ── HUD and map ───────────────────────────────────────────────────────────────
 
 func _build_hud_nodes() -> void:
+	_torch_hand = TextureRect.new()
+	_torch_hand.texture = load(HAND_TORCH) if ResourceLoader.exists(HAND_TORCH) else null
+	_torch_hand.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_torch_hand.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_torch_hand.stretch_mode = TextureRect.STRETCH_SCALE
+	_root.add_child(_torch_hand)
+	_work_hand = WORK_HAND.new()
+	_root.add_child(_work_hand)
+	_lunge = TextureRect.new()
+	_lunge.texture = load(LUNGE_SPRITE) if ResourceLoader.exists(LUNGE_SPRITE) else null
+	_lunge.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_lunge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lunge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_lunge.visible = false
+	_black = ColorRect.new()
+	_black.color = Color(0, 0, 0, 0)
+	_black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_step_player = AudioStreamPlayer.new()
+	_step_player.volume_db = -7.0
+	add_child(_step_player)
+	_one = AudioStreamPlayer.new()
+	add_child(_one)
 	_hud_bar = RETRO_UI.BevelPanel.new()
 	_hud_bar.fill = Color(0.04, 0.035, 0.03, 0.9)
 	_root.add_child(_hud_bar)
@@ -621,6 +763,8 @@ func _build_hud_nodes() -> void:
 	_ink.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ink.draw.connect(_draw_map)
 	_map.add_child(_ink)
+	_root.add_child(_black)
+	_root.add_child(_lunge)
 
 
 func _rebuild_hud() -> void:
@@ -631,12 +775,19 @@ func _rebuild_hud() -> void:
 	_hud_bar.position = Vector2(0, vp.y - 14.0 * s)
 	_hud_bar.size = Vector2(vp.x, 14.0 * s)
 	RETRO_UI.style_label(_hud_controls, RETRO_UI.FONT_LABEL, 8, RETRO_UI.C_BONE_DIM, _scale, false)
-	_hud_controls.text = "W FORWARD   A/D TURN AT A JUNCTION   HOLD TAB MAP   E USE   F LIGHT   ESC LEAVE"
+	_hud_controls.text = "W FORWARD   A/D TURN AT A JUNCTION   HOLD S LOOK BACK   HOLD TAB MAP   E USE   F LIGHT   ESC LEAVE"
 	_hud_controls.position = Vector2(6.0 * s, vp.y - 11.0 * s)
 	RETRO_UI.style_label(_hud_status, RETRO_UI.FONT_TEXT, 8, RETRO_UI.C_BONE, _scale, true)
 	_hud_status.position = Vector2(6.0 * s, 5.0 * s)
 	_map.position = Vector2.ZERO
 	_map.size = vp
+	_black.position = Vector2.ZERO
+	_black.size = vp
+	_lunge.position = Vector2.ZERO
+	_lunge.size = vp
+	if _torch_hand.texture != null:
+		var k := float(maxi(1, int(round(vp.y / 300.0))))
+		_torch_hand.size = _torch_hand.texture.get_size() * k
 
 
 func _set_status(text: String) -> void:
@@ -704,6 +855,17 @@ func _input(event: InputEvent) -> void:
 		return
 	if key == null:
 		return
+	if _caught_t >= 0.0:
+		get_viewport().set_input_as_handled()
+		return
+	if _intro_t >= 0.0 and key.pressed and not key.echo:
+		_intro_t = 99.0
+		get_viewport().set_input_as_handled()
+		return
+	if key.physical_keycode == KEY_S or key.physical_keycode == KEY_DOWN:
+		glancing = key.pressed and not _moving and not _at_leak
+		get_viewport().set_input_as_handled()
+		return
 	if key.physical_keycode == KEY_TAB:
 		_map_open = key.pressed
 		_map.visible = _map_open
@@ -745,12 +907,23 @@ func _try_move(d: int) -> void:
 	_move_target_node = nxt
 	_move_t = 0.0
 	_moving = true
-	# Boots on concrete: it hears every step.
-	_noise_at = _node
+	glancing = false
+	# Boots in the water: it hears every step.
+	if _director != null:
+		_director.heard(_node, 1)
+	_step_player.stream = load(SFX_DIR + "step.mp3") if ResourceLoader.exists(SFX_DIR + "step.mp3") else null
+	_step_player.pitch_scale = _rng.randf_range(0.9, 1.1)
+	_step_player.play()
 
 
 func _process(delta: float) -> void:
 	if not _active:
+		return
+	if _caught_t >= 0.0:
+		_update_caught(delta)
+		return
+	if _intro_t >= 0.0:
+		_update_intro(delta)
 		return
 	if _moving:
 		var leak_here := not _fixed and _same_edge(_node, _move_target_node, _leak_a, _leak_b)
@@ -764,7 +937,13 @@ func _process(delta: float) -> void:
 			_arrive()
 	if _at_leak:
 		_update_clamp(delta)
-	_update_thing(delta)
+	else:
+		_work_hand.stop()
+	if _director != null:
+		_director.tick(delta)
+	_update_torch(delta)
+	if _fixed and _director != null and not _director.is_real():
+		_place_handprints()
 	_update_rig(delta)
 
 
@@ -790,9 +969,12 @@ func _arrive() -> void:
 func _update_clamp(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_E):
 		_clamp += delta / CLAMP_SECONDS
+		_work_hand.start("Clamping", get_viewport().get_visible_rect().size * Vector2(0.5, 0.55))
+		_work_hand.aim(get_viewport().get_visible_rect().size * Vector2(0.5, 0.55))
 		if int(_clamp * 8.0) != int((_clamp - delta / CLAMP_SECONDS) * 8.0):
 			_clank()
-			_noise_at = _node
+			if _director != null:
+				_director.heard(_node, 2)
 		_set_status("Clamping... %d%%" % int(clampf(_clamp, 0.0, 1.0) * 100.0))
 		if _clamp >= 1.0:
 			_fixed = true
@@ -800,9 +982,12 @@ func _update_clamp(delta: float) -> void:
 			_leak_fx.emitting = false
 			_leak_audio.stop()
 			_set_status("Clamped. Now find the ladder.")
+			_play_one("clamp.mp3", -3.0)
+			_work_hand.stop()
 			# finish crossing the pipe
 			_moving = true
 	else:
+		_work_hand.stop()
 		_clamp = maxf(0.0, _clamp - delta * 0.5)
 
 
@@ -825,139 +1010,16 @@ func _update_rig(delta: float) -> void:
 	else:
 		pos = _world_pos(_node)
 	_rig.position = pos
-	var target_yaw: float = DIR_YAW[_facing]
-	_rig.rotation.y = lerp_angle(_rig.rotation.y, target_yaw, minf(1.0, delta * 10.0)) if delta > 0.0 else target_yaw
+	_glance = move_toward(_glance, 1.0 if glancing else 0.0, delta * 4.5)
+	var g := _glance * _glance * (3.0 - 2.0 * _glance)
+	var target_yaw: float = DIR_YAW[_facing] + PI * 0.94 * g
+	_rig.rotation.y = lerp_angle(_rig.rotation.y, target_yaw, minf(1.0, delta * 12.0)) if delta > 0.0 else target_yaw
+	_camera.rotation.x = -0.12 * g
 	_bob += delta * (8.5 if _moving else 1.8)
 	_camera.position = Vector3(0, sin(_bob) * (0.03 if _moving else 0.008), 0)
 
 
 # ── the thing in the pipes ────────────────────────────────────────────────────
-
-func _place_thing_far() -> void:
-	var dist := _distances_from(_entry)
-	var far := _entry
-	var best := -1
-	for c in dist.keys():
-		if int(dist[c]) > best and not (c == _leak_a or c == _leak_b):
-			best = int(dist[c])
-			far = c
-	_thing_node = far
-	_thing_next = _rng.randf_range(THING_STEP.x, THING_STEP.y) + 6.0
-	_thing_t = 0.0
-
-
-func _update_thing(delta: float) -> void:
-	if _thing == null:
-		return
-	_thing.visible = _thing_on
-	if not _thing_on:
-		return
-	_thing.position = _world_pos(_thing_node) + Vector3(0, -0.15, 0)
-	_update_breath()
-	# The torch on it down a straight pipe: it stops, and if you hold it, it backs off.
-	var lit := _flashlight.visible and _thing_in_line_of_sight()
-	if lit:
-		_lit_t += delta
-		_thing_t = 0.0
-		if _lit_t >= THING_LIGHT_SEC:
-			_lit_t = 0.0
-			_retreat()
-		return
-	_lit_t = 0.0
-	_thing_t += delta
-	var hunting := _noise_at.x >= 0
-	var wait := (THING_HUNT_SEC if hunting else THING_WANDER_SEC) * (THING_NIGHT_MULT if _night else 1.0)
-	if _thing_t < wait:
-		return
-	_thing_t = 0.0
-	var step := _thing_node
-	if hunting:
-		step = _next_step_toward(_thing_node, _noise_at)
-		if step == _thing_node:
-			_noise_at = Vector2i(-1, -1)   # got there; nobody. It listens again.
-	else:
-		var opts: Array = _links[_thing_node]
-		if not opts.is_empty():
-			step = _thing_node + DIRS[opts[_rng.randi() % opts.size()]]
-	if step == _thing_node:
-		return
-	_thing_node = step
-	_thing_sound()
-	if _thing_node == _node or (_moving and _thing_node == _move_target_node):
-		_caught()
-
-
-## It reached you: a blow, then a long drag through the dark back to the ladder.
-func _caught() -> void:
-	player_hurt.emit(THING_DAMAGE)
-	_moving = false
-	_at_leak = false
-	if not _fixed:
-		_clamp = 0.0
-	_node = _entry
-	_facing = 0
-	_noise_at = Vector2i(-1, -1)
-	_set_status("Something grabbed your ankle and dragged you back to the ladder.%s" % ("" if _fixed else " The clamp slipped off."))
-	_place_thing_far()
-	_update_rig(0.0)
-
-
-## Away from you, one junction, as far as the pipes allow.
-func _retreat() -> void:
-	var dist := _distances_from(_node)
-	var best := _thing_node
-	var best_d := int(dist.get(_thing_node, 0))
-	for d in _links[_thing_node]:
-		var n: Vector2i = _thing_node + DIRS[d]
-		if int(dist.get(n, 0)) > best_d and n != _node:
-			best_d = int(dist[n])
-			best = n
-	if best != _thing_node:
-		_thing_node = best
-		_thing_sound()
-		_set_status("It shrinks back from the light.")
-	_noise_at = Vector2i(-1, -1)
-
-
-## Breathing gets louder as it gets closer; one junction away it says so.
-func _update_breath() -> void:
-	if _breath == null:
-		_breath = AudioStreamPlayer.new()
-		if ResourceLoader.exists(SFX_THING):
-			_breath.stream = load(SFX_THING)
-			_set_loop(_breath.stream)
-		_breath.pitch_scale = 0.45
-		add_child(_breath)
-	var d := int(_distances_from(_node).get(_thing_node, 99))
-	var db := -60.0
-	if d <= 1:
-		db = -2.0
-	elif d == 2:
-		db = -14.0
-	elif d == 3:
-		db = -26.0
-	_breath.volume_db = lerpf(_breath.volume_db, db, 0.08)
-	if db > -50.0 and not _breath.playing and _breath.stream != null:
-		_breath.play()
-	if d <= 1 and _warned != 1:
-		_warned = 1
-		_set_status("Breathing. Wet, right around the corner. Light. Now.")
-	elif d >= 3:
-		_warned = 0
-
-
-func _thing_in_line_of_sight() -> bool:
-	if _moving:
-		return false
-	var c := _node
-	for i in 6:
-		if not _links[c].has(_facing):
-			return false
-		c = c + DIRS[_facing]
-		if c == _thing_node:
-			return true
-	return false
-
 
 func _next_step_toward(from: Vector2i, to: Vector2i) -> Vector2i:
 	var dist := _distances_from(to)
@@ -971,15 +1033,94 @@ func _next_step_toward(from: Vector2i, to: Vector2i) -> Vector2i:
 	return best
 
 
-func _thing_sound() -> void:
-	if not ResourceLoader.exists(SFX_THING):
+# ── staging: the torch, the intro, being caught ─────────────────────────────
+
+## Your hand holding the torch, bottom right, bobbing in steps with your walk; lowered
+## when the torch is off; the beam stutters when the director says something is near.
+func _update_torch(delta: float) -> void:
+	_flicker_t += delta
+	var f: float = _director.flicker if _director != null else 0.0
+	var stutter := f > 0.0 and fmod(floorf(_flicker_t * 14.0) * 0.618, 1.0) < f * 0.6
+	_flashlight.light_energy = 0.15 if stutter else 3.0
+	if _torch_hand == null or _torch_hand.texture == null:
 		return
-	var p := AudioStreamPlayer3D.new()
-	p.stream = load(SFX_THING)
-	p.pitch_scale = randf_range(0.55, 0.7)
-	p.volume_db = 2.0
-	p.max_distance = 20.0
-	_geo.add_child(p)
-	p.position = _world_pos(_thing_node)
-	p.play()
-	p.finished.connect(p.queue_free)
+	var vp := get_viewport().get_visible_rect().size
+	var k := _torch_hand.size.x / maxf(1.0, _torch_hand.texture.get_width())
+	var step := floorf(_bob * 1.6)
+	var bob := (absf(sin(step * 0.9)) * 6.0 * k) if _moving else (floorf(sin(_bob * 0.8) * 2.0) * k)
+	var lowered := 0.0 if _flashlight.visible else _torch_hand.size.y * 0.55
+	var hide := _torch_hand.size.y * (1.0 if _at_leak and Input.is_physical_key_pressed(KEY_E) else 0.0)
+	_torch_hand.position = Vector2(vp.x * 0.62, vp.y - _torch_hand.size.y * 0.86 - 14.0 * float(_scale) + bob + lowered + hide).floor()
+	_torch_hand.modulate = Color(0.8, 0.78, 0.72) if not _flashlight.visible else Color.WHITE
+	_torch_hand.visible = _glance < 0.5
+
+
+## Down the ladder: the rungs go up past you, the splash at the bottom, then the map you
+## were given unfolds for a moment so you know what you have. Any key skips.
+func _update_intro(delta: float) -> void:
+	_intro_t += delta
+	_update_torch(delta)
+	var base := _world_pos(_entry)
+	var k := clampf(_intro_t / 2.2, 0.0, 1.0)
+	_rig.position = base + Vector3(0, lerpf(2.6, 0.0, k * k * (3.0 - 2.0 * k)), 0.35 * (1.0 - k))
+	_rig.rotation.y = DIR_YAW[_facing]
+	_camera.rotation.x = lerpf(-0.5, 0.0, k)
+	var map_on := _intro_t >= 2.3 and _intro_t < 5.6
+	if _map.visible != map_on:
+		_map.visible = map_on
+		_ink.queue_redraw()
+	if _intro_t >= 5.6:
+		_intro_t = -1.0
+		_map.visible = false
+		_camera.rotation.x = 0.0
+		_set_status("The water runs away from the leak.")
+		_update_rig(0.0)
+
+
+## Called by the director: it has you. The hands out of the dark, the blow, then the dark
+## and the long drag back to the ladder.
+func caught_by_thing() -> void:
+	if _caught_t >= 0.0:
+		return
+	_caught_t = 0.0
+	_caught_hit = false
+	glancing = false
+	_lunge.visible = _lunge.texture != null
+	_lunge.scale = Vector2.ONE * 0.7
+	_lunge.pivot_offset = _lunge.size * 0.5
+	_play_one("grab.mp3", 2.0)
+
+
+func _update_caught(delta: float) -> void:
+	_caught_t += delta
+	if _caught_t < 0.35:
+		var k := _caught_t / 0.35
+		_lunge.scale = Vector2.ONE * lerpf(0.7, 1.6, k)
+		_camera.position = Vector3(randf_range(-0.04, 0.04), randf_range(-0.04, 0.04), 0)
+		return
+	if not _caught_hit:
+		_caught_hit = true
+		_lunge.visible = false
+		_black.color.a = 1.0
+		player_hurt.emit(DIRECTOR.DAMAGE)
+		_play_one("drag.mp3", -1.0)
+		_moving = false
+		_at_leak = false
+		if not _fixed:
+			_clamp = 0.0
+		_work_hand.stop()
+	if _caught_t >= 3.4:
+		_node = _entry
+		_facing = 0
+		_update_rig(0.0)
+		_black.color.a = maxf(0.0, _black.color.a - delta * 1.5)
+		if _black.color.a <= 0.0:
+			_caught_t = -1.0
+			_set_status("It dragged you back to the ladder by the ankle.%s" % ("" if _fixed else " The clamp slipped off."))
+
+
+func _play_one(file: String, db: float) -> void:
+	if ResourceLoader.exists(SFX_DIR + file):
+		_one.stream = load(SFX_DIR + file)
+		_one.volume_db = db
+		_one.play()

@@ -63,39 +63,84 @@ func _signature(g) -> String:
 	return ",".join(parts)
 
 
-## The thing's rules: it walks to a noise and catches you there (back to the ladder,
-## hurt, clamp lost); held light makes it back off.
+## The thing's rules (scripts/pipes/pipe_director.gd): the first time down it is not
+## there at all; later it walks to a noise and, after breathing at you from next door,
+## catches you (back to the ladder, hurt, the half-done clamp lost); light down a straight
+## pipe makes it fold away.
 func _check_thing(failures: Array[String]) -> void:
 	var g = PIPES.new()
 	add_child(g)
 	g.open_repair(Vector2i(3, 3), "sewer")
+	g._intro_t = -1.0
 	var hurt := [0]
 	g.player_hurt.connect(func(a): hurt[0] += a)
-	g._thing_on = true
 	g._flashlight.visible = false
-	# Put the player two junctions from the ladder, the thing far away, and make a noise.
+
+	# Visit 1: nothing can happen to you, whatever you do.
+	g._director.start(g, 1, true, 7)
+	for i in 600:
+		g._director.heard(g._node, 2)
+		g._process(0.1)
+	if hurt[0] > 0 or g._caught_t >= 0.0:
+		failures.append("the first time down, it caught you")
+
+	# Visit 3: stand two junctions from the ladder, ring the clamp: it comes and takes you.
 	var dist: Dictionary = g._distances_from(g._entry)
 	for c in dist.keys():
 		if int(dist[c]) == 2:
 			g._node = c
 			break
+	g._director.start(g, 3, true, 11)
+	g._director._enter_phase(1)  # STALK
 	g._clamp = 0.5
-	g._noise_at = g._node
-	var steps := 0
-	while g._node != g._entry and steps < 60:
-		g._update_thing(g.THING_HUNT_SEC + 0.1)
-		steps += 1
-	if g._node != g._entry:
-		failures.append("the thing never reached the noise")
+	g._at_leak = true
+	var breathed := false
+	for i in 1200:
+		g._director.heard(g._node, 2)
+		g._director._phase = 1
+		g._director._phase_t = 0.0
+		g._process(0.1)
+		if g._director._warned_t > 0.0:
+			breathed = true
+		if g._caught_t >= 0.0:
+			break
+	for i in 60:
+		g._process(0.1)
+	if not breathed:
+		failures.append("it came for you without breathing at you first")
 	if hurt[0] <= 0:
-		failures.append("being caught does not hurt")
+		failures.append("it never caught a player ringing the clamp (or it did not hurt)")
 	if g._clamp != 0.0:
 		failures.append("being caught does not lose the half-done clamp")
-	# Retreat: one junction further from the player.
-	var before := int(g._distances_from(g._node).get(g._thing_node, 0))
-	g._retreat()
-	var after := int(g._distances_from(g._node).get(g._thing_node, 0))
-	if after < before:
-		failures.append("the light does not push it back (%d -> %d)" % [before, after])
+	if g._node != g._entry:
+		failures.append("being caught does not drag you to the ladder")
+
+	# Light: it two junctions straight ahead, the torch on: it folds away.
+	g._at_leak = false
+	g._moving = false
+	var ahead: Array = []
+	for c in g._links.keys():
+		for d in g._links[c]:
+			var n1: Vector2i = c + g.DIRS[d]
+			if g._links[n1].has(d):
+				ahead = [c, d, n1 + g.DIRS[d]]
+				break
+		if not ahead.is_empty():
+			break
+	if ahead.is_empty():
+		failures.append("no straight run of three junctions to test the light on")
+	else:
+		g._node = ahead[0]
+		g._facing = ahead[1]
+		g._director.start(g, 3, false, 5)
+		g._director.node = ahead[2]
+		g._director._scene = {}
+		g._flashlight.visible = true
+		var before := int(g._distances_from(g._node).get(g._director.node, 0))
+		for i in 15:
+			g._director._update_light(0.1, before)
+		var after := int(g._distances_from(g._node).get(g._director.node, 0))
+		if after <= before:
+			failures.append("the light does not push it back (%d -> %d)" % [before, after])
 	g.close_repair(true)
 	g.queue_free()

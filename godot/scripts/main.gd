@@ -378,6 +378,12 @@ func _setup_night_jobs() -> void:
 		add_child(_breaker_panel)
 		_breaker_panel.fixed.connect(func(fault: int): _night_jobs.on_breaker_fixed(fault))
 		_breaker_panel.closed.connect(func():
+			if _breaker_from_shed:
+				_breaker_from_shed = false
+				var shed = _interior_manager.get("_service_interior") if _interior_manager != null else null
+				if shed != null and shed.has_method("on_breaker_board_closed"):
+					shed.on_breaker_board_closed()
+				return
 			if _player != null and _player.has_method("set_controls_enabled"):
 				_player.set_controls_enabled(true)
 			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -554,16 +560,24 @@ func _sync_dark_lamps() -> void:
 	building_manager.set_broken_lamps(dark)
 
 
-## The generator's distribution board while the main is tripped.
-func _on_structure_interact_override(structure: Node3D) -> bool:
+## The generator shed is entered like any interior now: the distribution board is in
+## its switch room (scripts/shed/generator_shed.gd), which calls open_breaker_board().
+func _on_structure_interact_override(_structure: Node3D) -> bool:
+	return false
+
+
+var _breaker_from_shed := false
+
+
+## The board's close-up, from the shed's switch room.
+func open_breaker_board() -> void:
 	if _night_jobs == null or not _night_jobs.breaker_tripped:
-		return false
-	if str(structure.get_meta("building_type", "")) != "power_generator":
-		return false
-	if _player != null and _player.has_method("set_controls_enabled"):
-		_player.set_controls_enabled(false)
+		if _hud_manager != null:
+			var dead: int = _night_jobs.dead_circuit if _night_jobs != null else -1
+			_hud_manager.push_status("Every breaker is up and the main holds." if dead < 0 else "The main holds. One circuit stays down until Novotny has looked at it.", 1)
+		return
+	_breaker_from_shed = true
 	_breaker_panel.open(_night_jobs.breaker_fault())
-	return true
 
 
 ## For the HUD waypoint: the nearest open night job.

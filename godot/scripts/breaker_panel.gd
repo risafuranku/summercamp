@@ -186,7 +186,7 @@ func _trip() -> void:
 func _finish() -> void:
 	_done = true
 	_play("power_back.mp3")
-	_status = "The main holds. %s stays off until the electrician comes." % CIRCUIT_NAMES[_fault]
+	_status = "The main holds. %s stays off until Novotny has looked at it: his number is on the office noticeboard." % CIRCUIT_NAMES[_fault]
 	fixed.emit(_fault)
 	get_tree().create_timer(2.2).timeout.connect(close)
 
@@ -205,115 +205,124 @@ func _play(file: String) -> void:
 		_one.play()
 
 
-# ── drawing (virtual pixels x scale) ─────────────────────────────────────────
+# ── drawing: the Grok picture of the board, the states painted onto it ───────
+
+const PIC := "res://assets/textury/closeup/breaker.png"
+const PIC_SIZE := Vector2(320, 240)
+const STRIP := 30.0
+## Where things are on the picture (px).
+const TOGGLE_X := [113.0, 135.0, 157.5, 180.0, 202.0, 224.5]
+const TOGGLE_Y := 115.0
+const LED_Y := 108.0
+const LABEL_Y := 144.0
+const SHORT := ["L-N", "L-S", "OFC", "KIT", "WSH", "PMP"]
+const LEVER_RECT := Rect2(46, 74, 34, 104)
+const LEVER_COVER_SRC := Rect2(80, 74, 12, 104)
+const LEVER_PIVOT := Vector2(65, 84)
+const DIAL := Vector2(216, 63)
+const NOTE_RECT := Rect2(281, 101, 30, 51)
+const NOTE := "Vera's note, taped inside the door: \"main keeps jumping? all down, main up, then one at a time. the one that throws it stays down. - V.\""
+
+var _pic: Texture2D
+
 
 func _draw_board() -> void:
-	var s := float(_scale)
+	if _pic == null and ResourceLoader.exists(PIC):
+		_pic = load(PIC)
 	var screen := _board.size
-	var bw := 300.0
-	var bh := 190.0
-	var origin := ((screen - Vector2(bw, bh) * s) * 0.5).floor()
+	var k := float(maxi(1, int(floor(minf(screen.x * 0.94 / PIC_SIZE.x, screen.y * 0.9 / (PIC_SIZE.y + STRIP))))))
+	var origin := ((screen - Vector2(PIC_SIZE.x, PIC_SIZE.y + STRIP) * k) * 0.5).floor()
+	var P := func(x: float, y: float) -> Vector2:
+		return origin + Vector2(x, y) * k
 	var R := func(x: float, y: float, w: float, h: float) -> Rect2:
-		return Rect2(origin + Vector2(x, y) * s, Vector2(w, h) * s)
-	var metal := Color(0.30, 0.32, 0.30)
-	# Box with a bevel, rivets and a few scratches.
-	_board.draw_rect(R.call(-3, -3, bw + 6, bh + 6), Color(0.06, 0.06, 0.05))
-	_board.draw_rect(R.call(0, 0, bw, bh), metal)
-	for k in 9:
-		var sx := fmod(float(k) * 37.0, bw - 20.0) + 6.0
-		_board.draw_rect(R.call(sx, 30 + fmod(float(k) * 53.0, bh - 40.0), 8 + k % 5, 1), metal.lightened(0.12))
-	_board.draw_rect(R.call(0, 0, bw, 1), metal.lightened(0.3))
-	_board.draw_rect(R.call(0, 0, 1, bh), metal.lightened(0.2))
-	_board.draw_rect(R.call(0, bh - 1, bw, 1), metal.darkened(0.5))
-	_board.draw_rect(R.call(bw - 1, 0, 1, bh), metal.darkened(0.5))
-	for c in [Vector2(4, 4), Vector2(bw - 6, 4), Vector2(4, bh - 6), Vector2(bw - 6, bh - 6)]:
-		_board.draw_rect(R.call(c.x, c.y, 2, 2), metal.darkened(0.45))
-	_text("DISTRIBUTION BOARD 2", origin + Vector2(8, 13) * s, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, Color(0.86, 0.84, 0.7))
-	_text("CAMP CIRCUITS  230 V  ~   ELEKTROMONT 1979", origin + Vector2(8, 23) * s, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, Color(0.62, 0.62, 0.55))
+		return Rect2(origin + Vector2(x, y) * k, Vector2(w, h) * k)
+	_board.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_board.draw_rect(R.call(-2, -2, PIC_SIZE.x + 4, PIC_SIZE.y + STRIP + 4), Color(0.05, 0.05, 0.04))
+	if _pic != null:
+		_board.draw_texture_rect(_pic, R.call(0, 0, PIC_SIZE.x, PIC_SIZE.y), false)
 
-	# Ammeter, top right: green, amber, red.
-	var gx := bw - 62.0
-	var gy := 6.0
-	_board.draw_rect(R.call(gx, gy, 54, 30), Color(0.12, 0.12, 0.11))
-	_board.draw_rect(R.call(gx + 2, gy + 2, 50, 26), Color(0.88, 0.86, 0.76))
-	var pivot := origin + Vector2(gx + 27, gy + 26) * s
-	for k in 11:
-		var a0 := PI + PI * float(k) / 10.0
-		var col := Color(0.2, 0.5, 0.2) if k < 6 else (Color(0.8, 0.6, 0.1) if k < 8 else Color(0.8, 0.15, 0.1))
-		_board.draw_line(pivot + Vector2(cos(a0), sin(a0)) * 18.0 * s, pivot + Vector2(cos(a0), sin(a0)) * 21.0 * s, col, s)
-	var an := PI + PI * clampf(_needle, 0.0, 1.0)
-	_board.draw_line(pivot, pivot + Vector2(cos(an), sin(an)) * 20.0 * s, Color(0.1, 0.1, 0.1), maxf(1.0, s * 0.7))
-	_text("A", origin + Vector2(gx + 4, gy + 12) * s, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, Color(0.2, 0.2, 0.2))
-
-	# MAIN lever, sliding.
-	var mx := 10.0
-	var my := 36.0
-	_board.draw_rect(R.call(mx, my, 30, 70), Color(0.16, 0.16, 0.15))
+	# The main: the picture shows it down (off). Up, the painted lever is covered with
+	# the housing beside it and the lever drawn swung up, in two steps.
+	if _lever > 0.34 and _pic != null:
+		_board.draw_texture_rect_region(_pic, R.call(LEVER_RECT.position.x, LEVER_RECT.position.y, LEVER_RECT.size.x, LEVER_RECT.size.y), LEVER_COVER_SRC)
+		var up := 1.0 if _lever > 0.67 else 0.55
+		var ang := lerpf(PI * 0.5, -PI * 0.58, up)
+		var tip := LEVER_PIVOT + Vector2(cos(ang), sin(ang)) * 30.0
+		var side := Vector2(-sin(ang), cos(ang)) * 4.5
+		var poly := PackedVector2Array([P.call(LEVER_PIVOT.x + side.x, LEVER_PIVOT.y + side.y), P.call(LEVER_PIVOT.x - side.x, LEVER_PIVOT.y - side.y), P.call(tip.x - side.x * 0.8, tip.y - side.y * 0.8), P.call(tip.x + side.x * 0.8, tip.y + side.y * 0.8)])
+		_board.draw_colored_polygon(poly, Color(0.55, 0.1, 0.07))
+		_board.draw_line(P.call(LEVER_PIVOT.x - side.x * 0.4, LEVER_PIVOT.y - side.y * 0.4), P.call(tip.x - side.x * 0.4, tip.y - side.y * 0.4), Color(0.82, 0.3, 0.2), k)
+		_board.draw_rect(R.call(LEVER_PIVOT.x - 4, LEVER_PIVOT.y - 3, 8, 6), Color(0.1, 0.1, 0.1))
 	if _hover == -1:
-		_board.draw_rect(R.call(mx - 1, my - 1, 32, 72), Color(1.0, 0.85, 0.3, 0.9), false, s)
-	_board.draw_rect(R.call(mx + 12, my + 6, 6, 58), Color(0.06, 0.06, 0.06))
-	var lever_y := lerpf(my + 46.0, my + 8.0, ease(_lever, 0.6))
-	_board.draw_rect(R.call(mx + 6, lever_y, 18, 12), Color(0.72, 0.12, 0.08))
-	_board.draw_rect(R.call(mx + 6, lever_y, 18, 2), Color(0.95, 0.35, 0.25))
-	_text("MAIN", origin + Vector2(mx + 4, my + 82) * s, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, Color(0.9, 0.88, 0.75))
-	_text("ON" if _main_on else "OFF", origin + Vector2(mx + 8, my + 92) * s, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, Color(0.5, 0.95, 0.4) if _main_on else Color(0.95, 0.4, 0.3))
-	_hit_main = R.call(mx, my, 30, 70)
+		_board.draw_rect(R.call(LEVER_RECT.position.x - 1, LEVER_RECT.position.y - 1, LEVER_RECT.size.x + 2, LEVER_RECT.size.y + 2), Color(1.0, 0.85, 0.3, 0.8), false, k)
+	_hit_main = R.call(LEVER_RECT.position.x, LEVER_RECT.position.y - 20, LEVER_RECT.size.x, LEVER_RECT.size.y + 20)
 
-	# The six circuits.
+	# The six breakers: the toggle up or down, the lamp above, the label strip.
 	_hit_breakers.clear()
 	for i in CIRCUITS.size():
-		var x := 60.0 + float(i) * 38.0
-		var y := 44.0
+		var x: float = TOGGLE_X[i]
 		var powered: bool = _main_on and _up[i]
-		_board.draw_rect(R.call(x + 6, y - 8, 6, 4), Color(0.95, 0.85, 0.3) if powered else Color(0.22, 0.2, 0.14))
-		if powered:
-			_board.draw_rect(R.call(x + 4, y - 10, 10, 8), Color(1.0, 0.9, 0.4, 0.18))
 		if i == _fault and _trips >= 3:
-			# Scorched: the plastic has browned around the bad one.
-			_board.draw_rect(R.call(x - 3, y - 2, 24, 30), Color(0.12, 0.08, 0.04, 0.55))
-		_board.draw_rect(R.call(x, y, 18, 40), Color(0.84, 0.82, 0.76))
-		_board.draw_rect(R.call(x, y, 18, 1), Color(1, 1, 1))
+			_board.draw_rect(R.call(x - 10, 102, 20, 46), Color(0.1, 0.06, 0.02, 0.5))
+		_board.draw_rect(R.call(x - 3, TOGGLE_Y, 6, 15), Color(0.05, 0.05, 0.05))
+		if _up[i]:
+			_board.draw_rect(R.call(x - 3, TOGGLE_Y, 6, 7), Color(0.58, 0.58, 0.55))
+			_board.draw_rect(R.call(x - 3, TOGGLE_Y, 6, 1), Color(0.85, 0.85, 0.8))
+		else:
+			_board.draw_rect(R.call(x - 3, TOGGLE_Y + 8, 6, 7), Color(0.5, 0.12, 0.08))
+			_board.draw_rect(R.call(x - 3, TOGGLE_Y + 8, 6, 1), Color(0.75, 0.3, 0.2))
+		var led := Color(0.45, 1.0, 0.4) if powered else Color(0.12, 0.14, 0.1)
+		_board.draw_rect(R.call(x - 1.5, LED_Y - 1.5, 3, 3), led)
+		if powered:
+			_board.draw_rect(R.call(x - 3, LED_Y - 3, 6, 6), Color(0.5, 1.0, 0.4, 0.22))
+		var lw: float = RETRO_UI.FONT_TEXT.get_string_size(SHORT[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 8 * int(k)).x
+		_board.draw_string(RETRO_UI.FONT_TEXT, (P.call(x, LABEL_Y) - Vector2(lw * 0.5, 0)).floor(), SHORT[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 8 * int(k), Color(0.15, 0.13, 0.12))
 		if _hover == i:
-			_board.draw_rect(R.call(x - 1, y - 1, 20, 42), Color(1.0, 0.85, 0.3, 0.9), false, s)
-		_board.draw_rect(R.call(x + 5, y + 6, 8, 28), Color(0.2, 0.2, 0.2))
-		var ty := y + 7.0 if _up[i] else y + 21.0
-		_board.draw_rect(R.call(x + 5, ty, 8, 12), Color(0.12, 0.12, 0.12) if _up[i] else Color(0.55, 0.1, 0.08))
-		for li in 2:
-			var word: String = LABELS[i][li]
-			if word.is_empty():
-				continue
-			var lw: float = RETRO_UI.FONT_TEXT.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, RETRO_UI.SIZE_TEXT * _scale).x
-			_text(word, origin + Vector2(x + 9, y + 52 + li * 9) * s - Vector2(lw * 0.5, 0), RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, Color(0.86, 0.84, 0.72))
-		_hit_breakers.append(R.call(x, y, 18, 40))
+			_board.draw_rect(R.call(x - 9, 103, 18, 31), Color(1.0, 0.85, 0.3, 0.8), false, k)
+		_hit_breakers.append(R.call(x - 9, 103, 18, 31))
 
-	# The note taped inside the door.
-	_board.draw_rect(R.call(200, 124, 92, 56), Color(0.92, 0.88, 0.72))
-	_board.draw_rect(R.call(232, 122, 22, 4), Color(0.8, 0.78, 0.6, 0.8))
-	var note := ["main keeps jumping?", "all down, main up,", "then one at a time.", "the one that throws", "it stays down. - V."]
-	for li in note.size():
-		_text(note[li], origin + Vector2(204, 134 + li * 9) * s, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, Color(0.18, 0.16, 0.25))
+	# The ammeter: a fresh dial face over the picture's, ticks green, amber, red.
+	_board.draw_circle(P.call(DIAL.x, DIAL.y), 14.0 * k, Color(0.86, 0.82, 0.7))
+	var pivot: Vector2 = P.call(DIAL.x, DIAL.y + 8)
+	for t in 11:
+		var a0 := PI + PI * float(t) / 10.0
+		var col := Color(0.2, 0.5, 0.2) if t < 6 else (Color(0.8, 0.6, 0.1) if t < 8 else Color(0.8, 0.15, 0.1))
+		_board.draw_line(pivot + Vector2(cos(a0), sin(a0)) * 10.0 * k, pivot + Vector2(cos(a0), sin(a0)) * 12.5 * k, col, k)
+	var an := PI + PI * clampf(_needle, 0.0, 1.0)
+	_board.draw_line(pivot, pivot + Vector2(cos(an), sin(an)) * 12.0 * k, Color(0.08, 0.08, 0.08), k)
+	_board.draw_rect(Rect2(pivot - Vector2(k, k), Vector2(2, 2) * k), Color(0.1, 0.1, 0.1))
 
-	var lines := _wrap(_status, 36)
-	for li in lines.size():
-		_text(lines[li], origin + Vector2(8, 146 + li * 9) * s, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, Color(0.95, 0.85, 0.5))
-	_text("[CLICK] flip   [ESC] leave", origin + Vector2(8, 182) * s, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, Color(0.6, 0.6, 0.55))
+	# Vera's note: scribbles you can read by pointing at it.
+	for li in 6:
+		_board.draw_rect(R.call(NOTE_RECT.position.x + 4, NOTE_RECT.position.y + 8 + li * 6, NOTE_RECT.size.x - 8 - (li % 3) * 3, 1), Color(0.2, 0.18, 0.3, 0.7))
+	var over_note: bool = R.call(NOTE_RECT.position.x, NOTE_RECT.position.y, NOTE_RECT.size.x, NOTE_RECT.size.y).has_point(_mouse)
+
+	# The strip under the picture: what is happening, or the note when you point at it.
+	_board.draw_rect(R.call(0, PIC_SIZE.y, PIC_SIZE.x, STRIP), Color(0.06, 0.05, 0.04))
+	_board.draw_rect(R.call(0, PIC_SIZE.y, PIC_SIZE.x, 1), RETRO_UI.C_PLATE_LIGHT * Color(1, 1, 1, 0.5))
+	var lines := _wrap(NOTE if over_note else _status, 74)
+	for li in mini(lines.size(), 3):
+		_board.draw_string(RETRO_UI.FONT_TEXT, P.call(6, PIC_SIZE.y + 10 + li * 8).floor(), lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 8 * int(k), RETRO_UI.C_BONE if over_note else Color(0.95, 0.85, 0.5))
+
 	for sp in _sparks:
-		var pp: Vector2 = origin + Vector2(sp["p"]) * s
-		_board.draw_rect(Rect2(pp, Vector2(s, s)), Color(1.0, 0.9, 0.5, clampf(float(sp["t"]) * 2.0, 0.0, 1.0)))
+		var pp: Vector2 = P.call(LEVER_PIVOT.x + float(sp["p"].x) - 25.0, LEVER_PIVOT.y + float(sp["p"].y) - 50.0)
+		_board.draw_rect(Rect2(pp, Vector2(k, k)), Color(1.0, 0.9, 0.5, clampf(float(sp["t"]) * 2.0, 0.0, 1.0)))
 
 	# Torchlight: the box is lit where you point the torch, dark elsewhere.
 	if not (_main_on and not _done) and _torch_texture() != null:
-		var r := 150.0 * s
+		var r := 120.0 * k
 		var m := _mouse if _mouse != Vector2.ZERO else screen * 0.5
 		var rect := Rect2(m - Vector2(r, r), Vector2(r, r) * 2.0)
-		var dark := Color(0, 0, 0, 0.72)
+		var dark := Color(0, 0, 0, 0.7)
 		_board.draw_rect(Rect2(0, 0, screen.x, rect.position.y), dark)
 		_board.draw_rect(Rect2(0, rect.end.y, screen.x, screen.y - rect.end.y), dark)
 		_board.draw_rect(Rect2(0, rect.position.y, rect.position.x, rect.size.y), dark)
 		_board.draw_rect(Rect2(rect.end.x, rect.position.y, screen.x - rect.end.x, rect.size.y), dark)
-		_board.draw_texture_rect(_torch, rect, false, Color(1, 1, 1, 0.72))
+		_board.draw_texture_rect(_torch, rect, false, Color(1, 1, 1, 0.7))
 	if _flash > 0.0:
 		_board.draw_rect(Rect2(Vector2.ZERO, screen), Color(1, 1, 0.9, _flash * 0.75))
+	if _hover != -2:
+		HandCursor.want(HandCursor.POINT)
 
 
 ## A disc of light: transparent in the middle, black at the rim.

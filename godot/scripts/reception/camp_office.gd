@@ -16,6 +16,10 @@ const WAKE_HOUR := 6.5
 const SLEEP_RATE := 9.0
 
 var has_shed_key := false
+## Times you have been down the sewer (scripts/pipes/pipe_director.gd: what you meet).
+var pipe_visits := 0
+## The junk shoved away from the generator shed's back door (scripts/shed/generator_shed.gd).
+var shed_moved: Array = []
 var electrician                      # electrician_visit.gd, or null
 var _main: Node
 var _sleep_left := 0.0               # hours still to pass
@@ -27,6 +31,8 @@ func setup(main_node: Node) -> void:
 
 func reset() -> void:
 	has_shed_key = false
+	pipe_visits = 0
+	shed_moved = []
 	_sleep_left = 0.0
 	if electrician != null and is_instance_valid(electrician):
 		electrician.queue_free()
@@ -136,7 +142,7 @@ func take_shed_key() -> void:
 
 
 func export_state() -> Dictionary:
-	var out := {"has_shed_key": has_shed_key}
+	var out := {"has_shed_key": has_shed_key, "pipe_visits": pipe_visits, "shed_moved": shed_moved.duplicate()}
 	if electrician != null and is_instance_valid(electrician):
 		out["electrician"] = electrician.export_state()
 	return out
@@ -145,6 +151,9 @@ func export_state() -> Dictionary:
 func import_state(data: Dictionary) -> void:
 	reset()
 	has_shed_key = bool(data.get("has_shed_key", false))
+	pipe_visits = int(data.get("pipe_visits", 0))
+	var moved = data.get("shed_moved", [])
+	shed_moved = (moved as Array).duplicate() if moved is Array else []
 	var e = data.get("electrician", null)
 	if e is Dictionary:
 		electrician = ELECTRICIAN_VISIT.new()

@@ -7,6 +7,10 @@ extends Control
 const T = preload("res://scripts/os98/os_theme.gd")
 const WEB = preload("res://scripts/os98/web_pages.gd")
 const LINK_RE := "\\{([^{}|]+)\\|([^{}]+)\\}"
+const IMG_RE := "\\{\\{img:([a-z0-9_]+):(\\d+)\\}\\}"
+const WEB_IMG := "res://assets/textury/web/"
+## Interlaced passes (GIF style): one row in 8, in 4, in 2, then the picture.
+const PASSES := [8, 4, 2, 1]
 
 var _shell
 var _win
@@ -28,12 +32,17 @@ var _dial_then := ""
 var _anim := 0.0
 var _counters: Dictionary = {}
 var _link_re := RegEx.new()
+var _img_re := RegEx.new()
+## Pictures still coming down the line: [{key, src: Image, tex, pass, t, kb}]
+var _pictures: Array = []
+var _pic_i := 0
 
 
 func setup(shell, win, args: Dictionary) -> void:
 	_shell = shell
 	_win = win
 	_link_re.compile(LINK_RE)
+	_img_re.compile(IMG_RE)
 	_build()
 	navigate(str(args.get("url", WEB.HOME)))
 
@@ -204,6 +213,82 @@ func _process(delta: float) -> void:
 			_show(_pending)
 	if _dial_t >= 0.0:
 		_tick_dialer(delta)
+	if not _pictures.is_empty() and _loading <= 0.0:
+		_tick_pictures(delta)
+
+
+## The page's text at once, the pictures as grey boxes that fill in one by one.
+func _set_page(bbcode: String) -> void:
+	_page.clear()
+	_pictures.clear()
+	_pic_i = 0
+	var pos := 0
+	for m in _img_re.search_all(bbcode):
+		_page.append_text(bbcode.substr(pos, m.get_start() - pos))
+		_add_picture(m.get_string(1), int(m.get_string(2)))
+		pos = m.get_end()
+	_page.append_text(bbcode.substr(pos))
+
+
+func _add_picture(file: String, width: int) -> void:
+	var path := WEB_IMG + file + ".png"
+	if not ResourceLoader.exists(path):
+		return
+	var src: Image = (load(path) as Texture2D).get_image()
+	if src.is_compressed():
+		src.decompress()
+	src.convert(Image.FORMAT_RGB8)
+	var w := width
+	var h := maxi(1, int(round(float(src.get_height()) * float(w) / float(src.get_width()))))
+	src.resize(w, h, Image.INTERPOLATE_NEAREST)
+	var key := "pic%d" % _pictures.size()
+	var tex := ImageTexture.create_from_image(_placeholder(w, h))
+	_page.add_image(tex, w, h, Color.WHITE, INLINE_ALIGNMENT_CENTER, Rect2(), key)
+	# A rough size for the status line: what a 1998 JPEG of this would weigh.
+	_pictures.append({"key": key, "src": src, "tex": tex, "pass": -1, "t": 0.0, "kb": maxi(2, w * h / 1800)})
+
+
+## The empty picture frame IE drew while waiting: a sunken grey box, a tiny icon.
+static func _placeholder(w: int, h: int) -> Image:
+	var img := Image.create(w, h, false, Image.FORMAT_RGB8)
+	img.fill(Color(0.75, 0.75, 0.75))
+	for x in w:
+		img.set_pixel(x, 0, Color(0.5, 0.5, 0.5))
+		img.set_pixel(x, h - 1, Color(1, 1, 1))
+	for y in h:
+		img.set_pixel(0, y, Color(0.5, 0.5, 0.5))
+		img.set_pixel(w - 1, y, Color(1, 1, 1))
+	for y in range(3, mini(h - 1, 12)):
+		for x in range(3, mini(w - 1, 12)):
+			var edge := x == 3 or y == 3 or x == 11 or y == 11
+			img.set_pixel(x, y, Color(0.3, 0.3, 0.3) if edge else (Color(0.2, 0.6, 0.3) if y > 8 else Color(0.5, 0.7, 0.95)))
+	return img
+
+
+## One picture at a time down the modem: each pass takes longer for a bigger picture.
+func _tick_pictures(delta: float) -> void:
+	if _pic_i >= _pictures.size():
+		_pictures.clear()
+		_status.text = "Done"
+		return
+	var p: Dictionary = _pictures[_pic_i]
+	p["t"] = float(p["t"]) + delta
+	var per_pass := 0.12 + float(p["kb"]) * 0.018
+	if float(p["t"]) < per_pass:
+		return
+	p["t"] = 0.0
+	p["pass"] = int(p["pass"]) + 1
+	var src: Image = p["src"]
+	var k: int = PASSES[clampi(int(p["pass"]), 0, PASSES.size() - 1)]
+	var img := src.duplicate() as Image
+	if k > 1:
+		img.resize(src.get_width(), maxi(1, src.get_height() / k), Image.INTERPOLATE_NEAREST)
+		img.resize(src.get_width(), src.get_height(), Image.INTERPOLATE_NEAREST)
+	(p["tex"] as ImageTexture).update(img)
+	var done_kb := int(float(p["kb"]) * float(int(p["pass"]) + 1) / float(PASSES.size()))
+	_status.text = "Picture %d of %d (%d of %d KB)..." % [_pic_i + 1, _pictures.size(), done_kb, int(p["kb"])]
+	if int(p["pass"]) >= PASSES.size() - 1:
+		_pic_i += 1
 
 
 func _show(key: String) -> void:
@@ -213,10 +298,10 @@ func _show(key: String) -> void:
 	var bg := Color.html(str(page.get("bg", "#ffffff")))
 	_page.add_theme_stylebox_override("normal", T.box("field", bg, Vector4(8, 6, 8, 6)))
 	_page.add_theme_color_override("default_color", Color.html(str(page.get("fg", "#000000"))))
-	_page.text = _expand(str(page.get("body", "")), str(page.get("link", "#0000ee")), key)
+	_set_page(_expand(str(page.get("body", "")), str(page.get("link", "#0000ee")), key))
 	_page.scroll_to_line(0)
 	_win.title = "%s - Beeternet Explorer" % str(page.get("title", key))
-	_status.text = "Done"
+	_status.text = "Done" if _pictures.is_empty() else "Picture 1 of %d..." % _pictures.size()
 	_throbber.queue_redraw()
 	_counters[key] = int(_counters.get(key, 0)) + 1
 
