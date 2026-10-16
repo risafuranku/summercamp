@@ -69,9 +69,15 @@ const RADIO_DROPOUT_ATTENUATION_DB: float = -4.5
 const RADIO_NIGHT_TRACK_VOLUME_OFFSET_DB: float = -8.0
 const RADIO_POWER_OFF_VOLUME_DB: float = -80.0
 const RADIO_POWER_TOGGLE_FADE_SEC: float = 0.5
-const RADIO_CLICK_CENTER_LOCAL := Vector3(-0.10, 0.92, -1.52)
+## The reception (2026-10-16 brief): you stand behind the counter facing the room and
+## the front door; the computer is on the low desk to your left, the key board on the
+## wall to your right. The PC corner was built under the window; PC_OFFSET carries it.
+const RECEPTION_CAM_POS := Vector3(0.0, 1.5, 1.15)
+const PC_OFFSET := Vector3(-1.94, 0.0, 1.68)
+const DESK_ROOM = preload("res://scripts/reception/desk_room.gd")
+const RADIO_CLICK_CENTER_LOCAL := Vector3(-0.10, 0.92, -1.52) + PC_OFFSET
 const RADIO_CLICK_SIZE := Vector3(0.46, 0.42, 0.38)
-const NOTEBOOK_CLICK_CENTER_LOCAL := Vector3(-0.94, 1.02, 0.34)
+const NOTEBOOK_CLICK_CENTER_LOCAL := Vector3(-0.12, 1.0, 0.34)
 const NOTEBOOK_CLICK_SIZE := Vector3(0.70, 0.22, 0.50)
 const CRT_ENTER_FOV: float = 41.0
 const CRT_READY_FOV: float = 35.0
@@ -145,7 +151,8 @@ var _initial_cam_rot: Vector3
 var _initial_cam_fov: float = 54.0
 var _idle_cam_base_rot: Vector3 = Vector3.ZERO
 ## In the office, away from the screen: turn your head around the room, not out of it.
-var _look = INTERIOR_LOOK.new(70.0, 22.0, 30.0)
+var _look = INTERIOR_LOOK.new(96.0, 22.0, 30.0)
+var _desk_room
 ## The phone, the noticeboard, the door to the back room and the room behind it.
 var _extras
 var _crt_orbit_anchor_pos: Vector3 = Vector3.ZERO
@@ -158,8 +165,8 @@ var _crt_look_back_hold_time: float = 0.0
 var _crt_look_back_armed: bool = false
 var _crt_look_back_active: bool = false
 
-var _crt_view_cam_pos: Vector3 = Vector3(0.24, 1.37, -0.24)
-var _crt_full_cam_pos: Vector3 = Vector3(0.28, 1.35, -0.34)
+var _crt_view_cam_pos: Vector3 = Vector3(0.24, 1.37, -0.24) + PC_OFFSET
+var _crt_full_cam_pos: Vector3 = Vector3(0.28, 1.35, -0.34) + PC_OFFSET
 var _grid_manager
 var _building_manager
 var _legacy_ui_adapter
@@ -249,13 +256,16 @@ func export_crt_desktop_state() -> Dictionary:
 	if not _crt_ui.has_method("export_persistent_state"):
 		return _pending_crt_desktop_state.duplicate(true)
 	var state_any = _crt_ui.call("export_persistent_state")
-	if state_any is Dictionary:
-		return (state_any as Dictionary).duplicate(true)
-	return _pending_crt_desktop_state.duplicate(true)
+	var out: Dictionary = (state_any as Dictionary).duplicate(true) if state_any is Dictionary else _pending_crt_desktop_state.duplicate(true)
+	if _desk_room != null:
+		out["checkin_desk"] = _desk_room.export_state()
+	return out
 
 
 func import_crt_desktop_state(state: Dictionary) -> void:
 	_pending_crt_desktop_state = state.duplicate(true)
+	if _desk_room != null and state.get("checkin_desk", null) is Dictionary:
+		_desk_room.import_state(state["checkin_desk"])
 	_apply_pending_crt_desktop_state()
 
 
@@ -326,7 +336,7 @@ func open_interior() -> void:
 	if _extras != null:
 		_extras.reset_to_office()
 	_interior_camera.rotation = Vector3(deg_to_rad(-9.0), 0.0, 0.0)
-	_interior_camera.position = Vector3(0.0, 1.4, 1.6) # Reset pos
+	_interior_camera.position = RECEPTION_CAM_POS
 	_interior_camera.current = true
 
 	_initial_cam_pos = _interior_camera.position
@@ -347,6 +357,8 @@ func close_interior() -> void:
 		_camera_tween.kill()
 	if _extras != null:
 		_extras.reset_to_office()
+	if _desk_room != null:
+		_desk_room.on_left_office()
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
@@ -379,7 +391,11 @@ func _process(delta: float) -> void:
 			return
 		_apply_crt_mouse_orbit(delta)
 		return
+	if _desk_room != null:
+		_desk_room.process(delta, _extras == null or not _extras.in_back_room())
 	if _is_camera_tween_running():
+		return
+	if _desk_room != null and _desk_room.is_open():
 		return
 	if _extras != null and _extras.process(delta, _hour_now()):
 		_update_exit_hint_only(delta)
@@ -674,7 +690,7 @@ func _build_room() -> void:
 	# ── CAMERA ────────────────────────────────────────────────────────────────
 	_interior_camera = Camera3D.new()
 	_interior_camera.name = "InteriorCamera"
-	_interior_camera.position = Vector3(0.0, 1.4, 1.6)
+	_interior_camera.position = RECEPTION_CAM_POS
 	_interior_camera.fov = 58.0
 	_interior_camera.near = 0.05
 	_interior_camera.far = 22.0
@@ -696,7 +712,7 @@ func _build_room() -> void:
 
 	_desk_lamp = OmniLight3D.new()
 	_desk_lamp.name = "DeskLamp"
-	_desk_lamp.position = Vector3(0.5, 1.26, -1.20)
+	_desk_lamp.position = Vector3(0.5, 1.26, -1.20) + PC_OFFSET
 	_desk_lamp.light_color = Color(0.90, 0.94, 0.76)
 	_desk_lamp.light_energy = 0.44
 	_desk_lamp.omni_range = 2.4
@@ -738,7 +754,17 @@ func _build_room() -> void:
 
 	# ── FRONT WALL — broken around window opening (x: -1.4..0.6, y: 0.95..2.40) ──
 	_add_box(_room_root, "WallFrontLeft",   Vector3(-1.95, 1.4, -2.55), Vector3(1.10, 2.8, 0.1), Color(0.66, 0.50, 0.36))
-	_add_box(_room_root, "WallFrontRight",  Vector3( 1.55, 1.4, -2.55), Vector3(1.90, 2.8, 0.1), Color(0.66, 0.50, 0.36))
+	_add_box(_room_root, "WallFrontRight",  Vector3( 0.925, 1.4, -2.55), Vector3(0.65, 2.8, 0.1), Color(0.66, 0.50, 0.36))
+	_add_box(_room_root, "WallFrontRightB", Vector3( 2.35, 1.4, -2.55), Vector3(0.30, 2.8, 0.1), Color(0.66, 0.50, 0.36))
+	_add_box(_room_root, "WallFrontDoorTop", Vector3( 1.725, 2.45, -2.55), Vector3(0.95, 0.7, 0.1), Color(0.66, 0.50, 0.36))
+	_add_box(_room_root, "FrontDoorFrameL", Vector3( 1.22, 1.05, -2.52), Vector3(0.06, 2.10, 0.14), Color(0.20, 0.14, 0.10))
+	_add_box(_room_root, "FrontDoorFrameR", Vector3( 2.23, 1.05, -2.52), Vector3(0.06, 2.10, 0.14), Color(0.20, 0.14, 0.10))
+	_add_box(_room_root, "FrontDoorFrameT", Vector3( 1.725, 2.12, -2.52), Vector3(1.07, 0.06, 0.14), Color(0.20, 0.14, 0.10))
+	# Beyond the door: the step and the camp, lit by the day (the window's view).
+	_add_box(_room_root, "FrontStep", Vector3(1.725, -0.02, -3.1), Vector3(1.2, 0.08, 1.1), Color(0.46, 0.44, 0.40))
+	_add_box(_room_root, "FrontPorchL", Vector3(1.15, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
+	_add_box(_room_root, "FrontPorchR", Vector3(2.30, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
+	_add_box(_room_root, "FrontPorchTop", Vector3(1.725, 2.4, -3.1), Vector3(1.2, 0.06, 1.1), Color(0.40, 0.32, 0.24))
 	_add_box(_room_root, "WallFrontBottom", Vector3(-0.4, 0.475, -2.55), Vector3(2.00, 0.95, 0.1), Color(0.66, 0.50, 0.36))
 	_add_box(_room_root, "WallFrontTop",    Vector3(-0.4, 2.575, -2.55), Vector3(2.00, 0.45, 0.1), Color(0.66, 0.50, 0.36))
 
@@ -791,15 +817,21 @@ func _build_room() -> void:
 	_window_outdoor_sky.material_override = sky_bg_mat
 	_room_root.add_child(_window_outdoor_sky)
 
+	# ── THE PC CORNER: the old work desk, the computer, the fan and the radio, on the
+	# low desk at the left end of the counter (PC_OFFSET from where they were made).
+	var pc_root := Node3D.new()
+	pc_root.name = "PCCorner"
+	pc_root.position = PC_OFFSET
+	_room_root.add_child(pc_root)
 	# ── CRT WORKDESK (shifted right, x+0.5) ───────────────────────────────────
-	_add_box(_room_root, "Desk",    Vector3(0.5, 0.38, -1.36), Vector3(1.80, 0.76, 0.74), Color(0.38, 0.26, 0.16))
-	_add_box(_room_root, "DeskTop", Vector3(0.5, 0.79, -1.36), Vector3(1.92, 0.06, 0.84), Color(0.56, 0.42, 0.28), true)
-	_add_box(_room_root, "DeskDrawerA", Vector3(0.04, 0.52, -0.96), Vector3(0.52, 0.18, 0.04), Color(0.34, 0.24, 0.16))
-	_add_box(_room_root, "DeskDrawerB", Vector3(0.82, 0.52, -0.96), Vector3(0.52, 0.18, 0.04), Color(0.34, 0.24, 0.16))
-	_add_box(_room_root, "DrawerHandleA", Vector3(0.04, 0.52, -0.93), Vector3(0.10, 0.04, 0.03), Color(0.64, 0.56, 0.42))
-	_add_box(_room_root, "DrawerHandleB", Vector3(0.82, 0.52, -0.93), Vector3(0.10, 0.04, 0.03), Color(0.64, 0.56, 0.42))
+	_add_box(pc_root, "Desk",    Vector3(0.5, 0.38, -1.36), Vector3(1.80, 0.76, 0.74), Color(0.38, 0.26, 0.16))
+	_add_box(pc_root, "DeskTop", Vector3(0.5, 0.79, -1.36), Vector3(1.92, 0.06, 0.84), Color(0.56, 0.42, 0.28), true)
+	_add_box(pc_root, "DeskDrawerA", Vector3(0.04, 0.52, -0.96), Vector3(0.52, 0.18, 0.04), Color(0.34, 0.24, 0.16))
+	_add_box(pc_root, "DeskDrawerB", Vector3(0.82, 0.52, -0.96), Vector3(0.52, 0.18, 0.04), Color(0.34, 0.24, 0.16))
+	_add_box(pc_root, "DrawerHandleA", Vector3(0.04, 0.52, -0.93), Vector3(0.10, 0.04, 0.03), Color(0.64, 0.56, 0.42))
+	_add_box(pc_root, "DrawerHandleB", Vector3(0.82, 0.52, -0.93), Vector3(0.10, 0.04, 0.03), Color(0.64, 0.56, 0.42))
 	# Cup / ashtray on desk
-	_add_box(_room_root, "DeskCup", Vector3(1.20, 0.90, -0.98), Vector3(0.08, 0.14, 0.08), Color(0.50, 0.26, 0.18))
+	_add_box(pc_root, "DeskCup", Vector3(1.20, 0.90, -0.98), Vector3(0.08, 0.14, 0.08), Color(0.50, 0.26, 0.18))
 
 	# ── RETRO COMPUTER SETUP (monitor + tower + keyboard + mouse) ─────────────
 	var pc_shell_col := Color(0.80, 0.75, 0.63)
@@ -810,7 +842,7 @@ func _build_room() -> void:
 	_crt_body = StaticBody3D.new()
 	_crt_body.name = "CRTMonitor"
 	_crt_body.position = Vector3(0.24, 1.35, -1.53)
-	_room_root.add_child(_crt_body)
+	pc_root.add_child(_crt_body)
 
 	_build_monitor_boxes()
 	var crt_col = CollisionShape3D.new()
@@ -856,15 +888,15 @@ func _build_room() -> void:
 	# yellowed plastic, the detail on the faces (Grok textures, assets/textury/camp).
 	var K := INTERIOR_KIT
 	var plastic := K.surface("plastic", 0.35)
-	K.slab(_room_root, Vector3(0.30, 0.80, 0.50), Vector3(0.90, 1.21, -1.45), plastic, "PCTower")
-	_face(_room_root, "tower_front", Vector2(0.30, 0.80), Vector3(0.90, 1.21, -1.199), 0.0)
-	K.slab(_room_root, Vector3(0.56, 0.03, 0.19), Vector3(0.26, 0.837, -1.0), plastic, "Keyboard")
-	_face(_room_root, "keyboard", Vector2(0.54, 0.17), Vector3(0.26, 0.853, -1.0), 0.0, true)
-	K.slab(_room_root, Vector3(0.06, 0.026, 0.10), Vector3(0.74, 0.835, -1.0), plastic, "Mouse")
-	K.slab(_room_root, Vector3(0.22, 0.004, 0.19), Vector3(0.74, 0.822, -1.0), K.surface("blanket_grey", 0.4, Color(0.25, 0.3, 0.45)), "MousePad")
+	K.slab(pc_root, Vector3(0.30, 0.80, 0.50), Vector3(0.90, 1.21, -1.45), plastic, "PCTower")
+	_face(pc_root, "tower_front", Vector2(0.30, 0.80), Vector3(0.90, 1.21, -1.199), 0.0)
+	K.slab(pc_root, Vector3(0.56, 0.03, 0.19), Vector3(0.26, 0.837, -1.0), plastic, "Keyboard")
+	_face(pc_root, "keyboard", Vector2(0.54, 0.17), Vector3(0.26, 0.853, -1.0), 0.0, true)
+	K.slab(pc_root, Vector3(0.06, 0.026, 0.10), Vector3(0.74, 0.835, -1.0), plastic, "Mouse")
+	K.slab(pc_root, Vector3(0.22, 0.004, 0.19), Vector3(0.74, 0.822, -1.0), K.surface("blanket_grey", 0.4, Color(0.25, 0.3, 0.45)), "MousePad")
 	# Cables
 	_add_cable_polyline(
-		_room_root,
+		pc_root,
 		"PCCableMonitorToTower",
 		PackedVector3Array([
 			Vector3(0.24, 1.18, -1.84),
@@ -875,7 +907,7 @@ func _build_room() -> void:
 		Color(0.66, 0.68, 0.70)
 	)
 	_add_cable_polyline(
-		_room_root,
+		pc_root,
 		"PCCableKeyboardToTower",
 		PackedVector3Array([
 			Vector3(0.48, 0.87, -1.10),
@@ -886,7 +918,7 @@ func _build_room() -> void:
 		Color(0.70, 0.70, 0.72)
 	)
 	_add_cable_polyline(
-		_room_root,
+		pc_root,
 		"PCCableMouse",
 		PackedVector3Array([
 			Vector3(0.70, 0.87, -1.08),
@@ -898,14 +930,14 @@ func _build_room() -> void:
 	)
 
 	# ── DESK FAN (shifted right +0.5) ─────────────────────────────────────────
-	_add_box(_room_root, "FanBase", Vector3(1.12, 0.86, -1.54), Vector3(0.14, 0.04, 0.14), Color(0.62, 0.60, 0.52))
-	_add_box(_room_root, "FanStem", Vector3(1.12, 0.94, -1.54), Vector3(0.04, 0.14, 0.04), Color(0.56, 0.54, 0.48))
-	_add_box(_room_root, "FanCage", Vector3(1.12, 1.06, -1.54), Vector3(0.22, 0.22, 0.10), Color(0.54, 0.52, 0.44))
+	_add_box(pc_root, "FanBase", Vector3(1.12, 0.86, -1.54), Vector3(0.14, 0.04, 0.14), Color(0.62, 0.60, 0.52))
+	_add_box(pc_root, "FanStem", Vector3(1.12, 0.94, -1.54), Vector3(0.04, 0.14, 0.04), Color(0.56, 0.54, 0.48))
+	_add_box(pc_root, "FanCage", Vector3(1.12, 1.06, -1.54), Vector3(0.22, 0.22, 0.10), Color(0.54, 0.52, 0.44))
 	# Spinning blade pivot
 	_fan_pivot = Node3D.new()
 	_fan_pivot.name = "FanBladePivot"
 	_fan_pivot.position = Vector3(1.12, 1.06, -1.52)
-	_room_root.add_child(_fan_pivot)
+	pc_root.add_child(_fan_pivot)
 	var blade_a = MeshInstance3D.new()
 	blade_a.name = "BladeA"
 	var ba = BoxMesh.new(); ba.size = Vector3(0.17, 0.028, 0.038)
@@ -920,10 +952,11 @@ func _build_room() -> void:
 	_fan_pivot.add_child(blade_b)
 
 	# ── RADIO (shifted right +0.5) ────────────────────────────────────────────
-	_add_box(_room_root, "RadioBody",    Vector3(-0.10, 0.88, -1.54), Vector3(0.26, 0.14, 0.12), Color(0.58, 0.54, 0.46))
-	_add_box(_room_root, "RadioSpeaker", Vector3(-0.10, 0.88, -1.48), Vector3(0.10, 0.08, 0.02), Color(0.26, 0.24, 0.20))
-	_add_box(_room_root, "RadioDial",    Vector3(-0.01, 0.90, -1.48), Vector3(0.06, 0.04, 0.02), Color(0.20, 0.36, 0.60))
-	_add_box(_room_root, "RadioAntenna", Vector3(-0.03, 0.98, -1.54), Vector3(0.02, 0.22, 0.02), Color(0.66, 0.64, 0.54))
+	_add_box(pc_root, "RadioBody",    Vector3(-0.10, 0.88, -1.54), Vector3(0.26, 0.14, 0.12), Color(0.58, 0.54, 0.46))
+	_add_box(pc_root, "RadioSpeaker", Vector3(-0.10, 0.88, -1.48), Vector3(0.10, 0.08, 0.02), Color(0.26, 0.24, 0.20))
+	_add_box(pc_root, "RadioDial",    Vector3(-0.01, 0.90, -1.48), Vector3(0.06, 0.04, 0.02), Color(0.20, 0.36, 0.60))
+	_add_box(pc_root, "RadioAntenna", Vector3(-0.03, 0.98, -1.54), Vector3(0.02, 0.22, 0.02), Color(0.66, 0.64, 0.54))
+
 	_create_radio_power_click_body()
 
 	# ── DEAD DRIED PLANTS (shifted with window: x-0.4) ────────────────────────
@@ -946,9 +979,6 @@ func _build_room() -> void:
 	_add_box(_room_root, "PosterPaperA",  Vector3(-2.47, 1.56, -0.90), Vector3(0.04, 0.52, 0.36), Color(0.88, 0.82, 0.70))
 	_add_box(_room_root, "PosterTearA",   Vector3(-2.46, 1.82, -0.74), Vector3(0.03, 0.08, 0.18), Color(0.88, 0.82, 0.70))
 	# Right wall
-	_add_box(_room_root, "PosterFrameB",  Vector3(2.50, 1.60, -0.40), Vector3(0.06, 0.56, 0.38), Color(0.28, 0.20, 0.12))
-	_add_box(_room_root, "PosterPaperB",  Vector3(2.47, 1.60, -0.40), Vector3(0.04, 0.46, 0.30), Color(0.74, 0.78, 0.82))
-	_add_box(_room_root, "PosterHangB",   Vector3(2.46, 1.36, -0.40), Vector3(0.03, 0.12, 0.26), Color(0.74, 0.78, 0.82))
 	# Back wall (used for over-shoulder check when player holds S in CRT view).
 	_add_box(_room_root, "BackDoorFrame",  Vector3(0.0, 1.12, 2.50), Vector3(1.14, 2.24, 0.06), Color(0.20, 0.14, 0.10))
 	_add_box(_room_root, "BackDoorLeaf",   Vector3(0.0, 1.08, 2.46), Vector3(0.96, 2.04, 0.04), Color(0.34, 0.24, 0.14))
@@ -981,18 +1011,23 @@ func _build_room() -> void:
 	_add_box(_room_root, "FilingHandle3", Vector3(2.18, 0.34, -0.76), Vector3(0.14, 0.04, 0.04), Color(0.70, 0.66, 0.54))
 
 	# ── WALL SHELVES (right wall, above cabinet) ───────────────────────────────
-	_add_box(_room_root, "ShelfA",   Vector3(2.24, 1.84, -1.62), Vector3(0.28, 0.04, 0.74), Color(0.44, 0.30, 0.18))
-	_add_box(_room_root, "ShelfB",   Vector3(2.24, 2.22, -1.62), Vector3(0.28, 0.04, 0.74), Color(0.44, 0.30, 0.18))
-	_add_box(_room_root, "BinderA",  Vector3(2.24, 1.96, -1.30), Vector3(0.20, 0.22, 0.06), Color(0.28, 0.18, 0.52))
-	_add_box(_room_root, "BinderB",  Vector3(2.24, 1.96, -1.52), Vector3(0.20, 0.22, 0.06), Color(0.52, 0.18, 0.18))
-	_add_box(_room_root, "BinderC",  Vector3(2.24, 1.96, -1.72), Vector3(0.20, 0.22, 0.06), Color(0.18, 0.36, 0.18))
-	_add_box(_room_root, "ShelfBook",Vector3(2.24, 2.32, -1.78), Vector3(0.20, 0.20, 0.08), Color(0.62, 0.50, 0.26))
+	_add_box(_room_root, "ShelfA",   Vector3(2.24, 1.84, -1.02), Vector3(0.28, 0.04, 0.74), Color(0.44, 0.30, 0.18))
+	_add_box(_room_root, "ShelfB",   Vector3(2.24, 2.22, -1.02), Vector3(0.28, 0.04, 0.74), Color(0.44, 0.30, 0.18))
+	_add_box(_room_root, "BinderA",  Vector3(2.24, 1.96, -0.70), Vector3(0.20, 0.22, 0.06), Color(0.28, 0.18, 0.52))
+	_add_box(_room_root, "BinderB",  Vector3(2.24, 1.96, -0.92), Vector3(0.20, 0.22, 0.06), Color(0.52, 0.18, 0.18))
+	_add_box(_room_root, "BinderC",  Vector3(2.24, 1.96, -1.12), Vector3(0.20, 0.22, 0.06), Color(0.18, 0.36, 0.18))
+	_add_box(_room_root, "ShelfBook",Vector3(2.24, 2.32, -1.18), Vector3(0.20, 0.20, 0.08), Color(0.62, 0.50, 0.26))
 
-	# ── RECEPTION COUNTER (between camera and desk — dusty, barely used) ──────
-	_add_box(_room_root, "Counter",    Vector3(0.10, 0.45, 0.48), Vector3(3.10, 0.90, 0.70), Color(0.40, 0.28, 0.16))
-	_add_box(_room_root, "CounterTop", Vector3(0.10, 0.93, 0.44), Vector3(3.20, 0.06, 0.78), Color(0.56, 0.42, 0.28), true)
-	_add_box(_room_root, "CounterPaper1", Vector3(-0.50, 0.97, 0.32), Vector3(0.28, 0.008, 0.20), Color(0.86, 0.84, 0.76))
-	_add_box(_room_root, "CounterPaper2", Vector3(-0.24, 0.97, 0.40), Vector3(0.22, 0.008, 0.16), Color(0.88, 0.86, 0.76))
+	# ── THE COUNTER: across the room in front of you, the guests on the far side;
+	# its left end steps down to the PC desk, its right end leaves a gap to the wall.
+	_add_box(_room_root, "Counter",    Vector3(0.56, 0.45, 0.20), Vector3(2.08, 0.90, 0.60), Color(0.40, 0.28, 0.16))
+	_add_box(_room_root, "CounterTop", Vector3(0.56, 0.93, 0.18), Vector3(2.20, 0.06, 0.74), Color(0.56, 0.42, 0.28), true)
+	_add_box(_room_root, "CounterKick", Vector3(0.56, 0.06, -0.12), Vector3(2.08, 0.12, 0.04), Color(0.22, 0.14, 0.08))
+	_add_box(_room_root, "CounterPaper1", Vector3(0.40, 0.965, 0.40), Vector3(0.24, 0.008, 0.18), Color(0.86, 0.84, 0.76))
+	# The bench by the window for whoever waits second.
+	_add_box(_room_root, "WaitBench", Vector3(-1.05, 0.44, -2.18), Vector3(1.3, 0.06, 0.36), Color(0.44, 0.30, 0.18))
+	_add_box(_room_root, "WaitBenchLegL", Vector3(-1.6, 0.21, -2.18), Vector3(0.06, 0.42, 0.30), Color(0.30, 0.20, 0.12))
+	_add_box(_room_root, "WaitBenchLegR", Vector3(-0.5, 0.21, -2.18), Vector3(0.06, 0.42, 0.30), Color(0.30, 0.20, 0.12))
 	_add_box(_room_root, "CounterPhone",  Vector3(1.20, 1.00, 0.36), Vector3(0.36, 0.10, 0.24), Color(0.68, 0.64, 0.54))
 	_add_box(_room_root, "CounterPhoneHandle", Vector3(1.20, 1.08, 0.36), Vector3(0.30, 0.06, 0.10), Color(0.70, 0.66, 0.56))
 	_create_reception_notebook()
@@ -1004,11 +1039,12 @@ func _build_room() -> void:
 
 	# ── PROPS AND PICTURES (tools/blender, assets/textury/camp) ───────────────
 	K.prop(_room_root, "filing_cabinet", Vector3(2.2, 0.05, -1.1), -90.0)
-	K.prop(_room_root, "key_board", Vector3(-2.47, 1.2, 0.05), 90.0)
+	# The key board on the wall to your right, behind the counter.
+	K.picture(_room_root, "key_rack", Vector2(0.72, 0.405), Vector3(2.47, 1.52, 0.95), -90.0, "KeyRack")
 	K.picture(_room_root, "poster_mushrooms", Vector2(0.44, 0.58), Vector3(-2.47, 1.56, -0.9), 90.0, "PosterA")
-	K.picture(_room_root, "poster_lake", Vector2(0.4, 0.53), Vector3(2.47, 1.6, -0.4), -90.0, "PosterB")
+
 	K.picture(_room_root, "picture_deer", Vector2(0.48, 0.64), Vector3(-1.26, 1.56, 2.47), 180.0, "PosterC")
-	K.slab(_room_root, Vector3(1.6, 0.012, 1.1), Vector3(-0.2, 0.056, -0.2), K.surface("rug", 1.6), "Rug")
+	K.slab(_room_root, Vector3(1.6, 0.012, 1.1), Vector3(0.3, 0.056, -1.35), K.surface("rug", 1.6), "Rug")
 
 	# ── LIGHT SWITCH + DOOR HINT ──────────────────────────────────────────────
 	_setup_office_light_system()
@@ -1025,6 +1061,8 @@ func _build_room() -> void:
 
 	_extras = RECEPTION_EXTRAS.new()
 	_extras.build(self, _room_root, _interior_camera)
+	_desk_room = DESK_ROOM.new()
+	_desk_room.build(self, _extras, _room_root)
 
 
 func _build_crt_viewport() -> void:
@@ -1148,6 +1186,8 @@ func _input(event: InputEvent) -> void:
 		return
 	# The close-ups, the sleep and the walk through the door handle their own input.
 	if _extras != null and _extras.is_modal():
+		return
+	if _desk_room != null and _desk_room.is_open():
 		return
 
 	if event.is_action_pressed("ui_cancel"):
@@ -1604,7 +1644,7 @@ func _create_reception_notebook() -> void:
 
 	var notebook_root = Node3D.new()
 	notebook_root.name = "ReceptionNotebook"
-	notebook_root.position = Vector3(-0.94, 0.98, 0.34)
+	notebook_root.position = Vector3(-0.12, 0.965, 0.34)
 	notebook_root.rotation = Vector3(deg_to_rad(2.0), deg_to_rad(32.0), deg_to_rad(-8.0))
 	_room_root.add_child(notebook_root)
 
@@ -2459,7 +2499,25 @@ func _try_click_room(event: InputEventMouseButton) -> bool:
 	if _node_has_click_type(collider, "radio_power_toggle"):
 		_toggle_radio_power()
 		return true
+	if _node_has_click_type(collider, "reception_notebook"):
+		open_checkin_desk()
+		return true
 	return false
+
+
+## The desk close-up: the register, the keys, whoever is at the counter.
+func open_checkin_desk() -> void:
+	if _desk_room != null:
+		_desk_room.open()
+
+
+func is_desk_open() -> bool:
+	return _desk_room != null and _desk_room.is_open()
+
+
+## How many who were not booked you let in (main hands it to the omens).
+func desk_strangers_admitted() -> int:
+	return int(_desk_room.admitted) if _desk_room != null else 0
 
 
 func _node_has_click_type(node: Node, click_type: String) -> bool:

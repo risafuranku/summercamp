@@ -614,7 +614,7 @@ func place_path_at(origin: Vector2i, permanent := false) -> bool:
 
 	# No collider needed for flat path — walkable.
 	_set_structure_condition_internal(path_node, _default_condition_for_type("path"))
-	_grid_manager.occupy_footprint(origin, Vector2i(1, 1), path_node)
+	_grid_manager.occupy_footprint(origin, Vector2i(1, 1), path_node, _grid_manager.TILE_BUILDING, permanent)
 	_refresh_path_neighbors(origin)
 	return true
 

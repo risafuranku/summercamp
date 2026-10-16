@@ -67,6 +67,8 @@ static func pressure(ctx: Dictionary) -> float:
 	p += 0.3 * float(ctx.get("nights_visited", 0))
 	p += 0.4 if int(ctx.get("hunting", 0)) > 0 else 0.0
 	p += 0.6 if bool(ctx.get("dark", false)) else 0.0
+	# Every one let in at the desk who was not booked.
+	p += 1.2 * float(ctx.get("admitted", 0))
 	return p
 
 
@@ -77,7 +79,7 @@ static func weights(ctx: Dictionary, seen: Dictionary) -> Dictionary:
 	w["torch"] = 1.0 + (0.8 if bool(ctx.get("dark", false)) else 0.0)
 	var guests := int(ctx.get("guests", 0))
 	if guests > 0:
-		w["one_more"] = 0.5 + 0.1 * guests + 0.2 * float(ctx.get("unhappy", 0))
+		w["one_more"] = 0.5 + 0.1 * guests + 0.2 * float(ctx.get("unhappy", 0)) + 1.5 * float(ctx.get("admitted", 0))
 	if bool(ctx.get("near_gate", false)):
 		w["barrier"] = 0.8
 	if bool(ctx.get("far_from_office", false)):

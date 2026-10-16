@@ -18,6 +18,10 @@
 - [x] B10 The lake: row across, the keeper's boathouse, his logbook, fishing
 - [x] B11 Corn flows into the camp map, bulldozable in the Builder (Grok iso sprite); pylons stay
 - [x] B12 The web: pictures (Grok), interlaced loading; better boot (warm-up, POST table), download and setup animations
+- [x] B15 Fake OS and internet overhaul: Build-style PC (boxes + Grok faces), Okna 98 splash/shutdown, desktop menu, Display Properties, screen saver, installer backdrop, IE4 browser chrome, new pages, GIF banners, tiles, blink/marquee
+- [x] B16 Starter path from the barrier to the reception door, cannot be bulldozed; reception one tile in
+- [x] B17 Reception redesign (behind the counter, PC left, keys right) and the Papers Please check-in desk, with the night stranger
+- [x] B18 Tasks only while TAB is held; outdoors the site plan moves left of them, indoors tasks alone
 - [ ] B13 Later: something hidden in the shed (beyond the coat), more to do on the far shore, the boat at night as its own scare
 - [ ] B14 Later: walk through the outside maze walls? (the maze is the corn job's; the camp corn is walkable)
 

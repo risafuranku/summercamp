@@ -144,7 +144,8 @@ func _find_gate(grid) -> Vector2i:
 		if int(grid.tile_types[coord_any]) != 2:  # TILE_RESERVED
 			continue
 		var c: Vector2i = coord_any
-		if grid.cells.has(c):
+		# The gate lane carries the starter path (world_generator.gd): still the gate.
+		if grid.cells.has(c) and str((grid.cells[c] as Dictionary).get("type", "")) != "path":
 			continue
 		if best.x < 0 or c.y < best.y or (c.y == best.y and c.x > best.x):
 			best = c

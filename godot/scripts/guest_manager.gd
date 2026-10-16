@@ -532,7 +532,7 @@ func _update_arrivals(now_abs: int) -> bool:
 			continue
 		if waited >= GATE_COMPLAIN_MINUTES and not bool(guest.get("gate_complained", false)):
 			guest["gate_complained"] = true
-			guest["thought"] = "We have been standing at this barrier for ages. Is anyone even here?"
+			guest["thought"] = "We have been standing at this desk for ages. Is anyone even here?"
 			guest["thought_abs"] = now_abs
 		guest["gate_queue_index"] = queue
 		queue += 1
@@ -654,7 +654,7 @@ func _give_up_at_gate(index: int, guest: Dictionary, now_abs: int) -> void:
 		"day": max(1, _last_known_day),
 		"rating": 1,
 		"mood": 10.0,
-		"text": "Booked, drove all the way, stood at the barrier for two hours. Nobody came. Never again.",
+		"text": "Booked, drove all the way, stood at reception for two hours. Nobody came to the desk. Never again.",
 		"gave_up": true,
 	}
 	state.guest_reviews.append(review)
@@ -670,6 +670,136 @@ func _give_up_at_gate(index: int, guest: Dictionary, now_abs: int) -> void:
 	state.guests.remove_at(index)
 	_ensure_guest_lodging_assignments()
 	_sync_accommodation_states_from_guests()
+
+
+# ── the reception desk (scripts/reception/checkin_desk.gd) ────────────────────
+
+const CARD_SURNAMES := ["NOVAK", "SVOBODA", "DVORAK", "CERNY", "PROCHAZKA", "KUCERA", "VESELY", "HORAK", "NEMEC", "POKORNY", "MAREK", "POSPISIL", "HAJEK", "JELINEK", "KRAL", "RUZICKA", "BENES", "FIALA", "SEDLACEK", "DOLEZAL"]
+const CARD_TOWNS := ["JIHLAVA", "TABOR", "PRAHA 4", "BRNO", "PISEK", "HLUBOCANY", "C. BUDEJOVICE", "TREBIC", "HAVLICKUV BROD", "PELHRIMOV", "KOLIN", "PLZEN"]
+## Booking names are what people sign mail with; the card has the full name.
+const CARD_FIRST := {"pepa": "JOSEF", "mirek": "MIROSLAV", "honza": "JAN", "franta": "FRANTISEK", "jirka": "JIRI", "tonda": "ANTONIN", "standa": "STANISLAV", "lada": "LADISLAV", "vasek": "VACLAV", "kristyna": "KRISTYNA", "jana": "JANA", "petra": "PETRA", "lucka": "LUCIE", "mila": "MILOSLAV", "karel": "KAREL", "zdenek": "ZDENEK", "ota": "OTAKAR", "vera": "VERA"}
+
+
+## The parties at reception, first in the queue first, with what the desk needs: the
+## booking (name, party, nights, rooms and whether each is made up), the identity card
+## (the same every time for the same guest) and the sprite.
+func get_desk_queue() -> Array:
+	var state = CoreRoot.get_state()
+	var out: Array = []
+	if state == null:
+		return out
+	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	for g_any in state.guests:
+		if not (g_any is Dictionary) or str((g_any as Dictionary).get("status", "")) != STATUS_WAITING:
+			continue
+		var g: Dictionary = g_any
+		var row := _arrival_row(g, now_abs)
+		row["queue_index"] = int(g.get("gate_queue_index", 0))
+		row["stay_nights"] = maxi(1, int(g.get("stay_nights", 1)))
+		row["sprite_path"] = _sprite_path_for_archetype(str(g.get("archetype", "")))
+		row["card"] = desk_card_for(int(g.get("id", 0)), str(g.get("name", "Guest")))
+		out.append(row)
+	out.sort_custom(func(a, b): return int(a["queue_index"]) < int(b["queue_index"]))
+	return out
+
+
+## The identity card a booked guest hands over: full name, born, number, town, valid
+## until. Seeded by the guest's id.
+static func desk_card_for(guest_id: int, booking_name: String) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7919 * (guest_id + 13)
+	var first_key := booking_name.strip_edges().to_lower().split(" ")[0] if not booking_name.strip_edges().is_empty() else "guest"
+	var first := str(CARD_FIRST.get(first_key, first_key.to_upper()))
+	var surname: String = CARD_SURNAMES[rng.randi_range(0, CARD_SURNAMES.size() - 1)]
+	if first.ends_with("A") and not first in ["JOSEF"]:
+		surname = (surname.trim_suffix("Y") + "A") if surname.ends_with("Y") else surname + "OVA"
+	var born_year := rng.randi_range(1938, 1979)
+	var issued := rng.randi_range(1993, 1997)
+	return {
+		"surname": surname,
+		"first": first,
+		"born": "%d.%d.%d" % [rng.randi_range(1, 28), rng.randi_range(1, 12), born_year],
+		"number": "%s%s %06d" % [char(65 + rng.randi_range(0, 25)), char(65 + rng.randi_range(0, 25)), rng.randi_range(0, 999999)],
+		"town": CARD_TOWNS[rng.randi_range(0, CARD_TOWNS.size() - 1)],
+		"valid": "%d.%d.%d" % [rng.randi_range(1, 28), rng.randi_range(1, 12), issued + 10],
+		"photo": "",
+	}
+
+
+## The key board behind the counter: every lodging, whether it is made up, and whether
+## its key is out (someone checked in holds it).
+func get_key_board() -> Array:
+	var state = CoreRoot.get_state()
+	var out: Array = []
+	if state == null:
+		return out
+	_ensure_guest_lodging_assignments()
+	var held := {}
+	for g_any in state.guests:
+		if not (g_any is Dictionary):
+			continue
+		var g: Dictionary = g_any
+		if not str(g.get("status", "")) in [STATUS_ACTIVE, STATUS_SLEEP]:
+			continue
+		for slot_any in (g.get("lodging_slots", []) if g.get("lodging_slots", []) is Array else []):
+			if slot_any is Dictionary:
+				held[str((slot_any as Dictionary).get("accommodation_key", ""))] = true
+	var accs := get_accommodation_states()
+	var keys: Array = accs.keys()
+	keys.sort()
+	for key_any in keys:
+		var key := str(key_any)
+		var acc: Dictionary = accs[key]
+		var kind := ROOM_RULES.kind_for(str(acc.get("building_type", "")))
+		out.append({
+			"key": key,
+			"label": room_label(key),
+			"kind": kind,
+			"ready": ROOM_RULES.normalize_status(str(acc.get("status", ""))) == ROOM_RULES.STATUS_READY,
+			"held": held.has(key),
+		})
+	return out
+
+
+## Turned away at the desk (stamped REFUSED): they go home and say so.
+func refuse_at_desk(guest_id: int) -> bool:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return false
+	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	for i in state.guests.size():
+		var g_any = state.guests[i]
+		if not (g_any is Dictionary) or int((g_any as Dictionary).get("id", -2)) != guest_id:
+			continue
+		var guest: Dictionary = g_any
+		if str(guest.get("status", "")) != STATUS_WAITING:
+			return false
+		var review := {
+			"guest_id": guest_id,
+			"name": str(guest.get("name", "Guest")),
+			"archetype": str(guest.get("archetype", "")),
+			"day": max(1, _last_known_day),
+			"rating": 1,
+			"mood": 8.0,
+			"text": "We had a booking. The man at the desk stamped our papers REFUSED and gave them back without a word.",
+			"gave_up": true,
+		}
+		state.guest_reviews.append(review)
+		_trim_array_history(state.guest_reviews, MAX_GUEST_REVIEW_HISTORY)
+		if EventBus.has_signal("guest_review_posted"):
+			EventBus.guest_review_posted.emit(review)
+		if CoreRoot.has_method("apply_changes"):
+			CoreRoot.apply_changes({"karma": float(state.karma) - 3.0})
+		if EventBus.has_signal("guest_gave_up"):
+			EventBus.guest_gave_up.emit(_arrival_row(guest, now_abs))
+		if EventBus.has_signal("guest_state_changed"):
+			EventBus.guest_state_changed.emit(guest_id, STATUS_WAITING, "departed")
+		state.guests.remove_at(i)
+		_ensure_guest_lodging_assignments()
+		_sync_accommodation_states_from_guests()
+		_emit_guest_overview_state(true)
+		return true
+	return false
 
 
 ## Parties on the way or at the barrier, those at the barrier first, for the HUD and

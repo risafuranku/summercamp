@@ -231,7 +231,7 @@ func _fill_arrivals(rows: Array) -> void:
 		it.set_text(1, str(r.get("name", "Guest")))
 		it.set_text(2, str(int(r.get("party_size", 1))))
 		if at_gate:
-			it.set_text(3, "AT THE BARRIER %d:%02d" % [mins / 60, mins % 60])
+			it.set_text(3, "AT RECEPTION %d:%02d" % [mins / 60, mins % 60])
 			it.set_custom_color(3, RED)
 		else:
 			it.set_text(3, "on the road, %d:%02d" % [mins / 60, mins % 60])
@@ -245,7 +245,7 @@ func _fill_arrivals(rows: Array) -> void:
 		it.set_custom_color(5, GREEN if ready else RED)
 		_stripe(it, i, 6)
 		i += 1
-	_status.text = "Nobody is on the way." if rows.is_empty() else "Make up the room, then check them in at the barrier (walk up, E)."
+	_status.text = "Nobody is on the way." if rows.is_empty() else "Make up the room, then check them in at the desk."
 
 
 func _fill_rooms() -> void:

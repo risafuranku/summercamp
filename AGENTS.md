@@ -91,6 +91,7 @@ godot --headless --path godot --script res://tools/weather_check.gd
 godot --headless --path godot --script res://tools/week_check.gd
 godot --headless --path godot --script res://tools/omens_check.gd
 godot --headless --path godot --script res://tools/corn_check.gd
+godot --headless --path godot --script res://tools/checkin_check.gd
 ```
 
 - **Grep the smoke output for `SCRIPT ERROR` / `Parse Error`.** A tail of the log can hide

@@ -46,15 +46,27 @@ func build(gate_world: Vector3, fence_z_world: float, texture_style) -> void:
 	_build_booth()
 	_build_sign()
 	_build_player_block()
-	if EventBus.has_signal("guest_checked_in"):
-		EventBus.guest_checked_in.connect(func(_g): open_briefly())
+	# The barrier goes up for a party when it arrives (they walk in to the reception).
 	if EventBus.has_signal("guest_at_gate"):
 		EventBus.guest_at_gate.connect(func(_g): _on_guest_at_gate())
 
 
-## Where the i-th waiting party stands: on the road, outside the barrier, in a line.
+## Where the i-th waiting party stands: at the reception door, one tile in from the
+## fence and west of the gate lane (world_generator.gd starter_path_tiles), in a line
+## along the path. The first two are inside (building_interior.gd shows them).
 func waiting_spot(i: int) -> Vector3:
-	return Vector3(gap_center_x + (0.6 if i % 2 == 0 else -0.6), 0.0, fence_z - 3.2 - float(i) * 1.7)
+	return Vector3(gap_center_x - 6.0 + float(i) * 1.15, 0.0, fence_z + 12.9 + (0.45 if i % 2 == 1 else 0.0))
+
+
+## Where a party gets out of the bus: on the road, outside the barrier.
+func road_spot() -> Vector3:
+	return Vector3(gap_center_x + 0.6, 0.0, fence_z - 6.0)
+
+
+## The way in for arrivals: through the barrier, up the gate lane, to the turn by the
+## reception's door.
+func way_in() -> Array:
+	return [Vector3(gap_center_x, 0.0, fence_z + 1.0), Vector3(gap_center_x, 0.0, fence_z + 13.6)]
 
 
 func set_night(night: bool) -> void:
@@ -80,9 +92,13 @@ func open_briefly() -> void:
 
 func _on_guest_at_gate() -> void:
 	_sound(SFX_CAR, Vector3(gap_center_x, 0.5, fence_z - 22.0), 0.0, 60.0)
+	get_tree().create_timer(2.0).timeout.connect(func():
+		if is_inside_tree():
+			open_briefly()
+	)
 	get_tree().create_timer(5.5).timeout.connect(func():
 		if is_inside_tree():
-			_sound(SFX_HELLO, waiting_spot(0) + Vector3(0, 1.6, 0), -3.0, 45.0)
+			_sound(SFX_HELLO, road_spot() + Vector3(0, 1.6, 6.0), -3.0, 45.0)
 	)
 
 

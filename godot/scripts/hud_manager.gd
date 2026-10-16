@@ -30,7 +30,8 @@ const HUD_LAYER_INDEX := 65
 const HINT_LAYER_INDEX := 70
 ## The right column (checklist, arrivals, night jobs): above the interiors (80-85),
 ## so it is there at the PC and in the rooms too.
-const SIDE_LAYER_INDEX := 90
+## Over the site plan (paper_map.gd, 95): TAB shows both.
+const SIDE_LAYER_INDEX := 97
 
 # Message kinds (push_status).
 const STATUS_INFO := 0
@@ -239,11 +240,12 @@ func on_money_changed(new_amount: int) -> void:
 	_apply_money(new_amount)
 
 
-## `side`: the checklist column; it stays up in interiors (pass true there).
+## `side`: the checklist column may show (in interiors too). It is up only while TAB is
+## held (playtest 2026-10-16): outdoors next to the site plan (paper_map.gd), indoors alone.
 func set_world_hud_visible(visible: bool, side := visible) -> void:
 	_world_visible = visible
 	if _side_layer != null:
-		_side_layer.visible = side
+		_side_layer.visible = side and (Input.is_physical_key_pressed(KEY_TAB) or force_side)
 	if _layer != null:
 		_layer.visible = visible
 	if _hint_layer != null:
@@ -726,6 +728,16 @@ func _feed_width_vp() -> float:
 	return clampf(screen_vp - float(TRACKER_WIDTH_VP) - 16.0, 120.0, float(FEED_WIDTH_VP))
 
 
+## Tools (shot driver): show the checklist column without TAB.
+var force_side := false
+
+
+## How much of the right edge the checklist column takes, in screen px (the site plan
+## moves left of it).
+func side_column_px() -> float:
+	return _vp(8 + TRACKER_WIDTH_VP)
+
+
 func _build_objective() -> void:
 	var panel := _plate()
 	panel.name = "Objective"
@@ -848,7 +860,7 @@ func _refresh_arrivals() -> void:
 		var at_gate := bool(row.get("at_gate", false))
 		var minutes := int(row.get("minutes", 0))
 		var head := "%s x%d" % [str(row.get("name", "Guest")), int(row.get("party_size", 1))]
-		var when := ("AT GATE %d:%02d" % [minutes / 60, minutes % 60]) if at_gate else ("IN %d:%02d" % [minutes / 60, minutes % 60])
+		var when := ("DESK %d:%02d" % [minutes / 60, minutes % 60]) if at_gate else ("IN %d:%02d" % [minutes / 60, minutes % 60])
 		var line := HBoxContainer.new()
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var name_l := _body(head, RETRO_UI.C_BONE)
@@ -865,7 +877,7 @@ func _refresh_arrivals() -> void:
 			room_parts.append(str((r as Dictionary).get("label", "")).to_upper())
 			if not bool((r as Dictionary).get("ready", false)):
 				all_ready = false
-		var ready_word := ("READY - CHECK IN AT GATE" if at_gate else "READY") if all_ready else "NOT READY"
+		var ready_word := "READY" if all_ready else "NOT READY"
 		var room_text := "%s  %s" % [", ".join(room_parts), ready_word]
 		var room_l := _caption("  " + room_text, RETRO_UI.C_GREEN if all_ready else RETRO_UI.C_RED_LIGHT)
 		_arrivals_box.add_child(room_l)

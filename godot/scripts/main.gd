@@ -464,7 +464,14 @@ func _omen_context() -> Dictionary:
 		"nights_visited": _week_ledger.nights_visited() if _week_ledger != null else 0,
 		"hunting": hunting,
 		"dark": not _is_grid_powered(),
+		"admitted": _desk_strangers_admitted(),
 	}
+
+
+## Those who came to the desk unbooked at night and were written in (checkin_desk.gd).
+func _desk_strangers_admitted() -> int:
+	var bi = _interior_manager._building_interior if _interior_manager != null and _interior_manager.get("_building_interior") != null else null
+	return int(bi.desk_strangers_admitted()) if bi != null and bi.has_method("desk_strangers_admitted") else 0
 
 
 func _show_week_report() -> void:
@@ -1242,7 +1249,7 @@ func _on_guest_at_gate(row: Dictionary) -> void:
 	for r in rooms:
 		if not bool((r as Dictionary).get("ready", false)):
 			not_ready.append(str((r as Dictionary).get("label", "")))
-	var line := "%s is at the gate." % str(row.get("name", "A guest"))
+	var line := "%s is at reception." % str(row.get("name", "A guest"))
 	if not not_ready.is_empty():
 		line += " %s not ready." % ", ".join(not_ready)
 	_hud_manager.push_status(line, 2 if not not_ready.is_empty() else 0, "arrivals")
@@ -1255,7 +1262,7 @@ func _on_guest_checked_in(guest: Dictionary) -> void:
 
 func _on_guest_gave_up(row: Dictionary) -> void:
 	if _hud_manager != null:
-		_hud_manager.push_status("%s gave up waiting at the barrier and drove off." % str(row.get("name", "A guest")), 3, "arrivals")
+		_hud_manager.push_status("%s gave up waiting at reception and drove off." % str(row.get("name", "A guest")), 3, "arrivals")
 
 
 func _on_room_prepared(key: String) -> void:
@@ -1606,6 +1613,11 @@ func debug_render_preset(preset: String) -> void:
 
 
 ## Debug/test entry: the first structure of a building type (e.g. the pre-placed generator).
+## Parties on the way or at reception, and who waits at the desk (shot driver).
+func debug_arrivals() -> Array:
+	return [GuestManager.get_arrivals(), GuestManager.get_desk_queue().size(), GuestManager.get_key_board()]
+
+
 ## What the core grid holds at these cells, and the money (shot driver).
 func debug_cells(coords: Array) -> Array:
 	var out: Array = []
@@ -2316,7 +2328,9 @@ func _try_interact() -> void:
 	var guest_in_view := _find_guest_in_view()
 	if not guest_in_view.is_empty():
 		if str(guest_in_view.get("status", "")) == "waiting":
-			_check_in_guest(guest_in_view)
+			# Check-in is at the desk inside (scripts/reception/checkin_desk.gd).
+			if _hud_manager != null:
+				_hud_manager.push_status("%s: \"We are waiting for the desk. Is anyone in there?\"" % str(guest_in_view.get("name", "Guest")), 0, "arrivals")
 		else:
 			_talk_to_guest(guest_in_view)
 		return

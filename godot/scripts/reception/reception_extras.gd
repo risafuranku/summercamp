@@ -112,7 +112,7 @@ func _build_phone() -> void:
 func _build_board() -> void:
 	# The cork board on the right wall by the counter: its face is the close-up's own
 	# picture, so what you click is what you then read.
-	var at := Vector3(2.46, 1.5, 0.66)
+	var at := Vector3(2.46, 1.5, -0.45)
 	var frame := K.surface("planks_dark", 0.5)
 	var parts: Array = []
 	parts.append(K.slab(room_root, Vector3(0.03, 0.7, 0.92), at + Vector3(-0.005, 0, 0), frame, "BoardFrame"))
@@ -172,7 +172,8 @@ func _build_doorway() -> void:
 
 func is_modal() -> bool:
 	return (phone_view != null and phone_view.visible) or (board_view != null and board_view.visible) \
-		or (sleep != null and sleep.is_running()) or _walking()
+		or (sleep != null and sleep.is_running()) or _walking() \
+		or (host != null and host.has_method("is_desk_open") and host.is_desk_open())
 
 
 func in_back_room() -> bool:
@@ -235,6 +236,9 @@ func click() -> bool:
 		"phone":
 			glint.clear()
 			phone_view.open_view()
+		"guest", "bell":
+			glint.clear()
+			host.open_checkin_desk()
 		"board":
 			glint.clear()
 			board_view.open_view()

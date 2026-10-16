@@ -54,10 +54,10 @@ func _ready() -> void:
 	_run_minutes(30)
 	_expect(_at_gate.size() == 1, "reaching the barrier is announced")
 	var snap: Array = GuestManager.get_guest_life_snapshot()
-	_expect(snap.size() == 1 and str(snap[0]["activity"].get("kind", "")) == "wait_gate", "the party stands at the barrier")
+	_expect(snap.size() == 1 and str(snap[0]["activity"].get("kind", "")) == "wait_gate", "the party waits at reception")
 	_run_minutes(50)
 	_expect(_checked_in.is_empty(), "nobody is let in while the room is not ready")
-	_expect(str(GuestManager.get_guest_life_snapshot()[0]["thought"]).contains("barrier"), "a long wait is complained about")
+	_expect(str(GuestManager.get_guest_life_snapshot()[0]["thought"]).contains("desk"), "a long wait is complained about")
 
 	# Checking in by hand is refused while the room is not made up.
 	var pepa_id := int(GuestManager.get_arrivals()[0]["id"])

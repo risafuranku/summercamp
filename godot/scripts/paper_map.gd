@@ -210,10 +210,16 @@ func _draw_map() -> void:
 	var title: Font = RETRO_UI.FONT_BIG
 	var footer := fs * 6.5
 	var header := fs * 3.6
+	# The checklist column (hud_manager.gd) comes up on the right with the plan: the
+	# sheet goes in the space left of it.
+	var hud = _main.get("_hud_manager") if _main != null else null
+	var side: float = float(hud.side_column_px()) + 12.0 if hud != null and hud.has_method("side_column_px") else 0.0
+	var avail_w := screen.x - side - 24.0
 	var cell := floorf((screen.y * 0.9 - header - footer - 40.0) / float(h))
+	cell = minf(cell, floorf((avail_w - 64.0 - fs * 3.0) / float(w)))
 	var plan := Vector2(w, h) * cell
 	var sheet := Vector2(plan.x + 64.0 + fs * 3.0, plan.y + header + footer + 40.0)
-	var origin := ((screen - sheet) * 0.5 + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
+	var origin := (Vector2((screen.x - side - sheet.x) * 0.5, (screen.y - sheet.y) * 0.5) + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
 	_draw_paper(Rect2(origin, sheet))
 	var o := origin + Vector2(32, header + 12.0)
 	_canvas.draw_string(title, origin + Vector2(32, fs * 2.2), "KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * 1.8), PENCIL)
@@ -338,7 +344,7 @@ func _draw_map() -> void:
 	var gp := _to_sheet(o, cell, Vector2(g) + Vector2(0.5, 0.0), w, h)
 	_canvas.draw_line(gp - Vector2(cell, 0), gp + Vector2(cell, 0), Color(0.88, 0.84, 0.70), 5.0)
 	_canvas.draw_line(gp - Vector2(cell, 0), gp + Vector2(cell, 0), INK_RED, 2.0)
-	var gl := "GATE" if int(_data["waiting"]) == 0 else "GATE - %d WAITING" % int(_data["waiting"])
+	var gl := "GATE" if int(_data["waiting"]) == 0 else "GATE - %d AT RECEPTION" % int(_data["waiting"])
 	var gw := font.get_string_size(gl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	_canvas.draw_string(font, gp + Vector2(-gw * 0.5, fs + 6), gl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, INK_RED if int(_data["waiting"]) > 0 else PENCIL)
 

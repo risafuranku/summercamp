@@ -9,7 +9,7 @@ for a week.
 
 - **Day: a tycoon on the office PC.** A Windows-95-like terminal in the reception: CampMail
   (bookings, story, bills), Builder (an isometric 1:1 map of your camp, RollerCoaster Tycoon
-  style, with your guests walking around in it), Camp Status, Finance, GuestRack, a browser.
+  style, with your guests walking around in it), Camp Status, Finance, GuestRack, a browser (Beeternet Explorer 4: cool toolbar with icons, menus, Favorites/History, globe throbber, Links band, status bar with progress and zone; pages with background tiles, rotating GIF banners with a night frame, [blink]/[marquee]/[rainbow], weather with icons and forecast, a search engine, a band page, the Water Board, the camp team). Okna 98 boots through the maker's screen to its own splash, shuts down with its own screen; desktop context menu, Display Properties (wallpaper, screen saver), Flying Okna screen saver.
   You can also walk the camp in first person: talk to guests, service broken buildings.
 - **Evening: the bill comes due.** At 20:00 the builder locks. Each guest archetype has a
   night threat; the more guests of one archetype you booked (and the unhappier they are),
@@ -47,9 +47,12 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 
 | Feature | State | Notes |
 | --- | --- | --- |
-| Vera's Checklist (13-step onboarding questline) | ✅ | task mails, rewards, tracker, waypoint |
+| Vera's Checklist (14-step onboarding questline) | ✅ | task mails, rewards, tracker, waypoint; the tracker column shows only while TAB is held (outdoors beside the site plan, indoors alone) |
 | CampMail bookings with night-risk impact | ✅ | |
-| Arrivals: road, gatehouse, barrier, waiting parties | ✅ | HUD ARRIVALS panel counts down; parties wait at the barrier until their room is ready, give up after ~2.5 h |
+| Arrivals: road, gatehouse, barrier, waiting parties | ✅ | HUD ARRIVALS panel counts down; the barrier lifts as a party arrives, they walk up the starter path and queue at the reception (first at the counter, second on the bench, the rest at the door), give up after ~2.5 h |
+| Starter path gate → reception | ✅ | laid by world gen through the barrier, up the gate lane, turning in front of the reception door; the bulldozer cannot remove it (meta `permanent`); the road outside wears the same dirt track |
+| Reception: behind the counter | ✅ | you stand behind the counter facing the room and the front door; PC on the low desk to the left, key board on the right wall, bell and phone on the counter |
+| Check-in desk (Papers Please style) | ✅ | `scripts/reception/checkin_desk.gd`: 480x270 Grok-painted close-up; ID card + booking slip slide across, drag them onto the register (3x5 pixel handwriting), the right key off the board, stamp CHECKED IN / REFUSED, give the papers back; wrong or unready keys come back; late at night an unbooked man with a black photo may be at the counter (letting him in feeds the omens); checkin_check |
 | Room preparation in the interiors | ✅ | hover-glow, hold to do it, sounds, checklist; a new mess every time (place, kind, amount by who stayed), 2-10 jobs; the mess is Grok floor sprites (sick, piss, shit, mould, footprints, cans, bottles, ends, wrappers, paper, food, clothes) |
 | Builder with isometric map, guests walking on it | ✅ | the "extra guest" uncanny event |
 | Economy, power/water/sewage/waste balance | 🟡 | numbers want a balance pass |

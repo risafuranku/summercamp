@@ -65,12 +65,20 @@ const STEPS: Array[Dictionary] = [
 	},
 	{
 		"id": "make_up_room",
-		"text": "Mirek reaches the barrier in about an hour. Get up from the desk, go to the tent and make it up.",
+		"text": "Mirek reaches reception in about an hour. Get up from the desk, go to the tent and make it up.",
 		"hint": "Esc gets you up. Inside, hold the mouse on what needs doing.",
 		"reward": 60,
 		"waypoint": "unready_room",
 		"mail_subject": "You can get up, you know",
-		"mail_body": "Somebody is coming. He will be at the barrier within the hour and he will not stand there all day.\n\nThe computer is not the camp. Get up, go outside, find the tent you built and make it up: the sleeping bag, the rubbish the last people left. When it is ready the barrier goes up for him, not before.\n\nEvery bed, every time. That is the job.\n\n- V.",
+		"mail_body": "Somebody is coming. He will be at reception within the hour and he will not stand there all day.\n\nThe computer is not the camp. Get up, go outside, find the tent you built and make it up: the sleeping bag, the rubbish the last people left. When it is ready you give him the key, not before.\n\nEvery bed, every time. That is the job.\n\n- V.",
+	},
+	{
+		"id": "check_in_guest",
+		"text": "Mirek is at the counter. Check him in.",
+		"hint": "Write him in the register, give him his key, stamp the booking.",
+		"reward": 60,
+		"mail_subject": "The book",
+		"mail_body": "Everyone who sleeps here goes in the book. Name and number off the identity card, the booking off the slip. The key off the board, the right one. Then the stamp, and give him his papers back.\n\nIf someone comes to the desk who is not booked, and his card does not look right, you do not write him in. You stamp him REFUSED and you give him his card back. Do not argue with him.\n\n- V.",
 	},
 	{
 		"id": "welcome_guest",
@@ -246,7 +254,7 @@ func _advance() -> void:
 
 ## Steps that must be *done* now, not merely already true.
 func _needs_action(step_id: String) -> bool:
-	return step_id in ["read_vera", "accept_booking", "make_up_room", "welcome_guest", "survive_night"]
+	return step_id in ["read_vera", "accept_booking", "make_up_room", "check_in_guest", "welcome_guest", "survive_night"]
 
 
 func _start_step(step: Dictionary) -> void:
@@ -326,6 +334,8 @@ func _is_satisfied(step_id: String) -> bool:
 			return bool(_flags.get("booking_accepted", false))
 		"make_up_room":
 			return bool(_flags.get("room_prepared", false)) or _first_guest_in()
+		"check_in_guest":
+			return _first_guest_in()
 		"welcome_guest":
 			return bool(_flags.get("talked_to_guest", false))
 		"feed_guests":

@@ -240,8 +240,12 @@ func _sync_party_plan(party: Dictionary, entry: Dictionary) -> void:
 	var to_tile := _parse_key(str(act.get("to", entry.get("tile", ""))))
 	var start_world := _stand_point(from_tile, Vector2i(-1, -1))
 	var last_pos: Vector3 = party.get("last_pos", Vector3.INF)
-	if last_pos != Vector3.INF and last_pos.distance_to(start_world) < 12.0:
+	# Picks up where they stand (the reception door after check-in is 12-13 m from the gate).
+	if last_pos != Vector3.INF and last_pos.distance_to(start_world) < 16.0:
 		start_world = last_pos
+	if str(act.get("kind", "")) != "wait_gate":
+		for k in ["wg_pos", "wg_route", "wg_target", "wg_dir"]:
+			party.erase(k)
 	var goal_tile := _stand_tile(to_tile, _grid_manager.world_to_grid(start_world))
 	var goal_world := _tile_center(goal_tile)
 	var path := _find_path(_grid_manager.world_to_grid(start_world), goal_tile)
@@ -292,9 +296,16 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		lead_pos = _sample_path(points, lengths, t * total)
 		walking = true
 	elif kind == "wait_gate":
-		# Outside the barrier, on the road, in the order they came.
+		# Through the barrier and up the path to the reception, in the order they came;
+		# the first two go in (the counter, the bench: building_interior.gd), the rest
+		# wait at the door.
 		dwell_phase = true
-		lead_pos = _gate_waiting_spot(int(act.get("queue_index", 0)))
+		var qi := int(act.get("queue_index", 0))
+		var moved := _walk_to_reception(party, _gate_waiting_spot(qi), _delta)
+		lead_pos = party["wg_pos"]
+		walking = moved
+		if not moved and qi <= 1:
+			visible_now = false
 	else:
 		dwell_phase = true
 		lead_pos = points[points.size() - 1]
@@ -313,7 +324,10 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 
 	party["last_pos"] = lead_pos
 	var side := Vector3.RIGHT
-	if walking:
+	if walking and kind == "wait_gate":
+		var wdir: Vector3 = party.get("wg_dir", Vector3.FORWARD)
+		side = wdir.cross(Vector3.UP)
+	elif walking:
 		var ahead := _sample_path(points, lengths, minf(total, clampf((now - start) / maxf(arrive - start, 0.01), 0.0, 1.0) * total + 0.5))
 		var dir := ahead - lead_pos
 		dir.y = 0.0
@@ -525,6 +539,46 @@ func _sample_path(points: PackedVector3Array, lengths: PackedFloat32Array, dist:
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
+## Walks a waiting party along the fixed way in (the road outside the barrier, the gate
+## lane, the reception door) at a walking pace in real time. True while moving.
+const WAIT_WALK_SPEED := 1.35
+
+
+func _walk_to_reception(party: Dictionary, target: Vector3, delta: float) -> bool:
+	if not party.has("wg_pos"):
+		var gate := get_tree().get_first_node_in_group("camp_gate") if is_inside_tree() else null
+		var road: Vector3 = gate.road_spot() if gate != null and gate.has_method("road_spot") else target
+		party["wg_pos"] = road
+		var route: Array = [road]
+		if gate != null and gate.has_method("way_in"):
+			route.append_array(gate.way_in())
+		party["wg_route"] = route
+	var route: Array = party.get("wg_route", [])
+	if party.get("wg_target", Vector3.INF) != target:
+		party["wg_target"] = target
+		route.append(target)
+		party["wg_route"] = route
+	var pos: Vector3 = party["wg_pos"]
+	var budget := WAIT_WALK_SPEED * delta
+	var moved := false
+	while budget > 0.0 and not route.is_empty():
+		var next: Vector3 = route[0]
+		var d := pos.distance_to(next)
+		if d <= budget:
+			pos = next
+			budget -= d
+			route.pop_front()
+			moved = moved or d > 0.001
+		else:
+			party["wg_dir"] = (next - pos).normalized()
+			pos = pos + (next - pos) / d * budget
+			budget = 0.0
+			moved = true
+	party["wg_pos"] = pos
+	party["wg_route"] = route
+	return moved
+
 
 func _gate_waiting_spot(i: int) -> Vector3:
 	var gate := get_tree().get_first_node_in_group("camp_gate") if is_inside_tree() else null

@@ -84,3 +84,15 @@ os_post_beep	0.5	assets/sfx/os98/post_beep.mp3	A single short high beep from the
 os_floppy	1.5	assets/sfx/os98/floppy.mp3	A 3.5 inch floppy disk drive in a 1990s PC seeking at boot: the head motor grinding and clicking twice, close, indoors, no music.
 os_key	0.6	assets/sfx/os98/key.mp3	One key press on an old mechanical computer keyboard from the 1990s, a crisp plastic clack, close, no music.
 os_hdd_long	3.0	assets/sfx/os98/hdd_long.mp3	A 1990s IDE hard disk drive working hard while software installs: rapid ticking and chattering head seeks over the hum of the spinning platters, close, indoors, no music.
+desk_paper_slide	0.8	assets/sfx/desk/paper_slide.mp3	A single sheet of paper slid quickly across a wooden desk top, a short dry papery swish, close, indoors, no music.
+desk_paper_pick	0.5	assets/sfx/desk/paper_pick.mp3	A sheet of paper picked up off a wooden desk, a quick soft rustle, close, indoors, no music.
+desk_card_drop	0.5	assets/sfx/desk/card_drop.mp3	A small laminated plastic identity card dropped flat onto a wooden desk, a light crisp plastic tap, close, indoors.
+desk_stamp	0.9	assets/sfx/desk/stamp.mp3	An office rubber stamp pressed hard onto paper on a wooden counter: a heavy satisfying wooden thunk with a slight rubbery squelch, close, indoors, no music.
+desk_ink	0.6	assets/sfx/desk/ink.mp3	A rubber stamp dabbed onto an ink pad, a soft wet muted tap, close, indoors.
+desk_pen	1.6	assets/sfx/desk/pen.mp3	A ballpoint pen writing a name quickly in a hardbound ledger on a wooden counter, scratchy pen strokes on paper, close, indoors, no music.
+desk_book	1.0	assets/sfx/desk/book.mp3	A heavy hardbound ledger book being opened flat on a wooden counter, the cover thumps down and a page flips, close, indoors.
+desk_keys	0.9	assets/sfx/desk/keys.mp3	A single old brass key on a steel ring with a plastic fob taken off a hook and jingled, metallic clinks, close, indoors, no music.
+desk_key_hang	0.6	assets/sfx/desk/key_hang.mp3	A key on a ring hung back onto a small brass hook on a wooden board, a short metal clink and a tap of plastic on wood, close.
+desk_bell	1.4	assets/sfx/desk/bell.mp3	A chrome reception desk service bell struck once by hand, a bright clear ding with a ringing tail, small wooden office room, no music.
+desk_door	2.0	assets/sfx/desk/door.mp3	The wooden front door of a small camp office opening, a small brass shop bell above the door tinkles, the latch clicks, footsteps on wooden floor, no music.
+desk_wrong	0.6	assets/sfx/desk/wrong.mp3	A short annoyed throat clearing and a tut of a middle aged person at a counter, close, indoors, no words.
