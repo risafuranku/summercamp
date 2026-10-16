@@ -95,8 +95,8 @@ const STEPS: Array[Dictionary] = [
 	},
 	{
 		"id": "survive_night",
-		"text": "Night is coming. Stay alive until 06:30.",
-		"hint": "Keep your flashlight on. Run from what you hear. Hide indoors.",
+		"text": "Night is coming. Get through it until 06:30.",
+		"hint": "The bed is behind the office, through the door by the keys.",
 		"reward": 200,
 		"mail_subject": "Tonight",
 		"mail_body": "When it gets dark the builder locks. That is not a bug, that is the camp.\n\nIf you hear footsteps where there is nobody, turn around. If something follows you, run and get inside - the office, a cabin, the toilets. Do not stand in the dark staring at it.\n\nThe forecast on the status bar is honest. The more of one kind of guest you take, the worse the night. Unhappy guests count double.\n\nSee you in the morning. Please.\n\n- V.",

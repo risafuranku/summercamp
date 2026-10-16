@@ -25,6 +25,7 @@ extends Node
 signal changed
 
 const ELECTRICIAN_FEE := 60
+const QUIET_NIGHTS := 1
 const CIRCUIT_NAMES := ["LAMPS NORTH", "LAMPS SOUTH", "OFFICE", "FOOD", "WASH BLOCK", "PUMP"]
 const FIRST_HOUR := 21.0
 const LAST_HOUR := 28.5  # 04:30 next morning
@@ -176,6 +177,10 @@ func _resume_corn() -> void:
 func _plan(night_index: int, abs_minute: int) -> void:
 	_planned_night = night_index
 	_jobs = _jobs.filter(func(j): return str(j["state"]) == "open")
+	# The first night is quiet (main.QUIET_NIGHTS): no jobs either.
+	if night_index <= QUIET_NIGHTS:
+		changed.emit()
+		return
 	var count := clampi(1 + int(ceil(float(night_index) / 2.0)), 2, 4)
 	var pool := _available_kinds()
 	if pool.is_empty():

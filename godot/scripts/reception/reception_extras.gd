@@ -199,7 +199,7 @@ func process(delta: float, hour: float) -> bool:
 	if where == "back":
 		var vp: Viewport = host.get_viewport()
 		var offset: Vector3 = look_back.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.key_axis())
-		camera.rotation = camera.rotation.lerp(back_base_rot + offset, clampf(delta * 18.0, 0.0, 1.0))
+		camera.rotation = camera.rotation.lerp(back_base_rot + offset, clampf(delta * 30.0, 0.0, 1.0))
 		if INTERIOR_LOOK.in_exit_zone(vp):
 			HandCursor.want(HandCursor.WALK)
 		return true

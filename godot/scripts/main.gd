@@ -44,6 +44,8 @@ const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd
 const THREAT_SENSES_SCRIPT = preload("res://scripts/threat_senses.gd")
 const NIGHT_JOBS_SCRIPT = preload("res://scripts/night_jobs.gd")
 const CAMP_OFFICE_SCRIPT = preload("res://scripts/reception/camp_office.gd")
+## Nights with nothing out there (and no night jobs): the first one.
+const QUIET_NIGHTS := 1
 const DAY_EVENTS_SCRIPT = preload("res://scripts/day_events.gd")
 const WEEK_LEDGER_SCRIPT = preload("res://scripts/week_ledger.gd")
 const OMENS_SCRIPT = preload("res://scripts/omens.gd")
@@ -1330,6 +1332,11 @@ func _roll_liminal_night_spawn_snapshot(night_index: int) -> void:
 
 func _activate_runtime_enemy_for_night(night_index: int) -> void:
 	_stop_active_enemy_brain()
+	# The first night is quiet: nobody has been in the camp long enough to bring anything
+	# with them. You read the mail, plan tomorrow and go to bed (DESIGN §3).
+	if night_index <= QUIET_NIGHTS:
+		_active_enemy_spawned_this_night = 0
+		return
 	var entries_any = _liminal_night_roll_snapshot.get("entries", [])
 	var entries: Array = entries_any if entries_any is Array else []
 	var total_spawned := 0

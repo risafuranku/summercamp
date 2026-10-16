@@ -26,26 +26,30 @@ func _ready() -> void:
 	jobs.setup(null)
 	var money_before: int = CoreRoot.get_money()
 
-	# Night 1 starts at 20:00 of day 1: two jobs, spread over the night.
-	var night_start := 20 * 60
-	jobs.tick(night_start, true, 1)
+	# Night 1 is quiet: nothing planned at all.
+	jobs.tick(20 * 60, true, 1)
+	_expect(jobs._jobs.is_empty(), "the first night plans no jobs (%d)" % jobs._jobs.size())
+
+	# Night 2 starts at 20:00 of day 2: two jobs, spread over the night.
+	var night_start := 1440 + 20 * 60
+	jobs.tick(night_start, true, 2)
 	var planned: Array = jobs._jobs
-	_expect(planned.size() == 2, "night 1 plans two jobs (%d)" % planned.size())
+	_expect(planned.size() == 2, "night 2 plans two jobs (%d)" % planned.size())
 	for j in planned:
 		var at := int(j["at"])
-		_expect(at >= 21 * 60 and at <= 28 * 60 + 30, "job %s at %02d:%02d is within 21:00-04:30" % [j["kind"], (at / 60) % 24, at % 60])
+		_expect(at >= 1440 + 21 * 60 and at <= 1440 + 28 * 60 + 30, "job %s at %02d:%02d is within 21:00-04:30" % [j["kind"], (at / 60) % 24, at % 60])
 
 	# Run the night minute by minute; resolve breakdowns as a player would.
 	var saw_breaker := false
 	var saw_failure := false
-	for minute in range(night_start, 30 * 60 + 30):
-		jobs.tick(minute, true, 1)
+	for minute in range(night_start, 1440 + 30 * 60 + 30):
+		jobs.tick(minute, true, 2)
 		if jobs.breaker_tripped:
 			saw_breaker = true
 		for key in state.failures.keys():
 			saw_failure = true
 			state.failures.erase(key)
-	print("NIGHTJOBS CHECK: night 1 jobs ", jobs._jobs.map(func(j): return [j["kind"], j["state"], j["at"]]))
+	print("NIGHTJOBS CHECK: night 2 jobs ", jobs._jobs.map(func(j): return [j["kind"], j["state"], j["at"]]))
 	_expect(saw_breaker or saw_failure, "the night's jobs start")
 	for j in jobs._jobs:
 		_expect(str(j["state"]) != "cancelled", "a planned %s job is not cancelled on a camp that has one" % j["kind"])

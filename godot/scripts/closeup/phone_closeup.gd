@@ -23,6 +23,12 @@ const KEY_HALF := Vector2(9.5, 7.5)
 const LCD := Rect2(129, 40, 70, 17)
 const REDIAL := Rect2(211, 38, 18, 15)
 const HANDSET := Rect2(41, 32, 76, 168)
+## The handset's outline on the picture (px), for lifting it off the cradle.
+const HANDSET_OUTLINE := [
+	Vector2(49, 40), Vector2(57, 33), Vector2(92, 32), Vector2(101, 40), Vector2(102, 84),
+	Vector2(106, 132), Vector2(116, 146), Vector2(117, 192), Vector2(110, 201), Vector2(70, 201),
+	Vector2(61, 191), Vector2(59, 148), Vector2(56, 96), Vector2(47, 82), Vector2(45, 50),
+]
 const RING_ON := 1.0
 const RING_OFF := 1.7
 const WAIT_AFTER_LAST_KEY := 1.1
@@ -347,10 +353,24 @@ func _tick(delta: float) -> void:
 func _paint(c: Control) -> void:
 	if picture == null:
 		return
-	# Off the hook: the handset drawn lifted a little, its shadow in the cradle.
+	# Off the hook: the handset (cut out along its outline) lifted toward you, bigger and
+	# up off the cradle, with the empty cradle dark under it.
 	if _state != RESTING:
-		c.draw_rect(HANDSET.grow(-6), Color(0.0, 0.0, 0.0, 0.55))
-		c.draw_texture_rect_region(picture, Rect2(HANDSET.position + Vector2(-7, -9), HANDSET.size), HANDSET)
+		var cradle := PackedVector2Array()
+		for p in HANDSET_OUTLINE:
+			cradle.append(p)
+		c.draw_colored_polygon(cradle, Color(0.08, 0.06, 0.04, 0.78))
+		var lifted := PackedVector2Array()
+		var uvs := PackedVector2Array()
+		var centre := HANDSET.get_center()
+		for p in HANDSET_OUTLINE:
+			lifted.append(centre + (p - centre) * 1.08 + Vector2(-10, -14))
+			uvs.append(p / Vector2(W, PIC_H))
+		var shadow := PackedVector2Array()
+		for p in lifted:
+			shadow.append(p + Vector2(6, 9))
+		c.draw_colored_polygon(shadow, Color(0, 0, 0, 0.45))
+		c.draw_colored_polygon(lifted, Color.WHITE, uvs, picture)
 	# Digits on the keys.
 	for i in KEYS.size():
 		var down := _pressed_t > 0.0 and _pressed == i

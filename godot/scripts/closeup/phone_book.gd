@@ -78,7 +78,7 @@ static func dial(number: String, ctx: Dictionary) -> Dictionary:
 			return _talk("CLERK", 2, [
 				["", "District office, accommodation.", "dist_1"],
 				["YOU", "It's the camp at the reservoir.", ""],
-				["", "The guest register goes in GuestRack. We have told Mrs Kalinova twice. Good day.", "dist_2"]])
+				["", "The guest register goes in GuestRack. We have told Mrs Kralova twice. Good day.", "dist_2"]])
 		"066330150":
 			return _machine("WATER BOARD", 2, [["", "Water board. Blockages inside the camp are the operator's responsibility. Do not flush rags.", "water"]])
 		"066321333":
@@ -122,9 +122,9 @@ static func dial(number: String, ctx: Dictionary) -> Dictionary:
 		"0602618247":
 			return _machine("EUROTEL", 0, [["", "The mobile subscriber is unavailable. Please call later.", "nela"]])
 		"0267314420":
-			var vera := [["", "This is Vera Kalinova. I am away until the eighth. If it is about the camp, the camp is fine.", "vera_1"]]
+			var vera := [["", "This is Vera Kralova. I am away until the eighth. If it is about the camp, the camp is fine.", "vera_1"]]
 			if int(ctx.get("nights_visited", 0)) >= 3:
-				vera = [["", "This is Vera Kalinova. I am away until the eighth. If it is about the camp, count them again.", "vera_2"]]
+				vera = [["", "This is Vera Kralova. I am away until the eighth. If it is about the camp, count them again.", "vera_2"]]
 			return _machine("VERA", 4, vera)
 		CLOCK:
 			return {"kind": "machine", "rings": 0, "who": "TIME", "lines": [{"who": "", "text": "At the third stroke it will be %s." % _clock_text(hour), "voice": "clock"}], "effect": "clock"}

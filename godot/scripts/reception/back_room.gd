@@ -179,7 +179,8 @@ func _build_tv_screen() -> void:
 	q.mesh = qm
 	q.material_override = _tv_mat
 	# The prop faces -Z here (turned 180): the screen sits on its front, slightly left.
-	q.position = TV - CENTRE + Vector3(0.04, 0.16, -0.158)
+	# (The prop's origin is its footprint centre: the tube behind pushes the front 6.5 cm out.)
+	q.position = TV - CENTRE + Vector3(0.04, 0.16, -0.224)
 	q.rotation_degrees.y = 180.0
 	root.add_child(q)
 	if tv != null:

@@ -1,0 +1,33 @@
+# Office telephone voices (tools/audiogen/tts.py). id <TAB> voice <TAB> text
+# Texts follow scripts/closeup/phone_book.gd; keep them in step.
+nov_1	novotny	Novotny.
+nov_day	novotny	Vera's place. The main again. Right, I'll come out. Half an hour. Sixty for the call-out.
+nov_nothing	novotny	Nothing's broken? Then I'm not driving out to look at a working box.
+nov_coming	novotny	I said I'm on my way. Don't ring again.
+nov_night_1	novotny	Mm... Novotny.
+nov_night	novotny	It's gone nine. Double after nine: a hundred and twenty. I'll be an hour. Leave the barrier up.
+nov_night_nothing	novotny	Then why are you ringing me at this hour?
+nov_refuse	novotny	No. Not tonight. I drove past there an hour ago... and I didn't stop. Ring me in the morning.
+vet	vet	Veterinary practice, Lesna. Surgery hours are eight till twelve. For large animals, ring after six.
+dist_1	clerk	District office, accommodation.
+dist_2	clerk	The guest register goes in GuestRack. We have told Mrs Kralova twice. Good day.
+water	water	Water board. Blockages inside the camp are the operator's responsibility. Do not flush rags.
+bus	recording	Hlubocany bus station. Buses to the reservoir at six ten, twelve forty, and seventeen fifty. The evening bus does not stop at the camp.
+jed_1	shop	Jednota, Lesna.
+jed_2	shop	Bread comes with the van. And tell Vera the crates are hers to bring back.
+pub_1	pub	U Jezera!
+pub_2	pub	What? I can't hear you, the jukebox is on! Come down if you want a drink!
+power_night	faults	Hlubocany District Power, faults. Our crews do not go out to the reservoir after dark. Call your electrician.
+power_1	faults	District Power, faults.
+power_2	faults	Your side of the meter is your electrician's job. Novotny, isn't it? His number's in the book.
+pol_1	police	Police, Hlubocany.
+pol_night	police	The camp. Right. Lock the office door, and stay inside. We will send someone in the morning.
+pol_day	police	Lost property is on Wednesdays. Is there anything else?
+amb_1	ambulance	Emergency.
+amb_2	ambulance	Is anyone hurt? The forest road is closed to us after dark. Bandage it, and ring in the morning.
+nela	operator	The mobile subscriber is unavailable. Please call later.
+vera_1	vera	This is Vera Kralova. I am away until the eighth. If it is about the camp... the camp is fine.
+vera_2	vera	This is Vera Kralova. I am away until the eighth. If it is about the camp... count them again.
+sit_msg	operator	The number you have dialled does not exist.
+clock_intro	recording	At the third stroke, it will be
+clock_end	recording	precisely.

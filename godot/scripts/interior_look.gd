@@ -14,11 +14,19 @@ const EDGE_BAND := 0.20
 const MAX_YAW_SPEED_DEG := 150.0
 const MAX_PITCH_SPEED_DEG := 90.0
 const KEY_YAW_SPEED_DEG := 120.0
-## How quickly the turn speed follows the cursor (higher = snappier).
-const RESPONSE := 10.0
-## Small sway with the cursor anywhere on screen, like the old static views.
-const SWAY_YAW_DEG := 2.4
-const SWAY_PITCH_DEG := 1.6
+## How quickly the turn picks up, and how quickly it stops once the cursor leaves the
+## band (faster: a head stops when you stop turning it, it does not coast; the coasting
+## was the "on ice" feel of the 2026-10-16 playtest).
+const ACCEL := 14.0
+const BRAKE := 26.0
+## A small parallax with the cursor anywhere on screen, so the room has depth under the
+## mouse; followed by a critically damped spring, never by the turn itself.
+const SWAY_YAW_DEG := 0.8
+const SWAY_PITCH_DEG := 0.5
+const SWAY_FOLLOW := 16.0
+## Breathing: the view rises and settles a hair, slowly.
+const BREATH_DEG := 0.12
+const BREATH_HZ := 0.22
 ## The last part of the range in which the turn slows to a stop.
 const SOFT_ZONE_DEG := 14.0
 
@@ -32,6 +40,9 @@ var pitch_deg: float = 0.0
 
 var _yaw_speed: float = 0.0
 var _pitch_speed: float = 0.0
+var _sway := Vector2.ZERO
+var _sway_v := Vector2.ZERO
+var _t := 0.0
 
 
 func _init(p_yaw_limit_deg: float = 60.0, p_pitch_up_deg: float = 18.0, p_pitch_down_deg: float = 24.0) -> void:
@@ -45,14 +56,18 @@ func reset() -> void:
 	pitch_deg = 0.0
 	_yaw_speed = 0.0
 	_pitch_speed = 0.0
+	_sway = Vector2.ZERO
+	_sway_v = Vector2.ZERO
 
 
 ## `cursor`: the mouse position normalised to 0..1 over the screen (or a negative value
 ## when the cursor should not steer, e.g. it is outside the window).
 ## `key_axis`: -1 turn left, 1 turn right (arrow keys).
-## Returns the rotation offset (pitch, yaw, 0) in radians to add to the base view.
+## Returns the rotation offset (pitch, yaw, 0) in radians to add to the base view. It is
+## already smooth: set the camera to base + offset directly, no further easing.
 func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 	var dt := clampf(delta, 0.0, 0.1)
+	_t += dt
 	var steer := cursor.x >= 0.0 and cursor.y >= 0.0
 	var want_yaw := 0.0
 	var want_pitch := 0.0
@@ -60,21 +75,34 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 		want_yaw = -_edge_push(cursor.x) * MAX_YAW_SPEED_DEG
 		want_pitch = -_edge_push(cursor.y) * MAX_PITCH_SPEED_DEG
 	want_yaw -= clampf(key_axis, -1.0, 1.0) * KEY_YAW_SPEED_DEG
-	var k := 1.0 - exp(-RESPONSE * dt)
-	_yaw_speed = lerpf(_yaw_speed, want_yaw, k)
-	_pitch_speed = lerpf(_pitch_speed, want_pitch, k)
+	_yaw_speed = _follow(_yaw_speed, want_yaw, dt)
+	_pitch_speed = _follow(_pitch_speed, want_pitch, dt)
 
 	yaw_deg = _advance(yaw_deg, _yaw_speed * dt, -yaw_limit_deg, yaw_limit_deg)
 	pitch_deg = _advance(pitch_deg, _pitch_speed * dt, -pitch_down_deg, pitch_up_deg)
 
-	var sway := Vector2.ZERO
+	var sway_target := Vector2.ZERO
 	if steer:
-		sway = Vector2((cursor.x - 0.5) * 2.0, (cursor.y - 0.5) * 2.0)
+		sway_target = Vector2((cursor.x - 0.5) * 2.0, (cursor.y - 0.5) * 2.0)
+	# Critically damped spring: arrives without overshoot, does not drift.
+	var w := SWAY_FOLLOW
+	var acc := (sway_target - _sway) * w * w - _sway_v * 2.0 * w
+	_sway_v += acc * dt
+	_sway += _sway_v * dt
+	var breath := sin(_t * TAU * BREATH_HZ) * BREATH_DEG
 	return Vector3(
-		deg_to_rad(pitch_deg - sway.y * SWAY_PITCH_DEG),
-		deg_to_rad(yaw_deg - sway.x * SWAY_YAW_DEG),
+		deg_to_rad(pitch_deg - _sway.y * SWAY_PITCH_DEG + breath),
+		deg_to_rad(yaw_deg - _sway.x * SWAY_YAW_DEG),
 		0.0
 	)
+
+
+## Turn speed toward `want`: picking up at ACCEL, braking (toward zero or the other way)
+## at BRAKE.
+static func _follow(speed: float, want: float, dt: float) -> float:
+	var braking := absf(want) < absf(speed) or signf(want) != signf(speed)
+	var k := 1.0 - exp(-(BRAKE if braking else ACCEL) * dt)
+	return lerpf(speed, want, k)
 
 
 ## 0 inside the screen, rising to 1 at the very edge (-1 on the low side).

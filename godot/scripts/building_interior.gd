@@ -547,7 +547,7 @@ func _exit_crt_look_back() -> void:
 
 func _apply_idle_mouse_look(delta: float) -> void:
 	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
-	_interior_camera.rotation = _interior_camera.rotation.lerp(_idle_cam_base_rot + offset, clampf(delta * 12.0, 0.0, 1.0))
+	_interior_camera.rotation = _idle_cam_base_rot + offset
 
 
 func _apply_crt_mouse_orbit(delta: float) -> void:
