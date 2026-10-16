@@ -22,6 +22,7 @@ signal desktop_ready
 const T = preload("res://scripts/os98/os_theme.gd")
 const WINDOW = preload("res://scripts/os98/os_window.gd")
 const FILES = preload("res://scripts/os98/os_files.gd")
+const EXTRAS = preload("res://scripts/os98/os_extras.gd")
 const ICON_DIR := "res://assets/textury/os98/icons/"
 const SFX_DIR := "res://assets/sfx/os98/"
 const SCREEN := Vector2(640, 480)
@@ -46,6 +47,7 @@ const APPS := {
 	"setup": {"title": "Setup", "icon": "setup", "size": Vector2(470, 330), "script": "setup_app", "base": true},
 	"download": {"title": "File Download", "icon": "browser", "size": Vector2(360, 196), "script": "download_app", "base": true},
 	"imageview": {"title": "Image Viewer", "icon": "image", "size": Vector2(360, 300), "script": "image_app", "base": true},
+	"display": {"title": "Display Properties", "icon": "computer", "size": Vector2(360, 330), "script": "display_app", "base": true},
 }
 const PROGRAM_MENU := ["browser", "mail", "notepad", "mines", "builder", "camp_status", "guestrack"]
 const DESKTOP_ICONS := [
@@ -62,7 +64,7 @@ const DESKTOP_ICONS := [
 const DOWNLOAD_SIZES_KB := {"BLDR98SW.EXE": 96, "CAMPSTAT.EXE": 48, "GUESTRAK.EXE": 72}
 const INSTALLERS := {"BLDR98SW.EXE": "builder", "CAMPSTAT.EXE": "camp_status", "GUESTRAK.EXE": "guestrack"}
 
-enum Boot { OFF, WARMUP, BIOS, SPLASH, DESKTOP, SAFE_OFF }
+enum Boot { OFF, WARMUP, BIOS, SPLASH, OKNA, DESKTOP, SHUTTING, SAFE_OFF }
 
 var _state := Boot.OFF
 var _open := false
@@ -88,6 +90,13 @@ var _tray_net: TextureRect
 var _start_menu: Control
 var _boot: Control
 var _cursor: Control
+## Over a link: the cursor is the pointing hand.
+var pointer_hand := false:
+	set(v):
+		if v != pointer_hand:
+			pointer_hand = v
+			if _cursor != null:
+				_cursor.queue_redraw()
 var _ups: Control
 var _ups_label: Label
 var _boot_t := 0.0
@@ -104,6 +113,15 @@ var _flash_mail := 0.0
 # Held here: a texture loaded inside a draw callback is freed before it is drawn.
 var _wallpaper_tex: Texture2D = load(WALLPAPER) if ResourceLoader.exists(WALLPAPER) else null
 var _splash_tex: Texture2D = load(OEM_SPLASH) if ResourceLoader.exists(OEM_SPLASH) else null
+var _wallpaper_path := WALLPAPER
+## The operating system's own screens (tools/artgen/okna_splash.py).
+const OKNA_SPLASH := "res://assets/textury/os98/okna_splash.png"
+const OKNA_SHUTDOWN := "res://assets/textury/os98/okna_shutdown.png"
+const OKNA_START := "res://assets/textury/os98/okna_logo_start.png"
+var _okna_tex: Texture2D = load(OKNA_SPLASH) if ResourceLoader.exists(OKNA_SPLASH) else null
+var _okna_off_tex: Texture2D = load(OKNA_SHUTDOWN) if ResourceLoader.exists(OKNA_SHUTDOWN) else null
+## Zoom rectangles, the desktop menu, the screen saver (scripts/os98/os_extras.gd).
+var _extras
 
 
 func _ready() -> void:
@@ -150,6 +168,10 @@ func setup(grid_mgr, building_mgr, _ui_adapter = null, interior_host: Node = nul
 	_grid_mgr = grid_mgr
 	_building_mgr = building_mgr
 	_host = interior_host
+	_extras = EXTRAS.new()
+	_extras.name = "Extras"
+	add_child(_extras)
+	_extras.setup(self)
 
 
 func open_panel() -> bool:
@@ -215,6 +237,8 @@ func export_persistent_state() -> Dictionary:
 		"bin": _bin.duplicate(),
 		"restored": _restored.duplicate(),
 		"monitor_powered": _state == Boot.DESKTOP,
+		"wallpaper": _wallpaper_path,
+		"display": _extras.export_state() if _extras != null else {},
 	}
 
 
@@ -237,6 +261,10 @@ func import_persistent_state(data: Dictionary) -> void:
 				_bin.append(str(f))
 			for f in data.get("restored", []):
 				_restored.append(str(f))
+			if data.has("wallpaper"):
+				set_wallpaper(str(data["wallpaper"]))
+			if _extras != null and data.get("display", {}) is Dictionary:
+				_extras.import_state(data.get("display", {}))
 	for w in _windows.get_children():
 		_close_window(w)
 	_state = Boot.OFF
@@ -538,6 +566,8 @@ func open_app(app_id: String, args: Dictionary = {}, new_instance := false) -> C
 	_add_task_button(win)
 	_activate(win)
 	play("click", -8.0)
+	if _extras != null and app_id != "msg":
+		_extras.zoom(Rect2(_mouse - Vector2(8, 8), Vector2(16, 16)), Rect2(win.position, win.size))
 	return win
 
 
@@ -577,13 +607,33 @@ func _close_window(win: Control) -> void:
 
 
 func _minimize(win: Control) -> void:
+	if _extras != null and _task_buttons.has(win):
+		var b: Control = _task_buttons[win]
+		_extras.zoom(Rect2(win.position, win.size), Rect2(b.global_position - global_position, b.size))
 	win.visible = false
 	_activate_top()
 
 
 func _restore(win: Control) -> void:
+	if _extras != null and not win.visible and _task_buttons.has(win):
+		var b: Control = _task_buttons[win]
+		_extras.zoom(Rect2(b.global_position - global_position, b.size), Rect2(win.position, win.size))
 	win.visible = true
 	_activate(win)
+
+
+func extras():
+	return _extras
+
+
+func wallpaper_path() -> String:
+	return _wallpaper_path
+
+
+func set_wallpaper(path: String) -> void:
+	_wallpaper_path = path
+	_wallpaper_tex = load(path) if path != "" and ResourceLoader.exists(path) else null
+	_desktop.queue_redraw()
 
 
 func _activate(win: Control) -> void:
@@ -671,7 +721,24 @@ func _process(delta: float) -> void:
 			_boot_t += delta
 			_boot.queue_redraw()
 			if _boot_t >= 3.2:
+				# The machine's maker, then the operating system's own screen.
+				_state = Boot.OKNA if _okna_tex != null else Boot.DESKTOP
+				_boot_t = 0.0
+				if _state == Boot.DESKTOP:
+					_enter_desktop()
+				else:
+					play("hdd", -8.0)
+		Boot.OKNA:
+			_boot_t += delta
+			_boot.queue_redraw()
+			if _boot_t >= 3.6:
 				_enter_desktop()
+		Boot.SHUTTING:
+			_boot_t += delta
+			_boot.queue_redraw()
+			if _boot_t >= 2.4:
+				_state = Boot.SAFE_OFF
+				_apply_state()
 		Boot.DESKTOP:
 			_tick_desktop(delta)
 	_cursor.queue_redraw()
@@ -792,6 +859,21 @@ func _draw_boot() -> void:
 				var origin := (SCREEN - d) * 0.5
 				var bar := Rect2(origin + Vector2(329, 693) * k, Vector2(590, 24) * k)
 				_boot.draw_rect(Rect2(bar.position, Vector2(bar.size.x * p, bar.size.y)).abs(), Color8(230, 160, 50))
+		Boot.OKNA, Boot.SHUTTING:
+			var tex2: Texture2D = _okna_tex if _state == Boot.OKNA else _okna_off_tex
+			if tex2 != null:
+				_boot.draw_texture_rect(tex2, Rect2(Vector2.ZERO, SCREEN), false)
+			if _state == Boot.OKNA:
+				# The band along the bottom that never stops sliding: a rainbow of blues.
+				var band := Rect2(0, SCREEN.y - 10, SCREEN.x, 10)
+				var off := fmod(_boot_t * 260.0, SCREEN.x * 2.0)
+				var step := 8.0
+				var x := 0.0
+				while x < SCREEN.x:
+					var u := fmod((x + off) / (SCREEN.x * 2.0), 1.0)
+					var col := Color.from_hsv(0.55 + 0.12 * sin(u * TAU), 0.75, 0.55 + 0.45 * absf(sin(u * PI * 2.0)))
+					_boot.draw_rect(Rect2(x, band.position.y, step, band.size.y), col)
+					x += step
 		Boot.SAFE_OFF:
 			var msg := "It is now safe to turn off\n     your computer."
 			var y2 := 220.0
@@ -838,14 +920,22 @@ func _build_desktop() -> void:
 		var tex := _wallpaper_tex
 		if tex != null:
 			var s := tex.get_size()
-			var k := maxf(SCREEN.x / s.x, DESKTOP_SIZE.y / s.y)
-			var d := s * k
-			_desktop.draw_texture_rect(tex, Rect2((DESKTOP_SIZE - d) * 0.5, d), false, Color(0.92, 0.92, 0.92))
+			if s.x <= 160.0:
+				# A small picture is tiled, like the patterns were.
+				_desktop.draw_texture_rect(tex, Rect2(Vector2.ZERO, DESKTOP_SIZE), true)
+			else:
+				var k := maxf(SCREEN.x / s.x, DESKTOP_SIZE.y / s.y)
+				var d := s * k
+				_desktop.draw_texture_rect(tex, Rect2((DESKTOP_SIZE - d) * 0.5, d), false, Color(0.92, 0.92, 0.92))
 	)
 	_desktop.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed:
 			_select_icon(null)
 			_close_start_menu()
+			if _extras != null:
+				_extras.close_menu()
+				if e.button_index == MOUSE_BUTTON_RIGHT:
+					_extras.desktop_menu(e.position)
 	)
 	add_child(_desktop)
 	_icons_layer = Control.new()
@@ -1192,7 +1282,8 @@ func _shutdown() -> void:
 		_close_window(w)
 	_online = false
 	play("shutdown", -6.0)
-	_state = Boot.SAFE_OFF
+	_state = Boot.SHUTTING
+	_boot_t = 0.0
 	_apply_state()
 
 
@@ -1276,6 +1367,12 @@ func _refresh_ups(m: Node) -> void:
 # ── input, cursor ────────────────────────────────────────────────────────────
 
 func _input(event: InputEvent) -> void:
+	if _extras != null and (event is InputEventKey or event is InputEventMouseButton or (event is InputEventMouseMotion and event.relative.length() > 1.0)):
+		var was: bool = _extras.is_saving()
+		_extras.poke()
+		if was:
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventMouse:
 		_mouse = event.position
 	# Any key or click during the POST hurries it on (like holding Esc did).
@@ -1326,6 +1423,25 @@ const ARROW := [
 	"     X..X   ",
 	"      XX    ",
 ]
+## The pointing hand over a link (the browser sets pointer_hand).
+const HAND := [
+	"     XX         ",
+	"    X..X        ",
+	"    X..X        ",
+	"    X..X        ",
+	"    X..XXX      ",
+	"    X..X..XXX   ",
+	" XX X..X..X..XX ",
+	"X..XX........X.X",
+	"X...X..........X",
+	" X.............X",
+	"  X............X",
+	"  X...........X ",
+	"   X..........X ",
+	"   X.........X  ",
+	"    X........X  ",
+	"    XXXXXXXXXX  ",
+]
 const HOURGLASS := [
 	"XXXXXXXXXXX",
 	"X.........X",
@@ -1346,8 +1462,10 @@ const HOURGLASS := [
 func _draw_cursor() -> void:
 	if not _open or _state != Boot.DESKTOP:
 		return
-	var pat: Array = HOURGLASS if (_busy > 0 or _state != Boot.DESKTOP) else ARROW
+	var pat: Array = HOURGLASS if (_busy > 0 or _state != Boot.DESKTOP) else (HAND if pointer_hand else ARROW)
 	var o := _mouse.floor()
+	if pat == HAND:
+		o.x -= 5
 	for y in pat.size():
 		var row: String = pat[y]
 		for x in row.length():
@@ -1361,6 +1479,8 @@ func _draw_cursor() -> void:
 # ── small generated art ──────────────────────────────────────────────────────
 
 func _start_logo() -> Texture2D:
+	if ResourceLoader.exists(OKNA_START):
+		return load(OKNA_START)
 	# A small pine tree in a window frame: the camp's "start" mark.
 	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))

@@ -96,8 +96,8 @@ const CRT_SCREEN_EMISSION_NEAR: float = 0.24
 const CRT_SCREEN_EMISSION_FAR: float = 1.06
 const CRT_SCREEN_EMISSION_ACTIVE_MULT: float = 0.72
 ## 4:3, the shape of the 640x480 picture.
-const CRT_SCREEN_QUAD_SIZE := Vector2(0.50, 0.375)
-const CRT_SCREEN_LOCAL_POS := Vector3(0.0, 0.02, 0.356)
+const CRT_SCREEN_QUAD_SIZE := Vector2(0.48, 0.36)
+const CRT_SCREEN_LOCAL_POS := Vector3(0.0, 0.056, 0.356)
 
 var _viewport_container: SubViewportContainer
 var _viewport: SubViewport
@@ -812,50 +812,7 @@ func _build_room() -> void:
 	_crt_body.position = Vector3(0.24, 1.35, -1.53)
 	_room_root.add_child(_crt_body)
 
-	var crt_case = MeshInstance3D.new()
-	crt_case.name = "CRTCase"
-	var crt_case_box = BoxMesh.new()
-	crt_case_box.size = Vector3(0.82, 0.60, 0.62)
-	crt_case.mesh = crt_case_box
-	crt_case.material_override = _make_psx_material(pc_shell_col, 26.0, 5.0, 0.01, "plastic")
-	_crt_body.add_child(crt_case)
-
-	var crt_top_cap = MeshInstance3D.new()
-	crt_top_cap.name = "CRTTopCap"
-	var crt_top_mesh = BoxMesh.new()
-	crt_top_mesh.size = Vector3(0.80, 0.05, 0.56)
-	crt_top_cap.mesh = crt_top_mesh
-	crt_top_cap.position = Vector3(0.0, 0.28, -0.02)
-	crt_top_cap.material_override = _make_psx_material(pc_shell_dark_col, 24.0, 4.0, 0.0, "plastic")
-	_crt_body.add_child(crt_top_cap)
-
-	var crt_front = MeshInstance3D.new()
-	crt_front.name = "CRTFrontFrame"
-	var crt_front_mesh = BoxMesh.new()
-	crt_front_mesh.size = Vector3(0.72, 0.53, 0.11)
-	crt_front.mesh = crt_front_mesh
-	crt_front.position = Vector3(0.0, 0.02, 0.258)
-	crt_front.material_override = _make_psx_material(pc_shell_col.lightened(0.08), 26.0, 5.0, 0.0, "plastic")
-	_crt_body.add_child(crt_front)
-
-	var crt_inner = MeshInstance3D.new()
-	crt_inner.name = "CRTInnerFrame"
-	var crt_inner_mesh = BoxMesh.new()
-	crt_inner_mesh.size = Vector3(0.61, 0.46, 0.07)
-	crt_inner.mesh = crt_inner_mesh
-	crt_inner.position = Vector3(0.0, 0.02, 0.292)
-	crt_inner.material_override = _make_psx_material(pc_panel_col, 22.0, 4.0, 0.0, "plastic")
-	_crt_body.add_child(crt_inner)
-
-	var crt_bezel_dark = MeshInstance3D.new()
-	crt_bezel_dark.name = "CRTBezelDark"
-	var crt_bezel_mesh = BoxMesh.new()
-	crt_bezel_mesh.size = Vector3(0.54, 0.41, 0.03)
-	crt_bezel_dark.mesh = crt_bezel_mesh
-	crt_bezel_dark.position = Vector3(0.0, 0.02, 0.336)
-	crt_bezel_dark.material_override = _make_psx_material(pc_charcoal_col, 16.0, 3.0, 0.0, "plastic")
-	_crt_body.add_child(crt_bezel_dark)
-
+	_build_monitor_boxes()
 	var crt_col = CollisionShape3D.new()
 	var crt_shape = BoxShape3D.new()
 	crt_shape.size = Vector3(0.86, 0.64, 0.66)
@@ -895,77 +852,16 @@ func _build_room() -> void:
 	_crt_glow_light.shadow_enabled = false
 	_crt_body.add_child(_crt_glow_light)
 
-	var crt_power_led = MeshInstance3D.new()
-	crt_power_led.name = "CRTPowerLed"
-	var crt_led_mesh = BoxMesh.new()
-	crt_led_mesh.size = Vector3(0.014, 0.014, 0.010)
-	crt_power_led.mesh = crt_led_mesh
-	crt_power_led.position = Vector3(0.32, -0.18, 0.336)
-	crt_power_led.material_override = _make_psx_material(Color(0.36, 0.74, 0.36), 0.0, 0.0, 0.0, "plastic")
-	_crt_body.add_child(crt_power_led)
-
-	for bi in range(3):
-		var crt_button = MeshInstance3D.new()
-		crt_button.name = "CRTButton%d" % bi
-		var crt_btn_mesh = BoxMesh.new()
-		crt_btn_mesh.size = Vector3(0.028, 0.010, 0.016)
-		crt_button.mesh = crt_btn_mesh
-		crt_button.position = Vector3(0.26 - float(bi) * 0.038, -0.18, 0.336)
-		crt_button.material_override = _make_psx_material(pc_shell_dark_col.darkened(0.10), 0.0, 0.0, 0.0, "plastic")
-		_crt_body.add_child(crt_button)
-
-	var crt_stand_neck = MeshInstance3D.new()
-	crt_stand_neck.name = "CRTStandNeck"
-	var stand_neck_mesh = BoxMesh.new()
-	stand_neck_mesh.size = Vector3(0.18, 0.11, 0.22)
-	crt_stand_neck.mesh = stand_neck_mesh
-	crt_stand_neck.position = Vector3(0.0, -0.33, -0.01)
-	crt_stand_neck.material_override = _make_psx_material(pc_shell_dark_col, 24.0, 4.0, 0.0, "plastic")
-	_crt_body.add_child(crt_stand_neck)
-
-	var crt_stand_foot = MeshInstance3D.new()
-	crt_stand_foot.name = "CRTStandFoot"
-	var stand_foot_mesh = BoxMesh.new()
-	stand_foot_mesh.size = Vector3(0.40, 0.05, 0.30)
-	crt_stand_foot.mesh = stand_foot_mesh
-	crt_stand_foot.position = Vector3(0.0, -0.40, -0.01)
-	crt_stand_foot.material_override = _make_psx_material(pc_shell_dark_col.lightened(0.06), 24.0, 4.0, 0.0, "plastic")
-	_crt_body.add_child(crt_stand_foot)
-
-	for vi in range(5):
-		var vent = MeshInstance3D.new()
-		vent.name = "CRTVent%d" % vi
-		var vb = BoxMesh.new()
-		vb.size = Vector3(0.60, 0.012, 0.18)
-		vent.mesh = vb
-		vent.position = Vector3(0.0, 0.20 + float(vi) * 0.028, -0.10)
-		vent.material_override = _make_psx_material(Color(0.22, 0.22, 0.20), 0.0, 0.0, 0.0, "")
-		_crt_body.add_child(vent)
-
-	# Desktop tower (to the right of monitor)
-	_add_box(_room_root, "PCTowerCase", Vector3(0.90, 1.20, -1.45), Vector3(0.36, 0.86, 0.56), pc_shell_col)
-	_add_box(_room_root, "PCTowerFrontPanel", Vector3(0.90, 1.20, -1.16), Vector3(0.32, 0.80, 0.05), pc_panel_col)
-	_add_box(_room_root, "PCTowerTopLip", Vector3(0.90, 1.62, -1.44), Vector3(0.34, 0.04, 0.52), pc_shell_dark_col)
-	_add_box(_room_root, "PCTowerDriveTop", Vector3(0.90, 1.45, -1.13), Vector3(0.24, 0.08, 0.02), Color(0.28, 0.28, 0.28))
-	_add_box(_room_root, "PCTowerDriveMid", Vector3(0.90, 1.33, -1.13), Vector3(0.24, 0.10, 0.02), Color(0.24, 0.24, 0.24))
-	_add_box(_room_root, "PCTowerBay", Vector3(0.90, 1.20, -1.13), Vector3(0.24, 0.11, 0.02), Color(0.20, 0.20, 0.20))
-	_add_box(_room_root, "PCTowerBadge", Vector3(0.90, 0.97, -1.12), Vector3(0.11, 0.04, 0.01), Color(0.58, 0.60, 0.66))
-	_add_box(_room_root, "PCTowerPowerBtn", Vector3(0.90, 0.88, -1.12), Vector3(0.05, 0.03, 0.01), Color(0.16, 0.16, 0.16))
-
-	# Keyboard (full-size with numpad)
-	_add_box(_room_root, "KeyboardBase", Vector3(0.26, 0.862, -1.00), Vector3(0.70, 0.024, 0.23), Color(0.82, 0.80, 0.70))
-	_add_box(_room_root, "KeyboardTopSlope", Vector3(0.26, 0.876, -1.08), Vector3(0.70, 0.010, 0.05), Color(0.76, 0.74, 0.66))
-	_add_box(_room_root, "KeyboardKeyRow1", Vector3(0.15, 0.877, -0.93), Vector3(0.42, 0.010, 0.024), Color(0.20, 0.20, 0.20))
-	_add_box(_room_root, "KeyboardKeyRow2", Vector3(0.15, 0.877, -0.98), Vector3(0.40, 0.010, 0.024), Color(0.20, 0.20, 0.20))
-	_add_box(_room_root, "KeyboardKeyRow3", Vector3(0.15, 0.877, -1.03), Vector3(0.38, 0.010, 0.024), Color(0.20, 0.20, 0.20))
-	_add_box(_room_root, "KeyboardNumpad", Vector3(0.50, 0.877, -0.99), Vector3(0.16, 0.010, 0.15), Color(0.20, 0.20, 0.20))
-	_add_box(_room_root, "KeyboardSpacebar", Vector3(0.13, 0.878, -1.08), Vector3(0.24, 0.010, 0.024), Color(0.16, 0.16, 0.16))
-
-	# Mouse
-	_add_box(_room_root, "MouseBody", Vector3(0.70, 0.867, -1.00), Vector3(0.11, 0.022, 0.15), Color(0.84, 0.82, 0.74))
-	_add_box(_room_root, "MouseButtons", Vector3(0.70, 0.878, -0.96), Vector3(0.08, 0.008, 0.05), Color(0.72, 0.70, 0.63))
-	_add_box(_room_root, "MouseWheel", Vector3(0.70, 0.879, -1.00), Vector3(0.014, 0.010, 0.018), Color(0.16, 0.16, 0.16))
-
+	# The tower, the keyboard and the mouse: Build-engine style, plain boxes in the
+	# yellowed plastic, the detail on the faces (Grok textures, assets/textury/camp).
+	var K := INTERIOR_KIT
+	var plastic := K.surface("plastic", 0.35)
+	K.slab(_room_root, Vector3(0.30, 0.80, 0.50), Vector3(0.90, 1.21, -1.45), plastic, "PCTower")
+	_face(_room_root, "tower_front", Vector2(0.30, 0.80), Vector3(0.90, 1.21, -1.199), 0.0)
+	K.slab(_room_root, Vector3(0.56, 0.03, 0.19), Vector3(0.26, 0.837, -1.0), plastic, "Keyboard")
+	_face(_room_root, "keyboard", Vector2(0.54, 0.17), Vector3(0.26, 0.853, -1.0), 0.0, true)
+	K.slab(_room_root, Vector3(0.06, 0.026, 0.10), Vector3(0.74, 0.835, -1.0), plastic, "Mouse")
+	K.slab(_room_root, Vector3(0.22, 0.004, 0.19), Vector3(0.74, 0.822, -1.0), K.surface("blanket_grey", 0.4, Color(0.25, 0.3, 0.45)), "MousePad")
 	# Cables
 	_add_cable_polyline(
 		_room_root,
@@ -1107,7 +1003,6 @@ func _build_room() -> void:
 	_add_box(_room_root, "DoorHandle", Vector3(-2.36, 0.92, 0.84), Vector3(0.04, 0.06, 0.08), Color(0.74, 0.62, 0.40))
 
 	# ── PROPS AND PICTURES (tools/blender, assets/textury/camp) ───────────────
-	var K := INTERIOR_KIT
 	K.prop(_room_root, "filing_cabinet", Vector3(2.2, 0.05, -1.1), -90.0)
 	K.prop(_room_root, "key_board", Vector3(-2.47, 1.2, 0.05), 90.0)
 	K.picture(_room_root, "poster_mushrooms", Vector2(0.44, 0.58), Vector3(-2.47, 1.56, -0.9), 90.0, "PosterA")
@@ -2788,6 +2683,67 @@ func _add_box(parent: Node, name_str: String, pos: Vector3, size: Vector3, color
 		if _is_near_light_wall_node(name_str):
 			_office_near_light_wall_meshes.append(mesh_inst)
 	parent.add_child(mesh_inst)
+
+
+## The monitor, Build-engine style: a front slab carrying the painted bezel (buttons,
+## lamp, the maker's plate), the body with its vents, the tube's back, the foot. The
+## screen quad sits 5 mm in front of the bezel's black glass.
+func _build_monitor_boxes() -> void:
+	var K := INTERIOR_KIT
+	var plastic := K.surface("plastic", 0.35)
+	var vents := K.surface("monitor_side", 0.4) if ResourceLoader.exists("res://assets/textury/camp/monitor_side.png") else K.surface("monitor_back", 0.4)
+	K.slab(_crt_body, Vector3(0.80, 0.60, 0.06), Vector3(0.0, 0.02, 0.32), plastic, "CRTFront")
+	_face(_crt_body, "monitor_front", Vector2(0.80, 0.60), Vector3(0.0, 0.02, 0.351), 0.0)
+	K.slab(_crt_body, Vector3(0.72, 0.52, 0.34), Vector3(0.0, 0.02, 0.12), vents, "CRTBody")
+	K.slab(_crt_body, Vector3(0.46, 0.36, 0.26), Vector3(0.0, 0.02, -0.18), vents, "CRTBack")
+	K.slab(_crt_body, Vector3(0.18, 0.08, 0.20), Vector3(0.0, -0.32, 0.06), plastic, "CRTNeck")
+	K.slab(_crt_body, Vector3(0.40, 0.04, 0.32), Vector3(0.0, -0.38, 0.06), plastic, "CRTFoot")
+	_add_monitor_badge()
+
+
+## A textured face (assets/textury/camp/<tex>.png) on a box: the Build way of detail.
+func _face(parent: Node3D, tex: String, size: Vector2, pos: Vector3, yaw_deg: float, top := false) -> MeshInstance3D:
+	var q := MeshInstance3D.new()
+	q.name = "Face_" + tex
+	var qm := QuadMesh.new()
+	qm.size = size
+	if top:
+		qm.orientation = PlaneMesh.FACE_Y
+	q.mesh = qm
+	var m := StandardMaterial3D.new()
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	var path := "res://assets/textury/camp/%s.png" % tex
+	if ResourceLoader.exists(path):
+		m.albedo_texture = load(path)
+	else:
+		m.albedo_texture = load("res://assets/textury/camp/plastic.png") if ResourceLoader.exists("res://assets/textury/camp/plastic.png") else null
+	q.material_override = m
+	q.position = pos
+	q.rotation_degrees.y = yaw_deg
+	parent.add_child(q)
+	return q
+
+
+## The maker's badge under the screen: CAMPTRONICS in chrome letters on a dark plate.
+func _add_monitor_badge() -> void:
+	var tex_path := "res://assets/textury/camp/badge_camptronics.png"
+	var q := MeshInstance3D.new()
+	q.name = "MonitorBadge"
+	var qm := QuadMesh.new()
+	qm.size = Vector2(0.15, 0.024)
+	q.mesh = qm
+	var m := StandardMaterial3D.new()
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	if ResourceLoader.exists(tex_path):
+		m.albedo_texture = load(tex_path)
+	else:
+		m.albedo_color = Color(0.2, 0.2, 0.22)
+	m.roughness = 0.4
+	q.material_override = m
+	q.position = Vector3(0.0, 0.02 - 0.19, 0.353)
+	_crt_body.add_child(q)
 
 
 func _add_cable_polyline(parent: Node3D, name_prefix: String, points: PackedVector3Array, radius: float, color: Color) -> void:

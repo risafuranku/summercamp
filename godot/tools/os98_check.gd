@@ -154,11 +154,11 @@ func _run() -> void:
 		re.compile("\\[url=([^\\]]+)\\]")
 		for m in re.search_all(body):
 			var target: String = m.get_string(1)
-			if not target.begins_with("download://") and not WEB.PAGES.has(target) and not target in ["volny.cz/~blatna", "volny.cz/~zamek"]:
+			if not target.begins_with("download://") and not target.begins_with("search?") and not WEB.PAGES.has(target) and not target in ["volny.cz/~blatna", "volny.cz/~zamek"]:
 				_failures.append("page %s links to missing %s" % [key, target])
-	for key in ["stavitel98.cz", "cerne-jezero.cz/guestbook", "kuryr-hlubocany.cz/1987", "volny.cz/~strasidla", "hostinec-u-jezera.cz"]:
+	for key in ["stavitel98.cz", "cerne-jezero.cz/guestbook", "kuryr-hlubocany.cz/1987", "volny.cz/~strasidla", "hostinec-u-jezera.cz", "volny.cz/~infravrany", "povodi-hlubocany.cz", "bohemia-online.cz/weather", "cerne-jezero.cz/team", "bohemia-online.cz/search"]:
 		br._show(key)
-		await _frames(3)
+		await _wait(3.0 if _shots != "" else 0.1)
 		await _shot("web_" + key.replace("/", "_").replace("~", ""))
 	br.navigate("builder")
 	await _wait(2.4)

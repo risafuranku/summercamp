@@ -705,6 +705,9 @@ func _ready() -> void:
 	_steps = SCENARIOS.get(scenario, SCENARIOS["boot"]).duplicate(true)
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Do not steal focus from whoever is using the PC (the user may be playing), and do
+	# not pause the game when it does not have focus.
+	get_window().unfocusable = true
 	call_deferred("_detach_and_boot")
 
 
@@ -734,6 +737,8 @@ func _process(delta: float) -> void:
 				GuestManager.request_check_in(int(row.get("id", -1)))
 	if _main == null or not is_instance_valid(_main):
 		_main = get_tree().current_scene
+		if _main != null and _main.get("pause_on_focus_loss") != null:
+			_main.set("pause_on_focus_loss", false)
 		if _main == null or _main == self:
 			return
 		if "pause_on_focus_loss" in _main:

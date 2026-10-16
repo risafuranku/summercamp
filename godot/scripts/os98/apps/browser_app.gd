@@ -1,41 +1,95 @@
 extends Control
 
-## Beeternet Explorer 4: toolbar, address bar, the page, the status bar. The first page
-## of the session dials the modem. Typing a word that is not an address searches the
-## Czech web (the portal's index). Download links ask, then hand the file to the shell.
+## Beeternet Explorer 4: the menu bar, the "cool" toolbar (grey icons that light up under
+## the mouse, scripts/os98/apps/browser_icons.gd), the spinning globe with its bee, the
+## Address and Links bands, the page, and the status bar with its progress and zone
+## cells. The first page of the session dials the modem. Typing a word that is not an
+## address searches the Czech web (the portal's index). Download links ask, then hand the
+## file to the shell.
+##
+## Pages (scripts/os98/web_pages.gd) arrive the way they did over 33.6k: the text in a
+## couple of gulps, then the pictures one by one, interlaced. GIF banners rotate their
+## frames once they are down; some pages are papered with a tile; [blink] blinks and
+## [marquee] runs.
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const WEB = preload("res://scripts/os98/web_pages.gd")
+const ICONS = preload("res://scripts/os98/apps/browser_icons.gd")
+const NBSP := " "
 const LINK_RE := "\\{([^{}|]+)\\|([^{}]+)\\}"
-const IMG_RE := "\\{\\{img:([a-z0-9_]+):(\\d+)\\}\\}"
+const IMG_RE := "\\{\\{(img|banner):([a-z0-9_]+):([^{}]+)\\}\\}"
 const WEB_IMG := "res://assets/textury/web/"
 ## Interlaced passes (GIF style): one row in 8, in 4, in 2, then the picture.
 const PASSES := [8, 4, 2, 1]
+const MENU_H := 18
+const TOOL_H := 42
+const BAND_H := 24
+const STATUS_H := 20
+const THROB_W := 50
+const BANNER_FRAME := 2.6
+const LINKS := [["Bohemia", "bohemia-online.cz"], ["Courier", "kuryr-hlubocany.cz"], ["Weather", "bohemia-online.cz/weather"], ["Camp", "cerne-jezero.cz"]]
+
+
+## [blink]: on, off, the way Netscape meant it.
+class BlinkFx extends RichTextEffect:
+	var bbcode := "blink"
+
+	func _process_custom_fx(fx: CharFXTransform) -> bool:
+		fx.visible = fmod(fx.elapsed_time, 1.0) < 0.62
+		return true
+
+
+## [marquee w=440 speed=40]: the line runs right to left inside w pixels and comes back
+## round. Each letter's place along the line is summed from the glyph advances.
+class MarqueeFx extends RichTextEffect:
+	var bbcode := "marquee"
+	var _acc := 0.0
+
+	func _process_custom_fx(fx: CharFXTransform) -> bool:
+		var w := float(fx.env.get("w", 440.0))
+		var speed := float(fx.env.get("speed", 40.0))
+		if fx.relative_index == 0:
+			_acc = 0.0
+		var x0 := _acc
+		_acc += TextServerManager.get_primary_interface().font_get_glyph_advance(fx.font, T.FONT_SIZE, fx.glyph_index).x
+		var x := fposmod(x0 - floorf(fx.elapsed_time * speed), w)
+		fx.offset.x += x - x0
+		return true
+
 
 var _shell
 var _win
 var _address: LineEdit
+var _frame: Panel
 var _page: RichTextLabel
 var _status: Label
+var _status_idle := "Done"
+var _progress: Control
 var _throbber: Control
-var _back: Button
-var _fwd: Button
+var _tools: Array = []          # cool buttons, by id in their meta
 var _history: Array[String] = []
 var _hist_i := -1
 var _url := ""
 var _loading := 0.0
+var _load_total := 1.0
+var _reveal := -1.0
 var _pending := ""
 var _dial: Control
 var _dial_label: Label
 var _dial_t := -1.0
 var _dial_then := ""
 var _anim := 0.0
+var _spin := 0.0
 var _counters: Dictionary = {}
 var _link_re := RegEx.new()
 var _img_re := RegEx.new()
 ## Pictures still coming down the line: [{key, src: Image, tex, pass, t, kb}]
 var _pictures: Array = []
 var _pic_i := 0
+## Banners on the page: [{tex, frames: Array[Image], i, t, pic}]
+var _banners: Array = []
+var _menu: Control
+var _menu_catch: Control
 
 
 func setup(shell, win, args: Dictionary) -> void:
@@ -55,87 +109,541 @@ func reopen(args: Dictionary) -> void:
 func closing() -> void:
 	# Hang up when the browser closes: the call costs money by the minute.
 	_shell.set_online(false)
+	_shell.pointer_hand = false
 	if _loading > 0.0 or _dial_t >= 0.0:
 		_shell.set_busy(false)
 
 
+# ── the chrome ───────────────────────────────────────────────────────────────
+
 func _build() -> void:
-	var tools := HBoxContainer.new()
-	tools.position = Vector2(2, 2)
-	tools.add_theme_constant_override("separation", 2)
-	add_child(tools)
-	_back = _tool(tools, "Back", func(): _go_history(-1))
-	_fwd = _tool(tools, "Forward", func(): _go_history(1))
-	_tool(tools, "Stop", _stop)
-	_tool(tools, "Refresh", func(): _load(_url, false))
-	_tool(tools, "Home", func(): navigate(WEB.HOME))
-	_tool(tools, "Search", func(): navigate(WEB.HOME))
+	var chrome := Control.new()
+	chrome.name = "Chrome"
+	chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chrome.draw.connect(_draw_chrome.bind(chrome))
+	add_child(chrome)
+
+	# The menu bar.
+	var mx := 4.0
+	for m in ["File", "Edit", "View", "Go", "Favorites", "Help"]:
+		var w := T.FONT.get_string_size(m, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 12.0
+		add_child(_menu_title(m, Vector2(mx, 1), Vector2(w, MENU_H - 2)))
+		mx += w
+
+	# The cool toolbar.
+	var defs := [
+		["back", "Back", func(): _go_history(-1)],
+		["forward", "Forward", func(): _go_history(1)],
+		["stop", "Stop", _stop],
+		["refresh", "Refresh", func(): _load(_url, false)],
+		["home", "Home", func(): navigate(WEB.HOME)],
+		["|"],
+		["search", "Search", func(): navigate(WEB.HOME + "/search")],
+		["favorites", "Favorites", func(): _open_menu("Favorites", Vector2(0, MENU_H + TOOL_H))],
+		["history", "History", func(): _open_menu("History", Vector2(0, MENU_H + TOOL_H))],
+		["|"],
+		["mail", "Mail", func(): _shell.open_app("mail")],
+		["print", "Print", _print],
+	]
+	var x := 4.0
+	for d in defs:
+		if d[0] == "|":
+			x += 6.0
+			continue
+		var b := _cool(str(d[0]), str(d[1]), d[2], Vector2(x, MENU_H + 1), Vector2(48, TOOL_H - 2))
+		add_child(b)
+		_tools.append(b)
+		x += 48.0
+
 	_throbber = Control.new()
-	_throbber.size = Vector2(36, 26)
+	_throbber.size = Vector2(THROB_W, MENU_H + TOOL_H - 2)
+	_throbber.mouse_filter = Control.MOUSE_FILTER_STOP
 	_throbber.draw.connect(_draw_throbber)
+	_throbber.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			navigate(WEB.HOME)
+	)
 	add_child(_throbber)
 
+	# The Address band, the Links band beside it.
 	var row := HBoxContainer.new()
-	row.position = Vector2(2, 32)
-	row.add_theme_constant_override("separation", 4)
 	row.name = "AddressRow"
+	row.add_theme_constant_override("separation", 4)
 	add_child(row)
 	var lab := Label.new()
 	lab.text = "Address"
+	lab.add_theme_color_override("font_color", T.TEXT)
 	row.add_child(lab)
 	_address = LineEdit.new()
 	_address.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var ab := T.box("field", T.WHITE, Vector4(22, 2, 4, 2)).duplicate() as StyleBoxTexture
+	_address.add_theme_stylebox_override("normal", ab)
+	_address.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	_address.text_submitted.connect(func(t): navigate(t))
 	row.add_child(_address)
+	var page_icon := TextureRect.new()
+	page_icon.texture = ICONS.get_icon("page")
+	page_icon.position = Vector2(3, 1)
+	page_icon.size = Vector2(16, 16)
+	page_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	page_icon.stretch_mode = TextureRect.STRETCH_SCALE
+	page_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_address.add_child(page_icon)
 	var go := Button.new()
 	go.text = "Go"
-	go.custom_minimum_size = Vector2(32, 20)
+	go.custom_minimum_size = Vector2(30, 20)
 	go.pressed.connect(func(): navigate(_address.text))
 	row.add_child(go)
 
+	var links := HBoxContainer.new()
+	links.name = "LinksRow"
+	links.add_theme_constant_override("separation", 0)
+	add_child(links)
+	var ll := Label.new()
+	ll.text = "Links "
+	links.add_child(ll)
+	for l in LINKS:
+		links.add_child(_link_button(str(l[0]), str(l[1])))
+
+	# The page in its sunken frame.
+	_frame = Panel.new()
+	_frame.name = "PageFrame"
+	_frame.add_theme_stylebox_override("panel", T.box("field", T.WHITE, Vector4.ZERO))
+	add_child(_frame)
 	_page = RichTextLabel.new()
 	_page.bbcode_enabled = true
 	_page.selection_enabled = true
 	_page.meta_underlined = true
+	_page.position = Vector2(2, 2)
+	_page.install_effect(BlinkFx.new())
+	_page.install_effect(MarqueeFx.new())
 	_page.meta_clicked.connect(func(m): _on_link(str(m)))
-	_page.position = Vector2(0, 56)
-	add_child(_page)
+	_page.meta_hover_started.connect(func(m):
+		_shell.pointer_hand = true
+		_status.text = "Shortcut to " + _describe(str(m))
+	)
+	_page.meta_hover_ended.connect(func(_m):
+		_shell.pointer_hand = false
+		_status.text = _status_idle
+	)
+	_page.mouse_exited.connect(func(): _shell.pointer_hand = false)
+	_frame.add_child(_page)
 
-	var bar := Panel.new()
+	# The status bar: the text, the progress, the zone.
+	var bar := Control.new()
 	bar.name = "StatusBar"
-	bar.add_theme_stylebox_override("panel", T.box("well", T.FACE, Vector4.ZERO))
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.draw.connect(_draw_status.bind(bar))
 	add_child(bar)
 	_status = Label.new()
-	_status.position = Vector2(4, 2)
+	_status.position = Vector2(24, 3)
 	_status.clip_text = true
 	bar.add_child(_status)
+	_progress = bar
 
 	_build_dialer()
 	resized.connect(_layout)
 	_layout()
-
-
-func _tool(parent: Control, text: String, cb: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size = Vector2(0, 26)
-	b.pressed.connect(cb)
-	parent.add_child(b)
-	return b
+	_layout.call_deferred()
 
 
 func _layout() -> void:
 	if _page == null:
 		return
-	_throbber.position = Vector2(size.x - 38, 2)
+	var chrome: Control = get_node("Chrome")
+	chrome.size = size
+	_throbber.position = Vector2(size.x - THROB_W - 2, 1)
+	var by := float(MENU_H + TOOL_H + 2)
+	var links: Control = get_node("LinksRow")
+	var lw := 0.0
+	for c in links.get_children():
+		lw += (c as Control).get_combined_minimum_size().x
 	var row: Control = get_node("AddressRow")
-	row.size = Vector2(size.x - 4, 22)
-	_page.size = Vector2(size.x, size.y - 56 - 20)
-	var bar: Panel = get_node("StatusBar")
-	bar.position = Vector2(0, size.y - 18)
-	bar.size = Vector2(size.x, 18)
-	_status.size = Vector2(size.x - 8, 14)
+	row.position = Vector2(8, by + 2)
+	row.size = Vector2(size.x - lw - 28, 20)
+	links.position = Vector2(size.x - lw - 6, by + 2)
+	links.size = Vector2(lw, 20)
+	var top := by + BAND_H + 2
+	_frame.position = Vector2(0, top)
+	_frame.size = Vector2(size.x, size.y - top - STATUS_H - 1)
+	_page.size = _frame.size - Vector2(4, 4)
+	var bar: Control = get_node("StatusBar")
+	bar.position = Vector2(0, size.y - STATUS_H)
+	bar.size = Vector2(size.x, STATUS_H)
+	_status.size = Vector2(size.x - 24 - 200, 14)
 	_dial.position = ((size - _dial.size) * 0.5).floor()
+
+
+## The etched lines between the bands, the grip at the start of each.
+func _draw_chrome(c: Control) -> void:
+	for y in [MENU_H, MENU_H + TOOL_H, MENU_H + TOOL_H + BAND_H + 2]:
+		c.draw_rect(Rect2(0, y, size.x, 1), T.SHADOW)
+		c.draw_rect(Rect2(0, y + 1, size.x, 1), T.WHITE)
+	for y0 in [MENU_H + 3, MENU_H + TOOL_H + 5]:
+		var h := TOOL_H - 6 if y0 == MENU_H + 3 else BAND_H - 6
+		c.draw_rect(Rect2(1, y0, 1, h), T.WHITE)
+		c.draw_rect(Rect2(2, y0, 1, h), T.SHADOW)
+		c.draw_rect(Rect2(4, y0, 1, h), T.WHITE)
+		c.draw_rect(Rect2(5, y0, 1, h), T.SHADOW)
+	# The grip between the Address and the Links bands.
+	var links: Control = get_node_or_null("LinksRow")
+	if links != null:
+		var gx := links.position.x - 8
+		c.draw_rect(Rect2(gx, MENU_H + TOOL_H + 5, 1, BAND_H - 6), T.SHADOW)
+		c.draw_rect(Rect2(gx + 1, MENU_H + TOOL_H + 5, 1, BAND_H - 6), T.WHITE)
+
+
+## A toolbar button of the IE4 kind: flat; under the mouse a thin bevel and the icon in
+## colour; pushed, sunk; disabled, an embossed grey.
+func _cool(id: String, text: String, cb: Callable, pos: Vector2, sz: Vector2) -> Control:
+	var c := Control.new()
+	c.position = pos
+	c.size = sz
+	c.mouse_filter = Control.MOUSE_FILTER_STOP
+	c.set_meta("id", id)
+	c.set_meta("hover", false)
+	c.set_meta("down", false)
+	c.set_meta("disabled", false)
+	c.mouse_entered.connect(func():
+		c.set_meta("hover", true)
+		c.queue_redraw()
+	)
+	c.mouse_exited.connect(func():
+		c.set_meta("hover", false)
+		c.set_meta("down", false)
+		c.queue_redraw()
+	)
+	c.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and not bool(c.get_meta("disabled")):
+			if e.pressed:
+				c.set_meta("down", true)
+			elif bool(c.get_meta("down")):
+				c.set_meta("down", false)
+				_shell.play("click", -14.0)
+				cb.call()
+			c.queue_redraw()
+	)
+	c.draw.connect(func():
+		var hov := bool(c.get_meta("hover"))
+		var down := bool(c.get_meta("down"))
+		var dis := bool(c.get_meta("disabled"))
+		if not dis and down:
+			c.draw_style_box(T.box("well", T.FACE), Rect2(Vector2.ZERO, sz))
+		elif not dis and hov:
+			c.draw_style_box(T.box("thin_raised", T.FACE), Rect2(Vector2.ZERO, sz))
+		var o := Vector2(1, 1) if down else Vector2.ZERO
+		var ip := Vector2(floorf((sz.x - ICONS.S) * 0.5), 3) + o
+		var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		var tp := Vector2(floorf((sz.x - tw) * 0.5), sz.y - 5) + o
+		if dis:
+			c.draw_texture(ICONS.get_icon(id, false), ip + Vector2(1, 1), Color(1, 1, 1, 0.9))
+			c.draw_texture(ICONS.get_icon(id, false), ip, Color(0.55, 0.55, 0.55, 0.6))
+			c.draw_string(T.FONT, tp + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
+			c.draw_string(T.FONT, tp, text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
+		else:
+			c.draw_texture(ICONS.get_icon(id, hov), ip)
+			c.draw_string(T.FONT, tp, text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+	)
+	return c
+
+
+func _tool_by(id: String) -> Control:
+	for b in _tools:
+		if str(b.get_meta("id")) == id:
+			return b
+	return null
+
+
+func _set_tool_enabled(id: String, on: bool) -> void:
+	var b := _tool_by(id)
+	if b != null and bool(b.get_meta("disabled")) == on:
+		b.set_meta("disabled", not on)
+		b.queue_redraw()
+
+
+func _link_button(text: String, target: String) -> Control:
+	var w := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 26.0
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(w, 20)
+	c.mouse_filter = Control.MOUSE_FILTER_STOP
+	c.set_meta("hover", false)
+	c.mouse_entered.connect(func():
+		c.set_meta("hover", true)
+		_status.text = "Shortcut to " + _describe(target)
+		c.queue_redraw()
+	)
+	c.mouse_exited.connect(func():
+		c.set_meta("hover", false)
+		_status.text = _status_idle
+		c.queue_redraw()
+	)
+	c.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			navigate(target)
+	)
+	c.draw.connect(func():
+		if bool(c.get_meta("hover")):
+			c.draw_style_box(T.box("thin_raised", T.FACE), Rect2(Vector2.ZERO, c.size))
+		c.draw_texture_rect(ICONS.get_icon("page", bool(c.get_meta("hover"))), Rect2(3, 2, 16, 16), false)
+		c.draw_string(T.FONT, Vector2(22, 14), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+	)
+	return c
+
+
+func _draw_status(bar: Control) -> void:
+	var s := bar.size
+	bar.draw_rect(Rect2(Vector2.ZERO, s), T.FACE)
+	var zone_w := 110.0
+	var prog_w := 90.0
+	var text_r := Rect2(1, 2, s.x - zone_w - prog_w - 6, s.y - 3)
+	var prog_r := Rect2(text_r.end.x + 2, 2, prog_w, s.y - 3)
+	var zone_r := Rect2(prog_r.end.x + 2, 2, zone_w, s.y - 3)
+	for r in [text_r, prog_r, zone_r]:
+		bar.draw_style_box(T.box("well", T.FACE, Vector4.ZERO), r)
+	bar.draw_texture_rect(ICONS.get_icon("page"), Rect2(4, 3, 16, 16), false)
+	var p := _progress_value()
+	if p >= 0.0:
+		var n := int(p * 10.0)
+		for i in n:
+			bar.draw_rect(Rect2(prog_r.position.x + 3 + i * 8.5, prog_r.position.y + 3, 7, prog_r.size.y - 6), T.NAVY)
+	# The zone: a little globe, "Internet".
+	var gc := zone_r.position + Vector2(10, zone_r.size.y * 0.5)
+	bar.draw_circle(gc, 6.0, Color8(40, 90, 200))
+	bar.draw_circle(gc + Vector2(-2, -1), 2.5, Color8(60, 170, 70))
+	bar.draw_circle(gc + Vector2(3, 2), 2.0, Color8(60, 170, 70))
+	bar.draw_arc(gc, 6.0, 0, TAU, 16, T.DARK, 1.0)
+	var zone := "Internet" if _shell.is_online() else "Offline"
+	bar.draw_string(T.FONT, zone_r.position + Vector2(22, 13), zone, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+
+
+func _progress_value() -> float:
+	if _loading > 0.0:
+		return clampf(1.0 - _loading / _load_total, 0.0, 1.0) * 0.6
+	if _pic_i < _pictures.size():
+		return 0.6 + 0.4 * float(_pic_i) / float(_pictures.size())
+	return -1.0
+
+
+## Beeternet's globe, turning while a page comes down, with the bee going round it.
+func _draw_throbber() -> void:
+	var s := _throbber.size
+	_throbber.draw_style_box(T.box("well", Color8(0, 0, 0), Vector4.ZERO), Rect2(Vector2.ZERO, s))
+	for i in int(s.y - 2):
+		_throbber.draw_rect(Rect2(1, 1 + i, s.x - 2, 1), Color8(0, 0, 40).lerp(Color8(30, 40, 110), float(i) / s.y))
+	var c := (s * 0.5).floor() + Vector2(0, 1)
+	var r := 14.0
+	var bee_a := _spin * 1.7
+	var bee := c + Vector2(cos(bee_a) * 20.0, sin(bee_a) * 6.0 - 2.0)
+	var bee_behind := sin(bee_a) < 0.0
+	if bee_behind:
+		_draw_bee(bee)
+	# The sphere in 2 px cells: each cell's longitude turns with the spin.
+	var cell := 2.0
+	var y := -r
+	while y < r:
+		var x := -r
+		while x < r:
+			var px := x + cell * 0.5
+			var py := y + cell * 0.5
+			var d2 := px * px + py * py
+			if d2 < r * r:
+				var z := sqrt(r * r - d2)
+				var lon := atan2(px, z) + _spin
+				var lat := py / r
+				var land := sin(lon * 2.0 + 0.6) + sin(lon * 3.0 + lat * 4.0) * 0.6 + cos(lat * 5.0) * 0.4
+				var shade := 0.45 + 0.55 * (z / r) * (0.75 + 0.25 * (-px / r))
+				var col := Color8(60, 170, 70) if land > 0.85 else Color8(40, 90, 220)
+				if absf(lat) > 0.86:
+					col = Color8(230, 240, 255)
+				_throbber.draw_rect(Rect2(c + Vector2(x, y), Vector2(cell, cell)), Color(col.r * shade, col.g * shade, col.b * shade))
+			x += cell
+		y += cell
+	if not bee_behind:
+		_draw_bee(bee)
+
+
+func _draw_bee(p: Vector2) -> void:
+	p = p.floor()
+	var flap := int(_anim * 30.0) % 2 == 0
+	_throbber.draw_rect(Rect2(p + Vector2(-1, -4 if flap else -3), Vector2(3, 2)), Color(0.85, 0.92, 1.0, 0.9))
+	_throbber.draw_rect(Rect2(p + Vector2(-3, -1), Vector2(6, 3)), Color8(250, 200, 20))
+	_throbber.draw_rect(Rect2(p + Vector2(-1, -1), Vector2(1, 3)), Color8(20, 20, 20))
+	_throbber.draw_rect(Rect2(p + Vector2(1, -1), Vector2(1, 3)), Color8(20, 20, 20))
+	_throbber.draw_rect(Rect2(p + Vector2(3, 0), Vector2(1, 1)), Color8(20, 20, 20))
+
+
+# ── the menus ────────────────────────────────────────────────────────────────
+
+func _menu_title(text: String, pos: Vector2, sz: Vector2) -> Control:
+	var c := Control.new()
+	c.position = pos
+	c.size = sz
+	c.mouse_filter = Control.MOUSE_FILTER_STOP
+	c.set_meta("hover", false)
+	c.mouse_entered.connect(func():
+		c.set_meta("hover", true)
+		c.queue_redraw()
+		# Once a menu is open, moving along the bar opens the next one.
+		if _menu != null and is_instance_valid(_menu) and str(_menu.get_meta("title")) != text:
+			_open_menu(text, Vector2(pos.x, MENU_H))
+	)
+	c.mouse_exited.connect(func():
+		c.set_meta("hover", false)
+		c.queue_redraw()
+	)
+	c.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			if _menu != null and is_instance_valid(_menu) and str(_menu.get_meta("title")) == text:
+				_close_menu()
+			else:
+				_open_menu(text, Vector2(pos.x, MENU_H))
+	)
+	c.draw.connect(func():
+		var open := _menu != null and is_instance_valid(_menu) and str(_menu.get_meta("title")) == text
+		if open:
+			c.draw_style_box(T.box("well", T.FACE), Rect2(Vector2.ZERO, sz))
+		elif bool(c.get_meta("hover")):
+			c.draw_style_box(T.box("thin_raised", T.FACE), Rect2(Vector2.ZERO, sz))
+		c.draw_string(T.FONT, Vector2(6, 12), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		# The underlined access key.
+		var w := T.FONT.get_string_size(text.substr(0, 1), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		c.draw_rect(Rect2(6, 14, w, 1), T.TEXT)
+	)
+	return c
+
+
+func _menu_entries(title: String) -> Array:
+	match title:
+		"File":
+			return [["Work Offline", func(): _work_offline()], ["Print...", _print], ["-"], ["Close", func(): _shell.close_app_window(_win)]]
+		"Edit":
+			return [["Select All", func(): _page.select_all()], ["Copy", func(): DisplayServer.clipboard_set(_page.get_selected_text())]]
+		"View":
+			return [["Stop", _stop], ["Refresh", func(): _load(_url, false)], ["-"], ["Source", func(): _shell.message_box("Beeternet Explorer", "The source of this page cannot be viewed. Notepad was not found in C:\\OKNA.", "warning")]]
+		"Go":
+			return [["Back", func(): _go_history(-1)], ["Forward", func(): _go_history(1)], ["-"], ["Home Page", func(): navigate(WEB.HOME)], ["Search the Web", func(): navigate(WEB.HOME + "/search")]]
+		"Favorites":
+			var fav: Array = []
+			for k in WEB.FAVORITES:
+				fav.append([str(WEB.PAGES.get(k, {}).get("title", k)), func(): navigate(k)])
+			return fav
+		"History":
+			var hist: Array = []
+			var seen: Array = []
+			for i in range(_history.size() - 1, -1, -1):
+				var k: String = _history[i]
+				if k in seen:
+					continue
+				seen.append(k)
+				hist.append([_title_of(k), func(): navigate(k)])
+				if hist.size() >= 12:
+					break
+			return hist if not hist.is_empty() else [["(empty)", Callable()]]
+		"Help":
+			return [["About Beeternet Explorer", func(): _shell.message_box("About Beeternet Explorer", "Beeternet Explorer 4.01\nVersion 4.72.3110.8\n\nCopyright (C) 1995-1997 Beesoft Corp.\n\nLicensed to: Kemp Cerne jezero\nThis product is licensed for use by one computer.", "info")]]
+	return []
+
+
+func _open_menu(title: String, at: Vector2) -> void:
+	_close_menu()
+	var entries := _menu_entries(title)
+	var w := 150.0
+	for e in entries:
+		w = maxf(w, T.FONT.get_string_size(str(e[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 44.0)
+	var h := 4.0
+	for e in entries:
+		h += 8.0 if e[0] == "-" else 18.0
+	# A transparent catcher: a click anywhere else shuts the menu.
+	_menu_catch = Control.new()
+	_menu_catch.size = size
+	_menu_catch.mouse_filter = Control.MOUSE_FILTER_STOP
+	_menu_catch.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed:
+			_close_menu()
+	)
+	add_child(_menu_catch)
+	_menu = Control.new()
+	_menu.set_meta("title", title)
+	_menu.position = Vector2(minf(at.x, size.x - w), at.y)
+	_menu.size = Vector2(w, h)
+	_menu.mouse_filter = Control.MOUSE_FILTER_STOP
+	_menu.draw.connect(func(): _menu.draw_style_box(T.box("window", T.FACE), Rect2(Vector2.ZERO, _menu.size)))
+	add_child(_menu)
+	var y := 2.0
+	for e in entries:
+		if e[0] == "-":
+			var sep := Control.new()
+			sep.position = Vector2(2, y)
+			sep.size = Vector2(w - 4, 8)
+			sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			sep.draw.connect(func():
+				sep.draw_rect(Rect2(2, 3, w - 8, 1), T.SHADOW)
+				sep.draw_rect(Rect2(2, 4, w - 8, 1), T.WHITE)
+			)
+			_menu.add_child(sep)
+			y += 8.0
+			continue
+		_menu.add_child(_menu_item(str(e[0]), e[1], Vector2(2, y), Vector2(w - 4, 18), title == "Favorites" or title == "History"))
+		y += 18.0
+	for c in get_children():
+		if c is Control and c.has_meta("hover"):
+			(c as Control).queue_redraw()
+
+
+func _menu_item(text: String, cb: Callable, pos: Vector2, sz: Vector2, page_icon: bool) -> Control:
+	var c := Control.new()
+	c.position = pos
+	c.size = sz
+	c.mouse_filter = Control.MOUSE_FILTER_STOP
+	c.set_meta("hover", false)
+	var enabled := cb.is_valid()
+	c.mouse_entered.connect(func():
+		c.set_meta("hover", true)
+		c.queue_redraw()
+	)
+	c.mouse_exited.connect(func():
+		c.set_meta("hover", false)
+		c.queue_redraw()
+	)
+	c.draw.connect(func():
+		var hov := bool(c.get_meta("hover")) and enabled
+		if hov:
+			c.draw_rect(Rect2(Vector2.ZERO, sz), T.NAVY)
+		if page_icon:
+			c.draw_texture_rect(ICONS.get_icon("page"), Rect2(3, 1, 16, 16), false)
+		var col := T.WHITE if hov else (T.TEXT if enabled else T.TEXT_DISABLED)
+		c.draw_string(T.FONT, Vector2(22, 13), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
+	)
+	c.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and enabled:
+			_close_menu()
+			cb.call()
+			c.accept_event()
+	)
+	return c
+
+
+func _close_menu() -> void:
+	for n in [_menu, _menu_catch]:
+		if n != null and is_instance_valid(n):
+			n.queue_free()
+	_menu = null
+	_menu_catch = null
+	for c in get_children():
+		if c is Control and c.has_meta("hover"):
+			(c as Control).queue_redraw()
+
+
+func _work_offline() -> void:
+	_stop()
+	_shell.set_online(false)
+	_status_idle = "Working offline."
+	_status.text = _status_idle
+	get_node("StatusBar").queue_redraw()
+
+
+func _print() -> void:
+	_shell.message_box("Print", "There is no printer installed.\n\nTo install a printer, open the Printers folder in My Computer.", "warning")
 
 
 # ── navigation ───────────────────────────────────────────────────────────────
@@ -185,9 +693,12 @@ func _load(key: String, _fresh: bool) -> void:
 	if _loading <= 0.0:
 		_shell.set_busy(true)
 	_loading = randf_range(0.5, 1.3) + (0.6 if not _shell.is_day() else 0.0)
-	_status.text = "Opening page http://www.%s ..." % key
-	_back.disabled = _hist_i <= 0
-	_fwd.disabled = _hist_i >= _history.size() - 1
+	_load_total = _loading
+	_status_idle = "Opening page %s..." % _describe(key)
+	_status.text = "Finding site: www.%s" % key.split("/")[0]
+	_set_tool_enabled("back", _hist_i > 0)
+	_set_tool_enabled("forward", _hist_i < _history.size() - 1)
+	_set_tool_enabled("stop", true)
 
 
 func _address_for(key: String) -> String:
@@ -196,48 +707,86 @@ func _address_for(key: String) -> String:
 	return "http://www." + key + ("/" if key.find("/") < 0 else "")
 
 
+func _describe(target: String) -> String:
+	if target.begins_with("download://"):
+		return target.trim_prefix("download://")
+	return _address_for(normalize(target))
+
+
+func _title_of(key: String) -> String:
+	if key.begins_with("search?q="):
+		return "Search: " + key.trim_prefix("search?q=").uri_decode()
+	return str(WEB.PAGES.get(key, {}).get("title", "http://www." + key))
+
+
 func _stop() -> void:
 	if _loading > 0.0:
 		_loading = 0.0
 		_shell.set_busy(false)
-		_status.text = "Stopped."
+		_status_idle = "Stopped."
+		_status.text = _status_idle
+	_pictures = _pictures.slice(0, _pic_i)
+	_set_tool_enabled("stop", false)
 
 
 func _process(delta: float) -> void:
-	if _loading > 0.0:
-		_anim += delta
+	_anim += delta
+	var busy := _loading > 0.0 or _pic_i < _pictures.size() or _dial_t >= 0.0
+	if busy:
+		_spin += delta * 3.2
 		_throbber.queue_redraw()
+	if _loading > 0.0:
 		_loading -= delta
+		get_node("StatusBar").queue_redraw()
 		if _loading <= 0.0:
 			_shell.set_busy(false)
 			_show(_pending)
+	if _reveal >= 0.0:
+		# The text comes in two or three gulps, the way the HTML did.
+		_reveal += delta
+		var k := clampf(floorf(_reveal / 0.12) / 3.0, 0.0, 1.0)
+		_page.visible_ratio = k
+		if k >= 1.0:
+			_reveal = -1.0
 	if _dial_t >= 0.0:
 		_tick_dialer(delta)
-	if not _pictures.is_empty() and _loading <= 0.0:
+	if _pic_i < _pictures.size() and _loading <= 0.0 and _reveal < 0.0:
 		_tick_pictures(delta)
+	_tick_banners(delta)
 
 
 ## The page's text at once, the pictures as grey boxes that fill in one by one.
 func _set_page(bbcode: String) -> void:
 	_page.clear()
 	_pictures.clear()
+	_banners.clear()
 	_pic_i = 0
 	var pos := 0
 	for m in _img_re.search_all(bbcode):
 		_page.append_text(bbcode.substr(pos, m.get_start() - pos))
-		_add_picture(m.get_string(1), int(m.get_string(2)))
+		if m.get_string(1) == "banner":
+			_add_banner(m.get_string(2), m.get_string(3))
+		else:
+			_add_picture(m.get_string(2), int(m.get_string(3)))
 		pos = m.get_end()
 	_page.append_text(bbcode.substr(pos))
 
 
-func _add_picture(file: String, width: int) -> void:
+func _load_image(file: String) -> Image:
 	var path := WEB_IMG + file + ".png"
 	if not ResourceLoader.exists(path):
-		return
+		return null
 	var src: Image = (load(path) as Texture2D).get_image()
 	if src.is_compressed():
 		src.decompress()
 	src.convert(Image.FORMAT_RGB8)
+	return src
+
+
+func _add_picture(file: String, width: int) -> ImageTexture:
+	var src := _load_image(file)
+	if src == null:
+		return null
 	var w := width
 	var h := maxi(1, int(round(float(src.get_height()) * float(w) / float(src.get_width()))))
 	src.resize(w, h, Image.INTERPOLATE_NEAREST)
@@ -246,6 +795,39 @@ func _add_picture(file: String, width: int) -> void:
 	_page.add_image(tex, w, h, Color.WHITE, INLINE_ALIGNMENT_CENTER, Rect2(), key)
 	# A rough size for the status line: what a 1998 JPEG of this would weigh.
 	_pictures.append({"key": key, "src": src, "tex": tex, "pass": -1, "t": 0.0, "kb": maxi(2, w * h / 1800)})
+	return tex
+
+
+## A GIF banner, 468x60, a link: its frames turn once the first one is down. After dark
+## the last frame is another one.
+func _add_banner(id: String, target: String) -> void:
+	var frames: Array = []
+	for n in 3:
+		var img := _load_image("banner_%s_%d" % [id, n])
+		if img != null:
+			frames.append(img)
+	if frames.is_empty():
+		return
+	if not _shell.is_day():
+		var night := _load_image("banner_%s_night" % id)
+		if night != null:
+			frames[frames.size() - 1] = night
+	_page.push_meta(target)
+	var tex := _add_picture("banner_%s_0" % id, 468)
+	_page.pop()
+	if tex != null:
+		_banners.append({"tex": tex, "frames": frames, "i": 0, "t": 0.0, "pic": _pictures.size() - 1})
+
+
+func _tick_banners(delta: float) -> void:
+	for b in _banners:
+		if _pic_i <= int(b["pic"]):
+			continue
+		b["t"] = float(b["t"]) + delta
+		if float(b["t"]) >= BANNER_FRAME:
+			b["t"] = 0.0
+			b["i"] = (int(b["i"]) + 1) % (b["frames"] as Array).size()
+			(b["tex"] as ImageTexture).update(b["frames"][int(b["i"])])
 
 
 ## The empty picture frame IE drew while waiting: a sunken grey box, a tiny icon.
@@ -267,10 +849,6 @@ static func _placeholder(w: int, h: int) -> Image:
 
 ## One picture at a time down the modem: each pass takes longer for a bigger picture.
 func _tick_pictures(delta: float) -> void:
-	if _pic_i >= _pictures.size():
-		_pictures.clear()
-		_status.text = "Done"
-		return
 	var p: Dictionary = _pictures[_pic_i]
 	p["t"] = float(p["t"]) + delta
 	var per_pass := 0.12 + float(p["kb"]) * 0.018
@@ -286,9 +864,14 @@ func _tick_pictures(delta: float) -> void:
 		img.resize(src.get_width(), src.get_height(), Image.INTERPOLATE_NEAREST)
 	(p["tex"] as ImageTexture).update(img)
 	var done_kb := int(float(p["kb"]) * float(int(p["pass"]) + 1) / float(PASSES.size()))
-	_status.text = "Picture %d of %d (%d of %d KB)..." % [_pic_i + 1, _pictures.size(), done_kb, int(p["kb"])]
+	_status.text = "Downloading picture %d of %d (%d of %d KB)..." % [_pic_i + 1, _pictures.size(), done_kb, int(p["kb"])]
 	if int(p["pass"]) >= PASSES.size() - 1:
 		_pic_i += 1
+		if _pic_i >= _pictures.size():
+			_status_idle = "Done"
+			_status.text = _status_idle
+			_set_tool_enabled("stop", false)
+	get_node("StatusBar").queue_redraw()
 
 
 func _show(key: String) -> void:
@@ -296,13 +879,31 @@ func _show(key: String) -> void:
 	_address.text = _address_for(key)
 	var page := _page_for(key)
 	var bg := Color.html(str(page.get("bg", "#ffffff")))
-	_page.add_theme_stylebox_override("normal", T.box("field", bg, Vector4(8, 6, 8, 6)))
+	var tile := str(page.get("tile", ""))
+	var sb: StyleBox = T.flat(bg, Vector4(8, 6, 8, 6))
+	if tile != "" and ResourceLoader.exists(WEB_IMG + tile + ".png"):
+		var st := StyleBoxTexture.new()
+		st.texture = load(WEB_IMG + tile + ".png")
+		st.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+		st.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+		st.content_margin_left = 8
+		st.content_margin_top = 6
+		st.content_margin_right = 8
+		st.content_margin_bottom = 6
+		sb = st
+	_page.add_theme_stylebox_override("normal", sb)
 	_page.add_theme_color_override("default_color", Color.html(str(page.get("fg", "#000000"))))
 	_set_page(_expand(str(page.get("body", "")), str(page.get("link", "#0000ee")), key))
 	_page.scroll_to_line(0)
+	_page.visible_ratio = 0.0
+	_reveal = 0.0
 	_win.title = "%s - Beeternet Explorer" % str(page.get("title", key))
-	_status.text = "Done" if _pictures.is_empty() else "Picture 1 of %d..." % _pictures.size()
+	_status_idle = "Done" if _pictures.is_empty() else "Downloading picture 1 of %d..." % _pictures.size()
+	_status.text = _status_idle
+	if _pictures.is_empty():
+		_set_tool_enabled("stop", false)
 	_throbber.queue_redraw()
+	get_node("StatusBar").queue_redraw()
 	_counters[key] = int(_counters.get(key, 0)) + 1
 
 
@@ -314,7 +915,7 @@ func _page_for(key: String) -> Dictionary:
 	return {
 		"title": "Cannot find server",
 		"bg": "#ffffff", "fg": "#000000", "link": "#0000ee",
-		"body": "[font_size=18][b]The page cannot be displayed[/b][/font_size]\n\nThe page you are looking for is currently unavailable. The Web site might be experiencing technical difficulties, or you may need to adjust your browser settings.\n\n[b]Cannot find server or DNS Error[/b]\nhttp://www.%s\n\n{%s|Go to the Bohemia Online start page}" % [key, WEB.HOME],
+		"body": "[font_size=18][b]The page cannot be displayed[/b][/font_size]\n\nThe page you are looking for is currently unavailable. The Web site might be experiencing technical difficulties, or you may need to adjust your browser settings.\n\n" + WEB.HR + "\n\n[b]Please try the following:[/b]\n * Click the Refresh button, or try again later.\n * If you typed the page address in the Address bar, make sure that it is spelled correctly.\n * Click the Back button to try another link.\n\n[b]Cannot find server or DNS Error[/b]\nhttp://www.%s\n\n{%s|Go to the Bohemia Online start page}" % [key, WEB.HOME],
 	}
 
 
@@ -336,11 +937,37 @@ func _expand(body: String, link: String, key: String) -> String:
 	if t.find("{{") >= 0:
 		t = t.replace("{{search}}", "\n[center][bgcolor=#e0e8ff] [b]Search the Czech web:[/b] type a word in the Address bar and press Go. [/bgcolor][/center]\n")
 		t = t.replace("{{day}}", str(_day()))
+		t = t.replace("{{date}}", _date(_day()))
 		t = t.replace("{{time}}", _time())
 		t = t.replace("{{counter}}", _counter(key))
 		t = t.replace("{{weather}}", _weather())
+		t = t.replace("{{forecast}}", _forecast())
 		t = t.replace("{{guestbook}}", _guestbook())
+		t = t.replace("{{level}}", _level())
+	t = _pad_marquees(t)
 	return _link_re.sub(t, "[url=$1][color=%s]$2[/color][/url]" % link, true)
+
+
+## A marquee's line is padded out to its width with no-break spaces, so its band of
+## colour runs the whole way and the letters come round inside it.
+func _pad_marquees(t: String) -> String:
+	if t.find("[marquee") < 0:
+		return t
+	var re := RegEx.new()
+	re.compile("\\[marquee w=(\\d+)([^\\]]*)\\]([^\\[]*)\\[/marquee\\]")
+	var out := ""
+	var pos := 0
+	for m in re.search_all(t):
+		var w := float(m.get_string(1))
+		var text := m.get_string(3)
+		var tw := T.FONT_BOLD.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		var nb := maxf(1.0, T.FONT_BOLD.get_string_size(NBSP, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x)
+		var n := maxi(1, int(ceilf((w - tw) / nb)))
+		var padded := text + NBSP.repeat(n)
+		var real_w := T.FONT_BOLD.get_string_size(padded, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		out += t.substr(pos, m.get_start() - pos) + "[marquee w=%d%s]%s[/marquee]" % [int(real_w), m.get_string(2), padded]
+		pos = m.get_end()
+	return out + t.substr(pos)
 
 
 func _day() -> int:
@@ -357,12 +984,14 @@ func _date(day: int) -> String:
 	return "%d.7.1998" % (3 + day)
 
 
+## The counter, in the black box with the green digits every page had.
 func _counter(key: String) -> String:
 	var base := 1000 + (absi(key.hash()) % 7000)
+	var n := base + _day() * 3 + int(_counters.get(key, 0))
 	if key == "cerne-jezero.cz" and not _shell.is_day():
 		# At night the camp's counter counts something else.
-		return "%06d" % (_in_camp() + 1)
-	return "%06d" % (base + _day() * 3 + int(_counters.get(key, 0)))
+		n = _in_camp() + 1
+	return "[bgcolor=#000000][color=#33ff33][code] %06d [/code][/color][/bgcolor]" % n
 
 
 func _in_camp() -> int:
@@ -375,16 +1004,53 @@ func _in_camp() -> int:
 	return n
 
 
-func _weather() -> String:
+func _weather_state() -> int:
 	var m: Node = _shell.main_node()
-	var w := int(m.get("_weather_state")) if m != null and m.get("_weather_state") != null else 0
-	var now: String = ["clear", "windy", "fog", "light rain", "rain", "thunderstorms", "fog"][clampi(w, 0, 6)]
-	var t := "[b]Now, Vysocina:[/b] %s\n" % now
+	return int(m.get("_weather_state")) if m != null and m.get("_weather_state") != null else 0
+
+
+const WX_NAMES := ["clear", "windy", "fog", "light rain", "rain", "thunderstorms", "fog"]
+const WX_ICONS := ["sun", "suncloud", "fog", "cloud", "rain", "storm", "fog"]
+
+
+func _weather() -> String:
+	var w := clampi(_weather_state(), 0, 6)
+	var t := "{{img:wx_%s:40}}  [b]Now, Vysocina:[/b] %s\n" % [WX_ICONS[w], WX_NAMES[w]]
 	t += "[b]Tonight:[/b] %s, 9 to 12 degrees.\n" % ("fog in the valleys" if w == 2 or w == 6 else "mostly clear, cool")
-	t += "[b]Tomorrow:[/b] partly cloudy, 21 to 24 degrees.\n"
 	if w == 6:
-		t += "\n[color=#cc0000]The reservoir station reports. Reading: 0 0 0 0 0 0[/color]\n"
+		t += "\n[color=#cc0000][blink]The reservoir station reports.[/blink] Reading: 0 0 0 0 0 0[/color]\n"
 	return t
+
+
+## Three days ahead, each with its icon. The fourth day the forecast does not reach.
+func _forecast() -> String:
+	var names := ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1998 + _day()
+	var t := "[table=4]"
+	for i in 4:
+		var d := _day() + i + 1
+		t += "[cell padding=6,2,14,2][center][b]%s[/b] %d.7.\n" % [names[(d + 5) % 7], 3 + d]
+		if i == 3:
+			t += "{{img:wx_fog:40}}\n[color=#888888]no data[/color][/center][/cell]"
+		else:
+			var icon: String = ["sun", "suncloud", "cloud", "rain", "suncloud"][rng.randi_range(0, 4)]
+			var hi := rng.randi_range(19, 26)
+			t += "{{img:wx_%s:40}}\n%d / %d C[/center][/cell]" % [icon, hi, hi - rng.randi_range(9, 13)]
+	return t + "[/table]"
+
+
+## The reservoir's water level by day: it should go down in a dry July. It does not.
+func _level() -> String:
+	var t := "[code]date         level    inflow  outflow\n"
+	var lvl := 512.40
+	for i in range(-6, 1):
+		var d := _day() + i
+		var label := ("%d.7.1998" % (3 + d)) if d >= 1 else ("%d.6.1998" % (30 + d))
+		if d >= 1:
+			lvl += 0.04
+		t += "%-12s %6.2f m   %s     %s\n" % [label, lvl, "0.0" if d >= 1 else "0.4", "0.3"]
+	return t + "[/code]"
 
 
 ## Old entries, then new ones as the week goes on. Some are written tonight.
@@ -427,15 +1093,17 @@ func _search_page(q: String) -> Dictionary:
 			if idx.find(w) >= 0 or str(key).find(w) >= 0:
 				hits.append(key)
 				break
-	var body := "[b]Bohemia Online search[/b]   [color=#666666]you searched for:[/color] [b]%s[/b]\n\n" % q.replace("[", "")
+	var body := WEB.SEARCH_HEAD + "\n[b]You searched for:[/b] %s\n\n" % q.replace("[", "")
 	if hits.is_empty():
 		body += "No pages were found. Check the spelling, or try fewer words.\n"
 	else:
-		body += "%d page(s) found:\n\n" % hits.size()
+		body += "[color=#666666]Pages 1-%d of %d:[/color]\n\n" % [hits.size(), hits.size()]
+		var n := 1
 		for k in hits:
 			var p: Dictionary = WEB.PAGES.get(k, {})
-			body += "{%s|%s}\n[color=#008000]http://www.%s/[/color]\n\n" % [k, str(p.get("title", k)), k]
-	body += WEB.HR + "\n{%s|Bohemia Online}" % WEB.HOME
+			body += "%d. [b]{%s|%s}[/b]\n   [color=#008000]http://www.%s/[/color]\n\n" % [n, k, str(p.get("title", k)), k]
+			n += 1
+	body += "{{banner:cd:bohemica.cz}}\n" + WEB.HR + "\n{%s|Bohemia Online}" % WEB.HOME
 	return {"title": "Bohemia Online - search", "bg": "#ffffff", "fg": "#000000", "link": "#0000ee", "body": body}
 
 
@@ -482,8 +1150,10 @@ func _build_dialer() -> void:
 		if _dial_t >= 0.0:
 			_shell.set_busy(false)
 		_dial_t = -1.0
-		_status.text = "Not connected. Click Refresh to dial again."
+		_status_idle = "Not connected. Click Refresh to dial again."
+		_status.text = _status_idle
 		_page.text = "[b]You are working offline.[/b]\n\nBeeternet Explorer could not open the page because the computer is not connected to the Internet."
+		_page.visible_ratio = 1.0
 	)
 	_dial.add_child(cancel)
 
@@ -515,14 +1185,3 @@ func _tick_dialer(delta: float) -> void:
 		_shell.set_busy(false)
 		_shell.set_online(true)
 		_load(_dial_then, false)
-
-
-func _draw_throbber() -> void:
-	var s := _throbber.size
-	_throbber.draw_style_box(T.box("field", Color8(0, 0, 0), Vector4.ZERO), Rect2(Vector2.ZERO, s))
-	var c := s * 0.5
-	var spin := _anim * 4.0 if _loading > 0.0 else 0.0
-	for k in 6:
-		var a := spin + k * TAU / 6.0
-		_throbber.draw_circle(c + Vector2(cos(a), sin(a) * 0.5) * 9.0, 2.0, Color8(255, 200, 0) if k == 0 else Color8(90, 140, 255))
-	_throbber.draw_string(T.FONT_BOLD, c + Vector2(-4, 5), "B", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)

@@ -2,7 +2,10 @@ extends Control
 
 ## The setup wizard every program came with: Welcome, Licence (you have to agree),
 ## Destination, Copying files, Finish. A blue gradient strip on the left with the
-## product name, Back / Next / Cancel at the bottom.
+## product name, Back / Next / Cancel at the bottom. Behind it, over the whole desktop,
+## the installer's own screen: the blue that runs down to black and the product's name
+## in big letters, the way every setup of the time took over the machine. Before the
+## wizard, "Setup is preparing the wizard" with its own little bar.
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const FILES = preload("res://scripts/os98/os_files.gd")
@@ -41,6 +44,8 @@ var _body: Control
 var _back: Button
 var _next: Button
 var _cancel: Button
+var _backdrop: Control
+var _prep_t := -1.0
 
 
 func setup(shell, win, args: Dictionary) -> void:
@@ -77,7 +82,57 @@ func setup(shell, win, args: Dictionary) -> void:
 	_cancel.pressed.connect(_on_cancel)
 	if _shell._is_program_unlocked(_program):
 		_page = 5
-	_go(_page)
+		_go(_page)
+		return
+	_build_backdrop()
+	# First the preparing box: the wizard comes up when its bar is full.
+	_prep_t = 0.0
+	_win.visible = false
+	_shell.play("hdd_long", -14.0)
+
+
+func _build_backdrop() -> void:
+	_backdrop = Control.new()
+	_backdrop.name = "SetupBackdrop"
+	_backdrop.size = _shell.DESKTOP_SIZE
+	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	_backdrop.draw.connect(_draw_backdrop)
+	_shell.add_child(_backdrop)
+	_shell.move_child(_backdrop, _shell._windows.get_index())
+
+
+func _draw_backdrop() -> void:
+	var b := _backdrop
+	var s: Vector2 = b.size
+	# Blue to black in bands of four lines: 256 colours made it banded.
+	var y := 0.0
+	while y < s.y:
+		var k := y / s.y
+		b.draw_rect(Rect2(0, y, s.x, 4), Color8(0, 0, int(255 * (1.0 - k) + 20 * k)))
+		y += 4.0
+	var pname := str(_info()["name"])
+	var vendor := str(_info()["vendor"])
+	b.draw_string(T.FONT_BOLD, Vector2(26, 64), pname, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 3, Color(0, 0, 0))
+	b.draw_string(T.FONT_BOLD, Vector2(22, 60), pname, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 3, T.WHITE)
+	b.draw_string(T.FONT_BOLD, Vector2(24, 88), vendor, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(200, 210, 255))
+	b.draw_string(T.FONT, Vector2(22, s.y - 12), "SetupWizard 3.0  (c) 1990-1997 InstallBox Corp.", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(110, 120, 200))
+	if _prep_t >= 0.0:
+		var r := Rect2((s - Vector2(300, 96)) * 0.5, Vector2(300, 96))
+		b.draw_style_box(T.box("window", T.FACE), r)
+		for i in int(r.size.x - 6):
+			b.draw_rect(Rect2(r.position.x + 3 + i, r.position.y + 3, 1, 18), T.TITLE_A.lerp(T.TITLE_B, float(i) / r.size.x))
+		b.draw_string(T.FONT_BOLD, r.position + Vector2(8, 16), "%s Setup" % pname, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
+		b.draw_string(T.FONT, r.position + Vector2(48, 44), "Setup is preparing the SetupWizard, which", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		b.draw_string(T.FONT, r.position + Vector2(48, 58), "will guide you through the installation.", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		var tex: Texture2D = _shell.icon("setup")
+		if tex != null:
+			b.draw_texture(tex, r.position + Vector2(10, 34))
+		var bar := Rect2(r.position + Vector2(48, 68), Vector2(240, 14))
+		b.draw_style_box(T.box("field", T.WHITE), bar)
+		var p := clampf(_prep_t / 2.2, 0.0, 1.0)
+		var blocks := int(p * 26.0)
+		for i in blocks:
+			b.draw_rect(Rect2(bar.position.x + 3 + i * 9, bar.position.y + 3, 7, 8), T.NAVY)
 
 
 func _info() -> Dictionary:
@@ -119,6 +174,10 @@ func _on_cancel() -> void:
 
 
 func _go(page: int) -> void:
+	if _prep_t >= 0.0:
+		# Asked for a page while still preparing: the wizard is up now.
+		_prep_t = -1.0
+		_win.visible = true
 	_page = clampi(page, 0, 5)
 	for c in _body.get_children():
 		c.queue_free()
@@ -214,6 +273,16 @@ func _go(page: int) -> void:
 
 
 func _process(delta: float) -> void:
+	if _backdrop != null and is_instance_valid(_backdrop):
+		_backdrop.queue_redraw()
+	if _prep_t >= 0.0:
+		_prep_t += delta
+		if _prep_t >= 2.4:
+			_prep_t = -1.0
+			_win.visible = true
+			_go(_page)
+			_shell._activate(_win)
+		return
 	if _page != 3:
 		return
 	_copy_t += delta
@@ -267,6 +336,8 @@ func _draw_billboard(c: Control) -> void:
 
 
 func closing() -> void:
+	if _backdrop != null and is_instance_valid(_backdrop):
+		_backdrop.queue_free()
 	if _page == 3:
 		_shell.set_busy(false)
 
