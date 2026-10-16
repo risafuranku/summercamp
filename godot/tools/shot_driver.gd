@@ -367,6 +367,13 @@ const SCENARIOS := {
 		["wait", 7.0], ["shot", "g4_barrier_down"],
 		["hours", 12.0], ["wait", 2.0], ["player", 15, -4, 180.0], ["wait", 1.0], ["shot", "g5_gate_night"], ["eval", "[get_tree().get_first_node_in_group('camp_gate')._booth_light.visible, _time_state, _time_of_day_hours]"],
 	],
+	"builderperf": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 20.0],
+		["eval", "debug_perf()"], ["wait", 2.0], ["eval", "debug_perf()"],
+		["money", 9000], ["clear", 8, 5, 8, 6], ["build", "tent_1", 9, 6, 0], ["build", "cabin_1", 11, 6, 0], ["build", "toilet_block", 12, 8, 0],
+		["eval", "_interior_manager._building_interior._crt_ui._on_program_installed('builder')"], ["eval", "_interior_manager._building_interior._crt_ui.open_app('builder')"], ["wait", 3.0], ["shot", "b0_builder"],
+		["eval", "debug_perf()"], ["wait", 2.0], ["eval", "debug_perf()"],
+	],
 	"saver": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 20.0],
 		["eval", "[_interior_manager._building_interior.is_crt_view_active(), _interior_manager._building_interior._crt_ui.extras().saver_wait, _interior_manager._building_interior._crt_ui.extras().is_saving()]"],
@@ -379,6 +386,16 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 3.5], ["eval", "_interior_manager._building_interior._crt_ui.extras().is_saving()"],
 		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('main_building'))"], ["wait", 2.0], ["eval", "[_interior_manager._building_interior._crt_ui.extras().is_saving(), _interior_manager._building_interior.is_crt_view_active()]"], ["shot", "s4_back_in"],
 		["eval", "debug_input('move')"], ["wait", 0.3], ["eval", "_interior_manager._building_interior._crt_ui.extras().is_saving()"],
+	],
+	"window": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["money", 9000], ["clear", 9, 5, 8, 6], ["build", "tent_1", 12, 7, 0], ["build", "cabin_1", 14, 8, 0], ["build", "toilet_block", 11, 9, 0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 2.0], ["shot", "v0_counter"],
+		["eval", "[_interior_manager._building_interior._window_cam.global_position, -_interior_manager._building_interior._window_cam.global_transform.basis.z, debug_structure_of_type('main_building').global_position, get_reception_door_position(), _interior_manager._building_interior._portal_xform]"],
+		["eval", "_interior_manager._building_interior._window_vp.get_texture().get_image().save_png('C:/Users/arnold/AppData/Local/Temp/sc/win/portal.png')"],
+		["eval", "_interior_manager._building_interior._look.set('yaw_deg', 25.0)"], ["wait", 1.0], ["shot", "v1_lean_left"],
+		["eval", "_interior_manager._building_interior._look.set('yaw_deg', -25.0)"], ["wait", 1.0], ["shot", "v2_lean_right"],
+		["eval", "_interior_manager._building_interior._look.set('yaw_deg', 0.0)"], ["eval", "debug_jump_to(1, 19.6)"], ["wait", 2.5], ["shot", "v3_evening"],
 	],
 	"hots": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],

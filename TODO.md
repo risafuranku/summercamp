@@ -26,6 +26,13 @@
 - [x] B20 Reception clicks dead (room raycast used get_world_3d on an own-world viewport)
 - [x] B21 Corn: no falling through; second maze exit, the strip under the wires, the linemen's hut
 - [x] B22 A month instead of a week, through the autumn, snow at the end; frozen pipes and cold tents
+- [x] B24 OS: the maker's loading bar fixed (Grok boot screen, amber blocks); new icons, wallpapers (Autumn Lake by default), Okna splash (Grok)
+- [x] B25 CampMail 3.0: folders, cool toolbar, sortable list with envelopes and attachments, From/To/Date header, spam that reads like 1998 spam with pictures (Grok), reply/forward/compose, delete to Deleted Items, keys
+- [x] B26 The radio always opens a new game with "radiojedna"
+- [x] B27 Download and setup progress bars: Win98 blocks per file, InstallShield bar with the percentage
+- [x] B28 Builder remaster: static/dynamic layers (16 -> 50 fps), smooth zoom at the cursor, pan inertia, minimap, hover card, splash (Grok), flat cool toolbar (Grok icons), sliding catalogue with cards, info card, dust puffs (Grok)
+- [x] B29 The reception window is a portal into the real camp (off-axis camera, parallax as you lean)
+- [x] B30 The monitor is curved glass: barrel, rounded corners, bulge, highlight; the crisp overlay and the mouse use the same barrel
 - [ ] B23 Later: lore in the linemen's hut; more winter challenges (snowed-in paths, the lake freezing, heating cabins)
 - [x] B13c The boat at night as its own scare (scripts/lake/night_row.gd: knocks, lantern, fog, the hand, the scrape)
 - [ ] B13 Later: something hidden in the shed (beyond the coat), more to do on the far shore

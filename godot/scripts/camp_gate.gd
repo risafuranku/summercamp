@@ -48,7 +48,7 @@ func build(gate_world: Vector3, fence_z_world: float, texture_style) -> void:
 	_build_player_block()
 	# The barrier goes up for a party when it arrives (they walk in to the reception).
 	if EventBus.has_signal("guest_at_gate"):
-		EventBus.guest_at_gate.connect(func(_g): _on_guest_at_gate())
+		EventBus.guest_at_gate.connect(_on_guest_at_gate_row)
 
 
 ## Where the i-th waiting party stands: at the reception door, one tile in from the
@@ -88,6 +88,10 @@ func open_briefly() -> void:
 		_swing(0.0, 1.1)
 		_sound(SFX_DROP, _arm_pivot.global_position, -2.0)
 	)
+
+
+func _on_guest_at_gate_row(_row) -> void:
+	_on_guest_at_gate()
 
 
 func _on_guest_at_gate() -> void:

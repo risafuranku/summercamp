@@ -8,6 +8,7 @@ extends Control
 ## wizard, "Setup is preparing the wizard" with its own little bar.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const PROGRESS = preload("res://scripts/os98/os_progress.gd")
 const FILES = preload("res://scripts/os98/os_files.gd")
 
 const PRODUCTS := {
@@ -235,19 +236,30 @@ func _go(page: int) -> void:
 			file_l.name = "File"
 			file_l.position = Vector2(0, 60)
 			_body.add_child(file_l)
-			var bar := ProgressBar.new()
+			# The file now copying (its own blocks), then the whole installation
+			# (InstallShield's bar with the percentage in it).
+			var file_bar = PROGRESS.new("blocks")
+			file_bar.name = "FileBar"
+			file_bar.position = Vector2(0, 76)
+			file_bar.size = Vector2(_body.size.x, 14)
+			_body.add_child(file_bar)
+			var bar = PROGRESS.new("install")
 			bar.name = "Bar"
-			bar.position = Vector2(0, 80)
-			bar.size = Vector2(_body.size.x, 18)
-			bar.max_value = 1.0
-			bar.step = 0.0
-			bar.show_percentage = false
+			bar.show_percent = true
+			bar.position = Vector2(0, 94)
+			bar.size = Vector2(_body.size.x, 20)
 			_body.add_child(bar)
 			# The billboard: what you get, in panels that change while it copies.
 			var board := Control.new()
 			board.name = "Billboard"
-			board.position = Vector2(0, 108)
-			board.size = Vector2(_body.size.x, _body.size.y - 112)
+			board.position = Vector2(0, 122)
+			board.size = Vector2(_body.size.x, _body.size.y - 126)
+			# Loaded here, not in the draw (a texture first loaded inside a draw call
+			# comes out white).
+			for sl in BILLBOARD.get(_program, []):
+				var bp := str(sl[2])
+				if bp != "" and ResourceLoader.exists(bp):
+					_board_tex[bp] = load(bp)
 			board.draw.connect(func(): _draw_billboard(board))
 			_body.add_child(board)
 			_next.disabled = true
@@ -289,10 +301,15 @@ func _process(delta: float) -> void:
 	var files: Array = _info()["files"]
 	var dur := 2.0 + files.size() * 0.55
 	var p := clampf(_copy_t / dur, 0.0, 1.0)
-	var bar: ProgressBar = _body.get_node_or_null("Bar")
+	var bar = _body.get_node_or_null("Bar")
+	var file_bar = _body.get_node_or_null("FileBar")
 	var fl: Label = _body.get_node_or_null("File")
 	if bar != null:
 		bar.value = p
+	if file_bar != null:
+		# Each file fills its own bar from empty.
+		var per := p * float(files.size())
+		file_bar.value = 0.0 if p >= 1.0 else per - floorf(per)
 	if fl != null:
 		fl.text = "C:\\PROGRAM FILES\\%s\\%s" % [FILES.PROGRAM_DIRS[_program][0], files[mini(files.size() - 1, int(p * files.size()))]]
 	if fmod(_copy_t, 1.3) < delta:
@@ -306,6 +323,7 @@ func _process(delta: float) -> void:
 		_go(4)
 
 
+var _board_tex := {}
 const BILLBOARD := {
 	"builder": [["Plan the whole site", "Tents, chalets, toilets, the pub: tile by tile.", "res://assets/textury/web/web_camp.png"], ["Know what it costs", "Running costs before you build. No surprises.", "res://assets/textury/web/web_campfire.png"], ["Register for 990 Kc", "Your key comes by post. Stavitel, Jihlava.", ""]],
 	"camp_status": [["CampStat 98", "What every building draws, live, in kWh.", ""], ["Pay in the program", "Bills issued daily at 20:00. Payable within 3 days.", ""], ["Hlubocany District Power", "We keep the lights on. Up to the reservoir fence.", ""]],
@@ -323,9 +341,8 @@ func _draw_billboard(c: Control) -> void:
 	c.draw_rect(Rect2(Vector2.ZERO, s), Color8(0, 0, 96))
 	c.draw_rect(Rect2(Vector2.ZERO, s), T.DARK, false, 1.0)
 	var x := 8.0
-	var path := str(sl[2])
-	if path != "" and ResourceLoader.exists(path):
-		var tex: Texture2D = load(path)
+	var tex: Texture2D = _board_tex.get(str(sl[2]))
+	if tex != null:
 		var h := s.y - 12.0
 		var w := h * tex.get_width() / float(tex.get_height())
 		c.draw_texture_rect(tex, Rect2(6, 6, w, h), false)

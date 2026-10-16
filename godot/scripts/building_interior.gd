@@ -109,6 +109,9 @@ const CRT_SCREEN_EMISSION_ACTIVE_MULT: float = 0.72
 ## 4:3, the shape of the 640x480 picture.
 const CRT_SCREEN_QUAD_SIZE := Vector2(0.48, 0.36)
 const CRT_SCREEN_LOCAL_POS := Vector3(0.0, 0.056, 0.356)
+## The tube's barrel (materials/crt_glass.gdshader, crt_sharp.gdshader): the picture
+## bends with the glass; _crt_barrel() is the same, for the mouse.
+const CRT_CURVE := 0.16
 
 var _viewport_container: SubViewportContainer
 var _viewport: SubViewport
@@ -384,6 +387,7 @@ func _process(delta: float) -> void:
 	_update_crt_sharp()
 	if not visible:
 		return
+	_update_window_portal()
 	_update_crt_monitor_light(delta)
 	# Spin fan blades
 	if _fan_pivot != null:
@@ -864,22 +868,20 @@ func _build_room() -> void:
 	_crt_screen.name = "CRTScreen"
 	var scr_mesh = QuadMesh.new()
 	scr_mesh.size = CRT_SCREEN_QUAD_SIZE
+	# Subdivided: the glass bows out (materials/crt_glass.gdshader).
+	scr_mesh.subdivide_width = 16
+	scr_mesh.subdivide_depth = 12
 	_crt_screen.mesh = scr_mesh
 	_crt_screen.position = CRT_SCREEN_LOCAL_POS
-	var scr_mat = StandardMaterial3D.new()
+	# The picture tube: the OS picture behind curved glass, unshaded (what the computer
+	# draws is not lit, and burnt white, by the room), the room caught in the glass.
+	var scr_mat := ShaderMaterial.new()
+	scr_mat.shader = load("res://materials/crt_glass.gdshader")
+	scr_mat.set_shader_parameter("curve", CRT_CURVE)
 	if _crt_viewport:
-		var tex = _crt_viewport.get_texture()
-		# Unshaded: the picture is what the computer draws, not lit (and burnt white)
-		# by the room. Readable mail beats a glowing screen.
-		scr_mat.albedo_texture = tex
-		scr_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		scr_mat.albedo_color = Color(0.94, 0.94, 0.92)
+		scr_mat.set_shader_parameter("screen_tex", _crt_viewport.get_texture())
 	else:
-		scr_mat.albedo_color = Color(0.08, 0.10, 0.13)
-		scr_mat.emission_enabled = true
-		scr_mat.emission = Color(0.08, 0.14, 0.28)
-		scr_mat.emission_energy_multiplier = 1.08
-	scr_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		scr_mat.set_shader_parameter("powered", 0.0)
 	_crt_screen.material_override = scr_mat
 	_crt_body.add_child(_crt_screen)
 
@@ -1344,6 +1346,13 @@ func _exit_tree() -> void:
 		_crt_sharp_layer.queue_free()
 
 
+## The glass point (0..1) to the picture point: the barrel the tube shaders draw with.
+static func _crt_barrel(uv: Vector2) -> Vector2:
+	var c := uv - Vector2(0.5, 0.5)
+	var d := c.dot(c)
+	return Vector2(0.5, 0.5) + c * (1.0 + CRT_CURVE * d) / (1.0 + CRT_CURVE * 0.25)
+
+
 func _map_mouse_to_crt(mouse_pos: Vector2, allow_fallback: bool = true) -> Vector2:
 	var vp_size = _crt_viewport.size
 	if vp_size.x <= 0 or vp_size.y <= 0:
@@ -1363,9 +1372,10 @@ func _map_mouse_to_crt(mouse_pos: Vector2, allow_fallback: bool = true) -> Vecto
 			var half_w = quad.size.x * 0.5
 			var half_h = quad.size.y * 0.5
 			if local_hit.x >= -half_w and local_hit.x <= half_w and local_hit.y >= -half_h and local_hit.y <= half_h:
-				var uv_x = (local_hit.x / quad.size.x) + 0.5
-				var uv_y = 0.5 - (local_hit.y / quad.size.y)
-				return Vector2(uv_x * vp_size.x, uv_y * vp_size.y)
+				var uv := _crt_barrel(Vector2((local_hit.x / quad.size.x) + 0.5, 0.5 - (local_hit.y / quad.size.y)))
+				if uv.x < 0.0 or uv.y < 0.0 or uv.x > 1.0 or uv.y > 1.0:
+					return Vector2.INF if not allow_fallback else Vector2(clampf(uv.x, 0.0, 1.0) * vp_size.x, clampf(uv.y, 0.0, 1.0) * vp_size.y)
+				return Vector2(uv.x * vp_size.x, uv.y * vp_size.y)
 
 	if not allow_fallback:
 		return Vector2.INF
@@ -1476,12 +1486,24 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 	_update_window_texture()
 
 
-## A camera in the real camp, at the reception's front wall, looking out across the
-## site: what you see through the window from the desk is what is out there (the
-## guests, the lamps, and whatever walks between them at night).
-const WINDOW_VIEW_SIZE := Vector2i(320, 240)
+## The window is a portal into the real camp (playtest 2026-10-17: "it looks like a
+## monitor with a camera feed"). The office room sits in its own little world; the camp
+## is outside it. The room is laid over the reception building in the camp (its front
+## wall on the building's front, the window just outside the facade), and every frame a
+## camera in the camp stands where your eye would be on that overlay, looking straight
+## out through the window, with an off-axis frustum whose near plane is exactly the
+## window's rectangle. What it renders, put on the window quad, is what you would see
+## through glass from where you stand: parallax as you lean, the guests walking up to
+## the door, the lamps at night.
+const WINDOW_CENTER := Vector3(-0.4, 1.68, -2.51)
+const ROOM_DOOR_X := 1.72
+const WINDOW_SIZE := Vector2(1.86, 1.38)
+const WINDOW_VIEW_SIZE := Vector2i(496, 368)
 var _window_vp: SubViewport
 var _window_cam: Camera3D
+## Room space -> camp space: basis (the room's axes in the camp) and origin.
+var _portal_xform := Transform3D.IDENTITY
+var _portal_ok := false
 
 
 func _setup_window_view() -> void:
@@ -1494,15 +1516,17 @@ func _setup_window_view() -> void:
 	# No own world: it sees the camp's world, as the player outside does.
 	add_child(_window_vp)
 	_window_cam = Camera3D.new()
-	_window_cam.fov = 62.0
-	_window_cam.far = 220.0
+	_window_cam.projection = Camera3D.PROJECTION_FRUSTUM
+	_window_cam.keep_aspect = Camera3D.KEEP_HEIGHT
 	_window_vp.add_child(_window_cam)
-	for n in ["OutdoorGround", "OutdoorCeiling", "OutdoorWallL", "OutdoorWallR", "OutdoorBushL", "OutdoorBushR", "OutdoorBushR2", "OutdoorGravelStrip0", "OutdoorGravelStrip1", "OutdoorGravelStrip2"]:
+	for n in ["OutdoorGround", "OutdoorCeiling", "OutdoorWallL", "OutdoorWallR", "OutdoorBushL", "OutdoorBushR", "OutdoorBushR2", "OutdoorGravelStrip0", "OutdoorGravelStrip1", "OutdoorGravelStrip2", "OutdoorSkyBg"]:
 		var node := _room_root.get_node_or_null(n)
 		if node != null:
 			node.visible = false
 
 
+## Where the room lies in the camp: over the reception building, its window wall on the
+## building's front (the side with the door, the camp side).
 func _place_window_camera() -> bool:
 	if _window_cam == null:
 		return false
@@ -1510,38 +1534,48 @@ func _place_window_camera() -> bool:
 	var reception: Node3D = scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
 	if reception == null:
 		return false
-	var grid = scene.get("grid_manager")
-	var center: Vector3 = grid.get_map_center_world() if grid != null and grid.has_method("get_map_center_world") else Vector3.ZERO
-	# Look at the camp you built: the middle of the rooms and facilities, so tents and
-	# cabins are in the window (the map centre while there is nothing yet).
-	var target := center
-	var structures := reception.get_parent()
-	if structures != null:
-		var sum := Vector3.ZERO
-		var n := 0
-		for child in structures.get_children():
-			var t := str(child.get_meta("building_type", ""))
-			if t == "" or t in ["main_building", "power_generator", "path", "lamp_post"]:
-				continue
-			sum += (child as Node3D).global_position
-			n += 1
-		if n > 0:
-			target = sum / float(n)
-	# From the front of the office, where its windows are (the camp side, by the door).
-	var door: Vector3 = scene.call("get_reception_door_position") if scene.has_method("get_reception_door_position") else Vector3.INF
 	var base := reception.global_position
+	var door: Vector3 = scene.call("get_reception_door_position") if scene.has_method("get_reception_door_position") else Vector3.INF
 	var front := (door - base) if door != Vector3.INF else Vector3(0, 0, 1)
 	front.y = 0.0
 	front = front.normalized() if front.length() > 0.1 else Vector3(0, 0, 1)
-	var eye := (door if door != Vector3.INF else base) + front * 0.5
-	eye.y = 2.4
-	var out := target - eye
-	out.y = 0.0
-	out = out.normalized() if out.length() > 0.1 else front
-	_window_cam.global_position = eye
-	var dist := maxf(8.0, Vector2(target.x - eye.x, target.z - eye.z).length())
-	_window_cam.look_at(Vector3(target.x, 0.6, target.z) if dist < 40.0 else eye + out * 20.0 + Vector3(0, -1.6, 0), Vector3.UP)
+	# How far the facade is from the middle of the building.
+	var half_depth := 3.6
+	for c in reception.get_children():
+		if c is CollisionShape3D and (c as CollisionShape3D).shape is BoxShape3D:
+			var bs := ((c as CollisionShape3D).shape as BoxShape3D).size
+			half_depth = absf(front.x) * bs.x * 0.5 + absf(front.z) * bs.z * 0.5
+			break
+	# The room's -Z (out of the window) is the building's front; up is up.
+	var z_axis := -front
+	var x_axis := Vector3.UP.cross(z_axis).normalized()
+	var basis := Basis(x_axis, Vector3.UP, z_axis)
+	var ground := Vector3(base.x, 0.0, base.z)
+	# The window's plane a hand outside the facade, so the building itself is behind it.
+	var origin := ground + front * (half_depth + 0.06) - basis * Vector3(0, 0, WINDOW_CENTER.z)
+	# Sideways: the room's front door (x = 1.72) on the building's door, so the window
+	# looks past the porch, not into it.
+	if door != Vector3.INF:
+		var lateral := (door - base).dot(x_axis)
+		origin += x_axis * (lateral - ROOM_DOOR_X)
+	_portal_xform = Transform3D(basis, origin)
+	_portal_ok = true
+	_update_window_portal()
 	return true
+
+
+## Every frame while the room is open: the eye moved (looking about, walking to the PC).
+func _update_window_portal() -> void:
+	if not _portal_ok or _window_cam == null or _interior_camera == null:
+		return
+	var eye_room := _room_root.to_local(_interior_camera.global_position) if _room_root != null else _interior_camera.position
+	var dist := eye_room.z - WINDOW_CENTER.z
+	if dist < 0.05:
+		return
+	var eye := _portal_xform * eye_room
+	_window_cam.global_transform = Transform3D(_portal_xform.basis, eye)
+	var off := Vector2(WINDOW_CENTER.x - eye_room.x, WINDOW_CENTER.y - eye_room.y)
+	_window_cam.set_frustum(WINDOW_SIZE.y, off, dist, dist + 260.0)
 
 
 func _set_window_view_live(on: bool) -> void:
@@ -2003,9 +2037,32 @@ func _create_radio_layer_player(player_name: String, pitch_scale: float) -> Audi
 	return player
 
 
+## A new game opens with this song on the radio (playtest 2026-10-17).
+const RADIO_FIRST_TRACK := "res://assets/sfx/radio/radiojedna.mp3"
+var _radio_first_pending := false
+
+
+## Main, at the start of a new game: the radio starts on RADIO_FIRST_TRACK.
+func queue_first_radio_track() -> void:
+	_radio_first_pending = true
+	if _radio_player != null and is_instance_valid(_radio_player):
+		_play_radio_next()
+
+
 func _play_radio_next() -> void:
 	if _radio_player == null:
 		return
+	if _radio_first_pending:
+		_radio_first_pending = false
+		var first: AudioStream = _radio_stream_by_path.get(RADIO_FIRST_TRACK, null)
+		if first == null and ResourceLoader.exists(RADIO_FIRST_TRACK):
+			first = load(RADIO_FIRST_TRACK)
+		if first != null:
+			_radio_current_track_is_night = false
+			_radio_player.stream = first
+			_radio_player.play()
+			_radio_last_played_path = RADIO_FIRST_TRACK
+			return
 	if _try_play_station():
 		return
 	var interlude: AudioStream = _dread.take_interlude() if _dread != null else null

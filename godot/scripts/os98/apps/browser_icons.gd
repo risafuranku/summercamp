@@ -38,6 +38,20 @@ static func get_icon(id: String, color := true) -> Texture2D:
 			_printer(img)
 		"page":
 			_page(img)
+		"newmail":
+			_mail(img)
+			_pencil(img)
+		"reply":
+			_mail(img)
+			_curl(img, false)
+		"forwardmail":
+			_mail(img)
+			_curl(img, true)
+		"delete":
+			_cross(img)
+		"getmail":
+			_mail(img)
+			_down(img)
 	if not color:
 		for y in S:
 			for x in S:
@@ -170,3 +184,41 @@ static func _page(img: Image) -> void:
 	for y in [7, 10, 13, 16]:
 		for x in range(7, 15):
 			img.set_pixel(x, y, Color8(40, 80, 200))
+
+
+static func _pencil(img: Image) -> void:
+	for k in 9:
+		_rect(img, Rect2i(10 + k, 12 - k, 3, 3), Color8(250, 200, 40), false)
+	img.set_pixel(10, 15, OUT)
+	img.set_pixel(11, 14, OUT)
+	_rect(img, Rect2i(18, 3, 3, 3), Color8(230, 120, 140), false)
+
+
+## A curved arrow over the envelope: back to the sender (left) or on (right).
+static func _curl(img: Image, right: bool) -> void:
+	var col := Color8(40, 170, 60)
+	for i in 9:
+		var x := 6 + i
+		var y := 3 + int(round(abs(float(i) - 4.0) * 0.6))
+		if right:
+			x = S - 1 - x
+		for t in 2:
+			img.set_pixel(x, y + t, col)
+	var tip_x := 6 if not right else S - 7
+	for k in 4:
+		img.set_pixel(tip_x + (k if right else -k) * 0, 3 + k, OUT)
+		img.set_pixel(tip_x + (-k if not right else k), 4 + (k / 2), col)
+
+
+static func _cross(img: Image) -> void:
+	for k in range(-7, 8):
+		for t in [-1, 0, 1]:
+			img.set_pixel(11 + k + t, 11 + k, Color8(200, 30, 30))
+			img.set_pixel(11 + k + t, 11 - k, Color8(200, 30, 30))
+	for k in range(-7, 8):
+		img.set_pixel(11 + k - 2, 11 + k, OUT)
+		img.set_pixel(11 + k + 2, 11 - k, OUT)
+
+
+static func _down(img: Image) -> void:
+	_poly(img, PackedVector2Array([Vector2(13, 0), Vector2(19, 0), Vector2(19, 7), Vector2(22, 7), Vector2(16, 13), Vector2(10, 7), Vector2(13, 7)]), Color8(40, 170, 60))

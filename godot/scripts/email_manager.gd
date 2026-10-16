@@ -139,39 +139,29 @@ const MAIL_DOMAINS: Array[String] = [
 	"mail.cz", "postbox.eu", "campmail.net", "atlas.cz", "chatmail.cz"
 ]
 
-## Spam is the period kind: dial-up offers, chain letters, local shops. Plausible, a
-## little sad, never a joke.
-const SPAM_SENDERS: Array[String] = [
-	"Bohemia Online <info@bohemia-online.cz>",
-	"Autoservis Krejci <servis.krejci@quick.cz>",
-	"Reality Vysocina <nabidky@reality-vys.cz>",
-	"Jan Novak <jnovak@mail.inext.cz>",
-	"Lucky Draw Office <office@lucky-draw.com>",
-	"Kancelarske potreby <obchod@kancpotreby.cz>",
-]
-
-const SPAM_SUBJECTS: Array[String] = [
-	"Internet 33.6k now with 10 free hours",
-	"FW: FW: FW: send this to 10 people",
-	"Summer tyres - last pieces",
-	"Recreational cottage for sale, quiet area",
-	"You have been selected",
-	"Toner, paper, diskettes - price list 1996",
-]
-
-const SPAM_BODIES: Array[String] = [
-	"Dear customer,
-
-connect from home or office at 33,600 baud. The first ten hours are free. Installation diskette by post within 14 days.
-
-Bohemia Online",
-	"This letter has been around the world nine times. Send it to ten people within four days. A man in Ostrava did not send it and lost his job.
-
-Do not break the chain.",
-	"Summer tyres, all sizes, last pieces at the old price. Fitting while you wait. Closed on Sundays.",
-	"Cottage near the reservoir, own well, electricity, quiet area, no neighbours. The previous owners left in a hurry, furniture included. Serious offers only.",
-	"Your address was drawn in our international draw. To claim the prize send the handling fee by postal order. Do not tell anyone until the prize arrives.",
-	"Price list for 1996 attached. Diskettes 3.5\" HD box of 10. Toner for most printers. We deliver to the whole district.",
+## Spam is the period kind: dial-up offers, chain letters, prizes, miracle cures, local
+## shops. Each one hangs together (sender, subject, body, the picture it carries), the
+## way the real ones did. `image`: a GIF-ish picture in assets/textury/mail/ shown in the
+## message; `attachment`: the file name CampMail shows for it.
+const SPAM_MAILS: Array[Dictionary] = [
+	{"from": "Lucky Draw Office <office@lucky-draw.com>", "subject": "CONGRATULATIONS!!! You have been selected", "image": "spam_lottery", "attachment": "WINNER.GIF",
+		"body": "Dear Friend,\n\nYour e-mail address was drawn in our INTERNATIONAL DRAW of 1998. You have won US$ 25 000 (twenty five thousand dollars).\n\nTo claim your prize send the handling fee of 1 900 Kc by postal order to the address below. Do not tell anyone until the prize arrives, for security reasons.\n\nYours faithfully,\nMr. A. Wellington, Claims Office"},
+	{"from": "Mobil Zdarma <akce@mobil-zdarma.cz>", "subject": "FREE mobile phone for the first 100 !!!", "image": "spam_phone", "attachment": "TELEFON.GIF",
+		"body": "Be reachable everywhere - even at the lake!\n\nThe first 100 people to reply get a GSM mobile phone FREE with a 24-month contract. Coverage in 94 % of the country.\n\nReply with your name and address. Offer valid while stocks last."},
+	{"from": "Natura Vital <info@naturavital.com>", "subject": "Lose 10 kg in 10 days - doctors are amazed", "image": "spam_pills", "attachment": "VITAL.GIF",
+		"body": "NO DIETS. NO EXERCISE.\n\nThe secret of the Tibetan monks, now in tablets. 100 % natural. Thousands of satisfied customers in Bohemia and Moravia.\n\nOne month's course only 990 Kc + postage. Money back guarantee."},
+	{"from": "Jana Dvorakova <jana.d@post.cz>", "subject": "FW: FW: FW: FW: send this to 10 people", "image": "spam_chain", "attachment": "ANDEL.GIF",
+		"body": "> > > > This letter has been around the world nine times. Send it to ten people within four days and good luck will come to you.\n> > > >\n> > > > A man in Ostrava laughed at it and did not send it. He lost his job.\n> > > > A woman in Tabor sent it the same day and won a car.\n> > > >\n> > > > DO NOT BREAK THE CHAIN."},
+	{"from": "Seznamka DUO <duo@seznamka-duo.cz>", "subject": "Lonely evenings? Someone in your district is waiting", "image": "spam_dating", "attachment": "DUO.GIF",
+		"body": "Ladies and gentlemen from the Hlubocany district are looking for company.\n\nCall our line 0900 12 34 56 (35 Kc a minute) and leave your message after the tone.\n\nSomeone near you is waiting tonight."},
+	{"from": "Bohemia Online <info@bohemia-online.cz>", "subject": "Internet 33.6k now with 10 free hours",
+		"body": "Dear customer,\n\nconnect from home or office at 33,600 baud. The first ten hours each month are free. Installation diskette by post within 14 days.\n\nBohemia Online - your way into the Internet"},
+	{"from": "Autoservis Krejci <servis.krejci@quick.cz>", "subject": "Winter tyres - order now",
+		"body": "Winter tyres, all sizes, at last year's price. Fitting while you wait. Do not get caught by the first snow.\n\nAutoservis Krejci, Lesna 7. Closed on Sundays."},
+	{"from": "Reality Vysocina <nabidky@reality-vys.cz>", "subject": "Recreational cottage for sale, quiet area",
+		"body": "Cottage near the reservoir, own well, electricity, quiet area, no neighbours. The previous owners left in a hurry, furniture included.\n\nSerious offers only."},
+	{"from": "Kancelarske potreby <obchod@kancpotreby.cz>", "subject": "Toner, paper, diskettes - price list", "attachment": "CENIK98.TXT",
+		"body": "Price list for autumn 1998 attached. Diskettes 3.5\" HD box of 10. Toner for most printers. We deliver to the whole district."},
 ]
 
 ## The mail that wakes you at night: it looks like trouble and is not. At most one a
@@ -200,8 +190,10 @@ const CUSTOMER_SUBJECT_VARIANTS: Array[String] = [
 
 const MAIL_TO_ADDRESS := "camp.reception@camp.local"
 
-## All delivered emails, newest last.
+## All delivered emails, newest last. `_folder` "deleted" puts one in Deleted Items.
 var inbox: Array[Dictionary] = []
+## What the player wrote (CampMail's Sent Items): {to, subject, body, day, time}.
+var sent: Array[Dictionary] = []
 
 var _scheduled_mails: Array[Dictionary] = []
 var _rng := RandomNumberGenerator.new()
@@ -226,6 +218,7 @@ func reset_runtime(clear_inbox: bool = true) -> void:
 	_next_runtime_mail_id = 1
 	if clear_inbox:
 		inbox.clear()
+		sent.clear()
 	unread_count_changed.emit(get_unread_count())
 
 
@@ -311,6 +304,7 @@ func find_mail(key: String, value: Variant) -> Dictionary:
 func export_runtime_state() -> Dictionary:
 	return {
 		"inbox": _sanitize_mail_array(inbox),
+		"sent": sent.duplicate(true),
 		"scheduled_mails": _sanitize_scheduled_mail_array(_scheduled_mails),
 		"next_runtime_mail_id": max(1, int(_next_runtime_mail_id)),
 		"last_tick_signature": str(_last_tick_signature),
@@ -325,6 +319,10 @@ func import_runtime_state(data: Dictionary) -> void:
 		return
 
 	inbox = _sanitize_mail_array(data.get("inbox", []))
+	sent.clear()
+	for m in (data.get("sent", []) if data.get("sent", []) is Array else []):
+		if m is Dictionary:
+			sent.append(m)
 	_scheduled_mails = _sanitize_scheduled_mail_array(data.get("scheduled_mails", []))
 	_last_tick_signature = str(data.get("last_tick_signature", ""))
 	_last_hourly_roll_signature = str(data.get("last_hourly_roll_signature", ""))
@@ -783,14 +781,14 @@ func _build_customer_mail(archetype_id: String, day: int, hour: int) -> Dictiona
 
 
 func _build_spam_mail(day: int, hour: int) -> Dictionary:
-	var sender = _pick_random(SPAM_SENDERS)
-	var subject = _pick_random(SPAM_SUBJECTS)
-	var body = _pick_random(SPAM_BODIES)
+	var pick: Dictionary = SPAM_MAILS[_rng.randi_range(0, SPAM_MAILS.size() - 1)]
 	return _new_mail_dict({
-		"sender": sender,
-		"from": sender,
-		"subject": subject,
-		"body": body,
+		"sender": pick["from"],
+		"from": pick["from"],
+		"subject": pick["subject"],
+		"body": pick["body"],
+		"image": str(pick.get("image", "")),
+		"attachment": str(pick.get("attachment", "")),
 		"day": day,
 		"time": "%02d:00" % clampi(hour, 0, 23),
 		"type": MAIL_TYPE_SPAM,
@@ -965,9 +963,26 @@ func _extract_sender_name(mail: Dictionary) -> String:
 func get_unread_count() -> int:
 	var count: int = 0
 	for mail in inbox:
-		if not bool(mail.get("_read", false)):
+		if not bool(mail.get("_read", false)) and str(mail.get("_folder", "inbox")) != "deleted":
 			count += 1
 	return count
+
+
+## CampMail's Delete: into Deleted Items, and from there gone for good.
+func delete_mail(mail: Dictionary) -> void:
+	if str(mail.get("_folder", "inbox")) == "deleted":
+		for i in inbox.size():
+			if int(inbox[i].get("_runtime_id", -1)) == int(mail.get("_runtime_id", -2)):
+				inbox.remove_at(i)
+				break
+	else:
+		mail["_folder"] = "deleted"
+	unread_count_changed.emit(get_unread_count())
+
+
+## A message the player sends (CampMail's New / Reply / Forward).
+func send_mail(to: String, subject: String, body: String, day: int, time: String) -> void:
+	sent.append({"to": to, "subject": subject, "body": body, "day": day, "time": time})
 
 
 func mark_read(mail: Dictionary) -> void:

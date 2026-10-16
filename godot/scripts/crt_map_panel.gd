@@ -146,6 +146,45 @@ var _last_hover := Vector2i(-2, -2)
 var _sfx_players: Array = []
 var _night := 0.0              # 0 day .. 1 deep night, for the tint and the lamps
 
+const GROUND_TEX_SUMMER := "res://assets/textury/redneck/grass.png"
+const GROUND_TEX_AUTUMN := "res://assets/textury/world/grass_autumn.png"
+const GROUND_TEX_SNOW := "res://assets/textury/world/snow_ground.png"
+## The layer being drawn on (see _draw).
+var _cv: CanvasItem = self
+var _static_layer: Control
+var _dyn_layer: Control
+var _static_dirty := true
+var _static_tile_w := 0.0
+var _static_origin := Vector2.ZERO
+var _static_size := Vector2.ZERO
+var _static_sig := ""
+var _sig_t := 0.0
+var _ground_tex: Texture2D
+## The puff a building lands with (Grok, tools/artgen/os_art.py); circles without it.
+const DUST_TEX := "res://assets/textury/builder/dust.png"
+var _dust_tex: Texture2D = load(DUST_TEX) if ResourceLoader.exists(DUST_TEX) else null
+var _water_cells: Array = []    # [centre on the static layer, hash]
+var _smokers: Array = []        # [centre, strength, seed]
+var _lights: Array = []         # [centre, type]
+var _anim_entries: Array = []   # buildings still dropping in
+var _zoom_target := 1.16
+var _zoom_anchor := Vector2.ZERO
+var _zoom_settle := 0.0
+var _pan_vel := Vector2.ZERO
+var _last_pan_motion := 0.0
+## The site in miniature, top right (RCT's map window): a pixel a tile, rebuilt with the
+## static layer, the view's outline on it; click it to go there.
+var _mini_img: Image
+var _mini_tex: ImageTexture
+var _mini_rect := Rect2()
+const MINI_PX := 3.0
+const MINI_COLORS := {
+	"grass": Color(0.30, 0.42, 0.20), "lake": Color(0.16, 0.34, 0.52), "reserved": Color(0.55, 0.46, 0.30),
+	"tree": Color(0.12, 0.26, 0.12), "corn": Color(0.74, 0.62, 0.26), "path": Color(0.80, 0.68, 0.46),
+	"housing": Color(0.92, 0.56, 0.20), "services": Color(0.40, 0.78, 0.92), "fun": Color(0.95, 0.35, 0.30),
+	"utility": Color(0.62, 0.62, 0.66), "office": Color(1.0, 1.0, 1.0),
+}
+
 
 func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_STOP
@@ -153,14 +192,40 @@ func _ready() -> void:
 	focus_mode = Control.FOCUS_ALL
 	grab_focus()
 	mouse_exited.connect(_on_mouse_exited)
+	_static_layer = Control.new()
+	_static_layer.name = "StaticLayer"
+	_static_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_static_layer.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	_static_layer.draw.connect(_draw_static)
+	add_child(_static_layer)
+	_dyn_layer = Control.new()
+	_dyn_layer.name = "DynamicLayer"
+	_dyn_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dyn_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_dyn_layer.draw.connect(_draw_dynamic)
+	add_child(_dyn_layer)
+	_zoom_target = _zoom_level
+	if EventBus.has_signal("building_placed"):
+		EventBus.building_placed.connect(_on_world_placed)
+	if EventBus.has_signal("building_removed"):
+		EventBus.building_removed.connect(_on_world_removed)
 	_preload_icons()
 	_connect_event_bus()
 	_emit_status("Select a tool to begin.")
 
 
+func _on_world_placed(_id: String, _o: Vector2i, _f: Vector2i, _r: int) -> void:
+	_static_dirty = true
+
+
+func _on_world_removed(_o: Vector2i) -> void:
+	_static_dirty = true
+
+
 func setup(new_grid_manager, new_building_manager) -> void:
 	grid_manager = new_grid_manager
 	building_manager = new_building_manager
+	_static_dirty = true
 	queue_redraw()
 
 
@@ -192,11 +257,16 @@ func rotate_selected_building(step: int) -> void:
 
 
 func apply_zoom_step(direction: int) -> void:
+	var local := get_local_mouse_position()
+	_zoom_anchor = local if Rect2(Vector2.ZERO, size).has_point(local) else size * 0.5
+	var old := _zoom_target
 	if direction > 0:
-		_set_zoom(_zoom_level * 1.10)
+		_zoom_target = clampf(_zoom_target * 1.18, ZOOM_MIN, ZOOM_MAX)
 	elif direction < 0:
-		_set_zoom(_zoom_level * 0.90)
-	queue_redraw()
+		_zoom_target = clampf(_zoom_target / 1.18, ZOOM_MIN, ZOOM_MAX)
+	if absf(old - _zoom_target) > 0.001:
+		_ghost_locked = false
+		_emit_status("Zoom: %d%%" % int(round(_zoom_target * 100.0)))
 
 
 func _process(delta: float) -> void:
@@ -218,7 +288,10 @@ func _process(delta: float) -> void:
 	if hover_coord != _last_hover:
 		_last_hover = hover_coord
 		hover_info.emit(_describe(hover_coord))
-	queue_redraw()
+	_update_zoom(delta)
+	_update_inertia(delta)
+	_update_static(delta)
+	_dyn_layer.queue_redraw()
 
 
 func _update_keyboard_pan(delta: float) -> void:
@@ -276,6 +349,10 @@ func _gui_input(event: InputEvent) -> void:
 			if event.relative.length_squared() > 0.08:
 				_pan_drag_moved = true
 			_pan_offset += event.relative
+			var now := Time.get_ticks_msec() / 1000.0
+			var dt := clampf(now - _last_pan_motion, 1.0 / 240.0, 0.1)
+			_last_pan_motion = now
+			_pan_vel = _pan_vel.lerp(event.relative / dt, 0.4)
 			_clamp_pan_offset_for_current_map()
 		if _path_drag_active:
 			_request_path_at(event.position)
@@ -299,6 +376,7 @@ func _gui_input(event: InputEvent) -> void:
 			if event.pressed:
 				_pan_dragging = true
 				_pan_drag_moved = false
+				_pan_vel = Vector2.ZERO
 				_rmb_pressed_without_selection = selected_building == ""
 				if selected_building != "":
 					_cancel_tool_selection()
@@ -308,11 +386,17 @@ func _gui_input(event: InputEvent) -> void:
 					_emit_status("Submenu closed.")
 				_pan_dragging = false
 				_rmb_pressed_without_selection = false
+				# Let go after a pause: no throw.
+				if Time.get_ticks_msec() / 1000.0 - _last_pan_motion > 0.08:
+					_pan_vel = Vector2.ZERO
 			queue_redraw()
 			get_viewport().set_input_as_handled()
 			return
 
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed and _minimap_click(event.position):
+				get_viewport().set_input_as_handled()
+				return
 			if event.pressed:
 				grab_focus()
 				_handle_left_press(event.position)
@@ -555,6 +639,7 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 		_play(snd, -6.0)
 	if cost > 0:
 		_add_fx("pop", mid, 1.3, "-$%d" % cost, Color8(255, 220, 80))
+	_static_dirty = true
 	queue_redraw()
 
 
@@ -585,6 +670,7 @@ func _on_demolish_confirmed(area: Rect2i, removed_count: int, fee_paid: int, ref
 	if fee_paid > 0:
 		_add_fx("pop", mid, 1.3, "-$%d" % fee_paid, Color8(255, 220, 80))
 	_play("bulldoze", -6.0)
+	_static_dirty = true
 	queue_redraw()
 
 
@@ -596,26 +682,36 @@ func _on_demolish_rejected(area: Rect2i, reason: String) -> void:
 	queue_redraw()
 
 
+## The layers (the map was redrawn whole every frame: 16 fps with Builder open, 2026-10-17).
+## The panel draws the background; the static layer the ground, the edges, the paths,
+## the trees and the buildings, once, and again only when something changes (a build, a
+## demolition, the day, the zoom settling, a resize); panning moves it and zooming
+## scales it in between. The dynamic layer on top draws what moves: the water's glints,
+## smoke, the guests, the night, the effects, the cursor, the ghost and the previews.
 func _draw() -> void:
+	_cv = self
+	draw_rect(Rect2(Vector2.ZERO, size), BG_COLOR, true)
+
+
+func _draw_static() -> void:
+	_cv = _static_layer
+	_water_cells.clear()
+	_smokers.clear()
+	_lights.clear()
+	_anim_entries.clear()
 	if grid_manager == null:
 		return
 	var grid_w: int = int(grid_manager.grid_width)
 	var grid_h: int = int(grid_manager.grid_height)
 	if grid_w <= 0 or grid_h <= 0:
 		return
-
-	var iso = _compute_iso_layout(grid_w, grid_h)
-	var tile_w: float = iso.tile_w
-	var tile_h: float = iso.tile_h
-	var origin: Vector2 = iso.origin
-
-	draw_rect(Rect2(Vector2.ZERO, size), BG_COLOR, true)
+	var tile_w: float = _static_tile_w
+	var tile_h: float = tile_w * 0.5
+	var origin: Vector2 = _static_origin
 	var dims := _display_grid_dimensions(grid_w, grid_h)
-
+	_ground_tex = _season_ground_texture()
 	var draw_entries: Array = []
-	var lights: Array = []
 	var drawn_roots: Dictionary = {}
-
 	for diagonal in range(grid_w + grid_h):
 		for y in range(grid_h):
 			var x = diagonal - y
@@ -628,7 +724,6 @@ func _draw() -> void:
 			var center = _grid_to_iso(coord, origin, tile_w, tile_h)
 			_draw_ground_tile(center, tile_w, tile_h, tile, coord)
 			_draw_map_edge(center, tile_w, tile_h, _rotate_coord_for_display(coord), dims)
-
 			if not tile.occupied or tile.occupant == null:
 				continue
 			var root = _resolve_occupant_root(tile.occupant)
@@ -638,7 +733,6 @@ func _draw() -> void:
 			if drawn_roots.has(root_id):
 				continue
 			drawn_roots[root_id] = true
-
 			var structure_origin = coord
 			if root.has_meta("grid_origin"):
 				structure_origin = root.get_meta("grid_origin", coord)
@@ -658,58 +752,299 @@ func _draw() -> void:
 				"anchor_x": anchor.x,
 				"anchor_y": anchor.y,
 			})
-
-	draw_entries.sort_custom(func(a, b):
-		var ao = int(a.get("order", 0))
-		var bo = int(b.get("order", 0))
+	draw_entries.sort_custom(func(ea, eb):
+		var ao = int(ea.get("order", 0))
+		var bo = int(eb.get("order", 0))
 		if ao == bo:
-			var ax = int(a.get("anchor_x", 0))
-			var bx = int(b.get("anchor_x", 0))
+			var ax = int(ea.get("anchor_x", 0))
+			var bx = int(eb.get("anchor_x", 0))
 			if ax == bx:
-				return int(a.get("anchor_y", 0)) < int(b.get("anchor_y", 0))
+				return int(ea.get("anchor_y", 0)) < int(eb.get("anchor_y", 0))
 			return ax < bx
 		return ao < bo
 	)
-
-	_append_guest_entries(draw_entries, origin, tile_w, tile_h)
-	# Painter's order in display space; ties keep the structure tie-breakers.
-	draw_entries.sort_custom(func(a, b):
-		var ao := float(a.get("order", 0))
-		var bo := float(b.get("order", 0))
-		if not is_equal_approx(ao, bo):
-			return ao < bo
-		var ax := int(a.get("anchor_x", 0))
-		var bx := int(b.get("anchor_x", 0))
-		if ax != bx:
-			return ax < bx
-		return int(a.get("anchor_y", 0)) < int(b.get("anchor_y", 0))
-	)
-
+	_build_minimap(grid_w, grid_h)
 	for entry in draw_entries:
-		if entry.has("guest"):
-			_draw_guest(entry, tile_h)
-		else:
-			_draw_structure(entry, tile_w, tile_h)
-			var ty := str(entry.get("type", ""))
-			if SMOKERS.has(ty):
-				_draw_smoke(entry["center"], tile_h, float(SMOKERS[ty]), int(entry["origin"].x * 7 + entry["origin"].y * 13))
-			if ty == "lamp_post" or ty == "bonfire":
-				lights.append([entry["center"], ty])
-			elif ty == "path" and _path_has_lamp(entry["origin"]):
-				lights.append([entry["center"] + Vector2(tile_w * 0.2, -tile_h * 0.05), "lamp_post"])
+		var ty := str(entry.get("type", ""))
+		# Still dropping in: the dynamic layer draws it until it lands.
+		if _dropped.has(entry.get("origin", Vector2i.ZERO)):
+			_anim_entries.append(entry)
+			continue
+		_draw_structure(entry, tile_w, tile_h)
+		if SMOKERS.has(ty):
+			_smokers.append([entry["center"], float(SMOKERS[ty]), int(entry["origin"].x * 7 + entry["origin"].y * 13)])
+		if ty == "lamp_post" or ty == "bonfire":
+			_lights.append([entry["center"], ty])
+		elif ty == "path" and _path_has_lamp(entry["origin"]):
+			_lights.append([entry["center"] + Vector2(tile_w * 0.2, -tile_h * 0.05), "lamp_post"])
 
+
+## Static-layer point to the panel, as the layer stands now (moved and scaled).
+func _s2d(p: Vector2) -> Vector2:
+	return _static_layer.position + p * _static_layer.scale.x
+
+
+func _draw_dynamic() -> void:
+	_cv = _dyn_layer
+	if grid_manager == null:
+		return
+	var grid_w: int = int(grid_manager.grid_width)
+	var grid_h: int = int(grid_manager.grid_height)
+	if grid_w <= 0 or grid_h <= 0:
+		return
+	var iso = _compute_iso_layout(grid_w, grid_h)
+	var tile_w: float = iso.tile_w
+	var tile_h: float = iso.tile_h
+	var origin: Vector2 = iso.origin
+	var k := _static_layer.scale.x
+	# Light moving on the water.
+	for w in _water_cells:
+		var c := _s2d(w[0])
+		var ph := _time * 1.3 + float(w[1]) * 6.28
+		var a := 0.18 + 0.14 * sin(ph)
+		var off := Vector2(sin(ph * 0.7) * tile_w * 0.12, cos(ph * 0.5) * tile_h * 0.10)
+		_cv.draw_line(c + off - Vector2(tile_w * 0.12, 0), c + off + Vector2(tile_w * 0.12, 0), Color(0.7, 0.85, 1.0, a), 1.0)
+	for e in _anim_entries:
+		var moved: Dictionary = (e as Dictionary).duplicate()
+		moved["center"] = _s2d(e["center"])
+		_draw_structure(moved, tile_w, tile_h)
+	for sm in _smokers:
+		_draw_smoke(_s2d(sm[0]), tile_h, float(sm[1]), int(sm[2]))
+	var entries: Array = []
+	_append_guest_entries(entries, origin, tile_w, tile_h)
+	for g in entries:
+		_draw_guest(g, tile_h)
+	var lights: Array = []
+	for l in _lights:
+		lights.append([_s2d(l[0]), l[1]])
 	_draw_night(lights, tile_w, tile_h)
 	_draw_fx(origin, tile_w, tile_h)
-
 	_draw_path_drag_preview(origin, tile_w, tile_h)
 	_draw_ghost_preview(origin, tile_w, tile_h)
 	_draw_demolish_preview(origin, tile_w, tile_h)
-
 	if _is_valid_coord(hover_coord):
 		var hover_center = _grid_to_iso(hover_coord, origin, tile_w, tile_h)
-		_draw_diamond(hover_center, tile_w, tile_h, HOVER_FILL, HOVER_LINE, 1.8)
-
+		var pulse := 0.75 + 0.25 * sin(_time * 6.0)
+		_draw_diamond(hover_center, tile_w, tile_h, Color(HOVER_FILL.r, HOVER_FILL.g, HOVER_FILL.b, HOVER_FILL.a * pulse), HOVER_LINE, 1.8)
 	_draw_rotation_panel()
+	_draw_minimap(origin, tile_w, tile_h)
+	_draw_hover_card()
+
+
+func _build_minimap(grid_w: int, grid_h: int) -> void:
+	var dims := _display_grid_dimensions(grid_w, grid_h)
+	if _mini_img == null or _mini_img.get_width() != dims.x or _mini_img.get_height() != dims.y:
+		_mini_img = Image.create(dims.x, dims.y, false, Image.FORMAT_RGBA8)
+	for y in grid_h:
+		for x in grid_w:
+			var c := Vector2i(x, y)
+			var tile = grid_manager.get_tile(c)
+			var key := "grass"
+			if tile != null:
+				if tile.tile_type == grid_manager.TILE_LAKE:
+					key = "lake"
+				elif tile.tile_type == grid_manager.TILE_RESERVED:
+					key = "reserved"
+				if tile.occupied and tile.occupant != null:
+					var root = _resolve_occupant_root(tile.occupant)
+					if root != null:
+						if root.is_in_group("trees"):
+							key = "tree"
+						elif root.is_in_group("corn"):
+							key = "corn"
+						else:
+							key = _mini_kind(str(root.get_meta("building_type", "")))
+			var d := _rotate_coord_for_display(c)
+			_mini_img.set_pixel(d.x, d.y, MINI_COLORS.get(key, MINI_COLORS["grass"]))
+	if _mini_tex == null or _mini_tex.get_width() != dims.x:
+		_mini_tex = ImageTexture.create_from_image(_mini_img)
+	else:
+		_mini_tex.update(_mini_img)
+
+
+func _mini_kind(t: String) -> String:
+	if t == "path":
+		return "path"
+	if t == "main_building":
+		return "office"
+	if t.begins_with("tent") or t.begins_with("cabin") or t.begins_with("caravan"):
+		return "housing"
+	if t in ["toilet_block", "shower_block", "vecerka", "restaurant", "pub", "pub_2"]:
+		return "services"
+	if t in ["bonfire", "sports_field", "lake_slide"]:
+		return "fun"
+	return "utility"
+
+
+## The minimap's diamond: display cell (u, v) -> panel point.
+func _mini_xform() -> Transform2D:
+	var dims := Vector2(_mini_img.get_width(), _mini_img.get_height()) if _mini_img != null else Vector2(28, 28)
+	var w := (dims.x + dims.y) * MINI_PX
+	var h := w * 0.5
+	var top := Vector2(size.x - w - 10.0 + dims.y * MINI_PX, 10.0)
+	_mini_rect = Rect2(Vector2(size.x - w - 10.0, 10.0), Vector2(w, h))
+	return Transform2D(Vector2(MINI_PX, MINI_PX * 0.5), Vector2(-MINI_PX, MINI_PX * 0.5), top)
+
+
+func _draw_minimap(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	if _mini_tex == null:
+		return
+	var xf := _mini_xform()
+	var frame := _mini_rect.grow(4.0)
+	_cv.draw_rect(frame, Color(0, 0, 0, 0.55))
+	_cv.draw_rect(frame, Color(0.72, 0.72, 0.72, 0.9), false, 1.0)
+	_cv.draw_set_transform_matrix(xf)
+	_cv.draw_texture(_mini_tex, Vector2.ZERO)
+	_cv.draw_set_transform_matrix(Transform2D.IDENTITY)
+	# The view: the panel's corners in display cells, on the little map.
+	var pts := PackedVector2Array()
+	for q in [Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y), Vector2.ZERO]:
+		var dlt: Vector2 = q - origin
+		var ua := dlt.x / (tile_w * 0.5)
+		var vb := dlt.y / (tile_h * 0.5)
+		var cell := Vector2((ua + vb) * 0.5 + 0.5, (vb - ua) * 0.5 + 0.5)
+		pts.append(xf * cell)
+	_cv.draw_polyline(pts, Color(1.0, 1.0, 0.6, 0.9), 1.0)
+
+
+## Click on the minimap: that spot to the middle of the view.
+func _minimap_click(local: Vector2) -> bool:
+	if _mini_tex == null or not _mini_rect.grow(4.0).has_point(local):
+		return false
+	var cell := _mini_xform().affine_inverse() * local
+	if grid_manager == null:
+		return true
+	var gw: int = int(grid_manager.grid_width)
+	var gh: int = int(grid_manager.grid_height)
+	var iso = _compute_iso_layout(gw, gh)
+	var tw: float = iso.tile_w
+	var th: float = iso.tile_h
+	var at: Vector2 = Vector2(iso.origin) + Vector2((cell.x - 0.5 - (cell.y - 0.5)) * tw * 0.5, (cell.x - 0.5 + cell.y - 0.5) * th * 0.5)
+	_pan_offset += size * 0.5 - at
+	_pan_vel = Vector2.ZERO
+	_clamp_pan_offset_for_current_map()
+	_play("click", -14.0)
+	return true
+
+
+## What is under the cursor, on a small card by it (the status bar has it too).
+func _draw_hover_card() -> void:
+	if not _is_valid_coord(hover_coord) or selected_building != "" or _pan_dragging:
+		return
+	var text := _describe(hover_coord)
+	if text == "" or text.ends_with("Forest floor"):
+		return
+	var m := get_local_mouse_position() + Vector2(14, 16)
+	var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+	var r := Rect2(m.floor(), Vector2(tw + 8, 15))
+	if r.end.x > size.x - 2:
+		r.position.x = size.x - 2 - r.size.x
+	_cv.draw_rect(r, T.TOOLTIP)
+	_cv.draw_rect(r, T.DARK, false, 1.0)
+	_cv.draw_string(T.FONT, r.position + Vector2(4, 11), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+
+
+## Keeps the static layer where the camera is: rebuilt when it must be, otherwise moved
+## (pan) and scaled (zoom on its way).
+func _update_static(delta: float) -> void:
+	if grid_manager == null or _static_layer == null:
+		return
+	var grid_w: int = int(grid_manager.grid_width)
+	var grid_h: int = int(grid_manager.grid_height)
+	if grid_w <= 0 or grid_h <= 0:
+		return
+	_sig_t -= delta
+	if _sig_t <= 0.0:
+		_sig_t = 0.5
+		var sig := _world_signature()
+		if sig != _static_sig:
+			_static_sig = sig
+			_static_dirty = true
+	for e in _anim_entries:
+		if not _dropped.has(e.get("origin", Vector2i.ZERO)):
+			_static_dirty = true
+			break
+	var iso = _compute_iso_layout(grid_w, grid_h)
+	var tile_w: float = iso.tile_w
+	var origin: Vector2 = iso.origin
+	var zooming := absf(_zoom_level - _zoom_target) > 0.0005 or _zoom_settle > 0.0
+	if _static_dirty or size != _static_size or _static_tile_w <= 0.0 or (not zooming and absf(tile_w - _static_tile_w) > 0.01):
+		_static_dirty = false
+		_static_tile_w = tile_w
+		_static_origin = origin
+		_static_size = size
+		_static_layer.position = Vector2.ZERO
+		_static_layer.scale = Vector2.ONE
+		_static_layer.queue_redraw()
+		return
+	var sc := tile_w / _static_tile_w
+	_static_layer.scale = Vector2(sc, sc)
+	_static_layer.position = origin - _static_origin * sc
+
+
+## What the static layer shows: the structures and trees there are, the day (the ground
+## follows the season). Cheap; checked twice a second.
+func _world_signature() -> String:
+	var n := 0
+	if building_manager != null:
+		var root: Node = building_manager.get_node_or_null("Structures")
+		if root != null:
+			n = root.get_child_count()
+	var trees := get_tree().get_nodes_in_group("trees").size() if get_tree() != null else 0
+	var corn := get_tree().get_nodes_in_group("corn").size() if get_tree() != null else 0
+	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
+	var snow := Season.snow_cover(day, 12.0) >= 0.2
+	return "%d|%d|%d|%d|%s" % [n, trees, corn, day if day < 10 else 10, snow]
+
+
+## The ground's picture: the game's own grass, autumn leaves from day 10, snow when it
+## lies (the same pictures as the world, scripts/season_look.gd).
+func _season_ground_texture() -> Texture2D:
+	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
+	var path := GROUND_TEX_SUMMER
+	if Season.snow_cover(day, 12.0) >= 0.2 and ResourceLoader.exists(GROUND_TEX_SNOW):
+		path = GROUND_TEX_SNOW
+	elif day >= 10 and ResourceLoader.exists(GROUND_TEX_AUTUMN):
+		path = GROUND_TEX_AUTUMN
+	if not ResourceLoader.exists(path):
+		return null
+	if not _icon_cache.has(path):
+		_icon_cache[path] = load(path)
+	return _icon_cache[path]
+
+
+func _update_zoom(delta: float) -> void:
+	_zoom_settle = maxf(0.0, _zoom_settle - delta)
+	if absf(_zoom_level - _zoom_target) < 0.0005:
+		return
+	if grid_manager == null:
+		_zoom_level = _zoom_target
+		return
+	var gw: int = int(grid_manager.grid_width)
+	var gh: int = int(grid_manager.grid_height)
+	var before = _compute_iso_layout(gw, gh)
+	var nz := lerpf(_zoom_level, _zoom_target, 1.0 - exp(-delta * 14.0))
+	if absf(nz - _zoom_target) < 0.002:
+		nz = _zoom_target
+	_zoom_level = nz
+	var after = _compute_iso_layout(gw, gh)
+	# Keep the point under the mouse where it is.
+	var anchor := _zoom_anchor
+	var want: Vector2 = anchor - (anchor - Vector2(before.origin)) * (float(after.tile_w) / float(before.tile_w))
+	_pan_offset += want - Vector2(after.origin)
+	_clamp_pan_offset_for_current_map()
+	_zoom_settle = 0.12
+
+
+## The map coasts on a little when you let go of a drag.
+func _update_inertia(delta: float) -> void:
+	if _pan_dragging or _pan_vel.length_squared() < 4.0:
+		if not _pan_dragging:
+			_pan_vel = Vector2.ZERO
+		return
+	_pan_offset += _pan_vel * delta
+	_pan_vel *= exp(-delta * 5.5)
+	_clamp_pan_offset_for_current_map()
 
 
 # ── guests ────────────────────────────────────────────────────────────────────
@@ -817,43 +1152,42 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 	var legs := Color(0.20, 0.20, 0.26)
 	var h := 7.0 if e.has("extra") else 6.0
 	# shadow
-	draw_rect(Rect2(p + Vector2(-1.5 * u, -0.5 * u), Vector2(3.0 * u, u)), Color(0, 0, 0, 0.35))
+	_cv.draw_rect(Rect2(p + Vector2(-1.5 * u, -0.5 * u), Vector2(3.0 * u, u)), Color(0, 0, 0, 0.35))
 	# legs
-	draw_rect(Rect2(p + Vector2(-u, -2.0 * u), Vector2(u, 2.0 * u + (step if step > 0 else 0.0) * 0.0)), legs)
-	draw_rect(Rect2(p + Vector2(0.0, -2.0 * u), Vector2(u, 2.0 * u)), legs)
+	_cv.draw_rect(Rect2(p + Vector2(-u, -2.0 * u), Vector2(u, 2.0 * u + (step if step > 0 else 0.0) * 0.0)), legs)
+	_cv.draw_rect(Rect2(p + Vector2(0.0, -2.0 * u), Vector2(u, 2.0 * u)), legs)
 	if step != 0.0:
-		draw_rect(Rect2(p + Vector2(-u + step * u, -u), Vector2(u, u)), legs)
+		_cv.draw_rect(Rect2(p + Vector2(-u + step * u, -u), Vector2(u, u)), legs)
 	# body
-	draw_rect(Rect2(p + Vector2(-u, -(h - 2.0) * u), Vector2(2.0 * u, (h - 4.0) * u)), shirt)
+	_cv.draw_rect(Rect2(p + Vector2(-u, -(h - 2.0) * u), Vector2(2.0 * u, (h - 4.0) * u)), shirt)
 	# head
-	draw_rect(Rect2(p + Vector2(-u, -h * u), Vector2(2.0 * u, 2.0 * u)), skin)
+	_cv.draw_rect(Rect2(p + Vector2(-u, -h * u), Vector2(2.0 * u, 2.0 * u)), skin)
 	if e.has("extra"):
 		# Two dots for eyes, which none of the others have.
-		draw_rect(Rect2(p + Vector2(-u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
-		draw_rect(Rect2(p + Vector2(0.5 * u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
+		_cv.draw_rect(Rect2(p + Vector2(-u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
+		_cv.draw_rect(Rect2(p + Vector2(0.5 * u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
 
 
 func _draw_ground_tile(center: Vector2, tile_w: float, tile_h: float, tile, coord := Vector2i.ZERO) -> void:
 	var h := _hash01(coord)
-	var fill := GROUND_A.lerp(GROUND_B, h)
-	var line := GRID_LINE
 	if tile.tile_type == grid_manager.TILE_LAKE:
-		fill = WATER.lightened(h * 0.05)
-		line = Color(0.0, 0.0, 0.0, 0.10)
-		_draw_diamond(center, tile_w, tile_h, fill, line, 1.0)
-		# Light on the water, moving.
-		var ph := _time * 1.3 + h * 6.28
-		var a := 0.18 + 0.14 * sin(ph)
-		var off := Vector2(sin(ph * 0.7) * tile_w * 0.12, cos(ph * 0.5) * tile_h * 0.10)
-		draw_line(center + off - Vector2(tile_w * 0.12, 0), center + off + Vector2(tile_w * 0.12, 0), Color(0.7, 0.85, 1.0, a), 1.0)
+		_draw_diamond(center, tile_w, tile_h, WATER.lightened(h * 0.05), Color(0.0, 0.0, 0.0, 0.10), 1.0)
+		_water_cells.append([center, h])
 		return
-	elif tile.tile_type == grid_manager.TILE_RESERVED:
-		fill = DIRT.lerp(DIRT.darkened(0.1), h)
-	_draw_diamond(center, tile_w, tile_h, fill, line, 1.0)
-	# A few darker specks: needles, stones.
-	if tile_w >= 18.0:
-		var sp := Vector2((h - 0.5) * tile_w * 0.4, (_hash01(coord + Vector2i(7, 3)) - 0.5) * tile_h * 0.4)
-		draw_rect(Rect2((center + sp).floor(), Vector2(2, 1)), Color(0, 0, 0, 0.18))
+	var pts := _diamond_points(center, tile_w, tile_h)
+	if tile.tile_type == grid_manager.TILE_RESERVED:
+		_cv.draw_colored_polygon(pts, DIRT.lerp(DIRT.darkened(0.1), h))
+	elif _ground_tex != null:
+		# One picture over the whole map (screen space), tile by tile a shade apart.
+		var uvs := PackedVector2Array()
+		var span := tile_w * 2.5
+		for q in pts:
+			uvs.append((q - _static_origin) / span)
+		var shade := 1.12 + h * 0.22
+		_cv.draw_polygon(pts, PackedColorArray([Color(shade, shade, shade)]), uvs, _ground_tex)
+	else:
+		_cv.draw_colored_polygon(pts, GROUND_A.lerp(GROUND_B, h))
+	_cv.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), GRID_LINE, 1.0)
 
 
 ## The cut edge of the land along the two front sides of the map, like RCT.
@@ -862,10 +1196,10 @@ func _draw_map_edge(center: Vector2, tile_w: float, tile_h: float, d: Vector2i, 
 	var bottom := center + Vector2(0, tile_h * 0.5)
 	if d.y == dims.y - 1:
 		var left := center + Vector2(-tile_w * 0.5, 0)
-		draw_colored_polygon(PackedVector2Array([left, bottom, bottom + Vector2(0, depth), left + Vector2(0, depth)]), EDGE_LEFT)
+		_cv.draw_colored_polygon(PackedVector2Array([left, bottom, bottom + Vector2(0, depth), left + Vector2(0, depth)]), EDGE_LEFT)
 	if d.x == dims.x - 1:
 		var right := center + Vector2(tile_w * 0.5, 0)
-		draw_colored_polygon(PackedVector2Array([bottom, right, right + Vector2(0, depth), bottom + Vector2(0, depth)]), EDGE_RIGHT)
+		_cv.draw_colored_polygon(PackedVector2Array([bottom, right, right + Vector2(0, depth), bottom + Vector2(0, depth)]), EDGE_RIGHT)
 
 
 func _hash01(c: Vector2i) -> float:
@@ -925,20 +1259,20 @@ func _draw_path(center: Vector2, coord: Vector2i, tile_w: float, tile_h: float) 
 			continue
 		var step = _path_screen_step(offset, tile_w, tile_h)
 		var tip = center + step * 0.56
-		draw_line(center, tip, Color(0.22, 0.16, 0.10, 0.90), link_w + 1.5)
-		draw_line(center, tip, Color(0.64, 0.52, 0.34, 0.95), link_w)
+		_cv.draw_line(center, tip, Color(0.22, 0.16, 0.10, 0.90), link_w + 1.5)
+		_cv.draw_line(center, tip, Color(0.64, 0.52, 0.34, 0.95), link_w)
 	_draw_diamond(center, tile_w * 0.42, tile_h * 0.42, Color(0.58, 0.46, 0.30, 0.96), Color(0.24, 0.18, 0.12, 1.0), 1.1)
 
 
 func _draw_tree_fallback(center: Vector2, tile_w: float, tile_h: float) -> void:
 	var trunk = Rect2(center.x - tile_w * 0.07, center.y - tile_h * 0.16, tile_w * 0.14, tile_h * 0.36)
-	draw_rect(trunk, Color(0.30, 0.22, 0.14), true)
+	_cv.draw_rect(trunk, Color(0.30, 0.22, 0.14), true)
 	var canopy = PackedVector2Array([
 		Vector2(center.x, center.y - tile_h * 0.92),
 		Vector2(center.x + tile_w * 0.34, center.y - tile_h * 0.22),
 		Vector2(center.x - tile_w * 0.34, center.y - tile_h * 0.22),
 	])
-	draw_colored_polygon(canopy, Color(0.20, 0.50, 0.22))
+	_cv.draw_colored_polygon(canopy, Color(0.20, 0.50, 0.22))
 
 
 func _draw_placeholder(center: Vector2, tile_w: float, tile_h: float, building_type: String) -> void:
@@ -947,8 +1281,8 @@ func _draw_placeholder(center: Vector2, tile_w: float, tile_h: float, building_t
 		fill = Color(0.48, 0.50, 0.44)
 	var top_center = center + Vector2(0.0, -tile_h * 0.14)
 	var top = _diamond_points(top_center, tile_w * 0.56, tile_h * 0.36)
-	draw_colored_polygon(top, fill)
-	draw_polyline(PackedVector2Array([top[0], top[1], top[2], top[3], top[0]]), Color(0.14, 0.14, 0.14), 1.0)
+	_cv.draw_colored_polygon(top, fill)
+	_cv.draw_polyline(PackedVector2Array([top[0], top[1], top[2], top[3], top[0]]), Color(0.14, 0.14, 0.14), 1.0)
 
 
 func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
@@ -988,9 +1322,9 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 		tag = "$%d - no money" % _get_cost(selected_building)
 	var tw := T.FONT.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 	var tp := (center + Vector2(tile_w * 0.45, -tile_h * 1.4)).floor()
-	draw_rect(Rect2(tp, Vector2(tw + 6, 14)), T.TOOLTIP if can_place else Color8(255, 210, 210))
-	draw_rect(Rect2(tp, Vector2(tw + 6, 14)), T.DARK, false, 1.0)
-	draw_string(T.FONT, tp + Vector2(3, 11), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+	_cv.draw_rect(Rect2(tp, Vector2(tw + 6, 14)), T.TOOLTIP if can_place else Color8(255, 210, 210))
+	_cv.draw_rect(Rect2(tp, Vector2(tw + 6, 14)), T.DARK, false, 1.0)
+	_cv.draw_string(T.FONT, tp + Vector2(3, 11), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 
 
 func _draw_path_drag_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
@@ -1031,7 +1365,7 @@ func _draw_rotation_panel() -> void:
 	var panel_size = Vector2(70.0, 76.0)
 	var panel_pos = Vector2(size.x - panel_size.x - 6.0, 6.0)
 	var panel_rect = Rect2(panel_pos, panel_size)
-	draw_style_box(T.box("window", T.FACE, Vector4.ZERO), panel_rect)
+	_cv.draw_style_box(T.box("window", T.FACE, Vector4.ZERO), panel_rect)
 
 	var center = panel_rect.position + panel_rect.size * 0.5
 	var active = _rotation_steps
@@ -1050,7 +1384,7 @@ func _draw_rotation_panel() -> void:
 
 	var label = ROTATION_LABELS[active]
 	var lw := T.FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
-	draw_string(T.FONT, panel_rect.position + Vector2((panel_size.x - lw) * 0.5, panel_size.y - 5.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+	_cv.draw_string(T.FONT, panel_rect.position + Vector2((panel_size.x - lw) * 0.5, panel_size.y - 5.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 
 
 func _draw_panel_arrow(pos: Vector2, direction: Vector2, color: Color) -> void:
@@ -1062,7 +1396,7 @@ func _draw_panel_arrow(pos: Vector2, direction: Vector2, color: Color) -> void:
 	var left = pos - dir * len * 0.25 + perp * wing
 	var right = pos - dir * len * 0.25 - perp * wing
 	var tri = PackedVector2Array([tip, left, right])
-	draw_colored_polygon(tri, color)
+	_cv.draw_colored_polygon(tri, color)
 
 
 func _draw_direction_arrow(anchor: Vector2, dir: Vector2, tile_h: float, color: Color) -> void:
@@ -1075,12 +1409,12 @@ func _draw_direction_arrow(anchor: Vector2, dir: Vector2, tile_h: float, color: 
 	var wing = maxf(5.0, len * 0.46)
 	var start = anchor - safe_dir * len * 0.5
 	var tip = anchor + safe_dir * len * 0.5
-	draw_line(start, tip, Color(0.0, 0.0, 0.0, 0.85), 3.9)
-	draw_line(tip, tip - safe_dir * wing + perp * wing * 0.58, Color(0.0, 0.0, 0.0, 0.85), 3.9)
-	draw_line(tip, tip - safe_dir * wing - perp * wing * 0.58, Color(0.0, 0.0, 0.0, 0.85), 3.9)
-	draw_line(start, tip, color, 2.5)
-	draw_line(tip, tip - safe_dir * wing + perp * wing * 0.58, color, 2.5)
-	draw_line(tip, tip - safe_dir * wing - perp * wing * 0.58, color, 2.5)
+	_cv.draw_line(start, tip, Color(0.0, 0.0, 0.0, 0.85), 3.9)
+	_cv.draw_line(tip, tip - safe_dir * wing + perp * wing * 0.58, Color(0.0, 0.0, 0.0, 0.85), 3.9)
+	_cv.draw_line(tip, tip - safe_dir * wing - perp * wing * 0.58, Color(0.0, 0.0, 0.0, 0.85), 3.9)
+	_cv.draw_line(start, tip, color, 2.5)
+	_cv.draw_line(tip, tip - safe_dir * wing + perp * wing * 0.58, color, 2.5)
+	_cv.draw_line(tip, tip - safe_dir * wing - perp * wing * 0.58, color, 2.5)
 
 
 func _draw_icon(center: Vector2, draw_size: Vector2, icon_key: String, rotation_steps: int, tint: Color) -> bool:
@@ -1097,11 +1431,11 @@ func _draw_icon(center: Vector2, draw_size: Vector2, icon_key: String, rotation_
 	var rect = Rect2(center.x - target_w * 0.5, center.y - target_h * 0.58, target_w, target_h)
 	var mirror = _should_mirror_icon(icon_key, rotation_steps)
 	if mirror:
-		draw_set_transform(Vector2(rect.position.x + rect.size.x, rect.position.y), 0.0, Vector2(-1.0, 1.0))
-		draw_texture_rect(tex, Rect2(Vector2.ZERO, rect.size), false, tint)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		_cv.draw_set_transform(Vector2(rect.position.x + rect.size.x, rect.position.y), 0.0, Vector2(-1.0, 1.0))
+		_cv.draw_texture_rect(tex, Rect2(Vector2.ZERO, rect.size), false, tint)
+		_cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	else:
-		draw_texture_rect(tex, rect, false, tint)
+		_cv.draw_texture_rect(tex, rect, false, tint)
 	return true
 
 
@@ -1435,16 +1769,22 @@ func _local_to_grid(local_pos: Vector2) -> Vector2i:
 	if tile_w <= 0.0 or tile_h <= 0.0:
 		return Vector2i(-1, -1)
 
-	for diagonal in range(grid_w + grid_h):
-		for y in range(grid_h):
-			var x = diagonal - y
-			if x < 0 or x >= grid_w:
-				continue
-			var coord = Vector2i(x, y)
-			var center = _grid_to_iso(coord, origin, tile_w, tile_h)
-			if _point_in_diamond(local_pos, center, tile_w, tile_h):
-				return coord
-	return Vector2i(-1, -1)
+	# The inverse of _grid_to_iso: display cell from the point, then undo the rotation.
+	var dlt := local_pos - origin
+	var ua := dlt.x / (tile_w * 0.5)
+	var vb := dlt.y / (tile_h * 0.5)
+	var dcell := Vector2i(roundi((ua + vb) * 0.5), roundi((vb - ua) * 0.5))
+	var coord := dcell
+	match wrapi(MAP_ROTATION_STEPS, 0, 4):
+		1:
+			coord = Vector2i(grid_w - 1 - dcell.y, dcell.x)
+		2:
+			coord = Vector2i(grid_w - 1 - dcell.x, grid_h - 1 - dcell.y)
+		3:
+			coord = Vector2i(dcell.y, grid_h - 1 - dcell.x)
+	if coord.x < 0 or coord.y < 0 or coord.x >= grid_w or coord.y >= grid_h:
+		return Vector2i(-1, -1)
+	return coord
 
 
 func _footprint_center_iso(coord: Vector2i, footprint: Vector2i, origin: Vector2, tile_w: float, tile_h: float) -> Vector2:
@@ -1470,12 +1810,12 @@ func _diamond_points(center: Vector2, tile_w: float, tile_h: float) -> PackedVec
 
 func _draw_diamond(center: Vector2, tile_w: float, tile_h: float, fill: Color, outline: Color, outline_width: float) -> void:
 	var points = _diamond_points(center, tile_w, tile_h)
-	draw_colored_polygon(points, fill)
+	_cv.draw_colored_polygon(points, fill)
 	if outline.a > 0.0:
 		for i in range(4):
 			var a = points[i]
 			var b = points[(i + 1) % 4]
-			draw_line(a, b, outline, outline_width)
+			_cv.draw_line(a, b, outline, outline_width)
 
 
 func _point_in_diamond(point: Vector2, center: Vector2, tile_w: float, tile_h: float) -> bool:
@@ -1541,15 +1881,22 @@ func _draw_fx(origin: Vector2, tile_w: float, tile_h: float) -> void:
 					var a := sd * TAU + i * 1.7
 					var r := tile_h * (0.15 + k * 0.55)
 					var q := p + Vector2(cos(a) * r * 1.6, sin(a) * r * 0.7 - k * tile_h * 0.4)
-					draw_circle(q, tile_h * (0.14 + k * 0.18), Color(0.62, 0.56, 0.46, 0.55 * (1.0 - k)))
+					if _dust_tex != null:
+						# Puffs that swell, drift up and thin out, each turned its own way.
+						var ps := tile_h * (0.5 + k * 0.6)
+						_cv.draw_set_transform(q, a + k * 0.8, Vector2.ONE)
+						_cv.draw_texture_rect(_dust_tex, Rect2(Vector2(-ps, -ps * 0.8), Vector2(ps * 2.0, ps * 1.6)), false, Color(1, 1, 1, 0.85 * (1.0 - k)))
+						_cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+					else:
+						_cv.draw_circle(q, tile_h * (0.14 + k * 0.18), Color(0.62, 0.56, 0.46, 0.55 * (1.0 - k)))
 			"pop":
 				var txt := str(f["text"])
 				var q := (p + Vector2(0, -tile_h * (1.2 + k * 1.6))).floor()
 				var col: Color = f["color"]
 				col.a = 1.0 - maxf(0.0, k - 0.6) / 0.4
 				var w := T.FONT_BOLD.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
-				draw_string(T.FONT_BOLD, q + Vector2(-w * 0.5 + 1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color(0, 0, 0, col.a))
-				draw_string(T.FONT_BOLD, q + Vector2(-w * 0.5, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
+				_cv.draw_string(T.FONT_BOLD, q + Vector2(-w * 0.5 + 1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color(0, 0, 0, col.a))
+				_cv.draw_string(T.FONT_BOLD, q + Vector2(-w * 0.5, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
 
 
 ## Grey puffs rising from a fire or a chimney.
@@ -1557,14 +1904,14 @@ func _draw_smoke(center: Vector2, tile_h: float, strength: float, seed: int) -> 
 	for i in 4:
 		var ph := fmod(_time * 0.35 + float(i) * 0.25 + float(seed % 17) * 0.06, 1.0)
 		var q := center + Vector2(sin(ph * 5.0 + seed) * tile_h * 0.25 + ph * tile_h * 0.4, -tile_h * (1.0 + ph * 2.4))
-		draw_circle(q, tile_h * (0.10 + ph * 0.22), Color(0.72, 0.72, 0.70, 0.42 * strength * (1.0 - ph)))
+		_cv.draw_circle(q, tile_h * (0.10 + ph * 0.22), Color(0.72, 0.72, 0.70, 0.42 * strength * (1.0 - ph)))
 
 
 ## Dusk and night: the map darkens, lamps and fires make pools of light.
 func _draw_night(lights: Array, tile_w: float, tile_h: float) -> void:
 	if _night <= 0.01:
 		return
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.03, 0.10, 0.55 * _night))
+	_cv.draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.03, 0.10, 0.55 * _night))
 	for l in lights:
 		var c: Vector2 = l[0]
 		var fire: bool = l[1] == "bonfire"
@@ -1573,11 +1920,11 @@ func _draw_night(lights: Array, tile_w: float, tile_h: float) -> void:
 		for r in 3:
 			var rr := tile_w * (0.9 - r * 0.25) * flick
 			col.a = (0.10 + r * 0.07) * _night
-			draw_set_transform(c, 0.0, Vector2(1.0, 0.5))
-			draw_circle(Vector2.ZERO, rr, col)
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			_cv.draw_set_transform(c, 0.0, Vector2(1.0, 0.5))
+			_cv.draw_circle(Vector2.ZERO, rr, col)
+			_cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		if not fire:
-			draw_circle(c + Vector2(-tile_h * 0.15, -tile_h * 0.65), maxf(1.5, tile_h * 0.12), Color(1.0, 0.95, 0.7, _night))
+			_cv.draw_circle(c + Vector2(-tile_h * 0.15, -tile_h * 0.65), maxf(1.5, tile_h * 0.12), Color(1.0, 0.95, 0.7, _night))
 
 
 func _night_amount() -> float:

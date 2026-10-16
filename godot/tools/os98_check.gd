@@ -293,7 +293,24 @@ func _run() -> void:
 	var mail = _app("mail")
 	if mail != null:
 		var night_log := {"day": 4, "time": "03:00", "stamp_day_offset": 1}
-		_expect(mail._date_label(night_log) == "Day 5  03:00", "night log label: %s" % mail._date_label(night_log))
+		_expect(mail._date_label(night_log) == "Wed 23.9.  03:00", "night log label: %s" % mail._date_label(night_log))
+		# Delete goes to Deleted Items, then away; a reply lands in Sent Items.
+		var probe := {"from": "Test <t@t.cz>", "subject": "probe", "body": "x", "day": 2, "time": "10:00", "type": "spam", "_runtime_id": 99999, "image": "spam_chain", "attachment": "ANDEL.GIF"}
+		EmailManager.inbox.append(probe)
+		mail.refresh()
+		mail._show_message(probe)
+		await _frames(2)
+		await _shot("mail_spam")
+		mail._delete_current()
+		_expect(str(probe.get("_folder", "")) == "deleted", "Delete does not move to Deleted Items")
+		EmailManager.delete_mail(probe)
+		_expect(not EmailManager.inbox.has(probe), "a deleted message cannot be deleted for good")
+		var sent_before: int = EmailManager.sent.size()
+		mail._open_compose("Vera <vera@post.cz>", "Re: test", "hello")
+		await _frames(2)
+		await _shot("mail_compose")
+		mail._send()
+		_expect(EmailManager.sent.size() == sent_before + 1, "a sent message is not in Sent Items")
 		_expect(mail._sort_key(night_log) > mail._sort_key({"day": 4, "time": "23:59"}), "a night log does not sort after its own day")
 
 	print("")

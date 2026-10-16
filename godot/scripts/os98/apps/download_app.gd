@@ -5,6 +5,7 @@ extends Control
 ## Open, Open Folder, Close.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const PROGRESS = preload("res://scripts/os98/os_progress.gd")
 const RATE_KB := [3.1, 4.1]   # 33.6k on a forest line
 
 var _shell
@@ -17,7 +18,7 @@ var _rate := 3.6
 var _done := false
 var _anim: Control
 var _what: Label
-var _bar: ProgressBar
+var _bar
 var _left: Label
 var _btns: HBoxContainer
 var _t := 0.0
@@ -43,13 +44,9 @@ func setup(shell, win, args: Dictionary) -> void:
 	_what.clip_text = true
 	_what.text = "Saving:\n%s from %s" % [_file, _host(_url)]
 	add_child(_what)
-	_bar = ProgressBar.new()
+	_bar = PROGRESS.new("blocks")
 	_bar.position = Vector2(10, 76)
 	_bar.size = Vector2(size.x - 20, 16)
-	_bar.custom_minimum_size = Vector2(0, 16)
-	_bar.max_value = 1.0
-	_bar.step = 0.0
-	_bar.show_percentage = false
 	add_child(_bar)
 	_left = Label.new()
 	_left.position = Vector2(10, 100)

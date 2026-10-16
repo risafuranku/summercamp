@@ -6,6 +6,8 @@ extends Control
 const T = preload("res://scripts/os98/os_theme.gd")
 const WALLPAPERS := [
 	["(None)", ""],
+	["Autumn Lake", "res://assets/textury/os98/wall_autumn.png"],
+	["Okna", "res://assets/textury/os98/wall_okna.png"],
 	["Kemp", "res://assets/textury/crt/UI/bios/wallpaper.png"],
 	["Clouds", "res://assets/textury/os98/splash_sky.png"],
 	["Black Lake", "res://assets/textury/os98/wall_lake.png"],
@@ -13,6 +15,7 @@ const WALLPAPERS := [
 	["Pine boards", "res://assets/textury/camp/knotty_pine.png"],
 ]
 const WAITS := [1, 2, 5, 10, 15]
+var _wall_tex := {}
 
 var _shell
 var _win
@@ -38,6 +41,10 @@ func setup(shell, win, _args: Dictionary) -> void:
 	_preview = Control.new()
 	_preview.position = Vector2((size.x - 150) * 0.5, 8)
 	_preview.size = Vector2(150, 120)
+	# Loaded here, not in the draw (a texture first loaded inside a draw call comes out white).
+	for w in WALLPAPERS:
+		if str(w[1]) != "" and ResourceLoader.exists(str(w[1])):
+			_wall_tex[str(w[1])] = load(str(w[1]))
 	_preview.draw.connect(_draw_preview)
 	add_child(_preview)
 	_tabs = TabContainer.new()
@@ -128,8 +135,8 @@ func _draw_preview() -> void:
 	var scr := Rect2(20, 12, 110, 80)
 	c.draw_rect(scr, T.DESKTOP)
 	var path := str(WALLPAPERS[_wall_i][1])
-	if path != "" and ResourceLoader.exists(path):
-		c.draw_texture_rect(load(path), scr, path.ends_with("knotty_pine.png"))
+	if _wall_tex.has(path):
+		c.draw_texture_rect(_wall_tex[path], scr, path.ends_with("knotty_pine.png"))
 	c.draw_rect(Rect2(60, 100, 30, 8), Color8(180, 172, 150))
 	c.draw_rect(Rect2(45, 108, 60, 6), Color8(180, 172, 150))
 	c.draw_rect(Rect2(118, 94, 4, 3), Color8(60, 220, 80) if fmod(_t, 1.0) < 0.8 else Color8(40, 90, 40))

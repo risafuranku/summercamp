@@ -48,13 +48,13 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Feature | State | Notes |
 | --- | --- | --- |
 | Vera's Checklist (14-step onboarding questline) | ✅ | task mails, rewards, tracker, waypoint; the tracker column shows only while TAB is held (outdoors beside the site plan, indoors alone) |
-| CampMail bookings with night-risk impact | ✅ | |
+| CampMail bookings with night-risk impact | ✅ | CampMail 3.0 (`os98/apps/mail_app.gd`): folder tree (Inbox, Sent, Deleted), cool toolbar, sortable list with envelope icons and attachment marks, From/To/Date header, quoted lines, spam with pictures (Grok, `textury/mail/`), reply/forward/compose (`EmailManager.send_mail`), Delete/Ctrl+R/Ctrl+N/F5 |
 | Arrivals: road, gatehouse, barrier, waiting parties | ✅ | HUD ARRIVALS panel counts down; the barrier lifts as a party arrives, they walk up the starter path and queue at the reception (first at the counter, second on the bench, the rest at the door), give up after ~2.5 h |
 | Starter path gate → reception | ✅ | laid by world gen through the barrier, up the gate lane, turning in front of the reception door; the bulldozer cannot remove it (meta `permanent`); the road outside wears the same dirt track |
 | Reception: behind the counter | ✅ | you stand behind the counter facing the room and the front door; PC on the low desk to the left, key board on the right wall, bell and phone on the counter |
 | Check-in desk (Papers Please style) | ✅ | `scripts/reception/checkin_desk.gd`: 480x270 Grok-painted close-up; ID card + booking slip slide across, drag them onto the register (3x5 pixel handwriting), the right key off the board, stamp CHECKED IN / REFUSED, give the papers back; wrong or unready keys come back; late at night an unbooked man with a black photo may be at the counter (letting him in feeds the omens); checkin_check |
 | Room preparation in the interiors | ✅ | hover-glow, hold to do it, sounds, checklist; a new mess every time (place, kind, amount by who stayed), 2-10 jobs; the mess is Grok floor sprites (sick, piss, shit, mould, footprints, cans, bottles, ends, wrappers, paper, food, clothes) |
-| Builder with isometric map, guests walking on it | ✅ | the "extra guest" uncanny event |
+| Builder with isometric map, guests walking on it | ✅ | the "extra guest" uncanny event; `crt_map_panel.gd` draws the ground and buildings once into a static layer and only the living things each frame; smooth zoom at the cursor, pan inertia, minimap (click to go), hover card, dust puffs; `builder_module.gd`: Grok splash, flat cool toolbar, sliding catalogue cards, info card |
 | Economy, power/water/sewage/waste balance | 🟡 | numbers want a balance pass |
 | Guest needs, moods, activities, reviews | ✅ | six archetypes (Quiet Guy, Drunk, Cheap Chick, Tramps, Family, Mushroom Pickers) with different needs and favourite facilities; bookings arrive as letters in their own voice |
 | Visible guest agents in the 3D camp | ✅ | |
@@ -100,7 +100,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 
 | Feature | State | Notes |
 | --- | --- | --- |
-| Reception (CRT, radio, light switch, phone, noticeboard) | ✅ | everything usable glints under the cursor (pixel glints, Grok) and gets the gloved finger |
+| Reception (CRT, radio, light switch, phone, noticeboard) | ✅ | everything usable glints under the cursor (pixel glints, Grok) and gets the gloved finger; the window is a portal into the real camp (`_update_window_portal`: an off-axis camera where your eye is, laid over the reception building); the monitor is curved glass (`materials/crt_glass.gdshader`; the desk overlay and the mouse use the same barrel, `CRT_CURVE`); the radio opens a new game with "radiojedna" |
 | The back room and sleep | ✅ | through the door in the office: bed, little TV (programme, test card after midnight), VFD alarm clock, curtains, wardrobe; sleep only at night with nothing out there: lie down, the TV, eyelids, the night passes, the alarm; any key skips |
 | The cursor | ✅ | a gloved hand (Grok): carved arrow, pointing finger, flat palm for doors and the way out, fist while working |
 | Generator shed | ✅ | junk to shove aside, a locked switch room (the key from the noticeboard), the distribution board on the wall; the close-up is a Grok picture of the board with its states painted on; some nights a coat in the corner |

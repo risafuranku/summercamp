@@ -48,7 +48,8 @@ def main():
     logo.resize((32, round(32 * logo.height / logo.width)), Image.LANCZOS).save(os.path.join(OUT, "okna_logo_small.png"))
     logo.resize((18, round(18 * logo.height / logo.width)), Image.LANCZOS).save(os.path.join(OUT, "okna_logo_start.png"))
 
-    sky = Image.open(os.path.join(HERE, "out", "splash_sky", "raw.png")).convert("RGB").resize((640, 480), Image.LANCZOS)
+    sky_id = "okna2_splash" if os.path.exists(os.path.join(HERE, "out", "okna2_splash", "raw.png")) else "splash_sky"
+    sky = Image.open(os.path.join(HERE, "out", sky_id, "raw.png")).convert("RGB").resize((640, 480), Image.LANCZOS)
     big = ImageFont.truetype(FONTS + "framdit.ttf", 64)
     num = ImageFont.truetype(FONTS + "framd.ttf", 40)
     small = ImageFont.truetype(FONTS + "arialbd.ttf", 11)
@@ -73,7 +74,7 @@ def main():
         if line:
             w = d.textlength(line, font=small)
             text(d, ((640 - w) / 2, 330), line, small, (255, 255, 255), (10, 20, 50))
-        text(d, (16, 446), "Copyright (C) 1985-1998 Okenni software a.s. Vsechna prava vyhrazena.", tiny, (220, 228, 250))
+        text(d, (16, 446), "Copyright (C) 1985-1998 Okenni software a.s. All rights reserved.", tiny, (220, 228, 250))
         img.convert("RGB").save(os.path.join(OUT, name))
 
     compose("okna_splash.png", "")

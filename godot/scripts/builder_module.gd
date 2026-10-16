@@ -10,6 +10,8 @@ extends Control
 
 signal exit_requested
 signal message_requested(title: String, text: String, kind: String)
+## The title picture has gone (builder_app.gd shows the shareware nag after it).
+signal splash_finished
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const MAP_PANEL_SCRIPT = preload("res://scripts/crt_map_panel.gd")
@@ -65,7 +67,12 @@ const BLURBS := {
 
 const TOOLS := ["demolish", "path", "lamp_post"]
 const TOOLBAR_H := 40
-const CATALOGUE_H := 46
+const CATALOGUE_H := 64
+const PROGRESS = preload("res://scripts/os98/os_progress.gd")
+## Builder's own title picture (Grok, tools/artgen: bld_splash), shown while it loads.
+const SPLASH_TEX := "res://assets/textury/builder/splash.png"
+const SPLASH_SEC := 2.2
+const SPLASH_LINES := ["Reading the site plan...", "Counting the trees...", "Measuring the lake...", "Checking the licence..."]
 
 var _grid_manager
 var _building_manager
@@ -85,6 +92,12 @@ var _selected := ""
 var _icon_cache: Dictionary = {}
 var _sfx: AudioStreamPlayer
 var _tick := 0.0
+var _splash: Control
+var _splash_t := -1.0
+var _splash_bar
+var _cat_open := 0.0          # 0..1, the catalogue sliding open
+var _info: Control            # the card for what is selected
+var _hover_card := ""
 
 
 func _ready() -> void:
@@ -132,6 +145,8 @@ func _build_ui() -> void:
 	_map_panel.submenu_close_requested.connect(func(): _open_category(""))
 	_map_panel.hover_info.connect(func(t: String): _status_tile.text = t)
 	_build_status()
+	_build_info()
+	_build_splash()
 	resized.connect(_layout)
 	_layout()
 
@@ -145,9 +160,12 @@ func _layout() -> void:
 	y += TOOLBAR_H
 	_catalogue.visible = not _active_cat.is_empty()
 	if _catalogue.visible:
+		# It slides open in a few steps (the map moves down with it).
+		var hh := floorf(CATALOGUE_H * (ceilf(_cat_open * 4.0) / 4.0))
 		_catalogue.position = Vector2(0, y)
-		_catalogue.size = Vector2(size.x, CATALOGUE_H)
-		y += CATALOGUE_H
+		_catalogue.size = Vector2(size.x, hh)
+		_catalogue.clip_contents = true
+		y += hh
 	var well: Control = get_node("MapWell")
 	well.position = Vector2(0, y)
 	well.size = Vector2(size.x, size.y - y - 20)
@@ -160,6 +178,13 @@ func _layout() -> void:
 	_status_msg.get_parent().size = Vector2(w - 290, 18)
 	_status_tile.get_parent().position = Vector2(w - 288, 0)
 	_status_cost.get_parent().position = Vector2(w - 110, 0)
+	if _info != null:
+		_info.position = Vector2(well.position.x + 8, well.position.y + well.size.y - _info.size.y - 8)
+	if _splash != null:
+		_splash.size = size
+		if _splash_bar != null:
+			_splash_bar.position = Vector2(floorf(size.x * 0.5 - 120), size.y - 46)
+			_splash_bar.size = Vector2(240, 14)
 
 
 func _build_menu() -> void:
@@ -227,25 +252,36 @@ func _build_toolbar() -> void:
 		row.add_child(b)
 	row.add_child(_gap())
 	for cat in CATEGORIES:
-		var b := _tool_button(_texture(str(cat["icon"])), str(cat["label"]))
+		var cat_icon := _texture(str(cat["icon"]).replace("/tb_", "/tb2_"))
+		var b := _tool_button(cat_icon if cat_icon != null else _texture(str(cat["icon"])), str(cat["label"]))
 		var cid: String = cat["id"]
 		b.pressed.connect(func(): _open_category("" if _active_cat == cid else cid))
 		_cat_buttons[cid] = b
 		row.add_child(b)
 	row.add_child(_gap())
 	var rot := Button.new()
-	rot.text = "Rotate"
 	rot.tooltip_text = "Turn the building (Q / E)"
-	rot.custom_minimum_size = Vector2(0, 34)
+	rot.custom_minimum_size = Vector2(36, 34)
 	rot.focus_mode = Control.FOCUS_NONE
+	rot.icon = _texture("res://assets/textury/builder/tb2_rotate.png")
+	if rot.icon == null:
+		rot.text = "Rotate"
+	rot.expand_icon = true
+	rot.add_theme_constant_override("icon_max_width", 26)
+	_flat_style(rot)
 	rot.pressed.connect(func(): _map_panel.rotate_selected_building(1))
 	row.add_child(rot)
 	for z in [["-", -1, "Zoom out"], ["+", 1, "Zoom in"]]:
 		var zb := Button.new()
 		zb.text = z[0]
 		zb.tooltip_text = z[2]
-		zb.custom_minimum_size = Vector2(24, 34)
+		zb.custom_minimum_size = Vector2(44, 34)
 		zb.focus_mode = Control.FOCUS_NONE
+		zb.icon = _texture("res://assets/textury/builder/tb2_zoom.png")
+		zb.expand_icon = true
+		zb.add_theme_constant_override("icon_max_width", 22)
+		zb.add_theme_font_override("font", T.FONT_BOLD)
+		_flat_style(zb)
 		var step: int = z[1]
 		zb.pressed.connect(func(): _map_panel.apply_zoom_step(step))
 		row.add_child(zb)
@@ -282,13 +318,24 @@ func _tool_button(icon: Texture2D, tip: String) -> Button:
 	var b := Button.new()
 	b.toggle_mode = true
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(34, 34)
+	b.custom_minimum_size = Vector2(36, 34)
 	b.icon = icon
 	b.expand_icon = true
 	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	b.tooltip_text = tip
 	b.add_theme_constant_override("icon_max_width", 28)
+	_flat_style(b)
 	return b
+
+
+## The cool-toolbar look: nothing until the mouse is on it, then a thin bevel; sunk
+## while on.
+func _flat_style(b: Button) -> void:
+	b.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("hover", T.box("thin_raised", T.FACE, Vector4(2, 2, 2, 2)))
+	b.add_theme_stylebox_override("pressed", T.box("well", Color8(214, 214, 214), Vector4(3, 3, 1, 1)))
+	b.add_theme_stylebox_override("hover_pressed", T.box("well", Color8(214, 214, 214), Vector4(3, 3, 1, 1)))
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
 
 func _build_catalogue() -> void:
@@ -343,10 +390,16 @@ func _open_category(cid: String) -> void:
 	for c in _cards.get_children():
 		c.queue_free()
 	if not cid.is_empty():
+		_cat_open = 0.0
 		for cat in CATEGORIES:
 			if cat["id"] == cid:
+				var i := 0
 				for t in cat["items"]:
-					_cards.add_child(_make_card(str(t)))
+					var card := _make_card(str(t))
+					card.set_meta("appear", 0.06 * float(i))
+					card.modulate.a = 0.0
+					_cards.add_child(card)
+					i += 1
 	_layout()
 
 
@@ -373,32 +426,155 @@ func _select(tool: String) -> void:
 	if not tool.is_empty():
 		_map_panel.call_deferred("grab_focus")
 	_refresh_cost()
+	_refresh_info_card()
 
 
 func _make_card(type: String) -> Control:
 	var c := Control.new()
-	c.custom_minimum_size = Vector2(112, 40)
+	c.custom_minimum_size = Vector2(138, 58)
 	c.mouse_filter = Control.MOUSE_FILTER_STOP
 	c.tooltip_text = _tooltip(type)
+	c.set_meta("hover", false)
 	var icon := _texture(str(ITEM_ICONS.get(type, "")))
+	c.mouse_entered.connect(func():
+		c.set_meta("hover", true)
+		_hover_card = type
+		c.queue_redraw()
+		_refresh_info_card()
+	)
+	c.mouse_exited.connect(func():
+		c.set_meta("hover", false)
+		if _hover_card == type:
+			_hover_card = ""
+		c.queue_redraw()
+		_refresh_info_card()
+	)
 	c.draw.connect(func():
 		var on := _selected == type
-		c.draw_style_box(T.box("pressed" if on else "raised", Color8(208, 208, 208) if on else T.FACE, Vector4.ZERO), Rect2(Vector2.ZERO, c.size))
-		var o := Vector2(1, 1) if on else Vector2.ZERO
+		var hov := bool(c.get_meta("hover"))
+		var face := Color8(208, 208, 208) if on else (Color8(206, 214, 232) if hov else T.FACE)
+		c.draw_style_box(T.box("pressed" if on else "raised", face, Vector4.ZERO), Rect2(Vector2.ZERO, c.size))
+		var o := Vector2(1, 1) if on else (Vector2(0, -1) if hov else Vector2.ZERO)
 		if icon != null:
 			var isz := icon.get_size()
-			var k := minf(32.0 / isz.x, 32.0 / isz.y)
+			var box := Vector2(46, 46)
+			var k := minf(box.x / isz.x, box.y / isz.y)
 			var d := (isz * k).floor()
-			c.draw_texture_rect(icon, Rect2(Vector2(4, 4) + o + ((Vector2(32, 32) - d) * 0.5).floor(), d), false)
+			c.draw_texture_rect(icon, Rect2(Vector2(5, 6) + o + ((box - d) * 0.5).floor(), d), false)
 		var afford := CoreRoot.get_money() >= _cost(type)
-		c.draw_string(T.FONT_BOLD, Vector2(40, 16) + o, str(SHORT_NAMES.get(type, type)), HORIZONTAL_ALIGNMENT_LEFT, 70, T.FONT_SIZE, T.TEXT)
-		c.draw_string(T.FONT, Vector2(40, 31) + o, "$%d" % _cost(type), HORIZONTAL_ALIGNMENT_LEFT, 70, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
+		c.draw_string(T.FONT_BOLD, Vector2(54, 17) + o, str(SHORT_NAMES.get(type, type)), HORIZONTAL_ALIGNMENT_LEFT, 82, T.FONT_SIZE, T.TEXT)
+		c.draw_string(T.FONT, Vector2(54, 32) + o, "$%d" % _cost(type), HORIZONTAL_ALIGNMENT_LEFT, 82, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
+		c.draw_string(T.FONT, Vector2(54, 47) + o, _stat_line(type), HORIZONTAL_ALIGNMENT_LEFT, 82, T.FONT_SIZE, Color8(70, 70, 90))
 	)
 	c.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			_select("" if _selected == type else type)
 	)
 	return c
+
+
+## One short line under the price: beds, power, size.
+func _stat_line(type: String) -> String:
+	var def = CoreRoot.registry.get_def(StringName(type)) if CoreRoot.registry != null else null
+	if def == null:
+		return ""
+	var bits: Array = []
+	if int(def.capacity) > 0:
+		bits.append("%d bed%s" % [int(def.capacity), "" if int(def.capacity) == 1 else "s"])
+	if int(def.power_use) > 0:
+		bits.append("power")
+	if def.footprint != Vector2i.ONE:
+		bits.append("%dx%d" % [def.footprint.x, def.footprint.y])
+	return ", ".join(bits)
+
+
+# ── the splash and the info card ─────────────────────────────────────────────
+
+func _build_splash() -> void:
+	var tex := _texture(SPLASH_TEX)
+	if tex == null:
+		splash_finished.emit.call_deferred()
+		return
+	_splash = Control.new()
+	_splash.mouse_filter = Control.MOUSE_FILTER_STOP
+	_splash.draw.connect(func():
+		var sz := _splash.size
+		_splash.draw_rect(Rect2(Vector2.ZERO, sz), Color.BLACK)
+		var ts := tex.get_size()
+		var k := maxf(sz.x / ts.x, sz.y / ts.y)
+		var d := ts * k
+		_splash.draw_texture_rect(tex, Rect2((sz - d) * 0.5, d), false)
+		# The title, as the box had it: big, bevelled, a drop shadow.
+		var title := "Builder 98"
+		var fs := T.FONT_SIZE * 3
+		var tw := T.FONT_BOLD.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var tp := Vector2(floorf((sz.x - tw) * 0.5), 58)
+		_splash.draw_string(T.FONT_BOLD, tp + Vector2(3, 3), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.7))
+		_splash.draw_string(T.FONT_BOLD, tp, title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(255, 214, 90))
+		var sub := "Stavitel software  -  site planning for recreational facilities"
+		var sw := T.FONT.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		_splash.draw_string(T.FONT, Vector2(floorf((sz.x - sw) * 0.5) + 1, 79), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color(0, 0, 0, 0.8))
+		_splash.draw_string(T.FONT, Vector2(floorf((sz.x - sw) * 0.5), 78), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
+		var line: String = SPLASH_LINES[clampi(int(_splash_t / SPLASH_SEC * SPLASH_LINES.size()), 0, SPLASH_LINES.size() - 1)]
+		var lw := T.FONT.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		_splash.draw_rect(Rect2(floorf((sz.x - 260) * 0.5), sz.y - 66, 260, 40), Color(0, 0, 0, 0.55))
+		_splash.draw_string(T.FONT, Vector2(floorf((sz.x - lw) * 0.5), sz.y - 52), line, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
+	)
+	_splash.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed:
+			_splash_t = SPLASH_SEC
+	)
+	add_child(_splash)
+	_splash_bar = PROGRESS.new("blocks")
+	_splash.add_child(_splash_bar)
+	_splash_t = 0.0
+
+
+func _build_info() -> void:
+	_info = Control.new()
+	_info.size = Vector2(250, 66)
+	_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info.visible = false
+	_info.draw.connect(_draw_info)
+	add_child(_info)
+
+
+func _refresh_info_card() -> void:
+	if _info == null:
+		return
+	var t := _hover_card if _hover_card != "" else _selected
+	_info.visible = t != ""
+	_info.set_meta("type", t)
+	_info.queue_redraw()
+
+
+func _draw_info() -> void:
+	var t := str(_info.get_meta("type", ""))
+	if t == "":
+		return
+	var r := Rect2(Vector2.ZERO, _info.size)
+	_info.draw_style_box(T.box("window", T.FACE, Vector4.ZERO), r)
+	var icon := _texture(str(ITEM_ICONS.get(t, "")))
+	if icon == null and t in TOOLS:
+		icon = _tool_art(t)
+	if icon != null:
+		var isz := icon.get_size()
+		var k := minf(52.0 / isz.x, 52.0 / isz.y)
+		var d := (isz * k).floor()
+		_info.draw_rect(Rect2(6, 6, 56, 54), Color8(40, 56, 40))
+		_info.draw_texture_rect(icon, Rect2(Vector2(8, 7) + ((Vector2(52, 52) - d) * 0.5).floor(), d), false)
+	var x := 70.0
+	_info.draw_string(T.FONT_BOLD, Vector2(x, 17), str(SHORT_NAMES.get(t, t)), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+	var cost := _cost(t)
+	if cost > 0:
+		var afford := CoreRoot.get_money() >= cost
+		var ct := "$%d" % cost
+		var cw := T.FONT_BOLD.get_string_size(ct, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		_info.draw_string(T.FONT_BOLD, Vector2(_info.size.x - cw - 8, 17), ct, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(0, 110, 0) if afford else Color8(170, 0, 0))
+	T.FONT.draw_multiline_string(_info.get_canvas_item(), Vector2(x, 31), str(BLURBS.get(t, "")), HORIZONTAL_ALIGNMENT_LEFT, _info.size.x - x - 8, T.FONT_SIZE, 2, T.TEXT)
+	var stats := _stat_line(t)
+	if stats != "":
+		_info.draw_string(T.FONT, Vector2(x, 60), stats, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(60, 60, 110))
 
 
 func _tooltip(type: String) -> String:
@@ -431,6 +607,28 @@ func _process(delta: float) -> void:
 	if _tick <= 0.0:
 		_tick = 0.5
 		_refresh_info()
+	if _catalogue != null and _catalogue.visible and _cat_open < 1.0:
+		_cat_open = minf(1.0, _cat_open + delta * 7.0)
+		_layout()
+	if _cards != null and _catalogue != null and _catalogue.visible:
+		for c in _cards.get_children():
+			if c.has_meta("appear"):
+				var at := float(c.get_meta("appear")) - delta
+				c.set_meta("appear", at)
+				if at <= 0.0:
+					c.modulate.a = 1.0
+					c.remove_meta("appear")
+	if _splash != null and _splash_t >= 0.0:
+		_splash_t += delta
+		if _splash_bar != null:
+			_splash_bar.value = clampf(_splash_t / (SPLASH_SEC * 0.9), 0.0, 1.0)
+		_splash.queue_redraw()
+		if _splash_t >= SPLASH_SEC:
+			_splash_t = -1.0
+			_splash.queue_free()
+			_splash = null
+			_splash_bar = null
+			splash_finished.emit()
 
 
 func _refresh_info() -> void:
@@ -558,7 +756,9 @@ const PIX_COLORS := {
 ## The painted toolbar icons, falling back to the little pixel ones.
 func _tool_art(id: String) -> Texture2D:
 	var name: String = {"demolish": "bulldoze", "path": "path", "lamp_post": "lamp"}.get(id, id)
-	var tex := _texture("res://assets/textury/builder/tb_%s.png" % name)
+	var tex := _texture("res://assets/textury/builder/tb2_%s.png" % name)
+	if tex == null:
+		tex = _texture("res://assets/textury/builder/tb_%s.png" % name)
 	return tex if tex != null else _tool_icon(id)
 
 

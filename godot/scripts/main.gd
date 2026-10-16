@@ -1691,6 +1691,11 @@ func debug_render_preset(preset: String) -> void:
 
 
 ## Debug/test entry: the first structure of a building type (e.g. the pre-placed generator).
+## Tools: frame timing (ms) and fps, for the performance scenarios.
+func debug_perf() -> Array:
+	return [Engine.get_frames_per_second(), snappedf(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, 0.01), snappedf(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, 0.01), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)]
+
+
 ## Tools: real input through the whole pipeline (a small mouse move, a click, a key).
 func debug_input(kind: String) -> void:
 	var vp := get_viewport().get_visible_rect().size
@@ -2846,6 +2851,10 @@ func _on_menu_new_game_pressed() -> void:
 	_start_game_from_menu()
 	if _quest_manager != null:
 		_quest_manager.begin_new_game()
+	# A new game always opens on the same song (Radio Jedna).
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	if bi != null and bi.has_method("queue_first_radio_track"):
+		bi.queue_first_radio_track()
 	# A new week starts at the desk: the first part of the game is the computer, and
 	# getting up from it is something you find out you can do.
 	get_tree().create_timer(0.25).timeout.connect(func():

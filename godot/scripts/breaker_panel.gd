@@ -63,6 +63,9 @@ func _ready() -> void:
 	_board = Control.new()
 	_board.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Loaded here, not in the draw (a texture first loaded inside a draw call comes out white).
+	if ResourceLoader.exists(PIC):
+		_pic = load(PIC)
 	_board.draw.connect(_draw_board)
 	add_child(_board)
 
@@ -227,8 +230,6 @@ var _pic: Texture2D
 
 
 func _draw_board() -> void:
-	if _pic == null and ResourceLoader.exists(PIC):
-		_pic = load(PIC)
 	var screen := _board.size
 	var k := float(maxi(1, int(floor(minf(screen.x * 0.94 / PIC_SIZE.x, screen.y * 0.9 / (PIC_SIZE.y + STRIP))))))
 	var origin := ((screen - Vector2(PIC_SIZE.x, PIC_SIZE.y + STRIP) * k) * 0.5).floor()

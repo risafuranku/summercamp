@@ -194,6 +194,14 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   or the lake trip is active: a mode with its own camera must be added to that check.
 - **The shot driver's mouse steers interior looks**: warp it to the centre
   (`get_viewport().warp_mouse(...)`) before shots of a look-around view.
+- **Load textures outside draw callbacks**: a texture first `load()`ed inside a `_draw`
+  or a `draw` signal handler renders plain white (setup billboard, Display preview).
+  Load it when the node is built and draw the cached one.
+- **The reception window is a portal**, not a picture: `building_interior._update_window_portal`
+  moves a camera in the camp every frame; the room's fake Outdoor* boxes stay hidden.
+- **The monitor glass bends the picture**: `CRT_CURVE` in `building_interior.gd` must match
+  `curve` in `crt_glass.gdshader` and `crt_sharp.gdshader`; `_map_mouse_to_crt` runs the
+  same barrel, so clicks land where the OS draws.
 - **Cursor art is a hardware cursor**: `HandCursor` swaps the ARROW shape's image; scale
   is by whole numbers of the window height (not the logical 2D size).
 
@@ -216,7 +224,9 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 - **Generated art** — Grok Imagine through the Cursor agent CLI:
   `tools/artgen/gen.sh <id>` reads `tools/artgen/prompts.tsv` (id, aspect, reference image
   relative to `godot/` or `-`, prompt), writes `tools/artgen/out/<id>/raw.png` (gitignored).
-  **One at a time**: parallel runs swap outputs. ~5 min per image. The tool supports 1:1,
+  **One at a time**: parallel runs swap outputs. ~2-5 min per image; `tools/artgen/queue.sh <id>...`
+  runs a list one after another. `tools/artgen/os_art.py` turns the OS/Builder/mail renders
+  (ico2_*, oem2_splash, wall2_*, bld_*, tb2_*, spam_*) into game files. The tool supports 1:1,
   4:3, 3:4, 16:9, 9:16 only.
   Then `python tools/artgen/process.py <id> sprite <height> <dest>` (keys out flat magenta,
   box-downsamples, snaps to the game palette) or `texture <size> <dest>`.

@@ -28,7 +28,8 @@ const SFX_DIR := "res://assets/sfx/os98/"
 const SCREEN := Vector2(640, 480)
 const TASKBAR_H := 28
 const DESKTOP_SIZE := Vector2(640, 452)
-const WALLPAPER := "res://assets/textury/crt/UI/bios/wallpaper.png"
+## A new machine shows the autumn lake (the season the game is in).
+const WALLPAPER := "res://assets/textury/os98/wall_autumn.png"
 const OEM_SPLASH := "res://assets/textury/crt/UI/bios/ChatGPT Image 15. 2. 2026 14_22_04.png"
 const BIOS_FONT: FontFile = preload("res://assets/fonts/pomono.fnt")
 
@@ -112,7 +113,12 @@ var _mouse := SCREEN * 0.5
 var _flash_mail := 0.0
 # Held here: a texture loaded inside a draw callback is freed before it is drawn.
 var _wallpaper_tex: Texture2D = load(WALLPAPER) if ResourceLoader.exists(WALLPAPER) else null
-var _splash_tex: Texture2D = load(OEM_SPLASH) if ResourceLoader.exists(OEM_SPLASH) else null
+## The maker's boot screen, set at 640x480 with its text (tools/artgen/os_art.py); the
+## old picture only if it is missing.
+const OEM_SPLASH_2 := "res://assets/textury/os98/oem_splash.png"
+const OEM_BAR := Rect2(190, 410, 260, 14)
+var _splash_tex: Texture2D = load(OEM_SPLASH_2) if ResourceLoader.exists(OEM_SPLASH_2) else (load(OEM_SPLASH) if ResourceLoader.exists(OEM_SPLASH) else null)
+var _splash_is_new := ResourceLoader.exists(OEM_SPLASH_2)
 var _wallpaper_path := WALLPAPER
 ## The operating system's own screens (tools/artgen/okna_splash.py).
 const OKNA_SPLASH := "res://assets/textury/os98/okna_splash.png"
@@ -848,17 +854,15 @@ func _draw_boot() -> void:
 			_boot.draw_string(BIOS_FONT, Vector2(530, 50), "  STAR", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(0, 170, 90))
 		Boot.SPLASH:
 			var tex := _splash_tex
-			if tex != null:
+			if tex != null and _splash_is_new:
+				_boot.draw_texture_rect(tex, Rect2(Vector2.ZERO, SCREEN), false)
+				_draw_oem_bar(clampf(_boot_t / 3.0, 0.0, 1.0))
+			elif tex != null:
 				var s := tex.get_size()
 				var k := minf(SCREEN.x / s.x, SCREEN.y / s.y)
 				var d := s * k
 				_boot.draw_texture_rect(tex, Rect2((SCREEN - d) * 0.5, d), false)
-				# The bar inside the splash art's own frame; it moves in fits and starts.
-				var p := clampf(_boot_t / 3.0, 0.0, 1.0)
-				p = floorf(p * 12.0) / 12.0
-				var origin := (SCREEN - d) * 0.5
-				var bar := Rect2(origin + Vector2(329, 693) * k, Vector2(590, 24) * k)
-				_boot.draw_rect(Rect2(bar.position, Vector2(bar.size.x * p, bar.size.y)).abs(), Color8(230, 160, 50))
+				_draw_oem_bar(clampf(_boot_t / 3.0, 0.0, 1.0))
 		Boot.OKNA, Boot.SHUTTING:
 			var tex2: Texture2D = _okna_tex if _state == Boot.OKNA else _okna_off_tex
 			if tex2 != null:
@@ -880,6 +884,27 @@ func _draw_boot() -> void:
 			for l in msg.split("\n"):
 				_boot.draw_string(T.FONT_BOLD, Vector2(220, y2), l, HORIZONTAL_ALIGNMENT_LEFT, -1, 12 * 2, Color8(255, 140, 0))
 				y2 += 30
+
+
+## The maker's loading bar: a dark sunken slot, amber blocks that come in fits and
+## starts (the disk was doing something between them), the newest one brighter.
+func _draw_oem_bar(p: float) -> void:
+	var r := OEM_BAR
+	_boot.draw_rect(r.grow(2), Color8(60, 40, 20))
+	_boot.draw_rect(r.grow(1), Color8(8, 6, 4))
+	_boot.draw_rect(Rect2(r.position.x - 2, r.end.y + 1, r.size.x + 4, 1), Color8(150, 110, 60))
+	# Uneven: quick at first, a long wait in the middle, a rush at the end.
+	var q := p * p * (3.0 - 2.0 * p)
+	if p > 0.35 and p < 0.62:
+		q = lerpf(0.33, 0.42, (p - 0.35) / 0.27)
+	var bw := 8.0
+	var gap := 2.0
+	var count := int((r.size.x + gap) / (bw + gap))
+	var n := int(floor(q * count))
+	for i in n:
+		var col := Color8(232, 160, 48) if i < n - 1 else Color8(255, 220, 120)
+		_boot.draw_rect(Rect2(r.position.x + i * (bw + gap), r.position.y + 2, bw, r.size.y - 4), col)
+		_boot.draw_rect(Rect2(r.position.x + i * (bw + gap), r.position.y + 2, bw, 1), Color8(255, 236, 170))
 
 
 ## The BIOS summary every machine of the time printed before the operating system: a
