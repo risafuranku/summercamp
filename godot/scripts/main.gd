@@ -385,6 +385,8 @@ func _setup_night_jobs() -> void:
 		add_child(_breaker_panel)
 		_breaker_panel.fixed.connect(func(fault: int): _night_jobs.on_breaker_fixed(fault))
 		_breaker_panel.closed.connect(func():
+			if _breaker_panel.was_fixed() and _hud_manager != null:
+				_hud_manager.push_status("Power back on. The breaker job is done.", 1)
 			if _breaker_from_shed:
 				_breaker_from_shed = false
 				var shed = _interior_manager.get("_service_interior") if _interior_manager != null else null

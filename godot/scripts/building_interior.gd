@@ -79,6 +79,13 @@ const RADIO_POWER_TOGGLE_FADE_SEC: float = 0.5
 ## wall to your right. The PC corner was built under the window; PC_OFFSET carries it.
 const RECEPTION_CAM_POS := Vector3(0.0, 1.5, 1.15)
 const PC_OFFSET := Vector3(-1.94, 0.0, 1.68)
+const RL = preload("res://scripts/reception/reception_layout.gd")
+const CURTAIN = preload("res://scripts/reception/curtain.gd")
+## The monitor turned a little toward where you stand at the counter (playtest
+## 2026-10-17), about its own middle; the seat in front of it turns with it.
+const CRT_YAW_DEG := 18.0
+const CRT_PIVOT := Vector3(0.24, 1.35, -1.53)
+const CRT_SEAT_ROT := Vector3(0.0, 0.3141593, 0.0)   # CRT_YAW_DEG in radians
 const DESK_ROOM = preload("res://scripts/reception/desk_room.gd")
 const RADIO_CLICK_CENTER_LOCAL := Vector3(-0.10, 0.92, -1.52) + PC_OFFSET
 const RADIO_CLICK_SIZE := Vector3(0.46, 0.42, 0.38)
@@ -124,6 +131,8 @@ var _crt_screen: MeshInstance3D
 var _room_environment: Environment
 var _ceiling_light: OmniLight3D
 var _desk_lamp: OmniLight3D
+var _sun_beam: SpotLight3D
+var _office_curtain
 var _window_light: OmniLight3D
 var _crt_glow_light: OmniLight3D
 var _office_lights_on: bool = true
@@ -585,7 +594,7 @@ func _exit_crt_look_back() -> void:
 	_camera_tween.set_ease(Tween.EASE_OUT)
 	_camera_tween.set_trans(Tween.TRANS_SINE)
 	_camera_tween.tween_property(_interior_camera, "position", _crt_full_cam_pos, CRT_LOOK_BACK_TRANSITION_SEC)
-	_camera_tween.tween_property(_interior_camera, "rotation", Vector3.ZERO, CRT_LOOK_BACK_TRANSITION_SEC)
+	_camera_tween.tween_property(_interior_camera, "rotation", CRT_SEAT_ROT, CRT_LOOK_BACK_TRANSITION_SEC)
 	_camera_tween.tween_property(_interior_camera, "fov", CRT_READY_FOV, CRT_LOOK_BACK_TRANSITION_SEC)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
@@ -760,10 +769,22 @@ func _build_room() -> void:
 	_window_light.position = Vector3(-0.4, 1.90, -2.00)
 	_window_light.light_color = Color(0.94, 0.95, 0.88)
 	_window_light.light_energy = 0.56
-	_window_light.omni_range = 4.2
+	_window_light.omni_range = 5.6
 	_window_light.omni_attenuation = 1.4
 	_window_light.shadow_enabled = false
 	_room_root.add_child(_window_light)
+	# The sun through the glass: a spot outside the window shining in and down, with
+	# shadows (the cross of the window on the floor and the counter).
+	_sun_beam = SpotLight3D.new()
+	_sun_beam.name = "SunBeam"
+	_sun_beam.position = RL.OFFICE_WINDOW_CENTER + Vector3(0.6, 1.4, -2.2)
+	_sun_beam.look_at_from_position(_sun_beam.position, Vector3(-0.2, 0.4, 0.4), Vector3.UP)
+	_sun_beam.spot_range = 9.0
+	_sun_beam.spot_angle = 34.0
+	_sun_beam.spot_attenuation = 0.6
+	_sun_beam.shadow_enabled = true
+	_sun_beam.light_energy = 0.0
+	_room_root.add_child(_sun_beam)
 
 	# ── FLOOR ─────────────────────────────────────────────────────────────────
 	_add_box(_room_root, "Floor", Vector3(0.0, 0.0, 0.0), Vector3(5.0, 0.1, 5.0), Color(0.44, 0.32, 0.22))
@@ -867,6 +888,7 @@ func _build_room() -> void:
 	_add_box(pc_root, "DrawerHandleB", Vector3(0.82, 0.52, -0.93), Vector3(0.10, 0.04, 0.03), Color(0.64, 0.56, 0.42))
 	# Cup / ashtray on desk
 	_add_box(pc_root, "DeskCup", Vector3(1.20, 0.90, -0.98), Vector3(0.08, 0.14, 0.08), Color(0.50, 0.26, 0.18))
+	_build_desk_lamp(pc_root)
 
 	# ── RETRO COMPUTER SETUP (monitor + tower + keyboard + mouse) ─────────────
 	var pc_shell_col := Color(0.80, 0.75, 0.63)
@@ -876,8 +898,11 @@ func _build_room() -> void:
 
 	_crt_body = StaticBody3D.new()
 	_crt_body.name = "CRTMonitor"
-	_crt_body.position = Vector3(0.24, 1.35, -1.53)
+	_crt_body.position = CRT_PIVOT
+	_crt_body.rotation_degrees.y = CRT_YAW_DEG
 	pc_root.add_child(_crt_body)
+	_crt_view_cam_pos = _crt_seat(Vector3(0.24, 1.37, -0.24))
+	_crt_full_cam_pos = _crt_seat(Vector3(0.28, 1.35, -0.34))
 
 	_build_monitor_boxes()
 	var crt_col = CollisionShape3D.new()
@@ -922,8 +947,20 @@ func _build_room() -> void:
 	# yellowed plastic, the detail on the faces (Grok textures, assets/textury/camp).
 	var K := INTERIOR_KIT
 	var plastic := K.surface("plastic", 0.35)
-	K.slab(pc_root, Vector3(0.30, 0.80, 0.50), Vector3(0.90, 1.21, -1.45), plastic, "PCTower")
-	_face(pc_root, "tower_front", Vector2(0.30, 0.80), Vector3(0.90, 1.21, -1.199), 0.0)
+	# A desktop case under the monitor, as the 90s had them (the tower beside it stood
+	# between the screen and the counter once the monitor was turned toward you).
+	var case_root := Node3D.new()
+	case_root.name = "PCCase"
+	case_root.position = Vector3(0.24, 0.0, -1.5)
+	case_root.rotation_degrees.y = CRT_YAW_DEG
+	pc_root.add_child(case_root)
+	K.slab(case_root, Vector3(0.66, 0.15, 0.5), Vector3(0, 0.895, 0), plastic, "PCTower")
+	var bay := K.surface("plastic", 0.35, Color(0.78, 0.74, 0.62))
+	K.slab(case_root, Vector3(0.2, 0.05, 0.012), Vector3(-0.17, 0.92, 0.251), bay, "PCDriveBay")
+	K.slab(case_root, Vector3(0.14, 0.012, 0.014), Vector3(-0.17, 0.92, 0.256), K.surface("plastic", 0.2, Color(0.12, 0.12, 0.12)), "PCFloppySlot")
+	K.slab(case_root, Vector3(0.2, 0.05, 0.012), Vector3(0.06, 0.92, 0.251), bay, "PCCdBay")
+	K.slab(case_root, Vector3(0.02, 0.012, 0.014), Vector3(0.27, 0.92, 0.256), K.surface("plastic", 0.2, Color(0.2, 0.85, 0.3)), "PCPowerLed")
+	K.slab(case_root, Vector3(0.05, 0.035, 0.016), Vector3(0.27, 0.885, 0.256), K.surface("plastic", 0.2, Color(0.6, 0.56, 0.48)), "PCPowerButton")
 	K.slab(pc_root, Vector3(0.56, 0.03, 0.19), Vector3(0.26, 0.837, -1.0), plastic, "Keyboard")
 	_face(pc_root, "keyboard", Vector2(0.54, 0.17), Vector3(0.26, 0.853, -1.0), 0.0, true)
 	K.slab(pc_root, Vector3(0.06, 0.026, 0.10), Vector3(0.74, 0.835, -1.0), plastic, "Mouse")
@@ -934,8 +971,8 @@ func _build_room() -> void:
 		"PCCableMonitorToTower",
 		PackedVector3Array([
 			Vector3(0.24, 1.18, -1.84),
-			Vector3(0.54, 1.02, -1.88),
-			Vector3(0.90, 0.99, -1.72)
+			Vector3(0.30, 1.0, -1.86),
+			Vector3(0.36, 0.92, -1.76)
 		]),
 		0.010,
 		Color(0.66, 0.68, 0.70)
@@ -945,8 +982,8 @@ func _build_room() -> void:
 		"PCCableKeyboardToTower",
 		PackedVector3Array([
 			Vector3(0.48, 0.87, -1.10),
-			Vector3(0.62, 0.89, -1.18),
-			Vector3(0.88, 0.96, -1.22)
+			Vector3(0.52, 0.86, -1.2),
+			Vector3(0.5, 0.88, -1.3)
 		]),
 		0.008,
 		Color(0.70, 0.70, 0.72)
@@ -956,8 +993,8 @@ func _build_room() -> void:
 		"PCCableMouse",
 		PackedVector3Array([
 			Vector3(0.70, 0.87, -1.08),
-			Vector3(0.76, 0.89, -1.18),
-			Vector3(0.86, 0.95, -1.24)
+			Vector3(0.66, 0.86, -1.2),
+			Vector3(0.56, 0.88, -1.3)
 		]),
 		0.007,
 		Color(0.74, 0.74, 0.76)
@@ -1095,6 +1132,17 @@ func _build_room() -> void:
 
 	_extras = RECEPTION_EXTRAS.new()
 	_extras.build(self, _room_root, _interior_camera)
+	_office_curtain = _extras.office_curtain
+	# The back room's window view, now that the back room is there.
+	if _extras.back != null and _extras.back.window_quad != null:
+		var bm := _make_portal("BackWindowView", BACK_VIEW_SIZE)
+		_back_vp = bm[0]
+		_back_cam = bm[1]
+		var qm := StandardMaterial3D.new()
+		qm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		qm.albedo_texture = _back_vp.get_texture()
+		qm.albedo_color = Color(0.95, 0.96, 0.95)
+		_extras.back.window_quad.material_override = qm
 	_desk_room = DESK_ROOM.new()
 	_desk_room.build(self, _extras, _room_root)
 
@@ -1170,7 +1218,7 @@ func enter_crt_view(instant: bool = false) -> void:
 	if _camera_tween: _camera_tween.kill()
 	if instant:
 		_interior_camera.position = _crt_full_cam_pos
-		_interior_camera.rotation = Vector3.ZERO
+		_interior_camera.rotation = CRT_SEAT_ROT
 		_interior_camera.fov = CRT_READY_FOV
 		_capture_crt_orbit_anchor()
 		if _crt_ui:
@@ -1185,7 +1233,7 @@ func enter_crt_view(instant: bool = false) -> void:
 	# Screen Z global: -0.535.
 	# Target Z: 0.1
 	_camera_tween.tween_property(_interior_camera, "position", _crt_view_cam_pos, 1.2)
-	_camera_tween.tween_property(_interior_camera, "rotation", Vector3(0.0, 0.0, 0.0), 1.2)
+	_camera_tween.tween_property(_interior_camera, "rotation", CRT_SEAT_ROT, 1.2)
 	_camera_tween.tween_property(_interior_camera, "fov", CRT_ENTER_FOV, 1.2)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
@@ -1293,6 +1341,12 @@ func _input(event: InputEvent) -> void:
 
 ## At the PC: the pointer below the monitor, in the bottom band (the OS cursor stops at
 ## the screen's edge, the real one goes on): clicking there stands you up.
+## A point in front of the monitor (PC-corner space, as it was made facing straight
+## ahead) turned with it: room space.
+func _crt_seat(p: Vector3) -> Vector3:
+	return PC_OFFSET + CRT_PIVOT + (p - CRT_PIVOT).rotated(Vector3.UP, deg_to_rad(CRT_YAW_DEG))
+
+
 func _crt_stand_zone() -> bool:
 	if not _crt_active or _is_camera_tween_running() or _crt_look_back_active:
 		return false
@@ -1494,7 +1548,7 @@ func _focus_crt_full() -> void:
 	_camera_tween.set_ease(Tween.EASE_OUT)
 	_camera_tween.set_trans(Tween.TRANS_CUBIC)
 	_camera_tween.tween_property(_interior_camera, "position", _crt_full_cam_pos, 0.42)
-	_camera_tween.tween_property(_interior_camera, "rotation", Vector3(0.0, 0.0, 0.0), 0.42)
+	_camera_tween.tween_property(_interior_camera, "rotation", CRT_SEAT_ROT, 0.42)
 	_camera_tween.tween_property(_interior_camera, "fov", CRT_READY_FOV, 0.42)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
@@ -1516,17 +1570,19 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 	if _room_environment != null:
 		_room_environment.background_color = _tri(d, Color(0.08, 0.10, 0.14), Color(0.24, 0.20, 0.22), Color(0.66, 0.70, 0.74))
 		_room_environment.ambient_light_color = _tri(d, Color(0.22, 0.26, 0.34), Color(0.48, 0.40, 0.42), Color(0.82, 0.84, 0.80))
-		_room_environment.ambient_light_energy = _tri(d, 0.05, 0.54, 1.06)
+		_room_environment.ambient_light_energy = _tri(d, 0.05, 0.62, 1.42)
 		_room_environment.fog_light_color = _tri(d, Color(0.14, 0.18, 0.24), Color(0.34, 0.28, 0.30), Color(0.78, 0.82, 0.84))
 		_room_environment.fog_density = _tri(d, 0.014, 0.010, 0.004)
 	if _ceiling_light != null:
 		_ceiling_light.light_color = _tri(d, Color(0.66, 0.72, 0.90), Color(0.92, 0.76, 0.64), Color(1.0, 0.96, 0.86))
 		_ceiling_light.light_energy = _tri(d, 0.08, 0.88, 1.88)
 	if _desk_lamp != null:
-		_desk_lamp.light_energy = _tri(d, 0.02, 0.44, 0.70)
+		_desk_lamp.light_energy = _tri(d, 0.9, 0.8, 0.7)
+		_desk_lamp.light_color = Color(1.0, 0.86, 0.6)
+		_desk_lamp.omni_range = 2.8
 	if _window_light != null:
 		_window_light.light_color = _tri(d, Color(0.54, 0.60, 0.84), Color(0.84, 0.66, 0.54), Color(0.98, 0.98, 0.92))
-		_window_light.light_energy = _tri(d, 0.01, 0.24, 0.56)
+		_window_light.light_energy = _tri(d, 0.01, 0.34, 1.1)
 
 	var daylight = clampf(_daylight_factor, 0.0, 1.0)
 	var sun_tint = _sunlight_color.lerp(Color(1.0, 0.96, 0.90), 0.25)
@@ -1539,8 +1595,15 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 	if _window_light != null:
 		_window_light.light_color = _window_light.light_color.lerp(sun_tint, 0.32 * daylight)
 		_window_light.light_energy = lerpf(_window_light.light_energy * 0.68, _window_light.light_energy * 1.28, daylight)
-	if _desk_lamp != null:
-		_desk_lamp.light_energy = max(_desk_lamp.light_energy, lerpf(0.01, 0.04, 1.0 - daylight))
+	# Daylight through the window: a beam from outside (the cross of the window in it),
+	# as strong as the day and as wide as the curtains are open.
+	if _sun_beam != null:
+		var open: float = _office_curtain.open if _office_curtain != null else 1.0
+		_sun_beam.light_color = _sunlight_color.lerp(Color(1.0, 0.97, 0.9), 0.4)
+		_sun_beam.light_energy = 3.2 * daylight * daylight * lerpf(0.06, 1.0, open)
+	if _room_environment != null and _office_curtain != null:
+		_room_environment.ambient_light_energy *= lerpf(0.55, 1.0, _office_curtain.open) if daylight > 0.3 else 1.0
+	_sync_reception_glass()
 	_apply_manual_office_light_profile(animated)
 	_update_window_texture()
 
@@ -1568,31 +1631,64 @@ var _portal_ok := false
 func _setup_window_view() -> void:
 	if _window_vp != null:
 		return
-	_window_vp = SubViewport.new()
-	_window_vp.name = "WindowView"
-	_window_vp.size = WINDOW_VIEW_SIZE
-	_window_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	# The camp's world, as the player outside sees it (given by hand: this room is not
-	# inside the world's viewport).
-	add_child(_window_vp)
-	_bind_window_world()
-	_window_cam = Camera3D.new()
-	_window_cam.projection = Camera3D.PROJECTION_FRUSTUM
-	_window_cam.keep_aspect = Camera3D.KEEP_HEIGHT
-	_window_vp.add_child(_window_cam)
+	var made := _make_portal("WindowView", WINDOW_VIEW_SIZE)
+	_window_vp = made[0]
+	_window_cam = made[1]
 	for n in ["OutdoorGround", "OutdoorCeiling", "OutdoorWallL", "OutdoorWallR", "OutdoorBushL", "OutdoorBushR", "OutdoorBushR2", "OutdoorGravelStrip0", "OutdoorGravelStrip1", "OutdoorGravelStrip2", "OutdoorSkyBg"]:
 		var node := _room_root.get_node_or_null(n)
 		if node != null:
 			node.visible = false
 
 
-func _bind_window_world() -> void:
-	if _window_vp == null:
-		return
-	var main := _resolve_main_runtime_host()
-	var w3d = main.get("_world_3d") if main != null else null
-	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
-		_window_vp.world_3d = (w3d as Node3D).get_world_3d()
+## A window's view: its own viewport into the camp's world (given by hand: this room is
+## not inside the world's viewport) and an off-axis camera that does not see the window
+## glass of the building it stands in (building_models.GLASS_LAYER).
+func _make_portal(n: String, px: Vector2i) -> Array:
+	var vp := SubViewport.new()
+	vp.name = n
+	vp.size = px
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(vp)
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_FRUSTUM
+	cam.keep_aspect = Camera3D.KEEP_HEIGHT
+	cam.cull_mask = 0xFFFFF & ~(1 << 19)
+	vp.add_child(cam)
+	_bind_window_world(vp)
+	return [vp, cam]
+
+
+func _bind_window_world(vp: SubViewport = null) -> void:
+	for v in ([vp] if vp != null else [_window_vp, _back_vp]):
+		if v == null:
+			continue
+		var main := _resolve_main_runtime_host()
+		var w3d = main.get("_world_3d") if main != null else null
+		if w3d is Node3D and (w3d as Node3D).is_inside_tree():
+			(v as SubViewport).world_3d = (w3d as Node3D).get_world_3d()
+
+
+## The back room's window (ReceptionLayout.BACK_WINDOW_*): out over the gate lane.
+const BACK_VIEW_SIZE := Vector2i(320, 288)
+var _back_vp: SubViewport
+var _back_cam: Camera3D
+
+
+## The window's own frame in room space: origin at its middle, -Z out through it.
+static func _portal_frame(center: Vector3, outward: Vector3) -> Transform3D:
+	var z := -outward.normalized()
+	var x := Vector3.UP.cross(z).normalized()
+	return Transform3D(Basis(x, Vector3.UP, z), center)
+
+
+## Puts a window's camera where the eye is, mapped into the camp, the window its near plane.
+func _aim_portal(cam: Camera3D, frame: Transform3D, size: Vector2, eye_room: Vector3) -> bool:
+	var e := frame.affine_inverse() * eye_room
+	if e.z < 0.05:
+		return false
+	cam.global_transform = Transform3D(_portal_xform.basis * frame.basis, _portal_xform * eye_room)
+	cam.set_frustum(size.y, Vector2(-e.x, -e.y), e.z, e.z + 260.0)
+	return true
 
 
 ## Where the room lies in the camp: over the reception building, its window wall on the
@@ -1606,6 +1702,13 @@ func _place_window_camera() -> bool:
 	var reception: Node3D = scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
 	if reception == null:
 		return false
+	# The building is made from the rooms' plan: the room lies in it exactly.
+	var shell := reception.get_node_or_null("Shell") as Node3D
+	if shell != null:
+		_portal_xform = shell.global_transform * RL.room_to_local()
+		_portal_ok = true
+		_update_window_portal()
+		return true
 	var base := reception.global_position
 	var door: Vector3 = scene.call("get_reception_door_position") if scene.has_method("get_reception_door_position") else Vector3.INF
 	var front := (door - base) if door != Vector3.INF else Vector3(0, 0, 1)
@@ -1641,13 +1744,20 @@ func _update_window_portal() -> void:
 	if not _portal_ok or _window_cam == null or _interior_camera == null:
 		return
 	var eye_room := _room_root.to_local(_interior_camera.global_position) if _room_root != null else _interior_camera.position
-	var dist := eye_room.z - WINDOW_CENTER.z
-	if dist < 0.05:
-		return
-	var eye := _portal_xform * eye_room
-	_window_cam.global_transform = Transform3D(_portal_xform.basis, eye)
-	var off := Vector2(WINDOW_CENTER.x - eye_room.x, WINDOW_CENTER.y - eye_room.y)
-	_window_cam.set_frustum(WINDOW_SIZE.y, off, dist, dist + 260.0)
+	var in_back: bool = _extras != null and (_extras.in_back_room() or _extras._walking())
+	# Only the window you can see, and only while its curtains let anything through.
+	var office_on: bool = not in_back or not _extras.in_back_room()
+	if _office_curtain != null and _office_curtain.open < 0.02:
+		office_on = false
+	office_on = office_on and _aim_portal(_window_cam, _portal_frame(WINDOW_CENTER, Vector3(0, 0, -1)), WINDOW_SIZE, eye_room)
+	_window_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if office_on else SubViewport.UPDATE_DISABLED
+	if _back_cam != null:
+		var back_on: bool = in_back
+		var bc = _extras.back.curtain if _extras != null else null
+		if bc != null and bc.open < 0.02:
+			back_on = false
+		back_on = back_on and _aim_portal(_back_cam, _portal_frame(RL.BACK_WINDOW_CENTER, Vector3(-1, 0, 0)), RL.BACK_WINDOW_SIZE, eye_room)
+		_back_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if back_on else SubViewport.UPDATE_DISABLED
 
 
 func _set_window_view_live(on: bool) -> void:
@@ -1656,6 +1766,8 @@ func _set_window_view_live(on: bool) -> void:
 	if on and not _place_window_camera():
 		on = false
 	_window_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+	if not on and _back_vp != null:
+		_back_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	if _window_quad != null:
 		var mat := _window_quad.material_override as StandardMaterial3D
 		if mat != null:
@@ -1708,8 +1820,8 @@ func _update_window_texture() -> void:
 			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 			_window_quad.material_override = mat
 		if mat.albedo_texture != null:
-			# The real view: dirty glass, a touch of the room's colour.
-			mat.albedo_color = Color(0.86, 0.88, 0.86).lerp(glass_color, 0.12)
+			# The real view: old glass, a touch of the room's colour.
+			mat.albedo_color = Color(0.96, 0.97, 0.96).lerp(glass_color, 0.08)
 			mat.emission_enabled = false
 		else:
 			mat.albedo_color = glass_color
@@ -1727,6 +1839,42 @@ func _update_window_texture() -> void:
 		sky_mat.emission_enabled = true
 		sky_mat.emission = sky_emission
 		sky_mat.emission_energy_multiplier = sky_energy
+
+
+var _glass_cache: Dictionary = {}
+
+
+## The office window and the back room's, seen from the camp: dark glass by day, the
+## lamp-light at night when someone has the lights on, dimmer behind drawn curtains.
+func _sync_reception_glass() -> void:
+	if _glass_cache.is_empty() or not is_instance_valid(_glass_cache.get("office_glass")):
+		var scene := get_tree().current_scene if is_inside_tree() else null
+		var reception: Node = scene.find_child("MainBuilding", true, false) if scene != null else null
+		if reception == null or not reception.has_meta("reception_glass"):
+			return
+		_glass_cache = reception.get_meta("reception_glass")
+	# The time of day, not the daylight (that is only kept up while the room is open).
+	var night := 1.0 if _time_state == TIME_NIGHT else (0.45 if _time_state == TIME_EVENING else 0.0)
+	var power := 1.0 if _grid_power_available else 0.0
+	var office_lit := (0.8 if _office_lights_on else 0.0) + (0.35 if _desk_lamp_on else 0.0)
+	var office_open: float = _office_curtain.open if _office_curtain != null else 1.0
+	_glow_glass(_glass_cache.get("office_glass"), night * power * office_lit * lerpf(0.45, 1.0, office_open))
+	var back_lit := 0.0
+	var back_open := 0.0
+	if _extras != null and _extras.back != null:
+		back_lit = (0.7 if _extras.back.lamp_on else 0.0) + (0.25 if _extras.back.tv_on else 0.0)
+		back_open = _extras.back.curtain.open if _extras.back.curtain != null else 0.0
+	_glow_glass(_glass_cache.get("back_glass"), night * power * back_lit * lerpf(0.3, 1.0, back_open))
+
+
+static func _glow_glass(g, amount: float) -> void:
+	if g == null or not is_instance_valid(g):
+		return
+	var m := (g as MeshInstance3D).material_override as StandardMaterial3D
+	if m == null:
+		return
+	m.emission_energy_multiplier = 1.4 * amount
+	m.albedo_color = Color(0.16, 0.2, 0.24).lerp(Color(0.5, 0.4, 0.26), clampf(amount, 0.0, 1.0))
 
 
 func set_weather_state(weather: int) -> void:
@@ -1896,6 +2044,64 @@ func _apply_office_wall_texture_state() -> void:
 			mat.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
 
 
+## The green banker's lamp at the left end of the PC desk: click it (or the switch on
+## its foot) and it goes off and on, with the click of the button.
+const DESK_LAMP_AT := Vector3(-0.28, 0.82, -1.22)
+var _desk_lamp_on := true
+var _desk_lamp_shade: MeshInstance3D
+var _desk_lamp_body: StaticBody3D
+
+
+func _build_desk_lamp(pc_root: Node3D) -> void:
+	var at := DESK_LAMP_AT
+	_add_box(pc_root, "DeskLampFoot", at + Vector3(0, 0.015, 0), Vector3(0.2, 0.03, 0.14), Color(0.62, 0.5, 0.26))
+	_add_box(pc_root, "DeskLampStem", at + Vector3(0, 0.17, 0.02), Vector3(0.025, 0.3, 0.025), Color(0.66, 0.54, 0.3))
+	_add_box(pc_root, "DeskLampButton", at + Vector3(0.06, 0.04, -0.03), Vector3(0.03, 0.02, 0.03), Color(0.2, 0.18, 0.16))
+	_add_box(pc_root, "DeskLampShade", at + Vector3(0, 0.33, 0.06), Vector3(0.3, 0.07, 0.15), Color(0.16, 0.42, 0.24))
+	_desk_lamp_shade = pc_root.get_node_or_null("DeskLampShade") as MeshInstance3D
+	_add_box(pc_root, "DeskLampShadeLip", at + Vector3(0, 0.3, 0.06), Vector3(0.3, 0.012, 0.16), Color(0.66, 0.54, 0.3))
+	_desk_lamp_body = StaticBody3D.new()
+	_desk_lamp_body.name = "DeskLampHot"
+	_desk_lamp_body.set_meta("extra_hot", "desklamp")
+	var cs := CollisionShape3D.new()
+	var bx := BoxShape3D.new()
+	bx.size = Vector3(0.34, 0.42, 0.24)
+	cs.shape = bx
+	_desk_lamp_body.add_child(cs)
+	_desk_lamp_body.position = at + Vector3(0, 0.2, 0.03)
+	pc_root.add_child(_desk_lamp_body)
+	if _desk_lamp != null:
+		_desk_lamp.position = PC_OFFSET + at + Vector3(0, 0.26, 0.12)
+
+
+func desk_lamp_meshes() -> Array:
+	var out: Array = []
+	var pc := _room_root.get_node_or_null("PCCorner") if _room_root != null else null
+	if pc != null:
+		for n in ["DeskLampFoot", "DeskLampStem", "DeskLampShade", "DeskLampShadeLip", "DeskLampButton"]:
+			var m := pc.get_node_or_null(n)
+			if m != null:
+				out.append(m)
+	return out
+
+
+func toggle_desk_lamp() -> void:
+	_desk_lamp_on = not _desk_lamp_on
+	var p := AudioStreamPlayer.new()
+	p.stream = load("res://assets/sfx/backroom/lamp_click.wav") if ResourceLoader.exists("res://assets/sfx/backroom/lamp_click.wav") else null
+	p.volume_db = -6.0
+	add_child(p)
+	p.finished.connect(p.queue_free)
+	p.play()
+	if _desk_lamp_shade != null:
+		var m := _desk_lamp_shade.material_override as StandardMaterial3D
+		if m != null:
+			m.emission_enabled = _desk_lamp_on
+			m.emission = Color(0.25, 0.7, 0.35)
+			m.emission_energy_multiplier = 0.35
+	_apply_room_time_profile(true)
+
+
 func _toggle_office_lights() -> void:
 	_office_lights_on = not _office_lights_on
 	_apply_office_switch_visual()
@@ -1912,6 +2118,8 @@ func _apply_manual_office_light_profile(animated: bool) -> void:
 	var ambient_target = _room_environment.ambient_light_energy if _room_environment != null else 0.0
 	var ceiling_target = _ceiling_light.light_energy if _ceiling_light != null else 0.0
 	var desk_target = _desk_lamp.light_energy if _desk_lamp != null else 0.0
+	if not _desk_lamp_on:
+		desk_target = 0.0
 	var window_target = _window_light.light_energy if _window_light != null else 0.0
 	if not _office_lights_on:
 		ambient_target *= 0.62

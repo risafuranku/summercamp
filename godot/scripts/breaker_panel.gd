@@ -33,6 +33,7 @@ var _trip_timer := -1.0
 var _hold_timer := -1.0
 var _flash := 0.0
 var _done := false
+var _done_t := 0.0
 var _status := "The main has tripped. The camp is dark."
 var _hum: AudioStreamPlayer
 var _one: AudioStreamPlayer
@@ -51,7 +52,9 @@ func _ready() -> void:
 	layer = 90
 	visible = false
 	_hum = AudioStreamPlayer.new()
-	_hum.volume_db = -10.0
+	# The board's hum: a low background, not a buzz over everything (playtest 2026-10-17:
+	# the old loop played at about the loudness of the speech).
+	_hum.volume_db = -26.0
 	add_child(_hum)
 	_one = AudioStreamPlayer.new()
 	add_child(_one)
@@ -106,6 +109,8 @@ func _process(delta: float) -> void:
 	_scale = RETRO_UI.ui_scale(get_viewport().get_visible_rect().size.y)
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta * 4.0)
+	if _done:
+		_done_t += delta
 	_lever = move_toward(_lever, 1.0 if _main_on else 0.0, delta * 7.0)
 	# The ammeter: load from the circuits that are up; the bad one pins it before it throws.
 	var load := float(_count_up()) / float(CIRCUITS.size()) * 0.55 if _main_on else 0.0
@@ -158,9 +163,9 @@ func _input(event: InputEvent) -> void:
 		var p: Vector2 = event.position
 		if _hit_main.has_point(p):
 			_main_on = not _main_on
-			_play("main_switch.mp3")
+			_play("main_switch.mp3", -2.0)
 			if _main_on:
-				_hum.stream = load(SFX + "power_hum.mp3")
+				_hum.stream = load(SFX + "board_hum.mp3") if ResourceLoader.exists(SFX + "board_hum.mp3") else load(SFX + "power_hum.mp3")
 				if _hum.stream is AudioStreamMP3:
 					(_hum.stream as AudioStreamMP3).loop = true
 				_hum.play()
@@ -172,7 +177,8 @@ func _input(event: InputEvent) -> void:
 			for i in _hit_breakers.size():
 				if _hit_breakers[i].has_point(p):
 					_up[i] = not _up[i]
-					_play("breaker_click.mp3")
+					# A proper clack you can hear (the old click was nearly silent).
+					_play("board_toggle.mp3", -3.0, randf_range(0.94, 1.06) * (1.0 if _up[i] else 0.9))
 					break
 		get_viewport().set_input_as_handled()
 
@@ -182,7 +188,7 @@ func _trip() -> void:
 	_trip_timer = -1.0
 	_flash = 1.0
 	_hum.stop()
-	_play("main_trip.mp3")
+	_play("main_trip.mp3", -8.0)
 	_trips += 1
 	for k in 14:
 		_sparks.append({"p": Vector2(25, 50), "v": Vector2(randf_range(-90, 90), randf_range(-140, -30)), "t": randf_range(0.3, 0.8)})
@@ -191,10 +197,11 @@ func _trip() -> void:
 
 func _finish() -> void:
 	_done = true
-	_play("power_back.mp3")
-	_status = "The main holds. %s stays off until Novotny has looked at it: his number is on the office noticeboard." % CIRCUIT_NAMES[_fault]
+	_done_t = 0.0
+	_play("board_restored.mp3", 1.0)
+	_status = "Done. The main holds. %s stays off until Novotny has looked at it." % CIRCUIT_NAMES[_fault]
 	fixed.emit(_fault)
-	get_tree().create_timer(2.2).timeout.connect(close)
+	get_tree().create_timer(3.4).timeout.connect(close)
 
 
 func _count_up() -> int:
@@ -205,10 +212,17 @@ func _count_up() -> int:
 	return n
 
 
-func _play(file: String) -> void:
+func _play(file: String, db := 0.0, pitch := 1.0) -> void:
 	if ResourceLoader.exists(SFX + file):
 		_one.stream = load(SFX + file)
+		_one.volume_db = db
+		_one.pitch_scale = pitch
 		_one.play()
+
+
+## Done, and closed: whether the job was finished (main tells the HUD).
+func was_fixed() -> bool:
+	return _done
 
 
 # ── drawing: the Grok picture of the board, the states painted onto it ───────
@@ -325,6 +339,20 @@ func _draw_board() -> void:
 		_board.draw_texture_rect(_torch, rect, false, Color(1, 1, 1, 0.7))
 	if _flash > 0.0:
 		_board.draw_rect(Rect2(Vector2.ZERO, screen), Color(1, 1, 0.9, _flash * 0.75))
+	# Done: stamped across the board, so there is no doubt that is all there is to do.
+	if _done:
+		var a := clampf(_done_t / 0.25, 0.0, 1.0)
+		var band: Rect2 = R.call(26, 96, PIC_SIZE.x - 52, 40)
+		_board.draw_rect(band, Color(0.04, 0.16, 0.06, 0.86 * a))
+		_board.draw_rect(band, Color(0.45, 0.95, 0.5, a), false, maxf(1.0, k))
+		var t1 := "POWER BACK ON"
+		var fs := RETRO_UI.SIZE_BIG * int(k)
+		var w1 := RETRO_UI.FONT_BIG.get_string_size(t1, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		_board.draw_string(RETRO_UI.FONT_BIG, (band.position + Vector2((band.size.x - w1) * 0.5, 18 * k)).floor(), t1, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.62, 1.0, 0.6, a))
+		var t2 := "JOB DONE"
+		var fs2 := 8 * int(k)
+		var w2 := RETRO_UI.FONT_TEXT.get_string_size(t2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
+		_board.draw_string(RETRO_UI.FONT_TEXT, (band.position + Vector2((band.size.x - w2) * 0.5, 32 * k)).floor(), t2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, Color(0.9, 0.95, 0.8, a))
 	if _hover != -2:
 		HandCursor.want(HandCursor.POINT)
 

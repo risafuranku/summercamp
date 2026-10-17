@@ -24,6 +24,8 @@ const BOARD_CLOSEUP = preload("res://scripts/closeup/board_closeup.gd")
 const SFX_DOOR := "res://assets/sfx/backroom/door_creak.wav"
 const SFX_LATCH := "res://assets/sfx/dverezavrit.mp3"
 const BOARD_TEX := "res://assets/textury/closeup/board.png"
+const CURTAIN = preload("res://scripts/reception/curtain.gd")
+const RL = preload("res://scripts/reception/reception_layout.gd")
 
 ## The doorway in the office's left wall (x = -2.55), z 0.79..1.77, 2.1 high.
 const DOOR_HINGE := Vector3(-2.43, 0.0, 1.77)
@@ -38,6 +40,8 @@ var back = BACK_ROOM.new()
 var glint = HOVER_GLINT.new()
 var where := "office"
 var hot: Dictionary = {}   # id -> {body, meshes}
+## The office window's floral curtains (open by day; click to draw them).
+var office_curtain
 var phone_view
 var board_view
 var sleep
@@ -60,6 +64,9 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 	_build_phone()
 	_build_board()
 	_build_doorway()
+	_build_office_curtain()
+	if host.has_method("desk_lamp_meshes") and host.get("_desk_lamp_body") != null:
+		hot["desklamp"] = {"body": host.get("_desk_lamp_body"), "meshes": host.desk_lamp_meshes()}
 	back.build(root, host)
 	for id in back.hot.keys():
 		hot[id] = back.hot[id]
@@ -108,6 +115,13 @@ func _build_phone() -> void:
 	var phone := K.prop(room_root, "phone_push", Vector3(1.1, 0.96, 0.32), -16.0, 1.15)
 	if phone != null:
 		_hot_body("phone", room_root, Vector3(1.1, 1.03, 0.32), Vector3(0.36, 0.16, 0.3), [phone], -16.0)
+
+
+func _build_office_curtain() -> void:
+	var c: Vector3 = RL.OFFICE_WINDOW_CENTER + Vector3(0, 0, 0.2)
+	office_curtain = CURTAIN.new()
+	office_curtain.build(room_root, c, RL.OFFICE_WINDOW_SIZE.x + 0.1, RL.OFFICE_WINDOW_SIZE.y + 0.3, 0.0, "curtain_floral", 0.7, host, true)
+	_hot_body("curtain", room_root, c + Vector3(0, 0, 0.04), Vector3(RL.OFFICE_WINDOW_SIZE.x + 0.5, RL.OFFICE_WINDOW_SIZE.y + 0.4, 0.14), office_curtain.meshes)
 
 
 func _build_board() -> void:
@@ -196,6 +210,14 @@ func _walking() -> bool:
 ## Returns true when this owns the camera this frame (walking, sleeping, the back room).
 func process(delta: float, hour: float) -> bool:
 	back.update(delta, hour)
+	var moved := false
+	if office_curtain != null and office_curtain.update(delta):
+		moved = true
+	if back.curtain != null and not is_equal_approx(back.curtain.open, back.curtain.target):
+		moved = true
+	# Drawing a curtain changes the light in the room and the window seen from outside.
+	if moved and host.has_method("_apply_room_time_profile"):
+		host._apply_room_time_profile()
 	if is_modal():
 		glint.clear()
 		_hover = ""
@@ -267,6 +289,12 @@ func click() -> bool:
 			_try_sleep()
 		"tv":
 			back.toggle_tv()
+		"curtain":
+			office_curtain.toggle()
+		"back_curtain":
+			back.curtain.toggle()
+		"desklamp":
+			host.toggle_desk_lamp()
 		"lamp":
 			back.toggle_lamp()
 		_:

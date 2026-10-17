@@ -724,3 +724,166 @@ func _wood() -> Material:
 
 func _metal() -> Material:
 	return _psx_mat(Color(0.6, 0.62, 0.64), "metal")
+
+
+# ── the reception (playtest 2026-10-17: "make it look like a real camp reception, the
+#    windows must match the interior"): a plank cabin built from the rooms' own plan ─
+
+## The render layer of window glass: seen by the player, not by the window views
+## (the cameras behind the glass, building_interior.gd), which look through it.
+const GLASS_LAYER := 1 << 19
+
+## `r`: origin on the ground at the footprint's middle, front +Z. Returns the glass
+## panes so the office can light them at night and show the curtains:
+## {office_glass, back_glass}.
+func reception(r: Node3D) -> Dictionary:
+	var L = load("res://scripts/reception/reception_layout.gd")
+	var b: Rect2 = L.local_bounds()
+	var x0 := b.position.x
+	var x1 := b.end.x
+	var z0 := b.position.y
+	var z1 := b.end.y
+	var h: float = L.WALL_H
+	var t := 0.12
+	var planks := _camp("planks_red.png", Color(0.98, 0.9, 0.82), Vector3(1.6, 1.6, 1.0))
+	var trim := _camp("planks_grey.png", Color(0.95, 0.94, 0.9), Vector3(1.0, 1.0, 1.0))
+	_plinth(r, b.size.x + 0.3, b.size.y + 0.3, Vector3((x0 + x1) * 0.5, 0, (z0 + z1) * 0.5))
+
+	# The openings, in local space.
+	var door_a: Vector3 = L.local(Vector3(L.DOOR_X.y, 0, -2.55))
+	var door_b: Vector3 = L.local(Vector3(L.DOOR_X.x, 0, -2.55))
+	var dx0 := minf(door_a.x, door_b.x)
+	var dx1 := maxf(door_a.x, door_b.x)
+	var wc: Vector3 = L.local(L.OFFICE_WINDOW_CENTER)
+	var ws: Vector2 = L.OFFICE_WINDOW_SIZE
+	var wx0 := wc.x - ws.x * 0.5 - 0.07
+	var wx1 := wc.x + ws.x * 0.5 + 0.07
+	var wy0 := wc.y - ws.y * 0.5 - 0.07
+	var wy1 := wc.y + ws.y * 0.5 + 0.07
+	var bc: Vector3 = L.local(L.BACK_WINDOW_CENTER)
+	var bs: Vector2 = L.BACK_WINDOW_SIZE
+	var bz0 := bc.z - bs.x * 0.5
+	var bz1 := bc.z + bs.x * 0.5
+	var by0 := bc.y - bs.y * 0.5
+	var by1 := bc.y + bs.y * 0.5
+
+	# Front wall (z1), around the door and the office window.
+	var fz := z1 + t * 0.5
+	_wall_x(r, "FrontA", x0, dx0, 0.0, h, fz, t, planks)
+	_wall_x(r, "FrontDoorTop", dx0, dx1, L.DOOR_H, h, fz, t, planks)
+	_wall_x(r, "FrontB", dx1, wx0, 0.0, h, fz, t, planks)
+	_wall_x(r, "FrontUnder", wx0, wx1, 0.0, wy0, fz, t, planks)
+	_wall_x(r, "FrontOver", wx0, wx1, wy1, h, fz, t, planks)
+	_wall_x(r, "FrontC", wx1, x1, 0.0, h, fz, t, planks)
+	# Back wall, west wall: whole.
+	_wall_x(r, "Back", x0 - t, x1 + t, 0.0, h, z0 - t * 0.5, t, planks)
+	_wall_z(r, "West", z0, z1, 0.0, h, x0 - t * 0.5, t, planks)
+	# East wall (the gate lane side), around the back room's window.
+	var ex := x1 + t * 0.5
+	_wall_z(r, "EastA", z0, bz0, 0.0, h, ex, t, planks)
+	_wall_z(r, "EastUnder", bz0, bz1, 0.0, by0, ex, t, planks)
+	_wall_z(r, "EastOver", bz0, bz1, by1, h, ex, t, planks)
+	_wall_z(r, "EastB", bz1, z1 + t, 0.0, h, ex, t, planks)
+	# Corner posts.
+	for cx: float in [x0 - t, x1 + t]:
+		for cz: float in [z0 - t, z1 + t]:
+			_box(r, "Corner", Vector3(0.16, h, 0.16), Vector3(cx, h * 0.5, cz), _wood())
+
+	# The roof: corrugated tin over the lot, the ridge along the front.
+	var tin := _camp("corrugated_roof.png", Color(0.74, 0.7, 0.66), Vector3(1.6, 1.6, 1.0))
+	_gable_roof(r, Vector3((x0 + x1) * 0.5, h, (z0 + z1) * 0.5), b.size.x + 0.7, b.size.y + 0.9, L.ROOF_RISE, tin)
+	_cyl(r, "StovePipe", 0.09, 1.3, Vector3(x1 - 1.4, h + L.ROOF_RISE * 0.55, z0 + 1.2), _metal())
+	_cyl(r, "StoveCap", 0.16, 0.06, Vector3(x1 - 1.4, h + L.ROOF_RISE * 0.55 + 0.68, z0 + 1.2), _metal())
+
+	# The door: planks in a frame, a step and a porch with a lean-to over it.
+	var dcx := (dx0 + dx1) * 0.5
+	_box(r, "DoorLeaf", Vector3(dx1 - dx0 - 0.08, L.DOOR_H - 0.04, 0.05), Vector3(dcx, L.DOOR_H * 0.5, z1 + t + 0.03), _camp("door_wood.png", Color(0.78, 0.66, 0.52)))
+	_frame(r, "DoorFrame", dx0, dx1, 0.0, L.DOOR_H, z1 + t + 0.02, trim, false)
+	var porch_x0 := x0 - 0.1
+	var porch_x1 := wx0 - 0.25
+	var pcx := (porch_x0 + porch_x1) * 0.5
+	var pw := porch_x1 - porch_x0
+	_box(r, "PorchDeck", Vector3(pw, 0.12, 1.3), Vector3(pcx, 0.2, z1 + t + 0.65), _wood())
+	_box(r, "PorchStep", Vector3(1.2, 0.1, 0.4), Vector3(dcx, 0.07, z1 + t + 1.5), _wood())
+	for px: float in [porch_x0 + 0.08, porch_x1 - 0.08]:
+		_box(r, "PorchPost", Vector3(0.12, 2.4, 0.12), Vector3(px, 1.4, z1 + t + 1.22), _wood())
+	var awn := _box(r, "PorchRoof", Vector3(pw + 0.3, 0.07, 1.6), Vector3(pcx, 2.66, z1 + t + 0.7), tin)
+	awn.rotation.x = 0.2
+	_box(r, "PorchRail", Vector3(0.08, 0.08, 1.2), Vector3(porch_x0 + 0.08, 0.95, z1 + t + 0.62), _wood())
+	# The sign over the door: RECEPCE, white on a dark board.
+	_box(r, "SignBoard", Vector3(1.9, 0.38, 0.05), Vector3(dcx + 0.25, L.DOOR_H + 0.42, z1 + t + 0.04), _flat(Color(0.12, 0.2, 0.14)))
+	_label(r, "RECEPCE", Vector3(dcx + 0.25, L.DOOR_H + 0.42, z1 + t + 0.075), 0.24, Color(0.95, 0.93, 0.84))
+	_box(r, "DoorLamp", Vector3(0.16, 0.2, 0.12), Vector3(dx1 + 0.18, L.DOOR_H + 0.05, z1 + t + 0.08), _flat(Color(0.85, 0.82, 0.62)))
+
+	# The office window: the white frame, the cross, a sill, the glass.
+	_frame(r, "OfficeWindowFrame", wx0, wx1, wy0, wy1, z1 + t + 0.02, trim, true)
+	_box(r, "OfficeMullionV", Vector3(0.06, ws.y, 0.05), Vector3(wc.x, wc.y, z1 + t * 0.5), trim)
+	_box(r, "OfficeMullionH", Vector3(ws.x, 0.06, 0.05), Vector3(wc.x, wc.y, z1 + t * 0.5), trim)
+	_box(r, "OfficeSill", Vector3(wx1 - wx0 + 0.1, 0.06, 0.22), Vector3(wc.x, wy0 - 0.02, z1 + t + 0.1), trim)
+	var og := _glass(r, "OfficeGlass", Vector3(ws.x, ws.y, 0.02), Vector3(wc.x, wc.y, z1 + 0.04))
+	# The back room's window, east: small, a frame, the glass.
+	_frame_z(r, "BackWindowFrame", bz0 - 0.07, bz1 + 0.07, by0 - 0.07, by1 + 0.07, x1 + t + 0.02, trim)
+	_box(r, "BackMullion", Vector3(0.05, bs.y, 0.06), Vector3(x1 + t * 0.5, bc.y, bc.z), trim)
+	_box(r, "BackSill", Vector3(0.2, 0.06, bs.x + 0.24), Vector3(x1 + t + 0.08, by0 - 0.09, bc.z), trim)
+	var bg := _glass(r, "BackGlass", Vector3(0.02, bs.y, bs.x), Vector3(x1 + 0.04, bc.y, bc.z))
+
+	# The store at the east end of the front: a low plank door, padlocked.
+	var store_x := (wx1 + x1) * 0.5 + 0.6
+	_box(r, "StoreDoor", Vector3(0.9, 1.7, 0.05), Vector3(store_x, 0.95, z1 + t + 0.03), _camp("planks_grey.png", Color(0.62, 0.56, 0.5)))
+	_frame(r, "StoreFrame", store_x - 0.47, store_x + 0.47, 0.1, 1.82, z1 + t + 0.02, _wood(), false)
+	_box(r, "Padlock", Vector3(0.06, 0.09, 0.04), Vector3(store_x + 0.34, 1.0, z1 + t + 0.08), _metal())
+	# Firewood against the west wall.
+	for i in 4:
+		_cyl(r, "Firewood%d" % i, 0.11, 1.1, Vector3(x0 - t - 0.25, 0.18 + i * 0.2, z0 + 1.0 + (i % 2) * 0.12), _psx_mat(Color(0.52, 0.38, 0.24), "tree_bark"), Vector3(PI * 0.5, 0, 0))
+	return {"office_glass": og, "back_glass": bg}
+
+
+## A wall slab along X (front, back) from x a to b, y lo to hi, at depth z.
+func _wall_x(r: Node3D, n: String, a: float, b: float, lo: float, hi: float, z: float, t: float, mat: Material) -> void:
+	if b - a < 0.01 or hi - lo < 0.01:
+		return
+	_box(r, n, Vector3(b - a, hi - lo, t), Vector3((a + b) * 0.5, (lo + hi) * 0.5, z), mat)
+
+
+## A wall slab along Z (the ends) from z a to b, y lo to hi, at x.
+func _wall_z(r: Node3D, n: String, a: float, b: float, lo: float, hi: float, x: float, t: float, mat: Material) -> void:
+	if b - a < 0.01 or hi - lo < 0.01:
+		return
+	_box(r, n, Vector3(t, hi - lo, b - a), Vector3(x, (lo + hi) * 0.5, (a + b) * 0.5), mat)
+
+
+## Four boards round an opening in a front wall (no bottom board for a door).
+func _frame(r: Node3D, n: String, a: float, b: float, lo: float, hi: float, z: float, mat: Material, bottom: bool) -> void:
+	var w := 0.1
+	_box(r, n + "L", Vector3(w, hi - lo + w, 0.05), Vector3(a - w * 0.5 + 0.02, (lo + hi) * 0.5, z), mat)
+	_box(r, n + "R", Vector3(w, hi - lo + w, 0.05), Vector3(b + w * 0.5 - 0.02, (lo + hi) * 0.5, z), mat)
+	_box(r, n + "T", Vector3(b - a + w * 2.0, w, 0.05), Vector3((a + b) * 0.5, hi + w * 0.5 - 0.02, z), mat)
+	if bottom:
+		_box(r, n + "B", Vector3(b - a + w * 2.0, w, 0.05), Vector3((a + b) * 0.5, lo - w * 0.5 + 0.02, z), mat)
+
+
+## The same round an opening in an end wall (facing +X).
+func _frame_z(r: Node3D, n: String, a: float, b: float, lo: float, hi: float, x: float, mat: Material) -> void:
+	var w := 0.1
+	_box(r, n + "L", Vector3(0.05, hi - lo + w, w), Vector3(x, (lo + hi) * 0.5, a - w * 0.5 + 0.02), mat)
+	_box(r, n + "R", Vector3(0.05, hi - lo + w, w), Vector3(x, (lo + hi) * 0.5, b + w * 0.5 - 0.02), mat)
+	_box(r, n + "T", Vector3(0.05, w, b - a + w * 2.0), Vector3(x, hi + w * 0.5 - 0.02, (a + b) * 0.5), mat)
+	_box(r, n + "B", Vector3(0.05, w, b - a + w * 2.0), Vector3(x, lo - w * 0.5 + 0.02, (a + b) * 0.5), mat)
+
+
+## Glass: dark and a little glossy by day; the office lights it at night
+## (building_interior.gd: set_reception_glass). On GLASS_LAYER.
+func _glass(r: Node3D, n: String, size: Vector3, pos: Vector3) -> MeshInstance3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.16, 0.2, 0.24)
+	m.roughness = 0.12
+	m.metallic = 0.3
+	m.metallic_specular = 0.8
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.78, 0.46)
+	m.emission_energy_multiplier = 0.0
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	var g := _box(r, n, size, pos, m)
+	g.layers = GLASS_LAYER
+	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return g

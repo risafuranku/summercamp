@@ -11,6 +11,8 @@ extends RefCounted
 ## the set (on/off; after midnight only the test card and its tone), the lamp.
 
 const K = preload("res://scripts/interior_kit.gd")
+const RL = preload("res://scripts/reception/reception_layout.gd")
+const CURTAIN = preload("res://scripts/reception/curtain.gd")
 const TV_SHADER = preload("res://materials/tv_screen.gdshader")
 const SEVEN_SEG = preload("res://scripts/ui/seven_seg.gd")
 const SFX := "res://assets/sfx/backroom/"
@@ -28,6 +30,9 @@ const TV := Vector3(-5.0, 0.81, 2.36)
 const CLOCK := Vector3(-4.38, 0.61, -0.02)
 
 var root: Node3D
+## The window over the bed (out onto the gate lane): its view quad, its velvet drapes.
+var window_quad: MeshInstance3D
+var curtain
 var hot: Dictionary = {}     # id -> {body, meshes}
 var tv_on := true
 var lamp_on := true
@@ -67,6 +72,7 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	K.slab(root, Vector3(t, SIZE.y, a1 - near_end), Vector3(x, SIZE.y * 0.5, (near_end + a1) * 0.5), wall, "WallDoorA")
 	K.slab(root, Vector3(t, SIZE.y, far_end - b1), Vector3(x, SIZE.y * 0.5, (b1 + far_end) * 0.5), wall, "WallDoorB")
 	K.slab(root, Vector3(t, SIZE.y - 2.1, 1.0), Vector3(x, 2.1 + (SIZE.y - 2.1) * 0.5, dz), wall, "WallDoorTop")
+	_cut_window(walls)
 	K.skirting(root, SIZE)
 	K.slab(root, Vector3(1.3, 0.012, 0.9), Vector3(-0.2, 0.006, 0.6), K.surface("rug", 1.3), "Rug")
 
@@ -83,7 +89,6 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	K.prop(root, "coat_hooks", Vector3(-2.66, 1.55, 2.2) + o, -90.0)
 	K.slab(root, Vector3(0.06, 0.8, 0.42), Vector3(-2.7, 1.12, 2.2) + o, K.surface("tarp_canvas", 0.6, Color(0.5, 0.45, 0.4)), "Coat")
 	K.prop(root, "chair_wood", Vector3(-3.4, 0.05, 2.15) + o, 200.0)
-	K.prop(root, "curtain_heavy", Vector3(-5.57, 0.32, 0.86) + o, 90.0)
 	K.picture(root, "picture_deer", Vector2(0.36, 0.48), Vector3(-5.0, 1.62, 2.54) + o, 180.0, "BackPicture")
 
 	_build_tv_screen()
@@ -116,6 +121,59 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	_one = AudioStreamPlayer.new()
 	audio_parent.add_child(_one)
 	_set_tv(true, false)
+
+
+## The far wall (over the bed) with the window in it: ReceptionLayout.BACK_WINDOW_*,
+## the same opening the building has outside. A frame, a sill, the view, the drapes.
+func _cut_window(walls: Dictionary) -> void:
+	var far := walls.get("left") as Node3D
+	if far != null:
+		far.queue_free()
+	var t := 0.1
+	var x := -SIZE.x * 0.5 - t * 0.5
+	var c: Vector3 = RL.BACK_WINDOW_CENTER - CENTRE
+	var half_w: float = RL.BACK_WINDOW_SIZE.x * 0.5
+	var half_h: float = RL.BACK_WINDOW_SIZE.y * 0.5
+	var z0 := c.z - half_w
+	var z1 := c.z + half_w
+	var y0 := c.y - half_h
+	var y1 := c.y + half_h
+	var wall := K.surface("wallpaper_70s", 1.1)
+	var near := -SIZE.z * 0.5
+	var far_z := SIZE.z * 0.5
+	K.slab(root, Vector3(t, SIZE.y, z0 - near), Vector3(x, SIZE.y * 0.5, (near + z0) * 0.5), wall, "WallFarA")
+	K.slab(root, Vector3(t, SIZE.y, far_z - z1), Vector3(x, SIZE.y * 0.5, (z1 + far_z) * 0.5), wall, "WallFarB")
+	K.slab(root, Vector3(t, y0, z1 - z0), Vector3(x, y0 * 0.5, c.z), wall, "WallFarUnder")
+	K.slab(root, Vector3(t, SIZE.y - y1, z1 - z0), Vector3(x, (y1 + SIZE.y) * 0.5, c.z), wall, "WallFarOver")
+	var frame := K.surface("planks_grey", 0.5, Color(0.92, 0.9, 0.86))
+	var fx := -SIZE.x * 0.5 + 0.02
+	K.slab(root, Vector3(0.05, y1 - y0 + 0.16, 0.08), Vector3(fx, c.y, z0 - 0.04), frame, "BackWinFrameA")
+	K.slab(root, Vector3(0.05, y1 - y0 + 0.16, 0.08), Vector3(fx, c.y, z1 + 0.04), frame, "BackWinFrameB")
+	K.slab(root, Vector3(0.05, 0.08, z1 - z0 + 0.16), Vector3(fx, y1 + 0.04, c.z), frame, "BackWinFrameT")
+	K.slab(root, Vector3(0.2, 0.05, z1 - z0 + 0.22), Vector3(fx + 0.07, y0 - 0.02, c.z), frame, "BackWinSill")
+	K.slab(root, Vector3(0.04, y1 - y0, 0.04), Vector3(fx - 0.03, c.y, c.z), frame, "BackWinBar")
+	window_quad = MeshInstance3D.new()
+	window_quad.name = "BackWindowView"
+	var q := QuadMesh.new()
+	q.size = RL.BACK_WINDOW_SIZE
+	window_quad.mesh = q
+	window_quad.position = Vector3(x + 0.01, c.y, c.z)
+	window_quad.rotation_degrees.y = 90.0
+	root.add_child(window_quad)
+	# The heavy drapes: shut, as the room always had them; click to draw them back.
+	curtain = CURTAIN.new()
+	curtain.build(root, Vector3(fx + 0.12, c.y, c.z), RL.BACK_WINDOW_SIZE.x, RL.BACK_WINDOW_SIZE.y + 0.3, 90.0, "velvet", 0.6, root, false)
+	var body := StaticBody3D.new()
+	body.name = "Hot_back_curtain"
+	body.set_meta("extra_hot", "back_curtain")
+	var cs := CollisionShape3D.new()
+	var bx := BoxShape3D.new()
+	bx.size = Vector3(0.2, RL.BACK_WINDOW_SIZE.y + 0.4, RL.BACK_WINDOW_SIZE.x + 0.5)
+	cs.shape = bx
+	body.add_child(cs)
+	body.position = Vector3(fx + 0.1, c.y, c.z)
+	root.add_child(body)
+	hot["back_curtain"] = {"body": body, "meshes": curtain.meshes}
 
 
 func _prop(id: String, prop_name: String, pos: Vector3, yaw: float) -> Node3D:
@@ -226,6 +284,8 @@ func _build_clock() -> void:
 
 ## Called every frame with the camp's clock (hours, 0-24).
 func update(delta: float, hour: float) -> void:
+	if curtain != null:
+		curtain.update(delta)
 	_t += delta
 	var h := int(hour) % 24
 	var m := int((hour - floor(hour)) * 60.0)

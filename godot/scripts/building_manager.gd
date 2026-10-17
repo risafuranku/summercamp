@@ -5,6 +5,7 @@ extends Node3D
 @export var cabin_height: float = 2.8
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
+const RECEPTION_LAYOUT = preload("res://scripts/reception/reception_layout.gd")
 const PSX_TEXTURE_DEFAULT_UV := Vector2(1.35, 1.35)
 const PATH_TEXTURES := {
 	"straight": "res://assets/textury/redneck/paths/gravel.png",
@@ -186,79 +187,47 @@ func place_main_building(origin: Vector2i, footprint: Vector2i = Vector2i(2, 2))
 	_tag_structure(building, origin, footprint, "main_building", true)
 	_structures_root.add_child(building)
 
-	var size = Vector3(_grid_manager.tile_size * footprint.x * 0.9, 3.4, _grid_manager.tile_size * footprint.y * 0.9)
+	# The reception is built from the office's own plan (scripts/reception/reception_layout.gd),
+	# a plank cabin whose door and windows are the ones you use inside (playtest
+	# 2026-10-17). It used to be a brick box with windows anywhere.
+	var bounds: Rect2 = RECEPTION_LAYOUT.local_bounds()
+	var size = Vector3(bounds.size.x + 0.3, 3.4, bounds.size.y + 0.3)
 	var center = _grid_manager.get_footprint_center(origin, footprint)
 	building.position = center + Vector3(0.0, size.y * 0.5 - 0.08, 0.0)
+	var ground_y: float = -(size.y * 0.5 - 0.08)
 
 	var collider = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
 	shape.size = size
 	collider.shape = shape
+	collider.position = Vector3(bounds.get_center().x, 0.0, bounds.get_center().y)
 	building.add_child(collider)
 
-	var mesh = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	var mat = _make_psx_material(Color(0.58, 0.60, 0.62), 0.012, 26.0, 6.0, 0.08, "brick", 0.88)
-	mesh.material_override = mat
-	building.add_child(mesh)
+	var shell := Node3D.new()
+	shell.name = "Shell"
+	shell.position = Vector3(0.0, ground_y, 0.0)
+	building.add_child(shell)
+	if _models == null:
+		_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
+	var glass: Dictionary = _models.reception(shell)
+	building.set_meta("reception_glass", glass)
 
-	# Simple gable roof so the silhouette reads better from distance.
-	var roof = MeshInstance3D.new()
-	roof.name = "MainRoof"
-	var st = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var overhang = 0.22
-	var half_w = (size.x * 0.5) + overhang
-	var half_d = (size.z * 0.5) + overhang
-	var roof_y = size.y * 0.5
-	var roof_h = 0.95
-	var rbl = Vector3(-half_w, roof_y, -half_d)
-	var rbr = Vector3(half_w, roof_y, -half_d)
-	var rfl = Vector3(-half_w, roof_y, half_d)
-	var rfr = Vector3(half_w, roof_y, half_d)
-	var rtb = Vector3(0.0, roof_y + roof_h, -half_d)
-	var rtf = Vector3(0.0, roof_y + roof_h, half_d)
-	# Left slope
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rbl)
-	st.set_uv(Vector2(1.0, 1.0)); st.add_vertex(rfl)
-	st.set_uv(Vector2(1.0, 0.0)); st.add_vertex(rtf)
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rbl)
-	st.set_uv(Vector2(1.0, 0.0)); st.add_vertex(rtf)
-	st.set_uv(Vector2(0.0, 0.0)); st.add_vertex(rtb)
-	# Right slope
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rfr)
-	st.set_uv(Vector2(1.0, 1.0)); st.add_vertex(rbr)
-	st.set_uv(Vector2(1.0, 0.0)); st.add_vertex(rtb)
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rfr)
-	st.set_uv(Vector2(1.0, 0.0)); st.add_vertex(rtb)
-	st.set_uv(Vector2(0.0, 0.0)); st.add_vertex(rtf)
-	# Front/Back gables
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rfl)
-	st.set_uv(Vector2(1.0, 1.0)); st.add_vertex(rfr)
-	st.set_uv(Vector2(0.5, 0.0)); st.add_vertex(rtf)
-	st.set_uv(Vector2(0.0, 1.0)); st.add_vertex(rbr)
-	st.set_uv(Vector2(1.0, 1.0)); st.add_vertex(rbl)
-	st.set_uv(Vector2(0.5, 0.0)); st.add_vertex(rtb)
-	st.generate_normals()
-	roof.mesh = st.commit()
-	roof.material_override = _make_psx_material(Color(0.36, 0.34, 0.34), 0.010, 24.0, 6.0, 0.10, "cabin_lv1_exterior_roof", 0.74)
-	building.add_child(roof)
-	var roof_fan = MeshInstance3D.new()
-	roof_fan.name = "MainRoofFan"
-	var roof_fan_box = BoxMesh.new()
-	roof_fan_box.size = Vector3(0.86, 0.05, 0.86)
-	roof_fan.mesh = roof_fan_box
-	roof_fan.position = Vector3(0.0, roof_y + roof_h + (roof_fan_box.size.y * 0.5) - 0.01, 0.0)
-	var roof_fan_mat = _make_psx_material(Color(0.80, 0.78, 0.70), 0.006, 24.0, 6.0, 0.04, "office_roof_fan2", 0.96)
-	roof_fan.material_override = roof_fan_mat
-	building.add_child(roof_fan)
+	# The door you walk in by (E): where the office's door is.
+	var door_room := Vector3((RECEPTION_LAYOUT.DOOR_X.x + RECEPTION_LAYOUT.DOOR_X.y) * 0.5, 0.0, -2.55)
+	var door_local: Vector3 = RECEPTION_LAYOUT.local(door_room)
+	var door = StaticBody3D.new()
+	door.name = "Door"
+	door.add_to_group("crt_interactable")
+	var door_col = CollisionShape3D.new()
+	var door_shape = BoxShape3D.new()
+	door_shape.size = Vector3(1.2, 2.4, 0.32)
+	door_col.shape = door_shape
+	door.add_child(door_col)
+	door.position = Vector3(door_local.x, ground_y + 1.1, bounds.end.y + 0.2)
+	building.add_child(door)
 
-	_spawn_crt_placeholder(building, size)
-	_spawn_door(building, size)
-	_spawn_building_windows(building, size, "main_building")
-	_spawn_office_sign(building, size)
+	# The standing sign keeps its spot (where it stood by the old building).
+	_spawn_office_sign(building, Vector3(7.2, 3.4, 7.2))
 	_set_structure_condition_internal(building, _default_condition_for_type("main_building"))
 	_grid_manager.occupy_footprint(origin, footprint, building, _grid_manager.TILE_BUILDING, true)
 	return true
