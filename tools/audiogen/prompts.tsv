@@ -120,3 +120,28 @@ dir_phone_breath	4.0	assets/sfx/director/phone_breath.mp3	Slow heavy breathing h
 dir_lamp_fizz	1.8	assets/sfx/director/lamp_fizz.mp3	An outdoor lamp bulb fizzing and buzzing, crackling then a soft pop and silence as it goes out, at night, no music.
 dir_wall_brush	2.6	assets/sfx/director/wall_brush.mp3	Something large brushing slowly along the outside of a wooden cabin wall, rough scraping on planks, heard from inside, at night, no voices, no music.
 dir_wet_steps	3.0	assets/sfx/director/wet_steps.mp3	Slow bare wet footsteps on wooden planks, a few steps then they stop, close, at night, no voices, no music.
+fire_crackle	8.0	assets/sfx/life/fire_crackle.mp3	A campfire burning steadily, heard close up from a log bench: crackling and popping pine wood, the soft roar and flutter of flames, outdoors at night, crickets very faint, no voices, no music. Seamless loop.
+fire_log	2.4	assets/sfx/life/fire_log.mp3	A heavy split log thrown onto a burning campfire: a wooden thud into the embers, a crackling burst of sparks and the flames whooshing up, close, outdoors, no voices, no music.
+fire_pop	0.8	assets/sfx/life/fire_pop.mp3	A single sharp pop and crack of resin bursting in burning pine wood in a campfire, close, no music.
+sausage_sizzle	5.0	assets/sfx/life/sausage_sizzle.mp3	A fat sausage roasting on a stick over a campfire, the skin sizzling and fat dripping and spitting into the hot embers, close, outdoors, no voices, no music. Seamless loop.
+slide_whoosh	1.6	assets/sfx/life/slide_whoosh.mp3	A person whooshing fast down a long wet fibreglass water slide, the rubbing squeak of wet skin and rushing water, outdoors, no voices, no music.
+pool_splash	1.6	assets/sfx/life/pool_splash.mp3	A person splashing into a small outdoor pool at the bottom of a slide, one big splash and water slapping the tiled sides, outdoors, no voices, no music.
+ladder_creak	1.8	assets/sfx/life/ladder_creak.mp3	Bare feet climbing quickly up an old wooden ladder, the rungs creaking, outdoors, no voices, no music.
+ball_kick	0.6	assets/sfx/life/ball_kick.mp3	A single hard kick of an old leather football on grass, one hollow thump, outdoors, no voices, no music.
+goal_cheer	2.6	assets/sfx/life/goal_cheer.mp3	A few men playing football at a village camp shout and cheer after a goal, short and happy, outdoors, a bit distant, no music.
+tap_pour	4.0	assets/sfx/pub/tap_pour.mp3	Beer pouring from a chrome beer tap into a big glass mug in a Czech village pub: the hiss as the tap opens, a strong stream of beer filling the glass, the foam rising and gurgling, close, no voices, no music.
+tap_open	0.5	assets/sfx/pub/tap_open.mp3	The handle of a chrome beer tap pulled forward, a metal clunk and the first hiss of gas and beer, close, no voices, no music.
+tap_close	0.5	assets/sfx/pub/tap_close.mp3	The handle of a chrome beer tap pushed back shut, a metal clunk and the hiss stopping, a drip, close, no voices, no music.
+glass_down	0.6	assets/sfx/pub/glass_down.mp3	A heavy full glass beer mug set down hard on a wooden bar counter, a thud and a little slosh, close, no voices, no music.
+glass_clink	1.0	assets/sfx/pub/glass_clink.mp3	Two heavy glass beer mugs clinking together in a toast, a thick glassy clunk and the beer sloshing, close, no voices, no music.
+coins_bar	0.9	assets/sfx/pub/coins_bar.mp3	A few coins dropped and rattling on a wooden bar counter, then pushed together, close, no voices, no music.
+pub_room	10.0	assets/sfx/pub/pub_room.mp3	Inside a small crowded village pub in the evening: a low murmur of men's voices whose words cannot be made out, glasses clinking, a chair scraping on wooden floorboards, a burst of laughter, a cough, no music. Seamless loop.
+dart_hit	0.5	assets/sfx/pub/dart_hit.mp3	A dart thrown and thudding into a cork dartboard on a wooden wall, one sharp thock, close, no voices, no music.
+cards_slap	0.6	assets/sfx/pub/cards_slap.mp3	A playing card slapped down hard on a wooden pub table, close, no voices, no music.
+ladle_plate	0.9	assets/sfx/bistro/ladle_plate.mp3	A ladle of thick hot goulash poured onto a china plate in a canteen, a wet slap and the ladle clinking on the plate rim, close, no voices, no music.
+plate_down	0.6	assets/sfx/bistro/plate_down.mp3	A full china plate set down on a steel serving counter, a clink and a scrape, close, no voices, no music.
+bell_ding	0.6	assets/sfx/bistro/bell_ding.mp3	A small chrome service bell on a canteen counter rung once, a bright ding, close, no voices, no music.
+fryer	6.0	assets/sfx/bistro/fryer.mp3	A deep fat fryer in a canteen kitchen with a basket of chips in it, hot oil bubbling and hissing steadily, close, no voices, no music. Seamless loop.
+kitchen_room	10.0	assets/sfx/bistro/kitchen_room.mp3	A small canteen kitchen at lunchtime: a big pot bubbling on a gas range, plates and cutlery clattering, an extractor fan humming, distant voices from the dining room whose words cannot be made out, no music. Seamless loop.
+till	1.4	assets/sfx/bistro/till.mp3	An old mechanical cash register: a few keys clacking, the crank, the little bell ring and the cash drawer sliding open with a thunk, close, no voices, no music.
+dining_room	10.0	assets/sfx/bistro/dining_room.mp3	A small roadside diner at lunchtime: cutlery scraping plates, quiet chewing, a glass set down, low voices of a few people eating whose words cannot be made out, a radio playing very faintly far away, no clear music. Seamless loop.

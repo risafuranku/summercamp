@@ -14,6 +14,7 @@ extends Node3D
 ## never waits for the visuals.
 
 const GUEST_NEEDS = preload("res://core/systems/guest_needs_system.gd")
+const POSES = preload("res://scripts/attractions/poses.gd")
 
 const SNAPSHOT_INTERVAL_SEC := 0.25
 const NAV_REBUILD_INTERVAL_SEC := 3.0
@@ -333,6 +334,12 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		dir.y = 0.0
 		if dir.length_squared() > 0.0001:
 			side = dir.normalized().cross(Vector3.UP)
+	# At the fire, on the slide, on the pitch: the attraction places and poses them
+	# (scripts/attractions/: campfire.gd, slide_ride.gd, pitch_play.gd).
+	var posed: Node = null
+	if dwell_phase and kind == "visit" and not bool(act.get("queued", false)) and OPEN_AIR_TYPES.has(str(act.get("target_type", ""))):
+		posed = _attraction_at(party.get("target_tile", Vector2i(-1, -1)))
+	var marker_pos := lead_pos
 	for i in members.size():
 		var member := members[i] as Node3D
 		if member == null:
@@ -340,6 +347,12 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		member.visible = visible_now
 		if not visible_now:
 			continue
+		var msprite := member.get_node_or_null("Sprite") as Sprite3D
+		if posed != null and posed.pose_member(int(info.get("id", 0)), i, members.size(), member, msprite, info, _time):
+			if i == 0:
+				marker_pos = member.position + Vector3(0, float(member.get_meta("marker_drop", 0.0)), 0)
+			continue
+		POSES.set_pose(msprite, str(info.get("sprite_path", "")), "")
 		var offset := side * (float(i) - float(members.size() - 1) * 0.5) * MEMBER_SPREAD_M
 		if not walking and members.size() > 1:
 			# Standing about: a loose huddle (so they never line up behind each other
@@ -362,7 +375,17 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			if sprite != null:
 				sprite.rotation.z = sin(_time * 0.8 + float(i)) * 0.01
 		member.position = pos
-	_update_marker(party, info, lead_pos, visible_now)
+	_update_marker(party, info, marker_pos, visible_now)
+
+
+## The attraction controller whose footprint holds `tile` (group "attraction"), or null.
+func _attraction_at(tile: Vector2i) -> Node:
+	if tile.x < 0 or not is_inside_tree():
+		return null
+	for n in get_tree().get_nodes_in_group("attraction"):
+		if n.has_method("covers_tile") and n.covers_tile(tile):
+			return n
+	return null
 
 
 ## Build games had no floating text; guests show a small marker instead: a red "!"

@@ -248,49 +248,129 @@ func _sewer(r: Node3D, _w: float, _d: float) -> Dictionary:
 # ── the bonfire: stones, crossed logs, log benches, the fire ──────────────────
 
 func _bonfire(r: Node3D, _w: float, _d: float) -> Dictionary:
-	var stone := _psx_mat(Color(0.56, 0.54, 0.5), "stone")
-	for i in 12:
-		var a := TAU * float(i) / 12.0
-		var st := _box(r, "Stone%d" % i, Vector3(0.28, 0.18, 0.22), Vector3(cos(a) * 0.75, 0.09, sin(a) * 0.75), stone)
-		st.rotation.y = a + 0.3 * float(i % 3)
-	_cyl(r, "Ash", 0.66, 0.02, Vector3(0, 0.01, 0), _flat(Color(0.16, 0.15, 0.14)))
-	var log := _psx_mat(Color(0.42, 0.3, 0.2), "tree_bark")
-	for i in 4:
-		var l := _cyl(r, "Log%d" % i, 0.07, 1.0, Vector3(0, 0.2, 0), log, Vector3(0.0, TAU * float(i) / 4.0, 1.1))
-		l.position = Vector3(cos(TAU * float(i) / 4.0) * 0.12, 0.3, sin(TAU * float(i) / 4.0) * 0.12)
-	# Flames: unshaded cones, an outer orange one and a yellow core.
-	for f in [[0.26, 0.75, Color(1.0, 0.5, 0.14), 0.0], [0.14, 0.5, Color(1.0, 0.86, 0.32), 0.0], [0.12, 0.45, Color(1.0, 0.6, 0.2), 0.18], [0.1, 0.4, Color(1.0, 0.62, 0.2), -0.16]]:
-		var fm := StandardMaterial3D.new()
-		fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		fm.albedo_color = f[2]
-		fm.set_meta("base_albedo_color", f[2])
-		var cone := MeshInstance3D.new()
-		cone.name = "Flame"
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.0
-		cm.bottom_radius = f[0]
-		cm.height = f[1]
-		cm.radial_segments = 5
-		cone.mesh = cm
-		cone.material_override = fm
-		cone.position = Vector3(float(f[3]), 0.28 + float(f[1]) * 0.5, float(f[3]) * 0.5)
-		r.add_child(cone)
+	# A camp táborák: scorched ground, a ring of field stones round a bed of ash and coals,
+	# a teepee of split logs, three log benches on stumps round it (people sit there: the
+	# benches carry "seat" points), a woodpile with a chopping block and the axe in it.
+	# The fire itself (flame quads, light, sparks, smoke, sound) is scripts/attractions/campfire.gd.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var bark := _camp_or("log_bark.png", Color(0.86, 0.8, 0.74), "tree_bark", Vector3(1.0, 2.0, 1.0))
+	var charred := _camp_or("log_bark.png", Color(0.32, 0.26, 0.22), "tree_bark", Vector3(1.0, 2.0, 1.0))
+	var ends := _camp_or("log_end.png", Color(0.95, 0.9, 0.82), "wood")
+	var stone := _camp_or("fire_stone.png", Color(0.82, 0.8, 0.78), "stone", Vector3(0.4, 0.4, 1.0))
+	var sooty := _camp_or("fire_stone.png", Color(0.42, 0.4, 0.38), "stone", Vector3(0.4, 0.4, 1.0))
+	_cyl(r, "Scorch", 1.25, 0.012, Vector3(0, 0.006, 0), _camp_or("fire_ash.png", Color(0.34, 0.3, 0.26), "stone", Vector3(3.0, 3.0, 1.0)))
+	var bed := MeshInstance3D.new()
+	bed.name = "EmberBed"
+	var bm := CylinderMesh.new()
+	bm.top_radius = 0.62
+	bm.bottom_radius = 0.62
+	bm.height = 0.03
+	bm.radial_segments = 14
+	bed.mesh = bm
+	bed.position = Vector3(0, 0.02, 0)
+	var bmat := ShaderMaterial.new()
+	bmat.shader = load("res://materials/fire_embers.gdshader")
+	if ResourceLoader.exists(CAMP + "fire_ash.png"):
+		bmat.set_shader_parameter("ash_tex", load(CAMP + "fire_ash.png"))
+	bed.material_override = bmat
+	r.add_child(bed)
+	# The stone ring: fourteen stones, no two alike, the ones on the fire side sooty.
+	for i in 14:
+		var a := TAU * float(i) / 14.0 + rng.randf_range(-0.08, 0.08)
+		var sz := Vector3(rng.randf_range(0.22, 0.34), rng.randf_range(0.14, 0.24), rng.randf_range(0.18, 0.26))
+		var rad := 0.78 + rng.randf_range(-0.04, 0.05)
+		var st := _box(r, "Stone%d" % i, sz, Vector3(cos(a) * rad, sz.y * 0.5 - 0.02, sin(a) * rad), stone if i % 3 != 0 else sooty)
+		st.rotation = Vector3(rng.randf_range(-0.15, 0.15), -a + rng.randf_range(-0.4, 0.4), rng.randf_range(-0.12, 0.12))
+	# The teepee: five split logs leaning in, black where the fire has had them.
+	for i in 5:
+		var a := TAU * float(i) / 5.0 + 0.3
+		var lg := _box(r, "FireLog%d" % i, Vector3(0.1, 0.78, 0.12), Vector3(cos(a) * 0.2, 0.33, sin(a) * 0.2), charred if i % 2 == 0 else bark)
+		# Tip in toward the middle (round the horizontal axis across the log's direction).
+		lg.basis = Basis(Vector3(-sin(a), 0, cos(a)), 0.42) * Basis(Vector3.UP, rng.randf() * TAU)
+	for i in 2:
+		var lg2 := _cyl(r, "FireLog%d" % (5 + i), 0.075, 0.8, Vector3(0, 0.09, 0), charred, Vector3(0, 0.9 + float(i) * 1.6, PI * 0.5))
+		lg2.position = Vector3(0.05 - 0.1 * i, 0.09 + 0.05 * i, 0.04 * i)
+	# The flames: three fixed-Y quads, the big one behind, a core, a lick to one side.
+	var fk := 0
+	for f in [[Vector2(1.0, 1.3), Vector3(0, 0.66, 0)], [Vector2(0.72, 1.0), Vector3(0.08, 0.52, 0.06)], [Vector2(0.5, 0.78), Vector3(-0.14, 0.42, -0.05)]]:
+		var fl := MeshInstance3D.new()
+		fl.name = "FireFlame%d" % fk
+		fk += 1
+		var q := QuadMesh.new()
+		q.size = f[0]
+		fl.mesh = q
+		fl.position = f[1]
+		fl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		r.add_child(fl)
 	var light := OmniLight3D.new()
 	light.name = "FireLight"
-	light.light_color = Color(1.0, 0.62, 0.3)
+	light.light_color = Color(1.0, 0.6, 0.28)
 	light.light_energy = 1.4
 	light.omni_range = 6.0
-	light.position = Vector3(0, 0.8, 0)
+	light.omni_attenuation = 1.3
+	light.shadow_enabled = true
+	light.shadow_bias = 0.08
+	# Above the teepee, so the logs do not throw the whole camp into shadow.
+	light.position = Vector3(0, 1.2, 0)
 	r.add_child(light)
-	var flicker := Node3D.new()
-	flicker.name = "FireFlicker"
-	flicker.set_script(load("res://scripts/fire_flicker.gd"))
-	r.add_child(flicker)
-	# Log benches around the fire.
+	var fire := Node3D.new()
+	fire.name = "Campfire"
+	fire.set_script(load("res://scripts/attractions/campfire.gd"))
+	r.add_child(fire)
+	# Three log benches: a half log, flat side up, on two stumps; two seats each.
+	var top := _camp_or("knotty_pine.png", Color(0.86, 0.76, 0.62), "wood", Vector3(2.0, 0.5, 1.0))
 	for i in 3:
-		var a := TAU * float(i) / 3.0 + 0.5
-		var b := _cyl(r, "BenchLog%d" % i, 0.16, 1.5, Vector3(cos(a) * 1.55, 0.18, sin(a) * 1.55), log, Vector3(0, -a, PI * 0.5))
-		b.rotation = Vector3(0, -a + PI * 0.5, PI * 0.5)
+		var a := TAU * float(i) / 3.0 + 0.55
+		var bench := Node3D.new()
+		bench.name = "Bench%d" % i
+		bench.position = Vector3(cos(a) * 1.65, 0, sin(a) * 1.65)
+		bench.rotation.y = -a + PI * 0.5
+		r.add_child(bench)
+		_box(bench, "Seat", Vector3(1.5, 0.12, 0.34), Vector3(0, 0.4, 0), bark)
+		_box(bench, "SeatTop", Vector3(1.46, 0.02, 0.28), Vector3(0, 0.47, 0), top)
+		for x: float in [-0.52, 0.52]:
+			_cyl(bench, "Stump", 0.13, 0.36, Vector3(x, 0.18, 0), bark)
+			_cyl(bench, "StumpEnd", 0.125, 0.012, Vector3(x, 0.362, 0), ends)
+		bench.set_meta("seat", [Vector3(-0.4, 0.47, 0), Vector3(0.4, 0.47, 0)])
+	# The woodpile: eight logs in a stack (the ones you throw on), ends out.
+	var pile := Node3D.new()
+	pile.name = "Woodpile"
+	pile.position = Vector3(1.7, 0, -1.25)
+	pile.rotation.y = 0.55
+	r.add_child(pile)
+	var n := 0
+	for row in 3:
+		for k in 4 - row:
+			if n >= 8:
+				break
+			var lg3 := Node3D.new()
+			lg3.name = "PileLog%d" % n
+			lg3.position = Vector3(-0.3 + float(k) * 0.2 + float(row) * 0.1, 0.09 + float(row) * 0.16, 0)
+			pile.add_child(lg3)
+			_cyl(lg3, "Log", 0.085, 0.62, Vector3.ZERO, bark, Vector3(PI * 0.5, 0, 0))
+			for z: float in [-0.311, 0.311]:
+				_cyl(lg3, "End", 0.083, 0.004, Vector3(0, 0, z), ends, Vector3(PI * 0.5, 0, 0))
+			n += 1
+	# Woodpile logs are the campfire's: it finds them as its parent's children.
+	for c in pile.get_children():
+		pile.remove_child(c)
+		r.add_child(c)
+		c.position = pile.transform * c.position
+		c.rotation.y = pile.rotation.y
+	# The chopping block, the axe in it, a few split chips.
+	_cyl(r, "Block", 0.24, 0.42, Vector3(-1.75, 0.21, -1.05), bark)
+	_cyl(r, "BlockTop", 0.235, 0.012, Vector3(-1.75, 0.422, -1.05), ends)
+	var axe := Node3D.new()
+	axe.name = "Axe"
+	axe.position = Vector3(-1.72, 0.43, -1.02)
+	axe.rotation = Vector3(0.0, 0.6, -0.5)
+	r.add_child(axe)
+	_box(axe, "Handle", Vector3(0.04, 0.62, 0.035), Vector3(0, 0.3, 0), _wood())
+	_box(axe, "Head", Vector3(0.16, 0.09, 0.03), Vector3(0.05, 0.02, 0), _metal())
+	for i in 5:
+		var chip := _box(r, "Chip%d" % i, Vector3(0.12, 0.025, 0.05), Vector3(-1.75 + rng.randf_range(-0.5, 0.5), 0.015, -1.05 + rng.randf_range(-0.5, 0.5)), ends)
+		chip.rotation.y = rng.randf() * TAU
 	return {"size": Vector3(1.8, 0.6, 1.8), "target": Vector3(0, 0.4, 0.8)}
 
 
