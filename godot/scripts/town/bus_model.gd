@@ -40,6 +40,10 @@ var _one: AudioStreamPlayer3D
 var _speed := 0.0
 var _wheel_turn := 0.0
 var _night := false
+## The driver out by the front door on his break, smoking (and his smoke).
+var _driver: Sprite3D
+var _puffs: Array[Sprite3D] = []
+var _puff_t := 0.0
 ## The sides' materials with their window masks, made once.
 static var _side_cache: Dictionary = {}
 
@@ -118,6 +122,53 @@ func play(path: String, db: float) -> void:
 	_one.play()
 
 
+## The driver gets out for a smoke while the bus stands at the end of the line.
+func set_driver_out(out: bool) -> void:
+	if _driver == null:
+		var path := "res://assets/textury/npc/town_driver.png"
+		if not ResourceLoader.exists(path):
+			return
+		_driver = Sprite3D.new()
+		_driver.texture = load(path)
+		_driver.pixel_size = 0.0145
+		_driver.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		_driver.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_driver.shaded = true
+		_driver.offset = Vector2(0, _driver.texture.get_height() * 0.5)
+		_driver.position = Vector3(WIDTH * 0.5 + 1.1, 0.0, DOOR_Z.x - 0.9)
+		add_child(_driver)
+		var body := StaticBody3D.new()
+		body.set_meta("building_type", "town_npc")
+		body.set_meta("who", "driver")
+		var shape := CollisionShape3D.new()
+		var cap := CapsuleShape3D.new()
+		cap.radius = 0.4
+		cap.height = 1.8
+		shape.shape = cap
+		shape.position = Vector3(0, 0.9, 0)
+		body.add_child(shape)
+		_driver.add_child(body)
+		for k in 4:
+			var puff := Sprite3D.new()
+			var img := Image.create(6, 6, false, Image.FORMAT_RGBA8)
+			for y in 6:
+				for x in 6:
+					var d := Vector2(x - 2.5, y - 2.5).length()
+					if d < 2.8 and (x + y) % 2 == 0 or d < 1.6:
+						img.set_pixel(x, y, Color(0.86, 0.86, 0.84, 0.7))
+			puff.texture = ImageTexture.create_from_image(img)
+			puff.pixel_size = 0.05
+			puff.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			puff.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			puff.visible = false
+			_driver.add_child(puff)
+			_puffs.append(puff)
+	_driver.visible = out
+	for c in _driver.get_children():
+		if c is StaticBody3D:
+			(c as StaticBody3D).process_mode = Node.PROCESS_MODE_INHERIT if out else Node.PROCESS_MODE_DISABLED
+
+
 func set_stop(stop: String) -> void:
 	if _click != null:
 		_click.set_meta("stop", stop)
@@ -158,6 +209,17 @@ func _process(delta: float) -> void:
 		rock = (0.002 if int(tick) % 2 == 0 else -0.002)
 	_body.rotation.z = rock
 	_idle.pitch_scale = 1.0 + minf(0.5, _speed / 20.0)
+	# His smoke: a puff every couple of seconds, rising and spreading in steps.
+	if _driver != null and _driver.visible:
+		_puff_t += delta
+		for i in _puffs.size():
+			var age := fmod(_puff_t + float(i) * 0.6, 2.4)
+			var p := _puffs[i]
+			p.visible = age < 1.8
+			var ps := floorf(age * 12.0) / 12.0
+			p.position = Vector3(0.12 + ps * 0.25, 1.62 + ps * 0.7, 0.0)
+			p.scale = Vector3.ONE * (0.6 + ps * 1.2)
+			p.modulate.a = clampf(1.0 - ps / 1.8, 0.0, 1.0)
 
 
 # ── the model ────────────────────────────────────────────────────────────────

@@ -29,6 +29,12 @@ const SFX_TOWN := "res://assets/sfx/town/"
 ## Opening hours (game hours): the Jednota, the pub, the kiosk; rooms at the motel from.
 const HOURS := {"jednota": [7.0, 17.0], "pub": [10.0, 23.0], "kiosk": [6.0, 21.0]}
 const MOTEL_FROM := 19.0
+const DRIVER_LINES := [
+	"Machine's inside. I don't do change.",
+	"Twenty years on the 380. I never once saw anybody get off at your camp after dark.",
+	"Five minutes. Then I go, with you or without you.",
+	"The works bus? Not mine. Nobody's, if you ask me.",
+]
 const MOTEL_PRICE := 15
 const MEMORIAL := "1914 - 1918, nine names. 1939 - 1945, four. Under them a newer brass plate, screwed on crooked: CERNE JEZERO 1994. No names. Somebody keeps it polished."
 const CHAPEL := "Locked. A card in the window: mass at nine on Sundays, the bell at noon and at six. Under it, in pencil: and at three in the morning, but that is not us."
@@ -50,6 +56,7 @@ var _town_bus
 ## it): stop -> {"mode": "hold"|"drop", "t": seconds, "pose", "leave"}.
 var _special: Dictionary = {}
 var _boarding_stop := ""
+var _driver_line := 0
 var pockets
 var _shop
 var _pub
@@ -147,7 +154,12 @@ func hint_for(structure: Node3D) -> String:
 		"town_read":
 			return "Read the memorial"
 		"town_pump":
-			return "Talk to Lojza"
+			var job = _town.spots["job"] if _town != null else null
+			if job != null and job.waiting_at(int(structure.get_meta("pump", 0))):
+				return "Fill the car"
+			if job != null and not job.on and _open("kiosk"):
+				return "Ask Lojza for work"
+			return ""
 		"town_door":
 			match str(structure.get_meta("door", "")):
 				"jednota":
@@ -180,17 +192,47 @@ func interact(structure: Node3D) -> void:
 		"trip_bus":
 			_board(str(structure.get_meta("stop", "camp")))
 		"town_npc":
-			var said: Array = _town.spots["people"].talk(str(structure.get_meta("who", "")), hour())
+			var who := str(structure.get_meta("who", ""))
+			if who == "driver":
+				_quote("Driver", DRIVER_LINES[_driver_line % DRIVER_LINES.size()])
+				_driver_line += 1
+				return
+			if who == "lojza" and _open("kiosk") and not _town.spots["job"].on:
+				_start_job()
+				return
+			var said: Array = _town.spots["people"].talk(who, hour())
 			_quote(str(said[0]), str(said[1]))
 		"town_read":
 			_say(MEMORIAL)
 		"town_pump":
-			if _open("kiosk"):
-				_quote("Lojza", "Grab a nozzle when a car pulls in. Green, yellow, black. Do not mix them up.")
-			else:
+			var job = _town.spots["job"]
+			var pump := int(structure.get_meta("pump", 0))
+			if not _open("kiosk"):
 				_quote("Lojza", "Come back when I have got cars. Mornings are best, the Tatra is gone by then.")
+			elif job.waiting_at(pump):
+				_set_player_controls(false)
+				job.serve(pump)
+			elif not job.on:
+				_start_job()
+			else:
+				_quote("Lojza", "Wait for one. They come.")
 		"town_door":
 			_door(str(structure.get_meta("door", "")))
+
+
+## Lojza's shift: cars come in off the road until you walk off or he shuts at nine.
+func _start_job() -> void:
+	var job = _town.spots["job"]
+	if not job.paid.is_connected(_on_job_paid):
+		job.paid.connect(_on_job_paid)
+		job._closeup_closed_hook = _on_closeup_closed
+	job.start_shift()
+	_quote("Lojza", "Right. Cars come in, you fill them. Green Natural, yellow Special, black diesel. Two dollars a car and whatever they tip. Mix them up and it is ten off you.")
+
+
+func _on_job_paid(amount: int, _line: String) -> void:
+	if amount != 0:
+		_say(("+$%d" % amount) if amount > 0 else ("-$%d" % -amount))
 
 
 func _quote(who: String, text: String) -> void:
@@ -302,7 +344,8 @@ func _say(text: String) -> void:
 ## A close-up or the bus of ours is open (InteriorManager counts it as a room).
 func is_open() -> bool:
 	return (_timetable != null and _timetable.visible) or (_ride != null and _ride.is_open()) \
-		or (_shop != null and _shop.visible) or (_pub != null and _pub.visible)
+		or (_shop != null and _shop.visible) or (_pub != null and _pub.visible) \
+		or (_town != null and _town.spots["job"].is_open())
 
 
 func close_interior() -> void:
@@ -314,6 +357,8 @@ func close_interior() -> void:
 		_shop.close_view()
 	if _pub != null and _pub.visible:
 		_pub.close_view()
+	if _town != null and _town.spots["job"].is_open():
+		_town.spots["job"].close()
 
 
 func set_time_state(_state: int) -> void:
@@ -349,8 +394,20 @@ func _process(delta: float) -> void:
 	if _town != null:
 		_run_stop("town", _town_bus, delta, h)
 		_town.spots["people"].update(h, delta)
+		_watch_job(h)
 	_update_village_sound(h)
 	_update_sleep(delta)
+
+
+## The shift ends when you walk off from the station or at nine.
+func _watch_job(h: float) -> void:
+	var job = _town.spots["job"]
+	if not job.on:
+		return
+	var p := _player()
+	var far: bool = p == null or p.global_position.distance_to(_town.w(Vector3(48.0, 0, 13.0))) > 32.0
+	if far or not _open("kiosk"):
+		_quote("Lojza", job.end_shift())
 
 
 ## In Lesna: the village around you (birds and a far dog by day, a lamp's hum and the
@@ -441,6 +498,9 @@ func _run_stop(stop: String, bus: Node3D, delta: float, h: float) -> void:
 		bus.set_stop(plan["stop_id"])
 		if arriving:
 			bus.play("res://assets/sfx/bus/arrive.mp3", 0.0)
+	# The driver smokes outside while it stands at the end of the line (the camp) or in
+	# Lesna before going up to the camp.
+	bus.set_driver_out(standing and plan["stop_id"] != "town_through")
 	if standing:
 		bus.global_transform = plan["pose"]
 		bus.set_speed(0.0)
@@ -502,6 +562,7 @@ func _make_runs(stop: String) -> Array:
 ## A bus held at the stop for you, or let off for you: by real seconds, not the clock.
 func _run_special(stop: String, bus: Node3D, sp: Dictionary, delta: float) -> void:
 	sp["t"] = float(sp.get("t", 0.0)) + delta
+	bus.set_driver_out(false)
 	if not bus.visible:
 		bus.set_running(true)
 		bus.destination = str(sp.get("dest", "LESNA"))
@@ -590,6 +651,7 @@ func _on_ride_arrived() -> void:
 	var bus = _camp_bus if from == "camp" else _town_bus
 	if bus != null:
 		bus.set_running(false)
+		bus.set_driver_out(false)
 	if from == "camp":
 		_ensure_town()
 		_put_player(_town.arrive_spot())

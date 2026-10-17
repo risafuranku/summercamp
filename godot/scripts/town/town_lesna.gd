@@ -13,6 +13,7 @@ extends Node3D
 
 const TEX := "res://assets/textury/town/"
 const PEOPLE_SCRIPT = preload("res://scripts/town/town_people.gd")
+const PUMP_JOB = preload("res://scripts/town/pump_job.gd")
 const TEX_CAMP := "res://assets/textury/camp/"
 const ORIGIN := Vector3(4200.0, 0.0, 0.0)
 ## The walkable village: x and z extents.
@@ -50,6 +51,13 @@ func build(p_worldgen: Node) -> void:
 	add_child(people)
 	people.build()
 	spots["people"] = people
+	var job = PUMP_JOB.new()
+	add_child(job)
+	var local_pumps: Array = []
+	for pw in spots.get("pumps", []):
+		local_pumps.append((pw as Vector3) - ORIGIN)
+	job.setup(local_pumps)
+	spots["job"] = job
 
 
 # ── where things are (world space) ───────────────────────────────────────────
@@ -529,11 +537,13 @@ func _hotspots() -> void:
 	_click(Vector3(50.0, 1.1, 18.9), Vector3(1.6, 2.2, 0.4), "town_door", "kiosk")
 	_click(Vector3(-28.0, 1.3, -18.4), Vector3(1.6, 2.6, 0.4), "town_door", "chapel")
 	_click(Vector3(4.0, 1.4, -27.6), Vector3(1.2, 2.2, 0.8), "town_read", "memorial")
-	for p in spots.get("pumps", []):
-		_click((p as Vector3) - ORIGIN + Vector3(0, 1.0, 1.2), Vector3(1.0, 1.8, 0.8), "town_pump", "pump")
+	var pumps: Array = spots.get("pumps", [])
+	for i in pumps.size():
+		var body := _click((pumps[i] as Vector3) - ORIGIN + Vector3(0, 1.0, 1.2), Vector3(1.0, 1.8, 0.8), "town_pump", "pump")
+		body.set_meta("pump", i)
 
 
-func _click(pos: Vector3, size: Vector3, kind: String, what: String) -> void:
+func _click(pos: Vector3, size: Vector3, kind: String, what: String) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.collision_layer = 1 << 11
 	body.collision_mask = 0
@@ -546,6 +556,7 @@ func _click(pos: Vector3, size: Vector3, kind: String, what: String) -> void:
 	body.add_child(shape)
 	body.position = pos
 	add_child(body)
+	return body
 
 
 # ── the night ───────────────────────────────────────────────────────────────
