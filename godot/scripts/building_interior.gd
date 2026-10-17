@@ -1461,6 +1461,31 @@ func _exit_tree() -> void:
 		_crt_sharp_layer.queue_free()
 
 
+## Shot driver: a point on the OS screen (CRT viewport pixels) to the game window, through
+## the curved glass (inverts the barrel by a few steps of fixed-point iteration).
+func debug_crt_to_window(p: Vector2) -> Vector2:
+	if _crt_sharp == null or _crt_sharp_pts.is_empty():
+		return Vector2(-1, -1)
+	var target := p / Vector2(CRT_RESOLUTION)
+	var g := target
+	for i in 8:
+		g += target - _crt_barrel(g)
+	# Bilinear on the projected grid.
+	var gx := CRT_SHARP_GRID.x
+	var gy := CRT_SHARP_GRID.y
+	var fx := clampf(g.x * gx, 0.0, gx - 0.001)
+	var fy := clampf(g.y * gy, 0.0, gy - 0.001)
+	var ix := int(fx)
+	var iy := int(fy)
+	var tx := fx - ix
+	var ty := fy - iy
+	var a: Vector2 = _crt_sharp_pts[iy * (gx + 1) + ix]
+	var b: Vector2 = _crt_sharp_pts[iy * (gx + 1) + ix + 1]
+	var c: Vector2 = _crt_sharp_pts[(iy + 1) * (gx + 1) + ix]
+	var d: Vector2 = _crt_sharp_pts[(iy + 1) * (gx + 1) + ix + 1]
+	return a.lerp(b, tx).lerp(c.lerp(d, tx), ty)
+
+
 ## The glass point (0..1) to the picture point: the barrel the tube shaders draw with.
 static func _crt_barrel(uv: Vector2) -> Vector2:
 	var c := uv - Vector2(0.5, 0.5)

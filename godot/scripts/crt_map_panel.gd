@@ -175,6 +175,10 @@ var _last_pan_motion := 0.0
 ## The site in miniature, top right (RCT's map window): a pixel a tile, rebuilt with the
 ## static layer, the view's outline on it; click it to go there.
 var _mini_img: Image
+## Construction feedback: the wave, the local grid, outlines, ripples (builder_fx.gd).
+var _bfx = preload("res://scripts/builder_fx.gd").new()
+## Guest miniatures: archetype -> {height px: ImageTexture}, scaled once from the sprites.
+var _guest_minis: Dictionary = {}
 var _mini_tex: ImageTexture
 var _mini_rect := Rect2()
 const MINI_PX := 3.0
@@ -214,12 +218,30 @@ func _ready() -> void:
 	_emit_status("Select a tool to begin.")
 
 
-func _on_world_placed(_id: String, _o: Vector2i, _f: Vector2i, _r: int) -> void:
+func _on_world_placed(id: String, o: Vector2i, f: Vector2i, _r: int) -> void:
 	_static_dirty = true
+	if id != "tree" and id != "corn" and is_visible_in_tree():
+		_bfx.built(_footprint_cells(o, f))
 
 
-func _on_world_removed(_o: Vector2i) -> void:
+func _on_world_removed(o: Vector2i) -> void:
 	_static_dirty = true
+	if is_visible_in_tree():
+		_bfx.built([o], true)
+
+
+func _footprint_cells(o: Vector2i, f: Vector2i) -> Array:
+	var out: Array = []
+	for y in range(maxi(1, f.y)):
+		for x in range(maxi(1, f.x)):
+			out.append(o + Vector2i(x, y))
+	return out
+
+
+## Grid cell (fractional) to the panel, as the map stands now.
+func _cell_iso(c: Vector2) -> Vector2:
+	var iso = _compute_iso_layout(int(grid_manager.grid_width), int(grid_manager.grid_height))
+	return _cell_to_iso_f(c, iso.origin, iso.tile_w, iso.tile_h)
 
 
 func setup(new_grid_manager, new_building_manager) -> void:
@@ -274,6 +296,7 @@ func _process(delta: float) -> void:
 	if not is_visible_in_tree():
 		return
 	_time += delta
+	_bfx.tick(delta)
 	for i in range(_fx.size() - 1, -1, -1):
 		_fx[i]["t"] = float(_fx[i]["t"]) + delta
 		if float(_fx[i]["t"]) >= float(_fx[i]["life"]):
@@ -288,6 +311,8 @@ func _process(delta: float) -> void:
 	if hover_coord != _last_hover:
 		_last_hover = hover_coord
 		hover_info.emit(_describe(hover_coord))
+		if selected_building != "":
+			_bfx.point_at(hover_coord)
 	_update_zoom(delta)
 	_update_inertia(delta)
 	_update_static(delta)
@@ -819,13 +844,18 @@ func _draw_dynamic() -> void:
 		lights.append([_s2d(l[0]), l[1]])
 	_draw_night(lights, tile_w, tile_h)
 	_draw_fx(origin, tile_w, tile_h)
+	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
+	var valid_c := Callable(self, "_is_valid_coord")
+	if selected_building != "":
+		_bfx.draw_grid(_cv, iso_c, valid_c, hover_coord, tile_w, tile_h)
+		_bfx.draw_wave(_cv, iso_c, valid_c, tile_w, tile_h)
+	_bfx.draw_ripples(_cv, iso_c, tile_w, tile_h)
 	_draw_path_drag_preview(origin, tile_w, tile_h)
 	_draw_ghost_preview(origin, tile_w, tile_h)
 	_draw_demolish_preview(origin, tile_w, tile_h)
-	if _is_valid_coord(hover_coord):
-		var hover_center = _grid_to_iso(hover_coord, origin, tile_w, tile_h)
+	if _is_valid_coord(hover_coord) and (selected_building == "" or selected_building == "path"):
 		var pulse := 0.75 + 0.25 * sin(_time * 6.0)
-		_draw_diamond(hover_center, tile_w, tile_h, Color(HOVER_FILL.r, HOVER_FILL.g, HOVER_FILL.b, HOVER_FILL.a * pulse), HOVER_LINE, 1.8)
+		_bfx.draw_area(_cv, iso_c, [hover_coord], tile_w, tile_h, Color(0.55, 0.85, 1.0, pulse), _time, false, 0.16 * pulse)
 	_draw_rotation_panel()
 	_draw_minimap(origin, tile_w, tile_h)
 	_draw_hover_card()
@@ -898,13 +928,24 @@ func _draw_minimap(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	_cv.draw_set_transform_matrix(Transform2D.IDENTITY)
 	# The view: the panel's corners in display cells, on the little map.
 	var pts := PackedVector2Array()
+	# Held inside the minimap's frame (zoomed out, the view is bigger than the map and the
+	# outline ran across the whole Builder).
+	var dims_v := Vector2(_mini_img.get_width(), _mini_img.get_height()) if _mini_img != null else Vector2(28, 28)
 	for q in [Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y), Vector2.ZERO]:
 		var dlt: Vector2 = q - origin
 		var ua := dlt.x / (tile_w * 0.5)
 		var vb := dlt.y / (tile_h * 0.5)
 		var cell := Vector2((ua + vb) * 0.5 + 0.5, (vb - ua) * 0.5 + 0.5)
+		cell = Vector2(clampf(cell.x, -0.5, dims_v.x + 0.5), clampf(cell.y, -0.5, dims_v.y + 0.5))
 		pts.append(xf * cell)
 	_cv.draw_polyline(pts, Color(1.0, 1.0, 0.6, 0.9), 1.0)
+
+
+## Shot driver: put a cell in the middle of the view.
+func debug_center_on(cell: Vector2i) -> void:
+	_pan_offset += size * 0.5 - _cell_iso(Vector2(cell))
+	_pan_vel = Vector2.ZERO
+	_clamp_pan_offset_for_current_map()
 
 
 ## Click on the minimap: that spot to the middle of the view.
@@ -1118,6 +1159,10 @@ func _display_cell_f(c: Vector2) -> Vector2:
 
 
 ## Same projection as _grid_to_iso, for fractional cells.
+func _cell_iso_fast(c: Vector2, origin: Vector2, tile_w: float, tile_h: float) -> Vector2:
+	return _cell_to_iso_f(c, origin, tile_w, tile_h)
+
+
 func _cell_to_iso_f(c: Vector2, origin: Vector2, tile_w: float, tile_h: float) -> Vector2:
 	var d := _display_cell_f(c)
 	return origin + Vector2((d.x - d.y) * tile_w * 0.5, (d.x + d.y) * tile_h * 0.5)
@@ -1137,7 +1182,52 @@ func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_
 
 ## A guest as RCT drew them: a few pixels tall, shirt colour by archetype, head,
 ## legs that scissor when walking. Sized to the tile so zoom keeps proportions.
+const GUEST_SPRITES := {
+	"quiet_guy": "res://assets/textury/npc/host1.png", "drunk": "res://assets/textury/npc/host2.png",
+	"cheap_chick": "res://assets/textury/npc/host3.png", "tramp": "res://assets/textury/npc/host_tramp.png",
+	"family": "res://assets/textury/npc/host_family.png", "picker": "res://assets/textury/npc/host_pensioner.png",
+}
+
+
+## The guest's sprite brought down to `h` pixels tall once (smooth, then drawn 1:1 so it
+## stays crisp), for each archetype and size.
+func _guest_mini(archetype: String, h: int) -> Texture2D:
+	var key := archetype if GUEST_SPRITES.has(archetype) else "quiet_guy"
+	var by: Dictionary = _guest_minis.get(key, {})
+	if by.has(h):
+		return by[h]
+	var path: String = GUEST_SPRITES[key]
+	if not ResourceLoader.exists(path):
+		return null
+	var img := (load(path) as Texture2D).get_image()
+	if img.is_compressed():
+		img.decompress()
+	var w := maxi(2, int(round(float(img.get_width()) * float(h) / float(img.get_height()))))
+	img.resize(w, h, Image.INTERPOLATE_LANCZOS)
+	# Hard alpha: no fringe at this size.
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			c.a = 1.0 if c.a > 0.45 else 0.0
+			img.set_pixel(x, y, c)
+	var tex := ImageTexture.create_from_image(img)
+	by[h] = tex
+	_guest_minis[key] = by
+	return tex
+
+
 func _draw_guest(e: Dictionary, tile_h: float) -> void:
+	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
+	var tex := _guest_mini(str(e["archetype"]), mini_h) if not e.has("extra") else null
+	if tex != null:
+		var bob := 0.0
+		if bool(e["moving"]):
+			bob = -1.0 if fmod(_guest_time * 6.0 + float(e["phase"]), 2.0) < 1.0 else 0.0
+		var foot: Vector2 = Vector2(e["pos"]).floor()
+		var sz := tex.get_size()
+		_cv.draw_rect(Rect2(foot + Vector2(-sz.x * 0.4, -1.0), Vector2(sz.x * 0.8, 2.0)), Color(0, 0, 0, 0.35))
+		_cv.draw_texture(tex, (foot - Vector2(sz.x * 0.5, sz.y - bob)).floor())
+		return
 	var u := maxf(2.0, roundf(tile_h * 0.12))
 	var p: Vector2 = (Vector2(e["pos"]) / u).floor() * u
 	var shirt: Color = GUEST_SHIRTS.get(str(e["archetype"]), Color(0.55, 0.52, 0.48))
@@ -1295,15 +1385,15 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	var can_fit = _can_place(coord, footprint, selected_building)
 	var can_afford = _has_money(selected_building)
 	var can_place = can_fit and can_afford
-	var fill = GHOST_OK_FILL if can_place else GHOST_BAD_FILL
-	var line = GHOST_OK_LINE if can_place else GHOST_BAD_LINE
+	var cells: Array = []
 	for oy in range(footprint.y):
 		for ox in range(footprint.x):
 			var c = coord + Vector2i(ox, oy)
-			if not _is_valid_coord(c):
-				continue
-			var c_center = _grid_to_iso(c, origin, tile_w, tile_h)
-			_draw_diamond(c_center, tile_w, tile_h, fill, line, 1.8)
+			if _is_valid_coord(c):
+				cells.append(c)
+	var iso_g := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
+	var col := Color(0.55, 0.85, 1.0) if can_place else (Color(1.0, 0.78, 0.36) if can_fit else Color(1.0, 0.36, 0.3))
+	_bfx.draw_area(_cv, iso_g, cells, tile_w, tile_h, col, _time, not can_fit, 0.2 if can_place else 0.26)
 
 	var center = _footprint_center_iso(coord, footprint, origin, tile_w, tile_h)
 	var icon_key = _icon_key_for_type(selected_building)
@@ -1317,7 +1407,7 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	# The price on a little tag, red when it does not fit or you cannot pay.
 	var tag := "$%d" % _get_cost(selected_building)
 	if not can_fit:
-		tag = "Blocked"
+		tag = _blocked_reason(coord, footprint)
 	elif not can_afford:
 		tag = "$%d - no money" % _get_cost(selected_building)
 	var tw := T.FONT.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
@@ -1330,13 +1420,11 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 func _draw_path_drag_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	if _path_preview.is_empty():
 		return
+	var cells: Array = []
 	for coord in _path_preview.keys():
-		if not (coord is Vector2i):
-			continue
-		if not _is_valid_coord(coord):
-			continue
-		var center = _grid_to_iso(coord, origin, tile_w, tile_h)
-		_draw_diamond(center, tile_w, tile_h, Color(0.24, 0.56, 0.96, 0.22), Color(0.58, 0.82, 1.0, 0.90), 1.4)
+		if coord is Vector2i and _is_valid_coord(coord):
+			cells.append(coord)
+	_bfx.draw_area(_cv, Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h), cells, tile_w, tile_h, Color(1.0, 0.78, 0.36), _time, false, 0.24)
 
 
 func _draw_demolish_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
@@ -1350,20 +1438,22 @@ func _draw_demolish_preview(origin: Vector2, tile_w: float, tile_h: float) -> vo
 func _draw_demolish_cells(rect: Rect2i, origin: Vector2, tile_w: float, tile_h: float, fill: Color, line: Color) -> void:
 	if rect.size.x <= 0 or rect.size.y <= 0:
 		return
+	var cells: Array = []
 	for y in range(rect.position.y, rect.position.y + rect.size.y):
 		for x in range(rect.position.x, rect.position.x + rect.size.x):
 			var coord = Vector2i(x, y)
-			if not _is_valid_coord(coord):
-				continue
-			var center = _grid_to_iso(coord, origin, tile_w, tile_h)
-			_draw_diamond(center, tile_w, tile_h, fill, line, 1.8)
+			if _is_valid_coord(coord):
+				cells.append(coord)
+	# The bulldozer's ground: red, hatched, the light running round it.
+	_bfx.draw_area(_cv, Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h), cells, tile_w, tile_h, Color(1.0, 0.42, 0.32), _time, true, fill.a)
 
 
 func _draw_rotation_panel() -> void:
 	if selected_building == "" or not _supports_rotation(selected_building):
 		return
 	var panel_size = Vector2(70.0, 76.0)
-	var panel_pos = Vector2(size.x - panel_size.x - 6.0, 6.0)
+	# Bottom right: the minimap has the top right.
+	var panel_pos = Vector2(size.x - panel_size.x - 6.0, size.y - panel_size.y - 6.0)
 	var panel_rect = Rect2(panel_pos, panel_size)
 	_cv.draw_style_box(T.box("window", T.FACE, Vector4.ZERO), panel_rect)
 
@@ -1549,6 +1639,36 @@ func _is_valid_coord(coord: Vector2i) -> bool:
 	return grid_manager != null and grid_manager.is_in_bounds(coord)
 
 
+## Why a footprint cannot go here, in a word or two, for the ghost's tag.
+func _blocked_reason(coord: Vector2i, footprint: Vector2i) -> String:
+	for oy in range(footprint.y):
+		for ox in range(footprint.x):
+			var c := coord + Vector2i(ox, oy)
+			if not _is_valid_coord(c):
+				return "Off the site"
+			var tile = grid_manager.get_tile(c)
+			if tile == null:
+				continue
+			if tile.tile_type == grid_manager.TILE_LAKE:
+				return "Water"
+			if tile.tile_type == grid_manager.TILE_RESERVED and not tile.occupied:
+				return "Entrance: keep clear"
+			if tile.occupied and tile.occupant != null:
+				var root = _resolve_occupant_root(tile.occupant)
+				if root != null and root.is_in_group("trees"):
+					return "Trees: bulldoze first"
+				if root != null and root.is_in_group("corn"):
+					return "Corn: bulldoze first"
+				var t := str(root.get_meta("building_type", "")) if root != null else ""
+				return "Taken: %s" % _nice_name(t) if t != "" else "Taken"
+	return "Blocked"
+
+
+func _nice_name(t: String) -> String:
+	var names := {"path": "path", "main_building": "reception", "lamp_post": "lamp", "toilet_block": "toilets", "shower_block": "showers"}
+	return str(names.get(t, t.replace("_", " ").trim_suffix(" 1").trim_suffix(" 2").trim_suffix(" 3")))
+
+
 func _can_place(coord: Vector2i, footprint: Vector2i, _building_type: String) -> bool:
 	if grid_manager == null:
 		return false
@@ -1684,14 +1804,10 @@ func _compute_iso_layout(grid_w: int, grid_h: int) -> Dictionary:
 
 	var map_w = float(draw_w + draw_h) * tile_w * 0.5
 	var map_h = float(draw_w + draw_h) * tile_h * 0.5
-	var visual_w = map_w + tile_w * MAP_VISUAL_PADDING
-	var visual_h = map_h + tile_h * MAP_VISUAL_PADDING * 1.35
-	var max_pan_x = max(0.0, (visual_w - size.x) * 0.5)
-	var max_pan_y = max(0.0, (visual_h - size.y) * 0.5)
-	_pan_offset.x = clamp(_pan_offset.x, -max_pan_x, max_pan_x)
-	_pan_offset.y = clamp(_pan_offset.y, -max_pan_y, max_pan_y)
 	var map_top_left = Vector2((size.x - map_w) * 0.5, (size.y - map_h) * 0.5)
-	var origin = map_top_left + Vector2(float(draw_h) * tile_w * 0.5, tile_h * 0.5) + _pan_offset
+	var origin0: Vector2 = map_top_left + Vector2(float(draw_h) * tile_w * 0.5, tile_h * 0.5)
+	_pan_offset = _pan_on_map(_pan_offset, origin0, tile_w, tile_h, Vector2(draw_w, draw_h))
+	var origin = origin0 + _pan_offset
 	return {
 		"tile_w": tile_w,
 		"tile_h": tile_h,
@@ -1706,25 +1822,25 @@ func _clamp_pan_offset_for_current_map() -> void:
 	var grid_h: int = int(grid_manager.grid_height)
 	if grid_w <= 0 or grid_h <= 0:
 		return
-	var draw_dims = _display_grid_dimensions(grid_w, grid_h)
-	var draw_w = max(1, draw_dims.x)
-	var draw_h = max(1, draw_dims.y)
-	var margin = clamp(min(size.x, size.y) * 0.018, 2.0, 16.0)
-	var available_w = max(40.0, size.x - (margin * 2.0))
-	var available_h = max(40.0, size.y - (margin * 2.0))
-	var tile_w_by_width = (available_w * 2.0) / float(draw_w + draw_h)
-	var tile_w_by_height = (available_h * 4.0) / float(draw_w + draw_h)
-	var tile_w = max(7.0, min(tile_w_by_width, tile_w_by_height))
-	tile_w = clamp(tile_w * _zoom_level, 6.0, 120.0)
-	var tile_h = tile_w * 0.5
-	var map_w = float(draw_w + draw_h) * tile_w * 0.5
-	var map_h = float(draw_w + draw_h) * tile_h * 0.5
-	var visual_w = map_w + tile_w * MAP_VISUAL_PADDING
-	var visual_h = map_h + tile_h * MAP_VISUAL_PADDING * 1.35
-	var max_pan_x = max(0.0, (visual_w - size.x) * 0.5)
-	var max_pan_y = max(0.0, (visual_h - size.y) * 0.5)
-	_pan_offset.x = clamp(_pan_offset.x, -max_pan_x, max_pan_x)
-	_pan_offset.y = clamp(_pan_offset.y, -max_pan_y, max_pan_y)
+	_compute_iso_layout(grid_w, grid_h)
+
+
+## The pan, kept so the middle of the view is always over the map (playtest 2026-10-17:
+## "textures vanish when zooming in": zooming at the cursor near an edge used to slide the
+## view off the diamond into an empty corner of its bounding box, all black). The middle of
+## the view, in display cells, is held inside the grid; the map can still run off the
+## sides of the view, but never out from under it.
+func _pan_on_map(pan: Vector2, origin0: Vector2, tile_w: float, tile_h: float, dims: Vector2) -> Vector2:
+	var mid := size * 0.5
+	var d := mid - (origin0 + pan)
+	var ua := d.x / (tile_w * 0.5)
+	var vb := d.y / (tile_h * 0.5)
+	var cell := Vector2((ua + vb) * 0.5 + 0.5, (vb - ua) * 0.5 + 0.5)
+	var held := Vector2(clampf(cell.x, 0.0, dims.x), clampf(cell.y, 0.0, dims.y))
+	if held.is_equal_approx(cell):
+		return pan
+	var at := Vector2((held.x - 0.5 - (held.y - 0.5)) * tile_w * 0.5, (held.x - 0.5 + held.y - 0.5) * tile_h * 0.5)
+	return mid - origin0 - at
 
 
 func _display_grid_dimensions(grid_w: int, grid_h: int) -> Vector2i:

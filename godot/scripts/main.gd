@@ -1778,6 +1778,45 @@ func debug_event_spot(kind: String) -> Array:
 	return [pos, cell, what, ev.get("coord")]
 
 
+## Shot driver: the open Builder's map panel (or null).
+func debug_builder_map() -> Node:
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	var ui = bi.get("_crt_ui") if bi != null else null
+	if ui == null:
+		return null
+	for n in ui.find_children("*", "Control", true, false):
+		if n.get_script() == load("res://scripts/crt_map_panel.gd"):
+			return n
+	return null
+
+
+## Shot driver: close the OS's message boxes (the shareware nag).
+func debug_close_msgboxes() -> int:
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	var ui = bi.get("_crt_ui") if bi != null else null
+	if ui == null:
+		return 0
+	var n := 0
+	for w in ui.get("_windows").get_children():
+		if str(w.get("app_id")) == "msg":
+			ui.call("_close_window", w) if ui.has_method("_close_window") else w.queue_free()
+			n += 1
+	return n
+
+
+## Shot driver: the mouse over a Builder cell (the OS draws the map on the monitor).
+func debug_mouse_to_builder_cell(cell: Vector2i) -> Vector2:
+	var m := debug_builder_map()
+	var bi = _interior_manager.get("_building_interior")
+	if m == null or bi == null:
+		return Vector2(-1, -1)
+	var local: Vector2 = m.call("_cell_iso", Vector2(cell))
+	var crt_pos: Vector2 = (m as Control).get_global_transform() * local
+	var win: Vector2 = bi.call("debug_crt_to_window", crt_pos)
+	get_viewport().warp_mouse(win)
+	return win
+
+
 ## Shot driver: a key press or release for Input.parse_input_event.
 func debug_key_event(key: int, pressed: bool) -> InputEventKey:
 	var k := InputEventKey.new()
