@@ -42,6 +42,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Screen-space objective marker | ✅ | edge arrow when off-screen / behind |
 | Low-res render + 256-colour palette, settings presets | ✅ | |
 | Window title / logo "Cursed Camp Manager Simulator" | ✅ | |
+| Studio splash: UNDO LABS, POWERED BY GODOT | ✅ | neon signs on a cabin wall at night (Build palette with the mosaic's ramps, shade-stepped light): the mosaic strikes diagonal by diagonal, the view slides down the cable to the Godot robot, then the power goes (the camp's power-out sound); plays while main.tscn loads; the engine boot image is its first frame; any key skips to the cut |
 
 ### Day: management
 

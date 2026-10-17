@@ -133,6 +133,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Which enemy an archetype brings | `main.ENEMY_FOR_ARCHETYPE` + `scripts/enemies/` |
 | HUD | `scripts/hud_manager.gd` (+ `scripts/ui/retro_ui.gd` kit) |
 | Menus / pause / game over | `scripts/ui/` |
+| Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The camp computer (desktop, boot, windows) | `scripts/os98/os_shell.gd`, look: `os_theme.gd` |
 | Its programs (CampMail, Beeternet, CampStat, GuestRack, Setup…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` + `crt_map_panel.gd` |
 | Web pages, the files on its disk | `scripts/os98/web_pages.gd`, `scripts/os98/os_files.gd` |
@@ -218,6 +219,10 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   driver's `clear` splits it); build rejections print as `SHOT DRIVER build rejected`.
 - **The OS boot takes ~13 s** (warm-up, BIOS, maker's screen, Okna): harness waits must be
   longer than that, and a test that skips itself when an app does not open must fail.
+- **The first scene is the studio splash** (`scenes/studio_splash.tscn`), not main.tscn:
+  it loads main.tscn on a thread and changes to it (headless runs skip it at once). The
+  engine boot image `assets/boot/undo_labs_boot.png` is its first frame: re-bake it
+  (`tools/studio_splash_bake.gd -- --boot`) after changing the sign, wall or shader.
 - **Physics ignores visibility**: hidden rooms' bodies still catch rays. Disable a hotspot's
   `collision_layer` when its thing is absent (the empty counter spot stood before the door).
 - **Load textures outside draw callbacks**: a texture first `load()`ed inside a `_draw`
