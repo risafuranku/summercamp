@@ -86,6 +86,17 @@ const CUSTOMER_ARCHETYPES: Dictionary = {
 
 ## What they write. %s placeholders: beds, nights, arrival time, name. The archetype
 ## shows in how they write, not in a label; the booking card has the numbers.
+## Where they would like to sleep, as a P.S. in their own voice (the tastes are
+## GuestNeedsSystem.LODGING_TASTE: the key you give at the desk is what they get).
+const LODGING_WISHES := {
+	ARCHETYPE_QUIET_GUY: ["A cabin would be best. Somewhere I cannot hear the others.", "Not a tent, if it can be helped. I sleep badly under canvas."],
+	ARCHETYPE_DRUNK: ["a caravan with a fridge would be MINT", "we sleep anywhere honestly. just not next to any grannies"],
+	ARCHETYPE_CHEAP_CHICK: ["A room with its OWN shower pleeease!!", "Please not a tent, we are not animals :D", "Is the caravan with the little lights free??"],
+	ARCHETYPE_TRAMP: ["A tent is fine. The more canvas the better.", "No need for walls. A tent near the fire."],
+	ARCHETYPE_FAMILY: ["The children are begging for a caravan with bunk beds.", "Somewhere warm for the kids, please, not a tent."],
+	ARCHETYPE_PICKER: ["A proper cabin, please. My back cannot do a tent any more.", "Somewhere quiet, away from any young men. We go to bed at eight."],
+}
+
 const BOOKING_LETTERS := {
 	ARCHETYPE_QUIET_GUY: [
 		"Good day,\n\nI would like a bed for %d person(s), %d night(s). I arrive around %s by bus. I need nothing special. A quiet place, if you have one.\n\nThank you.\n%s",
@@ -776,6 +787,9 @@ func _build_customer_mail(archetype_id: String, day: int, hour: int) -> Dictiona
 
 	var letters: Array = BOOKING_LETTERS.get(archetype_id, BOOKING_LETTERS[ARCHETYPE_QUIET_GUY])
 	var letter := str(letters[_rng.randi_range(0, letters.size() - 1)]) % [party_size, stay_nights, arrival_time, lead_name]
+	var wishes: Array = LODGING_WISHES.get(archetype_id, [])
+	if not wishes.is_empty() and _rng.randf() < 0.75:
+		letter += "\n\nP.S. " + str(wishes[_rng.randi_range(0, wishes.size() - 1)])
 
 	return _new_mail_dict({
 		"sender": sender,

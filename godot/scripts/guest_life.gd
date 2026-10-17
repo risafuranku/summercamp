@@ -196,6 +196,7 @@ func advance_all(state, now_abs: int, is_night_at: Callable, weirdness: float) -
 		return false
 	_prune_threats(now_abs)
 	_rebuild_usage(state.guests)
+	_collect_noise(state.guests)
 	var changed := false
 	for i in state.guests.size():
 		var guest_any = state.guests[i]
@@ -249,9 +250,11 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 		var dwelling := t >= int(act.get("arrive", t))
 		var sleeping := dwelling and (kind == "sleep" or kind == "rest")
 		var here := _parse_key(str(act.get("to", guest.get("tile", "")))) if dwelling else _parse_key(str(guest.get("tile", "")))
+		# Singing next door: a light sleeper near a drunk party sleeps badly.
+		var seg_comfort := comfort - (_noise_for(guest, t) if sleeping and night_now else 0.0)
 		var context := {
 			"sleeping": sleeping,
-			"comfort": comfort if kind == "sleep" else comfort * 0.8,
+			"comfort": seg_comfort if kind == "sleep" else seg_comfort * 0.8,
 			"is_night": night_now,
 			"lit": _is_lit(here),
 			"threat": _threat_at(here, t),
@@ -259,7 +262,7 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 		}
 		var needs: Dictionary = NEEDS.decay_needs(guest["needs"], archetype, minutes, context)
 		guest["needs"] = needs
-		var target_mood := NEEDS.mood_target(needs, archetype, comfort)
+		var target_mood := NEEDS.mood_target(needs, archetype, seg_comfort)
 		guest["mood"] = NEEDS.step_mood(float(guest.get("mood", 60.0)), target_mood, minutes)
 		_track_unhappiness(guest, int(minutes), t, night_now)
 		t = seg_end
@@ -547,16 +550,67 @@ func lodging_coord(guest: Dictionary) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+## The lodging's own comfort, and what this kind of guest makes of it (LODGING_TASTE).
 func lodging_comfort(guest: Dictionary) -> float:
 	var slots: Array = guest.get("lodging_slots", []) if guest.get("lodging_slots", []) is Array else []
+	var archetype := str(guest.get("archetype", ""))
 	for slot_any in slots:
 		if slot_any is Dictionary:
 			var type := str((slot_any as Dictionary).get("building_type", ""))
 			if CoreRoot != null and CoreRoot.registry != null:
 				var def = CoreRoot.registry.get_def(StringName(type))
 				if def != null:
-					return float(def.comfort)
+					return clampf(float(def.comfort) + NEEDS.lodging_taste(archetype, type), 0.0, 100.0)
 	return 40.0
+
+
+func lodging_type(guest: Dictionary) -> String:
+	var slots: Array = guest.get("lodging_slots", []) if guest.get("lodging_slots", []) is Array else []
+	for slot_any in slots:
+		if slot_any is Dictionary:
+			return str((slot_any as Dictionary).get("building_type", ""))
+	return ""
+
+
+## The noisy parties' lodgings this step: [{id, coord, loud}].
+var _noise_sources: Array = []
+
+
+func _collect_noise(guests: Array) -> void:
+	_noise_sources.clear()
+	for g_any in guests:
+		if not (g_any is Dictionary):
+			continue
+		var g: Dictionary = g_any
+		var loud := float(NEEDS.NOISY.get(str(g.get("archetype", "")), 0.0))
+		if loud <= 0.0 or not (str(g.get("status", "")) in ["active", "sleep"]):
+			continue
+		var c := lodging_coord(g)
+		if c.x >= 0:
+			_noise_sources.append({"id": int(g.get("id", -1)), "coord": c, "loud": loud})
+
+
+## Comfort lost to a noisy party nearby, from nine in the evening to three in the night.
+func _noise_for(guest: Dictionary, t: int) -> float:
+	var sens := float(NEEDS.LIGHT_SLEEPERS.get(str(guest.get("archetype", "")), 0.0))
+	if sens <= 0.0 or _noise_sources.is_empty():
+		return 0.0
+	var hour := float(t % 1440) / 60.0
+	if hour >= 3.0 and hour < 21.0:
+		return 0.0
+	var mine := lodging_coord(guest)
+	if mine.x < 0:
+		return 0.0
+	for src in _noise_sources:
+		if int(src["id"]) == int(guest.get("id", -1)):
+			continue
+		var c: Vector2i = src["coord"]
+		if c == mine:
+			continue
+		if maxi(absi(c.x - mine.x), absi(c.y - mine.y)) <= NEEDS.NOISE_RANGE_TILES:
+			guest["noisy_night"] = true
+			return NEEDS.NOISE_COMFORT * sens * float(src["loud"])
+	return 0.0
 
 
 func _door_tile(facility: Dictionary, from: Vector2i) -> Vector2i:
@@ -662,6 +716,10 @@ func _say(guest: Dictionary, text: String, t: int) -> void:
 
 func _morning_thought(guest: Dictionary) -> String:
 	var needs: Dictionary = guest.get("needs", {})
+	if bool(guest.get("noisy_night", false)):
+		guest.erase("noisy_night")
+		guest["complaints"] = int(guest.get("complaints", 0)) + 1
+		return ["Somebody was singing next door until three.", "Those lads next door. All night. ALL night.", "Put the drunks further away from us, please."][_rng.randi_range(0, 2)]
 	if float(needs.get("safety", 80.0)) < 40.0:
 		return "Something walked past the tent all night. I'm not imagining it."
 	if float(needs.get("energy", 50.0)) < 45.0:

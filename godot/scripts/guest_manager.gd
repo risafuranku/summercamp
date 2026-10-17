@@ -642,6 +642,14 @@ func _check_in(guest: Dictionary, now_abs: int) -> void:
 	_life.refresh_world(CoreRoot.get_state(), CoreRoot.registry)
 	_life.init_guest(guest, now_abs)
 	guest["mood"] = clampf(float(guest.get("mood", 68.0)) - float(waited) / 5.0, 25.0, 100.0)
+	# What they make of the lodging they were given (GuestNeedsSystem.LODGING_TASTE): a
+	# word about it, and the first impression on the mood (the comfort does the rest).
+	var arch := str(guest.get("archetype", ""))
+	var lodging := _life.lodging_type(guest)
+	if not lodging.is_empty():
+		var taste := GuestNeedsSystem.lodging_taste(arch, lodging)
+		guest["mood"] = clampf(float(guest["mood"]) + taste * 0.25, 5.0, 100.0)
+		_life._say(guest, GuestNeedsSystem.lodging_thought(arch, lodging), now_abs)
 	if EventBus.has_signal("guest_checked_in"):
 		EventBus.guest_checked_in.emit(guest.duplicate(true))
 

@@ -84,6 +84,34 @@ const ARCHETYPES := {
 	},
 }
 
+## Where each kind likes to sleep: comfort points on top of the lodging's own (by building
+## type; the exact type before its kind, "cabin_2" before "cabin"). The key you hand over
+## at the desk matters: a family is happiest in a caravan with bunks, the pensioner hates
+## a tent, the tramp is at home under canvas, Kristyna wants a shower of her own.
+const LODGING_TASTE := {
+	"quiet_guy": {"tent": -6.0, "cabin": 10.0, "caravan": -8.0},
+	"drunk": {"tent": 4.0, "cabin": 0.0, "caravan": 8.0},
+	"cheap_chick": {"tent": -25.0, "cabin": -4.0, "cabin_2": 18.0, "cabin_3": 22.0, "caravan": -10.0, "caravan_3": 14.0},
+	"tramp": {"tent": 14.0, "cabin": -2.0, "caravan": 2.0},
+	"family": {"tent": -10.0, "cabin": 6.0, "caravan": 8.0, "caravan_2": 16.0, "caravan_3": 18.0},
+	"picker": {"tent": -20.0, "cabin": 12.0, "caravan": -4.0},
+}
+## What they say about it when they move in (the same lookup; strong tastes only).
+const LODGING_THOUGHTS := {
+	"quiet_guy": {"cabin": "Four walls and quiet. Good.", "caravan": "You can hear everything through these walls.", "tent": "Canvas. Every sound comes through."},
+	"drunk": {"caravan": "A caravan with a fridge. The beer stays cold.", "tent": "Smells like a festival in here. Lovely."},
+	"cheap_chick": {"tent": "A tent? Where am I supposed to plug in the hairdryer?", "cabin": "No shower in the room? Seriously?", "cabin_2": "A shower of my own. Finally.", "cabin_3": "Now THIS is a holiday.", "caravan": "It smells of old gas in here.", "caravan_3": "Fairy lights! It's like a little doll's house."},
+	"tramp": {"tent": "Canvas over my head, the sky above that. Perfect.", "cabin": "A bit posh, all these walls."},
+	"family": {"tent": "Four of us in a tent. The kids will freeze.", "cabin": "A proper roof for the kids.", "caravan": "The kids think the caravan is a spaceship.", "caravan_2": "The boy is in love with the bunk bed.", "caravan_3": "Bunks, fairy lights and a telly. They'll never want to leave."},
+	"picker": {"tent": "A tent, at my age. My back will be in the lake by morning.", "cabin": "A proper bed and a door that shuts. Up at four."},
+}
+## Who keeps the camp awake (drunks sing until about three) and who it keeps awake.
+const NOISY := {"drunk": 1.0}
+const LIGHT_SLEEPERS := {"picker": 1.0, "quiet_guy": 0.8, "family": 0.5, "cheap_chick": 0.4}
+## Within this many tiles of a noisy party's lodging (lodgings are 1-2 tiles wide).
+const NOISE_RANGE_TILES := 3
+const NOISE_COMFORT := 24.0
+
 ## A need below this is something the guest goes and deals with.
 const SEEK_THRESHOLD := 62.0
 ## Below this the need becomes an emergency (bushes, storm-off pressure).
@@ -103,6 +131,24 @@ const SLEEP_ENERGY_PER_MINUTE := 0.34
 
 static func archetype_profile(archetype: String) -> Dictionary:
 	return ARCHETYPES.get(archetype, ARCHETYPES["quiet_guy"])
+
+
+## Comfort points this kind of guest adds to (or takes off) a lodging of `building_type`.
+static func lodging_taste(archetype: String, building_type: String) -> float:
+	var t: Dictionary = LODGING_TASTE.get(archetype, {})
+	var bt := building_type.to_lower()
+	if t.has(bt):
+		return float(t[bt])
+	return float(t.get(bt.get_slice("_", 0), 0.0))
+
+
+## What they think of their lodging when they move in ("" = nothing worth saying).
+static func lodging_thought(archetype: String, building_type: String) -> String:
+	var t: Dictionary = LODGING_THOUGHTS.get(archetype, {})
+	var bt := building_type.to_lower()
+	if t.has(bt):
+		return str(t[bt])
+	return str(t.get(bt.get_slice("_", 0), ""))
 
 
 static func default_needs(rng: RandomNumberGenerator) -> Dictionary:
