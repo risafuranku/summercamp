@@ -166,6 +166,12 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | The lake trip, far shore, fishing | `scripts/lake/lake_trip.gd`, far shore in `scripts/camp_lake.gd`, logbook `scripts/lake/logbook_closeup.gd` |
 | Corn tiles in the camp | `scripts/world_generator.gd` (`_corn_band`, `_create_corn_patch`), Builder icon in `crt_map_panel.gd` |
 | Web pictures | `{{img:name:w}}` in `scripts/os98/web_pages.gd`, files from `tools/artgen/web_image.py` |
+| Guests at the campfire, on the slide, on the court | `scripts/attractions/campfire.gd`, `slide_ride.gd`, `pitch_play.gd` (group "attraction": `covers_tile`, `pose_member`; guest_agents hands them the visiting party); the models in `building_models._bonfire/_slide/_sports` (the slide's line and the court's size are metas) |
+| Guests in the pub, bistro, Jednota; counter minigames | `scripts/food/service_life.gd` (seats from `service_interior._start_life`); `tap_closeup.gd`, `hatch_closeup.gd`, `till_closeup.gd` (closeup_view subclasses), shared `orders.gd`; opened by the `CounterGameSpot` bodies in `service_interior._build_counter_game` |
+| Doors opening for guests | `scripts/attractions/door_anim.gd` (finds Door/DoorLeaf boxes, hinges them) |
+| The torch | outdoors `player_controller._aim_beam` + `scripts/ui/torch_hand.gd`; in rooms `scripts/ui/interior_torch.gd` (each interior's `room_is_dark()`) |
+| Lodging numbers and their signs | `GuestManager._number_lodgings / room_short / room_number`; signs `scripts/lodging_signs.gd` (meta `number_plate` from the models) |
+| The caravan | `data/buildings/caravan_1..3.tres`, model `building_models.caravan(level)`, room `scripts/caravan_interior.gd` (module "caravan" in `interior_manager.gd`) |
 
 ### Adding a building
 Create `data/buildings/<id>.tres` (BuildingDef). That is all for the data side; add it to
@@ -236,6 +242,22 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   same barrel, so clicks land where the OS draws.
 - **Cursor art is a hardware cursor**: `HandCursor` swaps the ARROW shape's image; scale
   is by whole numbers of the window height (not the logical 2D size).
+- **A room's mess must go when its prep goes**: `INTERIOR_PREP.dispose()` takes the mess
+  and its click bodies out of the tree at once. Freeing only the task overlay left the
+  last visit's bodies under the new ones, and the cursor ray hit those ("I can't click
+  the poop", after any re-entry). A room re-entered with the same profile is not rebuilt:
+  put the camera back yourself (`open_service` does for the toilets and showers).
+- **The bottom 7% of a room is the way out** (`INTERIOR_LOOK.EXIT_BAND`): keep things to
+  click above it; a click on a hovered task never leaves.
+- **Seated guest sprites** (`*_sit`, `*_drink`, `*_eat`): the node goes on the floor just in
+  front of the seat, the seat line is 0.45 m up the sprite; for a bar stool put the node at
+  stool top - 0.45, in front of the stool, or its seat cuts the legs.
+- **GDScript names**: a method called `_set` overrides `Object._set` (parse error about the
+  signature); a subclass may not re-declare its base's constants (`SFX_OPEN` in closeup_view).
+- **Python in the Bash tool**: the tool turns a doubled backslash into a single one before
+  bash sees it, so an escaped backslash at the end of a line in a heredoc reaches Python as
+  a line continuation (the replacement silently changes nothing); write such scripts with
+  the Write tool to a .py file instead.
 
 ---
 

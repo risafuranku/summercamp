@@ -4,6 +4,24 @@
 
 ---
 
+## BRIEF 2026-10-18 — the big list (the user's notes)
+
+- [x] C1  PC: z-fighting at the lamp, the jerk after the OS boot; S stands you up, D leans out of the window
+- [x] C2  Key fobs readable; lodgings numbered per kind (T1 T2, C1, V1) on the fobs, the TAB plan, the Builder, and signs in the camp (a board on a stake by each tent, an enamel plate by the cabin and caravan doors)
+- [x] C3  The cabin inside matches outside (no bathroom door in Lv1; the windows look into the real camp)
+- [x] C4  A/D turn in interiors; a wider view, more up and down; interiors at the low render resolution; the reception turns all the way round
+- [x] C5  Jednota sprite size; back sprites in the Builder when turned; no vanishing textures while zooming; the lamp's z-fighting and bent stick
+- [x] C6  Guests open the doors and step in and out
+- [x] C7  Dotted arrival rings at the screen edge
+- [x] C8  A cabin is let whole (its free beds are not free)
+- [x] C9  The fire and the attractions: the campfire (fuel, logs, sparks, benches, sausages, guitar), the slide (climb, slide, splash), the nohejbal court (rally over the net); guests in the pub, bistro and Jednota; the counter minigames (tap, pass, till)
+- [x] C10 The torch: the hand points into the scene, low and small; a weak beam that trails the view; in dark rooms it shines where the cursor points
+- [x] C11 Toilets: each outside door its own stall (no A/D); the poop and the second bowl clickable again (stale bodies, the exit band)
+- [x] C12 The caravan: model after the sprites (Grok textures), 3 levels by upgrade (2/3/4 beds), the interior (dinette bed, kitchenette, bunks), its niche (cheapest bed with a roof, most beds per tile, less comfort, needs power, wears faster)
+- [ ] C13 Tutorial and lore: less mail; CampStat preinstalled; Vera mails the links to the Builder and GuestRack; the camp is inherited from Vera's family, abandoned, a firm wants the land for a factory and you have a month to get it running; a hint of a curse; start with ruined buildings (a filthy, rotting first cabin to repair and clean, which teaches how a cabin works)
+- [ ] C14 More buildings, decorations and attractions, so a camp can be built up properly
+- [ ] C15 The six guest types with their own tastes in attractions, lodging and entertainment; a deeper care simulation (the caravan's admirers and critics)
+
 ## BRIEF 2026-10-16 — polish and depth (the user's notes)
 
 - [x] B1  The first night is quiet (no enemies, no jobs); Vera sends you to bed
