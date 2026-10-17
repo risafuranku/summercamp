@@ -271,7 +271,7 @@ func get_footprint_for_building(building_type: String) -> Vector2i:
 			return Vector2i(1, 1)
 		"cabin", "cabin_1", "cabin_2", "cabin_3", "restaurant", "pub", "vecerka":
 			return Vector2i(2, 2)
-		"caravan_1", "sports_field", "lake_slide":
+		"caravan_1", "caravan_2", "caravan_3", "sports_field", "lake_slide":
 			return Vector2i(2, 1)
 		_:
 			return Vector2i(1, 1)
@@ -308,8 +308,8 @@ func place_building_at(origin: Vector2i, building_type: String) -> bool:
 			return place_path_at(origin)
 		"lamp_post":
 			return place_lamp_post_at(origin)
-		"caravan_1":
-			return _place_caravan_at(origin)
+		"caravan_1", "caravan_2", "caravan_3":
+			return _place_caravan_at(origin, int(building_type.right(1)))
 		"toilet_block":
 			return _place_placeholder_at(origin, "toilet_block", Vector2i(1, 1), Color(0.58, 0.56, 0.50), Color(0.46, 0.36, 0.30), "services", 2.28)
 		"shower_block":
@@ -960,18 +960,19 @@ func place_vecerka_at(origin: Vector2i) -> bool:
 	return true
 
 
-func _place_caravan_at(origin: Vector2i) -> bool:
+func _place_caravan_at(origin: Vector2i, level: int = 1) -> bool:
 	_ensure_structures_root()
 	if _grid_manager == null:
 		return false
 	var footprint = Vector2i(2, 1)
 	if not _grid_manager.can_place_footprint(origin, footprint):
 		return false
+	var lv := clampi(level, 1, 3)
 
 	var caravan = StaticBody3D.new()
-	caravan.name = "CaravanLv1"
+	caravan.name = "CaravanLv%d" % lv
 	caravan.add_to_group("housing")
-	_tag_structure(caravan, origin, footprint, "caravan_1", false)
+	_tag_structure(caravan, origin, footprint, "caravan_%d" % lv, false)
 	_structures_root.add_child(caravan)
 	caravan.position = _grid_manager.get_footprint_center(origin, footprint) + Vector3(0.0, -0.05, 0.0)
 
@@ -979,7 +980,7 @@ func _place_caravan_at(origin: Vector2i) -> bool:
 	if _models == null:
 		_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
 	# Modelled after the Builder's caravan (scripts/building_models.gd).
-	var body_size: Vector3 = _models.caravan(caravan, ts * 2.0, ts)
+	var body_size: Vector3 = _models.caravan(caravan, ts * 2.0, ts, lv)
 	caravan.set_meta("interaction_target_local", Vector3(-body_size.x * 0.2, 1.1, body_size.z * 0.5))
 
 	var collider = CollisionShape3D.new()

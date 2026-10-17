@@ -676,6 +676,8 @@ func cabin(r: Node3D, level: int, w: float, d: float, wall_h: float, roof_h: flo
 	_box(r, "Door", Vector3(0.82, 1.9, 0.06), Vector3(0, 1.05, front + 0.03), _camp("door_wood.png", Color(0.8, 0.72, 0.6)))
 	_box(r, "DoorFrame", Vector3(1.0, 2.05, 0.04), Vector3(0, 1.1, front + 0.01), _wood())
 	_box(r, "Step", Vector3(1.1, 0.16, 0.45), Vector3(0, 0.12, front + 0.3), _wood())
+	# The cabin's number on an enamel plate right of the door (scripts/lodging_signs.gd).
+	r.set_meta("number_plate", Transform3D(Basis(), Vector3(0.8, 1.62, front + 0.04)))
 	# Windows where the room inside has them (cabin_interior.gd): two at the front either
 	# side of the door, one in the back wall over the table; on the right the basic cabin
 	# has a window, the better ones the bathroom built on there.
@@ -755,44 +757,133 @@ func tent_cloth(color: Color) -> StandardMaterial3D:
 
 # ── the caravan (caravan.png): a cream two-tone van with a striped awning ─────
 
-func caravan(r: Node3D, w: float, d: float) -> Vector3:
+func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
+	# The old Czechoslovak tourer of the Builder's sprites (iso_caravan / 2 / 3): ribbed
+	# cream aluminium over a band (brown on the old one, red once done up), round ends,
+	# the door and curtained windows on the camp side (+Z), on its axle with the drawbar.
+	#   Lv1  worn, a little awning over the window, the gas bottle, one folding chair
+	#   Lv2  the big striped awning on two poles, two chairs and a table, the red band
+	#   Lv3  fairy lights along the awning (lit at night), the TV aerial, wooden steps,
+	#        geraniums in a pot, a second axle
 	var lx := w * 0.62
 	var lz := d * 0.5
 	var h := 1.9
-	var cream := _flat(Color(0.9, 0.86, 0.74))
-	var brown := _flat(Color(0.5, 0.34, 0.22))
 	var y0 := 0.42
+	var lv := clampi(level, 1, 3)
+	var worn := Color(0.86, 0.82, 0.74) if lv == 1 else Color(1, 1, 1)
+	var cream := _flat(Color(0.9, 0.86, 0.74) * worn)
+	var band_col := Color(0.5, 0.34, 0.22) if lv == 1 else Color(0.66, 0.2, 0.16)
+	var band := _flat(band_col)
+	var skin := _camp_or("caravan_body.png", worn, "metal", Vector3(1.0, 1.0, 1.0))
+	# The box of it: the textured sides (the ribs and the band are in the texture),
+	# a plain roof, the lower skirt in the band colour.
 	_box(r, "Body", Vector3(lx, h * 0.62, lz), Vector3(0, y0 + h * 0.31 + h * 0.38, 0), cream)
-	_box(r, "Lower", Vector3(lx, h * 0.38, lz), Vector3(0, y0 + h * 0.19, 0), brown)
-	# Rounded ends: half cylinders.
+	_box(r, "Lower", Vector3(lx, h * 0.38, lz), Vector3(0, y0 + h * 0.19, 0), band)
 	for side: float in [-1.0, 1.0]:
-		var cap := _cyl(r, "End", lz * 0.5, h, Vector3(side * lx * 0.5, y0 + h * 0.5, 0), cream)
+		_side_quad(r, "Skin", Vector2(lx, h), Vector3(0, y0 + h * 0.5, side * (lz * 0.5 + 0.004)), 0.0 if side > 0.0 else PI, skin, Vector3(lx / 1.9, 1.0, 1.0))
+	# Rounded ends: half cylinders, cream over the band.
+	for side: float in [-1.0, 1.0]:
+		var cap := _cyl(r, "End", lz * 0.5, h * 0.62, Vector3(side * lx * 0.5, y0 + h * 0.69, 0), cream)
 		cap.scale = Vector3(0.45, 1.0, 1.0)
-		var capl := _cyl(r, "EndLow", lz * 0.5 + 0.005, h * 0.38, Vector3(side * lx * 0.5, y0 + h * 0.19, 0), brown)
+		var capl := _cyl(r, "EndLow", lz * 0.5 + 0.005, h * 0.38, Vector3(side * lx * 0.5, y0 + h * 0.19, 0), band)
 		capl.scale = Vector3(0.45, 1.0, 1.0)
-	_box(r, "RoofVent", Vector3(0.5, 0.12, 0.4), Vector3(-lx * 0.15, y0 + h + 0.06, 0), _flat(Color(0.95, 0.94, 0.9)))
-	_box(r, "Door", Vector3(0.6, 1.5, 0.05), Vector3(-lx * 0.25, y0 + 0.82, lz * 0.5 + 0.03), _flat(Color(0.86, 0.82, 0.7)))
-	_window(r, Vector3(lx * 0.12, y0 + h * 0.66, lz * 0.5 + 0.02), Vector2(0.8, 0.45))
-	_window(r, Vector3(lx * 0.36, y0 + h * 0.66, lz * 0.5 + 0.02), Vector2(0.5, 0.45))
-	# The striped awning over the door.
-	for i in 6:
-		var stripe := _box(r, "Awning%d" % i, Vector3(0.22, 0.04, 1.0), Vector3(-lx * 0.25 - 0.55 + i * 0.22, y0 + h + 0.0, lz * 0.5 + 0.45), _flat(Color(0.86, 0.2, 0.16) if i % 2 == 0 else Color(0.95, 0.94, 0.88)))
-		stripe.rotation.x = 0.22
-	for x: float in [-lx * 0.25 - 0.62, -lx * 0.25 + 0.62]:
-		_box(r, "AwningPole", Vector3(0.04, y0 + h - 0.1, 0.04), Vector3(x, (y0 + h - 0.1) * 0.5, lz * 0.5 + 0.92), _metal())
-	# Wheels, the drawbar, a gas bottle, a jack stand, two folding chairs.
-	for side: float in [-1.0, 1.0]:
-		_cyl(r, "Wheel", 0.32, 0.2, Vector3(0, 0.32, side * (lz * 0.5 + 0.02)), _flat(Color(0.08, 0.08, 0.08)), Vector3(PI * 0.5, 0, 0))
+	_box(r, "Roof", Vector3(lx + 0.02, 0.06, lz + 0.02), Vector3(0, y0 + h + 0.03, 0), cream)
+	_box(r, "RoofVent", Vector3(0.5, 0.12, 0.4), Vector3(-lx * 0.15, y0 + h + 0.09, 0), _flat(Color(0.95, 0.94, 0.9)))
+	# The door and the windows on the camp side; windows on the back too.
+	var door_x := -lx * 0.25
+	_side_quad(r, "Door", Vector2(0.62, 1.55), Vector3(door_x, y0 + 0.85, lz * 0.5 + 0.012), 0.0, _camp_or("caravan_door.png", Color(1, 1, 1), "wood"))
+	# Its number on an enamel plate beside the door (scripts/lodging_signs.gd).
+	r.set_meta("number_plate", Transform3D(Basis(), Vector3(door_x + 0.56, y0 + 1.2, lz * 0.5 + 0.03)))
+	var glass := _camp_or("caravan_window.png", Color(1, 1, 1), "glass")
+	for wx: float in [lx * 0.14, lx * 0.37]:
+		_side_quad(r, "Window", Vector2(0.78, 0.56), Vector3(wx, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass)
+	_side_quad(r, "WindowSide", Vector2(0.62, 0.5), Vector3(-lx * 0.4, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass)
+	for wx2: float in [-lx * 0.3, lx * 0.05, lx * 0.33]:
+		_side_quad(r, "WindowBack", Vector2(0.7, 0.5), Vector3(wx2, y0 + h * 0.66, -lz * 0.5 - 0.012), PI, glass)
+	# Running gear: one axle (two on Lv3), the drawbar with its jockey wheel, the gas.
+	var axles: Array = [0.0] if lv < 3 else [-0.36, 0.36]
+	for ax in axles:
+		for side: float in [-1.0, 1.0]:
+			_cyl(r, "Wheel", 0.32, 0.2, Vector3(float(ax), 0.32, side * (lz * 0.5 + 0.02)), _flat(Color(0.08, 0.08, 0.08)), Vector3(PI * 0.5, 0, 0))
+			_cyl(r, "Hub", 0.12, 0.22, Vector3(float(ax), 0.32, side * (lz * 0.5 + 0.03)), _metal(), Vector3(PI * 0.5, 0, 0))
 	var bar := _box(r, "Drawbar", Vector3(1.0, 0.08, 0.08), Vector3(lx * 0.5 + 0.7, 0.42, 0), _metal())
 	bar.rotation.z = 0.08
 	_cyl(r, "Gas", 0.15, 0.5, Vector3(lx * 0.5 + 0.55, 0.7, 0), _flat(Color(0.72, 0.22, 0.12)))
 	_box(r, "Jack", Vector3(0.06, 0.42, 0.06), Vector3(lx * 0.5 + 1.1, 0.21, 0), _metal())
-	for i in 2:
-		var cx := lx * 0.1 + i * 0.7
-		_box(r, "ChairSeat", Vector3(0.45, 0.04, 0.45), Vector3(cx, 0.42, lz * 0.5 + 1.1), _flat(Color(0.2, 0.36, 0.62)))
-		var back := _box(r, "ChairBack", Vector3(0.45, 0.5, 0.04), Vector3(cx, 0.68, lz * 0.5 + 1.32), _flat(Color(0.2, 0.36, 0.62)))
+	for x: float in [-lx * 0.42, lx * 0.42]:
+		_box(r, "Prop", Vector3(0.1, y0, 0.1), Vector3(x, y0 * 0.5, lz * 0.35), _metal())
+	# The awning: a stub over the window on Lv1, the big one on poles from Lv2.
+	var stripe_a := _flat(Color(0.86, 0.2, 0.16))
+	var stripe_b := _flat(Color(0.95, 0.94, 0.88))
+	if lv == 1:
+		for i in 4:
+			var st := _box(r, "Awning%d" % i, Vector3(0.22, 0.04, 0.5), Vector3(lx * 0.14 - 0.33 + i * 0.22, y0 + h * 0.66 + 0.42, lz * 0.5 + 0.22), stripe_a if i % 2 == 0 else stripe_b)
+			st.rotation.x = 0.42
+	else:
+		for i in 8:
+			var st2 := _box(r, "Awning%d" % i, Vector3(0.26, 0.04, 1.3), Vector3(door_x - 0.9 + i * 0.26, y0 + h - 0.08, lz * 0.5 + 0.6), stripe_a if i % 2 == 0 else stripe_b)
+			st2.rotation.x = 0.2
+		_box(r, "AwningValance", Vector3(2.08, 0.14, 0.03), Vector3(door_x, y0 + h - 0.28, lz * 0.5 + 1.24), stripe_a)
+		for x: float in [door_x - 0.98, door_x + 0.98]:
+			_box(r, "AwningPole", Vector3(0.04, y0 + h - 0.2, 0.04), Vector3(x, (y0 + h - 0.2) * 0.5, lz * 0.5 + 1.25), _metal())
+	# Out front: chairs (and a table from Lv2).
+	var chair := _flat(Color(0.86, 0.2, 0.16) if lv >= 2 else Color(0.2, 0.36, 0.62))
+	var n_chairs := 1 if lv == 1 else 2
+	for i in n_chairs:
+		var cx := lx * 0.08 + i * 0.95
+		_box(r, "ChairSeat", Vector3(0.45, 0.04, 0.45), Vector3(cx, 0.42, lz * 0.5 + 1.1), chair)
+		var back := _box(r, "ChairBack", Vector3(0.45, 0.5, 0.04), Vector3(cx, 0.68, lz * 0.5 + 1.32), chair)
 		back.rotation.x = -0.2
+		for lx2: float in [-0.18, 0.18]:
+			_box(r, "ChairLeg", Vector3(0.03, 0.42, 0.03), Vector3(cx + lx2, 0.21, lz * 0.5 + 1.1), _metal())
+	if lv >= 2:
+		_box(r, "TableTop", Vector3(0.6, 0.04, 0.6), Vector3(lx * 0.08 + 0.48, 0.66, lz * 0.5 + 1.0), _flat(Color(0.95, 0.94, 0.88)))
+		_box(r, "TableLeg", Vector3(0.05, 0.64, 0.05), Vector3(lx * 0.08 + 0.48, 0.32, lz * 0.5 + 1.0), _metal())
+		_box(r, "Doormat", Vector3(0.6, 0.02, 0.4), Vector3(door_x, 0.01, lz * 0.5 + 0.45), _flat(Color(0.36, 0.3, 0.2)))
+	if lv >= 3:
+		# The steps up to the door, geraniums, the aerial, the fairy lights.
+		var step_wood := _camp_or("knotty_pine.png", Color(0.86, 0.76, 0.62), "wood", Vector3(1.0, 1.0, 1.0))
+		_box(r, "Step1", Vector3(0.6, 0.16, 0.26), Vector3(door_x, 0.08, lz * 0.5 + 0.28), step_wood)
+		_box(r, "Step2", Vector3(0.6, 0.16, 0.2), Vector3(door_x, 0.24, lz * 0.5 + 0.12), step_wood)
+		_cyl(r, "FlowerPot", 0.16, 0.24, Vector3(door_x + 0.55, 0.12, lz * 0.5 + 0.3), _flat(Color(0.66, 0.32, 0.18)))
+		for i in 5:
+			var a := TAU * float(i) / 5.0
+			_box(r, "Geranium", Vector3(0.1, 0.1, 0.1), Vector3(door_x + 0.55 + cos(a) * 0.08, 0.32 + float(i % 2) * 0.05, lz * 0.5 + 0.3 + sin(a) * 0.08), _flat(Color(0.86, 0.12, 0.16)))
+		_box(r, "AerialMast", Vector3(0.04, 0.7, 0.04), Vector3(lx * 0.3, y0 + h + 0.4, -lz * 0.2), _metal())
+		_box(r, "AerialBoom", Vector3(0.7, 0.03, 0.03), Vector3(lx * 0.3, y0 + h + 0.72, -lz * 0.2), _metal())
+		for i in 5:
+			_box(r, "AerialRod", Vector3(0.03, 0.03, 0.34 - i * 0.04), Vector3(lx * 0.3 - 0.3 + i * 0.15, y0 + h + 0.72, -lz * 0.2), _metal())
+		var bulb := StandardMaterial3D.new()
+		bulb.albedo_color = Color(1.0, 0.86, 0.5)
+		bulb.emission_enabled = true
+		bulb.emission = Color(1.0, 0.78, 0.4)
+		bulb.emission_energy_multiplier = 0.0
+		bulb.set_meta("base_albedo_color", bulb.albedo_color)
+		var lights := Node3D.new()
+		lights.name = "FairyLights"
+		r.add_child(lights)
+		for i in 9:
+			var bx := door_x - 0.96 + i * 0.24
+			_box(lights, "Bulb%d" % i, Vector3(0.05, 0.06, 0.05), Vector3(bx, y0 + h - 0.38 - absf(sin(float(i) * 0.9)) * 0.05, lz * 0.5 + 1.25), bulb)
+		lights.set_meta("bulb_material", bulb)
 	return Vector3(lx + lz * 0.5, y0 + h + 0.2, lz)
+
+
+## A flat face on a side of a model (a door, a window, a skin), `yaw` turning it to
+## face out; `uv` repeats the texture across it.
+func _side_quad(parent: Node3D, n: String, size: Vector2, pos: Vector3, yaw: float, mat: Material, uv := Vector3.ONE) -> MeshInstance3D:
+	var m := _quad(parent, n, size, pos, yaw, mat)
+	if uv != Vector3.ONE and mat is StandardMaterial3D:
+		var mm := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+		mm.uv1_triplanar = false
+		mm.uv1_scale = uv
+		m.material_override = mm
+	elif mat is StandardMaterial3D and (mat as StandardMaterial3D).uv1_triplanar:
+		var m2 := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+		m2.uv1_triplanar = false
+		m2.uv1_scale = Vector3.ONE
+		m.material_override = m2
+	return m
 
 
 # ── kit ───────────────────────────────────────────────────────────────────────

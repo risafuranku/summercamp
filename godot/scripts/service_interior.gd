@@ -93,6 +93,9 @@ const COUNTER_GAMES := {
 	"vecerka": "res://scripts/food/till_closeup.gd",
 }
 var _counter_game: CanvasLayer
+## Which stall of the toilet block you go into: the door you walked up to outside
+## ("left" / "right"), set by InteriorManager before open_service().
+var toilet_entry := "left"
 var _counter_game_profile := ""
 ## The guests in here (pub, bistro, shop): scripts/food/service_life.gd.
 var _life: Node3D
@@ -166,6 +169,11 @@ func open_service(service_type: String) -> void:
 	else:
 		if _current_profile == "rest":
 			_set_restaurant_room("dining", true)
+		elif _current_profile == "toilet" and not _is_open:
+			# The same room built as last time: in through the door you used now.
+			_set_hygiene_room(toilet_entry)
+		elif _current_profile == "wash" and not _is_open:
+			_set_hygiene_room("center")
 		_apply_time_profile()
 	if _interior_camera == null:
 		return
@@ -237,8 +245,10 @@ func _input(event: InputEvent) -> void:
 		return
 	if _upkeep_prep != null and _upkeep_prep.is_scrubbing():
 		return
-	# Esc is the pause menu's (main): S or the way out behind you leaves.
-	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
+	# Esc is the pause menu's (main): S or the way out behind you leaves (but not a
+	# click on something to clean, however low on the screen it is).
+	var on_task: bool = _upkeep_prep != null and _upkeep_prep.is_busy()
+	if INTERIOR_LOOK.is_exit_event(event, get_viewport()) and not (on_task and event is InputEventMouseButton):
 		close_service()
 		get_viewport().set_input_as_handled()
 		return
@@ -651,8 +661,8 @@ func _build_service_room(profile: String) -> void:
 	_free_upkeep_prep()
 	if profile == "toilet":
 		_build_toilet_layout()
-		_active_subroom = "left"
-		_set_hygiene_room("left")
+		_active_subroom = toilet_entry
+		_set_hygiene_room(toilet_entry)
 	elif profile == "wash":
 		_build_wash_layout(true)
 		# _interior_camera set by _set_hygiene_room
@@ -991,7 +1001,9 @@ func _side_hint_texts() -> Array:
 				return ["", "Repair the set  [R]"]
 			return ["", "Switch room  [D]" if _shed != null and _shed.can_enter_board() else ""]
 		"toilet":
-			return ["", "Next door  [D]"] if _active_subroom != "right" else ["Next door  [A]", ""]
+			# Each stall has its own door outside (playtest: "left door one toilet, the
+			# other door the other one"): no way through the partition.
+			return ["", ""]
 		"wash":
 			var what := "Shower"
 			match _active_subroom:
@@ -1029,10 +1041,7 @@ func _switch_service_room(direction: int) -> void:
 		elif direction < 0 and _active_subroom == "board":
 			target_room = "set"
 	elif _current_profile == "toilet":
-		if direction > 0 and _active_subroom != "right":
-			target_room = "right"
-		elif direction < 0 and _active_subroom == "right":
-			target_room = "left"
+		return
 	elif _current_profile == "wash":
 		if _active_subroom == "center":
 			target_room = "left" if direction < 0 else "right"
@@ -1100,7 +1109,7 @@ func _set_hygiene_room(room: String) -> void:
 		# In the doorway of the stall, looking down at the bowl.
 		var sx := TOILET_STALL_X * (1.0 if room == "right" else -1.0)
 		_interior_camera.position = Vector3(sx, 1.55, TOILET_D * 0.5 - 0.12)
-		_interior_camera.rotation_degrees = Vector3(-22.0, 0.0, 0.0)
+		_interior_camera.rotation_degrees = Vector3(-30.0, 0.0, 0.0)
 	elif room == "left":
 		_interior_camera.position = Vector3(-0.95, 1.45, 0.6)
 		_interior_camera.rotation_degrees = Vector3(-14.0, 0.0, 0.0)
@@ -1183,6 +1192,15 @@ func _build_toilet_layout() -> void:
 	(shell["ceiling"] as MeshInstance3D).material_override = K.surface("planks_dark", 1.0, Color(0.8, 0.74, 0.66))
 	var planks := K.surface("planks_grey", 1.2)
 	K.slab(r, Vector3(0.05, h, d), Vector3(0, h * 0.5, 0), planks, "StallPartition")
+	var wall_body := StaticBody3D.new()
+	wall_body.name = "StallPartitionBody"
+	wall_body.position = Vector3(0, h * 0.5, 0)
+	var wall_shape := CollisionShape3D.new()
+	var wall_box := BoxShape3D.new()
+	wall_box.size = Vector3(0.05, h, d)
+	wall_shape.shape = wall_box
+	wall_body.add_child(wall_shape)
+	r.add_child(wall_body)
 	for side: float in [-1.0, 1.0]:
 		var cx := side * TOILET_STALL_X
 		_build_bowl(r, Vector3(cx, 0.0, -d * 0.5 + 0.32))
@@ -1219,7 +1237,7 @@ func _build_toilet_layout() -> void:
 	_sign(r, "ZENY", Vector3(-TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
 	_sign(r, "MUZI", Vector3(TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
 	_interior_camera.position = Vector3(-TOILET_STALL_X, 1.55, d * 0.5 - 0.12)
-	_interior_camera.rotation_degrees = Vector3(-22.0, 0.0, 0.0)
+	_interior_camera.rotation_degrees = Vector3(-30.0, 0.0, 0.0)
 
 
 const TOILET_W := 2.9
@@ -1434,8 +1452,8 @@ func _build_generator_layout() -> void:
 # ── cleaning the block from the inside ────────────────────────────────────────
 
 func _free_upkeep_prep() -> void:
-	if _upkeep_prep != null and _upkeep_prep.tasks != null and is_instance_valid(_upkeep_prep.tasks):
-		_upkeep_prep.tasks.queue_free()
+	if _upkeep_prep != null:
+		_upkeep_prep.dispose()
 	_upkeep_prep = null
 
 
@@ -1448,8 +1466,8 @@ func _build_upkeep_spots(block: String) -> void:
 		var bz := -TOILET_D * 0.5 + 0.32 + 0.06
 		_upkeep_prep.add_spot("bowl_l", r, Vector3(-TOILET_STALL_X, 0.43, bz))
 		_upkeep_prep.add_spot("bowl_r", r, Vector3(TOILET_STALL_X, 0.43, bz))
-		_upkeep_prep.add_spot("stall_l", r, Vector3(-TOILET_STALL_X, 0.01, 0.15))
-		_upkeep_prep.add_spot("stall_r", r, Vector3(TOILET_STALL_X, 0.01, 0.15))
+		_upkeep_prep.add_spot("stall_l", r, Vector3(-TOILET_STALL_X - 0.3, 0.01, -0.35))
+		_upkeep_prep.add_spot("stall_r", r, Vector3(TOILET_STALL_X + 0.3, 0.01, -0.35))
 		_upkeep_prep.add_spot("wall_l", r, Vector3(-TOILET_W * 0.5 + 0.02, 1.3, -0.1), PI * 0.5, true)
 		_upkeep_prep.add_spot("wall_r", r, Vector3(TOILET_W * 0.5 - 0.02, 1.3, -0.1), -PI * 0.5, true)
 	else:

@@ -183,8 +183,9 @@ var _initial_cam_pos: Vector3
 var _initial_cam_rot: Vector3
 var _initial_cam_fov: float = 54.0
 var _idle_cam_base_rot: Vector3 = Vector3.ZERO
-## In the office, away from the screen: turn your head around the room, not out of it.
-var _look = INTERIOR_LOOK.new(96.0, 30.0, 38.0)
+## In the office, away from the screen: all the way round, the room is there behind you
+## too (the door you came in by, the coat hooks); playtest: "I can't turn right round".
+var _look = INTERIOR_LOOK.new(180.0, 30.0, 38.0)
 var _desk_room
 ## The phone, the noticeboard, the door to the back room and the room behind it.
 var _extras

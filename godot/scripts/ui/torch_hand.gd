@@ -9,6 +9,11 @@ extends CanvasLayer
 
 const TEX := "res://assets/textury/hands/torch.png"
 const FPS := 12.0
+## Sprite pixels per screen pixel: one per this many lines of the screen (whole steps).
+const LINES_PER_PIXEL := 380.0
+## How much of the sprite is up above the bottom edge (or the HUD bar): the torch head
+## low in the view, the rest of the arm out of it (playtest: "too high, lower and smaller").
+const SHOWN := 0.5
 
 ## Set by the owner each frame.
 var bar_px := 0.0
@@ -62,13 +67,13 @@ func _process(delta: float) -> void:
 		return
 	_acc = 0.0
 	var vp := get_viewport().get_visible_rect().size
-	var k := float(maxi(1, int(round(vp.y / 300.0))))
+	var k := float(maxi(1, int(round(vp.y / LINES_PER_PIXEL))))
 	_rect.size = _rect.texture.get_size() * k
 	var raise := 1.0 - (1.0 - _up) * (1.0 - _up)
 	var x := vp.x * 0.6 + clampf(lag.x, -0.5, 0.5) * vp.x * 0.55 + bob.x * k
 	# Never off the edge: at most the sleeve goes out of the view.
 	x = clampf(x, vp.x * 0.28, vp.x - _rect.size.x * 0.82)
-	var y := vp.y - bar_px - _rect.size.y * 0.8 * raise + _rect.size.y * 0.12 - clampf(lag.y, -0.4, 0.4) * vp.y * 0.45 + bob.y * k
+	var y := vp.y - bar_px - _rect.size.y * SHOWN * raise + _rect.size.y * 0.04 * (1.0 - raise) - clampf(lag.y, -0.4, 0.4) * vp.y * 0.3 + bob.y * k
 	_rect.position = Vector2(x, y).floor()
 	_rect.rotation = clampf(lag.x, -0.5, 0.5) * 0.35
 	_rect.pivot_offset = _rect.size * Vector2(0.7, 1.0)

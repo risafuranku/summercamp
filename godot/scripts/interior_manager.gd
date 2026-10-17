@@ -615,6 +615,8 @@ func _on_service_interact(service_node: Node) -> void:
 		return
 	_active_service_node = structure
 	_apply_time_to_interior(_service_interior)
+	if building_type == "toilet_block" and "toilet_entry" in _service_interior:
+		_service_interior.toilet_entry = _toilet_door_of(structure as Node3D)
 	_service_interior.open_service(building_type)
 	if _service_interior.has_method("set_upkeep_target"):
 		_service_interior.set_upkeep_target(structure.get_meta("grid_origin", Vector2i(-999, -999)), building_type)
@@ -625,6 +627,15 @@ func _on_service_interact(service_node: Node) -> void:
 	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
+
+
+## The toilet block has a door per stall (building_models._toilets): the one on the side
+## of the building you are standing at, as seen from its front.
+func _toilet_door_of(structure: Node3D) -> String:
+	var p := _player as Node3D
+	if structure == null or p == null:
+		return "left"
+	return "left" if structure.to_local(p.global_position).x < 0.0 else "right"
 
 
 func _on_service_closed() -> void:

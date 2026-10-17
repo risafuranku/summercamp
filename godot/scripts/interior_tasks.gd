@@ -395,3 +395,13 @@ func _refresh_checklist(room: Dictionary) -> void:
 		var is_done := done.has(str(t["id"]))
 		var text := "%s %s" % ["[X]" if is_done else "[ ]", str(t["label"])]
 		_checklist.add_child(RETRO_UI.label(text, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_BONE_DIM if is_done else RETRO_UI.C_BONE, _scale))
+
+
+## Shot driver: what a task's registered body is ([path, visible, instance id, done]).
+func debug_target(id: String) -> Array:
+	if not _targets.has(id):
+		return ["none"]
+	var b = _targets[id]["body"]
+	if b == null or not is_instance_valid(b):
+		return ["freed"]
+	return [str((b as Node).get_path()), (b as Node3D).is_visible_in_tree(), (b as Object).get_instance_id(), _targets[id]["done"]]

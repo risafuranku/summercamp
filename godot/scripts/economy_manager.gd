@@ -33,6 +33,8 @@ const UPGRADE_ONLY_TYPES: Dictionary = {
 	"cabin": true,
 	"cabin_2": true,
 	"cabin_3": true,
+	"caravan_2": true,
+	"caravan_3": true,
 	# Legacy aliases kept only for backwards compatibility.
 	"water_pump": true,
 	"sewage_tank": true,

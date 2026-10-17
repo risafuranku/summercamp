@@ -321,8 +321,9 @@ func _input(event: InputEvent) -> void:
 		return
 	if _prep != null and _prep.is_scrubbing():
 		return
-	# Esc is the pause menu's (main): S or the way out behind you leaves.
-	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
+	# Esc is the pause menu's (main): S or the way out behind you leaves (but not a
+	# click on something to tidy, however low on the screen it is).
+	if INTERIOR_LOOK.is_exit_event(event, get_viewport()) and not (_prep.is_busy() and event is InputEventMouseButton):
 		close_cabin()
 		get_viewport().set_input_as_handled()
 		return

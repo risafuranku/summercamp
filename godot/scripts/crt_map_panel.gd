@@ -67,6 +67,8 @@ const ICON_PATHS := {
 	"cabin_3": "res://assets/textury/builder/chata3.PNG",
 	"pub_2": "res://assets/textury/builder/hospoda2.png",
 	"caravan_1": "res://assets/textury/builder/iso_caravan.png",
+	"caravan_2": "res://assets/textury/builder/iso_caravan2.png",
+	"caravan_3": "res://assets/textury/builder/iso_caravan3.png",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
 	"sports_field": "res://assets/textury/builder/iso_sports.png",
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
@@ -88,6 +90,8 @@ const ICON_BACK_PATHS := {
 	"tent_2": "res://assets/textury/builder/back_tent2.png",
 	"tent_3": "res://assets/textury/builder/back_tent3.png",
 	"caravan_1": "res://assets/textury/builder/back_caravan.png",
+	"caravan_2": "res://assets/textury/builder/back_caravan.png",
+	"caravan_3": "res://assets/textury/builder/back_caravan.png",
 	"toilet_block": "res://assets/textury/builder/back_toilets.png",
 	"shower_block": "res://assets/textury/builder/back_showers.png",
 }
@@ -1691,7 +1695,7 @@ func _icon_key_for_type(building_type: String) -> String:
 			return building_type
 		"cabin", "cabin_1":
 			return "cabin_1"
-		"caravan_1", "bonfire", "sports_field", "lake_slide":
+		"caravan_1", "caravan_2", "caravan_3", "bonfire", "sports_field", "lake_slide":
 			return building_type
 		"toilet_block":
 			return "toilet_block"

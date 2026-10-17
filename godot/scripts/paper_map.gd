@@ -19,7 +19,7 @@ const INK_AMBER := Color(0.70, 0.45, 0.05)
 ## Short names written on the plan.
 const NAMES := {
 	"main_building": "OFFICE", "tent_1": "TENT", "tent_2": "TENT", "tent_3": "TENT",
-	"cabin": "CABIN", "cabin_1": "CABIN", "cabin_2": "CABIN", "cabin_3": "CABIN", "caravan_1": "CARAVAN",
+	"cabin": "CABIN", "cabin_1": "CABIN", "cabin_2": "CABIN", "cabin_3": "CABIN", "caravan_1": "CARAVAN", "caravan_2": "CARAVAN", "caravan_3": "CARAVAN",
 	"toilet_block": "WC", "shower_block": "SHOWERS", "pub": "PUB", "restaurant": "BISTRO",
 	"vecerka": "SHOP", "bonfire": "FIRE", "sports_field": "PITCH", "lake_slide": "SLIDE",
 	"sewer": "SEWER", "power_generator": "GENERATOR", "lamp_post": "", "path": "",
@@ -179,7 +179,7 @@ const WASH_FACILITY := Color(0.90, 0.88, 0.80)
 const WASH_UTILITY := Color(0.62, 0.62, 0.60)
 const WASH_FUN := Color(0.64, 0.80, 0.50)
 const WASH_OFFICE := Color(0.66, 0.46, 0.32)
-const ROOM_TYPES := ["tent_1", "tent_2", "tent_3", "cabin", "cabin_1", "cabin_2", "cabin_3", "caravan_1"]
+const ROOM_TYPES := ["tent_1", "tent_2", "tent_3", "cabin", "cabin_1", "cabin_2", "cabin_3", "caravan_1", "caravan_2", "caravan_3"]
 const UTILITY_TYPES := ["power_generator", "sewer", "water_pump", "sewage_tank", "dumpsters"]
 const FUN_TYPES := ["bonfire", "sports_field", "lake_slide"]
 

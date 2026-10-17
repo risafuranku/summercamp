@@ -85,6 +85,24 @@ func _puff(n: Node3D) -> void:
 				b.queue_free())
 
 
+## Everything this prep put in the room (the mess, its click bodies) and its overlay,
+## gone at once: the interior is making a new one for the next visit. Taken out of the
+## tree now, not at the end of the frame, so the new mess's bodies are the only ones the
+## cursor can hit (stale bodies under the new ones were "I can't click the poop").
+func dispose() -> void:
+	for n in _built:
+		if is_instance_valid(n):
+			var parent := (n as Node).get_parent()
+			if parent != null:
+				parent.remove_child(n)
+			(n as Node).queue_free()
+	_built.clear()
+	_nodes.clear()
+	if tasks != null and is_instance_valid(tasks):
+		tasks.queue_free()
+	tasks = null
+
+
 func register(task_id: String, body: StaticBody3D, mess: Array, tidy: Array) -> void:
 	_nodes[task_id] = {"body": body, "mess": mess, "tidy": tidy}
 

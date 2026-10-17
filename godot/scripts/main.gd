@@ -3074,9 +3074,15 @@ func _update_player_control_lock() -> void:
 
 ## The torch hand at the bottom right while the torch is on outdoors (scripts/ui/torch_hand.gd).
 var _torch_hand: CanvasLayer
+## The numbers on the tents, cabins and caravans (scripts/lodging_signs.gd).
+var _lodging_signs: Node
 
 
 func _update_torch_hand() -> void:
+	if _lodging_signs == null or not is_instance_valid(_lodging_signs):
+		_lodging_signs = load("res://scripts/lodging_signs.gd").new()
+		_lodging_signs.name = "LodgingSigns"
+		add_child(_lodging_signs)
 	if _torch_hand == null or not is_instance_valid(_torch_hand):
 		_torch_hand = load("res://scripts/ui/torch_hand.gd").new()
 		_torch_hand.name = "TorchHand"
