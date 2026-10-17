@@ -12,6 +12,9 @@ const LEVEL_SURFACES := {
 	3: ["wallpaper_70s", "parquet", "ceiling_board"],
 }
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
+## Your torch, in here when it is dark: it shines where the cursor points.
+var _torch: Node
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 
@@ -293,6 +296,7 @@ func _process(delta: float) -> void:
 		return
 	_apply_idle_mouse_look(delta)
 	_update_portals()
+	_update_torch(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
 		_side_hints = INTERIOR_LOOK.make_side_hints(self)
@@ -1183,6 +1187,13 @@ func _apply_manual_light_profile(animated: bool) -> void:
 	var target_energy = _main_light.light_energy
 	if not _manual_lights_on:
 		target_energy *= 0.10
+	elif _time_state != TIME_DAY and _grid_power_available:
+		# After dusk the bulb lights the room, not the window (the night profile above
+		# is the moon through it): warm, and enough to see the corners.
+		target_energy = maxf(target_energy, 1.15)
+		_main_light.light_color = Color(1.0, 0.88, 0.68)
+		if _room_env != null:
+			_room_env.ambient_light_energy = maxf(_room_env.ambient_light_energy, 0.3)
 	if not _grid_power_available:
 		target_energy = 0.0
 	if animated:
@@ -1251,3 +1262,18 @@ func _category_for_node(node_name: String, color: Color) -> String:
 	if color.s < 0.20 and color.v > 0.65:
 		return "stone"
 	return _cabin_level_category("wood")
+
+
+## The torch comes on in here by itself when the room is dark (if it is on, F).
+func _update_torch(delta: float) -> void:
+	if _torch == null:
+		_torch = INTERIOR_TORCH.new()
+		_torch.name = "Torch"
+		add_child(_torch)
+		_torch.setup(_interior_camera, _viewport, _interior_camera.get_parent() as Node3D, layer)
+	_torch.update(delta, room_is_dark())
+
+
+## After dusk with the lights off (L) or the camp's power gone.
+func room_is_dark() -> bool:
+	return _time_state != TIME_DAY and (not _manual_lights_on or not _grid_power_available)

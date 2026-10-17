@@ -49,13 +49,19 @@ var terrain_speed_mult: float = 1.0
 @export var handheld_look_strength: float = 0.00022
 @export var handheld_return: float = 10.0
 @export var handheld_idle_strength: float = 0.012
-@export var flashlight_energy: float = 3.5
-@export var flashlight_range: float = 22.0
-@export var flashlight_angle: float = 38.0
-@export var flashlight_attenuation: float = 0.7
+## A weak torch with a narrow beam (playtest: "claustrophobic"): a hot spot, a dim halo
+## round it, and only a hand's breadth of fill, so the night is close on every side.
+@export var flashlight_energy: float = 3.0
+@export var flashlight_range: float = 16.0
+@export var flashlight_angle: float = 19.0
+@export var flashlight_attenuation: float = 0.95
 @export var flashlight_cast_shadows: bool = false
-@export var flashlight_fill_energy: float = 0.5
-@export var flashlight_fill_range: float = 6.0
+@export var flashlight_fill_energy: float = 0.16
+@export var flashlight_fill_range: float = 3.0
+@export var flashlight_halo_energy: float = 0.42
+@export var flashlight_halo_angle: float = 34.0
+## How fast the beam catches up with where you look (it is held, not bolted to the eyes).
+@export var flashlight_follow: float = 7.5
 @export var flashlight_flicker_strength: float = 0.04
 @export var flashlight_flicker_speed: float = 14.0
 @export var footstep_motion_attack: float = 6.6
@@ -109,6 +115,9 @@ var _current_tilt: float = 0.0
 var _idle_noise_time: float = 0.0
 var _flashlight: SpotLight3D
 var _flashlight_fill: OmniLight3D
+var _flashlight_halo: SpotLight3D
+var _beam_q := Quaternion.IDENTITY
+var _beam_ready := false
 var _flashlight_allowed: bool = false
 var _flashlight_user_enabled: bool = true
 var _flashlight_active: bool = false
@@ -143,6 +152,7 @@ var controls_enabled: bool = true
 
 func _ready() -> void:
 	name = "Player"
+	add_to_group("player")
 	_damage_rng.randomize()
 	ensure_runtime_setup()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -229,10 +239,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_mouse_impact.y = clamp(_mouse_impact.y, -0.08, 0.08)
 
 	if event.is_action_pressed("toggle_flashlight"):
-		if _flashlight_user_enabled or flashlight_battery > 0.02:
-			_flashlight_user_enabled = not _flashlight_user_enabled
-			_flashlight_user_chose_off = not _flashlight_user_enabled
-			_refresh_flashlight_state()
+		toggle_flashlight()
 
 	# Esc is the pause menu (main.gd), which releases and recaptures the mouse.
 	# A click recaptures it if something else (alt-tab, a closed window) let it go.
@@ -343,6 +350,14 @@ func set_flashlight_allowed(allowed: bool) -> void:
 
 func is_flashlight_active() -> bool:
 	return _flashlight_active
+
+
+## F: the torch on or off (also from inside a room, scripts/ui/interior_torch.gd).
+func toggle_flashlight() -> void:
+	if _flashlight_user_enabled or flashlight_battery > 0.02:
+		_flashlight_user_enabled = not _flashlight_user_enabled
+		_flashlight_user_chose_off = not _flashlight_user_enabled
+		_refresh_flashlight_state()
 
 
 func play_damage_feedback(tier: int, _damage_amount: int, fatal: bool = false) -> void:
@@ -642,6 +657,20 @@ func _ensure_flashlight() -> void:
 	_flashlight.spot_attenuation = flashlight_attenuation
 	_flashlight.shadow_enabled = flashlight_cast_shadows
 
+	# The dim halo round the hot spot.
+	_flashlight_halo = _head.get_node_or_null("FlashlightHalo") as SpotLight3D
+	if _flashlight_halo == null:
+		_flashlight_halo = SpotLight3D.new()
+		_flashlight_halo.name = "FlashlightHalo"
+		_head.add_child(_flashlight_halo)
+	_flashlight_halo.light_color = Color(1.0, 0.9, 0.74)
+	_flashlight_halo.light_energy = flashlight_halo_energy
+	_flashlight_halo.light_cull_mask = 1048575
+	_flashlight_halo.spot_range = flashlight_range * 0.65
+	_flashlight_halo.spot_angle = flashlight_halo_angle
+	_flashlight_halo.spot_attenuation = 1.6
+	_flashlight_halo.shadow_enabled = false
+
 	# Tiny near-player fill so the immediate area isn't pitch black.
 	_flashlight_fill = _head.get_node_or_null("FlashlightFill") as OmniLight3D
 	if _flashlight_fill == null:
@@ -667,6 +696,9 @@ func _refresh_flashlight_state() -> void:
 	if _flashlight_fill != null:
 		_flashlight_fill.visible = _flashlight_active
 		_flashlight_fill.light_energy = flashlight_fill_energy if _flashlight_active else 0.0
+	if _flashlight_halo != null:
+		_flashlight_halo.visible = _flashlight_active
+		_flashlight_halo.light_energy = flashlight_halo_energy if _flashlight_active else 0.0
 
 
 func _update_stamina(delta: float, sprinting: bool) -> void:
@@ -704,8 +736,45 @@ func _update_flashlight_battery(delta: float) -> void:
 	flashlight_drain_boost = 0.0
 
 
+## Where the beam really points (enemies test against it, not against the eyes):
+## {origin, dir, range, half_angle} or {} when it is off.
+func get_flashlight_aim() -> Dictionary:
+	if _flashlight == null or not _flashlight_active:
+		return {}
+	return {"origin": _flashlight.global_position, "dir": -_flashlight.global_basis.z, "range": flashlight_range + 2.0, "half_angle": flashlight_angle + 4.0}
+
+
+## How far the beam trails the view, in radians (yaw, pitch): the torch hand on screen
+## follows it.
+func get_beam_lag() -> Vector2:
+	if _camera == null or not _beam_ready:
+		return Vector2.ZERO
+	var local := (_camera.global_basis.inverse() * (Basis(_beam_q) * Vector3.FORWARD)).normalized()
+	return Vector2(atan2(local.x, -local.z), asin(clampf(local.y, -1.0, 1.0)))
+
+
+## The torch in your hand: it aims a little below the crosshair, catches up with a turn a
+## beat late and swings with your step.
+func _aim_beam(delta: float) -> void:
+	if _camera == null or _flashlight == null:
+		return
+	var target := _camera.global_basis.orthonormalized() * Basis(Vector3.RIGHT, deg_to_rad(-6.0))
+	target = target * Basis(Vector3.UP, _bob_offset.x * 1.1) * Basis(Vector3.RIGHT, -_bob_offset.y * 0.8)
+	var tq := target.orthonormalized().get_rotation_quaternion()
+	if not _beam_ready:
+		_beam_q = tq
+		_beam_ready = true
+	_beam_q = _beam_q.slerp(tq, clampf(1.0 - exp(-flashlight_follow * delta), 0.0, 1.0)).normalized()
+	var hand := _camera.global_transform * Vector3(0.2, -0.17, -0.22)
+	var xf := Transform3D(Basis(_beam_q), hand)
+	_flashlight.global_transform = xf
+	if _flashlight_halo != null:
+		_flashlight_halo.global_transform = xf
+
+
 func _update_flashlight_effect(delta: float) -> void:
 	_update_flashlight_battery(delta)
+	_aim_beam(delta)
 	if _flashlight == null or not _flashlight_active:
 		return
 
@@ -722,6 +791,8 @@ func _update_flashlight_effect(delta: float) -> void:
 			flicker *= 0.08
 
 	_flashlight.light_energy = flashlight_energy * flicker
+	if _flashlight_halo != null:
+		_flashlight_halo.light_energy = flashlight_halo_energy * flicker
 	if _flashlight_fill != null:
 		_flashlight_fill.light_energy = flashlight_fill_energy * (0.95 + ((flicker - 1.0) * 0.3))
 

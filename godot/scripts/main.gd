@@ -1046,6 +1046,7 @@ func _process(delta: float) -> void:
 	if not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()):
 		_sync_active_camera()
 	_update_interaction_hint()
+	_update_torch_hand()
 	if _audio_manager != null and _audio_manager.has_method("process_runtime"):
 		_audio_manager.process_runtime(
 			delta,
@@ -3070,6 +3071,29 @@ func _update_player_control_lock() -> void:
 	if _player == null or not _player.has_method("set_controls_enabled"):
 		return
 	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()))
+
+## The torch hand at the bottom right while the torch is on outdoors (scripts/ui/torch_hand.gd).
+var _torch_hand: CanvasLayer
+
+
+func _update_torch_hand() -> void:
+	if _torch_hand == null or not is_instance_valid(_torch_hand):
+		_torch_hand = load("res://scripts/ui/torch_hand.gd").new()
+		_torch_hand.name = "TorchHand"
+		add_child(_torch_hand)
+	var on: bool = _gameplay_started and not _menu_mode and _player != null and _player.has_method("is_flashlight_active") \
+		and bool(_player.is_flashlight_active()) and not _is_any_interior_open() \
+		and not (_lake_trip != null and _lake_trip.is_active()) and not get_tree().paused \
+		and not (_sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open())
+	_torch_hand.show_torch(on)
+	if not on:
+		return
+	_torch_hand.set("bar_px", float(_hud_manager.get_bar_height_px()) if _hud_manager != null and _hud_manager.has_method("get_bar_height_px") else 0.0)
+	_torch_hand.set("lag", _player.get_beam_lag() if _player.has_method("get_beam_lag") else Vector2.ZERO)
+	var b: Vector3 = _player.get("_bob_offset") if _player.get("_bob_offset") is Vector3 else Vector3.ZERO
+	_torch_hand.set("bob", Vector2(b.x * 90.0, -b.y * 140.0))
+	_torch_hand.set("dim", _player.has_method("get_flashlight_battery") and float(_player.get_flashlight_battery()) < 0.15)
+
 
 func _update_interaction_hint() -> void:
 	if _hud_manager == null:

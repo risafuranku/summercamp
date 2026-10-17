@@ -2,6 +2,9 @@ extends CanvasLayer
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
+## Your torch, in here when it is dark: it shines where the cursor points.
+var _torch: Node
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const GENERATOR_SHED = preload("res://scripts/shed/generator_shed.gd")
 const MESS_RULES = preload("res://core/systems/mess_rules.gd")
@@ -9,6 +12,7 @@ const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 const GOODS := ["goods_cans", "goods_jars", "goods_drinks", "goods_bread"]
 const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
+const SERVICE_LIFE = preload("res://scripts/food/service_life.gd")
 
 signal request_close
 signal request_repair
@@ -81,6 +85,8 @@ var _basement_machine_anim_frame: int = 0
 ## until it is serviced, so leaving halfway keeps what you did.
 var _upkeep_prep = null
 var _upkeep_key := ""
+## The guests in here (pub, bistro, shop): scripts/food/service_life.gd.
+var _life: Node3D
 var _upkeep_coord := Vector2i(-999, -999)
 var _upkeep_type := ""
 static var _upkeep_cache: Dictionary = {}   # key -> {tasks, done, broken}
@@ -176,6 +182,7 @@ func close_service() -> void:
 		_upkeep_prep.tasks._scrub.close()
 	_is_open = false
 	visible = false
+	_stop_life()
 	_update_sewer_ambience_state()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
@@ -190,6 +197,7 @@ func _process(delta: float) -> void:
 	elif INTERIOR_LOOK.in_exit_zone(get_viewport()):
 		HandCursor.want(HandCursor.WALK)
 	_apply_idle_mouse_look(delta)
+	_update_torch(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
 		_side_hints = INTERIOR_LOOK.make_side_hints(self)
@@ -1377,6 +1385,7 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 	_upkeep_coord = coord
 	_upkeep_type = building_type
 	_upkeep_key = "%d:%d" % [coord.x, coord.y]
+	_start_life()
 	var block := "toilet" if building_type == "toilet_block" else ("wash" if building_type == "shower_block" else "")
 	if block.is_empty() or _room_root == null:
 		_free_upkeep_prep()
@@ -1489,6 +1498,81 @@ func _on_block_serviced(coord: Vector2i, _type: String, _was_broken: bool, _cost
 		_refresh_upkeep_room()
 	else:
 		_upkeep_cache.erase(key)
+
+
+func _stop_life() -> void:
+	if _life != null and is_instance_valid(_life):
+		_life.queue_free()
+	_life = null
+
+
+## Seats the guests the simulation has in this pub / bistro / shop right now.
+func _start_life() -> void:
+	_stop_life()
+	var root: Node3D = null
+	var seats: Array = []
+	var settings: Dictionary = {}
+	match _current_profile:
+		"pub":
+			root = _pub_main_root
+			if root == null:
+				return
+			var ti := 0
+			for t: Vector3 in [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]:
+				var top := _top_near(root, "PubTable", t, 0.78)
+				for side: float in [-1.0, 1.0]:
+					settings[seats.size()] = t + Vector3(side * 0.2, top, 0)
+					seats.append({"pos": t + Vector3(side * 0.45, 0, 0), "table": ti})
+				ti += 1
+			var bar_top := _top_near(root, "BarCounter", Vector3(1.35, 0.05, -1.25), 1.05)
+			for x: float in [0.6, 1.3, 2.0]:
+				settings[seats.size()] = Vector3(x, bar_top, -1.08)
+				# Up on a bar stool: the seated figure sits higher.
+				seats.append({"pos": Vector3(x, 0.3, -0.66), "table": -1})
+		"rest":
+			root = _restaurant_dining_root
+			if root == null:
+				return
+			var tj := 0
+			for t: Vector3 in [Vector3(-1.7, 0.05, -1.0), Vector3(-1.7, 0.05, 0.9), Vector3(0.35, 0.05, 0.6)]:
+				var top2 := _top_near(root, "GinghamTable", t, 0.78)
+				for side: float in [-1.0, 1.0]:
+					settings[seats.size()] = t + Vector3(side * 0.2, top2, 0)
+					seats.append({"pos": t + Vector3(side * 0.45, 0, 0), "table": tj})
+				tj += 1
+		"vecerka":
+			root = _vecerka_shop_root
+			if root == null:
+				return
+			for spot in [[Vector3(-0.85, 0.05, -1.0), Vector3(0, 0, -1)], [Vector3(0.85, 0.05, -1.0), Vector3(0, 0, -1)], [Vector3(1.0, 0.05, 0.1), Vector3(1, 0, 0)], [Vector3(-0.95, 0.05, 0.05), Vector3(-1, 0, 0)]]:
+				seats.append({"pos": spot[0], "face": spot[1], "stand": true})
+		_:
+			return
+	_life = SERVICE_LIFE.new()
+	_life.name = "ServiceLife"
+	root.add_child(_life)
+	_life.setup(_current_profile, _upkeep_key, seats, settings)
+
+
+## The top of the prop called `n` nearest `at` under `root` (room y), or `fallback`.
+func _top_near(root: Node3D, n: String, at: Vector3, fallback: float) -> float:
+	var best: Node3D = null
+	var best_d := INF
+	for c in root.find_children(n + "*", "Node3D", false, false):
+		var d := (c as Node3D).position.distance_to(at)
+		if d < best_d:
+			best_d = d
+			best = c
+	if best == null or best_d > 0.6:
+		return fallback
+	var top := -INF
+	for m in best.find_children("*", "MeshInstance3D", true, false):
+		var bb := (m as MeshInstance3D).global_transform * (m as MeshInstance3D).get_aabb()
+		top = maxf(top, bb.end.y)
+	if top == -INF:
+		return fallback
+	# The room root is never rotated or scaled: its y is a plain offset.
+	return top - root.global_position.y
 
 
 func _profile_for_service(service_type: String) -> String:
@@ -1651,3 +1735,18 @@ func on_breaker_board_closed() -> void:
 		_shed.on_board_closed()
 	if _is_open:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+## The torch comes on in here by itself when the room is dark (if it is on, F).
+func _update_torch(delta: float) -> void:
+	if _torch == null:
+		_torch = INTERIOR_TORCH.new()
+		_torch.name = "Torch"
+		add_child(_torch)
+		_torch.setup(_interior_camera, _viewport, _interior_camera.get_parent() as Node3D, layer)
+	_torch.update(delta, room_is_dark())
+
+
+## After dusk with the lights off (L) or the camp's power gone.
+func room_is_dark() -> bool:
+	return _time_state != TIME_DAY and (not _manual_lights_on or not _grid_power_available)

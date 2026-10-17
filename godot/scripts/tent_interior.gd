@@ -5,6 +5,9 @@ const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const TENT_HALF_WIDTH := 0.98
 const TENT_RIDGE_HEIGHT := 1.26
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
+## Your torch, in here when it is dark: it shines where the cursor points.
+var _torch: Node
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 ## Node name prefix -> [camp texture, metres per repeat] (world mapped, see interior_kit).
@@ -161,6 +164,7 @@ func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
 	_apply_idle_mouse_look(delta)
+	_update_torch(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
@@ -623,3 +627,18 @@ func set_room(room: Dictionary) -> void:
 
 func play_room_ready() -> void:
 	_prep.play_room_ready()
+
+
+## The torch comes on in here by itself when the room is dark (if it is on, F).
+func _update_torch(delta: float) -> void:
+	if _torch == null:
+		_torch = INTERIOR_TORCH.new()
+		_torch.name = "Torch"
+		add_child(_torch)
+		_torch.setup(_interior_camera, _viewport, _interior_camera.get_parent() as Node3D, layer)
+	_torch.update(delta, room_is_dark())
+
+
+## A tent has no light of its own: dark from dusk.
+func room_is_dark() -> bool:
+	return _time_state != TIME_DAY

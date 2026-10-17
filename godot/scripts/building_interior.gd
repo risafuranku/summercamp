@@ -21,6 +21,9 @@ const RECEPTION_PREFIX := {
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
+## Your torch, in here when it is dark: it shines where the cursor points.
+var _torch: Node
 const RECEPTION_EXTRAS = preload("res://scripts/reception/reception_extras.gd")
 const CRT_UI_SCENE = preload("res://scripts/os98/os_shell.gd")
 ## The camp computer runs at 640x480, like it did.
@@ -417,6 +420,8 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_update_window_portal()
+	if _interior_camera != null:
+		_update_torch(delta)
 	_update_crt_monitor_light(delta)
 	# Spin fan blades
 	if _fan_pivot != null:
@@ -3558,3 +3563,18 @@ func _category_for_node(node_name: String, base_color: Color) -> String:
 	if base_color.s < 0.20 and base_color.v > 0.62:
 		return "stone"
 	return "decor_wood"
+
+
+## The torch comes on in here by itself when the room is dark (if it is on, F).
+func _update_torch(delta: float) -> void:
+	if _torch == null:
+		_torch = INTERIOR_TORCH.new()
+		_torch.name = "Torch"
+		add_child(_torch)
+		_torch.setup(_interior_camera, _viewport, _interior_camera.get_parent() as Node3D, layer)
+	_torch.update(delta, room_is_dark())
+
+
+## After dusk with the office light off or no power; not while you sit at the PC.
+func room_is_dark() -> bool:
+	return _time_state != TIME_DAY and not _crt_active and (not _office_lights_on or not _grid_power_available)

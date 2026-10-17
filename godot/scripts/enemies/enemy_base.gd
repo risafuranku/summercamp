@@ -190,6 +190,15 @@ func _flashlight_on() -> bool:
 func _in_flashlight(point: Vector3) -> bool:
 	if not _flashlight_on():
 		return false
+	# The beam where it really points (it trails the view a little: player_controller).
+	if _player.has_method("get_flashlight_aim"):
+		var aim: Dictionary = _player.call("get_flashlight_aim")
+		if not aim.is_empty():
+			var to2: Vector3 = point - (aim["origin"] as Vector3)
+			var d2 := to2.length()
+			if d2 > float(aim["range"]):
+				return false
+			return (aim["dir"] as Vector3).normalized().dot(to2 / maxf(d2, 0.01)) > cos(deg_to_rad(float(aim["half_angle"])))
 	var cam := _camera()
 	if cam == null:
 		return false
