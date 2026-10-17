@@ -1167,12 +1167,22 @@ func coop_room() -> Dictionary:
 	var it = _open_room_interior()
 	if it == null:
 		return {}
+	if it == _building_interior:
+		var extras = it.get("_extras")
+		var part := str(extras.get("where")) if extras != null else "office"
+		return {"k": "office", "t": "office", "s": part, "w": "pc" if it.is_crt_view_active() else ""}
 	var node: Node3D = _open_room_node(it)
 	return {"k": _room_key_for(node), "t": _room_kind(it), "s": _room_part(it), "w": _room_job(it)}
 
 
+## Where the other warden stands in the office building (its rooms' own coordinates,
+## on the floor): leaning on the counter from the front, by the set at the foot of the
+## bed, at the back of the store; at the PC, on its chair (beside you, at the counter).
+const COOP_OFFICE_SPOTS := {"office": Vector3(-0.6, 0.0, -0.9), "back": Vector3(-4.3, 0.0, 1.85), "store": Vector3(-0.3, 0.0, 3.95)}
+
+
 func _open_room_interior():
-	for it in [_cabin_interior, _tent_interior, _caravan_interior, _service_interior]:
+	for it in [_cabin_interior, _tent_interior, _caravan_interior, _service_interior, _building_interior]:
 		if it != null and is_instance_valid(it) and it.has_method("is_open") and it.is_open():
 			return it
 	return null
@@ -1237,6 +1247,10 @@ func coop_partner(info: Dictionary) -> void:
 	var cam: Camera3D = it.get("_interior_camera")
 	if vp == null or cam == null:
 		return
+	# In bed: under the blanket, not about the room.
+	if bool(info.get("b", false)):
+		coop_drop_partner()
+		return
 	var tent: bool = str(mine["t"]) == "tent"
 	# The camera is a child of the room's root, which stands on the floor: its own height
 	# is your eyes' (low in a tent).
@@ -1261,6 +1275,13 @@ func coop_partner(info: Dictionary) -> void:
 		if tent and root != null:
 			_coop_fig_spot = _coop_tent_spot(root, root.global_transform * Vector3(0.0, 0.0, -0.6))
 		_coop_fig_spot.y = floor_y
+	if str(mine["t"]) == "office" and root != null:
+		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(mine["s"]), COOP_OFFICE_SPOTS["office"])
+		if str(info.get("w", "")) == "pc":
+			var seat: Vector3 = it.get("_crt_full_cam_pos")
+			spot = Vector3(seat.x, 0.0, seat.z + 0.15)
+		_coop_fig.show_at(root.global_transform * spot, "stand")
+		return
 	var job := str(info.get("w", ""))
 	if job != "":
 		var tasks = _room_tasks(it)

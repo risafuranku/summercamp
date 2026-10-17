@@ -680,6 +680,11 @@ func _try_click_crt(event: InputEventMouseButton) -> void:
 	# Strict hit test: only the real CRT screen quad is clickable.
 	var vp_pos = _map_mouse_to_crt(event.position, false)
 	if vp_pos != Vector2.INF:
+		# Co-op: the camp is run from the host's PC (the other warden's hands come later).
+		if Coop.is_client():
+			if _extras != null:
+				_extras.coop_refuse("pc")
+			return
 		enter_crt_view()
 
 

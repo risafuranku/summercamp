@@ -11,7 +11,9 @@ extends CanvasLayer
 ##
 ## The host gives it the camera and the poses, and callables for the room and the clock:
 ##   lamp(on: bool), tv_focus(on: bool), fast_forward() (start), fast_forward_done() -> bool,
-##   wake_text() -> String ("06:30"), finished()
+##   wake_text() -> String ("06:30"), finished(); in co-op may_sleep() -> bool (you lie
+##   watching the set till the other warden is in bed too) and woke_early() (a key
+##   before morning).
 
 signal finished
 
@@ -32,6 +34,8 @@ var tv_focus: Callable
 var fast_forward: Callable
 var fast_forward_done: Callable
 var wake_text: Callable
+var may_sleep: Callable
+var woke_early: Callable
 
 var _phase := IDLE
 var _t := 0.0
@@ -87,6 +91,11 @@ func _sfx(file: String, db := -8.0) -> void:
 
 func is_running() -> bool:
 	return _phase != IDLE
+
+
+## Asleep in the dark (not lying awake, not waking).
+func eyes_shut() -> bool:
+	return _phase == DARK
 
 
 func start() -> void:
@@ -150,7 +159,7 @@ func _process(delta: float) -> void:
 		WATCH:
 			# Breathing: the view settles and drifts a hair.
 			camera.rotation.x = lie_rot.x + sin(_t * 1.3) * 0.006
-			if _t >= 2.8:
+			if _t >= 2.8 and (not may_sleep.is_valid() or bool(may_sleep.call())):
 				_enter(LIDS)
 		LIDS:
 			# Heavy blinks, each closer to shut, then shut.
@@ -213,6 +222,8 @@ func _input(event: InputEvent) -> void:
 	match _phase:
 		LIE, WATCH, LIDS, DARK:
 			_enter(ALARM)
+			if woke_early.is_valid():
+				woke_early.call()
 		ALARM:
 			if _t > 0.25:
 				_sfx("lamp_click.wav", -4.0)

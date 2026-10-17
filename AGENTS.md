@@ -283,6 +283,12 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   put there by `InteriorManager.coop_partner` from the room the other machine reports
   (`coop_room()`: key, kind, part, the job in hand). A new kind of room needs
   `_room_part` and `_room_tasks` to answer for it, or the two never meet in it.
+- **Co-op sleep** (`camp_office.gd`): lying down sets `in_bed` (sent as the warden
+  state's `z`); the host passes the night only when both are in bed and its own eyes are
+  shut (the sleep sequence's DARK), and stops it if either gets up; the other machine
+  waits in the dark for the host's clock to show the night passing (`sl`) and then not.
+  Anything else that sleeps (the motel) must go through `start_sleep` /
+  `is_sleeping_through` too.
 - **Warden looks** (`warden_looks.gd`): a jacket colour is the jacket's pixels moved to
   another hue, found by hue band, rows per pose and boxes left out (boots of the same
   green: `JACKETS`); a new warden or pose needs its entry, checked on a sheet of all

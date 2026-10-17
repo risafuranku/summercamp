@@ -494,6 +494,9 @@ func _hover_under_mouse() -> String:
 func click() -> bool:
 	if is_modal():
 		return true
+	if Coop.is_client() and _hover in COOP_HOSTS_ONLY:
+		coop_refuse(_hover)
+		return true
 	match _hover:
 		"phone":
 			glint.clear()
@@ -536,6 +539,22 @@ func click() -> bool:
 		_:
 			return host.has_method("dressing_click") and host.dressing_click(_hover)
 	return true
+
+
+## Co-op: what in the office runs the camp, and stays with the host for now (the PC
+## too: building_interior.gd). What the joining warden thinks instead.
+const COOP_HOSTS_ONLY := ["phone", "guest", "bell", "board"]
+const COOP_REFUSALS := {
+	"pc": "You leave the PC to the other warden.",
+	"phone": "You leave the phone to the other warden.",
+	"guest": "The other warden does the check-ins.",
+	"bell": "The other warden does the check-ins.",
+	"board": "You leave the board to the other warden.",
+}
+
+
+func coop_refuse(what: String) -> void:
+	_office_call("say", [str(COOP_REFUSALS.get(what, COOP_REFUSALS["pc"]))], null)
 
 
 ## S or the bottom edge in the back room or the store takes you back to the office,
@@ -673,6 +692,9 @@ func _try_sleep() -> void:
 	sleep.fast_forward = func(): _office_call("start_sleep", [], null)
 	sleep.fast_forward_done = func(): return not bool(_office_call("is_sleeping_through", [], false))
 	sleep.wake_text = func(): return str(_office_call("clock_text", [], "06:30"))
+	sleep.may_sleep = func(): return bool(_office_call("may_sleep", [], true))
+	sleep.woke_early = func(): _office_call("get_up", [], null)
+	_office_call("lie_down", [], null)
 	glint.clear()
 	sleep.start()
 

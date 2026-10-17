@@ -11,7 +11,9 @@ extends "res://tools/shot_driver.gd"
 ##     (held, a figure at it in the host's room) is done in the host's camp, the host's
 ##     (the other sees them at it) comes back to the other room;
 ##   - both go into the new tent: each sees the other lying on their belly in it;
-##   - the joining warden rows out: the boat goes on the host's lake with them in it.
+##   - the joining warden rows out: the boat goes on the host's lake with them in it;
+##   - at night both go to the room behind the office: the host lies down first and the
+##     night does not pass; the other lies down too and both wake in the morning.
 ## Each writes what its camp looks like (seed, buildings, trees, terrain, clock, rooms)
 ## for tools/coop_check.py to compare.
 ##
@@ -68,6 +70,11 @@ func _ready() -> void:
 			["eval", "time_system.set_time_hours(21.6)"], ["eval", "_sync_runtime_state_from_systems(true)"], ["wait", 4.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "h5_night_other_torch"],
 			["coop_fingerprint", "host_night"],
+			# To bed: alone, the night does not pass; with the other one in bed too, it does.
+			["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
+			["coop_signal", "host_in_back"], ["coop_wait_file", "client_in_back"], ["wait", 1.5], ["shot", "h7_back_room_other"],
+			["eval", "_interior_manager._building_interior._extras._try_sleep()"], ["wait", 8.0], ["coop_fingerprint", "host_waiting"],
+			["coop_signal", "host_in_bed"], ["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "host_morning"],
 			["coop_wait", "partner_gone"], ["wait", 1.5], ["shot", "h6_other_went_home"],
 		]
 	else:
@@ -96,12 +103,16 @@ func _ready() -> void:
 			["coop_wait", "night"], ["wait", 3.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "c5_night_host_torch"],
 			["coop_fingerprint", "client_night"],
+			["coop_wait_file", "host_in_back"], ["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
+			["coop_signal", "client_in_back"], ["wait", 1.5], ["shot", "c6_back_room_host"],
+			["coop_wait_file", "host_in_bed"], ["eval", "_interior_manager._building_interior._extras._try_sleep()"],
+			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "client_morning"],
 			["coop_wait", "host_done"], ["coop_leave"], ["wait", 2.0],
 		]
 
 
 func _condition_met(what: String) -> bool:
-	if what in ["partner_seen", "partner_gone", "night", "host_done", "file"] and Time.get_ticks_msec() > _coop_wait_deadline:
+	if what in ["partner_seen", "partner_gone", "night", "morning", "host_done", "file"] and Time.get_ticks_msec() > _coop_wait_deadline:
 		print("COOP CHECK %s: gave up waiting for %s %s" % [_role, what, _wait_file])
 		get_tree().quit(1)
 		return false
@@ -114,9 +125,14 @@ func _condition_met(what: String) -> bool:
 		"night":
 			var h := float(_main.get("_time_of_day_hours"))
 			return h >= 21.0 or h < 5.0
+		"morning":
+			# Up again after the night went by.
+			var h2 := float(_main.get("_time_of_day_hours"))
+			var office = _main.get("camp_office")
+			return h2 >= 6.4 and h2 < 12.0 and office != null and not office.in_bed()
 		"host_done":
-			# The host has its night picture: the joining copy may hang up.
-			return FileAccess.file_exists(_out_dir.path_join("host_night.json"))
+			# The host has its morning: the joining copy may hang up.
+			return FileAccess.file_exists(_out_dir.path_join("host_morning.json"))
 		"file":
 			return FileAccess.file_exists(_out_dir.path_join(_wait_file))
 	return super._condition_met(what)
@@ -197,6 +213,13 @@ func _run_step(step: Array) -> void:
 			super._run_step(["aim_task", "_cabin_interior", pick])
 		"coop_row":
 			_row_left = float(step[1])
+		"coop_open_office":
+			# Into the office building through the real interaction path.
+			var bm2 = _main.get("building_manager")
+			for c in bm2.get_node("Structures").get_children():
+				if str(c.get_meta("building_type", "")) == "main_building":
+					_main.get("_interior_manager").handle_structure_interact(c)
+					break
 		"coop_note_job":
 			# The job under the hands (the aim can land on another mess lying in front).
 			var tasks2 = _main.get("_interior_manager").get("_cabin_interior").get("_prep").tasks
@@ -340,6 +363,7 @@ func _write_fingerprint(tag: String) -> void:
 		"boat_from_home": _boat_from_home(),
 		"other_pose": str(other.get("pose")) if other != null else "",
 		"room_figure": _room_figure(),
+		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,
 	}

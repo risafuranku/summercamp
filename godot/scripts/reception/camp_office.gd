@@ -3,7 +3,9 @@ extends Node
 ## The camp side of the office (the room side is scripts/reception/reception_extras.gd):
 ##   - sleeping: only at night, and only while nothing is out there; the night then
 ##     passes quickly in the dark (the clock stepped in quarter hours, so the night's
-##     jobs, the dawn and the bills all still happen in order) until 06:30;
+##     jobs, the dawn and the bills all still happen in order) until 06:30. In co-op
+##     only when both wardens are in bed: you lie awake till the other lies down too, the
+##     host's machine passes the night, and either getting up stops it;
 ##   - the phone: what the camp looks like to whoever you ring (phone_book.gd ctx) and
 ##     what a call sets going: the electrician (scripts/reception/electrician_visit.gd);
 ##   - the shed key from the noticeboard (the generator shed's back room).
@@ -23,6 +25,11 @@ var shed_moved: Array = []
 var electrician                      # electrician_visit.gd, or null
 var _main: Node
 var _sleep_left := 0.0               # hours still to pass
+## In bed (lying down, asleep, or awake waiting for the other warden).
+var _in_bed := false
+## The night has begun to pass since you lay down (the host's machine passes it; the
+## other one sees it in the host's clock, coop_clock "sl").
+var _night_started := false
 
 
 func setup(main_node: Node) -> void:
@@ -34,12 +41,15 @@ func reset() -> void:
 	pipe_visits = 0
 	shed_moved = []
 	_sleep_left = 0.0
+	_in_bed = false
+	_night_started = false
 	if electrician != null and is_instance_valid(electrician):
 		electrician.queue_free()
 	electrician = null
 
 
 func _process(delta: float) -> void:
+	_coop_bed()
 	if _sleep_left > 0.0:
 		var step := minf(_sleep_left, delta * SLEEP_RATE)
 		_sleep_left -= step
@@ -52,6 +62,7 @@ func _process(delta: float) -> void:
 			if ts != null:
 				ts.set_time_hours(WAKE_HOUR)
 			_main._sync_runtime_state_from_systems(true)
+			_in_bed = false
 
 
 # ── sleep ─────────────────────────────────────────────────────────────────────
@@ -71,21 +82,96 @@ func sleep_refusal() -> String:
 	var brains = _main.get("_enemy_brains")
 	if brains is Array and not (brains as Array).is_empty():
 		return "You lie down and get straight back up. Something is out there tonight."
-	# Co-op: the night is skipped only when both wardens are asleep (the next stage);
-	# until then the other one is still out there.
-	if Coop.has_partner():
-		return "You lie down, but the other warden is still up. You listen for their steps."
 	return ""
 
 
+## You lie down (the bed): in co-op the other machine hears of it (coop_local_warden "z").
+func lie_down() -> void:
+	_in_bed = true
+	_night_started = false
+
+
+func in_bed() -> bool:
+	return _in_bed
+
+
+## Your eyes may close: alone, at once; in co-op once the other warden is in bed too.
+func may_sleep() -> bool:
+	return not Coop.has_partner() or _partner_in_bed()
+
+
 func start_sleep() -> void:
+	if not _in_bed:
+		lie_down()
+	# Co-op: the host's machine passes the night once both are in bed (_coop_bed); the
+	# other machine waits for the host's clock to do it.
+	if Coop.has_partner():
+		return
+	_pass_night()
+
+
+func _pass_night() -> void:
+	_night_started = true
 	var h := _hour()
 	_sleep_left = (WAKE_HOUR - h) if h < WAKE_HOUR else (24.0 - h + WAKE_HOUR)
 	_sleep_left = maxf(0.0, _sleep_left)
 
 
-func is_sleeping_through() -> bool:
+## The night is passing on this machine (the host's clock tells the other one).
+func is_fast_forwarding() -> bool:
 	return _sleep_left > 0.0
+
+
+func is_sleeping_through() -> bool:
+	if not _in_bed:
+		return _sleep_left > 0.0
+	return _sleep_left > 0.0 or not _night_started
+
+
+func _partner_in_bed() -> bool:
+	return bool(Coop.partner_state.get("z", false))
+
+
+## Co-op, each frame: the host starts the night once both lie down and stops it if
+## either gets up; the other machine follows the host's clock to the morning.
+func _coop_bed() -> void:
+	if not _in_bed or not Coop.has_partner():
+		return
+	if Coop.is_client():
+		var host_passing := bool(Coop.last_clock.get("sl", false))
+		if host_passing:
+			_night_started = true
+		elif _night_started:
+			_in_bed = false
+		return
+	if not _night_started and _sleep_left <= 0.0 and _partner_in_bed() and _sleeping_eyes():
+		_pass_night()
+	elif _sleep_left > 0.0 and not _partner_in_bed():
+		_sleep_left = 0.0
+		_in_bed = false
+		_main._sync_runtime_state_from_systems(true)
+
+
+## Lying with the eyes shut (the sleep in the back room is past its blinks, or the
+## motel's dark), not just lying there.
+func _sleeping_eyes() -> bool:
+	var ext = _main.get("_interior_manager")
+	var bi = ext.get("_building_interior") if ext != null else null
+	var extras = bi.get("_extras") if bi != null else null
+	var seq = extras.get("sleep") if extras != null else null
+	if seq != null and seq.has_method("eyes_shut") and seq.is_running():
+		return seq.eyes_shut()
+	return true
+
+
+## Co-op: up again before the night was through (a key in the dark): it stops for both.
+func get_up() -> void:
+	if not Coop.has_partner():
+		return
+	_in_bed = false
+	if _sleep_left > 0.0:
+		_sleep_left = 0.0
+		_main._sync_runtime_state_from_systems(true)
 
 
 func clock_text() -> String:
@@ -94,6 +180,11 @@ func clock_text() -> String:
 
 
 func on_woke() -> void:
+	var slept := _night_started
+	_in_bed = false
+	_night_started = false
+	if not slept:
+		return
 	say("Morning. You slept through it.")
 	if _main.has_method("request_manual_save"):
 		_main.call_deferred("_write_autosave", "autosave")

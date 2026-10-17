@@ -3814,7 +3814,12 @@ func _on_coop_partner_moved(s: Dictionary) -> void:
 	if _lake_trip != null and _lake_trip.has_method("coop_mirror_boat"):
 		_lake_trip.coop_mirror_boat(s.get("boat", s.get("boat_at", null)))
 	if _interior_manager != null and _interior_manager.has_method("coop_partner"):
-		_interior_manager.coop_partner(s.get("room", {}))
+		var room: Dictionary = s.get("room", {})
+		if bool(s.get("z", false)) and not room.is_empty():
+			# Under the blanket: not standing about the room.
+			room = room.duplicate()
+			room["b"] = true
+		_interior_manager.coop_partner(room)
 
 
 ## The host: a room's state as it is now, to the other machine.
@@ -3888,9 +3893,10 @@ func _coop_flush_facts() -> void:
 		coop_apply_fact(str(f[0]), f[1])
 
 
-## The other warden's hands, so far: the boat, and the rooms (tents, cabins, caravans),
-## to be in them and to clean them (the jobs go to the host). The rest stays the host's
-## until the next stages.
+## The other warden's hands, so far: the boat, the rooms (tents, cabins, caravans), to be
+## in them and to clean them (the jobs go to the host), and the office building, to be
+## in it and to sleep (its PC, phone, board and check-ins stay the host's). The rest
+## stays the host's until the next stages.
 func _coop_client_interact() -> void:
 	if _lake_trip != null and not _is_any_interior_open() and _lake_trip.try_interact():
 		return
@@ -3918,7 +3924,7 @@ func _coop_client_room_target() -> Node3D:
 	if st == null:
 		return null
 	var t := str(st.get_meta("building_type", ""))
-	return st if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") else null
+	return st if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") or t == "main_building" else null
 
 
 ## The camp for the other warden (Coop sends it when they join): the save snapshot,
@@ -3969,13 +3975,17 @@ func coop_local_warden() -> Dictionary:
 	var room: Dictionary = _interior_manager.coop_room() if _interior_manager != null and _interior_manager.has_method("coop_room") else {}
 	if not room.is_empty():
 		s["room"] = room
+	# In bed (the night passes only when both are: camp_office.gd).
+	if camp_office != null and is_instance_valid(camp_office) and camp_office.in_bed():
+		s["z"] = true
 	return s
 
 
 ## The host's clock, weather, power and till for the other machine.
 func coop_clock() -> Dictionary:
 	var state = CoreRoot.get_state()
-	return {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0}
+	var night_passing: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.is_fast_forwarding()
+	return {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing}
 
 
 ## The other warden's machine sets its day, sky, weather, lamps and till by the host's.

@@ -54,7 +54,7 @@ def main():
     time.sleep(2.0)
     client = run("client")
     try:
-        client.wait(timeout=420)
+        client.wait(timeout=600)
         host.wait(timeout=60)
     except subprocess.TimeoutExpired:
         end_tree(host)
@@ -139,6 +139,16 @@ def main():
         for fp in (hn, cn):
             if not fp["other_visible"]:
                 failures.append("night: %s does not see the other warden" % fp["role"])
+    # Sleep: alone in bed the night stays; both in bed, both wake on the next morning.
+    hz, hm, cm = load("host_waiting"), load("host_morning"), load("client_morning")
+    if hz is None or hm is None or cm is None:
+        failures.append("missing sleep fingerprints (waiting %s, host morning %s, other morning %s)" % (hz is not None, hm is not None, cm is not None))
+    else:
+        if not hz["in_bed"] or not (float(hz["hour"]) >= 21.0 or float(hz["hour"]) < 5.0):
+            failures.append("sleep: the host alone in bed (%s) and the night passed anyway (%.2f)" % (hz["in_bed"], hz["hour"]))
+        for fp in (hm, cm):
+            if not (6.4 <= float(fp["hour"]) < 12.0) or fp["day"] != hz["day"] + 1:
+                failures.append("sleep: %s did not wake on the next morning (day %s, %.2f)" % (fp["role"], fp["day"], fp["hour"]))
     if failures:
         print("COOP CHECK: %d FAILURE(S)" % len(failures))
         for f in failures:

@@ -506,7 +506,9 @@ through for two (TODO.md, CO-OP).
   till. Nothing there runs the camp by itself (`Coop.sim_here()`).
 - **The PC.** One sits at it and clicks; the other, standing in the reception, sees the
   screen normally over their shoulder.
-- **Sleep.** The day is skipped only when both are asleep.
+- **Sleep.** The day is skipped only when both are asleep. Lying down alone you lie
+  awake watching the little set till the other lies down too; then the night passes
+  for both, and either getting up stops it. Both sleep in the room behind the office.
 - **The pause menu** stops nothing: the camp goes on for the other warden.
 - **Nights for two.** Sometimes asymmetric: one sees what the other does not ("didn't you
   see that?"). Behind it a hidden sanity per player: no meter, never named anywhere,
