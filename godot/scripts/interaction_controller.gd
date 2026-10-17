@@ -157,11 +157,15 @@ func _get_interactable_in_view(max_distance: float = 8.0) -> Node:
 	if camera == null:
 		return null
 
-	var viewport_size = get_viewport().get_visible_rect().size
+	# The camera's own viewport: the world is drawn small and scaled up (retro render),
+	# so the window's centre in pixels is not the centre of the picture the ray is cast
+	# through (rays used to go off to the lower right; only the structures fallback found
+	# anything).
+	var viewport_size = camera.get_viewport().get_visible_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return null
 	var center = viewport_size * 0.5
-	var probe = clamp(min(viewport_size.x, viewport_size.y) * 0.020, 10.0, 28.0)
+	var probe = clamp(min(viewport_size.x, viewport_size.y) * 0.020, 3.0, 28.0)
 	var sample_points = [
 		center,
 		center + Vector2(probe, 0.0),

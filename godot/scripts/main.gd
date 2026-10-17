@@ -559,6 +559,8 @@ func _director_slow_context() -> Dictionary:
 func _director_place() -> String:
 	if _lake_trip != null and _lake_trip.is_active():
 		return "lake"
+	if _away_in_town():
+		return "away"
 	if (_sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open()) or (_utility_repair_minigame != null and _utility_repair_minigame.is_open()):
 		return "job"
 	if _breaker_panel != null and is_instance_valid(_breaker_panel) and _breaker_panel.visible:
@@ -2321,9 +2323,17 @@ func _can_enemy_runtime_actions() -> bool:
 		return false
 	if _lake_trip != null and _lake_trip.is_active():
 		return false
+	if _away_in_town():
+		return false
 	if _player == null or not is_instance_valid(_player):
 		return false
 	return true
+
+
+## In Lesna (scripts/town/town_trip.gd): the camp's night does not follow you there.
+func _away_in_town() -> bool:
+	var trip = _interior_manager.town_trip() if _interior_manager != null and _interior_manager.has_method("town_trip") else null
+	return trip != null and bool(trip.away())
 
 
 func _on_day_phase_started() -> void:
@@ -3871,6 +3881,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"bazaar": _bazaar.export_state(),
 		"ruined_cabin": _ruined_cabin_key,
 		"camp_office": camp_office.export_state() if camp_office != null else {},
+		"town_trip": _interior_manager.town_trip().export_state() if _interior_manager != null and _interior_manager.has_method("town_trip") and _interior_manager.town_trip() != null else {},
 	}
 	if _player != null and is_instance_valid(_player):
 		snapshot["player"] = {
@@ -4120,6 +4131,9 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		if _night_jobs != null and _gameplay_started:
 			_night_jobs.import_state(_pending_night_jobs)
 			_pending_night_jobs.clear()
+		var trip_any = snapshot.get("town_trip", {})
+		if trip_any is Dictionary and _interior_manager != null and _interior_manager.has_method("town_trip") and _interior_manager.town_trip() != null:
+			_interior_manager.town_trip().import_state(trip_any)
 		var office_any = snapshot.get("camp_office", {})
 		_pending_camp_office = (office_any as Dictionary).duplicate(true) if office_any is Dictionary else {}
 		if camp_office != null and _gameplay_started:

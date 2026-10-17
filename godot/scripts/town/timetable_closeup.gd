@@ -9,7 +9,7 @@ const TIMES = preload("res://scripts/town/bus_timetable.gd")
 const PIC := "res://assets/textury/town/closeup_timetable.png"
 const SFX_TAP := "res://assets/sfx/rednecksfx/rrtick.wav"
 ## Where the sheet is in the picture (px).
-const PAPER := Rect2(58, 26, 204, 190)
+const PAPER := Rect2(70, 54, 178, 136)
 const INK := Color(0.08, 0.08, 0.12)
 const INK_RED := Color(0.78, 0.1, 0.08)
 
@@ -42,24 +42,22 @@ func _paint(c: Control) -> void:
 		c.draw_rect(PAPER.grow(6), Color(0.28, 0.29, 0.28))
 		c.draw_rect(PAPER, Color(0.9, 0.89, 0.84))
 	var f: Font = RETRO_UI.FONT_TEXT
-	var x0 := PAPER.position.x + 8.0
-	var y := PAPER.position.y + 12.0
-	var cols := [x0 + 104.0, x0 + 136.0, x0 + 168.0]
+	var x0 := PAPER.position.x + 6.0
+	var y := PAPER.position.y + 9.0
+	var cols := [x0 + 92.0, x0 + 120.0, x0 + 148.0]
 	ink(c, RETRO_UI.FONT_LABEL, Vector2(x0, y), "CSAD JIHLAVA a.s.", INK)
-	ink(c, RETRO_UI.FONT_BIG, Vector2(PAPER.end.x - 26.0, y + 1.0), "380", INK, Color(0, 0, 0, 0), 10)
-	y += 9.0
+	ink(c, RETRO_UI.FONT_BIG, Vector2(PAPER.end.x - 22.0, y + 1.0), "380", INK, Color(0, 0, 0, 0), 10)
+	y += 8.0
 	ink(c, f, Vector2(x0, y), "Hlubocany - Lesna - Cerne jezero, kemp", INK)
-	y += 6.0
+	y += 4.0
 	_rule(c, y)
-	y += 10.0
-	var rows: Array = _rows()
+	y += 9.0
 	var ring_at := Vector2(-1, -1)
-	for r in rows:
+	for r in _rows():
 		var row: Array = r
 		if row.is_empty():
-			y += 3.0
-			_rule(c, y)
-			y += 9.0
+			_rule(c, y - 5.0)
+			y += 5.0
 			continue
 		var bold := str(row[0]).begins_with("*")
 		var label := str(row[0]).trim_prefix("*")
@@ -70,26 +68,23 @@ func _paint(c: Control) -> void:
 		for i in mini(3, row.size() - 1):
 			var t := str(row[i + 1])
 			var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-			ink(c, f, Vector2(float(cols[i]) + 22.0 - tw, y), t, INK)
+			ink(c, f, Vector2(float(cols[i]) + 20.0 - tw, y), t, INK)
 			if bold and i == 2:
-				ring_at = Vector2(float(cols[i]) + 22.0 - tw * 0.5, y - 3.0)
-		y += 9.0
-	y += 2.0
-	_rule(c, y)
-	y += 10.0
+				ring_at = Vector2(float(cols[i]) + 20.0 - tw * 0.5, y - 3.0)
+		y += 8.0
+	_rule(c, y - 4.0)
+	y += 5.0
 	for line in _notes():
 		ink(c, f, Vector2(x0, y), str(line), INK)
-		y += 8.0
-	ink(c, f, Vector2(x0, PAPER.end.y - 6.0), "valid from 31.5.1998", Color(INK, 0.7))
-	# The last bus, ringed by hand in red marker (stepped, a little wobbly).
+		y += 7.0
+	ink(c, f, Vector2(x0, PAPER.end.y - 5.0), "valid from 31.5.1998", Color(INK, 0.7))
+	# The last bus, ringed by hand in red marker (a little wobbly).
 	if ring_at.x > 0.0:
 		var pts := PackedVector2Array()
 		for k in 15:
 			var a := TAU * float(k) / 14.0
-			pts.append(ring_at + Vector2(cos(a) * 15.0, sin(a) * 7.0) + Vector2(sin(a * 3.0) * 1.2, cos(a * 2.0) * 0.8))
+			pts.append(ring_at + Vector2(cos(a) * 13.0, sin(a) * 6.0) + Vector2(sin(a * 3.0) * 1.2, cos(a * 2.0) * 0.8))
 		c.draw_polyline(pts, INK_RED, 1.0)
-	# Glare on the glass, over everything.
-	c.draw_colored_polygon(PackedVector2Array([PAPER.position + Vector2(120, 0), PAPER.position + Vector2(150, 0), PAPER.position + Vector2(70, PAPER.size.y), PAPER.position + Vector2(40, PAPER.size.y)]), Color(1, 1, 1, 0.07))
 
 
 func _rule(c: Control, y: float) -> void:

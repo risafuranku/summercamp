@@ -109,7 +109,7 @@ const ARCH_HINTS := [
 const HUSH := {State.UNEASE: 0.08, State.SUSPICION: 0.22, State.ESCALATION: 0.38, State.MANIFESTATION: 0.55}
 
 ## Places where nothing may happen (close-ups, jobs, the lake, the PC's own screen).
-const SAFE_PLACES := ["modal", "job", "lake", "room"]
+const SAFE_PLACES := ["modal", "job", "lake", "room", "away"]
 
 var state := State.DORMANT
 var tension := 0.0
