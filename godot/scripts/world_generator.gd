@@ -12,6 +12,8 @@ const CAMP_LAKE_SCRIPT = preload("res://scripts/camp_lake.gd")
 @export_range(0, 8, 1) var grass_clumps_per_patch: int = 0
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const CAMP_GATE_SCRIPT = preload("res://scripts/camp_gate.gd")
+## The road on past the barrier to the bus stop (built with the gate).
+const ROAD_SOUTH_SCRIPT = preload("res://scripts/town/road_south.gd")
 const POWER_BUILDING_EDGE_PADDING: int = 2
 const POWER_BUILDING_WATER_PADDING: int = 2
 const POWER_BUILDING_ROTATION_STEPS: int = 2
@@ -454,6 +456,10 @@ func _spawn_camp_gate(map_size: Vector2, map_center: Vector3) -> void:
 	_terrain_root.add_child(gate)
 	var fence_z: float = map_center.z - map_size.y * 0.5 + 0.08
 	gate.build(_grid_manager.grid_to_world(gate_tile()), fence_z, _texture_style)
+	var road = ROAD_SOUTH_SCRIPT.new()
+	road.add_to_group("road_south")
+	_terrain_root.add_child(road)
+	road.build(gate.gap_center_x, fence_z, self, _texture_style)
 
 
 var _corn_gate_z := INF
@@ -486,10 +492,16 @@ func _on_gate_road(p: Vector3, map_size: Vector2, map_center: Vector3) -> bool:
 		return false
 	var gx: float = _grid_manager.grid_to_world(gate_tile()).x
 	var depth := fence_z - p.z
-	var road_x := gx + (2.0 * depth / 45.0 if depth < 45.0 else 2.0 + 12.0 * (depth - 45.0) / 75.0)
-	# The road, the gatehouse and a clearing either side of the barrier.
+	# The road, the gatehouse and a clearing either side of the barrier; then the road on
+	# to the bus stop and past it (scripts/town/road_south.gd), and the stop's clearing.
 	var half := 5.5 if depth > 10.0 else 10.0
-	return absf(p.x - road_x) < half
+	var road: Array = ROAD_SOUTH_SCRIPT.ROAD
+	var q := Vector2(p.x - gx, p.z - fence_z)
+	for i in road.size() - 1:
+		if Geometry2D.get_closest_point_to_segment(q, road[i], road[i + 1]).distance_to(q) < half:
+			return true
+	var stop: Vector2 = road[ROAD_SOUTH_SCRIPT.STOP]
+	return q.distance_to(stop) < 34.0
 
 
 func _add_fence_segment(parent: Node3D, node_name: String, pos: Vector3, size: Vector3) -> void:
@@ -1041,6 +1053,10 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 	var hill_mesh := st.commit()
 	for i in HORIZON_HILL_COUNT:
 		var ang := TAU * (float(i) + _rng.randf_range(-0.3, 0.3)) / float(HORIZON_HILL_COUNT)
+		# Not across the road south to the bus stop: those hills step aside.
+		var off_road := angle_difference(ang, -PI * 0.5)
+		if absf(off_road) < 0.6:
+			ang = -PI * 0.5 + signf(off_road if off_road != 0.0 else 1.0) * 0.6
 		var dist := half * _rng.randf_range(3.2, 4.6)
 		var hill := MeshInstance3D.new()
 		hill.mesh = hill_mesh

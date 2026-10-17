@@ -15,6 +15,8 @@ const BUILDING_UPGRADE_MENU_SCRIPT = preload("res://scripts/building_upgrade_men
 const GUEST_DIALOG_SCRIPT = preload("res://scripts/guest_dialog.gd")
 ## Through the door and back: the frozen frame breaking up in steps (twelve a second).
 const DOOR_TRANSITION_SCRIPT = preload("res://scripts/ui/door_transition.gd")
+## Out of the camp: the barrier, the road, the bus stop (scripts/town/town_trip.gd).
+const TOWN_TRIP_SCRIPT = preload("res://scripts/town/town_trip.gd")
 
 const TIME_NIGHT: int = 2
 
@@ -23,6 +25,8 @@ const INTERIOR_MODULE_TENT := "tent"
 const INTERIOR_MODULE_CARAVAN := "caravan"
 const INTERIOR_MODULE_CABIN := "cabin"
 const INTERIOR_MODULE_SERVICE := "service"
+## "trip_*" and "town_*" things outside the camp (town_trip.handles()).
+const INTERIOR_MODULE_TRIP := "trip"
 const INTERIOR_ASSIGNMENTS := [
 	{
 		"module_id": INTERIOR_MODULE_MAIN,
@@ -91,6 +95,11 @@ var _crt_desktop_state_cache: Dictionary = {}
 
 
 var _door_fx: CanvasLayer
+var _town_trip: Node
+
+
+func town_trip() -> Node:
+	return _town_trip
 
 
 ## The camp is about to give way to a room, or a room has just closed: the frame on
@@ -121,6 +130,12 @@ func setup(
 	if _door_fx == null:
 		_door_fx = DOOR_TRANSITION_SCRIPT.new()
 		add_child(_door_fx)
+	if _town_trip == null:
+		_town_trip = TOWN_TRIP_SCRIPT.new()
+		_town_trip.name = "TownTrip"
+		add_child(_town_trip)
+		_register_interior_instance(INTERIOR_MODULE_TRIP, _town_trip)
+	_town_trip.setup(self)
 	# setup() is called once before player spawn and again after spawn.
 	# Rebind existing interiors so runtime refs (player/audio/grid) stay valid.
 	if _building_interior != null and is_instance_valid(_building_interior) and _building_interior.has_method("setup"):
@@ -336,6 +351,8 @@ func handle_structure_interact(structure: Node3D) -> void:
 			_on_caravan_interact(structure)
 		INTERIOR_MODULE_SERVICE:
 			_on_service_interact(structure)
+		INTERIOR_MODULE_TRIP:
+			_town_trip.interact(structure)
 		_:
 			return
 
@@ -367,6 +384,14 @@ func resolve_interactable_structure(node: Node) -> Node3D:
 
 
 func get_hint_for_building_type(building_type: String) -> String:
+	return _hint_for_building_type(building_type)
+
+
+## The hint for this very thing (things out of the camp word theirs by their state).
+func get_hint_for_structure(structure: Node3D) -> String:
+	var building_type := str(structure.get_meta("building_type", ""))
+	if _town_trip != null and _town_trip.handles(building_type):
+		return str(_town_trip.hint_for(structure))
 	return _hint_for_building_type(building_type)
 
 
@@ -806,6 +831,8 @@ func _module_for_building_type(building_type: String) -> String:
 	var canonical_type = _canonical_building_type(building_type)
 	if canonical_type == "":
 		return ""
+	if _town_trip != null and _town_trip.handles(canonical_type):
+		return INTERIOR_MODULE_TRIP
 	if not _interior_module_lookup.has(canonical_type):
 		return ""
 	return str(_interior_module_lookup[canonical_type])

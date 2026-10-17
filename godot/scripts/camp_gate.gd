@@ -5,8 +5,10 @@ extends Node3D
 ##
 ## Booked guests arrive by the road and wait outside the barrier (guest_agents.gd puts
 ## them at `waiting_spot(i)`); when GuestManager lets a party in, the barrier goes up
-## for a few seconds and comes down behind them. The player cannot leave the camp this
-## way: an invisible wall stands in the gap.
+## for a few seconds and comes down behind them. An invisible wall stands in the gap;
+## click the barrier (building_type "trip_barrier", scripts/town/town_trip.gd) and it
+## goes up for ten seconds and lets you out onto the road (scripts/town/road_south.gd
+## takes it on to the bus stop), or back in. It does not come down on you.
 ##
 ## Built by world_generator.gd. Everything here is generated geometry with the
 ## camp textures (assets/textury/camp/), falling back to the old texture set.
@@ -24,6 +26,10 @@ const ARM_LENGTH := 4.3
 const ARM_HEIGHT := 1.0
 const OPEN_DEG := 82.0
 const OPEN_HOLD_SEC := 6.0
+## Raised by hand: this long, then down as soon as nobody is under it.
+const PLAYER_HOLD_SEC := 10.0
+## A layer nothing walks into: only the interaction ray finds the barrier's handle.
+const CLICK_LAYER := 1 << 11
 
 var gap_center_x: float = 0.0
 var fence_z: float = 0.0
@@ -33,6 +39,8 @@ var _close_timer: SceneTreeTimer
 var _booth_light: OmniLight3D
 var _texture_style
 var _is_open := false
+var _block_shape: CollisionShape3D
+var _hold_until := 0.0
 
 
 ## `gate_world`: the centre of the gate tile; `fence_z_world`: the south fence line.
@@ -75,19 +83,57 @@ func set_night(night: bool) -> void:
 
 
 func open_briefly() -> void:
+	_raise(OPEN_HOLD_SEC)
+
+
+## Clicked: up for ten seconds, the way open (the wall in the gap stands aside).
+func open_for_player() -> void:
+	_raise(PLAYER_HOLD_SEC)
+
+
+func is_raised() -> bool:
+	return _is_open
+
+
+func _raise(hold: float) -> void:
 	if not _is_open:
 		_is_open = true
 		_swing(OPEN_DEG, 1.6)
 		_sound(SFX_LIFT, _arm_pivot.global_position, -2.0)
-	_close_timer = get_tree().create_timer(OPEN_HOLD_SEC)
+	_hold_until = maxf(_hold_until, Time.get_ticks_msec() / 1000.0 + hold)
+	if _block_shape != null:
+		_block_shape.set_deferred("disabled", true)
+	_arm_close_timer(hold)
+
+
+func _arm_close_timer(seconds: float) -> void:
+	_close_timer = get_tree().create_timer(seconds)
 	var timer := _close_timer
 	timer.timeout.connect(func():
 		if timer != _close_timer or not is_inside_tree():
 			return
+		if Time.get_ticks_msec() / 1000.0 < _hold_until - 0.05:
+			_arm_close_timer(_hold_until - Time.get_ticks_msec() / 1000.0)
+			return
+		# Never down on somebody standing under it.
+		if _player_in_gap():
+			_arm_close_timer(0.5)
+			return
 		_is_open = false
+		if _block_shape != null:
+			_block_shape.set_deferred("disabled", false)
 		_swing(0.0, 1.1)
 		_sound(SFX_DROP, _arm_pivot.global_position, -2.0)
 	)
+
+
+func _player_in_gap() -> bool:
+	var main := get_tree().current_scene
+	var player = main.get("_player") if main != null else null
+	if player == null or not (player is Node3D):
+		return false
+	var p: Vector3 = (player as Node3D).global_position
+	return absf(p.x - gap_center_x) < 3.0 and absf(p.z - fence_z) < 1.4
 
 
 func _on_guest_at_gate_row(_row) -> void:
@@ -195,6 +241,10 @@ func _build_barrier() -> void:
 	stripes.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	arm.material_override = stripes
 	_arm_pivot.add_child(arm)
+	# The handle you click: round the arm and round the post with its counterweight (on
+	# a layer of its own: you walk through it, the interaction ray finds it).
+	_click_box(_arm_pivot, Vector3(ARM_LENGTH * 0.5, 0.0, 0.0), Vector3(ARM_LENGTH, 0.4, 0.4))
+	_click_box(self, Vector3(post_x - 0.2, 0.7, fence_z), Vector3(1.0, 1.4, 0.6))
 
 
 func _build_booth() -> void:
@@ -291,10 +341,26 @@ func _build_sign() -> void:
 	add_child(label)
 
 
+func _click_box(parent: Node3D, pos: Vector3, size: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.name = "BarrierHandle"
+	body.collision_layer = CLICK_LAYER
+	body.collision_mask = 0
+	body.set_meta("building_type", "trip_barrier")
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	body.position = pos
+	parent.add_child(body)
+
+
 func _build_player_block() -> void:
 	var body := StaticBody3D.new()
 	body.name = "GateBlock"
 	var shape := CollisionShape3D.new()
+	_block_shape = shape
 	var box := BoxShape3D.new()
 	box.size = Vector3(4.6, 3.0, 0.3)
 	shape.shape = box

@@ -320,11 +320,15 @@ The cellar is not open to guests.
 [b]Line 380   Hlubocany - Lesna - Cerne jezero, camp[/b]   valid from 31.5.1998
 [center]{{img:web_bus:224}}[/center]
 
-[code]                       Mo-Fr  Mo-Fr  daily  daily  daily    +
-Hlubocany, bus station  6:15   9:40  13:05  16:30  18:40  23:30
-Lesna, Jednota          6:31   9:56  13:21  16:46  18:56  23:46
-Cerne jezero, dam       6:40  10:05  13:30  16:55  19:05  23:55
-Cerne jezero, camp      6:44  10:09  13:34  16:59  19:09    |[/code]
+[code]                       daily  daily  daily    +
+Hlubocany, bus station  3:35  11:10  16:35  23:30
+Lesna, Jednota          4:15  11:50  17:15  23:46
+Cerne jezero, dam       5:20  12:55  18:20  23:55
+Cerne jezero, camp      5:45  13:20  18:45    |
+
+Cerne jezero, camp      6:15  13:50  19:15
+Lesna, Jednota          7:45  15:20  20:45
+Hlubocany, bus station  8:10  15:45  21:10[/code]
 
 [b]+[/b] works bus. It does not stop at Cerne jezero, camp. Please do not wave at it.
 

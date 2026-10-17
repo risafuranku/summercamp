@@ -125,7 +125,9 @@ func build_hint_text(interact_distance: float, utility_repairs_enabled: bool) ->
 		return ""
 	var building_type = str(structure.get_meta("building_type", ""))
 	var hint = ""
-	if _interior_manager != null and _interior_manager.has_method("get_hint_for_building_type"):
+	if _interior_manager != null and _interior_manager.has_method("get_hint_for_structure"):
+		hint = str(_interior_manager.get_hint_for_structure(structure))
+	elif _interior_manager != null and _interior_manager.has_method("get_hint_for_building_type"):
 		hint = str(_interior_manager.get_hint_for_building_type(building_type))
 	if hint == "":
 		return ""
