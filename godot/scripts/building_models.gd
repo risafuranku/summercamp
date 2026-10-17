@@ -1495,8 +1495,14 @@ func reception(r: Node3D) -> Dictionary:
 	# The roof: corrugated tin over the lot, the ridge along the front.
 	var tin := _camp("corrugated_roof.png", Color(0.74, 0.7, 0.66), Vector3(1.6, 1.6, 1.0))
 	_gable_roof(r, Vector3((x0 + x1) * 0.5, h, (z0 + z1) * 0.5), b.size.x + 0.7, b.size.y + 0.9, L.ROOF_RISE, tin)
-	_cyl(r, "StovePipe", 0.09, 1.3, Vector3(x1 - 1.4, h + L.ROOF_RISE * 0.55, z0 + 1.2), _metal())
-	_cyl(r, "StoveCap", 0.16, 0.06, Vector3(x1 - 1.4, h + L.ROOF_RISE * 0.55 + 0.68, z0 + 1.2), _metal())
+	# The stove's pipe out through the roof over the office's back corner, where the
+	# stove stands inside (scripts/reception/office_dressing.gd).
+	var stove: Vector3 = L.local(Vector3(2.12, 0.0, 2.16))
+	var ridge_z := (z0 + z1) * 0.5
+	var roof_half := (b.size.y + 0.9) * 0.5
+	var roof_y: float = h + L.ROOF_RISE * (1.0 - absf(stove.z - ridge_z) / roof_half)
+	_cyl(r, "StovePipe", 0.08, 1.2, Vector3(stove.x, roof_y + 0.4, stove.z), _metal())
+	_cyl(r, "StoveCap", 0.15, 0.06, Vector3(stove.x, roof_y + 1.02, stove.z), _metal())
 
 	# The door: planks in a frame, a step and a porch with a lean-to over it.
 	var dcx := (dx0 + dx1) * 0.5
@@ -1530,15 +1536,58 @@ func reception(r: Node3D) -> Dictionary:
 	_box(r, "BackSill", Vector3(0.2, 0.06, bs.x + 0.24), Vector3(x1 + t + 0.08, by0 - 0.09, bc.z), trim)
 	var bg := _glass(r, "BackGlass", Vector3(0.02, bs.y, bs.x), Vector3(x1 + 0.04, bc.y, bc.z))
 
-	# The store at the east end of the front: a low plank door, padlocked.
-	var store_x := (wx1 + x1) * 0.5 + 0.6
-	_box(r, "StoreDoor", Vector3(0.9, 1.7, 0.05), Vector3(store_x, 0.95, z1 + t + 0.03), _camp("planks_grey.png", Color(0.62, 0.56, 0.5)))
-	_frame(r, "StoreFrame", store_x - 0.47, store_x + 0.47, 0.1, 1.82, z1 + t + 0.02, _wood(), false)
-	_box(r, "Padlock", Vector3(0.06, 0.09, 0.04), Vector3(store_x + 0.34, 1.0, z1 + t + 0.08), _metal())
+	_reception_store(r, L, z0 - t, tin)
 	# Firewood against the west wall.
 	for i in 4:
 		_cyl(r, "Firewood%d" % i, 0.11, 1.1, Vector3(x0 - t - 0.25, 0.18 + i * 0.2, z0 + 1.0 + (i % 2) * 0.12), _psx_mat(Color(0.52, 0.38, 0.24), "tree_bark"), Vector3(PI * 0.5, 0, 0))
 	return {"office_glass": og, "back_glass": bg}
+
+
+## The lean-to store on the back of the reception (ReceptionLayout.STORE_*): grey boards
+## under a tin roof falling away from the building, the glass blocks in its back wall.
+## Its only door is the one inside, behind the counter. `back` = the building's back face.
+func _reception_store(r: Node3D, L, back: float, tin: Material) -> void:
+	var a: Vector3 = L.local(Vector3(L.STORE_X.x, 0.0, L.STORE_Z.y))
+	var b: Vector3 = L.local(Vector3(L.STORE_X.y, 0.0, L.STORE_Z.y))
+	var sx0 := minf(a.x, b.x)
+	var sx1 := maxf(a.x, b.x)
+	var far: float = a.z
+	var depth := back - far
+	var hi: float = L.STORE_ROOF.x
+	var lo: float = L.STORE_ROOF.y
+	var t := 0.1
+	var boards := _camp("planks_grey.png", Color(0.9, 0.86, 0.8), Vector3(1.6, 1.6, 1.0))
+	_plinth(r, sx1 - sx0 + 0.2, depth + 0.1, Vector3((sx0 + sx1) * 0.5, 0, (back + far) * 0.5))
+	# The side walls up to the low eave, a wedge on each up to the roof line.
+	for sx: float in [sx0 + t * 0.5, sx1 - t * 0.5]:
+		_box(r, "StoreSide", Vector3(t, lo, depth), Vector3(sx, lo * 0.5, (back + far) * 0.5), boards)
+		var wedge := _prism(Vector3(t, hi - lo, depth), boards)
+		wedge.name = "StoreGable"
+		wedge.position = Vector3(sx, lo, (back + far) * 0.5)
+		r.add_child(wedge)
+	# The back wall round the glass blocks.
+	var gb: Rect2 = L.STORE_BLOCKS
+	var g0: Vector3 = L.local(Vector3(gb.position.x, 0.0, L.STORE_Z.y))
+	var g1: Vector3 = L.local(Vector3(gb.end.x, 0.0, L.STORE_Z.y))
+	var gx0 := minf(g0.x, g1.x)
+	var gx1 := maxf(g0.x, g1.x)
+	var bz := far + t * 0.5
+	_wall_x(r, "StoreBackA", sx0, gx0, 0.0, lo, bz, t, boards)
+	_wall_x(r, "StoreBackB", gx1, sx1, 0.0, lo, bz, t, boards)
+	_wall_x(r, "StoreBackUnder", gx0, gx1, 0.0, gb.position.y, bz, t, boards)
+	_wall_x(r, "StoreBackOver", gx0, gx1, gb.end.y, lo, bz, t, boards)
+	var blocks := _camp("glass_blocks.png", Color(0.86, 0.9, 0.92), Vector3(4.0, 1.0, 1.0))
+	_box(r, "StoreGlassBlocks", Vector3(gx1 - gx0, gb.size.y, 0.06), Vector3((gx0 + gx1) * 0.5, gb.get_center().y, bz), blocks)
+	_frame(r, "StoreBlocksFrame", gx0, gx1, gb.position.y, gb.end.y, far - 0.01, _camp("planks_grey.png", Color(0.95, 0.94, 0.9), Vector3(1.0, 1.0, 1.0)), true)
+	# The roof: one slope of tin from under the building's eave down past the back wall.
+	var run := depth + 0.3
+	var drop := hi - lo
+	var slope := atan2(drop, depth)
+	var roof := _box(r, "StoreRoof", Vector3(sx1 - sx0 + 0.3, 0.06, Vector2(run, drop * run / depth).length()), Vector3((sx0 + sx1) * 0.5, (hi + lo) * 0.5 + 0.04, (back + far) * 0.5 - 0.15), tin)
+	roof.rotation.x = -slope
+	# A gutter along the low edge, its downpipe at the corner.
+	_box(r, "StoreGutter", Vector3(sx1 - sx0 + 0.3, 0.07, 0.09), Vector3((sx0 + sx1) * 0.5, lo - 0.03, far - 0.33), _metal())
+	_box(r, "StoreDownpipe", Vector3(0.07, lo - 0.05, 0.07), Vector3(sx1 + 0.08, (lo - 0.05) * 0.5, far - 0.33), _metal())
 
 
 ## A wall slab along X (front, back) from x a to b, y lo to hi, at depth z.

@@ -125,6 +125,33 @@ static func picture(parent: Node3D, tex: String, size: Vector2, pos: Vector3, ya
 	return mi
 
 
+## A Build sprite with see-through edges (camp texture `tex`, keyed): a quad of `size`
+## metres, its bottom edge at `pos`, facing +Z turned `yaw_deg`; `billboard` turns it to
+## face you about Y (things standing on the floor), else it is flat on its wall.
+static func cutout(parent: Node3D, tex: String, size: Vector2, pos: Vector3, yaw_deg: float = 0.0, billboard := false, name: String = "Cutout") -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = name
+	var q := QuadMesh.new()
+	q.size = size
+	q.center_offset = Vector3(0, size.y * 0.5, 0)
+	mi.mesh = q
+	var m := _base(Color(1, 1, 1))
+	var path := TEX + tex + ".png"
+	if ResourceLoader.exists(path):
+		m.albedo_texture = load(path)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if billboard:
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+		m.billboard_keep_scale = true
+	mi.material_override = m
+	mi.position = pos
+	mi.rotation_degrees.y = yaw_deg
+	parent.add_child(mi)
+	return mi
+
+
 ## Instance a Blender prop at `pos` in `parent`, turned `yaw_deg` about Y.
 static func prop(parent: Node3D, prop_name: String, pos: Vector3, yaw_deg: float = 0.0, scale: float = 1.0) -> Node3D:
 	var scn: PackedScene = _scenes.get(prop_name)

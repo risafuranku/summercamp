@@ -5,7 +5,7 @@ const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 ## Reception surfaces by node name (exact names first, then prefixes): [camp texture,
 ## metres per repeat]. "" = not built (replaced by a prop or a picture, see _build_room).
 const RECEPTION_EXACT := {
-	"Floor": ["parquet", 0.9], "Ceiling": ["ceiling_board", 1.0], "CeilingTrim": ["planks_dark", 0.6],
+	"Floor": ["parquet", 0.9], "Ceiling": ["ceiling_pine", 0.9],
 	"Desk": ["veneer_dark", 0.7], "DeskTop": ["veneer_dark", 0.7], "DeskDrawerA": ["veneer_dark", 0.5], "DeskDrawerB": ["veneer_dark", 0.5],
 	"Counter": ["pub_panel", 1.0], "CounterTop": ["veneer_dark", 0.8],
 	"ShelfA": ["knotty_pine", 0.5], "ShelfB": ["knotty_pine", 0.5],
@@ -15,6 +15,10 @@ const RECEPTION_EXACT := {
 }
 const RECEPTION_PREFIX := {
 	"FloorTile": "", "FloorScatter": "", "FilingCab": "", "FilingDrawer": "", "FilingHandle": "",
+	# Replaced by office_dressing.gd (Grok faces and sprites); the old pine trim was a
+	# second, lower ceiling over the whole room.
+	"CeilingTrim": "", "CeilingFixture": "", "Calendar": "", "Plant": "", "BackWallCoat": "",
+	"BackWallHanger": "", "BackWallHook": "",
 	"PosterFrame": "", "PosterPaper": "", "PosterTear": "", "PosterHang": "",
 	"Wall": ["knotty_pine", 1.2], "WindowFrame": ["knotty_pine", 0.5], "WindowMullion": ["knotty_pine", 0.5],
 }
@@ -27,6 +31,8 @@ const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 ## Your torch, in here when it is dark: it shines where the cursor points.
 var _torch: Node
 const RECEPTION_EXTRAS = preload("res://scripts/reception/reception_extras.gd")
+const OFFICE_DRESSING = preload("res://scripts/reception/office_dressing.gd")
+var _dressing
 const CRT_UI_SCENE = preload("res://scripts/os98/os_shell.gd")
 ## The camp computer runs at 640x480, like it did.
 const CRT_RESOLUTION := Vector2i(640, 480)
@@ -432,6 +438,8 @@ func _process(delta: float) -> void:
 	if _interior_camera != null:
 		_update_torch(delta)
 	_update_crt_monitor_light(delta)
+	if _dressing != null:
+		_dressing.update(delta, _hour_now(), _office_lights_on and _grid_power_available)
 	# Spin fan blades
 	if _fan_pivot != null:
 		_fan_spin += delta * 380.0
@@ -456,7 +464,7 @@ func _process(delta: float) -> void:
 		_apply_crt_mouse_orbit(delta)
 		return
 	if _desk_room != null:
-		_desk_room.process(delta, _extras == null or not _extras.in_back_room())
+		_desk_room.process(delta, _extras == null or not _extras.away())
 	if _is_camera_tween_running():
 		return
 	if _desk_room != null and _desk_room.is_open():
@@ -1128,7 +1136,6 @@ func _build_room() -> void:
 	K.picture(_room_root, "poster_mushrooms", Vector2(0.44, 0.58), Vector3(-2.47, 1.56, -0.9), 90.0, "PosterA")
 
 	K.picture(_room_root, "picture_deer", Vector2(0.48, 0.64), Vector3(-1.26, 1.56, 2.47), 180.0, "PosterC")
-	K.slab(_room_root, Vector3(1.6, 0.012, 1.1), Vector3(0.3, 0.056, -1.35), K.surface("rug", 1.6), "Rug")
 
 	# ── LIGHT SWITCH + DOOR HINT ──────────────────────────────────────────────
 	_setup_office_light_system()
@@ -1158,6 +1165,10 @@ func _build_room() -> void:
 		_extras.back.window_quad.material_override = qm
 	_desk_room = DESK_ROOM.new()
 	_desk_room.build(self, _extras, _room_root)
+	_dressing = OFFICE_DRESSING.new()
+	_dressing.build(_room_root)
+	for id in _dressing.hot.keys():
+		_extras.hot[id] = _dressing.hot[id]
 
 
 func _build_crt_viewport() -> void:
@@ -1348,7 +1359,7 @@ func _input(event: InputEvent) -> void:
 		if _extras != null and _extras.click():
 			get_viewport().set_input_as_handled()
 			return
-		if _extras != null and _extras.in_back_room():
+		if _extras != null and _extras.away():
 			get_viewport().set_input_as_handled()
 			return
 		if _try_click_room(mouse_event):
@@ -2261,7 +2272,7 @@ func undo_disturbances() -> void:
 func is_looking_at_window() -> bool:
 	if not visible or _crt_active or _interior_camera == null or _room_root == null:
 		return false
-	if _extras != null and _extras.in_back_room():
+	if _extras != null and _extras.away():
 		return false
 	var eye := _room_root.to_local(_interior_camera.global_position)
 	var fwd := _room_root.global_transform.basis.inverse() * (-_interior_camera.global_transform.basis.z)
@@ -3553,4 +3564,11 @@ func _update_torch(delta: float) -> void:
 
 ## After dusk with the office light off or no power; not while you sit at the PC.
 func room_is_dark() -> bool:
+	if _extras != null and _extras.where == "store":
+		return _extras.store.is_dark(_daylight_factor, _grid_power_available)
 	return _time_state != TIME_DAY and not _crt_active and (not _office_lights_on or not _grid_power_available)
+
+
+## The stove and whatever else office_dressing.gd makes clickable (reception_extras asks).
+func dressing_click(id: String) -> bool:
+	return _dressing != null and _dressing.click(id)

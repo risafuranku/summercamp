@@ -2,6 +2,7 @@ extends CanvasLayer
 
 ## The room swipe moves in steps, twelve a second (scripts/ui/step12.gd).
 const STEP12 = preload("res://scripts/ui/step12.gd")
+const ROOM_PUSH = preload("res://scripts/ui/room_push.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
@@ -618,6 +619,7 @@ func _build_service_room(profile: String) -> void:
 	_swipe_animating = false
 	if _swipe_tween != null and is_instance_valid(_swipe_tween):
 		_swipe_tween.kill()
+	ROOM_PUSH.cancel(_viewport_container)
 	if _swipe_overlay != null:
 		_swipe_overlay.visible = false
 	if _room_root != null and is_instance_valid(_room_root):
@@ -1124,20 +1126,13 @@ func _play_room_swipe(target_room: String, direction: int) -> void:
 	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
 		_apply_service_subroom(target_room, true)
 		return
-	var overlay_width = _swipe_overlay.size.x
-	var start_x = screen_size.x if direction >= 0 else -overlay_width
-	var mid_x = -screen_size.x * 0.06
-	var end_x = -overlay_width if direction >= 0 else screen_size.x
+	# The room you leave slides away as the next slides in (scripts/ui/room_push.gd).
 	_swipe_animating = true
-	_swipe_overlay.visible = true
-	_swipe_overlay.position = Vector2(start_x, 0.0)
+	_swipe_overlay.visible = false
 	if _swipe_tween != null and is_instance_valid(_swipe_tween):
 		_swipe_tween.kill()
-	_swipe_tween = create_tween()
-	STEP12.add(_swipe_tween, _swipe_overlay, {"position:x": mid_x}, 0.17, Tween.TRANS_CUBIC, Tween.EASE_IN)
-	_swipe_tween.tween_callback(Callable(self, "_apply_service_subroom").bind(target_room, true))
-	STEP12.add(_swipe_tween, _swipe_overlay, {"position:x": end_x}, 0.17, Tween.TRANS_CUBIC, Tween.EASE_OUT)
-	_swipe_tween.tween_callback(Callable(self, "_finish_room_swipe"))
+	_swipe_tween = ROOM_PUSH.play(self, _viewport_container, _viewport, direction,
+		Callable(self, "_apply_service_subroom").bind(target_room, true), Callable(self, "_finish_room_swipe"))
 
 
 func _finish_room_swipe() -> void:

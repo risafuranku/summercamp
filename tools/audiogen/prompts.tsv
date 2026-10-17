@@ -181,3 +181,7 @@ motel_key	1.0	assets/sfx/town/motel_key.mp3	A heavy old hotel room key with a bi
 scratch	1.2	assets/sfx/town/scratch.mp3	A coin scratching the silver coating off a paper lottery scratch card, quick short scrapes, close, no voices, no music.
 crows_over	5.0	assets/sfx/life/crows_over.mp3	Three or four crows flying high over a forest clearing at dusk, cawing to each other as they pass and fade away, distant, no other birds, no voices, no music.
 flock_over	3.0	assets/sfx/life/flock_over.mp3	A small flock of starlings flying fast overhead, a soft rush of many wings and a few chirps, passing and fading, outdoors, no voices, no music.
+steps_wood	2.4	assets/sfx/rooms/steps_wood.mp3	Four slow footsteps of a man in rubber boots walking across old creaky wooden floorboards in a small timber cabin office, one board creaks, close, dry room, no music.
+stove_door	1.2	assets/sfx/rooms/stove_door.mp3	The small cast-iron door of an old wood-burning room stove opened and shut with a metallic clank and a squeak of the hinge, close up, indoors.
+cord_pull	0.6	assets/sfx/rooms/cord_pull.mp3	A pull-cord ceiling light switch being tugged once: a short string pull and a sharp plastic click, small storeroom, close.
+clock_tick_wall	3.0	assets/sfx/rooms/clock_tick_wall.mp3	An old electric wall clock ticking softly in a quiet wooden room, a steady second tick, close, no other sound.

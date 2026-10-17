@@ -7,15 +7,19 @@ extends RefCounted
 ##   - the cork noticeboard on the right wall with the numbers (board_closeup.gd), and
 ##     the generator shed's back-room key hanging on it;
 ##   - the door in the left wall: it opens and you walk through into your own room
-##     (scripts/reception/back_room.gd), where the bed is (sleep_sequence.gd).
+##     (scripts/reception/back_room.gd), where the bed is (sleep_sequence.gd);
+##   - the door in the back wall behind the counter: the store (store_room.gd).
 ## Everything usable glints under the cursor (scripts/ui/hover_glint.gd) and gets the
 ## gloved finger (scripts/ui/hand_cursor.gd).
 ##
 ## The camp side of it (the electrician's visit, the key, sleeping through the night)
 ## lives in scripts/reception/camp_office.gd, reached through main.
 
-## Moves in steps, twelve a second (scripts/ui/step12.gd).
-const STEP12 = preload("res://scripts/ui/step12.gd")
+## Walking between the rooms: one smooth move (scripts/ui/walk_path.gd).
+const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
+const STORE_ROOM = preload("res://scripts/reception/store_room.gd")
+const SFX_STEPS := "res://assets/sfx/rooms/steps_wood.mp3"
+const DOOR_TEX := "res://assets/textury/camp/door_interior.png"
 const K = preload("res://scripts/interior_kit.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
@@ -34,11 +38,16 @@ const DOOR_HINGE := Vector3(-2.43, 0.0, 1.77)
 const DOOR_OPEN_DEG := 96.0
 const THRESHOLD := Vector3(-2.15, 1.47, 1.28)
 const BACK_THRESHOLD := Vector3(-2.95, 1.47, 1.28)
+## The store's door in the office's back wall: hinged at its left (seen from the store),
+## it opens out into the office.
+const STORE_HINGE := Vector3(-0.48, 0.0, 2.46)
+const STORE_DOOR_OPEN_DEG := 100.0
 
 var host
 var room_root: Node3D
 var camera: Camera3D
 var back = BACK_ROOM.new()
+var store = STORE_ROOM.new()
 var glint = HOVER_GLINT.new()
 var where := "office"
 var hot: Dictionary = {}   # id -> {body, meshes}
@@ -49,9 +58,12 @@ var board_view
 var sleep
 ## A whole turn (playtest 2026-10-17): the doorway back to the office is behind you.
 var look_back = INTERIOR_LOOK.new(180.0, 26.0, 38.0)
+var look_store = INTERIOR_LOOK.new(175.0, 28.0, 40.0)
 var back_base_rot := Vector3(deg_to_rad(-11.0), deg_to_rad(101.0), 0.0)
 
 var _door_pivot: Node3D
+var _store_pivot: Node3D
+var _steps: AudioStreamPlayer
 var _phone_root: Node3D
 ## Someone ringing the office: {call, left (rings), t, done: Callable(answered)}.
 var _ring: Dictionary = {}
@@ -67,6 +79,8 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 	camera = cam
 	_sfx = AudioStreamPlayer.new()
 	host.add_child(_sfx)
+	_steps = AudioStreamPlayer.new()
+	host.add_child(_steps)
 	_build_phone()
 	_build_board()
 	_build_doorway()
@@ -77,6 +91,10 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 	back.build(root, host)
 	for id in back.hot.keys():
 		hot[id] = back.hot[id]
+	store.build(root, host)
+	for id in store.hot.keys():
+		hot[id] = store.hot[id]
+	_build_store_door()
 	_bell3d = AudioStreamPlayer3D.new()
 	_bell3d.unit_size = 4.0
 	_bell3d.volume_db = 0.0
@@ -243,6 +261,7 @@ func _build_doorway() -> void:
 		_door_pivot.add_child(part)
 		part.position = p - DOOR_HINGE
 		meshes.append(part)
+	meshes.append_array(_door_faces(_door_pivot, Vector3(-2.43, 1.05, 1.28) - DOOR_HINGE, Vector2(0.98, 2.02), 0.032, 90.0))
 	_hot_body("door", _door_pivot, Vector3(0.0, 1.05, -0.49), Vector3(0.12, 2.04, 0.98), meshes)
 	# The open doorway, seen from the back room: the way back to the office (the leaf
 	# has swung out of it).
@@ -252,6 +271,77 @@ func _build_doorway() -> void:
 		if j != null:
 			jambs.append(j)
 	_hot_body("doorway", room_root, Vector3(-2.55, 1.05, 1.28), Vector3(0.3, 2.04, 0.96), jambs)
+
+
+## The door in the back wall to the store: the wall opened round it, a frame, the leaf
+## on its hinge with the painted face both sides.
+func _build_store_door() -> void:
+	var wall := room_root.get_node_or_null("WallBack")
+	if wall != null:
+		wall.queue_free()
+		var c := Color(0.62, 0.48, 0.34)
+		var a: float = RL.BACK_DOOR_X.x
+		var b: float = RL.BACK_DOOR_X.y
+		host._add_box(room_root, "WallBackA", Vector3((-2.5 + a) * 0.5, 1.4, 2.55), Vector3(a + 2.5, 2.8, 0.1), c)
+		host._add_box(room_root, "WallBackB", Vector3((b + 2.5) * 0.5, 1.4, 2.55), Vector3(2.5 - b, 2.8, 0.1), c)
+		host._add_box(room_root, "WallBackTop", Vector3((a + b) * 0.5, (RL.BACK_DOOR_H + 2.8) * 0.5, 2.55), Vector3(b - a, 2.8 - RL.BACK_DOOR_H, 0.1), c)
+	var old_frame := room_root.get_node_or_null("BackDoorFrame")
+	if old_frame != null:
+		old_frame.queue_free()
+	var fm := K.surface("planks_dark", 0.6)
+	K.slab(room_root, Vector3(0.07, RL.BACK_DOOR_H + 0.04, 0.16), Vector3(RL.BACK_DOOR_X.x - 0.02, (RL.BACK_DOOR_H + 0.04) * 0.5, 2.52), fm, "StoreJambA")
+	K.slab(room_root, Vector3(0.07, RL.BACK_DOOR_H + 0.04, 0.16), Vector3(RL.BACK_DOOR_X.y + 0.02, (RL.BACK_DOOR_H + 0.04) * 0.5, 2.52), fm, "StoreJambB")
+	K.slab(room_root, Vector3(1.14, 0.08, 0.16), Vector3(0.0, RL.BACK_DOOR_H + 0.04, 2.52), fm, "StoreLintel")
+	_store_pivot = Node3D.new()
+	_store_pivot.name = "StoreDoorHinge"
+	_store_pivot.position = STORE_HINGE
+	room_root.add_child(_store_pivot)
+	var meshes: Array = []
+	for n in ["BackDoorLeaf", "BackDoorHandle"]:
+		var part := room_root.get_node_or_null(n) as Node3D
+		if part == null:
+			continue
+		var p := part.position
+		room_root.remove_child(part)
+		_store_pivot.add_child(part)
+		part.position = p - STORE_HINGE
+		meshes.append(part)
+	# The handle on the store side as well.
+	var h2 := K.slab(_store_pivot, Vector3(0.07, 0.05, 0.04), Vector3(0.82, 0.98, 0.05), K.surface("galvanized", 0.2, Color(0.8, 0.74, 0.6)), "StoreDoorHandleIn")
+	meshes.append(h2)
+	meshes.append_array(_door_faces(_store_pivot, Vector3(0.48, 1.08, 0.0), Vector2(0.96, 2.04), 0.022, 180.0, true))
+	_hot_body("store_door", _store_pivot, Vector3(0.48, 1.06, 0.0), Vector3(0.98, 2.06, 0.14), meshes)
+
+
+## The interior door's painted face (door_interior.png) on both sides of a leaf `size`
+## centred at `centre` (in `parent`), `half` its half thickness, `yaw` its front facing;
+## the face whose handle is on the left as you look at it is mirrored (`mirror_front`:
+## the front is that one).
+func _door_faces(parent: Node3D, centre: Vector3, size: Vector2, half: float, yaw: float, mirror_front := false) -> Array:
+	var out: Array = []
+	if not ResourceLoader.exists(DOOR_TEX):
+		return out
+	var tex: Texture2D = load(DOOR_TEX)
+	var fwd := Vector3(0, 0, 1).rotated(Vector3.UP, deg_to_rad(yaw))
+	for side in [1.0, -1.0]:
+		var q := MeshInstance3D.new()
+		q.name = "DoorFace"
+		var qm := QuadMesh.new()
+		qm.size = size
+		q.mesh = qm
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = tex
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		m.roughness = 1.0
+		if (side < 0.0) != mirror_front:
+			m.uv1_scale = Vector3(-1, 1, 1)
+		q.material_override = m
+		q.position = centre + fwd * half * side
+		q.rotation_degrees.y = yaw + (0.0 if side > 0.0 else 180.0)
+		parent.add_child(q)
+		out.append(q)
+	return out
 
 
 # ── the phone ringing ────────────────────────────────────────────────────────
@@ -328,6 +418,11 @@ func in_back_room() -> bool:
 	return where == "back"
 
 
+## In one of the rooms behind the office (the back room, the store).
+func away() -> bool:
+	return where != "office"
+
+
 func _walking() -> bool:
 	return _walk != null and is_instance_valid(_walk) and _walk.is_running()
 
@@ -335,6 +430,7 @@ func _walking() -> bool:
 ## Returns true when this owns the camera this frame (walking, sleeping, the back room).
 func process(delta: float, hour: float) -> bool:
 	back.update(delta, hour)
+	store.update(delta, float(host.get("_daylight_factor")), bool(host.get("_grid_power_available")))
 	var moved := false
 	if office_curtain != null and office_curtain.update(delta):
 		moved = true
@@ -349,14 +445,15 @@ func process(delta: float, hour: float) -> bool:
 		return true
 	_hover = _hover_under_mouse()
 	if _hover != "":
-		HandCursor.want(HandCursor.WALK if _hover in ["door", "doorway", "front_door"] else HandCursor.POINT)
+		HandCursor.want(HandCursor.WALK if _hover in ["door", "doorway", "front_door", "store_door", "store_doorway"] else HandCursor.POINT)
 		glint.show_on(hot[_hover]["meshes"])
 	else:
 		glint.clear()
-	if where == "back":
+	if where != "office":
 		var vp: Viewport = host.get_viewport()
-		var offset: Vector3 = look_back.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.turn_axis())
-		var want: Vector3 = back_base_rot + offset
+		var look = look_back if where == "back" else look_store
+		var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.turn_axis())
+		var want: Vector3 = (back_base_rot if where == "back" else STORE_ROOM.STAND_ROT) + offset
 		# The yaw wraps round: follow it the short way.
 		want.y = camera.rotation.y + wrapf(want.y - camera.rotation.y, -PI, PI)
 		camera.rotation = camera.rotation.lerp(want, clampf(delta * 30.0, 0.0, 1.0))
@@ -372,7 +469,7 @@ func hovered() -> String:
 
 func _hover_under_mouse() -> String:
 	var mouse: Vector2 = host.get_viewport().get_mouse_position()
-	if where == "back" and INTERIOR_LOOK.in_exit_zone(host.get_viewport()):
+	if where != "office" and INTERIOR_LOOK.in_exit_zone(host.get_viewport()):
 		return ""
 	var hit: Dictionary = host._raycast_room(mouse)
 	var n = hit.get("collider", null) as Node
@@ -380,14 +477,16 @@ func _hover_under_mouse() -> String:
 		if n.has_meta("extra_hot"):
 			var id := str(n.get_meta("extra_hot"))
 			# Only what is in the room you are in.
-			var in_back: bool = back.hot.has(id)
 			if id == "doorway":
 				return id if where == "back" else ""
-			if id == "front_door":
+			if id == "store_doorway":
+				return id if where == "store" else ""
+			if id in ["front_door", "store_door"]:
 				return id if where == "office" else ""
-			if (where == "back") == in_back or id == "door":
-				return id
-			return ""
+			if id == "door":
+				return id if where != "store" else ""
+			var room := "back" if back.hot.has(id) else ("store" if store.hot.has(id) else "office")
+			return id if room == where else ""
 		n = n.get_parent()
 	return ""
 
@@ -410,8 +509,14 @@ func click() -> bool:
 				go_office()
 			else:
 				go_back_room()
-		"doorway":
+		"doorway", "store_doorway":
 			go_office()
+		"store_door":
+			go_store()
+		"store_bulb":
+			store.toggle_bulb()
+		"lost_found":
+			_office_call("say", ["Lost property, summer '97. Nobody came back for the bear."], null)
 		"front_door":
 			glint.clear()
 			_play("res://assets/sfx/dvereotevrit.mp3", -8.0)
@@ -429,13 +534,14 @@ func click() -> bool:
 		"lamp":
 			back.toggle_lamp()
 		_:
-			return false
+			return host.has_method("dressing_click") and host.dressing_click(_hover)
 	return true
 
 
-## S or the bottom edge in the back room takes you back to the office, not outside.
+## S or the bottom edge in the back room or the store takes you back to the office,
+## not outside.
 func handle_exit() -> bool:
-	if where != "back":
+	if where == "office":
 		return false
 	if not is_modal():
 		go_office()
@@ -445,41 +551,84 @@ func handle_exit() -> bool:
 # ── walking between the rooms ────────────────────────────────────────────────
 
 func go_back_room() -> void:
-	if _walking() or where == "back":
+	if _walking() or where != "office":
 		return
 	glint.clear()
 	_play(SFX_DOOR, -9.0)
-	# In steps, twelve a second, like the rest of the room's moves.
-	_walk = host.create_tween()
-	STEP12.add(_walk, _door_pivot, {"rotation_degrees:y": DOOR_OPEN_DEG}, 0.55)
-	STEP12.add(_walk, camera, {"rotation": Vector3(0.0, deg_to_rad(90.0), 0.0), "position": Vector3(-1.1, 1.47, 1.28)}, 0.55, Tween.TRANS_SINE, Tween.EASE_IN_OUT, true)
-	STEP12.add(_walk, camera, {"position": THRESHOLD}, 0.45)
-	STEP12.add(_walk, camera, {"position": BACK_ROOM.STAND, "rotation": back_base_rot}, 0.7)
+	_play_steps()
+	var side := Vector3(0.0, PI * 0.5, 0.0)
+	_walk = WALK_PATH.play(host, camera, [
+		{"pos": camera.position, "rot": camera.rotation},
+		{"pos": Vector3(-1.05, 1.47, 1.26), "rot": side},
+		{"pos": THRESHOLD, "rot": side},
+		{"pos": BACK_ROOM.STAND, "rot": back_base_rot},
+	], 2.1)
+	_walk.parallel().tween_property(_door_pivot, "rotation_degrees:y", DOOR_OPEN_DEG, 0.75).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_walk.tween_callback(func():
 		where = "back"
 		look_back.reset()
 	)
 
 
-func go_office() -> void:
-	if _walking() or where != "back":
+func go_store() -> void:
+	if _walking() or where != "office":
 		return
 	glint.clear()
+	_play(SFX_DOOR, -10.0)
+	_play_steps()
+	var ahead := Vector3(-0.05, PI, 0.0)
+	_walk = WALK_PATH.play(host, camera, [
+		{"pos": camera.position, "rot": camera.rotation},
+		{"pos": Vector3(0.12, 1.48, 1.85), "rot": ahead},
+		{"pos": Vector3(0.0, 1.49, 2.55), "rot": ahead},
+		{"pos": STORE_ROOM.STAND, "rot": STORE_ROOM.STAND_ROT},
+	], 1.9)
+	_walk.parallel().tween_property(_store_pivot, "rotation_degrees:y", STORE_DOOR_OPEN_DEG, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_walk.tween_callback(func():
+		where = "store"
+		look_store.reset()
+		# The cord is right there: the warden pulls it as he comes in.
+		store.set_bulb(true)
+	)
+
+
+func go_office() -> void:
+	if _walking() or where == "office":
+		return
+	glint.clear()
+	_play_steps()
 	var to_pos: Vector3 = host._initial_cam_pos
 	var to_rot: Vector3 = host._initial_cam_rot
-	var face := deg_to_rad(-90.0)
-	camera.rotation.y = wrapf(camera.rotation.y, face - PI, face + PI)
-	_walk = host.create_tween()
-	STEP12.add(_walk, camera, {"rotation": Vector3(0.0, deg_to_rad(-90.0), 0.0), "position": BACK_THRESHOLD}, 0.45)
-	STEP12.add(_walk, camera, {"position": Vector3(-1.4, 1.42, 1.3)}, 0.6)
-	STEP12.add(_walk, camera, {"position": to_pos, "rotation": to_rot}, 0.55)
-	STEP12.add(_walk, _door_pivot, {"rotation_degrees:y": 0.0}, 0.5, Tween.TRANS_SINE, Tween.EASE_IN_OUT, true)
+	var keys: Array = [{"pos": camera.position, "rot": camera.rotation}]
+	var pivot: Node3D
+	if where == "back":
+		var face := Vector3(0.0, -PI * 0.5, 0.0)
+		keys.append({"pos": BACK_THRESHOLD, "rot": face})
+		keys.append({"pos": Vector3(-1.45, 1.44, 1.3), "rot": face})
+		pivot = _door_pivot
+	else:
+		var face := Vector3(-0.04, 0.0, 0.0)
+		keys.append({"pos": Vector3(0.0, 1.49, 2.62), "rot": face})
+		keys.append({"pos": Vector3(0.1, 1.48, 1.8), "rot": face})
+		pivot = _store_pivot
+		store.set_bulb(false)
+	keys.append({"pos": to_pos, "rot": to_rot})
+	var dur := 1.9
+	_walk = WALK_PATH.play(host, camera, keys, dur)
+	_walk.parallel().tween_property(pivot, "rotation_degrees:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(dur * 0.62)
 	_walk.tween_callback(func():
 		where = "office"
 		_play(SFX_LATCH, -14.0)
 		if host.get("_look") != null:
 			host._look.reset()
 	)
+
+
+func _play_steps() -> void:
+	if _steps != null and ResourceLoader.exists(SFX_STEPS):
+		_steps.stream = load(SFX_STEPS)
+		_steps.volume_db = -13.0
+		_steps.play()
 
 
 ## Back to the office at once (the interior is opened again, or closed).
@@ -489,6 +638,9 @@ func reset_to_office() -> void:
 	where = "office"
 	if _door_pivot != null:
 		_door_pivot.rotation_degrees.y = 0.0
+	if _store_pivot != null:
+		_store_pivot.rotation_degrees.y = 0.0
+	store.set_bulb(false, false)
 	glint.clear()
 	if phone_view != null and phone_view.visible:
 		phone_view.close_view()

@@ -18,8 +18,13 @@ extends RefCounted
 ##   +--------------------------------------+---------------------------+
 ##   |  office 5 x 5            |  back room 3 x 2.8 (bed under the     |
 ##   |  keys  counter   PC      |  east window)                         |
-##   |                          +----------- store (no way in) ---------+
+##   |                          +---------------------------------------+
 ##   +--[door]-------[window]---+-------------------------------------- +   front +Z
+##
+## Behind the office (room +Z, the building's back) a lean-to store of rough boards
+## under its own tin roof, through the door in the office's back wall: the linen, the
+## camp's supplies, the boiler and the fuses (store_room.gd; playtest 17. 10.: "where
+## does the door behind the reception go?"). It has no door of its own outside.
 
 ## The rooms, outer faces of their walls (x, z in room space).
 const OFFICE_X := Vector2(-2.6, 2.6)
@@ -38,6 +43,16 @@ const OFFICE_WINDOW_SIZE := Vector2(1.86, 1.38)
 ## the gate lane toward the barrier.
 const BACK_WINDOW_CENTER := Vector3(-5.6, 1.42, 0.86)
 const BACK_WINDOW_SIZE := Vector2(0.96, 0.86)   # along z, height
+
+## The store behind the office: the door in the back wall (x, the opening's width), the
+## lean-to's outer faces (x, z) and its roof from the office wall down to the back.
+const BACK_DOOR_X := Vector2(-0.5, 0.5)
+const BACK_DOOR_H := 2.12
+const STORE_X := Vector2(-1.35, 1.35)
+const STORE_Z := Vector2(2.6, 4.2)
+const STORE_ROOF := Vector2(2.66, 2.28)
+## The glass blocks high in the store's back wall (x from, x to; y from, y to).
+const STORE_BLOCKS := Rect2(-0.92, 1.96, 0.8, 0.22)
 
 ## Room x where the building's middle is (the rooms' combined extent, centred).
 const ROOM_CENTER_X := -1.525

@@ -49,6 +49,7 @@ var _clock_text := ""
 var _one: AudioStreamPlayer
 var _t := 0.0
 var _late := false
+var _ceiling_lamp: MeshInstance3D
 
 
 func build(parent: Node3D, audio_parent: Node) -> void:
@@ -56,7 +57,7 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	root.name = "BackRoom"
 	root.position = CENTRE
 	parent.add_child(root)
-	var walls := K.room(root, SIZE, "planks_dark", "wallpaper_70s", "ceiling_board", 1.1, 1.0)
+	var walls := K.room(root, SIZE, "planks_dark", "wallpaper_70s", "ceiling_pine", 1.1, 1.0)
 	# The wall shared with the office has the doorway in it: replace the solid slab.
 	(walls["right"] as Node3D).queue_free()
 	# A paper-thin lining just behind the office wall (which is x -2.6..-2.5): sharing the
@@ -74,7 +75,7 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	K.slab(root, Vector3(t, SIZE.y - 2.1, 1.0), Vector3(x, 2.1 + (SIZE.y - 2.1) * 0.5, dz), wall, "WallDoorTop")
 	_cut_window(walls)
 	K.skirting(root, SIZE)
-	K.slab(root, Vector3(1.3, 0.012, 0.9), Vector3(-0.2, 0.006, 0.6), K.surface("rug", 1.3), "Rug")
+	_flat("rug_rag", Vector2(1.25, 1.0), Vector3(-0.2, 0.007, 0.6), false, "Rug")
 
 	var o := -CENTRE
 	_prop("bed", "bed_wood", BED + o, 0.0)
@@ -87,9 +88,17 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	K.prop(root, "dresser", Vector3(-5.0, 0.05, 2.36) + o, 180.0)
 	K.prop(root, "wardrobe", Vector3(-3.15, 0.05, 0.12) + o, 0.0)
 	K.prop(root, "coat_hooks", Vector3(-2.66, 1.55, 2.2) + o, -90.0)
-	K.slab(root, Vector3(0.06, 0.8, 0.42), Vector3(-2.7, 1.12, 2.2) + o, K.surface("tarp_canvas", 0.6, Color(0.5, 0.45, 0.4)), "Coat")
-	K.prop(root, "chair_wood", Vector3(-3.4, 0.05, 2.15) + o, 200.0)
+	K.cutout(root, "coat_hook", Vector2(0.42, 0.62), Vector3(-2.64, 0.86, 2.2) + o, -90.0, false, "Coat")
+	# The chair with yesterday's clothes thrown over it (a Grok sprite, turned to you).
+	K.cutout(root, "chair_clothes", Vector2(0.62, 0.98), Vector3(-3.42, 0.0, 2.18) + o, 0.0, true, "ChairClothes")
 	K.picture(root, "picture_deer", Vector2(0.36, 0.48), Vector3(-5.0, 1.62, 2.54) + o, 180.0, "BackPicture")
+	# Lived in: Vera and Karel at the lake over the nightstand, the shelf of old books,
+	# the slippers by the bed, the light on the ceiling.
+	K.picture(root, "photo_family", Vector2(0.3, 0.4), Vector3(-4.42, 1.44, -0.188) + o, 0.0, "FamilyPhoto")
+	K.slab(root, Vector3(0.64, 0.64, 0.1), Vector3(-3.95, 1.56, 2.55) + o, K.surface("planks_dark", 0.5), "BookShelfBack")
+	K.picture(root, "bookshelf", Vector2(0.62, 0.62), Vector3(-3.95, 1.56, 2.498) + o, 180.0, "BookShelf")
+	_flat("slippers", Vector2(0.36, 0.36), Vector3(-4.48, 0.008, 1.5) + o, false, "Slippers")
+	_ceiling_lamp = _flat("ceiling_lamp", Vector2(0.38, 0.38), Vector3(0.0, SIZE.y - 0.005, 0.0), true, "CeilingLamp")
 
 	_build_tv_screen()
 	_build_clock()
@@ -174,6 +183,32 @@ func _cut_window(walls: Dictionary) -> void:
 	body.position = Vector3(fx + 0.1, c.y, c.z)
 	root.add_child(body)
 	hot["back_curtain"] = {"body": body, "meshes": curtain.meshes}
+
+
+## A flat Grok sprite on the floor (or the ceiling, seen from below): a rug, slippers.
+func _flat(tex: String, size: Vector2, pos: Vector3, ceiling: bool, name: String) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = name
+	var q := QuadMesh.new()
+	q.size = size
+	q.orientation = PlaneMesh.FACE_Y
+	mi.mesh = q
+	var m := K._base(Color(1, 1, 1))
+	if ResourceLoader.exists(K.TEX + tex + ".png"):
+		m.albedo_texture = load(K.TEX + tex + ".png")
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if ceiling:
+		m.emission_enabled = true
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		m.emission_texture = m.albedo_texture
+		m.emission = Color(1.0, 0.92, 0.78)
+		m.emission_energy_multiplier = 0.7
+	mi.material_override = m
+	mi.position = pos
+	root.add_child(mi)
+	return mi
 
 
 func _prop(id: String, prop_name: String, pos: Vector3, yaw: float) -> Node3D:
@@ -349,6 +384,8 @@ func set_lamp(on: bool) -> void:
 		lamp.visible = on
 	if bulb != null:
 		bulb.visible = on
+	if _ceiling_lamp != null:
+		(_ceiling_lamp.material_override as StandardMaterial3D).emission_energy_multiplier = 0.7 if on else 0.0
 
 
 func toggle_lamp() -> void:
