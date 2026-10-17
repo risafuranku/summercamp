@@ -484,7 +484,12 @@ func _tick_director() -> void:
 func _director_context() -> Dictionary:
 	var hour := _time_of_day_hours
 	var night := hour >= 21.0 or hour < 5.5
-	var base := _omen_context()
+	# The camp's side (guests, pressure) changes slowly: twice a second is plenty.
+	var now := Time.get_ticks_msec()
+	if now - _dir_slow_at > 500 or _dir_slow.is_empty():
+		_dir_slow_at = now
+		_dir_slow = _director_slow_context()
+	var base: Dictionary = _dir_slow["base"]
 	var place := _director_place()
 	var inside := place == "office" or place == "back_room"
 	var entering := inside and not _director_was_inside
@@ -493,19 +498,14 @@ func _director_context() -> Dictionary:
 	var vel: Vector3 = _player.velocity if _player != null else Vector3.ZERO
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	var curtain = bi.get("_office_curtain") if bi != null else null
-	var by_arch := {}
-	if GuestManager != null:
-		for g in CoreRoot.get_state().guests:
-			if g is Dictionary and str((g as Dictionary).get("status", "")) == "active":
-				var a := str((g as Dictionary).get("archetype", ""))
-				by_arch[a] = int(by_arch.get(a, 0)) + 1
+	var by_arch: Dictionary = _dir_slow["by_arch"]
 	return {
 		"night": night and _gameplay_started and not _game_over_active,
 		"quiet": _day_index <= QUIET_NIGHTS,
 		"hour": hour,
 		"place": place,
 		"pos": pos,
-		"pressure": OMENS_SCRIPT.pressure(base),
+		"pressure": float(_dir_slow["pressure"]),
 		"guests_by_arch": by_arch,
 		"admitted": int(base.get("admitted", 0)),
 		"hunting": int(base.get("hunting", 0)),
@@ -517,6 +517,20 @@ func _director_context() -> Dictionary:
 		"looking_at_window": bi != null and bi.has_method("is_looking_at_window") and bi.is_looking_at_window(),
 		"entering": entering,
 	}
+
+
+var _dir_slow: Dictionary = {}
+var _dir_slow_at := 0
+
+
+func _director_slow_context() -> Dictionary:
+	var base := _omen_context()
+	var by_arch := {}
+	for g in CoreRoot.get_state().guests:
+		if g is Dictionary and str((g as Dictionary).get("status", "")) == "active":
+			var a := str((g as Dictionary).get("archetype", ""))
+			by_arch[a] = int(by_arch.get(a, 0)) + 1
+	return {"base": base, "by_arch": by_arch, "pressure": OMENS_SCRIPT.pressure(base)}
 
 
 ## Where you are, for the director: office, back_room, out_lit, out_dark, or somewhere
@@ -1341,7 +1355,7 @@ func _update_threat_senses(delta: float) -> void:
 	)
 	if _audio_manager != null and _audio_manager.has_method("set_insect_hush"):
 		var corn_hush: float = float(_corn_hunt.hush) if _corn_hunt != null and is_instance_valid(_corn_hunt) else 0.0
-		var dir_hush: float = _director.hush() if _director != null and bool(_director_context().get("night", false)) else 0.0
+		var dir_hush: float = _director.hush() if _director != null and (_time_of_day_hours >= 21.0 or _time_of_day_hours < 5.5) else 0.0
 		_audio_manager.set_insect_hush(maxf(maxf(maxf(_senses.hush, _omens.hush if _omens != null else 0.0), corn_hush), dir_hush))
 	if _hud_manager != null:
 		_hud_manager.set_fear(_senses.fear)

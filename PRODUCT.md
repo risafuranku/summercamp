@@ -100,6 +100,12 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 
 | Feature | State | Notes |
 | --- | --- | --- |
+| The night director | ✅ | `scripts/night/`: tension, states, budget, archetypes from the guests, memory of how you play; 14 events through the camp's own systems (window, door, phone, radio, lamps, steps, calls, figures, omens); night log and the camp's character on CampStat's NIGHT page; `tools/director_check.gd`; F10 debug panel in debug builds |
+| Night work on the PC | ✅ | DataPunch 98 (register cards, $4 each, 24 a night); guest book replies move the reputation and the bookings |
+| Reception building | ✅ | built from the office's plan (`scripts/reception/reception_layout.gd`): plank cabin, porch, RECEPCE sign, the door and both windows where they are inside; windows glow at night with the lights on |
+| Curtains, desk lamp, daylight | ✅ | `scripts/reception/curtain.gd` in the office and the back room (whose window looks out over the gate lane, a second portal); the green desk lamp switches; a sun beam with shadows through the office window |
+| Phone | ✅ | modelled after its close-up; a key lifts the handset; incoming calls ring in the room and outside, CALL on the display |
+| Toilets | ✅ | two single stalls as outside, a proper bowl in each; scrubbing close-up (`scripts/scrub_minigame.gd`): the filth wears off where you drag the brush, CLEAN %, flush, SPOTLESS |
 | Reception (CRT, radio, light switch, phone, noticeboard) | ✅ | everything usable glints under the cursor (pixel glints, Grok) and gets the gloved finger; the window is a portal into the real camp (`_update_window_portal`: an off-axis camera where your eye is, laid over the reception building); the monitor is curved glass (`materials/crt_glass.gdshader`; the desk overlay and the mouse use the same barrel, `CRT_CURVE`); the radio opens a new game with "radiojedna" |
 | The back room and sleep | ✅ | through the door in the office: bed, little TV (programme, test card after midnight), VFD alarm clock, curtains, wardrobe; sleep only at night with nothing out there: lie down, the TV, eyelids, the night passes, the alarm; any key skips |
 | The cursor | ✅ | a gloved hand (Grok): carved arrow, pointing finger, flat palm for doors and the way out, fist while working |

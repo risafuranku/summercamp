@@ -95,6 +95,7 @@ godot --headless --path godot --script res://tools/omens_check.gd
 godot --headless --path godot --script res://tools/corn_check.gd
 godot --headless --path godot --script res://tools/checkin_check.gd
 godot --headless --path godot --script res://tools/season_check.gd
+godot --headless --path godot --script res://tools/director_check.gd
 ```
 
 - **Grep the smoke output for `SCRIPT ERROR` / `Parse Error`.** A tail of the log can hide
@@ -152,6 +153,11 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | 2D close-ups (phone, noticeboard, logbook) | `scripts/closeup/closeup_view.gd` + subclasses; who answers the phone: `phone_book.gd`; voices `tools/audiogen/tts.py` + `voices.tsv` (needs a key with text_to_speech) |
 | The cursor and the hover glint | `scripts/ui/hand_cursor.gd` (`HandCursor.want(kind)` per frame), `scripts/ui/hover_glint.gd` |
 | The thing in the pipes, its staging | `scripts/pipes/pipe_director.gd` (the minigame keeps the network, movement, map, clamp) |
+| The night's director (tension, events, log) | `scripts/night/night_director.gd` (pure logic, `tools/director_check.gd`), effects `scripts/night/director_effects.gd`, context `main._director_context()`; sounds `assets/sfx/director/`; F10 panel (debug builds) |
+| The reception's plan (office, back room, building, windows) | `scripts/reception/reception_layout.gd`; the building `building_models.reception()`; curtains `scripts/reception/curtain.gd` |
+| Builder construction effects | `scripts/builder_fx.gd` (wave, local grid, outlines, ripples); lamp spot on paths `scripts/lamp_spot.gd` |
+| Toilet scrubbing | `scripts/scrub_minigame.gd` (opened by `interior_tasks.gd` for tasks with `scrub`) |
+| Night work programs | `scripts/os98/apps/datapunch_app.gd`; guest book replies `EmailManager.reply_to_review` |
 | The generator shed (junk, switch room) | `scripts/shed/generator_shed.gd`; the board's close-up `scripts/breaker_panel.gd` |
 | The lake trip, far shore, fishing | `scripts/lake/lake_trip.gd`, far shore in `scripts/camp_lake.gd`, logbook `scripts/lake/logbook_closeup.gd` |
 | Corn tiles in the camp | `scripts/world_generator.gd` (`_corn_band`, `_create_corn_patch`), Builder icon in `crt_map_panel.gd` |
@@ -204,6 +210,10 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   or the lake trip is active: a mode with its own camera must be added to that check.
 - **The shot driver's mouse steers interior looks**: warp it to the centre
   (`get_viewport().warp_mouse(...)`) before shots of a look-around view.
+- **The OS boot takes ~13 s** (warm-up, BIOS, maker's screen, Okna): harness waits must be
+  longer than that, and a test that skips itself when an app does not open must fail.
+- **Physics ignores visibility**: hidden rooms' bodies still catch rays. Disable a hotspot's
+  `collision_layer` when its thing is absent (the empty counter spot stood before the door).
 - **Load textures outside draw callbacks**: a texture first `load()`ed inside a `_draw`
   or a `draw` signal handler renders plain white (setup billboard, Display preview).
   Load it when the node is built and draw the cached one.

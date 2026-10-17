@@ -279,6 +279,58 @@ an ordinary one ~1.6, an overfull troubled one ~3.7, never in the same order twi
 What comes at night also comes back harder: every third night something came raises the
 enemies' minimum difficulty (1 -> 2 -> 3), from the ledger, not the calendar.
 
+## 5g. The night's director
+
+The hunters (§5) come from the night roll; everything around them is played by a director
+(`scripts/night/night_director.gd`, its hands `director_effects.gd`, checked by
+`tools/director_check.gd`). It does not make the night busier, it makes it *about you*.
+
+- **Tension** 0-1 builds over minutes from the hour, the camp's pressure (§5e), what hunts,
+  the dark, being out alone, and cues you ignored; investigating calms it a little.
+- **States**: DORMANT, OBSERVATION (it only watches), UNEASE, SUSPICION, ESCALATION,
+  MANIFESTATION by tension; CONFRONTATION while a hunter is within 14 m (it keeps quiet and
+  lets the hunter's own tells speak); RECOVERY for half a minute after anything big.
+- **Budget**: points that come back with time; each event costs its weight (2-8), big ones
+  are rare and never back to back; at least 18-46 s between two events, 8 s after you
+  arrive somewhere; most decisions come to nothing. A seven-minute night: about 8-10 things.
+- **Character**: the camp's guests set it (quiet ones and pickers OBSERVER, drinkers and the
+  girls MIMIC, families and tramps DISTURBER; strangers let in add OBSERVER, a dark camp
+  DISTURBER, tonight's hunters HUNTER). An archetype much weaker than the strongest does
+  nothing: a camp of drinkers hears knocks, calls and steps, not figures in the window.
+- **You**: hide in the office and the office is where it comes; keep watching the window
+  and it happens elsewhere; ignore things and the night tightens.
+
+| Event | Where you are | Archetype | What remains |
+| --- | --- | --- | --- |
+| tapping on the window, then a person outside it facing it | office | observer | prints where they stood |
+| knocking (or two knocks and one), the handle tried | office, back room | mimic, hunter | wet prints on the step |
+| the phone at 23-04: breathing | office, back room | mimic | |
+| something along the back room's wall | back room | hunter, disturber | |
+| the radio loses the station | office | mimic, disturber | |
+| the room changed while you were out (curtain, light, radio, lamp) | coming in | disturber | yours to put back |
+| a lamp dies over you, stutters back | outdoors in light | disturber | |
+| steps behind you that stop when you stop | outdoors | observer, mimic, hunter | |
+| a call from the woods | outdoors | mimic | |
+| a person crosses the camp in the dark | outdoors | observer | prints |
+| an omen (§5e) when it wants one | outdoors | observer, disturber | |
+
+Never in close-ups, jobs, the lake, a guest's room; never a door blocked or a hurt.
+The morning after, CampStat's NIGHT page has **last night's log** with times and, before
+the night, **the camp tonight**: one line of what its character means for you. The insects
+go quiet as the state rises and come back after.
+
+## 5h. Night work at the computer
+
+The PC is free at night (the Builder locks): pocket money for whoever stays at it, and
+while you type you are not watching the camp.
+
+- **DataPunch 98** (the District Office, from the Courier's web page): copy old register
+  cards 1961-1989 into four fields; $4 a card without mistakes, half with one or two, none
+  with more; 24 cards a night. Some cards should not be in the box.
+- **The guest book**: every review arrives as an entry to answer (thank, apologise, set them
+  straight). The answer moves the camp's reputation (-0.25..0.25), which moves the chance
+  of booking letters; it fades a tenth every morning.
+
 ## 5d. The end of the week
 
 Vera's last mail (day 7, 20:10): "Leave the books on the desk and the terminal on. I will
