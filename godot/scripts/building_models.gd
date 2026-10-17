@@ -374,89 +374,263 @@ func _bonfire(r: Node3D, _w: float, _d: float) -> Dictionary:
 	return {"size": Vector3(1.8, 0.6, 1.8), "target": Vector3(0, 0.4, 0.8)}
 
 
-# ── the sports field (iso_sports): a pitch, lines, goals, the nohejbal net ────
+# ── the sports field (iso_sports): a nohejbal court on the camp grass ──────────
+#    Mown grass (pitch_grass.png), chalk lines, the low net across the middle, the
+#    kids' goals at the ends with their nets, corner flags, a bench and a crate of
+#    bottles; the ball. Played on by scripts/attractions/pitch_play.gd.
 
 func _sports(r: Node3D, w: float, d: float) -> Dictionary:
 	var px := w * 0.92
 	var pz := d * 0.86
-	_box(r, "Pitch", Vector3(px, 0.08, pz), Vector3(0, 0.04, 0), _flat(Color(0.34, 0.5, 0.24)))
-	# Worn patches in the goal mouths and the middle.
-	for x: float in [-px * 0.5 + 0.8, 0.0, px * 0.5 - 0.8]:
-		_box(r, "Worn", Vector3(1.0, 0.085, 0.9), Vector3(x, 0.042, 0), _flat(Color(0.44, 0.38, 0.24)))
-	var line := _flat(Color(0.92, 0.92, 0.88))
+	_box(r, "Pitch", Vector3(px, 0.08, pz), Vector3(0, 0.04, 0), _camp_or("pitch_grass.png", Color(0.92, 1.0, 0.9), "grass", Vector3(2.0, 1.0, 2.0)))
+	# Worn: the goal mouths and both sides of the net, where everyone stands.
+	var worn := _camp_or("gravel_road.png", Color(0.62, 0.52, 0.38), "dirt", Vector3(1.0, 1.0, 1.0))
+	for x: float in [-px * 0.5 + 0.7, -px * 0.25, px * 0.25, px * 0.5 - 0.7]:
+		_box(r, "Worn", Vector3(0.9 if absf(x) > px * 0.3 else 1.4, 0.084, 0.8), Vector3(x, 0.042, 0.1 if x > 0.0 else -0.1), worn)
+	var line := _flat(Color(0.94, 0.94, 0.9))
 	_box(r, "LineN", Vector3(px - 0.4, 0.02, 0.06), Vector3(0, 0.09, -pz * 0.5 + 0.2), line)
 	_box(r, "LineS", Vector3(px - 0.4, 0.02, 0.06), Vector3(0, 0.09, pz * 0.5 - 0.2), line)
 	_box(r, "LineW", Vector3(0.06, 0.02, pz - 0.4), Vector3(-px * 0.5 + 0.2, 0.09, 0), line)
 	_box(r, "LineE", Vector3(0.06, 0.02, pz - 0.4), Vector3(px * 0.5 - 0.2, 0.09, 0), line)
 	_box(r, "LineMid", Vector3(0.06, 0.02, pz - 0.4), Vector3(0, 0.09, 0), line)
-	for i in 16:
-		var a := TAU * float(i) / 16.0
-		var seg := _box(r, "Circle%d" % i, Vector3(0.24, 0.02, 0.05), Vector3(cos(a) * 0.6, 0.09, sin(a) * 0.6), line)
-		seg.rotation.y = -a + PI * 0.5
-	# Goals at the ends.
 	for side: float in [-1.0, 1.0]:
-		var gx := side * (px * 0.5 - 0.25)
+		_box(r, "LineServe", Vector3(0.05, 0.02, pz - 0.4), Vector3(side * px * 0.18, 0.09, 0), line)
+	var net_mat := _net_material()
+	# The nohejbal net: two posts, a cord along the top, the mesh hanging under it.
+	for z: float in [-pz * 0.5 + 0.08, pz * 0.5 - 0.08]:
+		_box(r, "NetPost", Vector3(0.07, 1.16, 0.07), Vector3(0, 0.62, z), _metal())
+	_box(r, "NetCord", Vector3(0.025, 0.025, pz - 0.16), Vector3(0, 1.1, 0), line)
+	_cord_net(r, "Net", Vector2(pz - 0.2, 0.46), 0.12, Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(0, 0.86, 0)), net_mat)
+	# The goals at the ends, nets behind them.
+	for side: float in [-1.0, 1.0]:
+		var gx := side * (px * 0.5 - 0.22)
 		for z: float in [-0.75, 0.75]:
 			_box(r, "GoalPost", Vector3(0.07, 1.1, 0.07), Vector3(gx, 0.6, z), line)
 		_box(r, "GoalBar", Vector3(0.07, 0.07, 1.57), Vector3(gx, 1.15, 0), line)
-	# The nohejbal net across the middle.
-	for z: float in [-pz * 0.5 + 0.1, pz * 0.5 - 0.1]:
-		_box(r, "NetPost", Vector3(0.06, 1.1, 0.06), Vector3(0, 0.6, z), _metal())
-	var net := StandardMaterial3D.new()
-	net.albedo_color = Color(0.1, 0.1, 0.1, 0.55)
-	net.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	net.set_meta("base_albedo_color", net.albedo_color)
-	_box(r, "Net", Vector3(0.02, 0.5, pz - 0.2), Vector3(0, 0.82, 0), net)
+		var back := side * 0.5
+		_cord_net(r, "GoalNet", Vector2(1.5, 1.1), 0.15, Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(gx + back, 0.6, 0)), net_mat)
+		for z: float in [-0.75, 0.75]:
+			_cord_net(r, "GoalNetSide", Vector2(0.5, 1.1), 0.15, Transform3D(Basis(), Vector3(gx + back * 0.5, 0.6, z)), net_mat)
+		_cord_net(r, "GoalNetTop", Vector2(0.5, 1.5), 0.15, Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(gx + back * 0.5, 1.15, 0)), net_mat)
+	# Corner flags (their cloth stirs: pitch_play.gd).
+	var flag_mat := _flat(Color(0.92, 0.3, 0.12))
+	flag_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var ci := 0
+	for x: float in [-px * 0.5 + 0.2, px * 0.5 - 0.2]:
+		for z: float in [-pz * 0.5 + 0.2, pz * 0.5 - 0.2]:
+			var f := Node3D.new()
+			f.name = "CornerFlag%d" % ci
+			f.position = Vector3(x, 0, z)
+			r.add_child(f)
+			_box(f, "Pole", Vector3(0.03, 0.9, 0.03), Vector3(0, 0.45, 0), line)
+			var cloth := Node3D.new()
+			cloth.name = "Cloth"
+			cloth.position = Vector3(0, 0.8, 0)
+			f.add_child(cloth)
+			_quad(cloth, "Flag", Vector2(0.22, 0.15), Vector3(0.11, 0, 0), 0.0, flag_mat)
+			ci += 1
+	# A bench along the side and the crate of bottles under it.
+	var bench_wood := _camp_or("knotty_pine.png", Color(0.86, 0.76, 0.62), "wood", Vector3(2.0, 0.5, 1.0))
+	var bz := -pz * 0.5 - 0.32
+	_box(r, "BenchSeat", Vector3(1.8, 0.07, 0.32), Vector3(1.6, 0.44, bz), bench_wood)
+	for x: float in [0.85, 2.35]:
+		_box(r, "BenchLeg", Vector3(0.08, 0.42, 0.28), Vector3(x, 0.21, bz), bench_wood)
+	_box(r, "Crate", Vector3(0.42, 0.28, 0.3), Vector3(-1.8, 0.14, bz), _camp_or("beer_crate.png", Color(1, 1, 1), "wood"))
+	# The ball.
+	var ball := MeshInstance3D.new()
+	ball.name = "Ball"
+	var sm := SphereMesh.new()
+	sm.radius = 0.11
+	sm.height = 0.22
+	sm.radial_segments = 8
+	sm.rings = 4
+	ball.mesh = sm
+	ball.material_override = _ball_material()
+	ball.position = Vector3(0.6, 0.11, 0.3)
+	r.add_child(ball)
+	r.set_meta("court_half", Vector2(px * 0.5 - 0.3, pz * 0.5 - 0.25))
+	var play := Node3D.new()
+	play.name = "PitchPlay"
+	play.set_script(load("res://scripts/attractions/pitch_play.gd"))
+	r.add_child(play)
 	return {"size": Vector3(px, 0.3, pz), "target": Vector3(0, 0.3, pz * 0.4)}
 
 
-# ── the lake slide (iso_slide): a timber tower, a yellow chute, a splash pool ──
+## Netting cord: off-white, both sides lit alike.
+func _net_material() -> StandardMaterial3D:
+	if _cache.has("net"):
+		return _cache["net"]
+	var m := _flat(Color(0.86, 0.86, 0.82))
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_cache["net"] = m
+	return m
 
-func _slide(r: Node3D, w: float, d: float) -> Dictionary:
+
+## A net of real cords (thin strips in one mesh), `size` across x and y of the plane
+## `xf` puts it in, a square mesh of `cell` metres: crisp at any distance, where a
+## see-through texture breaks up into a maze.
+func _cord_net(parent: Node3D, n: String, size: Vector2, cell: float, xf: Transform3D, mat: Material) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var th := 0.012
+	var cols := maxi(1, int(round(size.x / cell)))
+	var rows := maxi(1, int(round(size.y / cell)))
+	var hx := size.x * 0.5
+	var hy := size.y * 0.5
+	for i in cols + 1:
+		var x := -hx + size.x * float(i) / float(cols)
+		_strip(st, Vector3(x - th, -hy, 0), Vector3(x + th, -hy, 0), Vector3(x + th, hy, 0), Vector3(x - th, hy, 0))
+	for j in rows + 1:
+		var y := -hy + size.y * float(j) / float(rows)
+		_strip(st, Vector3(-hx, y - th, 0), Vector3(hx, y - th, 0), Vector3(hx, y + th, 0), Vector3(-hx, y + th, 0))
+	st.generate_normals()
+	var m := MeshInstance3D.new()
+	m.name = n
+	m.mesh = st.commit()
+	m.transform = xf
+	m.material_override = mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(m)
+	return m
+
+
+func _strip(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	for v in [a, b, c, a, c, d]:
+		st.add_vertex(v)
+
+
+## The ball: white panels and black, the old leather kind.
+func _ball_material() -> StandardMaterial3D:
+	var img := Image.create(8, 4, false, Image.FORMAT_RGBA8)
+	for y in 4:
+		for x in 8:
+			img.set_pixel(x, y, Color(0.12, 0.12, 0.12) if (x + y * 3) % 4 == 0 else Color(0.95, 0.94, 0.9))
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.roughness = 0.8
+	m.set_meta("base_albedo_color", m.albedo_color)
+	return m
+
+
+func _quad(parent: Node3D, n: String, size: Vector2, pos: Vector3, yaw: float, mat: Material, rot := Vector3.ZERO) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.name = n
+	var q := QuadMesh.new()
+	q.size = size
+	m.mesh = q
+	m.position = pos
+	m.rotation = rot if rot != Vector3.ZERO else Vector3(0, yaw, 0)
+	m.material_override = mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(m)
+	return m
+
+
+# ── the lake slide (iso_slide): a timber tower, a yellow chute, a tiled pool ─────
+#    The tower and ladder in grey planks, the chute in cracked yellow plastic
+#    (slide_chute.png) curving down to a round splash pool tiled in blue
+#    (pool_tiles.png), a lifebuoy on the tower, towels on a bench. Ridden by
+#    scripts/attractions/slide_ride.gd, which reads the chute's line from the metas.
+
+func _slide(r: Node3D, w: float, _d: float) -> Dictionary:
 	var wood := _wood()
 	var tx := -w * 0.3
 	var th := 3.2
 	for x: float in [-0.45, 0.45]:
 		for z: float in [-0.45, 0.45]:
-			_box(r, "Leg", Vector3(0.12, th, 0.12), Vector3(tx + x, th * 0.5, z), wood)
-	for y: float in [0.9, 1.9]:
-		_box(r, "Brace", Vector3(1.0, 0.08, 0.08), Vector3(tx, y, 0.45), wood)
-		_box(r, "Brace", Vector3(1.0, 0.08, 0.08), Vector3(tx, y, -0.45), wood)
+			_box(r, "Leg", Vector3(0.14, th + 0.9, 0.14), Vector3(tx + x, (th + 0.9) * 0.5, z), wood)
+	for y: float in [0.9, 1.9, 2.8]:
+		for z: float in [-0.45, 0.45]:
+			_box(r, "Brace", Vector3(1.0, 0.08, 0.08), Vector3(tx, y, z), wood)
+		var cross := _box(r, "Cross", Vector3(0.08, 0.08, 1.24), Vector3(tx + 0.45, y - 0.45, 0), wood)
+		cross.rotation.x = 0.72
 	_box(r, "Platform", Vector3(1.1, 0.1, 1.1), Vector3(tx, th, 0), wood)
 	for z: float in [-0.5, 0.5]:
-		_box(r, "Rail", Vector3(1.1, 0.06, 0.06), Vector3(tx, th + 0.8, z), wood)
-		_box(r, "RailPost", Vector3(0.06, 0.8, 0.06), Vector3(tx - 0.5, th + 0.4, z), wood)
+		_box(r, "Rail", Vector3(1.1, 0.06, 0.06), Vector3(tx, th + 0.82, z), wood)
+		_box(r, "RailMid", Vector3(1.1, 0.05, 0.05), Vector3(tx, th + 0.42, z), wood)
+	_box(r, "RailBack", Vector3(0.06, 0.06, 0.6), Vector3(tx - 0.52, th + 0.82, -0.22), wood)
 	# The ladder up the back.
+	var lx := tx - 0.75
 	for z: float in [-0.25, 0.25]:
-		_box(r, "LadderRail", Vector3(0.06, th + 0.2, 0.06), Vector3(tx - 0.75, th * 0.5, z), wood)
-	for i in 7:
-		_box(r, "Rung", Vector3(0.06, 0.05, 0.5), Vector3(tx - 0.75, 0.4 + i * 0.42, 0), wood)
-	# The chute: tilted segments falling to the pool, sides raised.
-	var yellow := _flat(Color(0.95, 0.74, 0.16))
-	var segs := 6
-	var run := w * 0.62
+		_box(r, "LadderRail", Vector3(0.07, th + 0.6, 0.07), Vector3(lx, (th + 0.6) * 0.5, z), wood)
+	for i in 8:
+		_box(r, "Rung", Vector3(0.06, 0.05, 0.5), Vector3(lx, 0.36 + i * 0.4, 0), wood)
+	# A lifebuoy on the tower.
+	var buoy := MeshInstance3D.new()
+	buoy.name = "Lifebuoy"
+	var tor := TorusMesh.new()
+	tor.inner_radius = 0.16
+	tor.outer_radius = 0.27
+	tor.rings = 10
+	tor.ring_segments = 6
+	buoy.mesh = tor
+	buoy.material_override = _flat(Color(0.88, 0.2, 0.14))
+	buoy.position = Vector3(tx, 1.4, 0.53)
+	buoy.rotation.x = PI * 0.5
+	r.add_child(buoy)
+	# The chute: from the platform's front edge, steep then flattening, to the lip.
+	var chute_mat := _camp_or("slide_chute.png", Color(1, 1, 1), "plastic", Vector3(1.2, 1.2, 1.2))
+	var x_top := tx + 0.55
+	var x_lip := tx + 0.55 + w * 0.5
+	var y_lip := 0.5
+	var segs := 9
+	var line := PackedVector3Array()
+	for i in segs + 1:
+		var t := float(i) / float(segs)
+		var y := th - (th - y_lip) * (1.0 - (1.0 - t) * (1.0 - t))
+		line.append(Vector3(lerpf(x_top, x_lip, t), y, 0))
 	for i in segs:
-		var t0 := float(i) / float(segs)
-		var t1 := float(i + 1) / float(segs)
-		var y0 := lerpf(th, 0.35, t0 * t0 * 0.4 + t0 * 0.6)
-		var y1 := lerpf(th, 0.35, t1 * t1 * 0.4 + t1 * 0.6)
-		var x0 := tx + 0.55 + run * t0
-		var x1 := tx + 0.55 + run * t1
-		var len := Vector2(x1 - x0, y1 - y0).length()
-		var seg := _box(r, "Chute%d" % i, Vector3(len + 0.02, 0.06, 0.62), Vector3((x0 + x1) * 0.5, (y0 + y1) * 0.5, 0), yellow)
-		seg.rotation.z = atan2(y1 - y0, x1 - x0)
+		var a := line[i]
+		var b := line[i + 1]
+		var len := Vector2(b.x - a.x, b.y - a.y).length()
+		var ang := atan2(b.y - a.y, b.x - a.x)
+		var seg := _box(r, "Chute%d" % i, Vector3(len + 0.03, 0.06, 0.62), (a + b) * 0.5, chute_mat)
+		seg.rotation.z = ang
 		for z: float in [-0.33, 0.33]:
-			var side := _box(r, "ChuteSide%d" % i, Vector3(len + 0.02, 0.16, 0.04), Vector3((x0 + x1) * 0.5, (y0 + y1) * 0.5 + 0.08, z), yellow)
-			side.rotation.z = seg.rotation.z
+			var side := _box(r, "ChuteSide%d" % i, Vector3(len + 0.03, 0.18, 0.05), (a + b) * 0.5 + Vector3(0, 0.09, z), chute_mat)
+			side.rotation.z = ang
+	# Stilts under the chute's long run.
+	for t: float in [0.35, 0.62]:
+		var p := line[int(round(t * float(segs)))]
+		for z: float in [-0.25, 0.25]:
+			_box(r, "ChuteLeg", Vector3(0.1, p.y, 0.1), Vector3(p.x, p.y * 0.5, z), wood)
+	# The splash pool: a tiled rim, tiled floor, the water.
+	var pool_c := Vector3(x_lip + 0.95, 0, 0)
+	var pool_r := 0.95
+	var tiles := _camp_or("pool_tiles.png", Color(1, 1, 1), "tiles", Vector3(1.0, 1.0, 1.0))
+	_cyl(r, "PoolFloor", pool_r, 0.06, pool_c + Vector3(0, 0.03, 0), tiles)
+	var rim_n := 14
+	for i in rim_n:
+		var a2 := TAU * float(i) / float(rim_n)
+		var rim := _box(r, "PoolRim%d" % i, Vector3(0.5, 0.45, 0.16), pool_c + Vector3(cos(a2) * (pool_r + 0.06), 0.225, sin(a2) * (pool_r + 0.06)), tiles)
+		rim.rotation.y = -a2 + PI * 0.5
 	var water := StandardMaterial3D.new()
-	water.albedo_color = Color(0.18, 0.34, 0.42, 0.85)
+	water.albedo_color = Color(0.5, 0.78, 0.86, 0.82)
 	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	water.roughness = 0.1
+	water.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	water.uv1_triplanar = true
+	water.uv1_scale = Vector3(0.7, 0.7, 0.7)
 	water.set_meta("base_albedo_color", water.albedo_color)
 	if ResourceLoader.exists(CAMP + "lake_water.png"):
 		water.albedo_texture = load(CAMP + "lake_water.png")
-	_cyl(r, "Pool", 0.95, 0.06, Vector3(tx + 0.55 + run + 0.3, 0.05, 0), water)
-	return {"size": Vector3(w * 0.9, th + 0.8, 1.3), "target": Vector3(tx, 1.0, 0.7)}
+	_cyl(r, "PoolWater", pool_r, 0.04, pool_c + Vector3(0, 0.36, 0), water)
+	# Towels drying on a bench by the pool.
+	var bench_wood := _camp_or("knotty_pine.png", Color(0.86, 0.76, 0.62), "wood", Vector3(2.0, 0.5, 1.0))
+	var bp := pool_c + Vector3(-1.4, 0, 1.45)
+	_box(r, "TowelBench", Vector3(1.2, 0.07, 0.3), bp + Vector3(0, 0.42, 0), bench_wood)
+	for x: float in [-0.5, 0.5]:
+		_box(r, "TowelBenchLeg", Vector3(0.07, 0.4, 0.26), bp + Vector3(x, 0.2, 0), bench_wood)
+	_box(r, "Towel", Vector3(0.42, 0.02, 0.34), bp + Vector3(-0.25, 0.47, 0), _camp_or("blanket_check.png", Color(1.0, 0.8, 0.7), "cloth"))
+	r.set_meta("slide_chute", line)
+	r.set_meta("slide_ladder", [Vector3(lx - 0.25, 0, 0), Vector3(lx - 0.1, th + 0.05, 0), Vector3(tx - 0.1, th + 0.05, 0)])
+	r.set_meta("slide_pool", [pool_c, pool_r])
+	var ride := Node3D.new()
+	ride.name = "SlideRide"
+	ride.set_script(load("res://scripts/attractions/slide_ride.gd"))
+	r.add_child(ride)
+	return {"size": Vector3(w * 0.9, th + 0.9, 1.3), "target": Vector3(tx, 1.0, 0.7)}
 
 
 # ── dumpsters: two blue bins, lids ajar ───────────────────────────────────────

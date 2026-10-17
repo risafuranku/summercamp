@@ -395,6 +395,10 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 				marker_pos = member.position + Vector3(0, float(member.get_meta("marker_drop", 0.0)), 0)
 			continue
 		POSES.set_pose(msprite, str(info.get("sprite_path", "")), "")
+		# Back on the ground after an attraction that lifted them off it (the slide).
+		var blob := member.get_node_or_null("BlobShadow") as Node3D
+		if blob != null:
+			blob.visible = true
 		var offset := side * (float(i) - float(members.size() - 1) * 0.5) * MEMBER_SPREAD_M
 		if not walking and members.size() > 1:
 			# Standing about: a loose huddle (so they never line up behind each other
