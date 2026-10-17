@@ -136,6 +136,10 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Animation in steps (12 a second) | `scripts/ui/step12.gd`: `Step12.add(tween, target, {"prop": value}, seconds)` instead of `tween_property` for anything that moves on its own (camera moves, doors, swipes); the door transition into and out of buildings `scripts/ui/door_transition.gd` (frozen frame, dither dissolve), called from `interior_manager._door_transition()` |
 | The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
+| The check-in desk's key board (Dymo labels, the label maker), the room across the counter by hour/weather and its night scares | `scripts/reception/checkin_desk.gd` (`_slots`, `_pick_view`, `_roll_scare`); art `tools/artgen/desk_art.py views` |
+| Out of the camp: barrier, road, bus stop, timetable | `camp_gate.gd open_for_player`, `scripts/town/road_south.gd` (built by world gen), `bus_timetable.gd` (the one schedule), `timetable_closeup.gd` |
+| The 380 bus (outside, inside, the ride, the ticket machine) | `scripts/town/bus_model.gd`, `bus_ride.gd`, `ride_scenery.gd`, `ticket_closeup.gd`; buses run by the clock in `town_trip.gd` (`_plan`, `_run_special`, `_run_works`) |
+| Lesna (village, people, shop, pub, motel, the pump job, pockets) | `scripts/town/town_lesna.gd`, `town_people.gd`, `shop_closeup.gd`, `pub_closeup.gd`, `pump_job.gd` + `pump_closeup.gd`, `pockets.gd`; all routed by `town_trip.gd` (InteriorManager module `trip`); art `tools/artgen/town_art.py` |
 | The camp computer (desktop, boot, windows) | `scripts/os98/os_shell.gd`, look: `os_theme.gd` |
 | Its programs (CampMail, Beeternet, CampStat, GuestRack, Setup…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` + `crt_map_panel.gd` |
 | Web pages, the files on its disk | `scripts/os98/web_pages.gd`, `scripts/os98/os_files.gd` |
@@ -258,6 +262,30 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 - **Seated guest sprites** (`*_sit`, `*_drink`, `*_eat`): the node goes on the floor just in
   front of the seat, the seat line is 0.45 m up the sprite; for a bar stool put the node at
   stool top - 0.45, in front of the stool, or its seat cuts the legs.
+- **Things outside the camp are clicked through InteriorManager**: give the body a
+  `building_type` starting `trip_` or `town_` and `town_trip.gd` answers `hint_for` and
+  `interact` (the hint can depend on the thing's state: `get_hint_for_structure`). Things
+  you click but walk through go on collision layer 12 only (`1 << 11`, mask 0): the
+  interaction ray hits every layer, the player's body only layer 1.
+- **Interaction rays are cast in the camera's own viewport**: the world is drawn small and
+  scaled up, so screen points must be in that viewport's pixels
+  (`camera.get_viewport().get_visible_rect()`), not the window's. Until 17. 10. they were in
+  window pixels and only the structures fallback ever found anything.
+- **Lesna is in the same world, far off** (`town_lesna.ORIGIN`, x + 4200, built on the first
+  trip): the sun, sky, fog and weather are the camp's. `town_trip.away()` (within 1.5 km
+  of it) makes main keep the night off (`_away_in_town`: no enemy actions, director place
+  "away"). The bus ride is its own world (like a room) that copies the main
+  WorldEnvironment and Sun when it opens; its cabin is on render layer 2 and the sun lights
+  only layer 1.
+- **Emission with a mask texture multiplies, it does not add**: StandardMaterial3D adds
+  `emission_texture` to `emission` by default (a mask lit the bus windows white by day);
+  set `emission_operator = EMISSION_OP_MULTIPLY`.
+- **BoxMesh UVs are a 3 x 2 atlas**: one texture on a box shows a third of it per face;
+  `uv1_scale` (3, 2) shows it once per face (`town_lesna._tiled`). Put art that must read
+  whole (signs, facades, the bus's sides) on a QuadMesh.
+- **The shot driver's eval is a Godot Expression**: no assignment (use `.set('prop', v)`)
+  and no autoloads (`CoreRoot` is not visible); a subclass of `tools/shot_driver.gd` that
+  sets `_steps` in `_ready()` after `super._ready()` runs ad-hoc scenarios.
 - **GDScript names**: a method called `_set` overrides `Object._set` (parse error about the
   signature); a subclass may not re-declare its base's constants (`SFX_OPEN` in closeup_view).
 - **Python in the Bash tool**: the tool turns a doubled backslash into a single one before
