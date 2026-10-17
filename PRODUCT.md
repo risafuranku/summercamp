@@ -101,7 +101,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Feature | State | Notes |
 | --- | --- | --- |
 | The night director | ✅ | `scripts/night/`: tension, states, budget, archetypes from the guests, memory of how you play; 21 events through the camp's own systems (window, door, phone, radio, lamps, steps, calls, figures, omens, a far light, a moved cup, a reported cabin, a twig, the insects' silence, a door banging, steps in the back room, a sleeping guest standing at the tree line); night log and the camp's character on CampStat's NIGHT page; `tools/director_check.gd`; F10 debug panel in debug builds |
-| Night work on the PC | ✅ | DataPunch 98 (register cards, $4 each, 24 a night); guest book replies move the reputation and the bookings |
+| Night work on the PC | ✅ | DataPunch 98 (register cards, $4 each, 24 a night); guest book replies move the reputation and the bookings; Bazar Hlubocany sells what guests left behind (`scripts/bazaar.gd`, `tools/bazaar_check.gd`), and the red shoe that comes back |
 | Reception building | ✅ | built from the office's plan (`scripts/reception/reception_layout.gd`): plank cabin, porch, RECEPCE sign, the door and both windows where they are inside; windows glow at night with the lights on |
 | Curtains, desk lamp, daylight | ✅ | `scripts/reception/curtain.gd` in the office and the back room (whose window looks out over the gate lane, a second portal); the green desk lamp switches; a sun beam with shadows through the office window |
 | Phone | ✅ | modelled after its close-up; a key lifts the handset; incoming calls ring in the room and outside, CALL on the display |

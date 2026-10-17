@@ -96,6 +96,7 @@ godot --headless --path godot --script res://tools/corn_check.gd
 godot --headless --path godot --script res://tools/checkin_check.gd
 godot --headless --path godot --script res://tools/season_check.gd
 godot --headless --path godot --script res://tools/director_check.gd
+godot --headless --path godot --script res://tools/bazaar_check.gd
 ```
 
 - **Grep the smoke output for `SCRIPT ERROR` / `Parse Error`.** A tail of the log can hide
@@ -158,6 +159,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Builder construction effects | `scripts/builder_fx.gd` (wave, local grid, outlines, ripples); lamp spot on paths `scripts/lamp_spot.gd` |
 | Toilet scrubbing | `scripts/scrub_minigame.gd` (opened by `interior_tasks.gd` for tasks with `scrub`) |
 | Night work programs | `scripts/os98/apps/datapunch_app.gd`; guest book replies `EmailManager.reply_to_review` |
+| The lost and found, the bazaar | `scripts/bazaar.gd` (pure, `tools/bazaar_check.gd`); main `_on_guest_state_for_bazaar` / `_settle_bazaar`; page `bazar-hlubocany.cz` in `web_pages.gd`, `{{bazaar}}` and `bazaar://list/ID` in `browser_app.gd` |
 | The generator shed (junk, switch room) | `scripts/shed/generator_shed.gd`; the board's close-up `scripts/breaker_panel.gd` |
 | The lake trip, far shore, fishing | `scripts/lake/lake_trip.gd`, far shore in `scripts/camp_lake.gd`, logbook `scripts/lake/logbook_closeup.gd` |
 | Corn tiles in the camp | `scripts/world_generator.gd` (`_corn_band`, `_create_corn_patch`), Builder icon in `crt_map_panel.gd` |

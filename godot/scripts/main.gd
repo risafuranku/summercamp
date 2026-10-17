@@ -175,6 +175,9 @@ var _senses = THREAT_SENSES_SCRIPT.new()
 var _director = preload("res://scripts/night/night_director.gd").new()
 var _director_fx: Node
 var _pending_director: Dictionary = {}
+## The lost and found and its classifieds (scripts/bazaar.gd).
+var _bazaar = preload("res://scripts/bazaar.gd").new()
+var _pending_bazaar: Dictionary = {}
 var _director_was_inside := false
 var _night_jobs: Node
 var _paper_map: Node
@@ -439,6 +442,11 @@ func _setup_night_jobs() -> void:
 	if not _pending_director.is_empty():
 		_director.import_state(_pending_director)
 		_pending_director.clear()
+	if not _pending_bazaar.is_empty():
+		_bazaar.import_state(_pending_bazaar)
+		_pending_bazaar.clear()
+	if not EventBus.guest_state_changed.is_connected(_on_guest_state_for_bazaar):
+		EventBus.guest_state_changed.connect(_on_guest_state_for_bazaar)
 	if _lake_trip == null or not is_instance_valid(_lake_trip):
 		_lake_trip = LAKE_TRIP_SCRIPT.new()
 		_lake_trip.name = "LakeTrip"
@@ -2026,6 +2034,36 @@ func debug_save_and_reload() -> String:
 	return path
 
 
+## Shot driver, the bazaar: things in the lost and found, the browser on a page, a link.
+func debug_bazaar_fill(n: int) -> int:
+	var guard := 0
+	while _bazaar.in_box().size() < n and guard < 200:
+		_bazaar.on_checkout(["Pepa", "Vlasta", "Novak family"][guard % 3], ["Cabin 10:6", "Tent 16:6", "Cabin 13:6"][guard % 3], _day_index)
+		guard += 1
+	return _bazaar.in_box().size()
+
+
+var _debug_browser: Control = null
+
+
+func debug_browser(url: String) -> bool:
+	var w = _interior_manager._building_interior._crt_ui.open_app("browser")
+	if w == null or w.content.get_child_count() == 0:
+		return false
+	_debug_browser = w.content.get_child(0)
+	_debug_browser.navigate(url)
+	return true
+
+
+func debug_browser_link(target: String) -> void:
+	if _debug_browser != null:
+		_debug_browser._on_link(target)
+
+
+func debug_bazaar() -> Array:
+	return [_bazaar.in_box().map(func(i): return [i["id"], i["short"]]), _bazaar.listed().map(func(i): return i["short"]), _bazaar.sold().map(func(i): return [i["short"], i["price"]]), int(CoreRoot.get_state().money)]
+
+
 func debug_guest_thoughts() -> Array:
 	var out: Array = []
 	for g in CoreRoot.get_state().guests:
@@ -2688,10 +2726,51 @@ func _on_day_tick(day_index: int) -> void:
 	EventBus.day_advanced.emit(_day_index, income)
 	if EmailManager != null and EmailManager.has_method("settle_reputation"):
 		EmailManager.settle_reputation()
+	_settle_bazaar()
 	if _hud_manager != null: _hud_manager.update_time(_time_of_day_string(), _day_index)
 	_sync_liminal_forecast_hud()
 	_refresh_liminal_debug_window()
 	_emit_state_update()
+
+
+## A party checked out: what they left behind goes to the lost and found.
+func _on_guest_state_for_bazaar(guest_id: int, _old: String, new_state: String) -> void:
+	if new_state != "departed" or not _gameplay_started or CoreRoot.get_state() == null:
+		return
+	for g in CoreRoot.get_state().guests:
+		if g is Dictionary and int((g as Dictionary).get("id", -1)) == guest_id:
+			var where := ""
+			if _day_events != null:
+				var c: Vector2i = _day_events._lodging_of(g)
+				if c.x >= 0:
+					where = "%s %d:%d" % [_day_events._label_at(c).capitalize(), c.x, c.y]
+			var it: Dictionary = _bazaar.on_checkout(str(g.get("name", "")), where, _day_index, str(g.get("archetype", "")))
+			if not it.is_empty() and _hud_manager != null:
+				_hud_manager.push_status("Left behind%s by %s: %s." % [(" in " + where) if where != "" else "", str(it["from"]), str(it["name"])])
+			return
+
+
+## The morning: what sold on the bazaar is paid; the lost and found has its say.
+func _settle_bazaar() -> void:
+	var r: Dictionary = _bazaar.settle(_day_index)
+	for it in r["sold"]:
+		if CoreRoot.actions != null and int(it["price"]) > 0:
+			CoreRoot.actions.add_money(int(it["price"]))
+		if _hud_manager != null:
+			if bool(it.get("uncanny", false)):
+				_hud_manager.push_status("Bazaar: the red shoe sold for $1. The buyer left no name.", 2)
+			else:
+				_hud_manager.push_status("Bazaar: the %s sold. $%d." % [str(it["short"]).to_lower(), int(it["price"])], 1)
+	if _hud_manager != null:
+		for it in r["back"]:
+			_hud_manager.push_status("The red shoe is in the lost and found again.", 2)
+		for it in r["found"]:
+			_hud_manager.push_status("In the lost and found this morning: %s. Nobody left it." % str(it["name"]), 2)
+
+
+## The bazaar page's "put it up" link (browser).
+func bazaar_list(id: int) -> bool:
+	return _bazaar.list(id, _day_index)
 
 
 func _process_electricity_runtime(delta: float) -> void:
@@ -3495,6 +3574,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"week_ledger": _week_ledger.export_state() if _week_ledger != null else {},
 		"omens": _omens.export_state() if _omens != null else {},
 		"director": _director.export_state() if _director != null else {},
+		"bazaar": _bazaar.export_state(),
 		"camp_office": camp_office.export_state() if camp_office != null else {},
 	}
 	if _player != null and is_instance_valid(_player):
@@ -3768,6 +3848,12 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		if _director != null and _gameplay_started:
 			_director.import_state(_pending_director)
 			_pending_director.clear()
+		var baz_any = snapshot.get("bazaar", {})
+		_bazaar.reset()
+		_pending_bazaar = (baz_any as Dictionary).duplicate(true) if baz_any is Dictionary else {}
+		if _gameplay_started:
+			_bazaar.import_state(_pending_bazaar)
+			_pending_bazaar.clear()
 		var omens_any = snapshot.get("omens", {})
 		_pending_omens = (omens_any as Dictionary).duplicate(true) if omens_any is Dictionary else {}
 		if _omens != null and _gameplay_started:
@@ -4000,6 +4086,10 @@ func _reset_state_for_new_game() -> void:
 	if _director != null:
 		_director.begin_night(-1)
 		_director.ever.clear()
+		# Not the last game's night on CampStat's NIGHT page.
+		_director.last_log.clear()
+	_pending_bazaar.clear()
+	_bazaar.reset()
 	if _director_fx != null:
 		_director_fx.clear()
 	CoreRoot.apply_changes({

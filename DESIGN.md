@@ -341,6 +341,14 @@ while you type you are not watching the camp.
 - **The guest book**: every review arrives as an entry to answer (thank, apologise, set them
   straight). The answer moves the camp's reputation (-0.25..0.25), which moves the chance
   of booking letters; it fades a tenth every morning.
+- **Bazar Hlubocany** (`bazar-hlubocany.cz`, from the portal): a third of the parties that
+  check out leave something behind (families more): a Walkman, a camera, a fishing rod. It
+  goes to the office's lost and found and onto the camp's own ads; put it up and it sells
+  from the next morning, at its worth ($4-45). Other people's ads carry the district (a
+  camera whose last film nobody developed, antlers by the camp fence, a red boot on the
+  reservoir shore). From the sixth day the box may hold a child's red shoe, small and wet,
+  that nobody left: it sells for a dollar to a buyer with no name, and is back the morning
+  after.
 
 **Across the day.** From day 3 a guest may say someone else was in their cabin in the night
 (a day event: knock at their door and look round with them; nobody, the boards under the

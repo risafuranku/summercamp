@@ -37,6 +37,7 @@ const INDEX := {
 	"cerne-jezero.cz/guestbook": "guestbook guests camp",
 	"hostinec-u-jezera.cz": "pub hostinec beer food karbanatky meatballs",
 	"jednota-lesna.cz": "shop jednota batteries bulbs fuses paraffin bread",
+	"bazar-hlubocany.cz": "bazaar bazar classifieds ads sell buy second hand lost found",
 	"csad-jihlava.cz/380": "bus timetable 380 csad lesna",
 	"kuryr-hlubocany.cz": "newspaper courier news archive",
 	"kuryr-hlubocany.cz/1987": "1987 girl missing jana search camp",
@@ -74,6 +75,7 @@ const PAGES := {
  {kuryr-hlubocany.cz|Hlubocany Courier} - news
  {csad-jihlava.cz/380|Bus timetables} CSAD Jihlava
  {jednota-lesna.cz|Jednota Lesna} - shop
+ {bazar-hlubocany.cz|Bazar Hlubocany} - classifieds
  {hostinec-u-jezera.cz|Hostinec U Jezera} - pub
  {povodi-hlubocany.cz|Water Board} - the reservoir
 [/cell]
@@ -254,6 +256,35 @@ candles, 10 ................... 19.00[/code]
 [color=#cc0000][b]Batteries are sold out until further notice.[/b] Please stop asking.[/color]
 
 We do not deliver to the camp after the season.
+""" + HR + """
+{bohemia-online.cz|Bohemia Online}""",
+	},
+	"bazar-hlubocany.cz": {
+		"title": "Bazar Hlubocany - classifieds",
+		"bg": "#fffbe6", "fg": "#000000", "link": "#0033cc",
+		"body": """[center][font_size=24][b][color=#cc6600]BAZAR[/color] [color=#336600]HLUBOCANY[/color][/b][/font_size]
+[color=#666666]buy and sell in the district - ads free, paid on collection[/color]
+{{counter}}[/center]
+""" + HR + """
+[bgcolor=#336600][color=#ffffff][b] YOUR ADS [/b][/color][/bgcolor]  [color=#666666]Kemp Cerne jezero, the office[/color]
+
+{{bazaar}}
+""" + HR + """
+[bgcolor=#cc6600][color=#ffffff][b] FOR SALE [/b][/color][/bgcolor]
+
+[b]Skoda 120 L[/b], 1984, red. Runs. Rust only where you do not look. 9 500 Kc. Lesna 14, after six.
+[b]Puppies[/b], mixed, free to a good home. Not to anyone by the lake.
+[b]Camera[/b], Praktica, flash works. The last film in it was never developed. I do not want it back. 300 Kc.
+[b]Antlers[/b], large, found by the camp fence in the spring. Not hunted. Free, please take them away.
+
+[bgcolor=#003399][color=#ffffff][b] WANTED [/b][/color][/bgcolor]
+
+Old photographs of the camp at Cerne jezero, 1980s, any. Good price. P.O. Box 17, Hlubocany.
+Batteries R20, any amount.
+
+[bgcolor=#808080][color=#ffffff][b] FOUND [/b][/color][/bgcolor]
+
+A child's rubber boot, red, left foot, on the reservoir shore below the dam. The owner can collect it at the Water Board. Mr Hruby.
 """ + HR + """
 {bohemia-online.cz|Bohemia Online}""",
 	},

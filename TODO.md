@@ -44,7 +44,7 @@
 - [x] B38b Builder undo (Ctrl+Z / toolbar, today's builds, full refund); director: twig, the insects' silence, a door banging, steps in the back room; sleeping guests count for the camp's character (they did not)
 - [x] B38c Director: a sleeping guest at the tree line (rare, named in the log, denies it by day)
 - [x] B39 Save round trip checked (director memory and log, reputation, reported cabins, DataPunch nights); the PC no longer stays dark after a save is loaded in-game
-- [ ] B38 Later: bazaar on the web
+- [x] B38 Bazar Hlubocany: the lost and found from checkouts, ads, morning sales, the red shoe; new game no longer shows the last game's night log
 - [ ] B23 Later: lore in the linemen's hut; more winter challenges (snowed-in paths, the lake freezing, heating cabins)
 - [x] B13c The boat at night as its own scare (scripts/lake/night_row.gd: knocks, lantern, fog, the hand, the scrape)
 - [ ] B13 Later: something hidden in the shed (beyond the coat), more to do on the far shore

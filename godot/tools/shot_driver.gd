@@ -1012,6 +1012,16 @@ const SCENARIOS := {
 		["eval", "[_day_events.open_events().size(), _day_events.haunted]"],
 		["eval", "_day_events.haunted_near(grid_manager.grid_to_world(Vector2i(17, 4)), 14.0)"],
 	],
+	"bazaar": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 16.0],
+		["eval", "debug_close_msgboxes()"], ["eval", "debug_bazaar_fill(3)"], ["eval", "debug_bazaar()"],
+		["eval", "debug_browser('bazar-hlubocany.cz')"], ["wait", 1.0], ["eval", "_debug_browser._start_dial()"], ["wait", 16.0], ["shot", "bz0_page"],
+		["eval", "debug_browser_link('bazaar://list/' + str(_bazaar.in_box()[0]['id']))"], ["wait", 5.0], ["shot", "bz1_listed"],
+		["eval", "debug_bazaar()"],
+		["eval", "_on_day_tick(_day_index + 1)"], ["eval", "_on_day_tick(_day_index + 1)"], ["eval", "_on_day_tick(_day_index + 1)"], ["eval", "_on_day_tick(_day_index + 1)"],
+		["eval", "debug_bazaar()"],
+		["eval", "debug_browser_link('bazar-hlubocany.cz')"], ["wait", 5.0], ["shot", "bz2_sold"],
+	],
 	"saveround": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 16.0],
 		["eval", "debug_mark_saved_bits()"], ["eval", "debug_saved_bits()"],

@@ -918,6 +918,14 @@ func _page_for(key: String) -> Dictionary:
 
 
 func _on_link(target: String) -> void:
+	# The bazaar's "put it up" (bazaar://list/ID): the ad goes up, the page comes again.
+	if target.begins_with("bazaar://list/"):
+		var m: Node = _shell.main_node()
+		if m != null and m.has_method("bazaar_list"):
+			m.bazaar_list(int(target.trim_prefix("bazaar://list/")))
+		_shell.play("click", -8.0)
+		_load(_url, false)
+		return
 	if target.begins_with("download://"):
 		var file := target.trim_prefix("download://")
 		_shell.message_box("File Download", "You have chosen to download a file from this location.\n\n%s from www.%s\n\nSave this program to disk (C:\\DOWNLOAD)?" % [file, _url.split("/")[0]], "question", ["Save", "Cancel"], func(b: String):
@@ -941,6 +949,7 @@ func _expand(body: String, link: String, key: String) -> String:
 		t = t.replace("{{weather}}", _weather())
 		t = t.replace("{{forecast}}", _forecast())
 		t = t.replace("{{guestbook}}", _guestbook())
+		t = t.replace("{{bazaar}}", _bazaar())
 		t = t.replace("{{level}}", _level())
 	t = _pad_marquees(t)
 	return _link_re.sub(t, "[url=$1][color=%s]$2[/color][/url]" % link, true)
@@ -1066,6 +1075,31 @@ func _level() -> String:
 
 
 ## Old entries, then new ones as the week goes on. Some are written tonight.
+## The camp's ads on the bazaar: the lost and found (to put up), what is up, what went.
+func _bazaar() -> String:
+	var m: Node = _shell.main_node()
+	var b = m.get("_bazaar") if m != null else null
+	if b == null:
+		return ""
+	var box: Array = b.in_box()
+	var up: Array = b.listed()
+	var gone: Array = b.sold()
+	if box.is_empty() and up.is_empty() and gone.is_empty():
+		return "[color=#888888]Nothing in the lost and found.[/color]\n"
+	var t := ""
+	for it in box:
+		var src := "nobody left it, found %s" % _date(int(it["found_day"]))
+		if str(it["from"]) != "":
+			src = "left by %s%s, %s" % [str(it["from"]), (" in " + str(it["where"])) if str(it["where"]) != "" else "", _date(int(it["found_day"]))]
+		t += "[b]%s[/b] - %s [color=#666666](%s)[/color]   {bazaar://list/%d|put it up for $%d}\n" % [str(it["short"]), str(it["name"]), src, int(it["id"]), int(it["value"])]
+	for it in up:
+		var looked := 2 + (int(it["id"]) * 7 + _day() * 5) % 19
+		t += "[b]%s[/b]  $%d   [color=#666666]up since %s, %d looked[/color]\n" % [str(it["short"]), int(it["value"]), _date(int(it["listed_day"])), looked]
+	for it in gone:
+		t += "[color=#888888]%s[/color]   [color=#008800][b]SOLD $%d[/b][/color]\n" % [str(it["short"]), int(it["price"])]
+	return t
+
+
 func _guestbook() -> String:
 	var rows: Array = [
 		["Petr & Jitka", "12.7.1997", "Great week!! The lake is freezing but beautiful. The night game with Karel was SO scary :-)"],
