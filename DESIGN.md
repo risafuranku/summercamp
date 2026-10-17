@@ -313,6 +313,9 @@ The hunters (§5) come from the night roll; everything around them is played by 
 | a call from the woods | outdoors | mimic | |
 | a person crosses the camp in the dark | outdoors | observer | prints |
 | an omen (§5e) when it wants one | outdoors | observer, disturber | |
+| a light in the woods where no lamp is, breathing; out when you are halfway there | outdoors | observer | |
+| movement in a guest's cabin while they sleep (one a guest reported by day) | near it, outdoors | mimic, hunter, observer | |
+| the cup on the PC desk is on the window sill (put back at dawn) | coming in | disturber | |
 
 Never in close-ups, jobs, the lake, a guest's room; never a door blocked or a hurt.
 The morning after, CampStat's NIGHT page has **last night's log** with times and, before
@@ -330,6 +333,10 @@ while you type you are not watching the camp.
 - **The guest book**: every review arrives as an entry to answer (thank, apologise, set them
   straight). The answer moves the camp's reputation (-0.25..0.25), which moves the chance
   of booking letters; it fades a tenth every morning.
+
+**Across the day.** From day 3 a guest may say someone else was in their cabin in the night
+(a day event: knock at their door and look round with them; nobody, the boards under the
+bed wet). Look or not, the director remembers that cabin: at night, near it, it makes sounds.
 
 ## 5d. The end of the week
 

@@ -66,6 +66,8 @@ const EVENTS := {
 	"call_far":      {"places": ["out_dark", "out_lit"], "cost": 3.0, "min": State.UNEASE, "cd": 200.0, "arch": [A.MIMIC], "next": ["silhouette"], "w": 1.0},
 	"silhouette":    {"places": ["out_dark", "out_lit"], "cost": 8.0, "min": State.MANIFESTATION, "cd": 360.0, "arch": [A.OBSERVER], "next": [], "w": 1.0},
 	"omen":          {"places": ["out_dark", "out_lit"], "cost": 5.0, "min": State.SUSPICION, "cd": 500.0, "arch": [A.OBSERVER, A.DISTURBER], "next": [], "w": 0.8},
+	"far_light":     {"places": ["out_dark", "out_lit"], "cost": 5.0, "min": State.SUSPICION, "cd": 420.0, "arch": [A.OBSERVER], "next": ["call_far"], "w": 1.0},
+	"room_sounds":   {"places": ["out_dark", "out_lit"], "cost": 4.0, "min": State.UNEASE, "cd": 300.0, "arch": [A.MIMIC, A.HUNTER, A.OBSERVER], "next": ["steps_behind"], "w": 2.0, "needs": ["haunted_near"]},
 }
 ## How the night log puts each (CampStat's NIGHT page, the morning after).
 const LOG_LINES := {
@@ -83,6 +85,8 @@ const LOG_LINES := {
 	"call_far": "a call from the woods",
 	"silhouette": "a person crossing the camp in the dark. Prints",
 	"omen": "something at the edge of the camp",
+	"room_sounds": "movement in a guest's cabin while they slept",
+	"far_light": "a light in the woods where there is no lamp",
 }
 ## What the camp's character means for you (the same page, before the night).
 const ARCH_HINTS := [

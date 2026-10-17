@@ -2154,6 +2154,13 @@ func nudge_radio_dread(amount: float, seconds: float) -> void:
 ## The night director: while you were out, something here changed. One thing, the most
 ## noticeable that is still as you left it; always one you can put back.
 func disturb_office() -> String:
+	# Sometimes a thing is not where it was: the cup on the PC desk is on the window sill.
+	var pc := _room_root.get_node_or_null("PCCorner") if _room_root != null else null
+	var cup := pc.get_node_or_null("DeskCup") as Node3D if pc != null else null
+	if cup != null and not cup.has_meta("home") and randf() < 0.45:
+		cup.set_meta("home", cup.position)
+		cup.global_position = _room_root.to_global(Vector3(-0.9, 1.06, -2.38))
+		return "cup"
 	if _office_curtain != null and _office_curtain.is_open():
 		_office_curtain.set_open(false, true)
 		_apply_room_time_profile()
@@ -2168,6 +2175,16 @@ func disturb_office() -> String:
 		toggle_desk_lamp()
 		return "lamp"
 	return ""
+
+
+## Dawn: what the night moved goes back where it was (the curtain, lights, radio and
+## lamp are the player's to put back, and stay as they are).
+func undo_disturbances() -> void:
+	var pc := _room_root.get_node_or_null("PCCorner") if _room_root != null else null
+	var cup := pc.get_node_or_null("DeskCup") as Node3D if pc != null else null
+	if cup != null and cup.has_meta("home"):
+		cup.position = cup.get_meta("home")
+		cup.remove_meta("home")
 
 
 ## Looking out of the office window (from the counter, more or less straight at it).

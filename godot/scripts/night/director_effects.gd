@@ -93,6 +93,15 @@ func run(id: String, ctx: Dictionary) -> Vector3:
 				return p
 		"silhouette":
 			return _silhouette(ctx.get("pos", Vector3.ZERO))
+		"far_light":
+			return _far_light(ctx.get("pos", Vector3.ZERO))
+		"room_sounds":
+			var de = main.get("_day_events")
+			if de != null:
+				var at2: Vector3 = de.haunted_near(ctx.get("pos", Vector3.ZERO), 14.0)
+				if at2 != Vector3.INF:
+					_world_sound("wet_steps.mp3" if randf() < 0.5 else "wall_brush.mp3", at2 + Vector3(0, 1.0, 0), -4.0, 22.0)
+					return at2
 		"omen":
 			var om = main.get("_omens")
 			if om != null and om.has_method("play_now"):
@@ -105,7 +114,11 @@ func _process(delta: float) -> void:
 	_update_steps(delta)
 	_update_figure(delta)
 	var keep: Array = []
+	var pl = main.get("_player") as Node3D
 	for l in _live:
+		# Things that go away when you come close.
+		if l.has("vanish_at") and pl != null and pl.global_position.distance_to(l["vanish_at"]) < float(l["vanish_m"]):
+			l["until"] = _t
 		if _t >= float(l["until"]) or not is_instance_valid(l["node"]):
 			if is_instance_valid(l["node"]):
 				(l["node"] as Node).queue_free()
@@ -127,6 +140,9 @@ func _process(delta: float) -> void:
 
 ## Dawn, a new game, the menu: everything the night left goes.
 func clear() -> void:
+	var bi = _office()
+	if bi != null and bi.has_method("undo_disturbances"):
+		bi.undo_disturbances()
 	for l in _live:
 		if is_instance_valid(l["node"]):
 			(l["node"] as Node).queue_free()
@@ -251,6 +267,40 @@ func _stop_steps() -> void:
 	_steps = {}
 
 
+## A light out in the trees beyond the camp, 45-60 m, where no lamp is: a lantern's warm
+## glow that breathes slowly. It goes out when you are halfway there; nothing at the spot.
+func _far_light(from: Vector3) -> Vector3:
+	# Where you are looking (it wants to be seen), in the dark.
+	var p := _dark_spot(from, 45.0, 60.0, 0.75)
+	if p == Vector3.INF:
+		return Vector3.INF
+	p = _ground(p) + Vector3(0, 1.1, 0)
+	var root := Node3D.new()
+	root.name = "DirectorFarLight"
+	main.get("_world_3d").add_child(root)
+	root.global_position = p
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.78, 0.45)
+	light.light_energy = 1.6
+	light.omni_range = 5.0
+	root.add_child(light)
+	var glow := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(0.25, 0.32)
+	glow.mesh = q
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(1.0, 0.85, 0.55)
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	glow.material_override = m
+	root.add_child(glow)
+	var tw := root.create_tween().set_loops()
+	tw.tween_property(light, "light_energy", 0.7, 1.6)
+	tw.tween_property(light, "light_energy", 1.6, 1.6)
+	_live.append({"node": root, "until": _t + 40.0, "vanish_at": p, "vanish_m": maxf(18.0, from.distance_to(p) * 0.5)})
+	return p
+
+
 ## Someone crosses open ground 25-35 m off, in the dark, in a second and a half: gone by
 ## the time you get there, prints where they went.
 func _silhouette(from: Vector3) -> Vector3:
@@ -288,10 +338,19 @@ func _silhouette(from: Vector3) -> Vector3:
 	return Vector3.INF
 
 
-func _dark_spot(from: Vector3, rmin: float, rmax: float) -> Vector3:
+## A dark spot rmin-rmax m away; `ahead` > 0: within that many radians of where the
+## camera looks.
+func _dark_spot(from: Vector3, rmin: float, rmax: float, ahead := 0.0) -> Vector3:
 	var bm = main.get("building_manager")
-	for i in 8:
-		var ang := randf() * TAU
+	var base_ang := 0.0
+	if ahead > 0.0:
+		var pl = main.get("_player") as Node3D
+		var cam := pl.get_viewport().get_camera_3d() if pl != null else null
+		if cam != null:
+			var f := -cam.global_transform.basis.z
+			base_ang = atan2(f.z, f.x)
+	for i in 10:
+		var ang := (base_ang + randf_range(-ahead, ahead)) if ahead > 0.0 else randf() * TAU
 		var p := from + Vector3(cos(ang), 0, sin(ang)) * randf_range(rmin, rmax)
 		if bm == null or not bm.has_method("get_light_level_at") or float(bm.get_light_level_at(p)) < 0.08:
 			return p

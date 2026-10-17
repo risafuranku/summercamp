@@ -40,7 +40,8 @@
 - [x] B35 Lamps: model, light, no lost path under them, same spot in the Builder; rubbish and raccoons beside buildings, not on roofs
 - [x] B36 Builder: zoom no longer slides off the map; construction effects; guest miniatures
 - [x] B37 The night director (tension, budget, archetypes, memory, 14 events, night log); night work (DataPunch, guest book)
-- [ ] B38 Later: more director events (a guest acting against their routine, an object moved and found elsewhere, a light where no lamp is); Builder undo; bazaar on the web
+- [x] B38a Director: a light in the woods, an object moved, a reported cabin that sounds at night (day event "someone", knock to look)
+- [ ] B38 Later: a guest acting against their routine at night; Builder undo; bazaar on the web
 - [ ] B23 Later: lore in the linemen's hut; more winter challenges (snowed-in paths, the lake freezing, heating cabins)
 - [x] B13c The boat at night as its own scare (scripts/lake/night_row.gd: knocks, lantern, fog, the hand, the scrape)
 - [ ] B13 Later: something hidden in the shed (beyond the coat), more to do on the far shore
