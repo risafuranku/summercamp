@@ -125,6 +125,8 @@ var _risk_level: Label
 var _feed_box: VBoxContainer
 var _objective_panel: Control
 var _arrivals_panel: Control
+## The dotted rings at the right edge: parties on the way (scripts/ui/arrival_rings.gd).
+var _arrival_rings: Control
 var _side_layer: CanvasLayer
 var _side_root: Control
 var _arrivals_box: VBoxContainer
@@ -775,6 +777,12 @@ func _build_objective() -> void:
 
 
 func _build_arrivals() -> void:
+	_arrival_rings = load("res://scripts/ui/arrival_rings.gd").new()
+	_arrival_rings.name = "ArrivalRings"
+	_arrival_rings.set("font", RETRO_UI.FONT_LABEL)
+	_root.add_child(_arrival_rings)
+	if not _arrivals.is_empty():
+		_arrival_rings.set_rows(_arrivals)
 	var panel := _plate()
 	panel.name = "Arrivals"
 	panel.anchor_left = 1.0
@@ -843,6 +851,8 @@ func set_arrivals(rows: Array) -> void:
 	if rows == _arrivals:
 		return
 	_arrivals = rows.duplicate(true)
+	if _arrival_rings != null and is_instance_valid(_arrival_rings):
+		_arrival_rings.set_rows(_arrivals)
 	_refresh_arrivals()
 
 

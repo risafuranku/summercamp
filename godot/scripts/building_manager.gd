@@ -568,6 +568,8 @@ func place_cabin_at(origin: Vector2i, level: int = 1) -> bool:
 		_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
 	# Modelled after the Builder's chata1/2/3 (scripts/building_models.gd).
 	var cabin_box: Vector3 = _models.cabin(cabin, cabin_level, wall_w, wall_d, wall_h, cabin_height * 0.45)
+	# The room inside looks out of its windows (cabin_interior.gd): where they are.
+	cabin.set_meta("wall_size", Vector3(wall_w, wall_h, wall_d))
 
 	# Collider.
 	var collider = CollisionShape3D.new()

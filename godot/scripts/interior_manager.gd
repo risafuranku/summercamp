@@ -517,6 +517,8 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 		level = 3
 	_active_cabin_node = cabin_node as Node3D
 	_apply_time_to_interior(_cabin_interior)
+	if _cabin_interior.has_method("set_world_anchor"):
+		_cabin_interior.set_world_anchor(_active_cabin_node)
 	_cabin_interior.open_cabin(level)
 	_sync_cabin_guest_visuals()
 	_push_room_state(_cabin_interior, _active_cabin_node)

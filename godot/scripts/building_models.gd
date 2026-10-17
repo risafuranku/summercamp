@@ -502,9 +502,16 @@ func cabin(r: Node3D, level: int, w: float, d: float, wall_h: float, roof_h: flo
 	_box(r, "Door", Vector3(0.82, 1.9, 0.06), Vector3(0, 1.05, front + 0.03), _camp("door_wood.png", Color(0.8, 0.72, 0.6)))
 	_box(r, "DoorFrame", Vector3(1.0, 2.05, 0.04), Vector3(0, 1.1, front + 0.01), _wood())
 	_box(r, "Step", Vector3(1.1, 0.16, 0.45), Vector3(0, 0.12, front + 0.3), _wood())
+	# Windows where the room inside has them (cabin_interior.gd): two at the front either
+	# side of the door, one in the back wall over the table; on the right the basic cabin
+	# has a window, the better ones the bathroom built on there.
 	_window(r, Vector3(-w * 0.3, wall_h * 0.62, front + 0.02), Vector2(0.62, 0.56))
 	_window(r, Vector3(w * 0.3, wall_h * 0.62, front + 0.02), Vector2(0.62, 0.56))
-	_window(r, Vector3(w * 0.5 + 0.02, wall_h * 0.62, 0), Vector2(0.62, 0.56), PI * 0.5)
+	_window(r, Vector3(0, wall_h * 0.62, -front - 0.02), Vector2(0.62, 0.56), PI)
+	if lv == 1:
+		_window(r, Vector3(w * 0.5 + 0.02, wall_h * 0.62, 0), Vector2(0.62, 0.56), PI * 0.5)
+	else:
+		_bathroom_annex(r, w, d, wall_h, walls, lv)
 	match lv:
 		1:
 			# A stack of firewood and an old bucket.
@@ -730,10 +737,30 @@ func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0) -> void:
 	var frame := _box(r, "WindowFrame", Vector3(size.x + 0.12, size.y + 0.12, 0.05), pos, _wood())
 	frame.rotation.y = yaw
 	var glass_mat := _camp("window_curtain.png", Color(0.8, 0.84, 0.86))
-	var glass := _box(r, "Window", Vector3(size.x, size.y, 0.06), pos + Vector3(0, 0, 0.01 * (1.0 if yaw == 0.0 else -1.0)), glass_mat)
+	var out := Basis(Vector3.UP, yaw) * Vector3(0, 0, 0.01)
+	var glass := _box(r, "Window", Vector3(size.x, size.y, 0.06), pos + out, glass_mat)
 	glass.rotation.y = yaw
 	var bar := _box(r, "WindowBar", Vector3(0.04, size.y, 0.07), pos, _wood())
 	bar.rotation.y = yaw
+	# Not seen by the cameras that look out through this window from inside.
+	for m in [frame, glass, bar]:
+		(m as MeshInstance3D).layers = GLASS_LAYER
+
+
+## The bathroom of a better cabin, built on at the right: a lower plank box with a lean
+## tin roof and a small frosted window (its door is inside, cabin_interior.gd).
+func _bathroom_annex(r: Node3D, w: float, d: float, wall_h: float, walls: Material, lv: int) -> void:
+	var ax := 1.5
+	var az := d * 0.42
+	var ah := wall_h * 0.8
+	_box(r, "BathAnnex", Vector3(ax, ah, az), Vector3(w * 0.5 + ax * 0.5, ah * 0.5 + 0.1, 0), walls)
+	for z: float in [-az * 0.5, az * 0.5]:
+		_box(r, "BathCorner", Vector3(0.12, ah, 0.12), Vector3(w * 0.5 + ax, ah * 0.5 + 0.1, z), _wood())
+	var tin := _camp("corrugated_roof.png", Color(0.7, 0.66, 0.62) if lv == 2 else Color(0.62, 0.6, 0.58), Vector3(1.0, 1.0, 1.0))
+	var roof := _box(r, "BathRoof", Vector3(ax + 0.35, 0.06, az + 0.4), Vector3(w * 0.5 + ax * 0.5 + 0.1, ah + 0.22, 0), tin)
+	roof.rotation.z = -0.22
+	_window(r, Vector3(w * 0.5 + ax + 0.02, ah * 0.72, 0), Vector2(0.36, 0.3), PI * 0.5)
+	_cyl(r, "BathPipe", 0.04, ah * 0.9, Vector3(w * 0.5 + ax + 0.06, ah * 0.45 + 0.1, az * 0.38), _metal())
 
 
 func _label(r: Node3D, text: String, pos: Vector3, height_m: float, color: Color, yaw := 0.0) -> Label3D:

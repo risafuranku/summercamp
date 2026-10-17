@@ -47,7 +47,15 @@ var _guest_occupants: Array = []
 var _room_env: Environment
 var _main_light: OmniLight3D
 var _window_view_sky: MeshInstance3D
+## The cabin outside (InteriorManager sets it): the windows look out of it into the camp
+## (off-axis cameras through each window, like the reception's), not at a picture.
+const GLASS_LAYER := 1 << 19
+var _anchor: Node3D
+var _portals: Array = []          # {vp, cam, quad, frame: Transform3D (room), size: Vector2, ext: Vector3 (model), lv1_only}
 var _window_view_ground: MeshInstance3D
+## Shown only in the basic cabin (the right wall's window, where better cabins have the
+## bathroom door).
+var _level1_nodes: Array[String] = []
 var _window_view_trees: MeshInstance3D
 var _light_switch_body: StaticBody3D
 var _light_switch_mesh: MeshInstance3D
@@ -162,10 +170,119 @@ func open_cabin(level: int = 1) -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
+## The cabin you are in, outside: its windows look out of it.
+func set_world_anchor(n: Node3D) -> void:
+	_anchor = n
+
+
+func door_surface() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load("res://assets/textury/camp/door_wood.png")
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	return m
+
+
+## A pine window frame with a cross bar on a wall (`yaw` turns it to that wall); the glass
+## behind is a portal (_add_portal) or, for the front windows you never look out of, dim.
+func _frame_window(c: Vector3, size: Vector2, yaw: float, tag: String) -> void:
+	var K := INTERIOR_KIT
+	var frame := K.surface("knotty_pine", 0.6)
+	var holder := Node3D.new()
+	holder.name = tag + "Window"
+	holder.position = c
+	holder.rotation_degrees.y = yaw
+	_cabin_root.add_child(holder)
+	K.slab(holder, Vector3(size.x + 0.1, 0.07, 0.1), Vector3(0, -size.y * 0.5 - 0.03, 0.02), frame, "Sill")
+	K.slab(holder, Vector3(size.x + 0.1, 0.06, 0.08), Vector3(0, size.y * 0.5 + 0.03, 0.0), frame, "Top")
+	for x: float in [-size.x * 0.5 - 0.03, size.x * 0.5 + 0.03]:
+		K.slab(holder, Vector3(0.06, size.y + 0.1, 0.08), Vector3(x, 0, 0), frame, "Side")
+	K.slab(holder, Vector3(0.04, size.y, 0.05), Vector3(0, 0, -0.01), frame, "Mullion")
+	K.slab(holder, Vector3(size.x, 0.04, 0.05), Vector3(0, 0.02, -0.01), frame, "Transom")
+	if tag == "Front":
+		var g := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = size
+		g.mesh = q
+		var gm := StandardMaterial3D.new()
+		gm.albedo_texture = load("res://assets/textury/camp/window_curtain.png")
+		gm.albedo_color = Color(0.7, 0.72, 0.74)
+		gm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		g.material_override = gm
+		g.position = Vector3(0, 0, -0.03)
+		holder.add_child(g)
+	if tag == "Side":
+		_level1_nodes.append(holder.name)
+
+
+## A window looking out: a quad in the opening shows what a camera sees through the same
+## window of the cabin outside (the room maps onto the model by lining the two windows up).
+func _add_portal(n: String, centre: Vector3, outward: Vector3, size: Vector2, lv1_only: bool) -> void:
+	var vp := SubViewport.new()
+	vp.name = n
+	vp.size = Vector2i(224, int(224.0 * size.y / size.x))
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(vp)
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_FRUSTUM
+	cam.keep_aspect = Camera3D.KEEP_HEIGHT
+	cam.cull_mask = 0xFFFFF & ~GLASS_LAYER
+	vp.add_child(cam)
+	var quad := MeshInstance3D.new()
+	quad.name = n + "Glass"
+	var q := QuadMesh.new()
+	q.size = size
+	quad.mesh = q
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.albedo_texture = vp.get_texture()
+	quad.material_override = m
+	var z := -outward.normalized()
+	var x := Vector3.UP.cross(z).normalized()
+	var frame := Transform3D(Basis(x, Vector3.UP, z), centre)
+	quad.transform = frame
+	quad.visible = false
+	_cabin_root.add_child(quad)
+	_portals.append({"vp": vp, "cam": cam, "quad": quad, "frame": frame, "size": size, "outward": outward.normalized(), "lv1_only": lv1_only})
+
+
+## Each frame while you are in: every window's camera where your eye is, mapped out into
+## the camp, the window its near plane (so it moves as you turn, a real view).
+func _update_portals() -> void:
+	var live := _anchor != null and is_instance_valid(_anchor) and _anchor.is_inside_tree()
+	var ws: Vector3 = _anchor.get_meta("wall_size", Vector3(6.24, 2.4, 6.24)) if live else Vector3.ZERO
+	for pt in _portals:
+		var on: bool = live and _active_room == "main" and (not bool(pt["lv1_only"]) or _cabin_level == 1)
+		(pt["quad"] as MeshInstance3D).visible = on
+		var vp: SubViewport = pt["vp"]
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+		if not on:
+			continue
+		if vp.world_3d != _anchor.get_world_3d():
+			vp.world_3d = _anchor.get_world_3d()
+		var frame: Transform3D = pt["frame"]
+		var out: Vector3 = pt["outward"]
+		# The same window outside, in the model's space (building_models.cabin()).
+		var ext := Vector3(0, ws.y * 0.62, -ws.z * 0.5 - 0.02) if out.z < -0.5 else Vector3(ws.x * 0.5 + 0.02, ws.y * 0.62, 0)
+		var room_to_world: Transform3D = _anchor.global_transform * Transform3D(Basis(), ext - frame.origin)
+		var eye := _cabin_root.global_transform.affine_inverse() * _interior_camera.global_position
+		var e := frame.affine_inverse() * eye
+		if e.z < 0.05:
+			continue
+		var cam: Camera3D = pt["cam"]
+		cam.global_transform = Transform3D(room_to_world.basis * frame.basis, room_to_world * eye)
+		cam.set_frustum((pt["size"] as Vector2).y, Vector2(-e.x, -e.y), e.z + 0.06, e.z + 220.0)
+	if _window_view_sky != null:
+		_window_view_sky.visible = not live
+
+
 func close_cabin() -> void:
 	if not _is_open:
 		return
 	_is_open = false
+	for pt in _portals:
+		(pt["vp"] as SubViewport).render_target_update_mode = SubViewport.UPDATE_DISABLED
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
@@ -175,6 +292,7 @@ func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
 	_apply_idle_mouse_look(delta)
+	_update_portals()
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
 		_side_hints = INTERIOR_LOOK.make_side_hints(self)
@@ -489,6 +607,34 @@ func _build_cabin_room() -> void:
 		K.slab(_cabin_root, Vector3(w, 0.06, 0.04), Vector3(0, h - 0.06, z), trim, "Cornice")
 	K.slab(_cabin_root, Vector3(0.03, 0.1, d), Vector3(-w * 0.5 + 0.06, 0.1, 0), trim, "Skirting")
 
+	# The front wall as the cabin has it outside: the door you came in by in the middle,
+	# a window either side of it.
+	var fz: float = d * 0.5 - 0.055
+	K.slab(_cabin_root, Vector3(1.0, 2.02, 0.04), Vector3(0, 1.06, fz + 0.02), trim, "FrontDoorFrame")
+	var fdoor := MeshInstance3D.new()
+	fdoor.name = "FrontDoor"
+	var fdq := QuadMesh.new()
+	fdq.size = Vector2(0.86, 1.92)
+	fdoor.mesh = fdq
+	fdoor.material_override = door_surface()
+	fdoor.position = Vector3(0, 1.01, fz - 0.002)
+	fdoor.rotation_degrees.y = 180.0
+	_cabin_root.add_child(fdoor)
+	K.slab(_cabin_root, Vector3(0.05, 0.05, 0.06), Vector3(-0.32, 1.0, fz - 0.03), K.surface("galvanized", 0.4), "FrontDoorHandle")
+	for x: float in [-0.92, 0.92]:
+		_frame_window(Vector3(x, 1.55, fz - 0.002), Vector2(0.62, 0.56), 180.0, "Front")
+	# The right wall: the basic cabin has a window there (as outside); the better ones
+	# the door to the bathroom built on at that side.
+	for piece in [[Vector3(0.1, 1.22, 1.2), Vector3(w * 0.5, 0.61, 0), "RightFillLow"],
+			[Vector3(0.1, 0.5, 0.2), Vector3(w * 0.5, 1.47, -0.5), "RightFillL"],
+			[Vector3(0.1, 0.5, 0.2), Vector3(w * 0.5, 1.47, 0.5), "RightFillR"],
+			[Vector3(0.1, 0.1, 1.2), Vector3(w * 0.5, 1.77, 0), "RightFillHigh"]]:
+		var fill := K.slab(_cabin_root, piece[0], piece[1], wall_mat, str(piece[2]))
+		walls.append(fill)
+		_level1_nodes.append(str(piece[2]))
+	_frame_window(Vector3(w * 0.5 - 0.04, 1.47, 0), Vector2(0.8, 0.5), -90.0, "Side")
+	_add_portal("SideView", Vector3(w * 0.5 - 0.02, 1.47, 0), Vector3(1, 0, 0), Vector2(0.8, 0.5), true)
+
 	# The door on the right wall: a textured panel in a dark frame, closing the opening.
 	K.slab(_cabin_root, Vector3(0.12, h * 0.7, d * 0.4 + 0.02), Vector3(w * 0.5 + 0.02, h * 0.35, 0), trim, "DoorFrame")
 	var door := MeshInstance3D.new()
@@ -551,7 +697,9 @@ func _build_cabin_room() -> void:
 	K.slab(_cabin_root, Vector3(0.04, 0.62, 0.05), Vector3(0, 1.6, wz - 0.01), frame, "WindowMullion")
 	K.slab(_cabin_root, Vector3(1.0, 0.04, 0.05), Vector3(0, 1.62, wz - 0.01), frame, "WindowTransom")
 
-	# Placeholder view outside the window.
+	_add_portal("BackView", Vector3(0, 1.6, -d * 0.5 - 0.02), Vector3(0, 0, -1), Vector2(1.0, 0.62), false)
+
+	# Placeholder view outside the window (no cabin outside to look out of: tools).
 	_window_view_sky = MeshInstance3D.new()
 	var sky_box = QuadMesh.new()
 	sky_box.size = Vector2(1.7, 1.06)
@@ -716,6 +864,10 @@ func _apply_level_variant() -> void:
 			(_bath_shell[key] as MeshInstance3D).material_override = bath_wall
 
 	_set_node_visible("SlopBucket", _cabin_level == 1)
+	for node_name in _level1_nodes:
+		_set_node_visible(node_name, _cabin_level == 1)
+	_set_node_visible("Door", _cabin_level >= 2)
+	_set_node_visible("DoorFrame", _cabin_level >= 2)
 	for node_name in _level2_nodes:
 		_set_node_visible(node_name, _cabin_level >= 2)
 	for node_name in _level3_nodes:
