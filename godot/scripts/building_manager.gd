@@ -6,6 +6,7 @@ extends Node3D
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const RECEPTION_LAYOUT = preload("res://scripts/reception/reception_layout.gd")
+const LAMP_SPOT = preload("res://scripts/lamp_spot.gd")
 const PSX_TEXTURE_DEFAULT_UV := Vector2(1.35, 1.35)
 const PATH_TEXTURES := {
 	"straight": "res://assets/textury/redneck/paths/gravel.png",
@@ -609,62 +610,74 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	var ts = _grid_manager.tile_size
 	lamp.position = _grid_manager.grid_to_world(origin) + Vector3(0.0, -0.05, 0.0)
 	if path_root != null:
-		# The side of the tile where the path does not continue; the head leans over it.
-		var side := Vector2i(0, 1)
-		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]:
-			if not _is_path_at(origin + d):
-				side = d
-				break
-		lamp.position += Vector3(side.x, 0.0, side.y) * ts * 0.40
-		lamp.rotation.y = atan2(-float(side.x), -float(side.y))
+		# Beside the path, or in a corner of a crossing; the head leans over it (LampSpot,
+		# the Builder's map draws it at the same spot).
+		var off: Vector2 = LAMP_SPOT.offset(origin, Callable(self, "_is_path_at"))
+		lamp.position += Vector3(off.x, 0.0, off.y) * ts
+		lamp.rotation.y = LAMP_SPOT.yaw(off)
 		lamp.set_meta("on_path", true)
+		lamp.set_meta("lamp_offset", off)
 		path_root.set_meta("lamp_node", lamp)
 
-	var base_size = Vector3(ts * 0.24, 0.24, ts * 0.24)
-	var base_mesh = MeshInstance3D.new()
-	var base_box = BoxMesh.new()
-	base_box.size = base_size
-	base_mesh.mesh = base_box
-	base_mesh.position = Vector3(0.0, base_size.y * 0.5, 0.0)
-	base_mesh.material_override = _make_psx_material(Color(0.34, 0.34, 0.30), 0.006, 24.0, 6.0, 0.08, "utility_power_back_609", 0.76)
-	lamp.add_child(base_mesh)
-
-	var pole_height = maxf(2.9, ts * 0.86)
-	var pole_radius = maxf(0.08, ts * 0.042)
-	var pole_mesh = MeshInstance3D.new()
-	var pole_geo = CylinderMesh.new()
-	pole_geo.top_radius = pole_radius
-	pole_geo.bottom_radius = pole_radius * 1.08
-	pole_geo.height = pole_height
-	pole_mesh.mesh = pole_geo
-	pole_mesh.position = Vector3(0.0, base_size.y + pole_height * 0.5, 0.0)
-	pole_mesh.material_override = _make_psx_material(Color(0.40, 0.40, 0.36), 0.006, 24.0, 6.0, 0.12, "decor_metal", 0.70)
-	lamp.add_child(pole_mesh)
-
-	var arm_mesh = MeshInstance3D.new()
-	var arm_box = BoxMesh.new()
-	arm_box.size = Vector3(maxf(0.34, ts * 0.32), 0.10, 0.10)
-	arm_mesh.mesh = arm_box
-	var lamp_head_anchor = Vector3(0.0, base_size.y + pole_height - 0.14, ts * 0.12)
-	arm_mesh.position = lamp_head_anchor
-	arm_mesh.rotation_degrees = Vector3(0.0, 90.0, 0.0)
-	arm_mesh.material_override = _make_psx_material(Color(0.46, 0.44, 0.38), 0.006, 24.0, 6.0, 0.10, "decor_metal", 0.70)
-	lamp.add_child(arm_mesh)
-
-	var hood_mesh = MeshInstance3D.new()
-	var hood_box = BoxMesh.new()
-	hood_box.size = Vector3(0.26, 0.16, 0.22)
-	hood_mesh.mesh = hood_box
-	var hood_pos = lamp_head_anchor + Vector3(0.0, -0.03, arm_box.size.x * 0.48)
-	hood_mesh.position = hood_pos
-	hood_mesh.material_override = _make_psx_material(Color(0.50, 0.46, 0.34), 0.006, 24.0, 6.0, 0.08, "utility_power_side_610", 0.70)
-	lamp.add_child(hood_mesh)
+	var base_size = Vector3(0.42, 0.22, 0.42)
+	var models = _models if _models != null else BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
+	_models = models
+	var concrete: Material = models._camp_or("concrete.png", Color(0.62, 0.62, 0.58), "stone")
+	var wood: Material = models._camp("planks_dark.png", Color(0.6, 0.5, 0.42), Vector3(0.6, 2.0, 1.0))
+	var enamel := StandardMaterial3D.new()
+	enamel.albedo_color = Color(0.2, 0.36, 0.26)
+	enamel.roughness = 0.4
+	enamel.metallic = 0.2
+	enamel.set_meta("base_albedo_color", enamel.albedo_color)
+	var enamel_in := StandardMaterial3D.new()
+	enamel_in.albedo_color = Color(0.96, 0.95, 0.9)
+	enamel_in.emission_enabled = true
+	enamel_in.emission = Color(1.0, 0.9, 0.62)
+	enamel_in.emission_energy_multiplier = 0.25
+	enamel_in.set_meta("base_albedo_color", enamel_in.albedo_color)
+	var iron: Material = models._metal()
+	var base_mesh = models._box(lamp, "LampFoot", base_size, Vector3(0.0, base_size.y * 0.5, 0.0), concrete)
+	base_mesh.name = "LampFoot"
+	var pole_height = 3.3
+	models._box(lamp, "LampPole", Vector3(0.14, pole_height, 0.14), Vector3(0.0, base_size.y + pole_height * 0.5, 0.0), wood)
+	models._box(lamp, "LampCable", Vector3(0.025, pole_height - 0.4, 0.025), Vector3(0.0, base_size.y + pole_height * 0.5, -0.08), models._flat(Color(0.1, 0.1, 0.1)))
+	models._box(lamp, "LampFuse", Vector3(0.18, 0.24, 0.1), Vector3(0.0, 1.25, -0.12), models._flat(Color(0.5, 0.52, 0.5)))
+	# The bracket: an arm out over the path and a brace under it.
+	var top_y: float = base_size.y + pole_height
+	var arm_len := 0.9
+	var arm: MeshInstance3D = models._box(lamp, "LampArm", Vector3(0.06, 0.06, arm_len), Vector3(0.0, top_y - 0.12, arm_len * 0.5 - 0.05), iron)
+	arm.name = "LampArm"
+	var brace: MeshInstance3D = models._box(lamp, "LampBrace", Vector3(0.04, 0.04, 0.62), Vector3(0.0, top_y - 0.38, 0.26), iron)
+	brace.rotation.x = 0.62
+	var lamp_head_anchor = Vector3(0.0, top_y - 0.12, arm_len - 0.08)
+	var shade := MeshInstance3D.new()
+	shade.name = "LampShade"
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.06
+	cone.bottom_radius = 0.34
+	cone.height = 0.2
+	cone.radial_segments = 10
+	shade.mesh = cone
+	shade.material_override = enamel
+	shade.position = lamp_head_anchor + Vector3(0.0, -0.1, 0.0)
+	lamp.add_child(shade)
+	var shade_in := MeshInstance3D.new()
+	var cone_in := CylinderMesh.new()
+	cone_in.top_radius = 0.05
+	cone_in.bottom_radius = 0.31
+	cone_in.height = 0.004
+	cone_in.radial_segments = 10
+	shade_in.mesh = cone_in
+	shade_in.material_override = enamel_in
+	shade_in.position = lamp_head_anchor + Vector3(0.0, -0.198, 0.0)
+	lamp.add_child(shade_in)
+	var hood_pos = lamp_head_anchor + Vector3(0.0, 0.05, 0.0)
 
 	var bulb_mesh = MeshInstance3D.new()
 	var bulb_box = BoxMesh.new()
-	bulb_box.size = Vector3(0.14, 0.24, 0.14)
+	bulb_box.size = Vector3(0.11, 0.14, 0.11)
 	bulb_mesh.mesh = bulb_box
-	var bulb_pos = hood_pos + Vector3(0.0, -0.18, -0.01)
+	var bulb_pos = lamp_head_anchor + Vector3(0.0, -0.27, 0.0)
 	bulb_mesh.position = bulb_pos
 	var bulb_light_color = Color(1.0, 0.90, 0.56)
 	var bulb_material = _make_psx_material(Color(1.0, 0.94, 0.78, 0.52), 0.004, 20.0, 6.0, 0.0, "building_window", 0.20)
@@ -686,10 +699,10 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	lamp_spot.name = "LampSpot"
 	lamp_spot.position = bulb_pos + Vector3(0.0, -0.05, 0.0)
 	lamp_spot.light_color = Color(1.0, 0.92, 0.66)
-	lamp_spot.light_energy = 2.85
-	lamp_spot.spot_range = maxf(9.4, ts * 2.22)
-	lamp_spot.spot_angle = 40.0
-	lamp_spot.spot_attenuation = 0.82
+	lamp_spot.light_energy = 5.2
+	lamp_spot.spot_range = maxf(12.0, ts * 2.8)
+	lamp_spot.spot_angle = 56.0
+	lamp_spot.spot_attenuation = 0.6
 	lamp_spot.shadow_enabled = false
 	lamp.add_child(lamp_spot)
 	var cone_ground_global = lamp.to_global(cone_ground_local)
@@ -699,8 +712,8 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	lamp_fill.name = "LampFill"
 	lamp_fill.position = Vector3(bulb_pos.x, cone_ground_y + 0.16, bulb_pos.z)
 	lamp_fill.light_color = Color(1.0, 0.90, 0.62)
-	lamp_fill.light_energy = 0.72
-	lamp_fill.omni_range = maxf(4.2, ts * 1.08)
+	lamp_fill.light_energy = 1.2
+	lamp_fill.omni_range = maxf(6.0, ts * 1.5)
 	lamp_fill.omni_attenuation = 2.1
 	lamp_fill.shadow_enabled = false
 	lamp.add_child(lamp_fill)

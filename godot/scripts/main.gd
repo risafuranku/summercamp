@@ -3626,6 +3626,11 @@ func _rebuild_core_cells_from_visual_structures() -> void:
 		var building_id := str(structure.get_meta("building_type", "")).strip_edges()
 		if building_id.is_empty():
 			continue
+		# A lamp standing on a path tile belongs to the path (cell["lamp"], below): written
+		# over the cell it made the path vanish for the Builder and the guests (playtest
+		# 2026-10-17: "lamps destroy the path under them at a crossing").
+		if structure.has_meta("on_path"):
+			continue
 		var origin_any = structure.get_meta("grid_origin", Vector2i.ZERO)
 		var footprint_any = structure.get_meta("grid_footprint", Vector2i.ONE)
 		var origin := origin_any as Vector2i if origin_any is Vector2i else Vector2i.ZERO

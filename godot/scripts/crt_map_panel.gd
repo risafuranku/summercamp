@@ -776,7 +776,7 @@ func _draw_static() -> void:
 		if ty == "lamp_post" or ty == "bonfire":
 			_lights.append([entry["center"], ty])
 		elif ty == "path" and _path_has_lamp(entry["origin"]):
-			_lights.append([entry["center"] + Vector2(tile_w * 0.2, -tile_h * 0.05), "lamp_post"])
+			_lights.append([_path_lamp_point(entry["origin"], entry["center"], tile_w, tile_h), "lamp_post"])
 
 
 ## Static-layer point to the panel, as the layer stands now (moved and scaled).
@@ -1227,7 +1227,7 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 	if building_type == "path":
 		_draw_path(center, entry.get("origin", Vector2i.ZERO), tile_w, tile_h)
 		if _path_has_lamp(entry.get("origin", Vector2i.ZERO)):
-			var lc := center + Vector2(tile_w * 0.2, -tile_h * 0.05)
+			var lc := _path_lamp_point(entry.get("origin", Vector2i.ZERO), center, tile_w, tile_h)
 			_draw_icon(lc, Vector2(tile_w * 0.6, tile_h * 1.5), _icon_key_for_type("lamp_post"), 0, Color.WHITE)
 		return
 
@@ -1979,6 +1979,15 @@ func _describe(coord: Vector2i) -> String:
 func _path_cell(coord: Vector2i) -> bool:
 	var state = CoreRoot.get_state() if CoreRoot != null else null
 	return state != null and str((state.grid.cells.get(coord, {}) as Dictionary).get("type", "")) == "path"
+
+
+## Where a path's lamp stands on the map: the camp's own spot for it (LampSpot), turned
+## with the map.
+func _path_lamp_point(coord: Vector2i, center: Vector2, tile_w: float, tile_h: float) -> Vector2:
+	var off: Vector2 = LampSpot.offset(coord, Callable(self, "_path_cell"))
+	var a := _cell_to_iso_f(Vector2(coord), Vector2.ZERO, tile_w, tile_h)
+	var b := _cell_to_iso_f(Vector2(coord) + off, Vector2.ZERO, tile_w, tile_h)
+	return center + (b - a)
 
 
 func _path_has_lamp(coord: Vector2i) -> bool:
