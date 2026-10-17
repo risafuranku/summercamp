@@ -1527,8 +1527,10 @@ func _start_life() -> void:
 			var bar_top := _top_near(root, "BarCounter", Vector3(1.35, 0.05, -1.25), 1.05)
 			for x: float in [0.6, 1.3, 2.0]:
 				settings[seats.size()] = Vector3(x, bar_top, -1.08)
-				# Up on a bar stool: the seated figure sits higher.
-				seats.append({"pos": Vector3(x, 0.3, -0.66), "table": -1})
+				# Up on a bar stool: the figure's seat (0.45 m up the sprite) on the stool
+				# top, just in front of it so the seat does not cut through the legs.
+				var stool_top := _top_near(root, "BarStool", Vector3(x, 0.05, -0.6), 0.78)
+				seats.append({"pos": Vector3(x, stool_top - 0.45, -0.36), "table": -1})
 		"rest":
 			root = _restaurant_dining_root
 			if root == null:
@@ -1544,10 +1546,26 @@ func _start_life() -> void:
 			root = _vecerka_shop_root
 			if root == null:
 				return
-			for spot in [[Vector3(-0.85, 0.05, -1.0), Vector3(0, 0, -1)], [Vector3(0.85, 0.05, -1.0), Vector3(0, 0, -1)], [Vector3(1.0, 0.05, 0.1), Vector3(1, 0, 0)], [Vector3(-0.95, 0.05, 0.05), Vector3(-1, 0, 0)]]:
+			# At the back racks, the side rack and the counter, far enough from the door
+			# (where you stand) to be people in the room, not a face in the lens.
+			for spot in [[Vector3(-0.85, 0.05, -1.0), Vector3(0, 0, -1)], [Vector3(0.85, 0.05, -1.0), Vector3(0, 0, -1)], [Vector3(1.0, 0.05, -0.32), Vector3(1, 0, 0)], [Vector3(-0.95, 0.05, -0.38), Vector3(-1, 0, 0)]]:
 				seats.append({"pos": spot[0], "face": spot[1], "stand": true})
 		_:
 			return
+	# Nobody sits in your lap: seats too near where you stand stay empty.
+	if _interior_camera != null:
+		var cam := root.to_local(_interior_camera.global_position)
+		var kept: Array = []
+		var kept_settings: Dictionary = {}
+		for i in seats.size():
+			var at: Vector3 = seats[i]["pos"]
+			if Vector2(at.x - cam.x, at.z - cam.z).length() < 1.7:
+				continue
+			if settings.has(i):
+				kept_settings[kept.size()] = settings[i]
+			kept.append(seats[i])
+		seats = kept
+		settings = kept_settings
 	_life = SERVICE_LIFE.new()
 	_life.name = "ServiceLife"
 	root.add_child(_life)

@@ -110,7 +110,7 @@ func _visitors() -> Array:
 func _refresh() -> void:
 	var seen := {}
 	for g in _visitors():
-		var n := clampi(int(g.get("party_size", 1)), 1, 4)
+		var n: int = POSES.figure_count(str(g.get("archetype", "")), int(g.get("party_size", 1)))
 		for i in n:
 			var k := "%d:%d" % [int(g.get("id", 0)), i]
 			seen[k] = true

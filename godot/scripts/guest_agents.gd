@@ -190,7 +190,7 @@ func _create_party(entry: Dictionary) -> Dictionary:
 	root.name = "GuestParty_%d" % int(entry.get("id", 0))
 	add_child(root)
 	var members: Array = []
-	var count := clampi(int(entry.get("party_size", 1)), 1, MAX_MEMBERS_PER_PARTY)
+	var count: int = POSES.figure_count(str(entry.get("archetype", "")), int(entry.get("party_size", 1)), MAX_MEMBERS_PER_PARTY)
 	var tex := _texture_for(str(entry.get("sprite_path", "")))
 	for i in count:
 		var member := Node3D.new()

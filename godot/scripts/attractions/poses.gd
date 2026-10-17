@@ -12,6 +12,15 @@ const POSES := ["sit", "drink", "eat", "guitar"]
 static var _tex: Dictionary = {}
 
 
+## How many figures a party is on screen: the family sprite is two people (a father and
+## his boy), so a family of four is two of them; everyone else is one each.
+static func figure_count(archetype: String, party_size: int, most := 4) -> int:
+	var n := maxi(1, party_size)
+	if archetype == "family":
+		n = int(ceil(float(n) / 2.0))
+	return clampi(n, 1, most)
+
+
 static func path_for(base_path: String, pose: String) -> String:
 	if pose == "" or base_path == "":
 		return base_path
