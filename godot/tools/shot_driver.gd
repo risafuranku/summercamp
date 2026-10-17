@@ -1012,6 +1012,19 @@ const SCENARIOS := {
 		["eval", "[_day_events.open_events().size(), _day_events.haunted]"],
 		["eval", "_day_events.haunted_near(grid_manager.grid_to_world(Vector2i(17, 4)), 14.0)"],
 	],
+	"saveround": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 16.0],
+		["eval", "debug_mark_saved_bits()"], ["eval", "debug_saved_bits()"],
+		["eval", "debug_save_and_reload()"], ["wait", 2.0], ["wait_gameplay"], ["wait", 16.0],
+		["eval", "debug_saved_bits()"], ["shot", "sr0_after_load"],
+		["eval", "[_interior_manager._building_interior._crt_ui._state, _interior_manager._building_interior._crt_ui._open, _interior_manager._building_interior.is_open(), _interior_manager._building_interior.get('_crt_view_active')]"],
+		["wait", 10.0], ["shot", "sr1_later"],
+		["eval", "[_interior_manager._building_interior._crt_ui._state, _interior_manager._building_interior._crt_ui._open]"],
+	],
+	"newgame_crt": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 16.0], ["shot", "ng0"],
+		["eval", "[_interior_manager._building_interior._crt_ui._state, _interior_manager._building_interior._crt_ui._open, _interior_manager._building_interior.is_open(), _interior_manager._building_interior.get('_crt_view_active')]"],
+	],
 	"guestout": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"],
 		["eval", "debug_set_day(3)"], ["money", 20000], ["clear", 9, 5, 10, 8], ["build", "cabin_1", 10, 6, 0], ["build", "tent_1", 16, 6, 0],

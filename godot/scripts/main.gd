@@ -1993,6 +1993,39 @@ func debug_player_toward(node_name: String, frac: float) -> float:
 	return _player.global_position.distance_to(to)
 
 
+## Shot driver, save round trip: mark the newer state (the director's memory and log, the
+## reputation, a reported cabin, DataPunch's nights), save, scramble it in memory, and load
+## the save through the main menu as a player would. `debug_saved_bits` reads it back.
+func debug_mark_saved_bits() -> void:
+	_director.ever["knock"] = 3
+	_director.last_log = [{"time": "01:12", "id": "guest_out", "who": "Pepa"}]
+	EmailManager.reputation = 0.17
+	_day_events.haunted["10:6"] = 3
+	var os = _interior_manager._building_interior.get("_crt_ui")
+	if os != null:
+		os.set_meta("datapunch_nights", {"3": 12})
+
+
+func debug_saved_bits() -> Array:
+	var os = _interior_manager._building_interior.get("_crt_ui")
+	return [int(_director.ever.get("knock", 0)), _director.last_log.duplicate(true), snappedf(EmailManager.reputation, 0.01), _day_events.haunted.duplicate(),
+		os.get_meta("datapunch_nights", {}) if os != null else "no os"]
+
+
+func debug_save_and_reload() -> String:
+	var path := request_manual_save("Roundtrip")
+	_director.ever.clear()
+	_director.last_log = []
+	EmailManager.reputation = 0.0
+	_day_events.haunted.clear()
+	var os = _interior_manager._building_interior.get("_crt_ui")
+	if os != null:
+		os.set_meta("datapunch_nights", {})
+	_enter_main_menu()
+	_on_menu_load_requested(path)
+	return path
+
+
 func debug_guest_thoughts() -> Array:
 	var out: Array = []
 	for g in CoreRoot.get_state().guests:

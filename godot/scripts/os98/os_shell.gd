@@ -281,6 +281,10 @@ func import_persistent_state(data: Dictionary) -> void:
 	_state = Boot.OFF
 	_apply_state()
 	_refresh_desktop_icons()
+	# A save loaded while the screen is in front of you (game over -> Load): open_panel
+	# will not come again, so the machine starts here.
+	if _open:
+		_start_boot()
 
 
 func _is_program_unlocked(app_id: String) -> bool:
