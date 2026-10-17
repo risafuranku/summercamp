@@ -139,7 +139,10 @@ func _build_maze(rng: RandomNumberGenerator) -> void:
 		row += 1 if row + 1 < maze_rows - 1 else -1
 	entrance = Vector2i(maze_cols - 1, row)
 	maze_open[entrance] = true
-	gate_z = tile_world(entrance).z
+	# The fence has its gap at gate_z (world_generator.corn_gate_z): move the maze so the
+	# way in lines up with it. Moving the gate to the maze instead put it a tile beside
+	# the gap, the wires running through it.
+	maze_rect.position.y = gate_z - (float(row) + 0.5) * TILE
 	# The way out on the far side: a room row on the west edge, away from the way in.
 	var rows: Array[int] = []
 	for r2 in range(1, maze_rows - 1, 2):
