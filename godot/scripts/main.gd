@@ -1362,6 +1362,8 @@ func _update_threat_senses(delta: float) -> void:
 	if _audio_manager != null and _audio_manager.has_method("set_insect_hush"):
 		var corn_hush: float = float(_corn_hunt.hush) if _corn_hunt != null and is_instance_valid(_corn_hunt) else 0.0
 		var dir_hush: float = _director.hush() if _director != null and (_time_of_day_hours >= 21.0 or _time_of_day_hours < 5.5) else 0.0
+		if _director_fx != null:
+			dir_hush = maxf(dir_hush, float(_director_fx.extra_hush))
 		_audio_manager.set_insect_hush(maxf(maxf(maxf(_senses.hush, _omens.hush if _omens != null else 0.0), corn_hush), dir_hush))
 	if _hud_manager != null:
 		_hud_manager.set_fear(_senses.fear)
@@ -1922,6 +1924,25 @@ func debug_mouse_to_builder_cell(cell: Vector2i) -> Vector2:
 	var win: Vector2 = bi.call("debug_crt_to_window", crt_pos)
 	get_viewport().warp_mouse(win)
 	return win
+
+
+## Shot driver: the till, and what the state says stands on a cell (autoloads are out of
+## the driver's reach).
+func debug_money() -> int:
+	return int(CoreRoot.get_state().money)
+
+
+func debug_cell_type(c: Vector2i) -> String:
+	return str((CoreRoot.get_state().grid.cells.get(c, {}) as Dictionary).get("type", "-"))
+
+
+## Shot driver: one line of how the night stands (time, director, place, health).
+func debug_director_line() -> String:
+	var sn: Dictionary = _director.snapshot()
+	var last := ""
+	if not (sn["recent"] as Array).is_empty():
+		last = str((sn["recent"] as Array).back()["id"])
+	return "%s %s t=%.2f b=%.1f place=%s last=%s hp=%d hunters=%d near=%.0f" % [_time_of_day_string(), sn["state"], sn["tension"], sn["budget"], _director_place(), last, int(_player_health), _enemy_brains.size(), float(_senses.nearest)]
 
 
 ## Shot driver: play a director event now, as the director would ([where, place]).

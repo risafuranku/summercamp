@@ -66,6 +66,10 @@ const EVENTS := {
 	"call_far":      {"places": ["out_dark", "out_lit"], "cost": 3.0, "min": State.UNEASE, "cd": 200.0, "arch": [A.MIMIC], "next": ["silhouette"], "w": 1.0},
 	"silhouette":    {"places": ["out_dark", "out_lit"], "cost": 8.0, "min": State.MANIFESTATION, "cd": 360.0, "arch": [A.OBSERVER], "next": [], "w": 1.0},
 	"omen":          {"places": ["out_dark", "out_lit"], "cost": 5.0, "min": State.SUSPICION, "cd": 500.0, "arch": [A.OBSERVER, A.DISTURBER], "next": [], "w": 0.8},
+	"twig_snap":     {"places": ["out_dark", "out_lit"], "cost": 1.5, "min": State.UNEASE, "cd": 90.0, "arch": [A.OBSERVER, A.HUNTER, A.MIMIC], "next": ["steps_behind"], "w": 1.0},
+	"hush_drop":     {"places": ["out_dark", "out_lit", "office", "back_room"], "cost": 1.5, "min": State.UNEASE, "cd": 120.0, "arch": [A.OBSERVER, A.MIMIC, A.DISTURBER, A.HUNTER], "next": [], "w": 0.8},
+	"door_bang":     {"places": ["out_dark", "out_lit"], "cost": 2.5, "min": State.UNEASE, "cd": 160.0, "arch": [A.DISTURBER, A.MIMIC], "next": ["call_far"], "w": 0.9},
+	"backroom_steps": {"places": ["office"], "cost": 3.0, "min": State.SUSPICION, "cd": 260.0, "arch": [A.MIMIC, A.HUNTER], "next": ["wall_brush"], "w": 1.0},
 	"far_light":     {"places": ["out_dark", "out_lit"], "cost": 5.0, "min": State.SUSPICION, "cd": 420.0, "arch": [A.OBSERVER], "next": ["call_far"], "w": 1.0},
 	"room_sounds":   {"places": ["out_dark", "out_lit"], "cost": 4.0, "min": State.UNEASE, "cd": 300.0, "arch": [A.MIMIC, A.HUNTER, A.OBSERVER], "next": ["steps_behind"], "w": 2.0, "needs": ["haunted_near"]},
 }
@@ -87,6 +91,10 @@ const LOG_LINES := {
 	"omen": "something at the edge of the camp",
 	"room_sounds": "movement in a guest's cabin while they slept",
 	"far_light": "a light in the woods where there is no lamp",
+	"twig_snap": "a branch snapped in the dark near the night staff",
+	"hush_drop": "the insects stopped all at once",
+	"door_bang": "a cabin door banged; nobody came out",
+	"backroom_steps": "steps in the back room, which was empty",
 }
 ## What the camp's character means for you (the same page, before the night).
 const ARCH_HINTS := [
@@ -240,7 +248,10 @@ func _update_state(ctx: Dictionary) -> void:
 		deep = clampf(1.0 - (h - 27.0) / 3.5, 0.3, 1.0)
 	var place := str(ctx.get("place", ""))
 	var alone := 0.12 if place == "out_dark" else (0.04 if place == "out_lit" else 0.0)
-	var want := 0.12 * deep + 0.07 * float(ctx.get("pressure", 0.3)) + 0.12 * float(ctx.get("hunting", 0)) \
+	# Hiding indoors most of the night does not keep it away: it comes looking.
+	var inside := float(time_in.get("office", 0.0)) + float(time_in.get("back_room", 0.0))
+	var hiding := 0.1 if _t > 90.0 and inside > _t * 0.6 else 0.0
+	var want := 0.2 * deep + hiding + 0.07 * float(ctx.get("pressure", 0.3)) + 0.12 * float(ctx.get("hunting", 0)) \
 		+ (0.16 if bool(ctx.get("dark", false)) else 0.0) + alone + 0.06 * float(ignored) - 0.04 * float(investigated)
 	want = clampf(want, 0.0, 1.0)
 	# It builds over minutes, not seconds.

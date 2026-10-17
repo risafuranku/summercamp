@@ -21,6 +21,9 @@ var _live: Array = []            # {node, until, kind, ...}
 var _steps: Dictionary = {}      # the footsteps behind you
 var _figure: Dictionary = {}     # the one in the window
 var _debug: Label
+## A sudden silence of the insects (hush_drop): main takes the louder of this and the rest.
+var extra_hush := 0.0
+var _hush_left := 0.0
 var _t := 0.0
 
 
@@ -95,6 +98,21 @@ func run(id: String, ctx: Dictionary) -> Vector3:
 			return _silhouette(ctx.get("pos", Vector3.ZERO))
 		"far_light":
 			return _far_light(ctx.get("pos", Vector3.ZERO))
+		"twig_snap":
+			var tp := _dark_spot(ctx.get("pos", Vector3.ZERO), 10.0, 18.0)
+			if tp != Vector3.INF:
+				_world_sound("res://assets/sfx/npc/twig_snap.mp3", tp + Vector3(0, 0.3, 0), 0.0, 40.0, 7.0)
+				return tp
+		"hush_drop":
+			extra_hush = 0.95
+			_hush_left = randf_range(6.0, 9.0)
+		"door_bang":
+			var dp := _far_lodging(ctx.get("pos", Vector3.ZERO), 18.0, 60.0)
+			if dp != Vector3.INF:
+				_world_sound("res://assets/sfx/dverezavrit.mp3", dp + Vector3(0, 1.0, 0), 2.0, 70.0, 10.0)
+				return dp
+		"backroom_steps":
+			_room_sound(bi, "wet_steps.mp3", Vector3(-4.1, 0.3, 1.2), -2.0)
 		"room_sounds":
 			var de = main.get("_day_events")
 			if de != null:
@@ -111,6 +129,10 @@ func run(id: String, ctx: Dictionary) -> Vector3:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _hush_left > 0.0:
+		_hush_left -= delta
+		if _hush_left <= 0.0:
+			extra_hush = 0.0
 	_update_steps(delta)
 	_update_figure(delta)
 	var keep: Array = []
@@ -399,11 +421,28 @@ func _decal(path: String, width: float, at: Vector3, yaw: float, tint: Color) ->
 	return mi
 
 
+## A guest lodging (tent, cabin, caravan) rmin-rmax m away, or INF.
+func _far_lodging(from: Vector3, rmin: float, rmax: float) -> Vector3:
+	var bm = main.get("building_manager")
+	var root: Node = bm.get_node_or_null("Structures") if bm != null else null
+	if root == null:
+		return Vector3.INF
+	var picks: Array = []
+	for c in root.get_children():
+		var t := str(c.get_meta("building_type", ""))
+		if (t.begins_with("tent") or t.begins_with("cabin") or t.begins_with("caravan")) and c is Node3D:
+			var d := (c as Node3D).global_position.distance_to(from)
+			if d >= rmin and d <= rmax:
+				picks.append((c as Node3D).global_position)
+	return picks[randi() % picks.size()] if not picks.is_empty() else Vector3.INF
+
+
 func _world_sound(file: String, at: Vector3, db: float, max_d: float, unit := 6.0) -> void:
-	if not ResourceLoader.exists(DIR + file):
+	var path := file if file.begins_with("res://") else DIR + file
+	if not ResourceLoader.exists(path):
 		return
 	var s := AudioStreamPlayer3D.new()
-	s.stream = load(DIR + file)
+	s.stream = load(path)
 	s.volume_db = db
 	s.max_distance = max_d
 	s.unit_size = unit

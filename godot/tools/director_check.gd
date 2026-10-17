@@ -92,6 +92,19 @@ func _run() -> void:
 	for c in counts:
 		_expect(c >= 3 and c <= 16, "a busy night fired %d things (want 3-16)" % c)
 
+	# A near-empty camp, you in the office all night: a few small things, nothing big.
+	var small := []
+	for seed in [91, 92, 93, 94]:
+		d = DIRECTOR.new(seed)
+		d.begin_night(5)
+		var fq := _night(d, 420.0, func(_t): return "office", {"pressure": 0.4, "guests_by_arch": {"quiet_guy": 1}, "hunting": 0, "lamp_near": false, "walking": false})
+		small.append(fq.size())
+		for e in fq:
+			_expect(float(e["cost"]) < DIRECTOR.BIG_COST, "an empty camp got a big event (%s)" % e["id"])
+	print("DIRECTOR CHECK: empty camp, office all night: %s" % str(small))
+	for c in small:
+		_expect(c >= 1 and c <= 7, "an empty camp hiding in the office got %d things (want 1-7)" % c)
+
 	# Where it must not: close-ups, jobs, the lake, a guest's room.
 	for place in ["modal", "job", "lake", "room"]:
 		d = DIRECTOR.new(31)

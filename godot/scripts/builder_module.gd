@@ -271,6 +271,15 @@ func _build_toolbar() -> void:
 	_flat_style(rot)
 	rot.pressed.connect(func(): _map_panel.rotate_selected_building(1))
 	row.add_child(rot)
+	var undo := Button.new()
+	undo.text = "Undo"
+	undo.tooltip_text = "Take back the last thing you built today (Ctrl+Z), money back"
+	undo.custom_minimum_size = Vector2(46, 34)
+	undo.focus_mode = Control.FOCUS_NONE
+	undo.add_theme_font_override("font", T.FONT_BOLD)
+	_flat_style(undo)
+	undo.pressed.connect(func(): _map_panel.undo_last())
+	row.add_child(undo)
 	for z in [["-", -1, "Zoom out"], ["+", 1, "Zoom in"]]:
 		var zb := Button.new()
 		zb.text = z[0]

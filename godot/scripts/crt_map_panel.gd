@@ -124,6 +124,10 @@ var _pending_build_rot: int = 0
 var _path_drag_active: bool = false
 var _path_last_coord: Vector2i = Vector2i(-999, -999)
 var _path_requested: Dictionary = {}
+## Undo (Ctrl+Z, the toolbar): what you built today, newest last; a path drag is one step.
+## Taking it back pays the whole price back (it was a mistake, not a demolition).
+var _undo: Array = []            # {type, coord, cost, group, day}
+var _undo_group := 0
 var _path_preview: Dictionary = {}
 
 var _demolish_drag_active: bool = false
@@ -368,6 +372,11 @@ func _gui_input(event: InputEvent) -> void:
 			KEY_W, KEY_A, KEY_S, KEY_D:
 				get_viewport().set_input_as_handled()
 				return
+			KEY_Z:
+				if event.ctrl_pressed:
+					undo_last()
+					get_viewport().set_input_as_handled()
+					return
 
 	if event is InputEventMouseMotion:
 		if _pan_dragging:
@@ -448,6 +457,7 @@ func _handle_left_press(local_pos: Vector2) -> void:
 
 
 func _handle_structure_press(local_pos: Vector2) -> void:
+	_undo_group += 1
 	if _pending_build_wait:
 		_emit_status("Awaiting build confirmation...")
 		return
@@ -473,6 +483,7 @@ func _handle_structure_press(local_pos: Vector2) -> void:
 
 
 func _begin_path_drag(local_pos: Vector2) -> void:
+	_undo_group += 1
 	_path_drag_active = true
 	_path_last_coord = Vector2i(-999, -999)
 	_path_requested.clear()
@@ -583,6 +594,38 @@ func _send_demolish_request(rect: Rect2i) -> void:
 		_emit_status("Demolish request channel unavailable.", STATUS_DENY)
 
 
+## Takes back the last thing built today (all of a path drag), paying the price back.
+func undo_last() -> bool:
+	var st = CoreRoot.get_state()
+	var today := int(st.day) if st != null else 1
+	_undo = _undo.filter(func(u): return int(u["day"]) == today)
+	if _undo.is_empty() or CoreRoot.actions == null:
+		_emit_status("Nothing to undo today.", STATUS_DENY)
+		return false
+	var group := int(_undo.back()["group"])
+	var taken := 0
+	var back := 0
+	while not _undo.is_empty() and int(_undo.back()["group"]) == group:
+		var u: Dictionary = _undo.pop_back()
+		var cell: Dictionary = st.grid.cells.get(u["coord"], {})
+		# Only if it is still what you put there.
+		if str(cell.get("type", "")) != str(u["type"]) or cell.get("root_coord", u["coord"]) != u["coord"]:
+			continue
+		var m0: int = st.money
+		if CoreRoot.actions.remove_building(u["coord"]):
+			var refunded: int = st.money - m0
+			CoreRoot.actions.add_money(maxi(0, int(u["cost"]) - refunded))
+			taken += 1
+			back += int(u["cost"])
+	if taken == 0:
+		_emit_status("Nothing to undo: it has changed since.", STATUS_DENY)
+		return false
+	_emit_status("Undone: %d %s, $%d back." % [taken, "piece" if taken == 1 else "pieces", back], STATUS_GOOD)
+	_play("bulldoze", -10.0)
+	_static_dirty = true
+	return true
+
+
 func _rotate_building(step: int) -> void:
 	if selected_building == "" or selected_building == "path" or selected_building == "demolish":
 		_emit_status("Select a structure to rotate.", STATUS_DENY)
@@ -638,6 +681,13 @@ func _connect_event_bus() -> void:
 
 
 func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void:
+	var mine := (_pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord) or (building_type == "path" and _path_drag_active)
+	# A lamp on a path belongs to the path: not something undo can take off it.
+	if mine and not (building_type == "lamp_post" and _path_cell(pos)):
+		var st = CoreRoot.get_state()
+		_undo.append({"type": building_type, "coord": pos, "cost": _get_cost(building_type), "group": _undo_group, "day": int(st.day) if st != null else 1})
+		while _undo.size() > 40:
+			_undo.remove_at(0)
 	if _pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord and wrapi(rot, 0, 4) == _pending_build_rot:
 		_pending_build_wait = false
 		_pending_build_type = ""
