@@ -11,7 +11,9 @@ extends SceneTree
 ## - a key for a room that is not made up comes back;
 ## - REFUSED and the papers back: refused is emitted, nothing written;
 ## - the stranger (no slip): written, keyed, stamped in -> stranger_admitted, his row red
-##   the next day; stamped REFUSED -> stranger_refused.
+##   the next day; stamped REFUSED -> stranger_refused;
+## - the key board: every key gets a hook, labels move and swap, the hooks are saved,
+##   a demolished lodging's label comes off.
 
 const DESK := preload("res://scripts/reception/checkin_desk.gd")
 
@@ -113,6 +115,27 @@ func _run() -> void:
 	await _frames(4)
 	_expect(_events.has("stranger_out"), "refusing the stranger is heard")
 	_expect(desk.current_guest_id() == -999, "he is not there any more")
+
+	# The key board: a hook each, labels moved (swapping), saved, and a demolished
+	# lodging's label coming off.
+	desk._refresh_keys()
+	_expect(desk._slots.size() == _ready_keys.size(), "every key has a hook")
+	var first := str(desk._keys[0]["key"])
+	var second := str(desk._keys[1]["key"])
+	var a := int(desk._slots[first])
+	var b := int(desk._slots[second])
+	desk._stick_label(first, desk._hook_pos(b))
+	_expect(int(desk._slots[first]) == b and int(desk._slots[second]) == a, "a label stuck on another swaps them")
+	desk._stick_label(first, desk._hook_pos(20))
+	_expect(int(desk._slots[first]) == 20, "a label goes on a free hook")
+	var saved: Dictionary = desk.export_state()
+	desk.import_state({})
+	_expect(desk._slots.is_empty(), "a fresh desk has no labels")
+	desk.import_state(saved)
+	_expect(int(desk._slots.get(first, -1)) == 20, "the hooks are saved with the game")
+	_ready_keys.erase(second)
+	desk._refresh_keys()
+	_expect(not desk._slots.has(second), "a demolished lodging's label comes off")
 
 	if _failures.is_empty():
 		print("CHECKIN CHECK: PASS")

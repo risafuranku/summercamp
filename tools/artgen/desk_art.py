@@ -2,12 +2,18 @@
 """The reception desk close-up's art (scripts/reception/checkin_desk.gd) from the Grok
 renders, at the sizes the 480x270 desk draws them, snapped to the game palette:
 
-    python tools/artgen/desk_art.py
+    python tools/artgen/desk_art.py           everything
+    python tools/artgen/desk_art.py views     only the views across the counter, the key
+                                              board and the label maker
 -> godot/assets/textury/desk/desk_top.png, desk_view.png, register.png, booking.png,
    id_card.png, key_rack.png, key_fob.png, stamp.png, bell.png
-   and godot/assets/textury/camp/key_rack.png for the board on the office wall.
+   and godot/assets/textury/camp/key_rack.png for the board on the office wall;
+   the views: desk_view_<morning|evening|night|rain|fog|snow>.png (the same room by the
+   hour and the weather) and desk_scare_<...>.png (the night room with something in it),
+   key_board.png (the empty board the keys hang on), desk_dymo.png (the label maker).
 """
 import os
+import sys
 
 from PIL import Image
 
@@ -63,8 +69,26 @@ def card():
     print("id_card.png")
 
 
-def main():
+VIEWS = ["morning", "evening", "night", "rain", "fog", "snow"]
+SCARES = ["forest", "bench", "window", "ceiling", "door", "counter"]
+
+
+def views():
     os.makedirs(OUT, exist_ok=True)
+    for v in VIEWS:
+        flat("desk_view_" + v, (480, 270), "desk_view_%s.png" % v)
+    for v in SCARES:
+        flat("desk_scare_" + v, (480, 270), "desk_scare_%s.png" % v)
+    flat("key_board", (178, 100), "key_board.png")
+    cut("desk_dymo", (52, 42), "desk_dymo.png")
+
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "views":
+        views()
+        return
+    os.makedirs(OUT, exist_ok=True)
+    views()
     flat("desk_top", (480, 270), "desk_top.png")
     flat("desk_view", (480, 270), "desk_view.png")
     flat("doc_register", (226, 150), "register.png")

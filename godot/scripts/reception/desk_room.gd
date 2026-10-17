@@ -70,6 +70,10 @@ func build(host_node, extras_node, root: Node3D) -> void:
 	desk.key_board_provider = func(): return GuestManager.get_key_board() if GuestManager != null else []
 	desk.check_in_call = func(id: int): return GuestManager.request_check_in(id) if GuestManager != null else {"ok": false}
 	desk.next_guest_provider = _next_for_desk
+	# How bad tonight is, for what the desk sees across the counter at night.
+	desk.pressure_provider = func():
+		var dread = host.get("_dread") if host != null else null
+		return float(dread.get("dread")) if dread != null else 0.0
 	desk.refused.connect(func(id: int):
 		if GuestManager != null:
 			GuestManager.refuse_at_desk(id)

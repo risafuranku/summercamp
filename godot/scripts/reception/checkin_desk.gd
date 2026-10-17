@@ -9,15 +9,25 @@ extends CanvasLayer
 ## identity card and the CampMail booking slip. On your side of the counter:
 ##   - the guest register, open at today: drop the card on it and you write the name and
 ##     the card number, drop the slip on it and you write persons, nights and lodging;
-##   - the key board: take the key for their lodging and drop it on the counter (up
-##     there, where they stand). A key for a room that is not made up comes back; so
-##     does somebody else's;
+##   - the key board: a brass key on a hook for every tent, cabin and caravan built,
+##     its name on a strip of Dymo tape stuck above the hook (green tents, red cabins,
+##     blue caravans) and a pin beside it, green when the room is made up. Take the key
+##     for their lodging and drop it on the counter (up there, where they stand). A key
+##     for a room that is not made up comes back; so does somebody else's. New lodgings
+##     get the first free hook; the label maker on the desk peels the labels off to stick
+##     them elsewhere (the key moves with its label), click it again to put it down;
 ##   - two rubber stamps, CHECKED IN and REFUSED: pick one up, press it on the slip (or on
 ##     the card, for someone who has no slip);
 ##   - give the papers back (drop them on the counter) and they go. With CHECKED IN on
 ##     them only once they are written in and have their keys.
 ## Everything is dragged with the mouse: papers lift with a shadow, slide, drop with a
 ## sound. Esc or the right button stands you up; whoever is waiting keeps waiting.
+##
+## Across the counter is the room as it is now: a picture for the morning, the day, the
+## evening and the night, for rain, fog and snow (desk_view_*.png), turning from one to
+## the next in steps. At night, now and then, the night picture is wrong: something is in
+## the room or at the window (desk_scare_*.png), more often the worse the night is (the
+## radio's dread), until the bulb flickers and it is gone.
 ##
 ## At night someone who is not booked may come to the desk (desk_room.gd decides). He
 ## has no slip, and his card is not right. Writing him in and giving him a key lets him
@@ -30,6 +40,10 @@ signal stranger_admitted
 signal stranger_refused
 
 const TEX := "res://assets/textury/desk/"
+const SEASON = preload("res://core/systems/season.gd")
+const SFX_FLICKER := "res://assets/sfx/splash/sputter.wav"
+## The night scares by how bad tonight is (pressure below 0.3, below 0.6, above).
+const SCARES := [["forest", "bench"], ["window", "ceiling", "bench"], ["door", "counter", "window", "ceiling"]]
 const SFX := "res://assets/sfx/desk/"
 const F_TYPE: FontFile = preload("res://assets/fonts/w95.fnt")
 const F_TINY: FontFile = preload("res://assets/fonts/tiny5.fnt")
@@ -43,12 +57,93 @@ const GIVE := Rect2(0, 0, 480, 116)
 const DESK := Rect2(0, 116, 480, 154)
 const BOOK := Rect2(4, 118, 226, 150)
 const RACK := Rect2(298, 120, 178, 100)
-const PAD := Rect2(424, 228, 48, 34)
 const STAMP_SIZE := Vector2(42, 38)
 const STAMP_HOME := {"in": Vector2(304, 222), "out": Vector2(360, 222)}
 const CARD_SIZE := Vector2(108, 70)
 const SLIP_SIZE := Vector2(88, 118)
-const KEY_SIZE := Vector2(20, 20)
+## The key board (RACK): 8 x 3 hooks, one cell each: the label at the top, the hook
+## under it, the key hanging from the hook.
+const CELL := Vector2(20.5, 30)
+const CELL0 := Vector2(7, 6)
+const HOOK_IN_CELL := Vector2(10, 10)
+## Where a key is picked up, round its hook.
+const KEY_HIT := Rect2(-6, -2, 13, 24)
+## Dymo tape colours by lodging kind.
+const TAPE := {"tent": Color8(40, 104, 52), "cabin": Color8(170, 34, 30), "caravan": Color8(36, 66, 150)}
+## The label maker on the desk, by the stamps.
+const DYMO := Rect2(422, 222, 52, 42)
+## The keys, drawn pixel by pixel (o steel ring, d/b/h brass, s/m/w nickel, k/K plastic).
+const KEY_ART := {
+	"cabin": [
+		"....oOo....",
+		"...o...o...",
+		"...O...o...",
+		"...o...o...",
+		"....ooo....",
+		"...dbbbd...",
+		"..dbhhhbd..",
+		".dbh...bbd.",
+		".dh.....bd.",
+		".db.....bd.",
+		".dbb...bdd.",
+		"..dbbbbbd..",
+		"...ddbdd...",
+		".....bd....",
+		".....hd....",
+		".....bd....",
+		".....bd....",
+		".....bdddd.",
+		".....bhbbd.",
+		".....bdbd..",
+		".....bd....",
+	],
+	"tent": [
+		"...oOo...",
+		"..o...o..",
+		"..O...o..",
+		"...ooo...",
+		"..smmms..",
+		".smwwwms.",
+		".smw.wms.",
+		".smwwwms.",
+		"..smmms..",
+		"....m....",
+		"...smw...",
+		"....mw...",
+		"...smw...",
+		"....mw...",
+		"...smw...",
+		"....ms...",
+	],
+	"caravan": [
+		"....oOo....",
+		"...o...o...",
+		"...O...o...",
+		"....ooo....",
+		"..kkkkkkk..",
+		".kKKKKKKKk.",
+		".kKk...kKk.",
+		".kKKKKKKKk.",
+		".kKKKKKKKk.",
+		"..kkkkkkk..",
+		"....mwws...",
+		"....mwws...",
+		"....mwwss..",
+		"....mwws...",
+		"....mwwss..",
+		"....mwws...",
+		"....mwwss..",
+		"....mwws...",
+		"....mws....",
+		"....ms.....",
+	],
+}
+const KEY_INK := {
+	"o": Color8(140, 140, 148), "O": Color8(206, 206, 214),
+	"d": Color8(116, 80, 28), "b": Color8(192, 150, 58), "h": Color8(242, 212, 120),
+	"s": Color8(92, 96, 104), "m": Color8(160, 166, 174), "w": Color8(226, 230, 234),
+	"k": Color8(22, 22, 26), "K": Color8(66, 66, 74),
+}
 const ROW_Y0 := 144.0
 const ROW_H := 12.0
 const ROWS := 10
@@ -111,6 +206,8 @@ var key_board_provider: Callable
 var check_in_call: Callable
 ## Callable() -> Dictionary: the next party in the queue, or {}.
 var next_guest_provider: Callable
+## How bad tonight is, 0..1 (desk_room.gd: the radio's dread).
+var pressure_provider: Callable
 
 var _vp: SubViewport
 var _canvas: Control
@@ -129,6 +226,9 @@ var _p: Dictionary = {}           # their progress (see _new_progress)
 var _progress: Dictionary = {}    # guest id -> progress, kept while they wait
 var _history: Array = []          # register rows: {no, name, card, persons, nights, lodging, key, day, red}
 var _keys: Array = []             # the key board, refreshed while open
+var _slots: Dictionary = {}       # key -> hook (0..23): where its label and key are
+var _labels_mode := false         # the label maker is in your hand
+var _swing: Dictionary = {}       # key -> seconds it still swings on its hook
 var _drag := ""                   # "card", "slip", "key:<key>"
 var _drag_off := Vector2.ZERO
 var _holding_stamp := ""          # "in" / "out"
@@ -142,6 +242,14 @@ var _pen: Dictionary = {}         # {field: progress 0..1}
 var _day := 1
 var _t := 0.0
 var _empty_t := 0.0
+var _view_name := "desk_view"     # the picture across the counter
+var _view_prev := ""              # the one it is turning from
+var _view_mix := 1.0
+var _view_poll := 0.0
+var _scare := ""                  # a desk_scare_* shown instead of the night, or ""
+var _scare_left := 0.0
+var _flicker := 0.0               # the bulb flickering (seconds left)
+var _scare_cool_until := -INF     # (day * 24 + hour) before another may show
 
 
 func _init() -> void:
@@ -178,7 +286,7 @@ func _ready() -> void:
 		a.volume_db = -6.0
 		add_child(a)
 		_audio.append(a)
-	for n in ["desk_top", "desk_view", "register", "id_card", "booking", "key_rack", "key_fob", "stamp"]:
+	for n in ["desk_top", "desk_view", "register", "id_card", "booking", "key_board", "desk_dymo", "stamp"]:
 		var path: String = TEX + n + ".png"
 		_tex[n] = load(path) if ResourceLoader.exists(path) else null
 	get_tree().root.size_changed.connect(_layout)
@@ -205,6 +313,18 @@ func open_desk(guest: Dictionary, day: int) -> void:
 		_layout()
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		_play("book", -10.0)
+		_view_name = _pick_view()
+		_view_prev = ""
+		_view_mix = 1.0
+		_scare = ""
+		_flicker = 0.0
+		_refresh_keys()
+		if guest.is_empty():
+			_set_guest({})
+		elif int(guest.get("id", -999)) != current_guest_id():
+			_set_guest(guest)
+		_roll_scare()
+		return
 	_refresh_keys()
 	if guest.is_empty():
 		_set_guest({})
@@ -216,17 +336,23 @@ func close_desk() -> void:
 	if not visible or _closing_t >= 0.0:
 		return
 	_drop_everything()
+	_labels_mode = false
 	if not _guest.is_empty():
 		_progress[current_guest_id()] = _p
 	_closing_t = 0.0
 
 
 func export_state() -> Dictionary:
-	return {"history": _history.duplicate(true)}
+	return {"history": _history.duplicate(true), "hooks": _slots.duplicate()}
 
 
 func import_state(d: Dictionary) -> void:
 	_history = (d.get("history", []) as Array).duplicate(true) if d.get("history", []) is Array else []
+	_slots.clear()
+	var hooks = d.get("hooks", {})
+	if hooks is Dictionary:
+		for k in (hooks as Dictionary).keys():
+			_slots[str(k)] = int((hooks as Dictionary)[k])
 
 
 func history() -> Array:
@@ -315,6 +441,85 @@ func _hour() -> float:
 	return 12.0
 
 
+# ── across the counter: the hour, the weather, the night ─────────────────────
+
+func _weather() -> Object:
+	var main := get_tree().current_scene if get_tree() != null else null
+	return main.get("weather_system") if main != null else null
+
+
+## Which picture of the room fits the hour and the weather.
+func _pick_view() -> String:
+	var h := _hour()
+	var name := "desk_view"
+	var ws = _weather()
+	var season_day := int(ws.get("season_day")) if ws != null and ws.get("season_day") != null else _day
+	if h >= 20.5 or h < 5.5:
+		name = "desk_view_night"
+	elif SEASON.snow_cover(season_day, h) > 0.35 or (ws != null and ws.has_method("is_snowing") and ws.is_snowing()):
+		name = "desk_view_snow"
+	elif ws != null and ws.has_method("is_raining") and ws.is_raining():
+		name = "desk_view_rain"
+	elif ws != null and int(ws.get("current_weather")) == 2:
+		name = "desk_view_fog"
+	elif h < 8.5:
+		name = "desk_view_morning"
+	elif h >= 17.5:
+		name = "desk_view_evening"
+	return name if _view_tex(name) != null else "desk_view"
+
+
+func _view_tex(name: String) -> Texture2D:
+	if not _tex.has(name):
+		var path := TEX + name + ".png"
+		_tex[name] = load(path) if ResourceLoader.exists(path) else null
+	return _tex[name]
+
+
+func _update_view(delta: float) -> void:
+	_view_mix = minf(1.0, _view_mix + delta * 1.2)
+	_view_poll -= delta
+	if _view_poll <= 0.0:
+		_view_poll = 0.5
+		var want := _pick_view()
+		if want != _view_name and _scare == "":
+			_view_prev = _view_name
+			_view_name = want
+			_view_mix = 0.0
+	if _scare != "":
+		_scare_left -= delta
+		# Someone at the counter, or its time is up: the bulb flickers and it is gone.
+		if _scare_left <= 0.0 or not _guest.is_empty():
+			_scare = ""
+			_flicker = 0.42
+			_play_path(SFX_FLICKER, -14.0)
+	_flicker = maxf(0.0, _flicker - delta)
+
+
+## Opening the desk at night: now and then the room is not empty. The worse tonight is
+## (the radio's dread: the NIGHT RISK lamps, what came tonight and how close), the likelier
+## and the worse.
+func _roll_scare() -> void:
+	_scare = ""
+	if _view_name != "desk_view_night" or not _guest.is_empty():
+		return
+	var now := float(_day) * 24.0 + _hour()
+	if now < _scare_cool_until:
+		return
+	var pressure := 0.0
+	if pressure_provider.is_valid():
+		pressure = clampf(float(pressure_provider.call()), 0.0, 1.0)
+	if randf() >= 0.04 + 0.5 * pressure:
+		return
+	var tier: Array = SCARES[0 if pressure < 0.3 else (1 if pressure < 0.6 else 2)]
+	var pool: Array = tier.filter(func(n): return _view_tex("desk_scare_" + str(n)) != null)
+	if pool.is_empty():
+		return
+	_scare = "desk_scare_" + str(pool.pick_random())
+	_scare_left = randf_range(2.2, 4.5)
+	_scare_cool_until = now + 1.5
+
+
 func _say_line(text: String) -> void:
 	_say = text
 	_say_shown = 0.0
@@ -322,6 +527,28 @@ func _say_line(text: String) -> void:
 
 func _refresh_keys() -> void:
 	_keys = key_board_provider.call() if key_board_provider.is_valid() else []
+	# Labels follow what is built: a demolished lodging's label comes off, a new one gets
+	# the first free hook (the rest stay where you stuck them).
+	var present := {}
+	for k in _keys:
+		present[str((k as Dictionary)["key"])] = true
+	for key in _slots.keys():
+		if not present.has(key) or int(_slots[key]) < 0 or int(_slots[key]) >= HOOK_COLS * HOOK_ROWS:
+			_slots.erase(key)
+	var taken := {}
+	for key in _slots.keys():
+		taken[int(_slots[key])] = true
+	var free := 0
+	for k in _keys:
+		var key := str((k as Dictionary)["key"])
+		if _slots.has(key):
+			continue
+		while taken.has(free):
+			free += 1
+		if free >= HOOK_COLS * HOOK_ROWS:
+			break
+		_slots[key] = free
+		taken[free] = true
 
 
 # ── every frame ──────────────────────────────────────────────────────────────
@@ -362,6 +589,11 @@ func _process(delta: float) -> void:
 	_shake = maxf(0.0, _shake - delta * 6.0)
 	for f in _pen.keys():
 		_pen[f] = minf(1.0, float(_pen[f]) + delta * 1.4)
+	_update_view(delta)
+	for key in _swing.keys():
+		_swing[key] = float(_swing[key]) - delta
+		if float(_swing[key]) <= 0.0:
+			_swing.erase(key)
 	if _guest.is_empty():
 		_empty_t += delta
 		if _empty_t > 0.8 and next_guest_provider.is_valid():
@@ -406,7 +638,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-			if _holding_stamp != "":
+			if _labels_mode:
+				_set_labels_mode(false)
+			elif _holding_stamp != "":
 				_holding_stamp = ""
 				_play("ink", -12.0)
 			else:
@@ -431,13 +665,19 @@ func _press(p: Vector2) -> void:
 	var hit := _thing_at(p)
 	if hit == "":
 		return
+	if hit == "dymo":
+		_set_labels_mode(not _labels_mode)
+		return
 	if hit.begins_with("stamp:"):
 		_holding_stamp = hit.trim_prefix("stamp:")
 		_play("ink", -10.0)
 		return
 	_drag = hit
 	_drag_off = p - _thing_pos(hit)
-	_play("paper_pick" if not hit.begins_with("key:") else "keys", -10.0)
+	if hit.begins_with("label:"):
+		_play("label_peel", -8.0)
+	else:
+		_play("paper_pick" if not hit.begins_with("key:") else "keys", -10.0)
 
 
 func _release(p: Vector2) -> void:
@@ -446,6 +686,9 @@ func _release(p: Vector2) -> void:
 	var what := _drag
 	_drag = ""
 	var pos := p - _drag_off
+	if what.begins_with("label:"):
+		_stick_label(what.trim_prefix("label:"), pos)
+		return
 	if what.begins_with("key:"):
 		_drop_key(what.trim_prefix("key:"), p)
 		return
@@ -469,17 +712,28 @@ func _drop_everything() -> void:
 
 ## What is under the mouse, topmost first: the dragged paper, papers, keys, stamps.
 func _thing_at(p: Vector2) -> String:
-	if _guest.is_empty() or float(_p.get("slide", 0.0)) < 1.0:
-		return _stamp_under(p)
-	var order: Array = ["slip", "card"] if _top_paper() == "slip" else ["card", "slip"]
-	for d in order:
-		if bool(_p.get(d + "_on_desk", false)) and Rect2(_paper_pos(d), CARD_SIZE if d == "card" else SLIP_SIZE).has_point(p):
-			return d
-	for k in _keys:
-		var kd: Dictionary = k
-		if _key_on_rack(kd) and Rect2(_key_pos(str(kd["key"])), KEY_SIZE).has_point(p):
-			return "key:" + str(kd["key"])
-	return _stamp_under(p)
+	# With the label maker in hand only the labels (and putting it down) answer.
+	if _labels_mode:
+		if DYMO.has_point(p):
+			return "dymo"
+		var on := _label_at(p)
+		return "label:" + on if on != "" else ""
+	if not (_guest.is_empty() or float(_p.get("slide", 0.0)) < 1.0):
+		var order: Array = ["slip", "card"] if _top_paper() == "slip" else ["card", "slip"]
+		for d in order:
+			if bool(_p.get(d + "_on_desk", false)) and Rect2(_paper_pos(d), CARD_SIZE if d == "card" else SLIP_SIZE).has_point(p):
+				return d
+		for k in _keys:
+			var kd: Dictionary = k
+			if _key_on_rack(kd) and _slots.has(str(kd["key"])):
+				var hit := KEY_HIT
+				hit.position += _key_pos(str(kd["key"]))
+				if hit.has_point(p):
+					return "key:" + str(kd["key"])
+	var stamp := _stamp_under(p)
+	if stamp != "":
+		return stamp
+	return "dymo" if DYMO.has_point(p) else ""
 
 
 func _stamp_under(p: Vector2) -> String:
@@ -503,6 +757,8 @@ func _thing_pos(id: String) -> Vector2:
 		return _paper_pos(id)
 	if id.begins_with("key:"):
 		return _key_pos(id.trim_prefix("key:"))
+	if id.begins_with("label:"):
+		return _key_pos(id.trim_prefix("label:"))
 	return Vector2.ZERO
 
 
@@ -571,28 +827,37 @@ func _key_index(key: String) -> int:
 
 
 func _hook_pos(i: int) -> Vector2:
+	return _cell_pos(i) + HOOK_IN_CELL
+
+
+func _cell_pos(i: int) -> Vector2:
 	var col := i % HOOK_COLS
 	var row := floori(float(i) / HOOK_COLS) % HOOK_ROWS
-	# Where the hooks are on the board picture (key_rack.png).
-	return Vector2(RACK.position.x + 18.0 + col * 20.9, RACK.position.y + 15.0 + row * 37.0)
+	return (RACK.position + CELL0 + Vector2(col * CELL.x, row * CELL.y)).floor()
 
 
+## Where a key hangs (its ring on the hook), or where it is being carried.
 func _key_pos(key: String) -> Vector2:
-	if _drag == "key:" + key and _mouse.x >= 0.0:
-		return _mouse - _drag_off
-	var i := _key_index(key)
-	return _hook_pos(maxi(0, i)) - Vector2(KEY_SIZE.x * 0.5, 3.0)
+	if (_drag == "key:" + key or _drag == "label:" + key) and _mouse.x >= 0.0:
+		return (_mouse - _drag_off).floor()
+	return _hook_pos(int(_slots.get(key, 0)))
+
+
+## The key goes back on its hook (and swings there a moment).
+func _hang_back(key: String, db: float) -> void:
+	_swing[key] = 0.9
+	_play("key_hang", db)
 
 
 func _drop_key(key: String, p: Vector2) -> void:
 	if p.y >= GIVE.end.y - 4.0 or _guest.is_empty():
-		_play("key_hang", -8.0)
+		_hang_back(key, -8.0)
 		return
 	var k: Dictionary = _keys[_key_index(key)] if _key_index(key) >= 0 else {}
 	if bool(_guest.get("stranger", false)):
 		if not bool(k.get("ready", false)):
 			_say_line("...")
-			_play("key_hang", -8.0)
+			_hang_back(key, -8.0)
 			return
 		(_p["keys_given"] as Array).append(key)
 		_play("keys", -6.0)
@@ -604,13 +869,13 @@ func _drop_key(key: String, p: Vector2) -> void:
 		var mine := str(((_guest.get("rooms", []) as Array)[0] as Dictionary).get("label", "")) if not (_guest.get("rooms", []) as Array).is_empty() else "something else"
 		_say_line("That is not ours. We booked %s." % mine)
 		_play("wrong", -4.0)
-		_play("key_hang", -10.0)
+		_hang_back(key, -10.0)
 		_shake = 1.0
 		return
 	if not bool(k.get("ready", false)):
 		_say_line("Is it made up? We will wait until it is.")
 		_play("wrong", -4.0)
-		_play("key_hang", -10.0)
+		_hang_back(key, -10.0)
 		return
 	(_p["keys_given"] as Array).append(key)
 	_play("keys", -6.0)
@@ -618,6 +883,48 @@ func _drop_key(key: String, p: Vector2) -> void:
 		_say_line("Thank you.")
 	else:
 		_say_line("And the other one?")
+
+
+# ── the labels ──────────────────────────────────────────────────────────────
+
+func _set_labels_mode(on: bool) -> void:
+	if on == _labels_mode:
+		return
+	_labels_mode = on
+	_drag = ""
+	_holding_stamp = ""
+	_play("dymo" if on else "key_hang", -8.0 if on else -12.0)
+
+
+## The label (or the key under it) at `p`, by its key.
+func _label_at(p: Vector2) -> String:
+	for key in _slots.keys():
+		var cell := Rect2(_cell_pos(int(_slots[key])), CELL)
+		if cell.has_point(p):
+			return str(key)
+	return ""
+
+
+## Sticks a label (and its key) on the hook nearest to where it was let go; a label
+## already there swaps places with it. Away from the board it goes back where it was.
+func _stick_label(key: String, at: Vector2) -> void:
+	var best := -1
+	var best_d := 15.0
+	for i in HOOK_COLS * HOOK_ROWS:
+		var d := _hook_pos(i).distance_to(at)
+		if d < best_d:
+			best_d = d
+			best = i
+	if best < 0:
+		_play("label_stick", -12.0)
+		return
+	var from := int(_slots.get(key, -1))
+	for other in _slots.keys():
+		if str(other) != key and int(_slots[other]) == best:
+			_slots[other] = from
+	_slots[key] = best
+	_swing[key] = 0.9
+	_play("label_stick", -6.0)
 
 
 func _all_keys_given() -> bool:
@@ -741,6 +1048,17 @@ func _finish_leaving() -> void:
 			stranger_admitted.emit()
 
 
+func _play_path(path: String, db: float) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var a: AudioStreamPlayer = _audio[_audio_i]
+	_audio_i = (_audio_i + 1) % _audio.size()
+	a.stream = load(path)
+	a.volume_db = db
+	a.pitch_scale = 1.0
+	a.play()
+
+
 func _play(sfx: String, db: float) -> void:
 	var path := SFX + sfx + ".mp3"
 	if not ResourceLoader.exists(path):
@@ -796,6 +1114,7 @@ func _draw_all() -> void:
 	_draw_desk(c)
 	_draw_book(c)
 	_draw_rack(c)
+	_draw_dymo(c)
 	_draw_stamps(c)
 	# Papers: the one not on top first.
 	var top := _top_paper()
@@ -809,14 +1128,24 @@ func _draw_all() -> void:
 
 
 func _draw_booth(c: Control) -> void:
-	var view: Texture2D = _tex.get("desk_view")
 	var dark := not _is_day()
+	var name := _scare if _scare != "" else _view_name
+	var view: Texture2D = _view_tex(name)
 	if view != null:
-		var src_h := float(view.get_height()) * COUNTER_Y / float(H) * 1.6
-		var src := Rect2(0, (view.get_height() - src_h) * 0.45, view.get_width(), src_h)
-		c.draw_texture_rect_region(view, Rect2(0, 0, W, COUNTER_Y + 2), src, Color(0.5, 0.5, 0.62) if dark else Color.WHITE)
+		# Only the night picture is dark of itself; the day one stands in tinted.
+		var tint := Color(0.5, 0.5, 0.62) if dark and name == "desk_view" else Color.WHITE
+		_draw_view(c, view, tint)
+		# Turning from the last picture: it gives way in six steps.
+		var k := floorf(_view_mix * 6.0) / 6.0
+		if _view_prev != "" and k < 1.0 and _scare == "":
+			var prev: Texture2D = _view_tex(_view_prev)
+			if prev != null:
+				_draw_view(c, prev, Color(1, 1, 1, 1.0 - k))
 	else:
 		c.draw_rect(Rect2(0, 0, W, COUNTER_Y + 2), Color8(92, 70, 48))
+	# The bulb flickering: dark on every other step.
+	if _flicker > 0.0 and int(floorf(_t * 12.0)) % 2 == 0:
+		c.draw_rect(Rect2(0, 0, W, COUNTER_Y + 2), Color(0, 0, 0, 0.82))
 	# Whoever is at the counter, from the chest up, big.
 	if not _guest.is_empty():
 		var tex: Texture2D = _guest_tex()
@@ -844,6 +1173,12 @@ func _draw_booth(c: Control) -> void:
 	if _drag != "":
 		# Where the papers go back: a lighter strip along the counter.
 		c.draw_rect(Rect2(0, COUNTER_Y, W, 12), Color(1, 0.9, 0.6, 0.12 + 0.06 * sin(_t * 8.0)))
+
+
+func _draw_view(c: Control, view: Texture2D, tint: Color) -> void:
+	var src_h := float(view.get_height()) * COUNTER_Y / float(H) * 1.6
+	var src := Rect2(0, (view.get_height() - src_h) * 0.45, view.get_width(), src_h)
+	c.draw_texture_rect_region(view, Rect2(0, 0, W, COUNTER_Y + 2), src, tint)
 
 
 func _guest_tex() -> Texture2D:
@@ -962,49 +1297,85 @@ func _glyph3(c: Control, top: Vector2, ch: String, col: Color) -> float:
 
 
 func _draw_rack(c: Control) -> void:
-	var tex: Texture2D = _tex.get("key_rack")
-	if tex != null:
-		c.draw_texture_rect(tex, RACK, false)
+	var board: Texture2D = _tex.get("key_board")
+	if board != null:
+		c.draw_texture_rect(board, RACK, false)
 	else:
-		c.draw_rect(RACK, Color8(150, 104, 60))
-	for i in mini(_keys.size(), HOOK_COLS * HOOK_ROWS):
-		var k: Dictionary = _keys[i]
+		c.draw_rect(RACK, Color8(58, 34, 20))
+		c.draw_rect(RACK.grow(-3), Color8(84, 52, 30))
+	# The label maker in hand: the board catches the light from the window (in steps).
+	if _labels_mode:
+		var pulse := 0.06 + 0.04 * float(int(_t * 4.0) % 2)
+		c.draw_rect(RACK.grow(-2), Color(1.0, 0.92, 0.7, pulse))
+	var by_slot := {}
+	for k in _keys:
+		var key := str((k as Dictionary)["key"])
+		if _slots.has(key):
+			by_slot[int(_slots[key])] = k
+	var dragged_label := _drag.trim_prefix("label:") if _drag.begins_with("label:") else ""
+	for i in HOOK_COLS * HOOK_ROWS:
 		var hook := _hook_pos(i)
-		var label := str(k.get("key", ""))
-		var short := str(k.get("short", label))
-		# The white plate under the hook: its name (seen when the key is out).
-		var sw := F_SILK.get_string_size(short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-		F_SILK.draw_string(c.get_canvas_item(), (hook + Vector2(-sw * 0.5, 17)).floor(), short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(40, 30, 20))
-		if _key_on_rack(k):
-			_draw_key(c, _key_pos(label), k)
+		var cell := _cell_pos(i)
+		# The brass cup hook, screwed into the board.
+		c.draw_rect(Rect2(hook + Vector2(-1, -2), Vector2(2, 1)), Color8(96, 66, 24))
+		c.draw_rect(Rect2(hook + Vector2(-1, -1), Vector2(1, 3)), Color8(214, 176, 82))
+		c.draw_rect(Rect2(hook + Vector2(0, 1), Vector2(2, 1)), Color8(150, 112, 44))
+		if not by_slot.has(i):
+			if _labels_mode:
+				# Where a label could go: the old glue's outline.
+				c.draw_rect(Rect2(cell + Vector2(3, 0), Vector2(15, 7)), Color(0, 0, 0, 0.18), false, 1.0)
+			continue
+		var k: Dictionary = by_slot[i]
+		var key := str(k["key"])
+		if key == dragged_label:
+			c.draw_rect(Rect2(cell + Vector2(3, 0), Vector2(15, 7)), Color(0, 0, 0, 0.18), false, 1.0)
+			continue
+		var lift := _labels_mode and _mouse.x >= 0.0 and Rect2(cell, CELL).has_point(_mouse) and _drag == ""
+		_draw_label(c, hook, k, lift)
+		# The pin beside the hook: green, the room is made up; red, it is not.
+		var pin := Color8(70, 200, 86) if bool(k.get("ready", false)) else Color8(224, 52, 40)
+		var pp := hook + Vector2(6, -2)
+		c.draw_rect(Rect2(pp + Vector2(1, 1), Vector2(2, 2)), Color(0, 0, 0, 0.45))
+		c.draw_rect(Rect2(pp, Vector2(2, 2)), pin)
+		c.draw_rect(Rect2(pp, Vector2(1, 1)), pin.lightened(0.55))
+		if _key_on_rack(k) and _drag != "key:" + key:
+			_draw_key(c, hook, k)
 
 
-func _draw_key(c: Control, pos: Vector2, k: Dictionary, lifted := false) -> void:
-	# A hotel key on a big tag: the brass ring on the hook, the key behind, the tag in the
-	# lodging's colour (tents green, cabins red, caravans blue) with its name printed big.
-	pos = pos.floor()
+func _draw_key(c: Control, ring: Vector2, k: Dictionary, lifted := false) -> void:
+	# Just the key, its ring on the hook: a brass bit key for a cabin, a little nickel one
+	# for a tent's padlock, a Yale with a black head for a caravan.
+	var art: Array = KEY_ART.get(str(k.get("kind", "")), KEY_ART["cabin"])
+	var w := str(art[0]).length()
+	var top := (ring - Vector2(floorf(w * 0.5), 1)).floor()
 	if lifted:
-		c.draw_rect(Rect2(pos + Vector2(4, 6), Vector2(17, 14)), Color(0, 0, 0, 0.3))
-	var brass := Color8(206, 168, 72)
-	var col: Color = {"tent": Color8(48, 112, 54), "cabin": Color8(168, 38, 30), "caravan": Color8(42, 72, 150)}.get(str(k.get("kind", "")), Color8(120, 90, 60))
-	c.draw_arc(pos + Vector2(10, 3), 2.5, 0.0, TAU, 10, brass, 1.0)
-	c.draw_rect(Rect2(pos + Vector2(14, 2), Vector2(5, 1)), brass)
-	c.draw_rect(Rect2(pos + Vector2(17, 3), Vector2(1, 2)), brass)
-	var tag := Rect2(pos + Vector2(1, 6), Vector2(18, 13))
-	c.draw_rect(tag, col.darkened(0.45))
-	c.draw_rect(tag.grow(-1), col)
-	c.draw_rect(Rect2(tag.position + Vector2(1, 1), Vector2(tag.size.x - 2, 1)), col.lightened(0.35))
-	var short := str(k.get("short", k.get("key", "")))
-	var sw := F_SILK.get_string_size(short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-	var tp := (tag.position + Vector2((tag.size.x - sw) * 0.5, 10)).floor()
-	F_SILK.draw_string(c.get_canvas_item(), tp + Vector2(1, 1), short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0, 0, 0, 0.6))
-	F_SILK.draw_string(c.get_canvas_item(), tp, short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(250, 244, 226))
-	# A dot on the tag: green made up, red not.
-	var dot := Color8(60, 200, 80) if bool(k.get("ready", false)) else Color8(230, 50, 40)
-	c.draw_rect(Rect2(tag.end - Vector2(4, 4), Vector2(2, 2)), dot)
+		for y in art.size():
+			var row := str(art[y])
+			for x in w:
+				if row[x] != ".":
+					c.draw_rect(Rect2(top + Vector2(x + 3, y + 4), Vector2.ONE), Color(0, 0, 0, 0.3))
+	for y in art.size():
+		var row := str(art[y])
+		for x in w:
+			var ch := row[x]
+			if ch != ".":
+				# Swinging: below the ring the key leans a pixel one way, then the other.
+				var lean := 0.0
+				if y >= 4 and not lifted:
+					lean = _lean(str(k.get("key", ""))) * minf(1.0, float(y - 3) / 8.0)
+				c.draw_rect(Rect2(top + Vector2(x + roundf(lean), y), Vector2.ONE), KEY_INK[ch])
 
 
 func _draw_dragged_key(c: Control) -> void:
+	if _drag.begins_with("label:"):
+		var lk := _drag.trim_prefix("label:")
+		var li := _key_index(lk)
+		if li >= 0:
+			var at := _key_pos(lk)
+			_draw_label(c, at, _keys[li], true)
+			if _key_on_rack(_keys[li]):
+				_draw_key(c, at, _keys[li], true)
+		return
 	if not _drag.begins_with("key:"):
 		return
 	var key := _drag.trim_prefix("key:")
@@ -1013,9 +1384,50 @@ func _draw_dragged_key(c: Control) -> void:
 		_draw_key(c, _key_pos(key), _keys[i], true)
 
 
+## How far (px) a key that was just hung back leans, twelve steps a second.
+func _lean(key: String) -> float:
+	var left := float(_swing.get(key, 0.0))
+	if left <= 0.0:
+		return 0.0
+	var step := floorf(_t * 12.0)
+	return (1.0 if int(step) % 2 == 0 else -1.0) * minf(1.0, left * 1.6)
+
+
+## A strip of Dymo tape above the hook: the lodging's short name punched into it, the
+## letters stretched white.
+func _draw_label(c: Control, hook: Vector2, k: Dictionary, lifted := false) -> void:
+	var text := str(k.get("short", k.get("key", ""))).to_upper()
+	var tw := F_TINY.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	var w := maxf(11.0, tw + 4.0)
+	var r := Rect2((hook + Vector2(-floorf(w * 0.5), -HOOK_IN_CELL.y)).floor(), Vector2(w, 7))
+	if lifted:
+		c.draw_rect(Rect2(r.position + Vector2(2, 3), r.size), Color(0, 0, 0, 0.3))
+		r.position += Vector2(-1, -1)
+	var tape: Color = TAPE.get(str(k.get("kind", "")), Color8(30, 30, 30))
+	c.draw_rect(r, tape)
+	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), tape.lightened(0.3))
+	c.draw_rect(Rect2(r.position + Vector2(0, r.size.y - 1), Vector2(r.size.x, 1)), tape.darkened(0.4))
+	var tp := r.position + Vector2(floorf((w - tw) * 0.5), 6)
+	F_TINY.draw_string(c.get_canvas_item(), tp + Vector2(0, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, tape.darkened(0.45))
+	F_TINY.draw_string(c.get_canvas_item(), tp, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(240, 238, 230))
+
+
+## The label maker on the desk; picked up, it is lifted off with its shadow.
+func _draw_dymo(c: Control) -> void:
+	var r := DYMO
+	var tex: Texture2D = _tex.get("desk_dymo")
+	if _labels_mode:
+		c.draw_rect(Rect2(r.position + Vector2(5, 6), r.size - Vector2(6, 8)), Color(0, 0, 0, 0.3))
+		r.position += Vector2(-2, -3)
+	if tex != null:
+		c.draw_texture_rect(tex, r, false)
+	else:
+		c.draw_rect(Rect2(r.position + Vector2(6, 10), Vector2(40, 18)), Color8(60, 62, 66))
+		c.draw_rect(Rect2(r.position + Vector2(10, 4), Vector2(16, 16)), Color8(24, 24, 28))
+		c.draw_rect(Rect2(r.position + Vector2(44, 16), Vector2(8, 5)), TAPE["cabin"])
+
+
 func _draw_stamps(c: Control) -> void:
-	c.draw_rect(PAD, Color8(30, 26, 40))
-	c.draw_rect(PAD.grow(-3), Color8(54, 40, 96))
 	for s in STAMP_HOME.keys():
 		if _holding_stamp == s:
 			continue
