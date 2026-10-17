@@ -72,6 +72,18 @@ def sprite(art_id, height, dest):
     if not os.path.exists(path):
         print("missing", art_id)
         return
+    # Some renders come on a darker magenta (180, 5, 136) the keyer misses: push it to
+    # pure magenta first.
+    img = Image.open(path).convert("RGB")
+    px = img.load()
+    if px[2, 2][1] < 70 and px[2, 2][0] > 120 and px[2, 2][2] > 90 and px[2, 2][2] < 150:
+        for y in range(img.height):
+            for x in range(img.width):
+                r, g, b = px[x, y]
+                if r > 120 and g < 70 and b > 90 and abs(r - b) < 80:
+                    px[x, y] = (255, 0, 255)
+        path = os.path.join(HERE, "out", art_id, "raw_keyed.png")
+        img.save(path)
     out = process.sprite(path, height)
     out.save(os.path.join(HERE, "..", "..", "godot", dest))
     print(dest, out.size)
@@ -134,6 +146,11 @@ def main():
     square("tex_ticket_machine", 128, "ticket_machine.png")
     picture("closeup_timetable", (320, 240), "closeup_timetable.png")
     picture("closeup_ticket_machine", (320, 240), "closeup_ticket_machine.png")
+    picture("closeup_shop_counter", (320, 240), "closeup_shop.png")
+    picture("closeup_pub_bar", (320, 240), "closeup_pub.png")
+    picture("closeup_pump", (320, 240), "closeup_pump.png")
+    square("tex_field_stubble", 128, "field_stubble.png")
+    square("tex_field_plough", 128, "field_plough.png")
     square("tex_village_plaster", 128, "village_plaster.png")
     square("tex_roof_tiles", 128, "roof_tiles.png")
     square("tex_asphalt", 128, "asphalt.png")

@@ -189,8 +189,8 @@ func _ground(root: Node3D, kind: String, piece: String) -> void:
 			_plane(root, Vector3(0, ROAD_Y - 0.02, -PIECE * 0.5), Vector2(w, PIECE), _mat("forest", TEX_TOWN + "forest_floor.png", Color(0.62, 0.6, 0.52), Vector2(w / 6.0, PIECE / 6.0)))
 		"field":
 			# Stubble one side, ploughed the other (the same texture, two tints).
-			_plane(root, Vector3(-w * 0.25 - 4.0, ROAD_Y - 0.02, -PIECE * 0.5), Vector2(w * 0.5, PIECE), _mat("stubble", TEX_CAMP + "pitch_grass.png", Color(1.12, 0.96, 0.6), Vector2(w / 8.0, PIECE / 8.0)))
-			_plane(root, Vector3(w * 0.25 + 4.0, ROAD_Y - 0.02, -PIECE * 0.5), Vector2(w * 0.5, PIECE), _mat("plough", TEX_TOWN + "forest_floor.png", Color(0.7, 0.56, 0.42), Vector2(w / 5.0, PIECE / 5.0)))
+			_plane(root, Vector3(-w * 0.25 - 4.0, ROAD_Y - 0.02, -PIECE * 0.5), Vector2(w * 0.5, PIECE), _mat("stubble", TEX_TOWN + "field_stubble.png", Color(1.0, 1.0, 0.95), Vector2(w / 10.0, PIECE / 10.0)))
+			_plane(root, Vector3(w * 0.25 + 4.0, ROAD_Y - 0.02, -PIECE * 0.5), Vector2(w * 0.5, PIECE), _mat("plough", TEX_TOWN + "field_plough.png", Color(0.95, 0.95, 0.95), Vector2(w / 10.0, PIECE / 10.0)))
 		_:
 			_plane(root, Vector3(0, ROAD_Y - 0.02, -PIECE * 0.5), Vector2(w, PIECE), _mat("grass", TEX_CAMP + "pitch_grass.png", Color(0.9, 0.92, 0.8), Vector2(w / 8.0, PIECE / 8.0)))
 	# Verges either side of the road.

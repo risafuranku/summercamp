@@ -12,6 +12,7 @@ extends Node3D
 ## Local frame: x east, z south (the road along x at z = 0, north side -z).
 
 const TEX := "res://assets/textury/town/"
+const PEOPLE_SCRIPT = preload("res://scripts/town/town_people.gd")
 const TEX_CAMP := "res://assets/textury/camp/"
 const ORIGIN := Vector3(4200.0, 0.0, 0.0)
 ## The walkable village: x and z extents.
@@ -44,6 +45,11 @@ func build(p_worldgen: Node) -> void:
 	_stop_south()
 	_lamps()
 	_forest()
+	_hotspots()
+	var people = PEOPLE_SCRIPT.new()
+	add_child(people)
+	people.build()
+	spots["people"] = people
 
 
 # ── where things are (world space) ───────────────────────────────────────────
@@ -83,7 +89,7 @@ func bus_leave_path(stop: String) -> PackedVector3Array:
 ## Where you are put off the bus from the camp: on the square's side, facing it.
 func arrive_spot() -> Transform3D:
 	var pos := w(Vector3(9.0, 0.15, -4.6))
-	return Transform3D(Basis.looking_at(Vector3(-0.3, 0, -1), Vector3.UP), pos)
+	return Transform3D(Basis.looking_at(Vector3(-0.75, 0, -1), Vector3.UP), pos)
 
 
 ## Where you wait for the bus to the camp, in the shelter's mouth across the road.
@@ -255,13 +261,31 @@ func _square() -> void:
 
 # ── buildings ───────────────────────────────────────────────────────────────
 
+## The material with its texture repeated about every 2.5 m on a box this size. A
+## BoxMesh lays its six faces out 3 x 2 on the texture, so a scale of (3, 2) shows it once
+## per face; more is that many times again.
+func _tiled(base: Material, size: Vector3) -> Material:
+	var m := base as StandardMaterial3D
+	if m == null or m.albedo_texture == null:
+		return base
+	var nx := maxf(1.0, roundf(maxf(size.x, size.z) / 2.5))
+	var ny := maxf(1.0, roundf(size.y / 2.5))
+	var key := "%s|tiled|%s|%s" % [m.get_instance_id(), nx, ny]
+	if _mats.has(key):
+		return _mats[key]
+	var t := m.duplicate() as StandardMaterial3D
+	t.uv1_scale = Vector3(3.0 * nx, 2.0 * ny, 1.0)
+	_mats[key] = t
+	return t
+
+
 ## A house-like block: walls, a pitched (or flat) roof, solid. Returns its root.
 func _block(at: Vector3, size: Vector3, wall: Material, roof: String = "pitched") -> Node3D:
 	var root := Node3D.new()
 	root.position = at
 	add_child(root)
-	_box(root, Vector3(0, size.y * 0.5, 0), size, wall, true)
-	var tiles := _mat(_first([TEX + "roof_tiles.png", TEX_CAMP + "corrugated_roof.png"]), Color(0.7, 0.4, 0.3), Vector2(4.0, 2.0))
+	_box(root, Vector3(0, size.y * 0.5, 0), size, _tiled(wall, size), true)
+	var tiles := _tiled(_mat(_first([TEX + "roof_tiles.png", TEX_CAMP + "corrugated_roof.png"]), Color(0.7, 0.4, 0.3)), Vector3(size.x, 3.0, size.z * 0.6))
 	if roof == "pitched":
 		for side in [-1.0, 1.0]:
 			var r := _box(root, Vector3(0, size.y + size.z * 0.18, side * size.z * 0.25), Vector3(size.x + 0.5, 0.14, size.z * 0.6), tiles)
@@ -493,6 +517,35 @@ func _forest() -> void:
 		hill.scale = Vector3(160.0, 40.0, 120.0)
 		hill.position = Vector3(cos(ang) * 330.0, -8.0, sin(ang) * 260.0)
 		add_child(hill)
+
+
+# ── what you click ──────────────────────────────────────────────────────────
+
+## Doors (building_type "town_door", meta "door") and things to read ("town_read").
+func _hotspots() -> void:
+	_click(Vector3(-6.0, 1.1, -9.9), Vector3(1.8, 2.2, 0.4), "town_door", "jednota")
+	_click(Vector3(16.0, 1.2, -10.4), Vector3(1.8, 2.4, 0.4), "town_door", "pub")
+	_click(Vector3(-30.0, 1.1, 10.4), Vector3(1.6, 2.2, 0.4), "town_door", "motel")
+	_click(Vector3(50.0, 1.1, 18.9), Vector3(1.6, 2.2, 0.4), "town_door", "kiosk")
+	_click(Vector3(-28.0, 1.3, -18.4), Vector3(1.6, 2.6, 0.4), "town_door", "chapel")
+	_click(Vector3(4.0, 1.4, -27.6), Vector3(1.2, 2.2, 0.8), "town_read", "memorial")
+	for p in spots.get("pumps", []):
+		_click((p as Vector3) - ORIGIN + Vector3(0, 1.0, 1.2), Vector3(1.0, 1.8, 0.8), "town_pump", "pump")
+
+
+func _click(pos: Vector3, size: Vector3, kind: String, what: String) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 1 << 11
+	body.collision_mask = 0
+	body.set_meta("building_type", kind)
+	body.set_meta("door" if kind != "town_read" else "read", what)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	body.position = pos
+	add_child(body)
 
 
 # ── the night ───────────────────────────────────────────────────────────────

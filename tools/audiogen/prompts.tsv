@@ -160,3 +160,22 @@ ticket_print	1.8	assets/sfx/bus/ticket_print.mp3	A small 1980s ticket machine pr
 coin_insert	0.8	assets/sfx/bus/coin.mp3	A few coins dropped one after another into the coin slot of an old metal ticket machine, rattling down inside, close, no voices, no music.
 machine_button	0.5	assets/sfx/bus/button.mp3	A single chunky plastic button pressed on an old metal machine, a dull mechanical click, close, no voices, no music.
 machine_thump	0.6	assets/sfx/bus/thump.mp3	A fist thumping the side of an old metal ticket machine once, a hollow metallic bang with a rattle inside, close, no voices, no music.
+smoke_light	1.6	assets/sfx/town/light.mp3	A cheap plastic lighter flicked twice, the second time it catches, a soft flame and a cigarette tip crackling as it is lit, close, no voices, no music.
+smoke_draw	1.8	assets/sfx/town/draw.mp3	A man taking a long slow drag on a cigarette, the faint crackle of the burning tobacco, close, no music.
+smoke_exhale	1.8	assets/sfx/town/exhale.mp3	A man slowly exhaling cigarette smoke through his mouth, a long soft breath out, close, no music.
+smoke_cough	1.4	assets/sfx/town/cough.mp3	A man coughs twice from cigarette smoke, a rough short smoker's cough, close, no music.
+beer_open	0.8	assets/sfx/town/beer_open.mp3	A glass beer bottle crown cap levered off with a sharp pop and a fizz of foam, close, no voices, no music.
+beer_gulp	2.4	assets/sfx/town/gulp.mp3	A man drinking beer straight from a glass bottle in three big gulps, close, no music.
+beer_burp	0.9	assets/sfx/town/burp.mp3	A man's short satisfied burp after a beer, close, no music.
+bottle_down	0.6	assets/sfx/town/bottle_down.mp3	An empty glass beer bottle set down on gravel with a clink, close, no voices, no music.
+shop_bell	1.2	assets/sfx/town/shop_bell.mp3	The little brass bell on a village shop door jingling as the door opens and swings shut, no voices, no music.
+pump_run	4.0	assets/sfx/town/pump_run.mp3	An old petrol station fuel pump running: an electric motor humming, petrol gushing through the hose into a car tank, the mechanical counter ticking, close, no voices, no music. Seamless loop.
+pump_click	0.6	assets/sfx/town/pump_click.mp3	A petrol pump nozzle trigger let go with a hard metallic click and the hum of the pump stopping, close, no voices, no music.
+nozzle_out	0.9	assets/sfx/town/nozzle_out.mp3	A heavy metal petrol pump nozzle lifted off its holder with a clunk and the rubber hose dragging, close, no voices, no music.
+car_in	4.0	assets/sfx/town/car_in.mp3	An old small Eastern European car driving slowly onto a petrol station forecourt and stopping, the engine idling then switched off, a car door opening, heard close, no voices, no music.
+car_out	4.0	assets/sfx/town/car_out.mp3	A car door slammed, an old small car engine started with a rattle and driving off a petrol station forecourt onto the road, fading away, no voices, no music.
+chapel_bell	6.0	assets/sfx/town/chapel_bell.mp3	A small village chapel bell ringing slowly, a single bronze bell struck about six times, heard from across a village square, no voices, no music.
+village_day	12.0	assets/sfx/town/village_day.mp3	A quiet Czech village square on an autumn afternoon: sparrows chirping, a dog barking far away, a distant tractor, wind in a lime tree, a door somewhere, no voices close, no music. Seamless loop.
+village_night	12.0	assets/sfx/town/village_night.mp3	A Czech village at night in autumn: a few crickets, a dog barking far away now and then, the hum of a street lamp, a gust of wind, very quiet, no voices, no music. Seamless loop.
+motel_key	1.0	assets/sfx/town/motel_key.mp3	A heavy old hotel room key with a big wooden tag put down on a wooden counter and slid across, close, no voices, no music.
+scratch	1.2	assets/sfx/town/scratch.mp3	A coin scratching the silver coating off a paper lottery scratch card, quick short scrapes, close, no voices, no music.

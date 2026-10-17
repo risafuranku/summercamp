@@ -22,6 +22,16 @@ const TIMETABLE_CLOSEUP = preload("res://scripts/town/timetable_closeup.gd")
 const BUS_MODEL = preload("res://scripts/town/bus_model.gd")
 const BUS_RIDE = preload("res://scripts/town/bus_ride.gd")
 const TOWN = preload("res://scripts/town/town_lesna.gd")
+const POCKETS = preload("res://scripts/town/pockets.gd")
+const SHOP = preload("res://scripts/town/shop_closeup.gd")
+const PUB = preload("res://scripts/town/pub_closeup.gd")
+const SFX_TOWN := "res://assets/sfx/town/"
+## Opening hours (game hours): the Jednota, the pub, the kiosk; rooms at the motel from.
+const HOURS := {"jednota": [7.0, 17.0], "pub": [10.0, 23.0], "kiosk": [6.0, 21.0]}
+const MOTEL_FROM := 19.0
+const MOTEL_PRICE := 15
+const MEMORIAL := "1914 - 1918, nine names. 1939 - 1945, four. Under them a newer brass plate, screwed on crooked: CERNE JEZERO 1994. No names. Somebody keeps it polished."
+const CHAPEL := "Locked. A card in the window: mass at nine on Sundays, the bell at noon and at six. Under it, in pencil: and at three in the morning, but that is not us."
 ## How long a bus takes to come in to a stop and to go (game hours).
 const IN_HOURS := 0.22
 const OUT_HOURS := 0.3
@@ -40,6 +50,16 @@ var _town_bus
 ## it): stop -> {"mode": "hold"|"drop", "t": seconds, "pose", "leave"}.
 var _special: Dictionary = {}
 var _boarding_stop := ""
+var pockets
+var _shop
+var _pub
+var _ambience: AudioStreamPlayer
+var _bell: AudioStreamPlayer3D
+var _bell_rung := -1
+var _sleep_layer: CanvasLayer
+var _sleep_rect: ColorRect
+var _sleeping := false
+var _sleep_fade := 0.0
 var _night := false
 var _night_poll := 0.0
 ## Each stop's runs for the day (paths and poses), made once per road / town.
@@ -48,6 +68,28 @@ var _runs: Dictionary = {}
 
 func setup(interior_manager: Node) -> void:
 	_im = interior_manager
+	if pockets == null:
+		pockets = POCKETS.new()
+		add_child(pockets)
+		pockets.allowed = _pockets_allowed
+		pockets.on_smoked = func():
+			var p := _player()
+			if p != null:
+				p.set("stamina", 1.0)
+				p.set("_stamina_locked", false)
+				_say("That's better.")
+
+
+## Smoking and drinking: out in the world, playing, nothing open.
+func _pockets_allowed() -> bool:
+	var main := _main()
+	if main == null or get_tree().paused:
+		return false
+	if not bool(main.get("_gameplay_started")) or bool(main.get("_menu_mode")):
+		return false
+	if main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")):
+		return false
+	return not is_open() and not _sleeping
 
 
 func _main() -> Node:
@@ -100,7 +142,31 @@ func hint_for(structure: Node3D) -> String:
 			return "Read the timetable"
 		"trip_bus":
 			return "Get on the bus"
+		"town_npc":
+			return "Talk to %s" % (_town.spots["people"].name_of(str(structure.get_meta("who", ""))) if _town != null else "them")
+		"town_read":
+			return "Read the memorial"
+		"town_pump":
+			return "Talk to Lojza"
+		"town_door":
+			match str(structure.get_meta("door", "")):
+				"jednota":
+					return "Go into the Jednota" if _open("jednota") else "Read the note on the door"
+				"pub":
+					return "Go into the pub" if _open("pub") else "Knock"
+				"motel":
+					return "Ask for a room"
+				"kiosk":
+					return "Knock on the kiosk window"
+				"chapel":
+					return "Try the chapel door"
 	return ""
+
+
+func _open(place: String) -> bool:
+	var h := hour()
+	var oh: Array = HOURS.get(place, [0.0, 24.0])
+	return h >= float(oh[0]) and h < float(oh[1])
 
 
 func interact(structure: Node3D) -> void:
@@ -113,6 +179,95 @@ func interact(structure: Node3D) -> void:
 			_open_timetable(str(structure.get_meta("stop", "camp")))
 		"trip_bus":
 			_board(str(structure.get_meta("stop", "camp")))
+		"town_npc":
+			var said: Array = _town.spots["people"].talk(str(structure.get_meta("who", "")), hour())
+			_quote(str(said[0]), str(said[1]))
+		"town_read":
+			_say(MEMORIAL)
+		"town_pump":
+			if _open("kiosk"):
+				_quote("Lojza", "Grab a nozzle when a car pulls in. Green, yellow, black. Do not mix them up.")
+			else:
+				_quote("Lojza", "Come back when I have got cars. Mornings are best, the Tatra is gone by then.")
+		"town_door":
+			_door(str(structure.get_meta("door", "")))
+
+
+func _quote(who: String, text: String) -> void:
+	var main := _main()
+	var hud = main.get("_hud_manager") if main != null else null
+	if hud != null and hud.has_method("show_quote"):
+		hud.show_quote(who, text, 70.0)
+
+
+func _door(which: String) -> void:
+	match which:
+		"jednota":
+			if not _open("jednota"):
+				_say("A card on the glass: JEDNOTA LESNA 42. Mon - Fri 7 - 17, Sat 7 - 11. Batteries sold out.")
+				return
+			if _shop == null:
+				_shop = SHOP.new()
+				add_child(_shop)
+				_shop.bought.connect(func(item: String):
+					if item == "cigs":
+						pockets.cigarettes += 20
+					elif item == "beer":
+						pockets.beers += 1
+				)
+				_shop.closed.connect(_on_closeup_closed)
+			_set_player_controls(false)
+			_shop.open_view()
+		"pub":
+			if not _open("pub"):
+				_quote("Mr Kubat", "Shut. I do not open after eleven, whoever knocks.")
+				return
+			if _pub == null:
+				_pub = PUB.new()
+				add_child(_pub)
+				_pub.drank.connect(func(): pockets.drunk += 1.0)
+				_pub.closed.connect(_on_closeup_closed)
+			_set_player_controls(false)
+			_pub.open_view()
+		"motel":
+			_motel()
+		"kiosk":
+			if not _open("kiosk"):
+				_say("The kiosk window is dark. Oil cans, maps, a calendar with a lady on it.")
+				return
+			if CoreRoot.get_money() < 3 or not CoreRoot.actions.spend_money(3):
+				_quote("Mrs Lojzova", "Start is three dollars here. Two at the Jednota. Go to the Jednota.")
+				return
+			pockets.cigarettes += 20
+			_quote("Mrs Lojzova", "Start. Three dollars, it is a petrol station. Mind the pumps with that.")
+		"chapel":
+			_say(CHAPEL)
+
+
+## A room for the night at the motel: from seven in the evening, fifteen dollars; you sleep
+## through to the morning (the camp's night goes on without you) and wake by the motel.
+func _motel() -> void:
+	var h := hour()
+	if h >= 6.0 and h < MOTEL_FROM:
+		_quote("Mr Simek", "Rooms from seven in the evening. Sit on the bench if you are tired.")
+		return
+	if CoreRoot.get_money() < MOTEL_PRICE or not CoreRoot.actions.spend_money(MOTEL_PRICE):
+		_quote("Mr Simek", "Fifteen dollars. The bench by the pond is free.")
+		return
+	var office = _main().get("camp_office") if _main() != null else null
+	if office == null or not office.has_method("start_sleep"):
+		return
+	_quote("Mr Simek", "Number four. Lock it twice.")
+	var a := AudioStreamPlayer.new()
+	add_child(a)
+	a.stream = load(SFX_TOWN + "motel_key.mp3")
+	a.play()
+	a.finished.connect(a.queue_free)
+	_ensure_sleep_layer()
+	_sleeping = true
+	_sleep_fade = 0.0
+	_set_player_controls(false)
+	office.start_sleep()
 
 
 func _open_timetable(stop: String) -> void:
@@ -146,7 +301,8 @@ func _say(text: String) -> void:
 
 ## A close-up or the bus of ours is open (InteriorManager counts it as a room).
 func is_open() -> bool:
-	return (_timetable != null and _timetable.visible) or (_ride != null and _ride.is_open())
+	return (_timetable != null and _timetable.visible) or (_ride != null and _ride.is_open()) \
+		or (_shop != null and _shop.visible) or (_pub != null and _pub.visible)
 
 
 func close_interior() -> void:
@@ -154,6 +310,10 @@ func close_interior() -> void:
 		_timetable.close_view()
 	if _ride != null and _ride.is_open():
 		_ride.close_interior()
+	if _shop != null and _shop.visible:
+		_shop.close_view()
+	if _pub != null and _pub.visible:
+		_pub.close_view()
 
 
 func set_time_state(_state: int) -> void:
@@ -188,6 +348,75 @@ func _process(delta: float) -> void:
 	_run_stop("camp", _camp_bus, delta, h)
 	if _town != null:
 		_run_stop("town", _town_bus, delta, h)
+		_town.spots["people"].update(h, delta)
+	_update_village_sound(h)
+	_update_sleep(delta)
+
+
+## In Lesna: the village around you (birds and a far dog by day, a lamp's hum and the
+## dogs by night) and the chapel bell at noon and six.
+func _update_village_sound(h: float) -> void:
+	var here := away()
+	if _ambience == null:
+		_ambience = AudioStreamPlayer.new()
+		_ambience.volume_db = -16.0
+		add_child(_ambience)
+	var want := ""
+	if here:
+		want = "village_night.mp3" if (h >= 20.0 or h < 5.5) else "village_day.mp3"
+	if want == "":
+		if _ambience.playing:
+			_ambience.stop()
+	elif _ambience.stream == null or _ambience.stream.resource_path != SFX_TOWN + want or not _ambience.playing:
+		var st = load(SFX_TOWN + want)
+		if st is AudioStreamMP3:
+			(st as AudioStreamMP3).loop = true
+		_ambience.stream = st
+		_ambience.play()
+	if not here or _town == null:
+		return
+	var hh := int(floorf(h))
+	if (hh == 12 or hh == 18) and h - float(hh) < 0.1 and _bell_rung != hh:
+		_bell_rung = hh
+		if _bell == null:
+			_bell = AudioStreamPlayer3D.new()
+			_bell.stream = load(SFX_TOWN + "chapel_bell.mp3")
+			_bell.unit_size = 30.0
+			_bell.max_distance = 300.0
+			_town.add_child(_bell)
+			_bell.position = Vector3(-28.0, 9.0, -24.5)
+		_bell.play()
+
+
+func _ensure_sleep_layer() -> void:
+	if _sleep_layer != null:
+		return
+	_sleep_layer = CanvasLayer.new()
+	_sleep_layer.layer = 118
+	add_child(_sleep_layer)
+	_sleep_rect = ColorRect.new()
+	_sleep_rect.color = Color(0, 0, 0, 0)
+	_sleep_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sleep_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sleep_layer.add_child(_sleep_rect)
+
+
+## The night in number four: black (in steps) while the clock runs on, then the morning.
+func _update_sleep(delta: float) -> void:
+	if _sleep_rect == null:
+		return
+	var office = _main().get("camp_office") if _main() != null else null
+	if _sleeping:
+		_sleep_fade = minf(1.0, _sleep_fade + delta * 1.5)
+		if office != null and not office.is_sleeping_through() and _sleep_fade >= 1.0:
+			_sleeping = false
+			if _town != null:
+				_put_player(Transform3D(Basis.looking_at(Vector3(0, 0, -1), Vector3.UP), _town.w(Vector3(-27.0, 0.15, 8.0))))
+			_set_player_controls(true)
+			_say("Morning. The radiator knocked all night. Twice it knocked back.")
+	else:
+		_sleep_fade = maxf(0.0, _sleep_fade - delta * 0.8)
+	_sleep_rect.color.a = floorf(_sleep_fade * 6.0) / 6.0
 
 
 ## What the bus at `stop` does at hour `h`: where it is, its door, its speed.
@@ -406,10 +635,13 @@ func _ensure_town() -> void:
 # ── saved with the game ──────────────────────────────────────────────────────
 
 func export_state() -> Dictionary:
-	return {"in_town": away()}
+	return {"in_town": away(), "cigarettes": pockets.cigarettes if pockets != null else 0, "beers": pockets.beers if pockets != null else 0}
 
 
 func import_state(d: Dictionary) -> void:
 	# Saved in Lesna: Lesna is there again (the player's position is the game's).
 	if bool(d.get("in_town", false)):
 		_ensure_town()
+	if pockets != null:
+		pockets.cigarettes = int(d.get("cigarettes", 0))
+		pockets.beers = int(d.get("beers", 0))
