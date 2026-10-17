@@ -85,6 +85,15 @@ var _basement_machine_anim_frame: int = 0
 ## until it is serviced, so leaving halfway keeps what you did.
 var _upkeep_prep = null
 var _upkeep_key := ""
+## The counter minigames (scripts/food/*_closeup.gd): the tap in the pub, the pass in the
+## bistro, the till in the Jednota. Click the thing in the room to step behind it.
+const COUNTER_GAMES := {
+	"pub": "res://scripts/food/tap_closeup.gd",
+	"rest": "res://scripts/food/hatch_closeup.gd",
+	"vecerka": "res://scripts/food/till_closeup.gd",
+}
+var _counter_game: CanvasLayer
+var _counter_game_profile := ""
 ## The guests in here (pub, bistro, shop): scripts/food/service_life.gd.
 var _life: Node3D
 var _upkeep_coord := Vector2i(-999, -999)
@@ -182,6 +191,9 @@ func close_service() -> void:
 		_upkeep_prep.tasks._scrub.close()
 	_is_open = false
 	visible = false
+	if _counter_game != null and _counter_game.visible:
+		_counter_game.call("_closing")
+		_counter_game.visible = false
 	_stop_life()
 	_update_sewer_ambience_state()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -192,10 +204,15 @@ func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
 	_update_basement_machine_animation(delta)
+	# Behind the counter in a close-up: the room holds still.
+	if _counter_game != null and _counter_game.visible:
+		return
 	if _current_profile == "generator" and _shed != null:
 		_shed.update_hover(get_viewport().get_mouse_position())
 	elif INTERIOR_LOOK.in_exit_zone(get_viewport()):
 		HandCursor.want(HandCursor.WALK)
+	elif _hover_click_type() != "":
+		HandCursor.want(HandCursor.POINT)
 	_apply_idle_mouse_look(delta)
 	_update_torch(delta)
 	if _exit_hint == null:
@@ -280,10 +297,79 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 		return false
 	if _current_profile == "generator" and _shed != null and _shed.click():
 		return true
+	if not (collider is Node3D and (collider as Node3D).is_visible_in_tree()):
+		return false
 	if _node_has_click_type(collider, "service_light_switch"):
 		_toggle_manual_service_lights()
 		return true
+	if _node_has_click_type(collider, "service_counter_game"):
+		_open_counter_game()
+		return true
 	return false
+
+
+## What the cursor is over in the room, if it can be clicked ("" = nothing).
+func _hover_click_type() -> String:
+	var hit := _raycast_world(get_viewport().get_mouse_position())
+	var collider = hit.get("collider", null) as Node
+	if collider == null or not (collider is Node3D and (collider as Node3D).is_visible_in_tree()):
+		return ""
+	for t in ["service_light_switch", "service_counter_game"]:
+		if _node_has_click_type(collider, t):
+			return t
+	return ""
+
+
+func _open_counter_game() -> void:
+	var path := str(COUNTER_GAMES.get(_current_profile, ""))
+	if path == "" or not ResourceLoader.exists(path):
+		return
+	if _counter_game != null and _counter_game_profile != _current_profile:
+		_counter_game.queue_free()
+		_counter_game = null
+	if _counter_game == null:
+		var scr = load(path)
+		if not (scr is GDScript and (scr as GDScript).can_instantiate()):
+			return
+		_counter_game = scr.new()
+		_counter_game.name = "CounterGame"
+		add_child(_counter_game)
+		_counter_game_profile = _current_profile
+	_counter_game.set("building_key", _upkeep_key)
+	_counter_game.open_view()
+
+
+## A body over the counter thing (the tap tower on the bar, the bistro's pass, the till),
+## clicked to open its minigame; nothing to see, the model is the thing.
+func _build_counter_game(profile: String) -> void:
+	var parent: Node3D = null
+	var at := Vector3.ZERO
+	var size := Vector3.ONE
+	match profile:
+		"pub":
+			parent = _pub_main_root
+			at = Vector3(1.275, 1.28, -1.405)
+			size = Vector3(0.52, 0.46, 0.34)
+		"rest":
+			parent = _restaurant_dining_root
+			at = Vector3(2.0, 1.1, -1.25)
+			size = Vector3(1.66, 0.42, 0.66)
+		"vecerka":
+			parent = _vecerka_shop_root
+			at = Vector3(-1.43, 1.12, -0.35)
+			size = Vector3(0.5, 0.42, 0.6)
+	if parent == null:
+		return
+	var body := StaticBody3D.new()
+	body.name = "CounterGameSpot"
+	body.position = at
+	body.set_meta("interior_click_type", "service_counter_game")
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	parent.add_child(body)
 
 
 func _node_has_click_type(node: Node, click_type: String) -> bool:
@@ -612,6 +698,7 @@ func _build_service_room(profile: String) -> void:
 		_set_restaurant_room(_restaurant_room, true)
 	if profile != "sewer":
 		_build_service_light_switch(profile)
+	_build_counter_game(profile)
 
 	_cam_base_rot = _interior_camera.rotation
 	_apply_time_profile()
@@ -1524,7 +1611,8 @@ func _start_life() -> void:
 					settings[seats.size()] = t + Vector3(side * 0.2, top, 0)
 					seats.append({"pos": t + Vector3(side * 0.45, 0, 0), "table": ti})
 				ti += 1
-			var bar_top := _top_near(root, "BarCounter", Vector3(1.35, 0.05, -1.25), 1.05)
+			# The counter top of the model (bar_counter.glb: 1.05 m; the tap tower stands on it).
+			var bar_top := 0.05 + 1.05
 			for x: float in [0.6, 1.3, 2.0]:
 				settings[seats.size()] = Vector3(x, bar_top, -1.08)
 				# Up on a bar stool: the figure's seat (0.45 m up the sprite) on the stool
