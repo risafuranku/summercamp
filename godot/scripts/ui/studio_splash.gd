@@ -3,31 +3,31 @@ extends Control
 ## The studio splash: neon signs on a camp cabin wall at night. UNDO LABS (the 3x3
 ## brand mosaic and the name in tubes) lights up, the view slides down the wall along its
 ## cable to a second sign, POWERED BY GODOT (the Godot robot in the same tubes and glass),
-## then the power goes. It is the project's first scene (run/main_scene) and plays while
+## that lights up in its turn, then it all fades out. It is the project's first scene
+## (run/main_scene) and plays while
 ## main.tscn loads on a thread, then cuts to it. The engine's boot splash is this scene's
 ## first frame, baked by tools/studio_splash_bake.gd into assets/boot/undo_labs_boot.png,
 ## so the hand-over from the engine does not show.
 ##
-##   0.0   dark: the coated glass in moonlight, crickets             (= the boot image)
-##   0.4   the tiles strike one diagonal after another, starters ticking
-##   1.3   UNDO, then "labs", which hesitates; the hum, a bad tube, moths
-##   ~3    the view slides down the wall (in whole pixels, like the engine would)
-##   ~3.6  the robot strikes, then POWERED BY, then GODOT; the owl on the transformer
-##         box turns to it and hoots
-##   cut   once main.tscn is loaded: a brownout, a breath, the camp's own power-out
-##         sound; the tubes die out, the owl's eyes still catch the moon, it lifts off;
-##         the wall fades slowly to black through the palette, the title card fades in
-##         and main.tscn takes over showing the same card (it covers the world
-##         generation). One launch in UNCANNY_ODDS something stays lit a moment too long.
+##   0.0   UNDO LABS dark: the coated glass in moonlight, crickets   (= the boot image)
+##   0.8   the tiles strike one diagonal after another, starters ticking
+##   ~2    UNDO, then "labs", which hesitates; it burns a while: the hum, a bad tube, moths
+##   ~4    the view slides slowly down the wall (in whole pixels) to POWERED BY GODOT,
+##         still dark, and rests on it a moment
+##   ~6    the robot strikes, then POWERED BY, then GODOT; it burns a while
+##   ~8.5  (once main.tscn is loaded) it all fades out through the palette, the night's
+##         sounds die away; the title card fades in and main.tscn takes over showing
+##         the same card (it covers the world generation)
 ## All the while: crickets, a light gusty wind (the game's own) with autumn leaves
-## blowing through the light, a tawny owl further off.
+## blowing through the light.
 ##
 ## Drawn at 320x180 in a SubViewport: the sign layer (_Sign, its own transparent
 ## viewport) draws the tubes, the studio_neon shader lights the wall with them and puts
 ## the frame through a Build palette (tools/gen_splash_palette.py) with grain and the
 ## game's dither, the moths fly over that. Shown like the engine's boot splash:
-## kept aspect, nearest. Any key or click goes straight to the cut. Headless runs go
-## straight to main.
+## kept aspect, nearest. Esc, space, Enter or a click go straight to the fade (not in
+## the first second, and not a pad: stray pad and key events at start-up used to cut the
+## intro short). Headless runs go straight to main.
 
 const MAIN_SCENE := "res://scenes/main.tscn"
 ## main.WINDOW_TITLE (preloading main.gd here would load the whole game up front).
@@ -37,7 +37,6 @@ const FONT: FontFile = preload("res://assets/fonts/jersey10.fnt")
 const WALL_TEXTURE := "res://assets/textury/camp/planks_grey.png"
 const PALETTE_LUT := preload("res://assets/boot/splash_palette_lut.png")
 const SFX_DIR := "res://assets/sfx/splash/"
-const SFX_POWER_OUT := "res://assets/sfx/power/power_out.mp3"
 const SFX_CRICKETS := "res://assets/sfx/cricketi.mp3"
 const SFX_WIND := "res://assets/sfx/weather/wind.mp3"
 ## main's title card: faded in here, then main shows the same one.
@@ -99,30 +98,26 @@ const CENTER_TILE := 4
 ## Tubes of UNDO LABS that may be the bad one (a corner, the middle, the "a").
 const BAD_CANDIDATES := [0, 2, 6, 8, 4, 14]
 
-const IGNITE_AT := 0.4
+## The beats (seconds): UNDO LABS dark, lit, burning; the slide down; POWERED BY
+## GODOT dark, lit, burning; the fade.
+const IGNITE_AT := 0.8
 const DIAGONAL_STEP := 0.15
 ## From "labs" lit to the view starting down, and how long the slide takes.
-const PAN_DELAY := 0.7
-const PAN_TIME := 1.1
-## From the slide starting to the robot's first blink.
-const GODOT_AT := 0.65
-## How long POWERED BY GODOT burns before the power may go.
-const GODOT_HOLD := 1.5
-## From the first dip of the brownout to the dark.
-const BROWNOUT := 0.3
-## How fast a dead tube's glow goes.
-const AFTERGLOW := 0.08
-## After the dark: the owl lifts off; the picture fades to black; the title card fades
-## in and stays a moment before main takes over.
-const OWL_FLIES := 0.4
-const FADE_DELAY := 0.25
-const FADE_SLOW := 1.1
+const PAN_DELAY := 1.3
+const PAN_TIME := 1.4
+## From the slide starting to the robot's first blink: it arrives on the dark sign and
+## rests on it a moment.
+const GODOT_AT := PAN_TIME + 0.6
+## How long POWERED BY GODOT burns before the fade may start.
+const GODOT_HOLD := 1.6
+## The fade to black (through the palette), then the title card fading in and staying
+## a moment before main takes over.
+const FADE_SLOW := 1.4
 const TITLE_IN := 0.45
 const TITLE_HOLD := 0.15
-## One launch in N, something stays lit a moment after the power is gone: the robot's
-## eyes, or the mosaic's middle tile if the power went before the view slid down.
-const UNCANNY_ODDS := 8
-const UNCANNY_HOLD := 0.75
+## Skipping only after this long, and only with these (a deliberate press).
+const SKIP_AFTER := 1.0
+const SKIP_KEYS := [KEY_ESCAPE, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]
 
 ## The sign layer's alpha for the clear glass panels (the shader reads >= 0.95 as
 ## coated tube, >= 0.5 as glass at all).
@@ -141,7 +136,6 @@ var preview := false
 var _viewport: SubViewport
 var _sign: _Sign
 var _moths: _Moths
-var _owl: _Owl
 var _leaves: _Leaves
 var _title: CanvasLayer
 var _title_veil: ColorRect
@@ -156,19 +150,15 @@ var _next_event := 0
 var _bad := 0
 var _pan_at := INF
 var _earliest_cut := 0.0
-var _cut_at := -1.0
-var _off_at := INF
+## When the fade out started (-1 = not yet).
+var _fade_at := -1.0
 var _leave_at := INF
-var _uncanny := -1
 var _t := 0.0
 var _done := false
 var _levels := PackedFloat32Array()
 var _flashes := PackedFloat32Array()
-## Where the owl sits (top-left of its sprite, wall pixels), when the robot catches its
-## eye and when it hoots.
-var _owl_perch := Vector2.ZERO
+## When the robot strikes (its moths come then).
 var _robot_lit := INF
-var _owl_hoot := INF
 
 var _hum: AudioStreamPlayer
 var _crickets: AudioStreamPlayer
@@ -219,15 +209,13 @@ func seek(t: float) -> void:
 	_apply(t)
 
 
-## When the power goes at the earliest (the bake tool's default cut).
+## When the fade starts at the earliest (the bake tool's default).
 func earliest_cut() -> float:
 	return _earliest_cut
 
 
-func preview_cut(at: float, uncanny: bool = false) -> void:
-	_cut(at)
-	if uncanny:
-		_uncanny = EL_EYES if _pan(at) >= PAN * 0.5 else CENTER_TILE
+func preview_cut(at: float, _uncanny := false) -> void:
+	_fade_out(at)
 
 
 func frame_image() -> Image:
@@ -283,9 +271,6 @@ func _build() -> void:
 	_moths = _Moths.new()
 	_moths.setup(_rng, _sign)
 	_viewport.add_child(_moths)
-	_owl = _Owl.new()
-	_owl.perch = _owl_perch
-	_viewport.add_child(_owl)
 	_leaves = _Leaves.new()
 	_leaves.setup()
 	_viewport.add_child(_leaves)
@@ -325,8 +310,6 @@ func _compose_wall() -> Image:
 	wall.fill_rect(Rect2i(run_x, from.y, 1, into.y - from.y), cable)
 	wall.fill_rect(Rect2i(into.x, into.y, run_x - into.x + 1, 1), cable)
 	var box := Rect2i(run_x - 7, godot.end.y + 9, 15, 11)
-	# The owl sits on it (its feet on the lid).
-	_owl_perch = Vector2(float(box.position.x + box.size.x / 2 - 4), float(box.position.y - 13))
 	wall.fill_rect(Rect2i(run_x, into.y, 1, box.position.y - into.y), cable)
 	wall.fill_rect(Rect2i(run_x, box.end.y, 1, size.y - box.end.y), cable)
 	wall.fill_rect(box, Color(0.30, 0.29, 0.27))
@@ -377,10 +360,6 @@ func _plan() -> void:
 	var g_lit := _ignite(EL_GODOT, p_lit + 0.12, 2, 0.06, 0.14)
 	_event(g_lit, "neon_strike", -11.0)
 	_earliest_cut = g_lit + GODOT_HOLD
-	# The night: an owl further off while UNDO LABS burns, then the one on the box.
-	_event(b_lit + 0.45, "owl_far", -15.0)
-	_owl_hoot = g_lit + 0.6
-	_event(_owl_hoot, "owl_near", -9.0)
 	# POWERED BY catches once while it burns.
 	var catch_at := g_lit + _rng.randf_range(0.35, 0.6)
 	(_keys[EL_POWERED] as Array).append_array([Vector2(catch_at, 0.0), Vector2(catch_at + 0.04, 0.7), Vector2(catch_at + 0.07, 1.0)])
@@ -430,41 +409,10 @@ func _event(t: float, sound: String, db: float) -> void:
 	_events.append([t, sound, db])
 
 
-func _cut(at: float) -> void:
-	if _cut_at >= 0.0:
-		return
-	_cut_at = at
-	_off_at = at + BROWNOUT
-	if not preview and _rng.randi() % UNCANNY_ODDS == 0:
-		_uncanny = EL_EYES if _pan(at) >= PAN * 0.5 else CENTER_TILE
-	var pending: Array = _events.slice(_next_event)
-	_events = _events.slice(0, _next_event)
-	for e in pending:
-		if e[0] < at:
-			_events.append(e)
-	_event(at, "neon_sputter", -10.0)
-	_event(at + 0.13, "neon_tick_2", -12.0)
-	_event(_off_at, "power_out", -3.0)
-	_event(_off_at + OWL_FLIES, "owl_flap", -7.0)
-	if _uncanny >= 0:
-		_event(_off_at + UNCANNY_HOLD, "neon_tick_3", -20.0)
-	_events.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
-
-
-## Voltage on the signs: the brownout dips, stutters, comes back for a breath, goes.
-func _power(t: float) -> float:
-	if _cut_at < 0.0 or t < _cut_at:
-		return 1.0
-	var d := t - _cut_at
-	if d < 0.05:
-		return 0.42
-	if d < 0.08:
-		return 0.1
-	if d < 0.2:
-		return 0.45 + 0.35 * _hash(97, floor(t * 40.0))
-	if d < BROWNOUT:
-		return 1.0
-	return 0.0
+## The end: everything fades out, the signs still lit.
+func _fade_out(at: float) -> void:
+	if _fade_at < 0.0:
+		_fade_at = at
 
 
 ## How far the view has slid down the wall (whole pixels, eased).
@@ -486,13 +434,7 @@ func _level(i: int, t: float) -> float:
 	_flashes[i] = flash if v > 0.0 else 0.0
 	if v > 0.0:
 		v *= 1.0 + 0.06 * (_hash(i, floor(t * 50.0)) - 0.5) + _flashes[i]
-	if t >= _off_at:
-		var glow := v * 0.45 * exp(-(t - _off_at) / AFTERGLOW)
-		if i == _uncanny and t > _off_at + 0.06 and t < _off_at + UNCANNY_HOLD:
-			glow = 0.22 + 0.04 * _hash(i, floor(t * 12.0))
-		_flashes[i] = 0.0
-		return glow
-	return v * _power(t)
+	return v
 
 
 func _hash(i: int, n: float) -> float:
@@ -526,7 +468,6 @@ func _apply(t: float) -> void:
 		undo_lit += _levels[i] * (1.0 if i < FIRST_A else 0.4)
 	undo_lit /= 9.0 + 8.0 * 0.4
 	_moths.update_to(t, _levels, Vector2(undo_lit, godot_lit), pan, _robot_lit)
-	_owl.update_to(t, pan, godot_lit, fade, _robot_lit, _owl_hoot, _off_at + OWL_FLIES if _cut_at >= 0.0 else INF)
 	var light_at := (_sign.mosaic.get_center() + Vector2(0.0, 22.0)).lerp(_sign.godot_box.get_center(), pan / float(PAN)) - Vector2(0.0, pan)
 	_leaves.update_to(t, lit, light_at, fade, pan)
 	_moths.modulate = Color(fade, fade, fade)
@@ -538,8 +479,7 @@ func _apply(t: float) -> void:
 	_post_mat.set_shader_parameter("bloom", 1.0 + flash * 0.5)
 	_post_mat.set_shader_parameter("spill", 1.0 + flash * 0.3)
 	if _hum != null:
-		_hum.volume_db = maxf(-80.0, linear_to_db(maxf(lit, 0.0001)) + HUM_DB) if t < _off_at else -80.0
-		_hum.pitch_scale = lerpf(0.9, 1.0, _power(t)) if t < _off_at else 1.0
+		_hum.volume_db = maxf(-80.0, linear_to_db(maxf(lit * fade, 0.0001)) + HUM_DB)
 
 
 # ── running ───────────────────────────────────────────────────────────────────
@@ -551,8 +491,8 @@ func _process(delta: float) -> void:
 	# skipping it, and --write-movie records it at its own pace.
 	_t += minf(delta, 0.1)
 	var loaded := _main_loaded()
-	if _cut_at < 0.0 and loaded and _t >= _earliest_cut:
-		_cut(_t)
+	if _fade_at < 0.0 and loaded and _t >= _earliest_cut:
+		_fade_out(_t)
 	if _leave_at == INF and loaded and _t >= _title_at() + TITLE_IN + TITLE_HOLD:
 		_leave_at = _t
 	_fire_events()
@@ -571,26 +511,27 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if preview or _done or _cut_at >= 0.0 or _t < 0.25:
+	if preview or _done or _fade_at >= 0.0 or _t < SKIP_AFTER:
 		return
-	var pressed: bool = (event is InputEventKey and event.pressed and not event.echo) \
-		or (event is InputEventMouseButton and event.pressed) \
-		or (event is InputEventJoypadButton and event.pressed)
+	var key := event as InputEventKey
+	var click := event as InputEventMouseButton
+	var pressed: bool = (key != null and key.pressed and not key.echo and SKIP_KEYS.has(key.keycode)) \
+		or (click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT)
 	if pressed:
-		_cut(_t)
+		_fade_out(_t)
 		get_viewport().set_input_as_handled()
 
 
-## 1 until a moment after the power goes, then slowly to 0 (the palette walks it down
-## shade by shade, like a Build fade).
+## 1, then from the fade out slowly to 0 (the palette walks it down shade by shade,
+## like a Build fade).
 func _fade(t: float) -> float:
-	if t < _off_at + FADE_DELAY:
+	if _fade_at < 0.0 or t < _fade_at:
 		return 1.0
-	return 1.0 - smoothstep(0.0, 1.0, (t - _off_at - FADE_DELAY) / FADE_SLOW)
+	return 1.0 - smoothstep(0.0, 1.0, (t - _fade_at) / FADE_SLOW)
 
 
 func _title_at() -> float:
-	return _off_at + FADE_DELAY + FADE_SLOW
+	return _fade_at + FADE_SLOW if _fade_at >= 0.0 else INF
 
 
 ## main's title card, fading in out of the black (not in preview: the bake tool reads
@@ -631,9 +572,6 @@ func _go() -> void:
 func _build_audio() -> void:
 	for name in ["neon_tick_1", "neon_tick_2", "neon_tick_3", "neon_strike", "neon_sputter", "moth_tap"]:
 		_streams[name] = load(SFX_DIR + name + ".wav")
-	_streams["power_out"] = load(SFX_POWER_OUT)
-	for name in ["owl_far", "owl_near", "owl_flap"]:
-		_streams[name] = load(SFX_DIR + name + ".mp3")
 	for i in 6:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -660,11 +598,9 @@ func _fire_events() -> void:
 		var e: Array = _events[_next_event]
 		_next_event += 1
 		# A hitch must not fire a burst of stale ticks at once.
-		if _t - float(e[0]) > 0.25 and e[1] != "power_out":
+		if _t - float(e[0]) > 0.25:
 			continue
-		_play(e[1], e[2], _rng.randf_range(0.94, 1.06) if e[1] != "power_out" else 1.0)
-		if e[1] == "power_out":
-			_hum.stop()
+		_play(e[1], e[2], _rng.randf_range(0.94, 1.06))
 
 
 func _play(sound: String, db: float, pitch: float = 1.0) -> void:
@@ -981,130 +917,6 @@ class _Moths:
 				draw_rect(Rect2(s + Vector2(1, -1), Vector2.ONE), col)
 			else:
 				draw_rect(Rect2(s + Vector2(0, -1), Vector2.ONE), col)
-
-
-# ── the owl on the transformer box ───────────────────────────────────────────
-
-## A tawny owl: a silhouette the neon lights from the front, eyes that catch any light
-## going (amber eyeshine, the moon is enough), a blink now and then, the head turning;
-## it turns to the robot when it strikes and hoots (rises a pixel twice). When the power
-## goes it sits on a moment in the dark, then lifts off up the wall and away.
-class _Owl:
-	extends Node2D
-
-	## B body, L face disc and breast, E eye, k beak, F feet; 9x13. The face rows are built
-	## per frame (the head turns).
-	const BODY := [
-		"B.......B",
-		"BB.....BB",
-		"BBBBBBBBB",
-		"BLLLLLLLB",
-		"",
-		"",
-		"BBLLLLLBB",
-		"BBLBLBLBB",
-		"BBBLBLBBB",
-		"BBBBLBBBB",
-		".BBBBBBB.",
-		"..BBBBB..",
-		"..F...F..",
-	]
-	const WINGS_UP := [
-		"BBB.......BBB",
-		".BBB.....BBB.",
-		"..BBB...BBB..",
-		"...BBBBBBB...",
-		".....BBB.....",
-		".....B.B.....",
-	]
-	const WINGS_DOWN := [
-		".....BBB.....",
-		"...BBBBBBB...",
-		".BBB.BBB.BBB.",
-		"BB...BBB...BB",
-		".....B.B.....",
-	]
-
-	var perch := Vector2.ZERO
-	var _t := 0.0
-	var _pan := 0.0
-	var _light := 0.0
-	var _fade := 1.0
-	var _turned_at := INF
-	var _hoot_at := INF
-	var _fly_at := INF
-
-	func update_to(t: float, pan: float, light: float, fade: float, turned_at: float, hoot_at: float, fly_at: float) -> void:
-		_t = t
-		_pan = pan
-		_light = light
-		_fade = fade
-		_turned_at = turned_at
-		_hoot_at = hoot_at
-		_fly_at = fly_at
-		queue_redraw()
-
-	func _draw() -> void:
-		var at := perch - Vector2(0.0, _pan)
-		if at.y > float(RES.y) + 2.0:
-			return
-		var k := clampf(_light, 0.0, 1.0)
-		var f := _fade
-		var body := Color((0.08 + 0.10 * k) * f, (0.07 + 0.16 * k) * f, (0.06 + 0.20 * k) * f)
-		if _t >= _fly_at:
-			var dt := _t - _fly_at
-			var pos := at + Vector2(dt * 46.0, -dt * 30.0 - dt * dt * 14.0)
-			var frame: Array = WINGS_UP if int(dt / 0.09) % 2 == 0 else WINGS_DOWN
-			_blit(frame, pos - Vector2(2.0, -4.0), {"B": body})
-			return
-		var light_face := Color((0.20 + 0.30 * k) * f, (0.16 + 0.34 * k) * f, (0.12 + 0.36 * k) * f)
-		var eye_k := 0.35 + 0.65 * k
-		var eye := Color(1.0 * eye_k * f, 0.72 * eye_k * f, 0.22 * eye_k * f)
-		# Where it looks: about, then at the robot once it strikes (the sign is to its left).
-		var turn := 0
-		if _t >= _turned_at and _t < _turned_at + 2.6:
-			turn = -1
-		else:
-			var n := int(floor((_t + 0.7) / 1.7))
-			turn = [0, -1, 0, 1, 0, 0, -1][n % 7]
-		var blink := fposmod(_t + 0.9, 2.8) < 0.12
-		var e := "L" if blink else "E"
-		var face := ["B", "L", "L", "L", "L", "L", "L", "L", "B"]
-		var beak := ["B", "L", "L", "L", "L", "L", "L", "L", "B"]
-		for i in [2, 3, 5, 6]:
-			face[i + turn] = e
-		beak[4 + turn] = "k"
-		var rows: Array = BODY.duplicate()
-		rows[4] = "".join(face)
-		rows[5] = "".join(beak)
-		# A hoot: it rises a pixel, twice.
-		var lift := 0.0
-		var h := _t - _hoot_at
-		if (h >= 0.0 and h < 0.22) or (h >= 0.42 and h < 0.7):
-			lift = -1.0
-		_blit(rows, at + Vector2(0.0, lift), {
-			"B": body, "L": light_face, "E": eye,
-			"k": Color(0.30 * f * (0.5 + k), 0.26 * f * (0.5 + k), 0.18 * f * (0.5 + k)),
-			"F": Color(0.30 * f * (0.5 + k), 0.24 * f * (0.5 + k), 0.12 * f * (0.5 + k)),
-		})
-		# The neon is to its left: a cyan rim down that side.
-		if k > 0.05:
-			var rim := Color(0.10 * k * f, 0.55 * k * f, 0.70 * k * f)
-			for y in rows.size() - 1:
-				var row: String = rows[y]
-				var x := 0
-				while x < row.length() and row[x] == ".":
-					x += 1
-				if x < row.length():
-					draw_rect(Rect2(at + Vector2(x, y + lift), Vector2.ONE), rim)
-
-	func _blit(rows: Array, at: Vector2, colors: Dictionary) -> void:
-		for y in rows.size():
-			var row: String = rows[y]
-			for x in row.length():
-				var c := row[x]
-				if colors.has(c):
-					draw_rect(Rect2(at + Vector2(x, y), Vector2.ONE), colors[c])
 
 
 # ── leaves on the wind ────────────────────────────────────────────────────────
