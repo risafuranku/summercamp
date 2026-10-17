@@ -78,7 +78,8 @@
     "from": "District Office Hlubocany <registr@okres-hlubocany.cz>",
     "subject": "Kemp Cerne jezero: inspection of operation",
     "body": "Dear operator,\n\nWe confirm that the inspection of the operation of the facility Kemp Cerne jezero (parcel 412/3) will take place on Monday 19 October 1998 at 8:00.\n\nThe application of Agrostroj Hlubocany a.s. for a change of land use remains with the District Office. Should the facility not be in operation on the date of inspection, the Office will recommend the change.\n\nThis letter is for your information. No reply is required.\n\nIng. Pokorny\nDepartment of Land Use",
-    "type": "story"
+    "type": "story",
+    "campaign": true
   },
   {
     "day": 5,
@@ -118,7 +119,8 @@
     "from": "Agrostroj Hlubocany a.s. <obchod@agrostroj.cz>",
     "subject": "Our offer stands",
     "body": "Dear owner,\n\nOur offer for the land at Cerne jezero stands: 2.4 million crowns, paid at signature. The structures would of course be removed at our cost, the lake left as it is for the cooling water.\n\nWe understand the camp has been closed since last summer. Nobody will blame you for selling. Mr Karel H. was close to signing with us last autumn, before the accident.\n\nWith respect,\nJ. Maly, commercial director",
-    "type": "story"
+    "type": "story",
+    "campaign": true
   },
   {
     "day": 18,
@@ -134,7 +136,8 @@
     "from": "Nela <nela@chatmail.cz>",
     "subject": "Tomorrow",
     "body": "The inspection is tomorrow, right? Whatever they say, I kept your seat on the bus.",
-    "type": "story"
+    "type": "story",
+    "campaign": true
   },
   {
     "day": 30,
@@ -142,6 +145,7 @@
     "from": "Teta Vera <vera.kralova@rodina.cz>",
     "subject": "Tomorrow at eight",
     "body": "The man from the district comes at eight. I will come out on the first bus and stand next to you; he knew your uncle.\n\nLeave the books on the desk and the terminal on.\n\nI will count them myself.\n\n- Teta Vera",
-    "type": "story"
+    "type": "story",
+    "campaign": true
   }
 ]

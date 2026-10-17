@@ -4,6 +4,15 @@
 
 ---
 
+## CO-OP — two wardens, step by step (DESIGN.md §12; each stage gone through with the user)
+
+- [x] 1  Connect and see each other: CO-OP in the menu (host a sandbox camp / join by address), the whole camp sent on joining (same seed, same trees), the host's clock, weather, power and till; the other warden as a figure with torch and steps; no pause in co-op; only the host saves (`tools/coop_check.py`)
+- [ ] 2  Hands for the joining warden: every action goes to the host (build, demolish, mail, check-in, cleaning, repairs, the PC); one at the PC, the other sees the screen over their shoulder; sleep skips the night only when both are asleep
+- [ ] 3  The camp on both screens: guests and their walks, the bus, lamps, doors, failures and repairs, money and mail as they change
+- [ ] 4  Rooms and minigames for two: both in one cabin, a job taken by one is locked for the other, the scrub/tap/till/sewer close-ups
+- [ ] 5  The night for two: the director knows both; enemies hunt either; sometimes only one sees it; a hidden sanity per warden (no meter, never named)
+- [ ] 6  Saves of a co-op camp (host), joining a camp already going, a dropped line and back, a name per warden
+
 ## BRIEF 2026-10-18 — the big list (the user's notes)
 
 - [x] C1  PC: z-fighting at the lamp, the jerk after the OS boot; S stands you up, D leans out of the window

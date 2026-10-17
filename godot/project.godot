@@ -27,6 +27,7 @@ EventBus="*res://core/events/event_bus.gd"
 CoreRoot="*res://core/state/core_root.gd"
 EmailManager="*res://scripts/email_manager.gd"
 GuestManager="*res://scripts/guest_manager.gd"
+Coop="*res://scripts/coop/coop.gd"
 
 [display]
 

@@ -71,6 +71,10 @@ func sleep_refusal() -> String:
 	var brains = _main.get("_enemy_brains")
 	if brains is Array and not (brains as Array).is_empty():
 		return "You lie down and get straight back up. Something is out there tonight."
+	# Co-op: the night is skipped only when both wardens are asleep (the next stage);
+	# until then the other one is still out there.
+	if Coop.has_partner():
+		return "You lie down, but the other warden is still up. You listen for their steps."
 	return ""
 
 

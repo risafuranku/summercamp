@@ -470,7 +470,8 @@ func _tick_week_ledger() -> void:
 		var outdoors := not _is_any_interior_open() and not get_tree().paused
 		_omens.tick(get_process_delta_time(), abs_minute, outdoors, _player.global_position, _omen_context())
 		_tick_director()
-	if _week_ledger == null or _game_over_active or _week_report_screen != null:
+	# A sandbox camp has no month to end (no inspection, no books).
+	if _week_ledger == null or _game_over_active or _week_report_screen != null or _sandbox:
 		return
 	if _week_ledger.should_page(_day_index, _time_of_day_hours) and _hud_manager != null:
 		_hud_manager.push_status("Pager: Vera came in on the first bus. The district at eight. Books on the desk.", 2)
@@ -673,6 +674,8 @@ func _note_grid_power(powered: bool) -> void:
 
 
 func _is_grid_powered() -> bool:
+	if Coop.is_client():
+		return _coop_powered
 	return not _billing.power_cut_active and not (_night_jobs != null and _night_jobs.breaker_tripped)
 
 
@@ -1016,9 +1019,12 @@ func _process(delta: float) -> void:
 			_hud_manager.set_world_hud_visible(false)
 		return
 
-	if time_system:
+	# Co-op: the other warden's machine runs no clock or weather of its own (the host's
+	# come in, coop_apply_clock), nor anything below that changes the camp.
+	var sim: bool = Coop.sim_here()
+	if time_system and sim:
 		time_system.process(delta)
-	if weather_system:
+	if weather_system and sim:
 		var state = CoreRoot.get_state()
 		if state != null:
 			weather_system.set_anomaly_pressure(float(state.hrotfaktor))
@@ -1034,7 +1040,8 @@ func _process(delta: float) -> void:
 		_menu_flythrough.update(delta)
 		return
 
-	_process_electricity_runtime(delta)
+	if sim:
+		_process_electricity_runtime(delta)
 
 	if _liminal_debug_visible:
 		_liminal_debug_refresh_accum += maxf(delta, 0.0)
@@ -1057,20 +1064,23 @@ func _process(delta: float) -> void:
 			_should_play_rain_inside_loop(),
 			_is_service_sewer_audio_active()
 		)
-	_tick_active_enemy_brain(delta)
+	if sim:
+		_tick_active_enemy_brain(delta)
 	_update_corn_wading(delta)
 	_update_threat_senses(delta)
 	_sync_hud_player_meters()
-	_poll_arrivals(delta)
-	_tick_night_jobs()
-	_tick_day_events()
-	_tick_week_ledger()
-	if _maintenance != null:
-		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
-	_poll_guest_quotes(delta)
+	if sim:
+		_poll_arrivals(delta)
+		_tick_night_jobs()
+		_tick_day_events()
+		_tick_week_ledger()
+		if _maintenance != null:
+			_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
+		_poll_guest_quotes(delta)
 	if visual_module != null and visual_module.has_method("sync_enemy_distortion_fx"):
 		visual_module.sync_enemy_distortion_fx(_time_state)
-	_tick_autosave(delta)
+	if sim:
+		_tick_autosave(delta)
 
 
 
@@ -1177,7 +1187,7 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 				gate.set_night(_time_state == TIME_NIGHT or _time_of_day_hours >= 19.5)
 		if previous_time_state == TIME_NIGHT and _time_state == TIME_DAY:
 			_on_day_phase_started()
-		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null:
+		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null and Coop.sim_here():
 			_day_events.on_night()
 
 	if weather_changed:
@@ -1494,7 +1504,7 @@ func _sync_liminal_forecast_hud(force: bool = false) -> void:
 
 
 func _on_night_tick(night_index: int) -> void:
-	if not _gameplay_started or _menu_mode or _game_over_active:
+	if not _gameplay_started or _menu_mode or _game_over_active or not Coop.sim_here():
 		return
 	if night_index == _liminal_last_rolled_night_id:
 		return
@@ -2339,6 +2349,11 @@ func _away_in_town() -> bool:
 func _on_day_phase_started() -> void:
 	if not _gameplay_started or _menu_mode:
 		return
+	if not Coop.sim_here():
+		# The other warden's machine: only what dawn does to you.
+		if _player != null and _player.has_method("recharge_flashlight"):
+			_player.recharge_flashlight()
+		return
 	_stop_active_enemy_brain()
 	if _director_fx != null:
 		_director_fx.clear()
@@ -2776,6 +2791,8 @@ func _generate_grid_world() -> void:
 	grid_manager.initialize_grid(Vector2i(28, 28), 4.0)
 	building_manager.setup(grid_manager)
 	world_generator.setup(grid_manager, building_manager)
+	# A fresh camp: a new seed (world_generator.world_seed).
+	world_generator.world_seed = 0
 	world_generator.generate_world()
 
 	if world_generator.get_node_or_null("Terrain") == null:
@@ -3018,6 +3035,9 @@ func _setup_audio() -> void:
 
 
 func _try_interact() -> void:
+	# Co-op stage 1: the other warden walks and looks; their hands come in the next stage.
+	if Coop.is_client() or (_pause_menu != null and _pause_menu.is_open()):
+		return
 	if _lake_trip != null and not _is_any_interior_open() and _lake_trip.try_interact():
 		return
 	if _day_events != null and not _is_any_interior_open() and _day_events.try_interact():
@@ -3092,7 +3112,7 @@ func _is_structure_interior_open() -> bool:
 func _update_player_control_lock() -> void:
 	if _player == null or not _player.has_method("set_controls_enabled"):
 		return
-	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()))
+	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up())
 
 ## The torch hand at the bottom right while the torch is on outdoors (scripts/ui/torch_hand.gd).
 var _torch_hand: CanvasLayer
@@ -3311,6 +3331,9 @@ func _update_torch_hand() -> void:
 func _update_interaction_hint() -> void:
 	if _hud_manager == null:
 		return
+	if Coop.is_client():
+		_hud_manager.set_hint_text("")
+		return
 	if _is_any_interior_open():
 		_hud_manager.set_hint_text("")
 		return
@@ -3517,6 +3540,8 @@ func _emit_state_update() -> void:
 
 
 func _enter_main_menu() -> void:
+	# Leaving a co-op camp closes the line (the other warden goes back to their menu).
+	Coop.leave()
 	_stop_active_enemy_brain()
 	if CoreRoot.failure_system != null:
 		CoreRoot.failure_system.enabled = false
@@ -3583,6 +3608,9 @@ func _ensure_main_menu() -> void:
 	_main_menu.new_game_requested.connect(_on_menu_new_game_pressed)
 	_main_menu.load_requested.connect(_on_menu_load_requested)
 	_main_menu.quit_requested.connect(func() -> void: get_tree().quit())
+	_main_menu.coop_host_requested.connect(_on_menu_coop_host)
+	_main_menu.coop_join_requested.connect(_on_menu_coop_join)
+	_wire_coop()
 
 
 func _on_menu_load_requested(path: String) -> void:
@@ -3632,9 +3660,16 @@ func _on_menu_continue_pressed() -> void:
 
 
 func _on_menu_new_game_pressed() -> void:
+	await _start_new_camp(false)
+
+
+## A fresh camp. `sandbox`: no month and no checklist, the programs already on the PC,
+## the story's mails without the ones about the deadline (co-op camps are sandbox camps).
+func _start_new_camp(sandbox: bool) -> void:
 	var started := Time.get_ticks_msec()
 	await _show_menu_loading_for("Generating a fresh camp...")
 	_reset_state_for_new_game()
+	_sandbox = sandbox
 	_generate_grid_world()
 	_rebuild_core_cells_from_visual_structures()
 	_place_ruined_cabin()
@@ -3645,8 +3680,13 @@ func _on_menu_new_game_pressed() -> void:
 	_sync_runtime_state_from_systems(true)
 	await _hide_menu_loading_after(started, 520, false)
 	_pending_quest_state_loaded = false
+	if sandbox:
+		_pending_loaded_crt_state = {"unlock_registry": {"builder": true, "camp_status": true, "guestrack": true, "datapunch": true}}
 	_start_game_from_menu()
-	if _quest_manager != null:
+	if sandbox:
+		if EmailManager != null and EmailManager.has_method("load_story_pool"):
+			EmailManager.load_story_pool(QUEST_MANAGER_SCRIPT.STORY_SUBJECTS_OWNED, true)
+	elif _quest_manager != null:
 		_quest_manager.begin_new_game()
 	# A new game always opens on the same song (Radio Jedna).
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
@@ -3659,6 +3699,152 @@ func _on_menu_new_game_pressed() -> void:
 			_interior_manager.open_startup_crt_view()
 			_first_stand_up_pending = true
 	)
+
+
+# ── co-op (scripts/coop/coop.gd) ────────────────────────────────────────────
+
+## A sandbox camp (DESIGN.md §12): no month and no checklist. Co-op camps are sandbox.
+var _sandbox := false
+## The other warden's machine: whether the host's camp has power (its lamps follow).
+var _coop_powered := true
+var _coop_wired := false
+
+
+func _wire_coop() -> void:
+	if _coop_wired:
+		return
+	_coop_wired = true
+	Coop.world_arrived.connect(_on_coop_world_arrived)
+	Coop.join_failed.connect(_on_coop_join_failed)
+	Coop.session_ended.connect(_on_coop_session_ended)
+	Coop.peer_joined.connect(_on_coop_peer_joined)
+	Coop.peer_left.connect(_on_coop_peer_left)
+
+
+## The pause menu is up in a co-op camp (the world goes on; you just stand there).
+func _coop_menu_up() -> bool:
+	return Coop.is_active() and _pause_menu != null and _pause_menu.is_open()
+
+
+## Host: a new sandbox camp, open to one more warden.
+func _on_menu_coop_host() -> void:
+	if not Coop.host():
+		if _main_menu != null:
+			_main_menu.show_coop_notice("Port %d is taken." % Coop.port)
+		return
+	await _start_new_camp(true)
+
+
+## Join: call the camp at `address`; it comes back as world_arrived or join_failed.
+func _on_menu_coop_join(address: String) -> void:
+	if _main_menu != null:
+		_main_menu.show_loading("Calling the camp...")
+	Coop.join(address)
+
+
+func _on_coop_join_failed(reason: String) -> void:
+	if _main_menu != null:
+		_main_menu.hide_loading()
+		_main_menu.show_coop_notice(reason)
+
+
+## The host's camp has come down the line: it is loaded like a save, and nothing in it
+## runs here (sim_here() is false): the host's clock, weather and power drive it.
+func _on_coop_world_arrived(snapshot: Dictionary) -> void:
+	if not _apply_save_snapshot(snapshot, false):
+		Coop.leave()
+		_on_coop_join_failed("The camp came through garbled.")
+		return
+	_active_save_path = ""
+	_coop_powered = true
+	_start_game_from_menu()
+	if CoreRoot.failure_system != null:
+		CoreRoot.failure_system.enabled = false
+	if _hud_manager != null:
+		_hud_manager.push_status("You came in by the barrier. The other warden is about.", 1)
+
+
+func _on_coop_session_ended(reason: String) -> void:
+	if _gameplay_started:
+		_close_pause_menu(false)
+		_enter_main_menu()
+	if _main_menu != null:
+		_main_menu.hide_loading()
+		_main_menu.show_coop_notice(reason)
+
+
+func _on_coop_peer_joined() -> void:
+	if _hud_manager != null:
+		_hud_manager.push_status("The other warden came in by the barrier.", 1)
+
+
+func _on_coop_peer_left() -> void:
+	if _hud_manager != null:
+		_hud_manager.push_status("The other warden has gone home.", 1)
+
+
+## The camp for the other warden (Coop sends it when they join): the save snapshot,
+## with them standing a step from where a new day starts, facing the office.
+func coop_world_snapshot() -> Dictionary:
+	var snap := _build_save_snapshot("Co-op", "coop")
+	snap.erase("player")
+	if grid_manager != null and world_generator != null and world_generator.has_method("find_player_spawn_coord"):
+		var at: Vector3 = grid_manager.grid_to_world(world_generator.find_player_spawn_coord()) + Vector3(1.6, 1.0, 0.6)
+		snap["player"] = {"position": {"x": at.x, "y": at.y, "z": at.z}}
+	return snap
+
+
+## Where the other warden's figure stands (the camp's 3D world), or null outside a game.
+func coop_world_root() -> Node3D:
+	return _world_3d if _gameplay_started and not _menu_mode else null
+
+
+## What the other machine needs to draw you (Coop sends it ~15 times a second): where
+## you stand and face, the torch and where it points, how fast you go, whether you are
+## inside something (a room, the PC, the bus, the boat) and so out of sight.
+func coop_local_warden() -> Dictionary:
+	if not _gameplay_started or _menu_mode or _player == null or not is_instance_valid(_player):
+		return {}
+	var aim: Dictionary = _player.get_flashlight_aim() if _player.has_method("get_flashlight_aim") else {}
+	return {
+		"p": _player.global_position,
+		"y": _player.rotation.y,
+		"t": not aim.is_empty(),
+		"d": aim.get("dir", -_player.global_basis.z),
+		"v": Vector2(_player.velocity.x, _player.velocity.z).length(),
+		"in": _is_any_interior_open() or (_lake_trip != null and _lake_trip.is_active()),
+	}
+
+
+## The host's clock, weather, power and till for the other machine.
+func coop_clock() -> Dictionary:
+	var state = CoreRoot.get_state()
+	return {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0}
+
+
+## The other warden's machine sets its day, sky, weather, lamps and till by the host's.
+func coop_apply_clock(c: Dictionary) -> void:
+	if not Coop.is_client() or not _gameplay_started or _menu_mode:
+		return
+	var state = CoreRoot.get_state()
+	if state != null:
+		var day := maxi(1, int(c.get("d", _day_index)))
+		if int(state.day) != day:
+			state.day = day
+		var money := int(c.get("m", state.money))
+		if int(state.money) != money:
+			CoreRoot.apply_changes({"money": money})
+	if time_system != null:
+		time_system.set_time_hours(float(c.get("h", _time_of_day_hours)))
+	var w := int(c.get("w", _weather_state))
+	if weather_system != null and w != _weather_state:
+		weather_system.set_weather(w)
+	var pw := bool(c.get("pw", true))
+	if pw != _coop_powered:
+		_coop_powered = pw
+		_note_grid_power(pw)
+		_apply_time_from_clock(true, false)
+	_sync_runtime_state_from_systems()
 
 
 func _start_game_from_menu() -> void:
@@ -3687,7 +3873,7 @@ func _ensure_runtime_started_after_menu_load() -> void:
 func _write_startup_autosave() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if not _gameplay_started:
+	if not _gameplay_started or not Coop.sim_here():
 		return
 	_write_autosave("Autosave")
 
@@ -3803,6 +3989,9 @@ func request_manual_save(slot_name: String = "") -> String:
 
 
 func _write_autosave(slot_name: String) -> void:
+	# The other warden's machine holds the host's camp, not its own: nothing to save.
+	if not Coop.sim_here():
+		return
 	var snapshot := _build_save_snapshot(slot_name, "autosave")
 	if snapshot.is_empty():
 		return
@@ -3867,8 +4056,11 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 			"height": int(state.grid.grid_height),
 			"tile_size": float(state.grid.tile_size),
 			"tile_types": tile_types,
-			"buildings": buildings
+			"buildings": buildings,
+			"seed": world_generator.world_seed if world_generator != null else 0,
+			"nature": world_generator.nature_snapshot() if world_generator != null and world_generator.has_method("nature_snapshot") else []
 		},
+		"mode": "sandbox" if _sandbox else "campaign",
 		"crt_desktop": crt_desktop_state,
 		"email_runtime": email_runtime_state,
 		"guest_runtime": guest_runtime_state,
@@ -3992,6 +4184,9 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 	grid_manager.initialize_grid(Vector2i(width, height), tile_size)
 	building_manager.setup(grid_manager)
 	world_generator.setup(grid_manager, building_manager)
+	# The camp's own seed: the same lake, fences, corn and horizon as when it was saved
+	# (and as on the host's machine in co-op). Old saves have none: a new one is drawn.
+	world_generator.world_seed = int(grid_data.get("seed", 0))
 	if world_generator.has_method("generate_base_world"):
 		world_generator.generate_base_world(false, false)
 	else:
@@ -4062,8 +4257,14 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 
 	_ensure_loaded_world_landmarks()
 
-	if world_generator.has_method("populate_trees"):
+	# The trees and the corn where they stood (what was cleared stays cleared); saves
+	# from before they were kept grow a new wood.
+	var nature_any = grid_data.get("nature", null)
+	if nature_any is Array and world_generator.has_method("restore_nature"):
+		world_generator.restore_nature(nature_any as Array)
+	elif world_generator.has_method("populate_trees"):
 		world_generator.populate_trees()
+	_sandbox = str(snapshot.get("mode", "")) == "sandbox"
 
 	_rebuild_core_cells_from_visual_structures()
 	var crt_any = snapshot.get("crt_desktop", {})
@@ -4369,6 +4570,7 @@ func _sync_guest_accommodation_state() -> void:
 
 
 func _reset_state_for_new_game() -> void:
+	_sandbox = false
 	_pending_loaded_player_state.clear()
 	_pending_night_jobs.clear()
 	if _night_jobs != null:
@@ -4461,12 +4663,14 @@ func _prune_preview_to_reception_only() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		if _gameplay_started:
+		if _gameplay_started and Coop.sim_here():
 			_write_autosave("Autosave")
+		Coop.leave()
 		get_tree().quit()
 	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
-		# Alt-tab during the night should not cost the player their life.
-		if pause_on_focus_loss and _can_pause_now():
+		# Alt-tab during the night should not cost the player their life (in co-op the
+		# night goes on regardless: no pause).
+		if pause_on_focus_loss and _can_pause_now() and not Coop.is_active():
 			_open_pause_menu()
 
 
@@ -4489,7 +4693,8 @@ func _open_pause_menu() -> void:
 	# captured outdoors).
 	_pause_prev_mouse = Input.mouse_mode
 	_pause_menu.open(_pause_info_line(), _leave_label())
-	get_tree().paused = true
+	# In co-op the camp goes on for the other warden: the menu is only over your view.
+	get_tree().paused = not Coop.is_active()
 
 
 ## What the pause menu's way out says, or "" when you are already outdoors.

@@ -38,7 +38,10 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Feature | State | Notes |
 | --- | --- | --- |
 | Title screen over a live camp flythrough | ✅ | Continue (with day/time/cash), New, Load (save list), Configuration, Controls; behind it `menu_flythrough.gd` cuts between slow dolly/crane shots (out on the jetty past the boat, the corn and pylons, the gate's bulb, the office, the boathouse across the water, the camp from above and back across the lake; a campfire and the cabins once built), each in its own time and weather, dips to black between them; shots dodge the trees of each camp |
-| Pause menu (Esc), autosave on quit to title, pause on alt-tab | ✅ | |
+| Pause menu (Esc), autosave on quit to title, pause on alt-tab | ✅ | in a co-op camp the world goes on behind it (no pause, no alt-tab pause) |
+| Co-op for two, stage 1 (`scripts/coop/coop.gd`, autoload `Coop`) | 🟡 | menu CO-OP: host a (sandbox) camp, this machine's addresses beside it, or join (the address typed into the row, remembered); ENet, one guest. The joining machine gets the host's whole camp (the save snapshot, ~5 KB packed) to the tree, then the host's clock, weather, power and till; each warden sees the other walking (`scripts/coop/remote_player.gd`: Grok sprite, the guests' walk, their torch beam and bulb, their steps) and the other disappears into rooms and the PC. Stage 1: the joining warden only walks and looks; sleep waits for stage 2. `tools/coop_check.py` runs two copies and compares them |
+| Sandbox camp | ✅ | no month, no checklist, the programs already on the PC, the story's mails without the deadline ones; co-op camps are always sandbox (saved with the camp: "mode") |
+| The same camp after a load | ✅ | the world has its own seed (lake, fences, corn, litter, horizon) and the trees and corn are saved where they stand (cleared land stays cleared; each tile's tree is its own) |
 | Build-engine HUD (status bar, feed, objective tracker, guest card, banners) | ✅ | crisp bitmap pixel fonts, integer scale at every resolution |
 | Screen-space objective marker | ✅ | edge arrow when off-screen / behind |
 | Low-res render + 256-colour palette, settings presets | ✅ | |

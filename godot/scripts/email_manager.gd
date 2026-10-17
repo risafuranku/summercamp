@@ -296,7 +296,9 @@ func schedule_pool_mail(seed_data: Dictionary) -> void:
 
 ## Loads data/pools/emails/story/*.json into the schedule. Mails whose subject is in
 ## `skip_subjects` are left out (the questline delivers those itself).
-func load_story_pool(skip_subjects: Array = []) -> int:
+## The story's mails (data/pools/emails/story). A sandbox camp (no month) leaves out the
+## ones about the deadline ("campaign": true).
+func load_story_pool(skip_subjects: Array = [], sandbox := false) -> int:
 	var count := 0
 	var dir := DirAccess.open("res://data/pools/emails/story/")
 	if dir == null:
@@ -313,6 +315,8 @@ func load_story_pool(skip_subjects: Array = []) -> int:
 				continue
 			var entry: Dictionary = entry_any
 			if skip_subjects.has(str(entry.get("subject", ""))):
+				continue
+			if sandbox and bool(entry.get("campaign", false)):
 				continue
 			var seed := entry.duplicate(true)
 			seed["type"] = "story"

@@ -9,17 +9,22 @@ extends CanvasLayer
 ##   > CONTINUE      DAY 3  21:40  $1,234
 ##     NEW CAMP
 ##     LOAD CAMP
+##     CO-OP
 ##     CONFIGURATION
 ##     QUIT TO DOS
 ##   [v0.3  (C) 2026 UNDO LABS ............. ARROWS SELECT  ENTER OK  ESC BACK]
 ##
-## Pages: main, load, options, controls. A loading plate covers everything while main
+## Pages: main, load, coop, options, controls. CO-OP (scripts/coop/coop.gd): host a
+## sandbox camp (this machine's addresses beside it, for the other warden) or join one
+## (the address is typed straight into the row). A loading plate covers everything while main
 ## builds the world. main.gd owns what the choices *do*; this script only reports them.
 
 signal continue_requested
 signal new_game_requested
 signal load_requested(path: String)
 signal quit_requested
+signal coop_host_requested
+signal coop_join_requested(address: String)
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
@@ -58,6 +63,11 @@ var _options_page: Control
 var _options
 var _controls_page: Control
 var _controls
+var _coop_page: Control
+var _coop_list
+var _coop_notice: Label
+var _coop_address := ""
+var _coop_caret_t := 0.0
 var _loading: Control
 var _loading_label: Label
 var _loading_tip: Label
@@ -107,6 +117,10 @@ func show_page(page: String) -> void:
 	_load_page.visible = page == "load"
 	_options_page.visible = page == "options"
 	_controls_page.visible = page == "controls"
+	if _coop_page != null:
+		_coop_page.visible = page == "coop"
+	if page == "coop":
+		_refresh_coop()
 	if page == "load":
 		refresh_saves()
 	elif page == "options":
@@ -235,6 +249,25 @@ func _rebuild() -> void:
 	_save_hint = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
 	_save_hint.position = Vector2(_vp(8), plate_h - _vp(13))
 	_load_page.add_child(_save_hint)
+
+	# CO-OP
+	_coop_page = _page_frame("CO-OP", plate_h)
+	_coop_list = RETRO_MENU.MenuList.new()
+	_coop_list.ui_scale = _scale
+	_coop_list.row_height_vp = 22
+	_coop_list.position = Vector2(_vp(2), _vp(30))
+	_coop_list.size = Vector2(_coop_page.size.x - _vp(8), _vp(22 * 3))
+	_coop_page.add_child(_coop_list)
+	_coop_list.activated.connect(_on_coop_activated)
+	var coop_items: Array[Dictionary] = [
+		{"id": "host", "text": "Host a camp"},
+		{"id": "join", "text": "Join"},
+		{"id": "back", "text": "Back"},
+	]
+	_coop_list.set_items(coop_items)
+	_coop_notice = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale)
+	_coop_notice.position = Vector2(_vp(8), plate_h - _vp(13))
+	_coop_page.add_child(_coop_notice)
 
 	# OPTIONS
 	_options_page = _page_frame("CONFIGURATION", plate_h)
@@ -373,6 +406,7 @@ func _main_items() -> Array[Dictionary]:
 		items.append({"id": "continue", "text": "Continue", "sub": _continue_sub})
 	items.append({"id": "new", "text": "New camp"})
 	items.append({"id": "load", "text": "Load camp", "enabled": _has_continue})
+	items.append({"id": "coop", "text": "Co-op"})
 	items.append({"id": "options", "text": "Configuration"})
 	items.append({"id": "quit", "text": "Quit to DOS"})
 	return items
@@ -496,6 +530,11 @@ func _process(delta: float) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	if vp != _built_for:
 		_rebuild()
+	if _page == "coop" and _coop_list != null:
+		# The caret in the address, blinking in steps.
+		_coop_caret_t += delta
+		if fmod(_coop_caret_t, 0.5) < delta:
+			_refresh_coop_address()
 	if _loading != null and _loading.visible and _loading_bar != null:
 		# Indeterminate: the bar fills segment by segment, holds, and starts over.
 		_loading_t += delta
@@ -515,6 +554,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			used = _main_list.handle_input(event)
 		"load":
 			used = _handle_load_input(event)
+		"coop":
+			used = _handle_coop_input(event)
 		"options":
 			used = _options.handle_input(event)
 		"controls":
@@ -558,10 +599,91 @@ func _on_main_activated(id: String) -> void:
 			new_game_requested.emit()
 		"load":
 			show_page("load")
+		"coop":
+			show_page("coop")
 		"options":
 			show_page("options")
 		"quit":
 			quit_requested.emit()
+
+
+# ── co-op ─────────────────────────────────────────────────────────────────────
+
+## Opens the co-op page with a line under the rows (why a call failed, the host left).
+func show_coop_notice(text: String) -> void:
+	if not visible:
+		open()
+	show_page("coop")
+	if _coop_notice != null:
+		_coop_notice.text = text.to_upper()
+
+
+func _refresh_coop() -> void:
+	if _coop_list == null:
+		return
+	if _coop_address.is_empty() and Coop != null:
+		_coop_address = Coop.last_address
+	var here: Array[String] = Coop.local_addresses() if Coop != null else []
+	_coop_list.set_item_sub("host", "  ".join(here.slice(0, 2)))
+	_refresh_coop_address()
+
+
+func _refresh_coop_address() -> void:
+	if _coop_list == null:
+		return
+	var caret := "_" if _coop_list.current_id() == "join" and fmod(_coop_caret_t, 1.0) < 0.5 else " "
+	_coop_list.set_item_sub("join", _coop_address + caret)
+
+
+func _on_coop_activated(id: String) -> void:
+	match id:
+		"host":
+			if _coop_notice != null:
+				_coop_notice.text = ""
+			coop_host_requested.emit()
+		"join":
+			if _coop_address.strip_edges().is_empty():
+				return
+			if _coop_notice != null:
+				_coop_notice.text = ""
+			coop_join_requested.emit(_coop_address.strip_edges())
+		"back":
+			show_page("main")
+
+
+## The address is typed straight into the Join row (digits, letters, . : -), Backspace,
+## Ctrl+V; the rows move with the arrows; Esc goes back.
+func _handle_coop_input(event: InputEvent) -> bool:
+	if event.is_action_pressed("ui_cancel"):
+		show_page("main")
+		return true
+	var key := event as InputEventKey
+	if key != null and key.pressed and _coop_list.current_id() == "join":
+		if key.keycode == KEY_BACKSPACE:
+			_coop_address = _coop_address.left(maxi(0, _coop_address.length() - 1))
+			_refresh_coop_address()
+			return true
+		if key.keycode == KEY_V and key.ctrl_pressed:
+			var pasted := DisplayServer.clipboard_get().strip_edges()
+			for ch in pasted:
+				if _address_char(ch) and _coop_address.length() < 40:
+					_coop_address += ch
+			_refresh_coop_address()
+			return true
+		var ch := String.chr(key.unicode) if key.unicode > 32 else ""
+		if ch != "" and _address_char(ch) and not key.ctrl_pressed and not key.alt_pressed:
+			if _coop_address.length() < 40:
+				_coop_address += ch
+			_refresh_coop_address()
+			return true
+	var used: bool = _coop_list.handle_input(event)
+	if used:
+		_refresh_coop_address()
+	return used
+
+
+static func _address_char(ch: String) -> bool:
+	return ch.length() == 1 and (ch.is_valid_int() or ch == "." or ch == ":" or ch == "-" or (ch.to_lower() >= "a" and ch.to_lower() <= "z"))
 
 
 # ── text helpers ──────────────────────────────────────────────────────────────

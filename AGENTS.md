@@ -97,6 +97,7 @@ godot --headless --path godot --script res://tools/checkin_check.gd
 godot --headless --path godot --script res://tools/season_check.gd
 godot --headless --path godot --script res://tools/director_check.gd
 godot --headless --path godot --script res://tools/bazaar_check.gd
+python godot/tools/coop_check.py [OUT_DIR]   # co-op: two windowed copies (host + client on 127.0.0.1), camps compared
 ```
 
 - **Grep the smoke output for `SCRIPT ERROR` / `Parse Error`.** A tail of the log can hide
@@ -262,6 +263,21 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 - **Seated guest sprites** (`*_sit`, `*_drink`, `*_eat`): the node goes on the floor just in
   front of the seat, the seat line is 0.45 m up the sprite; for a bar stool put the node at
   stool top - 0.45, in front of the stool, or its seat cuts the legs.
+- **Co-op: the joining machine simulates nothing** (`Coop.sim_here()` false): no clock,
+  weather, billing, nights, arrivals or saves of its own; main gates them in `_process`
+  and the handlers. A new system that changes the camp must check `Coop.sim_here()`.
+  The camp is sent as the save snapshot, so whatever the camp is must be in it (and
+  survive `save_codec.gd`: it drops keys it does not know, as it did the old cabin's
+  `derelict`).
+- **The same camp needs the same dice**: `world_generator.world_seed` seeds the lake,
+  fences, corn, litter and horizon; a tile's tree comes from `_tile_rng(coord)`; trees and
+  corn are saved (`nature`). Draw new world dressing from `_rng` inside
+  `generate_base_world` (or a tile's own dice), never `randf()`. Duplicate node names get
+  Godot's `@Name@NNN`: tell kinds apart by group, not by name.
+- **Testing co-op on one PC**: a copy of the game takes ~50 s to boot beside another, and
+  the joining one stops answering for tens of seconds while it builds the camp (ENet is
+  told to wait a minute, `Coop._patient`). The console binary starts the game as a child:
+  end the tree (`taskkill /T`), or a stray copy keeps the port.
 - **Things outside the camp are clicked through InteriorManager**: give the body a
   `building_type` starting `trip_` or `town_` and `town_trip.gd` answers `hint_for` and
   `interact` (the hint can depend on the thing's state: `get_hint_for_structure`). Things

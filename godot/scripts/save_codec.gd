@@ -141,6 +141,9 @@ static func serialize_failures(value: Variant) -> Dictionary:
 			"since_day": max(1, int(entry.get("since_day", 1))),
 			"repair_progress": clampf(float(entry.get("repair_progress", 0.0)), 0.0, 1.0)
 		}
+		# The old cabin of a new camp (main._place_ruined_cabin): no bookings, dark inside.
+		if bool(entry.get("derelict", false)):
+			out[key]["derelict"] = true
 	return out
 
 
@@ -165,6 +168,8 @@ static func deserialize_failures(value: Variant) -> Dictionary:
 			"since_day": max(1, int(entry.get("since_day", 1))),
 			"repair_progress": clampf(float(entry.get("repair_progress", 0.0)), 0.0, 1.0)
 		}
+		if bool(entry.get("derelict", false)):
+			out[key]["derelict"] = true
 	return out
 
 
@@ -229,4 +234,7 @@ static func _mess_dict(raw) -> Dictionary:
 	var out := {"seed": int(d.get("seed", 1)), "level": int(d.get("level", 1)), "archetypes": archetypes}
 	if bool(d.get("fresh", false)):
 		out["fresh"] = true
+	# The old cabin's mess (mess_rules: its own pool, the cobwebs) stays the old cabin's.
+	if bool(d.get("derelict", false)):
+		out["derelict"] = true
 	return out

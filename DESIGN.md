@@ -492,3 +492,25 @@ attractions.
    week end the run outright instead of offering Stay on?
 2. How much may the terminal lie? (Section 2 rules apply: specific, never numeric.)
 3. The raccoon thing: tie it to waste (dumpsters overflowing) as a fifth threat?
+
+## 12. Two wardens (co-op)
+
+Decided with the user on 2026-10-17. Two players run one camp together; only in a
+**sandbox** camp (no month, no checklist). Built and tested in stages, each mechanic gone
+through for two (TODO.md, CO-OP).
+
+- **One camp, one keeper of it.** The host's machine runs the camp exactly as a single
+  player's does; the other machine is a window onto it and sends what its warden does.
+  It gets the whole camp when it joins (the save snapshot; the world's seed and the
+  saved trees make it the same camp to the tree), then the clock, weather, power and the
+  till. Nothing there runs the camp by itself (`Coop.sim_here()`).
+- **The PC.** One sits at it and clicks; the other, standing in the reception, sees the
+  screen normally over their shoulder.
+- **Sleep.** The day is skipped only when both are asleep.
+- **The pause menu** stops nothing: the camp goes on for the other warden.
+- **Nights for two.** Sometimes asymmetric: one sees what the other does not ("didn't you
+  see that?"). Behind it a hidden sanity per player: no meter, never named anywhere,
+  it just works.
+- **The other warden** is a figure like the guests (Grok sprites, the host in a green
+  windbreaker, the other in a red anorak) with their torch and their steps; gone while
+  they are in a room or at the PC.

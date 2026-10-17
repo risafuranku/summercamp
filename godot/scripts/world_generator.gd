@@ -22,6 +22,8 @@ const SEWER_WATER_PADDING: int = 2
 var _grid_manager
 var _building_manager
 var _rng = RandomNumberGenerator.new()
+## The camp's seed (generate_base_world): 0 until a camp is drawn, then kept.
+var world_seed: int = 0
 
 var _terrain_root: Node3D
 var _nature_root: Node3D
@@ -64,7 +66,14 @@ func generate_base_world(spawn_default_buildings: bool = true, spawn_trees: bool
 		push_error("WorldGenerator is missing GridManager or BuildingManager reference.")
 		return
 
-	_rng.randomize()
+	# The camp's own seed, saved with the game (main.gd "grid.seed") and sent to the
+	# other warden in co-op: the same seed draws the same lake, fences, corn, litter and
+	# horizon, and each tile's tree is its own (_tile_rng), so the camp is the same camp
+	# after a load and on both machines. 0 asks for a new camp.
+	if world_seed == 0:
+		world_seed = (randi() & 0x7fffffff) | 1
+	_rng.seed = world_seed
+	_corn_seed_value = -1
 	_clear_generated_nodes()
 	_building_manager.clear_structures()
 
@@ -539,16 +548,70 @@ func _spawn_random_trees() -> void:
 		# The field comes in over the west fence: the first columns are corn, a ragged
 		# edge, not a line. Corn is cleared in the Builder like trees.
 		if coord.x <= _corn_band(coord.y):
-			var patch := _create_corn_patch(tile.world_position)
+			var patch := _create_corn_patch(tile.world_position, _tile_rng(coord))
 			_nature_root.add_child(patch)
 			_grid_manager.set_tile_occupied(coord, true, patch)
 			continue
-		if _rng.randf() > tree_spawn_chance:
+		var trng := _tile_rng(coord)
+		if trng.randf() > tree_spawn_chance:
 			continue
 
-		var tree = _create_tree(tile.world_position)
+		var tree = _create_tree(tile.world_position, trng)
 		_nature_root.add_child(tree)
 		_grid_manager.set_tile_occupied(coord, true, tree)
+
+
+## The tile's own dice: the tree that grows on it (or not) does not depend on what was
+## drawn before it.
+func _tile_rng(coord: Vector2i) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash("%d|%d|%d" % [world_seed, coord.x, coord.y])
+	return r
+
+
+## Where the trees and the corn stand now (saved with the game: what was cleared stays
+## cleared). [{x, y, k: "tree" | "corn"}]
+func nature_snapshot() -> Array:
+	var out: Array = []
+	if _grid_manager == null:
+		return out
+	for coord in _grid_manager.get_all_coords():
+		var tile = _grid_manager.get_tile(coord)
+		if tile == null or not tile.occupied or tile.occupant == null or not is_instance_valid(tile.occupant):
+			continue
+		var occupant := tile.occupant as Node
+		if occupant == null or not (occupant.is_in_group("trees") or occupant.name == "Tree"):
+			continue
+		out.append({"x": coord.x, "y": coord.y, "k": "corn" if occupant.is_in_group("corn") else "tree"})
+	return out
+
+
+## The trees and the corn exactly as nature_snapshot() had them; each tree is the one
+## its tile grows (the same dice as _spawn_random_trees).
+func restore_nature(list: Array) -> void:
+	if _grid_manager == null:
+		return
+	_ensure_roots()
+	_clear_nature_nodes_and_occupancy()
+	for e_any in list:
+		if not (e_any is Dictionary):
+			continue
+		var e := e_any as Dictionary
+		var c := Vector2i(int(e.get("x", -1)), int(e.get("y", -1)))
+		if not _grid_manager.is_in_bounds(c):
+			continue
+		var tile = _grid_manager.get_tile(c)
+		if tile == null or tile.occupied or tile.tile_type != _grid_manager.TILE_GRASS:
+			continue
+		var node: Node3D
+		if str(e.get("k", "tree")) == "corn":
+			node = _create_corn_patch(tile.world_position, _tile_rng(c))
+		else:
+			var trng := _tile_rng(c)
+			trng.randf()
+			node = _create_tree(tile.world_position, trng)
+		_nature_root.add_child(node)
+		_grid_manager.set_tile_occupied(c, true, node)
 
 
 ## How far into the camp the corn reaches in this row (tile x, inclusive; -1 = none).
@@ -560,7 +623,7 @@ func _corn_band(row: int) -> int:
 
 func _corn_seed() -> int:
 	if _corn_seed_value < 0:
-		_corn_seed_value = _rng.randi() % 100000
+		_corn_seed_value = absi(world_seed) % 100000
 	return _corn_seed_value
 
 
@@ -572,7 +635,8 @@ static var _corn_mesh: ArrayMesh
 
 ## One tile of corn inside the camp: stalks you walk through (they rustle and slow you),
 ## a "tree" for the Builder (bulldoze clears it) drawn there as corn.
-func _create_corn_patch(pos: Vector3) -> Node3D:
+func _create_corn_patch(pos: Vector3, dice: RandomNumberGenerator = null) -> Node3D:
+	var r: RandomNumberGenerator = dice if dice != null else _rng
 	var patch := Node3D.new()
 	patch.name = "CornPatch"
 	patch.add_to_group("trees")
@@ -608,12 +672,12 @@ func _create_corn_patch(pos: Vector3) -> Node3D:
 	var xf: Array[Transform3D] = []
 	var x := -size * 0.5 + 0.35
 	while x < size * 0.5:
-		var z := -size * 0.5 + _rng.randf_range(0.1, 0.4)
+		var z := -size * 0.5 + r.randf_range(0.1, 0.4)
 		while z < size * 0.5:
-			if _rng.randf() > 0.08:
-				var s := _rng.randf_range(0.8, 1.15)
-				xf.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.9, 1.15), s)), Vector3(x + _rng.randf_range(-0.15, 0.15), 0.0, z)))
-			z += _rng.randf_range(0.55, 0.8)
+			if r.randf() > 0.08:
+				var s := r.randf_range(0.8, 1.15)
+				xf.append(Transform3D(Basis(Vector3.UP, r.randf() * TAU).scaled(Vector3(s, s * r.randf_range(0.9, 1.15), s)), Vector3(x + r.randf_range(-0.15, 0.15), 0.0, z)))
+			z += r.randf_range(0.55, 0.8)
 		x += 1.0
 	mm.instance_count = xf.size()
 	for i in xf.size():
@@ -768,20 +832,21 @@ func _scatter_ground_litter() -> void:
 		scatter_root.add_child(piece)
 
 
-func _create_tree(pos: Vector3) -> StaticBody3D:
+func _create_tree(pos: Vector3, dice: RandomNumberGenerator = null) -> StaticBody3D:
+	var r: RandomNumberGenerator = dice if dice != null else _rng
 	var tree = StaticBody3D.new()
 	tree.name = "Tree"
 	tree.add_to_group("trees")
-	tree.position = pos + Vector3(_rng.randf_range(-0.6, 0.6), 0.0, _rng.randf_range(-0.6, 0.6))
-	tree.rotation.y = _rng.randf_range(0.0, TAU)
-	var roll := _rng.randf()
+	tree.position = pos + Vector3(r.randf_range(-0.6, 0.6), 0.0, r.randf_range(-0.6, 0.6))
+	tree.rotation.y = r.randf_range(0.0, TAU)
+	var roll := r.randf()
 	var kind := TREE_KIND_SPRUCE
 	if roll < 0.06:
 		kind = TREE_KIND_DEAD
 	elif roll < 0.24:
 		kind = TREE_KIND_BIRCH
-	var s := _rng.randf_range(0.82, 1.32)
-	tree.scale = Vector3(s, s * _rng.randf_range(0.92, 1.12), s)
+	var s := r.randf_range(0.82, 1.32)
+	tree.scale = Vector3(s, s * r.randf_range(0.92, 1.12), s)
 
 	var trunk_collider = CollisionShape3D.new()
 	var trunk_shape = CylinderShape3D.new()
@@ -794,12 +859,12 @@ func _create_tree(pos: Vector3) -> StaticBody3D:
 	match kind:
 		TREE_KIND_BIRCH:
 			_add_tree_part(tree, _tree_mesh("birch_trunk"), _tree_material("birch_bark", 0))
-			_add_tree_part(tree, _tree_mesh("birch_crown"), _tree_material("leaf", _rng.randi_range(1, 2)))
+			_add_tree_part(tree, _tree_mesh("birch_crown"), _tree_material("leaf", r.randi_range(1, 2)))
 		TREE_KIND_DEAD:
 			_add_tree_part(tree, _tree_mesh("dead"), _tree_material("bark", 1))
 		_:
 			_add_tree_part(tree, _tree_mesh("spruce_trunk"), _tree_material("bark", 0))
-			_add_tree_part(tree, _tree_mesh("spruce_crown"), _tree_material("needles", _rng.randi_range(0, 2)))
+			_add_tree_part(tree, _tree_mesh("spruce_crown"), _tree_material("needles", r.randi_range(0, 2)))
 	return tree
 
 
