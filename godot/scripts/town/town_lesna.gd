@@ -22,6 +22,10 @@ const ROAD_HALF := 3.4
 
 var worldgen: Node
 var _rng := RandomNumberGenerator.new()
+var _chimneys: Array = []
+var _smoke: Array = []           # Sprite3D puffs
+var _smoke_t := 0.0
+var _hour := 12.0
 var _mats: Dictionary = {}
 ## Things town_trip.gd looks for, by name: doors and people get added in stage C.
 var spots: Dictionary = {}
@@ -47,6 +51,7 @@ func build(p_worldgen: Node) -> void:
 	_lamps()
 	_forest()
 	_hotspots()
+	_build_smoke()
 	var people = PEOPLE_SCRIPT.new()
 	add_child(people)
 	people.build()
@@ -393,6 +398,15 @@ func _houses() -> void:
 		_mat(TEX_CAMP + "brick_red.png", Color(0.95, 0.9, 0.85), Vector2(3.0, 1.0)),
 		_mat(_first([TEX + "village_plaster.png", TEX_CAMP + "roughcast_wall.png"]), Color(0.9, 0.95, 1.0), Vector2(3.0, 1.0))]
 	var window := _mat(_first([TEX + "house_window.png", TEX_CAMP + "window_curtain.png"]), Color(0.6, 0.66, 0.7))
+	# The same window with the light on behind the curtain (multiply: the picture shows,
+	# warmed and brighter), for the evenings.
+	var lit := (window as StandardMaterial3D).duplicate() as StandardMaterial3D
+	lit.emission_enabled = true
+	lit.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+	lit.emission_texture = lit.albedo_texture
+	lit.emission = Color(1.0, 0.78, 0.45)
+	lit.emission_energy_multiplier = 1.4
+	var lit_windows: Array = []
 	var door := _mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.42, 0.3, 0.2))
 	var places := [[Vector3(-44, 0, -16), 1.0], [Vector3(34, 0, -17), 1.0], [Vector3(-48, 0, 16), -1.0], [Vector3(10, 0, 19), -1.0], [Vector3(-60, 0, -18), 1.0], [Vector3(68, 0, -16), 1.0], [Vector3(-36, 0, -36), 1.0], [Vector3(30, 0, -34), 1.0]]
 	for p in places:
@@ -401,10 +415,18 @@ func _houses() -> void:
 		var size := Vector3(_rng.randf_range(9.0, 12.0), _rng.randf_range(3.6, 4.4), _rng.randf_range(7.0, 8.5))
 		var root := _block(at, size, walls[_rng.randi() % walls.size()])
 		var fz := size.z * 0.5 * facing.z
-		_face(root, Vector3(-size.x * 0.28, 1.7, fz), Vector2(1.3, 1.3), facing, window)
-		_face(root, Vector3(size.x * 0.28, 1.7, fz), Vector2(1.3, 1.3), facing, window)
+		for wx in [-size.x * 0.28, size.x * 0.28]:
+			var win := _face(root, Vector3(wx, 1.7, fz), Vector2(1.3, 1.3), facing, window)
+			# Each window has its own evening: lit from some hour to some hour.
+			lit_windows.append({"mesh": win, "on": _rng.randf_range(17.5, 20.5), "off": _rng.randf_range(21.5, 24.5), "dark": window, "lit": lit})
+		# A chimney, and smoke from it when somebody has the stove going.
+		var chim := Vector3(size.x * 0.3, size.y + size.z * 0.34, -size.z * 0.12)
+		_box(root, chim, Vector3(0.6, 1.4, 0.6), _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.85, 0.8)))
+		if _rng.randf() < 0.7:
+			_chimneys.append(root.position + chim + Vector3(0, 0.8, 0))
 		_face(root, Vector3(0, 1.05, fz), Vector2(1.1, 2.1), facing, door)
 		# A picket fence along the front garden.
+		spots["lit_windows"] = lit_windows
 		var fence := _mat(TEX_CAMP + "planks_grey.png", Color(0.86, 0.84, 0.76), Vector2(6.0, 1.0))
 		_box(self, at + Vector3(0, 0.5, fz + facing.z * 3.0), Vector3(size.x + 2.0, 1.0, 0.06), fence, true)
 
@@ -560,6 +582,51 @@ func _click(pos: Vector3, size: Vector3, kind: String, what: String) -> StaticBo
 
 
 # ── the night ───────────────────────────────────────────────────────────────
+
+## Chimney smoke: a few grey pixel puffs per chimney, rising and leaning with the wind,
+## moved in steps.
+func _build_smoke() -> void:
+	var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	for y in 8:
+		for x in 8:
+			var d := Vector2(x - 3.5, y - 3.5).length()
+			if d < 2.2 or (d < 3.8 and (x + y) % 2 == 0):
+				img.set_pixel(x, y, Color(0.78, 0.78, 0.76, 0.8))
+	var tex := ImageTexture.create_from_image(img)
+	for c in _chimneys:
+		for k in 5:
+			var s := Sprite3D.new()
+			s.texture = tex
+			s.pixel_size = 0.12
+			s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			s.shaded = false
+			s.position = c
+			add_child(s)
+			_smoke.append({"sprite": s, "base": c, "phase": float(k) / 5.0})
+
+
+func _process(delta: float) -> void:
+	_smoke_t += delta
+	var step := floorf(_smoke_t * 12.0) / 12.0
+	for p in _smoke:
+		var age := fmod(step * 0.22 + float(p["phase"]), 1.0)
+		var s: Sprite3D = p["sprite"]
+		s.position = (p["base"] as Vector3) + Vector3(age * 1.6, age * 4.5, age * 0.4)
+		s.scale = Vector3.ONE * (0.6 + age * 1.8)
+		s.modulate = Color(1, 1, 1, (1.0 - age) * 0.7)
+
+
+## The hour, for the windows (town_trip.gd, now and then).
+func set_hour(h: float) -> void:
+	_hour = h
+	for wdict in spots.get("lit_windows", []):
+		var d: Dictionary = wdict
+		var on_at: float = d["on"]
+		var off_at: float = d["off"]
+		var lit := (h >= on_at and h < minf(off_at, 24.0)) or (off_at > 24.0 and h < off_at - 24.0) or (h >= 5.6 and h < 6.6 and on_at < 18.5)
+		(d["mesh"] as MeshInstance3D).material_override = d["lit"] if lit else d["dark"]
+
 
 func set_night(night: bool) -> void:
 	for pair in spots.get("lamps", []):

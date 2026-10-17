@@ -85,6 +85,43 @@ var _night := false
 var _rng := RandomNumberGenerator.new()
 var _mats: Dictionary = {}
 var _door_leaves: Array[MeshInstance3D] = []
+var _glass: ShaderMaterial
+## The panes: a little dirt, and in the rain drops running down them, blown back as the
+## bus picks up speed (moved in steps, twelve a second).
+const GLASS_SHADER := """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never;
+uniform float rain = 0.0;
+uniform float t = 0.0;
+uniform float speed = 0.0;
+float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void fragment() {
+	vec2 uv = UV * vec2(110.0, 9.0);
+	vec2 cell = floor(uv);
+	vec2 f = fract(uv);
+	float r = h(cell);
+	float drop = 0.0;
+	if (r < 0.45 * rain) {
+		// One drop per cell: it slides down (and back with the speed), leaving a trail.
+		float y = fract(h(cell + 3.1) + t * (0.25 + r * 0.6));
+		float x = 0.5 + (h(cell + 7.7) - 0.5) * 0.5 - (y - 0.5) * speed * 0.6;
+		float d = abs(f.x - x);
+		if (d < 0.09 && abs(f.y - y) < 0.12) { drop = 1.0; }
+		else if (d < 0.05 && f.y < y) { drop = 0.35; }
+	}
+	ALBEDO = mix(vec3(0.7, 0.75, 0.76), vec3(0.88, 0.92, 0.95), drop);
+	ALPHA = 0.08 + drop * 0.45;
+}
+"""
+
+
+func _glass_material() -> ShaderMaterial:
+	if _glass == null:
+		_glass = ShaderMaterial.new()
+		var sh := Shader.new()
+		sh.code = GLASS_SHADER
+		_glass.shader = sh
+	return _glass
 
 
 func _init() -> void:
@@ -186,6 +223,8 @@ func _copy_world_light() -> bool:
 func set_time(hour: float, fog: float, raining: bool) -> void:
 	if _env == null:
 		return
+	if _glass != null:
+		_glass.set_shader_parameter("rain", 1.0 if raining else 0.0)
 	var fill := _vp.get_node_or_null("CabinFill") as DirectionalLight3D
 	if fill != null:
 		fill.light_energy = 0.08 if (hour >= 20.3 or hour < 5.8) else 0.45
@@ -219,6 +258,8 @@ func set_time(hour: float, fog: float, raining: bool) -> void:
 		_sun.light_energy = 1.05
 		_sun.light_color = Color(1.0, 0.96, 0.86)
 		_env.ambient_light_energy = 0.62
+	if _glass != null:
+		_glass.set_shader_parameter("rain", 1.0 if raining else 0.0)
 	if raining and not _night:
 		_sky.sky_top_color = _sky.sky_top_color.lerp(Color(0.5, 0.52, 0.54), 0.7)
 		_sky.sky_horizon_color = _sky.sky_horizon_color.lerp(Color(0.6, 0.62, 0.62), 0.7)
@@ -277,6 +318,9 @@ func _process(delta: float) -> void:
 		_ride.volume_db = lerpf(-12.0, -4.0, clampf(_speed / CRUISE, 0.0, 1.0))
 		_ride.pitch_scale = lerpf(0.85, 1.05, clampf(_speed / CRUISE, 0.0, 1.0))
 	_update_bumps(delta)
+	if _glass != null:
+		_glass.set_shader_parameter("t", floorf(Time.get_ticks_msec() / 83.0) * 0.083)
+		_glass.set_shader_parameter("speed", clampf(_speed / CRUISE, 0.0, 1.0))
 	if _ticket_view != null and _ticket_view.visible:
 		return
 	if _state == SITTING:
@@ -666,9 +710,7 @@ func _build_cabin() -> void:
 			_box(cabin, Vector3(x, 1.35, z), Vector3(0.07, 0.86, 0.09), pillar)
 			z += 1.18
 		# A faint pane: dirt and a little light on the glass.
-		var glass := _mat("glass", "", Color(0.7, 0.75, 0.75, 0.1))
-		glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_quad(cabin, Vector3(x - side * 0.01, 1.35, mid), Vector2(length, 0.84), side * PI * 0.5, glass)
+		_quad(cabin, Vector3(x - side * 0.01, 1.35, mid), Vector2(length, 0.84), side * PI * 0.5, _glass_material())
 	# The front door: no panel under the windows there, two leaves that fold.
 	var door_mat := _mat("door", "", Color(0.55, 0.18, 0.13))
 	for i in 2:

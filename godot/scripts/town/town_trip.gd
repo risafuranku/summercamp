@@ -52,6 +52,9 @@ var _ride
 var _town
 var _camp_bus
 var _town_bus
+## The works bus after midnight (one for the camp's road, one for Lesna's).
+var _works_camp
+var _works_town
 ## A bus kept standing past its time (you are on it) or put on just for you (you got off
 ## it): stop -> {"mode": "hold"|"drop", "t": seconds, "pose", "leave"}.
 var _special: Dictionary = {}
@@ -388,9 +391,11 @@ func _process(delta: float) -> void:
 		_camp_bus.set_night(_night)
 		if _town != null:
 			_town.set_night(_night)
+			_town.set_hour(h)
 			if _town_bus != null:
 				_town_bus.set_night(_night)
 	_run_stop("camp", _camp_bus, delta, h)
+	_run_works(h, delta)
 	if _town != null:
 		_run_stop("town", _town_bus, delta, h)
 		_town.spots["people"].update(h, delta)
@@ -515,6 +520,46 @@ func _run_stop(stop: String, bus: Node3D, delta: float, h: float) -> void:
 		if bus.is_door_open():
 			bus.open_door(false)
 			bus.play("res://assets/sfx/bus/depart.mp3", 0.0)
+
+
+## The works bus (the timetable's "+"): lit inside, SLUZEBNI on its board, past the camp
+## stop a little after midnight without slowing, on up the road towards the camp and
+## round the bend, and through Lesna at 23:46 towards the dam. It stops for nobody.
+const WORKS_HOURS := 0.24
+
+
+func _run_works(h: float, delta: float) -> void:
+	var road := _road()
+	if _works_camp == null or not is_instance_valid(_works_camp):
+		_works_camp = BUS_MODEL.new()
+		_works_camp.name = "Bus380Works"
+		road.add_child(_works_camp)
+		_works_camp.destination = "SLUZEBNI"
+		_works_camp.set_running(false)
+	_pass(_works_camp, road.works_bus_path(), fposmod(h - (TIMES.WORKS_CAMP - WORKS_HOURS * 0.5), 24.0) / WORKS_HOURS, delta)
+	if _town != null:
+		if _works_town == null or not is_instance_valid(_works_town):
+			_works_town = BUS_MODEL.new()
+			_works_town.name = "Bus380WorksLesna"
+			_town.add_child(_works_town)
+			_works_town.destination = "SLUZEBNI"
+			_works_town.set_running(false)
+		var path := PackedVector3Array([_town.w(Vector3(-150.0, 0, 1.6)), _town.w(Vector3(160.0, 0, 1.6))])
+		_pass(_works_town, path, fposmod(h - (TIMES.WORKS_TOWN - WORKS_HOURS * 0.5), 24.0) / WORKS_HOURS, delta)
+
+
+func _pass(bus: Node3D, path: PackedVector3Array, k: float, delta: float) -> void:
+	if k < 0.0 or k > 1.0:
+		if bus.visible:
+			bus.set_running(false)
+		return
+	if not bus.visible:
+		bus.set_running(true)
+		bus.set_night(true)
+		bus.open_door(false)
+	var was: Vector3 = bus.global_position
+	_place_on(bus, path, k)
+	bus.set_speed(was.distance_to(bus.global_position) / maxf(delta, 0.001))
 
 
 ## {} or {mode: "in"|"stand"|"out", k (0..1 along the path), path, pose, dest, stop_id}.
