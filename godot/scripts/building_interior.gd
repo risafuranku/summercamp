@@ -20,6 +20,8 @@ const RECEPTION_PREFIX := {
 }
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+## Camera moves in steps, twelve a second (sitting down, standing up, looking round).
+const STEP12 = preload("res://scripts/ui/step12.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 ## Your torch, in here when it is dark: it shines where the cursor points.
@@ -586,13 +588,7 @@ func _enter_crt_look_back() -> void:
 	_crt_orbit_enabled = false
 	if _camera_tween != null:
 		_camera_tween.kill()
-	_camera_tween = create_tween()
-	_camera_tween.set_parallel(true)
-	_camera_tween.set_ease(Tween.EASE_OUT)
-	_camera_tween.set_trans(Tween.TRANS_SINE)
-	_camera_tween.tween_property(_interior_camera, "position", _crt_look_back_cam_pos, CRT_LOOK_BACK_TRANSITION_SEC)
-	_camera_tween.tween_property(_interior_camera, "rotation", _crt_look_back_cam_rot, CRT_LOOK_BACK_TRANSITION_SEC)
-	_camera_tween.tween_property(_interior_camera, "fov", CRT_LOOK_BACK_FOV, CRT_LOOK_BACK_TRANSITION_SEC)
+	_camera_tween = STEP12.move(self, _interior_camera, {"position": _crt_look_back_cam_pos, "rotation": _crt_look_back_cam_rot, "fov": CRT_LOOK_BACK_FOV}, CRT_LOOK_BACK_TRANSITION_SEC, Tween.TRANS_SINE, Tween.EASE_OUT)
 
 
 func _exit_crt_look_back() -> void:
@@ -603,13 +599,7 @@ func _exit_crt_look_back() -> void:
 	_crt_orbit_enabled = false
 	if _camera_tween != null:
 		_camera_tween.kill()
-	_camera_tween = create_tween()
-	_camera_tween.set_parallel(true)
-	_camera_tween.set_ease(Tween.EASE_OUT)
-	_camera_tween.set_trans(Tween.TRANS_SINE)
-	_camera_tween.tween_property(_interior_camera, "position", _crt_full_cam_pos, CRT_LOOK_BACK_TRANSITION_SEC)
-	_camera_tween.tween_property(_interior_camera, "rotation", _crt_rest_rot(_crt_full_cam_pos), CRT_LOOK_BACK_TRANSITION_SEC)
-	_camera_tween.tween_property(_interior_camera, "fov", CRT_READY_FOV, CRT_LOOK_BACK_TRANSITION_SEC)
+	_camera_tween = STEP12.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, CRT_LOOK_BACK_TRANSITION_SEC, Tween.TRANS_SINE, Tween.EASE_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
@@ -1245,18 +1235,11 @@ func enter_crt_view(instant: bool = false) -> void:
 		if _crt_ui:
 			_crt_ui.open_panel()
 		return
-	_camera_tween = create_tween()
-	_camera_tween.set_parallel(true)
-	_camera_tween.set_ease(Tween.EASE_OUT)
-	_camera_tween.set_trans(Tween.TRANS_CUBIC)
-
 	# Target: Front of CRT (approx dist 0.5m so screen fits nice)
 	# Screen Z global: -0.535.
 	# Target Z: 0.1
 	_crt_orbit_enabled = false
-	_camera_tween.tween_property(_interior_camera, "position", _crt_view_cam_pos, 1.2)
-	_camera_tween.tween_property(_interior_camera, "rotation", _crt_rest_rot(_crt_view_cam_pos), 1.2)
-	_camera_tween.tween_property(_interior_camera, "fov", CRT_ENTER_FOV, 1.2)
+	_camera_tween = STEP12.move(self, _interior_camera, {"position": _crt_view_cam_pos, "rotation": _crt_rest_rot(_crt_view_cam_pos), "fov": CRT_ENTER_FOV}, 1.2, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
@@ -1280,14 +1263,7 @@ func _exit_crt_view() -> void:
 		_crt_ui.close_panel()
 
 	if _camera_tween: _camera_tween.kill()
-	_camera_tween = create_tween()
-	_camera_tween.set_parallel(true)
-	_camera_tween.set_ease(Tween.EASE_OUT)
-	_camera_tween.set_trans(Tween.TRANS_CUBIC)
-
-	_camera_tween.tween_property(_interior_camera, "position", _initial_cam_pos, 0.8)
-	_camera_tween.tween_property(_interior_camera, "rotation", _initial_cam_rot, 0.8)
-	_camera_tween.tween_property(_interior_camera, "fov", _initial_cam_fov, 0.8)
+	_camera_tween = STEP12.move(self, _interior_camera, {"position": _initial_cam_pos, "rotation": _initial_cam_rot, "fov": _initial_cam_fov}, 0.8, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 
 
 func _input(event: InputEvent) -> void:
@@ -1409,20 +1385,12 @@ func _crt_lean(on: bool, instant := false) -> void:
 		_camera_tween.kill()
 	if instant:
 		return
-	_camera_tween = create_tween()
-	_camera_tween.set_parallel(true)
-	_camera_tween.set_ease(Tween.EASE_IN_OUT)
-	_camera_tween.set_trans(Tween.TRANS_SINE)
 	if on:
 		var pos := _crt_full_cam_pos + Vector3(0.46, 0.08, -0.12)
 		var rot := Transform3D(Basis(), pos).looking_at(WINDOW_CENTER + Vector3(0, -0.12, 0), Vector3.UP).basis.get_euler()
-		_camera_tween.tween_property(_interior_camera, "position", pos, 0.55)
-		_camera_tween.tween_property(_interior_camera, "rotation", rot, 0.55)
-		_camera_tween.tween_property(_interior_camera, "fov", 44.0, 0.55)
+		_camera_tween = STEP12.move(self, _interior_camera, {"position": pos, "rotation": rot, "fov": 44.0}, 0.55, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
 	else:
-		_camera_tween.tween_property(_interior_camera, "position", _crt_full_cam_pos, 0.45)
-		_camera_tween.tween_property(_interior_camera, "rotation", _crt_rest_rot(_crt_full_cam_pos), 0.45)
-		_camera_tween.tween_property(_interior_camera, "fov", CRT_READY_FOV, 0.45)
+		_camera_tween = STEP12.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, 0.45, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
 		_camera_tween.finished.connect(func():
 			if not _crt_active or _crt_leaning:
 				return
@@ -1663,13 +1631,7 @@ func _focus_crt_full() -> void:
 	# The desktop is up: lean in to it, slowly, to the pose the mouse orbit keeps (it used
 	# to snap there in 0.4 s to a fixed angle the orbit then pulled away from: a jerk).
 	_crt_orbit_enabled = false
-	_camera_tween = create_tween()
-	_camera_tween.set_parallel(true)
-	_camera_tween.set_ease(Tween.EASE_IN_OUT)
-	_camera_tween.set_trans(Tween.TRANS_SINE)
-	_camera_tween.tween_property(_interior_camera, "position", _crt_full_cam_pos, 1.1)
-	_camera_tween.tween_property(_interior_camera, "rotation", _crt_rest_rot(_crt_full_cam_pos), 1.1)
-	_camera_tween.tween_property(_interior_camera, "fov", CRT_READY_FOV, 1.1)
+	_camera_tween = STEP12.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, 1.1, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return

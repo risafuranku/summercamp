@@ -41,6 +41,9 @@ var terrain_speed_mult: float = 1.0
 @export var bob_smoothing: float = 12.0
 @export var bob_snap_step: float = 0.012
 @export var bob_snap_blend: float = 0.38
+## The step bob moves this many times a second, holding between (the hand, the fire and
+## the room moves go at twelve too); 0 = smooth. Turning and walking stay smooth.
+@export var bob_fps: float = 12.0
 @export var base_tilt_amount: float = 0.035
 @export var rotation_tilt_amount: float = 0.045
 @export var tilt_smoothing: float = 4.0
@@ -108,6 +111,7 @@ var _camera: Camera3D
 var _base_head_pos: Vector3 = Vector3(0.0, 1.55, 0.0)
 var _bob_time: float = 0.0
 var _bob_offset: Vector3 = Vector3.ZERO
+var _bob_tick: float = 0.0
 var _prev_step_wave: float = 0.0
 var _step_kick: float = 0.0
 var _mouse_impact: Vector2 = Vector2.ZERO
@@ -593,7 +597,13 @@ func _update_head_motion(delta: float) -> void:
 
 	_mouse_impact = _mouse_impact.move_toward(Vector2.ZERO, handheld_return * delta)
 	var target_offset = Vector3(bob_x, bob_y, 0.0)
-	_bob_offset = _bob_offset.lerp(target_offset, clamp(delta * bob_smoothing, 0.0, 1.0))
+	if bob_fps > 0.0:
+		_bob_tick += delta
+		if _bob_tick >= 1.0 / bob_fps:
+			_bob_tick = fmod(_bob_tick, 1.0 / bob_fps)
+			_bob_offset = target_offset
+	else:
+		_bob_offset = _bob_offset.lerp(target_offset, clamp(delta * bob_smoothing, 0.0, 1.0))
 	var pitch_limit = max(deg_to_rad(vertical_look_limit_degrees), 0.0001)
 	var pitch_ratio = clamp(_pitch / pitch_limit, -1.0, 1.0)
 	var pseudo_offset = Vector3(0.0, -pitch_ratio * pseudo_pitch_vertical_shift, abs(pitch_ratio) * pseudo_pitch_forward_shift)

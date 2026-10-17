@@ -133,6 +133,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Which enemy an archetype brings | `main.ENEMY_FOR_ARCHETYPE` + `scripts/enemies/` |
 | HUD | `scripts/hud_manager.gd` (+ `scripts/ui/retro_ui.gd` kit) |
 | Menus / pause / game over | `scripts/ui/` |
+| Animation in steps (12 a second) | `scripts/ui/step12.gd`: `Step12.add(tween, target, {"prop": value}, seconds)` instead of `tween_property` for anything that moves on its own (camera moves, doors, swipes); the door transition into and out of buildings `scripts/ui/door_transition.gd` (frozen frame, dither dissolve), called from `interior_manager._door_transition()` |
 | The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The camp computer (desktop, boot, windows) | `scripts/os98/os_shell.gd`, look: `os_theme.gd` |
@@ -230,6 +231,11 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   it loads main.tscn on a thread and changes to it (headless runs skip it at once). The
   engine boot image `assets/boot/undo_labs_boot.png` is its first frame: re-bake it
   (`tools/studio_splash_bake.gd -- --boot`) after changing the sign, wall or shader.
+- **Things move in steps, twelve a second** (the fire, the torch hand, the gate, the room
+  camera moves, the swipes, the step bob): new self-running animation goes through
+  `Step12` (scripts/ui/step12.gd), not a smooth `tween_property`. Mouse look and walking
+  stay smooth. A new kind of room must call `interior_manager._door_transition(true)`
+  before it opens and `(false)` when it has closed.
 - **Physics ignores visibility**: hidden rooms' bodies still catch rays. Disable a hotspot's
   `collision_layer` when its thing is absent (the empty counter spot stood before the door).
 - **Load textures outside draw callbacks**: a texture first `load()`ed inside a `_draw`

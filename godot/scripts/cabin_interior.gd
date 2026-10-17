@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+## The room swipe moves in steps, twelve a second (scripts/ui/step12.gd).
+const STEP12 = preload("res://scripts/ui/step12.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const SLOP_BUCKET_POS := Vector3(1.12, 0.05, 0.62)
 ## The bed: frame centre on the floor, and the top of its mattress.
@@ -971,9 +973,9 @@ func _play_room_swipe(target_room: String, direction: int) -> void:
 	if _swipe_tween != null and is_instance_valid(_swipe_tween):
 		_swipe_tween.kill()
 	_swipe_tween = create_tween()
-	_swipe_tween.tween_property(_swipe_overlay, "position:x", mid_x, 0.11).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	STEP12.add(_swipe_tween, _swipe_overlay, {"position:x": mid_x}, 0.17, Tween.TRANS_CUBIC, Tween.EASE_IN)
 	_swipe_tween.tween_callback(Callable(self, "_set_cabin_room").bind(target_room, true))
-	_swipe_tween.tween_property(_swipe_overlay, "position:x", end_x, 0.15).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	STEP12.add(_swipe_tween, _swipe_overlay, {"position:x": end_x}, 0.17, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 	_swipe_tween.tween_callback(Callable(self, "_finish_room_swipe"))
 
 

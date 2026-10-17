@@ -14,6 +14,8 @@ extends RefCounted
 ## The camp side of it (the electrician's visit, the key, sleeping through the night)
 ## lives in scripts/reception/camp_office.gd, reached through main.
 
+## Moves in steps, twelve a second (scripts/ui/step12.gd).
+const STEP12 = preload("res://scripts/ui/step12.gd")
 const K = preload("res://scripts/interior_kit.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
@@ -447,14 +449,12 @@ func go_back_room() -> void:
 		return
 	glint.clear()
 	_play(SFX_DOOR, -9.0)
+	# In steps, twelve a second, like the rest of the room's moves.
 	_walk = host.create_tween()
-	_walk.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_walk.tween_property(_door_pivot, "rotation_degrees:y", DOOR_OPEN_DEG, 0.55)
-	_walk.parallel().tween_property(camera, "rotation", Vector3(0.0, deg_to_rad(90.0), 0.0), 0.55)
-	_walk.parallel().tween_property(camera, "position", Vector3(-1.1, 1.47, 1.28), 0.55)
-	_walk.tween_property(camera, "position", THRESHOLD, 0.45)
-	_walk.tween_property(camera, "position", BACK_ROOM.STAND, 0.7)
-	_walk.parallel().tween_property(camera, "rotation", back_base_rot, 0.7)
+	STEP12.add(_walk, _door_pivot, {"rotation_degrees:y": DOOR_OPEN_DEG}, 0.55)
+	STEP12.add(_walk, camera, {"rotation": Vector3(0.0, deg_to_rad(90.0), 0.0), "position": Vector3(-1.1, 1.47, 1.28)}, 0.55, Tween.TRANS_SINE, Tween.EASE_IN_OUT, true)
+	STEP12.add(_walk, camera, {"position": THRESHOLD}, 0.45)
+	STEP12.add(_walk, camera, {"position": BACK_ROOM.STAND, "rotation": back_base_rot}, 0.7)
 	_walk.tween_callback(func():
 		where = "back"
 		look_back.reset()
@@ -470,13 +470,10 @@ func go_office() -> void:
 	var face := deg_to_rad(-90.0)
 	camera.rotation.y = wrapf(camera.rotation.y, face - PI, face + PI)
 	_walk = host.create_tween()
-	_walk.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_walk.tween_property(camera, "rotation", Vector3(0.0, deg_to_rad(-90.0), 0.0), 0.45)
-	_walk.parallel().tween_property(camera, "position", BACK_THRESHOLD, 0.45)
-	_walk.tween_property(camera, "position", Vector3(-1.4, 1.42, 1.3), 0.6)
-	_walk.tween_property(camera, "position", to_pos, 0.55)
-	_walk.parallel().tween_property(camera, "rotation", to_rot, 0.55)
-	_walk.parallel().tween_property(_door_pivot, "rotation_degrees:y", 0.0, 0.5)
+	STEP12.add(_walk, camera, {"rotation": Vector3(0.0, deg_to_rad(-90.0), 0.0), "position": BACK_THRESHOLD}, 0.45)
+	STEP12.add(_walk, camera, {"position": Vector3(-1.4, 1.42, 1.3)}, 0.6)
+	STEP12.add(_walk, camera, {"position": to_pos, "rotation": to_rot}, 0.55)
+	STEP12.add(_walk, _door_pivot, {"rotation_degrees:y": 0.0}, 0.5, Tween.TRANS_SINE, Tween.EASE_IN_OUT, true)
 	_walk.tween_callback(func():
 		where = "office"
 		_play(SFX_LATCH, -14.0)

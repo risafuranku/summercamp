@@ -13,6 +13,8 @@ const CARAVAN_INTERIOR_SCRIPT = preload("res://scripts/caravan_interior.gd")
 const SERVICE_INTERIOR_SCRIPT = preload("res://scripts/service_interior_generator.gd")
 const BUILDING_UPGRADE_MENU_SCRIPT = preload("res://scripts/building_upgrade_menu.gd")
 const GUEST_DIALOG_SCRIPT = preload("res://scripts/guest_dialog.gd")
+## Through the door and back: the frozen frame breaking up in steps (twelve a second).
+const DOOR_TRANSITION_SCRIPT = preload("res://scripts/ui/door_transition.gd")
 
 const TIME_NIGHT: int = 2
 
@@ -88,6 +90,16 @@ var _grid_power_available: bool = true
 var _crt_desktop_state_cache: Dictionary = {}
 
 
+var _door_fx: CanvasLayer
+
+
+## The camp is about to give way to a room, or a room has just closed: the frame on
+## screen still shows what was there; it breaks up into what is there now.
+func _door_transition(going_in: bool) -> void:
+	if _door_fx != null:
+		_door_fx.play(going_in)
+
+
 func setup(
 	world_3d: Node3D,
 	player: Node,
@@ -106,6 +118,9 @@ func setup(
 	_economy_manager = economy_manager
 	_build_interior_assignment_lookup()
 	_bind_guest_visual_event_handlers()
+	if _door_fx == null:
+		_door_fx = DOOR_TRANSITION_SCRIPT.new()
+		add_child(_door_fx)
 	# setup() is called once before player spawn and again after spawn.
 	# Rebind existing interiors so runtime refs (player/audio/grid) stay valid.
 	if _building_interior != null and is_instance_valid(_building_interior) and _building_interior.has_method("setup"):
@@ -398,6 +413,7 @@ func _on_crt_interact() -> void:
 	if _building_interior.is_open():
 		return
 	_apply_time_to_interior(_building_interior)
+	_door_transition(true)
 	_building_interior.open_interior()
 	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
@@ -431,6 +447,7 @@ func _on_interior_visibility_changed() -> void:
 	if _building_interior == null:
 		return
 	if not _building_interior.is_open():
+		_door_transition(false)
 		if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 			_audio_manager.play_door_close()
 		_set_player_controls_enabled(true)
@@ -455,6 +472,7 @@ func _on_tent_interact(tent_node: Node) -> void:
 		level = 3
 	_active_tent_node = tent_node as Node3D
 	_apply_time_to_interior(_tent_interior)
+	_door_transition(true)
 	_tent_interior.open_tent(level)
 	_sync_tent_guest_visuals()
 	_push_room_state(_tent_interior, _active_tent_node)
@@ -504,6 +522,7 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 	var level := clampi(int(t.right(1)), 1, 3)
 	_active_caravan_node = caravan_node as Node3D
 	_apply_time_to_interior(_caravan_interior)
+	_door_transition(true)
 	_caravan_interior.open_caravan(level)
 	_push_room_state(_caravan_interior, _active_caravan_node)
 	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
@@ -513,6 +532,7 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 
 func _on_caravan_closed() -> void:
 	_active_caravan_node = null
+	_door_transition(false)
 	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 		_audio_manager.play_door_close()
 	_set_player_controls_enabled(true)
@@ -539,6 +559,7 @@ func _on_tent_closed() -> void:
 	if _tent_interior != null and _tent_interior.has_method("set_guest_occupants"):
 		_tent_interior.set_guest_occupants([])
 	_active_tent_node = null
+	_door_transition(false)
 	_set_player_controls_enabled(true)
 
 
@@ -585,6 +606,7 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 	_apply_time_to_interior(_cabin_interior)
 	if _cabin_interior.has_method("set_world_anchor"):
 		_cabin_interior.set_world_anchor(_active_cabin_node)
+	_door_transition(true)
 	_cabin_interior.open_cabin(level)
 	_sync_cabin_guest_visuals()
 	_push_room_state(_cabin_interior, _active_cabin_node)
@@ -597,6 +619,7 @@ func _on_cabin_closed() -> void:
 	if _cabin_interior != null and _cabin_interior.has_method("set_guest_occupants"):
 		_cabin_interior.set_guest_occupants([])
 	_active_cabin_node = null
+	_door_transition(false)
 	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 		_audio_manager.play_door_close()
 	_set_player_controls_enabled(true)
@@ -683,6 +706,7 @@ func _on_service_interact(service_node: Node) -> void:
 	_apply_time_to_interior(_service_interior)
 	if building_type == "toilet_block" and "toilet_entry" in _service_interior:
 		_service_interior.toilet_entry = _toilet_door_of(structure as Node3D)
+	_door_transition(true)
 	_service_interior.open_service(building_type)
 	if _service_interior.has_method("set_upkeep_target"):
 		_service_interior.set_upkeep_target(structure.get_meta("grid_origin", Vector2i(-999, -999)), building_type)
@@ -706,6 +730,7 @@ func _toilet_door_of(structure: Node3D) -> String:
 
 func _on_service_closed() -> void:
 	_active_service_node = null
+	_door_transition(false)
 	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 		_audio_manager.play_door_close()
 	_set_player_controls_enabled(true)
