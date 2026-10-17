@@ -286,10 +286,34 @@ func _night_text() -> String:
 					col = AMBER if pct < 40 else RED
 				t += "[code]%-14s %2d in camp  [/code][color=%s]%s[/color]\n" % [str(e.get("label", "?")), count, col, verdict]
 			t += "\n[color=%s]More guests of one kind raise that kind's odds.\nA mixed camp is a quieter camp.[/color]\n\n" % GREY
+	t += _night_log_text()
 	t += "[b]STAFF PROCEDURES (NIGHT)[/b]  [color=%s]rev. 3, do not remove from terminal[/color]\n" % GREY
 	for row in NIGHT_PROCEDURES:
 		t += "[b]%s[/b] -> [color=%s]%s[/color]\n    %s\n" % [row[0], RED, row[1], row[2]]
 	t += "[color=%s]Incidents are not to be reported to guests. Incidents are not to be reported.[/color]" % GREY
+	return t
+
+
+## The night director's log of the night before, and what the camp is like tonight
+## (scripts/night/night_director.gd): the patterns are there for whoever reads them.
+func _night_log_text() -> String:
+	var m: Node = _shell.main_node()
+	var d = m.get("_director") if m != null else null
+	if d == null:
+		return ""
+	var t := ""
+	if m.has_method("_director_context"):
+		var dom: int = d.dominant(m._director_context())
+		var hint: String = d.ARCH_HINTS[dom] if dom >= 0 else "The camp is empty. The woods are not."
+		t += "[b]THE CAMP TONIGHT[/b]\n[color=%s]%s[/color]\n\n" % [AMBER, hint]
+	var lines: Array = d.last_log if not d.last_log.is_empty() else []
+	t += "[b]LAST NIGHT'S LOG[/b]  [color=%s]motion log, previous operator's script[/color]\n" % GREY
+	if lines.is_empty():
+		t += "[color=%s]Nothing logged.[/color]\n\n" % GREY
+	else:
+		for e in lines:
+			t += "[code]%s[/code]  %s\n" % [str(e.get("time", "")), str(d.LOG_LINES.get(str(e.get("id", "")), str(e.get("id", ""))))]
+		t += "\n"
 	return t
 
 

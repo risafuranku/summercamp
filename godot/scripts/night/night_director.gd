@@ -67,6 +67,33 @@ const EVENTS := {
 	"silhouette":    {"places": ["out_dark", "out_lit"], "cost": 8.0, "min": State.MANIFESTATION, "cd": 360.0, "arch": [A.OBSERVER], "next": [], "w": 1.0},
 	"omen":          {"places": ["out_dark", "out_lit"], "cost": 5.0, "min": State.SUSPICION, "cd": 500.0, "arch": [A.OBSERVER, A.DISTURBER], "next": [], "w": 0.8},
 }
+## How the night log puts each (CampStat's NIGHT page, the morning after).
+const LOG_LINES := {
+	"window_tap": "tapping on the office window",
+	"figure_window": "a person outside the office window, facing it",
+	"knock": "knocking at the office door. Nobody. Wet prints on the step",
+	"knock_wrong": "knocking at the office door: two, then one",
+	"handle": "the office door handle tried from outside",
+	"phone_night": "the office phone rang. Breathing on the line",
+	"wall_brush": "something along the back room's outer wall",
+	"radio_bleed": "the radio lost the station",
+	"room_changed": "the office not as it was left",
+	"lamp_out": "a lamp went out by itself, then came back",
+	"steps_behind": "steps following the night staff across the camp",
+	"call_far": "a call from the woods",
+	"silhouette": "a person crossing the camp in the dark. Prints",
+	"omen": "something at the edge of the camp",
+}
+## What the camp's character means for you (the same page, before the night).
+const ARCH_HINTS := [
+	"It keeps to the edges and does not like to be looked at. Look straight at what you see.",
+	"It sounds like us. Count the knocks, listen to the steps: something will be slightly off.",
+	"Things get moved. Remember how you leave a room, and put it back.",
+	"Something hunts tonight. Lamps, light, and the procedures below.",
+]
+## The insects fall quiet as the night closes in, and come back after (main: insect hush).
+const HUSH := {State.UNEASE: 0.08, State.SUSPICION: 0.22, State.ESCALATION: 0.38, State.MANIFESTATION: 0.55}
+
 ## Places where nothing may happen (close-ups, jobs, the lake, the PC's own screen).
 const SAFE_PLACES := ["modal", "job", "lake", "room"]
 
@@ -79,6 +106,9 @@ var tonight: Dictionary = {}
 var last_id := ""
 var last_reason := ""
 var recent: Array = []           # [{id, t, place, why}]
+## Tonight's log ([{time: "23:42", id}]) and last night's (shown the morning after).
+var log: Array = []
+var last_log: Array = []
 ## Across nights: event id -> times (it does not repeat itself much over a month).
 var ever: Dictionary = {}
 ## How you play tonight (seconds in each place, looks at the window, cues ignored).
@@ -113,6 +143,9 @@ func _init(seed := 0) -> void:
 
 ## A new night (main: at the night roll). Forgets tonight, keeps `ever`.
 func begin_night(night_index: int) -> void:
+	if not log.is_empty():
+		last_log = log.duplicate(true)
+	log.clear()
 	_night = night_index
 	state = State.DORMANT
 	tension = 0.0
@@ -320,6 +353,8 @@ func _fire(id: String, ctx: Dictionary) -> void:
 		_recover_until = _t + _rng.randf_range(RECOVERY_SECONDS.x, RECOVERY_SECONDS.y)
 	_next_any = _t + float(GAP.get(state, 40.0)) * _rng.randf_range(0.8, 1.4)
 	recent.append({"id": id, "t": _t, "place": str(ctx.get("place", "")), "why": last_reason})
+	var hr := float(ctx.get("hour", 0.0))
+	log.append({"time": "%02d:%02d" % [int(hr) % 24, int((hr - floor(hr)) * 60.0)], "id": id})
 	while recent.size() > 8:
 		recent.remove_at(0)
 	event_fired.emit(id, {"state": STATE_NAMES[state], "tension": tension})
@@ -353,6 +388,22 @@ static func _in_hours(hour: float, span: Array) -> bool:
 	return (hour >= a or hour < b) if a > b else (hour >= a and hour < b)
 
 
+## 0-1: how far the insects have gone quiet because of the night (not a presence).
+func hush() -> float:
+	return float(HUSH.get(state, 0.0))
+
+
+## Which archetype the camp leans to, from a director context (CampStat asks by day).
+func dominant(ctx: Dictionary) -> int:
+	_update_archetypes(ctx)
+	var best := 0
+	for i in arch_weights.size():
+		if float(arch_weights[i]) > float(arch_weights[best]):
+			best = i
+	# Nobody in the camp, nothing out: no character yet (-1).
+	return best if float(arch_weights[best]) >= 0.3 else -1
+
+
 func snapshot() -> Dictionary:
 	var cds := {}
 	for id in _cooldown_until.keys():
@@ -364,8 +415,10 @@ func snapshot() -> Dictionary:
 
 
 func export_state() -> Dictionary:
-	return {"ever": ever.duplicate()}
+	return {"ever": ever.duplicate(), "log": log.duplicate(true), "last_log": last_log.duplicate(true)}
 
 
 func import_state(d: Dictionary) -> void:
 	ever = (d.get("ever", {}) as Dictionary).duplicate()
+	log = (d.get("log", []) as Array).duplicate(true)
+	last_log = (d.get("last_log", []) as Array).duplicate(true)

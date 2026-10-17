@@ -967,6 +967,23 @@ const SCENARIOS := {
 		["eval", "building_manager.get_light_level_at(grid_manager.grid_to_world(Vector2i(13, 5)))"],
 		["eval", "_director.snapshot()"],
 	],
+	"frontdoor": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4],
+		["eval", "_interior_manager._building_interior._look.set('yaw_deg', -30.0)"], ["wait", 1.0],
+		["eval", "get_viewport().warp_mouse(debug_screen_of_cam(_interior_manager._building_interior._interior_camera, _interior_manager._building_interior._room_root.to_global(Vector3(1.6, 1.1, -2.4))))"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior._extras.hovered()"], ["shot", "fd0_hover"],
+		["eval", "debug_click_at(get_viewport().get_mouse_position().x, get_viewport().get_mouse_position().y)"], ["wait", 1.0],
+		["eval", "[_interior_manager._building_interior.is_open(), _is_any_interior_open(), debug_mouse_mode()]"],
+	],
+	"nightlog": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 18.0],
+		["prep_all"], ["book", "Pepa", "drunk", 2, 2], ["book", "Lenka", "cheap_chick", 2, 2], ["hours", 0.4], ["checkin"],
+		["eval", "_director.set('last_log', [{'time': '23:14', 'id': 'call_far'}, {'time': '00:02', 'id': 'knock'}, {'time': '01:37', 'id': 'phone_night'}, {'time': '03:20', 'id': 'figure_window'}])"],
+		["eval", "_interior_manager._building_interior._crt_ui._on_program_installed('camp_status')"], ["eval", "_interior_manager._building_interior._crt_ui.open_app('camp_status')"], ["wait", 2.0],
+		["eval", "debug_close_msgboxes()"],
+		["eval", "debug_campstat_tab('night')"], ["wait", 1.0], ["shot", "nl0_campstat_night"],
+	],
 	"pauseclick": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
 		["eval", "debug_tap_key(4194305)"], ["wait", 0.5],

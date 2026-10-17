@@ -189,6 +189,10 @@ func _place_people() -> void:
 			pass
 	_show(_front, front, COUNTER_SPOT)
 	_show(_second, _queue[1] if _queue.size() > 1 else {}, BENCH_SPOT)
+	# Nobody at the counter: the empty spot takes no clicks (it stood in front of the door).
+	var hb = extras.hot.get("guest", {}).get("body", null) if extras != null else null
+	if hb is CollisionObject3D:
+		(hb as CollisionObject3D).collision_layer = 1 if not front.is_empty() else 0
 	# A desk that is open follows the queue: whoever is at the counter now.
 	if is_open() and desk.current_guest_id() == -999 and not front.is_empty():
 		desk.open_desk(front, CoreRoot.get_day() if CoreRoot != null else 1)
@@ -315,8 +319,10 @@ func _build_door() -> void:
 	_door_pivot.position = DOOR_HINGE
 	room_root.add_child(_door_pivot)
 	var wood := K.surface("door_wood", 1.0) if ResourceLoader.exists("res://assets/textury/camp/door_wood.png") else K.surface("planks_dark", 0.8)
-	K.slab(_door_pivot, Vector3(DOOR_W, 2.05, 0.05), Vector3(-DOOR_W * 0.5, 1.025, 0.0), wood, "FrontDoorLeaf")
-	K.slab(_door_pivot, Vector3(0.05, 0.05, 0.08), Vector3(-DOOR_W + 0.1, 1.0, 0.05), K.surface("planks_dark", 0.4, Color(0.8, 0.7, 0.4)), "FrontDoorHandle")
+	var leaf := K.slab(_door_pivot, Vector3(DOOR_W, 2.05, 0.05), Vector3(-DOOR_W * 0.5, 1.025, 0.0), wood, "FrontDoorLeaf")
+	var handle := K.slab(_door_pivot, Vector3(0.05, 0.05, 0.08), Vector3(-DOOR_W + 0.1, 1.0, 0.05), K.surface("planks_dark", 0.4, Color(0.8, 0.7, 0.4)), "FrontDoorHandle")
+	# Click it and you go out into the camp, the way you came in (reception_extras).
+	_hot("front_door", DOOR_HINGE + Vector3(-DOOR_W * 0.5, 1.05, 0.05), Vector3(DOOR_W, 2.1, 0.2), [leaf, handle])
 
 
 func _hot(id: String, pos: Vector3, size: Vector3, meshes: Array) -> void:

@@ -1341,7 +1341,8 @@ func _update_threat_senses(delta: float) -> void:
 	)
 	if _audio_manager != null and _audio_manager.has_method("set_insect_hush"):
 		var corn_hush: float = float(_corn_hunt.hush) if _corn_hunt != null and is_instance_valid(_corn_hunt) else 0.0
-		_audio_manager.set_insect_hush(maxf(maxf(_senses.hush, _omens.hush if _omens != null else 0.0), corn_hush))
+		var dir_hush: float = _director.hush() if _director != null and bool(_director_context().get("night", false)) else 0.0
+		_audio_manager.set_insect_hush(maxf(maxf(maxf(_senses.hush, _omens.hush if _omens != null else 0.0), corn_hush), dir_hush))
 	if _hud_manager != null:
 		_hud_manager.set_fear(_senses.fear)
 		_hud_manager.set_face_gaze(_senses.gaze)
@@ -1908,6 +1909,20 @@ func debug_director(id: String) -> Array:
 	var ctx := _director_context()
 	var at: Vector3 = _director_fx.run(id, ctx)
 	return [at, ctx.get("place", "")]
+
+
+## Shot driver: CampStat on one of its tabs.
+func debug_campstat_tab(id: String) -> void:
+	var bi = _interior_manager.get("_building_interior")
+	var ui = bi.get("_crt_ui") if bi != null else null
+	if ui == null:
+		return
+	for n in ui.find_children("*", "Control", true, false):
+		if n.get_script() == load("res://scripts/os98/apps/campstat_app.gd"):
+			for i in n.TABS.size():
+				if str(n.TABS[i][0]) == id:
+					n._tabs.current_tab = i
+			n.refresh()
 
 
 ## Shot driver: a key press or release for Input.parse_input_event.

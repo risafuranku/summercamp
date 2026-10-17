@@ -69,6 +69,7 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 	_build_board()
 	_build_doorway()
 	_build_office_curtain()
+
 	if host.has_method("desk_lamp_meshes") and host.get("_desk_lamp_body") != null:
 		hot["desklamp"] = {"body": host.get("_desk_lamp_body"), "meshes": host.desk_lamp_meshes()}
 	back.build(root, host)
@@ -346,7 +347,7 @@ func process(delta: float, hour: float) -> bool:
 		return true
 	_hover = _hover_under_mouse()
 	if _hover != "":
-		HandCursor.want(HandCursor.WALK if _hover == "door" or _hover == "doorway" else HandCursor.POINT)
+		HandCursor.want(HandCursor.WALK if _hover in ["door", "doorway", "front_door"] else HandCursor.POINT)
 		glint.show_on(hot[_hover]["meshes"])
 	else:
 		glint.clear()
@@ -380,6 +381,8 @@ func _hover_under_mouse() -> String:
 			var in_back: bool = back.hot.has(id)
 			if id == "doorway":
 				return id if where == "back" else ""
+			if id == "front_door":
+				return id if where == "office" else ""
 			if (where == "back") == in_back or id == "door":
 				return id
 			return ""
@@ -407,6 +410,10 @@ func click() -> bool:
 				go_back_room()
 		"doorway":
 			go_office()
+		"front_door":
+			glint.clear()
+			_play("res://assets/sfx/dvereotevrit.mp3", -8.0)
+			host.close_interior()
 		"bed":
 			_try_sleep()
 		"tv":
