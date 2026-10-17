@@ -82,6 +82,17 @@ func _run() -> void:
 		_expect(int(n) <= 4, "an ad took %d days to sell" % int(n))
 	_expect(days_to_sell.count(1) > 10, "too few ads sold the first morning (%d of 40)" % days_to_sell.count(1))
 
+	# One morning settles once (a load at dawn must not roll the sales again).
+	for seed in range(70, 90):
+		b = BAZAAR.new(seed)
+		var one: Dictionary = {}
+		while one.is_empty():
+			one = b.on_checkout("Pepa", "Cabin 10:6", 3)
+		b.list(int(one["id"]), 3)
+		var first: Dictionary = b.settle(4)
+		if first["sold"].is_empty():
+			_expect(b.settle(4)["sold"].is_empty(), "the same morning sold again on a second settle")
+
 	# Things not put up never sell.
 	b = BAZAAR.new(61)
 	b.on_checkout("A", "x", 1)
@@ -97,23 +108,27 @@ func _run() -> void:
 	for seed in range(100, 130):
 		b = BAZAAR.new(seed)
 		var shoe: Dictionary = {}
+		var d0 := 0
 		for d in range(1, 30):
 			var r: Dictionary = b.settle(d)
 			if not r["found"].is_empty():
 				_expect(d >= BAZAAR.SHOE_FROM_DAY, "the shoe came on day %d" % d)
-				_expect(shoe.is_empty(), "the shoe came twice")
 				shoe = r["found"][0]
+				d0 = d
 				first_day.append(d)
+				break
 		if shoe.is_empty():
 			continue
-		var d0: int = int(first_day.back())
 		_expect(b.list(int(shoe["id"]), d0), "the shoe could not be put up")
 		var r1: Dictionary = b.settle(d0 + 1)
 		_expect(r1["sold"].size() == 1 and int(r1["sold"][0]["price"]) == 1, "the shoe did not sell for a dollar the next morning")
 		var r2: Dictionary = b.settle(d0 + 2)
 		_expect(r2["back"].size() == 1, "the shoe was not back in the box the morning after")
 		_expect(b.in_box().any(func(i): return bool(i.get("uncanny", false))), "the shoe is not in the box again")
-		_expect(b.settle(d0 + 3)["back"].is_empty(), "the shoe came back twice from one sale")
+		for d in range(d0 + 3, d0 + 20):
+			var r3: Dictionary = b.settle(d)
+			_expect(r3["back"].is_empty(), "the shoe came back twice from one sale")
+			_expect(r3["found"].is_empty(), "a second shoe was found")
 	print("BAZAAR CHECK: the shoe on %d of 30 games, first days %s" % [first_day.size(), str(first_day.slice(0, 8))])
 	_expect(first_day.size() >= 20, "the shoe came in only %d of 30 month-long games" % first_day.size())
 

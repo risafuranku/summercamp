@@ -41,6 +41,8 @@ const SHOE := {"short": "Red shoe", "name": "a child's red shoe, small and wet",
 ## [{id, short, name, value, from, where, found_day, listed_day, sold_day, price, uncanny}]
 var items: Array = []
 var shoe_seen := false
+## The last morning settled (a load at dawn must not roll the sales again).
+var settled_day := 0
 var _next_id := 1
 var _rng := RandomNumberGenerator.new()
 
@@ -78,6 +80,9 @@ func list(id: int, day: int) -> bool:
 ## The morning of `day`: ads up since an earlier day may have sold; the shoe comes back.
 ## Returns {sold: [items], back: [items], found: [items]} for main to pay and say.
 func settle(day: int) -> Dictionary:
+	if day <= settled_day:
+		return {"sold": [], "back": [], "found": []}
+	settled_day = day
 	var sold: Array = []
 	var back: Array = []
 	var found: Array = []
@@ -115,7 +120,7 @@ func sold() -> Array:
 
 
 func export_state() -> Dictionary:
-	return {"items": items.duplicate(true), "shoe_seen": shoe_seen, "next_id": _next_id}
+	return {"items": items.duplicate(true), "shoe_seen": shoe_seen, "next_id": _next_id, "settled_day": settled_day}
 
 
 func import_state(d: Dictionary) -> void:
@@ -127,12 +132,14 @@ func import_state(d: Dictionary) -> void:
 				c[k] = int(c.get(k, -1))
 			items.append(c)
 	shoe_seen = bool(d.get("shoe_seen", false))
+	settled_day = int(d.get("settled_day", 0))
 	_next_id = maxi(1, int(d.get("next_id", 1)))
 
 
 func reset() -> void:
 	items.clear()
 	shoe_seen = false
+	settled_day = 0
 	_next_id = 1
 
 

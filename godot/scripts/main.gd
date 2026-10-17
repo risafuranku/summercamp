@@ -2254,6 +2254,8 @@ func _on_day_phase_started() -> void:
 	_stop_active_enemy_brain()
 	if _director_fx != null:
 		_director_fx.clear()
+	# The bazaar's buyers called in the night: what sold is paid at dawn.
+	_settle_bazaar()
 	if _night_jobs != null:
 		if _week_ledger != null:
 			_week_ledger.note_jobs_left(_night_jobs.open_jobs().size())
@@ -2726,7 +2728,6 @@ func _on_day_tick(day_index: int) -> void:
 	EventBus.day_advanced.emit(_day_index, income)
 	if EmailManager != null and EmailManager.has_method("settle_reputation"):
 		EmailManager.settle_reputation()
-	_settle_bazaar()
 	if _hud_manager != null: _hud_manager.update_time(_time_of_day_string(), _day_index)
 	_sync_liminal_forecast_hud()
 	_refresh_liminal_debug_window()
