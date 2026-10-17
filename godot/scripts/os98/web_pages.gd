@@ -373,7 +373,11 @@ Mr Hruby looks after the boats and the jetty. He lives in the boathouse across t
 		"title": "Hlubocany Courier - archive",
 		"tile": "tile_paper",
 		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
-		"body": """[center]{{banner:cd:bohemica.cz}}[/center]
+		"body": """[table=1][cell bg=#ffffe0][b]WORK AT HOME ON YOUR COMPUTER[/b]
+The District Office pays $4 for every register card you type in at home, in the evening, at night.
+{download://DATAPNCH.EXE|DATAPNCH.EXE} (40 KB) - Okresni urad Hlubocany[/cell][/table]
+
+[center]{{banner:cd:bohemica.cz}}[/center]
 [font_size=22][b]HLUBOCANY COURIER[/b][/font_size]
 [i]weekly for the Hlubocany district - archive on the Internet[/i]
 """ + HR + """

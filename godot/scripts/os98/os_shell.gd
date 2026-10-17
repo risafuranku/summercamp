@@ -49,8 +49,9 @@ const APPS := {
 	"download": {"title": "File Download", "icon": "browser", "size": Vector2(360, 196), "script": "download_app", "base": true},
 	"imageview": {"title": "Image Viewer", "icon": "image", "size": Vector2(360, 300), "script": "image_app", "base": true},
 	"display": {"title": "Display Properties", "icon": "computer", "size": Vector2(360, 330), "script": "display_app", "base": true},
+	"datapunch": {"title": "DataPunch 98", "icon": "documents", "size": Vector2(560, 272), "script": "datapunch_app", "base": false},
 }
-const PROGRAM_MENU := ["browser", "mail", "notepad", "mines", "builder", "camp_status", "guestrack"]
+const PROGRAM_MENU := ["browser", "mail", "notepad", "mines", "builder", "camp_status", "guestrack", "datapunch"]
 const DESKTOP_ICONS := [
 	["mycomputer", "My Computer", "computer"],
 	["bin", "Recycle Bin", "bin"],
@@ -61,9 +62,10 @@ const DESKTOP_ICONS := [
 	["builder", "Builder 98", "builder"],
 	["camp_status", "CampStat", "campstat"],
 	["guestrack", "GuestRack", "guestrack"],
+	["datapunch", "DataPunch", "documents"],
 ]
-const DOWNLOAD_SIZES_KB := {"BLDR98SW.EXE": 96, "CAMPSTAT.EXE": 48, "GUESTRAK.EXE": 72}
-const INSTALLERS := {"BLDR98SW.EXE": "builder", "CAMPSTAT.EXE": "camp_status", "GUESTRAK.EXE": "guestrack"}
+const DOWNLOAD_SIZES_KB := {"BLDR98SW.EXE": 96, "CAMPSTAT.EXE": 48, "GUESTRAK.EXE": 72, "DATAPNCH.EXE": 40}
+const INSTALLERS := {"BLDR98SW.EXE": "builder", "CAMPSTAT.EXE": "camp_status", "GUESTRAK.EXE": "guestrack", "DATAPNCH.EXE": "datapunch"}
 
 enum Boot { OFF, WARMUP, BIOS, SPLASH, OKNA, DESKTOP, SHUTTING, SAFE_OFF }
 
@@ -245,6 +247,7 @@ func export_persistent_state() -> Dictionary:
 		"monitor_powered": _state == Boot.DESKTOP,
 		"wallpaper": _wallpaper_path,
 		"display": _extras.export_state() if _extras != null else {},
+		"datapunch_nights": get_meta("datapunch_nights", {}),
 	}
 
 
@@ -256,9 +259,11 @@ func import_persistent_state(data: Dictionary) -> void:
 	_restored.clear()
 	if not data.is_empty():
 		var reg: Dictionary = data.get("unlock_registry", {}) if data.get("unlock_registry", {}) is Dictionary else {}
-		for id in ["builder", "camp_status", "guestrack"]:
+		for id in ["builder", "camp_status", "guestrack", "datapunch"]:
 			if bool(reg.get(id, false)):
 				_unlocked[id] = true
+		if data.get("datapunch_nights", {}) is Dictionary:
+			set_meta("datapunch_nights", (data.get("datapunch_nights", {}) as Dictionary).duplicate())
 		if str(data.get("os", "")) == "okna98":
 			for f in data.get("downloads", []):
 				_downloads.append(str(f))

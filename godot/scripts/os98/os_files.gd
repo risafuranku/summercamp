@@ -25,6 +25,7 @@ const PROGRAM_DIRS := {
 	"builder": ["BUILDER98", ["BUILDER.EXE", "README98.TXT", "TERRAIN.DAT"]],
 	"camp_status": ["CAMPSTAT", ["CAMPSTAT.EXE", "TARIF96.DAT"]],
 	"guestrack": ["GUESTRAK", ["GUESTRAK.EXE", "EVIDENCE.DBF"]],
+	"datapunch": ["DATAPNCH", ["DATAPNCH.EXE", "DAVKA61.DBF"]],
 }
 
 ## Files that open a program when double-clicked.

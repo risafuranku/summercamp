@@ -322,6 +322,51 @@ func _run() -> void:
 		_expect(EmailManager.sent.size() == sent_before + 1, "a sent message is not in Sent Items")
 		_expect(mail._sort_key(night_log) > mail._sort_key({"day": 4, "time": "23:59"}), "a night log does not sort after its own day")
 
+	# Night work: DataPunch types the old register, paid per card.
+	_shell.install_program("datapunch", false)
+	await _close_all()
+	_shell.open_app("datapunch")
+	await _frames(3)
+	var dp = _app("datapunch")
+	_expect(dp != null, "DataPunch did not open")
+	if dp != null:
+		var money0: int = CoreRoot.get_state().money
+		for i in dp.FIELDS.size():
+			(dp._inputs[i] as LineEdit).text = str(dp._cur[dp.FIELDS[i]])
+		dp._file()
+		_expect(CoreRoot.get_state().money == money0 + dp.RATE, "a perfect card did not pay the rate (%d -> %d)" % [money0, CoreRoot.get_state().money])
+		for i in dp.FIELDS.size():
+			(dp._inputs[i] as LineEdit).text = "XXXXXXXXXX"
+		var money1: int = CoreRoot.get_state().money
+		dp._file()
+		_expect(CoreRoot.get_state().money == money1, "a card full of mistakes was paid")
+		await _frames(2)
+		await _shot("datapunch")
+		while dp._done_tonight() < dp.NIGHT_LIMIT:
+			dp._add_done(1)
+		var money2: int = CoreRoot.get_state().money
+		for i in dp.FIELDS.size():
+			(dp._inputs[i] as LineEdit).text = str(dp._cur[dp.FIELDS[i]])
+		dp._file()
+		_expect(CoreRoot.get_state().money == money2, "the office paid past its nightly limit")
+	# The guest book: a review comes as an entry to answer; the answer moves the camp's name.
+	await _close_all()
+	EmailManager.reputation = 0.0
+	EmailManager._on_review_posted({"rating": 1, "name": "Pepa Novak", "text": "Filthy toilets.", "day": 3, "stay_nights": 2})
+	var entry: Dictionary = EmailManager.inbox.back()
+	_expect(str(entry.get("type", "")) == "review", "a review did not arrive as a guest book entry")
+	_shell.open_app("mail")
+	await _frames(3)
+	var mail2 = _app("mail")
+	if mail2 != null:
+		mail2.refresh()
+		mail2._show_message(entry)
+		await _frames(2)
+		await _shot("mail_review")
+		mail2._answer_review("sorry")
+		_expect(EmailManager.reputation > 0.03, "apologising for a one-star stay did not help (%.3f)" % EmailManager.reputation)
+		_expect(EmailManager.reply_to_review(entry, "defend") == 0.0, "an entry could be answered twice")
+
 	print("")
 	if _failures.is_empty():
 		print("OS98 CHECK: PASS")

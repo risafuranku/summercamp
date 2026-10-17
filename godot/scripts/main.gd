@@ -2536,6 +2536,8 @@ func _on_day_tick(day_index: int) -> void:
 	if income != 0 and CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
 		CoreRoot.actions.add_money(income)
 	EventBus.day_advanced.emit(_day_index, income)
+	if EmailManager != null and EmailManager.has_method("settle_reputation"):
+		EmailManager.settle_reputation()
 	if _hud_manager != null: _hud_manager.update_time(_time_of_day_string(), _day_index)
 	_sync_liminal_forecast_hud()
 	_refresh_liminal_debug_window()

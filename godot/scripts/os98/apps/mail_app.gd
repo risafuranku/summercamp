@@ -29,6 +29,8 @@ var _list: Tree
 var _header: Control
 var _body: RichTextLabel
 var _card: RichTextLabel
+## Guest book entries: the three ways to answer (EmailManager.REVIEW_REPLIES).
+var _reply_btns: Array = []
 var _accept: Button
 var _refuse: Button
 var _status: Label
@@ -145,6 +147,14 @@ func _build() -> void:
 	_refuse.text = "Refuse"
 	_refuse.pressed.connect(_on_refuse)
 	add_child(_refuse)
+	for opt in EmailManager.REVIEW_REPLIES:
+		var rb := Button.new()
+		rb.text = str(opt["label"])
+		rb.visible = false
+		var rid := str(opt["id"])
+		rb.pressed.connect(func(): _answer_review(rid))
+		add_child(rb)
+		_reply_btns.append(rb)
 
 	var bar := Panel.new()
 	bar.name = "StatusBar"
@@ -180,10 +190,24 @@ func _layout() -> void:
 	_header.size = Vector2(rw, hh)
 	y += hh + 2
 	var booking := not _current.is_empty() and _is_booking(_current)
-	_card.visible = booking
+	var review := not _current.is_empty() and _is_review(_current)
+	_card.visible = booking or review
 	_accept.visible = booking and not bool(_current.get("_actioned", false)) and _folder == "inbox"
 	_refuse.visible = _accept.visible
-	if booking:
+	var answering := review and not bool(_current.get("_actioned", false)) and _folder == "inbox"
+	for i in _reply_btns.size():
+		(_reply_btns[i] as Button).visible = answering
+	if review:
+		var cw2 := floorf(rw * 0.44)
+		_body.position = Vector2(x0, y)
+		_body.size = Vector2(rw - cw2 - 3, h - y)
+		_card.position = Vector2(x0 + rw - cw2, y)
+		_card.size = Vector2(cw2, h - y - (84 if answering else 0))
+		for i in _reply_btns.size():
+			var b: Button = _reply_btns[i]
+			b.position = Vector2(x0 + rw - cw2, h - 82 + i * 27)
+			b.size = Vector2(cw2, 24)
+	elif booking:
 		var cw := floorf(rw * 0.44)
 		_body.position = Vector2(x0, y)
 		_body.size = Vector2(rw - cw - 3, h - y)
@@ -454,6 +478,8 @@ func _show_message(mail: Dictionary) -> void:
 		_body.add_image(tex, mini(tex.get_width(), 280), 0)
 		_body.append_text("\n")
 	_body.scroll_to_line(0)
+	if _is_review(mail):
+		_card.text = _review_card(mail)
 	if _is_booking(mail):
 		_card.text = _booking_card(mail)
 		var can := EmailManager.can_accept_customer_booking(mail)
@@ -516,6 +542,29 @@ func _quote(mail: Dictionary) -> String:
 	for l in str(mail.get("body", "")).strip_edges().split("\n"):
 		q += "> " + l + "\n"
 	return q
+
+
+func _review_card(mail: Dictionary) -> String:
+	var r: Dictionary = mail.get("review", {})
+	var stars := int(r.get("rating", 3))
+	var s := "[b]Guest book[/b]\n%s\n%s\n\n" % [str(r.get("name", "")), "[color=#c08000]" + "*".repeat(stars) + "[/color][color=#a0a0a0]" + "*".repeat(5 - stars) + "[/color]"]
+	if bool(mail.get("_actioned", false)):
+		for opt in EmailManager.REVIEW_REPLIES:
+			if str(opt["id"]) == str(mail.get("reply", "")):
+				s += "[color=#606060]You answered:[/color]\n[i]%s[/i]" % str(opt["text"])
+	else:
+		s += "[color=#606060]People read the answers before they book.[/color]"
+	return s
+
+
+func _answer_review(reply_id: String) -> void:
+	if _current.is_empty():
+		return
+	var change := EmailManager.reply_to_review(_current, reply_id)
+	_shell.play("click")
+	_status.text = "Reply posted to the guest book." + (" It goes down well." if change > 0.015 else (" It will not win anyone over." if change < 0.0 else ""))
+	refresh()
+	_show_message(_current)
 
 
 func _on_accept() -> void:
@@ -707,6 +756,10 @@ static func _box16(img: Image, r: Rect2i, fill: Color, out: Color) -> void:
 		for x in range(r.position.x, r.end.x):
 			var edge := x == r.position.x or y == r.position.y or x == r.end.x - 1 or y == r.end.y - 1
 			img.set_pixel(x, y, out if edge else fill)
+
+
+func _is_review(mail: Dictionary) -> bool:
+	return str(mail.get("type", "")).to_lower() == "review"
 
 
 func _is_booking(mail: Dictionary) -> bool:

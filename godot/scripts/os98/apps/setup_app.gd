@@ -24,6 +24,12 @@ const PRODUCTS := {
 		"licence": "CAMPGRID S.R.O. - CONDITIONS OF USE\n\nCampStat 98 is supplied free of charge to customers of Hlubocany District Power. It reads your meter and your bills over the telephone line.\n\nCampGrid s.r.o. collects the readings of your meter. Bills not paid within the period on the bill may lead to the supply being cut off without further notice.\n\nThe NIGHT page is supplied by the previous operator of your facility and is not part of the product.",
 		"files": ["CAMPSTAT.EXE", "METER.DRV", "TARIF96.DAT", "NOCNI.TXT"],
 	},
+	"datapunch": {
+		"name": "DataPunch 98",
+		"vendor": "Okresni urad Hlubocany",
+		"licence": "DISTRICT OFFICE HLUBOCANY - HOME TRANSCRIPTION\n\nThe District Office is putting the register of persons accommodated in the district (1961-1989) on computer. Citizens with a computer may transcribe register cards at home.\n\nPAYMENT. Each card filed without mistakes is paid at the rate in force. Cards with mistakes are paid in part or not at all. The office accepts a limited number of cards per night.\n\nCards that are not on the batch list are to be filed in the ordinary way. Do not contact the office about them.",
+		"files": ["DATAPNCH.EXE", "DAVKA61.DBF", "DAVKA62.DBF", "FORM.FRM", "OKRES.DAT"],
+	},
 	"guestrack": {
 		"name": "GuestRack 98",
 		"vendor": "Okres Hlubocany",
@@ -328,6 +334,7 @@ const BILLBOARD := {
 	"builder": [["Plan the whole site", "Tents, chalets, toilets, the pub: tile by tile.", "res://assets/textury/web/web_camp.png"], ["Know what it costs", "Running costs before you build. No surprises.", "res://assets/textury/web/web_campfire.png"], ["Register for 990 Kc", "Your key comes by post. Stavitel, Jihlava.", ""]],
 	"camp_status": [["CampStat 98", "What every building draws, live, in kWh.", ""], ["Pay in the program", "Bills issued daily at 20:00. Payable within 3 days.", ""], ["Hlubocany District Power", "We keep the lights on. Up to the reservoir fence.", ""]],
 	"guestrack": [["GuestRack 98", "Every person who stays the night, in one register.", ""], ["Act no. 135/1993", "Keeping the register is the operator's duty.", ""], ["The register cannot be deleted.", "Persons not in the register are not the District's responsibility.", ""]],
+	"datapunch": [["Earn at home", "Type the old register in your own time. Paid per card.", ""], ["1961 - 1989", "Every person who stayed by the reservoir.", ""], ["Accuracy pays", "A card without mistakes pays in full.", ""]],
 }
 
 

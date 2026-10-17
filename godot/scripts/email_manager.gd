@@ -202,7 +202,23 @@ var _last_tick_signature: String = ""
 var _last_hourly_roll_signature: String = ""
 
 
+## The camp's name on the internet (-0.25 .. 0.25): how the guest book reads to people
+## deciding where to book. Answered entries move it (reply_to_review); it settles back
+## toward nothing a little every morning. More of it, more booking letters.
+var reputation := 0.0
+
+## The guest book's replies: three ways to answer an entry. Which is right depends on
+## the entry (stars): `fits` is what it does to the reputation for low / middle / high.
+const REVIEW_REPLIES := [
+	{"id": "thank", "label": "Thank them", "text": "Thank you for staying with us. We hope to see you again next summer! - the camp team", "fits": [0.005, 0.02, 0.03]},
+	{"id": "sorry", "label": "Apologise", "text": "We are sorry your stay was not what it should have been. We have looked into it and it is being put right. - the camp team", "fits": [0.045, 0.025, -0.005]},
+	{"id": "defend", "label": "Set them straight", "text": "Other guests had no problems at all. Perhaps a campsite is not for you. - the management", "fits": [-0.06, -0.03, -0.02]},
+]
+
+
 func _ready() -> void:
+	if EventBus.has_signal("guest_review_posted") and not EventBus.guest_review_posted.is_connected(_on_review_posted):
+		EventBus.guest_review_posted.connect(_on_review_posted)
 	_rng.randomize()
 	reset_runtime(false)
 	if EventBus.has_signal("time_tick"):
@@ -212,6 +228,7 @@ func _ready() -> void:
 
 
 func reset_runtime(clear_inbox: bool = true) -> void:
+	reputation = 0.0
 	_scheduled_mails.clear()
 	_last_tick_signature = ""
 	_last_hourly_roll_signature = ""
@@ -310,6 +327,7 @@ func export_runtime_state() -> Dictionary:
 		"last_tick_signature": str(_last_tick_signature),
 		"last_hourly_roll_signature": str(_last_hourly_roll_signature),
 		"false_alarm_night": _false_alarm_night,
+		"reputation": reputation,
 	}
 
 
@@ -327,6 +345,7 @@ func import_runtime_state(data: Dictionary) -> void:
 	_last_tick_signature = str(data.get("last_tick_signature", ""))
 	_last_hourly_roll_signature = str(data.get("last_hourly_roll_signature", ""))
 	_false_alarm_night = int(data.get("false_alarm_night", -1))
+	reputation = clampf(float(data.get("reputation", 0.0)), -0.25, 0.25)
 
 	var max_seen_id: int = _max_runtime_mail_id(inbox, _scheduled_mails)
 	var loaded_next_id: int = maxi(1, int(data.get("next_runtime_mail_id", max_seen_id + 1)))
@@ -590,7 +609,7 @@ func _roll_customer_mail_count(bed_metrics: Dictionary, day: int, hour: int, int
 	if waiting >= clampi(1 + day, 2, 6):
 		return 0
 	var free_ratio := float(bed_metrics.get("free", 0)) / float(capacity)
-	var chance := clampf(0.14 + 0.07 * float(day - 1) + 0.18 * free_ratio, 0.10, 0.70)
+	var chance := clampf(0.14 + 0.07 * float(day - 1) + 0.18 * free_ratio + 0.4 * reputation, 0.06, 0.72)
 	var count := 1 if _rng.randf() < chance else 0
 	if count > 0 and day >= 3 and _rng.randf() < 0.25 * intensity:
 		count += 1
@@ -981,6 +1000,54 @@ func delete_mail(mail: Dictionary) -> void:
 
 
 ## A message the player sends (CampMail's New / Reply / Forward).
+## A guest's review arrives as a guest book entry to answer (EventBus.guest_review_posted).
+func _on_review_posted(review: Dictionary) -> void:
+	var stars := clampi(int(review.get("rating", 3)), 1, 5)
+	var day := maxi(1, int(review.get("day", CoreRoot.get_day() if CoreRoot != null and CoreRoot.has_method("get_day") else 1)))
+	var star_txt := "*".repeat(stars) + "-".repeat(5 - stars)
+	push_system_mail({
+		"type": "review",
+		"from": "Guest book <guestbook@cerne-jezero.cz>",
+		"subject": "New guest book entry [%s] %s" % [star_txt, str(review.get("name", "a guest"))],
+		"body": "A new entry was written in the guest book at cerne-jezero.cz:\n\n> %s\n> - %s, %d night%s\n\nEntries without a reply stay at the top of the page." % [str(review.get("text", "")), str(review.get("name", "a guest")), int(review.get("stay_nights", 1)), "" if int(review.get("stay_nights", 1)) == 1 else "s"],
+		"review": {"rating": stars, "name": str(review.get("name", "")), "guest_id": int(review.get("guest_id", -1))},
+		"day": day,
+		"time": _clock_now(),
+	})
+
+
+func _clock_now() -> String:
+	# The last minute tick ("day:hh:mm") is the mail clock.
+	var parts := _last_tick_signature.split(":")
+	if parts.size() == 3:
+		return "%s:%s" % [parts[1].lpad(2, "0"), parts[2]]
+	return "10:00"
+
+
+## Answers a guest book entry with one of REVIEW_REPLIES: the reply goes in Sent Items
+## and the camp's name moves. Returns the change (0 if it was answered already).
+func reply_to_review(mail: Dictionary, reply_id: String) -> float:
+	if bool(mail.get("_actioned", false)):
+		return 0.0
+	var r: Dictionary = mail.get("review", {})
+	var stars := int(r.get("rating", 3))
+	var band := 0 if stars <= 2 else (2 if stars >= 4 else 1)
+	for opt in REVIEW_REPLIES:
+		if str(opt["id"]) == reply_id:
+			var change := float((opt["fits"] as Array)[band])
+			reputation = clampf(reputation + change, -0.25, 0.25)
+			mail["_actioned"] = true
+			mail["reply"] = reply_id
+			send_mail("guestbook@cerne-jezero.cz", "Re: " + str(mail.get("subject", "")), str(opt["text"]), int(mail.get("day", 1)), _clock_now())
+			return change
+	return 0.0
+
+
+## Every morning the internet forgets a little.
+func settle_reputation() -> void:
+	reputation *= 0.9
+
+
 func send_mail(to: String, subject: String, body: String, day: int, time: String) -> void:
 	sent.append({"to": to, "subject": subject, "body": body, "day": day, "time": time})
 
