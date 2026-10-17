@@ -28,16 +28,20 @@ const STATUS_READY := "ready"
 const BED_TASKS := {
 	"tent": {"id": "bed", "label": "Roll out the sleeping bag", "verb": "Rolling out", "seconds": 1.6, "sfx": "task_bed.mp3"},
 	"cabin": {"id": "bed", "label": "Make the bed", "verb": "Making the bed", "seconds": 2.0, "sfx": "task_bed.mp3"},
+	# The caravan's double bed is its dinette: the table down, the cushions laid flat.
+	"caravan": {"id": "bed", "label": "Make up the dinette bed", "verb": "Making up", "seconds": 2.2, "sfx": "task_bed.mp3"},
 }
 
 
-## "tent" / "cabin" / "" for anything that is not a room.
+## "tent" / "cabin" / "caravan" / "" for anything that is not a room.
 static func kind_for(building_type: String) -> String:
 	var t := building_type.to_lower()
 	if t.begins_with("tent"):
 		return "tent"
 	if t.begins_with("cabin"):
 		return "cabin"
+	if t.begins_with("caravan"):
+		return "caravan"
 	return ""
 
 

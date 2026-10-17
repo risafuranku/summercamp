@@ -50,6 +50,8 @@ const MESS := {
 const ROOM_SPOTS := {
 	"tent": ["f1", "f2", "f3", "f4", "f5"],
 	"cabin": ["f1", "f2", "f3", "f4", "f5", "f6"],
+	# The aisle and the near end; t1 is the kitchenette worktop.
+	"caravan": ["f1", "f2", "f3", "f4", "t1"],
 }
 const BATH_SPOTS := ["wc", "sink", "bfloor"]
 const BATH_KINDS := {"wc": ["toilet_grime"], "sink": ["sink_grime", "hair"], "bfloor": ["puddle", "mud", "paper_out", "piss", "wads"]}

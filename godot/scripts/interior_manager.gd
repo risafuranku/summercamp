@@ -9,6 +9,7 @@ const KNOCK_SFX := "res://assets/sfx/rooms/door_knock.mp3"
 const BUILDING_INTERIOR_SCRIPT = preload("res://scripts/building_interior.gd")
 const CABIN_INTERIOR_SCRIPT = preload("res://scripts/cabin_interior.gd")
 const TENT_INTERIOR_SCRIPT = preload("res://scripts/tent_interior.gd")
+const CARAVAN_INTERIOR_SCRIPT = preload("res://scripts/caravan_interior.gd")
 const SERVICE_INTERIOR_SCRIPT = preload("res://scripts/service_interior_generator.gd")
 const BUILDING_UPGRADE_MENU_SCRIPT = preload("res://scripts/building_upgrade_menu.gd")
 const GUEST_DIALOG_SCRIPT = preload("res://scripts/guest_dialog.gd")
@@ -17,6 +18,7 @@ const TIME_NIGHT: int = 2
 
 const INTERIOR_MODULE_MAIN := "main"
 const INTERIOR_MODULE_TENT := "tent"
+const INTERIOR_MODULE_CARAVAN := "caravan"
 const INTERIOR_MODULE_CABIN := "cabin"
 const INTERIOR_MODULE_SERVICE := "service"
 const INTERIOR_ASSIGNMENTS := [
@@ -34,6 +36,11 @@ const INTERIOR_ASSIGNMENTS := [
 		"module_id": INTERIOR_MODULE_CABIN,
 		"building_types": ["cabin", "cabin_1", "cabin_2", "cabin_3"],
 		"hint": "Enter cabin",
+	},
+	{
+		"module_id": INTERIOR_MODULE_CARAVAN,
+		"building_types": ["caravan_1", "caravan_2", "caravan_3"],
+		"hint": "Enter caravan",
 	},
 	{
 		"module_id": INTERIOR_MODULE_SERVICE,
@@ -62,6 +69,7 @@ var _economy_manager: Node
 var _building_interior
 var _cabin_interior
 var _tent_interior
+var _caravan_interior
 var _service_interior
 var _building_upgrade_menu
 var _guest_dialog
@@ -71,6 +79,7 @@ var _interior_hint_lookup: Dictionary = {}
 var _interior_instances: Dictionary = {}
 
 var _active_tent_node: Node3D
+var _active_caravan_node: Node3D
 var _active_cabin_node: Node3D
 var _active_service_node: Node3D
 var _pending_upgrade_context: Dictionary = {}
@@ -176,6 +185,7 @@ func setup_all() -> void:
 	_setup_building_interior()
 	_setup_cabin_interior()
 	_setup_tent_interior()
+	_setup_caravan_interior()
 	_setup_service_interior()
 	_setup_building_upgrade_menu()
 	_setup_guest_dialog()
@@ -236,7 +246,7 @@ func close_everything() -> void:
 	for interior in _get_registered_interior_nodes():
 		if not (interior.has_method("is_open") and interior.is_open()):
 			continue
-		for m in ["close_interior", "close_cabin", "close_tent", "close_service"]:
+		for m in ["close_interior", "close_cabin", "close_tent", "close_caravan", "close_service"]:
 			if interior.has_method(m):
 				interior.call(m)
 				break
@@ -307,6 +317,8 @@ func handle_structure_interact(structure: Node3D) -> void:
 			_on_tent_interact(structure)
 		INTERIOR_MODULE_CABIN:
 			_on_cabin_interact(structure)
+		INTERIOR_MODULE_CARAVAN:
+			_on_caravan_interact(structure)
 		INTERIOR_MODULE_SERVICE:
 			_on_service_interact(structure)
 		_:
@@ -467,6 +479,60 @@ func _setup_tent_interior() -> void:
 	if _tent_interior.has_signal("room_task_completed"):
 		_tent_interior.room_task_completed.connect(func(task_id: String): _on_room_task_completed(_tent_interior, _active_tent_node, task_id))
 	_apply_grid_power_to_interior(_tent_interior)
+
+
+func _setup_caravan_interior() -> void:
+	if _caravan_interior != null and is_instance_valid(_caravan_interior):
+		_apply_grid_power_to_interior(_caravan_interior)
+		return
+	_caravan_interior = CARAVAN_INTERIOR_SCRIPT.new()
+	_caravan_interior.name = "CaravanInterior"
+	add_child(_caravan_interior)
+	_register_interior_instance(INTERIOR_MODULE_CARAVAN, _caravan_interior)
+	_caravan_interior.request_close.connect(_on_caravan_closed)
+	_caravan_interior.request_upgrade.connect(_on_caravan_upgrade_requested)
+	_caravan_interior.room_task_completed.connect(func(task_id: String): _on_room_task_completed(_caravan_interior, _active_caravan_node, task_id))
+	_apply_grid_power_to_interior(_caravan_interior)
+
+
+func _on_caravan_interact(caravan_node: Node) -> void:
+	if _caravan_interior == null or _caravan_interior.is_open():
+		return
+	if _refuse_if_occupied(caravan_node as Node3D, "caravan"):
+		return
+	var t := str(caravan_node.get_meta("building_type", "caravan_1"))
+	var level := clampi(int(t.right(1)), 1, 3)
+	_active_caravan_node = caravan_node as Node3D
+	_apply_time_to_interior(_caravan_interior)
+	_caravan_interior.open_caravan(level)
+	_push_room_state(_caravan_interior, _active_caravan_node)
+	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
+		_audio_manager.play_door_open()
+	_set_player_controls_enabled(false)
+
+
+func _on_caravan_closed() -> void:
+	_active_caravan_node = null
+	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
+		_audio_manager.play_door_close()
+	_set_player_controls_enabled(true)
+
+
+func _on_caravan_upgrade_requested() -> void:
+	var caravan = _active_caravan_node
+	if caravan == null or not is_instance_valid(caravan) or _economy_manager == null:
+		return
+	var origin = caravan.get_meta("grid_origin", Vector2i(-1, -1))
+	var current_type = str(caravan.get_meta("building_type", "caravan_1"))
+	var next_type := {"caravan_1": "caravan_2", "caravan_2": "caravan_3"}.get(current_type, "") as String
+	if next_type == "":
+		_pending_upgrade_context.clear()
+		_open_upgrade_menu("Caravan: Max Level", "This caravan is already Lv3.", "MAX", false)
+		return
+	var cost = max(30, _economy_manager.get_cost(next_type) - _economy_manager.get_cost(current_type))
+	_pending_upgrade_context = {"mode": "replace", "origin": origin, "old_type": current_type, "new_type": next_type, "cost": cost}
+	var desc = "Upgrade %s -> %s (one more bed)." % [_economy_manager.get_label(current_type), _economy_manager.get_label(next_type)]
+	_open_upgrade_menu("Caravan: Upgrade", desc, "$%d" % cost, _economy_manager.get_money() >= cost)
 
 
 func _on_tent_closed() -> void:
@@ -960,6 +1026,8 @@ func _handle_replace_upgrade(origin: Vector2i, old_type: String, new_type: Strin
 				_active_tent_node = updated_node
 			elif new_type.begins_with("cabin_"):
 				_active_cabin_node = updated_node
+			elif new_type.begins_with("caravan_"):
+				_active_caravan_node = updated_node
 
 	_refresh_upgraded_interior_state(new_type)
 
@@ -969,6 +1037,10 @@ func _refresh_upgraded_interior_state(new_type: String) -> void:
 		var upgraded_level = clampi(int(new_type.get_slice("_", 1)), 1, 3)
 		_apply_time_to_interior(_tent_interior)
 		_tent_interior.open_tent(upgraded_level)
+	if new_type.begins_with("caravan_") and _caravan_interior != null and _caravan_interior.is_open():
+		_apply_time_to_interior(_caravan_interior)
+		_caravan_interior.open_caravan(clampi(int(new_type.get_slice("_", 1)), 1, 3))
+		_push_room_state(_caravan_interior, _active_caravan_node)
 	if new_type.begins_with("cabin_") and _cabin_interior != null and _cabin_interior.is_open():
 		var upgraded_cabin_level = clampi(int(new_type.get_slice("_", 1)), 1, 3)
 		_apply_time_to_interior(_cabin_interior)
