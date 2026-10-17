@@ -15,6 +15,9 @@ extends Node3D
 
 const GUEST_NEEDS = preload("res://core/systems/guest_needs_system.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
+const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
+## Going in through a door (game minutes): from a step outside to a step inside.
+const ENTER_MIN := 1.4
 
 const SNAPSHOT_INTERVAL_SEC := 0.25
 const NAV_REBUILD_INTERVAL_SEC := 3.0
@@ -90,6 +93,7 @@ func _process(delta: float) -> void:
 	if _snapshot_timer <= 0.0:
 		_snapshot_timer = SNAPSHOT_INTERVAL_SEC
 		_refresh_snapshot()
+	DOOR_ANIM.tick(delta)
 	_move_acc += delta
 	if _move_acc < 1.0 / MOVE_FPS:
 		return
@@ -256,10 +260,34 @@ func _sync_party_plan(party: Dictionary, entry: Dictionary) -> void:
 		points.append(last_pos)
 		start_world = _tile_center(from_tile)
 		path = _find_path(from_tile, goal_tile)
+	# Out of the building they were in: from inside the door, out through it (it opens).
+	var kind_now := str(act.get("kind", ""))
+	party["exit"] = {}
+	party["exit_open"] = false
+	party.erase("entering")
+	if bool(party.get("inside", false)):
+		var from_st := DOOR_ANIM.structure_at(from_tile)
+		if from_st != null and str(from_st.get_meta("building_type", "")) != "main_building":
+			party["exit"] = DOOR_ANIM.entry_points(from_st)
+	party["inside"] = false
+	var ex: Dictionary = party["exit"]
+	if not ex.is_empty():
+		points.append(ex["inside"])
+		points.append(ex["outside"])
 	points.append(start_world)
 	for p in path:
 		points.append(_tile_center(p))
 	points.append(goal_world)
+	# Into a building: up to its door (the dwell takes them through it).
+	party["entry"] = {}
+	party["entry_open"] = false
+	var indoor := (kind_now == "visit" and not OPEN_AIR_TYPES.has(str(act.get("target_type", "")))) or kind_now in ["rest", "sleep", "arrive"]
+	if indoor:
+		var to_st := DOOR_ANIM.structure_at(to_tile)
+		if to_st != null and str(to_st.get_meta("building_type", "")) != "main_building":
+			party["entry"] = DOOR_ANIM.entry_points(to_st)
+			if not (party["entry"] as Dictionary).is_empty():
+				points.append(party["entry"]["outside"])
 	var lengths := PackedFloat32Array()
 	var total := 0.0
 	lengths.append(0.0)
@@ -296,6 +324,10 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		var t := clampf((now - start) / (arrive - start), 0.0, 1.0)
 		lead_pos = _sample_path(points, lengths, t * total)
 		walking = true
+		# Coming out of a building: its door opens as they step out.
+		if not bool(party.get("exit_open", true)) and not (party.get("exit", {}) as Dictionary).is_empty():
+			party["exit_open"] = true
+			DOOR_ANIM.open(party["exit"].get("door", null), 1.4)
 	elif kind == "wait_gate":
 		# Through the barrier and up the path to the reception, in the order they came;
 		# the first two go in (the counter, the bench: building_interior.gd), the rest
@@ -311,10 +343,20 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		dwell_phase = true
 		lead_pos = points[points.size() - 1]
 		var queued := bool(act.get("queued", false))
-		if kind == "visit" and not queued and not OPEN_AIR_TYPES.has(str(act.get("target_type", ""))):
-			# Inside the building: hide after a short beat at the door.
-			visible_now = (now - arrive) < 0.6
-		elif HIDDEN_DWELL_KINDS.has(kind):
+		var going_in := (kind == "visit" and not queued and not OPEN_AIR_TYPES.has(str(act.get("target_type", "")))) or HIDDEN_DWELL_KINDS.has(kind)
+		var entry: Dictionary = party.get("entry", {})
+		if going_in and not entry.is_empty():
+			# Through the door: it swings open, they step in one after another, it shuts.
+			var e := (now - arrive) / ENTER_MIN
+			visible_now = e < 1.0 + 0.35 * float(members.size() - 1)
+			if visible_now and not bool(party.get("entry_open", false)):
+				party["entry_open"] = true
+				DOOR_ANIM.open(entry.get("door", null), 1.2 + 0.4 * float(members.size()))
+			if not visible_now:
+				party["inside"] = true
+			lead_pos = entry["outside"]
+			party["entering"] = e
+		elif going_in:
 			visible_now = (now - arrive) < 0.6
 		elif kind == "leave":
 			visible_now = (now - arrive) < 1.0
@@ -364,6 +406,21 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			offset = Vector3(float(i) * 0.4, 0.0, 0.9 + float(int(info.get("id", 0)) % 3) * 0.7)
 		var pos := lead_pos + offset
 		var sprite := member.get_node_or_null("Sprite") as Sprite3D
+		if dwell_phase and party.has("entering") and not (party.get("entry", {}) as Dictionary).is_empty():
+			var en: Dictionary = party["entry"]
+			var ei := float(party["entering"]) - 0.35 * float(i)
+			if ei >= 1.0:
+				member.visible = false
+				continue
+			var k := clampf(ei, 0.0, 1.0)
+			k = k * k * (3.0 - 2.0 * k)
+			pos = (en["outside"] as Vector3).lerp(en["inside"], k) + (en["outside"] - en["inside"]).normalized() * 0.45 * maxf(0.0, -ei) * 2.0
+			# No door leaf: a tent; they duck in under the flap.
+			if en.get("door", null) == null:
+				pos.y -= smoothstep(0.35, 1.0, ei) * 1.0
+			member.position = pos
+			POSES.set_pose(sprite, str(info.get("sprite_path", "")), "")
+			continue
 		if walking:
 			var phase := floorf(_time * ANIM_FPS) / ANIM_FPS * WALK_BOB_HZ * TAU + float(i) * 1.7
 			pos.y = absf(sin(phase)) * 0.06

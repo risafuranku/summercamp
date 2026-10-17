@@ -2100,6 +2100,35 @@ func debug_parts(n: Node) -> Array:
 	return out
 
 
+## Shot driver: every checked-in party goes to the first `building_type` now and stays
+## `minutes` there (the sim's own visit activity, already arrived).
+func debug_send_guests_to(building_type: String, minutes: int = 120) -> int:
+	var life = GuestManager.get("_life")
+	if life == null:
+		return 0
+	life.refresh_world(CoreRoot.get_state(), CoreRoot.registry)
+	var fs: Array = (life.get("_facilities") as Array).filter(func(f): return str(f["type"]) == building_type)
+	if fs.is_empty():
+		return 0
+	var f: Dictionary = fs[0]
+	var now: int = GuestManager._absolute_minutes(maxi(1, GuestManager._last_known_day), GuestManager._last_known_hour, GuestManager._last_known_minute)
+	var n := 0
+	var state = CoreRoot.get_state()
+	for i in state.guests.size():
+		var g: Dictionary = state.guests[i]
+		if not str(g.get("status", "")) in ["active", "sleep"]:
+			continue
+		var here: Vector2i = life._parse_key(str(g.get("tile", "")))
+		var act: Dictionary = life._make_activity("visit", here, life._door_tile(f, here), now - 20, minutes, "fun", f)
+		act["arrive"] = now - 1
+		act["end"] = now + minutes
+		g["activity"] = act
+		g["status"] = "active"
+		state.guests[i] = g
+		n += 1
+	return n
+
+
 func debug_guest_thoughts() -> Array:
 	var out: Array = []
 	for g in CoreRoot.get_state().guests:
