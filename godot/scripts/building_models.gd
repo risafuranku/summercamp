@@ -96,43 +96,78 @@ func _toilets(r: Node3D, _w: float, _d: float) -> Dictionary:
 	return {"size": Vector3(sx + 0.4, h + 0.6, sz + 0.4), "target": Vector3(0, 1.1, sz * 0.5 + 0.1)}
 
 
-# ── showers (sprchy.PNG): an open row of cubicles under tin, a tank on the roof ─
+# ── showers: a concrete shower house (the room inside: service_interior.gd wash) ─
 
+## A low block of grey roughcast concrete under a flat slab roof, built round the room
+## inside (3.6 x 3.2 m): the three cubicles along the back wall lit by a strip of glass
+## blocks under the roof, the boiler on the right wall with its flue up past the roof,
+## the bench on the left. The green steel door in the middle of the front, its enamel
+## plate and a caged bulb over it, a tap with a bucket outside on the left, the hot-water
+## tank on the roof, a downpipe, a vent grille. Build style: boxes and camp textures.
 func _showers(r: Node3D, _w: float, _d: float) -> Dictionary:
-	var sx := 3.4
-	var sz := 2.2
-	var h := 2.35
-	_plinth(r, sx + 0.3, sz + 0.5)
-	# Duckboard deck in front.
-	_box(r, "Deck", Vector3(sx, 0.08, 0.7), Vector3(0, 0.14, sz * 0.5 + 0.3), _wood())
-	var tiles := _camp("tiles_bathroom.png", Color(0.95, 0.95, 0.92), Vector3(3.0, 2.0, 1.0))
-	var planks := _camp("planks_grey.png", Color(0.82, 0.86, 0.8), Vector3(2.0, 1.0, 1.0))
-	_box(r, "Back", Vector3(sx, h, 0.12), Vector3(0, h * 0.5 + 0.1, -sz * 0.5), tiles)
-	_box(r, "SideL", Vector3(0.12, h, sz), Vector3(-sx * 0.5, h * 0.5 + 0.1, 0), _camp("planks_grey.png", Color(0.52, 0.66, 0.46), Vector3(1.0, 1.0, 1.0)))
-	_box(r, "SideR", Vector3(0.12, h, sz), Vector3(sx * 0.5, h * 0.5 + 0.1, 0), planks)
-	_box(r, "Floor", Vector3(sx, 0.06, sz), Vector3(0, 0.13, 0), _camp("tiles_bathroom.png", Color(0.7, 0.72, 0.72), Vector3(3.0, 2.0, 1.0)))
-	# Three cubicles: white partitions, the doors half open.
-	var panel := _flat(Color(0.86, 0.86, 0.82))
+	var sx := 3.6
+	var sz := 3.2
+	var h := 2.7
+	var front := sz * 0.5
+	var back := -sz * 0.5
+	var walls: Material = _camp("roughcast_wall.png", Color(0.95, 0.96, 0.98), Vector3(1.0, 1.0, 1.0)) if ResourceLoader.exists(CAMP + "roughcast_wall.png") \
+		else _camp("booth_wall.png", Color(0.86, 0.86, 0.84), Vector3(1.2, 1.2, 1.2))
+	var slab := _camp_or("concrete.png", Color(0.7, 0.7, 0.68), "stone", Vector3(1.5, 1.5, 1.5))
+	var glass_blocks: Material = _camp("glass_blocks.png", Color(0.9, 0.96, 0.96), Vector3(2.4, 2.4, 2.4)) if ResourceLoader.exists(CAMP + "glass_blocks.png") \
+		else _camp("tiles_bathroom.png", Color(0.62, 0.78, 0.8), Vector3(3.0, 3.0, 3.0))
+	var steel := _camp_or("metal_green.png", Color(0.5, 0.66, 0.5), "metal")
+	var galv := _camp_or("galvanized.png", Color(0.72, 0.74, 0.74), "metal", Vector3(0.6, 0.6, 0.6))
+	_plinth(r, sx + 0.3, sz + 0.3)
+	_box(r, "House", Vector3(sx, h, sz), Vector3(0, h * 0.5 + 0.1, 0), walls)
+	# A darker painted base band, splashed and damp.
+	_box(r, "BaseBand", Vector3(sx + 0.03, 0.45, sz + 0.03), Vector3(0, 0.32, 0), _camp_or("concrete.png", Color(0.38, 0.4, 0.38), "stone"))
+	# The flat roof: a concrete slab overhanging all round, tar paper on top.
+	_box(r, "RoofSlab", Vector3(sx + 0.36, 0.18, sz + 0.36), Vector3(0, h + 0.19, 0), slab)
+	_box(r, "TarPaper", Vector3(sx + 0.26, 0.03, sz + 0.26), Vector3(0, h + 0.295, 0), _flat(Color(0.12, 0.12, 0.13)))
+	# Glass blocks: a strip under the roof above the cubicles, a small square each side.
+	_box(r, "GlassBlocksBack", Vector3(sx * 0.78, 0.42, 0.05), Vector3(0, h - 0.3, back - 0.01), glass_blocks)
+	for side: float in [-1.0, 1.0]:
+		_box(r, "GlassBlocksSide", Vector3(0.05, 0.42, 0.56), Vector3(side * (sx * 0.5 + 0.01), h - 0.3, back + 0.7), glass_blocks)
+	# The door: a concrete surround, the green steel leaf with a wired-glass slit.
+	_box(r, "DoorSurround", Vector3(1.16, 2.18, 0.06), Vector3(0, 1.19, front + 0.02), slab)
+	_box(r, "Door", Vector3(0.9, 2.0, 0.05), Vector3(0, 1.1, front + 0.05), steel)
+	_box(r, "DoorGlass", Vector3(0.22, 0.5, 0.055), Vector3(0, 1.62, front + 0.055), _flat(Color(0.42, 0.5, 0.5)))
+	_box(r, "DoorHandle", Vector3(0.12, 0.03, 0.05), Vector3(0.32, 1.05, front + 0.1), _metal())
+	_box(r, "Step", Vector3(1.3, 0.16, 0.5), Vector3(0, 0.08, front + 0.3), slab)
+	# A bulb in a wire cage over the door, on a little arm.
+	_box(r, "LampArm", Vector3(0.05, 0.05, 0.28), Vector3(0, 2.42, front + 0.14), _metal())
+	_cyl(r, "LampCage", 0.09, 0.16, Vector3(0, 2.36, front + 0.28), _flat(Color(0.25, 0.26, 0.24)))
+	_cyl(r, "LampBulb", 0.055, 0.1, Vector3(0, 2.33, front + 0.28), _flat(Color(1.0, 0.92, 0.66)))
+	# The enamel plate left of the door (the same plate as inside).
+	_box(r, "SignRim", Vector3(0.98, 0.36, 0.03), Vector3(-1.2, 1.78, front + 0.03), _flat(Color(0.16, 0.2, 0.36)))
+	_box(r, "SignPlate", Vector3(0.92, 0.3, 0.035), Vector3(-1.2, 1.78, front + 0.035), _flat(Color(0.92, 0.9, 0.82)))
+	_label(r, "SPRCHY", Vector3(-1.2, 1.78, front + 0.06), 0.2, Color(0.15, 0.25, 0.4))
+	# Outside on the left: a tap on its pipe, a bucket and a red basin on a duckboard.
+	var tap_z := front - 0.8
+	_box(r, "TapBoard", Vector3(0.42, 0.06, 0.9), Vector3(-sx * 0.5 - 0.23, 0.14, tap_z), _wood())
+	_cyl(r, "TapPipe", 0.025, 0.9, Vector3(-sx * 0.5 - 0.04, 0.85, tap_z), galv)
+	_box(r, "Tap", Vector3(0.14, 0.05, 0.05), Vector3(-sx * 0.5 - 0.1, 0.62, tap_z), _metal())
+	_cyl(r, "Bucket", 0.14, 0.26, Vector3(-sx * 0.5 - 0.24, 0.3, tap_z + 0.2), _flat(Color(0.7, 0.72, 0.72)))
+	_cyl(r, "Basin", 0.2, 0.1, Vector3(-sx * 0.5 - 0.24, 0.22, tap_z - 0.22), _flat(Color(0.7, 0.16, 0.12)))
+	# The boiler's flue: out of the right wall where the boiler hangs inside, up past the roof.
+	var flue_x := sx * 0.5 + 0.12
+	_box(r, "FlueBracket", Vector3(0.24, 0.06, 0.06), Vector3(sx * 0.5 + 0.06, 1.75, -0.6), _metal())
+	_cyl(r, "Flue", 0.07, h + 0.4 - 1.6, Vector3(flue_x, (1.6 + h + 0.4) * 0.5, -0.6), galv)
+	_cyl(r, "FlueCap", 0.12, 0.08, Vector3(flue_x, h + 0.46, -0.6), _metal())
+	# Rain: a gutter outlet and a downpipe at the front right corner.
+	_cyl(r, "Downpipe", 0.05, h + 0.1, Vector3(sx * 0.5 + 0.06, (h + 0.1) * 0.5 + 0.05, front - 0.06), galv)
+	_box(r, "DownpipeShoe", Vector3(0.22, 0.06, 0.12), Vector3(sx * 0.5 + 0.12, 0.08, front - 0.06), galv)
+	# A vent grille low on the back wall.
+	_box(r, "Vent", Vector3(0.4, 0.22, 0.04), Vector3(sx * 0.3, 0.7, back - 0.02), _flat(Color(0.2, 0.2, 0.2)))
 	for i in 4:
-		var x := -sx * 0.5 + 0.06 + float(i) * (sx - 0.12) / 3.0
-		if i > 0 and i < 3:
-			_box(r, "Partition%d" % i, Vector3(0.05, 1.9, sz - 0.2), Vector3(x, 1.1, 0.0), panel)
-	for i in 3:
-		var cx := -sx * 0.5 + (sx / 3.0) * (float(i) + 0.5)
-		var dr := _box(r, "CubicleDoor%d" % i, Vector3(0.8, 1.7, 0.04), Vector3(0, 0, 0), panel)
-		dr.position = Vector3(cx - 0.4 + cos(0.6 + i * 0.3) * 0.4, 1.0, sz * 0.5 - 0.05 + sin(0.6 + i * 0.3) * 0.4)
-		dr.rotation.y = -(0.6 + i * 0.3)
-		_cyl(r, "Head%d" % i, 0.06, 0.04, Vector3(cx, 2.1, -sz * 0.5 + 0.2), _metal())
-		_box(r, "Drain%d" % i, Vector3(0.2, 0.01, 0.2), Vector3(cx, 0.165, -0.1), _flat(Color(0.18, 0.2, 0.22)))
-	# Roof, the water tank, the pipe along the front.
-	_lean_roof(r, sx + 0.4, sz + 0.5, h + 0.1, 0.3, _camp("corrugated_roof.png", Color(0.8, 0.8, 0.76), Vector3(2.0, 2.0, 1.0)))
-	_cyl(r, "Tank", 0.42, 1.2, Vector3(-sx * 0.25, h + 0.75, -0.4), _psx_mat(Color(0.56, 0.4, 0.28), "metal"), Vector3(0, 0, PI * 0.5))
-	for x: float in [-sx * 0.25 - 0.4, -sx * 0.25 + 0.4]:
-		_box(r, "TankCradle", Vector3(0.1, 0.4, 0.7), Vector3(x, h + 0.42, -0.4), _wood())
-	_cyl(r, "Pipe", 0.04, sx, Vector3(0, h - 0.05, sz * 0.5 - 0.05), _metal(), Vector3(0, 0, PI * 0.5))
-	_cyl(r, "Boiler", 0.22, 0.7, Vector3(sx * 0.5 + 0.3, 0.6, -0.4), _flat(Color(0.86, 0.86, 0.84)))
-	_label(r, "SPRCHY", Vector3(0, h - 0.35, -sz * 0.5 + 0.08), 0.28, Color(0.15, 0.25, 0.4))
-	return {"size": Vector3(sx + 0.4, h + 0.4, sz + 0.4), "target": Vector3(0, 1.1, sz * 0.5 + 0.2)}
+		_box(r, "VentSlat", Vector3(0.38, 0.025, 0.05), Vector3(sx * 0.3, 0.62 + i * 0.055, back - 0.03), _metal())
+	# The hot-water tank on the roof on two cradles, its pipe going down into the roof.
+	var tank_y := h + 0.31 + 0.5
+	_cyl(r, "Tank", 0.42, 1.3, Vector3(-sx * 0.2, tank_y, back + 0.8), _psx_mat(Color(0.56, 0.4, 0.28), "metal"), Vector3(0, 0, PI * 0.5))
+	for x: float in [-sx * 0.2 - 0.45, -sx * 0.2 + 0.45]:
+		_box(r, "TankCradle", Vector3(0.1, 0.36, 0.7), Vector3(x, h + 0.49, back + 0.8), _wood())
+	_cyl(r, "TankPipe", 0.03, 0.5, Vector3(-sx * 0.2 + 0.7, h + 0.55, back + 0.8), galv)
+	return {"size": Vector3(sx + 0.8, h + 1.0, sz + 0.6), "target": Vector3(0, 1.1, front + 0.35)}
 
 
 # ── the pub (hospoda1.PNG): a plastered village house, porch, barrels ─────────

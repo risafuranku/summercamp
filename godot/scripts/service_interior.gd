@@ -1005,14 +1005,8 @@ func _side_hint_texts() -> Array:
 			# other door the other one"): no way through the partition.
 			return ["", ""]
 		"wash":
-			var what := "Shower"
-			match _active_subroom:
-				"left":
-					return ["", "Back  [D]"]
-				"right":
-					return ["Back  [A]", ""]
-				_:
-					return [what + "  [A]", what + "  [D]"]
+			# One room for all the showers: A/D only turn the head.
+			return ["", ""]
 	return ["", ""]
 
 
@@ -1043,12 +1037,7 @@ func _switch_service_room(direction: int) -> void:
 	elif _current_profile == "toilet":
 		return
 	elif _current_profile == "wash":
-		if _active_subroom == "center":
-			target_room = "left" if direction < 0 else "right"
-		elif _active_subroom == "left" and direction > 0:
-			target_room = "center"
-		elif _active_subroom == "right" and direction < 0:
-			target_room = "center"
+		return
 	
 	if target_room == "":
 		return
@@ -1101,6 +1090,12 @@ func _apply_service_subroom(target_room: String, update_camera: bool = true) -> 
 		_look.reset()
 
 
+## Where you stand in the shower room (just inside the door, the room is 3.2 m deep).
+const WASH_CAM_Z := 1.3
+## The shower room's glass blocks: the daylight comes through them (_apply_time_profile).
+var _wash_glass: StandardMaterial3D
+
+
 func _set_hygiene_room(room: String) -> void:
 	if _interior_camera == null:
 		return
@@ -1110,14 +1105,10 @@ func _set_hygiene_room(room: String) -> void:
 		var sx := TOILET_STALL_X * (1.0 if room == "right" else -1.0)
 		_interior_camera.position = Vector3(sx, 1.55, TOILET_D * 0.5 - 0.12)
 		_interior_camera.rotation_degrees = Vector3(-30.0, 0.0, 0.0)
-	elif room == "left":
-		_interior_camera.position = Vector3(-0.95, 1.45, 0.6)
-		_interior_camera.rotation_degrees = Vector3(-14.0, 0.0, 0.0)
-	elif room == "right":
-		_interior_camera.position = Vector3(0.95, 1.45, 0.6)
-		_interior_camera.rotation_degrees = Vector3(-14.0, 0.0, 0.0)
 	else:
-		_interior_camera.position = Vector3(0.0, 1.5, 1.15)
+		# The shower room is one room: in the doorway, the three cubicles ahead, the
+		# bench to the left, the trough and the boiler to the right (turn the head).
+		_interior_camera.position = Vector3(0.0, 1.5, WASH_CAM_Z)
 		_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 	_cam_base_rot = _interior_camera.rotation
 
@@ -1371,10 +1362,27 @@ func _build_wash_layout(shower_mode: bool, title_override: String = "") -> void:
 	boiler.material_override = K.surface("enamel_white", 0.5)
 	boiler.position = Vector3(w * 0.5 - 0.35, h - 0.55, -0.6)
 	r.add_child(boiler)
+	# The concrete house's strip of glass blocks under the ceiling over the cubicles and a
+	# square of them in each side wall (building_models._showers), and the bulb.
+	var glass := K.surface("glass_blocks", 0.42) if ResourceLoader.exists("res://assets/textury/camp/glass_blocks.png") else K.surface("tiles_bathroom", 0.9, Color(0.7, 0.85, 0.88))
+	_wash_glass = glass as StandardMaterial3D
+	K.slab(r, Vector3(w * 0.78, 0.42, 0.03), Vector3(0, h - 0.3, -d * 0.5 + 0.02), glass, "GlassBlocks")
+	for side: float in [-1.0, 1.0]:
+		var gb := K.slab(r, Vector3(0.56, 0.42, 0.03), Vector3(side * (w * 0.5 - 0.02), h - 0.3, -d * 0.5 + 0.7), glass, "GlassBlocks")
+		gb.rotation.y = PI * 0.5
+	K.slab(r, Vector3(0.16, 0.05, 0.16), Vector3(0, h - 0.025, 0.1), K.surface("galvanized", 0.3), "BulbRose")
+	var bulb := MeshInstance3D.new()
+	var bulb_mesh := SphereMesh.new()
+	bulb_mesh.radius = 0.06
+	bulb_mesh.height = 0.12
+	bulb.mesh = bulb_mesh
+	bulb.material_override = INTERIOR_PREP.flat(Color(1.0, 0.94, 0.72))
+	bulb.position = Vector3(0, h - 0.11, 0.1)
+	r.add_child(bulb)
 	var default_title = "SPRCHY\nshowers" if shower_mode else "UMYVARNA\nwashroom"
 	var sign := _sign(r, title_override if title_override != "" else default_title, Vector3(-w * 0.5 + 0.06, 1.95, -0.6), 24, "enamel")
 	sign.rotation_degrees.y = 90.0
-	_interior_camera.position = Vector3(0.0, 1.5, 1.15)
+	_interior_camera.position = Vector3(0.0, 1.5, WASH_CAM_Z)
 	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 
 
@@ -1475,9 +1483,10 @@ func _build_upkeep_spots(block: String) -> void:
 		_upkeep_prep.add_spot("shower_r", r, Vector3(1.15, 0.5, -1.54), 0.0, true)
 		_upkeep_prep.add_spot("drain_l", r, Vector3(-1.15, 0.01, -1.0))
 		_upkeep_prep.add_spot("drain_r", r, Vector3(1.15, 0.01, -1.0))
-		_upkeep_prep.add_spot("floor_c", r, Vector3(0.0, 0.01, -0.1))
-		_upkeep_prep.add_spot("floor_l", r, Vector3(-1.1, 0.01, 0.3))
-		_upkeep_prep.add_spot("floor_r", r, Vector3(1.1, 0.01, 0.5))
+		# All within a turn of the head from the doorway (no stepping across any more).
+		_upkeep_prep.add_spot("floor_c", r, Vector3(0.0, 0.01, -0.5))
+		_upkeep_prep.add_spot("floor_l", r, Vector3(-1.2, 0.01, -0.2))
+		_upkeep_prep.add_spot("floor_r", r, Vector3(1.2, 0.01, -0.1))
 	_upkeep_prep.setup_tasks(self, _interior_camera, _viewport)
 	_upkeep_prep.task_completed.connect(_on_upkeep_task_done)
 	var st = CoreRoot.get_state()
@@ -1774,6 +1783,9 @@ func _apply_time_profile(animated: bool = false) -> void:
 
 	var daylight = clampf(_daylight_factor, 0.0, 1.0)
 	var sun_tint = _sunlight_color.lerp(Color(1.0, 0.96, 0.90), 0.25)
+	if _wash_glass != null:
+		_wash_glass.emission_enabled = true
+		_wash_glass.emission = Color(0.62, 0.7, 0.68) * (0.08 + 0.7 * daylight)
 	if _room_env != null:
 		_room_env.ambient_light_color = _room_env.ambient_light_color.lerp(sun_tint, 0.16 * daylight)
 		_room_env.ambient_light_energy = lerpf(_room_env.ambient_light_energy * 0.82, _room_env.ambient_light_energy * 1.16, daylight)
