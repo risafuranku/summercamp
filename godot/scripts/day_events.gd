@@ -783,11 +783,77 @@ func _event_pos(ev: Dictionary) -> Vector3:
 	if c.x < 0:
 		return Vector3.INF
 	var p := _grid_world(c)
-	# Beside the building, not in it (the side away from the camp centre... any side).
+	# Beside the building, not in it, not on it.
 	if str(ev["kind"]) in ["litter", "raccoons"]:
+		var spot := _spot_beside(c, int(ev.get("id", 0)))
+		if spot != Vector3.INF:
+			return spot
 		var off := Vector3(1.6, 0, 1.1) if (c.x + c.y) % 2 == 0 else Vector3(-1.5, 0, -1.2)
 		p += off
 	return _ground(p)
+
+
+## A free spot beside a building (playtest 2026-10-17: a bin bag on a roof, the pub's
+## raccoons somewhere inside it, since a fixed offset from the building's cell lands inside
+## a 2x2 footprint and the ground ray took the roof): a cell next to the footprint with
+## nothing standing on it (a path is fine), at the footprint's edge, on the ground. The
+## side is the event's own, so it stays put across saves.
+func _spot_beside(c: Vector2i, salt: int) -> Vector3:
+	var gm = _main.get("grid_manager") if _main != null else null
+	if gm == null or not gm.is_in_bounds(c):
+		return Vector3.INF
+	var t0 = gm.get_tile(c)
+	var occ = t0.occupant if t0 != null and t0.occupied else null
+	var foot: Array[Vector2i] = [c]
+	if occ != null:
+		for dy in range(-3, 4):
+			for dx in range(-3, 4):
+				var cc := c + Vector2i(dx, dy)
+				if cc == c or not gm.is_in_bounds(cc):
+					continue
+				var tt = gm.get_tile(cc)
+				if tt != null and tt.occupied and tt.occupant == occ:
+					foot.append(cc)
+	var options: Array[Vector2i] = []
+	var owner_of: Dictionary = {}
+	for f in foot:
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = f + d
+			if foot.has(n) or options.has(n) or not gm.is_in_bounds(n):
+				continue
+			var tn = gm.get_tile(n)
+			if tn == null or tn.tile_type == gm.TILE_LAKE or tn.tile_type == gm.TILE_RESERVED:
+				continue
+			if tn.occupied and not _is_path_node(tn.occupant):
+				continue
+			options.append(n)
+			owner_of[n] = f
+	if options.is_empty():
+		return Vector3.INF
+	var pick: Vector2i = options[absi(salt * 7 + 3) % options.size()]
+	var ts := float(gm.get("tile_size")) if gm.get("tile_size") != null else 4.0
+	var near: Vector3 = gm.grid_to_world(owner_of[pick])
+	var at: Vector3 = gm.grid_to_world(pick)
+	# Close to the wall, in the free cell.
+	var p := at + (near - at).normalized() * ts * 0.22
+	return _ground_terrain(p)
+
+
+func _is_path_node(n) -> bool:
+	var cur = n
+	while cur != null and cur is Node:
+		if (cur as Node).has_meta("building_type"):
+			return str((cur as Node).get_meta("building_type")) == "path"
+		cur = (cur as Node).get_parent()
+	return false
+
+
+## The ground under p, never a roof: a hit well above the terrain is a building.
+func _ground_terrain(p: Vector3) -> Vector3:
+	var g := _ground(p)
+	if g == Vector3.INF or g.y > p.y + 0.6:
+		return Vector3(p.x, p.y, p.z)
+	return g
 
 
 func _grid_world(c: Vector2i) -> Vector3:

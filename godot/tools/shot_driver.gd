@@ -774,6 +774,23 @@ const SCENARIOS := {
 		["eval", "[_interior_manager._building_interior._extras.hovered(), _interior_manager._building_interior._extras.where]"],
 		["eval", "debug_tap_key(83)"], ["wait", 2.5], ["eval", "_interior_manager._building_interior._extras.where"], ["shot", "bt2_back_in_office"],
 	],
+	"messclick": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5], ["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["prep_all"], ["book", "Lads", "drunk", 3, 2, 0], ["hours", 0.05], ["checkin"], ["hours", 49.0], ["wait", 1.0],
+		["open_room", 17, 4], ["wait", 1.2], ["eval", "_interior_manager._cabin_interior._look.set('pitch_deg', -24.0)"], ["wait", 0.8],
+		["eval", "_interior_manager._cabin_interior._prep.tasks._targets.keys()"],
+		["eval", "debug_aim_task(_interior_manager._cabin_interior._prep.tasks, 'f1')"], ["wait", 0.4],
+		["eval", "_interior_manager._cabin_interior._prep.tasks._hover"], ["shot", "mc0_hover"],
+		["eval", "debug_press_mouse(true)"], ["wait", 1.0], ["shot", "mc1_holding"], ["wait", 2.5], ["eval", "debug_press_mouse(false)"], ["wait", 0.5],
+		["eval", "[_interior_manager._cabin_interior._prep.tasks._targets['f1']['done'], _interior_manager._cabin_interior._prep.tasks._hover]"], ["shot", "mc2_done"],
+	],
+	"spotcheck": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"],
+		["money", 20000], ["clear", 9, 9, 5, 5], ["build", "pub", 10, 10, 0], ["build", "restaurant", 13, 10, 0], ["wait", 0.6],
+		["eval", "debug_event_spot('raccoons')"], ["eval", "debug_event_spot('raccoons')"], ["eval", "debug_event_spot('litter')"], ["eval", "debug_event_spot('litter')"], ["eval", "debug_event_spot('litter')"],
+		["player", 11, 15, 180.0], ["wait", 1.5], ["shot", "sp0_pub"],
+	],
 	"pauseclick": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
 		["eval", "debug_tap_key(4194305)"], ["wait", 0.5],

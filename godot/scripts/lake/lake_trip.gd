@@ -486,6 +486,14 @@ func _ensure_overlay() -> void:
 	_hands.stretch_mode = TextureRect.STRETCH_SCALE
 	_hands.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.add_child(_hands)
+	# The oars run on out of the picture: the sprite cut them off square at its sides.
+	_measure_shafts()
+	var shafts := Control.new()
+	shafts.name = "Shafts"
+	shafts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shafts.show_behind_parent = true
+	shafts.draw.connect(func(): _draw_shafts(shafts))
+	_hands.add_child(shafts)
 	_catch_card = TextureRect.new()
 	_catch_card.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_catch_card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -504,19 +512,84 @@ func _ensure_overlay() -> void:
 	add_child(_one)
 
 
+## Where each oar leaves the sprite: the shaft's rows in the edge column and how it
+## slopes per pixel outward (sprite pixels), for the left and the right.
+var _shafts := [Vector3(-1, -1, 0), Vector3(-1, -1, 0)]
+
+
+func _measure_shafts() -> void:
+	if _hands == null or _hands.texture == null:
+		return
+	var img := _hands.texture.get_image()
+	if img == null:
+		return
+	if img.is_compressed():
+		img.decompress()
+	var w := img.get_width()
+	for side in 2:
+		var edge := 0 if side == 0 else w - 1
+		var inner := 16 if side == 0 else w - 17
+		var a := _shaft_rows(img, edge)
+		var b := _shaft_rows(img, inner)
+		if a.x < 0.0 or b.x < 0.0:
+			continue
+		_shafts[side] = Vector3(a.x, a.y, ((a.x + a.y) - (b.x + b.y)) * 0.5 / 16.0)
+
+
+## The wooden rows in one column (not the grey sleeve): first and last.
+static func _shaft_rows(img: Image, x: int) -> Vector2:
+	var lo := -1
+	var hi := -1
+	for y in img.get_height():
+		var c := img.get_pixel(x, y)
+		if c.a > 0.5 and c.r - c.b > 0.1:
+			if lo < 0:
+				lo = y
+			hi = y
+	return Vector2(lo, hi)
+
+
+func _draw_shafts(c: Control) -> void:
+	if _hands == null or _hands.texture == null:
+		return
+	var tex := _hands.texture
+	var k := _hands.size.x / float(tex.get_width())
+	var reach := int(ceil((_hands.position.x + 8.0) / k))
+	for side in 2:
+		var sh: Vector3 = _shafts[side]
+		if sh.x < 0.0:
+			continue
+		var src_x := 0.0 if side == 0 else float(tex.get_width() - 1)
+		var rows := sh.y - sh.x + 1.0
+		for i in range(1, reach + 1):
+			var x := -float(i) * k if side == 0 else _hands.size.x + float(i - 1) * k
+			var y := (sh.x + sh.z * float(i)) * k
+			if y > _hands.size.y * 1.6:
+				break
+			c.draw_texture_rect_region(tex, Rect2(x, y, k, rows * k), Rect2(src_x, sh.x, 1, rows))
+
+
 ## The hands on the oars: pulled back and down on a stroke, forward again, in steps.
 func _update_hands() -> void:
 	if _hands == null or _hands.texture == null:
 		return
 	var vp := get_viewport().get_visible_rect().size
-	var k := float(maxi(1, int(round(vp.y / 300.0))))
+	# Half the screen's width at most (playtest 2026-10-17: the hands on the oars were
+	# far too big, 4x at 1080p, filling most of the view).
+	var k := float(maxi(1, int(round(vp.y / 560.0))))
 	_hands.size = _hands.texture.get_size() * k
 	var phase := 0.0
 	if _stroke_t >= 0.0:
 		phase = [0.0, 0.5, 1.0, 1.0, 0.6, 0.2][clampi(int(_stroke_t / 0.85 * 6.0), 0, 5)]
-	_hands.position = Vector2((vp.x - _hands.size.x) * 0.5, vp.y - _hands.size.y * 0.8 + phase * 26.0 * k).floor()
+	# Standing on the HUD's bar, not behind it.
+	var hud = _main.get("_hud_manager") if _main != null else null
+	var bar := float(hud.get_bar_height_px()) if hud != null and hud.has_method("get_bar_height_px") else 0.0
+	_hands.position = Vector2((vp.x - _hands.size.x) * 0.5, vp.y - bar - _hands.size.y * 0.78 + phase * 26.0 * k).floor()
 	_hands.scale = Vector2.ONE * (1.0 - phase * 0.06)
 	_hands.pivot_offset = _hands.size * 0.5
+	var sh_node := _hands.get_node_or_null("Shafts") as Control
+	if sh_node != null:
+		sh_node.queue_redraw()
 	if _catch_card != null:
 		_catch_card.size = Vector2(160, 160) * k
 		_catch_card.position = ((vp - _catch_card.size) * 0.5).floor()

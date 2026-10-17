@@ -1735,6 +1735,47 @@ func debug_world_2d() -> Array:
 	return out
 
 
+## Shot driver: hold or let go of the left button where the mouse is.
+func debug_press_mouse(pressed: bool) -> void:
+	var b := InputEventMouseButton.new()
+	b.button_index = MOUSE_BUTTON_LEFT
+	b.pressed = pressed
+	b.position = get_viewport().get_mouse_position()
+	b.global_position = b.position
+	Input.parse_input_event(b)
+
+
+## Shot driver: the mouse over a room task's mess (its first visible mesh).
+func debug_aim_task(tasks: Node, task_id: String) -> Vector2:
+	var t: Dictionary = tasks.get("_targets").get(task_id, {})
+	if t.is_empty():
+		return Vector2(-1, -1)
+	var at: Vector3 = (t["body"] as Node3D).global_position
+	for mm in t["meshes"]:
+		if mm is MeshInstance3D and is_instance_valid(mm) and (mm as Node3D).is_visible_in_tree():
+			at = (mm as Node3D).global_position
+			break
+	var cam: Camera3D = tasks.get("_camera")
+	var p := debug_screen_of_cam(cam, at)
+	get_viewport().warp_mouse(p)
+	return p
+
+
+## Shot driver: start a day event and say where its props stand ([pos, cell, what is
+## on that cell]).
+func debug_event_spot(kind: String) -> Array:
+	var ev: Dictionary = _day_events.debug_start(kind)
+	if ev.is_empty():
+		return ["no event"]
+	var pos: Vector3 = _day_events._event_pos(ev)
+	var cell: Vector2i = grid_manager.world_to_grid(pos)
+	var tile = grid_manager.get_tile(cell)
+	var what := "free"
+	if tile != null and tile.occupied and tile.occupant != null:
+		what = str(tile.occupant.get_meta("building_type", tile.occupant.name))
+	return [pos, cell, what, ev.get("coord")]
+
+
 ## Shot driver: a key press or release for Input.parse_input_event.
 func debug_key_event(key: int, pressed: bool) -> InputEventKey:
 	var k := InputEventKey.new()
