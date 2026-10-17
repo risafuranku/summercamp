@@ -11,7 +11,7 @@ extends CanvasLayer
 ##     LOAD CAMP
 ##     CONFIGURATION
 ##     QUIT TO DOS
-##   [v0.3  (C) 1998 UNDO95 ............. ARROWS SELECT  ENTER OK  ESC BACK]
+##   [v0.3  (C) 2026 UNDO LABS ............. ARROWS SELECT  ENTER OK  ESC BACK]
 ##
 ## Pages: main, load, options, controls. A loading plate covers everything while main
 ## builds the world. main.gd owns what the choices *do*; this script only reports them.
@@ -300,7 +300,7 @@ func _build_footer(vp: Vector2) -> void:
 	bar.offset_right = _vp(1)
 	_root.add_child(bar)
 	var version := str(ProjectSettings.get_setting("application/config/version", ""))
-	var left := RETRO_UI.label("V%s  (C) 1998 UNDO95" % version if not version.is_empty() else "(C) 1998 UNDO95", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
+	var left := RETRO_UI.label("V%s  (C) 2026 UNDO LABS" % version if not version.is_empty() else "(C) 2026 UNDO LABS", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
 	left.position = Vector2(_vp(6), 0.0)
 	RETRO_UI.place_on_baseline(left, 9.0, _scale)
 	left.offset_left = _vp(6)
