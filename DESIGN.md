@@ -505,7 +505,8 @@ through for two (TODO.md, CO-OP).
   saved trees make it the same camp to the tree), then the clock, weather, power and the
   till. Nothing there runs the camp by itself (`Coop.sim_here()`).
 - **The PC.** One sits at it and clicks; the other, standing in the reception, sees the
-  screen normally over their shoulder.
+  screen normally over their shoulder (the screen as it is on the other machine, a few
+  times a second, on the office's own PC). For now only the host sits at it.
 - **Sleep.** The day is skipped only when both are asleep. Lying down alone you lie
   awake watching the little set till the other lies down too; then the night passes
   for both, and either getting up stops it. Both sleep in the room behind the office.

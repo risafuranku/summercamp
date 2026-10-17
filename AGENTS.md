@@ -289,6 +289,11 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   waits in the dark for the host's clock to show the night passing (`sl`) and then not.
   Anything else that sleeps (the motel) must go through `start_sleep` /
   `is_sleeping_through` too.
+- **Over the shoulder**: the one at the PC sends a small JPEG of the CRT viewport
+  (`building_interior.coop_screen_frame`, only while the other is in the office) and the
+  other puts it in the CRT glass shader's `screen_tex`; it falls back to its own PC's
+  viewport when frames stop for 0.8 s. Reading the viewport stalls the GPU a moment:
+  keep the rate low.
 - **Warden looks** (`warden_looks.gd`): a jacket colour is the jacket's pixels moved to
   another hue, found by hue band, rows per pose and boxes left out (boots of the same
   green: `JACKETS`); a new warden or pose needs its entry, checked on a sheet of all

@@ -3822,6 +3822,26 @@ func _on_coop_partner_moved(s: Dictionary) -> void:
 		_interior_manager.coop_partner(room)
 
 
+## Over the shoulder: your PC screen for the other machine while you sit at it and the
+## other warden is in the office (InteriorManager has the picture), else nothing.
+func coop_screen_frame() -> PackedByteArray:
+	if _interior_manager == null or not _interior_manager.has_method("coop_room"):
+		return PackedByteArray()
+	var mine: Dictionary = _interior_manager.coop_room()
+	var theirs: Dictionary = Coop.partner_state.get("room", {})
+	if str(mine.get("t", "")) != "office" or str(mine.get("w", "")) != "pc" or str(theirs.get("t", "")) != "office" or str(theirs.get("s", "")) != "office":
+		return PackedByteArray()
+	var bi = _interior_manager.get("_building_interior")
+	return bi.coop_screen_frame() if bi != null and bi.has_method("coop_screen_frame") else PackedByteArray()
+
+
+## The other warden's screen, on your office's PC.
+func coop_show_screen(frame: PackedByteArray) -> void:
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	if bi != null and bi.has_method("coop_show_screen") and bi.is_open():
+		bi.coop_show_screen(frame)
+
+
 ## The host: a room's state as it is now, to the other machine.
 func _coop_send_room(key: String) -> void:
 	if not Coop.is_host() or not Coop.has_partner():

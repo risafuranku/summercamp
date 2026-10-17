@@ -424,6 +424,7 @@ func close_interior() -> void:
 func _process(delta: float) -> void:
 	_update_radio_mix(delta)
 	_update_crt_sharp()
+	_coop_screen_tick(delta)
 	if _extras != null:
 		_extras.tick_ring(delta)
 	if not visible:
@@ -672,6 +673,62 @@ func _get_crt_orbit_pivot() -> Vector3:
 
 
 
+
+
+# ── co-op: over the shoulder (scripts/coop/coop.gd) ──────────────────────────
+
+## The screen as sent to the other warden: half size (they see it from the counter).
+const COOP_SCREEN_SIZE := Vector2i(320, 240)
+const COOP_SCREEN_QUALITY := 0.7
+## Their picture is dropped this long after the last one came (they got up, or a frame
+## was lost on the way and no more come).
+const COOP_SCREEN_HOLD := 0.8
+var _coop_screen_tex: ImageTexture
+var _coop_screen_left := 0.0
+
+
+## Your screen while you sit at the PC, as a JPEG ({} when not at it).
+func coop_screen_frame() -> PackedByteArray:
+	if not _crt_active or _crt_viewport == null:
+		return PackedByteArray()
+	var img := _crt_viewport.get_texture().get_image()
+	if img == null or img.is_empty():
+		return PackedByteArray()
+	img.resize(COOP_SCREEN_SIZE.x, COOP_SCREEN_SIZE.y, Image.INTERPOLATE_BILINEAR)
+	return img.save_jpg_to_buffer(COOP_SCREEN_QUALITY)
+
+
+## The other warden's screen on your PC (you are not at it yourself).
+func coop_show_screen(frame: PackedByteArray) -> void:
+	if _crt_active or _crt_screen == null:
+		return
+	var img := Image.new()
+	if img.load_jpg_from_buffer(frame) != OK:
+		return
+	if _coop_screen_tex == null or _coop_screen_tex.get_size() != Vector2(img.get_size()):
+		_coop_screen_tex = ImageTexture.create_from_image(img)
+	else:
+		_coop_screen_tex.update(img)
+	var mat := _crt_screen.material_override as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter("screen_tex", _coop_screen_tex)
+	_coop_screen_left = COOP_SCREEN_HOLD
+
+
+func _coop_screen_tick(delta: float) -> void:
+	if _coop_screen_left <= 0.0:
+		return
+	_coop_screen_left -= delta
+	if _coop_screen_left <= 0.0 or _crt_active:
+		coop_end_screen()
+
+
+## Your own PC's picture back on its screen.
+func coop_end_screen() -> void:
+	_coop_screen_left = 0.0
+	var mat := _crt_screen.material_override as ShaderMaterial if _crt_screen != null else null
+	if mat != null and _crt_viewport != null:
+		mat.set_shader_parameter("screen_tex", _crt_viewport.get_texture())
 
 
 func _try_click_crt(event: InputEventMouseButton) -> void:

@@ -12,6 +12,7 @@ extends "res://tools/shot_driver.gd"
 ##     (the other sees them at it) comes back to the other room;
 ##   - both go into the new tent: each sees the other lying on their belly in it;
 ##   - the joining warden rows out: the boat goes on the host's lake with them in it;
+##   - the host sits at the PC: the other, in the office, sees its screen over their shoulder;
 ##   - at night both go to the room behind the office: the host lies down first and the
 ##     night does not pass; the other lies down too and both wake in the morning.
 ## Each writes what its camp looks like (seed, buildings, trees, terrain, clock, rooms)
@@ -66,6 +67,10 @@ func _ready() -> void:
 			["coop_at_boat"], ["coop_wait_file", "client_rowing"], ["wait", 0.4], ["shot", "h4_other_rowing"], ["coop_fingerprint", "host_rowing"],
 			["wait", 3.0], ["shot", "h4b_other_rows_away"],
 			["coop_wait_file", "client_rowed"],
+			# At the PC, the other warden looking over the shoulder.
+			["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior.enter_crt_view()"], ["wait", 2.0],
+			["coop_signal", "host_at_pc"], ["coop_wait_file", "client_saw_pc"], ["shot", "h8_at_pc"],
+			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			["coop_place", 12, 14, 1.0], ["wait", 1.0],
 			["eval", "time_system.set_time_hours(21.6)"], ["eval", "_sync_runtime_state_from_systems(true)"], ["wait", 4.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "h5_night_other_torch"],
@@ -99,6 +104,8 @@ func _ready() -> void:
 			["coop_wait_file", "host_tent_seen"], ["eval", "_interior_manager._tent_interior.close_tent()"], ["wait", 1.0],
 			["eval", "_lake_trip._start_rowing('far')"], ["coop_row", 12.0], ["wait", 3.0], ["coop_signal", "client_rowing"], ["wait", 12.0],
 			["eval", "_lake_trip.return_home()"], ["wait", 1.5], ["coop_signal", "client_rowed"],
+			["coop_wait_file", "host_at_pc"], ["coop_open_office"], ["wait", 3.0], ["shot", "c7_over_the_shoulder"], ["coop_fingerprint", "client_shoulder"],
+			["coop_signal", "client_saw_pc"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			["coop_place", 14, 14, -1.0], ["wait", 1.0],
 			["coop_wait", "night"], ["wait", 3.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "c5_night_host_torch"],
@@ -363,6 +370,7 @@ func _write_fingerprint(tag: String) -> void:
 		"boat_from_home": _boat_from_home(),
 		"other_pose": str(other.get("pose")) if other != null else "",
 		"room_figure": _room_figure(),
+		"coop_screen": float(_main.get("_interior_manager").get("_building_interior").get("_coop_screen_left")) > 0.0,
 		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,

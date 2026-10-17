@@ -139,6 +139,10 @@ def main():
         for fp in (hn, cn):
             if not fp["other_visible"]:
                 failures.append("night: %s does not see the other warden" % fp["role"])
+    # Over the shoulder: the host's screen on the other's PC.
+    cs = load("client_shoulder")
+    if cs is None or not cs["coop_screen"]:
+        failures.append("the other warden does not see the host's screen over their shoulder")
     # Sleep: alone in bed the night stays; both in bed, both wake on the next morning.
     hz, hm, cm = load("host_waiting"), load("host_morning"), load("client_morning")
     if hz is None or hm is None or cm is None:

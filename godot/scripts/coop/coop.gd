@@ -35,6 +35,8 @@ enum Role { NONE, HOST, CLIENT }
 const DEFAULT_PORT := 24898
 const WARDEN_HZ := 15.0
 const CLOCK_HZ := 4.0
+## Over the shoulder: the PC's screen, sent this often while the other warden can see it.
+const SCREEN_HZ := 6.0
 const CONNECT_TIMEOUT := 20.0
 const CFG_PATH := "user://coop.cfg"
 const REMOTE_PLAYER = preload("res://scripts/coop/remote_player.gd")
@@ -50,6 +52,7 @@ var _peer: ENetMultiplayerPeer
 var _connect_left := -1.0
 var _warden_t := 0.0
 var _clock_t := 0.0
+var _screen_t := 0.0
 var _remote: REMOTE_PLAYER
 ## The host's last clock as it came in (the joining machine; harnesses compare it).
 var last_clock: Dictionary = {}
@@ -323,6 +326,14 @@ func _process(delta: float) -> void:
 		if _clock_t <= 0.0:
 			_clock_t = 1.0 / CLOCK_HZ
 			_clock.rpc_id(remote_id, main.coop_clock())
+	# At the PC with the other warden in the office: they see your screen over your
+	# shoulder (a small picture of it, a few times a second).
+	_screen_t -= delta
+	if _screen_t <= 0.0 and main.has_method("coop_screen_frame"):
+		_screen_t = 1.0 / SCREEN_HZ
+		var frame: PackedByteArray = main.coop_screen_frame()
+		if not frame.is_empty():
+			_screen.rpc_id(remote_id, frame)
 
 
 ## The other warden's state (both ways).
@@ -335,6 +346,16 @@ func _warden(s: Dictionary) -> void:
 	if r != null:
 		r.push_state(s)
 	partner_moved.emit(s)
+
+
+## The other warden's PC screen (a JPEG), while you stand in the office with them at it.
+@rpc("any_peer", "call_remote", "unreliable_ordered", 3)
+func _screen(frame: PackedByteArray) -> void:
+	if multiplayer.get_remote_sender_id() != remote_id:
+		return
+	var main := _main()
+	if main != null and main.has_method("coop_show_screen"):
+		main.coop_show_screen(frame)
 
 
 ## Who the other warden is and their jacket (when you meet, and when they change it).
