@@ -1,0 +1,173 @@
+extends RefCounted
+
+## The co-op wardens' looks (the CO-OP page: the warden and the colour of their jacket).
+## Four wardens (Grok, assets/textury/npc/warden_a..d.png), each drawn in five poses:
+## standing, rowing (the lake boat), sweeping and down on one knee scrubbing (the rooms'
+## jobs), and lying on their belly (in a tent). A jacket colour is the jacket's own pixels moved to another hue, with their
+## shading kept (each warden has the hue band and the part of the picture its jacket is
+## in); the original jacket is one of the colours. Textures are made once and kept.
+
+const DIR := "res://assets/textury/npc/"
+const LETTERS := ["a", "b", "c", "d"]
+const NAMES := ["Pepa", "Ondra", "Jana", "Bara"]
+const POSES := ["stand", "row", "sweep", "crouch", "prone"]
+
+## Where each warden's jacket is: hue band (degrees, may wrap past 360), the least
+## saturation and brightness that count (Ondra's red: the outline round the whole
+## figure is drawn in its darkest shade), the band of the picture (0 top .. 1 bottom)
+## per pose, and boxes of it to leave alone ([x0, y0, x1, y1], 0..1; boots in the air).
+## (Above the boots: Pepa's rubber boots are green too, Ondra's brown ones nearly red.)
+const JACKETS := [
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.68], "sweep": [0.0, 0.72], "crouch": [0.0, 0.72], "prone": [0.0, 1.0]},
+		"out": {"prone": [[0.55, 0.0, 1.0, 0.37]]}},
+	{"hue": [338.0, 18.0], "sat": 0.42, "vmin": 0.16, "band": {"stand": [0.12, 0.6], "row": [0.0, 0.66], "sweep": [0.0, 0.62], "crouch": [0.0, 0.8], "prone": [0.3, 1.0]}},
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.7], "sweep": [0.0, 0.7], "crouch": [0.0, 0.86], "prone": [0.0, 1.0]},
+		"out": {"prone": [[0.6, 0.0, 1.0, 0.36]]}},
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.1, 0.62], "row": [0.0, 0.78], "sweep": [0.0, 0.7], "crouch": [0.0, 0.84], "prone": [0.0, 1.0]}},
+]
+## Jacket colours: name, and the colour of the jacket's middle tone (hue, sat, value);
+## hue -1 for a warden's own (the colour they were drawn in).
+const COLORS := [
+	["Own", -1.0, 0.0, 0.0],
+	["Forest", 115.0, 0.36, 0.32],
+	["Rust", 8.0, 0.58, 0.46],
+	["Navy", 222.0, 0.48, 0.34],
+	["Mustard", 42.0, 0.6, 0.52],
+	["Orange", 22.0, 0.72, 0.6],
+	["Slate", 210.0, 0.12, 0.4],
+	["Plum", 295.0, 0.3, 0.32],
+	["Sky", 196.0, 0.38, 0.52],
+]
+
+static var _cache: Dictionary = {}
+
+
+static func count() -> int:
+	return LETTERS.size()
+
+
+static func color_count() -> int:
+	return COLORS.size()
+
+
+static func color_name(color: int) -> String:
+	return str(COLORS[posmod(color, COLORS.size())][0])
+
+
+## The picture of warden `model` in jacket `color` in `pose` (POSES; a pose not drawn
+## falls back to standing).
+static func texture(model: int, color: int, pose: String = "stand") -> Texture2D:
+	model = posmod(model, LETTERS.size())
+	color = posmod(color, COLORS.size())
+	var key := "%d|%d|%s" % [model, color, pose]
+	if _cache.has(key):
+		return _cache[key]
+	var path := DIR + "warden_%s%s.png" % [LETTERS[model], "" if pose == "stand" else "_" + pose]
+	if not ResourceLoader.exists(path):
+		if pose != "stand":
+			return texture(model, color, "stand")
+		return null
+	var base: Texture2D = load(path)
+	var tex: Texture2D = base
+	if float(COLORS[color][1]) >= 0.0:
+		# A copy: the texture's own image is shared, and would come out recoloured.
+		var src := base.get_image()
+		var img: Image = src.duplicate() as Image if src != null else null
+		if img != null:
+			if img.is_compressed():
+				img.decompress()
+			img.convert(Image.FORMAT_RGBA8)
+			_recolor(img, JACKETS[model], pose, COLORS[color])
+			tex = ImageTexture.create_from_image(img)
+	_cache[key] = tex
+	return tex
+
+
+static func _in_boxes(boxes: Array, x: int, y: int, w: int, h: int) -> bool:
+	var fx := float(x) / float(w)
+	var fy := float(y) / float(h)
+	for bx in boxes:
+		if fx >= float(bx[0]) and fx < float(bx[2]) and fy >= float(bx[1]) and fy < float(bx[3]):
+			return true
+	return false
+
+
+static func _in_hue(h_deg: float, band: Array) -> bool:
+	var a := float(band[0])
+	var b := float(band[1])
+	return (h_deg >= a and h_deg <= b) if a <= b else (h_deg >= a or h_deg <= b)
+
+
+## The jacket's pixels to the new colour: their mean tone goes to the colour's, each
+## pixel keeping how much lighter or darker it was (evened out, the darkest no darker
+## than a fold: near-black flecks would show on a light jacket). The jacket is the
+## pixels of its hue, the dark, greyed folds between them (taken in from their
+## neighbours, skin left out) and the flecks it closes round (mud).
+static func _recolor(img: Image, jacket: Dictionary, pose: String, color: Array) -> void:
+	var w := img.get_width()
+	var h := img.get_height()
+	var band: Array = (jacket["band"] as Dictionary).get(pose, [0.0, 1.0])
+	var y0 := int(float(band[0]) * h)
+	var y1 := int(float(band[1]) * h)
+	var out: Array = (jacket.get("out", {}) as Dictionary).get(pose, [])
+	var hues: Array = jacket["hue"]
+	var sat_min := float(jacket["sat"])
+	var v_min := float(jacket.get("vmin", 0.08))
+	var mask := PackedByteArray()
+	mask.resize(w * h)
+	for y in range(y0, y1):
+		for x in w:
+			var c := img.get_pixel(x, y)
+			if c.a >= 0.5 and c.s >= sat_min and c.v >= v_min and _in_hue(c.h * 360.0, hues) and not _in_boxes(out, x, y, w, h):
+				mask[y * w + x] = 1
+	# The folds: dark or greyed pixels mostly surrounded by jacket; then any pixel
+	# the jacket closes round.
+	for _pass in 4:
+		var add: Array[int] = []
+		for y in range(maxi(y0, 1), mini(y1, h - 1)):
+			for x in range(1, w - 1):
+				if mask[y * w + x] == 1:
+					continue
+				var c2 := img.get_pixel(x, y)
+				if c2.a < 0.5 or _in_boxes(out, x, y, w, h):
+					continue
+				var n := 0
+				for dy in [-1, 0, 1]:
+					for dx in [-1, 0, 1]:
+						if (dx != 0 or dy != 0) and mask[(y + dy) * w + x + dx] == 1:
+							n += 1
+				# Closed round by the jacket (a fleck of mud on it): its own.
+				if n >= 6:
+					add.append(y * w + x)
+					continue
+				var hd := c2.h * 360.0
+				var skin := c2.s > 0.3 and hd > 12.0 and hd < 48.0
+				if n >= 4 and not skin and (c2.v < 0.42 or c2.s < sat_min):
+					add.append(y * w + x)
+		for i in add:
+			mask[i] = 1
+	var s_sum := 0.0
+	var v_sum := 0.0
+	var count := 0
+	for i in mask.size():
+		if mask[i] == 1:
+			var c3 := img.get_pixel(i % w, floori(float(i) / float(w)))
+			s_sum += c3.s
+			v_sum += c3.v
+			count += 1
+	if count == 0:
+		return
+	var s_mean := s_sum / float(count)
+	var v_mean := v_sum / float(count)
+	var th := float(color[1]) / 360.0
+	var ts := float(color[2])
+	var tv := float(color[3])
+	for i2 in mask.size():
+		if mask[i2] != 1:
+			continue
+		var x2 := i2 % w
+		var y2 := floori(float(i2) / float(w))
+		var c4 := img.get_pixel(x2, y2)
+		var ns := clampf(ts * clampf(c4.s / maxf(s_mean, 0.01), 0.65, 1.3), 0.0, 1.0)
+		var nv := clampf(tv * pow(clampf(c4.v / maxf(v_mean, 0.01), 0.42, 1.8), 0.8), 0.0, 1.0)
+		img.set_pixel(x2, y2, Color.from_hsv(th, ns, nv, c4.a))

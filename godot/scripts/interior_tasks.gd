@@ -114,6 +114,26 @@ func is_scrubbing() -> bool:
 	return _scrub != null and _scrub.is_open()
 
 
+## The job your hands are on now ("" when none): held, or the bowl being scrubbed.
+## Co-op shows the other warden at it (InteriorManager.coop_partner).
+func working_on() -> String:
+	if not _holding.is_empty():
+		return _holding
+	if is_scrubbing() and _scrub.get("_task") != null:
+		return str(_scrub.get("_task"))
+	return ""
+
+
+## Where a job's mess is (its body, in the room's own world) and how it is done:
+## {pos: Vector3, verb: String}, or {} when the room has no such job.
+func target_info(id: String) -> Dictionary:
+	var t: Dictionary = _targets.get(id, {})
+	var body = t.get("body", null)
+	if body == null or not is_instance_valid(body) or not (body as Node3D).is_inside_tree():
+		return {}
+	return {"pos": (body as Node3D).global_position, "verb": str(t.get("verb", "")), "done": bool(t.get("done", false))}
+
+
 ## The interior's day / room key: the same bowl gets new filth on a new day.
 func set_scrub_seed(seed: int) -> void:
 	_scrub_seed = seed

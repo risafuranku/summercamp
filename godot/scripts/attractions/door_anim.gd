@@ -55,7 +55,8 @@ static func entry_points(structure: Node3D) -> Dictionary:
 		centre = door.global_position
 		normal = door.global_basis.z
 	else:
-		var size: Vector3 = structure.get_meta("model_size", Vector3(2, 2, 2)) if structure.get_meta("model_size", null) is Vector3 else Vector3(2, 2, 2)
+		# (get_meta with a null default still complains when the key is missing.)
+		var size: Vector3 = structure.get_meta("model_size") if structure.has_meta("model_size") and structure.get_meta("model_size") is Vector3 else Vector3(2, 2, 2)
 		normal = structure.global_basis.z
 		centre = structure.global_position + normal.normalized() * size.z * 0.5
 	normal.y = 0.0

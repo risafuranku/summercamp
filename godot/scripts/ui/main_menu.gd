@@ -16,7 +16,8 @@ extends CanvasLayer
 ##
 ## Pages: main, load, coop, options, controls. CO-OP (scripts/coop/coop.gd): host a
 ## sandbox camp (this machine's addresses beside it, for the other warden) or join one
-## (the address is typed straight into the row). A loading plate covers everything while main
+## (the address is typed straight into the row); who you are and your jacket's colour
+## (left / right, the warden drawn beside the rows: scripts/coop/warden_looks.gd). A loading plate covers everything while main
 ## builds the world. main.gd owns what the choices *do*; this script only reports them.
 
 signal continue_requested
@@ -28,6 +29,7 @@ signal coop_join_requested(address: String)
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
+const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 
 const TAGLINE := "Aunt Vera's old camp is yours now. What could go wrong."
 const TIPS := [
@@ -68,6 +70,7 @@ var _coop_list
 var _coop_notice: Label
 var _coop_address := ""
 var _coop_caret_t := 0.0
+var _coop_preview: TextureRect
 var _loading: Control
 var _loading_label: Label
 var _loading_tip: Label
@@ -256,15 +259,29 @@ func _rebuild() -> void:
 	_coop_list.ui_scale = _scale
 	_coop_list.row_height_vp = 22
 	_coop_list.position = Vector2(_vp(2), _vp(30))
-	_coop_list.size = Vector2(_coop_page.size.x - _vp(8), _vp(22 * 3))
+	_coop_list.size = Vector2(_coop_page.size.x * 0.66, _vp(22 * 5))
 	_coop_page.add_child(_coop_list)
 	_coop_list.activated.connect(_on_coop_activated)
 	var coop_items: Array[Dictionary] = [
 		{"id": "host", "text": "Host a camp"},
 		{"id": "join", "text": "Join"},
+		{"id": "warden", "text": "Warden"},
+		{"id": "jacket", "text": "Jacket"},
 		{"id": "back", "text": "Back"},
 	]
 	_coop_list.set_items(coop_items)
+	# The warden you will be, as the other one will see you.
+	_coop_preview = TextureRect.new()
+	_coop_preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_coop_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_coop_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_coop_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Below the address rows, at the plate's right.
+	var pv_top := _vp(28 + 22 * 2)
+	var pv_h := plate_h - pv_top - _vp(16)
+	_coop_preview.size = Vector2(pv_h * 0.42, pv_h)
+	_coop_preview.position = Vector2(_coop_page.size.x - _coop_preview.size.x - _vp(12), pv_top)
+	_coop_page.add_child(_coop_preview)
 	_coop_notice = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale)
 	_coop_notice.position = Vector2(_vp(8), plate_h - _vp(13))
 	_coop_page.add_child(_coop_notice)
@@ -626,6 +643,32 @@ func _refresh_coop() -> void:
 	var here: Array[String] = Coop.local_addresses() if Coop != null else []
 	_coop_list.set_item_sub("host", "  ".join(here.slice(0, 2)))
 	_refresh_coop_address()
+	_refresh_coop_look()
+
+
+## The warden and the jacket rows, and the warden drawn beside them.
+func _refresh_coop_look() -> void:
+	if _coop_list == null or Coop == null:
+		return
+	var look: Dictionary = Coop.my_look()
+	var m := int(look["m"])
+	var c := int(look["c"])
+	_coop_list.set_item_sub("warden", "<  %s  >" % WARDEN_LOOKS.NAMES[m])
+	_coop_list.set_item_sub("jacket", "<  %s  >" % WARDEN_LOOKS.color_name(c))
+	if _coop_preview != null:
+		_coop_preview.texture = WARDEN_LOOKS.texture(m, c, "stand")
+
+
+func _coop_cycle(which: String, dir: int) -> void:
+	var look: Dictionary = Coop.my_look()
+	var m := int(look["m"])
+	var c := int(look["c"])
+	if which == "warden":
+		m = posmod(m + dir, WARDEN_LOOKS.count())
+	else:
+		c = posmod(c + dir, WARDEN_LOOKS.color_count())
+	Coop.set_my_look(m, c)
+	_refresh_coop_look()
 
 
 func _refresh_coop_address() -> void:
@@ -647,6 +690,8 @@ func _on_coop_activated(id: String) -> void:
 			if _coop_notice != null:
 				_coop_notice.text = ""
 			coop_join_requested.emit(_coop_address.strip_edges())
+		"warden", "jacket":
+			_coop_cycle(id, 1)
 		"back":
 			show_page("main")
 
@@ -657,6 +702,14 @@ func _handle_coop_input(event: InputEvent) -> bool:
 	if event.is_action_pressed("ui_cancel"):
 		show_page("main")
 		return true
+	var row: String = _coop_list.current_id()
+	if row in ["warden", "jacket"]:
+		if event.is_action_pressed("ui_left", true):
+			_coop_cycle(row, -1)
+			return true
+		if event.is_action_pressed("ui_right", true):
+			_coop_cycle(row, 1)
+			return true
 	var key := event as InputEventKey
 	if key != null and key.pressed and _coop_list.current_id() == "join":
 		if key.keycode == KEY_BACKSPACE:

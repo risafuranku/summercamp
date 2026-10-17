@@ -10,8 +10,14 @@ extends Node
 ## no nights. ENet, one guest, one port; over Tailscale or a LAN the address is the
 ## other machine's.
 ##
-## Stage 1 of the co-op plan (TODO.md): the camp, the two of you, the clock, the
-## weather. What the other one does to the camp follows in the next stages.
+## Each warden has the look chosen on the CO-OP page (who, and the jacket's colour:
+## scripts/coop/warden_looks.gd), told to the other when they meet (_hello).
+##
+## What changes the camp goes one way: the host's camp is the camp. The joining
+## warden's jobs in a room go to the host (send_room_task) and the room comes back as
+## the host has it (send_room_state); what the host builds, clears, upgrades and repairs
+## is done again on the joining machine (send_fact). Where each warden is (a room and
+## the job in it, the boat on the lake) rides on the states (partner_moved).
 
 signal session_started(role: int)
 signal session_ended(reason: String)
@@ -19,6 +25,10 @@ signal peer_joined
 signal peer_left
 signal join_failed(reason: String)
 signal world_arrived(snapshot: Dictionary)
+## A state of the other warden came in (main: the boat, the rooms).
+signal partner_moved(state: Dictionary)
+## The other warden's look came in or changed.
+signal partner_look_changed(look: Dictionary)
 
 enum Role { NONE, HOST, CLIENT }
 
@@ -27,10 +37,8 @@ const WARDEN_HZ := 15.0
 const CLOCK_HZ := 4.0
 const CONNECT_TIMEOUT := 20.0
 const CFG_PATH := "user://coop.cfg"
-## Who looks like whom: the host wears the green windbreaker, the other the red anorak.
-const LOOK_HOST := "res://assets/textury/npc/warden_a.png"
-const LOOK_GUEST := "res://assets/textury/npc/warden_b.png"
 const REMOTE_PLAYER = preload("res://scripts/coop/remote_player.gd")
+const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 
 var role := Role.NONE
 var port := DEFAULT_PORT
@@ -45,6 +53,12 @@ var _clock_t := 0.0
 var _remote: REMOTE_PLAYER
 ## The host's last clock as it came in (the joining machine; harnesses compare it).
 var last_clock: Dictionary = {}
+## Your look (the CO-OP page; -1: the host's warden 0, the other's warden 1).
+var look_model := -1
+var look_color := 0
+## The other warden's look, and their last state.
+var partner_look: Dictionary = {"m": 1, "c": 0}
+var partner_state: Dictionary = {}
 
 
 func _ready() -> void:
@@ -131,6 +145,7 @@ func leave() -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	role = Role.NONE
 	remote_id = 0
+	partner_state = {}
 	_connect_left = -1.0
 
 
@@ -156,13 +171,32 @@ func _load_cfg() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(CFG_PATH) == OK:
 		last_address = str(cfg.get_value("coop", "last_address", ""))
+		look_model = int(cfg.get_value("coop", "look_model", -1))
+		look_color = int(cfg.get_value("coop", "look_color", 0))
 
 
 func _save_cfg() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(CFG_PATH)
 	cfg.set_value("coop", "last_address", last_address)
+	cfg.set_value("coop", "look_model", look_model)
+	cfg.set_value("coop", "look_color", look_color)
 	cfg.save(CFG_PATH)
+
+
+## Your look now: {m: warden, c: jacket colour}.
+func my_look() -> Dictionary:
+	var m := look_model if look_model >= 0 else (1 if role == Role.CLIENT else 0)
+	return {"m": posmod(m, LOOKS.count()), "c": posmod(look_color, LOOKS.color_count())}
+
+
+## The CO-OP page changed your look: kept, and told to the other warden if they are here.
+func set_my_look(model: int, color: int) -> void:
+	look_model = posmod(model, LOOKS.count())
+	look_color = posmod(color, LOOKS.color_count())
+	_save_cfg()
+	if remote_id != 0:
+		_hello.rpc_id(remote_id, my_look())
 
 
 # ── the line ─────────────────────────────────────────────────────────────────
@@ -176,6 +210,7 @@ func _on_peer_connected(id: int) -> void:
 		remote_id = id
 		_patient(id)
 		print("Coop: the other warden is on the line (%d)" % id)
+		_hello.rpc_id(id, my_look())
 		peer_joined.emit()
 	elif role == Role.CLIENT and id == 1:
 		remote_id = 1
@@ -186,6 +221,7 @@ func _on_peer_disconnected(id: int) -> void:
 		return
 	print("Coop: the other warden hung up")
 	remote_id = 0
+	partner_state = {}
 	_drop_remote()
 	peer_left.emit()
 
@@ -195,6 +231,7 @@ func _on_connected() -> void:
 	_connect_left = -1.0
 	remote_id = 1
 	_patient(1)
+	_hello.rpc_id(1, my_look())
 	_request_world.rpc_id(1)
 
 
@@ -293,9 +330,65 @@ func _process(delta: float) -> void:
 func _warden(s: Dictionary) -> void:
 	if multiplayer.get_remote_sender_id() != remote_id:
 		return
+	partner_state = s
 	var r := _ensure_remote()
 	if r != null:
 		r.push_state(s)
+	partner_moved.emit(s)
+
+
+## Who the other warden is and their jacket (when you meet, and when they change it).
+@rpc("any_peer", "call_remote", "reliable")
+func _hello(look: Dictionary) -> void:
+	if multiplayer.get_remote_sender_id() != remote_id and remote_id != 0:
+		return
+	partner_look = {"m": posmod(int(look.get("m", 1)), LOOKS.count()), "c": posmod(int(look.get("c", 0)), LOOKS.color_count())}
+	if _remote != null and is_instance_valid(_remote):
+		_remote.set_look(int(partner_look["m"]), int(partner_look["c"]))
+	partner_look_changed.emit(partner_look)
+
+
+# ── the camp's changes, one way ─────────────────────────────────────────────
+
+## The joining warden finished a job in a room: the host does it in the real camp.
+func send_room_task(key: String, task_id: String) -> void:
+	if role == Role.CLIENT and remote_id != 0:
+		_room_task.rpc_id(1, key, task_id)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _room_task(key: String, task_id: String) -> void:
+	var main := _main()
+	if role == Role.HOST and main != null and main.has_method("coop_room_task"):
+		main.coop_room_task(key, task_id)
+
+
+## The host's room as it now is (its accommodation state), for the joining machine.
+func send_room_state(key: String, acc: Dictionary) -> void:
+	if role == Role.HOST and remote_id != 0:
+		_room_state.rpc_id(remote_id, key, acc)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _room_state(key: String, acc: Dictionary) -> void:
+	var main := _main()
+	if role == Role.CLIENT and main != null and main.has_method("coop_room_state"):
+		main.coop_room_state(key, acc)
+
+
+## Something the host did to the camp, to be done again on the joining machine:
+## "build" [type, origin, rotation], "demolish" [rect], "upgrade" [origin, old, new],
+## "service" [root].
+func send_fact(kind: String, data: Array) -> void:
+	if role == Role.HOST and remote_id != 0:
+		_fact.rpc_id(remote_id, kind, data)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _fact(kind: String, data: Array) -> void:
+	var main := _main()
+	if role == Role.CLIENT and main != null and main.has_method("coop_apply_fact"):
+		main.coop_apply_fact(kind, data)
 
 
 ## The host's clock and weather, a few times a second.
@@ -316,7 +409,7 @@ func _ensure_remote() -> REMOTE_PLAYER:
 	if root == null:
 		return null
 	_remote = REMOTE_PLAYER.new()
-	_remote.setup(LOOK_GUEST if role == Role.HOST else LOOK_HOST)
+	_remote.setup(int(partner_look["m"]), int(partner_look["c"]))
 	root.add_child(_remote)
 	return _remote
 

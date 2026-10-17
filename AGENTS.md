@@ -97,7 +97,7 @@ godot --headless --path godot --script res://tools/checkin_check.gd
 godot --headless --path godot --script res://tools/season_check.gd
 godot --headless --path godot --script res://tools/director_check.gd
 godot --headless --path godot --script res://tools/bazaar_check.gd
-python godot/tools/coop_check.py [OUT_DIR]   # co-op: two windowed copies (host + client on 127.0.0.1), camps compared
+python godot/tools/coop_check.py [OUT_DIR]   # co-op: two windowed copies (host + client on 127.0.0.1), camps compared; looks, a build, a room's jobs both ways, the boat
 ```
 
 - **Grep the smoke output for `SCRIPT ERROR` / `Parse Error`.** A tail of the log can hide
@@ -278,6 +278,20 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   the joining one stops answering for tens of seconds while it builds the camp (ENet is
   told to wait a minute, `Coop._patient`). The console binary starts the game as a child:
   end the tree (`taskkill /T`), or a stray copy keeps the port.
+- **Co-op in a room**: an interior is a world of its own (`own_world_3d`), so the other
+  warden there is a second `remote_player.gd` (manual) in the open interior's `_viewport`,
+  put there by `InteriorManager.coop_partner` from the room the other machine reports
+  (`coop_room()`: key, kind, part, the job in hand). A new kind of room needs
+  `_room_part` and `_room_tasks` to answer for it, or the two never meet in it.
+- **Warden looks** (`warden_looks.gd`): a jacket colour is the jacket's pixels moved to
+  another hue, found by hue band, rows per pose and boxes left out (boots of the same
+  green: `JACKETS`); a new warden or pose needs its entry, checked on a sheet of all
+  colours. `Texture2D.get_image()` hands back the texture's own image: duplicate it
+  before changing it, or every colour after the first comes out the same.
+- **Grok poses of one character drift** (a cap, another shirt, older): name every piece
+  of their clothes in the prompt, and look at each render. Background caught between
+  legs or under an arm comes out darker magenta: `process.py` keys it; people then go
+  through `tools/artgen/defringe.py --figure` (warden_b's red anorak: `--rows`).
 - **Things outside the camp are clicked through InteriorManager**: give the body a
   `building_type` starting `trip_` or `town_` and `town_trip.gd` answers `hint_for` and
   `interact` (the hint can depend on the thing's state: `get_hint_for_structure`). Things

@@ -89,6 +89,48 @@ def main():
                 failures.append("%s: not a sandbox camp" % fp["role"])
             if not fp["partner"] or not fp["other_visible"]:
                 failures.append("%s: does not see the other warden" % fp["role"])
+    # The joining warden's look, as the host sees it, and the host's as the other does.
+    if h is not None and c is not None:
+        if h["partner_look"] != [2, 4]:
+            failures.append("the host sees the other warden as %s, not [2, 4]" % h["partner_look"])
+        if c["partner_look"] != h["my_look"]:
+            failures.append("the other sees the host as %s, not %s" % (c["partner_look"], h["my_look"]))
+    # Built after the join.
+    hb, cb = load("host_built"), load("client_built")
+    if hb is None or cb is None:
+        failures.append("missing build fingerprints")
+    else:
+        if not any(x.startswith("tent_1@(13, 16)") for x in hb["structures"]):
+            failures.append("the host's tent was not built")
+        diff_list("buildings after the build", hb["structures"], cb["structures"], failures)
+    # The room: the other's job done in the host's camp, the host's back in the other's.
+    hr, cr = load("host_room"), load("client_room")
+    if hr is None or cr is None:
+        failures.append("missing room fingerprints")
+    else:
+        if cr["task"] == "" or cr["task"] not in hr["room_done"]:
+            failures.append("the other warden's job (%s) is not done in the host's camp %s" % (cr["task"], hr["room_done"]))
+        if hr["task"] == "" or hr["task"] == cr["task"] or hr["task"] not in cr["room_done"]:
+            failures.append("the host's own job (%s) is not done in the other room %s" % (hr["task"], cr["room_done"]))
+        if sorted(hr["room_done"]) != sorted(cr["room_done"]):
+            failures.append("the rooms differ (host %s, other %s)" % (hr["room_done"], cr["room_done"]))
+    # The other warden's figure in the room: at the job in the cabin, on their belly in the tent.
+    hs = load("host_sees_work")
+    if hs is None or hs["room_figure"] not in ("sweep", "crouch", "stand"):
+        failures.append("the host does not see the other warden at their job (%s)" % (hs or {}).get("room_figure"))
+    for tag in ("host_tent", "client_tent"):
+        ft = load(tag)
+        if ft is None or ft["room_figure"] != "prone":
+            failures.append("%s: the other warden is not lying in the tent (%s)" % (tag, (ft or {}).get("room_figure")))
+    # The boat out on the host's lake with the other warden rowing it.
+    hw = load("host_rowing")
+    if hw is None:
+        failures.append("missing rowing fingerprint")
+    else:
+        if float(hw["boat_from_home"]) < 4.0:
+            failures.append("the boat did not leave the jetty on the host's lake (%.1f m)" % hw["boat_from_home"])
+        if hw["other_pose"] != "row":
+            failures.append("the other warden is not rowing on the host's lake (%s)" % hw["other_pose"])
     if hn is None or cn is None:
         failures.append("missing night fingerprints (host %s, client %s)" % (hn is not None, cn is not None))
     else:

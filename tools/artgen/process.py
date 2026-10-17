@@ -17,6 +17,7 @@ panel:   like texture but keeps the source aspect: <size_px> is the width, the h
 
 Source renders stay in tools/artgen/out/<id>/raw.png for regeneration.
 """
+import colorsys
 import os
 import sys
 
@@ -41,7 +42,12 @@ def palette_image():
 
 def is_key(r, g, b):
     # Magenta and its anti-aliased blends: strong red + blue, weak green.
-    return r > 150 and b > 150 and g < 110 and abs(r - b) < 90
+    if r > 150 and b > 150 and g < 110 and abs(r - b) < 90:
+        return True
+    # A pocket of the background inside a figure (between the legs, under an arm) is
+    # often rendered a darker, redder magenta.
+    h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+    return 300.0 <= h * 360.0 <= 332.0 and s > 0.8 and v > 0.5
 
 
 def key_out(img):

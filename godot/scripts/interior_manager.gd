@@ -19,6 +19,7 @@ const DOOR_TRANSITION_SCRIPT = preload("res://scripts/ui/door_transition.gd")
 const TOWN_TRIP_SCRIPT = preload("res://scripts/town/town_trip.gd")
 ## Birds, crows, bats and moths over wherever you are outdoors (scripts/ambient/sky_life.gd).
 const SKY_LIFE_SCRIPT = preload("res://scripts/ambient/sky_life.gd")
+const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
 
 const TIME_NIGHT: int = 2
 
@@ -708,6 +709,8 @@ func _on_room_task_completed(interior: Object, structure: Node3D, task_id: Strin
 		return
 	var was_ready := str(GuestManager.get_room_state(key).get("status", "")) == "ready"
 	GuestManager.complete_room_task(key, task_id)
+	# Co-op: done here at once, and for real in the host's camp (which sends it back).
+	Coop.send_room_task(key, task_id)
 	var room: Dictionary = GuestManager.get_room_state(key)
 	interior.set_room(room)
 	if not was_ready and str(room.get("status", "")) == "ready" and interior.has_method("play_room_ready"):
@@ -1012,7 +1015,8 @@ func _on_cabin_upgrade_requested() -> void:
 
 
 func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String, enabled: bool) -> void:
-	if _building_upgrade_menu == null:
+	# Co-op: upgrades are bought in the host's camp (the other warden's hands come later).
+	if _building_upgrade_menu == null or Coop.is_client():
 		return
 	_building_upgrade_menu.open_menu(title_text, desc_text, cost_text, enabled)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -1079,6 +1083,8 @@ func _handle_replace_upgrade(origin: Vector2i, old_type: String, new_type: Strin
 	# The core grid is what guests, rooms and saves read: it must know the new type.
 	if CoreRoot != null and CoreRoot.actions != null:
 		CoreRoot.actions.retype_building(origin, new_type)
+	# Co-op: the other warden's camp gets the same upgrade.
+	Coop.send_fact("upgrade", [origin, old_type, new_type])
 	var removed_registered = _economy_manager.unregister_building_at(origin, old_type)
 	if not removed_registered and old_type == "cabin_1":
 		_economy_manager.unregister_building_at(origin, "cabin")
@@ -1145,3 +1151,167 @@ func _resolve_service_structure(node: Node) -> Node3D:
 
 func _is_supported_service_building_type(building_type: String) -> bool:
 	return _module_for_building_type(building_type) == INTERIOR_MODULE_SERVICE
+
+
+# ── co-op: the other warden in the same room (scripts/coop/coop.gd) ─────────
+
+## The other warden's figure in the room you are in, and the interior it is in.
+var _coop_fig: Node3D
+var _coop_fig_in: Object
+var _coop_fig_spot := Vector3.ZERO
+
+
+## The room you are in, for the other machine: {k: room key, t: kind, s: which part
+## of it, w: the job your hands are on}, or {} outside the rooms.
+func coop_room() -> Dictionary:
+	var it = _open_room_interior()
+	if it == null:
+		return {}
+	var node: Node3D = _open_room_node(it)
+	return {"k": _room_key_for(node), "t": _room_kind(it), "s": _room_part(it), "w": _room_job(it)}
+
+
+func _open_room_interior():
+	for it in [_cabin_interior, _tent_interior, _caravan_interior, _service_interior]:
+		if it != null and is_instance_valid(it) and it.has_method("is_open") and it.is_open():
+			return it
+	return null
+
+
+func _open_room_node(it) -> Node3D:
+	if it == _cabin_interior:
+		return _active_cabin_node
+	if it == _tent_interior:
+		return _active_tent_node
+	if it == _caravan_interior:
+		return _active_caravan_node
+	return _active_service_node
+
+
+func _room_kind(it) -> String:
+	if it == _cabin_interior:
+		return "cabin"
+	if it == _tent_interior:
+		return "tent"
+	if it == _caravan_interior:
+		return "caravan"
+	return "service"
+
+
+## Which part of the room (the cabin's bathroom, a block's left stall, the pub's cellar).
+func _room_part(it) -> String:
+	if it == _cabin_interior:
+		return str(it.get("_active_room"))
+	if it == _service_interior:
+		return "%s/%s/%s" % [str(it.get("_current_profile")), str(it.get("_active_subroom")), str(it.get("toilet_entry"))]
+	return "main"
+
+
+func _room_tasks(it):
+	var prep = it.get("_prep") if it != _service_interior else it.get("_upkeep_prep")
+	if prep == null:
+		return null
+	return prep.get("tasks")
+
+
+func _room_job(it) -> String:
+	var tasks = _room_tasks(it)
+	return str(tasks.working_on()) if tasks != null and tasks.has_method("working_on") else ""
+
+
+## The other warden's place in your room, each time their state comes in: their figure
+## stands across the room from you (where you were looking when they came in), or at
+## the job they are doing (the broom for sweeping and mopping, down on a knee for the
+## rest; a job at your feet has them on its far side). In a tent they lie on their belly
+## down its middle, under the ridge (at the back, or by their job). Not in your room: no
+## figure.
+func coop_partner(info: Dictionary) -> void:
+	var mine := coop_room()
+	var same: bool = not info.is_empty() and not mine.is_empty() and str(info.get("k", "")) == str(mine["k"]) \
+		and str(info.get("t", "")) == str(mine["t"]) and str(info.get("s", "")) == str(mine["s"]) and str(mine["k"]) != ""
+	if not same:
+		coop_drop_partner()
+		return
+	var it = _open_room_interior()
+	var vp: Node = it.get("_viewport")
+	var cam: Camera3D = it.get("_interior_camera")
+	if vp == null or cam == null:
+		return
+	var tent: bool = str(mine["t"]) == "tent"
+	# The camera is a child of the room's root, which stands on the floor: its own height
+	# is your eyes' (low in a tent).
+	var root := cam.get_parent() as Node3D
+	var floor_y := cam.global_position.y - cam.position.y
+	var fwd := -cam.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	if _coop_fig == null or not is_instance_valid(_coop_fig) or _coop_fig_in != it or _coop_fig.get_parent() != vp:
+		coop_drop_partner()
+		var look: Dictionary = Coop.partner_look
+		_coop_fig = COOP_FIGURE.new()
+		_coop_fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
+		vp.add_child(_coop_fig)
+		_coop_fig_in = it
+		var right := cam.global_basis.x
+		right.y = 0.0
+		right = right.normalized() if right.length() > 0.01 else Vector3.RIGHT
+		# Across the room from you (a cabin is three paces deep), a little to one side; in
+		# a tent at its back.
+		_coop_fig_spot = cam.global_position + fwd * 1.8 + right * 0.3
+		if tent and root != null:
+			_coop_fig_spot = _coop_tent_spot(root, root.global_transform * Vector3(0.0, 0.0, -0.6))
+		_coop_fig_spot.y = floor_y
+	var job := str(info.get("w", ""))
+	if job != "":
+		var tasks = _room_tasks(it)
+		var t: Dictionary = tasks.target_info(job) if tasks != null and tasks.has_method("target_info") else {}
+		if not t.is_empty():
+			# Just this side of the job, but a pace and a half from you at least.
+			var to: Vector3 = (t["pos"] as Vector3) - cam.global_position
+			to.y = 0.0
+			var dist := to.length()
+			var dir := to / dist if dist > 0.01 else fwd
+			var near := 0.8 if tent else 1.5
+			var at := cam.global_position + dir * clampf(dist - 0.45, near, dist + 0.6)
+			if tent and root != null:
+				at = _coop_tent_spot(root, at)
+			at.y = floor_y
+			var verb := str(t.get("verb", ""))
+			var pose := "sweep" if verb in ["Sweeping", "Mopping"] else ("stand" if verb in ["Making the bed", "Rolling out"] else "crouch")
+			_coop_fig.show_at(at, "prone" if tent else pose)
+			return
+	_coop_fig.show_at(_coop_fig_spot, "prone" if tent else "stand")
+
+
+## A place in a tent for the other warden: down its middle (the walls slope in to the
+## ridge), between your knees and the back.
+func _coop_tent_spot(root: Node3D, at: Vector3) -> Vector3:
+	var loc := root.global_transform.affine_inverse() * at
+	loc.x = clampf(loc.x, -0.12, 0.12)
+	loc.z = clampf(loc.z, -0.75, -0.1)
+	loc.y = 0.0
+	return root.global_transform * loc
+
+
+func coop_drop_partner() -> void:
+	if _coop_fig != null and is_instance_valid(_coop_fig):
+		_coop_fig.queue_free()
+	_coop_fig = null
+	_coop_fig_in = null
+
+
+## The other warden's look changed: the figure in the room changes with it.
+func coop_partner_look(look: Dictionary) -> void:
+	if _coop_fig != null and is_instance_valid(_coop_fig) and _coop_fig.has_method("set_look"):
+		_coop_fig.set_look(int(look.get("m", 1)), int(look.get("c", 0)))
+
+
+## A room's state changed under you (the host's camp sent it, or did the other
+## warden's job): the room you are in, if it is that one, shows it.
+func coop_refresh_room(key: String) -> void:
+	var it = _open_room_interior()
+	if it == null or it == _service_interior:
+		return
+	var node: Node3D = _open_room_node(it)
+	if _room_key_for(node) == key:
+		_push_room_state(it, node)

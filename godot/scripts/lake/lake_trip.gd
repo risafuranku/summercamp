@@ -86,13 +86,13 @@ func _near_boat() -> bool:
 
 
 func hint() -> String:
-	if _state == NONE and _near_boat():
+	if _state == NONE and _near_boat() and not _coop_boat_away:
 		return "[E] Take the boat across"
 	return ""
 
 
 func try_interact() -> bool:
-	if _state != NONE or not _near_boat():
+	if _state != NONE or not _near_boat() or _coop_boat_away:
 		return false
 	_start_rowing("far")
 	return true
@@ -641,3 +641,38 @@ func _say(text: String) -> void:
 	var hud = _main.get("_hud_manager")
 	if hud != null:
 		hud.push_status(text, 1)
+
+
+# ── co-op: one boat for two wardens (scripts/coop/coop.gd) ───────────────────
+
+## The other warden has the boat (rowing, or tied up at the keeper's jetty): it is where
+## they have it on this machine too, and not yours to take.
+var _coop_boat_away := false
+
+
+## Where you are on the lake, for the other machine: {boat: the boat's transform} while
+## you row, {shore: where you stand, boat_at: the boat tied up} on the keeper's side,
+## {} when you are not on the trip.
+func coop_state() -> Dictionary:
+	var lake = _lake_node()
+	if lake == null or lake.boat == null or _state == NONE:
+		return {}
+	if _state == ROWING:
+		return {"boat": (lake.boat as Node3D).global_transform}
+	return {"shore": (lake.far_view as Vector3) - Vector3(0.0, 1.45, 0.0), "boat_at": (lake.boat as Node3D).global_transform}
+
+
+## The other warden's boat: where they have it (`xf`), or back at the camp jetty
+## (null) when they are home again. Not while you are in it.
+func coop_mirror_boat(xf) -> void:
+	if _state != NONE:
+		return
+	var lake = _lake_node()
+	if lake == null or lake.boat == null:
+		return
+	if xf is Transform3D:
+		(lake.boat as Node3D).global_transform = xf
+		_coop_boat_away = true
+	elif _coop_boat_away:
+		(lake.boat as Node3D).transform = lake.boat_home
+		_coop_boat_away = false

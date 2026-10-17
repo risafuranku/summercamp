@@ -511,6 +511,13 @@ through for two (TODO.md, CO-OP).
 - **Nights for two.** Sometimes asymmetric: one sees what the other does not ("didn't you
   see that?"). Behind it a hidden sanity per player: no meter, never named anywhere,
   it just works.
-- **The other warden** is a figure like the guests (Grok sprites, the host in a green
-  windbreaker, the other in a red anorak) with their torch and their steps; gone while
-  they are in a room or at the PC.
+- **The other warden** is a figure like the guests (Grok sprites) with their torch and
+  their steps. Each player picks who they are on the CO-OP page, two men and two women
+  (Pepa, Ondra, Jana, Bara), and the colour of their jacket; each warden is drawn
+  standing, rowing, sweeping, down on a knee scrubbing and lying on their belly.
+- **Rooms for two.** Each warden sees a room from where they stand in it; the other is
+  in it too: across the room, or at the job they are doing (with the broom, on a knee).
+  In a tent the other lies on their belly, chin in hand, boots up in the air.
+  A job either does is done in the host's camp and shows in both rooms.
+- **One boat.** Whoever takes it rows it on both lakes; the other sees them in it and
+  cannot take it till it is back at the jetty.

@@ -8,8 +8,10 @@
 
 - [x] 1  Connect and see each other: CO-OP in the menu (host a sandbox camp / join by address), the whole camp sent on joining (same seed, same trees), the host's clock, weather, power and till; the other warden as a figure with torch and steps; no pause in co-op; only the host saves (`tools/coop_check.py`)
 - [ ] 2  Hands for the joining warden: every action goes to the host (build, demolish, mail, check-in, cleaning, repairs, the PC); one at the PC, the other sees the screen over their shoulder; sleep skips the night only when both are asleep
+  - so far (17. 10.): the rooms (tents, cabins, caravans: in, and their jobs, done in the host's camp), the one boat (whoever has it rows it on both lakes); the host's builds, demolitions, repairs and upgrades done again on the other machine; on the CO-OP page who you are (Pepa, Ondra, Jana, Bara) and your jacket's colour
 - [ ] 3  The camp on both screens: guests and their walks, the bus, lamps, doors, failures and repairs, money and mail as they change
 - [ ] 4  Rooms and minigames for two: both in one cabin, a job taken by one is locked for the other, the scrub/tap/till/sewer close-ups
+  - so far (17. 10.): both in one room see each other, standing about or at their job (the broom, down on a knee scrubbing; in a tent lying on their belly); each one's jobs come back to the other's room
 - [ ] 5  The night for two: the director knows both; enemies hunt either; sometimes only one sees it; a hidden sanity per warden (no meter, never named)
 - [ ] 6  Saves of a co-op camp (host), joining a camp already going, a dropped line and back, a name per warden
 
