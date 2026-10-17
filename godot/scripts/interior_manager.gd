@@ -17,6 +17,8 @@ const GUEST_DIALOG_SCRIPT = preload("res://scripts/guest_dialog.gd")
 const DOOR_TRANSITION_SCRIPT = preload("res://scripts/ui/door_transition.gd")
 ## Out of the camp: the barrier, the road, the bus stop (scripts/town/town_trip.gd).
 const TOWN_TRIP_SCRIPT = preload("res://scripts/town/town_trip.gd")
+## Birds, crows, bats and moths over wherever you are outdoors (scripts/ambient/sky_life.gd).
+const SKY_LIFE_SCRIPT = preload("res://scripts/ambient/sky_life.gd")
 
 const TIME_NIGHT: int = 2
 
@@ -96,6 +98,7 @@ var _crt_desktop_state_cache: Dictionary = {}
 
 var _door_fx: CanvasLayer
 var _town_trip: Node
+var _sky_life: Node3D
 
 
 func town_trip() -> Node:
@@ -136,6 +139,11 @@ func setup(
 		add_child(_town_trip)
 		_register_interior_instance(INTERIOR_MODULE_TRIP, _town_trip)
 	_town_trip.setup(self)
+	if _sky_life == null and _world_3d != null:
+		_sky_life = SKY_LIFE_SCRIPT.new()
+		_world_3d.add_child(_sky_life)
+		_sky_life.player_getter = func(): return _player
+		_sky_life.indoors = func(): return is_any_open()
 	# setup() is called once before player spawn and again after spawn.
 	# Rebind existing interiors so runtime refs (player/audio/grid) stay valid.
 	if _building_interior != null and is_instance_valid(_building_interior) and _building_interior.has_method("setup"):

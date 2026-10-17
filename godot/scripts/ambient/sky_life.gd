@@ -1,0 +1,222 @@
+extends Node3D
+
+## Life in the air round you, outdoors, as Build sprites moved in steps (12 a second):
+##   - by day, now and then a flock of small birds goes over high up, wings beating in
+##     two frames, now and then one gliding; a rush of wings as they pass;
+##   - at dusk crows go over to their roost, bigger, slower, cawing;
+##   - after dark bats flit round the nearest lit lamp (or above you), and moths dance
+##     round every lit lamp near you.
+## It follows the player wherever they are (the camp, the road, Lesna). Not while you are
+## in a room. Made by InteriorManager.setup() in the camp's world.
+
+const FPS := 12.0
+const SFX := "res://assets/sfx/life/"
+
+var player_getter: Callable
+## Callable() -> bool: you are in a room / close-up (the sky waits).
+var indoors: Callable
+
+var _rng := RandomNumberGenerator.new()
+var _tex: Dictionary = {}
+var _flocks: Array = []          # {birds: [{sprite, off, phase}], from, dir, t, length, speed, kind}
+var _next_flock := 25.0
+var _bats: Array = []            # {sprite, a, r, h, phase}
+var _moths: Array = []           # {sprite, lamp}
+var _tick := 0.0
+var _acc := 0.0
+var _lamp_poll := 0.0
+var _lamps: Array = []
+var _audio: AudioStreamPlayer3D
+
+
+func _ready() -> void:
+	name = "SkyLife"
+	_rng.randomize()
+	_tex["bird_up"] = _pixels(["X......X", ".X....X.", "..X..X..", "...XX...", "........"], Color(0.16, 0.15, 0.15))
+	_tex["bird_down"] = _pixels(["........", "...XX...", "..X..X..", ".X....X.", "X......X"], Color(0.16, 0.15, 0.15))
+	_tex["crow_up"] = _pixels(["XX........XX", ".XXX....XXX.", "..XXX..XXX..", "....XXXX....", ".....XX.....", "............"], Color(0.05, 0.05, 0.06))
+	_tex["crow_down"] = _pixels(["............", ".....XX.....", "....XXXX....", "..XXX..XXX..", ".XXX....XXX.", "XX........XX"], Color(0.05, 0.05, 0.06))
+	_tex["bat_up"] = _pixels(["X.X....X.X", "XXXX..XXXX", ".XXXXXXXX.", "....XX....", "..........", ], Color(0.07, 0.06, 0.07))
+	_tex["bat_down"] = _pixels(["..........", "....XX....", ".XXXXXXXX.", "XXX.XX.XXX", "X.X....X.X"], Color(0.07, 0.06, 0.07))
+	_tex["moth"] = _pixels(["X.X", ".X.", "X.X"], Color(0.92, 0.9, 0.8))
+	_audio = AudioStreamPlayer3D.new()
+	_audio.unit_size = 20.0
+	_audio.max_distance = 160.0
+	add_child(_audio)
+
+
+func _pixels(rows: Array, col: Color) -> Texture2D:
+	var w := str(rows[0]).length()
+	var img := Image.create(w, rows.size(), false, Image.FORMAT_RGBA8)
+	for y in rows.size():
+		for x in w:
+			if str(rows[y])[x] == "X":
+				img.set_pixel(x, y, col)
+	return ImageTexture.create_from_image(img)
+
+
+func _sprite(tex_key: String, px: float) -> Sprite3D:
+	var s := Sprite3D.new()
+	s.texture = _tex[tex_key]
+	s.pixel_size = px
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.shaded = false
+	s.double_sided = true
+	add_child(s)
+	return s
+
+
+func _player() -> Node3D:
+	return player_getter.call() as Node3D if player_getter.is_valid() else null
+
+
+func _hour() -> float:
+	var main := get_tree().current_scene
+	return float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 12.0
+
+
+func _process(delta: float) -> void:
+	var p := _player()
+	var inside: bool = indoors.is_valid() and bool(indoors.call())
+	visible = p != null and not inside
+	if not visible:
+		return
+	_tick += delta
+	var h := _hour()
+	var night := h >= 20.4 or h < 5.4
+	var dusk := h >= 18.2 and h < 20.4
+	# Flocks by day, crows at dusk.
+	_next_flock -= delta
+	if _next_flock <= 0.0 and not night:
+		_next_flock = _rng.randf_range(35.0, 110.0) if not dusk else _rng.randf_range(20.0, 50.0)
+		_spawn_flock(p.global_position, "crow" if dusk else "bird")
+	_update_flocks(delta)
+	_acc += delta
+	if _acc < 1.0 / FPS:
+		return
+	_acc = 0.0
+	_update_bats(p.global_position, night)
+	_update_moths(p.global_position, night)
+
+
+# ── flocks ───────────────────────────────────────────────────────────────────
+
+func _spawn_flock(around: Vector3, kind: String) -> void:
+	var ang := _rng.randf() * TAU
+	var dir := Vector3(cos(ang), 0, sin(ang))
+	var side := Vector3(-dir.z, 0, dir.x)
+	var length := 260.0
+	var from := around - dir * length * 0.5 + side * _rng.randf_range(-40.0, 40.0)
+	var n := _rng.randi_range(4, 9) if kind == "bird" else _rng.randi_range(2, 5)
+	var height := _rng.randf_range(16.0, 24.0) if kind == "bird" else _rng.randf_range(13.0, 20.0)
+	var birds: Array = []
+	for i in n:
+		var off := Vector3(-float(i / 2 + 1) * _rng.randf_range(2.6, 4.2), _rng.randf_range(-1.5, 1.5), (1.0 if i % 2 == 0 else -1.0) * float(i / 2 + 1) * _rng.randf_range(2.2, 3.6))
+		if i == 0:
+			off = Vector3.ZERO
+		# Big for real birds: drawn small and scaled up, anything smaller is a speck.
+		var s := _sprite(kind + "_up", 0.16 if kind == "bird" else 0.2)
+		birds.append({"sprite": s, "off": off, "phase": _rng.randi_range(0, 5)})
+	var speed := _rng.randf_range(11.0, 15.0) if kind == "bird" else _rng.randf_range(7.0, 9.0)
+	_flocks.append({"birds": birds, "from": from + Vector3(0, height, 0), "dir": dir, "side": side, "t": 0.0, "length": length, "speed": speed, "kind": kind, "heard": false})
+
+
+func _update_flocks(delta: float) -> void:
+	var step := floorf(_tick * FPS)
+	for f in _flocks:
+		f["t"] = float(f["t"]) + delta
+		var dist := float(f["t"]) * float(f["speed"])
+		var dir: Vector3 = f["dir"]
+		var side: Vector3 = f["side"]
+		var lead: Vector3 = (f["from"] as Vector3) + dir * dist
+		for b in f["birds"]:
+			var s: Sprite3D = b["sprite"]
+			var off: Vector3 = b["off"]
+			# A gentle wave in the formation, in steps.
+			var wave := sin(step * 0.15 + float(b["phase"])) * 0.6
+			s.position = lead + dir * off.x + side * (off.z + wave) + Vector3(0, off.y, 0)
+			# Beat, beat, glide.
+			var kind := str(f["kind"])
+			var beat := (int(step) + int(b["phase"])) % (6 if kind == "bird" else 8)
+			s.texture = _tex[kind + ("_down" if beat < (2 if kind == "bird" else 3) else "_up")]
+		if not bool(f["heard"]) and dist > float(f["length"]) * 0.4:
+			f["heard"] = true
+			_audio.stream = load(SFX + ("crows_over.mp3" if str(f["kind"]) == "crow" else "flock_over.mp3"))
+			_audio.volume_db = -10.0 if str(f["kind"]) == "bird" else -6.0
+			_audio.global_position = lead
+			_audio.play()
+		if dist > float(f["length"]):
+			for b in f["birds"]:
+				(b["sprite"] as Node).queue_free()
+			f["done"] = true
+	_flocks = _flocks.filter(func(f): return not f.has("done"))
+
+
+# ── after dark ───────────────────────────────────────────────────────────────
+
+func _lit_lamps(around: Vector3) -> Array:
+	_lamp_poll -= 1.0 / FPS
+	if _lamp_poll > 0.0:
+		return _lamps
+	_lamp_poll = 1.0
+	_lamps = []
+	for lamp in get_tree().get_nodes_in_group("lamp_posts"):
+		var l := lamp as Node3D
+		if l == null or not l.is_inside_tree():
+			continue
+		var bulb: Light3D = null
+		for c in l.get_children():
+			if c is SpotLight3D:
+				bulb = c
+				break
+		if bulb == null or not bulb.is_visible_in_tree() or bulb.light_energy <= 0.05:
+			continue
+		if bulb.global_position.distance_to(around) < 32.0:
+			_lamps.append(bulb.global_position)
+		if _lamps.size() >= 6:
+			break
+	return _lamps
+
+
+func _update_bats(around: Vector3, night: bool) -> void:
+	var want := 3 if night else 0
+	while _bats.size() < want:
+		_bats.append({"sprite": _sprite("bat_up", 0.075), "a": _rng.randf() * TAU, "r": _rng.randf_range(3.0, 7.0), "h": _rng.randf_range(5.0, 9.0), "phase": _rng.randi_range(0, 3), "jit": Vector3.ZERO})
+	while _bats.size() > want:
+		(_bats.pop_back()["sprite"] as Node).queue_free()
+	if _bats.is_empty():
+		return
+	var lamps := _lit_lamps(around)
+	var centre := around + Vector3(0, 2.0, 0)
+	if not lamps.is_empty():
+		centre = lamps[0]
+	var step := int(floorf(_tick * FPS))
+	for b in _bats:
+		# Erratic: the circle turns, and every few steps a jink.
+		b["a"] = float(b["a"]) + _rng.randf_range(0.18, 0.42)
+		if step % 3 == 0:
+			b["jit"] = Vector3(_rng.randf_range(-1.2, 1.2), _rng.randf_range(-0.8, 0.8), _rng.randf_range(-1.2, 1.2))
+		var a := float(b["a"])
+		var s: Sprite3D = b["sprite"]
+		s.position = centre + Vector3(cos(a) * float(b["r"]), float(b["h"]) - 4.0 + sin(a * 2.3) * 1.2, sin(a) * float(b["r"])) + (b["jit"] as Vector3)
+		s.texture = _tex["bat_down" if (step + int(b["phase"])) % 2 == 0 else "bat_up"]
+
+
+func _update_moths(around: Vector3, night: bool) -> void:
+	var lamps: Array = _lit_lamps(around) if night else []
+	var want := lamps.size() * 4
+	while _moths.size() < want:
+		_moths.append({"sprite": _sprite("moth", 0.03), "o": Vector3.ZERO})
+	while _moths.size() > want:
+		(_moths.pop_back()["sprite"] as Node).queue_free()
+	for i in _moths.size():
+		var m: Dictionary = _moths[i]
+		var bulb: Vector3 = lamps[i / 4]
+		# Round and round the bulb, a twitch at a time.
+		var o: Vector3 = m["o"]
+		o += Vector3(_rng.randf_range(-0.12, 0.12), _rng.randf_range(-0.1, 0.1), _rng.randf_range(-0.12, 0.12))
+		if o.length() > 0.55:
+			o = o.normalized() * 0.4
+		m["o"] = o
+		(m["sprite"] as Sprite3D).position = bulb + Vector3(0, -0.25, 0) + o
