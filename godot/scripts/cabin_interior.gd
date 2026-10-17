@@ -190,6 +190,8 @@ func _apply_idle_mouse_look(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not _is_open:
 		return
+	if _prep != null and _prep.is_scrubbing():
+		return
 	# Esc is the pause menu's (main): S or the way out behind you leaves.
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
 		close_cabin()

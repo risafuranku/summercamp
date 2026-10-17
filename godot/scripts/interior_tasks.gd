@@ -13,6 +13,7 @@ signal task_completed(task_id: String)
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
+const SCRUB = preload("res://scripts/scrub_minigame.gd")
 ## The thing being worked on shakes in steps, this many a second (see work_hand.gd).
 const SHAKE_FPS := 10.0
 const SFX_DIR := "res://assets/sfx/rooms/"
@@ -39,6 +40,10 @@ var _t := 0.0
 var _hand: Control
 var _shake_acc := 0.0
 var _shaken: Dictionary = {}   # MeshInstance3D -> its rest position
+## Toilets are scrubbed close up (scripts/scrub_minigame.gd), not held.
+var _scrub
+var _lmb_was := false
+var _scrub_seed := 0
 
 
 func _init() -> void:
@@ -84,6 +89,7 @@ func add_target(task: Dictionary, body: CollisionObject3D, meshes: Array) -> voi
 		"verb": str(task.get("verb", "Working")),
 		"seconds": float(task.get("seconds", 1.5)),
 		"sfx": str(task.get("sfx", SFX_BY_TASK.get(id, "task_litter.mp3"))),
+		"scrub": bool(task.get("scrub", false)),
 		"done": false,
 	}
 
@@ -103,15 +109,47 @@ func is_busy() -> bool:
 	return not _hover.is_empty()
 
 
+## The scrub close-up is open over the room.
+func is_scrubbing() -> bool:
+	return _scrub != null and _scrub.is_open()
+
+
+## The interior's day / room key: the same bowl gets new filth on a new day.
+func set_scrub_seed(seed: int) -> void:
+	_scrub_seed = seed
+
+
+func _open_scrub(id: String) -> void:
+	if _scrub == null:
+		_scrub = SCRUB.new()
+		add_child(_scrub)
+		_scrub.finished.connect(func(done_id: String):
+			if _targets.has(done_id) and not _targets[done_id]["done"]:
+				_finish(done_id))
+	_cancel_hold()
+	_set_hover("")
+	_scrub.open(id, absi(("%s|%d" % [id, _scrub_seed]).hash()))
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	if not is_visible_in_tree() or _camera == null:
+		return
+	var lmb_now := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var pressed_now := lmb_now and not _lmb_was
+	_lmb_was = lmb_now
+	if is_scrubbing():
+		_prompt.visible = false
+		queue_redraw()
 		return
 	var hit := _target_under_cursor()
 	if _holding.is_empty():
 		_set_hover(hit)
 	var lmb := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	if lmb and not _hover.is_empty() and (_holding.is_empty() or _holding == _hover):
+	if pressed_now and not _hover.is_empty() and _holding.is_empty() and bool(_targets[_hover].get("scrub", false)):
+		_open_scrub(_hover)
+		return
+	if lmb and not _hover.is_empty() and not bool(_targets[_hover].get("scrub", false)) and (_holding.is_empty() or _holding == _hover):
 		if _holding.is_empty():
 			_start_hold(_hover)
 		if hit != _holding:
@@ -130,7 +168,8 @@ func _process(delta: float) -> void:
 	_prompt.visible = not _hover.is_empty()
 	if _prompt.visible:
 		var target: Dictionary = _targets[_hover]
-		_prompt.text = ("%s..." % str(target["verb"]).to_upper()) if not _holding.is_empty() else ("HOLD [LMB]  %s" % str(target["label"]).to_upper())
+		var how := "CLICK" if bool(target.get("scrub", false)) else "HOLD [LMB]"
+		_prompt.text = ("%s..." % str(target["verb"]).to_upper()) if not _holding.is_empty() else ("%s  %s" % [how, str(target["label"]).to_upper()])
 		var m := get_viewport().get_mouse_position()
 		_prompt.position = (m + Vector2(-_prompt.size.x * 0.5, 16.0 * _scale)).floor()
 	queue_redraw()

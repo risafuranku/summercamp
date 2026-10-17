@@ -406,6 +406,8 @@ func close_interior() -> void:
 func _process(delta: float) -> void:
 	_update_radio_mix(delta)
 	_update_crt_sharp()
+	if _extras != null:
+		_extras.tick_ring(delta)
 	if not visible:
 		return
 	_update_window_portal()
@@ -2100,6 +2102,36 @@ func toggle_desk_lamp() -> void:
 			m.emission = Color(0.25, 0.7, 0.35)
 			m.emission_energy_multiplier = 0.35
 	_apply_room_time_profile(true)
+
+
+## Somebody rings the office (the night, a guest, ...): see reception_extras.start_incoming.
+func ring_phone(call: Dictionary, rings := 8, done := Callable()) -> void:
+	if _extras != null:
+		_extras.start_incoming(call, rings, done)
+
+
+var _bell_outdoor: AudioStreamPlayer3D
+
+
+## The bell heard from the camp, through the walls.
+func ring_outdoor() -> void:
+	var building := _resolve_main_building_node()
+	if building == null or not is_instance_valid(building):
+		return
+	if _bell_outdoor == null or not is_instance_valid(_bell_outdoor):
+		_bell_outdoor = AudioStreamPlayer3D.new()
+		_bell_outdoor.name = "PhoneBellOutdoor"
+		_bell_outdoor.unit_size = 5.0
+		_bell_outdoor.max_distance = 45.0
+		_bell_outdoor.attenuation_filter_cutoff_hz = 2400.0
+		_bell_outdoor.attenuation_filter_db = -12.0
+		_bell_outdoor.volume_db = -6.0
+		if ResourceLoader.exists("res://assets/sfx/phone/bell.mp3"):
+			_bell_outdoor.stream = load("res://assets/sfx/phone/bell.mp3")
+		building.add_child(_bell_outdoor)
+	if visible:
+		return
+	_bell_outdoor.play()
 
 
 func _toggle_office_lights() -> void:

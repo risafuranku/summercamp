@@ -175,6 +175,11 @@ func _rebuild_if_changed(list: Array) -> void:
 			tasks.add_target(t, b, meshes2)
 
 
+## The toilet scrub close-up is open over the room (the room keeps its keys to itself).
+func is_scrubbing() -> bool:
+	return tasks != null and tasks.is_scrubbing()
+
+
 func is_busy() -> bool:
 	return tasks != null and tasks.is_busy()
 
@@ -287,6 +292,15 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			decal(root, "dirt_piss", 0.5, Vector3(_j(rng, 0.08), -pos.y + 0.048, 0.36), rng.randf() * TAU, false, true)
 			size = Vector3(0.6, 0.75, 0.7)
 			body_pos = pos + Vector3(0, -0.2, 0.1)
+		"bowl_dirty":
+			# `pos` is the top of the bowl: filth inside it, a brown stain down its front,
+			# a wet patch at its foot.
+			decal(root, "dirt_grime", 0.3, Vector3(0, 0.006, 0), rng.randf() * TAU)
+			decal(root, "dirt_poop", 0.2, Vector3(_j(rng, 0.03), 0.01, _j(rng, 0.03)), rng.randf() * TAU)
+			decal(root, "dirt_grime", 0.16, Vector3(0.0, -0.18, 0.2), 0.0, true)
+			decal(root, "dirt_piss", 0.44, Vector3(_j(rng, 0.06), -pos.y + 0.046, 0.32), rng.randf() * TAU, false, true)
+			size = Vector3(0.5, 0.5, 0.6)
+			body_pos = pos + Vector3(0, -0.12, 0.05)
 		"sink_grime":
 			decal(root, "dirt_grime", 0.3, Vector3(0, 0.012, 0), rng.randf() * TAU)
 			box(root, Vector3(_j(rng, 0.06), 0.014, _j(rng, 0.04)), Vector3(0.1, 0.006, 0.02), flat(Color(0.08, 0.06, 0.05)), Vector3(0, rng.randf() * TAU, 0))

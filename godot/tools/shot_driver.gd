@@ -818,6 +818,65 @@ const SCENARIOS := {
 		["hours", 12.0], ["wait", 3.0], ["view", 13, 1, 2, 2, 7.0, -20], ["wait", 1.0], ["shot", "rt8_front_night"],
 		["view", 13, 1, 2, 2, 9.5, 70], ["wait", 1.0], ["shot", "rt9_east_night"],
 	],
+	"phonering": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4],
+		["eval", "_interior_manager._building_interior._look.set('yaw_deg', -38.0)"], ["eval", "_interior_manager._building_interior._look.set('pitch_deg', -26.0)"], ["wait", 1.0], ["shot", "ph0_phone_model"],
+		["eval", "_interior_manager._building_interior.ring_phone({'who': 'VERA', 'lines': [{'who': 'VERA', 'text': 'It is me. Is everything all right there? Good. Good night.'}]}, 6)"], ["wait", 0.15], ["shot", "ph1_ringing"],
+		["eval", "_interior_manager._building_interior._extras.phone_view.open_view()"], ["wait", 1.2],
+		["eval", "[_interior_manager._building_interior._extras.phone_view.is_ringing_in(), _interior_manager._building_interior._extras.is_ringing()]"], ["shot", "ph2_closeup_ringing"],
+		["eval", "_interior_manager._building_interior._extras.phone_view._clicked('handset')"], ["wait", 1.0],
+		["eval", "[_interior_manager._building_interior._extras.phone_view.get('_state'), _interior_manager._building_interior._extras.is_ringing()]"], ["shot", "ph3_answered"],
+		["eval", "_interior_manager._building_interior._extras.phone_view.close_view()"], ["wait", 0.8],
+		["eval", "_interior_manager._building_interior._extras.phone_view.open_view()"], ["wait", 0.8], ["eval", "_interior_manager._building_interior._extras.phone_view._clicked('key4')"], ["wait", 0.3],
+		["eval", "_interior_manager._building_interior._extras.phone_view.get('_state')"], ["shot", "ph4_key_lifts"],
+	],
+	"scrubtest": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"],
+		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "toilet_block", 17, 4, 0], ["wait", 0.5],
+		["condition", 17, 4, 0.1], ["wait", 0.6],
+		["open_room", 17, 4], ["wait", 1.2], ["shot", "sc0_stall_left"],
+		["eval", "_interior_manager._service_interior._upkeep_prep.tasks._targets.keys()"],
+		["eval", "_interior_manager._service_interior._apply_service_subroom('right')"], ["wait", 0.8], ["shot", "sc1_stall_right"],
+		["eval", "_interior_manager._service_interior._apply_service_subroom('left')"], ["wait", 0.8],
+		["eval", "debug_aim_task(_interior_manager._service_interior._upkeep_prep.tasks, 'bowl_l')"], ["wait", 0.4],
+		["eval", "_interior_manager._service_interior._upkeep_prep.tasks._hover"], ["shot", "sc2_hover_bowl"],
+		["eval", "debug_press_mouse(true)"], ["wait", 0.1], ["eval", "debug_press_mouse(false)"], ["wait", 0.6],
+		["eval", "_interior_manager._service_interior._upkeep_prep.tasks.is_scrubbing()"], ["shot", "sc3_scrub_open"],
+		["eval", "debug_press_mouse(true)"],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.220))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.242))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.264))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.286))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.308))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.330))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.352))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.374))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.396))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.418))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.440))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.462))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.484))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.506))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.528))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.550))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.572))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.594))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.616))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.638))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.660))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.682))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.704))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.726))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.360, 0.748))"], ["wait", 0.06],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.640, 0.770))"], ["wait", 0.06],
+		["shot", "sc4_scrub_half"],
+		["eval", "_interior_manager._service_interior._upkeep_prep.tasks._scrub._left"],
+		["eval", "debug_press_mouse(false)"],
+		["eval", "_interior_manager._service_interior._upkeep_prep.tasks._scrub.debug_finish()"], ["wait", 0.4], ["shot", "sc5_spotless"], ["wait", 2.2],
+		["eval", "[_interior_manager._service_interior._upkeep_prep.tasks.is_scrubbing(), _interior_manager._service_interior._upkeep_prep.tasks._targets['bowl_l']['done']]"], ["shot", "sc6_after"],
+	],
 	"pauseclick": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
 		["eval", "debug_tap_key(4194305)"], ["wait", 0.5],
@@ -1172,10 +1231,19 @@ func _run_step(step: Array) -> void:
 				var t3: Dictionary = tasks3._targets[id]
 				if t3["done"] or not is_instance_valid(t3["body"]) or not t3["body"].is_visible_in_tree():
 					continue
-				queue.append_array([["aim_task", step[1], id], ["wait", 0.3], ["lmb", true], ["wait", float(t3["seconds"]) + 0.5], ["lmb", false], ["wait", 0.3]])
-			print("SHOT DRIVER clean_room %s: %d things" % [step[1], queue.size() / 6])
+				if bool(t3.get("scrub", false)):
+					# A toilet: the click opens the scrub close-up; it is finished there.
+					queue.append_array([["aim_task", step[1], id], ["wait", 0.3], ["lmb", true], ["wait", 0.1], ["lmb", false], ["wait", 0.4], ["scrub_done", step[1]], ["wait", 2.4]])
+				else:
+					queue.append_array([["aim_task", step[1], id], ["wait", 0.3], ["lmb", true], ["wait", float(t3["seconds"]) + 0.5], ["lmb", false], ["wait", 0.3]])
+			print("SHOT DRIVER clean_room %s: %d steps" % [step[1], queue.size()])
 			for i in queue.size():
 				_steps.insert(_step_index + i, queue[i])
+		"scrub_done":
+			var interior4 = _main.get("_interior_manager").get(str(step[1]))
+			var tasks4 = _prep_of(interior4).tasks
+			if tasks4.is_scrubbing():
+				tasks4._scrub.debug_finish()
 		"_aim_cursor":
 			var interior2 = _main.get("_interior_manager").get(str(step[1]))
 			var tasks2 = _prep_of(interior2).tasks

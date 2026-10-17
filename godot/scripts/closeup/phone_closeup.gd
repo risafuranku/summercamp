@@ -34,7 +34,7 @@ const RING_OFF := 1.7
 const WAIT_AFTER_LAST_KEY := 1.1
 const GIVE_UP_DIALLING := 5.0
 
-enum { RESTING, DIAL_TONE, DIALLING, RINGING, TALKING, ENDED }
+enum { RESTING, DIAL_TONE, DIALLING, RINGING, TALKING, ENDED, INCOMING }
 
 ## Callable() -> Dictionary: the camp's situation for phone_book (hour, faults...).
 var context_provider: Callable
@@ -60,6 +60,11 @@ var _key_snd: AudioStreamPlayer
 var _voice: AudioStreamPlayer
 var _hiss: AudioStreamPlayer
 var _calls: Dictionary = {}
+## Someone ringing in (the office: reception_extras.start_incoming): who, the lines.
+var _incoming: Dictionary = {}
+var _bell: AudioStreamPlayer
+## Callable(answered: bool): an incoming call was answered, or the caller rang off.
+var on_incoming_done: Callable
 
 
 func _ready() -> void:
@@ -71,6 +76,10 @@ func _ready() -> void:
 	_voice = _player(-2.0, "Phone")
 	_voice.finished.connect(_next_clip)
 	_hiss = _player(-22.0, "Phone")
+	# The bell is the set's own, in the room: not down the line.
+	_bell = _player(-2.0, "Master")
+	# The tones were too quiet to read (playtest 2026-10-17: "unclear how to phone").
+	_tone.volume_db = -5.0
 
 
 func _player(db: float, bus: String) -> AudioStreamPlayer:
@@ -107,6 +116,11 @@ func _opened() -> void:
 
 
 func _closing() -> void:
+	# Walking away from a ringing phone leaves it ringing (the room has its bell).
+	if _state == INCOMING:
+		_bell.stop()
+		_state = RESTING
+		return
 	if _state != RESTING:
 		_hang_up(false)
 
@@ -118,9 +132,17 @@ func _hotspots() -> Array:
 	return out
 
 
+## The real recordings where there are some, the synthesised tones otherwise.
+static func _sfx(name: String) -> String:
+	var mp3 := SFX + name + ".mp3"
+	return mp3 if ResourceLoader.exists(mp3) else SFX + name + ".wav"
+
+
 func _clicked(id: String) -> void:
 	if id == "handset":
-		if _state == RESTING:
+		if _state == INCOMING:
+			_answer()
+		elif _state == RESTING:
 			_lift()
 		else:
 			_hang_up(true)
@@ -154,7 +176,7 @@ func _press_visual(i: int) -> void:
 
 
 func _lift() -> void:
-	play(SFX + "lift.wav", -6.0)
+	play(_sfx("lift"), 1.0)
 	_state = DIAL_TONE
 	_number = ""
 	_since_key = 0.0
@@ -165,7 +187,7 @@ func _lift() -> void:
 
 func _hang_up(sound: bool) -> void:
 	if sound:
-		play(SFX + "hangup.wav", -5.0)
+		play(_sfx("hangup"), 1.0)
 	var finished_call := _state == TALKING or _state == ENDED
 	_tone.stop()
 	_voice.stop()
@@ -182,7 +204,10 @@ func _hang_up(sound: bool) -> void:
 
 
 func _dial(ch: String, sound := true) -> void:
+	# A key with the handset down: you lift it as you reach for the keys.
 	if _state == RESTING:
+		_lift()
+	if _state == INCOMING:
 		return
 	if sound:
 		var key_file := "star" if ch == "*" else ("hash" if ch == "#" else ch)
@@ -321,9 +346,63 @@ func _loop(p: AudioStreamPlayer, path: String) -> void:
 	p.play()
 
 
+## The office set rings and you are at it (reception_extras): the bell, CALL on the
+## display; lift the handset to answer.
+func incoming(call: Dictionary) -> void:
+	if _state != RESTING:
+		return
+	_incoming = call.duplicate(true)
+	_state = INCOMING
+	_ring_t = 0.0
+	_ring_bell()
+	say("", "", false)
+
+
+## The caller rang off before you answered.
+func stop_incoming() -> void:
+	if _state != INCOMING:
+		return
+	_bell.stop()
+	_state = RESTING
+	_incoming = {}
+	if on_incoming_done.is_valid():
+		on_incoming_done.call(false)
+
+
+func is_ringing_in() -> bool:
+	return _state == INCOMING
+
+
+func _ring_bell() -> void:
+	var path := SFX + "bell.mp3"
+	if ResourceLoader.exists(path):
+		_bell.stream = load(path)
+		_bell.play()
+
+
+func _answer() -> void:
+	_bell.stop()
+	play(_sfx("lift"), 1.0)
+	_call = _incoming
+	_incoming = {}
+	_number = str(_call.get("number", ""))
+	_talk_t = 0.0
+	_loop(_hiss, SFX + "line_hiss.wav")
+	_state = TALKING
+	_line_i = -1
+	if on_incoming_done.is_valid():
+		on_incoming_done.call(true)
+	_next_line()
+
+
 func _tick(delta: float) -> void:
 	_pressed_t -= delta
 	match _state:
+		INCOMING:
+			_ring_t += delta
+			if _ring_t >= 3.6:
+				_ring_t = 0.0
+				_ring_bell()
 		DIALLING:
 			_since_key += delta
 			var num := BOOK.digits(_number)
@@ -406,6 +485,8 @@ func _paint_lcd(c: Control) -> void:
 			text = "_" if fmod(Time.get_ticks_msec() / 500.0, 2.0) < 1.0 else ""
 		DIALLING, RINGING:
 			text = _number.right(11)
+		INCOMING:
+			text = "CALL" if fmod(Time.get_ticks_msec() / 400.0, 2.0) < 1.0 else ""
 		TALKING, ENDED:
 			text = "%s %02d:%02d" % [_number.right(4), int(_talk_t) / 60, int(_talk_t) % 60] if _state == TALKING else _number.right(11)
 	ink(c, font, Vector2(LCD.position.x + 3, LCD.position.y + 12), "88888888888", ghost)

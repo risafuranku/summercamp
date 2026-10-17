@@ -29,13 +29,14 @@ const MESS := {
 	"ash": {"label": "Sweep up the ash and tent pegs", "verb": "Sweeping", "seconds": 1.6, "sfx": "task_litter.mp3"},
 	"sawdust": {"label": "Sweep up the builders' sawdust", "verb": "Sweeping", "seconds": 1.4, "sfx": "task_litter.mp3"},
 	# Bathrooms and the toilet / shower blocks.
-	"toilet_grime": {"label": "Scrub the toilet", "verb": "Scrubbing", "seconds": 2.2, "sfx": "task_scrub.mp3"},
+	"toilet_grime": {"label": "Scrub the toilet", "verb": "Scrubbing", "seconds": 2.2, "sfx": "task_scrub.mp3", "scrub": true},
+	"bowl_dirty": {"label": "Scrub the toilet", "verb": "Scrubbing", "seconds": 3.0, "sfx": "task_scrub.mp3", "scrub": true},
 	"sink_grime": {"label": "Wipe the sink", "verb": "Wiping", "seconds": 1.5, "sfx": "task_scrub.mp3"},
 	"shower_mould": {"label": "Scrub the mould off the tiles", "verb": "Scrubbing", "seconds": 2.2, "sfx": "task_scrub.mp3"},
 	"puddle": {"label": "Mop the floor", "verb": "Mopping", "seconds": 1.8, "sfx": "task_scrub.mp3"},
 	"paper_out": {"label": "Put in a new toilet roll", "verb": "Refilling", "seconds": 1.0, "sfx": "task_bed.mp3"},
 	"hair": {"label": "Pull the hair out of the drain", "verb": "Pulling", "seconds": 1.8, "sfx": "task_scrub.mp3"},
-	"graffiti": {"label": "Scrub the writing off the door", "verb": "Scrubbing", "seconds": 2.0, "sfx": "task_scrub.mp3"},
+	"graffiti": {"label": "Scrub the writing off the wall", "verb": "Scrubbing", "seconds": 2.0, "sfx": "task_scrub.mp3"},
 	"blocked": {"label": "Unblock the toilet", "verb": "Plunging", "seconds": 3.2, "sfx": "task_scrub.mp3"},
 	"piss": {"label": "Mop up the piss", "verb": "Mopping", "seconds": 2.0, "sfx": "task_scrub.mp3"},
 	"poop": {"label": "Scrape up what somebody left", "verb": "Scraping", "seconds": 2.8, "sfx": "task_scrub.mp3"},
@@ -67,26 +68,28 @@ const BY_ARCHETYPE := {
 const TABLE_KINDS := ["bottles", "food", "cans", "mushrooms", "papers"]
 
 ## Toilet and shower blocks: spots inside the block (scripts/service_interior.gd places
-## them: the stalls and showers are seen from the side rooms, A / D).
+## them). The toilets are two single stalls behind the outhouse's two doors (A / D), a
+## bowl in each; the showers three cubicles seen from the side rooms.
 const BLOCK_SPOTS := {
-	"toilet": ["stall_l", "stall_r", "urinal", "door_l", "door_r", "floor_c", "wall_l"],
+	"toilet": ["bowl_l", "bowl_r", "stall_l", "stall_r", "wall_l", "wall_r"],
 	"wash": ["shower_l", "shower_r", "drain_l", "drain_r", "floor_c", "floor_l", "floor_r"],
 }
 const BLOCK_KINDS := {
+	"bowl_l": ["bowl_dirty"], "bowl_r": ["bowl_dirty"],
 	"stall_l": ["piss", "paper_out", "poop", "wads", "mud"], "stall_r": ["piss", "paper_out", "wads", "poop", "puddle"],
-	"urinal": ["butts", "piss"], "door_l": ["graffiti"], "door_r": ["graffiti"], "wall_l": ["graffiti"],
+	"wall_l": ["graffiti"], "wall_r": ["graffiti"],
 	"floor_c": ["puddle", "mud", "papers", "piss"],
 	"shower_l": ["shower_mould"], "shower_r": ["shower_mould"],
 	"drain_l": ["hair", "puddle"], "drain_r": ["hair", "puddle"],
 	"floor_l": ["puddle", "clothes", "sand"], "floor_r": ["sand", "clothes", "hair"],
 }
 ## What a breakdown is, inside: the fix is one more (longer) job.
-const BLOCK_BREAKDOWN := {"toilet": {"spot": "stall_r", "kind": "blocked"}, "wash": {"spot": "drain_r", "kind": "showerhead"}}
+const BLOCK_BREAKDOWN := {"toilet": {"spot": "bowl_r", "kind": "blocked"}, "wash": {"spot": "drain_r", "kind": "showerhead"}}
 
 
 static func task_for(spot: String, kind: String) -> Dictionary:
 	var m: Dictionary = MESS.get(kind, MESS["papers"])
-	return {"id": spot, "spot": spot, "mess": kind, "label": str(m["label"]), "verb": str(m["verb"]), "seconds": float(m["seconds"]), "sfx": str(m["sfx"])}
+	return {"id": spot, "spot": spot, "mess": kind, "label": str(m["label"]), "verb": str(m["verb"]), "seconds": float(m["seconds"]), "sfx": str(m["sfx"]), "scrub": bool(m.get("scrub", false))}
 
 
 ## The mess left by the guests leaving: level from who they were and how long they

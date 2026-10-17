@@ -50,6 +50,10 @@ var look_back = INTERIOR_LOOK.new(180.0, 26.0, 38.0)
 var back_base_rot := Vector3(deg_to_rad(-11.0), deg_to_rad(101.0), 0.0)
 
 var _door_pivot: Node3D
+var _phone_root: Node3D
+## Someone ringing the office: {call, left (rings), t, done: Callable(answered)}.
+var _ring: Dictionary = {}
+var _bell3d: AudioStreamPlayer3D
 var _walk: Tween
 var _hover := ""
 var _sfx: AudioStreamPlayer
@@ -70,9 +74,17 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 	back.build(root, host)
 	for id in back.hot.keys():
 		hot[id] = back.hot[id]
+	_bell3d = AudioStreamPlayer3D.new()
+	_bell3d.unit_size = 4.0
+	_bell3d.volume_db = 0.0
+	if ResourceLoader.exists("res://assets/sfx/phone/bell.mp3"):
+		_bell3d.stream = load("res://assets/sfx/phone/bell.mp3")
+	_bell3d.position = Vector3(1.1, 1.05, 0.32)
+	room_root.add_child(_bell3d)
 	phone_view = PHONE_CLOSEUP.new()
 	phone_view.context_provider = func(): return _office_call("phone_context", [], {})
 	phone_view.on_effect = func(effect: String, number: String): _office_call("on_phone_effect", [effect, number], null)
+	phone_view.on_incoming_done = func(answered: bool): _incoming_done(answered)
 	host.add_child(phone_view)
 	board_view = BOARD_CLOSEUP.new()
 	board_view.key_present = func(): return not bool(_office_call("has_shed_key", [], false))
@@ -112,9 +124,57 @@ func _build_phone() -> void:
 		var old := room_root.get_node_or_null(n)
 		if old != null:
 			old.queue_free()
-	var phone := K.prop(room_root, "phone_push", Vector3(1.1, 0.96, 0.32), -16.0, 1.15)
-	if phone != null:
-		_hot_body("phone", room_root, Vector3(1.1, 1.03, 0.32), Vector3(0.36, 0.16, 0.3), [phone], -16.0)
+	# The set as the close-up shows it (playtest 2026-10-17: "model the phone after the
+	# picture"): a beige push-button phone, the handset on the left in its cradle, the key
+	# deck sloping toward you, the display and the red button, the coiled cord.
+	var at := Vector3(1.1, 0.955, 0.32)
+	var parts := _phone_model(room_root, at, -16.0 + 180.0)
+	_hot_body("phone", room_root, at + Vector3(0, 0.07, 0), Vector3(0.36, 0.18, 0.32), parts, -16.0)
+	_phone_root = room_root.get_node_or_null("OfficePhone") as Node3D
+
+
+## Boxes, Build style, in the set's own plastics, laid out as the picture: the near edge
+## (the keys' bottom row) is -Z of the root, which is turned to face whoever stands behind
+## the counter; seen from there +X is on your left (the handset), the display and the
+## red button along the far edge, the cord off the near left corner.
+func _phone_model(parent: Node3D, at: Vector3, yaw: float) -> Array:
+	var r := Node3D.new()
+	r.name = "OfficePhone"
+	r.position = at
+	r.rotation_degrees.y = yaw
+	r.scale = Vector3.ONE * 1.15
+	parent.add_child(r)
+	var beige := K.surface("plastic", 0.3, Color(0.86, 0.82, 0.7))
+	var deck_mat := K.surface("plastic", 0.3, Color(0.8, 0.76, 0.64))
+	var key_mat := K.surface("plastic", 0.2, Color(0.56, 0.57, 0.6))
+	var cord := K.surface("plastic", 0.2, Color(0.66, 0.62, 0.52))
+	var out: Array = []
+	out.append(K.slab(r, Vector3(0.25, 0.05, 0.21), Vector3(0, 0.025, 0), beige, "PhoneBase"))
+	var deck := Node3D.new()
+	deck.position = Vector3(-0.045, 0.06, 0.0)
+	deck.rotation.x = -0.2
+	r.add_child(deck)
+	out.append(K.slab(deck, Vector3(0.15, 0.03, 0.19), Vector3(0, 0.0, 0), deck_mat, "PhoneDeck"))
+	for row in 4:
+		for col in 3:
+			out.append(K.slab(deck, Vector3(0.026, 0.012, 0.02), Vector3(0.034 - col * 0.034, 0.019, 0.034 - row * 0.03), key_mat, "PhoneKey"))
+	out.append(K.slab(deck, Vector3(0.085, 0.006, 0.026), Vector3(0.012, 0.017, 0.072), K.surface("plastic", 0.2, Color(0.38, 0.46, 0.3)), "PhoneLcd"))
+	out.append(K.slab(deck, Vector3(0.02, 0.012, 0.018), Vector3(-0.05, 0.02, 0.072), K.surface("plastic", 0.2, Color(0.72, 0.16, 0.12)), "PhoneRed"))
+	# The cradle and the handset in it.
+	out.append(K.slab(r, Vector3(0.07, 0.03, 0.2), Vector3(0.085, 0.064, 0.0), beige, "PhoneCradle"))
+	var hs := Node3D.new()
+	hs.name = "Handset"
+	hs.position = Vector3(0.085, 0.092, 0.0)
+	r.add_child(hs)
+	out.append(K.slab(hs, Vector3(0.05, 0.034, 0.12), Vector3(0, 0, 0), beige, "HandsetGrip"))
+	for z in [-0.082, 0.082]:
+		out.append(K.slab(hs, Vector3(0.066, 0.046, 0.056), Vector3(0, -0.004, z), beige, "HandsetEnd"))
+	# The coiled cord, round the side and off toward the wall socket.
+	for i in 7:
+		var t := float(i) / 6.0
+		var p := Vector3(0.13 + sin(t * PI) * 0.035, 0.03 + 0.03 * (1.0 - t), -0.09 + t * 0.12)
+		out.append(K.slab(r, Vector3(0.018, 0.018, 0.022), p, cord, "PhoneCord"))
+	return out
 
 
 func _build_office_curtain() -> void:
@@ -189,6 +249,68 @@ func _build_doorway() -> void:
 		if j != null:
 			jambs.append(j)
 	_hot_body("doorway", room_root, Vector3(-2.55, 1.05, 1.28), Vector3(0.3, 2.04, 0.96), jambs)
+
+
+# ── the phone ringing ────────────────────────────────────────────────────────
+
+## Someone rings the office: `call` as phone_book makes them ({who, lines, effect...}),
+## `rings` before they give up; `done(answered)` after. The set rings in the room (and
+## outside, building_interior) whether or not you are there; pick it up in the close-up.
+func start_incoming(call: Dictionary, rings: int, done := Callable()) -> void:
+	if not _ring.is_empty():
+		return
+	_ring = {"call": call, "left": maxi(1, rings), "t": 0.0, "done": done}
+	_ring_once()
+
+
+func is_ringing() -> bool:
+	return not _ring.is_empty()
+
+
+func _ring_once() -> void:
+	if phone_view != null and phone_view.visible:
+		return
+	if _bell3d != null and _bell3d.stream != null:
+		_bell3d.play()
+	if host != null and host.has_method("ring_outdoor"):
+		host.ring_outdoor()
+	if _phone_root != null:
+		# The handset jumps in its cradle with the bell.
+		var hs := _phone_root.get_node_or_null("Handset") as Node3D
+		if hs != null:
+			var tw: Tween = host.create_tween()
+			for k in 6:
+				tw.tween_property(hs, "position:y", 0.098 if k % 2 == 0 else 0.092, 0.05)
+
+
+## Every frame, the room open or not (building_interior._process).
+func tick_ring(delta: float) -> void:
+	if _ring.is_empty():
+		return
+	if phone_view != null and phone_view.visible and not phone_view.is_ringing_in() and int(phone_view.get("_state")) == 0:
+		phone_view.incoming(_ring["call"])
+	_ring["t"] = float(_ring["t"]) + delta
+	if float(_ring["t"]) >= 3.6:
+		_ring["t"] = 0.0
+		_ring["left"] = int(_ring["left"]) - 1
+		if int(_ring["left"]) <= 0:
+			if phone_view != null and phone_view.is_ringing_in():
+				phone_view.stop_incoming()
+			else:
+				_incoming_done(false)
+			return
+		_ring_once()
+
+
+func _incoming_done(answered: bool) -> void:
+	if _ring.is_empty():
+		return
+	var done: Callable = _ring.get("done", Callable())
+	_ring = {}
+	if _bell3d != null:
+		_bell3d.stop()
+	if done.is_valid():
+		done.call(answered)
 
 
 # ── per frame ────────────────────────────────────────────────────────────────

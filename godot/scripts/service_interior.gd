@@ -169,6 +169,8 @@ func open_service(service_type: String) -> void:
 func close_service() -> void:
 	if not _is_open:
 		return
+	if _upkeep_prep != null and _upkeep_prep.tasks != null and _upkeep_prep.tasks.is_scrubbing():
+		_upkeep_prep.tasks._scrub.close()
 	_is_open = false
 	visible = false
 	_update_sewer_ambience_state()
@@ -200,6 +202,8 @@ func _apply_idle_mouse_look(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if not _is_open:
+		return
+	if _upkeep_prep != null and _upkeep_prep.is_scrubbing():
 		return
 	# Esc is the pause menu's (main): S or the way out behind you leaves.
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
@@ -557,9 +561,8 @@ func _build_service_room(profile: String) -> void:
 	_free_upkeep_prep()
 	if profile == "toilet":
 		_build_toilet_layout()
-		# _interior_camera set by _set_hygiene_room
-		_active_subroom = "center"
-		_set_hygiene_room("center")
+		_active_subroom = "left"
+		_set_hygiene_room("left")
 	elif profile == "wash":
 		_build_wash_layout(true)
 		# _interior_camera set by _set_hygiene_room
@@ -896,8 +899,10 @@ func _side_hint_texts() -> Array:
 			if _sewer_broken:
 				return ["", "Repair the set  [R]"]
 			return ["", "Switch room  [D]" if _shed != null and _shed.can_enter_board() else ""]
-		"toilet", "wash":
-			var what := "Stall" if _current_profile == "toilet" else "Shower"
+		"toilet":
+			return ["", "Next door  [D]"] if _active_subroom != "right" else ["Next door  [A]", ""]
+		"wash":
+			var what := "Shower"
 			match _active_subroom:
 				"left":
 					return ["", "Back  [D]"]
@@ -932,7 +937,12 @@ func _switch_service_room(direction: int) -> void:
 			return
 		elif direction < 0 and _active_subroom == "board":
 			target_room = "set"
-	elif _current_profile == "toilet" or _current_profile == "wash":
+	elif _current_profile == "toilet":
+		if direction > 0 and _active_subroom != "right":
+			target_room = "right"
+		elif direction < 0 and _active_subroom == "right":
+			target_room = "left"
+	elif _current_profile == "wash":
 		if _active_subroom == "center":
 			target_room = "left" if direction < 0 else "right"
 		elif _active_subroom == "left" and direction > 0:
@@ -993,7 +1003,12 @@ func _set_hygiene_room(room: String) -> void:
 	if _interior_camera == null:
 		return
 	_active_subroom = room
-	if room == "left":
+	if _current_profile == "toilet":
+		# In the doorway of the stall, looking down at the bowl.
+		var sx := TOILET_STALL_X * (1.0 if room == "right" else -1.0)
+		_interior_camera.position = Vector3(sx, 1.55, TOILET_D * 0.5 - 0.12)
+		_interior_camera.rotation_degrees = Vector3(-22.0, 0.0, 0.0)
+	elif room == "left":
 		_interior_camera.position = Vector3(-0.95, 1.45, 0.6)
 		_interior_camera.rotation_degrees = Vector3(-14.0, 0.0, 0.0)
 	elif room == "right":
@@ -1062,44 +1077,123 @@ func _sync_viewport_to_window() -> void:
 ## on the left, the heart window on the right. Cleaning spots: MESS_RULES.BLOCK_SPOTS.
 func _build_toilet_layout() -> void:
 	var K := INTERIOR_KIT
-	var w := 3.6
-	var d := 3.2
-	var h := 2.4
+	# The outhouse outside (building_models._toilets: 2.9 x 2.1, two doors with hearts):
+	# inside, the same two stalls side by side, one behind each door, a bowl in each
+	# (playtest 2026-10-17: "match the toilets inside to outside, two single toilets").
+	var w := TOILET_W
+	var d := TOILET_D
+	var h := 2.25
 	var r := _room_root
-	# Grey planks like the shack outside, a concrete floor, dark plank ceiling.
 	var shell := K.room(r, Vector3(w, h, d), "concrete", "planks_grey", "planks_dark", 1.2, 1.2)
 	(shell["ceiling"] as MeshInstance3D).material_override = K.surface("planks_dark", 1.0, Color(0.8, 0.74, 0.66))
 	var planks := K.surface("planks_grey", 1.2)
-	var door := K.surface("door_wood", 1.9)
-	# Two stalls against the back wall: a toilet, newspaper on a nail, the door open.
+	K.slab(r, Vector3(0.05, h, d), Vector3(0, h * 0.5, 0), planks, "StallPartition")
 	for side: float in [-1.0, 1.0]:
-		var cx := side * 0.95
-		K.slab(r, Vector3(0.05, 2.0, 1.1), Vector3(cx - side * 0.62, 1.0, -d * 0.5 + 0.55), planks, "StallWall")
-		K.slab(r, Vector3(0.05, 2.0, 1.1), Vector3(cx + side * 0.62, 1.0, -d * 0.5 + 0.55), planks, "StallWallOuter")
-		K.prop(r, "toilet", Vector3(cx, 0.0, -d * 0.5 + 0.42))
-		K.slab(r, Vector3(0.16, 0.2, 0.02), Vector3(cx - side * 0.42, 0.95, -d * 0.5 + 0.02), INTERIOR_PREP.flat(Color(0.82, 0.8, 0.72)), "Newspaper")
-		K.slab(r, Vector3(0.05, 1.85, 0.75), Vector3(cx + side * 0.58, 0.98, -d * 0.5 + 1.1 + 0.38), door, "StallDoor")
-	K.prop(r, "urinal_trough", Vector3(0.0, 0.0, -d * 0.5 + 0.17), 0.0, 0.5)
-	# Basin and a cracked mirror on the left wall, a mop bucket, the heart window, a bulb.
-	K.prop(r, "sink_pedestal", Vector3(-w * 0.5 + 0.18, 0.0, 0.3), 90.0)
-	K.prop(r, "mirror_frame", Vector3(-w * 0.5 + 0.06, 1.25, 0.3), 90.0, 0.85)
-	K.slab(r, Vector3(0.012, 0.42, 0.02), Vector3(-w * 0.5 + 0.09, 1.52, 0.26), INTERIOR_PREP.flat(Color(0.2, 0.22, 0.24)), "MirrorCrack").rotation.x = 0.6
-	K.slab(r, Vector3(0.04, 0.22, 0.22), Vector3(w * 0.5 - 0.02, 1.75, 0.0), INTERIOR_PREP.flat(Color(0.95, 0.96, 0.85)), "HeartWindow").rotation.x = PI * 0.25
-	K.prop(r, "slop_bucket", Vector3(w * 0.5 - 0.32, 0.0, 0.95), 30.0)
-	var bulb := MeshInstance3D.new()
-	var bulb_mesh := SphereMesh.new()
-	bulb_mesh.radius = 0.05
-	bulb_mesh.height = 0.1
-	bulb.mesh = bulb_mesh
-	var bulb_mat := INTERIOR_PREP.flat(Color(1.0, 0.95, 0.8))
-	bulb_mat.emission_enabled = true
-	bulb_mat.emission = Color(1.0, 0.9, 0.7)
-	bulb.material_override = bulb_mat
-	bulb.position = Vector3(0, h - 0.25, 0.2)
-	r.add_child(bulb)
-	_sign(r, "WC\nZENY  MUZI", Vector3(0.0, 2.12, -d * 0.5 + 0.03), 20, "enamel")
-	_interior_camera.position = Vector3(0.0, 1.5, 1.15)
-	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
+		var cx := side * TOILET_STALL_X
+		_build_bowl(r, Vector3(cx, 0.0, -d * 0.5 + 0.32))
+		# Paper on the partition, the newspaper on a nail on the outer wall.
+		var roll := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.05
+		cyl.bottom_radius = 0.05
+		cyl.height = 0.1
+		roll.mesh = cyl
+		roll.material_override = INTERIOR_PREP.flat(Color(0.92, 0.9, 0.84))
+		roll.rotation.z = PI * 0.5
+		roll.position = Vector3(cx - side * 0.66, 0.78, -d * 0.5 + 0.55)
+		r.add_child(roll)
+		K.slab(r, Vector3(0.02, 0.24, 0.18), Vector3(side * (w * 0.5 - 0.02), 1.05, -d * 0.5 + 0.6), INTERIOR_PREP.flat(Color(0.8, 0.78, 0.7)), "Newspaper")
+		# The heart cut in the door lets a little day in: a warm patch on the floor.
+		var heart := OmniLight3D.new()
+		heart.position = Vector3(cx, 1.6, d * 0.5 - 0.1)
+		heart.light_color = Color(1.0, 0.92, 0.78)
+		heart.light_energy = 0.35
+		heart.omni_range = 2.2
+		r.add_child(heart)
+		var bulb := MeshInstance3D.new()
+		var bulb_mesh := SphereMesh.new()
+		bulb_mesh.radius = 0.045
+		bulb_mesh.height = 0.09
+		bulb.mesh = bulb_mesh
+		var bulb_mat := INTERIOR_PREP.flat(Color(1.0, 0.95, 0.8))
+		bulb_mat.emission_enabled = true
+		bulb_mat.emission = Color(1.0, 0.9, 0.7)
+		bulb.material_override = bulb_mat
+		bulb.position = Vector3(cx, h - 0.22, 0.0)
+		r.add_child(bulb)
+	_sign(r, "ZENY", Vector3(-TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
+	_sign(r, "MUZI", Vector3(TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
+	_interior_camera.position = Vector3(-TOILET_STALL_X, 1.55, d * 0.5 - 0.12)
+	_interior_camera.rotation_degrees = Vector3(-22.0, 0.0, 0.0)
+
+
+const TOILET_W := 2.9
+const TOILET_D := 2.1
+const TOILET_STALL_X := 0.72
+
+
+## A proper outhouse toilet, Build style: the pedestal, the bowl, the black seat with the
+## lid up, the high cistern on its pipe and the pull chain.
+func _build_bowl(r: Node3D, at: Vector3) -> void:
+	var porcelain := INTERIOR_KIT.surface("porcelain", 0.4)
+	var ped := MeshInstance3D.new()
+	var pc := CylinderMesh.new()
+	pc.top_radius = 0.13
+	pc.bottom_radius = 0.15
+	pc.height = 0.3
+	pc.radial_segments = 12
+	ped.mesh = pc
+	ped.material_override = porcelain
+	ped.position = at + Vector3(0, 0.15, 0.04)
+	ped.scale = Vector3(1.0, 1.0, 1.25)
+	r.add_child(ped)
+	var bowl := MeshInstance3D.new()
+	var bc := CylinderMesh.new()
+	bc.top_radius = 0.21
+	bc.bottom_radius = 0.15
+	bc.height = 0.13
+	bc.radial_segments = 14
+	bowl.mesh = bc
+	bowl.material_override = porcelain
+	bowl.position = at + Vector3(0, 0.36, 0.06)
+	bowl.scale = Vector3(1.0, 1.0, 1.3)
+	r.add_child(bowl)
+	var water := MeshInstance3D.new()
+	var wc := CylinderMesh.new()
+	wc.top_radius = 0.15
+	wc.bottom_radius = 0.15
+	wc.height = 0.004
+	wc.radial_segments = 14
+	water.mesh = wc
+	water.material_override = INTERIOR_PREP.flat(Color(0.32, 0.38, 0.36))
+	water.position = at + Vector3(0, 0.42, 0.06)
+	water.scale = Vector3(1.0, 1.0, 1.3)
+	r.add_child(water)
+	var seat := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.14
+	tm.outer_radius = 0.22
+	tm.rings = 18
+	tm.ring_segments = 6
+	seat.mesh = tm
+	seat.material_override = INTERIOR_PREP.flat(Color(0.08, 0.08, 0.09))
+	seat.position = at + Vector3(0, 0.44, 0.06)
+	seat.scale = Vector3(1.0, 0.25, 1.28)
+	r.add_child(seat)
+	var lid := INTERIOR_KIT.slab(r, Vector3(0.4, 0.46, 0.025), at + Vector3(0, 0.68, -0.2), INTERIOR_PREP.flat(Color(0.1, 0.1, 0.11)), "Lid")
+	lid.rotation.x = -0.12
+	INTERIOR_KIT.slab(r, Vector3(0.46, 0.22, 0.16), at + Vector3(0, 1.86, -0.22), INTERIOR_KIT.surface("enamel_white", 0.5), "Cistern")
+	var pipe := MeshInstance3D.new()
+	var pcy := CylinderMesh.new()
+	pcy.top_radius = 0.022
+	pcy.bottom_radius = 0.022
+	pcy.height = 1.3
+	pipe.mesh = pcy
+	pipe.material_override = INTERIOR_KIT.surface("galvanized", 0.3)
+	pipe.position = at + Vector3(0, 1.12, -0.24)
+	r.add_child(pipe)
+	INTERIOR_KIT.slab(r, Vector3(0.008, 0.5, 0.008), at + Vector3(0.2, 1.52, -0.15), INTERIOR_KIT.surface("galvanized", 0.2), "Chain")
+	INTERIOR_KIT.slab(r, Vector3(0.03, 0.08, 0.03), at + Vector3(0.2, 1.24, -0.15), INTERIOR_PREP.flat(Color(0.86, 0.84, 0.78)), "ChainHandle")
 
 
 ## Inside the shower block (sprchy in the Builder): three tiled cubicles at the back
@@ -1256,13 +1350,13 @@ func _build_upkeep_spots(block: String) -> void:
 	_upkeep_prep = INTERIOR_PREP.new()
 	var r := _room_root
 	if block == "toilet":
-		_upkeep_prep.add_spot("stall_l", r, Vector3(-0.95, 0.01, -0.75))
-		_upkeep_prep.add_spot("stall_r", r, Vector3(0.95, 0.01, -0.75))
-		_upkeep_prep.add_spot("urinal", r, Vector3(0.0, 0.01, -1.1))
-		_upkeep_prep.add_spot("door_l", r, Vector3(-0.95, 1.2, -1.54), 0.0, true)
-		_upkeep_prep.add_spot("door_r", r, Vector3(0.95, 1.2, -1.54), 0.0, true)
-		_upkeep_prep.add_spot("floor_c", r, Vector3(0.0, 0.01, 0.0))
-		_upkeep_prep.add_spot("wall_l", r, Vector3(-1.74, 1.3, -0.4), PI * 0.5, true)
+		var bz := -TOILET_D * 0.5 + 0.32 + 0.06
+		_upkeep_prep.add_spot("bowl_l", r, Vector3(-TOILET_STALL_X, 0.43, bz))
+		_upkeep_prep.add_spot("bowl_r", r, Vector3(TOILET_STALL_X, 0.43, bz))
+		_upkeep_prep.add_spot("stall_l", r, Vector3(-TOILET_STALL_X, 0.01, 0.15))
+		_upkeep_prep.add_spot("stall_r", r, Vector3(TOILET_STALL_X, 0.01, 0.15))
+		_upkeep_prep.add_spot("wall_l", r, Vector3(-TOILET_W * 0.5 + 0.02, 1.3, -0.1), PI * 0.5, true)
+		_upkeep_prep.add_spot("wall_r", r, Vector3(TOILET_W * 0.5 - 0.02, 1.3, -0.1), -PI * 0.5, true)
 	else:
 		_upkeep_prep.add_spot("shower_l", r, Vector3(-1.15, 0.5, -1.54), 0.0, true)
 		_upkeep_prep.add_spot("shower_r", r, Vector3(1.15, 0.5, -1.54), 0.0, true)
@@ -1273,6 +1367,8 @@ func _build_upkeep_spots(block: String) -> void:
 		_upkeep_prep.add_spot("floor_r", r, Vector3(1.1, 0.01, 0.5))
 	_upkeep_prep.setup_tasks(self, _interior_camera, _viewport)
 	_upkeep_prep.task_completed.connect(_on_upkeep_task_done)
+	var st = CoreRoot.get_state()
+	_upkeep_prep.tasks.set_scrub_seed(int(st.day) if st != null else 1)
 
 
 ## InteriorManager, after open_service(): which block this is. Toilet and shower blocks
@@ -1294,6 +1390,11 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 	var entry: Dictionary = _upkeep_cache.get(_upkeep_key, {})
 	if bool(entry.get("spent", false)):
 		entry = {}
+	var spots: Array = MESS_RULES.BLOCK_SPOTS.get(block, [])
+	for t in entry.get("tasks", []):
+		if not spots.has(str((t as Dictionary).get("spot", ""))):
+			entry = {}
+			break
 	# A breakdown since the last visit adds its job to the list.
 	if entry.is_empty() or (broken and not bool(entry.get("broken", false))):
 		var day := int(state.day) if state != null else 1
