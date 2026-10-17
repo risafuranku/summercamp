@@ -567,9 +567,8 @@ func _spawn_props(ev: Dictionary) -> void:
 	rng.seed = int(ev["id"]) * 7919
 	match str(ev["kind"]):
 		"litter":
-			var bag := _box(root, Vector3(0, 0.25, 0), Vector3(0.5, 0.5, 0.45), Color(0.08, 0.08, 0.09))
-			bag.rotation.y = rng.randf() * TAU
-			_box(root, Vector3(0.05, 0.53, 0.0), Vector3(0.12, 0.08, 0.1), Color(0.08, 0.08, 0.09))
+			# The bin bag is a sprite like the rest of the rubbish round it.
+			_sprite(root, "res://assets/textury/mess/litter_binbag.png", 0.75, Vector3.ZERO)
 			for k in ["cans", "papers", "bottles"]:
 				var m: Dictionary = INTERIOR_PREP.build_mess(root, Vector3(rng.randf_range(-0.7, 0.7), 0.02, rng.randf_range(-0.7, 0.7)), k, rng)
 				(m["body"] as Node).queue_free()

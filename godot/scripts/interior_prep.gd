@@ -237,14 +237,12 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 	var size := Vector3(0.5, 0.22, 0.5)
 	var body_pos := pos + Vector3(0, size.y * 0.5 - 0.02, 0)
 	match kind:
-		# Most mess is a Build-style floor sprite from Grok (assets/textury/mess), with a
-		# real 3D thing or two standing up out of it so it has depth.
+		# All mess is a Build-style floor sprite from Grok (assets/textury/mess): no boxes,
+		# no 3D bottles (playtest 17. 10.: "rubbish only as sprites, no 3D boxes").
 		"bottles":
 			decal(root, "litter_bottles", 0.56, Vector3(0, 0.004, 0), rng.randf() * TAU)
-			bottle(root, Vector3(_j(rng, 0.14), 0.13, _j(rng, 0.14)), false, rng.randf() * TAU)
 		"cans":
 			decal(root, "litter_cans", 0.46, Vector3(0, 0.004, 0), rng.randf() * TAU)
-			can(root, Vector3(_j(rng, 0.16), 0.06, _j(rng, 0.16)), false, Color(0.7, 0.12, 0.1), rng.randf() * TAU)
 		"papers":
 			decal(root, "litter_wrappers", 0.48, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"butts":
@@ -258,8 +256,7 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			size = Vector3(0.7, 0.12, 0.7)
 			body_pos = pos + Vector3(0, 0.04, 0)
 		"sand":
-			for i in 3:
-				box(root, Vector3(_j(rng, 0.18), 0.005 + i * 0.001, _j(rng, 0.18)), Vector3(rng.randf_range(0.18, 0.32), 0.005, rng.randf_range(0.14, 0.26)), flat(Color(0.82, 0.72, 0.5)), Vector3(0, rng.randf() * TAU, 0))
+			decal(root, "litter_sand", 0.62, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"vomit":
 			decal(root, "dirt_vomit", 0.56, Vector3(0, 0.005, 0), rng.randf() * TAU, false, true)
 		"piss":
@@ -271,38 +268,13 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 		"wads":
 			decal(root, "litter_toiletpaper", 0.46, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"mushrooms":
-			box(root, Vector3(0, 0.004, 0), Vector3(0.36, 0.004, 0.28), flat(Color(0.8, 0.78, 0.7)), Vector3(0, _j(rng, 0.6), 0))
-			for i in rng.randi_range(4, 6):
-				var mp := Vector3(_j(rng, 0.13), 0.02, _j(rng, 0.11))
-				var rotten := rng.randf() < 0.5
-				_cylinder(root, mp, 0.012, 0.016, 0.04, true, flat(Color(0.85, 0.8, 0.7)), rng.randf() * TAU)
-				box(root, mp + Vector3(0.03, 0.02, 0), Vector3(0.06, 0.03, 0.06), flat(Color(0.22, 0.2, 0.12) if rotten else Color(0.5, 0.3, 0.14)), Vector3(0, rng.randf() * TAU, 0.3))
+			decal(root, "litter_mushrooms", 0.42, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"toys":
-			var ball := MeshInstance3D.new()
-			var sm := SphereMesh.new()
-			sm.radius = 0.07
-			sm.height = 0.14
-			sm.radial_segments = 8
-			sm.rings = 4
-			ball.mesh = sm
-			ball.position = Vector3(_j(rng, 0.15), 0.07, _j(rng, 0.15))
-			ball.material_override = flat(Color(0.85, 0.15, 0.12))
-			root.add_child(ball)
-			box(root, Vector3(_j(rng, 0.15), 0.03, _j(rng, 0.15)), Vector3(0.12, 0.05, 0.06), flat(Color(0.2, 0.5, 0.85)), Vector3(0, rng.randf() * TAU, 0))
-			# A teddy bear, face down.
-			var bear := Vector3(_j(rng, 0.12), 0.05, _j(rng, 0.12))
-			box(root, bear, Vector3(0.12, 0.08, 0.16), flat(Color(0.5, 0.34, 0.2)), Vector3(0, 0.4, 0))
-			box(root, bear + Vector3(0.05, 0.0, 0.11), Vector3(0.09, 0.07, 0.08), flat(Color(0.5, 0.34, 0.2)), Vector3(0, 0.4, 0))
+			decal(root, "litter_toys", 0.54, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"ash":
-			box(root, Vector3(0, 0.006, 0), Vector3(0.34, 0.006, 0.3), flat(Color(0.24, 0.23, 0.22)), Vector3(0, _j(rng, 1.0), 0))
-			box(root, Vector3(_j(rng, 0.06), 0.02, _j(rng, 0.06)), Vector3(0.3, 0.03, 0.03), flat(Color(0.12, 0.1, 0.08)), Vector3(0, rng.randf() * TAU, 0))
-			for i in 3:
-				_cylinder(root, Vector3(_j(rng, 0.2), 0.01, _j(rng, 0.2)), 0.006, 0.006, 0.18, true, flat(Color(0.6, 0.6, 0.62)), rng.randf() * TAU)
+			decal(root, "litter_ash", 0.44, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"sawdust":
-			for i in 3:
-				box(root, Vector3(_j(rng, 0.16), 0.005, _j(rng, 0.16)), Vector3(rng.randf_range(0.16, 0.3), 0.006, rng.randf_range(0.12, 0.22)), flat(Color(0.86, 0.74, 0.5)), Vector3(0, rng.randf() * TAU, 0))
-			for i in 2:
-				box(root, Vector3(_j(rng, 0.2), 0.02, _j(rng, 0.2)), Vector3(0.22, 0.03, 0.06), flat(Color(0.62, 0.46, 0.28)), Vector3(0, rng.randf() * TAU, 0))
+			decal(root, "litter_sawdust", 0.62, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"toilet_grime":
 			# `pos` is the top of the bowl; the stain runs down its front onto the floor.
 			decal(root, "dirt_grime", 0.34, Vector3(0, 0.012, 0), rng.randf() * TAU)
@@ -321,22 +293,18 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			body_pos = pos + Vector3(0, -0.12, 0.05)
 		"sink_grime":
 			decal(root, "dirt_grime", 0.3, Vector3(0, 0.012, 0), rng.randf() * TAU)
-			box(root, Vector3(_j(rng, 0.06), 0.014, _j(rng, 0.04)), Vector3(0.1, 0.006, 0.02), flat(Color(0.08, 0.06, 0.05)), Vector3(0, rng.randf() * TAU, 0))
+			decal(root, "litter_hair", 0.14, Vector3(_j(rng, 0.05), 0.014, _j(rng, 0.03)), rng.randf() * TAU)
 			size = Vector3(0.5, 0.3, 0.4)
 			body_pos = pos
 		"hair":
-			box(root, Vector3(0, 0.004, 0), Vector3(0.2, 0.004, 0.2), flat(Color(0.25, 0.27, 0.28)))
-			for i in 7:
-				box(root, Vector3(_j(rng, 0.05), 0.01 + i * 0.002, _j(rng, 0.05)), Vector3(0.12, 0.006, 0.008), flat(Color(0.07, 0.05, 0.04)), Vector3(0, rng.randf() * TAU, _j(rng, 0.3)))
+			decal(root, "litter_hair", 0.36, Vector3(0, 0.004, 0), rng.randf() * TAU, false, true)
 			size = Vector3(0.4, 0.15, 0.4)
 		"puddle":
-			for i in 3:
-				box(root, Vector3(_j(rng, 0.2), 0.004 + i * 0.001, _j(rng, 0.2)), Vector3(rng.randf_range(0.24, 0.42), 0.004, rng.randf_range(0.2, 0.36)), _wet(Color(0.18, 0.24, 0.28, 0.6)), Vector3(0, rng.randf() * TAU, 0))
+			decal(root, "dirt_puddle", 0.72, Vector3(0, 0.004, 0), rng.randf() * TAU, false, true)
 			size = Vector3(0.7, 0.12, 0.7)
 			body_pos = pos + Vector3(0, 0.04, 0)
 		"paper_out":
-			_cylinder(root, Vector3(_j(rng, 0.1), 0.03, _j(rng, 0.1)), 0.03, 0.03, 0.1, true, flat(Color(0.62, 0.5, 0.34)), rng.randf() * TAU)
-			decal(root, "litter_toiletpaper", 0.42, Vector3(0, 0.004, 0), rng.randf() * TAU)
+			decal(root, "litter_toiletroll", 0.5, Vector3(0, 0.004, 0), rng.randf() * TAU)
 		"shower_mould":
 			# On a wall: `pos` is on the surface, the props face +Z of the root.
 			decal(root, "dirt_mould", rng.randf_range(0.6, 0.8), Vector3(_j(rng, 0.15), rng.randf_range(0.2, 0.6), 0.012), 0.0, true)

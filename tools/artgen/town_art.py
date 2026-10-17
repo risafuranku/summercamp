@@ -89,6 +89,35 @@ def sprite(art_id, height, dest):
     print(dest, out.size)
 
 
+def gable(art_id, width, name):
+    """A gable end or a church front rendered on a white or pale sky: flood the sky away
+    from the top corners, so the triangle shows on a quad."""
+    img = raw(art_id)
+    if img is None:
+        return
+    rgba = img.convert("RGBA")
+    px = rgba.load()
+    w, h = rgba.size
+    from collections import deque
+    seen = set()
+    q = deque([(0, 0), (w - 1, 0)])
+    def sky(c):
+        r, g, b, _ = c
+        return (r > 200 and g > 200 and b > 200) or (r > 150 and b > 150 and g < 110)
+    while q:
+        x, y = q.popleft()
+        if (x, y) in seen or x < 0 or y < 0 or x >= w or y >= h:
+            continue
+        seen.add((x, y))
+        if not sky(px[x, y]):
+            continue
+        px[x, y] = (0, 0, 0, 0)
+        q.extend([(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)])
+    small = rgba.resize((width, max(1, round(h * width / w))), Image.Resampling.BOX)
+    process.snap(small, True).save(os.path.join(OUT, name))
+    print(name, small.size)
+
+
 def bus_sides():
     """The render is a short bus (4 windows, 2 doors, the front at the left, on white).
     Cut it into its bays and lay them out as a 10 m Karosa: the front with its wheel
@@ -151,6 +180,15 @@ def main():
     picture("closeup_pump", (320, 240), "closeup_pump.png")
     square("tex_field_stubble", 128, "field_stubble.png")
     square("tex_field_plough", 128, "field_plough.png")
+    # The road to Lesna (scripts/town/ride_scenery.gd).
+    panel("tex_corn_wall", 256, "corn_wall.png")
+    panel("face_jzd_barn", 256, "jzd_barn.png")
+    square("tex_straw", 128, "straw.png")
+    square("tex_meadow", 128, "meadow.png")
+    gable("face_farmhouse", 128, "farmhouse.png")
+    gable("face_church", 96, "church.png")
+    for who, h in [("apple_tree", 128), ("cow", 72), ("cow_look", 72), ("tractor", 88), ("cross", 112), ("cyclist", 88), ("deer", 72)]:
+        sprite("spr_" + who, h, "assets/textury/town/%s.png" % who)
     square("tex_village_plaster", 128, "village_plaster.png")
     square("tex_roof_tiles", 128, "roof_tiles.png")
     square("tex_asphalt", 128, "asphalt.png")
