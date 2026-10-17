@@ -36,7 +36,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 
 | Feature | State | Notes |
 | --- | --- | --- |
-| Title screen over a live camp flythrough | ✅ | Continue (with day/time/cash), New, Load (save list), Configuration, Controls |
+| Title screen over a live camp flythrough | ✅ | Continue (with day/time/cash), New, Load (save list), Configuration, Controls; behind it `menu_flythrough.gd` cuts between slow dolly/crane shots (out on the jetty past the boat, the corn and pylons, the gate's bulb, the office, the boathouse across the water, the camp from above and back across the lake; a campfire and the cabins once built), each in its own time and weather, dips to black between them; shots dodge the trees of each camp |
 | Pause menu (Esc), autosave on quit to title, pause on alt-tab | ✅ | |
 | Build-engine HUD (status bar, feed, objective tracker, guest card, banners) | ✅ | crisp bitmap pixel fonts, integer scale at every resolution |
 | Screen-space objective marker | ✅ | edge arrow when off-screen / behind |

@@ -133,6 +133,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Which enemy an archetype brings | `main.ENEMY_FOR_ARCHETYPE` + `scripts/enemies/` |
 | HUD | `scripts/hud_manager.gd` (+ `scripts/ui/retro_ui.gd` kit) |
 | Menus / pause / game over | `scripts/ui/` |
+| The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The camp computer (desktop, boot, windows) | `scripts/os98/os_shell.gd`, look: `os_theme.gd` |
 | Its programs (CampMail, Beeternet, CampStat, GuestRack, Setup…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` + `crt_map_panel.gd` |
