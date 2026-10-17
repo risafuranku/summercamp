@@ -271,7 +271,7 @@ func get_footprint_for_building(building_type: String) -> Vector2i:
 			return Vector2i(1, 1)
 		"cabin", "cabin_1", "cabin_2", "cabin_3", "restaurant", "pub", "vecerka":
 			return Vector2i(2, 2)
-		"caravan_1", "caravan_2", "caravan_3", "sports_field", "lake_slide":
+		"caravan_1", "caravan_2", "caravan_3", "sports_field", "lake_slide", "playground":
 			return Vector2i(2, 1)
 		_:
 			return Vector2i(1, 1)
@@ -330,6 +330,10 @@ func place_building_at(origin: Vector2i, building_type: String) -> bool:
 			return _place_placeholder_at(origin, "sewer", Vector2i(1, 1), Color(0.34, 0.44, 0.36), Color(0.56, 0.66, 0.46), "utilities", 0.54)
 		"dumpsters":
 			return _place_placeholder_at(origin, "dumpsters", Vector2i(1, 1), Color(0.22, 0.38, 0.28), Color(0.18, 0.30, 0.22), "utilities", 0.9)
+		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "ping_pong", "hammock":
+			return _place_placeholder_at(origin, building_type, Vector2i(1, 1), Color(0.4, 0.5, 0.3), Color(0.8, 0.7, 0.5), "attractions", 0.6)
+		"playground":
+			return _place_placeholder_at(origin, "playground", Vector2i(2, 1), Color(0.6, 0.5, 0.3), Color(0.9, 0.3, 0.2), "attractions", 1.2)
 		_:
 			return false
 

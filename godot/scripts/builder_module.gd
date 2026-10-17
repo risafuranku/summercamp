@@ -19,7 +19,8 @@ const MAP_PANEL_SCRIPT = preload("res://scripts/crt_map_panel.gd")
 const CATEGORIES: Array = [
 	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/tb_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
 	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "vecerka", "restaurant", "pub"]},
-	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide"]},
+	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide", "playground", "ping_pong", "hammock"]},
+	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/tb_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole"]},
 	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer"]},
 ]
 
@@ -37,7 +38,26 @@ const ITEM_ICONS := {
 	"sports_field": "res://assets/textury/builder/iso_sports.png",
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
 	"sewer": "res://assets/textury/builder/sewer.PNG",
+	"bench": "res://assets/textury/builder/iso_bench.png",
+	"picnic_table": "res://assets/textury/builder/iso_picnic.png",
+	"flower_bed": "res://assets/textury/builder/iso_flowerbed.png",
+	"gnome": "res://assets/textury/builder/iso_gnome.png",
+	"flagpole": "res://assets/textury/builder/iso_flagpole.png",
+	"playground": "res://assets/textury/builder/iso_playground.png",
+	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
+	"hammock": "res://assets/textury/builder/iso_hammock.png",
 }
+
+## Even shorter, for when a catalogue has so many cards that they get narrow.
+const TINY_NAMES := {
+	"sports_field": "Pitch", "lake_slide": "Slide", "playground": "Swings", "picnic_table": "Picnic",
+	"flower_bed": "Flowers", "toilet_block": "WC", "shower_block": "Showers", "restaurant": "Bistro",
+	"ping_pong": "Pingpong",
+}
+## Card size in the catalogue strip: as wide as this, narrower when there are more of
+## them than fit (the strip never scrolls: every card of a catalogue is on screen).
+const CARD_W := 138
+const CARD_MIN_W := 96
 
 ## Short names for the catalogue cards; the registry's display names are long.
 const SHORT_NAMES := {
@@ -45,12 +65,14 @@ const SHORT_NAMES := {
 	"shower_block": "Showers", "vecerka": "Jednota", "restaurant": "Bistro", "pub": "Pub",
 	"bonfire": "Bonfire", "sports_field": "Sports field", "lake_slide": "Lake slide", "sewer": "Sewage",
 	"path": "Path", "lamp_post": "Lamp", "demolish": "Bulldozer",
+	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome",
+	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
 }
 
 const BLURBS := {
 	"tent_1": "Cheap. One guest sleeps here, not very well.",
 	"cabin_1": "Two guests, a proper bed. Better sleep, better reviews.",
-	"caravan_1": "Six beds. Needs power.",
+	"caravan_1": "Two cheap beds on wheels. Needs power. Kids love the bunks.",
 	"toilet_block": "Without it, guests use the bushes. Needs the sewer.",
 	"shower_block": "Guests get dirty. Needs the sewer.",
 	"vecerka": "Bread, sausages, beer. Cheap food.",
@@ -60,6 +82,14 @@ const BLURBS := {
 	"sports_field": "Fun for the active ones.",
 	"lake_slide": "Fun, and a quick wash on the way down.",
 	"sewer": "The toilets and showers drain here. Somebody has to clean it.",
+	"bench": "A seat by the path. The old ones love it.",
+	"picnic_table": "Bread, salami and a beer in the open.",
+	"flower_bed": "Pretty. The cabins round it feel nicer.",
+	"gnome": "Kitsch. Guests smile at it. Mostly.",
+	"flagpole": "The camp's flag. It looks like a real camp now.",
+	"playground": "Swings and a seesaw. Families will thank you.",
+	"ping_pong": "A table, two bats and an argument.",
+	"hammock": "One guest, one book, one hour of peace.",
 	"path": "Drag to lay a path. Guests walk on paths.",
 	"lamp_post": "Light at night. A lit path is a safe path.",
 	"demolish": "Drag over trees or buildings, then click inside to clear them.",
@@ -402,9 +432,12 @@ func _open_category(cid: String) -> void:
 		_cat_open = 0.0
 		for cat in CATEGORIES:
 			if cat["id"] == cid:
+				var n: int = (cat["items"] as Array).size()
+				var avail := maxf(200.0, size.x - 8.0)
+				var w := clampi(int(floor((avail - 3.0 * float(n - 1)) / float(maxi(1, n)))), CARD_MIN_W, CARD_W)
 				var i := 0
 				for t in cat["items"]:
-					var card := _make_card(str(t))
+					var card := _make_card(str(t), w)
 					card.set_meta("appear", 0.06 * float(i))
 					card.modulate.a = 0.0
 					_cards.add_child(card)
@@ -438,9 +471,16 @@ func _select(tool: String) -> void:
 	_refresh_info_card()
 
 
-func _make_card(type: String) -> Control:
+func _make_card(type: String, w: int = CARD_W) -> Control:
 	var c := Control.new()
-	c.custom_minimum_size = Vector2(138, 58)
+	c.custom_minimum_size = Vector2(w, 58)
+	# Narrow cards: a smaller picture, and the shortest name if the short one is too long.
+	var box_side := 46.0 if w >= 130 else 36.0
+	var text_x := box_side + 8.0
+	var text_w := float(w) - text_x - 3.0
+	var label := str(SHORT_NAMES.get(type, type))
+	if T.FONT_BOLD.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x > text_w:
+		label = str(TINY_NAMES.get(type, label))
 	c.mouse_filter = Control.MOUSE_FILTER_STOP
 	c.tooltip_text = _tooltip(type)
 	c.set_meta("hover", false)
@@ -466,14 +506,14 @@ func _make_card(type: String) -> Control:
 		var o := Vector2(1, 1) if on else (Vector2(0, -1) if hov else Vector2.ZERO)
 		if icon != null:
 			var isz := icon.get_size()
-			var box := Vector2(46, 46)
+			var box := Vector2(box_side, box_side)
 			var k := minf(box.x / isz.x, box.y / isz.y)
 			var d := (isz * k).floor()
-			c.draw_texture_rect(icon, Rect2(Vector2(5, 6) + o + ((box - d) * 0.5).floor(), d), false)
+			c.draw_texture_rect(icon, Rect2(Vector2(5, 6 + (46.0 - box_side) * 0.5) + o + ((box - d) * 0.5).floor(), d), false)
 		var afford := CoreRoot.get_money() >= _cost(type)
-		c.draw_string(T.FONT_BOLD, Vector2(54, 17) + o, str(SHORT_NAMES.get(type, type)), HORIZONTAL_ALIGNMENT_LEFT, 82, T.FONT_SIZE, T.TEXT)
-		c.draw_string(T.FONT, Vector2(54, 32) + o, "$%d" % _cost(type), HORIZONTAL_ALIGNMENT_LEFT, 82, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
-		c.draw_string(T.FONT, Vector2(54, 47) + o, _stat_line(type), HORIZONTAL_ALIGNMENT_LEFT, 82, T.FONT_SIZE, Color8(70, 70, 90))
+		c.draw_string(T.FONT_BOLD, Vector2(text_x, 17) + o, label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT)
+		c.draw_string(T.FONT, Vector2(text_x, 32) + o, "$%d" % _cost(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
+		c.draw_string(T.FONT, Vector2(text_x, 47) + o, _stat_line(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(70, 70, 90))
 	)
 	c.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:

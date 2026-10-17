@@ -10,7 +10,9 @@ const T = preload("res://scripts/os98/os_theme.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 ## Sprites whose picture has no empty margin round the building (the Jednota fills its
 ## whole canvas) look a size bigger than the rest on the same footprint: drawn smaller.
-const ICON_SCALE := {"vecerka_iso": 0.76}
+## Map icons are fitted to their footprint; the small things are smaller than that.
+const ICON_SCALE := {"vecerka_iso": 0.76, "gnome": 0.32, "bench": 0.56, "flower_bed": 0.62, "picnic_table": 0.72,
+	"ping_pong": 0.78, "hammock": 0.82, "flagpole": 1.0}
 const SFX_DIR := "res://assets/sfx/builder/"
 
 ## Status severity, consumed by builder_module for colour + audio feedback.
@@ -69,6 +71,14 @@ const ICON_PATHS := {
 	"caravan_1": "res://assets/textury/builder/iso_caravan.png",
 	"caravan_2": "res://assets/textury/builder/iso_caravan2.png",
 	"caravan_3": "res://assets/textury/builder/iso_caravan3.png",
+	"bench": "res://assets/textury/builder/iso_bench.png",
+	"picnic_table": "res://assets/textury/builder/iso_picnic.png",
+	"flower_bed": "res://assets/textury/builder/iso_flowerbed.png",
+	"gnome": "res://assets/textury/builder/iso_gnome.png",
+	"flagpole": "res://assets/textury/builder/iso_flagpole.png",
+	"playground": "res://assets/textury/builder/iso_playground.png",
+	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
+	"hammock": "res://assets/textury/builder/iso_hammock.png",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
 	"sports_field": "res://assets/textury/builder/iso_sports.png",
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
@@ -1696,6 +1706,8 @@ func _icon_key_for_type(building_type: String) -> String:
 		"cabin", "cabin_1":
 			return "cabin_1"
 		"caravan_1", "caravan_2", "caravan_3", "bonfire", "sports_field", "lake_slide":
+			return building_type
+		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock":
 			return building_type
 		"toilet_block":
 			return "toilet_block"

@@ -13,7 +13,8 @@ extends RefCounted
 const CAMP := "res://assets/textury/camp/"
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
-	"bonfire", "sports_field", "lake_slide", "dumpsters"]
+	"bonfire", "sports_field", "lake_slide", "dumpsters",
+	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -51,6 +52,22 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _slide(root, w, d)
 		"dumpsters":
 			return _dumpsters(root, w, d)
+		"bench":
+			return _bench(root, w, d)
+		"picnic_table":
+			return _picnic(root, w, d)
+		"flower_bed":
+			return _flowerbed(root, w, d)
+		"gnome":
+			return _gnome(root, w, d)
+		"flagpole":
+			return _flagpole(root, w, d)
+		"playground":
+			return _playground(root, w, d)
+		"ping_pong":
+			return _pingpong(root, w, d)
+		"hammock":
+			return _hammock(root, w, d)
 		# Built by BuildingManager's own placers; here for tools/model_viewer.
 		"cabin_1", "cabin_2", "cabin_3":
 			var lv := int(type.right(1))
@@ -919,6 +936,285 @@ func _side_quad(parent: Node3D, n: String, size: Vector2, pos: Vector3, yaw: flo
 		m2.uv1_scale = Vector3.ONE
 		m.material_override = m2
 	return m
+
+
+# ── decorations and small attractions (iso_bench .. iso_hammock in the Builder) ──
+#    Plain boxes with the camp's textures, Build style. The ones guests use carry
+#    their places as the "seats" meta ([{pos, face, pose}], local) for
+#    scripts/attractions/seats_use.gd; the playground, the table and the flag have
+#    their own scripts.
+
+func _bench(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var green := _camp_or("planks_grey.png", Color(0.4, 0.62, 0.42), "wood", Vector3(2.0, 1.0, 1.0))
+	var iron := _flat(Color(0.12, 0.12, 0.13))
+	for x: float in [-0.68, 0.68]:
+		_box(r, "BenchLeg", Vector3(0.06, 0.44, 0.44), Vector3(x, 0.22, 0.0), iron)
+		var back_leg := _box(r, "BenchBackLeg", Vector3(0.06, 0.5, 0.05), Vector3(x, 0.66, -0.22), iron)
+		back_leg.rotation.x = -0.18
+	for i in 3:
+		_box(r, "BenchSlat", Vector3(1.6, 0.04, 0.12), Vector3(0, 0.45, -0.14 + i * 0.14), green)
+	for i in 2:
+		var slat := _box(r, "BenchBack", Vector3(1.6, 0.11, 0.035), Vector3(0, 0.66 + i * 0.16, -0.25 - i * 0.03), green)
+		slat.rotation.x = -0.18
+	_box(r, "Newspaper", Vector3(0.3, 0.01, 0.24), Vector3(0.58, 0.475, 0.02), _flat(Color(0.84, 0.82, 0.74)))
+	r.set_meta("seats", [
+		{"pos": Vector3(-0.4, 0.0, 0.26), "face": Vector3(0, 0, 1), "pose": "sit"},
+		{"pos": Vector3(0.35, 0.0, 0.26), "face": Vector3(0, 0, 1), "pose": "sit"},
+	])
+	_use_script(r, "res://scripts/attractions/seats_use.gd")
+	return {"size": Vector3(1.7, 0.9, 0.6), "target": Vector3(0, 0.6, 0.4)}
+
+
+func _picnic(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var wood := _camp_or("planks_grey.png", Color(0.9, 0.84, 0.74), "wood", Vector3(2.0, 1.0, 1.0))
+	_box(r, "TableTop", Vector3(1.7, 0.06, 0.8), Vector3(0, 0.74, 0), wood)
+	for side: float in [-1.0, 1.0]:
+		_box(r, "Bench", Vector3(1.7, 0.05, 0.26), Vector3(0, 0.44, side * 0.62), wood)
+	for x: float in [-0.66, 0.66]:
+		for side2: float in [-1.0, 1.0]:
+			var leg := _box(r, "Leg", Vector3(0.07, 0.8, 0.07), Vector3(x, 0.38, side2 * 0.3), wood)
+			leg.rotation.x = side2 * 0.42
+		_box(r, "Brace", Vector3(0.07, 0.07, 1.5), Vector3(x, 0.4, 0), wood)
+	_box(r, "Cloth", Vector3(0.9, 0.01, 0.82), Vector3(-0.25, 0.775, 0.02), _camp_or("gingham.png", Color(1, 1, 1), "cloth", Vector3(2.0, 2.0, 2.0)))
+	_cyl(r, "Bottle", 0.035, 0.24, Vector3(0.35, 0.89, -0.1), _flat(Color(0.26, 0.4, 0.18)))
+	_box(r, "Roll", Vector3(0.2, 0.06, 0.08), Vector3(0.12, 0.8, 0.18), _flat(Color(0.82, 0.6, 0.32)))
+	var seats: Array = []
+	for side3: float in [-1.0, 1.0]:
+		for x2: float in [-0.42, 0.42]:
+			seats.append({"pos": Vector3(x2, 0.0, side3 * 0.78), "face": Vector3(0, 0, -side3), "pose": "eat"})
+	r.set_meta("seats", seats)
+	_use_script(r, "res://scripts/attractions/seats_use.gd")
+	return {"size": Vector3(1.8, 0.85, 1.5), "target": Vector3(0, 0.6, 0.8)}
+
+
+func _flowerbed(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var stone := _flat(Color(0.88, 0.86, 0.8))
+	var soil := _flat(Color(0.26, 0.17, 0.1))
+	_box(r, "Soil", Vector3(1.6, 0.22, 1.0), Vector3(0, 0.11, 0), soil)
+	var n := 0
+	for i in 7:
+		var x := -0.78 + i * 0.26
+		for z: float in [-0.52, 0.52]:
+			var st := _box(r, "Stone%d" % n, Vector3(0.22, 0.18, 0.12), Vector3(x, 0.09, z), stone)
+			st.rotation.y = float(n % 3) * 0.1 - 0.1
+			n += 1
+	for z2: float in [-0.26, 0.0, 0.26]:
+		for side: float in [-1.0, 1.0]:
+			_box(r, "Stone%d" % n, Vector3(0.12, 0.18, 0.22), Vector3(side * 0.82, 0.09, z2), stone)
+			n += 1
+	var cols := [Color(0.88, 0.14, 0.12), Color(0.96, 0.78, 0.12), Color(0.24, 0.42, 0.9), Color(0.94, 0.94, 0.9)]
+	var leaf := _flat(Color(0.2, 0.42, 0.18))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4711
+	for i in 30:
+		var at := Vector3(rng.randf_range(-0.66, 0.66), 0.22, rng.randf_range(-0.38, 0.38))
+		var h := rng.randf_range(0.12, 0.3)
+		_box(r, "Stem", Vector3(0.03, h, 0.03), at + Vector3(0, h * 0.5, 0), leaf)
+		_box(r, "Bloom", Vector3(0.09, 0.07, 0.09), at + Vector3(0, h + 0.03, 0), _flat(cols[i % cols.size()]))
+	_cyl(r, "WateringCan", 0.1, 0.2, Vector3(1.0, 0.1, 0.3), _flat(Color(0.3, 0.52, 0.4)))
+	var spout := _box(r, "Spout", Vector3(0.24, 0.03, 0.03), Vector3(1.12, 0.17, 0.3), _flat(Color(0.3, 0.52, 0.4)))
+	spout.rotation.z = 0.5
+	return {"size": Vector3(1.7, 0.5, 1.1), "target": Vector3(0, 0.4, 0.6)}
+
+
+func _gnome(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var g := Node3D.new()
+	g.name = "Gnome"
+	r.add_child(g)
+	_cyl(g, "Moss", 0.3, 0.04, Vector3(0, 0.02, 0), _flat(Color(0.24, 0.4, 0.16)))
+	_cyl(g, "Boots", 0.11, 0.06, Vector3(0, 0.07, 0.02), _flat(Color(0.3, 0.18, 0.1)))
+	var coat := _cyl(g, "Coat", 0.11, 0.22, Vector3(0, 0.2, 0), _flat(Color(0.2, 0.32, 0.66)))
+	(coat.mesh as CylinderMesh).top_radius = 0.08
+	_cyl(g, "Belt", 0.105, 0.03, Vector3(0, 0.25, 0), _flat(Color(0.14, 0.1, 0.06)))
+	var head := MeshInstance3D.new()
+	head.name = "Head"
+	var sm := SphereMesh.new()
+	sm.radius = 0.075
+	sm.height = 0.15
+	sm.radial_segments = 8
+	sm.rings = 4
+	head.mesh = sm
+	head.material_override = _flat(Color(0.94, 0.74, 0.6))
+	head.position = Vector3(0, 0.37, 0)
+	g.add_child(head)
+	_box(g, "Beard", Vector3(0.12, 0.12, 0.06), Vector3(0, 0.33, 0.06), _flat(Color(0.95, 0.95, 0.92)))
+	var hat := _cyl(g, "Hat", 0.085, 0.22, Vector3(0, 0.52, -0.01), _flat(Color(0.84, 0.14, 0.12)))
+	(hat.mesh as CylinderMesh).top_radius = 0.0
+	hat.rotation.x = -0.12
+	var lamp := _box(g, "Lantern", Vector3(0.05, 0.07, 0.05), Vector3(0.12, 0.2, 0.06), _flat(Color(1.0, 0.86, 0.4)))
+	lamp.name = "Lantern"
+	_use_script(g, "res://scripts/attractions/gnome.gd")
+	return {"size": Vector3(0.5, 0.65, 0.5), "target": Vector3(0, 0.4, 0.3)}
+
+
+func _flagpole(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var white := _flat(Color(0.92, 0.92, 0.9))
+	_box(r, "Base", Vector3(0.6, 0.2, 0.6), Vector3(0, 0.1, 0), _camp_or("concrete.png", Color(0.7, 0.7, 0.68), "stone"))
+	for side: float in [-1.0, 1.0]:
+		_box(r, "Kerb", Vector3(0.9, 0.08, 0.12), Vector3(0, 0.04, side * 0.45), _flat(Color(0.6, 0.6, 0.58)))
+	_cyl(r, "Pole", 0.045, 6.0, Vector3(0, 3.1, 0), white)
+	var ball := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.08
+	sm.height = 0.16
+	sm.radial_segments = 8
+	sm.rings = 4
+	ball.mesh = sm
+	ball.material_override = _flat(Color(0.86, 0.72, 0.3))
+	ball.position = Vector3(0, 6.14, 0)
+	r.add_child(ball)
+	_box(r, "Rope", Vector3(0.01, 5.6, 0.01), Vector3(0.06, 3.1, 0), _flat(Color(0.8, 0.78, 0.7)))
+	var flag := Node3D.new()
+	flag.name = "Flag"
+	flag.position = Vector3(0.05, 5.6, 0)
+	r.add_child(flag)
+	flag.set_meta("material", _flag_material())
+	_use_script(flag, "res://scripts/attractions/flag_wave.gd")
+	return {"size": Vector3(0.6, 6.2, 0.6), "target": Vector3(0, 1.0, 0.4)}
+
+
+## The camp's flag: green, a white spruce, the bottom border white (made once).
+func _flag_material() -> StandardMaterial3D:
+	if _cache.has("flag"):
+		return _cache["flag"]
+	var img := Image.create(24, 16, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.14, 0.42, 0.22))
+	for y in 16:
+		for x in 24:
+			# The spruce: a stacked triangle at the hoist end, a trunk.
+			var cx := 8.0
+			var tier := float(y - 2) / 11.0
+			if y >= 2 and y <= 12 and absf(float(x) - cx) <= tier * 5.0 + 0.3 * float((y - 2) % 4):
+				img.set_pixel(x, y, Color(0.95, 0.95, 0.9))
+			if y >= 12 and y <= 13 and absf(float(x) - cx) < 1.0:
+				img.set_pixel(x, y, Color(0.95, 0.95, 0.9))
+			if y >= 14:
+				img.set_pixel(x, y, Color(0.95, 0.95, 0.9))
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.set_meta("base_albedo_color", m.albedo_color)
+	_cache["flag"] = m
+	return m
+
+
+func _playground(r: Node3D, w: float, _d: float) -> Dictionary:
+	var red := _flat(Color(0.78, 0.16, 0.12))
+	var yellow := _flat(Color(0.94, 0.76, 0.16))
+	var sand := _camp_or("gravel_road.png", Color(1.0, 0.9, 0.66), "dirt", Vector3(1.0, 1.0, 1.0))
+	_box(r, "SandPatch", Vector3(w * 0.88, 0.04, 3.0), Vector3(0, 0.02, 0), sand)
+	# The swing frame on the left half: two A-frames, the bar, two seats on chains.
+	var sx := -w * 0.22
+	for x: float in [sx - 1.1, sx + 1.1]:
+		for z: float in [-0.5, 0.5]:
+			var leg := _box(r, "SwingLeg", Vector3(0.07, 2.3, 0.07), Vector3(x, 1.1, z * 0.82), red)
+			leg.rotation.x = z * 0.42
+	_box(r, "SwingBar", Vector3(2.3, 0.07, 0.07), Vector3(sx, 2.2, 0), red)
+	var chain := _flat(Color(0.5, 0.5, 0.52))
+	for i in 2:
+		var pivot := Node3D.new()
+		pivot.name = "Swing%d" % i
+		pivot.position = Vector3(sx - 0.5 + i * 1.0, 2.18, 0)
+		r.add_child(pivot)
+		for cx: float in [-0.2, 0.2]:
+			_box(pivot, "Chain", Vector3(0.02, 1.7, 0.02), Vector3(cx, -0.85, 0), chain)
+		_box(pivot, "Seat", Vector3(0.48, 0.05, 0.2), Vector3(0, -1.72, 0), _flat(Color(0.16, 0.16, 0.18)))
+	# The seesaw on the right: the fulcrum and the plank on its pivot.
+	var tx := w * 0.22
+	_box(r, "Fulcrum", Vector3(0.24, 0.42, 0.3), Vector3(tx, 0.21, 0), red)
+	var see := Node3D.new()
+	see.name = "Seesaw"
+	see.position = Vector3(tx, 0.46, 0)
+	r.add_child(see)
+	_box(see, "Plank", Vector3(2.6, 0.06, 0.26), Vector3(0, 0, 0), yellow)
+	for end: float in [-1.15, 1.15]:
+		_box(see, "Handle", Vector3(0.04, 0.24, 0.24), Vector3(end + (0.15 if end < 0 else -0.15), 0.14, 0), red)
+	# The sandpit at the back with a bucket and spade.
+	var plank := _camp_or("planks_grey.png", Color(0.9, 0.82, 0.7), "wood", Vector3(1.0, 1.0, 1.0))
+	var pz := -1.1
+	for side: float in [-1.0, 1.0]:
+		_box(r, "PitSide", Vector3(1.5, 0.18, 0.08), Vector3(tx, 0.09, pz + side * 0.55), plank)
+		_box(r, "PitEnd", Vector3(0.08, 0.18, 1.1), Vector3(tx + side * 0.75, 0.09, pz), plank)
+	_box(r, "PitSand", Vector3(1.42, 0.12, 1.02), Vector3(tx, 0.08, pz), _flat(Color(0.86, 0.76, 0.52)))
+	_cyl(r, "Bucket", 0.08, 0.14, Vector3(tx + 0.3, 0.2, pz + 0.1), _flat(Color(0.2, 0.42, 0.8)))
+	r.set_meta("swing_seat_drop", 1.72)
+	_use_script(r, "res://scripts/attractions/playground_play.gd")
+	return {"size": Vector3(w * 0.88, 2.3, 3.0), "target": Vector3(0, 0.8, 1.4)}
+
+
+func _pingpong(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var green := _flat(Color(0.12, 0.36, 0.24))
+	var line := _flat(Color(0.94, 0.94, 0.9))
+	var top_y := 0.76
+	_box(r, "TableTop", Vector3(2.74, 0.04, 1.52), Vector3(0, top_y - 0.02, 0), green)
+	_box(r, "CentreLine", Vector3(2.7, 0.005, 0.02), Vector3(0, top_y + 0.003, 0), line)
+	for z: float in [-0.75, 0.75]:
+		_box(r, "EdgeLine", Vector3(2.74, 0.005, 0.02), Vector3(0, top_y + 0.003, z), line)
+	for x: float in [-1.36, 1.36]:
+		_box(r, "EndLine", Vector3(0.02, 0.005, 1.52), Vector3(x, top_y + 0.003, 0), line)
+		for z2: float in [-0.6, 0.6]:
+			_box(r, "Leg", Vector3(0.05, top_y - 0.04, 0.05), Vector3(x * 0.85, (top_y - 0.04) * 0.5, z2), _metal())
+	_box(r, "NetPostL", Vector3(0.03, 0.17, 0.03), Vector3(0, top_y + 0.08, -0.79), _metal())
+	_box(r, "NetPostR", Vector3(0.03, 0.17, 0.03), Vector3(0, top_y + 0.08, 0.79), _metal())
+	_cord_net(r, "Net", Vector2(1.58, 0.15), 0.05, Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(0, top_y + 0.08, 0)), _net_material())
+	for i in 2:
+		var bat := _cyl(r, "Bat%d" % i, 0.08, 0.012, Vector3(-0.9 + i * 1.8, top_y + 0.01, 0.4 - i * 0.8), _flat(Color(0.78, 0.12, 0.1)))
+		bat.name = "Bat%d" % i
+	var ball := MeshInstance3D.new()
+	ball.name = "Ball"
+	var sm := SphereMesh.new()
+	sm.radius = 0.025
+	sm.height = 0.05
+	sm.radial_segments = 6
+	sm.rings = 3
+	ball.mesh = sm
+	ball.material_override = _flat(Color(0.98, 0.98, 0.96))
+	ball.position = Vector3(0.3, top_y + 0.025, 0.1)
+	r.add_child(ball)
+	r.set_meta("table_top", top_y)
+	_use_script(r, "res://scripts/attractions/pingpong_play.gd")
+	return {"size": Vector3(2.8, 0.9, 1.6), "target": Vector3(0, 0.7, 0.9)}
+
+
+func _hammock(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var wood := _camp_or("log_bark.png", Color(0.8, 0.7, 0.6), "wood", Vector3(1.0, 1.0, 1.0))
+	for x: float in [-1.4, 1.4]:
+		_box(r, "Post", Vector3(0.14, 1.7, 0.14), Vector3(x, 0.85, 0), wood)
+	var sway := Node3D.new()
+	sway.name = "HammockSway"
+	sway.position = Vector3(0, 1.45, 0)
+	r.add_child(sway)
+	var cloth := _camp_or("blanket_check.png", Color(1.0, 0.66, 0.4), "cloth", Vector3(2.0, 2.0, 2.0))
+	var rope := _flat(Color(0.82, 0.76, 0.62))
+	# The bed of it: segments down into a sag and up again, on ropes to the posts.
+	var segs := 7
+	var span := 2.2
+	for i in segs:
+		var t0 := float(i) / float(segs)
+		var t1 := float(i + 1) / float(segs)
+		var x0 := -span * 0.5 + span * t0
+		var x1 := -span * 0.5 + span * t1
+		var y0 := -0.62 * sin(t0 * PI)
+		var y1 := -0.62 * sin(t1 * PI)
+		var seg := _box(sway, "Cloth%d" % i, Vector3(Vector2(x1 - x0, y1 - y0).length() + 0.02, 0.03, 0.62), Vector3((x0 + x1) * 0.5, (y0 + y1) * 0.5, 0), cloth)
+		seg.rotation.z = atan2(y1 - y0, x1 - x0)
+	for side: float in [-1.0, 1.0]:
+		var rp := _box(sway, "Rope", Vector3(0.32, 0.02, 0.02), Vector3(side * 1.25, 0.06, 0), rope)
+		rp.rotation.z = side * -0.3
+	_box(sway, "Pillow", Vector3(0.34, 0.1, 0.4), Vector3(-0.72, -0.44, 0), _flat(Color(0.92, 0.9, 0.84)))
+	_box(sway, "Book", Vector3(0.16, 0.03, 0.22), Vector3(0.4, -0.54, 0.1), _flat(Color(0.5, 0.2, 0.14)))
+	r.set_meta("seats", [{"pos": Vector3(-0.1, 0.0, 0.0), "face": Vector3(0, 0, 1), "pose": "sit", "lift": 0.62, "sway": "HammockSway"}])
+	_use_script(r, "res://scripts/attractions/seats_use.gd")
+	return {"size": Vector3(3.0, 1.7, 0.7), "target": Vector3(0, 0.8, 0.5)}
+
+
+## A behaviour node on a model (the guests' use of it, a flag in the wind, a gnome).
+func _use_script(r: Node3D, path: String) -> void:
+	var n := Node3D.new()
+	n.name = "Use"
+	n.set_script(load(path))
+	r.add_child(n)
 
 
 # ── kit ───────────────────────────────────────────────────────────────────────

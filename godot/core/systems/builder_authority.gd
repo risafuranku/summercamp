@@ -19,6 +19,14 @@ const ALLOWED_BUILD_TYPES: Dictionary = {
 	"sewer": true,
 	"lamp_post": true,
 	"path": true,
+	"bench": true,
+	"picnic_table": true,
+	"flower_bed": true,
+	"gnome": true,
+	"flagpole": true,
+	"playground": true,
+	"ping_pong": true,
+	"hammock": true,
 }
 
 var _state

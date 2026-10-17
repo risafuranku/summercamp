@@ -46,40 +46,40 @@ const ARCHETYPES := {
 	"quiet_guy": {
 		"decay": {NEED_ENERGY: 1.0, NEED_HUNGER: 0.9, NEED_BLADDER: 0.9, NEED_HYGIENE: 1.1, NEED_FUN: 0.7},
 		"weight": {NEED_HYGIENE: 1.3, NEED_FUN: 0.7, NEED_SAFETY: 1.3},
-		"likes": {"bonfire": 1.4, "lake_slide": 0.8, "pub": 0.5, "sports_field": 0.7, "restaurant": 1.1},
+		"likes": {"bonfire": 1.4, "lake_slide": 0.8, "pub": 0.5, "sports_field": 0.7, "restaurant": 1.1, "bench": 1.4, "hammock": 1.6, "ping_pong": 1.0, "picnic_table": 1.0, "playground": 0.3},
 		"comfort_weight": 0.8,
 	},
 	"drunk": {
 		"decay": {NEED_ENERGY: 1.1, NEED_HUNGER: 1.2, NEED_BLADDER: 1.5, NEED_HYGIENE: 0.6, NEED_FUN: 1.4},
 		"weight": {NEED_FUN: 1.4, NEED_HUNGER: 1.1, NEED_HYGIENE: 0.6},
-		"likes": {"pub": 2.0, "bonfire": 1.4, "vecerka": 1.3, "sports_field": 0.6},
+		"likes": {"pub": 2.0, "bonfire": 1.4, "vecerka": 1.3, "sports_field": 0.6, "picnic_table": 1.4, "ping_pong": 1.3, "bench": 1.1, "hammock": 1.2, "playground": 0.2},
 		"comfort_weight": 0.5,
 	},
 	"cheap_chick": {
 		"decay": {NEED_ENERGY: 0.9, NEED_HUNGER: 0.9, NEED_BLADDER: 1.0, NEED_HYGIENE: 1.5, NEED_FUN: 1.2},
 		"weight": {NEED_HYGIENE: 1.5, NEED_FUN: 1.2},
-		"likes": {"lake_slide": 1.7, "sports_field": 1.2, "restaurant": 1.3, "shower_block": 1.2, "pub": 0.8},
+		"likes": {"lake_slide": 1.7, "sports_field": 1.2, "restaurant": 1.3, "shower_block": 1.2, "pub": 0.8, "hammock": 1.5, "ping_pong": 1.1, "bench": 0.8, "picnic_table": 1.0, "playground": 0.4},
 		"comfort_weight": 1.5,
 	},
 	# Tramps: sleep anywhere, live at the fire with a guitar, wash in the lake (or not).
 	"tramp": {
 		"decay": {NEED_ENERGY: 0.8, NEED_HUNGER: 1.1, NEED_BLADDER: 1.0, NEED_HYGIENE: 0.5, NEED_FUN: 1.3},
 		"weight": {NEED_FUN: 1.5, NEED_HUNGER: 1.0, NEED_HYGIENE: 0.4, NEED_SAFETY: 0.8},
-		"likes": {"bonfire": 2.2, "pub": 1.4, "vecerka": 1.2, "lake_slide": 0.9, "restaurant": 0.5},
+		"likes": {"bonfire": 2.2, "pub": 1.4, "vecerka": 1.2, "lake_slide": 0.9, "restaurant": 0.5, "bench": 1.2, "hammock": 1.4, "picnic_table": 1.3, "ping_pong": 0.7, "playground": 0.3},
 		"comfort_weight": 0.3,
 	},
 	# Family: kids are hungry and bored every hour, parents want it clean and safe.
 	"family": {
 		"decay": {NEED_ENERGY: 1.1, NEED_HUNGER: 1.4, NEED_BLADDER: 1.3, NEED_HYGIENE: 1.2, NEED_FUN: 1.6},
 		"weight": {NEED_FUN: 1.3, NEED_HYGIENE: 1.3, NEED_SAFETY: 1.6, NEED_HUNGER: 1.2},
-		"likes": {"sports_field": 1.8, "lake_slide": 1.8, "restaurant": 1.5, "vecerka": 1.2, "shower_block": 1.3, "pub": 0.4},
+		"likes": {"sports_field": 1.8, "lake_slide": 1.8, "restaurant": 1.5, "vecerka": 1.2, "shower_block": 1.3, "pub": 0.4, "playground": 2.4, "picnic_table": 1.6, "ping_pong": 1.3, "bench": 1.0, "hammock": 0.9},
 		"comfort_weight": 1.3,
 	},
 	# Mushroom pickers: early to bed, up at four, out in the woods; hate noise.
 	"picker": {
 		"decay": {NEED_ENERGY: 1.2, NEED_HUNGER: 0.8, NEED_BLADDER: 1.2, NEED_HYGIENE: 0.9, NEED_FUN: 0.5},
 		"weight": {NEED_ENERGY: 1.4, NEED_SAFETY: 1.2, NEED_FUN: 0.5},
-		"likes": {"restaurant": 1.4, "vecerka": 1.5, "bonfire": 0.8, "pub": 0.4, "sports_field": 0.3},
+		"likes": {"restaurant": 1.4, "vecerka": 1.5, "bonfire": 0.8, "pub": 0.4, "sports_field": 0.3, "bench": 1.6, "picnic_table": 1.3, "hammock": 0.8, "ping_pong": 0.5, "playground": 0.3},
 		"comfort_weight": 1.2,
 	},
 }

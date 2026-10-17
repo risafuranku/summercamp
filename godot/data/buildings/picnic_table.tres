@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="BuildingDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/data/building_def.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"picnic_table"
+display_name = "Picnic Table (1x1)"
+category = &"attractions"
+cost = 45
+radius = 2
+power_draw = 0.0
+power_production = 0.0
+infra_load = 0.0
+hygiene_delta = 0.0
+fun_delta = 2.0
+passive_income = 0.0
+karma_delta = 0.0
+capacity = 0
+power_use = 0
+water_use = 0
+sewage_use = 0
+waste_use = 0
+power_provide = 0
+water_provide = 0
+sewage_provide = 0
+waste_provide = 0
+guest_services = {
+"fun": 20.0,
+"hunger": 12.0
+}
+guest_capacity = 4
+use_minutes = 30
+maintenance_decay = 0.06
+requires = PackedStringArray("dry")
+tags = PackedStringArray("decor", "social")
+footprint = Vector2i(1, 1)

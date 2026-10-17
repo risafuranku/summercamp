@@ -29,7 +29,7 @@ const WALK_BOB_HZ := 2.6
 ## a second, the walk cycle (bob, sway, turning) at ANIM_FPS.
 const MOVE_FPS := 12.0
 const ANIM_FPS := 8.0
-const OPEN_AIR_TYPES := ["bonfire", "sports_field", "lake_slide"]
+const OPEN_AIR_TYPES := ["bonfire", "sports_field", "lake_slide", "bench", "picnic_table", "playground", "ping_pong", "hammock"]
 ## Dwelling out of sight: in bed, resting in the lodging, arriving, or away from the
 ## camp altogether (walked out by one of the exits).
 const HIDDEN_DWELL_KINDS := ["sleep", "rest", "arrive", "away"]

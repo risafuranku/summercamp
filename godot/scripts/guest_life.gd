@@ -743,6 +743,16 @@ func _thought_after_visit(type: String, guest: Dictionary) -> String:
 			return "Lost at football to a ten year old."
 		"shower_block":
 			return "Hot water for exactly 40 seconds."
+		"bench":
+			return "Sat on the bench and watched the lake. Nice."
+		"picnic_table":
+			return "Bread, salami and a beer at the picnic table. Life is good."
+		"playground":
+			return "The kids won't come off the swings." if str(guest.get("archetype", "")) == "family" else "Had a go on the swings. Don't tell anyone."
+		"ping_pong":
+			return "Lost at ping-pong. The net is crooked, that's why."
+		"hammock":
+			return "Fell asleep in the hammock. Best hour of the week."
 		"toilet_block":
 			return "Relief."
 	return ""

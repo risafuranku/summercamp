@@ -1909,6 +1909,18 @@ func debug_event_spot(kind: String) -> Array:
 
 
 ## Shot driver: the open Builder's map panel (or null).
+## Shot driver: the Builder 98 window's module (catalogue, toolbar), or null.
+func debug_builder_module() -> Node:
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	var ui = bi.get("_crt_ui") if bi != null else null
+	if ui == null:
+		return null
+	for n in ui.find_children("*", "Control", true, false):
+		if n.get_script() == load("res://scripts/builder_module.gd"):
+			return n
+	return null
+
+
 func debug_builder_map() -> Node:
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	var ui = bi.get("_crt_ui") if bi != null else null
