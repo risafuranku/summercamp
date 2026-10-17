@@ -122,6 +122,35 @@ func _ready() -> void:
 	_expect(GM.daytime_arrival(1440 + 22 * 60, 30) == 2 * 1440 + 8 * 60 + 30, "an arrival at 22:00 moves to 08:30 next day")
 	_expect(GM.daytime_arrival(2 * 1440 + 3 * 60) == 2 * 1440 + 8 * 60, "an arrival at 03:00 moves to 08:00 that morning")
 
+	# A lodging is let whole to one party: a guest alone in a two-bed cabin leaves no free
+	# bed in it; a party gets the lodging that fits it best; lodgings are numbered by kind.
+	state.grid.cells.clear()
+	state.guests.clear()
+	state.accommodation_states.clear()
+	GuestManager.reset_runtime_state()
+	_place("cabin_1", Vector2i(2, 2))
+	_place("tent_1", Vector2i(8, 8))
+	_place("tent_1", Vector2i(12, 8))
+	_run_minutes(1)
+	_expect(int(GuestManager.get_bed_metrics().get("free", -1)) == 4, "two tents and a cabin: four free beds")
+	_book("Solo", "quiet_guy", 1, 2, 300)
+	_run_minutes(1)
+	var solo_rooms: Array = GuestManager.get_arrivals()[0]["rooms"] if not GuestManager.get_arrivals().is_empty() else []
+	_expect(solo_rooms.size() == 1 and str(solo_rooms[0]["label"]).begins_with("Tent "), "one guest gets a tent, not the cabin (%s)" % str(solo_rooms))
+	_book("Duo", "drunk", 2, 2, 300)
+	_run_minutes(1)
+	var labels: Array = []
+	for a2 in GuestManager.get_arrivals():
+		for r in a2["rooms"]:
+			labels.append(str(r["label"]))
+	_expect(labels.has("Cabin 1"), "the pair gets Cabin 1 (%s)" % str(labels))
+	_expect(int(GuestManager.get_bed_metrics().get("free", -1)) == 1, "one tent left free (%d)" % int(GuestManager.get_bed_metrics().get("free", -1)))
+	_book("Trio", "family", 3, 2, 300)
+	_run_minutes(1)
+	_expect(not GuestManager.can_accept_booking({"guests": 2}), "no room for two more: the cabin's party has it whole")
+	var keys := GuestManager.get_key_board().map(func(k): return str(k["short"]))
+	_expect(keys == ["T1", "T2", "C1"], "the key board reads T1 T2 C1 (%s)" % str(keys))
+
 	print("")
 	if _failures.is_empty():
 		print("ARRIVAL CHECK: PASS")

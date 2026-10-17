@@ -353,7 +353,7 @@ func process(delta: float, hour: float) -> bool:
 		glint.clear()
 	if where == "back":
 		var vp: Viewport = host.get_viewport()
-		var offset: Vector3 = look_back.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.key_axis())
+		var offset: Vector3 = look_back.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.turn_axis())
 		var want: Vector3 = back_base_rot + offset
 		# The yaw wraps round: follow it the short way.
 		want.y = camera.rotation.y + wrapf(want.y - camera.rotation.y, -PI, PI)

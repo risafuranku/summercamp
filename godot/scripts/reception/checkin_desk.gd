@@ -971,26 +971,37 @@ func _draw_rack(c: Control) -> void:
 		var k: Dictionary = _keys[i]
 		var hook := _hook_pos(i)
 		var label := str(k.get("key", ""))
-		var kind := str(k.get("kind", ""))
-		# The little white label under the hook.
-		F_TINY.draw_string(c.get_canvas_item(), hook + Vector2(-7, 12), label, HORIZONTAL_ALIGNMENT_LEFT, 16, 8, Color8(40, 30, 20) if kind != "cabin" else Color8(20, 40, 110))
+		var short := str(k.get("short", label))
+		# The white plate under the hook: its name (seen when the key is out).
+		var sw := F_SILK.get_string_size(short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+		F_SILK.draw_string(c.get_canvas_item(), (hook + Vector2(-sw * 0.5, 17)).floor(), short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(40, 30, 20))
 		if _key_on_rack(k):
 			_draw_key(c, _key_pos(label), k)
 
 
 func _draw_key(c: Control, pos: Vector2, k: Dictionary, lifted := false) -> void:
+	# A hotel key on a big tag: the brass ring on the hook, the key behind, the tag in the
+	# lodging's colour (tents green, cabins red, caravans blue) with its name printed big.
 	pos = pos.floor()
 	if lifted:
-		c.draw_rect(Rect2(pos + Vector2(4, 5), KEY_SIZE), Color(0, 0, 0, 0.3))
-	var tex: Texture2D = _tex.get("key_fob")
-	if tex != null:
-		c.draw_texture_rect(tex, Rect2(pos, KEY_SIZE), false)
-	else:
-		c.draw_rect(Rect2(pos + Vector2(4, 0), Vector2(8, 14)), Color8(200, 170, 70))
-		c.draw_rect(Rect2(pos + Vector2(0, 14), Vector2(16, 16)), Color8(180, 30, 30))
-	# A dot on the fob's label: green made up, red not.
+		c.draw_rect(Rect2(pos + Vector2(4, 6), Vector2(17, 14)), Color(0, 0, 0, 0.3))
+	var brass := Color8(206, 168, 72)
+	var col: Color = {"tent": Color8(48, 112, 54), "cabin": Color8(168, 38, 30), "caravan": Color8(42, 72, 150)}.get(str(k.get("kind", "")), Color8(120, 90, 60))
+	c.draw_arc(pos + Vector2(10, 3), 2.5, 0.0, TAU, 10, brass, 1.0)
+	c.draw_rect(Rect2(pos + Vector2(14, 2), Vector2(5, 1)), brass)
+	c.draw_rect(Rect2(pos + Vector2(17, 3), Vector2(1, 2)), brass)
+	var tag := Rect2(pos + Vector2(1, 6), Vector2(18, 13))
+	c.draw_rect(tag, col.darkened(0.45))
+	c.draw_rect(tag.grow(-1), col)
+	c.draw_rect(Rect2(tag.position + Vector2(1, 1), Vector2(tag.size.x - 2, 1)), col.lightened(0.35))
+	var short := str(k.get("short", k.get("key", "")))
+	var sw := F_SILK.get_string_size(short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	var tp := (tag.position + Vector2((tag.size.x - sw) * 0.5, 10)).floor()
+	F_SILK.draw_string(c.get_canvas_item(), tp + Vector2(1, 1), short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0, 0, 0, 0.6))
+	F_SILK.draw_string(c.get_canvas_item(), tp, short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(250, 244, 226))
+	# A dot on the tag: green made up, red not.
 	var dot := Color8(60, 200, 80) if bool(k.get("ready", false)) else Color8(230, 50, 40)
-	c.draw_rect(Rect2(pos + Vector2(13, 9), Vector2(3, 3)), dot)
+	c.draw_rect(Rect2(tag.end - Vector2(4, 4), Vector2(2, 2)), dot)
 
 
 func _draw_dragged_key(c: Control) -> void:

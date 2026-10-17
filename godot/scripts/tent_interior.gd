@@ -55,7 +55,7 @@ var _grid_power_available: bool = true
 var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Kneeling in a two-man tent: you can turn to the walls, not past them.
-var _look = INTERIOR_LOOK.new(48.0, 16.0, 30.0)
+var _look = INTERIOR_LOOK.new(48.0, 24.0, 36.0)
 var _exit_hint: Control
 
 # Screen-space zones for click detection.
@@ -124,6 +124,9 @@ func set_guest_occupants(entries: Array) -> void:
 
 
 func open_tent(level: int = 1) -> void:
+	# Registered before it was in the tree (size 0, shrink 1): the low resolution now.
+	if _viewport_container != null:
+		RETRO_RENDER.apply_to(_viewport_container)
 	if _interior_camera == null:
 		return
 	_tent_level = int(clamp(level, 1, 3))
@@ -164,7 +167,7 @@ func _process(delta: float) -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 	_interior_camera.rotation = _cam_base_rot + offset
 
 
@@ -257,6 +260,8 @@ func _build_viewport() -> void:
 
 
 func _sync_viewport_to_window() -> void:
+	if _viewport_container != null and _viewport_container.stretch:
+		return
 	if _viewport == null:
 		return
 	var screen_size = get_viewport().get_visible_rect().size
@@ -280,7 +285,7 @@ func _build_tent_room() -> void:
 	_interior_camera.name = "TentCamera"
 	_interior_camera.position = Vector3(0.0, 0.50, 0.64)
 	_interior_camera.rotation_degrees = Vector3(-7.5, 0.0, 0.0)
-	_interior_camera.fov = 60.0
+	_interior_camera.fov = 68.0
 	_interior_camera.near = 0.05
 	_interior_camera.far = 10.0
 	_interior_camera.current = true

@@ -55,6 +55,7 @@ const ARCHETYPE_ALIASES := {
 	"cheap_chick": ARCHETYPE_CHEAP_CHICK,
 	"cheap chick": ARCHETYPE_CHEAP_CHICK,
 }
+const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const GUEST_SPRITE_PATHS := {
 	ARCHETYPE_QUIET_GUY: "res://assets/textury/npc/host1.png",
 	ARCHETYPE_DRUNK: "res://assets/textury/npc/host2.png",
@@ -778,14 +779,22 @@ func get_key_board() -> Array:
 				held[str((slot_any as Dictionary).get("accommodation_key", ""))] = true
 	var accs := get_accommodation_states()
 	var keys: Array = accs.keys()
-	keys.sort()
+	# Tents, then cabins, then caravans, each in number order: T1 T2 C1 C2 C3 V1.
+	var order := {"tent": 0, "cabin": 1, "caravan": 2}
+	keys.sort_custom(func(a, b):
+		var ka := int(order.get(lodging_kind(str((accs[a] as Dictionary).get("building_type", ""))), 3))
+		var kb := int(order.get(lodging_kind(str((accs[b] as Dictionary).get("building_type", ""))), 3))
+		if ka != kb:
+			return ka < kb
+		return int((accs[a] as Dictionary).get("no", 0)) < int((accs[b] as Dictionary).get("no", 0)))
 	for key_any in keys:
 		var key := str(key_any)
 		var acc: Dictionary = accs[key]
-		var kind := ROOM_RULES.kind_for(str(acc.get("building_type", "")))
+		var kind := lodging_kind(str(acc.get("building_type", "")))
 		out.append({
 			"key": key,
 			"label": room_label(key),
+			"short": room_short(key),
 			"kind": kind,
 			"ready": ROOM_RULES.normalize_status(str(acc.get("status", ""))) == ROOM_RULES.STATUS_READY,
 			"held": held.has(key),
@@ -885,11 +894,74 @@ func _arrival_row(guest: Dictionary, now_abs: int) -> Dictionary:
 # ── rooms: preparation ─────────────────────────────────────────────────────────
 
 ## "Tent 4:7", "Cabin 12:3".
+## "Cabin 2", "Tent 1", "Caravan 3": every lodging is numbered within its kind in the
+## order it was built (the lowest free number; a new one takes a demolished one's).
 func room_label(key: String) -> String:
 	var state = CoreRoot.get_state()
 	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
-	var kind := ROOM_RULES.kind_for(str(acc.get("building_type", "")))
-	return "%s %s" % [kind.capitalize() if not kind.is_empty() else "Room", key]
+	var kind := lodging_kind(str(acc.get("building_type", "")))
+	var no := int(acc.get("no", 0))
+	if no <= 0:
+		return "%s %s" % [kind.capitalize() if not kind.is_empty() else "Room", key]
+	return "%s %d" % [kind.capitalize() if not kind.is_empty() else "Room", no]
+
+
+## tent / cabin / caravan (names and numbers; the rooms' jobs use ROOM_RULES.kind_for).
+static func lodging_kind(building_type: String) -> String:
+	var t := building_type.to_lower()
+	if t.begins_with("tent"):
+		return "tent"
+	if t.begins_with("cabin"):
+		return "cabin"
+	if t.begins_with("caravan"):
+		return "caravan"
+	return ""
+
+
+## The short name on a key fob and the plan: T1, C2, V3.
+func room_short(key: String) -> String:
+	var state = CoreRoot.get_state()
+	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
+	var kind := lodging_kind(str(acc.get("building_type", "")))
+	var letter := {"tent": "T", "cabin": "C", "caravan": "V"}.get(kind, "R") as String
+	var no := int(acc.get("no", 0))
+	return "%s%d" % [letter, no] if no > 0 else key
+
+
+func room_number(key: String) -> int:
+	var state = CoreRoot.get_state()
+	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
+	return int(acc.get("no", 0))
+
+
+## Gives every lodging without a number the lowest free one of its kind.
+func _number_lodgings(accs: Dictionary) -> void:
+	var used := {}
+	var missing: Array = []
+	for key in accs.keys():
+		var acc: Dictionary = accs[key]
+		var kind := lodging_kind(str(acc.get("building_type", "")))
+		var no := int(acc.get("no", 0))
+		if not used.has(kind):
+			used[kind] = {}
+		if no > 0 and not (used[kind] as Dictionary).has(no):
+			(used[kind] as Dictionary)[no] = true
+		else:
+			acc["no"] = 0
+			missing.append(key)
+	# Stable for the same camp: the ones built first (lower in the grid) first.
+	missing.sort_custom(func(a, b):
+		var ca := SAVE_CODEC.coord_from_key(str(a))
+		var cb := SAVE_CODEC.coord_from_key(str(b))
+		return ca.y < cb.y or (ca.y == cb.y and ca.x < cb.x))
+	for key in missing:
+		var acc: Dictionary = accs[key]
+		var kind := lodging_kind(str(acc.get("building_type", "")))
+		var n := 1
+		while (used[kind] as Dictionary).has(n):
+			n += 1
+		(used[kind] as Dictionary)[n] = true
+		acc["no"] = n
 
 
 ## Everything an interior needs to show a room's state.
@@ -1228,10 +1300,22 @@ func get_bed_metrics() -> Dictionary:
 
 	occupied_beds = clampi(occupied_beds, 0, capacity_total)
 	var ratio = 0.0 if capacity_total <= 0 else clampf(float(occupied_beds) / float(capacity_total), 0.0, 1.0)
+	# Free means the beds in lodgings nobody has: a cabin with one party in it is theirs.
+	var held := {}
+	for guest_any in state.guests:
+		if guest_any is Dictionary and _is_guest_in_stay_status(str((guest_any as Dictionary).get("status", STATUS_ACTIVE)).to_lower().strip_edges()):
+			for slot_any in ((guest_any as Dictionary).get("lodging_slots", []) if (guest_any as Dictionary).get("lodging_slots", []) is Array else []):
+				if slot_any is Dictionary:
+					held[str((slot_any as Dictionary).get("accommodation_key", ""))] = true
+	var free_units := 0
+	var accs := _collect_current_accommodations()
+	for key in accs.keys():
+		if not held.has(str(key)):
+			free_units += max(1, int((accs[key] as Dictionary).get("capacity", 1)))
 	return {
 		"capacity": capacity_total,
 		"occupied": occupied_beds,
-		"free": max(0, capacity_total - occupied_beds),
+		"free": max(0, mini(free_units, capacity_total - occupied_beds)),
 		"occupied_ratio": ratio,
 	}
 
@@ -1703,7 +1787,11 @@ func _ensure_guest_lodging_assignments() -> bool:
 				var slot_index = int(slot.get("slot_index", -1))
 				if _is_slot_taken(occupancy, acc_key, slot_index):
 					continue
-				_mark_slot_taken(occupancy, acc_key, slot_index)
+				# A lodging is let whole to one party (you pay for the cabin, not a bed in it).
+				var owner := _owner_of(occupancy, acc_key)
+				if owner >= 0 and owner != int(guest.get("id", -1)):
+					continue
+				_mark_slot_taken(occupancy, acc_key, slot_index, int(guest.get("id", -1)))
 				filtered_slots.append(slot)
 				if filtered_slots.size() >= desired:
 					break
@@ -1738,7 +1826,7 @@ func _ensure_guest_lodging_assignments() -> bool:
 				if not key.is_empty() and not preferred_keys.has(key):
 					preferred_keys.append(key)
 
-		var added_slots = _allocate_free_lodging_slots(missing, accommodations, occupancy, preferred_keys)
+		var added_slots = _allocate_free_lodging_slots(missing, accommodations, occupancy, preferred_keys, int(guest.get("id", -1)))
 		if added_slots.is_empty():
 			continue
 		slots.append_array(added_slots)
@@ -1753,7 +1841,8 @@ func _allocate_free_lodging_slots(
 	count: int,
 	accommodations: Dictionary,
 	occupancy: Dictionary,
-	preferred_keys: Array = []
+	preferred_keys: Array = [],
+	owner_id: int = -1
 ) -> Array:
 	var wanted = max(0, count)
 	if wanted <= 0 or accommodations.is_empty():
@@ -1777,6 +1866,10 @@ func _allocate_free_lodging_slots(
 		var free = max(0, cap - used)
 		if free <= 0:
 			continue
+		# Somebody else's lodging is not free, however many beds stand empty in it.
+		var owner := _owner_of(occupancy, key)
+		if owner >= 0 and owner != owner_id:
+			continue
 		candidates.append({
 			"key": key,
 			"coord": acc.get("coord", Vector2i.ZERO),
@@ -1794,14 +1887,17 @@ func _allocate_free_lodging_slots(
 		var preferred_b = int(db.get("preferred", 0))
 		if preferred_a != preferred_b:
 			return preferred_a > preferred_b
-		var used_a = int(da.get("used", 0))
-		var used_b = int(db.get("used", 0))
-		if (used_a > 0) != (used_b > 0):
-			return used_a > 0
+		# The lodging that fits the party best: the smallest that takes them all, else the
+		# biggest (they will need more than one). Nobody gets a four-bed cabin alone
+		# while a tent stands empty.
+		var fit_a: bool = int(da.get("free", 0)) >= wanted
+		var fit_b: bool = int(db.get("free", 0)) >= wanted
+		if fit_a != fit_b:
+			return fit_a
 		var free_a = int(da.get("free", 0))
 		var free_b = int(db.get("free", 0))
 		if free_a != free_b:
-			return free_a > free_b
+			return free_a < free_b if fit_a else free_a > free_b
 		var cap_a = int(da.get("capacity", 0))
 		var cap_b = int(db.get("capacity", 0))
 		if cap_a != cap_b:
@@ -1819,7 +1915,7 @@ func _allocate_free_lodging_slots(
 		for slot_index in range(cap):
 			if _is_slot_taken(occupancy, key, slot_index):
 				continue
-			_mark_slot_taken(occupancy, key, slot_index)
+			_mark_slot_taken(occupancy, key, slot_index, owner_id)
 			out.append({
 				"accommodation_key": key,
 				"coord": candidate.get("coord", Vector2i.ZERO),
@@ -1840,12 +1936,20 @@ func _is_slot_taken(occupancy: Dictionary, acc_key: String, slot_index: int) -> 
 	return (slots_any as Dictionary).has(slot_index)
 
 
-func _mark_slot_taken(occupancy: Dictionary, acc_key: String, slot_index: int) -> void:
+func _mark_slot_taken(occupancy: Dictionary, acc_key: String, slot_index: int, owner_id: int = -1) -> void:
 	if not occupancy.has(acc_key) or not (occupancy[acc_key] is Dictionary):
 		occupancy[acc_key] = {}
 	var slots: Dictionary = occupancy[acc_key]
 	slots[slot_index] = true
+	if owner_id >= 0 and not slots.has("owner"):
+		slots["owner"] = owner_id
 	occupancy[acc_key] = slots
+
+
+## The party a lodging is let to (-1: nobody).
+func _owner_of(occupancy: Dictionary, acc_key: String) -> int:
+	var slots_any = occupancy.get(acc_key, {})
+	return int((slots_any as Dictionary).get("owner", -1)) if slots_any is Dictionary else -1
 
 
 func _used_slots_for_key(occupancy: Dictionary, acc_key: String) -> int:
@@ -1854,7 +1958,11 @@ func _used_slots_for_key(occupancy: Dictionary, acc_key: String) -> int:
 	var slots_any = occupancy[acc_key]
 	if not (slots_any is Dictionary):
 		return 0
-	return (slots_any as Dictionary).size()
+	var n := 0
+	for k in (slots_any as Dictionary).keys():
+		if k is int:
+			n += 1
+	return n
 
 
 func _normalize_guest_slot(slot: Dictionary, accommodations: Dictionary) -> Dictionary:
@@ -2040,7 +2148,9 @@ func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 			"occupied": occupied,
 			"guest_ids": guest_ids,
 			"guest_slots": slots.duplicate(true),
+			"no": int(prev.get("no", 0)),
 		}
+	_number_lodgings(next)
 
 	var changed := false
 	var changed_keys: Array = []

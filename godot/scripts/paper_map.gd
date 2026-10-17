@@ -279,6 +279,9 @@ func _draw_map() -> void:
 		_canvas.draw_rect(r, fill)
 		_canvas.draw_rect(r, PENCIL, false, 2.0)
 		var label := str(NAMES.get(t, t.to_upper()))
+		# Lodgings by their number: TENT 1, CABIN 2, CARAVAN 1 (the keys say T1, C2, V1).
+		if t in ROOM_TYPES and GuestManager != null and GuestManager.room_number(key) > 0:
+			label = GuestManager.room_label(key).to_upper()
 		if label != "":
 			labels.append([label, r])
 		if broken.has(key):

@@ -2064,6 +2064,31 @@ func debug_bazaar() -> Array:
 	return [_bazaar.in_box().map(func(i): return [i["id"], i["short"]]), _bazaar.listed().map(func(i): return i["short"]), _bazaar.sold().map(func(i): return [i["short"], i["price"]]), int(CoreRoot.get_state().money)]
 
 
+## Shot driver: interior meshes whose box corners land in a screen rect of `cam`
+## (fractions of the screen), with their global AABB, to hunt z-fighting.
+func debug_meshes_in_rect(cam: Camera3D, rect: Rect2, root: Node) -> Array:
+	var out: Array = []
+	var vp := cam.get_viewport()
+	var size := vp.get_visible_rect().size
+	for n in root.find_children("*", "MeshInstance3D", true, false):
+		var m := n as MeshInstance3D
+		if not m.is_visible_in_tree():
+			continue
+		var bb := m.global_transform * m.get_aabb()
+		var hit := false
+		for i in 8:
+			var c := bb.get_endpoint(i)
+			if cam.is_position_behind(c):
+				continue
+			var sp := cam.unproject_position(c) / size
+			if rect.has_point(sp):
+				hit = true
+				break
+		if hit:
+			out.append([str(m.get_path()).right(60), bb.position.snapped(Vector3.ONE * 0.001), bb.size.snapped(Vector3.ONE * 0.001)])
+	return out
+
+
 func debug_guest_thoughts() -> Array:
 	var out: Array = []
 	for g in CoreRoot.get_state().guests:
@@ -2712,7 +2737,7 @@ func _sync_active_camera() -> void:
 		player_camera.current = true
 		player_camera.far = FIRST_PERSON_CAMERA_FAR
 		player_camera.near = 0.08
-		player_camera.fov = 44.0
+		player_camera.fov = 56.0
 		fallback_camera.current = false
 	else:
 		fallback_camera.current = true

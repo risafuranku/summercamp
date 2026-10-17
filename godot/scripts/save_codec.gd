@@ -110,7 +110,8 @@ static func serialize_accommodation_states(value: Variant) -> Dictionary:
 			"mess": _mess_dict(entry.get("mess", {})),
 			"mess_hint": _mess_dict(entry.get("mess_hint", {})),
 			"occupied": max(0, int(entry.get("occupied", 0))),
-			"guest_ids": sanitized_guest_ids
+			"guest_ids": sanitized_guest_ids,
+			"no": max(0, int(entry.get("no", 0))),
 		}
 	return out
 

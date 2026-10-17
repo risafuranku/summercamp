@@ -19,6 +19,7 @@ const RECEPTION_PREFIX := {
 	"Wall": ["knotty_pine", 1.2], "WindowFrame": ["knotty_pine", 0.5], "WindowMullion": ["knotty_pine", 0.5],
 }
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
+const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const RECEPTION_EXTRAS = preload("res://scripts/reception/reception_extras.gd")
 const CRT_UI_SCENE = preload("res://scripts/os98/os_shell.gd")
@@ -78,6 +79,7 @@ const RADIO_POWER_TOGGLE_FADE_SEC: float = 0.5
 ## the front door; the computer is on the low desk to your left, the key board on the
 ## wall to your right. The PC corner was built under the window; PC_OFFSET carries it.
 const RECEPTION_CAM_POS := Vector3(0.0, 1.5, 1.15)
+const ENTRY_YAW_DEG := 36.0
 const PC_OFFSET := Vector3(-1.94, 0.0, 1.68)
 const RL = preload("res://scripts/reception/reception_layout.gd")
 const CURTAIN = preload("res://scripts/reception/curtain.gd")
@@ -179,7 +181,7 @@ var _initial_cam_rot: Vector3
 var _initial_cam_fov: float = 54.0
 var _idle_cam_base_rot: Vector3 = Vector3.ZERO
 ## In the office, away from the screen: turn your head around the room, not out of it.
-var _look = INTERIOR_LOOK.new(96.0, 22.0, 30.0)
+var _look = INTERIOR_LOOK.new(96.0, 30.0, 38.0)
 var _desk_room
 ## The phone, the noticeboard, the door to the back room and the room behind it.
 var _extras
@@ -364,6 +366,7 @@ func open_interior() -> void:
 	_update_window_texture()
 	visible = true
 	_sync_interior_viewport_to_window()
+	RETRO_RENDER.apply_to(_viewport_container)
 	_sync_crt_viewport_to_window()
 	_set_crt_viewport_live(true)
 	if _extras != null:
@@ -377,6 +380,9 @@ func open_interior() -> void:
 	_initial_cam_fov = _interior_camera.fov
 	_idle_cam_base_rot = _initial_cam_rot
 	_look.reset()
+	# In through the door and round behind the counter: the head already turned toward
+	# the PC (it is ~60 degrees to the left of straight on), the counter still in view.
+	_look.yaw_deg = ENTRY_YAW_DEG
 	_capture_crt_orbit_anchor()
 	_apply_room_time_profile()
 	_collect_radio_tracks()
@@ -596,7 +602,7 @@ func _exit_crt_look_back() -> void:
 	_camera_tween.set_ease(Tween.EASE_OUT)
 	_camera_tween.set_trans(Tween.TRANS_SINE)
 	_camera_tween.tween_property(_interior_camera, "position", _crt_full_cam_pos, CRT_LOOK_BACK_TRANSITION_SEC)
-	_camera_tween.tween_property(_interior_camera, "rotation", CRT_SEAT_ROT, CRT_LOOK_BACK_TRANSITION_SEC)
+	_camera_tween.tween_property(_interior_camera, "rotation", _crt_rest_rot(_crt_full_cam_pos), CRT_LOOK_BACK_TRANSITION_SEC)
 	_camera_tween.tween_property(_interior_camera, "fov", CRT_READY_FOV, CRT_LOOK_BACK_TRANSITION_SEC)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
@@ -608,7 +614,7 @@ func _exit_crt_look_back() -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 	_interior_camera.rotation = _idle_cam_base_rot + offset
 
 
@@ -675,6 +681,9 @@ func _build_viewport() -> void:
 	_viewport_container.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	add_child(_viewport_container)
+	# The room in the game's low resolution like the world (the OS screen is laid over it
+	# sharp, see _update_crt_sharp).
+	RETRO_RENDER.register(_viewport_container)
 
 	_viewport = SubViewport.new()
 	_viewport.name = "InteriorViewport"
@@ -737,7 +746,7 @@ func _build_room() -> void:
 	_interior_camera = Camera3D.new()
 	_interior_camera.name = "InteriorCamera"
 	_interior_camera.position = RECEPTION_CAM_POS
-	_interior_camera.fov = 58.0
+	_interior_camera.fov = 68.0
 	_interior_camera.near = 0.05
 	_interior_camera.far = 22.0
 	_interior_camera.current = true
@@ -1182,6 +1191,10 @@ func _set_crt_viewport_live(active: bool) -> void:
 func _sync_interior_viewport_to_window() -> void:
 	if _viewport == null:
 		return
+	# The container stretches the viewport (stretch_shrink from RetroRender): setting the
+	# size by hand only warned and was ignored.
+	if _viewport_container != null and _viewport_container.stretch:
+		return
 	var screen_size = get_viewport().get_visible_rect().size
 	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
 		return
@@ -1220,7 +1233,7 @@ func enter_crt_view(instant: bool = false) -> void:
 	if _camera_tween: _camera_tween.kill()
 	if instant:
 		_interior_camera.position = _crt_full_cam_pos
-		_interior_camera.rotation = CRT_SEAT_ROT
+		_interior_camera.rotation = _crt_rest_rot(_crt_full_cam_pos)
 		_interior_camera.fov = CRT_READY_FOV
 		_capture_crt_orbit_anchor()
 		if _crt_ui:
@@ -1234,13 +1247,15 @@ func enter_crt_view(instant: bool = false) -> void:
 	# Target: Front of CRT (approx dist 0.5m so screen fits nice)
 	# Screen Z global: -0.535.
 	# Target Z: 0.1
+	_crt_orbit_enabled = false
 	_camera_tween.tween_property(_interior_camera, "position", _crt_view_cam_pos, 1.2)
-	_camera_tween.tween_property(_interior_camera, "rotation", CRT_SEAT_ROT, 1.2)
+	_camera_tween.tween_property(_interior_camera, "rotation", _crt_rest_rot(_crt_view_cam_pos), 1.2)
 	_camera_tween.tween_property(_interior_camera, "fov", CRT_ENTER_FOV, 1.2)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
 		_capture_crt_orbit_anchor()
+		_crt_orbit_enabled = true
 	)
 
 	if _crt_ui:
@@ -1249,6 +1264,7 @@ func enter_crt_view(instant: bool = false) -> void:
 
 func _exit_crt_view() -> void:
 	if not _crt_active: return
+	_crt_leaning = false
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
@@ -1307,6 +1323,19 @@ func _input(event: InputEvent) -> void:
 			if _handle_crt_look_back_key(key_event):
 				get_viewport().set_input_as_handled()
 				return
+			# Not typing into the machine: S stands you up, D (held) leans you out to
+			# look through the office window.
+			if not _crt_typing():
+				if key_event.physical_keycode == KEY_S and key_event.pressed and not key_event.echo:
+					_crt_lean(false, true)
+					_exit_crt_view()
+					get_viewport().set_input_as_handled()
+					return
+				if key_event.physical_keycode == KEY_D:
+					if not key_event.echo:
+						_crt_lean(key_event.pressed)
+					get_viewport().set_input_as_handled()
+					return
 			# The keyboard under your fingers: a clack per key (the shell's own sound).
 			if key_event.pressed and not key_event.echo and _crt_ui != null and _crt_ui.has_method("play"):
 				_crt_ui.play("key", randf_range(-17.0, -13.0))
@@ -1339,6 +1368,61 @@ func _input(event: InputEvent) -> void:
 			return
 		_try_click_crt(mouse_event)
 		get_viewport().set_input_as_handled()
+
+
+## Someone is typing into the machine (a text field has the focus): keys are letters.
+func _crt_typing() -> bool:
+	if _crt_viewport == null:
+		return false
+	var f := _crt_viewport.gui_get_focus_owner()
+	return f is LineEdit or f is TextEdit
+
+
+## The seated pose looking straight at the screen from `pos` (what the mouse orbit keeps
+## at its centre).
+func _crt_rest_rot(pos: Vector3) -> Vector3:
+	var pivot := _get_crt_orbit_pivot()
+	if _room_root != null and _interior_camera != null and _interior_camera.get_parent() is Node3D:
+		pivot = (_interior_camera.get_parent() as Node3D).to_local(pivot)
+	if pos.distance_to(pivot) < 0.01:
+		return CRT_SEAT_ROT
+	return Transform3D(Basis(), pos).looking_at(pivot, Vector3.UP).basis.get_euler()
+
+
+var _crt_leaning := false
+
+
+## D at the PC: lean out to the right, past the monitor, and look out of the office
+## window; let go and you are back at the screen.
+func _crt_lean(on: bool, instant := false) -> void:
+	if on == _crt_leaning or not _crt_active or _interior_camera == null:
+		return
+	_crt_leaning = on
+	_crt_orbit_enabled = false
+	if _camera_tween != null:
+		_camera_tween.kill()
+	if instant:
+		return
+	_camera_tween = create_tween()
+	_camera_tween.set_parallel(true)
+	_camera_tween.set_ease(Tween.EASE_IN_OUT)
+	_camera_tween.set_trans(Tween.TRANS_SINE)
+	if on:
+		var pos := _crt_full_cam_pos + Vector3(0.46, 0.08, -0.12)
+		var rot := Transform3D(Basis(), pos).looking_at(WINDOW_CENTER + Vector3(0, -0.12, 0), Vector3.UP).basis.get_euler()
+		_camera_tween.tween_property(_interior_camera, "position", pos, 0.55)
+		_camera_tween.tween_property(_interior_camera, "rotation", rot, 0.55)
+		_camera_tween.tween_property(_interior_camera, "fov", 44.0, 0.55)
+	else:
+		_camera_tween.tween_property(_interior_camera, "position", _crt_full_cam_pos, 0.45)
+		_camera_tween.tween_property(_interior_camera, "rotation", _crt_rest_rot(_crt_full_cam_pos), 0.45)
+		_camera_tween.tween_property(_interior_camera, "fov", CRT_READY_FOV, 0.45)
+		_camera_tween.finished.connect(func():
+			if not _crt_active or _crt_leaning:
+				return
+			_capture_crt_orbit_anchor()
+			_crt_orbit_enabled = true
+		)
 
 
 ## At the PC: the pointer below the monitor, in the bottom band (the OS cursor stops at
@@ -1570,17 +1654,21 @@ func _focus_crt_full() -> void:
 		return
 	if _camera_tween != null:
 		_camera_tween.kill()
+	# The desktop is up: lean in to it, slowly, to the pose the mouse orbit keeps (it used
+	# to snap there in 0.4 s to a fixed angle the orbit then pulled away from: a jerk).
+	_crt_orbit_enabled = false
 	_camera_tween = create_tween()
 	_camera_tween.set_parallel(true)
-	_camera_tween.set_ease(Tween.EASE_OUT)
-	_camera_tween.set_trans(Tween.TRANS_CUBIC)
-	_camera_tween.tween_property(_interior_camera, "position", _crt_full_cam_pos, 0.42)
-	_camera_tween.tween_property(_interior_camera, "rotation", CRT_SEAT_ROT, 0.42)
-	_camera_tween.tween_property(_interior_camera, "fov", CRT_READY_FOV, 0.42)
+	_camera_tween.set_ease(Tween.EASE_IN_OUT)
+	_camera_tween.set_trans(Tween.TRANS_SINE)
+	_camera_tween.tween_property(_interior_camera, "position", _crt_full_cam_pos, 1.1)
+	_camera_tween.tween_property(_interior_camera, "rotation", _crt_rest_rot(_crt_full_cam_pos), 1.1)
+	_camera_tween.tween_property(_interior_camera, "fov", CRT_READY_FOV, 1.1)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
 		_capture_crt_orbit_anchor()
+		_crt_orbit_enabled = true
 	)
 
 
@@ -2086,7 +2174,8 @@ func _build_desk_lamp(pc_root: Node3D) -> void:
 	_add_box(pc_root, "DeskLampButton", at + Vector3(0.06, 0.04, -0.03), Vector3(0.03, 0.02, 0.03), Color(0.2, 0.18, 0.16))
 	_add_box(pc_root, "DeskLampShade", at + Vector3(0, 0.33, 0.06), Vector3(0.3, 0.07, 0.15), Color(0.16, 0.42, 0.24))
 	_desk_lamp_shade = pc_root.get_node_or_null("DeskLampShade") as MeshInstance3D
-	_add_box(pc_root, "DeskLampShadeLip", at + Vector3(0, 0.3, 0.06), Vector3(0.3, 0.012, 0.16), Color(0.66, 0.54, 0.3))
+	# The brass lip under the shade, clear of its bottom face (they used to share it: flicker).
+	_add_box(pc_root, "DeskLampShadeLip", at + Vector3(0, 0.284, 0.06), Vector3(0.32, 0.012, 0.17), Color(0.66, 0.54, 0.3))
 	_desk_lamp_body = StaticBody3D.new()
 	_desk_lamp_body.name = "DeskLampHot"
 	_desk_lamp_body.set_meta("extra_hot", "desklamp")

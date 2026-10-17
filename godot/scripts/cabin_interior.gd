@@ -63,7 +63,7 @@ var _sunlight_color: Color = Color(1.0, 0.95, 0.84)
 var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Standing inside the door of the cabin: most of the room, never the door behind you.
-var _look = INTERIOR_LOOK.new(72.0, 20.0, 30.0)
+var _look = INTERIOR_LOOK.new(72.0, 28.0, 38.0)
 var _exit_hint: Control
 var _level2_nodes: Array[String] = ["WallLamp", "Wardrobe", "FridgeSmall"]
 var _level2_only: Array[String] = ["PosterLake"]
@@ -137,6 +137,9 @@ func set_guest_occupants(entries: Array) -> void:
 
 
 func open_cabin(level: int = 1) -> void:
+	# Registered before it was in the tree (size 0, shrink 1): the low resolution now.
+	if _viewport_container != null:
+		RETRO_RENDER.apply_to(_viewport_container)
 	_cabin_level = clampi(level, 1, 3)
 	_manual_lights_on = true
 	_apply_switch_visual()
@@ -183,8 +186,12 @@ func _process(delta: float) -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 	_interior_camera.rotation = _cam_base_rot + offset
+	# A/D turn the head; held on at the end of the turn, through the door that way.
+	var push: int = _look.take_push()
+	if push != 0:
+		_switch_cabin_room(push)
 
 
 func _input(event: InputEvent) -> void:
@@ -203,6 +210,11 @@ func _input(event: InputEvent) -> void:
 		if _prep.is_busy():
 			get_viewport().set_input_as_handled()
 			return
+		var tab := INTERIOR_LOOK.side_tab_at(get_viewport(), _side_hints)
+		if tab != 0:
+			_switch_cabin_room(tab)
+			get_viewport().set_input_as_handled()
+			return
 		if _try_click_world(mouse_event):
 			get_viewport().set_input_as_handled()
 			return
@@ -210,14 +222,6 @@ func _input(event: InputEvent) -> void:
 	
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key_event = event as InputEventKey
-		if key_event.physical_keycode == KEY_D:
-			_switch_cabin_room(1)
-			get_viewport().set_input_as_handled()
-			return
-		if key_event.physical_keycode == KEY_A:
-			_switch_cabin_room(-1)
-			get_viewport().set_input_as_handled()
-			return
 		if key_event.physical_keycode == KEY_L:
 			_toggle_manual_lights()
 			get_viewport().set_input_as_handled()
@@ -412,6 +416,8 @@ func _build_viewport() -> void:
 
 
 func _sync_viewport_to_window() -> void:
+	if _viewport_container != null and _viewport_container.stretch:
+		return
 	if _viewport == null:
 		return
 	var screen_size = get_viewport().get_visible_rect().size
@@ -440,7 +446,7 @@ func _build_cabin_room() -> void:
 	_interior_camera.name = "CabinCamera"
 	_interior_camera.position = Vector3(0.0, 1.5, 1.0)
 	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
-	_interior_camera.fov = 60.0
+	_interior_camera.fov = 68.0
 	_interior_camera.current = true
 	_cabin_root.add_child(_interior_camera)
 
@@ -832,6 +838,8 @@ func _update_swipe_overlay_size() -> void:
 func _set_cabin_room(room: String, update_camera: bool = true) -> void:
 	if _cabin_root == null or _bathroom_root == null:
 		return
+	if room != _active_room:
+		_look.reset()
 	_active_room = room
 	_cabin_root.visible = (room == "main")
 	_bathroom_root.visible = (room == "bathroom")

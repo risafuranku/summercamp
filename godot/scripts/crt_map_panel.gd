@@ -7,6 +7,7 @@ signal submenu_close_requested
 signal hover_info(text: String)
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const SFX_DIR := "res://assets/sfx/builder/"
 
 ## Status severity, consumed by builder_module for colour + audio feedback.
@@ -889,6 +890,7 @@ func _draw_dynamic() -> void:
 	_append_guest_entries(entries, origin, tile_w, tile_h)
 	for g in entries:
 		_draw_guest(g, tile_h)
+	_draw_lodging_badges(origin, tile_w, tile_h)
 	var lights: Array = []
 	for l in _lights:
 		lights.append([_s2d(l[0]), l[1]])
@@ -909,6 +911,33 @@ func _draw_dynamic() -> void:
 	_draw_rotation_panel()
 	_draw_minimap(origin, tile_w, tile_h)
 	_draw_hover_card()
+
+
+## Every lodging's name over its roof, small: T1, C2, V1 (as on its key at the desk and
+## on Vera's plan), so you know which is which without walking in.
+func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	if GuestManager == null or not GuestManager.has_method("room_short"):
+		return
+	var accs: Dictionary = GuestManager.get_accommodation_states()
+	for key in accs.keys():
+		var acc: Dictionary = accs[key]
+		var kind: String = GuestManager.lodging_kind(str(acc.get("building_type", "")))
+		if kind == "":
+			continue
+		var c: Vector2i = acc.get("coord", Vector2i(-1, -1)) if acc.get("coord", null) is Vector2i else SAVE_CODEC.coord_from_key(str(key))
+		if c.x < 0:
+			continue
+		var def = CoreRoot.registry.get_def(StringName(str(acc.get("building_type", "")))) if CoreRoot != null else null
+		var fp: Vector2i = def.footprint if def != null else Vector2i.ONE
+		var p := _cell_to_iso_f(Vector2(c) + Vector2(fp) * 0.5 - Vector2(0.5, 0.5), origin, tile_w, tile_h) - Vector2(0, tile_h * 1.25)
+		var text: String = GuestManager.room_short(str(key))
+		var fs := T.FONT_SIZE
+		var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var r := Rect2((p - Vector2(tw * 0.5 + 3, 7)).floor(), Vector2(tw + 6, 13))
+		var col: Color = {"tent": Color8(48, 112, 54), "cabin": Color8(168, 38, 30), "caravan": Color8(42, 72, 150)}.get(kind, Color8(90, 90, 90))
+		_cv.draw_rect(r.grow(1), Color(0, 0, 0, 0.55))
+		_cv.draw_rect(r, col)
+		_cv.draw_string(T.FONT, r.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(250, 244, 226))
 
 
 func _build_minimap(grid_w: int, grid_h: int) -> void:
@@ -2138,6 +2167,9 @@ func _describe(coord: Vector2i) -> String:
 				what = "Pine tree"
 			elif root != null:
 				what = _display_name(str(root.get_meta("building_type", "")))
+				var o = root.get_meta("grid_origin", null)
+				if o is Vector2i and GuestManager != null and GuestManager.room_number("%d:%d" % [o.x, o.y]) > 0:
+					return GuestManager.room_label("%d:%d" % [o.x, o.y])
 	return "%d:%d  %s" % [coord.x, coord.y, what]
 
 

@@ -52,7 +52,7 @@ var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Standing in a service building: you look around the room you are in.
 var _sewer_hint: Label3D
 var _sewer_broken: bool = false
-var _look = INTERIOR_LOOK.new(65.0, 20.0, 30.0)
+var _look = INTERIOR_LOOK.new(65.0, 28.0, 38.0)
 var _side_hints: Control
 ## The generator shed's two rooms, the junk and the board (scripts/shed/generator_shed.gd).
 var _shed
@@ -138,6 +138,9 @@ func set_grid_power_available(power_available: bool) -> void:
 
 
 func open_service(service_type: String) -> void:
+	# Registered before it was in the tree (size 0, shrink 1): the low resolution now.
+	if _viewport_container != null:
+		RETRO_RENDER.apply_to(_viewport_container)
 	_service_type = service_type
 	var wanted_profile = _profile_for_service(service_type)
 	if wanted_profile == "rest":
@@ -196,8 +199,12 @@ func _process(delta: float) -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 	_interior_camera.rotation = _cam_base_rot + offset
+	# A/D turn the head; held on at the end of the turn, through the door that way.
+	var push: int = _look.take_push()
+	if push != 0:
+		_switch_service_room(push)
 
 
 func _input(event: InputEvent) -> void:
@@ -212,6 +219,11 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		var mouse_event = event as InputEventMouseButton
+		var tab := INTERIOR_LOOK.side_tab_at(get_viewport(), _side_hints)
+		if tab != 0:
+			_switch_service_room(tab)
+			get_viewport().set_input_as_handled()
+			return
 		if _try_click_world(mouse_event):
 			get_viewport().set_input_as_handled()
 			return
@@ -221,14 +233,6 @@ func _input(event: InputEvent) -> void:
 		return
 	if _current_profile in ["sewer", "generator"] and event.is_action_pressed("interact"):
 		_try_request_service_repair()
-		get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed("service_room_next"):
-		_switch_service_room(1)
-		get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed("service_room_prev"):
-		_switch_service_room(-1)
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("service_secret_room"):
@@ -241,14 +245,6 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key_event = event as InputEventKey
-		if key_event.physical_keycode == KEY_D:
-			_switch_service_room(1)
-			get_viewport().set_input_as_handled()
-			return
-		if key_event.physical_keycode == KEY_A:
-			_switch_service_room(-1)
-			get_viewport().set_input_as_handled()
-			return
 		if key_event.physical_keycode == KEY_L:
 			_toggle_manual_service_lights()
 			get_viewport().set_input_as_handled()
@@ -531,7 +527,7 @@ func _build_service_room(profile: String) -> void:
 	_interior_camera.name = "ServiceCamera"
 	_interior_camera.position = Vector3(0.0, 1.46, 1.96)
 	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
-	_interior_camera.fov = 60.0
+	_interior_camera.fov = 68.0
 	_interior_camera.near = 0.05
 	_interior_camera.far = 18.0
 	_interior_camera.current = true
@@ -986,6 +982,8 @@ func _toggle_kitchen_texture_variant() -> void:
 
 
 func _apply_service_subroom(target_room: String, update_camera: bool = true) -> void:
+	# Through the door you face the new room, not the wall you pushed at.
+	_look.reset()
 	if _current_profile == "rest":
 		_set_restaurant_room(target_room, update_camera)
 	elif _current_profile == "vecerka":
@@ -1061,6 +1059,8 @@ func _update_swipe_overlay_size() -> void:
 
 
 func _sync_viewport_to_window() -> void:
+	if _viewport_container != null and _viewport_container.stretch:
+		return
 	if _viewport == null:
 		return
 	var screen_size = get_viewport().get_visible_rect().size

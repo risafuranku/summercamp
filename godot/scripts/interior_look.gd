@@ -43,6 +43,11 @@ var _pitch_speed: float = 0.0
 var _sway := Vector2.ZERO
 var _sway_v := Vector2.ZERO
 var _t := 0.0
+## Holding a turn key on at the end of the range: through the door on that side.
+const PUSH_THROUGH_SEC := 0.32
+var _push_t := 0.0
+var _push_dir := 0
+var _pushed := 0
 
 
 func _init(p_yaw_limit_deg: float = 60.0, p_pitch_up_deg: float = 18.0, p_pitch_down_deg: float = 24.0) -> void:
@@ -84,6 +89,7 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 		yaw_deg = _advance(yaw_deg, _yaw_speed * dt, -yaw_limit_deg, yaw_limit_deg)
 	pitch_deg = _advance(pitch_deg, _pitch_speed * dt, -pitch_down_deg, pitch_up_deg)
 
+	_track_push(clampf(key_axis, -1.0, 1.0), dt)
 	var sway_target := Vector2.ZERO
 	if steer:
 		sway_target = Vector2((cursor.x - 0.5) * 2.0, (cursor.y - 0.5) * 2.0)
@@ -98,6 +104,35 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 		deg_to_rad(yaw_deg - _sway.x * SWAY_YAW_DEG),
 		0.0
 	)
+
+
+func _track_push(k: float, dt: float) -> void:
+	if yaw_limit_deg >= 180.0:
+		return
+	var dir := 0
+	if k < -0.5 and yaw_deg >= yaw_limit_deg - 1.5:
+		dir = -1
+	elif k > 0.5 and yaw_deg <= -yaw_limit_deg + 1.5:
+		dir = 1
+	if dir == 0:
+		_push_t = 0.0
+		_push_dir = 0
+		return
+	if dir != _push_dir:
+		_push_dir = dir
+		_push_t = 0.0
+	_push_t += dt
+	if _push_t >= PUSH_THROUGH_SEC:
+		_pushed = dir
+		_push_t = -100.0   # once per push: let go and push again
+
+
+## -1 / 1 once the head has been pushed on past the end of the turn (A/D or arrows held),
+## else 0. Reading it clears it.
+func take_push() -> int:
+	var p := _pushed
+	_pushed = 0
+	return p
 
 
 ## Turn speed toward `want`: picking up at ACCEL, braking (toward zero or the other way)
@@ -141,6 +176,31 @@ static func cursor_of(viewport: Viewport) -> Vector2:
 	if m.x < 0.0 or m.y < 0.0 or m.x > screen.x or m.y > screen.y:
 		return Vector2(-1.0, -1.0)
 	return m / screen
+
+
+## A/D and the arrow keys as an axis (-1..1): turning the head in a room.
+static func turn_axis() -> float:
+	var axis := key_axis()
+	if Input.is_physical_key_pressed(KEY_A):
+		axis -= 1.0
+	if Input.is_physical_key_pressed(KEY_D):
+		axis += 1.0
+	return clampf(axis, -1.0, 1.0)
+
+
+## Which side tab a click hit (-1 left, 1 right, 0 none): the tabs are a few percent of
+## the width at mid height (make_side_hints).
+static func side_tab_at(viewport: Viewport, hints: Control) -> int:
+	if hints == null:
+		return 0
+	var c := cursor_of(viewport)
+	if c.x < 0.0 or absf(c.y - 0.5) > 0.05:
+		return 0
+	if c.x < 0.09 and str(hints.get_meta("left", "")) != "":
+		return -1
+	if c.x > 0.91 and str(hints.get_meta("right", "")) != "":
+		return 1
+	return 0
 
 
 ## Left/right arrow keys as an axis (-1..1).
