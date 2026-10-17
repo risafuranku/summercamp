@@ -25,6 +25,6 @@ power_provide = 0
 water_provide = 0
 sewage_provide = 0
 waste_provide = 0
-maintenance_decay = 0.40
+maintenance_decay = 0.06
 tags = PackedStringArray("light")
 footprint = Vector2i(1, 1)

@@ -83,6 +83,11 @@ func _process(delta: float) -> void:
 			entry["dark_until"] = 0.0
 			entry["flicker_remaining"] = 0.7
 			_apply_lamp_entry_base_state(entry, _lamps_active)
+		# A bulb near its end stutters now and then between the rolls.
+		var tired := 1.0 - _wear_of(entry)
+		if _lamps_active and tired > 0.5 and float(entry.get("flicker_remaining", 0.0)) <= 0.0 and _lamp_rng.randf() < delta * (tired - 0.5) * 0.5:
+			entry["flicker_remaining"] = _lamp_rng.randf_range(0.2, 0.9)
+			entry["flicker_phase"] = _lamp_rng.randf_range(0.0, TAU)
 		_update_lamp_flicker(entry, maxf(delta, 0.0))
 		_lamp_runtime[lamp_id] = entry
 
@@ -127,6 +132,31 @@ func setup(grid_manager) -> void:
 ## Lamps whose bulb has gone (a breakdown, a night job): dark until repaired, whatever
 ## the grid does. Keys are grid origins "x:y".
 var _broken_lamps: Dictionary = {}
+## How bright each lamp's bulb still is (maintenance_controller: the wear), "x:y" -> 0..1.
+var _lamp_wear: Dictionary = {}
+
+
+func set_lamp_wear(key: String, brightness: float) -> void:
+	if absf(float(_lamp_wear.get(key, 1.0)) - brightness) < 0.005:
+		return
+	_lamp_wear[key] = brightness
+	for lamp_id in _lamp_runtime.keys():
+		var entry: Dictionary = _lamp_runtime[lamp_id]
+		if _lamp_key(entry) == key:
+			_apply_lamp_entry_base_state(entry, _lamps_active)
+			_lamp_runtime[lamp_id] = entry
+
+
+func _lamp_key(entry: Dictionary) -> String:
+	var root = entry.get("root", null) as Node3D
+	if root == null or not is_instance_valid(root):
+		return ""
+	var origin = root.get_meta("grid_origin", null)
+	return "%d:%d" % [(origin as Vector2i).x, (origin as Vector2i).y] if origin is Vector2i else ""
+
+
+func _wear_of(entry: Dictionary) -> float:
+	return float(_lamp_wear.get(_lamp_key(entry), 1.0))
 
 
 func set_broken_lamps(keys: Array) -> void:
@@ -1377,7 +1407,9 @@ func _roll_lamp_flickers() -> void:
 		var entry: Dictionary = entry_any
 		if float(entry.get("flicker_remaining", 0.0)) > 0.0:
 			continue
-		if _lamp_rng.randf() <= 0.10:
+		# A tired bulb flickers more and longer.
+		var tired := 1.0 - _wear_of(entry)
+		if _lamp_rng.randf() <= 0.10 + tired * 0.6:
 			entry["flicker_remaining"] = _lamp_rng.randf_range(0.10, 0.30)
 			entry["flicker_phase"] = _lamp_rng.randf_range(0.0, TAU)
 			_lamp_runtime[lamp_id] = entry
@@ -1389,9 +1421,12 @@ func _apply_lamp_entry_base_state(entry: Dictionary, active: bool) -> void:
 	var fill = entry.get("fill", null) as OmniLight3D
 	var beam = entry.get("beam", null) as MeshInstance3D
 	var dust = entry.get("dust", null) as GPUParticles3D
-	var base_spot = float(entry.get("base_spot_energy", 1.0))
-	var base_fill = float(entry.get("base_fill_energy", 0.0))
+	var wear := _wear_of(entry)
+	var base_spot = float(entry.get("base_spot_energy", 1.0)) * wear
+	var base_fill = float(entry.get("base_fill_energy", 0.0)) * wear
 	var beam_mat = beam.material_override as StandardMaterial3D if beam != null else null
+	if wear <= 0.0:
+		active = false
 	if active:
 		if spot != null:
 			spot.visible = true
@@ -1404,8 +1439,8 @@ func _apply_lamp_entry_base_state(entry: Dictionary, active: bool) -> void:
 		if beam_mat != null:
 			var base_alpha = float(beam_mat.get_meta("beam_base_alpha", 0.085))
 			var base_emission = float(beam_mat.get_meta("beam_base_emission", 0.30))
-			beam_mat.albedo_color = Color(beam_mat.albedo_color.r, beam_mat.albedo_color.g, beam_mat.albedo_color.b, base_alpha)
-			beam_mat.emission_energy_multiplier = base_emission
+			beam_mat.albedo_color = Color(beam_mat.albedo_color.r, beam_mat.albedo_color.g, beam_mat.albedo_color.b, base_alpha * wear)
+			beam_mat.emission_energy_multiplier = base_emission * wear
 		if dust != null:
 			dust.emitting = true
 	else:
@@ -1431,6 +1466,11 @@ func _update_lamp_flicker(entry: Dictionary, delta: float) -> void:
 	if remaining <= 0.0:
 		return
 	remaining = maxf(0.0, remaining - delta)
+	if remaining <= 0.0:
+		# The stutter is over: back to the bulb's steady light.
+		entry["flicker_remaining"] = 0.0
+		_apply_lamp_entry_base_state(entry, _lamps_active)
+		return
 	var phase = float(entry.get("flicker_phase", 0.0))
 	phase += delta * 42.0
 	entry["flicker_remaining"] = remaining
@@ -1440,8 +1480,9 @@ func _update_lamp_flicker(entry: Dictionary, delta: float) -> void:
 	var spot = entry.get("spot", null) as SpotLight3D
 	var fill = entry.get("fill", null) as OmniLight3D
 	var beam = entry.get("beam", null) as MeshInstance3D
-	var base_spot = float(entry.get("base_spot_energy", 1.0))
-	var base_fill = float(entry.get("base_fill_energy", 0.0))
+	var wear := _wear_of(entry)
+	var base_spot = float(entry.get("base_spot_energy", 1.0)) * wear
+	var base_fill = float(entry.get("base_fill_energy", 0.0)) * wear
 	if spot != null:
 		spot.light_energy = base_spot * pulse
 	if fill != null:

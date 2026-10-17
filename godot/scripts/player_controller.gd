@@ -127,6 +127,8 @@ var _flashlight_user_enabled: bool = true
 var _flashlight_active: bool = false
 var _flashlight_flicker_time: float = 0.0
 var stamina: float = 1.0
+## 0..1: how far the torch is lowered while you run (the beam dips, the hand drops).
+var sprint_lower := 0.0
 var _stamina_locked: bool = false
 var flashlight_battery: float = 1.0
 ## Extra drain multiplier enemies may push for a frame (the Girl eats light).
@@ -272,6 +274,7 @@ func _physics_process(delta: float) -> void:
 	var move_dir = (global_transform.basis * local_dir).normalized()
 	var wants_sprint := Input.is_action_pressed("move_sprint") and input_vec.length_squared() > 0.01
 	var sprinting := wants_sprint and not _stamina_locked and stamina > 0.0
+	sprint_lower = move_toward(sprint_lower, 1.0 if sprinting else 0.0, delta * 3.0)
 	_update_stamina(delta, sprinting)
 	var current_speed = (sprint_speed if sprinting else move_speed) * terrain_speed_mult
 	var target_x = move_dir.x * current_speed
@@ -354,6 +357,13 @@ func set_flashlight_allowed(allowed: bool) -> void:
 
 func is_flashlight_active() -> bool:
 	return _flashlight_active
+
+
+## In a dark room the torch is on whenever you have not switched it off and the cell is
+## not flat, whatever the hour outside (it is only allowed outdoors from 19:30; a tent
+## is dark from 18:00).
+func torch_wanted_indoors() -> bool:
+	return not _flashlight_user_chose_off and flashlight_battery > 0.02
 
 
 ## F: the torch on or off (also from inside a room, scripts/ui/interior_torch.gd).
@@ -763,12 +773,19 @@ func get_beam_lag() -> Vector2:
 	return Vector2(atan2(local.x, -local.z), asin(clampf(local.y, -1.0, 1.0)))
 
 
-## The torch in your hand: it aims a little below the crosshair, catches up with a turn a
-## beat late and swings with your step.
+## The torch in your hand: it aims a little below the crosshair and a little right of it,
+## out of the torch you see in your hand (scripts/ui/torch_hand.gd, the lens a bit right
+## of the middle), catches up with a turn a beat late, swings with your step and dips
+## while you run.
+const BEAM_YAW_DEG := -6.0
+const BEAM_PITCH_DEG := -7.0
+const BEAM_RUN_DIP_DEG := -8.0
+
+
 func _aim_beam(delta: float) -> void:
 	if _camera == null or _flashlight == null:
 		return
-	var target := _camera.global_basis.orthonormalized() * Basis(Vector3.RIGHT, deg_to_rad(-6.0))
+	var target := _camera.global_basis.orthonormalized() * Basis(Vector3.UP, deg_to_rad(BEAM_YAW_DEG)) * Basis(Vector3.RIGHT, deg_to_rad(BEAM_PITCH_DEG + BEAM_RUN_DIP_DEG * sprint_lower))
 	target = target * Basis(Vector3.UP, _bob_offset.x * 1.1) * Basis(Vector3.RIGHT, -_bob_offset.y * 0.8)
 	var tq := target.orthonormalized().get_rotation_quaternion()
 	if not _beam_ready:

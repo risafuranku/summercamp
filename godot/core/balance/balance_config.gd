@@ -5,7 +5,7 @@ extends Resource
 ## This resource should be loaded by CoreRoot or Systems.
 
 # --- Economy ---
-const STARTING_MONEY: int = 850
+const STARTING_MONEY: int = 1250
 const BASE_INCOME_PER_GUEST: int = 15
 const REFUND_RATIO: float = 0.5 
 

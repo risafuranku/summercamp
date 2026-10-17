@@ -247,12 +247,18 @@ func set_grid_power_available(power_available: bool) -> void:
 		_apply_grid_power_to_interior(interior)
 
 
+## The camp's light as last pushed (main, every sync): given to a room as it opens, so it
+## never shows the light of when it was last open for its first frames.
+var _last_light: Array = []
+
+
 func apply_dynamic_lighting(
 	daylight_factor: float,
 	sun_color: Color,
 	ambient_color: Color,
 	ambient_energy: float
 ) -> void:
+	_last_light = [daylight_factor, sun_color, ambient_color, ambient_energy]
 	for interior in _get_registered_interior_nodes():
 		_apply_dynamic_light_to_interior(interior, daylight_factor, sun_color, ambient_color, ambient_energy)
 
@@ -411,6 +417,8 @@ func _set_player_controls_enabled(enabled: bool) -> void:
 func _apply_time_to_interior(interior: Object) -> void:
 	if interior == null:
 		return
+	if not _last_light.is_empty() and interior.has_method("set_daylight_profile"):
+		interior.set_daylight_profile(_last_light[0], _last_light[1], _last_light[2], _last_light[3])
 	if interior.has_method("set_time_state"):
 		interior.set_time_state(_current_time_state)
 	elif interior.has_method("set_is_day"):

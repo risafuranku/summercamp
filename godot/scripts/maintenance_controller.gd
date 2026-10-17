@@ -1,6 +1,9 @@
 extends Node
 
 ## Upkeep in the world: what the player sees and does about building condition.
+## Only the lamps wear (core/systems/maintenance_rules.gd): they dim day by day and go out
+## when spent; hold R at one to put in a new bulb (the wrench). The derelict cabin of the
+## start is the other thing R mends. Wear left on anything else (old saves) is cleared.
 ##
 ## - Every building's condition (GridModel cell "maintenance", 0..1) is mirrored onto
 ##   its structure, which darkens and corrodes as it wears (BuildingManager).
@@ -109,14 +112,8 @@ func hint_for_view(has_other_hint: bool) -> String:
 	if broken and str(_target["type"]) == "sewer":
 		# A broken sewer is fixed from the inside (the pipe crawl).
 		parts.append("BROKEN - [E] go down and fix it")
-	elif CLEANED_INSIDE.has(str(_target["type"])):
-		# Toilets and showers are cleaned (and unblocked) by hand, inside.
-		if broken:
-			parts.append("BROKEN - [E] go in and fix it")
-		elif condition < 0.9:
-			parts.append("DIRTY - [E] go in and clean it")
-		elif has_other_hint:
-			return ""
+	elif broken and str(_target["type"]) == "lamp_post":
+		parts.append("[R] New bulb $%d" % int(_target["cost"]))
 	elif broken:
 		parts.append("[R] Repair $%d" % int(_target["cost"]))
 	elif condition < 0.9:
@@ -132,38 +129,90 @@ func _sync_world() -> void:
 	var state = CoreRoot.get_state()
 	if state == null or state.grid == null or _building_manager == null:
 		return
-	var structures := _structures_by_key()
+	_clear_old_wear(state)
 	var seen := {}
-	for coord_any in state.grid.cells.keys():
-		var coord: Vector2i = coord_any
-		var cell: Dictionary = state.grid.cells[coord]
-		if cell.get("root_coord", coord) != coord:
-			continue
-		var type := str(cell.get("type", ""))
-		var def = CoreRoot.registry.get_def(StringName(type))
-		if not RULES.can_break(type, def):
-			continue
-		var key := "%d:%d" % [coord.x, coord.y]
-		var structure: Node3D = structures.get(key, null)
+	for row in _wear_rows():
+		var key := str(row["key"])
+		var structure: Node3D = row["structure"]
 		if structure == null:
 			continue
 		seen[key] = true
-		var condition := float(cell.get("maintenance", 1.0))
-		var broken: bool = state.failures.has(key)
-		# Corrosion look follows condition; a broken building reads as fully worn.
+		var condition: float = row["condition"]
+		var broken: bool = row["broken"]
 		var shown := 0.0 if broken else condition
 		if absf(float(_conditions_shown.get(key, -1.0)) - shown) > 0.02:
 			_conditions_shown[key] = shown
-			if _building_manager.has_method("set_structure_condition"):
+			if str(row["type"]) == "lamp_post":
+				# A lamp shows its wear in its light, not in rust.
+				if _building_manager.has_method("set_lamp_wear"):
+					_building_manager.set_lamp_wear(key, RULES.lamp_brightness(shown))
+			elif _building_manager.has_method("set_structure_condition"):
 				_building_manager.set_structure_condition(structure, shown)
-		var want := "broken" if broken else ("poor" if condition < RULES.SAFE_CONDITION else "")
-		_set_sign(key, want, structure)
+		# Only a dead lamp (or the derelict cabin) gets the blinking sign.
+		_set_sign(key, "broken" if broken else "", structure)
 	for key in _markers.keys():
 		if not seen.has(key):
 			_set_sign(key, "", null)
 	for key in _conditions_shown.keys():
 		if not seen.has(key):
 			_conditions_shown.erase(key)
+
+
+## What can be mended: every lamp (on its own tile or on a path) and the derelict cabin.
+## [{key, coord, type, def, condition, broken, structure}].
+func _wear_rows() -> Array:
+	var out: Array = []
+	var state = CoreRoot.get_state()
+	if state == null or state.grid == null:
+		return out
+	var lamp_def = CoreRoot.registry.get_def(&"lamp_post")
+	var lamps := {}
+	for n in get_tree().get_nodes_in_group("lamp_posts"):
+		var l := n as Node3D
+		if l != null and l.has_meta("grid_origin"):
+			var o: Vector2i = l.get_meta("grid_origin")
+			lamps["%d:%d" % [o.x, o.y]] = l
+	for coord in state.grid.lamp_coords():
+		var key := "%d:%d" % [coord.x, coord.y]
+		out.append({"key": key, "coord": coord, "type": "lamp_post", "def": lamp_def,
+			"condition": RULES.lamp_condition(state.grid.cells[coord]), "broken": state.failures.has(key), "structure": lamps.get(key, null)})
+	var structures := _structures_by_key()
+	for key in state.failures.keys():
+		var f: Dictionary = state.failures[key]
+		if not bool(f.get("derelict", false)):
+			continue
+		var coord: Vector2i = f.get("coord", Vector2i.ZERO)
+		var cell: Dictionary = state.grid.cells.get(coord, {})
+		var type := str(cell.get("type", f.get("type", "")))
+		out.append({"key": str(key), "coord": coord, "type": type, "def": CoreRoot.registry.get_def(StringName(type)),
+			"condition": float(cell.get("maintenance", 0.2)), "broken": true, "structure": structures.get(str(key), null)})
+	return out
+
+
+## Old saves: buildings worn or broken from before only the lamps wore go back to whole
+## (a derelict building stays as it is: that one is mended by hand).
+func _clear_old_wear(state) -> void:
+	var lamp_keys := {}
+	for coord in state.grid.lamp_coords():
+		lamp_keys["%d:%d" % [coord.x, coord.y]] = true
+	for key in state.failures.keys():
+		var f: Dictionary = state.failures[key]
+		if lamp_keys.has(str(key)) or bool(f.get("derelict", false)):
+			continue
+		CoreRoot.actions.clear_wear(f.get("coord", Vector2i.ZERO))
+		var s: Node3D = _structures_by_key().get(str(key), null)
+		if s != null and _building_manager.has_method("set_structure_condition"):
+			_building_manager.set_structure_condition(s, 1.0)
+	for coord_any in state.grid.cells.keys():
+		var coord: Vector2i = coord_any
+		var cell: Dictionary = state.grid.cells[coord]
+		if cell.get("root_coord", coord) != coord or str(cell.get("type", "")) == "lamp_post":
+			continue
+		if float(cell.get("maintenance", 1.0)) < 1.0 and not state.failures.has("%d:%d" % [coord.x, coord.y]):
+			CoreRoot.actions.clear_wear(coord)
+			var s2: Node3D = _structures_by_key().get("%d:%d" % [coord.x, coord.y], null)
+			if s2 != null and _building_manager.has_method("set_structure_condition"):
+				_building_manager.set_structure_condition(s2, 1.0)
 
 
 func _structures_by_key() -> Dictionary:
@@ -245,27 +294,18 @@ func _find_target() -> Dictionary:
 	var cam: Camera3D = _camera_getter.call() if _camera_getter.is_valid() else null
 	if cam == null or not is_instance_valid(cam):
 		return {}
-	var state = CoreRoot.get_state()
-	if state == null:
-		return {}
 	var origin := cam.global_position
 	var forward := -cam.global_transform.basis.z.normalized()
 	var best := {}
 	var best_score := INF
-	var structures := _structures_by_key()
-	for key in structures.keys():
-		var s: Node3D = structures[key]
-		var origin_coord: Vector2i = s.get_meta("grid_origin")
-		if not state.grid.cells.has(origin_coord):
+	for row in _wear_rows():
+		var s: Node3D = row["structure"]
+		if s == null or not is_instance_valid(s):
 			continue
-		var cell: Dictionary = state.grid.cells[origin_coord]
-		var type := str(cell.get("type", ""))
-		var def = CoreRoot.registry.get_def(StringName(type))
-		if not RULES.can_break(type, def):
-			continue
+		var lamp: bool = str(row["type"]) == "lamp_post"
 		var footprint: Vector2i = s.get_meta("grid_footprint", Vector2i.ONE)
-		var reach := VIEW_DISTANCE + float(maxi(footprint.x, footprint.y)) * 0.9
-		var center := s.global_position + Vector3(0.0, 1.0, 0.0)
+		var reach := VIEW_DISTANCE + (0.0 if lamp else float(maxi(footprint.x, footprint.y)) * 0.9)
+		var center := s.global_position + Vector3(0.0, 1.4 if lamp else 1.0, 0.0)
 		var to := center - origin
 		var dist := to.length()
 		if dist > reach or dist < 0.01:
@@ -276,11 +316,12 @@ func _find_target() -> Dictionary:
 		var score := dist * (2.0 - dot)
 		if score < best_score:
 			best_score = score
-			var condition := float(cell.get("maintenance", 1.0))
-			var broken: bool = state.failures.has(key)
+			var def = row["def"]
+			var condition: float = row["condition"]
+			var broken: bool = row["broken"]
 			best = {
-				"key": key, "coord": origin_coord, "type": type,
-				"label": str(def.display_name).split(" (")[0],
+				"key": str(row["key"]), "coord": row["coord"], "type": str(row["type"]),
+				"label": str(def.display_name).split(" (")[0] if def != null else str(row["type"]).capitalize(),
 				"condition": condition, "broken": broken,
 				"cost": RULES.repair_cost(def) if broken else RULES.service_cost(def, condition),
 				"seconds": RULES.work_seconds(condition, broken),
@@ -374,32 +415,22 @@ func _play(path: String, pitch: float) -> void:
 ## Every building that can wear, worst first.
 func get_upkeep_snapshot() -> Dictionary:
 	var rows: Array = []
-	var state = CoreRoot.get_state()
 	var crew_cost := 0
 	var needs_crew := 0
-	if state != null and state.grid != null:
-		for coord_any in state.grid.cells.keys():
-			var coord: Vector2i = coord_any
-			var cell: Dictionary = state.grid.cells[coord]
-			if cell.get("root_coord", coord) != coord:
-				continue
-			var type := str(cell.get("type", ""))
-			var def = CoreRoot.registry.get_def(StringName(type))
-			if not RULES.can_break(type, def):
-				continue
-			var key := "%d:%d" % [coord.x, coord.y]
-			var condition := float(cell.get("maintenance", 1.0))
-			var broken: bool = state.failures.has(key)
-			var cost := RULES.repair_cost(def) if broken else RULES.service_cost(def, condition)
-			rows.append({
-				"key": key, "coord": coord, "type": type,
-				"label": str(def.display_name).split(" (")[0],
-				"condition": condition, "broken": broken, "cost": cost,
-				"decay": float(def.maintenance_decay),
-			})
-			if broken or condition < RULES.WORN_CONDITION:
-				crew_cost += int(ceil(float(cost) * RULES.CREW_PREMIUM))
-				needs_crew += 1
+	for row in _wear_rows():
+		var def = row["def"]
+		var condition: float = row["condition"]
+		var broken: bool = row["broken"]
+		var cost := RULES.repair_cost(def) if broken else RULES.service_cost(def, condition)
+		rows.append({
+			"key": str(row["key"]), "coord": row["coord"], "type": str(row["type"]),
+			"label": str(def.display_name).split(" (")[0] if def != null else str(row["type"]),
+			"condition": condition, "broken": broken, "cost": cost,
+			"decay": float(def.maintenance_decay) if def != null else 0.0,
+		})
+		if broken or condition < RULES.WORN_CONDITION:
+			crew_cost += int(ceil(float(cost) * RULES.CREW_PREMIUM))
+			needs_crew += 1
 	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if bool(a["broken"]) != bool(b["broken"]):
 			return bool(a["broken"])

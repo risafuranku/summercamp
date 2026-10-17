@@ -55,6 +55,14 @@ func embed(parent: Node, index: int) -> void:
 	parent.move_child(_rect, clampi(index, 0, parent.get_child_count() - 1))
 
 
+## The player's sprint_lower (0..1), in whole steps of a sixth.
+func _run_lower() -> float:
+	var main := get_tree().current_scene if get_tree() != null else null
+	var p = main.get("_player") if main != null else null
+	var v = p.get("sprint_lower") if p != null else null
+	return floorf(float(v) * 6.0) / 6.0 if v != null else 0.0
+
+
 func _process(delta: float) -> void:
 	_up = move_toward(_up, 1.0 if _want else 0.0, delta * 4.5)
 	visible = _up > 0.0 and _rect != null and _rect.texture != null
@@ -70,10 +78,13 @@ func _process(delta: float) -> void:
 	var k := float(maxi(1, int(round(vp.y / LINES_PER_PIXEL))))
 	_rect.size = _rect.texture.get_size() * k
 	var raise := 1.0 - (1.0 - _up) * (1.0 - _up)
-	var x := vp.x * 0.6 + clampf(lag.x, -0.5, 0.5) * vp.x * 0.55 + bob.x * k
+	# The lens just right of the middle, where the beam comes out (player_controller
+	# BEAM_YAW_DEG); lower while running.
+	var x := vp.x * 0.47 + clampf(lag.x, -0.5, 0.5) * vp.x * 0.55 + bob.x * k
 	# Never off the edge: at most the sleeve goes out of the view.
 	x = clampf(x, vp.x * 0.28, vp.x - _rect.size.x * 0.82)
-	var y := vp.y - bar_px - _rect.size.y * SHOWN * raise + _rect.size.y * 0.04 * (1.0 - raise) - clampf(lag.y, -0.4, 0.4) * vp.y * 0.3 + bob.y * k
+	var run := _run_lower()
+	var y := vp.y - bar_px - _rect.size.y * SHOWN * raise + _rect.size.y * 0.04 * (1.0 - raise) - clampf(lag.y, -0.4, 0.4) * vp.y * 0.3 + bob.y * k + _rect.size.y * 0.12 * run
 	_rect.position = Vector2(x, y).floor()
 	_rect.rotation = clampf(lag.x, -0.5, 0.5) * 0.35
 	_rect.pivot_offset = _rect.size * Vector2(0.7, 1.0)

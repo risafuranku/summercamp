@@ -502,7 +502,7 @@ func _run_stop(stop: String, bus: Node3D, delta: float, h: float) -> void:
 		bus.destination = plan["dest"]
 		bus.set_stop(plan["stop_id"])
 		if arriving:
-			bus.play("res://assets/sfx/bus/arrive.mp3", 0.0)
+			bus.play("res://assets/sfx/bus/arrive.mp3", -10.0)
 	# The driver smokes outside while it stands at the end of the line (the camp) or in
 	# Lesna before going up to the camp.
 	bus.set_driver_out(standing and plan["stop_id"] != "town_through")
@@ -519,7 +519,7 @@ func _run_stop(stop: String, bus: Node3D, delta: float, h: float) -> void:
 	if not arriving:
 		if bus.is_door_open():
 			bus.open_door(false)
-			bus.play("res://assets/sfx/bus/depart.mp3", 0.0)
+			bus.play("res://assets/sfx/bus/depart.mp3", -5.0)
 
 
 ## The works bus (the timetable's "+"): lit inside, SLUZEBNI on its board, past the camp
@@ -628,7 +628,7 @@ func _run_special(stop: String, bus: Node3D, sp: Dictionary, delta: float) -> vo
 				var k := clampf((t - 2.6) / 9.0, 0.0, 1.0)
 				if bus.is_door_open():
 					bus.open_door(false)
-					bus.play("res://assets/sfx/bus/depart.mp3", 0.0)
+					bus.play("res://assets/sfx/bus/depart.mp3", -5.0)
 				var was: Vector3 = bus.global_position
 				_place_on(bus, sp["leave"], k * k)
 				bus.set_speed(was.distance_to(bus.global_position) / maxf(delta, 0.001))

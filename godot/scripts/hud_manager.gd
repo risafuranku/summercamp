@@ -123,6 +123,10 @@ var _mail_cell: Control
 var _risk_pips: Array[ColorRect] = []
 var _risk_level: Label
 var _feed_box: VBoxContainer
+## The message feed has a layer of its own, over the rooms: at the PC, in a cabin, the
+## pager's lines still come up along the top (playtest 17. 10.: "at the PC I can't see
+## the messages and I miss them"). Hidden with the rest for the week report, game over.
+var _feed_layer: CanvasLayer
 var _objective_panel: Control
 var _arrivals_panel: Control
 ## The dotted rings at the right edge: parties on the way (scripts/ui/arrival_rings.gd).
@@ -252,6 +256,15 @@ func on_money_changed(new_amount: int) -> void:
 ## held (playtest 2026-10-16): outdoors next to the site plan (paper_map.gd), indoors alone.
 func set_world_hud_visible(visible: bool, side := visible) -> void:
 	_world_visible = visible
+	if _feed_layer != null:
+		# `side` is main's "a room, not a menu": the feed stays, over at the right (a
+		# room's own list of jobs is at the top left).
+		_feed_layer.visible = visible or side
+		if _feed_box != null:
+			var room := not visible and side
+			var w := _feed_box.size.x
+			var screen_w := get_viewport().get_visible_rect().size.x
+			_feed_box.position.x = (screen_w - w - _vp(4)) if room else _vp(4)
 	if _side_layer != null:
 		_side_layer.visible = side and (Input.is_physical_key_pressed(KEY_TAB) or force_side)
 	if _layer != null:
@@ -524,7 +537,7 @@ func _ensure_world_hud() -> void:
 	_on_unread_count_changed(_get_unread_count())
 	_poll_guest_state()
 	set_process(true)
-	set_world_hud_visible(_world_visible)
+	set_world_hud_visible(_world_visible, _world_visible)
 
 
 func _rebuild_layout() -> void:
@@ -540,6 +553,10 @@ func _rebuild_layout() -> void:
 	for child in _side_root.get_children():
 		_side_root.remove_child(child)
 		child.queue_free()
+	if _feed_layer != null:
+		for child in _feed_layer.get_children():
+			_feed_layer.remove_child(child)
+			child.queue_free()
 	_cells.clear()
 	_risk_pips.clear()
 	_card_bars.clear()
@@ -727,7 +744,12 @@ func _build_feed() -> void:
 	_feed_box.size = Vector2(_vp(_feed_width_vp()), 0)
 	_feed_box.add_theme_constant_override("separation", int(_vp(1)))
 	_feed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(_feed_box)
+	if _feed_layer == null:
+		_feed_layer = CanvasLayer.new()
+		_feed_layer.name = "MessageFeedLayer"
+		_feed_layer.layer = HUD_LAYER_INDEX + 1
+		add_child(_feed_layer)
+	_feed_layer.add_child(_feed_box)
 
 
 ## The feed may not run under the tracker: it gets whatever is left of the top row.

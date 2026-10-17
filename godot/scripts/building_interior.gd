@@ -421,6 +421,12 @@ func _process(delta: float) -> void:
 	if _extras != null:
 		_extras.tick_ring(delta)
 	if not visible:
+		# Shut, the window still looks out now and then, so coming back in it does not
+		# show the weather and the hour of when you left (it did for a moment).
+		_window_refresh_t -= delta
+		if _window_refresh_t <= 0.0 and _window_vp != null and _place_window_camera():
+			_window_refresh_t = 1.0
+			_window_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 		return
 	_update_window_portal()
 	if _interior_camera != null:
@@ -1648,17 +1654,23 @@ func _tri(d: float, night, evening, day):
 	return lerp(evening, day, (d - 0.5) * 2.0)
 
 
+## The camp's daylight factor tops out near 0.6 on an autumn noon and sits round 0.25
+## in the morning and the evening; the office is lit as if 0.6 were full day (playtest
+## 17. 10.: "terrible dark by day, total darkness morning and evening").
+const OFFICE_DAY_AT := 0.58
+
+
 func _apply_room_time_profile(animated: bool = false) -> void:
-	var d := clampf(_daylight_factor, 0.0, 1.0)
+	var d := clampf(_daylight_factor / OFFICE_DAY_AT, 0.0, 1.0)
 	if _room_environment != null:
 		_room_environment.background_color = _tri(d, Color(0.08, 0.10, 0.14), Color(0.24, 0.20, 0.22), Color(0.66, 0.70, 0.74))
 		_room_environment.ambient_light_color = _tri(d, Color(0.22, 0.26, 0.34), Color(0.48, 0.40, 0.42), Color(0.82, 0.84, 0.80))
-		_room_environment.ambient_light_energy = _tri(d, 0.05, 0.62, 1.42)
+		_room_environment.ambient_light_energy = _tri(d, 0.12, 0.86, 1.42)
 		_room_environment.fog_light_color = _tri(d, Color(0.14, 0.18, 0.24), Color(0.34, 0.28, 0.30), Color(0.78, 0.82, 0.84))
 		_room_environment.fog_density = _tri(d, 0.014, 0.010, 0.004)
 	if _ceiling_light != null:
 		_ceiling_light.light_color = _tri(d, Color(0.66, 0.72, 0.90), Color(0.92, 0.76, 0.64), Color(1.0, 0.96, 0.86))
-		_ceiling_light.light_energy = _tri(d, 0.08, 0.88, 1.88)
+		_ceiling_light.light_energy = _tri(d, 0.5, 1.15, 1.88)
 	if _desk_lamp != null:
 		_desk_lamp.light_energy = _tri(d, 0.9, 0.8, 0.7)
 		_desk_lamp.light_color = Color(1.0, 0.86, 0.6)
@@ -1667,7 +1679,7 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		_window_light.light_color = _tri(d, Color(0.54, 0.60, 0.84), Color(0.84, 0.66, 0.54), Color(0.98, 0.98, 0.92))
 		_window_light.light_energy = _tri(d, 0.01, 0.34, 1.1)
 
-	var daylight = clampf(_daylight_factor, 0.0, 1.0)
+	var daylight = d
 	var sun_tint = _sunlight_color.lerp(Color(1.0, 0.96, 0.90), 0.25)
 	if _room_environment != null:
 		_room_environment.ambient_light_color = _room_environment.ambient_light_color.lerp(sun_tint, 0.20 * daylight)
@@ -1708,6 +1720,7 @@ var _window_vp: SubViewport
 var _window_cam: Camera3D
 ## Room space -> camp space: basis (the room's axes in the camp) and origin.
 var _portal_xform := Transform3D.IDENTITY
+var _window_refresh_t := 0.0
 var _portal_ok := false
 
 

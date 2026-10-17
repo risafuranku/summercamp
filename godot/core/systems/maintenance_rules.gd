@@ -3,6 +3,12 @@ extends RefCounted
 ## The upkeep rules in one place, pure and static (no nodes, no state writes):
 ## who can break, how likely, what fixing costs, how long it takes.
 ##
+## Only the lamps wear out (playtest 17. 10.: no upkeep on anything else, never asked
+## for): every day a lamp's bulb is a little weaker, it lights less and flickers more,
+## and when it is spent the lamp goes out and stays out until you put a new one in
+## (hold R, the wrench). Nothing breaks by chance any more. The one other thing you
+## repair with R is the derelict old cabin of the start (a failure marked "derelict").
+##
 ## The rule the player can learn: keep a building above SAFE_CONDITION and it does not
 ## break. Below that, the hourly breakdown odds climb toward HAZARD_AT_ZERO. Condition
 ## decays daily by BuildingDef.maintenance_decay (MaintenanceSystem).
@@ -23,12 +29,29 @@ const REPAIR_SECONDS := 4.0
 
 ## Building types that never break (no condition loop).
 const EXEMPT_TYPES := ["path", "main_building", "reception"]
+## What wears out with time.
+const WEARS := ["lamp_post"]
 
 
 static func can_break(type: String, def) -> bool:
-	if EXEMPT_TYPES.has(type) or def == null:
+	if not WEARS.has(type) or def == null:
 		return false
 	return float(def.maintenance_decay) > 0.0
+
+
+## A lamp's condition: its own cell's, or for a lamp on a path the path cell's
+## "lamp_maintenance".
+static func lamp_condition(cell: Dictionary) -> float:
+	if str(cell.get("type", "")) == "lamp_post":
+		return float(cell.get("maintenance", 1.0))
+	return float(cell.get("lamp_maintenance", 1.0))
+
+
+## How bright a lamp of this condition burns (0 when it is spent).
+static func lamp_brightness(condition: float) -> float:
+	if condition <= 0.0:
+		return 0.0
+	return clampf(0.18 + 0.82 * smoothstep(0.0, 0.85, condition), 0.0, 1.0)
 
 
 ## Chance that a building breaks during one in-game hour.

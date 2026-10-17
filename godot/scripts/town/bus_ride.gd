@@ -292,7 +292,7 @@ func _process(delta: float) -> void:
 			var left: float = _scenery.route_length() - _scenery.travelled
 			if left <= _speed * _speed / (2.0 * BRAKE) + 2.0:
 				_state = STOPPING
-				_play("brake_inside.mp3", -4.0)
+				_play("brake_inside.mp3", -15.0)
 			else:
 				_speed = move_toward(_speed, CRUISE, ACCEL * delta)
 		STOPPING:
@@ -425,6 +425,11 @@ func _open_machine() -> void:
 			_ticket = t
 			_ticket_card.visible = true
 			_ticket_card.queue_redraw()
+			# Ticket in hand: the machine is done with, back to the bus.
+			get_tree().create_timer(0.8).timeout.connect(func():
+				if _ticket_view.visible:
+					_ticket_view.close_view()
+			)
 		)
 	_ticket_view.stop = stop
 	_glint.clear()

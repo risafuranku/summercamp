@@ -230,6 +230,15 @@ func service_building(coord: Vector2i, cost: int) -> bool:
 	var was_broken: bool = _state.failures.has(key)
 	_state.money -= maxi(0, cost)
 	_state.failures.erase(key)
+	# A lamp on a path: its bulb is the path cell's lamp_maintenance.
+	if type == "path" and bool(_state.grid.cells[root].get("lamp", false)):
+		var lamp_cell: Dictionary = _state.grid.cells[root]
+		lamp_cell["lamp_maintenance"] = 1.0
+		_state.grid.cells[root] = lamp_cell
+		EventBus.money_changed.emit(_state.money)
+		EventBus.state_changed.emit({"maintenance": "serviced", "failures": "repaired" if was_broken else ""})
+		EventBus.building_serviced.emit(root, "lamp_post", was_broken, cost)
+		return true
 	for c in _state.grid.cells:
 		var cell_data = _state.grid.cells[c] as Dictionary
 		if str(cell_data.get("id", "")) == inst_id:
@@ -239,6 +248,22 @@ func service_building(coord: Vector2i, cost: int) -> bool:
 	EventBus.state_changed.emit({"maintenance": "serviced", "failures": "repaired" if was_broken else ""})
 	EventBus.building_serviced.emit(root, type, was_broken, cost)
 	return true
+
+
+## Takes the wear off a building that no longer wears (old saves, from before only the
+## lamps did): full condition, no breakdown, nothing charged or announced.
+func clear_wear(coord: Vector2i) -> void:
+	if not _state.grid.cells.has(coord):
+		return
+	var root: Vector2i = _state.grid.cells[coord].get("root_coord", coord)
+	var inst_id := str(_state.grid.cells.get(root, {}).get("id", ""))
+	_state.failures.erase("%d:%d" % [root.x, root.y])
+	for c in _state.grid.cells:
+		var cell_data = _state.grid.cells[c] as Dictionary
+		if inst_id != "" and str(cell_data.get("id", "")) == inst_id:
+			cell_data["maintenance"] = 1.0
+			_state.grid.cells[c] = cell_data
+	EventBus.state_changed.emit({"maintenance": "cleared"})
 
 
 func repair_building(coord: Vector2i, amount: float) -> bool:

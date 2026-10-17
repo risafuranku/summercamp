@@ -1,9 +1,8 @@
 class_name FailureSystem
 extends "res://core/systems/system_base.gd"
 
-## Breakdowns. Once per in-game hour every building that can break rolls against
-## MaintenanceRules.hazard_per_hour(condition): above 50% condition nothing breaks,
-## below it the odds climb. A broken building is listed in GameState.failures, stops
+## Breakdowns: only a lamp whose bulb is spent (MaintenanceRules: only the lamps wear),
+## checked once an in-game hour. A broken building is listed in GameState.failures, stops
 ## serving guests, and announces itself through EventBus.building_failed.
 ##
 ## Runs only while `enabled` (main.gd switches it on for play). It used to run in the
@@ -39,23 +38,15 @@ func update(delta: float) -> void:
 	roll_hour()
 
 
-## One hour of breakdown rolls. Public so harnesses can drive it directly.
+## Once an hour: a lamp whose bulb is spent goes out (no dice: only the lamps wear, see
+## MaintenanceRules). Public so harnesses can drive it directly.
 func roll_hour() -> void:
-	for coord_any in game_state.grid.cells.keys():
-		var coord: Vector2i = coord_any
-		var data: Dictionary = game_state.grid.cells[coord]
-		if data.get("root_coord", coord) != coord:
-			continue
-		var type := str(data.get("type", ""))
-		var def = _registry.get_def(StringName(type)) if _registry != null else null
-		if not RULES.can_break(type, def):
-			continue
+	for coord in game_state.grid.lamp_coords():
 		var key := "%d:%d" % [coord.x, coord.y]
 		if game_state.failures.has(key):
 			continue
-		var condition := float(data.get("maintenance", 1.0))
-		if _rng.randf() < RULES.hazard_per_hour(condition):
-			_trigger_failure(key, type, coord)
+		if RULES.lamp_condition(game_state.grid.cells[coord]) <= 0.0:
+			_trigger_failure(key, "lamp_post", coord)
 
 
 func _trigger_failure(key: String, type: String, coord: Vector2i) -> void:

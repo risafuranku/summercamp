@@ -76,8 +76,7 @@ func get_aim() -> Dictionary:
 func update(delta: float, dark: bool) -> void:
 	_frame = Engine.get_process_frames()
 	var player := _player()
-	var torch_on := player != null and player.has_method("is_flashlight_active") and bool(player.is_flashlight_active()) \
-		and float(player.get("flashlight_battery")) > 0.02
+	var torch_on := player != null and player.has_method("torch_wanted_indoors") and bool(player.torch_wanted_indoors())
 	_set_on(dark and torch_on and _camera != null and is_instance_valid(_camera) and _camera.is_inside_tree())
 	if not _on:
 		return

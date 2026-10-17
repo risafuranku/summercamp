@@ -1,13 +1,16 @@
 extends Node
 
-## Headless check for the upkeep loop: decay -> breakdown odds -> service / repair.
+## Headless check for the upkeep loop. Only the lamps wear (maintenance_rules.gd): they
+## lose a little every day and go out when spent; nothing else decays or breaks.
 ##
 ##   godot --headless --path godot res://tools/upkeep_check.tscn
 ##
 ## Run as a SCENE (CoreRoot / EventBus autoloads). Places buildings straight into the
 ## grid and asserts:
-## - nothing above 50% condition ever breaks, even over hundreds of hours;
-## - neglected buildings do break, and announce it through EventBus.building_failed;
+## - nothing breaks at any condition, however long, except a spent lamp;
+## - the daily wear touches only the lamps (on their own tile and on a path), and a
+##   spent lamp goes out through EventBus.building_failed;
+## - servicing a lamp on a path gives it a new bulb;
 ## - a broken toilet stops serving guests ("rained_out"/"broken" logic in needs);
 ## - service_building() restores 100%, clears the failure, charges the cost, and
 ##   refuses (changing nothing) without the cash;
@@ -35,24 +38,48 @@ func _ready() -> void:
 	_place("lamp_post", Vector2i(8, 2))
 	_place("path", Vector2i(9, 2))
 	_place("sewer", Vector2i(10, 2))
+	# A lamp on the path.
+	var path_cell: Dictionary = state.grid.cells[Vector2i(9, 2)]
+	path_cell["lamp"] = true
+	state.grid.cells[Vector2i(9, 2)] = path_cell
 
 	var fs = CoreRoot.failure_system
 	fs.enabled = true
 
-	# Healthy camp: 400 hours at 60% condition -> no breakdowns.
-	_set_condition(0.6)
+	# Nothing breaks by chance: 400 hours at 10% condition, no breakdowns at all.
+	_set_condition(0.1)
 	for h in 400:
 		fs.roll_hour()
-	_expect(state.failures.is_empty(), "no breakdowns at 60%% condition (got %d)" % state.failures.size())
+	_expect(state.failures.is_empty(), "no breakdowns at 10%% condition (got %s)" % ", ".join(state.failures.keys()))
 
-	# Neglected camp: 10% condition -> breakdowns within a few days.
-	_set_condition(0.1)
-	for h in 120:
-		fs.roll_hour()
-	_expect(not state.failures.is_empty(), "neglected buildings break down within 120 h")
-	_expect(_failed_events.size() == state.failures.size(), "every breakdown emitted building_failed (%d vs %d)" % [_failed_events.size(), state.failures.size()])
-	_expect(not state.failures.has("9:2"), "paths never break")
-	print("breakdowns after 120 h at 10%%: %s" % ", ".join(state.failures.keys()))
+	# The daily wear: only the lamps.
+	_set_condition(1.0)
+	var ms = CoreRoot.get("maintenance_system")
+	if ms == null:
+		ms = CoreRoot.get("_maintenance_system")
+	_expect(ms != null, "the maintenance system is there")
+	if ms != null:
+		ms.process_daily_costs()
+		_expect(is_equal_approx(float(state.grid.cells[Vector2i(2, 2)].get("maintenance", 1.0)), 1.0), "toilets do not wear")
+		_expect(float(state.grid.cells[Vector2i(8, 2)].get("maintenance", 1.0)) < 1.0, "a lamp wears")
+		_expect(float(state.grid.cells[Vector2i(9, 2)].get("lamp_maintenance", 1.0)) < 1.0, "a lamp on a path wears")
+		_expect(is_equal_approx(float(state.grid.cells[Vector2i(9, 2)].get("maintenance", 1.0)), 1.0), "the path under it does not")
+
+	# A spent lamp goes out (and says so); the others do not.
+	var lamp_cell: Dictionary = state.grid.cells[Vector2i(8, 2)]
+	lamp_cell["maintenance"] = 0.0
+	state.grid.cells[Vector2i(8, 2)] = lamp_cell
+	fs.roll_hour()
+	_expect(state.failures.has("8:2") and state.failures.size() == 1, "the spent lamp goes out, nothing else")
+	_expect(_failed_events.size() == 1, "its going out is announced")
+
+	# A new bulb in the lamp on the path.
+	var pc: Dictionary = state.grid.cells[Vector2i(9, 2)]
+	pc["lamp_maintenance"] = 0.2
+	state.grid.cells[Vector2i(9, 2)] = pc
+	state.money = 50
+	_expect(CoreRoot.actions.service_building(Vector2i(9, 2), 5), "the lamp on the path is serviced")
+	_expect(is_equal_approx(float(state.grid.cells[Vector2i(9, 2)].get("lamp_maintenance", 0.0)), 1.0), "its bulb is new")
 
 	# A broken toilet serves nobody.
 	state.failures["2:2"] = {"type": "toilet_block", "coord": Vector2i(2, 2), "since_day": 1, "repair_progress": 0.0}
