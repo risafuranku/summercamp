@@ -77,7 +77,8 @@ var _texture_style
 
 func _ready() -> void:
 	_texture_style = TEXTURE_STYLE_SCRIPT.new()
-	layer = 80
+	# Under the HUD (65), whose messages show over a room.
+	layer = 56
 	visible = false
 	_build_viewport()
 	_sync_viewport_to_window()
@@ -170,10 +171,7 @@ func _apply_idle_mouse_look(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not _is_open:
 		return
-	if event.is_action_pressed("ui_cancel"):
-		close_tent()
-		get_viewport().set_input_as_handled()
-		return
+	# Esc is the pause menu's (main): S or the way out behind you leaves.
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
 		close_tent()
 		get_viewport().set_input_as_handled()

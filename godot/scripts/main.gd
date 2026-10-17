@@ -142,6 +142,7 @@ var _menu_music_player: AudioStreamPlayer
 var _menu_music_retry_pending: bool = false
 var _main_menu: CanvasLayer
 var _pause_menu: CanvasLayer
+var _pause_prev_mouse := Input.MOUSE_MODE_CAPTURED
 var _menu_flythrough: Node
 var _pending_loaded_player_state: Dictionary = {}
 var _pending_loaded_crt_state: Dictionary = {}
@@ -951,12 +952,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _game_over_active:
 		return
-	# Layered Esc handling: interiors and the CRT consume Esc in their own _input;
-	# whatever reaches here is first-person play, where Esc pauses.
+	# Esc is always the pause menu (playtest 2026-10-17), indoors, at the PC, in a
+	# close-up or a job: nothing else uses it. Leaving is S or the way out.
 	if event.is_action_pressed("ui_cancel"):
-		if not _is_any_interior_open():
-			_open_pause_menu()
-			get_viewport().set_input_as_handled()
+		_open_pause_menu()
+		get_viewport().set_input_as_handled()
 		return
 
 	# Debug actions only exist in debug builds (see _ensure_input_actions).
@@ -1705,6 +1705,76 @@ func debug_near_window(r: float = 4.0) -> Array:
 		if n3.is_visible_in_tree() and (n3 is MeshInstance3D or n3 is StaticBody3D) and n3.global_position.distance_to(at) < r:
 			out.append("%s<%s> %s" % [n3.name, n3.get_parent().name, n3.global_position.snapped(Vector3.ONE * 0.1)])
 	return [at, out.slice(0, 30)]
+
+
+## Shot driver: press and release a key through the real input path.
+func debug_tap_key(key: int) -> void:
+	for pressed in [true, false]:
+		Input.parse_input_event(debug_key_event(key, pressed))
+
+
+## Shot driver: the pointer mode (0 visible, 1 hidden, 2 captured).
+func debug_mouse_mode() -> int:
+	return Input.mouse_mode
+
+
+## Shot driver: 2D drawn inside the small world view (it is scaled up with it).
+func debug_world_2d() -> Array:
+	var out := []
+	var svc := get_node_or_null("SubViewportContainer")
+	if svc == null:
+		return out
+	for n in svc.find_children("*", "CanvasItem", true, false):
+		if n is Control or n is Node2D:
+			var par := n.get_parent()
+			if par is Control or par is Node2D:
+				continue
+			out.append(str(n.get_path()).replace("/root/Main/SubViewportContainer/SubViewport/", ""))
+	for n in svc.find_children("*", "CanvasLayer", true, false):
+		out.append("LAYER " + str(n.get_path()).replace("/root/Main/SubViewportContainer/SubViewport/", ""))
+	return out
+
+
+## Shot driver: a key press or release for Input.parse_input_event.
+func debug_key_event(key: int, pressed: bool) -> InputEventKey:
+	var k := InputEventKey.new()
+	k.keycode = key
+	k.physical_keycode = key
+	k.pressed = pressed
+	return k
+
+
+## Shot driver: a real click (press and release) at a window point.
+func debug_click_at(x: float, y: float, button := MOUSE_BUTTON_LEFT) -> void:
+	get_viewport().warp_mouse(Vector2(x, y))
+	for pressed in [true, false]:
+		var b := InputEventMouseButton.new()
+		b.button_index = button
+		b.pressed = pressed
+		b.position = Vector2(x, y)
+		b.global_position = b.position
+		Input.parse_input_event(b)
+
+
+## Shot driver: the Control under the mouse (what eats a click), as a path.
+func debug_hovered_control() -> String:
+	var c := get_viewport().gui_get_hovered_control()
+	return str(c.get_path()) if c != null else "<none>"
+
+
+## Shot driver: where a 3D point is on the window through a camera that may render
+## into the small retro viewport.
+func debug_screen_of_cam(cam: Camera3D, p: Vector3) -> Vector2:
+	if cam == null:
+		return Vector2(-1, -1)
+	var own := cam.get_viewport().get_visible_rect().size
+	return cam.unproject_position(p) * get_viewport().get_visible_rect().size / own
+
+
+## Shot driver: where a 3D point is on the window through the current camera.
+func debug_screen_of(p: Vector3) -> Vector2:
+	var cam := get_viewport().get_camera_3d()
+	return cam.unproject_position(p) if cam != null else Vector2(-1, -1)
 
 
 func debug_perf() -> Array:
@@ -3660,7 +3730,7 @@ func _can_pause_now() -> bool:
 		and _gameplay_started
 		and not _menu_mode
 		and not _game_over_active
-		and not _is_any_interior_open()
+		and _week_report_screen == null
 		and (_pause_menu == null or not _pause_menu.is_open())
 	)
 
@@ -3669,8 +3739,37 @@ func _open_pause_menu() -> void:
 	if not _can_pause_now():
 		return
 	_ensure_pause_menu()
-	_pause_menu.open(_pause_info_line())
+	# Resume gives back the pointer as it was (free in a room, hidden at the PC,
+	# captured outdoors).
+	_pause_prev_mouse = Input.mouse_mode
+	_pause_menu.open(_pause_info_line(), _leave_label())
 	get_tree().paused = true
+
+
+## What the pause menu's way out says, or "" when you are already outdoors.
+func _leave_label() -> String:
+	if _lake_trip != null and is_instance_valid(_lake_trip) and _lake_trip.has_method("is_active") and _lake_trip.is_active():
+		return "Row back to camp"
+	if _is_any_interior_open() or (_breaker_panel != null and is_instance_valid(_breaker_panel) and _breaker_panel.visible):
+		return "Go outside"
+	return ""
+
+
+## The pause menu's way out: whatever room, close-up or job you are in ends the way its
+## own exit would, and you stand in the camp again. There is always a way back.
+func _on_pause_leave_requested() -> void:
+	_close_pause_menu(false)
+	if _sewer_pipe_minigame != null and _sewer_pipe_minigame.has_method("abort") and _sewer_pipe_minigame.is_open():
+		_sewer_pipe_minigame.abort()
+	if _utility_repair_minigame != null and _utility_repair_minigame.has_method("abort") and _utility_repair_minigame.is_open():
+		_utility_repair_minigame.abort()
+	if _breaker_panel != null and is_instance_valid(_breaker_panel) and _breaker_panel.visible:
+		_breaker_panel.close()
+	if _lake_trip != null and is_instance_valid(_lake_trip) and _lake_trip.has_method("return_home") and _lake_trip.is_active():
+		_lake_trip.return_home()
+	if _interior_manager != null and _interior_manager.has_method("close_everything"):
+		_interior_manager.close_everything()
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 ## Built once at bootstrap so it is ready (and laid out) long before the first Esc.
@@ -3682,6 +3781,7 @@ func _ensure_pause_menu() -> void:
 	_pause_menu.resume_requested.connect(func() -> void: _close_pause_menu(true))
 	_pause_menu.save_requested.connect(_on_pause_save_requested)
 	_pause_menu.quit_to_title_requested.connect(_on_pause_quit_requested)
+	_pause_menu.leave_requested.connect(_on_pause_leave_requested)
 
 
 func _close_pause_menu(recapture_mouse: bool) -> void:
@@ -3690,7 +3790,7 @@ func _close_pause_menu(recapture_mouse: bool) -> void:
 	_pause_menu.close()
 	get_tree().paused = false
 	if recapture_mouse:
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		Input.set_mouse_mode(_pause_prev_mouse)
 
 
 func _pause_info_line() -> String:

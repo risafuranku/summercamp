@@ -204,6 +204,15 @@ func _next_visit() -> int:
 	return n
 
 
+## Leaving from the pause menu: up the ladder at once (a clamped leak still counts).
+func abort() -> void:
+	if not _active:
+		return
+	close_repair(not _fixed)
+	if _fixed:
+		repair_completed.emit(_coord, _building_type)
+
+
 func close_repair(cancelled: bool = true) -> void:
 	if not _active:
 		return
@@ -883,10 +892,6 @@ func _input(event: InputEvent) -> void:
 		return
 	var key := event as InputEventKey
 	if event.is_action_pressed("ui_cancel"):
-		close_repair(not _fixed)
-		if _fixed:
-			repair_completed.emit(_coord, _building_type)
-		get_viewport().set_input_as_handled()
 		return
 	if key == null:
 		return

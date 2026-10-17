@@ -392,12 +392,15 @@ func _cursor() -> void:
 # ── input ────────────────────────────────────────────────────────────────────
 
 func _input(event: InputEvent) -> void:
-	if not visible:
+	if not visible or get_tree().paused:
+		return
+	# Esc goes on to the pause menu (main).
+	if event.is_action_pressed("ui_cancel"):
 		return
 	get_viewport().set_input_as_handled()
 	if _closing_t >= 0.0:
 		return
-	if event.is_action_pressed("ui_cancel"):
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_S:
 		close_desk()
 		return
 	if event is InputEventMouseButton:

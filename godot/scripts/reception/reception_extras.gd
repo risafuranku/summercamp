@@ -41,7 +41,8 @@ var hot: Dictionary = {}   # id -> {body, meshes}
 var phone_view
 var board_view
 var sleep
-var look_back = INTERIOR_LOOK.new(110.0, 26.0, 38.0)
+## A whole turn (playtest 2026-10-17): the doorway back to the office is behind you.
+var look_back = INTERIOR_LOOK.new(180.0, 26.0, 38.0)
 var back_base_rot := Vector3(deg_to_rad(-11.0), deg_to_rad(101.0), 0.0)
 
 var _door_pivot: Node3D
@@ -166,6 +167,14 @@ func _build_doorway() -> void:
 		part.position = p - DOOR_HINGE
 		meshes.append(part)
 	_hot_body("door", _door_pivot, Vector3(0.0, 1.05, -0.49), Vector3(0.12, 2.04, 0.98), meshes)
+	# The open doorway, seen from the back room: the way back to the office (the leaf
+	# has swung out of it).
+	var jambs: Array = []
+	for n in ["DoorJambA", "DoorJambB", "DoorLintel"]:
+		var j := room_root.get_node_or_null(n)
+		if j != null:
+			jambs.append(j)
+	_hot_body("doorway", room_root, Vector3(-2.55, 1.05, 1.28), Vector3(0.3, 2.04, 0.96), jambs)
 
 
 # ── per frame ────────────────────────────────────────────────────────────────
@@ -193,14 +202,17 @@ func process(delta: float, hour: float) -> bool:
 		return true
 	_hover = _hover_under_mouse()
 	if _hover != "":
-		HandCursor.want(HandCursor.WALK if _hover == "door" else HandCursor.POINT)
+		HandCursor.want(HandCursor.WALK if _hover == "door" or _hover == "doorway" else HandCursor.POINT)
 		glint.show_on(hot[_hover]["meshes"])
 	else:
 		glint.clear()
 	if where == "back":
 		var vp: Viewport = host.get_viewport()
 		var offset: Vector3 = look_back.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.key_axis())
-		camera.rotation = camera.rotation.lerp(back_base_rot + offset, clampf(delta * 30.0, 0.0, 1.0))
+		var want: Vector3 = back_base_rot + offset
+		# The yaw wraps round: follow it the short way.
+		want.y = camera.rotation.y + wrapf(want.y - camera.rotation.y, -PI, PI)
+		camera.rotation = camera.rotation.lerp(want, clampf(delta * 30.0, 0.0, 1.0))
 		if INTERIOR_LOOK.in_exit_zone(vp):
 			HandCursor.want(HandCursor.WALK)
 		return true
@@ -222,7 +234,9 @@ func _hover_under_mouse() -> String:
 			var id := str(n.get_meta("extra_hot"))
 			# Only what is in the room you are in.
 			var in_back: bool = back.hot.has(id)
-			if (where == "back") == in_back or (id == "door" and where == "office"):
+			if id == "doorway":
+				return id if where == "back" else ""
+			if (where == "back") == in_back or id == "door":
 				return id
 			return ""
 		n = n.get_parent()
@@ -243,7 +257,12 @@ func click() -> bool:
 			glint.clear()
 			board_view.open_view()
 		"door":
-			go_back_room()
+			if where == "back":
+				go_office()
+			else:
+				go_back_room()
+		"doorway":
+			go_office()
 		"bed":
 			_try_sleep()
 		"tv":
@@ -291,6 +310,8 @@ func go_office() -> void:
 	glint.clear()
 	var to_pos: Vector3 = host._initial_cam_pos
 	var to_rot: Vector3 = host._initial_cam_rot
+	var face := deg_to_rad(-90.0)
+	camera.rotation.y = wrapf(camera.rotation.y, face - PI, face + PI)
 	_walk = host.create_tween()
 	_walk.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_walk.tween_property(camera, "rotation", Vector3(0.0, deg_to_rad(-90.0), 0.0), 0.45)

@@ -42,6 +42,11 @@ func open_repair(coord: Vector2i, building_type: String, label_text: String) -> 
 	_update_progress_ui()
 
 
+func abort() -> void:
+	if _active:
+		close_repair(true)
+
+
 func close_repair(cancelled: bool = true) -> void:
 	_active = false
 	visible = false
@@ -60,6 +65,9 @@ func _input(event: InputEvent) -> void:
 	if not _active:
 		return
 	if event.is_action_pressed("ui_cancel"):
+		return
+	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT) \
+			or (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_S):
 		close_repair(true)
 		get_viewport().set_input_as_handled()
 		return

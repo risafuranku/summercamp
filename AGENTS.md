@@ -173,8 +173,18 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 
 ## 5. Gotchas
 
-- **Interiors consume Esc in their `_input`**; whatever reaches `main._unhandled_input`
-  is first-person play, where Esc pauses (the tree is paused; menus run `PROCESS_MODE_ALWAYS`).
+- **Esc is always the pause menu** (main `_unhandled_input`), in rooms, at the PC, in
+  close-ups and jobs: nothing else may consume it. Leaving is S, the bottom band or a
+  right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
+  room or job the way its own exit would. Always-processing modals return early from
+  `_input` while the tree is paused.
+- **Interiors live under InteriorManager (the full-res root view), not in World3D**: the
+  world is drawn small and scaled up by the render style, and 2D inside it scaled with it
+  (huge prompts). Rooms have their own 3D viewports; the office window portal gets the
+  camp's world by hand (`_bind_window_world`).
+- **Mouse clicks never reach `_unhandled_input`** outdoors: the world's
+  SubViewportContainer takes them. Read clicks in `_input`. A ray from a camera inside a
+  SubViewport needs the window mouse scaled into that viewport (`lake_trip._mouse_in_cam_viewport`).
 - **2D integer scale is chosen at runtime** (`main._apply_integer_canvas_scale`): the
   logical size is window / k so the canvas scale is a whole number and the window is
   filled. The engine's own integer mode letterboxes; do not switch to it.

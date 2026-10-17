@@ -111,6 +111,10 @@ func _run() -> void:
 	await _wait(1.2)
 	await _close_all()
 	await _shot("desktop")
+	_shell._open_start_menu()
+	await _frames(3)
+	await _shot("start_menu")
+	_shell._close_start_menu()
 
 	# What is there from the start, and what is not.
 	_expect(not _shell._is_program_unlocked("builder"), "Builder is installed before it was downloaded")

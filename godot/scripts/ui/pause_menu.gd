@@ -16,6 +16,8 @@ extends CanvasLayer
 signal resume_requested
 signal save_requested
 signal quit_to_title_requested
+## The way out of a room, a close-up or a job (main: _on_pause_leave_requested).
+signal leave_requested
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
@@ -32,6 +34,8 @@ var _options
 var _controls_plate: Control
 var _controls
 var _info_text: String = ""
+## "Go outside" and the like when there is somewhere to leave; "" outdoors.
+var _leave_text: String = ""
 
 
 func _init() -> void:
@@ -49,10 +53,13 @@ func _ready() -> void:
 	_rebuild()
 
 
-func open(info: String) -> void:
+func open(info: String, leave_text := "") -> void:
 	_info_text = info
 	if _info != null:
 		_info.text = info
+	if leave_text != _leave_text:
+		_leave_text = leave_text
+		_rebuild()
 	visible = true
 	_show("main")
 	_list.select_id("resume")
@@ -94,17 +101,20 @@ func _rebuild() -> void:
 	_list = RETRO_MENU.MenuList.new()
 	_list.ui_scale = _scale
 	_list.row_height_vp = 24
-	var items: Array[Dictionary] = [
-		{"id": "resume", "text": "Resume"},
+	var items: Array[Dictionary] = [{"id": "resume", "text": "Resume"}]
+	if _leave_text != "":
+		items.append({"id": "leave", "text": _leave_text})
+	items.append_array([
 		{"id": "save", "text": "Save game"},
 		{"id": "options", "text": "Configuration"},
 		{"id": "quit", "text": "Quit to title"},
-	]
+	] as Array[Dictionary])
 	_list.set_items(items)
 	_list.activated.connect(_on_activated)
 	var list_w: float = _list.content_width()
 	var plate_w := maxf(_vp(200), list_w + _vp(28))
-	_plate = _centered_plate(Vector2(plate_w, _vp(156)))
+	var rows_h := float(items.size() * 24)
+	_plate = _centered_plate(Vector2(plate_w, _vp(60.0 + rows_h)))
 	var title := RETRO_UI.PixelTitle.new()
 	title.configure(RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG * 2, _scale)
 	title.set_colors(RETRO_UI.C_AMBER_LIGHT, RETRO_UI.C_AMBER)
@@ -119,8 +129,11 @@ func _rebuild() -> void:
 	_info.offset_bottom = _vp(42)
 	_plate.add_child(_info)
 	_list.position = Vector2(floorf((plate_w - list_w) * 0.5 / _scale) * _scale - _vp(4), _vp(46))
-	_list.size = Vector2(list_w + _vp(8), _vp(96))
+	_list.size = Vector2(list_w + _vp(8), _vp(rows_h))
 	_plate.add_child(_list)
+	# Again, now that the list has its width: the rows were made 0 wide (measured before
+	# it was sized, outside the tree, so no resize reached them) and took no clicks.
+	_list.set_items(items)
 
 	_options_plate = _centered_plate(Vector2(_vp(250), _vp(186)))
 	_add_plate_title(_options_plate, "CONFIGURATION")
@@ -183,6 +196,8 @@ func _on_activated(id: String) -> void:
 	match id:
 		"resume":
 			resume_requested.emit()
+		"leave":
+			leave_requested.emit()
 		"save":
 			save_requested.emit()
 		"options":

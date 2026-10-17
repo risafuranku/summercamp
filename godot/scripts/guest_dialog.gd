@@ -41,9 +41,8 @@ func close_dialog() -> void:
 func _input(event: InputEvent) -> void:
 	if not _active:
 		return
-	if event.is_action_pressed("ui_cancel"):
-		close_dialog()
-		get_viewport().set_input_as_handled()
+	# Esc is the pause menu's (main); the Close button shuts this.
+	pass
 
 
 func _build_ui() -> void:

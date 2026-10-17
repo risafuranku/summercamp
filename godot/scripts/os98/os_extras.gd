@@ -74,6 +74,10 @@ func _process(delta: float) -> void:
 	if shell.is_desktop_ready():
 		# Somebody is at it: no saver, and the wait starts again when they get up.
 		_idle = 0.0 if shell.is_open() else _idle + delta
+		# Never while somebody sits at it, however they got there (playtest 2026-10-17:
+		# it blocked the game a second time): sitting down is touching the mouse.
+		if _saving and shell.is_open():
+			poke()
 		if not _saving and saver != "(None)" and _idle >= saver_wait:
 			_saving = true
 			mouse_filter = Control.MOUSE_FILTER_STOP

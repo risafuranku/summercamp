@@ -226,6 +226,23 @@ func is_any_open() -> bool:
 	return false
 
 
+## The pause menu's "Go outside": shuts whatever room or panel is open the way its own
+## exit would (each hands the player back their controls).
+func close_everything() -> void:
+	if _guest_dialog != null and _guest_dialog.is_open():
+		_guest_dialog.close_dialog()
+	if _building_upgrade_menu != null and _building_upgrade_menu.is_open():
+		_building_upgrade_menu.close_menu()
+	for interior in _get_registered_interior_nodes():
+		if not (interior.has_method("is_open") and interior.is_open()):
+			continue
+		for m in ["close_interior", "close_cabin", "close_tent", "close_service"]:
+			if interior.has_method(m):
+				interior.call(m)
+				break
+	_set_player_controls_enabled(true)
+
+
 func is_crt_desktop_active() -> bool:
 	if _building_interior == null:
 		return false
@@ -385,7 +402,10 @@ func _setup_building_interior() -> void:
 		return
 	_building_interior = BUILDING_INTERIOR_SCRIPT.new()
 	_building_interior.name = "BuildingInterior"
-	_world_3d.add_child(_building_interior)
+	# Here, not in the world: the world is drawn small and scaled up (render style),
+	# and so was everything 2D in a room (its prompts, lists, close-ups) with it
+	# (playtest 2026-10-17: "render scale makes the HUD huge"). Rooms have their own 3D.
+	add_child(_building_interior)
 	_register_interior_instance(INTERIOR_MODULE_MAIN, _building_interior)
 	if _building_interior.has_method("setup"):
 		_building_interior.setup(_grid_manager, _building_manager, _legacy_ui_adapter, _player)
@@ -435,7 +455,10 @@ func _setup_tent_interior() -> void:
 		return
 	_tent_interior = TENT_INTERIOR_SCRIPT.new()
 	_tent_interior.name = "TentInterior"
-	_world_3d.add_child(_tent_interior)
+	# Here, not in the world: the world is drawn small and scaled up (render style),
+	# and so was everything 2D in a room (its prompts, lists, close-ups) with it
+	# (playtest 2026-10-17: "render scale makes the HUD huge"). Rooms have their own 3D.
+	add_child(_tent_interior)
 	_register_interior_instance(INTERIOR_MODULE_TENT, _tent_interior)
 	if _tent_interior.has_signal("request_close"):
 		_tent_interior.request_close.connect(_on_tent_closed)
@@ -459,7 +482,10 @@ func _setup_cabin_interior() -> void:
 		return
 	_cabin_interior = CABIN_INTERIOR_SCRIPT.new()
 	_cabin_interior.name = "CabinInterior"
-	_world_3d.add_child(_cabin_interior)
+	# Here, not in the world: the world is drawn small and scaled up (render style),
+	# and so was everything 2D in a room (its prompts, lists, close-ups) with it
+	# (playtest 2026-10-17: "render scale makes the HUD huge"). Rooms have their own 3D.
+	add_child(_cabin_interior)
 	_register_interior_instance(INTERIOR_MODULE_CABIN, _cabin_interior)
 	if _cabin_interior.has_signal("request_close"):
 		_cabin_interior.request_close.connect(_on_cabin_closed)
@@ -562,7 +588,10 @@ func _setup_service_interior() -> void:
 		return
 	_service_interior = SERVICE_INTERIOR_SCRIPT.new()
 	_service_interior.name = "ServiceInterior"
-	_world_3d.add_child(_service_interior)
+	# Here, not in the world: the world is drawn small and scaled up (render style),
+	# and so was everything 2D in a room (its prompts, lists, close-ups) with it
+	# (playtest 2026-10-17: "render scale makes the HUD huge"). Rooms have their own 3D.
+	add_child(_service_interior)
 	_register_interior_instance(INTERIOR_MODULE_SERVICE, _service_interior)
 	if _service_interior.has_signal("request_close"):
 		_service_interior.request_close.connect(_on_service_closed)

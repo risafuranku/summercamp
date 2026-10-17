@@ -112,6 +112,8 @@ const CRT_SCREEN_LOCAL_POS := Vector3(0.0, 0.056, 0.356)
 ## The tube's barrel (materials/crt_glass.gdshader, crt_sharp.gdshader): the picture
 ## bends with the glass; _crt_barrel() is the same, for the mouse.
 const CRT_CURVE := 0.16
+## How far the middle of the glass bows out toward you, metres (crt_glass.gdshader).
+const CRT_BULGE := 0.024
 
 var _viewport_container: SubViewportContainer
 var _viewport: SubViewport
@@ -140,7 +142,14 @@ var _is_day_mode: bool = true
 var _time_state: int = TIME_DAY
 var _barrel_overlay: ColorRect
 ## The monitor picture redrawn crisp over the low-res room while you sit at it.
-var _crt_sharp: TextureRect
+var _crt_sharp: Control
+## The overlay's mesh: the bulged glass, a grid of points projected through the room
+## camera (window pixels), their glass UVs, two triangles a cell.
+var _crt_sharp_pts := PackedVector2Array()
+var _crt_sharp_uvs := PackedVector2Array()
+var _crt_sharp_cols := PackedColorArray()
+var _crt_sharp_idx := PackedInt32Array()
+const CRT_SHARP_GRID := Vector2i(16, 12)
 var _crt_sharp_layer: CanvasLayer
 var _daylight_factor: float = 0.0
 var _sunlight_color: Color = Color(1.0, 0.95, 0.84)
@@ -151,6 +160,8 @@ var _crt_glow_sample_timer: float = 0.0
 # CRT 3D State
 var _crt_viewport: SubViewport
 var _exit_hint: Control
+## The same band at the PC: "Stand up".
+var _stand_hint: Control
 var _crt_ui: Control
 var _crt_active: bool = false
 var _camera_tween: Tween
@@ -227,7 +238,8 @@ var _fan_spin: float = 0.0
 
 func _ready() -> void:
 	_texture_style = TEXTURE_STYLE_SCRIPT.new()
-	layer = 85
+	# Under the HUD (65), whose messages show over a room.
+	layer = 60
 	visible = false
 	var root_viewport := get_viewport()
 	if root_viewport != null:
@@ -397,6 +409,14 @@ func _process(delta: float) -> void:
 	if _interior_camera == null:
 		return
 	if _crt_active:
+		# Seated means the computer is in use (the screen saver keys off it).
+		if _crt_ui != null and _crt_ui.has_method("is_open") and not _crt_ui.is_open():
+			_crt_ui.open_panel()
+		if _stand_hint == null:
+			_stand_hint = INTERIOR_LOOK.make_exit_hint(self, "Stand up")
+		INTERIOR_LOOK.update_exit_hint(_stand_hint, get_viewport(), delta, _crt_stand_zone())
+		if _exit_hint != null:
+			_exit_hint.modulate.a = 0.0
 		_update_crt_look_back_hold(delta)
 		if _is_camera_tween_running():
 			return
@@ -413,6 +433,8 @@ func _process(delta: float) -> void:
 	if _extras != null and _extras.process(delta, _hour_now()):
 		_update_exit_hint_only(delta)
 		return
+	if _stand_hint != null:
+		_stand_hint.modulate.a = 0.0
 	_update_office_hover()
 	_apply_idle_mouse_look(delta)
 	if _exit_hint == null:
@@ -878,6 +900,7 @@ func _build_room() -> void:
 	var scr_mat := ShaderMaterial.new()
 	scr_mat.shader = load("res://materials/crt_glass.gdshader")
 	scr_mat.set_shader_parameter("curve", CRT_CURVE)
+	scr_mat.set_shader_parameter("bulge", CRT_BULGE)
 	if _crt_viewport:
 		scr_mat.set_shader_parameter("screen_tex", _crt_viewport.get_texture())
 	else:
@@ -1204,19 +1227,17 @@ func _input(event: InputEvent) -> void:
 	if _desk_room != null and _desk_room.is_open():
 		return
 
+	# Esc is the pause menu's (main), here as everywhere.
 	if event.is_action_pressed("ui_cancel"):
-		if not _crt_active and _extras != null and _extras.handle_exit():
-			get_viewport().set_input_as_handled()
-			return
-		if _crt_active:
-			_exit_crt_view()
-			get_viewport().set_input_as_handled()
-			return
-		close_interior()
-		get_viewport().set_input_as_handled()
 		return
 
 	if _crt_active:
+		# The pointer pushed down past the monitor: the band to stand up by.
+		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT \
+				and _crt_stand_zone():
+			_exit_crt_view()
+			get_viewport().set_input_as_handled()
+			return
 		# At the keyboard: whatever you touch wakes the screen saver, even with the
 		# pointer off the screen.
 		if (event is InputEventMouseMotion or event is InputEventKey or event is InputEventMouseButton) and _crt_ui != null and _crt_ui.has_method("extras") and _crt_ui.extras() != null:
@@ -1270,6 +1291,17 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## At the PC: the pointer below the monitor, in the bottom band (the OS cursor stops at
+## the screen's edge, the real one goes on): clicking there stands you up.
+func _crt_stand_zone() -> bool:
+	if not _crt_active or _is_camera_tween_running() or _crt_look_back_active:
+		return false
+	var vp := get_viewport()
+	if not INTERIOR_LOOK.in_exit_zone(vp):
+		return false
+	return _map_mouse_to_crt(vp.get_mouse_position(), false) == Vector2.INF
+
+
 func _forward_input_to_crt(event: InputEventMouse) -> void:
 	if _interior_camera == null or _crt_screen == null or _crt_viewport == null:
 		return
@@ -1298,12 +1330,25 @@ func _ensure_crt_sharp() -> void:
 	_crt_sharp_layer.name = "CrtSharpLayer"
 	_crt_sharp_layer.layer = 64
 	get_tree().root.add_child(_crt_sharp_layer)
-	_crt_sharp = TextureRect.new()
+	_crt_sharp = Control.new()
 	_crt_sharp.name = "CrtSharp"
 	_crt_sharp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_crt_sharp.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_crt_sharp.stretch_mode = TextureRect.STRETCH_SCALE
+	_crt_sharp.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_crt_sharp.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_crt_sharp.draw.connect(_draw_crt_sharp)
+	var gx := CRT_SHARP_GRID.x
+	var gy := CRT_SHARP_GRID.y
+	_crt_sharp_pts.resize((gx + 1) * (gy + 1))
+	_crt_sharp_uvs.resize((gx + 1) * (gy + 1))
+	_crt_sharp_cols.resize((gx + 1) * (gy + 1))
+	_crt_sharp_cols.fill(Color.WHITE)
+	for j in gy + 1:
+		for i in gx + 1:
+			_crt_sharp_uvs[j * (gx + 1) + i] = Vector2(float(i) / gx, float(j) / gy)
+	for j in gy:
+		for i in gx:
+			var a := j * (gx + 1) + i
+			_crt_sharp_idx.append_array(PackedInt32Array([a, a + 1, a + gx + 1, a + 1, a + gx + 2, a + gx + 1]))
 	var sharp_mat := ShaderMaterial.new()
 	sharp_mat.shader = load("res://materials/crt_sharp.gdshader")
 	_crt_sharp.material = sharp_mat
@@ -1318,27 +1363,41 @@ func _update_crt_sharp() -> void:
 			_crt_sharp.visible = false
 		return
 	_ensure_crt_sharp()
+	# The OS picture laid on the tube as the tube really lies in view: every grid point
+	# of the bulged glass (as crt_glass.gdshader pushes it out) through the room camera,
+	# scaled from the small render to the window. A rectangle round the corners did not
+	# follow the perspective and the desktop spilled past the glass at the sides
+	# (playtest 2026-10-17: "the start menu and taskbar are all scattered").
 	var quad := _crt_screen.mesh as QuadMesh
 	var window := get_tree().root.get_visible_rect().size
 	var render := _interior_camera.get_viewport().get_visible_rect().size
-	var lo := Vector2(INF, INF)
-	var hi := Vector2(-INF, -INF)
-	for corner in [Vector2(-0.5, -0.5), Vector2(0.5, -0.5), Vector2(-0.5, 0.5), Vector2(0.5, 0.5)]:
-		var world := _crt_screen.global_transform * Vector3(corner.x * quad.size.x, corner.y * quad.size.y, 0.0)
+	var xf := _crt_screen.global_transform
+	var gx := CRT_SHARP_GRID.x
+	var lo_y := INF
+	var hi_y := -INF
+	for k in _crt_sharp_uvs.size():
+		var uv: Vector2 = _crt_sharp_uvs[k]
+		var q := (uv - Vector2(0.5, 0.5)) * 2.0
+		var w := 1.0 - clampf(q.dot(q) * 0.5, 0.0, 1.0)
+		var world := xf * Vector3((uv.x - 0.5) * quad.size.x, (0.5 - uv.y) * quad.size.y, CRT_BULGE * w)
 		if _interior_camera.is_position_behind(world):
 			_crt_sharp.visible = false
 			return
-		var p := _interior_camera.unproject_position(world) / render * window
-		lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
-		hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
-	_crt_sharp.position = lo
-	_crt_sharp.size = hi - lo
-	if _crt_sharp.texture == null:
-		_crt_sharp.texture = _crt_viewport.get_texture()
+		var pt := _interior_camera.unproject_position(world) / render * window
+		_crt_sharp_pts[k] = pt
+		lo_y = minf(lo_y, pt.y)
+		hi_y = maxf(hi_y, pt.y)
 	# Fade in as the monitor fills the view (sharp when you are at it).
-	var fill := (hi.y - lo.y) / maxf(1.0, window.y)
+	var fill := (hi_y - lo_y) / maxf(1.0, window.y)
 	(_crt_sharp.material as ShaderMaterial).set_shader_parameter("fade", clampf((fill - 0.18) / 0.22, 0.0, 1.0))
 	_crt_sharp.visible = true
+	_crt_sharp.queue_redraw()
+
+
+func _draw_crt_sharp() -> void:
+	if _crt_viewport == null or _crt_sharp_idx.is_empty():
+		return
+	RenderingServer.canvas_item_add_triangle_array(_crt_sharp.get_canvas_item(), _crt_sharp_idx, _crt_sharp_pts, _crt_sharp_cols, _crt_sharp_uvs, PackedInt32Array(), PackedFloat32Array(), _crt_viewport.get_texture().get_rid())
 
 
 func _exit_tree() -> void:
@@ -1513,8 +1572,10 @@ func _setup_window_view() -> void:
 	_window_vp.name = "WindowView"
 	_window_vp.size = WINDOW_VIEW_SIZE
 	_window_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	# No own world: it sees the camp's world, as the player outside does.
+	# The camp's world, as the player outside sees it (given by hand: this room is not
+	# inside the world's viewport).
 	add_child(_window_vp)
+	_bind_window_world()
 	_window_cam = Camera3D.new()
 	_window_cam.projection = Camera3D.PROJECTION_FRUSTUM
 	_window_cam.keep_aspect = Camera3D.KEEP_HEIGHT
@@ -1525,11 +1586,22 @@ func _setup_window_view() -> void:
 			node.visible = false
 
 
+func _bind_window_world() -> void:
+	if _window_vp == null:
+		return
+	var main := _resolve_main_runtime_host()
+	var w3d = main.get("_world_3d") if main != null else null
+	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
+		_window_vp.world_3d = (w3d as Node3D).get_world_3d()
+
+
 ## Where the room lies in the camp: over the reception building, its window wall on the
 ## building's front (the side with the door, the camp side).
 func _place_window_camera() -> bool:
 	if _window_cam == null:
 		return false
+	if _window_vp != null and _window_vp.world_3d == null:
+		_bind_window_world()
 	var scene := get_tree().current_scene if get_tree() != null else null
 	var reception: Node3D = scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
 	if reception == null:

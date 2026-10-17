@@ -270,8 +270,11 @@ func _update_far_shore(delta: float) -> void:
 	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
 	_cam.rotation = _base_rot + offset
 	_update_fishing(delta)
-	# What is under the cursor: things on screen within a few degrees of the ray.
-	var m := get_viewport().get_mouse_position()
+	# What is under the cursor: things on screen within a few degrees of the ray. The
+	# world is drawn small and scaled up (retro render): the ray is cast in the camera's
+	# own viewport, so the window's mouse is scaled into it (with window pixels only the
+	# top-left of the screen ever hit anything and the far shore could not be left).
+	var m := _mouse_in_cam_viewport()
 	var ray_o := _cam.project_ray_origin(m)
 	var ray_d := _cam.project_ray_normal(m)
 	_hover = ""
@@ -301,10 +304,32 @@ func _update_far_shore(delta: float) -> void:
 		_glint.clear()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _mouse_in_cam_viewport() -> Vector2:
+	var vp := get_viewport()
+	var m := vp.get_mouse_position()
+	var cam_vp := _cam.get_viewport() if _cam != null else null
+	if cam_vp == null or cam_vp == vp:
+		return m
+	var win := vp.get_visible_rect().size
+	var own := cam_vp.get_visible_rect().size
+	if win.x <= 0.0 or win.y <= 0.0:
+		return m
+	return m * own / win
+
+
+## The pause menu's "Row back to camp": home at once, by day or night.
+func return_home() -> void:
+	if _state == NONE:
+		return
+	_night.end()
+	_end_far_shore()
+	_finish_trip()
+
+
+## _input, not _unhandled_input: the game view's container takes every mouse button,
+## so a click never came through to here and the far shore could not be left.
+func _input(event: InputEvent) -> void:
 	if _state == ROWING:
-		if event.is_action_pressed("ui_cancel"):
-			get_viewport().set_input_as_handled()
 		return
 	if _state != FAR_SHORE:
 		return

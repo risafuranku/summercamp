@@ -161,6 +161,30 @@ func _target_under_cursor() -> String:
 		return ""
 	var m := get_viewport().get_mouse_position()
 	var local := Vector2(clampf(m.x / screen.x, 0.0, 1.0) * float(_viewport.size.x), clampf(m.y / screen.y, 0.0, 1.0) * float(_viewport.size.y))
+	return str(_pick(local)[0])
+
+
+## Shot driver: for every task, what a ray at its own mess hits ([id, hit, collider]).
+func debug_probe() -> Array:
+	var out := []
+	for id in _targets.keys():
+		var t: Dictionary = _targets[id]
+		var at: Vector3 = (t["body"] as Node3D).global_position
+		for mm in t["meshes"]:
+			if mm is MeshInstance3D and is_instance_valid(mm) and (mm as Node3D).is_visible_in_tree():
+				at = (mm as Node3D).global_position
+				break
+		if _camera.is_position_behind(at):
+			out.append([id, "behind", ""])
+			continue
+		var r: Array = _pick(_camera.unproject_position(at))
+		out.append([id, r[0], r[1], t["done"]])
+	return out
+
+
+## The task whose body a ray through `local` (the interior viewport's pixels) hits
+## first, and the name of what it hit.
+func _pick(local: Vector2) -> Array:
 	var from := _camera.project_ray_origin(local)
 	var q := PhysicsRayQueryParameters3D.create(from, from + _camera.project_ray_normal(local) * 6.0)
 	q.collide_with_areas = false
@@ -173,7 +197,7 @@ func _target_under_cursor() -> String:
 	q.exclude = skip
 	var hit := _camera.get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty():
-		return ""
+		return ["", ""]
 	var collider = hit.get("collider")
 	for id in _targets.keys():
 		var t: Dictionary = _targets[id]
@@ -181,8 +205,8 @@ func _target_under_cursor() -> String:
 			continue
 		var body = t["body"]
 		if body != null and is_instance_valid(body) and body.is_visible_in_tree() and body == collider:
-			return id
-	return ""
+			return [id, str(collider.name)]
+	return ["", str(collider.get_path()) if collider is Node else str(collider)]
 
 
 func _set_hover(id: String) -> void:

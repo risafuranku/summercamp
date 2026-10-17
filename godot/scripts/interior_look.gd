@@ -78,7 +78,10 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 	_yaw_speed = _follow(_yaw_speed, want_yaw, dt)
 	_pitch_speed = _follow(_pitch_speed, want_pitch, dt)
 
-	yaw_deg = _advance(yaw_deg, _yaw_speed * dt, -yaw_limit_deg, yaw_limit_deg)
+	if yaw_limit_deg >= 180.0:
+		yaw_deg = wrapf(yaw_deg + _yaw_speed * dt, -180.0, 180.0)
+	else:
+		yaw_deg = _advance(yaw_deg, _yaw_speed * dt, -yaw_limit_deg, yaw_limit_deg)
 	pitch_deg = _advance(pitch_deg, _pitch_speed * dt, -pitch_down_deg, pitch_up_deg)
 
 	var sway_target := Vector2.ZERO
@@ -189,7 +192,7 @@ static func is_exit_event(event: InputEvent, viewport: Viewport) -> bool:
 
 
 ## A dark band along the bottom with "Leave", shown when the cursor reaches it.
-static func make_exit_hint(layer: CanvasLayer) -> Control:
+static func make_exit_hint(layer: CanvasLayer, text := "Turn round and leave   [S]") -> Control:
 	var hint := Control.new()
 	hint.name = "ExitHint"
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -202,7 +205,6 @@ static func make_exit_hint(layer: CanvasLayer) -> Control:
 			hint.draw_rect(Rect2(0, s.y - h * (1.0 - i / 8.0), s.x, h / 8.0), Color(0, 0, 0, 0.08 + i * 0.06))
 		var font := hint.get_theme_default_font()
 		var fs := int(maxf(14.0, s.y * 0.026))
-		var text := "Turn round and leave   [S]"
 		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var y := s.y - h * 0.35
 		# A small arrow pointing back over your shoulder.
