@@ -30,12 +30,14 @@ uniform vec4 lights[21];
 uniform float frame = 0.0;
 uniform float grain = 0.012;
 // Moonlight on the wall and on the coated glass of the unlit tubes.
-uniform float ambient = 0.15;
-uniform vec3 moon = vec3(0.46, 0.55, 0.86);
+uniform float ambient = 0.13;
+uniform vec3 moon = vec3(0.40, 0.50, 0.92);
 uniform vec3 milk = vec3(0.70, 0.70, 0.78);
 // The edge glow round the tubes and the neon lighting the wall.
 uniform float bloom = 1.0;
 uniform float spill = 1.0;
+// The slow fade to black at the end (applied before the palette, so it steps down).
+uniform float fade = 1.0;
 
 const float BAYER4[16] = float[](
 	0.0, 8.0, 2.0, 10.0,
@@ -99,7 +101,8 @@ void fragment() {
 	vec2 q = (UV - 0.5) * vec2(1.2, 1.55);
 	col *= clamp(1.0 - dot(q, q) * 1.1, 0.0, 1.0);
 
-	col += (hash(p + vec2(frame * 17.0, frame * 29.0)) - 0.5) * grain;
+	col *= fade;
+	col += (hash(p + vec2(frame * 17.0, frame * 29.0)) - 0.5) * grain * fade;
 
 	int bi = (int(p.x) & 3) + (int(p.y) & 3) * 4;
 	float bayer = BAYER4[bi] / 16.0 - 0.47;
