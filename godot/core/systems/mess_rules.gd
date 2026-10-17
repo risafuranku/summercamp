@@ -28,6 +28,7 @@ const MESS := {
 	"toys": {"label": "Pick up the toys", "verb": "Picking up", "seconds": 1.3, "sfx": "task_litter.mp3"},
 	"ash": {"label": "Sweep up the ash and tent pegs", "verb": "Sweeping", "seconds": 1.6, "sfx": "task_litter.mp3"},
 	"sawdust": {"label": "Sweep up the builders' sawdust", "verb": "Sweeping", "seconds": 1.4, "sfx": "task_litter.mp3"},
+	"cobwebs": {"label": "Sweep down the cobwebs", "verb": "Sweeping", "seconds": 1.8, "sfx": "task_litter.mp3"},
 	# Bathrooms and the toilet / shower blocks.
 	"toilet_grime": {"label": "Scrub the toilet", "verb": "Scrubbing", "seconds": 2.2, "sfx": "task_scrub.mp3", "scrub": true},
 	"bowl_dirty": {"label": "Scrub the toilet", "verb": "Scrubbing", "seconds": 3.0, "sfx": "task_scrub.mp3", "scrub": true},
@@ -54,6 +55,9 @@ const ROOM_SPOTS := {
 	"caravan": ["f1", "f2", "f3", "f4", "t1"],
 }
 const BATH_SPOTS := ["wc", "sink", "bfloor"]
+## A room shut since last summer (GuestManager.make_room_derelict) also has its cobweb
+## corner, high on the wall, where the interior has one.
+const DERELICT_SPOTS := {"cabin": "w1"}
 const BATH_KINDS := {"wc": ["toilet_grime"], "sink": ["sink_grime", "hair"], "bfloor": ["puddle", "mud", "paper_out", "piss", "wads"]}
 
 ## Ordinary leftovers, then what each archetype adds (and how much worse they leave it).
@@ -119,6 +123,11 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 	var level := clampi(int(mess.get("level", 1)), 0, 4)
 	var fresh := bool(mess.get("fresh", false))
 	var pool: Array = ["sawdust", "papers"] if fresh else COMMON.duplicate()
+	# Shut since last summer: bottles and ends from the last people in, mushrooms in the
+	# corners.
+	var derelict := bool(mess.get("derelict", false))
+	if derelict:
+		pool = ["mushrooms", "mushrooms", "bottles", "butts", "clothes", "mud", "food", "cans", "papers"]
 	if not fresh:
 		for a in mess.get("archetypes", []):
 			var extra: Array = (BY_ARCHETYPE.get(str(a), {}) as Dictionary).get("kinds", [])
@@ -147,6 +156,8 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 				break
 			pick = str(kinds[rng.randi_range(0, kinds.size() - 1)])
 		out.append(task_for(spot, pick))
+	if derelict and DERELICT_SPOTS.has(kind):
+		out.append(task_for(str(DERELICT_SPOTS[kind]), "cobwebs"))
 	if has_bathroom:
 		out.append(task_for("wc", "toilet_grime"))
 		if not fresh and (level >= 1 and rng.randf() < 0.35 + 0.15 * level):

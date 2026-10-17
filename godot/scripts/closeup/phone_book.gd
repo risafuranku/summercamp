@@ -122,9 +122,9 @@ static func dial(number: String, ctx: Dictionary) -> Dictionary:
 		"0602618247":
 			return _machine("EUROTEL", 0, [["", "The mobile subscriber is unavailable. Please call later.", "nela"]])
 		"0267314420":
-			var vera := [["", "This is Vera Kralova. I am away until the eighth. If it is about the camp, the camp is fine.", "vera_1"]]
+			var vera := [["", "This is Vera Kralova. If it is about the camp, the camp is fine.", "vera_1"]]
 			if int(ctx.get("nights_visited", 0)) >= 3:
-				vera = [["", "This is Vera Kralova. I am away until the eighth. If it is about the camp, count them again.", "vera_2"]]
+				vera = [["", "This is Vera Kralova. If it is about the camp, count them again.", "vera_2"]]
 			return _machine("VERA", 4, vera)
 		CLOCK:
 			return {"kind": "machine", "rings": 0, "who": "TIME", "lines": [{"who": "", "text": "At the third stroke it will be %s." % _clock_text(hour), "voice": "clock"}], "effect": "clock"}

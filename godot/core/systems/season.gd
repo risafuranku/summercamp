@@ -5,14 +5,14 @@ class_name Season
 ## autumn"). Pure functions of the game day (1-based) and the hour; no nodes, no state.
 ##
 ## Day 1 is Saturday 19 September 1998, the end of the summer: golden evenings, the
-## first yellow in the birches. Vera comes back on the morning of day 31 (Monday 19
-## October). In between the leaves turn and fall, the days draw in, the fog and the
+## first yellow in the birches. The district's inspection is on the morning of day 31
+## (Monday 19 October). In between the leaves turn and fall, the days draw in, the fog and the
 ## rain come, and on the last nights the trees are bare and it snows. From the first
 ## hard frosts the cold brings its own trouble (scripts/main.gd: frozen pipes, cold
 ## tents).
 
 const CAMPAIGN_DAYS := 30
-## The morning Vera is back (week_ledger.gd).
+## The morning of the inspection (week_ledger.gd).
 const RETURN_DAY := CAMPAIGN_DAYS + 1
 const START_YEAR := 1998
 const START_MONTH := 9

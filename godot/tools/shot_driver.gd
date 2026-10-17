@@ -1080,6 +1080,32 @@ const SCENARIOS := {
 		["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 70)"], ["wait", 0.8], ["shot", "cb_in_left"],
 		["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', -70)"], ["wait", 0.8], ["shot", "cb_in_right"],
 	],
+	"newstart": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "[ruined_cabin_key(), _quest_manager.current_step_id()]"],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+		["view_ruined", 8.0, 30.0, 1.6], ["wait", 0.8], ["shot", "ns0_old_cabin"],
+		["view_ruined", 5.0, 0.0, 1.4], ["wait", 0.8], ["shot", "ns1_old_cabin_close"],
+		["eval", "_quest_manager.current_step_id()"],
+		["open_room", 10, 2], ["wait", 1.4], ["shot", "ns2_inside_derelict"],
+		["eval", "_interior_manager._cabin_interior._prep.tasks._targets.keys()"],
+		["eval", "[_interior_manager._cabin_interior._derelict, _interior_manager._cabin_interior.room_is_dark()]"],
+		["eval", "_interior_manager._cabin_interior._look.set('pitch_deg', 14.0)"], ["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 24.0)"], ["wait", 0.8], ["shot", "ns2b_cobwebs"],
+		["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 0.8],
+		["eval", "debug_repair_ruined()"], ["wait", 1.0],
+		["view_ruined", 8.0, 30.0, 1.6], ["wait", 0.8], ["shot", "ns3_patched"],
+		["eval", "_quest_manager.current_step_id()"],
+		["open_room", 10, 2], ["wait", 1.2], ["clean_room", "_cabin_interior"], ["wait", 1.0], ["shot", "ns4_clean"],
+		["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 1.5],
+		["eval", "_quest_manager.current_step_id()"],
+		["eval", "_interior_manager.open_startup_crt_view()"], ["wait", 18.0],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('mail')"], ["wait", 2.0], ["crt_screen", "ns5_mail"],
+		["mail_show", "subject", "The camp is yours now"], ["wait", 0.8], ["crt_screen", "ns6_vera"],
+		["mail_show", "subject", "The camp is yours now", 11], ["wait", 0.8], ["crt_screen", "ns7_vera_links"],
+		["mail_link", "dl:BLDR98SW.EXE|www.stavitel98.cz/BLDR98SW.EXE"], ["wait", 1.0], ["crt_screen", "ns8_download"],
+		["wait", 12.0], ["crt_screen", "ns9_downloaded"],
+	],
 	"decormap": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 60000], ["clear", 5, 5, 16, 10],
@@ -1715,6 +1741,33 @@ func _run_step(step: Array) -> void:
 			if old_v != null and is_instance_valid(old_v):
 				old_v.queue_free()
 			_main.set("debug_camera", cam_v)
+		"view_ruined":
+			# ["view_ruined", dist_m, angle_deg, look_h]: "view" at the camp's old cabin
+			# (main.ruined_cabin_key(), picked when the game was made).
+			var key_r := str(_main.ruined_cabin_key())
+			if key_r != "":
+				var pr := key_r.split(":")
+				_run_step(["view", int(pr[0]), int(pr[1]), 2, 2, float(step[1]), float(step[2]), float(step[3])])
+		"mail_show":
+			# ["mail_show", field, value(, line)]: the open CampMail window shows that mail,
+			# scrolled down to `line` of the body.
+			var shown: Dictionary = EmailManager.find_mail(str(step[1]), step[2])
+			var bi_m = _main.get("_interior_manager").get("_building_interior")
+			var ui_m = bi_m.get("_crt_ui") if bi_m != null else null
+			if ui_m != null and not shown.is_empty():
+				for n in ui_m.find_children("*", "Control", true, false):
+					if n.get_script() == load("res://scripts/os98/apps/mail_app.gd"):
+						n.call("_show_message", shown)
+						if step.size() > 3:
+							(n.get("_body") as RichTextLabel).call_deferred("scroll_to_line", int(step[3]))
+		"mail_link":
+			# ["mail_link", meta]: as if the link in the open mail were clicked.
+			var bi_l = _main.get("_interior_manager").get("_building_interior")
+			var ui_l = bi_l.get("_crt_ui") if bi_l != null else null
+			if ui_l != null:
+				for n in ui_l.find_children("*", "Control", true, false):
+					if n.get_script() == load("res://scripts/os98/apps/mail_app.gd"):
+						n.call("_on_link", str(step[1]))
 		"mail_read":
 			var mail: Dictionary = EmailManager.find_mail(str(step[1]), step[2])
 			print("SHOT DRIVER mail_read: ", mail.get("subject", "(none)"))

@@ -936,6 +936,20 @@ func room_short(key: String) -> String:
 	return "%s%d" % [letter, no] if no > 0 else key
 
 
+## The camp's old cabin at the start (main._place_ruined_cabin): shut since last summer, every
+## mess at its worst; the bed has to be made up like any room.
+func make_room_derelict(key: String) -> void:
+	_sync_accommodation_states_from_guests()
+	var state = CoreRoot.get_state()
+	if state == null or not state.accommodation_states.has(key):
+		return
+	var acc: Dictionary = state.accommodation_states[key]
+	acc["status"] = ROOM_RULES.STATUS_DIRTY
+	acc["prep_done"] = []
+	acc["mess"] = {"seed": absi(("old|%s" % key).hash()), "level": 4, "archetypes": ["drunk", "tramp"], "derelict": true}
+	state.accommodation_states[key] = acc
+
+
 func room_number(key: String) -> int:
 	var state = CoreRoot.get_state()
 	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
@@ -1289,6 +1303,10 @@ func get_bed_metrics() -> Dictionary:
 			continue
 		var root_any = data.get("root_coord", coord)
 		var root_coord = root_any if root_any is Vector2i else coord
+		# The old cabin at the start (main._place_ruined_cabin) is not let until it is
+		# patched up: nobody books a camp that has been shut since last summer.
+		if bool((state.failures.get(_coord_key(root_coord), {}) as Dictionary).get("derelict", false)):
+			continue
 		var instance_id = str(data.get("id", "")).strip_edges()
 		var unique_key = "id:%s" % instance_id if not instance_id.is_empty() else "root:%s:%s" % [_coord_key(root_coord), building_type]
 		if seen_entries.has(unique_key):

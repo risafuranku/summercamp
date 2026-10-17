@@ -1,11 +1,12 @@
 extends Node
 
-## The month's books (DESIGN.md §11.1). Vera is away the whole autumn (core/systems/
-## season.gd: 19 September to 19 October 1998) and comes back on the morning train of
-## day 31 (her last mail: "I will count them myself"). This node keeps
-## what she will read: the till at the start, what came at night and how often you were
-## hurt, the jobs left for the electrician, and the reviews. At 08:00 on day 8 main asks
-## for the report (report()) and shows scripts/ui/week_report_screen.gd.
+## The month's books (DESIGN.md §11.1). The camp is yours from day 1 (core/systems/
+## season.gd: 19 September to 19 October 1998); at 08:00 on day 31 the district's man
+## comes to see whether it is open and paying, and Vera comes out on the first bus for
+## it (her last mail: "I will count them myself"). This node keeps what they will read:
+## the till at the start, what came at night and how often you were hurt, the jobs left
+## for the electrician, and the reviews. At 08:00 on day 31 main asks for the report
+## (report()) and shows scripts/ui/week_report_screen.gd.
 ##
 ## The verdict is a plain grade of money, reviews and nights. The coda under it is the
 ## found-CD part: Vera counts the guests herself, and the count depends on what you let in.
@@ -78,7 +79,7 @@ func note_jobs_left(count: int) -> void:
 	_jobs_left += maxi(0, count)
 
 
-## True once, on the morning of day 8 before the train: the pager line.
+## True once, on the morning of day 31 before the bus: the pager line.
 func should_page(day: int, hours: float) -> bool:
 	if closed or _paged or day < RETURN_DAY or hours < 6.5:
 		return false
@@ -145,11 +146,11 @@ func report(state) -> Dictionary:
 	var verdict := ""
 	match grade:
 		"good":
-			verdict = "The books balance and the guests write nice things. Nobody has done that here in years. The winter is yours, if you want it."
+			verdict = "The books balance and the guests write nice things. The district has withdrawn the sale; Agrostroj can build their mill somewhere else. The winter is yours, if you want it."
 		"fair":
-			verdict = "We are down in places, but standing. Next time sleep more and accept less. You may stay on into the winter, if you can bear it."
+			verdict = "We are down in places, but standing, and the district says a camp that is open is a camp that is open. The sale is off, for now. Stay on into the winter, if you can bear it."
 		_:
-			verdict = "I have read the reviews and the bank statement. I will take it from here. Your bus is at ten."
+			verdict = "I have read the reviews and the bank statement, and so has the district. They will recommend the sale. Agrostroj's men were here on Friday with their pegs and their tape. It was never your fault. Your bus is at ten."
 
 	var coda := ""
 	if visited == 0:

@@ -4,7 +4,7 @@ extends CanvasLayer
 ##
 ##   CURSED CAMP                         (live camp, dithered dark on the left)
 ##   MANAGER SIMULATOR
-##   One week minding aunt Vera's camp.
+##   Aunt Vera's old camp is yours now.
 ##
 ##   > CONTINUE      DAY 3  21:40  $1,234
 ##     NEW CAMP
@@ -24,7 +24,7 @@ signal quit_requested
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
 
-const TAGLINE := "One week minding aunt Vera's camp. What could go wrong."
+const TAGLINE := "Aunt Vera's old camp is yours now. What could go wrong."
 const TIPS := [
 	"Three archetypes roll for the night separately. A mixed camp is a safer camp.",
 	"The builder locks at 20:00. Whatever you did not build by then, you will not have tonight.",

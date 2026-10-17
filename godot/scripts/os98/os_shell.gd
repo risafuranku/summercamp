@@ -43,7 +43,7 @@ const APPS := {
 	"notepad": {"title": "Notepad", "icon": "notepad", "size": Vector2(452, 320), "script": "notepad_app", "base": true, "max": true},
 	"mines": {"title": "Mines", "icon": "mines", "size": Vector2(180, 248), "script": "mines_app", "base": true},
 	"builder": {"title": "Builder 98", "icon": "builder", "size": Vector2(640, 452), "script": "builder_app", "base": false, "max": true},
-	"camp_status": {"title": "CampStat 98", "icon": "campstat", "size": Vector2(600, 410), "script": "campstat_app", "base": false, "max": true},
+	"camp_status": {"title": "CampStat 98", "icon": "campstat", "size": Vector2(600, 410), "script": "campstat_app", "base": true, "max": true},
 	"guestrack": {"title": "GuestRack 98", "icon": "guestrack", "size": Vector2(620, 420), "script": "guestrack_app", "base": false, "max": true},
 	"setup": {"title": "Setup", "icon": "setup", "size": Vector2(470, 330), "script": "setup_app", "base": true},
 	"download": {"title": "File Download", "icon": "browser", "size": Vector2(360, 196), "script": "download_app", "base": true},
@@ -807,12 +807,19 @@ func _enter_desktop() -> void:
 	# The desktop fills in as the disk catches up: the wallpaper, then one icon at a
 	# time, the taskbar last.
 	_taskbar.visible = false
+	# The icons the refresh just threw out are still children until the end of the frame:
+	# skipped, and the timers hold the rest weakly (a lambda that captured a freed icon
+	# printed "Lambda capture at index 0 was freed" about 18 s into every new game).
 	var k := 0
 	for ic in _icons_layer.get_children():
+		if ic.is_queued_for_deletion():
+			continue
 		(ic as Control).visible = false
+		var ic_ref: WeakRef = weakref(ic)
 		get_tree().create_timer(0.25 + 0.11 * k).timeout.connect(func():
-			if is_instance_valid(ic):
-				(ic as Control).visible = true
+			var shown := ic_ref.get_ref() as Control
+			if shown != null:
+				shown.visible = true
 		)
 		k += 1
 	get_tree().create_timer(0.35 + 0.11 * k).timeout.connect(func():

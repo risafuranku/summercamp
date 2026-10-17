@@ -4,8 +4,9 @@
 
 ## What it is
 
-A two-halved game set in a decaying post-communist summer camp you mind for your aunt Vera
-for a month, through the autumn of 1998.
+A two-halved game set in a decaying post-communist summer camp you inherit from your aunt
+Vera: shut since last summer, wanted by a firm for a feed mill, and you have a month, the
+autumn of 1998, to show the district it is open and paying.
 
 - **Day: a tycoon on the office PC.** A Windows-95-like terminal in the reception: CampMail
   (bookings, story, bills), Builder (an isometric 1:1 map of your camp, RollerCoaster Tycoon
@@ -49,7 +50,8 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 
 | Feature | State | Notes |
 | --- | --- | --- |
-| Vera's Checklist (14-step onboarding questline) | ✅ | task mails, rewards, tracker, waypoint; the tracker column shows only while TAB is held (outdoors beside the site plan, indoors alone) |
+| Vera's Checklist (16-step onboarding questline) | ✅ | tracker, rewards, waypoint, three mails only (the opener, "The book", "Tonight"); the tracker column shows only while TAB is held (outdoors beside the site plan, indoors alone). Starts with the old cabin: patch it up (R), clean it, make the bed; then the programs from the links in Vera's opener (a click downloads them; CampStat is preinstalled) |
+| The old cabin by the office (`main._place_ruined_cabin`) | ✅ | a new game starts with it rotten (condition 6%, broken) and boarded up, weeds up the walls, roof sheets in the grass; no bookings until it is patched up; inside dark (window boarded, bulb dead), cobwebs to sweep down, every mess there is; saved with the game |
 | CampMail bookings with night-risk impact | ✅ | CampMail 3.0 (`os98/apps/mail_app.gd`): folder tree (Inbox, Sent, Deleted), cool toolbar, sortable list with envelope icons and attachment marks, From/To/Date header, quoted lines, spam with pictures (Grok, `textury/mail/`), reply/forward/compose (`EmailManager.send_mail`), Delete/Ctrl+R/Ctrl+N/F5 |
 | Arrivals: road, gatehouse, barrier, waiting parties | ✅ | HUD ARRIVALS panel counts down; the barrier lifts as a party arrives, they walk up the starter path and queue at the reception (first at the counter, second on the bench, the rest at the door), give up after ~2.5 h |
 | Starter path gate → reception | ✅ | laid by world gen through the barrier, up the gate lane, turning in front of the reception door; the bulldozer cannot remove it (meta `permanent`); the road outside wears the same dirt track |
@@ -78,7 +80,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | The noticeboard | ✅ | close-up: Vera's notes held up to read (numbers, bus, Novotny), the shed key hangs on it |
 | Visible work: a gloved hand with the tool for every held job, stepped 8-12 fps animation (guests, fire, fan, gate, ripples) | ✅ | 8 hand sprites from Grok |
 | Omens: torch by the fence, one too many, the barrier, the phone, someone by the office | ✅ | no schedule: a hazard from the camp's pressure (guests, unhappy, what came, dark, hunting), weighted draw; omens_check |
-| The month's end: Vera returns on day 31 (Monday 19 October 1998) | ✅ | at 08:00 the books (takings, guests, reviews, what came at night, hurt, jobs left), her verdict and the breakfast count; Stay on = endless |
+| The month's end: the district's inspection on day 31 (Monday 19 October 1998) | ✅ | Vera comes out on the first bus (in at 5:45) for it; at 08:00 the books (takings, guests, reviews, what came at night, hurt, jobs left), her verdict (the sale withdrawn, off for now, or recommended) and the breakfast count; Stay on = endless |
 | The autumn (a month, 19 Sep - 18 Oct 1998) | ✅ | `core/systems/season.gd` + `scripts/season_look.gd`: golden end-of-summer evenings, the days draw in (light shifts ~1 h earlier), birch crowns gold then rust then bare, falling leaves, dry autumn grass (Grok) from day 10, greyer October, weather odds lean to fog and rain, snow from the evening of day 26 (rain falls as snow, snow sky, snow lies on the ground and the spruces), HUD date, web dates/temperatures/forecast, booking mix by season; season_check |
 | Winter trouble | ✅ | hard-frost nights freeze the pipes (night job "frozen": pump, showers or toilets out until thawed, twice on the coldest), frost nights in tents and caravans sour the mood at dawn |
 | Night on the lake | ✅ | `scripts/lake/night_row.gd`: a night crossing gets one thing (two from the third): three knocks from under the hull (again if you sit still), a lantern on the water that comes and goes out (the boathouse window lit after), fog that swallows the camp lamps and a bell under the water, a pale hand on the gunwale (Grok), the long scrape underneath |

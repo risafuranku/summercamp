@@ -529,7 +529,7 @@ The gamekeeper's book ends a few weeks later. The fence was built to keep people
 
 Inspectors from the District Office visited the Cerne jezero camp after complaints about the guest register. "The register says one thing and the beds say another," said the head of the accommodation department. "There were nights with more people in the camp than in the register."
 
-The operator, Vera K., has left the camp. The camp computer and the register stay at the site. The district is looking for a new operator for next season.
+The operator, Vera K., has left the camp. The camp computer and the register stay at the site. Agrostroj Hlubocany has applied to the district for a change of use of the land.
 
 The former leader, Karel H., could not be reached.
 

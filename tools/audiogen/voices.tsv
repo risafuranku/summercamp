@@ -26,8 +26,8 @@ pol_day	police	Lost property is on Wednesdays. Is there anything else?
 amb_1	ambulance	Emergency.
 amb_2	ambulance	Is anyone hurt? The forest road is closed to us after dark. Bandage it, and ring in the morning.
 nela	operator	The mobile subscriber is unavailable. Please call later.
-vera_1	vera	This is Vera Kralova. I am away until the eighth. If it is about the camp... the camp is fine.
-vera_2	vera	This is Vera Kralova. I am away until the eighth. If it is about the camp... count them again.
+vera_1	vera	This is Vera Kralova. If it is about the camp... the camp is fine.
+vera_2	vera	This is Vera Kralova. If it is about the camp... count them again.
 sit_msg	operator	The number you have dialled does not exist.
 clock_intro	recording	At the third stroke, it will be
 clock_end	recording	precisely.

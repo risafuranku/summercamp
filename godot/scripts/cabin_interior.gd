@@ -803,6 +803,8 @@ func _build_prep_props() -> void:
 	_prep.add_spot("sink", _bathroom_root, Vector3(-0.6, 0.97, -1.0))
 	_prep.add_spot("bfloor", _bathroom_root, Vector3(0.05, 0.04, -0.7))
 	_prep.add_spot("pail", _cabin_root, SLOP_BUCKET_POS + Vector3(0, 0.31, 0))
+	# The back-left corner over the bed, across it at 45 degrees (the old cabin's cobwebs).
+	_prep.add_spot("w1", _cabin_root, Vector3(-1.45 + 0.354, 2.07, -1.45 + 0.354), deg_to_rad(45.0), true)
 	_prep.setup_tasks(self, _interior_camera, _viewport, "cabin")
 	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 
@@ -810,7 +812,42 @@ func _build_prep_props() -> void:
 # ── room preparation (see scripts/interior_prep.gd) ──────────────────────────
 
 func set_room(room: Dictionary) -> void:
+	_set_derelict(_is_derelict(str(room.get("key", ""))))
 	_prep.set_room(room)
+
+
+## The old cabin at the start (main._place_ruined_cabin) until it is patched up outside:
+## the window boarded up from inside as well, and the bulb dead (the torch comes on).
+var _derelict := false
+
+
+func _is_derelict(key: String) -> bool:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or key.is_empty():
+		return false
+	return bool((state.failures.get(key, {}) as Dictionary).get("derelict", false))
+
+
+func _set_derelict(on: bool) -> void:
+	if _cabin_root == null:
+		return
+	var boards := _cabin_root.get_node_or_null("RuinBoards")
+	if on and boards == null:
+		boards = Node3D.new()
+		boards.name = "RuinBoards"
+		_cabin_root.add_child(boards)
+		var plank := INTERIOR_KIT.surface("planks_grey", 0.5, Color(0.9, 0.8, 0.66))
+		for b in [[Vector3(1.24, 0.13, 0.03), Vector3(0.0, 1.8, -1.39), 0.2],
+				[Vector3(1.2, 0.12, 0.03), Vector3(0.03, 1.44, -1.38), -0.16],
+				[Vector3(1.16, 0.12, 0.03), Vector3(-0.02, 1.62, -1.37), 0.05]]:
+			var s := INTERIOR_KIT.slab(boards, b[0], b[1], plank, "Board")
+			s.rotation.z = float(b[2])
+	elif not on and boards != null:
+		boards.queue_free()
+	if on != _derelict:
+		_derelict = on
+		# The whole profile again: the bulb's energy is built up from the time of day.
+		_apply_time_profile(false)
 
 
 func play_room_ready() -> void:
@@ -1102,6 +1139,10 @@ func _apply_time_profile(animated: bool = false) -> void:
 		var sky_mat = _window_view_sky.material_override as StandardMaterial3D
 		if sky_mat != null:
 			sky_mat.albedo_color = sky_mat.albedo_color.lerp(sun_tint, 0.22 * daylight)
+	# The old cabin while it is boarded up: only what gets in round the boards, grey-green.
+	if _derelict and _room_env != null:
+		_room_env.ambient_light_energy *= 0.36
+		_room_env.ambient_light_color = _room_env.ambient_light_color.lerp(Color(0.5, 0.56, 0.46), 0.5)
 	_apply_manual_light_profile(animated)
 
 
@@ -1197,7 +1238,7 @@ func _apply_manual_light_profile(animated: bool) -> void:
 		_main_light.light_color = Color(1.0, 0.88, 0.68)
 		if _room_env != null:
 			_room_env.ambient_light_energy = maxf(_room_env.ambient_light_energy, 0.3)
-	if not _grid_power_available:
+	if not _grid_power_available or _derelict:
 		target_energy = 0.0
 	if animated:
 		if _manual_light_tween != null and is_instance_valid(_manual_light_tween):
@@ -1279,4 +1320,4 @@ func _update_torch(delta: float) -> void:
 
 ## After dusk with the lights off (L) or the camp's power gone.
 func room_is_dark() -> bool:
-	return _time_state != TIME_DAY and (not _manual_lights_on or not _grid_power_available)
+	return _derelict or (_time_state != TIME_DAY and (not _manual_lights_on or not _grid_power_available))

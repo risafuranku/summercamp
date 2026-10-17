@@ -6,10 +6,11 @@ extends RefCounted
 ##
 ## Three a day each way. The camp is the end of the line: the bus comes up from Lesna,
 ## stands half an hour at the stop (the driver smokes), turns in the loop and goes back
-## down through Lesna to Hlubocany. The first one out, at 6:15, is the one Vera takes to
-## the district (main.gd's first pager). In Lesna the bus to the camp stands a quarter
-## of an hour by the Jednota. A ride between the two takes an hour and a half of game
-## time (a minute). The 23:46 works bus does not stop at the camp: do not wave.
+## down through Lesna to Hlubocany. The first one in, at 5:45, is the one Vera comes out
+## on for the district's inspection on day 31 (main.gd's pager). In Lesna the bus to the
+## camp stands a quarter of an hour by the Jednota. A ride between the two takes an hour
+## and a half of game time (a minute). The 23:46 works bus does not stop at the camp: do
+## not wave.
 ##
 ## Times are game hours (7.5 = 7:30).
 

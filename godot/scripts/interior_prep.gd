@@ -343,6 +343,12 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			decal(root, "dirt_mould", rng.randf_range(0.3, 0.45), Vector3(_j(rng, 0.25), rng.randf_range(-0.05, 0.9), 0.014), 0.0, true)
 			size = Vector3(0.8, 1.2, 0.2)
 			body_pos = pos + Vector3(0, 0.4, 0)
+		"cobwebs":
+			# Across a corner high up (the spot faces out of it): `pos` is the middle of
+			# the web, its top edge under the ceiling.
+			decal(root, "cobweb_corner", 1.0, Vector3.ZERO, 0.0, true)
+			size = Vector3(1.0, 0.95, 0.14)
+			body_pos = pos
 		"graffiti":
 			var lbl := Label3D.new()
 			lbl.text = str(DOOR_WRITING[rng.randi_range(0, DOOR_WRITING.size() - 1)])

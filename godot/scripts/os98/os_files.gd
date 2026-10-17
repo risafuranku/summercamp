@@ -59,7 +59,7 @@ www.stavitel98.cz, it is shareware. Karel paid for it once and
 then lost the disk.
 
 CAMPSTAT - the power company wants us to use their program for
-the bills. www.campgrid.cz
+the bills. Karel put it on, it is on the desktop.
 
 GUESTRACK - the district wants the guest register kept in this.
 www.okres-hlubocany.cz

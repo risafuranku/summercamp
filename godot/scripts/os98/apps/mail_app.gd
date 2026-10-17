@@ -131,6 +131,8 @@ func _build() -> void:
 	add_child(_header)
 	_body = RichTextLabel.new()
 	_body.bbcode_enabled = true
+	# Links in a mail (Vera's to the programs): a click downloads the file.
+	_body.meta_clicked.connect(_on_link)
 	_body.selection_enabled = false
 	_body.add_theme_stylebox_override("normal", T.box("field", T.WHITE, Vector4(8, 6, 8, 6)))
 	add_child(_body)
@@ -470,6 +472,10 @@ func _show_message(mail: Dictionary) -> void:
 	var out := ""
 	for l in lines:
 		out += ("[color=#000080]%s[/color]" % l if l.begins_with(">") else l) + "\n"
+	for link in mail.get("links", []):
+		if link is Dictionary:
+			var lt := _esc(str(link.get("text", "")))
+			out = out.replace(lt, "[url=dl:%s|%s][color=#0000c0][u]%s[/u][/color][/url]" % [str(link.get("file", "")), str(link.get("text", "")), lt])
 	_body.append_text(out)
 	var img := str(mail.get("image", ""))
 	if img != "" and ResourceLoader.exists(IMG_DIR + img + ".png"):
@@ -493,6 +499,16 @@ func refresh_tools() -> void:
 	_set_tool_enabled("reply", not _current.is_empty() and _folder != "sent")
 	_set_tool_enabled("forwardmail", not _current.is_empty())
 	_set_tool_enabled("delete", not _current.is_empty() and _folder != "sent")
+
+
+func _on_link(meta) -> void:
+	var m := str(meta)
+	if not m.begins_with("dl:"):
+		return
+	var parts := m.substr(3).split("|")
+	if parts.size() >= 1 and _shell != null and _shell.has_method("start_download"):
+		_shell.play("click", -10.0)
+		_shell.start_download(parts[0], parts[1] if parts.size() > 1 else parts[0])
 
 
 func _attachment_name(mail: Dictionary) -> String:

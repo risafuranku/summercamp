@@ -1,42 +1,10 @@
 [
   {
     "day": 1,
-    "time": "09:02",
-    "from": "Teta Vera <vera.kralova@rodina.cz>",
-    "subject": "You are in charge this week",
-    "body": "I am out for seven days. You run the camp now.\n\nEverything happens through the terminal in the office. Read every mail. Bookings have an Accept and a Reject button - use both. Rejecting is not rude, it is management.\n\n- Teta Vera",
-    "type": "story"
-  },
-  {
-    "day": 1,
     "time": "09:11",
     "from": "Nela <nela@chatmail.cz>",
     "subject": "First day check",
     "body": "Good luck on your first day.\n\nIf the inbox starts screaming, breathe and sort the customer mail first. Call me before midnight, you promised.",
-    "type": "story"
-  },
-  {
-    "day": 1,
-    "time": "16:23",
-    "from": "Weather Relay Node-2 <wx-node2@relay.local>",
-    "subject": "Forecast packet delayed",
-    "body": "Satellite relay delayed by atmospheric noise.\n\nExpect stale weather metadata for a few hours.",
-    "type": "story"
-  },
-  {
-    "day": 1,
-    "time": "16:30",
-    "from": "CampNet Billing <billing@campnet.local>",
-    "subject": "Pending settlement batch",
-    "body": "Settlement batch will clear at end of day after guest departures are processed.",
-    "type": "story"
-  },
-  {
-    "day": 1,
-    "time": "19:00",
-    "from": "Teta Vera <vera.kralova@rodina.cz>",
-    "subject": "Supplies",
-    "body": "There is a lockbox under the reception desk with cash for basic camp expenses. Do not waste it on junk.\n\nAnd open the CAMPSTAT program now and then. It has a tab for the power bill and a tab for the nights. Both matter.",
     "type": "story"
   },
   {
@@ -81,18 +49,10 @@
   },
   {
     "day": 3,
-    "time": "00:54",
-    "from": "Nela <nela@chatmail.cz>",
-    "subject": "Still alive there?",
-    "body": "Hey,\n\nDid you sleep at all or are you still camping in that office chair?\n\nPlease eat something and do not answer chain mails.",
-    "type": "story"
-  },
-  {
-    "day": 3,
     "time": "07:40",
     "from": "Teta Vera <vera.kralova@rodina.cz>",
     "subject": "Water meter note",
-    "body": "Quick note: the old water meter still drifts at night. If guests complain, tell them we are scheduling service.\n\nIt has been drifting for eleven years. Nobody is scheduling anything.",
+    "body": "Quick note: the old water meter drifts at night. If guests complain, tell them we are scheduling service.\n\nIt drifted all winter, with the camp shut and nobody here to use a drop. Nobody is scheduling anything.",
     "type": "story"
   },
   {
@@ -115,17 +75,9 @@
   {
     "day": 4,
     "time": "16:35",
-    "from": "District Office <registry@okres.local>",
-    "subject": "Operator registry ping",
-    "body": "This is an automated registry ping.\n\nConfirming daily occupancy logs can be submitted retroactively.",
-    "type": "story"
-  },
-  {
-    "day": 4,
-    "time": "18:12",
-    "from": "Teta Vera <vera.kralova@rodina.cz>",
-    "subject": "Checking in",
-    "body": "Are you answering the booking mails or are you letting them pile up? Guests who wait do not come back, and the ones who do come back leave reviews.\n\n- Teta Vera",
+    "from": "District Office Hlubocany <registr@okres-hlubocany.cz>",
+    "subject": "Kemp Cerne jezero: inspection of operation",
+    "body": "Dear operator,\n\nWe confirm that the inspection of the operation of the facility Kemp Cerne jezero (parcel 412/3) will take place on Monday 19 October 1998 at 8:00.\n\nThe application of Agrostroj Hlubocany a.s. for a change of land use remains with the District Office. Should the facility not be in operation on the date of inspection, the Office will recommend the change.\n\nThis letter is for your information. No reply is required.\n\nIng. Pokorny\nDepartment of Land Use",
     "type": "story"
   },
   {
@@ -134,14 +86,6 @@
     "from": "Teta Vera <vera.kralova@rodina.cz>",
     "subject": "Socks",
     "body": "You were up late again. The grey socks are in the second drawer, the office floor is cold in the morning.\n\n- V.",
-    "type": "story"
-  },
-  {
-    "day": 5,
-    "time": "11:19",
-    "from": "Teta Vera <vera.kralova@rodina.cz>",
-    "subject": "Weekend warning",
-    "body": "Weekend traffic is building. Expect larger groups asking for tomorrow arrivals.\n\nDo not confirm what you cannot host.",
     "type": "story"
   },
   {
@@ -169,27 +113,35 @@
     "type": "story"
   },
   {
-    "day": 6,
-    "time": "19:38",
-    "from": "CampNet Ops <ops@campnet.local>",
-    "subject": "Mailbox throughput report",
-    "body": "Automated report:\n- Mail feed active\n- Filter confidence: degraded\n- Sender verification unavailable\n\nRecommendation: manual review for all customer bookings.",
+    "day": 12,
+    "time": "11:05",
+    "from": "Agrostroj Hlubocany a.s. <obchod@agrostroj.cz>",
+    "subject": "Our offer stands",
+    "body": "Dear owner,\n\nOur offer for the land at Cerne jezero stands: 2.4 million crowns, paid at signature. The structures would of course be removed at our cost, the lake left as it is for the cooling water.\n\nWe understand the camp has been closed since last summer. Nobody will blame you for selling. Mr Karel H. was close to signing with us last autumn, before the accident.\n\nWith respect,\nJ. Maly, commercial director",
     "type": "story"
   },
   {
-    "day": 7,
+    "day": 18,
+    "time": "19:30",
+    "from": "Teta Vera <vera.kralova@rodina.cz>",
+    "subject": "Tuesdays",
+    "body": "My sister's grandson lets me use his computer on Tuesdays. Everyone in this house is very old.\n\nI hear you have guests. Good. Write them all in the book, even the ones who do not give a name.\n\nIf you find a little red shoe anywhere, leave it where it is. Do not bring it in.\n\n- V.",
+    "type": "story"
+  },
+  {
+    "day": 30,
     "time": "13:52",
     "from": "Nela <nela@chatmail.cz>",
     "subject": "Tomorrow",
-    "body": "Your aunt is back tomorrow, right? Then you are back the day after.\n\nI kept your seat on the bus.",
+    "body": "The inspection is tomorrow, right? Whatever they say, I kept your seat on the bus.",
     "type": "story"
   },
   {
-    "day": 7,
+    "day": 30,
     "time": "20:10",
     "from": "Teta Vera <vera.kralova@rodina.cz>",
-    "subject": "Coming back tomorrow",
-    "body": "Train arrives in the morning. Leave the books on the desk and the terminal on.\n\nI will count them myself.\n\n- Teta Vera",
+    "subject": "Tomorrow at eight",
+    "body": "The man from the district comes at eight. I will come out on the first bus and stand next to you; he knew your uncle.\n\nLeave the books on the desk and the terminal on.\n\nI will count them myself.\n\n- Teta Vera",
     "type": "story"
   }
 ]

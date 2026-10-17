@@ -19,11 +19,11 @@ signal step_completed(step_id: String)
 const VERA := "Teta Vera <vera.kralova@rodina.cz>"
 const TRACKER_TITLE := "VERA'S CHECKLIST"
 const POLL_SEC := 0.5
-const WAYPOINT_LABELS := {"reception": "Office", "gate": "Gate", "unready_room": "Make up", "first_guest": "Guest"}
+const WAYPOINT_LABELS := {"reception": "Office", "gate": "Gate", "unready_room": "Make up", "first_guest": "Guest", "ruined_cabin": "Old cabin"}
 const FIRST_BOOKING_NAME := "Mirek Dvorak"
 
 ## Story-pool mails the questline replaces with its own task mails.
-const STORY_SUBJECTS_OWNED := ["You are in charge until October", "You are in charge this week"]
+const STORY_SUBJECTS_OWNED := ["You are in charge until October", "You are in charge this week", "The camp is yours now"]
 
 const STEPS: Array[Dictionary] = [
 	{
@@ -31,30 +31,44 @@ const STEPS: Array[Dictionary] = [
 		"text": "Open CampMail and read Aunt Vera's email.",
 		"hint": "The envelope icon on the desktop.",
 		"reward": 0,
-		"mail_subject": "You are in charge until October",
-		"mail_body": "I am away until the nineteenth of October. A month: the whole autumn. You run the camp now. The season is over, but people still come for the mushrooms, the fishing and the quiet.\n\nEverything happens through this terminal. Read every mail. Bookings have an Accept and a Reject button - use both. Rejecting is not rude, it is management.\n\nFirst job: we have no beds. Open Beeternet (it dials the modem, let it squeal), go to www.stavitel98.cz and download Builder 98. The setup program lands in the Download folder on the desktop. Run it. Then clear some trees and put up a tent.\n\nI left you $850. Do not spend it on the slide.\n\n- Teta Vera",
+		"mail_subject": "The camp is yours now",
+		"mail_body": "Dear,\n\nYou will have heard by now. I am at my sister's in Pelhrimov, and I am staying: my hip will not do the lake any more, and I am too old to pretend. The camp is yours. It was always going to be yours.\n\nIt has been shut since last summer. After your uncle went I did not have the strength to open it again, and a winter with nobody in it has done the rest: the cabins have gone to rot and the tents are rags.\n\nNow the bad part. A firm, Agrostroj Hlubocany, wants the land: a feed mill where the cabins are and the lake for its water. The district is on their side. Their man comes to look on the nineteenth of October. If the camp is not open and paying by then, the district sells the land to them, and that is the end of it. A month. I know.\n\nStart with the old cabin by the office. Patch it up, clean it out, make up the bed: that is how every room here works. Then the programs. The builder: www.stavitel98.cz/BLDR98SW.EXE - and the guest register the district wants: www.okres-hlubocany.cz/GUESTRAK.EXE - click them, they download, then run them from the Download folder. CampStat is on the machine already, your uncle put it there; the bills are in it.\n\nI left you $850. Do not spend it on the slide.\n\nI will write when I can. The phone will ring at night sometimes. You do not have to answer it.\n\n- Teta Vera",
+		"mail_links": [
+			{"text": "www.stavitel98.cz/BLDR98SW.EXE", "file": "BLDR98SW.EXE"},
+			{"text": "www.okres-hlubocany.cz/GUESTRAK.EXE", "file": "GUESTRAK.EXE"},
+		],
 	},
 	{
-		"id": "install_builder",
-		"text": "Download Builder 98 from www.stavitel98.cz and run its setup.",
-		"hint": "Beeternet > Stavitel software > BLDR98SW.EXE, then open it from the Download folder.",
+		"id": "fix_cabin",
+		"text": "Patch up the old cabin by the office.",
+		"hint": "Walk up to it and hold R.",
+		"reward": 0,
+		"waypoint": "ruined_cabin",
+	},
+	{
+		"id": "clean_cabin",
+		"text": "Clean out the old cabin and make up the bed.",
+		"hint": "Inside, hold the mouse on what needs doing.",
+		"reward": 80,
+		"waypoint": "ruined_cabin",
+	},
+	{
+		"id": "install_apps",
+		"text": "Install Builder 98 and GuestRack from the links in Vera's mail.",
+		"hint": "Click a link, then run the file from the Download folder.",
 		"reward": 50,
 	},
 	{
 		"id": "build_housing",
-		"text": "Bulldoze some trees and build your first tent or cabin.",
+		"text": "Bulldoze some trees and put up a tent or another cabin.",
 		"hint": "Builder: bulldozer, then Housing.",
 		"reward": 100,
-		"mail_subject": "Beds first",
-		"mail_body": "Good, the builder works. Now beds.\n\nTrees are free to cut but the bulldozer costs a little per tile. A tent is cheap and holds one guest. A cabin holds two and they sleep better in it - a guest who slept well pays and smiles.\n\nNo beds, no bookings. No bookings, no money.\n\n- V.",
 	},
 	{
 		"id": "build_toilet",
 		"text": "Guests need a toilet. Build a Toilet Block near the beds.",
-		"hint": "Builder: Services > Toilet.",
+		"hint": "Builder: Services > Toilet. It needs the sewer by the lake.",
 		"reward": 150,
-		"mail_subject": "About the bushes",
-		"mail_body": "Before anyone sleeps here: a toilet.\n\nPeople without a toilet use the bushes, and then they write reviews. The toilets need the sewer to work - it is the green hatch by the lake. If it ever clogs, somebody has to crawl in there. That somebody is you.\n\n- V.",
 	},
 	{
 		"id": "accept_booking",
@@ -65,12 +79,10 @@ const STEPS: Array[Dictionary] = [
 	},
 	{
 		"id": "make_up_room",
-		"text": "Mirek reaches reception in about an hour. Get up from the desk, go to the tent and make it up.",
-		"hint": "Esc gets you up. Inside, hold the mouse on what needs doing.",
+		"text": "Mirek reaches reception in about an hour. Make sure his room is made up.",
+		"hint": "Esc gets you up from the desk.",
 		"reward": 60,
 		"waypoint": "unready_room",
-		"mail_subject": "You can get up, you know",
-		"mail_body": "Somebody is coming. He will be at reception within the hour and he will not stand there all day.\n\nThe computer is not the camp. Get up, go outside, find the tent you built and make it up: the sleeping bag, the rubbish the last people left. When it is ready you give him the key, not before.\n\nEvery bed, every time. That is the job.\n\n- V.",
 	},
 	{
 		"id": "check_in_guest",
@@ -78,7 +90,7 @@ const STEPS: Array[Dictionary] = [
 		"hint": "Write him in the register, give him his key, stamp the booking.",
 		"reward": 60,
 		"mail_subject": "The book",
-		"mail_body": "Everyone who sleeps here goes in the book. Name and number off the identity card, the booking off the slip. The key off the board, the right one. Then the stamp, and give him his papers back.\n\nIf someone comes to the desk who is not booked, and his card does not look right, you do not write him in. You stamp him REFUSED and you give him his card back. Do not argue with him.\n\n- V.",
+		"mail_body": "Everyone who sleeps here goes in the book: name and number off the card, the booking off the slip, the right key off the board, the stamp, the papers back.\n\nIf someone comes to the desk who is not booked and his card does not look right, you stamp him REFUSED and give him his card back. Do not argue with him.\n\n- V.",
 	},
 	{
 		"id": "welcome_guest",
@@ -92,8 +104,6 @@ const STEPS: Array[Dictionary] = [
 		"text": "Guests get hungry. Build a Bistro or a Pub.",
 		"hint": "Builder: Services. Food needs power.",
 		"reward": 120,
-		"mail_subject": "People eat",
-		"mail_body": "You will notice the guests wandering around looking lost. They are hungry. The Jednota is cheap, the Bistro is proper food, the Pub is beer with a sandwich next to it.\n\nWatch their faces on the status bar. A grumpy camp is a noisy camp, and a noisy camp at night attracts... noise.\n\n- V.",
 	},
 	{
 		"id": "light_paths",
@@ -107,12 +117,12 @@ const STEPS: Array[Dictionary] = [
 		"hint": "The bed is behind the office, through the door by the keys.",
 		"reward": 200,
 		"mail_subject": "Tonight",
-		"mail_body": "When it gets dark the builder locks. That is not a bug, that is the camp.\n\nIf you hear footsteps where there is nobody, turn around. If something follows you, run and get inside - the office, a cabin, the toilets. Do not stand in the dark staring at it.\n\nThe forecast on the status bar is honest. The more of one kind of guest you take, the worse the night. Unhappy guests count double.\n\nSee you in the morning. Please.\n\n- V.",
+		"mail_body": "When it gets dark the builder locks. That is not a bug, that is the camp.\n\nIf you hear footsteps where there is nobody, turn around. If something follows you, get inside. Do not stand in the dark staring at it. The more of one kind of guest you take, the worse the night.\n\nSee you in the morning. Please.\n\n- V.",
 	},
 	{
 		"id": "pay_bill",
 		"text": "The electricity bill arrived. Pay it in CampStat before it is overdue.",
-		"hint": "No CampStat yet? The power company gives it away at www.campgrid.cz.",
+		"hint": "CampStat > Bills.",
 		"reward": 50,
 	},
 	{
@@ -126,8 +136,6 @@ const STEPS: Array[Dictionary] = [
 		"text": "Host 6 guests at the same time.",
 		"hint": "More beds. Mix the guest types or the nights get worse.",
 		"reward": 300,
-		"mail_subject": "Not bad",
-		"mail_body": "A review with stars in it. Your uncle framed his first one.\n\nNow grow. Six guests at once and I stop worrying. Mix them - quiet ones, drinkers, the fancy ones. Three of a kind is fine, past that the nights get strange.\n\n- V.",
 	},
 ]
 
@@ -304,7 +312,7 @@ func _finish_all() -> void:
 	if hud != null:
 		hud.set_objective({
 			"title": TRACKER_TITLE,
-			"text": "Checklist done. Keep the camp alive until Vera is back (day 8).",
+			"text": "Checklist done. Keep the camp open and paying until the inspection (19 October).",
 			"progress": "%d/%d" % [STEPS.size(), STEPS.size()],
 		})
 	if EmailManager != null and not bool(_flags.get("final_mail_sent", false)):
@@ -312,7 +320,7 @@ func _finish_all() -> void:
 		EmailManager.push_system_mail({
 			"from": VERA, "sender": VERA, "type": "task",
 			"subject": "You did everything on my list",
-			"body": "Every box ticked. I did not expect that, and I mean it kindly.\n\nNow just keep them alive and keep them happy until I am back. Watch the forecast. Pay the bills. Crawl into the sewer if you must.\n\n- Teta Vera",
+			"body": "Every box ticked. I did not expect that, and I mean it kindly.\n\nNow just keep them alive and keep them happy until the man from the district has been. Watch the forecast. Pay the bills. Crawl into the sewer if you must.\n\n- Teta Vera",
 			"day": _day(), "time": _time_str(),
 		})
 
@@ -326,8 +334,17 @@ func _is_satisfied(step_id: String) -> bool:
 			return not mail.is_empty() and bool(mail.get("_read", false))
 		"install_builder":
 			return bool(_flags.get("builder_installed", false)) or _builder_unlocked()
+		"fix_cabin":
+			var key := _ruined_key()
+			return key.is_empty() or not CoreRoot.get_state().failures.has(key)
+		"clean_cabin":
+			var key2 := _ruined_key()
+			return key2.is_empty() or str(GuestManager.get_room_state(key2).get("status", "")) == "ready"
+		"install_apps":
+			return (bool(_flags.get("builder_installed", false)) or _builder_unlocked()) and _program_unlocked("guestrack")
 		"build_housing":
-			return int(GuestManager.get_bed_metrics().get("capacity", 0)) > 0
+			# Beyond the old cabin (two beds): a tent or a cabin of your own.
+			return int(GuestManager.get_bed_metrics().get("capacity", 0)) > 2
 		"build_toilet":
 			return _count_buildings(["toilet_block"]) > 0
 		"accept_booking":
@@ -386,6 +403,18 @@ func _first_guest_in() -> bool:
 
 func _on_day_tick(_day_index: int) -> void:
 	_check_current()
+
+
+## The old cabin the camp starts with (main.ruined_cabin_key()), "" if there is none.
+func _ruined_key() -> String:
+	if _main != null and _main.has_method("ruined_cabin_key"):
+		return str(_main.ruined_cabin_key())
+	return ""
+
+
+func _program_unlocked(app_id: String) -> bool:
+	var shell := _crt_shell()
+	return shell != null and shell.has_method("_is_program_unlocked") and bool(shell._is_program_unlocked(app_id))
 
 
 func _builder_unlocked() -> bool:
@@ -453,6 +482,7 @@ func _send_task_mail(step: Dictionary) -> void:
 		"body": body + task_line,
 		"task_id": id,
 		"reward": reward,
+		"links": (step.get("mail_links", []) as Array).duplicate(true),
 		"day": _day(), "time": _time_str(),
 	})
 
@@ -562,6 +592,11 @@ func _waypoint_position(kind: String) -> Vector3:
 						var parts := str(r["key"]).split(":")
 						if parts.size() == 2:
 							return gm.grid_to_world(Vector2i(int(parts[0]), int(parts[1]))) + Vector3(0.0, 2.2, 0.0)
+		"ruined_cabin":
+			var key := _ruined_key()
+			if not key.is_empty():
+				var parts2 := key.split(":")
+				return gm.grid_to_world(Vector2i(int(parts2[0]), int(parts2[1]))) + Vector3(2.0, 3.2, 2.0)
 		"first_guest":
 			for g in GuestManager.get_guest_life_snapshot():
 				var lodging = (g as Dictionary).get("lodging", Vector2i(-1, -1))

@@ -9,7 +9,11 @@ How the game is meant to feel and the rules that produce it. For what exists tod
 
 ## 1. The idea
 
-A month minding aunt Vera's camp, through the autumn of 1998 (19 September to 19 October: the golden end of summer, the leaves, the fog and rain of October, bare trees and the first snow on the last nights). By day it is a pleasant, slightly fiddly tycoon you play
+Aunt Vera's old camp is yours now: the family camp at the reservoir, shut since last summer
+(after your uncle went), and Agrostroj Hlubocany wants the land for a feed mill. The
+district inspects on 19 October; if the camp is not open and paying by then, the land is
+sold. So you have a month, the autumn of 1998 (19 September to 19 October: the golden end of summer, the leaves, the fog and rain of October, bare trees and the first snow on the last nights). Vera is not coming back to run it; she writes from her sister's in Pelhrimov, tips and warnings, and the
+curse is only ever hinted at (the count at night, the shoe, the uncle). By day it is a pleasant, slightly fiddly tycoon you play
 on the reception PC. At 20:00 the PC locks and the consequences of your day walk around
 outside in the dark, and you have to go out there with a flashlight.
 
@@ -61,12 +65,21 @@ accept booking -> +income -> +guests of an archetype
 
 ## 3. The first hour
 
-A new week starts at the desk in the reception, the computer already booting. Vera's
-first mail, Beeternet, Builder 98, the first tent and toilet: all of it on the screen.
-Then the first booking is accepted and Vera writes "You can get up, you know": Esc, and
-you stand up from the computer into a camp you have only seen as a map. A title card
-(THE CAMP, DAY 1) marks it. From then on the day is split between the screen and the
-place. (Checklist: `scripts/quest_manager.gd`.)
+A new camp starts at the desk in the reception, the computer already booting. Two mails:
+Nela's, and Vera's "The camp is yours now" (the land, Agrostroj, the nineteenth, where to
+start). It carries the links to Builder 98 and GuestRack (a click downloads them);
+CampStat is on the desktop already. Little mail after that: the checklist
+(`scripts/quest_manager.gd`) sends only "The book" and "Tonight", and the story pool is
+the camp and its people, not system notices.
+
+Outside, the old cabin by the office (`main._place_ruined_cabin`) is the first job and the
+lesson in how a room works: boarded up, weeds up the walls, roof sheets in the grass, its
+condition at the bottom (broken: hold R to patch it up, as any building), and inside every
+mess there is (`mess_rules` derelict pool) and the bed to make. It takes no bookings until
+it is patched up (`GuestManager.get_bed_metrics`), so the first requests come when the camp
+is open. Then the programs, new lodging, the toilet block, Mirek's booking and the desk.
+A title card (THE CAMP, DAY 1) marks the first step outside. From then on the day is split
+between the screen and the place.
 
 The first night is quiet: nothing has been in the camp long enough to bring anything, and
 there are no night jobs (`main.QUIET_NIGHTS`). Vera's 20:06 mail says so and sends you to
@@ -354,23 +367,25 @@ while you type you are not watching the camp.
 (a day event: knock at their door and look round with them; nobody, the boards under the
 bed wet). Look or not, the director remembers that cabin: at night, near it, it makes sounds.
 
-## 5d. The end of the week
+## 5d. The end of the month: the inspection
 
-Vera's last mail (day 7, 20:10): "Leave the books on the desk and the terminal on. I will
-count them myself." On day 8 the pager says her train gets in at eight, and at 08:00 the
-game stops on THE BOOKS (`scripts/week_ledger.gd`, `scripts/ui/week_report_screen.gd`):
+Vera's last mail (day 30, 20:10): "The man from the district comes at eight. I will come
+out on the first bus and stand next to you... I will count them myself." On day 31
+(Monday 19 October) the pager says so, and at 08:00 the game stops on THE BOOKS, "THE
+INSPECTION" (`scripts/week_ledger.gd`, `scripts/ui/week_report_screen.gd`):
 
 - **The ledger.** Takings against the starting till; guests hosted, average stars, parties
-  who gave up at the barrier or stormed off; the seven nights, how many something came on
+  who gave up at the barrier or stormed off; the thirty nights, how many something came on
   and what it was; how often you were hurt; night jobs left for the morning.
-- **The verdict.** A plain grade of money, reviews and nights: *good* ("the summer is
-  yours"), *fair* ("sleep more and accept less"), *poor* ("your bus is at ten").
+- **The verdict.** A plain grade of money, reviews and nights: *good* (the district
+  withdraws the sale, "the winter is yours"), *fair* ("the sale is off, for now"), *poor*
+  (they will recommend the sale, Agrostroj's pegs are in, "your bus is at ten").
 - **The count at breakfast.** If nothing ever came, the number in the book and at
   breakfast agree ("I counted twice, because it is never right"). If anything came there
   is one more at breakfast than in the book, "like when your uncle ran it"; if the
   Antlered Man came, the extra one stood by the fence facing the office. The verdict
   answers *how well*, the count answers *what you let in*.
-- **Then:** *Stay on* closes the week and the camp runs on with no end (Vera takes the noon
+- **Then:** *Stay on* closes the month and the camp runs on with no end (Vera takes the noon
   bus back to town: "You know the way."), or back to the main menu.
 
 ## 5f. Work you can see

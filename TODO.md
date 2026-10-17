@@ -18,9 +18,9 @@
 - [x] C10 The torch: the hand points into the scene, low and small; a weak beam that trails the view; in dark rooms it shines where the cursor points
 - [x] C11 Toilets: each outside door its own stall (no A/D); the poop and the second bowl clickable again (stale bodies, the exit band)
 - [x] C12 The caravan: model after the sprites (Grok textures), 3 levels by upgrade (2/3/4 beds), the interior (dinette bed, kitchenette, bunks), its niche (cheapest bed with a roof, most beds per tile, less comfort, needs power, wears faster)
-- [ ] C13 Tutorial and lore: less mail; CampStat preinstalled; Vera mails the links to the Builder and GuestRack; the camp is inherited from Vera's family, abandoned, a firm wants the land for a factory and you have a month to get it running; a hint of a curse; start with ruined buildings (a filthy, rotting first cabin to repair and clean, which teaches how a cabin works)
-- [ ] C14 More buildings, decorations and attractions, so a camp can be built up properly
-- [ ] C15 The six guest types with their own tastes in attractions, lodging and entertainment; a deeper care simulation (the caravan's admirers and critics)
+- [x] C13 Tutorial and lore: less mail; CampStat preinstalled; Vera mails the links to the Builder and GuestRack; the camp is inherited from Vera's family, abandoned, a firm wants the land for a factory and you have a month to get it running; a hint of a curse; start with ruined buildings (a filthy, rotting first cabin to repair and clean, which teaches how a cabin works). Done: Vera hands the camp over for good (at her sister's in Pelhrimov, tips by mail), shut since last summer, Agrostroj's feed mill, the district's inspection at 08:00 on 19 October ends the month; the opener carries clickable download links; the story pool trimmed of system filler and week-era lines; the old cabin by the office boarded up, rotting, no bookings until patched (R), inside dark with the window boarded, cobwebs, and every mess there is
+- [x] C14 More buildings, decorations and attractions, so a camp can be built up properly (bench, picnic table, flower bed, gnome, flagpole, playground, ping-pong, hammock; a Decor tab)
+- [x] C15 The six guest types with their own tastes in attractions, lodging and entertainment; a deeper care simulation (the caravan's admirers and critics; noisy guests keep light sleepers up; wishes in the booking mail)
 
 ## BRIEF 2026-10-16 — polish and depth (the user's notes)
 
