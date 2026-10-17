@@ -8,6 +8,9 @@ signal hover_info(text: String)
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
+## Sprites whose picture has no empty margin round the building (the Jednota fills its
+## whole canvas) look a size bigger than the rest on the same footprint: drawn smaller.
+const ICON_SCALE := {"vecerka_iso": 0.76}
 const SFX_DIR := "res://assets/sfx/builder/"
 
 ## Status severity, consumed by builder_module for colour + audio feedback.
@@ -69,6 +72,24 @@ const ICON_PATHS := {
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
 	"vecerka_iso": "res://assets/textury/builder/iso_jednota.png",
 	"lamp_iso": "res://assets/textury/builder/iso_lamp.png",
+}
+
+## The same buildings from behind (tools/artgen back_*): turned away from you (rotations
+## 1 and 2 on this map) you see their back, not their door. Rotation 3 shows the front,
+## 0 the front mirrored, 1 the back, 2 the back mirrored.
+const ICON_BACK_PATHS := {
+	"pub": "res://assets/textury/builder/back_pub.png",
+	"vecerka_iso": "res://assets/textury/builder/back_jednota.png",
+	"restaurant": "res://assets/textury/builder/back_bistro.png",
+	"cabin_1": "res://assets/textury/builder/back_cabin1.png",
+	"cabin_2": "res://assets/textury/builder/back_cabin2.png",
+	"cabin_3": "res://assets/textury/builder/back_cabin3.png",
+	"tent_1": "res://assets/textury/builder/back_tent1.png",
+	"tent_2": "res://assets/textury/builder/back_tent2.png",
+	"tent_3": "res://assets/textury/builder/back_tent3.png",
+	"caravan_1": "res://assets/textury/builder/back_caravan.png",
+	"toilet_block": "res://assets/textury/builder/back_toilets.png",
+	"shower_block": "res://assets/textury/builder/back_showers.png",
 }
 
 const ICON_NO_MIRROR := {
@@ -207,6 +228,11 @@ func _ready() -> void:
 	_static_layer.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_static_layer.draw.connect(_draw_static)
 	add_child(_static_layer)
+	# A Control is culled by its own rect (0,0,size). With size 0 that was a point at the
+	# layer's position: a zoom-in moves the layer up-left past the panel's corner and the
+	# whole map was culled until it was redrawn (playtest: "the textures disappear for a
+	# second on every zoom"). Big enough to always meet the screen.
+	_static_layer.size = Vector2(100000, 100000)
 	_dyn_layer = Control.new()
 	_dyn_layer.name = "DynamicLayer"
 	_dyn_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1402,7 +1428,7 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 
 	var icon_key = _icon_key_for_type(building_type)
 	if icon_key != "":
-		var scale_xy = maxf(1.0, (float(footprint.x) + float(footprint.y)) * 0.5)
+		var scale_xy = maxf(1.0, (float(footprint.x) + float(footprint.y)) * 0.5) * float(ICON_SCALE.get(icon_key, 1.0))
 		var draw_size = Vector2(tile_w * scale_xy * 1.24, tile_h * scale_xy * 1.70)
 		# Freshly built: it drops in from above and settles with a little bounce.
 		var origin_c: Vector2i = entry.get("origin", Vector2i.ZERO)
@@ -1590,6 +1616,10 @@ func _draw_icon(center: Vector2, draw_size: Vector2, icon_key: String, rotation_
 	var tex = _get_icon(icon_key)
 	if tex == null:
 		return false
+	var rs := wrapi(rotation_steps, 0, 4)
+	var back: Texture2D = _get_back_icon(icon_key) if (rs == 1 or rs == 2) else null
+	if back != null:
+		tex = back
 	var target_h = maxf(10.0, draw_size.y)
 	var aspect = float(tex.get_width()) / maxf(1.0, float(tex.get_height()))
 	var target_w = target_h * aspect
@@ -1598,7 +1628,7 @@ func _draw_icon(center: Vector2, draw_size: Vector2, icon_key: String, rotation_
 		target_w = max_w
 		target_h = target_w / maxf(0.001, aspect)
 	var rect = Rect2(center.x - target_w * 0.5, center.y - target_h * 0.58, target_w, target_h)
-	var mirror = _should_mirror_icon(icon_key, rotation_steps)
+	var mirror = (rs == 2) if back != null else _should_mirror_icon(icon_key, rotation_steps)
 	if mirror:
 		_cv.draw_set_transform(Vector2(rect.position.x + rect.size.x, rect.position.y), 0.0, Vector2(-1.0, 1.0))
 		_cv.draw_texture_rect(tex, Rect2(Vector2.ZERO, rect.size), false, tint)
@@ -1616,6 +1646,14 @@ func _should_mirror_icon(icon_key: String, rotation_steps: int) -> bool:
 	# - arrow down-left / up-right => normal
 	# - arrow down-right / up-left => mirrored
 	return normalized == 0 or normalized == 2
+
+
+func _get_back_icon(icon_key: String) -> Texture2D:
+	var k := "back:" + icon_key
+	if not _icon_cache.has(k):
+		var path := str(ICON_BACK_PATHS.get(icon_key, ""))
+		_icon_cache[k] = _load_texture(path) if path != "" and ResourceLoader.exists(path) else null
+	return _icon_cache[k] as Texture2D
 
 
 func _preload_icons() -> void:

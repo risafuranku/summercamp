@@ -2089,6 +2089,17 @@ func debug_meshes_in_rect(cam: Camera3D, rect: Rect2, root: Node) -> Array:
 	return out
 
 
+## Shot driver: a node's mesh children, names and global centres (model debugging).
+func debug_parts(n: Node) -> Array:
+	var out: Array = []
+	if n == null:
+		return out
+	for m in n.find_children("*", "VisualInstance3D", true, false):
+		var v := m as VisualInstance3D
+		out.append([str(v.name), (v as Node3D).global_position.snapped(Vector3.ONE * 0.01), v.visible])
+	return out
+
+
 func debug_guest_thoughts() -> Array:
 	var out: Array = []
 	for g in CoreRoot.get_state().guests:

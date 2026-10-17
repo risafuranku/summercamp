@@ -927,6 +927,38 @@ const SCENARIOS := {
 		["wait", 0.06], ["shot", "bz5_fast_in"], ["wait", 1.2], ["shot", "bz6_settled"],
 		["eval", "[debug_builder_map()._zoom_level, debug_builder_map()._pan_offset, debug_builder_map()._static_layer.scale, debug_builder_map()._static_layer.position]"],
 	],
+	"lamps": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 5.0], ["eval", "_interior_manager._building_interior.close_interior()"],
+		["money", 20000], ["clear", 8, 8, 6, 6], ["build", "lamp_post", 10, 10, 0], ["build", "path", 12, 9, 0], ["build", "path", 12, 10, 0], ["build", "path", 12, 11, 0], ["build", "lamp_post", 12, 10, 0], ["wait", 12.0],
+		["view", 10, 10, 1, 1, 5.0, 20, 2.2], ["wait", 0.5], ["shot", "lp0"],
+		["view", 10, 10, 1, 1, 5.0, 110, 2.2], ["wait", 0.5], ["shot", "lp1"],
+		["view", 12, 10, 1, 1, 5.0, 20, 2.2], ["wait", 0.5], ["shot", "lp2"],
+		["view", 12, 10, 1, 1, 5.0, 200, 2.2], ["wait", 0.5], ["shot", "lp3"],
+		["eval", "debug_parts(debug_structure_of_type('lamp_post'))"],
+	],
+	"blook": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 40000], ["clear", 4, 4, 15, 10],
+		["build", "vecerka", 5, 5, 0], ["build", "vecerka", 8, 5, 2], ["build", "pub", 11, 5, 0], ["build", "pub", 14, 5, 2],
+		["build", "cabin_1", 5, 9, 0], ["build", "cabin_1", 8, 9, 2], ["build", "tent_1", 11, 9, 0], ["build", "tent_1", 13, 9, 2],
+		["build", "restaurant", 15, 9, 0], ["build", "caravan_1", 17, 5, 0], ["wait", 1.5],
+		["eval", "_interior_manager.open_startup_crt_view()"], ["wait", 18.0],
+		["eval", "_interior_manager._building_interior._crt_ui._on_program_installed('builder')"], ["eval", "_interior_manager._building_interior._crt_ui.open_app('builder')"], ["wait", 3.5],
+		["eval", "debug_close_msgboxes()"], ["wait", 0.4],
+		["eval", "debug_builder_map().debug_center_on(Vector2i(11, 8))"], ["wait", 1.0], ["crt_screen", "bl0_default"],
+		["eval", "debug_builder_map().apply_zoom_step(1)"], ["wait", 1.2], ["crt_screen", "bl1_zoom1"],
+		["eval", "debug_builder_map().apply_zoom_step(1)"], ["wait", 1.2], ["crt_screen", "bl2_zoom2"],
+		["eval", "debug_builder_map().apply_zoom_step(1)"], ["wait", 1.2], ["crt_screen", "bl3_zoom3"],
+		["eval", "debug_builder_map().apply_zoom_step(1)"], ["wait", 0.3], ["crt_screen", "bl4_zoom4_mid"], ["wait", 1.2], ["crt_screen", "bl5_zoom4"],
+		["eval", "debug_builder_map().apply_zoom_step(1)"],
+		["eval", "[debug_builder_map()._static_layer.scale, debug_builder_map()._static_layer.position, debug_builder_map()._static_tile_w, debug_builder_map()._zoom_level]"], ["wait", 0.05],
+		["eval", "[debug_builder_map()._static_layer.visible, debug_builder_map()._static_layer.modulate, debug_builder_map()._static_layer.get_global_transform(), debug_builder_map()._static_layer.size, debug_builder_map()._static_dirty, debug_builder_map().get_child_count(), debug_builder_map()._static_layer.get_index()]"],
+		["eval", "[debug_builder_map()._static_layer.scale, debug_builder_map()._static_layer.position, debug_builder_map()._static_tile_w, debug_builder_map()._zoom_level]"], ["crt_screen", "bl6a"], ["wait", 0.08],
+		["eval", "[debug_builder_map()._static_layer.scale, debug_builder_map()._static_layer.position, debug_builder_map()._static_tile_w, debug_builder_map()._zoom_level]"], ["crt_screen", "bl6b"], ["wait", 0.15],
+		["eval", "[debug_builder_map()._static_layer.scale, debug_builder_map()._static_layer.position, debug_builder_map()._static_tile_w, debug_builder_map()._zoom_level]"], ["crt_screen", "bl6c"], ["wait", 0.3],
+		["eval", "[debug_builder_map()._static_layer.scale, debug_builder_map()._static_layer.position, debug_builder_map()._static_tile_w, debug_builder_map()._zoom_level]"], ["crt_screen", "bl6d"], ["wait", 0.6],
+		["eval", "[debug_builder_map()._static_layer.scale, debug_builder_map()._static_layer.position, debug_builder_map()._static_tile_w, debug_builder_map()._zoom_level]"], ["crt_screen", "bl6e"],
+	],
 	"bfx": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"],
@@ -1412,8 +1444,10 @@ func _run_step(step: Array) -> void:
 			var cam_v := Camera3D.new()
 			world_v.add_child(cam_v)
 			cam_v.fov = 62.0
-			cam_v.global_position = center + Vector3(sin(a), 0.0, cos(a)) * float(step[5]) + Vector3(0, 1.7 + float(step[5]) * 0.18, 0)
-			cam_v.look_at(center + Vector3(0, 1.0, 0), Vector3.UP)
+			# Optional 8th field: the height looked at (default 1 m; lamps' heads are at 3 m).
+			var look_h := float(step[7]) if step.size() > 7 else 1.0
+			cam_v.global_position = center + Vector3(sin(a), 0.0, cos(a)) * float(step[5]) + Vector3(0, 0.7 + look_h + float(step[5]) * 0.18, 0)
+			cam_v.look_at(center + Vector3(0, look_h, 0), Vector3.UP)
 			var old_v = _main.get("debug_camera")
 			if old_v != null and is_instance_valid(old_v):
 				old_v.queue_free()

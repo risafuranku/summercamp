@@ -679,7 +679,8 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	var arm: MeshInstance3D = models._box(lamp, "LampArm", Vector3(0.06, 0.06, arm_len), Vector3(0.0, top_y - 0.12, arm_len * 0.5 - 0.05), iron)
 	arm.name = "LampArm"
 	var brace: MeshInstance3D = models._box(lamp, "LampBrace", Vector3(0.04, 0.04, 0.62), Vector3(0.0, top_y - 0.38, 0.26), iron)
-	brace.rotation.x = 0.62
+	# From the pole up to the arm (it used to run down and out past the arm's end).
+	brace.rotation.x = -0.62
 	var lamp_head_anchor = Vector3(0.0, top_y - 0.12, arm_len - 0.08)
 	var shade := MeshInstance3D.new()
 	shade.name = "LampShade"
@@ -700,7 +701,8 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	cone_in.radial_segments = 10
 	shade_in.mesh = cone_in
 	shade_in.material_override = enamel_in
-	shade_in.position = lamp_head_anchor + Vector3(0.0, -0.198, 0.0)
+	# Just under the shade's bottom, not in it (the two faces fought: flicker at the top).
+	shade_in.position = lamp_head_anchor + Vector3(0.0, -0.208, 0.0)
 	lamp.add_child(shade_in)
 	var hood_pos = lamp_head_anchor + Vector3(0.0, 0.05, 0.0)
 
