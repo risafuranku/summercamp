@@ -135,6 +135,23 @@ func tick(delta: float, abs_minute: int, outdoors: bool, player_pos: Vector3, ct
 		_quiet_until = abs_minute + COOLDOWN_MIN
 
 
+## The night director asks for an omen now (it has its own pacing): the usual draw for
+## where you stand, without the per-minute chance. Returns which, or "".
+func play_now(player_pos: Vector3, ctx: Dictionary) -> String:
+	if not _live.is_empty():
+		return ""
+	var full := ctx.duplicate()
+	full.merge(_situation(player_pos), true)
+	full["pressure"] = pressure(ctx)
+	var w := weights(full, _seen)
+	var id := _pick(w)
+	var now := _last_minute if _last_minute >= 0 else 0
+	if id != "" and _play(id, now, player_pos):
+		_seen[id] = int(_seen.get(id, 0)) + 1
+		return id
+	return ""
+
+
 ## Where the player stands, for the draw: near_gate, far_from_office.
 func _situation(player_pos: Vector3) -> Dictionary:
 	var office := _office_door()

@@ -111,3 +111,12 @@ curtain_shut	1.3	assets/sfx/backroom/curtain_shut.mp3	Drawing heavy cloth curtai
 scrub_loop	3.0	assets/sfx/rooms/scrub_loop.mp3	Scrubbing a dirty ceramic toilet bowl with a stiff plastic brush, wet bristles rubbing back and forth, steady rhythm, close, tiled toilet, no music.
 scrub_squeak	0.7	assets/sfx/rooms/scrub_squeak.mp3	A short squeak of a wet cloth on clean shiny porcelain, one squeak, close, tiled room, no music.
 toilet_flush	3.2	assets/sfx/rooms/toilet_flush.mp3	An old public toilet flushing: a chain pulled, the cistern rushes and gurgles, water swirls away, tiled stall, no music.
+dir_knock	2.2	assets/sfx/director/knock.mp3	Three slow knocks with bare knuckles on an old wooden cabin door, heard from inside a small quiet office at night, a little reverb, no voices, no music.
+dir_knock_wrong	3.0	assets/sfx/director/knock_wrong.mp3	Knocking on a wooden door from inside a quiet room: two knocks, a long pause, then one more knock, very slightly too slow, at night, no voices, no music.
+dir_window_tap	2.0	assets/sfx/director/window_tap.mp3	A fingernail tapping three times on an old single-glazed window pane from outside, close, quiet room at night, no voices, no music.
+dir_handle	1.6	assets/sfx/director/handle.mp3	An old metal door handle being pressed down and rattled slowly from the other side, the latch clicking but the door staying shut, quiet room at night, no voices.
+dir_call_far	3.0	assets/sfx/director/call_far.mp3	A single distant human call far away in a dark forest at night, one long wordless call like hey, muffled by trees and distance, echo, eerie, no music.
+dir_phone_breath	4.0	assets/sfx/director/phone_breath.mp3	Slow heavy breathing heard through an old telephone line, crackle and hiss, nobody speaks, close and unpleasant, no music.
+dir_lamp_fizz	1.8	assets/sfx/director/lamp_fizz.mp3	An outdoor lamp bulb fizzing and buzzing, crackling then a soft pop and silence as it goes out, at night, no music.
+dir_wall_brush	2.6	assets/sfx/director/wall_brush.mp3	Something large brushing slowly along the outside of a wooden cabin wall, rough scraping on planks, heard from inside, at night, no voices, no music.
+dir_wet_steps	3.0	assets/sfx/director/wet_steps.mp3	Slow bare wet footsteps on wooden planks, a few steps then they stop, close, at night, no voices, no music.

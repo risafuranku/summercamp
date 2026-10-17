@@ -2129,6 +2129,59 @@ func toggle_desk_lamp() -> void:
 	_apply_room_time_profile(true)
 
 
+## The night director (scripts/night/director_effects.gd): a sound somewhere in the
+## office's own space (the door, the window, the back room's wall), heard from the room.
+func play_room_sound(path: String, room_pos: Vector3, db := 0.0) -> void:
+	if _room_root == null or not ResourceLoader.exists(path):
+		return
+	var s := AudioStreamPlayer3D.new()
+	s.stream = load(path)
+	s.volume_db = db
+	s.unit_size = 3.5
+	s.max_distance = 14.0
+	_room_root.add_child(s)
+	s.position = room_pos
+	s.finished.connect(s.queue_free)
+	s.play()
+
+
+## The night director: the radio worse for a while (it hears something on the frequency).
+func nudge_radio_dread(amount: float, seconds: float) -> void:
+	if _dread != null and _dread.has_method("nudge"):
+		_dread.nudge(amount, seconds)
+
+
+## The night director: while you were out, something here changed. One thing, the most
+## noticeable that is still as you left it; always one you can put back.
+func disturb_office() -> String:
+	if _office_curtain != null and _office_curtain.is_open():
+		_office_curtain.set_open(false, true)
+		_apply_room_time_profile()
+		return "curtain"
+	if _office_lights_on:
+		_toggle_office_lights()
+		return "lights"
+	if _radio_power_on:
+		_toggle_radio_power()
+		return "radio"
+	if _desk_lamp_on:
+		toggle_desk_lamp()
+		return "lamp"
+	return ""
+
+
+## Looking out of the office window (from the counter, more or less straight at it).
+func is_looking_at_window() -> bool:
+	if not visible or _crt_active or _interior_camera == null or _room_root == null:
+		return false
+	if _extras != null and _extras.in_back_room():
+		return false
+	var eye := _room_root.to_local(_interior_camera.global_position)
+	var fwd := _room_root.global_transform.basis.inverse() * (-_interior_camera.global_transform.basis.z)
+	var to_win := (WINDOW_CENTER - eye).normalized()
+	return fwd.normalized().dot(to_win) > 0.93
+
+
 ## Somebody rings the office (the night, a guest, ...): see reception_extras.start_incoming.
 func ring_phone(call: Dictionary, rings := 8, done := Callable()) -> void:
 	if _extras != null:

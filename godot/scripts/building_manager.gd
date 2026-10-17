@@ -78,6 +78,11 @@ func _process(delta: float) -> void:
 			continue
 		var entry: Dictionary = entry_any
 		_update_lamp_beam_orientation(entry)
+		# A director's blackout ends: the lamp stutters back on.
+		if float(entry.get("dark_until", 0.0)) > 0.0 and float(entry["dark_until"]) <= Time.get_ticks_msec() / 1000.0:
+			entry["dark_until"] = 0.0
+			entry["flicker_remaining"] = 0.7
+			_apply_lamp_entry_base_state(entry, _lamps_active)
 		_update_lamp_flicker(entry, maxf(delta, 0.0))
 		_lamp_runtime[lamp_id] = entry
 
@@ -137,7 +142,33 @@ func set_broken_lamps(keys: Array) -> void:
 		_lamp_runtime[lamp_id] = entry
 
 
+## The night director: the lamp nearest `pos` within `radius` goes dark for `seconds`,
+## then flickers back. Returns where it stands (INF: none near, or already out).
+func darken_lamp_near(pos: Vector3, radius: float, seconds: float) -> Vector3:
+	if not _lamps_active:
+		return Vector3.INF
+	var best: Dictionary = {}
+	var best_d := radius
+	var now := Time.get_ticks_msec() / 1000.0
+	for lamp_id in _lamp_runtime.keys():
+		var e: Dictionary = _lamp_runtime[lamp_id]
+		var root = e.get("root", null) as Node3D
+		if root == null or not is_instance_valid(root) or _is_lamp_entry_broken(e):
+			continue
+		var d: float = root.global_position.distance_to(pos)
+		if d < best_d:
+			best_d = d
+			best = e
+	if best.is_empty():
+		return Vector3.INF
+	best["dark_until"] = now + seconds
+	_apply_lamp_entry_base_state(best, false)
+	return (best["root"] as Node3D).global_position
+
+
 func _is_lamp_entry_broken(entry: Dictionary) -> bool:
+	if float(entry.get("dark_until", 0.0)) > Time.get_ticks_msec() / 1000.0:
+		return true
 	var root = entry.get("root", null) as Node3D
 	if root == null or not is_instance_valid(root) or _broken_lamps.is_empty():
 		return false

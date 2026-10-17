@@ -171,6 +171,11 @@ var _active_enemy_brain: RefCounted
 var _active_enemy_brain_id: String = ""
 var _enemy_brains: Array = []
 var _senses = THREAT_SENSES_SCRIPT.new()
+## The night's director (scripts/night/night_director.gd) and its hands (director_effects.gd).
+var _director = preload("res://scripts/night/night_director.gd").new()
+var _director_fx: Node
+var _pending_director: Dictionary = {}
+var _director_was_inside := false
 var _night_jobs: Node
 var _paper_map: Node
 const PAPER_MAP_SCRIPT = preload("res://scripts/paper_map.gd")
@@ -426,6 +431,14 @@ func _setup_night_jobs() -> void:
 	if not _pending_omens.is_empty():
 		_omens.import_state(_pending_omens)
 		_pending_omens.clear()
+	if _director_fx == null or not is_instance_valid(_director_fx):
+		_director_fx = preload("res://scripts/night/director_effects.gd").new()
+		_director_fx.name = "DirectorEffects"
+		add_child(_director_fx)
+		_director_fx.setup(self, _director)
+	if not _pending_director.is_empty():
+		_director.import_state(_pending_director)
+		_pending_director.clear()
 	if _lake_trip == null or not is_instance_valid(_lake_trip):
 		_lake_trip = LAKE_TRIP_SCRIPT.new()
 		_lake_trip.name = "LakeTrip"
@@ -448,12 +461,83 @@ func _tick_week_ledger() -> void:
 		var abs_minute := (maxi(1, _day_index) - 1) * 1440 + minute_of_day
 		var outdoors := not _is_any_interior_open() and not get_tree().paused
 		_omens.tick(get_process_delta_time(), abs_minute, outdoors, _player.global_position, _omen_context())
+		_tick_director()
 	if _week_ledger == null or _game_over_active or _week_report_screen != null:
 		return
 	if _week_ledger.should_page(_day_index, _time_of_day_hours) and _hud_manager != null:
 		_hud_manager.push_status("Pager: Vera's train gets in at eight. Leave the books on the desk.", 2)
 	if _week_ledger.is_due(_day_index, _time_of_day_hours):
 		_show_week_report()
+
+
+## The night director: what it sees of the night and of you, then what it does.
+func _tick_director() -> void:
+	if _director == null or _director_fx == null or get_tree().paused:
+		return
+	var ctx := _director_context()
+	var id: String = _director.tick(get_process_delta_time(), ctx)
+	if id != "":
+		var at: Vector3 = _director_fx.run(id, ctx)
+		_director.watch(id, at)
+
+
+func _director_context() -> Dictionary:
+	var hour := _time_of_day_hours
+	var night := hour >= 21.0 or hour < 5.5
+	var base := _omen_context()
+	var place := _director_place()
+	var inside := place == "office" or place == "back_room"
+	var entering := inside and not _director_was_inside
+	_director_was_inside = inside or place == "modal"
+	var pos: Vector3 = _player.global_position if _player != null else Vector3.ZERO
+	var vel: Vector3 = _player.velocity if _player != null else Vector3.ZERO
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	var curtain = bi.get("_office_curtain") if bi != null else null
+	var by_arch := {}
+	if GuestManager != null:
+		for g in CoreRoot.get_state().guests:
+			if g is Dictionary and str((g as Dictionary).get("status", "")) == "active":
+				var a := str((g as Dictionary).get("archetype", ""))
+				by_arch[a] = int(by_arch.get(a, 0)) + 1
+	return {
+		"night": night and _gameplay_started and not _game_over_active,
+		"quiet": _day_index <= QUIET_NIGHTS,
+		"hour": hour,
+		"place": place,
+		"pos": pos,
+		"pressure": OMENS_SCRIPT.pressure(base),
+		"guests_by_arch": by_arch,
+		"admitted": int(base.get("admitted", 0)),
+		"hunting": int(base.get("hunting", 0)),
+		"hunter_near_m": float(_senses.nearest),
+		"dark": bool(base.get("dark", false)),
+		"lamp_near": building_manager != null and float(building_manager.get_light_level_at(pos)) > 0.2,
+		"walking": Vector2(vel.x, vel.z).length() > 0.8,
+		"window_open": curtain == null or float(curtain.get("open")) > 0.5,
+		"looking_at_window": bi != null and bi.has_method("is_looking_at_window") and bi.is_looking_at_window(),
+		"entering": entering,
+	}
+
+
+## Where you are, for the director: office, back_room, out_lit, out_dark, or somewhere
+## it leaves alone (modal: a close-up or the desk; job; lake; room: a guest's room).
+func _director_place() -> String:
+	if _lake_trip != null and _lake_trip.is_active():
+		return "lake"
+	if (_sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open()) or (_utility_repair_minigame != null and _utility_repair_minigame.is_open()):
+		return "job"
+	if _breaker_panel != null and is_instance_valid(_breaker_panel) and _breaker_panel.visible:
+		return "job"
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	if bi != null and bi.is_open():
+		var ex = bi.get("_extras")
+		if ex != null and ex.is_modal():
+			return "modal"
+		return "back_room" if ex != null and ex.in_back_room() else "office"
+	if _is_any_interior_open():
+		return "room"
+	var pos: Vector3 = _player.global_position if _player != null else Vector3.ZERO
+	return "out_lit" if building_manager != null and float(building_manager.get_light_level_at(pos)) > 0.2 else "out_dark"
 
 
 ## What the night presses on the camp with, for scripts/omens.gd.
@@ -1371,6 +1455,8 @@ func _on_night_tick(night_index: int) -> void:
 	_sync_liminal_forecast_hud(true)
 	_roll_liminal_night_spawn_snapshot(night_index)
 	_activate_runtime_enemy_for_night(night_index)
+	if _director != null:
+		_director.begin_night(night_index)
 	_refresh_liminal_debug_window()
 
 
@@ -1817,6 +1903,13 @@ func debug_mouse_to_builder_cell(cell: Vector2i) -> Vector2:
 	return win
 
 
+## Shot driver: play a director event now, as the director would ([where, place]).
+func debug_director(id: String) -> Array:
+	var ctx := _director_context()
+	var at: Vector3 = _director_fx.run(id, ctx)
+	return [at, ctx.get("place", "")]
+
+
 ## Shot driver: a key press or release for Input.parse_input_event.
 func debug_key_event(key: int, pressed: bool) -> InputEventKey:
 	var k := InputEventKey.new()
@@ -1971,6 +2064,8 @@ func _on_day_phase_started() -> void:
 	if not _gameplay_started or _menu_mode:
 		return
 	_stop_active_enemy_brain()
+	if _director_fx != null:
+		_director_fx.clear()
 	if _night_jobs != null:
 		if _week_ledger != null:
 			_week_ledger.note_jobs_left(_night_jobs.open_jobs().size())
@@ -3247,6 +3342,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"day_events": _day_events.export_state() if _day_events != null else {},
 		"week_ledger": _week_ledger.export_state() if _week_ledger != null else {},
 		"omens": _omens.export_state() if _omens != null else {},
+		"director": _director.export_state() if _director != null else {},
 		"camp_office": camp_office.export_state() if camp_office != null else {},
 	}
 	if _player != null and is_instance_valid(_player):
@@ -3515,6 +3611,11 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		if _week_ledger != null and _gameplay_started:
 			_week_ledger.import_state(_pending_week_ledger)
 			_pending_week_ledger.clear()
+		var dir_any = snapshot.get("director", {})
+		_pending_director = (dir_any as Dictionary).duplicate(true) if dir_any is Dictionary else {}
+		if _director != null and _gameplay_started:
+			_director.import_state(_pending_director)
+			_pending_director.clear()
 		var omens_any = snapshot.get("omens", {})
 		_pending_omens = (omens_any as Dictionary).duplicate(true) if omens_any is Dictionary else {}
 		if _omens != null and _gameplay_started:
@@ -3744,6 +3845,11 @@ func _reset_state_for_new_game() -> void:
 	_pending_omens.clear()
 	if _omens != null:
 		_omens.reset()
+	if _director != null:
+		_director.begin_night(-1)
+		_director.ever.clear()
+	if _director_fx != null:
+		_director_fx.clear()
 	CoreRoot.apply_changes({
 		"money": BALANCE_CONFIG.STARTING_MONEY,
 		"day": 1,

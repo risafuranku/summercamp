@@ -58,6 +58,14 @@ var pitch_offset: float = 0.0
 var wobble_scale: float = 1.0
 ## Debug: >= 0 pins dread (radio_dread_check, the shot driver, the demo).
 var debug_override: float = -1.0
+## The night director's nudge: added to the target for a while (it heard something).
+var _nudge := 0.0
+var _nudge_left := 0.0
+
+
+func nudge(amount: float, seconds: float) -> void:
+	_nudge = maxf(_nudge, amount)
+	_nudge_left = maxf(_nudge_left, seconds)
 
 var _rng := RandomNumberGenerator.new()
 var _streams: Dictionary = {}
@@ -250,6 +258,11 @@ func update(delta: float, ctx: Dictionary, inside_db: float, outside_db: float, 
 	_near = move_toward(_near, near_target, (1.5 if near_target > _near else 0.3) * dt)
 	ctx["near"] = _near
 	var target := compute_target(ctx)
+	if _nudge_left > 0.0:
+		_nudge_left -= dt
+		target = clampf(target + _nudge, 0.0, 1.0)
+		if _nudge_left <= 0.0:
+			_nudge = 0.0
 	if debug_override >= 0.0:
 		target = debug_override
 		dread = target
