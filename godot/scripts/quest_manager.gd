@@ -89,7 +89,7 @@ const STEPS: Array[Dictionary] = [
 	},
 	{
 		"id": "feed_guests",
-		"text": "Guests get hungry. Build a Jednota Mart, a Bistro or a Pub.",
+		"text": "Guests get hungry. Build a Bistro or a Pub.",
 		"hint": "Builder: Services. Food needs power.",
 		"reward": 120,
 		"mail_subject": "People eat",

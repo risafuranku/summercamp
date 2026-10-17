@@ -4,6 +4,8 @@ const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 
 const DEMOLISH_FEE_PER_TILE: int = 4
 const DEMOLISH_MAX_SIZE: int = 5
+## Jednota (vecerka) is not here: the shop is in the town down the road (old saves
+## still load theirs).
 const ALLOWED_BUILD_TYPES: Dictionary = {
 	"tent_1": true,
 	"cabin_1": true,
@@ -15,7 +17,6 @@ const ALLOWED_BUILD_TYPES: Dictionary = {
 	"shower_block": true,
 	"pub": true,
 	"restaurant": true,
-	"vecerka": true,
 	"sewer": true,
 	"lamp_post": true,
 	"path": true,
