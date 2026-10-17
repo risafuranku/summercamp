@@ -41,7 +41,9 @@
 - [x] B36 Builder: zoom no longer slides off the map; construction effects; guest miniatures
 - [x] B37 The night director (tension, budget, archetypes, memory, 14 events, night log); night work (DataPunch, guest book)
 - [x] B38a Director: a light in the woods, an object moved, a reported cabin that sounds at night (day event "someone", knock to look)
-- [ ] B38 Later: a guest acting against their routine at night; Builder undo; bazaar on the web
+- [x] B38b Builder undo (Ctrl+Z / toolbar, today's builds, full refund); director: twig, the insects' silence, a door banging, steps in the back room; sleeping guests count for the camp's character (they did not)
+- [x] B38c Director: a sleeping guest at the tree line (rare, named in the log, denies it by day)
+- [ ] B38 Later: bazaar on the web
 - [ ] B23 Later: lore in the linemen's hut; more winter challenges (snowed-in paths, the lake freezing, heating cabins)
 - [x] B13c The boat at night as its own scare (scripts/lake/night_row.gd: knocks, lantern, fog, the hand, the scrape)
 - [ ] B13 Later: something hidden in the shed (beyond the coat), more to do on the far shore

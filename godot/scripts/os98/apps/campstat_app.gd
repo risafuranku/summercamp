@@ -312,7 +312,10 @@ func _night_log_text() -> String:
 		t += "[color=%s]Nothing logged.[/color]\n\n" % GREY
 	else:
 		for e in lines:
-			t += "[code]%s[/code]  %s\n" % [str(e.get("time", "")), str(d.LOG_LINES.get(str(e.get("id", "")), str(e.get("id", ""))))]
+			var line := str(d.LOG_LINES.get(str(e.get("id", "")), str(e.get("id", ""))))
+			if line.contains("%s"):
+				line = line % str(e.get("who", "A guest"))
+			t += "[code]%s[/code]  %s\n" % [str(e.get("time", "")), line]
 		t += "\n"
 	return t
 

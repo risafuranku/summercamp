@@ -297,8 +297,11 @@ The hunters (§5) come from the night roll; everything around them is played by 
   girls MIMIC, families and tramps DISTURBER; strangers let in add OBSERVER, a dark camp
   DISTURBER, tonight's hunters HUNTER). An archetype much weaker than the strongest does
   nothing: a camp of drinkers hears knocks, calls and steps, not figures in the window.
-- **You**: hide in the office and the office is where it comes; keep watching the window
-  and it happens elsewhere; ignore things and the night tightens.
+- **You**: hide in the office most of the night and the office is where it comes (the
+  tension rises for it too); keep watching the window and it happens elsewhere; ignore
+  things and the night tightens. A near-empty camp with you inside all night still gets a
+  few small things, never a big one.
+- **Who counts**: every guest checked in, awake or asleep (at night they all sleep).
 
 | Event | Where you are | Archetype | What remains |
 | --- | --- | --- | --- |
@@ -316,6 +319,11 @@ The hunters (§5) come from the night roll; everything around them is played by 
 | a light in the woods where no lamp is, breathing; out when you are halfway there | outdoors | observer | |
 | movement in a guest's cabin while they sleep (one a guest reported by day) | near it, outdoors | mimic, hunter, observer | |
 | the cup on the PC desk is on the window sill (put back at dawn) | coming in | disturber | |
+| a branch snaps in the dark near you | outdoors | observer, hunter, mimic | |
+| the insects stop all at once, for a few seconds | anywhere | all | |
+| a cabin door bangs 18-60 m off; nobody comes out | outdoors | disturber, mimic | |
+| steps in the back room, which is empty | office | mimic, hunter | |
+| one of your sleeping guests at the edge of the trees, still, facing you; gone at 13 m (a night in three, after midnight) | outdoors | mimic, observer | the log names them; by day: "Slept right through. Why do you ask?" |
 
 Never in close-ups, jobs, the lake, a guest's room; never a door blocked or a hurt.
 The morning after, CampStat's NIGHT page has **last night's log** with times and, before

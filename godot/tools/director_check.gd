@@ -105,6 +105,27 @@ func _run() -> void:
 	for c in small:
 		_expect(c >= 1 and c <= 7, "an empty camp hiding in the office got %d things (want 1-7)" % c)
 
+	# A sleeping guest standing outside: rare (a night in three or so over a week), once a
+	# night at most, after midnight, never without someone asleep in the camp.
+	var outs := 0
+	for seed in [101, 102, 103, 104]:
+		for sleeping in [true, false]:
+			d = DIRECTOR.new(seed)
+			for night in range(2, 9):
+				d.begin_night(night)
+				var fg := _night(d, 420.0, func(_t): return "out_dark", {"pressure": 1.6, "guests_by_arch": {"drunk": 2, "quiet_guy": 1}, "walking": true, "guest_sleeping": sleeping})
+				var n := 0
+				for e in fg:
+					if str(e["id"]) == "guest_out":
+						n += 1
+						var hr := fmod(22.0 + float(e["t"]) / 420.0 * 6.0, 24.0)
+						_expect(hr < 4.5, "a guest stood outside at %.1f h (want 0-4:30)" % hr)
+				_expect(n <= 1, "a guest stood outside %d times in one night" % n)
+				_expect(sleeping or n == 0, "a guest stood outside with nobody asleep")
+				outs += n
+	print("DIRECTOR CHECK: a guest outside on %d of 28 mimic nights" % outs)
+	_expect(outs >= 3 and outs <= 14, "a guest stood outside on %d of 28 nights (want 3-14)" % outs)
+
 	# Where it must not: close-ups, jobs, the lake, a guest's room.
 	for place in ["modal", "job", "lake", "room"]:
 		d = DIRECTOR.new(31)

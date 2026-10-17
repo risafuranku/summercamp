@@ -479,6 +479,12 @@ func _tick_director() -> void:
 	if id != "":
 		var at: Vector3 = _director_fx.run(id, ctx)
 		_director.watch(id, at)
+		# The log names the guest who stood outside.
+		if id == "guest_out" and not _director.log.is_empty():
+			if at == Vector3.INF:
+				_director.log.pop_back()
+			else:
+				_director.log.back()["who"] = str(_director_fx.guest_seen.get("name", "A guest"))
 
 
 func _director_context() -> Dictionary:
@@ -507,6 +513,8 @@ func _director_context() -> Dictionary:
 		"pos": pos,
 		"pressure": float(_dir_slow["pressure"]),
 		"guests_by_arch": by_arch,
+		"sleepers": _dir_slow.get("sleepers", []),
+		"guest_sleeping": not (_dir_slow.get("sleepers", []) as Array).is_empty(),
 		"admitted": int(base.get("admitted", 0)),
 		"hunting": int(base.get("hunting", 0)),
 		"hunter_near_m": float(_senses.nearest),
@@ -527,11 +535,15 @@ var _dir_slow_at := 0
 func _director_slow_context() -> Dictionary:
 	var base := _omen_context()
 	var by_arch := {}
+	var sleepers: Array = []
+	# Everyone checked in, awake or asleep: at night they are all "sleep".
 	for g in CoreRoot.get_state().guests:
-		if g is Dictionary and str((g as Dictionary).get("status", "")) == "active":
+		if g is Dictionary and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
 			var a := str((g as Dictionary).get("archetype", ""))
 			by_arch[a] = int(by_arch.get(a, 0)) + 1
-	return {"base": base, "by_arch": by_arch, "pressure": OMENS_SCRIPT.pressure(base)}
+			if str((g as Dictionary).get("status", "")) == "sleep":
+				sleepers.append({"id": int(g.get("id", -1)), "name": str(g.get("name", "")), "sprite_path": GuestManager._sprite_path_for_archetype(a)})
+	return {"base": base, "by_arch": by_arch, "sleepers": sleepers, "pressure": OMENS_SCRIPT.pressure(base)}
 
 
 ## Where you are, for the director: office, back_room, out_lit, out_dark, or somewhere
@@ -1942,7 +1954,56 @@ func debug_director_line() -> String:
 	var last := ""
 	if not (sn["recent"] as Array).is_empty():
 		last = str((sn["recent"] as Array).back()["id"])
-	return "%s %s t=%.2f b=%.1f place=%s last=%s hp=%d hunters=%d near=%.0f" % [_time_of_day_string(), sn["state"], sn["tension"], sn["budget"], _director_place(), last, int(_player_health), _enemy_brains.size(), float(_senses.nearest)]
+	var aw: Array = _director.arch_weights
+	return "%s %s t=%.2f b=%.1f place=%s last=%s hp=%d hunters=%d near=%.0f p=%.2f arch=[%.2f %.2f %.2f %.2f] guests=%s" % [_time_of_day_string(), sn["state"], sn["tension"], sn["budget"], _director_place(), last, int(_player_health), _enemy_brains.size(), float(_senses.nearest),
+		float(_dir_slow.get("pressure", 0.0)), aw[0], aw[1], aw[2], aw[3], str(_dir_slow.get("by_arch", {}))]
+
+
+## Shot driver: how many guests are in the camp, and set the day.
+func debug_guest_count() -> int:
+	return GuestManager.get_guest_life_snapshot().size()
+
+
+func debug_guest_statuses() -> Array:
+	var out: Array = []
+	for g in CoreRoot.get_state().guests:
+		if g is Dictionary:
+			out.append([str(g.get("name", "")), str(g.get("status", "")), str(g.get("archetype", "")), int(g.get("party_size", 0))])
+	return out
+
+
+## What stands on these grid cells (the visual occupants), for blocked builds.
+func debug_occupants(coords: Array) -> Array:
+	var out: Array = []
+	var g = CoreRoot.get_state().grid
+	for c in coords:
+		var o = g.occupants.get(c, null)
+		out.append(str((o as Node).get_path()).right(70) + ":" + str((o as Node).get_child(0).name if (o as Node).get_child_count() > 0 else "") if o is Node else "-")
+	return out
+
+
+## Shot driver: move the player `frac` of the way to a node under the world (on the ground).
+func debug_player_toward(node_name: String, frac: float) -> float:
+	var n := _world_3d.get_node_or_null(node_name) as Node3D
+	if n == null or _player == null:
+		return -1.0
+	var to := n.global_position
+	to.y = _player.global_position.y
+	_player.global_position = _player.global_position.lerp(to, frac)
+	return _player.global_position.distance_to(to)
+
+
+func debug_guest_thoughts() -> Array:
+	var out: Array = []
+	for g in CoreRoot.get_state().guests:
+		if g is Dictionary:
+			out.append([str(g.get("name", "")), str(g.get("thought", ""))])
+	return out
+
+
+func debug_set_day(day: int) -> void:
+	CoreRoot.apply_changes({"day": maxi(1, day)})
+	_sync_runtime_state_from_systems(true)
 
 
 ## Shot driver: play a director event now, as the director would ([where, place]).

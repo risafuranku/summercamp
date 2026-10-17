@@ -23,6 +23,8 @@ var _figure: Dictionary = {}     # the one in the window
 var _debug: Label
 ## A sudden silence of the insects (hush_drop): main takes the louder of this and the rest.
 var extra_hush := 0.0
+## The guest seen outside tonight (guest_out): {id, name}; at dawn they say they slept.
+var guest_seen: Dictionary = {}
 var _hush_left := 0.0
 var _t := 0.0
 
@@ -98,6 +100,8 @@ func run(id: String, ctx: Dictionary) -> Vector3:
 			return _silhouette(ctx.get("pos", Vector3.ZERO))
 		"far_light":
 			return _far_light(ctx.get("pos", Vector3.ZERO))
+		"guest_out":
+			return _guest_out(ctx.get("pos", Vector3.ZERO), ctx.get("sleepers", []))
 		"twig_snap":
 			var tp := _dark_spot(ctx.get("pos", Vector3.ZERO), 10.0, 18.0)
 			if tp != Vector3.INF:
@@ -162,6 +166,10 @@ func _process(delta: float) -> void:
 
 ## Dawn, a new game, the menu: everything the night left goes.
 func clear() -> void:
+	# The guest who stood outside in the night slept, they say, the whole night through.
+	if not guest_seen.is_empty():
+		GuestManager.apply_guest_event(int(guest_seen.get("id", -1)), -3.0, "Slept right through. Never got up once. Why do you ask?")
+		guest_seen = {}
 	var bi = _office()
 	if bi != null and bi.has_method("undo_disturbances"):
 		bi.undo_disturbances()
@@ -321,6 +329,56 @@ func _far_light(from: Vector3) -> Vector3:
 	tw.tween_property(light, "light_energy", 1.6, 1.6)
 	_live.append({"node": root, "until": _t + 40.0, "vanish_at": p, "vanish_m": maxf(18.0, from.distance_to(p) * 0.5)})
 	return p
+
+
+## One of your guests, asleep in their bed, stands 22-32 m off at the edge of the light,
+## in view, still, facing you. Gone when you are within 13 m or after half a minute.
+## Their own sprite, lit by a lamp's edge if there is one, else faint in the dark.
+func _guest_out(from: Vector3, sleepers: Array) -> Vector3:
+	if sleepers.is_empty():
+		return Vector3.INF
+	var pl = main.get("_player") as Node3D
+	var cam := pl.get_viewport().get_camera_3d() if pl != null else null
+	if cam == null:
+		return Vector3.INF
+	var who: Dictionary = sleepers[randi() % sleepers.size()]
+	var tex_path := str(who.get("sprite_path", ""))
+	if not ResourceLoader.exists(tex_path):
+		return Vector3.INF
+	var f := -cam.global_transform.basis.z
+	var base := atan2(f.z, f.x)
+	var bm = main.get("building_manager")
+	var at := Vector3.INF
+	var lit := false
+	for i in 14:
+		var ang := base + randf_range(-0.45, 0.45)
+		var p := _ground(from + Vector3(cos(ang), 0, sin(ang)) * randf_range(22.0, 32.0))
+		if not _open_ground(cam.global_position, p + Vector3(0, 1.2, 0)):
+			continue
+		var l := float(bm.get_light_level_at(p)) if bm != null and bm.has_method("get_light_level_at") else 0.0
+		if l > 0.4:
+			continue
+		at = p
+		lit = l > 0.08
+		if lit:
+			break
+	if at == Vector3.INF:
+		return Vector3.INF
+	var s := Sprite3D.new()
+	s.name = "DirectorGuestOut"
+	s.texture = load(tex_path)
+	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	s.shaded = lit
+	s.modulate = Color(1, 1, 1) if lit else Color(0.24, 0.25, 0.3)
+	s.pixel_size = 1.75 / float(maxi(1, s.texture.get_height()))
+	s.offset = Vector2(0, s.texture.get_height() * 0.5)
+	main.get("_world_3d").add_child(s)
+	s.global_position = at
+	_live.append({"node": s, "until": _t + 30.0, "vanish_at": at, "vanish_m": 13.0})
+	guest_seen = {"id": int(who.get("id", -1)), "name": str(who.get("name", ""))}
+	return at
 
 
 ## Someone crosses open ground 25-35 m off, in the dark, in a second and a half: gone by

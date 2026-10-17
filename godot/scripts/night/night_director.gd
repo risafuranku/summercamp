@@ -70,6 +70,7 @@ const EVENTS := {
 	"hush_drop":     {"places": ["out_dark", "out_lit", "office", "back_room"], "cost": 1.5, "min": State.UNEASE, "cd": 120.0, "arch": [A.OBSERVER, A.MIMIC, A.DISTURBER, A.HUNTER], "next": [], "w": 0.8},
 	"door_bang":     {"places": ["out_dark", "out_lit"], "cost": 2.5, "min": State.UNEASE, "cd": 160.0, "arch": [A.DISTURBER, A.MIMIC], "next": ["call_far"], "w": 0.9},
 	"backroom_steps": {"places": ["office"], "cost": 3.0, "min": State.SUSPICION, "cd": 260.0, "arch": [A.MIMIC, A.HUNTER], "next": ["wall_brush"], "w": 1.0},
+	"guest_out":     {"places": ["out_dark", "out_lit"], "cost": 6.0, "min": State.SUSPICION, "cd": 1200.0, "arch": [A.MIMIC, A.OBSERVER], "next": ["call_far"], "w": 1.1, "needs": ["guest_sleeping"], "hours": [0.0, 4.5], "nightly": 0.35},
 	"far_light":     {"places": ["out_dark", "out_lit"], "cost": 5.0, "min": State.SUSPICION, "cd": 420.0, "arch": [A.OBSERVER], "next": ["call_far"], "w": 1.0},
 	"room_sounds":   {"places": ["out_dark", "out_lit"], "cost": 4.0, "min": State.UNEASE, "cd": 300.0, "arch": [A.MIMIC, A.HUNTER, A.OBSERVER], "next": ["steps_behind"], "w": 2.0, "needs": ["haunted_near"]},
 }
@@ -92,6 +93,7 @@ const LOG_LINES := {
 	"room_sounds": "movement in a guest's cabin while they slept",
 	"far_light": "a light in the woods where there is no lamp",
 	"twig_snap": "a branch snapped in the dark near the night staff",
+	"guest_out": "%s stood at the edge of the trees, facing the office. In the morning: never got up",
 	"hush_drop": "the insects stopped all at once",
 	"door_bang": "a cabin door banged; nobody came out",
 	"backroom_steps": "steps in the back room, which was empty",
@@ -126,6 +128,8 @@ var ever: Dictionary = {}
 ## How you play tonight (seconds in each place, looks at the window, cues ignored).
 var time_in: Dictionary = {}
 var window_looks := 0.0
+## Rare events ("nightly": chance) that are not in tonight's deck at all.
+var _off_tonight: Dictionary = {}
 var ignored := 0
 var investigated := 0
 
@@ -166,6 +170,10 @@ func begin_night(night_index: int) -> void:
 	recent.clear()
 	time_in.clear()
 	window_looks = 0.0
+	_off_tonight.clear()
+	for eid in EVENTS.keys():
+		if EVENTS[eid].has("nightly") and _rng.randf() >= float(EVENTS[eid]["nightly"]):
+			_off_tonight[eid] = true
 	ignored = 0
 	investigated = 0
 	last_id = ""
@@ -297,7 +305,7 @@ func candidates(ctx: Dictionary, entering := false) -> Dictionary:
 			continue
 		if _t < float(_cooldown_until.get(id, -1.0)):
 			continue
-		if id == last_id:
+		if id == last_id or _off_tonight.has(id):
 			continue
 		if e.has("hours") and not _in_hours(hour, e["hours"]):
 			continue

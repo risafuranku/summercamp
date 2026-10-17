@@ -1012,12 +1012,39 @@ const SCENARIOS := {
 		["eval", "[_day_events.open_events().size(), _day_events.haunted]"],
 		["eval", "_day_events.haunted_near(grid_manager.grid_to_world(Vector2i(17, 4)), 14.0)"],
 	],
+	"guestout": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"],
+		["eval", "debug_set_day(3)"], ["money", 20000], ["clear", 9, 5, 10, 8], ["build", "cabin_1", 10, 6, 0], ["build", "tent_1", 16, 6, 0],
+		["build", "path", 13, 5, 0], ["build", "path", 13, 6, 0], ["build", "lamp_post", 13, 5, 0],
+		["prep_all"], ["book", "Pepa", "drunk", 2, 3], ["prep_all"], ["book", "Vlasta", "quiet_guy", 1, 3], ["hours", 0.4], ["checkin"],
+		["hours", 15.5], ["wait", 2.0], ["eval", "debug_guest_statuses()"],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+		["player", 13, 9, 180.0], ["wait", 1.0], ["shot", "go0_before"],
+		["eval", "debug_director('guest_out')"], ["wait", 0.6], ["shot", "go1_guest_out"],
+		["eval", "_director_fx.guest_seen"],
+		["eval", "_world_3d.get_node('DirectorGuestOut').global_position.distance_to(_player.global_position)"],
+		["eval", "debug_player_toward('DirectorGuestOut', 0.3)"], ["wait", 0.8], ["shot", "go2_closer"],
+		["eval", "debug_player_toward('DirectorGuestOut', 0.4)"], ["wait", 0.8], ["shot", "go3_gone"],
+		["eval", "_world_3d.get_node_or_null('DirectorGuestOut') == null"],
+		["eval", "_director_fx.clear()"], ["wait", 0.5], ["eval", "debug_guest_thoughts()"],
+	],
+	"dirguests": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"],
+		["money", 20000], ["clear", 9, 5, 10, 8], ["eval", "debug_occupants([Vector2i(10,6), Vector2i(11,7), Vector2i(13,6), Vector2i(14,6), Vector2i(13,7), Vector2i(14,7), Vector2i(16,9), Vector2i(17,10)])"],
+		["build", "cabin_1", 10, 6, 0], ["build", "cabin_1", 13, 6, 0], ["build", "tent_1", 16, 6, 0],
+		["eval", "debug_cells([Vector2i(10,6), Vector2i(13,6), Vector2i(16,6)])"],
+		["prep_all"], ["book", "Pepa", "drunk", 2, 3], ["wait", 0.5], ["eval", "debug_guest_statuses()"],
+		["prep_all"], ["book", "Lojza", "drunk", 2, 3], ["wait", 0.5], ["eval", "debug_guest_statuses()"],
+		["prep_all"], ["book", "Vlasta", "quiet_guy", 1, 3], ["wait", 0.5], ["eval", "debug_guest_statuses()"],
+		["hours", 0.4], ["eval", "debug_arrivals()"], ["checkin"], ["wait", 1.0], ["eval", "debug_guest_statuses()"],
+		["hours", 12.0], ["wait", 2.0], ["eval", "debug_guest_statuses()"], ["eval", "_director_slow_context()"],
+	],
 	"fullnight": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"],
-		["money", 20000], ["clear", 9, 5, 10, 8], ["build", "cabin_1", 10, 6, 0], ["build", "cabin_1", 13, 6, 0], ["build", "tent_1", 16, 6, 0], ["build", "toilet_block", 12, 9, 0],
+		["eval", "debug_set_day(4)"], ["money", 20000], ["clear", 9, 5, 10, 8], ["build", "cabin_1", 10, 6, 0], ["build", "cabin_1", 13, 6, 0], ["build", "tent_1", 16, 6, 0], ["build", "toilet_block", 12, 9, 0],
 		["build", "path", 12, 5, 0], ["build", "path", 12, 6, 0], ["build", "path", 12, 7, 0], ["build", "path", 12, 8, 0], ["build", "lamp_post", 12, 6, 0], ["build", "lamp_post", 12, 8, 0],
-		["prep_all"], ["book", "Pepa", "drunk", 2, 3], ["book", "Lojza", "drunk", 2, 3], ["book", "Vlasta", "quiet_guy", 1, 3], ["hours", 0.4], ["checkin"],
-		["eval", "CoreRoot.get_state().set('day', 4)"],
+		["prep_all"], ["book", "Pepa", "drunk", 2, 3], ["prep_all"], ["book", "Lojza", "drunk", 2, 3], ["prep_all"], ["book", "Vlasta", "quiet_guy", 1, 3], ["hours", 0.4], ["checkin"],
+		["eval", "debug_guest_statuses()"], ["eval", "debug_cells([Vector2i(10,6), Vector2i(13,6), Vector2i(16,6)])"],
 		["hours", 10.0],
 		["wait", 2.0],
 		["eval", "[_time_of_day_hours, _director.snapshot().state, _enemy_brains.size()]"],
@@ -1151,6 +1178,8 @@ func _ready() -> void:
 			_out_dir = arg.get_slice("=", 1)
 	_steps = SCENARIOS.get(scenario, SCENARIOS["boot"]).duplicate(true)
 	DirAccess.make_dir_recursive_absolute(_out_dir)
+	EventBus.BuildRejected.connect(func(t, p, _r, why): print("SHOT DRIVER build rejected %s at %s: %s" % [t, p, why]))
+	EventBus.DemolishRejected.connect(func(r, why): print("SHOT DRIVER clear rejected %s: %s" % [r, why]))
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	# Do not steal focus from whoever is using the PC (the user may be playing), and do
 	# not pause the game when it does not have focus.
@@ -1248,7 +1277,11 @@ func _run_step(step: Array) -> void:
 		"money":
 			CoreRoot.apply_changes({"money": int(step[1])})
 		"clear":
-			EventBus.RequestDemolish.emit(Rect2i(int(step[1]), int(step[2]), int(step[3]), int(step[4])))
+			# The Builder clears at most 5x5 at a time: a bigger area goes in pieces.
+			var cr := Rect2i(int(step[1]), int(step[2]), int(step[3]), int(step[4]))
+			for cy in range(cr.position.y, cr.end.y, 5):
+				for cx in range(cr.position.x, cr.end.x, 5):
+					EventBus.RequestDemolish.emit(Rect2i(cx, cy, mini(5, cr.end.x - cx), mini(5, cr.end.y - cy)))
 		"build":
 			EventBus.RequestBuild.emit(str(step[1]), Vector2i(int(step[2]), int(step[3])), int(step[4]))
 		"book":

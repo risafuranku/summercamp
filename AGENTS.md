@@ -210,6 +210,10 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   or the lake trip is active: a mode with its own camera must be added to that check.
 - **The shot driver's mouse steers interior looks**: warp it to the centre
   (`get_viewport().warp_mouse(...)`) before shots of a look-around view.
+- **Guests asleep are `sleep`, not `active`**: anything that asks "who is in the camp" at
+  night must take both (the director saw an empty camp every night because of it).
+- **Demolish takes at most 5x5**: a bigger `RequestDemolish` is rejected outright (the shot
+  driver's `clear` splits it); build rejections print as `SHOT DRIVER build rejected`.
 - **The OS boot takes ~13 s** (warm-up, BIOS, maker's screen, Okna): harness waits must be
   longer than that, and a test that skips itself when an app does not open must fail.
 - **Physics ignores visibility**: hidden rooms' bodies still catch rays. Disable a hotspot's
