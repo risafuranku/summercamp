@@ -223,7 +223,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   logical size is window / k so the canvas scale is a whole number and the window is
   filled. The engine's own integer mode letterboxes; do not switch to it.
 - **Pixel fonts are bitmaps with integer-only scaling**: request `size_vp` = 8 (labels,
-  text) or 10 (Jersey) or multiples; other sizes snap down.
+ text) or 10 (Jersey) or multiples; other sizes snap down.
+- **2D is nearest everywhere**: the project's canvas default filter is Nearest, and
+ `GameSettings` sets every SubViewport's `canvas_item_default_texture_filter` to nearest
+ as it enters the tree (a SubViewport's own default is linear: centred text landed on
+ half pixels and came out smeared, playtest 18. 10.). Nothing in the game wants linear.
 - **Inner classes can't call the outer script's static funcs** (they can read its consts).
 - **CRT windows open after a delay**; the reveal is per window and waits for the desktop.
 - **`_window_layer` in the CRT shell uses `MOUSE_FILTER_STOP`**: keep it hidden with no

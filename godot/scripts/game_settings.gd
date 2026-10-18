@@ -27,6 +27,14 @@ var _invert_mouse_y: bool = false
 func _ready() -> void:
 	load_settings()
 	apply_settings()
+	# One pixel throughout: a SubViewport's own 2D is linear unless told, and text and
+	# pictures drawn in one (rooms, the PC, close-ups) came out smeared.
+	get_tree().node_added.connect(_nearest_in_viewport)
+
+
+func _nearest_in_viewport(node: Node) -> void:
+	if node is SubViewport:
+		(node as SubViewport).canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
 
 
 func get_supported_resolutions() -> Array[Vector2i]:

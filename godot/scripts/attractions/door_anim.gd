@@ -91,6 +91,20 @@ static func open(door: MeshInstance3D, seconds: float = 1.6) -> void:
 	_doors[id]["open_until"] = _clock + seconds
 
 
+## Open `door` at once, no swing (the warden stepping out through it: a leaf still
+## swinging out would pass through his eye), and keep it open for `seconds`.
+static func open_now(door: MeshInstance3D, seconds: float = 1.6) -> void:
+	open(door, seconds)
+	if door == null or not _doors.has(door.get_instance_id()):
+		return
+	var d: Dictionary = _doors[door.get_instance_id()]
+	d["angle"] = OPEN_DEG
+	(d["pivot"] as Node3D).basis = (d["base"] as Basis) * Basis(Vector3.UP, deg_to_rad(OPEN_DEG))
+	var hole: Node3D = d.get("hole", null)
+	if hole != null and is_instance_valid(hole):
+		hole.visible = true
+
+
 static func _hang(door: MeshInstance3D) -> bool:
 	var parent := door.get_parent() as Node3D
 	var box := door.mesh as BoxMesh

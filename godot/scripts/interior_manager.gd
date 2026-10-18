@@ -617,7 +617,7 @@ func _step_out_of(structure: Node3D) -> void:
 	var sill: Vector3 = (way["outside"] + way["inside"]) * 0.5
 	sill.y = body.global_position.y
 	if way["door"] != null:
-		DOOR_ANIM.open(way["door"], 1.2)
+		DOOR_ANIM.open_now(way["door"], WALK_OUT_SEC + 0.6)
 	_walk_body(body, sill + out * STEP_OUT_FROM, sill + out * STEP_OUT_TO, out)
 
 
@@ -661,6 +661,12 @@ func _walk_on_out_of_office() -> void:
 	if way.is_empty():
 		_set_player_controls_enabled(true)
 		return
+	# The camp building's own leaf is shut (the room's doorway view never showed it): the
+	# eye starts right at it, and for some frames the walk out was through a door.
+	var office := _world_3d.find_child("MainBuilding", true, false) as Node3D if _world_3d != null else null
+	var leaf := DOOR_ANIM.find_door(office) if office != null else null
+	if leaf != null:
+		DOOR_ANIM.open_now(leaf, WALK_OUT_SEC + 0.6)
 	_walk_body(body, way["from"], way["to"], way["dir"])
 
 
