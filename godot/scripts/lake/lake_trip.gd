@@ -431,7 +431,11 @@ func _land() -> void:
 	else:
 		_catch = {"tex": "res://assets/textury/pipes/red_shoe.png", "text": "A red shoe, a lady's, full of mud. Like the one in the pipes. The left one.", "money": 0}
 	var money := int(_catch.get("money", 0))
-	if money > 0 and CoreRoot != null and CoreRoot.actions != null:
+	if money > 0 and Coop.is_client():
+		# Co-op: the till is the host's.
+		Coop.send_request("money", [money])
+		_caught_today += 1
+	elif money > 0 and CoreRoot != null and CoreRoot.actions != null:
 		CoreRoot.actions.add_money(money)
 		_caught_today += 1
 	_say(str(_catch["text"]))

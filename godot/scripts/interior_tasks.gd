@@ -114,6 +114,11 @@ func is_scrubbing() -> bool:
 	return _scrub != null and _scrub.is_open()
 
 
+## Co-op: the job the other warden's hands are on in this room (InteriorManager.coop_partner):
+## not yours to take while they are at it.
+var coop_taken := ""
+
+
 ## The job your hands are on now ("" when none): held, or the bowl being scrubbed.
 ## Co-op shows the other warden at it (InteriorManager.coop_partner).
 func working_on() -> String:
@@ -163,6 +168,8 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		return
 	var hit := _target_under_cursor()
+	if hit != "" and hit == coop_taken and hit != _holding:
+		hit = ""
 	if _holding.is_empty():
 		_set_hover(hit)
 	var lmb := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)

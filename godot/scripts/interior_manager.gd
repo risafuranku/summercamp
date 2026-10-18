@@ -1271,6 +1271,10 @@ func coop_partner(info: Dictionary) -> void:
 		coop_drop_partner()
 		return
 	var it = _open_room_interior()
+	# Their job is theirs while they are at it.
+	var room_tasks = _room_tasks(it) if it != _building_interior else null
+	if room_tasks != null and "coop_taken" in room_tasks:
+		room_tasks.coop_taken = str(info.get("w", ""))
 	var vp: Node = it.get("_viewport")
 	var cam: Camera3D = it.get("_interior_camera")
 	if vp == null or cam == null:
@@ -1343,6 +1347,10 @@ func _coop_tent_spot(root: Node3D, at: Vector3) -> Vector3:
 
 
 func coop_drop_partner() -> void:
+	var it = _open_room_interior()
+	var room_tasks = _room_tasks(it) if it != null and it != _building_interior else null
+	if room_tasks != null and "coop_taken" in room_tasks:
+		room_tasks.coop_taken = ""
 	if _coop_fig != null and is_instance_valid(_coop_fig):
 		_coop_fig.queue_free()
 	_coop_fig = null

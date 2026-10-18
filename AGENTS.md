@@ -283,6 +283,14 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   put there by `InteriorManager.coop_partner` from the room the other machine reports
   (`coop_room()`: key, kind, part, the job in hand). A new kind of room needs
   `_room_part` and `_room_tasks` to answer for it, or the two never meet in it.
+- **Co-op: the joining warden's hands** go to the host: `Coop.send_request(kind, data)` →
+  `main.coop_request` does it in the host's camp, and it comes back (a build as a fact,
+  the rest with the camp pulse). Something new that changes the camp from the joining
+  machine must forward like this (look at `email_manager._coop_send`, `desk_room.gd`,
+  `maintenance_controller.gd`); on that machine GuestManager and the mail simulate
+  nothing (`Coop.sim_here()`), and its builder authority is unhooked from
+  `RequestBuild`/`RequestDemolish` (`main._coop_forward_builds`): replay facts by calling
+  the authority directly, never by emitting the request.
 - **Co-op sleep** (`camp_office.gd`): lying down sets `in_bed` (sent as the warden
   state's `z`); the host passes the night only when both are in bed and its own eyes are
   shut (the sleep sequence's DARK), and stops it if either gets up; the other machine

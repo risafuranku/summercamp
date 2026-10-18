@@ -643,6 +643,10 @@ func undo_last() -> bool:
 	if _undo.is_empty() or CoreRoot.actions == null:
 		_emit_status("Nothing to undo today.", STATUS_DENY)
 		return false
+	# Co-op: on the other warden's machine the camp is the host's; take it down instead.
+	if Coop.is_client():
+		_emit_status("Not from here. Bulldoze it instead.", STATUS_DENY)
+		return false
 	var group := int(_undo.back()["group"])
 	var taken := 0
 	var back := 0

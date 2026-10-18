@@ -439,6 +439,9 @@ func _on_time_tick(hour: int, minute: int) -> void:
 		return
 	_last_tick_signature = tick_signature
 
+	# Co-op: the mail comes to the host's machine.
+	if not Coop.sim_here():
+		return
 	var now_abs = _absolute_minutes(day, safe_hour, safe_minute)
 	_deliver_due_mails(now_abs)
 
@@ -997,6 +1000,50 @@ func _extract_sender_name(mail: Dictionary) -> String:
 	return sender
 
 
+# ── co-op: the mail is the host's (scripts/coop/coop.gd) ─────────────────────
+
+## The other warden's machine: the host's mail as it now is (main.coop_apply_pulse).
+func coop_take(mail: Dictionary) -> void:
+	inbox = _sanitize_mail_array(mail.get("inbox", []))
+	sent.clear()
+	for m in (mail.get("sent", []) if mail.get("sent", []) is Array else []):
+		if m is Dictionary:
+			sent.append(m)
+	reputation = float(mail.get("rep", reputation))
+	unread_count_changed.emit(get_unread_count())
+
+
+## The other warden's machine: what was done to a mail goes to the host too (it is done
+## here at once, and the host's mail comes back). True when it went.
+func _coop_send(what: String, mail: Dictionary, extra: Array = []) -> bool:
+	if not Coop.is_client():
+		return false
+	Coop.send_request("mail", [what, int(mail.get("_runtime_id", -1))] + extra)
+	return true
+
+
+## The host: what the other warden did to a mail ([what, mail id, ...]).
+func coop_do(data: Array) -> void:
+	var what := str(data[0])
+	if what == "send":
+		send_mail(str(data[2]), str(data[3]), str(data[4]), int(data[5]), str(data[6]))
+		return
+	var mail := find_mail("_runtime_id", int(data[1]))
+	if mail.is_empty():
+		return
+	match what:
+		"read":
+			mark_read(mail)
+		"delete":
+			delete_mail(mail)
+		"confirm":
+			confirm_customer_booking(mail)
+		"reject":
+			reject_customer_booking(mail)
+		"reply":
+			reply_to_review(mail, str(data[2]))
+
+
 func get_unread_count() -> int:
 	var count: int = 0
 	for mail in inbox:
@@ -1007,6 +1054,7 @@ func get_unread_count() -> int:
 
 ## CampMail's Delete: into Deleted Items, and from there gone for good.
 func delete_mail(mail: Dictionary) -> void:
+	_coop_send("delete", mail)
 	if str(mail.get("_folder", "inbox")) == "deleted":
 		for i in inbox.size():
 			if int(inbox[i].get("_runtime_id", -1)) == int(mail.get("_runtime_id", -2)):
@@ -1047,6 +1095,10 @@ func _clock_now() -> String:
 func reply_to_review(mail: Dictionary, reply_id: String) -> float:
 	if bool(mail.get("_actioned", false)):
 		return 0.0
+	if _coop_send("reply", mail, [reply_id]):
+		mail["_actioned"] = true
+		mail["reply"] = reply_id
+		return 0.0
 	var r: Dictionary = mail.get("review", {})
 	var stars := int(r.get("rating", 3))
 	var band := 0 if stars <= 2 else (2 if stars >= 4 else 1)
@@ -1067,11 +1119,14 @@ func settle_reputation() -> void:
 
 
 func send_mail(to: String, subject: String, body: String, day: int, time: String) -> void:
+	if Coop.is_client():
+		Coop.send_request("mail", ["send", -1, to, subject, body, day, time])
 	sent.append({"to": to, "subject": subject, "body": body, "day": day, "time": time})
 
 
 func mark_read(mail: Dictionary) -> void:
 	if not bool(mail.get("_read", false)):
+		_coop_send("read", mail)
 		mail["_read"] = true
 		unread_count_changed.emit(get_unread_count())
 
@@ -1094,6 +1149,10 @@ func confirm_customer_booking(mail: Dictionary) -> bool:
 		return false
 	if not can_accept_customer_booking(mail):
 		return false
+	# Co-op: the booking is made in the host's camp (its guest comes back with the pulse).
+	if _coop_send("confirm", mail):
+		mail["_actioned"] = true
+		return true
 
 	mail["_actioned"] = true
 	customer_booking_confirmed.emit(mail)
@@ -1104,6 +1163,12 @@ func confirm_customer_booking(mail: Dictionary) -> bool:
 
 func reject_customer_booking(mail: Dictionary) -> void:
 	if mail.is_empty():
+		return
+	if _coop_send("reject", mail):
+		mail["_actioned"] = true
+		if inbox.has(mail):
+			inbox.erase(mail)
+		unread_count_changed.emit(get_unread_count())
 		return
 	mail["_actioned"] = true
 	customer_booking_rejected.emit(mail)

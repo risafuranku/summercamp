@@ -363,7 +363,11 @@ func _update_work(delta: float, can_act: bool) -> void:
 		var target := _target.duplicate()
 		_reset_work()
 		_denied_key = key
-		CoreRoot.actions.service_building(target["coord"], int(target["cost"]))
+		# Co-op: mended in the host's camp (it comes back as a fact).
+		if Coop.is_client():
+			Coop.send_request("service", [target["coord"], int(target["cost"])])
+		else:
+			CoreRoot.actions.service_building(target["coord"], int(target["cost"]))
 
 
 func _reset_work() -> void:

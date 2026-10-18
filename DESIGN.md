@@ -506,7 +506,7 @@ through for two (TODO.md, CO-OP).
   till. Nothing there runs the camp by itself (`Coop.sim_here()`).
 - **The PC.** One sits at it and clicks; the other, standing in the reception, sees the
   screen normally over their shoulder (the screen as it is on the other machine, a few
-  times a second, on the office's own PC). For now only the host sits at it.
+  times a second, on the office's own PC). Either may sit at it, one at a time.
 - **Sleep.** The day is skipped only when both are asleep. Lying down alone you lie
   awake watching the little set till the other lies down too; then the night passes
   for both, and either getting up stops it. Both sleep in the room behind the office.

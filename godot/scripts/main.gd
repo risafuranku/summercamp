@@ -3783,12 +3783,14 @@ func _on_coop_world_arrived(snapshot: Dictionary) -> void:
 	_start_game_from_menu()
 	if CoreRoot.failure_system != null:
 		CoreRoot.failure_system.enabled = false
+	_coop_forward_builds(true)
 	call_deferred("_coop_flush_facts")
 	if _hud_manager != null:
 		_hud_manager.push_status("You came in by the barrier. The other warden is about.", 1)
 
 
 func _on_coop_session_ended(reason: String) -> void:
+	_coop_forward_builds(false)
 	if _gameplay_started:
 		_close_pause_menu(false)
 		_enter_main_menu()
@@ -3820,6 +3822,52 @@ func _on_coop_partner_moved(s: Dictionary) -> void:
 			room = room.duplicate()
 			room["b"] = true
 		_interior_manager.coop_partner(room)
+
+
+## The host: what of the camp changes by itself, for the other machine once a second
+## (Coop sends it when it changed): the guests and their plans (the agents act them out
+## there too), breakdowns, the buildings' condition (the lamps), the rooms, the mail and
+## the shed key.
+func coop_camp_pulse() -> Dictionary:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return {}
+	var maint := {}
+	for coord in state.grid.cells.keys():
+		var cell = state.grid.cells[coord]
+		if cell is Dictionary and (cell as Dictionary).has("maintenance"):
+			maint[coord] = float(cell["maintenance"])
+	var mail: Dictionary = {}
+	if EmailManager != null:
+		mail = {"inbox": EmailManager.inbox, "sent": EmailManager.sent, "rep": EmailManager.reputation}
+	var key: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.has_shed_key
+	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key}
+
+
+## The other warden's machine: the host's camp as it now is (coop_camp_pulse).
+func coop_apply_pulse(p: Dictionary) -> void:
+	if not Coop.is_client() or not _gameplay_started or _menu_mode:
+		return
+	var state = CoreRoot.get_state()
+	if state == null:
+		return
+	state.guests = (p.get("guests", []) as Array).duplicate(true)
+	state.failures = (p.get("failures", {}) as Dictionary).duplicate(true)
+	var rooms: Dictionary = p.get("rooms", {})
+	if not rooms.is_empty():
+		state.accommodation_states = rooms.duplicate(true)
+	var maint: Dictionary = p.get("maint", {})
+	for coord in maint.keys():
+		if state.grid.cells.has(coord) and state.grid.cells[coord] is Dictionary:
+			state.grid.cells[coord]["maintenance"] = float(maint[coord])
+	if GuestManager != null and GuestManager.has_method("_emit_guest_overview_state"):
+		GuestManager._emit_guest_overview_state(true)
+	_sync_dark_lamps()
+	if camp_office != null and is_instance_valid(camp_office):
+		camp_office.has_shed_key = bool(p.get("shed_key", camp_office.has_shed_key))
+	var mail: Dictionary = p.get("mail", {})
+	if not mail.is_empty() and EmailManager != null and EmailManager.has_method("coop_take"):
+		EmailManager.coop_take(mail)
 
 
 ## Over the shoulder: your PC screen for the other machine while you sit at it and the
@@ -3893,10 +3941,15 @@ func coop_apply_fact(kind: String, data: Array) -> void:
 	var keep := int(state.money)
 	state.money = 1 << 30
 	match kind:
+		# Straight to the builder (the joining machine's own requests go to the host).
 		"build":
-			EventBus.RequestBuild.emit(str(data[0]), data[1], int(data[2]))
+			CoreRoot.builder_authority._on_request_build(str(data[0]), data[1], int(data[2]))
 		"demolish":
-			EventBus.RequestDemolish.emit(data[0])
+			CoreRoot.builder_authority._on_request_demolish(data[0])
+		"build_rejected":
+			EventBus.BuildRejected.emit(str(data[0]), data[1], int(data[2]), str(data[3]))
+		"demolish_rejected":
+			EventBus.DemolishRejected.emit(data[0], str(data[1]))
 		"upgrade":
 			if _interior_manager != null:
 				_interior_manager._handle_replace_upgrade(data[0], str(data[1]), str(data[2]), 0)
@@ -3904,6 +3957,93 @@ func coop_apply_fact(kind: String, data: Array) -> void:
 			CoreRoot.actions.service_building(data[0], 0)
 	state.money = keep
 	EventBus.money_changed.emit(keep)
+
+
+## The host: what the other warden's hands ask of the camp (Coop.send_request). Done
+## here as if done here; a build or demolition turned down goes back to them.
+func coop_request(kind: String, data: Array) -> void:
+	if not Coop.is_host() or not _gameplay_started:
+		return
+	match kind:
+		"build":
+			var turned: Array = []
+			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])
+			EventBus.BuildRejected.connect(cb)
+			EventBus.RequestBuild.emit(str(data[0]), data[1], int(data[2]))
+			EventBus.BuildRejected.disconnect(cb)
+			if not turned.is_empty():
+				Coop.send_fact("build_rejected", turned[0])
+		"demolish":
+			var turned2: Array = []
+			var cb2 := func(rect: Rect2i, reason: String) -> void: turned2.append([rect, reason])
+			EventBus.DemolishRejected.connect(cb2)
+			EventBus.RequestDemolish.emit(data[0])
+			EventBus.DemolishRejected.disconnect(cb2)
+			if not turned2.is_empty():
+				Coop.send_fact("demolish_rejected", turned2[0])
+		"money":
+			CoreRoot.actions.add_money(int(data[0]))
+		"service":
+			CoreRoot.actions.service_building(data[0], int(data[1]))
+		"checkin":
+			GuestManager.request_check_in(int(data[0]))
+		"refuse":
+			GuestManager.refuse_at_desk(int(data[0]))
+		"phone":
+			if camp_office != null:
+				camp_office.on_phone_effect(str(data[0]), str(data[1]))
+		"shed_key":
+			if camp_office != null:
+				camp_office.take_shed_key()
+		"mail":
+			if EmailManager != null and EmailManager.has_method("coop_do"):
+				EmailManager.coop_do(data)
+
+
+## The other warden's machine builds nothing of its own accord: what its Builder asks
+## goes to the host (and comes back as a fact). Off again outside co-op.
+var _coop_build_forwarding := false
+
+
+func _coop_forward_builds(on: bool) -> void:
+	var auth = CoreRoot.builder_authority
+	if auth == null or on == _coop_build_forwarding:
+		return
+	_coop_build_forwarding = on
+	var b := Callable(auth, "_on_request_build")
+	var d := Callable(auth, "_on_request_demolish")
+	var fb := Callable(self, "_coop_send_build")
+	var fd := Callable(self, "_coop_send_demolish")
+	if on:
+		if EventBus.RequestBuild.is_connected(b):
+			EventBus.RequestBuild.disconnect(b)
+		if EventBus.RequestDemolish.is_connected(d):
+			EventBus.RequestDemolish.disconnect(d)
+		EventBus.RequestBuild.connect(fb)
+		EventBus.RequestDemolish.connect(fd)
+	else:
+		if EventBus.RequestBuild.is_connected(fb):
+			EventBus.RequestBuild.disconnect(fb)
+		if EventBus.RequestDemolish.is_connected(fd):
+			EventBus.RequestDemolish.disconnect(fd)
+		auth._connect_event_bus()
+
+
+func _coop_send_build(t: String, at: Vector2i, rot: int) -> void:
+	if not Coop.is_client():
+		# Left the co-op camp without the end being heard: the builder is ours again.
+		_coop_forward_builds(false)
+		CoreRoot.builder_authority._on_request_build(t, at, rot)
+		return
+	Coop.send_request("build", [t, at, rot])
+
+
+func _coop_send_demolish(rect: Rect2i) -> void:
+	if not Coop.is_client():
+		_coop_forward_builds(false)
+		CoreRoot.builder_authority._on_request_demolish(rect)
+		return
+	Coop.send_request("demolish", [rect])
 
 
 func _coop_flush_facts() -> void:

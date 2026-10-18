@@ -35,6 +35,10 @@ enum Role { NONE, HOST, CLIENT }
 const DEFAULT_PORT := 24898
 const WARDEN_HZ := 15.0
 const CLOCK_HZ := 4.0
+## The host's camp as it changes (guests, breakdowns, lamps, rooms): looked at this often,
+## sent when it changed (and now and then anyway).
+const PULSE_HZ := 1.0
+const PULSE_RESEND := 5
 ## Over the shoulder: the PC's screen, sent this often while the other warden can see it.
 const SCREEN_HZ := 6.0
 const CONNECT_TIMEOUT := 20.0
@@ -53,6 +57,9 @@ var _connect_left := -1.0
 var _warden_t := 0.0
 var _clock_t := 0.0
 var _screen_t := 0.0
+var _pulse_t := 0.0
+var _pulse_hash := 0
+var _pulse_same := 0
 var _remote: REMOTE_PLAYER
 ## The host's last clock as it came in (the joining machine; harnesses compare it).
 var last_clock: Dictionary = {}
@@ -326,6 +333,16 @@ func _process(delta: float) -> void:
 		if _clock_t <= 0.0:
 			_clock_t = 1.0 / CLOCK_HZ
 			_clock.rpc_id(remote_id, main.coop_clock())
+		_pulse_t -= delta
+		if _pulse_t <= 0.0 and main.has_method("coop_camp_pulse"):
+			_pulse_t = 1.0 / PULSE_HZ
+			var raw: PackedByteArray = var_to_bytes(main.coop_camp_pulse())
+			var h := hash(raw)
+			_pulse_same += 1
+			if h != _pulse_hash or _pulse_same >= PULSE_RESEND:
+				_pulse_hash = h
+				_pulse_same = 0
+				_pulse.rpc_id(remote_id, raw.compress(FileAccess.COMPRESSION_ZSTD), raw.size())
 	# At the PC with the other warden in the office: they see your screen over your
 	# shoulder (a small picture of it, a few times a second).
 	_screen_t -= delta
@@ -346,6 +363,16 @@ func _warden(s: Dictionary) -> void:
 	if r != null:
 		r.push_state(s)
 	partner_moved.emit(s)
+
+
+## The host's camp pulse (main.coop_camp_pulse), packed.
+@rpc("authority", "call_remote", "reliable", 4)
+func _pulse(packed: PackedByteArray, size: int) -> void:
+	var raw := packed.decompress(size, FileAccess.COMPRESSION_ZSTD)
+	var p = bytes_to_var(raw)
+	var main := _main()
+	if p is Dictionary and main != null and main.has_method("coop_apply_pulse"):
+		main.coop_apply_pulse(p)
 
 
 ## The other warden's PC screen (a JPEG), while you stand in the office with them at it.
@@ -370,6 +397,21 @@ func _hello(look: Dictionary) -> void:
 
 
 # ── the camp's changes, one way ─────────────────────────────────────────────
+
+## The joining warden's hands at the PC and elsewhere: what they ask the host's camp to
+## do ("build" [type, origin, rotation], "demolish" [rect], "money" [amount], "mail"
+## [what, mail id, ...]); the host does it (main.coop_request) and the camp comes back.
+func send_request(kind: String, data: Array) -> void:
+	if role == Role.CLIENT and remote_id != 0:
+		_request.rpc_id(1, kind, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request(kind: String, data: Array) -> void:
+	var main := _main()
+	if role == Role.HOST and multiplayer.get_remote_sender_id() == remote_id and main != null and main.has_method("coop_request"):
+		main.coop_request(kind, data)
+
 
 ## The joining warden finished a job in a room: the host does it in the real camp.
 func send_room_task(key: String, task_id: String) -> void:

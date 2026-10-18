@@ -153,7 +153,10 @@ func _file() -> void:
 	for i in FIELDS.size():
 		slips += _distance(str((_inputs[i] as LineEdit).text).strip_edges().to_upper(), str(_cur[FIELDS[i]]))
 	var pay := RATE if slips == 0 else (RATE / 2 if slips <= 2 else 0)
-	if pay > 0 and CoreRoot.actions != null:
+	if pay > 0 and Coop.is_client():
+		# Co-op: the till is the host's.
+		Coop.send_request("money", [pay])
+	elif pay > 0 and CoreRoot.actions != null:
 		CoreRoot.actions.add_money(pay)
 	_add_done(1)
 	_stamp = "FILED" if pay == RATE else ("FILED -%d" % (RATE - pay) if pay > 0 else "REJECTED")

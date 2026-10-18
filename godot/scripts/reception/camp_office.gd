@@ -221,6 +221,10 @@ func phone_context() -> Dictionary:
 
 
 func on_phone_effect(effect: String, _number: String) -> void:
+	# Co-op: whoever you ring comes to the host's camp.
+	if Coop.is_client():
+		Coop.send_request("phone", [effect, _number])
+		return
 	if effect == "electrician" and (electrician == null or not is_instance_valid(electrician)):
 		var night := BOOK.is_night(_hour())
 		electrician = ELECTRICIAN_VISIT.new()
@@ -233,6 +237,8 @@ func on_phone_effect(effect: String, _number: String) -> void:
 # ── the shed key ─────────────────────────────────────────────────────────────
 
 func take_shed_key() -> void:
+	if Coop.is_client():
+		Coop.send_request("shed_key", [])
 	has_shed_key = true
 
 

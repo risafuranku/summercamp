@@ -118,6 +118,8 @@ def main():
     hs = load("host_sees_work")
     if hs is None or hs["room_figure"] not in ("sweep", "crouch", "stand"):
         failures.append("the host does not see the other warden at their job (%s)" % (hs or {}).get("room_figure"))
+    elif cr is not None and hs["coop_taken"] != cr["task"]:
+        failures.append("the other warden's job (%s) is not locked for the host (%s)" % (cr["task"], hs["coop_taken"]))
     for tag in ("host_tent", "client_tent"):
         ft = load(tag)
         if ft is None or ft["room_figure"] != "prone":
@@ -139,6 +141,29 @@ def main():
         for fp in (hn, cn):
             if not fp["other_visible"]:
                 failures.append("night: %s does not see the other warden" % fp["role"])
+    # A guest at the host's: the same on the other machine, and walking about there.
+    hg, cg = load("host_guests"), load("client_guests")
+    if hg is None or cg is None:
+        failures.append("missing guest fingerprints")
+    else:
+        if not hg["guests"]:
+            failures.append("the host's guest did not check in")
+        if hg["guests"] != cg["guests"]:
+            failures.append("the guests differ (host %s, other %s)" % (hg["guests"], cg["guests"]))
+        if cg["agents"] < 1:
+            failures.append("the other machine shows no guest walking about (%s)" % cg["agents"])
+    # The other warden at the PC: their tent stands in both camps, their mail read is read.
+    ha = load("host_after_client")
+    if ha is None or cg is None:
+        failures.append("missing fingerprints of the other warden at the PC")
+    else:
+        for fp in (ha, cg):
+            if not any(x.startswith("tent_1@(15, 16)") for x in fp["structures"]):
+                failures.append("%s: the tent the other warden built is not there" % fp["role"])
+        if not any(r.endswith("|read") for r in ha["mail"]):
+            failures.append("the mail the other warden read is not read in the host's inbox %s" % ha["mail"])
+        if ha["mail"] != cg["mail"]:
+            failures.append("the mail differs (host %s, other %s)" % (ha["mail"], cg["mail"]))
     # Over the shoulder: the host's screen on the other's PC.
     cs = load("client_shoulder")
     if cs is None or not cs["coop_screen"]:

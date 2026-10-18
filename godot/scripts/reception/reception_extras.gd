@@ -541,11 +541,12 @@ func click() -> bool:
 	return true
 
 
-## Co-op: what in the office runs the camp, and stays with the host for now (the PC
-## too: building_interior.gd). What the joining warden thinks instead.
-const COOP_HOSTS_ONLY := ["phone", "guest", "bell", "board"]
+## Co-op: what in the office stays with the host (nothing now: the phone, the board and
+## the check-ins send what you do there to the host's camp); the PC is either's, one at
+## a time (building_interior.gd). What you think instead.
+const COOP_HOSTS_ONLY: Array[String] = []
 const COOP_REFUSALS := {
-	"pc": "You leave the PC to the other warden.",
+	"pc": "The other warden is at the PC. You look over their shoulder.",
 	"phone": "You leave the phone to the other warden.",
 	"guest": "The other warden does the check-ins.",
 	"bell": "The other warden does the check-ins.",

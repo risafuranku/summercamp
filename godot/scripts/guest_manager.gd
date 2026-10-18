@@ -228,6 +228,10 @@ func _on_time_tick(hour: int, minute: int) -> void:
 	_last_known_day = max(1, CoreRoot.get_day())
 	_last_known_hour = clampi(hour, 0, 23)
 	_last_known_minute = clampi(minute, 0, 59)
+	# Co-op: the guests live on the host's machine; this one only shows them (its
+	# state.guests comes with the host's camp pulse, main.coop_apply_pulse).
+	if not Coop.sim_here():
+		return
 
 	var signature = _runtime_signature()
 	if signature == _last_tick_signature:
