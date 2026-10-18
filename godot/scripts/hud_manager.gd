@@ -1163,10 +1163,23 @@ func _refresh_guests() -> void:
 		var label := str(HUD_MOOD_WORDS.get(str(_mood.get("mood_label", "")), "OKAY"))
 		if unhappy > 0:
 			label = "%d UPSET" % unhappy
+		# Somebody waiting to be served in a pub, bistro or the Jednota: every other
+		# second the cell says so (set_serving).
+		if _serving > 0 and int(Time.get_ticks_msec() / 1000) % 2 == 0:
+			label = "%d WAITING" % _serving
 		_guest_mood.text = label
 		var col := RETRO_UI.C_GREEN if avg >= 62.0 else (RETRO_UI.C_AMBER if avg >= 35.0 else RETRO_UI.C_RED_LIGHT)
 		_guest_mood.add_theme_color_override("font_color", col)
 	_guest_face.set_state(avg, _fear, count <= 0)
+
+
+## Guests waiting to be served in the businesses (main, from business_runtime).
+var _serving := 0
+
+
+func set_serving(n: int) -> void:
+	_serving = maxi(0, n)
+	_refresh_guests()
 
 
 func _refresh_mail() -> void:

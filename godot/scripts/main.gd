@@ -887,6 +887,10 @@ func night_job_waypoint() -> Dictionary:
 		return {}
 	var best: Dictionary = _night_jobs.waypoint(_player.global_position) if _night_jobs != null else {}
 	var day: Dictionary = _day_events.waypoint(_player.global_position) if _day_events != null else {}
+	# Somebody waiting to be served in a business: pointed to like the day's jobs.
+	var biz = _interior_manager.get("business") if _interior_manager != null else null
+	if day.is_empty() and biz != null and biz.has_method("waypoint"):
+		day = biz.waypoint(_player.global_position, grid_manager)
 	if best.is_empty():
 		return day
 	if not day.is_empty() and _player.global_position.distance_to(day["position"]) < _player.global_position.distance_to(best["position"]):
@@ -1560,6 +1564,8 @@ func _poll_arrivals(delta: float) -> void:
 	var biz = _interior_manager.get("business") if _interior_manager != null else null
 	if biz != null:
 		day_rows = day_rows + biz.hud_rows()
+		if _hud_manager.has_method("set_serving"):
+			_hud_manager.set_serving(int(biz.waiting_total()))
 	if not day_rows.is_empty() and _time_state != TIME_NIGHT:
 		_hud_manager.set_jobs(day_rows, "TODAY")
 	elif _night_jobs != null:
@@ -4462,6 +4468,10 @@ func _coop_sync_things() -> Dictionary:
 	# The radio is the host's: its set plays on the other machine too.
 	if Coop.is_host() and bi.has_method("coop_radio_state"):
 		out["radio"] = bi.coop_radio_state()
+	# Who has been served what in the businesses (the host serves too: the mug lands on
+	# their table on the other machine, and they stop waiting there).
+	if Coop.is_host():
+		out["served"] = ORDERS_SERVED._served.duplicate()
 	return out
 
 
@@ -4490,6 +4500,12 @@ func coop_sync(kind: String, data: Array) -> void:
 		"radio":
 			if Coop.is_client() and bi != null and bi.has_method("coop_take_radio"):
 				bi.coop_take_radio(data[0])
+			return
+		"served":
+			if Coop.is_client():
+				var got: Dictionary = data[0]
+				for v in got:
+					ORDERS_SERVED._served[v] = maxi(int(ORDERS_SERVED._served.get(v, 0)), int(got[v]))
 			return
 		"register":
 			var desk = bi.get("_desk_room") if bi != null else null

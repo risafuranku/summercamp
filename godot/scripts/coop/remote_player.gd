@@ -19,7 +19,8 @@ const SPRITE_HEIGHT_M := 1.74
 ## How tall each pose is drawn (its picture is that tall from top to bottom edge).
 const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32,
 	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86,
-	"fix": 1.72, "fish": 1.72, "saw": 1.35, "bag": 1.45, "write": 0.92,
+	"fix": 1.72, "fish": 1.72, "saw": 1.35, "bag": 1.45,
+	"tap": 1.72, "pour": 1.72, "wash": 1.72, "cook": 1.72, "till": 1.72, "write": 0.92,
 	"bedfoot": 0.7}
 ## Poses drawn lying down: how long the picture is from side to side.
 const POSE_WIDTH := {"bed": 1.85}

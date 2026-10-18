@@ -444,6 +444,34 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
   12/day base), due 3 days later. An overdue bill cuts the grid: lamps off, power-hungry
   facilities closed, and a 6-minute UPS countdown to game over. Paying restores the grid.
 
+## 7b. The businesses' rooms (point and click)
+
+Decided with the user on 2026-10-18 ("interiors aim at the feel of point-and-click
+games"). The pub, the bistro and the Jednota are rooms you look round in and click:
+everything usable glints under the gloved finger, and the doors are things too (the flat
+palm): click one and you walk to it, it swings open on the dark behind it and you come
+in through the next room's door, which swings shut behind you. No side tabs, no pushing
+the head through the end of the turn.
+
+- **Where the work is.** Over each place a small Grok picture bobs while there is work
+  waiting there: the tap and the bottles while somebody waits at the bar, the washer
+  when the clean mugs run out, the pass while somebody waits for a plate (seen from the
+  dining room over the kitchen door), the stove when nothing is fried ahead, the till.
+  Outside, the HUD's guests cell says how many wait to be served and the waypoint
+  points to the business.
+- **The bistro's logistics.** The dining room (na place) is the guests' tables, the till
+  and the books; the kitchen behind the counter is the stove (frying ahead) and the pass
+  on the island in its middle (plating, the bell): the plate then lands on their table.
+  Under the kitchen the cellar is the stock: sacks, crates and boxes as many as the
+  books have on the shelf; click them for the books and the orders. (The machine
+  nobody ordered stands down there too.)
+- **The pub's cellar.** A door by the bar end goes down to the kegs: one for every 25
+  pints the books hold, crates of rum and kofola; click them for the books.
+- **For two.** The other warden is in the room with you at the job they have open,
+  behind the bar pulling a beer, at the bottles, the washer, the pass, the stove, the
+  till, over the books; the place they are at is theirs (no mark over it for you), and
+  what they serve lands on the tables on both machines.
+
 ## 8. The pipe crawl (sewer repair)
 
 *Reworked 2026-10-18 with the user: the raccoon. Staging `scripts/pipes/pipe_director.gd`,

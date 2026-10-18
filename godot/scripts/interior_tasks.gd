@@ -218,7 +218,14 @@ func _draw() -> void:
 
 # ── internals ─────────────────────────────────────────────────────────────────
 
+## Shot driver (tools/coop_check.gd): the job the cursor is taken to be on ("" the real
+## cursor). Two copies of the game on one desktop share the one OS cursor.
+var debug_aim := ""
+
+
 func _target_under_cursor() -> String:
+	if debug_aim != "" and _targets.has(debug_aim):
+		return "" if bool(_targets[debug_aim].get("done", false)) else debug_aim
 	# A SubViewport with its own world returns null from get_world_3d(); ask the camera.
 	if _viewport == null or _camera.get_world_3d() == null:
 		return ""

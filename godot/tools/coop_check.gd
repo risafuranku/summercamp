@@ -69,7 +69,7 @@ func _ready() -> void:
 			["wait", 5.0], ["coop_fingerprint", "host_radio"], ["coop_signal", "host_radio"],
 			["coop_wait_file", "client_radio_off"], ["wait", 1.5], ["coop_fingerprint", "host_radio_off"], ["coop_signal", "host_radio_off_seen"],
 			# Built after the join: the other camp gets it too.
-			["build", "tent_1", 13, 16, 0], ["build", "bonfire", 11, 12, 0], ["build", "sports_field", 14, 12, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
+			["build", "tent_1", 13, 16, 0], ["build", "bonfire", 11, 12, 0], ["build", "sports_field", 14, 12, 0], ["build", "pub", 11, 15, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
 			# By the fire and at the net together (scripts/attractions/warden_play.gd).
 			["coop_att", "fire", 1.0], ["wait", 1.0], ["eval", "_warden_play.try_interact()"], ["wait", 0.5], ["eval", "_warden_play.try_interact()"], ["wait", 1.5],
 			["coop_signal", "host_at_fire"], ["coop_wait_file", "client_at_fire"], ["wait", 1.5], ["shot", "h11_fire_other_roasts"], ["coop_fingerprint", "host_fire"],
@@ -77,12 +77,17 @@ func _ready() -> void:
 			["coop_att", "court", -1.0], ["wait", 0.5], ["coop_signal", "host_at_court"], ["coop_wait_file", "client_at_court"],
 			["coop_play_ball", 10.0], ["shot", "h12_court_other"], ["coop_fingerprint", "host_court"], ["coop_signal", "host_court_done"],
 			["coop_wait_file", "client_court_done"], ["eval", "_warden_play.leave()"], ["wait", 0.5], ["coop_place", 12, 14, 1.0],
+			# Behind the pub's bar at the tap: the other warden sees them there.
+			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('pub'))"], ["wait", 2.0],
+			["eval", "_interior_manager._service_interior._open_counter_game()"], ["wait", 1.0], ["coop_signal", "host_at_tap"],
+			["coop_wait_file", "client_saw_tap"], ["eval", "_interior_manager._service_interior._counter_game.close_view()"], ["wait", 0.5],
+			["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0], ["coop_place", 12, 14, 1.0],
 			# Into the old cabin together.
 			["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "host_in_room"],
 			["coop_wait_file", "client_in_room"], ["wait", 2.0], ["shot", "h2_room_sees_other"],
 			["coop_wait_file", "client_working"], ["wait", 0.8], ["shot", "h3_other_at_work"], ["coop_fingerprint", "host_sees_work"],
 			["coop_wait_file", "client_task_done"], ["wait", 2.0],
-			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "host_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false], ["wait", 1.0],
+			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "host_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false], ["coop_aim_clear"], ["wait", 1.0],
 			["coop_fingerprint", "host_room"], ["coop_signal", "host_task_done"],
 			["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 1.0],
 			# Into the new tent together.
@@ -169,9 +174,12 @@ func _ready() -> void:
 			["coop_wait_file", "host_at_court"], ["coop_att", "court", 1.0], ["wait", 0.5], ["coop_signal", "client_at_court"],
 			["coop_play_ball", 8.0], ["shot", "c13_court_host"], ["coop_fingerprint", "client_court"], ["coop_signal", "client_court_done"],
 			["coop_wait_file", "host_court_done"], ["eval", "_warden_play.leave()"], ["wait", 0.5], ["coop_place", 14, 14, -1.0],
+			["coop_wait_file", "host_at_tap"], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('pub'))"], ["wait", 2.5],
+			["shot", "c15_pub_host_at_tap"], ["coop_fingerprint", "client_pub_tap"], ["coop_signal", "client_saw_tap"],
+			["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0], ["coop_place", 14, 14, -1.0],
 			["coop_wait_file", "host_in_room"], ["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "client_in_room"],
 			["wait", 2.0], ["shot", "c2_room_sees_host"],
-			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "client_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false],
+			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "client_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false], ["coop_aim_clear"],
 			["wait", 1.0], ["coop_signal", "client_task_done"],
 			["coop_wait_file", "host_working"], ["wait", 0.5], ["coop_aim_partner_job"], ["wait", 0.6], ["shot", "c3_host_at_work"],
 			["coop_wait_file", "host_task_done"], ["wait", 2.0], ["shot", "c4_room_after_host"], ["coop_fingerprint", "client_room"],
@@ -354,6 +362,10 @@ func _run_step(step: Array) -> void:
 			bi6._toggle_radio_power()
 			if Coop.is_client():
 				Coop.send_request("radio", [bool(bi6.get("_radio_power_on"))])
+		"coop_aim_clear":
+			var cab7 = _main.get("_interior_manager").get("_cabin_interior")
+			if cab7 != null and cab7.get("_prep") != null:
+				cab7.get("_prep").tasks.debug_aim = ""
 		"coop_track":
 			# Keep the cursor on the job for `step[1]` seconds (the room's camera eases
 			# after the aim, as a player's hand would follow it). A mess lying in front of
@@ -361,6 +373,9 @@ func _run_step(step: Array) -> void:
 			_track_left = float(step[1])
 			var cab3 = _main.get("_interior_manager").get("_cabin_interior")
 			var tasks3 = cab3.get("_prep").tasks if cab3 != null and cab3.get("_prep") != null else null
+			# The hands are on it whatever the shared cursor does (interior_tasks.debug_aim).
+			if tasks3 != null:
+				tasks3.debug_aim = _task_id
 			if tasks3 != null and tasks3._targets.has(_task_id):
 				var front: String = str(tasks3._pick(tasks3._camera.unproject_position(_seen_at(tasks3._targets[_task_id])))[0])
 				if front != "" and front != _task_id and tasks3._targets.has(front) and not bool(tasks3._targets[front].get("done", false)):
@@ -646,6 +661,17 @@ func _cabin_taken() -> String:
 
 
 ## The other warden's figure in the room this one is in: its pose, "" when none.
+## The other warden's figure behind the pub's bar (room z past the counter).
+func _fig_behind_bar() -> bool:
+	var im = _main.get("_interior_manager")
+	var fig = im.get("_coop_fig") if im != null else null
+	var si = im.get("_service_interior") if im != null else null
+	var root = si.get("_pub_main_root") if si != null else null
+	if fig == null or not is_instance_valid(fig) or root == null:
+		return false
+	return (root as Node3D).to_local((fig as Node3D).global_position).z < -1.6
+
+
 func _room_figure() -> String:
 	var im = _main.get("_interior_manager")
 	var fig = im.get("_coop_fig") if im != null else null
@@ -767,6 +793,7 @@ func _write_fingerprint(tag: String) -> void:
 		"boat_from_home": _boat_from_home(),
 		"other_pose": str(other.get("pose")) if other != null else "",
 		"room_figure": _room_figure(),
+		"fig_behind_bar": _fig_behind_bar(),
 		"coop_taken": _cabin_taken(),
 		"coop_screen": float(_main.get("_interior_manager").get("_building_interior").get("_coop_screen_left")) > 0.0,
 		"guests": _guest_rows(),

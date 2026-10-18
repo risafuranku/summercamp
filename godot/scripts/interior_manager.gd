@@ -1388,7 +1388,7 @@ func _room_part(it) -> String:
 	if it == _cabin_interior:
 		return str(it.get("_active_room"))
 	if it == _service_interior:
-		return "%s/%s/%s" % [str(it.get("_current_profile")), str(it.get("_active_subroom")), str(it.get("toilet_entry"))]
+		return str(it.coop_part()) if it.has_method("coop_part") else "%s/%s/%s" % [str(it.get("_current_profile")), str(it.get("_active_subroom")), str(it.get("toilet_entry"))]
 	return "main"
 
 
@@ -1401,7 +1401,11 @@ func _room_tasks(it):
 
 func _room_job(it) -> String:
 	var tasks = _room_tasks(it)
-	return str(tasks.working_on()) if tasks != null and tasks.has_method("working_on") else ""
+	var w := str(tasks.working_on()) if tasks != null and tasks.has_method("working_on") else ""
+	# A business's counter games: the tap, the pass, the till... (service_interior.coop_job).
+	if w == "" and it == _service_interior and it.has_method("coop_job"):
+		w = str(it.coop_job())
+	return w
 
 
 ## The other warden's place in your room, each time their state comes in: their figure
@@ -1518,6 +1522,17 @@ func coop_partner(info: Dictionary) -> void:
 		_coop_fig.show_at(root.global_transform * spot, pose)
 		return
 	var job := str(info.get("w", ""))
+	if it == _service_interior and it.has_method("coop_job_spot"):
+		it.coop_partner_job = job
+		var at_job: Dictionary = it.coop_job_spot(job) if job != "" else {}
+		if not at_job.is_empty():
+			# Behind the counter at the job they have open (the tap, the pass, the till).
+			var pose := str(at_job["pose"])
+			if not COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), pose):
+				pose = "stand"
+			_coop_fig.set_walking(false)
+			_coop_fig.show_at(at_job["pos"], pose)
+			return
 	if job != "":
 		var tasks = _room_tasks(it)
 		var t: Dictionary = tasks.target_info(job) if tasks != null and tasks.has_method("target_info") else {}
@@ -1594,6 +1609,8 @@ func _coop_hide_sleeper() -> void:
 func coop_drop_partner() -> void:
 	_coop_hide_sleeper()
 	var it = _open_room_interior()
+	if it == _service_interior and it != null and "coop_partner_job" in it:
+		it.coop_partner_job = ""
 	var room_tasks = _room_tasks(it) if it != null and it != _building_interior else null
 	if room_tasks != null and "coop_taken" in room_tasks:
 		room_tasks.coop_taken = ""

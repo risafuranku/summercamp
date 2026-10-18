@@ -145,6 +145,10 @@ def main():
             failures.append("the host does not see the other warden lying there (%s, %s)" % (hd["partner_down"], hd["other_pose"]))
         if cl["down"] or cl["hp"] != 35:
             failures.append("the other warden was not got up (down %s, hp %s)" % (cl["down"], cl["hp"]))
+    # In the pub: the host at the tap is seen behind the bar pulling a beer.
+    cpt = load("client_pub_tap")
+    if cpt is None or cpt["room_figure"] not in ("tap", "stand") or not cpt["fig_behind_bar"]:
+        failures.append("the other warden does not see the host behind the bar at the tap (%s)" % ((cpt or {}).get("room_figure"), ))
     # The room: the other's job done in the host's camp, the host's back in the other's.
     hr, cr = load("host_room"), load("client_room")
     if hr is None or cr is None:

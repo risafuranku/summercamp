@@ -346,6 +346,12 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   `mate_place()` (remote_player.gd, state "att"). The ball games are the host's in
   co-op: `_launch` sends each flight (`Coop.send_play` "shot"), the other machine only
   follows (`coop_take_shot`) and sends its swings ("press").
+- **Business rooms** (`service_interior.gd`): the pub, the bistro and the Jednota change
+  rooms only by their doors (`scripts/food/business_doors.gd`; `_build_business_doors`
+  puts them in walls the layouts keep free: move a prop off a wall and check the door
+  still fits). While a door walk runs it owns the camera (`_doors.walking()`). The work
+  marks (`scripts/food/work_marks.gd`) read `business_runtime.waiting_at` and the site's
+  books; a new counter game needs its job in `coop_job`, `COOP_JOB_SPOTS` and SPOTS.
 - **Co-op radio** (`building_interior.gd`): the host's set is the one; `_play_radio_next`
   does nothing on the other machine, which plays what `coop_radio_state` says (main's
   `_coop_sync_things` "radio", sent when the piece or its 4 s step changes): a song by
