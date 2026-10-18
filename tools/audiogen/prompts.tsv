@@ -190,3 +190,25 @@ dog_bark	2.5	assets/sfx/town/dog_bark.mp3	A medium-sized village guard dog barki
 hens	6.0	assets/sfx/town/hens.mp3	A few hens clucking softly and scratching in a village yard, outdoors, calm, no rooster.
 dog_far	3.0	assets/sfx/town/dog_far.mp3	A dog barking far away across a village at night, echoing, very distant, quiet.
 owl_hoot	4.0	assets/sfx/life/owl_hoot.mp3	A tawny owl hooting in a spruce forest at night, the long wavering hoo-hooo, a little distant, a quiet night, no other birds.
+pipe_pull	1.0	assets/sfx/pipes/pull.mp3	One crawling pull inside a narrow concrete sewer pipe: a gloved palm slapping down into a thin layer of water, then knees and a canvas jacket dragging forward over wet concrete, close, short hollow echo, no music.
+pipe_pull2	1.0	assets/sfx/pipes/pull2.mp3	A man crawling on elbows and knees in a cramped wet concrete pipe: a wet hand slap, a rubber boot scuffing, cloth scraping the pipe wall, very close, short hollow echo, no music.
+pipe_turn	1.5	assets/sfx/pipes/turn.mp3	A man squeezing round in a cramped concrete pipe junction: shoulders and a canvas work jacket scraping along wet concrete, a boot knocking the wall, a strained exhale, close, hollow echo, no music.
+pipe_bump	1.0	assets/sfx/pipes/bump.mp3	A man's head in a hard hat knocking against the concrete crown of a cramped sewer pipe, a dull hollow thunk, grit trickling down, a short pained grunt, no music.
+pipe_wall	1.0	assets/sfx/pipes/wall.mp3	A gloved hand pressing flat against a solid wet concrete wall at a dead end of a sewer pipe, a dull slap and a little splash, close, no music.
+pipe_pant	6.0	assets/sfx/pipes/pant.mp3	A frightened man breathing heavily and unevenly through his mouth in a cramped concrete pipe, close to the microphone, shaky inhales, trying to stay quiet, loopable, no music.
+pipe_heart	4.0	assets/sfx/pipes/heart.mp3	A slow heavy human heartbeat heard from inside the body, low muffled thumps, steady, loopable, no music.
+pipe_echo	1.0	assets/sfx/pipes/echo_pull.mp3	Somewhere close behind in a dark sewer pipe, one wet slap of a bare palm on concrete and a body sliding forward through shallow water, as if copying a crawl, slight echo, no music.
+rac_chitter	2.0	assets/sfx/pipes/rac_chitter.mp3	A raccoon chittering and churring quietly somewhere down a long concrete sewer pipe, wet clicking little sounds, hollow echo, unsettling, no music.
+rac_chew	3.0	assets/sfx/pipes/rac_chew.mp3	A small animal gnawing and tugging at a steel band clamp on a pipe in a sewer, teeth scraping metal, wet chewing, a few metallic clicks, some distance away, echo, no music.
+rac_screech	1.5	assets/sfx/pipes/rac_screech.mp3	A raccoon's sudden harsh screech that turns almost human at the end, close inside a concrete pipe, echo, no music.
+rac_scurry	1.5	assets/sfx/pipes/rac_scurry.mp3	Small sharp claws scurrying fast over concrete inside a pipe, passing from one side to the other, close, light splashes, echo, no music.
+rac_splat	1.5	assets/sfx/pipes/rac_splat.mp3	A wet heavy splat of guts spilling onto concrete, a slithering slop and dripping, close, inside a pipe, disgusting, no music.
+rac_squelch	1.5	assets/sfx/pipes/rac_squelch.mp3	A man's gloved hands and knees sinking and pulling out of a deep heap of wet animal entrails in a pipe, sucking squelches and slops, close, disgusting, no music.
+rac_bite	1.2	assets/sfx/pipes/rac_bite.mp3	A small animal biting hard into a man's leather glove and hand, a snarl, a crunch and a man's short cry of pain, inside a concrete pipe, close, no music.
+rac_eat	4.0	assets/sfx/pipes/rac_eat.mp3	A small animal frantically eating raw flesh very close to the microphone: wet tearing, smacking, slurping, gristle snapping, fast greedy chewing, inside a concrete pipe, disgusting, no music.
+rac_crunch	1.5	assets/sfx/pipes/rac_crunch.mp3	Small bones crunching and snapping between teeth, a wet crack, very close, inside a pipe, disgusting, no music.
+gut_whip	1.5	assets/sfx/pipes/gut_whip.mp3	A long wet rope of intestine whipping out of the dark and slapping around a man's arm, a wet lash, a tight squelching wrap, inside a concrete pipe, no music.
+drag_fast	3.0	assets/sfx/pipes/drag_fast.mp3	A man being yanked very fast through a narrow concrete sewer pipe: body slamming and scraping along wet concrete, splashing water, his gloves squeaking as he claws, rushing, echo, no music.
+man_choke	2.0	assets/sfx/pipes/man_choke.mp3	A man's short strangled cry cut off into choking and gurgling, close, in a small concrete pipe, no music.
+rac_giggle	2.5	assets/sfx/pipes/rac_giggle.mp3	A raccoon chittering in quick bursts that sounds almost like a small child giggling, close in the dark of a concrete pipe, wet, wrong, echo, no music.
+gut_flood	3.0	assets/sfx/pipes/gut_flood.mp3	A heavy wet mass of entrails sliding fast through a pipe towards the listener, a rising sloshing squelching rush that swallows everything, muffled at the end, no music.
