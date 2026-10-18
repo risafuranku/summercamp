@@ -134,6 +134,9 @@ var _stamina_locked: bool = false
 var flashlight_battery: float = 1.0
 ## Extra drain multiplier enemies may push for a frame (the Girl eats light).
 var flashlight_drain_boost: float = 0.0
+## Set by a night thing that makes the torch die in your hand for a moment (girl_brain.gd);
+## held till it sets it back to 0.
+var flashlight_stutter: float = 0.0
 var _flashlight_user_chose_off: bool = false
 var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
@@ -818,6 +821,8 @@ func _update_flashlight_effect(delta: float) -> void:
 		if fmod(_flashlight_flicker_time * 3.1, 1.0) < 0.12 + dying * 0.35:
 			flicker *= 0.08
 
+	if flashlight_stutter > 0.0:
+		flicker *= 0.04 if fmod(_flashlight_flicker_time * 9.0, 1.0) < 0.85 else 0.4
 	_flashlight.light_energy = flashlight_energy * flicker
 	if _flashlight_halo != null:
 		_flashlight_halo.light_energy = flashlight_halo_energy * flicker

@@ -200,6 +200,32 @@ const SCENARIOS := {
 		["eval", "_set_player_health(100)"], ["eval", "_sewer_pipe_minigame.debug_catch('flood')"], ["wait", 1.4], ["shot", "k4_flood"], ["wait", 5.0],
 		["eval", "_set_player_health(100)"], ["eval", "_sewer_pipe_minigame.debug_catch('hand')"], ["wait", 0.3], ["shot", "k5_hand_snatch"], ["wait", 1.2], ["shot", "k5b_hand_eating"], ["wait", 1.6], ["shot", "k5c_hand_look"], ["wait", 5.0], ["shot", "k6_back_at_ladder"],
 	],
+	"testgirl": [
+		["wait_menu"], ["call", "_on_menu_test_night", ["girl"]], ["wait", 9.0],
+		["eval", "_enemy_brains.back()._night_entry"], ["gm", "get_liminal_forecast_data"],
+		["shot", "t0_testnight_start"], ["look_at_enemy"], ["wait", 0.4], ["enemy_dist"], ["shot", "t1_girl_far"],
+		["player", 17, 16, 90.0], ["wait", 0.3], ["eval", "_enemy_brains.back()._begin_loop()"], ["eval", "_enemy_brains.back().set('_behind_done', true)"], ["eval", "_enemy_brains.back()._body.set('global_position', _player.global_position + _player.global_transform.basis.z * -15.0)"],
+		["eval", "_enemy_brains.back()._set_look(false, 15.0)"], ["eval", "_enemy_brains.back().set('_unseen_for', -30.0)"], ["look_at_enemy"], ["wait", 0.4], ["enemy_dist"], ["shot", "t1b_eyes_open_ground"],
+		["eval", "_enemy_brains.back()._body.set('global_position', _player.global_position + _player.global_transform.basis.z * -32.0)"], ["eval", "_enemy_brains.back()._set_look(false, 32.0)"], ["eval", "_enemy_brains.back().set('_unseen_for', -30.0)"], ["wait", 0.4], ["shot", "t1c_eyeshine_far"],
+		["enemy_ray"],
+		["eval", "_enemy_brains.back()._body.set('global_position', _player.global_position + _player.global_transform.basis.z * -6.0)"],
+		["eval", "_enemy_brains.back()._set_look(false, 6.0)"], ["look_at_enemy"], ["wait", 0.3], ["shot", "t2_girl_near"],
+		["eval", "_set_player_health(100)"], ["eval", "_enemy_brains.back()._start_strike()"], ["wait", 0.3], ["shot", "t3_face"], ["wait", 0.35], ["shot", "t4_flip"], ["wait", 0.3], ["shot", "t5_jaw"],
+		["wait", 2.5], ["shot", "t6_after"],
+		["topdown", 11, 8, 30, 55], ["wait", 0.5], ["shot", "t7_camp_from_above"],
+	],
+	"girl": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+		["player", 12, 8, 0.0], ["hours", 14.0], ["wait", 3.0], ["eval", "_set_player_health(100)"],
+		["call", "debug_spawn_enemy", ["girl", 3]], ["wait", 0.8], ["enemy_dist"], ["look_at_enemy"], ["wait", 0.5], ["shot", "g0_omen"],
+		["eval", "_player.rotate_y(PI)"], ["wait", 8.0], ["look_at_enemy"], ["wait", 0.3], ["enemy_dist"], ["shot", "g1_closer"],
+		["eval", "_player.rotate_y(PI)"], ["wait", 8.0], ["look_at_enemy"], ["wait", 0.3], ["enemy_dist"], ["shot", "g2_closer"],
+		["eval", "_enemy_brains.back()._body.set('global_position', _player.global_position + _player.global_transform.basis.z * -4.5)"],
+		["eval", "_enemy_brains.back()._set_look(false, 4.5)"], ["look_at_enemy"], ["wait", 0.3], ["shot", "g3_close"],
+		["eval", "_enemy_brains.back().set('_stutter_next', 0.0)"], ["wait", 0.06], ["shot", "g4_stutter"], ["wait", 0.5],
+		["eval", "_enemy_brains.back()._start_strike()"], ["wait", 0.05], ["shot", "g5_freeze"], ["wait", 0.14], ["shot", "g6_face"], ["wait", 0.18], ["shot", "g7_face_b"],
+		["wait", 0.3], ["shot", "g8_hit"], ["wait", 1.2], ["shot", "g9_after"], ["wait", 3.0], ["shot", "g10_heel"],
+	],
 	"night": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["player", 12, 8, 0.0], ["hours", 13.0], ["wait", 3.0],
@@ -1925,6 +1951,19 @@ func _run_step(step: Array) -> void:
 				if body != null and is_instance_valid(body):
 					var to: Vector3 = body.global_position - pl.global_position
 					pl.rotation.y = atan2(-to.x, -to.z)
+		"enemy_ray":
+			# What stands between the camera and the newest enemy's head (line-of-sight checks).
+			var brains3: Array = _main.get("_enemy_brains")
+			var pl3 = _main.get("_player")
+			if not brains3.is_empty() and pl3 != null:
+				var cam4: Camera3D = pl3.get_node_or_null("Head/Camera3D")
+				var b3 = brains3.back().get("_body")
+				if cam4 != null and b3 != null:
+					var q := PhysicsRayQueryParameters3D.create(cam4.global_position, b3.global_position + Vector3(0, 1.45, 0))
+					q.exclude = [pl3.get_rid()]
+					var hit: Dictionary = cam4.get_world_3d().direct_space_state.intersect_ray(q)
+					var col = hit.get("collider")
+					print("SHOT DRIVER enemy_ray -> %s at %s (parent %s)" % [col, hit.get("position"), (col as Node).get_parent().name if col is Node else "-"])
 		"enemy_dist":
 			var brains2: Array = _main.get("_enemy_brains")
 			var pl2 = _main.get("_player")

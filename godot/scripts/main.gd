@@ -18,8 +18,9 @@ const SILENT_MAN_BRAIN_SCRIPT = preload("res://scripts/enemies/silent_man_brain.
 const TOURIST_BRAIN_SCRIPT = preload("res://scripts/enemies/tourist_brain.gd")
 const GIRL_BRAIN_SCRIPT = preload("res://scripts/enemies/girl_brain.gd")
 const STALKER_BRAIN_SCRIPT = preload("res://scripts/enemies/stalker_brain.gd")
-## Which enemy a guest archetype brings. Two or more different ones in one night also
-## bring the Antlered Man (stalker), the price of a camp booked without thought.
+## Which enemy a guest archetype brings: one guest of that kind turns into it for the
+## night (`_pick_turned_guest`); if it gets you, that guest is gone by morning
+## (`_claim_turned_guests`). The Antlered Man (stalker) no longer comes (18. 10.: simpler).
 const ENEMY_FOR_ARCHETYPE := {
 	"quiet_guy": SILENT_MAN_BRAIN_SCRIPT,
 	"drunk": TOURIST_BRAIN_SCRIPT,
@@ -1672,14 +1673,42 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 			continue
 		var difficulty := maxi(_resolve_silent_man_difficulty(entry), _night_difficulty_floor())
 		worst = maxi(worst, difficulty)
-		_start_enemy_brain(script, night_index, difficulty, entry)
+		var turned := entry.duplicate()
+		turned["guest"] = _pick_turned_guest(str(entry.get("archetype", "")))
+		_start_enemy_brain(script, night_index, difficulty, turned)
 		total_spawned += spawned
 		kinds += 1
-	if kinds >= 2:
-		_start_enemy_brain(STALKER_BRAIN_SCRIPT, night_index, mini(5, worst + kinds - 1), {})
 	_active_enemy_spawned_this_night = total_spawned
 	var claimed_virtual = mini(total_spawned, _liminal_virtual_enemy_count)
 	_liminal_virtual_enemy_count = maxi(0, _liminal_virtual_enemy_count - claimed_virtual)
+
+
+## The guest of `archetype` who turns tonight: one of them in the camp, by chance
+## ({id, name}; empty when none is there, as in a debug spawn).
+func _pick_turned_guest(archetype: String) -> Dictionary:
+	var pool: Array = []
+	for g in CoreRoot.get_state().guests:
+		if g is Dictionary and str((g as Dictionary).get("archetype", "")) == archetype and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
+			pool.append(g)
+	if pool.is_empty():
+		return {}
+	var g: Dictionary = pool[_liminal_forecast_rng.randi() % pool.size()]
+	return {"id": int(g.get("id", -1)), "name": str(g.get("name", ""))}
+
+
+## Dawn: every guest whose turned self got you in the night is gone (their things go to
+## the lost and found, their bed was not slept in).
+func _claim_turned_guests() -> void:
+	for brain in _enemy_brains:
+		if brain == null or brain.get("claimed") != true:
+			continue
+		var entry = brain.get("_night_entry")
+		var guest: Dictionary = (entry as Dictionary).get("guest", {}) if entry is Dictionary else {}
+		var id := int(guest.get("id", -1))
+		if id < 0:
+			continue
+		if GuestManager.vanish_guest(id) and _hud_manager != null:
+			_hud_manager.push_status("Morning: %s is gone. The bed was not slept in." % str(guest.get("name", "a guest")), 2)
 
 
 ## What has come before comes back harder: every third night something came for the
@@ -2423,6 +2452,7 @@ func _on_day_phase_started() -> void:
 		if _player != null and _player.has_method("recharge_flashlight"):
 			_player.recharge_flashlight()
 		return
+	_claim_turned_guests()
 	_stop_active_enemy_brain()
 	if _director_fx != null:
 		_director_fx.clear()
@@ -3759,8 +3789,10 @@ func _on_menu_new_game_pressed() -> void:
 	await _start_new_camp(false)
 
 
-## The main menu's secret test nights (L): a fresh sandbox camp, the clock on the second
-## night at 20:00 and the chosen thing already out (`debug_spawn_enemy` ids). Nothing is saved.
+## The main menu's secret test nights (L): a fresh sandbox camp with a small camp built in
+## it and guests of the kind that brings the thing (`_build_test_camp`), the clock on the
+## second night at 20:00 and the chosen thing already out (`debug_spawn_enemy` ids).
+## Nothing is saved.
 var _test_night := ""
 
 
@@ -3772,12 +3804,19 @@ func _on_menu_test_night(enemy_id: String) -> void:
 		await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame
+	_build_test_camp(enemy_id)
+	await get_tree().process_frame
 	# The jump runs the night's start (its roll stops every brain), so the thing comes after;
 	# a test night after a test night is the same night 2 again.
 	_stop_active_enemy_brain()
 	_liminal_last_rolled_night_id = -99999
 	debug_jump_to(2, BALANCE_CONFIG.NIGHT_START_HOUR)
 	debug_spawn_enemy(enemy_id)
+	# It is one of the test camp's guests, turned (gone in the morning if it gets you).
+	if not _enemy_brains.is_empty():
+		var nb = _enemy_brains.back()
+		var ne: Dictionary = nb.get("_night_entry")
+		ne["guest"] = _pick_turned_guest(str(TEST_NIGHT_GUESTS.get(enemy_id, "")))
 	# The spawn faces the office wall (a new camp starts at the desk): turn to the camp.
 	if _player != null and is_instance_valid(_player):
 		_player.rotate_y(PI)
@@ -3787,6 +3826,44 @@ func _on_menu_test_night(enemy_id: String) -> void:
 			label = str(entry["text"])
 	if _hud_manager != null:
 		_hud_manager.push_status("Test night: the %s is out." % label, 2)
+
+
+## Which guests bring which test night's thing (main_menu.TEST_NIGHTS ids).
+const TEST_NIGHT_GUESTS := {"silent_man": "quiet_guy", "tourist": "drunk", "girl": "cheap_chick", "whistler": "tramp", "child": "family", "basket": "picker"}
+
+
+## A test night's camp (playtest 18. 10.: "not an empty map"): north of the office a path
+## up from the gate with a cross path, lamps along them, tents, a cabin, the toilets, a
+## fire; then the guests of the kind that brings the thing, let in at once (and one of
+## another kind, so the camp is not only them). Built through the real builder; what does
+## not fit this camp's trees and lake is just left out.
+func _build_test_camp(enemy_id: String) -> void:
+	if world_generator == null or not world_generator.has_method("gate_tile"):
+		return
+	CoreRoot.actions.add_money(60000)
+	var g: Vector2i = world_generator.gate_tile()
+	for r in [Rect2i(g.x - 7, 4, 5, 5), Rect2i(g.x - 2, 4, 5, 5), Rect2i(g.x + 3, 4, 5, 5), Rect2i(g.x - 7, 9, 5, 5), Rect2i(g.x - 2, 9, 5, 5), Rect2i(g.x + 3, 9, 5, 5)]:
+		EventBus.RequestDemolish.emit(r)
+	for y in range(5, 13):
+		EventBus.RequestBuild.emit("path", Vector2i(g.x, y), 0)
+	for x in range(g.x - 6, g.x + 7):
+		if x != g.x:
+			EventBus.RequestBuild.emit("path", Vector2i(x, 8), 0)
+	var plan := [
+		["lamp_post", Vector2i(g.x, 6)], ["lamp_post", Vector2i(g.x - 5, 8)], ["lamp_post", Vector2i(g.x + 5, 8)], ["lamp_post", Vector2i(g.x, 12)],
+		["tent_1", Vector2i(g.x - 5, 5)], ["tent_1", Vector2i(g.x - 3, 5)], ["tent_1", Vector2i(g.x - 5, 10)], ["tent_1", Vector2i(g.x - 3, 10)],
+		["cabin_1", Vector2i(g.x + 2, 5)], ["cabin_1", Vector2i(g.x + 2, 10)],
+		["toilet_block", Vector2i(g.x + 5, 5)], ["bonfire", Vector2i(g.x + 5, 10)], ["picnic_table", Vector2i(g.x - 2, 12)],
+	]
+	for item in plan:
+		EventBus.RequestBuild.emit(str(item[0]), item[1], 0)
+	var arch := str(TEST_NIGHT_GUESTS.get(enemy_id, ""))
+	if arch.is_empty():
+		return
+	var names := {"quiet_guy": ["Novak", "Dvorak"], "drunk": ["Pepa", "Lojza"], "cheap_chick": ["Kristyna", "Denisa"], "tramp": ["Bobr", "Kecal"], "family": ["Svoboda family", "Kral family"], "picker": ["Mr Prochazka", "Mrs Benesova"]}
+	for n in names.get(arch, ["Guest"]):
+		GuestManager.debug_check_in_party(str(n), arch, 1, 3)
+	GuestManager.debug_check_in_party("Mr Vesely", "quiet_guy" if arch != "quiet_guy" else "drunk", 1, 3)
 
 
 ## A fresh camp. `sandbox`: no month and no checklist, the programs already on the PC,

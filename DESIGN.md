@@ -27,7 +27,7 @@ accept booking -> +income -> +guests of an archetype
                                    v
                      night odds for that archetype's enemy
                                    |
-              two or more archetypes spawn -> the Antlered Man as well
+              one guest of that kind turns into it for the night
 ```
 
 ## 2. Tone: the found CD
@@ -96,7 +96,7 @@ the flat palm at doors, the fist while you hold a job.
   handset, dial, hear it ring. Who answers is `phone_book.gd`: the numbers are the ones on
   the noticeboard (Vera's notes, held up to read in their own close-up). The electrician
   Novotny comes when you ring him and only then: his van on the gate road, his torch, the
-  generator, the fee (double after nine). He refuses the nights the Antlered Man is out.
+  generator, the fee (double after nine).
   Other numbers are the world: the district, Jednota, the pub, the police who say lock
   the door, the talking clock, Vera's answering machine (it changes after three bad
   nights), and the lake keeper's crossed-out number, which after 23:00 is picked up once.
@@ -175,6 +175,31 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
 
 ## 5. Night: the enemies
 
+*Reworked 2026-10-18 with the user: simpler rules, every enemy worked out to the end;
+18+, the most nerve-racking thing we can make.*
+
+**A guest turns.** Each night one guest of a kind may turn into that kind's thing (the
+forecast as before: the more of one kind, the unhappier, the likelier). It is that guest,
+by name, from their own bed (`main._pick_turned_guest`), and the first time you see it
+far off it still wears their clothes. Get through the night and they come out of their
+room in the morning, remembering nothing; let it get you and they are gone by morning,
+their bed not slept in, their things in the lost and found (`main._claim_turned_guests`,
+`GuestManager.vanish_guest`). Several kinds can turn on the same night: their counters
+contradict each other, which is the price of a camp booked without thought. (The
+Antlered Man, who came for two kinds at once, is gone.)
+
+**One grammar for all of them**, so players learn it, each with its own counter:
+omen (far, unmistakably this one) -> approach (the tell grows, sound layers, the insects
+stop) -> test (it tries its trick; you answer with the counter) -> strike (you did not:
+the close-up of what the guest has become, the hit, the screen) -> gone (a trace left
+behind; the next loop comes sooner and harder). The guest mutates through the night in
+stages (whole art per stage, Loab-like nightmare, never cheap gore), farther ones first.
+
+**The screen goes wrong** when something is near (`scripts/night/nightmare_fx.gd`, shared
+by all): grain, the colour bleeding apart and draining to rust as it comes closer; on a
+strike the frame stops, a face for a few frames, tears and split channels, red, a ring in
+the ears with the world muffled under it.
+
 All of them: forecast before encountered (night risk + one feed line on first sign);
 avoidable by attention (each has a tell and a counter); bodies are lit by the scene, so
 in the dark they exist only where the flashlight or a lamp touches them.
@@ -183,11 +208,10 @@ in the dark they exist only where the flashlight or a lamp touches them.
 | --- | --- | --- | --- | --- |
 | Silent Man | Quiet Guy | footsteps on the gravel behind you, closer each time, stopping when you stop; a whisper at your ear | turn round and put light on him; under a lamp he will not come nearer; at the whisper, turn round at once | standing still in the dark |
 | The Photographer | Drunk | the ratchet of a film advance where he settles; a red focus lamp blinking in the trees with beeps that speed up; the flash whine | turn your back or get behind something before the flash (he gives ~3 s); the flash lights the place up from his side | looking at him when it fires |
-| The Girl | Cheap Chick | static and humming growing; she stands where the light ends | keep her in sight, keep to the lamps | looking away; she drains the battery while watched |
+| The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed: the guest -> fixed smile, white eyes -> legs too long, flushed cheeks -> neck and arms stretched -> her back to you, face turned round -> arms to the ground. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
 | The Whistler | Tramps | a campfire tune whistled out in the trees, moving | do not walk towards it; stand under a lamp until the tune breaks off | following the sound into the dark |
 | The Extra Child | Family | a child humming among the tents, back turned | torch off, walk past, never shine the light on it | looking at it with the torch |
 | The Basket Man | Mushroom Pickers | 02:30-06:00, a wicker basket creaking out of the trees, a knife scraping | stand still while it is near; it only sees movement | moving while it is close |
-| The Antlered Man | 2+ archetypes in one night | heavy footfalls along the fence | stay off the fence line, stay in lamp light | being near the fence in the dark |
 
 Every hit can be explained afterwards: each enemy says where it is and when it is about
 to strike, by sound first, and the counter always works (tools/enemy_check.tscn plays
@@ -382,8 +406,7 @@ INSPECTION" (`scripts/week_ledger.gd`, `scripts/ui/week_report_screen.gd`):
   (they will recommend the sale, Agrostroj's pegs are in, "your bus is at ten").
 - **The count at breakfast.** If nothing ever came, the number in the book and at
   breakfast agree ("I counted twice, because it is never right"). If anything came there
-  is one more at breakfast than in the book, "like when your uncle ran it"; if the
-  Antlered Man came, the extra one stood by the fence facing the office. The verdict
+  is one more at breakfast than in the book, "like when your uncle ran it". The verdict
   answers *how well*, the count answers *what you let in*.
 - **Then:** *Stay on* closes the month and the camp runs on with no end (Vera takes the noon
   bus back to town: "You know the way."), or back to the main menu.
@@ -423,18 +446,40 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
 
 ## 8. The pipe crawl (sewer repair)
 
-*Reworked 2026-10-16: the staging of the thing is `scripts/pipes/pipe_director.gd`.*
-The thing is honest (blind, goes to the last noise, folds away from the light, takes you
-only after it has breathed at you from next door) and a director plays with you around it:
-build-up with signs only, stalking (closer, breathing, the torch stutters), one staged look
-(it crosses a junction ahead, peeks round the next corner, crouches at the end of your
-beam, is behind you: hold S to look back), then it backs off for a while. Unseen it may be
-moved to set a scene up, never closer than its sounds told you. What you meet grows with
-your visits (the camp office counts them): the first time down it never shows, only knocks
-that answer the clamp, the drip stopping, and wet long-fingered hand prints on the ladder
-when you come back; the second time glimpses; then the hunt. The water along the bottom
-runs away from the leak: follow it upstream. Lore: the lake keeper Hruby went down with
-the 1993 works and did not come up (the web's ghost page, his logbook, his phone number).
+*Reworked 2026-10-18 with the user: the raccoon. Staging `scripts/pipes/pipe_director.gd`,
+its catches `scripts/pipes/pipe_catch.gd`, the crawl `scripts/sewer_pipe_minigame.gd`.*
+
+**The hole is the raccoon.** A sewer only breaks because it chewed through the pipes,
+so whenever you climb down, it is there; the night sewer job comes the more often the
+harder the night presses on the camp (`night_jobs.sewer_chance`). How far it goes is that
+pressure (omens.pressure) as a level, and as many holes to clamp:
+1 (one hole): chittering far off, claws over the crown, its eyes at the end of the beam,
+trails of its guts along the floors; it never comes near; its little wet hand prints on
+the ladder after. 2 (two holes): a snare of its guts across a pipe you will want (seen
+from the junction: go round, or crawl in and tear free while it comes for the noise and
+bites); it stands upright at the end of the beam, peers round the next corner, crosses a
+junction dragging its belly, copies your crawl from behind, hisses like a hole from a
+dead end. 3 (three holes, two snares): the hunt: blind, to your last noise a junction at
+a time; from next door it chitters, and after that it takes you. Torchlight down a
+straight pipe makes it rear up, its belly opens in three frames, its guts let go
+everywhere and it is gone for a while.
+
+**The catches** (the worst thing in the game, each a few seconds in steps): a rope of its
+guts with little fingers at the end wraps your hand and drags you down the pipe to its
+belly opened like a mouth; dragged back by the ankle, your hands clawing, then it climbs
+down onto your face; the torch dies, one wet click, the torch comes back and its face is
+right there, the jaw opening too far; a wall of guts up the pipe, your hands sinking; it
+takes your free hand down out of sight, the torch drops, in its light it eats your glove,
+looks up. Then the dark, and you come to at the foot of the ladder, hurt, the clamp lost.
+
+**The crawl**: pipes 80 cm across (the old brick ones tighter and slower), crawled in
+three pulls a pipe (the free hand reaches, slaps down, the body drags after it; the head
+knocks the crown now and then); you cannot turn round, lying in a pipe: at a junction
+A/D (or the pointer to that side) turns your head into a side pipe and the hand takes the
+edge, W or a click takes you in; the first junctions the head goes to each way on by
+itself. Almost no light but the torch; everything rings with a metal echo (the PipeEcho
+bus), the rusted steel pipes ring under your knees; your own breath and heart rise as it
+comes; slime, moss, drips falling, hair, a dead rat, a child's bear.
 
 The original design:
 

@@ -28,10 +28,13 @@ var _root: Node3D
 var _body: Sprite3D
 var _announced: bool = false
 var _cue_pos: Vector3 = Vector3.INF
+## It got you tonight: the guest it was is gone in the morning (main._claim_turned_guests).
+var claimed := false
 var _cue_time: float = -999.0
 
 ## How long the place of a sound stays "sensed" after the sound.
 const CUE_MEMORY_SECONDS := 4.0
+const NIGHTMARE_FX = preload("res://scripts/night/nightmare_fx.gd")
 
 
 func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
@@ -137,6 +140,17 @@ func _feed(text: String) -> void:
 func _hurt(amount: int) -> void:
 	if _damage_callable.is_valid():
 		_damage_callable.call(amount)
+
+
+## The night's screen and ears (scripts/night/nightmare_fx.gd), when what it hunts is the
+## one at this machine (null while it hunts the other warden's stand-in in co-op).
+func _fx() -> Node:
+	if _player == null or _world_root == null:
+		return null
+	var s = _player.get_script()
+	if s != null and str(s.resource_path).ends_with("coop_proxy.gd"):
+		return null
+	return NIGHTMARE_FX.get_for(_world_root)
 
 
 # ── the player ────────────────────────────────────────────────────────────────
@@ -301,7 +315,10 @@ func _loop(path: String, volume_db: float) -> AudioStreamPlayer3D:
 	if _root == null or not ResourceLoader.exists(path):
 		return null
 	var stream := load(path) as AudioStream
-	if stream is AudioStreamWAV:
+	if stream is AudioStreamMP3:
+		stream = (stream as AudioStreamMP3).duplicate()
+		(stream as AudioStreamMP3).loop = true
+	elif stream is AudioStreamWAV:
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
 		(stream as AudioStreamWAV).loop_end = int((stream as AudioStreamWAV).get_length() * (stream as AudioStreamWAV).mix_rate)
 	var p := AudioStreamPlayer3D.new()

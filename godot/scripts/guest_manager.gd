@@ -1130,6 +1130,47 @@ func _process_income_minutes(elapsed_minutes: int) -> bool:
 	return any_change
 
 
+## Test nights (main._build_test_camp): a party booked and let in at once, rooms and the
+## barrier skipped. Returns the guest id (-1 when there is no bed for them).
+func debug_check_in_party(guest_name: String, archetype: String, count: int, nights: int) -> int:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return -1
+	var before := int(state.next_guest_id)
+	_on_customer_booking_confirmed({"guest_name": guest_name, "archetype": archetype, "guests": count, "nights": nights, "from": "%s <guest@mail>" % guest_name, "arrival_minutes": 0})
+	if int(state.next_guest_id) == before:
+		return -1
+	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+	for i in state.guests.size():
+		var g = state.guests[i]
+		if g is Dictionary and int((g as Dictionary).get("id", -1)) == before:
+			_check_in(g, now_abs)
+			state.guests[i] = g
+	_ensure_guest_lodging_assignments()
+	_sync_accommodation_states_from_guests()
+	_emit_guest_overview_state(true)
+	return before
+
+
+## A guest the night took (main._claim_turned_guests): gone by morning, without paying,
+## without a word in the guest book. Announced as a departure first, so their things go to
+## the lost and found like anyone's. True if they were here.
+func vanish_guest(guest_id: int) -> bool:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return false
+	for i in state.guests.size():
+		var g = state.guests[i]
+		if g is Dictionary and int((g as Dictionary).get("id", -1)) == guest_id:
+			if EventBus.has_signal("guest_state_changed"):
+				EventBus.guest_state_changed.emit(guest_id, str(g.get("status", STATUS_ACTIVE)), "departed")
+			state.guests.remove_at(i)
+			_ensure_guest_lodging_assignments()
+			_sync_accommodation_states_from_guests()
+			return true
+	return false
+
+
 func _process_guest_departure(guest: Dictionary, day: int, _hour: int, _minute: int) -> void:
 	var state = CoreRoot.get_state()
 	if state == null:
