@@ -707,6 +707,11 @@ func _play(path: String, db: float) -> void:
 
 func _try_sleep() -> void:
 	var refusal := str(_office_call("sleep_refusal", [], ""))
+	# One bed, one warden (playtest 18. 10.): the other turns in in a tent, cabin or
+	# caravan of the camp's (scripts/lodge_bed.gd).
+	var their_room: Dictionary = Coop.partner_state.get("room", {})
+	if refusal == "" and Coop.has_partner() and bool(Coop.partner_state.get("z", false)) and str(their_room.get("k", "")) == "office":
+		refusal = "%s has the bed. Find a free bed in a tent, cabin or caravan." % Coop.partner_name()
 	if refusal != "":
 		_office_call("say", [refusal], null)
 		return

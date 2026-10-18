@@ -58,6 +58,9 @@ var _fairy_mat: StandardMaterial3D
 var _cam_base_rot := Vector3.ZERO
 ## A caravan is small and closed all round: turn right round, look up and down a little.
 var _look = INTERIOR_LOOK.new(180.0, 26.0, 34.0)
+## Lying in this room's bed (scripts/lodge_bed.gd has the camera): no looking round,
+## no leaving, no clicks till you are up.
+var lodge_sleeping := false
 var _exit_hint: Control
 var _prep = INTERIOR_PREP.new()
 var _brochure: MeshInstance3D
@@ -136,8 +139,9 @@ func close_caravan() -> void:
 func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
-	_interior_camera.rotation = _cam_base_rot + offset
+	if not lodge_sleeping:
+		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
+		_interior_camera.rotation = _cam_base_rot + offset
 	_update_torch(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
@@ -151,7 +155,7 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not _is_open:
+	if not _is_open or lodge_sleeping:
 		return
 	if _prep != null and _prep.is_scrubbing():
 		return

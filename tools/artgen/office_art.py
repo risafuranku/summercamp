@@ -276,6 +276,10 @@ ROWS = [
     ("tex_awning_stripes", "texture", 64, "awning_stripes.png"),
     ("spr_awning_fringe", "sprite", 24, "awning_fringe.png"),
     ("spr_steam_puff", "sprite", 16, "steam_puff.png"),
+    ("warden_a_bedfoot", "sprite", 56, "npc/warden_a_bedfoot.png"),
+    ("warden_b_bedfoot", "sprite", 56, "npc/warden_b_bedfoot.png"),
+    ("warden_c_bedfoot", "sprite", 56, "npc/warden_c_bedfoot.png"),
+    ("warden_d_bedfoot", "sprite", 56, "npc/warden_d_bedfoot.png"),
 ]
 TEXTURY = os.path.join(HERE, "..", "..", "godot", "assets", "textury")
 

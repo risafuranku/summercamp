@@ -77,6 +77,9 @@ var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Standing inside the door of the cabin: most of the room, never the door behind you.
 var _look = INTERIOR_LOOK.new(72.0, 28.0, 38.0)
+## Lying in this room's bed (scripts/lodge_bed.gd has the camera): no looking round,
+## no leaving, no clicks till you are up.
+var lodge_sleeping := false
 var _exit_hint: Control
 var _level2_nodes: Array[String] = ["WallLamp", "Wardrobe", "FridgeSmall"]
 var _level2_only: Array[String] = ["PosterLake"]
@@ -314,6 +317,8 @@ func _process(delta: float) -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
+	if lodge_sleeping:
+		return
 	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 	_interior_camera.rotation = _cam_base_rot + offset
 	# A/D turn the head; held on at the end of the turn, through the door that way.
@@ -323,7 +328,7 @@ func _apply_idle_mouse_look(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not _is_open:
+	if not _is_open or lodge_sleeping:
 		return
 	if _prep != null and _prep.is_scrubbing():
 		return

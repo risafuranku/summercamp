@@ -30,6 +30,9 @@ const GROUND_LIFE_SCRIPT = preload("res://scripts/ambient/ground_life.gd")
 var _ground_life: Node3D
 const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
 const COOP_LOOKS = preload("res://scripts/coop/warden_looks.gd")
+## The beds of the camp's own tents, cabins and caravans for a warden to sleep in.
+const LODGE_BED = preload("res://scripts/lodge_bed.gd")
+var lodge_bed: Node
 
 const TIME_NIGHT: int = 2
 
@@ -167,6 +170,11 @@ func setup(
 	if business == null:
 		business = BUSINESS_RUNTIME.new()
 		add_child(business)
+	if lodge_bed == null:
+		lodge_bed = LODGE_BED.new()
+		lodge_bed.name = "LodgeBed"
+		lodge_bed.im = self
+		add_child(lodge_bed)
 	if _wind_life == null and _world_3d != null:
 		_wind_life = WIND_LIFE_SCRIPT.new()
 		_world_3d.add_child(_wind_life)
@@ -1379,9 +1387,11 @@ func coop_partner(info: Dictionary) -> void:
 	var cam: Camera3D = it.get("_interior_camera")
 	if vp == null or cam == null:
 		return
-	# In bed: seen lying on it from the back room, nowhere else.
-	if bool(info.get("b", false)) and not (str(mine["t"]) == "office" and str(mine["s"]) == "back" \
-			and COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "bed")):
+	# In bed: seen lying on it from the back room, or in the tent, cabin or caravan
+	# they turned in in (lodge_bed.gd), nowhere else.
+	var has_bed: bool = COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "bed")
+	var lodge: bool = not LODGE_BED.bed_spot(str(mine["t"])).is_empty()
+	if bool(info.get("b", false)) and not (has_bed and (lodge or (str(mine["t"]) == "office" and str(mine["s"]) == "back"))):
 		coop_drop_partner()
 		return
 	var tent: bool = str(mine["t"]) == "tent"
@@ -1408,6 +1418,27 @@ func coop_partner(info: Dictionary) -> void:
 		if tent and root != null:
 			_coop_fig_spot = _coop_tent_spot(root, root.global_transform * Vector3(0.0, 0.0, -0.6))
 		_coop_fig_spot.y = floor_y
+	if not (bool(info.get("b", false)) and lodge):
+		_coop_hide_sleeper()
+	if bool(info.get("b", false)) and lodge and root != null:
+		# On their back on the bed, the head on the pillow end.
+		var spot: Dictionary = LODGE_BED.bed_spot(str(mine["t"]))
+		var head: Vector3 = root.global_transform * (spot["head"] as Vector3)
+		var mid: Vector3 = root.global_transform * (spot["centre"] as Vector3)
+		_coop_fig.set_walking(false)
+		# Seen along the bed (a cabin's, a tent's from the door): from the foot end; seen
+		# across it (the caravan's dinette): from the side.
+		var axis := head - mid
+		axis.y = 0.0
+		var along: bool = axis.length() > 0.01 and absf(axis.normalized().dot(fwd)) > 0.6
+		if along and COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "bedfoot"):
+			_coop_fig.visible = false
+			_coop_lay_sleeper(vp, root.global_transform * (spot["foot"] as Vector3), head)
+			return
+		_coop_hide_sleeper()
+		_coop_fig.show_at(mid, "bed")
+		_coop_fig.set_flip((head - mid).dot(cam.global_basis.x) > 0.0)
+		return
 	if str(mine["t"]) == "office" and root != null:
 		_coop_fig.set_walking(false)
 		_coop_fig.set_flip(false)
@@ -1473,7 +1504,50 @@ func _coop_tent_spot(root: Node3D, at: Vector3) -> Vector3:
 	return root.global_transform * loc
 
 
+## The other warden asleep in a lodging's bed, seen along it (lodge_bed.gd): their
+## picture from the foot end laid back along the mattress (the head on the pillow, the
+## boots towards the foot, tilted up enough to be seen), not turning to face you.
+var _coop_sleeper: Sprite3D
+const COOP_SLEEPER_TILT := 28.0
+const COOP_SLEEPER_LENGTH := 0.72
+
+
+func _coop_lay_sleeper(vp: Node, foot: Vector3, head: Vector3) -> void:
+	if _coop_sleeper == null or not is_instance_valid(_coop_sleeper) or _coop_sleeper.get_parent() != vp:
+		_coop_hide_sleeper()
+		var tex: Texture2D = COOP_LOOKS.texture(int(Coop.partner_look.get("m", 1)), int(Coop.partner_look.get("c", 0)), "bedfoot")
+		if tex == null:
+			return
+		var s := Sprite3D.new()
+		s.name = "CoopSleeper"
+		s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		s.double_sided = true
+		s.shaded = true
+		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		s.texture = tex
+		s.pixel_size = COOP_SLEEPER_LENGTH / float(tex.get_height())
+		s.offset = Vector2(0.0, tex.get_height() * 0.5)
+		vp.add_child(s)
+		_coop_sleeper = s
+	var along := head - foot
+	along.y = 0.0
+	along = along.normalized()
+	var tilt := deg_to_rad(COOP_SLEEPER_TILT)
+	var up := (along * cos(tilt) + Vector3.UP * sin(tilt)).normalized()
+	var n := (Vector3.UP * cos(tilt) - along * sin(tilt)).normalized()
+	var right := up.cross(n)
+	_coop_sleeper.global_transform = Transform3D(Basis(right, up, n), head - along * (COOP_SLEEPER_LENGTH * cos(tilt)) + Vector3(0, 0.04, 0))
+
+
+func _coop_hide_sleeper() -> void:
+	if _coop_sleeper != null and is_instance_valid(_coop_sleeper):
+		_coop_sleeper.queue_free()
+	_coop_sleeper = null
+
+
 func coop_drop_partner() -> void:
+	_coop_hide_sleeper()
 	var it = _open_room_interior()
 	var room_tasks = _room_tasks(it) if it != null and it != _building_interior else null
 	if room_tasks != null and "coop_taken" in room_tasks:
