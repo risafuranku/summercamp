@@ -243,6 +243,7 @@ func _ready() -> void:
 
 func reset_runtime(clear_inbox: bool = true) -> void:
 	reputation = 0.0
+	_first_booking_due = false
 	_scheduled_mails.clear()
 	_last_tick_signature = ""
 	_last_hourly_roll_signature = ""
@@ -347,6 +348,7 @@ func export_runtime_state() -> Dictionary:
 		"last_hourly_roll_signature": str(_last_hourly_roll_signature),
 		"false_alarm_night": _false_alarm_night,
 		"reputation": reputation,
+		"first_booking_due": _first_booking_due,
 	}
 
 
@@ -365,6 +367,7 @@ func import_runtime_state(data: Dictionary) -> void:
 	_last_hourly_roll_signature = str(data.get("last_hourly_roll_signature", ""))
 	_false_alarm_night = int(data.get("false_alarm_night", -1))
 	reputation = clampf(float(data.get("reputation", 0.0)), -0.25, 0.25)
+	_first_booking_due = bool(data.get("first_booking_due", false))
 
 	var max_seen_id: int = _max_runtime_mail_id(inbox, _scheduled_mails)
 	var loaded_next_id: int = maxi(1, int(data.get("next_runtime_mail_id", max_seen_id + 1)))
@@ -448,12 +451,48 @@ func _on_time_tick(hour: int, minute: int) -> void:
 		return
 	var now_abs = _absolute_minutes(day, safe_hour, safe_minute)
 	_deliver_due_mails(now_abs)
+	if _first_booking_due:
+		_try_first_booking(day, safe_hour, now_abs)
 
 	if safe_minute == 0:
 		var roll_signature = "%d:%02d" % [day, safe_hour]
 		if roll_signature != _last_hourly_roll_signature:
 			_last_hourly_roll_signature = roll_signature
 			_run_hourly_roll(day, safe_hour, now_abs)
+
+
+## A sandbox camp (co-op camps too) has no checklist and no story: one mail from the
+## district says how a camp starts, and the first booking does not wait on the dice.
+var _first_booking_due := false
+
+const SANDBOX_START_MAIL := {
+	"from": "District Office Hlubocany <kempy@okres-hlubocany.cz>",
+	"subject": "Opening of the camp",
+	"body": "Dear operator,\n\nThe camp is entered in the district register and may take guests. Booking letters will come to this mailbox; accept or refuse them here.\n\nA booking can only be accepted when there is a free bed for the whole party. Put up a tent or a cabin in Builder 98 (bulldoze the trees first), or patch up the old cabin by the office: walk up to it and hold R, then clean it out and make up the bed. The camp goes on the booking lists as soon as a bed stands.\n\nGuests also need a toilet, food and a made-up room. When a party reaches the barrier, check them in at the reception desk.\n\nHold TAB outdoors for the site plan and the jobs waiting.\n\nDistrict Office Hlubocany\nTourism department",
+}
+
+
+## A new sandbox camp: the district's mail now, the first booking once a bed is free.
+func sandbox_start(time_str: String) -> void:
+	_first_booking_due = true
+	var mail := SANDBOX_START_MAIL.duplicate(true)
+	mail["type"] = "system"
+	mail["time"] = time_str
+	push_system_mail(mail)
+
+
+## In office hours with a free bed and no booking waiting: a quiet guest (one bed) writes
+## within half an hour. A booking that came by the dice first does instead.
+func _try_first_booking(day: int, hour: int, now_abs: int) -> void:
+	if hour < BOOKING_FIRST_HOUR or hour > BOOKING_LAST_HOUR:
+		return
+	if _count_unactioned_customer_mails() + _count_scheduled_customer_mails() > 0:
+		_first_booking_due = false
+		return
+	if int(_collect_bed_metrics().get("free", 0)) <= 0:
+		return
+	_first_booking_due = false
+	_schedule_mail_abs(now_abs + _rng.randi_range(8, 25), _build_customer_mail(ARCHETYPE_QUIET_GUY, day, hour))
 
 
 ## The hourly mail roll. The inbox used to take up to nine bookings and four spam mails

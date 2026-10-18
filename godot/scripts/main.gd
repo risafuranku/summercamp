@@ -4113,9 +4113,12 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if sandbox:
 		_pending_loaded_crt_state = {"unlock_registry": {"builder": true, "camp_status": true, "guestrack": true, "datapunch": true}}
 	_start_game_from_menu()
-	# A sandbox camp has no story: no mails from Vera, Nela or the district.
+	# A sandbox camp has no story: no mails from Vera or Nela, no checklist. The district
+	# writes how a camp starts, and the first booking comes once a bed is free.
 	if not sandbox and _quest_manager != null:
 		_quest_manager.begin_new_game()
+	elif sandbox and test_enemy.is_empty() and EmailManager != null:
+		EmailManager.sandbox_start(time_system.get_time_string() if time_system != null and time_system.has_method("get_time_string") else "09:00")
 	# A new game always opens on the same song (Radio Jedna).
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	if bi != null and bi.has_method("queue_first_radio_track"):

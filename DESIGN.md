@@ -586,7 +586,8 @@ attractions.
 ## 12. Two wardens (co-op)
 
 Decided with the user on 2026-10-17. Two players run one camp together; only in a
-**sandbox** camp (no month, no checklist; the story is for one warden, and NEW CAMP says
+**sandbox** camp (no month, no checklist, but the district's mail on how to start and a
+first booking sure to come once a bed stands; the story is for one warden, and NEW CAMP says
 so when STORY is chosen). Built and tested in stages, each mechanic gone
 through for two (TODO.md, CO-OP).
 
