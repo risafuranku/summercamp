@@ -18,7 +18,8 @@ const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const SPRITE_HEIGHT_M := 1.74
 ## How tall each pose is drawn (its picture is that tall from top to bottom edge).
 const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32,
-	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86, "write": 0.92,
+	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86,
+	"fix": 1.72, "fish": 1.72, "saw": 1.35, "bag": 1.45, "write": 0.92,
 	"bedfoot": 0.7}
 ## Poses drawn lying down: how long the picture is from side to side.
 const POSE_WIDTH := {"bed": 1.85}
@@ -270,13 +271,40 @@ func _process(delta: float) -> void:
 		f = 1.0
 	var inside := bool(sb.get("in", false))
 	visible = not inside
-	_apply_pose("stand")
+	# At work out in the camp (hold R at a lamp, a branch sawn, rubbish bagged) or fishing
+	# on the far shore: that, where they stand.
+	var act := str(sb.get("act", ""))
+	_apply_pose(act if act != "" else "stand")
 	global_position = pa.lerp(pb, f) if _ready_once else pb
 	_ready_once = true
 	_speed = lerpf(_speed, float(sb.get("v", 0.0)), clampf(delta * 10.0, 0.0, 1.0))
-	_animate()
+	if act != "":
+		_animate_act(act)
+	else:
+		_animate()
 	_aim_torch(sb, inside)
 	_update_steps(inside)
+
+
+## At work in the camp: the spanner turning, the saw going, a bend for the rubbish, the
+## rod held still (a twitch now and then), in steps.
+func _animate_act(act: String) -> void:
+	var step := floorf(_time * ANIM_FPS)
+	var ph := step / ANIM_FPS * TAU
+	_sprite.flip_h = false
+	match act:
+		"saw":
+			_sprite.position = Vector3(sin(ph * 1.6) * 0.04, 0.0, 0.0)
+			_sprite.rotation.z = sin(ph * 1.6) * 0.03
+		"fix":
+			_sprite.position = Vector3(0.0, 0.01 if int(step / 3.0) % 2 == 0 else 0.0, 0.0)
+			_sprite.rotation.z = sin(ph * 0.9) * 0.02
+		"bag":
+			_sprite.position = Vector3(0.0, -0.03 if int(step / 5.0) % 2 == 0 else 0.0, 0.0)
+			_sprite.rotation.z = 0.0
+		_:
+			_sprite.position = Vector3.ZERO
+			_sprite.rotation.z = 0.01 if int(step / 23.0) % 7 == 0 else 0.0
 
 
 ## The guests' walk: steps at ANIM_FPS, a bob, a sway, the flip on each step.

@@ -289,6 +289,8 @@ def main():
     if None in (hw, hr2, cr2, ht, ct):
         failures.append("missing bus fingerprints")
     else:
+        if not ht["other_visible"] or not ct["other_visible"]:
+            failures.append("in Lesna they do not see each other (host %s, other %s)" % (ht["other_visible"], ct["other_visible"]))
         if hw["bus_state"] != "held":
             failures.append("the bus did not wait for the other warden buying a ticket (%s)" % hw["bus_state"])
         if hr2["bus_state"] not in ("riding", "stopping", "done") or cr2["bus_state"] not in ("riding", "stopping", "done"):

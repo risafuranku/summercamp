@@ -769,7 +769,7 @@ func coop_state() -> Dictionary:
 	if _passenger:
 		# Beside them on the jetty, the boat theirs.
 		return {"shore": shore + Vector3(0.9, 0.0, 0.0)}
-	return {"shore": shore, "boat_at": (lake.boat as Node3D).global_transform}
+	return {"shore": shore, "boat_at": (lake.boat as Node3D).global_transform, "fish": _fish_state != ""}
 
 
 ## The other warden's boat: where they have it (`xf`), or back at the camp jetty

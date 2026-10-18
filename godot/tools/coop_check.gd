@@ -206,6 +206,7 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			["open_room", 15, 16], ["wait", 2.0], ["eval", "_interior_manager.lodge_bed._try_sleep()"], ["wait", 2.0], ["coop_lodge_fallback", 13, 16],
 			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "client_morning"],
+			["eval", "_interior_manager._tent_interior.close_tent()"], ["wait", 1.0],
 			["coop_wait_file", "host_day2"], ["wait", 2.5], ["coop_fingerprint", "client_day2"], ["coop_signal", "client_day2_seen"],
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["coop_to_bus_stop"],
 			["coop_wait_file", "host_bus_here"], ["wait", 1.0], ["shot", "c9b_at_the_stop"], ["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0], ["coop_signal", "client_aboard"],

@@ -14,7 +14,7 @@ extends RefCounted
 const DIR := "res://assets/textury/npc/"
 const LETTERS := ["a", "b", "c", "d"]
 const NAMES := ["Pepa", "Ondra", "Jana", "Bara"]
-const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk", "sit", "guitar", "eat", "kick", "bat", "climb", "swing", "write", "bed", "bedfoot"]
+const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk", "sit", "guitar", "eat", "kick", "bat", "climb", "swing", "write", "bed", "bedfoot", "fix", "fish", "saw", "bag"]
 
 ## Where each warden's jacket is: hue band (degrees, may wrap past 360), the least
 ## saturation and brightness that count (Ondra's red: the outline round the whole

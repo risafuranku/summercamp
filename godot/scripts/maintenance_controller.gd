@@ -370,6 +370,11 @@ func _update_work(delta: float, can_act: bool) -> void:
 			CoreRoot.actions.service_building(target["coord"], int(target["cost"]))
 
 
+## Co-op: holding R at something (the other machine draws you at it with a spanner).
+func coop_working() -> bool:
+	return _work > 0.0 and _work_key != ""
+
+
 func _reset_work() -> void:
 	# Only take the bar (and the hand) down if this was what put it up: the day's
 	# chores use the same HUD bar.

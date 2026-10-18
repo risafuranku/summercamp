@@ -625,6 +625,14 @@ func _update_target(delta: float, can_act: bool) -> void:
 		_clear_work()
 
 
+## Co-op: what your hands are on now ("saw" a branch, "bag" the rubbish, "" nothing).
+func coop_work() -> String:
+	if _work <= 0.0:
+		return ""
+	var ev := _event_by_id(_target_id)
+	return "" if ev.is_empty() else ("saw" if str(ev["kind"]) == "tree" else "bag")
+
+
 func _clear_work() -> void:
 	var hud = _hud()
 	if hud != null and hud.has_method("clear_work_progress"):

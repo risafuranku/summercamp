@@ -4700,6 +4700,8 @@ func coop_local_warden() -> Dictionary:
 		s["t"] = false
 	elif lake.has("shore"):
 		s["p"] = lake["shore"]
+		if bool(lake.get("fish", false)):
+			s["act"] = "fish"
 		if lake.has("boat_at"):
 			s["boat_at"] = lake["boat_at"]
 		s["in"] = false
@@ -4718,6 +4720,13 @@ func coop_local_warden() -> Dictionary:
 	var att: Dictionary = _warden_play.coop_state() if _warden_play != null and is_instance_valid(_warden_play) else {}
 	if not att.is_empty():
 		s["att"] = att
+	# At work out in the camp: holding R at something, a branch sawn, rubbish bagged.
+	if not s.has("act"):
+		var chore: String = _day_events.coop_work() if _day_events != null and _day_events.has_method("coop_work") else ""
+		if chore != "":
+			s["act"] = chore
+		elif _maintenance != null and _maintenance.has_method("coop_working") and _maintenance.coop_working():
+			s["act"] = "fix"
 	# Knocked down, lying there.
 	if _coop_down:
 		s["dn"] = true
