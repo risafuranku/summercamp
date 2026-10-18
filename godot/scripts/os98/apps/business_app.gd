@@ -276,7 +276,10 @@ func _load(path: String) -> Texture2D:
 func _icon(kind: String, at: Vector2) -> void:
 	var t := _load(ICONS + "tb_%s.png" % kind)
 	if t != null:
-		draw_texture(t, at)
+		# Fitted into the toolbar's 16 x 16 (some renders are wider), centred.
+		var sz := Vector2(t.get_size())
+		var k := minf(16.0 / sz.x, 16.0 / sz.y)
+		draw_texture_rect(t, Rect2(at + (Vector2(16, 16) - sz * k) * 0.5, sz * k), false)
 
 
 # ── drawing ──────────────────────────────────────────────────────────────────

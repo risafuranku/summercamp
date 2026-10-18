@@ -257,18 +257,22 @@ func _paint(c: Control) -> void:
 	if full != null and h >= 1.0:
 		var src_h := float(full.get_height()) * h / g.size.y
 		c.draw_texture_rect_region(full, Rect2(g.position.x, g.end.y - h, g.size.x, h), Rect2(0, full.get_height() - src_h, full.get_width(), src_h))
-	# The bottle in your hand, tipping over the glass, the stream when it pours.
-	var neck := Vector2(g.get_center().x + 12, g.position.y - 18)
+	# The bottle in your hand, held by its foot up to the right of the glass and tipped
+	# over it: tipped all the way its neck is over the glass's mouth.
 	var bt := _part("bottle_" + _bottle)
-	if bt != null:
-		var bs := Vector2(bt.get_size()) * (74.0 / float(bt.get_height()))
-		c.draw_set_transform(neck, lerpf(-0.2, -2.1, _tip), Vector2.ONE)
-		c.draw_texture_rect(bt, Rect2(-bs.x * 0.5, -bs.y, bs.x, bs.y), false)
-		c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if bt == null:
+		return
+	var bs := Vector2(bt.get_size()) * (74.0 / float(bt.get_height()))
+	var tipped := -2.1
+	var foot := Vector2(g.get_center().x, g.position.y - 6.0) - Vector2(0, -bs.y).rotated(tipped)
+	var ang := lerpf(-0.2, tipped, _tip)
+	c.draw_set_transform(foot, ang, Vector2.ONE)
+	c.draw_texture_rect(bt, Rect2(-bs.x * 0.5, -bs.y, bs.x, bs.y), false)
+	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	var stream := _part("pour_stream")
 	if _pouring and _tip > 0.7 and stream != null:
-		var top := neck.y + 4
-		c.draw_texture_rect(stream, Rect2(g.get_center().x - 3, top, 6, maxf(1.0, g.end.y - h - top)), false, tint)
+		var neck := foot + Vector2(0, -bs.y).rotated(ang)
+		c.draw_texture_rect(stream, Rect2(neck.x - 2.0, neck.y, 4.0, maxf(1.0, g.end.y - h - neck.y)), false, tint)
 	if not _queue.is_empty():
 		var o: Dictionary = _queue[0]
 		ink(c, RETRO_UI.FONT_LABEL, Vector2(12, 24), "%s: %s" % [ORDERS.first_name(str((o["v"] as Dictionary)["name"])).to_upper(), str(BOTTLES[o["drink"]]["label"]).to_upper()], RETRO_UI.C_AMBER, Color(0, 0, 0, 0.9))

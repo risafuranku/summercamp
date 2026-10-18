@@ -296,6 +296,28 @@ def rekeyed(art_id):
     return path
 
 
+def _no_snap(img, keep_alpha):
+    out = img.convert("RGBA")
+    out.putalpha(img.getchannel("A").point(lambda a: 255 if a >= 128 else 0))
+    return out
+
+
+def despilled(art_id):
+    """The counter games' parts: everything tinted by the magenta (the soft edge between a
+    slice and the background, the pink seen through a glass, a darker pink backdrop)
+    becomes the key, so none of it survives as a red or pink rim."""
+    img = Image.open(rekeyed(art_id)).convert("RGB")
+    px = img.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b = px[x, y]
+            if r - g > 50 and b - g > 35:
+                px[x, y] = (255, 0, 255)
+    path = os.path.join(HERE, "out", art_id, "raw_despilled.png")
+    img.save(path)
+    return path
+
+
 def stove_glow():
     """The embers from the render (the palette mutes them): bright orange there, scaled
     to the face's size, white where at least a quarter of a block glowed."""
@@ -377,7 +399,15 @@ def main():
             src = src.crop(((src.width - src.height * 4 // 3) // 2, 0, (src.width + src.height * 4 // 3) // 2, src.height)) if src.width * 3 > src.height * 4 else src
             out = process.snap(src.resize((320, 240), Image.BOX), False)
         elif mode == "sprite":
-            out = process.sprite(rekeyed(art_id), size)
+            if art_id.startswith("cu_"):
+                # The close-ups' own colours (the Build palette has no dark orange: a golden
+                # slice came out red): shrunk into pixels, not snapped to it.
+                snap = process.snap
+                process.snap = lambda img, keep: _no_snap(img, keep)
+                out = process.sprite(despilled(art_id), size)
+                process.snap = snap
+            else:
+                out = process.sprite(rekeyed(art_id), size)
         elif mode == "panel":
             out = process.panel(raw, size)
         else:

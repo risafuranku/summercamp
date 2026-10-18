@@ -595,7 +595,7 @@ func _draw() -> void:
 						c.draw_texture_rect_region(bt, Rect2(d.position.x + k * dw, d.position.y, dw, d.size.y), Rect2(k * tw, 0, tw, bt.get_height()))
 		for k in int(_board["salt"]) * 2:
 			var at := Vector2(d.position.x + 6 + fmod(float(k) * 23.7, d.size.x - 20), d.position.y + fmod(float(k) * 7.3, d.size.y - 10))
-			_blit(c, "salt", Rect2(at, Vector2(14, 14)))
+			_blit(c, "salt", Rect2(at, Vector2(7, 7)))
 		if _hover == "salt":
 			c.draw_rect(SALT, Color(1, 0.95, 0.6, 0.18))
 		if _hover == "napkin":

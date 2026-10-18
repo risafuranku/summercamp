@@ -305,7 +305,6 @@ func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:
 		_text(c, Vector2(LEFT.position.x + 4, y + 7), str(d["unit"]), PENCIL, 6)
 		# The bar, hatched in pencil.
 		var bar := Rect2(RIGHT.position.x + 2, y - 8, RIGHT.size.x - 4, 9)
-		_pencil_box(c, bar)
 		var fill := bar.size.x * clampf(float(n) / float(maxi(1, int(d["cap"]))), 0.0, 1.0)
 		var hatch := _part("pencil_hatch")
 		if hatch != null and fill >= 1.0:
@@ -336,10 +335,9 @@ func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
 		var pr := _plus_rect(y)
 		for b in [["minus:", mr, "-"], ["plus:", pr, "+"]]:
 			var r: Rect2 = b[1]
-			_pencil_box(c, r, INK)
 			if hovered() == str(b[0]) + g:
-				c.draw_rect(r, Color(1, 0.9, 0.5, 0.25))
-			_centre(c, r, str(b[2]), INK)
+				c.draw_rect(r, Color(1, 0.9, 0.5, 0.3))
+			_centre(c, r, str(b[2]), INK, RETRO_UI.FONT_BIG)
 		_centre(c, Rect2(mr.end.x, mr.position.y, pr.position.x - mr.end.x, mr.size.y), "%d" % int(_order.get(g, 0)), INK)
 		var on_units: int = BUSINESS.on_order(building_key, g)
 		if on_units > 0:
