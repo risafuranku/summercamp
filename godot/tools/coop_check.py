@@ -226,6 +226,16 @@ def main():
             failures.append("the mail the other warden read is not read in the host's inbox %s" % ha["mail"])
         if ha["mail"] != cg["mail"]:
             failures.append("the mail differs (host %s, other %s)" % (ha["mail"], cg["mail"]))
+        # The back office: the host's lost and found on the other machine, put up from there.
+        hb, cb, ab = hg["books"], cg["books"], ha["books"]
+        if hb["box"] + len(hb["listed"]) < 2 or cb["box"] + len(cb["listed"]) != hb["box"] + len(hb["listed"]):
+            failures.append("the lost and found differs (host %s, other %s)" % (hb, cb))
+        if len(ab["listed"]) < 1:
+            failures.append("what the other warden put up on the bazaar is not up at the host's %s" % ab)
+        if hb["quests"] or cb["quests"]:
+            failures.append("Vera's checklist runs in a sandbox camp (host %s, other %s)" % (hb["quests"], cb["quests"]))
+        if hb["rev"] != cb["rev"] or hb["bills"] != cb["bills"]:
+            failures.append("the reviews or bills differ (host %s, other %s)" % (hb, cb))
     # The delivery at the host's gate: the other sees it, signs for it, and it is done in the host's camp.
     cde, cdd, hdd = load("client_day_event"), load("client_day_done"), load("host_day_done")
     if cde is None or cdd is None or hdd is None:

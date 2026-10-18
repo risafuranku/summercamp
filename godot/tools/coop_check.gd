@@ -115,7 +115,9 @@ func _ready() -> void:
 			["coop_signal", "host_at_pc"], ["coop_wait_file", "client_saw_pc"], ["shot", "h8_at_pc"],
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			# A guest at the host's camp: on the other machine too (the camp pulse).
-			["prep_all"], ["book", "Lads", "drunk", 1, 1, 0], ["hours", 0.05], ["eval", "debug_arrivals()"], ["checkin"], ["hours", 0.3], ["wait", 3.0],
+			["prep_all"], ["book", "Lads", "drunk", 1, 1, 0], ["hours", 0.05], ["eval", "debug_arrivals()"], ["checkin"], ["hours", 0.3],
+			# Two things in the lost and found (the back office is the host's).
+			["eval", "debug_bazaar_fill(2)"], ["wait", 3.0],
 			["coop_fingerprint", "host_guests"], ["coop_signal", "host_guests"],
 			["coop_wait_file", "client_guests_seen"], ["wait", 1.0], ["coop_fingerprint", "host_after_client"],
 			["coop_wait_file", "client_spent"], ["coop_fingerprint", "host_till"],
@@ -216,7 +218,7 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior.enter_crt_view()"], ["wait", 2.0],
 			["coop_build_at", "tent_1", 15, 16], ["coop_read_mail"], ["wait", 1.0],
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
-			["coop_wait_file", "host_guests"], ["wait", 3.0], ["coop_fingerprint", "client_guests"], ["coop_signal", "client_guests_seen"],
+			["coop_wait_file", "host_guests"], ["wait", 3.0], ["coop_list_bazaar"], ["wait", 0.5], ["coop_fingerprint", "client_guests"], ["coop_signal", "client_guests_seen"],
 			# Spent here (a pint in Lesna, say): the host's till pays it.
 			["coop_spend", 40], ["wait", 3.0], ["coop_fingerprint", "client_till"], ["coop_signal", "client_spent"],
 			["coop_wait_file", "host_day_event"], ["wait", 2.5], ["coop_fingerprint", "client_day_event"],
@@ -542,6 +544,11 @@ func _run_step(step: Array) -> void:
 				me4.rotation.y = PI
 		"coop_fingerprint":
 			_write_fingerprint(str(step[1]))
+		"coop_list_bazaar":
+			# The bazaar page's "put it up" for the first thing in the box.
+			var box: Array = _main.get("_bazaar").in_box()
+			if not box.is_empty():
+				_main.bazaar_list(int(box[0]["id"]))
 		_:
 			super._run_step(step)
 
@@ -774,6 +781,16 @@ func _court_kicked() -> Array:
 	return (att.get("_kick_at") as Dictionary).keys() if att != null else []
 
 
+## The back office: the lost and found, Vera's checklist (none in a sandbox), the
+## reviews and the bills.
+func _books() -> Dictionary:
+	var baz = _main.get("_bazaar")
+	var qm = _main.get("_quest_manager")
+	return {"box": baz.in_box().size(), "listed": baz.listed().map(func(i): return str(i["short"])),
+		"quests": bool(qm.get("_active")) if qm != null else false, "rev": (CoreRoot.get_state().guest_reviews as Array).size(),
+		"bills": (_main.get("_billing").bills as Array).size()}
+
+
 func _write_fingerprint(tag: String) -> void:
 	var wg = _main.get("world_generator")
 	var bm = _main.get("building_manager")
@@ -855,6 +872,7 @@ func _write_fingerprint(tag: String) -> void:
 		"court_kicked": _court_kicked(),
 		"town_mate": _town_mate(),
 		"pipe_net": _pipe_net(),
+		"books": _books(),
 		"corn_orders": (CoreRoot.get_state().biz.get("orders", []) as Array).filter(func(o): return str(o.get("key", "")) == "15:13").size(),
 		"radio": _radio_row(),
 		"down": bool(_main.get("_coop_down")),

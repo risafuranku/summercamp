@@ -388,13 +388,23 @@ func _reapply_crt_desktop_state_next_frame() -> void:
 	_apply_pending_crt_desktop_state()
 
 
+## Vera's checklist from a save (or the host's camp). A sandbox camp never had one going
+## (a new one does not start it): loading it must not start it either, nor on the other
+## warden's machine, where its rewards would be paid a second time.
+func _import_quests(data: Dictionary) -> void:
+	if _sandbox or Coop.is_client():
+		_quest_manager.stop()
+		return
+	_quest_manager.import_state(data)
+
+
 func _setup_quest_manager() -> void:
 	if _quest_manager == null or not is_instance_valid(_quest_manager):
 		_quest_manager = QUEST_MANAGER_SCRIPT.new()
 		add_child(_quest_manager)
 	_quest_manager.setup(self)
 	if _pending_quest_state_loaded:
-		_quest_manager.import_state(_pending_quest_state)
+		_import_quests(_pending_quest_state)
 		_pending_quest_state.clear()
 		_pending_quest_state_loaded = false
 
@@ -918,6 +928,17 @@ func get_upkeep_snapshot() -> Dictionary:
 func request_maintenance_crew() -> Dictionary:
 	if _maintenance == null:
 		return {"ok": false, "reason": "unavailable"}
+	if Coop.is_client():
+		# The crew is the host's to send (and pay): asked for from here.
+		var snap: Dictionary = _maintenance.get_upkeep_snapshot()
+		if bool(snap.get("night", false)):
+			return {"ok": false, "reason": "night"}
+		if int(snap.get("crew_jobs", 0)) <= 0:
+			return {"ok": false, "reason": "nothing_to_do"}
+		if CoreRoot.get_money() < int(snap.get("crew_cost", 0)):
+			return {"ok": false, "reason": "insufficient_funds", "amount": int(snap.get("crew_cost", 0))}
+		Coop.send_request("crew", [])
+		return {"ok": true, "jobs": int(snap.get("crew_jobs", 0)), "amount": int(snap.get("crew_cost", 0))}
 	return _maintenance.request_maintenance_crew()
 
 
@@ -3051,7 +3072,7 @@ func _on_day_tick(day_index: int) -> void:
 
 ## A party checked out: what they left behind goes to the lost and found.
 func _on_guest_state_for_bazaar(guest_id: int, _old: String, new_state: String) -> void:
-	if new_state != "departed" or not _gameplay_started or CoreRoot.get_state() == null:
+	if new_state != "departed" or not _gameplay_started or CoreRoot.get_state() == null or not Coop.sim_here():
 		return
 	for g in CoreRoot.get_state().guests:
 		if g is Dictionary and int((g as Dictionary).get("id", -1)) == guest_id:
@@ -3086,6 +3107,9 @@ func _settle_bazaar() -> void:
 
 ## The bazaar page's "put it up" link (browser).
 func bazaar_list(id: int) -> bool:
+	# Co-op: the host's lost and found (the pulse brings it back as the host has it).
+	if Coop.is_client():
+		Coop.send_request("bazaar_list", [id])
 	return _bazaar.list(id, _day_index)
 
 
@@ -3133,6 +3157,22 @@ func get_electricity_ui_snapshot() -> Dictionary:
 
 func request_pay_electricity_bill(bill_id: String) -> Dictionary:
 	_sync_billing_clock()
+	if Coop.is_client():
+		# The bills are the host's: paid there (the money with its till); gone from the
+		# list here at once, the pulse brings the rest.
+		for i in _billing.bills.size():
+			var bill: Dictionary = _billing.bills[i]
+			if str(bill.get("id", "")) != bill_id.strip_edges():
+				continue
+			var amount := maxi(0, int(bill.get("amount", 0)))
+			if str(bill.get("status", "unpaid")) == "paid":
+				return {"ok": false, "reason": "already_paid"}
+			if CoreRoot.get_money() < amount:
+				return {"ok": false, "reason": "insufficient_funds", "amount": amount}
+			_billing.bills.remove_at(i)
+			Coop.send_request("pay_bill", [bill_id.strip_edges()])
+			return {"ok": true, "amount": amount}
+		return {"ok": false, "reason": "not_found"}
 	return _billing.pay(bill_id)
 
 
@@ -4365,7 +4405,11 @@ func coop_camp_pulse() -> Dictionary:
 	var day: Dictionary = _day_events.export_state() if _day_events != null else {}
 	# The night's faults that put lamps out (the breaker, a dead circuit).
 	var nj := {"bt": bool(_night_jobs.breaker_tripped), "dc": int(_night_jobs.dead_circuit), "jobs": _night_jobs.coop_jobs()} if _night_jobs != null else {}
-	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz}
+	# The back office (CampStat, the bazaar): the reviews, the takings, the bills, the
+	# lost and found.
+	var books := {"rev": state.guest_reviews, "tx": state.guest_transactions, "sat": float(state.satisfaction), "karma": float(state.karma),
+		"hrot": float(state.hrotfaktor), "elec": _billing.export_state(), "baz": _bazaar.export_state()}
+	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books}
 
 
 var _coop_day_hash := 0
@@ -4445,6 +4489,18 @@ func coop_apply_pulse(p: Dictionary) -> void:
 	var mail: Dictionary = p.get("mail", {})
 	if not mail.is_empty() and EmailManager != null and EmailManager.has_method("coop_take"):
 		EmailManager.coop_take(mail)
+	# The back office is the host's: CampStat's reviews, takings and bills, the bazaar.
+	var books: Dictionary = p.get("books", {})
+	if not books.is_empty():
+		state.guest_reviews = (books.get("rev", []) as Array).duplicate(true)
+		state.guest_transactions = (books.get("tx", []) as Array).duplicate(true)
+		state.satisfaction = float(books.get("sat", state.satisfaction))
+		state.karma = float(books.get("karma", state.karma))
+		state.hrotfaktor = float(books.get("hrot", state.hrotfaktor))
+		if books.get("elec", null) is Dictionary:
+			_billing.import_state(books["elec"], _day_index, false)
+		if books.get("baz", null) is Dictionary:
+			_bazaar.import_state(books["baz"])
 
 
 ## The other warden's machine: a party reached the barrier, was let in or gave up in the
@@ -4734,6 +4790,12 @@ func coop_request(kind: String, data: Array) -> void:
 		"mail":
 			if EmailManager != null and EmailManager.has_method("coop_do"):
 				EmailManager.coop_do(data)
+		"pay_bill":
+			request_pay_electricity_bill(str(data[0]))
+		"crew":
+			request_maintenance_crew()
+		"bazaar_list":
+			bazaar_list(int(data[0]))
 
 
 ## The other warden's machine builds nothing of its own accord: what its Builder asks
@@ -5547,7 +5609,7 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		_pending_quest_state = (quests_any as Dictionary).duplicate(true) if quests_any is Dictionary else {}
 		_pending_quest_state_loaded = true
 		if _quest_manager != null and _gameplay_started:
-			_quest_manager.import_state(_pending_quest_state)
+			_import_quests(_pending_quest_state)
 			_pending_quest_state_loaded = false
 	var email_runtime_any = snapshot.get("email_runtime", {})
 	if email_runtime_any is Dictionary and EmailManager != null and EmailManager.has_method("import_runtime_state"):

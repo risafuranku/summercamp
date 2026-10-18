@@ -361,6 +361,12 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   takes both from the first (warden state "pipe": sd, lv, fx). `_try_move` and
   `_back_up` ask `mate.blocks`. Anything that changes the network's generation must keep
   `preview_network` (the chamber's terminal) and `open_repair` in step.
+- **Co-op back office** (`main.coop_camp_pulse` "books"): reviews, transactions,
+  satisfaction, karma, the electricity bills and the bazaar are the host's; the other
+  machine's `request_pay_electricity_bill`, `request_maintenance_crew` and `bazaar_list`
+  check there and ask the host (`Coop.send_request`), spending nothing themselves (the
+  till follows the host's). Anything new that pays or charges from a PC program must
+  do the same, or it is paid twice or lost at the next pulse.
 - **Co-op radio** (`building_interior.gd`): the host's set is the one; `_play_radio_next`
   does nothing on the other machine, which plays what `coop_radio_state` says (main's
   `_coop_sync_things` "radio", sent when the piece or its 4 s step changes): a song by
