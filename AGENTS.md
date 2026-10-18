@@ -134,7 +134,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Which enemy an archetype brings | `main.ENEMY_FOR_ARCHETYPE` + `scripts/enemies/` |
 | HUD | `scripts/hud_manager.gd` (+ `scripts/ui/retro_ui.gd` kit) |
 | Menus / pause / game over | `scripts/ui/` |
-| Animation in steps (12 a second) | `scripts/ui/step12.gd`: `Step12.add(tween, target, {"prop": value}, seconds)` instead of `tween_property` for anything that moves on its own (camera moves, doors, swipes); the door transition into and out of buildings `scripts/ui/door_transition.gd` (frozen frame, dither dissolve), called from `interior_manager._door_transition()` |
+| Camera moves in rooms; things that move in steps | the camera moves in rooms (sitting down, getting up, looking back, the window, the bus seat) are smooth: `scripts/ui/cam_move.gd` `CAM_MOVE.move(host, camera, {"position": p, "rotation": r}, seconds)`; it holds the tween for a steady frame (`CAM_MOVE.hold(host, tween)` for any tween started while a room is built); the fire, the torch hand, the gate and such machinery step twelve a second through `scripts/ui/step12.gd`; the door transition into and out of buildings `scripts/ui/door_transition.gd` (frozen frame, smooth dither dissolve), called from `interior_manager._door_transition()` |
 | The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The check-in desk's key board (Dymo labels, the label maker), the room across the counter by hour/weather and its night scares | `scripts/reception/checkin_desk.gd` (`_slots`, `_pick_view`, `_roll_scare`); art `tools/artgen/desk_art.py views` |
@@ -236,11 +236,14 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   it loads main.tscn on a thread and changes to it (headless runs skip it at once). The
   engine boot image `assets/boot/undo_labs_boot.png` is its first frame: re-bake it
   (`tools/studio_splash_bake.gd -- --boot`) after changing the sign, wall or shader.
-- **Things move in steps, twelve a second** (the fire, the torch hand, the gate, the room
-  camera moves, the swipes, the step bob): new self-running animation goes through
-  `Step12` (scripts/ui/step12.gd), not a smooth `tween_property`. Mouse look and walking
-  stay smooth. A new kind of room must call `interior_manager._door_transition(true)`
-  before it opens and `(false)` when it has closed.
+- **Machinery moves in steps, twelve a second; rooms move smoothly** (playtest 18. 10.:
+  the stepped room cameras were "choppy"). The fire, the torch hand, the gate, the step
+  bob go through `Step12` (scripts/ui/step12.gd); camera moves in rooms, the door
+  transition, the A/D push and the walk through a doorway run at the full frame rate.
+  Anything that starts in the frame a room is built (or a still is read back from the
+  GPU) must wait for a steady frame (`CAM_MOVE.hold`), or its first part goes in one
+  jump. A new kind of room must call `interior_manager._door_transition(true)` before it
+  opens and `(false)` when it has closed.
 - **Physics ignores visibility**: hidden rooms' bodies still catch rays. Disable a hotspot's
   `collision_layer` when its thing is absent (the empty counter spot stood before the door).
 - **Load textures outside draw callbacks**: a texture first `load()`ed inside a `_draw`

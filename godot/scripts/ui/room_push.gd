@@ -11,6 +11,7 @@ extends RefCounted
 ## material (the palette) so it looks the same while it goes.
 
 const DURATION := 0.36
+const CAM_MOVE = preload("res://scripts/ui/cam_move.gd")
 
 
 static func play(host: Node, container: SubViewportContainer, vp: SubViewport, direction: int, switch: Callable, done: Callable) -> Tween:
@@ -72,6 +73,9 @@ static func play(host: Node, container: SubViewportContainer, vp: SubViewport, d
 			container.remove_meta("room_push")
 		done.call()
 	)
+	# The next room was built and the still read back in this very frame: start the slide
+	# on a steady frame, or its first third goes in one jump.
+	CAM_MOVE.hold(host, tw)
 	return tw
 
 

@@ -1,23 +1,25 @@
 extends CanvasLayer
 
-## Going into a building and out of it: the last frame freezes, takes a step closer
-## (in) or back (out) twelve times a second and breaks up in an ordered dither of game
-## pixels (materials/step_dissolve.gdshader), the new view showing through, half a second
-## in all. InteriorManager calls play() just before it opens a room (the frame still
-## shows the camp) and when a room has closed (the frame still shows the room).
-## Over the rooms, the HUD and the minigames, under the pause menu.
+## Going into a building and out of it: the last frame freezes, comes a little closer
+## (in) or goes back (out) and breaks up in an ordered dither of game pixels
+## (materials/step_dissolve.gdshader), the new view showing through, half a second in
+## all, smoothly at the full frame rate (it went in steps, twelve a second, until the
+## playtest of 18. 10.: "choppy"). InteriorManager calls play() just before it opens a
+## room (the frame still shows the camp) and when a room has closed (the frame still
+## shows the room). Over the rooms, the HUD and the minigames, under the pause menu.
 
 const SHADER := preload("res://materials/step_dissolve.gdshader")
-const FPS := 12.0
-const STEPS := 6
-## How much closer (in) or further (out) the frozen frame gets per step.
-const ZOOM_IN := 0.035
-const ZOOM_OUT := -0.02
+const DURATION := 0.5
+## How much closer (in) or further (out) the frozen frame gets over the whole of it.
+const ZOOM_IN := 0.18
+const ZOOM_OUT := -0.10
+## The frame that builds the room (and reads this still back) is long: no single frame
+## may move it on by more than this.
+const MAX_STEP := 1.0 / 30.0
 
 var _rect: TextureRect
 var _mat: ShaderMaterial
-var _step := -1
-var _acc := 0.0
+var _t := -1.0
 var _zoom := 0.0
 
 
@@ -50,27 +52,21 @@ func play(going_in: bool) -> void:
 		return
 	_rect.texture = ImageTexture.create_from_image(img)
 	_zoom = ZOOM_IN if going_in else ZOOM_OUT
-	_step = 0
-	_acc = 0.0
+	_t = 0.0
 	visible = true
 	_apply()
 
 
 func is_playing() -> bool:
-	return _step >= 0
+	return _t >= 0.0
 
 
 func _process(delta: float) -> void:
-	if _step < 0:
+	if _t < 0.0:
 		return
-	# A room that takes a moment to build must not eat the steps: one at most a frame.
-	_acc += minf(delta, 1.0 / FPS)
-	if _acc < 1.0 / FPS:
-		return
-	_acc -= 1.0 / FPS
-	_step += 1
-	if _step >= STEPS:
-		_step = -1
+	_t += minf(delta, MAX_STEP)
+	if _t >= DURATION:
+		_t = -1.0
 		visible = false
 		_rect.texture = null
 		return
@@ -82,8 +78,9 @@ func _apply() -> void:
 	_rect.size = size
 	_rect.position = Vector2.ZERO
 	_rect.pivot_offset = size * 0.5
-	var s := 1.0 + _zoom * float(_step)
+	var k := clampf(_t / DURATION, 0.0, 1.0)
+	var s := 1.0 + _zoom * (1.0 - (1.0 - k) * (1.0 - k))
 	_rect.scale = Vector2(s, s)
-	_mat.set_shader_parameter("progress", float(_step) / float(STEPS))
+	_mat.set_shader_parameter("progress", k * k * (3.0 - 2.0 * k))
 	# Whole game pixels: the world is drawn ~240 lines high.
 	_mat.set_shader_parameter("cell", float(maxi(2, int(round(float(DisplayServer.window_get_size().y) / 240.0)))))
