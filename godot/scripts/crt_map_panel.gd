@@ -45,7 +45,6 @@ const KEYBOARD_PAN_SPRINT_MULT := 1.7
 const MAP_VISUAL_PADDING := 0.28
 const MAP_ROTATION_STEPS := 1
 
-const DEMOLISH_MAX_SIZE := 5
 const ROTATION_LABELS: Array[String] = ["SOUTH", "EAST", "NORTH", "WEST"]
 
 const ICON_PATHS := {
@@ -157,14 +156,35 @@ var _pending_build_type: String = ""
 var _pending_build_coord: Vector2i = Vector2i(-1, -1)
 var _pending_build_rot: int = 0
 
+## Paths are drawn as a line (RCT): press, drag an L out (the first move away from the
+## start sets which leg comes first; Shift keeps it straight), see it priced, let go to
+## build it all at once. Built tile by tile under the cursor it could not be drawn
+## (playtest 18. 10.).
 var _path_drag_active: bool = false
-var _path_last_coord: Vector2i = Vector2i(-999, -999)
-var _path_requested: Dictionary = {}
+var _path_start := Vector2i(-1, -1)
+var _path_end := Vector2i(-1, -1)
+var _path_axis := -1                 # 0 along x first, 1 along y first, -1 not yet
+var _path_line: Array = []           # [coord, kind]: PATH_NEW, PATH_HAVE, PATH_BLOCKED
+const PATH_NEW := 0
+const PATH_HAVE := 1
+const PATH_BLOCKED := 2
+## Sent on release and not answered yet (a co-op client hears back later).
+var _path_batch: Dictionary = {}
+var _path_batch_sending := false
+var _batch_cells: Array = []
+var _batch_cost := 0
+var _batch_refused := 0
+var _batch_short := 0
+## The bulldozer's box priced by the authority, kept while the box stays the same.
+var _demolish_sum_rect := Rect2i()
+var _demolish_sum: Dictionary = {}
+var _demolish_hatch := PackedVector2Array()
+var _demolish_hatch_key := ""
+var _demolish_removed: Array = []
 ## Undo (Ctrl+Z, the toolbar): what you built today, newest last; a path drag is one step.
 ## Taking it back pays the whole price back (it was a mistake, not a demolition).
 var _undo: Array = []            # {type, coord, cost, group, day}
 var _undo_group := 0
-var _path_preview: Dictionary = {}
 
 var _demolish_drag_active: bool = false
 var _demolish_drag_start: Vector2i = Vector2i(-1, -1)
@@ -200,6 +220,14 @@ var _static_size := Vector2.ZERO
 var _static_sig := ""
 var _sig_t := 0.0
 var _ground_tex: Texture2D
+## The ground's meshes, made at one unit a tile (see _draw_ground).
+const GROUND_SHADE_MAX := 1.34
+var _ground_key := ""
+var _ground_tex_mesh: ArrayMesh
+var _ground_col_mesh: ArrayMesh
+var _ground_lines := PackedVector2Array()
+var _lake_lines := PackedVector2Array()
+var _lake_units: Array = []     # [unit centre, hash]
 ## The puff a building lands with (Grok, tools/artgen/os_art.py); circles without it.
 const DUST_TEX := "res://assets/textury/builder/dust.png"
 var _dust_tex: Texture2D = load(DUST_TEX) if ResourceLoader.exists(DUST_TEX) else null
@@ -265,12 +293,21 @@ func _ready() -> void:
 
 func _on_world_placed(id: String, o: Vector2i, f: Vector2i, _r: int) -> void:
 	_static_dirty = true
+	_demolish_sum = {}
+	_demolish_hatch_key = ""
+	if id == "path" and _path_batch.has(o):
+		return
 	if id != "tree" and id != "corn" and is_visible_in_tree():
 		_bfx.built(_footprint_cells(o, f))
 
 
 func _on_world_removed(o: Vector2i) -> void:
 	_static_dirty = true
+	_demolish_sum = {}
+	_demolish_hatch_key = ""
+	if _pending_demolish_wait:
+		_demolish_removed.append(o)
+		return
 	if is_visible_in_tree():
 		_bfx.built([o], true)
 
@@ -305,9 +342,7 @@ func set_selected_building(new_type: String) -> void:
 	_pending_build_type = ""
 	_pending_build_coord = Vector2i(-1, -1)
 	_path_drag_active = false
-	_path_requested.clear()
-	_path_preview.clear()
-	_path_last_coord = Vector2i(-999, -999)
+	_path_line.clear()
 	_demolish_drag_active = false
 	_pending_demolish_wait = false
 	if selected_building != "demolish":
@@ -418,6 +453,15 @@ func _gui_input(event: InputEvent) -> void:
 					undo_last()
 					get_viewport().set_input_as_handled()
 					return
+			KEY_ENTER, KEY_KP_ENTER:
+				if selected_building == "demolish" and _demolish_selection_active and not _pending_demolish_wait:
+					_send_demolish_request(_demolish_selection_rect)
+					get_viewport().set_input_as_handled()
+					return
+			KEY_SHIFT:
+				if _path_drag_active:
+					_path_end = Vector2i(-1, -1)
+					_request_path_at(get_local_mouse_position())
 
 	if event is InputEventMouseMotion:
 		if _pan_dragging:
@@ -453,7 +497,13 @@ func _gui_input(event: InputEvent) -> void:
 				_pan_drag_moved = false
 				_pan_vel = Vector2.ZERO
 				_rmb_pressed_without_selection = selected_building == ""
-				if selected_building != "":
+				if _path_drag_active or _demolish_drag_active:
+					# Only the line or the box being drawn goes; the tool stays in hand.
+					_path_drag_active = false
+					_path_line.clear()
+					_demolish_drag_active = false
+					_emit_status("Canceled.")
+				elif selected_building != "":
 					_cancel_tool_selection()
 			else:
 				if not _pan_drag_moved and _rmb_pressed_without_selection and selected_building == "" and not _any_pending_interaction():
@@ -524,46 +574,132 @@ func _handle_structure_press(local_pos: Vector2) -> void:
 
 
 func _begin_path_drag(local_pos: Vector2) -> void:
+	var coord = _local_to_grid(local_pos)
+	if not _is_valid_coord(coord):
+		return
 	_undo_group += 1
 	_path_drag_active = true
-	_path_last_coord = Vector2i(-999, -999)
-	_path_requested.clear()
-	_path_preview.clear()
+	_path_start = coord
+	_path_end = Vector2i(-1, -1)
+	_path_axis = -1
 	_request_path_at(local_pos)
-	_emit_status("Path drag active.")
 
 
+## The drag moved: the line from the start to here, each tile priced or refused.
 func _request_path_at(local_pos: Vector2) -> void:
 	if not _path_drag_active:
 		return
 	var coord = _local_to_grid(local_pos)
 	if not _is_valid_coord(coord):
 		return
-	if coord == _path_last_coord:
+	var straight := Input.is_key_pressed(KEY_SHIFT)
+	if coord == _path_end and not (straight and _path_axis != -1):
 		return
-	_path_last_coord = coord
-	if _path_requested.has(coord):
-		return
-	if not _can_place(coord, Vector2i.ONE, "path"):
-		return
-	_path_requested[coord] = true
-	_path_preview[coord] = true
-	if EventBus.has_signal("RequestBuild"):
-		EventBus.RequestBuild.emit("path", coord, 0)
+	_path_end = coord
+	var d: Vector2i = coord - _path_start
+	if d == Vector2i.ZERO:
+		_path_axis = -1
+	elif _path_axis == -1:
+		_path_axis = 0 if absi(d.x) >= absi(d.y) else 1
+	_path_line.clear()
+	for c in _path_cells(_path_start, coord, _path_axis, straight):
+		var kind := PATH_NEW
+		if _path_cell(c):
+			kind = PATH_HAVE
+		elif not _can_place(c, Vector2i.ONE, "path"):
+			kind = PATH_BLOCKED
+		_path_line.append([c, kind])
+	var n := _path_count(PATH_NEW)
+	if n > 0:
+		_emit_status("Path: %d new %s, $%d. Let go to build." % [n, "tile" if n == 1 else "tiles", n * _get_cost("path")])
 
 
+## Start to end along one axis, then the other (the corner where they meet); straight
+## keeps only the longer leg.
+func _path_cells(a: Vector2i, b: Vector2i, axis: int, straight: bool) -> Array:
+	var d := b - a
+	if straight:
+		b = Vector2i(b.x, a.y) if absi(d.x) >= absi(d.y) else Vector2i(a.x, b.y)
+	var corner := Vector2i(a.x, b.y) if axis == 1 else Vector2i(b.x, a.y)
+	var out: Array = [a]
+	for leg in [[a, corner], [corner, b]]:
+		var p: Vector2i = leg[0]
+		var step: Vector2i = (leg[1] - leg[0]).sign()
+		while p != leg[1]:
+			p += step
+			out.append(p)
+	return out
+
+
+func _path_count(kind: int) -> int:
+	var n := 0
+	for e in _path_line:
+		if int(e[1]) == kind:
+			n += 1
+	return n
+
+
+## Let go: the new tiles of the line are built, as many as the till pays for, from the
+## start on; one sound, one price.
 func _end_path_drag() -> void:
 	if not _path_drag_active:
 		return
-	var requested_count = _path_requested.size()
 	_path_drag_active = false
-	_path_requested.clear()
-	_path_last_coord = Vector2i(-999, -999)
-	_path_preview.clear()
-	if requested_count > 0:
-		_emit_status("Path requests sent: %d" % requested_count)
+	var todo: Array = []
+	for e in _path_line:
+		if int(e[1]) == PATH_NEW:
+			todo.append(e[0])
+	var blocked := _path_count(PATH_BLOCKED)
+	_path_line.clear()
+	if todo.is_empty():
+		if blocked > 0:
+			_emit_status("Nothing to build: the way is blocked.", STATUS_DENY)
+			_deny_fx(_path_end, "Blocked")
+		return
+	var cost := _get_cost("path")
+	var n := todo.size()
+	if cost > 0:
+		n = mini(n, int(CoreRoot.get_money()) / cost)
+	if n <= 0:
+		_emit_status("Not enough money: a path tile costs $%d." % cost, STATUS_DENY)
+		_deny_fx(todo[0], "$%d" % cost)
+		return
+	_path_batch.clear()
+	_batch_cells.clear()
+	_batch_cost = 0
+	_batch_refused = 0
+	_batch_short = todo.size() - n
+	for i in n:
+		_path_batch[todo[i]] = true
+	_path_batch_sending = true
+	for i in n:
+		EventBus.RequestBuild.emit("path", todo[i], 0)
+	_path_batch_sending = false
+	if _path_batch.is_empty():
+		_flush_path_batch()
 	else:
-		_emit_status("Path drag finished.")
+		_emit_status("Building %d path tiles..." % n)
+
+
+## The whole line answered: one ripple round it, one sound, one price.
+func _flush_path_batch() -> void:
+	if _batch_cells.is_empty():
+		_emit_status("Path refused: %s." % ("blocked" if _batch_refused > 0 else "nothing built"), STATUS_DENY)
+		return
+	var n := _batch_cells.size()
+	var msg := "Path built: %d %s, $%d." % [n, "tile" if n == 1 else "tiles", _batch_cost]
+	if _batch_short > 0:
+		msg += " %d not built: no money." % _batch_short
+	_emit_status(msg, STATUS_GOOD if _batch_short == 0 else STATUS_DENY)
+	_bfx.built(_batch_cells)
+	var mid := Vector2.ZERO
+	for c in _batch_cells:
+		mid += Vector2(c)
+	mid /= float(n)
+	if _batch_cost > 0:
+		_add_fx("pop", mid, 1.4, "-$%d" % _batch_cost, Color8(255, 220, 80))
+	_play("path", -10.0)
+	_batch_cells.clear()
 
 
 func _begin_demolish_press(local_pos: Vector2) -> void:
@@ -591,12 +727,8 @@ func _update_demolish_drag(local_pos: Vector2) -> void:
 	if not _demolish_drag_active:
 		return
 	var coord = _local_to_grid(local_pos)
-	if not _is_valid_coord(coord):
-		return
-	var max_delta = DEMOLISH_MAX_SIZE - 1
-	var dx = clampi(coord.x - _demolish_drag_start.x, -max_delta, max_delta)
-	var dy = clampi(coord.y - _demolish_drag_start.y, -max_delta, max_delta)
-	_demolish_drag_end = _demolish_drag_start + Vector2i(dx, dy)
+	coord = Vector2i(clampi(coord.x, 0, int(grid_manager.grid_width) - 1), clampi(coord.y, 0, int(grid_manager.grid_height) - 1))
+	_demolish_drag_end = coord
 
 
 func _finish_demolish_drag() -> void:
@@ -608,7 +740,7 @@ func _finish_demolish_drag() -> void:
 		return
 	_demolish_selection_rect = rect
 	_demolish_selection_active = true
-	_emit_status("Demolish area %dx%d selected. Click again to confirm." % [rect.size.x, rect.size.y])
+	_emit_status("Area %dx%d selected. Click inside it or press Enter to bulldoze." % [rect.size.x, rect.size.y])
 
 
 func _send_build_request(building_type: String, coord: Vector2i, rot: int) -> void:
@@ -627,6 +759,7 @@ func _send_build_request(building_type: String, coord: Vector2i, rot: int) -> vo
 func _send_demolish_request(rect: Rect2i) -> void:
 	_pending_demolish_wait = true
 	_pending_demolish_rect = rect
+	_demolish_removed.clear()
 	if EventBus.has_signal("RequestDemolish"):
 		EventBus.RequestDemolish.emit(rect)
 		_emit_status("Demolish request: %dx%d" % [rect.size.x, rect.size.y])
@@ -689,8 +822,7 @@ func _cancel_tool_selection() -> void:
 	_path_drag_active = false
 	_demolish_drag_active = false
 	_demolish_selection_active = false
-	_path_requested.clear()
-	_path_preview.clear()
+	_path_line.clear()
 	tool_canceled.emit()
 	_emit_status("Selection canceled.")
 
@@ -726,7 +858,20 @@ func _connect_event_bus() -> void:
 
 
 func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void:
-	var mine := (_pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord) or (building_type == "path" and _path_drag_active)
+	if building_type == "path" and _path_batch.has(pos):
+		_path_batch.erase(pos)
+		var st0 = CoreRoot.get_state()
+		_undo.append({"type": "path", "coord": pos, "cost": _get_cost("path"), "group": _undo_group, "day": int(st0.day) if st0 != null else 1})
+		while _undo.size() > 40:
+			_undo.remove_at(0)
+		_batch_cells.append(pos)
+		_batch_cost += _get_cost("path")
+		_add_fx("dust", Vector2(pos), 0.45)
+		_static_dirty = true
+		if _path_batch.is_empty() and not _path_batch_sending:
+			_flush_path_batch()
+		return
+	var mine := _pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord
 	# A lamp on a path belongs to the path: not something undo can take off it.
 	if mine and not (building_type == "lamp_post" and _path_cell(pos)):
 		var st = CoreRoot.get_state()
@@ -741,11 +886,10 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 	var mid := Vector2(pos) + Vector2(fp - Vector2i.ONE) * 0.5
 	var cost := _get_cost(building_type)
 	if building_type == "path":
-		# Keep drag status calm while drawing roads.
-		if not _path_drag_active:
-			_emit_status("Path built at [%d,%d]." % [pos.x, pos.y], STATUS_GOOD)
 		_add_fx("dust", mid, 0.45)
-		_play("path", -14.0)
+		if mine:
+			_emit_status("Path built at [%d,%d]." % [pos.x, pos.y], STATUS_GOOD)
+			_play("path", -14.0)
 	else:
 		_emit_status("Built: %s" % _display_name(building_type), STATUS_GOOD)
 		_dropped[pos] = _time
@@ -764,6 +908,12 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 
 
 func _on_build_rejected(building_type: String, pos: Vector2i, rot: int, reason: String) -> void:
+	if building_type == "path" and _path_batch.has(pos):
+		_path_batch.erase(pos)
+		_batch_refused += 1
+		if _path_batch.is_empty() and not _path_batch_sending:
+			_flush_path_batch()
+		return
 	if _pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord and wrapi(rot, 0, 4) == _pending_build_rot:
 		_pending_build_wait = false
 		_pending_build_type = ""
@@ -778,12 +928,15 @@ func _on_demolish_confirmed(area: Rect2i, removed_count: int, fee_paid: int, ref
 		_pending_demolish_wait = false
 	_demolish_selection_active = false
 	_emit_status("Cleared %d. Refund +$%d, bulldozer -$%d." % [removed_count, refund_total, fee_paid], STATUS_GOOD)
-	var n := 0
-	for y in range(area.position.y, area.end.y):
-		for x in range(area.position.x, area.end.x):
-			if n < 12:
-				_add_fx("dust", Vector2(x, y), 0.8)
-				n += 1
+	# Dust over what went (a dozen puffs spread over it), one ripple for the lot.
+	var gone := _demolish_removed.duplicate()
+	_demolish_removed.clear()
+	if not gone.is_empty():
+		var stride := maxi(1, gone.size() / 12)
+		for i in range(0, gone.size(), stride):
+			_add_fx("dust", Vector2(gone[i]), 0.8)
+		if is_visible_in_tree():
+			_bfx.built(gone, true)
 	var mid := Vector2(area.position) + Vector2(area.size - Vector2i.ONE) * 0.5
 	if refund_total > 0:
 		_add_fx("pop", mid + Vector2(0, -0.3), 1.4, "+$%d" % refund_total, Color8(120, 255, 120))
@@ -797,6 +950,7 @@ func _on_demolish_confirmed(area: Rect2i, removed_count: int, fee_paid: int, ref
 func _on_demolish_rejected(area: Rect2i, reason: String) -> void:
 	if _pending_demolish_wait and _rect_equals(area, _pending_demolish_rect):
 		_pending_demolish_wait = false
+	_demolish_removed.clear()
 	_emit_status("Demolish rejected: %s" % _reason_text(reason), STATUS_DENY)
 	_deny_fx(area.position, "No")
 	queue_redraw()
@@ -823,68 +977,14 @@ func _draw_static() -> void:
 		return
 	var grid_w: int = int(grid_manager.grid_width)
 	var grid_h: int = int(grid_manager.grid_height)
-	if grid_w <= 0 or grid_h <= 0:
+	var gm = _grid_model()
+	if grid_w <= 0 or grid_h <= 0 or gm == null:
 		return
 	var tile_w: float = _static_tile_w
 	var tile_h: float = tile_w * 0.5
 	var origin: Vector2 = _static_origin
-	var dims := _display_grid_dimensions(grid_w, grid_h)
-	_ground_tex = _season_ground_texture()
-	var draw_entries: Array = []
-	var drawn_roots: Dictionary = {}
-	for diagonal in range(grid_w + grid_h):
-		for y in range(grid_h):
-			var x = diagonal - y
-			if x < 0 or x >= grid_w:
-				continue
-			var coord = Vector2i(x, y)
-			var tile = grid_manager.get_tile(coord)
-			if tile == null:
-				continue
-			var center = _grid_to_iso(coord, origin, tile_w, tile_h)
-			_draw_ground_tile(center, tile_w, tile_h, tile, coord)
-			_draw_map_edge(center, tile_w, tile_h, _rotate_coord_for_display(coord), dims)
-			if not tile.occupied or tile.occupant == null:
-				continue
-			var root = _resolve_occupant_root(tile.occupant)
-			if root == null:
-				continue
-			var root_id = int(root.get_instance_id())
-			if drawn_roots.has(root_id):
-				continue
-			drawn_roots[root_id] = true
-			var structure_origin = coord
-			if root.has_meta("grid_origin"):
-				structure_origin = root.get_meta("grid_origin", coord)
-			var footprint = Vector2i.ONE
-			if root.has_meta("grid_footprint"):
-				footprint = root.get_meta("grid_footprint", Vector2i.ONE)
-			var anchor = _rotate_coord_for_display(structure_origin + Vector2i(max(0, footprint.x - 1), max(0, footprint.y - 1)))
-			var center_iso = _footprint_center_iso(structure_origin, footprint, origin, tile_w, tile_h)
-			draw_entries.append({
-				"root": root,
-				"type": str(root.get_meta("building_type", "")),
-				"rotation": wrapi(int(root.get_meta("build_rotation", 0)), 0, 4),
-				"origin": structure_origin,
-				"footprint": footprint,
-				"center": center_iso,
-				"order": anchor.x + anchor.y,
-				"anchor_x": anchor.x,
-				"anchor_y": anchor.y,
-			})
-	draw_entries.sort_custom(func(ea, eb):
-		var ao = int(ea.get("order", 0))
-		var bo = int(eb.get("order", 0))
-		if ao == bo:
-			var ax = int(ea.get("anchor_x", 0))
-			var bx = int(eb.get("anchor_x", 0))
-			if ax == bx:
-				return int(ea.get("anchor_y", 0)) < int(eb.get("anchor_y", 0))
-			return ax < bx
-		return ao < bo
-	)
-	_build_minimap(grid_w, grid_h)
-	for entry in draw_entries:
+	_draw_ground(gm, grid_w, grid_h, origin, tile_w)
+	for entry in _collect_structures(gm, grid_w, grid_h, origin, tile_w, tile_h):
 		var ty := str(entry.get("type", ""))
 		# Still dropping in: the dynamic layer draws it until it lands.
 		if _dropped.has(entry.get("origin", Vector2i.ZERO)):
@@ -897,6 +997,177 @@ func _draw_static() -> void:
 			_lights.append([entry["center"], ty])
 		elif ty == "path" and _path_has_lamp(entry["origin"]):
 			_lights.append([_path_lamp_point(entry["origin"], entry["center"], tile_w, tile_h), "lamp_post"])
+
+
+func _grid_model():
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	return st.grid if st != null else null
+
+
+## The ground (tiles, the cut edges, the grid lines) is made once at one unit a tile and
+## drawn scaled: it changes only with the season's picture, the lake and the entrance.
+## It was drawn tile by tile on every redraw, ~100 ms on a 28x28 map, and a path drag
+## redrew it for every tile (playtest 18. 10.: "the builder is laggy").
+func _draw_ground(gm, grid_w: int, grid_h: int, origin: Vector2, tile_w: float) -> void:
+	_ground_tex = _season_ground_texture()
+	var key := _ground_signature(gm, grid_w, grid_h)
+	if key != _ground_key:
+		_ground_key = key
+		_build_ground(gm, grid_w, grid_h)
+	_cv.draw_set_transform(origin, 0.0, Vector2(tile_w, tile_w))
+	if _ground_tex_mesh != null:
+		_cv.draw_mesh(_ground_tex_mesh, _ground_tex, Transform2D.IDENTITY, Color(GROUND_SHADE_MAX, GROUND_SHADE_MAX, GROUND_SHADE_MAX))
+	if _ground_col_mesh != null:
+		_cv.draw_mesh(_ground_col_mesh, null)
+	if not _ground_lines.is_empty():
+		_cv.draw_multiline(_ground_lines, GRID_LINE, -1.0)
+	if not _lake_lines.is_empty():
+		_cv.draw_multiline(_lake_lines, Color(0.0, 0.0, 0.0, 0.10), -1.0)
+	_cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	for w in _lake_units:
+		_water_cells.append([origin + (w[0] as Vector2) * tile_w, w[1]])
+
+
+func _ground_signature(gm, grid_w: int, grid_h: int) -> String:
+	var lake := 0
+	var reserved := 0
+	var sum := 0
+	for c in gm.tile_types:
+		var t := int(gm.tile_types[c])
+		if t == grid_manager.TILE_LAKE:
+			lake += 1
+			sum += c.x * 31 + c.y * 977
+		elif t == grid_manager.TILE_RESERVED:
+			reserved += 1
+			sum += c.x * 7919 + c.y * 13
+	return "%dx%d|%d|%d|%d|%s" % [grid_w, grid_h, lake, reserved, sum, _ground_tex.resource_path if _ground_tex != null else "-"]
+
+
+## Vertex colours are kept under 1 (meshes store them as bytes); the brightening the
+## tiles had is the mesh's modulate.
+func _build_ground(gm, grid_w: int, grid_h: int) -> void:
+	var dims := _display_grid_dimensions(grid_w, grid_h)
+	var tv := PackedVector2Array()
+	var tc := PackedColorArray()
+	var tu := PackedVector2Array()
+	var cv := PackedVector2Array()
+	var cc := PackedColorArray()
+	_ground_lines = PackedVector2Array()
+	_lake_lines = PackedVector2Array()
+	_lake_units.clear()
+	var depth := 0.45
+	for y in grid_h:
+		for x in grid_w:
+			var coord := Vector2i(x, y)
+			var d := _rotate_coord_for_display(coord)
+			var c := Vector2((d.x - d.y) * 0.5, (d.x + d.y) * 0.25)
+			var top := c + Vector2(0.0, -0.25)
+			var right := c + Vector2(0.5, 0.0)
+			var bottom := c + Vector2(0.0, 0.25)
+			var left := c + Vector2(-0.5, 0.0)
+			var quad := PackedVector2Array([top, right, bottom, top, bottom, left])
+			var edges := PackedVector2Array([top, right, right, bottom, bottom, left, left, top])
+			var h := _hash01(coord)
+			var t := int(gm.get_tile_type(coord))
+			if t == grid_manager.TILE_LAKE:
+				_add_quad(cv, cc, quad, WATER.lightened(h * 0.05))
+				_lake_lines.append_array(edges)
+				_lake_units.append([c, h])
+			else:
+				if t == grid_manager.TILE_RESERVED:
+					_add_quad(cv, cc, quad, DIRT.lerp(DIRT.darkened(0.1), h))
+				elif _ground_tex != null:
+					# One picture over the whole map, tile by tile a shade apart.
+					var shade := (1.12 + h * 0.22) / GROUND_SHADE_MAX
+					_add_quad(tv, tc, quad, Color(shade, shade, shade))
+					for q in quad:
+						tu.append(q / 2.5)
+				else:
+					_add_quad(cv, cc, quad, GROUND_A.lerp(GROUND_B, h))
+				_ground_lines.append_array(edges)
+			# The cut edge of the land along the two front sides, like RCT.
+			var dn := Vector2(0.0, depth)
+			if d.y == dims.y - 1:
+				_add_quad(cv, cc, PackedVector2Array([left, bottom, bottom + dn, left, bottom + dn, left + dn]), EDGE_LEFT)
+			if d.x == dims.x - 1:
+				_add_quad(cv, cc, PackedVector2Array([bottom, right, right + dn, bottom, right + dn, bottom + dn]), EDGE_RIGHT)
+	_ground_tex_mesh = _mesh_2d(tv, tc, tu)
+	_ground_col_mesh = _mesh_2d(cv, cc)
+
+
+func _add_quad(verts: PackedVector2Array, cols: PackedColorArray, quad: PackedVector2Array, col: Color) -> void:
+	verts.append_array(quad)
+	for i in quad.size():
+		cols.append(col)
+
+
+func _mesh_2d(verts: PackedVector2Array, cols: PackedColorArray, uvs := PackedVector2Array()) -> ArrayMesh:
+	if verts.is_empty():
+		return null
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_COLOR] = cols
+	if not uvs.is_empty():
+		arr[Mesh.ARRAY_TEX_UV] = uvs
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return m
+
+
+## The structures in drawing order (back to front), straight from the grid's occupants;
+## fills the minimap on the way.
+func _collect_structures(gm, grid_w: int, grid_h: int, origin: Vector2, tile_w: float, tile_h: float) -> Array:
+	var dims := _display_grid_dimensions(grid_w, grid_h)
+	if _mini_img == null or _mini_img.get_width() != dims.x or _mini_img.get_height() != dims.y:
+		_mini_img = Image.create(dims.x, dims.y, false, Image.FORMAT_RGBA8)
+	_mini_img.fill(MINI_COLORS["grass"])
+	for c in gm.tile_types:
+		var t := int(gm.tile_types[c])
+		if t == grid_manager.TILE_LAKE or t == grid_manager.TILE_RESERVED:
+			var dc := _rotate_coord_for_display(c)
+			if dc.x >= 0 and dc.y >= 0 and dc.x < dims.x and dc.y < dims.y:
+				_mini_img.set_pixelv(dc, MINI_COLORS["lake" if t == grid_manager.TILE_LAKE else "reserved"])
+	var found: Array = []
+	var keys := PackedInt64Array()
+	var kind_of: Dictionary = {}
+	var occ: Dictionary = gm.occupants
+	for coord in occ:
+		var node = occ[coord]
+		if node == null or not is_instance_valid(node):
+			continue
+		var root = _resolve_occupant_root(node)
+		if root == null:
+			continue
+		var root_id := root.get_instance_id()
+		var dcell := _rotate_coord_for_display(coord)
+		if kind_of.has(root_id):
+			_mini_img.set_pixelv(dcell, MINI_COLORS.get(kind_of[root_id], MINI_COLORS["grass"]))
+			continue
+		var mk := "corn" if root.is_in_group("corn") else ("tree" if root.is_in_group("trees") else _mini_kind(str(root.get_meta("building_type", ""))))
+		kind_of[root_id] = mk
+		_mini_img.set_pixelv(dcell, MINI_COLORS.get(mk, MINI_COLORS["grass"]))
+		var structure_origin: Vector2i = root.get_meta("grid_origin", coord)
+		var footprint: Vector2i = root.get_meta("grid_footprint", Vector2i.ONE)
+		var anchor := _rotate_coord_for_display(structure_origin + Vector2i(maxi(0, footprint.x - 1), maxi(0, footprint.y - 1)))
+		keys.append((((anchor.x + anchor.y) * 1024 + anchor.x) * 1024 + anchor.y) * 8192 + found.size())
+		found.append({
+			"root": root,
+			"type": str(root.get_meta("building_type", "")),
+			"rotation": wrapi(int(root.get_meta("build_rotation", 0)), 0, 4),
+			"origin": structure_origin,
+			"footprint": footprint,
+			"center": _footprint_center_iso(structure_origin, footprint, origin, tile_w, tile_h),
+		})
+	if _mini_tex == null or _mini_tex.get_width() != dims.x:
+		_mini_tex = ImageTexture.create_from_image(_mini_img)
+	else:
+		_mini_tex.update(_mini_img)
+	keys.sort()
+	var out: Array = []
+	for k in keys:
+		out.append(found[k % 8192])
+	return out
 
 
 ## Static-layer point to the panel, as the layer stands now (moved and scaled).
@@ -982,37 +1253,6 @@ func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void
 		_cv.draw_rect(r.grow(1), Color(0, 0, 0, 0.55))
 		_cv.draw_rect(r, col)
 		_cv.draw_string(T.FONT, r.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(250, 244, 226))
-
-
-func _build_minimap(grid_w: int, grid_h: int) -> void:
-	var dims := _display_grid_dimensions(grid_w, grid_h)
-	if _mini_img == null or _mini_img.get_width() != dims.x or _mini_img.get_height() != dims.y:
-		_mini_img = Image.create(dims.x, dims.y, false, Image.FORMAT_RGBA8)
-	for y in grid_h:
-		for x in grid_w:
-			var c := Vector2i(x, y)
-			var tile = grid_manager.get_tile(c)
-			var key := "grass"
-			if tile != null:
-				if tile.tile_type == grid_manager.TILE_LAKE:
-					key = "lake"
-				elif tile.tile_type == grid_manager.TILE_RESERVED:
-					key = "reserved"
-				if tile.occupied and tile.occupant != null:
-					var root = _resolve_occupant_root(tile.occupant)
-					if root != null:
-						if root.is_in_group("trees"):
-							key = "tree"
-						elif root.is_in_group("corn"):
-							key = "corn"
-						else:
-							key = _mini_kind(str(root.get_meta("building_type", "")))
-			var d := _rotate_coord_for_display(c)
-			_mini_img.set_pixel(d.x, d.y, MINI_COLORS.get(key, MINI_COLORS["grass"]))
-	if _mini_tex == null or _mini_tex.get_width() != dims.x:
-		_mini_tex = ImageTexture.create_from_image(_mini_img)
-	else:
-		_mini_tex.update(_mini_img)
 
 
 func _mini_kind(t: String) -> String:
@@ -1381,40 +1621,6 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 		_cv.draw_rect(Rect2(p + Vector2(0.5 * u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
 
 
-func _draw_ground_tile(center: Vector2, tile_w: float, tile_h: float, tile, coord := Vector2i.ZERO) -> void:
-	var h := _hash01(coord)
-	if tile.tile_type == grid_manager.TILE_LAKE:
-		_draw_diamond(center, tile_w, tile_h, WATER.lightened(h * 0.05), Color(0.0, 0.0, 0.0, 0.10), 1.0)
-		_water_cells.append([center, h])
-		return
-	var pts := _diamond_points(center, tile_w, tile_h)
-	if tile.tile_type == grid_manager.TILE_RESERVED:
-		_cv.draw_colored_polygon(pts, DIRT.lerp(DIRT.darkened(0.1), h))
-	elif _ground_tex != null:
-		# One picture over the whole map (screen space), tile by tile a shade apart.
-		var uvs := PackedVector2Array()
-		var span := tile_w * 2.5
-		for q in pts:
-			uvs.append((q - _static_origin) / span)
-		var shade := 1.12 + h * 0.22
-		_cv.draw_polygon(pts, PackedColorArray([Color(shade, shade, shade)]), uvs, _ground_tex)
-	else:
-		_cv.draw_colored_polygon(pts, GROUND_A.lerp(GROUND_B, h))
-	_cv.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), GRID_LINE, 1.0)
-
-
-## The cut edge of the land along the two front sides of the map, like RCT.
-func _draw_map_edge(center: Vector2, tile_w: float, tile_h: float, d: Vector2i, dims: Vector2i) -> void:
-	var depth := tile_h * 0.9
-	var bottom := center + Vector2(0, tile_h * 0.5)
-	if d.y == dims.y - 1:
-		var left := center + Vector2(-tile_w * 0.5, 0)
-		_cv.draw_colored_polygon(PackedVector2Array([left, bottom, bottom + Vector2(0, depth), left + Vector2(0, depth)]), EDGE_LEFT)
-	if d.x == dims.x - 1:
-		var right := center + Vector2(tile_w * 0.5, 0)
-		_cv.draw_colored_polygon(PackedVector2Array([bottom, right, right + Vector2(0, depth), bottom + Vector2(0, depth)]), EDGE_RIGHT)
-
-
 func _hash01(c: Vector2i) -> float:
 	var n := (c.x * 73856093) ^ (c.y * 19349663)
 	return float(absi(n) % 1000) / 1000.0
@@ -1541,34 +1747,146 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 
 
 func _draw_path_drag_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
-	if _path_preview.is_empty():
+	if not _path_drag_active or _path_line.is_empty():
 		return
-	var cells: Array = []
-	for coord in _path_preview.keys():
-		if coord is Vector2i and _is_valid_coord(coord):
-			cells.append(coord)
-	_bfx.draw_area(_cv, Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h), cells, tile_w, tile_h, Color(1.0, 0.78, 0.36), _time, false, 0.24)
+	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
+	var cost := _get_cost("path")
+	var afford := 1 << 30
+	if cost > 0:
+		afford = int(CoreRoot.get_money()) / cost
+	var groups := [[], [], [], []]   # new, already path, blocked, new but no money
+	var n_new := 0
+	for e in _path_line:
+		var kind := int(e[1])
+		if kind == PATH_NEW:
+			n_new += 1
+			if n_new > afford:
+				kind = 3
+		groups[kind].append(e[0])
+	_bfx.draw_area(_cv, iso_c, groups[PATH_HAVE], tile_w, tile_h, _bfx.BLUE, _time, false, 0.12)
+	_bfx.draw_area(_cv, iso_c, groups[PATH_NEW], tile_w, tile_h, _bfx.AMBER, _time, false, 0.30)
+	_bfx.draw_area(_cv, iso_c, groups[PATH_BLOCKED], tile_w, tile_h, _bfx.RED, _time, true, 0.22)
+	_bfx.draw_area(_cv, iso_c, groups[3], tile_w, tile_h, _bfx.RED, _time, false, 0.14)
+	var tag := "%d %s  $%d" % [n_new, "tile" if n_new == 1 else "tiles", n_new * cost]
+	var bad := n_new == 0 or n_new > afford
+	if n_new == 0:
+		tag = "Nothing new" if groups[PATH_BLOCKED].is_empty() else "Blocked"
+	elif n_new > afford:
+		tag += " - money for %d" % afford
+	var end: Vector2i = _path_line.back()[0]
+	_draw_tag(iso_c.call(Vector2(end)) + Vector2(tile_w * 0.45, -tile_h * 1.4), tag, bad)
+
+
+## A small priced tag (the ghost's), pale red when it is a no.
+func _draw_tag(at: Vector2, tag: String, bad: bool) -> void:
+	var tw := T.FONT.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+	var tp := at.floor()
+	tp.x = clampf(tp.x, 2.0, size.x - tw - 8.0)
+	tp.y = clampf(tp.y, 2.0, size.y - 16.0)
+	_cv.draw_rect(Rect2(tp, Vector2(tw + 6, 14)), Color8(255, 210, 210) if bad else T.TOOLTIP)
+	_cv.draw_rect(Rect2(tp, Vector2(tw + 6, 14)), T.DARK, false, 1.0)
+	_cv.draw_string(T.FONT, tp + Vector2(3, 11), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 
 
 func _draw_demolish_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	if _demolish_drag_active:
-		var drag_rect = _rect_from_points(_demolish_drag_start, _demolish_drag_end)
-		_draw_demolish_cells(drag_rect, origin, tile_w, tile_h, Color(0.20, 0.52, 1.0, 0.28), Color(0.62, 0.84, 1.0, 0.96))
-	if _demolish_selection_active:
-		_draw_demolish_cells(_demolish_selection_rect, origin, tile_w, tile_h, Color(0.18, 0.46, 0.96, 0.34), Color(0.56, 0.80, 1.0, 0.98))
+		_draw_demolish_rect(_rect_from_points(_demolish_drag_start, _demolish_drag_end), origin, tile_w, tile_h, false)
+	elif _demolish_selection_active:
+		_draw_demolish_rect(_demolish_selection_rect, origin, tile_w, tile_h, true)
 
 
-func _draw_demolish_cells(rect: Rect2i, origin: Vector2, tile_w: float, tile_h: float, fill: Color, line: Color) -> void:
+## The bulldozer's box as one shape (any size: per cell outlines cost too much on a big
+## one), what it would take hatched red, and its price from the authority.
+func _draw_demolish_rect(rect: Rect2i, origin: Vector2, tile_w: float, tile_h: float, chosen: bool) -> void:
 	if rect.size.x <= 0 or rect.size.y <= 0:
 		return
-	var cells: Array = []
-	for y in range(rect.position.y, rect.position.y + rect.size.y):
-		for x in range(rect.position.x, rect.position.x + rect.size.x):
-			var coord = Vector2i(x, y)
-			if _is_valid_coord(coord):
-				cells.append(coord)
-	# The bulldozer's ground: red, hatched, the light running round it.
-	_bfx.draw_area(_cv, Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h), cells, tile_w, tile_h, Color(1.0, 0.42, 0.32), _time, true, fill.a)
+	var sum := _demolish_summary(rect)
+	var p0 := Vector2(rect.position) - Vector2(0.5, 0.5)
+	var p1 := Vector2(rect.end) - Vector2(0.5, 0.5)
+	var pts := PackedVector2Array([
+		_cell_iso_fast(p0, origin, tile_w, tile_h), _cell_iso_fast(Vector2(p1.x, p0.y), origin, tile_w, tile_h),
+		_cell_iso_fast(p1, origin, tile_w, tile_h), _cell_iso_fast(Vector2(p0.x, p1.y), origin, tile_w, tile_h)])
+	var col: Color = _bfx.RED
+	_cv.draw_colored_polygon(pts, Color(col.r, col.g, col.b, 0.16 if chosen else 0.10))
+	# What goes: each such tile crossed, all in one call.
+	var key := "%s|%s|%s" % [rect, origin.round(), snappedf(tile_w, 0.01)]
+	if key != _demolish_hatch_key:
+		_demolish_hatch_key = key
+		_demolish_hatch = _demolish_target_lines(rect, origin, tile_w, tile_h)
+	if not _demolish_hatch.is_empty():
+		_cv.draw_multiline(_demolish_hatch, Color(col.r, col.g, col.b, 0.75), 1.0)
+	var width := clampf(tile_h * 0.07, 1.0, 2.5)
+	var loop := pts.duplicate()
+	loop.append(pts[0])
+	_cv.draw_polyline(loop, Color(col.r, col.g, col.b, 0.95), width + (1.0 if chosen else 0.0))
+	# The light running round it, as round the other outlines.
+	var total := 0.0
+	for i in 4:
+		total += pts[i].distance_to(pts[(i + 1) % 4])
+	var head := fmod(_time * 0.9, 1.0) * total
+	var run := 0.0
+	for i in 4:
+		var a := pts[i]
+		var b := pts[(i + 1) % 4]
+		var l := a.distance_to(b)
+		var s0 := clampf((head - run) / maxf(l, 0.001), 0.0, 1.0)
+		var s1 := clampf((head - run + tile_w * 1.2) / maxf(l, 0.001), 0.0, 1.0)
+		if s1 > s0 and head - run < l:
+			_cv.draw_line(a.lerp(b, s0), a.lerp(b, s1), Color(1, 1, 1, 0.85), width + 1.0)
+		run += l
+	var tag := "%dx%d" % [rect.size.x, rect.size.y]
+	var bad := false
+	if not sum.is_empty():
+		if int(sum["count"]) == 0:
+			tag += "  nothing to clear"
+			bad = true
+		else:
+			tag += "  clear %d  $%d" % [int(sum["tiles"]), int(sum["fee"])]
+			if int(sum["refund"]) > 0:
+				tag += "  +$%d back" % int(sum["refund"])
+			if int(CoreRoot.get_money()) < int(sum["fee"]):
+				tag += " - no money"
+				bad = true
+		if chosen and not bad:
+			tag += "  (click it / Enter)"
+	var top := pts[0]
+	for p in pts:
+		if p.y < top.y:
+			top = p
+	_draw_tag(top + Vector2(-40, -20), tag, bad)
+
+
+func _demolish_summary(rect: Rect2i) -> Dictionary:
+	if rect != _demolish_sum_rect or _demolish_sum.is_empty():
+		_demolish_sum_rect = rect
+		var auth = CoreRoot.builder_authority if CoreRoot != null else null
+		_demolish_sum = auth.summarize_demolish(rect) if auth != null and auth.has_method("summarize_demolish") else {}
+	return _demolish_sum
+
+
+## Two crossing lines over every tile in `rect` that holds a tree, corn or something built.
+func _demolish_target_lines(rect: Rect2i, origin: Vector2, tile_w: float, tile_h: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var gm = _grid_model()
+	if gm == null:
+		return out
+	var hw := tile_w * 0.32
+	var hh := tile_h * 0.32
+	for y in range(maxi(0, rect.position.y), mini(int(grid_manager.grid_height), rect.end.y)):
+		for x in range(maxi(0, rect.position.x), mini(int(grid_manager.grid_width), rect.end.x)):
+			var c := Vector2i(x, y)
+			var occ = gm.occupants.get(c)
+			if not is_instance_valid(occ) and not gm.cells.has(c):
+				continue
+			var t := str((gm.cells.get(c, {}) as Dictionary).get("type", ""))
+			if t == "main_building" or t == "power_generator":
+				continue
+			var root = _resolve_occupant_root(occ) if is_instance_valid(occ) else null
+			if root != null and bool(root.get_meta("permanent", false)):
+				continue
+			var p := _cell_iso_fast(Vector2(c), origin, tile_w, tile_h)
+			out.append_array([p + Vector2(-hw, 0), p + Vector2(0, hh), p + Vector2(0, -hh), p + Vector2(hw, 0)])
+	return out
 
 
 func _draw_rotation_panel() -> void:
@@ -1738,12 +2056,13 @@ func _icon_key_for_type(building_type: String) -> String:
 
 
 func _is_path_at(coord: Vector2i) -> bool:
-	if not _is_valid_coord(coord):
+	var gm = _grid_model()
+	if gm == null:
 		return false
-	var tile = grid_manager.get_tile(coord)
-	if tile == null or not tile.occupied or tile.occupant == null:
+	var node = gm.occupants.get(coord, null)
+	if node == null or not is_instance_valid(node):
 		return false
-	var root = _resolve_occupant_root(tile.occupant)
+	var root = _resolve_occupant_root(node)
 	if root == null:
 		return false
 	if root.is_in_group("paths"):
@@ -1880,7 +2199,7 @@ func _reason_text(reason: String) -> String:
 		"not_buildable":
 			return "tool is not buildable"
 		"area_too_large":
-			return "max area is 5x5"
+			return "area too large"
 		"protected_structure":
 			return "protected structures cannot be removed"
 		"empty_selection":

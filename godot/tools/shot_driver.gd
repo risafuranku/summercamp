@@ -17,7 +17,7 @@ extends Node
 ##   ["hours", h]               advance the in-game clock by h hours
 ##   ["eval", "expr"]           evaluate a GDScript Expression with Main as base
 ##   ["money", amount]          set cash
-##   ["clear", x, y, w, h]      bulldoze trees/buildings in a rect (<= 5x5, real builder path)
+##   ["clear", x, y, w, h]      bulldoze trees/buildings in a rect (real builder path)
 ##   ["build", type, x, y, rot] request a build through the real builder authority
 ##   ["book", name, archetype, party, nights, arrival_min?]  confirm a booking (GuestManager path)
 ##   ["prep_all"]                                    make every room up (as if done in the interiors)
@@ -1684,11 +1684,7 @@ func _run_step(step: Array) -> void:
 		"money":
 			CoreRoot.apply_changes({"money": int(step[1])})
 		"clear":
-			# The Builder clears at most 5x5 at a time: a bigger area goes in pieces.
-			var cr := Rect2i(int(step[1]), int(step[2]), int(step[3]), int(step[4]))
-			for cy in range(cr.position.y, cr.end.y, 5):
-				for cx in range(cr.position.x, cr.end.x, 5):
-					EventBus.RequestDemolish.emit(Rect2i(cx, cy, mini(5, cr.end.x - cx), mini(5, cr.end.y - cy)))
+			EventBus.RequestDemolish.emit(Rect2i(int(step[1]), int(step[2]), int(step[3]), int(step[4])))
 		"build":
 			EventBus.RequestBuild.emit(str(step[1]), Vector2i(int(step[2]), int(step[3])), int(step[4]))
 		"book":

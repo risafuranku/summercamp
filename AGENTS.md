@@ -228,8 +228,14 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   (`get_viewport().warp_mouse(...)`) before shots of a look-around view.
 - **Guests asleep are `sleep`, not `active`**: anything that asks "who is in the camp" at
   night must take both (the director saw an empty camp every night because of it).
-- **Demolish takes at most 5x5**: a bigger `RequestDemolish` is rejected outright (the shot
-  driver's `clear` splits it); build rejections print as `SHOT DRIVER build rejected`.
+- **Demolish takes any box up to 64x64** and charges per tile it clears (trees, corn, a
+  building's footprint), not per tile of the box; the Builder's tag reads the same numbers
+  from `builder_authority.summarize_demolish(rect)`. Build rejections print as
+  `SHOT DRIVER build rejected`.
+- **Paths go down on release**: the Builder's path tool drags an L-shaped line (Shift keeps
+  it straight) and sends the whole line when the button is let go (`_end_path_drag`);
+  the confirmations of that batch (`_path_batch`) give one sound and one price, a co-op
+  client's arriving later.
 - **The OS boot takes ~13 s** (warm-up, BIOS, maker's screen, Okna): harness waits must be
   longer than that, and a test that skips itself when an app does not open must fail.
 - **The first scene is the studio splash** (`scenes/studio_splash.tscn`), not main.tscn:

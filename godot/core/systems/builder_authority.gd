@@ -2,8 +2,11 @@ extends Node
 
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 
+## The bulldozer is paid by the tile it clears (a tree, corn, a building's footprint),
+## not by the empty grass the box happens to cover.
 const DEMOLISH_FEE_PER_TILE: int = 4
-const DEMOLISH_MAX_SIZE: int = 5
+## Only a sanity bound on one request: the whole site fits under it.
+const DEMOLISH_MAX_SIZE: int = 64
 ## Jednota (vecerka) is not here: the shop is in the town down the road (old saves
 ## still load theirs).
 const ALLOWED_BUILD_TYPES: Dictionary = {
@@ -133,7 +136,7 @@ func _on_request_demolish(area: Rect2i) -> void:
 		EventBus.DemolishRejected.emit(rect, reason)
 		return
 
-	var fee = rect.size.x * rect.size.y * DEMOLISH_FEE_PER_TILE
+	var fee = int(summary.get("fee", 0))
 	if CoreRoot.get_money() < fee:
 		EventBus.DemolishRejected.emit(rect, "insufficient_funds")
 		return
@@ -223,12 +226,35 @@ func _collect_demolish_targets(rect: Rect2i) -> Dictionary:
 					seen_trees[root_id] = true
 					tree_targets.append(coord)
 
+	var tiles := tree_targets.size()
+	var refund := 0
+	for t in building_targets:
+		var fp := _resolve_footprint(str(t["type"]))
+		tiles += maxi(1, fp.x * fp.y)
+		refund += _get_build_refund(str(t["type"]))
 	return {
 		"building_targets": building_targets,
 		"tree_targets": tree_targets,
 		"removable_count": building_targets.size() + tree_targets.size(),
 		"blocked_count": blocked_count,
+		"tiles": tiles,
+		"fee": tiles * DEMOLISH_FEE_PER_TILE,
+		"refund": refund,
 	}
+
+
+## What bulldozing `area` would do, for the Builder's tag: {count, blocked, tiles, fee,
+## refund}, the same numbers the request will use.
+func summarize_demolish(area: Rect2i) -> Dictionary:
+	if _state == null or _state.grid == null:
+		return {}
+	var rect := _normalize_rect(area)
+	var bounds: Vector2i = _state.grid.get_grid_size()
+	rect = rect.intersection(Rect2i(Vector2i.ZERO, bounds))
+	if rect.size.x <= 0 or rect.size.y <= 0:
+		return {"count": 0, "blocked": 0, "tiles": 0, "fee": 0, "refund": 0}
+	var s := _collect_demolish_targets(rect)
+	return {"count": int(s["removable_count"]), "blocked": int(s["blocked_count"]), "tiles": int(s["tiles"]), "fee": int(s["fee"]), "refund": int(s["refund"])}
 
 
 func _resolve_occupant_root(occupant: Variant) -> Node:
