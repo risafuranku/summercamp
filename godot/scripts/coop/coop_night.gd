@@ -74,7 +74,7 @@ func _host_tick(delta: float) -> void:
 		# Callers by day too (the electrician): whatever stands in the "coop_mirror" group.
 		for root in get_tree().get_nodes_in_group(MIRROR_GROUP):
 			if root is Node3D and (root as Node3D).is_inside_tree():
-				_snapshot_root(root, "g%d" % root.get_instance_id(), items)
+				_snapshot_root(root, "g%d" % root.get_instance_id(), items, true)
 		if not items.is_empty() or _sent_any:
 			Coop.send_night_view(items)
 		_sent_any = not items.is_empty()
@@ -271,8 +271,11 @@ func _hide_private(brains: Array) -> void:
 				a.remove_meta("coop_db")
 
 
-## Shown under `root`, leaving out the root itself (hidden for a private one).
+## Shown under `root`, leaving out the root itself (hidden for a private one); the root
+## itself, as it is shown.
 static func _shown_below(n: Node, root: Node) -> bool:
+	if n == root:
+		return (n as Node3D).is_visible_in_tree()
 	var at := n
 	while at != null and at != root:
 		if at is Node3D and not (at as Node3D).visible:
@@ -297,10 +300,13 @@ func _snapshot(brains: Array) -> Array:
 	return out
 
 
-## Every sprite, light and playing sound under `root` (not the root itself), keyed
-## `prefix/path`, into `out`.
-func _snapshot_root(root: Node, prefix: String, out: Array) -> void:
-	for n in root.find_children("*", "", true, false):
+## Every sprite, light and playing sound under `root` (and the root itself when
+## `with_root`: a lone sprite in the mirror group), keyed `prefix/path`, into `out`.
+func _snapshot_root(root: Node, prefix: String, out: Array, with_root := false) -> void:
+	var nodes: Array = root.find_children("*", "", true, false)
+	if with_root:
+		nodes.push_front(root)
+	for n in nodes:
 		var key := prefix + "/" + str(root.get_path_to(n))
 		if n is Sprite3D:
 			var sp := n as Sprite3D

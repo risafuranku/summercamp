@@ -169,14 +169,19 @@ def main():
     if cde is None or cdd is None or hdd is None:
         failures.append("missing day event fingerprints")
     else:
-        if cde["day_open"] < 1:
-            failures.append("the other machine does not show the host's day event")
-        if hdd["day_open"] != 0 or cdd["day_open"] != 0:
-            failures.append("the day event the other warden sorted out is still open (host %s, other %s)" % (hdd["day_open"], cdd["day_open"]))
+        if "delivery" not in cde["day_open"]:
+            failures.append("the other machine does not show the host's delivery %s" % cde["day_open"])
+        if "delivery" in hdd["day_open"] or "delivery" in cdd["day_open"]:
+            failures.append("the delivery the other warden signed for is still open (host %s, other %s)" % (hdd["day_open"], cdd["day_open"]))
     # The electrician the host rang for, seen from the other machine.
     ce2 = load("client_electrician")
     if ce2 is None or ce2["mirror"] < 1:
         failures.append("the other warden does not see the electrician come (%s)" % (ce2 or {}).get("mirror"))
+    # Both in the generator shed.
+    for tag in ("host_shed", "client_shed"):
+        fs = load(tag)
+        if fs is None or fs["room_figure"] == "":
+            failures.append("%s: the other warden is not seen in the shed" % tag)
     # Over the shoulder: the host's screen on the other's PC.
     cs = load("client_shoulder")
     if cs is None or not cs["coop_screen"]:

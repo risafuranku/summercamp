@@ -16,6 +16,7 @@ extends "res://tools/shot_driver.gd"
 ##   - the delivery van at the host's gate: the other warden sees it and signs for it,
 ##     and it is signed for in the host's camp;
 ##   - the electrician the host rang for: the other warden sees him come;
+##   - both in the generator shed: each sees the other there;
 ##   - the host sits at the PC: the other, in the office, sees its screen over their shoulder;
 ##     then the other sits at it: what they build and the mail they read are the host's;
 ##   - a night enemy on the host's goes for the other warden: the other machine sees it;
@@ -87,6 +88,9 @@ func _ready() -> void:
 			["coop_wait_file", "client_day_done"], ["wait", 2.0], ["coop_fingerprint", "host_day_done"],
 			["eval", "camp_office.on_phone_effect('electrician', '')"], ["hours", 0.6], ["wait", 3.0], ["coop_signal", "host_electrician"],
 			["coop_wait_file", "client_saw_electrician"], ["eval", "camp_office.electrician._leave() if camp_office.electrician != null else null"], ["wait", 1.0],
+			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('power_generator'))"], ["wait", 2.0], ["coop_signal", "host_in_shed"],
+			["coop_wait_file", "client_in_shed"], ["wait", 2.0], ["shot", "h9_shed_other"], ["coop_fingerprint", "host_shed"], ["coop_signal", "host_shed_seen"],
+			["coop_wait_file", "client_shed_seen"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0],
 			["coop_place", 12, 14, 1.0], ["wait", 1.0],
 			["eval", "time_system.set_time_hours(21.6)"], ["eval", "_sync_runtime_state_from_systems(true)"], ["wait", 4.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "h5_night_other_torch"],
@@ -138,8 +142,11 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			["coop_wait_file", "host_guests"], ["wait", 3.0], ["coop_fingerprint", "client_guests"], ["coop_signal", "client_guests_seen"],
 			["coop_wait_file", "host_day_event"], ["wait", 2.5], ["coop_fingerprint", "client_day_event"],
-			["eval", "_day_events._resolve(_day_events.open_events()[0])"], ["wait", 3.0], ["coop_fingerprint", "client_day_done"], ["coop_signal", "client_day_done"],
+			["coop_sign_delivery"], ["wait", 3.0], ["coop_fingerprint", "client_day_done"], ["coop_signal", "client_day_done"],
 			["coop_wait_file", "host_electrician"], ["wait", 2.0], ["coop_fingerprint", "client_electrician"], ["coop_signal", "client_saw_electrician"],
+			["coop_wait_file", "host_in_shed"], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('power_generator'))"], ["wait", 2.0], ["coop_signal", "client_in_shed"],
+			["wait", 2.0], ["shot", "c9_shed_host"], ["coop_fingerprint", "client_shed"], ["coop_signal", "client_shed_seen"],
+			["coop_wait_file", "host_shed_seen"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0],
 			["coop_place", 14, 14, -1.0], ["wait", 1.0],
 			["coop_wait", "night"], ["wait", 3.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "c5_night_host_torch"],
@@ -257,6 +264,13 @@ func _run_step(step: Array) -> void:
 			super._run_step(["aim_task", "_cabin_interior", pick])
 		"coop_row":
 			_row_left = float(step[1])
+		"coop_sign_delivery":
+			# Sign for the van at the gate (what E does there).
+			var de = _main.get("_day_events")
+			for ev in de.open_events():
+				if str(ev["kind"]) == "delivery":
+					de._resolve(ev)
+					break
 		"coop_build_at":
 			# What the Builder sends when you place something.
 			EventBus.RequestBuild.emit(str(step[1]), Vector2i(int(step[2]), int(step[3])), 0)
@@ -471,7 +485,7 @@ func _write_fingerprint(tag: String) -> void:
 		"mirror": int(_main.get("_coop_night").mirror_count()) if _main.get("_coop_night") != null else -1,
 		"enemy_shown_here": _enemy_shown_here(),
 		"sanity": (_main.get("_coop_night").sanity as Dictionary).duplicate() if _main.get("_coop_night") != null else {},
-		"day_open": (_main.get("_day_events").open_events() as Array).size() if _main.get("_day_events") != null else -1,
+		"day_open": (_main.get("_day_events").open_events() as Array).map(func(e): return str(e["kind"])) if _main.get("_day_events") != null else [],
 		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,

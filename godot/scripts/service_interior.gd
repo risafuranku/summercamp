@@ -1618,6 +1618,12 @@ func _finish_upkeep() -> void:
 	var cell: Dictionary = state.grid.cells.get(_upkeep_coord, {}) if state != null else {}
 	var broken := bool(entry.get("broken", false))
 	var cost := UPKEEP_RULES.repair_cost(def) if broken else UPKEEP_RULES.service_cost(def, float(cell.get("maintenance", 1.0)))
+	# Co-op: serviced in the host's camp (it comes back as a fact, _on_block_serviced).
+	if Coop.is_client():
+		Coop.send_request("service", [_upkeep_coord, cost])
+		if _upkeep_prep != null:
+			_upkeep_prep.play_room_ready()
+		return
 	if not CoreRoot.actions.service_building(_upkeep_coord, cost):
 		entry["note"] = "NO CASH FOR THE %s ($%d)" % ["SPARE PART" if broken else "SUPPLIES", cost]
 		_upkeep_cache[_upkeep_key] = entry

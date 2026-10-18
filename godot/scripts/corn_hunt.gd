@@ -72,6 +72,8 @@ func setup(main_node: Node, corn: Node, guest: Dictionary) -> bool:
 	var pick: Vector2i = ends[randi_range(0, mini(3, ends.size() - 1))]
 	_guest = Sprite3D.new()
 	_guest.name = "LostGuest"
+	# Co-op: the other warden sees them in the corn too (scripts/coop/coop_night.gd).
+	_guest.add_to_group("coop_mirror")
 	var tex_path := str(guest.get("sprite_path", ""))
 	if tex_path != "" and ResourceLoader.exists(tex_path):
 		_guest.texture = load(tex_path)

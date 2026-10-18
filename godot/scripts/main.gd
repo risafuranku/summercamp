@@ -391,7 +391,11 @@ func _setup_night_jobs() -> void:
 		_breaker_panel = BREAKER_PANEL_SCRIPT.new()
 		_breaker_panel.name = "BreakerPanel"
 		add_child(_breaker_panel)
-		_breaker_panel.fixed.connect(func(fault: int): _night_jobs.on_breaker_fixed(fault))
+		_breaker_panel.fixed.connect(func(fault: int):
+			_night_jobs.on_breaker_fixed(fault)
+			if Coop.is_client():
+				Coop.send_request("breaker", [fault])
+		)
 		_breaker_panel.closed.connect(func():
 			if _breaker_panel.was_fixed() and _hud_manager != null:
 				_hud_manager.push_status("Power back on. The breaker job is done.", 1)
@@ -1074,6 +1078,10 @@ func _process(delta: float) -> void:
 		_tick_night_jobs()
 		_tick_week_ledger()
 		_poll_guest_quotes(delta)
+	# The other warden's machine sees its own omens (they are only signs near you).
+	if not sim and _omens != null and not _game_over_active and _player != null and is_instance_valid(_player):
+		var omen_minute := (maxi(1, _day_index) - 1) * 1440 + int(round(_time_of_day_hours * 60.0))
+		_omens.tick(get_process_delta_time(), omen_minute, not _is_any_interior_open() and not get_tree().paused, _player.global_position, _omen_context())
 	# The other warden's machine too: the host's day events shown and done from here
 	# (day_events.coop_follow), the lamps' signs and hold R (what it does goes to the host).
 	if _day_events != null:
@@ -3494,7 +3502,10 @@ func _open_utility_repair(coord: Vector2i, building_type: String) -> void:
 
 
 func _on_repair_completed(coord: Vector2i, _building_type: String) -> void:
-	if economy_manager != null and economy_manager.has_method("add_repair_progress"):
+	# Co-op: mended in the host's camp (the breakdown goes with the next pulse).
+	if Coop.is_client():
+		Coop.send_request("repair", [coord])
+	elif economy_manager != null and economy_manager.has_method("add_repair_progress"):
 		economy_manager.add_repair_progress(coord, 1.0)
 	if _player != null and _player.has_method("set_controls_enabled"):
 		_player.set_controls_enabled(true)
@@ -4078,6 +4089,12 @@ func coop_request(kind: String, data: Array) -> void:
 		"day_event":
 			if _day_events != null:
 				_day_events.coop_resolve(int(data[0]))
+		"repair":
+			if economy_manager != null and economy_manager.has_method("add_repair_progress"):
+				economy_manager.add_repair_progress(data[0], 1.0)
+		"breaker":
+			if _night_jobs != null:
+				_night_jobs.on_breaker_fixed(int(data[0]))
 		"checkin":
 			GuestManager.request_check_in(int(data[0]))
 		"refuse":
@@ -4177,7 +4194,13 @@ func _coop_client_room_target() -> Node3D:
 	if st == null:
 		return null
 	var t := str(st.get_meta("building_type", ""))
-	return st if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") or t == "main_building" else null
+	if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") or t == "main_building":
+		return st
+	# The toilets, showers, pub, shed and the rest: in to look and to clean and mend (what
+	# that does goes to the host).
+	if _interior_manager != null and _interior_manager.has_method("_is_supported_service_building_type") and _interior_manager._is_supported_service_building_type(t):
+		return st
+	return null
 
 
 ## The camp for the other warden (Coop sends it when they join): the save snapshot,
