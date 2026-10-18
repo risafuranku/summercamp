@@ -379,6 +379,10 @@ func _apply_structure_rotation_at(origin: Vector2i, building_type: String, rotat
 	var structure = _resolve_structure_root(tile.occupant)
 	if structure == null:
 		return
+	# Only the thing just built: a lamp on a path leaves the tile to the path, and the
+	# lamp's rotation (0) turned the path under it (its texture no longer joined up).
+	if str(structure.get_meta("building_type", "")) != building_type:
+		return
 	if not _building_supports_rotation(building_type):
 		structure.set_meta("build_rotation", 0)
 		return
