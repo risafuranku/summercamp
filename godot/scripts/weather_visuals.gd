@@ -95,6 +95,8 @@ const SUN_SHADOW_SPLIT_3: float = 0.72
 const SUN_SHADOW_MAX_DISTANCE: float = 140.0
 const SUN_SHADOW_FADE_START: float = 0.58
 const SUN_SHADOW_PANCAKE_SIZE: float = 28.0
+## Two game minutes (~1.3 s at 1.5 game minutes a second, half a degree of the sun).
+const SUN_STEP_HOURS: float = 2.0 / 60.0
 const CELESTIAL_PATH_ALTITUDE_FACTOR: float = 0.84
 const CELESTIAL_PATH_DEFAULT_HALF_SPAN: float = 56.0
 const CELESTIAL_SPRITE_REFERENCE_DISTANCE: float = 36.0
@@ -680,7 +682,10 @@ func apply_time_from_clock(force_sky_snap: bool = false) -> void:
 	env.fog_density = fog_density + fog_boost
 	env.fog_sky_affect = fog_sky_affect
 	if _sun != null:
-		var sun_source_dir = direction_to_source_from_hour(_time_of_day_hours)
+		# The sun turns in steps of SUN_STEP_HOURS: turned a little every frame, every
+		# shadow in the camp crawled (playtest 18. 10.: "the shadows jiggle a lot").
+		var sun_hour := floorf(_time_of_day_hours / SUN_STEP_HOURS) * SUN_STEP_HOURS
+		var sun_source_dir = direction_to_source_from_hour(sun_hour)
 		var sun_height = sun_source_dir.y
 		var light_forward = -sun_source_dir
 		var look_up = Vector3.UP

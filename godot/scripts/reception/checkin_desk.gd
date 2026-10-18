@@ -1327,7 +1327,9 @@ func _draw_book(c: Control) -> void:
 	for i in range(start, _history.size()):
 		rows.append(_history[i])
 	var current := {}
-	if not _guest.is_empty() and (bool(_p.get("written_card", false)) or bool(_p.get("written_slip", false))):
+	# Walking off, their line is in the history already (_leave): not a second time.
+	var at_desk := not _guest.is_empty() and _leave_then == ""
+	if at_desk and (bool(_p.get("written_card", false)) or bool(_p.get("written_slip", false))):
 		current = _row_for_current()
 	for i in rows.size():
 		_draw_row(c, i, rows[i], 1.0, 1.0)
@@ -1335,7 +1337,7 @@ func _draw_book(c: Control) -> void:
 		var a := float(_pen.get("card", 1.0)) if bool(_p.get("written_card", false)) else 0.0
 		var b := float(_pen.get("slip", 1.0)) if bool(_p.get("written_slip", false)) else 0.0
 		_draw_row(c, rows.size(), current, a, b)
-	elif not _guest.is_empty():
+	elif at_desk:
 		# The empty line waiting for them.
 		var y := ROW_Y0 + rows.size() * ROW_H
 		c.draw_rect(Rect2(BOOK.position.x + 6, y - 9, BOOK.size.x - 12, ROW_H - 1), Color(1.0, 0.95, 0.4, 0.10 + 0.05 * sin(_t * 4.0)))

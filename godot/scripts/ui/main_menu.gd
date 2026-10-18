@@ -37,7 +37,9 @@ extends CanvasLayer
 
 signal continue_requested
 signal new_game_requested
-signal new_camp_requested(camp_name: String, seed: int, coop: bool)
+## `sandbox`: no story; `rules` its switches (main.CAMP_RULES: threats, weather, events,
+## wear, money). A co-op camp is always a sandbox camp.
+signal new_camp_requested(camp_name: String, seed: int, coop: bool, sandbox: bool, rules: Dictionary)
 signal profile_changed
 signal load_requested(path: String)
 signal quit_requested
@@ -50,6 +52,7 @@ const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
 const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const PROFILES = preload("res://scripts/profiles.gd")
+const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const BOOT_SCREEN = preload("res://scripts/ui/boot_screen.gd")
 const TILE_COLS := 3
 const TILE_ROWS := 2
@@ -134,6 +137,17 @@ var _newcamp_page: Control
 var _newcamp_title
 var _nc_name: LineEdit
 var _nc_seed: LineEdit
+## NEW CAMP's mode (STORY / SANDBOX) and a sandbox camp's switches.
+var _nc_sandbox := false
+var _nc_rules: Dictionary = {}
+var _nc_story_btn: Button
+var _nc_sandbox_btn: Button
+var _nc_about: Label
+var _nc_warn: Label
+var _nc_opts: Dictionary = {}
+const NC_RULE_TEXT := {"threats": "Night threats", "weather": "Weather", "events": "Day events", "wear": "Breakdowns", "money": "Money"}
+## A sandbox camp's starting till (0: the usual).
+const NC_MONEY := [0, 10000, 100000]
 var _camps_page: Control
 var _camps_title
 var _tiles: Array[Control] = []
@@ -805,7 +819,7 @@ func _refresh_coop() -> void:
 	var here: Array[String] = Coop.local_addresses() if Coop != null else []
 	_coop_list.set_item_sub("host", "  ".join(here.slice(0, 2)))
 	# The camp last hosted for two: its day and till.
-	_coop_list.set_item_enabled("host_last", not PROFILES.list_camps().is_empty())
+	_coop_list.set_item_enabled("host_last", PROFILES.list_camps().any(func(c: Dictionary) -> bool: return bool(c.get("sandbox", false))))
 	_coop_list.set_item_sub("host_last", "")
 	_refresh_coop_address()
 	_refresh_coop_look()
@@ -1069,17 +1083,42 @@ func _build_camp_pages(plate_h: float) -> void:
 	_newcamp_page = _page_frame("NEW CAMP", plate_h)
 	_newcamp_title = _newcamp_page.get_child(0)
 	var w := _newcamp_page.size.x - _vp(16)
+	var seed_w := _vp(84)
+	var name_w := w - seed_w - _vp(6)
 	var l1 := RETRO_UI.label("CAMP NAME", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
-	l1.position = Vector2(_vp(8), _vp(32))
+	l1.position = Vector2(_vp(8), _vp(27))
 	_newcamp_page.add_child(l1)
-	_nc_name = _line_edit(_newcamp_page, "", Vector2(_vp(8), _vp(44)), w)
+	_nc_name = _line_edit(_newcamp_page, "", Vector2(_vp(8), _vp(37)), name_w)
 	_nc_name.text_submitted.connect(func(_t: String) -> void: _nc_seed.grab_focus())
 	var l2 := RETRO_UI.label("SEED", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
-	l2.position = Vector2(_vp(8), _vp(70))
+	l2.position = Vector2(_vp(8) + name_w + _vp(6), _vp(27))
 	_newcamp_page.add_child(l2)
-	_nc_seed = _line_edit(_newcamp_page, "Random", Vector2(_vp(8), _vp(82)), w)
+	_nc_seed = _line_edit(_newcamp_page, "Random", Vector2(_vp(8) + name_w + _vp(6), _vp(37)), seed_w)
 	_nc_seed.max_length = 12
 	_nc_seed.text_submitted.connect(func(_t: String) -> void: _generate_camp())
+	# STORY or SANDBOX, what the one is and the other's switches.
+	var l3 := RETRO_UI.label("MODE", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
+	l3.position = Vector2(_vp(8), _vp(61))
+	_newcamp_page.add_child(l3)
+	var half := floorf((w - _vp(6)) * 0.5 / float(_scale)) * float(_scale)
+	_nc_story_btn = _plate_button(_newcamp_page, "Story", Vector2(_vp(8), _vp(71)), Vector2(half, _vp(16)), func() -> void: _set_nc_mode(false))
+	_nc_sandbox_btn = _plate_button(_newcamp_page, "Sandbox", Vector2(_vp(8) + half + _vp(6), _vp(71)), Vector2(half, _vp(16)), func() -> void: _set_nc_mode(true))
+	_nc_about = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale, false)
+	_nc_about.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_nc_about.position = Vector2(_vp(8), _vp(91))
+	_nc_about.size = Vector2(w, _vp(30))
+	_newcamp_page.add_child(_nc_about)
+	_nc_warn = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_RED_LIGHT, _scale, false)
+	_nc_warn.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_nc_warn.position = Vector2(_vp(8), _vp(126))
+	_nc_warn.size = Vector2(w, _vp(30))
+	_newcamp_page.add_child(_nc_warn)
+	_nc_opts.clear()
+	var ids := ["threats", "weather", "events", "wear", "money"]
+	for i in ids.size():
+		var id: String = ids[i]
+		var at := Vector2(_vp(8) + float(i % 2) * (half + _vp(6)), _vp(122) + float(i / 2) * _vp(16))
+		_nc_opts[id] = _plate_button(_newcamp_page, "", at, Vector2(half, _vp(14)), func() -> void: _flip_nc_rule(id))
 	_plate_button(_newcamp_page, "Generate", Vector2(_newcamp_page.size.x - _vp(8 + 70 * 2 + 6), plate_h - _vp(30)), Vector2(_vp(70), _vp(16)), _generate_camp)
 	_plate_button(_newcamp_page, "Cancel", Vector2(_newcamp_page.size.x - _vp(8 + 70), plate_h - _vp(30)), Vector2(_vp(70), _vp(16)), func() -> void: show_page("coop" if _for_coop else "main"))
 	# CAMPS (tiles)
@@ -1142,6 +1181,13 @@ func _page_first() -> int:
 
 func _refresh_camps() -> void:
 	_camps = PROFILES.list_camps()
+	# For two only sandbox camps: a story camp is one warden's.
+	if _for_coop:
+		var sandbox_camps: Array[Dictionary] = []
+		for c in _camps:
+			if bool(c.get("sandbox", false)):
+				sandbox_camps.append(c)
+		_camps = sandbox_camps
 	_camp_sel = clampi(_camp_sel, 0, maxi(0, _camps.size() - 1))
 	if _camps_title != null:
 		_camps_title.set_text("HOST A SAVED CAMP" if _for_coop else "CAMPS")
@@ -1166,12 +1212,15 @@ func _paint_tiles() -> void:
 		var n := tile.get_node("Name") as Label
 		n.text = str(c.get("name", "Camp"))
 		n.add_theme_color_override("font_color", RETRO_UI.C_AMBER_LIGHT if sel else RETRO_UI.C_BONE)
-		(tile.get_node("Info") as Label).text = "DAY %d  $%s  %s" % [int(c.get("day", 1)), _money(int(c.get("money", 0))), _ago(int(c.get("played", 0)))]
+		(tile.get_node("Info") as Label).text = "%s  DAY %d  $%s" % ["SANDBOX" if bool(c.get("sandbox", false)) else "STORY", int(c.get("day", 1)), _money(int(c.get("money", 0)))]
 	if _camp_hint != null:
 		var per := TILE_COLS * TILE_ROWS
 		var pages := maxi(1, int(ceil(float(_camps.size()) / float(per))))
 		var at := "%d/%d" % [_camp_sel / per + 1, pages] if pages > 1 else ""
-		_camp_hint.text = "NO CAMPS YET" if _camps.is_empty() else at
+		if _for_coop:
+			_camp_hint.text = ("NO SANDBOX CAMPS YET. " if _camps.is_empty() else at + "  ") + "STORY CAMPS ARE FOR ONE WARDEN."
+		else:
+			_camp_hint.text = "NO CAMPS YET" if _camps.is_empty() else at
 
 
 static var _thumbs: Dictionary = {}
@@ -1239,7 +1288,7 @@ func _refresh_camp_page() -> void:
 		_camp_thumb.texture = _thumb_texture(str(c.get("thumb", "")))
 	if _camp_info != null:
 		var made := Time.get_datetime_dict_from_unix_time(int(c.get("created", 0)))
-		_camp_info.text = "DAY %d   $%s\nGUESTS %d\nSEED %d\nSINCE %02d.%02d.%04d%s" % [int(c.get("day", 1)), _money(int(c.get("money", 0))), int(c.get("guests", 0)), int(c.get("seed", 0)), int(made.get("day", 1)), int(made.get("month", 1)), int(made.get("year", 1970)), "\nFOR TWO" if bool(c.get("coop", false)) else ""]
+		_camp_info.text = "%s\nDAY %d   $%s\nGUESTS %d\nSEED %d\nSINCE %02d.%02d.%04d%s" % ["SANDBOX" if bool(c.get("sandbox", false)) else "STORY", int(c.get("day", 1)), _money(int(c.get("money", 0))), int(c.get("guests", 0)), int(c.get("seed", 0)), int(made.get("day", 1)), int(made.get("month", 1)), int(made.get("year", 1970)), "\nFOR TWO" if bool(c.get("coop", false)) else ""]
 	if _btn_del != null:
 		_btn_del.text = "Really delete?" if _camp_delete_armed else "Delete camp"
 	refresh_saves()
@@ -1273,8 +1322,61 @@ func _open_newcamp() -> void:
 		_newcamp_title.set_text("HOST A NEW CAMP" if _for_coop else "NEW CAMP")
 	_nc_name.text = PROFILES.default_camp_name()
 	_nc_seed.text = ""
+	_nc_rules = {"threats": true, "weather": true, "events": true, "wear": true, "money": 0}
+	# Two wardens play a sandbox camp: the story is one warden's.
+	_set_nc_mode(_for_coop)
 	_nc_name.grab_focus()
 	_nc_name.select_all()
+
+
+func _set_nc_mode(sandbox: bool) -> void:
+	_nc_sandbox = sandbox or _for_coop
+	_nc_story_btn.disabled = _for_coop
+	_mark_plate(_nc_story_btn, not _nc_sandbox)
+	_mark_plate(_nc_sandbox_btn, _nc_sandbox)
+	if _nc_sandbox:
+		_nc_about.text = "NO STORY AND NO MAILS FROM VERA, NO DEADLINE. EVERY PROGRAM IS ON THE PC. YOU SET THE RULES:"
+		_nc_warn.text = ""
+	else:
+		_nc_about.text = "AUNT VERA'S CAMP: HER MAILS, HER CHECKLIST, THE DISTRICT'S INSPECTION ON DAY 31. THE NIGHTS AS THEY COME."
+		_nc_warn.text = "A STORY CAMP IS FOR ONE WARDEN: IT CANNOT BE PLAYED IN CO-OP. HOST A SANDBOX CAMP FOR TWO."
+	if _for_coop:
+		_nc_about.text = "CO-OP CAMPS ARE SANDBOX CAMPS (THE STORY IS FOR ONE WARDEN). NO DEADLINE. YOU SET THE RULES:"
+	for id in _nc_opts:
+		(_nc_opts[id] as Button).visible = _nc_sandbox
+	_paint_nc_rules()
+
+
+func _flip_nc_rule(id: String) -> void:
+	if id == "money":
+		var i := NC_MONEY.find(int(_nc_rules.get("money", 0)))
+		_nc_rules["money"] = NC_MONEY[(i + 1) % NC_MONEY.size()]
+	else:
+		_nc_rules[id] = not bool(_nc_rules.get(id, true))
+	_paint_nc_rules()
+
+
+func _paint_nc_rules() -> void:
+	for id in _nc_opts:
+		var b := _nc_opts[id] as Button
+		var value := ""
+		if id == "money":
+			var m := int(_nc_rules.get("money", 0))
+			value = "$" + _money(m if m > 0 else BALANCE_CONFIG.STARTING_MONEY)
+		else:
+			value = "On" if bool(_nc_rules.get(id, true)) else "Off"
+		b.text = "%s: %s" % [NC_RULE_TEXT[id], value]
+		b.add_theme_color_override("font_color", RETRO_UI.C_BONE if id == "money" or bool(_nc_rules.get(id, true)) else RETRO_UI.C_BONE_DIM)
+
+
+## The chosen one of two plates: lit amber and pressed in.
+func _mark_plate(b: Button, on: bool) -> void:
+	if on:
+		b.add_theme_stylebox_override("normal", RETRO_UI.bevel_box(Color(0.24, 0.15, 0.07, 0.96), RETRO_UI.C_BLACK, RETRO_UI.C_AMBER, _scale))
+		b.add_theme_stylebox_override("hover", RETRO_UI.bevel_box(Color(0.28, 0.18, 0.08, 0.96), RETRO_UI.C_BLACK, RETRO_UI.C_AMBER_LIGHT, _scale))
+		b.add_theme_color_override("font_color", RETRO_UI.C_AMBER_LIGHT)
+	else:
+		RETRO_UI.style_button(b, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, _scale)
 
 
 func _generate_camp() -> void:
@@ -1289,7 +1391,8 @@ func _generate_camp() -> void:
 		seed = (seed & 0x7fffffff) | 1
 	_nc_name.release_focus()
 	_nc_seed.release_focus()
-	new_camp_requested.emit(name, seed, _for_coop)
+	var sandbox := _nc_sandbox or _for_coop
+	new_camp_requested.emit(name, seed, _for_coop, sandbox, _nc_rules.duplicate() if sandbox else {})
 
 
 # ── wardens ───────────────────────────────────────────────────────────────────

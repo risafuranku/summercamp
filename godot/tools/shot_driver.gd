@@ -123,9 +123,7 @@ const SCENARIOS := {
 		["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.5], ["shot", "41_quest_stood_up"],
 		["player", 15, 3, 0.0], ["eval", "_player.rotate_y(PI)"], ["wait", 1.0], ["shot", "42_quest_make_up"],
 		["prep_all"], ["wait", 1.0], ["eval", "_quest_manager.current_step_id()"],
-		["hours", 1.6], ["wait", 2.0], ["eval", "_quest_manager.current_step_id()"],
-		["eval", "_quest_manager.notify('talked_to_guest')"], ["wait", 1.0],
-		["eval", "_quest_manager.current_step_id()"], ["shot", "43_quest_feed"],
+		["hours", 1.6], ["wait", 2.0], ["eval", "_quest_manager.current_step_id()"], ["shot", "43_quest_feed"],
 		["eval", "_quest_manager.export_state()"],
 	],
 	"menu": [

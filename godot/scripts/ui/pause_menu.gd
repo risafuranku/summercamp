@@ -40,7 +40,9 @@ var _leave_text: String = ""
 
 func _init() -> void:
 	name = "PauseMenu"
-	layer = 110
+	# Over every room, close-up and job (the check-in desk is 140, the pipes 128): it was
+	# opening behind the desk, unseen.
+	layer = 150
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 

@@ -2067,7 +2067,10 @@ func _update_window_portal() -> void:
 	var eye_room := _room_root.to_local(_interior_camera.global_position) if _room_root != null else _interior_camera.position
 	var in_back: bool = _extras != null and (_extras.in_back_room() or _extras._walking())
 	# Only the window you can see, and only while its curtains let anything through.
-	var office_on: bool = not in_back or not _extras.in_back_room()
+	# On the way back from the back room (and with its door open) the office window comes
+	# into view before you stand in the office: it was off till the walk ended, and showed
+	# the night's picture through the morning.
+	var office_on: bool = not in_back or not _extras.in_back_room() or _extras._walking() or _extras.back_door_open()
 	if _office_curtain != null and _office_curtain.open < 0.02:
 		office_on = false
 	office_on = office_on and _aim_portal(_window_cam, _portal_frame(WINDOW_CENTER, Vector3(0, 0, -1)), WINDOW_SIZE, eye_room)

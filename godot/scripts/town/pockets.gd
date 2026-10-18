@@ -149,6 +149,7 @@ func _ready() -> void:
 	_puff_layer = Control.new()
 	_puff_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_puff_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_puff_layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_puff_layer.draw.connect(_draw_puffs)
 	add_child(_puff_layer)
 	# Back to front: the cigarette under the fingers that hold it, the one in your mouth

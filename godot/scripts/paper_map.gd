@@ -143,6 +143,19 @@ func _collect() -> Dictionary:
 	var objective := str(hud.get("_objective_text").text) if hud != null and hud.get("_objective_text") != null else ""
 	if not objective.is_empty():
 		todo.append(objective)
+	# The day's events and guests waiting to be served are circled like the night's jobs.
+	var de = _main.get("_day_events")
+	if de != null and de.has_method("open_events"):
+		for ev in de.open_events():
+			if bool(ev.get("gate", false)):
+				var gc: Vector2i = GuestManager.get_gate_coord()
+				ev["coord"] = [gc.x, gc.y]
+			jobs.append(ev)
+	var im = _main.get("_interior_manager")
+	var biz = im.get("business") if im != null else null
+	if biz != null and biz.has_method("waiting_sites"):
+		for s in biz.waiting_sites():
+			jobs.append({"kind": "serve", "coord": s["coord"], "title": "%s: %d waiting for an order" % [s["title"], int(s["n"])], "where": "serve them at the counter"})
 	for j in jobs:
 		todo.append("%s - %s" % [j.get("title", ""), j.get("where", "")])
 	return {"w": w, "h": h, "lake": lake, "trees": trees, "paths": paths, "buildings": buildings,
@@ -347,7 +360,8 @@ func _draw_map() -> void:
 		_canvas.draw_string(font, gp + Vector2(6, cell * 2.2 + fs), "CORN", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
 		corn_p = gp + Vector2(cell * 0.6, 0)
 
-	# Tonight's jobs: circled in red (the corn job round its gate).
+	# What needs you (tonight's jobs, the day's events, guests waiting at a counter):
+	# circled in red (the corn job round its gate).
 	for j in _data["jobs"]:
 		var jc: Array = j.get("coord", [-1, -1])
 		if str(j.get("kind", "")) == "corn" and corn_p != Vector2.INF:

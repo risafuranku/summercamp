@@ -329,7 +329,7 @@ func _plan(day_index: int, abs_minute: int) -> void:
 	var guests := _active_guests()
 	var count := clampi(1 + int(ceil(float(day_index) / 2.0)) + (1 if guests.size() >= 4 else 0), 2, 5)
 	var pool := _available_kinds(guests)
-	if pool.is_empty():
+	if pool.is_empty() and not BUSINESS.due_today():
 		return
 	pool.shuffle()
 	var kinds: Array = []
@@ -357,7 +357,11 @@ func _plan(day_index: int, abs_minute: int) -> void:
 
 
 func _available_kinds(guests: Array) -> Array:
-	var out: Array = ["litter"]
+	var out: Array = []
+	# Rubbish is what guests leave: an empty camp has none (a branch, the raccoons, the
+	# van come anyway).
+	if _guests_in_camp() > 0:
+		out.append("litter")
 	if not _coords_of(["restaurant", "vecerka", "pub", "corn_stand"]).is_empty():
 		out.append("raccoons")
 	var arch := guests.map(func(g): return str(g.get("archetype", "")))
@@ -451,6 +455,9 @@ func _start(ev: Dictionary, abs_minute: int) -> void:
 		ev["state"] = "cancelled"
 		return
 	if str(ev["kind"]) == "lost_kid" and not _guest_exists(int(ev.get("guest_id", -1))):
+		ev["state"] = "cancelled"
+		return
+	if str(ev["kind"]) == "litter" and _guests_in_camp() == 0:
 		ev["state"] = "cancelled"
 		return
 	ev["state"] = "open"
@@ -1133,6 +1140,18 @@ func _active_guests() -> Array:
 		if g is Dictionary and str((g as Dictionary).get("status", "")) == "active":
 			out.append(g)
 	return out
+
+
+## Everyone checked in, up or still asleep (guests asleep are "sleep", not "active").
+func _guests_in_camp() -> int:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return 0
+	var n := 0
+	for g in state.guests:
+		if g is Dictionary and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
+			n += 1
+	return n
 
 
 func _guest_exists(id: int) -> bool:

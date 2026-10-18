@@ -499,14 +499,14 @@ func _gui_input(event: InputEvent) -> void:
 				_pan_drag_moved = false
 				_pan_vel = Vector2.ZERO
 				_rmb_pressed_without_selection = selected_building == ""
+				# Only the line or the box being drawn goes; the tool stays in hand (the
+				# right button pans: it put the tool away on every pan). The tool goes with
+				# a second click on its button or card.
 				if _path_drag_active or _demolish_drag_active:
-					# Only the line or the box being drawn goes; the tool stays in hand.
 					_path_drag_active = false
 					_path_line.clear()
 					_demolish_drag_active = false
 					_emit_status("Canceled.")
-				elif selected_building != "":
-					_cancel_tool_selection()
 			else:
 				if not _pan_drag_moved and _rmb_pressed_without_selection and selected_building == "" and not _any_pending_interaction():
 					submenu_close_requested.emit()

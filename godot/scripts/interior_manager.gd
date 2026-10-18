@@ -32,6 +32,7 @@ const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
 const COOP_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## The beds of the camp's own tents, cabins and caravans for a warden to sleep in.
 const LODGE_BED = preload("res://scripts/lodge_bed.gd")
+const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
 var lodge_bed: Node
 
 const TIME_NIGHT: int = 2
@@ -347,7 +348,8 @@ func close_everything() -> void:
 			if interior.has_method(m):
 				interior.call(m)
 				break
-	_set_player_controls_enabled(true)
+	if not stepping_out():
+		_set_player_controls_enabled(true)
 
 
 func is_crt_desktop_active() -> bool:
@@ -562,20 +564,91 @@ func _on_interior_visibility_changed() -> void:
 	if not _building_interior.is_open():
 		if bool(_building_interior.get("walked_out")):
 			_building_interior.set("walked_out", false)
-			if _door_fx != null:
-				_door_fx.play(false, true)
 			if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 				_audio_manager.play_door_close()
 			_walk_on_out_of_office()
 			return
-		_door_transition(false)
 		if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 			_audio_manager.play_door_close()
+		_step_out_of(_world_3d.find_child("MainBuilding", true, false) as Node3D if _world_3d != null else null)
+
+
+## Out of a room any other way (S, the bottom band, the pause menu's Go outside): no
+## dissolve (playtest 18. 10.: "totally smooth"); the camp takes over at the building's
+## door, the warden a step out of it facing away, walking on off the doorstep. The door
+## nearest to where you went in (the toilets have two); a sewer hatch has none to walk from.
+const STEP_OUT_FROM := 0.3
+const STEP_OUT_TO := 1.7
+const NO_STEP_OUT := ["sewer", "sewage_tank"]
+
+
+var _no_step_out := false
+var _stepping_out: Tween
+var _walk_mask := 1
+
+
+func stepping_out() -> bool:
+	return _stepping_out != null and _stepping_out.is_valid() and _stepping_out.is_running()
+
+
+func _step_out_of(structure: Node3D) -> void:
+	var body := _player as CharacterBody3D
+	if _no_step_out or body == null or structure == null or not is_instance_valid(structure) \
+			or str(structure.get_meta("building_type", "")) in NO_STEP_OUT:
 		_set_player_controls_enabled(true)
+		return
+	var doors: Array = DOOR_ANIM.find_doors(structure)
+	if doors.is_empty():
+		doors = structure.find_children("TentFlap", "MeshInstance3D", true, false)
+	var pick := 0
+	var best := INF
+	for i in doors.size():
+		var d := body.global_position.distance_to((doors[i] as Node3D).global_position)
+		if d < best:
+			best = d
+			pick = i
+	var way: Dictionary = DOOR_ANIM.entry_points(structure, pick)
+	if way.is_empty():
+		_set_player_controls_enabled(true)
+		return
+	var out: Vector3 = way["outside"] - way["inside"]
+	out.y = 0.0
+	out = out.normalized()
+	var sill: Vector3 = (way["outside"] + way["inside"]) * 0.5
+	sill.y = body.global_position.y
+	if way["door"] != null:
+		DOOR_ANIM.open(way["door"], 1.2)
+	_walk_body(body, sill + out * STEP_OUT_FROM, sill + out * STEP_OUT_TO, out)
+
+
+## The warden's body from `from` to `to` facing `dir`, no collisions on the way (through
+## the door body, over the porch); the keys are his when he is down.
+func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3) -> void:
+	var mask := body.collision_mask
+	if stepping_out():
+		_stepping_out.kill()
+		mask = _walk_mask
+	_walk_mask = mask
+	_set_player_controls_enabled(false)
+	body.global_position = from
+	body.rotation.y = atan2(-dir.x, -dir.z)
+	body.set("_pitch", 0.0)
+	body.set("_pitch_target", 0.0)
+	body.velocity = Vector3.ZERO
+	body.collision_mask = 0
+	var tw := create_tween()
+	_stepping_out = tw
+	tw.tween_property(body, "global_position", to, WALK_OUT_SEC).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(body):
+			body.collision_mask = mask
+			body.velocity = Vector3.ZERO
+		_set_player_controls_enabled(true)
+	)
 
 
 ## Out of the office's front door on foot (reception_extras.go_out_front): the warden's
-## body is put under the room's eye as the dither starts, facing out, and walks on
+## body is put under the room's eye as the room closes, facing out, and walks on
 ## through the doorway and off the porch under it, so the camp picks the walk up where
 ## the room left it (playtest 18. 10.: "absolutely smooth"). Through the building's
 ## door body and over the porch with no collisions; the keys are his when he is down.
@@ -588,22 +661,7 @@ func _walk_on_out_of_office() -> void:
 	if way.is_empty():
 		_set_player_controls_enabled(true)
 		return
-	var dir: Vector3 = way["dir"]
-	body.global_position = way["from"]
-	body.rotation.y = atan2(-dir.x, -dir.z)
-	body.set("_pitch", 0.0)
-	body.set("_pitch_target", 0.0)
-	body.velocity = Vector3.ZERO
-	var mask := body.collision_mask
-	body.collision_mask = 0
-	var tw := create_tween()
-	tw.tween_property(body, "global_position", way["to"], WALK_OUT_SEC).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func() -> void:
-		if is_instance_valid(body):
-			body.collision_mask = mask
-			body.velocity = Vector3.ZERO
-		_set_player_controls_enabled(true)
-	)
+	_walk_body(body, way["from"], way["to"], way["dir"])
 
 
 func _on_tent_interact(tent_node: Node) -> void:
@@ -684,11 +742,11 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 
 
 func _on_caravan_closed() -> void:
+	var was: Node3D = _active_caravan_node
 	_active_caravan_node = null
-	_door_transition(false)
 	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 		_audio_manager.play_door_close()
-	_set_player_controls_enabled(true)
+	_step_out_of(was)
 
 
 func _on_caravan_upgrade_requested() -> void:
@@ -711,9 +769,9 @@ func _on_caravan_upgrade_requested() -> void:
 func _on_tent_closed() -> void:
 	if _tent_interior != null and _tent_interior.has_method("set_guest_occupants"):
 		_tent_interior.set_guest_occupants([])
+	var was: Node3D = _active_tent_node
 	_active_tent_node = null
-	_door_transition(false)
-	_set_player_controls_enabled(true)
+	_step_out_of(was)
 
 
 func _setup_cabin_interior() -> void:
@@ -771,11 +829,11 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 func _on_cabin_closed() -> void:
 	if _cabin_interior != null and _cabin_interior.has_method("set_guest_occupants"):
 		_cabin_interior.set_guest_occupants([])
+	var was: Node3D = _active_cabin_node
 	_active_cabin_node = null
-	_door_transition(false)
 	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 		_audio_manager.play_door_close()
-	_set_player_controls_enabled(true)
+	_step_out_of(was)
 
 
 ## Room preparation: the interior shows the mess for what is not done yet.
@@ -884,11 +942,11 @@ func _toilet_door_of(structure: Node3D) -> String:
 
 
 func _on_service_closed() -> void:
+	var was: Node3D = _active_service_node as Node3D
 	_active_service_node = null
-	_door_transition(false)
 	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 		_audio_manager.play_door_close()
-	_set_player_controls_enabled(true)
+	_step_out_of(was)
 
 
 func _on_service_repair_requested() -> void:
@@ -907,7 +965,10 @@ func _on_service_repair_requested() -> void:
 		if not _economy_manager.has_failed_utility_at(coord):
 			return
 	if _service_interior != null and _service_interior.is_open():
+		# Straight into the repair: no walk out of the door under it.
+		_no_step_out = true
 		_service_interior.close_service()
+		_no_step_out = false
 	service_repair_requested.emit(coord, building_type)
 
 

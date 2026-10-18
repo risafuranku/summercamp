@@ -378,7 +378,8 @@ func _build_prep_props() -> void:
 	var tidy_pillow := _tent_root.get_node_or_null("Pillow")
 	if tidy_bag is MeshInstance3D:
 		(tidy_bag as MeshInstance3D).material_override = heap_mat
-	var bed_body := P.body(_tent_root, Vector3(-0.28, 0.15, -0.45), Vector3(0.9, 0.3, 1.2))
+	# Round the heap (not the whole sleeping bag's place): the litter lies close beside it.
+	var bed_body := P.body(_tent_root, Vector3(-0.26, 0.12, -0.45), Vector3(0.7, 0.24, 1.0))
 	_prep.register("bed", bed_body, [heap_a, heap_b, pillow_off], [tidy_bag, tidy_pillow])
 
 	# Where the mess can be this time (core/systems/mess_rules.gd ROOM_SPOTS).

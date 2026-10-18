@@ -1,12 +1,16 @@
 extends Control
 
-## The "File Download" box: a file comes down the phone line at modem speed into
-## C:\DOWNLOAD, with the paper flying from the globe to the folder. When it is done:
-## Open, Open Folder, Close.
+## The "File Download" box: a file comes down the phone line into C:\DOWNLOAD, with the
+## paper flying from the globe to the folder. A program's setup runs by itself when it
+## is down ("Run this program from its current location"; playtest 18. 10.: players did
+## not know to open the file); anything else: Open, Open Folder, Close.
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const PROGRESS = preload("res://scripts/os98/os_progress.gd")
-const RATE_KB := [3.1, 4.1]   # 33.6k on a forest line
+## Any file takes about this long (the line made the Builder a 27 s wait).
+const SECONDS := 6.0
+## After "Download complete", before its setup starts.
+const RUN_AFTER := 1.2
 
 var _shell
 var _win
@@ -23,6 +27,7 @@ var _left: Label
 var _btns: HBoxContainer
 var _t := 0.0
 var _hdd := 0.0
+var _run_in := -1.0
 
 
 func setup(shell, win, args: Dictionary) -> void:
@@ -31,6 +36,7 @@ func setup(shell, win, args: Dictionary) -> void:
 	_file = str(args.get("file", "FILE.EXE"))
 	_url = str(args.get("url", ""))
 	_kb = float(args.get("kb", 40))
+	_rate = _kb / SECONDS
 	win.can_maximize = false
 	win.title = "0%% of %s Completed" % _file
 	_anim = Control.new()
@@ -95,10 +101,16 @@ func _process(delta: float) -> void:
 	_t += delta
 	_anim.queue_redraw()
 	if _done:
+		if _run_in >= 0.0:
+			_run_in -= delta
+			if _run_in < 0.0:
+				_shell.close_app_window(_win)
+				_shell.open_file("C:\\DOWNLOAD", _file)
 		return
 	# The line stalls now and then, like they did.
-	if fmod(_t, 7.0) < 6.2:
-		_rate = lerpf(_rate, randf_range(RATE_KB[0], RATE_KB[1]), delta)
+	if fmod(_t, 7.0) < 6.6:
+		var mean := _kb / SECONDS * 1.07
+		_rate = lerpf(_rate, randf_range(mean * 0.85, mean * 1.15), minf(1.0, delta * 3.0))
 		_got = minf(_kb, _got + _rate * delta)
 	_hdd -= delta
 	if _hdd <= 0.0:
@@ -121,6 +133,12 @@ func _finish() -> void:
 	_win.title = "Download complete"
 	_what.text = "Download Complete\nSaved: %s to C:\\DOWNLOAD" % _file
 	_left.text = "Downloaded: %d KB in %d sec\nTransfer rate: %.1f KB/Sec" % [int(_kb), int(_t), _kb / maxf(1.0, _t)]
+	var program := str(_shell.INSTALLERS.get(_file, ""))
+	if program != "" and not _shell._is_program_unlocked(program):
+		_what.text = "Download Complete\nStarting Setup..."
+		_set_buttons(["Cancel"])
+		_run_in = RUN_AFTER
+		return
 	_set_buttons(["Open", "Open Folder", "Close"])
 
 

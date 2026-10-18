@@ -203,25 +203,19 @@ func _run() -> void:
 		await _frames(3)
 		await _shot("download_done")
 	_expect(_shell.downloads().has("BLDR98SW.EXE"), "the download did not land in C:\\DOWNLOAD")
-	await _close_all()
-	_shell.open_file("C:\\DOWNLOAD", "BLDR98SW.EXE")
-	await _frames(3)
+	# The setup starts by itself once the file is down (and its window after a moment).
+	await _wait(1.5 + 1.2)
 	var su = _app("setup")
-	_expect(su != null, "the setup program did not start")
+	_expect(su != null, "the setup program did not start by itself after the download")
 	if su != null:
 		await _shot("setup_welcome")
-		su._go(1)
-		await _frames(2)
-		_expect(su._next.disabled, "setup lets you past the licence without agreeing")
-		await _shot("setup_licence")
-		su._agree = true
-		su._go(2)
-		await _frames(2)
-		su._go(3)
-		await _wait(1.0)
+		_expect(su._next.text == "Install" and not su._next.disabled, "setup's first page has no Install button")
+		su._on_next()
+		await _wait(2.4)
 		await _shot("setup_copying")
 		su._copy_t = 100.0
 		await _frames(3)
+		_expect(su._next.text == "Finish", "setup did not come to Finish")
 		await _shot("setup_done")
 	_expect(_shell._is_program_unlocked("builder"), "Builder is not installed after setup")
 	_expect(_installed.has("builder"), "program_installed was not emitted for Builder")
@@ -261,11 +255,12 @@ func _run() -> void:
 	var cs = _app("camp_status")
 	_expect(cs != null, "CampStat did not open")
 	if cs != null:
+		# Past the window's opening zoom, or the first shot has its frames in it.
+		await _wait(0.8)
 		for i in cs.TABS.size():
-			cs._tabs.current_tab = i
-			await _frames(2)
-			var p: RichTextLabel = cs._pages[str(cs.TABS[i][0])]
-			_expect(p.get_parsed_text().length() > 20, "CampStat tab %s is empty" % cs.TABS[i][0])
+			cs.select_page(str(cs.TABS[i][0]))
+			await _frames(3)
+			_expect(cs.drawn_chars > 20, "CampStat page %s is empty" % cs.TABS[i][0])
 			await _shot("campstat_" + str(cs.TABS[i][0]))
 	await _close_all()
 	_shell.open_app("guestrack")

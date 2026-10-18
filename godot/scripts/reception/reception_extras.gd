@@ -39,6 +39,8 @@ const DOOR_HINGE := Vector3(-2.43, 0.0, 1.77)
 const DOOR_OPEN_DEG := 96.0
 const THRESHOLD := Vector3(-2.15, 1.47, 1.28)
 const BACK_THRESHOLD := Vector3(-2.95, 1.47, 1.28)
+## The middle of the doorway between the office and the back room.
+const BACK_DOORWAY := Vector3(-2.55, 1.3, 1.28)
 ## The store's door in the office's back wall: hinged at its left (seen from the store),
 ## it opens out into the office.
 const STORE_HINGE := Vector3(-0.48, 0.0, 2.46)
@@ -121,9 +123,11 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 	phone_view.on_incoming_done = func(answered: bool): _incoming_done(answered)
 	host.add_child(phone_view)
 	board_view = BOARD_CLOSEUP.new()
-	board_view.key_present = func(): return not bool(_office_call("has_shed_key", [], false))
+	board_view.key_present = func(): return not bool(_office_call("shed_key_out", [], false))
 	board_view.on_key_taken = func() -> bool:
-		# Off the board and into the bag (scripts/ui/inventory.gd).
+		# Off the board and into the bag (scripts/ui/inventory.gd); there is one key.
+		if bool(_office_call("shed_key_out", [], false)):
+			return false
 		var bag = INVENTORY.find(host.get_tree()) if host != null and host.is_inside_tree() else null
 		if bag != null and not bag.add_item("key_shed"):
 			return false
@@ -488,7 +492,8 @@ func process(delta: float, hour: float) -> bool:
 		return true
 	_hover = _hover_under_mouse()
 	if _hover != "":
-		HandCursor.want(HandCursor.WALK if _hover in ["door", "doorway", "front_door", "store_door", "store_doorway"] else HandCursor.POINT)
+		var walks := _hover in ["door", "doorway", "front_door", "store_door", "store_doorway"] and not (_hover == "door" and where == "back")
+		HandCursor.want(HandCursor.WALK if walks else HandCursor.POINT)
 		glint.show_on(hot[_hover]["meshes"])
 	else:
 		glint.clear()
@@ -521,7 +526,10 @@ func _hover_under_mouse() -> String:
 			var id := str(n.get_meta("extra_hot"))
 			# Only what is in the room you are in.
 			if id == "doorway":
-				return id if where == "back" else ""
+				if where != "back":
+					return ""
+				# Shut, the doorway is the door (its box stands in front of the leaf).
+				return id if _door_pivot.rotation_degrees.y > DOOR_OPEN_DEG * 0.5 else "door"
 			if id == "store_doorway":
 				return id if where == "store" else ""
 			if id in ["front_door", "store_door"]:
@@ -551,8 +559,9 @@ func click() -> bool:
 			glint.clear()
 			board_view.open_view()
 		"door":
+			# From the back room the door itself opens and shuts; the doorway leads out.
 			if where == "back":
-				go_office()
+				_swing_back_door(_door_pivot.rotation_degrees.y < DOOR_OPEN_DEG * 0.5)
 			else:
 				go_back_room()
 		"doorway", "store_doorway":
@@ -719,11 +728,16 @@ func go_office() -> void:
 	var to_rot: Vector3 = host._initial_cam_rot
 	var keys: Array = [{"pos": camera.position, "rot": camera.rotation}]
 	var pivot: Node3D
+	var opens_first := false
 	if where == "back":
 		var face := Vector3(0.0, -PI * 0.5, 0.0)
 		keys.append({"pos": BACK_THRESHOLD, "rot": face})
 		keys.append({"pos": Vector3(-1.45, 1.44, 1.3), "rot": face})
 		pivot = _door_pivot
+		# Shut behind you (after waking, or by hand): it opens as you reach it.
+		opens_first = _door_pivot.rotation_degrees.y < DOOR_OPEN_DEG * 0.5
+		if opens_first:
+			_play(SFX_DOOR, -9.0)
 	else:
 		var face := Vector3(-0.04, 0.0, 0.0)
 		keys.append({"pos": Vector3(0.0, 1.49, 2.62), "rot": face})
@@ -734,6 +748,8 @@ func go_office() -> void:
 	var dur := 1.9
 	_note_walk("office", dur)
 	_walk = WALK_PATH.play(host, camera, keys, dur)
+	if opens_first:
+		_walk.parallel().tween_property(pivot, "rotation_degrees:y", DOOR_OPEN_DEG, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_walk.parallel().tween_property(pivot, "rotation_degrees:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(dur * 0.62)
 	_walk.tween_callback(func():
 		where = "office"
@@ -741,6 +757,23 @@ func go_office() -> void:
 		if host.get("_look") != null:
 			host._look.reset()
 	)
+
+
+var _door_swing: Tween
+
+
+func back_door_open() -> bool:
+	return _door_pivot != null and _door_pivot.rotation_degrees.y > 2.0
+
+
+## The back room's door by hand, standing in the back room: open or shut.
+func _swing_back_door(open: bool) -> void:
+	if _door_swing != null and _door_swing.is_valid():
+		_door_swing.kill()
+	_play(SFX_DOOR if open else SFX_LATCH, -9.0 if open else -12.0)
+	_door_swing = host.create_tween()
+	_door_swing.tween_property(_door_pivot, "rotation_degrees:y", DOOR_OPEN_DEG if open else 0.0, 0.55 if open else 0.45) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT if open else Tween.EASE_IN_OUT)
 
 
 func _play_steps() -> void:
@@ -794,11 +827,17 @@ func _try_sleep() -> void:
 	sleep.camera = camera
 	sleep.lie_pos = lie[0]
 	sleep.lie_rot = lie[1]
+	# Up again facing the door out to the office (shut over the night).
 	sleep.stand_pos = BACK_ROOM.STAND + Vector3(-0.9, 0.0, -0.2)
-	sleep.stand_rot = Vector3(deg_to_rad(-9.0), deg_to_rad(100.0), 0.0)
+	var to_door: Vector3 = BACK_DOORWAY - sleep.stand_pos
+	sleep.stand_rot = Vector3(deg_to_rad(-4.0), atan2(-to_door.x, -to_door.z), 0.0)
 	sleep.lamp = func(on: bool): back.set_lamp(on)
 	sleep.tv_focus = func(_on: bool): pass
-	sleep.fast_forward = func(): _office_call("start_sleep", [], null)
+	sleep.fast_forward = func():
+		if _door_swing != null and _door_swing.is_valid():
+			_door_swing.kill()
+		_door_pivot.rotation_degrees.y = 0.0
+		_office_call("start_sleep", [], null)
 	sleep.fast_forward_done = func(): return not bool(_office_call("is_sleeping_through", [], false))
 	sleep.wake_text = func(): return str(_office_call("clock_text", [], "06:30"))
 	sleep.may_sleep = func(): return bool(_office_call("may_sleep", [], true))
@@ -811,4 +850,7 @@ func _try_sleep() -> void:
 func _on_woke() -> void:
 	back.set_lamp(true)
 	look_back.reset()
+	# The head stays turned the way you got up (to the door), not back to the bed.
+	look_back.yaw_deg = rad_to_deg(wrapf(camera.rotation.y - back_base_rot.y, -PI, PI))
+	look_back.pitch_deg = rad_to_deg(camera.rotation.x - back_base_rot.x)
 	_office_call("on_woke", [], null)

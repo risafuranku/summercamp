@@ -75,6 +75,13 @@ func _hour() -> float:
 	return float(_main.get("_time_of_day_hours")) if _main != null else 12.0
 
 
+## From the evening on a bed is for lying down in; by day it is only furniture (a lodging's
+## bed took the click meant for the tent's upgrade catalog).
+func bedtime() -> bool:
+	var h := _hour()
+	return h >= 18.0 or h < WAKE_HOUR - 0.25
+
+
 ## "" when you may sleep, otherwise what goes through your head instead.
 func sleep_refusal() -> String:
 	var h := _hour()
@@ -239,6 +246,12 @@ func on_phone_effect(effect: String, _number: String) -> void:
 
 
 # ── the shed key ─────────────────────────────────────────────────────────────
+
+## Whether the key is off the board (a method: reception_extras reaches the office only
+## through calls, and reading the variable that way always said "on the board").
+func shed_key_out() -> bool:
+	return has_shed_key
+
 
 func take_shed_key() -> void:
 	if Coop.is_client():

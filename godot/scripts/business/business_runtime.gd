@@ -156,12 +156,24 @@ func _waiting_line(kind: String, waiting: Array) -> String:
 ## HUD rows for the guests waiting to be served: [{title, where}].
 func hud_rows() -> Array:
 	var rows: Array = []
-	for key in _waiting:
-		var waiting: Array = _waiting[key]
-		var kind := str(site(key).get("kind", ""))
-		var title := str((RULES.KINDS.get(kind, {}) as Dictionary).get("name", "Business"))
-		rows.append({"title": "%s: %d waiting" % [title, waiting.size()], "where": "serve them at the counter"})
+	for s in waiting_sites():
+		rows.append({"title": "%s: %d waiting for an order" % [s["title"], int(s["n"])], "where": "serve them at the counter"})
 	return rows
+
+
+## Where somebody waits to be served (the HUD's list, the paper site plan's circles):
+## [{key, coord: [x, y], title, n}].
+func waiting_sites() -> Array:
+	var out: Array = []
+	for key in _waiting:
+		var n := (_waiting[key] as Array).size()
+		var parts := str(key).split(":")
+		if n <= 0 or parts.size() < 2:
+			continue
+		var kind := str(site(key).get("kind", ""))
+		out.append({"key": str(key), "coord": [int(parts[0]), int(parts[1])], "n": n,
+			"title": str((RULES.KINDS.get(kind, {}) as Dictionary).get("name", "Business"))})
+	return out
 
 
 ## How many wait to be served at `key` now (nobody behind its counter).

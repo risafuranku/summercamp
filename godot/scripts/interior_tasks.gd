@@ -267,19 +267,54 @@ func _pick(local: Vector2) -> Array:
 		var b = _targets[id]["body"]
 		if _targets[id]["done"] and b != null and is_instance_valid(b):
 			skip.append((b as CollisionObject3D).get_rid())
-	q.exclude = skip
-	var hit := _camera.get_world_3d().direct_space_state.intersect_ray(q)
-	if hit.is_empty():
-		return ["", ""]
-	var collider = hit.get("collider")
+	# Through everything else on the ray (the bed you lie down on, a heap's big box), and of
+	# the mess it passes, the smallest: the cans by the sleeping bag, not the bag (playtest
+	# 18. 10.: in the tents the bed's bodies took every click meant for the litter).
+	var space := _camera.get_world_3d().direct_space_state
+	var first_name := ""
+	var best := ""
+	var best_size := INF
+	for _i in 8:
+		q.exclude = skip
+		var hit := space.intersect_ray(q)
+		if hit.is_empty():
+			break
+		var collider = hit.get("collider")
+		if first_name == "":
+			first_name = str(collider.get_path()) if collider is Node else str(collider)
+		var id := _target_of(collider)
+		if id != "":
+			var size := _body_size(collider)
+			if size < best_size:
+				best = id
+				best_size = size
+		skip.append(hit.get("rid"))
+	if best != "":
+		return [best, str((_targets[best]["body"] as Node).name)]
+	return ["", first_name]
+
+
+func _target_of(collider) -> String:
 	for id in _targets.keys():
 		var t: Dictionary = _targets[id]
 		if t["done"]:
 			continue
 		var body = t["body"]
 		if body != null and is_instance_valid(body) and body.is_visible_in_tree() and body == collider:
-			return [id, str(collider.name)]
-	return ["", str(collider.get_path()) if collider is Node else str(collider)]
+			return id
+	return ""
+
+
+## How big a target's body is (the volume of its boxes).
+static func _body_size(body) -> float:
+	var v := 0.0
+	if body is Node:
+		for c in (body as Node).get_children():
+			var cs := c as CollisionShape3D
+			if cs != null and cs.shape is BoxShape3D:
+				var s: Vector3 = (cs.shape as BoxShape3D).size * cs.global_basis.get_scale()
+				v += s.x * s.y * s.z
+	return v if v > 0.0 else 1.0
 
 
 func _set_hover(id: String) -> void:

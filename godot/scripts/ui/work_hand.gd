@@ -71,6 +71,8 @@ var _cache: Dictionary = {}
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The project's canvas default is linear: a hand drawn with it is smeared.
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_rng.randomize()
 

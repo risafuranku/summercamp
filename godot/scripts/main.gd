@@ -514,7 +514,7 @@ func _setup_night_jobs() -> void:
 
 ## Day 31, the inspection: the pager in the morning, the books at 08:00 (scripts/week_ledger.gd).
 func _tick_week_ledger() -> void:
-	if _omens != null and not _game_over_active and _player != null and is_instance_valid(_player):
+	if _omens != null and not _game_over_active and _player != null and is_instance_valid(_player) and camp_rule("threats"):
 		var minute_of_day := int(round(_time_of_day_hours * 60.0))
 		var abs_minute := (maxi(1, _day_index) - 1) * 1440 + minute_of_day
 		var outdoors := not _is_any_interior_open() and not get_tree().paused
@@ -733,7 +733,7 @@ func _on_week_report_menu() -> void:
 
 
 func _tick_day_events() -> void:
-	if _day_events == null:
+	if _day_events == null or not camp_rule("events"):
 		return
 	var minute_of_day := _clock_minutes_from_hours(_time_of_day_hours)
 	var abs_minute := (maxi(1, _day_index) - 1) * 1440 + minute_of_day
@@ -743,6 +743,8 @@ func _tick_day_events() -> void:
 
 func _tick_night_jobs() -> void:
 	if _night_jobs == null:
+		return
+	if not camp_rule("wear") and _test_night != TEST_SEWER:
 		return
 	var minute_of_day := _clock_minutes_from_hours(_time_of_day_hours)
 	var abs_minute := (maxi(1, _day_index) - 1) * 1440 + minute_of_day
@@ -915,7 +917,7 @@ func _setup_maintenance() -> void:
 		add_child(_maintenance)
 	_maintenance.setup(_world_3d, building_manager, Callable(self, "_get_player_camera"), _hud_manager)
 	if CoreRoot.failure_system != null:
-		CoreRoot.failure_system.enabled = true
+		CoreRoot.failure_system.enabled = camp_rule("wear")
 
 
 ## Camp Status > Upkeep (CRT) reads and acts through these.
@@ -1171,7 +1173,10 @@ func _process(delta: float) -> void:
 	var sim: bool = Coop.sim_here()
 	if time_system and sim:
 		time_system.process(delta)
-	if weather_system and sim:
+	if weather_system and sim and not camp_rule("weather"):
+		if weather_system.current_weather != WEATHER_CLEAR:
+			weather_system.set_weather(WEATHER_CLEAR)
+	elif weather_system and sim:
 		var state = CoreRoot.get_state()
 		if state != null:
 			weather_system.set_anomaly_pressure(float(state.hrotfaktor))
@@ -1225,7 +1230,7 @@ func _process(delta: float) -> void:
 		_tick_week_ledger()
 		_poll_guest_quotes(delta)
 	# The other warden's machine sees its own omens (they are only signs near you).
-	if not sim and _omens != null and not _game_over_active and _player != null and is_instance_valid(_player):
+	if not sim and _omens != null and not _game_over_active and _player != null and is_instance_valid(_player) and camp_rule("threats"):
 		var omen_minute := (maxi(1, _day_index) - 1) * 1440 + int(round(_time_of_day_hours * 60.0))
 		_omens.tick(get_process_delta_time(), omen_minute, not _is_any_interior_open() and not get_tree().paused, _player.global_position, _omen_context())
 	# The other warden's machine too: the host's day events shown and done from here
@@ -1345,7 +1350,7 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 				gate.set_night(_time_state == TIME_NIGHT or _time_of_day_hours >= LAMP_FLASHLIGHT_START_HOUR)
 		if previous_time_state == TIME_NIGHT and _time_state == TIME_DAY:
 			_on_day_phase_started()
-		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null and Coop.sim_here():
+		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null and Coop.sim_here() and camp_rule("events"):
 			_day_events.on_night()
 
 	if weather_changed:
@@ -1588,14 +1593,16 @@ func _poll_arrivals(delta: float) -> void:
 	_hud_manager.set_arrivals(GuestManager.get_arrivals())
 	var day_rows: Array = _day_events.hud_rows() if _day_events != null else []
 	var biz = _interior_manager.get("business") if _interior_manager != null else null
+	var serve_rows: Array = []
 	if biz != null:
-		day_rows = day_rows + biz.hud_rows()
+		serve_rows = biz.hud_rows()
 		if _hud_manager.has_method("set_serving"):
 			_hud_manager.set_serving(int(biz.waiting_total()))
-	if not day_rows.is_empty() and _time_state != TIME_NIGHT:
-		_hud_manager.set_jobs(day_rows, "TODAY")
+	# Guests waiting for an order are on the list by night too (the pub is open late).
+	if not (day_rows + serve_rows).is_empty() and _time_state != TIME_NIGHT:
+		_hud_manager.set_jobs(day_rows + serve_rows, "TODAY")
 	elif _night_jobs != null:
-		_hud_manager.set_jobs(_night_jobs.hud_rows())
+		_hud_manager.set_jobs(serve_rows + _night_jobs.hud_rows())
 
 
 func _on_guest_at_gate(row: Dictionary) -> void:
@@ -1643,7 +1650,7 @@ func _on_eventbus_state_changed(changes: Dictionary) -> void:
 
 
 func _sync_liminal_forecast_hud(force: bool = false) -> void:
-	if GuestManager == null or not GuestManager.has_method("get_liminal_forecast_data"):
+	if GuestManager == null or not GuestManager.has_method("get_liminal_forecast_data") or not camp_rule("threats"):
 		if force or not _liminal_forecast_snapshot.is_empty():
 			_liminal_forecast_snapshot.clear()
 			_liminal_forecast_hud_level = 0
@@ -1751,8 +1758,9 @@ func _roll_liminal_night_spawn_snapshot(night_index: int) -> void:
 func _activate_runtime_enemy_for_night(night_index: int) -> void:
 	_stop_active_enemy_brain()
 	# The first night is quiet: nobody has been in the camp long enough to bring anything
-	# with them. You read the mail, plan tomorrow and go to bed (DESIGN §3).
-	if night_index <= QUIET_NIGHTS:
+	# with them. You read the mail, plan tomorrow and go to bed (DESIGN §3). A sandbox
+	# camp can have every night quiet.
+	if night_index <= QUIET_NIGHTS or not camp_rule("threats"):
 		_active_enemy_spawned_this_night = 0
 		return
 	var entries_any = _liminal_night_roll_snapshot.get("entries", [])
@@ -2393,10 +2401,7 @@ func debug_campstat_tab(id: String) -> void:
 		return
 	for n in ui.find_children("*", "Control", true, false):
 		if n.get_script() == load("res://scripts/os98/apps/campstat_app.gd"):
-			for i in n.TABS.size():
-				if str(n.TABS[i][0]) == id:
-					n._tabs.current_tab = i
-			n.refresh()
+			n.select_page(id)
 
 
 ## Shot driver: a key press or release for Input.parse_input_event.
@@ -3978,12 +3983,12 @@ func _on_menu_new_game_pressed() -> void:
 
 ## NEW CAMP (main menu, or the co-op page's Host a new camp): a camp of the warden's,
 ## named, its world from `seed` (0: a new one).
-func _on_menu_new_camp(camp_name: String, seed: int, coop: bool) -> void:
+func _on_menu_new_camp(camp_name: String, seed: int, coop: bool, sandbox: bool, rules: Dictionary) -> void:
 	if coop and not Coop.host():
 		if _main_menu != null:
 			_main_menu.show_coop_notice("Port %d is taken." % Coop.port)
 		return
-	await _start_new_camp(coop, "", camp_name, seed, coop)
+	await _start_new_camp(sandbox or coop, "", camp_name, seed, coop, rules)
 
 
 ## The main menu's secret test nights (L): a fresh sandbox camp with a small camp built in
@@ -4073,14 +4078,19 @@ func _build_test_camp(enemy_id: String) -> void:
 	GuestManager.debug_check_in_party("Mr Vesely", "quiet_guy" if arch != "quiet_guy" else "drunk", 1, 3)
 
 
-## A fresh camp. `sandbox`: no month and no checklist, the programs already on the PC,
-## the story's mails without the ones about the deadline (co-op camps are sandbox camps).
+## A fresh camp. `sandbox`: no month, no checklist and no story mails, the programs
+## already on the PC, `rules` its switches (CAMP_RULES; co-op camps are sandbox camps).
 ## `test_enemy`: a test night's camp (`_on_menu_test_night`), not opened at the desk.
-func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String = "", seed: int = 0, coop: bool = false) -> void:
+func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String = "", seed: int = 0, coop: bool = false, rules: Dictionary = {}) -> void:
 	var started := Time.get_ticks_msec()
 	await _show_menu_loading_for("Generating a fresh camp...")
 	_reset_state_for_new_game()
 	_sandbox = sandbox
+	_camp_rules = CAMP_RULES.merged(rules, true) if sandbox else CAMP_RULES.duplicate()
+	if int(_camp_rules.get("money", 0)) > 0:
+		CoreRoot.apply_changes({"money": int(_camp_rules["money"])})
+		if _week_ledger != null:
+			_week_ledger.reset(int(_camp_rules["money"]))
 	_test_night = test_enemy
 	_pending_world_seed = seed
 	_generate_grid_world()
@@ -4100,10 +4110,8 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if sandbox:
 		_pending_loaded_crt_state = {"unlock_registry": {"builder": true, "camp_status": true, "guestrack": true, "datapunch": true}}
 	_start_game_from_menu()
-	if sandbox:
-		if EmailManager != null and EmailManager.has_method("load_story_pool"):
-			EmailManager.load_story_pool(QUEST_MANAGER_SCRIPT.STORY_SUBJECTS_OWNED, true)
-	elif _quest_manager != null:
+	# A sandbox camp has no story: no mails from Vera, Nela or the district.
+	if not sandbox and _quest_manager != null:
 		_quest_manager.begin_new_game()
 	# A new game always opens on the same song (Radio Jedna).
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
@@ -4124,6 +4132,15 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 
 ## A sandbox camp (DESIGN.md §12): no month and no checklist. Co-op camps are sandbox.
 var _sandbox := false
+## A sandbox camp's switches (NEW CAMP): the night's things (brains, director, omens),
+## weather (off: always clear), day events, breakdowns (wear and the night's jobs), the
+## starting till (0: the usual). A story camp has them all on. Saved as "rules".
+const CAMP_RULES := {"threats": true, "weather": true, "events": true, "wear": true, "money": 0}
+var _camp_rules: Dictionary = CAMP_RULES.duplicate()
+
+
+func camp_rule(id: String) -> bool:
+	return bool(_camp_rules.get(id, true))
 ## The other warden's machine: whether the host's camp has power (its lamps follow).
 var _coop_powered := true
 var _coop_wired := false
@@ -4178,6 +4195,11 @@ func _on_menu_coop_host() -> void:
 
 ## Host the camp last hosted for two (its newest save), for the other warden to join.
 func _on_menu_coop_host_saved(path: String) -> void:
+	# A story camp is one warden's (its mails, checklist and month are not for two).
+	if str(SaveManager.read_save(path).get("mode", "")) != "sandbox":
+		if _main_menu != null:
+			_main_menu.show_coop_notice("A story camp cannot be hosted. Only sandbox camps are for two.")
+		return
 	if not Coop.host():
 		if _main_menu != null:
 			_main_menu.show_coop_notice("Port %d is taken." % Coop.port)
@@ -5310,6 +5332,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 			"nature": world_generator.nature_snapshot() if world_generator != null and world_generator.has_method("nature_snapshot") else []
 		},
 		"mode": "sandbox" if _sandbox else "campaign",
+		"rules": _camp_rules.duplicate(),
 		"coop": Coop.is_host(),
 		"crt_desktop": crt_desktop_state,
 		"email_runtime": email_runtime_state,
@@ -5517,6 +5540,8 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 	elif world_generator.has_method("populate_trees"):
 		world_generator.populate_trees()
 	_sandbox = str(snapshot.get("mode", "")) == "sandbox"
+	var rules_any = snapshot.get("rules", {})
+	_camp_rules = CAMP_RULES.merged(rules_any if rules_any is Dictionary and _sandbox else {}, true)
 
 	_rebuild_core_cells_from_visual_structures()
 	var crt_any = snapshot.get("crt_desktop", {})
@@ -5824,6 +5849,7 @@ func _sync_guest_accommodation_state() -> void:
 
 func _reset_state_for_new_game() -> void:
 	_sandbox = false
+	_camp_rules = CAMP_RULES.duplicate()
 	_pending_loaded_player_state.clear()
 	_pending_night_jobs.clear()
 	if _night_jobs != null:

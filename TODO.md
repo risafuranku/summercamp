@@ -182,7 +182,8 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [ ] Replayability: randomised offers, events, enemy mixes
 
 ### 5. Sandbox mode
-- [ ] Setup screen: starting money, map size, weather, other parameters
+- [x] Setup screen: STORY or SANDBOX on NEW CAMP; the sandbox's switches (night threats, weather, day events, wear, starting money), saved with the camp
+- [ ] Setup screen, more: map size, other parameters
 - [ ] Endless play; goals: last longest, earn most, best camp, best stats
 - [ ] Score/stats screen
 

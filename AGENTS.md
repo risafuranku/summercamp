@@ -134,7 +134,8 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Which enemy an archetype brings | `main.ENEMY_FOR_ARCHETYPE` + `scripts/enemies/` |
 | HUD | `scripts/hud_manager.gd` (+ `scripts/ui/retro_ui.gd` kit) |
 | Menus / pause / game over | `scripts/ui/` |
-| Camera moves in rooms; things that move in steps | the camera moves in rooms (sitting down, getting up, looking back, the window, the bus seat) are smooth: `scripts/ui/cam_move.gd` `CAM_MOVE.move(host, camera, {"position": p, "rotation": r}, seconds)`; it holds the tween for a steady frame (`CAM_MOVE.hold(host, tween)` for any tween started while a room is built); the fire, the torch hand, the gate and such machinery step twelve a second through `scripts/ui/step12.gd`; the door transition into and out of buildings `scripts/ui/door_transition.gd` (frozen frame, smooth dither dissolve), called from `interior_manager._door_transition()` |
+| Camera moves in rooms; things that move in steps | the camera moves in rooms (sitting down, getting up, looking back, the window, the bus seat) are smooth: `scripts/ui/cam_move.gd` `CAM_MOVE.move(host, camera, {"position": p, "rotation": r}, seconds)`; it holds the tween for a steady frame (`CAM_MOVE.hold(host, tween)` for any tween started while a room is built); the fire, the torch hand, the gate and such machinery step twelve a second through `scripts/ui/step12.gd`; the door transition into buildings `scripts/ui/door_transition.gd` (frozen frame, smooth dither dissolve), called from `interior_manager._door_transition()`; out of them no dissolve: `interior_manager._step_out_of(structure)` puts the warden at the building's door (`door_anim.entry_points`) facing out and walks him off the doorstep (`_walk_body`) |
+| Story or sandbox, the sandbox's switches | NEW CAMP page in `scripts/ui/main_menu.gd` (`_set_nc_mode`, `NC_RULE_TEXT`); in game `main.CAMP_RULES` / `camp_rule(id)` ("threats", "weather", "events", "wear", "money"), saved as the snapshot's "rules"; a new system that the sandbox should be able to switch off checks `camp_rule` |
 | The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The check-in desk's key board (Dymo labels, the label maker), the room across the counter by hour/weather and its night scares | `scripts/reception/checkin_desk.gd` (`_slots`, `_pick_view`, `_roll_scare`); art `tools/artgen/desk_art.py views` |
@@ -158,7 +159,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Story mails (Vera, Nela, the odd ones) | `data/pools/emails/story/week01_story.json` |
 | The radio (playlist, outdoor source, the station) | `scripts/building_interior.gd`, synth: `tools/gen_sfx.py`; songs in `assets/sfx/radio/` (8 kHz 32 kbps, a `night` prefix = night only; originals `ost/<name>_hq.mp3`) |
 | The radio going wrong with the night (layers, song bus, broadcasts) | `scripts/radio/radio_dread.gd`; sounds `tools/audiogen/radio_lines.tsv` → `radio_fetch.py` → `tools/gen_radio_dread.py` → `assets/sfx/radio_dread/`; listen: `tools/radio_dread_demo.gd` with `--write-movie` |
-| The office: phone, noticeboard, back room, sleep | `scripts/reception/` (reception_extras, back_room, sleep_sequence, camp_office, electrician_visit) |
+| The office: phone, noticeboard, back room, sleep | `scripts/reception/` (reception_extras, back_room, sleep_sequence, camp_office, electrician_visit); the back room's door by hand `reception_extras._swing_back_door`, shut over the night in `_try_sleep`'s `fast_forward`; when beds take a click `camp_office.bedtime()` |
 | 2D close-ups (phone, noticeboard, logbook) | `scripts/closeup/closeup_view.gd` + subclasses; who answers the phone: `phone_book.gd`; voices `tools/audiogen/tts.py` + `voices.tsv` (needs a key with text_to_speech) |
 | The cursor and the hover glint | `scripts/ui/hand_cursor.gd` (`HandCursor.want(kind)` per frame), `scripts/ui/hover_glint.gd` |
 | The thing in the pipes, its staging | `scripts/pipes/pipe_director.gd` (the minigame keeps the network, movement, map, clamp) |
@@ -206,7 +207,8 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 ## 5. Gotchas
 
 - **Esc is always the pause menu** (main `_unhandled_input`), in rooms, at the PC, in
-  close-ups and jobs: nothing else may consume it. Leaving is S, the bottom band or a
+ close-ups and jobs: nothing else may consume it. Its CanvasLayer is 150, above every
+ full-screen overlay (the check-in desk is 140); a new overlay stays below it. Leaving is S, the bottom band or a
   right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
   room or job the way its own exit would. Always-processing modals return early from
   `_input` while the tree is paused.
@@ -259,7 +261,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   Anything that starts in the frame a room is built (or a still is read back from the
   GPU) must wait for a steady frame (`CAM_MOVE.hold`), or its first part goes in one
   jump. A new kind of room must call `interior_manager._door_transition(true)` before it
-  opens and `(false)` when it has closed.
+ opens and, when it has closed, `_step_out_of(its structure)` (no dissolve on the way
+ out, playtest 18. 10.); a close that goes straight on into something else (the repair
+ under a service room) sets `_no_step_out` around it.
 - **Physics ignores visibility**: hidden rooms' bodies still catch rays. Disable a hotspot's
   `collision_layer` when its thing is absent (the empty counter spot stood before the door).
 - **Load textures outside draw callbacks**: a texture first `load()`ed inside a `_draw`
@@ -273,7 +277,7 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **The reception's front door is a second portal**: the doorway (`_setup_door_view`) is
  drawn by a camera that copies the room camera mapped into the camp, at the room
  viewport's size (the quad samples `SCREEN_UV`), so it stays sharp right up to the
- dissolve; the camp building's DoorLeaf is on GLASS_LAYER, which portal cameras cull.
+ cut into the camp; the camp building's DoorLeaf is on GLASS_LAYER, which portal cameras cull.
  Walking out sets `walked_out` and the player is put where the room's eye was
  (`walk_out_handoff`), collisions off for the last step.
 - **The reception window is a portal**, not a picture: `building_interior._update_window_portal`

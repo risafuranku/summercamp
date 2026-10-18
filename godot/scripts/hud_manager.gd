@@ -803,7 +803,8 @@ func _build_arrivals() -> void:
 	_arrival_rings.name = "ArrivalStrip"
 	_arrival_rings.set("font", RETRO_UI.FONT_LABEL)
 	_arrival_rings.set("ui_scale", _scale)
-	_root.add_child(_arrival_rings)
+	# On the feed's layer: it stays up in rooms too (who is coming matters at the desk).
+	_feed_layer.add_child(_arrival_rings)
 	if not _arrivals.is_empty():
 		_arrival_rings.set_rows(_arrivals)
 	var panel := _plate()
