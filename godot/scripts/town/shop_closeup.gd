@@ -43,6 +43,9 @@ var _rng := RandomNumberGenerator.new()
 ## The card on the counter, or {}: {symbols: [6], scratched: [6 x PackedByteArray], paid}.
 var _card: Dictionary = {}
 var _scratch_snd_t := 0.0
+## Opened from the 3D shop (town_room.gd) for the card alone: no counter behind it, and
+## done with the card is done with the close-up.
+var card_only := false
 var _last_scratch := Vector2(-1, -1)
 
 
@@ -54,9 +57,20 @@ func _ready() -> void:
 
 
 func _opened() -> void:
-	play(SFX_BELL, -8.0)
 	_card = {}
+	if card_only:
+		return
+	play(SFX_BELL, -8.0)
 	say("Mrs Novotna", "What will it be.")
+
+
+## The card bought in the 3D shop, up close to scratch.
+func open_card() -> void:
+	card_only = true
+	picture = null
+	open_view()
+	_new_card()
+	say("", "Scratch the six fields. Three alike win.")
 
 
 func _hotspots() -> Array:
@@ -72,6 +86,8 @@ func _hotspots() -> Array:
 func _clicked(id: String) -> void:
 	if id == "card_done":
 		_card = {}
+		if card_only:
+			close_view()
 		return
 	if id == "her":
 		_line += 1
@@ -204,6 +220,11 @@ func _sym_name(s: String) -> String:
 # ── drawing ──────────────────────────────────────────────────────────────────
 
 func _paint(c: Control) -> void:
+	if card_only:
+		c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0.16, 0.13, 0.1))
+		if not _card.is_empty():
+			_paint_card(c)
+		return
 	if picture == null:
 		c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0.3, 0.26, 0.2))
 		c.draw_rect(Rect2(0, COUNTER_Y, W, PIC_H - COUNTER_Y), Color(0.24, 0.16, 0.1))

@@ -42,6 +42,8 @@ var _stops := [0.0, 0.0, 0.0]
 var _rng := RandomNumberGenerator.new()
 var _lamp_t := 0.0
 var _won := 0
+## Opened from the 3D pub (town_room.gd) for the machine alone.
+var slot_only := false
 
 
 func _ready() -> void:
@@ -54,7 +56,18 @@ func _ready() -> void:
 func _opened() -> void:
 	_slot = false
 	_spin_t = -1.0
+	if slot_only:
+		return
 	say("Mr Kubat", "Sit where you like. Beer's a dollar.")
+
+
+## The fruit machine in the 3D pub, up close.
+func open_slot() -> void:
+	slot_only = true
+	picture = null
+	open_view()
+	_slot = true
+	say("", "A dollar a go. Three alike pay.")
 
 
 func _hotspots() -> Array:
@@ -93,6 +106,8 @@ func _clicked(id: String) -> void:
 		"slot_back":
 			if _spin_t < 0.0:
 				_slot = false
+				if slot_only:
+					close_view()
 		"spin":
 			_spin()
 
@@ -145,6 +160,10 @@ func _pay() -> void:
 
 
 func _paint(c: Control) -> void:
+	if slot_only:
+		c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0.12, 0.09, 0.08))
+		_paint_slot(c)
+		return
 	if picture == null:
 		c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0.2, 0.15, 0.1))
 	if _him != null:

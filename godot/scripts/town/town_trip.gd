@@ -25,6 +25,9 @@ const TOWN = preload("res://scripts/town/town_lesna.gd")
 const POCKETS = preload("res://scripts/town/pockets.gd")
 const SHOP = preload("res://scripts/town/shop_closeup.gd")
 const PUB = preload("res://scripts/town/pub_closeup.gd")
+## The Jednota and the pub in 3D; their card and machine are close-ups over it.
+const TOWN_ROOM = preload("res://scripts/town/town_room.gd")
+var _room
 const SFX_TOWN := "res://assets/sfx/town/"
 ## Opening hours (game hours): the Jednota, the pub, the kiosk; rooms at the motel from.
 const HOURS := {"jednota": [7.0, 17.0], "pub": [10.0, 23.0], "kiosk": [6.0, 21.0]}
@@ -251,42 +254,85 @@ func _door(which: String) -> void:
 			if not _open("jednota"):
 				_say("A card on the glass: JEDNOTA LESNA 42. Mon - Fri 7 - 17, Sat 7 - 11. Batteries sold out.")
 				return
-			if _shop == null:
-				_shop = SHOP.new()
-				add_child(_shop)
-				_shop.bought.connect(func(item: String):
-					if item == "cigs":
-						pockets.cigarettes += 20
-					elif item == "beer":
-						pockets.beers += 1
-				)
-				_shop.closed.connect(_on_closeup_closed)
-			_set_player_controls(false)
-			_shop.open_view()
+			_open_room("jednota")
 		"pub":
 			if not _open("pub"):
 				_quote("Mr Kubat", "Shut. I do not open after eleven, whoever knocks.")
 				return
-			if _pub == null:
-				_pub = PUB.new()
-				add_child(_pub)
-				_pub.drank.connect(func(): pockets.drunk += 1.0)
-				_pub.closed.connect(_on_closeup_closed)
-			_set_player_controls(false)
-			_pub.open_view()
+			_open_room("pub")
 		"motel":
-			_motel()
+			_open_room("motel")
 		"kiosk":
 			if not _open("kiosk"):
-				_say("The kiosk window is dark. Oil cans, maps, a calendar with a lady on it.")
+				_say("The kiosk window is dark. Oil cans, maps, a calendar with a car on it.")
 				return
-			if CoreRoot.get_money() < 3 or not CoreRoot.actions.spend_money(3):
-				_quote("Mrs Lojzova", "Start is three dollars here. Two at the Jednota. Go to the Jednota.")
-				return
-			pockets.cigarettes += 20
-			_quote("Mrs Lojzova", "Start. Three dollars, it is a petrol station. Mind the pumps with that.")
+			_open_room("kiosk")
 		"chapel":
-			_say(CHAPEL)
+			# Open by day; locked, with its card, in the evening and the night.
+			if hour() >= 8.0 and hour() < 18.0:
+				_open_room("chapel")
+			else:
+				_say(CHAPEL)
+
+
+## In through the door: the room in 3D (scripts/town/town_room.gd), the frame of the
+## village breaking up into it.
+func _open_room(which: String) -> void:
+	if _room == null:
+		_room = TOWN_ROOM.new()
+		add_child(_room)
+		_room.set_modal_check(func(): return (_shop != null and _shop.visible) or (_pub != null and _pub.visible))
+		_room.bought.connect(func(item: String):
+			if item == "cigs":
+				pockets.cigarettes += 20
+			elif item == "beer":
+				pockets.beers += 1
+		)
+		_room.drank.connect(func(): pockets.drunk += 1.0)
+		_room.wants_closeup.connect(_room_closeup)
+		_room.closed.connect(func():
+			_door_fx(false)
+			_on_closeup_closed())
+	_door_fx(true)
+	_set_player_controls(false)
+	_room.open(which, hour())
+
+
+func _room_closeup(kind: String) -> void:
+	if kind == "motel_room":
+		# Mr Simek's rooms: the lobby gives way to the night (the motel's own rules).
+		var h := hour()
+		if h >= 6.0 and h < MOTEL_FROM:
+			_room.say("Mr Simek", "Rooms from seven in the evening. Sit on the bench if you are tired.")
+			return
+		if CoreRoot.get_money() < MOTEL_PRICE:
+			_room.say("Mr Simek", "Fifteen dollars. The bench by the pond is free.")
+			return
+		_room.close()
+		_motel()
+		return
+	if kind == "card":
+		if _shop == null:
+			_shop = SHOP.new()
+			add_child(_shop)
+			_shop.closed.connect(_back_to_room)
+		_shop.open_card()
+	elif kind == "slot":
+		if _pub == null:
+			_pub = PUB.new()
+			add_child(_pub)
+			_pub.closed.connect(_back_to_room)
+		_pub.open_slot()
+
+
+func _back_to_room() -> void:
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if (_room != null and _room.is_open()) else Input.MOUSE_MODE_CAPTURED)
+
+
+func _door_fx(going_in: bool) -> void:
+	var im := get_parent()
+	if im != null and im.has_method("_door_transition"):
+		im._door_transition(going_in)
 
 
 ## A room for the night at the motel: from seven in the evening, fifteen dollars; you sleep
@@ -348,6 +394,7 @@ func _say(text: String) -> void:
 func is_open() -> bool:
 	return (_timetable != null and _timetable.visible) or (_ride != null and _ride.is_open()) \
 		or (_shop != null and _shop.visible) or (_pub != null and _pub.visible) \
+		or (_room != null and _room.is_open()) \
 		or (_town != null and _town.spots["job"].is_open())
 
 
@@ -360,6 +407,8 @@ func close_interior() -> void:
 		_shop.close_view()
 	if _pub != null and _pub.visible:
 		_pub.close_view()
+	if _room != null and _room.is_open():
+		_room.close()
 	if _town != null and _town.spots["job"].is_open():
 		_town.spots["job"].close()
 

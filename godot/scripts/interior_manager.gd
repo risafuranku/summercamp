@@ -19,6 +19,12 @@ const DOOR_TRANSITION_SCRIPT = preload("res://scripts/ui/door_transition.gd")
 const TOWN_TRIP_SCRIPT = preload("res://scripts/town/town_trip.gd")
 ## Birds, crows, bats and moths over wherever you are outdoors (scripts/ambient/sky_life.gd).
 const SKY_LIFE_SCRIPT = preload("res://scripts/ambient/sky_life.gd")
+## Autumn leaves blown about in the wind (scripts/ambient/wind_life.gd).
+const WIND_LIFE_SCRIPT = preload("res://scripts/ambient/wind_life.gd")
+var _wind_life: Node3D
+## Puddles in the rain, mist along the ground at night (scripts/ambient/ground_life.gd).
+const GROUND_LIFE_SCRIPT = preload("res://scripts/ambient/ground_life.gd")
+var _ground_life: Node3D
 const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
 
 const TIME_NIGHT: int = 2
@@ -145,6 +151,28 @@ func setup(
 		_world_3d.add_child(_sky_life)
 		_sky_life.player_getter = func(): return _player
 		_sky_life.indoors = func(): return is_any_open()
+	if _wind_life == null and _world_3d != null:
+		_wind_life = WIND_LIFE_SCRIPT.new()
+		_world_3d.add_child(_wind_life)
+		_wind_life.player_getter = func(): return _player
+		_wind_life.indoors = func(): return is_any_open()
+		_wind_life.weather_getter = func():
+			var m := get_tree().current_scene
+			return int(m.get("_weather_state")) if m != null and m.get("_weather_state") != null else 0
+		_wind_life.season_getter = func():
+			var m := get_tree().current_scene
+			if m == null or m.get("_day_index") == null:
+				return Vector2(10, 12)
+			return Vector2(float(m.get("_day_index")), float(m.get("_time_of_day_hours")))
+	if _ground_life == null and _world_3d != null:
+		_ground_life = GROUND_LIFE_SCRIPT.new()
+		_world_3d.add_child(_ground_life)
+		_ground_life.player_getter = func(): return _player
+		_ground_life.indoors = func(): return is_any_open()
+		_ground_life.weather_getter = _wind_life.weather_getter
+		_ground_life.hour_getter = func():
+			var m := get_tree().current_scene
+			return float(m.get("_time_of_day_hours")) if m != null and m.get("_time_of_day_hours") != null else 12.0
 	# setup() is called once before player spawn and again after spawn.
 	# Rebind existing interiors so runtime refs (player/audio/grid) stay valid.
 	if _building_interior != null and is_instance_valid(_building_interior) and _building_interior.has_method("setup"):

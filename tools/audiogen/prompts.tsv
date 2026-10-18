@@ -185,3 +185,7 @@ steps_wood	2.4	assets/sfx/rooms/steps_wood.mp3	Four slow footsteps of a man in r
 stove_door	1.2	assets/sfx/rooms/stove_door.mp3	The small cast-iron door of an old wood-burning room stove opened and shut with a metallic clank and a squeak of the hinge, close up, indoors.
 cord_pull	0.6	assets/sfx/rooms/cord_pull.mp3	A pull-cord ceiling light switch being tugged once: a short string pull and a sharp plastic click, small storeroom, close.
 clock_tick_wall	3.0	assets/sfx/rooms/clock_tick_wall.mp3	An old electric wall clock ticking softly in a quiet wooden room, a steady second tick, close, no other sound.
+village_radio	16.0	assets/sfx/town/village_radio.mp3	A crackly old village public address loudspeaker on a wooden pole in a small Czech village: a short tinny accordion jingle, then a woman's voice reading an announcement, distorted, echoing between the houses, heard from down the street, outdoors.
+dog_bark	2.5	assets/sfx/town/dog_bark.mp3	A medium-sized village guard dog barking four times behind a garden fence, its chain rattling, outdoors, a little distant.
+hens	6.0	assets/sfx/town/hens.mp3	A few hens clucking softly and scratching in a village yard, outdoors, calm, no rooster.
+dog_far	3.0	assets/sfx/town/dog_far.mp3	A dog barking far away across a village at night, echoing, very distant, quiet.

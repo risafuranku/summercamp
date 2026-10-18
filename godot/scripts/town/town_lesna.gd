@@ -14,6 +14,9 @@ extends Node3D
 const TEX := "res://assets/textury/town/"
 const PEOPLE_SCRIPT = preload("res://scripts/town/town_people.gd")
 const PUMP_JOB = preload("res://scripts/town/pump_job.gd")
+## Pavements, paths, fences, the street's things and the life in the yards.
+const DRESSING = preload("res://scripts/town/town_dressing.gd")
+var dressing
 const TEX_CAMP := "res://assets/textury/camp/"
 const ORIGIN := Vector3(4200.0, 0.0, 0.0)
 ## The walkable village: x and z extents.
@@ -52,6 +55,9 @@ func build(p_worldgen: Node) -> void:
 	_forest()
 	_hotspots()
 	_build_smoke()
+	dressing = DRESSING.new()
+	add_child(dressing)
+	dressing.build(self)
 	var people = PEOPLE_SCRIPT.new()
 	add_child(people)
 	people.build()
@@ -206,7 +212,8 @@ func _sign(parent: Node3D, pos: Vector3, facing: Vector3, text: String, size := 
 # ── the land ────────────────────────────────────────────────────────────────
 
 func _ground() -> void:
-	var grass := _mat(TEX_CAMP + "pitch_grass.png", Color(0.86, 0.88, 0.74), Vector2(120.0, 120.0))
+	# Unmown village grass (it was the camp's football pitch, stripes and all).
+	var grass := _mat(_first([TEX + "village_grass.png", TEX_CAMP + "pitch_grass.png"]), Color(0.78, 0.9, 0.66), Vector2(180.0, 180.0))
 	var g := _plane(self, Vector3(0, -0.02, 0), Vector2(480, 480), grass)
 	g.add_to_group("season_ground")
 	_solid(self, Vector3(BOUND.get_center().x, -0.5, BOUND.get_center().y), Vector3(BOUND.size.x + 4.0, 1.0, BOUND.size.y + 4.0))
@@ -293,12 +300,14 @@ func _tiled(base: Material, size: Vector3) -> Material:
 
 
 ## A house-like block: walls, a pitched (or flat) roof, solid. Returns its root.
-func _block(at: Vector3, size: Vector3, wall: Material, roof: String = "pitched") -> Node3D:
+func _block(at: Vector3, size: Vector3, wall: Material, roof: String = "pitched", eternit := false) -> Node3D:
 	var root := Node3D.new()
 	root.position = at
 	add_child(root)
 	_box(root, Vector3(0, size.y * 0.5, 0), size, _tiled(wall, size), true)
-	var tiles := _tiled(_mat(_first([TEX + "roof_tiles.png", TEX_CAMP + "corrugated_roof.png"]), Color(0.7, 0.4, 0.3)), Vector3(size.x, 3.0, size.z * 0.6))
+	# Clay tiles, or the grey asbestos-cement slates half the village re-roofed with.
+	var roof_tex := _first([TEX + "roof_eternit.png", TEX + "roof_tiles.png"]) if eternit else _first([TEX + "roof_tiles.png", TEX_CAMP + "corrugated_roof.png"])
+	var tiles := _tiled(_mat(roof_tex, Color(0.7, 0.4, 0.3) if not eternit else Color(0.9, 0.9, 0.9)), Vector3(size.x, 3.0, size.z * 0.6))
 	if roof == "pitched":
 		for side in [-1.0, 1.0]:
 			var r := _box(root, Vector3(0, size.y + size.z * 0.18, side * size.z * 0.25), Vector3(size.x + 0.5, 0.14, size.z * 0.6), tiles)
@@ -396,39 +405,50 @@ func _station(at: Vector3) -> void:
 func _houses() -> void:
 	var walls := [_mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(1.0, 0.95, 0.85), Vector2(3.0, 1.0)),
 		_mat(TEX_CAMP + "brick_red.png", Color(0.95, 0.9, 0.85), Vector2(3.0, 1.0)),
-		_mat(_first([TEX + "village_plaster.png", TEX_CAMP + "roughcast_wall.png"]), Color(0.9, 0.95, 1.0), Vector2(3.0, 1.0))]
-	var window := _mat(_first([TEX + "house_window.png", TEX_CAMP + "window_curtain.png"]), Color(0.6, 0.66, 0.7))
-	# The same window with the light on behind the curtain (multiply: the picture shows,
-	# warmed and brighter), for the evenings.
-	var lit := (window as StandardMaterial3D).duplicate() as StandardMaterial3D
-	lit.emission_enabled = true
-	lit.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-	lit.emission_texture = lit.albedo_texture
-	lit.emission = Color(1.0, 0.78, 0.45)
-	lit.emission_energy_multiplier = 1.4
+		_mat(_first([TEX + "plaster_yellow.png", TEX_CAMP + "roughcast_wall.png"]), Color(1.0, 1.0, 0.95), Vector2(3.0, 1.0)),
+		_mat(_first([TEX + "plaster_pink.png", TEX + "village_plaster.png"]), Color(1.0, 1.0, 1.0), Vector2(3.0, 1.0))]
+	# Windows of three kinds (curtains, shutters, geraniums), each with its lit twin: the
+	# light on behind the curtain (multiply: the picture shows, warmed and brighter).
+	var kinds: Array = []
+	for wp in [_first([TEX + "house_window.png", TEX_CAMP + "window_curtain.png"]), _first([TEX + "window_shutter.png", TEX + "house_window.png"]), _first([TEX + "window_flowers.png", TEX + "house_window.png"])]:
+		var dark_m := _mat(wp, Color(0.6, 0.66, 0.7) if wp.ends_with("house_window.png") else Color(0.9, 0.9, 0.9))
+		var lit_m := (dark_m as StandardMaterial3D).duplicate() as StandardMaterial3D
+		lit_m.emission_enabled = true
+		lit_m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		lit_m.emission_texture = lit_m.albedo_texture
+		lit_m.emission = Color(1.0, 0.78, 0.45)
+		lit_m.emission_energy_multiplier = 1.4
+		kinds.append([dark_m, lit_m])
 	var lit_windows: Array = []
-	var door := _mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.42, 0.3, 0.2))
+	var houses: Array = []
+	var doors := [_mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.42, 0.3, 0.2)), _mat(_first([TEX + "house_door2.png", TEX + "house_door.png"]), Color(0.9, 0.9, 0.9))]
 	var places := [[Vector3(-44, 0, -16), 1.0], [Vector3(34, 0, -17), 1.0], [Vector3(-48, 0, 16), -1.0], [Vector3(10, 0, 19), -1.0], [Vector3(-60, 0, -18), 1.0], [Vector3(68, 0, -16), 1.0], [Vector3(-36, 0, -36), 1.0], [Vector3(30, 0, -34), 1.0]]
 	for p in places:
 		var at: Vector3 = p[0]
 		var facing := Vector3(0, 0, float(p[1]))
 		var size := Vector3(_rng.randf_range(9.0, 12.0), _rng.randf_range(3.6, 4.4), _rng.randf_range(7.0, 8.5))
-		var root := _block(at, size, walls[_rng.randi() % walls.size()])
+		var hi := houses.size()
+		var root := _block(at, size, walls[hi % walls.size()], "pitched", hi % 3 == 1)
 		var fz := size.z * 0.5 * facing.z
+		var kind: Array = kinds[hi % kinds.size()]
+		var window: Material = kind[0]
+		var lit: Material = kind[1]
+		var wsize := Vector2(1.3, 1.73) if hi % kinds.size() == 1 else Vector2(1.3, 1.3)
 		for wx in [-size.x * 0.28, size.x * 0.28]:
-			var win := _face(root, Vector3(wx, 1.7, fz), Vector2(1.3, 1.3), facing, window)
+			var win := _face(root, Vector3(wx, 1.7, fz), wsize, facing, window)
 			# Each window has its own evening: lit from some hour to some hour.
 			lit_windows.append({"mesh": win, "on": _rng.randf_range(17.5, 20.5), "off": _rng.randf_range(21.5, 24.5), "dark": window, "lit": lit})
+		houses.append({"at": at, "size": size, "facing": float(p[1]), "root": root})
+		var door: Material = doors[hi % 2]
 		# A chimney, and smoke from it when somebody has the stove going.
 		var chim := Vector3(size.x * 0.3, size.y + size.z * 0.34, -size.z * 0.12)
 		_box(root, chim, Vector3(0.6, 1.4, 0.6), _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.85, 0.8)))
 		if _rng.randf() < 0.7:
 			_chimneys.append(root.position + chim + Vector3(0, 0.8, 0))
 		_face(root, Vector3(0, 1.05, fz), Vector2(1.1, 2.1), facing, door)
-		# A picket fence along the front garden.
+		# The garden's fence, its path and what is in it: town_dressing.gd.
 		spots["lit_windows"] = lit_windows
-		var fence := _mat(TEX_CAMP + "planks_grey.png", Color(0.86, 0.84, 0.76), Vector2(6.0, 1.0))
-		_box(self, at + Vector3(0, 0.5, fz + facing.z * 3.0), Vector3(size.x + 2.0, 1.0, 0.06), fence, true)
+	spots["houses"] = houses
 
 
 # ── the stops ───────────────────────────────────────────────────────────────
@@ -620,6 +640,8 @@ func _process(delta: float) -> void:
 ## The hour, for the windows (town_trip.gd, now and then).
 func set_hour(h: float) -> void:
 	_hour = h
+	if dressing != null:
+		dressing.set_hour(h)
 	for wdict in spots.get("lit_windows", []):
 		var d: Dictionary = wdict
 		var on_at: float = d["on"]

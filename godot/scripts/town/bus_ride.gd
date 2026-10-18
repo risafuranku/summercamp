@@ -62,6 +62,12 @@ var _cam_base := Vector3.ZERO
 var _look = INTERIOR_LOOK.new(115.0, 26.0, 34.0)
 var _scenery
 var _speed := 0.0
+var _speed_prev := 0.0
+## What swings with the bus: curtains, the mascot ({node, base, k}), in steps.
+var _swingers: Array = []
+var _swing := 0.0
+var _swing_v := 0.0
+var _swing_acc := 0.0
 var _hot: Array = []
 var _hover := ""
 var _glint = HOVER_GLINT.new()
@@ -318,6 +324,7 @@ func _process(delta: float) -> void:
 		_ride.volume_db = lerpf(-12.0, -4.0, clampf(_speed / CRUISE, 0.0, 1.0))
 		_ride.pitch_scale = lerpf(0.85, 1.05, clampf(_speed / CRUISE, 0.0, 1.0))
 	_update_bumps(delta)
+	_update_swing(delta)
 	if _glass != null:
 		_glass.set_shader_parameter("t", floorf(Time.get_ticks_msec() / 83.0) * 0.083)
 		_glass.set_shader_parameter("speed", clampf(_speed / CRUISE, 0.0, 1.0))
@@ -789,6 +796,119 @@ func _build_cabin() -> void:
 	wheel.rotation.x = deg_to_rad(60.0)
 	driver.add_child(wheel)
 	_hot_body(driver, "driver", Vector3(0, 1.1, 0), Vector3(0.6, 1.0, 0.5), parts_d)
+	_dress_cabin(cabin, driver, parts_d)
+
+
+## The Karosa as it was on the 380 (playtest 17. 10.: "polish the inside of the bus"):
+## the dashboard with its dials, the driver from behind at his wheel (a Grok sprite in
+## place of the boxes), the doors' glass leaves, short pleated curtains at the windows
+## and a little bear and a pine tree swinging under the mirror (both swing with the
+## bus), luggage nets, red STOP buttons on the poles, no-smoking stickers, sunflower
+## shells and old tickets on the floor.
+func _dress_cabin(cabin: Node3D, driver: Node3D, driver_parts: Array) -> void:
+	var dash_t := _town_tex("bus_dash")
+	if dash_t != null:
+		var dash := _quad(cabin, Vector3(-0.55, 1.12, FLOOR_Z.x + 0.42), Vector2(1.2, 0.68), 0.0, _tex_mat(dash_t, false))
+		dash.rotation.x = deg_to_rad(-58.0)
+	var drv := _town_tex("bus_driver_back")
+	if drv != null:
+		for part in driver_parts:
+			(part as Node3D).visible = false
+		var h := 1.3
+		var q := _quad(driver, Vector3(0.0, 0.42 + h * 0.5, 0.18), Vector2(h * float(drv.get_width()) / float(drv.get_height()), h), 0.0, _tex_mat(drv, true))
+		q.name = "DriverBack"
+		driver_parts.append(q)
+	var door_t := _town_tex("bus_door_in")
+	if door_t != null:
+		for leaf in _door_leaves:
+			var f := _quad(leaf, Vector3(-0.03, 0.0, 0.0), Vector2(0.36, 2.0), -PI * 0.5, _tex_mat(door_t, false))
+			f.name = "DoorGlass"
+	# Curtains bunched at the pillars, both sides.
+	var cur := _town_tex("bus_curtain")
+	if cur != null:
+		var cm := _tex_mat(cur, false)
+		cm.uv1_scale = Vector3(1.0, 1.0, 1.0)
+		for side in [-1.0, 1.0]:
+			var z := FLOOR_Z.x + 0.2
+			while z < FLOOR_Z.y:
+				if absf(z - (-3.57)) > 0.5 or side < 0.0:
+					var pivot := Node3D.new()
+					pivot.position = Vector3(side * (HALF_W - 0.06), 1.74, z + 0.13)
+					cabin.add_child(pivot)
+					var c := _quad(pivot, Vector3(0, -0.3, 0), Vector2(0.2, 0.6), side * PI * 0.5, cm)
+					c.name = "Curtain"
+					_swingers.append({"node": pivot, "k": 0.35})
+				z += 1.18
+	# The bear and the tree under the mirror.
+	var mascot := _town_tex("bus_mascot")
+	if mascot != null:
+		var pivot := Node3D.new()
+		pivot.position = Vector3(-0.15, 1.92, FLOOR_Z.x + 0.32)
+		cabin.add_child(pivot)
+		_box(pivot, Vector3(0, -0.06, 0), Vector3(0.005, 0.12, 0.005), _mat("string", "", Color(0.2, 0.2, 0.2)))
+		var m := _quad(pivot, Vector3(0, -0.24, 0), Vector2(0.2 * float(mascot.get_width()) / float(mascot.get_height()), 0.2), 0.0, _tex_mat(mascot, true))
+		m.name = "Mascot"
+		_swingers.append({"node": pivot, "k": 1.0})
+	# Luggage nets over the seats.
+	var rack := _town_tex("bus_rack")
+	if rack != null:
+		for side in [-1.0, 1.0]:
+			var rq := _quad(cabin, Vector3(side * (HALF_W - 0.2), 1.86, (FLOOR_Z.x + FLOOR_Z.y) * 0.5 + 0.8), Vector2(7.6, 0.36), side * PI * 0.5, _tex_mat(rack, true))
+			rq.rotation.z = side * deg_to_rad(70.0)
+			rq.name = "LuggageNet"
+	# STOP buttons on the poles, the stickers.
+	var red := _mat("stop_btn", "", Color(0.85, 0.12, 0.1))
+	red.emission_enabled = true
+	red.emission = Color(0.6, 0.05, 0.03)
+	for z in [-2.95, 0.65, 2.45]:
+		_box(cabin, Vector3(0.12, 1.42, z + 0.03), Vector3(0.07, 0.05, 0.07), red)
+	var ns := _town_tex("no_smoking")
+	if ns != null:
+		_quad(cabin, Vector3(0.6, 1.98, FLOOR_Z.x + 0.12), Vector2(0.16, 0.16), 0.0, _tex_mat(ns, true))
+		_quad(cabin, Vector3(0.0, 1.95, FLOOR_Z.y - 0.04), Vector2(0.16, 0.16), PI, _tex_mat(ns, true))
+	var lit := _town_tex("bus_litter")
+	if lit != null:
+		for z in [-1.2, 1.5, 3.3]:
+			var dq := _quad(cabin, Vector3(randf_range(-0.2, 0.25), 0.006, z), Vector2(0.45, 0.45), 0.0, _tex_mat(lit, true))
+			dq.rotation.x = -PI * 0.5
+			dq.rotation.z = randf() * TAU
+
+
+func _town_tex(name: String) -> Texture2D:
+	var p := TEX + name + ".png"
+	return load(p) if ResourceLoader.exists(p) else null
+
+
+func _tex_mat(t: Texture2D, cut: bool) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = t
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	if cut:
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		m.alpha_scissor_threshold = 0.5
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
+
+
+## Speeding up throws what hangs back, braking forward; it settles. Drawn in steps.
+func _update_swing(delta: float) -> void:
+	if _swingers.is_empty() or delta <= 0.0:
+		return
+	var accel := (_speed - _speed_prev) / delta
+	_speed_prev = _speed
+	_swing_v += (-_swing * 14.0 - _swing_v * 1.4 + accel * 0.05) * delta
+	_swing += _swing_v * delta
+	_swing_acc += delta
+	if _swing_acc < 1.0 / 12.0:
+		return
+	_swing_acc = 0.0
+	var wob := sin(Time.get_ticks_msec() * 0.004) * 0.02 * clampf(_speed / CRUISE, 0.0, 1.0)
+	for sw in _swingers:
+		var n: Node3D = sw["node"]
+		if is_instance_valid(n):
+			n.rotation.x = clampf((_swing + wob) * float(sw["k"]), -0.6, 0.6)
 
 
 func _set_door(open: bool) -> void:

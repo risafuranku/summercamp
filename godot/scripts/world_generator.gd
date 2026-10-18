@@ -629,6 +629,7 @@ func _corn_seed() -> int:
 
 var _corn_seed_value := -1
 const CORN_TEX := "res://assets/textury/world/corn.png"
+const FOREST_FLOOR = preload("res://scripts/ambient/forest_floor.gd")
 static var _corn_mat: StandardMaterial3D
 static var _corn_mesh: ArrayMesh
 
@@ -865,6 +866,8 @@ func _create_tree(pos: Vector3, dice: RandomNumberGenerator = null) -> StaticBod
 		_:
 			_add_tree_part(tree, _tree_mesh("spruce_trunk"), _tree_material("bark", 0))
 			_add_tree_part(tree, _tree_mesh("spruce_crown"), _tree_material("needles", r.randi_range(0, 2)))
+	# Ferns, mushrooms, a stump... at its foot (scripts/ambient/forest_floor.gd).
+	FOREST_FLOOR.dress(tree)
 	return tree
 
 

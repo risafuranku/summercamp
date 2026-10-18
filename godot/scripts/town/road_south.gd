@@ -359,8 +359,27 @@ func _build_stop() -> void:
 	_solid(root, Vector3(sx, 1.2, -2.0), Vector3(1.9, 2.4, 0.16))
 	_solid(root, Vector3(sx, 1.2, 2.0), Vector3(1.9, 2.4, 0.16))
 	# A litter bin by the shelter.
-	_box(root, Vector3(sx - 0.6, 0.4, -2.5), Vector3(0.4, 0.8, 0.4), _material(TEX_DIR + "galvanized.png", "metal", Color(0.5, 0.52, 0.5)))
-	_box(root, Vector3(sx - 0.6, 0.82, -2.5), Vector3(0.44, 0.05, 0.44), dark)
+	_flat_sprite(root, TOWN_TEX + "street_bin.png", 0.95, Vector3(sx - 0.7, 0.0, -2.6), true)
+	# The platform: a strip of concrete slabs along the road with its kerb, worn earth
+	# where people stand and wait, butts trodden into it (playtest 17. 10.: "paths at
+	# the stops").
+	var slabs := _material(TOWN_TEX + "sidewalk.png", "concrete", Color(0.86, 0.86, 0.84))
+	var pm := slabs.duplicate() as StandardMaterial3D
+	pm.uv1_scale = Vector3(1.4, 4.0, 1.0)
+	pm.uv1_triplanar = false
+	var plat := _box(root, Vector3(3.55, 0.04, 0.0), Vector3(2.3, 0.08, 7.0), pm)
+	plat.name = "Platform"
+	_box(root, Vector3(2.38, 0.07, 0.0), Vector3(0.16, 0.14, 7.0), concrete)
+	for k in 3:
+		_flat_decal(root, TOWN_TEX + "dirt_path.png", Vector2(1.6, 1.3), Vector3(sx - 1.2 + k * 0.3, 0.09, -1.2 + k * 1.2))
+	_flat_decal(root, "res://assets/textury/mess/litter_ash.png", Vector2(0.5, 0.5), Vector3(sx - 0.2, 0.1, 0.6))
+	_flat_decal(root, "res://assets/textury/mess/litter_ash.png", Vector2(0.4, 0.4), Vector3(3.6, 0.09, 2.4))
+	# The trodden path through the verge from the platform back up towards the camp.
+	var path := _material(TOWN_TEX + "dirt_path.png", "earth", Color(0.9, 0.86, 0.8))
+	var lane := path.duplicate() as StandardMaterial3D
+	lane.uv1_triplanar = false
+	lane.uv1_scale = Vector3(1.0, 6.0, 1.0)
+	_box(root, Vector3(3.3, 0.02, 7.5), Vector3(1.0, 0.04, 8.0), lane)
 	# The pole by the road: the sign at the top, the timetable on it.
 	var pole_at := Vector3(3.4, 0.0, 3.0)
 	_box(root, pole_at + Vector3(0, 1.4, 0), Vector3(0.08, 2.8, 0.08), _paint(Color(0.42, 0.44, 0.42)))
@@ -414,6 +433,51 @@ func _build_stop() -> void:
 	_lamp.position = lamp_at + Vector3(0.85, 4.2, 0)
 	_lamp.visible = false
 	root.add_child(_lamp)
+
+
+## A Grok sprite `h` tall on the ground at `pos` (its feet), turned to face you.
+func _flat_sprite(root: Node3D, path: String, h: float, pos: Vector3, billboard: bool) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var t: Texture2D = load(path)
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(h * float(t.get_width()) / float(t.get_height()), h)
+	q.center_offset = Vector3(0, h * 0.5, 0)
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = t
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if billboard:
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+		m.billboard_keep_scale = true
+	mi.material_override = m
+	mi.position = pos
+	root.add_child(mi)
+
+
+## A Grok picture lying flat on the ground (keyed edges): worn earth, butts.
+func _flat_decal(root: Node3D, path: String, size: Vector2, pos: Vector3) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = size
+	q.orientation = PlaneMesh.FACE_Y
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(path)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	mi.material_override = m
+	mi.position = pos
+	mi.rotation.y = randf() * TAU
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
 
 
 ## The gravel loop the bus turns in (bus_leave_path's turn), west of the stop.
