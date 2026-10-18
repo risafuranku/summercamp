@@ -1072,11 +1072,15 @@ func _process(delta: float) -> void:
 	if sim:
 		_poll_arrivals(delta)
 		_tick_night_jobs()
-		_tick_day_events()
 		_tick_week_ledger()
-		if _maintenance != null:
-			_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
 		_poll_guest_quotes(delta)
+	# The other warden's machine too: the host's day events shown and done from here
+	# (day_events.coop_follow), the lamps' signs and hold R (what it does goes to the host).
+	if _day_events != null:
+		_day_events.coop_follow = Coop.is_client()
+	_tick_day_events()
+	if _maintenance != null:
+		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
 	if visual_module != null and visual_module.has_method("sync_enemy_distortion_fx"):
 		visual_module.sync_enemy_distortion_fx(_time_state)
 	if sim:
@@ -3615,6 +3619,7 @@ func _ensure_main_menu() -> void:
 	_main_menu.load_requested.connect(_on_menu_load_requested)
 	_main_menu.quit_requested.connect(func() -> void: get_tree().quit())
 	_main_menu.coop_host_requested.connect(_on_menu_coop_host)
+	_main_menu.coop_host_saved_requested.connect(_on_menu_coop_host_saved)
 	_main_menu.coop_join_requested.connect(_on_menu_coop_join)
 	_wire_coop()
 
@@ -3763,6 +3768,24 @@ func _on_menu_coop_host() -> void:
 	await _start_new_camp(true)
 
 
+## Host the camp last hosted for two (its newest save), for the other warden to join.
+func _on_menu_coop_host_saved(path: String) -> void:
+	if not Coop.host():
+		if _main_menu != null:
+			_main_menu.show_coop_notice("Port %d is taken." % Coop.port)
+		return
+	var started := Time.get_ticks_msec()
+	await _show_menu_loading_for("Opening the camp...")
+	if not _start_loaded_game_from_path(path):
+		Coop.leave()
+		await _hide_menu_loading_after(started, 180)
+		if _main_menu != null:
+			_main_menu.show_coop_notice("That camp would not open.")
+		return
+	await _hide_menu_loading_after(started, 520, false)
+	_start_game_from_menu()
+
+
 ## Join: call the camp at `address`; it comes back as world_arrived or join_failed.
 func _on_menu_coop_join(address: String) -> void:
 	if _main_menu != null:
@@ -3791,7 +3814,7 @@ func _on_coop_world_arrived(snapshot: Dictionary) -> void:
 	_coop_forward_builds(true)
 	call_deferred("_coop_flush_facts")
 	if _hud_manager != null:
-		_hud_manager.push_status("You came in by the barrier. The other warden is about.", 1)
+		_hud_manager.push_status("You came in by the barrier. %s is about." % Coop.partner_name(), 1)
 
 
 func _on_coop_session_ended(reason: String) -> void:
@@ -3805,13 +3828,15 @@ func _on_coop_session_ended(reason: String) -> void:
 
 
 func _on_coop_peer_joined() -> void:
-	if _hud_manager != null:
-		_hud_manager.push_status("The other warden came in by the barrier.", 1)
+	# Their name comes with their hello, a moment after the line opens.
+	await get_tree().create_timer(1.0).timeout
+	if _hud_manager != null and Coop.has_partner():
+		_hud_manager.push_status("%s came in by the barrier." % Coop.partner_name(), 1)
 
 
 func _on_coop_peer_left() -> void:
 	if _hud_manager != null:
-		_hud_manager.push_status("The other warden has gone home.", 1)
+		_hud_manager.push_status("%s has gone home." % Coop.partner_name(), 1)
 	_on_coop_partner_moved({})
 
 
@@ -3887,7 +3912,11 @@ func coop_camp_pulse() -> Dictionary:
 	if EmailManager != null:
 		mail = {"inbox": EmailManager.inbox, "sent": EmailManager.sent, "rep": EmailManager.reputation}
 	var key: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.has_shed_key
-	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key}
+	var day: Dictionary = _day_events.export_state() if _day_events != null else {}
+	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day}
+
+
+var _coop_day_hash := 0
 
 
 ## The other warden's machine: the host's camp as it now is (coop_camp_pulse).
@@ -3911,6 +3940,12 @@ func coop_apply_pulse(p: Dictionary) -> void:
 	_sync_dark_lamps()
 	if camp_office != null and is_instance_valid(camp_office):
 		camp_office.has_shed_key = bool(p.get("shed_key", camp_office.has_shed_key))
+	# The day's events: only when they changed (bringing them in builds their props anew).
+	var day: Dictionary = p.get("day", {})
+	var day_hash := hash(var_to_bytes(day))
+	if _day_events != null and day_hash != _coop_day_hash:
+		_coop_day_hash = day_hash
+		_day_events.import_state(day)
 	var mail: Dictionary = p.get("mail", {})
 	if not mail.is_empty() and EmailManager != null and EmailManager.has_method("coop_take"):
 		EmailManager.coop_take(mail)
@@ -4034,6 +4069,9 @@ func coop_request(kind: String, data: Array) -> void:
 		"upgrade":
 			if _interior_manager != null and data[0] is Dictionary:
 				_interior_manager.coop_upgrade(data[0])
+		"day_event":
+			if _day_events != null:
+				_day_events.coop_resolve(int(data[0]))
 		"checkin":
 			GuestManager.request_check_in(int(data[0]))
 		"refuse":
@@ -4441,6 +4479,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 			"nature": world_generator.nature_snapshot() if world_generator != null and world_generator.has_method("nature_snapshot") else []
 		},
 		"mode": "sandbox" if _sandbox else "campaign",
+		"coop": Coop.is_host(),
 		"crt_desktop": crt_desktop_state,
 		"email_runtime": email_runtime_state,
 		"guest_runtime": guest_runtime_state,

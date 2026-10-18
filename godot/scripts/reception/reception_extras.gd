@@ -555,7 +555,8 @@ const COOP_REFUSALS := {
 
 
 func coop_refuse(what: String) -> void:
-	_office_call("say", [str(COOP_REFUSALS.get(what, COOP_REFUSALS["pc"]))], null)
+	var line := str(COOP_REFUSALS.get(what, COOP_REFUSALS["pc"])).replace("The other warden", Coop.partner_name())
+	_office_call("say", [line], null)
 
 
 ## S or the bottom edge in the back room or the store takes you back to the office,

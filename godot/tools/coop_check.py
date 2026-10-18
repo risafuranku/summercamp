@@ -164,6 +164,15 @@ def main():
             failures.append("the mail the other warden read is not read in the host's inbox %s" % ha["mail"])
         if ha["mail"] != cg["mail"]:
             failures.append("the mail differs (host %s, other %s)" % (ha["mail"], cg["mail"]))
+    # The delivery at the host's gate: the other sees it, signs for it, and it is done in the host's camp.
+    cde, cdd, hdd = load("client_day_event"), load("client_day_done"), load("host_day_done")
+    if cde is None or cdd is None or hdd is None:
+        failures.append("missing day event fingerprints")
+    else:
+        if cde["day_open"] < 1:
+            failures.append("the other machine does not show the host's day event")
+        if hdd["day_open"] != 0 or cdd["day_open"] != 0:
+            failures.append("the day event the other warden sorted out is still open (host %s, other %s)" % (hdd["day_open"], cdd["day_open"]))
     # Over the shoulder: the host's screen on the other's PC.
     cs = load("client_shoulder")
     if cs is None or not cs["coop_screen"]:

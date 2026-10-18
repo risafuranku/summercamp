@@ -25,6 +25,7 @@ signal new_game_requested
 signal load_requested(path: String)
 signal quit_requested
 signal coop_host_requested
+signal coop_host_saved_requested(path: String)
 signal coop_join_requested(address: String)
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
@@ -71,6 +72,7 @@ var _coop_notice: Label
 var _coop_address := ""
 var _coop_caret_t := 0.0
 var _coop_preview: TextureRect
+var _coop_last_path := ""
 var _loading: Control
 var _loading_label: Label
 var _loading_tip: Label
@@ -259,11 +261,12 @@ func _rebuild() -> void:
 	_coop_list.ui_scale = _scale
 	_coop_list.row_height_vp = 22
 	_coop_list.position = Vector2(_vp(2), _vp(30))
-	_coop_list.size = Vector2(_coop_page.size.x * 0.66, _vp(22 * 5))
+	_coop_list.size = Vector2(_coop_page.size.x * 0.66, _vp(22 * 6))
 	_coop_page.add_child(_coop_list)
 	_coop_list.activated.connect(_on_coop_activated)
 	var coop_items: Array[Dictionary] = [
 		{"id": "host", "text": "Host a camp"},
+		{"id": "host_last", "text": "Last camp"},
 		{"id": "join", "text": "Join"},
 		{"id": "warden", "text": "Warden"},
 		{"id": "jacket", "text": "Jacket"},
@@ -277,7 +280,7 @@ func _rebuild() -> void:
 	_coop_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_coop_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Below the address rows, at the plate's right.
-	var pv_top := _vp(28 + 22 * 2)
+	var pv_top := _vp(28 + 22 * 3)
 	var pv_h := plate_h - pv_top - _vp(16)
 	_coop_preview.size = Vector2(pv_h * 0.42, pv_h)
 	_coop_preview.position = Vector2(_coop_page.size.x - _coop_preview.size.x - _vp(12), pv_top)
@@ -642,6 +645,11 @@ func _refresh_coop() -> void:
 		_coop_address = Coop.last_address
 	var here: Array[String] = Coop.local_addresses() if Coop != null else []
 	_coop_list.set_item_sub("host", "  ".join(here.slice(0, 2)))
+	# The camp last hosted for two: its day and till.
+	var last: Dictionary = SaveManager.latest_coop_save() if SaveManager != null and SaveManager.has_method("latest_coop_save") else {}
+	_coop_list.set_item_enabled("host_last", not last.is_empty())
+	_coop_list.set_item_sub("host_last", "" if last.is_empty() else "Day %d  $%d" % [int(last.get("day", 1)), int(last.get("money", 0))])
+	_coop_last_path = str(last.get("path", ""))
 	_refresh_coop_address()
 	_refresh_coop_look()
 
@@ -684,6 +692,12 @@ func _on_coop_activated(id: String) -> void:
 			if _coop_notice != null:
 				_coop_notice.text = ""
 			coop_host_requested.emit()
+		"host_last":
+			if _coop_last_path.is_empty():
+				return
+			if _coop_notice != null:
+				_coop_notice.text = ""
+			coop_host_saved_requested.emit(_coop_last_path)
 		"join":
 			if _coop_address.strip_edges().is_empty():
 				return

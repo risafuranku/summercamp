@@ -426,6 +426,11 @@ func _hello(look: Dictionary) -> void:
 
 # ── the camp's changes, one way ─────────────────────────────────────────────
 
+## The other warden's name (who they chose to be on the CO-OP page).
+func partner_name() -> String:
+	return str(LOOKS.NAMES[posmod(int(partner_look.get("m", 1)), LOOKS.count())])
+
+
 ## The joining warden's hands at the PC and elsewhere: what they ask the host's camp to
 ## do ("build" [type, origin, rotation], "demolish" [rect], "money" [amount], "mail"
 ## [what, mail id, ...]); the host does it (main.coop_request) and the camp comes back.

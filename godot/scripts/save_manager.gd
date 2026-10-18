@@ -151,7 +151,17 @@ func _extract_meta(parsed: Dictionary, path: String, file_name: String) -> Dicti
 		"time_hours": float(runtime.get("time_of_day_hours", 9.0)),
 		"money": int(state.get("money", 0)),
 		"guests": (guests_any as Array).size() if guests_any is Array else 0,
+		# Hosted as a co-op camp (main.gd: the CO-OP page's Host last camp).
+		"coop": bool(parsed.get("coop", false)),
 	}
+
+
+## The newest save of a camp hosted for two, or {}.
+func latest_coop_save() -> Dictionary:
+	for item in list_saves():
+		if bool(item.get("coop", false)):
+			return item
+	return {}
 
 
 func _prune_old_autosaves() -> void:

@@ -69,6 +69,12 @@ var _anim_t := 0.0
 var _last_abs := 0
 
 
+## Co-op, the other warden's machine: the host's events, shown (they come with the host's
+## camp pulse, import_state) and done from here (what you do goes to the host), never
+## planned, started or failed here.
+var coop_follow := false
+
+
 func setup(main_node: Node) -> void:
 	_main = main_node
 	_rng.randomize()
@@ -91,9 +97,9 @@ func tick(delta: float, abs_minute: int, is_day: bool, day_index: int, can_act: 
 	_anim_t += delta
 	_last_abs = abs_minute
 	var hour := float(posmod(abs_minute, 1440)) / 60.0
-	if is_day and hour >= 7.0 and _planned_day != day_index:
+	if not coop_follow and is_day and hour >= 7.0 and _planned_day != day_index:
 		_plan(day_index, abs_minute)
-	for ev in _events:
+	for ev in ([] if coop_follow else _events):
 		match str(ev["state"]):
 			"pending":
 				if abs_minute >= int(ev["at"]):
@@ -421,7 +427,19 @@ func _start(ev: Dictionary, abs_minute: int) -> void:
 	changed.emit()
 
 
+## The host: the other warden sorted out event `id` (Coop.send_request "day_event").
+func coop_resolve(id: int) -> void:
+	var ev := _event_by_id(id)
+	if not ev.is_empty() and str(ev["state"]) == "open":
+		_resolve(ev)
+
+
 func _resolve(ev: Dictionary) -> void:
+	if coop_follow:
+		# Done in the host's camp (what it pays and how the guests take it).
+		Coop.send_request("day_event", [int(ev["id"])])
+		_close(ev, "done", "")
+		return
 	var rules: Dictionary = RULES[str(ev["kind"])]
 	var text := ""
 	match str(ev["kind"]):
