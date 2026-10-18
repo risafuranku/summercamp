@@ -328,6 +328,11 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   `mate_place()` (remote_player.gd, state "att"). The ball games are the host's in
   co-op: `_launch` sends each flight (`Coop.send_play` "shot"), the other machine only
   follows (`coop_take_shot`) and sends its swings ("press").
+- **Co-op knocked down** (`main._coop_come_to`): health 0 with a partner does not end
+  the game: `_coop_down` (controls off, damage ignored, warden state "dn", the figure
+  lies prone on the other machine, `coop_night._is_out` false); the other's E sends
+  "lift" (`Coop.send_play` -> `main.coop_lifted`), else `COOP_DOWN_WAIT` and the office
+  step. Anything that hurts the warden must go through `damage_player`.
 - **Co-op bus** (`bus_ride.gd`, `town_trip.gd`): each machine runs its own ride; the
   warden state's `bus` ({st, s, go}: stop, seat, under way) is what the other sees. A
   partner aboard and not gone turns that stop's bus into a "hold" special

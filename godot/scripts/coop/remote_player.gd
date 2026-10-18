@@ -18,7 +18,8 @@ const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const SPRITE_HEIGHT_M := 1.74
 ## How tall each pose is drawn (its picture is that tall from top to bottom edge).
 const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32,
-	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86, "write": 0.92}
+	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86, "write": 0.92,
+	"bedfoot": 0.7}
 ## Poses drawn lying down: how long the picture is from side to side.
 const POSE_WIDTH := {"bed": 1.85}
 ## The guests' walk cycle (scripts/guest_agents.gd), so the two look alike.
@@ -145,7 +146,7 @@ func _apply_pose(p: String, force := false) -> void:
 			_sprite.pixel_size = float(POSE_HEIGHT.get(pose, SPRITE_HEIGHT_M)) / float(tex.get_height())
 		_sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
 	# Seated in the boat the hull is their shadow; in bed and at the counter, the furniture.
-	_shadow.visible = not (pose in ["row", "bed", "write"])
+	_shadow.visible = not (pose in ["row", "bed", "bedfoot", "write"])
 
 
 ## A small round glow, drawn once: the bulb of the torch seen from in front.
@@ -228,6 +229,18 @@ func _process(delta: float) -> void:
 		_sprite.position = Vector3.ZERO
 		_sprite.rotation.z = 0.0
 		_shadow.visible = false
+		_beam.visible = false
+		_halo.visible = false
+		_lens.visible = false
+		_update_steps(true)
+		return
+	if bool(sb.get("dn", false)):
+		# Knocked down: lying where they fell, face in the grass.
+		visible = true
+		global_position = sb.get("p", global_position)
+		_apply_pose("prone")
+		_sprite.position = Vector3.ZERO
+		_sprite.rotation.z = 0.0
 		_beam.visible = false
 		_halo.visible = false
 		_lens.visible = false

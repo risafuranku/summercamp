@@ -561,7 +561,9 @@ through for two (TODO.md, CO-OP).
   it just works. Each enemy hunts one warden at a time, the one out and alone in the dark
   sooner; the lower someone's sanity, the sooner the night picks them, the more of it
   is only theirs, and the likelier they glimpse the other warden somewhere they are not.
-  Knocked down in co-op, you come to on the office step: the camp goes on for the other.
+  Knocked down in co-op, you lie where you fell, face in the grass, and the night leaves
+  you be: the other warden can come and haul you up (E), or, nobody coming, you come to
+  on the office step a while later. The camp goes on for the other either way.
 - **The other warden** is a figure like the guests (Grok sprites) with their torch and
   their steps. Each player picks who they are on the CO-OP page, two men and two women
   (Pepa, Ondra, Jana, Bara), and the colour of their jacket; each warden is drawn

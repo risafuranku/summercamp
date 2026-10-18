@@ -225,6 +225,25 @@ func _process(delta: float) -> void:
 	if _att != null:
 		_tick_local(delta)
 	_update_mate()
+	_send_fires(delta)
+
+
+## Co-op, the host: how its fires burn (fuel, embers, the pile), every few seconds, so
+## the other machine's do not drift apart (they burn there too, between).
+var _fires_t := 0.0
+
+
+func _send_fires(delta: float) -> void:
+	_fires_t -= delta
+	if _fires_t > 0.0 or not Coop.is_host() or not Coop.has_partner():
+		return
+	_fires_t = 4.0
+	var out := {}
+	for f in get_tree().get_nodes_in_group("campfire"):
+		if f.has_method("export_state"):
+			out[att_id(f)] = f.export_state()
+	if not out.is_empty():
+		Coop.send_play("fires", ["", out])
 
 
 func _tick_local(delta: float) -> void:
@@ -362,6 +381,17 @@ func coop_state() -> Dictionary:
 ## "press" [id, key] the other's swing at it (host); "log" [id] a log on the fire (the
 ## host puts it on and says so; the other puts it on when told).
 func coop_play(kind: String, data: Array) -> void:
+	# Knocked down, and the other warden got you up (main.coop_lifted).
+	if kind == "lift":
+		main.coop_lifted()
+		return
+	if kind == "fires":
+		if Coop.is_client():
+			for id in (data[1] as Dictionary).keys():
+				var f := find_att(str(id))
+				if f != null and f.has_method("coop_take_state"):
+					f.coop_take_state(data[1][id])
+		return
 	var att := find_att(str(data[0])) if not data.is_empty() else null
 	if att == null:
 		return

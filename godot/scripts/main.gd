@@ -1109,6 +1109,7 @@ func _process(delta: float) -> void:
 
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(not _is_any_interior_open(), true)
+	_tick_coop_down(delta)
 	_update_player_control_lock()
 	if not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _in_attraction():
 		_sync_active_camera()
@@ -2703,7 +2704,7 @@ func _set_player_health(value: int, allow_game_over: bool = true) -> void:
 
 
 func damage_player(amount: int) -> void:
-	if amount <= 0:
+	if amount <= 0 or _coop_down:
 		return
 	if _week_ledger != null:
 		_week_ledger.note_hit(amount)
@@ -3138,7 +3139,10 @@ func _setup_audio() -> void:
 
 
 func _try_interact() -> void:
-	if _pause_menu != null and _pause_menu.is_open():
+	if _pause_menu != null and _pause_menu.is_open() or _coop_down:
+		return
+	if _coop_partner_down_near():
+		_coop_lift_partner()
 		return
 	if Coop.is_client():
 		_coop_client_interact()
@@ -3221,7 +3225,7 @@ func _is_structure_interior_open() -> bool:
 func _update_player_control_lock() -> void:
 	if _player == null or not _player.has_method("set_controls_enabled"):
 		return
-	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up() and not _in_attraction())
+	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up() and not _in_attraction() and not _coop_down)
 
 
 ## Sat by the fire, on the swing, at the net... (scripts/attractions/warden_play.gd).
@@ -3444,6 +3448,12 @@ func _update_torch_hand() -> void:
 
 func _update_interaction_hint() -> void:
 	if _hud_manager == null:
+		return
+	if _coop_down:
+		_hud_manager.set_hint_text("")
+		return
+	if _coop_partner_down_near():
+		_hud_manager.set_hint_text("[E] Get %s up" % Coop.partner_name())
 		return
 	if Coop.is_client():
 		_hud_manager.set_hint_text(_coop_client_hint())
@@ -4074,30 +4084,72 @@ func _on_coop_partner_moved(s: Dictionary) -> void:
 		_interior_manager.coop_partner(room)
 
 
-## Co-op: knocked down, not dead: you fall, black, and come to on the office step, sore.
+## Co-op: knocked down, not dead. You fall and lie where you fell (the other warden sees
+## you lying there: warden state "dn"); the night leaves you be. They get you up with E,
+## or, nobody coming, you come to on the office step a while later, sore.
 const COOP_COME_TO_HEALTH := 35
+const COOP_DOWN_WAIT := 90.0
+var _coop_down := false
+var _coop_down_left := 0.0
 
 
 func _coop_come_to() -> void:
-	if _player == null or not is_instance_valid(_player):
+	if _player == null or not is_instance_valid(_player) or _coop_down:
 		return
+	_coop_down = true
+	_coop_down_left = COOP_DOWN_WAIT
+	if _warden_play != null and _warden_play.is_active():
+		_warden_play.leave()
 	if _player.has_method("set_controls_enabled"):
 		_player.set_controls_enabled(false)
-	var delay := 1.2
 	if _player.has_method("play_death_fall"):
-		delay = maxf(0.6, float(_player.play_death_fall()))
-	await get_tree().create_timer(delay + 1.0).timeout
-	if _player == null or not is_instance_valid(_player):
+		_player.play_death_fall()
+	if _hud_manager != null:
+		_hud_manager.push_status("You go down. The grass is cold against your face.", 2)
+
+
+func _tick_coop_down(delta: float) -> void:
+	if not _coop_down:
 		return
-	if grid_manager != null and world_generator != null and world_generator.has_method("find_player_spawn_coord"):
+	_coop_down_left -= delta
+	if _coop_down_left <= 0.0 or not Coop.has_partner():
+		_coop_get_up(false)
+
+
+## Up again: helped (where you lie) or alone (on the office step, much later).
+func _coop_get_up(helped: bool) -> void:
+	if not _coop_down or _player == null or not is_instance_valid(_player):
+		return
+	_coop_down = false
+	if not helped and grid_manager != null and world_generator != null and world_generator.has_method("find_player_spawn_coord"):
 		_player.global_position = grid_manager.grid_to_world(world_generator.find_player_spawn_coord()) + Vector3(1.6, 1.0, 0.6)
 	if _player.has_method("reset_damage_feedback_state"):
 		_player.reset_damage_feedback_state(false)
-	if _player.has_method("set_controls_enabled"):
-		_player.set_controls_enabled(true)
 	_set_player_health(COOP_COME_TO_HEALTH, false)
 	if _hud_manager != null:
-		_hud_manager.push_status("You come to on the office step. You don't remember getting here.", 2)
+		if helped:
+			_hud_manager.push_status("%s hauls you up by the jacket. \"Come on. Not here.\"" % Coop.partner_name(), 1)
+		else:
+			_hud_manager.push_status("You come to on the office step. You don't remember getting here.", 2)
+
+
+## The other warden lying near you (knocked down): E gets them up.
+func _coop_partner_down_near() -> bool:
+	if not bool(Coop.partner_state.get("dn", false)) or _player == null or not is_instance_valid(_player):
+		return false
+	var fig := Coop.remote_figure()
+	return fig != null and fig.visible and Vector2(fig.global_position.x - _player.global_position.x, fig.global_position.z - _player.global_position.z).length() < 2.2
+
+
+func _coop_lift_partner() -> void:
+	Coop.send_play("lift", [])
+	if _hud_manager != null:
+		_hud_manager.push_status("You get %s up. They are shaking." % Coop.partner_name(), 1)
+
+
+## The other machine: the other warden got you up.
+func coop_lifted() -> void:
+	_coop_get_up(true)
 
 
 ## The night for two: enemies hunt either warden, the other machine sees them
@@ -4134,7 +4186,7 @@ func coop_camp_pulse() -> Dictionary:
 	var key: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.has_shed_key
 	var day: Dictionary = _day_events.export_state() if _day_events != null else {}
 	# The night's faults that put lamps out (the breaker, a dead circuit).
-	var nj := {"bt": bool(_night_jobs.breaker_tripped), "dc": int(_night_jobs.dead_circuit)} if _night_jobs != null else {}
+	var nj := {"bt": bool(_night_jobs.breaker_tripped), "dc": int(_night_jobs.dead_circuit), "jobs": _night_jobs.coop_jobs()} if _night_jobs != null else {}
 	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj}
 
 
@@ -4193,6 +4245,8 @@ func coop_apply_pulse(p: Dictionary) -> void:
 	if _night_jobs != null and not nj.is_empty():
 		_night_jobs.breaker_tripped = bool(nj.get("bt", false))
 		_night_jobs.dead_circuit = int(nj.get("dc", -1))
+		# Tonight's jobs, the host's: listed, paged and pointed to here too.
+		_night_jobs.coop_take(nj.get("jobs", []))
 	_sync_dark_lamps()
 	if camp_office != null and is_instance_valid(camp_office):
 		camp_office.has_shed_key = bool(p.get("shed_key", camp_office.has_shed_key))
@@ -4664,6 +4718,10 @@ func coop_local_warden() -> Dictionary:
 	var att: Dictionary = _warden_play.coop_state() if _warden_play != null and is_instance_valid(_warden_play) else {}
 	if not att.is_empty():
 		s["att"] = att
+	# Knocked down, lying there.
+	if _coop_down:
+		s["dn"] = true
+		s["t"] = false
 	# In bed (the night passes only when both are: camp_office.gd).
 	if camp_office != null and is_instance_valid(camp_office) and camp_office.in_bed():
 		s["z"] = true

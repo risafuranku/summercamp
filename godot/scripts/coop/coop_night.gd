@@ -116,10 +116,11 @@ static func _other_of(who: String) -> String:
 
 ## Out where the night can reach: not in a room, in the boat or in town.
 func _is_out(who: String) -> bool:
+	# Knocked down, lying there: the night lets go of them (main._coop_come_to).
 	if who == "host":
-		return bool(main._can_enemy_runtime_actions())
+		return bool(main._can_enemy_runtime_actions()) and not bool(main.get("_coop_down"))
 	var s: Dictionary = Coop.partner_state
-	return not s.is_empty() and not bool(s.get("in", false)) and not s.has("boat") and not s.has("ride") and bool(main._is_enemy_night_active())
+	return not s.is_empty() and not bool(s.get("in", false)) and not bool(s.get("dn", false)) and not s.has("boat") and not s.has("ride") and bool(main._is_enemy_night_active())
 
 
 func _dark_at(who: String) -> float:

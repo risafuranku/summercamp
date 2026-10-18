@@ -157,6 +157,45 @@ func extra_dark_lamps(lamp_keys: Array, grid_height: int) -> Array:
 	return out
 
 
+# ── co-op: the host's night for the other warden ───────────────────────────────
+
+## The jobs as they stand (open and sorted ones: the other machine plans none of its
+## own, scripts/main.gd coop_camp_pulse "nj").
+func coop_jobs() -> Array:
+	return _jobs.filter(func(j): return str(j["state"]) in ["open", "done"]).map(func(j): return (j as Dictionary).duplicate(true))
+
+
+static func _job_id(job: Dictionary) -> String:
+	return "%s@%s@%d" % [str(job["kind"]), str(job["coord"]), int(job.get("at", 0))]
+
+
+## The other machine: the host's jobs here (the TONIGHT list, the waypoint); a job
+## that opens pages this warden too, one sorted out (by either) says so.
+func coop_take(jobs: Array) -> void:
+	var was := {}
+	for j in _jobs:
+		was[_job_id(j)] = str(j["state"])
+	var any := false
+	for j in jobs:
+		if not (j is Dictionary):
+			continue
+		var id := _job_id(j)
+		var st := str(j["state"])
+		if st == "open" and was.get(id, "") != "open":
+			_report("Pager: %s. %s." % [str(j["title"]), str(j["where"])], 2)
+			_page()
+			any = true
+		elif st == "done" and was.get(id, "") == "open":
+			_report("%s: sorted." % str(j["title"]), 1)
+			any = true
+	if any or jobs.size() != _jobs.size():
+		changed.emit()
+	_jobs.clear()
+	for j in jobs:
+		if j is Dictionary:
+			_jobs.append(j)
+
+
 func export_state() -> Dictionary:
 	return {"breaker_tripped": breaker_tripped, "dead_circuit": dead_circuit, "fault": _fault, "jobs": _jobs.duplicate(true), "planned_night": _planned_night}
 

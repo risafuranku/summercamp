@@ -48,7 +48,7 @@ def diff_list(name, a, b, failures):
 def main():
     os.makedirs(OUT, exist_ok=True)
     for f in os.listdir(OUT):
-        if f.endswith(".json") or f.endswith(".png") or f in ("host_up", "client_ready"):
+        if f.endswith(".json") or f.endswith(".png") or f in ("host_up", "client_ready", "task_host", "task_client"):
             os.remove(os.path.join(OUT, f))
     host = run("host")
     time.sleep(2.0)
@@ -125,6 +125,17 @@ def main():
             failures.append("the host's kicks are not seen on the other court %s" % cc["court_kicked"])
         if not hc["att_mate"] or not cc["att_mate"]:
             failures.append("the other warden is not seen on the court (host %r, client %r)" % (hc["att_mate"], cc["att_mate"]))
+    # Knocked down: the other warden lies there (seen so on the host's), and is got up.
+    cd, hd, cl = load("client_down"), load("host_down"), load("client_lifted")
+    if cd is None or hd is None or cl is None:
+        failures.append("missing knocked-down fingerprints")
+    else:
+        if not cd["down"]:
+            failures.append("the other warden did not go down (%s)" % cd["hp"])
+        if not hd["partner_down"] or hd["other_pose"] != "prone":
+            failures.append("the host does not see the other warden lying there (%s, %s)" % (hd["partner_down"], hd["other_pose"]))
+        if cl["down"] or cl["hp"] != 35:
+            failures.append("the other warden was not got up (down %s, hp %s)" % (cl["down"], cl["hp"]))
     # The room: the other's job done in the host's camp, the host's back in the other's.
     hr, cr = load("host_room"), load("client_room")
     if hr is None or cr is None:
@@ -246,6 +257,10 @@ def main():
     if "Coop: the night, here: knock" not in ctext:
         failures.append("the night director's knock did not reach the other warden")
     # Sleep: alone in bed the night stays; both in bed, both wake on the next morning.
+    # One bed in the back room: the other is turned away from it (they sleep in a tent).
+    crb = load("client_refused_bed")
+    if crb is not None and crb["in_bed"]:
+        failures.append("both wardens lie in the one bed of the back room")
     hz, hm, cm = load("host_waiting"), load("host_morning"), load("client_morning")
     if hz is None or hm is None or cm is None:
         failures.append("missing sleep fingerprints (waiting %s, host morning %s, other morning %s)" % (hz is not None, hm is not None, cm is not None))

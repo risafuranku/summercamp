@@ -600,6 +600,18 @@ func export_state() -> Dictionary:
 	return {"fuel": fuel, "embers": embers, "logs": logs_left}
 
 
+## Co-op, the other machine: the host's fire as it burns there (the logs still flying
+## in here are left to land; the pile as the host's).
+func coop_take_state(d: Dictionary) -> void:
+	fuel = clampf(float(d.get("fuel", fuel)), 0.0, MAX_FUEL)
+	embers = clampf(float(d.get("embers", embers)), 0.0, 1.0)
+	var logs := clampi(int(d.get("logs", logs_left)), 0, WOODPILE_LOGS)
+	if logs != logs_left:
+		logs_left = logs
+		for i in _pile.size():
+			_pile[i].visible = i < logs_left
+
+
 func import_state(d: Dictionary) -> void:
 	fuel = clampf(float(d.get("fuel", 0.0)), 0.0, MAX_FUEL)
 	embers = clampf(float(d.get("embers", 0.0)), 0.0, 1.0)

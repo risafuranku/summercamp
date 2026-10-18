@@ -79,7 +79,7 @@ func _ready() -> void:
 			["coop_wait_file", "client_in_room"], ["wait", 2.0], ["shot", "h2_room_sees_other"],
 			["coop_wait_file", "client_working"], ["wait", 0.8], ["shot", "h3_other_at_work"], ["coop_fingerprint", "host_sees_work"],
 			["coop_wait_file", "client_task_done"], ["wait", 2.0],
-			["coop_pick_task", ""], ["wait", 0.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "host_working"], ["wait", 6.3], ["lmb", false], ["wait", 1.0],
+			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "host_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false], ["wait", 1.0],
 			["coop_fingerprint", "host_room"], ["coop_signal", "host_task_done"],
 			["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 1.0],
 			# Into the new tent together.
@@ -123,6 +123,9 @@ func _ready() -> void:
 			# Someone lost in the corn; the other warden takes them by the arm.
 			["eval", "start_corn_hunt({})"], ["wait", 2.0], ["coop_signal", "host_corn"], ["coop_wait_file", "client_corn_took"], ["wait", 2.0],
 			["coop_fingerprint", "host_corn"], ["eval", "end_corn_hunt()"], ["wait", 1.0], ["coop_signal", "host_corn_done"],
+			# The other warden knocked down: lying there till the host gets them up.
+			["coop_wait_file", "client_down"], ["wait", 1.5], ["coop_go_to_partner", 3.5], ["wait", 1.0], ["shot", "h13_other_down"], ["coop_fingerprint", "host_down"],
+			["coop_go_to_partner", 1.2], ["wait", 0.5], ["eval", "_try_interact()"], ["wait", 1.0], ["coop_signal", "host_lifted"],
 			# The night director's touch on the other warden: it happens on their machine.
 			["coop_fx", "knock"], ["wait", 1.0],
 			# To bed: alone, the night does not pass; with the other one in bed too, it does.
@@ -159,7 +162,7 @@ func _ready() -> void:
 			["coop_wait_file", "host_court_done"], ["eval", "_warden_play.leave()"], ["wait", 0.5], ["coop_place", 14, 14, -1.0],
 			["coop_wait_file", "host_in_room"], ["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "client_in_room"],
 			["wait", 2.0], ["shot", "c2_room_sees_host"],
-			["coop_pick_task", ""], ["wait", 0.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "client_working"], ["wait", 6.3], ["lmb", false],
+			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "client_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false],
 			["wait", 1.0], ["coop_signal", "client_task_done"],
 			["coop_wait_file", "host_working"], ["wait", 0.5], ["coop_aim_partner_job"], ["wait", 0.6], ["shot", "c3_host_at_work"],
 			["coop_wait_file", "host_task_done"], ["wait", 2.0], ["shot", "c4_room_after_host"], ["coop_fingerprint", "client_room"],
@@ -193,9 +196,15 @@ func _ready() -> void:
 			["coop_wait_file", "host_private_mine"], ["wait", 2.5], ["coop_fingerprint", "client_private_gone"], ["coop_signal", "client_private_gone"],
 			["coop_wait_file", "host_corn"], ["wait", 2.0], ["coop_goto_corn_guest"], ["wait", 1.0], ["shot", "c5c_corn_guest"],
 			["eval", "_coop_client_interact()"], ["wait", 0.5], ["coop_signal", "client_corn_took"], ["coop_wait_file", "host_corn_done"],
+			["eval", "damage_player(500)"], ["wait", 2.5], ["coop_fingerprint", "client_down"], ["coop_signal", "client_down"],
+			["coop_wait_file", "host_lifted"], ["wait", 1.5], ["coop_fingerprint", "client_lifted"],
 			["coop_wait_file", "host_in_back"], ["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
 			["coop_signal", "client_in_back"], ["wait", 1.5], ["shot", "c6_back_room_host"],
-			["coop_wait_file", "host_in_bed"], ["eval", "_interior_manager._building_interior._extras._try_sleep()"],
+			# One bed in the back room, and the host has it: the other turns in in a tent
+			# (scripts/lodge_bed.gd); the night passes once both lie down.
+			["coop_wait_file", "host_in_bed"], ["eval", "_interior_manager._building_interior._extras._try_sleep()"], ["wait", 1.0], ["coop_fingerprint", "client_refused_bed"],
+			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+			["open_room", 15, 16], ["wait", 2.0], ["eval", "_interior_manager.lodge_bed._try_sleep()"], ["wait", 2.0], ["coop_lodge_fallback", 13, 16],
 			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "client_morning"],
 			["coop_wait_file", "host_day2"], ["wait", 2.5], ["coop_fingerprint", "client_day2"], ["coop_signal", "client_day2_seen"],
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["coop_to_bus_stop"],
@@ -240,11 +249,15 @@ func _condition_met(what: String) -> bool:
 
 
 var _ball_left := 0.0
+var _track_left := 0.0
 var _kick_cd := 0.0
 
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	if _track_left > 0.0:
+		_track_left -= delta
+		_track_job()
 	if _ball_left > 0.0:
 		_ball_left -= delta
 		_kick_cd -= delta
@@ -294,6 +307,48 @@ func _run_step(step: Array) -> void:
 				if not wp.is_active():
 					wp.try_interact()
 			print("COOP CHECK %s at the %s: in %s" % [_role, step[1], str(wp.coop_state())])
+		"coop_go_to_partner":
+			# Up to `step[1]` m from the other warden, facing them.
+			var fig: Node3D = Coop.remote_figure()
+			var me5: Node3D = _main.get("_player")
+			if fig == null or me5 == null:
+				print("COOP CHECK %s: no other warden to go to" % _role)
+				return
+			var away := me5.global_position - fig.global_position
+			away.y = 0.0
+			away = away.normalized() if away.length() > 0.1 else Vector3.BACK
+			me5.global_position = fig.global_position + away * float(step[1]) + Vector3(0.0, 0.4, 0.0)
+			me5.rotation.y = atan2(away.x, away.z)
+			print("COOP CHECK %s by the other warden (%.1f m): %s" % [_role, float(step[1]), str(Coop.partner_state.get("dn", false))])
+		"coop_lodge_fallback":
+			# That bed taken (guests booked in): the next lodging's.
+			var off = _main.get("camp_office")
+			if off != null and not bool(off.in_bed()):
+				print("COOP CHECK %s: no bed there, trying %d,%d" % [_role, int(step[1]), int(step[2])])
+				var tent = _main.get("_interior_manager").get("_tent_interior")
+				if tent != null and tent.has_method("close_tent"):
+					tent.close_tent()
+				_steps.insert(_step_index, ["eval", "_interior_manager.lodge_bed._try_sleep()"])
+				_steps.insert(_step_index, ["wait", 2.0])
+				_steps.insert(_step_index, ["open_room", int(step[1]), int(step[2])])
+		"coop_job_state":
+			var cab4 = _main.get("_interior_manager").get("_cabin_interior")
+			var tasks4 = cab4.get("_prep").tasks if cab4 != null and cab4.get("_prep") != null else null
+			if tasks4 != null:
+				print("COOP CHECK %s job: holding %s progress %.2f hover %s under %s" % [_role, tasks4._holding, float(tasks4._progress), tasks4._hover, tasks4._target_under_cursor()])
+		"coop_track":
+			# Keep the cursor on the job for `step[1]` seconds (the room's camera eases
+			# after the aim, as a player's hand would follow it). A mess lying in front of
+			# it from here is the one the hands get: that one, then.
+			_track_left = float(step[1])
+			var cab3 = _main.get("_interior_manager").get("_cabin_interior")
+			var tasks3 = cab3.get("_prep").tasks if cab3 != null and cab3.get("_prep") != null else null
+			if tasks3 != null and tasks3._targets.has(_task_id):
+				var front: String = str(tasks3._pick(tasks3._camera.unproject_position(_seen_at(tasks3._targets[_task_id])))[0])
+				if front != "" and front != _task_id and tasks3._targets.has(front) and not bool(tasks3._targets[front].get("done", false)):
+					print("COOP CHECK %s: %s lies in front of %s, that one first" % [_role, front, _task_id])
+					_task_id = front
+					tasks3._targets[front]["seconds"] = 6.0
 		"coop_play_ball":
 			# Kick the ball whenever it comes to you, for `step[1]` seconds.
 			_ball_left = float(step[1])
@@ -332,9 +387,10 @@ func _run_step(step: Array) -> void:
 				var best := -1.0
 				for id in tasks._targets.keys():
 					var t: Dictionary = tasks._targets[id]
-					if str(id) == "bed" or bool(t.get("done", false)) or acc_done.has(str(id)) or _near_done(tasks, str(id), acc_done) or not _in_reach(cab, tasks, str(id)):
+					if str(id) == "bed" or str(id) == _other_task() or bool(t.get("done", false)) or acc_done.has(str(id)) or _near_done(tasks, str(id), acc_done):
 						continue
-					var sec := float(t.get("seconds", 1.0)) + (1.0 if str(t.get("verb", "")) in ["Mopping", "Sweeping"] else 0.0)
+					# Within the head's reach first (a mess at your feet may be past it).
+					var sec := float(t.get("seconds", 1.0)) + (1.0 if str(t.get("verb", "")) in ["Mopping", "Sweeping"] else 0.0) - _reach_miss(cab, tasks, str(id)) * 10.0
 					if sec > best:
 						best = sec
 						pick = str(id)
@@ -400,12 +456,24 @@ func _run_step(step: Array) -> void:
 				if tasks2._targets.has(held):
 					tasks2._targets[held]["seconds"] = 6.0
 			_task_id = held
+			# For the other copy's pick (not the same job twice).
+			FileAccess.open(_out_dir.path_join("task_%s" % _role), FileAccess.WRITE).store_string(_task_id)
 		"coop_aim_partner_job":
 			# Look at the job the other warden is doing in this room (their figure is at it).
 			var job := str((Coop.partner_state.get("room", {}) as Dictionary).get("w", ""))
 			print("COOP CHECK %s looks at the other warden's job %s" % [_role, job])
 			if job != "":
-				super._run_step(["aim_task", "_cabin_interior", job])
+				# Only the head turns: both copies share the one OS cursor, and moving it
+				# here would take it off the host's job there.
+				var cab5 = _main.get("_interior_manager").get("_cabin_interior")
+				var tasks5 = cab5.get("_prep").tasks
+				var t5: Dictionary = tasks5._targets.get(job, {})
+				if not t5.is_empty():
+					var look5 = cab5.get("_look")
+					var base5: Vector3 = cab5.get("_cam_base_rot")
+					var to5: Vector3 = _seen_at(t5) - tasks5._camera.global_position
+					look5.yaw_deg = clampf(rad_to_deg(atan2(-to5.x, -to5.z) - base5.y), -look5.yaw_limit_deg, look5.yaw_limit_deg)
+					look5.pitch_deg = clampf(rad_to_deg(atan2(to5.y, Vector2(to5.x, to5.z).length()) - base5.x), -look5.pitch_down_deg, look5.pitch_up_deg)
 		"coop_at_boat":
 			# On the camp jetty behind the boat, looking out over the lake.
 			var lake = get_tree().root.find_child("CampLake", true, false)
@@ -421,19 +489,21 @@ func _run_step(step: Array) -> void:
 
 
 ## A job lying by one already done (its mess would be in front of it, or it behind).
-## Can the head turn far enough to look at it (a mess at your feet may be past the
-## interior's look limits: the aim then lands on another one)?
-static func _in_reach(interior, tasks, id: String) -> bool:
+## How many degrees past the interior's look limits it is (0 within: a mess at your feet
+## may be past them, and the aim then lands on another one).
+static func _reach_miss(interior, tasks, id: String) -> float:
 	var body = tasks._targets[id].get("body")
 	var cam: Camera3D = tasks._camera
 	var look = interior.get("_look")
 	if body == null or not is_instance_valid(body) or cam == null or look == null:
-		return true
+		return 0.0
 	var base: Vector3 = interior.get("_cam_base_rot")
 	var to: Vector3 = (body as Node3D).global_position - cam.global_position
 	var yaw := rad_to_deg(atan2(-to.x, -to.z) - base.y)
 	var pitch := rad_to_deg(atan2(to.y, Vector2(to.x, to.z).length()) - base.x)
-	return absf(wrapf(yaw, -180.0, 180.0)) <= float(look.yaw_limit_deg) - 2.0 and pitch >= -float(look.pitch_down_deg) + 2.0 and pitch <= float(look.pitch_up_deg) - 2.0
+	var over_yaw := maxf(0.0, absf(wrapf(yaw, -180.0, 180.0)) - (float(look.yaw_limit_deg) - 2.0))
+	var over_pitch := maxf(0.0, -float(look.pitch_down_deg) + 2.0 - pitch) + maxf(0.0, pitch - (float(look.pitch_up_deg) - 2.0))
+	return over_yaw + over_pitch
 
 
 static func _near_done(tasks, id: String, acc_done: Array) -> bool:
@@ -567,6 +637,34 @@ func _room_figure() -> String:
 
 
 ## What this machine's camp is: enough to tell two camps apart.
+## The job the other copy took in the room (tools: task_<role>), "" if none yet.
+func _other_task() -> String:
+	var path := _out_dir.path_join("task_%s" % ("client" if _role == "host" else "host"))
+	return FileAccess.get_file_as_string(path).strip_edges() if FileAccess.file_exists(path) else ""
+
+
+## Where a job's mess is seen (its first shown mesh, as interior_tasks.debug_probe aims;
+## the click body of a floor mess sits partly under the floor).
+static func _seen_at(t: Dictionary) -> Vector3:
+	for mm in t["meshes"]:
+		if mm is MeshInstance3D and is_instance_valid(mm) and (mm as Node3D).is_visible_in_tree():
+			return (mm as Node3D).global_position
+	return (t["body"] as Node3D).global_position
+
+
+func _track_job() -> void:
+	var cab = _main.get("_interior_manager").get("_cabin_interior") if _main != null else null
+	if cab == null or not cab.visible or cab.get("_prep") == null:
+		return
+	var tasks = cab.get("_prep").tasks
+	var t: Dictionary = tasks._targets.get(_task_id, {})
+	if t.is_empty() or not is_instance_valid(t["body"]):
+		return
+	var screen := get_viewport().get_visible_rect().size
+	var sp: Vector2 = tasks._camera.unproject_position(_seen_at(t)) / Vector2(tasks._viewport.size) * screen
+	Input.warp_mouse(sp * Vector2(DisplayServer.window_get_size()) / screen)
+
+
 ## Who has kicked the ball on the court here (warden keys: -11 the host, -12 the other).
 func _court_kicked() -> Array:
 	var att = _main.get("_warden_play").find_att("14,12")
@@ -651,6 +749,9 @@ func _write_fingerprint(tag: String) -> void:
 		"att_me": _main.get("_warden_play").coop_state(),
 		"att_mate": str(_main.get("_warden_play").mate_place().get("pose", "")),
 		"court_kicked": _court_kicked(),
+		"down": bool(_main.get("_coop_down")),
+		"hp": int(_main.get("_player_health")),
+		"partner_down": bool(Coop.partner_state.get("dn", false)),
 		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,
