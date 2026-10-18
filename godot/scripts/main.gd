@@ -4932,6 +4932,11 @@ func coop_local_warden() -> Dictionary:
 	var town_place: String = trip.coop_place() if trip != null and trip.has_method("coop_place") else ""
 	if town_place != "":
 		s["tr"] = town_place
+	# Down the sewer's pipes: where, for the other warden down there too (pipe_mate.gd).
+	if _sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open() and _sewer_pipe_minigame.has_method("coop_pipe_state"):
+		var pipe: Dictionary = _sewer_pipe_minigame.coop_pipe_state()
+		if not pipe.is_empty():
+			s["pipe"] = pipe
 	# In an attraction: the other machine places you in it (scripts/attractions/warden_play.gd).
 	var att: Dictionary = _warden_play.coop_state() if _warden_play != null and is_instance_valid(_warden_play) else {}
 	if not att.is_empty():

@@ -251,9 +251,15 @@ func _process(delta: float) -> void:
 		return
 	if _ledger != null and _ledger.visible:
 		return
+	if _sewer_terminal != null and _sewer_terminal.visible:
+		return
 	for g in _extra_games.values():
 		if (g as CanvasLayer).visible:
 			return
+	if _current_profile == "sewer" and _sewer_bulb != null and is_instance_valid(_sewer_bulb):
+		# The bare bulb that will not stay on.
+		var flick := int(Time.get_ticks_msec() / 90) % 47
+		_sewer_bulb.light_energy = 0.15 if flick in [3, 4, 19] else (0.6 if flick == 31 else 1.0)
 	# Walking through a door: the walk has the camera.
 	if _doors.walking():
 		_hot_glint.clear()
@@ -368,6 +374,12 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 	if _node_has_click_type(collider, "service_stock"):
 		_open_ledger()
 		return true
+	if _node_has_click_type(collider, "sewer_enter"):
+		_try_request_service_repair()
+		return true
+	if _node_has_click_type(collider, "sewer_terminal"):
+		_open_sewer_terminal()
+		return true
 	if not (collider is Node3D and (collider as Node3D).is_visible_in_tree()):
 		return false
 	if _node_has_click_type(collider, "service_light_switch"):
@@ -394,7 +406,7 @@ func _hover_click_type() -> String:
 	var collider = hit.get("collider", null) as Node
 	if collider == null or not (collider is Node3D and (collider as Node3D).is_visible_in_tree()):
 		return ""
-	for t in ["service_light_switch", "service_counter_game", "service_ledger"]:
+	for t in ["service_light_switch", "service_counter_game", "service_ledger", "service_stock", "sewer_enter", "sewer_terminal"]:
 		if _node_has_click_type(collider, t):
 			return t
 	var n := collider as Node
@@ -1425,7 +1437,8 @@ func _side_hint_texts() -> Array:
 		"vecerka":
 			return ["", "Storeroom  [D]"] if _active_subroom == "shop" else ["Shop  [A]", ""]
 		"sewer":
-			return ["", "Crawl into the pipes  [R]" if _sewer_broken else ""]
+			# The pipe mouth is clicked (point and click), no tab.
+			return ["", ""]
 		"generator":
 			if _active_subroom == "board":
 				return ["Back  [A]", ""]
@@ -1852,23 +1865,144 @@ func _sign(parent: Node3D, text: String, pos: Vector3, font_size: int, style: St
 	return root
 
 
+## The sewer's pumping chamber, down the ladder from the hatch (Grok faces and textures,
+## assets/textury/camp/sewer_*.png): wet stained concrete, a gutter of grey water
+## running out of the pipe mouth in the back wall (its grille hanging open, scratches,
+## hair, hand prints going in: click it to crawl in, broken or not), a wall of valves
+## and gauges, the amber monitoring terminal on its desk (click it: the network and its
+## faults), rusted pipes along the ceiling, a bare bulb that will not stay on, the ladder
+## up behind you. The other warden down here is seen as in any room.
+const SEWER_TERMINAL = preload("res://scripts/pipes/sewer_terminal.gd")
+var _sewer_terminal: CanvasLayer
+var _sewer_bulb: OmniLight3D
+
+
+func _sewer_tex(name: String, fallback: String) -> String:
+	return name if ResourceLoader.exists(INTERIOR_KIT.TEX + name + ".png") else fallback
+
+
 func _build_sewer_layout() -> void:
-	var w = 4.8
-	var d = 4.8
-	var h = 2.6
-
+	var w := 5.2
+	var d := 5.6
+	var h := 2.8
 	var K := INTERIOR_KIT
-	K.room(_room_root, Vector3(w, h, d), "concrete", "pipe_concrete", "concrete", 1.2, 1.2, 0.05)
-	for x: float in [-1.02, 1.02]:
-		K.slab(_room_root, Vector3(0.72, 0.06, d - 0.56), Vector3(x, 0.035, 0.0), K.surface("lake_water", 0.8, Color(0.45, 0.5, 0.4)), "SewerChannel")
+	K.room(_room_root, Vector3(w, h, d), _sewer_tex("sewer_floor", "concrete"), _sewer_tex("sewer_wall", "pipe_concrete"), "concrete", 1.4, 1.4, 0.05)
+	# The gutter out of the pipe mouth, the length of the chamber.
+	K.slab(_room_root, Vector3(0.62, 0.05, d - 0.3), Vector3(0.0, 0.03, 0.0), K.surface("lake_water", 0.8, Color(0.36, 0.4, 0.3)), "SewerChannel")
+	# The pipe mouth in the back wall, low: the way in.
+	var mouth_path := INTERIOR_KIT.TEX + "sewer_mouth.png"
+	var mouth: MeshInstance3D = null
+	if ResourceLoader.exists(mouth_path):
+		mouth = K.picture(_room_root, "sewer_mouth", Vector2(2.1, 2.1), Vector3(0.0, 1.05, -d * 0.5 + 0.02), 0.0, "PipeMouth")
+	else:
+		mouth = K.slab(_room_root, Vector3(1.2, 1.2, 0.04), Vector3(0.0, 0.62, -d * 0.5 + 0.03), K.surface("concrete", 1.0, Color(0.1, 0.1, 0.1)), "PipeMouth")
+	# The hole is left of the picture's middle (Grok, camp/sewer_mouth.png).
+	_click_box(_room_root, "sewer_enter", Vector3(-0.32, 1.05, -d * 0.5 + 0.15), Vector3(1.1, 1.1, 0.3))
+	if ResourceLoader.exists("res://assets/textury/camp/sewer_sign.png"):
+		K.cutout(_room_root, "sewer_sign", Vector2(0.5, 0.38), Vector3(1.3, 1.7, -d * 0.5 + 0.03), 0.0, false, "WarningPlate")
+	# The valves and gauges on the left wall.
+	if ResourceLoader.exists(INTERIOR_KIT.TEX + "sewer_valves.png"):
+		K.picture(_room_root, "sewer_valves", Vector2(3.4, 1.9), Vector3(-w * 0.5 + 0.02, 1.4, -0.4), 90.0, "ValveWall")
+	# The terminal on its desk, at the right, turned to you.
+	var term_at := Vector3(1.85, 0.0, -1.2)
+	if ResourceLoader.exists(INTERIOR_KIT.TEX + "sewer_terminal.png"):
+		var t := K.picture(_room_root, "sewer_terminal", Vector2(1.5, 1.5), term_at + Vector3(0, 0.75, 0), -35.0, "Terminal")
+		t.name = "Terminal"
+	else:
+		K.prop(_room_root, "steel_counter", term_at, -35.0, 0.6)
+	_click_box(_room_root, "sewer_terminal", term_at + Vector3(0, 0.85, 0.1), Vector3(1.2, 1.0, 0.6), -35.0)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.62, 0.15)
+	glow.light_energy = 0.55
+	glow.omni_range = 2.0
+	glow.position = term_at + Vector3(-0.3, 1.0, 0.45)
+	_room_root.add_child(glow)
+	# Rusted pipes along the ceiling and down the corners.
+	var rust := K.surface("galvanized", 0.6, Color(0.55, 0.36, 0.24))
+	for z: float in [-2.2, -1.5, 1.6]:
+		_pipe_run(_room_root, Vector3(-w * 0.5, h - 0.25 - absf(z) * 0.03, z), Vector3(w * 0.5, h - 0.25 - absf(z) * 0.03, z), 0.09 if z < 0.0 else 0.06, rust)
+	for c: Vector3 in [Vector3(-w * 0.5 + 0.18, 0.0, -d * 0.5 + 0.18), Vector3(w * 0.5 - 0.18, 0.0, -d * 0.5 + 0.18)]:
+		_pipe_run(_room_root, c, c + Vector3(0, h, 0), 0.12, rust)
+	# The ladder up behind you, the daylight (or the night) through the hatch over it.
+	var steel := K.surface("galvanized", 0.4, Color(0.5, 0.48, 0.44))
+	for x: float in [-0.25, 0.25]:
+		K.slab(_room_root, Vector3(0.05, h, 0.05), Vector3(x, h * 0.5, d * 0.5 - 0.12), steel, "LadderRail")
+	for i in 8:
+		K.slab(_room_root, Vector3(0.5, 0.035, 0.035), Vector3(0, 0.3 + i * 0.32, d * 0.5 - 0.12), steel, "LadderRung")
+	# What lies about: a drum, a bucket, a rag of a coat on a nail.
+	K.prop(_room_root, "oil_drum", Vector3(-1.9, 0.05, -2.2))
+	K.prop(_room_root, "slop_bucket", Vector3(0.75, 0.05, -2.3))
+	for dec in [["res://assets/textury/mess/decal_handprint.png", Vector3(-0.85, 0.5, -d * 0.5 + 0.015), 0.22], ["res://assets/textury/mess/decal_handprint.png", Vector3(0.82, 0.32, -d * 0.5 + 0.015), 0.2], ["res://assets/textury/mess/decal_scratches.png", Vector3(-0.6, 1.3, -d * 0.5 + 0.015), 0.4]]:
+		if ResourceLoader.exists(str(dec[0])):
+			_wall_decal(_room_root, str(dec[0]), dec[1], float(dec[2]))
+	# The bulb, flickering (_process).
+	_sewer_bulb = OmniLight3D.new()
+	_sewer_bulb.light_color = Color(1.0, 0.86, 0.6)
+	_sewer_bulb.light_energy = 1.0
+	_sewer_bulb.omni_range = 6.5
+	_sewer_bulb.position = Vector3(0.2, h - 0.35, 0.3)
+	_room_root.add_child(_sewer_bulb)
+	_interior_camera.position = Vector3(0.0, 1.5, d * 0.5 - 0.7)
+	_interior_camera.rotation_degrees = Vector3(-7.0, 0.0, 0.0)
+	_sewer_hint = null
 
-	_sign(_room_root, "KANAL\nsewer", Vector3(0.0, 2.08, -2.38), 36, "enamel")
 
-	_sewer_hint = Label3D.new()
-	_sewer_hint.position = Vector3(0.0, 1.62, -2.37)
-	_sewer_hint.font_size = 18
-	_room_root.add_child(_sewer_hint)
-	_apply_sewer_hint()
+## A click box for the chamber's things (the pipe mouth, the terminal).
+func _click_box(root: Node3D, kind: String, at: Vector3, size: Vector3, yaw := 0.0) -> void:
+	var body := StaticBody3D.new()
+	body.name = "Click_" + kind
+	body.set_meta("interior_click_type", kind)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	body.position = at
+	body.rotation_degrees.y = yaw
+	root.add_child(body)
+
+
+func _pipe_run(root: Node3D, a: Vector3, b: Vector3, r: float, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var c := CylinderMesh.new()
+	c.top_radius = r
+	c.bottom_radius = r
+	c.height = a.distance_to(b)
+	c.radial_segments = 8
+	mi.mesh = c
+	mi.material_override = mat
+	root.add_child(mi)
+	mi.position = (a + b) * 0.5
+	var dir := (b - a).normalized()
+	if absf(dir.dot(Vector3.UP)) < 0.99:
+		mi.look_at_from_position(mi.position, b, Vector3.UP)
+		mi.rotate_object_local(Vector3.RIGHT, PI * 0.5)
+
+
+func _wall_decal(root: Node3D, path: String, at: Vector3, size: float) -> void:
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(size, size)
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(path)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mi.material_override = m
+	mi.position = at
+	root.add_child(mi)
+
+
+func _open_sewer_terminal() -> void:
+	var crawl = get_tree().current_scene.get("_sewer_pipe_minigame") if get_tree().current_scene != null else null
+	if crawl == null or not crawl.has_method("preview_network"):
+		return
+	if _sewer_terminal == null:
+		_sewer_terminal = SEWER_TERMINAL.new()
+		_sewer_terminal.name = "SewerTerminal"
+		add_child(_sewer_terminal)
+	var net: Dictionary = crawl.preview_network(_upkeep_coord)
+	_sewer_terminal.open_for(net, int(net.get("level", 1)), _time_state == TIME_NIGHT)
 
 
 func _build_generator_layout() -> void:
@@ -2249,7 +2383,8 @@ func _profile_for_service(service_type: String) -> String:
 
 
 func _try_request_service_repair() -> void:
-	if not (_current_profile in ["sewer", "generator"]) or not _sewer_broken:
+	# The sewer's pipe mouth takes you in broken or not (nothing to mend: just down).
+	if not (_current_profile in ["sewer", "generator"]) or (not _sewer_broken and _current_profile != "sewer"):
 		return
 	request_repair.emit()
 

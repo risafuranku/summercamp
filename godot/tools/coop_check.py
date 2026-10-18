@@ -149,6 +149,18 @@ def main():
     hcs = load("host_corn_stand")
     if hcs is None or hcs["other_pose"] not in ("cook", "stand") or int(hcs["corn_orders"]) < 1:
         failures.append("the host does not see the other warden at the corn stand or their order (%s, %s)" % ((hcs or {}).get("other_pose"), (hcs or {}).get("corn_orders")))
+    # Two in the pipes: the same network, each seen by the other, and the host's body in
+    # the other's way.
+    hp2, cp2 = load("host_pipes"), load("client_pipes")
+    if hp2 is None or cp2 is None or not hp2["pipe_net"] or not cp2["pipe_net"]:
+        failures.append("missing pipe fingerprints")
+    else:
+        if hp2["pipe_net"]["hash"] != cp2["pipe_net"]["hash"] or hp2["pipe_net"]["level"] != cp2["pipe_net"]["level"]:
+            failures.append("the two are not in the same pipes (%s / %s)" % (hp2["pipe_net"], cp2["pipe_net"]))
+        if not hp2["pipe_net"]["mate_seen"] or not cp2["pipe_net"]["mate_seen"]:
+            failures.append("in the pipes they do not see each other (host %s, other %s)" % (hp2["pipe_net"]["mate_seen"], cp2["pipe_net"]["mate_seen"]))
+        if "boots" not in cp2["pipe_net"]["status"] and "torch" not in cp2["pipe_net"]["status"]:
+            failures.append("the other crawled through the host (%s)" % cp2["pipe_net"]["status"])
     # In the pub: the host at the tap is seen behind the bar pulling a beer.
     cpt = load("client_pub_tap")
     if cpt is None or cpt["room_figure"] not in ("tap", "stand") or not cpt["fig_behind_bar"]:

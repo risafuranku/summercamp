@@ -86,6 +86,14 @@ func _ready() -> void:
 			# the host's books.
 			["coop_wait_file", "client_at_stand"], ["wait", 2.0], ["coop_face_partner"], ["wait", 0.5], ["shot", "h16_other_at_stand"],
 			["coop_fingerprint", "host_corn_stand"], ["coop_signal", "host_saw_stand"],
+			# Two in the sewer's pipes: the same pipes, the other's body in the way.
+			["coop_wait_file", "client_left_stand"],
+			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('sewer'))"], ["wait", 2.0],
+			["eval", "_interior_manager._service_interior._try_request_service_repair()"], ["wait", 2.0], ["eval", "_sewer_pipe_minigame.set('_intro_t', 99.0)"], ["wait", 1.0],
+			["coop_signal", "host_in_pipes"], ["coop_wait_file", "client_in_pipes"], ["wait", 1.0],
+			["eval", "_sewer_pipe_minigame._forward()"], ["wait", 7.0], ["coop_signal", "host_crawled"],
+			["coop_wait_file", "client_bumped"], ["wait", 1.0], ["coop_fingerprint", "host_pipes"],
+			["eval", "_sewer_pipe_minigame.abort()"], ["wait", 1.5], ["coop_place", 12, 14, 1.0],
 			# Into the old cabin together.
 			["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "host_in_room"],
 			["coop_wait_file", "client_in_room"], ["wait", 2.0], ["shot", "h2_room_sees_other"],
@@ -183,7 +191,13 @@ func _ready() -> void:
 			["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0], ["coop_place", 14, 14, -1.0],
 			["eval", "_interior_manager._on_corn_stand_interact(debug_structure_of_type('corn_stand'))"], ["wait", 1.5],
 			["coop_corn_order"], ["wait", 1.0], ["shot", "c16_behind_the_stand"], ["coop_signal", "client_at_stand"],
-			["coop_wait_file", "host_saw_stand"], ["eval", "_interior_manager._corn_stand.close_view()"], ["wait", 1.0], ["coop_place", 14, 14, -1.0],
+			["coop_wait_file", "host_saw_stand"], ["eval", "_interior_manager._corn_stand.close_view()"], ["wait", 1.0], ["coop_place", 14, 14, -1.0], ["coop_signal", "client_left_stand"],
+			["coop_wait_file", "host_in_pipes"],
+			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('sewer'))"], ["wait", 2.0],
+			["eval", "_interior_manager._service_interior._try_request_service_repair()"], ["wait", 2.0], ["eval", "_sewer_pipe_minigame.set('_intro_t', 99.0)"], ["wait", 1.0],
+			["coop_signal", "client_in_pipes"], ["coop_wait_file", "host_crawled"], ["wait", 1.0], ["shot", "c17_pipes_host_ahead"],
+			["eval", "_sewer_pipe_minigame._forward()"], ["wait", 1.0], ["coop_fingerprint", "client_pipes"], ["shot", "c17b_bumped"], ["coop_signal", "client_bumped"],
+			["wait", 2.0], ["eval", "_sewer_pipe_minigame.abort()"], ["wait", 1.5], ["coop_place", 14, 14, -1.0],
 			["coop_wait_file", "host_in_room"], ["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "client_in_room"],
 			["wait", 2.0], ["shot", "c2_room_sees_host"],
 			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "client_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false], ["coop_aim_clear"],
@@ -730,6 +744,22 @@ func _radio_row() -> Dictionary:
 	return {"on": r["on"], "k": r["k"], "id": str(r["id"]), "playing": player != null and player.playing}
 
 
+## Down the sewer's pipes: the network (as a hash), whether the other warden is seen in
+## it, what the status line says, where you are.
+func _pipe_net() -> Dictionary:
+	var crawl = _main.get("_sewer_pipe_minigame")
+	if crawl == null or not crawl.is_open():
+		return {}
+	var rows: Array = []
+	for c in crawl._links:
+		var ds: Array = (crawl._links[c] as Array).duplicate()
+		ds.sort()
+		rows.append("%s:%s" % [c, ds])
+	rows.sort()
+	var spr = crawl.mate._sprite
+	return {"hash": hash(str(rows)), "mate_seen": spr != null and is_instance_valid(spr) and spr.visible, "status": str(crawl._hud_status.text), "node": str(crawl._node), "level": int(crawl.raccoon_level)}
+
+
 ## The other warden in the place in Lesna you are in (scripts/town/town_room.gd).
 func _town_mate() -> bool:
 	var trip = _main.get("_interior_manager").get("_town_trip") if _main != null else null
@@ -824,6 +854,7 @@ func _write_fingerprint(tag: String) -> void:
 		"att_mate": str(_main.get("_warden_play").mate_place().get("pose", "")),
 		"court_kicked": _court_kicked(),
 		"town_mate": _town_mate(),
+		"pipe_net": _pipe_net(),
 		"corn_orders": (CoreRoot.get_state().biz.get("orders", []) as Array).filter(func(o): return str(o.get("key", "")) == "15:13").size(),
 		"radio": _radio_row(),
 		"down": bool(_main.get("_coop_down")),

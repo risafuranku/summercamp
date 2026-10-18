@@ -57,6 +57,17 @@ const OMENS = preload("res://scripts/omens.gd")
 const CATCH = preload("res://scripts/pipes/pipe_catch.gd")
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
 const WATER_SHADER = preload("res://materials/pipe_water.gdshader")
+## Two in the pipes (co-op): the other warden's body in them (scripts/pipes/pipe_mate.gd).
+const PIPE_MATE = preload("res://scripts/pipes/pipe_mate.gd")
+var mate = PIPE_MATE.new()
+## The day the sewer broke (the network's seed with its place).
+var _since_day := 1
+## Crawling back feet first (tap S: out of the other warden's way).
+var _backing := false
+var _s_down_at := -1.0
+## Down with nothing broken (in through the chamber's pipe mouth just to see): every
+## hole already clamped, nothing to mend, the raccoon as ever.
+var explore := false
 const HAND_TORCH := "res://assets/textury/hands/torch.png"
 const GUTS_SPLATS := ["res://assets/textury/pipes/guts_splat.png", "res://assets/textury/pipes/guts_splat2.png", "res://assets/textury/pipes/guts_splat3.png"]
 const HANDPRINT := "res://assets/textury/mess/decal_handprint.png"
@@ -226,14 +237,34 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	var state = CoreRoot.get_state() if CoreRoot != null else null
 	if state != null:
 		since_day = int((state.failures.get("%d:%d" % [coord.x, coord.y], {}) as Dictionary).get("since_day", state.day))
+		explore = not state.failures.has("%d:%d" % [coord.x, coord.y])
+	# Co-op: the other warden already down this sewer: their pipes, their raccoon.
+	mate.clear()
+	mate.host = self
+	mate.key = "%d:%d" % [coord.x, coord.y]
+	var other: Dictionary = mate.mate()
+	if not other.is_empty():
+		since_day = int(other.get("sd", since_day))
+	_since_day = since_day
+	_backing = false
 	_rng.seed = hash("%d:%d:%d" % [coord.x, coord.y, since_day])
 	_night = CoreRoot != null and CoreRoot.is_night()
 	_visit = _next_visit()
 	night_pressure = _read_night_pressure()
 	raccoon_level = debug_level if debug_level > 0 else DIRECTOR.mischief_level(night_pressure, _night, _visit)
+	if not other.is_empty():
+		raccoon_level = int(other.get("lv", raccoon_level))
 	_generate()
 	_build_world()
 	_fixed = false
+	if explore:
+		for i in _leaks.size():
+			_mark_fixed(i)
+		_fixed = true
+	for i in (other.get("fx", []) as Array):
+		_mark_fixed(int(i))
+	if not other.is_empty():
+		_fixed = _all_fixed()
 	_node = _entry
 	_facing = 0
 	_moving = false
@@ -304,7 +335,7 @@ func abort() -> void:
 	if not _active:
 		return
 	close_repair(not _fixed)
-	if _fixed:
+	if _fixed and not explore:
 		repair_completed.emit(_coord, _building_type)
 
 
@@ -313,6 +344,7 @@ func close_repair(cancelled: bool = true) -> void:
 		return
 	_active = false
 	visible = false
+	mate.clear()
 	for a in [_ambience, _pipes_bed, _pant, _heart]:
 		if a != null:
 			a.stop()
@@ -1242,9 +1274,9 @@ func _draw_map() -> void:
 	# entry
 	var ep: Vector2 = to_px.call(_entry)
 	_ink.draw_string(RETRO_UI.FONT_LABEL, ep + Vector2(-14.0, 14.0) * s, "LADDER", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
-	# leak
+	# leak (none marked when nothing is broken: you came down just to see)
 	var red := Color(0.72, 0.08, 0.06, 0.95)
-	for l in _leaks:
+	for l in ([] if explore else _leaks):
 		var lp: Vector2 = (to_px.call(l["a"]) + to_px.call(l["b"])) * 0.5
 		_ink.draw_line(lp + Vector2(-5, -5) * s, lp + Vector2(5, 5) * s, red, 2.5 * s)
 		_ink.draw_line(lp + Vector2(-5, 5) * s, lp + Vector2(5, -5) * s, red, 2.5 * s)
@@ -1318,6 +1350,12 @@ func _input(event: InputEvent) -> void:
 		return
 	if key.physical_keycode == KEY_S or key.physical_keycode == KEY_DOWN:
 		glancing = key.pressed and not _moving and not _at_leak and not _turning
+		# A tap (not the held look back): back up a pipe, feet first.
+		if key.pressed and not key.echo:
+			_s_down_at = Time.get_ticks_msec() / 1000.0
+		elif not key.pressed and _s_down_at >= 0.0 and Time.get_ticks_msec() / 1000.0 - _s_down_at < 0.25:
+			_s_down_at = -1.0
+			_back_up()
 		get_viewport().set_input_as_handled()
 		return
 	if key.physical_keycode == KEY_TAB:
@@ -1421,7 +1459,7 @@ func _clear_splats() -> void:
 
 func _climb_out() -> void:
 	close_repair(not _fixed)
-	if _fixed:
+	if _fixed and not explore:
 		repair_completed.emit(_coord, _building_type)
 
 
@@ -1546,7 +1584,11 @@ func _try_move(d: int) -> void:
 	if not _links[_node].has(d):
 		return
 	var nxt: Vector2i = _node + DIRS[d]
+	if mate.blocks(_node, nxt):
+		_blocked_by_mate()
+		return
 	_facing = d
+	_backing = false
 	_move_from = _world_pos(_node)
 	_move_to = _world_pos(nxt)
 	_move_target_node = nxt
@@ -1558,6 +1600,128 @@ func _try_move(d: int) -> void:
 	# Knees and palms in the water: it hears every pipe you crawl.
 	if _director != null:
 		_director.heard(_node, 1)
+
+
+# -- two in the pipes ---------------------------------------------------------------
+
+## Back the way you came, feet first and slowly (out of the other warden's way), still
+## looking ahead.
+func _back_up() -> void:
+	if _moving or _at_leak or _turning or _stuck or _map_open or _intro_t >= 0.0:
+		return
+	var back := (_facing + 2) % 4
+	if not _links[_node].has(back):
+		_bump_t = 0.0
+		_play_pull("wall.mp3", -6.0)
+		return
+	var prev: Vector2i = _node + DIRS[back]
+	if mate.blocks(_node, prev):
+		_blocked_by_mate()
+		return
+	_move_from = _world_pos(_node)
+	_move_to = _world_pos(prev)
+	_move_target_node = prev
+	_move_t = 0.0
+	_move_secs = PULL_SECONDS * float(PULLS) * 1.7
+	_pull_idx = -1
+	_moving = true
+	_backing = true
+	glancing = false
+	_set_status("")
+	if _director != null:
+		_director.heard(_node, 1)
+
+
+## The other warden is in the way: their boots or their head, and nowhere to go.
+func _blocked_by_mate() -> void:
+	_bump_t = 0.0
+	_play_one("bump.mp3", -4.0)
+	var who := Coop.partner_name()
+	var m: Dictionary = mate.mate()
+	var facing_you := false
+	if not m.is_empty():
+		var their: int = int(m.get("f", 0))
+		facing_you = (their + 2) % 4 == _facing
+	_set_status(("%s's torch in your face. One of you backs up  [S]" if facing_you else "%s's boots, right in front of you.") % who)
+	mate.bumped_into()
+
+
+## The other machine: they crawled into you.
+func coop_bumped() -> void:
+	if not _active:
+		return
+	_bump_t = 0.0
+	_play_one("bump.mp3", -2.0)
+	_set_status("Something knocks against you. %s." % Coop.partner_name())
+
+
+## The other machine: they clamped hole `i`.
+func coop_fixed(i: int) -> void:
+	if not _active:
+		return
+	_mark_fixed(i)
+	_fixed = _all_fixed()
+	if _cur_leak == i:
+		_cur_leak = -1
+		_at_leak = false
+		_clamp = 0.0
+		_moving = true
+
+
+func _mark_fixed(i: int) -> void:
+	if i < 0 or i >= _leaks.size():
+		return
+	var l: Dictionary = _leaks[i]
+	l["fixed"] = true
+	if l.get("fx") != null:
+		l["fx"].emitting = false
+	if l.get("audio") != null:
+		l["audio"].stop()
+
+
+## The chamber's amber terminal (scripts/pipes/sewer_terminal.gd): the network under
+## the sewer at `coord` as it would be built now (the same seed and level as climbing
+## down; the other warden's if they are down already), without going down:
+## {links, entry, leaks [[a, b, fixed]], explore, level}.
+func preview_network(coord: Vector2i) -> Dictionary:
+	if not _active:
+		var state = CoreRoot.get_state() if CoreRoot != null else null
+		var key := "%d:%d" % [coord.x, coord.y]
+		var since_day := int(state.day) if state != null else 1
+		var broken := false
+		if state != null:
+			broken = state.failures.has(key)
+			since_day = int((state.failures.get(key, {}) as Dictionary).get("since_day", state.day))
+		mate.host = self
+		mate.key = key
+		var other: Dictionary = mate.mate()
+		if not other.is_empty():
+			since_day = int(other.get("sd", since_day))
+		_rng.seed = hash("%d:%d:%d" % [coord.x, coord.y, since_day])
+		var night := CoreRoot != null and CoreRoot.is_night()
+		var office = get_parent().get("camp_office") if get_parent() != null else null
+		var visit := int(office.get("pipe_visits")) + 1 if office != null else 3
+		raccoon_level = debug_level if debug_level > 0 else DIRECTOR.mischief_level(_read_night_pressure(), night, visit)
+		if not other.is_empty():
+			raccoon_level = int(other.get("lv", raccoon_level))
+		_generate()
+		explore = not broken
+	var leaks: Array = []
+	for l in _leaks:
+		leaks.append([l["a"], l["b"], bool(l.get("fixed", false)) or explore])
+	return {"links": _links.duplicate(true), "entry": _entry, "leaks": leaks, "explore": explore, "level": raccoon_level}
+
+
+## Where you are down here, for the other machine (main.coop_local_warden "pipe").
+func coop_pipe_state() -> Dictionary:
+	var s: Dictionary = mate.state()
+	if not s.is_empty():
+		var fixed: Array = []
+		for i in _leaks.size():
+			if bool(_leaks[i].get("fixed", false)):
+				fixed.append(i)
+		s["fx"] = fixed
+	return s
 
 
 ## One pull: the palm slaps down, the body drags after it. Now and then (more in the
@@ -1598,6 +1762,7 @@ func _crawl_progress(t: float) -> float:
 func _process(delta: float) -> void:
 	if not _active:
 		return
+	mate.update(delta)
 	_update_body_sounds(delta)
 	if _caught_t >= 0.0:
 		_update_caught(delta)
@@ -1657,6 +1822,8 @@ func _update_body_sounds(delta: float) -> void:
 	if _torch_hand != null:
 		_torch_hand.self_modulate = glove
 	var t: float = _director.tension if _director != null else 0.0
+	# The other warden right there in the pipe: the walls close in.
+	t = maxf(t, mate.squeeze * 0.85)
 	var f: float = _director.flicker if _director != null else 0.0
 	var pant_db := lerpf(-24.0, -11.0, t) + (3.0 if _moving else 0.0)
 	var heart_db := -60.0 if t < 0.25 else lerpf(-26.0, -7.0, (t - 0.25) / 0.75)
@@ -1674,6 +1841,11 @@ func _arrive() -> void:
 	_moving = false
 	_pull_idx = -1
 	_node = _move_target_node
+	if _backing:
+		# Backed out feet first: still facing the way you were.
+		_backing = false
+		_set_status("")
+		return
 	# A bend takes you round it (the pipe gives you no choice); a junction leaves you
 	# facing on, to look and turn as you like.
 	if not _links[_node].has(_facing):
@@ -1703,6 +1875,7 @@ func _update_clamp(delta: float) -> void:
 		_set_status("Clamping... %d%%" % int(clampf(_clamp, 0.0, 1.0) * 100.0))
 		if _clamp >= 1.0:
 			var l: Dictionary = _leaks[maxi(0, _cur_leak)]
+			Coop.send_play("pipe_fixed", [mate.key, maxi(0, _cur_leak)])
 			l["fixed"] = true
 			if l.get("fx") != null:
 				l["fx"].emitting = false

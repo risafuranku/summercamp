@@ -385,6 +385,15 @@ func coop_play(kind: String, data: Array) -> void:
 	if kind == "lift":
 		main.coop_lifted()
 		return
+	# Two in the pipes (scripts/pipes/pipe_mate.gd).
+	if kind == "pipe_bump" or kind == "pipe_fixed":
+		var crawl = main.get("_sewer_pipe_minigame")
+		if crawl != null and crawl.has_method("coop_bumped") and crawl.is_open() and str(crawl.mate.key) == str(data[0]):
+			if kind == "pipe_bump":
+				crawl.coop_bumped()
+			else:
+				crawl.coop_fixed(int(data[1]))
+		return
 	if kind == "fires":
 		if Coop.is_client():
 			for id in (data[1] as Dictionary).keys():

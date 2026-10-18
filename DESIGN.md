@@ -478,6 +478,19 @@ the head through the end of the turn.
 
 ## 8. The pipe crawl (sewer repair)
 
+*The chamber and two in the pipes, 2026-10-18 with the user ("let them find out it is not
+a good idea").* Down the sewer's hatch is a pumping chamber, dense and wrong: wet stained
+concrete, a gutter running out of a pipe mouth low in the back wall (its grille hanging
+open, claw marks, hair, hand prints going in, a child's shoe), a wall of valves and
+gauges, a bare bulb that will not stay on, and an amber 1980s terminal that draws the
+network under it and blinks where the pressure is lost (and on the worse nights a MOTION
+line wandering from pipe to pipe). Click the pipe mouth and you crawl in, broken or not
+(nothing broken: nothing to mend, the raccoon as ever). Two can go down together: the
+same pipes, each sees the other lying in them (from behind, the soles of their boots;
+from the front, their torch in your eyes; from the side across a junction), and their
+body fills the pipe: you cannot get past, head to head one of you backs up, feet first
+(tap S); close up the walls close in. Each has their own raccoon.
+
 *Reworked 2026-10-18 with the user: the raccoon. Staging `scripts/pipes/pipe_director.gd`,
 its catches `scripts/pipes/pipe_catch.gd`, the crawl `scripts/sewer_pipe_minigame.gd`.*
 
