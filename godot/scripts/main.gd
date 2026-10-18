@@ -5748,6 +5748,10 @@ func _reset_state_for_new_game() -> void:
 	_pending_day_events.clear()
 	if _day_events != null:
 		_day_events.reset()
+	# The bag: the torch again, nothing on the ground (scripts/ui/inventory.gd).
+	var trip = _interior_manager.town_trip() if _interior_manager != null and _interior_manager.has_method("town_trip") else null
+	if trip != null and trip.get("inventory") != null:
+		trip.inventory.new_camp()
 	_pending_loaded_crt_state.clear()
 	_last_known_crt_desktop_state.clear()
 	_billing.reset(1)

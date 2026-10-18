@@ -23,6 +23,7 @@ const BUS_MODEL = preload("res://scripts/town/bus_model.gd")
 const BUS_RIDE = preload("res://scripts/town/bus_ride.gd")
 const TOWN = preload("res://scripts/town/town_lesna.gd")
 const POCKETS = preload("res://scripts/town/pockets.gd")
+const INVENTORY = preload("res://scripts/ui/inventory.gd")
 const SHOP = preload("res://scripts/town/shop_closeup.gd")
 const PUB = preload("res://scripts/town/pub_closeup.gd")
 ## The Jednota and the pub in 3D; their card and machine are close-ups over it.
@@ -64,6 +65,8 @@ var _special: Dictionary = {}
 var _boarding_stop := ""
 var _driver_line := 0
 var pockets
+## The warden's bag (scripts/ui/inventory.gd): what is bought here goes into it.
+var inventory
 var _shop
 var _pub
 var _ambience: AudioStreamPlayer
@@ -91,6 +94,12 @@ func setup(interior_manager: Node) -> void:
 				p.set("stamina", 1.0)
 				p.set("_stamina_locked", false)
 				_say("That's better.")
+	if inventory == null:
+		inventory = INVENTORY.new()
+		add_child(inventory)
+		inventory.pockets = pockets
+		inventory.trip = self
+		pockets.bag = inventory
 
 
 ## Smoking and drinking: out in the world, playing, nothing open.
@@ -283,11 +292,10 @@ func _open_room(which: String) -> void:
 		_room = TOWN_ROOM.new()
 		add_child(_room)
 		_room.set_modal_check(func(): return (_shop != null and _shop.visible) or (_pub != null and _pub.visible))
+		_room.can_buy = func(item: String) -> bool: return inventory == null or inventory.room_for(item)
 		_room.bought.connect(func(item: String):
-			if item == "cigs":
-				pockets.cigarettes += 20
-			elif item == "beer":
-				pockets.beers += 1
+			if inventory != null and item in ["cigs", "beer", "card"]:
+				inventory.add_item(item)
 		)
 		_room.drank.connect(func(): pockets.drunk += 1.0)
 		_room.wants_closeup.connect(_room_closeup)
@@ -313,11 +321,7 @@ func _room_closeup(kind: String) -> void:
 		_motel()
 		return
 	if kind == "card":
-		if _shop == null:
-			_shop = SHOP.new()
-			add_child(_shop)
-			_shop.closed.connect(_back_to_room)
-		_shop.open_card()
+		scratch_card()
 	elif kind == "slot":
 		if _pub == null:
 			_pub = PUB.new()
@@ -328,6 +332,24 @@ func _room_closeup(kind: String) -> void:
 
 func _back_to_room() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if (_room != null and _room.is_open()) else Input.MOUSE_MODE_CAPTURED)
+	if _card_from_bag:
+		_card_from_bag = false
+		_set_player_controls(true)
+
+
+var _card_from_bag := false
+
+
+## A Rychla kacka out of the bag, wherever you are: up close to scratch.
+func scratch_card() -> void:
+	if _shop == null:
+		_shop = SHOP.new()
+		add_child(_shop)
+		_shop.closed.connect(_back_to_room)
+	_card_from_bag = not (_room != null and _room.is_open())
+	if _card_from_bag:
+		_set_player_controls(false)
+	_shop.open_card()
 
 
 func _door_fx(going_in: bool) -> void:
@@ -845,13 +867,24 @@ func _ensure_town() -> void:
 # ── saved with the game ──────────────────────────────────────────────────────
 
 func export_state() -> Dictionary:
-	return {"in_town": away(), "cigarettes": pockets.cigarettes if pockets != null else 0, "beers": pockets.beers if pockets != null else 0}
+	return {"in_town": away(), "inventory": inventory.export_state() if inventory != null else {}}
 
 
 func import_state(d: Dictionary) -> void:
 	# Saved in Lesna: Lesna is there again (the player's position is the game's).
 	if bool(d.get("in_town", false)):
 		_ensure_town()
-	if pockets != null:
-		pockets.cigarettes = int(d.get("cigarettes", 0))
-		pockets.beers = int(d.get("beers", 0))
+	if inventory == null:
+		return
+	var inv = d.get("inventory", null)
+	if inv is Dictionary:
+		inventory.import_state(inv, Coop.is_client())
+	elif not Coop.is_client():
+		# From before the bag: the counts of cigarettes and bottles, into it.
+		inventory.import_state({}, false)
+		var cigs := int(d.get("cigarettes", 0))
+		while cigs > 0:
+			inventory.add_item("cigs", mini(cigs, 20))
+			cigs -= 20
+		for i in int(d.get("beers", 0)):
+			inventory.add_item("beer")

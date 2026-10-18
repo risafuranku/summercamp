@@ -27,6 +27,7 @@ const BACK_ROOM = preload("res://scripts/reception/back_room.gd")
 const SLEEP = preload("res://scripts/reception/sleep_sequence.gd")
 const PHONE_CLOSEUP = preload("res://scripts/closeup/phone_closeup.gd")
 const BOARD_CLOSEUP = preload("res://scripts/closeup/board_closeup.gd")
+const INVENTORY = preload("res://scripts/ui/inventory.gd")
 const SFX_DOOR := "res://assets/sfx/backroom/door_creak.wav"
 const SFX_LATCH := "res://assets/sfx/dverezavrit.mp3"
 const BOARD_TEX := "res://assets/textury/closeup/board.png"
@@ -121,7 +122,19 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 	host.add_child(phone_view)
 	board_view = BOARD_CLOSEUP.new()
 	board_view.key_present = func(): return not bool(_office_call("has_shed_key", [], false))
-	board_view.on_key_taken = func(): _office_call("take_shed_key", [], null)
+	board_view.on_key_taken = func() -> bool:
+		# Off the board and into the bag (scripts/ui/inventory.gd).
+		var bag = INVENTORY.find(host.get_tree()) if host != null and host.is_inside_tree() else null
+		if bag != null and not bag.add_item("key_shed"):
+			return false
+		_office_call("take_shed_key", [], null)
+		return true
+	board_view.on_key_returned = func() -> bool:
+		var bag = INVENTORY.find(host.get_tree()) if host != null and host.is_inside_tree() else null
+		if bag == null or not bag.remove_item("key_shed"):
+			return false
+		_office_call("return_shed_key", [], null)
+		return true
 	host.add_child(board_view)
 	sleep = SLEEP.new()
 	host.add_child(sleep)

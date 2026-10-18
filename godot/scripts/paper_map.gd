@@ -1,6 +1,7 @@
 extends CanvasLayer
 
-## Hold TAB: Vera's site plan, coloured pencil on paper, drawn as you see the camp from
+## Hold TAB (or tap it: it stays with the bag, scripts/ui/inventory.gd, until TAB again):
+## Vera's site plan, coloured pencil on paper, drawn as you see the camp from
 ## the gate (gate at the bottom). It does NOT show where you are. It shows what needs
 ## you: rooms coloured by state (ready, dirty, not made up, guests in), broken buildings
 ## stamped, tonight's jobs circled in red, who waits at the gate, and three lines of
@@ -33,7 +34,7 @@ var _open := 0.0
 var _paper_tex: Texture2D
 var _cache_t := 0.0
 var _data: Dictionary = {}
-## Tools (shot driver): hold the map open without the key.
+## Held open without the key: the bag while it is open, tools (shot driver).
 var force_open := false
 
 
@@ -215,14 +216,23 @@ func _draw_map() -> void:
 	# sheet goes in the space left of it.
 	var hud = _main.get("_hud_manager") if _main != null else null
 	var side: float = float(hud.side_column_px()) + 12.0 if hud != null and hud.has_method("side_column_px") else 0.0
-	var avail_w := screen.x - side - 24.0
+	# The bag (scripts/ui/inventory.gd) opens on the left with it.
+	var bag = get_tree().get_first_node_in_group("inventory")
+	var left: float = float(bag.reserve_left()) if bag != null else 0.0
+	var avail_w := screen.x - side - left - 24.0
 	var cell := floorf((screen.y * 0.9 - header - footer - 40.0) / float(h))
 	cell = minf(cell, floorf((avail_w - 64.0 - fs * 3.0) / float(w)))
 	var plan := Vector2(w, h) * cell
 	var sheet := Vector2(plan.x + 64.0 + fs * 3.0, plan.y + header + footer + 40.0)
-	var origin := (Vector2((screen.x - side - sheet.x) * 0.5, (screen.y - sheet.y) * 0.5) + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
+	# Never narrower than its title and the date (a narrow screen with the bag open): the
+	# plan in the middle of the wider sheet.
+	var title_w := title.get_string_size("KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * 1.8)).x
+	var head_w := title_w + font.get_string_size("site plan - V. 1996", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 2.0 + 64.0
+	var extra := maxf(0.0, head_w - sheet.x)
+	sheet.x += extra
+	var origin := (Vector2(left + (screen.x - side - left - sheet.x) * 0.5, (screen.y - sheet.y) * 0.5) + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
 	_draw_paper(Rect2(origin, sheet))
-	var o := origin + Vector2(32, header + 12.0)
+	var o := origin + Vector2(32.0 + floorf(extra * 0.5), header + 12.0)
 	_canvas.draw_string(title, origin + Vector2(32, fs * 2.2), "KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * 1.8), PENCIL)
 	var sub := "site plan - V. 1996"
 	var sw := font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x

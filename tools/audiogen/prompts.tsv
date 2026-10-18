@@ -233,3 +233,9 @@ sm_step	0.8	assets/sfx/npc/sm_step.mp3	One slow deliberate step of a leather sho
 sm_vanish	1.5	assets/sfx/npc/sm_vanish.mp3	A soft sharp intake of breath through the nose that is swallowed into silence, with a faint dry rustle of cloth, as if someone just stepped back into the dark, close, quiet, no music.
 sm_rustle	1.2	assets/sfx/npc/sm_rustle.mp3	The faint rustle of a cotton shirt and a sleeve brushing against itself as someone stands very still nearby in the dark and shifts their weight, very quiet, close, no music.
 sm_softstep	0.6	assets/sfx/npc/sm_softstep.mp3	One very soft careful footstep on gravel, a shoe set down slowly heel to toe to make no noise, quiet, a few metres away, no music.
+inv_open	1.0	assets/sfx/inventory/open.mp3	An old canvas army shoulder bag being opened: a stiff leather strap pulled through a metal buckle, the canvas flap flipped back with a dry rustle. Close, dry, no music.
+inv_close	0.9	assets/sfx/inventory/close.mp3	An old canvas army shoulder bag being closed: the canvas flap folded down with a soft thump and a metal buckle clinking. Close, dry, no music.
+inv_pick	0.5	assets/sfx/inventory/pick.mp3	A small object being lifted out of a canvas bag: a short dry rustle of rough fabric. Close, dry, no music.
+inv_place	0.5	assets/sfx/inventory/place.mp3	A small object being set down into a canvas bag pocket: a soft muffled tap and a little rustle of rough fabric. Close, dry, no music.
+inv_drop	0.7	assets/sfx/inventory/drop.mp3	A small object tossed onto grass and dry pine needles on the ground: a soft thud and a brief rustle. Outdoors, close, no music.
+inv_nope	0.5	assets/sfx/inventory/nope.mp3	Two small hard objects bumping against each other inside a full canvas bag: a dull muffled clack. Close, dry, no music.

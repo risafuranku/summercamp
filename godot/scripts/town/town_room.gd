@@ -7,8 +7,8 @@ extends CanvasLayer
 ## said comes up in a strip along the bottom, typed out like the close-ups'.
 ##
 ##   - the Jednota: Start off the shelf behind the counter ($2), Lesnak out of the crate
-##     ($1), a scratch card from the box by the till ($1, scratched in shop_closeup.gd's
-##     card), batteries sold out; Mrs Novotna to talk to; fluorescent tubes, one dying;
+##     ($1), a scratch card from the box by the till ($1), all into the bag (scratched
+##     from there), batteries sold out; Mrs Novotna to talk to; fluorescent tubes, one dying;
 ##   - the pub U Jezera: the tap ($1, the mug lands on the bar, three pulls and it is
 ##     yours: `drank`), the fruit machine in the corner (pub_closeup.gd's reels), Mr Kubat,
 ##     two regulars; lamps over the tables, smoke in the air, the room's murmur.
@@ -22,9 +22,10 @@ extends CanvasLayer
 ## The rooms are Build boxes with Grok faces (assets/textury/camp, tools/artgen/town_rooms.py).
 
 signal closed
+## Into the bag (scripts/ui/inventory.gd): "cigs", "beer", "card" (scratched from there).
 signal bought(item: String)
 signal drank
-## The two games that are close-ups of their own: "card" (shop_closeup), "slot" (pub_closeup).
+## Handed to town_trip.gd: "slot" (the pub's fruit machine, pub_closeup), "motel_room".
 signal wants_closeup(kind: String)
 
 const K = preload("res://scripts/interior_kit.gd")
@@ -41,7 +42,7 @@ const STRIP := Vector2i(320, 30)
 const SHOP_ITEMS := {
 	"cigs": {"price": 2, "say": "Start. Twenty. Two dollars."},
 	"beer": {"price": 1, "say": "Lesnak. Bring the bottle back next time."},
-	"card": {"price": 1, "say": "Rychla kacka. Scratch it here, not on my counter."},
+	"card": {"price": 1, "say": "Rychla kacka. Scratch it at home, not on my counter."},
 	"batteries": {"price": 0, "say": "Batteries are sold out until further notice. Please stop asking."},
 }
 const SHOP_LINES := [
@@ -170,6 +171,14 @@ func _ready() -> void:
 ## `modal` says when a close-up is up over the room (its input is its own then).
 func set_modal_check(modal: Callable) -> void:
 	_modal = modal
+
+
+## Callable(item) -> bool: is there room in the bag for it (nothing is sold without).
+var can_buy: Callable
+
+
+func _room_in_bag(item: String) -> bool:
+	return not can_buy.is_valid() or bool(can_buy.call(item))
 
 
 func is_open() -> bool:
@@ -414,15 +423,15 @@ func _shop_click(id: String) -> void:
 	if price <= 0:
 		say("Mrs Novotna", str(item["say"]))
 		return
+	if not _room_in_bag(id):
+		say("Mrs Novotna", "And where will you put it? Your bag is full.")
+		return
 	if CoreRoot.get_money() < price or not CoreRoot.actions.spend_money(price):
 		say("Mrs Novotna", "That's %d dollars. You have not got %d dollars." % [price, price])
 		return
 	_play("res://assets/sfx/bistro/till.mp3", -6.0)
 	say("Mrs Novotna", str(item["say"]))
-	if id == "card":
-		wants_closeup.emit("card")
-	else:
-		bought.emit(id)
+	bought.emit(id)
 
 
 func _pub_click(id: String) -> void:
@@ -489,6 +498,9 @@ func _kiosk_click(id: String) -> void:
 			say("Mrs Lojzova", KIOSK_LINES[_line % KIOSK_LINES.size()])
 		"cigs":
 			_npc_nod = 0.5
+			if not _room_in_bag("cigs"):
+				say("Mrs Lojzova", "Your bag is full, love. Make room first.")
+				return
 			if CoreRoot.get_money() < 3 or not CoreRoot.actions.spend_money(3):
 				say("Mrs Lojzova", "Start is three dollars here. Two at the Jednota. Go to the Jednota.")
 				return

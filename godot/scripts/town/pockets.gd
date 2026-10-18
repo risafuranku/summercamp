@@ -11,7 +11,8 @@ extends CanvasLayer
 ##      a while longer, more with every bottle (a stepped screen warp, Redneck Rampage
 ##      style), and a burp now and then.
 ## Not in rooms, close-ups, the bus or the menu; one thing at a time.
-## town_trip.gd owns it and saves the counts.
+## What you have is in the bag (scripts/ui/inventory.gd: packs of Start, bottles), used
+## from there with a double click or with C and B. town_trip.gd owns both.
 
 const HANDS := "res://assets/textury/hands/"
 const SFX := "res://assets/sfx/town/"
@@ -34,8 +35,8 @@ void fragment() {
 }
 """
 
-var cigarettes := 0
-var beers := 0
+## The bag the cigarettes and bottles are in (scripts/ui/inventory.gd).
+var bag
 ## 0.. how drunk (each bottle adds one; it wears off).
 var drunk := 0.0
 ## Callable() -> bool: may you use something now (outdoors, playing, nothing open).
@@ -101,20 +102,23 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _seq != "" or not (allowed.is_valid() and bool(allowed.call())):
-		return
 	if event.is_action_pressed("smoke"):
-		if cigarettes <= 0:
-			_say("No cigarettes. The Jednota in Lesna has Start.")
-			return
-		cigarettes -= 1
-		_start("smoke")
+		try_use("smoke")
 	elif event.is_action_pressed("drink"):
-		if beers <= 0:
-			_say("No beer. The Jednota in Lesna has Lesnak.")
-			return
-		beers -= 1
-		_start("drink")
+		try_use("drink")
+
+
+## A cigarette ("smoke") or a bottle ("drink") out of the bag, if you can now.
+func try_use(what: String) -> bool:
+	if _seq != "" or not (allowed.is_valid() and bool(allowed.call())):
+		return false
+	var id := "cigs" if what == "smoke" else "beer"
+	if bag == null or not bag.has(id):
+		_say("No cigarettes. The Jednota in Lesna has Start." if what == "smoke" else "No beer. The Jednota in Lesna has Lesnak.")
+		return false
+	bag.consume(id)
+	_start(what)
+	return true
 
 
 func is_busy() -> bool:

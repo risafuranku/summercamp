@@ -125,6 +125,8 @@ var _beam_q := Quaternion.IDENTITY
 var _beam_ready := false
 var _flashlight_allowed: bool = false
 var _flashlight_user_enabled: bool = true
+## The torch is in the bag (scripts/ui/inventory.gd): thrown on the ground, it is dark.
+var torch_carried := true
 var _flashlight_active: bool = false
 var _flashlight_flicker_time: float = 0.0
 var stamina: float = 1.0
@@ -372,6 +374,8 @@ func torch_wanted_indoors() -> bool:
 
 ## F: the torch on or off (also from inside a room, scripts/ui/interior_torch.gd).
 func toggle_flashlight() -> void:
+	if not torch_carried:
+		return
 	if _flashlight_user_enabled or flashlight_battery > 0.02:
 		_flashlight_user_enabled = not _flashlight_user_enabled
 		_flashlight_user_chose_off = not _flashlight_user_enabled
@@ -713,7 +717,7 @@ func _ensure_flashlight() -> void:
 
 
 func _refresh_flashlight_state() -> void:
-	_flashlight_active = _flashlight_allowed and _flashlight_user_enabled
+	_flashlight_active = _flashlight_allowed and _flashlight_user_enabled and torch_carried
 	if _flashlight != null:
 		_flashlight.visible = _flashlight_active
 		_flashlight.light_energy = flashlight_energy if _flashlight_active else 0.0

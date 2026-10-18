@@ -17,6 +17,7 @@ const WAKE_HOUR := 6.5
 ## Hours of game time passed per real second while you sleep.
 const SLEEP_RATE := 9.0
 
+## The shed key is off the noticeboard (in a bag, scripts/ui/inventory.gd, or on the ground).
 var has_shed_key := false
 ## Times you have been down the sewer (scripts/pipes/pipe_director.gd: what you meet).
 var pipe_visits := 0
@@ -243,6 +244,13 @@ func take_shed_key() -> void:
 	if Coop.is_client():
 		Coop.send_request("shed_key", [])
 	has_shed_key = true
+
+
+## Hung back on the board (out of a bag: scripts/ui/inventory.gd).
+func return_shed_key() -> void:
+	if Coop.is_client():
+		Coop.send_inv("key_back", [])
+	has_shed_key = false
 
 
 func export_state() -> Dictionary:

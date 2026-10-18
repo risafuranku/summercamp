@@ -509,6 +509,22 @@ func _play(kind: String, data: Array) -> void:
 		wp.coop_play(kind, data)
 
 
+## The bags (scripts/ui/inventory.gd), both ways: things thrown on the ground and who picks
+## them up (the host decides), the shed key hung back on the board.
+func send_inv(kind: String, data: Array) -> void:
+	if role != Role.NONE and remote_id != 0:
+		_inv.rpc_id(remote_id, kind, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _inv(kind: String, data: Array) -> void:
+	if multiplayer.get_remote_sender_id() != remote_id:
+		return
+	var inv := get_tree().get_first_node_in_group("inventory")
+	if inv != null:
+		inv.coop_inv(kind, data)
+
+
 ## Something either machine has that the other must have too, both ways (main.coop_sync):
 ## "office" [the lights, curtains and set], "register" [the desk's register and key
 ## hooks], "gate" [] (a warden put the barrier up).
