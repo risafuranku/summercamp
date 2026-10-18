@@ -11,7 +11,9 @@ uniform bool has_glint = false;
 uniform vec4 tint : source_color = vec4(1.0, 0.80, 0.42, 1.0);
 uniform float wash = 0.16;
 uniform float sparkle = 0.85;
-uniform float metres = 0.5;
+// One tile of glints to 1.4 m: the rooms' own pixel (128 px to a 1.4 m tile), finer
+// would melt into a flat wash at the game's resolution.
+uniform float metres = 1.4;
 uniform float fade = 1.0;
 
 varying vec3 wpos;

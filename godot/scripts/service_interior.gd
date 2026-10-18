@@ -1890,7 +1890,7 @@ func _build_sewer_layout() -> void:
 	var K := INTERIOR_KIT
 	K.room(_room_root, Vector3(w, h, d), _sewer_tex("sewer_floor", "concrete"), _sewer_tex("sewer_wall", "pipe_concrete"), "concrete", 1.4, 1.4, 0.05)
 	# The gutter out of the pipe mouth, the length of the chamber.
-	K.slab(_room_root, Vector3(0.62, 0.05, d - 0.3), Vector3(0.0, 0.03, 0.0), K.surface(_sewer_tex("sewer_water", "sewer_floor"), 0.25, Color(0.62, 0.66, 0.52)), "SewerChannel")
+	K.slab(_room_root, Vector3(0.62, 0.05, d - 0.3), Vector3(0.0, 0.03, 0.0), K.surface(_sewer_tex("sewer_water", "sewer_floor"), 1.4, Color(0.62, 0.66, 0.52)), "SewerChannel")
 	# The pipe mouth in the back wall, low: the way in.
 	var mouth_path := INTERIOR_KIT.TEX + "sewer_mouth.png"
 	var mouth: MeshInstance3D = null
@@ -1899,7 +1899,15 @@ func _build_sewer_layout() -> void:
 	else:
 		mouth = K.slab(_room_root, Vector3(1.2, 1.2, 0.04), Vector3(0.0, 0.62, -d * 0.5 + 0.03), K.surface("concrete", 1.0, Color(0.1, 0.1, 0.1)), "PipeMouth")
 	# The hole is left of the picture's middle (Grok, camp/sewer_mouth.png).
-	_click_box(_room_root, "sewer_enter", Vector3(-0.32, 1.05, -d * 0.5 + 0.15), Vector3(1.1, 1.1, 0.3))
+	var enter := _click_box(_room_root, "sewer_enter", Vector3(-0.32, 1.05, -d * 0.5 + 0.15), Vector3(1.1, 1.1, 0.3))
+	# Hovered, the rim of the mouth glints (not the whole picture, wall and all).
+	if mouth != null:
+		var ring := TorusMesh.new()
+		ring.inner_radius = 0.34
+		ring.outer_radius = 0.46
+		ring.rings = 16
+		ring.ring_segments = 6
+		enter.set_meta("glint_meshes", [_glint_shape(mouth, ring, Vector3(-0.33, 0.0, 0.02), Vector3(90.0, 0.0, 0.0))])
 	if ResourceLoader.exists("res://assets/textury/camp/sewer_sign.png"):
 		K.cutout(_room_root, "sewer_sign", Vector2(0.5, 0.35), Vector3(1.3, 1.7, -d * 0.5 + 0.03), 0.0, false, "WarningPlate")
 	# The valves and gauges on the left wall.
@@ -1910,9 +1918,14 @@ func _build_sewer_layout() -> void:
 	if ResourceLoader.exists(INTERIOR_KIT.TEX + "sewer_terminal.png"):
 		var t := K.picture(_room_root, "sewer_terminal", Vector2(1.5, 1.5), term_at + Vector3(0, 0.75, 0), -35.0, "Terminal")
 		t.name = "Terminal"
+		var glass := QuadMesh.new()
+		glass.size = Vector2(0.68, 0.51)
+		var tbox := _click_box(_room_root, "sewer_terminal", term_at + Vector3(0, 0.85, 0.1), Vector3(1.2, 1.0, 0.6), -35.0)
+		# Hovered, its screen glints.
+		tbox.set_meta("glint_meshes", [_glint_shape(t, glass, Vector3(-0.26, 0.375, 0.02), Vector3.ZERO)])
 	else:
 		K.prop(_room_root, "steel_counter", term_at, -35.0, 0.6)
-	_click_box(_room_root, "sewer_terminal", term_at + Vector3(0, 0.85, 0.1), Vector3(1.2, 1.0, 0.6), -35.0)
+		_click_box(_room_root, "sewer_terminal", term_at + Vector3(0, 0.85, 0.1), Vector3(1.2, 1.0, 0.6), -35.0)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.62, 0.15)
 	glow.light_energy = 0.55
@@ -1920,13 +1933,13 @@ func _build_sewer_layout() -> void:
 	glow.position = term_at + Vector3(-0.3, 1.0, 0.45)
 	_room_root.add_child(glow)
 	# Rusted pipes along the ceiling and down the corners.
-	var rust := K.surface("galvanized", 0.6, Color(0.55, 0.36, 0.24))
+	var rust := K.surface("galvanized", 1.4, Color(0.55, 0.36, 0.24))
 	for z: float in [-2.2, -1.5, 1.6]:
 		_pipe_run(_room_root, Vector3(-w * 0.5, h - 0.25 - absf(z) * 0.03, z), Vector3(w * 0.5, h - 0.25 - absf(z) * 0.03, z), 0.09 if z < 0.0 else 0.06, rust)
 	for c: Vector3 in [Vector3(-w * 0.5 + 0.18, 0.0, -d * 0.5 + 0.18), Vector3(w * 0.5 - 0.18, 0.0, -d * 0.5 + 0.18)]:
 		_pipe_run(_room_root, c, c + Vector3(0, h, 0), 0.12, rust)
 	# The ladder up behind you, the daylight (or the night) through the hatch over it.
-	var steel := K.surface("galvanized", 0.4, Color(0.5, 0.48, 0.44))
+	var steel := K.surface("galvanized", 1.4, Color(0.5, 0.48, 0.44))
 	for x: float in [-0.25, 0.25]:
 		K.slab(_room_root, Vector3(0.05, h, 0.05), Vector3(x, h * 0.5, d * 0.5 - 0.12), steel, "LadderRail")
 	for i in 8:
@@ -1950,7 +1963,24 @@ func _build_sewer_layout() -> void:
 
 
 ## A click box for the chamber's things (the pipe mouth, the terminal).
-func _click_box(root: Node3D, kind: String, at: Vector3, size: Vector3, yaw := 0.0) -> void:
+## An unseen shape on a picture that glints when its thing is hovered (the hover glint
+## goes over the meshes it is given: a whole picture would glint wall and all).
+func _glint_shape(on: Node3D, mesh: Mesh, at: Vector3, rot_deg: Vector3) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0, 0, 0, 0)
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = at
+	mi.rotation_degrees = rot_deg
+	on.add_child(mi)
+	return mi
+
+
+func _click_box(root: Node3D, kind: String, at: Vector3, size: Vector3, yaw := 0.0) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = "Click_" + kind
 	body.set_meta("interior_click_type", kind)
@@ -1962,6 +1992,7 @@ func _click_box(root: Node3D, kind: String, at: Vector3, size: Vector3, yaw := 0
 	body.position = at
 	body.rotation_degrees.y = yaw
 	root.add_child(body)
+	return body
 
 
 func _pipe_run(root: Node3D, a: Vector3, b: Vector3, r: float, mat: Material) -> void:
