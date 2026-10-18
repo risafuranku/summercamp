@@ -356,6 +356,8 @@ func _start(job: Dictionary) -> void:
 				return
 			var type := str(state.grid.cells[c].get("type", ""))
 			CoreRoot.failure_system._trigger_failure(key, type, c)
+			# Not wear: maintenance_controller._clear_old_wear must leave it broken.
+			state.failures[key]["night"] = true
 	job["state"] = "open"
 	_report("Pager: %s. %s." % [str(job["title"]), str(job["where"])], 2)
 	_page()

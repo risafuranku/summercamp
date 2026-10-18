@@ -197,7 +197,7 @@ func _clear_old_wear(state) -> void:
 		lamp_keys["%d:%d" % [coord.x, coord.y]] = true
 	for key in state.failures.keys():
 		var f: Dictionary = state.failures[key]
-		if lamp_keys.has(str(key)) or bool(f.get("derelict", false)):
+		if lamp_keys.has(str(key)) or bool(f.get("derelict", false)) or bool(f.get("night", false)):
 			continue
 		CoreRoot.actions.clear_wear(f.get("coord", Vector2i.ZERO))
 		var s: Node3D = _structures_by_key().get(str(key), null)

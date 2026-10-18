@@ -738,6 +738,45 @@ func _tick_night_jobs() -> void:
 	_night_jobs.tick(abs_minute, _time_state == TIME_NIGHT, night_index)
 
 
+	if _test_night == TEST_SEWER:
+		_tick_test_sewer()
+
+
+## The sewer test night (main_menu.TEST_NIGHTS "sewer"): no thing out, the camp's sewer
+## breaks a moment after it is mended, over and over, for the pipes minigame.
+const TEST_SEWER := "sewer"
+const TEST_SEWER_REBREAK_SEC := 2.0
+var _test_sewer_wait := 0.0
+## The hatch built by the test camp's toilets (the camp may have its own far off too).
+var _test_sewer_at := Vector2i(-1, -1)
+
+
+func _tick_test_sewer() -> void:
+	if _sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open():
+		_test_sewer_wait = TEST_SEWER_REBREAK_SEC
+		return
+	var state = CoreRoot.get_state()
+	if state == null or state.grid == null:
+		return
+	var coords: Array = state.grid.cells.keys()
+	if state.grid.cells.has(_test_sewer_at):
+		coords.push_front(_test_sewer_at)
+	for coord in coords:
+		var cell: Dictionary = state.grid.cells[coord]
+		if str(cell.get("type", "")) != "sewer" or cell.get("root_coord", coord) != coord:
+			continue
+		var key := "%d:%d" % [coord.x, coord.y]
+		if state.failures.has(key):
+			return
+		_test_sewer_wait -= get_process_delta_time()
+		if _test_sewer_wait > 0.0:
+			return
+		_test_sewer_wait = TEST_SEWER_REBREAK_SEC
+		CoreRoot.failure_system._trigger_failure(key, "sewer", coord)
+		state.failures[key]["night"] = true
+		if _hud_manager != null:
+			_hud_manager.push_status("Pager: Sewer leaking. The sewer hatch: crawl in.", 2)
+		return
 func _on_night_jobs_changed() -> void:
 	var powered := _is_grid_powered()
 	_note_grid_power(powered)
@@ -3924,6 +3963,13 @@ const TEST_NIGHT_GUESTS := {"silent_man": "quiet_guy", "tourist": "drunk", "girl
 ## A test night's camp (playtest 18. 10.: "not an empty map"): north of the office a path
 ## up from the gate with a cross path, lamps along them, tents, a cabin, the toilets, a
 ## fire; then the guests of the kind that brings the thing, let in at once (and one of
+	if enemy_id == TEST_SEWER:
+		_test_sewer_wait = 0.0
+		if _player != null and is_instance_valid(_player):
+			_player.rotate_y(PI)
+		if _hud_manager != null:
+			_hud_manager.push_status("Test night: the sewer breaks again whenever it is mended.", 2)
+		return
 ## another kind, so the camp is not only them). Built through the real builder; what does
 ## not fit this camp's trees and lake is just left out.
 func _build_test_camp(enemy_id: String) -> void:
@@ -3968,6 +4014,9 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	_generate_grid_world()
 	# The warden's new camp (scripts/profiles.gd), its saves from now on (a test night's
 	# camp and the tools' are nobody's).
+	if enemy_id == TEST_SEWER:
+		_test_sewer_at = Vector2i(g.x + 6, 5)
+		plan.append(["sewer", _test_sewer_at])
 	if test_enemy.is_empty() and camp_name != "":
 		PROFILES.create_camp(camp_name, world_generator.world_seed, sandbox, coop)
 	_rebuild_core_cells_from_visual_structures()

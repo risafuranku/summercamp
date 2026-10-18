@@ -191,6 +191,13 @@ tracks the body and its sounds; it drives the insects and the HUD face), then ma
 it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 `scripts/os98/apps/campstat_app.gd` `NIGHT_PROCEDURES` (and the ghost webring in `web_pages.gd`). Test with `debug_spawn_enemy(id)` and the `night` scenario, and give it a row in
 `main_menu.TEST_NIGHTS` (the title screen's secret TEST NIGHTS page, key L: a fresh camp at 20:00 with it already out).
+The page's last row, Sewer, is no enemy: a sewer hatch by the test camp's toilets breaks
+again 2 s after every mend, for the pipes minigame (`main._tick_test_sewer`).
+
+A breakdown the night makes (`night_jobs._start`, the sewer test) is marked `night` in
+`state.failures`: anything else that is not a lamp or the derelict cabin is old wear, and
+`maintenance_controller._clear_old_wear` mends it on its next sync (until 18. 10. it mended
+every night's sewer, toilets and frozen pipes the moment they broke).
 
 ---
 

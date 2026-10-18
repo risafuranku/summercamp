@@ -144,6 +144,9 @@ static func serialize_failures(value: Variant) -> Dictionary:
 		# The old cabin of a new camp (main._place_ruined_cabin): no bookings, dark inside.
 		if bool(entry.get("derelict", false)):
 			out[key]["derelict"] = true
+		# Broken by the night (night_jobs.gd), not by wear.
+		if bool(entry.get("night", false)):
+			out[key]["night"] = true
 	return out
 
 
@@ -170,6 +173,8 @@ static func deserialize_failures(value: Variant) -> Dictionary:
 		}
 		if bool(entry.get("derelict", false)):
 			out[key]["derelict"] = true
+		if bool(entry.get("night", false)):
+			out[key]["night"] = true
 	return out
 
 

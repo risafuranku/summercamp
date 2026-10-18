@@ -62,6 +62,8 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	{"id": "child", "text": "Extra Child", "sub": "Family"},
 	{"id": "basket", "text": "Basket Man", "sub": "Mushroom Picker"},
 	{"id": "stalker", "text": "Antlered Man", "sub": "Mixed camp"},
+	# Not a thing: the sewer breaks again as soon as it is mended (main.TEST_SEWER).
+	{"id": "sewer", "text": "Sewer", "sub": "Pipes minigame"},
 ]
 
 var _scale: int = 3
