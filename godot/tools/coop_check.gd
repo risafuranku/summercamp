@@ -23,6 +23,8 @@ extends "res://tools/shot_driver.gd"
 ##     one only for them: the host neither sees nor hears it; set on the host, the other
 ##     machine has nothing of it;
 ##   - a guest lost in the host's corn: the other warden finds them and leads them out;
+##   - the next day runs on for a few hours: the two camps are still the same (guests,
+##     rooms, breakdowns, mail, the till, the day's events);
 ##   - at night both go to the room behind the office: the host lies down first and the
 ##     night does not pass; the other lies down too and both wake in the morning.
 ## Each writes what its camp looks like (seed, buildings, trees, terrain, clock, rooms)
@@ -117,6 +119,8 @@ func _ready() -> void:
 			["coop_signal", "host_in_back"], ["coop_wait_file", "client_in_back"], ["wait", 1.5], ["shot", "h7_back_room_other"],
 			["eval", "_interior_manager._building_interior._extras._try_sleep()"], ["wait", 8.0], ["coop_fingerprint", "host_waiting"],
 			["coop_signal", "host_in_bed"], ["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "host_morning"],
+			# The next day goes on a while: is it still one camp?
+			["hours", 3.0], ["wait", 4.0], ["coop_signal", "host_day2"], ["coop_wait_file", "client_day2_seen"], ["coop_fingerprint", "host_day2"], ["coop_signal", "host_day2_done"],
 			["coop_wait", "partner_gone"], ["wait", 1.5], ["shot", "h6_other_went_home"],
 		]
 	else:
@@ -169,6 +173,7 @@ func _ready() -> void:
 			["coop_signal", "client_in_back"], ["wait", 1.5], ["shot", "c6_back_room_host"],
 			["coop_wait_file", "host_in_bed"], ["eval", "_interior_manager._building_interior._extras._try_sleep()"],
 			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "client_morning"],
+			["coop_wait_file", "host_day2"], ["wait", 2.5], ["coop_fingerprint", "client_day2"], ["coop_signal", "client_day2_seen"],
 			["coop_wait", "host_done"], ["coop_leave"], ["wait", 2.0],
 		]
 
@@ -193,8 +198,8 @@ func _condition_met(what: String) -> bool:
 			var office = _main.get("camp_office")
 			return h2 >= 6.4 and h2 < 12.0 and office != null and not office.in_bed()
 		"host_done":
-			# The host has its morning: the joining copy may hang up.
-			return FileAccess.file_exists(_out_dir.path_join("host_morning.json"))
+			# The host has its last picture: the joining copy may hang up.
+			return FileAccess.file_exists(_out_dir.path_join("host_day2_done"))
 		"file":
 			return FileAccess.file_exists(_out_dir.path_join(_wait_file))
 	return super._condition_met(what)
@@ -402,6 +407,30 @@ func _enemy_shown_here() -> bool:
 	return root != null and is_instance_valid(root) and (root as Node3D).visible
 
 
+## The camp as both should have it: rooms (status and jobs done), breakdowns, the
+## day's open events, the guests (who and how they are).
+func _camp_rows() -> Dictionary:
+	var state = CoreRoot.get_state()
+	var rooms: Array = []
+	for k in state.accommodation_states.keys():
+		var acc: Dictionary = state.accommodation_states[k]
+		var done: Array = (acc.get("prep_done", []) as Array).duplicate()
+		done.sort()
+		rooms.append("%s %s %s" % [str(k), str(acc.get("status", "")), str(done)])
+	rooms.sort()
+	var broke: Array = state.failures.keys().map(func(k): return str(k))
+	broke.sort()
+	var guests: Array = []
+	for g in state.guests:
+		if g is Dictionary:
+			guests.append("%d %s %s" % [int(g.get("id", -1)), str(g.get("name", "")), str(g.get("status", ""))])
+	guests.sort()
+	var de = _main.get("_day_events")
+	var open: Array = (de.open_events() as Array).map(func(e): return str(e["kind"])) if de != null else []
+	open.sort()
+	return {"rooms": rooms, "failures": broke, "guests": guests, "day_open": open}
+
+
 ## The mail: subject and whether it was read.
 func _mail_rows() -> Array:
 	var out: Array = []
@@ -512,6 +541,7 @@ func _write_fingerprint(tag: String) -> void:
 		"day_open": (_main.get("_day_events").open_events() as Array).map(func(e): return str(e["kind"])) if _main.get("_day_events") != null else [],
 		"corn_led_by_other": Coop.is_host() and _main.get("_corn_hunt") != null and is_instance_valid(_main.get("_corn_hunt")) and _main.get("_corn_hunt").leader != null and _main.get("_corn_hunt").leader == _main.get("_coop_night").proxy(),
 		"till_acked": int(_main.get("_coop_till_acked")),
+		"camp": _camp_rows(),
 		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,

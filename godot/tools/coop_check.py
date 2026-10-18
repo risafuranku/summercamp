@@ -233,6 +233,20 @@ def main():
         for fp in (hm, cm):
             if not (6.4 <= float(fp["hour"]) < 12.0) or fp["day"] != hz["day"] + 1:
                 failures.append("sleep: %s did not wake on the next morning (day %s, %.2f)" % (fp["role"], fp["day"], fp["hour"]))
+    # The next day, hours on: still one camp.
+    h2, c2 = load("host_day2"), load("client_day2")
+    if h2 is None or c2 is None:
+        failures.append("missing day-two fingerprints")
+    else:
+        for k in ("rooms", "failures", "guests", "day_open"):
+            if h2["camp"][k] != c2["camp"][k]:
+                failures.append("day two: %s differ (host %s, other %s)" % (k, h2["camp"][k], c2["camp"][k]))
+        if h2["mail"] != c2["mail"]:
+            failures.append("day two: the mail differs (host %s, other %s)" % (h2["mail"], c2["mail"]))
+        if abs(int(h2["money"]) - int(c2["money"])) > 5:
+            failures.append("day two: the tills differ (host %s, other %s)" % (h2["money"], c2["money"]))
+        if h2["day"] != c2["day"]:
+            failures.append("day two: not the same day (host %s, other %s)" % (h2["day"], c2["day"]))
     if failures:
         print("COOP CHECK: %d FAILURE(S)" % len(failures))
         for f in failures:
