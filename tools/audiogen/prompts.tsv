@@ -212,3 +212,11 @@ drag_fast	3.0	assets/sfx/pipes/drag_fast.mp3	A man being yanked very fast throug
 man_choke	2.0	assets/sfx/pipes/man_choke.mp3	A man's short strangled cry cut off into choking and gurgling, close, in a small concrete pipe, no music.
 rac_giggle	2.5	assets/sfx/pipes/rac_giggle.mp3	A raccoon chittering in quick bursts that sounds almost like a small child giggling, close in the dark of a concrete pipe, wet, wrong, echo, no music.
 gut_flood	3.0	assets/sfx/pipes/gut_flood.mp3	A heavy wet mass of entrails sliding fast through a pipe towards the listener, a rising sloshing squelching rush that swallows everything, muffled at the end, no music.
+girl_hum	6.0	assets/sfx/npc/girl_hum.mp3	A young woman humming a slow old lullaby slightly off-key somewhere outside in the dark, distant and thin, a faint crackle of radio static under it, the melody stopping and starting wrong, unsettling, loopable, no music instruments.
+girl_heel	1.0	assets/sfx/npc/girl_heel.mp3	One single high-heeled shoe step on wet gravel outside at night, a sharp click and crunch, some distance away, nothing else, no music.
+girl_giggle	2.0	assets/sfx/npc/girl_giggle.mp3	A young woman's soft breathy giggle in the dark very close behind the listener, quiet, wrong, slightly too long, no music.
+girl_scream	2.0	assets/sfx/npc/girl_scream.mp3	A sudden piercing woman's shriek right in the listener's face that warps and breaks up into harsh radio static and distortion, terrifying, no music.
+girl_static	5.0	assets/sfx/npc/girl_static.mp3	Rising crackling radio static with a faint breathing woman's voice buried in it, as if a radio was tuned between stations next to someone, loopable, unsettling, no music.
+girl_sting	1.5	assets/sfx/npc/girl_sting.mp3	A short horror sting: a low reversed swell of breath and static that rises fast and stops dead on a wet click, as if something is suddenly much closer than it was, no music melody.
+girl_rush	1.2	assets/sfx/npc/girl_rush.mp3	Several very fast high-heeled steps clicking across wet gravel in the dark, a quick scurry that stops abruptly, some distance away, no music.
+girl_drool	2.0	assets/sfx/npc/girl_drool.mp3	Thick wet drool dripping from an open mouth onto gravel very close in the dark, a slow viscous drip, a wet breath through teeth, a quiet slurp, disgusting, no music.

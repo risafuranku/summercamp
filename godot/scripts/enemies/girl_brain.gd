@@ -35,12 +35,13 @@ const GUEST := "res://assets/textury/npc/host3.png"
 ## guest's own colours, only her body and face deformed (playtest 18. 10.: no blue night
 ## lady; the old enemy_girl.png is never shown).
 const N := "res://assets/textury/npc/"
-## No crawling (playtest 18. 10.: "weird, not scary"): long arms, wrong proportions.
-const M := [N + "girl_m1.png", N + "girl_m2.png", N + "girl2_tall.png", N + "girl_m3.png", N + "girl2_arms.png"]
+## No crawling (playtest 18. 10.: "weird, not scary"): long arms, wrong proportions; no
+## red cheeks, the brows furious over the drooling grin. Each stage the newest art first.
+const M := [[N + "girl_m1.png"], [N + "girl4_m2.png", N + "girl_m2.png"], [N + "girl4_tall.png", N + "girl2_tall.png"], [N + "girl4_back.png", N + "girl_m3.png"], [N + "girl4_arms.png"]]
 const REACH_TEX := N + "girl_reach.png"
 ## The strike, in order (playtest 18. 10.: girl_face_b is the one): drooling, then the
 ## face stretched long, then the jaw dropped further than it can.
-const FACES := [[N + "girl_face_b.png"], [N + "girl2_face_c.png"], [N + "girl3_face_b.png", N + "girl2_face_b.png"]]
+const FACES := [[N + "girl4_face.png", N + "girl_face_b.png"], [N + "girl4_face_long.png"], [N + "girl4_face_jaw.png", N + "girl3_face_b.png"]]
 ## Eyeshine: the torch must point this close to her (degrees) for her eyes to catch it,
 ## out to this far.
 const SHINE_DEG := 16.0
@@ -53,6 +54,7 @@ const SFX_RUSH := "res://assets/sfx/npc/girl_rush.mp3"
 const SFX_STING := "res://assets/sfx/npc/girl_sting.mp3"
 const SFX_GIGGLE := "res://assets/sfx/npc/girl_giggle.mp3"
 const SFX_SCREAM := "res://assets/sfx/npc/girl_scream.mp3"
+const SFX_DROOL := "res://assets/sfx/npc/girl_drool.mp3"
 const LAMP_SAFE := 0.22
 const REACH := 1.6
 const HEIGHT := 1.72
@@ -85,6 +87,7 @@ var _blink_next := [4.0, 5.2]
 var _blink_t := [0.0, 0.0]
 var _eye_spot := {}                 # texture -> Vector2(px right of centre, px up from feet)
 var _strike_t := -1.0
+var _wet_next := 3.0
 ## Not looking her way at all (the turn-round scare waits for this).
 var _away_for := 0.0
 var _behind_done := false
@@ -105,9 +108,13 @@ func _on_start() -> void:
 	_step_after = lerpf(2.4, 1.3, t)
 	_step = Vector2(lerpf(2.2, 3.2, t), lerpf(3.6, 5.2, t))
 	_hit = int(lerpf(30.0, 45.0, t))
-	for p in [GUEST, REACH_TEX] + M:
+	for p in [GUEST, REACH_TEX]:
 		if ResourceLoader.exists(p):
 			_tex[p] = load(p)
+	for alts in M:
+		for p in alts:
+			if ResourceLoader.exists(p):
+				_tex[p] = load(p)
 	for alts in FACES:
 		for p in alts:
 			if ResourceLoader.exists(p):
@@ -216,6 +223,16 @@ func _on_tick(dt: float) -> void:
 	_update_eyes(dt, head, d, lit)
 	var near := clampf(1.0 - d / 22.0, 0.0, 1.0)
 	_set_audio(near)
+	# Close: her drool on the gravel, now and then a wet laugh through the teeth.
+	if d < 7.0:
+		_wet_next -= dt
+		if _wet_next <= 0.0:
+			_wet_next = _rng.randf_range(2.5, 5.0)
+			var mouth := _eyes_world() - Vector3(0, 0.12, 0)
+			if _rng.randf() < 0.7:
+				_sound(SFX_DROOL, mouth, lerpf(-2.0, -12.0, d / 7.0), _rng.randf_range(0.85, 1.1))
+			else:
+				_sound(SFX_GIGGLE, mouth, lerpf(-4.0, -14.0, d / 7.0), _rng.randf_range(0.8, 0.95))
 	var fx := _fx()
 	if fx != null:
 		fx.set_dread("girl", near * near)
@@ -268,10 +285,15 @@ func _eyes_world() -> Vector3:
 
 
 func _head_height() -> float:
-	# The tall stage carries its head higher.
-	if _tex.has(M[2]) and _body.texture == _tex[M[2]]:
-		return HEIGHT * 0.86 * float(_tex[M[2]].get_height()) / float(_tex[GUEST].get_height())
-	return HEIGHT * 0.86
+	return _eyes_world().y - _body.global_position.y
+
+
+## Stage `i`'s art: the newest there is (null if none).
+func _stage(i: int) -> String:
+	for p in M[i]:
+		if _tex.has(p):
+			return p
+	return ""
 
 
 ## Strike face `i` (0 the face, 1 upside down, 2 the jaw): the newest art there is, else
@@ -345,8 +367,9 @@ func _advance(small: bool) -> void:
 ## the smile, the long legs, the face turned round over her back, on all fours, reaching.
 func _set_look(guest_ok: bool, dist: float) -> void:
 	var have: Array = []
-	for p in M:
-		if _tex.has(p):
+	for i in M.size():
+		var p := _stage(i)
+		if p != "":
 			have.append(p)
 	var path := GUEST
 	if not (guest_ok and dist > 18.0):
@@ -454,6 +477,12 @@ func _start_strike() -> void:
 	_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), -6.0)
 
 
+## Her face twitches on the beat: a small tilt, one way then back, every third step.
+func _twitch(st: float) -> float:
+	var step := int(st * 12.0)
+	return (0.05 if step % 6 == 3 else (-0.035 if step % 6 == 4 else 0.0))
+
+
 func _cue(at: float, id: String) -> bool:
 	if _strike_t >= at and not _strike_cues.has(id):
 		_strike_cues[id] = true
@@ -470,15 +499,15 @@ func _update_strike(dt: float) -> void:
 	if fx != null:
 		if st < 0.34:
 			var k := st / 0.34
-			fx.close_up(_face(0), lerpf(0.6, 1.05, k), 1.0, 0.006 + 0.012 * k)
+			fx.close_up(_face(0), lerpf(0.6, 1.05, k), 1.0, 0.006 + 0.012 * k, _twitch(st))
 			fx.set_dread("girl", 1.0)
 		elif st < 0.5:
 			# Two frames: the head upside down, the same stare.
-			fx.close_up(_face(1), 1.1, 1.0, 0.016)
+			fx.close_up(_face(1), 1.1, 1.0, 0.016, _twitch(st))
 			fx.set_dread("girl", 1.0)
 		elif st < 0.95:
 			var k2 := (st - 0.5) / 0.45
-			fx.close_up(_face(2), lerpf(1.15, 2.0, k2), 1.0, 0.025)
+			fx.close_up(_face(2), lerpf(1.15, 2.0, k2), 1.0, 0.025, _twitch(st) * 1.6)
 			fx.set_dread("girl", 1.0)
 		else:
 			fx.close_up_off()
