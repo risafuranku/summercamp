@@ -299,6 +299,10 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   keep an enemy's look inside its root; anything else of the host's that the other should
   see (a caller like the electrician) goes in the `coop_mirror` group. The sanity is never
   to be shown or named.
+- **Co-op till**: the other machine's money is the host's plus its own changes not yet
+  counted there (`main._coop_follow_till`: any change of `state.money` on that machine goes
+  over as a numbered "till" delta, the host's clock says up to which it counted). So
+  spending or earning on that machine needs no forwarding of its own.
 - **Co-op sleep** (`camp_office.gd`): lying down sets `in_bed` (sent as the warden
   state's `z`); the host passes the night only when both are in bed and its own eyes are
   shut (the sleep sequence's DARK), and stops it if either gets up; the other machine

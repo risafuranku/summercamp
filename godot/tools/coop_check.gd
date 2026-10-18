@@ -85,6 +85,7 @@ func _ready() -> void:
 			["prep_all"], ["book", "Lads", "drunk", 1, 1, 0], ["hours", 0.05], ["eval", "debug_arrivals()"], ["checkin"], ["hours", 0.3], ["wait", 3.0],
 			["coop_fingerprint", "host_guests"], ["coop_signal", "host_guests"],
 			["coop_wait_file", "client_guests_seen"], ["wait", 1.0], ["coop_fingerprint", "host_after_client"],
+			["coop_wait_file", "client_spent"], ["coop_fingerprint", "host_till"],
 			["eval", "_day_events.debug_start('delivery')"], ["wait", 2.0], ["coop_signal", "host_day_event"],
 			["coop_wait_file", "client_day_done"], ["wait", 2.0], ["coop_fingerprint", "host_day_done"],
 			["eval", "camp_office.on_phone_effect('electrician', '')"], ["hours", 0.6], ["wait", 3.0], ["coop_signal", "host_electrician"],
@@ -109,6 +110,8 @@ func _ready() -> void:
 			# Someone lost in the corn; the other warden takes them by the arm.
 			["eval", "start_corn_hunt({})"], ["wait", 2.0], ["coop_signal", "host_corn"], ["coop_wait_file", "client_corn_took"], ["wait", 2.0],
 			["coop_fingerprint", "host_corn"], ["eval", "end_corn_hunt()"], ["wait", 1.0], ["coop_signal", "host_corn_done"],
+			# The night director's touch on the other warden: it happens on their machine.
+			["coop_fx", "knock"], ["wait", 1.0],
 			# To bed: alone, the night does not pass; with the other one in bed too, it does.
 			["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
 			["coop_signal", "host_in_back"], ["coop_wait_file", "client_in_back"], ["wait", 1.5], ["shot", "h7_back_room_other"],
@@ -145,6 +148,8 @@ func _ready() -> void:
 			["coop_build_at", "tent_1", 15, 16], ["coop_read_mail"], ["wait", 1.0],
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			["coop_wait_file", "host_guests"], ["wait", 3.0], ["coop_fingerprint", "client_guests"], ["coop_signal", "client_guests_seen"],
+			# Spent here (a pint in Lesna, say): the host's till pays it.
+			["coop_spend", 40], ["wait", 3.0], ["coop_fingerprint", "client_till"], ["coop_signal", "client_spent"],
 			["coop_wait_file", "host_day_event"], ["wait", 2.5], ["coop_fingerprint", "client_day_event"],
 			["coop_sign_delivery"], ["wait", 3.0], ["coop_fingerprint", "client_day_done"], ["coop_signal", "client_day_done"],
 			["coop_wait_file", "host_electrician"], ["wait", 2.0], ["coop_fingerprint", "client_electrician"], ["coop_signal", "client_saw_electrician"],
@@ -279,6 +284,10 @@ func _run_step(step: Array) -> void:
 				me5.global_position = at
 				me5.rotation.y = atan2(-(lost.global_position.x - at.x), -(lost.global_position.z - at.z))
 			print("COOP CHECK %s goes to the lost guest: %s" % [_role, lost != null])
+		"coop_fx":
+			Coop.send_night_event("fx", [str(step[1])])
+		"coop_spend":
+			CoreRoot.actions.spend_money(int(step[1]))
 		"coop_sign_delivery":
 			# Sign for the van at the gate (what E does there).
 			var de = _main.get("_day_events")
@@ -502,6 +511,7 @@ func _write_fingerprint(tag: String) -> void:
 		"sanity": (_main.get("_coop_night").sanity as Dictionary).duplicate() if _main.get("_coop_night") != null else {},
 		"day_open": (_main.get("_day_events").open_events() as Array).map(func(e): return str(e["kind"])) if _main.get("_day_events") != null else [],
 		"corn_led_by_other": Coop.is_host() and _main.get("_corn_hunt") != null and is_instance_valid(_main.get("_corn_hunt")) and _main.get("_corn_hunt").leader != null and _main.get("_corn_hunt").leader == _main.get("_coop_night").proxy(),
+		"till_acked": int(_main.get("_coop_till_acked")),
 		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,

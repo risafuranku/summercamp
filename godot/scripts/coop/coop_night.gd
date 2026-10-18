@@ -172,6 +172,36 @@ func _feed_other(text: String) -> void:
 	Coop.send_night_event("feed", [text])
 
 
+## Whom the night director presses on now: the one out where the night is (both out
+## or both in: the one with less left of themselves); it stays on them a while.
+const DIRECTOR_HOLD := 40.0
+var _director_on := "host"
+var _director_since := -999.0
+
+
+func director_target() -> String:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _director_since < DIRECTOR_HOLD:
+		return _director_on
+	var host_out := _is_out("host")
+	var other_out := _is_out("other")
+	var pick := "host"
+	if host_out != other_out:
+		pick = "host" if host_out else "other"
+	elif float(sanity["other"]) < float(sanity["host"]) - 5.0:
+		pick = "other"
+	if pick != _director_on:
+		_director_on = pick
+		_director_since = now
+	return _director_on
+
+
+## The two wardens close together (what the night does, both see).
+func together() -> bool:
+	var me := main.get("_player") as Node3D
+	return me != null and me.global_position.distance_to(_partner_pos()) < 7.0
+
+
 ## Whether an enemy is only for the warden it hunts (the night decides; the check sets it).
 func set_private(brain, on: bool) -> void:
 	_private[brain.get_instance_id()] = on
@@ -551,6 +581,12 @@ func on_event(kind: String, data: Array) -> void:
 			main.damage_player(int(data[0]))
 		"feed":
 			main._on_enemy_notice(str(data[0]))
+		"fx":
+			# The night director's touch, here (a knock, a lamp out, the phone...).
+			var fx = main.get("_director_fx")
+			print("Coop: the night, here: %s" % str(data[0]))
+			if fx != null and fx.has_method("run"):
+				fx.run(str(data[0]), main._director_context())
 		"drain":
 			var pl = main.get("_player")
 			if pl != null:

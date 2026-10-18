@@ -488,10 +488,23 @@ func _tick_director() -> void:
 	if _director == null or _director_fx == null or get_tree().paused:
 		return
 	var ctx := _director_context()
+	# Co-op: the night presses on one warden at a time (scripts/coop/coop_night.gd); what
+	# it does to the other happens on their machine, and to both when they are together.
+	var target := "host"
+	if Coop.is_host() and Coop.has_partner() and _coop_night != null:
+		target = _coop_night.director_target()
+		if target == "other":
+			ctx = _director_context_other(ctx)
 	var id: String = _director.tick(get_process_delta_time(), ctx)
+	if id != "" and target == "other":
+		Coop.send_night_event("fx", [id])
+		_director.watch(id, ctx["pos"])
+		return
 	if id != "":
 		var at: Vector3 = _director_fx.run(id, ctx)
 		_director.watch(id, at)
+		if Coop.is_host() and Coop.has_partner() and _coop_night != null and _coop_night.together():
+			Coop.send_night_event("fx", [id])
 		# The log names the guest who stood outside.
 		if id == "guest_out" and not _director.log.is_empty():
 			if at == Vector3.INF:
@@ -543,6 +556,36 @@ func _director_context() -> Dictionary:
 
 var _dir_slow: Dictionary = {}
 var _dir_slow_at := 0
+var _coop_dir_other_inside := false
+
+
+## Co-op: the night's context as the other warden is in it (where they are, in the light
+## or the dark, walking), the camp's side as it is.
+func _director_context_other(ctx: Dictionary) -> Dictionary:
+	var s: Dictionary = Coop.partner_state
+	var room: Dictionary = s.get("room", {})
+	var pos: Vector3 = s.get("p", Vector3.ZERO)
+	var place := "out_dark"
+	if s.has("boat") or s.has("boat_at"):
+		place = "lake"
+	elif str(room.get("t", "")) == "office":
+		place = "back_room" if str(room.get("s", "")) == "back" else "office"
+	elif bool(s.get("in", false)):
+		place = "room"
+	elif building_manager != null and float(building_manager.get_light_level_at(pos)) > 0.2:
+		place = "out_lit"
+	var inside := place == "office" or place == "back_room"
+	var out := ctx.duplicate()
+	out["place"] = place
+	out["pos"] = pos
+	out["walking"] = float(s.get("v", 0.0)) > 0.8
+	out["lamp_near"] = place == "out_lit"
+	out["haunted_near"] = _day_events != null and place.begins_with("out") and _day_events.haunted_near(pos, 14.0) != Vector3.INF
+	out["looking_at_window"] = false
+	out["hunter_near_m"] = 99.0
+	out["entering"] = inside and not _coop_dir_other_inside
+	_coop_dir_other_inside = inside
+	return out
 
 
 func _director_slow_context() -> Dictionary:
@@ -3819,6 +3862,9 @@ func _on_coop_world_arrived(snapshot: Dictionary) -> void:
 		return
 	_active_save_path = ""
 	_coop_powered = true
+	_coop_till_shown = -1
+	_coop_till_seq = 0
+	_coop_till_pending.clear()
 	_start_game_from_menu()
 	if CoreRoot.failure_system != null:
 		CoreRoot.failure_system.enabled = false
@@ -3839,6 +3885,8 @@ func _on_coop_session_ended(reason: String) -> void:
 
 
 func _on_coop_peer_joined() -> void:
+	# A new line: their till changes are numbered from one again.
+	_coop_till_acked = 0
 	# Their name comes with their hello, a moment after the line opens.
 	await get_tree().create_timer(1.0).timeout
 	if _hud_manager != null and Coop.has_partner():
@@ -3930,6 +3978,31 @@ func coop_camp_pulse() -> Dictionary:
 
 
 var _coop_day_hash := 0
+
+## The other machine's till: the host's, plus what was spent or taken here and not yet
+## counted there (each change goes to the host numbered; its clock says how far it got).
+var _coop_till_shown := -1
+var _coop_till_seq := 0
+var _coop_till_pending: Array = []      # [[seq, delta]]
+## The host: the last of the other warden's till changes it has counted.
+var _coop_till_acked := 0
+
+
+func _coop_follow_till(host_money: int, acked: int) -> void:
+	var state = CoreRoot.get_state()
+	if _coop_till_shown >= 0:
+		var here := int(state.money) - _coop_till_shown
+		if here != 0:
+			_coop_till_seq += 1
+			_coop_till_pending.append([_coop_till_seq, here])
+			Coop.send_request("till", [_coop_till_seq, here])
+	_coop_till_pending = _coop_till_pending.filter(func(p): return int(p[0]) > acked)
+	var shown := host_money
+	for p in _coop_till_pending:
+		shown += int(p[1])
+	if int(state.money) != shown:
+		CoreRoot.apply_changes({"money": shown})
+	_coop_till_shown = shown
 
 
 ## The other warden's machine: the host's camp as it now is (coop_camp_pulse).
@@ -4081,6 +4154,16 @@ func coop_request(kind: String, data: Array) -> void:
 				Coop.send_fact("demolish_rejected", turned2[0])
 		"money":
 			CoreRoot.actions.add_money(int(data[0]))
+		"till":
+			# Spent or taken on the other machine (the town, the pub, the pump...).
+			var seq := int(data[0])
+			if seq > _coop_till_acked:
+				_coop_till_acked = seq
+				var delta := int(data[1])
+				if delta >= 0:
+					CoreRoot.actions.add_money(delta)
+				else:
+					CoreRoot.actions.spend_money(mini(-delta, CoreRoot.get_money()))
 		"service":
 			CoreRoot.actions.service_building(data[0], int(data[1]))
 		"upgrade":
@@ -4180,6 +4263,19 @@ func _coop_client_interact() -> void:
 		if _hud_manager != null:
 			_hud_manager.push_status("They grab your sleeve. \"Get me out of here.\"", 1)
 		return
+	# The day's events (the host's, shown here): sorted out through the host.
+	if _day_events != null and not _is_any_interior_open() and _day_events.try_interact():
+		return
+	# A guest: a word with them (a noise complaint settles through the host too).
+	if not _is_any_interior_open():
+		var guest_in_view := _find_guest_in_view()
+		if not guest_in_view.is_empty():
+			if str(guest_in_view.get("status", "")) == "waiting":
+				if _hud_manager != null:
+					_hud_manager.push_status("%s: \"We are waiting for the desk. Is anyone in there?\"" % str(guest_in_view.get("name", "Guest")), 0, "arrivals")
+			else:
+				_talk_to_guest(guest_in_view)
+			return
 	var st := _coop_client_room_target()
 	if st != null:
 		_handle_structure_interior_interact(st)
@@ -4190,6 +4286,12 @@ func _coop_client_hint() -> String:
 		return ""
 	if _coop_corn_guest_near() != null:
 		return "[E] Take them by the arm"
+	var day_hint: String = _day_events.hint() if _day_events != null else ""
+	if not day_hint.is_empty():
+		return day_hint
+	var guest_in_view := _find_guest_in_view()
+	if not guest_in_view.is_empty():
+		return ("[E] Check in %s" if str(guest_in_view.get("status", "")) == "waiting" else "[E] Talk to %s") % str(guest_in_view.get("name", "guest"))
 	var h: String = _lake_trip.hint() if _lake_trip != null else ""
 	if h.is_empty() and _coop_client_room_target() != null and _interaction_controller.has_method("build_hint_text"):
 		h = str(_interaction_controller.build_hint_text(INTERACT_DISTANCE, false))
@@ -4279,7 +4381,7 @@ func coop_local_warden() -> Dictionary:
 func coop_clock() -> Dictionary:
 	var state = CoreRoot.get_state()
 	var night_passing: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.is_fast_forwarding()
-	var c := {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing}
+	var c := {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing, "mq": _coop_till_acked}
 	if _coop_night != null:
 		c["sn"] = float(_coop_night.sanity["other"])
 	return c
@@ -4294,9 +4396,7 @@ func coop_apply_clock(c: Dictionary) -> void:
 		var day := maxi(1, int(c.get("d", _day_index)))
 		if int(state.day) != day:
 			state.day = day
-		var money := int(c.get("m", state.money))
-		if int(state.money) != money:
-			CoreRoot.apply_changes({"money": money})
+		_coop_follow_till(int(c.get("m", state.money)), int(c.get("mq", 0)))
 	if time_system != null:
 		time_system.set_time_hours(float(c.get("h", _time_of_day_hours)))
 	if _coop_night != null and c.has("sn"):

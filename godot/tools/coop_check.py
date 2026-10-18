@@ -182,6 +182,15 @@ def main():
         fs = load(tag)
         if fs is None or fs["room_figure"] == "":
             failures.append("%s: the other warden is not seen in the shed" % tag)
+    # Spent on the other machine: counted in the host's till, the same on both.
+    ct, ht = load("client_till"), load("host_till")
+    if ct is None or ht is None:
+        failures.append("missing till fingerprints")
+    else:
+        if ht["till_acked"] < 1:
+            failures.append("the host did not count what the other warden spent")
+        if abs(int(ht["money"]) - int(ct["money"])) > 2:
+            failures.append("the tills differ (host %s, other %s)" % (ht["money"], ct["money"]))
     # Over the shoulder: the host's screen on the other's PC.
     cs = load("client_shoulder")
     if cs is None or not cs["coop_screen"]:
@@ -210,6 +219,10 @@ def main():
     hc = load("host_corn")
     if hc is None or not hc["corn_led_by_other"]:
         failures.append("the other warden did not take the lost guest by the arm")
+    # The night director's touch sent to the other warden.
+    ctext = open(os.path.join(OUT, "client.log"), encoding="utf-8", errors="replace").read()
+    if "Coop: the night, here: knock" not in ctext:
+        failures.append("the night director's knock did not reach the other warden")
     # Sleep: alone in bed the night stays; both in bed, both wake on the next morning.
     hz, hm, cm = load("host_waiting"), load("host_morning"), load("client_morning")
     if hz is None or hm is None or cm is None:
