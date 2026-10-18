@@ -100,9 +100,8 @@ static func open_now(door: MeshInstance3D, seconds: float = 1.6) -> void:
 	var d: Dictionary = _doors[door.get_instance_id()]
 	d["angle"] = OPEN_DEG
 	(d["pivot"] as Node3D).basis = (d["base"] as Basis) * Basis(Vector3.UP, deg_to_rad(OPEN_DEG))
-	var hole: Node3D = d.get("hole", null)
-	if hole != null and is_instance_valid(hole):
-		hole.visible = true
+	if is_instance_valid(d.get("hole", null)):
+		(d["hole"] as Node3D).visible = true
 
 
 static func _hang(door: MeshInstance3D) -> bool:
@@ -163,17 +162,16 @@ static func tick(delta: float) -> void:
 	var gone: Array = []
 	for id in _doors.keys():
 		var d: Dictionary = _doors[id]
-		var pivot: Node3D = d["pivot"]
-		if pivot == null or not is_instance_valid(pivot):
+		if not is_instance_valid(d["pivot"]):
 			gone.append(id)
 			continue
+		var pivot: Node3D = d["pivot"]
 		var want := OPEN_DEG if _clock < float(d["open_until"]) else 0.0
 		var a := move_toward(float(d["angle"]), want, SPEED_DEG * step)
 		if a != float(d["angle"]):
 			d["angle"] = a
 			pivot.basis = (d["base"] as Basis) * Basis(Vector3.UP, deg_to_rad(a))
-			var hole: Node3D = d.get("hole", null)
-			if hole != null and is_instance_valid(hole):
-				hole.visible = absf(a) > 4.0
+			if is_instance_valid(d.get("hole", null)):
+				(d["hole"] as Node3D).visible = absf(a) > 4.0
 	for id in gone:
 		_doors.erase(id)

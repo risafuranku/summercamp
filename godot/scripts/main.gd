@@ -3832,6 +3832,9 @@ func _emit_state_update() -> void:
 func _enter_main_menu() -> void:
 	# Leaving a co-op camp closes the line (the other warden goes back to their menu).
 	Coop.leave()
+	# Whatever room, job or close-up was open is shut, or it stays under the menu taking
+	# clicks (playtest 18. 10.: cleaning a tent behind the title screen).
+	_leave_everything(true)
 	_stop_active_enemy_brain()
 	if CoreRoot.failure_system != null:
 		CoreRoot.failure_system.enabled = false
@@ -5993,6 +5996,12 @@ func _leave_label() -> String:
 ## own exit would, and you stand in the camp again. There is always a way back.
 func _on_pause_leave_requested() -> void:
 	_close_pause_menu(false)
+	_leave_everything(false)
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+
+## `silent`: back to the main menu, nothing to walk out of and no door to hear.
+func _leave_everything(silent: bool) -> void:
 	if _sewer_pipe_minigame != null and _sewer_pipe_minigame.has_method("abort") and _sewer_pipe_minigame.is_open():
 		_sewer_pipe_minigame.abort()
 	if _utility_repair_minigame != null and _utility_repair_minigame.has_method("abort") and _utility_repair_minigame.is_open():
@@ -6002,8 +6011,7 @@ func _on_pause_leave_requested() -> void:
 	if _lake_trip != null and is_instance_valid(_lake_trip) and _lake_trip.has_method("return_home") and _lake_trip.is_active():
 		_lake_trip.return_home()
 	if _interior_manager != null and _interior_manager.has_method("close_everything"):
-		_interior_manager.close_everything()
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		_interior_manager.close_everything(silent)
 
 
 ## Built once at bootstrap so it is ready (and laid out) long before the first Esc.

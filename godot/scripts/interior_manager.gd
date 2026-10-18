@@ -335,12 +335,16 @@ func is_any_open() -> bool:
 
 
 ## The pause menu's "Go outside": shuts whatever room or panel is open the way its own
-## exit would (each hands the player back their controls).
-func close_everything() -> void:
+## exit would (each hands the player back their controls). `silent` (back to the main
+## menu): no walk out of the door, no door sound; a room left open stayed under the
+## menu and went on taking clicks.
+func close_everything(silent := false) -> void:
 	if _guest_dialog != null and _guest_dialog.is_open():
 		_guest_dialog.close_dialog()
 	if _building_upgrade_menu != null and _building_upgrade_menu.is_open():
 		_building_upgrade_menu.close_menu()
+	_no_step_out = silent
+	_silent_close = silent
 	for interior in _get_registered_interior_nodes():
 		if not (interior.has_method("is_open") and interior.is_open()):
 			continue
@@ -348,8 +352,23 @@ func close_everything() -> void:
 			if interior.has_method(m):
 				interior.call(m)
 				break
+	_no_step_out = false
+	_silent_close = false
+	if silent and stepping_out():
+		_stepping_out.kill()
+		var body := _player as CharacterBody3D
+		if body != null:
+			body.collision_mask = _walk_mask
 	if not stepping_out():
 		_set_player_controls_enabled(true)
+
+
+var _silent_close := false
+
+
+func _play_door_close() -> void:
+	if not _silent_close and _audio_manager != null and _audio_manager.has_method("play_door_close"):
+		_audio_manager.play_door_close()
 
 
 func is_crt_desktop_active() -> bool:
@@ -564,12 +583,10 @@ func _on_interior_visibility_changed() -> void:
 	if not _building_interior.is_open():
 		if bool(_building_interior.get("walked_out")):
 			_building_interior.set("walked_out", false)
-			if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-				_audio_manager.play_door_close()
+			_play_door_close()
 			_walk_on_out_of_office()
 			return
-		if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-			_audio_manager.play_door_close()
+		_play_door_close()
 		_step_out_of(_world_3d.find_child("MainBuilding", true, false) as Node3D if _world_3d != null else null)
 
 
@@ -750,8 +767,7 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 func _on_caravan_closed() -> void:
 	var was: Node3D = _active_caravan_node
 	_active_caravan_node = null
-	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-		_audio_manager.play_door_close()
+	_play_door_close()
 	_step_out_of(was)
 
 
@@ -837,8 +853,7 @@ func _on_cabin_closed() -> void:
 		_cabin_interior.set_guest_occupants([])
 	var was: Node3D = _active_cabin_node
 	_active_cabin_node = null
-	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-		_audio_manager.play_door_close()
+	_play_door_close()
 	_step_out_of(was)
 
 
@@ -950,8 +965,7 @@ func _toilet_door_of(structure: Node3D) -> String:
 func _on_service_closed() -> void:
 	var was: Node3D = _active_service_node as Node3D
 	_active_service_node = null
-	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-		_audio_manager.play_door_close()
+	_play_door_close()
 	_step_out_of(was)
 
 

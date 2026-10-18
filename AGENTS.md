@@ -209,8 +209,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **Esc is always the pause menu** (main `_unhandled_input`), in rooms, at the PC, in
  close-ups and jobs: nothing else may consume it. Its CanvasLayer is 150, above every
  full-screen overlay (the check-in desk is 140); a new overlay stays below it. Leaving is S, the bottom band or a
-  right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
-  room or job the way its own exit would. Always-processing modals return early from
+ right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
+ room or job the way its own exit would. Back to the title screen closes them too, silently
+ (`main._leave_everything(true)` in `_enter_main_menu`): a room left open went on taking
+ clicks behind the menu. Always-processing modals return early from
   `_input` while the tree is paused.
 - **Interiors live under InteriorManager (the full-res root view), not in World3D**: the
   world is drawn small and scaled up by the render style, and 2D inside it scaled with it
