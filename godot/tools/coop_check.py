@@ -206,6 +206,10 @@ def main():
             failures.append("the other warden does not see their own enemy (%s)" % cp["mirror"])
         if cg2["mirror"] != 0:
             failures.append("the other machine shows an enemy that is only the host's (%s)" % cg2["mirror"])
+    # The guest lost in the host's corn, led out by the other warden.
+    hc = load("host_corn")
+    if hc is None or not hc["corn_led_by_other"]:
+        failures.append("the other warden did not take the lost guest by the arm")
     # Sleep: alone in bed the night stays; both in bed, both wake on the next morning.
     hz, hm, cm = load("host_waiting"), load("host_morning"), load("client_morning")
     if hz is None or hm is None or cm is None:

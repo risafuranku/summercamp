@@ -4089,6 +4089,10 @@ func coop_request(kind: String, data: Array) -> void:
 		"day_event":
 			if _day_events != null:
 				_day_events.coop_resolve(int(data[0]))
+		"corn_take":
+			# The other warden leads them out: they follow the stand-in.
+			if _corn_hunt != null and is_instance_valid(_corn_hunt) and _coop_night != null and _coop_night.proxy() != null:
+				_corn_hunt.coop_take(_coop_night.proxy())
 		"repair":
 			if economy_manager != null and economy_manager.has_method("add_repair_progress"):
 				economy_manager.add_repair_progress(data[0], 1.0)
@@ -4170,6 +4174,12 @@ func _coop_flush_facts() -> void:
 func _coop_client_interact() -> void:
 	if _lake_trip != null and not _is_any_interior_open() and _lake_trip.try_interact():
 		return
+	# The guest lost in the corn (the host's): take them by the arm.
+	if _coop_corn_guest_near() != null:
+		Coop.send_request("corn_take", [])
+		if _hud_manager != null:
+			_hud_manager.push_status("They grab your sleeve. \"Get me out of here.\"", 1)
+		return
 	var st := _coop_client_room_target()
 	if st != null:
 		_handle_structure_interior_interact(st)
@@ -4178,10 +4188,18 @@ func _coop_client_interact() -> void:
 func _coop_client_hint() -> String:
 	if _is_any_interior_open():
 		return ""
+	if _coop_corn_guest_near() != null:
+		return "[E] Take them by the arm"
 	var h: String = _lake_trip.hint() if _lake_trip != null else ""
 	if h.is_empty() and _coop_client_room_target() != null and _interaction_controller.has_method("build_hint_text"):
 		h = str(_interaction_controller.build_hint_text(INTERACT_DISTANCE, false))
 	return h
+
+
+func _coop_corn_guest_near() -> Node3D:
+	if _coop_night == null or _player == null or not is_instance_valid(_player):
+		return null
+	return _coop_night.tagged_near("corn_guest", _player.global_position, 1.8)
 
 
 func _coop_client_room_target() -> Node3D:

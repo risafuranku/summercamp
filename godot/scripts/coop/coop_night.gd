@@ -61,6 +61,9 @@ func _process(delta: float) -> void:
 
 func _host_tick(delta: float) -> void:
 	_wear(delta)
+	# Their stand-in is always about (a lost guest may follow it, an enemy hunt it).
+	_ensure_proxy()
+	_place_proxy()
 	var brains: Array = main.get("_enemy_brains")
 	if brains.is_empty():
 		_targets.clear()
@@ -87,8 +90,6 @@ var _sent_any := false
 
 
 func _hunt(delta: float, brains: Array) -> void:
-	_ensure_proxy()
-	_place_proxy()
 	_retarget_t -= delta
 	for b in brains:
 		if b != null and not _targets.has(b.get_instance_id()):
@@ -313,7 +314,8 @@ func _snapshot_root(root: Node, prefix: String, out: Array, with_root := false) 
 			if sp.texture == null or sp.texture.resource_path == "":
 				continue
 			out.append({"k": key, "t": "s", "tex": sp.texture.resource_path, "xf": sp.global_transform, "v": _shown_below(sp, root),
-				"px": sp.pixel_size, "off": sp.offset, "fh": sp.flip_h, "mod": sp.modulate, "sh": sp.shaded, "bb": int(sp.billboard)})
+				"px": sp.pixel_size, "off": sp.offset, "fh": sp.flip_h, "mod": sp.modulate, "sh": sp.shaded, "bb": int(sp.billboard),
+				"tag": str(sp.get_meta("coop_tag", ""))})
 		elif n is AudioStreamPlayer3D:
 			var a := n as AudioStreamPlayer3D
 			if a.stream == null or a.stream.resource_path == "" or not a.playing:
@@ -466,6 +468,7 @@ func show_view(items: Array) -> void:
 				sp.modulate = it["mod"]
 				sp.shaded = bool(it["sh"])
 				sp.billboard = int(it["bb"]) as BaseMaterial3D.BillboardMode
+				sp.set_meta("coop_tag", str(it.get("tag", "")))
 			"a":
 				var a := n as AudioStreamPlayer3D
 				if a == null or not is_instance_valid(a):
@@ -508,6 +511,22 @@ func show_view(items: Array) -> void:
 				else:
 					(gone as Node).queue_free()
 			_mirror.erase(key)
+
+
+## The other machine: a shown thing of the host's tagged `tag` within `radius` of `at`
+## (the guest lost in the corn), or null.
+func tagged_near(tag: String, at: Vector3, radius: float) -> Node3D:
+	for v in _mirror.values():
+		if v is Sprite3D and is_instance_valid(v) and (v as Sprite3D).visible and str(v.get_meta("coop_tag", "")) == tag:
+			var p := (v as Node3D).global_position
+			if Vector2(p.x - at.x, p.z - at.z).length() < radius:
+				return v
+	return null
+
+
+## The host: the other warden's stand-in (for a lost guest to follow).
+func proxy() -> Node3D:
+	return _proxy
 
 
 func mirror_count() -> int:

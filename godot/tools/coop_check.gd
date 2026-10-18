@@ -22,6 +22,7 @@ extends "res://tools/shot_driver.gd"
 ##   - a night enemy on the host's goes for the other warden: the other machine sees it;
 ##     one only for them: the host neither sees nor hears it; set on the host, the other
 ##     machine has nothing of it;
+##   - a guest lost in the host's corn: the other warden finds them and leads them out;
 ##   - at night both go to the room behind the office: the host lies down first and the
 ##     night does not pass; the other lies down too and both wake in the morning.
 ## Each writes what its camp looks like (seed, buildings, trees, terrain, clock, rooms)
@@ -81,7 +82,7 @@ func _ready() -> void:
 			["coop_signal", "host_at_pc"], ["coop_wait_file", "client_saw_pc"], ["shot", "h8_at_pc"],
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			# A guest at the host's camp: on the other machine too (the camp pulse).
-			["prep_all"], ["book", "Lads", "quiet_guy", 1, 1, 0], ["hours", 0.05], ["eval", "debug_arrivals()"], ["checkin"], ["hours", 0.3], ["wait", 3.0],
+			["prep_all"], ["book", "Lads", "drunk", 1, 1, 0], ["hours", 0.05], ["eval", "debug_arrivals()"], ["checkin"], ["hours", 0.3], ["wait", 3.0],
 			["coop_fingerprint", "host_guests"], ["coop_signal", "host_guests"],
 			["coop_wait_file", "client_guests_seen"], ["wait", 1.0], ["coop_fingerprint", "host_after_client"],
 			["eval", "_day_events.debug_start('delivery')"], ["wait", 2.0], ["coop_signal", "host_day_event"],
@@ -105,6 +106,9 @@ func _ready() -> void:
 			["coop_fingerprint", "host_private"], ["coop_signal", "host_private"], ["coop_wait_file", "client_private_seen"],
 			["eval", "_coop_night._aim(_enemy_brains[0], 'host')"], ["wait", 2.0], ["coop_signal", "host_private_mine"], ["coop_wait_file", "client_private_gone"],
 			["eval", "_stop_active_enemy_brain()"], ["wait", 1.0],
+			# Someone lost in the corn; the other warden takes them by the arm.
+			["eval", "start_corn_hunt({})"], ["wait", 2.0], ["coop_signal", "host_corn"], ["coop_wait_file", "client_corn_took"], ["wait", 2.0],
+			["coop_fingerprint", "host_corn"], ["eval", "end_corn_hunt()"], ["wait", 1.0], ["coop_signal", "host_corn_done"],
 			# To bed: alone, the night does not pass; with the other one in bed too, it does.
 			["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
 			["coop_signal", "host_in_back"], ["coop_wait_file", "client_in_back"], ["wait", 1.5], ["shot", "h7_back_room_other"],
@@ -154,6 +158,8 @@ func _ready() -> void:
 			["coop_wait_file", "host_enemy"], ["wait", 2.0], ["shot", "c5b_night_enemy"], ["coop_fingerprint", "client_enemy"], ["coop_signal", "client_enemy_seen"],
 			["coop_wait_file", "host_private"], ["wait", 2.0], ["coop_fingerprint", "client_private"], ["coop_signal", "client_private_seen"],
 			["coop_wait_file", "host_private_mine"], ["wait", 2.5], ["coop_fingerprint", "client_private_gone"], ["coop_signal", "client_private_gone"],
+			["coop_wait_file", "host_corn"], ["wait", 2.0], ["coop_goto_corn_guest"], ["wait", 1.0], ["shot", "c5c_corn_guest"],
+			["eval", "_coop_client_interact()"], ["wait", 0.5], ["coop_signal", "client_corn_took"], ["coop_wait_file", "host_corn_done"],
 			["coop_wait_file", "host_in_back"], ["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
 			["coop_signal", "client_in_back"], ["wait", 1.5], ["shot", "c6_back_room_host"],
 			["coop_wait_file", "host_in_bed"], ["eval", "_interior_manager._building_interior._extras._try_sleep()"],
@@ -264,6 +270,15 @@ func _run_step(step: Array) -> void:
 			super._run_step(["aim_task", "_cabin_interior", pick])
 		"coop_row":
 			_row_left = float(step[1])
+		"coop_goto_corn_guest":
+			# Up to the guest lost in the host's corn (as it is shown here), facing them.
+			var lost: Node3D = _main.get("_coop_night").tagged_near("corn_guest", Vector3.ZERO, 100000.0)
+			var me5: Node3D = _main.get("_player")
+			if lost != null and me5 != null:
+				var at := lost.global_position + Vector3(1.0, 0.6, 0.0)
+				me5.global_position = at
+				me5.rotation.y = atan2(-(lost.global_position.x - at.x), -(lost.global_position.z - at.z))
+			print("COOP CHECK %s goes to the lost guest: %s" % [_role, lost != null])
 		"coop_sign_delivery":
 			# Sign for the van at the gate (what E does there).
 			var de = _main.get("_day_events")
@@ -486,6 +501,7 @@ func _write_fingerprint(tag: String) -> void:
 		"enemy_shown_here": _enemy_shown_here(),
 		"sanity": (_main.get("_coop_night").sanity as Dictionary).duplicate() if _main.get("_coop_night") != null else {},
 		"day_open": (_main.get("_day_events").open_events() as Array).map(func(e): return str(e["kind"])) if _main.get("_day_events") != null else [],
+		"corn_led_by_other": Coop.is_host() and _main.get("_corn_hunt") != null and is_instance_valid(_main.get("_corn_hunt")) and _main.get("_corn_hunt").leader != null and _main.get("_corn_hunt").leader == _main.get("_coop_night").proxy(),
 		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,

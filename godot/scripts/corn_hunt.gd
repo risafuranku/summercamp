@@ -72,8 +72,10 @@ func setup(main_node: Node, corn: Node, guest: Dictionary) -> bool:
 	var pick: Vector2i = ends[randi_range(0, mini(3, ends.size() - 1))]
 	_guest = Sprite3D.new()
 	_guest.name = "LostGuest"
-	# Co-op: the other warden sees them in the corn too (scripts/coop/coop_night.gd).
+	# Co-op: the other warden sees them in the corn too (scripts/coop/coop_night.gd), and
+	# can take them by the arm (main.coop_request "corn_take").
 	_guest.add_to_group("coop_mirror")
+	_guest.set_meta("coop_tag", "corn_guest")
 	var tex_path := str(guest.get("sprite_path", ""))
 	if tex_path != "" and ResourceLoader.exists(tex_path):
 		_guest.texture = load(tex_path)
@@ -125,10 +127,24 @@ func _sound(path: String, parent: Node, unit: float, db: float) -> AudioStreamPl
 	return p
 
 
+## Co-op: who leads them out (the other warden's stand-in when they took the arm).
+var leader: Node3D
+
+
+## The other warden took them by the arm (their stand-in leads from here).
+func coop_take(by: Node3D) -> void:
+	if _done or _following:
+		return
+	leader = by
+	_following = true
+	_crumbs.clear()
+	_set_hint("")
+
+
 func _process(delta: float) -> void:
 	if _done or _main == null or _corn == null:
 		return
-	var player = _main.get("_player")
+	var player = leader if leader != null and is_instance_valid(leader) else _main.get("_player")
 	if player == null or not is_instance_valid(player):
 		return
 	if get_tree().paused:
@@ -284,7 +300,10 @@ func _update_scarecrow(delta: float, player: Node3D) -> void:
 
 
 func _hit(player: Node3D) -> void:
-	if _main.has_method("damage_player"):
+	# The one leading them gets it (co-op: the other warden, on their machine).
+	if leader != null and is_instance_valid(leader) and player == leader:
+		Coop.send_night_event("hurt", [HIT_DAMAGE])
+	elif _main.has_method("damage_player"):
 		_main.damage_player(HIT_DAMAGE)
 	_notice("Something in the corn. %s screams and runs." % guest_name, 2)
 	if _following:
