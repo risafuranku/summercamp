@@ -1217,8 +1217,10 @@ func _process(delta: float) -> void:
 	_update_corn_wading(delta)
 	_update_threat_senses(delta)
 	_sync_hud_player_meters()
+	# Who is coming, at the gate, the day's and the night's jobs: on the HUD of both machines
+	# (the other's from the host's pulse).
+	_poll_arrivals(delta)
 	if sim:
-		_poll_arrivals(delta)
 		_tick_night_jobs()
 		_tick_week_ledger()
 		_poll_guest_quotes(delta)
@@ -1580,6 +1582,9 @@ func _poll_arrivals(delta: float) -> void:
 	if _arrivals_poll > 0.0 or _hud_manager == null:
 		return
 	_arrivals_poll = 0.5
+	if not Coop.sim_here():
+		# The host's guests by the host's clock (GuestManager keeps no time of its own here).
+		GuestManager._on_time_tick(int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
 	_hud_manager.set_arrivals(GuestManager.get_arrivals())
 	var day_rows: Array = _day_events.hud_rows() if _day_events != null else []
 	var biz = _interior_manager.get("business") if _interior_manager != null else null
@@ -4550,6 +4555,9 @@ func _coop_sync_things() -> Dictionary:
 	var desk = bi.get("_desk_room")
 	if desk != null and desk.has_method("coop_register"):
 		out["register"] = desk.coop_register()
+	# The office PC: what is installed, downloaded, binned, on the wallpaper (both ways).
+	if bi.has_method("coop_pc_state"):
+		out["pc"] = bi.coop_pc_state()
 	# The radio is the host's: its set plays on the other machine too.
 	if Coop.is_host() and bi.has_method("coop_radio_state"):
 		out["radio"] = bi.coop_radio_state()
@@ -4582,6 +4590,9 @@ func coop_sync(kind: String, data: Array) -> void:
 		"office":
 			if bi != null and bi.has_method("coop_take_office_state"):
 				bi.coop_take_office_state(data[0])
+		"pc":
+			if bi != null and bi.has_method("coop_take_pc_state"):
+				bi.coop_take_pc_state(data[0])
 		"radio":
 			if Coop.is_client() and bi != null and bi.has_method("coop_take_radio"):
 				bi.coop_take_radio(data[0])
@@ -4603,7 +4614,7 @@ func coop_sync(kind: String, data: Array) -> void:
 			return
 	# Not sent back as it came; the register goes back if it merged with rows written here.
 	var now := _coop_sync_things()
-	if kind == "office" and now.has(kind):
+	if kind in ["office", "pc"] and now.has(kind):
 		_coop_sync_last[kind] = hash(var_to_bytes(now[kind]))
 	elif kind == "register":
 		_coop_sync_last[kind] = hash(var_to_bytes(data[0]))

@@ -9,6 +9,9 @@ signal email_received(email: Dictionary)
 signal customer_booking_confirmed(email: Dictionary)
 signal customer_booking_rejected(email: Dictionary)
 signal unread_count_changed(count: int)
+## Co-op, the other warden's machine: the host's mail came in changed (read, answered,
+## deleted, new): the open CampMail redraws (scripts/os98/os_shell.gd).
+signal coop_synced
 
 const MAIL_TYPE_CUSTOMER := "customer"
 const MAIL_TYPE_SPAM := "spam"
@@ -244,6 +247,7 @@ func reset_runtime(clear_inbox: bool = true) -> void:
 	_last_tick_signature = ""
 	_last_hourly_roll_signature = ""
 	_next_runtime_mail_id = 1
+	_coop_mail_hash = 0
 	if clear_inbox:
 		inbox.clear()
 		sent.clear()
@@ -1002,8 +1006,22 @@ func _extract_sender_name(mail: Dictionary) -> String:
 
 # ── co-op: the mail is the host's (scripts/coop/coop.gd) ─────────────────────
 
-## The other warden's machine: the host's mail as it now is (main.coop_apply_pulse).
+var _coop_mail_hash := 0
+
+
+## The other warden's machine: the host's mail as it now is (main.coop_apply_pulse, every
+## time the camp changed: only a changed mail is taken). A mail that was not here before
+## lands as it does at the host (CampMail's chime, the tray, the open window), except the
+## first time (the mail that came with the camp).
 func coop_take(mail: Dictionary) -> void:
+	var h := hash(var_to_bytes(mail))
+	if h == _coop_mail_hash:
+		return
+	var first := _coop_mail_hash == 0
+	_coop_mail_hash = h
+	var known := {}
+	for m in inbox:
+		known[int(m.get("_runtime_id", -1))] = true
 	inbox = _sanitize_mail_array(mail.get("inbox", []))
 	sent.clear()
 	for m in (mail.get("sent", []) if mail.get("sent", []) is Array else []):
@@ -1011,6 +1029,11 @@ func coop_take(mail: Dictionary) -> void:
 			sent.append(m)
 	reputation = float(mail.get("rep", reputation))
 	unread_count_changed.emit(get_unread_count())
+	if not first:
+		for m in inbox:
+			if not known.has(int(m.get("_runtime_id", -1))) and str(m.get("_folder", "inbox")) == "inbox":
+				email_received.emit(m)
+	coop_synced.emit()
 
 
 ## The other warden's machine: what was done to a mail goes to the host too (it is done

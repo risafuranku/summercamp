@@ -177,6 +177,8 @@ func _ready() -> void:
 	if EmailManager != null:
 		EmailManager.email_received.connect(_on_email_received)
 		EmailManager.unread_count_changed.connect(func(_c): _refresh_tray())
+		if EmailManager.has_signal("coop_synced"):
+			EmailManager.coop_synced.connect(_refresh_mail_windows)
 	_apply_state()
 
 
@@ -259,6 +261,39 @@ func export_persistent_state() -> Dictionary:
 		"display": _extras.export_state() if _extras != null else {},
 		"datapunch_nights": get_meta("datapunch_nights", {}),
 	}
+
+
+## Co-op: the one PC in the office is the same on both machines: what is installed, the
+## downloads, the bin, the wallpaper and the screen saver (main._coop_sync_things "pc",
+## both ways when it changes; the monitor's power is each warden's own).
+func coop_pc_state() -> Dictionary:
+	var out := export_persistent_state()
+	out.erase("monitor_powered")
+	return out
+
+
+## The other machine's PC, taken in without closing anything open here.
+func coop_take_pc(data: Dictionary) -> void:
+	var reg: Dictionary = data.get("unlock_registry", {}) if data.get("unlock_registry", {}) is Dictionary else {}
+	for id in APPS:
+		_unlocked[id] = bool(APPS[id].get("base", false)) or bool(reg.get(id, false))
+	_downloads.clear()
+	for f in data.get("downloads", []):
+		_downloads.append(str(f))
+	_bin.clear()
+	for f in data.get("bin", []):
+		_bin.append(str(f))
+	_restored.clear()
+	for f in data.get("restored", []):
+		_restored.append(str(f))
+	if data.has("wallpaper") and str(data["wallpaper"]) != _wallpaper_path:
+		set_wallpaper(str(data["wallpaper"]))
+	if _extras != null and data.get("display", {}) is Dictionary:
+		_extras.import_state(data.get("display", {}))
+	if data.get("datapunch_nights", {}) is Dictionary:
+		set_meta("datapunch_nights", (data.get("datapunch_nights", {}) as Dictionary).duplicate())
+	_refresh_desktop_icons()
+	_refresh_folders()
 
 
 func import_persistent_state(data: Dictionary) -> void:
@@ -1137,6 +1172,10 @@ func _on_email_received(_mail: Dictionary) -> void:
 	_refresh_tray()
 	_flash_mail = 4.0
 	play("mail", -6.0)
+	_refresh_mail_windows()
+
+
+func _refresh_mail_windows() -> void:
 	for w in _windows.get_children():
 		if w.app_id == "mail":
 			var app = w.content.get_child(0)

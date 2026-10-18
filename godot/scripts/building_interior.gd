@@ -311,6 +311,26 @@ func export_crt_desktop_state() -> Dictionary:
 	return out
 
 
+## Co-op: the office PC as the other machine must have it too (scripts/os98/os_shell.gd
+## coop_pc_state; before the PC was first switched on here, what it was loaded with).
+func coop_pc_state() -> Dictionary:
+	if _crt_ui != null and is_instance_valid(_crt_ui) and _crt_ui.has_method("coop_pc_state"):
+		return _crt_ui.coop_pc_state()
+	var out := _pending_crt_desktop_state.duplicate(true)
+	out.erase("checkin_desk")
+	out.erase("monitor_powered")
+	return out
+
+
+func coop_take_pc_state(state: Dictionary) -> void:
+	if _crt_ui != null and is_instance_valid(_crt_ui) and _crt_ui.has_method("coop_take_pc"):
+		_crt_ui.coop_take_pc(state)
+		return
+	for k in state.keys():
+		_pending_crt_desktop_state[k] = state[k]
+	_pending_crt_desktop_state["os"] = "okna98"
+
+
 func import_crt_desktop_state(state: Dictionary) -> void:
 	_pending_crt_desktop_state = state.duplicate(true)
 	if _desk_room != null and state.get("checkin_desk", null) is Dictionary:
