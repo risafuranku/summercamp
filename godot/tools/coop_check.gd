@@ -25,6 +25,9 @@ extends "res://tools/shot_driver.gd"
 ##   - a guest lost in the host's corn: the other warden finds them and leads them out;
 ##   - the next day runs on for a few hours: the two camps are still the same (guests,
 ##     rooms, breakdowns, mail, the till, the day's events);
+##   - one bus to Lesna for both: the other gets on first, the host sits down and the bus
+##     waits while the other buys a ticket; both sit, it goes, and both get off in Lesna
+##     side by side;
 ##   - at night both go to the room behind the office: the host lies down first and the
 ##     night does not pass; the other lies down too and both wake in the morning.
 ## Each writes what its camp looks like (seed, buildings, trees, terrain, clock, rooms)
@@ -121,7 +124,14 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior._extras._try_sleep()"], ["wait", 8.0], ["coop_fingerprint", "host_waiting"],
 			["coop_signal", "host_in_bed"], ["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "host_morning"],
 			# The next day goes on a while: is it still one camp?
-			["hours", 3.0], ["wait", 4.0], ["coop_signal", "host_day2"], ["coop_wait_file", "client_day2_seen"], ["coop_fingerprint", "host_day2"], ["coop_signal", "host_day2_done"],
+			["hours", 3.0], ["wait", 4.0], ["coop_signal", "host_day2"], ["coop_wait_file", "client_day2_seen"], ["coop_fingerprint", "host_day2"],
+			# The 13:20 bus at the camp stop, for both.
+			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["coop_to_bus_stop"],
+			["eval", "debug_jump_to(2, 13.42)"], ["wait", 3.0], ["coop_signal", "host_bus_here"], ["coop_wait_file", "client_aboard"],
+			["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0], ["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(1)"], ["wait", 3.0],
+			["shot", "h10_bus_waits"], ["coop_fingerprint", "host_bus_wait"], ["coop_signal", "host_sat"],
+			["coop_wait_file", "client_sat"], ["wait", 3.0], ["coop_fingerprint", "host_bus_ride"],
+			["coop_wait", "in_town"], ["wait", 2.0], ["coop_fingerprint", "host_town"], ["coop_signal", "host_day2_done"],
 			["coop_wait", "partner_gone"], ["wait", 1.5], ["shot", "h6_other_went_home"],
 		]
 	else:
@@ -175,12 +185,17 @@ func _ready() -> void:
 			["coop_wait_file", "host_in_bed"], ["eval", "_interior_manager._building_interior._extras._try_sleep()"],
 			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "client_morning"],
 			["coop_wait_file", "host_day2"], ["wait", 2.5], ["coop_fingerprint", "client_day2"], ["coop_signal", "client_day2_seen"],
+			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["coop_to_bus_stop"],
+			["coop_wait_file", "host_bus_here"], ["wait", 1.0], ["shot", "c9b_at_the_stop"], ["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0], ["coop_signal", "client_aboard"],
+			["coop_wait_file", "host_sat"], ["wait", 1.0], ["shot", "c10_host_sat_waiting"], ["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(6)"],
+			["wait", 3.0], ["coop_fingerprint", "client_bus_ride"], ["shot", "c11_riding_with_host"], ["coop_signal", "client_sat"],
+			["coop_wait", "in_town"], ["wait", 2.0], ["coop_fingerprint", "client_town"],
 			["coop_wait", "host_done"], ["coop_leave"], ["wait", 2.0],
 		]
 
 
 func _condition_met(what: String) -> bool:
-	if what in ["partner_seen", "partner_gone", "night", "morning", "host_done", "file"] and Time.get_ticks_msec() > _coop_wait_deadline:
+	if what in ["partner_seen", "partner_gone", "night", "morning", "in_town", "host_done", "file"] and Time.get_ticks_msec() > _coop_wait_deadline:
 		print("COOP CHECK %s: gave up waiting for %s %s" % [_role, what, _wait_file])
 		get_tree().quit(1)
 		return false
@@ -198,6 +213,11 @@ func _condition_met(what: String) -> bool:
 			var h2 := float(_main.get("_time_of_day_hours"))
 			var office = _main.get("camp_office")
 			return h2 >= 6.4 and h2 < 12.0 and office != null and not office.in_bed()
+		"in_town":
+			# Off the bus at the other end.
+			var trip = _main.get("_interior_manager").get("_town_trip")
+			var ride2 = trip.get("_ride") if trip != null else null
+			return trip != null and trip.away() and (ride2 == null or not ride2.is_open())
 		"host_done":
 			# The host has its last picture: the joining copy may hang up.
 			return FileAccess.file_exists(_out_dir.path_join("host_day2_done"))
@@ -292,6 +312,16 @@ func _run_step(step: Array) -> void:
 			print("COOP CHECK %s goes to the lost guest: %s" % [_role, lost != null])
 		"coop_fx":
 			Coop.send_night_event("fx", [str(step[1])])
+		"coop_to_bus_stop":
+			# Down the road to the camp stop, where the bus stands (the host a step behind).
+			var trip2 = _main.get("_interior_manager").get("_town_trip")
+			var spot: Transform3D = trip2._road().wait_spot()
+			trip2._put_player(spot.translated(Vector3(1.5, 0.0, 0.0) if _role == "host" else Vector3.ZERO))
+		"coop_ticket":
+			# A ticket to Lesna out of the machine.
+			var ride = _main.get("_interior_manager").get("_town_trip").get("_ride")
+			if ride != null:
+				ride.set("_ticket", {"to": "LESNA", "kind": "full"})
 		"coop_spend":
 			CoreRoot.actions.spend_money(int(step[1]))
 		"coop_sign_delivery":
@@ -432,6 +462,15 @@ func _camp_rows() -> Dictionary:
 	return {"rooms": rooms, "failures": broke, "guests": guests, "day_open": open}
 
 
+## Where this warden's bus ride is: "", "boarding", "sitting", "held", "riding"...
+func _bus_state() -> String:
+	var trip = _main.get("_interior_manager").get("_town_trip")
+	var ride = trip.get("_ride") if trip != null else null
+	if ride == null:
+		return ""
+	return ["closed", "boarding", "sitting", "riding", "stopping", "done", "held"][int(ride.get("_state"))]
+
+
 ## The mail: subject and whether it was read.
 func _mail_rows() -> Array:
 	var out: Array = []
@@ -543,6 +582,7 @@ func _write_fingerprint(tag: String) -> void:
 		"corn_led_by_other": Coop.is_host() and _main.get("_corn_hunt") != null and is_instance_valid(_main.get("_corn_hunt")) and _main.get("_corn_hunt").leader != null and _main.get("_corn_hunt").leader == _main.get("_coop_night").proxy(),
 		"till_acked": int(_main.get("_coop_till_acked")),
 		"camp": _camp_rows(),
+		"bus_state": _bus_state(),
 		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,

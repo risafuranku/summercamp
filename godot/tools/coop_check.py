@@ -54,7 +54,7 @@ def main():
     time.sleep(2.0)
     client = run("client")
     try:
-        client.wait(timeout=600)
+        client.wait(timeout=900)
         host.wait(timeout=60)
     except subprocess.TimeoutExpired:
         end_tree(host)
@@ -247,6 +247,23 @@ def main():
             failures.append("day two: the tills differ (host %s, other %s)" % (h2["money"], c2["money"]))
         if h2["day"] != c2["day"]:
             failures.append("day two: not the same day (host %s, other %s)" % (h2["day"], c2["day"]))
+    # One bus for both.
+    hw, hr2, cr2, ht, ct = load("host_bus_wait"), load("host_bus_ride"), load("client_bus_ride"), load("host_town"), load("client_town")
+    if None in (hw, hr2, cr2, ht, ct):
+        failures.append("missing bus fingerprints")
+    else:
+        if hw["bus_state"] != "held":
+            failures.append("the bus did not wait for the other warden buying a ticket (%s)" % hw["bus_state"])
+        if hr2["bus_state"] not in ("riding", "stopping", "done") or cr2["bus_state"] not in ("riding", "stopping", "done"):
+            failures.append("the bus did not go with both (host %s, other %s)" % (hr2["bus_state"], cr2["bus_state"]))
+        import re
+        def at(fp):
+            m = re.findall(r"-?\d+\.?\d*", fp["me_at"])
+            return [float(v) for v in m[:3]]
+        a, b = at(ht), at(ct)
+        d = ((a[0] - b[0]) ** 2 + (a[2] - b[2]) ** 2) ** 0.5
+        if d > 3.0:
+            failures.append("off the bus in Lesna, the two are %.1f m apart" % d)
     if failures:
         print("COOP CHECK: %d FAILURE(S)" % len(failures))
         for f in failures:

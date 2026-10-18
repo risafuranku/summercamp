@@ -4404,6 +4404,11 @@ func coop_local_warden() -> Dictionary:
 	var room: Dictionary = _interior_manager.coop_room() if _interior_manager != null and _interior_manager.has_method("coop_room") else {}
 	if not room.is_empty():
 		s["room"] = room
+	# On a bus (one bus for both: town_trip.gd, bus_ride.gd).
+	var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
+	var bus: Dictionary = trip.coop_state() if trip != null and trip.has_method("coop_state") else {}
+	if not bus.is_empty():
+		s["bus"] = bus
 	# In bed (the night passes only when both are: camp_office.gd).
 	if camp_office != null and is_instance_valid(camp_office) and camp_office.in_bed():
 		s["z"] = true

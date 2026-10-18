@@ -12,6 +12,11 @@ extends CanvasLayer
 ##     fields, the first houses), mouse to look round, until it pulls up at the other
 ##     end and town_trip.gd puts you out there (`arrived`).
 ## The game's clock runs on: the ride is the hour and a half the timetable says.
+## Co-op: the other warden rides the same bus. You see them on board (standing at the
+## front till they sit, then in their seat: from the front or, sat behind them, their
+## back), the people already on board are the same for both, and the bus does not go
+## while they are on it and not yet sat down (buying a ticket), nor for a moment while
+## they are near the stop outside.
 ## Outside is lit by the hour and the weather (set_time); at night the strip lights are
 ## on inside and the windows are black but for what passes.
 
@@ -45,7 +50,17 @@ const DRIVER_LINES := {
 }
 const DRIVER_NIGHT := ["Sit where I can see you.", "Don't open the window.", "We don't stop in the forest. Whatever waves."]
 
-enum { CLOSED, BOARDING, SITTING, RIDING, STOPPING, DONE }
+enum { CLOSED, BOARDING, SITTING, RIDING, STOPPING, DONE, HELD }
+
+const LOOKS = preload("res://scripts/coop/warden_looks.gd")
+## How long a bus waits for the other warden near the stop outside (real seconds).
+const MATE_WAIT := 15.0
+## Where the stop is in the camp's world (town_trip sets it): "near the stop" is from here.
+var stop_pos := Vector3.INF
+var _mate: Sprite3D
+var _mate_pose := ""
+var _mate_wait := 0.0
+var _mate_said := false
 
 ## "camp": standing at the camp stop, going to Lesna; "town": in Lesna, going to the camp.
 var stop := "camp"
@@ -145,14 +160,39 @@ func is_open() -> bool:
 
 
 func is_riding() -> bool:
-	return _state in [SITTING, RIDING, STOPPING, DONE]
+	return _state in [SITTING, RIDING, STOPPING, DONE, HELD]
+
+
+## Co-op: where you are on this bus, for the other machine ({} off it): the stop, the
+## seat (-1 standing) and whether it has gone.
+func coop_state() -> Dictionary:
+	if _state == CLOSED:
+		return {}
+	return {"st": stop, "s": _seat, "go": _state in [RIDING, STOPPING, DONE]}
+
+
+## The other warden on a bus (their coop_state), or {}.
+func _mate_info() -> Dictionary:
+	if not Coop.has_partner():
+		return {}
+	var b = Coop.partner_state.get("bus", {})
+	return b if b is Dictionary else {}
+
+
+func _mate_aboard() -> bool:
+	var m := _mate_info()
+	return not m.is_empty() and str(m.get("st", "")) == stop and not bool(m.get("go", false))
 
 
 # ── in and out ───────────────────────────────────────────────────────────────
 
 ## Gets on the bus standing at `at_stop` ("camp" or "town") at `hour`.
+var _hour_now := 0.0
+
+
 func open_ride(at_stop: String, hour: float, fog: float, raining: bool) -> void:
 	stop = at_stop
+	_hour_now = hour
 	if not _built:
 		_build()
 		_built = true
@@ -162,6 +202,8 @@ func open_ride(at_stop: String, hour: float, fog: float, raining: bool) -> void:
 	_ticket = {}
 	_ticket_card.visible = false
 	_seat = -1
+	_mate_wait = 0.0
+	_mate_said = false
 	_speed = 0.0
 	set_time(hour, fog, raining)
 	_scenery.setup(stop == "camp", _night, worldgen)
@@ -192,7 +234,7 @@ func close_interior() -> void:
 	match _state:
 		BOARDING:
 			leave()
-		SITTING, RIDING, STOPPING, DONE:
+		SITTING, RIDING, STOPPING, DONE, HELD:
 			_shut()
 			arrived.emit()
 
@@ -290,6 +332,9 @@ func set_time(hour: float, fog: float, raining: bool) -> void:
 func _process(delta: float) -> void:
 	if _state == CLOSED:
 		return
+	_update_mate()
+	if _state == HELD and _mate_ready(delta):
+		_depart()
 	_say_t -= delta
 	if _say_label != null:
 		_say_label.modulate.a = clampf(_say_t / 0.4, 0.0, 1.0)
@@ -463,6 +508,10 @@ func _try_sit(i: int) -> void:
 	if problem != "":
 		_say("Driver: \"%s\"" % problem, 3.5)
 		return
+	var m := _mate_info()
+	if _mate_aboard() and int(m.get("s", -1)) == i:
+		_say("Driver: \"That one's taken. Look.\"", 3.0)
+		return
 	_seat = i
 	_state = SITTING
 	_glint.clear()
@@ -474,15 +523,90 @@ func _try_sit(i: int) -> void:
 	get_tree().create_timer(0.75).timeout.connect(func():
 		if _state != SITTING:
 			return
-		_set_door(false)
 		_cam_base = rot
 		_look = INTERIOR_LOOK.new(120.0, 24.0, 30.0)
-		_state = RIDING
-		_play("start_inside.mp3", -2.0)
-		_ride.stream = _loop(load(SFX + "ride.mp3"))
-		_ride.volume_db = -12.0
-		_ride.play()
+		# Co-op: sat down, the bus waits for the other warden (_mate_ready).
+		_state = HELD
 	)
+
+
+## The doors shut and it goes.
+func _depart() -> void:
+	_set_door(false)
+	_state = RIDING
+	_play("start_inside.mp3", -2.0)
+	_ride.stream = _loop(load(SFX + "ride.mp3"))
+	_ride.volume_db = -12.0
+	_ride.play()
+
+
+## Co-op: may it go? The other warden on board: once they sit (or it went for them).
+## Near the stop outside: a moment for them. Elsewhere, or alone: at once.
+func _mate_ready(delta: float) -> bool:
+	if not Coop.has_partner():
+		return true
+	var m := _mate_info()
+	if not m.is_empty() and str(m.get("st", "")) == stop:
+		if int(m.get("s", -1)) >= 0 or bool(m.get("go", false)):
+			return true
+		_driver_waits()
+		return false
+	var p: Vector3 = Coop.partner_state.get("p", Vector3.INF)
+	var near := stop_pos != Vector3.INF and p != Vector3.INF and not bool(Coop.partner_state.get("in", false)) \
+		and Vector2(p.x - stop_pos.x, p.z - stop_pos.z).length() < 30.0
+	if near and _mate_wait < MATE_WAIT:
+		_mate_wait += delta
+		_driver_waits()
+		return false
+	return true
+
+
+func _driver_waits() -> void:
+	if _mate_said:
+		return
+	_mate_said = true
+	_say("Driver: \"Your mate coming or what?\"", 3.5)
+
+
+## The other warden on this bus: standing by the door till they sit, then in their seat,
+## seen from the front or (you behind them) from the back.
+func _update_mate() -> void:
+	var m := _mate_info()
+	# On the same run: both still at the stop, or both gone.
+	var here := not m.is_empty() and str(m.get("st", "")) == stop and bool(m.get("go", false)) == (_state in [RIDING, STOPPING, DONE])
+	if not here:
+		if _mate != null:
+			_mate.visible = false
+		return
+	if _mate == null:
+		_mate = Sprite3D.new()
+		_mate.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		_mate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_mate.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		_mate.shaded = true
+		_mate.layers = 2
+		_vp.add_child(_mate)
+		_mate_pose = ""
+	var seat := int(m.get("s", -1))
+	var pos := Vector3(0.25, 0.0, -2.95)
+	var pose := "stand"
+	if seat >= 0 and seat < SEATS.size():
+		var sv: Vector2 = SEATS[seat]
+		pos = Vector3(sv.x, 0.0, sv.y)
+		# The bus faces -z: sat behind them you see their back.
+		pose = "desk" if _cam.position.z > sv.y + 0.2 else "sit"
+	var look: Dictionary = Coop.partner_look
+	var key := "%s|%d|%d" % [pose, int(look.get("m", 1)), int(look.get("c", 0))]
+	if key != _mate_pose:
+		_mate_pose = key
+		var tex: Texture2D = LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), pose)
+		_mate.texture = tex
+		if tex != null:
+			var tall := 1.62 if pose == "stand" else 1.25
+			_mate.pixel_size = tall / float(tex.get_height())
+			_mate.offset = Vector2(0.0, tex.get_height() * 0.5)
+	_mate.position = pos
+	_mate.visible = true
 
 
 func _seat_pos() -> Vector3:
@@ -512,20 +636,32 @@ func _loop(stream: AudioStream) -> AudioStream:
 	return stream
 
 
-## A few people already on board: sitting, facing the way the bus goes.
+## A few people already on board: sitting, facing the way the bus goes. The camp's own
+## guests out for the day (gone "away") ride it too. The same people for both wardens:
+## the dice are the run's (stop, day, hour).
 func _seat_passengers() -> void:
 	for p in _passengers:
 		p.queue_free()
 	_passengers.clear()
 	_taken.clear()
+	var day := int(CoreRoot.get_day()) if CoreRoot != null else 1
+	_rng.seed = hash("%s|%d|%d" % [stop, day, int(floorf(_hour_now * 2.0))])
 	var sprites := ["host1_sit.png", "host2_sit.png", "host3_sit.png", "host_family_sit.png"]
+	var riders: Array = []
+	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
+		for g in GuestManager.get_guest_life_snapshot():
+			var act: Dictionary = g.get("activity", {})
+			if str(act.get("kind", "")) == "away":
+				var sit := str(g.get("sprite_path", "")).replace(".png", "_sit.png")
+				if ResourceLoader.exists(sit):
+					riders.append(sit)
 	var n := _rng.randi_range(0, 1) if _night else _rng.randi_range(1, 4)
-	for k in n:
+	for k in n + riders.size():
 		var i := _rng.randi() % SEATS.size()
 		if _taken.has(i):
 			continue
 		_taken[i] = true
-		var path: String = NPC + str(sprites[_rng.randi() % sprites.size()])
+		var path: String = str(riders[k]) if k < riders.size() else NPC + str(sprites[_rng.randi() % sprites.size()])
 		if not ResourceLoader.exists(path):
 			continue
 		var s := Sprite3D.new()

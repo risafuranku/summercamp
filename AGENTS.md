@@ -303,6 +303,13 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   counted there (`main._coop_follow_till`: any change of `state.money` on that machine goes
   over as a numbered "till" delta, the host's clock says up to which it counted). So
   spending or earning on that machine needs no forwarding of its own.
+- **Co-op bus** (`bus_ride.gd`, `town_trip.gd`): each machine runs its own ride; the
+  warden state's `bus` ({st, s, go}: stop, seat, under way) is what the other sees. A
+  partner aboard and not gone turns that stop's bus into a "hold" special
+  (`_coop_hold`); seated, the ride sits in HELD till `_mate_ready`. When the bus goes with
+  one alone, the other's stop gets a "drop" and `_coop_gone` keeps that run off it. The
+  passengers are seeded (stop, day, half-hour) so both rides match; a seated figure needs
+  a `*_sit.png` beside its sprite (wardens: the "sit" pose in `warden_looks.gd`).
 - **Co-op sleep** (`camp_office.gd`): lying down sets `in_bed` (sent as the warden
   state's `z`); the host passes the night only when both are in bed and its own eyes are
   shut (the sleep sequence's DARK), and stops it if either gets up; the other machine

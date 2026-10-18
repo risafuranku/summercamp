@@ -520,9 +520,14 @@ through for two (TODO.md, CO-OP).
 - **The other warden** is a figure like the guests (Grok sprites) with their torch and
   their steps. Each player picks who they are on the CO-OP page, two men and two women
   (Pepa, Ondra, Jana, Bara), and the colour of their jacket; each warden is drawn
-  standing, rowing, sweeping, down on a knee scrubbing and lying on their belly.
+  standing, rowing, sweeping, down on a knee scrubbing, lying on their belly, at the PC and sitting.
 - **Rooms for two.** Each warden sees a room from where they stand in it; the other is
   in it too: across the room, or at the job they are doing (with the broom, on a knee).
+- **One bus.** The bus does not leave while either warden is on it buying a ticket or
+  finding a seat, and once one sits it waits a little for the other if they are on it or
+  coming down the road ("Your mate coming or what?"). They ride it together, each seeing
+  the other in their seat, and get off side by side. Guests out for the day ride it too,
+  sitting among the strangers.
   In a tent the other lies on their belly, chin in hand, boots up in the air.
   A job either does is done in the host's camp and shows in both rooms.
 - **One boat.** Whoever takes it rows it on both lakes; the other sees them in it and

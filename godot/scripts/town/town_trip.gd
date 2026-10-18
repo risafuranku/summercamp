@@ -443,9 +443,11 @@ func _process(delta: float) -> void:
 			_town.set_hour(h)
 			if _town_bus != null:
 				_town_bus.set_night(_night)
+	_coop_hold("camp", _camp_bus)
 	_run_stop("camp", _camp_bus, delta, h)
 	_run_works(h, delta)
 	if _town != null:
+		_coop_hold("town", _town_bus)
 		_run_stop("town", _town_bus, delta, h)
 		_town.spots["people"].update(h, delta)
 		_watch_job(h)
@@ -536,6 +538,11 @@ func _run_stop(stop: String, bus: Node3D, delta: float, h: float) -> void:
 	if not sp.is_empty():
 		_run_special(stop, bus, sp, delta)
 		return
+	if _coop_gone.has(stop):
+		if h < float(_coop_gone[stop]) and h > float(_coop_gone[stop]) - 3.0:
+			bus.set_running(false)
+			return
+		_coop_gone.erase(stop)
 	var plan := _plan(stop, h)
 	if plan.is_empty():
 		if bus.visible:
@@ -704,6 +711,41 @@ func _place_on(bus: Node3D, path: PackedVector3Array, e: float) -> void:
 		want -= seg
 
 
+# ── co-op: one bus for two wardens ───────────────────────────────────────────
+
+## The other warden on the bus at `stop_id` (not yet gone): it stands for them here too.
+## When it goes with them and not you, it goes from here as well.
+func _coop_hold(stop_id: String, bus: Node3D) -> void:
+	if bus == null or not Coop.has_partner():
+		return
+	var mate = Coop.partner_state.get("bus", {})
+	var m: Dictionary = mate if mate is Dictionary else {}
+	var theirs := not m.is_empty() and str(m.get("st", "")) == stop_id
+	var aboard := theirs and not bool(m.get("go", false))
+	var mine: bool = _ride != null and _ride.is_open() and _boarding_stop == stop_id
+	var sp: Dictionary = _special.get(stop_id, {})
+	if aboard and sp.is_empty() and bus.visible and bus.is_door_open():
+		_special[stop_id] = {"mode": "hold", "t": 0.0, "pose": bus.global_transform, "dest": bus.destination, "stop_id": stop_id, "coop": true}
+	elif not aboard and bool(sp.get("coop", false)) and not mine:
+		if theirs:
+			# Gone with them: it pulls away from the stop, and that run is over here too.
+			var out: PackedVector3Array = _road().bus_leave_path() if stop_id == "camp" else _town.bus_leave_path("to_camp")
+			var run := _plan(stop_id, hour())
+			_coop_gone[stop_id] = float(run.get("leave", hour())) + OUT_HOURS
+			_special[stop_id] = {"mode": "drop", "t": 2.6, "pose": sp["pose"], "leave": out, "dest": sp["dest"], "stop_id": stop_id}
+		else:
+			_special.erase(stop_id)
+
+
+## Runs that went early with the other warden: no bus at that stop till their time is up.
+var _coop_gone: Dictionary = {}
+
+
+## Co-op: where you are on a bus, for the other machine.
+func coop_state() -> Dictionary:
+	return _ride.coop_state() if _ride != null else {}
+
+
 # ── getting on, the ride, getting off ────────────────────────────────────────
 
 func _board(stop_id: String) -> void:
@@ -722,6 +764,7 @@ func _board(stop_id: String) -> void:
 		_ride.arrived.connect(_on_ride_arrived)
 		_ride.left_bus.connect(_on_left_bus)
 	_ride.worldgen = _worldgen()
+	_ride.stop_pos = bus.global_position
 	if _im != null and _im.has_method("_door_transition"):
 		_im._door_transition(true)
 	_set_player_controls(false)
@@ -746,14 +789,16 @@ func _on_ride_arrived() -> void:
 	if bus != null:
 		bus.set_running(false)
 		bus.set_driver_out(false)
+	# Co-op: off the same bus, the other warden steps down beside the first.
+	var beside := Vector3(1.1, 0.0, 0.0) if Coop.is_client() else Vector3.ZERO
 	if from == "camp":
 		_ensure_town()
-		_put_player(_town.arrive_spot())
+		_put_player(_town.arrive_spot().translated(beside))
 		# The bus you came on stands a moment by the square and goes on to Hlubocany.
 		_special["town"] = {"mode": "drop", "t": 0.0, "pose": _town.bus_pose("to_hlub"), "leave": _town.bus_leave_path("to_hlub"), "dest": "HLUBOCANY", "stop_id": "town_through"}
 	else:
 		var road := _road()
-		_put_player(road.wait_spot())
+		_put_player(road.wait_spot().translated(beside))
 		# The end of the line: it stands, then turns in the loop and goes back.
 		_special["camp"] = {"mode": "drop", "t": -14.0, "pose": road.bus_stop_pose(), "leave": road.bus_leave_path(), "dest": "LESNA", "stop_id": "camp"}
 	if _im != null and _im.has_method("_door_transition"):
