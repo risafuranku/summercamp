@@ -153,7 +153,11 @@ func _east_of(i: int) -> Vector3:
 func _gravel_material() -> StandardMaterial3D:
 	var m := _material(TEX_DIR + "gravel_road.png", "road", Color(0.62, 0.58, 0.5))
 	var path := "res://assets/textury/redneck/paths/gravel.png"
-	if ResourceLoader.exists(path):
+	# The forest road of grey stone and dirt, its ruts along it (playtest 18. 10.).
+	if ResourceLoader.exists(TOWN_TEX + "road_gravel.png"):
+		m.albedo_texture = load(TOWN_TEX + "road_gravel.png")
+		m.albedo_color = Color(1, 1, 1)
+	elif ResourceLoader.exists(path):
 		var img := (load(path) as Texture2D).get_image()
 		if img.is_compressed():
 			img.decompress()
@@ -186,6 +190,36 @@ func _road_segment(from: Vector3, to: Vector3, mat: StandardMaterial3D) -> void:
 	seg.material_override = m
 	seg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(seg)
+	_verges(from, to, ROAD_WIDTH)
+
+
+## The autumn verge either side of a stretch of road: dry straw-yellow grass, the last
+## green, fallen leaves (assets/textury/town/verge_autumn.png); it turns with the season
+## like the camp's own ground (scripts/season_look.gd "season_ground").
+func _verges(from: Vector3, to: Vector3, road_w: float) -> void:
+	var path := "res://assets/textury/town/verge_autumn.png"
+	if not ResourceLoader.exists(path):
+		return
+	var length := from.distance_to(to)
+	var yaw := atan2(to.x - from.x, to.z - from.z)
+	var side_dir := Vector3(cos(yaw), 0.0, -sin(yaw))
+	for side in [-1.0, 1.0]:
+		var v := MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(2.2, length + 1.0)
+		v.mesh = pm
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = load(path)
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		m.roughness = 1.0
+		m.uv1_scale = Vector3(1.0, (length + 1.0) / 2.2, 1.0)
+		v.material_override = m
+		v.position = (from + to) * 0.5 + side_dir * side * (road_w * 0.5 + 1.05) + Vector3(0, 0.02, 0)
+		v.rotation.y = yaw
+		v.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		v.add_to_group("season_ground")
+		add_child(v)
 
 
 ## The verges: a wall either side of every stretch from the gate down to the stop's pad,
@@ -252,8 +286,10 @@ func _build_ground() -> void:
 	plane.size = Vector2(hi.x - lo.x + 260.0, hi.y - lo.y + 200.0)
 	ground.mesh = plane
 	ground.position = Vector3((lo.x + hi.x) * 0.5, -0.12, (lo.y + hi.y) * 0.5 - 60.0)
+	# Needles, moss and cones, warm brown (it read as a grey void, playtest 18. 10.).
 	var m := _material(TOWN_TEX + "forest_floor.png", "grass", Color(0.36, 0.34, 0.26))
-	m.uv1_scale = Vector3(plane.size.x / 4.0, plane.size.y / 4.0, 1.0)
+	m.albedo_color = Color(0.62, 0.58, 0.5)
+	m.uv1_scale = Vector3(plane.size.x / 3.0, plane.size.y / 3.0, 1.0)
 	ground.material_override = m
 	ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ground)
@@ -364,7 +400,7 @@ func _build_stop() -> void:
 	# The platform: a strip of concrete slabs along the road with its kerb, worn earth
 	# where people stand and wait, butts trodden into it (playtest 17. 10.: "paths at
 	# the stops").
-	var slabs := _material(TOWN_TEX + "sidewalk.png", "concrete", Color(0.86, 0.86, 0.84))
+	var slabs := _material(TOWN_TEX + ("kerb_slabs.png" if ResourceLoader.exists(TOWN_TEX + "kerb_slabs.png") else "sidewalk.png"), "concrete", Color(0.86, 0.86, 0.84))
 	var pm := slabs.duplicate() as StandardMaterial3D
 	pm.uv1_scale = Vector3(1.4, 4.0, 1.0)
 	pm.uv1_triplanar = false
@@ -546,6 +582,11 @@ func _build_loop(gravel: StandardMaterial3D) -> void:
 	var m := gravel.duplicate() as StandardMaterial3D
 	m.uv1_scale = Vector3(3.0, 3.0, 1.0)
 	m.albedo_color = Color(0.92, 0.9, 0.86)
+	# The turning loop: compacted stone, the bus's tracks going round, an oil stain.
+	if ResourceLoader.exists(TOWN_TEX + "turnaround.png"):
+		m.albedo_texture = load(TOWN_TEX + "turnaround.png")
+		m.albedo_color = Color(1, 1, 1)
+		m.uv1_scale = Vector3(4.0, 4.0, 1.0)
 	disc.material_override = m
 	disc.position = centre + Vector3(0, 0.02, 0)
 	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

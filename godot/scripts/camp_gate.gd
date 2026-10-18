@@ -168,7 +168,10 @@ func _build_road() -> void:
 	# The same dirt track as the camp's paths (building_manager.gd PATH_TEXTURES), turned
 	# to run along the road, so the starter path through the barrier carries it on.
 	var mat := _material("gravel_road.png", "road", Color(0.62, 0.58, 0.5))
-	if ResourceLoader.exists(PATH_TEX):
+	if ResourceLoader.exists("res://assets/textury/town/road_gravel.png"):
+		mat.albedo_texture = load("res://assets/textury/town/road_gravel.png")
+		mat.albedo_color = Color(1, 1, 1)
+	elif ResourceLoader.exists(PATH_TEX):
 		var img := (load(PATH_TEX) as Texture2D).get_image()
 		if img.is_compressed():
 			img.decompress()
@@ -213,6 +216,7 @@ func _road_segment(from: Vector3, to: Vector3, mat: Material) -> void:
 	var m := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 	m.uv1_scale = Vector3(1.0, (length + 1.0) / ROAD_WIDTH, 1.0)
 	seg.material_override = m
+	_verges(from, to, ROAD_WIDTH)
 	seg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(seg)
 
@@ -434,3 +438,32 @@ func _sound(path: String, at: Vector3, volume_db: float, max_distance: float = 4
 	p.global_position = at
 	p.play()
 	p.finished.connect(p.queue_free)
+
+## The autumn verge either side of a stretch of road: dry straw-yellow grass, the last
+## green, fallen leaves (assets/textury/town/verge_autumn.png); it turns with the season
+## like the camp's own ground (scripts/season_look.gd "season_ground").
+func _verges(from: Vector3, to: Vector3, road_w: float) -> void:
+	var path := "res://assets/textury/town/verge_autumn.png"
+	if not ResourceLoader.exists(path):
+		return
+	var length := from.distance_to(to)
+	var yaw := atan2(to.x - from.x, to.z - from.z)
+	var side_dir := Vector3(cos(yaw), 0.0, -sin(yaw))
+	for side in [-1.0, 1.0]:
+		var v := MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(2.2, length + 1.0)
+		v.mesh = pm
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = load(path)
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		m.roughness = 1.0
+		m.uv1_scale = Vector3(1.0, (length + 1.0) / 2.2, 1.0)
+		v.material_override = m
+		v.position = (from + to) * 0.5 + side_dir * side * (road_w * 0.5 + 1.05) + Vector3(0, 0.02, 0)
+		v.rotation.y = yaw
+		v.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		v.add_to_group("season_ground")
+		add_child(v)
+
