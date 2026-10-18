@@ -14,7 +14,8 @@ extends CanvasLayer
 ##     QUIT TO DOS
 ##   [v0.3  (C) 2026 UNDO LABS ............. ARROWS SELECT  ENTER OK  ESC BACK]
 ##
-## Pages: main, load, coop, options, controls. CO-OP (scripts/coop/coop.gd): host a
+## Pages: main, load, coop, options, controls, and the secret test nights (L on the main
+## page: a fresh test camp at 20:00 with the chosen thing already out, nothing saved). CO-OP (scripts/coop/coop.gd): host a
 ## sandbox camp (this machine's addresses beside it, for the other warden) or join one
 ## (Join opens a direct-connect window: the host's address, the last one filled in; it
 ## can also be typed straight into the row); who you are and your jacket's colour
@@ -28,6 +29,7 @@ signal quit_requested
 signal coop_host_requested
 signal coop_host_saved_requested(path: String)
 signal coop_join_requested(address: String)
+signal test_night_requested(enemy_id: String)
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
@@ -45,6 +47,16 @@ const TIPS := [
 	"Read your mail. Aunt Vera does not repeat herself.",
 ]
 const VISIBLE_SAVE_ROWS := 6
+## The test nights, in the order of the guests who bring them (main.debug_spawn_enemy ids).
+const TEST_NIGHTS: Array[Dictionary] = [
+	{"id": "silent_man", "text": "Silent Man", "sub": "Quiet Guy"},
+	{"id": "tourist", "text": "Photographer", "sub": "Drunk"},
+	{"id": "girl", "text": "Girl", "sub": "Cheap Chick"},
+	{"id": "whistler", "text": "Whistler", "sub": "Tramp"},
+	{"id": "child", "text": "Extra Child", "sub": "Family"},
+	{"id": "basket", "text": "Basket Man", "sub": "Mushroom Picker"},
+	{"id": "stalker", "text": "Antlered Man", "sub": "Mixed camp"},
+]
 
 var _scale: int = 3
 var _built_for: Vector2 = Vector2.ZERO
@@ -67,6 +79,8 @@ var _options_page: Control
 var _options
 var _controls_page: Control
 var _controls
+var _test_page: Control
+var _test_list
 var _coop_page: Control
 var _coop_list
 var _coop_notice: Label
@@ -128,6 +142,8 @@ func show_page(page: String) -> void:
 	_load_page.visible = page == "load"
 	_options_page.visible = page == "options"
 	_controls_page.visible = page == "controls"
+	if _test_page != null:
+		_test_page.visible = page == "test"
 	if _coop_page != null:
 		_coop_page.visible = page == "coop"
 	if page == "coop":
@@ -316,6 +332,24 @@ func _rebuild() -> void:
 	_controls_page.add_child(_controls)
 	_controls.build()
 	_controls.back_requested.connect(func() -> void: show_page("options"))
+
+	# TEST NIGHTS (secret: L on the main page)
+	_test_page = _page_frame("TEST NIGHTS", plate_h)
+	_test_list = RETRO_MENU.MenuList.new()
+	_test_list.ui_scale = _scale
+	_test_list.size_vp = RETRO_UI.SIZE_BIG
+	_test_list.row_height_vp = 15
+	_test_list.position = Vector2(_vp(2), _vp(28))
+	_test_list.size = Vector2(_test_page.size.x - _vp(8), _vp(15 * (TEST_NIGHTS.size() + 1)))
+	_test_page.add_child(_test_list)
+	_test_list.activated.connect(_on_test_activated)
+	var test_items: Array[Dictionary] = []
+	test_items.append_array(TEST_NIGHTS)
+	test_items.append({"id": "back", "text": "Back"})
+	_test_list.set_items(test_items)
+	var test_hint := RETRO_UI.label("A FRESH CAMP AT 20:00. NOTHING IS SAVED.", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
+	test_hint.position = Vector2(_vp(8), plate_h - _vp(13))
+	_test_page.add_child(test_hint)
 
 	_build_footer(vp)
 	_build_loading(vp)
@@ -578,7 +612,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	var used := false
 	match _page:
 		"main":
-			used = _main_list.handle_input(event)
+			var key := event as InputEventKey
+			if key != null and key.pressed and not key.echo and key.keycode == KEY_L:
+				show_page("test")
+				_test_list.select(0, false)
+				used = true
+			else:
+				used = _main_list.handle_input(event)
+		"test":
+			if event.is_action_pressed("ui_cancel"):
+				show_page("main")
+				used = true
+			else:
+				used = _test_list.handle_input(event)
 		"load":
 			used = _handle_load_input(event)
 		"coop":
@@ -632,6 +678,13 @@ func _on_main_activated(id: String) -> void:
 			show_page("options")
 		"quit":
 			quit_requested.emit()
+
+
+func _on_test_activated(id: String) -> void:
+	if id == "back":
+		show_page("main")
+	else:
+		test_night_requested.emit(id)
 
 
 # ── co-op ─────────────────────────────────────────────────────────────────────

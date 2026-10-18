@@ -102,7 +102,8 @@ const DAMAGE_TIER_MEDIUM: int = 1
 const DAMAGE_TIER_LARGE: int = 2
 const DAMAGE_TIER_MEGA: int = 3
 const DAMAGE_TIER_LETHAL: int = 4
-const LAMP_FLASHLIGHT_START_HOUR: float = 19.5
+## The camp's lamps and the torch from seven (half past was late in the dusk: playtest 18. 10.).
+const LAMP_FLASHLIGHT_START_HOUR: float = 19.0
 const GAME_OVER_FALL_DELAY_FALLBACK_SEC: float = 1.2
 const GAME_OVER_REASON_DEATH := "death"
 const GAME_OVER_REASON_UPS := "ups_power_loss"
@@ -1248,7 +1249,7 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 			var gate := get_tree().get_first_node_in_group("camp_gate")
 			if gate != null:
 				# The gatehouse bulb is on from the evening lamps (19:30) to dawn.
-				gate.set_night(_time_state == TIME_NIGHT or _time_of_day_hours >= 19.5)
+				gate.set_night(_time_state == TIME_NIGHT or _time_of_day_hours >= LAMP_FLASHLIGHT_START_HOUR)
 		if previous_time_state == TIME_NIGHT and _time_state == TIME_DAY:
 			_on_day_phase_started()
 		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null and Coop.sim_here():
@@ -3704,6 +3705,7 @@ func _ensure_main_menu() -> void:
 	_main_menu.coop_host_requested.connect(_on_menu_coop_host)
 	_main_menu.coop_host_saved_requested.connect(_on_menu_coop_host_saved)
 	_main_menu.coop_join_requested.connect(_on_menu_coop_join)
+	_main_menu.test_night_requested.connect(_on_menu_test_night)
 	_wire_coop()
 
 
@@ -3757,13 +3759,45 @@ func _on_menu_new_game_pressed() -> void:
 	await _start_new_camp(false)
 
 
+## The main menu's secret test nights (L): a fresh sandbox camp, the clock on the second
+## night at 20:00 and the chosen thing already out (`debug_spawn_enemy` ids). Nothing is saved.
+var _test_night := ""
+
+
+func _on_menu_test_night(enemy_id: String) -> void:
+	await _start_new_camp(true, enemy_id)
+	for _i in 60:
+		if not _menu_mode:
+			break
+		await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
+	# The jump runs the night's start (its roll stops every brain), so the thing comes after;
+	# a test night after a test night is the same night 2 again.
+	_stop_active_enemy_brain()
+	_liminal_last_rolled_night_id = -99999
+	debug_jump_to(2, BALANCE_CONFIG.NIGHT_START_HOUR)
+	debug_spawn_enemy(enemy_id)
+	# The spawn faces the office wall (a new camp starts at the desk): turn to the camp.
+	if _player != null and is_instance_valid(_player):
+		_player.rotate_y(PI)
+	var label := enemy_id
+	for entry in MAIN_MENU_SCRIPT.TEST_NIGHTS:
+		if str(entry["id"]) == enemy_id:
+			label = str(entry["text"])
+	if _hud_manager != null:
+		_hud_manager.push_status("Test night: the %s is out." % label, 2)
+
+
 ## A fresh camp. `sandbox`: no month and no checklist, the programs already on the PC,
 ## the story's mails without the ones about the deadline (co-op camps are sandbox camps).
-func _start_new_camp(sandbox: bool) -> void:
+## `test_enemy`: a test night's camp (`_on_menu_test_night`), not opened at the desk.
+func _start_new_camp(sandbox: bool, test_enemy: String = "") -> void:
 	var started := Time.get_ticks_msec()
 	await _show_menu_loading_for("Generating a fresh camp...")
 	_reset_state_for_new_game()
 	_sandbox = sandbox
+	_test_night = test_enemy
 	_generate_grid_world()
 	_rebuild_core_cells_from_visual_structures()
 	_place_ruined_cabin()
@@ -3786,6 +3820,8 @@ func _start_new_camp(sandbox: bool) -> void:
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	if bi != null and bi.has_method("queue_first_radio_track"):
 		bi.queue_first_radio_track()
+	if not test_enemy.is_empty():
+		return
 	# A new week starts at the desk: the first part of the game is the computer, and
 	# getting up from it is something you find out you can do.
 	get_tree().create_timer(0.25).timeout.connect(func():
@@ -4715,7 +4751,7 @@ func _tick_autosave(delta: float) -> void:
 
 
 func request_manual_save(slot_name: String = "") -> String:
-	if not _gameplay_started:
+	if not _gameplay_started or not _test_night.is_empty():
 		push_warning("Manual save ignored: gameplay is not active.")
 		return ""
 	var resolved_slot := slot_name.strip_edges()
@@ -4735,7 +4771,8 @@ func request_manual_save(slot_name: String = "") -> String:
 
 func _write_autosave(slot_name: String) -> void:
 	# The other warden's machine holds the host's camp, not its own: nothing to save.
-	if not Coop.sim_here():
+	# A test night's camp is thrown away.
+	if not Coop.sim_here() or not _test_night.is_empty():
 		return
 	var snapshot := _build_save_snapshot(slot_name, "autosave")
 	if snapshot.is_empty():
@@ -4918,6 +4955,8 @@ func _collect_structure_snapshot_entries() -> Array[Dictionary]:
 func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 	if snapshot.is_empty():
 		return false
+	if not preview_only:
+		_test_night = ""
 	var grid_data_any = snapshot.get("grid", {})
 	if not (grid_data_any is Dictionary):
 		return false

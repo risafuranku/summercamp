@@ -200,8 +200,13 @@ func _process(delta: float) -> void:
 				var rr := float(pd["size"]) * 0.3 * k
 				r.global_position = spot + Vector3(_rng.randf_range(-rr, rr), 0.01, _rng.randf_range(-rr, rr))
 			r.texture = _ring_frames[mini(3, int(float(rg["t"]) / 0.15))]
-	# The mist drifts round you, low, dimmer the further.
+	# The mist drifts round you, low, dimmer the further. It is the fog's own colour for
+	# the hour (it stood out pale blue-grey in a dark red evening: playtest 18. 10.).
 	var wind := Vector3(cos(_t * 0.01), 0, sin(_t * 0.013))
+	var tint := Color(0.72, 0.76, 0.82)
+	var env := get_world_3d().environment if get_world_3d() != null else null
+	if env != null and env.fog_enabled:
+		tint = env.fog_light_color
 	for ms in _mist:
 		var sp: Sprite3D = ms["sprite"]
 		var off: Vector3 = ms["off"]
@@ -211,5 +216,5 @@ func _process(delta: float) -> void:
 		ms["off"] = off
 		sp.global_position = Vector3(centre.x + off.x, 0.6 + sin(_t * 0.2 + off.x) * 0.15, centre.z + off.z)
 		var a := _mist_amount * 0.9 * clampf((off.length() - 10.0) / 10.0, 0.2, 1.0)
-		sp.modulate = Color(0.72, 0.76, 0.82, a)
+		sp.modulate = Color(tint.r, tint.g, tint.b, a)
 		sp.visible = a > 0.01

@@ -9,9 +9,17 @@ Outputs (under godot/assets/textury/palette/):
   build_palette.png   16x16 swatch of the 256 colours (reference / UI use)
   build_palette_lut.png  1024x32 strip LUT: 32 blue slices of 32x32 (red = x, green = y)
 
-Run from the repo root:  python3 tools/gen_palette_lut.py
+The LUT's axes are square-root spaced (cell i holds the colour (i/31)^2), and the shader
+(materials/build_post.gdshader) looks it up with sqrt(colour), so the dark end has more
+cells. Dark colours are matched by hue relative to their lightness (see _match_space):
+a torch pool fading into night fog broke into rings of purple and brown round the
+player (playtest 18. 10.).
+
+Run from the repo root:  python3 tools/gen_palette_lut.py [--rebuild-palette]
+(without the flag the existing build_palette.png is kept and only the LUT is made anew).
 Requires Pillow + numpy.
 """
+import sys
 import glob
 import os
 import random
@@ -132,38 +140,59 @@ def _srgb_to_lab(rgb):
     return np.stack([L, a, b], axis=1)
 
 
+def _to_strip(cube):
+    """[r][g][b] cube of colours -> 1024x32 strip (x = blue slice * 32 + red, y = green)."""
+    strip = np.zeros((LUT_SIZE, LUT_SIZE * LUT_SIZE, cube.shape[-1]), dtype=np.uint8)
+    for bi in range(LUT_SIZE):
+        strip[:, bi * LUT_SIZE:(bi + 1) * LUT_SIZE, :] = cube[:, :, bi, :].transpose(1, 0, 2)
+    return strip
+
+
+# A colour's hue is matched relative to its lightness (a, b scaled by 50 / L, L floored
+# at 20) and weighs a quarter of the lightness: each ramp is one hue shaded down, so a
+# torch pool fading into the dark stays on its ramp instead of crossing to whichever
+# ramp's dark end is nearest in plain Lab (rings of red, olive and violet round the
+# player, playtest 18. 10.). Under L 4 there is no hue left to keep.
+DARK_HUE_FLOOR = 20.0
+HUE_WEIGHT = 0.25
+
+
+def _match_space(lab):
+    L = lab[:, 0:1]
+    scale = 50.0 / np.maximum(L, DARK_HUE_FLOOR) * np.clip(L / 4.0, 0.0, 1.0)
+    return np.concatenate([L, lab[:, 1:3] * scale * np.sqrt(HUE_WEIGHT)], axis=1)
+
+
 def build_lut(pal):
-    lvl = np.linspace(0, 255, LUT_SIZE)
+    lvl = 255.0 * np.linspace(0.0, 1.0, LUT_SIZE) ** 2
     r, g, b = np.meshgrid(lvl, lvl, lvl, indexing="ij")
     cols = np.stack([r, g, b], axis=-1).reshape(-1, 3)
-    cols_lab = _srgb_to_lab(cols)
-    pal_lab = _srgb_to_lab(pal.astype(np.float64))
-    # Lab distance with lightness slightly de-emphasised: the dither restores brightness
-    # steps, hue errors (tan -> pink) are what read as wrong.
-    w = np.array([0.8, 1.0, 1.0])
+    cols_m = _match_space(_srgb_to_lab(cols))
+    pal_m = _match_space(_srgb_to_lab(pal.astype(np.float64)))
     best = np.zeros(len(cols), dtype=np.int32)
     best_d = np.full(len(cols), np.inf)
-    for i, c in enumerate(pal_lab):
-        d = (((cols_lab - c) ** 2) * w).sum(axis=1)
+    for i, c in enumerate(pal_m):
+        d = ((cols_m - c) ** 2).sum(axis=1)
         m = d < best_d
         best[m] = i
         best_d[m] = d[m]
-    mapped = pal[best].reshape(LUT_SIZE, LUT_SIZE, LUT_SIZE, 3)  # [r][g][b]
-    strip = np.zeros((LUT_SIZE, LUT_SIZE * LUT_SIZE, 3), dtype=np.uint8)
-    for bi in range(LUT_SIZE):
-        # x = red, y = green inside slice bi
-        strip[:, bi * LUT_SIZE:(bi + 1) * LUT_SIZE, :] = mapped[:, :, bi, :].transpose(1, 0, 2)
-    return strip
+    return _to_strip(pal[best].reshape(LUT_SIZE, LUT_SIZE, LUT_SIZE, 3).astype(np.uint8))
 
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    px = gather_pixels()
-    pal = build_palette(px)
-    sw = pal.astype(np.uint8).reshape(16, 16, 3).transpose(1, 0, 2)
-    Image.fromarray(sw, "RGB").save(os.path.join(OUT, "build_palette.png"))
+    swatch = os.path.join(OUT, "build_palette.png")
+    if "--rebuild-palette" in sys.argv or not os.path.exists(swatch):
+        px = gather_pixels()
+        pal = build_palette(px)
+        sw = pal.astype(np.uint8).reshape(16, 16, 3).transpose(1, 0, 2)
+        Image.fromarray(sw, "RGB").save(swatch)
+        print("palette made from", len(px), "pixels")
+    else:
+        sw = np.asarray(Image.open(swatch).convert("RGB")).astype(np.int32)
+        pal = sw.transpose(1, 0, 2).reshape(256, 3)
     Image.fromarray(build_lut(pal), "RGB").save(os.path.join(OUT, "build_palette_lut.png"))
-    print("palette + LUT written to", OUT, "from", len(px), "pixels")
+    print("LUT written to", OUT)
 
 
 if __name__ == "__main__":

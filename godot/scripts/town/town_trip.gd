@@ -437,7 +437,7 @@ func _process(delta: float) -> void:
 	_night_poll -= delta
 	if _night_poll <= 0.0:
 		_night_poll = 1.0
-		_night = h >= 20.0 or h < 6.0
+		_night = h >= 19.0 or h < 6.0
 		_camp_bus.set_night(_night)
 		if _town != null:
 			_town.set_night(_night)

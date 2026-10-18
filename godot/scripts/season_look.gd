@@ -6,7 +6,8 @@ extends Node3D
 ## ground and on the tops of the spruces.
 ##
 ## World nodes opt in by group (world_generator.gd, cornfield.gd):
-##   "season_ground"  MeshInstance3D: its material_override is tinted (grass, then snow)
+##   "season_ground"  MeshInstance3D: its material_override is tinted (grass, then snow);
+##                    meta "season_keep_texture" keeps its own picture (road verges)
 ##   "season_crop"    MeshInstance3D / MultiMeshInstance3D: corn, dries to straw
 ## Trees read global shader parameters (materials/tree_wind.gdshader): season_leaf_tint,
 ## season_leaves, season_snow. The snow falls here too: when it is raining and
@@ -80,7 +81,9 @@ func apply(_force: bool) -> void:
 		var base: Color = mi.get_meta("season_base")
 		var c := Color(base.r * grass.r, base.g * grass.g, base.b * grass.b, base.a)
 		var tex: Texture2D = mi.get_meta("season_tex")
-		if snow >= SNOW_SETTLED and _snow_tex != null:
+		if mi.has_meta("season_keep_texture"):
+			c = c.lerp(Color(white.r * base.r, white.g * base.g, white.b * base.b, base.a), snow * 0.85)
+		elif snow >= SNOW_SETTLED and _snow_tex != null:
 			# The snow picture carries the white; the tint only evens it out.
 			tex = _snow_tex
 			c = Color(base.r, base.g, base.b, base.a).lerp(Color(1.0, 1.0, 1.0, base.a), 0.5)

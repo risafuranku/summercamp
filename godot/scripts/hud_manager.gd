@@ -129,7 +129,7 @@ var _feed_box: VBoxContainer
 var _feed_layer: CanvasLayer
 var _objective_panel: Control
 var _arrivals_panel: Control
-## The dotted rings at the right edge: parties on the way (scripts/ui/arrival_rings.gd).
+## The plates at the right edge: parties on the way or at the desk (scripts/ui/arrival_strip.gd).
 var _arrival_rings: Control
 var _side_layer: CanvasLayer
 var _side_root: Control
@@ -799,9 +799,10 @@ func _build_objective() -> void:
 
 
 func _build_arrivals() -> void:
-	_arrival_rings = load("res://scripts/ui/arrival_rings.gd").new()
-	_arrival_rings.name = "ArrivalRings"
+	_arrival_rings = load("res://scripts/ui/arrival_strip.gd").new()
+	_arrival_rings.name = "ArrivalStrip"
 	_arrival_rings.set("font", RETRO_UI.FONT_LABEL)
+	_arrival_rings.set("ui_scale", _scale)
 	_root.add_child(_arrival_rings)
 	if not _arrivals.is_empty():
 		_arrival_rings.set_rows(_arrivals)

@@ -512,7 +512,7 @@ func _update_lantern() -> void:
 		_lantern.position = Vector3(0.35, -0.3, 0.2)
 		_cam.add_child(_lantern)
 	var h := float(_main.get("_time_of_day_hours"))
-	_lantern.visible = h >= 19.5 or h < 6.0
+	_lantern.visible = h >= 19.0 or h < 6.0
 
 
 # ── overlay, sound ────────────────────────────────────────────────────────────

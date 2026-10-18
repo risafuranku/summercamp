@@ -22,6 +22,8 @@ const float BAYER4[16] = float[](
 	15.0, 7.0, 13.0, 5.0
 );
 
+// The LUT's cells are square-root spaced (more of them in the dark): `c` comes in as
+// sqrt(colour).
 vec3 lut_lookup(vec3 c) {
 	float n = lut_size - 1.0;
 	vec3 q = floor(clamp(c, 0.0, 1.0) * n + 0.5);
@@ -34,7 +36,7 @@ void fragment() {
 	vec3 c = (raw.rgb - 0.5) * contrast + 0.5 + brightness;
 	ivec2 px = ivec2(floor(UV / TEXTURE_PIXEL_SIZE));
 	float bayer = BAYER4[(px.x & 3) + (px.y & 3) * 4] / 16.0 - 0.47;
-	vec3 dithered = c + vec3(bayer * dither_strength / (lut_size - 1.0));
+	vec3 dithered = sqrt(clamp(c, 0.0, 1.0)) + vec3(bayer * dither_strength / (lut_size - 1.0));
 	vec3 pal = lut_lookup(dithered);
 	COLOR = vec4(mix(clamp(c, 0.0, 1.0), pal, palette_mix), raw.a);
 }

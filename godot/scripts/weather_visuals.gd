@@ -18,13 +18,9 @@ const WEATHER_EVENT: int = 6
 
 # ── Sky texture paths ──────────────────────────────────────────────────────────
 const SKY_TEX_CLEAR_PATHS := ["res://assets/textury/skybox/sky1.png"]
-const SKY_TEX_WINDY_PATHS := ["res://assets/textury/skybox/sky1.png"]
-const SKY_TEX_FOG_PATHS := [
-	"res://assets/textury/skybox/skydusk.png",
-	"res://assets/textury/skybox/skyeve.png",
-	"res://assets/textury/skybox/sky2.png",
-	"res://assets/textury/skybox/RRSKY_02.png"
-]
+## Fog (and snow) under a flat grey overcast; it was the red sunset panorama, a red band
+## behind the trees on a foggy morning (playtest 18. 10.).
+const SKY_TEX_FOG_PATHS := ["res://assets/textury/skybox/sky3.png"]
 const SKY_TEX_LIGHT_RAIN_PATHS := ["res://assets/textury/skybox/sky3.png"]
 const SKY_TEX_RAIN_PATHS := [
 	"res://assets/textury/skybox/rrsky4.png",
@@ -43,11 +39,6 @@ const SKY_TEX_DUSK_PATHS := [
 	"res://assets/textury/skybox/skyeve.png"
 ]
 const SKY_TEX_NIGHT_PATHS := ["res://assets/textury/skybox/skynight.png"]
-const SKY_TEX_EVENT_PATHS := [
-	"res://assets/textury/skybox/skydusk.png",
-	"res://assets/textury/skybox/skyeve.png",
-	"res://assets/textury/skybox/sky1.png"
-]
 const SKY_TEX_FALLBACK_PATHS := [
 	"res://assets/textury/skybox/sky1.png",
 	"res://assets/textury/skybox/skydusk.png",
@@ -55,9 +46,8 @@ const SKY_TEX_FALLBACK_PATHS := [
 ]
 
 # ── Tunable constants ──────────────────────────────────────────────────────────
-const SKY_TRANSITION_DURATION: float = 60.0
-const SKY_TRANSITION_DURATION_NIGHT: float = 105.0
-const SKY_TRANSITION_STEPS: int = 14
+## The sky's clock blends are set in steps this fine (each new value re-renders the sky).
+const SKY_BLEND_STEPS: float = 128.0
 const SKY_PHASE_BLEND_HOURS: float = 0.5
 const SKY_PHASE_HALF_BLEND_HOURS: float = SKY_PHASE_BLEND_HOURS * 0.5
 const DAY_MID_HOUR: float = 6.5
@@ -185,15 +175,15 @@ var _weather_blend_t: float = 1.0
 
 # ── Sky texture cache / transition ─────────────────────────────────────────────
 var _sky_texture_cache: Dictionary = {}
-var _active_sky_texture_path: String = ""
-var _sky_display_texture: Texture2D
-var _sky_transition_from_texture: Texture2D
-var _sky_transition_to_texture: Texture2D
-var _sky_transition_progress: float = 1.0
-var _sky_transition_last_step: int = -1
-var _sky_transition_active: bool = false
 var _sky_transition_material: ShaderMaterial
-var _sky_transition_duration_seconds: float = SKY_TRANSITION_DURATION
+## The sky shown: [path a, path b, t] (_sky_pair), the pair it is fading from after a
+## change of weather, how far that fade has come, and the weather it was made for.
+var _sky_now: Array = []
+var _sky_from: Array = []
+var _sky_fade: float = 1.0
+var _sky_weather: int = -1
+## What the shader was last given (parameter -> value), so unchanged ones are not sent.
+var _sky_sent: Dictionary = {}
 var _rain_particles: GPUParticles3D
 ## The campaign day (core/systems/season.gd): the autumn shifts the light.
 var season_day := 1
@@ -1163,48 +1153,62 @@ func _try_apply_skybox(env: Environment) -> void:
 		_apply_weather_skybox(true)
 
 
-func _apply_panorama_sky(env: Environment, texture: Texture2D) -> void:
-	if env == null or texture == null:
-		return
-	var sky_mat = PanoramaSkyMaterial.new()
-	sky_mat.panorama = texture
-	var sky = Sky.new()
-	sky.sky_material = sky_mat
-	env.sky = sky
-	env.background_mode = Environment.BG_SKY
-	_sky_display_texture = texture
+func _sky_path(paths: Array) -> String:
+	var p := _first_existing_path(paths)
+	return p if p != "" else _first_existing_path(SKY_TEX_FALLBACK_PATHS)
 
 
-func _resolve_sky_transition_duration_seconds(from_path: String, to_path: String) -> float:
-	if _is_path_in_list(from_path, SKY_TEX_DUSK_PATHS) and _is_path_in_list(to_path, SKY_TEX_NIGHT_PATHS):
-		return SKY_TRANSITION_DURATION_NIGHT
-	return SKY_TRANSITION_DURATION
-
-
-func _is_path_in_list(path: String, candidates: Array) -> bool:
-	if path.is_empty():
-		return false
-	for candidate in candidates:
-		if str(candidate) == path:
-			return true
-	return false
-
-
-func _current_sky_candidates() -> Array:
-	if _weather_state == WEATHER_EVENT: return SKY_TEX_DUSK_PATHS
-	var sky_phase = _current_sky_phase()
-	if sky_phase == SKY_PHASE_NIGHT: return SKY_TEX_NIGHT_PATHS
-	if _weather_state == WEATHER_FOG: return SKY_TEX_FOG_PATHS
+## A weather's own sky ("" for clear and windy: those follow the day's skies).
+func _weather_sky_path() -> String:
+	var wet := _weather_state == WEATHER_LIGHT_RAIN or _weather_state == WEATHER_RAIN or _weather_state == WEATHER_STORM
 	# Snow comes out of a flat white sky.
-	if (_weather_state == WEATHER_LIGHT_RAIN or _weather_state == WEATHER_RAIN or _weather_state == WEATHER_STORM) and Season.precip_is_snow(season_day, _time_of_day_hours):
-		return SKY_TEX_FOG_PATHS
-	if _weather_state == WEATHER_LIGHT_RAIN: return SKY_TEX_LIGHT_RAIN_PATHS
-	if _weather_state == WEATHER_RAIN: return SKY_TEX_RAIN_PATHS
-	if _weather_state == WEATHER_STORM: return SKY_TEX_STORM_PATHS
-	if sky_phase == SKY_PHASE_DUSK: return SKY_TEX_DUSK_PATHS
-	if sky_phase == SKY_PHASE_EVENING: return SKY_TEX_EVE_PATHS
-	if _weather_state == WEATHER_WINDY: return SKY_TEX_WINDY_PATHS
-	return SKY_TEX_CLEAR_PATHS
+	if _weather_state == WEATHER_FOG or (wet and Season.precip_is_snow(season_day, _time_of_day_hours)):
+		return _sky_path(SKY_TEX_FOG_PATHS)
+	match _weather_state:
+		WEATHER_LIGHT_RAIN: return _sky_path(SKY_TEX_LIGHT_RAIN_PATHS)
+		WEATHER_RAIN: return _sky_path(SKY_TEX_RAIN_PATHS)
+		WEATHER_STORM: return _sky_path(SKY_TEX_STORM_PATHS)
+	return ""
+
+
+## The sky for this hour and weather: two panoramas and how far from the first to the
+## second. Clear and windy days go day -> evening -> dusk -> night with the clock, each
+## blend over its own stretch of hours (a 60 s cross-fade per phase overran the next one,
+## 40 s of game hour apart, and the evening sky jumped twice: playtest 18. 10.); a
+## weather's own sky stands all day and turns to night with the clock as well.
+func _sky_pair() -> Array:
+	var night := _sky_path(SKY_TEX_NIGHT_PATHS)
+	if _weather_state == WEATHER_EVENT:
+		var red := _sky_path(SKY_TEX_DUSK_PATHS)
+		return [red, red, 0.0]
+	var h := _season_hour(_time_of_day_hours)
+	var own := _weather_sky_path()
+	var day := own if own != "" else _sky_path(SKY_TEX_CLEAR_PATHS)
+	if h < DAY_SKY_FADE_START_HOUR:
+		return [night, night, 0.0]
+	if h < DAY_SKY_FADE_END_HOUR:
+		return [night, day, _sky_fade_t(h, DAY_SKY_FADE_START_HOUR, DAY_SKY_FADE_END_HOUR)]
+	if own != "":
+		if h < NIGHT_SKY_FADE_START_HOUR:
+			return [day, day, 0.0]
+		if h < NIGHT_MID_HOUR:
+			return [day, night, _sky_fade_t(h, NIGHT_SKY_FADE_START_HOUR, NIGHT_MID_HOUR)]
+		return [night, night, 0.0]
+	var eve := _sky_path(SKY_TEX_EVE_PATHS)
+	var dusk := _sky_path(SKY_TEX_DUSK_PATHS)
+	if h < EVENING_SKY_FADE_START_HOUR:
+		return [day, day, 0.0]
+	if h < DUSK_SKY_FADE_START_HOUR:
+		return [day, eve, _sky_fade_t(h, EVENING_SKY_FADE_START_HOUR, DUSK_SKY_FADE_START_HOUR)]
+	if h < NIGHT_SKY_FADE_START_HOUR:
+		return [eve, dusk, _sky_fade_t(h, DUSK_SKY_FADE_START_HOUR, NIGHT_SKY_FADE_START_HOUR)]
+	if h < NIGHT_MID_HOUR:
+		return [dusk, night, _sky_fade_t(h, NIGHT_SKY_FADE_START_HOUR, NIGHT_MID_HOUR)]
+	return [night, night, 0.0]
+
+
+func _sky_fade_t(h: float, from_h: float, to_h: float) -> float:
+	return smoothstep(0.0, 1.0, clampf((h - from_h) / maxf(to_h - from_h, 0.001), 0.0, 1.0))
 
 
 func _first_existing_path(paths: Array) -> String:
@@ -1240,79 +1244,62 @@ func _load_cached_sky_texture(path: String) -> Texture2D:
 	return tex
 
 
+## Every frame (apply_weather_profile): the pair for the clock; a change of weather fades
+## from the old pair over WEATHER_BLEND_SECONDS, like the fog and the light.
 func _apply_weather_skybox(force: bool = false) -> void:
-	var env = _world_env.environment
-	if env == null: return
-	var selected_path = _first_existing_path(_current_sky_candidates())
-	if selected_path == "":
-		selected_path = _first_existing_path(SKY_TEX_FALLBACK_PATHS)
-	if selected_path == "": return
-	var texture = _load_cached_sky_texture(selected_path)
-	if texture == null: return
-	if force:
-		_sky_transition_active = false
-		_sky_transition_from_texture = null; _sky_transition_to_texture = null
-		_sky_transition_progress = 1.0; _sky_transition_last_step = -1
-		_sky_transition_duration_seconds = SKY_TRANSITION_DURATION
-		if _sky_transition_material != null:
-			_sky_transition_material.set_shader_parameter("blend", 1.0)
-		_apply_panorama_sky(env, texture)
-		_active_sky_texture_path = selected_path
-		return
-	if selected_path == _active_sky_texture_path: return
-	var from_texture = _sky_display_texture
-	var from_path = _active_sky_texture_path
-	if from_texture == null or from_texture == texture:
-		_apply_panorama_sky(env, texture)
-		_active_sky_texture_path = selected_path
-		return
-	if _sky_transition_active:
-		if _sky_transition_to_texture == texture: return
-		if _sky_transition_to_texture != null:
-			_apply_panorama_sky(env, _sky_transition_to_texture)
-		from_texture = _sky_display_texture
-		from_path = _active_sky_texture_path
-	_sky_transition_duration_seconds = _resolve_sky_transition_duration_seconds(from_path, selected_path)
-	_sky_transition_from_texture = from_texture
-	_sky_transition_to_texture = texture
-	_sky_transition_progress = 0.0; _sky_transition_last_step = -1
-	_sky_transition_active = true
-	_active_sky_texture_path = selected_path
-	_setup_shader_sky(env, _sky_transition_from_texture, _sky_transition_to_texture)
-	_update_sky_transition(0.0)
+	var pair := _sky_pair()
+	if force or _sky_now.is_empty():
+		_sky_fade = 1.0
+		_sky_from = []
+	elif _sky_weather != _weather_state:
+		# Changed again while still fading: carry on from whichever was more on screen.
+		if _sky_fade >= 0.5 or _sky_from.is_empty():
+			_sky_from = _sky_now.duplicate()
+		_sky_fade = 0.0
+	_sky_weather = _weather_state
+	_sky_now = pair
+	_push_sky()
 
 
 func _update_sky_transition(delta: float) -> void:
-	if not _sky_transition_active: return
-	var env = _world_env.environment
-	if env == null: return
-	if _sky_transition_to_texture == null:
-		_sky_transition_active = false; return
-	if delta > 0.0:
-		var transition_duration = max(_sky_transition_duration_seconds, 0.001)
-		_sky_transition_progress = min(1.0, _sky_transition_progress + (delta / transition_duration))
-	var blend_t = clampf(_sky_transition_progress, 0.0, 1.0)
-	if env.sky != null and env.sky.sky_material is ShaderMaterial:
-		env.sky.sky_material.set_shader_parameter("blend", blend_t)
-	if blend_t >= 0.999:
-		_apply_panorama_sky(env, _sky_transition_to_texture)
-		_sky_transition_active = false
-		_sky_transition_from_texture = null; _sky_transition_to_texture = null
-		_sky_transition_progress = 1.0; _sky_transition_last_step = -1
-		_sky_transition_duration_seconds = SKY_TRANSITION_DURATION
+	if _sky_fade >= 1.0:
+		return
+	_sky_fade = minf(1.0, _sky_fade + delta / WEATHER_BLEND_SECONDS)
+	if _sky_fade >= 1.0:
+		_sky_from = []
+	_push_sky()
 
 
-func _setup_shader_sky(env: Environment, from_tex: Texture2D, to_tex: Texture2D) -> void:
-	if env == null: return
+func _push_sky() -> void:
+	var env = _world_env.environment if _world_env != null else null
+	if env == null or _sky_now.is_empty():
+		return
 	if _sky_transition_material == null:
 		_sky_transition_material = ShaderMaterial.new()
 		_sky_transition_material.shader = SKY_TRANSITION_SHADER
-	_sky_transition_material.set_shader_parameter("panorama_from", from_tex)
-	_sky_transition_material.set_shader_parameter("panorama_to", to_tex)
-	_sky_transition_material.set_shader_parameter("blend", 0.0)
-	if env.sky == null: env.sky = Sky.new()
-	env.sky.sky_material = _sky_transition_material
+		_sky_sent.clear()
+	if env.sky == null or env.sky.sky_material != _sky_transition_material:
+		var sky := Sky.new()
+		sky.sky_material = _sky_transition_material
+		env.sky = sky
 	env.background_mode = Environment.BG_SKY
+	var fading := _sky_fade < 1.0 and not _sky_from.is_empty()
+	var from: Array = _sky_from if fading else _sky_now
+	var blend := smoothstep(0.0, 1.0, _sky_fade) if fading else 1.0
+	_sky_param("from_a", _load_cached_sky_texture(str(from[0])))
+	_sky_param("from_b", _load_cached_sky_texture(str(from[1])))
+	_sky_param("from_t", roundf(float(from[2]) * SKY_BLEND_STEPS) / SKY_BLEND_STEPS)
+	_sky_param("to_a", _load_cached_sky_texture(str(_sky_now[0])))
+	_sky_param("to_b", _load_cached_sky_texture(str(_sky_now[1])))
+	_sky_param("to_t", roundf(float(_sky_now[2]) * SKY_BLEND_STEPS) / SKY_BLEND_STEPS)
+	_sky_param("blend", roundf(blend * SKY_BLEND_STEPS) / SKY_BLEND_STEPS)
+
+
+func _sky_param(param: String, value: Variant) -> void:
+	if _sky_sent.has(param) and _sky_sent[param] == value:
+		return
+	_sky_sent[param] = value
+	_sky_transition_material.set_shader_parameter(param, value)
 
 
 func _get_active_world_camera() -> Camera3D:
@@ -1720,6 +1707,13 @@ func _weather_fog_color(dark_mix: float) -> Color:
 			WEATHER_RAIN: weather_tint = Color(0.06, 0.08, 0.12)
 			WEATHER_STORM: weather_tint = Color(0.03, 0.04, 0.07)
 			_: weather_tint = weather_tint.lerp(Color(0.14, 0.18, 0.24), 0.65)
+	# The weather's fog is lit no brighter than the hour's own fog: at its daytime grey it
+	# glowed over a dark red evening and a black night (playtest 18. 10.).
+	var lb := _base_fog_light_color.get_luminance()
+	var lt := weather_tint.get_luminance()
+	if lt > lb and lt > 0.001:
+		var k := lb / lt
+		weather_tint = Color(weather_tint.r * k, weather_tint.g * k, weather_tint.b * k)
 	return _base_fog_light_color.lerp(weather_tint, clampf(dark_mix, 0.0, 1.0))
 
 

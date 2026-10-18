@@ -190,36 +190,7 @@ func _road_segment(from: Vector3, to: Vector3, mat: StandardMaterial3D) -> void:
 	seg.material_override = m
 	seg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(seg)
-	_verges(from, to, ROAD_WIDTH)
-
-
-## The autumn verge either side of a stretch of road: dry straw-yellow grass, the last
-## green, fallen leaves (assets/textury/town/verge_autumn.png); it turns with the season
-## like the camp's own ground (scripts/season_look.gd "season_ground").
-func _verges(from: Vector3, to: Vector3, road_w: float) -> void:
-	var path := "res://assets/textury/town/verge_autumn.png"
-	if not ResourceLoader.exists(path):
-		return
-	var length := from.distance_to(to)
-	var yaw := atan2(to.x - from.x, to.z - from.z)
-	var side_dir := Vector3(cos(yaw), 0.0, -sin(yaw))
-	for side in [-1.0, 1.0]:
-		var v := MeshInstance3D.new()
-		var pm := PlaneMesh.new()
-		pm.size = Vector2(2.2, length + 1.0)
-		v.mesh = pm
-		var m := StandardMaterial3D.new()
-		m.albedo_texture = load(path)
-		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-		m.roughness = 1.0
-		m.uv1_scale = Vector3(1.0, (length + 1.0) / 2.2, 1.0)
-		v.material_override = m
-		v.position = (from + to) * 0.5 + side_dir * side * (road_w * 0.5 + 1.05) + Vector3(0, 0.02, 0)
-		v.rotation.y = yaw
-		v.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		v.add_to_group("season_ground")
-		add_child(v)
+	preload("res://scripts/town/road_verge.gd").build(self, from, to, ROAD_WIDTH)
 
 
 ## The verges: a wall either side of every stretch from the gate down to the stop's pad,

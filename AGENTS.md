@@ -189,7 +189,8 @@ Extend `scripts/enemies/enemy_base.gd`, implement `_on_start()` / `_on_tick(dt)`
 tell, a counter, an `_announce()` line, keep `get_presence()` truthful (the base class
 tracks the body and its sounds; it drives the insects and the HUD face), then map it in `main.ENEMY_FOR_ARCHETYPE` (or start
 it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
-`scripts/os98/apps/campstat_app.gd` `NIGHT_PROCEDURES` (and the ghost webring in `web_pages.gd`). Test with `debug_spawn_enemy(id)` and the `night` scenario.
+`scripts/os98/apps/campstat_app.gd` `NIGHT_PROCEDURES` (and the ghost webring in `web_pages.gd`). Test with `debug_spawn_enemy(id)` and the `night` scenario, and give it a row in
+`main_menu.TEST_NIGHTS` (the title screen's secret TEST NIGHTS page, key L: a fresh camp at 20:00 with it already out).
 
 ---
 
