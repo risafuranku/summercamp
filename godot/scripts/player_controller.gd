@@ -52,16 +52,17 @@ var terrain_speed_mult: float = 1.0
 @export var handheld_look_strength: float = 0.00022
 @export var handheld_return: float = 10.0
 @export var handheld_idle_strength: float = 0.012
-## A weak torch with a narrow beam (playtest: "claustrophobic"): a hot spot, a dim halo
-## round it, and only a hand's breadth of fill, so the night is close on every side.
-@export var flashlight_energy: float = 3.0
-@export var flashlight_range: float = 16.0
+## A torch with a narrow beam (playtest: "claustrophobic"): a hot spot that carries (it
+## has to light the corn, playtest 17. 10.), a dim halo round it, and only a hand's
+## breadth of fill, so the night is close on every side.
+@export var flashlight_energy: float = 6.5
+@export var flashlight_range: float = 20.0
 @export var flashlight_angle: float = 19.0
-@export var flashlight_attenuation: float = 0.95
+@export var flashlight_attenuation: float = 0.5
 @export var flashlight_cast_shadows: bool = false
 @export var flashlight_fill_energy: float = 0.16
 @export var flashlight_fill_range: float = 3.0
-@export var flashlight_halo_energy: float = 0.42
+@export var flashlight_halo_energy: float = 0.9
 @export var flashlight_halo_angle: float = 34.0
 ## How fast the beam catches up with where you look (it is held, not bolted to the eyes).
 @export var flashlight_follow: float = 7.5

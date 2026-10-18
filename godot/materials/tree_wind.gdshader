@@ -40,6 +40,14 @@ void vertex() {
 	v_wpos = wp;
 	v_up = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz).y;
 	VERTEX += inverse(mat3(MODEL_MATRIX)) * off_world;
+	// The PS1's shiver: vertices on a coarse screen grid (scripts/retro_materials.gd).
+	vec4 clip = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(VERTEX, 1.0));
+	if (clip.w > 0.05) {
+		vec2 grid = vec2(150.0 * VIEWPORT_SIZE.x / max(VIEWPORT_SIZE.y, 1.0), 150.0) * 0.5;
+		vec2 ndc = floor(clip.xy / clip.w * grid + 0.5) / grid;
+		clip.xy = ndc * clip.w;
+	}
+	POSITION = clip;
 }
 
 void fragment() {

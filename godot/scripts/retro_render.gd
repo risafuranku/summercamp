@@ -14,6 +14,10 @@ extends RefCounted
 const SHADER := preload("res://materials/build_post.gdshader")
 const LUT := preload("res://assets/textury/palette/build_palette_lut.png")
 const GROUP := "retro_render_targets"
+const RETRO_MATERIALS := preload("res://scripts/retro_materials.gd")
+## The ordered dither by the internal resolution: at 200-240 lines a strong 4x4 pattern
+## reads as a screen door (playtest 17. 10.: "the dither is ugly at low resolutions").
+const DITHER_BY_LINES := {200: 0.22, 240: 0.3, 360: 0.45, 480: 0.55, 0: 0.6}
 
 ## Target vertical resolution per preset. 0 = native (palette only).
 const PRESET_LINES := {
@@ -40,6 +44,11 @@ static func register(container: SubViewportContainer) -> void:
 	if not container.is_in_group(GROUP):
 		container.add_to_group(GROUP)
 	apply_to(container)
+	# The PS1 surfaces (vertex snap, affine textures, sprite lighting) everywhere.
+	if container.is_inside_tree():
+		RETRO_MATERIALS.ensure(container.get_tree())
+	else:
+		container.tree_entered.connect(func(): RETRO_MATERIALS.ensure(container.get_tree()), CONNECT_ONE_SHOT)
 
 
 ## Re-applies the current settings to every registered container.
@@ -68,6 +77,7 @@ static func apply_to(container: SubViewportContainer) -> void:
 			container.material = mat
 		mat.set_shader_parameter("palette_lut", LUT)
 		mat.set_shader_parameter("palette_mix", 1.0)
+		mat.set_shader_parameter("dither_strength", float(DITHER_BY_LINES.get(int(PRESET_LINES.get(preset, 240)), 0.3)))
 	else:
 		var existing := container.material as ShaderMaterial
 		if existing != null and existing.shader == SHADER:
