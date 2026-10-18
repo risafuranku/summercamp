@@ -271,11 +271,53 @@ const CATEGORY_FALLBACKS := {
 	"service_basement_rect_523": ["service_basement_wall", "wall", "decor_paper", "decor"],
 }
 
-var _loaded := false
-var _candidates: Array[Dictionary] = []
-var _category_cache: Dictionary = {}
-var _tag_lookup: Dictionary = {}
-var _active_roots: PackedStringArray = PackedStringArray()
+## The pack, loaded and measured once a run and shared by every TextureStyle (the world,
+## the buildings, each room made its own and loaded all of it again: seconds each, at the
+## boot and on going into a room).
+static var _loaded := false
+static var _candidates: Array[Dictionary] = []
+static var _category_cache: Dictionary = {}
+static var _tag_lookup: Dictionary = {}
+static var _active_roots: PackedStringArray = PackedStringArray()
+## Each texture's measured colours, kept between runs (the measuring was most of the
+## boot): path -> {"t": the file's modified time, "s": the stats}.
+const STATS_CACHE := "user://texture_stats.json"
+static var _stats_cache: Dictionary = {}
+static var _stats_dirty := false
+
+
+static func _cached_stats(path: String, tex: Texture2D, measure: Callable) -> Dictionary:
+	if _stats_cache.is_empty() and FileAccess.file_exists(STATS_CACHE):
+		var f := FileAccess.open(STATS_CACHE, FileAccess.READ)
+		var parsed = JSON.parse_string(f.get_as_text()) if f != null else null
+		_stats_cache = parsed if parsed is Dictionary else {"_": 1}
+	var stamp := int(FileAccess.get_modified_time(ProjectSettings.globalize_path(path)))
+	var hit: Dictionary = _stats_cache.get(path, {})
+	if not hit.is_empty() and int(hit.get("t", -1)) == stamp:
+		var st: Dictionary = hit["s"]
+		var out := {}
+		for k in st:
+			var v = st[k]
+			out[k] = Vector3(v[0], v[1], v[2]) if v is Array else v
+		return out
+	var stats: Dictionary = measure.call(tex)
+	var keep := {}
+	for k in stats:
+		var v = stats[k]
+		keep[k] = [v.x, v.y, v.z] if v is Vector3 else v
+	_stats_cache[path] = {"t": stamp, "s": keep}
+	_stats_dirty = true
+	return stats
+
+
+static func _save_stats_cache() -> void:
+	if not _stats_dirty:
+		return
+	var f := FileAccess.open(STATS_CACHE, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(_stats_cache))
+		f.close()
+	_stats_dirty = false
 
 
 func pick_texture(category: String, target_color: Color) -> Texture2D:
@@ -487,6 +529,79 @@ func _ensure_loaded() -> void:
 			continue
 		_active_roots.append(root)
 		_load_candidates_from_dir(root)
+	_save_stats_cache()
+
+
+## _ensure_loaded for the boot (main.gd): the pack a batch of files at a time, `step(text,
+## progress)` awaited between batches (from `p0` to `p1`), so the boot screen moves while
+## the textures load and their colours are measured (seconds in one frame before).
+func ensure_loaded_stepped(step: Callable, p0: float, p1: float, batch: int = 24) -> void:
+	if _loaded:
+		return
+	_build_tag_lookup()
+	_active_roots = PackedStringArray()
+	var all: Array = []
+	for root_any in TEXTURE_ROOTS:
+		var root = str(root_any)
+		if DirAccess.open(root) == null:
+			continue
+		_active_roots.append(root)
+		_list_candidate_files(root, all)
+	for i in all.size():
+		_add_candidate(str(all[i][0]), str(all[i][1]))
+		if i % batch == batch - 1:
+			await step.call("Sorting the textures", lerpf(p0, p1, float(i) / float(maxi(1, all.size()))))
+	_loaded = true
+	_save_stats_cache()
+
+
+## The files _load_candidates_from_dir would take, in its order.
+func _list_candidate_files(root: String, out: Array) -> void:
+	var dir = DirAccess.open(root)
+	if dir == null:
+		return
+	var files: Array[String] = []
+	var subdirs: Array[String] = []
+	dir.list_dir_begin()
+	var file_name = dir.get_next()
+	while file_name != "":
+		if not file_name.begins_with("."):
+			if dir.current_is_dir():
+				subdirs.append(file_name)
+			else:
+				files.append(file_name)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	files.sort()
+	subdirs.sort()
+	for subdir in subdirs:
+		_list_candidate_files(root.path_join(subdir), out)
+	for file in files:
+		if SUPPORTED_EXT.has(file.get_extension().to_lower()):
+			out.append([root.path_join(file), file])
+
+
+func _add_candidate(path: String, file: String) -> void:
+	var tex = _load_texture_from_path(path)
+	if tex == null:
+		return
+	var stats = _cached_stats(path, tex, _compute_texture_stats)
+	if stats.is_empty():
+		return
+	_candidates.append({
+		"path": path,
+		"texture": tex,
+		"avg": stats.get("avg", Vector3(0.5, 0.5, 0.5)),
+		"variance": stats.get("variance", 0.1),
+		"saturation": stats.get("saturation", 0.2),
+		"value": stats.get("value", 0.5),
+		"aspect": stats.get("aspect", 1.0),
+		"alpha_coverage": stats.get("alpha_coverage", 1.0),
+		"magenta_ratio": stats.get("magenta_ratio", 0.0),
+		"top_avg": stats.get("top_avg", Vector3(0.5, 0.5, 0.5)),
+		"bottom_avg": stats.get("bottom_avg", Vector3(0.5, 0.5, 0.5)),
+		"tags": _tags_for_candidate(path, file),
+	})
 
 
 func _build_tag_lookup() -> void:
@@ -536,7 +651,7 @@ func _load_candidates_from_dir(root: String) -> void:
 		var tex = _load_texture_from_path(path)
 		if tex == null:
 			continue
-		var stats = _compute_texture_stats(tex)
+		var stats = _cached_stats(path, tex, _compute_texture_stats)
 		if stats.is_empty():
 			continue
 		_candidates.append({

@@ -1,23 +1,44 @@
 extends Node
 
+## Before wardens and camps (scripts/profiles.gd) every save was here; it is still the
+## folder when no camp is active.
 const SAVE_DIR := "user://saves"
-const SAVE_MANIFEST_PATH := "user://saves/manifest.json"
 const SAVE_FILE_SUFFIX := ".ccs2save.json"
 const SAVE_VERSION := 2
 const MAX_AUTOSAVES := 18
+
+
+## The active camp's saves (scripts/profiles.gd activate_camp); "" = none chosen.
+var save_dir := ""
 
 
 func _ready() -> void:
 	pass
 
 
+func set_save_dir(dir: String) -> void:
+	save_dir = dir
+
+
+func _dir() -> String:
+	return save_dir if save_dir != "" else SAVE_DIR
+
+
+func _manifest_path() -> String:
+	return _dir().path_join("manifest.json")
+
+
 func has_saves() -> bool:
 	return not list_saves().is_empty()
 
 
-func list_saves() -> Array[Dictionary]:
+func list_saves(in_dir: String = "") -> Array[Dictionary]:
 	var saves: Array[Dictionary] = []
-	var dir := DirAccess.open(SAVE_DIR)
+	var folder := in_dir if in_dir != "" else _dir()
+	# No camp chosen: nothing to continue or load (the old folder is the camps' now).
+	if in_dir == "" and save_dir == "" and DirAccess.dir_exists_absolute(ProjectSettings.globalize_path("user://profiles")):
+		return saves
+	var dir := DirAccess.open(folder)
 	if dir == null:
 		return saves
 
@@ -30,7 +51,7 @@ func list_saves() -> Array[Dictionary]:
 			continue
 		if not file_name.ends_with(SAVE_FILE_SUFFIX):
 			continue
-		var path := SAVE_DIR.path_join(file_name)
+		var path := folder.path_join(file_name)
 		var parsed := _read_json_file(path)
 		if parsed.is_empty():
 			continue
@@ -44,7 +65,7 @@ func list_saves() -> Array[Dictionary]:
 
 
 func get_latest_save_path() -> String:
-	var manifest := _read_json_file(SAVE_MANIFEST_PATH)
+	var manifest := _read_json_file(_manifest_path())
 	var candidate := str(manifest.get("latest_path", "")).strip_edges()
 	if not candidate.is_empty() and FileAccess.file_exists(ProjectSettings.globalize_path(candidate)):
 		return candidate
@@ -70,7 +91,7 @@ func delete_save(path: String) -> bool:
 	var normalized := _normalize_path(path)
 	if normalized.is_empty():
 		return false
-	var manifest := _read_json_file(SAVE_MANIFEST_PATH)
+	var manifest := _read_json_file(_manifest_path())
 	var manifest_latest := str(manifest.get("latest_path", "")).strip_edges()
 	var abs_path := ProjectSettings.globalize_path(normalized)
 	if not FileAccess.file_exists(abs_path):
@@ -106,7 +127,7 @@ func write_save(snapshot: Dictionary, slot_name: String = "", kind: String = "ma
 	out["meta"] = meta
 
 	var file_name := "%s_%d_%d%s" % [safe_kind, timestamp, seq, SAVE_FILE_SUFFIX]
-	var path := SAVE_DIR.path_join(file_name)
+	var path := _dir().path_join(file_name)
 	var json := JSON.stringify(out, "\t")
 	if json.is_empty():
 		return ""
@@ -203,7 +224,7 @@ func _read_json_file(path: String) -> Dictionary:
 func _write_manifest_latest(path: String) -> void:
 	_ensure_save_dir()
 	var payload := {"latest_path": path}
-	var file := FileAccess.open(SAVE_MANIFEST_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(_manifest_path(), FileAccess.WRITE)
 	if file == null:
 		return
 	file.store_string(JSON.stringify(payload, "\t"))
@@ -217,9 +238,7 @@ func _normalize_path(path: String) -> String:
 		return ""
 	if p.begins_with("user://"):
 		return p
-	if p.begins_with(SAVE_DIR):
-		return p
-	return SAVE_DIR.path_join(p)
+	return _dir().path_join(p)
 
 
 func _default_slot_name(kind: String, timestamp: int) -> String:
@@ -249,6 +268,6 @@ func _sanitize_name(raw: String) -> String:
 
 
 func _ensure_save_dir() -> void:
-	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(SAVE_DIR)):
+	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(_dir())):
 		return
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SAVE_DIR))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_dir()))

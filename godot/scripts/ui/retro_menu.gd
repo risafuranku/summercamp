@@ -103,6 +103,12 @@ class MenuList:
 	var _cursor_y: float = 0.0
 	var _cursor_t: float = 0.0
 	var _sfx: AudioStreamPlayer
+	## Everything moves sixteen times a second (playtest 18. 10.: "16 fps animace"): the
+	## chevron's slide, its nudge and the chosen entry's shade pulse (Duke's menu cycled
+	## the chosen entry through its shade table).
+	const FPS := 16.0
+	var _tick: float = 0.0
+	var _pulse_step := 0
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -286,22 +292,32 @@ class MenuList:
 	func _process(delta: float) -> void:
 		if _cursor == null or selected < 0 or selected >= _rows.size():
 			return
-		_cursor_t += delta
+		_tick += delta
+		if _tick < 1.0 / FPS:
+			return
+		var dt := _tick
+		_tick = 0.0
+		_cursor_t += dt
 		var target := _rows[selected].position.y
 		if _cursor_y < 0.0:
 			_cursor_y = target
-		# Whole-pixel slide: covers the gap in ~0.08s, never lands between pixels.
+		# Whole-pixel slide in steps: half the way each tick, never between pixels.
 		var s := float(ui_scale)
-		var step := maxf(s, absf(target - _cursor_y) * minf(1.0, delta * 22.0))
+		var step := maxf(s, ceilf(absf(target - _cursor_y) * 0.55 / s) * s)
 		_cursor_y = move_toward(_cursor_y, target, step)
 		_cursor.position = Vector2(0.0, floorf(_cursor_y / s) * s)
 		_cursor.queue_redraw()
+		# The chosen entry's shade: up and down a ramp of six, a step a tick.
+		_pulse_step = (_pulse_step + 1) % 10
+		if selected < _titles.size() and _enabled(selected):
+			var k := float([0, 1, 2, 3, 4, 5, 4, 3, 2, 1][_pulse_step]) / 5.0
+			_titles[selected].set_colors(color_selected_top.lerp(Color(1.0, 0.97, 0.82), k * 0.55), color_selected_bottom.lerp(color_selected_bottom.darkened(0.35), 1.0 - k))
 
 	func _draw_cursor() -> void:
 		var s := float(ui_scale)
 		var big_px := float(RETRO_UI.font_pixel(RETRO_UI.FONT_BIG, size_vp)) * s
 		var mid := big_px + 5.0 * big_px
-		var nudge := s if fmod(_cursor_t, 0.8) < 0.4 else 0.0
+		var nudge := s if fmod(floorf(_cursor_t * FPS) / FPS, 0.75) < 0.375 else 0.0
 		var tip := Vector2(float(indent_vp - 4) * s + nudge, floorf(mid / s) * s)
 		# Right-pointing solid triangle, 7 px tall, outlined; upper half lit.
 		var cells: Array[Vector2] = []

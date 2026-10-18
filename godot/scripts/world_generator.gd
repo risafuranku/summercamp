@@ -93,6 +93,37 @@ func generate_base_world(spawn_default_buildings: bool = true, spawn_trees: bool
 	_grid_manager.rebuild_debug_mesh()
 
 
+## generate_world in steps, for the boot (main.gd): `step(text, progress)` is awaited
+## between them, so the boot screen's bar and line move. The first generation of a run
+## loads the ground's and the reception's textures and shaders: seconds each (playtest
+## 18. 10.: the title froze after the splash, the bar did not move).
+func generate_world_stepped(step: Callable) -> void:
+	_corn_gate_z = INF
+	_ensure_roots()
+	if _grid_manager == null or _building_manager == null:
+		push_error("WorldGenerator is missing GridManager or BuildingManager reference.")
+		return
+	if world_seed == 0:
+		world_seed = (randi() & 0x7fffffff) | 1
+	_rng.seed = world_seed
+	_corn_seed_value = -1
+	_clear_generated_nodes()
+	_building_manager.clear_structures()
+	_grid_manager.reset_tiles(_grid_manager.TILE_GRASS)
+	_mark_north_lake_row()
+	var entrance_origin = _mark_south_entrance_reserved_area()
+	await step.call("Laying the ground", 0.64)
+	_generate_terrain()
+	await step.call("Raising the office", 0.72)
+	_building_manager.place_main_building(entrance_origin, Vector2i(2, 2))
+	place_starter_path()
+	_place_power_building_landmark()
+	place_sewer_landmark()
+	await step.call("Planting the spruces", 0.8)
+	_spawn_random_trees()
+	_grid_manager.rebuild_debug_mesh()
+
+
 func populate_trees() -> void:
 	if _grid_manager == null:
 		return

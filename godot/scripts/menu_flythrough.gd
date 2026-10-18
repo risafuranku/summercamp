@@ -83,6 +83,10 @@ func _ready() -> void:
 	_fade_layer.visible = false
 
 
+const STEP_FPS := 16.0
+var _step_acc := 0.0
+
+
 func _process(_delta: float) -> void:
 	# The dip to black belongs to the title screen only: the moment the game takes the
 	# camera, it goes.
@@ -107,6 +111,12 @@ func update(delta: float) -> void:
 			if visuals != null and visuals.has_method("apply_time_from_clock"):
 				visuals.apply_time_from_clock(true)
 	_phase_t += maxf(delta, 0.0)
+	# The camera and the fades move sixteen times a second, the fades through eight shades
+	# (the Build palette's fade tables), not smoothly (playtest 18. 10.).
+	_step_acc += delta
+	var stepped := _step_acc >= 1.0 / STEP_FPS
+	if stepped:
+		_step_acc = 0.0
 	match _phase:
 		2:
 			_fade.color.a = 1.0
@@ -124,7 +134,8 @@ func update(delta: float) -> void:
 			_fade.color.a = clampf(_phase_t / FADE_OUT, 0.0, 1.0)
 			if _phase_t >= FADE_OUT:
 				_next_shot()
-	if _index >= 0:
+	_fade.color.a = roundf(_fade.color.a * 8.0) / 8.0
+	if _index >= 0 and stepped:
 		_place_camera(_shots[_index], clampf(_t / float(_shots[_index].seconds), 0.0, 1.0))
 
 

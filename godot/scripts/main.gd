@@ -64,6 +64,10 @@ const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
 const PAUSE_MENU_SCRIPT = preload("res://scripts/ui/pause_menu.gd")
 const GAME_OVER_SCREEN_SCRIPT = preload("res://scripts/ui/game_over_screen.gd")
 const BOOT_SCREEN_SCRIPT = preload("res://scripts/ui/boot_screen.gd")
+## Wardens and their camps (worlds): which camp's saves are played.
+const PROFILES = preload("res://scripts/profiles.gd")
+## The seed NEW CAMP asked for (0: a new one), used by the next generation.
+var _pending_world_seed := 0
 const MENU_THEME_PATH := "res://assets/sfx/ost/ambience3A.mp3"
 const MENU_THEME_VOLUME_DB := -5.0
 const SAVE_VERSION := 3
@@ -223,6 +227,9 @@ func _ready() -> void:
 	_liminal_forecast_rng.randomize()
 	_show_startup_loading_screen()
 	await get_tree().process_frame
+	# The warden and the camp played last (scripts/profiles.gd): their saves are the
+	# menu's camp and CONTINUE.
+	PROFILES.boot()
 	await _bootstrap_runtime()
 	_hide_startup_loading_screen()
 	_startup_bootstrap_complete = true
@@ -260,7 +267,17 @@ func _hide_startup_loading_screen() -> void:
 	_boot_screen = null
 
 
+## One step of the boot on the boot screen (its bar and line), and a frame for it to be
+## drawn: the whole boot in one frame froze the title after the splash (playtest 18. 10.).
+func _boot_step(text: String, progress: float) -> void:
+	if _boot_screen != null and _boot_screen.has_method("set_status"):
+		_boot_screen.set_status(text, progress)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
 func _bootstrap_runtime() -> void:
+	await _boot_step("Waking the camp", 0.05)
 	time_system = TIME_SYSTEM_SCRIPT.new(CoreRoot.get_state())
 	weather_system = WEATHER_SYSTEM_SCRIPT.new()
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
@@ -270,6 +287,7 @@ func _bootstrap_runtime() -> void:
 
 	_texture_style = TEXTURE_STYLE_SCRIPT.new()
 	_ensure_input_actions()
+	await _boot_step("Tuning the radio", 0.15)
 	_setup_audio()
 
 	if time_system:
@@ -285,6 +303,7 @@ func _bootstrap_runtime() -> void:
 		if not EventBus.state_changed.is_connected(state_changed_cb):
 			EventBus.state_changed.connect(state_changed_cb)
 
+	await _boot_step("Opening the office", 0.3)
 	_bind_or_create_managers()
 	_bind_billing()
 	_menu_flythrough = MENU_FLYTHROUGH_SCRIPT.new()
@@ -294,10 +313,13 @@ func _bootstrap_runtime() -> void:
 	_setup_weather_visuals_module()
 	RETRO_RENDER.register(_sub_viewport_container)
 	get_viewport().size_changed.connect(func() -> void: RETRO_RENDER.refresh_all(get_tree()))
-	_generate_grid_world()
+	await _boot_step("Growing the woods", 0.45)
+	await _generate_grid_world_stepped()
+	await _boot_step("Raking the paths", 0.85)
 	_rebuild_core_cells_from_visual_structures()
 	_setup_guest_agents()
 	fallback_camera.current = true
+	await _boot_step("Lighting the lamps", 0.9)
 
 	if _weather_visuals != null:
 		_weather_visuals.update_state(_time_state, _time_of_day_hours, _weather_state)
@@ -328,6 +350,7 @@ func _start_gameplay_runtime() -> void:
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
 		weather_system.set_auto_cycle_enabled(true)
 	_ensure_hud_manager()
+	_set_hud_shown(true)
 	_bind_or_create_managers()
 
 	if legacy_ui_adapter == null:
@@ -2886,6 +2909,25 @@ func _resolve_manager_node(node_name: String, script_ref: Script, required_metho
 	return created
 
 
+## _generate_grid_world for the boot: the generator's steps with the boot screen's bar
+## between them (world_generator.generate_world_stepped).
+func _generate_grid_world_stepped() -> void:
+	if grid_manager == null or building_manager == null or world_generator == null:
+		_generate_grid_world()
+		return
+	grid_manager.initialize_grid(Vector2i(28, 28), 4.0)
+	building_manager.setup(grid_manager)
+	world_generator.setup(grid_manager, building_manager)
+	world_generator.world_seed = 0
+	# The texture pack first, a batch a frame (texture_style.gd, shared by everything).
+	if _texture_style != null and _texture_style.has_method("ensure_loaded_stepped"):
+		await _texture_style.ensure_loaded_stepped(_boot_step, 0.45, 0.62)
+	await world_generator.generate_world_stepped(_boot_step)
+	if world_generator.get_node_or_null("Terrain") == null:
+		push_error("World generation failed: Terrain node was not created.")
+		world_generator.create_emergency_ground(_world_3d)
+
+
 func _generate_grid_world() -> void:
 	if grid_manager == null or building_manager == null or world_generator == null:
 		push_error("Grid world init failed: one or more managers are missing.")
@@ -2895,8 +2937,9 @@ func _generate_grid_world() -> void:
 	grid_manager.initialize_grid(Vector2i(28, 28), 4.0)
 	building_manager.setup(grid_manager)
 	world_generator.setup(grid_manager, building_manager)
-	# A fresh camp: a new seed (world_generator.world_seed).
-	world_generator.world_seed = 0
+	# A fresh camp: the seed asked for on NEW CAMP, or a new one (world_generator.world_seed).
+	world_generator.world_seed = _pending_world_seed
+	_pending_world_seed = 0
 	world_generator.generate_world()
 
 	if world_generator.get_node_or_null("Terrain") == null:
@@ -3710,12 +3753,33 @@ func _enter_main_menu() -> void:
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
 		weather_system.set_auto_cycle_enabled(true)
 	_close_pause_menu(false)
+	_set_hud_shown(false)
 	_ensure_main_menu()
 	_load_preview_world_for_menu()
 	_main_menu.open()
 	_menu_flythrough.rebuild()
 	_start_menu_music()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+## The game's HUD off behind the main menu (it stayed over the title after Quit to menu),
+## and the same layers back when a game starts.
+var _hud_hidden: Array = []
+
+
+func _set_hud_shown(on: bool) -> void:
+	if _hud_manager == null or not is_instance_valid(_hud_manager):
+		return
+	if not on:
+		for layer in _hud_manager.find_children("*", "CanvasLayer", true, false):
+			if (layer as CanvasLayer).visible:
+				(layer as CanvasLayer).visible = false
+				_hud_hidden.append(layer)
+		return
+	for layer in _hud_hidden:
+		if is_instance_valid(layer):
+			(layer as CanvasLayer).visible = true
+	_hud_hidden.clear()
 
 
 func _show_menu_loading_for(label: String) -> void:
@@ -3740,6 +3804,7 @@ func _ensure_main_menu() -> void:
 	add_child(_main_menu)
 	_main_menu.continue_requested.connect(_on_menu_continue_pressed)
 	_main_menu.new_game_requested.connect(_on_menu_new_game_pressed)
+	_main_menu.new_camp_requested.connect(_on_menu_new_camp)
 	_main_menu.load_requested.connect(_on_menu_load_requested)
 	_main_menu.quit_requested.connect(func() -> void: get_tree().quit())
 	_main_menu.coop_host_requested.connect(_on_menu_coop_host)
@@ -3762,6 +3827,7 @@ func _on_menu_load_requested(path: String) -> void:
 func _start_loaded_game_from_path(path: String) -> bool:
 	if path.is_empty():
 		return false
+	PROFILES.activate_for_save(path)
 	var snapshot := SaveManager.read_save(path)
 	if snapshot.is_empty():
 		push_warning("Failed to load selected save.")
@@ -3795,8 +3861,21 @@ func _on_menu_continue_pressed() -> void:
 	_start_game_from_menu()
 
 
+## A new camp for the tools (screenshot driver, harnesses): not one of the warden's camps
+## (its autosaves go to the old folder, user://saves).
 func _on_menu_new_game_pressed() -> void:
+	PROFILES.detach()
 	await _start_new_camp(false)
+
+
+## NEW CAMP (main menu, or the co-op page's Host a new camp): a camp of the warden's,
+## named, its world from `seed` (0: a new one).
+func _on_menu_new_camp(camp_name: String, seed: int, coop: bool) -> void:
+	if coop and not Coop.host():
+		if _main_menu != null:
+			_main_menu.show_coop_notice("Port %d is taken." % Coop.port)
+		return
+	await _start_new_camp(coop, "", camp_name, seed, coop)
 
 
 ## The main menu's secret test nights (L): a fresh sandbox camp with a small camp built in
@@ -3879,13 +3958,18 @@ func _build_test_camp(enemy_id: String) -> void:
 ## A fresh camp. `sandbox`: no month and no checklist, the programs already on the PC,
 ## the story's mails without the ones about the deadline (co-op camps are sandbox camps).
 ## `test_enemy`: a test night's camp (`_on_menu_test_night`), not opened at the desk.
-func _start_new_camp(sandbox: bool, test_enemy: String = "") -> void:
+func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String = "", seed: int = 0, coop: bool = false) -> void:
 	var started := Time.get_ticks_msec()
 	await _show_menu_loading_for("Generating a fresh camp...")
 	_reset_state_for_new_game()
 	_sandbox = sandbox
 	_test_night = test_enemy
+	_pending_world_seed = seed
 	_generate_grid_world()
+	# The warden's new camp (scripts/profiles.gd), its saves from now on (a test night's
+	# camp and the tools' are nobody's).
+	if test_enemy.is_empty() and camp_name != "":
+		PROFILES.create_camp(camp_name, world_generator.world_seed, sandbox, coop)
 	_rebuild_core_cells_from_visual_structures()
 	_place_ruined_cabin()
 	if time_system != null and time_system.has_method("set_time_hours"):
@@ -4925,6 +5009,7 @@ func request_manual_save(slot_name: String = "") -> String:
 	if path.is_empty():
 		push_warning("Manual save failed: write operation returned empty path.")
 		return ""
+	_after_save(snapshot)
 	_active_save_path = path
 	return path
 
@@ -4940,6 +5025,15 @@ func _write_autosave(slot_name: String) -> void:
 	var path := SaveManager.write_save(snapshot, slot_name, "autosave")
 	if not path.is_empty():
 		_active_save_path = path
+		_after_save(snapshot)
+
+
+## The camp's card and picture for its tile on LOAD CAMP (scripts/profiles.gd).
+func _after_save(snapshot: Dictionary) -> void:
+	PROFILES.after_save(snapshot)
+	var vp := _sub_viewport_container.get_child(0) as SubViewport if _sub_viewport_container != null and _sub_viewport_container.get_child_count() > 0 else null
+	if vp != null and not _is_any_interior_open():
+		PROFILES.save_thumbnail(vp.get_texture().get_image())
 
 
 func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
