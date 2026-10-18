@@ -138,7 +138,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The check-in desk's key board (Dymo labels, the label maker), the room across the counter by hour/weather and its night scares | `scripts/reception/checkin_desk.gd` (`_slots`, `_pick_view`, `_roll_scare`); art `tools/artgen/desk_art.py views` |
-| Out of the camp: barrier, road, bus stop, timetable | `camp_gate.gd open_for_player`, `scripts/town/road_south.gd` (built by world gen), `bus_timetable.gd` (the one schedule), `timetable_closeup.gd` |
+| Out of the camp: barrier, road, bus stop, timetable | `camp_gate.gd open_for_player / close_for_player`, `scripts/town/road_south.gd` (built by world gen), `bus_timetable.gd` (the one schedule), `timetable_closeup.gd` |
 | The 380 bus (outside, inside, the ride, the ticket machine) | `scripts/town/bus_model.gd`, `bus_ride.gd`, `ride_scenery.gd`, `ticket_closeup.gd`; buses run by the clock in `town_trip.gd` (`_plan`, `_run_special`, `_run_works`) |
 | Lesna (village, people, shop, pub, motel, the pump job, pockets) | `scripts/town/town_lesna.gd`, `town_people.gd`, `shop_closeup.gd`, `pub_closeup.gd`, `pump_job.gd` + `pump_closeup.gd`, `pockets.gd`; all routed by `town_trip.gd` (InteriorManager module `trip`); art `tools/artgen/town_art.py` |
 | The camp computer (desktop, boot, windows) | `scripts/os98/os_shell.gd`, look: `os_theme.gd` |
@@ -320,7 +320,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   `maintenance_controller.gd`); on that machine GuestManager and the mail simulate
   nothing (`Coop.sim_here()`), and its builder authority is unhooked from
   `RequestBuild`/`RequestDemolish` (`main._coop_forward_builds`): replay facts by calling
-  the authority directly, never by emitting the request.
+  the authority directly, never by emitting the request. That machine's E and click go
+  through `main._coop_client_interact`, whose `_coop_client_room_target` lets through only
+  the kinds it names: a new kind of thing to click must be added there (the barrier, the
+  bus and Lesna were missing until 18. 10.).
 - **Co-op nights** (`coop_night.gd`): an enemy brain hunts whatever `_player` it holds:
   the host swaps in the other warden's stand-in (`coop_proxy.gd`: a body, Head/Camera3D,
   their torch) with its own damage / allow / notify callables. A brain that reads or sets

@@ -748,8 +748,6 @@ func _tick_night_jobs() -> void:
 	var abs_minute := (maxi(1, _day_index) - 1) * 1440 + minute_of_day
 	var night_index := _day_index if minute_of_day >= 12 * 60 else _day_index - 1
 	_night_jobs.tick(abs_minute, _time_state == TIME_NIGHT, night_index)
-
-
 	if _test_night == TEST_SEWER:
 		_tick_test_sewer()
 
@@ -789,6 +787,8 @@ func _tick_test_sewer() -> void:
 		if _hud_manager != null:
 			_hud_manager.push_status("Pager: Sewer leaking. The sewer hatch: crawl in.", 2)
 		return
+
+
 func _on_night_jobs_changed() -> void:
 	var powered := _is_grid_powered()
 	_note_grid_power(powered)
@@ -4008,6 +4008,13 @@ func _on_menu_test_night(enemy_id: String) -> void:
 	_stop_active_enemy_brain()
 	_liminal_last_rolled_night_id = -99999
 	debug_jump_to(2, BALANCE_CONFIG.NIGHT_START_HOUR)
+	if enemy_id == TEST_SEWER:
+		_test_sewer_wait = 0.0
+		if _player != null and is_instance_valid(_player):
+			_player.rotate_y(PI)
+		if _hud_manager != null:
+			_hud_manager.push_status("Test night: the sewer breaks again whenever it is mended.", 2)
+		return
 	debug_spawn_enemy(enemy_id)
 	# It is one of the test camp's guests, turned (gone in the morning if it gets you).
 	if not _enemy_brains.is_empty():
@@ -4032,13 +4039,6 @@ const TEST_NIGHT_GUESTS := {"silent_man": "quiet_guy", "tourist": "drunk", "girl
 ## A test night's camp (playtest 18. 10.: "not an empty map"): north of the office a path
 ## up from the gate with a cross path, lamps along them, tents, a cabin, the toilets, a
 ## fire; then the guests of the kind that brings the thing, let in at once (and one of
-	if enemy_id == TEST_SEWER:
-		_test_sewer_wait = 0.0
-		if _player != null and is_instance_valid(_player):
-			_player.rotate_y(PI)
-		if _hud_manager != null:
-			_hud_manager.push_status("Test night: the sewer breaks again whenever it is mended.", 2)
-		return
 ## another kind, so the camp is not only them). Built through the real builder; what does
 ## not fit this camp's trees and lake is just left out.
 func _build_test_camp(enemy_id: String) -> void:
@@ -4059,6 +4059,9 @@ func _build_test_camp(enemy_id: String) -> void:
 		["cabin_1", Vector2i(g.x + 2, 5)], ["cabin_1", Vector2i(g.x + 2, 10)],
 		["toilet_block", Vector2i(g.x + 5, 5)], ["bonfire", Vector2i(g.x + 5, 10)], ["picnic_table", Vector2i(g.x - 2, 12)],
 	]
+	if enemy_id == TEST_SEWER:
+		_test_sewer_at = Vector2i(g.x + 6, 5)
+		plan.append(["sewer", _test_sewer_at])
 	for item in plan:
 		EventBus.RequestBuild.emit(str(item[0]), item[1], 0)
 	var arch := str(TEST_NIGHT_GUESTS.get(enemy_id, ""))
@@ -4083,9 +4086,6 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	_generate_grid_world()
 	# The warden's new camp (scripts/profiles.gd), its saves from now on (a test night's
 	# camp and the tools' are nobody's).
-	if enemy_id == TEST_SEWER:
-		_test_sewer_at = Vector2i(g.x + 6, 5)
-		plan.append(["sewer", _test_sewer_at])
 	if test_enemy.is_empty() and camp_name != "":
 		PROFILES.create_camp(camp_name, world_generator.world_seed, sandbox, coop)
 	_rebuild_core_cells_from_visual_structures()
@@ -4609,7 +4609,11 @@ func coop_sync(kind: String, data: Array) -> void:
 				desk.coop_take_register(data[0])
 		"gate":
 			var gate = get_tree().get_first_node_in_group("camp_gate")
-			if gate != null and gate.has_method("open_for_player"):
+			if gate == null:
+				return
+			if not data.is_empty() and str(data[0]) == "down":
+				gate.close_for_player()
+			else:
 				gate.open_for_player()
 			return
 	# Not sent back as it came; the register goes back if it merged with rows written here.
@@ -4936,6 +4940,10 @@ func _coop_client_room_target() -> Node3D:
 		return null
 	var t := str(st.get_meta("building_type", ""))
 	if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") or t == "main_building" or t == "corn_stand":
+		return st
+	# Out of the camp (the barrier, the bus, Lesna): each machine's own (town_trip.gd),
+	# the barrier sent over.
+	if t.begins_with("trip_") or t.begins_with("town_"):
 		return st
 	# The toilets, showers, pub, shed and the rest: in to look and to clean and mend (what
 	# that does goes to the host).

@@ -4,7 +4,9 @@ extends "res://tools/shot_driver.gd"
 ## hosting a sandbox camp, one joining it on 127.0.0.1. They wait for each other by what
 ## happens (files in the out dir: host_up, client_ready, ...), not by the clock: a camp
 ## takes the joining copy tens of seconds to build here. On the way:
-##   - the joining warden's own look (warden 2, jacket 4) is what the host sees;
+##   - the joining warden's own look (warden 2, jacket 4) and name are what the host sees;
+##   - the joining warden raises the barrier from the road with E and lowers it again:
+##     the host's barrier goes up and down with it;
 ##   - each sees the other in a clearing by day, and by their torch at night;
 ##   - a tent the host builds after the join stands in the other camp too;
 ##   - both go into the old cabin: each sees the other in it; the joining warden's job
@@ -61,7 +63,10 @@ func _ready() -> void:
 			# its camp has it too), where the two can see each other.
 			["money", 9000], ["clear", 11, 12, 5, 5], ["wait", 1.0],
 			["coop_place", 12, 14, 1.0], ["coop_signal", "host_up"],
-			["coop_wait", "partner_seen"], ["coop_wait_file", "client_ready"], ["wait", 1.0],
+			["coop_wait", "partner_seen"],
+			["coop_wait_file", "client_gate"], ["wait", 0.6], ["coop_fingerprint", "host_gate"], ["coop_signal", "host_gate"],
+			["coop_wait_file", "client_gate_down"], ["wait", 0.6], ["coop_fingerprint", "host_gate_down"], ["coop_signal", "host_gate_down"],
+			["coop_wait_file", "client_ready"], ["wait", 1.0],
 			["coop_face_partner"], ["wait", 1.0], ["shot", "h1_sees_other"],
 			["eval", "_open_pause_menu()"], ["wait", 0.6], ["shot", "h1b_pause_with"], ["eval", "_close_pause_menu(true)"], ["wait", 0.4],
 			["coop_fingerprint", "host"],
@@ -176,6 +181,11 @@ func _ready() -> void:
 			["eval", "_main_menu.show_page('coop')"], ["wait", 1.0], ["shot", "c0_coop_page"],
 			["coop_wait_file", "host_up"], ["coop_join", "127.0.0.1"], ["wait_gameplay"], ["wait", 3.0],
 			["coop_fingerprint", "client"],
+			# The barrier from the road with E, up and down again: in the host's camp too.
+			["coop_at_gate"], ["wait", 1.0], ["eval", "_try_interact()"], ["wait", 2.0],
+			["coop_fingerprint", "client_gate"], ["coop_signal", "client_gate"], ["coop_wait_file", "host_gate"],
+			["eval", "_try_interact()"], ["wait", 2.0],
+			["coop_fingerprint", "client_gate_down"], ["coop_signal", "client_gate_down"], ["coop_wait_file", "host_gate_down"],
 			["coop_place", 14, 14, -1.0], ["wait", 1.5],
 			["coop_face_partner"], ["wait", 1.0], ["shot", "c1_sees_host"],
 			["coop_signal", "client_ready"],
@@ -544,6 +554,17 @@ func _run_step(step: Array) -> void:
 				me4.rotation.y = PI
 		"coop_fingerprint":
 			_write_fingerprint(str(step[1]))
+		"coop_at_gate":
+			# On the road by the barrier's post, looking at it (to work it with E).
+			var gate: Node3D = get_tree().get_first_node_in_group("camp_gate")
+			var me6: Node3D = _main.get("_player")
+			if gate != null and me6 != null:
+				var at6 := Vector3(float(gate.get("gap_center_x")) - 1.0, 0.2, float(gate.get("fence_z")) - 1.8)
+				var post := Vector3(float(gate.get("gap_center_x")) - 2.3, 0.0, float(gate.get("fence_z")))
+				me6.global_position = at6
+				me6.rotation.y = atan2(-(post.x - at6.x), -(post.z - at6.z))
+				me6.set("_pitch", -0.15)
+				me6.set("_pitch_target", -0.15)
 		"coop_list_bazaar":
 			# The bazaar page's "put it up" for the first thing in the box.
 			var box: Array = _main.get("_bazaar").in_box()
@@ -844,6 +865,9 @@ func _write_fingerprint(tag: String) -> void:
 		"partner": Coop.has_partner(),
 		"partner_look": [int(Coop.partner_look.get("m", -1)), int(Coop.partner_look.get("c", -1))],
 		"my_look": [int(Coop.my_look()["m"]), int(Coop.my_look()["c"])],
+		"partner_name": Coop.partner_name(),
+		"my_name": str(Coop.my_look().get("n", "")),
+		"gate_up": get_tree().get_first_node_in_group("camp_gate") != null and get_tree().get_first_node_in_group("camp_gate").is_raised(),
 		"other_visible": other != null and other.visible,
 		"other_at": str(other.global_position) if other != null else "",
 		"me_at": str((_main.get("_player") as Node3D).global_position) if _main.get("_player") != null else "",

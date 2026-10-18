@@ -10,7 +10,8 @@ extends Node
 ## no nights. ENet, one guest, one port; over Tailscale or a LAN the address is the
 ## other machine's.
 ##
-## Each warden has the look chosen on the CO-OP page (who, and the jacket's colour:
+## Each warden is the player's warden (scripts/profiles.gd: the WARDENS page in the menu),
+## with the name and the look chosen there (the figure and the jacket's colour:
 ## scripts/coop/warden_looks.gd), told to the other when they meet (_hello).
 ##
 ## What changes the camp goes one way: the host's camp is the camp. The joining
@@ -45,6 +46,7 @@ const CONNECT_TIMEOUT := 20.0
 const CFG_PATH := "user://coop.cfg"
 const REMOTE_PLAYER = preload("res://scripts/coop/remote_player.gd")
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
+const PROFILES = preload("res://scripts/profiles.gd")
 
 var role := Role.NONE
 var port := DEFAULT_PORT
@@ -64,11 +66,14 @@ var _pulse_same := 0
 var _remote: REMOTE_PLAYER
 ## The host's last clock as it came in (the joining machine; harnesses compare it).
 var last_clock: Dictionary = {}
-## Your look (the CO-OP page; -1: the host's warden 0, the other's warden 1).
+## The look from before wardens had their own (coop.cfg), for a warden who never chose
+## one; -1: the host's figure 0, the other's figure 1.
 var look_model := -1
 var look_color := 0
-## The other warden's look, and their last state.
-var partner_look: Dictionary = {"m": 1, "c": 0}
+## A look set for this run only (the harnesses: both copies share one warden).
+var _look_override := false
+## The other warden's look and name ({m, c, n}), and their last state.
+var partner_look: Dictionary = {"m": 1, "c": 0, "n": ""}
 var partner_state: Dictionary = {}
 
 
@@ -190,22 +195,34 @@ func _save_cfg() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(CFG_PATH)
 	cfg.set_value("coop", "last_address", last_address)
-	cfg.set_value("coop", "look_model", look_model)
-	cfg.set_value("coop", "look_color", look_color)
 	cfg.save(CFG_PATH)
 
 
-## Your look now: {m: warden, c: jacket colour}.
+## You now: {m: figure, c: jacket colour, n: the warden's name}.
 func my_look() -> Dictionary:
-	var m := look_model if look_model >= 0 else (1 if role == Role.CLIENT else 0)
-	return {"m": posmod(m, LOOKS.count()), "c": posmod(look_color, LOOKS.color_count())}
+	var m := look_model
+	var c := look_color
+	var n := PROFILES.profile_name() if PROFILES.has_profile() else ""
+	if not _look_override and PROFILES.has_profile():
+		var own: Dictionary = PROFILES.profile_look()
+		if int(own["m"]) >= 0:
+			m = int(own["m"])
+			c = int(own["c"])
+	if m < 0:
+		m = 1 if role == Role.CLIENT else 0
+	return {"m": posmod(m, LOOKS.count()), "c": posmod(c, LOOKS.color_count()), "n": n}
 
 
-## The CO-OP page changed your look: kept, and told to the other warden if they are here.
+## A look for this run only, not the warden's (the harnesses), told to the other warden.
 func set_my_look(model: int, color: int) -> void:
 	look_model = posmod(model, LOOKS.count())
 	look_color = posmod(color, LOOKS.color_count())
-	_save_cfg()
+	_look_override = true
+	announce_look()
+
+
+## The warden's name or look changed (the WARDENS page): told to the other warden.
+func announce_look() -> void:
 	if remote_id != 0:
 		_hello.rpc_id(remote_id, my_look())
 
@@ -430,7 +447,7 @@ func _screen(frame: PackedByteArray) -> void:
 func _hello(look: Dictionary) -> void:
 	if multiplayer.get_remote_sender_id() != remote_id and remote_id != 0:
 		return
-	partner_look = {"m": posmod(int(look.get("m", 1)), LOOKS.count()), "c": posmod(int(look.get("c", 0)), LOOKS.color_count())}
+	partner_look = {"m": posmod(int(look.get("m", 1)), LOOKS.count()), "c": posmod(int(look.get("c", 0)), LOOKS.color_count()), "n": str(look.get("n", "")).strip_edges().left(24)}
 	if _remote != null and is_instance_valid(_remote):
 		_remote.set_look(int(partner_look["m"]), int(partner_look["c"]))
 	partner_look_changed.emit(partner_look)
@@ -438,9 +455,11 @@ func _hello(look: Dictionary) -> void:
 
 # ── the camp's changes, one way ─────────────────────────────────────────────
 
-## The other warden's name (who they chose to be on the CO-OP page).
+## The other warden's name (their warden's, from the WARDENS page; the figure's from a
+## machine that sent none).
 func partner_name() -> String:
-	return str(LOOKS.NAMES[posmod(int(partner_look.get("m", 1)), LOOKS.count())])
+	var n := str(partner_look.get("n", ""))
+	return n if n != "" else str(LOOKS.NAMES[posmod(int(partner_look.get("m", 1)), LOOKS.count())])
 
 
 ## The joining warden's hands at the PC and elsewhere: what they ask the host's camp to
@@ -549,7 +568,7 @@ func _inv(kind: String, data: Array) -> void:
 
 ## Something either machine has that the other must have too, both ways (main.coop_sync):
 ## "office" [the lights, curtains and set], "register" [the desk's register and key
-## hooks], "gate" [] (a warden put the barrier up).
+## hooks], "gate" ["up" / "down"] (a warden worked the barrier).
 func send_sync(kind: String, data: Array) -> void:
 	if role != Role.NONE and remote_id != 0:
 		_sync.rpc_id(remote_id, kind, data)

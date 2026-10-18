@@ -95,6 +95,20 @@ def main():
             failures.append("the host sees the other warden as %s, not [2, 4]" % h["partner_look"])
         if c["partner_look"] != h["my_look"]:
             failures.append("the other sees the host as %s, not %s" % (c["partner_look"], h["my_look"]))
+        # Called by their warden's name (both copies play the same warden here).
+        if not c.get("my_name") or h.get("partner_name") != c.get("my_name"):
+            failures.append("the host calls the other warden %r, not their warden's name %r" % (h.get("partner_name"), c.get("my_name")))
+        if not h.get("my_name") or c.get("partner_name") != h.get("my_name"):
+            failures.append("the other calls the host %r, not their warden's name %r" % (c.get("partner_name"), h.get("my_name")))
+    # The barrier, worked from the road by the joining warden: up and down on both.
+    hg, cg, hgd, cgd = load("host_gate"), load("client_gate"), load("host_gate_down"), load("client_gate_down")
+    if None in (hg, cg, hgd, cgd):
+        failures.append("missing barrier fingerprints")
+    else:
+        if not cg["gate_up"] or not hg["gate_up"]:
+            failures.append("the joining warden's E did not raise the barrier (theirs %s, the host's %s)" % (cg["gate_up"], hg["gate_up"]))
+        if cgd["gate_up"] or hgd["gate_up"]:
+            failures.append("the joining warden's second E did not lower it (theirs %s, the host's %s)" % (cgd["gate_up"], hgd["gate_up"]))
     # One radio: the host's song on the other set too, switched off from either.
     hr_, cr_, ho_ = load("host_radio"), load("client_radio"), load("host_radio_off")
     if hr_ is None or cr_ is None or ho_ is None:

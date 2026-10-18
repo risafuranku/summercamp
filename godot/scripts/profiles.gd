@@ -6,7 +6,9 @@ extends RefCounted
 ## camp opens its list of saves; delete a camp, duplicate a camp".
 ##
 ##   user://profiles/last.json                      {"profile": id, "camp": id}
-##   user://profiles/<profile>/profile.json         {"name", "created"}
+##   user://profiles/<profile>/profile.json         {"name", "created", "look_model", "look_color"}
+##       (the look: which warden figure and jacket colour, scripts/coop/warden_looks.gd;
+##       the other warden in co-op sees it and the name)
 ##   user://profiles/<profile>/camps/<camp>/camp.json
 ##       {"name", "seed", "created", "played", "sandbox", "coop", "day", "money", "guests"}
 ##   user://profiles/<profile>/camps/<camp>/thumb.png   the camp at its last save
@@ -149,11 +151,36 @@ static func profile_name(pid: String = profile_id) -> String:
 	return str(_read(profile_dir(pid).path_join("profile.json")).get("name", ""))
 
 
+static func rename_profile(pid: String, name: String) -> void:
+	var path := profile_dir(pid).path_join("profile.json")
+	var p := _read(path)
+	if p.is_empty() or name.strip_edges() == "":
+		return
+	p["name"] = name.strip_edges().left(24)
+	_write(path, p)
+
+
+## The warden's look: {m: figure, c: jacket colour}; m -1 when never chosen.
+static func profile_look(pid: String = profile_id) -> Dictionary:
+	var p := _read(profile_dir(pid).path_join("profile.json"))
+	return {"m": int(p.get("look_model", -1)), "c": int(p.get("look_color", 0))}
+
+
+static func set_profile_look(pid: String, model: int, color: int) -> void:
+	var path := profile_dir(pid).path_join("profile.json")
+	var p := _read(path)
+	if p.is_empty():
+		return
+	p["look_model"] = model
+	p["look_color"] = color
+	_write(path, p)
+
+
 ## A new warden, chosen at once. The first one made takes in the saves from before.
-static func create_profile(name: String) -> String:
+static func create_profile(name: String, look_model: int = -1, look_color: int = 0) -> String:
 	var first := list_profiles().is_empty()
 	var pid := _new_id("p")
-	_write(profile_dir(pid).path_join("profile.json"), {"name": name.strip_edges().left(24), "created": _now()})
+	_write(profile_dir(pid).path_join("profile.json"), {"name": name.strip_edges().left(24), "created": _now(), "look_model": look_model, "look_color": look_color})
 	select_profile(pid)
 	if first:
 		_import_legacy()

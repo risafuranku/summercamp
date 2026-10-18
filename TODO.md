@@ -26,6 +26,7 @@
   - 18. 10. (evening): one radio for both: the host's set plays on the other machine (the same song from the same place, the station's pips, the night's broadcast built from the same pieces), the switch from either (`building_interior.coop_radio_state` / `coop_take_radio`); in Lesna's places (the pub, the Jednota, the chapel, the kiosk, the motel) the other warden stands with you at the counter; seen at work in the camp (a spanner at R, the saw, the bin bag) and fishing on the far shore
 - [ ] 6  Saves of a co-op camp (host), joining a camp already going, a dropped line and back, a name per warden
   - 18. 10.: the host's saves are marked co-op and the CO-OP page's Last camp hosts the newest one (its day and till beside it); joining a camp already going works (the whole camp on joining); a dropped line: the other's figure goes, the joining one is back at the menu and can join again; the other warden is called by the name they chose (Pepa, Ondra, Jana, Bara) in the feed
+  - 18. 10. (evening): the look is the warden's, not the CO-OP page's: chosen on the WARDENS page when a warden is made and changed with Edit warden (name, figure, jacket); the other warden is called by their warden's name. The joining warden can work the barrier (the client's E skipped everything outside the camp), from the road too (the wall in the gap shadowed the handle), and E lowers it again
 
 ## BRIEF 2026-10-18 — the big list (the user's notes)
 

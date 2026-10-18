@@ -21,16 +21,18 @@ extends CanvasLayer
 ##
 ## Wardens and camps (scripts/profiles.gd, playtest 18. 10.: "profiles with a name, worlds
 ## like Minecraft"): WARDEN picks or makes the profile whose camps you play (a new player
-## is asked their name first); NEW CAMP asks the camp's name and, if you like, its seed;
+## is asked their name first, then chooses the figure and jacket the other warden sees in
+## co-op; Edit warden changes the name and the look later); NEW CAMP asks the camp's name
+## and, if you like, its seed;
 ## LOAD CAMP shows the warden's camps as tiles (the camp at its last save, day, till), a
 ## tile opens the camp: its saves to load, Duplicate, Delete. CO-OP hosts a new camp or a
 ## saved one through the same pages.
-## Pages: main, profiles, newcamp, camps, load (one camp), coop, options, controls, and the secret test nights (L on the main
+## Pages: main, profiles, look (one warden), newcamp, camps, load (one camp), coop, options, controls, and the secret test nights (L on the main
 ## page: a fresh test camp at 20:00 with the chosen thing already out, nothing saved). CO-OP (scripts/coop/coop.gd): host a
 ## sandbox camp (this machine's addresses beside it, for the other warden) or join one
 ## (Join opens a direct-connect window: the host's address, the last one filled in; it
-## can also be typed straight into the row); who you are and your jacket's colour
-## (left / right, the warden drawn beside the rows: scripts/coop/warden_looks.gd). A loading plate covers everything while main
+## can also be typed straight into the row); your warden drawn beside the rows with their
+## name (scripts/coop/warden_looks.gd). A loading plate covers everything while main
 ## builds the world. main.gd owns what the choices *do*; this script only reports them.
 
 signal continue_requested
@@ -95,7 +97,14 @@ var _coop_notice: Label
 var _coop_address := ""
 var _coop_caret_t := 0.0
 var _coop_preview: TextureRect
+var _coop_who: Label
 var _coop_last_path := ""
+## The warden's name and look (WARDENS: a new warden, or Edit warden).
+var _look_page: Control
+var _look_list
+var _look_preview: TextureRect
+var _look_pid := ""
+var _look_back := "profiles"
 ## Direct connect: the window over the CO-OP page with the address field.
 var _connect_box: Control
 var _connect_field: LineEdit
@@ -187,12 +196,15 @@ func show_page(page: String) -> void:
 		_connect_box.visible = false
 	if _ask_box != null:
 		_ask_box.visible = false
-	for pg in [_profiles_page, _newcamp_page, _camps_page]:
+	for pg in [_profiles_page, _look_page, _newcamp_page, _camps_page]:
 		if pg != null:
 			pg.visible = false
 	if page == "profiles" and _profiles_page != null:
 		_profiles_page.visible = true
 		_refresh_profiles()
+	elif page == "look" and _look_page != null:
+		_look_page.visible = true
+		_refresh_look()
 	elif page == "newcamp" and _newcamp_page != null:
 		_newcamp_page.visible = true
 		_open_newcamp()
@@ -379,23 +391,18 @@ func _rebuild() -> void:
 		{"id": "host", "text": "Host a new camp"},
 		{"id": "host_last", "text": "Host a saved camp"},
 		{"id": "join", "text": "Join"},
-		{"id": "warden", "text": "Warden"},
-		{"id": "jacket", "text": "Jacket"},
 		{"id": "back", "text": "Back"},
 	]
 	_coop_list.set_items(coop_items)
-	# The warden you will be, as the other one will see you.
-	_coop_preview = TextureRect.new()
-	_coop_preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_coop_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_coop_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_coop_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Below the address rows, at the plate's right.
+	# Your warden, as the other one will see you (chosen on the WARDENS page).
 	var pv_top := _vp(28 + 22 * 3)
-	var pv_h := plate_h - pv_top - _vp(16)
-	_coop_preview.size = Vector2(pv_h * 0.42, pv_h)
-	_coop_preview.position = Vector2(_coop_page.size.x - _coop_preview.size.x - _vp(12), pv_top)
-	_coop_page.add_child(_coop_preview)
+	var pv_h := plate_h - pv_top - _vp(28)
+	_coop_preview = _warden_preview(_coop_page, Vector2(_coop_page.size.x - pv_h * 0.42 - _vp(12), pv_top), pv_h)
+	_coop_who = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
+	_coop_who.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_coop_who.position = Vector2(_coop_preview.position.x - _vp(30), pv_top + pv_h + _vp(2))
+	_coop_who.size = Vector2(_coop_preview.size.x + _vp(60), _vp(10))
+	_coop_page.add_child(_coop_who)
 	_coop_notice = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale)
 	_coop_notice.position = Vector2(_vp(8), plate_h - _vp(13))
 	_coop_page.add_child(_coop_notice)
@@ -691,6 +698,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	match _page:
 		"profiles":
 			used = _handle_profiles_input(event)
+		"look":
+			used = _handle_look_input(event)
 		"newcamp":
 			if event.is_action_pressed("ui_cancel"):
 				show_page("coop" if _for_coop else "main")
@@ -802,29 +811,15 @@ func _refresh_coop() -> void:
 	_refresh_coop_look()
 
 
-## The warden and the jacket rows, and the warden drawn beside them.
+## The warden you are, drawn beside the rows with their name.
 func _refresh_coop_look() -> void:
 	if _coop_list == null or Coop == null:
 		return
 	var look: Dictionary = Coop.my_look()
-	var m := int(look["m"])
-	var c := int(look["c"])
-	_coop_list.set_item_sub("warden", "<  %s  >" % WARDEN_LOOKS.NAMES[m])
-	_coop_list.set_item_sub("jacket", "<  %s  >" % WARDEN_LOOKS.color_name(c))
 	if _coop_preview != null:
-		_coop_preview.texture = WARDEN_LOOKS.texture(m, c, "stand")
-
-
-func _coop_cycle(which: String, dir: int) -> void:
-	var look: Dictionary = Coop.my_look()
-	var m := int(look["m"])
-	var c := int(look["c"])
-	if which == "warden":
-		m = posmod(m + dir, WARDEN_LOOKS.count())
-	else:
-		c = posmod(c + dir, WARDEN_LOOKS.color_count())
-	Coop.set_my_look(m, c)
-	_refresh_coop_look()
+		_coop_preview.texture = WARDEN_LOOKS.texture(int(look["m"]), int(look["c"]), "stand")
+	if _coop_who != null:
+		_coop_who.text = str(look.get("n", "")).to_upper()
 
 
 func _refresh_coop_address() -> void:
@@ -848,8 +843,6 @@ func _on_coop_activated(id: String) -> void:
 			show_page("camps")
 		"join":
 			_open_connect_box()
-		"warden", "jacket":
-			_coop_cycle(id, 1)
 		"back":
 			show_page("main")
 
@@ -865,14 +858,6 @@ func _handle_coop_input(event: InputEvent) -> bool:
 	if event.is_action_pressed("ui_cancel"):
 		show_page("main")
 		return true
-	var row: String = _coop_list.current_id()
-	if row in ["warden", "jacket"]:
-		if event.is_action_pressed("ui_left", true):
-			_coop_cycle(row, -1)
-			return true
-		if event.is_action_pressed("ui_right", true):
-			_coop_cycle(row, 1)
-			return true
 	var key := event as InputEventKey
 	if key != null and key.pressed and _coop_list.current_id() == "join":
 		if key.keycode == KEY_BACKSPACE:
@@ -1058,6 +1043,28 @@ func _build_camp_pages(plate_h: float) -> void:
 	_profiles_page.add_child(_profiles_list)
 	_profiles_list.activated.connect(_on_profile_activated)
 	_lantern(_profiles_list)
+	# ONE WARDEN: the name and the look
+	_look_page = _page_frame("WARDEN", plate_h)
+	_look_list = RETRO_MENU.MenuList.new()
+	_look_list.ui_scale = _scale
+	_look_list.row_height_vp = 22
+	_look_list.position = Vector2(_vp(2), _vp(30))
+	_look_list.size = Vector2(_look_page.size.x * 0.62, _vp(22 * 4))
+	_look_page.add_child(_look_list)
+	_look_list.activated.connect(_on_look_activated)
+	_lantern(_look_list)
+	var look_items: Array[Dictionary] = [
+		{"id": "name", "text": "Name"},
+		{"id": "figure", "text": "Figure"},
+		{"id": "jacket", "text": "Jacket"},
+		{"id": "done", "text": "Done"},
+	]
+	_look_list.set_items(look_items)
+	var lp_h := plate_h - _vp(28 + 18)
+	_look_preview = _warden_preview(_look_page, Vector2(_look_page.size.x - lp_h * 0.42 - _vp(12), _vp(28)), lp_h)
+	var look_hint := RETRO_UI.label("LEFT / RIGHT TO CHANGE. THE OTHER WARDEN SEES THIS.", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
+	look_hint.position = Vector2(_vp(8), plate_h - _vp(13))
+	_look_page.add_child(look_hint)
 	# NEW CAMP
 	_newcamp_page = _page_frame("NEW CAMP", plate_h)
 	_newcamp_title = _newcamp_page.get_child(0)
@@ -1295,6 +1302,8 @@ func _refresh_profiles() -> void:
 		var mine := str(pr["id"]) == PROFILES.profile_id
 		var sub := "PRESS DEL AGAIN TO DELETE" if _profile_delete_armed == str(pr["id"]) else "%d CAMP%s%s" % [int(pr["camps"]), "" if int(pr["camps"]) == 1 else "S", "  (PLAYING)" if mine else ""]
 		items.append({"id": "p:" + str(pr["id"]), "text": str(pr["name"]), "sub": sub})
+	if PROFILES.has_profile():
+		items.append({"id": "edit", "text": "Edit warden", "sub": PROFILES.profile_name().to_upper()})
 	items.append({"id": "new", "text": "New warden"})
 	if PROFILES.has_profile():
 		items.append({"id": "back", "text": "Back"})
@@ -1311,6 +1320,8 @@ func _on_profile_activated(id: String) -> void:
 		show_page("main")
 	elif id == "new":
 		_ask("NEW WARDEN", "", "Name", _make_profile)
+	elif id == "edit":
+		_open_look(PROFILES.profile_id, "profiles")
 	elif id.begins_with("p:"):
 		PROFILES.select_profile(id.substr(2))
 		_camp_id = ""
@@ -1319,14 +1330,104 @@ func _on_profile_activated(id: String) -> void:
 		show_page("main")
 
 
+## Named, then dressed: the look page follows (each new warden starts as the next figure).
 func _make_profile(name: String) -> void:
 	if name.strip_edges() == "":
 		return
-	PROFILES.create_profile(name)
+	var pid := PROFILES.create_profile(name, PROFILES.list_profiles().size() % WARDEN_LOOKS.count(), 0)
 	_camp_id = ""
 	refresh_saves()
 	profile_changed.emit()
-	show_page("main")
+	_open_look(pid, "main")
+
+
+## A frame of the warden standing (the look page, the CO-OP page).
+func _warden_preview(parent: Control, pos: Vector2, height: float) -> TextureRect:
+	var tr := TextureRect.new()
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.size = Vector2(height * 0.42, height)
+	tr.position = pos
+	parent.add_child(tr)
+	return tr
+
+
+func _open_look(pid: String, back: String) -> void:
+	if pid == "":
+		return
+	_look_pid = pid
+	_look_back = back
+	show_page("look")
+	_look_list.select_id("name")
+
+
+## The warden's look as kept (a warden from before looks were theirs: the one the CO-OP
+## page had, for the warden playing, else the first figure).
+func _look_now() -> Dictionary:
+	var look: Dictionary = PROFILES.profile_look(_look_pid)
+	if int(look["m"]) < 0 and _look_pid == PROFILES.profile_id and Coop != null:
+		look = Coop.my_look()
+	return {"m": posmod(maxi(0, int(look["m"])), WARDEN_LOOKS.count()), "c": posmod(int(look["c"]), WARDEN_LOOKS.color_count())}
+
+
+func _refresh_look() -> void:
+	if _look_list == null or _look_pid == "":
+		return
+	var look := _look_now()
+	_look_list.set_item_sub("name", PROFILES.profile_name(_look_pid).to_upper())
+	_look_list.set_item_sub("figure", "<  %s  >" % WARDEN_LOOKS.FIGURES[int(look["m"])])
+	_look_list.set_item_sub("jacket", "<  %s  >" % WARDEN_LOOKS.color_name(int(look["c"])))
+	_look_preview.texture = WARDEN_LOOKS.texture(int(look["m"]), int(look["c"]), "stand")
+
+
+func _look_cycle(which: String, dir: int) -> void:
+	var look := _look_now()
+	var m := int(look["m"])
+	var c := int(look["c"])
+	if which == "figure":
+		m = posmod(m + dir, WARDEN_LOOKS.count())
+	else:
+		c = posmod(c + dir, WARDEN_LOOKS.color_count())
+	PROFILES.set_profile_look(_look_pid, m, c)
+	_refresh_look()
+
+
+func _on_look_activated(id: String) -> void:
+	match id:
+		"name":
+			_ask("WARDEN'S NAME", PROFILES.profile_name(_look_pid), "Name", func(text: String) -> void:
+				PROFILES.rename_profile(_look_pid, text)
+				_refresh_look())
+		"figure", "jacket":
+			_look_cycle(id, 1)
+		"done":
+			_close_look()
+
+
+## Kept as it is: the card, the list and the other warden (if one is on the line) told.
+func _close_look() -> void:
+	if _look_pid == PROFILES.profile_id and Coop != null:
+		Coop.announce_look()
+	refresh_saves()
+	profile_changed.emit()
+	show_page(_look_back)
+
+
+func _handle_look_input(event: InputEvent) -> bool:
+	if event.is_action_pressed("ui_cancel"):
+		_close_look()
+		return true
+	var row: String = _look_list.current_id()
+	if row in ["figure", "jacket"]:
+		if event.is_action_pressed("ui_left", true):
+			_look_cycle(row, -1)
+			return true
+		if event.is_action_pressed("ui_right", true):
+			_look_cycle(row, 1)
+			return true
+	return _look_list.handle_input(event)
 
 
 func _handle_profiles_input(event: InputEvent) -> bool:

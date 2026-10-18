@@ -610,8 +610,10 @@ through for two (TODO.md, CO-OP).
   you be: the other warden can come and haul you up (E), or, nobody coming, you come to
   on the office step a while later. The camp goes on for the other either way.
 - **The other warden** is a figure like the guests (Grok sprites) with their torch and
-  their steps. Each player picks who they are on the CO-OP page, two men and two women
-  (Pepa, Ondra, Jana, Bara), and the colour of their jacket; each warden is drawn
+  their steps. The look belongs to the player's warden (the WARDENS page: chosen when the
+  warden is made, changed later with Edit warden): one of four figures, two men and two
+  women, and the colour of their jacket; the other warden is called by that warden's
+  name, not the figure's; each warden is drawn
   standing, rowing, sweeping, down on a knee scrubbing, lying on their belly, at the PC and sitting.
 - **Rooms for two.** Each warden sees a room from where they stand in it; the other is
   in it too: across the room, or at the job they are doing (with the broom, on a knee).

@@ -163,7 +163,7 @@ func hint_for(structure: Node3D) -> String:
 	match str(structure.get_meta("building_type", "")):
 		"trip_barrier":
 			var gate := _gate()
-			return "" if gate != null and gate.is_raised() else "Raise the barrier"
+			return "Lower the barrier" if gate != null and gate.is_raised() else "Raise the barrier"
 		"trip_timetable":
 			return "Read the timetable"
 		"trip_bus":
@@ -204,9 +204,17 @@ func interact(structure: Node3D) -> void:
 	match str(structure.get_meta("building_type", "")):
 		"trip_barrier":
 			var gate := _gate()
-			if gate != null and not gate.is_raised():
+			if gate == null:
+				return
+			if not gate.is_raised():
 				gate.open_for_player()
-				Coop.send_sync("gate", [])
+				Coop.send_sync("gate", ["up"])
+				return
+			var why: String = gate.close_for_player()
+			if why.is_empty():
+				Coop.send_sync("gate", ["down"])
+			else:
+				_say(why)
 		"trip_timetable":
 			_open_timetable(str(structure.get_meta("stop", "camp")))
 		"trip_bus":
