@@ -734,9 +734,10 @@ func import_state(d: Dictionary, client := false) -> void:
 
 # ── drawing ──────────────────────────────────────────────────────────────────
 
+## A step smaller than the rest of the UI: the plan and the checklist share the screen.
 func _scale() -> int:
 	var vp := get_viewport().get_visible_rect().size
-	return RETRO_UI.ui_scale(vp.y, vp.x, 400.0)
+	return maxi(2, RETRO_UI.ui_scale(vp.y, vp.x, 400.0) - 1)
 
 
 func _panel_size() -> Vector2:
@@ -818,7 +819,11 @@ func _draw_bag() -> void:
 			var lit := target.has_point(Vector2i(x, y))
 			var m := tint if lit else Color(0.8, 0.8, 0.76)
 			if pocket != null:
-				c.draw_texture_rect(pocket, r, false, m)
+				# Mirrored now and then, so the same stain is not in every pocket.
+				var flip := Vector2(-1.0 if (x * 7 + y * 3) % 3 == 1 else 1.0, -1.0 if (x + y * 5) % 4 == 2 else 1.0)
+				c.draw_set_transform(o + (r.position + r.size * 0.5) * fs, 0.0, flip * fs)
+				c.draw_texture_rect(pocket, Rect2(-r.size * 0.5, r.size), false, m)
+				c.draw_set_transform(o, 0.0, Vector2(fs, fs))
 			else:
 				c.draw_rect(r.grow(-1), Color(0.26, 0.27, 0.18) * m)
 	var buckle := _ui("inv_buckle.png")

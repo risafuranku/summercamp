@@ -224,16 +224,21 @@ func _draw_map() -> void:
 	cell = minf(cell, floorf((avail_w - 64.0 - fs * 3.0) / float(w)))
 	var plan := Vector2(w, h) * cell
 	var sheet := Vector2(plan.x + 64.0 + fs * 3.0, plan.y + header + footer + 40.0)
-	# Never narrower than its title and the date (a narrow screen with the bag open): the
-	# plan in the middle of the wider sheet.
-	var title_w := title.get_string_size("KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * 1.8)).x
-	var head_w := title_w + font.get_string_size("site plan - V. 1996", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 2.0 + 64.0
+	# A narrow sheet (a narrow screen, the bag open): the title smaller to fit beside the
+	# date; still too wide, the sheet wider with the plan in its middle.
+	var sub_w := font.get_string_size("site plan - V. 1996", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 2.0 + 64.0
+	var ts := int(fs * 1.8)
+	while ts > fs and title.get_string_size("KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x + sub_w > sheet.x:
+		ts -= 1
+	var head_w := title.get_string_size("KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x + sub_w
 	var extra := maxf(0.0, head_w - sheet.x)
 	sheet.x += extra
-	var origin := (Vector2(left + (screen.x - side - left - sheet.x) * 0.5, (screen.y - sheet.y) * 0.5) + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
+	# Centred in what is left; never over the bag (out to the right instead, if it must).
+	var ox := clampf(left + (screen.x - side - left - sheet.x) * 0.5, left, maxf(left, screen.x - sheet.x - 12.0))
+	var origin := (Vector2(ox, (screen.y - sheet.y) * 0.5) + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
 	_draw_paper(Rect2(origin, sheet))
 	var o := origin + Vector2(32.0 + floorf(extra * 0.5), header + 12.0)
-	_canvas.draw_string(title, origin + Vector2(32, fs * 2.2), "KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * 1.8), PENCIL)
+	_canvas.draw_string(title, origin + Vector2(32, fs * 2.2), "KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, ts, PENCIL)
 	var sub := "site plan - V. 1996"
 	var sw := font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	_canvas.draw_string(font, origin + Vector2(sheet.x - 32 - sw, fs * 2.2), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL.lightened(0.35))
