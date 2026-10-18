@@ -173,6 +173,10 @@ def main():
             failures.append("the other machine does not show the host's day event")
         if hdd["day_open"] != 0 or cdd["day_open"] != 0:
             failures.append("the day event the other warden sorted out is still open (host %s, other %s)" % (hdd["day_open"], cdd["day_open"]))
+    # The electrician the host rang for, seen from the other machine.
+    ce2 = load("client_electrician")
+    if ce2 is None or ce2["mirror"] < 1:
+        failures.append("the other warden does not see the electrician come (%s)" % (ce2 or {}).get("mirror"))
     # Over the shoulder: the host's screen on the other's PC.
     cs = load("client_shoulder")
     if cs is None or not cs["coop_screen"]:

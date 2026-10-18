@@ -296,7 +296,9 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   their torch) with its own damage / allow / notify callables. A brain that reads or sets
   something new on the player must find it on the stand-in too. The other machine draws
   every Sprite3D, Light3D and playing AudioStreamPlayer3D under a brain's `_root`, so
-  keep an enemy's look inside its root. The sanity is never to be shown or named.
+  keep an enemy's look inside its root; anything else of the host's that the other should
+  see (a caller like the electrician) goes in the `coop_mirror` group. The sanity is never
+  to be shown or named.
 - **Co-op sleep** (`camp_office.gd`): lying down sets `in_bed` (sent as the warden
   state's `z`); the host passes the night only when both are in bed and its own eyes are
   shut (the sleep sequence's DARK), and stops it if either gets up; the other machine

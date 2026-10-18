@@ -365,7 +365,7 @@ func _warden(s: Dictionary) -> void:
 	partner_moved.emit(s)
 
 
-## The night (scripts/coop/coop_night.gd): what the host's enemies show, for the other
+## The night (scripts/coop/coop_night.gd): what the host's enemies (and callers) show, for the other
 ## machine, and what they do to its warden.
 func send_night_view(items: Array) -> void:
 	if role == Role.HOST and remote_id != 0:

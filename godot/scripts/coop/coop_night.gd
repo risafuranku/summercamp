@@ -65,7 +65,28 @@ func _host_tick(delta: float) -> void:
 	if brains.is_empty():
 		_targets.clear()
 		_private.clear()
-		return
+	else:
+		_hunt(delta, brains)
+	_view_t -= delta
+	if _view_t <= 0.0:
+		_view_t = 1.0 / VIEW_HZ
+		var items := _snapshot(brains)
+		# Callers by day too (the electrician): whatever stands in the "coop_mirror" group.
+		for root in get_tree().get_nodes_in_group(MIRROR_GROUP):
+			if root is Node3D and (root as Node3D).is_inside_tree():
+				_snapshot_root(root, "g%d" % root.get_instance_id(), items)
+		if not items.is_empty() or _sent_any:
+			Coop.send_night_view(items)
+		_sent_any = not items.is_empty()
+
+
+## Shown on the other machine as on this one, besides the enemies (scripts/reception/
+## electrician_visit.gd puts its man in it).
+const MIRROR_GROUP := "coop_mirror"
+var _sent_any := false
+
+
+func _hunt(delta: float, brains: Array) -> void:
 	_ensure_proxy()
 	_place_proxy()
 	_retarget_t -= delta
@@ -86,10 +107,6 @@ func _host_tick(delta: float) -> void:
 			var now := str(_targets.get(b.get_instance_id(), "host"))
 			if not _is_out(now) and _is_out(_other_of(now)):
 				_aim(b, _other_of(now))
-	_view_t -= delta
-	if _view_t <= 0.0:
-		_view_t = 1.0 / VIEW_HZ
-		Coop.send_night_view(_snapshot(brains))
 
 
 static func _other_of(who: String) -> String:
@@ -276,27 +293,32 @@ func _snapshot(brains: Array) -> Array:
 		var root = b.get("_root")
 		if root == null or not is_instance_valid(root):
 			continue
-		var bid := str(b.get_instance_id())
-		for n in (root as Node).find_children("*", "", true, false):
-			var key := bid + "/" + str(root.get_path_to(n))
-			if n is Sprite3D:
-				var sp := n as Sprite3D
-				if sp.texture == null or sp.texture.resource_path == "":
-					continue
-				out.append({"k": key, "t": "s", "tex": sp.texture.resource_path, "xf": sp.global_transform, "v": _shown_below(sp, root),
-					"px": sp.pixel_size, "off": sp.offset, "fh": sp.flip_h, "mod": sp.modulate, "sh": sp.shaded, "bb": int(sp.billboard)})
-			elif n is AudioStreamPlayer3D:
-				var a := n as AudioStreamPlayer3D
-				if a.stream == null or a.stream.resource_path == "" or not a.playing:
-					continue
-				out.append({"k": key, "t": "a", "st": a.stream.resource_path, "pos": a.global_position, "db": float(a.get_meta("coop_db", a.volume_db)), "pt": a.pitch_scale,
-					"md": a.max_distance, "us": a.unit_size, "at": a.get_playback_position()})
-			elif n is Light3D:
-				var l := n as Light3D
-				out.append({"k": key, "t": "l", "spot": n is SpotLight3D, "xf": l.global_transform, "v": _shown_below(l, root), "c": l.light_color,
-					"e": l.light_energy, "r": (l as SpotLight3D).spot_range if n is SpotLight3D else (l as OmniLight3D).omni_range,
-					"ang": (l as SpotLight3D).spot_angle if n is SpotLight3D else 0.0})
+		_snapshot_root(root, str(b.get_instance_id()), out)
 	return out
+
+
+## Every sprite, light and playing sound under `root` (not the root itself), keyed
+## `prefix/path`, into `out`.
+func _snapshot_root(root: Node, prefix: String, out: Array) -> void:
+	for n in root.find_children("*", "", true, false):
+		var key := prefix + "/" + str(root.get_path_to(n))
+		if n is Sprite3D:
+			var sp := n as Sprite3D
+			if sp.texture == null or sp.texture.resource_path == "":
+				continue
+			out.append({"k": key, "t": "s", "tex": sp.texture.resource_path, "xf": sp.global_transform, "v": _shown_below(sp, root),
+				"px": sp.pixel_size, "off": sp.offset, "fh": sp.flip_h, "mod": sp.modulate, "sh": sp.shaded, "bb": int(sp.billboard)})
+		elif n is AudioStreamPlayer3D:
+			var a := n as AudioStreamPlayer3D
+			if a.stream == null or a.stream.resource_path == "" or not a.playing:
+				continue
+			out.append({"k": key, "t": "a", "st": a.stream.resource_path, "pos": a.global_position, "db": float(a.get_meta("coop_db", a.volume_db)), "pt": a.pitch_scale,
+				"md": a.max_distance, "us": a.unit_size, "at": a.get_playback_position()})
+		elif n is Light3D:
+			var l := n as Light3D
+			out.append({"k": key, "t": "l", "spot": n is SpotLight3D, "xf": l.global_transform, "v": _shown_below(l, root), "c": l.light_color,
+				"e": l.light_energy, "r": (l as SpotLight3D).spot_range if n is SpotLight3D else (l as OmniLight3D).omni_range,
+				"ang": (l as SpotLight3D).spot_angle if n is SpotLight3D else 0.0})
 
 
 # ── the hidden sanity ─────────────────────────────────────────────────────────

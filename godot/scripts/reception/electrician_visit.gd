@@ -215,6 +215,8 @@ func _walk(delta: float) -> bool:
 func _make_body() -> void:
 	_body = Node3D.new()
 	_body.name = "Electrician"
+	# Co-op: the other warden sees him come too (scripts/coop/coop_night.gd).
+	_body.add_to_group("coop_mirror")
 	var world = _main.get("_world_3d")
 	(world if world != null else _main).add_child(_body)
 	_sprite = Sprite3D.new()

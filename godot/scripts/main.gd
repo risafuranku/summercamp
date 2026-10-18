@@ -3897,8 +3897,8 @@ func _ensure_coop_night() -> void:
 
 ## The host: what of the camp changes by itself, for the other machine once a second
 ## (Coop sends it when it changed): the guests and their plans (the agents act them out
-## there too), breakdowns, the buildings' condition (the lamps), the rooms, the mail and
-## the shed key.
+## there too), breakdowns, the buildings' condition (the lamps), the rooms, the mail, the
+## shed key, the day's events and the night's faults that put lamps out.
 func coop_camp_pulse() -> Dictionary:
 	var state = CoreRoot.get_state()
 	if state == null:
@@ -3913,7 +3913,9 @@ func coop_camp_pulse() -> Dictionary:
 		mail = {"inbox": EmailManager.inbox, "sent": EmailManager.sent, "rep": EmailManager.reputation}
 	var key: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.has_shed_key
 	var day: Dictionary = _day_events.export_state() if _day_events != null else {}
-	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day}
+	# The night's faults that put lamps out (the breaker, a dead circuit).
+	var nj := {"bt": bool(_night_jobs.breaker_tripped), "dc": int(_night_jobs.dead_circuit)} if _night_jobs != null else {}
+	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj}
 
 
 var _coop_day_hash := 0
@@ -3937,6 +3939,10 @@ func coop_apply_pulse(p: Dictionary) -> void:
 			state.grid.cells[coord]["maintenance"] = float(maint[coord])
 	if GuestManager != null and GuestManager.has_method("_emit_guest_overview_state"):
 		GuestManager._emit_guest_overview_state(true)
+	var nj: Dictionary = p.get("nj", {})
+	if _night_jobs != null and not nj.is_empty():
+		_night_jobs.breaker_tripped = bool(nj.get("bt", false))
+		_night_jobs.dead_circuit = int(nj.get("dc", -1))
 	_sync_dark_lamps()
 	if camp_office != null and is_instance_valid(camp_office):
 		camp_office.has_shed_key = bool(p.get("shed_key", camp_office.has_shed_key))

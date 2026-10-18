@@ -15,6 +15,7 @@ extends "res://tools/shot_driver.gd"
 ##   - a guest checks in at the host's: the other machine has them too, walking about;
 ##   - the delivery van at the host's gate: the other warden sees it and signs for it,
 ##     and it is signed for in the host's camp;
+##   - the electrician the host rang for: the other warden sees him come;
 ##   - the host sits at the PC: the other, in the office, sees its screen over their shoulder;
 ##     then the other sits at it: what they build and the mail they read are the host's;
 ##   - a night enemy on the host's goes for the other warden: the other machine sees it;
@@ -84,6 +85,8 @@ func _ready() -> void:
 			["coop_wait_file", "client_guests_seen"], ["wait", 1.0], ["coop_fingerprint", "host_after_client"],
 			["eval", "_day_events.debug_start('delivery')"], ["wait", 2.0], ["coop_signal", "host_day_event"],
 			["coop_wait_file", "client_day_done"], ["wait", 2.0], ["coop_fingerprint", "host_day_done"],
+			["eval", "camp_office.on_phone_effect('electrician', '')"], ["hours", 0.6], ["wait", 3.0], ["coop_signal", "host_electrician"],
+			["coop_wait_file", "client_saw_electrician"], ["eval", "camp_office.electrician._leave() if camp_office.electrician != null else null"], ["wait", 1.0],
 			["coop_place", 12, 14, 1.0], ["wait", 1.0],
 			["eval", "time_system.set_time_hours(21.6)"], ["eval", "_sync_runtime_state_from_systems(true)"], ["wait", 4.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "h5_night_other_torch"],
@@ -136,6 +139,7 @@ func _ready() -> void:
 			["coop_wait_file", "host_guests"], ["wait", 3.0], ["coop_fingerprint", "client_guests"], ["coop_signal", "client_guests_seen"],
 			["coop_wait_file", "host_day_event"], ["wait", 2.5], ["coop_fingerprint", "client_day_event"],
 			["eval", "_day_events._resolve(_day_events.open_events()[0])"], ["wait", 3.0], ["coop_fingerprint", "client_day_done"], ["coop_signal", "client_day_done"],
+			["coop_wait_file", "host_electrician"], ["wait", 2.0], ["coop_fingerprint", "client_electrician"], ["coop_signal", "client_saw_electrician"],
 			["coop_place", 14, 14, -1.0], ["wait", 1.0],
 			["coop_wait", "night"], ["wait", 3.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "c5_night_host_torch"],
