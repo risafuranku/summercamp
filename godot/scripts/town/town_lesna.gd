@@ -338,7 +338,8 @@ func _pub(at: Vector3) -> void:
 	var wall := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(0.78, 0.86, 0.74), Vector2(3.0, 1.0))
 	var size := Vector3(14.0, 4.6, 10.0)
 	var root := _block(at, size, wall)
-	_face(root, Vector3(0, 2.3, size.z * 0.5), Vector2(8.2, 4.6), Vector3(0, 0, 1), _mat(_first([TEX + "pub_front.png"]), Color(0.6, 0.66, 0.56)))
+	var pub_face := _face(root, Vector3(0, 2.3, size.z * 0.5), Vector2(8.2, 4.6), Vector3(0, 0, 1), _mat(_first([TEX + "pub_front.png"]), Color(0.6, 0.66, 0.56)))
+	spots["pub_face"] = pub_face
 	_box(root, Vector3(0, 3.7, size.z * 0.5 + 0.06), Vector3(6.0, 0.6, 0.1), _mat("", Color(0.2, 0.18, 0.14)))
 	_sign(root, Vector3(0, 3.7, size.z * 0.5 + 0.12), Vector3(0, 0, 1), "HOSTINEC U JEZERA", 44, Color(0.95, 0.85, 0.6))
 	spots["pub_door"] = w(at + Vector3(0, 0, size.z * 0.5 + 1.2))

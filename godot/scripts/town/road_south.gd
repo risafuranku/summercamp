@@ -60,6 +60,7 @@ func build(gate_x: float, fence_z: float, worldgen: Node, texture_style) -> void
 	_build_trees()
 	_build_stop()
 	_build_loop(gravel)
+	_build_forest_things()
 
 
 # ── where things are ─────────────────────────────────────────────────────────
@@ -478,6 +479,57 @@ func _flat_decal(root: Node3D, path: String, size: Vector2, pos: Vector3) -> voi
 	mi.rotation.y = randf() * TAU
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mi)
+
+
+## What a Czech forest road has along it (playtest 17. 10.: "details, bring the world to
+## life"): the deer warning sign past the barrier, a kilometre stone, a stack of felled
+## spruce waiting for the lorry, the hunters' high seat back in the trees, a deer feeder
+## in a clearing, the red-and-white trail marks on two dead snags by the verge. Grok
+## sprites (assets/textury/world).
+func _build_forest_things() -> void:
+	var W := "res://assets/textury/world/"
+	_flat_sprite(self, W + "deer_sign.png", 1.9, _along(OWN_FROM, 0.12, 3.0), true)
+	_flat_sprite(self, W + "km_stone.png", 0.55, _along(3, 0.5, -2.8), true)
+	_flat_sprite(self, W + "timber_stack.png", 1.5, _along(3, 0.85, 7.0), true)
+	_flat_sprite(self, W + "hunters_seat.png", 6.5, _along(4, 0.4, -13.0), true)
+	_flat_sprite(self, W + "deer_feeder.png", 2.4, _along(5, 0.35, 11.0), true)
+	var bark := _material(TEX_DIR + "log_bark.png", "wood", Color(0.62, 0.58, 0.52))
+	for snag in [[2, 0.6, 3.6], [4, 0.75, -3.7]]:
+		var at := _along(int(snag[0]), float(snag[1]), float(snag[2]))
+		var trunk := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.1
+		cm.bottom_radius = 0.2
+		cm.height = 7.0
+		cm.radial_segments = 7
+		trunk.mesh = cm
+		trunk.material_override = bark
+		trunk.position = at + Vector3(0, 3.5, 0)
+		add_child(trunk)
+		_solid(self, at + Vector3(0, 1.0, 0), Vector3(0.4, 2.0, 0.4))
+		# The mark on the side facing the road.
+		var to_road := (_along(int(snag[0]), float(snag[1]), 0.0) - at).normalized()
+		var mark := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(0.2, 0.2)
+		mark.mesh = q
+		var mm := StandardMaterial3D.new()
+		if ResourceLoader.exists(W + "trail_mark.png"):
+			mm.albedo_texture = load(W + "trail_mark.png")
+		mm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		mark.material_override = mm
+		mark.position = at + Vector3(0, 1.6, 0) + to_road * 0.19
+		mark.rotation.y = atan2(to_road.x, to_road.z)
+		add_child(mark)
+
+
+## A point `t` of the way along road segment i, `across` metres east of its middle.
+func _along(i: int, t: float, across: float) -> Vector3:
+	var a := point(i)
+	var b := point(i + 1)
+	var d := (b - a).normalized()
+	return a.lerp(b, t) + Vector3(-d.z, 0.0, d.x) * across
 
 
 ## The gravel loop the bus turns in (bus_leave_path's turn), west of the stop.

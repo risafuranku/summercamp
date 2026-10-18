@@ -33,6 +33,9 @@ var _tv: Array = []              # {mesh, lit (the house's lit material), mat (b
 var _far_dog: AudioStreamPlayer3D
 var _far_dog_t := 20.0
 var _hens_snd: AudioStreamPlayer3D
+var _pub_murmur: AudioStreamPlayer3D
+var _pub_glow: StandardMaterial3D
+var _pub_dark: Material
 
 
 func build(p_town: Node3D) -> void:
@@ -439,11 +442,35 @@ func _face_on(root: Node3D, name: String, size: Vector2, pos: Vector3, yaw: floa
 
 func set_hour(h: float) -> void:
 	_hour = h
+	_pub_evening(h)
 	# The loudspeaker at seven, noon and five, once each.
 	for slot in [7, 12, 17]:
 		if h >= float(slot) and h < float(slot) + 0.25 and _radio_done != slot and _radio != null and _radio.stream != null:
 			_radio_done = slot
 			_radio.play()
+
+
+## The pub of an evening: its windows warm, the talk inside heard at the door.
+func _pub_evening(h: float) -> void:
+	var face = town.spots.get("pub_face", null)
+	if face == null or not is_instance_valid(face):
+		return
+	var open := h >= 10.0 and h < 23.0
+	var lit := open and (h >= 18.0 or h < 7.0)
+	if _pub_glow == null:
+		_pub_dark = (face as MeshInstance3D).material_override
+		_pub_glow = (_pub_dark as StandardMaterial3D).duplicate() as StandardMaterial3D
+		_pub_glow.emission_enabled = true
+		_pub_glow.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		_pub_glow.emission_texture = _pub_glow.albedo_texture
+		_pub_glow.emission = Color(1.0, 0.72, 0.4)
+		_pub_glow.emission_energy_multiplier = 0.55
+		_pub_murmur = _audio3d("res://assets/sfx/pub/pub_room.mp3", -10.0, Vector3(16.0, 1.6, -9.6), true, 26.0)
+	(face as MeshInstance3D).material_override = _pub_glow if lit else _pub_dark
+	if open and not _pub_murmur.playing and _pub_murmur.stream != null:
+		_pub_murmur.play()
+	elif not open and _pub_murmur.playing:
+		_pub_murmur.stop()
 
 
 func _process(delta: float) -> void:

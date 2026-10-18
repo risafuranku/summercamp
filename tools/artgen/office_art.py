@@ -160,6 +160,13 @@ ROWS = [
     ("tex_bus_ceiling2", "texture", 128, "town/bus_ceiling.png"),
     ("spr_owl", "sprite", 48, "world/owl.png"),
     ("spr_owl_eyes", "sprite", 16, "world/owl_eyes.png"),
+    # The forest road to the stop.
+    ("spr_hunters_seat", "sprite", 192, "world/hunters_seat.png"),
+    ("spr_timber_stack", "sprite", 96, "world/timber_stack.png"),
+    ("spr_deer_feeder", "sprite", 112, "world/deer_feeder.png"),
+    ("spr_trail_mark", "sprite", 24, "world/trail_mark.png"),
+    ("spr_deer_sign", "sprite", 96, "world/deer_sign.png"),
+    ("spr_km_stone", "sprite", 48, "world/km_stone.png"),
 ]
 TEXTURY = os.path.join(HERE, "..", "..", "godot", "assets", "textury")
 
