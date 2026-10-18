@@ -13,7 +13,7 @@ const PIC := "res://assets/textury/closeup/amber_terminal.png"
 const AMBER := Color(1.0, 0.66, 0.16)
 const AMBER_DIM := Color(0.62, 0.36, 0.06)
 ## The glass of the screen in the picture (px).
-const SCREEN := Rect2(52, 30, 216, 140)
+const SCREEN := Rect2(60, 34, 206, 110)
 const COLS := "ABCDEFGH"
 const SFX_HUM := "res://assets/sfx/crtui/crt_on.mp3"
 const SFX_KEY := "res://assets/sfx/desk/card_drop.mp3"
@@ -97,7 +97,7 @@ func _paint(c: Control) -> void:
 	var ink := Color(AMBER.r, AMBER.g, AMBER.b, flick)
 	var dim := Color(AMBER_DIM.r, AMBER_DIM.g, AMBER_DIM.b, flick)
 	var x0 := SCREEN.position.x + 6.0
-	var y0 := SCREEN.position.y + 10.0
+	var y0 := SCREEN.position.y + 8.0
 	var tear := 0.0
 	if _tear_t >= 0.0:
 		tear = sin(_tear_t * 40.0) * 3.0
@@ -108,20 +108,20 @@ func _paint(c: Control) -> void:
 		var txt: String = lines[i]
 		txt = txt.substr(0, clampi(shown - drawn, 0, txt.length()))
 		drawn += lines[i].length()
-		c.draw_string(f, Vector2(x0 + (tear if i == 1 else 0.0), y0 + i * 9.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+		c.draw_string(f, Vector2(x0 + (tear if i == 1 else 0.0), y0 + i * 8.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
 	if shown < drawn:
 		return
 	# The grid of junctions and the pipes between them.
 	var links: Dictionary = network.get("links", {})
 	var entry: Vector2i = network.get("entry", Vector2i(2, 4))
 	var faults := _faults()
-	var gx := x0 + 14.0
-	var gy := y0 + 30.0
+	var gx := x0 + 24.0
+	var gy := y0 + 24.0
 	var cw := 26.0
-	var ch := 17.0
+	var ch := 12.0
 	var blink := int(_t * 2.5) % 2 == 0
 	for col in 6:
-		c.draw_string(f, Vector2(gx + col * cw - 2.0, gy - 9.0), COLS[col], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, dim)
+		c.draw_string(f, Vector2(gx + col * cw - 2.0, gy - 8.0), COLS[col], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, dim)
 	for row in 5:
 		c.draw_string(f, Vector2(gx - 12.0, gy + row * ch + 3.0), str(row + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, dim)
 	for cell in links:
@@ -148,15 +148,17 @@ func _paint(c: Control) -> void:
 			mark = "?"
 		c.draw_string(f, p + Vector2(-2.0, 3.0), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
 	# The status lines.
-	var sy := gy + 5.0 * ch + 4.0
+	var sy := gy + 4.0 * ch + 10.0
 	if faults.is_empty():
 		c.draw_string(f, Vector2(x0, sy), "STATUS  NO FAULTS", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
 	else:
-		var row_txt := "FAULT  "
+		var row_txt := "FAULT "
 		for l in faults:
-			row_txt += "%s-%s  " % [_label(l[0]), _label(l[1])]
+			row_txt += " %s-%s" % [_label(l[0]), _label(l[1])]
+		c.draw_string(f, Vector2(x0, sy), row_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
 		if blink:
-			c.draw_string(f, Vector2(x0, sy), row_txt + "PRESSURE LOSS", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+			c.draw_string(f, Vector2(x0, sy + 8.0), "PRESSURE LOSS", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+	var last := "LADDER %s" % _label(entry)
 	if _motion != Vector2i(-1, -1):
-		c.draw_string(f, Vector2(x0, sy + 9.0), "MOTION  %s" % _label(_motion), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, dim)
-	c.draw_string(f, Vector2(x0, sy + 18.0), "LADDER  %s   _" % _label(entry) if blink else "LADDER  %s" % _label(entry), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, dim)
+		last += "   MOTION %s" % _label(_motion)
+	c.draw_string(f, Vector2(x0, sy + 16.0), last + ("  _" if blink else ""), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, dim)
