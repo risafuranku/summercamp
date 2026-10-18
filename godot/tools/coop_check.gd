@@ -69,7 +69,7 @@ func _ready() -> void:
 			["wait", 5.0], ["coop_fingerprint", "host_radio"], ["coop_signal", "host_radio"],
 			["coop_wait_file", "client_radio_off"], ["wait", 1.5], ["coop_fingerprint", "host_radio_off"], ["coop_signal", "host_radio_off_seen"],
 			# Built after the join: the other camp gets it too.
-			["build", "tent_1", 13, 16, 0], ["build", "bonfire", 11, 12, 0], ["build", "sports_field", 14, 12, 0], ["build", "pub", 11, 15, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
+			["build", "tent_1", 13, 16, 0], ["build", "bonfire", 11, 12, 0], ["build", "sports_field", 14, 12, 0], ["build", "pub", 11, 15, 0], ["build", "corn_stand", 15, 13, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
 			# By the fire and at the net together (scripts/attractions/warden_play.gd).
 			["coop_att", "fire", 1.0], ["wait", 1.0], ["eval", "_warden_play.try_interact()"], ["wait", 0.5], ["eval", "_warden_play.try_interact()"], ["wait", 1.5],
 			["coop_signal", "host_at_fire"], ["coop_wait_file", "client_at_fire"], ["wait", 1.5], ["shot", "h11_fire_other_roasts"], ["coop_fingerprint", "host_fire"],
@@ -82,6 +82,10 @@ func _ready() -> void:
 			["eval", "_interior_manager._service_interior._open_counter_game()"], ["wait", 1.0], ["coop_signal", "host_at_tap"],
 			["coop_wait_file", "client_saw_tap"], ["eval", "_interior_manager._service_interior._counter_game.close_view()"], ["wait", 0.5],
 			["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0], ["coop_place", 12, 14, 1.0],
+			# The other warden behind the corn stand, ordering corn: seen there, the order in
+			# the host's books.
+			["coop_wait_file", "client_at_stand"], ["wait", 2.0], ["coop_face_partner"], ["wait", 0.5], ["shot", "h16_other_at_stand"],
+			["coop_fingerprint", "host_corn_stand"], ["coop_signal", "host_saw_stand"],
 			# Into the old cabin together.
 			["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "host_in_room"],
 			["coop_wait_file", "client_in_room"], ["wait", 2.0], ["shot", "h2_room_sees_other"],
@@ -177,6 +181,9 @@ func _ready() -> void:
 			["coop_wait_file", "host_at_tap"], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('pub'))"], ["wait", 2.5],
 			["shot", "c15_pub_host_at_tap"], ["coop_fingerprint", "client_pub_tap"], ["coop_signal", "client_saw_tap"],
 			["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0], ["coop_place", 14, 14, -1.0],
+			["eval", "_interior_manager._on_corn_stand_interact(debug_structure_of_type('corn_stand'))"], ["wait", 1.5],
+			["coop_corn_order"], ["wait", 1.0], ["shot", "c16_behind_the_stand"], ["coop_signal", "client_at_stand"],
+			["coop_wait_file", "host_saw_stand"], ["eval", "_interior_manager._corn_stand.close_view()"], ["wait", 1.0], ["coop_place", 14, 14, -1.0],
 			["coop_wait_file", "host_in_room"], ["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "client_in_room"],
 			["wait", 2.0], ["shot", "c2_room_sees_host"],
 			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "client_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false], ["coop_aim_clear"],
@@ -366,6 +373,10 @@ func _run_step(step: Array) -> void:
 			var cab7 = _main.get("_interior_manager").get("_cabin_interior")
 			if cab7 != null and cab7.get("_prep") != null:
 				cab7.get("_prep").tasks.debug_aim = ""
+		"coop_corn_order":
+			# A pack of corn ordered in the stand's books, as their ORDER page does.
+			var ok: bool = CoreRoot.actions.biz_order("15:13", {"cobs": 1}, CoreRoot.get_day() + 1)
+			print("COOP CHECK %s orders corn: %s" % [_role, ok])
 		"coop_track":
 			# Keep the cursor on the job for `step[1]` seconds (the room's camera eases
 			# after the aim, as a player's hand would follow it). A mess lying in front of
@@ -813,6 +824,7 @@ func _write_fingerprint(tag: String) -> void:
 		"att_mate": str(_main.get("_warden_play").mate_place().get("pose", "")),
 		"court_kicked": _court_kicked(),
 		"town_mate": _town_mate(),
+		"corn_orders": (CoreRoot.get_state().biz.get("orders", []) as Array).filter(func(o): return str(o.get("key", "")) == "15:13").size(),
 		"radio": _radio_row(),
 		"down": bool(_main.get("_coop_down")),
 		"hp": int(_main.get("_player_health")),

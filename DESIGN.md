@@ -467,6 +467,10 @@ the head through the end of the turn.
   nobody ordered stands down there too.)
 - **The pub's cellar.** A door by the bar end goes down to the kegs: one for every 25
   pints the books hold, crates of rum and kofola; click them for the books.
+- **The corn stand** is one more of them: E behind its counter (either warden), the
+  wholesaler's leaflet beside the cash box orders corn and butter (the books' ORDER
+  page), Klasek 98 on the office PC runs it like the others; the other warden sees you
+  behind it at the pot.
 - **For two.** The other warden is in the room with you at the job they have open,
   behind the bar pulling a beer, at the bottles, the washer, the pass, the stove, the
   till, over the books; the place they are at is theirs (no mark over it for you), and

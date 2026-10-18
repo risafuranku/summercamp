@@ -4185,6 +4185,8 @@ func _on_coop_world_arrived(snapshot: Dictionary) -> void:
 
 func _on_coop_session_ended(reason: String) -> void:
 	_coop_forward_builds(false)
+	if CoreRoot != null and CoreRoot.actions != null:
+		CoreRoot.actions.biz_remote = Callable()
 	if _gameplay_started:
 		_close_pause_menu(false)
 		_enter_main_menu()
@@ -4304,6 +4306,25 @@ func _coop_lift_partner() -> void:
 		_hud_manager.push_status("You get %s up. They are shaking." % Coop.partner_name(), 1)
 
 
+func _coop_biz_change(kind: String, a: Array) -> void:
+	var act = CoreRoot.actions if CoreRoot != null else null
+	if act == null or a.is_empty():
+		return
+	match kind:
+		"take":
+			act.biz_take(str(a[0]), a[1])
+		"sale":
+			act.biz_sale(str(a[0]), int(a[1]), int(a[2]), bool(a[3]), false)
+		"lost":
+			act.biz_lost(str(a[0]))
+		"order":
+			act.biz_add_order(str(a[0]), a[1], int(a[2]), int(a[3]))
+		"hire":
+			act.biz_hire(str(a[0]), str(a[1]), int(a[2]))
+		"fire":
+			act.biz_fire(str(a[0]))
+
+
 ## The other machine: the other warden got you up.
 func coop_lifted() -> void:
 	_coop_get_up(true)
@@ -4344,7 +4365,7 @@ func coop_camp_pulse() -> Dictionary:
 	var day: Dictionary = _day_events.export_state() if _day_events != null else {}
 	# The night's faults that put lamps out (the breaker, a dead circuit).
 	var nj := {"bt": bool(_night_jobs.breaker_tripped), "dc": int(_night_jobs.dead_circuit), "jobs": _night_jobs.coop_jobs()} if _night_jobs != null else {}
-	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj}
+	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz}
 
 
 var _coop_day_hash := 0
@@ -4398,6 +4419,14 @@ func coop_apply_pulse(p: Dictionary) -> void:
 			state.grid.cells[coord]["maintenance"] = float(maint[coord])
 	if GuestManager != null and GuestManager.has_method("_emit_guest_overview_state"):
 		GuestManager._emit_guest_overview_state(true)
+	# The businesses' books are the host's (what is on the shelves, the orders, the hands);
+	# what is done to them here goes there.
+	if CoreRoot.actions != null and not CoreRoot.actions.biz_remote.is_valid():
+		CoreRoot.actions.biz_remote = func(kind: String, args: Array) -> void:
+			if Coop.is_client():
+				Coop.send_request("biz", [kind, args])
+	if p.get("biz", null) is Dictionary and not (p["biz"] as Dictionary).is_empty():
+		state.biz = (p["biz"] as Dictionary).duplicate(true)
 	var nj: Dictionary = p.get("nj", {})
 	if _night_jobs != null and not nj.is_empty():
 		_night_jobs.breaker_tripped = bool(nj.get("bt", false))
@@ -4673,6 +4702,10 @@ func coop_request(kind: String, data: Array) -> void:
 		"day_event":
 			if _day_events != null:
 				_day_events.coop_resolve(int(data[0]))
+		"biz":
+			# The other warden's hands on the businesses' books (actions.biz_remote there);
+			# the money came with their till.
+			_coop_biz_change(str(data[0]), data[1] if data.size() > 1 and data[1] is Array else [])
 		"radio":
 			# The other warden switched the office radio: the set is the host's.
 			var bi_r = _interior_manager.get("_building_interior") if _interior_manager != null else null
@@ -4829,7 +4862,7 @@ func _coop_client_room_target() -> Node3D:
 	if st == null:
 		return null
 	var t := str(st.get_meta("building_type", ""))
-	if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") or t == "main_building":
+	if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") or t == "main_building" or t == "corn_stand":
 		return st
 	# The toilets, showers, pub, shed and the rest: in to look and to clean and mend (what
 	# that does goes to the host).
@@ -4903,6 +4936,16 @@ func coop_local_warden() -> Dictionary:
 	var att: Dictionary = _warden_play.coop_state() if _warden_play != null and is_instance_valid(_warden_play) else {}
 	if not att.is_empty():
 		s["att"] = att
+	# Behind the corn stand: stood behind its counter at the pot (the close-up hides you).
+	var corn = _interior_manager.get("_corn_stand") if _interior_manager != null else null
+	if corn != null and is_instance_valid(corn) and corn.visible:
+		var stand = corn.get("_stand")
+		if stand != null and is_instance_valid(stand):
+			s["p"] = (stand as Node3D).global_transform * Vector3(0.0, 0.0, -0.85)
+			s["in"] = false
+			s["t"] = false
+			s["v"] = 0.0
+			s["act"] = "cook"
 	# At work out in the camp: holding R at something, a branch sawn, rubbish bagged.
 	if not s.has("act"):
 		var chore: String = _day_events.coop_work() if _day_events != null and _day_events.has_method("coop_work") else ""

@@ -352,6 +352,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   still fits). While a door walk runs it owns the camera (`_doors.walking()`). The work
   marks (`scripts/food/work_marks.gd`) read `business_runtime.waiting_at` and the site's
   books; a new counter game needs its job in `coop_job`, `COOP_JOB_SPOTS` and SPOTS.
+- **Co-op business books** (`GameState.biz`): the host's. The pulse carries them; on the
+  joining machine every `actions.biz_*` change also calls `biz_remote` (main sends it as
+  a "biz" request; the host replays it without money: `biz_sale(..., credit=false)`,
+  `biz_add_order`). New mutations of the books belong in actions.gd with `_biz_tell`.
 - **Co-op radio** (`building_interior.gd`): the host's set is the one; `_play_radio_next`
   does nothing on the other machine, which plays what `coop_radio_state` says (main's
   `_coop_sync_things` "radio", sent when the piece or its 4 s step changes): a song by

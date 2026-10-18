@@ -16,7 +16,9 @@ extends CanvasLayer
 ##   5. salt: a shake per click, as many as they asked ("no salt" means none);
 ##   6. a napkin round it; click the customer up in the view to hand it over: two
 ##      dollars, a tip for a good one.
-## The books are a tab on the counter (scripts/business/ledger_closeup.gd).
+## The books are a tab on the counter (scripts/business/ledger_closeup.gd); the
+## wholesaler's leaflet lies beside the cash box: click it to order corn and butter (the
+## books open on their ORDER page).
 ## S or the right button steps away.
 
 signal closed
@@ -52,6 +54,8 @@ const SALT := Rect2(176, 20, 26, 50)
 const NAPKINS := Rect2(205, 30, 56, 42)
 const CASH := Rect2(236, 70, 84, 74)
 const BOOKS_TAB := Rect2(282, 4, 34, 14)
+## The wholesaler's leaflet on the counter (closeup/parts/corn_brochure.png).
+const BROCHURE := Rect2(266, 22, 40, 46)
 const TICKET := Rect2(118, 4, 110, 34)
 const DONE_AT := 9.0
 const OVER_AT := 21.0
@@ -105,7 +109,7 @@ func _init() -> void:
 func _ready() -> void:
 	_rng.randomize()
 	_pic = load(PIC) if ResourceLoader.exists(PIC) else null
-	for k in ["cob_raw", "cob_boiled", "cob_mushy", "cob_buttered", "cob_napkin", "salt", "smoke", "ticket", "paper_tab"]:
+	for k in ["cob_raw", "cob_boiled", "cob_mushy", "cob_buttered", "cob_napkin", "salt", "smoke", "ticket", "paper_tab", "corn_brochure"]:
 		if ResourceLoader.exists(PARTS + k + ".png"):
 			_tex[k] = load(PARTS + k + ".png")
 	_fringe = load(FRINGE_TEX) if ResourceLoader.exists(FRINGE_TEX) else null
@@ -297,7 +301,7 @@ func _pot_cob_rect(c: Dictionary) -> Rect2:
 
 
 func _hotspots() -> Array:
-	var out: Array = [{"id": "books", "rect": BOOKS_TAB}]
+	var out: Array = [{"id": "books", "rect": BOOKS_TAB}, {"id": "brochure", "rect": BROCHURE}]
 	for i in _pot.size():
 		out.append({"id": "pot:%d" % i, "rect": _pot_cob_rect(_pot[i])})
 	out.append({"id": "crate", "rect": CRATE})
@@ -341,12 +345,12 @@ func _input(event: InputEvent) -> void:
 
 
 func _clicked(id: String) -> void:
-	if id == "books":
+	if id == "books" or id == "brochure":
 		if _ledger == null:
 			_ledger = LEDGER.new()
 			add_child(_ledger)
 		_ledger.layer = layer + 1
-		_ledger.open_for(building_key, "corn_stand")
+		_ledger.open_for(building_key, "corn_stand", "order" if id == "brochure" else "stock")
 		return
 	if id == "crate":
 		if _pot.size() >= 3:
@@ -610,6 +614,10 @@ func _draw() -> void:
 		ink(c, RETRO_UI.FONT_TEXT, TICKET.position + Vector2(8, 30), "salt: %s" % str(salts[int(o["salt"])]), Color(0.6, 0.12, 0.1))
 		if _queue.size() > 1:
 			ink(c, RETRO_UI.FONT_TEXT, Vector2(TICKET.end.x + 4, TICKET.position.y + 11), "+%d" % (_queue.size() - 1), RETRO_UI.C_BONE, Color(0, 0, 0, 0.8))
+	# The wholesaler's leaflet.
+	_blit(c, "corn_brochure", BROCHURE)
+	if _hover == "brochure":
+		c.draw_rect(BROCHURE, Color(1, 0.95, 0.6, 0.22))
 	# The books tab.
 	_blit(c, "paper_tab", BOOKS_TAB)
 	if _hover == "books":

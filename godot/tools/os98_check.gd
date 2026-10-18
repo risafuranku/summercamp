@@ -177,7 +177,8 @@ func _run() -> void:
 		re.compile("\\[url=([^\\]]+)\\]")
 		for m in re.search_all(body):
 			var target: String = m.get_string(1)
-			if not target.begins_with("download://") and not target.begins_with("search?") and not WEB.PAGES.has(target) and not target in ["volny.cz/~blatna", "volny.cz/~zamek"]:
+			# download:// and licence:// (softsklad.cz's Buy) are the browser's own actions.
+			if not target.begins_with("download://") and not target.begins_with("licence://") and not target.begins_with("search?") and not WEB.PAGES.has(target) and not target in ["volny.cz/~blatna", "volny.cz/~zamek"]:
 				_failures.append("page %s links to missing %s" % [key, target])
 	for key in ["stavitel98.cz", "cerne-jezero.cz/guestbook", "kuryr-hlubocany.cz/1987", "volny.cz/~strasidla", "hostinec-u-jezera.cz", "volny.cz/~infravrany", "povodi-hlubocany.cz", "bohemia-online.cz/weather", "cerne-jezero.cz/team", "bohemia-online.cz/search"]:
 		br._show(key)
