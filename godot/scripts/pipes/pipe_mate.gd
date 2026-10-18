@@ -20,6 +20,7 @@ const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## from the side.
 const LYING_H := 0.6
 const LYING_LEN := 1.7
+const LYING_W := 0.8
 const SQUEEZE_FAR := 2.4
 
 var host                 # the minigame
@@ -113,7 +114,8 @@ func update(delta: float) -> void:
 		_sprite.texture = tex
 		if tex != null:
 			var side := pose in ["crawl_side", "prone"]
-			_sprite.pixel_size = (LYING_LEN / float(tex.get_width())) if side else (LYING_H / float(tex.get_height()))
+			# From in front or behind no wider than the pipe (an arm flung out).
+			_sprite.pixel_size = (LYING_LEN / float(tex.get_width())) if side else minf(LYING_H / float(tex.get_height()), LYING_W / float(tex.get_width()))
 			_sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
 	if _pose in ["crawl_side", "prone"]:
 		# Facing the way they crawl, across your view.
