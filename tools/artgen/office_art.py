@@ -156,6 +156,10 @@ ROWS = [
     ("tex_motel_wall", "texture", 128, "motel_wall.png"),
     ("spr_plastic_plant", "sprite", 72, "plastic_plant.png"),
     ("npc_town_lojzova", "sprite", 128, "npc/town_lojzova.png"),
+    ("tex_bus_wall2", "texture", 128, "town/bus_wall.png"),
+    ("tex_bus_ceiling2", "texture", 128, "town/bus_ceiling.png"),
+    ("spr_owl", "sprite", 48, "world/owl.png"),
+    ("spr_owl_eyes", "sprite", 16, "world/owl_eyes.png"),
 ]
 TEXTURY = os.path.join(HERE, "..", "..", "godot", "assets", "textury")
 
@@ -231,15 +235,16 @@ def main():
         if not os.path.exists(raw):
             print("missing", art_id)
             continue
+        # Already done from this render (--all redoes everything).
+        dest = os.path.join(TEXTURY, name) if "/" in name else os.path.join(CAMP, name)
+        if os.path.exists(dest) and os.path.getmtime(dest) > os.path.getmtime(raw) and "--all" not in sys.argv:
+            continue
         if mode == "sprite":
             out = process.sprite(rekeyed(art_id), size)
         elif mode == "panel":
             out = process.panel(raw, size)
         else:
             out = process.texture(raw, size)
-        dest = os.path.join(TEXTURY, name) if "/" in name else os.path.join(CAMP, name)
-        if os.path.exists(dest) and os.path.getmtime(dest) > os.path.getmtime(raw) and "--all" not in sys.argv:
-            continue
         out.save(dest)
         print(name, out.size)
     stove_glow()

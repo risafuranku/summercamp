@@ -5,7 +5,9 @@ extends Node3D
 ##     two frames, now and then one gliding; a rush of wings as they pass;
 ##   - at dusk crows go over to their roost, bigger, slower, cawing;
 ##   - after dark bats flit round the nearest lit lamp (or above you), and moths dance
-##     round every lit lamp near you.
+##     round every lit lamp near you;
+##   - at night an owl sits on one of the trees near you (Grok sprite), hoots now and
+##     then, its eyes catching the light in the dark; come too close and it is gone.
 ## It follows the player wherever they are (the camp, the road, Lesna). Not while you are
 ## in a room. Made by InteriorManager.setup() in the camp's world.
 
@@ -27,6 +29,13 @@ var _acc := 0.0
 var _lamp_poll := 0.0
 var _lamps: Array = []
 var _audio: AudioStreamPlayer3D
+const OWL_TEX := "res://assets/textury/world/owl.png"
+const OWL_EYES := "res://assets/textury/world/owl_eyes.png"
+var _owl: Sprite3D
+var _owl_eyes: Sprite3D
+var _owl_snd: AudioStreamPlayer3D
+var _owl_t := 8.0
+var _owl_hoot := 20.0
 
 
 func _ready() -> void:
@@ -98,6 +107,94 @@ func _process(delta: float) -> void:
 	_acc = 0.0
 	_update_bats(p.global_position, night)
 	_update_moths(p.global_position, night)
+	_update_owl(p.global_position, night, 1.0 / FPS)
+
+
+# ── the owl ──────────────────────────────────────────────────────────────────
+
+func _update_owl(at: Vector3, night: bool, dt: float) -> void:
+	if not ResourceLoader.exists(OWL_TEX):
+		return
+	if _owl == null:
+		_owl = Sprite3D.new()
+		_owl.texture = load(OWL_TEX)
+		_owl.pixel_size = 0.009
+		_owl.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		_owl.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_owl.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		_owl.shaded = true
+		_owl.visible = false
+		add_child(_owl)
+		if ResourceLoader.exists(OWL_EYES):
+			_owl_eyes = Sprite3D.new()
+			_owl_eyes.texture = load(OWL_EYES)
+			_owl_eyes.pixel_size = 0.0035
+			_owl_eyes.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			_owl_eyes.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			_owl_eyes.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			_owl_eyes.shaded = false
+			_owl_eyes.modulate = Color(1.4, 1.2, 0.8)
+			_owl_eyes.no_depth_test = false
+			_owl.add_child(_owl_eyes)
+		_owl_snd = AudioStreamPlayer3D.new()
+		if ResourceLoader.exists(SFX + "owl_hoot.mp3"):
+			_owl_snd.stream = load(SFX + "owl_hoot.mp3")
+		_owl_snd.volume_db = -6.0
+		_owl_snd.unit_size = 8.0
+		_owl_snd.max_distance = 90.0
+		add_child(_owl_snd)
+	if not night:
+		_owl.visible = false
+		return
+	# Too close: it is off (a rush of wings), and sits somewhere else a while later.
+	if _owl.visible and Vector2(_owl.global_position.x - at.x, _owl.global_position.z - at.z).length() < 6.0:
+		_owl.visible = false
+		_owl_t = _rng.randf_range(20.0, 45.0)
+		if _audio != null and ResourceLoader.exists(SFX + "flock_over.mp3"):
+			_audio.stream = load(SFX + "flock_over.mp3")
+			_audio.global_position = _owl.global_position
+			_audio.volume_db = -14.0
+			_audio.play()
+	if not _owl.visible:
+		_owl_t -= dt
+		if _owl_t <= 0.0:
+			_owl_t = 999.0
+			_perch(at)
+		return
+	if _owl_eyes != null:
+		# The eyes, a little in front of the face; they blink.
+		_owl_eyes.position = Vector3(0, 0.31, 0.04)
+		_owl_eyes.visible = fmod(_tick, 6.0) > 0.25
+	_owl_hoot -= dt
+	if _owl_hoot <= 0.0:
+		_owl_hoot = _rng.randf_range(18.0, 50.0)
+		_owl_snd.global_position = _owl.global_position
+		if _owl_snd.stream != null:
+			_owl_snd.play()
+	# Gone far behind you: it moves on with you.
+	if Vector2(_owl.global_position.x - at.x, _owl.global_position.z - at.z).length() > 45.0:
+		_owl.visible = false
+		_owl_t = _rng.randf_range(10.0, 30.0)
+
+
+## A camp tree 12-35 m off, on the side of its crown, about three metres up.
+func _perch(at: Vector3) -> void:
+	var best: Node3D = null
+	for t in get_tree().get_nodes_in_group("trees"):
+		var n := t as Node3D
+		if n == null or n.is_in_group("corn"):
+			continue
+		var d := Vector2(n.global_position.x - at.x, n.global_position.z - at.z).length()
+		if d > 12.0 and d < 35.0 and _rng.randf() < 0.3:
+			best = n
+			break
+	if best == null:
+		_owl_t = _rng.randf_range(15.0, 30.0)
+		return
+	var side := Vector3(at.x - best.global_position.x, 0, at.z - best.global_position.z).normalized()
+	_owl.global_position = best.global_position + side * 0.9 + Vector3(0, 3.0 + _rng.randf_range(-0.4, 0.6), 0)
+	_owl.visible = true
+	_owl_hoot = _rng.randf_range(3.0, 12.0)
 
 
 # ── flocks ───────────────────────────────────────────────────────────────────

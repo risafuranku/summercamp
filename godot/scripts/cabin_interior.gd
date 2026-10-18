@@ -485,6 +485,37 @@ func _apply_switch_visual() -> void:
 	switch_mat.albedo_color = Color(0.84, 0.80, 0.66, 1.0) if _manual_lights_on else Color(0.58, 0.56, 0.52, 1.0)
 
 
+## A Grok sprite lying flat on the floor (a rug), or on the ceiling seen from below (the
+## light, glowing).
+func _flat_sprite(parent: Node3D, tex: String, size: Vector2, pos: Vector3, ceiling: bool, name: String) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = name
+	var q := QuadMesh.new()
+	q.size = size
+	q.orientation = PlaneMesh.FACE_Y
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	var path := "res://assets/textury/camp/" + tex + ".png"
+	if ResourceLoader.exists(path):
+		m.albedo_texture = load(path)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	if ceiling:
+		m.emission_enabled = true
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		m.emission_texture = m.albedo_texture
+		m.emission = Color(1.0, 0.94, 0.82)
+		m.emission_energy_multiplier = 0.7
+	mi.material_override = m
+	mi.position = pos
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return mi
+
+
 func _toggle_manual_lights() -> void:
 	_manual_lights_on = not _manual_lights_on
 	_apply_switch_visual()
@@ -691,13 +722,22 @@ func _build_cabin_room() -> void:
 	K.prop(_cabin_root, "wardrobe", Vector3(-1.2, 0.05, 1.0), 90.0)
 	K.prop(_cabin_root, "wall_lamp", Vector3(-1.45, 1.5, -1.25), 90.0)
 	K.prop(_cabin_root, "fridge_small", Vector3(1.2, 0.05, 1.18), -90.0)
-	K.slab(_cabin_root, Vector3(1.3, 0.012, 0.95), Vector3(0.05, 0.056, -0.15), K.surface("rug", 1.3), "Rug")
+	_flat_sprite(_cabin_root, "rug_rag", Vector2(1.25, 1.0), Vector3(0.05, 0.057, -0.15), false, "Rug")
 	K.prop(_cabin_root, "wall_shelf", Vector3(1.05, 1.45, -1.4))
 	K.prop(_cabin_root, "tv_old", Vector3(1.15, 0.05, 0.55), -90.0)
 	K.picture(_cabin_root, "poster_lake", Vector2(0.48, 0.64), Vector3(-1.44, 1.55, -0.1), 90.0, "PosterLake")
 	K.picture(_cabin_root, "picture_deer", Vector2(0.5, 0.66), Vector3(-1.44, 1.55, -0.1), 90.0, "PictureDeer")
 	for n in ["WallLamp", "Wardrobe", "FridgeSmall", "Rug", "WallShelf", "TvOld", "Chair2", "PosterLake", "PictureDeer"]:
 		_set_node_visible(n, false)
+
+	# Lived in, at every level: the warden's jacket by the door you came in by, the
+	# year's calendar by the window, floral curtains either side of it, the milk-glass
+	# light on the ceiling (Grok art, assets/textury/camp).
+	K.cutout(_cabin_root, "coat_hook", Vector2(0.4, 0.6), Vector3(-0.75, 1.0, 1.44), 180.0, false, "Jacket")
+	K.picture(_cabin_root, "calendar", Vector2(0.32, 0.43), Vector3(-0.95, 1.72, -1.445), 0.0, "Calendar")
+	for cx in [-0.7, 0.7]:
+		K.picture(_cabin_root, "curtain_floral", Vector2(0.26, 0.8), Vector3(cx, 1.58, -1.435), 0.0, "WindowCurtain")
+	_flat_sprite(_cabin_root, "ceiling_lamp", Vector2(0.34, 0.34), Vector3(0.0, h - 0.055, 0.0), true, "CeilingLamp")
 
 	# The window in the back wall: a pine frame with a cross bar.
 	var frame := K.surface("knotty_pine", 0.6)

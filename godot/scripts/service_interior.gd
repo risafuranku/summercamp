@@ -746,6 +746,10 @@ func _build_restaurant_dining_layout(parent: Node3D) -> void:
 	menu.outline_size = 0
 	menu.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	parent.add_child(menu)
+	K.cutout(parent, "wall_clock", Vector2(0.3, 0.3), Vector3(1.3, 2.0, -2.37), 0.0, false, "Clock")
+	K.cutout(parent, "plastic_plant", Vector2(0.45, 0.8), Vector3(2.7, 0.05, 1.9), 0.0, true, "Plant")
+	for t: Vector3 in [Vector3(-1.7, 0.05, -1.0), Vector3(-1.7, 0.05, 0.9), Vector3(0.35, 0.05, 0.6)]:
+		K.cutout(parent, "ashtray", Vector2(0.15, 0.13), t + Vector3(0.12, 0.76, -0.1), 0.0, true, "Ashtray")
 	_sign(parent, "BUFET\ndiner", Vector3(-0.3, 2.6, -2.33), 30, "enamel")
 
 
@@ -897,19 +901,37 @@ func _build_pub_main_layout(
 		K.prop(parent, "chair_wood", t + Vector3(0.55, 0, 0), -90.0)
 	K.prop(parent, "coat_hooks", Vector3(-1.6, 1.55, 2.27), 180.0)
 	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.85, 1.6, 0.8), -90.0, "PubPoster")
-	# The dartboard.
-	var dart := MeshInstance3D.new()
-	dart.name = "PubDartBoard"
-	var disc := CylinderMesh.new()
-	disc.top_radius = 0.24
-	disc.bottom_radius = 0.24
-	disc.height = 0.04
-	dart.mesh = disc
-	dart.material_override = K.surface("rug", 0.25)
-	dart.position = Vector3(-2.87, 1.7, -1.0)
-	dart.rotation_degrees = Vector3(0, 0, 90)
-	parent.add_child(dart)
+	# The dartboard, the antlers, the brewery's enamel sign, the clock (Grok sprites, the
+	# same as Lesna's pub: scripts/town/town_room.gd).
+	K.cutout(parent, "dartboard", Vector2(0.48, 0.48), Vector3(-2.88, 1.46, -1.0), 90.0, false, "PubDartBoard")
+	K.cutout(parent, "antlers", Vector2(0.4, 0.52), Vector3(-2.88, 1.6, 0.0), 90.0, false, "Antlers")
+	K.picture(parent, "pub_sign", Vector2(0.7, 0.52), Vector3(-0.9, 1.75, -2.28), 0.0, "BrewerySign")
+	K.cutout(parent, "wall_clock", Vector2(0.3, 0.3), Vector3(2.4, 1.85, -2.28), 0.0, false, "Clock")
+	for t: Vector3 in [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]:
+		K.cutout(parent, "ashtray", Vector2(0.15, 0.13), t + Vector3(0.1, 0.74, 0.1), 0.0, true, "Ashtray")
+		_pub_lamp(parent, t + Vector3(0, 2.05, 0))
+	_pub_lamp(parent, Vector3(1.35, 2.15, -1.2))
 	_sign(parent, title_text, Vector3(0.0, 2.36, -2.24), 30, "enamel")
+
+
+## A lamp on its chain over a table, its brown glass shade a sprite, warm light.
+func _pub_lamp(parent: Node3D, at: Vector3) -> void:
+	var K := INTERIOR_KIT
+	K.slab(parent, Vector3(0.015, 2.85 - at.y, 0.015), Vector3(at.x, (2.85 + at.y) * 0.5, at.z), K.surface("galvanized", 0.3, Color(0.3, 0.3, 0.3)), "LampChain")
+	var shade := K.cutout(parent, "pub_lamp", Vector2(0.24, 0.42), at - Vector3(0, 0.42, 0), 0.0, true, "PubLamp")
+	shade.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var m := shade.material_override as StandardMaterial3D
+	m.emission_enabled = true
+	m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+	m.emission_texture = m.albedo_texture
+	m.emission = Color(1.0, 0.8, 0.5)
+	m.emission_energy_multiplier = 0.7
+	var l := OmniLight3D.new()
+	l.light_color = Color(1.0, 0.76, 0.45)
+	l.light_energy = 0.55
+	l.omni_range = 2.8
+	l.position = at - Vector3(0, 0.45, 0)
+	parent.add_child(l)
 
 
 func _build_vecerka_shop_layout(parent: Node3D) -> void:
@@ -927,7 +949,19 @@ func _build_vecerka_shop_layout(parent: Node3D) -> void:
 	K.prop(parent, "steel_counter", Vector3(-1.4, 0.05, 1.22), 90.0, 0.8)
 	K.slab(parent, Vector3(0.4, 0.1, 0.6), Vector3(-1.4, 0.82, 1.2), K.surface("steel_kitchen", 0.4, Color(0.6, 0.6, 0.62)), "HotdogGrill")
 	K.picture(parent, "poster_mushrooms", Vector2(0.5, 0.66), Vector3(-1.79, 2.1, -0.9), 90.0, "PosterA")
-	K.picture(parent, "poster_lake", Vector2(0.5, 0.66), Vector3(1.79, 2.25, 1.2), -90.0, "PosterB")
+	K.picture(parent, "shop_poster", Vector2(0.5, 0.66), Vector3(1.79, 2.25, 1.2), -90.0, "PosterB")
+	# The things of a village shop (the same Grok art as Lesna's Jednota).
+	K.cutout(parent, "shop_scales", Vector2(0.2, 0.38), Vector3(-1.45, 0.92, -0.45), 90.0, false, "Scales")
+	K.cutout(parent, "card_box", Vector2(0.17, 0.24), Vector3(-1.4, 0.92, 0.45), 90.0, false, "Cards")
+	K.cutout(parent, "beer_crate_full", Vector2(0.55, 0.42), Vector3(0.2, 0.05, 1.45), 0.0, true, "Crate")
+	K.cutout(parent, "shop_baskets", Vector2(0.5, 0.48), Vector3(1.2, 0.05, 1.5), 0.0, true, "Baskets")
+	var fridge := K.picture(parent, "shop_fridge", Vector2(0.62, 0.84), Vector3(1.79, 1.0, -0.95), -90.0, "FridgeDoor")
+	var fm := fridge.material_override as StandardMaterial3D
+	fm.emission_enabled = true
+	fm.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+	fm.emission_texture = fm.albedo_texture
+	fm.emission = Color(0.7, 0.85, 1.0)
+	fm.emission_energy_multiplier = 0.4
 	_sign(parent, "VECERKA\nopen till 22:00", Vector3(0.0, 2.65, -1.76), 34, "enamel")
 
 

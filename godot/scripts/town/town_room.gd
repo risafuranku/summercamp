@@ -112,6 +112,7 @@ var _mug := 0
 var _mug_node: MeshInstance3D
 var _mug_tex := {}
 var _tubes: Array = []          # [{light, mat, dying}]
+var _regulars: Array = []       # {node, base, phase}
 var _t := 0.0
 var _strip_vp: SubViewport
 var _strip_canvas: Control
@@ -185,6 +186,7 @@ func open(p_place: String, p_hour: float) -> void:
 	_vp.add_child(_root)
 	_hot.clear()
 	_tubes.clear()
+	_regulars.clear()
 	_npc = null
 	_mug = 0
 	_mug_node = null
@@ -270,6 +272,7 @@ func _process(delta: float) -> void:
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, not modal)
 	_animate_npc(delta)
 	_animate_tubes()
+	_animate_regulars()
 	if _shown >= 0 and _shown < _text.length():
 		_type += delta * 48.0
 		while _type >= 1.0 and _shown < _text.length():
@@ -291,6 +294,18 @@ func _animate_npc(delta: float) -> void:
 	var nod := sin(_npc_nod * 18.0) * 0.012 if _npc_nod > 0.0 else 0.0
 	_npc.position = _npc_base + Vector3(0, breathe - absf(nod), 0)
 	_npc.flip_h = fmod(step, 9.0) > 7.6
+
+
+## The regulars shift on their seats and lean on the bar, now and then (in steps).
+func _animate_regulars() -> void:
+	var step := floorf(_t * 12.0) / 12.0
+	for r in _regulars:
+		var n: Node3D = r["node"]
+		if not is_instance_valid(n):
+			continue
+		var ph: float = r["phase"]
+		var lean := 0.02 if fmod(step + ph, 11.0) > 8.5 else 0.0
+		n.position = (r["base"] as Vector3) + Vector3(0, sin(step * 1.3 + ph) * 0.008 - lean, 0)
 
 
 func _animate_tubes() -> void:
@@ -685,6 +700,7 @@ func _npc_sprite(tex: String, height: float, pos: Vector3, who: String) -> void:
 
 func _regular(tex: String, size: Vector2, pos: Vector3, id: String) -> void:
 	var s := _sprite(tex, size, pos, 0.0, true, "Regular")
+	_regulars.append({"node": s, "base": pos, "phase": randf() * 9.0})
 	_hot_box(id, pos + Vector3(0, size.y * 0.5, 0), Vector3(size.x * 0.8, size.y, 0.5), [s])
 
 
