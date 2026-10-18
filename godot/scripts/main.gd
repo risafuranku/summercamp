@@ -20,7 +20,9 @@ const GIRL_BRAIN_SCRIPT = preload("res://scripts/enemies/girl_brain.gd")
 const STALKER_BRAIN_SCRIPT = preload("res://scripts/enemies/stalker_brain.gd")
 ## Which enemy a guest archetype brings: one guest of that kind turns into it for the
 ## night (`_pick_turned_guest`); if it gets you, that guest is gone by morning
-## (`_claim_turned_guests`). The Antlered Man (stalker) no longer comes (18. 10.: simpler).
+## (`_claim_turned_guests`). The Antlered Man (stalker) is the boss of a camp packed too
+## full: he comes on top when three kinds turn in one night, or the camp holds
+## ANTLERED_GUESTS guests or more (`_antlered_comes`).
 const ENEMY_FOR_ARCHETYPE := {
 	"quiet_guy": SILENT_MAN_BRAIN_SCRIPT,
 	"drunk": TOURIST_BRAIN_SCRIPT,
@@ -1741,9 +1743,25 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		_start_enemy_brain(script, night_index, difficulty, turned)
 		total_spawned += spawned
 		kinds += 1
+	if _antlered_comes(kinds):
+		_start_enemy_brain(STALKER_BRAIN_SCRIPT, night_index, mini(5, worst + 1), {})
 	_active_enemy_spawned_this_night = total_spawned
 	var claimed_virtual = mini(total_spawned, _liminal_virtual_enemy_count)
 	_liminal_virtual_enemy_count = maxi(0, _liminal_virtual_enemy_count - claimed_virtual)
+
+
+## The boss night: three kinds turned at once, or a camp this full.
+const ANTLERED_GUESTS := 16
+
+
+func _antlered_comes(kinds_turned: int) -> bool:
+	if kinds_turned >= 3:
+		return true
+	var guests := 0
+	for g in CoreRoot.get_state().guests:
+		if g is Dictionary and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
+			guests += 1
+	return kinds_turned >= 1 and guests >= ANTLERED_GUESTS
 
 
 ## The guest of `archetype` who turns tonight: one of them in the camp, by chance

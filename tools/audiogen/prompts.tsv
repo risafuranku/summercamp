@@ -230,3 +230,6 @@ sm_choke	3.0	assets/sfx/npc/sm_choke.mp3	A man being strangled from behind: leat
 sm_bite	1.5	assets/sfx/npc/sm_bite.mp3	A violent bite into a face: teeth crunching through flesh and cartilage, a wet tear, a muffled cry cut off, very close, disgusting, no music.
 sm_sting	1.2	assets/sfx/npc/sm_sting.mp3	A short horror stinger: a sudden muffled shriek through a sealed mouth over a deep sub-bass hit and a crack of static, then silence, no melody.
 sm_step	0.8	assets/sfx/npc/sm_step.mp3	One slow deliberate step of a leather shoe on gravel at night, a little too heavy, some distance away, nothing else, no music.
+sm_vanish	1.5	assets/sfx/npc/sm_vanish.mp3	A soft sharp intake of breath through the nose that is swallowed into silence, with a faint dry rustle of cloth, as if someone just stepped back into the dark, close, quiet, no music.
+sm_rustle	1.2	assets/sfx/npc/sm_rustle.mp3	The faint rustle of a cotton shirt and a sleeve brushing against itself as someone stands very still nearby in the dark and shifts their weight, very quiet, close, no music.
+sm_softstep	0.6	assets/sfx/npc/sm_softstep.mp3	One very soft careful footstep on gravel, a shoe set down slowly heel to toe to make no noise, quiet, a few metres away, no music.

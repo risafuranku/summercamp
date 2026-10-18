@@ -5,17 +5,24 @@ class_name SilentManBrain
 ## his glasses, his shirt; where his mouth was, smooth skin. Rule: DO NOT STAND STILL IN
 ## THE DARK.
 ##
-##   omen      far off, a man humming through a mouth that is sealed shut
-##   approach  footsteps on the gravel behind you, every couple of seconds, each set a
-##             little closer: a full step when you stand still, half when you walk;
-##             running puts you ahead of him. Under a lamp he does not come nearer (a twig
-##             now and then where the light ends). His joints crack; close, you hear him
-##             breathe through his nose. Turn round and you may catch his silhouette
-##             walking, stiff, arms dead at his sides.
-##   test      the light: turn round and put light on him (torch or a lamp he stands in)
-##             and his glasses flare, he flinches with a hand up, the skin over his mouth
-##             bulges with a scream it cannot let out, your torch falters, and he backs
-##             off into the dark in steps; the footsteps start again far behind you.
+## He is the camp's nuisance more than its killer (playtest 18. 10.): light always beats
+## him. What he does is be there, round the corner, every time you leave the light.
+##
+##   lurk      while you are in light (a lamp) or indoors he waits in the dark round a
+##             corner 7-13 m off, somewhere you cannot see from where you stand: a man
+##             humming through a mouth that is sealed shut. Now and then he leans out
+##             past the corner for a moment. Come out of a building and he is round the
+##             corner by its door.
+##   approach  step out of the light and THE HUMMING STOPS: he is coming. He only moves
+##             while you are not looking his way. Walking, his steps fall half a beat
+##             after yours (you lose them in your own); stop, and there is one step more
+##             after you stopped. Standing still in the dark he comes on slow careful
+##             steps, closer each time; running puts you ahead of him. Close, cloth
+##             rustling and breath through the nose. Turn round and you may catch him
+##             mid-stride, frozen there.
+##   test      the light: put light on him (torch or a lamp he stands in) and his glasses
+##             flare, a sharp breath, and he comes apart into the dark, a dither of game
+##             pixels going back a step, a little dark ash going up; then a new corner.
 ##   strike    at your back he whispers at your ear: about a second to turn round or get
 ##             away. If not, one of his catches (at your ear, over you from above, or he
 ##             turns you round to him); the skin over his mouth tears open; he bites.
@@ -49,6 +56,9 @@ const SFX_SNAP := "res://assets/sfx/npc/sm_snap.mp3"
 const SFX_CHOKE := "res://assets/sfx/npc/sm_choke.mp3"
 const SFX_BITE := "res://assets/sfx/npc/sm_bite.mp3"
 const SFX_STING := "res://assets/sfx/npc/sm_sting.mp3"
+const SFX_VANISH := "res://assets/sfx/npc/sm_vanish.mp3"
+const SFX_RUSTLE := "res://assets/sfx/npc/sm_rustle.mp3"
+const SFX_SOFTSTEP := "res://assets/sfx/npc/sm_softstep.mp3"
 
 const START_DIST := 14.0
 const NECK_DIST := 1.6
@@ -58,6 +68,10 @@ const HEIGHT := 1.82
 const WALK_SECONDS := 0.55
 const LIT_SECONDS := 0.9
 const STRIKES := ["ear", "above", "turn"]
+## Lurking: how far off, and how dark the spot must be.
+const LURK_DIST := Vector2(7.0, 13.0)
+const LURK_DARK := 0.15
+const DISSOLVE_FRAMES := 6
 const KILLS := ["strangle", "snap", "bite"]
 
 var _dist := START_DIST
@@ -87,6 +101,17 @@ var _back_dir := Vector3.ZERO
 ## A catch in progress: {kind, t, cues, kill, yaw0, roll0}.
 var _seq := {}
 var _last_strike := ""
+var _lurking := false
+var _lurk_spot := Vector3.INF
+var _peek_spot := Vector3.INF
+var _peek_next := 6.0
+var _peek_t := 0.0
+var _away := false
+var _was_moving := false
+var _extra_step_at := -1.0
+var _rustle_next := 3.0
+var _dissolve := {}                # texture -> Array of ImageTexture (more gone each frame)
+var _ash: GPUParticles3D
 var _last_kill := ""
 
 
@@ -100,9 +125,13 @@ func _on_start() -> void:
 	_step_interval = lerpf(2.6, 1.6, t)
 	_grace = lerpf(1.4, 1.0, t)
 	_damage = int(lerpf(14.0, 24.0, t))
+	# Each piece of art by its first name; the body-horror round (sm2_*) wins where it is
+	# there (playtest 18. 10.: the first round was "not disgusting enough").
 	for p in [GUEST, T_M1, T_M2, T_LIT, T_FACE, T_TEAR, T_UPSIDE, T_HANDS, T_OVER] + T_WALK:
-		if ResourceLoader.exists(p):
-			_tex[p] = load(p)
+		for alt in [p.replace("/sm_", "/sm2_"), p]:
+			if ResourceLoader.exists(alt):
+				_tex[p] = load(alt)
+				break
 	_body = _make_body(GUEST, HEIGHT)
 	_hum = _loop(SFX_HUM, -60.0)
 	_breath = _loop(SFX_BREATH, -60.0)
@@ -111,6 +140,29 @@ func _on_start() -> void:
 
 
 ## The night is over (dawn, death, the menu): nothing of a catch stays on the screen.
+## The base ticks nothing while you are indoors (or it is not night); back out, he is
+## round the corner by the door you came out of.
+func tick(delta: float) -> void:
+	if _night_active and _seq.is_empty():
+		var ready := _is_ready()
+		if not ready:
+			_away = true
+		elif _away:
+			_away = false
+			_on_return()
+	super(delta)
+
+
+func _on_return() -> void:
+	_neck_until = -1.0
+	_vanish_at = -1.0
+	_walk_t = -1.0
+	_dist = START_DIST
+	_resume_at = _elapsed + _rng.randf_range(1.5, 3.0)
+	_next_step = _resume_at + _step_interval
+	_choose_lurk()
+
+
 func _on_stop() -> void:
 	_end_seq()
 	var fx := _fx()
@@ -129,7 +181,7 @@ func _on_tick(dt: float) -> void:
 		_update_seq(dt)
 		return
 	_update_walk(dt)
-	_update_audio()
+	_update_audio(dt)
 	if _vanish_at > 0.0:
 		_update_lit(dt)
 		return
@@ -142,9 +194,18 @@ func _on_tick(dt: float) -> void:
 		_tick_neck()
 		return
 	if _elapsed < _resume_at:
-		_body.visible = _elapsed < _peek_until
+		_body.visible = _lurking or _elapsed < _peek_until
 		return
 	_body.visible = true
+	if _lamp_light_at(_player_pos()) >= DARK_LIGHT:
+		_update_lurk(dt)
+		return
+	if _lurking:
+		# Out of the light: the humming stops. He is coming.
+		_lurking = false
+		_dist = minf(START_DIST, maxf(NECK_DIST + 2.0, _distance_to_player(_body.global_position)))
+		_next_step = _elapsed + _rng.randf_range(0.8, 1.6)
+	_update_footfall(dt)
 	if _elapsed >= _next_step:
 		_next_step = _elapsed + _step_interval * _rng.randf_range(0.85, 1.15)
 		_step()
@@ -159,16 +220,24 @@ func _step() -> void:
 		if _rng.randf() < 0.35:
 			_sound(SFX_TWIG, _body.global_position + Vector3(0, 0.2, 0), -4.0, _rng.randf_range(0.9, 1.1), 30.0)
 		return
+	# He only moves while you are not looking his way.
+	if _is_seen(_body.global_position + Vector3(0, HEIGHT * 0.7, 0), 4.0) and _dist > NECK_DIST + 0.5:
+		return
+	var walking := _speed > 0.6
 	if _speed > RUN_SPEED:
 		_dist = minf(START_DIST, _dist + 1.0)
-	elif _speed > 0.6:
+	elif walking:
 		_dist -= _step_gain * 0.5
 	else:
 		_dist -= _step_gain
 	_dist = maxf(NECK_DIST, _dist)
 	_place_behind(_dist)
 	var at := _walk_to + Vector3(0, 0.3, 0)
-	_sound(SFX_STEPS, at, lerpf(-10.0, 0.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.94, 1.04), 34.0)
+	if walking:
+		# Half a beat after your own steps: lost in them.
+		get_tree_timer(0.25, func(): _sound(SFX_SOFTSTEP, at, lerpf(-16.0, -6.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.9, 1.05), 26.0))
+	else:
+		_sound(SFX_STEPS, at, lerpf(-10.0, 0.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.94, 1.04), 34.0)
 	if _rng.randf() < 0.3:
 		_sound(SFX_CREAK, at + Vector3(0, 1.2, 0), lerpf(-14.0, -2.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.9, 1.1), 24.0)
 	_announce("Footsteps on the gravel behind you. They stop when you stop.")
@@ -176,6 +245,98 @@ func _step() -> void:
 		_neck_until = _elapsed + _grace
 		_neck_from = _player_pos()
 		_sound(SFX_WHISPER, _player_pos() + Vector3(0, 1.55, 0) - _forward_flat() * 0.35, 2.0, 1.0, 8.0)
+
+
+func get_tree_timer(seconds: float, f: Callable) -> void:
+	if _root != null and _root.is_inside_tree():
+		_root.get_tree().create_timer(seconds).timeout.connect(f)
+
+
+## Your footfall and his: stop walking, and there is one step more after you stopped (his
+## signature); close, his clothes, his breath.
+func _update_footfall(dt: float) -> void:
+	var moving := _speed > 0.6
+	if _was_moving and _speed < 0.25 and _extra_step_at < 0.0:
+		_extra_step_at = _elapsed + _rng.randf_range(0.3, 0.5)
+	_was_moving = moving if moving else (_was_moving and _speed >= 0.25)
+	if _extra_step_at > 0.0 and _elapsed >= _extra_step_at:
+		_extra_step_at = -1.0
+		if not _is_seen(_body.global_position + Vector3(0, HEIGHT * 0.7, 0), 4.0):
+			_dist = maxf(NECK_DIST + 0.3, _dist - 0.5)
+			_place_behind(_dist)
+			_sound(SFX_STEP, _walk_to + Vector3(0, 0.3, 0), lerpf(-8.0, 2.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.95, 1.03), 30.0)
+	if _dist < 5.0:
+		_rustle_next -= dt
+		if _rustle_next <= 0.0:
+			_rustle_next = _rng.randf_range(2.5, 5.0)
+			_sound(SFX_RUSTLE, _body.global_position + Vector3(0, 1.2, 0), lerpf(-4.0, -14.0, _dist / 5.0), _rng.randf_range(0.9, 1.1), 14.0)
+
+
+# ── the lurk ─────────────────────────────────────────────────────────────────
+
+## A dark spot round a corner from you: hidden from where you stand, a step aside from a
+## place you could see (so he can lean out), behind or beside you rather than ahead.
+func _choose_lurk() -> void:
+	var cam := _camera()
+	if cam == null:
+		return
+	var best := -1.0
+	var best_p := Vector3.INF
+	var best_peek := Vector3.INF
+	for _i in 28:
+		var ang := _rng.randf_range(0.0, 360.0)
+		var p := _point_from_player(_rng.randf_range(LURK_DIST.x, LURK_DIST.y), ang)
+		if p == Vector3.INF or _lamp_light_at(p) > LURK_DARK:
+			continue
+		var head := p + Vector3(0, HEIGHT * 0.8, 0)
+		if not _ray_blocked(cam.global_position, head):
+			continue
+		var score := 1.0 + (0.5 if absf(wrapf(ang, -180.0, 180.0)) > 90.0 else 0.0)
+		var to := (p - _player_pos())
+		to.y = 0.0
+		var side := to.normalized().cross(Vector3.UP)
+		var peek := Vector3.INF
+		for sgn in [1.0, -1.0]:
+			var q := _ground(p + side * sgn * 0.8)
+			if q != Vector3.INF and not _ray_blocked(cam.global_position, q + Vector3(0, HEIGHT * 0.8, 0)):
+				peek = q
+				score += 1.0
+				break
+		if score > best:
+			best = score
+			best_p = p
+			best_peek = peek
+	if best_p == Vector3.INF:
+		_lurking = false
+		return
+	_lurking = true
+	_lurk_spot = best_p
+	_peek_spot = best_peek
+	_peek_t = 0.0
+	_peek_next = _rng.randf_range(5.0, 9.0)
+	_body.global_position = best_p
+	_body.visible = true
+	_set_tex(_look_for(LURK_DIST.y))
+
+
+## While you are in the light: he hums round his corner; now and then he leans out past
+## it for a moment and back.
+func _update_lurk(dt: float) -> void:
+	if not _lurking or _lurk_spot == Vector3.INF or _distance_to_player(_lurk_spot) > LURK_DIST.y + 4.0:
+		_choose_lurk()
+		if not _lurking:
+			return
+	if _peek_t > 0.0:
+		_peek_t -= dt
+		if _peek_t <= 0.0:
+			_body.global_position = _lurk_spot
+		return
+	_peek_next -= dt
+	if _peek_next <= 0.0 and _peek_spot != Vector3.INF:
+		_peek_next = _rng.randf_range(6.0, 11.0)
+		_peek_t = _rng.randf_range(0.9, 1.5)
+		_body.global_position = _peek_spot
+		_sound(SFX_RUSTLE, _peek_spot + Vector3(0, 1.2, 0), -14.0, _rng.randf_range(0.9, 1.1), 20.0)
 
 
 ## Right behind you: turn round or get away, now.
@@ -250,11 +411,13 @@ func _set_tex(path: String) -> void:
 		_shown_guest = true
 
 
-func _update_audio() -> void:
+func _update_audio(dt: float) -> void:
 	var d := _distance_to_player(_body.global_position)
 	if _hum != null:
 		_hum.global_position = _body.global_position + Vector3(0, 1.6, 0)
-		_hum.volume_db = -60.0 if _elapsed < _resume_at else lerpf(-34.0, -14.0, clampf(1.0 - d / START_DIST, 0.0, 1.0))
+		# He hums only while he waits for you in the dark round his corner.
+		var want := lerpf(-30.0, -12.0, clampf(1.0 - d / (LURK_DIST.y + 4.0), 0.0, 1.0)) if _lurking else -60.0
+		_hum.volume_db = move_toward(_hum.volume_db, want, (60.0 if want < _hum.volume_db else 20.0) * dt)
 	if _breath != null:
 		_breath.global_position = _body.global_position + Vector3(0, 1.6, 0)
 		_breath.volume_db = -60.0 if (d > 4.5 or _elapsed < _resume_at) else lerpf(-2.0, -22.0, d / 4.5)
@@ -265,51 +428,124 @@ func _update_audio() -> void:
 
 # ── the light ────────────────────────────────────────────────────────────────
 
-## Found by the light: the glasses flare, the flinch, the scream behind the skin, the
-## torch falters; then he backs off into the dark in steps and is gone.
+## Found by the light: the glasses flare, a sharp breath, and he comes apart into the dark:
+## a dither of game pixels in six steps (twelve a second) going back a step, a little
+## dark ash going up. Then a new corner.
 func _driven_off() -> void:
 	_drive_offs += 1
 	_walk_t = -1.0
-	_set_tex(T_LIT if _tex.has(T_LIT) else _look_for(_dist))
+	_lurking = false
+	if _tex.has(T_LIT):
+		_set_tex(T_LIT)
 	var head := _body.global_position + Vector3(0, HEIGHT * 0.86, 0)
-	_sound(SFX_MMM, head, 0.0, _rng.randf_range(0.92, 1.05), 36.0)
+	_sound(SFX_VANISH, head, 2.0, _rng.randf_range(0.95, 1.05), 30.0)
 	var away := _body.global_position - _player_pos()
 	away.y = 0.0
 	_back_dir = away.normalized() if away.length_squared() > 0.01 else -_forward_flat()
 	_walk_from = _body.global_position
 	_vanish_at = _elapsed + LIT_SECONDS
 	_player.set("flashlight_stutter", 1.0)
-	var fx := _fx()
-	if fx != null:
-		fx.glitch(0.3, 0.4)
 	_neck_until = -1.0
+	_dissolve_base = _body.texture
+	_puff_ash()
+
+
+var _dissolve_base: Texture2D
 
 
 func _update_lit(_dt: float) -> void:
 	_body.visible = true
 	var left := _vanish_at - _elapsed
-	var k := 1.0 - left / LIT_SECONDS
-	# The torch comes back after a moment; his glasses flare in it for a few frames.
-	if k > 0.12:
+	var k := clampf(1.0 - left / LIT_SECONDS, 0.0, 1.0)
+	if k > 0.1:
 		_player.set("flashlight_stutter", 0.0)
 	var fx := _fx()
 	var cam := _camera()
-	if fx != null and cam != null and k < 0.35:
+	if fx != null and cam != null and k < 0.25:
 		fx.set_eyes("silent_man", _body.global_position + Vector3(0, HEIGHT * 0.9, 0), cam, 1.0, 0.0, 0.05)
-	# Backing off, in steps, after a beat of the flinch.
-	if k > 0.35:
-		var st := floorf((k - 0.35) / 0.65 * 7.0) / 7.0
-		_body.global_position = _walk_from + _back_dir * 2.6 * st
-		var frames: Array = T_WALK.filter(func(p): return _tex.has(p))
-		if frames.size() == 2:
-			_set_tex(frames[int(st * 7.0) % 2])
+	# After the flare: the dither takes him, a frame at a time, as he goes back a step.
+	if k > 0.15 and _dissolve_base != null:
+		var frames: Array = _dissolve_frames(_dissolve_base)
+		var i := clampi(int((k - 0.15) / 0.85 * float(DISSOLVE_FRAMES + 1)), 0, DISSOLVE_FRAMES)
+		if i >= DISSOLVE_FRAMES:
+			_body.visible = false
+		else:
+			_body.texture = frames[i]
+		_body.global_position = _walk_from + _back_dir * 0.5 * floorf((k - 0.15) / 0.85 * 6.0) / 6.0
 	if left <= 0.0:
 		_vanish_at = -1.0
 		_player.set("flashlight_stutter", 0.0)
+		_body.texture = null
+		_body.texture = _dissolve_base
 		_reset_far(_rng.randf_range(4.0, 8.0))
 
 
+## The art going to nothing in an ordered dither (whole pixels, darker as it goes), made
+## once per picture.
+func _dissolve_frames(tex: Texture2D) -> Array:
+	if _dissolve.has(tex):
+		return _dissolve[tex]
+	var out: Array = []
+	var img := tex.get_image()
+	if img != null:
+		img = img.duplicate()
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+		var bayer := [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+		for f in DISSOLVE_FRAMES:
+			var cut := float(f + 1) / float(DISSOLVE_FRAMES + 1)
+			var im: Image = img.duplicate()
+			for y in im.get_height():
+				for x in im.get_width():
+					var c: Color = im.get_pixel(x, y)
+					if c.a <= 0.0:
+						continue
+					if (float(bayer[(x & 3) + (y & 3) * 4]) + 0.5) / 16.0 < cut:
+						im.set_pixel(x, y, Color(0, 0, 0, 0))
+					else:
+						im.set_pixel(x, y, Color(c.r * (1.0 - cut * 0.6), c.g * (1.0 - cut * 0.6), c.b * (1.0 - cut * 0.6), c.a))
+			out.append(ImageTexture.create_from_image(im))
+	_dissolve[tex] = out
+	return out
+
+
+## A little dark ash going up off him as he goes.
+func _puff_ash() -> void:
+	if _ash == null:
+		_ash = GPUParticles3D.new()
+		var pm := ParticleProcessMaterial.new()
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+		pm.emission_box_extents = Vector3(0.25, 0.85, 0.1)
+		pm.direction = Vector3(0, 1, 0)
+		pm.spread = 35.0
+		pm.initial_velocity_min = 0.15
+		pm.initial_velocity_max = 0.5
+		pm.gravity = Vector3(0, 0.35, 0)
+		pm.damping_min = 0.4
+		pm.damping_max = 0.8
+		_ash.process_material = pm
+		var q := QuadMesh.new()
+		q.size = Vector2(0.035, 0.035)
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.05, 0.045, 0.04, 0.9)
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		q.material = m
+		_ash.draw_pass_1 = q
+		_ash.amount = 40
+		_ash.lifetime = 1.4
+		_ash.one_shot = true
+		_ash.explosiveness = 0.5
+		_root.add_child(_ash)
+	_ash.global_position = _body.global_position + Vector3(0, HEIGHT * 0.5, 0)
+	_ash.restart()
+	_ash.emitting = true
+
+
 func _reset_far(pause: float) -> void:
+	_lurking = false
 	_dist = START_DIST
 	_resume_at = _elapsed + pause
 	_next_step = _resume_at + _step_interval
