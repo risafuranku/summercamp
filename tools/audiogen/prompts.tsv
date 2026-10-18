@@ -239,3 +239,30 @@ inv_pick	0.5	assets/sfx/inventory/pick.mp3	A small object being lifted out of a 
 inv_place	0.5	assets/sfx/inventory/place.mp3	A small object being set down into a canvas bag pocket: a soft muffled tap and a little rustle of rough fabric. Close, dry, no music.
 inv_drop	0.7	assets/sfx/inventory/drop.mp3	A small object tossed onto grass and dry pine needles on the ground: a soft thud and a brief rustle. Outdoors, close, no music.
 inv_nope	0.5	assets/sfx/inventory/nope.mp3	Two small hard objects bumping against each other inside a full canvas bag: a dull muffled clack. Close, dry, no music.
+hb_pack	1.6	assets/sfx/habits/pack.mp3	A soft paper cigarette pack being taken out of a jacket pocket and one cigarette tapped and pulled out of it: crinkle of foil and thin paper, a small tap, close to the ear, dry, no music.
+hb_strike_fail	0.6	assets/sfx/habits/strike_fail.mp3	A cheap plastic disposable lighter's metal spark wheel flicked with a thumb, a dry scratch and a click, sparks but no flame, very close, no music.
+hb_strike_catch	0.9	assets/sfx/habits/strike_catch.mp3	A cheap plastic disposable lighter flicked with a thumb: scratch of the spark wheel and the soft whoomp of the gas flame catching, very close, no music.
+hb_flame_loop	2.0	assets/sfx/habits/flame_loop.mp3	The quiet steady hiss of gas from a disposable lighter flame held lit, very close, constant, no clicks, no music.
+hb_light_up	1.6	assets/sfx/habits/light_up.mp3	A cigarette being lit from a lighter flame: a short sharp inhale through the lips, the tobacco crackling as it catches, very close, no music.
+hb_drag	2.5	assets/sfx/habits/drag.mp3	Someone drawing slowly on a cigarette: a soft long inhale through the lips and the faint crackle and fizz of burning tobacco, very close, no music.
+hb_exhale	2.0	assets/sfx/habits/exhale.mp3	A man slowly blowing out a long breath of cigarette smoke through pursed lips, relaxed, very close, no music.
+hb_exhale_short	1.0	assets/sfx/habits/exhale_short.mp3	A short quick puff of smoke blown out of the mouth, close, no music.
+hb_cough_fit	2.6	assets/sfx/habits/cough_fit.mp3	A man's hard rasping smoker's cough fit, three or four harsh coughs and a wheeze, close, no music.
+hb_ash_tap	0.6	assets/sfx/habits/ash_tap.mp3	A finger tapping the ash off a cigarette, a tiny soft tick, very close, no music.
+hb_flick	0.7	assets/sfx/habits/flick.mp3	A cigarette butt flicked away with a finger, a tiny snap and a faint whoosh, close, no music.
+hb_butt_land	0.8	assets/sfx/habits/butt_land.mp3	A burning cigarette butt landing on gravel and grass and bouncing once, a tiny tick, a few sparks hissing, outdoors, no music.
+hb_stub	1.0	assets/sfx/habits/stub.mp3	A cigarette stubbed out hard on a concrete floor under a boot sole, a grinding crush and a small sizzle, close, no music.
+hb_hiss_rain	1.0	assets/sfx/habits/hiss_rain.mp3	A raindrop hitting the glowing tip of a cigarette and putting it out with a tiny wet sizzle, very close, no music.
+hb_burn_fingers	1.0	assets/sfx/habits/burn_fingers.mp3	A sharp intake of breath through teeth of someone who burned their fingers, a hiss of pain, close, no words, no music.
+hb_cap_lever	1.0	assets/sfx/habits/cap_lever.mp3	A crown cap on a glass beer bottle being levered with the edge of a plastic lighter, a creaking strain of metal on glass, close, no music.
+hb_cap_pop	1.0	assets/sfx/habits/cap_pop.mp3	A beer bottle crown cap popped off with a lighter: a sharp metal pop, the hiss of the beer opening and the little cap tinkling onto the ground, close, no music.
+hb_foam	2.2	assets/sfx/habits/foam.mp3	A shaken beer bottle foaming over just after opening, fizzing and gushing, foam spattering on the ground, close, no music.
+hb_gulp	0.7	assets/sfx/habits/gulp.mp3	One big swallow of beer straight from a glass bottle, the liquid glugging in the bottle neck, close, no music.
+hb_empty_blow	1.0	assets/sfx/habits/empty_blow.mp3	Someone tipping an empty glass beer bottle up and getting nothing, a hollow airy bottle sound, close, no music.
+hb_clink	0.9	assets/sfx/habits/clink.mp3	Two glass beer bottles clinked together in a toast, a bright glass knock, outdoors, close, no music.
+hb_smash	1.4	assets/sfx/habits/smash.mp3	A glass beer bottle thrown and smashing on stones, shards scattering, outdoors, slightly distant, no music.
+hb_bottle_thud	0.9	assets/sfx/habits/bottle_thud.mp3	An empty glass beer bottle thrown landing in grass with a dull thud and rolling a little, outdoors, no music.
+hb_bottle_set	0.7	assets/sfx/habits/bottle_set.mp3	An empty glass beer bottle set down on a wooden floor, a hollow glass knock, indoors, close, no music.
+hb_hiccup	0.6	assets/sfx/habits/hiccup.mp3	A single drunk man's hiccup, short and involuntary, close, no words, no music.
+hb_vomit	2.8	assets/sfx/habits/vomit.mp3	A drunk man throwing up onto the ground, retching and splattering, close, no words, no music.
+hb_burp_big	1.6	assets/sfx/habits/burp_big.mp3	A long loud deep burp of a man after downing a whole bottle of beer, close, no music.

@@ -102,6 +102,7 @@ var _say_t := 0.0
 
 func _init() -> void:
 	layer = 95
+	add_to_group("closeup")  # the hands are on it (pockets.gd)
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 

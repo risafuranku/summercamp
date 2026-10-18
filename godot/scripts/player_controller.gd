@@ -127,6 +127,8 @@ var _flashlight_allowed: bool = false
 var _flashlight_user_enabled: bool = true
 ## The torch is in the bag (scripts/ui/inventory.gd): thrown on the ground, it is dark.
 var torch_carried := true
+## A bottle in the right hand (scripts/town/pockets.gd): the torch is in your pocket.
+var hand_busy := false
 var _flashlight_active: bool = false
 var _flashlight_flicker_time: float = 0.0
 var stamina: float = 1.0
@@ -717,7 +719,7 @@ func _ensure_flashlight() -> void:
 
 
 func _refresh_flashlight_state() -> void:
-	_flashlight_active = _flashlight_allowed and _flashlight_user_enabled and torch_carried
+	_flashlight_active = _flashlight_allowed and _flashlight_user_enabled and torch_carried and not hand_busy
 	if _flashlight != null:
 		_flashlight.visible = _flashlight_active
 		_flashlight.light_energy = flashlight_energy if _flashlight_active else 0.0

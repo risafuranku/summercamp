@@ -102,16 +102,20 @@ func setup(interior_manager: Node) -> void:
 		pockets.bag = inventory
 
 
-## Smoking and drinking: out in the world, playing, nothing open.
+## Smoking and drinking: playing, on your feet (outdoors, in a room, in Lesna's places);
+## pockets.gd itself keeps the hands down at the PC, in close-ups, the boat and such.
+## Not on the bus (the driver will not have it) nor at the pump.
 func _pockets_allowed() -> bool:
 	var main := _main()
 	if main == null or get_tree().paused:
 		return false
 	if not bool(main.get("_gameplay_started")) or bool(main.get("_menu_mode")):
 		return false
-	if main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")):
+	if (_ride != null and _ride.is_open()) or (_town != null and _town.spots["job"].is_open()):
 		return false
-	return not is_open() and not _sleeping
+	if _timetable != null and _timetable.visible:
+		return false
+	return not _sleeping
 
 
 func _main() -> Node:

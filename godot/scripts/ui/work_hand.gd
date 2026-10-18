@@ -14,7 +14,9 @@ extends Control
 ##   hand.stop()                                   drops the hand out of view
 
 const STEP_FPS := 10.0
-const DIR := "res://assets/textury/hands/"
+const HANDS = preload("res://scripts/ui/hands.gd")
+## The coarse hands (hands.gd): as big in pixels as the world.
+const DIR := "res://assets/textury/hands_lo/"
 ## verb -> [tool sprite, motion, particles]
 const BY_VERB := {
 	"Scrubbing": ["brush", "scrub", "suds"],
@@ -86,6 +88,10 @@ func start(verb: String, target: Vector2) -> void:
 	_target = target
 	_active = true
 	_frame = 0
+	# The right hand is the tool's now: the torch goes to the left (hands.gd).
+	var h := HANDS.of(self)
+	if h != null:
+		h.claim("right", "work#%d" % get_instance_id())
 
 
 func aim(target: Vector2) -> void:
@@ -100,11 +106,34 @@ func is_showing() -> bool:
 	return _raise > 0.0 or not _parts.is_empty()
 
 
+## The tool's hand: the matched set (hand3_*, one glove and sleeve with the torch's) when
+## it is there, else the older one.
 func _load(name: String) -> Texture2D:
 	if not _cache.has(name):
-		var path := DIR + name + ".png"
-		_cache[name] = load(path) if ResourceLoader.exists(path) else null
+		_cache[name] = null
+		for path in [DIR + "hand3_" + name + ".png", DIR + name + ".png"]:
+			if ResourceLoader.exists(path):
+				_cache[name] = load(path)
+				break
 	return _cache[name]
+
+
+## What flies off the work, as sprites (assets/textury/habits/work_*.png, Grok).
+const BITS := {
+	"dust": ["work_dust_a", "work_dust_b"], "suds": ["work_suds_a", "work_suds_b"],
+	"drops": ["work_drop", "work_splash"], "sparks": ["work_sparks", "work_spark"], "fluff": ["work_dust_a"],
+}
+
+
+func _bit(kind: String, i: int) -> Texture2D:
+	var names: Array = BITS.get(kind, [])
+	if names.is_empty():
+		return null
+	var n := str(names[i % names.size()])
+	if not _cache.has("bit_" + n):
+		var path := "res://assets/textury/habits/" + n + ".png"
+		_cache["bit_" + n] = load(path) if ResourceLoader.exists(path) else null
+	return _cache["bit_" + n]
 
 
 func _process(delta: float) -> void:
@@ -124,6 +153,10 @@ func _process(delta: float) -> void:
 func _step() -> void:
 	_frame += 1
 	_raise = clampf(_raise + (0.34 if _active else -0.34), 0.0, 1.0)
+	if not _active and _raise <= 0.0:
+		var h := HANDS.of(self)
+		if h != null:
+			h.release("right", "work#%d" % get_instance_id())
 	if _active and _raise >= 1.0 and _particles_kind != "":
 		var cols: Array = PARTICLE_COLORS.get(_particles_kind, [Color.WHITE])
 		for i in _rng.randi_range(1, 3):
@@ -175,13 +208,22 @@ func _motion_offset() -> Vector2:
 
 func _draw() -> void:
 	var s := _px()
-	for p in _parts:
+	var hs := HANDS.px(size.y)
+	var hl := HANDS.of(self)
+	var lit: Color = hl.light if hl != null else Color.WHITE
+	for i in _parts.size():
+		var p: Dictionary = _parts[i]
+		var bt := _bit(_particles_kind, i)
+		if bt != null:
+			var at := (((p["p"] as Vector2) - bt.get_size() * hs * 0.5) / hs).floor() * hs
+			draw_texture_rect(bt, Rect2(at, bt.get_size() * hs), false, Color.WHITE if _particles_kind == "sparks" else lit)
+			continue
 		var sz := 2.0 * s
 		draw_rect(Rect2((p["p"] as Vector2).floor(), Vector2(sz, sz)), p["c"])
 	if _raise <= 0.0:
 		return
 	var screen := size
-	var scale := maxf(1.0, floorf(screen.y * 0.5 / 180.0))
+	var scale := HANDS.px(screen.y)
 	if _tex == null:
 		# No art: a plain gloved fist so the motion still reads.
 		var fist := Rect2(_target + _motion_offset() + Vector2(10, 10) * s, Vector2(40, 30) * s)
@@ -196,4 +238,15 @@ func _draw() -> void:
 	pos.x = clampf(pos.x, screen.x * 0.18, screen.x - tsz.x * 0.62)
 	pos.y = maxf(pos.y, screen.y - tsz.y)
 	pos.y += (1.0 - _raise) * tsz.y
-	draw_texture_rect(_tex, Rect2(pos.floor(), tsz), false)
+	# On the hands' pixel grid, lit by the place (hands.gd).
+	var h := HANDS.of(self)
+	if h != null:
+		pos += (h.motion as Vector2) * scale * 0.5
+	pos = (pos / scale).floor() * scale
+	draw_texture_rect(_tex, Rect2(pos, tsz), false, h.light if h != null else Color.WHITE)
+
+
+func _exit_tree() -> void:
+	var h := get_tree().get_first_node_in_group("hands") if is_inside_tree() else null
+	if h != null:
+		h.release("right", "work#%d" % get_instance_id())

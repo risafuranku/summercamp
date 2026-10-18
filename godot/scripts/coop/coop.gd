@@ -328,6 +328,12 @@ func _process(delta: float) -> void:
 		_warden_t = 1.0 / WARDEN_HZ
 		var s: Dictionary = main.coop_local_warden()
 		if not s.is_empty():
+			# The cigarette and the bottle in your hands (scripts/town/pockets.gd).
+			var hands := get_tree().get_first_node_in_group("habits")
+			if hands != null:
+				var hb: Dictionary = hands.coop_state()
+				if not hb.is_empty():
+					s["hb"] = hb
 			_warden.rpc_id(remote_id, s)
 	# What both have (the office's lights, the register): sent when it changed here.
 	_sync_t -= delta
@@ -507,6 +513,22 @@ func _play(kind: String, data: Array) -> void:
 	var wp := get_tree().get_first_node_in_group("warden_play")
 	if wp != null:
 		wp.coop_play(kind, data)
+
+
+## The cigarette and the bottle (scripts/habits/habit_world.gd), both ways: a flick of the
+## lighter, a breath of smoke, a gulp, a light given, bottles clinked, a butt thrown.
+func send_habit(kind: String, data: Array) -> void:
+	if role != Role.NONE and remote_id != 0:
+		_habit.rpc_id(remote_id, kind, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _habit(kind: String, data: Array) -> void:
+	if multiplayer.get_remote_sender_id() != remote_id:
+		return
+	var hands := get_tree().get_first_node_in_group("habits")
+	if hands != null:
+		hands.coop_habit(kind, data)
 
 
 ## The bags (scripts/ui/inventory.gd), both ways: things thrown on the ground and who picks

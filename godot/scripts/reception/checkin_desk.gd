@@ -259,6 +259,7 @@ var _scare_cool_until := -INF     # (day * 24 + hour) before another may show
 
 func _init() -> void:
 	layer = 140
+	add_to_group("closeup")  # the hands are on it (pockets.gd)
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 

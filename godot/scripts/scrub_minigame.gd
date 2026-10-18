@@ -66,6 +66,7 @@ var _rng := RandomNumberGenerator.new()
 
 func _init() -> void:
 	layer = 96
+	add_to_group("closeup")  # the hands are on it (pockets.gd)
 	visible = false
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 
