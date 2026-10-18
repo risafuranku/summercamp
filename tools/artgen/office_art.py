@@ -276,6 +276,11 @@ ROWS = [
     ("tex_awning_stripes", "texture", 64, "awning_stripes.png"),
     ("spr_awning_fringe", "sprite", 24, "awning_fringe.png"),
     ("spr_steam_puff", "sprite", 16, "steam_puff.png"),
+    # The main menu (scripts/ui/main_menu.gd): its plates, the logo's paint, the cursor.
+    ("tex_menu_steel", "texture", 64, "ui/menu_steel.png"),
+    ("tex_menu_wood", "texture", 64, "ui/menu_wood.png"),
+    ("tex_logo_fill", "texture", 64, "ui/logo_fill.png"),
+    ("spr_menu_lantern", "sprite", 16, "ui/menu_lantern.png"),
     ("warden_a_bedfoot", "sprite", 56, "npc/warden_a_bedfoot.png"),
     ("warden_b_bedfoot", "sprite", 56, "npc/warden_b_bedfoot.png"),
     ("warden_c_bedfoot", "sprite", 56, "npc/warden_c_bedfoot.png"),

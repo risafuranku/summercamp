@@ -296,6 +296,7 @@ func _rebuild() -> void:
 	logo.size = logo.custom_minimum_size
 	_column.add_child(logo)
 	_logo = logo
+	_paint_logo(logo)
 	y += logo.custom_minimum_size.y - _vp(2)
 	var sub := RETRO_UI.label("M A N A G E R   S I M U L A T O R", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale)
 	sub.position = Vector2(_vp(1), y)
@@ -328,6 +329,7 @@ func _rebuild() -> void:
 	_main_list.size = Vector2(vp.x * 0.6, pages_h)
 	main_page.add_child(_main_list)
 	_main_list.activated.connect(_on_main_activated)
+	_lantern(_main_list)
 	_main_list.set_items(_main_items())
 	_build_card(vp)
 
@@ -372,6 +374,7 @@ func _rebuild() -> void:
 	_coop_list.size = Vector2(_coop_page.size.x * 0.66, _vp(22 * 6))
 	_coop_page.add_child(_coop_list)
 	_coop_list.activated.connect(_on_coop_activated)
+	_lantern(_coop_list)
 	var coop_items: Array[Dictionary] = [
 		{"id": "host", "text": "Host a new camp"},
 		{"id": "host_last", "text": "Host a saved camp"},
@@ -457,6 +460,7 @@ func _page_frame(title: String, plate_h: float) -> Control:
 	var free_h := vp.y - _vp(13)
 	page.position = (Vector2((vp.x - page.size.x) * 0.5, (free_h - plate_h) * 0.5) / float(_scale)).floor() * float(_scale)
 	page.visible = false
+	_steel(page)
 	_root.add_child(page)
 	var t := RETRO_UI.PixelTitle.new()
 	t.configure(RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG * 2, _scale)
@@ -471,7 +475,7 @@ func _page_frame(title: String, plate_h: float) -> Control:
 func _build_footer(vp: Vector2) -> void:
 	var bar := RETRO_UI.BevelPanel.new()
 	bar.ui_scale = _scale
-	bar.tile_texture = RETRO_UI.texture(RETRO_UI.PLATE_TEXTURE_PATH)
+	bar.tile_texture = _ui_tex("menu_wood.png") if _ui_tex("menu_wood.png") != null else RETRO_UI.texture(RETRO_UI.PLATE_TEXTURE_PATH)
 	bar.anchor_left = 0.0
 	bar.anchor_right = 1.0
 	bar.anchor_top = 1.0
@@ -1053,6 +1057,7 @@ func _build_camp_pages(plate_h: float) -> void:
 	_profiles_list.size = Vector2(_profiles_page.size.x - _vp(8), plate_h - _vp(50))
 	_profiles_page.add_child(_profiles_list)
 	_profiles_list.activated.connect(_on_profile_activated)
+	_lantern(_profiles_list)
 	# NEW CAMP
 	_newcamp_page = _page_frame("NEW CAMP", plate_h)
 	_newcamp_title = _newcamp_page.get_child(0)
@@ -1372,6 +1377,7 @@ func _build_ask_box() -> void:
 	plate.light = RETRO_UI.C_PANEL_LIGHT
 	plate.dark = Color(0.0, 0.0, 0.0, 1.0)
 	plate.size = Vector2(minf(_vp(200), _built_for.x - _vp(12)), _vp(70))
+	_steel(plate)
 	plate.position = ((_built_for - plate.size) * 0.5 / float(_scale)).floor() * float(_scale)
 	_ask_box.add_child(plate)
 	_ask_title = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
@@ -1406,6 +1412,35 @@ func _ask_ok() -> void:
 
 
 # ── the look ──────────────────────────────────────────────────────────────────
+
+## The menu's own surfaces (Grok, assets/textury/ui/): rusty riveted steel for the plates,
+## dark boards for the bar at the foot, chipped sign paint in the logo's letters, a
+## kerosene lantern for the cursor.
+const UI_TEX := "res://assets/textury/ui/"
+
+
+static func _ui_tex(name: String) -> Texture2D:
+	var p := UI_TEX + name
+	return load(p) as Texture2D if ResourceLoader.exists(p) else null
+
+
+func _paint_logo(logo: Control) -> void:
+	BOOT_SCREEN.paint_logo(logo, _scale)
+
+
+## A plate in the rusty steel (or as it was, without the texture).
+func _steel(panel: Control, tint := Color(0.5, 0.46, 0.42)) -> void:
+	var t := _ui_tex("menu_steel.png")
+	if t != null and "tile_texture" in panel:
+		panel.tile_texture = t
+		panel.tile_tint = tint
+
+
+func _lantern(list) -> void:
+	var t := _ui_tex("menu_lantern.png")
+	if t != null:
+		list.cursor_texture = t
+
 
 const LOGO_TOP := Color(1.0, 0.84, 0.44)
 const LOGO_BOTTOM := Color(0.92, 0.38, 0.08)
@@ -1443,6 +1478,7 @@ func _build_card(vp: Vector2) -> void:
 	card.position = Vector2(-_vp(2), _column.size.y - card.size.y)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_steel(card, Color(0.42, 0.38, 0.35))
 	card.gui_input.connect(func(ev: InputEvent) -> void:
 		var mb := ev as InputEventMouseButton
 		if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:

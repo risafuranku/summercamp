@@ -63,6 +63,38 @@ class StepBar:
 				draw_rect(Rect2(r.position, Vector2(r.size.x, s)), c.lightened(0.3))
 
 
+const LOGO_SHADER := """
+shader_type canvas_item;
+uniform sampler2D fill : filter_nearest, repeat_enable;
+uniform float px = 4.0;
+void fragment() {
+	vec4 c = texture(TEXTURE, UV) * COLOR;
+	float lum = dot(c.rgb, vec3(0.3, 0.59, 0.11));
+	vec3 t = texture(fill, floor(FRAGCOORD.xy / px) / 64.0).rgb;
+	float k = smoothstep(0.22, 0.42, lum);
+	c.rgb = mix(c.rgb, c.rgb * t * 1.85, k * 0.9);
+	COLOR = c;
+}
+"""
+
+
+## The logo's letters filled with chipped sign paint (assets/textury/ui/logo_fill.png,
+## Grok), their dark outline left alone; the main menu's logo is the same.
+static func paint_logo(logo: Control, scale: int) -> void:
+	var path := "res://assets/textury/ui/logo_fill.png"
+	if not ResourceLoader.exists(path):
+		return
+	var sm := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = LOGO_SHADER
+	sm.shader = sh
+	sm.set_shader_parameter("fill", load(path))
+	sm.set_shader_parameter("px", float(scale))
+	logo.material = sm
+	for c in logo.find_children("*", "CanvasItem", true, false):
+		(c as CanvasItem).use_parent_material = true
+
+
 func _init() -> void:
 	name = "BootScreen"
 	layer = 200
@@ -93,6 +125,7 @@ func _ready() -> void:
 	logo.set_text("CURSED CAMP")
 	logo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(logo)
+	paint_logo(logo, s)
 	var sub := RETRO_UI.label("M A N A G E R   S I M U L A T O R", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, s)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
