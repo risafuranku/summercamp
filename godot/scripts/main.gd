@@ -5354,6 +5354,13 @@ func _pause_info_line() -> String:
 			line += "   SAVED %d MIN AGO" % (ago / 60)
 		else:
 			line += "   SAVED %d H AGO" % (ago / 3600)
+	# Co-op: who you are with, or (the host alone) where the other can call in.
+	if Coop.has_partner():
+		line += "   WITH %s" % Coop.partner_name().to_upper()
+	elif Coop.is_host():
+		var here: Array[String] = Coop.local_addresses()
+		if not here.is_empty():
+			line += "   OPEN AT %s" % here[0]
 	return line
 
 

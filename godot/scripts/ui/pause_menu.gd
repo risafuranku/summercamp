@@ -53,12 +53,17 @@ func _ready() -> void:
 	_rebuild()
 
 
+var _built_coop := false
+
+
 func open(info: String, leave_text := "") -> void:
 	_info_text = info
 	if _info != null:
 		_info.text = info
-	if leave_text != _leave_text:
+	var coop: bool = Coop.has_partner() or Coop.is_host()
+	if leave_text != _leave_text or coop != _built_coop:
 		_leave_text = leave_text
+		_built_coop = coop
 		_rebuild()
 	visible = true
 	_show("main")
@@ -118,7 +123,8 @@ func _rebuild() -> void:
 	var title := RETRO_UI.PixelTitle.new()
 	title.configure(RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG * 2, _scale)
 	title.set_colors(RETRO_UI.C_AMBER_LIGHT, RETRO_UI.C_AMBER)
-	title.set_text("PAUSED")
+	# In a co-op camp nothing stops while this is up.
+	title.set_text("MENU" if _built_coop else "PAUSED")
 	title.size = title.custom_minimum_size
 	title.position = Vector2(floorf((_plate.size.x - title.size.x) * 0.5 / _scale) * _scale, _vp(6))
 	_plate.add_child(title)

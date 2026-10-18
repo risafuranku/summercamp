@@ -60,6 +60,7 @@ func _ready() -> void:
 			["coop_place", 12, 14, 1.0], ["coop_signal", "host_up"],
 			["coop_wait", "partner_seen"], ["coop_wait_file", "client_ready"], ["wait", 1.0],
 			["coop_face_partner"], ["wait", 1.0], ["shot", "h1_sees_other"],
+			["eval", "_open_pause_menu()"], ["wait", 0.6], ["shot", "h1b_pause_with"], ["eval", "_close_pause_menu(true)"], ["wait", 0.4],
 			["coop_fingerprint", "host"],
 			# Built after the join: the other camp gets it too.
 			["build", "tent_1", 13, 16, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
