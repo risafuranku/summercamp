@@ -42,6 +42,18 @@ const BACK_THRESHOLD := Vector3(-2.95, 1.47, 1.28)
 ## it opens out into the office.
 const STORE_HINGE := Vector3(-0.48, 0.0, 2.46)
 const STORE_DOOR_OPEN_DEG := 100.0
+## The way out by the front door (go_out_front): how long, where the walk would end
+## (out on the porch), the line in the doorway where the camp takes it over (before
+## the doorway's view, building_interior DOOR_VIEW_CENTER, would be behind the eye).
+const FRONT_WALK_SEC := 2.8
+const FRONT_STEP_OUT := Vector3(1.72, 1.48, -3.1)
+const FRONT_FADE_Z := -2.45
+const FRONT_DOOR_OPEN_DEG := 82.0
+var _leaving := false
+const SFX_FRONT_DOOR := "res://assets/sfx/dvereotevrit.mp3"
+## player_controller.camera_fov: the camp's eye the walk out hands over to.
+const FRONT_OUT_FOV := 56.0
+var _fov_before_out := 0.0
 
 var host
 var room_root: Node3D
@@ -455,6 +467,8 @@ func process(delta: float, hour: float) -> bool:
 	# Drawing a curtain changes the light in the room and the window seen from outside.
 	if moved and host.has_method("_apply_room_time_profile"):
 		host._apply_room_time_profile()
+	if _leaving and camera.position.z <= FRONT_FADE_Z:
+		_leave_by_front()
 	if is_modal():
 		glint.clear()
 		_hover = ""
@@ -537,9 +551,7 @@ func click() -> bool:
 		"lost_found":
 			_office_call("say", ["Lost property, summer '97. Nobody came back for the bear."], null)
 		"front_door":
-			glint.clear()
-			_play("res://assets/sfx/dvereotevrit.mp3", -8.0)
-			host.close_interior()
+			go_out_front()
 		"bed":
 			_try_sleep()
 		"tv":
@@ -586,6 +598,8 @@ func coop_refuse(what: String) -> void:
 ## S or the bottom edge in the back room or the store takes you back to the office,
 ## not outside.
 func handle_exit() -> bool:
+	if _walking():
+		return true
 	if where == "office":
 		return false
 	if not is_modal():
@@ -639,6 +653,50 @@ func go_store() -> void:
 	)
 
 
+## Out by the front door: round the end of the counter, the door swings in, and the
+## dither takes you outside as you step into the doorway, still walking (playtest
+## 18. 10.: a click closed the room on the spot, "standing there").
+func go_out_front() -> void:
+	if _walking() or where != "office":
+		return
+	glint.clear()
+	_play_steps()
+	var desk = host.get("_desk_room")
+	var door: Node3D = desk.front_door() if desk != null else null
+	var dur := FRONT_WALK_SEC
+	# Down to the camp's eye height on the way (it is lower than the office's): the
+	# camp goes on from the same height.
+	var eye: float = host.walk_out_eye_y(FRONT_STEP_OUT, FRONT_STEP_OUT.y) if host.has_method("walk_out_eye_y") else FRONT_STEP_OUT.y
+	_walk = WALK_PATH.play(host, camera, [
+		{"pos": camera.position, "rot": camera.rotation},
+		{"pos": Vector3(1.0, 1.5, 0.98), "rot": Vector3(-0.06, -PI * 0.45, 0.0)},
+		{"pos": Vector3(1.95, 1.49, 0.62), "rot": Vector3(-0.05, -PI * 0.2, 0.0)},
+		{"pos": Vector3(1.86, 1.47, -0.85), "rot": Vector3(-0.02, 0.04, 0.0)},
+		{"pos": Vector3(1.72, lerpf(1.47, eye, 0.6), -1.9), "rot": Vector3.ZERO},
+		{"pos": Vector3(FRONT_STEP_OUT.x, eye, FRONT_STEP_OUT.z), "rot": Vector3.ZERO},
+	], dur)
+	if door != null:
+		_walk.parallel().tween_callback(_play.bind(SFX_FRONT_DOOR, -8.0)).set_delay(dur * 0.38)
+		_walk.parallel().tween_property(door, "rotation_degrees:y", FRONT_DOOR_OPEN_DEG, 0.7) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(dur * 0.38)
+	# Narrowed to the camp's eye on the way, so the dither shows one picture going on.
+	_fov_before_out = camera.fov
+	_walk.parallel().tween_property(camera, "fov", FRONT_OUT_FOV, dur * 0.6).set_delay(dur * 0.15)
+	_leaving = true
+	# The doorway is crossed before the end (process): this only if it never is.
+	_walk.tween_callback(_leave_by_front)
+
+
+## Out of the room while still walking (the doorway's line crossed, process()): the
+## camp takes the walk on under the dither (InteriorManager._walk_on_out_of_office).
+func _leave_by_front() -> void:
+	if not _leaving:
+		return
+	_leaving = false
+	host.set("walked_out", true)
+	host.call_deferred("close_interior")
+
+
 func go_office() -> void:
 	if _walking() or where == "office":
 		return
@@ -683,6 +741,10 @@ func _play_steps() -> void:
 func reset_to_office() -> void:
 	if _walk != null and is_instance_valid(_walk):
 		_walk.kill()
+	_leaving = false
+	if _fov_before_out > 0.0 and camera != null:
+		camera.fov = _fov_before_out
+		_fov_before_out = 0.0
 	where = "office"
 	if _door_pivot != null:
 		_door_pivot.rotation_degrees.y = 0.0

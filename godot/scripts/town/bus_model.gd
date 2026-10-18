@@ -42,6 +42,12 @@ var _wheel_turn := 0.0
 var _night := false
 ## The driver out by the front door on his break, smoking (and his smoke).
 var _driver: Sprite3D
+## He stands looking back along the door side, a little out from it; from behind him
+## (the bus's front, the road ahead) he is his back.
+const DRIVER_BACK := "res://assets/textury/npc/town_driver_back.png"
+const DRIVER_FACING := Vector3(0.5, 0.0, 1.0)
+var _driver_front: Texture2D
+var _driver_back: Texture2D
 var _puffs: Array[Sprite3D] = []
 var _puff_t := 0.0
 ## The sides' materials with their window masks, made once.
@@ -129,7 +135,10 @@ func set_driver_out(out: bool) -> void:
 		if not ResourceLoader.exists(path):
 			return
 		_driver = Sprite3D.new()
-		_driver.texture = load(path)
+		_driver_front = load(path)
+		if ResourceLoader.exists(DRIVER_BACK):
+			_driver_back = load(DRIVER_BACK)
+		_driver.texture = _driver_front
 		_driver.pixel_size = 0.0145
 		_driver.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		_driver.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -211,6 +220,7 @@ func _process(delta: float) -> void:
 	_idle.pitch_scale = 1.0 + minf(0.5, _speed / 20.0)
 	# His smoke: a puff every couple of seconds, rising and spreading in steps.
 	if _driver != null and _driver.visible:
+		_face_driver()
 		_puff_t += delta
 		for i in _puffs.size():
 			var age := fmod(_puff_t + float(i) * 0.6, 2.4)
@@ -220,6 +230,26 @@ func _process(delta: float) -> void:
 			p.position = Vector3(0.12 + ps * 0.25, 1.62 + ps * 0.7, 0.0)
 			p.scale = Vector3.ONE * (0.6 + ps * 1.2)
 			p.modulate.a = clampf(1.0 - ps / 1.8, 0.0, 1.0)
+
+
+func _face_driver() -> void:
+	if _driver_back == null:
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var to_cam := cam.global_position - _driver.global_position
+	to_cam.y = 0.0
+	if to_cam.length_squared() < 0.01:
+		return
+	var facing := global_transform.basis * DRIVER_FACING
+	facing.y = 0.0
+	var d := facing.normalized().dot(to_cam.normalized())
+	# A little slack each way so he does not flicker when seen from his side.
+	if _driver.texture == _driver_front and d < -0.2:
+		_driver.texture = _driver_back
+	elif _driver.texture == _driver_back and d > 0.0:
+		_driver.texture = _driver_front
 
 
 # ── the model ────────────────────────────────────────────────────────────────

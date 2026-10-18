@@ -312,10 +312,19 @@ func _block(at: Vector3, size: Vector3, wall: Material, roof: String = "pitched"
 		for side in [-1.0, 1.0]:
 			var r := _box(root, Vector3(0, size.y + size.z * 0.18, side * size.z * 0.25), Vector3(size.x + 0.5, 0.14, size.z * 0.6), tiles)
 			r.rotation.x = side * 0.62
-		# Gable ends.
+		# Gable ends: triangles under the slopes (the ridge is size.z * 0.354 over the
+		# walls, less the roof's thickness). They were boxes, whose top corners stood out
+		# through the roof at both ends of every house (playtest 18. 10.: "clipping").
+		var rise := size.z * 0.354 - 0.1
 		for end in [-1.0, 1.0]:
-			var g := _box(root, Vector3(end * size.x * 0.5, size.y + size.z * 0.16, 0), Vector3(0.1, size.z * 0.34, size.z * 0.55), wall)
-			g.rotation.x = 0.0
+			var g := MeshInstance3D.new()
+			var pm := PrismMesh.new()
+			pm.size = Vector3(size.z, rise, 0.1)
+			g.mesh = pm
+			g.material_override = wall
+			g.position = Vector3(end * (size.x * 0.5 - 0.05), size.y + rise * 0.5, 0)
+			g.rotation.y = PI * 0.5
+			root.add_child(g)
 	else:
 		_box(root, Vector3(0, size.y + 0.1, 0), Vector3(size.x + 0.3, 0.2, size.z + 0.3), _mat("", Color(0.32, 0.3, 0.28)))
 	return root

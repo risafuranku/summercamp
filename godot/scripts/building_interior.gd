@@ -195,6 +195,8 @@ var _idle_cam_base_rot: Vector3 = Vector3.ZERO
 ## too (the door you came in by, the coat hooks); playtest: "I can't turn right round".
 var _look = INTERIOR_LOOK.new(180.0, 30.0, 38.0)
 var _desk_room
+## Closed by walking out of the front door: InteriorManager's dither keeps coming closer.
+var walked_out := false
 ## The phone, the noticeboard, the door to the back room and the room behind it.
 var _extras
 var _crt_orbit_anchor_pos: Vector3 = Vector3.ZERO
@@ -1241,6 +1243,7 @@ func _build_room() -> void:
 		_extras.back.window_quad.material_override = qm
 	_desk_room = DESK_ROOM.new()
 	_desk_room.build(self, _extras, _room_root)
+	_setup_door_view()
 	_dressing = OFFICE_DRESSING.new()
 	_dressing.build(_room_root)
 	for id in _dressing.hot.keys():
@@ -1842,7 +1845,7 @@ func _make_portal(n: String, px: Vector2i) -> Array:
 
 
 func _bind_window_world(vp: SubViewport = null) -> void:
-	for v in ([vp] if vp != null else [_window_vp, _back_vp]):
+	for v in ([vp] if vp != null else [_window_vp, _back_vp, _door_vp]):
 		if v == null:
 			continue
 		var main := _resolve_main_runtime_host()
@@ -1855,6 +1858,121 @@ func _bind_window_world(vp: SubViewport = null) -> void:
 const BACK_VIEW_SIZE := Vector2i(320, 288)
 var _back_vp: SubViewport
 var _back_cam: Camera3D
+
+## The front doorway (in the window wall, x 1.25..2.2): open, the camp is beyond it
+## (a guest coming in, the warden walking out), not the room's empty sky. Unlike the
+## windows it is seen from right up close, so its view is the room's own eye put in the
+## camp (the camp building has its doorway at the same place), as big as the room's
+## picture, and the doorway shows it where it falls on the screen.
+const DOOR_VIEW_CENTER := Vector3(1.725, 1.05, -2.6)
+const DOOR_VIEW_SIZE_M := Vector2(0.95, 2.1)
+const DOOR_VIEW_SHADER := """
+shader_type spatial;
+render_mode unshaded, cull_disabled;
+uniform sampler2D view : source_color, filter_nearest;
+void fragment() {
+	ALBEDO = texture(view, SCREEN_UV).rgb;
+}
+"""
+var _door_vp: SubViewport
+var _door_cam: Camera3D
+var _door_quad: MeshInstance3D
+
+
+func _setup_door_view() -> void:
+	var made := _make_portal("FrontDoorView", Vector2i(320, 240))
+	_door_vp = made[0]
+	_door_cam = made[1]
+	_door_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+	_door_quad = MeshInstance3D.new()
+	_door_quad.name = "FrontDoorView"
+	var q := QuadMesh.new()
+	q.size = DOOR_VIEW_SIZE_M
+	_door_quad.mesh = q
+	var sh := Shader.new()
+	sh.code = DOOR_VIEW_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	m.set_shader_parameter("view", _door_vp.get_texture())
+	_door_quad.material_override = m
+	_door_quad.position = DOOR_VIEW_CENTER
+	_door_quad.visible = false
+	_room_root.add_child(_door_quad)
+
+
+## The doorway's view: the room's eye, mapped into the camp, at the room picture's size.
+func _aim_door_view(eye_room: Vector3) -> bool:
+	if _viewport == null or _room_root == null:
+		return false
+	# Only from in front of the doorway (the walk out hands over to the camp before it).
+	if eye_room.z < DOOR_VIEW_CENTER.z + 0.02:
+		return false
+	if _door_vp.size != _viewport.size:
+		_door_vp.size = _viewport.size
+	var local := _room_root.global_transform.affine_inverse() * _interior_camera.global_transform
+	_door_cam.global_transform = Transform3D(_portal_xform.basis * local.basis, _portal_xform * local.origin)
+	_door_cam.fov = _interior_camera.fov
+	_door_cam.keep_aspect = _interior_camera.keep_aspect
+	_door_cam.near = _interior_camera.near
+	_door_cam.far = 260.0
+	return true
+
+
+## Walked out by the front door: where the warden is in the camp (a room point on the
+## porch, mapped like the portals) and which way he is going, or {} without the camp.
+func walk_out_pose(room_point: Vector3) -> Dictionary:
+	if not _portal_ok and not _place_window_camera():
+		return {}
+	var dir := _portal_xform.basis * Vector3(0, 0, -1)
+	dir.y = 0.0
+	return {"pos": _portal_xform * room_point, "dir": dir.normalized()}
+
+
+## Where the warden's walk out ends in the camp (room space, off the porch's step).
+const WALK_OUT_LAND := Vector3(1.72, 0.0, -3.7)
+
+
+## The camp's side of the walk out, as body positions: from under the room's eye as it
+## is now to standing at WALK_OUT_LAND, and the way out; {} without the camp.
+func walk_out_handoff() -> Dictionary:
+	var head := _player_ref.get_node_or_null("Head") as Node3D if _player_ref != null else null
+	if head == null or _interior_camera == null or _room_root == null:
+		return {}
+	var eye := _room_root.to_local(_interior_camera.global_position)
+	var a := walk_out_pose(eye)
+	if a.is_empty():
+		return {}
+	var b := walk_out_pose(Vector3(WALK_OUT_LAND.x, walk_out_eye_y(WALK_OUT_LAND, eye.y), WALK_OUT_LAND.z))
+	var lift := Vector3(0.0, head.position.y, 0.0)
+	return {"from": (a["pos"] as Vector3) - lift, "to": (b["pos"] as Vector3) - lift, "dir": a["dir"]}
+
+
+## How high (room y) the camp's eye is with the warden standing at a room point out
+## there: the ground under it, his body's height over the ground where he stands now,
+## his head. The walk out comes down to it, so the camp's view goes on at the same height.
+func walk_out_eye_y(room_point: Vector3, fallback: float) -> float:
+	var pose := walk_out_pose(Vector3(room_point.x, 0.0, room_point.z))
+	if pose.is_empty() or _player_ref == null or not _player_ref.is_inside_tree():
+		return fallback
+	var floor_y: float = (pose["pos"] as Vector3).y
+	var there := _camp_ground_y(pose["pos"])
+	var here := _camp_ground_y(_player_ref.global_position)
+	var head := _player_ref.get_node_or_null("Head") as Node3D
+	if is_nan(there) or is_nan(here) or head == null:
+		return fallback
+	return there + (_player_ref.global_position.y - here) + head.position.y - floor_y
+
+
+func _camp_ground_y(p: Vector3) -> float:
+	var q := PhysicsRayQueryParameters3D.create(p + Vector3(0, 2.0, 0), p + Vector3(0, -3.0, 0))
+	q.exclude = [(_player_ref as CollisionObject3D).get_rid()] if _player_ref is CollisionObject3D else []
+	var hit := _player_ref.get_world_3d().direct_space_state.intersect_ray(q)
+	return float((hit["position"] as Vector3).y) if not hit.is_empty() else NAN
+
+
+func _front_door_open() -> bool:
+	var pivot: Node3D = _desk_room.front_door() if _desk_room != null else null
+	return pivot != null and absf(pivot.rotation_degrees.y) > 1.0
 
 
 ## The window's own frame in room space: origin at its middle, -Z out through it.
@@ -1941,6 +2059,11 @@ func _update_window_portal() -> void:
 			back_on = false
 		back_on = back_on and _aim_portal(_back_cam, _portal_frame(RL.BACK_WINDOW_CENTER, Vector3(-1, 0, 0)), RL.BACK_WINDOW_SIZE, eye_room)
 		_back_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if back_on else SubViewport.UPDATE_DISABLED
+	if _door_cam != null:
+		var door_on: bool = not (_extras != null and _extras.in_back_room()) and _front_door_open()
+		door_on = door_on and _aim_door_view(eye_room)
+		_door_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if door_on else SubViewport.UPDATE_DISABLED
+		_door_quad.visible = door_on
 
 
 func _set_window_view_live(on: bool) -> void:
@@ -1951,6 +2074,9 @@ func _set_window_view_live(on: bool) -> void:
 	_window_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
 	if not on and _back_vp != null:
 		_back_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	if not on and _door_vp != null:
+		_door_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_door_quad.visible = false
 	if _window_quad != null:
 		var mat := _window_quad.material_override as StandardMaterial3D
 		if mat != null:

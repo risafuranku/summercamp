@@ -42,8 +42,9 @@ func _ready() -> void:
 	add_child(_rect)
 
 
-## going_in: through the door into a room; else out of one.
-func play(going_in: bool) -> void:
+## going_in: through the door into a room; else out of one. forward: the frame comes
+## closer going out too (walked out through the door, not stepped back from the room).
+func play(going_in: bool, forward := false) -> void:
 	if _rect == null or DisplayServer.get_name() == "headless":
 		return
 	var vp := get_viewport()
@@ -51,7 +52,7 @@ func play(going_in: bool) -> void:
 	if img == null or img.is_empty():
 		return
 	_rect.texture = ImageTexture.create_from_image(img)
-	_zoom = ZOOM_IN if going_in else ZOOM_OUT
+	_zoom = ZOOM_IN if going_in or forward else ZOOM_OUT
 	_t = 0.0
 	visible = true
 	_apply()

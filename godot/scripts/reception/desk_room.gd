@@ -147,6 +147,13 @@ func on_left_office() -> void:
 	if not _stranger.is_empty():
 		_stranger = {}
 	_stranger_wait = -1.0
+	# The warden went out by it (reception_extras.go_out_front): shut behind him.
+	if _door_t < 0.0 and _door_pivot != null:
+		_door_pivot.rotation_degrees.y = 0.0
+
+
+func front_door() -> Node3D:
+	return _door_pivot
 
 
 # ── every frame (building_interior.gd, while the office is open) ─────────────
@@ -339,11 +346,15 @@ func _build_door() -> void:
 	_door_pivot.name = "FrontDoorPivot"
 	_door_pivot.position = DOOR_HINGE
 	room_root.add_child(_door_pivot)
-	var wood := K.surface("door_wood", 1.0) if ResourceLoader.exists("res://assets/textury/camp/door_wood.png") else K.surface("planks_dark", 0.8)
-	var leaf := K.slab(_door_pivot, Vector3(DOOR_W, 2.05, 0.05), Vector3(-DOOR_W * 0.5, 1.025, 0.0), wood, "FrontDoorLeaf")
-	var handle := K.slab(_door_pivot, Vector3(0.05, 0.05, 0.08), Vector3(-DOOR_W + 0.1, 1.0, 0.05), K.surface("planks_dark", 0.4, Color(0.8, 0.7, 0.4)), "FrontDoorHandle")
+	var leaf := K.slab(_door_pivot, Vector3(DOOR_W, 2.05, 0.05), Vector3(-DOOR_W * 0.5, 1.025, 0.0), K.surface("planks_dark", 0.8), "FrontDoorLeaf")
+	# The painted door once on each face, fixed to the leaf (a world-mapped one tiled it,
+	# two handles and two plates, and slid over the boards as it swung). Its handle is
+	# painted on the right: inside the hinge is on the right, so that face is mirrored.
+	var face_in := K.picture(_door_pivot, "door_wood", Vector2(DOOR_W, 2.05), Vector3(-DOOR_W * 0.5, 1.025, 0.026), 0.0, "FrontDoorFaceIn")
+	(face_in.material_override as StandardMaterial3D).uv1_scale = Vector3(-1.0, 1.0, 1.0)
+	var face_out := K.picture(_door_pivot, "door_wood", Vector2(DOOR_W, 2.05), Vector3(-DOOR_W * 0.5, 1.025, -0.026), 180.0, "FrontDoorFaceOut")
 	# Click it and you go out into the camp, the way you came in (reception_extras).
-	_hot("front_door", DOOR_HINGE + Vector3(-DOOR_W * 0.5, 1.05, 0.05), Vector3(DOOR_W, 2.1, 0.2), [leaf, handle])
+	_hot("front_door", DOOR_HINGE + Vector3(-DOOR_W * 0.5, 1.05, 0.05), Vector3(DOOR_W, 2.1, 0.2), [leaf, face_in, face_out])
 
 
 func _hot(id: String, pos: Vector3, size: Vector3, meshes: Array) -> void:

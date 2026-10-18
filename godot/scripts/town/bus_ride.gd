@@ -602,10 +602,11 @@ func _update_mate() -> void:
 		var tex: Texture2D = LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), pose)
 		_mate.texture = tex
 		if tex != null:
-			var tall := 1.62 if pose == "stand" else 1.25
-			_mate.pixel_size = tall / float(tex.get_height())
+			_mate.pixel_size = 1.62 / float(tex.get_height())
 			_mate.offset = Vector2(0.0, tex.get_height() * 0.5)
 	_mate.position = pos
+	if pose != "stand" and _mate.texture != null:
+		_place_seated(_mate, seat)
 	_mate.visible = true
 
 
@@ -666,15 +667,31 @@ func _seat_passengers() -> void:
 			continue
 		var s := Sprite3D.new()
 		s.texture = load(path)
-		s.pixel_size = 0.0125
 		s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		s.shaded = true
 		s.layers = 2
-		var seat: Vector2 = SEATS[i]
-		s.position = Vector3(seat.x, 0.62, seat.y)
+		_place_seated(s, i)
 		_vp.add_child(s)
 		_passengers.append(s)
+
+
+## Someone sat in seat i: the seated sprite as tall as a sitting grown-up, its seat
+## line (SIT_LINE of it up) on the cushion, a hand in front of the seat so the cushion
+## does not cut the legs (playtest 18. 10.: "sitting too low", only heads over the
+## seat backs; they were 1.2 m and stood in the middle of the seat, down in the cushion).
+const SIT_TALL := 1.32
+const SIT_LINE := 0.375
+const SEAT_TOP := 0.51
+const SIT_FORWARD := 0.17
+
+
+func _place_seated(s: Sprite3D, i: int) -> void:
+	var h := float(s.texture.get_height()) if s.texture != null else 96.0
+	s.pixel_size = SIT_TALL / h
+	s.offset = Vector2(0.0, h * 0.5)
+	var seat: Vector2 = SEATS[i]
+	s.position = Vector3(seat.x, SEAT_TOP - SIT_LINE * SIT_TALL, seat.y - SIT_FORWARD)
 
 
 # ── the bus inside ───────────────────────────────────────────────────────────

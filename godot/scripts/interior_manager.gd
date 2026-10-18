@@ -560,10 +560,50 @@ func _on_interior_visibility_changed() -> void:
 	if _building_interior == null:
 		return
 	if not _building_interior.is_open():
+		if bool(_building_interior.get("walked_out")):
+			_building_interior.set("walked_out", false)
+			if _door_fx != null:
+				_door_fx.play(false, true)
+			if _audio_manager != null and _audio_manager.has_method("play_door_close"):
+				_audio_manager.play_door_close()
+			_walk_on_out_of_office()
+			return
 		_door_transition(false)
 		if _audio_manager != null and _audio_manager.has_method("play_door_close"):
 			_audio_manager.play_door_close()
 		_set_player_controls_enabled(true)
+
+
+## Out of the office's front door on foot (reception_extras.go_out_front): the warden's
+## body is put under the room's eye as the dither starts, facing out, and walks on
+## through the doorway and off the porch under it, so the camp picks the walk up where
+## the room left it (playtest 18. 10.: "absolutely smooth"). Through the building's
+## door body and over the porch with no collisions; the keys are his when he is down.
+const WALK_OUT_SEC := 0.8
+
+
+func _walk_on_out_of_office() -> void:
+	var body := _player as CharacterBody3D
+	var way: Dictionary = _building_interior.walk_out_handoff() if body != null else {}
+	if way.is_empty():
+		_set_player_controls_enabled(true)
+		return
+	var dir: Vector3 = way["dir"]
+	body.global_position = way["from"]
+	body.rotation.y = atan2(-dir.x, -dir.z)
+	body.set("_pitch", 0.0)
+	body.set("_pitch_target", 0.0)
+	body.velocity = Vector3.ZERO
+	var mask := body.collision_mask
+	body.collision_mask = 0
+	var tw := create_tween()
+	tw.tween_property(body, "global_position", way["to"], WALK_OUT_SEC).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(body):
+			body.collision_mask = mask
+			body.velocity = Vector3.ZERO
+		_set_player_controls_enabled(true)
+	)
 
 
 func _on_tent_interact(tent_node: Node) -> void:
@@ -1088,7 +1128,12 @@ func _on_cabin_upgrade_requested() -> void:
 func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String, enabled: bool) -> void:
 	if _building_upgrade_menu == null:
 		return
-	_building_upgrade_menu.open_menu(title_text, desc_text, cost_text, enabled)
+	var room: Node = null
+	for r in [_tent_interior, _cabin_interior, _caravan_interior]:
+		if r != null and is_instance_valid(r) and r.has_method("is_open") and r.is_open():
+			room = r
+			break
+	_building_upgrade_menu.open_menu(title_text, desc_text, cost_text, enabled, room)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 

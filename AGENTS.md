@@ -256,6 +256,17 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 - **Load textures outside draw callbacks**: a texture first `load()`ed inside a `_draw`
   or a `draw` signal handler renders plain white (setup billboard, Display preview).
   Load it when the node is built and draw the cached one.
+- **A panel over a room must mute the room**: rooms read clicks and their way out (S, the
+ bottom band, a right click) in `_input`, which runs before any Button. The upgrade offer
+ (`building_upgrade_menu.gd`) turns off the asking room's `set_process_input` while it is
+ up and closes itself when that room is gone; before that its Close never got the click
+ and S left the room with the panel still on screen and the mouse captured.
+- **The reception's front door is a second portal**: the doorway (`_setup_door_view`) is
+ drawn by a camera that copies the room camera mapped into the camp, at the room
+ viewport's size (the quad samples `SCREEN_UV`), so it stays sharp right up to the
+ dissolve; the camp building's DoorLeaf is on GLASS_LAYER, which portal cameras cull.
+ Walking out sets `walked_out` and the player is put where the room's eye was
+ (`walk_out_handoff`), collisions off for the last step.
 - **The reception window is a portal**, not a picture: `building_interior._update_window_portal`
   moves a camera in the camp every frame; the room's fake Outdoor* boxes stay hidden.
 - **The monitor glass bends the picture**: `CRT_CURVE` in `building_interior.gd` must match

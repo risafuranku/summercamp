@@ -1610,7 +1610,10 @@ func reception(r: Node3D) -> Dictionary:
 
 	# The door: planks in a frame, a step and a porch with a lean-to over it.
 	var dcx := (dx0 + dx1) * 0.5
-	_box(r, "DoorLeaf", Vector3(dx1 - dx0 - 0.08, L.DOOR_H - 0.04, 0.05), Vector3(dcx, L.DOOR_H * 0.5, z1 + t + 0.03), _camp("door_wood.png", Color(0.78, 0.66, 0.52)))
+	var leaf := _box(r, "DoorLeaf", Vector3(dx1 - dx0 - 0.08, L.DOOR_H - 0.04, 0.05), Vector3(dcx, L.DOOR_H * 0.5, z1 + t + 0.03), _camp("door_wood.png", Color(0.78, 0.66, 0.52)))
+	# Like the glass: the office's own door stands in it, and the doorway's view out
+	# (building_interior._setup_door_view) must not see this one shut across it.
+	leaf.layers = GLASS_LAYER
 	_frame(r, "DoorFrame", dx0, dx1, 0.0, L.DOOR_H, z1 + t + 0.02, trim, false)
 	var porch_x0 := x0 - 0.1
 	var porch_x1 := wx0 - 0.25
