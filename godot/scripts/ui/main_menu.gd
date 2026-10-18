@@ -16,7 +16,8 @@ extends CanvasLayer
 ##
 ## Pages: main, load, coop, options, controls. CO-OP (scripts/coop/coop.gd): host a
 ## sandbox camp (this machine's addresses beside it, for the other warden) or join one
-## (the address is typed straight into the row); who you are and your jacket's colour
+## (Join opens a direct-connect window: the host's address, the last one filled in; it
+## can also be typed straight into the row); who you are and your jacket's colour
 ## (left / right, the warden drawn beside the rows: scripts/coop/warden_looks.gd). A loading plate covers everything while main
 ## builds the world. main.gd owns what the choices *do*; this script only reports them.
 
@@ -73,6 +74,9 @@ var _coop_address := ""
 var _coop_caret_t := 0.0
 var _coop_preview: TextureRect
 var _coop_last_path := ""
+## Direct connect: the window over the CO-OP page with the address field.
+var _connect_box: Control
+var _connect_field: LineEdit
 var _loading: Control
 var _loading_label: Label
 var _loading_tip: Label
@@ -114,6 +118,8 @@ func close() -> void:
 func show_page(page: String) -> void:
 	_page = page
 	_save_delete_armed = false
+	if _connect_box != null:
+		_connect_box.visible = false
 	if _main_list == null:
 		return
 	_main_list.get_parent().visible = page == "main"
@@ -288,6 +294,7 @@ func _rebuild() -> void:
 	_coop_notice = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale)
 	_coop_notice.position = Vector2(_vp(8), plate_h - _vp(13))
 	_coop_page.add_child(_coop_notice)
+	_build_connect_box()
 
 	# OPTIONS
 	_options_page = _page_frame("CONFIGURATION", plate_h)
@@ -699,11 +706,7 @@ func _on_coop_activated(id: String) -> void:
 				_coop_notice.text = ""
 			coop_host_saved_requested.emit(_coop_last_path)
 		"join":
-			if _coop_address.strip_edges().is_empty():
-				return
-			if _coop_notice != null:
-				_coop_notice.text = ""
-			coop_join_requested.emit(_coop_address.strip_edges())
+			_open_connect_box()
 		"warden", "jacket":
 			_coop_cycle(id, 1)
 		"back":
@@ -713,6 +716,11 @@ func _on_coop_activated(id: String) -> void:
 ## The address is typed straight into the Join row (digits, letters, . : -), Backspace,
 ## Ctrl+V; the rows move with the arrows; Esc goes back.
 func _handle_coop_input(event: InputEvent) -> bool:
+	if _connect_box != null and _connect_box.visible:
+		# The field has the keys; Esc closes the window.
+		if event.is_action_pressed("ui_cancel"):
+			_close_connect_box()
+		return true
 	if event.is_action_pressed("ui_cancel"):
 		show_page("main")
 		return true
@@ -747,6 +755,88 @@ func _handle_coop_input(event: InputEvent) -> bool:
 	if used:
 		_refresh_coop_address()
 	return used
+
+
+# ── direct connect ────────────────────────────────────────────────────────────
+
+func _build_connect_box() -> void:
+	_connect_box = Control.new()
+	_connect_box.name = "DirectConnect"
+	_connect_box.size = _coop_page.size
+	_connect_box.mouse_filter = Control.MOUSE_FILTER_STOP
+	_connect_box.visible = false
+	_coop_page.add_child(_connect_box)
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.0, 0.0, 0.55)
+	dim.size = _coop_page.size
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_connect_box.add_child(dim)
+	var plate := RETRO_UI.BevelPanel.new()
+	plate.ui_scale = _scale
+	plate.fill = Color(0.07, 0.06, 0.05, 0.98)
+	plate.light = RETRO_UI.C_PANEL_LIGHT
+	plate.dark = Color(0.0, 0.0, 0.0, 1.0)
+	plate.size = Vector2(minf(_vp(200), _coop_page.size.x - _vp(12)), _vp(76))
+	plate.position = ((_coop_page.size - plate.size) * 0.5 / float(_scale)).floor() * float(_scale)
+	_connect_box.add_child(plate)
+	var title := RETRO_UI.label("DIRECT CONNECT", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
+	title.position = Vector2(_vp(8), _vp(6))
+	plate.add_child(title)
+	_connect_field = LineEdit.new()
+	_connect_field.placeholder_text = "192.168.0.10"
+	_connect_field.max_length = 60
+	_connect_field.position = Vector2(_vp(8), _vp(22))
+	_connect_field.size = Vector2(plate.size.x - _vp(16), _vp(18))
+	_connect_field.add_theme_font_override("font", RETRO_UI.FONT_TEXT)
+	_connect_field.add_theme_font_size_override("font_size", RETRO_UI.SIZE_TEXT * _scale)
+	_connect_field.add_theme_color_override("font_color", RETRO_UI.C_BONE)
+	_connect_field.add_theme_color_override("font_placeholder_color", RETRO_UI.C_BONE_DIM.darkened(0.3))
+	_connect_field.add_theme_color_override("caret_color", RETRO_UI.C_AMBER)
+	_connect_field.add_theme_stylebox_override("normal", RETRO_UI.flat_box(RETRO_UI.C_LCD, RETRO_UI.C_PLATE_LIGHT.darkened(0.3), _scale))
+	_connect_field.add_theme_stylebox_override("focus", RETRO_UI.flat_box(RETRO_UI.C_LCD, RETRO_UI.C_AMBER, _scale))
+	_connect_field.text_submitted.connect(func(_t: String) -> void: _connect_now())
+	plate.add_child(_connect_field)
+	var go := Button.new()
+	go.text = "Connect"
+	RETRO_UI.style_button(go, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, _scale)
+	go.size = Vector2(_vp(70), _vp(16))
+	go.position = Vector2(plate.size.x - _vp(8) - go.size.x * 2.0 - _vp(6), plate.size.y - _vp(24))
+	go.pressed.connect(_connect_now)
+	plate.add_child(go)
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	RETRO_UI.style_button(cancel, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, _scale)
+	cancel.size = go.size
+	cancel.position = Vector2(plate.size.x - _vp(8) - cancel.size.x, go.position.y)
+	cancel.pressed.connect(_close_connect_box)
+	plate.add_child(cancel)
+
+
+func _open_connect_box() -> void:
+	if _connect_box == null:
+		return
+	if _coop_notice != null:
+		_coop_notice.text = ""
+	_connect_field.text = _coop_address.strip_edges()
+	_connect_box.visible = true
+	_connect_field.grab_focus()
+	_connect_field.caret_column = _connect_field.text.length()
+
+
+func _close_connect_box() -> void:
+	if _connect_box != null:
+		_connect_box.visible = false
+	_refresh_coop_address()
+
+
+func _connect_now() -> void:
+	var address := _connect_field.text.strip_edges()
+	if address.is_empty():
+		_connect_field.grab_focus()
+		return
+	_coop_address = address
+	_close_connect_box()
+	coop_join_requested.emit(address)
 
 
 static func _address_char(ch: String) -> bool:
