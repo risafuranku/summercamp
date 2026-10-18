@@ -3,7 +3,11 @@ extends Node
 ## The PS1/Build look on every surface in the game's 3D (playtest 17. 10.: "wobbly vertex
 ## edges, textures stretching with the view, sprites lit properly by the lamps, the torch
 ## on the corn, real mood"):
-##   - vertices snap to a coarse grid on the screen, so edges shiver as the view moves;
+##   - vertices snap to a coarse grid on the screen, so edges shiver as the view moves
+##     (not the ground and what lies flat on it: the ground box, the grass overlay 3 cm
+##     over it, paths and verges are a few huge triangles each, and snapped apart they
+##     cut through each other and flickered; nor the tiny grass tufts, which blinked
+##     from one grid cell to the next: playtest 18. 10.);
 ##   - textures are mapped affine (as the PlayStation did), so they swim and stretch with
 ##     the angle you see them at (less on big surfaces, none on the ground);
 ##   - sprites, cut-outs and the corn are lit by every lamp and the torch whichever way
@@ -22,6 +26,9 @@ const SNAP_LINES := 150.0
 const AFFINE := 0.6
 const CHECK_PER_FRAME := 400
 const HOT_SECONDS := 4.0
+## Size buckets (how much a surface may swim and shiver): 0 small, 1 medium, 2 big (the
+## ground, the lake), 3 lying flat on the ground or a tiny tuft: neither swims nor snaps.
+const B_FLAT := 3
 
 var enabled := true
 var _shaders: Dictionary = {}       # variant key -> Shader
@@ -90,7 +97,7 @@ func _process(delta: float) -> void:
 		var cur = (mmi as MultiMeshInstance3D).material_override
 		if cur != mr["over"]:
 			mr["over"] = cur
-			var cm := _converted(cur, 1)
+			var cm := _converted(cur, int(mr.get("big", 1)))
 			RenderingServer.instance_geometry_set_material_override(mmi.get_instance(), cm.get_rid() if cm != null else (cur.get_rid() if cur != null else RID()))
 		elif cur is StandardMaterial3D:
 			for c in _by_std.get((cur as Object).get_instance_id(), []):
@@ -133,10 +140,22 @@ func _track_multi(mmi: MultiMeshInstance3D) -> void:
 	var over := mmi.material_override
 	if not rid.is_valid() or over == null:
 		return
-	var m := _converted(over, 1)
+	var big := _multi_bucket(mmi)
+	var m := _converted(over, big)
 	if m != null:
 		RenderingServer.instance_geometry_set_material_override(rid, m.get_rid())
-		_multis.append({"node": weakref(mmi), "over": over})
+		_multis.append({"node": weakref(mmi), "over": over, "big": big})
+
+
+## Grass tufts and the like (each piece under a metre) do not snap; the corn and the
+## forest walls do.
+func _multi_bucket(mmi: MultiMeshInstance3D) -> int:
+	var mm := mmi.multimesh
+	if mm != null and mm.mesh != null:
+		var a := mm.mesh.get_aabb()
+		if maxf(a.size.x, maxf(a.size.y, a.size.z)) < 0.8:
+			return B_FLAT
+	return 1
 
 
 func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
@@ -198,6 +217,10 @@ func _bucket(mi: MeshInstance3D) -> int:
 	var a := mi.get_aabb()
 	var s := mi.global_transform.basis.get_scale()
 	var longest := maxf(a.size.x * s.x, maxf(a.size.y * s.y, a.size.z * s.z))
+	# Lying flat on the ground (a path, a verge, the grass overlay, a decal).
+	var lowest := (mi.global_transform * a.position).y
+	if a.size.y * s.y < 0.12 and longest > 0.5 and lowest < 0.6 and absf(mi.global_basis.y.normalized().y) > 0.9:
+		return B_FLAT
 	if longest > 24.0:
 		return 2
 	if longest > 6.0:
@@ -215,7 +238,10 @@ func _track_sprite(s: Sprite3D) -> void:
 	m.set_shader_parameter("albedo_tex", s.texture)
 	m.set_shader_parameter("has_tex", s.texture != null)
 	m.set_shader_parameter("albedo_color", Color(1, 1, 1, 1))
-	m.set_shader_parameter("snap_lines", SNAP_LINES)
+	# A sprite laid flat on the floor (litter, a puddle) does not snap: it would flicker
+	# against the floor under it.
+	var flat := s.billboard == BaseMaterial3D.BILLBOARD_DISABLED and absf(s.global_basis.z.normalized().y) > 0.9
+	m.set_shader_parameter("snap_lines", 0.0 if flat else SNAP_LINES)
 	m.set_shader_parameter("affine", 0.0)
 	RenderingServer.instance_geometry_set_material_override(rid, m.get_rid())
 	_sprites.append({"node": weakref(s), "mat": m, "tex": s.texture, "key": key})
@@ -326,9 +352,9 @@ func _sync(c: Dictionary, force := false) -> void:
 	m.set_shader_parameter("emission_energy", std.emission_energy_multiplier if std.emission_enabled else 0.0)
 	m.set_shader_parameter("emission_tex", std.emission_texture)
 	m.set_shader_parameter("has_emission_tex", std.emission_texture != null)
-	m.set_shader_parameter("snap_lines", SNAP_LINES)
 	var big: int = c["big"]
-	m.set_shader_parameter("affine", [AFFINE, AFFINE * 0.3, 0.0][big] if not std.uv1_triplanar else [AFFINE * 0.7, AFFINE * 0.2, 0.0][big])
+	m.set_shader_parameter("snap_lines", SNAP_LINES if big < 2 else 0.0)
+	m.set_shader_parameter("affine", [AFFINE, AFFINE * 0.3, 0.0, 0.0][big] if not std.uv1_triplanar else [AFFINE * 0.7, AFFINE * 0.2, 0.0, 0.0][big])
 
 
 ## One shader per combination of render modes and features.
