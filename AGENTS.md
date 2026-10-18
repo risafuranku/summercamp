@@ -306,6 +306,15 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   counted there (`main._coop_follow_till`: any change of `state.money` on that machine goes
   over as a numbered "till" delta, the host's clock says up to which it counted). So
   spending or earning on that machine needs no forwarding of its own.
+- **The warden in an attraction** (`scripts/attractions/warden_play.gd`): the attraction
+  places a stand-in through its own `pose_member(0, key, ...)` with a warden key (-11 the
+  host's warden, -12 the other's: keys below 0 are never guests, nor counted in
+  `guests_here`); each attraction answers `warden_offer/join/leave/slot/force/focus/press`
+  (+ `warden_pose/hint/exit/done/hold/extra` where it has them). The other machine's
+  warden is put in with `warden_force` (their place there) and drawn from
+  `mate_place()` (remote_player.gd, state "att"). The ball games are the host's in
+  co-op: `_launch` sends each flight (`Coop.send_play` "shot"), the other machine only
+  follows (`coop_take_shot`) and sends its swings ("press").
 - **Co-op bus** (`bus_ride.gd`, `town_trip.gd`): each machine runs its own ride; the
   warden state's `bus` ({st, s, go}: stop, seat, under way) is what the other sees. A
   partner aboard and not gone turns that stop's bus into a "hold" special

@@ -487,6 +487,22 @@ func _fact(kind: String, data: Array) -> void:
 		main.coop_apply_fact(kind, data)
 
 
+## The camp's attractions for two (scripts/attractions/warden_play.gd), both ways: the
+## host's ball in flight, the other's swing at it, a log on the fire.
+func send_play(kind: String, data: Array) -> void:
+	if role != Role.NONE and remote_id != 0:
+		_play.rpc_id(remote_id, kind, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _play(kind: String, data: Array) -> void:
+	if multiplayer.get_remote_sender_id() != remote_id:
+		return
+	var wp := get_tree().get_first_node_in_group("warden_play")
+	if wp != null:
+		wp.coop_play(kind, data)
+
+
 ## The host's clock and weather, a few times a second.
 @rpc("authority", "call_remote", "unreliable_ordered", 2)
 func _clock(c: Dictionary) -> void:

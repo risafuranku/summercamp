@@ -523,6 +523,10 @@ through for two (TODO.md, CO-OP).
   standing, rowing, sweeping, down on a knee scrubbing, lying on their belly, at the PC and sitting.
 - **Rooms for two.** Each warden sees a room from where they stand in it; the other is
   in it too: across the room, or at the job they are doing (with the broom, on a knee).
+- **The attractions for two.** Either warden can sit by the fire, swing, go down the
+  slide, play nohejbal or ping-pong, as the guests do, and each sees the other there
+  (strumming, roasting, on the ladder, in the kick). A ball between them is one ball: the
+  host's, each one's kick at it their own.
 - **One bus.** The bus does not leave while either warden is on it buying a ticket or
   finding a seat, and once one sits it waits a little for the other if they are on it or
   coming down the road ("Your mate coming or what?"). They ride it together, each seeing

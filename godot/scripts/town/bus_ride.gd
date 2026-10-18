@@ -26,7 +26,7 @@ signal left_bus
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
-const CAM_MOVE = preload("res://scripts/ui/cam_move.gd")
+const STEP12 = preload("res://scripts/ui/step12.gd")
 const SCENERY = preload("res://scripts/town/ride_scenery.gd")
 const TICKET = preload("res://scripts/town/ticket_closeup.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
@@ -518,7 +518,7 @@ func _try_sit(i: int) -> void:
 	var pos := _seat_pos()
 	var face := pos + Vector3(1.3 if SEATS[i].x > 0.0 else -1.3, -0.1, -1.3)
 	var rot := Transform3D(Basis(), pos).looking_at(face, Vector3.UP).basis.get_euler()
-	CAM_MOVE.move(self, _cam, {"position": pos, "rotation": rot}, 0.7, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+	STEP12.move(self, _cam, {"position": pos, "rotation": rot}, 0.7, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
 	_play("door_close.mp3", -2.0)
 	get_tree().create_timer(0.75).timeout.connect(func():
 		if _state != SITTING:

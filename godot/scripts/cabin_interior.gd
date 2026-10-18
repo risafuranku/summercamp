@@ -1,6 +1,7 @@
 extends CanvasLayer
 
-## The room swipe is a smooth push (scripts/ui/room_push.gd).
+## The room swipe moves in steps, twelve a second (scripts/ui/step12.gd).
+const STEP12 = preload("res://scripts/ui/step12.gd")
 const ROOM_PUSH = preload("res://scripts/ui/room_push.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const SLOP_BUCKET_POS := Vector3(1.12, 0.05, 0.62)

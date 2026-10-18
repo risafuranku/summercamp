@@ -45,6 +45,9 @@ const THREAT_SENSES_SCRIPT = preload("res://scripts/threat_senses.gd")
 const NIGHT_JOBS_SCRIPT = preload("res://scripts/night_jobs.gd")
 const CAMP_OFFICE_SCRIPT = preload("res://scripts/reception/camp_office.gd")
 const LAKE_TRIP_SCRIPT = preload("res://scripts/lake/lake_trip.gd")
+## The warden in the attractions (by the fire, the swing, the slide, the court).
+const WARDEN_PLAY_SCRIPT = preload("res://scripts/attractions/warden_play.gd")
+var _warden_play: Node
 ## Nights with nothing out there (and no night jobs): the first one.
 const QUIET_NIGHTS := 1
 const DAY_EVENTS_SCRIPT = preload("res://scripts/day_events.gd")
@@ -456,6 +459,11 @@ func _setup_night_jobs() -> void:
 		_lake_trip.name = "LakeTrip"
 		add_child(_lake_trip)
 		_lake_trip.setup(self)
+	if _warden_play == null or not is_instance_valid(_warden_play):
+		_warden_play = WARDEN_PLAY_SCRIPT.new()
+		_warden_play.name = "WardenPlay"
+		add_child(_warden_play)
+		_warden_play.setup(self)
 	if camp_office == null or not is_instance_valid(camp_office):
 		camp_office = CAMP_OFFICE_SCRIPT.new()
 		camp_office.name = "CampOffice"
@@ -1099,7 +1107,7 @@ func _process(delta: float) -> void:
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(not _is_any_interior_open(), true)
 	_update_player_control_lock()
-	if not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()):
+	if not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _in_attraction():
 		_sync_active_camera()
 	_update_interaction_hint()
 	_update_torch_hand()
@@ -3101,6 +3109,8 @@ func _try_interact() -> void:
 		return
 	if _lake_trip != null and not _is_any_interior_open() and _lake_trip.try_interact():
 		return
+	if _in_attraction() and _warden_play.try_interact():
+		return
 	if _day_events != null and not _is_any_interior_open() and _day_events.try_interact():
 		return
 	var corn := _corn_field()
@@ -3118,6 +3128,8 @@ func _try_interact() -> void:
 				_hud_manager.push_status("%s: \"We are waiting for the desk. Is anyone in there?\"" % str(guest_in_view.get("name", "Guest")), 0, "arrivals")
 		else:
 			_talk_to_guest(guest_in_view)
+		return
+	if _warden_play != null and not _is_any_interior_open() and _warden_play.try_interact():
 		return
 	if _interaction_controller == null or not _interaction_controller.has_method("resolve_interaction"):
 		return
@@ -3173,7 +3185,12 @@ func _is_structure_interior_open() -> bool:
 func _update_player_control_lock() -> void:
 	if _player == null or not _player.has_method("set_controls_enabled"):
 		return
-	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up())
+	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up() and not _in_attraction())
+
+
+## Sat by the fire, on the swing, at the net... (scripts/attractions/warden_play.gd).
+func _in_attraction() -> bool:
+	return _warden_play != null and is_instance_valid(_warden_play) and _warden_play.is_active()
 
 ## The torch hand at the bottom right while the torch is on outdoors (scripts/ui/torch_hand.gd).
 var _torch_hand: CanvasLayer
@@ -3377,7 +3394,7 @@ func _update_torch_hand() -> void:
 		add_child(_torch_hand)
 	var on: bool = _gameplay_started and not _menu_mode and _player != null and _player.has_method("is_flashlight_active") \
 		and bool(_player.is_flashlight_active()) and not _is_any_interior_open() \
-		and not (_lake_trip != null and _lake_trip.is_active()) and not get_tree().paused \
+		and not (_lake_trip != null and _lake_trip.is_active()) and not get_tree().paused and not _in_attraction() \
 		and not (_sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open())
 	_torch_hand.show_torch(on)
 	if not on:
@@ -3408,6 +3425,9 @@ func _update_interaction_hint() -> void:
 	if not lake_hint.is_empty():
 		_hud_manager.set_hint_text(lake_hint)
 		return
+	if _in_attraction():
+		_hud_manager.set_hint_text(str(_warden_play.hint()))
+		return
 	var day_hint: String = _day_events.hint() if _day_events != null else ""
 	if not day_hint.is_empty():
 		_hud_manager.set_hint_text(day_hint)
@@ -3418,6 +3438,10 @@ func _update_interaction_hint() -> void:
 			_hud_manager.set_hint_text("[E] Check in %s" % str(guest_in_view.get("name", "guest")))
 		else:
 			_hud_manager.set_hint_text("[E] Talk to %s" % str(guest_in_view.get("name", "guest")))
+		return
+	var play_hint: String = _warden_play.hint() if _warden_play != null else ""
+	if not play_hint.is_empty():
+		_hud_manager.set_hint_text(play_hint)
 		return
 	if _interaction_controller == null or not _interaction_controller.has_method("build_hint_text"):
 		_hud_manager.set_hint_text("")
@@ -4290,6 +4314,8 @@ func _coop_flush_facts() -> void:
 func _coop_client_interact() -> void:
 	if _lake_trip != null and not _is_any_interior_open() and _lake_trip.try_interact():
 		return
+	if _in_attraction() and _warden_play.try_interact():
+		return
 	# The guest lost in the corn (the host's): take them by the arm.
 	if _coop_corn_guest_near() != null:
 		Coop.send_request("corn_take", [])
@@ -4309,6 +4335,9 @@ func _coop_client_interact() -> void:
 			else:
 				_talk_to_guest(guest_in_view)
 			return
+	# The attractions: in them on this machine, seen in them on the host's.
+	if _warden_play != null and not _is_any_interior_open() and _warden_play.try_interact():
+		return
 	var st := _coop_client_room_target()
 	if st != null:
 		_handle_structure_interior_interact(st)
@@ -4317,6 +4346,8 @@ func _coop_client_interact() -> void:
 func _coop_client_hint() -> String:
 	if _is_any_interior_open():
 		return ""
+	if _in_attraction():
+		return str(_warden_play.hint())
 	if _coop_corn_guest_near() != null:
 		return "[E] Take them by the arm"
 	var day_hint: String = _day_events.hint() if _day_events != null else ""
@@ -4326,6 +4357,8 @@ func _coop_client_hint() -> String:
 	if not guest_in_view.is_empty():
 		return ("[E] Check in %s" if str(guest_in_view.get("status", "")) == "waiting" else "[E] Talk to %s") % str(guest_in_view.get("name", "guest"))
 	var h: String = _lake_trip.hint() if _lake_trip != null else ""
+	if h.is_empty() and _warden_play != null:
+		h = str(_warden_play.hint())
 	if h.is_empty() and _coop_client_room_target() != null and _interaction_controller.has_method("build_hint_text"):
 		h = str(_interaction_controller.build_hint_text(INTERACT_DISTANCE, false))
 	return h
@@ -4409,6 +4442,10 @@ func coop_local_warden() -> Dictionary:
 	var bus: Dictionary = trip.coop_state() if trip != null and trip.has_method("coop_state") else {}
 	if not bus.is_empty():
 		s["bus"] = bus
+	# In an attraction: the other machine places you in it (scripts/attractions/warden_play.gd).
+	var att: Dictionary = _warden_play.coop_state() if _warden_play != null and is_instance_valid(_warden_play) else {}
+	if not att.is_empty():
+		s["att"] = att
 	# In bed (the night passes only when both are: camp_office.gd).
 	if camp_office != null and is_instance_valid(camp_office) and camp_office.in_bed():
 		s["z"] = true

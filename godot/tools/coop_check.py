@@ -103,6 +103,28 @@ def main():
         if not any(x.startswith("tent_1@(13, 16)") for x in hb["structures"]):
             failures.append("the host's tent was not built")
         diff_list("buildings after the build", hb["structures"], cb["structures"], failures)
+    # By the fire: each sees the other sitting there; the other's sausage out (the host's
+    # logs lit it on both). On the court: each one's kicks on both machines.
+    hf, cf = load("host_fire"), load("client_fire")
+    if hf is None or cf is None:
+        failures.append("missing fire fingerprints")
+    else:
+        if not hf["att_me"] or not cf["att_me"] or hf["att_me"]["id"] != "11,12" or cf["att_me"]["id"] != "11,12":
+            failures.append("not both by the fire (host %s, client %s)" % (hf["att_me"], cf["att_me"]))
+        if hf["att_mate"] not in ("sit", "eat") or cf["att_mate"] not in ("sit", "eat", "guitar"):
+            failures.append("the other warden is not seen sitting by the fire (host sees %r, client sees %r)" % (hf["att_mate"], cf["att_mate"]))
+        if not cf["att_me"].get("x", {}).get("ro", False):
+            failures.append("the other warden's sausage is not out over the fire (%s)" % cf["att_me"])
+    hc, cc = load("host_court"), load("client_court")
+    if hc is None or cc is None:
+        failures.append("missing court fingerprints")
+    else:
+        if -12 not in hc["court_kicked"]:
+            failures.append("the other warden's kicks did not reach the host's court %s" % hc["court_kicked"])
+        if -11 not in cc["court_kicked"]:
+            failures.append("the host's kicks are not seen on the other court %s" % cc["court_kicked"])
+        if not hc["att_mate"] or not cc["att_mate"]:
+            failures.append("the other warden is not seen on the court (host %r, client %r)" % (hc["att_mate"], cc["att_mate"]))
     # The room: the other's job done in the host's camp, the host's back in the other's.
     hr, cr = load("host_room"), load("client_room")
     if hr is None or cr is None:

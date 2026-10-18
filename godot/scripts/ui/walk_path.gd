@@ -16,7 +16,6 @@ extends RefCounted
 
 ## A step is this long (metres); the bob dips once per step.
 const STRIDE := 0.68
-const CAM_MOVE = preload("res://scripts/ui/cam_move.gd")
 const BOB := 0.016
 const SWAY := 0.006
 
@@ -64,8 +63,6 @@ static func play(host: Node, camera: Camera3D, keys: Array, duration: float) -> 
 	var tw := host.create_tween()
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_method(apply, 0.0, 1.0, duration)
-	# The room on the other side is often built this frame: walk from a steady one.
-	CAM_MOVE.hold(host, tw)
 	return tw
 
 

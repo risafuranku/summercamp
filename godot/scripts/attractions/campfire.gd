@@ -407,7 +407,10 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 	var base := str(info.get("sprite_path", ""))
 	var pose := "sit"
 	var beat := floorf(t * 8.0) / 8.0
-	if arche == "tramp" and is_lit() and i == 0:
+	if key < 0:
+		# A warden: sat, the sausage out only when they hold it out (warden_press).
+		pass
+	elif arche == "tramp" and is_lit() and i == 0:
 		pose = "guitar"
 	elif fmod(beat + float(key) * 3.1, 11.0) < 1.8:
 		pose = "drink"
@@ -415,7 +418,7 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 	if sprite != null:
 		# Strumming: a little bob on the beat; everyone else sways a touch.
 		sprite.position.y = (0.012 if int(beat * 4.0) % 2 == 0 else 0.0) if pose == "guitar" else 0.0
-	_stick_for(key, member.global_position, dir, pose == "sit" and is_lit(), t)
+	_stick_for(key, member.global_position, dir, pose == "sit" and is_lit() and (key >= 0 or bool(_roast.get(key, false))), t)
 	return true
 
 
@@ -476,7 +479,8 @@ func _free_left_seats() -> void:
 		if not st.is_empty():
 			(st["node"] as Node).queue_free()
 			_sticks.erase(key)
-	guests_here = _seen.size()
+	# Guests (a warden alone does not light it: they put a log on).
+	guests_here = _seen.keys().filter(func(k): return int(k) >= 0).size()
 	var roasting := false
 	for st in _sticks.values():
 		if (st["node"] as Node3D).visible:
@@ -486,6 +490,104 @@ func _free_left_seats() -> void:
 			_sizzle.play()
 		elif not roasting and _sizzle.playing:
 			_sizzle.stop()
+
+
+# ── a warden by the fire (scripts/attractions/warden_play.gd) ────────────────
+
+## Warden key -> their sausage held out over the coals.
+var _roast: Dictionary = {}
+
+
+## By the woodpile: a log on; near the fire: a seat.
+func warden_offer(at: Vector3) -> Dictionary:
+	var pile := pile_position()
+	var dp := Vector2(at.x - pile.x, at.z - pile.z).length()
+	var df := Vector2(at.x - global_position.x, at.z - global_position.z).length()
+	if dp < 1.5 and logs_left > 0 and dp < df:
+		return {"verb": "Put a log on", "act": "log", "d": dp}
+	if df < 3.4:
+		return {"verb": "Sit by the fire", "act": "join", "d": df}
+	return {}
+
+
+## The free seat nearest to `at`.
+func warden_join(key: int, at: Vector3) -> bool:
+	if _seats.is_empty():
+		_seats = seats()
+	var taken := _seat_of.values()
+	var best := -1
+	for idx in _seats.size():
+		if taken.has(idx):
+			continue
+		var p: Vector3 = _seats[idx]["pos"]
+		if best < 0 or p.distance_to(at) < (_seats[best]["pos"] as Vector3).distance_to(at):
+			best = idx
+	if best < 0:
+		return false
+	_seat_of[key] = best
+	_seen[key] = _clock
+	return true
+
+
+func warden_slot(key: int) -> int:
+	return int(_seat_of.get(key, -1))
+
+
+## The other machine's warden: on the seat they have there (a guest in it moves up).
+func warden_force(key: int, slot: int, x: Dictionary) -> void:
+	_roast[key] = bool(x.get("ro", false))
+	if slot < 0 or slot >= _seats.size() or int(_seat_of.get(key, -1)) == slot:
+		return
+	for k in _seat_of.keys():
+		if int(_seat_of[k]) == slot and k != key:
+			_seat_of.erase(k)
+			var st: Dictionary = _sticks.get(k, {})
+			if not st.is_empty():
+				(st["node"] as Node).queue_free()
+				_sticks.erase(k)
+	_seat_of[key] = slot
+	_seen[key] = _clock
+
+
+func warden_extra(key: int) -> Dictionary:
+	return {"ro": bool(_roast.get(key, false))}
+
+
+func warden_leave(key: int) -> void:
+	_seat_of.erase(key)
+	_seen.erase(key)
+	_roast.erase(key)
+	var st: Dictionary = _sticks.get(key, {})
+	if not st.is_empty():
+		(st["node"] as Node).queue_free()
+		_sticks.erase(key)
+
+
+func warden_focus(_key: int) -> Vector3:
+	return global_position + Vector3(0.0, 0.35, 0.0)
+
+
+## LMB: the sausage out over the coals; done, eaten ("eat"); not yet, pulled back.
+func warden_press(key: int) -> String:
+	if not is_lit():
+		return ""
+	var st: Dictionary = _sticks.get(key, {})
+	if bool(_roast.get(key, false)) and not st.is_empty() and float(st["cook"]) >= 1.0:
+		_roast[key] = false
+		(st["node"] as Node).queue_free()
+		_sticks.erase(key)
+		return "eat"
+	_roast[key] = not bool(_roast.get(key, false))
+	return "roast" if _roast[key] else ""
+
+
+func warden_hint(key: int) -> String:
+	if not is_lit():
+		return "[E] Put a log on" if logs_left > 0 else ""
+	var st: Dictionary = _sticks.get(key, {})
+	if bool(_roast.get(key, false)) and not st.is_empty() and float(st["cook"]) >= 1.0:
+		return "[LMB] Eat it"
+	return "" if bool(_roast.get(key, false)) else "[LMB] A sausage   [Q] Guitar"
 
 
 ## Where the woodpile is (for E): global.

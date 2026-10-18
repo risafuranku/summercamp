@@ -137,6 +137,9 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 			var out := _pool + Vector3(0, 0, _pool_r + 0.45)
 			pos = (_pool + Vector3(-0.25, 0, 0)).lerp(out, k)
 			sink = maxf(0.0, 0.45 * (1.0 - k * 1.4))
+		"out":
+			# A warden off the ride: stood on the rim, done (warden_play gets them up).
+			pos = _pool + Vector3(0, 0, _pool_r + 0.45)
 		"walk":
 			var from := _pool + Vector3(0, 0, _pool_r + 0.45)
 			var to := _ladder_foot + Vector3(-0.55, 0, 0.6)
@@ -197,7 +200,7 @@ func _process(delta: float) -> void:
 			_riders.erase(key)
 			if _busy == key:
 				_busy = -1
-	guests_here = _seen.size()
+	guests_here = _seen.keys().filter(func(k): return int(k) >= 0).size()
 	_advance()
 
 
@@ -217,7 +220,9 @@ func _advance() -> void:
 				if done:
 					_to_state(rd, "top")
 			"top":
-				if done:
+				# A warden pushes off when they will (LMB), or soon anyway.
+				if done and (int(key) >= 0 or bool(_push.get(key, false)) or _clock - float(rd["t0"]) > 6.0):
+					_push.erase(key)
 					_to_state(rd, "slide")
 					_play(SFX_WHOOSH, -6.0, _rng.randf_range(0.92, 1.08), _chute[_chute.size() >> 1])
 			"slide":
@@ -230,7 +235,7 @@ func _advance() -> void:
 					_to_state(rd, "wade")
 			"wade":
 				if done:
-					_to_state(rd, "walk")
+					_to_state(rd, "out" if int(key) < 0 else "walk")
 			"walk":
 				if done:
 					_to_state(rd, "queue")
@@ -306,3 +311,116 @@ func _play(path: String, db: float, pitch: float, at: Vector3) -> void:
 	_audio.pitch_scale = pitch
 	_audio.global_position = (get_parent() as Node3D).to_global(at)
 	_audio.play()
+
+
+# ── a warden on the slide (scripts/attractions/warden_play.gd) ───────────────
+
+## Warden key -> they pushed off from the top (LMB).
+var _push: Dictionary = {}
+
+
+func _g(local: Vector3) -> Vector3:
+	return (get_parent() as Node3D).to_global(local)
+
+
+func _state_of(key: int) -> String:
+	return str(_riders[key]["state"]) if _riders.has(key) else ""
+
+
+func warden_offer(at: Vector3) -> Dictionary:
+	if _chute.size() < 2:
+		return {}
+	var foot := _g(_ladder_foot)
+	var d := Vector2(at.x - foot.x, at.z - foot.z).length()
+	return {"verb": "Go down the slide", "act": "join", "d": d} if d < 2.2 else {}
+
+
+func warden_join(key: int, _at: Vector3) -> bool:
+	_riders[key] = {"state": "queue", "t0": _clock, "slot": _riders.size()}
+	_seen[key] = _clock
+	return true
+
+
+func warden_slot(_key: int) -> int:
+	return 0
+
+
+## The other machine's warden: where they are on the ride there.
+func warden_force(key: int, _slot: int, x: Dictionary) -> void:
+	var st := str(x.get("st", ""))
+	if st == "" or _chute.size() < 2:
+		return
+	if not _riders.has(key):
+		_riders[key] = {"state": st, "t0": _clock, "slot": 0}
+	var rd: Dictionary = _riders[key]
+	if str(rd["state"]) != st:
+		rd["state"] = st
+		rd["t0"] = _clock - clampf(float(x.get("k", 0.0)), 0.0, 1.0) * minf(_dur(st), 30.0)
+		if st in ["climb", "top", "slide"]:
+			_busy = key
+		elif _busy == key:
+			_busy = -1
+		if st == "slide":
+			_play(SFX_WHOOSH, -6.0, 1.0, _chute[_chute.size() >> 1])
+		elif st == "splash":
+			_splash()
+
+
+func warden_extra(key: int) -> Dictionary:
+	if not _riders.has(key):
+		return {}
+	var st := _state_of(key)
+	return {"st": st, "k": clampf((_clock - float(_riders[key]["t0"])) / minf(_dur(st), 30.0), 0.0, 1.0)}
+
+
+func warden_leave(key: int) -> void:
+	_riders.erase(key)
+	_seen.erase(key)
+	_push.erase(key)
+	if _busy == key:
+		_busy = -1
+
+
+func warden_done(key: int) -> bool:
+	return _state_of(key) == "out"
+
+
+## Halfway up or down there is no getting off.
+func warden_hold(key: int) -> bool:
+	return _state_of(key) in ["climb", "top", "slide", "splash"]
+
+
+func warden_exit(key: int) -> Vector3:
+	if _state_of(key) in ["queue", ""]:
+		return _g(_ladder_foot + Vector3(-0.9, 0, 0.6))
+	return _g(_pool + Vector3(0, 0, _pool_r + 0.6))
+
+
+func warden_focus(key: int) -> Vector3:
+	var rd: Dictionary = _riders.get(key, {})
+	match str(rd.get("state", "")):
+		"queue":
+			return _g(_ladder_top)
+		"climb":
+			return _g(_ladder_top + Vector3(1.6, 0.4, 0))
+		"top":
+			return _g(_chute[_chute.size() - 1])
+		"slide":
+			var k := clampf((_clock - float(rd["t0"])) / T_SLIDE, 0.0, 1.0)
+			return _g(_along_chute(minf(1.0, k + 0.35)) + Vector3(0, -0.2, 0)) if k < 0.7 else _g(_pool)
+	return _g(_pool + Vector3(0, 0.4, _pool_r + 4.0))
+
+
+func warden_press(key: int) -> String:
+	if _state_of(key) == "top":
+		_push[key] = true
+		return "push"
+	return ""
+
+
+func warden_pose(key: int, base: String) -> String:
+	return "climb" if _state_of(key) == "climb" else base
+
+
+func warden_hint(key: int) -> String:
+	return "[LMB] Go" if _state_of(key) == "top" else ""

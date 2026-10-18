@@ -66,7 +66,14 @@ func _ready() -> void:
 			["eval", "_open_pause_menu()"], ["wait", 0.6], ["shot", "h1b_pause_with"], ["eval", "_close_pause_menu(true)"], ["wait", 0.4],
 			["coop_fingerprint", "host"],
 			# Built after the join: the other camp gets it too.
-			["build", "tent_1", 13, 16, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
+			["build", "tent_1", 13, 16, 0], ["build", "bonfire", 11, 12, 0], ["build", "sports_field", 14, 12, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
+			# By the fire and at the net together (scripts/attractions/warden_play.gd).
+			["coop_att", "fire", 1.0], ["wait", 1.0], ["eval", "_warden_play.try_interact()"], ["wait", 0.5], ["eval", "_warden_play.try_interact()"], ["wait", 1.5],
+			["coop_signal", "host_at_fire"], ["coop_wait_file", "client_at_fire"], ["wait", 1.5], ["shot", "h11_fire_other_roasts"], ["coop_fingerprint", "host_fire"],
+			["eval", "_warden_play.leave()"], ["coop_signal", "host_fire_done"], ["coop_wait_file", "client_fire_done"],
+			["coop_att", "court", -1.0], ["wait", 0.5], ["coop_signal", "host_at_court"], ["coop_wait_file", "client_at_court"],
+			["coop_play_ball", 10.0], ["shot", "h12_court_other"], ["coop_fingerprint", "host_court"], ["coop_signal", "host_court_done"],
+			["coop_wait_file", "client_court_done"], ["eval", "_warden_play.leave()"], ["wait", 0.5], ["coop_place", 12, 14, 1.0],
 			# Into the old cabin together.
 			["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "host_in_room"],
 			["coop_wait_file", "client_in_room"], ["wait", 2.0], ["shot", "h2_room_sees_other"],
@@ -144,6 +151,12 @@ func _ready() -> void:
 			["coop_face_partner"], ["wait", 1.0], ["shot", "c1_sees_host"],
 			["coop_signal", "client_ready"],
 			["coop_wait_file", "host_built"], ["wait", 2.0], ["coop_fingerprint", "client_built"],
+			["coop_wait_file", "host_at_fire"], ["coop_att", "fire", -1.0], ["wait", 1.5], ["shot", "c12_fire_host_sits"],
+			["eval", "_warden_play._press()"], ["wait", 2.0], ["shot", "c12b_fire_roasting"], ["coop_fingerprint", "client_fire"], ["coop_signal", "client_at_fire"],
+			["coop_wait_file", "host_fire_done"], ["eval", "_warden_play.leave()"], ["coop_signal", "client_fire_done"],
+			["coop_wait_file", "host_at_court"], ["coop_att", "court", 1.0], ["wait", 0.5], ["coop_signal", "client_at_court"],
+			["coop_play_ball", 8.0], ["shot", "c13_court_host"], ["coop_fingerprint", "client_court"], ["coop_signal", "client_court_done"],
+			["coop_wait_file", "host_court_done"], ["eval", "_warden_play.leave()"], ["wait", 0.5], ["coop_place", 14, 14, -1.0],
 			["coop_wait_file", "host_in_room"], ["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "client_in_room"],
 			["wait", 2.0], ["shot", "c2_room_sees_host"],
 			["coop_pick_task", ""], ["wait", 0.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "client_working"], ["wait", 6.3], ["lmb", false],
@@ -226,8 +239,19 @@ func _condition_met(what: String) -> bool:
 	return super._condition_met(what)
 
 
+var _ball_left := 0.0
+var _kick_cd := 0.0
+
+
 func _process(delta: float) -> void:
 	super._process(delta)
+	if _ball_left > 0.0:
+		_ball_left -= delta
+		_kick_cd -= delta
+		var wp = _main.get("_warden_play") if _main != null else null
+		if wp != null and wp.is_active() and _kick_cd <= 0.0 and str(wp.hint()).contains("Kick"):
+			_kick_cd = 0.3
+			wp._press()
 	if _row_left > 0.0:
 		_row_left -= delta
 		var trip = _main.get("_lake_trip") if _main != null else null
@@ -254,6 +278,26 @@ func _run_step(step: Array) -> void:
 			FileAccess.open(_out_dir.path_join(str(step[1])), FileAccess.WRITE).store_string(_role)
 		"coop_leave":
 			Coop.leave()
+		"coop_att":
+			# By the fire (11,12) or on the court (14,12), on side `step[2]`, and into it.
+			var wp = _main.get("_warden_play")
+			var att: Node3D = wp.find_att("11,12" if str(step[1]) == "fire" else "14,12")
+			var me4: Node3D = _main.get("_player")
+			if att == null or me4 == null:
+				print("COOP CHECK %s: no %s" % [_role, step[1]])
+				return
+			if str(step[1]) == "fire":
+				me4.global_position = att.global_position + Vector3(0.0, 0.4, float(step[2]) * 2.4)
+			else:
+				me4.global_position = att.to_global(Vector3(float(step[2]) * 2.6, 0.4, 0.0))
+			for _try in 3:
+				if not wp.is_active():
+					wp.try_interact()
+			print("COOP CHECK %s at the %s: in %s" % [_role, step[1], str(wp.coop_state())])
+		"coop_play_ball":
+			# Kick the ball whenever it comes to you, for `step[1]` seconds.
+			_ball_left = float(step[1])
+			_wait_left = _ball_left
 		"coop_place":
 			# Stand on a tile (its centre), facing along x (+1 east, -1 west).
 			var me3: Node3D = _main.get("_player")
@@ -288,7 +332,7 @@ func _run_step(step: Array) -> void:
 				var best := -1.0
 				for id in tasks._targets.keys():
 					var t: Dictionary = tasks._targets[id]
-					if str(id) == "bed" or bool(t.get("done", false)) or acc_done.has(str(id)) or _near_done(tasks, str(id), acc_done):
+					if str(id) == "bed" or bool(t.get("done", false)) or acc_done.has(str(id)) or _near_done(tasks, str(id), acc_done) or not _in_reach(cab, tasks, str(id)):
 						continue
 					var sec := float(t.get("seconds", 1.0)) + (1.0 if str(t.get("verb", "")) in ["Mopping", "Sweeping"] else 0.0)
 					if sec > best:
@@ -377,6 +421,21 @@ func _run_step(step: Array) -> void:
 
 
 ## A job lying by one already done (its mess would be in front of it, or it behind).
+## Can the head turn far enough to look at it (a mess at your feet may be past the
+## interior's look limits: the aim then lands on another one)?
+static func _in_reach(interior, tasks, id: String) -> bool:
+	var body = tasks._targets[id].get("body")
+	var cam: Camera3D = tasks._camera
+	var look = interior.get("_look")
+	if body == null or not is_instance_valid(body) or cam == null or look == null:
+		return true
+	var base: Vector3 = interior.get("_cam_base_rot")
+	var to: Vector3 = (body as Node3D).global_position - cam.global_position
+	var yaw := rad_to_deg(atan2(-to.x, -to.z) - base.y)
+	var pitch := rad_to_deg(atan2(to.y, Vector2(to.x, to.z).length()) - base.x)
+	return absf(wrapf(yaw, -180.0, 180.0)) <= float(look.yaw_limit_deg) - 2.0 and pitch >= -float(look.pitch_down_deg) + 2.0 and pitch <= float(look.pitch_up_deg) - 2.0
+
+
 static func _near_done(tasks, id: String, acc_done: Array) -> bool:
 	var body = tasks._targets[id].get("body")
 	if body == null or not is_instance_valid(body):
@@ -508,6 +567,12 @@ func _room_figure() -> String:
 
 
 ## What this machine's camp is: enough to tell two camps apart.
+## Who has kicked the ball on the court here (warden keys: -11 the host, -12 the other).
+func _court_kicked() -> Array:
+	var att = _main.get("_warden_play").find_att("14,12")
+	return (att.get("_kick_at") as Dictionary).keys() if att != null else []
+
+
 func _write_fingerprint(tag: String) -> void:
 	var wg = _main.get("world_generator")
 	var bm = _main.get("building_manager")
@@ -583,6 +648,9 @@ func _write_fingerprint(tag: String) -> void:
 		"till_acked": int(_main.get("_coop_till_acked")),
 		"camp": _camp_rows(),
 		"bus_state": _bus_state(),
+		"att_me": _main.get("_warden_play").coop_state(),
+		"att_mate": str(_main.get("_warden_play").mate_place().get("pose", "")),
+		"court_kicked": _court_kicked(),
 		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,

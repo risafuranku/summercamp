@@ -2,12 +2,14 @@ extends RefCounted
 
 ## Guest sprites in other poses than standing: <sprite>_<pose>.png beside the standing
 ## one (assets/textury/npc/host1_sit.png ...), generated from it (tools/artgen rows
-## host*_sit, _drink, _eat, host_tramp_guitar). A seated sprite is a person on an
-## invisible seat at knee height, feet at the bottom edge: put its node on the floor just
-## in front of the bench or chair and they sit on it.
+## host*_sit, _drink, _eat, _kick, _bat, host_tramp_guitar). A seated sprite is a person
+## on an invisible seat at knee height, feet at the bottom edge: put its node on the floor
+## just in front of the bench or chair and they sit on it. The ones on their feet (a kick
+## at the net, the bat at the table) are drawn at the standing sprite's own scale.
 
 const SEATED_HEIGHT_M := 1.3
-const POSES := ["sit", "drink", "eat", "guitar"]
+const POSES := ["sit", "drink", "eat", "guitar", "kick", "bat"]
+const STANDING := ["kick", "bat"]
 
 static var _tex: Dictionary = {}
 
@@ -31,15 +33,15 @@ static func has_pose(base_path: String, pose: String) -> bool:
 	return ResourceLoader.exists(path_for(base_path, pose))
 
 
-## Show `sprite` in `pose` ("" = standing as created). Falls back to sitting, then to
-## standing, when the guest has no sprite for that pose.
+## Show `sprite` in `pose` ("" = standing as created). Falls back to sitting (on their
+## feet: to standing), then to standing, when the guest has no sprite for that pose.
 static func set_pose(sprite: Sprite3D, base_path: String, pose: String) -> void:
 	if sprite == null:
 		return
 	if base_path == "":
 		base_path = str(sprite.get_meta("base_path", ""))
 	if pose != "" and not has_pose(base_path, pose):
-		pose = "sit" if has_pose(base_path, "sit") else ""
+		pose = "" if pose in STANDING else ("sit" if has_pose(base_path, "sit") else "")
 	var want := path_for(base_path, pose)
 	if str(sprite.get_meta("pose_path", "")) == want:
 		return
@@ -56,6 +58,6 @@ static func set_pose(sprite: Sprite3D, base_path: String, pose: String) -> void:
 	if tex == null:
 		return
 	sprite.texture = tex
-	sprite.pixel_size = float(sprite.get_meta("stand_px")) if pose == "" else SEATED_HEIGHT_M / float(tex.get_height())
+	sprite.pixel_size = float(sprite.get_meta("stand_px")) if pose == "" or pose in STANDING else SEATED_HEIGHT_M / float(tex.get_height())
 	sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
 	sprite.set_meta("pose_path", want)

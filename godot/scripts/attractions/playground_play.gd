@@ -105,11 +105,18 @@ func _process(delta: float) -> void:
 		if _clock - float(_seen[key]) > 1.0:
 			_seen.erase(key)
 			_slot_of.erase(key)
-	guests_here = _seen.size()
+	guests_here = _seen.keys().filter(func(k): return int(k) >= 0).size()
 	# The swings: a pendulum (about 2.4 rad/s on 1.7 m of chain), pushed up when ridden.
 	var w := sqrt(9.81 / maxf(0.5, _drop))
 	for i in _swings.size():
 		var want := 0.55 if _occupied(i) else 0.03
+		# A warden on it: as high as they pump it (here, or on the other machine).
+		var wk := _key_in(i)
+		if wk < 0:
+			_pump[wk] = maxf(0.0, float(_pump.get(wk, 0.0)) - step * 0.05)
+			want = clampf(0.08 + float(_pump[wk]), 0.08, 0.85)
+			if _forced_amp.has(wk):
+				want = float(_forced_amp[wk])
 		_amp[i] = move_toward(float(_amp[i]), want, step * (0.25 if want > float(_amp[i]) else 0.12))
 		var a := float(_amp[i]) * sin(_clock * w + float(_phase[i]))
 		(_swings[i] as Node3D).rotation.x = a
@@ -135,3 +142,116 @@ func _creak(at: Vector3) -> void:
 	_audio.pitch_scale = randf_range(1.4, 1.7)
 	_audio.global_position = at
 	_audio.play()
+
+
+# ── a warden on the swing or the seesaw (scripts/attractions/warden_play.gd) ──
+
+## Warden key -> how hard they have pumped (LMB); the other machine's swing as high
+## as theirs.
+var _pump: Dictionary = {}
+var _forced_amp: Dictionary = {}
+
+
+func _key_in(slot: int) -> int:
+	for k in _slot_of.keys():
+		if int(_slot_of[k]) == slot:
+			return int(k)
+	return 0
+
+
+## Where slot `slot` is (global): the swing seats, the seesaw's ends.
+func _slot_global(slot: int) -> Vector3:
+	if slot < 2 and slot < _swings.size():
+		return (_swings[slot] as Node3D).global_transform * Vector3(0, -_drop, 0.04)
+	if _seesaw != null:
+		return _seesaw.global_transform * Vector3((-1.0 if slot == 2 else 1.0), 0.03, 0.04)
+	return (get_parent() as Node3D).global_position
+
+
+func warden_offer(at: Vector3) -> Dictionary:
+	var best := -1
+	var bd := 2.4
+	for slot in 4:
+		var d := Vector2(at.x - _slot_global(slot).x, at.z - _slot_global(slot).z).length()
+		if not _occupied(slot) and d < bd:
+			best = slot
+			bd = d
+	if best < 0:
+		return {}
+	return {"verb": "Swing" if best < 2 else "Seesaw", "act": "join", "d": bd}
+
+
+func warden_join(key: int, at: Vector3) -> bool:
+	var best := -1
+	for slot in 4:
+		if not _occupied(slot) and (best < 0 or _slot_global(slot).distance_to(at) < _slot_global(best).distance_to(at)):
+			best = slot
+	if best < 0:
+		return false
+	_slot_of[key] = best
+	_seen[key] = _clock
+	_pump[key] = 0.0
+	return true
+
+
+func warden_slot(key: int) -> int:
+	return int(_slot_of.get(key, -1))
+
+
+func warden_force(key: int, slot: int, x: Dictionary) -> void:
+	if x.has("amp"):
+		_forced_amp[key] = float(x["amp"])
+	if slot < 0 or slot > 3 or int(_slot_of.get(key, -1)) == slot:
+		return
+	for k in _slot_of.keys():
+		if int(_slot_of[k]) == slot and k != key:
+			_slot_of.erase(k)
+	_slot_of[key] = slot
+	_seen[key] = _clock
+
+
+func warden_extra(key: int) -> Dictionary:
+	var slot := int(_slot_of.get(key, -1))
+	return {"amp": float(_amp[slot])} if slot >= 0 and slot < 2 else {}
+
+
+func warden_leave(key: int) -> void:
+	_slot_of.erase(key)
+	_seen.erase(key)
+	_pump.erase(key)
+	_forced_amp.erase(key)
+
+
+## Off the swing or the seesaw: on your feet in front of it.
+func warden_exit(key: int) -> Vector3:
+	var slot := int(_slot_of.get(key, 0))
+	var parent := get_parent() as Node3D
+	var p := _slot_global(slot) + parent.global_basis * Vector3(0, 0, 0.8)
+	p.y = parent.global_position.y
+	return p
+
+
+## On the swing, out the way it swings; on the seesaw, at the other end.
+func warden_focus(key: int) -> Vector3:
+	var slot := int(_slot_of.get(key, 0))
+	var parent := get_parent() as Node3D
+	if slot < 2:
+		var seat := _slot_global(slot)
+		return seat + parent.global_basis * Vector3(0, 0.6, 5.0)
+	return _slot_global(5 - slot) + Vector3(0, 0.7, 0)
+
+
+## LMB on the swing: a pump (higher).
+func warden_press(key: int) -> String:
+	if int(_slot_of.get(key, 9)) < 2:
+		_pump[key] = minf(0.8, float(_pump.get(key, 0.0)) + 0.1)
+		return "pump"
+	return ""
+
+
+func warden_pose(key: int, base: String) -> String:
+	return "swing" if int(_slot_of.get(key, 9)) < 2 else base
+
+
+func warden_hint(key: int) -> String:
+	return "[LMB] Pump" if int(_slot_of.get(key, 9)) < 2 else ""

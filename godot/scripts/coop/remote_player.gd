@@ -17,7 +17,8 @@ extends Node3D
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const SPRITE_HEIGHT_M := 1.74
 ## How tall each pose is drawn (its picture is that tall from top to bottom edge).
-const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32}
+const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32,
+	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86}
 ## The guests' walk cycle (scripts/guest_agents.gd), so the two look alike.
 const ANIM_FPS := 8.0
 const WALK_BOB_HZ := 2.6
@@ -210,6 +211,23 @@ func _process(delta: float) -> void:
 		_lens.visible = false
 		_update_steps(true)
 		return
+	if sb.has("att"):
+		# In an attraction: where this machine's attraction puts them (warden_play.gd).
+		var wp := get_tree().get_first_node_in_group("warden_play")
+		var place: Dictionary = wp.mate_place() if wp != null else {}
+		if not place.is_empty():
+			visible = true
+			global_position = place["pos"]
+			_apply_pose(str(place["pose"]))
+			_sprite.flip_h = bool(place["flip"])
+			_sprite.rotation.z = float(place["rz"])
+			_sprite.position = Vector3.ZERO
+			_shadow.visible = bool(place["ground"]) and pose in ["stand", "kick", "bat"]
+			_beam.visible = false
+			_halo.visible = false
+			_lens.visible = false
+			_update_steps(true)
+			return
 	var pa: Vector3 = sa.get("p", global_position)
 	var pb: Vector3 = sb.get("p", pa)
 	if pa.distance_to(pb) > SNAP_DIST:
