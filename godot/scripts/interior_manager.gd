@@ -1043,8 +1043,7 @@ func _on_cabin_upgrade_requested() -> void:
 
 
 func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String, enabled: bool) -> void:
-	# Co-op: upgrades are bought in the host's camp (the other warden's hands come later).
-	if _building_upgrade_menu == null or Coop.is_client():
+	if _building_upgrade_menu == null:
 		return
 	_building_upgrade_menu.open_menu(title_text, desc_text, cost_text, enabled)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -1062,6 +1061,12 @@ func _on_upgrade_confirmed() -> void:
 
 	var mode = str(_pending_upgrade_context.get("mode", ""))
 	var cost = int(_pending_upgrade_context.get("cost", 0))
+	# Co-op: bought in the host's camp (the new building comes back as a fact).
+	if Coop.is_client():
+		Coop.send_request("upgrade", [_pending_upgrade_context.duplicate()])
+		if _building_upgrade_menu != null:
+			_building_upgrade_menu.close_menu()
+		return
 	if not _economy_manager.has_method("spend_money") or not _economy_manager.spend_money(cost):
 		if _building_upgrade_menu != null:
 			_building_upgrade_menu.close_menu()
@@ -1079,6 +1084,20 @@ func _on_upgrade_confirmed() -> void:
 
 	if _building_upgrade_menu != null:
 		_building_upgrade_menu.close_menu()
+
+
+## The host: the other warden bought an upgrade (the menu's context, as it was there).
+func coop_upgrade(ctx: Dictionary) -> void:
+	if _economy_manager == null or not _economy_manager.has_method("spend_money"):
+		return
+	var cost := int(ctx.get("cost", 0))
+	if not _economy_manager.spend_money(cost):
+		return
+	match str(ctx.get("mode", "")):
+		"replace":
+			_handle_replace_upgrade(ctx.get("origin", Vector2i.ZERO), str(ctx.get("old_type", "")), str(ctx.get("new_type", "")), cost)
+		"comfort":
+			_economy_manager.upgrade_comfort(ctx.get("origin", Vector2i.ZERO), float(ctx.get("comfort_delta", 0.15)))
 
 
 func _handle_replace_upgrade(origin: Vector2i, old_type: String, new_type: String, cost: int) -> void:

@@ -168,6 +168,26 @@ def main():
     cs = load("client_shoulder")
     if cs is None or not cs["coop_screen"]:
         failures.append("the other warden does not see the host's screen over their shoulder")
+    # A night enemy set on the other warden: it hunts them, and their machine shows it.
+    he, ce = load("host_enemy"), load("client_enemy")
+    if he is None or ce is None:
+        failures.append("missing night enemy fingerprints")
+    else:
+        if not any(t.endswith(":other") for t in he["night_targets"]):
+            failures.append("the host's enemy does not hunt the other warden %s" % he["night_targets"])
+        if ce["mirror"] < 1:
+            failures.append("the other machine does not show the host's enemy (%s)" % ce["mirror"])
+    # One only for the warden it hunts.
+    hp, cp, cg2 = load("host_private"), load("client_private"), load("client_private_gone")
+    if hp is None or cp is None or cg2 is None:
+        failures.append("missing private enemy fingerprints")
+    else:
+        if hp["enemy_shown_here"]:
+            failures.append("the host sees the enemy that is only the other warden's")
+        if cp["mirror"] < 1:
+            failures.append("the other warden does not see their own enemy (%s)" % cp["mirror"])
+        if cg2["mirror"] != 0:
+            failures.append("the other machine shows an enemy that is only the host's (%s)" % cg2["mirror"])
     # Sleep: alone in bed the night stays; both in bed, both wake on the next morning.
     hz, hm, cm = load("host_waiting"), load("host_morning"), load("client_morning")
     if hz is None or hm is None or cm is None:

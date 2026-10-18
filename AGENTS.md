@@ -291,6 +291,12 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   nothing (`Coop.sim_here()`), and its builder authority is unhooked from
   `RequestBuild`/`RequestDemolish` (`main._coop_forward_builds`): replay facts by calling
   the authority directly, never by emitting the request.
+- **Co-op nights** (`coop_night.gd`): an enemy brain hunts whatever `_player` it holds:
+  the host swaps in the other warden's stand-in (`coop_proxy.gd`: a body, Head/Camera3D,
+  their torch) with its own damage / allow / notify callables. A brain that reads or sets
+  something new on the player must find it on the stand-in too. The other machine draws
+  every Sprite3D, Light3D and playing AudioStreamPlayer3D under a brain's `_root`, so
+  keep an enemy's look inside its root. The sanity is never to be shown or named.
 - **Co-op sleep** (`camp_office.gd`): lying down sets `in_bed` (sent as the warden
   state's `z`); the host passes the night only when both are in bed and its own eyes are
   shut (the sleep sequence's DARK), and stops it if either gets up; the other machine

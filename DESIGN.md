@@ -513,7 +513,10 @@ through for two (TODO.md, CO-OP).
 - **The pause menu** stops nothing: the camp goes on for the other warden.
 - **Nights for two.** Sometimes asymmetric: one sees what the other does not ("didn't you
   see that?"). Behind it a hidden sanity per player: no meter, never named anywhere,
-  it just works.
+  it just works. Each enemy hunts one warden at a time, the one out and alone in the dark
+  sooner; the lower someone's sanity, the sooner the night picks them, the more of it
+  is only theirs, and the likelier they glimpse the other warden somewhere they are not.
+  Knocked down in co-op, you come to on the office step: the camp goes on for the other.
 - **The other warden** is a figure like the guests (Grok sprites) with their torch and
   their steps. Each player picks who they are on the CO-OP page, two men and two women
   (Pepa, Ondra, Jana, Bara), and the colour of their jacket; each warden is drawn

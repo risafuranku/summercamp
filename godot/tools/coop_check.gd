@@ -15,6 +15,9 @@ extends "res://tools/shot_driver.gd"
 ##   - a guest checks in at the host's: the other machine has them too, walking about;
 ##   - the host sits at the PC: the other, in the office, sees its screen over their shoulder;
 ##     then the other sits at it: what they build and the mail they read are the host's;
+##   - a night enemy on the host's goes for the other warden: the other machine sees it;
+##     one only for them: the host neither sees nor hears it; set on the host, the other
+##     machine has nothing of it;
 ##   - at night both go to the room behind the office: the host lies down first and the
 ##     night does not pass; the other lies down too and both wake in the morning.
 ## Each writes what its camp looks like (seed, buildings, trees, terrain, clock, rooms)
@@ -81,6 +84,16 @@ func _ready() -> void:
 			["eval", "time_system.set_time_hours(21.6)"], ["eval", "_sync_runtime_state_from_systems(true)"], ["wait", 4.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "h5_night_other_torch"],
 			["coop_fingerprint", "host_night"],
+			# One of the night's enemies, set on the other warden.
+			["eval", "debug_spawn_enemy('silent_man', 3)"], ["wait", 1.0], ["eval", "_coop_night._aim(_enemy_brains[0], 'other')"], ["wait", 6.0],
+			["coop_fingerprint", "host_enemy"], ["coop_signal", "host_enemy"], ["coop_wait_file", "client_enemy_seen"],
+			["eval", "_stop_active_enemy_brain()"], ["wait", 1.0],
+			# One that is only for the warden it hunts.
+			["eval", "debug_spawn_enemy('tourist', 3)"], ["wait", 1.0], ["eval", "_coop_night._aim(_enemy_brains[0], 'other')"],
+			["eval", "_coop_night.set_private(_enemy_brains[0], true)"], ["wait", 5.0],
+			["coop_fingerprint", "host_private"], ["coop_signal", "host_private"], ["coop_wait_file", "client_private_seen"],
+			["eval", "_coop_night._aim(_enemy_brains[0], 'host')"], ["wait", 2.0], ["coop_signal", "host_private_mine"], ["coop_wait_file", "client_private_gone"],
+			["eval", "_stop_active_enemy_brain()"], ["wait", 1.0],
 			# To bed: alone, the night does not pass; with the other one in bed too, it does.
 			["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
 			["coop_signal", "host_in_back"], ["coop_wait_file", "client_in_back"], ["wait", 1.5], ["shot", "h7_back_room_other"],
@@ -121,6 +134,9 @@ func _ready() -> void:
 			["coop_wait", "night"], ["wait", 3.0],
 			["coop_face_partner"], ["wait", 1.5], ["shot", "c5_night_host_torch"],
 			["coop_fingerprint", "client_night"],
+			["coop_wait_file", "host_enemy"], ["wait", 2.0], ["shot", "c5b_night_enemy"], ["coop_fingerprint", "client_enemy"], ["coop_signal", "client_enemy_seen"],
+			["coop_wait_file", "host_private"], ["wait", 2.0], ["coop_fingerprint", "client_private"], ["coop_signal", "client_private_seen"],
+			["coop_wait_file", "host_private_mine"], ["wait", 2.5], ["coop_fingerprint", "client_private_gone"], ["coop_signal", "client_private_gone"],
 			["coop_wait_file", "host_in_back"], ["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
 			["coop_signal", "client_in_back"], ["wait", 1.5], ["shot", "c6_back_room_host"],
 			["coop_wait_file", "host_in_bed"], ["eval", "_interior_manager._building_interior._extras._try_sleep()"],
@@ -299,6 +315,15 @@ func _boat_from_home() -> float:
 	return ((lake as Node3D).global_transform * home.origin).distance_to((lake.get("boat") as Node3D).global_position)
 
 
+## What comes and goes by itself on each machine (a fish's rings on the lake and their
+## plop): not the camp.
+static func _passing_fx(n: Node3D) -> bool:
+	if n is AudioStreamPlayer3D:
+		return true
+	var mi := n as MeshInstance3D
+	return mi != null and mi.mesh is QuadMesh and ((mi.mesh as QuadMesh).size - Vector2(1.6, 1.6)).length() < 0.01 and str(mi.name).begins_with("@")
+
+
 ## A node's name without Godot's per-process counter (@MeshInstance3D@3614).
 static func _stable_name(n: Node) -> String:
 	var s := str(n.name)
@@ -318,6 +343,15 @@ func _derelict_keys() -> Array:
 			out.append("mess %s" % k2)
 	out.sort()
 	return out
+
+
+## The host's first enemy is drawn on this machine (its root shown).
+func _enemy_shown_here() -> bool:
+	var brains: Array = _main.get("_enemy_brains")
+	if brains.is_empty() or brains[0] == null:
+		return false
+	var root = brains[0].get("_root")
+	return root != null and is_instance_valid(root) and (root as Node3D).visible
 
 
 ## The mail: subject and whether it was read.
@@ -383,7 +417,7 @@ func _write_fingerprint(tag: String) -> void:
 	if ter != null:
 		for n in ter.find_children("*", "Node3D", true, false):
 			var t2 := n as Node3D
-			if t2.is_inside_tree():
+			if t2.is_inside_tree() and not _passing_fx(t2):
 				terrain.append("%s %.2f,%.2f,%.2f" % [_stable_name(t2), t2.global_position.x, t2.global_position.y, t2.global_position.z])
 	terrain.sort()
 	var room_key := "%d:%d" % [ROOM.x, ROOM.y]
@@ -423,6 +457,10 @@ func _write_fingerprint(tag: String) -> void:
 		"mail": _mail_rows(),
 		"agents": int((_main.get("_guest_agents").get("_parties") as Dictionary).size()) if _main.get("_guest_agents") != null else -1,
 		"me_state": str(_main.coop_local_warden().get("in", "")) + " " + str(_main.coop_local_warden().get("room", {})),
+		"night_targets": _main.get("_coop_night").targets() if Coop.is_host() and _main.get("_coop_night") != null else [],
+		"mirror": int(_main.get("_coop_night").mirror_count()) if _main.get("_coop_night") != null else -1,
+		"enemy_shown_here": _enemy_shown_here(),
+		"sanity": (_main.get("_coop_night").sanity as Dictionary).duplicate() if _main.get("_coop_night") != null else {},
 		"in_bed": _main.get("camp_office") != null and bool(_main.get("camp_office").in_bed()),
 		"room_status": str(acc.get("status", "")),
 		"task": _task_id,

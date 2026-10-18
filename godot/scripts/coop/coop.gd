@@ -365,6 +365,34 @@ func _warden(s: Dictionary) -> void:
 	partner_moved.emit(s)
 
 
+## The night (scripts/coop/coop_night.gd): what the host's enemies show, for the other
+## machine, and what they do to its warden.
+func send_night_view(items: Array) -> void:
+	if role == Role.HOST and remote_id != 0:
+		_night_view.rpc_id(remote_id, items)
+
+
+func send_night_event(kind: String, data: Array) -> void:
+	if role == Role.HOST and remote_id != 0:
+		_night_event.rpc_id(remote_id, kind, data)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered", 5)
+func _night_view(items: Array) -> void:
+	var main := _main()
+	var night = main.get("_coop_night") if main != null else null
+	if night != null and role == Role.CLIENT:
+		night.show_view(items)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _night_event(kind: String, data: Array) -> void:
+	var main := _main()
+	var night = main.get("_coop_night") if main != null else null
+	if night != null and role == Role.CLIENT:
+		night.on_event(kind, data)
+
+
 ## The host's camp pulse (main.coop_camp_pulse), packed.
 @rpc("authority", "call_remote", "reliable", 4)
 func _pulse(packed: PackedByteArray, size: int) -> void:

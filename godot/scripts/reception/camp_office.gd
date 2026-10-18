@@ -63,6 +63,9 @@ func _process(delta: float) -> void:
 				ts.set_time_hours(WAKE_HOUR)
 			_main._sync_runtime_state_from_systems(true)
 			_in_bed = false
+			var night = _main.get("_coop_night")
+			if night != null and night.has_method("slept"):
+				night.slept()
 
 
 # ── sleep ─────────────────────────────────────────────────────────────────────

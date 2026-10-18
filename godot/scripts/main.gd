@@ -2653,6 +2653,10 @@ func _debug_add_money() -> void:
 func _trigger_game_over(reason: String = GAME_OVER_REASON_DEATH) -> void:
 	if _game_over_active:
 		return
+	# Co-op: the camp goes on for the other warden; you come to by the office.
+	if reason == GAME_OVER_REASON_DEATH and Coop.has_partner():
+		_coop_come_to()
+		return
 	_stop_active_enemy_brain()
 	_game_over_active = true
 	_game_over_reason = reason
@@ -3716,6 +3720,7 @@ func _wire_coop() -> void:
 	if _coop_wired:
 		return
 	_coop_wired = true
+	_ensure_coop_night()
 	Coop.world_arrived.connect(_on_coop_world_arrived)
 	Coop.join_failed.connect(_on_coop_join_failed)
 	Coop.session_ended.connect(_on_coop_session_ended)
@@ -3822,6 +3827,47 @@ func _on_coop_partner_moved(s: Dictionary) -> void:
 			room = room.duplicate()
 			room["b"] = true
 		_interior_manager.coop_partner(room)
+
+
+## Co-op: knocked down, not dead: you fall, black, and come to on the office step, sore.
+const COOP_COME_TO_HEALTH := 35
+
+
+func _coop_come_to() -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	if _player.has_method("set_controls_enabled"):
+		_player.set_controls_enabled(false)
+	var delay := 1.2
+	if _player.has_method("play_death_fall"):
+		delay = maxf(0.6, float(_player.play_death_fall()))
+	await get_tree().create_timer(delay + 1.0).timeout
+	if _player == null or not is_instance_valid(_player):
+		return
+	if grid_manager != null and world_generator != null and world_generator.has_method("find_player_spawn_coord"):
+		_player.global_position = grid_manager.grid_to_world(world_generator.find_player_spawn_coord()) + Vector3(1.6, 1.0, 0.6)
+	if _player.has_method("reset_damage_feedback_state"):
+		_player.reset_damage_feedback_state(false)
+	if _player.has_method("set_controls_enabled"):
+		_player.set_controls_enabled(true)
+	_set_player_health(COOP_COME_TO_HEALTH, false)
+	if _hud_manager != null:
+		_hud_manager.push_status("You come to on the office step. You don't remember getting here.", 2)
+
+
+## The night for two: enemies hunt either warden, the other machine sees them
+## (scripts/coop/coop_night.gd).
+const COOP_NIGHT_SCRIPT = preload("res://scripts/coop/coop_night.gd")
+var _coop_night: Node
+
+
+func _ensure_coop_night() -> void:
+	if _coop_night != null and is_instance_valid(_coop_night):
+		return
+	_coop_night = COOP_NIGHT_SCRIPT.new()
+	_coop_night.name = "CoopNight"
+	_coop_night.main = self
+	add_child(_coop_night)
 
 
 ## The host: what of the camp changes by itself, for the other machine once a second
@@ -3985,6 +4031,9 @@ func coop_request(kind: String, data: Array) -> void:
 			CoreRoot.actions.add_money(int(data[0]))
 		"service":
 			CoreRoot.actions.service_building(data[0], int(data[1]))
+		"upgrade":
+			if _interior_manager != null and data[0] is Dictionary:
+				_interior_manager.coop_upgrade(data[0])
 		"checkin":
 			GuestManager.request_check_in(int(data[0]))
 		"refuse":
@@ -4145,7 +4194,10 @@ func coop_local_warden() -> Dictionary:
 func coop_clock() -> Dictionary:
 	var state = CoreRoot.get_state()
 	var night_passing: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.is_fast_forwarding()
-	return {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing}
+	var c := {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing}
+	if _coop_night != null:
+		c["sn"] = float(_coop_night.sanity["other"])
+	return c
 
 
 ## The other warden's machine sets its day, sky, weather, lamps and till by the host's.
@@ -4162,6 +4214,8 @@ func coop_apply_clock(c: Dictionary) -> void:
 			CoreRoot.apply_changes({"money": money})
 	if time_system != null:
 		time_system.set_time_hours(float(c.get("h", _time_of_day_hours)))
+	if _coop_night != null and c.has("sn"):
+		_coop_night.take_own_sanity(float(c["sn"]))
 	var w := int(c.get("w", _weather_state))
 	if weather_system != null and w != _weather_state:
 		weather_system.set_weather(w)
