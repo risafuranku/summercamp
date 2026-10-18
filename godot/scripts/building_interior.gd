@@ -2562,6 +2562,79 @@ func _toggle_office_lights() -> void:
 	_apply_room_time_profile(true)
 
 
+# -- co-op: one radio for both -----------------------------------------------------
+
+## What is on the host's set now (a song by its file, the station's pips, the night's
+## broadcast by its pieces), counted so a new piece is a new number.
+var _radio_now: Dictionary = {}
+var _radio_now_n := 0
+var _coop_radio_n := -1
+
+
+func _radio_on_air(kind: String, id) -> void:
+	_radio_now_n += 1
+	_radio_now = {"k": kind, "id": id}
+
+
+## For the other machine (main._coop_sync_things "radio", the host only): the switch,
+## the piece and where in it (in 4 s steps, so it is sent when that moves on).
+func coop_radio_state() -> Dictionary:
+	var pos := _radio_player.get_playback_position() if _radio_player != null and _radio_player.playing else 0.0
+	return {"on": _radio_power_on, "k": str(_radio_now.get("k", "")), "id": _radio_now.get("id", ""), "n": _radio_now_n, "pos": floorf(pos / 4.0) * 4.0}
+
+
+## The other machine: the host's set, here (the same piece from the same place; nudged
+## back into step if it drifts).
+func coop_take_radio(d: Dictionary) -> void:
+	if d.is_empty():
+		return
+	if bool(d.get("on", true)) != _radio_power_on:
+		_toggle_radio_power()
+	if _radio_player == null:
+		_create_radio_player()
+	if _radio_player == null:
+		return
+	var pos := float(d.get("pos", 0.0))
+	var n := int(d.get("n", 0))
+	if n != _coop_radio_n:
+		_coop_radio_n = n
+		var kind := str(d.get("k", ""))
+		var stream: AudioStream = null
+		match kind:
+			"song":
+				var path := str(d.get("id", ""))
+				stream = _radio_stream_by_path.get(path, null)
+				if stream == null and ResourceLoader.exists(path):
+					stream = load(path)
+				_radio_last_played_path = path
+				var at := _radio_tracks_all_paths.find(path)
+				_radio_current_track_is_night = at >= 0 and at < _radio_tracks_all_is_night.size() and bool(_radio_tracks_all_is_night[at])
+			"station":
+				stream = build_station_stream(int(d.get("id", 1)))
+				_radio_last_played_path = ""
+				_radio_current_track_is_night = false
+			"interlude":
+				var desc = d.get("id", [])
+				stream = _dread.coop_play_interlude(desc if desc is Array else []) if _dread != null else null
+				_radio_last_played_path = ""
+				_radio_current_track_is_night = false
+		if stream == null:
+			return
+		_radio_player.stream = stream
+		_radio_player.play(minf(pos + 0.3, maxf(0.0, stream.get_length() - 0.5)))
+		_radio_now = {"k": kind, "id": d.get("id", "")}
+	elif _radio_player.playing:
+		var here := _radio_player.get_playback_position()
+		if here < pos - 0.6 or here > pos + 4.9:
+			_radio_player.seek(pos + 0.3)
+
+
+## The host: the other warden switched the set (Coop request "radio").
+func coop_set_radio_power(on: bool) -> void:
+	if on != _radio_power_on:
+		_toggle_radio_power()
+
+
 func _toggle_radio_power() -> void:
 	_radio_power_on = not _radio_power_on
 	_radio_power_transition_time_left = RADIO_POWER_TOGGLE_FADE_SEC
@@ -2785,6 +2858,9 @@ func queue_first_radio_track() -> void:
 func _play_radio_next() -> void:
 	if _radio_player == null:
 		return
+	# Co-op: the other machine's set plays what the host's does (coop_take_radio).
+	if Coop.is_client():
+		return
 	if _radio_first_pending:
 		_radio_first_pending = false
 		var first: AudioStream = _radio_stream_by_path.get(RADIO_FIRST_TRACK, null)
@@ -2795,6 +2871,7 @@ func _play_radio_next() -> void:
 			_radio_player.stream = first
 			_radio_player.play()
 			_radio_last_played_path = RADIO_FIRST_TRACK
+			_radio_on_air("song", RADIO_FIRST_TRACK)
 			return
 	if _try_play_station():
 		return
@@ -2804,6 +2881,7 @@ func _play_radio_next() -> void:
 		_radio_last_played_path = ""
 		_radio_player.stream = interlude
 		_radio_player.play()
+		_radio_on_air("interlude", _dread.interlude_desc())
 		return
 	if _radio_tracks.is_empty():
 		_rebuild_radio_tracks_for_time(false)
@@ -2826,6 +2904,7 @@ func _play_radio_next() -> void:
 	_radio_player.stream = resolved_stream
 	_radio_player.play()
 	_radio_last_played_path = resolved_path
+	_radio_on_air("song", resolved_path)
 	_radio_index = (selected_index + 1) % track_count
 
 
@@ -2845,6 +2924,7 @@ func _try_play_station() -> bool:
 	_radio_last_played_path = ""
 	_radio_player.stream = playlist
 	_radio_player.play()
+	_radio_on_air("station", _count_guests_in_camp() + 1)
 	return true
 
 
@@ -3398,6 +3478,9 @@ func _try_click_room(event: InputEventMouseButton) -> bool:
 		return true
 	if _node_has_click_type(collider, "radio_power_toggle"):
 		_toggle_radio_power()
+		# Co-op: the set is the host's; it switches there and comes back so.
+		if Coop.is_client():
+			Coop.send_request("radio", [_radio_power_on])
 		return true
 	if _node_has_click_type(collider, "reception_notebook"):
 		open_checkin_desk()

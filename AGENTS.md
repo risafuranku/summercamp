@@ -339,6 +339,12 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   `mate_place()` (remote_player.gd, state "att"). The ball games are the host's in
   co-op: `_launch` sends each flight (`Coop.send_play` "shot"), the other machine only
   follows (`coop_take_shot`) and sends its swings ("press").
+- **Co-op radio** (`building_interior.gd`): the host's set is the one; `_play_radio_next`
+  does nothing on the other machine, which plays what `coop_radio_state` says (main's
+  `_coop_sync_things` "radio", sent when the piece or its 4 s step changes): a song by
+  path, the station by its pips, an interlude by its pieces (`radio_dread.interlude_desc`
+  / `coop_play_interlude`). Anything new that plays on the radio must call
+  `_radio_on_air` or the other machine will not hear it.
 - **Co-op knocked down** (`main._coop_come_to`): health 0 with a partner does not end
   the game: `_coop_down` (controls off, damage ignored, warden state "dn", the figure
   lies prone on the other machine, `coop_night._is_out` false); the other's E sends

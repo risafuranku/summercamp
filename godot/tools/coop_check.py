@@ -95,6 +95,15 @@ def main():
             failures.append("the host sees the other warden as %s, not [2, 4]" % h["partner_look"])
         if c["partner_look"] != h["my_look"]:
             failures.append("the other sees the host as %s, not %s" % (c["partner_look"], h["my_look"]))
+    # One radio: the host's song on the other set too, switched off from either.
+    hr_, cr_, ho_ = load("host_radio"), load("client_radio"), load("host_radio_off")
+    if hr_ is None or cr_ is None or ho_ is None:
+        failures.append("missing radio fingerprints")
+    else:
+        if not hr_["radio"].get("id") or (hr_["radio"].get("k"), hr_["radio"].get("id")) != (cr_["radio"].get("k"), cr_["radio"].get("id")) or not cr_["radio"].get("playing"):
+            failures.append("the radio is not the same on both (host %s, other %s)" % (hr_["radio"], cr_["radio"]))
+        if ho_["radio"].get("on", True):
+            failures.append("the other warden's switch did not turn the host's radio off")
     # Built after the join.
     hb, cb = load("host_built"), load("client_built")
     if hb is None or cb is None:
@@ -289,6 +298,9 @@ def main():
     if None in (hw, hr2, cr2, ht, ct):
         failures.append("missing bus fingerprints")
     else:
+        hp_, cp_ = load("host_pub"), load("client_pub")
+        if hp_ is None or cp_ is None or not hp_["town_mate"] or not cp_["town_mate"]:
+            failures.append("at U Jezera they do not see each other (host %s, other %s)" % ((hp_ or {}).get("town_mate"), (cp_ or {}).get("town_mate")))
         if not ht["other_visible"] or not ct["other_visible"]:
             failures.append("in Lesna they do not see each other (host %s, other %s)" % (ht["other_visible"], ct["other_visible"]))
         if hw["bus_state"] != "held":

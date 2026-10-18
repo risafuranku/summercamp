@@ -65,6 +65,9 @@ func _ready() -> void:
 			["coop_face_partner"], ["wait", 1.0], ["shot", "h1_sees_other"],
 			["eval", "_open_pause_menu()"], ["wait", 0.6], ["shot", "h1b_pause_with"], ["eval", "_close_pause_menu(true)"], ["wait", 0.4],
 			["coop_fingerprint", "host"],
+			# One radio: the host's song on both; the other's switch turns the host's set off.
+			["wait", 5.0], ["coop_fingerprint", "host_radio"], ["coop_signal", "host_radio"],
+			["coop_wait_file", "client_radio_off"], ["wait", 1.5], ["coop_fingerprint", "host_radio_off"], ["coop_signal", "host_radio_off_seen"],
 			# Built after the join: the other camp gets it too.
 			["build", "tent_1", 13, 16, 0], ["build", "bonfire", 11, 12, 0], ["build", "sports_field", 14, 12, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
 			# By the fire and at the net together (scripts/attractions/warden_play.gd).
@@ -141,7 +144,11 @@ func _ready() -> void:
 			["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0], ["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(1)"], ["wait", 3.0],
 			["shot", "h10_bus_waits"], ["coop_fingerprint", "host_bus_wait"], ["coop_signal", "host_sat"],
 			["coop_wait_file", "client_sat"], ["wait", 3.0], ["coop_fingerprint", "host_bus_ride"],
-			["coop_wait", "in_town"], ["wait", 2.0], ["coop_fingerprint", "host_town"], ["coop_signal", "host_day2_done"],
+			["coop_wait", "in_town"], ["wait", 2.0], ["coop_fingerprint", "host_town"],
+			# A beer at U Jezera together: each sees the other at the bar.
+			["coop_wait_file", "client_town_seen"], ["eval", "_interior_manager._town_trip._open_room('pub')"], ["wait", 1.5], ["coop_signal", "host_in_pub"],
+			["coop_wait_file", "client_in_pub"], ["wait", 1.5], ["shot", "h14_pub_other"], ["coop_fingerprint", "host_pub"], ["coop_signal", "host_pub_seen"],
+			["coop_wait_file", "client_pub_seen"], ["coop_signal", "host_day2_done"],
 			["coop_wait", "partner_gone"], ["wait", 1.5], ["shot", "h6_other_went_home"],
 		]
 	else:
@@ -153,6 +160,8 @@ func _ready() -> void:
 			["coop_place", 14, 14, -1.0], ["wait", 1.5],
 			["coop_face_partner"], ["wait", 1.0], ["shot", "c1_sees_host"],
 			["coop_signal", "client_ready"],
+			["coop_wait_file", "host_radio"], ["wait", 1.5], ["coop_fingerprint", "client_radio"],
+			["coop_radio_click"], ["wait", 1.0], ["coop_signal", "client_radio_off"], ["coop_wait_file", "host_radio_off_seen"], ["coop_radio_click"],
 			["coop_wait_file", "host_built"], ["wait", 2.0], ["coop_fingerprint", "client_built"],
 			["coop_wait_file", "host_at_fire"], ["coop_att", "fire", -1.0], ["wait", 1.5], ["shot", "c12_fire_host_sits"],
 			["eval", "_warden_play._press()"], ["wait", 2.0], ["shot", "c12b_fire_roasting"], ["coop_fingerprint", "client_fire"], ["coop_signal", "client_at_fire"],
@@ -212,7 +221,9 @@ func _ready() -> void:
 			["coop_wait_file", "host_bus_here"], ["wait", 1.0], ["shot", "c9b_at_the_stop"], ["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0], ["coop_signal", "client_aboard"],
 			["coop_wait_file", "host_sat"], ["wait", 1.0], ["shot", "c10_host_sat_waiting"], ["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(6)"],
 			["wait", 3.0], ["coop_fingerprint", "client_bus_ride"], ["shot", "c11_riding_with_host"], ["coop_signal", "client_sat"],
-			["coop_wait", "in_town"], ["wait", 2.0], ["coop_fingerprint", "client_town"],
+			["coop_wait", "in_town"], ["wait", 2.0], ["coop_fingerprint", "client_town"], ["coop_signal", "client_town_seen"],
+			["coop_wait_file", "host_in_pub"], ["eval", "_interior_manager._town_trip._open_room('pub')"], ["wait", 1.5], ["coop_signal", "client_in_pub"],
+			["wait", 1.5], ["shot", "c14_pub_host"], ["coop_fingerprint", "client_pub"], ["coop_signal", "client_pub_seen"], ["coop_wait_file", "host_pub_seen"],
 			["coop_wait", "host_done"], ["coop_leave"], ["wait", 2.0],
 		]
 
@@ -337,6 +348,12 @@ func _run_step(step: Array) -> void:
 			var tasks4 = cab4.get("_prep").tasks if cab4 != null and cab4.get("_prep") != null else null
 			if tasks4 != null:
 				print("COOP CHECK %s job: holding %s progress %.2f hover %s under %s" % [_role, tasks4._holding, float(tasks4._progress), tasks4._hover, tasks4._target_under_cursor()])
+		"coop_radio_click":
+			# The office radio's switch, as a click on it does.
+			var bi6 = _main.get("_interior_manager").get("_building_interior")
+			bi6._toggle_radio_power()
+			if Coop.is_client():
+				Coop.send_request("radio", [bool(bi6.get("_radio_power_on"))])
 		"coop_track":
 			# Keep the cursor on the job for `step[1]` seconds (the room's camera eases
 			# after the aim, as a player's hand would follow it). A mess lying in front of
@@ -666,6 +683,24 @@ func _track_job() -> void:
 	Input.warp_mouse(sp * Vector2(DisplayServer.window_get_size()) / screen)
 
 
+## The office radio: the switch and what is on it (not where in it).
+func _radio_row() -> Dictionary:
+	var bi = _main.get("_interior_manager").get("_building_interior") if _main != null else null
+	if bi == null or not bi.has_method("coop_radio_state"):
+		return {}
+	var r: Dictionary = bi.coop_radio_state()
+	var player = bi.get("_radio_player")
+	return {"on": r["on"], "k": r["k"], "id": str(r["id"]), "playing": player != null and player.playing}
+
+
+## The other warden in the place in Lesna you are in (scripts/town/town_room.gd).
+func _town_mate() -> bool:
+	var trip = _main.get("_interior_manager").get("_town_trip") if _main != null else null
+	var room = trip.get("_room") if trip != null else null
+	var mate = room.get("_mate") if room != null else null
+	return mate != null and is_instance_valid(mate) and (mate as Node3D).visible
+
+
 ## Who has kicked the ball on the court here (warden keys: -11 the host, -12 the other).
 func _court_kicked() -> Array:
 	var att = _main.get("_warden_play").find_att("14,12")
@@ -750,6 +785,8 @@ func _write_fingerprint(tag: String) -> void:
 		"att_me": _main.get("_warden_play").coop_state(),
 		"att_mate": str(_main.get("_warden_play").mate_place().get("pose", "")),
 		"court_kicked": _court_kicked(),
+		"town_mate": _town_mate(),
+		"radio": _radio_row(),
 		"down": bool(_main.get("_coop_down")),
 		"hp": int(_main.get("_player_health")),
 		"partner_down": bool(Coop.partner_state.get("dn", false)),

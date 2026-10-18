@@ -4308,6 +4308,9 @@ func _coop_sync_things() -> Dictionary:
 	var desk = bi.get("_desk_room")
 	if desk != null and desk.has_method("coop_register"):
 		out["register"] = desk.coop_register()
+	# The radio is the host's: its set plays on the other machine too.
+	if Coop.is_host() and bi.has_method("coop_radio_state"):
+		out["radio"] = bi.coop_radio_state()
 	return out
 
 
@@ -4333,6 +4336,10 @@ func coop_sync(kind: String, data: Array) -> void:
 		"office":
 			if bi != null and bi.has_method("coop_take_office_state"):
 				bi.coop_take_office_state(data[0])
+		"radio":
+			if Coop.is_client() and bi != null and bi.has_method("coop_take_radio"):
+				bi.coop_take_radio(data[0])
+			return
 		"register":
 			var desk = bi.get("_desk_room") if bi != null else null
 			if desk != null and desk.has_method("coop_take_register"):
@@ -4499,6 +4506,11 @@ func coop_request(kind: String, data: Array) -> void:
 		"day_event":
 			if _day_events != null:
 				_day_events.coop_resolve(int(data[0]))
+		"radio":
+			# The other warden switched the office radio: the set is the host's.
+			var bi_r = _interior_manager.get("_building_interior") if _interior_manager != null else null
+			if bi_r != null and bi_r.has_method("coop_set_radio_power"):
+				bi_r.coop_set_radio_power(bool(data[0]))
 		"corn_take":
 			# The other warden leads them out: they follow the stand-in.
 			if _corn_hunt != null and is_instance_valid(_corn_hunt) and _coop_night != null and _coop_night.proxy() != null:
@@ -4716,6 +4728,10 @@ func coop_local_warden() -> Dictionary:
 	var bus: Dictionary = trip.coop_state() if trip != null and trip.has_method("coop_state") else {}
 	if not bus.is_empty():
 		s["bus"] = bus
+	# In a place in Lesna (the pub, the Jednota...): the other sees you there with them.
+	var town_place: String = trip.coop_place() if trip != null and trip.has_method("coop_place") else ""
+	if town_place != "":
+		s["tr"] = town_place
 	# In an attraction: the other machine places you in it (scripts/attractions/warden_play.gd).
 	var att: Dictionary = _warden_play.coop_state() if _warden_play != null and is_instance_valid(_warden_play) else {}
 	if not att.is_empty():

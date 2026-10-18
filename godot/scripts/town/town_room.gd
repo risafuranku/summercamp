@@ -224,6 +224,30 @@ func open(p_place: String, p_hour: float) -> void:
 			say("Mr Simek", "Evening. Or is it.")
 
 
+# ── co-op: the other warden in here too ────────────────────────────────────────
+
+const REMOTE_PLAYER = preload("res://scripts/coop/remote_player.gd")
+var _mate: Node3D
+
+
+## In the same place on their machine (town_trip.coop_place): stood beside you at the
+## counter (or the pew), as the other warden looks.
+func coop_mate(here: bool) -> void:
+	if not here or not _open or _root == null:
+		if _mate != null and is_instance_valid(_mate):
+			_mate.visible = false
+		return
+	if _mate == null or not is_instance_valid(_mate) or _mate.get_parent() != _root:
+		var look: Dictionary = Coop.partner_look
+		_mate = REMOTE_PLAYER.new()
+		_mate.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
+		_root.add_child(_mate)
+	var b := Basis.from_euler(Vector3(0.0, _base_rot.y, 0.0))
+	var at := _cam.position + b * Vector3(0.95, 0.0, -0.4)
+	at.y = _cam.position.y - 1.6
+	_mate.show_at(at, "stand")
+
+
 func close() -> void:
 	if not _open:
 		return

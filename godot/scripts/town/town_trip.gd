@@ -421,6 +421,9 @@ func set_time_state(_state: int) -> void:
 # ── the buses ────────────────────────────────────────────────────────────────
 
 func _process(delta: float) -> void:
+	# Co-op: the other warden in the same place in Lesna stands there with you.
+	if _room != null and _room.is_open():
+		_room.coop_mate(Coop.has_partner() and str(Coop.partner_state.get("tr", "")) == str(_room.place))
 	var road := _road()
 	if road == null:
 		return
@@ -745,6 +748,11 @@ var _coop_gone: Dictionary = {}
 ## Co-op: where you are on a bus, for the other machine.
 func coop_state() -> Dictionary:
 	return _ride.coop_state() if _ride != null else {}
+
+
+## Co-op: the place in Lesna you are in ("pub", "jednota"...), "" outside them.
+func coop_place() -> String:
+	return str(_room.place) if _room != null and _room.is_open() else ""
 
 
 # ── getting on, the ride, getting off ────────────────────────────────────────

@@ -628,6 +628,7 @@ func take_interlude() -> AudioStream:
 	var built := build_interlude(_ctx, dread)
 	_interlude = built.get("stream", null)
 	_interlude_plan = built.get("plan", [])
+	_interlude_desc = built.get("desc", [])
 	_interlude_t = 0.0
 	_interlude_cooldown = INTERLUDE_COOLDOWN_SEC * lerpf(1.4, 0.7, dread)
 	return _interlude
@@ -679,7 +680,13 @@ func build_interlude(ctx: Dictionary, level: float) -> Dictionary:
 		seq.append([_clip("v_konec"), "voice"])
 		seq.append([_gap(_rng.randf_range(2.0, 4.0)), "buzz"])
 	seq.append([_clip(TUNES[_rng.randi() % TUNES.size()]), "tune"])
+	var built := _assemble(seq)
+	built["desc"] = _describe(seq)
+	return built
 
+
+## The pieces of a broadcast as one playlist and its plan.
+func _assemble(seq: Array) -> Dictionary:
 	var list: Array[AudioStream] = []
 	var plan: Array = []
 	var t := 0.0
@@ -698,6 +705,48 @@ func build_interlude(ctx: Dictionary, level: float) -> Dictionary:
 	for i in list.size():
 		playlist.set_list_stream(i, list[i])
 	return {"stream": playlist, "plan": plan, "length": t}
+
+
+# -- co-op: the host's broadcast on the other machine's set too ---------------------
+
+## The last broadcast as its pieces, for the other machine: [["c", clip id] or ["g",
+## seconds], kind] (building_interior.coop_radio_state).
+var _interlude_desc: Array = []
+
+
+func interlude_desc() -> Array:
+	return _interlude_desc
+
+
+func _describe(seq: Array) -> Array:
+	var out: Array = []
+	for item in seq:
+		var s: AudioStream = item[0]
+		if s == null:
+			continue
+		var id = _streams.find_key(s)
+		if id != null:
+			out.append(["c", str(id), str(item[1])])
+			continue
+		var gap = _silence.find_key(s)
+		if gap != null:
+			out.append(["g", float(gap) / 10.0, str(item[1])])
+	return out
+
+
+## The other machine: the host's broadcast, built here from its pieces and taken as the
+## one on air (its plan drives the buzz and the carrier as on the host's).
+func coop_play_interlude(desc: Array) -> AudioStream:
+	var seq: Array = []
+	for d in desc:
+		if d is Array and d.size() >= 3:
+			seq.append([_clip(str(d[1])) if str(d[0]) == "c" else _gap(float(d[1])), str(d[2])])
+	var built := _assemble(seq)
+	_interlude = built.get("stream", null)
+	_interlude_plan = built.get("plan", [])
+	_interlude_desc = desc
+	_interlude_t = 0.0
+	return _interlude
 
 
 ## "Hostů N. Hostů N. Hostů N+1. Opakuji. Hostů N+1." Like the station's pips: one
