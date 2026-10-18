@@ -220,3 +220,13 @@ girl_static	5.0	assets/sfx/npc/girl_static.mp3	Rising crackling radio static wit
 girl_sting	1.5	assets/sfx/npc/girl_sting.mp3	A short horror sting: a low reversed swell of breath and static that rises fast and stops dead on a wet click, as if something is suddenly much closer than it was, no music melody.
 girl_rush	1.2	assets/sfx/npc/girl_rush.mp3	Several very fast high-heeled steps clicking across wet gravel in the dark, a quick scurry that stops abruptly, some distance away, no music.
 girl_drool	2.0	assets/sfx/npc/girl_drool.mp3	Thick wet drool dripping from an open mouth onto gravel very close in the dark, a slow viscous drip, a wet breath through teeth, a quiet slurp, disgusting, no music.
+sm_hum	5.0	assets/sfx/npc/sm_hum.mp3	A man humming a slow tuneless note through a mouth that is sealed shut, the sound trapped and muffled behind skin, nasal, somewhere outside in the dark a little way off, unsettling, loopable, no music instruments.
+sm_breath	3.0	assets/sfx/npc/sm_breath.mp3	Heavy wet breathing only through the nose, very close behind the listener's ear, slow, whistling slightly, as if the mouth is sealed, intimate and disgusting, no music.
+sm_mmm	1.5	assets/sfx/npc/sm_mmm.mp3	A man screaming with his mouth sealed shut, the scream trapped behind skin as a rising muffled MMMMM, strained and wet, short, no music.
+sm_creak	1.2	assets/sfx/npc/sm_creak.mp3	Joints cracking and popping one after another, knuckles and a neck, dry and loud in a quiet night, close-ish, no music.
+sm_tear	1.2	assets/sfx/npc/sm_tear.mp3	Skin tearing open slowly and wetly, a stretching rip with a sticky wet pop, close to the microphone, disgusting, no music.
+sm_snap	1.2	assets/sfx/npc/sm_snap.mp3	A human neck being twisted and snapped, a grinding of vertebrae then one loud wet crack, very close, no music.
+sm_choke	3.0	assets/sfx/npc/sm_choke.mp3	A man being strangled from behind: leather-dry fingers tightening, his throat choking and gurgling, desperate short gasps fading, very close, no music.
+sm_bite	1.5	assets/sfx/npc/sm_bite.mp3	A violent bite into a face: teeth crunching through flesh and cartilage, a wet tear, a muffled cry cut off, very close, disgusting, no music.
+sm_sting	1.2	assets/sfx/npc/sm_sting.mp3	A short horror stinger: a sudden muffled shriek through a sealed mouth over a deep sub-bass hit and a crack of static, then silence, no melody.
+sm_step	0.8	assets/sfx/npc/sm_step.mp3	One slow deliberate step of a leather shoe on gravel at night, a little too heavy, some distance away, nothing else, no music.

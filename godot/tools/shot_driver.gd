@@ -200,6 +200,18 @@ const SCENARIOS := {
 		["eval", "_set_player_health(100)"], ["eval", "_sewer_pipe_minigame.debug_catch('flood')"], ["wait", 1.4], ["shot", "k4_flood"], ["wait", 5.0],
 		["eval", "_set_player_health(100)"], ["eval", "_sewer_pipe_minigame.debug_catch('hand')"], ["wait", 0.3], ["shot", "k5_hand_snatch"], ["wait", 1.2], ["shot", "k5b_hand_eating"], ["wait", 1.6], ["shot", "k5c_hand_look"], ["wait", 5.0], ["shot", "k6_back_at_ladder"],
 	],
+	"testsilent": [
+		["wait_menu"], ["call", "_on_menu_test_night", ["silent_man"]], ["wait", 9.0], ["eval", "_set_player_health(100)"],
+		["player", 17, 16, 90.0], ["wait", 0.3], ["eval", "_enemy_brains.back().set('_resume_at', 0.0)"], ["eval", "_enemy_brains.back()._body.set('global_position', _player.global_position + _player.global_transform.basis.z * -6.0)"],
+		["eval", "_enemy_brains.back()._set_tex(_enemy_brains.back()._look_for(6.0))"], ["look_at_enemy"], ["wait", 0.3], ["shot", "s0_near"],
+		["eval", "_enemy_brains.back()._driven_off()"], ["wait", 0.1], ["shot", "s1_lit_flinch"], ["wait", 0.5], ["shot", "s2_lit_backing"], ["wait", 1.0],
+		["eval", "_set_player_health(100)"], ["eval", "_enemy_brains.back()._start_catch()"], ["eval", "_enemy_brains.back()._seq.merge({'kind': 'ear', 'kill': false}, true)"], ["wait", 0.5], ["shot", "k_ear_a"], ["wait", 0.6], ["shot", "k_ear_b"], ["wait", 2.8], ["eval", "_enemy_brains.back()._end_seq()"], ["eval", "_set_player_health(100)"], ["wait", 0.3],
+		["eval", "_set_player_health(100)"], ["eval", "_enemy_brains.back()._start_catch()"], ["eval", "_enemy_brains.back()._seq.merge({'kind': 'above', 'kill': false}, true)"], ["wait", 0.5], ["shot", "k_above_a"], ["wait", 0.6], ["shot", "k_above_b"], ["wait", 2.8], ["eval", "_enemy_brains.back()._end_seq()"], ["eval", "_set_player_health(100)"], ["wait", 0.3],
+		["eval", "_set_player_health(100)"], ["eval", "_enemy_brains.back()._start_catch()"], ["eval", "_enemy_brains.back()._seq.merge({'kind': 'turn', 'kill': false}, true)"], ["wait", 0.5], ["shot", "k_turn_a"], ["wait", 0.6], ["shot", "k_turn_b"], ["wait", 2.8], ["eval", "_enemy_brains.back()._end_seq()"], ["eval", "_set_player_health(100)"], ["wait", 0.3],
+		["eval", "_set_player_health(100)"], ["eval", "_enemy_brains.back()._start_catch()"], ["eval", "_enemy_brains.back()._seq.merge({'kind': 'strangle', 'kill': true}, true)"], ["wait", 0.5], ["shot", "k_strangle_a"], ["wait", 0.6], ["shot", "k_strangle_b"], ["wait", 2.8], ["eval", "_enemy_brains.back()._end_seq()"], ["eval", "_set_player_health(100)"], ["wait", 0.3],
+		["eval", "_set_player_health(100)"], ["eval", "_enemy_brains.back()._start_catch()"], ["eval", "_enemy_brains.back()._seq.merge({'kind': 'snap', 'kill': true}, true)"], ["wait", 0.5], ["shot", "k_snap_a"], ["wait", 0.6], ["shot", "k_snap_b"], ["wait", 2.8], ["eval", "_enemy_brains.back()._end_seq()"], ["eval", "_set_player_health(100)"], ["wait", 0.3],
+		["eval", "_set_player_health(100)"], ["eval", "_enemy_brains.back()._start_catch()"], ["eval", "_enemy_brains.back()._seq.merge({'kind': 'bite', 'kill': true}, true)"], ["wait", 0.5], ["shot", "k_bite_a"], ["wait", 0.6], ["shot", "k_bite_b"], ["wait", 2.8], ["eval", "_enemy_brains.back()._end_seq()"], ["eval", "_set_player_health(100)"], ["wait", 0.3],
+	],
 	"testgirl": [
 		["wait_menu"], ["call", "_on_menu_test_night", ["girl"]], ["wait", 9.0],
 		["eval", "_enemy_brains.back()._night_entry"], ["gm", "get_liminal_forecast_data"],

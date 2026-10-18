@@ -142,6 +142,14 @@ func _hurt(amount: int) -> void:
 		_damage_callable.call(amount)
 
 
+## The player's health now (main's `_player_health`; 100 where there is no main, as in
+## the harnesses): a brain about to hit asks whether the hit kills, to play its kill.
+func _player_health() -> int:
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var h = scene.get("_player_health") if scene != null else null
+	return int(h) if h != null else 100
+
+
 ## The night's screen and ears (scripts/night/nightmare_fx.gd), when what it hunts is the
 ## one at this machine (null while it hunts the other warden's stand-in in co-op).
 func _fx() -> Node:

@@ -12,7 +12,7 @@ extends CanvasLayer
 ##   fx.red_flash(0.8)
 ##   fx.tinnitus(4.0)                             # a ring, the world muffled under it
 ##   fx.set_eyes("girl", head, cam, open, tilt)   # each tick: its eyes, drawn on the screen
-##   fx.close_up(tex, scale, stretch_y, shake, rot) # each tick of a strike: its face on you
+##   fx.close_up(tex, scale, stretch_y, shake, rot, off) # each tick of a strike: its face on you
 ##   fx.close_up_off(); fx.set_black(a)
 ##
 ## Eyes are drawn here, not in the world: crisp whole game pixels with a glow, the same
@@ -67,9 +67,12 @@ func _init() -> void:
 	name = NODE_NAME
 	layer = 104
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_build()
 
 
-func _ready() -> void:
+## Its parts are made with it, not on entering the tree: it is added deferred, and the
+## first calls can come before that.
+func _build() -> void:
 	_screen = ColorRect.new()
 	_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -158,7 +161,7 @@ func set_eyes(source: String, head: Vector3, cam: Camera3D, open: float = 1.0, t
 ## A face on you for this frame (call every frame of the strike; `close_up_off` ends it).
 ## `scale` 1 = the screen's height; `stretch_y` pulls it taller (a jaw going); `shake` in
 ## screen heights.
-func close_up(tex: Texture2D, scale: float, stretch_y: float = 1.0, shake: float = 0.0, rot: float = 0.0) -> void:
+func close_up(tex: Texture2D, scale: float, stretch_y: float = 1.0, shake: float = 0.0, rot: float = 0.0, off: Vector2 = Vector2.ZERO) -> void:
 	if not is_inside_tree():
 		return
 	if tex == null:
@@ -170,7 +173,7 @@ func close_up(tex: Texture2D, scale: float, stretch_y: float = 1.0, shake: float
 	_close.scale = Vector2(scale, scale * stretch_y)
 	_close.rotation = rot
 	var j := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake * vp.y
-	_close.position = j.floor()
+	_close.position = (j + off * vp).floor()
 
 
 func close_up_off() -> void:
@@ -224,6 +227,8 @@ func red_flash(alpha: float) -> void:
 
 ## A high ring in the ears that fades over `seconds`, the world muffled under it.
 func tinnitus(seconds: float) -> void:
+	if not is_inside_tree():
+		return
 	_ring_len = maxf(0.5, seconds)
 	_ring_t = 0.0
 	if not _ring.playing:
