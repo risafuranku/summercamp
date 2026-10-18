@@ -28,6 +28,8 @@ extends Resource
 @export var guest_reviews: Array[Dictionary] = []
 @export var guest_transactions: Array[Dictionary] = []
 @export var next_guest_id: int = 1
+# The businesses (core/systems/business_rules.gd): {sites, orders, licences}
+@export var biz: Dictionary = {}
 
 func _init() -> void:
 	# Dynamically load GridModel script
@@ -40,3 +42,4 @@ func _init() -> void:
 	guest_transactions = []
 	next_guest_id = 1
 	hrotfaktor = 0.0
+	biz = {"sites": {}, "orders": [], "licences": []}

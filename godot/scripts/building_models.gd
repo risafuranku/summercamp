@@ -14,7 +14,7 @@ const CAMP := "res://assets/textury/camp/"
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
-	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock"]
+	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -68,6 +68,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _pingpong(root, w, d)
 		"hammock":
 			return _hammock(root, w, d)
+		"corn_stand":
+			return _corn_stand(root, w, d)
 		# Built by BuildingManager's own placers; here for tools/model_viewer.
 		"cabin_1", "cabin_2", "cabin_3":
 			var lv := int(type.right(1))
@@ -193,7 +195,7 @@ func _pub(r: Node3D, w: float, d: float) -> Dictionary:
 	var sx := w * 0.62
 	var sz := d * 0.5
 	var h := 3.1
-	var plaster := _camp_or("plaster_stone.png", Color(0.86, 0.84, 0.78), "wall", Vector3(2.0, 1.2, 1.0))
+	var plaster: Material = _town_or("village_plaster.png", Color(0.96, 0.92, 0.82), "plaster_stone.png", Vector3(2.0, 1.2, 1.0))
 	_plinth(r, sx + 0.3, sz + 0.3, Vector3(-0.6, 0, -0.4))
 	_box(r, "House", Vector3(sx, h, sz), Vector3(-0.6, h * 0.5 + 0.1, -0.4), plaster)
 	_gable_roof(r, Vector3(-0.6, h + 0.1, -0.4), sx + 0.5, sz + 0.6, 1.5, _camp("corrugated_roof.png", Color(0.62, 0.6, 0.56), Vector3(3.0, 2.0, 1.0)))
@@ -202,27 +204,36 @@ func _pub(r: Node3D, w: float, d: float) -> Dictionary:
 	var ax := sx * 0.5 - 0.6 + 1.4
 	_box(r, "Annex", Vector3(2.6, 2.3, sz * 0.8), Vector3(ax, 1.25, -0.6), plaster)
 	_lean_roof(r, 2.9, sz * 0.8 + 0.5, 2.4, 0.35, _camp("corrugated_roof.png", Color(0.5, 0.48, 0.44), Vector3(2.0, 2.0, 1.0)), Vector3(ax, 0, -0.6))
-	# Porch: a green awning on two posts over the door.
+	# The front: the pub's face (door on the left third, two windows with geraniums, the
+	# lamp and the enamel plate) over the whole wall; the porch over its door.
 	var front := -0.4 + sz * 0.5
-	_box(r, "Door", Vector3(0.95, 2.0, 0.06), Vector3(-1.4, 1.1, front + 0.03), _camp("door_wood.png", Color(0.7, 0.62, 0.5)))
-	var awning := _box(r, "Awning", Vector3(1.9, 0.08, 1.2), Vector3(-1.4, 2.45, front + 0.6), _flat(Color(0.28, 0.42, 0.26)))
+	var face_w := sx
+	var door_x := -0.6 - sx * 0.5 + sx * 0.21
+	if ResourceLoader.exists(CAMP + "camp_pub_front.png"):
+		_quad(r, "PubFront", Vector2(face_w, h), Vector3(-0.6, h * 0.5 + 0.1, front + 0.012), 0.0, _face_mat("camp_pub_front.png"))
+	else:
+		_box(r, "Door", Vector3(0.95, 2.0, 0.06), Vector3(door_x, 1.1, front + 0.03), _camp("door_wood.png", Color(0.7, 0.62, 0.5)))
+		_window(r, Vector3(0.6, 1.7, front + 0.02), Vector2(1.0, 0.8))
+		_window(r, Vector3(1.9, 1.7, front + 0.02), Vector2(1.0, 0.8))
+	if ResourceLoader.exists(CAMP + "camp_pub_side.png"):
+		_quad(r, "PubSide", Vector2(sz, h), Vector3(-0.6 - sx * 0.5 - 0.012, h * 0.5 + 0.1, -0.4), -PI * 0.5, _face_mat("camp_pub_side.png"))
+	var awning := _box(r, "Awning", Vector3(1.7, 0.08, 1.1), Vector3(door_x, 2.55, front + 0.55), _flat(Color(0.28, 0.42, 0.26)))
 	awning.rotation.x = 0.18
-	for x: float in [-2.25, -0.55]:
-		_box(r, "Post", Vector3(0.1, 2.35, 0.1), Vector3(x, 1.27, front + 1.1), _wood())
-	_box(r, "Step", Vector3(1.6, 0.18, 0.6), Vector3(-1.4, 0.09, front + 0.4), _psx_mat(Color(0.6, 0.6, 0.58), "stone"))
-	_window(r, Vector3(0.6, 1.7, front + 0.02), Vector2(1.0, 0.8))
-	_window(r, Vector3(1.9, 1.7, front + 0.02), Vector2(1.0, 0.8))
+	for x: float in [door_x - 0.78, door_x + 0.78]:
+		_box(r, "Post", Vector3(0.1, 2.45, 0.1), Vector3(x, 1.32, front + 1.02), _wood())
+	_box(r, "Step", Vector3(1.4, 0.16, 0.5), Vector3(door_x, 0.08, front + 0.3), _psx_mat(Color(0.6, 0.6, 0.58), "stone"))
 	_window(r, Vector3(-0.6, 1.9, -0.4 - sz * 0.5 - 0.02), Vector2(0.9, 0.7), PI)
 	# The sign, barrels, a crate of empties, a satellite dish and the aerial.
 	_box(r, "SignBoard", Vector3(1.6, 0.42, 0.05), Vector3(0.9, 2.65, front + 0.05), _flat(Color(0.2, 0.14, 0.1)))
 	_label(r, "HOSPODA", Vector3(0.9, 2.65, front + 0.085), 0.24, Color(0.96, 0.84, 0.5))
+	# The barrels and the empties out by the annex, clear of the door.
 	for i in 3:
-		_cyl(r, "Barrel%d" % i, 0.28, 0.75, Vector3(-3.0 + i * 0.62, 0.48, front + 0.5 + (i % 2) * 0.2), _psx_mat(Color(0.5, 0.36, 0.22), "decor_wood"))
-	_box(r, "Crate", Vector3(0.5, 0.3, 0.36), Vector3(2.5, 0.25, front + 0.5), _flat(Color(0.7, 0.5, 0.2)))
+		_cyl(r, "Barrel%d" % i, 0.28, 0.75, Vector3(2.3 + i * 0.62, 0.48, front + 0.5 + (i % 2) * 0.2), _psx_mat(Color(0.5, 0.36, 0.22), "decor_wood"))
+	_box(r, "Crate", Vector3(0.5, 0.3, 0.36), Vector3(4.3, 0.25, front + 0.3), _camp_or("beer_crate.png", Color(0.7, 0.5, 0.2), "plastic"))
 	_cyl(r, "Dish", 0.32, 0.06, Vector3(sx * 0.5 - 0.6 + 0.05, 2.6, front - 0.6), _flat(Color(0.82, 0.82, 0.8)), Vector3(0.4, 0.0, PI * 0.5))
 	_cyl(r, "Aerial", 0.02, 1.6, Vector3(-1.6, h + 1.8, -0.4), _metal())
 	_box(r, "AerialBar", Vector3(0.9, 0.03, 0.03), Vector3(-1.6, h + 2.3, -0.4), _metal())
-	return {"size": Vector3(sx + 2.4, h + 1.0, sz + 0.6), "target": Vector3(-1.4, 1.2, front + 0.2)}
+	return {"size": Vector3(sx + 2.4, h + 1.0, sz + 0.6), "target": Vector3(door_x, 1.2, front + 0.2)}
 
 
 # ── the restaurant (restaurace.PNG): flat roof, tiled band, the red sign ──────
@@ -236,11 +247,14 @@ func _restaurant(r: Node3D, w: float, d: float) -> Dictionary:
 	_box(r, "Upper", Vector3(sx, h - 1.0, sz), Vector3(0, 1.0 + (h - 1.0) * 0.5 + 0.1, 0), _camp_or("concrete.png", Color(1.0, 0.98, 0.9), "wall"))
 	_box(r, "Tiles", Vector3(sx + 0.02, 1.0, sz + 0.02), Vector3(0, 0.6, 0), _camp_or("tiles_green.png", Color(0.62, 0.8, 0.66), "wall", Vector3(4.0, 1.0, 1.0)))
 	_box(r, "Roof", Vector3(sx + 0.3, 0.2, sz + 0.3), Vector3(0, h + 0.2, 0), _camp_or("concrete.png", Color(0.6, 0.6, 0.58), "roof"))
-	_box(r, "Door", Vector3(0.9, 2.0, 0.06), Vector3(-0.4, 1.1, front + 0.03), _camp("door_wood.png", Color(0.6, 0.66, 0.6)))
-	var awn := _box(r, "Awning", Vector3(1.4, 0.07, 0.8), Vector3(-0.4, 2.35, front + 0.4), _flat(Color(0.86, 0.66, 0.16)))
+	if ResourceLoader.exists(CAMP + "camp_bistro_front.png"):
+		_quad(r, "BistroFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.015), 0.0, _face_mat("camp_bistro_front.png"))
+	else:
+		_box(r, "Door", Vector3(0.9, 2.0, 0.06), Vector3(-0.4, 1.1, front + 0.03), _camp("door_wood.png", Color(0.6, 0.66, 0.6)))
+		for x: float in [-2.2, 1.0, 2.0]:
+			_window(r, Vector3(x, 1.75, front + 0.02), Vector2(0.85, 0.8))
+	var awn := _box(r, "Awning", Vector3(1.4, 0.07, 0.8), Vector3(0.0, 2.55, front + 0.4), _flat(Color(0.86, 0.66, 0.16)))
 	awn.rotation.x = 0.25
-	for x: float in [-2.2, 1.0, 2.0]:
-		_window(r, Vector3(x, 1.75, front + 0.02), Vector2(0.85, 0.8))
 	# The big red sign on the roof edge.
 	_box(r, "Sign", Vector3(sx * 0.62, 0.62, 0.12), Vector3(0, h + 0.62, front - 0.1), _flat(Color(0.74, 0.08, 0.06)))
 	_label(r, "RESTAURACE", Vector3(0, h + 0.62, front - 0.03), 0.34, Color(0.98, 0.95, 0.88))
@@ -253,7 +267,7 @@ func _restaurant(r: Node3D, w: float, d: float) -> Dictionary:
 	_cyl(r, "Dish", 0.36, 0.06, Vector3(sx * 0.3, h + 0.8, -0.6), _flat(Color(0.84, 0.84, 0.82)), Vector3(0.6, 0, 0))
 	_box(r, "ACUnit", Vector3(0.7, 0.45, 0.5), Vector3(-sx * 0.25, h + 0.52, -0.8), _metal())
 	_cyl(r, "Gas", 0.16, 0.6, Vector3(sx * 0.5 + 0.2, 0.4, -0.6), _flat(Color(0.7, 0.24, 0.12)))
-	return {"size": Vector3(sx + 1.6, h + 0.9, sz + 0.6), "target": Vector3(-0.4, 1.2, front + 0.2)}
+	return {"size": Vector3(sx + 1.6, h + 0.9, sz + 0.6), "target": Vector3(0.0, 1.2, front + 0.2)}
 
 
 # ── the substation (gen.PNG): brick block, steel doors, a transformer on top ──
@@ -767,6 +781,7 @@ func tent_details(r: Node3D, w: float, h: float, d: float, at: Vector3, yaw: flo
 	t.rotation.y = yaw
 	r.add_child(t)
 	var flap := _prism_flap(w * 0.55, h * 0.8, color.darkened(0.45))
+	flap.name = "TentFlap"
 	flap.position = Vector3(0, 0, d * 0.5 + 0.015)
 	t.add_child(flap)
 	var rope := _flat(Color(0.84, 0.8, 0.66))
@@ -1106,10 +1121,16 @@ func _playground(r: Node3D, w: float, _d: float) -> Dictionary:
 	_box(r, "SandPatch", Vector3(w * 0.88, 0.04, 3.0), Vector3(0, 0.02, 0), sand)
 	# The swing frame on the left half: two A-frames, the bar, two seats on chains.
 	var sx := -w * 0.22
+	# Each end an A: two legs from the bar down to the ground, spread 1.3 m apart there.
+	var spread := 0.65
+	var top := 2.2
+	var lean := atan2(spread, top)
+	var leg_len := sqrt(spread * spread + top * top)
 	for x: float in [sx - 1.1, sx + 1.1]:
-		for z: float in [-0.5, 0.5]:
-			var leg := _box(r, "SwingLeg", Vector3(0.07, 2.3, 0.07), Vector3(x, 1.1, z * 0.82), red)
-			leg.rotation.x = z * 0.42
+		for z: float in [-1.0, 1.0]:
+			var leg := _box(r, "SwingLeg", Vector3(0.07, leg_len, 0.07), Vector3(x, top * 0.5, z * spread * 0.5), red)
+			leg.rotation.x = -z * lean
+		_box(r, "SwingFoot", Vector3(0.1, 0.06, spread * 2.0 + 0.1), Vector3(x, 0.03, 0), red)
 	_box(r, "SwingBar", Vector3(2.3, 0.07, 0.07), Vector3(sx, 2.2, 0), red)
 	var chain := _flat(Color(0.5, 0.5, 0.52))
 	for i in 2:
@@ -1119,7 +1140,7 @@ func _playground(r: Node3D, w: float, _d: float) -> Dictionary:
 		r.add_child(pivot)
 		for cx: float in [-0.2, 0.2]:
 			_box(pivot, "Chain", Vector3(0.02, 1.7, 0.02), Vector3(cx, -0.85, 0), chain)
-		_box(pivot, "Seat", Vector3(0.48, 0.05, 0.2), Vector3(0, -1.72, 0), _flat(Color(0.16, 0.16, 0.18)))
+		_box(pivot, "Seat", Vector3(0.48, 0.05, 0.2), Vector3(0, -1.72, 0), _camp_or("swing_seat.png", Color(0.16, 0.16, 0.18), "rubber"))
 	# The seesaw on the right: the fulcrum and the plank on its pivot.
 	var tx := w * 0.22
 	_box(r, "Fulcrum", Vector3(0.24, 0.42, 0.3), Vector3(tx, 0.21, 0), red)
@@ -1397,6 +1418,89 @@ func _camp(file: String, tint: Color, uv := Vector3.ONE) -> StandardMaterial3D:
 
 
 ## A camp texture if it has been generated, else the PSX category (redneck set).
+# ── the corn stand: a plank booth, a striped awning, the pot steaming ─────────
+
+## Repeats of camp/awning_stripes.png per two metres (its stripes about a sixth of the stand).
+const AWNING_UV := 1.2
+
+
+func _corn_stand(r: Node3D, w: float, _d: float) -> Dictionary:
+	var bw := minf(w * 0.8, 2.6)
+	var depth := 1.3
+	var h := 1.05
+	var planks := _camp_or("planks_grey.png", Color(0.95, 0.86, 0.5), "wood", Vector3(1.0, 1.0, 1.0))
+	# The counter, its painted front (Grok) to the camp.
+	_box(r, "Counter", Vector3(bw, h, depth), Vector3(0, h * 0.5, 0), planks)
+	if ResourceLoader.exists(CAMP + "corn_stand.png"):
+		_quad(r, "StandFront", Vector2(bw, h + 1.0), Vector3(0, (h + 1.0) * 0.5, depth * 0.5 + 0.012), 0.0, _face_mat("corn_stand.png"))
+	_box(r, "CounterTop", Vector3(bw + 0.1, 0.06, depth + 0.1), Vector3(0, h + 0.03, 0), _wood())
+	# Four posts and the awning in red and white stripes.
+	for x: float in [-bw * 0.5 + 0.05, bw * 0.5 - 0.05]:
+		for z: float in [-depth * 0.5 + 0.05, depth * 0.5 - 0.05]:
+			_box(r, "Post", Vector3(0.07, 2.3, 0.07), Vector3(x, 1.15, z), _wood())
+	# The awning: striped canvas (Grok, camp/awning_stripes.png) and its scalloped fringe
+	# along the front, one tongue a flap (camp/awning_fringe.png: a red and a cream one).
+	var stripes := 6
+	var canvas := _camp_or("awning_stripes.png", Color(0.82, 0.12, 0.1), "fabric", Vector3(AWNING_UV, 1.0, AWNING_UV))
+	var awning := _box(r, "Awning", Vector3(bw, 0.04, depth + 0.6), Vector3(0, 2.32, 0.15), canvas)
+	awning.rotation.x = 0.2
+	var fringe_path := CAMP + "awning_fringe.png"
+	for i in stripes:
+		var mat: Material = _flat(Color(0.82, 0.12, 0.1) if i % 2 == 0 else Color(0.94, 0.92, 0.86))
+		if ResourceLoader.exists(fringe_path):
+			var fm := _cut_face(fringe_path)
+			fm.uv1_scale = Vector3(0.5, 1.0, 1.0)
+			fm.uv1_offset = Vector3(0.5 * (i % 2), 0.0, 0.0)
+			mat = fm
+		var flap := _quad(r, "AwningFlap%d" % i, Vector2(bw / float(stripes), 0.26), Vector3(-bw * 0.5 + bw / float(stripes) * (i + 0.5), 2.1, depth * 0.5 + 0.46), 0.0, mat)
+		flap.name = "AwningFlap%d" % i
+	# Behind the counter: the pot on its gas ring, a gas bottle, a crate of cobs.
+	_cyl(r, "Pot", 0.28, 0.42, Vector3(-bw * 0.22, h + 0.27, -0.25), _metal())
+	_cyl(r, "Ring", 0.2, 0.06, Vector3(-bw * 0.22, h + 0.06, -0.25), _camp_or("steel_kitchen.png", Color(0.32, 0.32, 0.34), "metal"))
+	# The gas bottle: its render on two crossed cards.
+	if ResourceLoader.exists(CAMP + "gas_bottle.png"):
+		for yaw in [0.0, PI * 0.5]:
+			_quad(r, "Gas", Vector2(0.34, 0.62), Vector3(bw * 0.5 - 0.25, 0.31, -depth * 0.5 - 0.15), yaw, _cut_face(CAMP + "gas_bottle.png"))
+	if ResourceLoader.exists("res://assets/textury/town/corn_crate.png"):
+		var crate := _quad(r, "CornCrate", Vector2(0.62, 0.48), Vector3(bw * 0.25, h + 0.25, -0.35), 0.0, _cut_face("res://assets/textury/town/corn_crate.png"))
+		crate.name = "CornCrate"
+	r.set_meta("steam_at", Vector3(-bw * 0.22, h + 0.55, -0.25))
+	_use_script(r, "res://scripts/business/corn_stand_life.gd")
+	return {"size": Vector3(bw, 2.4, depth), "target": Vector3(0, 1.0, depth * 0.5 + 0.2)}
+
+
+## A Grok sprite on a quad, its background keyed out.
+func _cut_face(path: String) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(path)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	return m
+
+
+## A whole wall's face (a Grok picture, not tiled), lit like the walls.
+func _face_mat(file: String) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(CAMP + file)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	return m
+
+
+## A town texture (assets/textury/town) tiled like the camp's, or a camp one instead.
+func _town_or(file: String, tint: Color, fallback: String, uv := Vector3.ONE) -> Material:
+	var path := "res://assets/textury/town/" + file
+	if not ResourceLoader.exists(path):
+		return _camp_or(fallback, tint, "wall", uv)
+	var mat := _camp(fallback, tint, uv)
+	mat.albedo_texture = load(path)
+	return mat
+
+
 func _camp_or(file: String, tint: Color, category: String, uv := Vector3.ONE) -> Material:
 	if ResourceLoader.exists(CAMP + file):
 		return _camp(file, tint, uv)

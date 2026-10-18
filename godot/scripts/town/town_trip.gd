@@ -193,6 +193,7 @@ func interact(structure: Node3D) -> void:
 			var gate := _gate()
 			if gate != null and not gate.is_raised():
 				gate.open_for_player()
+				Coop.send_sync("gate", [])
 		"trip_timetable":
 			_open_timetable(str(structure.get_meta("stop", "camp")))
 		"trip_bus":

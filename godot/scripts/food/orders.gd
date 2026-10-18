@@ -53,6 +53,22 @@ static func left_for(v: Dictionary, profile: String) -> int:
 static func note_served(v: Dictionary) -> void:
 	var k := str(v.get("visit", ""))
 	_served[k] = int(_served.get(k, 0)) + 1
+	if Coop.is_client():
+		Coop.send_request("served", [k])
+
+
+## Whether visit `visit` at business `key` has had anything yet. A building without
+## books (an old save, a harness camp) feeds them as before; on the joining machine a
+## hand's serving happens in the host's camp, so a staffed site counts as served.
+static func served(key: String, visit: String) -> bool:
+	if int(_served.get(visit, 0)) > 0:
+		return true
+	if CoreRoot == null or CoreRoot.get_state() == null:
+		return true
+	var s: Dictionary = (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).get(key, {})
+	if s.is_empty():
+		return true
+	return bool(s.get("staff", false)) and not Coop.sim_here()
 
 
 ## The till rings: the money is the camp's.

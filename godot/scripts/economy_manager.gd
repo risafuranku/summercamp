@@ -187,6 +187,10 @@ func calculate_day_income() -> int:
 	var total: int = 0
 	for entry in _get_placed_buildings():
 		var btype = str(entry.get("type", ""))
+		# The pub, the bistro, the Jednota and the corn stand earn what they sell
+		# (scripts/business/business_runtime.gd), not a flat sum a day.
+		if preload("res://core/systems/business_rules.gd").is_business(btype):
+			continue
 		# Try Registry first
 		var income = 0
 		var def = CoreRoot.registry.get_def(btype)

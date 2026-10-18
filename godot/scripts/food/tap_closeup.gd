@@ -12,6 +12,8 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## and the tray swims.
 
 const ORDERS = preload("res://scripts/food/orders.gd")
+const BUSINESS = preload("res://scripts/business/business_runtime.gd")
+const GLASSES = preload("res://scripts/food/glass_wash_closeup.gd")
 const PIC := "res://assets/textury/closeup/pub_tap.png"
 const SFX_TAP_OPEN := "res://assets/sfx/pub/tap_open.mp3"
 const SFX_TAP_CLOSE := "res://assets/sfx/pub/tap_close.mp3"
@@ -33,6 +35,17 @@ const G_W_TOP := 38.0
 const GLASS_RECT := Rect2(128, 108, 48, 102)
 ## The half-litre mark on the glass.
 const LINE := 0.8
+## The glass and what is in it are renders (closeup/parts/): the empty glass, the full
+## glass of beer (cut off at the beer's level), the head of foam (stretched over the
+## foam), the streams, a drip, the spill, the chits.
+const PARTS := "res://assets/textury/closeup/parts/"
+var _tex: Dictionary = {}
+
+
+func _part(key: String) -> Texture2D:
+	if not _tex.has(key):
+		_tex[key] = load(PARTS + key + ".png") if ResourceLoader.exists(PARTS + key + ".png") else null
+	return _tex[key]
 
 const POUR_RATE := 0.24       # glass heights a second, pulled
 const PULL_FOAM := 0.045      # the head a pulled pour makes
@@ -133,6 +146,18 @@ func _input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	if visible and _closing_t < 0.0 and not get_tree().paused and mb != null \
 			and (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT):
+		if mb.pressed and hovered() == "tap" and _slide < 0.0 and BUSINESS.stock_of(building_key, "beer") == 0:
+			# The keg is dry: a cough of air and foam, nothing else.
+			play(SFX_TAP_OPEN, -6.0)
+			say("", "The tap coughs and spits. The keg is empty: order beer at the desk.")
+			get_viewport().set_input_as_handled()
+			return
+		var mugs: Dictionary = GLASSES.glasses(building_key)
+		if mb.pressed and hovered() == "tap" and _slide < 0.0 and not mugs.is_empty() and int(mugs["clean"]) <= 0 and _beer + _foam <= 0.0:
+			play(SFX_GLASS, -16.0)
+			say("", "No clean mugs on the rack. %d dirty by the sink." % int(mugs["dirty"]))
+			get_viewport().set_input_as_handled()
+			return
 		if mb.pressed and hovered() == "tap" and _slide < 0.0:
 			_pull = mb.button_index == MOUSE_BUTTON_LEFT
 			_push = not _pull
@@ -280,7 +305,14 @@ func _serve() -> void:
 		return
 	var tip := 2 if q >= 0.85 else (1 if q >= 0.6 else 0)
 	var price := int(want["price"])
-	ORDERS.pay(price + tip)
+	if not BUSINESS.sell(building_key, {"beer": 1}, price + tip):
+		say("", "The keg ran dry under the glass. Order beer at the desk.")
+		_slide = 0.0
+		return
+	var mugs2: Dictionary = GLASSES.glasses(building_key)
+	if not mugs2.is_empty():
+		mugs2["clean"] = maxi(0, int(mugs2["clean"]) - 1)
+		mugs2["dirty"] = int(mugs2["dirty"]) + 1
 	ORDERS.note_served(v)
 	_queue.pop_front()
 	_slide = 0.0
@@ -319,7 +351,9 @@ func _paint(c: Control) -> void:
 		var dy := float(d["y"])
 		var dw := lerpf(G_W_BOT, G_W_TOP, (G_BOTTOM - dy) / (G_BOTTOM - G_RIM))
 		var dx := G_X + float(d["side"]) * (dw * 0.5 + 1.0) - (1.0 if float(d["side"]) < 0.0 else 0.0)
-		c.draw_rect(Rect2(dx + off.x, dy - 3.0, 1, 4), Color(0.96, 0.92, 0.8, 0.85))
+		var drip := _part("foam_drip")
+		if drip != null:
+			c.draw_texture_rect(drip, Rect2(dx - 1.0 + off.x, dy - 5.0, 3, 6), false)
 	_paint_slips(c)
 	for f in _floaters:
 		var k := float(f["t"]) / 1.4
@@ -343,86 +377,64 @@ func _paint_stream(c: Control) -> void:
 	if _slide >= 0.0 or not (_pull or _push):
 		return
 	var top_y := _level_y(_beer + _foam)
-	var y0 := SPOUT.y
-	for y in range(int(y0), int(top_y)):
-		var wob := int(sin(_t * 30.0 + y * 0.7) * 0.6)
-		if _pull:
-			c.draw_rect(Rect2(SPOUT.x - 1 + wob, y, 3, 1), Color(0.86, 0.6, 0.18, 0.95))
-			c.draw_rect(Rect2(SPOUT.x + wob, y, 1, 1), Color(1.0, 0.84, 0.42))
-		else:
-			if (y + int(_t * 40.0)) % 3 != 0:
-				c.draw_rect(Rect2(SPOUT.x + wob, y, 1, 1), Color(0.98, 0.95, 0.86))
+	var t := _part("pour_stream" if _pull else "foam_stream")
+	if t == null or top_y <= SPOUT.y:
+		return
+	# A shiver in steps along the stream.
+	var wob := roundf(sin(_t * 30.0) * 0.6)
+	c.draw_texture_rect(t, Rect2(SPOUT.x - 2.0 + wob, SPOUT.y, 4.0 if _pull else 3.0, top_y - SPOUT.y), false)
+
+
+## The glass's render placed over its glass on the painting: the foot on G_BOTTOM, the
+## rim on G_RIM (the base's three pixels hang below).
+func _glass_box(t: Texture2D, off: Vector2) -> Rect2:
+	var h := G_BOTTOM - G_RIM + 3.0
+	var w := float(t.get_width()) * h / float(t.get_height())
+	return Rect2(G_X - w * 0.5 + off.x, G_RIM + off.y, w, h)
 
 
 func _paint_glass(c: Control, off: Vector2) -> void:
+	var glass := _part("tap_glass")
+	var beer := _part("tap_beer")
+	var foam := _part("tap_foam")
+	var ref := glass if glass != null else beer
+	if ref == null:
+		return
+	var box := _glass_box(ref, off)
+	if glass != null:
+		c.draw_texture_rect(glass, box, false)
 	var beer_y := _level_y(_beer)
 	var top_y := _level_y(_beer + _foam)
-	var h := G_BOTTOM - G_RIM
-	for yi in range(int(G_RIM), int(G_BOTTOM)):
-		var y := float(yi)
-		var k := (G_BOTTOM - y) / h
-		var w := lerpf(G_W_BOT, G_W_TOP, k)
-		var x0 := G_X - w * 0.5
-		var row := Rect2(x0 + off.x, y + off.y, w, 1)
-		if y >= beer_y:
-			# Beer: dark amber at the bottom, gold at the top, a dither between.
-			var depth := clampf((y - beer_y) / maxf(1.0, G_BOTTOM - beer_y), 0.0, 1.0)
-			var col := Color(0.95, 0.66, 0.16).lerp(Color(0.62, 0.32, 0.06), depth)
-			c.draw_rect(row, col)
-			for xi in range(int(w)):
-				if (xi + yi) % 2 == 0 and xi % 3 == 0:
-					c.draw_rect(Rect2(x0 + xi + off.x, y + off.y, 1, 1), col.lightened(0.12))
-		elif y >= top_y - _foam_bump(0):
-			# Foam, a bumpy top.
-			var col2 := Color(0.97, 0.94, 0.84)
-			for xi in range(int(w)):
-				if y < top_y - _foam_bump(xi):
-					continue
-				var sp := (xi * 7 + yi * 13) % 11 == 0
-				c.draw_rect(Rect2(x0 + xi + off.x, y + off.y, 1, 1), Color(0.84, 0.8, 0.7) if sp else col2)
-		else:
-			c.draw_rect(row, Color(0.62, 0.7, 0.74, 0.12))
-		# The glass walls.
-		c.draw_rect(Rect2(x0 - 1 + off.x, y + off.y, 1, 1), Color(0.78, 0.84, 0.88, 0.75))
-		c.draw_rect(Rect2(x0 + w + off.x, y + off.y, 1, 1), Color(0.6, 0.66, 0.7, 0.6))
-		if yi % 9 < 6:
-			c.draw_rect(Rect2(x0 + 2 + off.x, y + off.y, 1, 1), Color(1, 1, 1, 0.22))
-	# Rising bubbles in the beer.
-	for b in _bubbles:
-		var frac := fmod(b.y + _t * 0.18, 1.0)
-		var by := G_BOTTOM - frac * (G_BOTTOM - beer_y)
-		if by > beer_y + 1.0 and _beer > 0.05:
-			var bw := lerpf(G_W_BOT, G_W_TOP, (G_BOTTOM - by) / h)
-			c.draw_rect(Rect2(G_X + b.x * bw + off.x, by + off.y, 1, 1), Color(1.0, 0.9, 0.6, 0.8))
-	# The rim, the thick base and the half-litre mark.
-	c.draw_rect(Rect2(G_X - G_W_TOP * 0.5 - 1 + off.x, G_RIM - 1 + off.y, G_W_TOP + 2, 1), Color(0.86, 0.9, 0.92, 0.85))
-	c.draw_rect(Rect2(G_X - G_W_BOT * 0.5 - 1 + off.x, G_BOTTOM + off.y, G_W_BOT + 2, 3), Color(0.7, 0.76, 0.8, 0.7))
-	var ly := _level_y(LINE)
-	var lw := lerpf(G_W_BOT, G_W_TOP, LINE)
-	c.draw_rect(Rect2(G_X + 2 + off.x, ly + off.y, lw * 0.5 - 4, 1), Color(1, 1, 1, 0.7))
-	c.draw_rect(Rect2(G_X + lw * 0.5 - 4 + off.x, ly - 2 + off.y, 1, 2), Color(1, 1, 1, 0.6))
+	# The beer: the full glass's render from the foot up to the level.
+	if beer != null and _beer > 0.0:
+		var hb := box.end.y - (beer_y + off.y)
+		var src := float(beer.get_height()) * hb / box.size.y
+		c.draw_texture_rect_region(beer, Rect2(box.position.x, beer_y + off.y, box.size.x, hb), Rect2(0, beer.get_height() - src, beer.get_width(), src))
+	# The head: the foam's render over it, as wide as the glass is there.
+	if foam != null and beer_y - top_y >= 1.0:
+		var w := lerpf(G_W_BOT, G_W_TOP, (G_BOTTOM - top_y) / (G_BOTTOM - G_RIM)) - 2.0
+		c.draw_texture_rect(foam, Rect2(G_X - w * 0.5 + off.x, top_y + off.y - 2.0, w, beer_y - top_y + 3.0), false)
 
 
 func _paint_puddle(c: Control) -> void:
-	if _puddle <= 0.01:
+	var t := _part("spill")
+	if _puddle <= 0.01 or t == null:
 		return
 	var rw := 30.0 + _puddle * 60.0
-	var col := Color(0.82, 0.62, 0.22, 0.3 + _puddle * 0.4)
-	for i in 4:
-		var w := rw * (1.0 - float(i) * 0.18)
-		c.draw_rect(Rect2(G_X - w * 0.5, G_BOTTOM + 2 + i, w, 1), col)
+	c.draw_texture_rect(t, Rect2(G_X - rw * 0.5, G_BOTTOM - 1.0, rw, 8.0), false, Color(1, 1, 1, 0.4 + _puddle * 0.5))
 
 
 ## The slips of the orders waiting, pinned on the left like a pad of chits.
 func _paint_slips(c: Control) -> void:
+	var chit := _part("ticket")
 	for i in _queue.size():
 		var o: Dictionary = _queue[i]
 		var text := "%s  %s" % [ORDERS.first_name(str((o["v"] as Dictionary)["name"])).to_upper(), str(o["pour"]).to_upper()]
 		var tw := RETRO_UI.FONT_LABEL.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-		var r := Rect2(8, 132 + i * 15, ceilf(tw) + 7.0, 12)
-		c.draw_rect(r, Color(0.88, 0.84, 0.72) if i == 0 else Color(0.74, 0.7, 0.6))
-		c.draw_rect(Rect2(r.position.x, r.end.y, r.size.x, 1), Color(0, 0, 0, 0.5))
-		ink(c, RETRO_UI.FONT_LABEL, Vector2(r.position.x + 3, r.position.y + 9), text, Color(0.12, 0.1, 0.12), Color(0, 0, 0, 0), 8)
+		var r := Rect2(8, 132 + i * 15, ceilf(tw) + 11.0, 13)
+		if chit != null:
+			c.draw_texture_rect(chit, r, false, Color(1, 1, 1) if i == 0 else Color(0.8, 0.77, 0.7))
+		ink(c, RETRO_UI.FONT_LABEL, Vector2(r.position.x + 5, r.position.y + 9), text, Color(0.12, 0.1, 0.12), Color(0, 0, 0, 0), 8)
 
 
 func _level_y(frac: float) -> float:

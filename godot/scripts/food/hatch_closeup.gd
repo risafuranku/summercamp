@@ -9,6 +9,9 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## back; a click on the plate on the pass scrapes it.
 
 const ORDERS = preload("res://scripts/food/orders.gd")
+const BUSINESS = preload("res://scripts/business/business_runtime.gd")
+const RULES = preload("res://core/systems/business_rules.gd")
+const FRYER = preload("res://scripts/food/fryer_closeup.gd")
 const PIC := "res://assets/textury/closeup/bistro_hatch.png"
 const FOOD_DIR := "res://assets/textury/closeup/food/"
 const SFX_PLATE := "res://assets/sfx/bistro/plate_down.mp3"
@@ -69,6 +72,15 @@ var _pop: Dictionary = {}       # part -> seconds since it landed (a little drop
 var _plate_slide := -1.0        # the plate going out (s)
 var _floaters: Array = []
 var _tex: Dictionary = {}
+## The tickets are renders (closeup/parts/ticket_tall, and yellowed and curling when
+## they have hung too long).
+const PARTS := "res://assets/textury/closeup/parts/"
+
+
+func _part(key: String) -> Texture2D:
+	if not _tex.has(key):
+		_tex[key] = load(PARTS + key + ".png") if ResourceLoader.exists(PARTS + key + ".png") else null
+	return _tex[key]
 var _fryer: AudioStreamPlayer
 var _rng := RandomNumberGenerator.new()
 
@@ -141,6 +153,10 @@ func _clicked(id: String) -> void:
 				_sfx(SFX_LADLE, -18.0, 1.4)
 				return
 			if not _plate.has(id):
+				if id in ["cheese", "fries"] and not _fried(id):
+					say("", "Nothing fried on the rack. The stove's in the kitchen.")
+					_sfx(SFX_LADLE, -18.0, 1.4)
+					return
 				_plate.append(id)
 				_pop[id] = 0.0
 				_sfx(SFX_LADLE, -8.0, 1.0 if id == "goulash" else 1.25)
@@ -221,7 +237,13 @@ func _send_out() -> void:
 		var took := _t - float(o["t0"])
 		var tip := 2 if took < 14.0 else (1 if took < 26.0 else 0)
 		var price := int((DISHES[str(o["dish"])] as Dictionary)["price"])
-		ORDERS.pay(price + tip)
+		var needs: Dictionary = (RULES.RECIPES["rest"] as Dictionary).get(str(o["dish"]), {})
+		if not BUSINESS.sell(building_key, needs, price + tip):
+			say("", "The kitchen is out of it. Order at the desk: %s." % ", ".join(needs.keys()))
+			_has_plate = false
+			_plate = []
+			return
+		_use_fried(have)
 		ORDERS.note_served(v)
 		_queue.remove_at(i)
 		_plate_slide = 0.0
@@ -240,6 +262,26 @@ func _send_out() -> void:
 	say(ORDERS.first_name(str(first.get("name", ""))) if not first.is_empty() else "", str(WRONG[_rng.randi() % WRONG.size()]) if not _queue.is_empty() else "Nobody ordered that. It goes in the bin.")
 	_has_plate = false
 	_plate = []
+
+
+## Is there one of `part` fried and waiting (counting what is on the plate already)?
+func _fried(part: String) -> bool:
+	var site: Dictionary = BUSINESS.site(building_key)
+	if site.is_empty() or bool(site.get("staff", false)):
+		return true
+	var p: Dictionary = FRYER.prep(building_key)
+	return int(p.get(part, 0)) > 0
+
+
+## The plate went out: what was fried for it is off the rack.
+func _use_fried(parts: Array) -> void:
+	var site: Dictionary = BUSINESS.site(building_key)
+	if site.is_empty() or bool(site.get("staff", false)):
+		return
+	var p: Dictionary = FRYER.prep(building_key)
+	for part in ["cheese", "fries"]:
+		if parts.has(part):
+			p[part] = maxi(0, int(p.get(part, 0)) - 1)
 
 
 func _sfx(path: String, db: float, pitch: float) -> void:
@@ -295,19 +337,20 @@ func _paint_tickets(c: Control) -> void:
 				c.draw_texture_rect_region(picture, r.grow(2.0), Rect2(Vector2(126.0, r.position.y - 2.0), r.size + Vector2(4, 4)))
 			continue
 		var o: Dictionary = _queue[i]
-		c.draw_rect(r, Color(0.92, 0.88, 0.76))
-		c.draw_rect(Rect2(r.position.x, r.end.y, r.size.x, 1), Color(0, 0, 0, 0.45))
-		c.draw_rect(Rect2(r.position.x + r.size.x * 0.5 - 1, r.position.y + 1, 2, 2), Color(0.7, 0.12, 0.1))
+		# Waiting long: the ticket yellows and curls.
+		var age := _t - float(o["t0"])
+		var fresh := _part("ticket_tall")
+		var old := _part("ticket_tall_old")
+		if fresh != null:
+			c.draw_texture_rect(fresh, r, false)
+		if old != null and age > 18.0:
+			c.draw_texture_rect(old, r, false, Color(1, 1, 1, clampf((age - 18.0) / 12.0, 0.0, 1.0)))
 		var parts: Array = (DISHES[str(o["dish"])] as Dictionary)["parts"]
 		for j in parts.size():
 			var t: Texture2D = _tex.get("icon_" + str(parts[j]), null)
 			if t != null:
 				var ts := t.get_size()
 				c.draw_texture_rect(t, Rect2(floorf(r.position.x + (r.size.x - ts.x) * 0.5), r.position.y + 4.0 + float(j) * 10.0, ts.x, ts.y), false)
-		# Waiting long: the ticket curls (goes darker at the edge).
-		var age := _t - float(o["t0"])
-		if age > 26.0:
-			c.draw_rect(Rect2(r.position.x, r.end.y - 4, r.size.x, 4), Color(0.6, 0.5, 0.36, 0.6))
 
 
 # ── debug (tools/shot_driver.gd) ─────────────────────────────────────────────

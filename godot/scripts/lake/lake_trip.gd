@@ -25,7 +25,7 @@ const STROKE := 0.95
 const DRAG := 0.32
 const TURN := 0.9
 
-enum { NONE, ROWING, FAR_SHORE }
+enum { NONE, ROWING, FAR_SHORE, PASSENGER }
 
 var _main: Node
 var _lake
@@ -37,6 +37,10 @@ var _yaw := 0.0
 var _stroke_t := -1.0
 var _dest := ""             # "far" or "camp"
 var _docking := false
+## Out on the water once (well off the camp jetty): rowing back to it ties up there,
+## whichever way the trip was meant to go (pushed off and thought better of it, you could
+## not get out again: playtest 18. 10.).
+var _left_home := false
 var _overlay: CanvasLayer
 var _hands: TextureRect
 var _lap: AudioStreamPlayer
@@ -88,10 +92,15 @@ func _near_boat() -> bool:
 func hint() -> String:
 	if _state == NONE and _near_boat() and not _coop_boat_away:
 		return "[E] Take the boat across"
+	if _state == NONE and _can_join():
+		return "[E] Get in with %s" % Coop.partner_name()
 	return ""
 
 
 func try_interact() -> bool:
+	if _state == NONE and _can_join():
+		_start_passenger()
+		return true
 	if _state != NONE or not _near_boat() or _coop_boat_away:
 		return false
 	_start_rowing("far")
@@ -106,6 +115,7 @@ func _start_rowing(dest: String) -> void:
 		return
 	_dest = dest
 	_docking = false
+	_left_home = dest == "camp"
 	_speed = 0.0
 	_end_far_shore()
 	if _cam == null:
@@ -144,6 +154,8 @@ func _process(delta: float) -> void:
 			_update_rowing(delta)
 		FAR_SHORE:
 			_update_far_shore(delta)
+		PASSENGER:
+			_update_passenger(delta)
 
 
 func _update_rowing(delta: float) -> void:
@@ -168,10 +180,23 @@ func _update_rowing(delta: float) -> void:
 		if _stroke_t >= 0.85:
 			_stroke_t = -1.0
 	var fwd := Vector3(sin(_yaw), 0.0, cos(_yaw))
+	var at2 := Vector2(boat.global_position.x, boat.global_position.z)
+	var home: Vector3 = lake.boat_home.origin
+	var home_d := at2.distance_to(Vector2(home.x, home.z))
+	if home_d > 6.5:
+		_left_home = true
+	# Whichever jetty you come up to: the keeper's, or the camp's once you have been out.
+	if not _docking:
+		var far: Vector3 = lake.far_jetty_end
+		if at2.distance_to(Vector2(far.x, far.z)) < 4.5:
+			_dest = "far"
+			_docking = true
+		elif _left_home and home_d < 4.5:
+			_dest = "camp"
+			_docking = true
+		if _docking:
+			_play("bump.mp3", -2.0)
 	var target: Vector3 = lake.far_jetty_end if _dest == "far" else lake.boat_home.origin
-	if not _docking and Vector2(boat.global_position.x, boat.global_position.z).distance_to(Vector2(target.x, target.z)) < 4.5:
-		_docking = true
-		_play("bump.mp3", -2.0)
 	if _docking:
 		# Alongside by itself: drift to the jetty and stop.
 		var to := Vector3(target.x + 1.4, boat.global_position.y, target.z)
@@ -207,8 +232,10 @@ func _arrive() -> void:
 
 func _finish_trip() -> void:
 	var lake = _lake_node()
-	if lake != null and lake.boat != null:
+	# A passenger leaves the boat where the other warden has it.
+	if lake != null and lake.boat != null and not _passenger:
 		lake.boat.transform = lake.boat_home
+	_passenger = false
 	_lap.stop()
 	_overlay.visible = false
 	_state = NONE
@@ -331,6 +358,15 @@ func return_home() -> void:
 func _input(event: InputEvent) -> void:
 	if _state == ROWING:
 		return
+	if _state == PASSENGER:
+		# By the camp jetty a passenger may step out (S or the right button).
+		var out: bool = (event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).physical_keycode == KEY_S) \
+			or (event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT)
+		var lake = _lake_node()
+		if out and lake != null and (lake.boat as Node3D).global_position.distance_to(lake.boat_home.origin) < 8.0:
+			_finish_trip()
+			get_viewport().set_input_as_handled()
+		return
 	if _state != FAR_SHORE:
 		return
 	if _logbook != null and _logbook.visible:
@@ -338,7 +374,10 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		match _hover:
 			"boat":
-				_start_rowing("camp")
+				if _passenger:
+					_say("%s has the oars: wait for them." % Coop.partner_name())
+				else:
+					_start_rowing("camp")
 			"hut":
 				_open_logbook()
 			"rod", "water":
@@ -654,21 +693,104 @@ func _say(text: String) -> void:
 var _coop_boat_away := false
 
 
+## Riding in the other warden's boat (they row, you sit in the bow facing them); across
+## with them, ashore with them, back with them.
+var _passenger := false
+var _partner_ashore := false
+var _partner_rowing := false
+## Where a passenger sits: the bow thwart, facing the stern (the rower).
+const PASSENGER_SEAT := Vector3(0.0, 0.98, 1.0)
+
+
+## The other warden is in the boat and it is still by the camp jetty, you beside it.
+func _can_join() -> bool:
+	if not _coop_boat_away or not _partner_rowing or not Coop.is_active():
+		return false
+	var lake = _lake_node()
+	var p := _player()
+	if lake == null or p == null or lake.boat == null:
+		return false
+	var b: Vector3 = (lake.boat as Node3D).global_position
+	return p.global_position.distance_to(b) < 4.0 and b.distance_to(lake.boat_home.origin) < 8.0
+
+
+func _start_passenger() -> void:
+	var lake = _lake_node()
+	if lake == null:
+		return
+	_passenger = true
+	_end_far_shore()
+	if _cam == null:
+		_cam = Camera3D.new()
+		_cam.fov = 66.0
+		_cam.near = 0.05
+		_cam.far = 400.0
+		lake.boat.add_child(_cam)
+	elif _cam.get_parent() != lake.boat:
+		_cam.reparent(lake.boat)
+	_cam.position = PASSENGER_SEAT
+	_cam.rotation = Vector3(deg_to_rad(-4.0), 0.0, 0.0)
+	_base_rot = _cam.rotation
+	_look.reset()
+	_prev_cam = get_viewport().get_camera_3d() if _prev_cam == null else _prev_cam
+	_cam.current = true
+	var p := _player()
+	if p != null and p.has_method("set_controls_enabled"):
+		p.set_controls_enabled(false)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_ensure_overlay()
+	_overlay.visible = true
+	_hands.visible = false
+	_lap.volume_db = -14.0
+	_lap.play()
+	_state = PASSENGER
+	_play("bump.mp3", -6.0)
+	_say("You climb into the bow. %s rows." % Coop.partner_name())
+
+
+func _update_passenger(delta: float) -> void:
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	_cam.position = PASSENGER_SEAT
+	_cam.rotation = _base_rot + offset
+
+
 ## Where you are on the lake, for the other machine: {boat: the boat's transform} while
-## you row, {shore: where you stand, boat_at: the boat tied up} on the keeper's side,
-## {} when you are not on the trip.
+## you row, {ride: the boat} in the bow of theirs, {shore: where you stand, boat_at: the
+## boat tied up} on the keeper's side, {} when you are not on the trip.
 func coop_state() -> Dictionary:
 	var lake = _lake_node()
 	if lake == null or lake.boat == null or _state == NONE:
 		return {}
 	if _state == ROWING:
 		return {"boat": (lake.boat as Node3D).global_transform}
-	return {"shore": (lake.far_view as Vector3) - Vector3(0.0, 1.45, 0.0), "boat_at": (lake.boat as Node3D).global_transform}
+	if _state == PASSENGER:
+		return {"ride": (lake.boat as Node3D).global_transform}
+	var shore := (lake.far_view as Vector3) - Vector3(0.0, 1.45, 0.0)
+	if _passenger:
+		# Beside them on the jetty, the boat theirs.
+		return {"shore": shore + Vector3(0.9, 0.0, 0.0)}
+	return {"shore": shore, "boat_at": (lake.boat as Node3D).global_transform}
 
 
 ## The other warden's boat: where they have it (`xf`), or back at the camp jetty
-## (null) when they are home again. Not while you are in it.
-func coop_mirror_boat(xf) -> void:
+## (null) when they are home again; `ashore`: they are up on the keeper's jetty. Not
+## while you row it; a passenger follows them in and out of it.
+func coop_mirror_boat(xf, ashore := false) -> void:
+	_partner_rowing = xf is Transform3D and not ashore
+	_partner_ashore = xf is Transform3D and ashore
+	if _passenger:
+		var lake0 = _lake_node()
+		if xf is Transform3D and lake0 != null and lake0.boat != null:
+			(lake0.boat as Node3D).global_transform = xf
+		if not (xf is Transform3D):
+			# Home (or gone home some other way): you get out at the camp jetty with them.
+			_end_far_shore()
+			_finish_trip()
+		elif ashore and _state == PASSENGER:
+			_begin_far_shore()
+		elif not ashore and _state == FAR_SHORE:
+			_start_passenger()
+		return
 	if _state != NONE:
 		return
 	var lake = _lake_node()

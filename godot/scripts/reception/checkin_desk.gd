@@ -149,6 +149,10 @@ const ROW_H := 12.0
 const ROWS := 10
 const HOOK_COLS := 8
 const HOOK_ROWS := 3
+## A board holds 24 keys; a camp with more turns pages (hook numbers run on: hook 30 is the
+## second board's seventh). The tabs hang down the board's left edge.
+const HOOKS_PER_PAGE := HOOK_COLS * HOOK_ROWS
+const TAB_SIZE := Vector2(11, 15)
 const INK := Color(0.10, 0.14, 0.46)
 const INK_RED := Color(0.62, 0.06, 0.05)
 const STAMP_GREEN := Color(0.12, 0.46, 0.20, 0.86)
@@ -226,7 +230,8 @@ var _p: Dictionary = {}           # their progress (see _new_progress)
 var _progress: Dictionary = {}    # guest id -> progress, kept while they wait
 var _history: Array = []          # register rows: {no, name, card, persons, nights, lodging, key, day, red}
 var _keys: Array = []             # the key board, refreshed while open
-var _slots: Dictionary = {}       # key -> hook (0..23): where its label and key are
+var _slots: Dictionary = {}       # key -> hook (0.., 24 a page): where its label and key are
+var _page := 0                    # which board of keys is showing
 var _labels_mode := false         # the label maker is in your hand
 var _swing: Dictionary = {}       # key -> seconds it still swings on its hook
 var _drag := ""                   # "card", "slip", "key:<key>"
@@ -359,6 +364,38 @@ func history() -> Array:
 	return _history
 
 
+## Co-op: the other machine's register and hooks taken in with yours (each desk wrote
+## only its own check-ins). Rows go by the day, then the number each was written under,
+## and are numbered again, so the two registers end the same; a hook is as either last
+## put it.
+func coop_merge(d: Dictionary) -> void:
+	var seen := {}
+	var rows: Array = []
+	for r in _history + (d.get("history", []) as Array):
+		if not (r is Dictionary):
+			continue
+		var id := "%s|%s|%s" % [str(r.get("card", "")), str(r.get("day", "")), str(r.get("name", ""))]
+		if seen.has(id):
+			continue
+		seen[id] = true
+		rows.append((r as Dictionary).duplicate())
+	rows.sort_custom(func(a, b):
+		if int(a.get("day", 0)) != int(b.get("day", 0)):
+			return int(a.get("day", 0)) < int(b.get("day", 0))
+		if int(a.get("no", 0)) != int(b.get("no", 0)):
+			return int(a.get("no", 0)) < int(b.get("no", 0))
+		return str(a.get("name", "")) < str(b.get("name", "")))
+	for i in rows.size():
+		rows[i]["no"] = i + 1
+	_history = rows
+	var hooks = d.get("hooks", {})
+	if hooks is Dictionary:
+		for k in (hooks as Dictionary).keys():
+			_slots[str(k)] = int((hooks as Dictionary)[k])
+	if is_open():
+		_refresh_keys()
+
+
 func _layout() -> void:
 	if _view == null:
 		return
@@ -407,6 +444,12 @@ func _set_guest(guest: Dictionary) -> void:
 	var id := int(guest.get("id", -999))
 	_p = _progress.get(id, _new_progress(guest))
 	_progress[id] = _p
+	# The board with their key on it.
+	for r in guest.get("rooms", []):
+		var rk := str((r as Dictionary).get("key", ""))
+		if _slots.has(rk):
+			_page = _page_of(int(_slots[rk]))
+			break
 	_guest_y = 1.0
 	_guest_target = 0.0
 	if not bool(_p.get("greeted", false)):
@@ -533,7 +576,7 @@ func _refresh_keys() -> void:
 	for k in _keys:
 		present[str((k as Dictionary)["key"])] = true
 	for key in _slots.keys():
-		if not present.has(key) or int(_slots[key]) < 0 or int(_slots[key]) >= HOOK_COLS * HOOK_ROWS:
+		if not present.has(key) or int(_slots[key]) < 0:
 			_slots.erase(key)
 	var taken := {}
 	for key in _slots.keys():
@@ -545,10 +588,46 @@ func _refresh_keys() -> void:
 			continue
 		while taken.has(free):
 			free += 1
-		if free >= HOOK_COLS * HOOK_ROWS:
-			break
 		_slots[key] = free
 		taken[free] = true
+	_page = clampi(_page, 0, _page_count() - 1)
+
+
+## Boards in use: as many as the hooks taken need (one more while labels are being moved,
+## to take some over to a fresh board).
+func _page_count() -> int:
+	var top := 0
+	for key in _slots.keys():
+		top = maxi(top, int(_slots[key]))
+	var n := floori(float(top) / HOOKS_PER_PAGE) + 1
+	if _labels_mode:
+		n += 1
+	return maxi(1, n)
+
+
+func _page_of(i: int) -> int:
+	return floori(float(i) / HOOKS_PER_PAGE)
+
+
+func _tab_rect(page: int) -> Rect2:
+	return Rect2(RACK.position + Vector2(-TAB_SIZE.x + 1, 4 + page * (TAB_SIZE.y + 1)), TAB_SIZE)
+
+
+func _tab_at(p: Vector2) -> int:
+	if _page_count() < 2:
+		return -1
+	for i in mini(_page_count(), 6):
+		if _tab_rect(i).has_point(p):
+			return i
+	return -1
+
+
+func _turn_page(page: int) -> void:
+	page = clampi(page, 0, _page_count() - 1)
+	if page == _page:
+		return
+	_page = page
+	_play("paper_slide", -14.0)
 
 
 # ── every frame ──────────────────────────────────────────────────────────────
@@ -557,6 +636,13 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_t += delta
+	# A label carried over a tab: that board comes up, to stick it there.
+	if _drag.begins_with("label:") and _mouse.x >= 0.0:
+		var tab := _tab_at(_mouse)
+		if tab >= 0:
+			_turn_page(tab)
+	if not _labels_mode and _page >= _page_count():
+		_page = _page_count() - 1
 	if _closing_t >= 0.0:
 		_closing_t += delta
 		var f := 1.0 - clampf(_closing_t / (OPEN_SEC * 0.6), 0.0, 1.0)
@@ -637,6 +723,10 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
+		if (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN) and mb.pressed:
+			if _mouse.x >= 0.0 and RACK.grow_individual(TAB_SIZE.x, 0, 0, 0).has_point(_mouse):
+				_turn_page(_page + (1 if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1))
+			return
 		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
 			if _labels_mode:
 				_set_labels_mode(false)
@@ -664,6 +754,9 @@ func _press(p: Vector2) -> void:
 		return
 	var hit := _thing_at(p)
 	if hit == "":
+		return
+	if hit.begins_with("tab:"):
+		_turn_page(int(hit.trim_prefix("tab:")))
 		return
 	if hit == "dymo":
 		_set_labels_mode(not _labels_mode)
@@ -712,6 +805,9 @@ func _drop_everything() -> void:
 
 ## What is under the mouse, topmost first: the dragged paper, papers, keys, stamps.
 func _thing_at(p: Vector2) -> String:
+	var tab := _tab_at(p)
+	if tab >= 0 and _drag == "":
+		return "tab:%d" % tab
 	# With the label maker in hand only the labels (and putting it down) answer.
 	if _labels_mode:
 		if DYMO.has_point(p):
@@ -725,7 +821,7 @@ func _thing_at(p: Vector2) -> String:
 				return d
 		for k in _keys:
 			var kd: Dictionary = k
-			if _key_on_rack(kd) and _slots.has(str(kd["key"])):
+			if _key_on_rack(kd) and _slots.has(str(kd["key"])) and _page_of(int(_slots[str(kd["key"])])) == _page:
 				var hit := KEY_HIT
 				hit.position += _key_pos(str(kd["key"]))
 				if hit.has_point(p):
@@ -899,6 +995,8 @@ func _set_labels_mode(on: bool) -> void:
 ## The label (or the key under it) at `p`, by its key.
 func _label_at(p: Vector2) -> String:
 	for key in _slots.keys():
+		if _page_of(int(_slots[key])) != _page:
+			continue
 		var cell := Rect2(_cell_pos(int(_slots[key])), CELL)
 		if cell.has_point(p):
 			return str(key)
@@ -910,7 +1008,7 @@ func _label_at(p: Vector2) -> String:
 func _stick_label(key: String, at: Vector2) -> void:
 	var best := -1
 	var best_d := 15.0
-	for i in HOOK_COLS * HOOK_ROWS:
+	for i in range(_page * HOOKS_PER_PAGE, (_page + 1) * HOOKS_PER_PAGE):
 		var d := _hook_pos(i).distance_to(at)
 		if d < best_d:
 			best_d = d
@@ -1313,7 +1411,8 @@ func _draw_rack(c: Control) -> void:
 		if _slots.has(key):
 			by_slot[int(_slots[key])] = k
 	var dragged_label := _drag.trim_prefix("label:") if _drag.begins_with("label:") else ""
-	for i in HOOK_COLS * HOOK_ROWS:
+	_draw_tabs(c)
+	for i in range(_page * HOOKS_PER_PAGE, (_page + 1) * HOOKS_PER_PAGE):
 		var hook := _hook_pos(i)
 		var cell := _cell_pos(i)
 		# The brass cup hook, screwed into the board.
@@ -1340,6 +1439,34 @@ func _draw_rack(c: Control) -> void:
 		c.draw_rect(Rect2(pp, Vector2(1, 1)), pin.lightened(0.55))
 		if _key_on_rack(k) and _drag != "key:" + key:
 			_draw_key(c, hook, k)
+
+
+## Card tabs down the board's left edge, one a board, its number on it; the one showing
+## sits out against the board, a board holding a key that is not made up has a red pin.
+func _draw_tabs(c: Control) -> void:
+	var n := _page_count()
+	if n < 2:
+		return
+	var unready := {}
+	for k in _keys:
+		var key := str((k as Dictionary)["key"])
+		if _slots.has(key) and not bool((k as Dictionary).get("ready", false)):
+			unready[_page_of(int(_slots[key]))] = true
+	for i in mini(n, 6):
+		var r := _tab_rect(i)
+		var on := i == _page
+		if not on:
+			r.position.x += 2
+		c.draw_rect(Rect2(r.position + Vector2(1, 1), r.size), Color(0, 0, 0, 0.4))
+		var face := Color8(226, 214, 180) if on else Color8(176, 160, 124)
+		if _mouse.x >= 0.0 and r.has_point(_mouse) and not on:
+			face = face.lightened(0.15)
+		c.draw_rect(r, face)
+		c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), face.lightened(0.3))
+		c.draw_rect(Rect2(r.position + Vector2(0, r.size.y - 1), Vector2(r.size.x, 1)), face.darkened(0.35))
+		c.draw_string(F_TINY, r.position + Vector2(3, 10), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, PAPER_TEXT)
+		if unready.has(i):
+			c.draw_rect(Rect2(r.position + Vector2(7, 2), Vector2(2, 2)), Color8(224, 52, 40))
 
 
 func _draw_key(c: Control, ring: Vector2, k: Dictionary, lifted := false) -> void:

@@ -120,6 +120,17 @@ func import_state(d: Dictionary) -> void:
 	_pending_state = {}
 
 
+## Co-op: the register and the key hooks, both ways (main polls it, Coop.send_sync
+## "register"); what comes in is merged with what was written here.
+func coop_register() -> Dictionary:
+	return desk.export_state() if desk != null else {}
+
+
+func coop_take_register(d: Dictionary) -> void:
+	if desk != null:
+		desk.coop_merge(d)
+
+
 func is_open() -> bool:
 	return desk != null and desk.visible
 

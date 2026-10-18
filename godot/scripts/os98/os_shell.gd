@@ -50,8 +50,13 @@ const APPS := {
 	"imageview": {"title": "Image Viewer", "icon": "image", "size": Vector2(360, 300), "script": "image_app", "base": true},
 	"display": {"title": "Display Properties", "icon": "computer", "size": Vector2(360, 330), "script": "display_app", "base": true},
 	"datapunch": {"title": "DataPunch 98", "icon": "documents", "size": Vector2(560, 272), "script": "datapunch_app", "base": false},
+	# The businesses' programs (scripts/os98/apps/business_app.gd), licences from softsklad.cz.
+	"pub_app": {"title": "Hostinsky 98", "icon": "pub_app", "size": Vector2(600, 400), "script": "business_app", "base": false, "max": true},
+	"bistro_app": {"title": "Kuchar 98", "icon": "bistro_app", "size": Vector2(600, 400), "script": "business_app", "base": false, "max": true},
+	"shop_app": {"title": "Pult 98", "icon": "shop_app", "size": Vector2(600, 400), "script": "business_app", "base": false, "max": true},
+	"corn_app": {"title": "Klasek 98", "icon": "corn_app", "size": Vector2(600, 400), "script": "business_app", "base": false, "max": true},
 }
-const PROGRAM_MENU := ["browser", "mail", "notepad", "mines", "builder", "camp_status", "guestrack", "datapunch"]
+const PROGRAM_MENU := ["browser", "mail", "notepad", "mines", "builder", "camp_status", "guestrack", "datapunch", "pub_app", "bistro_app", "shop_app", "corn_app"]
 const DESKTOP_ICONS := [
 	["mycomputer", "My Computer", "computer"],
 	["bin", "Recycle Bin", "bin"],
@@ -63,9 +68,14 @@ const DESKTOP_ICONS := [
 	["camp_status", "CampStat", "campstat"],
 	["guestrack", "GuestRack", "guestrack"],
 	["datapunch", "DataPunch", "documents"],
+	["pub_app", "Hostinsky", "pub_app"],
+	["bistro_app", "Kuchar", "bistro_app"],
+	["shop_app", "Pult", "shop_app"],
+	["corn_app", "Klasek", "corn_app"],
 ]
-const DOWNLOAD_SIZES_KB := {"BLDR98SW.EXE": 96, "CAMPSTAT.EXE": 48, "GUESTRAK.EXE": 72, "DATAPNCH.EXE": 40}
-const INSTALLERS := {"BLDR98SW.EXE": "builder", "CAMPSTAT.EXE": "camp_status", "GUESTRAK.EXE": "guestrack", "DATAPNCH.EXE": "datapunch"}
+const DOWNLOAD_SIZES_KB := {"BLDR98SW.EXE": 96, "CAMPSTAT.EXE": 48, "GUESTRAK.EXE": 72, "DATAPNCH.EXE": 40, "HOSPOD98.EXE": 64, "KUCHAR98.EXE": 64, "PULT98.EXE": 56, "KLASEK98.EXE": 32}
+const INSTALLERS := {"BLDR98SW.EXE": "builder", "CAMPSTAT.EXE": "camp_status", "GUESTRAK.EXE": "guestrack", "DATAPNCH.EXE": "datapunch",
+	"HOSPOD98.EXE": "pub_app", "KUCHAR98.EXE": "bistro_app", "PULT98.EXE": "shop_app", "KLASEK98.EXE": "corn_app"}
 
 enum Boot { OFF, WARMUP, BIOS, SPLASH, OKNA, DESKTOP, SHUTTING, SAFE_OFF }
 
@@ -259,7 +269,7 @@ func import_persistent_state(data: Dictionary) -> void:
 	_restored.clear()
 	if not data.is_empty():
 		var reg: Dictionary = data.get("unlock_registry", {}) if data.get("unlock_registry", {}) is Dictionary else {}
-		for id in ["builder", "camp_status", "guestrack", "datapunch"]:
+		for id in ["builder", "camp_status", "guestrack", "datapunch", "pub_app", "bistro_app", "shop_app", "corn_app"]:
 			if bool(reg.get(id, false)):
 				_unlocked[id] = true
 		if data.get("datapunch_nights", {}) is Dictionary:
@@ -550,7 +560,7 @@ func open_app(app_id: String, args: Dictionary = {}, new_instance := false) -> C
 	if app_id == "builder" and not _is_day:
 		message_box("Builder 98", "Builder 98 cannot be started now.\n\nThe site licence for recreational facilities permits\nuse between 06:30 and 20:00 only.", "warning")
 		return null
-	var single := app_id in ["mail", "browser", "builder", "camp_status", "guestrack", "mines", "bin", "mycomputer"]
+	var single := app_id in ["mail", "browser", "builder", "camp_status", "guestrack", "mines", "bin", "mycomputer", "pub_app", "bistro_app", "shop_app", "corn_app"]
 	if single and not new_instance:
 		for w in _windows.get_children():
 			if w.app_id == app_id:

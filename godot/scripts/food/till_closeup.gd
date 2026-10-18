@@ -10,6 +10,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## they leave you the small change (scripts/food/orders.gd).
 
 const ORDERS = preload("res://scripts/food/orders.gd")
+const BUSINESS = preload("res://scripts/business/business_runtime.gd")
 const PIC := "res://assets/textury/closeup/shop_till.png"
 const GOODS_DIR := "res://assets/textury/closeup/goods/"
 const SFX_KEY := "res://assets/sfx/os98/key.mp3"
@@ -67,6 +68,15 @@ var _next := 0.0
 var _flash := 0.0
 var _floaters: Array = []
 var _tex: Dictionary = {}
+## The money and the price tags are renders (closeup/parts/: note_5/10/20, coin_1/2,
+## price_tag).
+const PARTS := "res://assets/textury/closeup/parts/"
+
+
+func _part(key: String) -> Texture2D:
+	if not _tex.has(key):
+		_tex[key] = load(PARTS + key + ".png") if ResourceLoader.exists(PARTS + key + ".png") else null
+	return _tex[key]
 var _rng := RandomNumberGenerator.new()
 
 
@@ -240,6 +250,16 @@ func _ring() -> void:
 		_flash = 0.6
 		_typed = ""
 		return
+	var needs := {}
+	for b in _basket:
+		needs[str(b)] = int(needs.get(str(b), 0)) + 1
+	if not BUSINESS.sell(building_key, needs, typed, false):
+		say(who, "You haven't got it on the shelf? Then I'll go to Lesna.")
+		if CoreRoot != null and CoreRoot.actions != null:
+			CoreRoot.actions.biz_lost(building_key)
+		ORDERS.note_served(_who)
+		_reset("wait")
+		return
 	_sfx(SFX_RING, -6.0, 1.0)
 	_charged = typed
 	# What they pay with: exact, or the next note up (sometimes a bigger one).
@@ -326,10 +346,9 @@ func _paint(c: Control) -> void:
 			_paint_note(c, int(v), Vector2(x, MAT.position.y + 6.0), true)
 			x += 9.0
 		else:
-			var col := Color(0.88, 0.72, 0.3) if int(v) == 2 else Color(0.78, 0.78, 0.74)
-			c.draw_rect(Rect2(x, MAT.position.y + 10.0, 6, 4), col)
-			c.draw_rect(Rect2(x + 1, MAT.position.y + 9.0, 4, 1), col.lightened(0.2))
-			c.draw_rect(Rect2(x, MAT.position.y + 14.0, 6, 1), col.darkened(0.4))
+			var coin := _part("coin_2" if int(v) == 2 else "coin_1")
+			if coin != null:
+				c.draw_texture(coin, Vector2(x, MAT.position.y + 9.0))
 			x += 5.0
 	for f in _floaters:
 		var kk := float(f["t"]) / 1.4
@@ -393,17 +412,18 @@ func _paint_goods(c: Control) -> void:
 		var tag := "$%d" % int(PRICES[str(b)])
 		var tw := RETRO_UI.FONT_LABEL.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 		var tag_r := Rect2(x + s.x * 0.5 - tw * 0.5 - 2.0, 172.0, tw + 4.0, 9.0)
-		c.draw_rect(tag_r, Color(0.94, 0.92, 0.84))
+		var tag_t := _part("price_tag")
+		if tag_t != null:
+			c.draw_texture_rect(tag_t, tag_r, false)
 		ink(c, RETRO_UI.FONT_LABEL, Vector2(tag_r.position.x + 2.0, tag_r.position.y + 7.0), tag, Color(0.6, 0.08, 0.06), Color(0, 0, 0, 0), 8)
 		x += maxf(s.x, tw + 4.0) + 6.0
 
 
 func _paint_note(c: Control, value: int, at: Vector2, small := false) -> void:
-	var col := {5: Color(0.62, 0.44, 0.3), 10: Color(0.36, 0.48, 0.66), 20: Color(0.4, 0.6, 0.38)}.get(value, Color(0.8, 0.76, 0.6)) as Color
 	var r := Rect2(at, Vector2(14, 8) if small else Vector2(34, 16))
-	c.draw_rect(r, col)
-	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), col.lightened(0.25))
-	c.draw_rect(Rect2(r.position.x, r.end.y, r.size.x, 1), Color(0, 0, 0, 0.5))
+	var note := _part("note_%d" % value)
+	if note != null:
+		c.draw_texture_rect(note, r, false)
 	if not small:
 		ink(c, RETRO_UI.FONT_LABEL, Vector2(r.position.x + 4.0, r.position.y + 11.0), "$%d" % value, Color(0.96, 0.94, 0.86), Color(0, 0, 0, 0.6), 8)
 

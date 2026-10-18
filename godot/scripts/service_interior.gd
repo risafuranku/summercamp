@@ -95,7 +95,18 @@ const COUNTER_GAMES := {
 	"rest": "res://scripts/food/hatch_closeup.gd",
 	"vecerka": "res://scripts/food/till_closeup.gd",
 }
+## The other jobs behind the counter: id -> {script, profile, room, at, size}.
+const EXTRA_GAMES := {
+	"shots": {"script": "res://scripts/food/shots_closeup.gd", "profile": "pub", "at": Vector3(1.35, 1.45, -2.05), "size": Vector3(1.4, 0.8, 0.4)},
+	"wash": {"script": "res://scripts/food/glass_wash_closeup.gd", "profile": "pub", "at": Vector3(2.35, 1.05, -1.2), "size": Vector3(0.5, 0.4, 0.5)},
+	"fryer": {"script": "res://scripts/food/fryer_closeup.gd", "profile": "rest", "room": "kitchen", "at": Vector3(0.0, 1.0, -2.02), "size": Vector3(1.0, 0.6, 0.7)},
+}
+var _extra_games: Dictionary = {}
 var _counter_game: CanvasLayer
+## The business's books on the counter (scripts/business/ledger_closeup.gd).
+const LEDGER := preload("res://scripts/business/ledger_closeup.gd")
+const LEDGER_AT := {"pub": Vector3(0.42, 1.08, -1.1), "rest": Vector3(1.42, 0.98, -1.12), "vecerka": Vector3(-1.4, 0.93, 0.55)}
+var _ledger: CanvasLayer
 ## Which stall of the toilet block you go into: the door you walked up to outside
 ## ("left" / "right"), set by InteriorManager before open_service().
 var toilet_entry := "left"
@@ -205,6 +216,12 @@ func close_service() -> void:
 	if _counter_game != null and _counter_game.visible:
 		_counter_game.call("_closing")
 		_counter_game.visible = false
+	if _ledger != null and _ledger.visible:
+		_ledger.visible = false
+	for g in _extra_games.values():
+		if (g as CanvasLayer).visible:
+			(g as CanvasLayer).call("_closing")
+			(g as CanvasLayer).visible = false
 	_stop_life()
 	_update_sewer_ambience_state()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -218,6 +235,11 @@ func _process(delta: float) -> void:
 	# Behind the counter in a close-up: the room holds still.
 	if _counter_game != null and _counter_game.visible:
 		return
+	if _ledger != null and _ledger.visible:
+		return
+	for g in _extra_games.values():
+		if (g as CanvasLayer).visible:
+			return
 	if _current_profile == "generator" and _shed != null:
 		_shed.update_hover(get_viewport().get_mouse_position())
 	elif INTERIOR_LOOK.in_exit_zone(get_viewport()):
@@ -318,6 +340,15 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 	if _node_has_click_type(collider, "service_counter_game"):
 		_open_counter_game()
 		return true
+	if _node_has_click_type(collider, "service_ledger"):
+		_open_ledger()
+		return true
+	var n := collider as Node
+	while n != null:
+		if n.has_meta("service_game"):
+			_open_extra_game(str(n.get_meta("service_game")))
+			return true
+		n = n.get_parent()
 	return false
 
 
@@ -327,9 +358,14 @@ func _hover_click_type() -> String:
 	var collider = hit.get("collider", null) as Node
 	if collider == null or not (collider is Node3D and (collider as Node3D).is_visible_in_tree()):
 		return ""
-	for t in ["service_light_switch", "service_counter_game"]:
+	for t in ["service_light_switch", "service_counter_game", "service_ledger"]:
 		if _node_has_click_type(collider, t):
 			return t
+	var n := collider as Node
+	while n != null:
+		if n.has_meta("service_game"):
+			return "service_game"
+		n = n.get_parent()
 	return ""
 
 
@@ -350,6 +386,94 @@ func _open_counter_game() -> void:
 		_counter_game_profile = _current_profile
 	_counter_game.set("building_key", _upkeep_key)
 	_counter_game.open_view()
+
+
+## The books: an accounts book lying open on the counter, its cover and its pages (the
+## same Grok page as the close-up), a pencil across it; click it for the desk.
+func _build_ledger(profile: String) -> void:
+	if not LEDGER_AT.has(profile):
+		return
+	var parent: Node3D = {"pub": _pub_main_root, "rest": _restaurant_dining_root, "vecerka": _vecerka_shop_root}.get(profile)
+	if parent == null:
+		return
+	var K := INTERIOR_KIT
+	var at: Vector3 = LEDGER_AT[profile]
+	var book := Node3D.new()
+	book.name = "Ledger"
+	book.position = at
+	book.rotation.y = 0.25
+	parent.add_child(book)
+	K.slab(book, Vector3(0.36, 0.025, 0.25), Vector3(0, 0.0125, 0), K.surface("velvet", 0.3, Color(0.45, 0.12, 0.1)), "LedgerCover")
+	var page := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(0.34, 0.23)
+	q.orientation = PlaneMesh.FACE_Y
+	page.mesh = q
+	# The open pages from above, pencil in the gutter (Grok, camp/ledger_open.png).
+	var m := StandardMaterial3D.new()
+	var page_tex := "res://assets/textury/camp/ledger_open.png"
+	if ResourceLoader.exists(page_tex):
+		m.albedo_texture = load(page_tex)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	page.material_override = m
+	page.position = Vector3(0, 0.027, 0)
+	book.add_child(page)
+	var body := StaticBody3D.new()
+	body.name = "LedgerSpot"
+	body.set_meta("interior_click_type", "service_ledger")
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.42, 0.12, 0.32)
+	shape.shape = box
+	body.add_child(shape)
+	body.position = Vector3(0, 0.05, 0)
+	book.add_child(body)
+
+
+## The other jobs' spots in this room (the back bar, the sink, the stove).
+func _build_extra_games(profile: String) -> void:
+	for id in EXTRA_GAMES:
+		var g: Dictionary = EXTRA_GAMES[id]
+		if str(g["profile"]) != profile:
+			continue
+		var parent: Node3D = _pub_main_root if profile == "pub" else (_restaurant_kitchen_root if str(g.get("room", "")) == "kitchen" else _restaurant_dining_root)
+		if parent == null:
+			continue
+		var body := StaticBody3D.new()
+		body.name = "Game_" + id
+		body.set_meta("service_game", id)
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = g["size"]
+		shape.shape = box
+		body.add_child(shape)
+		body.position = g["at"]
+		parent.add_child(body)
+
+
+func _open_extra_game(id: String) -> void:
+	var g: Dictionary = EXTRA_GAMES.get(id, {})
+	if g.is_empty() or not ResourceLoader.exists(str(g["script"])):
+		return
+	if not _extra_games.has(id):
+		var inst: CanvasLayer = load(str(g["script"])).new()
+		inst.name = "Game_" + id
+		add_child(inst)
+		_extra_games[id] = inst
+	var game: CanvasLayer = _extra_games[id]
+	game.set("building_key", _upkeep_key)
+	game.open_view()
+
+
+func _open_ledger() -> void:
+	if _ledger == null:
+		_ledger = LEDGER.new()
+		_ledger.name = "Ledger"
+		add_child(_ledger)
+	var btype: String = {"pub": "pub", "rest": "restaurant", "vecerka": "vecerka"}.get(_current_profile, "")
+	if btype == "":
+		return
+	_ledger.open_for(_upkeep_key, btype)
 
 
 ## A body over the counter thing (the tap tower on the bar, the bistro's pass, the till),
@@ -713,6 +837,8 @@ func _build_service_room(profile: String) -> void:
 	if profile != "sewer":
 		_build_service_light_switch(profile)
 	_build_counter_game(profile)
+	_build_ledger(profile)
+	_build_extra_games(profile)
 
 	_cam_base_rot = _interior_camera.rotation
 	_apply_time_profile()
@@ -1705,8 +1831,10 @@ func _start_life() -> void:
 		_:
 			return
 	# Nobody sits in your lap: seats too near where you stand stay empty.
+	var door := Vector3.INF
 	if _interior_camera != null:
 		var cam := root.to_local(_interior_camera.global_position)
+		door = Vector3(cam.x, 0.05, cam.z)
 		var kept: Array = []
 		var kept_settings: Dictionary = {}
 		for i in seats.size():
@@ -1721,7 +1849,7 @@ func _start_life() -> void:
 	_life = SERVICE_LIFE.new()
 	_life.name = "ServiceLife"
 	root.add_child(_life)
-	_life.setup(_current_profile, _upkeep_key, seats, settings)
+	_life.setup(_current_profile, _upkeep_key, seats, settings, door)
 
 
 ## The top of the prop called `n` nearest `at` under `root` (room y), or `fallback`.

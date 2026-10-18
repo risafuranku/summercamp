@@ -14,7 +14,7 @@ extends RefCounted
 const DIR := "res://assets/textury/npc/"
 const LETTERS := ["a", "b", "c", "d"]
 const NAMES := ["Pepa", "Ondra", "Jana", "Bara"]
-const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk", "sit", "guitar", "eat", "kick", "bat", "climb", "swing"]
+const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk", "sit", "guitar", "eat", "kick", "bat", "climb", "swing", "write", "bed"]
 
 ## Where each warden's jacket is: hue band (degrees, may wrap past 360), the least
 ## saturation and brightness that count (Ondra's red: the outline round the whole
@@ -23,11 +23,11 @@ const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk", "sit", "guit
 ## (Above the boots: Pepa's rubber boots are green too, Ondra's brown ones nearly red.)
 const JACKETS := [
 	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.68], "sweep": [0.0, 0.72], "crouch": [0.0, 0.72], "prone": [0.0, 1.0], "desk": [0.0, 0.7], "sit": [0.0, 0.68], "guitar": [0.0, 0.68], "eat": [0.0, 0.68], "kick": [0.0, 0.6], "bat": [0.0, 0.6], "climb": [0.0, 0.55], "swing": [0.0, 0.55]},
-		"out": {"prone": [[0.55, 0.0, 1.0, 0.37]], "kick": [[0.78, 0.2, 1.0, 0.55]]}},
+		"out": {"prone": [[0.55, 0.0, 1.0, 0.37]], "kick": [[0.78, 0.2, 1.0, 0.55]], "bed": [[0.8, 0.0, 1.0, 1.0]]}},
 	{"hue": [338.0, 18.0], "sat": 0.42, "vmin": 0.16, "band": {"stand": [0.12, 0.6], "row": [0.0, 0.66], "sweep": [0.0, 0.62], "crouch": [0.0, 0.8], "prone": [0.3, 1.0], "desk": [0.0, 0.82], "sit": [0.2, 0.66], "guitar": [0.2, 0.66], "eat": [0.2, 0.66], "kick": [0.16, 0.62], "bat": [0.16, 0.62], "climb": [0.0, 0.62], "swing": [0.2, 0.66]},
 		"out": {"eat": [[0.24, 0.12, 0.62, 0.32]], "guitar": [[0.0, 0.42, 0.44, 0.72]], "bat": [[0.0, 0.22, 0.2, 0.42]]}},
 	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.7], "sweep": [0.0, 0.7], "crouch": [0.0, 0.86], "prone": [0.0, 1.0], "desk": [0.0, 1.0], "sit": [0.0, 1.0], "kick": [0.0, 0.62], "bat": [0.0, 0.62], "climb": [0.0, 0.72]},
-		"out": {"prone": [[0.6, 0.0, 1.0, 0.36]]}},
+		"out": {"prone": [[0.6, 0.0, 1.0, 0.36]], "bed": [[0.82, 0.0, 1.0, 1.0]]}},
 	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.1, 0.62], "row": [0.0, 0.78], "sweep": [0.0, 0.7], "crouch": [0.0, 0.84], "prone": [0.0, 1.0], "desk": [0.0, 1.0], "sit": [0.0, 1.0], "kick": [0.0, 0.62], "bat": [0.0, 0.62], "climb": [0.0, 0.72]}},
 ]
 ## Jacket colours: name, and the colour of the jacket's middle tone (hue, sat, value);
@@ -57,6 +57,10 @@ static func color_count() -> int:
 
 static func color_name(color: int) -> String:
 	return str(COLORS[posmod(color, COLORS.size())][0])
+
+
+static func has_pose(model: int, pose: String) -> bool:
+	return ResourceLoader.exists(DIR + "warden_%s%s.png" % [LETTERS[posmod(model, LETTERS.size())], "" if pose == "stand" else "_" + pose])
 
 
 ## The picture of warden `model` in jacket `color` in `pose` (POSES; a pose not drawn

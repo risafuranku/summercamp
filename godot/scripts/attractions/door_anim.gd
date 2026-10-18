@@ -4,7 +4,7 @@ extends RefCounted
 ## named Door, Door0, DoorLeaf in the model) is hung on a hinge at its left edge the first
 ## time anyone uses it, swings inward while someone goes through and shuts after them, in
 ## steps like everything else (12 a second). A building without a door leaf (a tent) has
-## none to swing: people crouch in under the flap (the agents sink the sprite).
+## none to swing: people duck in under the flap (the agents squash the sprite).
 
 const FPS := 12.0
 ## Out toward you (the buildings are solid boxes: swung in, the leaf vanished into the
@@ -30,30 +30,45 @@ static func structure_at(tile: Vector2i) -> Node3D:
 
 
 static func find_door(structure: Node3D) -> MeshInstance3D:
+	var doors := find_doors(structure)
+	return doors[0] if not doors.is_empty() else null
+
+
+## Every door leaf of the building (the outhouse has two, M and Z).
+static func find_doors(structure: Node3D) -> Array:
+	var out: Array = []
 	if structure == null:
-		return null
-	for name in ["DoorLeaf", "Door", "Door0"]:
+		return out
+	for name in ["DoorLeaf", "Door", "Door?"]:
 		for m in structure.find_children(name, "MeshInstance3D", true, false):
-			if (m as MeshInstance3D).mesh is BoxMesh:
-				return m as MeshInstance3D
-	return null
+			if (m as MeshInstance3D).mesh is BoxMesh and not out.has(m):
+				out.append(m)
+	return out
 
 
-## Where to stand to go in: {outside, inside, door (or null)} in world space. Outside is a
-## step in front of the door, inside a step behind it. Without a door leaf: the middle of
-## the building's front (+Z of its model, turned with it).
-static func entry_points(structure: Node3D) -> Dictionary:
+## Where to stand to go in: {outside, inside, door (or null), duck} in world space. Outside
+## is a step in front of the door, inside a step behind it; `pick` chooses among several
+## doors (or tents on one pitch). Without a door leaf: the tent's flap (TentFlap in the
+## model: you duck in there, `duck`), else the middle of the building's front (+Z of its
+## model, turned with it).
+static func entry_points(structure: Node3D, pick := 0) -> Dictionary:
 	if structure == null:
 		return {}
-	var door := find_door(structure)
+	var doors := find_doors(structure)
+	var door: MeshInstance3D = doors[absi(pick) % doors.size()] if not doors.is_empty() else null
 	var centre: Vector3
 	var normal: Vector3
+	var flaps: Array = structure.find_children("TentFlap", "MeshInstance3D", true, false) if door == null else []
 	if door != null and _doors.has(door.get_instance_id()):
 		centre = _doors[door.get_instance_id()]["centre_global"]
 		normal = (_doors[door.get_instance_id()]["base_global"] as Basis).z
 	elif door != null:
 		centre = door.global_position
 		normal = door.global_basis.z
+	elif not flaps.is_empty():
+		var flap: Node3D = flaps[absi(pick) % flaps.size()]
+		centre = flap.global_position
+		normal = flap.global_basis.z
 	else:
 		# (get_meta with a null default still complains when the key is missing.)
 		var size: Vector3 = structure.get_meta("model_size") if structure.has_meta("model_size") and structure.get_meta("model_size") is Vector3 else Vector3(2, 2, 2)
@@ -62,7 +77,7 @@ static func entry_points(structure: Node3D) -> Dictionary:
 	normal.y = 0.0
 	normal = normal.normalized() if normal.length() > 0.01 else Vector3.BACK
 	var ground := Vector3(centre.x, structure.global_position.y, centre.z)
-	return {"outside": ground + normal * 0.7, "inside": ground - normal * 0.55, "door": door}
+	return {"outside": ground + normal * 0.7, "inside": ground - normal * 0.55, "door": door, "duck": door == null and not flaps.is_empty()}
 
 
 ## Open `door` now and keep it open for `seconds`.
@@ -100,9 +115,26 @@ static func _hang(door: MeshInstance3D) -> bool:
 	hole.transform = Transform3D(door.basis, door.position + door.basis.z * 0.004)
 	hole.visible = false
 	parent.add_child(hole)
+	# What is fixed on the leaf (the handle, the wired glass, the heart, the M / Z plaque)
+	# goes round with it, or it stays hanging in the air when the door opens.
+	var fittings: Array = []
+	var to_leaf := door.transform.affine_inverse()
+	for c in parent.get_children():
+		if c == door or not (c is MeshInstance3D or c is Label3D):
+			continue
+		var at: Vector3 = to_leaf * (c as Node3D).position
+		if absf(at.x) > box.size.x * 0.5 or absf(at.y) > box.size.y * 0.5 or absf(at.z) > 0.12:
+			continue
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh is BoxMesh:
+			var s: Vector3 = ((c as MeshInstance3D).mesh as BoxMesh).size
+			if s.x >= box.size.x * 0.9 or s.y >= box.size.y * 0.9:
+				continue
+		fittings.append(c)
 	parent.remove_child(door)
 	pivot.add_child(door)
 	door.transform = Transform3D(Basis(), Vector3(box.size.x * 0.5, 0, 0))
+	for f in fittings:
+		(f as Node3D).reparent(door, true)
 	_doors[door.get_instance_id()] = {"door": door, "pivot": pivot, "hole": hole, "base": pivot.basis, "base_global": base_global, "centre_global": centre_global, "angle": 0.0, "open_until": -1.0}
 	return true
 

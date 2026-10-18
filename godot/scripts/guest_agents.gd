@@ -17,7 +17,11 @@ const GUEST_NEEDS = preload("res://core/systems/guest_needs_system.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
 ## Going in through a door (game minutes): from a step outside to a step inside.
-const ENTER_MIN := 1.4
+const ENTER_MIN := 2.0
+## The part of going in spent at the door before stepping through.
+const ENTER_REACH := 0.25
+## How far down someone stoops to get into a tent (a share of their height).
+const DUCK_SQUASH := 0.4
 
 const SNAPSHOT_INTERVAL_SEC := 0.25
 const NAV_REBUILD_INTERVAL_SEC := 3.0
@@ -268,7 +272,7 @@ func _sync_party_plan(party: Dictionary, entry: Dictionary) -> void:
 	if bool(party.get("inside", false)):
 		var from_st := DOOR_ANIM.structure_at(from_tile)
 		if from_st != null and str(from_st.get_meta("building_type", "")) != "main_building":
-			party["exit"] = DOOR_ANIM.entry_points(from_st)
+			party["exit"] = DOOR_ANIM.entry_points(from_st, int(party.get("door_pick", 0)))
 	party["inside"] = false
 	var ex: Dictionary = party["exit"]
 	if not ex.is_empty():
@@ -285,7 +289,11 @@ func _sync_party_plan(party: Dictionary, entry: Dictionary) -> void:
 	if indoor:
 		var to_st := DOOR_ANIM.structure_at(to_tile)
 		if to_st != null and str(to_st.get_meta("building_type", "")) != "main_building":
-			party["entry"] = DOOR_ANIM.entry_points(to_st)
+			# Which of the outhouse's doors, which tent on the pitch: by the party, and the
+			# lodging's tent is theirs every night.
+			var pick := int(entry.get("id", 0)) if kind_now != "visit" else int(entry.get("id", 0)) + int(act.get("start", 0))
+			party["door_pick"] = pick
+			party["entry"] = DOOR_ANIM.entry_points(to_st, pick)
 			if not (party["entry"] as Dictionary).is_empty():
 				points.append(party["entry"]["outside"])
 	var lengths := PackedFloat32Array()
@@ -351,7 +359,7 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			visible_now = e < 1.0 + 0.35 * float(members.size() - 1)
 			if visible_now and not bool(party.get("entry_open", false)):
 				party["entry_open"] = true
-				DOOR_ANIM.open(entry.get("door", null), 1.2 + 0.4 * float(members.size()))
+				DOOR_ANIM.open(entry.get("door", null), 1.6 + 0.5 * float(members.size()))
 			if not visible_now:
 				party["inside"] = true
 			lead_pos = entry["outside"]
@@ -416,15 +424,21 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			if ei >= 1.0:
 				member.visible = false
 				continue
-			var k := clampf(ei, 0.0, 1.0)
+			# A beat at the door (the leaf swings open, a hand to the flap), then in.
+			var k := clampf((ei - ENTER_REACH) / (1.0 - ENTER_REACH), 0.0, 1.0)
 			k = k * k * (3.0 - 2.0 * k)
 			pos = (en["outside"] as Vector3).lerp(en["inside"], k) + (en["outside"] - en["inside"]).normalized() * 0.45 * maxf(0.0, -ei) * 2.0
-			# No door leaf: a tent; they duck in under the flap.
-			if en.get("door", null) == null:
-				pos.y -= smoothstep(0.35, 1.0, ei) * 1.0
 			member.position = pos
 			POSES.set_pose(sprite, str(info.get("sprite_path", "")), "")
+			if sprite != null:
+				sprite.flip_h = false
+				sprite.rotation.z = 0.0
+				# No door leaf: a tent; they stoop and duck in under the flap (the cloth
+				# takes them as they go behind its front).
+				_duck(sprite, smoothstep(0.0, 0.5, k) if bool(en.get("duck", false)) else 0.0)
 			continue
+		if sprite != null:
+			_duck(sprite, _exit_duck(party, now, start, arrive, total, lengths))
 		if walking:
 			var phase := floorf(_time * ANIM_FPS) / ANIM_FPS * WALK_BOB_HZ * TAU + float(i) * 1.7
 			pos.y = absf(sin(phase)) * 0.06
@@ -437,6 +451,23 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 				sprite.rotation.z = sin(_time * 0.8 + float(i)) * 0.01
 		member.position = pos
 	_update_marker(party, info, marker_pos, visible_now)
+
+
+## Stooped by `f` (0 upright .. 1 right down under a tent flap), feet where they were.
+func _duck(sprite: Sprite3D, f: float) -> void:
+	var sy := 1.0 - DUCK_SQUASH * clampf(f, 0.0, 1.0)
+	if not is_equal_approx(sprite.scale.y, sy):
+		sprite.scale = Vector3(1.0, sy, 1.0)
+
+
+## Crawling out of a tent: stooped at the flap, upright a step outside.
+func _exit_duck(party: Dictionary, now: float, start: float, arrive: float, total: float, lengths: PackedFloat32Array) -> float:
+	var ex: Dictionary = party.get("exit", {})
+	if ex.is_empty() or not bool(ex.get("duck", false)) or now >= arrive or arrive <= start or lengths.size() < 2:
+		return 0.0
+	var along := clampf((now - start) / (arrive - start), 0.0, 1.0) * total
+	var seg := maxf(0.01, lengths[1])
+	return 1.0 - smoothstep(0.0, seg + 0.4, along)
 
 
 ## The attraction controller whose footprint holds `tile` (group "attraction"), or null.

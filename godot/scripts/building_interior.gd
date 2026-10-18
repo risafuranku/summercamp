@@ -776,6 +776,17 @@ func _build_viewport() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.82, 0.84, 0.80)
 	env.ambient_light_energy = 1.06
+	# The flat ambient lit every wall the same, corners and all (playtest 18. 10.: "ugly
+	# lighting on the walls"): occlusion darkens the corners, the skirting, under the
+	# desk and the shelves, a little of the lamps' light too.
+	env.ssao_enabled = true
+	env.ssao_radius = 0.9
+	env.ssao_intensity = 2.6
+	env.ssao_power = 1.6
+	env.ssao_detail = 0.4
+	env.ssao_horizon = 0.06
+	env.ssao_sharpness = 0.9
+	env.ssao_light_affect = 0.35
 	env.fog_enabled = false
 	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
 	env.fog_light_color = Color(0.78, 0.82, 0.84)
@@ -2258,14 +2269,15 @@ func desk_lamp_meshes() -> Array:
 	return out
 
 
-func toggle_desk_lamp() -> void:
+func toggle_desk_lamp(sound := true) -> void:
 	_desk_lamp_on = not _desk_lamp_on
-	var p := AudioStreamPlayer.new()
-	p.stream = load("res://assets/sfx/backroom/lamp_click.wav") if ResourceLoader.exists("res://assets/sfx/backroom/lamp_click.wav") else null
-	p.volume_db = -6.0
-	add_child(p)
-	p.finished.connect(p.queue_free)
-	p.play()
+	if sound:
+		var p := AudioStreamPlayer.new()
+		p.stream = load("res://assets/sfx/backroom/lamp_click.wav") if ResourceLoader.exists("res://assets/sfx/backroom/lamp_click.wav") else null
+		p.volume_db = -6.0
+		add_child(p)
+		p.finished.connect(p.queue_free)
+		p.play()
 	if _desk_lamp_shade != null:
 		var m := _desk_lamp_shade.material_override as StandardMaterial3D
 		if m != null:
@@ -2273,6 +2285,48 @@ func toggle_desk_lamp() -> void:
 			m.emission = Color(0.25, 0.7, 0.35)
 			m.emission_energy_multiplier = 0.35
 	_apply_room_time_profile(true)
+
+
+## Co-op: the office's lights, curtains and set, the same on both machines (main polls
+## this and sends it when it changes, Coop.send_sync "office").
+func coop_office_state() -> Dictionary:
+	if _extras == null:
+		return {}
+	var back = _extras.back
+	return {
+		"lights": _office_lights_on, "desk": _desk_lamp_on,
+		"oc": _office_curtain.is_open() if _office_curtain != null else true,
+		"bc": back.curtain.is_open() if back != null and back.curtain != null else false,
+		"lamp": bool(back.lamp_on) if back != null else true,
+		"tv": bool(back.tv_on) if back != null else true,
+		"bulb": bool(_extras.store.bulb_on) if _extras.store != null else false,
+	}
+
+
+## The other warden switched or drew something: the same here (heard only if you are in).
+func coop_take_office_state(d: Dictionary) -> void:
+	if _extras == null or d.is_empty():
+		return
+	var here := is_open()
+	var back = _extras.back
+	if d.has("lights") and bool(d["lights"]) != _office_lights_on:
+		_toggle_office_lights()
+	if d.has("desk") and bool(d["desk"]) != _desk_lamp_on:
+		toggle_desk_lamp(here)
+	if d.has("oc") and _office_curtain != null and bool(d["oc"]) != _office_curtain.is_open():
+		_office_curtain.set_open(bool(d["oc"]), not here)
+		_apply_room_time_profile()
+	if back != null:
+		if d.has("bc") and back.curtain != null and bool(d["bc"]) != back.curtain.is_open():
+			back.curtain.set_open(bool(d["bc"]), not here)
+		if d.has("lamp") and bool(d["lamp"]) != bool(back.lamp_on):
+			back.set_lamp(bool(d["lamp"]))
+			if here:
+				back._play("lamp_click.wav", -6.0)
+		if d.has("tv") and bool(d["tv"]) != bool(back.tv_on):
+			back._set_tv(bool(d["tv"]), here)
+	if d.has("bulb") and _extras.store != null and bool(d["bulb"]) != bool(_extras.store.bulb_on):
+		_extras.store.set_bulb(bool(d["bulb"]), here)
 
 
 ## The night director (scripts/night/director_effects.gd): a sound somewhere in the
@@ -3227,6 +3281,9 @@ func _try_click_room(event: InputEventMouseButton) -> bool:
 
 ## The desk close-up: the register, the keys, whoever is at the counter.
 func open_checkin_desk() -> void:
+	if _extras != null and _extras._partner_at_desk():
+		_extras.coop_refuse("desk_busy")
+		return
 	if _desk_room != null:
 		_desk_room.open()
 

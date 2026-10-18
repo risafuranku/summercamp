@@ -312,6 +312,12 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   counted there (`main._coop_follow_till`: any change of `state.money` on that machine goes
   over as a numbered "till" delta, the host's clock says up to which it counted). So
   spending or earning on that machine needs no forwarding of its own.
+- **Co-op: things both machines change** (the office's lights, curtains and set, the desk's
+  register and key hooks, the barrier) go both ways through `Coop.send_sync(kind, data)` →
+  `main.coop_sync`; main polls them (`coop_sync_poll`, 0.3 s) and sends only what changed
+  here. The host's events and arrivals reach the other machine through the pulse, so
+  anything that rebuilds on a pulse must keep what is still open (the raccoons' bin loop
+  restarted every second).
 - **The warden in an attraction** (`scripts/attractions/warden_play.gd`): the attraction
   places a stand-in through its own `pose_member(0, key, ...)` with a warden key (-11 the
   host's warden, -12 the other's: keys below 0 are never guests, nor counted in

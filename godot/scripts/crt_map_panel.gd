@@ -8,6 +8,7 @@ signal hover_info(text: String)
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
+const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## Sprites whose picture has no empty margin round the building (the Jednota fills its
 ## whole canvas) look a size bigger than the rest on the same footprint: drawn smaller.
 ## Map icons are fitted to their footprint; the small things are smaller than that.
@@ -78,6 +79,7 @@ const ICON_PATHS := {
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
+	"corn_stand": "res://assets/textury/camp/corn_stand.png",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
 	"sports_field": "res://assets/textury/builder/iso_sports.png",
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
@@ -1475,7 +1477,32 @@ func _update_guests(delta: float) -> void:
 	for id in _guests.keys():
 		if not seen.has(id):
 			_guests.erase(id)
+	_update_mate()
 	_update_extra_guest()
+
+
+## Co-op: the other warden on the map in their own look, where they walk; in a lodging
+## or a block, at its door (a room key is its cell).
+var _mate: Dictionary = {}
+
+
+func _update_mate() -> void:
+	var prev := _mate
+	_mate = {}
+	if not Coop.has_partner():
+		return
+	var cell := Vector2.INF
+	var fig := Coop.remote_figure()
+	if fig != null and fig.visible:
+		cell = _world_to_cell_f(fig.global_position)
+	else:
+		var key := str((Coop.partner_state.get("room", {}) as Dictionary).get("k", ""))
+		if key.contains(":"):
+			cell = Vector2(float(key.get_slice(":", 0)), float(key.get_slice(":", 1))) + Vector2(0.5, 0.9)
+	if cell == Vector2.INF:
+		return
+	var moving := not prev.is_empty() and Vector2(prev.get("cell", cell)).distance_to(cell) > 0.004
+	_mate = {"cell": cell, "moving": moving}
 
 
 func _update_extra_guest() -> void:
@@ -1537,6 +1564,10 @@ func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_
 		var p := _cell_to_iso_f(g["cell"], origin, tile_w, tile_h)
 		var dc := _display_cell_f(g["cell"])
 		entries.append({"guest": true, "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"], "phase": g["phase"], "facing": 0})
+	if not _mate.is_empty():
+		var pm := _cell_to_iso_f(_mate["cell"], origin, tile_w, tile_h)
+		var dm := _display_cell_f(_mate["cell"])
+		entries.append({"guest": true, "mate": true, "pos": pm, "order": dm.x + dm.y + 0.6, "archetype": "", "moving": _mate["moving"], "phase": 0.0})
 	if _guest_time < _extra_guest_until:
 		var p2 := _cell_to_iso_f(_extra_guest_cell, origin, tile_w, tile_h)
 		var dc2 := _display_cell_f(_extra_guest_cell)
@@ -1562,7 +1593,28 @@ func _guest_mini(archetype: String, h: int) -> Texture2D:
 	var path: String = GUEST_SPRITES[key]
 	if not ResourceLoader.exists(path):
 		return null
-	var img := (load(path) as Texture2D).get_image()
+	var tex := _mini_of(load(path) as Texture2D, h)
+	by[h] = tex
+	_guest_minis[key] = by
+	return tex
+
+
+## The other warden's miniature: their look and jacket (warden_looks.gd).
+func _mate_mini(h: int) -> Texture2D:
+	var look: Dictionary = Coop.partner_look
+	var key := "mate|%d|%d" % [int(look.get("m", 1)), int(look.get("c", 0))]
+	var by: Dictionary = _guest_minis.get(key, {})
+	if not by.has(h):
+		var src: Texture2D = WARDEN_LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), "stand")
+		if src == null:
+			return null
+		by[h] = _mini_of(src, h)
+		_guest_minis[key] = by
+	return by[h]
+
+
+func _mini_of(src: Texture2D, h: int) -> Texture2D:
+	var img := src.get_image().duplicate() as Image
 	if img.is_compressed():
 		img.decompress()
 	var w := maxi(2, int(round(float(img.get_width()) * float(h) / float(img.get_height()))))
@@ -1573,15 +1625,16 @@ func _guest_mini(archetype: String, h: int) -> Texture2D:
 			var c := img.get_pixel(x, y)
 			c.a = 1.0 if c.a > 0.45 else 0.0
 			img.set_pixel(x, y, c)
-	var tex := ImageTexture.create_from_image(img)
-	by[h] = tex
-	_guest_minis[key] = by
-	return tex
+	return ImageTexture.create_from_image(img)
 
 
 func _draw_guest(e: Dictionary, tile_h: float) -> void:
 	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
-	var tex := _guest_mini(str(e["archetype"]), mini_h) if not e.has("extra") else null
+	var tex: Texture2D = null
+	if e.has("mate"):
+		tex = _mate_mini(mini_h)
+	elif not e.has("extra"):
+		tex = _guest_mini(str(e["archetype"]), mini_h)
 	if tex != null:
 		var bob := 0.0
 		if bool(e["moving"]):
@@ -1590,6 +1643,11 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 		var sz := tex.get_size()
 		_cv.draw_rect(Rect2(foot + Vector2(-sz.x * 0.4, -1.0), Vector2(sz.x * 0.8, 2.0)), Color(0, 0, 0, 0.35))
 		_cv.draw_texture(tex, (foot - Vector2(sz.x * 0.5, sz.y - bob)).floor())
+		if e.has("mate"):
+			# Their name over them, so they are not taken for a guest.
+			var who := Coop.partner_name()
+			var tw := T.FONT.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+			_draw_tag(foot - Vector2(tw * 0.5 + 3.0, sz.y + 17.0), who, false)
 		return
 	var u := maxf(2.0, roundf(tile_h * 0.12))
 	var p: Vector2 = (Vector2(e["pos"]) / u).floor() * u
@@ -2029,7 +2087,7 @@ func _icon_key_for_type(building_type: String) -> String:
 			return "cabin_1"
 		"caravan_1", "caravan_2", "caravan_3", "bonfire", "sports_field", "lake_slide":
 			return building_type
-		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock":
+		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand":
 			return building_type
 		"toilet_block":
 			return "toilet_block"

@@ -26,6 +26,10 @@ const PROGRAM_DIRS := {
 	"camp_status": ["CAMPSTAT", ["CAMPSTAT.EXE", "TARIF96.DAT"]],
 	"guestrack": ["GUESTRAK", ["GUESTRAK.EXE", "EVIDENCE.DBF"]],
 	"datapunch": ["DATAPNCH", ["DATAPNCH.EXE", "DAVKA61.DBF"]],
+	"pub_app": ["HOSPOD98", ["HOSPOD98.EXE", "SKLAD.DBF", "POKLADNA.DBF"]],
+	"bistro_app": ["KUCHAR98", ["KUCHAR98.EXE", "SKLAD.DBF", "RECEPTY.DBF"]],
+	"shop_app": ["PULT98", ["PULT98.EXE", "SKLAD.DBF", "CENIK.DBF"]],
+	"corn_app": ["KLASEK98", ["KLASEK98.EXE", "SKLAD.DBF"]],
 }
 
 ## Files that open a program when double-clicked.
@@ -36,6 +40,10 @@ const EXE_APPS := {
 	"BUILDER.EXE": "builder",
 	"CAMPSTAT.EXE": "camp_status",
 	"GUESTRAK.EXE": "guestrack",
+	"HOSPOD98.EXE": "pub_app",
+	"KUCHAR98.EXE": "bistro_app",
+	"PULT98.EXE": "shop_app",
+	"KLASEK98.EXE": "corn_app",
 }
 
 ## In the Recycle Bin when the week starts. Restoring puts them back in C:\VERA.

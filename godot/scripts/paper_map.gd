@@ -21,7 +21,7 @@ const NAMES := {
 	"main_building": "OFFICE", "tent_1": "TENT", "tent_2": "TENT", "tent_3": "TENT",
 	"cabin": "CABIN", "cabin_1": "CABIN", "cabin_2": "CABIN", "cabin_3": "CABIN", "caravan_1": "CARAVAN", "caravan_2": "CARAVAN", "caravan_3": "CARAVAN",
 	"toilet_block": "WC", "shower_block": "SHOWERS", "pub": "PUB", "restaurant": "BISTRO",
-	"vecerka": "SHOP", "bonfire": "FIRE", "sports_field": "PITCH", "lake_slide": "SLIDE", "playground": "SWINGS", "ping_pong": "PING-PONG", "hammock": "HAMMOCK",
+	"vecerka": "SHOP", "bonfire": "FIRE", "sports_field": "PITCH", "lake_slide": "SLIDE", "playground": "SWINGS", "ping_pong": "PING-PONG", "hammock": "HAMMOCK", "corn_stand": "CORN",
 	"bench": "BENCH", "picnic_table": "PICNIC", "flower_bed": "FLOWERS", "gnome": "GNOME", "flagpole": "FLAG",
 	"sewer": "SEWER", "power_generator": "GENERATOR", "lamp_post": "", "path": "",
 	"water_pump": "PUMP", "sewage_tank": "TANK", "dumpsters": "BINS",

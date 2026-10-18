@@ -18,7 +18,7 @@ const MAP_PANEL_SCRIPT = preload("res://scripts/crt_map_panel.gd")
 
 const CATEGORIES: Array = [
 	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/tb_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
-	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub"]},
+	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand"]},
 	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide", "playground", "ping_pong", "hammock"]},
 	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/tb_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole"]},
 	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer"]},
@@ -46,6 +46,7 @@ const ITEM_ICONS := {
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
+	"corn_stand": "res://assets/textury/camp/corn_stand.png",
 }
 
 ## Even shorter, for when a catalogue has so many cards that they get narrow.
@@ -67,6 +68,7 @@ const SHORT_NAMES := {
 	"path": "Path", "lamp_post": "Lamp", "demolish": "Bulldozer",
 	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome",
 	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
+	"corn_stand": "Corn stand",
 }
 
 const BLURBS := {
@@ -90,6 +92,7 @@ const BLURBS := {
 	"playground": "Swings and a seesaw. Families will thank you.",
 	"ping_pong": "A table, two bats and an argument.",
 	"hammock": "One guest, one book, one hour of peace.",
+	"corn_stand": "Boiled corn with butter and salt. Cheap, quick, everybody wants one.",
 	"path": "Drag to lay a path. Guests walk on paths.",
 	"lamp_post": "Light at night. A lit path is a safe path.",
 	"demolish": "Drag over trees or buildings, then click inside to clear them.",

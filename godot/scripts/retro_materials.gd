@@ -27,8 +27,15 @@ const AFFINE := 0.6
 const CHECK_PER_FRAME := 400
 const HOT_SECONDS := 4.0
 ## Size buckets (how much a surface may swim and shiver): 0 small, 1 medium, 2 big (the
-## ground, the lake), 3 lying flat on the ground or a tiny tuft: neither swims nor snaps.
+## ground, the lake), 3 lying flat on the ground or a tiny tuft: neither swims nor snaps,
+## 4 inside a room (a viewport with its own world): neither either. A room is all near
+## surfaces in layers a centimetre apart (rugs, skirting, posters, bedding): snapped they
+## cut into each other and the walls' big triangles tore along the diagonal (playtest
+## 18. 10.: "terrible clipping of the textures, mostly in interiors").
 const B_FLAT := 3
+const B_ROOM := 4
+const AFFINE_BY_BUCKET := [AFFINE, AFFINE * 0.3, 0.0, 0.0, 0.0]
+const AFFINE_TRIPLANAR := [AFFINE * 0.7, AFFINE * 0.2, 0.0, 0.0, 0.0]
 
 var enabled := true
 var _shaders: Dictionary = {}       # variant key -> Shader
@@ -150,6 +157,8 @@ func _track_multi(mmi: MultiMeshInstance3D) -> void:
 ## Grass tufts and the like (each piece under a metre) do not snap; the corn and the
 ## forest walls do.
 func _multi_bucket(mmi: MultiMeshInstance3D) -> int:
+	if _in_room(mmi):
+		return B_ROOM
 	var mm := mmi.multimesh
 	if mm != null and mm.mesh != null:
 		var a := mm.mesh.get_aabb()
@@ -214,6 +223,8 @@ func _check_node(i: int) -> void:
 
 ## How much the texture may swim on a thing this size (big walls a little, the ground not).
 func _bucket(mi: MeshInstance3D) -> int:
+	if _in_room(mi):
+		return B_ROOM
 	var a := mi.get_aabb()
 	var s := mi.global_transform.basis.get_scale()
 	var longest := maxf(a.size.x * s.x, maxf(a.size.y * s.y, a.size.z * s.z))
@@ -226,6 +237,12 @@ func _bucket(mi: MeshInstance3D) -> int:
 	if longest > 6.0:
 		return 1
 	return 0
+
+
+## Drawn by a viewport with a world of its own: a room, the bus, the pipes.
+func _in_room(n: Node) -> bool:
+	var vp := n.get_viewport()
+	return vp is SubViewport and (vp as SubViewport).own_world_3d
 
 
 func _track_sprite(s: Sprite3D) -> void:
@@ -241,7 +258,7 @@ func _track_sprite(s: Sprite3D) -> void:
 	# A sprite laid flat on the floor (litter, a puddle) does not snap: it would flicker
 	# against the floor under it.
 	var flat := s.billboard == BaseMaterial3D.BILLBOARD_DISABLED and absf(s.global_basis.z.normalized().y) > 0.9
-	m.set_shader_parameter("snap_lines", 0.0 if flat else SNAP_LINES)
+	m.set_shader_parameter("snap_lines", 0.0 if flat or _in_room(s) else SNAP_LINES)
 	m.set_shader_parameter("affine", 0.0)
 	RenderingServer.instance_geometry_set_material_override(rid, m.get_rid())
 	_sprites.append({"node": weakref(s), "mat": m, "tex": s.texture, "key": key})
@@ -354,7 +371,7 @@ func _sync(c: Dictionary, force := false) -> void:
 	m.set_shader_parameter("has_emission_tex", std.emission_texture != null)
 	var big: int = c["big"]
 	m.set_shader_parameter("snap_lines", SNAP_LINES if big < 2 else 0.0)
-	m.set_shader_parameter("affine", [AFFINE, AFFINE * 0.3, 0.0, 0.0][big] if not std.uv1_triplanar else [AFFINE * 0.7, AFFINE * 0.2, 0.0, 0.0][big])
+	m.set_shader_parameter("affine", AFFINE_BY_BUCKET[big] if not std.uv1_triplanar else AFFINE_TRIPLANAR[big])
 
 
 ## One shader per combination of render modes and features.

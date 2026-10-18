@@ -32,6 +32,7 @@ const QUIET_NIGHTS := 1
 const CIRCUIT_NAMES := ["LAMPS NORTH", "LAMPS SOUTH", "OFFICE", "FOOD", "WASH BLOCK", "PUMP"]
 const FIRST_HOUR := 21.0
 const LAST_HOUR := 28.5  # 04:30 next morning
+const OMENS = preload("res://scripts/omens.gd")
 
 var breaker_tripped := false
 ## Circuit left off after the breaker was fixed (0 lamps north, 1 lamps south, ...), -1.
@@ -201,6 +202,10 @@ func _plan(night_index: int, abs_minute: int) -> void:
 		kinds.append("frozen")
 		if Season.temp_low(night_index) <= -5 and frozen.size() > 1:
 			kinds.append("frozen")
+	# The sewer only breaks because the raccoon chewed through it, and it is out more the
+	# harder the night presses on the camp (pipes/pipe_director.gd).
+	if pool.has("sewer") and _rng.randf() < sewer_chance(_night_pressure()):
+		kinds.append("sewer")
 	# The breaker is the signature job: most nights have one.
 	if pool.has("breaker") and _rng.randf() < 0.8:
 		kinds.append("breaker")
@@ -211,7 +216,7 @@ func _plan(night_index: int, abs_minute: int) -> void:
 		if kinds.size() >= count:
 			break
 		var k: String = pool[_rng.randi_range(0, pool.size() - 1)]
-		if k == "breaker" or k == "frozen" or (kinds.has(k) and not (k == "lamp" and kinds.count("lamp") < lamp_count)):
+		if k == "breaker" or k == "frozen" or k == "sewer" or (kinds.has(k) and not (k == "lamp" and kinds.count("lamp") < lamp_count)):
 			continue
 		kinds.append(k)
 	kinds.shuffle()
@@ -224,6 +229,19 @@ func _plan(night_index: int, abs_minute: int) -> void:
 		var at := maxi(abs_minute + 10, night_start + int(slot))
 		_jobs.append(_make(kinds[i], at))
 	changed.emit()
+
+
+## How likely the raccoon is to be in the sewer tonight, from the night's pressure.
+static func sewer_chance(pressure: float) -> float:
+	return clampf(0.1 + 0.14 * pressure, 0.1, 0.85)
+
+
+func _night_pressure() -> float:
+	if _main != null and _main.has_method("_omen_context"):
+		var ctx = _main.call("_omen_context")
+		if ctx is Dictionary:
+			return OMENS.pressure(ctx)
+	return 1.0
 
 
 func _available_kinds() -> Array[String]:
@@ -252,7 +270,7 @@ func _make(kind: String, at: int) -> Dictionary:
 			job.merge({"title": "A lamp went out", "short": "Lamp", "where": "Lamp %d:%d, hold R" % [l.x, l.y], "coord": [l.x, l.y]}, true)
 		"sewer":
 			var s := _pick(["sewer"])
-			job.merge({"title": "Sewer blocked", "short": "Sewer", "where": "The sewer hatch: crawl in", "coord": [s.x, s.y]}, true)
+			job.merge({"title": "Sewer leaking", "short": "Sewer", "where": "The sewer hatch: crawl in", "coord": [s.x, s.y]}, true)
 		"corn":
 			var gate: Vector3 = _main.corn_gate_world() if _main != null and _main.has_method("corn_gate_world") else Vector3.INF
 			job.merge({"title": "Someone is in the corn", "short": "Corn", "where": "The wicket gate in the west fence", "pos": [gate.x, gate.y, gate.z]}, true)

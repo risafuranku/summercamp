@@ -57,6 +57,7 @@ var _connect_left := -1.0
 var _warden_t := 0.0
 var _clock_t := 0.0
 var _screen_t := 0.0
+var _sync_t := 0.0
 var _pulse_t := 0.0
 var _pulse_hash := 0
 var _pulse_same := 0
@@ -328,6 +329,11 @@ func _process(delta: float) -> void:
 		var s: Dictionary = main.coop_local_warden()
 		if not s.is_empty():
 			_warden.rpc_id(remote_id, s)
+	# What both have (the office's lights, the register): sent when it changed here.
+	_sync_t -= delta
+	if _sync_t <= 0.0 and main.has_method("coop_sync_poll"):
+		_sync_t = 0.3
+		main.coop_sync_poll()
 	if role == Role.HOST:
 		_clock_t -= delta
 		if _clock_t <= 0.0:
@@ -501,6 +507,23 @@ func _play(kind: String, data: Array) -> void:
 	var wp := get_tree().get_first_node_in_group("warden_play")
 	if wp != null:
 		wp.coop_play(kind, data)
+
+
+## Something either machine has that the other must have too, both ways (main.coop_sync):
+## "office" [the lights, curtains and set], "register" [the desk's register and key
+## hooks], "gate" [] (a warden put the barrier up).
+func send_sync(kind: String, data: Array) -> void:
+	if role != Role.NONE and remote_id != 0:
+		_sync.rpc_id(remote_id, kind, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _sync(kind: String, data: Array) -> void:
+	if multiplayer.get_remote_sender_id() != remote_id:
+		return
+	var main := _main()
+	if main != null and main.has_method("coop_sync"):
+		main.coop_sync(kind, data)
 
 
 ## The host's clock and weather, a few times a second.

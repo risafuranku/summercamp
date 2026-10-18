@@ -427,6 +427,22 @@ func _walking() -> bool:
 	return _walk != null and is_instance_valid(_walk) and _walk.is_running()
 
 
+## Co-op: on the way from one of the office's rooms to another, {f: from, to, k: how far
+## along 0..1} (the other machine walks your figure through the doorway), else {}.
+var _walk_info: Dictionary = {}
+
+
+func coop_walk() -> Dictionary:
+	if _walk_info.is_empty() or not _walking():
+		return {}
+	var k := clampf((Time.get_ticks_msec() / 1000.0 - float(_walk_info["t0"])) / float(_walk_info["d"]), 0.0, 1.0)
+	return {"f": _walk_info["f"], "to": _walk_info["to"], "k": snappedf(k, 0.01)}
+
+
+func _note_walk(to: String, seconds: float) -> void:
+	_walk_info = {"f": where, "to": to, "t0": Time.get_ticks_msec() / 1000.0, "d": seconds}
+
+
 ## Returns true when this owns the camera this frame (walking, sleeping, the back room).
 func process(delta: float, hour: float) -> bool:
 	back.update(delta, hour)
@@ -551,7 +567,15 @@ const COOP_REFUSALS := {
 	"guest": "The other warden does the check-ins.",
 	"bell": "The other warden does the check-ins.",
 	"board": "You leave the board to the other warden.",
+	"desk_busy": "The other warden is at the desk with a guest. You wait your turn.",
 }
+
+
+func _partner_at_desk() -> bool:
+	if not Coop.has_partner():
+		return false
+	var r: Dictionary = Coop.partner_state.get("room", {})
+	return str(r.get("t", "")) == "office" and str(r.get("w", "")) == "desk"
 
 
 func coop_refuse(what: String) -> void:
@@ -577,6 +601,7 @@ func go_back_room() -> void:
 	glint.clear()
 	_play(SFX_DOOR, -9.0)
 	_play_steps()
+	_note_walk("back", 2.1)
 	var side := Vector3(0.0, PI * 0.5, 0.0)
 	_walk = WALK_PATH.play(host, camera, [
 		{"pos": camera.position, "rot": camera.rotation},
@@ -597,6 +622,7 @@ func go_store() -> void:
 	glint.clear()
 	_play(SFX_DOOR, -10.0)
 	_play_steps()
+	_note_walk("store", 1.9)
 	var ahead := Vector3(-0.05, PI, 0.0)
 	_walk = WALK_PATH.play(host, camera, [
 		{"pos": camera.position, "rot": camera.rotation},
@@ -635,6 +661,7 @@ func go_office() -> void:
 		store.set_bulb(false)
 	keys.append({"pos": to_pos, "rot": to_rot})
 	var dur := 1.9
+	_note_walk("office", dur)
 	_walk = WALK_PATH.play(host, camera, keys, dur)
 	_walk.parallel().tween_property(pivot, "rotation_degrees:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(dur * 0.62)
 	_walk.tween_callback(func():

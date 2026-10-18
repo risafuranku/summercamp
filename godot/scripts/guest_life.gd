@@ -20,6 +20,7 @@ extends RefCounted
 
 const NEEDS := preload("res://core/systems/guest_needs_system.gd")
 const BALANCE_CONFIG := preload("res://core/balance/balance_config.gd")
+const ORDERS := preload("res://scripts/food/orders.gd")
 
 const MAX_CHUNK_MINUTES := 20
 const QUEUE_GIVE_UP_MINUTES := 16
@@ -435,10 +436,18 @@ func _on_complete(guest: Dictionary, act: Dictionary, t: int) -> void:
 			var f: Dictionary = _facility_by_key.get(str(act.get("target_key", "")), {})
 			if f.is_empty():
 				return
-			guest["needs"] = NEEDS.apply_facility(guest["needs"], f.get("services", {}), str(guest.get("archetype", "")), str(f.get("type", "")))
+			var services: Dictionary = f.get("services", {})
+			var visit := "%d@%d" % [int(guest.get("id", 0)), int(act.get("start", 0))]
+			var fed := not services.has("hunger") or ORDERS.served(str(act.get("target_key", "")), visit)
+			if not fed:
+				# Nobody served them: the beer with friends was something, the meal was not
+				# (business_runtime has them grumble about it).
+				services = services.duplicate()
+				services.erase("hunger")
+			guest["needs"] = NEEDS.apply_facility(guest["needs"], services, str(guest.get("archetype", "")), str(f.get("type", "")))
 			guest["visits"] = int(guest.get("visits", 0)) + 1
 			_events.append({"type": "visit", "guest_id": int(guest.get("id", -1)), "facility": str(f.get("type", "")), "abs": t})
-			if _rng.randf() < 0.3:
+			if fed and _rng.randf() < 0.3:
 				_say(guest, _thought_after_visit(str(f.get("type", "")), guest), t)
 		"bushes":
 			var needs: Dictionary = guest["needs"]

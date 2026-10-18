@@ -8,7 +8,9 @@ extends Node
 ## full camp), spread between 08:30 and 18:30:
 ##   litter    rubbish dumped by a facility: hold E to bag it
 ##   raccoons  raccoons in the bins behind the bistro / shop / pub: E to shoo them
-##   delivery  the Jednota van at the gate: E to sign for it (else no fresh bread)
+##   delivery  the wholesaler's van at the gate with what you ordered at the businesses'
+##             desks (scripts/business/): E to sign for it and it goes on the shelves;
+##             missed, it comes again the next morning
 ##   lost_kid  a family's boy has wandered off (families only): find him, E
 ##   noise     tramps or lads keeping the quiet ones awake: talk to the loud party
 ##   tree      a branch down across a path after the wind: hold E to saw it up
@@ -24,6 +26,7 @@ extends Node
 signal changed
 
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
+const BUSINESS = preload("res://scripts/business/business_runtime.gd")
 const FIRST_HOUR := 8.5
 const LAST_HOUR := 18.5
 const REACH := 3.4
@@ -64,6 +67,11 @@ var _work := 0.0
 var _work_player: AudioStreamPlayer3D
 var _loops: Dictionary = {}   # "x:y" -> AudioStreamPlayer3D
 var _life_t := 2.0
+## How the last few events ended, for the other machine ({id, text, kind}); the ids of
+## those already told here.
+var _log: Array = []
+var _log_seen: Dictionary = {}
+var _imported_once := false
 var _oneshot_t := 30.0
 var _anim_t := 0.0
 var _last_abs := 0
@@ -90,6 +98,7 @@ func reset() -> void:
 	for id in _props.keys():
 		_free_props(int(id))
 	_events.clear()
+	_log.clear()
 	_planned_day = -1
 	_target_id = -1
 	for k in _loops.keys():
@@ -230,20 +239,53 @@ func export_state() -> Dictionary:
 	for ev in _events:
 		if str(ev["state"]) == "open" or str(ev["state"]) == "pending":
 			evs.append(ev.duplicate(true))
-	return {"events": evs, "planned_day": _planned_day, "next_id": _next_id, "haunted": haunted.duplicate()}
+	return {"events": evs, "planned_day": _planned_day, "next_id": _next_id, "haunted": haunted.duplicate(), "log": _log.duplicate(true)}
 
 
+## A save loaded, or (co-op, the other machine) the host's events as they now are: what
+## is still open keeps its props and sounds (they were all torn down and rebuilt on every
+## change, the raccoons' bin loop starting over each time); on the other machine a new
+## event pages you and the host's line on how one ended is shown (they never were).
 func import_state(data: Dictionary) -> void:
-	reset()
 	_planned_day = int(data.get("planned_day", -1))
 	_next_id = int(data.get("next_id", 1))
 	haunted = (data.get("haunted", {}) as Dictionary).duplicate() if data.get("haunted", {}) is Dictionary else {}
+	var was_open := {}
+	for ev in _events:
+		if str(ev["state"]) == "open":
+			was_open[int(ev["id"])] = true
+	var incoming: Array = []
+	var ids := {}
 	for e in data.get("events", []):
 		if e is Dictionary:
-			var ev: Dictionary = e
-			_events.append(ev)
-			if str(ev["state"]) == "open":
-				_spawn_props(ev)
+			incoming.append((e as Dictionary).duplicate(true))
+			ids[int(e["id"])] = true
+	for id in _props.keys():
+		if not ids.has(int(id)) or not was_open.has(int(id)):
+			_free_props(int(id))
+	if not ids.has(_target_id):
+		_target_id = -1
+		_work = 0.0
+		_clear_work()
+	_events = incoming
+	var tell := coop_follow and _imported_once
+	for ev in _events:
+		var id := int(ev["id"])
+		if str(ev["state"]) != "open":
+			continue
+		if not was_open.has(id) or not _props.has(id):
+			_spawn_props(ev)
+		if tell and not was_open.has(id) and not _log_seen.has(id):
+			_report("Pager: %s" % _start_line(ev), 2)
+			_page()
+	for entry in data.get("log", []):
+		var lid := int((entry as Dictionary).get("id", -1))
+		if _log_seen.has(lid):
+			continue
+		_log_seen[lid] = true
+		if tell:
+			_report(str(entry.get("text", "")), int(entry.get("kind", 1)))
+	_imported_once = true
 	changed.emit()
 
 
@@ -291,6 +333,9 @@ func _plan(day_index: int, abs_minute: int) -> void:
 		return
 	pool.shuffle()
 	var kinds: Array = []
+	# The van comes whenever there is something ordered for today (not by chance).
+	if BUSINESS.due_today():
+		kinds.append("delivery")
 	for k in pool:
 		if kinds.size() >= count:
 			break
@@ -313,9 +358,8 @@ func _plan(day_index: int, abs_minute: int) -> void:
 
 func _available_kinds(guests: Array) -> Array:
 	var out: Array = ["litter"]
-	if not _coords_of(["restaurant", "vecerka", "pub"]).is_empty():
+	if not _coords_of(["restaurant", "vecerka", "pub", "corn_stand"]).is_empty():
 		out.append("raccoons")
-		out.append("delivery")
 	var arch := guests.map(func(g): return str(g.get("archetype", "")))
 	if arch.has("family"):
 		out.append("lost_kid")
@@ -363,7 +407,7 @@ func _make(kind: String, at: int, guests: Array) -> Dictionary:
 				return {}
 			ev.merge({"title": "Raccoons in the bins", "short": "Raccoons", "where": "Behind the %s" % _label_at(r), "coord": [r.x, r.y]}, true)
 		"delivery":
-			ev.merge({"title": "Jednota delivery", "short": "Van", "where": "At the gate: sign for it", "gate": true}, true)
+			ev.merge({"title": "The wholesaler's van", "short": "Van", "where": "At the gate: sign for the order", "gate": true}, true)
 		"lost_kid":
 			var fam: Array = guests.filter(func(g): return str(g.get("archetype", "")) == "family")
 			if fam.is_empty():
@@ -411,6 +455,14 @@ func _start(ev: Dictionary, abs_minute: int) -> void:
 		return
 	ev["state"] = "open"
 	_spawn_props(ev)
+	if str(ev["kind"]) == "someone":
+		haunted["%d:%d" % [_coord(ev).x, _coord(ev).y]] = int(CoreRoot.get_state().day) if CoreRoot.get_state() != null else 1
+	_report("Pager: %s" % _start_line(ev), 2)
+	_page()
+	changed.emit()
+
+
+func _start_line(ev: Dictionary) -> String:
 	var line := ""
 	match str(ev["kind"]):
 		"litter":
@@ -418,7 +470,7 @@ func _start(ev: Dictionary, abs_minute: int) -> void:
 		"raccoons":
 			line = "Something is in the bins behind the %s." % _label_at(_coord(ev))
 		"delivery":
-			line = "The Jednota van is at the gate. The driver will not wait long."
+			line = "The wholesaler's van is at the gate with your order. The driver will not wait long."
 		"lost_kid":
 			line = "%s: \"Have you seen our boy? Red cap. He was right here.\"" % str(ev.get("family", "The family"))
 		"noise":
@@ -427,10 +479,7 @@ func _start(ev: Dictionary, abs_minute: int) -> void:
 			line = "A branch has come down across the path at %d:%d." % [_coord(ev).x, _coord(ev).y]
 		"someone":
 			line = "%s: \"There was someone else in our %s last night. Breathing. All of us were asleep.\"" % [str(ev.get("guest_name", "A guest")), _label_at(_coord(ev))]
-			haunted["%d:%d" % [_coord(ev).x, _coord(ev).y]] = int(CoreRoot.get_state().day) if CoreRoot.get_state() != null else 1
-	_report("Pager: %s" % line, 2)
-	_page()
-	changed.emit()
+	return line
 
 
 ## The host: the other warden sorted out event `id` (Coop.send_request "day_event").
@@ -455,7 +504,8 @@ func _resolve(ev: Dictionary) -> void:
 			text = "The raccoons are gone. For now."
 			_sfx_at("shoo.mp3", _event_pos(ev), 0.0)
 		"delivery":
-			text = "Signed for the delivery. Fresh rohliky at the shop."
+			var n: int = CoreRoot.actions.biz_receive(CoreRoot.get_day()) if CoreRoot.actions != null else 0
+			text = "Signed for the delivery: %d order(s) unloaded onto the shelves." % n if n > 0 else "Signed for the delivery."
 		"lost_kid":
 			text = "Found the boy. %s: \"Thank God. Here, for your trouble.\" +$%d" % [str(ev.get("family", "The family")), int(rules.get("tip", 0))]
 			if CoreRoot.actions != null:
@@ -487,8 +537,10 @@ func _fail(ev: Dictionary) -> void:
 			if CoreRoot.actions != null:
 				CoreRoot.actions.add_money(-int(rules.get("fail_money", 0)))
 		"delivery":
-			text = "The Jednota van left. No fresh bread today."
+			text = "The van left without anybody signing. It comes back tomorrow morning."
 			thought = "No bread at the shop. In a camp. Unbelievable."
+			if CoreRoot.actions != null:
+				CoreRoot.actions.biz_postpone(CoreRoot.get_day())
 		"lost_kid":
 			text = "The boy came back by himself at dusk. He will not say where he was."
 			thought = "He came back by himself. He keeps humming something."
@@ -509,6 +561,11 @@ func _fail(ev: Dictionary) -> void:
 
 func _close(ev: Dictionary, state: String, text: String) -> void:
 	ev["state"] = state
+	if not text.is_empty() and not coop_follow:
+		_log.append({"id": int(ev["id"]), "text": text, "kind": 1 if state == "done" else 3})
+		while _log.size() > 8:
+			_log.pop_front()
+	_log_seen[int(ev["id"])] = true
 	_free_props(int(ev["id"]))
 	if _target_id == int(ev["id"]):
 		_target_id = -1
@@ -605,8 +662,13 @@ func _spawn_props(ev: Dictionary) -> void:
 				s.set_meta("hop", float(i) * 1.3)
 			_loop_at(root, "raccoons_bin.mp3", -4.0, 18.0)
 		"delivery":
-			# An old white Avia van, JEDNOTA on the side.
+			# The wholesaler's Avia (Grok faces); the old white box when the art is missing.
 			var white := Color(0.86, 0.86, 0.82)
+			if ResourceLoader.exists(TOWN + "van_side.png"):
+				_avia(root)
+				_loop_at(root, "van_horn.mp3", -6.0, 40.0, true)
+				_props[int(ev["id"])] = root
+				return
 			_box(root, Vector3(0, 1.25, -0.5), Vector3(2.0, 1.9, 3.2), white)
 			_box(root, Vector3(0, 1.0, 1.65), Vector3(2.0, 1.4, 1.1), white)
 			_box(root, Vector3(0, 1.45, 2.21), Vector3(1.7, 0.5, 0.02), Color(0.2, 0.26, 0.3))
@@ -703,6 +765,55 @@ func _tree_mat(wg, kind: String, variant: int, fallback: Color) -> StandardMater
 				var c = (wind as ShaderMaterial).get_shader_parameter("albedo_color")
 				mat.albedo_color = (c as Color).clamp() if c is Color else Color.WHITE
 	return mat
+
+
+const TOWN := "res://assets/textury/town/"
+
+
+## The wholesaler's Avia at the gate (Grok faces on its boxes: the side, the cab's front,
+## the box's back doors), its back doors open and the order unloaded beside it: a keg,
+## the bread trays, a sack of potatoes, a crate of corn, whatever the order had.
+func _avia(root: Node3D) -> void:
+	var white := Color(0.86, 0.86, 0.82)
+	var length := 4.6
+	var height := 2.3
+	var width := 2.0
+	_box(root, Vector3(0, height * 0.5 + 0.35, 0), Vector3(width, height, length), white)
+	for side in [-1.0, 1.0]:
+		_face_q(root, TOWN + "van_side.png", Vector2(length, height + 0.35), Vector3(side * (width * 0.5 + 0.01), (height + 0.35) * 0.5 + 0.2, 0), side * PI * 0.5 if side > 0 else -PI * 0.5, side < 0)
+	_face_q(root, TOWN + "van_front.png", Vector2(width, height * 0.8), Vector3(0, height * 0.42 + 0.2, length * 0.5 + 0.01), 0.0, false)
+	_face_q(root, TOWN + "van_back.png", Vector2(width, height), Vector3(0, height * 0.5 + 0.35, -length * 0.5 - 0.01), PI, false)
+	for x in [-0.95, 0.95]:
+		for z in [-1.5, 1.6]:
+			var w := _cylinder(root, Vector3(x, 0.38, z), 0.38, 0.25, Color(0.08, 0.08, 0.08))
+			w.rotation.z = PI * 0.5
+			# The wheel's face (Grok): tyre, white rim, nuts, mud.
+			if ResourceLoader.exists(TOWN + "van_wheel.png"):
+				_face_q(root, TOWN + "van_wheel.png", Vector2(0.8, 0.8), Vector3(x + signf(x) * 0.135, 0.38, z), PI * 0.5 if x > 0 else -PI * 0.5, false)
+	# What it brought, by the back doors.
+	var goods := [["keg.png", 0.7, Vector3(-0.6, 0, -length * 0.5 - 0.9)], ["crates_bread.png", 0.75, Vector3(0.5, 0, -length * 0.5 - 1.0)],
+		["sack_potatoes.png", 0.7, Vector3(1.1, 0, -length * 0.5 - 0.5)], ["corn_crate.png", 0.55, Vector3(-1.2, 0, -length * 0.5 - 0.4)]]
+	for g in goods:
+		_sprite(root, TOWN + str(g[0]), float(g[1]), g[2])
+
+
+func _face_q(parent: Node3D, path: String, size: Vector2, pos: Vector3, yaw: float, mirror: bool) -> void:
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = size
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(path)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	if mirror:
+		m.uv1_scale = Vector3(-1, 1, 1)
+	mi.material_override = m
+	mi.position = pos
+	mi.rotation.y = yaw
+	parent.add_child(mi)
 
 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:

@@ -119,7 +119,7 @@ func _is_out(who: String) -> bool:
 	if who == "host":
 		return bool(main._can_enemy_runtime_actions())
 	var s: Dictionary = Coop.partner_state
-	return not s.is_empty() and not bool(s.get("in", false)) and not s.has("boat") and bool(main._is_enemy_night_active())
+	return not s.is_empty() and not bool(s.get("in", false)) and not s.has("boat") and not s.has("ride") and bool(main._is_enemy_night_active())
 
 
 func _dark_at(who: String) -> float:

@@ -19,6 +19,9 @@ const DOOR_TRANSITION_SCRIPT = preload("res://scripts/ui/door_transition.gd")
 const TOWN_TRIP_SCRIPT = preload("res://scripts/town/town_trip.gd")
 ## Birds, crows, bats and moths over wherever you are outdoors (scripts/ambient/sky_life.gd).
 const SKY_LIFE_SCRIPT = preload("res://scripts/ambient/sky_life.gd")
+## The businesses' books, sales, wages and deliveries (scripts/business/business_runtime.gd).
+const BUSINESS_RUNTIME = preload("res://scripts/business/business_runtime.gd")
+var business: Node
 ## Autumn leaves blown about in the wind (scripts/ambient/wind_life.gd).
 const WIND_LIFE_SCRIPT = preload("res://scripts/ambient/wind_life.gd")
 var _wind_life: Node3D
@@ -26,6 +29,7 @@ var _wind_life: Node3D
 const GROUND_LIFE_SCRIPT = preload("res://scripts/ambient/ground_life.gd")
 var _ground_life: Node3D
 const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
+const COOP_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 
 const TIME_NIGHT: int = 2
 
@@ -36,6 +40,10 @@ const INTERIOR_MODULE_CABIN := "cabin"
 const INTERIOR_MODULE_SERVICE := "service"
 ## "trip_*" and "town_*" things outside the camp (town_trip.handles()).
 const INTERIOR_MODULE_TRIP := "trip"
+## The corn stand: behind its counter (scripts/business/corn_closeup.gd).
+const INTERIOR_MODULE_STAND := "stand"
+const CORN_CLOSEUP = preload("res://scripts/business/corn_closeup.gd")
+var _corn_stand: CanvasLayer
 const INTERIOR_ASSIGNMENTS := [
 	{
 		"module_id": INTERIOR_MODULE_MAIN,
@@ -70,6 +78,11 @@ const INTERIOR_ASSIGNMENTS := [
 			"sewer": "Open sewer hatch",
 			"power_generator": "Enter generator shed",
 		},
+	},
+	{
+		"module_id": INTERIOR_MODULE_STAND,
+		"building_types": ["corn_stand"],
+		"hint": "Step behind the corn stand",
 	},
 ]
 
@@ -151,6 +164,9 @@ func setup(
 		_world_3d.add_child(_sky_life)
 		_sky_life.player_getter = func(): return _player
 		_sky_life.indoors = func(): return is_any_open()
+	if business == null:
+		business = BUSINESS_RUNTIME.new()
+		add_child(business)
 	if _wind_life == null and _world_3d != null:
 		_wind_life = WIND_LIFE_SCRIPT.new()
 		_world_3d.add_child(_wind_life)
@@ -396,8 +412,27 @@ func handle_structure_interact(structure: Node3D) -> void:
 			_on_service_interact(structure)
 		INTERIOR_MODULE_TRIP:
 			_town_trip.interact(structure)
+		INTERIOR_MODULE_STAND:
+			_on_corn_stand_interact(structure)
 		_:
 			return
+
+
+## Behind the corn stand's counter: its close-up (the pot, the butter, the salt, the
+## customers), the books a tab on it.
+func _on_corn_stand_interact(structure: Node3D) -> void:
+	if _corn_stand == null:
+		_corn_stand = CORN_CLOSEUP.new()
+		add_child(_corn_stand)
+		_corn_stand.closed.connect(func():
+			_set_player_controls_enabled(true)
+			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED))
+	var origin = structure.get_meta("grid_origin", null)
+	var key := ""
+	if origin is Vector2i:
+		key = "%d:%d" % [origin.x, origin.y]
+	_set_player_controls_enabled(false)
+	_corn_stand.open_for(key, structure)
 
 
 func open_startup_crt_view() -> void:
@@ -1217,7 +1252,15 @@ func coop_room() -> Dictionary:
 	if it == _building_interior:
 		var extras = it.get("_extras")
 		var part := str(extras.get("where")) if extras != null else "office"
-		return {"k": "office", "t": "office", "s": part, "w": "pc" if it.is_crt_view_active() else ""}
+		var desk = it.get("_desk_room")
+		var job := "pc" if it.is_crt_view_active() else ("desk" if desk != null and desk.is_open() else "")
+		var info := {"k": "office", "t": "office", "s": part, "w": job}
+		# Walking between the office's rooms: where from, how far along (the other machine
+		# walks their figure through the doorway).
+		var walk: Dictionary = extras.coop_walk() if extras != null and extras.has_method("coop_walk") else {}
+		if not walk.is_empty():
+			info["go"] = walk
+		return info
 	var node: Node3D = _open_room_node(it)
 	return {"k": _room_key_for(node), "t": _room_kind(it), "s": _room_part(it), "w": _room_job(it)}
 
@@ -1226,6 +1269,38 @@ func coop_room() -> Dictionary:
 ## on the floor): leaning on the counter from the front, by the set at the foot of the
 ## bed, at the back of the store; at the PC, on its chair (beside you, at the counter).
 const COOP_OFFICE_SPOTS := {"office": Vector3(-0.6, 0.0, -0.9), "back": Vector3(-4.3, 0.0, 1.85), "store": Vector3(-0.3, 0.0, 3.95)}
+## At the desk: behind the counter to your right, by the phone (the "write" picture is
+## the body from the hips up; the counter top hides where it ends).
+const COOP_DESK_SPOT := Vector3(1.15, 0.84, 0.74)
+## The back room's bed (back_room.BED), the mattress's top.
+const COOP_BED := Vector3(-5.1, 0.5, 0.85)
+## From the office's own spot to the doorway and through it (the floor under the camera's
+## way in reception_extras.go_back_room / go_store), to the room's spot.
+const COOP_OFFICE_WAYS := {
+	"back": [Vector3(-0.6, 0.0, -0.9), Vector3(-0.8, 0.0, 0.6), Vector3(-1.05, 0.0, 1.26), Vector3(-2.15, 0.0, 1.28), Vector3(-3.15, 0.0, 1.32), Vector3(-4.3, 0.0, 1.85)],
+	"store": [Vector3(-0.6, 0.0, -0.9), Vector3(-0.7, 0.0, 0.7), Vector3(0.12, 0.0, 1.85), Vector3(0.0, 0.0, 2.55), Vector3(-0.3, 0.0, 3.95)],
+}
+
+
+func _coop_office_path(from: String, to: String) -> Array:
+	if COOP_OFFICE_WAYS.has(to):
+		return COOP_OFFICE_WAYS[to]
+	var back: Array = (COOP_OFFICE_WAYS.get(from, COOP_OFFICE_WAYS["back"]) as Array).duplicate()
+	back.reverse()
+	return back
+
+
+func _coop_along(path: Array, k: float) -> Vector3:
+	var total := 0.0
+	for i in range(1, path.size()):
+		total += (path[i] as Vector3).distance_to(path[i - 1])
+	var want := total * k
+	for i in range(1, path.size()):
+		var seg := (path[i] as Vector3).distance_to(path[i - 1])
+		if want <= seg or i == path.size() - 1:
+			return (path[i - 1] as Vector3).lerp(path[i], clampf(want / maxf(seg, 0.001), 0.0, 1.0))
+		want -= seg
+	return path[0]
 
 
 func _open_room_interior():
@@ -1286,6 +1361,12 @@ func coop_partner(info: Dictionary) -> void:
 	var mine := coop_room()
 	var same: bool = not info.is_empty() and not mine.is_empty() and str(info.get("k", "")) == str(mine["k"]) \
 		and str(info.get("t", "")) == str(mine["t"]) and str(info.get("s", "")) == str(mine["s"]) and str(mine["k"]) != ""
+	# The office's rooms are one space: on their way through a doorway they are seen from
+	# the room they leave and the one they go to.
+	var go: Dictionary = info.get("go", {})
+	if not same and not go.is_empty() and str(info.get("k", "")) == "office" and str(mine.get("k", "")) == "office" \
+			and str(mine.get("s", "")) in [str(go.get("f", "")), str(go.get("to", ""))]:
+		same = true
 	if not same:
 		coop_drop_partner()
 		return
@@ -1298,8 +1379,9 @@ func coop_partner(info: Dictionary) -> void:
 	var cam: Camera3D = it.get("_interior_camera")
 	if vp == null or cam == null:
 		return
-	# In bed: under the blanket, not about the room.
-	if bool(info.get("b", false)):
+	# In bed: seen lying on it from the back room, nowhere else.
+	if bool(info.get("b", false)) and not (str(mine["t"]) == "office" and str(mine["s"]) == "back" \
+			and COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "bed")):
 		coop_drop_partner()
 		return
 	var tent: bool = str(mine["t"]) == "tent"
@@ -1327,8 +1409,28 @@ func coop_partner(info: Dictionary) -> void:
 			_coop_fig_spot = _coop_tent_spot(root, root.global_transform * Vector3(0.0, 0.0, -0.6))
 		_coop_fig_spot.y = floor_y
 	if str(mine["t"]) == "office" and root != null:
+		_coop_fig.set_walking(false)
+		_coop_fig.set_flip(false)
+		if bool(info.get("b", false)):
+			# On their back on the bed, the head on the pillow (back_room.lie_pose's end).
+			var head: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, -0.75))
+			var feet: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, 0.75))
+			_coop_fig.show_at(root.global_transform * COOP_BED, "bed")
+			_coop_fig.set_flip((head - feet).dot(cam.global_basis.x) > 0.0)
+			return
+		if not go.is_empty():
+			# Through the doorway, as their camera goes (reception_extras.go_*).
+			var path := _coop_office_path(str(go.get("f", "")), str(go.get("to", "")))
+			var at := _coop_along(path, clampf(float(go.get("k", 0.0)), 0.0, 1.0))
+			_coop_fig.show_at(root.global_transform * at, "stand")
+			_coop_fig.set_walking(true)
+			return
 		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(mine["s"]), COOP_OFFICE_SPOTS["office"])
 		var pose := "stand"
+		if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "write"):
+			# Behind the counter, bent over the register.
+			spot = COOP_DESK_SPOT
+			pose = "write"
 		if str(info.get("w", "")) == "pc":
 			# On the chair at the PC, their back to the room: you look over their shoulder.
 			var seat: Vector3 = it.get("_crt_full_cam_pos")

@@ -167,6 +167,115 @@ ROWS = [
     ("spr_trail_mark", "sprite", 24, "world/trail_mark.png"),
     ("spr_deer_sign", "sprite", 96, "world/deer_sign.png"),
     ("spr_km_stone", "sprite", 48, "world/km_stone.png"),
+    # Ground: the forest road, the turning loop, the verges, the platform.
+    ("tex_road_gravel2", "texture", 128, "town/road_gravel.png"),
+    ("tex_turnaround", "texture", 128, "town/turnaround.png"),
+    ("tex_verge_autumn", "texture", 128, "town/verge_autumn.png"),
+    ("tex_forest_floor2", "texture", 128, "town/forest_floor.png"),
+    ("tex_kerb_slabs", "texture", 128, "town/kerb_slabs.png"),
+    # The camp's pub and bistro outside.
+    ("face_camp_pub_front", "panel", 224, "camp_pub_front.png"),
+    ("face_camp_pub_side", "panel", 192, "camp_pub_side.png"),
+    ("face_camp_bistro_front", "panel", 224, "camp_bistro_front.png"),
+    # The wholesaler's van and what it brings.
+    ("face_van_side", "panel", 224, "town/van_side.png"),
+    ("face_van_front", "panel", 96, "town/van_front.png"),
+    ("face_van_back", "panel", 96, "town/van_back.png"),
+    ("spr_crates_bread", "sprite", 56, "town/crates_bread.png"),
+    ("spr_keg", "sprite", 40, "town/keg.png"),
+    ("spr_sack_potatoes", "sprite", 48, "town/sack_potatoes.png"),
+    ("spr_corn_crate", "sprite", 48, "town/corn_crate.png"),
+    # The corn stand.
+    ("face_corn_stand", "panel", 224, "corn_stand.png"),
+    ("spr_corn_cob", "sprite", 48, "corn_cob.png"),
+    ("spr_corn_raw", "sprite", 48, "corn_raw.png"),
+    ("closeup_corn", "close", 320, "closeup/corn_stand.png"),
+    # The counter games' new close-ups and the books.
+    ("closeup_pub_shots", "close", 320, "closeup/pub_shots.png"),
+    ("closeup_glass_wash", "close", 320, "closeup/glass_wash.png"),
+    ("closeup_fryer", "close", 320, "closeup/fryer.png"),
+    ("closeup_ledger", "close", 320, "closeup/ledger.png"),
+    # The office PC's programs.
+    ("spr_icon_pub", "sprite", 32, "os98/icons/pub_app.png"),
+    ("spr_icon_bistro", "sprite", 32, "os98/icons/bistro_app.png"),
+    ("spr_icon_shop", "sprite", 32, "os98/icons/shop_app.png"),
+    ("spr_icon_corn", "sprite", 32, "os98/icons/corn_app.png"),
+    ("tex_swing_seat", "panel", 48, "swing_seat.png"),
+    # Every part of the counter games is a render too (Ricky 18. 10.: "textures for
+    # everything"): the stove's slices and basket, the stand's cobs, the back bar's
+    # bottles and glasses, the sink's mugs, the books' tabs, pencil and stamp.
+    ("cu_cheese_raw", "sprite", 30, "closeup/parts/cheese_raw.png"),
+    ("cu_cheese_golden", "sprite", 30, "closeup/parts/cheese_golden.png"),
+    ("cu_cheese_burnt", "sprite", 30, "closeup/parts/cheese_burnt.png"),
+    ("cu_basket_oil", "panel", 100, "closeup/parts/basket_oil.png"),
+    ("cu_basket_oil_gold", "panel", 100, "closeup/parts/basket_oil_gold.png"),
+    ("cu_chips_portion", "sprite", 18, "closeup/parts/chips_portion.png"),
+    ("cu_smoke", "sprite", 24, "closeup/parts/smoke.png"),
+    ("cu_oil_spit", "sprite", 12, "closeup/parts/oil_spit.png"),
+    ("cu_wall_rack", "sprite", 34, "closeup/parts/wall_rack.png"),
+    ("cu_cob_raw", "sprite", 22, "closeup/parts/cob_raw.png"),
+    ("cu_cob_boiled", "sprite", 22, "closeup/parts/cob_boiled.png"),
+    ("cu_cob_mushy", "sprite", 22, "closeup/parts/cob_mushy.png"),
+    ("cu_cob_buttered", "sprite", 22, "closeup/parts/cob_buttered.png"),
+    ("cu_cob_napkin", "sprite", 24, "closeup/parts/cob_napkin.png"),
+    ("cu_salt", "sprite", 14, "closeup/parts/salt.png"),
+    ("cu_ticket", "sprite", 34, "closeup/parts/ticket.png"),
+    ("cu_paper_tab", "sprite", 14, "closeup/parts/paper_tab.png"),
+    ("cu_pencil_box", "sprite", 40, "closeup/parts/pencil_box.png"),
+    ("cu_pencil_hatch", "sprite", 9, "closeup/parts/pencil_hatch.png"),
+    ("cu_stamp_frame", "sprite", 30, "closeup/parts/stamp_frame.png"),
+    ("face_ledger_open", "panel", 128, "ledger_open.png"),
+    ("cu_bottle_rum", "sprite", 80, "closeup/parts/bottle_rum.png"),
+    ("cu_bottle_zelena", "sprite", 80, "closeup/parts/bottle_zelena.png"),
+    ("cu_bottle_slivovice", "sprite", 80, "closeup/parts/bottle_slivovice.png"),
+    ("cu_bottle_kofola", "sprite", 86, "closeup/parts/bottle_kofola.png"),
+    ("cu_glass_shot", "sprite", 34, "closeup/parts/glass_shot.png"),
+    ("cu_glass_tall", "sprite", 76, "closeup/parts/glass_tall.png"),
+    ("cu_glass_rum", "sprite", 34, "closeup/parts/glass_rum.png"),
+    ("cu_glass_zelena", "sprite", 34, "closeup/parts/glass_zelena.png"),
+    ("cu_glass_slivovice", "sprite", 34, "closeup/parts/glass_slivovice.png"),
+    ("cu_glass_kofola", "sprite", 76, "closeup/parts/glass_kofola.png"),
+    ("cu_pour_stream", "sprite", 64, "closeup/parts/pour_stream.png"),
+    ("cu_spill", "sprite", 10, "closeup/parts/spill.png"),
+    ("cu_mug_dirty", "sprite", 46, "closeup/parts/mug_dirty.png"),
+    ("cu_mug_clean", "sprite", 46, "closeup/parts/mug_clean.png"),
+    ("cu_suds", "sprite", 12, "closeup/parts/suds.png"),
+    ("cu_ticket_tall", "sprite", 37, "closeup/parts/ticket_tall.png"),
+    ("cu_ticket_tall_old", "sprite", 37, "closeup/parts/ticket_tall_old.png"),
+    ("cu_note_5", "sprite", 16, "closeup/parts/note_5.png"),
+    ("cu_note_10", "sprite", 16, "closeup/parts/note_10.png"),
+    ("cu_note_20", "sprite", 16, "closeup/parts/note_20.png"),
+    ("cu_coin_1", "sprite", 6, "closeup/parts/coin_1.png"),
+    ("cu_coin_2", "sprite", 7, "closeup/parts/coin_2.png"),
+    ("cu_price_tag", "sprite", 9, "closeup/parts/price_tag.png"),
+    ("cu_tap_glass", "sprite", 92, "closeup/parts/tap_glass.png"),
+    ("cu_tap_beer", "sprite", 92, "closeup/parts/tap_beer.png"),
+    ("cu_tap_foam", "sprite", 16, "closeup/parts/tap_foam.png"),
+    ("cu_foam_stream", "sprite", 64, "closeup/parts/foam_stream.png"),
+    ("cu_foam_drip", "sprite", 6, "closeup/parts/foam_drip.png"),
+    # The office programs' toolbar and the hands' photos.
+    ("ico_tb_stock", "sprite", 16, "os98/icons/tb_stock.png"),
+    ("ico_tb_order", "sprite", 16, "os98/icons/tb_order.png"),
+    ("ico_tb_staff", "sprite", 16, "os98/icons/tb_staff.png"),
+    ("ico_tb_books", "sprite", 16, "os98/icons/tb_books.png"),
+    ("ico_tb_warning", "sprite", 16, "os98/icons/tb_warning.png"),
+    ("photo_lojza", "panel", 48, "os98/photos/lojza.png"),
+    ("photo_franta", "panel", 48, "os98/photos/franta.png"),
+    ("photo_mirek", "panel", 48, "os98/photos/mirek.png"),
+    ("photo_dvorakova", "panel", 48, "os98/photos/dvorakova.png"),
+    ("photo_pepa", "panel", 48, "os98/photos/pepa.png"),
+    ("photo_hanka", "panel", 48, "os98/photos/hanka.png"),
+    ("photo_novakova", "panel", 48, "os98/photos/novakova.png"),
+    ("photo_zdenka", "panel", 48, "os98/photos/zdenka.png"),
+    ("photo_ivan", "panel", 48, "os98/photos/ivan.png"),
+    ("photo_pepicek", "panel", 48, "os98/photos/pepicek.png"),
+    ("photo_klara", "panel", 48, "os98/photos/klara.png"),
+    ("photo_novak_boy", "panel", 48, "os98/photos/novak_boy.png"),
+    # The van's wheels, the stand's awning.
+    ("spr_van_wheel", "sprite", 32, "town/van_wheel.png"),
+    ("tex_awning_stripes", "texture", 64, "awning_stripes.png"),
+    ("spr_awning_fringe", "sprite", 24, "awning_fringe.png"),
+    ("spr_steam_puff", "sprite", 16, "steam_puff.png"),
 ]
 TEXTURY = os.path.join(HERE, "..", "..", "godot", "assets", "textury")
 
@@ -236,6 +345,22 @@ def key_white(names):
         im.save(path)
 
 
+def small_icons():
+    """The 16 px twins of the OS icons (os98/icons/<name>_16.png)."""
+    for k in ["pub", "bistro", "shop", "corn"]:
+        src = os.path.join(TEXTURY, "os98", "icons", "%s_app.png" % k)
+        if os.path.exists(src):
+            im = Image.open(src).convert("RGBA")
+            if im.size != (32, 32):
+                # Into a 32 x 32 square, centred, nothing stretched.
+                im.thumbnail((32, 32), Image.NEAREST)
+                sq = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+                sq.paste(im, ((32 - im.width) // 2, 32 - im.height), im)
+                im = sq
+                im.save(src)
+            im.resize((16, 16), Image.BOX).point(lambda v: v).save(os.path.join(TEXTURY, "os98", "icons", "%s_app_16.png" % k))
+
+
 def main():
     for art_id, mode, size, name in ROWS:
         raw = os.path.join(HERE, "out", art_id, "raw.png")
@@ -246,7 +371,12 @@ def main():
         dest = os.path.join(TEXTURY, name) if "/" in name else os.path.join(CAMP, name)
         if os.path.exists(dest) and os.path.getmtime(dest) > os.path.getmtime(raw) and "--all" not in sys.argv:
             continue
-        if mode == "sprite":
+        if mode == "close":
+            # A 320x240 close-up picture: the whole render, scaled to fit, on the palette.
+            src = Image.open(raw).convert("RGB")
+            src = src.crop(((src.width - src.height * 4 // 3) // 2, 0, (src.width + src.height * 4 // 3) // 2, src.height)) if src.width * 3 > src.height * 4 else src
+            out = process.snap(src.resize((320, 240), Image.BOX), False)
+        elif mode == "sprite":
             out = process.sprite(rekeyed(art_id), size)
         elif mode == "panel":
             out = process.panel(raw, size)
@@ -255,6 +385,7 @@ def main():
         out.save(dest)
         print(name, out.size)
     stove_glow()
+    small_icons()
     key_white(["town/car_side.png", "town/car_front.png", "town/car_back.png"])
 
 

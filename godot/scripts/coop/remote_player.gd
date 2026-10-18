@@ -18,7 +18,9 @@ const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const SPRITE_HEIGHT_M := 1.74
 ## How tall each pose is drawn (its picture is that tall from top to bottom edge).
 const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32,
-	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86}
+	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86, "write": 0.92}
+## Poses drawn lying down: how long the picture is from side to side.
+const POSE_WIDTH := {"bed": 1.85}
 ## The guests' walk cycle (scripts/guest_agents.gd), so the two look alike.
 const ANIM_FPS := 8.0
 const WALK_BOB_HZ := 2.6
@@ -26,6 +28,10 @@ const WALK_BOB_HZ := 2.6
 const DELAY := 0.1
 ## Further than this between two states is a jump (a door, the bus): no sliding.
 const SNAP_DIST := 6.0
+## The state's position is the player's body origin, and the body's capsule
+## (player_controller.gd: 1.2 m tall, its middle 0.95 up) stands with its bottom this far
+## above it: drawn at the origin they stood knee-deep in the ground (playtest 18. 10.).
+const FEET_Y := 0.35
 const FOOTSTEPS := "res://assets/sfx/grassfootsteps.mp3"
 
 var model := 1
@@ -133,10 +139,13 @@ func _apply_pose(p: String, force := false) -> void:
 	var tex := LOOKS.texture(model, color, pose)
 	_sprite.texture = tex
 	if tex != null:
-		_sprite.pixel_size = float(POSE_HEIGHT.get(pose, SPRITE_HEIGHT_M)) / float(tex.get_height())
+		if POSE_WIDTH.has(pose):
+			_sprite.pixel_size = float(POSE_WIDTH[pose]) / float(tex.get_width())
+		else:
+			_sprite.pixel_size = float(POSE_HEIGHT.get(pose, SPRITE_HEIGHT_M)) / float(tex.get_height())
 		_sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
-	# Seated in the boat the hull is their shadow.
-	_shadow.visible = pose != "row"
+	# Seated in the boat the hull is their shadow; in bed and at the counter, the furniture.
+	_shadow.visible = not (pose in ["row", "bed", "write"])
 
 
 ## A small round glow, drawn once: the bulb of the torch seen from in front.
@@ -211,6 +220,19 @@ func _process(delta: float) -> void:
 		_lens.visible = false
 		_update_steps(true)
 		return
+	if sb.get("ride") is Transform3D:
+		# A passenger in the bow of your boat, facing you.
+		visible = true
+		_apply_pose("sit")
+		global_transform = Transform3D(Basis(), (sb["ride"] as Transform3D) * Vector3(0.0, 0.0, 0.95))
+		_sprite.position = Vector3.ZERO
+		_sprite.rotation.z = 0.0
+		_shadow.visible = false
+		_beam.visible = false
+		_halo.visible = false
+		_lens.visible = false
+		_update_steps(true)
+		return
 	if sb.has("att"):
 		# In an attraction: where this machine's attraction puts them (warden_play.gd).
 		var wp := get_tree().get_first_node_in_group("warden_play")
@@ -228,8 +250,9 @@ func _process(delta: float) -> void:
 			_lens.visible = false
 			_update_steps(true)
 			return
-	var pa: Vector3 = sa.get("p", global_position)
-	var pb: Vector3 = sb.get("p", pa)
+	var lift := Vector3(0.0, FEET_Y, 0.0)
+	var pa: Vector3 = sa.get("p", global_position - lift) + lift
+	var pb: Vector3 = sb.get("p", pa - lift) + lift
 	if pa.distance_to(pb) > SNAP_DIST:
 		f = 1.0
 	var inside := bool(sb.get("in", false))
@@ -268,9 +291,38 @@ func _animate_row(going: bool) -> void:
 	_sprite.position.y = -0.05 * (0.5 + 0.5 * sin(ph))
 
 
+## A room's copy walking (through the office's doorways): the stepped walk.
+var _manual_walk := false
+
+
+func set_walking(on: bool) -> void:
+	_manual_walk = on
+
+
+func set_flip(on: bool) -> void:
+	if _sprite != null:
+		_sprite.flip_h = on
+
+
 ## At a job: the broom or the brush going, in steps (a push and back, the flip).
 func _animate_work(_delta: float) -> void:
 	if _sprite == null:
+		return
+	if _manual_walk:
+		_speed = 2.2
+		_sprite.position.x = 0.0
+		_animate()
+		return
+	if pose == "bed":
+		# Asleep: only the breath, in steps.
+		_sprite.rotation.z = 0.0
+		_sprite.position = Vector3(0.0, 0.01 if int(floorf(_time * 0.4 * 2.0)) % 2 == 0 else 0.0, 0.0)
+		return
+	if pose == "write":
+		# The pen going along the line and back to the start of the next.
+		var st := floorf(_time * ANIM_FPS)
+		_sprite.position = Vector3(fposmod(st, 16.0) / 16.0 * 0.03, 0.0, 0.0)
+		_sprite.rotation.z = 0.0
 		return
 	if pose == "sweep" or pose == "crouch":
 		var step := floorf(_time * ANIM_FPS)

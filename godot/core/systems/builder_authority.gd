@@ -31,6 +31,7 @@ const ALLOWED_BUILD_TYPES: Dictionary = {
 	"playground": true,
 	"ping_pong": true,
 	"hammock": true,
+	"corn_stand": true,
 }
 
 var _state

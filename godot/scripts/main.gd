@@ -1,6 +1,7 @@
 extends Node
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+const ORDERS_SERVED = preload("res://scripts/food/orders.gd")
 const PLAYER_SCRIPT = preload("res://scripts/player_controller.gd")
 const GRID_MANAGER_SCRIPT = preload("res://scripts/grid_manager.gd")
 const BUILDING_MANAGER_SCRIPT = preload("res://scripts/building_manager.gd")
@@ -574,7 +575,7 @@ func _director_context_other(ctx: Dictionary) -> Dictionary:
 	var room: Dictionary = s.get("room", {})
 	var pos: Vector3 = s.get("p", Vector3.ZERO)
 	var place := "out_dark"
-	if s.has("boat") or s.has("boat_at"):
+	if s.has("boat") or s.has("boat_at") or s.has("ride"):
 		place = "lake"
 	elif str(room.get("t", "")) == "office":
 		place = "back_room" if str(room.get("s", "")) == "back" else "office"
@@ -1489,6 +1490,9 @@ func _poll_arrivals(delta: float) -> void:
 	_arrivals_poll = 0.5
 	_hud_manager.set_arrivals(GuestManager.get_arrivals())
 	var day_rows: Array = _day_events.hud_rows() if _day_events != null else []
+	var biz = _interior_manager.get("business") if _interior_manager != null else null
+	if biz != null:
+		day_rows = day_rows + biz.hud_rows()
 	if not day_rows.is_empty() and _time_state != TIME_NIGHT:
 		_hud_manager.set_jobs(day_rows, "TODAY")
 	elif _night_jobs != null:
@@ -2190,7 +2194,7 @@ func debug_parts(n: Node) -> Array:
 
 ## Shot driver: every checked-in party goes to the first `building_type` now and stays
 ## `minutes` there (the sim's own visit activity, already arrived).
-func debug_send_guests_to(building_type: String, minutes: int = 120) -> int:
+func debug_send_guests_to(building_type: String, minutes: int = 120, walk := false) -> int:
 	var life = GuestManager.get("_life")
 	if life == null:
 		return 0
@@ -2207,9 +2211,10 @@ func debug_send_guests_to(building_type: String, minutes: int = 120) -> int:
 		if not str(g.get("status", "")) in ["active", "sleep"]:
 			continue
 		var here: Vector2i = life._parse_key(str(g.get("tile", "")))
-		var act: Dictionary = life._make_activity("visit", here, life._door_tile(f, here), now - 20, minutes, "fun", f)
-		act["arrive"] = now - 1
-		act["end"] = now + minutes
+		var act: Dictionary = life._make_activity("visit", here, life._door_tile(f, here), now if walk else now - 20, minutes, "fun", f)
+		if not walk:
+			act["arrive"] = now - 1
+			act["end"] = now + minutes
 		g["activity"] = act
 		g["status"] = "active"
 		state.guests[i] = g
@@ -3911,6 +3916,7 @@ func _on_coop_session_ended(reason: String) -> void:
 func _on_coop_peer_joined() -> void:
 	# A new line: their till changes are numbered from one again.
 	_coop_till_acked = 0
+	_coop_sync_last.clear()
 	# Their name comes with their hello, a moment after the line opens.
 	await get_tree().create_timer(1.0).timeout
 	if _hud_manager != null and Coop.has_partner():
@@ -3945,7 +3951,7 @@ func _on_coop_partner_moved(s: Dictionary) -> void:
 		_hud_manager.push_status("%s has turned in." % Coop.partner_name(), 1)
 	_coop_partner_bed_was = in_bed
 	if _lake_trip != null and _lake_trip.has_method("coop_mirror_boat"):
-		_lake_trip.coop_mirror_boat(s.get("boat", s.get("boat_at", null)))
+		_lake_trip.coop_mirror_boat(s.get("boat", s.get("boat_at", null)), s.has("boat_at"))
 	if _interior_manager != null and _interior_manager.has_method("coop_partner"):
 		var room: Dictionary = s.get("room", {})
 		if bool(s.get("z", false)) and not room.is_empty():
@@ -4054,7 +4060,12 @@ func coop_apply_pulse(p: Dictionary) -> void:
 	var state = CoreRoot.get_state()
 	if state == null:
 		return
+	var was := {}
+	for g in state.guests:
+		if g is Dictionary:
+			was[int(g.get("id", -1))] = g
 	state.guests = (p.get("guests", []) as Array).duplicate(true)
+	_coop_tell_arrivals(was)
 	state.failures = (p.get("failures", {}) as Dictionary).duplicate(true)
 	var rooms: Dictionary = p.get("rooms", {})
 	if not rooms.is_empty():
@@ -4081,6 +4092,95 @@ func coop_apply_pulse(p: Dictionary) -> void:
 	var mail: Dictionary = p.get("mail", {})
 	if not mail.is_empty() and EmailManager != null and EmailManager.has_method("coop_take"):
 		EmailManager.coop_take(mail)
+
+
+## The other warden's machine: a party reached the barrier, was let in or gave up in the
+## host's camp. GuestManager only signals it where it simulates, so here the barrier
+## stayed down (the party walked through it), and no line, car or hello came: the same
+## signals, from the change of status in the pulse. `was`: id -> the guest before it.
+func _coop_tell_arrivals(was: Dictionary) -> void:
+	if GuestManager == null or not GuestManager.has_method("_arrival_row"):
+		return
+	var now_abs: int = GuestManager._absolute_minutes(maxi(1, _day_index), int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
+	var still := {}
+	for g in CoreRoot.get_state().guests:
+		if not (g is Dictionary):
+			continue
+		var id := int(g.get("id", -1))
+		still[id] = true
+		var before := str((was[id] as Dictionary).get("status", "")) if was.has(id) else "expected"
+		var now := str(g.get("status", ""))
+		if before == now:
+			continue
+		if now == "waiting" and before != "waiting":
+			EventBus.guest_at_gate.emit(GuestManager._arrival_row(g, now_abs))
+		elif before == "waiting" and now == "active":
+			EventBus.guest_checked_in.emit((g as Dictionary).duplicate(true))
+	# Waiting at reception for the full time and gone from the list: they gave up and drove
+	# off (sooner, the host turned them away at the desk).
+	for id in was.keys():
+		var old: Dictionary = was[id]
+		if str(old.get("status", "")) == "waiting" and not still.has(id) \
+				and now_abs - int(old.get("gate_since_abs", now_abs)) >= GuestManager.GATE_GIVE_UP_MINUTES - 2:
+			EventBus.guest_gave_up.emit(GuestManager._arrival_row(old, now_abs))
+
+
+## What both machines keep alike, sent when it changes here (Coop.send_sync): the
+## office's lights, curtains and set; the desk's register and key hooks. The joining
+## machine first takes the host's (it sends only what it changes itself).
+var _coop_sync_last: Dictionary = {}
+
+
+func _coop_sync_things() -> Dictionary:
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	if bi == null:
+		return {}
+	var out := {}
+	if bi.has_method("coop_office_state"):
+		out["office"] = bi.coop_office_state()
+	var desk = bi.get("_desk_room")
+	if desk != null and desk.has_method("coop_register"):
+		out["register"] = desk.coop_register()
+	return out
+
+
+func coop_sync_poll() -> void:
+	if not _gameplay_started or _menu_mode:
+		return
+	var things := _coop_sync_things()
+	for kind in things.keys():
+		var h := hash(var_to_bytes(things[kind]))
+		if not _coop_sync_last.has(kind) and Coop.is_client():
+			_coop_sync_last[kind] = h
+			continue
+		if int(_coop_sync_last.get(kind, 0)) != h:
+			_coop_sync_last[kind] = h
+			Coop.send_sync(kind, [things[kind]])
+
+
+func coop_sync(kind: String, data: Array) -> void:
+	if not _gameplay_started or _menu_mode:
+		return
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	match kind:
+		"office":
+			if bi != null and bi.has_method("coop_take_office_state"):
+				bi.coop_take_office_state(data[0])
+		"register":
+			var desk = bi.get("_desk_room") if bi != null else null
+			if desk != null and desk.has_method("coop_take_register"):
+				desk.coop_take_register(data[0])
+		"gate":
+			var gate = get_tree().get_first_node_in_group("camp_gate")
+			if gate != null and gate.has_method("open_for_player"):
+				gate.open_for_player()
+			return
+	# Not sent back as it came; the register goes back if it merged with rows written here.
+	var now := _coop_sync_things()
+	if kind == "office" and now.has(kind):
+		_coop_sync_last[kind] = hash(var_to_bytes(now[kind]))
+	elif kind == "register":
+		_coop_sync_last[kind] = hash(var_to_bytes(data[0]))
 
 
 ## Over the shoulder: your PC screen for the other machine while you sit at it and the
@@ -4193,6 +4293,9 @@ func coop_request(kind: String, data: Array) -> void:
 	if not Coop.is_host() or not _gameplay_started:
 		return
 	match kind:
+		"served":
+			var visit := str(data[0])
+			ORDERS_SERVED._served[visit] = int(ORDERS_SERVED._served.get(visit, 0)) + 1
 		"build":
 			var turned: Array = []
 			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])
@@ -4422,14 +4525,16 @@ func coop_local_warden() -> Dictionary:
 	}
 	# On the lake: in the boat (it rows where you row), or across on the keeper's jetty.
 	var lake: Dictionary = _lake_trip.coop_state() if _lake_trip != null and _lake_trip.has_method("coop_state") else {}
-	if lake.has("boat"):
-		s["boat"] = lake["boat"]
-		s["p"] = (lake["boat"] as Transform3D).origin
+	if lake.has("boat") or lake.has("ride"):
+		var key := "boat" if lake.has("boat") else "ride"
+		s[key] = lake[key]
+		s["p"] = (lake[key] as Transform3D).origin
 		s["in"] = false
 		s["t"] = false
 	elif lake.has("shore"):
 		s["p"] = lake["shore"]
-		s["boat_at"] = lake["boat_at"]
+		if lake.has("boat_at"):
+			s["boat_at"] = lake["boat_at"]
 		s["in"] = false
 		s["t"] = false
 		s["v"] = 0.0
@@ -4683,6 +4788,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 			"guest_reviews": SAVE_CODEC.duplicate_dict_array(state.guest_reviews),
 			"guest_transactions": SAVE_CODEC.duplicate_dict_array(state.guest_transactions),
 			"next_guest_id": max(1, int(state.next_guest_id)),
+			"biz": (state.biz as Dictionary).duplicate(true),
 			"electricity": _billing.export_state()
 		},
 		"runtime": {
@@ -4948,7 +5054,8 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			"failures": SAVE_CODEC.deserialize_failures(state_data.get("failures", {})),
 			"guest_reviews": SAVE_CODEC.duplicate_dict_array(state_data.get("guest_reviews", [])),
 			"guest_transactions": SAVE_CODEC.duplicate_dict_array(state_data.get("guest_transactions", [])),
-			"next_guest_id": max(1, int(state_data.get("next_guest_id", 1)))
+			"next_guest_id": max(1, int(state_data.get("next_guest_id", 1))),
+			"biz": (state_data.get("biz", {}) as Dictionary).duplicate(true) if state_data.get("biz", {}) is Dictionary else {}
 		})
 		var electricity_any = state_data.get("electricity", {})
 		_billing.import_state(electricity_any if electricity_any is Dictionary else {}, _day_index, preview_only)

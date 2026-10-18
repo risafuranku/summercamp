@@ -156,6 +156,184 @@ func add_money(amount: int) -> void:
 	EventBus.money_changed.emit(_state.money)
 
 
+# ── the businesses (core/systems/business_rules.gd) ──────────────────────────
+
+const BIZ_RULES := preload("res://core/systems/business_rules.gd")
+
+
+func _biz() -> Dictionary:
+	if not (_state.biz is Dictionary) or _state.biz.is_empty():
+		_state.biz = {"sites": {}, "orders": [], "licences": []}
+	for k in ["sites", "orders", "licences"]:
+		if not _state.biz.has(k):
+			_state.biz[k] = {} if k == "sites" else []
+	return _state.biz
+
+
+## The record of the business at `key` ("x:y"); made, shelves stocked, the first time.
+func biz_site(key: String, building_type: String) -> Dictionary:
+	var sites: Dictionary = _biz()["sites"]
+	if not sites.has(key):
+		var kind := BIZ_RULES.kind_of(building_type)
+		if kind == "":
+			return {}
+		sites[key] = BIZ_RULES.new_site(kind)
+	return sites[key]
+
+
+## Sites whose building is gone go with it (their orders too, refunded).
+func biz_prune(live_keys: Array) -> void:
+	var b := _biz()
+	for key in (b["sites"] as Dictionary).keys():
+		if not live_keys.has(key):
+			b["sites"].erase(key)
+	var keep: Array = []
+	for o in b["orders"]:
+		if live_keys.has(str(o.get("key", ""))):
+			keep.append(o)
+		else:
+			add_money(int(o.get("cost", 0)))
+	b["orders"] = keep
+
+
+## Takes goods off the shelf for a sale; false (nothing taken) when there is not enough.
+func biz_take(key: String, needs: Dictionary) -> bool:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty() or not BIZ_RULES.can_take(site["stock"], needs):
+		return false
+	for g in needs:
+		site["stock"][g] = int(site["stock"].get(g, 0)) - int(needs[g])
+	return true
+
+
+## A sale rung up: the money is the camp's, the day's books count it.
+func biz_sale(key: String, amount: int, units: int, by_hand: bool, credit := true) -> void:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty():
+		return
+	var day: Dictionary = site["today"]
+	day["sold"] = int(day["sold"]) + units
+	day["takings"] = int(day["takings"]) + amount
+	if by_hand:
+		day["by_hand"] = int(day["by_hand"]) + 1
+	if amount > 0 and credit:
+		add_money(amount)
+
+
+## Somebody went away unserved (out of stock, or nobody behind the counter).
+func biz_lost(key: String) -> void:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if not site.is_empty():
+		site["today"]["lost"] = int(site["today"]["lost"]) + 1
+
+
+## An order for the van (goods: {good: packs}), paid now, delivered on `due_day`.
+func biz_order(key: String, order: Dictionary, due_day: int) -> bool:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty():
+		return false
+	var clean := {}
+	for g in order:
+		if int(order[g]) > 0:
+			clean[g] = int(order[g])
+	if clean.is_empty():
+		return false
+	var cost := BIZ_RULES.order_cost(str(site["kind"]), clean)
+	if not spend_money(cost):
+		return false
+	_biz()["orders"].append({"key": key, "goods": clean, "cost": cost, "due_day": due_day})
+	EventBus.state_changed.emit({"biz": "ordered"})
+	return true
+
+
+## The van is unloaded: every order due by `day` goes on its shelves. Returns how many.
+func biz_receive(day: int) -> int:
+	var b := _biz()
+	var keep: Array = []
+	var n := 0
+	for o in b["orders"]:
+		if int(o.get("due_day", 0)) > day:
+			keep.append(o)
+			continue
+		var site: Dictionary = (b["sites"] as Dictionary).get(str(o.get("key", "")), {})
+		if site.is_empty():
+			continue
+		var g_all: Dictionary = BIZ_RULES.goods(str(site["kind"]))
+		for g in o["goods"]:
+			var pack := int((g_all.get(g, {}) as Dictionary).get("pack", 1))
+			var cap := int((g_all.get(g, {}) as Dictionary).get("cap", 9999))
+			site["stock"][g] = mini(cap, int(site["stock"].get(g, 0)) + pack * int(o["goods"][g]))
+		n += 1
+	b["orders"] = keep
+	if n > 0:
+		EventBus.state_changed.emit({"biz": "delivered"})
+	return n
+
+
+## The van went away without anybody signing: what was due comes a day later.
+func biz_postpone(day: int) -> void:
+	for o in _biz()["orders"]:
+		if int(o.get("due_day", 0)) <= day:
+			o["due_day"] = day + 1
+
+
+func biz_hire(key: String, name: String, day: int) -> bool:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty() or bool(site["staff"]):
+		return false
+	site["staff"] = true
+	site["staff_name"] = name
+	site["since_day"] = day
+	EventBus.state_changed.emit({"biz": "hired"})
+	return true
+
+
+func biz_fire(key: String) -> void:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty():
+		return
+	site["staff"] = false
+	site["staff_name"] = ""
+	EventBus.state_changed.emit({"biz": "fired"})
+
+
+## The day ends: the hands are paid (all of it, even into the red: they want their
+## money), today's books become yesterday's. Returns the wages paid.
+func biz_close_day() -> int:
+	var wages := 0
+	for key in (_biz()["sites"] as Dictionary).keys():
+		var site: Dictionary = _biz()["sites"][key]
+		if bool(site["staff"]):
+			wages += int(BIZ_RULES.info(str(site["kind"])).get("wage", 0))
+		# The last week, for the office programs' charts.
+		var history: Array = site.get("history", [])
+		history.append(site["today"])
+		while history.size() > 7:
+			history.pop_front()
+		site["history"] = history
+		site["yesterday"] = site["today"]
+		site["today"] = BIZ_RULES.empty_day()
+	if wages > 0:
+		_state.money -= wages
+		EventBus.money_changed.emit(_state.money)
+	return wages
+
+
+## A program for the office PC, bought on the web.
+func biz_buy_licence(kind: String) -> bool:
+	var b := _biz()
+	if (b["licences"] as Array).has(kind):
+		return true
+	if not spend_money(int(BIZ_RULES.info(kind).get("licence", 0))):
+		return false
+	b["licences"].append(kind)
+	return true
+
+
+func biz_has_licence(kind: String) -> bool:
+	return (_biz()["licences"] as Array).has(kind)
+
+
 func end_day(income: int) -> void:
 	if not _warned_legacy_end_day:
 		_warned_legacy_end_day = true

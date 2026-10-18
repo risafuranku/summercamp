@@ -917,7 +917,37 @@ func _page_for(key: String) -> Dictionary:
 	}
 
 
+## SoftSklad's four programs: the licence to buy, or (bought) the download.
+func _softsklad() -> String:
+	var R = load("res://core/systems/business_rules.gd")
+	var files := {"pub": "HOSPOD98.EXE", "rest": "KUCHAR98.EXE", "vecerka": "PULT98.EXE", "corn": "KLASEK98.EXE"}
+	var blurbs := {"pub": "for pubs and bars: kegs, spirits, kofola, glasses", "rest": "for canteens and bistros: the kitchen's stock, portions", "vecerka": "for shops: bread, rolls, salami, milk, beer", "corn": "for stands: cobs and butter"}
+	var t := ""
+	for k in ["pub", "rest", "vecerka", "corn"]:
+		var info: Dictionary = R.info(k)
+		t += "[b]%s[/b] - %s\n" % [str(info["app_name"]), str(blurbs[k])]
+		if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.biz_has_licence(k):
+			t += " [color=#006600]Licensed.[/color] {download://%s|%s}\n\n" % [files[k], files[k]]
+		else:
+			t += " {licence://%s|Buy a licence - $%d}\n\n" % [k, int(info["licence"])]
+	return t
+
+
 func _on_link(target: String) -> void:
+	# A SoftSklad licence: paid from the camp's money, the download appears.
+	if target.begins_with("licence://"):
+		var kind := target.trim_prefix("licence://")
+		var info: Dictionary = load("res://core/systems/business_rules.gd").info(kind)
+		_shell.message_box("SoftSklad", "Buy a licence for %s for $%d?\n\nThe money is taken from the camp's account." % [str(info.get("app_name", "")), int(info.get("licence", 0))], "question", ["Buy", "Cancel"], func(b: String):
+			if b != "Buy":
+				return
+			if CoreRoot.actions.biz_buy_licence(kind):
+				_shell.play("click", -8.0)
+				_load(_url, false)
+			else:
+				_shell.message_box("SoftSklad", "The payment was refused.\n\nThe camp has $%d." % CoreRoot.get_money(), "error")
+		)
+		return
 	# The bazaar's "put it up" (bazaar://list/ID): the ad goes up, the page comes again.
 	if target.begins_with("bazaar://list/"):
 		var m: Node = _shell.main_node()
@@ -951,6 +981,7 @@ func _expand(body: String, link: String, key: String) -> String:
 		t = t.replace("{{guestbook}}", _guestbook())
 		t = t.replace("{{bazaar}}", _bazaar())
 		t = t.replace("{{level}}", _level())
+		t = t.replace("{{softsklad}}", _softsklad())
 	t = _pad_marquees(t)
 	return _link_re.sub(t, "[url=$1][color=%s]$2[/color][/url]" % link, true)
 

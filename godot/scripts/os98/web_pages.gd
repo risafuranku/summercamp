@@ -50,6 +50,7 @@ const INDEX := {
 	"volny.cz/~infravrany": "band music infravrany rock metal gig disco demo tape concert lukas",
 	"povodi-hlubocany.cz": "reservoir lake water board dam keeper hruby boat boathouse sluice level fishing shore",
 	"cerne-jezero.cz/team": "karel vera team leaders staff camp photos",
+	"softsklad.cz": "software pub bistro shop corn stand stock order staff licence hostinsky kuchar pult klasek business wholesaler",
 	"bohemia-online.cz/weather": "weather forecast rain storm fog sun",
 }
 
@@ -67,6 +68,7 @@ const PAGES := {
 [cell][b]SOFTWARE[/b]
  {bohemia-online.cz/search|BohemiaSearch} - find it on the web
  {stavitel98.cz|Stavitel software} - Builder 98
+ {softsklad.cz|SoftSklad} - programs for the pub, the bistro, the shop
  {campgrid.cz|CampGrid} - for power customers
  {okres-hlubocany.cz/register|GuestRack} - guest register
 
@@ -194,6 +196,26 @@ Stavitel software, Brnenska 14, Jihlava  |  {bohemia-online.cz|Bohemia Online}  
 Faults: 0663 30 199 (we do not go out to the reservoir after dark).
 """ + HR + """
 {bohemia-online.cz|Bohemia Online}""",
+	},
+
+	# ── SoftSklad: the businesses' programs ─────────────────────────────────────
+	"softsklad.cz": {
+		"title": "SoftSklad Jihlava - software for hospitality",
+		"bg": "#fffbe8", "fg": "#000000", "link": "#003399",
+		"body": """[bgcolor=#7a1a10][color=#ffffff][b][font_size=20] SoftSklad [/font_size][/b] Jihlava - programs for pubs, canteens and shops [/color][/bgcolor]
+
+Run your business from the office. Stock, orders to the wholesaler, staff, takings: on one screen, in Czech and in English.
+A licence is for one operator. You pay once, on this page; the program downloads at once.
+
+{{softsklad}}
+[b]HOW IT WORKS[/b]
+ * You see what is on the shelves of every bar, kitchen and counter you run.
+ * You order. Our wholesaler's van brings it the next morning (sign for it at your gate).
+ * You take on staff, or let them go, and see their wages.
+
+[color=#666666]Orders placed after 18:00 still arrive the next morning. The van does not wait.[/color]
+""" + HR + """
+SoftSklad s.r.o., Havlickova 7, Jihlava  |  {bohemia-online.cz|Bohemia Online}  |  You are visitor no. {{counter}}""",
 	},
 
 	# ── the district ───────────────────────────────────────────────────────────
