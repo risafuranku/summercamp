@@ -166,6 +166,13 @@ func _other_reachable() -> bool:
 func _hurt_other(amount: int) -> void:
 	_shaken("other", amount * 0.6)
 	Coop.send_night_event("hurt", [amount])
+	if not together():
+		_heard()
+
+
+## The other warden cried out somewhere off in the dark.
+func _heard() -> void:
+	main._on_enemy_notice("Somewhere off in the dark, %s cries out." % Coop.partner_name())
 
 
 func _feed_other(text: String) -> void:
@@ -375,6 +382,9 @@ func _wear(delta: float) -> void:
 	var hp := int(main.get("_player_health"))
 	if _last_hp > hp:
 		_shaken("host", (_last_hp - hp) * 0.6)
+		# Far off, the other warden hears you.
+		if not together():
+			Coop.send_night_event("heard", [])
 	_last_hp = hp
 	var night := bool(main._is_enemy_night_active())
 	var me := main.get("_player") as Node3D
@@ -581,6 +591,8 @@ func on_event(kind: String, data: Array) -> void:
 			main.damage_player(int(data[0]))
 		"feed":
 			main._on_enemy_notice(str(data[0]))
+		"heard":
+			_heard()
 		"fx":
 			# The night director's touch, here (a knock, a lamp out, the phone...).
 			var fx = main.get("_director_fx")

@@ -3900,8 +3900,26 @@ func _on_coop_peer_left() -> void:
 
 
 ## Where the other warden is (each state): the boat where they have it, their figure in
-## the room you are in if they are in it.
+## the room you are in if they are in it; the door they go in or out by swings; when
+## they lie down, you hear of it.
+const COOP_DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
+var _coop_partner_was_in := false
+var _coop_partner_room_was := ""
+var _coop_partner_bed_was := false
+
+
 func _on_coop_partner_moved(s: Dictionary) -> void:
+	var room_info: Dictionary = s.get("room", {})
+	var inside := bool(s.get("in", false))
+	if inside != _coop_partner_was_in and not s.is_empty():
+		_coop_swing_door(str(room_info.get("k", "")) if inside else _coop_partner_room_was)
+	_coop_partner_was_in = inside
+	if inside and room_info.has("k"):
+		_coop_partner_room_was = str(room_info["k"])
+	var in_bed := bool(s.get("z", false))
+	if in_bed and not _coop_partner_bed_was and _hud_manager != null:
+		_hud_manager.push_status("%s has turned in." % Coop.partner_name(), 1)
+	_coop_partner_bed_was = in_bed
 	if _lake_trip != null and _lake_trip.has_method("coop_mirror_boat"):
 		_lake_trip.coop_mirror_boat(s.get("boat", s.get("boat_at", null)))
 	if _interior_manager != null and _interior_manager.has_method("coop_partner"):
@@ -4059,6 +4077,21 @@ func coop_show_screen(frame: PackedByteArray) -> void:
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	if bi != null and bi.has_method("coop_show_screen") and bi.is_open():
 		bi.coop_show_screen(frame)
+
+
+## The door of the building with room key `key` ("x:y", or "office") opens and shuts.
+func _coop_swing_door(key: String) -> void:
+	var st: Node3D = null
+	if key == "office":
+		st = debug_structure_of_type("main_building")
+	elif key.contains(":"):
+		var parts := key.split(":")
+		st = COOP_DOOR_ANIM.structure_at(Vector2i(int(parts[0]), int(parts[1])))
+	if st == null:
+		return
+	var door := COOP_DOOR_ANIM.find_door(st)
+	if door != null:
+		COOP_DOOR_ANIM.open(door, 1.4)
 
 
 ## The host: a room's state as it is now, to the other machine.

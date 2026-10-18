@@ -73,6 +73,12 @@ var _last_abs := 0
 ## camp pulse, import_state) and done from here (what you do goes to the host), never
 ## planned, started or failed here.
 var coop_follow := false
+## What you see of it done, on that machine (the host's own line has the takings in it).
+const COOP_DONE_LINES := {
+	"litter": "Rubbish bagged.", "raccoons": "The raccoons are gone. For now.", "delivery": "Signed for the delivery.",
+	"lost_kid": "Found the boy.", "noise": "The noise is down. For tonight.", "tree": "The path is clear.",
+	"someone": "You look round with the torch while they watch. Nobody. Under the bed the boards are wet.",
+}
 
 
 func setup(main_node: Node) -> void:
@@ -436,9 +442,9 @@ func coop_resolve(id: int) -> void:
 
 func _resolve(ev: Dictionary) -> void:
 	if coop_follow:
-		# Done in the host's camp (what it pays and how the guests take it).
+		# Done in the host's camp (what it pays and how the guests take it); here, how it went.
 		Coop.send_request("day_event", [int(ev["id"])])
-		_close(ev, "done", "")
+		_close(ev, "done", str(COOP_DONE_LINES.get(str(ev["kind"]), "")))
 		return
 	var rules: Dictionary = RULES[str(ev["kind"])]
 	var text := ""
