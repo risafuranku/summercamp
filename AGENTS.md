@@ -176,6 +176,8 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Guests in the pub, bistro, Jednota; counter minigames | `scripts/food/service_life.gd` (seats from `service_interior._start_life`); `tap_closeup.gd`, `hatch_closeup.gd`, `till_closeup.gd` (closeup_view subclasses), shared `orders.gd`; opened by the `CounterGameSpot` bodies in `service_interior._build_counter_game` |
 | Doors opening for guests | `scripts/attractions/door_anim.gd` (finds Door/DoorLeaf boxes, hinges them) |
 | The torch | outdoors `player_controller._aim_beam` + `scripts/ui/torch_hand.gd`; in rooms `scripts/ui/interior_torch.gd` (each interior's `room_is_dark()`) |
+| Your hands (who holds what, their pixel size, their light, how they sway) | `scripts/ui/hands.gd` (`Hands.of(node)`: `claim/release(hand, who)`, `torch_hand()`, `light`, `motion`, `px(h)`); the coarse hand sprites `assets/textury/hands_lo/` (`tools/artgen/hands_lo.py` halves the old ones, new ones are processed straight to it) |
+| The cigarette and the bottle | `scripts/town/pockets.gd` (keys C / B / X, drawing, drunk), the states `scripts/habits/cigarette.gd` and `bottle.gd` (pure), the world and co-op `scripts/habits/habit_world.gd` (`Coop.send_habit`, the warden state's `hb`); sprites `assets/textury/habits/` (Grok sheets cut by `tools/artgen/split_sheet.py`), sounds `assets/sfx/habits/` (`hb_*` rows in `tools/audiogen/prompts.tsv`); shots `tools/habits_shots.tscn` |
 | Lodging numbers and their signs | `GuestManager._number_lodgings / room_short / room_number`; signs `scripts/lodging_signs.gd` (meta `number_plate` from the models) |
 | The caravan | `data/buildings/caravan_1..3.tres`, model `building_models.caravan(level)`, room `scripts/caravan_interior.gd` (module "caravan" in `interior_manager.gd`) |
 
@@ -396,6 +398,12 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   other puts it in the CRT glass shader's `screen_tex`; it falls back to its own PC's
   viewport when frames stop for 0.8 s. Reading the viewport stalls the GPU a moment:
   keep the rate low.
+- **One pixel throughout** (the user, 18. 10.: everything in game pixelated, at the same
+  Build-engine resolution): people 128 px to 1.74 m (73.6 px/m; a pose's picture is
+  processed to its height in metres times that: lying 0.62 m = 46 px), rooms and things
+  in them 128 px to a 1.4 m tile (91 px/m: a sprite 0.26 m tall is 24 px, a sign
+  0.38 m is 35). A picture finer than that gets shrunk to it (`service_interior._wall_decal`),
+  never shown small at its full size.
 - **Warden looks** (`warden_looks.gd`): a jacket colour is the jacket's pixels moved to
   another hue, found by hue band, rows per pose and boxes left out (boots of the same
   green: `JACKETS`); a new warden or pose needs its entry, checked on a sheet of all
@@ -431,6 +439,15 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   sets `_steps` in `_ready()` after `super._ready()` runs ad-hoc scenarios.
 - **GDScript names**: a method called `_set` overrides `Object._set` (parse error about the
   signature); a subclass may not re-declare its base's constants (`SFX_OPEN` in closeup_view).
+- **Hands are claimed** (`scripts/ui/hands.gd`): anything drawn in the player's hand claims
+  "right" or "left" while it is up and releases it when it is down (work > bottle >
+  lighter > torch/cigarette). The torch changes hands by itself (the right busy: the left,
+  mirrored; both busy: in the pocket, `player_controller.hand_busy` puts its light out).
+  A new hand overlay must claim, draw at `Hands.px(view height)` on that pixel grid, take
+  `light` as its modulate and add `motion`; never rotate a hand sprite.
+- **A close-up hides the hands**: `closeup_view.gd` (and the breaker, scrub, corn stand,
+  check-in desk) are in group "closeup"; pockets.gd keeps the hands down while one is
+  visible. A new full-screen overlay where your hands are busy joins that group.
 - **Python in the Bash tool**: the tool turns a doubled backslash into a single one before
   bash sees it, so an escaped backslash at the end of a line in a heredoc reaches Python as
   a line continuation (the replacement silently changes nothing); write such scripts with

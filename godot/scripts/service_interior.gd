@@ -1873,6 +1873,8 @@ func _sign(parent: Node3D, text: String, pos: Vector3, font_size: int, style: St
 ## faults), rusted pipes along the ceiling, a bare bulb that will not stay on, the ladder
 ## up behind you. The other warden down here is seen as in any room.
 const SEWER_TERMINAL = preload("res://scripts/pipes/sewer_terminal.gd")
+## The rooms' pixel: their textures are 128 px to a 1.4 m tile.
+const ROOM_PX_PER_M := 128.0 / 1.4
 var _sewer_terminal: CanvasLayer
 var _sewer_bulb: OmniLight3D
 
@@ -1888,7 +1890,7 @@ func _build_sewer_layout() -> void:
 	var K := INTERIOR_KIT
 	K.room(_room_root, Vector3(w, h, d), _sewer_tex("sewer_floor", "concrete"), _sewer_tex("sewer_wall", "pipe_concrete"), "concrete", 1.4, 1.4, 0.05)
 	# The gutter out of the pipe mouth, the length of the chamber.
-	K.slab(_room_root, Vector3(0.62, 0.05, d - 0.3), Vector3(0.0, 0.03, 0.0), K.surface("lake_water", 0.8, Color(0.36, 0.4, 0.3)), "SewerChannel")
+	K.slab(_room_root, Vector3(0.62, 0.05, d - 0.3), Vector3(0.0, 0.03, 0.0), K.surface(_sewer_tex("sewer_water", "sewer_floor"), 0.25, Color(0.62, 0.66, 0.52)), "SewerChannel")
 	# The pipe mouth in the back wall, low: the way in.
 	var mouth_path := INTERIOR_KIT.TEX + "sewer_mouth.png"
 	var mouth: MeshInstance3D = null
@@ -1899,7 +1901,7 @@ func _build_sewer_layout() -> void:
 	# The hole is left of the picture's middle (Grok, camp/sewer_mouth.png).
 	_click_box(_room_root, "sewer_enter", Vector3(-0.32, 1.05, -d * 0.5 + 0.15), Vector3(1.1, 1.1, 0.3))
 	if ResourceLoader.exists("res://assets/textury/camp/sewer_sign.png"):
-		K.cutout(_room_root, "sewer_sign", Vector2(0.5, 0.38), Vector3(1.3, 1.7, -d * 0.5 + 0.03), 0.0, false, "WarningPlate")
+		K.cutout(_room_root, "sewer_sign", Vector2(0.5, 0.35), Vector3(1.3, 1.7, -d * 0.5 + 0.03), 0.0, false, "WarningPlate")
 	# The valves and gauges on the left wall.
 	if ResourceLoader.exists(INTERIOR_KIT.TEX + "sewer_valves.png"):
 		K.picture(_room_root, "sewer_valves", Vector2(3.4, 1.9), Vector3(-w * 0.5 + 0.02, 1.4, -0.4), 90.0, "ValveWall")
@@ -1979,13 +1981,22 @@ func _pipe_run(root: Node3D, a: Vector3, b: Vector3, r: float, mat: Material) ->
 		mi.rotate_object_local(Vector3.RIGHT, PI * 0.5)
 
 
+## A mark on the wall `size` m tall, brought down to the rooms' own pixel (128 px to
+## 1.4 m): the picture is shrunk to as many pixels as the wall has there.
 func _wall_decal(root: Node3D, path: String, at: Vector3, size: float) -> void:
+	var src: Texture2D = load(path)
+	var img: Image = src.get_image().duplicate() as Image
+	if img.is_compressed():
+		img.decompress()
+	var px_h := maxi(2, roundi(size * ROOM_PX_PER_M))
+	var px_w := maxi(1, roundi(float(img.get_width()) * float(px_h) / float(img.get_height())))
+	img.resize(px_w, px_h, Image.INTERPOLATE_BILINEAR)
 	var mi := MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(size, size)
+	q.size = Vector2(px_w, px_h) / ROOM_PX_PER_M
 	mi.mesh = q
 	var m := StandardMaterial3D.new()
-	m.albedo_texture = load(path)
+	m.albedo_texture = ImageTexture.create_from_image(img)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mi.material_override = m

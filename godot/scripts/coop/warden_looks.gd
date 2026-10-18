@@ -1,6 +1,7 @@
 extends RefCounted
 
-## The co-op wardens' looks (the CO-OP page: the warden and the colour of their jacket).
+## The wardens' looks (the WARDENS page in the menu: the figure and the colour of the
+## jacket, kept with the warden in scripts/profiles.gd; the other warden sees it in co-op).
 ## Four wardens (Grok, assets/textury/npc/warden_a..d.png), each drawn in thirteen poses:
 ## standing, rowing (the lake boat), sweeping and down on one knee scrubbing (the rooms'
 ## jobs), lying on their belly (in a tent), at the PC from behind (over the shoulder;
@@ -14,7 +15,11 @@ extends RefCounted
 
 const DIR := "res://assets/textury/npc/"
 const LETTERS := ["a", "b", "c", "d"]
+## The figures' own names: what the other warden is called when their machine sends no
+## warden's name (the warden's name is the player's, scripts/profiles.gd).
 const NAMES := ["Pepa", "Ondra", "Jana", "Bara"]
+## The figures as the WARDENS page lists them.
+const FIGURES := ["Windbreaker", "Red anorak", "Ponytail", "Glasses"]
 const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk", "sit", "guitar", "eat", "kick", "bat", "climb", "swing", "write", "bed", "bedfoot", "fix", "fish", "saw", "bag", "tap", "pour", "wash", "cook", "till", "crawl_back", "crawl_front", "crawl_side"]
 
 ## Where each warden's jacket is: hue band (degrees, may wrap past 360), the least
@@ -27,8 +32,8 @@ const JACKETS := [
 		"out": {"crawl_front": [[0.28, 0.0, 0.72, 0.3]], "crawl_side": [[0.0, 0.0, 0.24, 1.0]], "prone": [[0.55, 0.0, 1.0, 0.37]], "kick": [[0.78, 0.2, 1.0, 0.55]], "bed": [[0.8, 0.0, 1.0, 1.0]], "saw": [[0.0, 0.5, 0.4, 1.0], [0.45, 0.55, 0.72, 1.0]], "bag": [[0.2, 0.62, 0.62, 1.0]]}},
 	{"hue": [338.0, 18.0], "sat": 0.42, "vmin": 0.16, "band": {"stand": [0.12, 0.6], "row": [0.0, 0.66], "sweep": [0.0, 0.62], "crouch": [0.0, 0.8], "prone": [0.3, 1.0], "desk": [0.0, 0.82], "sit": [0.2, 0.66], "guitar": [0.2, 0.66], "eat": [0.2, 0.66], "kick": [0.16, 0.62], "bat": [0.16, 0.62], "climb": [0.0, 0.62], "swing": [0.2, 0.66], "fix": [0.16, 0.62], "fish": [0.16, 0.62], "saw": [0.04, 0.8], "bag": [0.16, 0.62], "tap": [0.16, 0.62], "pour": [0.16, 0.62], "wash": [0.16, 0.62], "cook": [0.16, 0.62], "till": [0.16, 0.62], "crawl_back": [0.1, 0.62], "crawl_front": [0.0, 1.0], "crawl_side": [0.0, 1.0]},
 		"out": {"crawl_front": [[0.8, 0.3, 1.0, 0.62]], "crawl_side": [[0.0, 0.0, 0.22, 1.0]], "eat": [[0.24, 0.12, 0.62, 0.32]], "guitar": [[0.0, 0.42, 0.44, 0.72]], "bat": [[0.0, 0.22, 0.2, 0.42]]}},
-	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.7], "sweep": [0.0, 0.7], "crouch": [0.0, 0.86], "prone": [0.0, 1.0], "desk": [0.0, 1.0], "sit": [0.0, 1.0], "kick": [0.0, 0.62], "bat": [0.0, 0.62], "climb": [0.0, 0.72], "fix": [0.0, 0.72], "fish": [0.0, 0.72], "saw": [0.0, 0.72], "bag": [0.0, 0.72], "tap": [0.0, 0.72], "pour": [0.0, 0.72], "wash": [0.0, 0.72], "cook": [0.0, 0.72], "till": [0.0, 0.72]},
-		"out": {"prone": [[0.6, 0.0, 1.0, 0.36]], "bed": [[0.82, 0.0, 1.0, 1.0]]}},
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.7], "sweep": [0.0, 0.7], "crouch": [0.0, 0.86], "prone": [0.0, 1.0], "desk": [0.0, 1.0], "sit": [0.0, 1.0], "kick": [0.0, 0.62], "bat": [0.0, 0.62], "climb": [0.0, 0.72], "fix": [0.0, 0.72], "fish": [0.0, 0.72], "saw": [0.0, 0.72], "bag": [0.0, 0.72], "tap": [0.0, 0.72], "pour": [0.0, 0.72], "wash": [0.0, 0.72], "cook": [0.0, 0.72], "till": [0.0, 0.72], "crawl_back": [0.0, 0.55], "crawl_front": [0.0, 1.0]},
+		"out": {"crawl_front": [[0.2, 0.0, 0.8, 0.22]], "prone": [[0.6, 0.0, 1.0, 0.36]], "bed": [[0.82, 0.0, 1.0, 1.0]]}},
 	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.1, 0.62], "row": [0.0, 0.78], "sweep": [0.0, 0.7], "crouch": [0.0, 0.84], "prone": [0.0, 1.0], "desk": [0.0, 1.0], "sit": [0.0, 1.0], "kick": [0.0, 0.62], "bat": [0.0, 0.62], "climb": [0.0, 0.72], "fix": [0.0, 0.72], "fish": [0.0, 0.72], "saw": [0.0, 0.72], "bag": [0.0, 0.72], "tap": [0.0, 0.72], "pour": [0.0, 0.72], "wash": [0.0, 0.72], "cook": [0.0, 0.72], "till": [0.0, 0.72]}},
 ]
 ## Jacket colours: name, and the colour of the jacket's middle tone (hue, sat, value);

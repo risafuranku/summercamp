@@ -16,11 +16,9 @@ extends RefCounted
 ## Each machine keeps its own raccoon (one may see it, the other not).
 
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
-## How tall they are lying in the pipe, seen from in front or behind (m), how long seen
-## from the side.
-const LYING_H := 0.6
-const LYING_LEN := 1.7
-const LYING_W := 0.8
+## The wardens' pixel in the world (a standing one: 128 px for 1.74 m): the pictures of
+## them lying are drawn to it, as everything is (the same Build-engine pixel throughout).
+const PIXEL := 1.74 / 128.0
 const SQUEEZE_FAR := 2.4
 
 var host                 # the minigame
@@ -113,9 +111,7 @@ func update(delta: float) -> void:
 		var tex: Texture2D = LOOKS.texture(model, int(look.get("c", 0)), pose)
 		_sprite.texture = tex
 		if tex != null:
-			var side := pose in ["crawl_side", "prone"]
-			# From in front or behind no wider than the pipe (an arm flung out).
-			_sprite.pixel_size = (LYING_LEN / float(tex.get_width())) if side else minf(LYING_H / float(tex.get_height()), LYING_W / float(tex.get_width()))
+			_sprite.pixel_size = PIXEL
 			_sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
 	if _pose in ["crawl_side", "prone"]:
 		# Facing the way they crawl, across your view.
