@@ -1328,10 +1328,16 @@ func coop_partner(info: Dictionary) -> void:
 		_coop_fig_spot.y = floor_y
 	if str(mine["t"]) == "office" and root != null:
 		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(mine["s"]), COOP_OFFICE_SPOTS["office"])
+		var pose := "stand"
 		if str(info.get("w", "")) == "pc":
+			# On the chair at the PC, their back to the room: you look over their shoulder.
 			var seat: Vector3 = it.get("_crt_full_cam_pos")
-			spot = Vector3(seat.x, 0.0, seat.z + 0.15)
-		_coop_fig.show_at(root.global_transform * spot, "stand")
+			# The eyes' seat is a little back from the keyboard: the body sits in nearer.
+			var screen: Vector3 = it.PC_OFFSET + it.CRT_PIVOT
+			var at_desk := seat.lerp(screen, 0.38)
+			spot = Vector3(at_desk.x, 0.0, at_desk.z)
+			pose = "desk"
+		_coop_fig.show_at(root.global_transform * spot, pose)
 		return
 	var job := str(info.get("w", ""))
 	if job != "":

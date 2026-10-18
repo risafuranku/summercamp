@@ -1,16 +1,16 @@
 extends RefCounted
 
 ## The co-op wardens' looks (the CO-OP page: the warden and the colour of their jacket).
-## Four wardens (Grok, assets/textury/npc/warden_a..d.png), each drawn in five poses:
+## Four wardens (Grok, assets/textury/npc/warden_a..d.png), each drawn in six poses:
 ## standing, rowing (the lake boat), sweeping and down on one knee scrubbing (the rooms'
-## jobs), and lying on their belly (in a tent). A jacket colour is the jacket's own pixels moved to another hue, with their
+## jobs), lying on their belly (in a tent) and at the PC from behind (over the shoulder). A jacket colour is the jacket's own pixels moved to another hue, with their
 ## shading kept (each warden has the hue band and the part of the picture its jacket is
 ## in); the original jacket is one of the colours. Textures are made once and kept.
 
 const DIR := "res://assets/textury/npc/"
 const LETTERS := ["a", "b", "c", "d"]
 const NAMES := ["Pepa", "Ondra", "Jana", "Bara"]
-const POSES := ["stand", "row", "sweep", "crouch", "prone"]
+const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk"]
 
 ## Where each warden's jacket is: hue band (degrees, may wrap past 360), the least
 ## saturation and brightness that count (Ondra's red: the outline round the whole
@@ -18,12 +18,12 @@ const POSES := ["stand", "row", "sweep", "crouch", "prone"]
 ## per pose, and boxes of it to leave alone ([x0, y0, x1, y1], 0..1; boots in the air).
 ## (Above the boots: Pepa's rubber boots are green too, Ondra's brown ones nearly red.)
 const JACKETS := [
-	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.68], "sweep": [0.0, 0.72], "crouch": [0.0, 0.72], "prone": [0.0, 1.0]},
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.68], "sweep": [0.0, 0.72], "crouch": [0.0, 0.72], "prone": [0.0, 1.0], "desk": [0.0, 0.7]},
 		"out": {"prone": [[0.55, 0.0, 1.0, 0.37]]}},
-	{"hue": [338.0, 18.0], "sat": 0.42, "vmin": 0.16, "band": {"stand": [0.12, 0.6], "row": [0.0, 0.66], "sweep": [0.0, 0.62], "crouch": [0.0, 0.8], "prone": [0.3, 1.0]}},
-	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.7], "sweep": [0.0, 0.7], "crouch": [0.0, 0.86], "prone": [0.0, 1.0]},
+	{"hue": [338.0, 18.0], "sat": 0.42, "vmin": 0.16, "band": {"stand": [0.12, 0.6], "row": [0.0, 0.66], "sweep": [0.0, 0.62], "crouch": [0.0, 0.8], "prone": [0.3, 1.0], "desk": [0.0, 0.82]}},
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.7], "sweep": [0.0, 0.7], "crouch": [0.0, 0.86], "prone": [0.0, 1.0], "desk": [0.0, 1.0]},
 		"out": {"prone": [[0.6, 0.0, 1.0, 0.36]]}},
-	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.1, 0.62], "row": [0.0, 0.78], "sweep": [0.0, 0.7], "crouch": [0.0, 0.84], "prone": [0.0, 1.0]}},
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.1, 0.62], "row": [0.0, 0.78], "sweep": [0.0, 0.7], "crouch": [0.0, 0.84], "prone": [0.0, 1.0], "desk": [0.0, 1.0]}},
 ]
 ## Jacket colours: name, and the colour of the jacket's middle tone (hue, sat, value);
 ## hue -1 for a warden's own (the colour they were drawn in).

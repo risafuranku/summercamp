@@ -17,7 +17,7 @@ extends Node3D
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const SPRITE_HEIGHT_M := 1.74
 ## How tall each pose is drawn (its picture is that tall from top to bottom edge).
-const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62}
+const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32}
 ## The guests' walk cycle (scripts/guest_agents.gd), so the two look alike.
 const ANIM_FPS := 8.0
 const WALK_BOB_HZ := 2.6
