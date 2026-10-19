@@ -13,6 +13,11 @@ extends Node
 ##   chalk     C at a junction chalks an arrow by the pipe you face, to find your way
 ##             back; on the bad nights the raccoon gets at your marks: one wiped, one
 ##             turned round
+##   places    a street grate in the crown of a junction or two: cold moonlight coming
+##             down through it in stripes, drops falling through, the street (wind, rain,
+##             a car far off) above you; steam rising off a warm pipe somewhere
+##   sound     a pumping station throbbing far off through the concrete, water running
+##             in other pipes, the pipes groaning as they settle, rats
 ##   scares    one at a time, apart: fresh little hand prints in blood on the wall ahead
 ##             that were not there; the red shoe further on than it was; something dropping
 ##             into the water just behind you when you stop; a drain gurgling; the light
@@ -21,6 +26,7 @@ extends Node
 const SFX := "res://assets/sfx/pipes/"
 const HANDPRINT := "res://assets/textury/mess/decal_handprint.png"
 const SHOE := "res://assets/textury/pipes/red_shoe.png"
+const GRATE := "res://assets/textury/pipes/sewer_grate.png"
 
 var host
 var rng := RandomNumberGenerator.new()
@@ -42,6 +48,9 @@ var _scare_next := 20.0
 var _done := {}
 var _t := 0.0
 var _was_moving := false
+var _amb: Array = []                # looping players, stopped when you climb out
+var _groan_next := 20.0
+var _rat_next := 12.0
 
 
 func start(level: int, seed_value: int) -> void:
@@ -62,9 +71,14 @@ func start(level: int, seed_value: int) -> void:
 		if is_instance_valid(mi):
 			_water_y[mi] = (mi as Node3D).position.y
 	_build_fx()
+	_build_ambience()
 
 
 func stop() -> void:
+	for a in _amb:
+		if is_instance_valid(a):
+			a.stop()
+	_amb.clear()
 	_clear_drops()
 	if _surge_loud != null:
 		_surge_loud.stop()
@@ -79,6 +93,7 @@ func tick(dt: float) -> void:
 	_update_drops(dt)
 	_update_surge(dt)
 	_update_scares(dt)
+	_update_ambience(dt)
 	_was_moving = host._moving
 
 
@@ -189,6 +204,131 @@ func _update_breath(dt: float) -> void:
 		_breath_fx.amount = int(lerpf(10.0, 22.0, tension))
 		_breath_fx.restart()
 		_breath_fx.emitting = true
+
+
+# ── places and sound ─────────────────────────────────────────────────────────
+
+## This network's grates, steam and far sounds (its own dice off the pipes', so the same
+## breakdown has them in the same places).
+func _build_ambience() -> void:
+	_amb.clear()
+	var r := RandomNumberGenerator.new()
+	r.seed = rng.seed + 77
+	var nodes: Array = host._links.keys().filter(func(c): return c != host._entry)
+	for i in range(nodes.size() - 1, 0, -1):
+		var j := r.randi_range(0, i)
+		var t = nodes[i]
+		nodes[i] = nodes[j]
+		nodes[j] = t
+	var k := 0
+	for _i in r.randi_range(1, 3):
+		if k < nodes.size():
+			_grate(nodes[k], r)
+			k += 1
+	for _i in r.randi_range(1, 2):
+		if k < nodes.size():
+			_steam(nodes[k], r)
+			k += 1
+	# Far off, the pumping station; nearer, water running in other pipes.
+	var far: Vector2i = _far_node(4)
+	_amb.append(_loop_at("pump.mp3", host._world_pos(far), -12.0, 60.0))
+	for _i in 2:
+		if k < nodes.size():
+			_amb.append(_loop_at("flow.mp3", host._world_pos(nodes[k]), -14.0, 11.0))
+			k += 1
+	_groan_next = rng.randf_range(10.0, 25.0)
+	_rat_next = rng.randf_range(6.0, 16.0)
+
+
+func _crown_y() -> float:
+	return host.ARM_R * 0.9 + host.ARM_R * 0.97
+
+
+## A street grate in the junction's crown: moonlight in stripes, drops, the street above.
+func _grate(c: Vector2i, r: RandomNumberGenerator) -> void:
+	var p: Vector3 = host._world_pos(c)
+	var top := _crown_y()
+	if ResourceLoader.exists(GRATE):
+		var mi := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(0.62, 0.62)
+		q.orientation = PlaneMesh.FACE_Y
+		mi.mesh = q
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = load(GRATE)
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		# The slots glow with what comes through them.
+		m.emission_enabled = true
+		m.emission = Color(0.35, 0.4, 0.5)
+		m.emission_energy_multiplier = 0.6
+		mi.material_override = m
+		mi.position = Vector3(p.x, top - 0.02, p.z)
+		mi.rotation.y = r.randf_range(0.0, TAU)
+		host._geo.add_child(mi)
+	var moon := SpotLight3D.new()
+	moon.light_color = Color(0.55, 0.62, 0.78)
+	moon.light_energy = 1.3
+	moon.spot_range = 3.2
+	moon.spot_angle = 20.0
+	moon.spot_attenuation = 1.2
+	moon.shadow_enabled = false
+	host._geo.add_child(moon)
+	moon.position = Vector3(p.x, top + 0.3, p.z)
+	moon.rotation = Vector3(-PI * 0.5, 0, 0)
+	var drops := _particles(10, 0.55, Vector3(0, -1, 0), 4.0, Vector2(0.2, 0.6), Vector3(0, -9.0, 0), 0.012, Color(0.7, 0.76, 0.85, 0.7), true)
+	drops.local_coords = false
+	var pm: ParticleProcessMaterial = drops.process_material
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(0.22, 0.01, 0.22)
+	host._geo.add_child(drops)
+	drops.position = Vector3(p.x, top - 0.05, p.z)
+	drops.emitting = true
+	_amb.append(_loop_at("street.mp3", Vector3(p.x, top, p.z), -10.0, 9.0))
+
+
+## Steam off a warm pipe, rising slowly in the dark (you see it in the torch).
+func _steam(c: Vector2i, r: RandomNumberGenerator) -> void:
+	var p: Vector3 = host._world_pos(c)
+	var st := _particles(18, 3.2, Vector3(0, 1, 0), 18.0, Vector2(0.05, 0.14), Vector3(0, 0.04, 0), 0.28, Color(0.75, 0.75, 0.72, 0.07), true)
+	st.local_coords = false
+	var pm: ParticleProcessMaterial = st.process_material
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(0.12, 0.02, 0.12)
+	host._geo.add_child(st)
+	var a := r.randf_range(0.0, TAU)
+	st.position = Vector3(p.x, 0.05, p.z) + Vector3(cos(a), 0, sin(a)) * host.ARM_R * 0.55
+	st.emitting = true
+
+
+func _loop_at(file: String, at: Vector3, db: float, reach: float) -> AudioStreamPlayer3D:
+	var p := AudioStreamPlayer3D.new()
+	p.bus = host.audio_bus()
+	if ResourceLoader.exists(SFX + file):
+		var stream = load(SFX + file)
+		if stream is AudioStreamMP3:
+			stream = (stream as AudioStreamMP3).duplicate()
+			stream.loop = true
+		p.stream = stream
+	p.volume_db = db
+	p.max_distance = reach
+	p.unit_size = 3.0
+	host._geo.add_child(p)
+	p.global_position = at
+	p.play()
+	return p
+
+
+## The pipes settling and the rats, now and then, somewhere off.
+func _update_ambience(dt: float) -> void:
+	_groan_next -= dt
+	if _groan_next <= 0.0:
+		_groan_next = rng.randf_range(15.0, 35.0)
+		_sound_at("groan.mp3", host._world_pos(_far_node(2)), -4.0)
+	_rat_next -= dt
+	if _rat_next <= 0.0:
+		_rat_next = rng.randf_range(10.0, 25.0)
+		_sound_at("rat.mp3", host._world_pos(_far_node(1)), -10.0)
 
 
 # ── drops on the view ─────────────────────────────────────────────────────────

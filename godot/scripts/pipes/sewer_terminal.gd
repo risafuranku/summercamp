@@ -117,12 +117,14 @@ func _paint(c: Control) -> void:
 	var faults := _faults()
 	var gx := x0 + 24.0
 	var gy := y0 + 24.0
-	var cw := 26.0
-	var ch := 12.0
+	# Each network its own size (sewer_pipe_minigame._layout): squeezed to fit the glass.
+	var size: Vector2i = network.get("size", Vector2i(6, 5))
+	var cw := minf(26.0, 130.0 / float(maxi(1, size.x - 1)))
+	var ch := minf(12.0, 48.0 / float(maxi(1, size.y - 1)))
 	var blink := int(_t * 2.5) % 2 == 0
-	for col in 6:
+	for col in size.x:
 		c.draw_string(f, Vector2(gx + col * cw - 2.0, gy - 8.0), COLS[col], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, dim)
-	for row in 5:
+	for row in size.y:
 		c.draw_string(f, Vector2(gx - 12.0, gy + row * ch + 3.0), str(row + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, dim)
 	for cell in links:
 		var p := Vector2(gx + cell.x * cw, gy + cell.y * ch) + Vector2(tear * float(cell.y % 2), 0.0)

@@ -272,3 +272,12 @@ pipe_chalk	1.2	assets/sfx/pipes/chalk.mp3	A piece of chalk scratching a quick ar
 pipe_lensdrop	0.5	assets/sfx/pipes/lensdrop.mp3	A single cold drop of water hitting plastic very close to the ear, a small tick, quiet, no music.
 pipe_splash	0.6	assets/sfx/pipes/splash.mp3	A gloved hand slapping down into a thin layer of water on concrete, a small sharp splash, close, no music.
 pipe_wetdrop	1.0	assets/sfx/pipes/wetdrop.mp3	Something small and wet dropping into water in a pipe just behind the listener, a plop and a ripple, close, no music.
+pipe_valve	1.2	assets/sfx/pipes/valve.mp3	A stiff rusty cast-iron valve handwheel forced a few degrees round: a grinding metal squeal and a gritty creak, short, inside a concrete sewer pipe, echo, no music.
+pipe_tar	1.5	assets/sfx/pipes/tar.mp3	A brush slapping thick wet tar onto rough concrete, a sticky slap and a smear, close, no music.
+pipe_bolt	0.8	assets/sfx/pipes/bolt.mp3	A big rusty bolt turned a notch with a ratchet spanner: a sharp ratchet click and a deep metallic tick of the bolt seating, close, echo, no music.
+pipe_slip	0.8	assets/sfx/pipes/slip.mp3	A ratchet spanner slipping off a rusty bolt and banging loudly against a cast-iron pipe, a harsh clang that rings and echoes down the pipes, no music.
+pipe_pullclog	1.2	assets/sfx/pipes/pullclog.mp3	A gloved hand tearing a wet clump of hair, rags and fat out of a blocked pipe, a sucking squelch and a wet rip, disgusting, close, no music.
+pipe_pump	8.0	assets/sfx/pipes/pump.mp3	A distant old pumping station heard through concrete sewer pipes: a slow deep mechanical throb and hum, a rhythmic thud every few seconds, muffled and far away, loopable, no music.
+pipe_groan	3.0	assets/sfx/pipes/groan.mp3	A long low groan of an old iron and concrete pipe settling and stressing in the cold, a metallic moan that rises and creaks, somewhere in a sewer, echo, unsettling, no music.
+pipe_street	6.0	assets/sfx/pipes/street.mp3	Heard from below through a street drain grate: wind, light rain falling on asphalt and dripping through the grate, a car passing far off, a dog barking once, muffled, loopable, no music.
+pipe_flow	6.0	assets/sfx/pipes/flow.mp3	Water running steadily through another sewer pipe nearby, a hollow rushing and trickling, echo, loopable, no music.
