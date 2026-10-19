@@ -23,6 +23,7 @@ var _tex: Dictionary = {}
 var _flocks: Array = []          # {birds: [{sprite, off, phase}], from, dir, t, length, speed, kind}
 var _next_flock := 25.0
 var _bats: Array = []            # {sprite, a, r, h, phase}
+var _bat_side := randf() * TAU
 var _moths: Array = []           # {sprite, lamp}
 var _tick := 0.0
 var _acc := 0.0
@@ -265,24 +266,31 @@ func _lit_lamps(around: Vector3) -> Array:
 	return _lamps
 
 
+## Bats: dark shapes against the night sky, lit only by what lights them (a lamp, the
+## torch), high and wide round a lit lamp, or well off over the trees when there is none:
+## never round your head (playtest 19. 10.: "they glow too much and seem to attack me").
 func _update_bats(around: Vector3, night: bool) -> void:
 	var want := 3 if night else 0
 	while _bats.size() < want:
-		_bats.append({"sprite": _sprite("bat_up", 0.75), "a": _rng.randf() * TAU, "r": _rng.randf_range(3.0, 7.0), "h": _rng.randf_range(5.0, 9.0), "phase": _rng.randi_range(0, 3), "jit": Vector3.ZERO})
+		var bs := _sprite("bat_up", 0.5)
+		bs.shaded = true
+		bs.modulate = Color(0.55, 0.52, 0.5)
+		_bats.append({"sprite": bs, "a": _rng.randf() * TAU, "r": _rng.randf_range(6.0, 11.0), "h": _rng.randf_range(8.0, 12.0), "phase": _rng.randi_range(0, 3), "jit": Vector3.ZERO, "off": _rng.randf_range(0.0, TAU)})
 	while _bats.size() > want:
 		(_bats.pop_back()["sprite"] as Node).queue_free()
 	if _bats.is_empty():
 		return
 	var lamps := _lit_lamps(around)
-	var centre := around + Vector3(0, 2.0, 0)
+	# No lamp: over the trees, off to one side, not over you.
+	var centre := around + Vector3(cos(_bat_side) * 18.0, 0.0, sin(_bat_side) * 18.0)
 	if not lamps.is_empty():
-		centre = lamps[0]
+		centre = lamps[0] + Vector3(0.0, 1.5, 0.0)
 	var step := int(floorf(_tick * FPS))
 	for b in _bats:
 		# Erratic: the circle turns, and every few steps a jink.
-		b["a"] = float(b["a"]) + _rng.randf_range(0.18, 0.42)
+		b["a"] = float(b["a"]) + _rng.randf_range(0.10, 0.24)
 		if step % 3 == 0:
-			b["jit"] = Vector3(_rng.randf_range(-1.2, 1.2), _rng.randf_range(-0.8, 0.8), _rng.randf_range(-1.2, 1.2))
+			b["jit"] = Vector3(_rng.randf_range(-0.5, 0.5), _rng.randf_range(-0.3, 0.3), _rng.randf_range(-0.5, 0.5))
 		var a := float(b["a"])
 		var s: Sprite3D = b["sprite"]
 		s.position = centre + Vector3(cos(a) * float(b["r"]), float(b["h"]) - 4.0 + sin(a * 2.3) * 1.2, sin(a) * float(b["r"])) + (b["jit"] as Vector3)

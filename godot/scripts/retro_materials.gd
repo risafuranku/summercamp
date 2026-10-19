@@ -421,8 +421,10 @@ uniform float affine = 0.8;
 // and the sun's light in steps, the steps dithered with a 4x4 Bayer matrix on the game's
 // own low-res screen pixels, as the PlayStation dithered (on a far texture's texels the
 // pattern turned to moire).
-uniform float light_steps = 6.0;
-uniform float light_dither = 1.0;
+// Ten steps and half the dither (playtest 19. 10.: "the torch's light is far too harshly
+// dithered"): the bands still show, the checker between them is a fringe, not a sheet.
+uniform float light_steps = 10.0;
+uniform float light_dither = 0.5;
 
 varying vec2 v_uv;
 varying vec2 v_texel;
