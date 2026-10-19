@@ -1,7 +1,7 @@
 extends Control
 
-## A progress bar the way 1998 drew them (scripts/os98/apps/download_app.gd,
-## setup_app.gd, the boot screens):
+## A progress bar the way 1998 drew them (the one-click installs in os_shell.gd and the
+## program shelves, Builder's title picture):
 ##   "blocks"   the system's own: a sunken white well, navy blocks with a pixel of gap,
 ##              each new block blinks in brighter and settles; it never moves back
 ##   "install"  InstallShield's: a navy-to-blue fill over a sunken well, the percentage

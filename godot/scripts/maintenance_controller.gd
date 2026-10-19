@@ -448,6 +448,25 @@ func get_upkeep_snapshot() -> Dictionary:
 	return {"rows": rows, "crew_cost": crew_cost, "crew_jobs": needs_crew, "night": CoreRoot.is_night()}
 
 
+## The crew sent to one building (Builder's map: a click on it), at the same premium.
+func request_crew_at(coord: Vector2i) -> Dictionary:
+	if CoreRoot.is_night():
+		return {"ok": false, "reason": "night"}
+	for row_any in get_upkeep_snapshot()["rows"]:
+		var row: Dictionary = row_any
+		if Vector2i(row["coord"]) != coord:
+			continue
+		if not bool(row["broken"]) and float(row["condition"]) >= 0.999:
+			return {"ok": false, "reason": "nothing_to_do"}
+		var cost := int(ceil(float(row["cost"]) * RULES.CREW_PREMIUM))
+		if CoreRoot.get_money() < cost:
+			return {"ok": false, "reason": "insufficient_funds", "amount": cost}
+		if CoreRoot.actions.service_building(coord, cost):
+			return {"ok": true, "jobs": 1, "amount": cost}
+		return {"ok": false, "reason": "failed"}
+	return {"ok": false, "reason": "not_found"}
+
+
 ## The crew services everything worn and repairs everything broken, at a premium.
 ## They do not come out at night.
 func request_maintenance_crew() -> Dictionary:

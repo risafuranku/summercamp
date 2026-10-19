@@ -951,6 +951,18 @@ func request_maintenance_crew() -> Dictionary:
 	return _maintenance.request_maintenance_crew()
 
 
+## The crew to one building (Builder's map). In co-op asked of the host.
+func request_maintenance_crew_at(coord: Vector2i) -> Dictionary:
+	if _maintenance == null:
+		return {"ok": false, "reason": "unavailable"}
+	if Coop.is_client():
+		if CoreRoot.is_night():
+			return {"ok": false, "reason": "night"}
+		Coop.send_request("crew_at", [coord])
+		return {"ok": true, "jobs": 1, "amount": 0}
+	return _maintenance.request_crew_at(coord)
+
+
 func _setup_guest_agents() -> void:
 	if _guest_agents != null and is_instance_valid(_guest_agents):
 		return
@@ -2173,14 +2185,9 @@ func debug_builder_map() -> Node:
 func debug_close_msgboxes() -> int:
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	var ui = bi.get("_crt_ui") if bi != null else null
-	if ui == null:
+	if ui == null or not ui.has_method("close_message_boxes"):
 		return 0
-	var n := 0
-	for w in ui.get("_windows").get_children():
-		if str(w.get("app_id")) == "msg":
-			ui.call("_close_window", w) if ui.has_method("_close_window") else w.queue_free()
-			n += 1
-	return n
+	return int(ui.close_message_boxes())
 
 
 ## Shot driver: the mouse over a Builder cell (the OS draws the map on the monitor).
@@ -4890,6 +4897,8 @@ func coop_request(kind: String, data: Array) -> void:
 			request_pay_electricity_bill(str(data[0]))
 		"crew":
 			request_maintenance_crew()
+		"crew_at":
+			request_maintenance_crew_at(data[0])
 		"bazaar_list":
 			bazaar_list(int(data[0]))
 

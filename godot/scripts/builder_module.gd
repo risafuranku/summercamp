@@ -10,11 +10,20 @@ extends Control
 
 signal exit_requested
 signal message_requested(title: String, text: String, kind: String)
+## A Yes/No question; `on_yes` runs on Yes (builder_app.gd asks it in a message box).
+signal confirm_requested(title: String, text: String, on_yes: Callable)
+## Another program wanted (the building card's GuestRack button).
+signal program_requested(app_id: String)
 ## The title picture has gone (builder_app.gd shows the shareware nag after it).
 signal splash_finished
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const MAP_PANEL_SCRIPT = preload("res://scripts/crt_map_panel.gd")
+const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
+## Keys (the panel's 1-9 are the computer's tabs; S stands you up, D leans you out).
+const CATEGORY_KEYS := {KEY_F1: "housing", KEY_F2: "services", KEY_F3: "fun", KEY_F4: "decor", KEY_F5: "utilities"}
+const TOOL_KEYS := {KEY_B: "demolish", KEY_P: "path", KEY_L: "lamp_post"}
+const OVERLAY_SHORT := {"": "Off", "condition": "Wear", "power": "Power", "rooms": "Rooms", "light": "Light"}
 
 const CATEGORIES: Array = [
 	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/tb_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
@@ -131,6 +140,12 @@ var _splash_bar
 var _cat_open := 0.0          # 0..1, the catalogue sliding open
 var _info: Control            # the card for what is selected
 var _hover_card := ""
+var _overlay_btn: Button
+## The building card: what a clicked building is and what can be done about it.
+var _inspect: Control
+var _insp: Dictionary = {}     # {type, origin, footprint, root} from the map
+var _insp_view: Dictionary = {} # what the card shows, worked out on refresh
+var _insp_btns: Dictionary = {}
 
 
 func _ready() -> void:
@@ -177,8 +192,10 @@ func _build_ui() -> void:
 	_map_panel.tool_canceled.connect(func(): _select(""))
 	_map_panel.submenu_close_requested.connect(func(): _open_category(""))
 	_map_panel.hover_info.connect(func(t: String): _status_tile.text = t)
+	_map_panel.building_clicked.connect(_on_building_clicked)
 	_build_status()
 	_build_info()
+	_build_inspector()
 	_build_splash()
 	resized.connect(_layout)
 	_layout()
@@ -213,6 +230,8 @@ func _layout() -> void:
 	_status_cost.get_parent().position = Vector2(w - 110, 0)
 	if _info != null:
 		_info.position = Vector2(well.position.x + 8, well.position.y + well.size.y - _info.size.y - 8)
+	if _inspect != null:
+		_inspect.position = Vector2(well.position.x + well.size.x - _inspect.size.x - 8, well.position.y + well.size.y - _inspect.size.y - 8)
 	if _splash != null:
 		_splash.size = size
 		if _splash_bar != null:
@@ -227,8 +246,8 @@ func _build_menu() -> void:
 	add_child(row)
 	var menus := {
 		"File": ["Site report", "New site...", "-", "Exit"],
-		"View": ["Zoom in", "Zoom out", "Rotate building  (Q)"],
-		"Help": ["Help topics", "-", "About Builder 98"],
+		"View": ["Zoom in", "Zoom out", "Rotate building  (Q)", "-", "Overlay: off", "Overlay: wear", "Overlay: power", "Overlay: rooms", "Overlay: light at night"],
+		"Help": ["Keys", "Help topics", "-", "About Builder 98"],
 	}
 	for name in menus:
 		var b := MenuButton.new()
@@ -259,8 +278,20 @@ func _menu(item: String) -> void:
 			message_requested.emit("Site report", _site_report(), "info")
 		"New site...":
 			message_requested.emit("Builder 98", "The shareware version plans one site only.\n\nRegister Builder 98 for 990 Kc to plan more sites.", "info")
+		"Overlay: off":
+			_set_overlay("")
+		"Overlay: wear":
+			_set_overlay("condition")
+		"Overlay: power":
+			_set_overlay("power")
+		"Overlay: rooms":
+			_set_overlay("rooms")
+		"Overlay: light at night":
+			_set_overlay("light")
+		"Keys":
+			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 services   F3 fun   F4 decor   F5 utilities\nQ / E  turn the building     X  put the tool away\nO  overlay (wear, power, rooms, light)\nArrows  move the map     +/-  zoom     Ctrl+Z  undo today's build\n\nNo tool in hand: click a building for its card.", "info")
 		"Help topics":
-			message_requested.emit("Builder 98 Help", "Cannot open BUILDER.HLP.\n\nThe file is missing or damaged.", "error")
+			message_requested.emit("Builder 98 Help", "Cannot open BUILDER.HLP.\n\nThe file is missing or damaged.\n\n(Help > Keys still works.)", "error")
 		"About Builder 98":
 			var left := maxi(0, 30 - CoreRoot.get_day())
 			message_requested.emit("About Builder 98", "Builder 98  version 1.2\n(c) 1996-98 Stavitel software, Jihlava\n\nUNREGISTERED SHAREWARE\n%d days of the trial left.\n\nLicensed for recreational facilities:\n06:30 - 20:00 only." % left, "info")
@@ -274,8 +305,9 @@ func _build_toolbar() -> void:
 	row.position = Vector2(4, 3)
 	row.add_theme_constant_override("separation", 2)
 	_toolbar.add_child(row)
+	var tool_keys := {"demolish": "B", "path": "P", "lamp_post": "L"}
 	for id in TOOLS:
-		var b := _tool_button(_tool_art(id), "%s\n%s" % [SHORT_NAMES[id], BLURBS[id]])
+		var b := _tool_button(_tool_art(id), "%s  (%s)\n%s" % [SHORT_NAMES[id], tool_keys.get(id, ""), BLURBS[id]])
 		var tool: String = id
 		b.pressed.connect(func():
 			_open_category("")
@@ -284,9 +316,11 @@ func _build_toolbar() -> void:
 		_tool_buttons[id] = b
 		row.add_child(b)
 	row.add_child(_gap())
+	var fk := 1
 	for cat in CATEGORIES:
 		var cat_icon := _texture(str(cat["icon"]).replace("/tb_", "/tb2_"))
-		var b := _tool_button(cat_icon if cat_icon != null else _texture(str(cat["icon"])), str(cat["label"]))
+		var b := _tool_button(cat_icon if cat_icon != null else _texture(str(cat["icon"])), "%s  (F%d)" % [str(cat["label"]), fk])
+		fk += 1
 		var cid: String = cat["id"]
 		b.pressed.connect(func(): _open_category("" if _active_cat == cid else cid))
 		_cat_buttons[cid] = b
@@ -313,20 +347,29 @@ func _build_toolbar() -> void:
 	_flat_style(undo)
 	undo.pressed.connect(func(): _map_panel.undo_last())
 	row.add_child(undo)
-	for z in [["-", -1, "Zoom out"], ["+", 1, "Zoom in"]]:
+	for z in [["-", -1, "Zoom out (-)"], ["+", 1, "Zoom in (+)"]]:
 		var zb := Button.new()
 		zb.text = z[0]
 		zb.tooltip_text = z[2]
-		zb.custom_minimum_size = Vector2(44, 34)
+		zb.custom_minimum_size = Vector2(26, 34)
 		zb.focus_mode = Control.FOCUS_NONE
-		zb.icon = _texture("res://assets/textury/builder/tb2_zoom.png")
-		zb.expand_icon = true
-		zb.add_theme_constant_override("icon_max_width", 22)
 		zb.add_theme_font_override("font", T.FONT_BOLD)
 		_flat_style(zb)
 		var step: int = z[1]
 		zb.pressed.connect(func(): _map_panel.apply_zoom_step(step))
 		row.add_child(zb)
+	row.add_child(_gap())
+	# What the map shows over the camp: off, wear, power, rooms, light (O).
+	_overlay_btn = Button.new()
+	_overlay_btn.custom_minimum_size = Vector2(58, 34)
+	_overlay_btn.focus_mode = Control.FOCUS_NONE
+	_overlay_btn.tooltip_text = "Show on the map: wear, power, rooms, light at night (O)"
+	_overlay_btn.text = "Map:\nOff"
+	_flat_style(_overlay_btn)
+	_overlay_btn.pressed.connect(func():
+		_click()
+		_set_overlay(str(_map_panel.OVERLAYS[(_map_panel.OVERLAYS.find(_map_panel.overlay) + 1) % _map_panel.OVERLAYS.size()])))
+	row.add_child(_overlay_btn)
 	# Cash and clock, right-aligned in sunken wells.
 	var cash := Panel.new()
 	cash.name = "Cash"
@@ -463,6 +506,8 @@ func _click() -> void:
 func _select(tool: String) -> void:
 	_click()
 	_selected = tool
+	if tool != "" and not _insp.is_empty():
+		_close_inspector()
 	for k in _tool_buttons:
 		_tool_buttons[k].set_pressed_no_signal(k == tool)
 	for c in _cards.get_children():
@@ -472,6 +517,299 @@ func _select(tool: String) -> void:
 		_map_panel.call_deferred("grab_focus")
 	_refresh_cost()
 	_refresh_info_card()
+
+
+func _set_overlay(id: String) -> void:
+	_map_panel.set_overlay(id)
+	if _overlay_btn != null:
+		_overlay_btn.text = "Map:\n%s" % OVERLAY_SHORT.get(_map_panel.overlay, "Off")
+		_overlay_btn.set_pressed_no_signal(_map_panel.overlay != "")
+
+
+## The keys, while Builder is on the screen (and not under its title picture).
+func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree() or _splash != null or not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	var k: int = event.physical_keycode if event.physical_keycode != KEY_NONE else event.keycode
+	if event.ctrl_pressed or event.alt_pressed:
+		return
+	if CATEGORY_KEYS.has(event.keycode):
+		var cid := str(CATEGORY_KEYS[event.keycode])
+		_open_category("" if _active_cat == cid else cid)
+	elif TOOL_KEYS.has(k):
+		var tool := str(TOOL_KEYS[k])
+		_open_category("")
+		_select("" if _selected == tool else tool)
+	elif k == KEY_O:
+		_click()
+		_set_overlay(str(_map_panel.OVERLAYS[(_map_panel.OVERLAYS.find(_map_panel.overlay) + 1) % _map_panel.OVERLAYS.size()]))
+	elif k == KEY_X or k == KEY_DELETE or k == KEY_BACKSPACE:
+		if _selected != "":
+			_select("")
+		elif not _insp.is_empty():
+			_close_inspector()
+		elif _active_cat != "":
+			_open_category("")
+		else:
+			return
+	else:
+		return
+	get_viewport().set_input_as_handled()
+
+
+# ── the building card ────────────────────────────────────────────────────────
+
+const INSP_SIZE := Vector2(282, 150)
+
+
+func _build_inspector() -> void:
+	_inspect = Control.new()
+	_inspect.size = INSP_SIZE
+	_inspect.mouse_filter = Control.MOUSE_FILTER_STOP
+	_inspect.visible = false
+	_inspect.draw.connect(_draw_inspector)
+	add_child(_inspect)
+	var defs := [["upgrade", "Upgrade"], ["crew", "Send the crew"], ["demolish", "Demolish"], ["rack", "GuestRack"]]
+	for i in defs.size():
+		var b := Button.new()
+		b.text = str(defs[i][1])
+		b.focus_mode = Control.FOCUS_NONE
+		b.position = Vector2(6 + (i % 2) * 136, INSP_SIZE.y - 50 + (i / 2) * 24)
+		b.size = Vector2(134, 22)
+		var id := str(defs[i][0])
+		b.pressed.connect(func(): _insp_action(id))
+		_inspect.add_child(b)
+		_insp_btns[id] = b
+	var close := Button.new()
+	close.text = "x"
+	close.focus_mode = Control.FOCUS_NONE
+	close.position = Vector2(INSP_SIZE.x - 21, 4)
+	close.size = Vector2(16, 14)
+	close.pressed.connect(_close_inspector)
+	_inspect.add_child(close)
+
+
+func _on_building_clicked(info: Dictionary) -> void:
+	_insp = info
+	_inspect.visible = not info.is_empty()
+	if _inspect.visible:
+		_refresh_inspector()
+		_layout()
+
+
+func _close_inspector() -> void:
+	_insp = {}
+	_inspect.visible = false
+	_map_panel.inspect_origin = Vector2i(-1, -1)
+
+
+func _main() -> Node:
+	var tree := get_tree()
+	return tree.current_scene if tree != null else null
+
+
+## What the card says about the building now: worked out twice a second while it is up.
+func _refresh_inspector() -> void:
+	if _insp.is_empty() or _inspect == null:
+		return
+	var root = _insp.get("root")
+	if root == null or not is_instance_valid(root):
+		_close_inspector()
+		return
+	var t := str(_insp["type"])
+	var o: Vector2i = _insp["origin"]
+	var fp: Vector2i = _insp.get("footprint", Vector2i.ONE)
+	var def = CoreRoot.registry.get_def(StringName(t)) if CoreRoot.registry != null else null
+	var key := "%d:%d" % [o.x, o.y]
+	var v := {"title": _nice_type(t, def), "sub": "", "lines": [], "icon": _texture(str(ITEM_ICONS.get(_base_type(t), "")))}
+	var lines: Array = []
+	var m := _main()
+	# Lodgings: the room, who is in it, how many beds, what is still to do.
+	var lodging := t.begins_with("tent") or t.begins_with("cabin") or t.begins_with("caravan")
+	if lodging and GuestManager != null:
+		v["sub"] = GuestManager.room_label(key)
+		var rs: Dictionary = GuestManager.get_room_state(key)
+		var st := str(rs.get("status", ""))
+		var who := _guests_in(key)
+		var beds := int(def.capacity) if def != null else 0
+		if bool(rs.get("occupied", false)) or not who.is_empty():
+			lines.append(["Guests", "%s  (%d/%d)" % [", ".join(who.slice(0, 2)), who.size(), beds] if not who.is_empty() else "taken", Color8(40, 70, 170)])
+		else:
+			lines.append(["Room", {"ready": "ready, %d bed%s" % [beds, "" if beds == 1 else "s"], "dirty": "DIRTY: clean it", "unprepared": "not made up yet"}.get(st, st), Color8(0, 110, 0) if st == "ready" else Color8(170, 0, 0)])
+	elif BLURBS.has(_base_type(t)):
+		v["sub"] = str(BLURBS[_base_type(t)])
+	# Wear and repairs.
+	var crew_cost := 0
+	var worn := false
+	if m != null and m.has_method("get_upkeep_snapshot"):
+		for r in (m.get_upkeep_snapshot() as Dictionary).get("rows", []):
+			if Vector2i(r["coord"]) == o:
+				var cond := float(r.get("condition", 1.0))
+				var broken := bool(r.get("broken", false))
+				lines.append(["Condition", "BROKEN" if broken else "%d%%" % int(round(cond * 100.0)), Color8(170, 0, 0) if broken or cond < 0.5 else (Color8(150, 100, 0) if cond < UPKEEP_RULES.WORN_CONDITION else Color8(0, 110, 0))])
+				v["cond"] = 0.0 if broken else cond
+				worn = broken or cond < 0.999
+				crew_cost = int(ceil(float(r.get("cost", 0)) * UPKEEP_RULES.CREW_PREMIUM))
+				break
+	# Power.
+	if def != null and int(def.power_use) > 0 and m != null and m.has_method("get_electricity_ui_snapshot"):
+		var kwh := 0.0
+		for l in (m.get_electricity_ui_snapshot() as Dictionary).get("consumption_lines", []):
+			if (l as Dictionary).get("coord", null) == o:
+				kwh = float(l.get("kwh_per_day", 0.0))
+		lines.append(["Power", "%.1f kWh a day" % kwh, Color8(150, 100, 0)])
+	v["lines"] = lines
+	_insp_view = v
+	# The buttons.
+	var im = m.get("_interior_manager") if m != null else null
+	var up: Dictionary = im.map_upgrade_offer(o, t) if im != null and lodging and im.has_method("map_upgrade_offer") else {}
+	var ub: Button = _insp_btns["upgrade"]
+	ub.visible = lodging
+	if not up.is_empty() and not bool(up.get("max", false)):
+		ub.text = "Upgrade  $%d" % int(up["cost"])
+		ub.disabled = CoreRoot.get_money() < int(up["cost"])
+		ub.tooltip_text = "To %s" % str(up.get("label", ""))
+	else:
+		ub.text = "Top level"
+		ub.disabled = true
+	# The crew only where there is something for them (what wears: lamps, a derelict one).
+	var cb: Button = _insp_btns["crew"]
+	cb.visible = worn
+	cb.text = "Send the crew  $%d" % crew_cost
+	cb.disabled = CoreRoot.is_night() or CoreRoot.get_money() < crew_cost
+	cb.tooltip_text = "The crew does not come out after dark." if CoreRoot.is_night() else ""
+	var sum: Dictionary = CoreRoot.builder_authority.summarize_demolish(Rect2i(o, fp)) if CoreRoot.builder_authority != null and CoreRoot.builder_authority.has_method("summarize_demolish") else {}
+	var db: Button = _insp_btns["demolish"]
+	var net := int(sum.get("refund", 0)) - int(sum.get("fee", 0))
+	db.text = "Demolish  %s$%d" % ["+" if net >= 0 else "-", absi(net)]
+	db.disabled = int(sum.get("count", 0)) <= 0 or bool(root.get_meta("permanent", false))
+	var rb: Button = _insp_btns["rack"]
+	rb.visible = lodging
+	# The buttons that are there, two to a row from the bottom up, no gaps.
+	var shown: Array = []
+	for id in ["upgrade", "crew", "rack", "demolish"]:
+		if (_insp_btns[id] as Button).visible:
+			shown.append(_insp_btns[id])
+	var rows := int(ceil(float(shown.size()) / 2.0))
+	# As tall as what it says and the buttons under it.
+	var sub_h := 0.0
+	if str(v.get("sub", "")) != "":
+		sub_h = 14.0 if T.FONT.get_string_size(str(v["sub"]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x < INSP_SIZE.x - 70 else 27.0
+	var text_bottom := maxf(78.0, 26.0 + sub_h + 14.0 * lines.size() + 6.0)
+	var h := text_bottom + rows * 24 + 6
+	if absf(_inspect.size.y - h) > 0.5:
+		_inspect.size = Vector2(INSP_SIZE.x, h)
+		_layout()
+	for i in shown.size():
+		var b: Button = shown[i]
+		var row := i / 2
+		b.position = Vector2(6 + (i % 2) * 136, h - 6 - (rows - row) * 24)
+	_inspect.queue_redraw()
+
+
+func _base_type(t: String) -> String:
+	for b in ["tent", "cabin", "caravan"]:
+		if t.begins_with(b):
+			return b + "_1"
+	return t
+
+
+func _nice_type(t: String, def) -> String:
+	var name := str(SHORT_NAMES.get(_base_type(t), def.display_name.split(" (")[0] if def != null else t))
+	var lv := t.get_slice("_", 1)
+	if (t.begins_with("tent") or t.begins_with("cabin") or t.begins_with("caravan")) and lv.is_valid_int():
+		name += "  Lv%s" % lv
+	return name
+
+
+## The names of the guests sleeping in a room (by their lodging slots).
+func _guests_in(key: String) -> Array:
+	var out: Array = []
+	var state = CoreRoot.get_state()
+	if state == null:
+		return out
+	for g in state.guests:
+		if not (g is Dictionary) or not (str(g.get("status", "")) in ["active", "sleep"]):
+			continue
+		for s in g.get("lodging_slots", []):
+			if s is Dictionary and str(s.get("accommodation_key", "")) == key:
+				out.append(str(g.get("name", "Guest")).split(" ")[0])
+				break
+	return out
+
+
+func _insp_action(id: String) -> void:
+	if _insp.is_empty():
+		return
+	var t := str(_insp["type"])
+	var o: Vector2i = _insp["origin"]
+	var fp: Vector2i = _insp.get("footprint", Vector2i.ONE)
+	var m := _main()
+	_click()
+	match id:
+		"upgrade":
+			var im = m.get("_interior_manager") if m != null else null
+			if im != null and im.map_upgrade(o, t):
+				_map_panel._add_fx("pop", Vector2(o), 1.4, "UPGRADED", Color8(255, 220, 80))
+				_map_panel._play("money", -8.0)
+				# The building is a new node now: the card follows it.
+				(func():
+					var again: Dictionary = _map_panel.structure_at(o)
+					_on_building_clicked(again)
+					_map_panel.inspect_origin = again.get("origin", Vector2i(-1, -1))
+					_map_panel.inspect_footprint = again.get("footprint", Vector2i.ONE)
+				).call_deferred()
+			else:
+				message_requested.emit("Builder 98", "The upgrade could not be done.\n\nThe camp has $%d." % CoreRoot.get_money(), "error")
+		"crew":
+			var res: Dictionary = m.request_maintenance_crew_at(o) if m != null and m.has_method("request_maintenance_crew_at") else {}
+			if bool(res.get("ok", false)):
+				_map_panel._add_fx("pop", Vector2(o), 1.4, "-$%d" % int(res.get("amount", 0)), Color8(255, 220, 80))
+				_on_status("The crew sorted it out. -$%d" % int(res.get("amount", 0)), MAP_PANEL_SCRIPT.STATUS_GOOD)
+			else:
+				match str(res.get("reason", "")):
+					"night":
+						message_requested.emit("Builder 98", "The crew does not come out after dark.", "info")
+					"insufficient_funds":
+						message_requested.emit("Builder 98", "Not enough money for the crew ($%d)." % int(res.get("amount", 0)), "error")
+					_:
+						_on_status("Nothing for the crew to do there.", MAP_PANEL_SCRIPT.STATUS_INFO)
+		"demolish":
+			var rect := Rect2i(o, fp)
+			var name := str(_insp_view.get("title", t))
+			confirm_requested.emit("Builder 98", "Demolish %s?\n\nIt cannot be undone." % name, func():
+				_map_panel._send_demolish_request(rect)
+				_close_inspector())
+		"rack":
+			program_requested.emit("guestrack")
+	_refresh_inspector()
+
+
+func _draw_inspector() -> void:
+	var c := _inspect
+	var s := c.size
+	c.draw_style_box(T.box("window", T.FACE), Rect2(Vector2.ZERO, s))
+	var band := Rect2(3, 3, s.x - 6, 17)
+	for i in int(ceil(band.size.x / 8.0)):
+		c.draw_rect(Rect2(band.position.x + i * 8, band.position.y, minf(8.0, band.size.x - i * 8), band.size.y), T.TITLE_A.lerp(T.TITLE_B, float(i * 8) / band.size.x))
+	c.draw_string(T.FONT_BOLD, band.position + Vector2(4, 13), str(_insp_view.get("title", "")), HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, T.FONT_SIZE, T.WHITE)
+	var ic: Texture2D = _insp_view.get("icon")
+	if ic != null:
+		var isz := ic.get_size()
+		var k := minf(46.0 / isz.x, 46.0 / isz.y)
+		var d := (isz * k).floor()
+		c.draw_rect(Rect2(6, 24, 50, 50), Color8(40, 56, 40))
+		c.draw_texture_rect(ic, Rect2(Vector2(8, 26) + ((Vector2(46, 46) - d) * 0.5).floor(), d), false)
+	var x := 62.0
+	var y := 36.0
+	var sub := str(_insp_view.get("sub", ""))
+	if sub != "":
+		T.FONT.draw_multiline_string(c.get_canvas_item(), Vector2(x, y), sub, HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 8, T.FONT_SIZE, 2, Color8(60, 60, 110))
+		y += 14.0 if T.FONT.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x < s.x - x - 8 else 27.0
+	for l in _insp_view.get("lines", []):
+		c.draw_string(T.FONT, Vector2(x, y), str(l[0]) + ":", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
+		c.draw_string(T.FONT_BOLD, Vector2(x + 62, y), str(l[1]), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 70, T.FONT_SIZE, l[2])
+		y += 14.0
 
 
 func _make_card(type: String, w: int = CARD_W) -> Control:
@@ -695,6 +1033,8 @@ func _refresh_info() -> void:
 	var clock := str(main.call("_time_of_day_string")) if main != null and main.has_method("_time_of_day_string") else "--:--"
 	_clock.text = "Day %d   %s" % [CoreRoot.get_day(), clock]
 	_refresh_cost()
+	if _inspect != null and _inspect.visible:
+		_refresh_inspector()
 
 
 func _refresh_cost() -> void:

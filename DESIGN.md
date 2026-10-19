@@ -67,8 +67,8 @@ accept booking -> +income -> +guests of an archetype
 
 A new camp starts at the desk in the reception, the computer already booting. Two mails:
 Nela's, and Vera's "The camp is yours now" (the land, Agrostroj, the nineteenth, where to
-start). It carries the links to Builder 98 and GuestRack (a click downloads them);
-CampStat is on the desktop already. Little mail after that: the checklist
+start). It carries the links to Builder 98 and GuestRack (a click installs them, as
+the button on their tab does); CampStat is on the panel already. Little mail after that: the checklist
 (`scripts/quest_manager.gd`) sends only "The book" and "Tonight", and the story pool is
 the camp and its people, not system notices.
 

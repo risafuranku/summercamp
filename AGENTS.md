@@ -46,9 +46,10 @@ godot/
   data/pools/                 # email + guest content
   scripts/
     main.gd                   # orchestration (~3k lines; still the biggest file)
-    os98/                     # the camp computer "Okna 98" at 640x480: os_shell (desktop,
-                              # windows, taskbar, boot), os_theme, os_window, os_files
-                              # (the disk), web_pages (the 1998 web), apps/<app>_app.gd
+    os98/                     # the camp computer "Okna 98" at 640x480: os_shell (the panel:
+                              # tabs, pages, taskbar, boot, installs), os_page, os_theme,
+                              # os_window (dialogs), os_files (the disk), web_pages (the
+                              # 1998 web), apps/<app>_app.gd, apps/job_*, apps/game_*
     ui/                       # retro_ui (kit), retro_menu (menu parts), main_menu,
                               # pause_menu, game_over_screen, boot_screen
     enemies/                  # i_enemy_brain, enemy_base, silent_man, tourist, girl, stalker
@@ -142,8 +143,9 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Out of the camp: barrier, road, bus stop, timetable | `camp_gate.gd open_for_player / close_for_player`, `scripts/town/road_south.gd` (built by world gen), `bus_timetable.gd` (the one schedule), `timetable_closeup.gd` |
 | The 380 bus (outside, inside, the ride, the ticket machine) | `scripts/town/bus_model.gd`, `bus_ride.gd`, `ride_scenery.gd`, `ticket_closeup.gd`; buses run by the clock in `town_trip.gd` (`_plan`, `_run_special`, `_run_works`) |
 | Lesna (village, people, shop, pub, motel, the pump job, pockets) | `scripts/town/town_lesna.gd`, `town_people.gd`, `shop_closeup.gd`, `pub_closeup.gd`, `pump_job.gd` + `pump_closeup.gd`, `pockets.gd`; all routed by `town_trip.gd` (InteriorManager module `trip`); art `tools/artgen/town_art.py` |
-| The camp computer (desktop, boot, windows) | `scripts/os98/os_shell.gd`, look: `os_theme.gd` |
-| Its programs (CampMail, Beeternet, CampStat, GuestRack, Setup…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` + `crt_map_panel.gd` |
+| The camp computer (the panel: tabs and their keys, badges, boot, covers, one-click installs) | `scripts/os98/os_shell.gd` (`TABS`, `PROGRAMS`, `HOST`), a program's place `os_page.gd`, look: `os_theme.gd` |
+| Its programs (CampMail, Beeternet, CampStat, GuestRack, Files, Shops…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` (toolbar, keys, the building card) + `crt_map_panel.gd` (overlays `set_overlay`, `structure_at`, `building_clicked`); upgrades from the map `interior_manager.map_upgrade`, the crew to one building `main.request_maintenance_crew_at` |
+| Jobs and Games (the program folders) | `scripts/os98/apps/program_shelf.gd` (Web View folder pane) with `jobs_app.gd` (`datapunch_app`, `job_adclick`, `job_census`; pay through `shell.earn`, day limits `shell.job_done`) and `games_app.gd` (`mines_app`, `game_mosquito`, `game_hike`, `game_pexeso`; tables `shell.scores`, seeds `SCORE_SEEDS`, drawn by `score_board.gd`); icons `tools/artgen/panel_icons.py` |
 | Web pages, the files on its disk | `scripts/os98/web_pages.gd`, `scripts/os98/os_files.gd` |
 | Electricity | `scripts/electricity_billing.gd` |
 | Save format helpers | `scripts/save_codec.gd`; snapshot build/apply in `main.gd` |
@@ -231,11 +233,18 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  as it enters the tree (a SubViewport's own default is linear: centred text landed on
  half pixels and came out smeared, playtest 18. 10.). Nothing in the game wants linear.
 - **Inner classes can't call the outer script's static funcs** (they can read its consts).
-- **CRT windows open after a delay**; the reveal is per window and waits for the desktop.
-- **`_window_layer` in the CRT shell uses `MOUSE_FILTER_STOP`**: keep it hidden with no
-  windows open.
-- **Desktop icon release is handled in `_input()`**, not `gui_input` (unreliable after
-  `move_to_front()`).
+- **The camp computer is a panel, not a desktop** (playtest 19. 10.): one program on the
+  screen at a time, all kept running; tabs by keys 1-9 (read by `physical_keycode`, a
+  Czech keyboard types +ěšč on that row). A program's own keys must not use the digits,
+  S (stands you up) or D (leans you out): Builder pans with the arrows, its tools are B/P/L,
+  its catalogues F1-F5, O the overlay. A method called `hidden()` clashes with
+  CanvasItem's signal: the panel calls `page_hidden()` / `shown()`.
+- **The OS's own words are a real 1998 system's**: it never addresses the player, jokes
+  about the story or knows Vera ("do not tell Vera" was rejected). The lore goes in the
+  data: file dates and contents, the games' high-score names, the mails, the web, the
+  programs' publishers' texts.
+- **Message boxes are modal**: a catcher under them rings and flashes the dialog on a click
+  elsewhere; while one is up the tab keys do nothing (`has_dialog()`).
 - **Sky/weather profiles derive from a fresh time baseline** each frame; weather changes
   crossfade over 40 s (`weather_visuals`), don't snap the environment directly.
 - **Footstep pitch modulation must stay subtle** (whoosh artifact otherwise).
@@ -254,8 +263,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   it straight) and sends the whole line when the button is let go (`_end_path_drag`);
   the confirmations of that batch (`_path_batch`) give one sound and one price, a co-op
   client's arriving later.
-- **The OS boot takes ~13 s** (warm-up, BIOS, maker's screen, Okna): harness waits must be
-  longer than that, and a test that skips itself when an app does not open must fail.
+- **The OS boot takes ~7 s** (warm-up, BIOS, maker's screen, Okna; a key or click hurries
+  each): harness waits must be longer than that, and a test that skips itself when an app
+  does not open must fail.
 - **The first scene is the studio splash** (`scenes/studio_splash.tscn`), not main.tscn:
   it loads main.tscn on a thread and changes to it (headless runs skip it at once). The
   engine boot image `assets/boot/undo_labs_boot.png` is its first frame: re-bake it

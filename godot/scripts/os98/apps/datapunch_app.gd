@@ -33,49 +33,80 @@ var _stamp := ""
 var _stamp_t := 0.0
 
 
+const HEAD_H := 46
+
+
 func setup(shell, _win, _args: Dictionary) -> void:
 	_shell = shell
 	_rng.randomize()
-	var top := Label.new()
-	top.text = "OKRESNI URAD HLUBOCANY - register transcription, batch 1961-1989"
-	top.position = Vector2(6, 4)
-	add_child(top)
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	_card = Control.new()
-	_card.position = Vector2(6, 22)
+	_card.position = Vector2(10, HEAD_H + 10)
 	_card.size = Vector2(300, 168)
 	_card.draw.connect(_draw_card)
 	add_child(_card)
-	var y := 22.0
+	# The form beside the scan: four fields, Enter goes on to the next, the last files it.
+	var x := 320.0
+	var y := HEAD_H + 10.0
 	for i in FIELDS.size():
 		var l := Label.new()
 		l.text = FIELDS[i] + ":"
-		l.position = Vector2(318, y)
+		l.position = Vector2(x, y)
 		add_child(l)
 		var e := LineEdit.new()
-		e.position = Vector2(318, y + 16)
-		e.size = Vector2(220, 22)
+		e.position = Vector2(x, y + 15)
+		e.size = Vector2(140, 22)
 		e.max_length = 28
 		var idx := i
 		e.text_submitted.connect(func(_t): _next_field(idx))
 		add_child(e)
 		_inputs.append(e)
-		y += 46.0
+		y += 42.0
 	var file := Button.new()
-	file.text = "File card"
-	file.position = Vector2(318, y + 2)
-	file.size = Vector2(110, 24)
+	file.text = "File card  (Enter)"
+	file.position = Vector2(x, y + 2)
+	file.size = Vector2(140, 24)
+	file.focus_mode = Control.FOCUS_NONE
 	file.pressed.connect(_file)
 	add_child(file)
 	_pay = Label.new()
-	_pay.position = Vector2(6, 196)
+	_pay.position = Vector2(10, HEAD_H + 186)
 	add_child(_pay)
 	_status = Label.new()
-	_status.position = Vector2(6, 214)
+	_status.position = Vector2(10, HEAD_H + 204)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_status.size = Vector2(300, 40)
+	_status.size = Vector2(450, 40)
 	add_child(_status)
+	var how := Label.new()
+	how.text = "Copy each field of the card exactly as it is written. A card with every field\nright is paid in full, one or two slips are paid half, more are not paid."
+	how.position = Vector2(10, HEAD_H + 250)
+	how.add_theme_color_override("font_color", T.SHADOW)
+	add_child(how)
 	_new_card()
 	_refresh_pay()
+
+
+func shown() -> void:
+	if not _inputs.is_empty():
+		(_inputs[0] as LineEdit).grab_focus.call_deferred()
+
+
+## The office's band over the work, like the other jobs' programs.
+func _draw() -> void:
+	var w := size.x
+	draw_rect(Rect2(0, 0, w, HEAD_H), Color8(60, 40, 30))
+	draw_rect(Rect2(0, HEAD_H - 2, w, 2), Color8(190, 60, 50))
+	draw_string(T.FONT_BOLD, Vector2(10, 20), "DataPunch 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(236, 226, 196))
+	draw_string(T.FONT, Vector2(12, 38), "Okresni urad Hlubocany - register transcription 1961-1989", HORIZONTAL_ALIGNMENT_LEFT, w - 170, T.FONT_SIZE, Color8(210, 190, 160))
+	var cells := [["TONIGHT", "%d / %d" % [_done_tonight(), NIGHT_LIMIT]], ["A CARD", "$%d" % RATE]]
+	var x := w - 4.0
+	for i in range(cells.size() - 1, -1, -1):
+		x -= 70.0
+		var r := Rect2(x, 6, 70, HEAD_H - 14)
+		draw_style_box(T.box("field", Color8(20, 20, 20), Vector4.ZERO), r)
+		draw_string(T.FONT, r.position + Vector2(5, 12), str(cells[i][0]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(120, 200, 120))
+		draw_string(T.FONT_BOLD, r.position + Vector2(5, 26), str(cells[i][1]), HORIZONTAL_ALIGNMENT_LEFT, 62, T.FONT_SIZE, Color8(90, 255, 120))
+		x -= 4.0
 
 
 func _night_key() -> String:
@@ -98,7 +129,8 @@ func _add_done(n: int) -> void:
 
 
 func _refresh_pay() -> void:
-	_pay.text = "Cards tonight: %d / %d      $%d a card" % [_done_tonight(), NIGHT_LIMIT, RATE]
+	_pay.text = "Card %d of tonight's batch." % mini(_done_tonight() + 1, NIGHT_LIMIT) if _done_tonight() < NIGHT_LIMIT else "Tonight's batch is closed."
+	queue_redraw()
 
 
 func _new_card() -> void:
@@ -132,7 +164,7 @@ func _new_card() -> void:
 				_cur["note"] = "STILL HERE"
 	for e in _inputs:
 		(e as LineEdit).text = ""
-	if not _inputs.is_empty():
+	if not _inputs.is_empty() and is_visible_in_tree():
 		(_inputs[0] as LineEdit).grab_focus()
 	_card.queue_redraw()
 

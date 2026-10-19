@@ -1255,6 +1255,47 @@ func _on_upgrade_confirmed() -> void:
 		_building_upgrade_menu.close_menu()
 
 
+## The next level of a lodging (tent, cabin, caravan), or "" at the top.
+const NEXT_LEVEL := {"tent_1": "tent_2", "tent_2": "tent_3", "cabin": "cabin_2", "cabin_1": "cabin_2", "cabin_2": "cabin_3", "caravan_1": "caravan_2", "caravan_2": "caravan_3"}
+## The least an upgrade costs, by kind (the brochures' own floors).
+const UPGRADE_FLOOR := {"tent": 20, "cabin": 30, "caravan": 30}
+
+
+## Builder's map: what upgrading the lodging at `origin` would be ({} if it cannot be).
+## The same rule and price as the brochure in the room.
+func map_upgrade_offer(origin: Vector2i, current_type: String) -> Dictionary:
+	if _economy_manager == null:
+		return {}
+	var cur := "cabin_1" if current_type == "cabin" else current_type
+	var next := str(NEXT_LEVEL.get(cur, ""))
+	if next == "":
+		return {"max": true, "old_type": cur}
+	var floor_cost := int(UPGRADE_FLOOR.get(cur.get_slice("_", 0), 20))
+	var cost: int = max(floor_cost, _economy_manager.get_cost(next) - _economy_manager.get_cost(cur))
+	return {"mode": "replace", "origin": origin, "old_type": cur, "new_type": next, "cost": cost,
+		"label": str(_economy_manager.get_label(next))}
+
+
+## Builder's map: buy the upgrade there and then. False if it could not be paid or done.
+func map_upgrade(origin: Vector2i, current_type: String) -> bool:
+	var offer := map_upgrade_offer(origin, current_type)
+	if offer.is_empty() or bool(offer.get("max", false)):
+		return false
+	if Coop.is_client():
+		Coop.send_request("upgrade", [offer.duplicate()])
+		return true
+	if not _economy_manager.has_method("spend_money") or not _economy_manager.spend_money(int(offer["cost"])):
+		return false
+	# The replace points the open room at the new building; from the map no room is
+	# open on it, so whatever was open stays as it was.
+	var keep := [_active_tent_node, _active_cabin_node, _active_caravan_node]
+	_handle_replace_upgrade(origin, str(offer["old_type"]), str(offer["new_type"]), int(offer["cost"]))
+	_active_tent_node = keep[0]
+	_active_cabin_node = keep[1]
+	_active_caravan_node = keep[2]
+	return true
+
+
 ## The host: the other warden bought an upgrade (the menu's context, as it was there).
 func coop_upgrade(ctx: Dictionary) -> void:
 	if _economy_manager == null or not _economy_manager.has_method("spend_money"):

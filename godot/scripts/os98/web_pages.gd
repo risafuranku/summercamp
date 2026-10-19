@@ -52,6 +52,10 @@ const INDEX := {
 	"cerne-jezero.cz/team": "karel vera team leaders staff camp photos",
 	"softsklad.cz": "software pub bistro shop corn stand stock order staff licence hostinsky kuchar pult klasek business wholesaler",
 	"bohemia-online.cz/weather": "weather forecast rain storm fog sun",
+	"bohemia-online.cz/hry": "games hry shareware download komar mosquito vylet hike snake pexeso memory mines fun",
+	"bohemia-online.cz/prace": "work job jobs prace money earn home klikbanka sectito datapunch adverts count",
+	"bohemia-online.cz/chat": "chat talk people friends asl irc room",
+	"bohemia-online.cz/horoskop": "horoscope horoskop stars zodiac future",
 }
 
 const PAGES := {
@@ -85,7 +89,13 @@ const PAGES := {
  {cerne-jezero.cz|Kemp Cerne jezero} - summer camp
  {volny.cz/~strasidla|Ghosts of South Bohemia}
  {volny.cz/~infravrany|INFRAVRANY} - band  [color=#cc0000][blink]NEW![/blink][/color]
+ {bohemia-online.cz/hry|Games} - shareware, free
+ {bohemia-online.cz/chat|Chat} - talk to the district
+ {bohemia-online.cz/horoskop|Horoscope}
  {bohemia-online.cz/weather|Weather}
+
+[b]WORK[/b]
+ {bohemia-online.cz/prace|Work from home} - [color=#008000]earn with your PC![/color]
 
 [b]TODAY[/b]
  Day {{day}}, {{time}}
@@ -109,6 +119,85 @@ const PAGES := {
 [color=#666666]Data: Hydrometeorological Institute, station Cervena hora. The station at the reservoir has not reported since 1991.[/color]
 
 {bohemia-online.cz|<< Back to Bohemia Online}""",
+	},
+
+	"bohemia-online.cz/hry": {
+		"title": "Bohemia Online - Games",
+		"bg": "#000033", "fg": "#ffffcc", "link": "#66ccff",
+		"tile": "tile_stars",
+		"body": """[center][font_size=26][b][rainbow freq=0.2 sat=0.8 val=1.0]GAMES ZONE[/rainbow][/b][/font_size]
+[color=#aaaaff]shareware for Okna 95 and 98 - free to try, free to keep, do not tell your boss[/color][/center]
+""" + HR + """
+[b][color=#ffcc00]KOMAR 98[/color][/b]  [color=#ff3333][blink]NEW![/blink][/color]
+A camper is asleep in his tent. The mosquitoes are not. Swat them before they bite, and do not slap him by mistake. The hit of the summer at the Lesna fire station.
+ {download://KOMAR98.EXE|KOMAR98.EXE} (28 KB)
+
+[b][color=#ffcc00]VYLET 98[/color][/b]
+Lead the hiking group through the woods and pick up the children who wandered off. Arrow keys. Count them when you get back.
+ {download://VYLET98.EXE|VYLET98.EXE} (24 KB)
+
+[b][color=#ffcc00]PEXESO 98[/color][/b]
+The memory game. Twelve pairs. Pictures licensed from Stavitel software (Builder 98).
+ {download://PEXESO98.EXE|PEXESO98.EXE} (52 KB)
+""" + HR + """
+[b]TOP 5 THIS WEEK[/b]  (votes by our members)
+[code] 1. Komar 98 ................... 412
+ 2. Mines (comes with Okna) ..... 380
+ 3. Vylet 98 ................... 255
+ 4. Pexeso 98 .................. 101
+ 5. DOOM shareware ............... 0[/code]
+[color=#888888]DOOM was removed at the request of the District Office. Please stop sending it to us.[/color]
+
+{bohemia-online.cz|<< Bohemia Online}  |  you are player no. {{counter}}""",
+	},
+	"bohemia-online.cz/prace": {
+		"title": "Bohemia Online - Work from home",
+		"bg": "#ffffff", "fg": "#000000", "link": "#006600",
+		"body": """[bgcolor=#006600][color=#ffffff][b][font_size=20] WORK FROM HOME [/font_size][/b] your PC can pay for itself [/color][/bgcolor]
+[color=#666666]Classifieds checked by Bohemia Online. Mostly.[/color]
+""" + HR + """
+[b]KlikBanka 98[/b] - Bohemia Online s.r.o.
+Our advertisers pay us when you see their adverts. We pay you. $1 for every advert you confirm, up to $30 a day. Close what is not an advert.
+ {download://KLIKBANK.EXE|KLIKBANK.EXE} (36 KB) - sign up by downloading
+
+[b]SectiTo 98[/b] - District Office Hlubocany, survey department
+Count tents, cattle and boats on our aerial photographs. $3 a photograph counted right. No experience needed. Good eyes.
+ {download://SECTITO.EXE|SECTITO.EXE} (44 KB)
+
+[b]DataPunch 98[/b] - District Office Hlubocany, room 12
+Type the old register into the computer, card by card, in the evening and at night. $4 a card.
+ {download://DATAPNCH.EXE|DATAPNCH.EXE} (40 KB)
+""" + HR + """
+[b]ALSO[/b]
+ * [b]Stuff envelopes at home![/b] Send 200 Kc for the starter kit to P.O. Box 9, Tabor. [color=#cc0000](Bohemia Online cannot vouch for this offer.)[/color]
+ * [b]Supplier of meat[/b], regular, any quantity. Hostinec U Jezera. Ask at the bar.
+ * [b]Lake keeper[/b], Cerne jezero reservoir. Vacant since 1993. District Office, room 12.
+ * [b]Night watchman[/b], Agrostroj Hlubocany, the new site by the reservoir. Starts in November.
+
+{bohemia-online.cz|<< Bohemia Online}""",
+	},
+	"bohemia-online.cz/chat": {
+		"title": "Bohemia Online - Chat",
+		"bg": "#000000", "fg": "#c0c0c0", "link": "#ffff00",
+		"body": """[bgcolor=#000080][color=#ffffff][b] BOHEMIA CHAT [/b]  room: #jih  (South Bohemia)   {{chatcount}} [/color][/bgcolor]
+[color=#808080]Be nice. No swearing. The operator reads everything.[/color]
+""" + HR + """
+{{chat}}
+""" + HR + """
+[color=#808080]To write in the chat, install Bohemia Chat 2.0 (coming soon).[/color]
+{bohemia-online.cz|<< Bohemia Online}""",
+	},
+	"bohemia-online.cz/horoskop": {
+		"title": "Bohemia Online - Horoscope",
+		"bg": "#330033", "fg": "#ffccff", "link": "#ffff66",
+		"tile": "tile_stars",
+		"body": """[center][font_size=22][b]YOUR STARS[/b][/font_size]
+[color=#cc99cc]for {{date}}, by Madame Jarmila (Ceske Budejovice)[/color][/center]
+""" + HR + """
+{{horoscope}}
+""" + HR + """
+[color=#996699]Madame Jarmila reads cards by phone: 0900 11 22 33 (25 Kc a minute).[/color]
+{bohemia-online.cz|<< Bohemia Online}""",
 	},
 
 	"bohemia-online.cz/search": {

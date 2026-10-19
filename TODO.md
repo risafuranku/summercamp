@@ -1,6 +1,6 @@
 # TODO — Cursed Camp Manager Simulator
 
-*Updated: 2026-10-16. Vision: DESIGN.md. What exists: PRODUCT.md.*
+*Updated: 2026-10-19. Vision: DESIGN.md. What exists: PRODUCT.md.*
 
 ---
 
@@ -29,6 +29,17 @@
 - [ ] 6  Saves of a co-op camp (host), joining a camp already going, a dropped line and back, a name per warden
   - 18. 10.: the host's saves are marked co-op and the CO-OP page's Last camp hosts the newest one (its day and till beside it); joining a camp already going works (the whole camp on joining); a dropped line: the other's figure goes, the joining one is back at the menu and can join again; the other warden is called by the name they chose (Pepa, Ondra, Jana, Bara) in the feed
   - 18. 10. (evening): the look is the warden's, not the CO-OP page's: chosen on the WARDENS page when a warden is made and changed with Edit warden (name, figure, jacket); the other warden is called by their warden's name. The joining warden can work the barrier (the client's E skipped everything outside the camp), from the road too (the wall in the gap shadowed the handle), and E lowers it again
+
+## BRIEF 2026-10-19 — the PC at the reception (the user's notes)
+
+- [x] D1  Not a full-size OS but a game panel that parodies one, practical above all: quick switching between Builder, CampStat and GuestRack (tabs, keys 1-9, badges, programs kept running, modal dialogs, a short boot)
+- [x] D2  Builder: a card for a clicked building (upgrade from the map, the crew, demolish, GuestRack), overlays (wear, power, rooms, light at night), keys (B P L, F1-F5, O, X, arrows); GuestRack's rooms and CampStat's upkeep open the building on the map
+- [x] D3  CampStat's Today page: what wants doing, with the button that does it (Pay all, the crew, GuestRack, CampMail, the night)
+- [x] D4  A clicking side job: the Jobs folder (DataPunch, KlikBanka pop-up shifts, SectiTo aerial counts), daily limits, paid into the till
+- [x] D5  Funny games: Komar 98, Vylet 98, Pexeso 98 beside Mines; they are Vera's (on the PC from the start, her names on the high-score tables)
+- [x] D6  The web: games, work from home, the #jih chat (somebody logs in as the camp at night), the horoscope
+- [x] D7  The OS's wording is a plain 1998 system's (no "do not tell Vera"); Files with the Web View pane (types, sizes, the dates that tell the story)
+- [ ] D8  Later: art for the new programs' icons from Grok (the drawn ones are stand-ins), Builder card for paths and lamps, more Bohemia Online pages
 
 ## BRIEF 2026-10-18 — the big list (the user's notes)
 

@@ -5,6 +5,9 @@ signal tool_canceled
 signal submenu_close_requested
 ## What is under the cursor, for the status bar ("12:7  Tent").
 signal hover_info(text: String)
+## A click on a building with no tool in hand: {type, origin, footprint, root}, or {}
+## when the click was on open ground (the card closes).
+signal building_clicked(info: Dictionary)
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
@@ -141,6 +144,14 @@ var _extra_guest_cell: Vector2 = Vector2.ZERO
 var _extra_guest_rng := RandomNumberGenerator.new()
 var selected_building: String = ""
 var hover_coord: Vector2i = Vector2i(-1, -1)
+## The building whose card is open (outlined on the map), or (-1, -1).
+var inspect_origin := Vector2i(-1, -1)
+var inspect_footprint := Vector2i.ONE
+## What the map shows over the camp: "" (nothing), "condition", "power", "rooms", "light".
+var overlay := ""
+const OVERLAYS := ["", "condition", "power", "rooms", "light"]
+var _ov_data: Dictionary = {}     # building origin -> [value 0..1 or -1, label, colour]
+var _ov_t := 0.0
 
 var _zoom_level: float = 1.16
 var _pan_offset: Vector2 = Vector2.ZERO
@@ -384,6 +395,11 @@ func _process(delta: float) -> void:
 		if float(_fx[i]["t"]) >= float(_fx[i]["life"]):
 			_fx.remove_at(i)
 	_night = _night_amount()
+	if overlay != "":
+		_ov_t -= delta
+		if _ov_t <= 0.0:
+			_ov_t = 1.0
+			_refresh_overlay()
 	_update_guests(delta)
 	var local = get_local_mouse_position()
 	if local.x >= 0.0 and local.y >= 0.0 and local.x <= size.x and local.y <= size.y:
@@ -401,19 +417,20 @@ func _process(delta: float) -> void:
 	_dyn_layer.queue_redraw()
 
 
+## The arrow keys pan (not WASD: at the PC S stands you up and D leans you out).
 func _update_keyboard_pan(delta: float) -> void:
-	if delta <= 0.0:
+	if delta <= 0.0 or not is_visible_in_tree():
 		return
 	if not has_focus() and not _mouse_inside():
 		return
 	var move := Vector2.ZERO
-	if Input.is_key_pressed(KEY_A):
+	if Input.is_key_pressed(KEY_LEFT):
 		move.x -= 1.0
-	if Input.is_key_pressed(KEY_D):
+	if Input.is_key_pressed(KEY_RIGHT):
 		move.x += 1.0
-	if Input.is_key_pressed(KEY_W):
+	if Input.is_key_pressed(KEY_UP):
 		move.y -= 1.0
-	if Input.is_key_pressed(KEY_S):
+	if Input.is_key_pressed(KEY_DOWN):
 		move.y += 1.0
 	if move.length_squared() <= 0.0001:
 		return
@@ -447,7 +464,7 @@ func _gui_input(event: InputEvent) -> void:
 				apply_zoom_step(-1)
 				get_viewport().set_input_as_handled()
 				return
-			KEY_W, KEY_A, KEY_S, KEY_D:
+			KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT:
 				get_viewport().set_input_as_handled()
 				return
 			KEY_Z:
@@ -539,6 +556,13 @@ func _gui_input(event: InputEvent) -> void:
 
 func _handle_left_press(local_pos: Vector2) -> void:
 	if selected_building == "":
+		# No tool in hand: a click on a building opens its card (builder_module).
+		var info := structure_at(_local_to_grid(local_pos))
+		inspect_origin = info.get("origin", Vector2i(-1, -1))
+		inspect_footprint = info.get("footprint", Vector2i.ONE)
+		building_clicked.emit(info)
+		if not info.is_empty():
+			_play("click", -12.0)
 		return
 	if selected_building == "path":
 		_begin_path_drag(local_pos)
@@ -1205,13 +1229,16 @@ func _draw_dynamic() -> void:
 		_draw_smoke(_s2d(sm[0]), tile_h, float(sm[1]), int(sm[2]))
 	var entries: Array = []
 	_append_guest_entries(entries, origin, tile_w, tile_h)
-	for g in entries:
-		_draw_guest(g, tile_h)
-	_draw_lodging_badges(origin, tile_w, tile_h)
 	var lights: Array = []
 	for l in _lights:
 		lights.append([_s2d(l[0]), l[1]])
-	_draw_night(lights, tile_w, tile_h)
+	_draw_overlay(origin, tile_w, tile_h, lights)
+	_draw_inspected(origin, tile_w, tile_h)
+	for g in entries:
+		_draw_guest(g, tile_h)
+	_draw_lodging_badges(origin, tile_w, tile_h)
+	if overlay != "light":
+		_draw_night(lights, tile_w, tile_h)
 	_draw_fx(origin, tile_w, tile_h)
 	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
 	var valid_c := Callable(self, "_is_valid_coord")
@@ -1255,6 +1282,137 @@ func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void
 		_cv.draw_rect(r.grow(1), Color(0, 0, 0, 0.55))
 		_cv.draw_rect(r, col)
 		_cv.draw_string(T.FONT, r.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(250, 244, 226))
+
+
+## The building on a cell, as Builder's card wants it ({} for open ground, trees, corn
+## and paths).
+func structure_at(coord: Vector2i) -> Dictionary:
+	if grid_manager == null or not _is_valid_coord(coord):
+		return {}
+	var tile = grid_manager.get_tile(coord)
+	if tile == null or not tile.occupied or tile.occupant == null:
+		return {}
+	var root = _resolve_occupant_root(tile.occupant)
+	if root == null or root.is_in_group("trees") or root.is_in_group("corn"):
+		return {}
+	var t := str(root.get_meta("building_type", ""))
+	if t == "" or t == "path":
+		return {}
+	return {"type": t, "origin": root.get_meta("grid_origin", coord), "footprint": root.get_meta("grid_footprint", Vector2i.ONE), "root": root}
+
+
+func set_overlay(id: String) -> void:
+	overlay = id if id in OVERLAYS else ""
+	_ov_t = 0.0
+	_refresh_overlay()
+	_emit_status(("Showing: %s" % OVERLAY_NAMES.get(overlay, overlay)) if overlay != "" else "Overlay off.")
+
+
+func cycle_overlay() -> String:
+	set_overlay(OVERLAYS[(OVERLAYS.find(overlay) + 1) % OVERLAYS.size()])
+	return overlay
+
+
+const OVERLAY_NAMES := {"condition": "wear and repairs", "power": "what each building draws", "rooms": "the rooms: ready, dirty, taken", "light": "light at night"}
+const OV_GOOD := Color8(60, 200, 80)
+const OV_WARN := Color8(240, 180, 30)
+const OV_BAD := Color8(230, 50, 40)
+const OV_BLUE := Color8(80, 130, 240)
+
+
+## What the overlay shows, read once a second (the snapshots are not cheap).
+func _refresh_overlay() -> void:
+	_ov_data.clear()
+	var m: Node = get_tree().current_scene if get_tree() != null else null
+	match overlay:
+		"condition":
+			if m != null and m.has_method("get_upkeep_snapshot"):
+				for r in (m.get_upkeep_snapshot() as Dictionary).get("rows", []):
+					var cond := float(r.get("condition", 1.0))
+					var broken := bool(r.get("broken", false))
+					var col := OV_BAD if broken or cond < 0.5 else (OV_WARN if cond < 0.75 else OV_GOOD)
+					_ov_data[Vector2i(r["coord"])] = [cond, "BROKEN" if broken else "%d%%" % int(round(cond * 100.0)), col]
+		"power":
+			if m != null and m.has_method("get_electricity_ui_snapshot"):
+				var lines: Array = (m.get_electricity_ui_snapshot() as Dictionary).get("consumption_lines", [])
+				var top := 0.001
+				for l in lines:
+					top = maxf(top, float((l as Dictionary).get("kwh_per_day", 0.0)))
+				for l in lines:
+					var kwh := float((l as Dictionary).get("kwh_per_day", 0.0))
+					var c = (l as Dictionary).get("coord", null)
+					if c is Vector2i and kwh > 0.0:
+						_ov_data[c] = [kwh / top, "%.1f kWh" % kwh, Color8(255, 200, 40).lerp(Color8(255, 80, 20), kwh / top)]
+		"rooms":
+			if GuestManager != null:
+				for key in GuestManager.get_accommodation_states():
+					var rs: Dictionary = GuestManager.get_room_state(str(key))
+					if rs.is_empty():
+						continue
+					var st := str(rs.get("status", ""))
+					var occupied := bool(rs.get("occupied", false))
+					var col := OV_GOOD if st == "ready" else (OV_WARN if st == "unprepared" else OV_BAD)
+					var word := {"ready": "ready", "dirty": "DIRTY", "unprepared": "make up"}.get(st, st) as String
+					if occupied:
+						col = OV_BLUE
+						word = "guests"
+					_ov_data[SAVE_CODEC.coord_from_key(str(key))] = [1.0, word, col]
+
+
+func _draw_overlay(origin: Vector2, tile_w: float, tile_h: float, lights: Array) -> void:
+	if overlay == "":
+		return
+	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
+	if overlay == "light":
+		# The night, and where the lamps and fires push it back (on the ground: flat ellipses).
+		_cv.draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.02, 0.08, 0.55))
+		for l in lights:
+			var p: Vector2 = l[0]
+			var r := tile_w * (2.6 if str(l[1]) != "bonfire" else 3.4)
+			_cv.draw_set_transform(p, 0.0, Vector2(1.0, 0.5))
+			for k in 4:
+				_cv.draw_circle(Vector2.ZERO, r * (1.0 - k * 0.22), Color(1.0, 0.85, 0.4, 0.1))
+			_cv.draw_set_transform(Vector2.ZERO)
+	else:
+		var gm = _grid_model()
+		for o in _ov_data:
+			var v: Array = _ov_data[o]
+			var fp := Vector2i.ONE
+			var cell: Dictionary = gm.cells.get(o, {}) if gm != null else {}
+			var def = CoreRoot.registry.get_def(StringName(str(cell.get("type", "")))) if CoreRoot != null and CoreRoot.registry != null and cell.has("type") else null
+			if def != null:
+				fp = def.footprint
+			var cells: Array = []
+			for y in maxi(1, fp.y):
+				for x in maxi(1, fp.x):
+					cells.append((o as Vector2i) + Vector2i(x, y))
+			_bfx.draw_area(_cv, iso_c, cells, tile_w, tile_h, v[2], _time, false, 0.42)
+			# Under the building (the room badges are over it).
+			var c := _cell_to_iso_f(Vector2(o) + Vector2(fp) * 0.5 - Vector2(0.5, 0.5), origin, tile_w, tile_h) + Vector2(0, tile_h * (0.5 + 0.5 * maxf(fp.x, fp.y)) + 4.0)
+			var text := str(v[1])
+			var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+			var rr := Rect2((c - Vector2(tw * 0.5 + 3, 6)).floor(), Vector2(tw + 6, 13))
+			_cv.draw_rect(rr, Color(0, 0, 0, 0.72))
+			_cv.draw_string(T.FONT, rr.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, (v[2] as Color).lightened(0.35))
+	# The key, bottom left.
+	var label := "%s   (O: next)" % str(OVERLAY_NAMES.get(overlay, overlay)).capitalize()
+	var lw := T.FONT_BOLD.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+	var lr := Rect2(Vector2(6, size.y - 22), Vector2(lw + 12, 16))
+	_cv.draw_rect(lr, Color(0, 0, 0, 0.7))
+	_cv.draw_rect(lr, Color(1, 1, 1, 0.4), false, 1.0)
+	_cv.draw_string(T.FONT_BOLD, lr.position + Vector2(6, 12), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(255, 236, 160))
+
+
+## The building whose card is open: its outline, breathing.
+func _draw_inspected(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	if inspect_origin.x < 0:
+		return
+	var cells: Array = []
+	for y in maxi(1, inspect_footprint.y):
+		for x in maxi(1, inspect_footprint.x):
+			cells.append(inspect_origin + Vector2i(x, y))
+	var pulse := 0.7 + 0.3 * sin(_time * 5.0)
+	_bfx.draw_area(_cv, Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h), cells, tile_w, tile_h, Color(1.0, 0.92, 0.5, pulse), _time, false, 0.18)
 
 
 func _mini_kind(t: String) -> String:

@@ -12,7 +12,7 @@ extends Control
 ## Downloaded from campgrid.cz and installed.
 
 const T = preload("res://scripts/os98/os_theme.gd")
-const TABS := [["power", "Power"], ["bills", "Bills"], ["night", "Night"], ["upkeep", "Upkeep"], ["money", "Money"], ["reviews", "Reviews"]]
+const TABS := [["today", "Today"], ["power", "Power"], ["bills", "Bills"], ["night", "Night"], ["upkeep", "Upkeep"], ["money", "Money"], ["reviews", "Reviews"]]
 const RED := Color8(176, 0, 0)
 const AMBER := Color8(160, 112, 0)
 const GREEN := Color8(0, 120, 0)
@@ -42,7 +42,7 @@ const NIGHT_PROCEDURES := [
 
 var _shell
 var _win
-var _page := "power"
+var _page := "today"
 var _tick := 0.0
 var _head: Control
 var _nav: Control
@@ -311,6 +311,8 @@ func _draw_page() -> void:
 	var c := _canvas
 	var y := PAD - _scroll.value
 	match _page:
+		"today":
+			y = _page_today(y)
 		"power":
 			y = _page_power(y)
 		"bills":
@@ -379,8 +381,20 @@ func _hit_at(p: Vector2) -> String:
 func _do(action: String) -> void:
 	if action.begins_with("pay://"):
 		_pay(action.trim_prefix("pay://"))
+	elif action == "payall://":
+		_pay_all()
 	elif action == "crew://all":
 		_crew()
+	elif action.begins_with("tab://"):
+		_shell.play("click", -10.0)
+		_shell.open_app(action.trim_prefix("tab://"))
+	elif action.begins_with("page://"):
+		_shell.play("click")
+		select_page(action.trim_prefix("page://"))
+	elif action.begins_with("map://"):
+		var p := action.trim_prefix("map://").split(":")
+		if p.size() == 2:
+			_shell.show_on_map(Vector2i(int(p[0]), int(p[1])))
 
 
 ## The page's title and a line under it.
@@ -528,6 +542,16 @@ func _led(c: Control, at: Vector2, col: Color) -> void:
 ## Little 16 px pictures for the page buttons (and the band).
 func _glyph(c: Control, id: String, p: Vector2, _k: float) -> void:
 	match id:
+		"today":
+			# A desk calendar: the red band, the day.
+			c.draw_rect(Rect2(p + Vector2(1, 2), Vector2(14, 13)), T.WHITE)
+			c.draw_rect(Rect2(p + Vector2(1, 2), Vector2(14, 4)), RED)
+			c.draw_rect(Rect2(p + Vector2(1, 2), Vector2(14, 13)), T.DARK, false, 1.0)
+			c.draw_rect(Rect2(p + Vector2(4, 0), Vector2(2, 4)), T.DARK)
+			c.draw_rect(Rect2(p + Vector2(10, 0), Vector2(2, 4)), T.DARK)
+			for i in 3:
+				c.draw_rect(Rect2(p + Vector2(4 + i * 3, 9), Vector2(2, 2)), T.SHADOW)
+				c.draw_rect(Rect2(p + Vector2(4 + i * 3, 12), Vector2(2, 1)), T.SHADOW)
 		"power":
 			c.draw_colored_polygon(PackedVector2Array([p + Vector2(9, 0), p + Vector2(2, 9), p + Vector2(7, 9), p + Vector2(5, 16), p + Vector2(13, 6), p + Vector2(8, 6), p + Vector2(11, 0)]), Color8(255, 220, 0))
 			c.draw_polyline(PackedVector2Array([p + Vector2(9, 0), p + Vector2(2, 9), p + Vector2(7, 9), p + Vector2(5, 16), p + Vector2(13, 6), p + Vector2(8, 6), p + Vector2(11, 0), p + Vector2(9, 0)]), Color8(120, 80, 0), 1.0)
@@ -556,6 +580,110 @@ func _glyph(c: Control, id: String, p: Vector2, _k: float) -> void:
 			c.draw_colored_polygon(pts, Color8(240, 200, 0))
 			pts.append(pts[0])
 			c.draw_polyline(pts, Color8(96, 72, 0), 1.0)
+
+
+# ── today ────────────────────────────────────────────────────────────────────
+
+## The camp on one page: the money, and every thing that wants doing with the button
+## that does it (or the program that does it). The page the program opens on.
+func _page_today(y: float) -> float:
+	y = _title(y, "TODAY", "day %d, %s" % [int(_snap.get("day", CoreRoot.get_day() if CoreRoot != null else 1)), str(_snap.get("time", "--:--"))])
+	var unpaid := int(_snap.get("unpaid_total", 0))
+	var guests := 0
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state != null:
+		for g in state.guests:
+			if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
+				guests += maxi(1, int(g.get("party_size", 1)))
+	y = _lcd(y, [["Cash", "$%d" % (CoreRoot.get_money() if CoreRoot != null else 0)], ["Bills to pay", "$%d" % unpaid, Color8(255, 90, 70) if int(_snap.get("overdue_count", 0)) > 0 else LCD_ON], ["Guests in camp", str(guests)]])
+	var rows: Array = []
+	# The bills.
+	var overdue := int(_snap.get("overdue_count", 0))
+	var un := int(_snap.get("unpaid_count", 0))
+	if bool(_snap.get("power_cut_active", false)):
+		rows.append([{"chip": "POWER CUT", "c": RED}, "Every overdue bill must be paid to get the grid back.", {"btn": "Pay all $%d" % unpaid, "act": "payall://"}])
+	elif un > 0:
+		rows.append([{"chip": "%d LATE" % overdue if overdue > 0 else "%d DUE" % un, "c": RED if overdue > 0 else AMBER}, "Electricity: $%d to pay." % unpaid, {"btn": "Pay all $%d" % unpaid, "act": "payall://"}])
+	else:
+		rows.append([{"chip": "PAID", "c": GREEN}, "No electricity bills waiting.", ""])
+	# Upkeep.
+	var broken := _broken_count()
+	var jobs := int(_upkeep.get("crew_jobs", 0))
+	if jobs > 0:
+		var night := bool(_upkeep.get("night", false))
+		rows.append([{"chip": "%d BROKEN" % broken if broken > 0 else "%d WORN" % jobs, "c": RED if broken > 0 else AMBER}, "Repairs waiting for the crew." if not night else "Repairs waiting (the crew comes by day).",
+			{"btn": "Crew $%d" % int(_upkeep.get("crew_cost", 0)), "act": "crew://all", "on": not night}])
+	elif not _upkeep.is_empty():
+		rows.append([{"chip": "GOOD", "c": GREEN}, "Everything is in working order.", ""])
+	# Guests: at the desk, on the way, rooms to make up.
+	if GuestManager != null and GuestManager.has_method("get_arrivals"):
+		var at_gate := 0
+		var coming := 0
+		var not_ready := 0
+		for r in GuestManager.get_arrivals():
+			if r is Dictionary:
+				if bool(r.get("at_gate", false)):
+					at_gate += 1
+				else:
+					coming += 1
+				for room in r.get("rooms", []):
+					if not bool((room as Dictionary).get("ready", false)):
+						not_ready += 1
+		if at_gate > 0:
+			rows.append([{"chip": "%d AT DESK" % at_gate, "c": RED}, "Guests are waiting at reception. Check them in.", {"btn": "GuestRack", "act": "tab://guestrack"}])
+		if coming > 0:
+			rows.append([{"chip": "%d COMING" % coming, "c": T.NAVY}, ("Rooms not ready for them: %d." % not_ready) if not_ready > 0 else "Their rooms are ready.", {"btn": "GuestRack", "act": "tab://guestrack"}])
+		var dirty := 0
+		for key in GuestManager.get_accommodation_states():
+			var rs: Dictionary = GuestManager.get_room_state(str(key))
+			if not rs.is_empty() and str(rs.get("status", "")) == "dirty" and not bool(rs.get("occupied", false)):
+				dirty += 1
+		if dirty > 0:
+			rows.append([{"chip": "%d DIRTY" % dirty, "c": AMBER}, "Rooms to clean before anyone can have them.", {"btn": "GuestRack", "act": "tab://guestrack"}])
+	# The mail.
+	var unread := EmailManager.get_unread_count() if EmailManager != null else 0
+	if unread > 0:
+		rows.append([{"chip": "%d NEW" % unread, "c": T.NAVY}, "Unread mail (bookings come by mail).", {"btn": "CampMail", "act": "tab://mail"}])
+	# Tonight.
+	var tot: Dictionary = _forecast.get("totals", {}) if _forecast.get("totals", {}) is Dictionary else {}
+	var certain := int(tot.get("guaranteed_spawns", 0))
+	var m: Node = _shell.main_node()
+	if m != null and m.has_method("camp_rule") and not bool(m.camp_rule("threats")):
+		pass
+	elif certain > 0:
+		rows.append([{"chip": "TONIGHT", "c": RED}, "Something is certain to come tonight. Read the procedures.", {"btn": "Night", "act": "page://night"}])
+	elif float(tot.get("expected_spawns", 0.0)) > 0.3:
+		rows.append([{"chip": "TONIGHT", "c": AMBER}, "Tonight may not be quiet (%.1f expected)." % float(tot.get("expected_spawns", 0.0)), {"btn": "Night", "act": "page://night"}])
+	y = _table(y, [["", 96, HORIZONTAL_ALIGNMENT_LEFT], ["What wants doing", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 100, HORIZONTAL_ALIGNMENT_CENTER]], rows, 22.0)
+	return _para(y, "CampGrid customer line 0663 30 199, weekdays 7:00-15:30.", GREY)
+
+
+func _pay_all() -> void:
+	var m: Node = _shell.main_node()
+	if m == null or not m.has_method("request_pay_electricity_bill"):
+		_set_notice("The utility does not answer.", RED)
+		return
+	var paid := 0
+	var short := false
+	# Overdue first: they are the ones that cut the power.
+	var bills: Array = (_snap.get("bills", []) as Array).duplicate() if _snap.get("bills", []) is Array else []
+	bills.sort_custom(func(a, b): return bool(a.get("is_overdue", false)) and not bool(b.get("is_overdue", false)))
+	for b_any in bills:
+		var b: Dictionary = b_any
+		if str(b.get("status", "unpaid")).to_lower() == "paid":
+			continue
+		var res: Dictionary = m.request_pay_electricity_bill(str(b.get("id", ""))) as Dictionary
+		if bool(res.get("ok", false)):
+			paid += int(res.get("amount", 0))
+		elif str(res.get("reason", "")) == "insufficient_funds":
+			short = true
+			break
+	refresh()
+	if paid > 0:
+		_shell.play("click")
+		_set_notice("Paid. -$%d" % paid, GREEN)
+	if short:
+		_shell.message_box("CampStat 98", "Not enough money to pay every bill.\n\nPaid what could be paid ($%d)." % paid, "error")
 
 
 # ── power ────────────────────────────────────────────────────────────────────
@@ -760,10 +888,12 @@ func _page_upkeep(y: float) -> float:
 		elif cond < 0.75:
 			col = AMBER
 			word = "WORN"
+		var c = r.get("coord", null)
+		var map_btn: Variant = {"btn": "Map", "act": "map://%d:%d" % [c.x, c.y]} if c is Vector2i else ""
 		rows.append([str(r.get("label", "?")), {"bar": 0.0 if broken else cond, "c": col}, "%d%%" % int(round(cond * 100.0)), {"chip": word, "c": col},
-			"%s $%d" % ["repair" if broken else "service", int(r.get("cost", 0))]])
-	y = _table(y, [["Building", 0, HORIZONTAL_ALIGNMENT_LEFT], ["Condition", 110, HORIZONTAL_ALIGNMENT_LEFT], ["", 40, HORIZONTAL_ALIGNMENT_RIGHT],
-		["State", 70, HORIZONTAL_ALIGNMENT_LEFT], ["Cost", 92, HORIZONTAL_ALIGNMENT_RIGHT]], rows)
+			"%s $%d" % ["repair" if broken else "service", int(r.get("cost", 0))], map_btn])
+	y = _table(y, [["Building", 0, HORIZONTAL_ALIGNMENT_LEFT], ["Condition", 100, HORIZONTAL_ALIGNMENT_LEFT], ["", 36, HORIZONTAL_ALIGNMENT_RIGHT],
+		["State", 64, HORIZONTAL_ALIGNMENT_LEFT], ["Cost", 82, HORIZONTAL_ALIGNMENT_RIGHT], ["", 44, HORIZONTAL_ALIGNMENT_CENTER]], rows, 20.0)
 	var jobs := int(_upkeep.get("crew_jobs", 0))
 	if jobs <= 0:
 		return _para(y, "Everything is in working order.", GREEN, PAD, true)
