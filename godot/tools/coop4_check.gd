@@ -12,6 +12,9 @@ extends "res://tools/coop_check.gd"
 ##     ones behind the first crawl into boots;
 ##   - at night the host lies down in the back room, two others where they are: the night
 ##     does not pass while the fourth is up; it lies down too and all wake in the morning;
+##   - the next day all four take the 13:20 to Lesna: three get on and sit, the host sits
+##     last but one, and the bus waits for the fourth buying a ticket; then all four ride
+##     it and get off in Lesna, and at the bar of U Jezera each sees the other three;
 ##   - the fourth goes home: the other three play on, their figure gone.
 ## tools/coop4_check.py compares what each wrote.
 ##
@@ -45,6 +48,7 @@ func _ready() -> void:
 			["coop_wait_file", "c1_in_bed"], ["coop_wait_file", "c2_in_bed"], ["wait", 4.0], ["coop_fingerprint", "host_waiting"], ["coop_signal", "host_waiting"],
 			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "host_morning"],
 			["coop_wait_file", "c1_morning"], ["coop_wait_file", "c2_morning"], ["coop_wait_file", "c3_morning"],
+		] + _to_lesna() + [
 			["coop_signal", "host_morning_seen"], ["coop_wait_file", "c3_gone"], ["wait", 3.0], ["coop_fingerprint", "host_after_c3"],
 			["coop_signal", "host_after_c3"], ["coop_wait_file", "c1_after_c3"], ["coop_wait_file", "c2_after_c3"], ["coop_signal", "host_day2_done"],
 			["coop_wait", "partner_gone"], ["wait", 1.0],
@@ -69,8 +73,9 @@ func _ready() -> void:
 		else:
 			_steps.append_array([["eval", "camp_office.lie_down()"], ["coop_signal", "%s_in_bed" % r]])
 		_steps.append_array([
-			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "%s_morning" % r], ["coop_signal", "%s_morning" % r],
-			["coop_wait_file", "host_morning_seen"]])
+			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "%s_morning" % r], ["coop_signal", "%s_morning" % r]])
+		_steps.append_array(_to_lesna())
+		_steps.append_array([["coop_wait_file", "host_morning_seen"]])
 		if r == "c3":
 			# Home first: the others play on without them.
 			_steps.append_array([["coop_leave"], ["wait", 1.0], ["coop_signal", "c3_gone"]])
@@ -122,6 +127,45 @@ func _together(spot: Array) -> Array:
 	return out
 
 
+## The 13:20 to Lesna for all four, and a beer at U Jezera.
+func _to_lesna() -> Array:
+	var r := _role
+	var seat := {"host": 1, "c1": 6, "c2": 9, "c3": 12}
+	var out: Array = [["eval", "_interior_manager._building_interior.close_interior()"], ["eval", "_interior_manager._tent_interior.close_tent()"],
+		["wait", 1.0], ["coop4_to_stop"], ["wait", 1.0]]
+	var board := [["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0]]
+	var sit := [["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(%d)" % int(seat[r])], ["wait", 1.0]]
+	match r:
+		"host":
+			out.append_array([["eval", "debug_jump_to(2, 13.42)"], ["wait", 3.0], ["coop_signal", "host_bus_here"], ["coop_wait_file", "c3_aboard"]])
+			out.append_array(board + sit)
+			out.append_array([["wait", 3.0], ["shot", "q3_host_bus_waits"], ["coop_fingerprint", "host_bus_wait"], ["coop_signal", "host_sat"]])
+		"c1":
+			out.append_array([["coop_wait_file", "host_bus_here"]] + board + sit + [["coop_signal", "c1_sat"]])
+		"c2":
+			out.append_array([["coop_wait_file", "c1_sat"]] + board + sit + [["coop_signal", "c2_sat"]])
+		"c3":
+			# Aboard, but buying a ticket last: the bus waits for them.
+			out.append_array([["coop_wait_file", "c2_sat"]] + board + [["coop_signal", "c3_aboard"], ["coop_wait_file", "host_sat"], ["wait", 2.0]] + sit + [["coop_signal", "c3_sat"]])
+	# Once the last one sits, it goes: riding with all four.
+	if r != "c3":
+		out.append(["coop_wait_file", "c3_sat"])
+	out.append_array([["wait", 4.0], ["coop_fingerprint", "%s_bus_ride" % r], ["shot", "q3_%s_riding" % r],
+		["coop_wait", "in_town"], ["wait", 2.0], ["coop_fingerprint", "%s_town" % r], ["coop_signal", "%s_town" % r]])
+	for other in ["host", "c1", "c2", "c3"]:
+		if other != r:
+			out.append(["coop_wait_file", "%s_town" % other])
+	out.append_array([["eval", "_interior_manager._town_trip._open_room('pub')"], ["wait", 1.5], ["coop_signal", "%s_in_pub" % r]])
+	for other in ["host", "c1", "c2", "c3"]:
+		if other != r:
+			out.append(["coop_wait_file", "%s_in_pub" % other])
+	out.append_array([["wait", 2.0], ["shot", "q4_%s_pub" % r], ["coop_fingerprint", "%s_pub" % r], ["coop_signal", "%s_pub_seen" % r]])
+	for other in ["host", "c1", "c2", "c3"]:
+		if other != r:
+			out.append(["coop_wait_file", "%s_pub_seen" % other])
+	return out
+
+
 func _condition_met(what: String) -> bool:
 	if what == "all_seen":
 		if Time.get_ticks_msec() > _coop_wait_deadline:
@@ -154,6 +198,13 @@ func _run_step(step: Array) -> void:
 		Coop.look_model = -1
 		Coop.look_color = int(step[1])
 		Coop.set("_look_override", true)
+		return
+	if str(step[0]) == "coop4_to_stop":
+		# To the camp stop, side by side along the kerb.
+		var trip = _main.get("_interior_manager").get("_town_trip")
+		var spot: Transform3D = trip._road().wait_spot()
+		var nth := ["host", "c1", "c2", "c3"].find(_role)
+		trip._put_player(spot.translated(Vector3(1.2 * float(nth), 0.0, 0.0)))
 		return
 	if str(step[0]) == "coop_fire_at":
 		# Round the fire from your own side (degrees round it), and sat at it.

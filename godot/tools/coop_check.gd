@@ -715,6 +715,30 @@ func _cabin_taken() -> String:
 
 ## The other warden's figure in the room this one is in: its pose, "" when none.
 ## The other warden's figure behind the pub's bar (room z past the counter).
+## How many of the other wardens stand with you in the place in Lesna you are in.
+func _town_mate_count() -> int:
+	var trip = _main.get("_interior_manager").get("_town_trip") if _main != null else null
+	var room = trip.get("_room") if trip != null else null
+	var mates: Dictionary = room.get("_mates") if room != null else {}
+	var n := 0
+	for m in mates.values():
+		if m != null and is_instance_valid(m) and (m as Node3D).visible:
+			n += 1
+	return n
+
+
+## How many of the other wardens are seen on your bus.
+func _bus_mate_count() -> int:
+	var trip = _main.get("_interior_manager").get("_town_trip") if _main != null else null
+	var ride = trip.get("_ride") if trip != null else null
+	var mates: Dictionary = ride.get("_mates") if ride != null else {}
+	var n := 0
+	for m in mates.values():
+		if m != null and is_instance_valid(m) and (m as Node3D).visible:
+			n += 1
+	return n
+
+
 ## How many of the other wardens stand (or lie) in your room, seen.
 func _room_fig_count() -> int:
 	var im = _main.get("_interior_manager")
@@ -954,6 +978,8 @@ func _write_fingerprint(tag: String) -> void:
 		"room_figs": _room_fig_count(),
 		"att_mates": _att_mate_count(),
 		"pipe_mates": _pipe_mate_count(),
+		"town_mates": _town_mate_count(),
+		"bus_mates": _bus_mate_count(),
 		"corn_orders": (CoreRoot.get_state().biz.get("orders", []) as Array).filter(func(o): return str(o.get("key", "")) == "15:13").size(),
 		"radio": _radio_row(),
 		"down": bool(_main.get("_coop_down")),

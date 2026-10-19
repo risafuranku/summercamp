@@ -241,7 +241,7 @@ const REMOTE_PLAYER = preload("res://scripts/coop/remote_player.gd")
 ## In the same place on their machines (town_trip.coop_place): stood beside you at the
 ## counter (or the pew), as each of them looks.
 ## The other wardens in this place with you (peer ids): standing at the counter beside
-## you, one on your right, the next on your left, the next a step behind.
+## you, a little ahead, one on your right, the next on your left, the next further left.
 var _mates: Dictionary = {}
 
 
@@ -263,7 +263,8 @@ func coop_mates(ids: Array) -> void:
 			fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
 			_root.add_child(fig)
 			_mates[id] = fig
-		var side: Array = [Vector3(0.95, 0.0, -0.4), Vector3(-0.95, 0.0, -0.4), Vector3(0.6, 0.0, 0.7)]
+		# At the counter with you, a little ahead (in sight, not out at your elbows).
+		var side: Array = [Vector3(0.95, 0.0, -1.0), Vector3(-0.95, 0.0, -1.0), Vector3(-1.75, 0.0, -1.2)]
 		var at: Vector3 = _cam.position + b * (side[i % side.size()] as Vector3)
 		at.y = _cam.position.y - 1.6
 		fig.show_at(at, "stand")

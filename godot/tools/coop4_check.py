@@ -48,7 +48,7 @@ def main():
         time.sleep(1.5)
     try:
         for r in ROLES[1:]:
-            procs[r].wait(timeout=1100)
+            procs[r].wait(timeout=1700)
         procs["host"].wait(timeout=90)
     except subprocess.TimeoutExpired:
         for p in procs.values():
@@ -114,6 +114,20 @@ def main():
             failures.append("%s woke on day %s, the host on %s" % (role, fm["day"], hm["day"]))
     if hm is not None and hs is not None and hm["day"] <= hs["day"]:
         failures.append("the night did not pass (day %s -> %s)" % (hs["day"], hm["day"]))
+    # One bus for four: it waits for the last one, then all ride it; at U Jezera together.
+    hw = load("host_bus_wait")
+    if hw is None or hw["bus_state"] != "held":
+        failures.append("the bus did not wait for the fourth buying a ticket (%s)" % (hw or {}).get("bus_state"))
+    for role in ROLES:
+        br, tw, pb = load("%s_bus_ride" % role), load("%s_town" % role), load("%s_pub" % role)
+        if br is None or br["bus_state"] not in ("riding", "stopping", "done"):
+            failures.append("%s did not ride the bus (%s)" % (role, (br or {}).get("bus_state")))
+        elif br["bus_mates"] != 3:
+            failures.append("%s sees %d of the other three on the bus" % (role, br["bus_mates"]))
+        if tw is None:
+            failures.append("%s did not get to Lesna" % role)
+        if pb is None or pb["town_mates"] != 3:
+            failures.append("%s sees %s of the other three at the bar of U Jezera" % (role, (pb or {}).get("town_mates")))
     # One went home: the other three still have each other (the host may be indoors), not them.
     for role in ("host", "c1", "c2"):
         fa = load("%s_after_c3" % role)
