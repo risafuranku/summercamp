@@ -113,6 +113,6 @@ func _process(delta: float) -> void:
 	var mo: Vector2 = _hands.motion if _hands != null else Vector2.ZERO
 	_rect.position = ((Vector2(x, y) + mo * k * 0.5) / k).floor() * k
 	_rect.rotation = 0.0
-	var l: Color = _hands.light if _hands != null else Color.WHITE
-	_rect.modulate = l * (Color(0.72, 0.7, 0.66) if dim else Color.WHITE)
-	_rect.modulate.a = 1.0
+	# Lit by the place, stepped and dithered (hands.gd's material).
+	_rect.material = _hands.material if _hands != null else null
+	_rect.modulate = Color(0.72, 0.7, 0.66) if dim else Color.WHITE

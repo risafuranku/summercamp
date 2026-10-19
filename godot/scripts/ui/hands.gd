@@ -22,8 +22,20 @@ const SHADES := 16.0
 ## Priorities: the higher keeps the hand.
 const PRIO := {"work": 3, "bottle": 2, "lighter": 2, "torch": 1, "cig": 1}
 
-## The colour the hands are drawn with this frame (white = full daylight).
+## The colour the hands are drawn with this frame (white = full daylight), in shade steps.
 var light := Color.WHITE
+## The same before the steps (the shader dithers between them).
+var light_raw := Color.WHITE
+## One material for everything drawn in your hands: the place's light, stepped and
+## dithered, 15-bit colour (Build x PS1). Its "light" is set every frame.
+var material: ShaderMaterial = _make_material()
+
+
+static func _make_material() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://materials/hand_ps1.gdshader")
+	m.set_shader_parameter("shades", SHADES)
+	return m
 ## The flicker of the light that is in your hand (lighter, ember) for the drawing.
 var _target := Color.WHITE
 var _claims := {"right": {}, "left": {}}
@@ -171,8 +183,10 @@ func _process(delta: float) -> void:
 	_target = _measure()
 	# The eye takes a moment, in steps (no smooth fade): towards it, a shade at a time.
 	var k := clampf(delta * 7.0, 0.0, 1.0)
-	light = light.lerp(_target, k)
-	light = Color(_shade(light.r), _shade(light.g), _shade(light.b), 1.0)
+	light_raw = light_raw.lerp(_target, k)
+	light = Color(_shade(light_raw.r), _shade(light_raw.g), _shade(light_raw.b), 1.0)
+	# The hands' shader does the stepping itself, dithered (materials/hand_ps1.gdshader).
+	material.set_shader_parameter("light", Color(maxf(light_raw.r, 0.06), maxf(light_raw.g, 0.06), maxf(light_raw.b, 0.06), 1.0))
 
 
 ## Both hands taken by things that outrank the torch: it goes in your pocket (dark) till

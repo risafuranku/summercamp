@@ -219,7 +219,10 @@ func _draw() -> void:
 	var s := _px()
 	var hs := HANDS.px(size.y)
 	var hl := HANDS.of(self)
-	var lit: Color = hl.light if hl != null else Color.WHITE
+	# Everything drawn here is lit, stepped and dithered by the hands' material.
+	if hl != null and material != hl.material:
+		material = hl.material
+	var lit := Color.WHITE
 	for i in _parts.size():
 		var p: Dictionary = _parts[i]
 		var bt := _bit(_particles_kind, i)
@@ -252,7 +255,7 @@ func _draw() -> void:
 	if h != null:
 		pos += (h.motion as Vector2) * scale * 0.5
 	pos = (pos / scale).floor() * scale
-	draw_texture_rect(_tex, Rect2(pos, tsz), false, h.light if h != null else Color.WHITE)
+	draw_texture_rect(_tex, Rect2(pos, tsz), false)
 
 
 func _exit_tree() -> void:

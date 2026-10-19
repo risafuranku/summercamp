@@ -413,6 +413,7 @@ func _cig_event(e: String, v) -> void:
 			_play("c", "strike_catch.mp3" if int(v) == 1 else "strike_fail.mp3", -3.0)
 			_strike_kick = 2
 			_flame_t = 0.0
+			_push("l", "hand5_lighting_strike", 2)
 			world.send("strike", [int(v)])
 		"flame_off":
 			pass
@@ -446,6 +447,7 @@ func _cig_event(e: String, v) -> void:
 		"ash_tap":
 			_play("c", "ash_tap.mp3", -6.0)
 			_tap_kick = 3
+			_push("l", "hand5_cig_tap", 3)
 			_ash_flake(float(v))
 		"ash_none":
 			pass
@@ -481,6 +483,7 @@ func _bottle_event(e: String, v) -> void:
 		"pop":
 			_play("b", "cap_pop.mp3", -3.0)
 			_cap_off_screen()
+			_push("r", "hand5_beer_pop", 3)
 			world.cap_off()
 			world.send("pop", [])
 		"foam":
@@ -491,6 +494,7 @@ func _bottle_event(e: String, v) -> void:
 		"gulp":
 			_play("b2", "gulp.mp3", -6.0)
 			_gulp_kick = 2
+			_push("r", "hand5_beer_gulp", 2)
 			world.send("gulp", [])
 		"lower":
 			if int(v) == 1:
@@ -686,21 +690,17 @@ func _layout() -> void:
 	_layout_left(vp, s, bar, bob, step)
 	_layout_right(vp, s, bar, bob, step)
 	var shake := Vector2(sin(step * 2.1), cos(step * 1.7)) * 3.0 * s * _shake
-	# Lit like the place you stand in (hands.gd); the flame is its own light.
-	var light: Color = _hands.light if _hands != null and is_instance_valid(_hands) else Color.WHITE
+	# Lit like the place you stand in, stepped and dithered (hands.gd's material: Build
+	# shade steps, PS1 dither, 15-bit colour); the flame is its own light.
+	var mat: Material = _hands.material if _hands != null and is_instance_valid(_hands) else null
 	for r in [_left, _cig_rect, _lips, _flame, _right]:
 		var tr := r as TextureRect
 		if not tr.visible:
 			continue
 		# On the hands' pixel grid.
 		tr.position = ((tr.position + shake) / s).floor() * s
-		if tr == _flame:
-			tr.modulate = Color.WHITE
-		elif tr == _cig_rect and not cig.lit:
-			tr.modulate = light * Color(0.78, 0.78, 0.76)
-		else:
-			tr.modulate = light
-		tr.modulate.a = 1.0
+		tr.material = null if tr == _flame else mat
+		tr.modulate = Color(0.78, 0.78, 0.76) if tr == _cig_rect and not cig.lit else Color.WHITE
 
 
 func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) -> void:
@@ -747,7 +747,16 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		frame = "hold"
 	elif frame == "hand2_v_mouth" and tex("hand4_cig_mouth") != null:
 		frame = "hand4_cig_mouth"
+	if cig.state == CIG.THROW and frame == "hold" and tex("hand5_cig_windup") != null:
+		# Cocked back, then the flick (the butt gone from the fingers).
+		frame = "hand5_cig_windup" if cig.t < 0.17 else "hand5_cig_flick"
+	frame = _sequence("l", frame)
 	var t := _hold_tex() if frame == "hold" else tex(frame)
+	# The in-betweens with a cigarette in them burn down with it too.
+	if frame == "hand5_cig_mid" and _hold_tex("mid") != null:
+		t = _hold_tex("mid")
+	elif frame == "hand5_cig_tap" and _hold_tex("tap") != null:
+		t = _hold_tex("tap")
 	if frame == "hand4_lighting" and (cig.lit or (cig.light_progress > 0.4 and int(floorf(_tick * FPS)) % 3 != 0)):
 		t = tex("hand4_lighting_lit") if tex("hand4_lighting_lit") != null else t
 	if t == null:
@@ -786,6 +795,23 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	elif frame == "hand2_pack":
 		x = vp.x * 0.3 - _left.size.x * 0.5
 		y = vp.y - bar - _left.size.y * 0.7 * up
+	elif frame == "hand5_pack_mouth":
+		# The pack up at your lips, one pulled out of it.
+		x = vp.x * 0.5 - _left.size.x * 0.5
+		y = vp.y - bar - _left.size.y * 0.88 * up
+	elif frame == "hand5_lighting_strike":
+		x = vp.x * 0.5 - 61.0 * s
+		y = vp.y - bar - _left.size.y * up
+	elif frame == "hand5_cig_mid":
+		# Halfway to your mouth.
+		x = vp.x * 0.3 - _left.size.x * 0.5
+		y = vp.y - bar - _left.size.y * 0.8 * up
+	elif frame == "hand5_cig_windup":
+		x = vp.x * 0.08
+		y = vp.y - bar - _left.size.y * 0.58 * up
+	elif frame == "hand5_cig_flick":
+		x = vp.x * 0.16
+		y = vp.y - bar - _left.size.y * 0.74 * up
 	else:
 		x = vp.x * 0.1
 		y = vp.y - bar - _left.size.y * 0.66 * up
@@ -794,7 +820,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	if _strike_kick > 0:
 		pos.y += 2.0 * s
 		_strike_kick -= 1
-	if _tap_kick > 0:
+	if _tap_kick > 0 and frame != "hand5_cig_tap":
 		# The finger knocks the ash off: down sharply, back a little past.
 		pos.y += (3.0 if _tap_kick > 1 else -1.0) * s
 		_tap_kick -= 1
@@ -804,13 +830,13 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 			pos.y += 4.0 * s
 		elif cig.t > 0.72:
 			pos += Vector2(vp.x * 0.12, -10.0 * s)
-	if cig.state == CIG.THROW:
+	if cig.state == CIG.THROW and not frame.begins_with("hand5_cig_"):
 		pos += (Vector2(-8.0, 6.0) if cig.t < 0.15 else Vector2(46.0, -34.0)) * s
 	# Drinking, the cigarette hand drops out of the way (and comes back up after).
 	if bottle.state == BOTTLE.DRINK or (bottle.state == BOTTLE.FOAM and Input.is_action_pressed("drink")):
 		if cig.state in [CIG.HOLD, CIG.EXHALE]:
 			pos += Vector2(-6.0 * s, _left.size.y * 0.42)
-	_left.position = _ease("l", pos, s)
+	_left.position = pos.floor()
 	# The cigarette in your mouth: from the bottom middle, its tip where the lighter is.
 	if mouth or (cig.state == CIG.DRAG and frame != "hand4_cig_mouth"):
 		_lay_lips(vp, s, bar, bob, false)
@@ -827,7 +853,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 			_flame.position = (a0 - Vector2(_flame.size.x * 0.5, _flame.size.y * 0.92)).floor()
 			_flame.z_index = 2
 			_flame.visible = true
-	if cig.state == CIG.LIPS and cig.flame > 0:
+	if cig.state == CIG.LIPS and cig.flame > 0 and frame != "hand5_lighting_strike":
 		var ff := "flame_sparks"
 		if cig.flame == 2:
 			var wind := float(_env().get("wind", 0.0))
@@ -872,11 +898,11 @@ var _tips: Dictionary = {}
 
 
 ## The hand holding the cigarette at its stage now (null: not made).
-func _hold_tex() -> Texture2D:
+func _hold_tex(pic := "hold") -> Texture2D:
 	var n := _hold_stage()
-	var t := tex("cig/hold_" + n)
+	var t := tex("cig/%s_%s" % [pic, n])
 	if t == null and n.ends_with("_out"):
-		t = tex("cig/hold_" + n.trim_suffix("_out"))
+		t = tex("cig/%s_%s" % [pic, n.trim_suffix("_out")])
 	return t
 
 
@@ -961,6 +987,13 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 		frame = "hand4_beer_drink"
 	elif frame == "hand2_beer_tilt":
 		frame = "hand4_beer_raise" if tex("hand4_beer_raise") != null else ("hand4_beer_drink" if tex("hand4_beer_drink") != null else "hand2_beer_drink")
+	if bottle.state == BOTTLE.OPENING and tex("hand5_beer_lever") != null:
+		# Straining at the cap: the two pictures in turn, faster as it gives.
+		var rate := 3 if bottle.t < bottle.open_need * 0.6 else 2
+		frame = "hand5_beer_lever" if int(step / rate) % 2 == 1 else "hand2_beer_opening"
+	if bottle.state == BOTTLE.THROW and tex("hand5_beer_windup") != null:
+		frame = "hand5_beer_windup" if bottle.t < 0.17 else "hand5_beer_throw"
+	frame = _sequence("r", frame)
 	var t := tex(frame)
 	if t == null:
 		_right.visible = false
@@ -983,11 +1016,21 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 	elif frame == "hand2_beer_drink":
 		x = vp.x * 0.5 - _right.size.x * 0.5
 		y = vp.y - bar - _right.size.y * 0.95 * up
-	elif frame == "hand2_beer_opening":
+	elif frame in ["hand2_beer_opening", "hand5_beer_lever", "hand5_beer_pop"]:
 		x = vp.x * 0.5 - _right.size.x * 0.5
 		y = vp.y - bar - _right.size.y * 0.8 * up
-		# Straining at the cap.
-		x += (2.0 if int(step) % 2 == 0 else -1.0) * s
+		if frame != "hand5_beer_pop":
+			# Straining at the cap.
+			x += (2.0 if int(step) % 2 == 0 else -1.0) * s
+	elif frame == "hand5_beer_gulp":
+		x = vp.x * 0.5 - _right.size.x * 0.5
+		y = vp.y - bar - _right.size.y * 0.97 * up
+	elif frame == "hand5_beer_windup":
+		x = vp.x * 0.6
+		y = vp.y - bar - _right.size.y * 0.98 * up
+	elif frame == "hand5_beer_throw":
+		x = vp.x * 0.5 - _right.size.x * 0.45
+		y = vp.y - bar - _right.size.y * 0.85 * up
 	elif frame == "hand2_beer_foam":
 		x += (1.0 if int(step) % 2 == 0 else -1.0) * s
 	var pos := Vector2(x, y) + bob
@@ -1004,13 +1047,13 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 	if bottle.state == BOTTLE.FOAM and _foam_t <= 0.0 and frame == "hand2_beer_foam":
 		_foam_t = 0.32
 		_foam_drip()
-	if bottle.state == BOTTLE.THROW:
+	if bottle.state == BOTTLE.THROW and not frame.begins_with("hand5_beer_"):
 		pos += (Vector2(10.0, 8.0) if bottle.t < 0.15 else Vector2(-30.0, -60.0)) * s
 	if _toast > 0:
 		# Na zdravi: out and up towards the other bottle, a knock, back.
 		pos += Vector2(-28.0, -26.0) * s * (1.0 if _toast > 2 else 0.4)
 		_toast -= 1
-	_right.position = _ease("r", pos, s)
+	_right.position = pos.floor()
 
 
 ## A cigarette from your pack for the other warden: the pack held out to them, one less
@@ -1025,9 +1068,49 @@ func _offer_cig() -> void:
 	_say("You offer %s a Start." % Coop.partner_name())
 
 
-## Where a hand is, moving towards where it should be: half the way each step (twelve a
-## second), so it glides up to your mouth and back down in a few frames instead of
-## jumping, and lands with a little settle.
+## The hands are animated like a Build-engine weapon: whole pictures, each held for a
+## whole number of frames at twelve a second, never a glide between two places. Going
+## from one pose to another plays the drawn in-between (the hand halfway to your mouth,
+## the pack at your lips); a flick of the wheel, a tap of the ash, a swallow, the cap
+## popping are frames of their own pushed in for a beat.
+const FRAME_TICKS := 2
+## (from, to) -> the pictures between them.
+const BETWEEN := {
+	"hold>hand4_cig_mouth": ["hand5_cig_mid"], "hand4_cig_mouth>hold": ["hand5_cig_mid"],
+	"hand2_pack>hand4_lighting": ["hand5_pack_mouth"],
+	"hand4_lighting>hand4_cig_mouth": [], "hand4_cig_mouth>hand4_lighting": [],
+	"hand2_beer_open>hand4_beer_raise": [], "hand4_beer_drink>hand2_beer_open": ["hand4_beer_raise"],
+}
+var _seq_q := {"l": [], "r": []}
+var _seq_to := {"l": "", "r": ""}
+
+
+## A picture pushed in for `ticks` frames (if it is drawn).
+func _push(side: String, frame: String, ticks: int) -> void:
+	if tex(frame) == null:
+		return
+	(_seq_q[side] as Array).push_front([frame, ticks])
+
+
+## The picture to show this frame for a hand that should be in `want`.
+func _sequence(side: String, want: String) -> String:
+	if want != _seq_to[side]:
+		var key := "%s>%s" % [_seq_to[side], want]
+		for f in BETWEEN.get(key, []):
+			if tex(str(f)) != null:
+				(_seq_q[side] as Array).append([str(f), FRAME_TICKS])
+		_seq_to[side] = want
+	var q: Array = _seq_q[side]
+	if q.is_empty():
+		return want
+	var head: Array = q[0]
+	head[1] = int(head[1]) - 1
+	if int(head[1]) <= 0:
+		q.pop_front()
+	return str(head[0])
+
+
+## (The glide is gone: a hand is where its frame puts it.)
 var _eased: Dictionary = {}
 
 
