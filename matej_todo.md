@@ -42,12 +42,14 @@ Podlesí po cestě. Poznámky z testů piš do sekce **Poznámky z testů**, úk
 
 ## Úkoly
 
-- [ ] **Zvuky Karosy a Podlesí ještě nejsou vygenerované**: v `tools/audiogen/.env` je
-      ID klíče, ne klíč (ElevenLabs: „API key ID used as API key“). Pravý klíč začíná
-      `sk_` a ElevenLabs ho ukáže jen jednou při vytvoření (Developers → API Keys →
-      Create API key). Až tam bude pravý, stačí:
-      `python tools/audiogen/gen.py karosa_cruise karosa_climb karosa_rattle karosa_wind karosa_gear karosa_pothole karosa_indicator karosa_stop_bell karosa_gravel karosa_truck bus_radio_polka bus_cough bus_newspaper hamlet_day hamlet_night ruin_creak car_crank_fail car_click car_start car_idle hammer_hit fuel_pour siphon battery_clunk spark stocking garage_door pick_up`
-      Kód je na ně připravený (do té doby hraje starý ride.mp3 a v Podlesí je ticho).
+- [ ] **Poslechnout nové zvuky** (vygenerované přes ElevenLabs, nikdo je ještě neslyšel):
+      motor Karosy (`karosa_cruise`, stoupání `karosa_climb`), drnčení, průvan, řazení,
+      výmoly, STOP bzučák, štěrk na zastávce, náklaďák, dechovka z rádia
+      (`radio_polka` – neměla by mít zpěv), kašel, noviny; Podlesí den/noc, startování
+      Škody, volnoběh, benzín, sifon, baterie, jiskra, silonky, kladivo, vrzání.
+      Co se nelíbí: upravit prompt v `tools/audiogen/prompts.tsv` a
+      `python tools/audiogen/gen.py <id> --force`. Hlasitosti jsou v `bus_ride.gd`
+      (`_depart`, `_process`) a `hamlet_trip.gd`.
 - [ ] Co-op: Podlesí a oprava auta zatím jen pro jednoho; druhý správce tě tam uvidí,
       ale díly a stav auta se nesdílí a autobus v Podlesí na něj nečeká
 - [ ] Opravená Škoda zatím jen stojí a kouří; chtělo by to odměnu navíc (svézt se
@@ -82,5 +84,7 @@ Podlesí po cestě. Poznámky z testů piš do sekce **Poznámky z testů**, úk
   startér kladivem, klíček → Vondra dá $50
 - Stožáry Liblice B i z okna autobusu (před Lesnou rostou nad poli, cestou zpět za vámi)
 - Pomník padlým: PADLÝM a letopočty vytesané do kamene; stříška benzinky z betonu
-- Zvuky Karosy v kódu: motor, drnčení, průvan, řazení, výmoly, protijedoucí náklaďák,
-  řidičovo rádio s dechovkou, kašel, noviny (čekají na vygenerování)
+- Zvuky Karosy a Podlesí vygenerované (ElevenLabs, 28 kusů): motor na rovině
+  a do kopce z údolí od jezera, drnčení sílící na výmolech, průvan, řazení, výmoly,
+  protijedoucí náklaďák, řidičovo rádio s dechovkou, kašel, noviny, STOP bzučák;
+  Podlesí ve dne a v noci, celá oprava Škody i její volnoběh

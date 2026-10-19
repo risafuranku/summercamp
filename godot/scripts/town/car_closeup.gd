@@ -46,7 +46,14 @@ func _has() -> Dictionary:
 	return state.get("has", {})
 
 
+var _lid_creaked := false
+
+
 func _opened() -> void:
+	# The engine lid creaks up the first time.
+	if not _lid_creaked:
+		_lid_creaked = true
+		_snd("garage_door.mp3")
 	var car := _car()
 	if bool(car.get("running", false)):
 		say("", "She runs. Rough, loud, alive.", false)

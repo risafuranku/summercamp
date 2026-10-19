@@ -74,6 +74,9 @@ var _radio: AudioStreamPlayer
 var _two: AudioStreamPlayer
 var _gear_at := 0
 var _life_t := 9.0
+## Which engine loop is on: "cruise", or "climb" up through the forest out of the
+## lake's valley going to town.
+var _engine := ""
 ## The speeds where the gearbox crunches into the next gear (m/s).
 const GEARS := [4.0, 8.5, 13.0]
 
@@ -437,6 +440,7 @@ func _process(delta: float) -> void:
 			_wind.volume_db = lerpf(-40.0, -17.0, sp)
 			_wind.pitch_scale = lerpf(0.8, 1.1, sp)
 		_update_life(delta)
+		_update_engine()
 	_update_bumps(delta)
 	_update_swing(delta)
 	if _glass != null:
@@ -618,6 +622,8 @@ func _depart() -> void:
 	_ride.stream = _loop(_sfx("karosa_cruise.mp3", "ride.mp3"))
 	_ride.volume_db = -12.0
 	_ride.play()
+	# _update_engine picks the loop for the road it pulls away on.
+	_engine = ""
 	for pair in [[_rattle, "karosa_rattle.mp3"], [_wind, "karosa_wind.mp3"]]:
 		var player: AudioStreamPlayer = pair[0]
 		var st := _sfx(str(pair[1]))
@@ -691,6 +697,26 @@ func _shift(was: float) -> void:
 	if _gear_at < GEARS.size() and was < float(GEARS[_gear_at]) and _speed >= float(GEARS[_gear_at]):
 		_gear_at += 1
 		_play_two("karosa_gear.mp3", -8.0)
+
+
+## The engine loop by the road: labouring up through the forest above the camp on the
+## way out (the old Karosa in a low gear), droning along the flat after; a gear crunch
+## covers the change.
+func _update_engine() -> void:
+	if _state != RIDING:
+		return
+	var kind := str(_scenery._kind_at(_scenery.travelled))
+	var want := "climb" if _scenery.to_town and kind in ["forest", "forest_cross"] and _scenery.travelled < 300.0 else "cruise"
+	if want == _engine:
+		return
+	var st := _sfx("karosa_%s.mp3" % want, "ride.mp3")
+	if st == null:
+		return
+	if _engine != "":
+		_play_two("karosa_gear.mp3", -8.0)
+	_engine = want
+	_ride.stream = _loop(st)
+	_ride.play()
 
 
 ## The life on board: a cough, a newspaper, now and then.
