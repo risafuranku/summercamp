@@ -72,77 +72,12 @@ const KEY_HIT := Rect2(-6, -2, 13, 24)
 const TAPE := {"tent": Color8(40, 104, 52), "cabin": Color8(170, 34, 30), "caravan": Color8(36, 66, 150)}
 ## The label maker on the desk, by the stamps.
 const DYMO := Rect2(422, 222, 52, 42)
-## The keys, drawn pixel by pixel (o steel ring, d/b/h brass, s/m/w nickel, k/K plastic).
-const KEY_ART := {
-	"cabin": [
-		"....oOo....",
-		"...o...o...",
-		"...O...o...",
-		"...o...o...",
-		"....ooo....",
-		"...dbbbd...",
-		"..dbhhhbd..",
-		".dbh...bbd.",
-		".dh.....bd.",
-		".db.....bd.",
-		".dbb...bdd.",
-		"..dbbbbbd..",
-		"...ddbdd...",
-		".....bd....",
-		".....hd....",
-		".....bd....",
-		".....bd....",
-		".....bdddd.",
-		".....bhbbd.",
-		".....bdbd..",
-		".....bd....",
-	],
-	"tent": [
-		"...oOo...",
-		"..o...o..",
-		"..O...o..",
-		"...ooo...",
-		"..smmms..",
-		".smwwwms.",
-		".smw.wms.",
-		".smwwwms.",
-		"..smmms..",
-		"....m....",
-		"...smw...",
-		"....mw...",
-		"...smw...",
-		"....mw...",
-		"...smw...",
-		"....ms...",
-	],
-	"caravan": [
-		"....oOo....",
-		"...o...o...",
-		"...O...o...",
-		"....ooo....",
-		"..kkkkkkk..",
-		".kKKKKKKKk.",
-		".kKk...kKk.",
-		".kKKKKKKKk.",
-		".kKKKKKKKk.",
-		"..kkkkkkk..",
-		"....mwws...",
-		"....mwws...",
-		"....mwwss..",
-		"....mwws...",
-		"....mwwss..",
-		"....mwws...",
-		"....mwwss..",
-		"....mwws...",
-		"....mws....",
-		"....ms.....",
-	],
-}
-const KEY_INK := {
-	"o": Color8(140, 140, 148), "O": Color8(206, 206, 214),
-	"d": Color8(116, 80, 28), "b": Color8(192, 150, 58), "h": Color8(242, 212, 120),
-	"s": Color8(92, 96, 104), "m": Color8(160, 166, 174), "w": Color8(226, 230, 234),
-	"k": Color8(22, 22, 26), "K": Color8(66, 66, 74),
+## The keys on their rings (Grok, assets/textury/camp/key_*.png): a brass bit key for a
+## cabin, a little nickel one for a tent's padlock, a Yale with a black head for a caravan.
+const KEY_TEX := {
+	"cabin": "res://assets/textury/camp/key_cabin.png",
+	"tent": "res://assets/textury/camp/key_tent.png",
+	"caravan": "res://assets/textury/camp/key_caravan.png",
 }
 const ROW_Y0 := 144.0
 const ROW_H := 12.0
@@ -259,6 +194,7 @@ var _scare_cool_until := -INF     # (day * 24 + hour) before another may show
 
 func _init() -> void:
 	layer = 140
+	add_to_group("closeup")  # the hands are on it (pockets.gd)
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
@@ -1326,7 +1262,9 @@ func _draw_book(c: Control) -> void:
 	for i in range(start, _history.size()):
 		rows.append(_history[i])
 	var current := {}
-	if not _guest.is_empty() and (bool(_p.get("written_card", false)) or bool(_p.get("written_slip", false))):
+	# Walking off, their line is in the history already (_leave): not a second time.
+	var at_desk := not _guest.is_empty() and _leave_then == ""
+	if at_desk and (bool(_p.get("written_card", false)) or bool(_p.get("written_slip", false))):
 		current = _row_for_current()
 	for i in rows.size():
 		_draw_row(c, i, rows[i], 1.0, 1.0)
@@ -1334,7 +1272,7 @@ func _draw_book(c: Control) -> void:
 		var a := float(_pen.get("card", 1.0)) if bool(_p.get("written_card", false)) else 0.0
 		var b := float(_pen.get("slip", 1.0)) if bool(_p.get("written_slip", false)) else 0.0
 		_draw_row(c, rows.size(), current, a, b)
-	elif not _guest.is_empty():
+	elif at_desk:
 		# The empty line waiting for them.
 		var y := ROW_Y0 + rows.size() * ROW_H
 		c.draw_rect(Rect2(BOOK.position.x + 6, y - 9, BOOK.size.x - 12, ROW_H - 1), Color(1.0, 0.95, 0.4, 0.10 + 0.05 * sin(_t * 4.0)))
@@ -1469,28 +1407,31 @@ func _draw_tabs(c: Control) -> void:
 			c.draw_rect(Rect2(r.position + Vector2(7, 2), Vector2(2, 2)), Color8(224, 52, 40))
 
 
+var _key_tex: Dictionary = {}
+
+
 func _draw_key(c: Control, ring: Vector2, k: Dictionary, lifted := false) -> void:
-	# Just the key, its ring on the hook: a brass bit key for a cabin, a little nickel one
-	# for a tent's padlock, a Yale with a black head for a caravan.
-	var art: Array = KEY_ART.get(str(k.get("kind", "")), KEY_ART["cabin"])
-	var w := str(art[0]).length()
+	# Just the key, its ring on the hook.
+	var kind := str(k.get("kind", ""))
+	if not _key_tex.has(kind):
+		var path: String = KEY_TEX.get(kind, KEY_TEX["cabin"])
+		_key_tex[kind] = load(path) if ResourceLoader.exists(path) else null
+	var t: Texture2D = _key_tex[kind]
+	if t == null:
+		return
+	var w := t.get_width()
+	var h := t.get_height()
 	var top := (ring - Vector2(floorf(w * 0.5), 1)).floor()
 	if lifted:
-		for y in art.size():
-			var row := str(art[y])
-			for x in w:
-				if row[x] != ".":
-					c.draw_rect(Rect2(top + Vector2(x + 3, y + 4), Vector2.ONE), Color(0, 0, 0, 0.3))
-	for y in art.size():
-		var row := str(art[y])
-		for x in w:
-			var ch := row[x]
-			if ch != ".":
-				# Swinging: below the ring the key leans a pixel one way, then the other.
-				var lean := 0.0
-				if y >= 4 and not lifted:
-					lean = _lean(str(k.get("key", ""))) * minf(1.0, float(y - 3) / 8.0)
-				c.draw_rect(Rect2(top + Vector2(x + roundf(lean), y), Vector2.ONE), KEY_INK[ch])
+		c.draw_texture(t, top + Vector2(3, 4), Color(0, 0, 0, 0.3))
+		c.draw_texture(t, top)
+		return
+	# Swinging: below the ring the key leans a pixel one way, then the other (a row at a
+	# time, the further down the more).
+	var lean := _lean(str(k.get("key", "")))
+	for y in h:
+		var dx := roundf(lean * minf(1.0, float(y - 3) / 8.0)) if y >= 4 else 0.0
+		c.draw_texture_rect_region(t, Rect2(top + Vector2(dx, y), Vector2(w, 1)), Rect2(0, y, w, 1))
 
 
 func _draw_dragged_key(c: Control) -> void:

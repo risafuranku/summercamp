@@ -32,6 +32,7 @@ var _told: Dictionary = {}
 
 func _ready() -> void:
 	name = "Businesses"
+	add_to_group("businesses")
 	_rng.randomize()
 
 
@@ -155,12 +156,59 @@ func _waiting_line(kind: String, waiting: Array) -> String:
 ## HUD rows for the guests waiting to be served: [{title, where}].
 func hud_rows() -> Array:
 	var rows: Array = []
-	for key in _waiting:
-		var waiting: Array = _waiting[key]
-		var kind := str(site(key).get("kind", ""))
-		var title := str((RULES.KINDS.get(kind, {}) as Dictionary).get("name", "Business"))
-		rows.append({"title": "%s: %d waiting" % [title, waiting.size()], "where": "serve them at the counter"})
+	for s in waiting_sites():
+		rows.append({"title": "%s: %d waiting for an order" % [s["title"], int(s["n"])], "where": "serve them at the counter"})
 	return rows
+
+
+## Where somebody waits to be served (the HUD's list, the paper site plan's circles):
+## [{key, coord: [x, y], title, n}].
+func waiting_sites() -> Array:
+	var out: Array = []
+	for key in _waiting:
+		var n := (_waiting[key] as Array).size()
+		var parts := str(key).split(":")
+		if n <= 0 or parts.size() < 2:
+			continue
+		var kind := str(site(key).get("kind", ""))
+		out.append({"key": str(key), "coord": [int(parts[0]), int(parts[1])], "n": n,
+			"title": str((RULES.KINDS.get(kind, {}) as Dictionary).get("name", "Business"))})
+	return out
+
+
+## How many wait to be served at `key` now (nobody behind its counter).
+func waiting_at(key: String) -> int:
+	return (_waiting.get(key, []) as Array).size()
+
+
+## Everybody waiting to be served, all the businesses together (the HUD).
+func waiting_total() -> int:
+	var n := 0
+	for k in _waiting:
+		n += (_waiting[k] as Array).size()
+	return n
+
+
+## The nearest business with somebody waiting to be served (the HUD's waypoint): {position,
+## label}, or {}.
+func waypoint(from: Vector3, grid_manager) -> Dictionary:
+	var best := {}
+	var best_d := INF
+	if grid_manager == null:
+		return best
+	for key in _waiting:
+		if (_waiting[key] as Array).is_empty():
+			continue
+		var parts := str(key).split(":")
+		if parts.size() < 2:
+			continue
+		var p: Vector3 = grid_manager.grid_to_world(Vector2i(int(parts[0]), int(parts[1])))
+		var d := from.distance_to(p)
+		if d < best_d:
+			best_d = d
+			var kind := str(site(key).get("kind", ""))
+			best = {"position": p + Vector3(0, 3.0, 0), "label": {"pub": "PUB", "rest": "BISTRO", "vecerka": "JEDNOTA", "corn": "CORN"}.get(kind, "SERVE")}
+	return best
 
 
 ## What the hands do between customers: the barman washes up, the cook fries ahead.

@@ -95,6 +95,20 @@ def main():
             failures.append("the host sees the other warden as %s, not [2, 4]" % h["partner_look"])
         if c["partner_look"] != h["my_look"]:
             failures.append("the other sees the host as %s, not %s" % (c["partner_look"], h["my_look"]))
+        # Called by their warden's name (both copies play the same warden here).
+        if not c.get("my_name") or h.get("partner_name") != c.get("my_name"):
+            failures.append("the host calls the other warden %r, not their warden's name %r" % (h.get("partner_name"), c.get("my_name")))
+        if not h.get("my_name") or c.get("partner_name") != h.get("my_name"):
+            failures.append("the other calls the host %r, not their warden's name %r" % (c.get("partner_name"), h.get("my_name")))
+    # The barrier, worked from the road by the joining warden: up and down on both.
+    hg, cg, hgd, cgd = load("host_gate"), load("client_gate"), load("host_gate_down"), load("client_gate_down")
+    if None in (hg, cg, hgd, cgd):
+        failures.append("missing barrier fingerprints")
+    else:
+        if not cg["gate_up"] or not hg["gate_up"]:
+            failures.append("the joining warden's E did not raise the barrier (theirs %s, the host's %s)" % (cg["gate_up"], hg["gate_up"]))
+        if cgd["gate_up"] or hgd["gate_up"]:
+            failures.append("the joining warden's second E did not lower it (theirs %s, the host's %s)" % (cgd["gate_up"], hgd["gate_up"]))
     # One radio: the host's song on the other set too, switched off from either.
     hr_, cr_, ho_ = load("host_radio"), load("client_radio"), load("host_radio_off")
     if hr_ is None or cr_ is None or ho_ is None:
@@ -145,6 +159,26 @@ def main():
             failures.append("the host does not see the other warden lying there (%s, %s)" % (hd["partner_down"], hd["other_pose"]))
         if cl["down"] or cl["hp"] != 35:
             failures.append("the other warden was not got up (down %s, hp %s)" % (cl["down"], cl["hp"]))
+    # The corn stand: the other warden behind it at the pot, their order in the host's books.
+    hcs = load("host_corn_stand")
+    if hcs is None or hcs["other_pose"] not in ("cook", "stand") or int(hcs["corn_orders"]) < 1:
+        failures.append("the host does not see the other warden at the corn stand or their order (%s, %s)" % ((hcs or {}).get("other_pose"), (hcs or {}).get("corn_orders")))
+    # Two in the pipes: the same network, each seen by the other, and the host's body in
+    # the other's way.
+    hp2, cp2 = load("host_pipes"), load("client_pipes")
+    if hp2 is None or cp2 is None or not hp2["pipe_net"] or not cp2["pipe_net"]:
+        failures.append("missing pipe fingerprints")
+    else:
+        if hp2["pipe_net"]["hash"] != cp2["pipe_net"]["hash"] or hp2["pipe_net"]["level"] != cp2["pipe_net"]["level"]:
+            failures.append("the two are not in the same pipes (%s / %s)" % (hp2["pipe_net"], cp2["pipe_net"]))
+        if not hp2["pipe_net"]["mate_seen"] or not cp2["pipe_net"]["mate_seen"]:
+            failures.append("in the pipes they do not see each other (host %s, other %s)" % (hp2["pipe_net"]["mate_seen"], cp2["pipe_net"]["mate_seen"]))
+        if "boots" not in cp2["pipe_net"]["status"] and "torch" not in cp2["pipe_net"]["status"]:
+            failures.append("the other crawled through the host (%s)" % cp2["pipe_net"]["status"])
+    # In the pub: the host at the tap is seen behind the bar pulling a beer.
+    cpt = load("client_pub_tap")
+    if cpt is None or cpt["room_figure"] not in ("tap", "stand") or not cpt["fig_behind_bar"]:
+        failures.append("the other warden does not see the host behind the bar at the tap (%s)" % ((cpt or {}).get("room_figure"), ))
     # The room: the other's job done in the host's camp, the host's back in the other's.
     hr, cr = load("host_room"), load("client_room")
     if hr is None or cr is None:
@@ -160,7 +194,7 @@ def main():
     hs = load("host_sees_work")
     if hs is None or hs["room_figure"] not in ("sweep", "crouch", "stand"):
         failures.append("the host does not see the other warden at their job (%s)" % (hs or {}).get("room_figure"))
-    elif cr is not None and hs["coop_taken"] != cr["task"]:
+    elif cr is not None and cr["task"] not in hs["coop_taken"]:
         failures.append("the other warden's job (%s) is not locked for the host (%s)" % (cr["task"], hs["coop_taken"]))
     for tag in ("host_tent", "client_tent"):
         ft = load(tag)
@@ -206,6 +240,16 @@ def main():
             failures.append("the mail the other warden read is not read in the host's inbox %s" % ha["mail"])
         if ha["mail"] != cg["mail"]:
             failures.append("the mail differs (host %s, other %s)" % (ha["mail"], cg["mail"]))
+        # The back office: the host's lost and found on the other machine, put up from there.
+        hb, cb, ab = hg["books"], cg["books"], ha["books"]
+        if hb["box"] + len(hb["listed"]) < 2 or cb["box"] + len(cb["listed"]) != hb["box"] + len(hb["listed"]):
+            failures.append("the lost and found differs (host %s, other %s)" % (hb, cb))
+        if len(ab["listed"]) < 1:
+            failures.append("what the other warden put up on the bazaar is not up at the host's %s" % ab)
+        if hb["quests"] or cb["quests"]:
+            failures.append("Vera's checklist runs in a sandbox camp (host %s, other %s)" % (hb["quests"], cb["quests"]))
+        if hb["rev"] != cb["rev"] or hb["bills"] != cb["bills"]:
+            failures.append("the reviews or bills differ (host %s, other %s)" % (hb, cb))
     # The delivery at the host's gate: the other sees it, signs for it, and it is done in the host's camp.
     cde, cdd, hdd = load("client_day_event"), load("client_day_done"), load("host_day_done")
     if cde is None or cdd is None or hdd is None:
@@ -242,7 +286,7 @@ def main():
     if he is None or ce is None:
         failures.append("missing night enemy fingerprints")
     else:
-        if not any(t.endswith(":other") for t in he["night_targets"]):
+        if not any(not t.endswith(":host") and not t.endswith(":?") for t in he["night_targets"]):
             failures.append("the host's enemy does not hunt the other warden %s" % he["night_targets"])
         if ce["mirror"] < 1:
             failures.append("the other machine does not show the host's enemy (%s)" % ce["mirror"])

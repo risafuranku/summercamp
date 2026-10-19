@@ -85,8 +85,9 @@ const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const MATE_WAIT := 15.0
 ## Where the stop is in the camp's world (town_trip sets it): "near the stop" is from here.
 var stop_pos := Vector3.INF
-var _mate: Sprite3D
-var _mate_pose := ""
+## The other wardens on this bus: peer id -> their figure, and the picture it shows.
+var _mates: Dictionary = {}
+var _mate_poses: Dictionary = {}
 var _mate_wait := 0.0
 var _mate_said := false
 
@@ -199,17 +200,24 @@ func coop_state() -> Dictionary:
 	return {"st": stop, "s": _seat, "go": _state in [RIDING, STOPPING, DONE]}
 
 
-## The other warden on a bus (their coop_state), or {}.
-func _mate_info() -> Dictionary:
-	if not Coop.has_partner():
-		return {}
-	var b = Coop.partner_state.get("bus", {})
-	return b if b is Dictionary else {}
+## The other wardens on a bus (their coop_state): peer id -> it.
+func _mates_info() -> Dictionary:
+	var out := {}
+	for id in Coop.others():
+		var b = Coop.state_of(id).get("bus", {})
+		if b is Dictionary and not (b as Dictionary).is_empty():
+			out[int(id)] = b
+	return out
 
 
-func _mate_aboard() -> bool:
-	var m := _mate_info()
-	return not m.is_empty() and str(m.get("st", "")) == stop and not bool(m.get("go", false))
+## Another warden aboard this bus at the stop, not gone yet (`seat`: in that seat).
+func _mate_aboard(seat := -2) -> bool:
+	var all := _mates_info()
+	for id in all.keys():
+		var m: Dictionary = all[id]
+		if str(m.get("st", "")) == stop and not bool(m.get("go", false)) and (seat == -2 or int(m.get("s", -1)) == seat):
+			return true
+	return false
 
 
 # ── in and out ───────────────────────────────────────────────────────────────
@@ -591,8 +599,7 @@ func _try_sit(i: int) -> void:
 	if problem != "":
 		_say("Driver: \"%s\"" % problem, 3.5)
 		return
-	var m := _mate_info()
-	if _mate_aboard() and int(m.get("s", -1)) == i:
+	if _mate_aboard(i):
 		_say("Driver: \"That one's taken. Look.\"", 3.0)
 		return
 	_seat = i
@@ -744,21 +751,26 @@ func _play_two(file: String, db: float) -> void:
 		_two.play()
 
 
-## Co-op: may it go? The other warden on board: once they sit (or it went for them).
-## Near the stop outside: a moment for them. Elsewhere, or alone: at once.
+## Co-op: may it go? Wardens on board: once every one of them sits (or it went for
+## them). One near the stop outside: a moment for them. Elsewhere, or alone: at once.
 func _mate_ready(delta: float) -> bool:
 	if not Coop.has_partner():
 		return true
-	var m := _mate_info()
-	if not m.is_empty() and str(m.get("st", "")) == stop:
-		if int(m.get("s", -1)) >= 0 or bool(m.get("go", false)):
-			return true
-		_driver_waits()
-		return false
-	var p: Vector3 = Coop.partner_state.get("p", Vector3.INF)
-	var near := stop_pos != Vector3.INF and p != Vector3.INF and not bool(Coop.partner_state.get("in", false)) \
-		and Vector2(p.x - stop_pos.x, p.z - stop_pos.z).length() < 30.0
-	if near and _mate_wait < MATE_WAIT:
+	var all := _mates_info()
+	var someone_near := false
+	for id in Coop.others():
+		var m: Dictionary = all.get(id, {})
+		if not m.is_empty() and str(m.get("st", "")) == stop:
+			if int(m.get("s", -1)) < 0 and not bool(m.get("go", false)):
+				_driver_waits()
+				return false
+			continue
+		var st: Dictionary = Coop.state_of(id)
+		var p: Vector3 = st.get("p", Vector3.INF)
+		if stop_pos != Vector3.INF and p != Vector3.INF and not bool(st.get("in", false)) \
+				and Vector2(p.x - stop_pos.x, p.z - stop_pos.z).length() < 30.0:
+			someone_near = true
+	if someone_near and _mate_wait < MATE_WAIT:
 		_mate_wait += delta
 		_driver_waits()
 		return false
@@ -772,46 +784,62 @@ func _driver_waits() -> void:
 	_say("Driver: \"Your mate coming or what?\"", 3.5)
 
 
-## The other warden on this bus: standing by the door till they sit, then in their seat,
-## seen from the front or (you behind them) from the back.
+## The other wardens on this bus: standing by the door till they sit (one behind another),
+## then in their seats, seen from the front or (you behind them) from the back.
 func _update_mate() -> void:
-	var m := _mate_info()
-	# On the same run: both still at the stop, or both gone.
-	var here := not m.is_empty() and str(m.get("st", "")) == stop and bool(m.get("go", false)) == (_state in [RIDING, STOPPING, DONE])
-	if not here:
-		if _mate != null:
-			_mate.visible = false
-		return
-	if _mate == null:
-		_mate = Sprite3D.new()
-		_mate.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-		_mate.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		_mate.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-		_mate.shaded = true
-		_mate.layers = 2
-		_vp.add_child(_mate)
-		_mate_pose = ""
+	var all := _mates_info()
+	var standing := 0
+	for id in Coop.others():
+		var m: Dictionary = all.get(id, {})
+		# On the same run: both still at the stop, or both gone.
+		var here := not m.is_empty() and str(m.get("st", "")) == stop and bool(m.get("go", false)) == (_state in [RIDING, STOPPING, DONE])
+		var fig: Sprite3D = _mates.get(id)
+		if not here:
+			if fig != null and is_instance_valid(fig):
+				fig.visible = false
+			continue
+		if int(m.get("s", -1)) < 0:
+			standing += 1
+		_show_mate(int(id), m, standing)
+	for id in _mates.keys():
+		if not Coop.wardens.has(id) and is_instance_valid(_mates[id]):
+			_mates[id].visible = false
+
+
+func _show_mate(id: int, m: Dictionary, nth_standing: int) -> void:
+	var fig: Sprite3D = _mates.get(id)
+	if fig == null or not is_instance_valid(fig):
+		fig = Sprite3D.new()
+		fig.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		fig.shaded = true
+		fig.layers = 2
+		_vp.add_child(fig)
+		_mates[id] = fig
+		_mate_poses[id] = ""
 	var seat := int(m.get("s", -1))
-	var pos := Vector3(0.25, 0.0, -2.95)
+	# By the driver, the next one a step back down the aisle.
+	var pos := Vector3(0.25, 0.0, -2.95 + 0.55 * float(maxi(0, nth_standing - 1)))
 	var pose := "stand"
 	if seat >= 0 and seat < SEATS.size():
 		var sv: Vector2 = SEATS[seat]
 		pos = Vector3(sv.x, 0.0, sv.y)
 		# The bus faces -z: sat behind them you see their back.
 		pose = "desk" if _cam.position.z > sv.y + 0.2 else "sit"
-	var look: Dictionary = Coop.partner_look
+	var look: Dictionary = Coop.look_of(id)
 	var key := "%s|%d|%d" % [pose, int(look.get("m", 1)), int(look.get("c", 0))]
-	if key != _mate_pose:
-		_mate_pose = key
+	if key != str(_mate_poses.get(id, "")):
+		_mate_poses[id] = key
 		var tex: Texture2D = LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), pose)
-		_mate.texture = tex
+		fig.texture = tex
 		if tex != null:
-			_mate.pixel_size = 1.62 / float(tex.get_height())
-			_mate.offset = Vector2(0.0, tex.get_height() * 0.5)
-	_mate.position = pos
-	if pose != "stand" and _mate.texture != null:
-		_place_seated(_mate, seat)
-	_mate.visible = true
+			fig.pixel_size = 1.62 / float(tex.get_height())
+			fig.offset = Vector2(0.0, tex.get_height() * 0.5)
+	fig.position = pos
+	if pose != "stand" and fig.texture != null:
+		_place_seated(fig, seat)
+	fig.visible = true
 
 
 func _seat_pos() -> Vector3:

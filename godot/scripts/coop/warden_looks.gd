@@ -1,20 +1,26 @@
 extends RefCounted
 
-## The co-op wardens' looks (the CO-OP page: the warden and the colour of their jacket).
+## The wardens' looks (the WARDENS page in the menu: the figure and the colour of the
+## jacket, kept with the warden in scripts/profiles.gd; the other warden sees it in co-op).
 ## Four wardens (Grok, assets/textury/npc/warden_a..d.png), each drawn in thirteen poses:
 ## standing, rowing (the lake boat), sweeping and down on one knee scrubbing (the rooms'
 ## jobs), lying on their belly (in a tent), at the PC from behind (over the shoulder;
 ## also on a bus seat seen from behind), sitting from the front (the bus, the benches),
 ## and at the attractions (scripts/attractions/warden_play.gd): the guitar and a sausage
 ## by the fire, a kick at the net, the bat at the table, up the slide's ladder from
-## behind, on the swing holding the chains. A jacket colour is the jacket's own pixels moved to another hue, with their
+## behind, on the swing holding the chains; flat in a pipe crawling (the sewer, for two:
+## scripts/pipes/pipe_mate.gd) from behind, from in front and from the side. A jacket colour is the jacket's own pixels moved to another hue, with their
 ## shading kept (each warden has the hue band and the part of the picture its jacket is
 ## in); the original jacket is one of the colours. Textures are made once and kept.
 
 const DIR := "res://assets/textury/npc/"
 const LETTERS := ["a", "b", "c", "d"]
+## The figures' own names: what the other warden is called when their machine sends no
+## warden's name (the warden's name is the player's, scripts/profiles.gd).
 const NAMES := ["Pepa", "Ondra", "Jana", "Bara"]
-const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk", "sit", "guitar", "eat", "kick", "bat", "climb", "swing", "write", "bed", "bedfoot", "fix", "fish", "saw", "bag"]
+## The figures as the WARDENS page lists them.
+const FIGURES := ["Windbreaker", "Red anorak", "Ponytail", "Glasses"]
+const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk", "sit", "guitar", "eat", "kick", "bat", "climb", "swing", "write", "bed", "bedfoot", "fix", "fish", "saw", "bag", "tap", "pour", "wash", "cook", "till", "crawl_back", "crawl_front", "crawl_side"]
 
 ## Where each warden's jacket is: hue band (degrees, may wrap past 360), the least
 ## saturation and brightness that count (Ondra's red: the outline round the whole
@@ -22,13 +28,13 @@ const POSES := ["stand", "row", "sweep", "crouch", "prone", "desk", "sit", "guit
 ## per pose, and boxes of it to leave alone ([x0, y0, x1, y1], 0..1; boots in the air).
 ## (Above the boots: Pepa's rubber boots are green too, Ondra's brown ones nearly red.)
 const JACKETS := [
-	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.68], "sweep": [0.0, 0.72], "crouch": [0.0, 0.72], "prone": [0.0, 1.0], "desk": [0.0, 0.7], "sit": [0.0, 0.68], "guitar": [0.0, 0.68], "eat": [0.0, 0.68], "kick": [0.0, 0.6], "bat": [0.0, 0.6], "climb": [0.0, 0.55], "swing": [0.0, 0.55]},
-		"out": {"prone": [[0.55, 0.0, 1.0, 0.37]], "kick": [[0.78, 0.2, 1.0, 0.55]], "bed": [[0.8, 0.0, 1.0, 1.0]]}},
-	{"hue": [338.0, 18.0], "sat": 0.42, "vmin": 0.16, "band": {"stand": [0.12, 0.6], "row": [0.0, 0.66], "sweep": [0.0, 0.62], "crouch": [0.0, 0.8], "prone": [0.3, 1.0], "desk": [0.0, 0.82], "sit": [0.2, 0.66], "guitar": [0.2, 0.66], "eat": [0.2, 0.66], "kick": [0.16, 0.62], "bat": [0.16, 0.62], "climb": [0.0, 0.62], "swing": [0.2, 0.66]},
-		"out": {"eat": [[0.24, 0.12, 0.62, 0.32]], "guitar": [[0.0, 0.42, 0.44, 0.72]], "bat": [[0.0, 0.22, 0.2, 0.42]]}},
-	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.7], "sweep": [0.0, 0.7], "crouch": [0.0, 0.86], "prone": [0.0, 1.0], "desk": [0.0, 1.0], "sit": [0.0, 1.0], "kick": [0.0, 0.62], "bat": [0.0, 0.62], "climb": [0.0, 0.72]},
-		"out": {"prone": [[0.6, 0.0, 1.0, 0.36]], "bed": [[0.82, 0.0, 1.0, 1.0]]}},
-	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.1, 0.62], "row": [0.0, 0.78], "sweep": [0.0, 0.7], "crouch": [0.0, 0.84], "prone": [0.0, 1.0], "desk": [0.0, 1.0], "sit": [0.0, 1.0], "kick": [0.0, 0.62], "bat": [0.0, 0.62], "climb": [0.0, 0.72]}},
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.68], "sweep": [0.0, 0.72], "crouch": [0.0, 0.72], "prone": [0.0, 1.0], "desk": [0.0, 0.7], "sit": [0.0, 0.68], "guitar": [0.0, 0.68], "eat": [0.0, 0.68], "kick": [0.0, 0.6], "bat": [0.0, 0.6], "climb": [0.0, 0.55], "swing": [0.0, 0.55], "fix": [0.0, 0.6], "fish": [0.0, 0.6], "saw": [0.0, 0.75], "bag": [0.0, 0.75], "tap": [0.0, 0.6], "pour": [0.0, 0.6], "wash": [0.0, 0.6], "cook": [0.0, 0.6], "till": [0.0, 0.6], "crawl_back": [0.0, 0.58], "crawl_front": [0.0, 1.0], "crawl_side": [0.0, 1.0]},
+		"out": {"crawl_front": [[0.28, 0.0, 0.72, 0.3]], "crawl_side": [[0.0, 0.0, 0.24, 1.0]], "prone": [[0.55, 0.0, 1.0, 0.37]], "kick": [[0.78, 0.2, 1.0, 0.55]], "bed": [[0.8, 0.0, 1.0, 1.0]], "saw": [[0.0, 0.5, 0.4, 1.0], [0.45, 0.55, 0.72, 1.0]], "bag": [[0.2, 0.62, 0.62, 1.0]]}},
+	{"hue": [338.0, 10.0], "sat": 0.42, "vmin": 0.16, "band": {"stand": [0.12, 0.6], "row": [0.0, 0.66], "sweep": [0.0, 0.62], "crouch": [0.0, 0.8], "prone": [0.3, 1.0], "desk": [0.0, 0.82], "sit": [0.2, 0.66], "guitar": [0.2, 0.66], "eat": [0.2, 0.66], "kick": [0.16, 0.62], "bat": [0.16, 0.62], "climb": [0.0, 0.62], "swing": [0.2, 0.66], "fix": [0.16, 0.62], "fish": [0.16, 0.62], "saw": [0.04, 0.8], "bag": [0.04, 0.8], "tap": [0.04, 0.8], "pour": [0.04, 0.8], "wash": [0.04, 0.8], "cook": [0.04, 0.8], "till": [0.04, 0.8], "crawl_back": [0.1, 0.62], "crawl_front": [0.0, 1.0], "crawl_side": [0.0, 1.0]},
+		"out": {"crawl_front": [[0.8, 0.3, 1.0, 0.62]], "crawl_side": [[0.0, 0.0, 0.22, 1.0]], "eat": [[0.24, 0.12, 0.62, 0.32]], "guitar": [[0.0, 0.42, 0.44, 0.72]], "bat": [[0.0, 0.22, 0.2, 0.42]]}},
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.14, 0.6], "row": [0.0, 0.7], "sweep": [0.0, 0.7], "crouch": [0.0, 0.86], "prone": [0.0, 1.0], "desk": [0.0, 1.0], "sit": [0.0, 1.0], "kick": [0.0, 0.62], "bat": [0.0, 0.62], "climb": [0.0, 0.72], "fix": [0.0, 0.72], "fish": [0.0, 0.72], "saw": [0.0, 0.72], "bag": [0.0, 0.72], "tap": [0.0, 0.72], "pour": [0.0, 0.72], "wash": [0.0, 0.72], "cook": [0.0, 0.72], "till": [0.0, 0.72], "crawl_back": [0.0, 0.55], "crawl_front": [0.0, 1.0], "crawl_side": [0.0, 1.0]},
+		"out": {"crawl_front": [[0.2, 0.0, 0.8, 0.22]], "crawl_side": [[0.0, 0.0, 0.2, 1.0]], "prone": [[0.6, 0.0, 1.0, 0.36]], "bed": [[0.82, 0.0, 1.0, 1.0]]}},
+	{"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.1, 0.62], "row": [0.0, 0.78], "sweep": [0.0, 0.7], "crouch": [0.0, 0.84], "prone": [0.0, 1.0], "desk": [0.0, 1.0], "sit": [0.0, 1.0], "kick": [0.0, 0.62], "bat": [0.0, 0.62], "climb": [0.0, 0.72], "fix": [0.0, 0.72], "fish": [0.0, 0.72], "saw": [0.0, 0.72], "bag": [0.0, 0.72], "tap": [0.0, 0.72], "pour": [0.0, 0.72], "wash": [0.0, 0.72], "cook": [0.0, 0.72], "till": [0.0, 0.72], "crawl_back": [0.0, 0.66], "crawl_front": [0.0, 1.0], "crawl_side": [0.0, 1.0]}},
 ]
 ## Jacket colours: name, and the colour of the jacket's middle tone (hue, sat, value);
 ## hue -1 for a warden's own (the colour they were drawn in).
@@ -115,7 +121,7 @@ static func _in_hue(h_deg: float, band: Array) -> bool:
 static func _recolor(img: Image, jacket: Dictionary, pose: String, color: Array) -> void:
 	var w := img.get_width()
 	var h := img.get_height()
-	var band: Array = (jacket["band"] as Dictionary).get(pose, [0.0, 1.0])
+	var band: Array = (jacket["band"] as Dictionary).get(pose, (jacket["band"] as Dictionary).get("stand", [0.0, 1.0]))
 	var y0 := int(float(band[0]) * h)
 	var y1 := int(float(band[1]) * h)
 	var out: Array = (jacket.get("out", {}) as Dictionary).get(pose, [])

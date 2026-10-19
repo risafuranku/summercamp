@@ -5,15 +5,26 @@ signal tool_canceled
 signal submenu_close_requested
 ## What is under the cursor, for the status bar ("12:7  Tent").
 signal hover_info(text: String)
+## A click on a building with no tool in hand: {type, origin, footprint, root}, or {}
+## when the click was on open ground (the card closes).
+signal building_clicked(info: Dictionary)
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
-## Sprites whose picture has no empty margin round the building (the Jednota fills its
-## whole canvas) look a size bigger than the rest on the same footprint: drawn smaller.
-## Map icons are fitted to their footprint; the small things are smaller than that.
-const ICON_SCALE := {"vecerka_iso": 0.76, "gnome": 0.32, "bench": 0.56, "flower_bed": 0.62, "picnic_table": 0.72,
-	"ping_pong": 0.78, "hammock": 0.82, "flagpole": 1.0}
+## How wide a building is on the map, in tile widths: its 3D model's width plus depth over
+## two (an isometric box is that wide on screen whichever way it is turned), measured from
+## building_models.gd (a tile is 4 m). The drawn part of its picture (not the empty canvas
+## round it, which differs from picture to picture) is fitted to that, so everything is
+## to one scale: a gnome next to a pub, a caravan smaller than a cabin. Anything not here
+## fills most of its footprint.
+const ICON_SPAN := {
+	"tent_1": 0.71, "tent_2": 0.8, "tent_3": 0.87, "cabin_1": 1.75, "cabin_2": 2.0, "cabin_3": 2.1,
+	"caravan_1": 1.27, "caravan_2": 1.27, "caravan_3": 1.27, "toilet_block": 0.85, "shower_block": 1.02,
+	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
+	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
+	"flower_bed": 0.42, "gnome": 0.2, "flagpole": 0.3, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.5,
+}
 const SFX_DIR := "res://assets/sfx/builder/"
 
 ## Status severity, consumed by builder_module for colour + audio feedback.
@@ -40,7 +51,8 @@ const GHOST_BAD_FILL := Color(0.76, 0.24, 0.24, 0.24)
 const GHOST_BAD_LINE := Color(0.98, 0.48, 0.48, 0.94)
 
 const ZOOM_MIN := 0.50
-const ZOOM_MAX := 3.00
+## Close enough to read a tent's guy ropes (playtest 19. 10.: "builder má malej max zoom").
+const ZOOM_MAX := 6.50
 const KEYBOARD_PAN_SPEED := 360.0
 const KEYBOARD_PAN_SPRINT_MULT := 1.7
 const MAP_VISUAL_PADDING := 0.28
@@ -79,7 +91,7 @@ const ICON_PATHS := {
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
-	"corn_stand": "res://assets/textury/camp/corn_stand.png",
+	"corn_stand": "res://assets/textury/builder/iso_corn_stand.png",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
 	"sports_field": "res://assets/textury/builder/iso_sports.png",
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
@@ -141,6 +153,14 @@ var _extra_guest_cell: Vector2 = Vector2.ZERO
 var _extra_guest_rng := RandomNumberGenerator.new()
 var selected_building: String = ""
 var hover_coord: Vector2i = Vector2i(-1, -1)
+## The building whose card is open (outlined on the map), or (-1, -1).
+var inspect_origin := Vector2i(-1, -1)
+var inspect_footprint := Vector2i.ONE
+## What the map shows over the camp: "" (nothing), "condition", "power", "rooms", "light".
+var overlay := ""
+const OVERLAYS := ["", "condition", "power", "rooms", "light"]
+var _ov_data: Dictionary = {}     # building origin -> [value 0..1 or -1, label, colour]
+var _ov_t := 0.0
 
 var _zoom_level: float = 1.16
 var _pan_offset: Vector2 = Vector2.ZERO
@@ -149,6 +169,7 @@ var _pan_drag_moved: bool = false
 var _rmb_pressed_without_selection: bool = false
 
 var _rotation_steps: int = 0
+var _drawn_rects: Dictionary = {}        # texture instance id -> Rect2 of its drawn part
 
 var _ghost_locked: bool = false
 var _ghost_coord: Vector2i = Vector2i(-1, -1)
@@ -338,6 +359,8 @@ func setup(new_grid_manager, new_building_manager) -> void:
 func set_selected_building(new_type: String) -> void:
 	var normalized = new_type.strip_edges()
 	selected_building = normalized
+	if _turns_round_only(selected_building) and _rotation_steps % 2 == 1:
+		_rotation_steps -= 1
 	_ghost_locked = false
 	_ghost_coord = Vector2i(-1, -1)
 	_pending_build_wait = false
@@ -384,6 +407,11 @@ func _process(delta: float) -> void:
 		if float(_fx[i]["t"]) >= float(_fx[i]["life"]):
 			_fx.remove_at(i)
 	_night = _night_amount()
+	if overlay != "":
+		_ov_t -= delta
+		if _ov_t <= 0.0:
+			_ov_t = 1.0
+			_refresh_overlay()
 	_update_guests(delta)
 	var local = get_local_mouse_position()
 	if local.x >= 0.0 and local.y >= 0.0 and local.x <= size.x and local.y <= size.y:
@@ -401,19 +429,20 @@ func _process(delta: float) -> void:
 	_dyn_layer.queue_redraw()
 
 
+## The arrow keys pan (not WASD: at the PC S stands you up and D leans you out).
 func _update_keyboard_pan(delta: float) -> void:
-	if delta <= 0.0:
+	if delta <= 0.0 or not is_visible_in_tree():
 		return
 	if not has_focus() and not _mouse_inside():
 		return
 	var move := Vector2.ZERO
-	if Input.is_key_pressed(KEY_A):
+	if Input.is_key_pressed(KEY_LEFT):
 		move.x -= 1.0
-	if Input.is_key_pressed(KEY_D):
+	if Input.is_key_pressed(KEY_RIGHT):
 		move.x += 1.0
-	if Input.is_key_pressed(KEY_W):
+	if Input.is_key_pressed(KEY_UP):
 		move.y -= 1.0
-	if Input.is_key_pressed(KEY_S):
+	if Input.is_key_pressed(KEY_DOWN):
 		move.y += 1.0
 	if move.length_squared() <= 0.0001:
 		return
@@ -447,7 +476,7 @@ func _gui_input(event: InputEvent) -> void:
 				apply_zoom_step(-1)
 				get_viewport().set_input_as_handled()
 				return
-			KEY_W, KEY_A, KEY_S, KEY_D:
+			KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT:
 				get_viewport().set_input_as_handled()
 				return
 			KEY_Z:
@@ -499,14 +528,14 @@ func _gui_input(event: InputEvent) -> void:
 				_pan_drag_moved = false
 				_pan_vel = Vector2.ZERO
 				_rmb_pressed_without_selection = selected_building == ""
+				# Only the line or the box being drawn goes; the tool stays in hand (the
+				# right button pans: it put the tool away on every pan). The tool goes with
+				# a second click on its button or card.
 				if _path_drag_active or _demolish_drag_active:
-					# Only the line or the box being drawn goes; the tool stays in hand.
 					_path_drag_active = false
 					_path_line.clear()
 					_demolish_drag_active = false
 					_emit_status("Canceled.")
-				elif selected_building != "":
-					_cancel_tool_selection()
 			else:
 				if not _pan_drag_moved and _rmb_pressed_without_selection and selected_building == "" and not _any_pending_interaction():
 					submenu_close_requested.emit()
@@ -539,6 +568,13 @@ func _gui_input(event: InputEvent) -> void:
 
 func _handle_left_press(local_pos: Vector2) -> void:
 	if selected_building == "":
+		# No tool in hand: a click on a building opens its card (builder_module).
+		var info := structure_at(_local_to_grid(local_pos))
+		inspect_origin = info.get("origin", Vector2i(-1, -1))
+		inspect_footprint = info.get("footprint", Vector2i.ONE)
+		building_clicked.emit(info)
+		if not info.is_empty():
+			_play("click", -12.0)
 		return
 	if selected_building == "path":
 		_begin_path_drag(local_pos)
@@ -810,7 +846,11 @@ func _rotate_building(step: int) -> void:
 	if selected_building == "" or selected_building == "path" or selected_building == "demolish":
 		_emit_status("Select a structure to rotate.", STATUS_DENY)
 		return
-	_rotation_steps = wrapi(_rotation_steps + step, 0, 4)
+	# An oblong one (a caravan, the pitch) only turns round: its footprint stays as it is.
+	if _turns_round_only(selected_building):
+		_rotation_steps = wrapi(_rotation_steps - _rotation_steps % 2 + (2 if step >= 0 else -2), 0, 4)
+	else:
+		_rotation_steps = wrapi(_rotation_steps + step, 0, 4)
 	_ghost_locked = false
 	if EventBus.has_signal("RequestRotate"):
 		EventBus.RequestRotate.emit(1 if step >= 0 else -1)
@@ -1205,13 +1245,16 @@ func _draw_dynamic() -> void:
 		_draw_smoke(_s2d(sm[0]), tile_h, float(sm[1]), int(sm[2]))
 	var entries: Array = []
 	_append_guest_entries(entries, origin, tile_w, tile_h)
-	for g in entries:
-		_draw_guest(g, tile_h)
-	_draw_lodging_badges(origin, tile_w, tile_h)
 	var lights: Array = []
 	for l in _lights:
 		lights.append([_s2d(l[0]), l[1]])
-	_draw_night(lights, tile_w, tile_h)
+	_draw_overlay(origin, tile_w, tile_h, lights)
+	_draw_inspected(origin, tile_w, tile_h)
+	for g in entries:
+		_draw_guest(g, tile_h)
+	_draw_lodging_badges(origin, tile_w, tile_h)
+	if overlay != "light":
+		_draw_night(lights, tile_w, tile_h)
 	_draw_fx(origin, tile_w, tile_h)
 	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
 	var valid_c := Callable(self, "_is_valid_coord")
@@ -1255,6 +1298,137 @@ func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void
 		_cv.draw_rect(r.grow(1), Color(0, 0, 0, 0.55))
 		_cv.draw_rect(r, col)
 		_cv.draw_string(T.FONT, r.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(250, 244, 226))
+
+
+## The building on a cell, as Builder's card wants it ({} for open ground, trees, corn
+## and paths).
+func structure_at(coord: Vector2i) -> Dictionary:
+	if grid_manager == null or not _is_valid_coord(coord):
+		return {}
+	var tile = grid_manager.get_tile(coord)
+	if tile == null or not tile.occupied or tile.occupant == null:
+		return {}
+	var root = _resolve_occupant_root(tile.occupant)
+	if root == null or root.is_in_group("trees") or root.is_in_group("corn"):
+		return {}
+	var t := str(root.get_meta("building_type", ""))
+	if t == "" or t == "path":
+		return {}
+	return {"type": t, "origin": root.get_meta("grid_origin", coord), "footprint": root.get_meta("grid_footprint", Vector2i.ONE), "root": root}
+
+
+func set_overlay(id: String) -> void:
+	overlay = id if id in OVERLAYS else ""
+	_ov_t = 0.0
+	_refresh_overlay()
+	_emit_status(("Showing: %s" % OVERLAY_NAMES.get(overlay, overlay)) if overlay != "" else "Overlay off.")
+
+
+func cycle_overlay() -> String:
+	set_overlay(OVERLAYS[(OVERLAYS.find(overlay) + 1) % OVERLAYS.size()])
+	return overlay
+
+
+const OVERLAY_NAMES := {"condition": "wear and repairs", "power": "what each building draws", "rooms": "the rooms: ready, dirty, taken", "light": "light at night"}
+const OV_GOOD := Color8(60, 200, 80)
+const OV_WARN := Color8(240, 180, 30)
+const OV_BAD := Color8(230, 50, 40)
+const OV_BLUE := Color8(80, 130, 240)
+
+
+## What the overlay shows, read once a second (the snapshots are not cheap).
+func _refresh_overlay() -> void:
+	_ov_data.clear()
+	var m: Node = get_tree().current_scene if get_tree() != null else null
+	match overlay:
+		"condition":
+			if m != null and m.has_method("get_upkeep_snapshot"):
+				for r in (m.get_upkeep_snapshot() as Dictionary).get("rows", []):
+					var cond := float(r.get("condition", 1.0))
+					var broken := bool(r.get("broken", false))
+					var col := OV_BAD if broken or cond < 0.5 else (OV_WARN if cond < 0.75 else OV_GOOD)
+					_ov_data[Vector2i(r["coord"])] = [cond, "BROKEN" if broken else "%d%%" % int(round(cond * 100.0)), col]
+		"power":
+			if m != null and m.has_method("get_electricity_ui_snapshot"):
+				var lines: Array = (m.get_electricity_ui_snapshot() as Dictionary).get("consumption_lines", [])
+				var top := 0.001
+				for l in lines:
+					top = maxf(top, float((l as Dictionary).get("kwh_per_day", 0.0)))
+				for l in lines:
+					var kwh := float((l as Dictionary).get("kwh_per_day", 0.0))
+					var c = (l as Dictionary).get("coord", null)
+					if c is Vector2i and kwh > 0.0:
+						_ov_data[c] = [kwh / top, "%.1f kWh" % kwh, Color8(255, 200, 40).lerp(Color8(255, 80, 20), kwh / top)]
+		"rooms":
+			if GuestManager != null:
+				for key in GuestManager.get_accommodation_states():
+					var rs: Dictionary = GuestManager.get_room_state(str(key))
+					if rs.is_empty():
+						continue
+					var st := str(rs.get("status", ""))
+					var occupied := bool(rs.get("occupied", false))
+					var col := OV_GOOD if st == "ready" else (OV_WARN if st == "unprepared" else OV_BAD)
+					var word := {"ready": "ready", "dirty": "DIRTY", "unprepared": "make up"}.get(st, st) as String
+					if occupied:
+						col = OV_BLUE
+						word = "guests"
+					_ov_data[SAVE_CODEC.coord_from_key(str(key))] = [1.0, word, col]
+
+
+func _draw_overlay(origin: Vector2, tile_w: float, tile_h: float, lights: Array) -> void:
+	if overlay == "":
+		return
+	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
+	if overlay == "light":
+		# The night, and where the lamps and fires push it back (on the ground: flat ellipses).
+		_cv.draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.02, 0.08, 0.55))
+		for l in lights:
+			var p: Vector2 = l[0]
+			var r := tile_w * (2.6 if str(l[1]) != "bonfire" else 3.4)
+			_cv.draw_set_transform(p, 0.0, Vector2(1.0, 0.5))
+			for k in 4:
+				_cv.draw_circle(Vector2.ZERO, r * (1.0 - k * 0.22), Color(1.0, 0.85, 0.4, 0.1))
+			_cv.draw_set_transform(Vector2.ZERO)
+	else:
+		var gm = _grid_model()
+		for o in _ov_data:
+			var v: Array = _ov_data[o]
+			var fp := Vector2i.ONE
+			var cell: Dictionary = gm.cells.get(o, {}) if gm != null else {}
+			var def = CoreRoot.registry.get_def(StringName(str(cell.get("type", "")))) if CoreRoot != null and CoreRoot.registry != null and cell.has("type") else null
+			if def != null:
+				fp = def.footprint
+			var cells: Array = []
+			for y in maxi(1, fp.y):
+				for x in maxi(1, fp.x):
+					cells.append((o as Vector2i) + Vector2i(x, y))
+			_bfx.draw_area(_cv, iso_c, cells, tile_w, tile_h, v[2], _time, false, 0.42)
+			# Under the building (the room badges are over it).
+			var c := _cell_to_iso_f(Vector2(o) + Vector2(fp) * 0.5 - Vector2(0.5, 0.5), origin, tile_w, tile_h) + Vector2(0, tile_h * (0.5 + 0.5 * maxf(fp.x, fp.y)) + 4.0)
+			var text := str(v[1])
+			var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+			var rr := Rect2((c - Vector2(tw * 0.5 + 3, 6)).floor(), Vector2(tw + 6, 13))
+			_cv.draw_rect(rr, Color(0, 0, 0, 0.72))
+			_cv.draw_string(T.FONT, rr.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, (v[2] as Color).lightened(0.35))
+	# The key, bottom left.
+	var label := "%s   (O: next)" % str(OVERLAY_NAMES.get(overlay, overlay)).capitalize()
+	var lw := T.FONT_BOLD.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+	var lr := Rect2(Vector2(6, size.y - 22), Vector2(lw + 12, 16))
+	_cv.draw_rect(lr, Color(0, 0, 0, 0.7))
+	_cv.draw_rect(lr, Color(1, 1, 1, 0.4), false, 1.0)
+	_cv.draw_string(T.FONT_BOLD, lr.position + Vector2(6, 12), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(255, 236, 160))
+
+
+## The building whose card is open: its outline, breathing.
+func _draw_inspected(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	if inspect_origin.x < 0:
+		return
+	var cells: Array = []
+	for y in maxi(1, inspect_footprint.y):
+		for x in maxi(1, inspect_footprint.x):
+			cells.append(inspect_origin + Vector2i(x, y))
+	var pulse := 0.7 + 0.3 * sin(_time * 5.0)
+	_bfx.draw_area(_cv, Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h), cells, tile_w, tile_h, Color(1.0, 0.92, 0.5, pulse), _time, false, 0.18)
 
 
 func _mini_kind(t: String) -> String:
@@ -1483,26 +1657,27 @@ func _update_guests(delta: float) -> void:
 
 ## Co-op: the other warden on the map in their own look, where they walk; in a lodging
 ## or a block, at its door (a room key is its cell).
-var _mate: Dictionary = {}
+var _mates: Dictionary = {}   # peer id -> {cell, moving}
 
 
 func _update_mate() -> void:
-	var prev := _mate
-	_mate = {}
-	if not Coop.has_partner():
-		return
-	var cell := Vector2.INF
-	var fig := Coop.remote_figure()
-	if fig != null and fig.visible:
-		cell = _world_to_cell_f(fig.global_position)
-	else:
-		var key := str((Coop.partner_state.get("room", {}) as Dictionary).get("k", ""))
-		if key.contains(":"):
-			cell = Vector2(float(key.get_slice(":", 0)), float(key.get_slice(":", 1))) + Vector2(0.5, 0.9)
-	if cell == Vector2.INF:
-		return
-	var moving := not prev.is_empty() and Vector2(prev.get("cell", cell)).distance_to(cell) > 0.004
-	_mate = {"cell": cell, "moving": moving}
+	var prev := _mates
+	_mates = {}
+	for id in Coop.others():
+		var cell := Vector2.INF
+		var fig := Coop.figure_of(id)
+		if fig != null and fig.visible:
+			cell = _world_to_cell_f(fig.global_position)
+		else:
+			var key := str((Coop.state_of(id).get("room", {}) as Dictionary).get("k", ""))
+			if key.contains(":"):
+				# Several in one room: side by side at its door.
+				cell = Vector2(float(key.get_slice(":", 0)), float(key.get_slice(":", 1))) + Vector2(0.3 + 0.2 * float(Coop.others().find(id) % 3), 0.9)
+		if cell == Vector2.INF:
+			continue
+		var was: Dictionary = prev.get(id, {})
+		var moving := not was.is_empty() and Vector2(was.get("cell", cell)).distance_to(cell) > 0.004
+		_mates[id] = {"cell": cell, "moving": moving}
 
 
 func _update_extra_guest() -> void:
@@ -1564,10 +1739,11 @@ func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_
 		var p := _cell_to_iso_f(g["cell"], origin, tile_w, tile_h)
 		var dc := _display_cell_f(g["cell"])
 		entries.append({"guest": true, "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"], "phase": g["phase"], "facing": 0})
-	if not _mate.is_empty():
-		var pm := _cell_to_iso_f(_mate["cell"], origin, tile_w, tile_h)
-		var dm := _display_cell_f(_mate["cell"])
-		entries.append({"guest": true, "mate": true, "pos": pm, "order": dm.x + dm.y + 0.6, "archetype": "", "moving": _mate["moving"], "phase": 0.0})
+	for id in _mates.keys():
+		var m: Dictionary = _mates[id]
+		var pm := _cell_to_iso_f(m["cell"], origin, tile_w, tile_h)
+		var dm := _display_cell_f(m["cell"])
+		entries.append({"guest": true, "mate": int(id), "pos": pm, "order": dm.x + dm.y + 0.6, "archetype": "", "moving": m["moving"], "phase": float(id % 7)})
 	if _guest_time < _extra_guest_until:
 		var p2 := _cell_to_iso_f(_extra_guest_cell, origin, tile_w, tile_h)
 		var dc2 := _display_cell_f(_extra_guest_cell)
@@ -1599,9 +1775,9 @@ func _guest_mini(archetype: String, h: int) -> Texture2D:
 	return tex
 
 
-## The other warden's miniature: their look and jacket (warden_looks.gd).
-func _mate_mini(h: int) -> Texture2D:
-	var look: Dictionary = Coop.partner_look
+## Another warden's miniature: their look and jacket (warden_looks.gd).
+func _mate_mini(h: int, id: int) -> Texture2D:
+	var look: Dictionary = Coop.look_of(id)
 	var key := "mate|%d|%d" % [int(look.get("m", 1)), int(look.get("c", 0))]
 	var by: Dictionary = _guest_minis.get(key, {})
 	if not by.has(h):
@@ -1632,7 +1808,7 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
 	var tex: Texture2D = null
 	if e.has("mate"):
-		tex = _mate_mini(mini_h)
+		tex = _mate_mini(mini_h, int(e["mate"]))
 	elif not e.has("extra"):
 		tex = _guest_mini(str(e["archetype"]), mini_h)
 	if tex != null:
@@ -1645,7 +1821,7 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 		_cv.draw_texture(tex, (foot - Vector2(sz.x * 0.5, sz.y - bob)).floor())
 		if e.has("mate"):
 			# Their name over them, so they are not taken for a guest.
-			var who := Coop.partner_name()
+			var who := Coop.name_of(int(e["mate"]))
 			var tw := T.FONT.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 			_draw_tag(foot - Vector2(tw * 0.5 + 3.0, sz.y + 17.0), who, false)
 		return
@@ -1710,8 +1886,7 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 
 	var icon_key = _icon_key_for_type(building_type)
 	if icon_key != "":
-		var scale_xy = maxf(1.0, (float(footprint.x) + float(footprint.y)) * 0.5) * float(ICON_SCALE.get(icon_key, 1.0))
-		var draw_size = Vector2(tile_w * scale_xy * 1.24, tile_h * scale_xy * 1.70)
+		var squash := 1.0
 		# Freshly built: it drops in from above and settles with a little bounce.
 		var origin_c: Vector2i = entry.get("origin", Vector2i.ZERO)
 		if _dropped.has(origin_c):
@@ -1722,8 +1897,8 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 				var k := clampf(age / 0.35, 0.0, 1.0)
 				center.y -= (1.0 - k) * (1.0 - k) * tile_h * 2.5
 				if k >= 1.0:
-					draw_size.y *= 1.0 - 0.08 * sin((age - 0.35) / 0.15 * PI)
-		if _draw_icon(center, draw_size, icon_key, rotation_steps, Color(1.0, 1.0, 1.0, 0.98)):
+					squash = 1.0 - 0.08 * sin((age - 0.35) / 0.15 * PI)
+		if _draw_building_icon(center, footprint, icon_key, rotation_steps, Color(1.0, 1.0, 1.0, 0.98), tile_w, tile_h, squash):
 			return
 
 	_draw_placeholder(center, tile_w, tile_h, building_type)
@@ -1785,8 +1960,7 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	var center = _footprint_center_iso(coord, footprint, origin, tile_w, tile_h)
 	var icon_key = _icon_key_for_type(selected_building)
 	if icon_key != "":
-		var scale_xy = maxf(1.0, (float(footprint.x) + float(footprint.y)) * 0.5)
-		_draw_icon(center, Vector2(tile_w * scale_xy * 1.24, tile_h * scale_xy * 1.70), icon_key, _rotation_steps, Color(0.62, 0.82, 1.0, 0.76))
+		_draw_building_icon(center, footprint, icon_key, _rotation_steps, Color(0.62, 0.82, 1.0, 0.76), tile_w, tile_h)
 
 	if _supports_rotation(selected_building):
 		var dir = _rotation_to_screen_dir(_rotation_steps, tile_w, tile_h)
@@ -1964,8 +2138,11 @@ func _draw_rotation_panel() -> void:
 		{"id": 0, "pos": center + Vector2(0.0, 12.0), "dir": Vector2(0.0, 1.0)},
 		{"id": 3, "pos": center + Vector2(-20.0, -6.0), "dir": Vector2(-1.0, 0.0)},
 	]
+	var round_only := _turns_round_only(selected_building)
 	for arrow in arrows:
 		var arrow_id = int(arrow.get("id", -1))
+		if round_only and arrow_id % 2 == 1:
+			continue
 		var color = T.SHADOW
 		if arrow_id == active:
 			color = T.NAVY
@@ -2030,6 +2207,64 @@ func _draw_icon(center: Vector2, draw_size: Vector2, icon_key: String, rotation_
 	else:
 		_cv.draw_texture_rect(tex, rect, false, tint)
 	return true
+
+
+## A building's picture on the map: the drawn part of it as wide as the thing is
+## (ICON_SPAN), standing on the front corner of the ground it covers. `squash` flattens it
+## (the bounce when it lands).
+func _draw_building_icon(center: Vector2, footprint: Vector2i, icon_key: String, rotation_steps: int, tint: Color, tile_w: float, tile_h: float, squash: float = 1.0) -> bool:
+	var tex = _get_icon(icon_key)
+	if tex == null:
+		return false
+	var rs := wrapi(rotation_steps, 0, 4)
+	var back: Texture2D = _get_back_icon(icon_key) if (rs == 1 or rs == 2) else null
+	if back != null:
+		tex = back
+	var used := _drawn_rect(tex)
+	var span := float(ICON_SPAN.get(icon_key, float(footprint.x + footprint.y) * 0.45))
+	var k := span * tile_w / maxf(1.0, used.size.x)
+	var mirror = (rs == 2) if back != null else _should_mirror_icon(icon_key, rotation_steps)
+	var mid_x := (used.position.x + used.size.x * 0.5) * k
+	if mirror:
+		mid_x = float(tex.get_width()) * k - mid_x
+	var foot := center.y + span * tile_h * 0.5
+	var rect := Rect2(center.x - mid_x, foot - used.end.y * k * squash, float(tex.get_width()) * k, float(tex.get_height()) * k * squash)
+	if mirror:
+		_cv.draw_set_transform(Vector2(rect.position.x + rect.size.x, rect.position.y), 0.0, Vector2(-1.0, 1.0))
+		_cv.draw_texture_rect(tex, Rect2(Vector2.ZERO, rect.size), false, tint)
+		_cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	else:
+		_cv.draw_texture_rect(tex, rect, false, tint)
+	return true
+
+
+## The part of a picture that is drawn (not its empty canvas), in its own pixels; read
+## once from a small copy of it.
+func _drawn_rect(tex: Texture2D) -> Rect2:
+	var id := tex.get_instance_id()
+	if _drawn_rects.has(id):
+		return _drawn_rects[id]
+	var r := Rect2(Vector2.ZERO, tex.get_size())
+	var img := tex.get_image()
+	if img != null:
+		img = img.duplicate()
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+		var sc := minf(1.0, 160.0 / float(maxi(img.get_width(), img.get_height())))
+		img.resize(maxi(1, int(img.get_width() * sc)), maxi(1, int(img.get_height() * sc)), Image.INTERPOLATE_BILINEAR)
+		var lo := Vector2i(img.get_width(), img.get_height())
+		var hi := Vector2i(-1, -1)
+		for y in img.get_height():
+			for x in img.get_width():
+				if img.get_pixel(x, y).a > 0.25:
+					lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
+					hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
+		if hi.x >= lo.x:
+			var f := Vector2(tex.get_size()) / Vector2(img.get_width(), img.get_height())
+			r = Rect2(Vector2(lo) * f, Vector2(hi - lo + Vector2i.ONE) * f)
+	_drawn_rects[id] = r
+	return r
 
 
 func _should_mirror_icon(icon_key: String, rotation_steps: int) -> bool:
@@ -2230,6 +2465,14 @@ func _get_footprint(building_type: String) -> Vector2i:
 	if def != null:
 		return def.footprint
 	return Vector2i.ONE
+
+
+## Oblong footprints turn only half round (building_manager.gd turns them so too).
+func _turns_round_only(building_type: String) -> bool:
+	if not _supports_rotation(building_type):
+		return false
+	var fp := _get_footprint(building_type)
+	return fp.x != fp.y
 
 
 func _supports_rotation(building_type: String) -> bool:

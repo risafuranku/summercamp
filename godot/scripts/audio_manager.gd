@@ -35,9 +35,10 @@ const SFX_AMBIENCE_DUSK_BIRDS_PATH := "res://assets/sfx/ambiencesfx/duskbirds.mp
 const SFX_AMBIENCE_LAKE_INSECTS_PATH := "res://assets/sfx/ambiencesfx/lakeinsects.mp3"
 const SFX_AMBIENCE_PIPES_PATH := "res://assets/sfx/ambiencesfx/pipesambience.mp3"
 # redneckblesk.wav is used as "blesk1" variant in current asset pack.
-const SFX_WEATHER_THUNDER_NEAR_A_PATH := "res://assets/sfx/rednecksfx/rrgeneratorpowerup.wav"
-const SFX_WEATHER_THUNDER_NEAR_B_PATH := "res://assets/sfx/rednecksfx/rrtick.wav"
-const SFX_WEATHER_THUNDER_FAR_PATH := "res://assets/sfx/rednecksfx/rrvitrmild.wav"
+# Thunder (ElevenLabs, tools/audiogen): a close crack and roll, another, a far rumble.
+const SFX_WEATHER_THUNDER_NEAR_A_PATH := "res://assets/sfx/weather/thunder_near_a.mp3"
+const SFX_WEATHER_THUNDER_NEAR_B_PATH := "res://assets/sfx/weather/thunder_near_b.mp3"
+const SFX_WEATHER_THUNDER_FAR_PATH := "res://assets/sfx/weather/thunder_far.mp3"
 const WEATHER_CLEAR: int = 0
 const WEATHER_WINDY: int = 1
 const WEATHER_FOG: int = 2
@@ -118,8 +119,8 @@ const WEATHER_RAIN_STORM_ACTIVE_DB: float = -14.0
 const WEATHER_WIND_STORM_ACTIVE_DB: float = -15.0
 const WEATHER_INTERIOR_DUCK_DB: float = -6.0
 const WEATHER_RAIN_INSIDE_INTERIOR_BOOST_DB: float = 1.5
-const WEATHER_THUNDER_NEAR_VOLUME_DB: float = -13.5
-const WEATHER_THUNDER_FAR_VOLUME_DB: float = -18.0
+const WEATHER_THUNDER_NEAR_VOLUME_DB: float = -9.0
+const WEATHER_THUNDER_FAR_VOLUME_DB: float = -13.0
 const WEATHER_THUNDER_MIN_INTERVAL_SECONDS: float = 6.5
 const WEATHER_THUNDER_MAX_INTERVAL_SECONDS: float = 14.0
 const WEATHER_THUNDER_INITIAL_MIN_INTERVAL_SECONDS: float = 1.3
@@ -1409,9 +1410,14 @@ func _play_random_thunder_strike() -> void:
 
 	player.global_position = origin + offset
 	player.pitch_scale = _ambient_music_rng.randf_range(WEATHER_THUNDER_PITCH_MIN, WEATHER_THUNDER_PITCH_MAX)
-	if player.playing:
-		player.stop()
-	player.play()
+	# The flash first, the thunder after it (the further, the longer).
+	var delay: float = 0.15 + float(radius) / 50.0
+	get_tree().create_timer(delay).timeout.connect(func():
+		if is_instance_valid(player):
+			if player.playing:
+				player.stop()
+			player.play()
+	)
 	var flash_strength = _thunder_flash_strength_from_distance(radius, is_near)
 	_pending_storm_flash_strength = max(_pending_storm_flash_strength, flash_strength)
 

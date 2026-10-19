@@ -13,10 +13,11 @@ extends Node
 ##   the court      LMB kicks the ball coming to you, in time (a volley, or after its
 ##   and the table  bounce); miss it and it rolls off and you fetch it
 ##
-## Co-op: the other warden is in them too on this machine, placed by this machine's
-## attraction with their key and the place they have on theirs (coop_state "att"); the
-## ball games are the host's (each flight sent over, the other's swings sent to the
-## host), the logs go on through the host (Coop.send_play).
+## Co-op: the other wardens are in them too on this machine, each placed by this
+## machine's attraction with their key (-11 the host, -12.. the joining ones by their
+## place on the line) and the place they have on theirs (coop_state "att"); the ball games
+## are the host's (each flight sent over, the others' swings sent to the host), the logs
+## go on through the host (Coop.send_play).
 
 const POSES = preload("res://scripts/attractions/poses.gd")
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
@@ -45,12 +46,8 @@ var _hp := -1
 var _pose := "stand"
 var _guitar: AudioStreamPlayer3D
 
-var _mate_att: Node3D
-var _mate_key := OTHER_KEY
-var _mate_member: Node3D
-var _mate_sprite: Sprite3D
-var _mate_place: Dictionary = {}
-var _mate_guitar: AudioStreamPlayer3D
+## The other wardens in attractions here: peer id -> {att, key, member, sprite, place, guitar}.
+var _mates: Dictionary = {}
 
 
 func setup(main_node: Node) -> void:
@@ -62,8 +59,9 @@ func is_active() -> bool:
 	return _att != null
 
 
+## Your key in the attractions: the host -11, the joining wardens -12, -13, -14.
 static func local_key() -> int:
-	return OTHER_KEY if Coop.is_client() else HOST_KEY
+	return HOST_KEY - Coop.my_slot if Coop.is_client() else HOST_KEY
 
 
 # ── getting in and out ───────────────────────────────────────────────────────
@@ -383,7 +381,18 @@ func coop_state() -> Dictionary:
 func coop_play(kind: String, data: Array) -> void:
 	# Knocked down, and the other warden got you up (main.coop_lifted).
 	if kind == "lift":
-		main.coop_lifted()
+		main.coop_lifted(int(data[0]) if not data.is_empty() else 0)
+		return
+	# Several in the pipes (scripts/pipes/pipe_mate.gd); a knock is for the one knocked.
+	if kind == "pipe_bump" or kind == "pipe_fixed":
+		if kind == "pipe_bump" and data.size() > 1 and int(data[1]) != 0 and int(data[1]) != multiplayer.get_unique_id():
+			return
+		var crawl = main.get("_sewer_pipe_minigame")
+		if crawl != null and crawl.has_method("coop_bumped") and crawl.is_open() and str(crawl.mate.key) == str(data[0]):
+			if kind == "pipe_bump":
+				crawl.coop_bumped()
+			else:
+				crawl.coop_fixed(int(data[1]))
 		return
 	if kind == "fires":
 		if Coop.is_client():
@@ -416,40 +425,72 @@ func shot_out(att: Node, shot: Dictionary, roster: Dictionary) -> void:
 		Coop.send_play("shot", [att_id(att), shot, roster])
 
 
-## The other warden in an attraction on this machine: placed by it with their key and
-## place, their figure drawn there (remote_player.gd asks mate_place()).
+## The other wardens in attractions on this machine: each placed by it with their key
+## and place, their figure drawn there (remote_player.gd asks mate_place(its id)).
 func _update_mate() -> void:
-	var s = Coop.partner_state.get("att") if Coop.has_partner() else null
+	for id in _mates.keys():
+		if not Coop.wardens.has(id):
+			_mate_gone(int(id))
+	for id in Coop.others():
+		_update_one(int(id))
+
+
+func _update_one(id: int) -> void:
+	if not _mates.has(id):
+		_mates[id] = {"att": null, "key": OTHER_KEY, "member": null, "sprite": null, "place": {}, "guitar": null}
+	var e: Dictionary = _mates[id]
+	var s = Coop.state_of(id).get("att")
 	var st: Dictionary = s if s is Dictionary else {}
 	var att := find_att(str(st.get("id", ""))) if not st.is_empty() else null
-	if att != _mate_att and _mate_att != null and is_instance_valid(_mate_att):
-		_mate_att.warden_leave(_mate_key)
-	_mate_att = att
+	var was = e["att"]
+	if att != was and was != null and is_instance_valid(was):
+		was.warden_leave(int(e["key"]))
+	e["att"] = att
 	if att == null:
-		_mate_place = {}
-		_set_loop(_mate_guitar, false, Vector3.ZERO)
+		e["place"] = {}
+		_set_loop(e["guitar"], false, Vector3.ZERO)
 		return
-	_mate_key = int(st.get("k", OTHER_KEY))
-	if _mate_member == null:
+	e["key"] = int(st.get("k", OTHER_KEY))
+	if e["member"] == null:
 		var made := _proxy()
-		_mate_member = made[0]
-		_mate_sprite = made[1]
-	_mate_sprite.set_meta("base_path", _base_path(Coop.partner_look))
+		e["member"] = made[0]
+		e["sprite"] = made[1]
+	var member: Node3D = e["member"]
+	var sprite: Sprite3D = e["sprite"]
+	sprite.set_meta("base_path", _base_path(Coop.look_of(id)))
+	var key := int(e["key"])
 	var x = st.get("x", {})
-	att.warden_force(_mate_key, int(st.get("sl", -1)), x if x is Dictionary else {})
-	if not att.pose_member(0, _mate_key, 1, _mate_member, _mate_sprite, _info(_mate_sprite), _clock):
-		_mate_place = {}
+	att.warden_force(key, int(st.get("sl", -1)), x if x is Dictionary else {})
+	if not att.pose_member(0, key, 1, member, sprite, _info(sprite), _clock):
+		e["place"] = {}
 		return
-	var pose := _pose_of(att, _mate_key, _mate_sprite, str(st.get("ps", "")))
-	var sh := _mate_member.get_node("BlobShadow") as Node3D
-	_mate_place = {"pos": _mate_member.global_position + _mate_sprite.position, "pose": pose,
-		"flip": _mate_sprite.flip_h, "rz": _mate_sprite.rotation.z, "ground": sh.visible}
-	_set_loop(_mate_guitar if _mate_guitar != null else _new_loop("mate"), pose == "guitar", _mate_member.global_position + Vector3(0.0, 0.8, 0.0))
+	var pose := _pose_of(att, key, sprite, str(st.get("ps", "")))
+	var sh := member.get_node("BlobShadow") as Node3D
+	e["place"] = {"pos": member.global_position + sprite.position, "pose": pose,
+		"flip": sprite.flip_h, "rz": sprite.rotation.z, "ground": sh.visible}
+	if e["guitar"] == null:
+		e["guitar"] = _new_loop("mate_%d" % id)
+	_set_loop(e["guitar"], pose == "guitar", member.global_position + Vector3(0.0, 0.8, 0.0))
 
 
-## Where to draw the other warden while they are in an attraction ({} when not).
-func mate_place() -> Dictionary:
-	return _mate_place
+func _mate_gone(id: int) -> void:
+	var e: Dictionary = _mates.get(id, {})
+	var att = e.get("att")
+	if att != null and is_instance_valid(att):
+		att.warden_leave(int(e.get("key", OTHER_KEY)))
+	for k in ["member", "guitar"]:
+		var n = e.get(k)
+		if n != null and is_instance_valid(n):
+			n.queue_free()
+	_mates.erase(id)
+
+
+## Where to draw a warden (`id`: theirs; 0 the first of them) while they are in an
+## attraction ({} when not).
+func mate_place(id := 0) -> Dictionary:
+	if id == 0:
+		id = Coop.remote_id
+	return (_mates.get(id, {}) as Dictionary).get("place", {})
 
 
 # ── sounds, words ────────────────────────────────────────────────────────────
@@ -465,9 +506,7 @@ func _new_loop(who: String) -> AudioStreamPlayer3D:
 		if a.stream is AudioStreamMP3:
 			(a.stream as AudioStreamMP3).loop = true
 	_world().add_child(a)
-	if who == "mate":
-		_mate_guitar = a
-	else:
+	if not who.begins_with("mate"):
 		_guitar = a
 	return a
 

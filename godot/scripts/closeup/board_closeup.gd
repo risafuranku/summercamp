@@ -5,6 +5,8 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## big enough to read: the phone numbers the office runs on (phone_book.gd), the bus,
 ## the shop. An old tag for the lake keeper is crossed out. A key hangs on a string:
 ## the generator shed's back room (where the fuses are) is locked, and this opens it.
+## Taken, it is in your bag (scripts/ui/inventory.gd); click the bare pin with it in the
+## bag and it hangs there again.
 
 ## Paper rectangles on the picture (px), and the text written on each.
 const NOTES := {
@@ -31,8 +33,10 @@ const SFX_KEY := "res://assets/sfx/rednecksfx/rrtick.wav"
 
 ## Callable() -> bool: is the shed key still on the board?
 var key_present: Callable
-## Callable(): the key was taken.
+## Callable() -> bool: take the key (false: no room for it in the bag).
 var on_key_taken: Callable
+## Callable() -> bool: hang the key back (false: it is not in your bag).
+var on_key_returned: Callable
 
 var _reading := ""
 var _read_t := 0.0
@@ -58,8 +62,7 @@ func _hotspots() -> Array:
 	var out: Array = []
 	for id in NOTES.keys():
 		out.append({"id": id, "rect": NOTES[id]["rect"]})
-	if _has_key():
-		out.append({"id": "key", "rect": KEY_RECT})
+	out.append({"id": "key" if _has_key() else "pin", "rect": KEY_RECT})
 	return out
 
 
@@ -69,10 +72,18 @@ func _clicked(id: String) -> void:
 		play(SFX_PAPER, -16.0)
 		return
 	if id == "key":
+		if on_key_taken.is_valid() and not bool(on_key_taken.call()):
+			say("", "There is no room for it in your bag.")
+			return
 		play(SFX_KEY, -4.0)
-		if on_key_taken.is_valid():
-			on_key_taken.call()
 		say("", "A key on a loop of string, warm from the lamp. On the tag, in pen: SHED - BACK.")
+		return
+	if id == "pin":
+		if on_key_returned.is_valid() and bool(on_key_returned.call()):
+			play(SFX_KEY, -4.0)
+			say("", "Back on its pin.")
+		else:
+			say("", "The pin the shed key hangs on. Nothing on it.")
 		return
 	_reading = id
 	_read_t = 0.0
@@ -112,7 +123,7 @@ func _paint(c: Control) -> void:
 				c.draw_rect(Rect2(r.position.x + 5, r.position.y + 8 + i * 5, w, 1), col)
 		if hovered() == id:
 			c.draw_rect(r, Color(1.0, 0.92, 0.6, 0.14))
-	if hovered() == "key":
+	if hovered() == "key" or hovered() == "pin":
 		c.draw_rect(KEY_RECT, Color(1.0, 0.92, 0.6, 0.12))
 	if _reading != "":
 		_paint_held(c, NOTES[_reading])

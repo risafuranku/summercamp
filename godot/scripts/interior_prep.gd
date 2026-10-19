@@ -160,7 +160,10 @@ func _rebuild_if_changed(list: Array) -> void:
 	_signature = sig
 	for n in _built:
 		if is_instance_valid(n):
-			n.queue_free()
+			var parent := (n as Node).get_parent()
+			if parent != null:
+				parent.remove_child(n)
+			(n as Node).queue_free()
 	_built.clear()
 	for id in _nodes.keys():
 		if _nodes[id].get("dynamic", false):
@@ -234,7 +237,8 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 	root.position = pos
 	root.rotation.y = yaw
 	parent.add_child(root)
-	var size := Vector3(0.5, 0.22, 0.5)
+	# Flat on the floor: a low box (a 0.22 m one stood in front of the mess behind it).
+	var size := Vector3(0.5, 0.1, 0.5)
 	var body_pos := pos + Vector3(0, size.y * 0.5 - 0.02, 0)
 	match kind:
 		# All mess is a Build-style floor sprite from Grok (assets/textury/mess): no boxes,

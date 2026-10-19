@@ -26,6 +26,7 @@ const TOWN = preload("res://scripts/town/town_lesna.gd")
 const MASTS = preload("res://scripts/town/liblice_masts.gd")
 const HAMLET = preload("res://scripts/town/hamlet_trip.gd")
 const POCKETS = preload("res://scripts/town/pockets.gd")
+const INVENTORY = preload("res://scripts/ui/inventory.gd")
 const SHOP = preload("res://scripts/town/shop_closeup.gd")
 const PUB = preload("res://scripts/town/pub_closeup.gd")
 ## The Jednota and the pub in 3D; their card and machine are close-ups over it.
@@ -70,6 +71,8 @@ var _special: Dictionary = {}
 var _boarding_stop := ""
 var _driver_line := 0
 var pockets
+## The warden's bag (scripts/ui/inventory.gd): what is bought here goes into it.
+var inventory
 var _shop
 var _pub
 var _ambience: AudioStreamPlayer
@@ -101,18 +104,28 @@ func setup(interior_manager: Node) -> void:
 				p.set("stamina", 1.0)
 				p.set("_stamina_locked", false)
 				_say("That's better.")
+	if inventory == null:
+		inventory = INVENTORY.new()
+		add_child(inventory)
+		inventory.pockets = pockets
+		inventory.trip = self
+		pockets.bag = inventory
 
 
-## Smoking and drinking: out in the world, playing, nothing open.
+## Smoking and drinking: playing, on your feet (outdoors, in a room, in Lesna's places);
+## pockets.gd itself keeps the hands down at the PC, in close-ups, the boat and such.
+## Not on the bus (the driver will not have it) nor at the pump.
 func _pockets_allowed() -> bool:
 	var main := _main()
 	if main == null or get_tree().paused:
 		return false
 	if not bool(main.get("_gameplay_started")) or bool(main.get("_menu_mode")):
 		return false
-	if main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")):
+	if (_ride != null and _ride.is_open()) or (_town != null and _town.spots["job"].is_open()):
 		return false
-	return not is_open() and not _sleeping
+	if _timetable != null and _timetable.visible:
+		return false
+	return not _sleeping
 
 
 func _main() -> Node:
@@ -166,7 +179,7 @@ func hint_for(structure: Node3D) -> String:
 	match str(structure.get_meta("building_type", "")):
 		"trip_barrier":
 			var gate := _gate()
-			return "" if gate != null and gate.is_raised() else "Raise the barrier"
+			return "Lower the barrier" if gate != null and gate.is_raised() else "Raise the barrier"
 		"trip_timetable":
 			return "Read the timetable"
 		"trip_bus":
@@ -210,9 +223,17 @@ func interact(structure: Node3D) -> void:
 	match str(structure.get_meta("building_type", "")):
 		"trip_barrier":
 			var gate := _gate()
-			if gate != null and not gate.is_raised():
+			if gate == null:
+				return
+			if not gate.is_raised():
 				gate.open_for_player()
-				Coop.send_sync("gate", [])
+				Coop.send_sync("gate", ["up"])
+				return
+			var why: String = gate.close_for_player()
+			if why.is_empty():
+				Coop.send_sync("gate", ["down"])
+			else:
+				_say(why)
 		"trip_timetable":
 			_open_timetable(str(structure.get_meta("stop", "camp")))
 		"trip_bus":
@@ -302,11 +323,10 @@ func _open_room(which: String) -> void:
 		_room = TOWN_ROOM.new()
 		add_child(_room)
 		_room.set_modal_check(func(): return (_shop != null and _shop.visible) or (_pub != null and _pub.visible))
+		_room.can_buy = func(item: String) -> bool: return inventory == null or inventory.room_for(item)
 		_room.bought.connect(func(item: String):
-			if item == "cigs":
-				pockets.cigarettes += 20
-			elif item == "beer":
-				pockets.beers += 1
+			if inventory != null and item in ["cigs", "beer", "card"]:
+				inventory.add_item(item)
 		)
 		_room.drank.connect(func(): pockets.drunk += 1.0)
 		_room.wants_closeup.connect(_room_closeup)
@@ -332,11 +352,7 @@ func _room_closeup(kind: String) -> void:
 		_motel()
 		return
 	if kind == "card":
-		if _shop == null:
-			_shop = SHOP.new()
-			add_child(_shop)
-			_shop.closed.connect(_back_to_room)
-		_shop.open_card()
+		scratch_card()
 	elif kind == "slot":
 		if _pub == null:
 			_pub = PUB.new()
@@ -347,6 +363,24 @@ func _room_closeup(kind: String) -> void:
 
 func _back_to_room() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if (_room != null and _room.is_open()) else Input.MOUSE_MODE_CAPTURED)
+	if _card_from_bag:
+		_card_from_bag = false
+		_set_player_controls(true)
+
+
+var _card_from_bag := false
+
+
+## A Rychla kacka out of the bag, wherever you are: up close to scratch.
+func scratch_card() -> void:
+	if _shop == null:
+		_shop = SHOP.new()
+		add_child(_shop)
+		_shop.closed.connect(_back_to_room)
+	_card_from_bag = not (_room != null and _room.is_open())
+	if _card_from_bag:
+		_set_player_controls(false)
+	_shop.open_card()
 
 
 func _door_fx(going_in: bool) -> void:
@@ -443,9 +477,13 @@ func set_time_state(_state: int) -> void:
 # ── the buses ────────────────────────────────────────────────────────────────
 
 func _process(delta: float) -> void:
-	# Co-op: the other warden in the same place in Lesna stands there with you.
+	# Co-op: the other wardens in the same place in Lesna stand there with you.
 	if _room != null and _room.is_open():
-		_room.coop_mate(Coop.has_partner() and str(Coop.partner_state.get("tr", "")) == str(_room.place))
+		var here: Array = []
+		for id in Coop.others():
+			if str(Coop.state_of(id).get("tr", "")) == str(_room.place):
+				here.append(int(id))
+		_room.coop_mates(here)
 	var road := _road()
 	if road == null:
 		return
@@ -763,15 +801,19 @@ func _place_on(bus: Node3D, path: PackedVector3Array, e: float) -> void:
 
 # ── co-op: one bus for two wardens ───────────────────────────────────────────
 
-## The other warden on the bus at `stop_id` (not yet gone): it stands for them here too.
+## Another warden on the bus at `stop_id` (not yet gone): it stands for them here too.
 ## When it goes with them and not you, it goes from here as well.
 func _coop_hold(stop_id: String, bus: Node3D) -> void:
 	if bus == null or not Coop.has_partner():
 		return
-	var mate = Coop.partner_state.get("bus", {})
-	var m: Dictionary = mate if mate is Dictionary else {}
-	var theirs := not m.is_empty() and str(m.get("st", "")) == stop_id
-	var aboard := theirs and not bool(m.get("go", false))
+	var theirs := false
+	var aboard := false
+	for id in Coop.others():
+		var mate = Coop.state_of(id).get("bus", {})
+		var m: Dictionary = mate if mate is Dictionary else {}
+		if not m.is_empty() and str(m.get("st", "")) == stop_id:
+			theirs = true
+			aboard = aboard or not bool(m.get("go", false))
 	var mine: bool = _ride != null and _ride.is_open() and _boarding_stop == stop_id
 	var sp: Dictionary = _special.get(stop_id, {})
 	if aboard and sp.is_empty() and bus.visible and bus.is_door_open():
@@ -906,7 +948,7 @@ func _ensure_town() -> void:
 # ── saved with the game ──────────────────────────────────────────────────────
 
 func export_state() -> Dictionary:
-	return {"in_town": away(), "cigarettes": pockets.cigarettes if pockets != null else 0, "beers": pockets.beers if pockets != null else 0,
+	return {"in_town": away(), "inventory": inventory.export_state() if inventory != null else {},
 		"hamlet": _hamlet.export_state() if _hamlet != null else {}}
 
 
@@ -916,6 +958,17 @@ func import_state(d: Dictionary) -> void:
 		_ensure_town()
 	if _hamlet != null and d.get("hamlet") is Dictionary:
 		_hamlet.import_state(d["hamlet"])
-	if pockets != null:
-		pockets.cigarettes = int(d.get("cigarettes", 0))
-		pockets.beers = int(d.get("beers", 0))
+	if inventory == null:
+		return
+	var inv = d.get("inventory", null)
+	if inv is Dictionary:
+		inventory.import_state(inv, Coop.is_client())
+	elif not Coop.is_client():
+		# From before the bag: the counts of cigarettes and bottles, into it.
+		inventory.import_state({}, false)
+		var cigs := int(d.get("cigarettes", 0))
+		while cigs > 0:
+			inventory.add_item("cigs", mini(cigs, 20))
+			cigs -= 20
+		for i in int(d.get("beers", 0)):
+			inventory.add_item("beer")

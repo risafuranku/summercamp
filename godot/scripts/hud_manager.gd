@@ -803,7 +803,8 @@ func _build_arrivals() -> void:
 	_arrival_rings.name = "ArrivalStrip"
 	_arrival_rings.set("font", RETRO_UI.FONT_LABEL)
 	_arrival_rings.set("ui_scale", _scale)
-	_root.add_child(_arrival_rings)
+	# On the feed's layer: it stays up in rooms too (who is coming matters at the desk).
+	_feed_layer.add_child(_arrival_rings)
 	if not _arrivals.is_empty():
 		_arrival_rings.set_rows(_arrivals)
 	var panel := _plate()
@@ -1163,10 +1164,23 @@ func _refresh_guests() -> void:
 		var label := str(HUD_MOOD_WORDS.get(str(_mood.get("mood_label", "")), "OKAY"))
 		if unhappy > 0:
 			label = "%d UPSET" % unhappy
+		# Somebody waiting to be served in a pub, bistro or the Jednota: every other
+		# second the cell says so (set_serving).
+		if _serving > 0 and int(Time.get_ticks_msec() / 1000) % 2 == 0:
+			label = "%d WAITING" % _serving
 		_guest_mood.text = label
 		var col := RETRO_UI.C_GREEN if avg >= 62.0 else (RETRO_UI.C_AMBER if avg >= 35.0 else RETRO_UI.C_RED_LIGHT)
 		_guest_mood.add_theme_color_override("font_color", col)
 	_guest_face.set_state(avg, _fear, count <= 0)
+
+
+## Guests waiting to be served in the businesses (main, from business_runtime).
+var _serving := 0
+
+
+func set_serving(n: int) -> void:
+	_serving = maxi(0, n)
+	_refresh_guests()
 
 
 func _refresh_mail() -> void:

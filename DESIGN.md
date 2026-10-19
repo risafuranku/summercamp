@@ -67,8 +67,8 @@ accept booking -> +income -> +guests of an archetype
 
 A new camp starts at the desk in the reception, the computer already booting. Two mails:
 Nela's, and Vera's "The camp is yours now" (the land, Agrostroj, the nineteenth, where to
-start). It carries the links to Builder 98 and GuestRack (a click downloads them);
-CampStat is on the desktop already. Little mail after that: the checklist
+start). It carries the links to Builder 98 and GuestRack (a click installs them, as
+the button on their tab does); CampStat is on the panel already. Little mail after that: the checklist
 (`scripts/quest_manager.gd`) sends only "The book" and "Tonight", and the story pool is
 the camp and its people, not system notices.
 
@@ -422,6 +422,32 @@ or sparks flying. The mess itself jitters under the brush. All of it moves in st
 8-12 frames a second, never smooth: the guests' walk, the bonfire's flames and sparks,
 the desk fan, the wicket gate, the ripples where a fish jumps. That stutter is the look.
 
+## 5i. The camp on Goggle
+
+The PC's tenth tab, Reviews (key 0), is the camp's page on Goggle, a 1998 search
+engine's places page (`scripts/reviews/goggle.gd` the logic, `os98/apps/goggle_app.gd`
+the page). Every guest's review goes up in public; the stars are the plain average of
+what is up, to one decimal. The page was there before you: seven reviews from last
+summer, mostly bad, and one nobody should have written ("Do not let the boy in the red
+shoes in. He knocks.", answered by someone who is not you).
+
+- The rating is the progression. Builder 98's blueprints open tier by tier (a rating and
+  enough reviews to count): tents, cabins, the basics from the start; caravans, the
+  restaurant, the pitch, the gnome and the corn stand at 3.0; the playground, ping-pong,
+  the flagpole and level-2 rooms at 3.5; the slide at 4.0; level-3 rooms at 4.3. A tier
+  once reached stays open. Locked cards are grey with a padlock and the stars they wait
+  for ("for Stavitel partner camps"); the room upgrades say GOGGLE 4.3.
+- People look before they book: each star above or below three moves the booking
+  chance by 0.07.
+- SpotlessName Ltd take a review down by the next morning, for $45 and $30 more for each
+  one after. Now and then Goggle notices (10 %, 5 % more per removal): the review stays,
+  the money is gone, and the page carries "Unusual review activity" and loses 0.3 stars
+  for three days.
+- The owner can answer: an apology to a one- or two-star review has a 40 % chance of an
+  edit by the morning (a star more), blaming the weather never does. Answering the same
+  review in CampMail's guest book answers it on Goggle too.
+- The tab's badge counts new reviews, red when one of them is bad.
+
 ## 6. Upkeep
 
 Every building has a condition (0-100%) that drops daily by its `maintenance_decay`.
@@ -444,7 +470,52 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
   12/day base), due 3 days later. An overdue bill cuts the grid: lamps off, power-hungry
   facilities closed, and a 6-minute UPS countdown to game over. Paying restores the grid.
 
+## 7b. The businesses' rooms (point and click)
+
+Decided with the user on 2026-10-18 ("interiors aim at the feel of point-and-click
+games"). The pub, the bistro and the Jednota are rooms you look round in and click:
+everything usable glints under the gloved finger, and the doors are things too (the flat
+palm): click one and you walk to it, it swings open on the dark behind it and you come
+in through the next room's door, which swings shut behind you. No side tabs, no pushing
+the head through the end of the turn.
+
+- **Where the work is.** Over each place a small Grok picture bobs while there is work
+  waiting there: the tap and the bottles while somebody waits at the bar, the washer
+  when the clean mugs run out, the pass while somebody waits for a plate (seen from the
+  dining room over the kitchen door), the stove when nothing is fried ahead, the till.
+  Outside, the HUD's guests cell says how many wait to be served and the waypoint
+  points to the business.
+- **The bistro's logistics.** The dining room (na place) is the guests' tables, the till
+  and the books; the kitchen behind the counter is the stove (frying ahead) and the pass
+  on the island in its middle (plating, the bell): the plate then lands on their table.
+  Under the kitchen the cellar is the stock: sacks, crates and boxes as many as the
+  books have on the shelf; click them for the books and the orders. (The machine
+  nobody ordered stands down there too.)
+- **The pub's cellar.** A door by the bar end goes down to the kegs: one for every 25
+  pints the books hold, crates of rum and kofola; click them for the books.
+- **The corn stand** is one more of them: E behind its counter (either warden), the
+  wholesaler's leaflet beside the cash box orders corn and butter (the books' ORDER
+  page), Klasek 98 on the office PC runs it like the others; the other warden sees you
+  behind it at the pot.
+- **For two.** The other warden is in the room with you at the job they have open,
+  behind the bar pulling a beer, at the bottles, the washer, the pass, the stove, the
+  till, over the books; the place they are at is theirs (no mark over it for you), and
+  what they serve lands on the tables on both machines.
+
 ## 8. The pipe crawl (sewer repair)
+
+*The chamber and two in the pipes, 2026-10-18 with the user ("let them find out it is not
+a good idea").* Down the sewer's hatch is a pumping chamber, dense and wrong: wet stained
+concrete, a gutter running out of a pipe mouth low in the back wall (its grille hanging
+open, claw marks, hair, hand prints going in, a child's shoe), a wall of valves and
+gauges, a bare bulb that will not stay on, and an amber 1980s terminal that draws the
+network under it and blinks where the pressure is lost (and on the worse nights a MOTION
+line wandering from pipe to pipe). Click the pipe mouth and you crawl in, broken or not
+(nothing broken: nothing to mend, the raccoon as ever). Two can go down together: the
+same pipes, each sees the other lying in them (from behind, the soles of their boots;
+from the front, their torch in your eyes; from the side across a junction), and their
+body fills the pipe: you cannot get past, head to head one of you backs up, feet first
+(tap S); close up the walls close in. Each has their own raccoon.
 
 *Reworked 2026-10-18 with the user: the raccoon. Staging `scripts/pipes/pipe_director.gd`,
 its catches `scripts/pipes/pipe_catch.gd`, the crawl `scripts/sewer_pipe_minigame.gd`.*
@@ -538,10 +609,13 @@ attractions.
 2. How much may the terminal lie? (Section 2 rules apply: specific, never numeric.)
 3. The raccoon thing: tie it to waste (dumpsters overflowing) as a fifth threat?
 
-## 12. Two wardens (co-op)
+## 12. Wardens together (co-op, up to four)
 
-Decided with the user on 2026-10-17. Two players run one camp together; only in a
-**sandbox** camp (no month, no checklist). Built and tested in stages, each mechanic gone
+Decided with the user on 2026-10-17 for two, widened to four on 2026-10-19 ("chceme cílit
+na 4 hráče"). Up to four players run one camp together; only in a
+**sandbox** camp (no month, no checklist, but the district's mail on how to start and a
+first booking sure to come once a bed stands; the story is for one warden, and NEW CAMP says
+so when STORY is chosen). Built and tested in stages, each mechanic gone
 through for two (TODO.md, CO-OP).
 
 - **One camp, one keeper of it.** The host's machine runs the camp exactly as a single
@@ -565,8 +639,10 @@ through for two (TODO.md, CO-OP).
   you be: the other warden can come and haul you up (E), or, nobody coming, you come to
   on the office step a while later. The camp goes on for the other either way.
 - **The other warden** is a figure like the guests (Grok sprites) with their torch and
-  their steps. Each player picks who they are on the CO-OP page, two men and two women
-  (Pepa, Ondra, Jana, Bara), and the colour of their jacket; each warden is drawn
+  their steps. The look belongs to the player's warden (the WARDENS page: chosen when the
+  warden is made, changed later with Edit warden): one of four figures, two men and two
+  women, and the colour of their jacket; the other warden is called by that warden's
+  name, not the figure's; each warden is drawn
   standing, rowing, sweeping, down on a knee scrubbing, lying on their belly, at the PC and sitting.
 - **Rooms for two.** Each warden sees a room from where they stand in it; the other is
   in it too: across the room, or at the job they are doing (with the broom, on a knee).

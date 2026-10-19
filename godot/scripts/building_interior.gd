@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const INTERIOR_BARREL_SHADER = preload("res://materials/interior_barrel_post.gdshader")
+const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 ## Reception surfaces by node name (exact names first, then prefixes): [camp texture,
 ## metres per repeat]. "" = not built (replaced by a prop or a picture, see _build_room).
@@ -309,6 +310,26 @@ func export_crt_desktop_state() -> Dictionary:
 	if _desk_room != null:
 		out["checkin_desk"] = _desk_room.export_state()
 	return out
+
+
+## Co-op: the office PC as the other machine must have it too (scripts/os98/os_shell.gd
+## coop_pc_state; before the PC was first switched on here, what it was loaded with).
+func coop_pc_state() -> Dictionary:
+	if _crt_ui != null and is_instance_valid(_crt_ui) and _crt_ui.has_method("coop_pc_state"):
+		return _crt_ui.coop_pc_state()
+	var out := _pending_crt_desktop_state.duplicate(true)
+	out.erase("checkin_desk")
+	out.erase("monitor_powered")
+	return out
+
+
+func coop_take_pc_state(state: Dictionary) -> void:
+	if _crt_ui != null and is_instance_valid(_crt_ui) and _crt_ui.has_method("coop_take_pc"):
+		_crt_ui.coop_take_pc(state)
+		return
+	for k in state.keys():
+		_pending_crt_desktop_state[k] = state[k]
+	_pending_crt_desktop_state["os"] = "okna98"
 
 
 func import_crt_desktop_state(state: Dictionary) -> void:
@@ -741,12 +762,13 @@ func _try_click_crt(event: InputEventMouseButton) -> void:
 	# Strict hit test: only the real CRT screen quad is clickable.
 	var vp_pos = _map_mouse_to_crt(event.position, false)
 	if vp_pos != Vector2.INF:
-		# Co-op: one at the PC at a time (the other looks over their shoulder).
-		var theirs: Dictionary = Coop.partner_state.get("room", {}) if Coop.has_partner() else {}
-		if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) == "pc":
-			if _extras != null:
-				_extras.coop_refuse("pc")
-			return
+		# Co-op: one at the PC at a time (the others look over their shoulder).
+		for id in Coop.others():
+			var theirs: Dictionary = Coop.state_of(id).get("room", {})
+			if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) == "pc":
+				if _extras != null:
+					_extras.coop_refuse("pc")
+				return
 		enter_crt_view()
 
 
@@ -899,8 +921,8 @@ func _build_room() -> void:
 	# ── CEILING ────────────────────────────────────────────────────────────────
 	_add_box(_room_root, "Ceiling", Vector3(0.0, 2.8, 0.0), Vector3(5.0, 0.1, 5.0), Color(0.60, 0.54, 0.46))
 	_add_box(_room_root, "CeilingTrim", Vector3(0.0, 2.70, 0.0), Vector3(5.2, 0.06, 5.2), Color(0.52, 0.44, 0.38))
-	_add_box(_room_root, "CeilingFixture", Vector3(0.0, 2.72, 0.2), Vector3(0.40, 0.04, 0.40), Color(0.86, 0.84, 0.76))
-	_add_box(_room_root, "CeilingFixtureGlass", Vector3(0.0, 2.68, 0.2), Vector3(0.32, 0.02, 0.32), Color(0.94, 0.94, 0.88))
+	# The light over the room: a fluorescent tube fitting (the old round fixture is gone).
+	_build_fluorescent()
 
 	# ── SOLID WALLS ────────────────────────────────────────────────────────────
 	_add_box(_room_root, "WallBack", Vector3(0.0, 1.4, 2.55), Vector3(5.0, 2.8, 0.1), Color(0.62, 0.48, 0.34))
@@ -942,6 +964,12 @@ func _build_room() -> void:
 	_room_root.add_child(_window_quad)
 	_setup_window_view()
 	_update_window_texture()
+	# The weather at the window (scripts/ambient/room_weather.gd): rain on the glass,
+	# lightning through it, the office creaking in the gusts.
+	var rw = ROOM_WEATHER.new()
+	rw.is_open = func(): return visible
+	_room_root.add_child(rw)
+	rw.add_window(_window_quad)
 
 	# ── FAKE OUTDOOR SCENE (past the front wall, aligned to shifted window) ───
 	_add_box(_room_root, "OutdoorGround",  Vector3(-0.4,  -0.04, -4.2), Vector3(2.10, 0.08, 4.0), Color(0.44, 0.42, 0.38))
@@ -1759,8 +1787,9 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		_room_environment.fog_light_color = _tri(d, Color(0.14, 0.18, 0.24), Color(0.34, 0.28, 0.30), Color(0.78, 0.82, 0.84))
 		_room_environment.fog_density = _tri(d, 0.014, 0.010, 0.004)
 	if _ceiling_light != null:
-		_ceiling_light.light_color = _tri(d, Color(0.66, 0.72, 0.90), Color(0.92, 0.76, 0.64), Color(1.0, 0.96, 0.86))
-		_ceiling_light.light_energy = _tri(d, 0.5, 1.15, 1.88)
+		# The tube's cold white, which the evening and the day only warm a little.
+		_ceiling_light.light_color = _tri(d, Color(0.86, 0.92, 1.0), Color(0.94, 0.92, 0.9), Color(1.0, 0.98, 0.92))
+		_ceiling_light.light_energy = _tri(d, 1.3, 1.4, 1.88)
 	if _desk_lamp != null:
 		_desk_lamp.light_energy = _tri(d, 0.9, 0.8, 0.7)
 		_desk_lamp.light_color = Color(1.0, 0.86, 0.6)
@@ -2047,7 +2076,10 @@ func _update_window_portal() -> void:
 	var eye_room := _room_root.to_local(_interior_camera.global_position) if _room_root != null else _interior_camera.position
 	var in_back: bool = _extras != null and (_extras.in_back_room() or _extras._walking())
 	# Only the window you can see, and only while its curtains let anything through.
-	var office_on: bool = not in_back or not _extras.in_back_room()
+	# On the way back from the back room (and with its door open) the office window comes
+	# into view before you stand in the office: it was off till the walk ended, and showed
+	# the night's picture through the morning.
+	var office_on: bool = not in_back or not _extras.in_back_room() or _extras._walking() or _extras.back_door_open()
 	if _office_curtain != null and _office_curtain.open < 0.02:
 		office_on = false
 	office_on = office_on and _aim_portal(_window_cam, _portal_frame(WINDOW_CENTER, Vector3(0, 0, -1)), WINDOW_SIZE, eye_room)
@@ -2284,7 +2316,8 @@ func _create_office_light_switch() -> void:
 		return
 	var switch_body = StaticBody3D.new()
 	switch_body.name = "OfficeLightSwitch"
-	switch_body.position = Vector3(-2.38, 1.18, 0.62)
+	# By the front door as you come in (between the window and the door), not by the PC.
+	switch_body.position = Vector3(0.93, 1.22, -2.46)
 	switch_body.rotation = Vector3(0.0, PI * 0.5, 0.0)
 	switch_body.set_meta("interior_click_type", "office_light_switch")
 	var switch_mesh = MeshInstance3D.new()
@@ -2355,7 +2388,9 @@ func _apply_office_wall_texture_state() -> void:
 
 ## The green banker's lamp at the left end of the PC desk: click it (or the switch on
 ## its foot) and it goes off and on, with the click of the button.
-const DESK_LAMP_AT := Vector3(-0.28, 0.82, -1.22)
+## In front of the PC, at the desk's front left by the keyboard (it stood back beside the
+## monitor; playtest 19. 10.: "lampičku u kompu dát před komp, ne za něj").
+const DESK_LAMP_AT := Vector3(-0.2, 0.82, -1.02)
 var _desk_lamp_on := true
 var _desk_lamp_shade: MeshInstance3D
 var _desk_lamp_body: StaticBody3D
@@ -2399,7 +2434,7 @@ func toggle_desk_lamp(sound := true) -> void:
 	_desk_lamp_on = not _desk_lamp_on
 	if sound:
 		var p := AudioStreamPlayer.new()
-		p.stream = load("res://assets/sfx/backroom/lamp_click.wav") if ResourceLoader.exists("res://assets/sfx/backroom/lamp_click.wav") else null
+		p.stream = load("res://assets/sfx/backroom/lamp_click.mp3") if ResourceLoader.exists("res://assets/sfx/backroom/lamp_click.mp3") else null
 		p.volume_db = -6.0
 		add_child(p)
 		p.finished.connect(p.queue_free)
@@ -2448,7 +2483,7 @@ func coop_take_office_state(d: Dictionary) -> void:
 		if d.has("lamp") and bool(d["lamp"]) != bool(back.lamp_on):
 			back.set_lamp(bool(d["lamp"]))
 			if here:
-				back._play("lamp_click.wav", -6.0)
+				back._play("lamp_click.mp3", -6.0)
 		if d.has("tv") and bool(d["tv"]) != bool(back.tv_on):
 			back._set_tv(bool(d["tv"]), here)
 	if d.has("bulb") and _extras.store != null and bool(d["bulb"]) != bool(_extras.store.bulb_on):
@@ -2657,6 +2692,13 @@ func _apply_manual_office_light_profile(animated: bool) -> void:
 		ceiling_target = 0.0
 		desk_target = 0.0
 		window_target *= 0.28
+	var tubes_on := _office_lights_on and _grid_power_available
+	if animated and tubes_on and not _fluoro_lit:
+		# A tube comes on as tubes do: a blink, dark, two blinks, then on.
+		_fluoro_flicker(ceiling_target)
+		ceiling_target = -1.0
+	else:
+		_set_fluoro(tubes_on)
 	if animated:
 		if _office_light_tween != null and is_instance_valid(_office_light_tween):
 			_office_light_tween.kill()
@@ -2666,7 +2708,7 @@ func _apply_manual_office_light_profile(animated: bool) -> void:
 		_office_light_tween.set_trans(Tween.TRANS_SINE)
 		if _room_environment != null:
 			_office_light_tween.tween_property(_room_environment, "ambient_light_energy", ambient_target, 0.68)
-		if _ceiling_light != null:
+		if _ceiling_light != null and ceiling_target >= 0.0:
 			_office_light_tween.tween_property(_ceiling_light, "light_energy", ceiling_target, 0.68)
 		if _desk_lamp != null:
 			_office_light_tween.tween_property(_desk_lamp, "light_energy", desk_target, 0.68)
@@ -2675,12 +2717,92 @@ func _apply_manual_office_light_profile(animated: bool) -> void:
 		return
 	if _room_environment != null:
 		_room_environment.ambient_light_energy = ambient_target
-	if _ceiling_light != null:
+	if _ceiling_light != null and ceiling_target >= 0.0:
 		_ceiling_light.light_energy = ceiling_target
 	if _desk_lamp != null:
 		_desk_lamp.light_energy = desk_target
 	if _window_light != null:
 		_window_light.light_energy = window_target
+
+
+# ── the fluorescent tube light over the room ─────────────────────────────────
+# Two tubes in a galvanised housing on the ceiling (the ceiling light's own source:
+# _ceiling_light), on the main switch by the front door: lit, they glow cold white and
+# hum; off (or the power gone), grey glass.
+
+var _fluoro_mat: StandardMaterial3D
+var _fluoro_hum: AudioStreamPlayer3D
+var _fluoro_lit := true
+var _fluoro_tween: Tween
+
+
+func _build_fluorescent() -> void:
+	var K := INTERIOR_KIT
+	var at := Vector3(0.0, 2.72, 0.2)
+	# No shadows from it: the light is just under it, and it would black out the ceiling.
+	var housing: MeshInstance3D = K.slab(_room_root, Vector3(1.34, 0.06, 0.24), at, K.surface("galvanized", 1.4), "FluoroHousing")
+	housing.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for x in [-0.66, 0.66]:
+		var end: MeshInstance3D = K.slab(_room_root, Vector3(0.04, 0.05, 0.2), at + Vector3(x, -0.04, 0.0), K.surface("galvanized", 1.4), "FluoroEnd")
+		end.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_fluoro_mat = StandardMaterial3D.new()
+	_fluoro_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_fluoro_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	for z in [-0.055, 0.055]:
+		var tube := MeshInstance3D.new()
+		tube.name = "FluoroTube"
+		var bm := BoxMesh.new()
+		bm.size = Vector3(1.26, 0.032, 0.032)
+		tube.mesh = bm
+		tube.material_override = _fluoro_mat
+		tube.position = at + Vector3(0.0, -0.05, z)
+		tube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_room_root.add_child(tube)
+	if ResourceLoader.exists("res://assets/sfx/world/lamp_buzz.mp3"):
+		_fluoro_hum = AudioStreamPlayer3D.new()
+		var st: AudioStream = load("res://assets/sfx/world/lamp_buzz.mp3")
+		if st is AudioStreamMP3:
+			(st as AudioStreamMP3).loop = true
+		_fluoro_hum.stream = st
+		_fluoro_hum.volume_db = -26.0
+		_fluoro_hum.unit_size = 2.0
+		_fluoro_hum.max_distance = 8.0
+		_fluoro_hum.position = at
+		_room_root.add_child(_fluoro_hum)
+	_fluoro_lit = false
+	_set_fluoro(true)
+
+
+func _set_fluoro(lit: bool) -> void:
+	if _fluoro_tween != null and is_instance_valid(_fluoro_tween) and _fluoro_tween.is_running():
+		return
+	_fluoro_glow(lit)
+
+
+func _fluoro_glow(lit: bool) -> void:
+	_fluoro_lit = lit
+	if _fluoro_mat != null:
+		_fluoro_mat.albedo_color = Color(0.94, 0.97, 1.0) if lit else Color(0.46, 0.47, 0.46)
+	if _fluoro_hum != null and is_instance_valid(_fluoro_hum) and _fluoro_hum.is_inside_tree():
+		if lit and not _fluoro_hum.playing:
+			_fluoro_hum.play()
+		elif not lit and _fluoro_hum.playing:
+			_fluoro_hum.stop()
+
+
+## Blink, dark, blink, blink, on (in the game's own steps), the room's light with it.
+func _fluoro_flicker(energy: float) -> void:
+	if _fluoro_tween != null and is_instance_valid(_fluoro_tween):
+		_fluoro_tween.kill()
+	_fluoro_tween = create_tween()
+	for step in [[true, 0.06], [false, 0.16], [true, 0.05], [false, 0.09], [true, 0.04], [false, 0.22], [true, 0.0]]:
+		var on: bool = step[0]
+		_fluoro_tween.tween_callback(func() -> void:
+			_fluoro_glow(on)
+			if _ceiling_light != null:
+				_ceiling_light.light_energy = energy if on else energy * 0.08)
+		if float(step[1]) > 0.0:
+			_fluoro_tween.tween_interval(float(step[1]))
 
 
 func _resolve_main_runtime_host() -> Node:

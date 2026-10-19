@@ -32,6 +32,7 @@ const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
 const COOP_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## The beds of the camp's own tents, cabins and caravans for a warden to sleep in.
 const LODGE_BED = preload("res://scripts/lodge_bed.gd")
+const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
 var lodge_bed: Node
 
 const TIME_NIGHT: int = 2
@@ -334,12 +335,16 @@ func is_any_open() -> bool:
 
 
 ## The pause menu's "Go outside": shuts whatever room or panel is open the way its own
-## exit would (each hands the player back their controls).
-func close_everything() -> void:
+## exit would (each hands the player back their controls). `silent` (back to the main
+## menu): no walk out of the door, no door sound; a room left open stayed under the
+## menu and went on taking clicks.
+func close_everything(silent := false) -> void:
 	if _guest_dialog != null and _guest_dialog.is_open():
 		_guest_dialog.close_dialog()
 	if _building_upgrade_menu != null and _building_upgrade_menu.is_open():
 		_building_upgrade_menu.close_menu()
+	_no_step_out = silent
+	_silent_close = silent
 	for interior in _get_registered_interior_nodes():
 		if not (interior.has_method("is_open") and interior.is_open()):
 			continue
@@ -347,7 +352,49 @@ func close_everything() -> void:
 			if interior.has_method(m):
 				interior.call(m)
 				break
-	_set_player_controls_enabled(true)
+	_no_step_out = false
+	_silent_close = false
+	if silent and stepping_out():
+		_stepping_out.kill()
+		var body := _player as CharacterBody3D
+		if body != null:
+			body.collision_mask = _walk_mask
+	if not stepping_out():
+		_set_player_controls_enabled(true)
+
+
+var _silent_close := false
+
+
+func _play_door_close() -> void:
+	if not _silent_close and _audio_manager != null and _audio_manager.has_method("play_door_close"):
+		_audio_manager.play_door_close()
+
+
+## The reception's own front door (an old wooden door with a glass pane and a shop bell
+## over it), not the rooms' generic one.
+const OFFICE_DOOR_OPEN := "res://assets/sfx/rooms/office_door_open.mp3"
+const OFFICE_DOOR_CLOSE := "res://assets/sfx/rooms/office_door_close.mp3"
+var _office_door: AudioStreamPlayer
+
+
+func _play_office_door(path: String) -> bool:
+	if not ResourceLoader.exists(path):
+		return false
+	if _office_door == null or not is_instance_valid(_office_door):
+		_office_door = AudioStreamPlayer.new()
+		_office_door.name = "OfficeDoorSfx"
+		_office_door.volume_db = -6.0
+		add_child(_office_door)
+	_office_door.stream = load(path)
+	_office_door.pitch_scale = randf_range(0.96, 1.03)
+	_office_door.play()
+	return true
+
+
+func _play_office_door_close() -> void:
+	if _silent_close or not _play_office_door(OFFICE_DOOR_CLOSE):
+		_play_door_close()
 
 
 func is_crt_desktop_active() -> bool:
@@ -528,7 +575,7 @@ func _on_crt_interact() -> void:
 	_apply_time_to_interior(_building_interior)
 	_door_transition(true)
 	_building_interior.open_interior()
-	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
+	if not _play_office_door(OFFICE_DOOR_OPEN) and _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
 
@@ -562,20 +609,89 @@ func _on_interior_visibility_changed() -> void:
 	if not _building_interior.is_open():
 		if bool(_building_interior.get("walked_out")):
 			_building_interior.set("walked_out", false)
-			if _door_fx != null:
-				_door_fx.play(false, true)
-			if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-				_audio_manager.play_door_close()
+			_play_office_door_close()
 			_walk_on_out_of_office()
 			return
-		_door_transition(false)
-		if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-			_audio_manager.play_door_close()
+		_play_office_door_close()
+		_step_out_of(_world_3d.find_child("MainBuilding", true, false) as Node3D if _world_3d != null else null)
+
+
+## Out of a room any other way (S, the bottom band, the pause menu's Go outside): no
+## dissolve (playtest 18. 10.: "totally smooth"); the camp takes over at the building's
+## door, the warden a step out of it facing away, walking on off the doorstep. The door
+## nearest to where you went in (the toilets have two); a sewer hatch has none to walk from.
+const STEP_OUT_FROM := 0.3
+const STEP_OUT_TO := 1.7
+const NO_STEP_OUT := ["sewer", "sewage_tank"]
+
+
+var _no_step_out := false
+var _stepping_out: Tween
+var _walk_mask := 1
+
+
+func stepping_out() -> bool:
+	return _stepping_out != null and _stepping_out.is_valid() and _stepping_out.is_running()
+
+
+func _step_out_of(structure: Node3D) -> void:
+	var body := _player as CharacterBody3D
+	if _no_step_out or body == null or structure == null or not is_instance_valid(structure) \
+			or str(structure.get_meta("building_type", "")) in NO_STEP_OUT:
 		_set_player_controls_enabled(true)
+		return
+	var doors: Array = DOOR_ANIM.find_doors(structure)
+	if doors.is_empty():
+		doors = structure.find_children("TentFlap", "MeshInstance3D", true, false)
+	var pick := 0
+	var best := INF
+	for i in doors.size():
+		var d := body.global_position.distance_to((doors[i] as Node3D).global_position)
+		if d < best:
+			best = d
+			pick = i
+	var way: Dictionary = DOOR_ANIM.entry_points(structure, pick)
+	if way.is_empty():
+		_set_player_controls_enabled(true)
+		return
+	var out: Vector3 = way["outside"] - way["inside"]
+	out.y = 0.0
+	out = out.normalized()
+	var sill: Vector3 = (way["outside"] + way["inside"]) * 0.5
+	sill.y = body.global_position.y
+	if way["door"] != null:
+		DOOR_ANIM.open_now(way["door"], WALK_OUT_SEC + 0.6)
+	_walk_body(body, sill + out * STEP_OUT_FROM, sill + out * STEP_OUT_TO, out)
+
+
+## The warden's body from `from` to `to` facing `dir`, no collisions on the way (through
+## the door body, over the porch); the keys are his when he is down.
+func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3) -> void:
+	var mask := body.collision_mask
+	if stepping_out():
+		_stepping_out.kill()
+		mask = _walk_mask
+	_walk_mask = mask
+	_set_player_controls_enabled(false)
+	body.global_position = from
+	body.rotation.y = atan2(-dir.x, -dir.z)
+	body.set("_pitch", 0.0)
+	body.set("_pitch_target", 0.0)
+	body.velocity = Vector3.ZERO
+	body.collision_mask = 0
+	var tw := create_tween()
+	_stepping_out = tw
+	tw.tween_property(body, "global_position", to, WALK_OUT_SEC).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(body):
+			body.collision_mask = mask
+			body.velocity = Vector3.ZERO
+		_set_player_controls_enabled(true)
+	)
 
 
 ## Out of the office's front door on foot (reception_extras.go_out_front): the warden's
-## body is put under the room's eye as the dither starts, facing out, and walks on
+## body is put under the room's eye as the room closes, facing out, and walks on
 ## through the doorway and off the porch under it, so the camp picks the walk up where
 ## the room left it (playtest 18. 10.: "absolutely smooth"). Through the building's
 ## door body and over the porch with no collisions; the keys are his when he is down.
@@ -588,22 +704,13 @@ func _walk_on_out_of_office() -> void:
 	if way.is_empty():
 		_set_player_controls_enabled(true)
 		return
-	var dir: Vector3 = way["dir"]
-	body.global_position = way["from"]
-	body.rotation.y = atan2(-dir.x, -dir.z)
-	body.set("_pitch", 0.0)
-	body.set("_pitch_target", 0.0)
-	body.velocity = Vector3.ZERO
-	var mask := body.collision_mask
-	body.collision_mask = 0
-	var tw := create_tween()
-	tw.tween_property(body, "global_position", way["to"], WALK_OUT_SEC).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func() -> void:
-		if is_instance_valid(body):
-			body.collision_mask = mask
-			body.velocity = Vector3.ZERO
-		_set_player_controls_enabled(true)
-	)
+	# The camp building's own leaf is shut (the room's doorway view never showed it): the
+	# eye starts right at it, and for some frames the walk out was through a door.
+	var office := _world_3d.find_child("MainBuilding", true, false) as Node3D if _world_3d != null else null
+	var leaf := DOOR_ANIM.find_door(office) if office != null else null
+	if leaf != null:
+		DOOR_ANIM.open_now(leaf, WALK_OUT_SEC + 0.6)
+	_walk_body(body, way["from"], way["to"], way["dir"])
 
 
 func _on_tent_interact(tent_node: Node) -> void:
@@ -684,11 +791,10 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 
 
 func _on_caravan_closed() -> void:
+	var was: Node3D = _active_caravan_node
 	_active_caravan_node = null
-	_door_transition(false)
-	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-		_audio_manager.play_door_close()
-	_set_player_controls_enabled(true)
+	_play_door_close()
+	_step_out_of(was)
 
 
 func _on_caravan_upgrade_requested() -> void:
@@ -711,9 +817,9 @@ func _on_caravan_upgrade_requested() -> void:
 func _on_tent_closed() -> void:
 	if _tent_interior != null and _tent_interior.has_method("set_guest_occupants"):
 		_tent_interior.set_guest_occupants([])
+	var was: Node3D = _active_tent_node
 	_active_tent_node = null
-	_door_transition(false)
-	_set_player_controls_enabled(true)
+	_step_out_of(was)
 
 
 func _setup_cabin_interior() -> void:
@@ -771,11 +877,10 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 func _on_cabin_closed() -> void:
 	if _cabin_interior != null and _cabin_interior.has_method("set_guest_occupants"):
 		_cabin_interior.set_guest_occupants([])
+	var was: Node3D = _active_cabin_node
 	_active_cabin_node = null
-	_door_transition(false)
-	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-		_audio_manager.play_door_close()
-	_set_player_controls_enabled(true)
+	_play_door_close()
+	_step_out_of(was)
 
 
 ## Room preparation: the interior shows the mess for what is not done yet.
@@ -884,11 +989,10 @@ func _toilet_door_of(structure: Node3D) -> String:
 
 
 func _on_service_closed() -> void:
+	var was: Node3D = _active_service_node as Node3D
 	_active_service_node = null
-	_door_transition(false)
-	if _audio_manager != null and _audio_manager.has_method("play_door_close"):
-		_audio_manager.play_door_close()
-	_set_player_controls_enabled(true)
+	_play_door_close()
+	_step_out_of(was)
 
 
 func _on_service_repair_requested() -> void:
@@ -907,7 +1011,10 @@ func _on_service_repair_requested() -> void:
 		if not _economy_manager.has_failed_utility_at(coord):
 			return
 	if _service_interior != null and _service_interior.is_open():
+		# Straight into the repair: no walk out of the door under it.
+		_no_step_out = true
 		_service_interior.close_service()
+		_no_step_out = false
 	service_repair_requested.emit(coord, building_type)
 
 
@@ -1126,6 +1233,12 @@ func _on_cabin_upgrade_requested() -> void:
 
 
 func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String, enabled: bool) -> void:
+	# Not until the camp is rated well enough on Goggle.
+	var need := _upgrade_locked(str(_pending_upgrade_context.get("new_type", "")))
+	if need > 0.0:
+		_pending_upgrade_context.clear()
+		cost_text = "GOGGLE %.1f" % need
+		enabled = false
 	if _building_upgrade_menu == null:
 		return
 	var room: Node = null
@@ -1172,6 +1285,63 @@ func _on_upgrade_confirmed() -> void:
 
 	if _building_upgrade_menu != null:
 		_building_upgrade_menu.close_menu()
+
+
+## The next level of a lodging (tent, cabin, caravan), or "" at the top.
+const NEXT_LEVEL := {"tent_1": "tent_2", "tent_2": "tent_3", "cabin": "cabin_2", "cabin_1": "cabin_2", "cabin_2": "cabin_3", "caravan_1": "caravan_2", "caravan_2": "caravan_3"}
+## The least an upgrade costs, by kind (the brochures' own floors).
+const UPGRADE_FLOOR := {"tent": 20, "cabin": 30, "caravan": 30}
+
+
+## Builder's map: what upgrading the lodging at `origin` would be ({} if it cannot be).
+## The same rule and price as the brochure in the room.
+func map_upgrade_offer(origin: Vector2i, current_type: String) -> Dictionary:
+	if _economy_manager == null:
+		return {}
+	var cur := "cabin_1" if current_type == "cabin" else current_type
+	var next := str(NEXT_LEVEL.get(cur, ""))
+	if next == "":
+		return {"max": true, "old_type": cur}
+	var floor_cost := int(UPGRADE_FLOOR.get(cur.get_slice("_", 0), 20))
+	var cost: int = max(floor_cost, _economy_manager.get_cost(next) - _economy_manager.get_cost(cur))
+	return {"mode": "replace", "origin": origin, "old_type": cur, "new_type": next, "cost": cost,
+		"label": str(_economy_manager.get_label(next)), "locked": _upgrade_locked(next)}
+
+
+## An upgrade to `new_type` waits for the camp's Goggle rating (scripts/reviews/goggle.gd):
+## the stars it needs, or 0.0 when it is open.
+func _upgrade_locked(new_type: String) -> float:
+	var main := get_tree().current_scene if get_tree() != null else null
+	var g = main.get("_goggle") if main != null else null
+	if g == null:
+		return 0.0
+	var lvl := new_type.get_slice("_", 1)
+	if lvl != "2" and lvl != "3":
+		return 0.0
+	var item := "upgrade:" + lvl
+	if g.unlocked(item):
+		return 0.0
+	return float(g.TIERS[g.tier_of(item)]["stars"])
+
+
+## Builder's map: buy the upgrade there and then. False if it could not be paid or done.
+func map_upgrade(origin: Vector2i, current_type: String) -> bool:
+	var offer := map_upgrade_offer(origin, current_type)
+	if offer.is_empty() or bool(offer.get("max", false)) or float(offer.get("locked", 0.0)) > 0.0:
+		return false
+	if Coop.is_client():
+		Coop.send_request("upgrade", [offer.duplicate()])
+		return true
+	if not _economy_manager.has_method("spend_money") or not _economy_manager.spend_money(int(offer["cost"])):
+		return false
+	# The replace points the open room at the new building; from the map no room is
+	# open on it, so whatever was open stays as it was.
+	var keep := [_active_tent_node, _active_cabin_node, _active_caravan_node]
+	_handle_replace_upgrade(origin, str(offer["old_type"]), str(offer["new_type"]), int(offer["cost"]))
+	_active_tent_node = keep[0]
+	_active_cabin_node = keep[1]
+	_active_caravan_node = keep[2]
+	return true
 
 
 ## The host: the other warden bought an upgrade (the menu's context, as it was there).
@@ -1290,10 +1460,33 @@ func _is_supported_service_building_type(building_type: String) -> bool:
 
 # ── co-op: the other warden in the same room (scripts/coop/coop.gd) ─────────
 
-## The other warden's figure in the room you are in, and the interior it is in.
-var _coop_fig: Node3D
-var _coop_fig_in: Object
-var _coop_fig_spot := Vector3.ZERO
+## The other wardens' figures in the room you are in: peer id -> {fig, in: the interior
+## it is in, spot: where they stand about, sleeper: the one along a bed, job: theirs}.
+var _coop_figs: Dictionary = {}
+
+
+func _coop_entry(id: int) -> Dictionary:
+	if not _coop_figs.has(id):
+		_coop_figs[id] = {"fig": null, "in": null, "spot": Vector3.ZERO, "sleeper": null, "job": ""}
+	return _coop_figs[id]
+
+
+## The jobs the other wardens in your room have their hands on (theirs while they are at
+## them), to the room's tasks and the businesses' marks.
+func _coop_push_jobs() -> void:
+	var jobs: Array = []
+	for id in _coop_figs.keys():
+		var j := str(_coop_figs[id].get("job", ""))
+		if j != "":
+			jobs.append(j)
+	var it = _open_room_interior()
+	if it == null:
+		return
+	var room_tasks = _room_tasks(it) if it != _building_interior else null
+	if room_tasks != null and "coop_taken" in room_tasks:
+		room_tasks.coop_taken = jobs
+	if it == _service_interior and "coop_partner_jobs" in it:
+		it.coop_partner_jobs = jobs
 
 
 ## The room you are in, for the other machine: {k: room key, t: kind, s: which part
@@ -1388,7 +1581,7 @@ func _room_part(it) -> String:
 	if it == _cabin_interior:
 		return str(it.get("_active_room"))
 	if it == _service_interior:
-		return "%s/%s/%s" % [str(it.get("_current_profile")), str(it.get("_active_subroom")), str(it.get("toilet_entry"))]
+		return str(it.coop_part()) if it.has_method("coop_part") else "%s/%s/%s" % [str(it.get("_current_profile")), str(it.get("_active_subroom")), str(it.get("toilet_entry"))]
 	return "main"
 
 
@@ -1401,16 +1594,24 @@ func _room_tasks(it):
 
 func _room_job(it) -> String:
 	var tasks = _room_tasks(it)
-	return str(tasks.working_on()) if tasks != null and tasks.has_method("working_on") else ""
+	var w := str(tasks.working_on()) if tasks != null and tasks.has_method("working_on") else ""
+	# A business's counter games: the tap, the pass, the till... (service_interior.coop_job).
+	if w == "" and it == _service_interior and it.has_method("coop_job"):
+		w = str(it.coop_job())
+	return w
 
 
-## The other warden's place in your room, each time their state comes in: their figure
-## stands across the room from you (where you were looking when they came in), or at
-## the job they are doing (the broom for sweeping and mopping, down on a knee for the
-## rest; a job at your feet has them on its far side). In a tent they lie on their belly
-## down its middle, under the ridge (at the back, or by their job). Not in your room: no
-## figure.
-func coop_partner(info: Dictionary) -> void:
+## Another warden's place in your room (`id`: theirs), each time their state comes in:
+## their figure stands across the room from you (where you were looking when they came
+## in; the next one a pace further along), or at the job they are doing (the broom for
+## sweeping and mopping, down on a knee for the rest; a job at your feet has them on its
+## far side). In a tent they lie on their belly down its middle, under the ridge (at the
+## back, or by their job). Not in your room: no figure.
+func coop_partner(info: Dictionary, id := 0) -> void:
+	if id == 0:
+		id = Coop.remote_id
+	var look: Dictionary = Coop.look_of(id)
+	var model := int(look.get("m", 1))
 	var mine := coop_room()
 	var same: bool = not info.is_empty() and not mine.is_empty() and str(info.get("k", "")) == str(mine["k"]) \
 		and str(info.get("t", "")) == str(mine["t"]) and str(info.get("s", "")) == str(mine["s"]) and str(mine["k"]) != ""
@@ -1421,23 +1622,23 @@ func coop_partner(info: Dictionary) -> void:
 			and str(mine.get("s", "")) in [str(go.get("f", "")), str(go.get("to", ""))]:
 		same = true
 	if not same:
-		coop_drop_partner()
+		coop_drop_partner(id)
 		return
 	var it = _open_room_interior()
+	var e := _coop_entry(id)
 	# Their job is theirs while they are at it.
-	var room_tasks = _room_tasks(it) if it != _building_interior else null
-	if room_tasks != null and "coop_taken" in room_tasks:
-		room_tasks.coop_taken = str(info.get("w", ""))
+	e["job"] = str(info.get("w", ""))
+	_coop_push_jobs()
 	var vp: Node = it.get("_viewport")
 	var cam: Camera3D = it.get("_interior_camera")
 	if vp == null or cam == null:
 		return
 	# In bed: seen lying on it from the back room, or in the tent, cabin or caravan
 	# they turned in in (lodge_bed.gd), nowhere else.
-	var has_bed: bool = COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "bed")
+	var has_bed: bool = COOP_LOOKS.has_pose(model, "bed")
 	var lodge: bool = not LODGE_BED.bed_spot(str(mine["t"])).is_empty()
 	if bool(info.get("b", false)) and not (has_bed and (lodge or (str(mine["t"]) == "office" and str(mine["s"]) == "back"))):
-		coop_drop_partner()
+		coop_drop_partner(id)
 		return
 	var tent: bool = str(mine["t"]) == "tent"
 	# The camera is a child of the room's root, which stands on the floor: its own height
@@ -1447,63 +1648,69 @@ func coop_partner(info: Dictionary) -> void:
 	var fwd := -cam.global_basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
-	if _coop_fig == null or not is_instance_valid(_coop_fig) or _coop_fig_in != it or _coop_fig.get_parent() != vp:
-		coop_drop_partner()
-		var look: Dictionary = Coop.partner_look
-		_coop_fig = COOP_FIGURE.new()
-		_coop_fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
-		vp.add_child(_coop_fig)
-		_coop_fig_in = it
+	var fig: Node3D = e["fig"]
+	if fig == null or not is_instance_valid(fig) or e["in"] != it or fig.get_parent() != vp:
+		coop_drop_partner(id)
+		e = _coop_entry(id)
+		e["job"] = str(info.get("w", ""))
+		fig = COOP_FIGURE.new()
+		fig.setup(model, int(look.get("c", 0)), true)
+		vp.add_child(fig)
+		e["fig"] = fig
+		e["in"] = it
 		var right := cam.global_basis.x
 		right.y = 0.0
 		right = right.normalized() if right.length() > 0.01 else Vector3.RIGHT
-		# Across the room from you (a cabin is three paces deep), a little to one side; in
-		# a tent at its back.
-		_coop_fig_spot = cam.global_position + fwd * 1.8 + right * 0.3
+		# Across the room from you (a cabin is three paces deep), a little to one side, the
+		# next of them a pace along the other way; in a tent at its back, one behind another.
+		var nth := maxi(0, Coop.others().find(id))
+		var side := 0.3 + 0.6 * float(nth)
+		var spot: Vector3 = cam.global_position + fwd * 1.8 + right * (side if nth % 2 == 0 else -side)
 		if tent and root != null:
-			_coop_fig_spot = _coop_tent_spot(root, root.global_transform * Vector3(0.0, 0.0, -0.6))
-		_coop_fig_spot.y = floor_y
+			spot = _coop_tent_spot(root, root.global_transform * Vector3(0.0, 0.0, -0.6 + 0.25 * float(nth)))
+		spot.y = floor_y
+		e["spot"] = spot
 	if not (bool(info.get("b", false)) and lodge):
-		_coop_hide_sleeper()
+		_coop_hide_sleeper(id)
 	if bool(info.get("b", false)) and lodge and root != null:
 		# On their back on the bed, the head on the pillow end.
 		var spot: Dictionary = LODGE_BED.bed_spot(str(mine["t"]))
 		var head: Vector3 = root.global_transform * (spot["head"] as Vector3)
 		var mid: Vector3 = root.global_transform * (spot["centre"] as Vector3)
-		_coop_fig.set_walking(false)
+		fig.set_walking(false)
 		# Seen along the bed (a cabin's, a tent's from the door): from the foot end; seen
 		# across it (the caravan's dinette): from the side.
 		var axis := head - mid
 		axis.y = 0.0
 		var along: bool = axis.length() > 0.01 and absf(axis.normalized().dot(fwd)) > 0.6
-		if along and COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "bedfoot"):
-			_coop_fig.visible = false
-			_coop_lay_sleeper(vp, root.global_transform * (spot["foot"] as Vector3), head)
+		if along and COOP_LOOKS.has_pose(model, "bedfoot"):
+			fig.visible = false
+			_coop_lay_sleeper(id, vp, root.global_transform * (spot["foot"] as Vector3), head)
 			return
-		_coop_hide_sleeper()
-		_coop_fig.show_at(mid, "bed")
-		_coop_fig.set_flip((head - mid).dot(cam.global_basis.x) > 0.0)
+		_coop_hide_sleeper(id)
+		fig.show_at(mid, "bed")
+		fig.set_flip((head - mid).dot(cam.global_basis.x) > 0.0)
 		return
 	if str(mine["t"]) == "office" and root != null:
-		_coop_fig.set_walking(false)
-		_coop_fig.set_flip(false)
+		fig.set_walking(false)
+		fig.set_flip(false)
 		if bool(info.get("b", false)):
 			# On their back on the bed, the head on the pillow (back_room.lie_pose's end).
 			var head: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, -0.75))
 			var feet: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, 0.75))
-			_coop_fig.show_at(root.global_transform * COOP_BED, "bed")
-			_coop_fig.set_flip((head - feet).dot(cam.global_basis.x) > 0.0)
+			fig.show_at(root.global_transform * COOP_BED, "bed")
+			fig.set_flip((head - feet).dot(cam.global_basis.x) > 0.0)
 			return
 		if not go.is_empty():
 			# Through the doorway, as their camera goes (reception_extras.go_*).
 			var path := _coop_office_path(str(go.get("f", "")), str(go.get("to", "")))
 			var at := _coop_along(path, clampf(float(go.get("k", 0.0)), 0.0, 1.0))
-			_coop_fig.show_at(root.global_transform * at, "stand")
-			_coop_fig.set_walking(true)
+			fig.show_at(root.global_transform * at, "stand")
+			fig.set_walking(true)
 			return
 		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(mine["s"]), COOP_OFFICE_SPOTS["office"])
 		var pose := "stand"
-		if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "write"):
+		if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(model, "write"):
 			# Behind the counter, bent over the register.
 			spot = COOP_DESK_SPOT
 			pose = "write"
@@ -1515,9 +1722,19 @@ func coop_partner(info: Dictionary) -> void:
 			var at_desk := seat.lerp(screen, 0.38)
 			spot = Vector3(at_desk.x, 0.0, at_desk.z)
 			pose = "desk"
-		_coop_fig.show_at(root.global_transform * spot, pose)
+		fig.show_at(root.global_transform * spot, pose)
 		return
 	var job := str(info.get("w", ""))
+	if it == _service_interior and it.has_method("coop_job_spot"):
+		var at_job: Dictionary = it.coop_job_spot(job) if job != "" else {}
+		if not at_job.is_empty():
+			# Behind the counter at the job they have open (the tap, the pass, the till).
+			var pose := str(at_job["pose"])
+			if not COOP_LOOKS.has_pose(model, pose):
+				pose = "stand"
+			fig.set_walking(false)
+			fig.show_at(at_job["pos"], pose)
+			return
 	if job != "":
 		var tasks = _room_tasks(it)
 		var t: Dictionary = tasks.target_info(job) if tasks != null and tasks.has_method("target_info") else {}
@@ -1534,9 +1751,9 @@ func coop_partner(info: Dictionary) -> void:
 			at.y = floor_y
 			var verb := str(t.get("verb", ""))
 			var pose := "sweep" if verb in ["Sweeping", "Mopping"] else ("stand" if verb in ["Making the bed", "Rolling out"] else "crouch")
-			_coop_fig.show_at(at, "prone" if tent else pose)
+			fig.show_at(at, "prone" if tent else pose)
 			return
-	_coop_fig.show_at(_coop_fig_spot, "prone" if tent else "stand")
+	fig.show_at(e["spot"], "prone" if tent else "stand")
 
 
 ## A place in a tent for the other warden: down its middle (the walls slope in to the
@@ -1552,15 +1769,17 @@ func _coop_tent_spot(root: Node3D, at: Vector3) -> Vector3:
 ## The other warden asleep in a lodging's bed, seen along it (lodge_bed.gd): their
 ## picture from the foot end laid back along the mattress (the head on the pillow, the
 ## boots towards the foot, tilted up enough to be seen), not turning to face you.
-var _coop_sleeper: Sprite3D
 const COOP_SLEEPER_TILT := 28.0
 const COOP_SLEEPER_LENGTH := 0.72
 
 
-func _coop_lay_sleeper(vp: Node, foot: Vector3, head: Vector3) -> void:
-	if _coop_sleeper == null or not is_instance_valid(_coop_sleeper) or _coop_sleeper.get_parent() != vp:
-		_coop_hide_sleeper()
-		var tex: Texture2D = COOP_LOOKS.texture(int(Coop.partner_look.get("m", 1)), int(Coop.partner_look.get("c", 0)), "bedfoot")
+func _coop_lay_sleeper(id: int, vp: Node, foot: Vector3, head: Vector3) -> void:
+	var e := _coop_entry(id)
+	var sl: Sprite3D = e["sleeper"]
+	if sl == null or not is_instance_valid(sl) or sl.get_parent() != vp:
+		_coop_hide_sleeper(id)
+		var look: Dictionary = Coop.look_of(id)
+		var tex: Texture2D = COOP_LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), "bedfoot")
 		if tex == null:
 			return
 		var s := Sprite3D.new()
@@ -1574,7 +1793,8 @@ func _coop_lay_sleeper(vp: Node, foot: Vector3, head: Vector3) -> void:
 		s.pixel_size = COOP_SLEEPER_LENGTH / float(tex.get_height())
 		s.offset = Vector2(0.0, tex.get_height() * 0.5)
 		vp.add_child(s)
-		_coop_sleeper = s
+		e["sleeper"] = s
+		sl = s
 	var along := head - foot
 	along.y = 0.0
 	along = along.normalized()
@@ -1582,31 +1802,41 @@ func _coop_lay_sleeper(vp: Node, foot: Vector3, head: Vector3) -> void:
 	var up := (along * cos(tilt) + Vector3.UP * sin(tilt)).normalized()
 	var n := (Vector3.UP * cos(tilt) - along * sin(tilt)).normalized()
 	var right := up.cross(n)
-	_coop_sleeper.global_transform = Transform3D(Basis(right, up, n), head - along * (COOP_SLEEPER_LENGTH * cos(tilt)) + Vector3(0, 0.04, 0))
+	sl.global_transform = Transform3D(Basis(right, up, n), head - along * (COOP_SLEEPER_LENGTH * cos(tilt)) + Vector3(0, 0.04, 0))
 
 
-func _coop_hide_sleeper() -> void:
-	if _coop_sleeper != null and is_instance_valid(_coop_sleeper):
-		_coop_sleeper.queue_free()
-	_coop_sleeper = null
+func _coop_hide_sleeper(id: int) -> void:
+	if not _coop_figs.has(id):
+		return
+	var sl = _coop_figs[id].get("sleeper")
+	if sl != null and is_instance_valid(sl):
+		sl.queue_free()
+	_coop_figs[id]["sleeper"] = null
 
 
-func coop_drop_partner() -> void:
-	_coop_hide_sleeper()
-	var it = _open_room_interior()
-	var room_tasks = _room_tasks(it) if it != null and it != _building_interior else null
-	if room_tasks != null and "coop_taken" in room_tasks:
-		room_tasks.coop_taken = ""
-	if _coop_fig != null and is_instance_valid(_coop_fig):
-		_coop_fig.queue_free()
-	_coop_fig = null
-	_coop_fig_in = null
+## A warden's figure gone from your room (`id` -1: every one of them).
+func coop_drop_partner(id := -1) -> void:
+	var ids: Array = _coop_figs.keys() if id == -1 else [id]
+	for i in ids:
+		if not _coop_figs.has(i):
+			continue
+		_coop_hide_sleeper(i)
+		var fig = _coop_figs[i].get("fig")
+		if fig != null and is_instance_valid(fig):
+			fig.queue_free()
+		_coop_figs.erase(i)
+	_coop_push_jobs()
 
 
-## The other warden's look changed: the figure in the room changes with it.
-func coop_partner_look(look: Dictionary) -> void:
-	if _coop_fig != null and is_instance_valid(_coop_fig) and _coop_fig.has_method("set_look"):
-		_coop_fig.set_look(int(look.get("m", 1)), int(look.get("c", 0)))
+## A warden's look changed: their figure in the room changes with it (`id` 0: all).
+func coop_partner_look(look: Dictionary, id := 0) -> void:
+	for i in _coop_figs.keys():
+		if id != 0 and i != id:
+			continue
+		var fig = _coop_figs[i].get("fig")
+		if fig != null and is_instance_valid(fig) and fig.has_method("set_look"):
+			var l: Dictionary = Coop.look_of(i) if id == 0 else look
+			fig.set_look(int(l.get("m", 1)), int(l.get("c", 0)))
 
 
 ## A room's state changed under you (the host's camp sent it, or did the other

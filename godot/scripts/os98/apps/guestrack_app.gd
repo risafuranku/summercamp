@@ -64,6 +64,16 @@ func setup(shell, win, _args: Dictionary) -> void:
 	room_page.name = "Rooms"
 	_tabs.add_child(room_page)
 	_rooms = _make_tree(room_page, ["", "Room", "State", "Guests", "Still to do"], [22, 100, 90, 60, 220])
+	# A double-click shows the room on Builder's map.
+	_rooms.item_activated.connect(func():
+		var it := _rooms.get_selected()
+		if it != null and it.get_metadata(0) is Vector2i:
+			_shell.show_on_map(it.get_metadata(0)))
+	_guests.item_activated.connect(func():
+		var it := _guests.get_selected()
+		var info: Dictionary = _guest_rows.get(it.get_instance_id(), {}) if it != null else {}
+		if info.get("coord", null) is Vector2i:
+			_shell.show_on_map(info["coord"]))
 	var bar := Panel.new()
 	bar.add_theme_stylebox_override("panel", T.box("well", T.FACE, Vector4.ZERO))
 	bar.name = "StatusBar"
@@ -192,6 +202,7 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 		_stripe(it, shown, 5)
 		var info := snap.duplicate()
 		info["room"] = rooms.get(id, "")
+		info["coord"] = _room_coord_of(g)
 		info["leaves"] = str(g.get("remaining_label", ""))
 		_guest_rows[it.get_instance_id()] = info
 		if id == keep_id:
@@ -261,6 +272,9 @@ func _fill_rooms() -> void:
 		if rs.is_empty():
 			continue
 		var it := _rooms.create_item(root)
+		var kp := str(key).split(":")
+		if kp.size() == 2 and kp[0].is_valid_int() and kp[1].is_valid_int():
+			it.set_metadata(0, Vector2i(int(kp[0]), int(kp[1])))
 		var st := str(rs.get("status", ""))
 		var occupied := bool(rs.get("occupied", false))
 		var col := GREEN if st == "ready" else (AMBER if st == "unprepared" else RED)
@@ -279,7 +293,7 @@ func _fill_rooms() -> void:
 		it.set_text(4, ", ".join(names))
 		_stripe(it, i, 5)
 		i += 1
-	_status.text = "%d room(s), %d to make up. Go to the room and do it by hand." % [keys.size(), to_do]
+	_status.text = "%d room(s), %d to make up. Double-click one to see it on the map." % [keys.size(), to_do]
 
 
 func _stripe(it: TreeItem, i: int, cols: int) -> void:
@@ -444,6 +458,28 @@ func _rooms_by_guest() -> Dictionary:
 				out[int(g_any.get("id", -1))] = GuestManager.room_label(str(s["accommodation_key"]))
 				break
 	return out
+
+
+## Where a guest sleeps, as a map cell (the first of their rooms), or null.
+func _room_coord_of(g: Dictionary) -> Variant:
+	var slots: Array = g.get("lodging_slots", []) if g.get("lodging_slots", []) is Array else []
+	for s in slots:
+		if s is Dictionary:
+			var kp := str(s.get("accommodation_key", "")).split(":")
+			if kp.size() == 2 and kp[0].is_valid_int() and kp[1].is_valid_int():
+				return Vector2i(int(kp[0]), int(kp[1]))
+	return null
+
+
+## Shown with someone at the desk: the Arrivals list first (that is why you came).
+func shown() -> void:
+	if _tabs == null or GuestManager == null:
+		return
+	for r in GuestManager.get_arrivals():
+		if r is Dictionary and bool(r.get("at_gate", false)):
+			_tabs.current_tab = 1
+			break
+	refresh()
 
 
 func _kind(raw: String) -> String:

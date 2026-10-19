@@ -23,21 +23,21 @@ signal finished
 const SFX := "res://assets/sfx/pipes/"
 const STEP := 1.0 / 12.0
 const KINDS := ["rope", "ankle", "face", "flood", "hand"]
-const TEX_BELLY := "res://assets/textury/npc/rac_belly.png"
+const TEX_BELLY := "res://assets/textury/pipes/rac/rac_7.png"
 const TEX_FACE := "res://assets/textury/npc/rac_face.png"
-const TEX_WAVE := "res://assets/textury/pipes/guts_wave.png"
-const TEX_CRAWL := "res://assets/textury/npc/rac_crawl.png"
-const TEX_STAND := "res://assets/textury/npc/rac_stand.png"
-const TEX_PEEK := "res://assets/textury/npc/rac_peek.png"
+const TEX_WAVE := "res://assets/textury/pipes/rac/rac_hpile.png"
+const TEX_CRAWL := "res://assets/textury/pipes/rac/rac_0.png"
+const TEX_STAND := "res://assets/textury/pipes/rac/rac_0.png"
+const TEX_PEEK := "res://assets/textury/pipes/rac/rac_0.png"
 const TEX_FALLBACK := "res://assets/textury/npc/pipe_thing_close.png"
 const TEX_GLOVE := "res://assets/textury/hands/open.png"
 const N := "res://assets/textury/npc/"
-const BELLY := [N + "rac_belly_1.png", N + "rac_belly_2.png", N + "rac_belly.png"]
+const BELLY := ["res://assets/textury/pipes/rac/rac_3.png", "res://assets/textury/pipes/rac/rac_5.png", "res://assets/textury/pipes/rac/rac_7.png"]
 const FACE := [N + "rac_face_1.png", N + "rac_face_2.png", N + "rac_face.png"]
-const EAT := [N + "rac_eat_1.png", N + "rac_eat_2.png"]
+const EAT := ["res://assets/textury/pipes/rac/rac_attack.png", "res://assets/textury/pipes/rac/rac_spell.png"]
 const TEX_CLIMB := N + "rac_climb.png"
-const TEX_LUNGE := N + "rac_lunge.png"
-const TEX_GUT_TIP := "res://assets/textury/pipes/gut_tip.png"
+const TEX_LUNGE := "res://assets/textury/pipes/rac/rac_attack.png"
+const TEX_GUT_TIP := "res://assets/textury/pipes/rac/rac_arm.png"
 
 var host
 var kind := ""
@@ -341,28 +341,22 @@ func _rope_seq(stepped: bool) -> void:
 
 
 func _draw_rope(from: Vector2, to: Vector2, wiggle: float) -> void:
-	_rope.visible = true
-	_rope_edge.visible = true
-	var pts := PackedVector2Array()
-	var n := 22
-	var side := (to - from).orthogonal().normalized()
-	for i in n + 1:
-		var f := float(i) / float(n)
-		var w := sin(f * 9.0 + _st * 22.0) * 22.0 * wiggle * sin(f * PI)
-		pts.append(from.lerp(to, f) + side * w)
-	_rope.points = pts
-	_rope_edge.points = pts
+	# Its arm of guts (the original art): the shoulder in the dark of the pipe, the clawed
+	# hand at your hand, stretched between them, writhing a little.
+	_rope.visible = false
+	_rope_edge.visible = false
 	_folds.queue_redraw()
-	# Its end: a gut with five little black fingers, grasping.
-	if ResourceLoader.exists(TEX_GUT_TIP):
-		var tex: Texture2D = load(TEX_GUT_TIP)
-		_tip.texture = tex
-		_tip.visible = true
-		var h := _rope.width * 2.6
-		_tip.size = Vector2(h * float(tex.get_width()) / float(tex.get_height()), h)
-		_tip.pivot_offset = _tip.size * 0.5
-		_tip.position = (pts[pts.size() - 1] - _tip.size * 0.5).floor()
-		_tip.rotation = (pts[pts.size() - 1] - pts[pts.size() - 2]).angle() + PI * 0.5
+	if not ResourceLoader.exists(TEX_GUT_TIP):
+		return
+	var tex: Texture2D = load(TEX_GUT_TIP)
+	var d := maxf(8.0, (to - from).length())
+	var h := maxf(get_viewport_rect().size.y * 0.08, d * float(tex.get_height()) / float(tex.get_width()))
+	_tip.texture = tex
+	_tip.visible = true
+	_tip.size = Vector2(d, h)
+	_tip.pivot_offset = Vector2(d, h * 0.5)
+	_tip.position = (from - _tip.pivot_offset).floor()
+	_tip.rotation = (to - from).angle() + PI + sin(_st * 22.0) * 0.035 * wiggle
 
 
 ## The rope's folds: dark creases across it every so often, so it reads as gut, not hose.

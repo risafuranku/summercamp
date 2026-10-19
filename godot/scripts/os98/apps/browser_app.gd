@@ -982,6 +982,9 @@ func _expand(body: String, link: String, key: String) -> String:
 		t = t.replace("{{bazaar}}", _bazaar())
 		t = t.replace("{{level}}", _level())
 		t = t.replace("{{softsklad}}", _softsklad())
+		t = t.replace("{{chat}}", _chat())
+		t = t.replace("{{chatcount}}", "%d people here" % (9 + _day() % 5 + (1 if not _shell.is_day() else 0)))
+		t = t.replace("{{horoscope}}", _horoscope())
 	t = _pad_marquees(t)
 	return _link_re.sub(t, "[url=$1][color=%s]$2[/color][/url]" % link, true)
 
@@ -1159,6 +1162,123 @@ func _guestbook() -> String:
 		t += "[color=#808080]________________________________________[/color]\n"
 		t += "[b][color=#66ff66]%s[/color][/b]  [color=#aaaaaa]%s[/color]\n%s\n" % [r[0], r[1], r[2]]
 	return t + "[color=#808080]________________________________________[/color]\n[color=#aaaaaa]The guest book is full. New entries cannot be added.[/color]\n"
+
+
+## The chat room #jih, as far as it has got today: who said what, by the clock. After
+## dark, later in the month, somebody logs in with the camp's own name.
+const CHAT_DAY := [
+	["08:12", "Hanka_17", "ahoj everybody"],
+	["08:13", "Hanka_17", "a/s/l?"],
+	["08:15", "Pepa_CB", "18/m/Budejovice. you?"],
+	["08:15", "Hanka_17", "17/f/Tabor. bye"],
+	["09:40", "Jarda", "does anyone know how to turn off the modem noise. my wife hears it upstairs"],
+	["09:41", "kosmonaut", "Jarda put a pillow on it"],
+	["10:02", "Pepa_CB", "who has the new Lucie CD. I will swap for Kabat"],
+	["11:30", "HokejNagano", "JAGR!!! still cannot believe it"],
+	["11:30", "HokejNagano", "HASEK!!!!!!!!"],
+	["12:05", "Mirek_Lesna", "is the Jednota in Lesna open on saturday"],
+	["12:06", "Jarda", "till 11. no batteries"],
+	["12:06", "Mirek_Lesna", "there are never batteries"],
+	["13:20", "kosmonaut", "anyone going to the Infravrany gig in Jihlava"],
+	["14:44", "Zdena", "how do I make the letters bigger"],
+	["14:51", "Zdena", "HOW DO I MAKE THE LETTERS SMALLER"],
+	["15:10", "Pepa_CB", "the 380 bus did not stop at the dam again"],
+	["15:11", "Mirek_Lesna", "it never stops at the dam after dark"],
+	["15:11", "Pepa_CB", "it is 3 in the afternoon"],
+	["16:30", "Jarda", "the old camp by the reservoir is open again? saw lights"],
+	["16:32", "kosmonaut", "some nephew is running it. good luck to him"],
+	["17:45", "Hanka_17", "is anyone from Hlubocany. need a lift saturday"],
+	["19:02", "Zdena", "goodnight all, the film is on"],
+	["20:15", "HokejNagano", "Sparta lost. I am going to bed"],
+	["21:40", "kosmonaut", "anyone still up"],
+]
+const CHAT_NIGHT := [
+	["22:30", "*", "kemp_cj has joined #jih"],
+	["22:31", "kemp_cj", "is anyone else up"],
+	["22:40", "kosmonaut", "kemp_cj? the camp has internet now?"],
+	["23:05", "kemp_cj", "there are lights by the fence"],
+	["23:58", "kemp_cj", "i counted them at ten. i counted them again"],
+	["00:20", "kemp_cj", "one more"],
+	["02:10", "kemp_cj", "has anyone seen my shoe"],
+	["03:33", "*", "kemp_cj has left #jih (Connection reset by peer)"],
+]
+
+
+func _chat() -> String:
+	var now := _minutes(_time())
+	var t := ""
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7700 + _day()
+	var rows: Array = []
+	for r in CHAT_DAY:
+		# Not every line every day: the room is a little different each day.
+		if rng.randf() < 0.75:
+			rows.append(r)
+	if _day() >= 3:
+		for r in CHAT_NIGHT:
+			rows.append(r)
+	# The room's day runs from six in the morning: what has been said by now.
+	var now_rel := (now - 360 + 1440) % 1440
+	var shown := 0
+	for r in rows:
+		if (_minutes(str(r[0])) - 360 + 1440) % 1440 > now_rel:
+			continue
+		var nick := str(r[1])
+		if nick == "*":
+			t += "[color=#808080][%s] *** %s[/color]\n" % [r[0], r[2]]
+		else:
+			var col := "#ff6666" if nick == "kemp_cj" else "#66ff66"
+			t += "[color=#808080][%s][/color] [color=%s]<%s>[/color] %s\n" % [r[0], col, nick, str(r[2])]
+		shown += 1
+	if shown == 0:
+		t = "[color=#808080]Nobody has said anything yet today.[/color]\n"
+	return t
+
+
+func _minutes(hhmm: String) -> int:
+	var p := hhmm.split(":")
+	if p.size() < 2 or not p[0].is_valid_int():
+		return 12 * 60
+	return int(p[0]) * 60 + int(p[1])
+
+
+const SIGNS := ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+const STARS := [
+	"A financial surprise is coming. It is probably the electricity bill.",
+	"Love is near. So is a raccoon. Close the bins.",
+	"A good day for planning. Builder 98 agrees, until eight in the evening.",
+	"Someone close to you wants to talk. Answer the phone; it may be the electrician.",
+	"Your hard work is noticed. Mostly by mosquitoes.",
+	"Avoid long journeys. The 380 bus agrees with the stars.",
+	"Beware of strangers in hats. And of people who say 'trust me'.",
+	"A good day to finish what you started. Begin with the toilets.",
+	"Your lucky number is seven. Your lucky colour is any colour but red.",
+	"Money comes from an unexpected direction. Check the lost and found.",
+	"Rest. You have earned it. Do not rest by the lake.",
+	"An old friend gets in touch. Do not knock back.",
+]
+const STARS_ODD := [
+	"Count them at ten. Count them again at midnight. Write both numbers down.",
+	"Someone is standing behind you. Do not turn round until they have gone.",
+	"Today your sign has one more star than it should.",
+]
+
+
+func _horoscope() -> String:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1998 * 31 + _day()
+	var order: Array = range(STARS.size())
+	for i in range(order.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = order[i]
+		order[i] = order[j]
+		order[j] = tmp
+	var odd := rng.randi_range(0, SIGNS.size() - 1) if _day() >= 4 and rng.randf() < 0.5 else -1
+	var t := ""
+	for i in SIGNS.size():
+		var text: String = STARS[order[i]] if i != odd else STARS_ODD[rng.randi_range(0, STARS_ODD.size() - 1)]
+		t += "[b][color=#ffff66]%s[/color][/b]  %s\n" % [SIGNS[i].to_upper(), text]
+	return t
 
 
 func _search_page(q: String) -> Dictionary:

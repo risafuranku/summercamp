@@ -38,6 +38,7 @@ const PARTS := "res://assets/textury/closeup/parts/"
 var building_key := ""
 var building_type := ""
 var _page := "stock"
+var _start_page := "stock"
 var _order: Dictionary = {}
 var _candidate := 0
 var _stamp_t := -1.0
@@ -51,9 +52,11 @@ func _ready() -> void:
 	picture = load(PIC) if ResourceLoader.exists(PIC) else null
 
 
-func open_for(key: String, btype: String) -> void:
+## `page`: the one it opens on (the corn stand's leaflet opens it on "order").
+func open_for(key: String, btype: String, page := "stock") -> void:
 	building_key = key
 	building_type = btype
+	_start_page = page if page in PAGES else "stock"
 	_order = {}
 	if CoreRoot != null and CoreRoot.actions != null:
 		CoreRoot.actions.biz_site(key, btype)
@@ -70,7 +73,7 @@ func _opened() -> void:
 	if site.is_empty():
 		say("", "No books for this place.")
 		return
-	_page = "stock"
+	_page = _start_page
 	var lows: Array = []
 	for g in site["stock"]:
 		if RULES.is_low(_kind(), g, int(site["stock"][g])):

@@ -300,9 +300,10 @@ func try_door() -> bool:
 		_say("You can't get to the door for the junk in front of it.")
 		_play(SFX_LOCKED, -10.0, 1.3)
 		return false
-	var office = _office()
-	if office != null and not bool(office.get("has_shed_key")):
-		_say("Locked. The key for it hangs on the noticeboard in the office.")
+	if not _carrying_key():
+		var office = _office()
+		var on_board: bool = office == null or not bool(office.get("has_shed_key"))
+		_say("Locked. The key for it hangs on the noticeboard in the office." if on_board else "Locked. The key is not on the board any more.")
 		_play(SFX_LOCKED, -6.0, 1.0)
 		return false
 	_play(SFX_DOOR, -6.0, 0.8)
@@ -320,8 +321,13 @@ func on_board_closed() -> void:
 
 
 func can_enter_board() -> bool:
-	var office = _office()
-	return junk_left() == 0 and office != null and bool(office.get("has_shed_key"))
+	return junk_left() == 0 and _carrying_key()
+
+
+## The shed key is in your bag (scripts/ui/inventory.gd).
+func _carrying_key() -> bool:
+	var bag = host.get_tree().get_first_node_in_group("inventory") if host != null and host.is_inside_tree() else null
+	return bag != null and bag.has("key_shed")
 
 
 func set_powered(on: bool) -> void:

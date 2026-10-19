@@ -55,10 +55,31 @@ const PAPER_TEXTURE := "res://assets/textury/pipes/paper_map.png"
 const DIRECTOR = preload("res://scripts/pipes/pipe_director.gd")
 const OMENS = preload("res://scripts/omens.gd")
 const CATCH = preload("res://scripts/pipes/pipe_catch.gd")
+const PIPE_VIBE = preload("res://scripts/pipes/pipe_vibe.gd")
+const PIPE_REPAIR = preload("res://scripts/pipes/pipe_repair.gd")
+## What a hole takes to shut (pipes/pipe_repair.gd; the clamp is held E right here). The
+## harder the night, the more kinds of work.
+const REPAIRS_BY_LEVEL := [["clamp", "bolts", "valve"], ["clamp", "bolts", "valve", "tar", "clog"], ["bolts", "valve", "tar", "clog", "clog"]]
+## The free hand crawling: reaching, and planted on the wet floor (the open right glove,
+## mirrored, until they are made).
+const HAND_REACH := "res://assets/textury/hands/crawl_reach.png"
+const HAND_PLANT := "res://assets/textury/hands/crawl_plant.png"
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
 const WATER_SHADER = preload("res://materials/pipe_water.gdshader")
+## Two in the pipes (co-op): the other warden's body in them (scripts/pipes/pipe_mate.gd).
+const PIPE_MATE = preload("res://scripts/pipes/pipe_mate.gd")
+var mate = PIPE_MATE.new()
+## The day the sewer broke (the network's seed with its place).
+var _since_day := 1
+## Crawling back feet first (tap S: out of the other warden's way).
+var _backing := false
+var _s_down_at := -1.0
+## Down with nothing broken (in through the chamber's pipe mouth just to see): every
+## hole already clamped, nothing to mend, the raccoon as ever.
+var explore := false
 const HAND_TORCH := "res://assets/textury/hands/torch.png"
-const GUTS_SPLATS := ["res://assets/textury/pipes/guts_splat.png", "res://assets/textury/pipes/guts_splat2.png", "res://assets/textury/pipes/guts_splat3.png"]
+## On the view: its blood running down, and a lump of its guts (the original raccoon art).
+const GUTS_SPLATS := ["res://assets/textury/pipes/rac/rac_hblood.png", "res://assets/textury/pipes/rac/rac_hblood.png", "res://assets/textury/pipes/rac/rac_hpile.png"]
 const HANDPRINT := "res://assets/textury/mess/decal_handprint.png"
 const SCUM := "res://assets/textury/pipes/sludge.png"
 const SFX_DIR := "res://assets/sfx/pipes/"
@@ -68,7 +89,9 @@ const SFX_LEAK := "res://assets/sfx/weather/calmrain.mp3"
 const SFX_THING := "res://assets/sfx/npc/silentdistract2.mp3"
 const SFX_CLANK := "res://assets/sfx/rednecksfx/rrtick.wav"
 
-const GRID := Vector2i(6, 5)
+## The largest network (the map's letters and the terminal's grid go this far); each
+## breakdown makes its own size and shape inside it (`_grid`, `_generate`).
+const GRID := Vector2i(8, 6)
 const COLS := "ABCDEFGH"
 const CELL := 3.2
 ## Cramped: a pipe you crawl in, not a tunnel you walk. The old brick ones are tighter.
@@ -104,7 +127,11 @@ var _building_type: String = ""
 var _rng := RandomNumberGenerator.new()
 
 # network
-var _links: Dictionary = {}      # Vector2i -> Array[int] of open directions
+var _links: Dictionary = {}
+## This network: its size, and where its columns and rows lie (pipes of different lengths).
+var _grid := Vector2i(6, 5)
+var _col_x: Array[float] = []
+var _row_z: Array[float] = []      # Vector2i -> Array[int] of open directions
 var _entry: Vector2i
 var _leak_a: Vector2i              # the first hole (the map's pen, the old callers)
 var _leak_b: Vector2i
@@ -124,6 +151,13 @@ var _stuck_need := 0
 var _gore := 0.0                   # how much of it is on your gloves
 var _splats: Array = []            # {node, t, life, v}
 var _catch                         # pipes/pipe_catch.gd: what it does to you
+var _vibe                          # pipes/pipe_vibe.gd: breath, drops, the surge, chalk, scares
+var _repair                        # pipes/pipe_repair.gd: the close-up work at a hole
+## The trickle along the pipes: its quads and materials (the surge raises and speeds them).
+var _water_meshes: Array = []
+var _water_mats: Array = []
+var _hand_reach: Texture2D
+var _hand_plant: Texture2D
 var _caught_fade := false
 var _plates: Dictionary = {}     # Vector2i -> true
 var _landmarks: Array = []       # {a, b, kind, on_map}
@@ -226,14 +260,34 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	var state = CoreRoot.get_state() if CoreRoot != null else null
 	if state != null:
 		since_day = int((state.failures.get("%d:%d" % [coord.x, coord.y], {}) as Dictionary).get("since_day", state.day))
+		explore = not state.failures.has("%d:%d" % [coord.x, coord.y])
+	# Co-op: the other warden already down this sewer: their pipes, their raccoon.
+	mate.clear()
+	mate.host = self
+	mate.key = "%d:%d" % [coord.x, coord.y]
+	var other: Dictionary = mate.mate()
+	if not other.is_empty():
+		since_day = int(other.get("sd", since_day))
+	_since_day = since_day
+	_backing = false
 	_rng.seed = hash("%d:%d:%d" % [coord.x, coord.y, since_day])
 	_night = CoreRoot != null and CoreRoot.is_night()
 	_visit = _next_visit()
 	night_pressure = _read_night_pressure()
 	raccoon_level = debug_level if debug_level > 0 else DIRECTOR.mischief_level(night_pressure, _night, _visit)
+	if not other.is_empty():
+		raccoon_level = int(other.get("lv", raccoon_level))
 	_generate()
 	_build_world()
 	_fixed = false
+	if explore:
+		for i in _leaks.size():
+			_mark_fixed(i)
+		_fixed = true
+	for i in (other.get("fx", []) as Array):
+		_mark_fixed(int(i))
+	if not other.is_empty():
+		_fixed = _all_fixed()
 	_node = _entry
 	_facing = 0
 	_moving = false
@@ -273,6 +327,7 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	for d in _drips:
 		(d as AudioStreamPlayer3D).play()
 	_intro_t = 0.0
+	_vibe.start(raccoon_level, _rng.randi())
 	_play_one("ladder.mp3", -4.0)
 	_update_rig(0.0)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -304,7 +359,7 @@ func abort() -> void:
 	if not _active:
 		return
 	close_repair(not _fixed)
-	if _fixed:
+	if _fixed and not explore:
 		repair_completed.emit(_coord, _building_type)
 
 
@@ -313,6 +368,7 @@ func close_repair(cancelled: bool = true) -> void:
 		return
 	_active = false
 	visible = false
+	mate.clear()
 	for a in [_ambience, _pipes_bed, _pant, _heart]:
 		if a != null:
 			a.stop()
@@ -326,6 +382,10 @@ func close_repair(cancelled: bool = true) -> void:
 		(d as AudioStreamPlayer3D).stop()
 	if _work_hand != null:
 		_work_hand.stop()
+	if _vibe != null:
+		_vibe.stop()
+	if _repair != null:
+		_repair.cancel()
 	if cancelled:
 		repair_cancelled.emit()
 
@@ -336,12 +396,11 @@ func _generate() -> void:
 	_links.clear()
 	_plates.clear()
 	_landmarks.clear()
-	for y in GRID.y:
-		for x in GRID.x:
-			_links[Vector2i(x, y)] = []
+	_layout()
 	# Spanning tree by randomised DFS, then extra loops, then no dead ends: with no
 	# turning around, every junction needs a way on.
-	var start := Vector2i(_rng.randi_range(0, GRID.x - 1), _rng.randi_range(0, GRID.y - 1))
+	var nodes := _links.keys()
+	var start: Vector2i = nodes[_rng.randi_range(0, nodes.size() - 1)]
 	var stack: Array[Vector2i] = [start]
 	var seen := {start: true}
 	while not stack.is_empty():
@@ -359,10 +418,12 @@ func _generate() -> void:
 		_connect(c, pick)
 		seen[nxt] = true
 		stack.append(nxt)
+	# Loops: some networks a maze of them, some long single runs.
+	var loops := _rng.randf_range(0.12, 0.4)
 	for c in _links.keys():
 		for d in [1, 2]:
 			var n: Vector2i = c + DIRS[d]
-			if _in_grid(n) and not _links[c].has(d) and _rng.randf() < 0.28:
+			if _in_grid(n) and not _links[c].has(d) and _rng.randf() < loops:
 				_connect(c, d)
 	for c in _links.keys():
 		while _links[c].size() < 2:
@@ -373,7 +434,6 @@ func _generate() -> void:
 			if free.is_empty():
 				break
 			_connect(c, free[_rng.randi_range(0, free.size() - 1)])
-	_entry = Vector2i(GRID.x / 2, GRID.y - 1)
 	if not _links[_entry].has(0):
 		_connect(_entry, 0)
 	# The holes it chewed: the first as far from the ladder as the network allows, the
@@ -397,7 +457,8 @@ func _generate() -> void:
 				pick = e
 		if pick.is_empty():
 			break
-		_leaks.append({"a": pick[0], "b": pick[1], "fixed": false})
+		var kinds: Array = REPAIRS_BY_LEVEL[clampi(raccoon_level, 1, 3) - 1]
+		_leaks.append({"a": pick[0], "b": pick[1], "fixed": false, "kind": kinds[_rng.randi() % kinds.size()]})
 		leak_dists.append(_distances_from(pick[0]))
 	_leak_a = _leaks[0]["a"]
 	_leak_b = _leaks[0]["b"]
@@ -411,6 +472,88 @@ func _generate() -> void:
 	_shuffle(pool)
 	for i in mini(6, pool.size()):
 		_landmarks.append({"a": pool[i][0], "b": pool[i][1], "kind": LANDMARKS[i % LANDMARKS.size()], "on_map": i < 3})
+
+
+## Every breakdown its own network: a size (5-8 by 4-6), a shape (the whole grid, holes
+## punched in it, or a block cut out of a corner or a side), pipes of their own lengths
+## (2.4-4.6 m), the ladder somewhere along the bottom row. Every junction keeps at least
+## two neighbours (no dead ends) and the whole stays in one piece.
+func _layout() -> void:
+	_grid = Vector2i(_rng.randi_range(5, GRID.x), _rng.randi_range(4, GRID.y))
+	_col_x = [0.0]
+	for _i in range(1, _grid.x):
+		_col_x.append(_col_x[-1] + _rng.randf_range(2.4, 4.6))
+	_row_z = [0.0]
+	for _i in range(1, _grid.y):
+		_row_z.append(_row_z[-1] + _rng.randf_range(2.4, 4.6))
+	var present := {}
+	for y in _grid.y:
+		for x in _grid.x:
+			present[Vector2i(x, y)] = true
+	var shape := _rng.randf()
+	var want_out: Array = []
+	if shape < 0.35:
+		# Holes: a handful of junctions that are not there.
+		var n := int(float(_grid.x * _grid.y) * _rng.randf_range(0.08, 0.22))
+		for _i in n:
+			want_out.append(Vector2i(_rng.randi_range(0, _grid.x - 1), _rng.randi_range(0, _grid.y - 2)))
+	elif shape < 0.75:
+		# A block out of a corner or a side: an L, a U, a T of pipes.
+		var bw := _rng.randi_range(2, maxi(2, _grid.x / 2))
+		var bh := _rng.randi_range(1, maxi(1, (_grid.y - 1) / 2))
+		var bx: int = [0, _grid.x - bw, (_grid.x - bw) / 2][_rng.randi() % 3]
+		for y in bh:
+			for x in bw:
+				want_out.append(Vector2i(bx + x, y))
+	for c in want_out:
+		if not present.has(c):
+			continue
+		present.erase(c)
+		if not _one_piece(present):
+			present[c] = true
+	# Junctions left with a single neighbour would be dead ends: out with them too.
+	var changed := true
+	while changed:
+		changed = false
+		for c in present.keys():
+			var nb := 0
+			for d in 4:
+				if present.has(c + DIRS[d]):
+					nb += 1
+			if nb < 2:
+				present.erase(c)
+				if _one_piece(present):
+					changed = true
+				else:
+					present[c] = true
+	for c in present.keys():
+		_links[c] = []
+	# The ladder: on the lowest row that has a junction with one to its north.
+	var cands: Array[Vector2i] = []
+	for y in range(_grid.y - 1, -1, -1):
+		for x in _grid.x:
+			var c := Vector2i(x, y)
+			if present.has(c) and present.has(c + DIRS[0]):
+				cands.append(c)
+		if not cands.is_empty():
+			break
+	_entry = cands[_rng.randi_range(0, cands.size() - 1)]
+
+
+func _one_piece(present: Dictionary) -> bool:
+	if present.is_empty():
+		return false
+	var first: Vector2i = present.keys()[0]
+	var seen := {first: true}
+	var q: Array[Vector2i] = [first]
+	while not q.is_empty():
+		var c: Vector2i = q.pop_back()
+		for d in 4:
+			var n: Vector2i = c + DIRS[d]
+			if present.has(n) and not seen.has(n):
+				seen[n] = true
+				q.append(n)
+	return seen.size() == present.size()
 
 
 ## Seeded shuffle: Array.shuffle() uses the global RNG, which would give the same
@@ -448,7 +591,7 @@ func _all_fixed() -> bool:
 
 
 func _in_grid(c: Vector2i) -> bool:
-	return c.x >= 0 and c.y >= 0 and c.x < GRID.x and c.y < GRID.y
+	return _links.has(c)
 
 
 func _edges() -> Array:
@@ -499,7 +642,9 @@ func _label(c: Vector2i) -> String:
 
 
 func _world_pos(c: Vector2i) -> Vector3:
-	return Vector3(float(c.x) * CELL, EYE_Y, float(c.y) * CELL)
+	if c.x < 0 or c.y < 0 or c.x >= _col_x.size() or c.y >= _row_z.size():
+		return Vector3(float(c.x) * CELL, EYE_Y, float(c.y) * CELL)
+	return Vector3(_col_x[c.x], EYE_Y, _row_z[c.y])
 
 
 # ── 3D ────────────────────────────────────────────────────────────────────────
@@ -594,6 +739,9 @@ func _build_shell() -> void:
 	_pull_player.volume_db = -8.0
 	add_child(_pull_player)
 	_build_hud_nodes()
+	_vibe = PIPE_VIBE.new()
+	_vibe.host = self
+	add_child(_vibe)
 
 
 ## The echo bus, made the first time it is asked for: a big hard room, a slap-back and a
@@ -626,6 +774,18 @@ func audio_bus() -> String:
 	dl.tap2_pan = 0.3
 	dl.feedback_active = false
 	AudioServer.add_bus_effect(i, dl)
+	# Then held in: a compressor and a ceiling, so a burst of bangs and the echo of them
+	# cannot get loud on top of each other (playtest 19. 10.: "earrape" at the repairs).
+	var comp := AudioEffectCompressor.new()
+	comp.threshold = -18.0
+	comp.ratio = 4.0
+	comp.attack_us = 5000.0
+	comp.release_ms = 180.0
+	AudioServer.add_bus_effect(i, comp)
+	var lim := AudioEffectHardLimiter.new()
+	lim.ceiling_db = -3.0
+	AudioServer.add_bus_effect(i, lim)
+	AudioServer.set_bus_volume_db(i, -2.0)
 	return BUS
 
 
@@ -691,6 +851,7 @@ func _build_water() -> void:
 		srcs.append(l["a"])
 	var dist := _distances_from_many(srcs)
 	var mat_cache := {}
+	_water_meshes.clear()
 	var scum: Texture2D = load(SCUM) if ResourceLoader.exists(SCUM) else null
 	# The pipe's invert is 0.08 below the junction floor: the water lies a little above it.
 	var floor_y := EYE_Y - PIPE_R * 0.9 - 0.02
@@ -716,9 +877,10 @@ func _build_water() -> void:
 		var mi := MeshInstance3D.new()
 		var q := QuadMesh.new()
 		q.orientation = PlaneMesh.FACE_Y
-		q.size = Vector2(PIPE_R * 0.9, CELL)
+		q.size = Vector2(PIPE_R * 0.9, _world_pos(a).distance_to(_world_pos(b)))
 		mi.mesh = q
 		mi.material_override = mat_cache[key]
+		_water_meshes.append(mi)
 		var pa := _world_pos(src)
 		var pb := _world_pos(dst)
 		mi.position = (pa + pb) * 0.5
@@ -727,6 +889,7 @@ func _build_water() -> void:
 		var dir := (pb - pa).normalized()
 		mi.rotation.y = atan2(dir.x, dir.z) + PI
 		_geo.add_child(mi)
+	_water_mats = mat_cache.values()
 
 
 ## A few places where it drips from the crown; they fall silent now and then.
@@ -892,7 +1055,7 @@ func _pipe(comb: CSGCombiner3D, a: Vector2i, b: Vector2i) -> void:
 	var kind := _pipe_kind(a, b)
 	var r := BRICK_R if kind == "brick" else PIPE_R
 	cyl.radius = r
-	cyl.height = CELL
+	cyl.height = _world_pos(a).distance_to(_world_pos(b))
 	cyl.sides = SIDES
 	cyl.material = {"brick": _brick_mat, "steel": _steel_mat, "slime": _slime_mat}.get(kind, _pipe_mat)
 	cyl.position = (_world_pos(a) + _world_pos(b)) * 0.5 - _floor_offset(r)
@@ -1178,6 +1341,10 @@ func _build_hud_nodes() -> void:
 	_ink.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ink.draw.connect(_draw_map)
 	_map.add_child(_ink)
+	_repair = PIPE_REPAIR.new()
+	_repair.host = self
+	_repair.done.connect(_leak_done)
+	_root.add_child(_repair)
 	_catch = CATCH.new()
 	_catch.host = self
 	_catch.hit.connect(_on_catch_hit)
@@ -1221,12 +1388,15 @@ func _draw_map() -> void:
 	_paper.position = r.position
 	_paper.size = r.size
 	var margin := Vector2(w * 0.12, h * 0.14)
-	var cell := Vector2((w - margin.x * 2.0) / float(GRID.x - 1), (h - margin.y * 2.0) / float(GRID.y - 1))
+	# Drawn to scale: long pipes long on the paper too.
+	var span := Vector2(w - margin.x * 2.0, h - margin.y * 2.0)
+	var xs: Array[float] = _col_x if not _col_x.is_empty() else [0.0, 1.0]
+	var zs: Array[float] = _row_z if not _row_z.is_empty() else [0.0, 1.0]
 	var ink := Color(0.12, 0.10, 0.18, 0.92)
 	var pen_rng := RandomNumberGenerator.new()
 	pen_rng.seed = hash(_label(_leak_a)) + 7
 	var to_px := func(c: Vector2i) -> Vector2:
-		return r.position + margin + Vector2(float(c.x) * cell.x, float(c.y) * cell.y)
+		return r.position + margin + Vector2(xs[c.x] / maxf(0.01, xs[-1]) * span.x, zs[c.y] / maxf(0.01, zs[-1]) * span.y)
 	for e in _edges():
 		var a: Vector2 = to_px.call(e[0])
 		var b: Vector2 = to_px.call(e[1])
@@ -1242,9 +1412,9 @@ func _draw_map() -> void:
 	# entry
 	var ep: Vector2 = to_px.call(_entry)
 	_ink.draw_string(RETRO_UI.FONT_LABEL, ep + Vector2(-14.0, 14.0) * s, "LADDER", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
-	# leak
+	# leak (none marked when nothing is broken: you came down just to see)
 	var red := Color(0.72, 0.08, 0.06, 0.95)
-	for l in _leaks:
+	for l in ([] if explore else _leaks):
 		var lp: Vector2 = (to_px.call(l["a"]) + to_px.call(l["b"])) * 0.5
 		_ink.draw_line(lp + Vector2(-5, -5) * s, lp + Vector2(5, 5) * s, red, 2.5 * s)
 		_ink.draw_line(lp + Vector2(-5, 5) * s, lp + Vector2(5, -5) * s, red, 2.5 * s)
@@ -1318,6 +1488,12 @@ func _input(event: InputEvent) -> void:
 		return
 	if key.physical_keycode == KEY_S or key.physical_keycode == KEY_DOWN:
 		glancing = key.pressed and not _moving and not _at_leak and not _turning
+		# A tap (not the held look back): back up a pipe, feet first.
+		if key.pressed and not key.echo:
+			_s_down_at = Time.get_ticks_msec() / 1000.0
+		elif not key.pressed and _s_down_at >= 0.0 and Time.get_ticks_msec() / 1000.0 - _s_down_at < 0.25:
+			_s_down_at = -1.0
+			_back_up()
 		get_viewport().set_input_as_handled()
 		return
 	if key.physical_keycode == KEY_TAB:
@@ -1338,6 +1514,8 @@ func _input(event: InputEvent) -> void:
 			_look_toward(1)
 		KEY_F:
 			_flashlight.visible = not _flashlight.visible
+		KEY_C:
+			_vibe.chalk()
 		KEY_E:
 			if not _moving and not _turning and _node == _entry:
 				_climb_out()
@@ -1390,10 +1568,11 @@ func splatter(n: int) -> void:
 		r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		r.stretch_mode = TextureRect.STRETCH_SCALE
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var side := vp.y * _rng.randf_range(0.18, 0.42)
-		r.size = Vector2(side, side)
+		var side := vp.y * (_rng.randf_range(0.18, 0.42) if tex.get_width() < tex.get_height() else _rng.randf_range(0.08, 0.16))
+		r.size = Vector2(side * float(tex.get_width()) / float(tex.get_height()), side)
 		r.pivot_offset = r.size * 0.5
-		r.rotation = _rng.randf_range(-PI, PI)
+		# Runs of blood hang roughly downwards; a lump lands any way up.
+		r.rotation = _rng.randf_range(-0.35, 0.35) if tex.get_width() < tex.get_height() else _rng.randf_range(-PI, PI)
 		r.position = Vector2(_rng.randf_range(-0.1, 0.85) * vp.x, _rng.randf_range(-0.1, 0.7) * vp.y)
 		_root.add_child(r)
 		_root.move_child(r, _vignette.get_index() + 1)
@@ -1421,7 +1600,7 @@ func _clear_splats() -> void:
 
 func _climb_out() -> void:
 	close_repair(not _fixed)
-	if _fixed:
+	if _fixed and not explore:
 		repair_completed.emit(_coord, _building_type)
 
 
@@ -1546,7 +1725,11 @@ func _try_move(d: int) -> void:
 	if not _links[_node].has(d):
 		return
 	var nxt: Vector2i = _node + DIRS[d]
+	if mate.blocks(_node, nxt):
+		_blocked_by_mate()
+		return
 	_facing = d
+	_backing = false
 	_move_from = _world_pos(_node)
 	_move_to = _world_pos(nxt)
 	_move_target_node = nxt
@@ -1558,6 +1741,128 @@ func _try_move(d: int) -> void:
 	# Knees and palms in the water: it hears every pipe you crawl.
 	if _director != null:
 		_director.heard(_node, 1)
+
+
+# -- two in the pipes ---------------------------------------------------------------
+
+## Back the way you came, feet first and slowly (out of the other warden's way), still
+## looking ahead.
+func _back_up() -> void:
+	if _moving or _at_leak or _turning or _stuck or _map_open or _intro_t >= 0.0:
+		return
+	var back := (_facing + 2) % 4
+	if not _links[_node].has(back):
+		_bump_t = 0.0
+		_play_pull("wall.mp3", -6.0)
+		return
+	var prev: Vector2i = _node + DIRS[back]
+	if mate.blocks(_node, prev):
+		_blocked_by_mate()
+		return
+	_move_from = _world_pos(_node)
+	_move_to = _world_pos(prev)
+	_move_target_node = prev
+	_move_t = 0.0
+	_move_secs = PULL_SECONDS * float(PULLS) * 1.7
+	_pull_idx = -1
+	_moving = true
+	_backing = true
+	glancing = false
+	_set_status("")
+	if _director != null:
+		_director.heard(_node, 1)
+
+
+## One of the others is in the way: their boots or their head, and nowhere to go.
+func _blocked_by_mate() -> void:
+	_bump_t = 0.0
+	_play_one("bump.mp3", -4.0)
+	var who := Coop.name_of(mate.blocker)
+	var m: Dictionary = mate.mate()
+	var facing_you := false
+	if not m.is_empty():
+		var their: int = int(m.get("f", 0))
+		facing_you = (their + 2) % 4 == _facing
+	_set_status(("%s's torch in your face. One of you backs up  [S]" if facing_you else "%s's boots, right in front of you.") % who)
+	mate.bumped_into()
+
+
+## The other machine: they crawled into you.
+func coop_bumped() -> void:
+	if not _active:
+		return
+	_bump_t = 0.0
+	_play_one("bump.mp3", -2.0)
+	_set_status("Something knocks against you. %s." % Coop.sender_name())
+
+
+## The other machine: they clamped hole `i`.
+func coop_fixed(i: int) -> void:
+	if not _active:
+		return
+	_mark_fixed(i)
+	_fixed = _all_fixed()
+	if _cur_leak == i:
+		_cur_leak = -1
+		_at_leak = false
+		_clamp = 0.0
+		_moving = true
+
+
+func _mark_fixed(i: int) -> void:
+	if i < 0 or i >= _leaks.size():
+		return
+	var l: Dictionary = _leaks[i]
+	l["fixed"] = true
+	if l.get("fx") != null:
+		l["fx"].emitting = false
+	if l.get("audio") != null:
+		l["audio"].stop()
+
+
+## The chamber's amber terminal (scripts/pipes/sewer_terminal.gd): the network under
+## the sewer at `coord` as it would be built now (the same seed and level as climbing
+## down; the other warden's if they are down already), without going down:
+## {links, entry, leaks [[a, b, fixed]], explore, level}.
+func preview_network(coord: Vector2i) -> Dictionary:
+	if not _active:
+		var state = CoreRoot.get_state() if CoreRoot != null else null
+		var key := "%d:%d" % [coord.x, coord.y]
+		var since_day := int(state.day) if state != null else 1
+		var broken := false
+		if state != null:
+			broken = state.failures.has(key)
+			since_day = int((state.failures.get(key, {}) as Dictionary).get("since_day", state.day))
+		mate.host = self
+		mate.key = key
+		var other: Dictionary = mate.mate()
+		if not other.is_empty():
+			since_day = int(other.get("sd", since_day))
+		_rng.seed = hash("%d:%d:%d" % [coord.x, coord.y, since_day])
+		var night := CoreRoot != null and CoreRoot.is_night()
+		var office = get_parent().get("camp_office") if get_parent() != null else null
+		var visit := int(office.get("pipe_visits")) + 1 if office != null else 3
+		raccoon_level = debug_level if debug_level > 0 else DIRECTOR.mischief_level(_read_night_pressure(), night, visit)
+		if not other.is_empty():
+			raccoon_level = int(other.get("lv", raccoon_level))
+		_generate()
+		explore = not broken
+	var leaks: Array = []
+	for l in _leaks:
+		leaks.append([l["a"], l["b"], bool(l.get("fixed", false)) or explore])
+	return {"links": _links.duplicate(true), "entry": _entry, "leaks": leaks, "explore": explore, "level": raccoon_level, "size": _grid}
+
+
+## Where you are down here, for the other machine (main.coop_local_warden "pipe").
+func coop_pipe_state() -> Dictionary:
+	var s: Dictionary = mate.state()
+	if not s.is_empty():
+		var fixed: Array = []
+		for i in _leaks.size():
+			if bool(_leaks[i].get("fixed", false)):
+				fixed.append(i)
+		s["fx"] = fixed
+	return s
 
 
 ## One pull: the palm slaps down, the body drags after it. Now and then (more in the
@@ -1573,6 +1878,7 @@ func _on_pull() -> void:
 		_play_one("bump.mp3", -5.0)
 	if _director != null and _director.has_method("on_pull"):
 		_director.on_pull()
+	_vibe.on_pull(_pull_idx)
 
 
 func _play_pull(file: String, db: float) -> void:
@@ -1598,6 +1904,7 @@ func _crawl_progress(t: float) -> float:
 func _process(delta: float) -> void:
 	if not _active:
 		return
+	mate.update(delta)
 	_update_body_sounds(delta)
 	if _caught_t >= 0.0:
 		_update_caught(delta)
@@ -1632,14 +1939,21 @@ func _process(delta: float) -> void:
 			_moving = false
 			_at_leak = true
 			_cur_leak = li
+			var work := str(_leaks[li].get("kind", "clamp"))
+			if work != "clamp":
+				_repair.begin(work, _rng.randi())
 		elif _move_t >= 1.0:
 			_arrive()
 	if _at_leak:
-		_update_clamp(delta)
+		if _repair.is_active():
+			_work_hand.stop()
+		else:
+			_update_clamp(delta)
 	else:
 		_work_hand.stop()
 	if _director != null:
 		_director.tick(delta)
+	_vibe.tick(delta)
 	_update_torch(delta)
 	if _fixed and _director != null and _director.leaves_prints():
 		_place_handprints()
@@ -1657,6 +1971,8 @@ func _update_body_sounds(delta: float) -> void:
 	if _torch_hand != null:
 		_torch_hand.self_modulate = glove
 	var t: float = _director.tension if _director != null else 0.0
+	# The other warden right there in the pipe: the walls close in.
+	t = maxf(t, mate.squeeze * 0.85)
 	var f: float = _director.flicker if _director != null else 0.0
 	var pant_db := lerpf(-24.0, -11.0, t) + (3.0 if _moving else 0.0)
 	var heart_db := -60.0 if t < 0.25 else lerpf(-26.0, -7.0, (t - 0.25) / 0.75)
@@ -1674,6 +1990,11 @@ func _arrive() -> void:
 	_moving = false
 	_pull_idx = -1
 	_node = _move_target_node
+	if _backing:
+		# Backed out feet first: still facing the way you were.
+		_backing = false
+		_set_status("")
+		return
 	# A bend takes you round it (the pipe gives you no choice); a junction leaves you
 	# facing on, to look and turn as you like.
 	if not _links[_node].has(_facing):
@@ -1702,26 +2023,32 @@ func _update_clamp(delta: float) -> void:
 				_director.heard(_node, 2)
 		_set_status("Clamping... %d%%" % int(clampf(_clamp, 0.0, 1.0) * 100.0))
 		if _clamp >= 1.0:
-			var l: Dictionary = _leaks[maxi(0, _cur_leak)]
-			l["fixed"] = true
-			if l.get("fx") != null:
-				l["fx"].emitting = false
-			if l.get("audio") != null:
-				l["audio"].stop()
-			_fixed = _all_fixed()
-			_clamp = 0.0
-			_cur_leak = -1
-			_at_leak = false
-			_set_status("")
 			_play_one("clamp.mp3", -3.0)
-			_work_hand.stop()
-			# finish crossing the pipe
-			_moving = true
+			_leak_done()
 	else:
 		_work_hand.stop()
 		_clamp = maxf(0.0, _clamp - delta * 0.5)
 		if _clamp <= 0.0:
 			_set_status("")
+
+
+## A hole shut (the clamp, or pipe_repair's work): for both wardens, then on along the pipe.
+func _leak_done() -> void:
+	var l: Dictionary = _leaks[maxi(0, _cur_leak)]
+	Coop.send_play("pipe_fixed", [mate.key, maxi(0, _cur_leak)])
+	l["fixed"] = true
+	if l.get("fx") != null:
+		l["fx"].emitting = false
+	if l.get("audio") != null:
+		l["audio"].stop()
+	_fixed = _all_fixed()
+	_clamp = 0.0
+	_cur_leak = -1
+	_at_leak = false
+	_set_status("")
+	_work_hand.stop()
+	# finish crossing the pipe
+	_moving = true
 
 
 func _clank() -> void:
@@ -1868,6 +2195,17 @@ func _update_crawl_hand(vp: Vector2, k: float, pull_k: float) -> void:
 	elif _bump_t >= 0.0 and not _at_leak:
 		show = true
 		at = Vector2(vp.x * 0.30, vp.y * 0.30 + sz.y * 0.1 * (_bump_t / 0.4))
+	# The made hands: reaching while it goes forward, planted on the floor otherwise.
+	if _hand_plant == null and ResourceLoader.exists(HAND_PLANT):
+		_hand_plant = load(HAND_PLANT)
+	if _hand_reach == null and ResourceLoader.exists(HAND_REACH):
+		_hand_reach = load(HAND_REACH)
+	if _hand_plant != null:
+		var want: Texture2D = _hand_reach if (_moving and pull_k < 0.4 and _hand_reach != null) else _hand_plant
+		if _crawl_hand.texture != want:
+			_crawl_hand.texture = want
+			_crawl_hand.flip_h = false
+			_crawl_hand.size = want.get_size() * k
 	_crawl_hand.visible = show and _glance < 0.5 and _caught_t < 0.0
 	_crawl_hand.position = at.floor()
 
@@ -1910,6 +2248,7 @@ func caught_by_thing() -> void:
 	_at_leak = false
 	_clamp = 0.0
 	_cur_leak = -1
+	_repair.cancel()
 	_work_hand.stop()
 	_set_status("")
 	_catch.play_for(stuck, behind)

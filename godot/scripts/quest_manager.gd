@@ -6,7 +6,7 @@ extends Node
 ## Each step is data (STEPS): what to do, the mail Teta Vera sends when the step
 ## starts, the reward, and a condition id checked every half second against the real
 ## game state (CoreRoot, GuestManager, EmailManager, main). Steps can also complete
-## from events that main forwards through notify() (CRT opened, guest talked to).
+## from events that main forwards through notify().
 ##
 ## The questline also owns the story mail pool: on a new game it schedules
 ## data/pools/emails/story/*.json, which nothing delivered before.
@@ -19,7 +19,7 @@ signal step_completed(step_id: String)
 const VERA := "Teta Vera <vera.kralova@rodina.cz>"
 const TRACKER_TITLE := "VERA'S CHECKLIST"
 const POLL_SEC := 0.5
-const WAYPOINT_LABELS := {"reception": "Office", "gate": "Gate", "unready_room": "Make up", "first_guest": "Guest", "ruined_cabin": "Old cabin"}
+const WAYPOINT_LABELS := {"reception": "Office", "gate": "Gate", "unready_room": "Make up", "ruined_cabin": "Old cabin"}
 const FIRST_BOOKING_NAME := "Mirek Dvorak"
 
 ## Story-pool mails the questline replaces with its own task mails.
@@ -91,13 +91,6 @@ const STEPS: Array[Dictionary] = [
 		"reward": 60,
 		"mail_subject": "The book",
 		"mail_body": "Everyone who sleeps here goes in the book: name and number off the card, the booking off the slip, the right key off the board, the stamp, the papers back.\n\nIf someone comes to the desk who is not booked and his card does not look right, you stamp him REFUSED and give him his card back. Do not argue with him.\n\n- V.",
-	},
-	{
-		"id": "welcome_guest",
-		"text": "Your first guest is in. Go and say hello.",
-		"hint": "Look at a guest and press E.",
-		"reward": 60,
-		"waypoint": "first_guest",
 	},
 	{
 		"id": "feed_guests",
@@ -221,7 +214,7 @@ func stop() -> void:
 	_hide_waypoint()
 
 
-## Events forwarded by main: "talked_to_guest".
+## Events forwarded by main (a flag the step conditions can read).
 func notify(event_id: String, _data: Dictionary = {}) -> void:
 	_flags[event_id] = true
 	_check_current()
@@ -262,13 +255,11 @@ func _advance() -> void:
 
 ## Steps that must be *done* now, not merely already true.
 func _needs_action(step_id: String) -> bool:
-	return step_id in ["read_vera", "accept_booking", "make_up_room", "check_in_guest", "welcome_guest", "survive_night"]
+	return step_id in ["read_vera", "accept_booking", "make_up_room", "check_in_guest", "survive_night"]
 
 
 func _start_step(step: Dictionary) -> void:
 	var id := str(step["id"])
-	if id == "welcome_guest":
-		_flags.erase("talked_to_guest")
 	if step.has("mail_subject"):
 		_send_task_mail(step)
 	if bool(step.get("scripted_booking", false)):
@@ -353,8 +344,6 @@ func _is_satisfied(step_id: String) -> bool:
 			return bool(_flags.get("room_prepared", false)) or _first_guest_in()
 		"check_in_guest":
 			return _first_guest_in()
-		"welcome_guest":
-			return bool(_flags.get("talked_to_guest", false))
 		"feed_guests":
 			return _count_buildings(["vecerka", "restaurant", "pub"]) > 0
 		"light_paths":
@@ -597,11 +586,6 @@ func _waypoint_position(kind: String) -> Vector3:
 			if not key.is_empty():
 				var parts2 := key.split(":")
 				return gm.grid_to_world(Vector2i(int(parts2[0]), int(parts2[1]))) + Vector3(2.0, 3.2, 2.0)
-		"first_guest":
-			for g in GuestManager.get_guest_life_snapshot():
-				var lodging = (g as Dictionary).get("lodging", Vector2i(-1, -1))
-				if lodging is Vector2i and (lodging as Vector2i).x >= 0:
-					return gm.grid_to_world(lodging) + Vector3(0.0, 2.2, 0.0)
 	return Vector3.INF
 
 

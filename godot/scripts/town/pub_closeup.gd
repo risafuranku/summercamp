@@ -27,7 +27,9 @@ const LINES := [
 	"Your Vera sat where you are standing. Every Friday. Then one Friday she didn't, and she had not missed one in eleven years.",
 	"The machine pays. Not often. Like everything here.",
 ]
-## The fruit machine.
+## The fruit machine (Grok, assets/textury/closeup/): the red cabinet, the bulbs round the
+## top, the symbols on the reels, the START button.
+const ART := "res://assets/textury/closeup/"
 const REEL := ["cherry", "plum", "bell", "bar", "seven", "plum", "cherry", "bell", "plum", "cherry"]
 const PAYS := {"seven": 30, "bar": 15, "bell": 8, "plum": 5, "cherry": 4}
 const SLOT := Rect2(70, 30, 180, 150)
@@ -67,7 +69,7 @@ func open_slot() -> void:
 	picture = null
 	open_view()
 	_slot = true
-	say("", "A dollar a go. Three alike pay.")
+	say("", "LUCKY 7. Somebody has scratched the 7 off the glass and drawn it back on in pen.")
 
 
 func _hotspots() -> Array:
@@ -192,16 +194,38 @@ func _paint(c: Control) -> void:
 		_paint_slot(c)
 
 
+var _art: Dictionary = {}
+
+
+func _a(name: String) -> Texture2D:
+	if not _art.has(name):
+		var path := ART + name + ".png"
+		_art[name] = load(path) if ResourceLoader.exists(path) else null
+	return _art[name]
+
+
 func _paint_slot(c: Control) -> void:
+	c.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0, 0, 0, 0.5))
 	c.draw_rect(Rect2(SLOT.position + Vector2(4, 5), SLOT.size), Color(0, 0, 0, 0.5))
-	c.draw_rect(SLOT, Color(0.16, 0.12, 0.16))
+	var cab := _a("slot_cabinet")
+	if cab != null:
+		c.draw_texture_rect(cab, SLOT, true)
+	else:
+		c.draw_rect(SLOT, Color(0.16, 0.12, 0.16))
 	c.draw_rect(SLOT.grow(-3), Color(0.5, 0.1, 0.12), false, 2.0)
-	ink(c, RETRO_UI.FONT_BIG, SLOT.position + Vector2(48, 22), "LUCKY  7", Color(1.0, 0.8, 0.2), Color(0, 0, 0, 0), 10)
-	# Lamps round the top, chasing.
+	ink(c, RETRO_UI.FONT_BIG, SLOT.position + Vector2(48, 22), "LUCKY  7", Color(1.0, 0.8, 0.2), Color(0, 0, 0, 0.8), 10)
+	# The bulbs round the top, chasing.
+	var lamp_on := _a("slot_lamp_on")
+	var lamp_off := _a("slot_lamp_off")
 	for i in 12:
 		var on := (i + int(floorf(_lamp_t * 10.0))) % 3 == 0
-		c.draw_rect(Rect2(SLOT.position + Vector2(10 + i * 14, 28), Vector2(6, 4)), Color(1.0, 0.85, 0.3) if on else Color(0.35, 0.2, 0.1))
+		var lt: Texture2D = lamp_on if on else lamp_off
+		var at := SLOT.position + Vector2(13 + i * 14, 30)
+		if lt != null:
+			c.draw_texture(lt, (at - lt.get_size() * 0.5).floor())
+		else:
+			c.draw_rect(Rect2(at - Vector2(3, 2), Vector2(6, 4)), Color(1.0, 0.85, 0.3) if on else Color(0.35, 0.2, 0.1))
 	for i in 3:
 		var r := Rect2(SLOT.position + Vector2(18 + i * 50, 42), Vector2(44, 56))
 		c.draw_rect(r, Color(0.95, 0.94, 0.88))
@@ -213,29 +237,32 @@ func _paint_slot(c: Control) -> void:
 			for k in 4:
 				c.draw_rect(Rect2(r.position.x + 2, r.position.y + 6 + k * 13, r.size.x - 4, 1), Color(0.3, 0.3, 0.3, 0.5))
 	var btn := Rect2(SLOT.position.x + 50, SLOT.end.y - 30, 80, 22)
-	c.draw_rect(btn, Color(0.8, 0.12, 0.1) if hovered() != "spin" else Color(0.95, 0.25, 0.2))
-	ink(c, RETRO_UI.FONT_LABEL, btn.position + Vector2(14, 15), "$1  START", Color(1, 0.95, 0.85))
+	var bt := _a("slot_button")
+	var lit := hovered() == "spin"
+	if bt != null:
+		# Its chrome ends as they are, the red middle drawn out to the button's width.
+		var cap := 8.0
+		var tw := float(bt.get_width())
+		var th := float(bt.get_height())
+		var top := btn.position + Vector2(0, floorf((btn.size.y - th) * 0.5))
+		var mod := Color(1.25, 1.2, 1.15) if lit else Color.WHITE
+		c.draw_texture_rect_region(bt, Rect2(top, Vector2(cap, th)), Rect2(0, 0, cap, th), mod)
+		c.draw_texture_rect_region(bt, Rect2(top + Vector2(cap, 0), Vector2(btn.size.x - cap * 2.0, th)), Rect2(cap, 0, tw - cap * 2.0, th), mod)
+		c.draw_texture_rect_region(bt, Rect2(top + Vector2(btn.size.x - cap, 0), Vector2(cap, th)), Rect2(tw - cap, 0, cap, th), mod)
+	else:
+		c.draw_rect(btn, Color(0.8, 0.12, 0.1) if not lit else Color(0.95, 0.25, 0.2))
+	ink(c, RETRO_UI.FONT_LABEL, btn.position + Vector2(14, 15), "$1  START", Color(1, 0.95, 0.85), Color(0, 0, 0, 0.7))
 	c.draw_rect(Rect2(SLOT.end.x - 18, SLOT.position.y + 4, 14, 12), Color(0.3, 0.3, 0.3))
 	ink(c, RETRO_UI.FONT_LABEL, Vector2(SLOT.end.x - 14, SLOT.position.y + 13), "X", Color(1, 1, 1))
 	if _won > 0 and _spin_t < 0.0 and int(floorf(_lamp_t * 4.0)) % 2 == 0:
-		ink(c, RETRO_UI.FONT_BIG, SLOT.position + Vector2(62, 116), "WIN %d" % _won, Color(1.0, 0.85, 0.2), Color(0, 0, 0, 0), 10)
+		ink(c, RETRO_UI.FONT_BIG, SLOT.position + Vector2(62, 116), "WIN %d" % _won, Color(1.0, 0.85, 0.2), Color(0, 0, 0, 0.8), 10)
 
 
+## The reel's symbol (reel_<name>.png) in the middle of its window.
 func _draw_sym(c: Control, m: Vector2, s: String) -> void:
-	match s:
-		"seven":
-			ink(c, RETRO_UI.FONT_BIG, m + Vector2(-6, 9), "7", Color(0.85, 0.1, 0.1), Color(0, 0, 0, 0), 30)
-		"bar":
-			c.draw_rect(Rect2(m + Vector2(-16, -6), Vector2(32, 12)), Color(0.1, 0.1, 0.1))
-			ink(c, RETRO_UI.FONT_LABEL, m + Vector2(-10, 4), "BAR", Color(1, 1, 1))
-		"bell":
-			c.draw_colored_polygon(PackedVector2Array([m + Vector2(-11, 9), m + Vector2(11, 9), m + Vector2(6, -10), m + Vector2(-6, -10)]), Color(0.92, 0.72, 0.15))
-			c.draw_rect(Rect2(m + Vector2(-2, 9), Vector2(4, 4)), Color(0.6, 0.45, 0.1))
-		"plum":
-			c.draw_circle(m + Vector2(0, 2), 10.0, Color(0.45, 0.16, 0.5))
-			c.draw_rect(Rect2(m + Vector2(-1, -12), Vector2(2, 5)), Color(0.3, 0.45, 0.15))
-		_:
-			c.draw_circle(m + Vector2(-6, 6), 7.0, Color(0.85, 0.08, 0.1))
-			c.draw_circle(m + Vector2(7, 5), 7.0, Color(0.85, 0.08, 0.1))
-			c.draw_line(m + Vector2(-6, -1), m + Vector2(2, -13), Color(0.2, 0.5, 0.15), 2.0)
-			c.draw_line(m + Vector2(7, -2), m + Vector2(2, -13), Color(0.2, 0.5, 0.15), 2.0)
+	var t := _a("reel_" + s)
+	if t != null:
+		c.draw_texture(t, (m - t.get_size() * 0.5).floor())
+	if s == "bar":
+		# The plate's lettering, printed white on the black.
+		ink(c, RETRO_UI.FONT_LABEL, m + Vector2(-10, 4), "BAR", Color(1, 1, 1))

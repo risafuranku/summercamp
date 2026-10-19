@@ -170,6 +170,17 @@ func _biz() -> Dictionary:
 	return _state.biz
 
 
+## Co-op, the joining machine: every change to the businesses' books is told here too
+## (main sends it to the host's camp, which keeps the books: kind, args). Money is not in
+## it: that goes with the till.
+var biz_remote: Callable
+
+
+func _biz_tell(kind: String, args: Array) -> void:
+	if biz_remote.is_valid():
+		biz_remote.call(kind, args)
+
+
 ## The record of the business at `key` ("x:y"); made, shelves stocked, the first time.
 func biz_site(key: String, building_type: String) -> Dictionary:
 	var sites: Dictionary = _biz()["sites"]
@@ -203,6 +214,7 @@ func biz_take(key: String, needs: Dictionary) -> bool:
 		return false
 	for g in needs:
 		site["stock"][g] = int(site["stock"].get(g, 0)) - int(needs[g])
+	_biz_tell("take", [key, needs])
 	return true
 
 
@@ -218,6 +230,15 @@ func biz_sale(key: String, amount: int, units: int, by_hand: bool, credit := tru
 		day["by_hand"] = int(day["by_hand"]) + 1
 	if amount > 0 and credit:
 		add_money(amount)
+	_biz_tell("sale", [key, amount, units, by_hand])
+
+
+## The pub's tap as it stands (scripts/pub/taproom.gd: the keg on the line, the gas, the
+## mugs), kept with the books for the save. The host's: the other machines follow its ops.
+func biz_tap(key: String, data: Dictionary) -> void:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if not site.is_empty():
+		site["tap"] = data.duplicate(true)
 
 
 ## Somebody went away unserved (out of stock, or nobody behind the counter).
@@ -225,6 +246,7 @@ func biz_lost(key: String) -> void:
 	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
 	if not site.is_empty():
 		site["today"]["lost"] = int(site["today"]["lost"]) + 1
+		_biz_tell("lost", [key])
 
 
 ## An order for the van (goods: {good: packs}), paid now, delivered on `due_day`.
@@ -243,7 +265,17 @@ func biz_order(key: String, order: Dictionary, due_day: int) -> bool:
 		return false
 	_biz()["orders"].append({"key": key, "goods": clean, "cost": cost, "due_day": due_day})
 	EventBus.state_changed.emit({"biz": "ordered"})
+	_biz_tell("order", [key, clean, cost, due_day])
 	return true
+
+
+## Co-op, the host: an order the other warden paid for at their end (the money came with
+## their till).
+func biz_add_order(key: String, goods: Dictionary, cost: int, due_day: int) -> void:
+	if not (_biz()["sites"] as Dictionary).has(key):
+		return
+	_biz()["orders"].append({"key": key, "goods": goods, "cost": cost, "due_day": due_day})
+	EventBus.state_changed.emit({"biz": "ordered"})
 
 
 ## The van is unloaded: every order due by `day` goes on its shelves. Returns how many.
@@ -285,6 +317,7 @@ func biz_hire(key: String, name: String, day: int) -> bool:
 	site["staff_name"] = name
 	site["since_day"] = day
 	EventBus.state_changed.emit({"biz": "hired"})
+	_biz_tell("hire", [key, name, day])
 	return true
 
 
@@ -295,6 +328,7 @@ func biz_fire(key: String) -> void:
 	site["staff"] = false
 	site["staff_name"] = ""
 	EventBus.state_changed.emit({"biz": "fired"})
+	_biz_tell("fire", [key])
 
 
 ## The day ends: the hands are paid (all of it, even into the red: they want their

@@ -21,12 +21,22 @@ const AUTUMN_TEX := "res://assets/textury/world/grass_autumn.png"
 const SNOW_TEX := "res://assets/textury/world/snow_ground.png"
 const AUTUMN_DAY := 10
 const SNOW_SETTLED := 0.2
+## The leaves in the air and the snowflakes (Grok, assets/textury/world/).
+const LEAF_TEX := ["res://assets/textury/world/leaf_oak.png", "res://assets/textury/world/leaf_maple.png", "res://assets/textury/world/leaf_birch.png"]
+const FLAKE_TEX := "res://assets/textury/world/snowflake.png"
+## The ground soaks up the rain (about 45 s to soak) and dries slowly (5 min): darker,
+## a little cooler, while it is wet.
+const SOAK_SEC := 45.0
+const DRY_SEC := 300.0
 
 var day := 1
 var hour := 12.0
 ## Main sets these from the weather: precipitation 0 none, 1 light, 2 steady, 3 storm.
 var precip := 0
 var wind := Vector2(0.94, 0.34)
+## 0 dry .. 1 soaked (the ground's colour; read by weather_visuals for the rain's look).
+var wet := 0.0
+var _wet_t := 0.0
 
 var _t := 0.0
 var _leaves: GPUParticles3D
@@ -52,6 +62,12 @@ func _process(delta: float) -> void:
 	if c != null:
 		_leaves.global_position = c.global_position + Vector3(0, 5.5, 0)
 		_snow.global_position = c.global_position + Vector3(0, 8.0, 0)
+	var soak: float = [0.0, 0.55, 0.85, 1.0][clampi(precip, 0, 3)] if not is_snowing() else 0.0
+	wet = move_toward(wet, soak, delta / (SOAK_SEC if soak > wet else DRY_SEC))
+	_wet_t -= delta
+	if _wet_t <= 0.0:
+		_wet_t = 0.5
+		_apply_wet()
 	if _t >= REFRESH_SEC:
 		_t = 0.0
 		apply(false)
@@ -97,7 +113,8 @@ func apply(_force: bool) -> void:
 			c = c.lerp(Color(white.r * base.r, white.g * base.g, white.b * base.b, base.a), snow * 0.85)
 		if tex != null and m.albedo_texture != tex:
 			m.albedo_texture = tex
-		m.albedo_color = c
+		mi.set_meta("season_color", c)
+		m.albedo_color = _wetted(c)
 	var straw := Color(1.0, 1.0, 1.0).lerp(Color(1.05, 0.86, 0.62), SEASON._smooth(0.2, 0.7, SEASON.progress(day, hour)))
 	for n in get_tree().get_nodes_in_group("season_crop"):
 		var gi := n as GeometryInstance3D
@@ -118,7 +135,8 @@ func apply(_force: bool) -> void:
 		var pm := _leaves.process_material as ParticleProcessMaterial
 		pm.gravity = Vector3(wind.x * 1.6 * gust, -0.9, wind.y * 1.6 * gust)
 		var mat := (_leaves.draw_pass_1 as QuadMesh).material as StandardMaterial3D
-		mat.albedo_color = Color(0.86, 0.62, 0.20).lerp(Color(0.62, 0.30, 0.14), clampf((turn - 0.5) * 2.0, 0.0, 1.0))
+		# Their own colours, browner as the autumn goes on.
+		mat.albedo_color = Color(1, 1, 1).lerp(Color(0.78, 0.6, 0.5), clampf((turn - 0.5) * 2.0, 0.0, 1.0))
 	var snowing := is_snowing()
 	_snow.emitting = snowing
 	if snowing:
@@ -126,6 +144,20 @@ func apply(_force: bool) -> void:
 		var pm2 := _snow.process_material as ParticleProcessMaterial
 		var blow := 0.6 + (2.5 if precip >= 3 else 0.0)
 		pm2.gravity = Vector3(wind.x * blow, -1.4, wind.y * blow)
+
+
+## The season's colour of the ground, as wet as it is now.
+func _wetted(c: Color) -> Color:
+	var k := lerpf(1.0, 0.6, wet)
+	return Color(c.r * k * lerpf(1.0, 0.94, wet), c.g * k * lerpf(1.0, 0.97, wet), c.b * k * lerpf(1.0, 1.04, wet), c.a)
+
+
+func _apply_wet() -> void:
+	for n in get_tree().get_nodes_in_group("season_ground"):
+		var mi := n as GeometryInstance3D
+		if mi == null or not (mi.material_override is BaseMaterial3D) or not mi.has_meta("season_color"):
+			continue
+		(mi.material_override as BaseMaterial3D).albedo_color = _wetted(mi.get_meta("season_color"))
 
 
 func _make_particles(n: String, amount: int, life: float, box: Vector3, mesh: Mesh) -> GPUParticles3D:
@@ -146,6 +178,11 @@ func _make_particles(n: String, amount: int, life: float, box: Vector3, mesh: Me
 	pm.angle_max = 180.0
 	pm.angular_velocity_min = -90.0
 	pm.angular_velocity_max = 90.0
+	# A leaf particle keeps the one leaf it was given (a random frame, never moving on).
+	pm.anim_speed_min = 0.0
+	pm.anim_speed_max = 0.0
+	pm.anim_offset_min = 0.0
+	pm.anim_offset_max = 1.0
 	p.process_material = pm
 	p.draw_pass_1 = mesh
 	p.amount = amount
@@ -158,26 +195,58 @@ func _make_particles(n: String, amount: int, life: float, box: Vector3, mesh: Me
 	return p
 
 
+## The three leaves side by side in one picture; each particle shows one of them
+## (a random animation frame that never moves on).
 func _leaf_mesh() -> QuadMesh:
 	var q := QuadMesh.new()
-	q.size = Vector2(0.11, 0.08)
+	q.size = Vector2(0.12, 0.12)
 	var m := StandardMaterial3D.new()
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	m.albedo_color = Color(0.86, 0.62, 0.2)
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	var sheet := _leaf_sheet()
+	if sheet != null:
+		m.albedo_texture = sheet
+		m.particles_anim_h_frames = LEAF_TEX.size()
+		m.particles_anim_v_frames = 1
+		m.particles_anim_loop = false
+	else:
+		m.albedo_color = Color(0.86, 0.62, 0.2)
 	q.material = m
 	return q
 
 
+func _leaf_sheet() -> Texture2D:
+	var imgs: Array = []
+	var cell := 1
+	for path in LEAF_TEX:
+		if not ResourceLoader.exists(path):
+			return null
+		var img: Image = (load(path) as Texture2D).get_image()
+		img.convert(Image.FORMAT_RGBA8)
+		imgs.append(img)
+		cell = maxi(cell, maxi(img.get_width(), img.get_height()))
+	var sheet := Image.create(cell * imgs.size(), cell, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color(0, 0, 0, 0))
+	for k in imgs.size():
+		var img: Image = imgs[k]
+		sheet.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), Vector2i(k * cell + (cell - img.get_width()) / 2, (cell - img.get_height()) / 2))
+	return ImageTexture.create_from_image(sheet)
+
+
 func _flake_mesh() -> QuadMesh:
 	var q := QuadMesh.new()
-	q.size = Vector2(0.032, 0.032)
+	q.size = Vector2(0.04, 0.04)
 	var m := StandardMaterial3D.new()
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	m.albedo_color = Color(0.95, 0.96, 1.0, 0.9)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	if ResourceLoader.exists(FLAKE_TEX):
+		m.albedo_texture = load(FLAKE_TEX)
+		m.albedo_color = Color(1, 1, 1, 0.95)
 	q.material = m
 	return q

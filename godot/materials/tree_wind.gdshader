@@ -14,6 +14,8 @@ uniform float flutter = 0.0;
 uniform float height = 5.0;
 // 1 on the crowns of the birches and the other leaf trees: they turn and fall.
 uniform float seasonal = 0.0;
+// Cards of leaves (a birch's crown): the picture's holes are holes.
+uniform bool alpha_cut = false;
 
 global uniform float wind_strength;
 global uniform vec2 wind_dir;
@@ -52,6 +54,9 @@ void vertex() {
 
 void fragment() {
 	vec4 t = texture(albedo_tex, UV * uv_scale);
+	if (alpha_cut && t.a < 0.5) {
+		discard;
+	}
 	vec3 c = t.rgb * albedo_color.rgb;
 	if (seasonal > 0.5) {
 		c *= season_leaf_tint;

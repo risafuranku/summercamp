@@ -1,40 +1,43 @@
 extends Node
 
-## The night for two (scripts/coop/coop.gd; DESIGN.md §12). The night's enemies live on
-## the host's machine, as alone; here they hunt either warden:
-##   - the other warden has a stand-in body in the host's world (where they stand, where
-##     they look and shine their torch: their warden state), so an enemy brain can take
-##     it for "the player" (enemy_base.gd reads the player, its head camera and torch);
+## The night for several (scripts/coop/coop.gd; DESIGN.md §12). The night's enemies live
+## on the host's machine, as alone; here they hunt any warden:
+##   - every other warden has a stand-in body in the host's world (where they stand,
+##     where they look and shine their torch: their warden state), so an enemy brain can
+##     take it for "the player" (enemy_base.gd reads the player, its head camera and torch);
 ##   - each enemy hunts one warden at a time: whoever is out, and the one alone in the
-##     dark sooner than the one by the lamps; it lets go of one gone indoors for one out;
+##     dark sooner than the ones by the lamps; it lets go of one gone indoors for one out;
 ##   - what it does to the warden it hunts (a hit, a line in the feed) goes to that one;
+##     the others, far off, hear them cry out;
 ##   - what the enemies are (their sprites, lights and sounds) is shown on the other
-##     machine as it is on the host's, ten times a second;
-##   - now and then one is only for the warden it hunts: the other does not see or hear
-##     it at all ("didn't you see that?");
+##     machines as it is on the host's, ten times a second;
+##   - now and then one is only for the warden it hunts: nobody else sees or hears it at
+##     all ("didn't you see that?");
 ##   - behind it a sanity per warden, kept on the host's machine and never shown or named:
-##     hits, an enemy in front of you, the dark alone wear it down; the day, the other
+##     hits, an enemy in front of you, the dark alone wear it down; the day, another
 ##     warden near and sleep give it back. The lower, the sooner the night picks you, the
-##     likelier what you see is only yours, and the likelier you see the other warden
+##     likelier what you see is only yours, and the likelier you see one of the others
 ##     where they are not.
-## Main owns one of these on either machine (main._coop_night).
+## A warden is "host" or "p<peer id>" here. Main owns one of these on every machine
+## (main._coop_night).
 
 const RETARGET_EVERY := 6.0
 const VIEW_HZ := 10.0
 const EYE := Vector3(0.0, 1.62, 0.0)
+const TOGETHER_M := 7.0
 var main: Node
-var _proxy: CharacterBody3D
-var _proxy_cam: Camera3D
-var _targets: Dictionary = {}        # brain instance id -> "host" | "other"
+## Every other warden's stand-in on the host's: who -> {body: CharacterBody3D, cam: Camera3D}.
+var _proxies: Dictionary = {}
+var _targets: Dictionary = {}        # brain instance id -> who
 var _retarget_t := 0.0
 var _view_t := 0.0
-## The other machine: the enemies as the host's shows them, by node key.
+## The other machines: the enemies as the host's shows them, by node key.
 var _mirror_root: Node3D
 var _mirror: Dictionary = {}
 var _mirror_left := 0.0
-## The hidden sanity, 0..100 (the host's machine keeps both; the other gets its own in
-## the host's clock, coop_clock "sn", as "own").
-var sanity := {"host": 100.0, "other": 100.0}
+## The hidden sanity, 0..100, by who (the host's machine keeps them all; each other machine
+## gets its own in the host's clock, coop_clock "sn", as "own").
+var sanity := {"host": 100.0}
 var _private: Dictionary = {}       # brain instance id -> true: only its quarry sees it
 var _wear_t := 0.0
 var _last_hp := -1
@@ -43,9 +46,26 @@ var _phantom_left := 0.0
 var _phantom_wait := 60.0
 
 
+static func who_of(peer: int) -> String:
+	return "host" if peer == 1 else "p%d" % peer
+
+
+static func peer_of(who: String) -> int:
+	return 1 if who == "host" else int(who.trim_prefix("p"))
+
+
+## Every warden in the camp, the host first.
+func _all() -> Array:
+	var out: Array = ["host"]
+	for id in Coop.others():
+		if int(id) != 1:
+			out.append(who_of(int(id)))
+	return out
+
+
 func _process(delta: float) -> void:
 	if main == null or not Coop.has_partner():
-		_drop_proxy()
+		_drop_proxies()
 		clear_mirror()
 		return
 	_phantom_tick(delta)
@@ -60,10 +80,12 @@ func _process(delta: float) -> void:
 # ── the host ──────────────────────────────────────────────────────────────────
 
 func _host_tick(delta: float) -> void:
+	for who in _all():
+		if not sanity.has(who):
+			sanity[who] = 100.0
 	_wear(delta)
-	# Their stand-in is always about (a lost guest may follow it, an enemy hunt it).
-	_ensure_proxy()
-	_place_proxy()
+	# Their stand-ins are always about (a lost guest may follow one, an enemy hunt it).
+	_sync_proxies()
 	var brains: Array = main.get("_enemy_brains")
 	if brains.is_empty():
 		_targets.clear()
@@ -73,17 +95,23 @@ func _host_tick(delta: float) -> void:
 	_view_t -= delta
 	if _view_t <= 0.0:
 		_view_t = 1.0 / VIEW_HZ
-		var items := _snapshot(brains)
 		# Callers by day too (the electrician): whatever stands in the "coop_mirror" group.
+		var common: Array = []
 		for root in get_tree().get_nodes_in_group(MIRROR_GROUP):
 			if root is Node3D and (root as Node3D).is_inside_tree():
-				_snapshot_root(root, "g%d" % root.get_instance_id(), items, true)
-		if not items.is_empty() or _sent_any:
-			Coop.send_night_view(items)
-		_sent_any = not items.is_empty()
+				_snapshot_root(root, "g%d" % root.get_instance_id(), common, true)
+		# Each machine its own picture: the enemies all see, and the ones only its warden does.
+		var any := false
+		for id in Coop.others():
+			var items := _snapshot(brains, who_of(int(id)))
+			items.append_array(common)
+			any = any or not items.is_empty()
+			if not items.is_empty() or _sent_any:
+				Coop.send_night_view(items, int(id))
+		_sent_any = any
 
 
-## Shown on the other machine as on this one, besides the enemies (scripts/reception/
+## Shown on the other machines as on this one, besides the enemies (scripts/reception/
 ## electrician_visit.gd puts its man in it).
 const MIRROR_GROUP := "coop_mirror"
 var _sent_any := false
@@ -98,7 +126,11 @@ func _hunt(delta: float, brains: Array) -> void:
 			# The lower the quarry's sanity, the likelier this one is only theirs.
 			var rng := RandomNumberGenerator.new()
 			rng.seed = hash(b.get_instance_id()) ^ 77
-			_private[b.get_instance_id()] = rng.randf() < 0.12 + (100.0 - float(sanity[who])) / 100.0 * 0.38
+			_private[b.get_instance_id()] = rng.randf() < 0.12 + (100.0 - float(sanity.get(who, 100.0))) / 100.0 * 0.38
+	for b in brains:
+		if b != null and not _all().has(str(_targets.get(b.get_instance_id(), "host"))):
+			# Their quarry went home: someone else.
+			_aim(b, _pick_target(b))
 	_hide_private(brains)
 	if _retarget_t <= 0.0:
 		_retarget_t = RETARGET_EVERY
@@ -106,12 +138,10 @@ func _hunt(delta: float, brains: Array) -> void:
 			if b == null:
 				continue
 			var now := str(_targets.get(b.get_instance_id(), "host"))
-			if not _is_out(now) and _is_out(_other_of(now)):
-				_aim(b, _other_of(now))
-
-
-static func _other_of(who: String) -> String:
-	return "other" if who == "host" else "host"
+			if not _is_out(now):
+				var next := _pick_target(b)
+				if next != now and _is_out(next):
+					_aim(b, next)
 
 
 ## Out where the night can reach: not in a room, in the boat or in town.
@@ -119,69 +149,102 @@ func _is_out(who: String) -> bool:
 	# Knocked down, lying there: the night lets go of them (main._coop_come_to).
 	if who == "host":
 		return bool(main._can_enemy_runtime_actions()) and not bool(main.get("_coop_down"))
-	var s: Dictionary = Coop.partner_state
+	var s: Dictionary = Coop.state_of(peer_of(who))
 	return not s.is_empty() and not bool(s.get("in", false)) and not bool(s.get("dn", false)) and not s.has("boat") and not s.has("ride") and bool(main._is_enemy_night_active())
+
+
+func _pos(who: String) -> Vector3:
+	if who == "host":
+		var me := main.get("_player") as Node3D
+		return me.global_position if me != null else Vector3.ZERO
+	return Coop.state_of(peer_of(who)).get("p", Vector3.ZERO)
 
 
 func _dark_at(who: String) -> float:
 	var bm = main.get("building_manager")
-	var p: Vector3 = (main.get("_player") as Node3D).global_position if who == "host" else _partner_pos()
 	if bm == null or not bm.has_method("get_light_level_at"):
 		return 1.0
-	return 1.0 - clampf(float(bm.get_light_level_at(p)), 0.0, 1.0)
+	return 1.0 - clampf(float(bm.get_light_level_at(_pos(who))), 0.0, 1.0)
 
 
-## Whom a new enemy goes for: one out, the one in the dark sooner (the dice decide
-## between two alike).
+## Whom a new enemy goes for: one of those out, the one in the dark sooner, the one
+## with less left of themselves (the dice decide between the rest).
 func _pick_target(brain) -> String:
-	var host_out := _is_out("host")
-	var other_out := _is_out("other")
-	if host_out != other_out:
-		return "host" if host_out else "other"
-	var w_host := 0.4 + _dark_at("host") + (100.0 - float(sanity["host"])) / 100.0
-	var w_other := 0.4 + _dark_at("other") + (100.0 - float(sanity["other"])) / 100.0
+	var pool: Array = []
+	for who in _all():
+		if _is_out(who):
+			pool.append(who)
+	if pool.is_empty():
+		pool = _all()
+	var weights: Array = []
+	var total := 0.0
+	for who in pool:
+		var w := 0.4 + _dark_at(who) + (100.0 - float(sanity.get(who, 100.0))) / 100.0
+		weights.append(w)
+		total += w
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(brain.get_instance_id())
-	return "host" if rng.randf() * (w_host + w_other) < w_host else "other"
+	var r := rng.randf() * total
+	for i in pool.size():
+		r -= float(weights[i])
+		if r <= 0.0:
+			return str(pool[i])
+	return str(pool[-1])
 
 
 ## The brain hunts `who` from now on: their body, their hits, their feed.
 func _aim(brain, who: String) -> void:
+	# "other" (from the days of two, the harnesses): the first of the joining wardens.
+	if who == "other":
+		for id in Coop.others():
+			if int(id) != 1:
+				who = who_of(int(id))
+				break
 	_targets[brain.get_instance_id()] = who
-	if who == "other" and _proxy != null:
-		brain.set("_player", _proxy)
-		brain.set("_damage_callable", Callable(self, "_hurt_other"))
-		brain.set("_allow_actions_callable", Callable(self, "_other_reachable"))
-		brain.set("_notify_callable", Callable(self, "_feed_other"))
+	var proxy = _proxies.get(who, {}).get("body") if who != "host" else null
+	if who != "host" and proxy != null:
+		brain.set("_player", proxy)
+		brain.set("_damage_callable", Callable(self, "_hurt_other").bind(who))
+		brain.set("_allow_actions_callable", Callable(self, "_is_out").bind(who))
+		brain.set("_notify_callable", Callable(self, "_feed_other").bind(who))
 	else:
+		_targets[brain.get_instance_id()] = "host"
 		brain.set("_player", main.get("_player"))
 		brain.set("_damage_callable", Callable(main, "damage_player"))
 		brain.set("_allow_actions_callable", Callable(main, "_can_enemy_runtime_actions"))
 		brain.set("_notify_callable", Callable(main, "_on_enemy_notice"))
 
 
-func _other_reachable() -> bool:
-	return _is_out("other")
+func _hurt_other(amount: int, who: String) -> void:
+	_shaken(who, amount * 0.6)
+	Coop.send_night_event("hurt", [amount], peer_of(who))
+	_cried_out(who)
 
 
-func _hurt_other(amount: int) -> void:
-	_shaken("other", amount * 0.6)
-	Coop.send_night_event("hurt", [amount])
-	if not together():
-		_heard()
+## `who` cried out: the others far off from them hear it (on their own machines).
+func _cried_out(who: String) -> void:
+	for id in Coop.others():
+		if who_of(int(id)) != who:
+			Coop.send_night_event("heard", [peer_of(who)], int(id))
+	if who != "host":
+		_heard(peer_of(who))
 
 
-## The other warden cried out somewhere off in the dark.
-func _heard() -> void:
-	main._on_enemy_notice("Somewhere off in the dark, %s cries out." % Coop.partner_name())
+## A warden cried out somewhere off in the dark (not heard close by: you are there).
+func _heard(peer: int) -> void:
+	var me := main.get("_player") as Node3D
+	var fig := Coop.figure_of(peer)
+	if me != null and fig != null and me.global_position.distance_to(fig.global_position) < TOGETHER_M:
+		return
+	main._on_enemy_notice("Somewhere off in the dark, %s cries out." % Coop.name_of(peer))
 
 
-func _feed_other(text: String) -> void:
-	Coop.send_night_event("feed", [text])
+func _feed_other(text: String, who: String) -> void:
+	Coop.send_night_event("feed", [text], peer_of(who))
 
 
-## Whom the night director presses on now: the one out where the night is (both out
-## or both in: the one with less left of themselves); it stays on them a while.
+## Whom the night director presses on now: one out where the night is (all out or all
+## in: the one with less left of themselves); it stays on them a while.
 const DIRECTOR_HOLD := 40.0
 var _director_on := "host"
 var _director_since := -999.0
@@ -189,25 +252,36 @@ var _director_since := -999.0
 
 func director_target() -> String:
 	var now := Time.get_ticks_msec() / 1000.0
-	if now - _director_since < DIRECTOR_HOLD:
+	if now - _director_since < DIRECTOR_HOLD and _all().has(_director_on):
 		return _director_on
-	var host_out := _is_out("host")
-	var other_out := _is_out("other")
-	var pick := "host"
-	if host_out != other_out:
-		pick = "host" if host_out else "other"
-	elif float(sanity["other"]) < float(sanity["host"]) - 5.0:
-		pick = "other"
+	var out: Array = []
+	for who in _all():
+		if _is_out(who):
+			out.append(who)
+	var pool: Array = out if not out.is_empty() else _all()
+	var pick := str(pool[0])
+	for who in pool:
+		if float(sanity.get(who, 100.0)) < float(sanity.get(pick, 100.0)) - 5.0:
+			pick = str(who)
 	if pick != _director_on:
 		_director_on = pick
 		_director_since = now
 	return _director_on
 
 
-## The two wardens close together (what the night does, both see).
+## The wardens near `who` (what the night does to one, they see too): their peer ids.
+func near(who: String) -> Array:
+	var out: Array = []
+	var at := _pos(who)
+	for other in _all():
+		if other != who and _pos(other).distance_to(at) < TOGETHER_M:
+			out.append(peer_of(other))
+	return out
+
+
+## The host with another warden close by.
 func together() -> bool:
-	var me := main.get("_player") as Node3D
-	return me != null and me.global_position.distance_to(_partner_pos()) < 7.0
+	return not near("host").is_empty()
 
 
 ## Whether an enemy is only for the warden it hunts (the night decides; the check sets it).
@@ -215,7 +289,7 @@ func set_private(brain, on: bool) -> void:
 	_private[brain.get_instance_id()] = on
 
 
-## Who each enemy hunts now (for tools/coop_check.gd).
+## Who each enemy hunts now (for tools/coop_check.gd): "enemy:host" or "enemy:p<peer>".
 func targets() -> Array:
 	var out: Array = []
 	for b in main.get("_enemy_brains"):
@@ -224,72 +298,94 @@ func targets() -> Array:
 	return out
 
 
-func _partner_pos() -> Vector3:
-	return Coop.partner_state.get("p", Vector3.ZERO)
+## Every other warden with a stand-in, the gone without.
+func _sync_proxies() -> void:
+	var want := {}
+	for id in Coop.others():
+		if int(id) != 1:
+			want[who_of(int(id))] = true
+	for who in _proxies.keys():
+		if not want.has(who):
+			_drop_proxy(who)
+	for who in want.keys():
+		if not _proxies.has(who):
+			_make_proxy(who)
+		_place_proxy(who)
 
 
-func _ensure_proxy() -> void:
-	if _proxy != null and is_instance_valid(_proxy):
-		return
+func _make_proxy(who: String) -> void:
 	var world: Node3D = main.get("_world_3d")
 	if world == null:
 		return
-	_proxy = PROXY_SCRIPT.new()
-	_proxy.name = "OtherWardenProxy"
+	var proxy: CharacterBody3D = PROXY_SCRIPT.new()
+	proxy.name = "WardenProxy_%s" % who
 	# A body for the enemies' rays to leave out (get_rid); it touches nothing.
-	_proxy.collision_layer = 0
-	_proxy.collision_mask = 0
+	proxy.collision_layer = 0
+	proxy.collision_mask = 0
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.3
 	cap.height = 1.7
 	shape.shape = cap
 	shape.position = Vector3(0.0, 0.85, 0.0)
-	_proxy.add_child(shape)
+	proxy.add_child(shape)
 	var head := Node3D.new()
 	head.name = "Head"
 	head.position = EYE
-	_proxy.add_child(head)
-	_proxy_cam = Camera3D.new()
-	_proxy_cam.name = "Camera3D"
-	_proxy_cam.current = false
-	_proxy_cam.fov = 75.0
-	head.add_child(_proxy_cam)
-	world.add_child(_proxy)
+	proxy.add_child(head)
+	var cam := Camera3D.new()
+	cam.name = "Camera3D"
+	cam.current = false
+	cam.fov = 75.0
+	head.add_child(cam)
+	proxy.set_meta("coop_id", peer_of(who))
+	world.add_child(proxy)
+	_proxies[who] = {"body": proxy, "cam": cam}
 
 
-func _place_proxy() -> void:
-	if _proxy == null:
+func _place_proxy(who: String) -> void:
+	var e: Dictionary = _proxies.get(who, {})
+	var proxy: CharacterBody3D = e.get("body")
+	if proxy == null or not is_instance_valid(proxy):
 		return
-	var s: Dictionary = Coop.partner_state
-	var p: Vector3 = s.get("p", _proxy.global_position)
+	var cam: Camera3D = e.get("cam")
+	var s: Dictionary = Coop.state_of(peer_of(who))
+	var p: Vector3 = s.get("p", proxy.global_position)
 	var d: Vector3 = s.get("d", Vector3.FORWARD)
 	# How they move (the basket woman listens for steps).
 	var dt := get_process_delta_time()
 	if dt > 0.0:
-		_proxy.velocity = (p - _proxy.global_position) / dt if p.distance_to(_proxy.global_position) < 3.0 else Vector3.ZERO
-	_proxy.global_position = p
-	_proxy.rotation.y = float(s.get("y", 0.0))
-	if d.length() > 0.01 and _proxy_cam != null:
+		proxy.velocity = (p - proxy.global_position) / dt if p.distance_to(proxy.global_position) < 3.0 else Vector3.ZERO
+	proxy.global_position = p
+	proxy.rotation.y = float(s.get("y", 0.0))
+	if d.length() > 0.01 and cam != null:
 		var eye := p + EYE
 		var up := Vector3.UP if absf(d.normalized().dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
-		_proxy_cam.global_transform = Transform3D(Basis.looking_at(d.normalized(), up), eye)
+		cam.global_transform = Transform3D(Basis.looking_at(d.normalized(), up), eye)
 
 
-func _drop_proxy() -> void:
-	if _proxy != null and is_instance_valid(_proxy):
-		_proxy.queue_free()
-	_proxy = null
-	_proxy_cam = null
+func _drop_proxy(who: String) -> void:
+	var proxy = _proxies.get(who, {}).get("body")
+	if proxy != null and is_instance_valid(proxy):
+		proxy.queue_free()
+	_proxies.erase(who)
+	for k in _targets.keys():
+		if str(_targets[k]) == who:
+			_targets.erase(k)
+
+
+func _drop_proxies() -> void:
+	for who in _proxies.keys():
+		_drop_proxy(who)
 	_targets.clear()
 
 
 const PROXY_SCRIPT = preload("res://scripts/coop/coop_proxy.gd")
 
 
-## A private enemy hunting the other warden: on this machine it is neither seen nor
-## heard (its root hidden, its sounds silent; what they were is kept for the picture
-## sent over: "coop_db").
+## A private enemy hunting another warden: on this machine it is neither seen nor heard
+## (its root hidden, its sounds silent; what they were is kept for the picture sent
+## over: "coop_db").
 func _hide_private(brains: Array) -> void:
 	for b in brains:
 		if b == null:
@@ -297,7 +393,7 @@ func _hide_private(brains: Array) -> void:
 		var root = b.get("_root")
 		if root == null or not is_instance_valid(root):
 			continue
-		var theirs_alone := bool(_private.get(b.get_instance_id(), false)) and str(_targets.get(b.get_instance_id(), "")) == "other"
+		var theirs_alone := bool(_private.get(b.get_instance_id(), false)) and str(_targets.get(b.get_instance_id(), "")) != "host"
 		(root as Node3D).visible = not theirs_alone
 		for n in (root as Node).find_children("*", "AudioStreamPlayer3D", true, false):
 			var a := n as AudioStreamPlayer3D
@@ -323,19 +419,26 @@ static func _shown_below(n: Node, root: Node) -> bool:
 	return true
 
 
-## What the enemies show: every sprite, light and sound under each enemy's root (not
-## the ones only the host, hunted by them, sees).
-func _snapshot(brains: Array) -> Array:
+## What the enemies show to `viewer`: every sprite, light and sound under each enemy's
+## root, but not the ones only another warden, hunted by them, sees.
+func _snapshot(brains: Array, viewer: String) -> Array:
 	var out: Array = []
 	for b in brains:
 		if b == null:
 			continue
-		if bool(_private.get(b.get_instance_id(), false)) and str(_targets.get(b.get_instance_id(), "")) == "host":
+		var quarry := str(_targets.get(b.get_instance_id(), ""))
+		if bool(_private.get(b.get_instance_id(), false)) and quarry != viewer:
 			continue
 		var root = b.get("_root")
 		if root == null or not is_instance_valid(root):
 			continue
+		var at := out.size()
 		_snapshot_root(root, str(b.get_instance_id()), out)
+		# Hidden here (only its quarry sees it): shown there all the same.
+		if quarry == viewer and bool(_private.get(b.get_instance_id(), false)):
+			for i in range(at, out.size()):
+				if out[i].has("v"):
+					out[i]["v"] = true
 	return out
 
 
@@ -370,31 +473,28 @@ func _snapshot_root(root: Node, prefix: String, out: Array, with_root := false) 
 # ── the hidden sanity ─────────────────────────────────────────────────────────
 
 func _shaken(who: String, amount: float) -> void:
-	sanity[who] = clampf(float(sanity[who]) - amount, 0.0, 100.0)
+	sanity[who] = clampf(float(sanity.get(who, 100.0)) - amount, 0.0, 100.0)
 
 
-## Each second: what wears either warden down or brings them back.
+## Each second: what wears each warden down or brings them back.
 func _wear(delta: float) -> void:
 	_wear_t -= delta
 	if _wear_t > 0.0:
 		return
 	_wear_t = 1.0
-	# Hits taken on this machine (the other's come through _hurt_other).
+	# Hits taken on this machine (the others' come through _hurt_other).
 	var hp := int(main.get("_player_health"))
 	if _last_hp > hp:
 		_shaken("host", (_last_hp - hp) * 0.6)
-		# Far off, the other warden hears you.
-		if not together():
-			Coop.send_night_event("heard", [])
+		# Far off, the others hear you.
+		_cried_out("host")
 	_last_hp = hp
 	var night := bool(main._is_enemy_night_active())
-	var me := main.get("_player") as Node3D
-	var together := me != null and me.global_position.distance_to(_partner_pos()) < 7.0
-	for who in ["host", "other"]:
-		var s := float(sanity[who])
+	for who in _all():
+		var s := float(sanity.get(who, 100.0))
 		if not night:
 			s += 0.25
-		elif together:
+		elif not near(who).is_empty():
 			s += 0.12
 		elif _is_out(who) and _dark_at(who) > 0.7:
 			s -= 0.15
@@ -413,20 +513,31 @@ func _wear(delta: float) -> void:
 
 ## A night slept through brings it back (camp_office.gd, the morning after).
 func slept() -> void:
-	for who in ["host", "other"]:
-		sanity[who] = minf(100.0, float(sanity[who]) + 45.0)
+	for who in sanity.keys():
+		if who != "own":
+			sanity[who] = minf(100.0, float(sanity[who]) + 45.0)
 
 
-## The other machine: its warden's sanity, as the host's keeps it.
+## The host: each other warden's sanity, for their machine (coop_clock "sn": peer -> it).
+func sanity_by_peer() -> Dictionary:
+	var out := {}
+	for id in Coop.others():
+		var who := who_of(int(id))
+		if sanity.has(who):
+			out[int(id)] = float(sanity[who])
+	return out
+
+
+## Another machine: its warden's sanity, as the host's keeps it.
 func take_own_sanity(v: float) -> void:
 	sanity["own"] = v
 
 
 func _own_sanity() -> float:
-	return float(sanity.get("own", 100.0)) if Coop.is_client() else float(sanity["host"])
+	return float(sanity.get("own", 100.0)) if Coop.is_client() else float(sanity.get("host", 100.0))
 
 
-## Low, alone, at night, out in the dark: now and then the other warden stands off in
+## Low, alone, at night, out in the dark: now and then one of the others stands off in
 ## the dark where they are not, for a moment, and is gone. Each machine, its own warden.
 func _phantom_tick(delta: float) -> void:
 	if _phantom != null and is_instance_valid(_phantom):
@@ -448,8 +559,12 @@ func _phantom_tick(delta: float) -> void:
 	var world: Node3D = main.get("_world_3d")
 	if player == null or world == null:
 		return
-	# Not with the real one close by.
-	if player.global_position.distance_to(_partner_pos()) < 20.0:
+	# Not with a real one close by.
+	for f in Coop.figures():
+		if player.global_position.distance_to((f as Node3D).global_position) < 20.0:
+			return
+	var ids := Coop.others()
+	if ids.is_empty():
 		return
 	var cam := player.get_node_or_null("Head/Camera3D") as Camera3D
 	var fwd := -(cam.global_basis.z if cam != null else player.global_basis.z)
@@ -458,7 +573,7 @@ func _phantom_tick(delta: float) -> void:
 	# Off to the side, at the edge of the torch: there, and when you look, gone.
 	var side := fwd.rotated(Vector3.UP, deg_to_rad(rng.randf_range(38.0, 62.0) * (1.0 if rng.randf() < 0.5 else -1.0)))
 	var at := player.global_position + side * rng.randf_range(13.0, 19.0)
-	var look: Dictionary = Coop.partner_look
+	var look: Dictionary = Coop.look_of(int(ids[rng.randi() % ids.size()]))
 	_phantom = REMOTE_PLAYER.new()
 	_phantom.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
 	world.add_child(_phantom)
@@ -469,7 +584,7 @@ func _phantom_tick(delta: float) -> void:
 const REMOTE_PLAYER = preload("res://scripts/coop/remote_player.gd")
 
 
-# ── the other machine ─────────────────────────────────────────────────────────
+# ── the other machines ────────────────────────────────────────────────────────
 
 func show_view(items: Array) -> void:
 	var world: Node3D = main.get("_world_3d") if main != null else null
@@ -554,7 +669,7 @@ func show_view(items: Array) -> void:
 			_mirror.erase(key)
 
 
-## The other machine: a shown thing of the host's tagged `tag` within `radius` of `at`
+## Another machine: a shown thing of the host's tagged `tag` within `radius` of `at`
 ## (the guest lost in the corn), or null.
 func tagged_near(tag: String, at: Vector3, radius: float) -> Node3D:
 	for v in _mirror.values():
@@ -565,9 +680,13 @@ func tagged_near(tag: String, at: Vector3, radius: float) -> Node3D:
 	return null
 
 
-## The host: the other warden's stand-in (for a lost guest to follow).
-func proxy() -> Node3D:
-	return _proxy
+## The host: a warden's stand-in (for a lost guest to follow): `peer`'s, or the first's.
+func proxy(peer := 0) -> Node3D:
+	if peer == 0:
+		for who in _proxies.keys():
+			return _proxies[who].get("body")
+		return null
+	return _proxies.get(who_of(peer), {}).get("body")
 
 
 func mirror_count() -> int:
@@ -585,7 +704,7 @@ func clear_mirror() -> void:
 	_mirror.clear()
 
 
-## The other machine: what the night did to you on the host's.
+## Another machine: what the night did to you on the host's.
 func on_event(kind: String, data: Array) -> void:
 	match kind:
 		"hurt":
@@ -593,7 +712,7 @@ func on_event(kind: String, data: Array) -> void:
 		"feed":
 			main._on_enemy_notice(str(data[0]))
 		"heard":
-			_heard()
+			_heard(int(data[0]) if not data.is_empty() else 1)
 		"fx":
 			# The night director's touch, here (a knock, a lamp out, the phone...).
 			var fx = main.get("_director_fx")

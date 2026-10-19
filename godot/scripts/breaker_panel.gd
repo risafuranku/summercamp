@@ -50,6 +50,7 @@ var _torch: Texture2D
 
 func _ready() -> void:
 	layer = 90
+	add_to_group("closeup")  # the hands are on it (pockets.gd)
 	visible = false
 	_hum = AudioStreamPlayer.new()
 	# The board's hum: a low background, not a buzz over everything (playtest 2026-10-17:

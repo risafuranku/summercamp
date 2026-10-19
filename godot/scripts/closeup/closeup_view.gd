@@ -50,6 +50,8 @@ func _init() -> void:
 	layer = 95
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# While one is up your hands are on it (scripts/town/pockets.gd hides the cigarette).
+	add_to_group("closeup")
 
 
 func _ready() -> void:

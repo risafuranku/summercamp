@@ -21,21 +21,25 @@ extends CanvasLayer
 ##
 ## Wardens and camps (scripts/profiles.gd, playtest 18. 10.: "profiles with a name, worlds
 ## like Minecraft"): WARDEN picks or makes the profile whose camps you play (a new player
-## is asked their name first); NEW CAMP asks the camp's name and, if you like, its seed;
+## is asked their name first, then chooses the figure and jacket the other warden sees in
+## co-op; Edit warden changes the name and the look later); NEW CAMP asks the camp's name
+## and, if you like, its seed;
 ## LOAD CAMP shows the warden's camps as tiles (the camp at its last save, day, till), a
 ## tile opens the camp: its saves to load, Duplicate, Delete. CO-OP hosts a new camp or a
 ## saved one through the same pages.
-## Pages: main, profiles, newcamp, camps, load (one camp), coop, options, controls, and the secret test nights (L on the main
+## Pages: main, profiles, look (one warden), newcamp, camps, load (one camp), coop, options, controls, and the secret test nights (L on the main
 ## page: a fresh test camp at 20:00 with the chosen thing already out, nothing saved). CO-OP (scripts/coop/coop.gd): host a
 ## sandbox camp (this machine's addresses beside it, for the other warden) or join one
 ## (Join opens a direct-connect window: the host's address, the last one filled in; it
-## can also be typed straight into the row); who you are and your jacket's colour
-## (left / right, the warden drawn beside the rows: scripts/coop/warden_looks.gd). A loading plate covers everything while main
+## can also be typed straight into the row); your warden drawn beside the rows with their
+## name (scripts/coop/warden_looks.gd). A loading plate covers everything while main
 ## builds the world. main.gd owns what the choices *do*; this script only reports them.
 
 signal continue_requested
 signal new_game_requested
-signal new_camp_requested(camp_name: String, seed: int, coop: bool)
+## `sandbox`: no story; `rules` its switches (main.CAMP_RULES: threats, weather, events,
+## wear, money). A co-op camp is always a sandbox camp.
+signal new_camp_requested(camp_name: String, seed: int, coop: bool, sandbox: bool, rules: Dictionary)
 signal profile_changed
 signal load_requested(path: String)
 signal quit_requested
@@ -48,6 +52,7 @@ const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
 const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const PROFILES = preload("res://scripts/profiles.gd")
+const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const BOOT_SCREEN = preload("res://scripts/ui/boot_screen.gd")
 const TILE_COLS := 3
 const TILE_ROWS := 2
@@ -62,6 +67,8 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	{"id": "child", "text": "Extra Child", "sub": "Family"},
 	{"id": "basket", "text": "Basket Man", "sub": "Mushroom Picker"},
 	{"id": "stalker", "text": "Antlered Man", "sub": "Mixed camp"},
+	# Not a thing: the sewer breaks again as soon as it is mended (main.TEST_SEWER).
+	{"id": "sewer", "text": "Sewer", "sub": "Pipes minigame"},
 	# Not a night: the camp's bus stop as the 380 comes up the road (main._start_test_bus).
 	{"id": "bus", "text": "Bus to Lesna", "sub": "Day, camp stop"},
 ]
@@ -95,7 +102,14 @@ var _coop_notice: Label
 var _coop_address := ""
 var _coop_caret_t := 0.0
 var _coop_preview: TextureRect
+var _coop_who: Label
 var _coop_last_path := ""
+## The warden's name and look (WARDENS: a new warden, or Edit warden).
+var _look_page: Control
+var _look_list
+var _look_preview: TextureRect
+var _look_pid := ""
+var _look_back := "profiles"
 ## Direct connect: the window over the CO-OP page with the address field.
 var _connect_box: Control
 var _connect_field: LineEdit
@@ -125,6 +139,17 @@ var _newcamp_page: Control
 var _newcamp_title
 var _nc_name: LineEdit
 var _nc_seed: LineEdit
+## NEW CAMP's mode (STORY / SANDBOX) and a sandbox camp's switches.
+var _nc_sandbox := false
+var _nc_rules: Dictionary = {}
+var _nc_story_btn: Button
+var _nc_sandbox_btn: Button
+var _nc_about: Label
+var _nc_warn: Label
+var _nc_opts: Dictionary = {}
+const NC_RULE_TEXT := {"threats": "Night threats", "weather": "Weather", "events": "Day events", "wear": "Breakdowns", "money": "Money"}
+## A sandbox camp's starting till (0: the usual).
+const NC_MONEY := [0, 10000, 100000]
 var _camps_page: Control
 var _camps_title
 var _tiles: Array[Control] = []
@@ -187,12 +212,15 @@ func show_page(page: String) -> void:
 		_connect_box.visible = false
 	if _ask_box != null:
 		_ask_box.visible = false
-	for pg in [_profiles_page, _newcamp_page, _camps_page]:
+	for pg in [_profiles_page, _look_page, _newcamp_page, _camps_page]:
 		if pg != null:
 			pg.visible = false
 	if page == "profiles" and _profiles_page != null:
 		_profiles_page.visible = true
 		_refresh_profiles()
+	elif page == "look" and _look_page != null:
+		_look_page.visible = true
+		_refresh_look()
 	elif page == "newcamp" and _newcamp_page != null:
 		_newcamp_page.visible = true
 		_open_newcamp()
@@ -296,6 +324,7 @@ func _rebuild() -> void:
 	logo.size = logo.custom_minimum_size
 	_column.add_child(logo)
 	_logo = logo
+	_paint_logo(logo)
 	y += logo.custom_minimum_size.y - _vp(2)
 	var sub := RETRO_UI.label("M A N A G E R   S I M U L A T O R", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale)
 	sub.position = Vector2(_vp(1), y)
@@ -328,6 +357,7 @@ func _rebuild() -> void:
 	_main_list.size = Vector2(vp.x * 0.6, pages_h)
 	main_page.add_child(_main_list)
 	_main_list.activated.connect(_on_main_activated)
+	_lantern(_main_list)
 	_main_list.set_items(_main_items())
 	_build_card(vp)
 
@@ -372,27 +402,23 @@ func _rebuild() -> void:
 	_coop_list.size = Vector2(_coop_page.size.x * 0.66, _vp(22 * 6))
 	_coop_page.add_child(_coop_list)
 	_coop_list.activated.connect(_on_coop_activated)
+	_lantern(_coop_list)
 	var coop_items: Array[Dictionary] = [
 		{"id": "host", "text": "Host a new camp"},
 		{"id": "host_last", "text": "Host a saved camp"},
 		{"id": "join", "text": "Join"},
-		{"id": "warden", "text": "Warden"},
-		{"id": "jacket", "text": "Jacket"},
 		{"id": "back", "text": "Back"},
 	]
 	_coop_list.set_items(coop_items)
-	# The warden you will be, as the other one will see you.
-	_coop_preview = TextureRect.new()
-	_coop_preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_coop_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_coop_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_coop_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Below the address rows, at the plate's right.
+	# Your warden, as the other one will see you (chosen on the WARDENS page).
 	var pv_top := _vp(28 + 22 * 3)
-	var pv_h := plate_h - pv_top - _vp(16)
-	_coop_preview.size = Vector2(pv_h * 0.42, pv_h)
-	_coop_preview.position = Vector2(_coop_page.size.x - _coop_preview.size.x - _vp(12), pv_top)
-	_coop_page.add_child(_coop_preview)
+	var pv_h := plate_h - pv_top - _vp(28)
+	_coop_preview = _warden_preview(_coop_page, Vector2(_coop_page.size.x - pv_h * 0.42 - _vp(12), pv_top), pv_h)
+	_coop_who = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
+	_coop_who.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_coop_who.position = Vector2(_coop_preview.position.x - _vp(30), pv_top + pv_h + _vp(2))
+	_coop_who.size = Vector2(_coop_preview.size.x + _vp(60), _vp(10))
+	_coop_page.add_child(_coop_who)
 	_coop_notice = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale)
 	_coop_notice.position = Vector2(_vp(8), plate_h - _vp(13))
 	_coop_page.add_child(_coop_notice)
@@ -457,6 +483,7 @@ func _page_frame(title: String, plate_h: float) -> Control:
 	var free_h := vp.y - _vp(13)
 	page.position = (Vector2((vp.x - page.size.x) * 0.5, (free_h - plate_h) * 0.5) / float(_scale)).floor() * float(_scale)
 	page.visible = false
+	_steel(page)
 	_root.add_child(page)
 	var t := RETRO_UI.PixelTitle.new()
 	t.configure(RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG * 2, _scale)
@@ -471,7 +498,7 @@ func _page_frame(title: String, plate_h: float) -> Control:
 func _build_footer(vp: Vector2) -> void:
 	var bar := RETRO_UI.BevelPanel.new()
 	bar.ui_scale = _scale
-	bar.tile_texture = RETRO_UI.texture(RETRO_UI.PLATE_TEXTURE_PATH)
+	bar.tile_texture = _ui_tex("menu_wood.png") if _ui_tex("menu_wood.png") != null else RETRO_UI.texture(RETRO_UI.PLATE_TEXTURE_PATH)
 	bar.anchor_left = 0.0
 	bar.anchor_right = 1.0
 	bar.anchor_top = 1.0
@@ -687,6 +714,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	match _page:
 		"profiles":
 			used = _handle_profiles_input(event)
+		"look":
+			used = _handle_look_input(event)
 		"newcamp":
 			if event.is_action_pressed("ui_cancel"):
 				show_page("coop" if _for_coop else "main")
@@ -791,36 +820,22 @@ func _refresh_coop() -> void:
 		_coop_address = Coop.last_address
 	var here: Array[String] = Coop.local_addresses() if Coop != null else []
 	_coop_list.set_item_sub("host", "  ".join(here.slice(0, 2)))
-	# The camp last hosted for two: its day and till.
-	_coop_list.set_item_enabled("host_last", not PROFILES.list_camps().is_empty())
+	# The camp last hosted in co-op: its day and till.
+	_coop_list.set_item_enabled("host_last", PROFILES.list_camps().any(func(c: Dictionary) -> bool: return bool(c.get("sandbox", false))))
 	_coop_list.set_item_sub("host_last", "")
 	_refresh_coop_address()
 	_refresh_coop_look()
 
 
-## The warden and the jacket rows, and the warden drawn beside them.
+## The warden you are, drawn beside the rows with their name.
 func _refresh_coop_look() -> void:
 	if _coop_list == null or Coop == null:
 		return
 	var look: Dictionary = Coop.my_look()
-	var m := int(look["m"])
-	var c := int(look["c"])
-	_coop_list.set_item_sub("warden", "<  %s  >" % WARDEN_LOOKS.NAMES[m])
-	_coop_list.set_item_sub("jacket", "<  %s  >" % WARDEN_LOOKS.color_name(c))
 	if _coop_preview != null:
-		_coop_preview.texture = WARDEN_LOOKS.texture(m, c, "stand")
-
-
-func _coop_cycle(which: String, dir: int) -> void:
-	var look: Dictionary = Coop.my_look()
-	var m := int(look["m"])
-	var c := int(look["c"])
-	if which == "warden":
-		m = posmod(m + dir, WARDEN_LOOKS.count())
-	else:
-		c = posmod(c + dir, WARDEN_LOOKS.color_count())
-	Coop.set_my_look(m, c)
-	_refresh_coop_look()
+		_coop_preview.texture = WARDEN_LOOKS.texture(int(look["m"]), int(look["c"]), "stand")
+	if _coop_who != null:
+		_coop_who.text = str(look.get("n", "")).to_upper()
 
 
 func _refresh_coop_address() -> void:
@@ -844,8 +859,6 @@ func _on_coop_activated(id: String) -> void:
 			show_page("camps")
 		"join":
 			_open_connect_box()
-		"warden", "jacket":
-			_coop_cycle(id, 1)
 		"back":
 			show_page("main")
 
@@ -861,14 +874,6 @@ func _handle_coop_input(event: InputEvent) -> bool:
 	if event.is_action_pressed("ui_cancel"):
 		show_page("main")
 		return true
-	var row: String = _coop_list.current_id()
-	if row in ["warden", "jacket"]:
-		if event.is_action_pressed("ui_left", true):
-			_coop_cycle(row, -1)
-			return true
-		if event.is_action_pressed("ui_right", true):
-			_coop_cycle(row, 1)
-			return true
 	var key := event as InputEventKey
 	if key != null and key.pressed and _coop_list.current_id() == "join":
 		if key.keycode == KEY_BACKSPACE:
@@ -1053,21 +1058,69 @@ func _build_camp_pages(plate_h: float) -> void:
 	_profiles_list.size = Vector2(_profiles_page.size.x - _vp(8), plate_h - _vp(50))
 	_profiles_page.add_child(_profiles_list)
 	_profiles_list.activated.connect(_on_profile_activated)
+	_lantern(_profiles_list)
+	# ONE WARDEN: the name and the look
+	_look_page = _page_frame("WARDEN", plate_h)
+	_look_list = RETRO_MENU.MenuList.new()
+	_look_list.ui_scale = _scale
+	_look_list.row_height_vp = 22
+	_look_list.position = Vector2(_vp(2), _vp(30))
+	_look_list.size = Vector2(_look_page.size.x * 0.62, _vp(22 * 4))
+	_look_page.add_child(_look_list)
+	_look_list.activated.connect(_on_look_activated)
+	_lantern(_look_list)
+	var look_items: Array[Dictionary] = [
+		{"id": "name", "text": "Name"},
+		{"id": "figure", "text": "Figure"},
+		{"id": "jacket", "text": "Jacket"},
+		{"id": "done", "text": "Done"},
+	]
+	_look_list.set_items(look_items)
+	var lp_h := plate_h - _vp(28 + 18)
+	_look_preview = _warden_preview(_look_page, Vector2(_look_page.size.x - lp_h * 0.42 - _vp(12), _vp(28)), lp_h)
+	var look_hint := RETRO_UI.label("LEFT / RIGHT TO CHANGE. THE OTHER WARDENS SEE THIS.", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
+	look_hint.position = Vector2(_vp(8), plate_h - _vp(13))
+	_look_page.add_child(look_hint)
 	# NEW CAMP
 	_newcamp_page = _page_frame("NEW CAMP", plate_h)
 	_newcamp_title = _newcamp_page.get_child(0)
 	var w := _newcamp_page.size.x - _vp(16)
+	var seed_w := _vp(84)
+	var name_w := w - seed_w - _vp(6)
 	var l1 := RETRO_UI.label("CAMP NAME", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
-	l1.position = Vector2(_vp(8), _vp(32))
+	l1.position = Vector2(_vp(8), _vp(27))
 	_newcamp_page.add_child(l1)
-	_nc_name = _line_edit(_newcamp_page, "", Vector2(_vp(8), _vp(44)), w)
+	_nc_name = _line_edit(_newcamp_page, "", Vector2(_vp(8), _vp(37)), name_w)
 	_nc_name.text_submitted.connect(func(_t: String) -> void: _nc_seed.grab_focus())
 	var l2 := RETRO_UI.label("SEED", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
-	l2.position = Vector2(_vp(8), _vp(70))
+	l2.position = Vector2(_vp(8) + name_w + _vp(6), _vp(27))
 	_newcamp_page.add_child(l2)
-	_nc_seed = _line_edit(_newcamp_page, "Random", Vector2(_vp(8), _vp(82)), w)
+	_nc_seed = _line_edit(_newcamp_page, "Random", Vector2(_vp(8) + name_w + _vp(6), _vp(37)), seed_w)
 	_nc_seed.max_length = 12
 	_nc_seed.text_submitted.connect(func(_t: String) -> void: _generate_camp())
+	# STORY or SANDBOX, what the one is and the other's switches.
+	var l3 := RETRO_UI.label("MODE", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
+	l3.position = Vector2(_vp(8), _vp(61))
+	_newcamp_page.add_child(l3)
+	var half := floorf((w - _vp(6)) * 0.5 / float(_scale)) * float(_scale)
+	_nc_story_btn = _plate_button(_newcamp_page, "Story", Vector2(_vp(8), _vp(71)), Vector2(half, _vp(16)), func() -> void: _set_nc_mode(false))
+	_nc_sandbox_btn = _plate_button(_newcamp_page, "Sandbox", Vector2(_vp(8) + half + _vp(6), _vp(71)), Vector2(half, _vp(16)), func() -> void: _set_nc_mode(true))
+	_nc_about = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale, false)
+	_nc_about.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_nc_about.position = Vector2(_vp(8), _vp(91))
+	_nc_about.size = Vector2(w, _vp(30))
+	_newcamp_page.add_child(_nc_about)
+	_nc_warn = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_RED_LIGHT, _scale, false)
+	_nc_warn.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_nc_warn.position = Vector2(_vp(8), _vp(126))
+	_nc_warn.size = Vector2(w, _vp(30))
+	_newcamp_page.add_child(_nc_warn)
+	_nc_opts.clear()
+	var ids := ["threats", "weather", "events", "wear", "money"]
+	for i in ids.size():
+		var id: String = ids[i]
+		var at := Vector2(_vp(8) + float(i % 2) * (half + _vp(6)), _vp(122) + float(i / 2) * _vp(16))
+		_nc_opts[id] = _plate_button(_newcamp_page, "", at, Vector2(half, _vp(14)), func() -> void: _flip_nc_rule(id))
 	_plate_button(_newcamp_page, "Generate", Vector2(_newcamp_page.size.x - _vp(8 + 70 * 2 + 6), plate_h - _vp(30)), Vector2(_vp(70), _vp(16)), _generate_camp)
 	_plate_button(_newcamp_page, "Cancel", Vector2(_newcamp_page.size.x - _vp(8 + 70), plate_h - _vp(30)), Vector2(_vp(70), _vp(16)), func() -> void: show_page("coop" if _for_coop else "main"))
 	# CAMPS (tiles)
@@ -1130,6 +1183,13 @@ func _page_first() -> int:
 
 func _refresh_camps() -> void:
 	_camps = PROFILES.list_camps()
+	# In co-op only sandbox camps: a story camp is one warden's.
+	if _for_coop:
+		var sandbox_camps: Array[Dictionary] = []
+		for c in _camps:
+			if bool(c.get("sandbox", false)):
+				sandbox_camps.append(c)
+		_camps = sandbox_camps
 	_camp_sel = clampi(_camp_sel, 0, maxi(0, _camps.size() - 1))
 	if _camps_title != null:
 		_camps_title.set_text("HOST A SAVED CAMP" if _for_coop else "CAMPS")
@@ -1154,12 +1214,15 @@ func _paint_tiles() -> void:
 		var n := tile.get_node("Name") as Label
 		n.text = str(c.get("name", "Camp"))
 		n.add_theme_color_override("font_color", RETRO_UI.C_AMBER_LIGHT if sel else RETRO_UI.C_BONE)
-		(tile.get_node("Info") as Label).text = "DAY %d  $%s  %s" % [int(c.get("day", 1)), _money(int(c.get("money", 0))), _ago(int(c.get("played", 0)))]
+		(tile.get_node("Info") as Label).text = "%s  DAY %d  $%s" % ["SANDBOX" if bool(c.get("sandbox", false)) else "STORY", int(c.get("day", 1)), _money(int(c.get("money", 0)))]
 	if _camp_hint != null:
 		var per := TILE_COLS * TILE_ROWS
 		var pages := maxi(1, int(ceil(float(_camps.size()) / float(per))))
 		var at := "%d/%d" % [_camp_sel / per + 1, pages] if pages > 1 else ""
-		_camp_hint.text = "NO CAMPS YET" if _camps.is_empty() else at
+		if _for_coop:
+			_camp_hint.text = ("NO SANDBOX CAMPS YET. " if _camps.is_empty() else at + "  ") + "STORY CAMPS ARE FOR ONE WARDEN."
+		else:
+			_camp_hint.text = "NO CAMPS YET" if _camps.is_empty() else at
 
 
 static var _thumbs: Dictionary = {}
@@ -1227,7 +1290,7 @@ func _refresh_camp_page() -> void:
 		_camp_thumb.texture = _thumb_texture(str(c.get("thumb", "")))
 	if _camp_info != null:
 		var made := Time.get_datetime_dict_from_unix_time(int(c.get("created", 0)))
-		_camp_info.text = "DAY %d   $%s\nGUESTS %d\nSEED %d\nSINCE %02d.%02d.%04d%s" % [int(c.get("day", 1)), _money(int(c.get("money", 0))), int(c.get("guests", 0)), int(c.get("seed", 0)), int(made.get("day", 1)), int(made.get("month", 1)), int(made.get("year", 1970)), "\nFOR TWO" if bool(c.get("coop", false)) else ""]
+		_camp_info.text = "%s\nDAY %d   $%s\nGUESTS %d\nSEED %d\nSINCE %02d.%02d.%04d%s" % ["SANDBOX" if bool(c.get("sandbox", false)) else "STORY", int(c.get("day", 1)), _money(int(c.get("money", 0))), int(c.get("guests", 0)), int(c.get("seed", 0)), int(made.get("day", 1)), int(made.get("month", 1)), int(made.get("year", 1970)), "\nCO-OP" if bool(c.get("coop", false)) else ""]
 	if _btn_del != null:
 		_btn_del.text = "Really delete?" if _camp_delete_armed else "Delete camp"
 	refresh_saves()
@@ -1261,8 +1324,61 @@ func _open_newcamp() -> void:
 		_newcamp_title.set_text("HOST A NEW CAMP" if _for_coop else "NEW CAMP")
 	_nc_name.text = PROFILES.default_camp_name()
 	_nc_seed.text = ""
+	_nc_rules = {"threats": true, "weather": true, "events": true, "wear": true, "money": 0}
+	# Two wardens play a sandbox camp: the story is one warden's.
+	_set_nc_mode(_for_coop)
 	_nc_name.grab_focus()
 	_nc_name.select_all()
+
+
+func _set_nc_mode(sandbox: bool) -> void:
+	_nc_sandbox = sandbox or _for_coop
+	_nc_story_btn.disabled = _for_coop
+	_mark_plate(_nc_story_btn, not _nc_sandbox)
+	_mark_plate(_nc_sandbox_btn, _nc_sandbox)
+	if _nc_sandbox:
+		_nc_about.text = "NO STORY AND NO MAILS FROM VERA, NO DEADLINE. EVERY PROGRAM IS ON THE PC. YOU SET THE RULES:"
+		_nc_warn.text = ""
+	else:
+		_nc_about.text = "AUNT VERA'S CAMP: HER MAILS, HER CHECKLIST, THE DISTRICT'S INSPECTION ON DAY 31. THE NIGHTS AS THEY COME."
+		_nc_warn.text = "A STORY CAMP IS FOR ONE WARDEN: IT CANNOT BE PLAYED IN CO-OP. HOST A SANDBOX CAMP (UP TO FOUR)."
+	if _for_coop:
+		_nc_about.text = "CO-OP CAMPS ARE SANDBOX CAMPS (THE STORY IS FOR ONE WARDEN). NO DEADLINE. YOU SET THE RULES:"
+	for id in _nc_opts:
+		(_nc_opts[id] as Button).visible = _nc_sandbox
+	_paint_nc_rules()
+
+
+func _flip_nc_rule(id: String) -> void:
+	if id == "money":
+		var i := NC_MONEY.find(int(_nc_rules.get("money", 0)))
+		_nc_rules["money"] = NC_MONEY[(i + 1) % NC_MONEY.size()]
+	else:
+		_nc_rules[id] = not bool(_nc_rules.get(id, true))
+	_paint_nc_rules()
+
+
+func _paint_nc_rules() -> void:
+	for id in _nc_opts:
+		var b := _nc_opts[id] as Button
+		var value := ""
+		if id == "money":
+			var m := int(_nc_rules.get("money", 0))
+			value = "$" + _money(m if m > 0 else BALANCE_CONFIG.STARTING_MONEY)
+		else:
+			value = "On" if bool(_nc_rules.get(id, true)) else "Off"
+		b.text = "%s: %s" % [NC_RULE_TEXT[id], value]
+		b.add_theme_color_override("font_color", RETRO_UI.C_BONE if id == "money" or bool(_nc_rules.get(id, true)) else RETRO_UI.C_BONE_DIM)
+
+
+## The chosen one of two plates: lit amber and pressed in.
+func _mark_plate(b: Button, on: bool) -> void:
+	if on:
+		b.add_theme_stylebox_override("normal", RETRO_UI.bevel_box(Color(0.24, 0.15, 0.07, 0.96), RETRO_UI.C_BLACK, RETRO_UI.C_AMBER, _scale))
+		b.add_theme_stylebox_override("hover", RETRO_UI.bevel_box(Color(0.28, 0.18, 0.08, 0.96), RETRO_UI.C_BLACK, RETRO_UI.C_AMBER_LIGHT, _scale))
+		b.add_theme_color_override("font_color", RETRO_UI.C_AMBER_LIGHT)
+	else:
+		RETRO_UI.style_button(b, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, _scale)
 
 
 func _generate_camp() -> void:
@@ -1277,7 +1393,8 @@ func _generate_camp() -> void:
 		seed = (seed & 0x7fffffff) | 1
 	_nc_name.release_focus()
 	_nc_seed.release_focus()
-	new_camp_requested.emit(name, seed, _for_coop)
+	var sandbox := _nc_sandbox or _for_coop
+	new_camp_requested.emit(name, seed, _for_coop, sandbox, _nc_rules.duplicate() if sandbox else {})
 
 
 # ── wardens ───────────────────────────────────────────────────────────────────
@@ -1290,6 +1407,8 @@ func _refresh_profiles() -> void:
 		var mine := str(pr["id"]) == PROFILES.profile_id
 		var sub := "PRESS DEL AGAIN TO DELETE" if _profile_delete_armed == str(pr["id"]) else "%d CAMP%s%s" % [int(pr["camps"]), "" if int(pr["camps"]) == 1 else "S", "  (PLAYING)" if mine else ""]
 		items.append({"id": "p:" + str(pr["id"]), "text": str(pr["name"]), "sub": sub})
+	if PROFILES.has_profile():
+		items.append({"id": "edit", "text": "Edit warden", "sub": PROFILES.profile_name().to_upper()})
 	items.append({"id": "new", "text": "New warden"})
 	if PROFILES.has_profile():
 		items.append({"id": "back", "text": "Back"})
@@ -1306,6 +1425,8 @@ func _on_profile_activated(id: String) -> void:
 		show_page("main")
 	elif id == "new":
 		_ask("NEW WARDEN", "", "Name", _make_profile)
+	elif id == "edit":
+		_open_look(PROFILES.profile_id, "profiles")
 	elif id.begins_with("p:"):
 		PROFILES.select_profile(id.substr(2))
 		_camp_id = ""
@@ -1314,14 +1435,104 @@ func _on_profile_activated(id: String) -> void:
 		show_page("main")
 
 
+## Named, then dressed: the look page follows (each new warden starts as the next figure).
 func _make_profile(name: String) -> void:
 	if name.strip_edges() == "":
 		return
-	PROFILES.create_profile(name)
+	var pid := PROFILES.create_profile(name, PROFILES.list_profiles().size() % WARDEN_LOOKS.count(), 0)
 	_camp_id = ""
 	refresh_saves()
 	profile_changed.emit()
-	show_page("main")
+	_open_look(pid, "main")
+
+
+## A frame of the warden standing (the look page, the CO-OP page).
+func _warden_preview(parent: Control, pos: Vector2, height: float) -> TextureRect:
+	var tr := TextureRect.new()
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.size = Vector2(height * 0.42, height)
+	tr.position = pos
+	parent.add_child(tr)
+	return tr
+
+
+func _open_look(pid: String, back: String) -> void:
+	if pid == "":
+		return
+	_look_pid = pid
+	_look_back = back
+	show_page("look")
+	_look_list.select_id("name")
+
+
+## The warden's look as kept (a warden from before looks were theirs: the one the CO-OP
+## page had, for the warden playing, else the first figure).
+func _look_now() -> Dictionary:
+	var look: Dictionary = PROFILES.profile_look(_look_pid)
+	if int(look["m"]) < 0 and _look_pid == PROFILES.profile_id and Coop != null:
+		look = Coop.my_look()
+	return {"m": posmod(maxi(0, int(look["m"])), WARDEN_LOOKS.count()), "c": posmod(int(look["c"]), WARDEN_LOOKS.color_count())}
+
+
+func _refresh_look() -> void:
+	if _look_list == null or _look_pid == "":
+		return
+	var look := _look_now()
+	_look_list.set_item_sub("name", PROFILES.profile_name(_look_pid).to_upper())
+	_look_list.set_item_sub("figure", "<  %s  >" % WARDEN_LOOKS.FIGURES[int(look["m"])])
+	_look_list.set_item_sub("jacket", "<  %s  >" % WARDEN_LOOKS.color_name(int(look["c"])))
+	_look_preview.texture = WARDEN_LOOKS.texture(int(look["m"]), int(look["c"]), "stand")
+
+
+func _look_cycle(which: String, dir: int) -> void:
+	var look := _look_now()
+	var m := int(look["m"])
+	var c := int(look["c"])
+	if which == "figure":
+		m = posmod(m + dir, WARDEN_LOOKS.count())
+	else:
+		c = posmod(c + dir, WARDEN_LOOKS.color_count())
+	PROFILES.set_profile_look(_look_pid, m, c)
+	_refresh_look()
+
+
+func _on_look_activated(id: String) -> void:
+	match id:
+		"name":
+			_ask("WARDEN'S NAME", PROFILES.profile_name(_look_pid), "Name", func(text: String) -> void:
+				PROFILES.rename_profile(_look_pid, text)
+				_refresh_look())
+		"figure", "jacket":
+			_look_cycle(id, 1)
+		"done":
+			_close_look()
+
+
+## Kept as it is: the card, the list and the other warden (if one is on the line) told.
+func _close_look() -> void:
+	if _look_pid == PROFILES.profile_id and Coop != null:
+		Coop.announce_look()
+	refresh_saves()
+	profile_changed.emit()
+	show_page(_look_back)
+
+
+func _handle_look_input(event: InputEvent) -> bool:
+	if event.is_action_pressed("ui_cancel"):
+		_close_look()
+		return true
+	var row: String = _look_list.current_id()
+	if row in ["figure", "jacket"]:
+		if event.is_action_pressed("ui_left", true):
+			_look_cycle(row, -1)
+			return true
+		if event.is_action_pressed("ui_right", true):
+			_look_cycle(row, 1)
+			return true
+	return _look_list.handle_input(event)
 
 
 func _handle_profiles_input(event: InputEvent) -> bool:
@@ -1372,6 +1583,7 @@ func _build_ask_box() -> void:
 	plate.light = RETRO_UI.C_PANEL_LIGHT
 	plate.dark = Color(0.0, 0.0, 0.0, 1.0)
 	plate.size = Vector2(minf(_vp(200), _built_for.x - _vp(12)), _vp(70))
+	_steel(plate)
 	plate.position = ((_built_for - plate.size) * 0.5 / float(_scale)).floor() * float(_scale)
 	_ask_box.add_child(plate)
 	_ask_title = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
@@ -1406,6 +1618,35 @@ func _ask_ok() -> void:
 
 
 # ── the look ──────────────────────────────────────────────────────────────────
+
+## The menu's own surfaces (Grok, assets/textury/ui/): rusty riveted steel for the plates,
+## dark boards for the bar at the foot, chipped sign paint in the logo's letters, a
+## kerosene lantern for the cursor.
+const UI_TEX := "res://assets/textury/ui/"
+
+
+static func _ui_tex(name: String) -> Texture2D:
+	var p := UI_TEX + name
+	return load(p) as Texture2D if ResourceLoader.exists(p) else null
+
+
+func _paint_logo(logo: Control) -> void:
+	BOOT_SCREEN.paint_logo(logo, _scale)
+
+
+## A plate in the rusty steel (or as it was, without the texture).
+func _steel(panel: Control, tint := Color(0.5, 0.46, 0.42)) -> void:
+	var t := _ui_tex("menu_steel.png")
+	if t != null and "tile_texture" in panel:
+		panel.tile_texture = t
+		panel.tile_tint = tint
+
+
+func _lantern(list) -> void:
+	var t := _ui_tex("menu_lantern.png")
+	if t != null:
+		list.cursor_texture = t
+
 
 const LOGO_TOP := Color(1.0, 0.84, 0.44)
 const LOGO_BOTTOM := Color(0.92, 0.38, 0.08)
@@ -1443,6 +1684,7 @@ func _build_card(vp: Vector2) -> void:
 	card.position = Vector2(-_vp(2), _column.size.y - card.size.y)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_steel(card, Color(0.42, 0.38, 0.35))
 	card.gui_input.connect(func(ev: InputEvent) -> void:
 		var mb := ev as InputEventMouseButton
 		if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:

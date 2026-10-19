@@ -8,7 +8,8 @@ extends Node3D
 ## for a few seconds and comes down behind them. An invisible wall stands in the gap;
 ## click the barrier (building_type "trip_barrier", scripts/town/town_trip.gd) and it
 ## goes up for ten seconds and lets you out onto the road (scripts/town/road_south.gd
-## takes it on to the bus stop), or back in. It does not come down on you.
+## takes it on to the bus stop), or back in; click it again and it comes down at once.
+## It does not come down on you, the other warden, or a party walking in.
 ##
 ## Built by world_generator.gd. Everything here is generated geometry with the
 ## camp textures (assets/textury/camp/), falling back to the old texture set.
@@ -41,6 +42,8 @@ var _texture_style
 var _is_open := false
 var _block_shape: CollisionShape3D
 var _hold_until := 0.0
+## Up for a party: not to be lowered by hand till they are through.
+var _party_until := 0.0
 
 
 ## `gate_world`: the centre of the gate tile; `fence_z_world`: the south fence line.
@@ -83,6 +86,7 @@ func set_night(night: bool) -> void:
 
 
 func open_briefly() -> void:
+	_party_until = _now() + OPEN_HOLD_SEC
 	_raise(OPEN_HOLD_SEC)
 
 
@@ -91,8 +95,26 @@ func open_for_player() -> void:
 	_raise(PLAYER_HOLD_SEC)
 
 
+## Clicked while up: down at once. "" when it came down (or was down), else why not.
+func close_for_player() -> String:
+	if not _is_open:
+		return ""
+	if _now() < _party_until:
+		return "Let them through first."
+	if _someone_in_gap():
+		return "Not with someone under it."
+	_hold_until = 0.0
+	_close_timer = null
+	_lower()
+	return ""
+
+
 func is_raised() -> bool:
 	return _is_open
+
+
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
 
 
 func _raise(hold: float) -> void:
@@ -112,28 +134,44 @@ func _arm_close_timer(seconds: float) -> void:
 	timer.timeout.connect(func():
 		if timer != _close_timer or not is_inside_tree():
 			return
-		if Time.get_ticks_msec() / 1000.0 < _hold_until - 0.05:
-			_arm_close_timer(_hold_until - Time.get_ticks_msec() / 1000.0)
+		if _now() < _hold_until - 0.05:
+			_arm_close_timer(_hold_until - _now())
 			return
 		# Never down on somebody standing under it.
-		if _player_in_gap():
+		if _someone_in_gap():
 			_arm_close_timer(0.5)
 			return
-		_is_open = false
-		if _block_shape != null:
-			_block_shape.set_deferred("disabled", false)
-		_swing(0.0, 1.1)
-		_sound(SFX_DROP, _arm_pivot.global_position, -2.0)
+		_lower()
 	)
 
 
-func _player_in_gap() -> bool:
+func _lower() -> void:
+	if not _is_open:
+		return
+	_is_open = false
+	if _block_shape != null:
+		_block_shape.set_deferred("disabled", false)
+	_swing(0.0, 1.1)
+	_sound(SFX_DROP, _arm_pivot.global_position, -2.0)
+
+
+## The warden here, or the other warden's figure in the camp (co-op), under the arm.
+func _someone_in_gap() -> bool:
 	var main := get_tree().current_scene
 	var player = main.get("_player") if main != null else null
-	if player == null or not (player is Node3D):
-		return false
-	var p: Vector3 = (player as Node3D).global_position
-	return absf(p.x - gap_center_x) < 3.0 and absf(p.z - fence_z) < 1.4
+	if player is Node3D and _in_gap((player as Node3D).global_position):
+		return true
+	for mate in get_tree().get_nodes_in_group("coop_remote_player"):
+		if mate is Node3D and (mate as Node3D).is_visible_in_tree() and (mate as Node3D).get_world_3d() == get_world_3d() and _in_gap((mate as Node3D).global_position):
+			return true
+	return false
+
+
+## Under the arm or in the wall that comes back across the gap (the arm from the post at
+## -2.25 to +2.05, the wall 0.35 m outside the fence; a body is ~0.4 m round): standing
+## by the post to work it is not under it.
+func _in_gap(p: Vector3) -> bool:
+	return absf(p.x - gap_center_x) < 2.5 and absf(p.z - fence_z) < 0.85
 
 
 func _on_guest_at_gate_row(_row) -> void:
@@ -246,9 +284,12 @@ func _build_barrier() -> void:
 	arm.material_override = stripes
 	_arm_pivot.add_child(arm)
 	# The handle you click: round the arm and round the post with its counterweight (on
-	# a layer of its own: you walk through it, the interaction ray finds it).
-	_click_box(_arm_pivot, Vector3(ARM_LENGTH * 0.5, 0.0, 0.0), Vector3(ARM_LENGTH, 0.4, 0.4))
-	_click_box(self, Vector3(post_x - 0.2, 0.7, fence_z), Vector3(1.0, 1.4, 0.6))
+	# a layer of its own: you walk through it, the interaction ray finds it). Deeper than
+	# the wall in the gap (fence_z -0.35 .. -0.05), or from the road the ray hits the
+	# wall first and the barrier cannot be worked from outside. The post's goes up to the
+	# eye: with the arm up it is the thing to look at to let it down.
+	_click_box(_arm_pivot, Vector3(ARM_LENGTH * 0.5, 0.0, 0.0), Vector3(ARM_LENGTH, 0.4, 1.0))
+	_click_box(self, Vector3(post_x - 0.2, 1.1, fence_z), Vector3(1.0, 2.2, 1.0))
 
 
 func _build_booth() -> void:

@@ -19,6 +19,7 @@ const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 var _torch: Node
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
+const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
 
 signal room_task_completed(task_id: String)
 signal request_close
@@ -219,8 +220,23 @@ func _frame_window(c: Vector3, size: Vector2, yaw: float, tag: String) -> void:
 		g.material_override = gm
 		g.position = Vector3(0, 0, -0.03)
 		holder.add_child(g)
+		_room_weather().add_window(g)
 	if tag == "Side":
 		_level1_nodes.append(holder.name)
+
+
+var _weather
+
+
+## The weather in here (scripts/ambient/room_weather.gd): rain on the glass, lightning
+## through the windows, the timbers creaking in the gusts, a leak in the roof.
+func _room_weather():
+	if _weather == null or not is_instance_valid(_weather) or _weather.get_parent() != _cabin_root:
+		_weather = ROOM_WEATHER.new()
+		_weather.is_open = func(): return _is_open
+		_cabin_root.add_child(_weather)
+		_weather.set_drip(Vector3(0.9, 2.25, 0.6), 0.02)
+	return _weather
 
 
 ## A window looking out: a quad in the opening shows what a camera sees through the same
@@ -252,6 +268,7 @@ func _add_portal(n: String, centre: Vector3, outward: Vector3, size: Vector2, lv
 	quad.transform = frame
 	quad.visible = false
 	_cabin_root.add_child(quad)
+	_room_weather().add_window(quad)
 	_portals.append({"vp": vp, "cam": cam, "quad": quad, "frame": frame, "size": size, "outward": outward.normalized(), "lv1_only": lv1_only})
 
 

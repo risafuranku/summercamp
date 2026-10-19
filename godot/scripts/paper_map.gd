@@ -1,6 +1,7 @@
 extends CanvasLayer
 
-## Hold TAB: Vera's site plan, coloured pencil on paper, drawn as you see the camp from
+## Hold TAB (or tap it: it stays with the bag, scripts/ui/inventory.gd, until TAB again):
+## Vera's site plan, coloured pencil on paper, drawn as you see the camp from
 ## the gate (gate at the bottom). It does NOT show where you are. It shows what needs
 ## you: rooms coloured by state (ready, dirty, not made up, guests in), broken buildings
 ## stamped, tonight's jobs circled in red, who waits at the gate, and three lines of
@@ -33,7 +34,7 @@ var _open := 0.0
 var _paper_tex: Texture2D
 var _cache_t := 0.0
 var _data: Dictionary = {}
-## Tools (shot driver): hold the map open without the key.
+## Held open without the key: the bag while it is open, tools (shot driver).
 var force_open := false
 
 
@@ -142,6 +143,19 @@ func _collect() -> Dictionary:
 	var objective := str(hud.get("_objective_text").text) if hud != null and hud.get("_objective_text") != null else ""
 	if not objective.is_empty():
 		todo.append(objective)
+	# The day's events and guests waiting to be served are circled like the night's jobs.
+	var de = _main.get("_day_events")
+	if de != null and de.has_method("open_events"):
+		for ev in de.open_events():
+			if bool(ev.get("gate", false)):
+				var gc: Vector2i = GuestManager.get_gate_coord()
+				ev["coord"] = [gc.x, gc.y]
+			jobs.append(ev)
+	var im = _main.get("_interior_manager")
+	var biz = im.get("business") if im != null else null
+	if biz != null and biz.has_method("waiting_sites"):
+		for s in biz.waiting_sites():
+			jobs.append({"kind": "serve", "coord": s["coord"], "title": "%s: %d waiting for an order" % [s["title"], int(s["n"])], "where": "serve them at the counter"})
 	for j in jobs:
 		todo.append("%s - %s" % [j.get("title", ""), j.get("where", "")])
 	return {"w": w, "h": h, "lake": lake, "trees": trees, "paths": paths, "buildings": buildings,
@@ -215,15 +229,29 @@ func _draw_map() -> void:
 	# sheet goes in the space left of it.
 	var hud = _main.get("_hud_manager") if _main != null else null
 	var side: float = float(hud.side_column_px()) + 12.0 if hud != null and hud.has_method("side_column_px") else 0.0
-	var avail_w := screen.x - side - 24.0
+	# The bag (scripts/ui/inventory.gd) opens on the left with it.
+	var bag = get_tree().get_first_node_in_group("inventory")
+	var left: float = float(bag.reserve_left()) if bag != null else 0.0
+	var avail_w := screen.x - side - left - 24.0
 	var cell := floorf((screen.y * 0.9 - header - footer - 40.0) / float(h))
 	cell = minf(cell, floorf((avail_w - 64.0 - fs * 3.0) / float(w)))
 	var plan := Vector2(w, h) * cell
 	var sheet := Vector2(plan.x + 64.0 + fs * 3.0, plan.y + header + footer + 40.0)
-	var origin := (Vector2((screen.x - side - sheet.x) * 0.5, (screen.y - sheet.y) * 0.5) + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
+	# A narrow sheet (a narrow screen, the bag open): the title smaller to fit beside the
+	# date; still too wide, the sheet wider with the plan in its middle.
+	var sub_w := font.get_string_size("site plan - V. 1996", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 2.0 + 64.0
+	var ts := int(fs * 1.8)
+	while ts > fs and title.get_string_size("KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x + sub_w > sheet.x:
+		ts -= 1
+	var head_w := title.get_string_size("KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x + sub_w
+	var extra := maxf(0.0, head_w - sheet.x)
+	sheet.x += extra
+	# Centred in what is left; never over the bag (out to the right instead, if it must).
+	var ox := clampf(left + (screen.x - side - left - sheet.x) * 0.5, left, maxf(left, screen.x - sheet.x - 12.0))
+	var origin := (Vector2(ox, (screen.y - sheet.y) * 0.5) + Vector2(0, (1.0 - k) * screen.y * 0.6)).floor()
 	_draw_paper(Rect2(origin, sheet))
-	var o := origin + Vector2(32, header + 12.0)
-	_canvas.draw_string(title, origin + Vector2(32, fs * 2.2), "KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * 1.8), PENCIL)
+	var o := origin + Vector2(32.0 + floorf(extra * 0.5), header + 12.0)
+	_canvas.draw_string(title, origin + Vector2(32, fs * 2.2), "KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, ts, PENCIL)
 	var sub := "site plan - V. 1996"
 	var sw := font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	_canvas.draw_string(font, origin + Vector2(sheet.x - 32 - sw, fs * 2.2), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL.lightened(0.35))
@@ -332,7 +360,8 @@ func _draw_map() -> void:
 		_canvas.draw_string(font, gp + Vector2(6, cell * 2.2 + fs), "CORN", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
 		corn_p = gp + Vector2(cell * 0.6, 0)
 
-	# Tonight's jobs: circled in red (the corn job round its gate).
+	# What needs you (tonight's jobs, the day's events, guests waiting at a counter):
+	# circled in red (the corn job round its gate).
 	for j in _data["jobs"]:
 		var jc: Array = j.get("coord", [-1, -1])
 		if str(j.get("kind", "")) == "corn" and corn_p != Vector2.INF:

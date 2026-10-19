@@ -187,36 +187,57 @@ PlayerController movement state
 
 "Okna 98" on a Camptronics PC. `building_interior` renders `os_shell.gd` into a fixed
 **640x480** SubViewport shown on the CRT quad (4:3); mouse events are raycast onto the
-quad and pushed into the viewport, keys too (S turns round unless a text field has focus:
-`os_shell.wants_keyboard()` / `_is_crt_text_input_focused()`).
+quad and pushed into the viewport, keys too (S stands you up and D leans unless a text
+field has focus: `os_shell.wants_keyboard()` / `building_interior._crt_typing()`).
+
+Not a desktop: a **panel** (playtest 19. 10.). The programs fill the 640x452 above the
+taskbar one at a time and keep running behind it; the taskbar is a row of nine tabs
+(keys 1-9, physical keys, so a Czech layout works), each with a badge when it wants you.
+The OS is in the look and in the wording, which is always a plain 1998 system's (it
+never knows the story; the lore is in the files, the scores, the mails, the web).
 
 ```
-os_shell.gd     boot (BIOS -> OEM splash -> desktop), desktop icons, windows, taskbar,
-                Start menu, Run, message boxes, the UPS monitor, the drawn cursor,
-                save state (installed programs, downloads, Recycle Bin), sfx
+os_shell.gd     boot (BIOS -> OEM splash -> Okna, ~7 s, any key hurries it), the pages
+                (one per tab, made the first time), covers (not installed, Builder's
+                night licence), the taskbar (Start, tabs, badges, tray: line, till,
+                clock), Start menu, Run, message boxes (modal, a catcher behind them),
+                the UPS monitor, the drawn cursor, one-click installs, high scores,
+                the jobs' day counters, save state, sfx
+os_page.gd      a program's place: the whole area, no frame; keeps the window contract
+                (app_id, title, content, client_size) and holds a cover
+os_window.gd    the dialogs only (message boxes, Run, Display Properties)
 os_theme.gd     the Theme: bevelled StyleBoxTextures, W95FA bitmap font, colours
-os_window.gd    one window: frame, title bar, caption buttons, drag; app goes in .content
-os_files.gd     the disk: folders, Vera's text files, what each .EXE opens
+os_files.gd     the disk: folders, Vera's text files, dates, sizes, what each .EXE opens
 web_pages.gd    the 1998 web: pages as BBCode with {target|text} links and {{tokens}}
-apps/*_app.gd   one script per program, setup(shell, window, args) / reopen / refresh
+apps/*_app.gd   one script per program, setup(shell, page, args) / reopen / refresh /
+                shown / page_hidden; program_shelf.gd is the Jobs and Games folders
 ```
 
-The shell is the apps' service layer: `open_app`, `open_file`, `message_box`,
-`start_download` / `finish_download`, `install_program`, `play`, `main_node()` (for
-billing, upkeep and the clock), `icon()`.
+Tabs: 1 Builder, 2 CampStat, 3 GuestRack, 4 Mail, 5 Web, 6 Shops (SoftSklad's four
+business programs), 7 Jobs (DataPunch, KlikBanka, SectiTo), 8 Games (Mines, Komar,
+Vylet, Pexeso: Vera's, on the machine from the start), 9 Files (documents, downloads,
+the bin, the disk; a text or the picture read in place).
 
-Programs that are not there at the start come off the web:
+The shell is the programs' service layer: `open_app` (old window ids like "folder",
+"notepad", "mines", "datapunch" go to the tab that has them), `app_of`, `show_on_map`
+(Builder centred on a building with its card open), `open_file`, `message_box`,
+`start_download`, `begin_install` / `install_progress` / `install_program`, `earn`,
+`job_done` / `job_add`, `scores` / `add_score`, `stored` / `store`, `play`,
+`main_node()` (billing, upkeep, the clock), `icon()`.
+
+Programs that are not there at the start install in one click, on their tab or from a
+link (the web, Vera's mail):
 
 ```
-Beeternet (dials the modem once) -> www.stavitel98.cz -> download://BLDR98SW.EXE
-  -> download_app (modem speed) -> C:\DOWNLOAD -> EventBus.file_downloaded
-  -> double-click -> setup_app (licence must be accepted) -> shell.install_program()
-  -> EventBus.program_installed("builder") -> icon, Start menu, setup file to the bin
+download://BLDR98SW.EXE (web or mail) or the tab's button -> shell.begin_install
+  -> a few seconds (the modem, the bytes, the setup) -> shell.install_program()
+  -> EventBus.program_installed("builder") -> the cover goes, the program starts,
+     the setup file to the bin
 ```
 
-CampStat comes from www.campgrid.cz, GuestRack from www.okres-hlubocany.cz. Builder
-refuses to start between 20:00 and 06:30 and closes at nightfall (`set_is_day`).
-Harness: `tools/os98_check.tscn` (boots, opens every app and page, installs, saves).
+Builder is covered between 20:00 and 06:30 (`set_is_day`) and comes back as it was.
+Harness: `tools/os98_check.tscn` (boot, every tab by its key, installs, the night
+licence, every web page, Files, the jobs' pay, the games' tables, save and load).
 
 ---
 

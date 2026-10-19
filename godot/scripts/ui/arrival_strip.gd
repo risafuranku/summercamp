@@ -27,34 +27,11 @@ const KIND := {
 	"quiet_guy": Color(0.62, 0.72, 0.56), "drunk": Color(0.96, 0.56, 0.2), "cheap_chick": Color(0.96, 0.46, 0.7),
 	"tramp": Color(0.72, 0.52, 0.32), "family": Color(0.4, 0.62, 0.96), "picker": Color(0.7, 0.5, 0.86),
 }
-## 12 x 9 pictures, one character a pixel (see PALETTE).
-const CAR := [
-	"...BBBBB....",
-	"..BWWBWWB...",
-	".BWWWBWWWB..",
-	"BBBBBBBBBBBB",
-	"LBBBBBBBBBBR",
-	"BBBBBBBBBBBB",
-	".KKK....KKK.",
-	".KHK....KHK.",
-	"..K......K..",
-]
-const BELL := [
-	".....HH.....",
-	".....KK.....",
-	"....BBBB....",
-	"...BHBBBB...",
-	"..BHBBBBBB..",
-	"..BHBBBBBB..",
-	".BBBBBBBBBB.",
-	"DDDDDDDDDDDD",
-	".KKKKKKKKKK.",
-]
-const PALETTE := {
-	"B": Color(0.86, 0.62, 0.22), "W": Color(0.46, 0.64, 0.95), "K": Color(0.08, 0.07, 0.06),
-	"H": Color(1.0, 0.92, 0.6), "L": Color(1.0, 0.95, 0.7), "R": Color(0.9, 0.2, 0.14),
-	"D": Color(0.35, 0.25, 0.14),
-}
+## The pictures (Grok, assets/textury/ui/): an old car on the road, the desk bell; in the
+## 12 x 9 pixels left of the bar.
+const CAR_TEX := "res://assets/textury/ui/arrive_car.png"
+const BELL_TEX := "res://assets/textury/ui/arrive_bell.png"
+const ICON_BOX := Vector2(13, 9)
 
 var font: Font
 var ui_scale := 2
@@ -67,6 +44,7 @@ var _t := 0.0
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
@@ -135,8 +113,7 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 		wiggle = (1.0 if int(_t * 4.0) % 2 == 0 else -1.0) if int(_t * 0.5) % 3 == 0 else 0.0
 	else:
 		wiggle = 0.0 if int(_t * 3.0) % 2 == 0 else -1.0
-	var pic: Array = BELL if at_desk else CAR
-	_icon(pic, at + (ICON_AT + Vector2(wiggle if at_desk else 0.0, wiggle if not at_desk else 0.0)) * u, u)
+	_icon(BELL_TEX if at_desk else CAR_TEX, at + (ICON_AT + Vector2(wiggle if at_desk else 0.0, wiggle if not at_desk else 0.0)) * u, u)
 	var bar := Rect2(at + BAR.position * u, BAR.size * u)
 	draw_rect(bar.grow(u), SLOT)
 	var seg_w := floorf((BAR.size.x + 1.0) / float(SEGMENTS)) - 1.0
@@ -154,13 +131,19 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 	_text(f, txt, at + Vector2((PLATE.x - 2.0) * u - tw, 10.0 * u), fs, u, BONE)
 
 
-func _icon(pic: Array, at: Vector2, u: float) -> void:
-	for y in pic.size():
-		var line: String = pic[y]
-		for x in line.length():
-			var ch := line[x]
-			if PALETTE.has(ch):
-				draw_rect(Rect2(at + Vector2(x, y) * u, Vector2(u, u)), PALETTE[ch])
+var _icons: Dictionary = {}
+
+
+## The picture at its own pixels (u screen pixels each), in the middle of its box.
+func _icon(path: String, at: Vector2, u: float) -> void:
+	if not _icons.has(path):
+		_icons[path] = load(path) if ResourceLoader.exists(path) else null
+	var t: Texture2D = _icons[path]
+	if t == null:
+		return
+	var sz := t.get_size()
+	var off := ((ICON_BOX - sz) * 0.5).floor()
+	draw_texture_rect(t, Rect2(at + off * u, sz * u), false)
 
 
 func _text(f: Font, s: String, at: Vector2, fs: int, u: float, c: Color) -> void:

@@ -1,9 +1,11 @@
 extends Control
 
 ## Mines: 9x9, ten mines. The thing every office computer was used for at night.
-## Left click opens, right click flags, the face restarts.
+## Left click opens, right click flags, the face restarts. Sits on the Games tab in its
+## own little window frame, its Best Times beside it (os_shell.scores("mines")).
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const BOARD = preload("res://scripts/os98/apps/score_board.gd")
 const W := 9
 const H := 9
 const MINES := 10
@@ -20,6 +22,7 @@ var _board: Control
 var _top: Control
 var _boom := -1
 var _rng := RandomNumberGenerator.new()
+var _rank := -1
 
 
 func setup(shell, _win, _args: Dictionary) -> void:
@@ -42,7 +45,29 @@ func setup(shell, _win, _args: Dictionary) -> void:
 	_board.draw.connect(_draw_board)
 	_board.gui_input.connect(_on_board_input)
 	add_child(_board)
+	resized.connect(_layout)
+	_layout()
 	_reset()
+
+
+## The game and its Best Times side by side in the middle of whatever it is given.
+func _layout() -> void:
+	var w := W * CELL + 6.0
+	var h := 46.0 + H * CELL + 6.0
+	var both := w + 16.0 + 16.0 + BOARD.SIZE.x
+	var o := Vector2(floorf((size.x - both) * 0.5) + 8.0, maxf(floorf((size.y - h) * 0.5) - 20.0, 10.0))
+	_top.position = o
+	_board.position = o + Vector2(0, 40)
+	queue_redraw()
+
+
+func _draw() -> void:
+	var r := Rect2(_top.position - Vector2(8, 8), Vector2(W * CELL + 22, 46 + H * CELL + 22))
+	draw_rect(Rect2(Vector2.ZERO, size), Color8(0, 104, 104))
+	draw_style_box(T.box("window", T.FACE), r)
+	draw_string(T.FONT, Vector2(r.position.x, r.end.y + 18), "Left click opens, right click flags.", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, T.FONT_SIZE, T.WHITE)
+	if _shell != null:
+		BOARD.draw(self, Vector2(r.end.x + 16, r.position.y), "Best Times", _shell.scores("mines"), "s", _rank)
 
 
 func _reset() -> void:
@@ -54,6 +79,8 @@ func _reset() -> void:
 		_open.append(false)
 		_flag.append(false)
 	_state = "ready"
+	_rank = -1
+	queue_redraw()
 	_t = 0.0
 	_boom = -1
 	_board.queue_redraw()
@@ -139,6 +166,8 @@ func _on_board_input(e: InputEvent) -> void:
 					closed += 1
 			if closed == MINES:
 				_state = "won"
+				_rank = _shell.add_score("mines", maxi(1, int(_t)))
+				queue_redraw()
 	_board.queue_redraw()
 	_top.queue_redraw()
 
@@ -169,10 +198,20 @@ func _draw_top() -> void:
 		_top.draw_arc(c + Vector2(0, 1), 4, 0.3, PI - 0.3, 8, T.DARK)
 
 
+## The red seven-segment counters (the bold font at 24 ran out of its black box).
+const SEGS := {"a": Rect2(2, 0, 6, 2), "b": Rect2(8, 2, 2, 7), "c": Rect2(8, 11, 2, 7), "d": Rect2(2, 18, 6, 2), "e": Rect2(0, 11, 2, 7), "f": Rect2(0, 2, 2, 7), "g": Rect2(2, 9, 6, 2)}
+const SEG_ON := {"0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg", "-": "g"}
+
+
 func _digits(at: Vector2, value: int) -> void:
-	_top.draw_rect(Rect2(at, Vector2(39, 23)), Color.BLACK)
+	_top.draw_rect(Rect2(at, Vector2(39, 24)), Color.BLACK)
 	var txt := "%03d" % clampi(value, -99, 999)
-	_top.draw_string(T.FONT_BOLD, at + Vector2(4, 18), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color8(255, 0, 0))
+	for i in 3:
+		var lit := str(SEG_ON.get(txt[i], ""))
+		var o := at + Vector2(3 + i * 12, 2)
+		for k in SEGS:
+			var r: Rect2 = SEGS[k]
+			_top.draw_rect(Rect2(o + r.position, r.size), Color8(255, 0, 0) if lit.contains(k) else Color8(64, 0, 0))
 
 
 func _draw_board() -> void:

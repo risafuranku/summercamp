@@ -9,6 +9,9 @@ signal email_received(email: Dictionary)
 signal customer_booking_confirmed(email: Dictionary)
 signal customer_booking_rejected(email: Dictionary)
 signal unread_count_changed(count: int)
+## Co-op, the other warden's machine: the host's mail came in changed (read, answered,
+## deleted, new): the open CampMail redraws (scripts/os98/os_shell.gd).
+signal coop_synced
 
 const MAIL_TYPE_CUSTOMER := "customer"
 const MAIL_TYPE_SPAM := "spam"
@@ -240,10 +243,12 @@ func _ready() -> void:
 
 func reset_runtime(clear_inbox: bool = true) -> void:
 	reputation = 0.0
+	_first_booking_due = false
 	_scheduled_mails.clear()
 	_last_tick_signature = ""
 	_last_hourly_roll_signature = ""
 	_next_runtime_mail_id = 1
+	_coop_mail_hash = 0
 	if clear_inbox:
 		inbox.clear()
 		sent.clear()
@@ -343,6 +348,7 @@ func export_runtime_state() -> Dictionary:
 		"last_hourly_roll_signature": str(_last_hourly_roll_signature),
 		"false_alarm_night": _false_alarm_night,
 		"reputation": reputation,
+		"first_booking_due": _first_booking_due,
 	}
 
 
@@ -361,6 +367,7 @@ func import_runtime_state(data: Dictionary) -> void:
 	_last_hourly_roll_signature = str(data.get("last_hourly_roll_signature", ""))
 	_false_alarm_night = int(data.get("false_alarm_night", -1))
 	reputation = clampf(float(data.get("reputation", 0.0)), -0.25, 0.25)
+	_first_booking_due = bool(data.get("first_booking_due", false))
 
 	var max_seen_id: int = _max_runtime_mail_id(inbox, _scheduled_mails)
 	var loaded_next_id: int = maxi(1, int(data.get("next_runtime_mail_id", max_seen_id + 1)))
@@ -444,12 +451,48 @@ func _on_time_tick(hour: int, minute: int) -> void:
 		return
 	var now_abs = _absolute_minutes(day, safe_hour, safe_minute)
 	_deliver_due_mails(now_abs)
+	if _first_booking_due:
+		_try_first_booking(day, safe_hour, now_abs)
 
 	if safe_minute == 0:
 		var roll_signature = "%d:%02d" % [day, safe_hour]
 		if roll_signature != _last_hourly_roll_signature:
 			_last_hourly_roll_signature = roll_signature
 			_run_hourly_roll(day, safe_hour, now_abs)
+
+
+## A sandbox camp (co-op camps too) has no checklist and no story: one mail from the
+## district says how a camp starts, and the first booking does not wait on the dice.
+var _first_booking_due := false
+
+const SANDBOX_START_MAIL := {
+	"from": "District Office Hlubocany <kempy@okres-hlubocany.cz>",
+	"subject": "Opening of the camp",
+	"body": "Dear operator,\n\nThe camp is entered in the district register and may take guests. Booking letters will come to this mailbox; accept or refuse them here.\n\nA booking can only be accepted when there is a free bed for the whole party. Put up a tent or a cabin in Builder 98 (bulldoze the trees first), or patch up the old cabin by the office: walk up to it and hold R, then clean it out and make up the bed. The camp goes on the booking lists as soon as a bed stands.\n\nGuests also need a toilet, food and a made-up room. When a party reaches the barrier, check them in at the reception desk.\n\nHold TAB outdoors for the site plan and the jobs waiting.\n\nDistrict Office Hlubocany\nTourism department",
+}
+
+
+## A new sandbox camp: the district's mail now, the first booking once a bed is free.
+func sandbox_start(time_str: String) -> void:
+	_first_booking_due = true
+	var mail := SANDBOX_START_MAIL.duplicate(true)
+	mail["type"] = "system"
+	mail["time"] = time_str
+	push_system_mail(mail)
+
+
+## In office hours with a free bed and no booking waiting: a quiet guest (one bed) writes
+## within half an hour. A booking that came by the dice first does instead.
+func _try_first_booking(day: int, hour: int, now_abs: int) -> void:
+	if hour < BOOKING_FIRST_HOUR or hour > BOOKING_LAST_HOUR:
+		return
+	if _count_unactioned_customer_mails() + _count_scheduled_customer_mails() > 0:
+		_first_booking_due = false
+		return
+	if int(_collect_bed_metrics().get("free", 0)) <= 0:
+		return
+	_first_booking_due = false
+	_schedule_mail_abs(now_abs + _rng.randi_range(8, 25), _build_customer_mail(ARCHETYPE_QUIET_GUY, day, hour))
 
 
 ## The hourly mail roll. The inbox used to take up to nine bookings and four spam mails
@@ -627,11 +670,21 @@ func _roll_customer_mail_count(bed_metrics: Dictionary, day: int, hour: int, int
 	if waiting >= clampi(1 + day, 2, 6):
 		return 0
 	var free_ratio := float(bed_metrics.get("free", 0)) / float(capacity)
-	var chance := clampf(0.14 + 0.07 * float(day - 1) + 0.18 * free_ratio + 0.4 * reputation, 0.06, 0.72)
+	var chance := clampf(0.14 + 0.07 * float(day - 1) + 0.18 * free_ratio + 0.4 * reputation + _goggle_pull(day), 0.06, 0.72)
 	var count := 1 if _rng.randf() < chance else 0
 	if count > 0 and day >= 3 and _rng.randf() < 0.25 * intensity:
 		count += 1
 	return count
+
+
+## The camp's stars on Goggle (scripts/reviews/goggle.gd): people look before they book.
+## Three stars nothing either way, each star above or below +-0.07.
+func _goggle_pull(day: int) -> float:
+	var main := get_tree().current_scene if get_tree() != null else null
+	var g = main.get("_goggle") if main != null else null
+	if g == null or int(g.count()) == 0:
+		return 0.0
+	return clampf((float(g.rating(day)) - 3.0) * 0.07, -0.14, 0.14)
 
 
 func _roll_spam(day: int, hour: int) -> bool:
@@ -1002,8 +1055,22 @@ func _extract_sender_name(mail: Dictionary) -> String:
 
 # ── co-op: the mail is the host's (scripts/coop/coop.gd) ─────────────────────
 
-## The other warden's machine: the host's mail as it now is (main.coop_apply_pulse).
+var _coop_mail_hash := 0
+
+
+## The other warden's machine: the host's mail as it now is (main.coop_apply_pulse, every
+## time the camp changed: only a changed mail is taken). A mail that was not here before
+## lands as it does at the host (CampMail's chime, the tray, the open window), except the
+## first time (the mail that came with the camp).
 func coop_take(mail: Dictionary) -> void:
+	var h := hash(var_to_bytes(mail))
+	if h == _coop_mail_hash:
+		return
+	var first := _coop_mail_hash == 0
+	_coop_mail_hash = h
+	var known := {}
+	for m in inbox:
+		known[int(m.get("_runtime_id", -1))] = true
 	inbox = _sanitize_mail_array(mail.get("inbox", []))
 	sent.clear()
 	for m in (mail.get("sent", []) if mail.get("sent", []) is Array else []):
@@ -1011,6 +1078,11 @@ func coop_take(mail: Dictionary) -> void:
 			sent.append(m)
 	reputation = float(mail.get("rep", reputation))
 	unread_count_changed.emit(get_unread_count())
+	if not first:
+		for m in inbox:
+			if not known.has(int(m.get("_runtime_id", -1))) and str(m.get("_folder", "inbox")) == "inbox":
+				email_received.emit(m)
+	coop_synced.emit()
 
 
 ## The other warden's machine: what was done to a mail goes to the host too (it is done
@@ -1108,6 +1180,10 @@ func reply_to_review(mail: Dictionary, reply_id: String) -> float:
 			reputation = clampf(reputation + change, -0.25, 0.25)
 			mail["_actioned"] = true
 			mail["reply"] = reply_id
+			# The same review on Goggle has the answer too.
+			var main := get_tree().current_scene if get_tree() != null else null
+			if main != null and main.has_method("goggle_mail_replied"):
+				main.goggle_mail_replied(int(r.get("guest_id", -1)), reply_id)
 			send_mail("guestbook@cerne-jezero.cz", "Re: " + str(mail.get("subject", "")), str(opt["text"]), int(mail.get("day", 1)), _clock_now())
 			return change
 	return 0.0

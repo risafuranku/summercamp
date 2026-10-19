@@ -81,6 +81,11 @@ var terrain_speed_mult: float = 1.0
 @export var footstep_surface_blend_speed: float = 6.5
 @export var footstep_loop_gain: float = 0.48
 
+## One footstep at a time (ElevenLabs, sfx/steps/<surface>_a..d.mp3), on the step of the
+## head bob, by what is under you: grass, the gravel of a path or the road, the planks of
+## the jetty or a porch, mud when the ground is wet through. A thud when you land.
+const STEP_DIR := "res://assets/sfx/steps/"
+const STEP_SURFACES := ["grass", "gravel", "wood", "mud"]
 const FOOTSTEP_GRASS_PATH := "res://assets/sfx/grassfootsteps.mp3"
 const FOOTSTEP_GRAVEL_PATH := "res://assets/sfx/gravelfootsteps.mp3"
 const FOOTSTEP_SILENT_DB := -80.0
@@ -125,6 +130,10 @@ var _beam_q := Quaternion.IDENTITY
 var _beam_ready := false
 var _flashlight_allowed: bool = false
 var _flashlight_user_enabled: bool = true
+## The torch is in the bag (scripts/ui/inventory.gd): thrown on the ground, it is dark.
+var torch_carried := true
+## A bottle in the right hand (scripts/town/pockets.gd): the torch is in your pocket.
+var hand_busy := false
 var _flashlight_active: bool = false
 var _flashlight_flicker_time: float = 0.0
 var stamina: float = 1.0
@@ -140,6 +149,13 @@ var flashlight_stutter: float = 0.0
 var _flashlight_user_chose_off: bool = false
 var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
+var _steps: Dictionary = {}          # surface -> [AudioStream]
+var _step_players: Array = []
+var _step_next := 0
+var _step_last := -1
+var _was_on_floor := true
+var _fall_speed := 0.0
+var _land_stream: AudioStream
 var _footstep_grass_player: AudioStreamPlayer
 var _footstep_gravel_player: AudioStreamPlayer
 var _footstep_motion_ratio: float = 0.0
@@ -214,6 +230,11 @@ func _ensure_camera() -> void:
 	camera.near = camera_near
 	camera.current = true
 	_ensure_flashlight()
+	# Your breath in the cold, panting when you are spent (scripts/ambient/player_breath.gd).
+	if camera.get_node_or_null("PlayerBreath") == null:
+		var breath = load("res://scripts/ambient/player_breath.gd").new()
+		breath.player = self
+		camera.add_child(breath)
 
 
 func _remove_barrel_overlay_if_present() -> void:
@@ -372,6 +393,8 @@ func torch_wanted_indoors() -> bool:
 
 ## F: the torch on or off (also from inside a room, scripts/ui/interior_torch.gd).
 func toggle_flashlight() -> void:
+	if not torch_carried:
+		return
 	if _flashlight_user_enabled or flashlight_battery > 0.02:
 		_flashlight_user_enabled = not _flashlight_user_enabled
 		_flashlight_user_chose_off = not _flashlight_user_enabled
@@ -594,6 +617,7 @@ func _update_head_motion(delta: float) -> void:
 	if is_on_floor() and _footstep_motion_ratio > 0.05:
 		if (_prev_step_wave < 0.0 and step_wave >= 0.0) or (_prev_step_wave >= 0.0 and step_wave < 0.0):
 			_step_kick = min(_step_kick + 1.0, 1.0)
+			_play_step(_footstep_motion_ratio)
 	_prev_step_wave = step_wave
 	_step_kick = move_toward(_step_kick, 0.0, step_kick_decay * delta)
 
@@ -607,7 +631,9 @@ func _update_head_motion(delta: float) -> void:
 	var idle_roll = sin(_idle_noise_time * 1.7) * handheld_idle_strength
 	var idle_pitch = cos(_idle_noise_time * 1.3) * handheld_idle_strength * 0.65
 
-	_update_footstep_loop(delta, _footstep_motion_ratio, is_on_floor())
+	# The steps are one at a time now (_play_step); the old loops stay silent.
+	_force_footstep_silence(true)
+	_check_landing()
 
 	_mouse_impact = _mouse_impact.move_toward(Vector2.ZERO, handheld_return * delta)
 	var target_offset = Vector3(bob_x, bob_y, 0.0)
@@ -713,7 +739,7 @@ func _ensure_flashlight() -> void:
 
 
 func _refresh_flashlight_state() -> void:
-	_flashlight_active = _flashlight_allowed and _flashlight_user_enabled
+	_flashlight_active = _flashlight_allowed and _flashlight_user_enabled and torch_carried and not hand_busy
 	if _flashlight != null:
 		_flashlight.visible = _flashlight_active
 		_flashlight.light_energy = flashlight_energy if _flashlight_active else 0.0
@@ -884,6 +910,95 @@ func _ensure_footstep_loops_running() -> void:
 		_footstep_grass_player.play(sync_pos)
 	if _footstep_gravel_player.stream != null and not _footstep_gravel_player.playing:
 		_footstep_gravel_player.play(sync_pos)
+
+
+func _load_steps() -> void:
+	if not _steps.is_empty():
+		return
+	for surf in STEP_SURFACES:
+		var set: Array = []
+		for v in ["a", "b", "c", "d"]:
+			var path := "%s%s_%s.mp3" % [STEP_DIR, surf, v]
+			if ResourceLoader.exists(path):
+				set.append(load(path))
+		_steps[surf] = set
+	if ResourceLoader.exists(STEP_DIR + "land.mp3"):
+		_land_stream = load(STEP_DIR + "land.mp3")
+	for i in 3:
+		var p := AudioStreamPlayer.new()
+		p.name = "Step%d" % i
+		add_child(p)
+		_step_players.append(p)
+
+
+## What you are standing on.
+func _surface_under() -> String:
+	if _sample_gravel_surface_mix() > 0.5:
+		return "gravel"
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	if space != null:
+		var q := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 0.4, global_position + Vector3.DOWN * 0.8)
+		q.exclude = [get_rid()]
+		var hit := space.intersect_ray(q)
+		if not hit.is_empty():
+			var n := hit["collider"] as Node
+			while n != null and not (n is Window):
+				var nm := String(n.name).to_lower()
+				if n.has_meta("surface"):
+					return str(n.get_meta("surface"))
+				if n.is_in_group("paths") or n.is_in_group("road_south") or nm.contains("road") or nm.contains("path"):
+					return "gravel"
+				if nm.contains("jetty") or nm.contains("pier") or nm.contains("porch") or nm.contains("deck"):
+					return "wood"
+				# Up on a building (a porch, a step): its boards.
+				if n.has_meta("building_type") and (hit["position"] as Vector3).y > 0.08:
+					return "wood"
+				n = n.get_parent()
+	var main := get_tree().current_scene if is_inside_tree() else null
+	var sl = main.get("_season_look") if main != null else null
+	if sl != null and float(sl.get("wet")) > 0.45:
+		return "mud"
+	return "grass"
+
+
+func _play_step(motion: float) -> void:
+	_load_steps()
+	var set: Array = _steps.get(_surface_under(), [])
+	if set.is_empty():
+		set = _steps.get("grass", [])
+	if set.is_empty() or _step_players.is_empty():
+		return
+	var k := randi() % set.size()
+	if k == _step_last and set.size() > 1:
+		k = (k + 1) % set.size()
+	_step_last = k
+	var p: AudioStreamPlayer = _step_players[_step_next]
+	_step_next = (_step_next + 1) % _step_players.size()
+	p.stream = set[k]
+	var run := clampf(motion, 0.0, 1.0)
+	p.volume_db = lerpf(-15.0, -8.0, run) + randf_range(-1.5, 1.0)
+	p.pitch_scale = lerpf(0.97, 1.06, run) * randf_range(0.93, 1.07)
+	p.play()
+
+
+## A thud when you come down (from a jump, a step down).
+func _check_landing() -> void:
+	var on := is_on_floor()
+	if not on:
+		_fall_speed = maxf(_fall_speed, -velocity.y)
+	elif not _was_on_floor and _fall_speed > 2.2:
+		_load_steps()
+		if _land_stream != null and not _step_players.is_empty():
+			var p: AudioStreamPlayer = _step_players[_step_next]
+			_step_next = (_step_next + 1) % _step_players.size()
+			p.stream = _land_stream
+			p.volume_db = clampf(-14.0 + _fall_speed * 1.2, -14.0, -4.0)
+			p.pitch_scale = randf_range(0.94, 1.04)
+			p.play()
+		_step_kick = 1.0
+	if on:
+		_fall_speed = 0.0
+	_was_on_floor = on
 
 
 func _update_footstep_loop(delta: float, motion_ratio: float, is_grounded: bool) -> void:

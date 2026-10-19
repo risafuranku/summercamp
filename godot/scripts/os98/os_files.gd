@@ -52,8 +52,9 @@ const BIN_START := ["DOPIS.TXT", "IMG0043.JPG"]
 const TEXTS := {
 	"README.TXT": """COMPUTER - READ THIS FIRST
 
-This computer belongs to the camp. Do not install games on it.
-Mines is already there. That is enough.
+This computer belongs to the camp. Do not install anything
+else on it. The games are mine, for the evenings after the
+office. Do not wipe my scores.
 
 CAMPMAIL - the bookings come here. Read every one. Accept or
 refuse. Before you accept, look at the beds and at the night
@@ -221,6 +222,26 @@ Use of Builder 98 between 20:00 and 06:30 is not permitted
 under the site licence for recreational facilities (Act
 no. 455/1991, schedule 3).""",
 }
+
+## When each file was last written (the folder pane shows it). Read in a row they tell
+## when people were last at this machine.
+const MODIFIED := {
+	"README.TXT": "1.9.1998", "TELEFONY.TXT": "14.4.1996", "INVENTAR.TXT": "3.5.1996", "NOCI.TXT": "11.7.1997",
+	"DOPIS.TXT": "28.8.1998", "IMG0043.JPG": "22.8.1997", "AUTOEXEC.BAT": "6.2.1996", "CONFIG.SYS": "6.2.1996",
+	"SETUPLOG.TXT": "6.2.1996", "OKNA.INI": "1.9.1998", "SYSTEM.INI": "6.2.1996", "README98.TXT": "12.5.1998",
+	"INBOX.MBX": "1.9.1998", "EVIDENCE.DBF": "2.9.1998", "TERRAIN.DAT": "12.5.1998", "TARIF96.DAT": "1.1.1996",
+}
+## Sizes of the files that are not text (KB).
+const SIZES_KB := {"IMG0043.JPG": 48, "INBOX.MBX": 312, "EVIDENCE.DBF": 96, "TERRAIN.DAT": 18, "TARIF96.DAT": 2,
+	"BEETER.EXE": 1240, "CAMPMAIL.EXE": 420, "MINES.EXE": 24, "BUILDER.EXE": 96, "CAMPSTAT.EXE": 48, "GUESTRAK.EXE": 72}
+
+
+static func size_kb(name: String) -> int:
+	var n := name.to_upper()
+	if SIZES_KB.has(n):
+		return int(SIZES_KB[n])
+	return maxi(1, int(ceil(float(text_of(n).length()) / 1024.0)))
+
 
 const NOT_TEXT := {
 	"IMG0043.JPG": "image",

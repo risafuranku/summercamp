@@ -1,8 +1,10 @@
 extends Node3D
 
 ## The wind you can see, outdoors round you (the camp, the road, Lesna): autumn leaves
-## blown along in steps (12 a second, like the rest of the Build sprites), tumbling (two
-## frames and a flip), coming down, lying a moment, picked up again by the next gust.
+## blown along in steps (12 a second, like the rest of the Build sprites), tumbling (face
+## on, edge on, flipped), coming down, lying a moment, picked up again by the next gust.
+## Oak, maple and birch leaves (Grok, assets/textury/world/leaf_*.png), big leaves' size,
+## and none right in your face (one that drifts that close is not drawn).
 ## How many and how fast goes with the weather (a breeze on a clear day, a gale in a
 ## storm, still in the fog) and the season (more as the trees go bare, none under the
 ## snow). Their colours are the season's (Season.leaf_tint). Not while you are in a room.
@@ -11,6 +13,10 @@ extends Node3D
 const FPS := 12.0
 const POOL := 72
 const RADIUS := 15.0
+const LEAVES := ["leaf_oak", "leaf_maple", "leaf_birch"]
+const TEX_DIR := "res://assets/textury/world/"
+## Not drawn nearer the eye than this (a leaf across the lens is a blot, not a leaf).
+const NEAR := 0.9
 
 var player_getter: Callable
 var indoors: Callable
@@ -20,7 +26,7 @@ var weather_getter: Callable
 var season_getter: Callable
 
 var _rng := RandomNumberGenerator.new()
-var _frames: Array = []          # [ [frame a, frame b] per leaf shape ]
+var _frames: Array = []          # one texture per leaf shape
 var _leaves: Array = []          # {sprite, vel: Vector3, rest: float, shape, spin}
 var _acc := 0.0
 var _t := 0.0
@@ -36,13 +42,10 @@ func _ready() -> void:
 	name = "WindLife"
 	_rng.randomize()
 	_dir = _rng.randf() * TAU
-	var shapes := [
-		[["..XX..", ".XXXX.", "XXXXXX", ".XXXX.", "..X..."], ["......", ".XXXX.", "XXXXXX", ".XXXX.", "......"]],
-		[["...X.", "..XXX", ".XXX.", "XXX..", "X...."], [".....", "XXXX.", ".XXXX", ".....", "....."]],
-		[[".X.X.", "XXXXX", ".XXX.", "..X.."], [".....", "XXXXX", ".XXX.", "....."]],
-	]
-	for sh in shapes:
-		_frames.append([_pixels(sh[0]), _pixels(sh[1])])
+	for n in LEAVES:
+		var path: String = TEX_DIR + n + ".png"
+		if ResourceLoader.exists(path):
+			_frames.append(load(path))
 	for i in POOL:
 		var s := Sprite3D.new()
 		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -53,22 +56,7 @@ func _ready() -> void:
 		s.visible = false
 		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(s)
-		_leaves.append({"sprite": s, "vel": Vector3.ZERO, "rest": 0.0, "shape": i % _frames.size(), "spin": _rng.randf() * 4.0, "live": false})
-
-
-## White pixels in a little texture (tinted per leaf by the sprite's modulate).
-func _pixels(rows: Array) -> ImageTexture:
-	var h := rows.size()
-	var w := str(rows[0]).length()
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	for y in h:
-		var row := str(rows[y])
-		for x in w:
-			if row[x] == "X":
-				var shade := 0.82 + 0.18 * float((x + y) % 2)
-				img.set_pixel(x, y, Color(shade, shade, shade))
-	return ImageTexture.create_from_image(img)
+		_leaves.append({"sprite": s, "vel": Vector3.ZERO, "rest": 0.0, "shape": i % maxi(1, _frames.size()), "spin": _rng.randf() * 4.0, "live": false})
 
 
 func _player() -> Node3D:
@@ -78,7 +66,7 @@ func _player() -> Node3D:
 func _process(delta: float) -> void:
 	var p := _player()
 	var inside: bool = indoors.is_valid() and indoors.call()
-	visible = p != null and not inside
+	visible = p != null and not inside and not _frames.is_empty()
 	if not visible:
 		return
 	_t += delta
@@ -99,6 +87,8 @@ func _process(delta: float) -> void:
 	var dt := _acc
 	_acc = 0.0
 	var centre := p.global_position
+	var cam = p.get("_camera")
+	var eye: Vector3 = (cam as Node3D).global_position if cam is Node3D else centre + Vector3.UP * 1.6
 	var wind := Vector3(cos(_dir), 0, sin(_dir)) * (1.2 + 4.5 * _strength) * (1.0 + _gust)
 	var want := int(round(float(POOL) * clampf(_strength * 0.9, 0.0, 1.0)))
 	var live := 0
@@ -119,6 +109,7 @@ func _process(delta: float) -> void:
 			if _gust > 0.9 and _rng.randf() < 0.3:
 				lf["rest"] = 0.0
 				lf["vel"] = wind * 0.6 + Vector3(0, _rng.randf_range(1.0, 2.4), 0)
+				_lie(s, false)
 			elif lf["rest"] <= 0.0 and _rng.randf() < 0.5:
 				lf["live"] = false
 				s.visible = false
@@ -130,15 +121,17 @@ func _process(delta: float) -> void:
 			lf["vel"] = v
 			pos += v * dt
 			lf["spin"] = float(lf["spin"]) + dt * (3.0 + v.length())
-			var frames: Array = _frames[lf["shape"]]
-			s.texture = frames[int(lf["spin"]) % 2]
+			# Tumbling: face on, turning, edge on, turning back (a step each), flipped
+			# every other turn.
+			var phase := int(lf["spin"] * 2.0) % 4
+			s.scale = Vector3([1.0, 0.6, 0.25, 0.6][phase], 1.0, 1.0)
 			s.flip_h = int(lf["spin"] * 0.5) % 2 == 0
 			# The camp, the road and Lesna all lie at y 0.
 			var ground := 0.04
 			if pos.y <= ground + 0.02:
 				pos.y = ground + 0.02
 				lf["rest"] = _rng.randf_range(2.0, 7.0)
-				s.texture = frames[1]
+				_lie(s, true)
 		# Gone too far from you: back in round the edge upwind.
 		var off := pos - centre
 		off.y = 0.0
@@ -146,10 +139,23 @@ func _process(delta: float) -> void:
 			_spawn(lf, centre, wind)
 			continue
 		s.global_position = pos
+		s.visible = pos.distance_to(eye) > NEAR
+
+
+## Down on the ground it lies flat, any way round; up in the air it faces you again.
+func _lie(s: Sprite3D, flat: bool) -> void:
+	s.scale = Vector3.ONE
+	if flat:
+		s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		s.rotation = Vector3(-PI * 0.5, _rng.randf() * TAU, 0.0)
+	else:
+		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		s.rotation = Vector3.ZERO
 
 
 func _spawn(lf: Dictionary, centre: Vector3, wind: Vector3) -> void:
 	var s: Sprite3D = lf["sprite"]
+	_lie(s, false)
 	var up := -wind.normalized() if wind.length() > 0.01 else Vector3.FORWARD
 	var side := up.cross(Vector3.UP)
 	var at := centre + up * _rng.randf_range(RADIUS * 0.15, RADIUS * 0.95) + side * _rng.randf_range(-RADIUS * 0.7, RADIUS * 0.7)
@@ -158,10 +164,14 @@ func _spawn(lf: Dictionary, centre: Vector3, wind: Vector3) -> void:
 	lf["vel"] = wind * _rng.randf_range(0.7, 1.1)
 	lf["rest"] = 0.0
 	lf["live"] = true
-	# Autumn's own: rust, ochre, brown, yellow, a touch of the season's tint.
-	var base: Color = [Color(0.62, 0.28, 0.1), Color(0.76, 0.52, 0.14), Color(0.42, 0.27, 0.12), Color(0.84, 0.66, 0.2)][_rng.randi() % 4]
-	s.modulate = base.lerp(_tint, 0.25) * _rng.randf_range(0.85, 1.1)
-	s.pixel_size = _rng.randf_range(0.032, 0.046)
+	# The leaf's own colours, a touch of the season's tint, each a little lighter or darker.
+	lf["shape"] = _rng.randi() % _frames.size()
+	var tex: Texture2D = _frames[lf["shape"]]
+	s.texture = tex
+	s.scale = Vector3.ONE
+	s.modulate = Color.WHITE.lerp(_tint * 1.25, 0.2) * _rng.randf_range(0.85, 1.08)
+	# A big leaf's size, 12 to 17 cm across (smaller would be lost in the low resolution).
+	s.pixel_size = _rng.randf_range(0.12, 0.17) / float(maxi(1, tex.get_width()))
 	s.visible = true
 
 

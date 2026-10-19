@@ -276,12 +276,97 @@ ROWS = [
     ("tex_awning_stripes", "texture", 64, "awning_stripes.png"),
     ("spr_awning_fringe", "sprite", 24, "awning_fringe.png"),
     ("spr_steam_puff", "sprite", 16, "steam_puff.png"),
+    # The main menu (scripts/ui/main_menu.gd): its plates, the logo's paint, the cursor.
+    ("tex_menu_steel", "texture", 64, "ui/menu_steel.png"),
+    ("tex_menu_wood", "texture", 64, "ui/menu_wood.png"),
+    ("tex_logo_fill", "texture", 64, "ui/logo_fill.png"),
+    ("spr_menu_lantern", "sprite", 16, "ui/menu_lantern.png"),
+    # The bag (scripts/ui/inventory.gd): its leather, lining, pockets (one a 20 px pocket),
+    # the strap's buckles, and what goes in it (a pocket is 20 px, the torch takes two).
+    ("tex_inv_leather", "texture", 64, "ui/inv_leather.png"),
+    ("tex_inv_canvas", "texture", 64, "ui/inv_canvas.png"),
+    ("tex_inv_pocket", "texture", 20, "ui/inv_pocket.png"),
+    ("spr_inv_buckle", "sprite", 14, "ui/inv_buckle.png"),
+    ("spr_inv_key", "sprite", 16, "items/key_shed.png"),
+    ("spr_inv_cigs", "sprite", 18, "items/cigs.png"),
+    ("spr_inv_beer", "sprite", 16, "items/beer.png"),
+    ("spr_inv_card", "sprite", 18, "items/card.png"),
+    ("spr_inv_torch", "sprite", 13, "items/torch.png"),
+    # The wind's leaves (scripts/ambient/wind_life.gd), the birds, crows, bats and moths
+    # (sky_life.gd), the arrivals plate's car and bell (scripts/ui/arrival_strip.gd).
+    ("spr_leaf_oak", "sprite", 14, "world/leaf_oak.png"),
+    ("spr_leaf_maple", "sprite", 14, "world/leaf_maple.png"),
+    ("spr_leaf_birch", "sprite", 12, "world/leaf_birch.png"),
+    ("spr_sky_bird_up", "sprite", 10, "world/sky_bird_up.png"),
+    ("spr_sky_bird_down", "sprite", 10, "world/sky_bird_down.png"),
+    ("spr_sky_crow_up", "sprite", 14, "world/sky_crow_up.png"),
+    ("spr_sky_crow_down", "sprite", 14, "world/sky_crow_down.png"),
+    ("spr_sky_bat_up", "sprite", 12, "world/sky_bat_up.png"),
+    ("spr_sky_bat_down", "sprite", 12, "world/sky_bat_down.png"),
+    ("spr_sky_moth", "sprite", 8, "world/sky_moth.png"),
+    ("spr_hud_car", "sprite", 6, "ui/arrive_car.png"),
+    ("spr_hud_bell", "sprite", 9, "ui/arrive_bell.png"),
+    # The check-in desk's keys on their hooks (scripts/reception/checkin_desk.gd).
+    ("spr_key_cabin", "sprite", 21, "key_cabin.png"),
+    ("spr_key_tent", "sprite", 16, "key_tent.png"),
+    ("spr_key_caravan", "sprite", 20, "key_caravan.png"),
+    # Rychla kacka (scripts/town/shop_closeup.gd) and the pub's LUCKY 7 (pub_closeup.gd):
+    # the card's paper, the duck, the symbols, the silver; the cabinet, the reels, the bulbs,
+    # the button.
+    ("tex_card_paper", "texture", 64, "closeup/card_paper.png"),
+    ("tex_scratch_foil", "texture", 32, "closeup/scratch_foil.png"),
+    ("cu_card_duck", "sprite", 19, "closeup/card_duck.png"),
+    ("cu_sym_duck", "sprite", 20, "closeup/sym_duck.png"),
+    ("cu_sym_seven", "sprite", 20, "closeup/sym_seven.png"),
+    ("cu_sym_bell", "sprite", 20, "closeup/sym_bell.png"),
+    ("cu_sym_cherry", "sprite", 20, "closeup/sym_cherry.png"),
+    ("cu_sym_clover", "sprite", 20, "closeup/sym_clover.png"),
+    ("cu_sym_acorn", "sprite", 20, "closeup/sym_acorn.png"),
+    ("tex_slot_cabinet", "texture", 64, "closeup/slot_cabinet.png"),
+    ("cu_reel_cherry", "sprite", 34, "closeup/reel_cherry.png"),
+    ("cu_reel_plum", "sprite", 34, "closeup/reel_plum.png"),
+    ("cu_reel_bell", "sprite", 34, "closeup/reel_bell.png"),
+    ("cu_reel_bar", "sprite", 18, "closeup/reel_bar.png"),
+    ("cu_reel_seven", "sprite", 34, "closeup/reel_seven.png"),
+    ("cu_slot_lamp_on", "sprite", 9, "closeup/slot_lamp_on.png"),
+    ("cu_slot_lamp_off", "sprite", 9, "closeup/slot_lamp_off.png"),
+    ("cu_slot_button", "sprite", 22, "closeup/slot_button.png"),
+    # The tent's upgrade catalog on the groundsheet (scripts/tent_interior.gd).
+    ("face_tent_catalog", "panel", 40, "tent_catalog.png"),
+    # The weather (scripts/weather_visuals.gd, season_look.gd): the rain's streak, its
+    # splash, the storm's bolt, a snowflake, a puddle.
+    ("spr_rain_streak", "sprite", 24, "world/rain_streak.png"),
+    ("spr_rain_splash", "sprite", 10, "world/rain_splash.png"),
+    ("spr_lightning_bolt", "sprite", 96, "world/lightning_bolt.png"),
+    ("spr_snowflake", "sprite", 6, "world/snowflake.png"),
+    ("spr_puddle", "sprite", 40, "world/puddle.png"),
+    # The weather at a room's windows (scripts/ambient/room_weather.gd): drops on the glass,
+    # water running down it, the window's shape the lightning throws in.
+    ("tex_glass_drops", "texture", 128, "world/glass_drops.png"),
+    ("tex_glass_runs", "texture", 128, "world/glass_runs.png"),
+    ("tex_window_cookie", "texture", 64, "world/window_cookie.png"),
+    # Your breath in the cold (scripts/ambient/player_breath.gd).
+    ("spr_breath_puff", "sprite", 16, "world/breath_puff.png"),
+    # The still air (scripts/ambient/air_life.gd): a midge, spider silk, thistle down.
+    ("spr_midge", "sprite", 4, "world/midge.png"),
+    ("spr_gossamer", "sprite", 14, "world/gossamer.png"),
+    ("spr_thistle_down", "sprite", 8, "world/thistle_down.png"),
+    # Spider webs (scripts/ambient/spider_webs.gd): the garden spider, the silk with dew
+    # beads (the strands' texture), torn strands across your face.
+    ("spr_spider", "sprite", 14, "world/spider.png"),
+    ("tex_silk_strand", "texture", 64, "world/silk_strand.png"),
+    ("face_web_tangle", "panel", 320, "ui/web_face.png"),
     ("warden_a_bedfoot", "sprite", 56, "npc/warden_a_bedfoot.png"),
     ("warden_b_bedfoot", "sprite", 56, "npc/warden_b_bedfoot.png"),
     ("warden_c_bedfoot", "sprite", 56, "npc/warden_c_bedfoot.png"),
     ("warden_d_bedfoot", "sprite", 56, "npc/warden_d_bedfoot.png"),
 ]
 TEXTURY = os.path.join(HERE, "..", "..", "godot", "assets", "textury")
+## Textures kept in their own colours, not snapped to the palette.
+UNSNAPPED_TEXTURES = {"tex_card_paper"}
+## Thin bright things on black (water on glass): fattened before they are shrunk, or the
+## shrinking averages them away.
+DILATED_TEXTURES = {"tex_glass_drops", "tex_glass_runs", "tex_silk_strand"}
 
 
 def rekeyed(art_id):
@@ -414,6 +499,17 @@ def main():
                 out = process.sprite(rekeyed(art_id), size)
         elif mode == "panel":
             out = process.panel(raw, size)
+        elif art_id in DILATED_TEXTURES:
+            from PIL import ImageFilter
+            fat = os.path.join(HERE, "out", art_id, "raw_dilated.png")
+            Image.open(raw).convert("RGB").filter(ImageFilter.MaxFilter(7)).save(fat)
+            out = process.texture(fat, size)
+        elif art_id in UNSNAPPED_TEXTURES:
+            # Printed colours the Build palette has not got (the card's bright yellow).
+            snap = process.snap
+            process.snap = lambda img, keep: img.convert("RGB")
+            out = process.texture(raw, size)
+            process.snap = snap
         else:
             out = process.texture(raw, size)
         out.save(dest)

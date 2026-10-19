@@ -5,10 +5,13 @@ extends Node3D
 ## hour to which, walking between their places in steps, gone indoors at night. Click
 ## one to talk (building_type "town_npc"): a line at a time from what they know, and
 ## they know things about the camp. Lines go round; some only come out after dark.
+## A round (the patrol, the bike) is walked by the clock, not from where they were seen
+## last: at the same hour they are at the same place on it, on both co-op machines too.
 
 const NPC := "res://assets/textury/npc/"
 const WALK := 1.3
 const PIXEL := 0.0145
+const BALANCE = preload("res://core/balance/balance_config.gd")
 
 ## Places in the village's own frame (x east, z south; the road at z = 0).
 const SPOTS := {
@@ -149,6 +152,10 @@ func update(hour: float, delta: float) -> void:
 			p["loop_i"] = 0
 		if place == "":
 			continue
+		if LOOPS.has(place):
+			root.position = _round_at(str(who), place, hour)
+			_bob(p, true)
+			continue
 		_walk(p, place, delta)
 
 
@@ -159,6 +166,33 @@ func _place_at(who: String, hour: float) -> String:
 		if (a <= b and hour >= a and hour < b) or (a > b and (hour >= a or hour < b)):
 			return str(slot[2])
 	return ""
+
+
+## Where on its round someone is at `hour`: as far along it as they would have walked
+## since their slot began (game minutes to seconds at the walking pace).
+func _round_at(who: String, place: String, hour: float) -> Vector3:
+	var start := hour
+	for slot in PEOPLE[who]["day"]:
+		if str(slot[2]) == place:
+			start = float(slot[0])
+	var since := fposmod(hour - start, 24.0)
+	var speed := WALK * (2.6 if place == "bike" else 1.0)
+	var dist := since * 60.0 / BALANCE.GAME_MINUTES_PER_SECOND * speed
+	var pts: Array = LOOPS[place]
+	var total := 0.0
+	for i in pts.size():
+		total += (pts[i] as Vector3).distance_to(pts[(i + 1) % pts.size()])
+	if total <= 0.0:
+		return pts[0]
+	dist = fposmod(dist, total)
+	for i in pts.size():
+		var a: Vector3 = pts[i]
+		var b: Vector3 = pts[(i + 1) % pts.size()]
+		var seg := a.distance_to(b)
+		if dist <= seg:
+			return a.lerp(b, dist / maxf(seg, 0.001))
+		dist -= seg
+	return pts[0]
 
 
 func _first_point(place: String) -> Vector3:
@@ -186,9 +220,11 @@ func _walk(p: Dictionary, place: String, delta: float) -> void:
 	var moving := to.length() > 0.08
 	if moving:
 		root.position += to.normalized() * minf(to.length(), speed * delta)
-	elif LOOPS.has(place):
-		p["loop_i"] = i + 1
-	# Walking bobs in steps; standing still breathes.
+	_bob(p, moving)
+
+
+## Walking bobs in steps; standing still breathes.
+func _bob(p: Dictionary, moving: bool) -> void:
 	var s: Sprite3D = p["sprite"]
 	var tick := floorf(_acc * 12.0)
 	if moving:

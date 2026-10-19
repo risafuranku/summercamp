@@ -90,13 +90,16 @@ func _build() -> void:
 	_folders = Tree.new()
 	_folders.hide_root = true
 	_folders.select_mode = Tree.SELECT_ROW
+	# A Tree may not be rebuilt inside its own click: the lists are redone after it.
 	_folders.item_selected.connect(func():
 		var it := _folders.get_selected()
 		if it != null and str(it.get_metadata(0)) != _folder:
 			_folder = str(it.get_metadata(0))
 			_current = {}
-			refresh()
-			_show_message({})
+			(func():
+				refresh()
+				_show_message({})
+			).call_deferred()
 	)
 	add_child(_folders)
 
@@ -120,7 +123,7 @@ func _build() -> void:
 			_sort_col = col
 			_sort_desc = col == 3
 		_shell.play("click", -14.0)
-		refresh()
+		refresh.call_deferred()
 	)
 	_list.gui_input.connect(_on_list_key)
 	add_child(_list)

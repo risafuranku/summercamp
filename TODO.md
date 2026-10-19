@@ -1,8 +1,57 @@
 # TODO — Cursed Camp Manager Simulator
 
-*Updated: 2026-10-16. Vision: DESIGN.md. What exists: PRODUCT.md.*
+*Updated: 2026-10-19. Vision: DESIGN.md. What exists: PRODUCT.md.*
 
 ---
+
+## BUILDER 98, A GAME IN THE GAME — 2026-10-19 (agreed with the user; handoff)
+
+The user: the Builder should feel like a 90s tycoon of its own, and fun. Everything below
+was agreed, except a star rating inside the Builder: the rating became Goggle (the PC's
+Reviews tab, DESIGN §5i), "a parody of Google reviews; not everything unlocked from the
+start, collect good ratings; pay to delete bad reviews".
+
+- [x] Goggle Reviews: the tenth tab (key 0), the page, blueprint tiers and room upgrades
+  locked by rating, the booking pull, SpotlessName Ltd removals (caught = flagged), the
+  owner's replies tied to CampMail's guest book, saved, co-op through the host
+  (`scripts/reviews/goggle.gd`, `os98/apps/goggle_app.gd`, `tools/goggle_check.gd`)
+- [ ] Goggle art still coming from Grok (rows in `tools/artgen/prompts.tsv`): `ico2_padlock`
+  and `web_spotless_banner`; then `python tools/artgen/web_review_art.py` and `--import`
+  (the page and the cards draw without them: no padlock, a plain banner box). Look at
+  the Builder catalogue with locked cards in a screenshot (dismiss the shareware nag
+  first, once there is one)
+- [ ] Building site instead of the drop-in: a scaffold with a worker hammering for a few
+  seconds (`iso_scaffold`, `iso_worker_a/b`; `assets/sfx/builder/hammer.mp3`,
+  `site_done.mp3`), then the building; in `crt_map_panel._on_build_confirmed` /
+  `_dropped` / `_draw_structure`. Rubble on demolition (`iso_rubble`, `rubble.mp3`) in
+  `_on_demolish_confirmed`
+- [ ] Money you can see: coins flying from a paying building to the cash counter
+  (`spr_coin` -> `builder/coin.png`, `coins.mp3`), the toolbar's cash (`builder_module._money`)
+  rolling like an odometer
+- [ ] Tool cursors (bulldozer, path, lamp, a blueprint) and drag-building rows of benches,
+  lamps and flower beds
+- [ ] The map follows the weather and the hour: rain streaks, fog, dusk tint (the night is
+  `_draw_night`)
+- [ ] Guests' thought bubbles over their heads (`think_*` -> `builder/think_*.png`) and a
+  guest card on click with their thoughts, some of them wrong ("The lake looked at me.")
+- [ ] The map lies, rarely: a tent nobody built for one frame, a tile that says "Something
+  is buried here"
+- [ ] A Graphs window (Transport Tycoon's): money, guests, satisfaction over 14 days (look
+  for a day-by-day history first, e.g. the week ledger)
+- [ ] Builder music: a General MIDI-style loop (ElevenLabs), detuned a little at night
+- [ ] Hlubočanský zpravodaj (the district paper) now and then, and award diplomas for the
+  camp
+- [ ] Cheats typed on the map (BOHEMIA: money, and the next day a letter from the district
+  asking about it)
+- [ ] Shareware: a nag after ~10 builds, a registration-locked Mega gnome, Help > About
+  with credits and a Snake easter egg
+- Planned: the living map's bits in `scripts/builder/map_life.gd`, small hooks in
+  `crt_map_panel.gd`
+- Open: the smoke test prints `Parameter "material" is null` (8x) since this evening;
+  not traced yet (maybe the other session's bistro work, maybe not); find who sets a
+  null material before shipping
+- Open question to the user: replace the other code-made sounds too (`tools/gen_phone_sfx.py`,
+  `tools/gen_splash_sfx.py`)?
 
 ## CO-OP — two wardens, step by step (DESIGN.md §12; each stage gone through with the user)
 
@@ -16,12 +65,30 @@
 - [ ] 4  Rooms and minigames for two: both in one cabin, a job taken by one is locked for the other, the scrub/tap/till/sewer close-ups
   - so far (17. 10.): both in one room see each other, standing about or at their job (the broom, down on a knee scrubbing; in a tent lying on their belly); each one's jobs come back to the other's room
   - 18. 10.: the attractions for the warden, alone or two (`scripts/attractions/warden_play.gd`): E by one and you are in it as a guest is, from your own eyes: sit by the fire (a log on from the pile, LMB a sausage over the coals and eaten when done, Q the guitar), on a bench, at the picnic table, in the hammock, on the swing (LMB pumps) or the seesaw, down the slide (up the ladder, LMB at the top), at the nohejbal net and the ping-pong table (LMB in time kicks or hits the ball coming to you; missed, it rolls off and you fetch it). The other warden is seen in them (their figure placed by the same attraction); the ball games are the host's (each flight sent over, the other's swings sent to the host), the logs go on through the host. New sprites for the four wardens (guitar, sausage, kick, bat, ladder, swing) and the guests' kick and bat
+  - 18. 10. (evening): the businesses for two and point and click (DESIGN §7b): doors between the rooms (`scripts/food/business_doors.gd`: walk, swing, dither, in through the next door; the bistro's dining room, kitchen and cellar, the pub's new cellar, the Jednota's storeroom), no side tabs; everything usable glints; marks where work waits (`scripts/food/work_marks.gd`); the pass moved to the kitchen's island; the cellars show the stock and open the books; the other warden at the tap, the bottles, the washer, the pass, the stove, the till, the books (`service_interior.coop_job` / `coop_job_spot`); the host's serving reaches the other machine (`_coop_sync_things` "served"); the HUD guests cell blinks N WAITING, the waypoint points to the business
+  - 18. 10. (night): the corn stand for either warden (the joining one could not step behind it), the wholesaler's leaflet on its counter (the books' ORDER page), the warden behind it seen at the pot; the businesses' books are the host's in co-op: in the camp pulse ("biz"), and what the other warden does to them (a cob taken, a sale, an order, a hand taken on) goes to the host (`actions.biz_remote` -> `main._coop_biz_change`, the money with the till)
+  - 18. 10. (night): the sewer's chamber (DESIGN §8): dense Grok room, the pipe mouth to click (in broken or not), the amber terminal with the network and its faults (`scripts/pipes/sewer_terminal.gd`); two in the pipes (`scripts/pipes/pipe_mate.gd`): the same network (seed and raccoon level of whoever went down first), each seen by the other, no getting past, backing up feet first (tap S), squeeze, a clamp by one is a clamp for both
+  - 18. 10. (late): the back office is the host's on the other machine too: CampStat's reviews, takings and bills, satisfaction, the bazaar's lost and found (in the camp pulse "books"); a bill paid, the maintenance crew sent or a thing put up on the bazaar from there is done in the host's camp (`main.coop_request` pay_bill / crew / bazaar_list); Vera's checklist never runs in a sandbox camp (a loaded one started it, and on the other machine it paid its rewards a second time); Lesna's rounds (Sgt Vavra's patrol, Pepik's bike) walked by the clock, the same on both machines
+  - 19. 10.: up to four wardens (the user: "chceme cílit na 4 hráče"): the host and three joining (`Coop.MAX_WARDENS`, everything to everyone through the host); each joining one has their place on the line and its figure if they chose none; one figure per warden in the camp, the rooms, the bus, Lesna's places, the attractions (keys -11..-14), the pipes and the map; the till counted per warden; the night passes when all are in bed; knocked down, the nearest gets you up; the night hunts any of them (a stand-in, a sanity and private enemies each; the director and its touches to the one pressed and those near); one boat for two (the oarsman and one in the bow); an item picked up goes to the one who picked it (`tools/coop4_check.py`)
+  - 19. 10. (later): checked for four (`tools/coop4_check.py`): all four round the fire, in the old cabin, down the sewer's pipes (each sees the other three; the ones behind crawl into the first's boots; those lying right where you lie are felt, not drawn), one going home while the other three play on; the office names whoever has the PC or the desk; the 13:20 to Lesna for all four (it waits for the last one buying a ticket, all four ride it) and U Jezera's bar together (the others stand at the counter in sight, not out at your elbows: they were out of view even for two); at night an enemy only for one of the joining wardens is seen by them alone (not the host, not the other two), one for all by all; a fifth who calls is told the camp is full (one line more than the places, then hung up) and the others never hear of them (the host's roster)
 - [ ] 5  The night for two: the director knows both; enemies hunt either; sometimes only one sees it; a hidden sanity per warden (no meter, never named)
   - 18. 10. (`scripts/coop/coop_night.gd`): the host's enemies hunt either warden (the other has a stand-in body there, `coop_proxy.gd`), whoever is out and alone in the dark sooner, and let go of one gone indoors; their hits and feed lines go to whom they hunt; the other machine shows them as on the host's (sprites, lights, sounds, 10x a second). Some are only for the one hunted (the other sees and hears nothing). The hidden sanity: hits, an enemy in front of you, the dark alone wear it down, day, company and sleep give it back; low, the night picks you sooner, more is only yours, and you glimpse the other warden where they are not. Down in co-op you come to on the office step instead of the game ending. The night director presses on one warden at a time (the one out, else the one with less sanity, held 40 s); its touches happen on that one's machine, and on both when they are together. Omens are each warden's own
   - 18. 10. (later): tonight's jobs are the host's on the other machine too (the TONIGHT list, the pager, the waypoint, "sorted" when either sorts one out: `night_jobs.coop_take`); knocked down you lie there till the other gets you up with E (90 s, else the office step; the night lets go of you meanwhile); the host's campfires sent every 4 s
   - 18. 10. (evening): one radio for both: the host's set plays on the other machine (the same song from the same place, the station's pips, the night's broadcast built from the same pieces), the switch from either (`building_interior.coop_radio_state` / `coop_take_radio`); in Lesna's places (the pub, the Jednota, the chapel, the kiosk, the motel) the other warden stands with you at the counter; seen at work in the camp (a spanner at R, the saw, the bin bag) and fishing on the far shore
 - [ ] 6  Saves of a co-op camp (host), joining a camp already going, a dropped line and back, a name per warden
   - 18. 10.: the host's saves are marked co-op and the CO-OP page's Last camp hosts the newest one (its day and till beside it); joining a camp already going works (the whole camp on joining); a dropped line: the other's figure goes, the joining one is back at the menu and can join again; the other warden is called by the name they chose (Pepa, Ondra, Jana, Bara) in the feed
+  - 18. 10. (evening): the look is the warden's, not the CO-OP page's: chosen on the WARDENS page when a warden is made and changed with Edit warden (name, figure, jacket); the other warden is called by their warden's name. The joining warden can work the barrier (the client's E skipped everything outside the camp), from the road too (the wall in the gap shadowed the handle), and E lowers it again
+
+## BRIEF 2026-10-19 — the PC at the reception (the user's notes)
+
+- [x] D1  Not a full-size OS but a game panel that parodies one, practical above all: quick switching between Builder, CampStat and GuestRack (tabs, keys 1-9, badges, programs kept running, modal dialogs, a short boot)
+- [x] D2  Builder: a card for a clicked building (upgrade from the map, the crew, demolish, GuestRack), overlays (wear, power, rooms, light at night), keys (B P L, F1-F5, O, X, arrows); GuestRack's rooms and CampStat's upkeep open the building on the map
+- [x] D3  CampStat's Today page: what wants doing, with the button that does it (Pay all, the crew, GuestRack, CampMail, the night)
+- [x] D4  A clicking side job: the Jobs folder (DataPunch, KlikBanka pop-up shifts, SectiTo aerial counts), daily limits, paid into the till
+- [x] D5  Funny games: Komar 98, Vylet 98, Pexeso 98 beside Mines; they are Vera's (on the PC from the start, her names on the high-score tables)
+- [x] D6  The web: games, work from home, the #jih chat (somebody logs in as the camp at night), the horoscope
+- [x] D7  The OS's wording is a plain 1998 system's (no "do not tell Vera"); Files with the Web View pane (types, sizes, the dates that tell the story)
+- [ ] D8  Later: art for the new programs' icons from Grok (the drawn ones are stand-ins), Builder card for paths and lamps, more Bohemia Online pages
 
 ## BRIEF 2026-10-18 — the big list (the user's notes)
 
@@ -177,7 +244,8 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [ ] Replayability: randomised offers, events, enemy mixes
 
 ### 5. Sandbox mode
-- [ ] Setup screen: starting money, map size, weather, other parameters
+- [x] Setup screen: STORY or SANDBOX on NEW CAMP; the sandbox's switches (night threats, weather, day events, wear, starting money), saved with the camp
+- [ ] Setup screen, more: map size, other parameters
 - [ ] Endless play; goals: last longest, earn most, best camp, best stats
 - [ ] Score/stats screen
 

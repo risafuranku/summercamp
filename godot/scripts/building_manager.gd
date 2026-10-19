@@ -387,15 +387,17 @@ func _apply_structure_rotation_at(origin: Vector2i, building_type: String, rotat
 		structure.set_meta("build_rotation", 0)
 		return
 	var normalized_rotation = wrapi(int(rotation_steps), 0, 4)
+	# An oblong one (a caravan, the pitch) turns only round about its middle: a quarter
+	# turn would not fit its footprint.
+	var fp = get_footprint_for_building(building_type)
+	if fp.x != fp.y and normalized_rotation % 2 == 1:
+		normalized_rotation -= 1
 	structure.set_meta("build_rotation", normalized_rotation)
 	structure.rotation.y = deg_to_rad(float(normalized_rotation) * 90.0)
 
 
 func _building_supports_rotation(building_type: String) -> bool:
-	if building_type == "" or building_type == "path" or building_type == "demolish":
-		return false
-	var fp = get_footprint_for_building(building_type)
-	return fp.x == fp.y
+	return not (building_type == "" or building_type == "path" or building_type == "demolish")
 
 
 func place_tent_in_front(player: Node3D) -> bool:

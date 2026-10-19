@@ -40,6 +40,9 @@ var _ripple_acc := 0.0
 var _rng_fx := RandomNumberGenerator.new()
 var _mist: Array[MeshInstance3D] = []  # mist puffs over the water
 var _mist_t := 0.0
+## The water's material, and how often it is told the world's light and weather.
+var _water_mat: ShaderMaterial
+var _look_t := 0.0
 
 
 ## `shore_z`: world z of the camp-side edge of the lake row; `north_z`: the map's north
@@ -97,6 +100,7 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 	wmat.set_shader_parameter("water_tex", load(WATER_TEX))
 	wmat.set_shader_parameter("shore_z", Vector2(shore_z, far_z))
 	water.material_override = wmat
+	_water_mat = wmat
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# Reeds along the shore (not in front of the jetty), thick at the corners.
@@ -257,6 +261,10 @@ func _mist_texture(rng: RandomNumberGenerator) -> ImageTexture:
 
 
 func _process(delta: float) -> void:
+	_look_t -= delta
+	if _look_t <= 0.0:
+		_look_t = 0.25
+		_water_look()
 	if _mist.is_empty() or _main == null:
 		return
 	_mist_t += delta
@@ -273,6 +281,44 @@ func _process(delta: float) -> void:
 		if m.visible:
 			var span: float = m.get_meta("span")
 			m.position.x = float(m.get_meta("left")) + fposmod(float(m.get_meta("x0")) - float(m.get_meta("left")) + _mist_t * float(m.get_meta("speed")), span)
+
+
+## The water as the world is now (lake_water.gdshader): the horizon it gives back (the
+## sky's colour, which the time of day and the weather set), where the sun or the moon is
+## and how bright, how much light there is, the wind and the rain.
+func _water_look() -> void:
+	var scene := get_tree().current_scene if get_tree() != null else null
+	if _water_mat == null or scene == null:
+		return
+	var env_node = scene.get("world_environment")
+	var env: Environment = env_node.environment if env_node != null else null
+	if env == null and get_viewport() != null and get_viewport().world_3d != null:
+		env = get_viewport().world_3d.environment
+	var sun: DirectionalLight3D = scene.get("sun")
+	var sky := Color(0.55, 0.62, 0.7)
+	var ambient := 0.4
+	if env != null:
+		# The sky behind the clouds (weather_visuals sets it by the hour), hazed as the fog
+		# hazes the sky itself.
+		sky = env.background_color
+		if env.fog_enabled:
+			sky = sky.lerp(env.fog_light_color, clampf(env.fog_sky_affect, 0.0, 1.0) * 0.5)
+		ambient = clampf(env.ambient_light_color.get_luminance() * env.ambient_light_energy * 1.6, 0.0, 1.0)
+	var sun_lum := 0.0
+	if sun != null and sun.visible:
+		var dir := -sun.global_transform.basis.z
+		_water_mat.set_shader_parameter("sun_dir", -dir)
+		var col := sun.light_color * clampf(sun.light_energy, 0.0, 1.4)
+		_water_mat.set_shader_parameter("sun_col", col)
+		sun_lum = clampf(col.get_luminance() * (1.0 if -dir.y > 0.0 else 0.0), 0.0, 1.0)
+	_water_mat.set_shader_parameter("sky_col", sky)
+	_water_mat.set_shader_parameter("light_level", clampf(maxf(sun_lum, ambient), 0.0, 1.0))
+	var w := int(scene.get("_weather_state")) if scene.get("_weather_state") != null else 0
+	# Clear, windy, fog, light rain, rain, storm, the night's own.
+	var wind: float = [0.15, 0.65, 0.05, 0.3, 0.45, 1.0, 0.25][clampi(w, 0, 6)]
+	var rain: float = [0.0, 0.0, 0.0, 0.35, 0.7, 1.0, 0.0][clampi(w, 0, 6)]
+	_water_mat.set_shader_parameter("wind", wind)
+	_water_mat.set_shader_parameter("rain", rain)
 
 
 func _build_jetty(start: Vector3) -> void:

@@ -31,6 +31,9 @@ const HER_LINES := [
 	"Bread comes Tuesdays and Fridays. Same as the van to your gate.",
 	"We shut at five. After five I do not open for anybody.",
 ]
+## The card's print (Grok, assets/textury/closeup/): the yellow card, the duck that runs
+## across its top, the six symbols under the silver, the silver itself.
+const ART := "res://assets/textury/closeup/"
 ## Scratch card: symbols and what three of them pay.
 const SYMBOLS := ["duck", "seven", "bell", "cherry", "clover", "acorn"]
 const PRIZE := {"duck": 50, "seven": 20, "bell": 5, "cherry": 2, "clover": 1, "acorn": 0}
@@ -70,7 +73,7 @@ func open_card() -> void:
 	picture = null
 	open_view()
 	_new_card()
-	say("", "Scratch the six fields. Three alike win.")
+	say("", "Silver over six fields. A coin would be better than a fingernail.")
 
 
 func _hotspots() -> Array:
@@ -253,17 +256,39 @@ func _paint(c: Control) -> void:
 		_paint_card(c)
 
 
+var _art: Dictionary = {}
+
+
+func _a(name: String) -> Texture2D:
+	if not _art.has(name):
+		var path := ART + name + ".png"
+		_art[name] = load(path) if ResourceLoader.exists(path) else null
+	return _art[name]
+
+
 func _paint_card(c: Control) -> void:
 	var f: Font = RETRO_UI.FONT_LABEL
+	c.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0, 0, 0, 0.45))
 	c.draw_rect(Rect2(CARD.position + Vector2(3, 4), CARD.size), Color(0, 0, 0, 0.5))
-	c.draw_rect(CARD, Color(0.98, 0.84, 0.18))
+	var paper := _a("card_paper")
+	if paper != null:
+		c.draw_texture_rect(paper, CARD, true)
+	else:
+		c.draw_rect(CARD, Color(0.98, 0.84, 0.18))
 	c.draw_rect(CARD.grow(-3), Color(0.9, 0.24, 0.16), false, 1.0)
-	ink(c, RETRO_UI.FONT_BIG, CARD.position + Vector2(10, 18), "RYCHLA KACKA", Color(0.7, 0.1, 0.08), Color(0, 0, 0, 0), 10)
-	ink(c, RETRO_UI.FONT_TEXT, CARD.position + Vector2(10, 28), "3 alike win.   $1", Color(0.3, 0.12, 0.05))
+	# The duck running across the top, the name beside it.
+	var duck := _a("card_duck")
+	var tx := 10.0
+	if duck != null:
+		c.draw_texture(duck, CARD.position + Vector2(5, 7))
+		tx = 7.0 + duck.get_width()
+	ink(c, RETRO_UI.FONT_BIG, CARD.position + Vector2(tx, 18), "RYCHLA KACKA", Color(0.7, 0.1, 0.08), Color(0, 0, 0, 0), 10)
+	ink(c, RETRO_UI.FONT_TEXT, CARD.position + Vector2(tx, 28), "3 alike win.   $1", Color(0.3, 0.12, 0.05))
 	c.draw_rect(Rect2(CARD.end.x - 18, CARD.position.y + 2, 16, 12), Color(0.3, 0.12, 0.05))
 	ink(c, f, Vector2(CARD.end.x - 14, CARD.position.y + 11), "X", Color(0.98, 0.84, 0.18))
 	var syms: Array = _card["symbols"]
+	var foil := _a("scratch_foil")
 	for i in 6:
 		var r := _field_rect(i)
 		c.draw_rect(r, Color(0.98, 0.96, 0.9))
@@ -273,32 +298,16 @@ func _paint_card(c: Control) -> void:
 		for y in range(0, int(FIELD.y), 2):
 			for x in range(0, int(FIELD.x), 2):
 				if mask[y * int(FIELD.x) + x] == 0:
-					var shade := 0.66 + 0.08 * float(((x + y) / 2) % 2)
-					c.draw_rect(Rect2(r.position + Vector2(x, y), Vector2(2, 2)), Color(shade, shade, shade + 0.03))
+					var at := Rect2(r.position + Vector2(x, y), Vector2(2, 2))
+					if foil != null:
+						var src := Vector2(fposmod(r.position.x + x, foil.get_width()), fposmod(r.position.y + y, foil.get_height()))
+						c.draw_texture_rect_region(foil, at, Rect2(src, Vector2(2, 2)))
+					else:
+						c.draw_rect(at, Color(0.7, 0.7, 0.72))
 
 
+## The symbol printed in the field (sym_<name>.png), in its middle.
 func _draw_symbol(c: Control, r: Rect2, s: String) -> void:
-	var m := r.get_center()
-	match s:
-		"duck":
-			c.draw_rect(Rect2(m + Vector2(-9, -2), Vector2(14, 8)), Color(0.95, 0.8, 0.1))
-			c.draw_rect(Rect2(m + Vector2(2, -8), Vector2(7, 7)), Color(0.95, 0.8, 0.1))
-			c.draw_rect(Rect2(m + Vector2(9, -5), Vector2(4, 2)), Color(0.95, 0.45, 0.1))
-			c.draw_rect(Rect2(m + Vector2(5, -6), Vector2(1, 1)), Color(0, 0, 0))
-		"seven":
-			ink(c, RETRO_UI.FONT_BIG, m + Vector2(-4, 6), "7", Color(0.8, 0.1, 0.1), Color(0, 0, 0, 0), 20)
-		"bell":
-			c.draw_colored_polygon(PackedVector2Array([m + Vector2(-7, 6), m + Vector2(7, 6), m + Vector2(4, -6), m + Vector2(-4, -6)]), Color(0.9, 0.7, 0.15))
-			c.draw_rect(Rect2(m + Vector2(-1, 6), Vector2(3, 3)), Color(0.6, 0.45, 0.1))
-		"cherry":
-			c.draw_circle(m + Vector2(-4, 4), 4.0, Color(0.8, 0.08, 0.1))
-			c.draw_circle(m + Vector2(5, 3), 4.0, Color(0.8, 0.08, 0.1))
-			c.draw_line(m + Vector2(-4, 0), m + Vector2(2, -8), Color(0.2, 0.5, 0.15), 1.0)
-			c.draw_line(m + Vector2(5, -1), m + Vector2(2, -8), Color(0.2, 0.5, 0.15), 1.0)
-		"clover":
-			for o in [Vector2(-3, -3), Vector2(3, -3), Vector2(0, 2)]:
-				c.draw_circle(m + o, 3.5, Color(0.2, 0.6, 0.2))
-			c.draw_line(m + Vector2(0, 4), m + Vector2(2, 9), Color(0.2, 0.5, 0.15), 1.0)
-		_:
-			c.draw_circle(m + Vector2(0, 2), 5.0, Color(0.55, 0.35, 0.15))
-			c.draw_rect(Rect2(m + Vector2(-6, -5), Vector2(12, 4)), Color(0.4, 0.26, 0.12))
+	var t := _a("sym_" + s)
+	if t != null:
+		c.draw_texture(t, (r.get_center() - t.get_size() * 0.5).floor())

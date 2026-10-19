@@ -4,7 +4,9 @@ extends "res://tools/shot_driver.gd"
 ## hosting a sandbox camp, one joining it on 127.0.0.1. They wait for each other by what
 ## happens (files in the out dir: host_up, client_ready, ...), not by the clock: a camp
 ## takes the joining copy tens of seconds to build here. On the way:
-##   - the joining warden's own look (warden 2, jacket 4) is what the host sees;
+##   - the joining warden's own look (warden 2, jacket 4) and name are what the host sees;
+##   - the joining warden raises the barrier from the road with E and lowers it again:
+##     the host's barrier goes up and down with it;
 ##   - each sees the other in a clearing by day, and by their torch at night;
 ##   - a tent the host builds after the join stands in the other camp too;
 ##   - both go into the old cabin: each sees the other in it; the joining warden's job
@@ -61,7 +63,10 @@ func _ready() -> void:
 			# its camp has it too), where the two can see each other.
 			["money", 9000], ["clear", 11, 12, 5, 5], ["wait", 1.0],
 			["coop_place", 12, 14, 1.0], ["coop_signal", "host_up"],
-			["coop_wait", "partner_seen"], ["coop_wait_file", "client_ready"], ["wait", 1.0],
+			["coop_wait", "partner_seen"],
+			["coop_wait_file", "client_gate"], ["wait", 0.6], ["coop_fingerprint", "host_gate"], ["coop_signal", "host_gate"],
+			["coop_wait_file", "client_gate_down"], ["wait", 0.6], ["coop_fingerprint", "host_gate_down"], ["coop_signal", "host_gate_down"],
+			["coop_wait_file", "client_ready"], ["wait", 1.0],
 			["coop_face_partner"], ["wait", 1.0], ["shot", "h1_sees_other"],
 			["eval", "_open_pause_menu()"], ["wait", 0.6], ["shot", "h1b_pause_with"], ["eval", "_close_pause_menu(true)"], ["wait", 0.4],
 			["coop_fingerprint", "host"],
@@ -69,7 +74,7 @@ func _ready() -> void:
 			["wait", 5.0], ["coop_fingerprint", "host_radio"], ["coop_signal", "host_radio"],
 			["coop_wait_file", "client_radio_off"], ["wait", 1.5], ["coop_fingerprint", "host_radio_off"], ["coop_signal", "host_radio_off_seen"],
 			# Built after the join: the other camp gets it too.
-			["build", "tent_1", 13, 16, 0], ["build", "bonfire", 11, 12, 0], ["build", "sports_field", 14, 12, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
+			["build", "tent_1", 13, 16, 0], ["build", "bonfire", 11, 12, 0], ["build", "sports_field", 14, 12, 0], ["build", "pub", 11, 15, 0], ["build", "corn_stand", 15, 13, 0], ["wait", 2.0], ["coop_fingerprint", "host_built"], ["coop_signal", "host_built"],
 			# By the fire and at the net together (scripts/attractions/warden_play.gd).
 			["coop_att", "fire", 1.0], ["wait", 1.0], ["eval", "_warden_play.try_interact()"], ["wait", 0.5], ["eval", "_warden_play.try_interact()"], ["wait", 1.5],
 			["coop_signal", "host_at_fire"], ["coop_wait_file", "client_at_fire"], ["wait", 1.5], ["shot", "h11_fire_other_roasts"], ["coop_fingerprint", "host_fire"],
@@ -77,12 +82,29 @@ func _ready() -> void:
 			["coop_att", "court", -1.0], ["wait", 0.5], ["coop_signal", "host_at_court"], ["coop_wait_file", "client_at_court"],
 			["coop_play_ball", 10.0], ["shot", "h12_court_other"], ["coop_fingerprint", "host_court"], ["coop_signal", "host_court_done"],
 			["coop_wait_file", "client_court_done"], ["eval", "_warden_play.leave()"], ["wait", 0.5], ["coop_place", 12, 14, 1.0],
+			# Behind the pub's bar at the tap: the other warden sees them there.
+			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('pub'))"], ["wait", 2.0],
+			["eval", "_interior_manager._service_interior._open_counter_game()"], ["wait", 1.0], ["coop_signal", "host_at_tap"],
+			["coop_wait_file", "client_saw_tap"], ["eval", "_interior_manager._service_interior._counter_game.close_view()"], ["wait", 0.5],
+			["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0], ["coop_place", 12, 14, 1.0],
+			# The other warden behind the corn stand, ordering corn: seen there, the order in
+			# the host's books.
+			["coop_wait_file", "client_at_stand"], ["wait", 2.0], ["coop_face_partner"], ["wait", 0.5], ["shot", "h16_other_at_stand"],
+			["coop_fingerprint", "host_corn_stand"], ["coop_signal", "host_saw_stand"],
+			# Two in the sewer's pipes: the same pipes, the other's body in the way.
+			["coop_wait_file", "client_left_stand"],
+			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('sewer'))"], ["wait", 2.0],
+			["eval", "_interior_manager._service_interior._try_request_service_repair()"], ["wait", 2.0], ["eval", "_sewer_pipe_minigame.set('_intro_t', 99.0)"], ["wait", 1.0],
+			["coop_signal", "host_in_pipes"], ["coop_wait_file", "client_in_pipes"], ["wait", 1.0],
+			["eval", "_sewer_pipe_minigame._forward()"], ["wait", 7.0], ["coop_signal", "host_crawled"],
+			["coop_wait_file", "client_bumped"], ["wait", 1.0], ["coop_fingerprint", "host_pipes"],
+			["eval", "_sewer_pipe_minigame.abort()"], ["wait", 1.5], ["coop_place", 12, 14, 1.0],
 			# Into the old cabin together.
 			["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "host_in_room"],
 			["coop_wait_file", "client_in_room"], ["wait", 2.0], ["shot", "h2_room_sees_other"],
 			["coop_wait_file", "client_working"], ["wait", 0.8], ["shot", "h3_other_at_work"], ["coop_fingerprint", "host_sees_work"],
 			["coop_wait_file", "client_task_done"], ["wait", 2.0],
-			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "host_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false], ["wait", 1.0],
+			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "host_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false], ["coop_aim_clear"], ["wait", 1.0],
 			["coop_fingerprint", "host_room"], ["coop_signal", "host_task_done"],
 			["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 1.0],
 			# Into the new tent together.
@@ -98,7 +120,9 @@ func _ready() -> void:
 			["coop_signal", "host_at_pc"], ["coop_wait_file", "client_saw_pc"], ["shot", "h8_at_pc"],
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			# A guest at the host's camp: on the other machine too (the camp pulse).
-			["prep_all"], ["book", "Lads", "drunk", 1, 1, 0], ["hours", 0.05], ["eval", "debug_arrivals()"], ["checkin"], ["hours", 0.3], ["wait", 3.0],
+			["prep_all"], ["book", "Lads", "drunk", 1, 1, 0], ["hours", 0.05], ["eval", "debug_arrivals()"], ["checkin"], ["hours", 0.3],
+			# Two things in the lost and found (the back office is the host's).
+			["eval", "debug_bazaar_fill(2)"], ["wait", 3.0],
 			["coop_fingerprint", "host_guests"], ["coop_signal", "host_guests"],
 			["coop_wait_file", "client_guests_seen"], ["wait", 1.0], ["coop_fingerprint", "host_after_client"],
 			["coop_wait_file", "client_spent"], ["coop_fingerprint", "host_till"],
@@ -157,6 +181,11 @@ func _ready() -> void:
 			["eval", "_main_menu.show_page('coop')"], ["wait", 1.0], ["shot", "c0_coop_page"],
 			["coop_wait_file", "host_up"], ["coop_join", "127.0.0.1"], ["wait_gameplay"], ["wait", 3.0],
 			["coop_fingerprint", "client"],
+			# The barrier from the road with E, up and down again: in the host's camp too.
+			["coop_at_gate"], ["wait", 1.0], ["eval", "_try_interact()"], ["wait", 2.0],
+			["coop_fingerprint", "client_gate"], ["coop_signal", "client_gate"], ["coop_wait_file", "host_gate"],
+			["eval", "_try_interact()"], ["wait", 2.0],
+			["coop_fingerprint", "client_gate_down"], ["coop_signal", "client_gate_down"], ["coop_wait_file", "host_gate_down"],
 			["coop_place", 14, 14, -1.0], ["wait", 1.5],
 			["coop_face_partner"], ["wait", 1.0], ["shot", "c1_sees_host"],
 			["coop_signal", "client_ready"],
@@ -169,9 +198,21 @@ func _ready() -> void:
 			["coop_wait_file", "host_at_court"], ["coop_att", "court", 1.0], ["wait", 0.5], ["coop_signal", "client_at_court"],
 			["coop_play_ball", 8.0], ["shot", "c13_court_host"], ["coop_fingerprint", "client_court"], ["coop_signal", "client_court_done"],
 			["coop_wait_file", "host_court_done"], ["eval", "_warden_play.leave()"], ["wait", 0.5], ["coop_place", 14, 14, -1.0],
+			["coop_wait_file", "host_at_tap"], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('pub'))"], ["wait", 2.5],
+			["shot", "c15_pub_host_at_tap"], ["coop_fingerprint", "client_pub_tap"], ["coop_signal", "client_saw_tap"],
+			["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0], ["coop_place", 14, 14, -1.0],
+			["eval", "_interior_manager._on_corn_stand_interact(debug_structure_of_type('corn_stand'))"], ["wait", 1.5],
+			["coop_corn_order"], ["wait", 1.0], ["shot", "c16_behind_the_stand"], ["coop_signal", "client_at_stand"],
+			["coop_wait_file", "host_saw_stand"], ["eval", "_interior_manager._corn_stand.close_view()"], ["wait", 1.0], ["coop_place", 14, 14, -1.0], ["coop_signal", "client_left_stand"],
+			["coop_wait_file", "host_in_pipes"],
+			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('sewer'))"], ["wait", 2.0],
+			["eval", "_interior_manager._service_interior._try_request_service_repair()"], ["wait", 2.0], ["eval", "_sewer_pipe_minigame.set('_intro_t', 99.0)"], ["wait", 1.0],
+			["coop_signal", "client_in_pipes"], ["coop_wait_file", "host_crawled"], ["wait", 1.0], ["shot", "c17_pipes_host_ahead"],
+			["eval", "_sewer_pipe_minigame._forward()"], ["wait", 1.0], ["coop_fingerprint", "client_pipes"], ["shot", "c17b_bumped"], ["coop_signal", "client_bumped"],
+			["wait", 2.0], ["eval", "_sewer_pipe_minigame.abort()"], ["wait", 1.5], ["coop_place", 14, 14, -1.0],
 			["coop_wait_file", "host_in_room"], ["open_room", ROOM.x, ROOM.y], ["wait", 1.5], ["coop_signal", "client_in_room"],
 			["wait", 2.0], ["shot", "c2_room_sees_host"],
-			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "client_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false],
+			["coop_pick_task", ""], ["wait", 0.6], ["coop_track", 1.4], ["wait", 1.6], ["lmb", true], ["wait", 0.3], ["coop_note_job"], ["coop_signal", "client_working"], ["wait", 3.0], ["coop_job_state"], ["wait", 4.5], ["coop_job_state"], ["lmb", false], ["coop_aim_clear"],
 			["wait", 1.0], ["coop_signal", "client_task_done"],
 			["coop_wait_file", "host_working"], ["wait", 0.5], ["coop_aim_partner_job"], ["wait", 0.6], ["shot", "c3_host_at_work"],
 			["coop_wait_file", "host_task_done"], ["wait", 2.0], ["shot", "c4_room_after_host"], ["coop_fingerprint", "client_room"],
@@ -187,7 +228,7 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior.enter_crt_view()"], ["wait", 2.0],
 			["coop_build_at", "tent_1", 15, 16], ["coop_read_mail"], ["wait", 1.0],
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
-			["coop_wait_file", "host_guests"], ["wait", 3.0], ["coop_fingerprint", "client_guests"], ["coop_signal", "client_guests_seen"],
+			["coop_wait_file", "host_guests"], ["wait", 3.0], ["coop_list_bazaar"], ["wait", 0.5], ["coop_fingerprint", "client_guests"], ["coop_signal", "client_guests_seen"],
 			# Spent here (a pint in Lesna, say): the host's till pays it.
 			["coop_spend", 40], ["wait", 3.0], ["coop_fingerprint", "client_till"], ["coop_signal", "client_spent"],
 			["coop_wait_file", "host_day_event"], ["wait", 2.5], ["coop_fingerprint", "client_day_event"],
@@ -354,6 +395,14 @@ func _run_step(step: Array) -> void:
 			bi6._toggle_radio_power()
 			if Coop.is_client():
 				Coop.send_request("radio", [bool(bi6.get("_radio_power_on"))])
+		"coop_aim_clear":
+			var cab7 = _main.get("_interior_manager").get("_cabin_interior")
+			if cab7 != null and cab7.get("_prep") != null:
+				cab7.get("_prep").tasks.debug_aim = ""
+		"coop_corn_order":
+			# A pack of corn ordered in the stand's books, as their ORDER page does.
+			var ok: bool = CoreRoot.actions.biz_order("15:13", {"cobs": 1}, CoreRoot.get_day() + 1)
+			print("COOP CHECK %s orders corn: %s" % [_role, ok])
 		"coop_track":
 			# Keep the cursor on the job for `step[1]` seconds (the room's camera eases
 			# after the aim, as a player's hand would follow it). A mess lying in front of
@@ -361,6 +410,9 @@ func _run_step(step: Array) -> void:
 			_track_left = float(step[1])
 			var cab3 = _main.get("_interior_manager").get("_cabin_interior")
 			var tasks3 = cab3.get("_prep").tasks if cab3 != null and cab3.get("_prep") != null else null
+			# The hands are on it whatever the shared cursor does (interior_tasks.debug_aim).
+			if tasks3 != null:
+				tasks3.debug_aim = _task_id
 			if tasks3 != null and tasks3._targets.has(_task_id):
 				var front: String = str(tasks3._pick(tasks3._camera.unproject_position(_seen_at(tasks3._targets[_task_id])))[0])
 				if front != "" and front != _task_id and tasks3._targets.has(front) and not bool(tasks3._targets[front].get("done", false)):
@@ -502,6 +554,22 @@ func _run_step(step: Array) -> void:
 				me4.rotation.y = PI
 		"coop_fingerprint":
 			_write_fingerprint(str(step[1]))
+		"coop_at_gate":
+			# On the road by the barrier's post, looking at it (to work it with E).
+			var gate: Node3D = get_tree().get_first_node_in_group("camp_gate")
+			var me6: Node3D = _main.get("_player")
+			if gate != null and me6 != null:
+				var at6 := Vector3(float(gate.get("gap_center_x")) - 1.0, 0.2, float(gate.get("fence_z")) - 1.8)
+				var post := Vector3(float(gate.get("gap_center_x")) - 2.3, 0.0, float(gate.get("fence_z")))
+				me6.global_position = at6
+				me6.rotation.y = atan2(-(post.x - at6.x), -(post.z - at6.z))
+				me6.set("_pitch", -0.15)
+				me6.set("_pitch_target", -0.15)
+		"coop_list_bazaar":
+			# The bazaar page's "put it up" for the first thing in the box.
+			var box: Array = _main.get("_bazaar").in_box()
+			if not box.is_empty():
+				_main.bazaar_list(int(box[0]["id"]))
 		_:
 			super._run_step(step)
 
@@ -646,9 +714,90 @@ func _cabin_taken() -> String:
 
 
 ## The other warden's figure in the room this one is in: its pose, "" when none.
-func _room_figure() -> String:
+## The other warden's figure behind the pub's bar (room z past the counter).
+## How many of the other wardens stand with you in the place in Lesna you are in.
+func _town_mate_count() -> int:
+	var trip = _main.get("_interior_manager").get("_town_trip") if _main != null else null
+	var room = trip.get("_room") if trip != null else null
+	var mates: Dictionary = room.get("_mates") if room != null else {}
+	var n := 0
+	for m in mates.values():
+		if m != null and is_instance_valid(m) and (m as Node3D).visible:
+			n += 1
+	return n
+
+
+## How many of the other wardens are seen on your bus.
+func _bus_mate_count() -> int:
+	var trip = _main.get("_interior_manager").get("_town_trip") if _main != null else null
+	var ride = trip.get("_ride") if trip != null else null
+	var mates: Dictionary = ride.get("_mates") if ride != null else {}
+	var n := 0
+	for m in mates.values():
+		if m != null and is_instance_valid(m) and (m as Node3D).visible:
+			n += 1
+	return n
+
+
+## How many of the other wardens stand (or lie) in your room, seen.
+func _room_fig_count() -> int:
 	var im = _main.get("_interior_manager")
-	var fig = im.get("_coop_fig") if im != null else null
+	var figs: Dictionary = im.get("_coop_figs") if im != null else {}
+	var n := 0
+	for id in figs.keys():
+		var f = figs[id].get("fig")
+		var sl = figs[id].get("sleeper")
+		if (f != null and is_instance_valid(f) and (f as Node3D).visible) or (sl != null and is_instance_valid(sl)):
+			n += 1
+	return n
+
+
+## How many of the other wardens an attraction here has placed (warden_play._mates).
+func _att_mate_count() -> int:
+	var wp = _main.get("_warden_play")
+	var n := 0
+	for e in (wp.get("_mates") as Dictionary).values():
+		if not (e.get("place", {}) as Dictionary).is_empty():
+			n += 1
+	return n
+
+
+## How many of the other wardens are down the pipes with you (drawn, or lying right
+## where you lie).
+func _pipe_mate_count() -> int:
+	var crawl = _main.get("_sewer_pipe_minigame")
+	if crawl == null or not crawl.is_open():
+		return 0
+	var n := 0
+	for spr in (crawl.mate._sprites as Dictionary).values():
+		if spr != null and is_instance_valid(spr):
+			n += 1
+	return n
+
+
+## The first of the other wardens' figures in your room (interior_manager._coop_figs).
+func _first_room_fig():
+	var im = _main.get("_interior_manager")
+	var figs: Dictionary = im.get("_coop_figs") if im != null else {}
+	for id in figs.keys():
+		var f = figs[id].get("fig")
+		if f != null and is_instance_valid(f):
+			return f
+	return null
+
+
+func _fig_behind_bar() -> bool:
+	var im = _main.get("_interior_manager")
+	var fig = _first_room_fig()
+	var si = im.get("_service_interior") if im != null else null
+	var root = si.get("_pub_main_root") if si != null else null
+	if fig == null or not is_instance_valid(fig) or root == null:
+		return false
+	return (root as Node3D).to_local((fig as Node3D).global_position).z < -1.6
+
+
+func _room_figure() -> String:
+	var fig = _first_room_fig()
 	if fig == null or not is_instance_valid(fig) or not (fig as Node3D).visible:
 		return ""
 	return str(fig.get("pose"))
@@ -693,18 +842,49 @@ func _radio_row() -> Dictionary:
 	return {"on": r["on"], "k": r["k"], "id": str(r["id"]), "playing": player != null and player.playing}
 
 
+## Down the sewer's pipes: the network (as a hash), whether the other warden is seen in
+## it, what the status line says, where you are.
+func _pipe_net() -> Dictionary:
+	var crawl = _main.get("_sewer_pipe_minigame")
+	if crawl == null or not crawl.is_open():
+		return {}
+	var rows: Array = []
+	for c in crawl._links:
+		var ds: Array = (crawl._links[c] as Array).duplicate()
+		ds.sort()
+		rows.append("%s:%s" % [c, ds])
+	rows.sort()
+	var seen := false
+	for spr in (crawl.mate._sprites as Dictionary).values():
+		seen = seen or (spr != null and is_instance_valid(spr) and spr.visible)
+	return {"hash": hash(str(rows)), "mate_seen": seen, "status": str(crawl._hud_status.text), "node": str(crawl._node), "level": int(crawl.raccoon_level)}
+
+
 ## The other warden in the place in Lesna you are in (scripts/town/town_room.gd).
 func _town_mate() -> bool:
 	var trip = _main.get("_interior_manager").get("_town_trip") if _main != null else null
 	var room = trip.get("_room") if trip != null else null
-	var mate = room.get("_mate") if room != null else null
-	return mate != null and is_instance_valid(mate) and (mate as Node3D).visible
+	var mates: Dictionary = room.get("_mates") if room != null else {}
+	for m in mates.values():
+		if m != null and is_instance_valid(m) and (m as Node3D).visible:
+			return true
+	return false
 
 
 ## Who has kicked the ball on the court here (warden keys: -11 the host, -12 the other).
 func _court_kicked() -> Array:
 	var att = _main.get("_warden_play").find_att("14,12")
 	return (att.get("_kick_at") as Dictionary).keys() if att != null else []
+
+
+## The back office: the lost and found, Vera's checklist (none in a sandbox), the
+## reviews and the bills.
+func _books() -> Dictionary:
+	var baz = _main.get("_bazaar")
+	var qm = _main.get("_quest_manager")
+	return {"box": baz.in_box().size(), "listed": baz.listed().map(func(i): return str(i["short"])),
+		"quests": bool(qm.get("_active")) if qm != null else false, "rev": (CoreRoot.get_state().guest_reviews as Array).size(),
+		"bills": (_main.get("_billing").bills as Array).size()}
 
 
 func _write_fingerprint(tag: String) -> void:
@@ -760,6 +940,9 @@ func _write_fingerprint(tag: String) -> void:
 		"partner": Coop.has_partner(),
 		"partner_look": [int(Coop.partner_look.get("m", -1)), int(Coop.partner_look.get("c", -1))],
 		"my_look": [int(Coop.my_look()["m"]), int(Coop.my_look()["c"])],
+		"partner_name": Coop.partner_name(),
+		"my_name": str(Coop.my_look().get("n", "")),
+		"gate_up": get_tree().get_first_node_in_group("camp_gate") != null and get_tree().get_first_node_in_group("camp_gate").is_raised(),
 		"other_visible": other != null and other.visible,
 		"other_at": str(other.global_position) if other != null else "",
 		"me_at": str((_main.get("_player") as Node3D).global_position) if _main.get("_player") != null else "",
@@ -767,6 +950,7 @@ func _write_fingerprint(tag: String) -> void:
 		"boat_from_home": _boat_from_home(),
 		"other_pose": str(other.get("pose")) if other != null else "",
 		"room_figure": _room_figure(),
+		"fig_behind_bar": _fig_behind_bar(),
 		"coop_taken": _cabin_taken(),
 		"coop_screen": float(_main.get("_interior_manager").get("_building_interior").get("_coop_screen_left")) > 0.0,
 		"guests": _guest_rows(),
@@ -779,13 +963,25 @@ func _write_fingerprint(tag: String) -> void:
 		"sanity": (_main.get("_coop_night").sanity as Dictionary).duplicate() if _main.get("_coop_night") != null else {},
 		"day_open": (_main.get("_day_events").open_events() as Array).map(func(e): return str(e["kind"])) if _main.get("_day_events") != null else [],
 		"corn_led_by_other": Coop.is_host() and _main.get("_corn_hunt") != null and is_instance_valid(_main.get("_corn_hunt")) and _main.get("_corn_hunt").leader != null and _main.get("_corn_hunt").leader == _main.get("_coop_night").proxy(),
-		"till_acked": int(_main.get("_coop_till_acked")),
+		"till_acked": int((_main.get("_coop_till_acked") as Dictionary).values().max()) if not (_main.get("_coop_till_acked") as Dictionary).is_empty() else 0,
 		"camp": _camp_rows(),
 		"bus_state": _bus_state(),
 		"att_me": _main.get("_warden_play").coop_state(),
 		"att_mate": str(_main.get("_warden_play").mate_place().get("pose", "")),
 		"court_kicked": _court_kicked(),
 		"town_mate": _town_mate(),
+		"pipe_net": _pipe_net(),
+		"books": _books(),
+		"wardens": Coop.others().map(func(id): return [int(Coop.look_of(id)["m"]), int(Coop.look_of(id)["c"]), Coop.name_of(id), Coop.figure_of(id) != null and Coop.figure_of(id).visible]),
+		"night_passing": _main.get("camp_office") != null and bool(_main.get("camp_office").is_fast_forwarding()),
+		"my_slot": Coop.my_slot,
+		"room_figs": _room_fig_count(),
+		"att_mates": _att_mate_count(),
+		"pipe_mates": _pipe_mate_count(),
+		"town_mates": _town_mate_count(),
+		"enemy_seen": _main.get("_coop_night").mirror_count() if Coop.is_client() and _main.get("_coop_night") != null else (1 if _enemy_shown_here() else 0),
+		"bus_mates": _bus_mate_count(),
+		"corn_orders": (CoreRoot.get_state().biz.get("orders", []) as Array).filter(func(o): return str(o.get("key", "")) == "15:13").size(),
 		"radio": _radio_row(),
 		"down": bool(_main.get("_coop_down")),
 		"hp": int(_main.get("_player_health")),

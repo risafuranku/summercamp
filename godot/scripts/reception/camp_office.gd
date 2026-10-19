@@ -17,6 +17,7 @@ const WAKE_HOUR := 6.5
 ## Hours of game time passed per real second while you sleep.
 const SLEEP_RATE := 9.0
 
+## The shed key is off the noticeboard (in a bag, scripts/ui/inventory.gd, or on the ground).
 var has_shed_key := false
 ## Times you have been down the sewer (scripts/pipes/pipe_director.gd: what you meet).
 var pipe_visits := 0
@@ -74,6 +75,13 @@ func _hour() -> float:
 	return float(_main.get("_time_of_day_hours")) if _main != null else 12.0
 
 
+## From the evening on a bed is for lying down in; by day it is only furniture (a lodging's
+## bed took the click meant for the tent's upgrade catalog).
+func bedtime() -> bool:
+	var h := _hour()
+	return h >= 18.0 or h < WAKE_HOUR - 0.25
+
+
 ## "" when you may sleep, otherwise what goes through your head instead.
 func sleep_refusal() -> String:
 	var h := _hour()
@@ -98,7 +106,7 @@ func in_bed() -> bool:
 	return _in_bed
 
 
-## Your eyes may close: alone, at once; in co-op once the other warden is in bed too.
+## Your eyes may close: alone, at once; in co-op once every other warden is in bed too.
 func may_sleep() -> bool:
 	return not Coop.has_partner() or _partner_in_bed()
 
@@ -106,8 +114,8 @@ func may_sleep() -> bool:
 func start_sleep() -> void:
 	if not _in_bed:
 		lie_down()
-	# Co-op: the host's machine passes the night once both are in bed (_coop_bed); the
-	# other machine waits for the host's clock to do it.
+	# Co-op: the host's machine passes the night once all are in bed (_coop_bed); the
+	# other machines wait for the host's clock to do it.
 	if Coop.has_partner():
 		return
 	_pass_night()
@@ -131,12 +139,16 @@ func is_sleeping_through() -> bool:
 	return _sleep_left > 0.0 or not _night_started
 
 
+## Every other warden lying down (wherever their bed is).
 func _partner_in_bed() -> bool:
-	return bool(Coop.partner_state.get("z", false))
+	for id in Coop.others():
+		if not bool(Coop.state_of(id).get("z", false)):
+			return false
+	return true
 
 
-## Co-op, each frame: the host starts the night once both lie down and stops it if
-## either gets up; the other machine follows the host's clock to the morning.
+## Co-op, each frame: the host starts the night once all lie down and stops it if any
+## of them gets up; the other machines follow the host's clock to the morning.
 func _coop_bed() -> void:
 	if not _in_bed or not Coop.has_partner():
 		return
@@ -167,7 +179,7 @@ func _sleeping_eyes() -> bool:
 	return true
 
 
-## Co-op: up again before the night was through (a key in the dark): it stops for both.
+## Co-op: up again before the night was through (a key in the dark): it stops for all.
 func get_up() -> void:
 	if not Coop.has_partner():
 		return
@@ -239,10 +251,23 @@ func on_phone_effect(effect: String, _number: String) -> void:
 
 # ── the shed key ─────────────────────────────────────────────────────────────
 
+## Whether the key is off the board (a method: reception_extras reaches the office only
+## through calls, and reading the variable that way always said "on the board").
+func shed_key_out() -> bool:
+	return has_shed_key
+
+
 func take_shed_key() -> void:
 	if Coop.is_client():
 		Coop.send_request("shed_key", [])
 	has_shed_key = true
+
+
+## Hung back on the board (out of a bag: scripts/ui/inventory.gd).
+func return_shed_key() -> void:
+	if Coop.is_client():
+		Coop.send_inv("key_back", [])
+	has_shed_key = false
 
 
 func export_state() -> Dictionary:

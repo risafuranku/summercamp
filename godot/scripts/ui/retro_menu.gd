@@ -109,6 +109,10 @@ class MenuList:
 	const FPS := 16.0
 	var _tick: float = 0.0
 	var _pulse_step := 0
+	## A picture for the cursor instead of the chevron (the main menu's lantern): it turns
+	## on the spot in steps, its light flickering.
+	var cursor_texture: Texture2D
+	var _turn := 0
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -307,6 +311,7 @@ class MenuList:
 		_cursor_y = move_toward(_cursor_y, target, step)
 		_cursor.position = Vector2(0.0, floorf(_cursor_y / s) * s)
 		_cursor.queue_redraw()
+		_turn += 1
 		# The chosen entry's shade: up and down a ramp of six, a step a tick.
 		_pulse_step = (_pulse_step + 1) % 10
 		if selected < _titles.size() and _enabled(selected):
@@ -315,6 +320,9 @@ class MenuList:
 
 	func _draw_cursor() -> void:
 		var s := float(ui_scale)
+		if cursor_texture != null:
+			_draw_turning_cursor(s)
+			return
 		var big_px := float(RETRO_UI.font_pixel(RETRO_UI.FONT_BIG, size_vp)) * s
 		var mid := big_px + 5.0 * big_px
 		var nudge := s if fmod(floorf(_cursor_t * FPS) / FPS, 0.75) < 0.375 else 0.0
@@ -330,6 +338,24 @@ class MenuList:
 		for c in cells:
 			var col := RETRO_UI.C_AMBER_LIGHT if c.y < 0.0 else RETRO_UI.C_AMBER
 			_cursor.draw_rect(Rect2(origin + c * s, Vector2(s, s)), col)
+
+
+	## The cursor's picture turning round on its handle (Duke's spinning menu cursor):
+	## narrower, edge on, the other way round, twelve steps a turn, the flame flickering.
+	func _draw_turning_cursor(s: float) -> void:
+		var big_px := float(RETRO_UI.font_pixel(RETRO_UI.FONT_BIG, size_vp)) * s
+		var row_h := float(row_height_vp) * s
+		var h := floorf(minf(row_h * 0.86, big_px * 13.0) / s) * s
+		var tex_size := cursor_texture.get_size()
+		var w := floorf(h * tex_size.x / tex_size.y / s) * s
+		var k := cos(float(_turn % 12) / 12.0 * TAU)
+		var sx := maxf(0.18, absf(k))
+		var cx := float(indent_vp) * s * 0.5
+		var cy := floorf((big_px * 6.0) / s) * s
+		var flick: float = [1.0, 0.86, 1.08, 0.94, 1.0, 0.8, 1.04][_turn % 7]
+		_cursor.draw_set_transform(Vector2(cx, cy), 0.0, Vector2(sx * (1.0 if k >= 0.0 else -1.0), 1.0))
+		_cursor.draw_texture_rect(cursor_texture, Rect2(Vector2(-w * 0.5, -h * 0.5), Vector2(w, h)), false, Color(flick, flick, flick * 0.92))
+		_cursor.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## CONFIGURATION page: Duke-style option rows, LEFT/RIGHT (or click / right-click)

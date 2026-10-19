@@ -82,8 +82,11 @@ func _process(_delta: float) -> void:
 		if it != null:
 			_attach(it, kind)
 	if _it != null and _body != null:
-		# Only a made bed is for sleeping in (an unmade one is a job, room prep's click).
-		_body.get_child(0).disabled = not _bed_made()
+		# Only a made bed is for sleeping in (an unmade one is a job, room prep's click),
+		# and only from the evening: by day it is not in the way of anything else.
+		var live := _bed_made() and bool(_office_call("bedtime", [], true))
+		_body.get_child(0).disabled = not live
+		_body.collision_layer = 1 if live else 0
 
 
 func _attach(it: Node, kind: String) -> void:
@@ -135,7 +138,14 @@ func _input(event: InputEvent) -> void:
 	var prep = _it.get("_prep")
 	if prep != null and (prep.is_busy() or prep.is_scrubbing()):
 		return
-	if not _hits_bed((event as InputEventMouseButton).position):
+	var mouse := (event as InputEventMouseButton).position
+	# The room's upgrade catalog wins where the two overlap on screen.
+	if _it.has_method("_catalog_screen_rect"):
+		var screen := get_viewport().get_visible_rect().size
+		var cat: Rect2 = _it.call("_catalog_screen_rect")
+		if screen.x > 0.0 and cat.has_point(mouse / screen):
+			return
+	if not _hits_bed(mouse):
 		return
 	get_viewport().set_input_as_handled()
 	_try_sleep()
@@ -162,9 +172,10 @@ func _refusal() -> String:
 	var room := _room()
 	if bool((room["state"] as Dictionary).get("occupied", false)):
 		return "Guests are staying here. Not this bed."
-	if Coop.has_partner() and bool(Coop.partner_state.get("z", false)) \
-			and str((Coop.partner_state.get("room", {}) as Dictionary).get("k", "")) == str(room["key"]):
-		return "%s is asleep in it." % Coop.partner_name()
+	for id in Coop.others():
+		var st: Dictionary = Coop.state_of(id)
+		if bool(st.get("z", false)) and str((st.get("room", {}) as Dictionary).get("k", "")) == str(room["key"]):
+			return "%s is asleep in it." % Coop.name_of(id)
 	return ""
 
 

@@ -384,8 +384,9 @@ func _bonfire(r: Node3D, _w: float, _d: float) -> Dictionary:
 	fire.name = "Campfire"
 	fire.set_script(load("res://scripts/attractions/campfire.gd"))
 	r.add_child(fire)
-	# Three log benches: a half log, flat side up, on two stumps; two seats each.
-	var top := _camp_or("knotty_pine.png", Color(0.86, 0.76, 0.62), "wood", Vector3(2.0, 0.5, 1.0))
+	# Three log benches: a half log, flat side up, on two stumps; two seats each. The flat
+	# face is weathered grey-brown (pale pine burnt out to a flat red by the fire's light).
+	var top := _camp_or("knotty_pine.png", Color(0.56, 0.5, 0.44), "wood", Vector3(2.0, 0.5, 1.0))
 	for i in 3:
 		var a := TAU * float(i) / 3.0 + 0.55
 		var bench := Node3D.new()

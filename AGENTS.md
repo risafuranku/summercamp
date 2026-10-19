@@ -46,9 +46,10 @@ godot/
   data/pools/                 # email + guest content
   scripts/
     main.gd                   # orchestration (~3k lines; still the biggest file)
-    os98/                     # the camp computer "Okna 98" at 640x480: os_shell (desktop,
-                              # windows, taskbar, boot), os_theme, os_window, os_files
-                              # (the disk), web_pages (the 1998 web), apps/<app>_app.gd
+    os98/                     # the camp computer "Okna 98" at 640x480: os_shell (the panel:
+                              # tabs, pages, taskbar, boot, installs), os_page, os_theme,
+                              # os_window (dialogs), os_files (the disk), web_pages (the
+                              # 1998 web), apps/<app>_app.gd, apps/job_*, apps/game_*
     ui/                       # retro_ui (kit), retro_menu (menu parts), main_menu,
                               # pause_menu, game_over_screen, boot_screen
     enemies/                  # i_enemy_brain, enemy_base, silent_man, tourist, girl, stalker
@@ -97,6 +98,7 @@ godot --headless --path godot --script res://tools/checkin_check.gd
 godot --headless --path godot --script res://tools/season_check.gd
 godot --headless --path godot --script res://tools/director_check.gd
 godot --headless --path godot --script res://tools/bazaar_check.gd
+godot --headless --path godot --script res://tools/goggle_check.gd
 python godot/tools/coop_check.py [OUT_DIR]   # co-op: two windowed copies (host + client on 127.0.0.1), camps compared; looks, a build, a room's jobs both ways, the boat
 ```
 
@@ -134,19 +136,21 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Which enemy an archetype brings | `main.ENEMY_FOR_ARCHETYPE` + `scripts/enemies/` |
 | HUD | `scripts/hud_manager.gd` (+ `scripts/ui/retro_ui.gd` kit) |
 | Menus / pause / game over | `scripts/ui/` |
-| Camera moves in rooms; things that move in steps | the camera moves in rooms (sitting down, getting up, looking back, the window, the bus seat) are smooth: `scripts/ui/cam_move.gd` `CAM_MOVE.move(host, camera, {"position": p, "rotation": r}, seconds)`; it holds the tween for a steady frame (`CAM_MOVE.hold(host, tween)` for any tween started while a room is built); the fire, the torch hand, the gate and such machinery step twelve a second through `scripts/ui/step12.gd`; the door transition into and out of buildings `scripts/ui/door_transition.gd` (frozen frame, smooth dither dissolve), called from `interior_manager._door_transition()` |
+| Camera moves in rooms; things that move in steps | the camera moves in rooms (sitting down, getting up, looking back, the window, the bus seat) are smooth: `scripts/ui/cam_move.gd` `CAM_MOVE.move(host, camera, {"position": p, "rotation": r}, seconds)`; it holds the tween for a steady frame (`CAM_MOVE.hold(host, tween)` for any tween started while a room is built); the fire, the torch hand, the gate and such machinery step twelve a second through `scripts/ui/step12.gd`; the door transition into buildings `scripts/ui/door_transition.gd` (frozen frame, smooth dither dissolve), called from `interior_manager._door_transition()`; out of them no dissolve: `interior_manager._step_out_of(structure)` puts the warden at the building's door (`door_anim.entry_points`) facing out and walks him off the doorstep (`_walk_body`) |
+| Story or sandbox, the sandbox's switches | NEW CAMP page in `scripts/ui/main_menu.gd` (`_set_nc_mode`, `NC_RULE_TEXT`); in game `main.CAMP_RULES` / `camp_rule(id)` ("threats", "weather", "events", "wear", "money"), saved as the snapshot's "rules"; a new system that the sandbox should be able to switch off checks `camp_rule` |
 | The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The check-in desk's key board (Dymo labels, the label maker), the room across the counter by hour/weather and its night scares | `scripts/reception/checkin_desk.gd` (`_slots`, `_pick_view`, `_roll_scare`); art `tools/artgen/desk_art.py views` |
-| Out of the camp: barrier, road, bus stop, timetable | `camp_gate.gd open_for_player`, `scripts/town/road_south.gd` (built by world gen), `bus_timetable.gd` (the one schedule), `timetable_closeup.gd` |
+| Out of the camp: barrier, road, bus stop, timetable | `camp_gate.gd open_for_player / close_for_player`, `scripts/town/road_south.gd` (built by world gen), `bus_timetable.gd` (the one schedule), `timetable_closeup.gd` |
 | The 380 bus (outside, inside, the ride, the ticket machine) | `scripts/town/bus_model.gd`, `bus_ride.gd`, `ride_scenery.gd`, `ticket_closeup.gd`; buses run by the clock in `town_trip.gd` (`_plan`, `_run_special`, `_run_works`); the Karosa's sounds `assets/sfx/bus/karosa_*` (rows in `tools/audiogen/prompts.tsv`; `bus_ride._sfx` falls back to the old ride.mp3 when one is missing) |
 | Lesna (village, people, shop, pub, motel, the pump job, pockets) | `scripts/town/town_lesna.gd`, `town_people.gd`, `shop_closeup.gd`, `pub_closeup.gd`, `pump_job.gd` + `pump_closeup.gd`, `pockets.gd`; all routed by `town_trip.gd` (InteriorManager module `trip`); art `tools/artgen/town_art.py` |
 | Lesna's houses, fronts and lettering | `town_lesna.gd` `_houses()` (the street list), `_gable_house` / `_hip_house` / `_eaves_house` / `_flat_house` build a house to fit its Grok elevation (`lib_*` rows in prompts.tsv) as measured by `tools/artgen/town_facades.py` (`lib_facades.json`: walls, eave; `<id>_win.png` lit windows, `<id>_side.png` side walls; window rectangles are measured by hand on the raw render); lettering `tools/artgen/lettering.py` (`sign_<name>.png`, put on a wall with `_letters`); the green `_green()`, fields `_fields()`; look at it with `res://tools/lesna_tour.tscn -- --out=<dir>` |
 | The transmitter masts, road posts | `scripts/town/liblice_masts.gd` (made by `town_trip._update_masts`, haze from the outdoor fog), `scripts/town/road_post.gd` (`place(parent, pos, to_road)`, `set_night`) |
 | Podlesi (the hamlet on the way, its request stop, Vondra's Skoda) | `scripts/town/hamlet_trip.gd` (state and save, its bus by `bus_timetable.hamlet_to_town/_camp`, the "ham_*" clicks, Vondra), the place `hamlet_podlesi.gd` (extends `town_lesna.gd` for the house kit: do not change the parent's method signatures), the repair close-up `car_closeup.gd`; in the ride: `ride_scenery.ROUTE` pieces "ruin", "hamlet", "pond", `stop_along("hamlet", towards_town)`, `bus_ride._press_stop` (STOP buttons, STOJIME), `arrived_where`; boarding there: stops "hamlet_town" / "hamlet_camp" (`town_trip._board`, fares in `ticket_closeup.FARES`) |
 | Testing the town and the bus | the title screen's secret page (L) "Bus to Lesna" (`main._start_test_bus`: a fresh camp, the camp stop as the 13:50 comes); played through for screenshots by `res://tools/bus_tour.tscn -- --out=<dir>`; Lesna alone `res://tools/lesna_tour.tscn` |
-| The camp computer (desktop, boot, windows) | `scripts/os98/os_shell.gd`, look: `os_theme.gd` |
-| Its programs (CampMail, Beeternet, CampStat, GuestRack, Setup…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` + `crt_map_panel.gd` |
+| The camp computer (the panel: tabs and their keys, badges, boot, covers, one-click installs) | `scripts/os98/os_shell.gd` (`TABS`, `PROGRAMS`, `HOST`), a program's place `os_page.gd`, look: `os_theme.gd` |
+| Its programs (CampMail, Beeternet, CampStat, GuestRack, Files, Shops…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` (toolbar, keys, the building card) + `crt_map_panel.gd` (overlays `set_overlay`, `structure_at`, `building_clicked`); upgrades from the map `interior_manager.map_upgrade`, the crew to one building `main.request_maintenance_crew_at` |
+| Jobs and Games (the program folders) | `scripts/os98/apps/program_shelf.gd` (Web View folder pane) with `jobs_app.gd` (`datapunch_app`, `job_adclick`, `job_census`; pay through `shell.earn`, day limits `shell.job_done`) and `games_app.gd` (`mines_app`, `game_mosquito`, `game_hike`, `game_pexeso`; tables `shell.scores`, seeds `SCORE_SEEDS`, drawn by `score_board.gd`); icons `tools/artgen/panel_icons.py` |
 | Web pages, the files on its disk | `scripts/os98/web_pages.gd`, `scripts/os98/os_files.gd` |
 | Electricity | `scripts/electricity_billing.gd` |
 | Save format helpers | `scripts/save_codec.gd`; snapshot build/apply in `main.gd` |
@@ -154,7 +158,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Bookings, arrivals, the barrier, room states | `scripts/guest_manager.gd`, rules `core/systems/room_rules.gd` |
 | The gatehouse, barrier, road | `scripts/camp_gate.gd` (built by world_generator) |
 | Room tasks in interiors (hover, hold, checklist) | `scripts/interior_tasks.gd` + `scripts/interior_prep.gd`; what the mess is: `core/systems/mess_rules.gd`; toilet/shower blocks: `service_interior.gd` `set_upkeep_target` |
-| Generated sound effects | `tools/audiogen/` (ElevenLabs; key in the gitignored `.env`) |
+| Generated sound effects | `tools/audiogen/` (ElevenLabs; key in the gitignored `.env`); then `python tools/audiogen/normalize.py 'assets/sfx/<dir>/*.mp3'` to bring them to -23 LUFS (each comes back as loud as it likes: one clipping, the next inaudible), and set the loudness in the code |
 | Night jobs, the distribution board | `scripts/night_jobs.gd`, `scripts/breaker_panel.gd` |
 | Day events, camp life sounds | `scripts/day_events.gd` (sounds in `assets/sfx/life/`) |
 | Head turning inside interiors | `scripts/interior_look.gd` (limits set per interior script) |
@@ -162,7 +166,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Story mails (Vera, Nela, the odd ones) | `data/pools/emails/story/week01_story.json` |
 | The radio (playlist, outdoor source, the station) | `scripts/building_interior.gd`, synth: `tools/gen_sfx.py`; songs in `assets/sfx/radio/` (8 kHz 32 kbps, a `night` prefix = night only; originals `ost/<name>_hq.mp3`) |
 | The radio going wrong with the night (layers, song bus, broadcasts) | `scripts/radio/radio_dread.gd`; sounds `tools/audiogen/radio_lines.tsv` → `radio_fetch.py` → `tools/gen_radio_dread.py` → `assets/sfx/radio_dread/`; listen: `tools/radio_dread_demo.gd` with `--write-movie` |
-| The office: phone, noticeboard, back room, sleep | `scripts/reception/` (reception_extras, back_room, sleep_sequence, camp_office, electrician_visit) |
+| The office: phone, noticeboard, back room, sleep | `scripts/reception/` (reception_extras, back_room, sleep_sequence, camp_office, electrician_visit); the back room's door by hand `reception_extras._swing_back_door`, shut over the night in `_try_sleep`'s `fast_forward`; when beds take a click `camp_office.bedtime()` |
 | 2D close-ups (phone, noticeboard, logbook) | `scripts/closeup/closeup_view.gd` + subclasses; who answers the phone: `phone_book.gd`; voices `tools/audiogen/tts.py` + `voices.tsv` (needs a key with text_to_speech) |
 | The cursor and the hover glint | `scripts/ui/hand_cursor.gd` (`HandCursor.want(kind)` per frame), `scripts/ui/hover_glint.gd` |
 | The thing in the pipes, its staging | `scripts/pipes/pipe_director.gd` (the minigame keeps the network, movement, map, clamp) |
@@ -180,6 +184,8 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Guests in the pub, bistro, Jednota; counter minigames | `scripts/food/service_life.gd` (seats from `service_interior._start_life`); `tap_closeup.gd`, `hatch_closeup.gd`, `till_closeup.gd` (closeup_view subclasses), shared `orders.gd`; opened by the `CounterGameSpot` bodies in `service_interior._build_counter_game` |
 | Doors opening for guests | `scripts/attractions/door_anim.gd` (finds Door/DoorLeaf boxes, hinges them) |
 | The torch | outdoors `player_controller._aim_beam` + `scripts/ui/torch_hand.gd`; in rooms `scripts/ui/interior_torch.gd` (each interior's `room_is_dark()`) |
+| Your hands (who holds what, their pixel size, their light, how they sway) | `scripts/ui/hands.gd` (`Hands.of(node)`: `claim/release(hand, who)`, `torch_hand()`, `light`, `motion`, `px(h)`); the coarse hand sprites `assets/textury/hands_lo/` (`tools/artgen/hands_lo.py` halves the old ones, new ones are processed straight to it) |
+| The cigarette and the bottle | `scripts/town/pockets.gd` (keys C / B / X, drawing, drunk), the states `scripts/habits/cigarette.gd` and `bottle.gd` (pure), the world and co-op `scripts/habits/habit_world.gd` (`Coop.send_habit`, the warden state's `hb`); sprites `assets/textury/habits/` (Grok sheets cut by `tools/artgen/split_sheet.py`), sounds `assets/sfx/habits/` (`hb_*` rows in `tools/audiogen/prompts.tsv`); shots `tools/habits_shots.tscn` |
 | Lodging numbers and their signs | `GuestManager._number_lodgings / room_short / room_number`; signs `scripts/lodging_signs.gd` (meta `number_plate` from the models) |
 | The caravan | `data/buildings/caravan_1..3.tres`, model `building_models.caravan(level)`, room `scripts/caravan_interior.gd` (module "caravan" in `interior_manager.gd`) |
 
@@ -195,15 +201,25 @@ tracks the body and its sounds; it drives the insects and the HUD face), then ma
 it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 `scripts/os98/apps/campstat_app.gd` `NIGHT_PROCEDURES` (and the ghost webring in `web_pages.gd`). Test with `debug_spawn_enemy(id)` and the `night` scenario, and give it a row in
 `main_menu.TEST_NIGHTS` (the title screen's secret TEST NIGHTS page, key L: a fresh camp at 20:00 with it already out).
+The page's last row, Sewer, is no enemy: a sewer hatch by the test camp's toilets breaks
+again 2 s after every mend, for the pipes minigame (`main._tick_test_sewer`).
+
+A breakdown the night makes (`night_jobs._start`, the sewer test) is marked `night` in
+`state.failures`: anything else that is not a lamp or the derelict cabin is old wear, and
+`maintenance_controller._clear_old_wear` mends it on its next sync (until 18. 10. it mended
+every night's sewer, toilets and frozen pipes the moment they broke).
 
 ---
 
 ## 5. Gotchas
 
 - **Esc is always the pause menu** (main `_unhandled_input`), in rooms, at the PC, in
-  close-ups and jobs: nothing else may consume it. Leaving is S, the bottom band or a
-  right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
-  room or job the way its own exit would. Always-processing modals return early from
+ close-ups and jobs: nothing else may consume it. Its CanvasLayer is 150, above every
+ full-screen overlay (the check-in desk is 140); a new overlay stays below it. Leaving is S, the bottom band or a
+ right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
+ room or job the way its own exit would. Back to the title screen closes them too, silently
+ (`main._leave_everything(true)` in `_enter_main_menu`): a room left open went on taking
+ clicks behind the menu. Always-processing modals return early from
   `_input` while the tree is paused.
 - **Interiors live under InteriorManager (the full-res root view), not in World3D**: the
   world is drawn small and scaled up by the render style, and 2D inside it scaled with it
@@ -216,13 +232,24 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   logical size is window / k so the canvas scale is a whole number and the window is
   filled. The engine's own integer mode letterboxes; do not switch to it.
 - **Pixel fonts are bitmaps with integer-only scaling**: request `size_vp` = 8 (labels,
-  text) or 10 (Jersey) or multiples; other sizes snap down.
+ text) or 10 (Jersey) or multiples; other sizes snap down.
+- **2D is nearest everywhere**: the project's canvas default filter is Nearest, and
+ `GameSettings` sets every SubViewport's `canvas_item_default_texture_filter` to nearest
+ as it enters the tree (a SubViewport's own default is linear: centred text landed on
+ half pixels and came out smeared, playtest 18. 10.). Nothing in the game wants linear.
 - **Inner classes can't call the outer script's static funcs** (they can read its consts).
-- **CRT windows open after a delay**; the reveal is per window and waits for the desktop.
-- **`_window_layer` in the CRT shell uses `MOUSE_FILTER_STOP`**: keep it hidden with no
-  windows open.
-- **Desktop icon release is handled in `_input()`**, not `gui_input` (unreliable after
-  `move_to_front()`).
+- **The camp computer is a panel, not a desktop** (playtest 19. 10.): one program on the
+  screen at a time, all kept running; tabs by keys 1-9 (read by `physical_keycode`, a
+  Czech keyboard types +ěšč on that row). A program's own keys must not use the digits,
+  S (stands you up) or D (leans you out): Builder pans with the arrows, its tools are B/P/L,
+  its catalogues F1-F5, O the overlay. A method called `hidden()` clashes with
+  CanvasItem's signal: the panel calls `page_hidden()` / `shown()`.
+- **The OS's own words are a real 1998 system's**: it never addresses the player, jokes
+  about the story or knows Vera ("do not tell Vera" was rejected). The lore goes in the
+  data: file dates and contents, the games' high-score names, the mails, the web, the
+  programs' publishers' texts.
+- **Message boxes are modal**: a catcher under them rings and flashes the dialog on a click
+  elsewhere; while one is up the tab keys do nothing (`has_dialog()`).
 - **Sky/weather profiles derive from a fresh time baseline** each frame; weather changes
   crossfade over 40 s (`weather_visuals`), don't snap the environment directly.
 - **Footstep pitch modulation must stay subtle** (whoosh artifact otherwise).
@@ -241,8 +268,9 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   it straight) and sends the whole line when the button is let go (`_end_path_drag`);
   the confirmations of that batch (`_path_batch`) give one sound and one price, a co-op
   client's arriving later.
-- **The OS boot takes ~13 s** (warm-up, BIOS, maker's screen, Okna): harness waits must be
-  longer than that, and a test that skips itself when an app does not open must fail.
+- **The OS boot takes ~7 s** (warm-up, BIOS, maker's screen, Okna; a key or click hurries
+  each): harness waits must be longer than that, and a test that skips itself when an app
+  does not open must fail.
 - **The first scene is the studio splash** (`scenes/studio_splash.tscn`), not main.tscn:
   it loads main.tscn on a thread and changes to it (headless runs skip it at once). The
   engine boot image `assets/boot/undo_labs_boot.png` is its first frame: re-bake it
@@ -254,7 +282,9 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   Anything that starts in the frame a room is built (or a still is read back from the
   GPU) must wait for a steady frame (`CAM_MOVE.hold`), or its first part goes in one
   jump. A new kind of room must call `interior_manager._door_transition(true)` before it
-  opens and `(false)` when it has closed.
+ opens and, when it has closed, `_step_out_of(its structure)` (no dissolve on the way
+ out, playtest 18. 10.); a close that goes straight on into something else (the repair
+ under a service room) sets `_no_step_out` around it.
 - **Physics ignores visibility**: hidden rooms' bodies still catch rays. Disable a hotspot's
   `collision_layer` when its thing is absent (the empty counter spot stood before the door).
 - **Load textures outside draw callbacks**: a texture first `load()`ed inside a `_draw`
@@ -268,7 +298,7 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 - **The reception's front door is a second portal**: the doorway (`_setup_door_view`) is
  drawn by a camera that copies the room camera mapped into the camp, at the room
  viewport's size (the quad samples `SCREEN_UV`), so it stays sharp right up to the
- dissolve; the camp building's DoorLeaf is on GLASS_LAYER, which portal cameras cull.
+ cut into the camp; the camp building's DoorLeaf is on GLASS_LAYER, which portal cameras cull.
  Walking out sets `walked_out` and the player is put where the room's eye was
  (`walk_out_handoff`), collisions off for the last step.
 - **The reception window is a portal**, not a picture: `building_interior._update_window_portal`
@@ -288,6 +318,21 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
 - **Seated guest sprites** (`*_sit`, `*_drink`, `*_eat`): the node goes on the floor just in
   front of the seat, the seat line is 0.45 m up the sprite; for a bar stool put the node at
   stool top - 0.45, in front of the stool, or its seat cuts the legs.
+- **Co-op is for up to four** (`Coop.MAX_WARDENS`; 19. 10.): the other wardens are
+  `Coop.others()` (peer ids, the host is 1), each with `state_of` / `look_of` / `name_of` /
+  `figure_of`; in a handler of something that came in (`coop_request`, `coop_play`,
+  `coop_sync`, `coop_inv`, `coop_habit`) `Coop.sender` is who sent it. Who is in the camp
+  is the host's roster (`Coop._roster`): a joining machine takes the other joining ones
+  from it, not from the relay's peer_connected (a fifth, told the camp is full, never
+  shows up there; a hello before the roster is kept, `_early_looks`). Everything goes to
+  everyone (the host relays: SceneMultiplayer's server relay); something meant for one
+  warden carries their id and the others drop it (the lift, a pipe knock, a light for a
+  cigarette, an item picked up). `partner_*` / `remote_figure()` / `partner_name()` are the
+  first of the others only, left for what has no need to count. A thing for "the other
+  warden" in a room, on the bus, at an attraction, in a Lesna place, in the pipes, on the
+  map is one figure per id (look how `interior_manager._coop_figs` does it). The night
+  calls a warden "host" or "p<peer>" (`coop_night.who_of`); each has a stand-in, a
+  sanity and their own private enemies. `tools/coop4_check.py` runs four copies.
 - **Co-op: the joining machine simulates nothing** (`Coop.sim_here()` false): no clock,
   weather, billing, nights, arrivals or saves of its own; main gates them in `_process`
   and the handlers. A new system that changes the camp must check `Coop.sim_here()`.
@@ -315,7 +360,10 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   `maintenance_controller.gd`); on that machine GuestManager and the mail simulate
   nothing (`Coop.sim_here()`), and its builder authority is unhooked from
   `RequestBuild`/`RequestDemolish` (`main._coop_forward_builds`): replay facts by calling
-  the authority directly, never by emitting the request.
+  the authority directly, never by emitting the request. That machine's E and click go
+  through `main._coop_client_interact`, whose `_coop_client_room_target` lets through only
+  the kinds it names: a new kind of thing to click must be added there (the barrier, the
+  bus and Lesna were missing until 18. 10.).
 - **Co-op nights** (`coop_night.gd`): an enemy brain hunts whatever `_player` it holds:
   the host swaps in the other warden's stand-in (`coop_proxy.gd`: a body, Head/Camera3D,
   their torch) with its own damage / allow / notify callables. A brain that reads or sets
@@ -343,6 +391,27 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   `mate_place()` (remote_player.gd, state "att"). The ball games are the host's in
   co-op: `_launch` sends each flight (`Coop.send_play` "shot"), the other machine only
   follows (`coop_take_shot`) and sends its swings ("press").
+- **Business rooms** (`service_interior.gd`): the pub, the bistro and the Jednota change
+  rooms only by their doors (`scripts/food/business_doors.gd`; `_build_business_doors`
+  puts them in walls the layouts keep free: move a prop off a wall and check the door
+  still fits). While a door walk runs it owns the camera (`_doors.walking()`). The work
+  marks (`scripts/food/work_marks.gd`) read `business_runtime.waiting_at` and the site's
+  books; a new counter game needs its job in `coop_job`, `COOP_JOB_SPOTS` and SPOTS.
+- **Co-op business books** (`GameState.biz`): the host's. The pulse carries them; on the
+  joining machine every `actions.biz_*` change also calls `biz_remote` (main sends it as
+  a "biz" request; the host replays it without money: `biz_sale(..., credit=false)`,
+  `biz_add_order`). New mutations of the books belong in actions.gd with `_biz_tell`.
+- **Two in the pipes** (`scripts/pipes/pipe_mate.gd`): the crawl's network is seeded by
+  the sewer and the day it broke, the holes by the raccoon level; the second one down
+  takes both from the first (warden state "pipe": sd, lv, fx). `_try_move` and
+  `_back_up` ask `mate.blocks`. Anything that changes the network's generation must keep
+  `preview_network` (the chamber's terminal) and `open_repair` in step.
+- **Co-op back office** (`main.coop_camp_pulse` "books"): reviews, transactions,
+  satisfaction, karma, the electricity bills and the bazaar are the host's; the other
+  machine's `request_pay_electricity_bill`, `request_maintenance_crew` and `bazaar_list`
+  check there and ask the host (`Coop.send_request`), spending nothing themselves (the
+  till follows the host's). Anything new that pays or charges from a PC program must
+  do the same, or it is paid twice or lost at the next pulse.
 - **Co-op radio** (`building_interior.gd`): the host's set is the one; `_play_radio_next`
   does nothing on the other machine, which plays what `coop_radio_state` says (main's
   `_coop_sync_things` "radio", sent when the piece or its 4 s step changes): a song by
@@ -372,6 +441,12 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   other puts it in the CRT glass shader's `screen_tex`; it falls back to its own PC's
   viewport when frames stop for 0.8 s. Reading the viewport stalls the GPU a moment:
   keep the rate low.
+- **One pixel throughout** (the user, 18. 10.: everything in game pixelated, at the same
+  Build-engine resolution): people 128 px to 1.74 m (73.6 px/m; a pose's picture is
+  processed to its height in metres times that: lying 0.62 m = 46 px), rooms and things
+  in them 128 px to a 1.4 m tile (91 px/m: a sprite 0.26 m tall is 24 px, a sign
+  0.38 m is 35). A picture finer than that gets shrunk to it (`service_interior._wall_decal`),
+  never shown small at its full size.
 - **Warden looks** (`warden_looks.gd`): a jacket colour is the jacket's pixels moved to
   another hue, found by hue band, rows per pose and boxes left out (boots of the same
   green: `JACKETS`); a new warden or pose needs its entry, checked on a sheet of all
@@ -407,6 +482,15 @@ it from `_activate_runtime_enemy_for_night`). Add a row to DESIGN.md §5 and to
   sets `_steps` in `_ready()` after `super._ready()` runs ad-hoc scenarios.
 - **GDScript names**: a method called `_set` overrides `Object._set` (parse error about the
   signature); a subclass may not re-declare its base's constants (`SFX_OPEN` in closeup_view).
+- **Hands are claimed** (`scripts/ui/hands.gd`): anything drawn in the player's hand claims
+  "right" or "left" while it is up and releases it when it is down (work > bottle >
+  lighter > torch/cigarette). The torch changes hands by itself (the right busy: the left,
+  mirrored; both busy: in the pocket, `player_controller.hand_busy` puts its light out).
+  A new hand overlay must claim, draw at `Hands.px(view height)` on that pixel grid, take
+  `light` as its modulate and add `motion`; never rotate a hand sprite.
+- **A close-up hides the hands**: `closeup_view.gd` (and the breaker, scrub, corn stand,
+  check-in desk) are in group "closeup"; pockets.gd keeps the hands down while one is
+  visible. A new full-screen overlay where your hands are busy joins that group.
 - **Python in the Bash tool**: the tool turns a doubled backslash into a single one before
   bash sees it, so an escaped backslash at the end of a line in a heredoc reaches Python as
   a line continuation (the replacement silently changes nothing); write such scripts with

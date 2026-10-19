@@ -47,7 +47,8 @@ def is_key(r, g, b):
     # A pocket of the background inside a figure (between the legs, under an arm) is
     # often rendered a darker, redder magenta.
     h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
-    return 300.0 <= h * 360.0 <= 332.0 and s > 0.8 and v > 0.5
+    # (Up to 336: some renders put the whole background at 328-334, noisy.)
+    return 300.0 <= h * 360.0 <= 336.0 and s > 0.8 and v > 0.5
 
 
 def key_out(img):
