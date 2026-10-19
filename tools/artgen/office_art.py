@@ -340,6 +340,11 @@ ROWS = [
     ("spr_lightning_bolt", "sprite", 96, "world/lightning_bolt.png"),
     ("spr_snowflake", "sprite", 6, "world/snowflake.png"),
     ("spr_puddle", "sprite", 40, "world/puddle.png"),
+    # The weather at a room's windows (scripts/ambient/room_weather.gd): drops on the glass,
+    # water running down it, the window's shape the lightning throws in.
+    ("tex_glass_drops", "texture", 128, "world/glass_drops.png"),
+    ("tex_glass_runs", "texture", 128, "world/glass_runs.png"),
+    ("tex_window_cookie", "texture", 64, "world/window_cookie.png"),
     ("warden_a_bedfoot", "sprite", 56, "npc/warden_a_bedfoot.png"),
     ("warden_b_bedfoot", "sprite", 56, "npc/warden_b_bedfoot.png"),
     ("warden_c_bedfoot", "sprite", 56, "npc/warden_c_bedfoot.png"),
@@ -348,6 +353,9 @@ ROWS = [
 TEXTURY = os.path.join(HERE, "..", "..", "godot", "assets", "textury")
 ## Textures kept in their own colours, not snapped to the palette.
 UNSNAPPED_TEXTURES = {"tex_card_paper"}
+## Thin bright things on black (water on glass): fattened before they are shrunk, or the
+## shrinking averages them away.
+DILATED_TEXTURES = {"tex_glass_drops", "tex_glass_runs"}
 
 
 def rekeyed(art_id):
@@ -480,6 +488,11 @@ def main():
                 out = process.sprite(rekeyed(art_id), size)
         elif mode == "panel":
             out = process.panel(raw, size)
+        elif art_id in DILATED_TEXTURES:
+            from PIL import ImageFilter
+            fat = os.path.join(HERE, "out", art_id, "raw_dilated.png")
+            Image.open(raw).convert("RGB").filter(ImageFilter.MaxFilter(7)).save(fat)
+            out = process.texture(fat, size)
         elif art_id in UNSNAPPED_TEXTURES:
             # Printed colours the Build palette has not got (the card's bright yellow).
             snap = process.snap

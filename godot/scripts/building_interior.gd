@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const INTERIOR_BARREL_SHADER = preload("res://materials/interior_barrel_post.gdshader")
+const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 ## Reception surfaces by node name (exact names first, then prefixes): [camp texture,
 ## metres per repeat]. "" = not built (replaced by a prop or a picture, see _build_room).
@@ -963,6 +964,12 @@ func _build_room() -> void:
 	_room_root.add_child(_window_quad)
 	_setup_window_view()
 	_update_window_texture()
+	# The weather at the window (scripts/ambient/room_weather.gd): rain on the glass,
+	# lightning through it, the office creaking in the gusts.
+	var rw = ROOM_WEATHER.new()
+	rw.is_open = func(): return visible
+	_room_root.add_child(rw)
+	rw.add_window(_window_quad)
 
 	# ── FAKE OUTDOOR SCENE (past the front wall, aligned to shifted window) ───
 	_add_box(_room_root, "OutdoorGround",  Vector3(-0.4,  -0.04, -4.2), Vector3(2.10, 0.08, 4.0), Color(0.44, 0.42, 0.38))

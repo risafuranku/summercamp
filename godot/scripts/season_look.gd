@@ -28,10 +28,6 @@ const FLAKE_TEX := "res://assets/textury/world/snowflake.png"
 ## a little cooler, while it is wet.
 const SOAK_SEC := 45.0
 const DRY_SEC := 300.0
-## Puddles on the paths (Grok, assets/textury/world/puddle.png): on about a third of the
-## path tiles, always the same ones, there once the ground is wet through, gone as it dries.
-const PUDDLE_TEX := "res://assets/textury/world/puddle.png"
-const PUDDLE_SHARE := 38
 
 var day := 1
 var hour := 12.0
@@ -41,9 +37,6 @@ var wind := Vector2(0.94, 0.34)
 ## 0 dry .. 1 soaked (the ground's colour; read by weather_visuals for the rain's look).
 var wet := 0.0
 var _wet_t := 0.0
-var _puddles: Dictionary = {}     # path node instance id -> Decal (or null: no puddle there)
-var _puddle_scan := 0.0
-var _puddle_tex: Texture2D
 
 var _t := 0.0
 var _leaves: GPUParticles3D
@@ -75,7 +68,6 @@ func _process(delta: float) -> void:
 	if _wet_t <= 0.0:
 		_wet_t = 0.5
 		_apply_wet()
-		_update_puddles(0.5)
 	if _t >= REFRESH_SEC:
 		_t = 0.0
 		apply(false)
@@ -158,53 +150,6 @@ func apply(_force: bool) -> void:
 func _wetted(c: Color) -> Color:
 	var k := lerpf(1.0, 0.6, wet)
 	return Color(c.r * k * lerpf(1.0, 0.94, wet), c.g * k * lerpf(1.0, 0.97, wet), c.b * k * lerpf(1.0, 1.04, wet), c.a)
-
-
-func _update_puddles(dt: float) -> void:
-	_puddle_scan -= dt
-	if _puddle_scan <= 0.0 and wet > 0.05:
-		_puddle_scan = 8.0
-		_scan_paths()
-	var a := smoothstep(0.3, 0.85, wet)
-	for id in _puddles.keys():
-		var d = _puddles[id]
-		if d == null:
-			continue
-		if not is_instance_valid(d):
-			_puddles.erase(id)
-			continue
-		(d as Decal).modulate = Color(1, 1, 1, a)
-		(d as Decal).visible = a > 0.01
-
-
-## A puddle on some of the path tiles (by where the tile is, so the same ones every time).
-func _scan_paths() -> void:
-	if _puddle_tex == null:
-		if not ResourceLoader.exists(PUDDLE_TEX):
-			return
-		_puddle_tex = load(PUDDLE_TEX)
-	for n in get_tree().get_nodes_in_group("paths"):
-		var path := n as Node3D
-		if path == null or _puddles.has(path.get_instance_id()):
-			continue
-		var at := path.global_position
-		var h := absi(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))))
-		if h % 100 >= PUDDLE_SHARE:
-			_puddles[path.get_instance_id()] = null
-			continue
-		var d := Decal.new()
-		d.name = "Puddle"
-		d.texture_albedo = _puddle_tex
-		d.size = Vector3(1.3 + float(h % 7) * 0.16, 0.24, 0.9 + float((h / 7) % 5) * 0.14)
-		d.normal_fade = 0.5
-		d.upper_fade = 0.2
-		d.lower_fade = 0.2
-		d.modulate = Color(1, 1, 1, 0)
-		d.visible = false
-		path.add_child(d)
-		d.global_position = Vector3(at.x + float((h / 13) % 9 - 4) * 0.18, 0.06, at.z + float((h / 31) % 9 - 4) * 0.18)
-		d.rotation.y = float(h % 360) * PI / 180.0
-		_puddles[path.get_instance_id()] = d
 
 
 func _apply_wet() -> void:

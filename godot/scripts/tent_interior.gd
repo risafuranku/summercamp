@@ -10,6 +10,7 @@ const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 var _torch: Node
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
+const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
 ## Node name prefix -> [camp texture, metres per repeat] (world mapped, see interior_kit).
 const SURFACES := {
 	"FloorMat": ["tent_floor", 0.8], "LeftWall": ["tarp_canvas", 0.9], "RightWall": ["tarp_canvas", 0.9],
@@ -66,11 +67,12 @@ var _exit_hint: Control
 
 # Screen-space zones for click detection.
 var _catalog_mesh: MeshInstance3D
+var _weather
 var _prep = INTERIOR_PREP.new()
 
 var _level2_nodes: Array[String] = [
-	"LanternStem",
-	"LanternBody",
+	"LanternHook/LanternStem",
+	"LanternHook/LanternBody",
 	"StorageCrate",
 ]
 var _level3_nodes: Array[String] = [
@@ -345,6 +347,26 @@ func _build_tent_room() -> void:
 	var lantern_stem = _add_box("LanternStem", Vector3(0.0, 1.06, -0.56), Vector3(0.012, 0.36, 0.012), Color(0.22, 0.20, 0.18))
 	var lantern := INTERIOR_KIT.prop(_tent_root, "lantern", Vector3(0.0, 0.58, -0.56))
 	lantern.name = "LanternBody"
+	# Both hang from a hook on the ridge, so the wind can swing them (room_weather.gd).
+	var hook := Node3D.new()
+	hook.name = "LanternHook"
+	hook.position = Vector3(0.0, 1.24, -0.56)
+	_tent_root.add_child(hook)
+	for part: Node3D in [lantern_stem, lantern]:
+		var local := part.position - hook.position
+		_tent_root.remove_child(part)
+		hook.add_child(part)
+		part.position = local
+	# The weather in here (scripts/ambient/room_weather.gd): the canvas lit by the lightning,
+	# breathing in the gusts, rain drumming on it, a leak by the ridge, the lantern swinging.
+	_weather = ROOM_WEATHER.new()
+	_weather.canvas = true
+	_weather.is_open = func(): return _is_open
+	_tent_root.add_child(_weather)
+	_weather.add_breather(left_wall, Vector3(0, 0, 1))
+	_weather.add_breather(right_wall, Vector3(0, 0, -1))
+	_weather.add_swinger(hook)
+	_weather.set_drip(Vector3(0.22, 1.12, -0.05), 0.06)
 	var storage_crate := INTERIOR_KIT.prop(_tent_root, "backpack", Vector3(-0.56, 0.0, 0.62), 70.0, 0.8)
 	storage_crate.name = "StorageCrate"
 	lantern_stem.visible = false

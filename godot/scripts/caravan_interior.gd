@@ -22,6 +22,7 @@ const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
+const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
 
 const TIME_DAY: int = 0
 const TIME_EVENING: int = 1
@@ -84,6 +85,19 @@ func _ready() -> void:
 
 func is_open() -> bool:
 	return _is_open
+
+
+var _weather
+
+
+## The weather in here (scripts/ambient/room_weather.gd): rain on the windows, lightning
+## through them, the shell creaking in the gusts.
+func _room_weather():
+	if _weather == null or not is_instance_valid(_weather) or _weather.get_parent() != _root:
+		_weather = ROOM_WEATHER.new()
+		_weather.is_open = func(): return _is_open
+		_root.add_child(_weather)
+	return _weather
 
 
 func set_is_day(is_day: bool) -> void:
@@ -247,6 +261,7 @@ func _build_room() -> void:
 		var wm := _quad_mat("caravan_window", 0.0)
 		wq.material_override = wm
 		_window_mats.append(wm)
+		_room_weather().add_window(wq)
 		# A plain frame round it.
 		var fr := K.slab(_root, Vector3((wspec[0] as Vector2).x + 0.08, 0.05, 0.05), (wspec[1] as Vector3) + _inward(float(wspec[2])) * 0.02 + Vector3(0, -(wspec[0] as Vector2).y * 0.5 - 0.03, 0), veneer_dark, "Sill")
 		fr.rotation_degrees.y = float(wspec[2])

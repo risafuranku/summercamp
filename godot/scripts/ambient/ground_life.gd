@@ -6,7 +6,8 @@ extends Node3D
 ##   - night and fog: low mist lies along the ground and creeps with the wind, thicker in
 ##     the small hours and in the fog, a Build-style dithered sprite (see-through in a
 ##     checker of pixels, like Blood's smoke);
-## Pixel art made here (no files). Not while you are in a room. Made by
+## The puddle is a Grok picture (world/puddle.png); the rings and the mist are pixel art
+## made here. Not while you are in a room. Made by
 ## InteriorManager.setup() in the camp's world, like sky_life.gd and wind_life.gd.
 
 const FPS := 12.0
@@ -90,7 +91,10 @@ func _ready() -> void:
 
 # ── pixel art ────────────────────────────────────────────────────────────────
 
-func _puddle_texture() -> ImageTexture:
+## The puddle (Grok, assets/textury/world/puddle.png); the old pixel one if it is missing.
+func _puddle_texture() -> Texture2D:
+	if ResourceLoader.exists("res://assets/textury/world/puddle.png"):
+		return load("res://assets/textury/world/puddle.png")
 	var w := 32
 	var h := 24
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)

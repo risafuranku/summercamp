@@ -11,6 +11,7 @@ extends RefCounted
 ## the set (on/off; after midnight only the test card and its tone), the lamp.
 
 const K = preload("res://scripts/interior_kit.gd")
+const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
 const RL = preload("res://scripts/reception/reception_layout.gd")
 const CURTAIN = preload("res://scripts/reception/curtain.gd")
 const TV_SHADER = preload("res://materials/tv_screen.gdshader")
@@ -169,6 +170,13 @@ func _cut_window(walls: Dictionary) -> void:
 	window_quad.position = Vector3(x + 0.01, c.y, c.z)
 	window_quad.rotation_degrees.y = 90.0
 	root.add_child(window_quad)
+	# Rain on its glass and lightning through it (the office's room_weather has the rest).
+	var rw = ROOM_WEATHER.new()
+	rw.gloom = false
+	rw.sounds = false
+	rw.is_open = func(): return is_instance_valid(window_quad) and window_quad.is_visible_in_tree()
+	root.add_child(rw)
+	rw.add_window(window_quad)
 	# The heavy drapes: drawn back (playtest 18. 10.); click to shut them.
 	curtain = CURTAIN.new()
 	curtain.build(root, Vector3(fx + 0.12, c.y, c.z), RL.BACK_WINDOW_SIZE.x, RL.BACK_WINDOW_SIZE.y + 0.3, 90.0, "velvet", 0.6, root, true)
