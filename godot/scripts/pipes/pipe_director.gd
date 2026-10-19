@@ -565,7 +565,7 @@ func _update_breath(d: int, delta: float) -> void:
 		_chitter_t -= delta
 		if _chitter_t <= 0.0:
 			_chitter_t = rng.randf_range(1.0, 1.8)
-			_sound_at("rac_chitter.mp3", node, 0.0)
+			_sound_at("rac_chitter.mp3", node, -6.0)
 		_warned_t += delta
 		flicker = maxf(flicker, 0.35)
 		if _warned_t >= 2.4 and _scene.is_empty() and not host._moving and level >= 3:

@@ -774,6 +774,18 @@ func audio_bus() -> String:
 	dl.tap2_pan = 0.3
 	dl.feedback_active = false
 	AudioServer.add_bus_effect(i, dl)
+	# Then held in: a compressor and a ceiling, so a burst of bangs and the echo of them
+	# cannot get loud on top of each other (playtest 19. 10.: "earrape" at the repairs).
+	var comp := AudioEffectCompressor.new()
+	comp.threshold = -18.0
+	comp.ratio = 4.0
+	comp.attack_us = 5000.0
+	comp.release_ms = 180.0
+	AudioServer.add_bus_effect(i, comp)
+	var lim := AudioEffectHardLimiter.new()
+	lim.ceiling_db = -3.0
+	AudioServer.add_bus_effect(i, lim)
+	AudioServer.set_bus_volume_db(i, -2.0)
 	return BUS
 
 

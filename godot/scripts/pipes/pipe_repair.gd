@@ -330,7 +330,7 @@ func _update_bolts(delta: float) -> void:
 func _ratchet() -> void:
 	if _in_window():
 		_notch += 1
-		_sound("bolt.mp3", -2.0, _rng.randf_range(0.92, 1.08))
+		_sound("bolt.mp3", -6.0, _rng.randf_range(0.92, 1.08))
 		_noise(1)
 		if _notch >= TURNS:
 			_notch = 0
@@ -340,7 +340,7 @@ func _ratchet() -> void:
 				return
 	else:
 		# It slips off and bangs on the iron: loud, and the swing quickens.
-		_sound("slip.mp3", 2.0, _rng.randf_range(0.9, 1.1))
+		_sound("slip.mp3", -2.0, _rng.randf_range(0.9, 1.1))
 		_noise(2)
 		_swing_speed = minf(_swing_speed + 0.12, 3.0)
 		host._bump_t = 0.0
@@ -367,7 +367,7 @@ func _heave(side: int) -> void:
 	_last_side = side
 	_idle = 0.0
 	_turns += 1.0
-	_sound("valve.mp3", -4.0, _rng.randf_range(0.85, 1.12))
+	_sound("valve.mp3", -8.0, _rng.randf_range(0.85, 1.12))
 	_noise(1)
 	host._bump_t = 0.0 if _rng.randf() < 0.25 else host._bump_t
 	if _turns >= float(VALVE_TURNS):
@@ -389,7 +389,7 @@ func _update_tar(delta: float) -> void:
 		if not _painted[i]:
 			_painted[i] = true
 			_stamp(Vector2((float(i) + 0.5) / float(TAR_SEGMENTS), CRACK_Y + _rng.randf_range(-0.02, 0.02)))
-			_sound("tar.mp3", -6.0, _rng.randf_range(0.9, 1.1))
+			_sound("tar.mp3", -7.0, _rng.randf_range(0.9, 1.1))
 			_noise(1)
 	var left := _painted.count(false)
 	if left == 0:
@@ -438,7 +438,7 @@ func _update_clog(delta: float) -> void:
 	if _warn_next <= 0.0 and _pulled > 1:
 		_warn_next = _rng.randf_range(3.0, 6.0) / (1.0 + 0.3 * float(host.raccoon_level - 1))
 		_warn_t = 0.0
-		_sound("rac_chitter.mp3", 2.0, _rng.randf_range(0.95, 1.1))
+		_sound("rac_chitter.mp3", -2.0, _rng.randf_range(0.95, 1.1))
 
 
 func _tear() -> void:
@@ -448,7 +448,7 @@ func _tear() -> void:
 		return
 	_pulled += 1
 	_hand_in = 1.0
-	_sound("pullclog.mp3", -2.0, _rng.randf_range(0.9, 1.1))
+	_sound("pullclog.mp3", -5.0, _rng.randf_range(0.9, 1.1))
 	_noise(1)
 	_chunk()
 	if _pulled >= _need:
@@ -462,7 +462,7 @@ func _snatch_back() -> void:
 	_key2.visible = false
 	_shade.color = Color(0, 0, 0, 0.55)
 	_hand_in = 0.0
-	_sound("rac_screech.mp3", -4.0, 1.2)
+	_sound("rac_screech.mp3", -6.0, 1.2)
 
 
 ## A handful torn out: it comes at the view and drops away.

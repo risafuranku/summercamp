@@ -231,10 +231,10 @@ func _build_ambience() -> void:
 			k += 1
 	# Far off, the pumping station; nearer, water running in other pipes.
 	var far: Vector2i = _far_node(4)
-	_amb.append(_loop_at("pump.mp3", host._world_pos(far), -12.0, 60.0))
+	_amb.append(_loop_at("pump.mp3", host._world_pos(far), -18.0, 60.0))
 	for _i in 2:
 		if k < nodes.size():
-			_amb.append(_loop_at("flow.mp3", host._world_pos(nodes[k]), -14.0, 11.0))
+			_amb.append(_loop_at("flow.mp3", host._world_pos(nodes[k]), -10.0, 11.0))
 			k += 1
 	_groan_next = rng.randf_range(10.0, 25.0)
 	_rat_next = rng.randf_range(6.0, 16.0)
@@ -284,7 +284,7 @@ func _grate(c: Vector2i, r: RandomNumberGenerator) -> void:
 	host._geo.add_child(drops)
 	drops.position = Vector3(p.x, top - 0.05, p.z)
 	drops.emitting = true
-	_amb.append(_loop_at("street.mp3", Vector3(p.x, top, p.z), -10.0, 9.0))
+	_amb.append(_loop_at("street.mp3", Vector3(p.x, top, p.z), -8.0, 9.0))
 
 
 ## Steam off a warm pipe, rising slowly in the dark (you see it in the torch).
@@ -350,7 +350,7 @@ func lens_drop() -> void:
 	host._root.add_child(r)
 	host._root.move_child(r, 1)
 	_drops.append({"node": r, "t": 0.0, "life": rng.randf_range(2.0, 3.5), "v": rng.randf_range(6.0, 22.0) * k})
-	_sound("lensdrop.mp3", -8.0, rng.randf_range(0.9, 1.2))
+	_sound("lensdrop.mp3", -12.0, rng.randf_range(0.9, 1.2))
 
 
 func _make_drop() -> ImageTexture:
@@ -449,7 +449,7 @@ func chalk() -> void:
 	if host._moving or host._turning or host._intro_t >= 0.0 or not host._links[host._node].has(host._facing):
 		return
 	var key := "%d,%d,%d" % [host._node.x, host._node.y, host._facing]
-	_sound("chalk.mp3", -4.0, rng.randf_range(0.92, 1.08))
+	_sound("chalk.mp3", -2.0, rng.randf_range(0.92, 1.08))
 	if _chalk.has(key):
 		var old = _chalk[key]
 		if is_instance_valid(old):
@@ -505,7 +505,7 @@ func _update_scares(dt: float) -> void:
 		return
 	# Stopping: now and then something drops into the water just behind you.
 	if _was_moving and not host._moving and rng.randf() < 0.12 * float(_level):
-		_sound_behind("wetdrop.mp3", -6.0)
+		_sound_behind("wetdrop.mp3", -3.0)
 	_scare_next -= dt
 	if _scare_next > 0.0:
 		return
@@ -529,7 +529,7 @@ func _scare(k: String) -> bool:
 			_sound_at("gurgle.mp3", host._world_pos(_far_node(2)), -2.0)
 			return true
 		"drop":
-			_sound_behind("wetdrop.mp3", -3.0)
+			_sound_behind("wetdrop.mp3", 0.0)
 			return true
 		"prints":
 			return _fresh_prints()
