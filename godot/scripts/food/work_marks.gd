@@ -1,12 +1,11 @@
 extends Node
 
-## Where the work waits in the pub, the bistro and the Jednota (scripts/service_interior.gd
+## Where the work waits in the pub and the Jednota (the bistro has its own:
+## scripts/bistro/bistro_marks.gd) (scripts/service_interior.gd
 ## makes one per room it builds): over each place a small Grok picture bobs while there
 ## is something to do there (assets/textury/ui/mark_*.png):
 ##   pub      the tap and the bottles while somebody waits to be served; the washer
 ##            when the clean mugs run out and dirty ones stand by it;
-##   bistro   the pass while somebody waits for a plate; the stove when nothing is
-##            fried ahead (site.prep) and there is cheese or potatoes to fry;
 ##   Jednota  the till while somebody waits at it.
 ## Not over the job you have open, nor over the one the other warden is at (co-op: they
 ## are behind the counter doing it). Stepped like the rest of the room (8 a second).
@@ -22,12 +21,6 @@ const SPOTS := {
 		"tap": ["", Vector3(1.275, 1.86, -1.405), "mark_tap"],
 		"shots": ["", Vector3(1.75, 2.12, -2.0), "mark_shot"],
 		"wash": ["", Vector3(2.35, 1.52, -1.2), "mark_wash"],
-	},
-	"rest": {
-		"hatch": ["kitchen", Vector3(0.0, 1.5, 0.25), "mark_plate"],
-		# Seen from the dining room: over the kitchen door, the orders wait in there.
-		"hatch_door": ["dining", Vector3(1.6, 2.32, -2.3), "mark_plate"],
-		"fryer": ["kitchen", Vector3(0.0, 1.72, -2.02), "mark_pan"],
 	},
 	"vecerka": {
 		"till": ["shop", Vector3(-1.43, 1.62, -0.35), "mark_till"],
@@ -87,14 +80,6 @@ func wanted() -> Array:
 			var g: Dictionary = site.get("glasses", {})
 			if not g.is_empty() and int(g.get("clean", 9)) < 4 and int(g.get("dirty", 0)) > 0:
 				out.append("wash")
-		"rest":
-			if n > 0:
-				out.append("hatch")
-				out.append("hatch_door")
-			var prep: Dictionary = site.get("prep", {})
-			var stock: Dictionary = site.get("stock", {})
-			if not prep.is_empty() and ((int(prep.get("cheese", 0)) < 2 and int(stock.get("cheese", 0)) > 0) or (int(prep.get("fries", 0)) < 2 and int(stock.get("potatoes", 0)) > 0)):
-				out.append("fryer")
 		"vecerka":
 			if n > 0:
 				out.append("till")

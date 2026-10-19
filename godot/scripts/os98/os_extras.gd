@@ -1,13 +1,23 @@
 extends Control
 
-## The screen saver of the camp computer (scripts/os98/os_shell.gd owns the panel):
-## after the wait with nobody at the keyboard, Flying Okna (the logo coming at you out of
-## the dark) or Starfield. You see it from across the office, too. Any key or the mouse
-## wakes the panel. Display Properties (scripts/os98/apps/display_app.gd) picks it.
+## The moving parts of the camp computer over its panel (scripts/os98/os_shell.gd):
+##   - the zoom: a program coming up from its taskbar button, in outlines that jump out
+##     to the whole screen in a few steps, the way windows opened then (it never waits:
+##     the program is already there under them);
+##   - the screen saver: after the wait with nobody at the keyboard, Flying Okna (the
+##     logo coming at you out of the dark) or Starfield. You see it from across the
+##     office, too. Any key or the mouse wakes the panel. Display Properties
+##     (scripts/os98/apps/display_app.gd) picks it.
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const LOGO := "res://assets/textury/os98/okna_logo_small.png"
 const SAVERS := ["Flying Okna", "Starfield", "Blank Screen", "(None)"]
+## The zoom: how long, in how many steps, how many outlines trail.
+const ZOOM_SEC := 0.15
+const ZOOM_STEPS := 6
+const ZOOM_TRAIL := 3
+
+var _zooms: Array = []           # {from: Rect2, to: Rect2, t}
 
 var shell
 var saver := "Flying Okna"
@@ -52,9 +62,22 @@ func is_saving() -> bool:
 	return _saving
 
 
+## Outlines from one rectangle to another (a tab button to the page it brings up).
+func zoom(from: Rect2, to: Rect2) -> void:
+	_zooms = [{"from": from, "to": to, "t": 0.0}]
+	queue_redraw()
+
+
 func _process(delta: float) -> void:
 	if shell == null:
 		return
+	if not _zooms.is_empty():
+		for z in _zooms:
+			z["t"] = float(z["t"]) + delta
+		_zooms = _zooms.filter(func(z): return float(z["t"]) < ZOOM_SEC + 0.05)
+		queue_redraw()
+		if _zooms.is_empty():
+			_drawn = true
 	if shell.is_desktop_ready():
 		# Somebody is at it: no saver, and the wait starts again when they get up.
 		_idle = 0.0 if shell.is_open() else _idle + delta
@@ -80,6 +103,20 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if _saving:
 		_draw_saver()
+		return
+	for z in _zooms:
+		# In steps, a few outlines trailing each other: what the machine could draw fast.
+		var k := floorf(clampf(float(z["t"]) / ZOOM_SEC, 0.0, 1.0) * ZOOM_STEPS) / ZOOM_STEPS
+		var from: Rect2 = z["from"]
+		var to: Rect2 = z["to"]
+		for j in ZOOM_TRAIL:
+			var kk := k - float(j) / ZOOM_STEPS
+			if kk <= 0.0 or kk >= 1.0:
+				continue
+			var e := 1.0 - (1.0 - kk) * (1.0 - kk)
+			var r := Rect2(from.position.lerp(to.position, e), from.size.lerp(to.size, e)).abs()
+			draw_rect(r, Color(0.5, 0.5, 0.5), false, 2.0)
+			draw_rect(r.grow(-2.0), Color(0.15, 0.15, 0.15, 0.6), false, 1.0)
 
 
 func _reset_saver_field() -> void:

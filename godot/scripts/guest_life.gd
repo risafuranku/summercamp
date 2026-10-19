@@ -44,6 +44,10 @@ var _weather: int = 0
 var _threat_map: Dictionary = {}  # "x:y" -> {strength, until_abs}
 var _thought_log: Array[Dictionary] = []
 var _events: Array[Dictionary] = []
+## Guests kept where they sit past their visit's end: guest id -> the game minute they may
+## go. The bistro's kitchen (scripts/bistro/kitchen.gd) holds them while their plate is
+## coming and while they eat it, so a meal is not cut short by the clock.
+var visit_holds: Dictionary = {}
 
 
 func _init() -> void:
@@ -274,6 +278,10 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 		if t >= int(act.get("end", t)):
 			if bool(act.get("queued", false)):
 				_on_queue_tick(guest, act, t)
+			elif kind == "visit" and int(visit_holds.get(int(guest.get("id", -1)), -1)) > t:
+				# Still waiting for their plate, or eating it.
+				act["end"] = maxi(t + 1, mini(int(visit_holds[int(guest.get("id", -1))]), now_abs))
+				guest["activity"] = act
 			else:
 				_on_complete(guest, act, t)
 				guest["activity"] = {}

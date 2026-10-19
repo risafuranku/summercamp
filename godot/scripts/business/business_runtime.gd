@@ -16,6 +16,9 @@ extends Node
 
 const RULES := preload("res://core/systems/business_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
+## The bistros' kitchens: the trays, the stove, the pot, the tickets (loaded, not
+## preloaded: the kitchen preloads this script).
+const KITCHEN_PATH := "res://scripts/bistro/kitchen.gd"
 
 signal changed
 
@@ -34,6 +37,7 @@ func _ready() -> void:
 	name = "Businesses"
 	add_to_group("businesses")
 	_rng.randomize()
+	add_child(load(KITCHEN_PATH).new())
 
 
 func _process(delta: float) -> void:
@@ -145,7 +149,7 @@ func _waiting_line(kind: String, waiting: Array) -> String:
 		"pub":
 			return "%s %s at the bar in the pub. Nobody behind it." % [who, verb]
 		"rest":
-			return "%s %s sitting in the bistro. Nobody to take the order." % [who, verb]
+			return "%s %s sitting in the bistro. Nobody in the kitchen." % [who, verb]
 		"vecerka":
 			return "%s %s at the Jednota till. Nobody there." % [who, verb]
 		"corn":
@@ -157,7 +161,8 @@ func _waiting_line(kind: String, waiting: Array) -> String:
 func hud_rows() -> Array:
 	var rows: Array = []
 	for s in waiting_sites():
-		rows.append({"title": "%s: %d waiting for an order" % [s["title"], int(s["n"])], "where": "serve them at the counter"})
+		var cook := str(site(str(s["key"])).get("kind", "")) == "rest"
+		rows.append({"title": "%s: %d waiting for %s" % [s["title"], int(s["n"]), "their food" if cook else "an order"], "where": "cook for them in the kitchen" if cook else "serve them at the counter"})
 	return rows
 
 
@@ -220,10 +225,8 @@ func _hands_work() -> void:
 		if s.has("glasses"):
 			s["glasses"]["clean"] = int(s["glasses"]["clean"]) + int(s["glasses"]["dirty"])
 			s["glasses"]["dirty"] = 0
-		if s.has("prep"):
-			for part in ["cheese", "fries"]:
-				var good := "cheese" if part == "cheese" else "potatoes"
-				s["prep"][part] = mini(4, int(s["stock"].get(good, 0)))
+		# The bistro's cook fills the trays and minds the pot in the kitchen
+		# (scripts/bistro/kitchen.gd _hand_work).
 
 
 ## The hand behind the counter serves the visit what it wants, if it is on the shelf.

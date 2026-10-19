@@ -486,11 +486,8 @@ the head through the end of the turn.
   Outside, the HUD's guests cell says how many wait to be served and the waypoint
   points to the business.
 - **The bistro's logistics.** The dining room (na place) is the guests' tables, the till
-  and the books; the kitchen behind the counter is the stove (frying ahead) and the pass
-  on the island in its middle (plating, the bell): the plate then lands on their table.
-  Under the kitchen the cellar is the stock: sacks, crates and boxes as many as the
-  books have on the shelf; click them for the books and the orders. (The machine
-  nobody ordered stands down there too.)
+  and the books; the kitchen behind it and the cellar under it are the work. See "The
+  bistro" below.
 - **The pub's cellar.** A door by the bar end goes down to the kegs: one for every 25
   pints the books hold, crates of rum and kofola; click them for the books.
 - **The corn stand** is one more of them: E behind its counter (either warden), the
@@ -501,6 +498,66 @@ the head through the end of the turn.
   behind the bar pulling a beer, at the bottles, the washer, the pass, the stove, the
   till, over the books; the place they are at is theirs (no mark over it for you), and
   what they serve lands on the tables on both machines.
+
+### The bistro (2026-10-19)
+
+*Asked for by the user on 2026-10-19: "the interior full of details, fun to explore like a
+point-and-click adventure, for four in co-op, good indicators like Traveller's Rest; the
+stations a game of their own like Papa's; the square close-ups were strange and
+unclear; think up the cellar." Then: "the minigames less like AI pixel art, more like
+imperfect human Build-engine textures."*
+
+- **Nobody waits on tables.** You cook; what you make goes out by itself. A guest who
+  sits down reads the menu a moment and their ticket clips onto the rail (a ding); over
+  their head a bubble with the dish and a bar for how long they have waited (green,
+  amber, red: three minutes of game time and they get up hungry). The plate rung out at
+  the pass comes through the hatch and lands on their table; the money floats up.
+  Everybody at a table orders: a family of four is four tickets.
+- **The chain, cellar to table** (`core/systems/bistro_rules.gd`). Potatoes are peeled
+  and cut into raw chips in the cellar; cheese is sliced and breaded there (flour, egg,
+  crumbs, in that order: out of order it is badly breaded, burns sooner and goes out
+  poorer). Upstairs the stove fries the slices (each side to golden, turned by hand) and
+  the chips (the basket down, up when golden); the pot keeps the goulash, topped up from
+  the catering tins, back to the boil before it is ladled, stirred now and then or it
+  catches and the bottom goes in the bin; the steamer gives a loaf of dumplings, cut with
+  the cotton thread a slice at a click. The pass builds the plate to the ticket, Papa's
+  way: the ticket hangs big beside it and ticks off what is on the plate; the bell
+  judges it (the right dish, the right counts: six dumplings is not four, onion or not,
+  tartar or not; how long they waited) into the money, a tip and one to three stars.
+  The plates come back dirty when they have eaten: the sink, scrub, the rack. No clean
+  plates, no plating.
+- **The stations are full screen**, each a flat Build-engine texture of its own
+  (320x180, two canvas pixels to one; Grok renders sharpened and grained into the game's
+  palette), the things on it drawn over it: the rail of tickets across the top, the
+  sentence of what a click does over the bottom bar (like an old adventure game's verb
+  line), the bar with BACK and the room's other stations. Nothing is a square in the
+  middle of the room any more.
+- **Things go on without you.** The pan and the fryer cook and burn, the pot catches,
+  whether anyone is at them: the room says so (Traveller's Rest marks over each station:
+  the frying bars and "!", the pot's portions and STIR, the tickets at the pass, the
+  dirty plates, LOW over the cellar's corners and over the cellar door; smoke when
+  something burns).
+- **Look at things.** Everything worth a look in the three rooms answers a click with a
+  line under the room (the deer's eyes, the clock that is four minutes slow and today
+  fast, the coat on the stand nobody came in with); the pointer names what it is over.
+  Mostly dry; a few are wrong in the quiet way of the rest of the game.
+- **The cellar** is the prep room: the potato peeler and the chip cutter, the breading
+  table, the shelves of stock (the books), and behind a chain-link partition the
+  machine nobody ordered, PROTOTYP 540. For now it is only looked at: unplugged, dead by
+  day; at night its lamp is lit with the plug out, the gauge stands off nought, the crank
+  turns a quarter by itself. *What it is for is still to be decided with the user* (a
+  proposal: it would make the goulash meat for nothing, at night, if fed; what it is fed
+  is the dark side of the bistro).
+- **For four.** Each station is one warden's while they are at it: the others see them
+  there in the room at the job (the cook's pose, the washer's), see their name over it
+  instead of its mark, and get "Jana is at the stove" if they click it; the bar's tab
+  for it shows their name. The kitchen is shared: a slice put in the pan, a tray filled,
+  a plate out of the hatch is an op every machine applies at once
+  (`scripts/bistro/kitchen.gd`, `Coop.send_kitchen`), so the stove burns the same on all
+  four; the tickets are worked out from the guests on each machine alike. Splitting the
+  work is the game: one in the cellar, one at the stove, one at the pass, one washing up.
+- **A hand** (taken on in the books) serves everybody at once as before and keeps the
+  trays, the pot and the plates going.
 
 ## 8. The pipe crawl (sewer repair)
 

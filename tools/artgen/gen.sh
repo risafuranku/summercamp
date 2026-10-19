@@ -16,7 +16,9 @@
 set -u
 cd "$(dirname "$0")"
 id="$1"; force="${2:-}"
-line=$(grep -P "^$id\t" prompts.tsv) || { echo "unknown id: $id"; exit 1; }
+# prompts.tsv, or a prompts_<area>.tsv beside it (prompts_bistro.tsv ...).
+line=$(grep -hP "^$id\t" prompts.tsv prompts_*.tsv 2>/dev/null | head -1)
+[ -n "$line" ] || { echo "unknown id: $id"; exit 1; }
 IFS=$'\t' read -r _id aspect ref prompt <<<"$line"
 if [ -f "out/$id/raw.png" ] && [ "$force" != "--force" ]; then echo "$id exists"; exit 0; fi
 

@@ -11,7 +11,8 @@ const POSES = preload("res://scripts/attractions/poses.gd")
 ## Per person, per visit: beers at the pub, meals at the bistro, baskets at the Jednota.
 const APPETITE := {
 	"pub": {"drunk": 4, "tramp": 3, "quiet_guy": 2, "cheap_chick": 2, "picker": 1, "family": 1},
-	"rest": {"drunk": 1, "tramp": 1, "quiet_guy": 1, "cheap_chick": 1, "picker": 1, "family": 2},
+	# One plate each at the bistro (its tickets: core/systems/bistro_rules.gd).
+	"rest": {"drunk": 1, "tramp": 1, "quiet_guy": 1, "cheap_chick": 1, "picker": 1, "family": 1},
 	"vecerka": {"drunk": 2, "tramp": 1, "quiet_guy": 1, "cheap_chick": 1, "picker": 2, "family": 1},
 }
 
@@ -20,8 +21,8 @@ const APPETITE := {
 static var _served: Dictionary = {}
 
 
-## The guests in building `key` now: [{id, name, archetype, figures, visit}], arrived
-## and not queuing outside.
+## The guests in building `key` now: [{id, name, archetype, figures, visit, arrive}],
+## arrived and not queuing outside (arrive: the game minute they came in).
 static func visitors(key: String) -> Array:
 	var out: Array = []
 	if GuestManager == null or key == "":
@@ -40,6 +41,7 @@ static func visitors(key: String) -> Array:
 			"archetype": arch,
 			"figures": POSES.figure_count(arch, int(g.get("party_size", 1))),
 			"visit": "%d@%d" % [int(g.get("id", 0)), int(act.get("start", 0))],
+			"arrive": int(act.get("arrive", now)),
 		})
 	return out
 

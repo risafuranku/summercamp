@@ -50,6 +50,10 @@ var _mug_mat: StandardMaterial3D
 var _foam_mat: StandardMaterial3D
 var _plate_mat: StandardMaterial3D
 var _food_mat: StandardMaterial3D
+## The bistro's kitchen (scripts/bistro/kitchen.gd): whose plate has come, and what is on it.
+const KITCHEN = preload("res://scripts/bistro/kitchen.gd")
+var _kitchen: KITCHEN
+const TABLE_TEX := "res://assets/textury/bistro/table_"
 
 
 func setup(p: String, building_key: String, seat_list: Array, settings: Dictionary, door := Vector3.INF) -> void:
@@ -76,6 +80,8 @@ func setup(p: String, building_key: String, seat_list: Array, settings: Dictiona
 	_foam_mat = _mat(Color(0.98, 0.96, 0.9), false)
 	_plate_mat = _mat(Color(0.95, 0.95, 0.92), false)
 	_food_mat = _mat(Color(0.5, 0.2, 0.1), false)
+	if p == "rest":
+		_kitchen = get_tree().get_first_node_in_group("kitchens") as KITCHEN
 	# Whoever is in already when you come in is in their seat.
 	_refresh(true)
 
@@ -199,10 +205,11 @@ func _spawn(g: Dictionary, seat: int, visit: String, member: int, seated: bool) 
 		sprite.offset = Vector2(0, sprite.texture.get_height() * 0.5)
 	node.add_child(sprite)
 	var standing := bool(s.get("stand", false))
-	var served := ORDERS.served(key, visit)
+	var figures := POSES.figure_count(str(g.get("archetype", "")), int(g.get("party_size", 1)))
+	var served := ORDERS.served(key, visit) if _kitchen == null else not _kitchen.plate_for(key, visit, member, figures, str(g.get("archetype", ""))).is_empty()
 	var p := {"node": node, "sprite": sprite, "seat": seat, "base": base, "t0": _t, "next": _t + _rng.randf_range(1.0, 6.0),
 		"pose": "sit", "stand": standing, "arch": str(g.get("archetype", "")), "state": "seat", "visit": visit,
-		"served": served, "member": member}
+		"served": served, "member": member, "figures": figures}
 	if setting.has(seat) and not standing:
 		var prop := Node3D.new()
 		prop.name = "Setting"
@@ -213,6 +220,9 @@ func _spawn(g: Dictionary, seat: int, visit: String, member: int, seated: bool) 
 			glass.position.y = 0.08
 			var foam := _cyl(prop, 0.046, 0.03, _foam_mat)
 			foam.position.y = 0.17
+		elif _kitchen != null:
+			# The bistro: the plate as it came out of the hatch (bistro_rules parts).
+			p["food"] = _plate_of(prop, _kitchen.plate_for(key, visit, member, figures, str(g.get("archetype", ""))))
 		else:
 			var plate := _cyl(prop, 0.13, 0.015, _plate_mat)
 			plate.position.y = 0.008
@@ -243,6 +253,9 @@ func _leave(k: String, p: Dictionary) -> void:
 		return
 	if bool(p["served"]) and int(p["member"]) == 0:
 		_play(str(SFX_PAY.get(profile, "")), -12.0)
+	elif not bool(p["served"]) and profile == "rest" and int(p["member"]) == 0:
+		# Got up hungry.
+		_play("res://assets/sfx/bistro/guest_grumble.mp3", -10.0)
 	var node: Node3D = p["node"]
 	POSES.set_pose(p["sprite"], str(p["base"]), "")
 	_walk(p, node.position, _door_for(node.position), "out")
@@ -314,16 +327,22 @@ func _animate() -> void:
 				node.position = (s["pos"] as Vector3) + along * _rng.randf_range(-0.3, 0.3)
 				sprite.flip_h = _rng.randf() < 0.5
 			continue
-		if not bool(p["served"]) and ORDERS.served(key, str(p["visit"])):
+		if not bool(p["served"]) and _is_served(p):
 			# Here it comes: the mug or the plate on the table.
 			p["served"] = true
 			p["t0"] = _t
 			p["next"] = _t + _rng.randf_range(0.8, 2.0)
 			var prop_now: Node3D = p.get("prop", null)
 			if prop_now != null:
+				if _kitchen != null:
+					for c in prop_now.get_children():
+						c.queue_free()
+					p["food"] = _plate_of(prop_now, _kitchen.plate_for(key, str(p["visit"]), int(p["member"]), int(p["figures"]), str(p["arch"])))
 				prop_now.visible = true
 			if int(p["member"]) == 0:
 				_play(str(SFX_SERVED.get(profile, "")), -12.0)
+			if _kitchen != null and _rng.randf() < 0.6:
+				_play("res://assets/sfx/bistro/guest_happy.mp3", -12.0)
 		if not bool(p["served"]):
 			# Waiting: sat, nothing in front of them, a look round for somebody now and then.
 			if _t >= float(p["next"]):
@@ -351,7 +370,7 @@ func _animate() -> void:
 		var prop: Node3D = p.get("prop", null)
 		if prop != null and profile == "pub":
 			prop.visible = pose != "drink"
-		var food: MeshInstance3D = p.get("food", null)
+		var food: Node3D = p.get("food", null)
 		if food != null:
 			var eaten := clampf((_t - float(p["t0"])) / 90.0, 0.0, 0.9)
 			food.scale = Vector3(1.0 - eaten, 1.0, 1.0 - eaten)
@@ -381,3 +400,64 @@ func _play(path: String, db: float) -> void:
 		_one.stream = load(path)
 		_one.volume_db = db
 		_one.play()
+
+
+func _is_served(p: Dictionary) -> bool:
+	if _kitchen == null:
+		return ORDERS.served(key, str(p["visit"]))
+	return not _kitchen.plate_for(key, str(p["visit"]), int(p["member"]), int(p["figures"]), str(p["arch"])).is_empty()
+
+
+## A plate lying on the table with what was put on it at the pass (the goulash and its
+## dumplings, the fried cheese and chips...): flat pictures at the room's pixel. Returns
+## the food's node (it goes down as they eat).
+func _plate_of(prop: Node3D, plate: Dictionary) -> Node3D:
+	_flat_quad(prop, "plate", 0.26, 0.004)
+	var food := Node3D.new()
+	food.name = "Food"
+	prop.add_child(food)
+	var parts: Dictionary = plate.get("parts", {})
+	if parts.is_empty():
+		parts = {"goulash": 1}
+	if int(parts.get("goulash", 0)) > 0:
+		_flat_quad(food, "goulash", 0.15, 0.012, Vector3(-0.03, 0, 0))
+	for i in mini(int(parts.get("dumpling", 0)), 6):
+		_flat_quad(food, "dumpling", 0.075, 0.014 + i * 0.001, Vector3(0.06, 0, -0.04 + (i % 3) * 0.04) + Vector3((i / 3) * 0.03, 0, 0))
+	if int(parts.get("cheese", 0)) > 0:
+		_flat_quad(food, "cheese", 0.13, 0.012, Vector3(-0.04, 0, 0))
+	if int(parts.get("fries", 0)) > 0:
+		_flat_quad(food, "fries", 0.11, 0.014, Vector3(0.05, 0, 0.02))
+	return food
+
+
+func _flat_quad(parent: Node3D, n: String, size_m: float, y: float, at := Vector3.ZERO) -> void:
+	var path := TABLE_TEX + n + ".png"
+	if not ResourceLoader.exists(path):
+		return
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(size_m, size_m)
+	q.orientation = PlaneMesh.FACE_Y
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(path)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	mi.material_override = m
+	mi.position = at + Vector3(0, y, 0)
+	parent.add_child(mi)
+
+
+## The bistro's marks: each person's head (global), whose visit and seat, their plate.
+func heads() -> Array:
+	var out: Array = []
+	for k in _people:
+		var p: Dictionary = _people[k]
+		var node: Node3D = p["node"]
+		if not is_instance_valid(node):
+			continue
+		var seated := str(p["state"]) == "seat" and not bool(p.get("stand", false))
+		out.append({"head": node.global_position + Vector3(0, 1.32 if seated else 1.86, 0), "visit": str(p["visit"]),
+			"member": int(p["member"]), "served": bool(p["served"]), "state": str(p["state"])})
+	return out

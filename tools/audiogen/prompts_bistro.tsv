@@ -1,0 +1,28 @@
+# The bistro's stations (scripts/bistro/): id, seconds, destination, prompt.
+bi_sizzle_in	1.5	assets/sfx/bistro/sizzle_in.mp3	A breaded slice of cheese laid into a frying pan of hot oil: a sudden loud sizzle and crackle that settles to a steady fry. Close up in a small kitchen, no music.
+bi_flip	1.0	assets/sfx/bistro/flip.mp3	A steel spatula slides under a frying breaded cheese slice and flips it over in hot oil: a scrape, a soft slap, a burst of sizzle. Close up, kitchen, no music.
+bi_chips_load	1.2	assets/sfx/bistro/chips_load.mp3	A handful of raw cut potato chips dropped into an empty wire fryer basket: a dry wet rattle of potato sticks on wire mesh. Close up, kitchen, no music.
+bi_basket_drop	2.5	assets/sfx/bistro/basket_drop.mp3	A wire basket full of raw chips lowered into a deep fryer of hot oil: a loud roaring bubbling hiss that keeps boiling. Close up, kitchen, no music.
+bi_basket_lift	1.5	assets/sfx/bistro/basket_lift.mp3	A wire chip basket lifted out of a deep fryer and shaken twice on the rim: dripping oil, the metal hook clanks, chips rustle. Close up, no music.
+bi_scrape	1.2	assets/sfx/bistro/scrape.mp3	Burnt food scraped off a plate into a metal kitchen bin with a fork: a scrape and a dull thud in the bin. Close up, no music.
+bi_tick	0.5	assets/sfx/bistro/tick.mp3	A small dry click of a finger tapping a steel counter, a short soft tick. Close up, no music.
+bi_stir	1.2	assets/sfx/bistro/stir.mp3	A wooden spoon stirring a big pot of thick goulash, scraping the bottom once round: a thick wet gloop and a wooden scrape. Close up, no music.
+bi_pour	2.0	assets/sfx/bistro/pour.mp3	A big catering tin of thick goulash tipped into a large aluminium pot: a heavy glugging pour and a splash, the tin knocks the rim. Close up, kitchen, no music.
+bi_steam_lid	2.0	assets/sfx/bistro/steam_lid.mp3	The lid lifted off an aluminium steamer pot, a puff of steam, a soft bread dumpling loaf set down on a wooden board. Close up, kitchen, no music.
+bi_thread	0.7	assets/sfx/bistro/thread.mp3	A taut cotton thread pulled through a soft steamed bread dumpling to cut a slice: a quick soft zip and a light thud of the slice falling on a board. Close up, no music.
+bi_splash	1.2	assets/sfx/bistro/splash.mp3	A dirty china plate slid into a sink full of soapy water: a splash and a clink on the enamel. Close up, no music.
+bi_scrub	0.8	assets/sfx/bistro/scrub.mp3	A sponge scrubbing a wet china plate in soapy water: a short squeaky rub. Close up, no music.
+bi_plate_rack	1.0	assets/sfx/bistro/plate_rack.mp3	A wet clean china plate set into a wooden drying rack: a hollow wooden knock and a soft china clink. Close up, no music.
+bi_potatoes_tip	2.0	assets/sfx/bistro/potatoes_tip.mp3	Four raw potatoes tipped from a jute sack into an empty enamel drum: heavy thuds and rolling knocks on metal. Close up, cellar, no music.
+bi_switch	0.6	assets/sfx/bistro/switch.mp3	An old heavy bakelite rotary switch on a machine turned with a hard clack. Close up, no music.
+bi_peeler	4.0	assets/sfx/bistro/peeler.mp3	An old electric abrasive potato peeling machine running in a cellar: a rumbling motor and potatoes tumbling and grinding against a rough drum, water swishing. Steady, loopable, close up, no music.
+bi_chop	1.0	assets/sfx/bistro/chop.mp3	A cast-iron chip cutter press slammed down through a raw potato: a heavy metal clunk and a wet crunch, chips falling into a zinc bucket. Close up, cellar, no music.
+bi_knife	0.8	assets/sfx/bistro/knife.mp3	A kitchen knife cutting one thick slice off a block of Edam cheese on a wooden board: a firm press and a knock of the blade on wood. Close up, no music.
+bi_flour	0.8	assets/sfx/bistro/flour.mp3	A slice of cheese pressed into a bowl of flour and turned: a soft dry powdery pat. Close up, no music.
+bi_egg	0.8	assets/sfx/bistro/egg.mp3	A slice of cheese dipped into a bowl of beaten egg and lifted out: a wet slap and drip. Close up, no music.
+bi_crumbs	0.8	assets/sfx/bistro/crumbs.mp3	A slice of cheese pressed into a bowl of dry breadcrumbs: a crunchy granular rustle. Close up, no music.
+bi_crank	1.5	assets/sfx/bistro/crank.mp3	A heavy rusty crank on an old iron machine turning a quarter round by itself: a slow grinding creak and a deep metal clunk. Close up, dark cellar, no music.
+bi_machine_hum	5.0	assets/sfx/bistro/machine_hum.mp3	A low unsteady electric hum of an old machine in a damp cellar, very faint ticking inside it, as if something warm were in it. Steady, loopable, no music.
+bi_order_in	1.2	assets/sfx/bistro/order_in.mp3	In a small busy canteen kitchen a paper order ticket is clipped onto a steel rail with a quick metal snap, a tiny bell ding on the counter. Close up, no music.
+bi_guest_happy	1.5	assets/sfx/bistro/guest_happy.mp3	A middle-aged Czech man at a table hums approvingly with his mouth full, a short satisfied mm-hm. Indoors, small diner, no music, no words.
+bi_guest_grumble	1.5	assets/sfx/bistro/guest_grumble.mp3	A middle-aged man at a diner table grumbles under his breath, an annoyed wordless mutter and a chair scraping back. Indoors, no music, no words.

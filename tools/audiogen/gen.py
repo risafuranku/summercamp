@@ -37,7 +37,13 @@ def api_key():
 
 def rows():
     out = {}
-    for line in open(os.path.join(HERE, "prompts.tsv"), encoding="utf-8"):
+    # prompts.tsv, and a prompts_<area>.tsv beside it (prompts_bistro.tsv ...).
+    files = [os.path.join(HERE, "prompts.tsv")] + sorted(
+        os.path.join(HERE, f) for f in os.listdir(HERE) if f.startswith("prompts_") and f.endswith(".tsv"))
+    lines = []
+    for f in files:
+        lines.extend(open(f, encoding="utf-8"))
+    for line in lines:
         line = line.rstrip("\n")
         if not line or line.startswith("#"):
             continue
