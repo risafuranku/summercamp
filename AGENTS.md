@@ -153,7 +153,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Bookings, arrivals, the barrier, room states | `scripts/guest_manager.gd`, rules `core/systems/room_rules.gd` |
 | The gatehouse, barrier, road | `scripts/camp_gate.gd` (built by world_generator) |
 | Room tasks in interiors (hover, hold, checklist) | `scripts/interior_tasks.gd` + `scripts/interior_prep.gd`; what the mess is: `core/systems/mess_rules.gd`; toilet/shower blocks: `service_interior.gd` `set_upkeep_target` |
-| Generated sound effects | `tools/audiogen/` (ElevenLabs; key in the gitignored `.env`) |
+| Generated sound effects | `tools/audiogen/` (ElevenLabs; key in the gitignored `.env`); then `python tools/audiogen/normalize.py 'assets/sfx/<dir>/*.mp3'` to bring them to -23 LUFS (each comes back as loud as it likes: one clipping, the next inaudible), and set the loudness in the code |
 | Night jobs, the distribution board | `scripts/night_jobs.gd`, `scripts/breaker_panel.gd` |
 | Day events, camp life sounds | `scripts/day_events.gd` (sounds in `assets/sfx/life/`) |
 | Head turning inside interiors | `scripts/interior_look.gd` (limits set per interior script) |
