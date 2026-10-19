@@ -305,3 +305,10 @@ step_mud_b	0.5	assets/sfx/steps/mud_b.mp3	One single footstep in heavy work boot
 step_mud_c	0.5	assets/sfx/steps/mud_c.mp3	One single footstep in heavy work boots on soaked muddy grass after rain, a wet squelch and a little suck as the boot lifts, outdoors, very close, nothing else. Slightly lighter, quicker. No music.
 step_mud_d	0.5	assets/sfx/steps/mud_d.mp3	One single footstep in heavy work boots on soaked muddy grass after rain, a wet squelch and a little suck as the boot lifts, outdoors, very close, nothing else. The other foot, a touch different. No music.
 step_land	0.6	assets/sfx/steps/land.mp3	Landing on the ground in heavy work boots after a small jump: a single dull thud with a little grit, very close, outdoors. No music.
+lamp_buzz	6.0	assets/sfx/world/lamp_buzz.mp3	The electric buzz and hum of an old sodium street lamp on a pole at night, heard from right under it: a steady mains buzz with a faint ticking crackle. Seamless loop, no music.
+generator_thrum	8.0	assets/sfx/world/generator_thrum.mp3	An old diesel generator thrumming steadily inside a small wooden shed, heard from outside a few metres away: a low engine drone with a loose panel rattling. Seamless loop, no music.
+lake_lapping	8.0	assets/sfx/world/lake_lapping.mp3	Small waves lapping gently against the wooden posts of a jetty and a muddy lakeshore at night, soft slaps and trickles, very calm. Seamless loop, no music.
+frogs_night	10.0	assets/sfx/world/frogs_night.mp3	Frogs croaking along a reedy lakeshore on an autumn night, a few at a time, near and far, with faint crickets. Seamless loop, no music.
+trees_rustle	5.0	assets/sfx/world/trees_rustle.mp3	A gust of wind rustling loudly through the dry autumn leaves of birch trees overhead and passing on, outdoors. No music.
+tree_creak	3.5	assets/sfx/world/tree_creak.mp3	A tall old pine trunk creaking and groaning slowly as it sways in strong wind, outdoors in a forest. No music.
+wind_gust	4.0	assets/sfx/world/wind_gust.mp3	A strong gust of wind sweeping across an open field and into the edge of a forest, a rising whoosh that dies away. No music.

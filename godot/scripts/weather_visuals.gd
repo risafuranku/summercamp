@@ -406,6 +406,11 @@ func setup_weather_particles() -> void:
 	_bolt.visible = false
 	_bolt.set_meta("retro_skip", true)
 	_world_3d.add_child(_bolt)
+	# The camp's own sounds where they come from (lamps, the generator, the lake, the trees
+	# in the wind): scripts/ambient/world_sounds.gd.
+	var ws = load("res://scripts/ambient/world_sounds.gd").new()
+	ws.player_getter = _player_getter
+	_world_3d.add_child(ws)
 	if _bolt.texture != null:
 		# Through the fog: the material is the sprite's own; fog off on it.
 		var bm := StandardMaterial3D.new()
