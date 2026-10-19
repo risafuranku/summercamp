@@ -33,8 +33,10 @@ const PROGRESS = preload("res://scripts/os98/os_progress.gd")
 const ICON_DIR := "res://assets/textury/os98/icons/"
 const SFX_DIR := "res://assets/sfx/os98/"
 const SCREEN := Vector2(640, 480)
-const TASKBAR_H := 28
-const DESKTOP_SIZE := Vector2(640, 452)
+## The taskbar is big and plain (playtest 19. 10.: "zvětšit taskbar, zjednodušit look ale
+## zachovat vibe"): the programs' big icons, each tab only its icon, its key and its badge.
+const TASKBAR_H := 46
+const DESKTOP_SIZE := Vector2(640, 434)
 ## A new machine shows the autumn lake (the season the game is in).
 const WALLPAPER := "res://assets/textury/os98/wall_autumn.png"
 const OEM_SPLASH := "res://assets/textury/crt/UI/bios/ChatGPT Image 15. 2. 2026 14_22_04.png"
@@ -1458,12 +1460,13 @@ func _clock_text() -> String:
 
 # ── the taskbar: Start, the tabs, the tray ───────────────────────────────────
 
-const START_W := 52
-const WIDE_W := 80
-const NARROW_W := 28
-const TAB_GAP := 2
-const TAB_X := 58
-const TRAY_W := 100
+const START_W := 76
+const WIDE_W := 46
+const NARROW_W := 46
+const TAB_GAP := 3
+const TAB_X := 84
+const TRAY_W := 112
+const TAB_H := 40
 
 
 func _build_taskbar() -> void:
@@ -1474,8 +1477,8 @@ func _build_taskbar() -> void:
 	_taskbar.add_theme_stylebox_override("panel", T.box("thin_raised", T.FACE, Vector4.ZERO))
 	add_child(_taskbar)
 	_start_btn = Control.new()
-	_start_btn.position = Vector2(2, 3)
-	_start_btn.size = Vector2(START_W, 22)
+	_start_btn.position = Vector2(3, 3)
+	_start_btn.size = Vector2(START_W, TAB_H)
 	_start_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	_start_btn.tooltip_text = "Start"
 	_start_btn.draw.connect(func():
@@ -1483,8 +1486,8 @@ func _build_taskbar() -> void:
 		_start_btn.draw_style_box(T.box("pressed" if on else "raised", T.FACE, Vector4.ZERO), Rect2(Vector2.ZERO, _start_btn.size))
 		var o := Vector2(1, 1) if on else Vector2.ZERO
 		if _start_logo_tex != null:
-			_start_btn.draw_texture_rect(_start_logo_tex, Rect2(Vector2(4, 3) + o, Vector2(16, 16)), false)
-		_start_btn.draw_string(T.FONT_BOLD, Vector2(22, 15) + o, "Start", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+			_start_btn.draw_texture_rect(_start_logo_tex, Rect2(Vector2(6, 4) + o, Vector2(32, 32)), false)
+		_start_btn.draw_string(T.FONT_BOLD, Vector2(40, 25) + o, "Start", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	)
 	_start_btn.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
@@ -1499,25 +1502,25 @@ func _build_taskbar() -> void:
 	for i in TABS.size():
 		var id := str(TABS[i][0])
 		var w := WIDE_W if bool(TABS[i][3]) else NARROW_W
-		var b := _make_tab_button(i, Vector2(x, 3), Vector2(w, 22))
+		var b := _make_tab_button(i, Vector2(x, 3), Vector2(w, TAB_H))
 		_taskbar.add_child(b)
 		_tab_buttons[id] = b
 		x += w + TAB_GAP
 	# The tray: the line, the till, the clock.
 	var tray := Panel.new()
 	tray.add_theme_stylebox_override("panel", T.box("well", T.FACE, Vector4.ZERO))
-	tray.position = Vector2(SCREEN.x - TRAY_W - 2, 3)
-	tray.size = Vector2(TRAY_W, 22)
+	tray.position = Vector2(SCREEN.x - TRAY_W - 3, 3)
+	tray.size = Vector2(TRAY_W, TAB_H)
 	_taskbar.add_child(tray)
 	_tray_net = TextureRect.new()
-	_tray_net.position = Vector2(3, 3)
+	_tray_net.position = Vector2(4, 12)
 	_tray_net.texture = _net_icon()
 	_tray_net.tooltip_text = "Connected to Bohemia Online at 33,600 bps"
 	_tray_net.visible = false
 	tray.add_child(_tray_net)
 	_money = Label.new()
-	_money.position = Vector2(19, 4)
-	_money.size = Vector2(48, 14)
+	_money.position = Vector2(20, 4)
+	_money.size = Vector2(88, 14)
 	_money.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_money.add_theme_color_override("font_color", Color8(0, 100, 0))
 	_money.add_theme_font_override("font", T.FONT_BOLD)
@@ -1526,7 +1529,10 @@ func _build_taskbar() -> void:
 	tray.add_child(_money)
 	_clock = Label.new()
 	_clock.text = "09:00"
-	_clock.position = Vector2(70, 4)
+	# The till over the clock, both right-aligned.
+	_clock.position = Vector2(20, 21)
+	_clock.size = Vector2(88, 14)
+	_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_clock.mouse_filter = Control.MOUSE_FILTER_PASS
 	tray.add_child(_clock)
 
@@ -1555,7 +1561,7 @@ func _make_tab_button(i: int, pos: Vector2, sz: Vector2) -> Control:
 			_select_tab(id)
 			c.accept_event()
 	)
-	var tex := icon(str(TABS[i][2]), true)
+	var tex := icon(str(TABS[i][2]), false)
 	c.draw.connect(func(): _draw_tab(c, i, tex))
 	return c
 
@@ -1579,29 +1585,20 @@ func _tab_available(id: String) -> bool:
 
 func _draw_tab(c: Control, i: int, tex: Texture2D) -> void:
 	var id := str(TABS[i][0])
-	var wide := bool(TABS[i][3])
 	var on := id == _tab
 	var hov := bool(c.get_meta("hover"))
 	var r := Rect2(Vector2.ZERO, c.size)
+	# Plain: raised, lit when the mouse is on it, pressed in when it is the one open.
 	if on:
-		c.draw_style_box(T.box("pressed", Color8(224, 224, 224), Vector4.ZERO), r)
-		# The checked face the active button had: a dither of white.
-		for y in range(3, int(r.size.y) - 2):
-			for x in range(3 + (y % 2), int(r.size.x) - 2, 2):
-				c.draw_rect(Rect2(x, y, 1, 1), T.WHITE)
+		c.draw_style_box(T.box("pressed", Color8(232, 232, 232), Vector4.ZERO), r)
 	else:
-		c.draw_style_box(T.box("raised", Color8(206, 214, 232) if hov else T.FACE, Vector4.ZERO), r)
+		c.draw_style_box(T.box("raised", Color8(214, 220, 236) if hov else T.FACE, Vector4.ZERO), r)
 	var o := Vector2(1, 1) if on else Vector2.ZERO
 	var avail := _tab_available(id)
-	var ix := 4.0 if wide else floorf((r.size.x - 16) * 0.5)
-	c.draw_texture_rect(tex, Rect2(Vector2(ix, 3) + o, Vector2(16, 16)), false, Color.WHITE if avail else Color(1, 1, 1, 0.45))
-	# The key, small, in the icon's corner.
-	_pixel_text(c, str(i + 1), Vector2(ix + 12, 13) + o, T.WHITE, T.NAVY if avail else T.SHADOW)
-	if wide:
-		var col := T.TEXT if avail else T.TEXT_DISABLED
-		if not avail:
-			c.draw_string(T.FONT, Vector2(24, 16) + o + Vector2(1, 1), str(TABS[i][1]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 26, T.FONT_SIZE, T.WHITE)
-		c.draw_string(T.FONT, Vector2(24, 15) + o, str(TABS[i][1]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 26, T.FONT_SIZE, col)
+	var ix := floorf((r.size.x - 32) * 0.5)
+	c.draw_texture_rect(tex, Rect2(Vector2(ix, 4) + o, Vector2(32, 32)), false, Color.WHITE if avail else Color(1, 1, 1, 0.4))
+	# The key, in the icon's corner.
+	_pixel_text(c, str(i + 1), Vector2(3, r.size.y - 8) + o, T.WHITE, T.NAVY if avail else T.SHADOW)
 	if id == "builder" and not _is_day and _is_program_unlocked("builder"):
 		# The moon: closed for the night.
 		var m := Vector2(r.size.x - 9, 7) + o

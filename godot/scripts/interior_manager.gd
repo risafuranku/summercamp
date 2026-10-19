@@ -371,6 +371,32 @@ func _play_door_close() -> void:
 		_audio_manager.play_door_close()
 
 
+## The reception's own front door (an old wooden door with a glass pane and a shop bell
+## over it), not the rooms' generic one.
+const OFFICE_DOOR_OPEN := "res://assets/sfx/rooms/office_door_open.mp3"
+const OFFICE_DOOR_CLOSE := "res://assets/sfx/rooms/office_door_close.mp3"
+var _office_door: AudioStreamPlayer
+
+
+func _play_office_door(path: String) -> bool:
+	if not ResourceLoader.exists(path):
+		return false
+	if _office_door == null or not is_instance_valid(_office_door):
+		_office_door = AudioStreamPlayer.new()
+		_office_door.name = "OfficeDoorSfx"
+		_office_door.volume_db = -6.0
+		add_child(_office_door)
+	_office_door.stream = load(path)
+	_office_door.pitch_scale = randf_range(0.96, 1.03)
+	_office_door.play()
+	return true
+
+
+func _play_office_door_close() -> void:
+	if _silent_close or not _play_office_door(OFFICE_DOOR_CLOSE):
+		_play_door_close()
+
+
 func is_crt_desktop_active() -> bool:
 	if _building_interior == null:
 		return false
@@ -549,7 +575,7 @@ func _on_crt_interact() -> void:
 	_apply_time_to_interior(_building_interior)
 	_door_transition(true)
 	_building_interior.open_interior()
-	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
+	if not _play_office_door(OFFICE_DOOR_OPEN) and _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
 
@@ -583,10 +609,10 @@ func _on_interior_visibility_changed() -> void:
 	if not _building_interior.is_open():
 		if bool(_building_interior.get("walked_out")):
 			_building_interior.set("walked_out", false)
-			_play_door_close()
+			_play_office_door_close()
 			_walk_on_out_of_office()
 			return
-		_play_door_close()
+		_play_office_door_close()
 		_step_out_of(_world_3d.find_child("MainBuilding", true, false) as Node3D if _world_3d != null else null)
 
 

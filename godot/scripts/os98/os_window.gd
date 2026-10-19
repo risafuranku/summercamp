@@ -33,7 +33,7 @@ var _maximized := false
 var _restore_rect := Rect2()
 var _pressed_btn := ""
 var _hover_btn := ""
-var _desktop_size := Vector2(640, 452)
+var _desktop_size := Vector2(640, 434)
 
 
 func _init() -> void:

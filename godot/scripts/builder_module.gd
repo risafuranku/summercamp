@@ -55,7 +55,7 @@ const ITEM_ICONS := {
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
-	"corn_stand": "res://assets/textury/camp/corn_stand.png",
+	"corn_stand": "res://assets/textury/builder/iso_corn_stand.png",
 }
 
 ## Even shorter, for when a catalogue has so many cards that they get narrow.

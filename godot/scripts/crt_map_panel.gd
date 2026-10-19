@@ -51,7 +51,8 @@ const GHOST_BAD_FILL := Color(0.76, 0.24, 0.24, 0.24)
 const GHOST_BAD_LINE := Color(0.98, 0.48, 0.48, 0.94)
 
 const ZOOM_MIN := 0.50
-const ZOOM_MAX := 3.00
+## Close enough to read a tent's guy ropes (playtest 19. 10.: "builder má malej max zoom").
+const ZOOM_MAX := 6.50
 const KEYBOARD_PAN_SPEED := 360.0
 const KEYBOARD_PAN_SPRINT_MULT := 1.7
 const MAP_VISUAL_PADDING := 0.28
@@ -90,7 +91,7 @@ const ICON_PATHS := {
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
-	"corn_stand": "res://assets/textury/camp/corn_stand.png",
+	"corn_stand": "res://assets/textury/builder/iso_corn_stand.png",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
 	"sports_field": "res://assets/textury/builder/iso_sports.png",
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",

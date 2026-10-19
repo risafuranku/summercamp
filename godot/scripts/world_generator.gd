@@ -399,6 +399,7 @@ func _generate_terrain() -> void:
 	_spawn_camp_gate(map_size, map_center)
 
 	_scatter_ground_litter()
+	_spawn_ground_cover()
 
 	# Dense grass clumps looked like floating green squares; keep only textured terrain.
 	# _spawn_stylized_grass()
@@ -731,6 +732,19 @@ func _create_corn_patch(pos: Vector3, dice: RandomNumberGenerator = null) -> Nod
 	return patch
 
 
+## The grass's cover of tufts, flowers, stones and twigs (scripts/ambient/ground_cover.gd),
+## from the camp's seed (not the dice here: everything drawn after it stays as it was).
+const GROUND_COVER_SCRIPT = preload("res://scripts/ambient/ground_cover.gd")
+
+
+func _spawn_ground_cover() -> void:
+	if _grid_manager == null or _terrain_root == null:
+		return
+	var cover := GROUND_COVER_SCRIPT.new()
+	_terrain_root.add_child(cover)
+	cover.build(_grid_manager, world_seed)
+
+
 func _spawn_stylized_grass() -> void:
 	if _grid_manager == null:
 		return
@@ -892,6 +906,9 @@ func _create_tree(pos: Vector3, dice: RandomNumberGenerator = null) -> StaticBod
 		TREE_KIND_BIRCH:
 			_add_tree_part(tree, _tree_mesh("birch_trunk"), _tree_material("birch_bark", 0))
 			_add_tree_part(tree, _tree_mesh("birch_crown"), _tree_material("leaf", r.randi_range(1, 2)))
+			# Leaves on cards round the crown's lumps: a ragged, airy outline.
+			if ResourceLoader.exists(BIRCH_LEAVES_TEX):
+				_add_tree_part(tree, _tree_mesh("birch_cards"), _tree_material("leaf_cards", r.randi_range(0, 2)))
 		TREE_KIND_DEAD:
 			_add_tree_part(tree, _tree_mesh("dead"), _tree_material("bark", 1))
 		_:
@@ -930,6 +947,14 @@ func _tree_mesh(id: String) -> Mesh:
 			_st_blob(st, Vector3(0.0, 3.6, 0.0), Vector3(1.2, 1.3, 1.2))
 			_st_blob(st, Vector3(0.45, 4.4, 0.2), Vector3(0.85, 0.95, 0.85))
 			_st_blob(st, Vector3(-0.4, 3.2, -0.3), Vector3(0.8, 0.8, 0.8))
+		"birch_cards":
+			# Round each lump of the crown: three upright cards crossed, one tilted.
+			for blob in BIRCH_BLOBS:
+				var c: Vector3 = blob[0]
+				var size: float = float(blob[1]) * 2.5
+				for k in 3:
+					_st_card(st, c, size, deg_to_rad(60.0 * k + float(blob[1]) * 40.0), 0.0)
+				_st_card(st, c + Vector3(0.0, float(blob[1]) * 0.35, 0.0), size * 0.9, deg_to_rad(25.0), deg_to_rad(62.0))
 		"dead":
 			_st_cone(st, Vector3.ZERO, 0.2, 0.05, 4.6, 5, 1.0)
 			_st_branch(st, Vector3(0.0, 2.2, 0.0), Vector3(0.9, 0.9, 0.1), 0.07)
@@ -939,6 +964,23 @@ func _tree_mesh(id: String) -> Mesh:
 	var mesh := st.commit()
 	_tree_meshes[id] = mesh
 	return mesh
+
+
+## A square card of leaves `size` across centred on `c`, turned `yaw` round the upright
+## and tipped `tilt` towards lying flat.
+func _st_card(st: SurfaceTool, c: Vector3, size: float, yaw: float, tilt: float) -> void:
+	var b := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, tilt)
+	var h := size * 0.5
+	var p00 := c + b * Vector3(-h, -h, 0.0)
+	var p10 := c + b * Vector3(h, -h, 0.0)
+	var p11 := c + b * Vector3(h, h, 0.0)
+	var p01 := c + b * Vector3(-h, h, 0.0)
+	st.set_uv(Vector2(0, 1)); st.add_vertex(p00)
+	st.set_uv(Vector2(1, 1)); st.add_vertex(p10)
+	st.set_uv(Vector2(1, 0)); st.add_vertex(p11)
+	st.set_uv(Vector2(0, 1)); st.add_vertex(p00)
+	st.set_uv(Vector2(1, 0)); st.add_vertex(p11)
+	st.set_uv(Vector2(0, 0)); st.add_vertex(p01)
 
 
 ## Open-bottomed cone/frustum with UVs that wrap the texture `uv_wrap` times around.
@@ -1011,6 +1053,11 @@ func _st_branch(st: SurfaceTool, from: Vector3, dir: Vector3, r: float) -> void:
 
 
 ## Shared materials. `variant` shifts the tint so a stand of trees is not one colour.
+## A birch's crown: its lumps (centre, size), the cards of leaves round them.
+const BIRCH_BLOBS := [[Vector3(0.0, 3.6, 0.0), 1.25], [Vector3(0.45, 4.4, 0.2), 0.9], [Vector3(-0.4, 3.2, -0.3), 0.8]]
+const BIRCH_LEAVES_TEX := "res://assets/textury/world/spr_birch_leaves.png"
+
+
 func _tree_material(kind: String, variant: int) -> Material:
 	var key := "%s_%d" % [kind, variant]
 	if _tree_materials.has(key):
@@ -1024,6 +1071,10 @@ func _tree_material(kind: String, variant: int) -> Material:
 		"leaf":
 			mat = _make_psx_material(Color(0.4, 0.6, 0.3), 0.0, 22.0, 6.0, 0.0, 0.0, 0.0, 0.0, "tree_canopy", 0.62) as StandardMaterial3D
 			mat.albedo_color = [Color(0.9, 1.0, 0.7), Color(0.98, 1.0, 0.62), Color(1.0, 0.92, 0.58)][variant % 3]
+		"leaf_cards":
+			mat = StandardMaterial3D.new()
+			mat.albedo_texture = load(BIRCH_LEAVES_TEX)
+			mat.albedo_color = [Color(0.92, 0.96, 0.82), Color(1.0, 1.0, 0.78), Color(1.0, 0.9, 0.7)][variant % 3]
 		"birch_bark":
 			mat = _make_psx_material(Color(0.85, 0.83, 0.78), 0.0, 24.0, 6.0, 0.0, 0.0, 0.0, 0.0, "tree_bark", 0.58) as StandardMaterial3D
 			mat.albedo_color = Color(1.6, 1.58, 1.5)
@@ -1053,6 +1104,12 @@ func _wind_material(std: StandardMaterial3D, kind: String) -> Material:
 			m.set_shader_parameter("flutter", 1.4)
 			m.set_shader_parameter("height", 5.0)
 			m.set_shader_parameter("seasonal", 1.0)
+		"leaf_cards":
+			m.set_shader_parameter("sway", 1.0)
+			m.set_shader_parameter("flutter", 1.8)
+			m.set_shader_parameter("height", 5.0)
+			m.set_shader_parameter("seasonal", 1.0)
+			m.set_shader_parameter("alpha_cut", true)
 		"birch_bark":
 			m.set_shader_parameter("sway", 1.0)
 			m.set_shader_parameter("height", 5.0)
