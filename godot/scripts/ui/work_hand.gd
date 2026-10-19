@@ -46,6 +46,12 @@ const TIPS := {
 	"rag": Vector2(0.2, 0.28), "bag": Vector2(0.28, 0.62), "plunger": Vector2(0.14, 0.14),
 	"wrench": Vector2(0.2, 0.14), "open": Vector2(0.22, 0.2), "clamp": Vector2(0.24, 0.3),
 }
+## The same for the matched set (hand3_*: the tools sit elsewhere in those pictures).
+const TIPS3 := {
+	"brush": Vector2(0.06, 0.62), "broom": Vector2(0.12, 0.92), "mop": Vector2(0.12, 0.3),
+	"rag": Vector2(0.3, 0.16), "bag": Vector2(0.26, 0.74), "plunger": Vector2(0.18, 0.86),
+	"wrench": Vector2(0.14, 0.1), "open": Vector2(0.24, 0.2), "clamp": Vector2(0.24, 0.26),
+}
 const PARTICLE_COLORS := {
 	"suds": [Color(0.92, 0.94, 0.95), Color(0.78, 0.84, 0.88)],
 	"dust": [Color(0.62, 0.56, 0.46), Color(0.48, 0.44, 0.38)],
@@ -84,7 +90,8 @@ func start(verb: String, target: Vector2) -> void:
 	_verb = verb
 	var spec: Array = BY_VERB.get(verb, ["open", "pick", "dust"])
 	_tex = _load(str(spec[0]))
-	_tip = TIPS.get(str(spec[0]), Vector2(0.3, 0.28))
+	var matched := _tex != null and _tex.resource_path.get_file().begins_with("hand3_")
+	_tip = (TIPS3 if matched else TIPS).get(str(spec[0]), Vector2(0.3, 0.28))
 	_motion = str(spec[1])
 	_particles_kind = str(spec[2])
 	_target = target

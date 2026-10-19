@@ -114,6 +114,12 @@ var _sway_t := 0.0
 var _hands: Node
 var _x_target := ""
 var _strike_kick := 0
+var _tap_kick := 0
+var _gulp_kick := 0
+var _flame_t := 0.0
+var _flame_was := 0
+var _foam_t := 0.0
+var _dying_t := 0.0
 var _c_tap := false
 var _b_tap := false
 var _last_floor_y := 0.0
@@ -285,6 +291,9 @@ func _process(delta: float) -> void:
 	_claim_hands()
 	_update_loops(c_held)
 	_update_puffs(delta)
+	_flame_t += delta
+	_dying_t = maxf(0.0, _dying_t - delta)
+	_foam_t = maxf(0.0, _foam_t - delta)
 	_shown = can
 	_acc += delta
 	if _acc >= 1.0 / FPS:
@@ -375,6 +384,7 @@ func _cig_event(e: String, v) -> void:
 		"strike":
 			_play("c", "strike_catch.mp3" if int(v) == 1 else "strike_fail.mp3", -3.0)
 			_strike_kick = 2
+			_flame_t = 0.0
 			world.send("strike", [int(v)])
 		"flame_off":
 			pass
@@ -401,9 +411,13 @@ func _cig_event(e: String, v) -> void:
 		"cough":
 			_play("c", "cough_fit.mp3", -3.0)
 			_shake = 1.0
+			# Each cough a ragged little puff.
+			for k in 3:
+				_after(0.35 + 0.42 * k, func(): _blow(0.15))
 			world.send("cough", [])
 		"ash_tap":
 			_play("c", "ash_tap.mp3", -6.0)
+			_tap_kick = 3
 			_ash_flake(float(v))
 		"ash_none":
 			pass
@@ -438,6 +452,7 @@ func _bottle_event(e: String, v) -> void:
 			_stop("b")
 		"pop":
 			_play("b", "cap_pop.mp3", -3.0)
+			_cap_off_screen()
 			world.cap_off()
 			world.send("pop", [])
 		"foam":
@@ -447,6 +462,7 @@ func _bottle_event(e: String, v) -> void:
 			pass
 		"gulp":
 			_play("b2", "gulp.mp3", -6.0)
+			_gulp_kick = 2
 			world.send("gulp", [])
 		"lower":
 			if int(v) == 1:
@@ -713,18 +729,49 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	if _strike_kick > 0:
 		pos.y += 2.0 * s
 		_strike_kick -= 1
+	if _tap_kick > 0:
+		# The finger knocks the ash off: down sharply, back a little past.
+		pos.y += (3.0 if _tap_kick > 1 else -1.0) * s
+		_tap_kick -= 1
+	if cig.state == CIG.PACK:
+		# Two taps on the heel of the hand to knock one out, then up to the mouth.
+		if (cig.t > 0.32 and cig.t < 0.4) or (cig.t > 0.52 and cig.t < 0.6):
+			pos.y += 4.0 * s
+		elif cig.t > 0.72:
+			pos += Vector2(vp.x * 0.12, -10.0 * s)
 	if cig.state == CIG.THROW:
 		pos += (Vector2(-8.0, 6.0) if cig.t < 0.15 else Vector2(46.0, -34.0)) * s
 	_left.position = _ease("l", pos, s)
 	# The cigarette in your mouth: from the bottom middle, its tip where the lighter is.
 	if mouth or cig.state == CIG.DRAG:
 		_lay_lips(vp, s, bar, bob, false)
-	# The flame on the lighter.
+	# The flame on the lighter (and a breath of it dying when the thumb comes off).
+	if cig.state == CIG.LIPS and cig.flame == 0 and _flame_was == 2:
+		_dying_t = 0.12
+	_flame_was = cig.flame if cig.state == CIG.LIPS else 0
+	if cig.state == CIG.LIPS and cig.flame == 0 and _dying_t > 0.0:
+		var dt := tex("flame_dying")
+		if dt != null:
+			_flame.texture = dt
+			_flame.size = dt.get_size() * s
+			var a0: Vector2 = _left.position + Vector2(ANCHOR["hand2_lighter"]) * s
+			_flame.position = (a0 - Vector2(_flame.size.x * 0.5, _flame.size.y * 0.92)).floor()
+			_flame.z_index = 2
+			_flame.visible = true
 	if cig.state == CIG.LIPS and cig.flame > 0:
 		var ff := "flame_sparks"
 		if cig.flame == 2:
 			var wind := float(_env().get("wind", 0.0))
-			ff = "flame_wind" if wind > 0.5 and int(step) % 3 != 0 else ("flame_tall" if cig.light_progress > 0.5 or int(step) % 4 == 0 else "flame_small")
+			# Catching, then a flicker between small and tall, bent over in the wind,
+			# standing tall at the tip.
+			if _flame_t < 0.09:
+				ff = "flame_catch"
+			elif wind > 0.5 and int(step) % 3 != 0:
+				ff = "flame_wind"
+			elif cig.light_progress > 0.6:
+				ff = "flame_tall" if int(step) % 5 != 0 else "flame_small"
+			else:
+				ff = "flame_small" if (int(step) * 7) % 5 < 3 else "flame_tall"
 		var ft := tex(ff)
 		if ft != null:
 			_flame.texture = ft
@@ -751,6 +798,9 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 ## The cigarette in your mouth, from the bottom middle of the view going away.
 func _lay_lips(vp: Vector2, s: float, bar: float, bob: Vector2, alone: bool) -> void:
 	var lf := "cig_lips_unlit"
+	# Catching: the tip glows on and off before it takes.
+	if not cig.lit and cig.light_progress > 0.4:
+		lf = "cig_lips_lit" if (int(floorf(_tick * FPS)) % 3) != 0 else "cig_lips_unlit"
 	if cig.lit:
 		lf = "cig_lips_glow" if cig.state == CIG.DRAG else "cig_lips_lit"
 		if cig.length < 0.5 and cig.state != CIG.DRAG:
@@ -802,6 +852,15 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 	elif frame == "hand2_beer_foam":
 		x += (1.0 if int(step) % 2 == 0 else -1.0) * s
 	var pos := Vector2(x, y) + bob
+	if frame == "hand2_beer_drink":
+		# Tipped further up the emptier it is; each swallow a small jog.
+		pos.y -= (1.0 - bottle.level) * 14.0 * s
+		if _gulp_kick > 0:
+			pos.y -= 2.0 * s
+			_gulp_kick -= 1
+	if bottle.state == BOTTLE.FOAM and _foam_t <= 0.0 and frame == "hand2_beer_foam":
+		_foam_t = 0.32
+		_foam_drip()
 	if bottle.state == BOTTLE.THROW:
 		pos += (Vector2(10.0, 8.0) if bottle.t < 0.15 else Vector2(-30.0, -60.0)) * s
 	_right.position = _ease("r", pos, s)
@@ -878,6 +937,37 @@ func _ash_flake(amount: float) -> void:
 	_falls.append({"pos": at, "vel": Vector2(_rng.randf_range(-20.0, 20.0), 40.0) * vp.y / 720.0, "tex": t, "life": 0.0})
 
 
+## The cap levered off flies up past the bottle and off the screen, turning over.
+func _cap_off_screen() -> void:
+	if not _right.visible:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var k := vp.y / 720.0
+	var frames: Array = []
+	for n in ["cap_spin", "cap_edge", "cap_flat", "cap_edge"]:
+		var t := tex(n)
+		if t != null:
+			frames.append(t)
+	if frames.is_empty():
+		return
+	var at := _right.position + Vector2(_right.size.x * 0.5, _right.size.y * 0.05)
+	_falls.append({"pos": at, "vel": Vector2(_rng.randf_range(-220.0, -120.0), -620.0) * k, "tex": frames[0], "life": 0.0,
+		"g": 1700.0 * k, "spin": frames, "big": 2.0})
+
+
+## Foam running off the mouth of the bottle and down past the hand.
+func _foam_drip() -> void:
+	var t := tex("foam_drip")
+	if t == null or not _right.visible:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	# Off the lip of the bottle (its mouth is near the top of the picture, a little left of
+	# the middle), sliding down the glass: slow, short-lived, small.
+	var at := _right.position + Vector2(_right.size.x * _rng.randf_range(0.3, 0.42), _right.size.y * _rng.randf_range(0.05, 0.14))
+	_falls.append({"pos": at, "vel": Vector2(_rng.randf_range(-12.0, 12.0), 30.0) * vp.y / 720.0, "tex": t, "life": 0.0,
+		"g": 160.0 * vp.y / 720.0, "max": 0.7})
+
+
 func _update_puffs(delta: float) -> void:
 	# A thread of smoke off the tip now and then while it is held lit.
 	_wisp_t -= delta
@@ -900,10 +990,14 @@ func _update_puffs(delta: float) -> void:
 	_puffs = _puffs.filter(func(p): return float(p["life"]) < float(p["max"]))
 	for f in _falls:
 		f["life"] = float(f["life"]) + delta
-		f["vel"] = (f["vel"] as Vector2) + Vector2(0.0, 900.0) * delta
+		f["vel"] = (f["vel"] as Vector2) + Vector2(0.0, float(f.get("g", 900.0))) * delta
 		f["pos"] = (f["pos"] as Vector2) + (f["vel"] as Vector2) * delta
+		# A cap turning over as it flies: its pictures in turn, twelve a second.
+		if f.has("spin"):
+			var fr: Array = f["spin"]
+			f["tex"] = fr[int(floorf(float(f["life"]) * FPS)) % fr.size()]
 	var h := get_viewport().get_visible_rect().size.y
-	_falls = _falls.filter(func(f): return (f["pos"] as Vector2).y < h)
+	_falls = _falls.filter(func(f): return (f["pos"] as Vector2).y < h and float(f["life"]) < float(f.get("max", 99.0)))
 	_puff_layer.queue_redraw()
 
 
@@ -934,10 +1028,12 @@ func _draw_puffs() -> void:
 		var lit: Color = _hands.light if _hands != null and is_instance_valid(_hands) else Color.WHITE
 		var a := floorf((0.55 * (1.0 - k * 0.7)) * 8.0) / 8.0
 		_puff_layer.draw_texture_rect(t, Rect2(at, sz), false, Color(lit.r, lit.g, lit.b, a))
+	var lit2: Color = _hands.light if _hands != null and is_instance_valid(_hands) else Color.WHITE
 	for f in _falls:
 		var t2: Texture2D = f["tex"]
+		var sc := s * float(f.get("big", 1.0))
 		var at2 := (((f["pos"] as Vector2)) / s).floor() * s
-		_puff_layer.draw_texture_rect(t2, Rect2(at2, t2.get_size() * s), false)
+		_puff_layer.draw_texture_rect(t2, Rect2(at2, t2.get_size() * sc), false, lit2)
 
 
 # ── co-op ────────────────────────────────────────────────────────────────────

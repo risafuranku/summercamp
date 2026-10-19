@@ -47,9 +47,15 @@ func _ready() -> void:
 	_rng.randomize()
 
 
+## Pictures standing in for others: the glowing butt is the last stub of a lit one.
+const SAME := {"butt_lit": "cig_end"}
+
+
 func tex(n: String) -> Texture2D:
 	if not _tex.has(n):
 		_tex[n] = load(ART + n + ".png") if ResourceLoader.exists(ART + n + ".png") else null
+		if _tex[n] == null and SAME.has(n):
+			_tex[n] = tex(str(SAME[n]))
 	return _tex[n]
 
 
