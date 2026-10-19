@@ -30,6 +30,8 @@ var _lamp_poll := 0.0
 var _lamps: Array = []
 var _audio: AudioStreamPlayer3D
 const OWL_TEX := "res://assets/textury/world/owl.png"
+## The birds, crows, bats and moths (Grok, two wing beats each): assets/textury/world/sky_*.png.
+const SKY_TEX := "res://assets/textury/world/sky_%s.png"
 const OWL_EYES := "res://assets/textury/world/owl_eyes.png"
 var _owl: Sprite3D
 var _owl_eyes: Sprite3D
@@ -41,33 +43,20 @@ var _owl_hoot := 20.0
 func _ready() -> void:
 	name = "SkyLife"
 	_rng.randomize()
-	_tex["bird_up"] = _pixels(["X......X", ".X....X.", "..X..X..", "...XX...", "........"], Color(0.16, 0.15, 0.15))
-	_tex["bird_down"] = _pixels(["........", "...XX...", "..X..X..", ".X....X.", "X......X"], Color(0.16, 0.15, 0.15))
-	_tex["crow_up"] = _pixels(["XX........XX", ".XXX....XXX.", "..XXX..XXX..", "....XXXX....", ".....XX.....", "............"], Color(0.05, 0.05, 0.06))
-	_tex["crow_down"] = _pixels(["............", ".....XX.....", "....XXXX....", "..XXX..XXX..", ".XXX....XXX.", "XX........XX"], Color(0.05, 0.05, 0.06))
-	_tex["bat_up"] = _pixels(["X.X....X.X", "XXXX..XXXX", ".XXXXXXXX.", "....XX....", "..........", ], Color(0.07, 0.06, 0.07))
-	_tex["bat_down"] = _pixels(["..........", "....XX....", ".XXXXXXXX.", "XXX.XX.XXX", "X.X....X.X"], Color(0.07, 0.06, 0.07))
-	_tex["moth"] = _pixels(["X.X", ".X.", "X.X"], Color(0.92, 0.9, 0.8))
+	for k in ["bird_up", "bird_down", "crow_up", "crow_down", "bat_up", "bat_down", "moth"]:
+		var path := SKY_TEX % k
+		_tex[k] = load(path) if ResourceLoader.exists(path) else null
 	_audio = AudioStreamPlayer3D.new()
 	_audio.unit_size = 20.0
 	_audio.max_distance = 160.0
 	add_child(_audio)
 
 
-func _pixels(rows: Array, col: Color) -> Texture2D:
-	var w := str(rows[0]).length()
-	var img := Image.create(w, rows.size(), false, Image.FORMAT_RGBA8)
-	for y in rows.size():
-		for x in w:
-			if str(rows[y])[x] == "X":
-				img.set_pixel(x, y, col)
-	return ImageTexture.create_from_image(img)
-
-
-func _sprite(tex_key: String, px: float) -> Sprite3D:
+## A creature `width` metres across, wings spread (its picture however many pixels wide).
+func _sprite(tex_key: String, width: float) -> Sprite3D:
 	var s := Sprite3D.new()
 	s.texture = _tex[tex_key]
-	s.pixel_size = px
+	s.pixel_size = width / float(maxi(1, s.texture.get_width())) if s.texture != null else 0.1
 	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	s.shaded = false
@@ -213,7 +202,7 @@ func _spawn_flock(around: Vector3, kind: String) -> void:
 		if i == 0:
 			off = Vector3.ZERO
 		# Big for real birds: drawn small and scaled up, anything smaller is a speck.
-		var s := _sprite(kind + "_up", 0.16 if kind == "bird" else 0.2)
+		var s := _sprite(kind + "_up", 1.28 if kind == "bird" else 2.4)
 		birds.append({"sprite": s, "off": off, "phase": _rng.randi_range(0, 5)})
 	var speed := _rng.randf_range(11.0, 15.0) if kind == "bird" else _rng.randf_range(7.0, 9.0)
 	_flocks.append({"birds": birds, "from": from + Vector3(0, height, 0), "dir": dir, "side": side, "t": 0.0, "length": length, "speed": speed, "kind": kind, "heard": false})
@@ -279,7 +268,7 @@ func _lit_lamps(around: Vector3) -> Array:
 func _update_bats(around: Vector3, night: bool) -> void:
 	var want := 3 if night else 0
 	while _bats.size() < want:
-		_bats.append({"sprite": _sprite("bat_up", 0.075), "a": _rng.randf() * TAU, "r": _rng.randf_range(3.0, 7.0), "h": _rng.randf_range(5.0, 9.0), "phase": _rng.randi_range(0, 3), "jit": Vector3.ZERO})
+		_bats.append({"sprite": _sprite("bat_up", 0.75), "a": _rng.randf() * TAU, "r": _rng.randf_range(3.0, 7.0), "h": _rng.randf_range(5.0, 9.0), "phase": _rng.randi_range(0, 3), "jit": Vector3.ZERO})
 	while _bats.size() > want:
 		(_bats.pop_back()["sprite"] as Node).queue_free()
 	if _bats.is_empty():
@@ -304,7 +293,7 @@ func _update_moths(around: Vector3, night: bool) -> void:
 	var lamps: Array = _lit_lamps(around) if night else []
 	var want := lamps.size() * 4
 	while _moths.size() < want:
-		_moths.append({"sprite": _sprite("moth", 0.03), "o": Vector3.ZERO})
+		_moths.append({"sprite": _sprite("moth", 0.09), "o": Vector3.ZERO})
 	while _moths.size() > want:
 		(_moths.pop_back()["sprite"] as Node).queue_free()
 	for i in _moths.size():
