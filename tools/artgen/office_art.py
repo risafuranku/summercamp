@@ -310,12 +310,35 @@ ROWS = [
     ("spr_key_cabin", "sprite", 21, "key_cabin.png"),
     ("spr_key_tent", "sprite", 16, "key_tent.png"),
     ("spr_key_caravan", "sprite", 20, "key_caravan.png"),
+    # Rychla kacka (scripts/town/shop_closeup.gd) and the pub's LUCKY 7 (pub_closeup.gd):
+    # the card's paper, the duck, the symbols, the silver; the cabinet, the reels, the bulbs,
+    # the button.
+    ("tex_card_paper", "texture", 64, "closeup/card_paper.png"),
+    ("tex_scratch_foil", "texture", 32, "closeup/scratch_foil.png"),
+    ("cu_card_duck", "sprite", 19, "closeup/card_duck.png"),
+    ("cu_sym_duck", "sprite", 20, "closeup/sym_duck.png"),
+    ("cu_sym_seven", "sprite", 20, "closeup/sym_seven.png"),
+    ("cu_sym_bell", "sprite", 20, "closeup/sym_bell.png"),
+    ("cu_sym_cherry", "sprite", 20, "closeup/sym_cherry.png"),
+    ("cu_sym_clover", "sprite", 20, "closeup/sym_clover.png"),
+    ("cu_sym_acorn", "sprite", 20, "closeup/sym_acorn.png"),
+    ("tex_slot_cabinet", "texture", 64, "closeup/slot_cabinet.png"),
+    ("cu_reel_cherry", "sprite", 34, "closeup/reel_cherry.png"),
+    ("cu_reel_plum", "sprite", 34, "closeup/reel_plum.png"),
+    ("cu_reel_bell", "sprite", 34, "closeup/reel_bell.png"),
+    ("cu_reel_bar", "sprite", 18, "closeup/reel_bar.png"),
+    ("cu_reel_seven", "sprite", 34, "closeup/reel_seven.png"),
+    ("cu_slot_lamp_on", "sprite", 9, "closeup/slot_lamp_on.png"),
+    ("cu_slot_lamp_off", "sprite", 9, "closeup/slot_lamp_off.png"),
+    ("cu_slot_button", "sprite", 22, "closeup/slot_button.png"),
     ("warden_a_bedfoot", "sprite", 56, "npc/warden_a_bedfoot.png"),
     ("warden_b_bedfoot", "sprite", 56, "npc/warden_b_bedfoot.png"),
     ("warden_c_bedfoot", "sprite", 56, "npc/warden_c_bedfoot.png"),
     ("warden_d_bedfoot", "sprite", 56, "npc/warden_d_bedfoot.png"),
 ]
 TEXTURY = os.path.join(HERE, "..", "..", "godot", "assets", "textury")
+## Textures kept in their own colours, not snapped to the palette.
+UNSNAPPED_TEXTURES = {"tex_card_paper"}
 
 
 def rekeyed(art_id):
@@ -448,6 +471,12 @@ def main():
                 out = process.sprite(rekeyed(art_id), size)
         elif mode == "panel":
             out = process.panel(raw, size)
+        elif art_id in UNSNAPPED_TEXTURES:
+            # Printed colours the Build palette has not got (the card's bright yellow).
+            snap = process.snap
+            process.snap = lambda img, keep: img.convert("RGB")
+            out = process.texture(raw, size)
+            process.snap = snap
         else:
             out = process.texture(raw, size)
         out.save(dest)
