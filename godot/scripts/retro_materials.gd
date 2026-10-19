@@ -417,8 +417,15 @@ uniform sampler2D emission_tex : source_color, filter_nearest, repeat_enable;
 uniform bool has_emission_tex = false;
 uniform float snap_lines = 150.0;
 uniform float affine = 0.8;
+// The light as the hands have it (materials/hand_ps1.gdshader): each lamp's, the torch's
+// and the sun's light in steps, the steps dithered with a 4x4 Bayer matrix on the game's
+// own low-res screen pixels, as the PlayStation dithered (on a far texture's texels the
+// pattern turned to moire).
+uniform float light_steps = 6.0;
+uniform float light_dither = 1.0;
 
 varying vec2 v_uv;
+varying vec2 v_texel;
 varying vec2 v_uv_w;
 varying float v_w;
 
@@ -475,6 +482,7 @@ void fragment() {
 	c *= COLOR;
 #endif
 	ALBEDO = c.rgb;
+	v_texel = floor(FRAGCOORD.xy);
 #if ALPHA_MODE == 1
 	ALPHA = c.a;
 	ALPHA_SCISSOR_THRESHOLD = alpha_scissor;
@@ -503,7 +511,14 @@ void light() {
 #else
 	float ndl = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
 #endif
-	DIFFUSE_LIGHT += LIGHT_COLOR * ndl * ATTENUATION / PI;
+	float lit = ndl * ATTENUATION;
+	if (light_steps > 0.0) {
+		const float B[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+		vec2 m = mod(v_texel, 4.0);
+		float d = (B[int(m.x) + int(m.y) * 4] + 0.5) / 16.0 - 0.5;
+		lit = max(floor(lit * light_steps + 0.5 + d * light_dither), 0.0) / light_steps;
+	}
+	DIFFUSE_LIGHT += LIGHT_COLOR * lit / PI;
 }
 #endif
 """
