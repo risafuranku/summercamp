@@ -434,7 +434,8 @@ func send(kind: String, data: Array) -> void:
 
 ## Something the other warden did with their hands (Coop._habit).
 func coop_habit(kind: String, data: Array) -> void:
-	var fig := _partner_figure()
+	# Whose hands (Coop.sender: the warden it came from).
+	var fig := _figure_of(Coop.sender)
 	match kind:
 		"strike":
 			if fig != null:
@@ -477,13 +478,15 @@ func coop_habit(kind: String, data: Array) -> void:
 			if pockets != null:
 				pockets._play("fx", "clink.mp3", -3.0)
 		"light_you":
-			# They held their flame or their cigarette to yours.
+			# They held their flame or their cigarette to yours (to whom: data[0]).
+			if not data.is_empty() and int(data[0]) != multiplayer.get_unique_id():
+				return
 			if pockets != null and pockets.cig.state == pockets.CIG.LIPS:
 				pockets.cig.lit = true
 				pockets.cig.events.append(["lit", 0])
 				pockets.cig.state = pockets.CIG.EXHALE
 				pockets.cig.t = 0.0
-				pockets._say("A light from %s." % Coop.partner_name())
+				pockets._say("A light from %s." % Coop.sender_name())
 		"butt", "bottle":
 			var root := get_tree().current_scene.get("_world_3d") as Node3D if get_tree().current_scene != null else null
 			if root == null:
@@ -494,10 +497,18 @@ func coop_habit(kind: String, data: Array) -> void:
 			_flying.append([s, data[1], kind, data[2] if kind == "butt" else 1.0])
 
 
+## The warden whose hands are near yours: the nearest of the others, close enough.
+var _partner_id := 0
+
+
 func _partner_figure() -> Node3D:
-	if not Coop.has_method("remote_figure"):
-		return null
-	var f: Node3D = Coop.remote_figure()
+	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	_partner_id = Coop.nearest_other(cam.global_position, 6.0) if cam != null else Coop.remote_id
+	return _figure_of(_partner_id)
+
+
+func _figure_of(id: int) -> Node3D:
+	var f: Node3D = Coop.figure_of(id)
 	return f if f != null and f.visible else null
 
 
@@ -516,7 +527,7 @@ func _partner_mouth(fig: Node3D) -> Vector3:
 ## Their hands as the state says ("hb": c, l, b): the ember at their mouth, the flame.
 func _partner(_delta: float) -> void:
 	var fig := _partner_figure()
-	var hb: Dictionary = Coop.partner_state.get("hb", {}) if Coop.has_method("is_active") and Coop.is_active() else {}
+	var hb: Dictionary = Coop.state_of(_partner_id).get("hb", {}) if Coop.is_active() else {}
 	if fig == null or hb.is_empty():
 		if _partner_fx != null and is_instance_valid(_partner_fx):
 			_partner_fx.visible = false
@@ -600,8 +611,8 @@ func _offer_light(fig: Node3D, hb: Dictionary) -> void:
 		return
 	if mine == 2 or Input.is_action_pressed("smoke"):
 		_light_cd = 3.0
-		send("light_you", [])
-		pockets._say("You give %s a light." % Coop.partner_name())
+		send("light_you", [_partner_id])
+		pockets._say("You give %s a light." % Coop.name_of(_partner_id))
 
 
 ## Both with an open bottle up, face to face: the bottles knock.

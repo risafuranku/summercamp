@@ -303,6 +303,18 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **Seated guest sprites** (`*_sit`, `*_drink`, `*_eat`): the node goes on the floor just in
   front of the seat, the seat line is 0.45 m up the sprite; for a bar stool put the node at
   stool top - 0.45, in front of the stool, or its seat cuts the legs.
+- **Co-op is for up to four** (`Coop.MAX_WARDENS`; 19. 10.): the other wardens are
+  `Coop.others()` (peer ids, the host is 1), each with `state_of` / `look_of` / `name_of` /
+  `figure_of`; in a handler of something that came in (`coop_request`, `coop_play`,
+  `coop_sync`, `coop_inv`, `coop_habit`) `Coop.sender` is who sent it. Everything goes to
+  everyone (the host relays: SceneMultiplayer's server relay); something meant for one
+  warden carries their id and the others drop it (the lift, a pipe knock, a light for a
+  cigarette, an item picked up). `partner_*` / `remote_figure()` / `partner_name()` are the
+  first of the others only, left for what has no need to count. A thing for "the other
+  warden" in a room, on the bus, at an attraction, in a Lesna place, in the pipes, on the
+  map is one figure per id (look how `interior_manager._coop_figs` does it). The night
+  calls a warden "host" or "p<peer>" (`coop_night.who_of`); each has a stand-in, a
+  sanity and their own private enemies. `tools/coop4_check.py` runs four copies.
 - **Co-op: the joining machine simulates nothing** (`Coop.sim_here()` false): no clock,
   weather, billing, nights, arrivals or saves of its own; main gates them in `_process`
   and the handlers. A new system that changes the camp must check `Coop.sim_here()`.

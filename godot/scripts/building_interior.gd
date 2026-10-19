@@ -761,12 +761,13 @@ func _try_click_crt(event: InputEventMouseButton) -> void:
 	# Strict hit test: only the real CRT screen quad is clickable.
 	var vp_pos = _map_mouse_to_crt(event.position, false)
 	if vp_pos != Vector2.INF:
-		# Co-op: one at the PC at a time (the other looks over their shoulder).
-		var theirs: Dictionary = Coop.partner_state.get("room", {}) if Coop.has_partner() else {}
-		if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) == "pc":
-			if _extras != null:
-				_extras.coop_refuse("pc")
-			return
+		# Co-op: one at the PC at a time (the others look over their shoulder).
+		for id in Coop.others():
+			var theirs: Dictionary = Coop.state_of(id).get("room", {})
+			if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) == "pc":
+				if _extras != null:
+					_extras.coop_refuse("pc")
+				return
 		enter_crt_view()
 
 

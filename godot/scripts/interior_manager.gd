@@ -1371,10 +1371,33 @@ func _is_supported_service_building_type(building_type: String) -> bool:
 
 # ── co-op: the other warden in the same room (scripts/coop/coop.gd) ─────────
 
-## The other warden's figure in the room you are in, and the interior it is in.
-var _coop_fig: Node3D
-var _coop_fig_in: Object
-var _coop_fig_spot := Vector3.ZERO
+## The other wardens' figures in the room you are in: peer id -> {fig, in: the interior
+## it is in, spot: where they stand about, sleeper: the one along a bed, job: theirs}.
+var _coop_figs: Dictionary = {}
+
+
+func _coop_entry(id: int) -> Dictionary:
+	if not _coop_figs.has(id):
+		_coop_figs[id] = {"fig": null, "in": null, "spot": Vector3.ZERO, "sleeper": null, "job": ""}
+	return _coop_figs[id]
+
+
+## The jobs the other wardens in your room have their hands on (theirs while they are at
+## them), to the room's tasks and the businesses' marks.
+func _coop_push_jobs() -> void:
+	var jobs: Array = []
+	for id in _coop_figs.keys():
+		var j := str(_coop_figs[id].get("job", ""))
+		if j != "":
+			jobs.append(j)
+	var it = _open_room_interior()
+	if it == null:
+		return
+	var room_tasks = _room_tasks(it) if it != _building_interior else null
+	if room_tasks != null and "coop_taken" in room_tasks:
+		room_tasks.coop_taken = jobs
+	if it == _service_interior and "coop_partner_jobs" in it:
+		it.coop_partner_jobs = jobs
 
 
 ## The room you are in, for the other machine: {k: room key, t: kind, s: which part
@@ -1489,13 +1512,17 @@ func _room_job(it) -> String:
 	return w
 
 
-## The other warden's place in your room, each time their state comes in: their figure
-## stands across the room from you (where you were looking when they came in), or at
-## the job they are doing (the broom for sweeping and mopping, down on a knee for the
-## rest; a job at your feet has them on its far side). In a tent they lie on their belly
-## down its middle, under the ridge (at the back, or by their job). Not in your room: no
-## figure.
-func coop_partner(info: Dictionary) -> void:
+## Another warden's place in your room (`id`: theirs), each time their state comes in:
+## their figure stands across the room from you (where you were looking when they came
+## in; the next one a pace further along), or at the job they are doing (the broom for
+## sweeping and mopping, down on a knee for the rest; a job at your feet has them on its
+## far side). In a tent they lie on their belly down its middle, under the ridge (at the
+## back, or by their job). Not in your room: no figure.
+func coop_partner(info: Dictionary, id := 0) -> void:
+	if id == 0:
+		id = Coop.remote_id
+	var look: Dictionary = Coop.look_of(id)
+	var model := int(look.get("m", 1))
 	var mine := coop_room()
 	var same: bool = not info.is_empty() and not mine.is_empty() and str(info.get("k", "")) == str(mine["k"]) \
 		and str(info.get("t", "")) == str(mine["t"]) and str(info.get("s", "")) == str(mine["s"]) and str(mine["k"]) != ""
@@ -1506,23 +1533,23 @@ func coop_partner(info: Dictionary) -> void:
 			and str(mine.get("s", "")) in [str(go.get("f", "")), str(go.get("to", ""))]:
 		same = true
 	if not same:
-		coop_drop_partner()
+		coop_drop_partner(id)
 		return
 	var it = _open_room_interior()
+	var e := _coop_entry(id)
 	# Their job is theirs while they are at it.
-	var room_tasks = _room_tasks(it) if it != _building_interior else null
-	if room_tasks != null and "coop_taken" in room_tasks:
-		room_tasks.coop_taken = str(info.get("w", ""))
+	e["job"] = str(info.get("w", ""))
+	_coop_push_jobs()
 	var vp: Node = it.get("_viewport")
 	var cam: Camera3D = it.get("_interior_camera")
 	if vp == null or cam == null:
 		return
 	# In bed: seen lying on it from the back room, or in the tent, cabin or caravan
 	# they turned in in (lodge_bed.gd), nowhere else.
-	var has_bed: bool = COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "bed")
+	var has_bed: bool = COOP_LOOKS.has_pose(model, "bed")
 	var lodge: bool = not LODGE_BED.bed_spot(str(mine["t"])).is_empty()
 	if bool(info.get("b", false)) and not (has_bed and (lodge or (str(mine["t"]) == "office" and str(mine["s"]) == "back"))):
-		coop_drop_partner()
+		coop_drop_partner(id)
 		return
 	var tent: bool = str(mine["t"]) == "tent"
 	# The camera is a child of the room's root, which stands on the floor: its own height
@@ -1532,63 +1559,69 @@ func coop_partner(info: Dictionary) -> void:
 	var fwd := -cam.global_basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
-	if _coop_fig == null or not is_instance_valid(_coop_fig) or _coop_fig_in != it or _coop_fig.get_parent() != vp:
-		coop_drop_partner()
-		var look: Dictionary = Coop.partner_look
-		_coop_fig = COOP_FIGURE.new()
-		_coop_fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
-		vp.add_child(_coop_fig)
-		_coop_fig_in = it
+	var fig: Node3D = e["fig"]
+	if fig == null or not is_instance_valid(fig) or e["in"] != it or fig.get_parent() != vp:
+		coop_drop_partner(id)
+		e = _coop_entry(id)
+		e["job"] = str(info.get("w", ""))
+		fig = COOP_FIGURE.new()
+		fig.setup(model, int(look.get("c", 0)), true)
+		vp.add_child(fig)
+		e["fig"] = fig
+		e["in"] = it
 		var right := cam.global_basis.x
 		right.y = 0.0
 		right = right.normalized() if right.length() > 0.01 else Vector3.RIGHT
-		# Across the room from you (a cabin is three paces deep), a little to one side; in
-		# a tent at its back.
-		_coop_fig_spot = cam.global_position + fwd * 1.8 + right * 0.3
+		# Across the room from you (a cabin is three paces deep), a little to one side, the
+		# next of them a pace along the other way; in a tent at its back, one behind another.
+		var nth := maxi(0, Coop.others().find(id))
+		var side := 0.3 + 0.6 * float(nth)
+		var spot: Vector3 = cam.global_position + fwd * 1.8 + right * (side if nth % 2 == 0 else -side)
 		if tent and root != null:
-			_coop_fig_spot = _coop_tent_spot(root, root.global_transform * Vector3(0.0, 0.0, -0.6))
-		_coop_fig_spot.y = floor_y
+			spot = _coop_tent_spot(root, root.global_transform * Vector3(0.0, 0.0, -0.6 + 0.25 * float(nth)))
+		spot.y = floor_y
+		e["spot"] = spot
 	if not (bool(info.get("b", false)) and lodge):
-		_coop_hide_sleeper()
+		_coop_hide_sleeper(id)
 	if bool(info.get("b", false)) and lodge and root != null:
 		# On their back on the bed, the head on the pillow end.
 		var spot: Dictionary = LODGE_BED.bed_spot(str(mine["t"]))
 		var head: Vector3 = root.global_transform * (spot["head"] as Vector3)
 		var mid: Vector3 = root.global_transform * (spot["centre"] as Vector3)
-		_coop_fig.set_walking(false)
+		fig.set_walking(false)
 		# Seen along the bed (a cabin's, a tent's from the door): from the foot end; seen
 		# across it (the caravan's dinette): from the side.
 		var axis := head - mid
 		axis.y = 0.0
 		var along: bool = axis.length() > 0.01 and absf(axis.normalized().dot(fwd)) > 0.6
-		if along and COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "bedfoot"):
-			_coop_fig.visible = false
-			_coop_lay_sleeper(vp, root.global_transform * (spot["foot"] as Vector3), head)
+		if along and COOP_LOOKS.has_pose(model, "bedfoot"):
+			fig.visible = false
+			_coop_lay_sleeper(id, vp, root.global_transform * (spot["foot"] as Vector3), head)
 			return
-		_coop_hide_sleeper()
-		_coop_fig.show_at(mid, "bed")
-		_coop_fig.set_flip((head - mid).dot(cam.global_basis.x) > 0.0)
+		_coop_hide_sleeper(id)
+		fig.show_at(mid, "bed")
+		fig.set_flip((head - mid).dot(cam.global_basis.x) > 0.0)
 		return
 	if str(mine["t"]) == "office" and root != null:
-		_coop_fig.set_walking(false)
-		_coop_fig.set_flip(false)
+		fig.set_walking(false)
+		fig.set_flip(false)
 		if bool(info.get("b", false)):
 			# On their back on the bed, the head on the pillow (back_room.lie_pose's end).
 			var head: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, -0.75))
 			var feet: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, 0.75))
-			_coop_fig.show_at(root.global_transform * COOP_BED, "bed")
-			_coop_fig.set_flip((head - feet).dot(cam.global_basis.x) > 0.0)
+			fig.show_at(root.global_transform * COOP_BED, "bed")
+			fig.set_flip((head - feet).dot(cam.global_basis.x) > 0.0)
 			return
 		if not go.is_empty():
 			# Through the doorway, as their camera goes (reception_extras.go_*).
 			var path := _coop_office_path(str(go.get("f", "")), str(go.get("to", "")))
 			var at := _coop_along(path, clampf(float(go.get("k", 0.0)), 0.0, 1.0))
-			_coop_fig.show_at(root.global_transform * at, "stand")
-			_coop_fig.set_walking(true)
+			fig.show_at(root.global_transform * at, "stand")
+			fig.set_walking(true)
 			return
 		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(mine["s"]), COOP_OFFICE_SPOTS["office"])
 		var pose := "stand"
-		if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), "write"):
+		if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(model, "write"):
 			# Behind the counter, bent over the register.
 			spot = COOP_DESK_SPOT
 			pose = "write"
@@ -1600,19 +1633,18 @@ func coop_partner(info: Dictionary) -> void:
 			var at_desk := seat.lerp(screen, 0.38)
 			spot = Vector3(at_desk.x, 0.0, at_desk.z)
 			pose = "desk"
-		_coop_fig.show_at(root.global_transform * spot, pose)
+		fig.show_at(root.global_transform * spot, pose)
 		return
 	var job := str(info.get("w", ""))
 	if it == _service_interior and it.has_method("coop_job_spot"):
-		it.coop_partner_job = job
 		var at_job: Dictionary = it.coop_job_spot(job) if job != "" else {}
 		if not at_job.is_empty():
 			# Behind the counter at the job they have open (the tap, the pass, the till).
 			var pose := str(at_job["pose"])
-			if not COOP_LOOKS.has_pose(int(Coop.partner_look.get("m", 1)), pose):
+			if not COOP_LOOKS.has_pose(model, pose):
 				pose = "stand"
-			_coop_fig.set_walking(false)
-			_coop_fig.show_at(at_job["pos"], pose)
+			fig.set_walking(false)
+			fig.show_at(at_job["pos"], pose)
 			return
 	if job != "":
 		var tasks = _room_tasks(it)
@@ -1630,9 +1662,9 @@ func coop_partner(info: Dictionary) -> void:
 			at.y = floor_y
 			var verb := str(t.get("verb", ""))
 			var pose := "sweep" if verb in ["Sweeping", "Mopping"] else ("stand" if verb in ["Making the bed", "Rolling out"] else "crouch")
-			_coop_fig.show_at(at, "prone" if tent else pose)
+			fig.show_at(at, "prone" if tent else pose)
 			return
-	_coop_fig.show_at(_coop_fig_spot, "prone" if tent else "stand")
+	fig.show_at(e["spot"], "prone" if tent else "stand")
 
 
 ## A place in a tent for the other warden: down its middle (the walls slope in to the
@@ -1648,15 +1680,17 @@ func _coop_tent_spot(root: Node3D, at: Vector3) -> Vector3:
 ## The other warden asleep in a lodging's bed, seen along it (lodge_bed.gd): their
 ## picture from the foot end laid back along the mattress (the head on the pillow, the
 ## boots towards the foot, tilted up enough to be seen), not turning to face you.
-var _coop_sleeper: Sprite3D
 const COOP_SLEEPER_TILT := 28.0
 const COOP_SLEEPER_LENGTH := 0.72
 
 
-func _coop_lay_sleeper(vp: Node, foot: Vector3, head: Vector3) -> void:
-	if _coop_sleeper == null or not is_instance_valid(_coop_sleeper) or _coop_sleeper.get_parent() != vp:
-		_coop_hide_sleeper()
-		var tex: Texture2D = COOP_LOOKS.texture(int(Coop.partner_look.get("m", 1)), int(Coop.partner_look.get("c", 0)), "bedfoot")
+func _coop_lay_sleeper(id: int, vp: Node, foot: Vector3, head: Vector3) -> void:
+	var e := _coop_entry(id)
+	var sl: Sprite3D = e["sleeper"]
+	if sl == null or not is_instance_valid(sl) or sl.get_parent() != vp:
+		_coop_hide_sleeper(id)
+		var look: Dictionary = Coop.look_of(id)
+		var tex: Texture2D = COOP_LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), "bedfoot")
 		if tex == null:
 			return
 		var s := Sprite3D.new()
@@ -1670,7 +1704,8 @@ func _coop_lay_sleeper(vp: Node, foot: Vector3, head: Vector3) -> void:
 		s.pixel_size = COOP_SLEEPER_LENGTH / float(tex.get_height())
 		s.offset = Vector2(0.0, tex.get_height() * 0.5)
 		vp.add_child(s)
-		_coop_sleeper = s
+		e["sleeper"] = s
+		sl = s
 	var along := head - foot
 	along.y = 0.0
 	along = along.normalized()
@@ -1678,33 +1713,41 @@ func _coop_lay_sleeper(vp: Node, foot: Vector3, head: Vector3) -> void:
 	var up := (along * cos(tilt) + Vector3.UP * sin(tilt)).normalized()
 	var n := (Vector3.UP * cos(tilt) - along * sin(tilt)).normalized()
 	var right := up.cross(n)
-	_coop_sleeper.global_transform = Transform3D(Basis(right, up, n), head - along * (COOP_SLEEPER_LENGTH * cos(tilt)) + Vector3(0, 0.04, 0))
+	sl.global_transform = Transform3D(Basis(right, up, n), head - along * (COOP_SLEEPER_LENGTH * cos(tilt)) + Vector3(0, 0.04, 0))
 
 
-func _coop_hide_sleeper() -> void:
-	if _coop_sleeper != null and is_instance_valid(_coop_sleeper):
-		_coop_sleeper.queue_free()
-	_coop_sleeper = null
+func _coop_hide_sleeper(id: int) -> void:
+	if not _coop_figs.has(id):
+		return
+	var sl = _coop_figs[id].get("sleeper")
+	if sl != null and is_instance_valid(sl):
+		sl.queue_free()
+	_coop_figs[id]["sleeper"] = null
 
 
-func coop_drop_partner() -> void:
-	_coop_hide_sleeper()
-	var it = _open_room_interior()
-	if it == _service_interior and it != null and "coop_partner_job" in it:
-		it.coop_partner_job = ""
-	var room_tasks = _room_tasks(it) if it != null and it != _building_interior else null
-	if room_tasks != null and "coop_taken" in room_tasks:
-		room_tasks.coop_taken = ""
-	if _coop_fig != null and is_instance_valid(_coop_fig):
-		_coop_fig.queue_free()
-	_coop_fig = null
-	_coop_fig_in = null
+## A warden's figure gone from your room (`id` -1: every one of them).
+func coop_drop_partner(id := -1) -> void:
+	var ids: Array = _coop_figs.keys() if id == -1 else [id]
+	for i in ids:
+		if not _coop_figs.has(i):
+			continue
+		_coop_hide_sleeper(i)
+		var fig = _coop_figs[i].get("fig")
+		if fig != null and is_instance_valid(fig):
+			fig.queue_free()
+		_coop_figs.erase(i)
+	_coop_push_jobs()
 
 
-## The other warden's look changed: the figure in the room changes with it.
-func coop_partner_look(look: Dictionary) -> void:
-	if _coop_fig != null and is_instance_valid(_coop_fig) and _coop_fig.has_method("set_look"):
-		_coop_fig.set_look(int(look.get("m", 1)), int(look.get("c", 0)))
+## A warden's look changed: their figure in the room changes with it (`id` 0: all).
+func coop_partner_look(look: Dictionary, id := 0) -> void:
+	for i in _coop_figs.keys():
+		if id != 0 and i != id:
+			continue
+		var fig = _coop_figs[i].get("fig")
+		if fig != null and is_instance_valid(fig) and fig.has_method("set_look"):
+			var l: Dictionary = Coop.look_of(i) if id == 0 else look
+			fig.set_look(int(l.get("m", 1)), int(l.get("c", 0)))
 
 
 ## A room's state changed under you (the host's camp sent it, or did the other

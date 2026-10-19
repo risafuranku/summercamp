@@ -535,22 +535,29 @@ func _tick_director() -> void:
 		return
 	var ctx := _director_context()
 	# Co-op: the night presses on one warden at a time (scripts/coop/coop_night.gd); what
-	# it does to the other happens on their machine, and to both when they are together.
+	# it does to another happens on their machine, and to those with them too.
 	var target := "host"
 	if Coop.is_host() and Coop.has_partner() and _coop_night != null:
 		target = _coop_night.director_target()
-		if target == "other":
-			ctx = _director_context_other(ctx)
+		if target != "host":
+			ctx = _director_context_other(ctx, _coop_night.peer_of(target))
 	var id: String = _director.tick(get_process_delta_time(), ctx)
-	if id != "" and target == "other":
-		Coop.send_night_event("fx", [id])
+	if id != "" and target != "host":
+		var peer: int = _coop_night.peer_of(target)
+		Coop.send_night_event("fx", [id], peer)
+		for with_them in _coop_night.near(target):
+			if int(with_them) == 1:
+				_director_fx.run(id, _director_context())
+			elif int(with_them) != peer:
+				Coop.send_night_event("fx", [id], int(with_them))
 		_director.watch(id, ctx["pos"])
 		return
 	if id != "":
 		var at: Vector3 = _director_fx.run(id, ctx)
 		_director.watch(id, at)
-		if Coop.is_host() and Coop.has_partner() and _coop_night != null and _coop_night.together():
-			Coop.send_night_event("fx", [id])
+		if Coop.is_host() and Coop.has_partner() and _coop_night != null:
+			for with_you in _coop_night.near("host"):
+				Coop.send_night_event("fx", [id], int(with_you))
 		# The log names the guest who stood outside.
 		if id == "guest_out" and not _director.log.is_empty():
 			if at == Vector3.INF:
@@ -605,10 +612,10 @@ var _dir_slow_at := 0
 var _coop_dir_other_inside := false
 
 
-## Co-op: the night's context as the other warden is in it (where they are, in the light
-## or the dark, walking), the camp's side as it is.
-func _director_context_other(ctx: Dictionary) -> Dictionary:
-	var s: Dictionary = Coop.partner_state
+## Co-op: the night's context as another warden (`peer`) is in it (where they are, in the
+## light or the dark, walking), the camp's side as it is.
+func _director_context_other(ctx: Dictionary, peer: int) -> Dictionary:
+	var s: Dictionary = Coop.state_of(peer)
 	var room: Dictionary = s.get("room", {})
 	var pos: Vector3 = s.get("p", Vector3.ZERO)
 	var place := "out_dark"
@@ -3609,7 +3616,7 @@ func _update_interaction_hint() -> void:
 		_hud_manager.set_hint_text("")
 		return
 	if _coop_partner_down_near():
-		_hud_manager.set_hint_text("[E] Get %s up" % Coop.partner_name())
+		_hud_manager.set_hint_text("[E] Get %s up" % Coop.name_of(_coop_down_near_id))
 		return
 	if Coop.is_client():
 		_hud_manager.set_hint_text(_coop_client_hint())
@@ -4160,12 +4167,12 @@ func _wire_coop() -> void:
 	Coop.world_arrived.connect(_on_coop_world_arrived)
 	Coop.join_failed.connect(_on_coop_join_failed)
 	Coop.session_ended.connect(_on_coop_session_ended)
-	Coop.peer_joined.connect(_on_coop_peer_joined)
-	Coop.peer_left.connect(_on_coop_peer_left)
-	Coop.partner_moved.connect(_on_coop_partner_moved)
-	Coop.partner_look_changed.connect(func(look: Dictionary) -> void:
+	Coop.warden_joined.connect(_on_coop_peer_joined)
+	Coop.warden_left.connect(_on_coop_peer_left)
+	Coop.warden_moved.connect(_on_coop_partner_moved)
+	Coop.partner_look_changed.connect(func(_look: Dictionary) -> void:
 		if _interior_manager != null and _interior_manager.has_method("coop_partner_look"):
-			_interior_manager.coop_partner_look(look)
+			_interior_manager.coop_partner_look({}, 0)
 	)
 	# The host's camp is the camp: what is built, cleared, repaired and how its rooms
 	# stand goes to the other machine (which does it again, coop_apply_fact).
@@ -4252,8 +4259,10 @@ func _on_coop_world_arrived(snapshot: Dictionary) -> void:
 		CoreRoot.failure_system.enabled = false
 	_coop_forward_builds(true)
 	call_deferred("_coop_flush_facts")
-	if _hud_manager != null:
-		_hud_manager.push_status("You came in by the barrier. %s is about." % Coop.partner_name(), 1)
+	# Who is about: once they have all said who they are (their hellos come a moment after).
+	await get_tree().create_timer(2.0).timeout
+	if _hud_manager != null and Coop.has_partner():
+		_hud_manager.push_status("You came in by the barrier. %s %s about." % [_coop_names_said(), "is" if Coop.wardens.size() == 1 else "are"], 1)
 
 
 func _on_coop_session_ended(reason: String) -> void:
@@ -4268,52 +4277,62 @@ func _on_coop_session_ended(reason: String) -> void:
 		_main_menu.show_coop_notice(reason)
 
 
-func _on_coop_peer_joined() -> void:
+func _on_coop_peer_joined(id: int) -> void:
 	# A new line: their till changes are numbered from one again.
-	_coop_till_acked = 0
+	_coop_till_acked.erase(id)
 	_coop_sync_last.clear()
 	# Their name comes with their hello, a moment after the line opens.
 	await get_tree().create_timer(1.0).timeout
-	if _hud_manager != null and Coop.has_partner():
-		_hud_manager.push_status("%s came in by the barrier." % Coop.partner_name(), 1)
+	if _hud_manager != null and Coop.wardens.has(id):
+		_hud_manager.push_status("%s came in by the barrier." % Coop.name_of(id), 1)
 
 
-func _on_coop_peer_left() -> void:
+func _on_coop_peer_left(id: int) -> void:
 	if _hud_manager != null:
-		_hud_manager.push_status("%s has gone home." % Coop.partner_name(), 1)
-	_on_coop_partner_moved({})
+		_hud_manager.push_status("%s has gone home." % Coop.name_of(id), 1)
+	_on_coop_partner_moved(id, {})
+	_coop_partner_was.erase(id)
 
 
-## Where the other warden is (each state): the boat where they have it, their figure in
-## the room you are in if they are in it; the door they go in or out by swings; when
-## they lie down, you hear of it.
+## Where another warden is (each state of theirs): the boat where they have it, their
+## figure in the room you are in if they are in it; the door they go in or out by swings;
+## when they lie down, you hear of it.
 const COOP_DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
-var _coop_partner_was_in := false
-var _coop_partner_room_was := ""
-var _coop_partner_bed_was := false
+## Per warden (peer id): {in: indoors, room: the room they were last in, bed: lying down}.
+var _coop_partner_was: Dictionary = {}
 
 
-func _on_coop_partner_moved(s: Dictionary) -> void:
+func _on_coop_partner_moved(id: int, s: Dictionary) -> void:
+	if not _coop_partner_was.has(id):
+		_coop_partner_was[id] = {"in": false, "room": "", "bed": false}
+	var was: Dictionary = _coop_partner_was[id]
 	var room_info: Dictionary = s.get("room", {})
 	var inside := bool(s.get("in", false))
-	if inside != _coop_partner_was_in and not s.is_empty():
-		_coop_swing_door(str(room_info.get("k", "")) if inside else _coop_partner_room_was)
-	_coop_partner_was_in = inside
+	if inside != bool(was["in"]) and not s.is_empty():
+		_coop_swing_door(str(room_info.get("k", "")) if inside else str(was["room"]))
+	was["in"] = inside
 	if inside and room_info.has("k"):
-		_coop_partner_room_was = str(room_info["k"])
+		was["room"] = str(room_info["k"])
 	var in_bed := bool(s.get("z", false))
-	if in_bed and not _coop_partner_bed_was and _hud_manager != null:
-		_hud_manager.push_status("%s has turned in." % Coop.partner_name(), 1)
-	_coop_partner_bed_was = in_bed
+	if in_bed and not bool(was["bed"]) and _hud_manager != null:
+		_hud_manager.push_status("%s has turned in." % Coop.name_of(id), 1)
+	was["bed"] = in_bed
 	if _lake_trip != null and _lake_trip.has_method("coop_mirror_boat"):
-		_lake_trip.coop_mirror_boat(s.get("boat", s.get("boat_at", null)), s.has("boat_at"))
+		# One boat: whoever of the others has it (rowing, or tied up on the far shore).
+		var rower := 0
+		for oid in Coop.others():
+			var os: Dictionary = Coop.state_of(oid)
+			if os.has("boat") or os.has("boat_at"):
+				rower = int(oid)
+		var rs: Dictionary = Coop.state_of(rower) if rower != 0 else {}
+		_lake_trip.coop_mirror_boat(rs.get("boat", rs.get("boat_at", null)), rs.has("boat_at"), rower)
 	if _interior_manager != null and _interior_manager.has_method("coop_partner"):
 		var room: Dictionary = s.get("room", {})
 		if bool(s.get("z", false)) and not room.is_empty():
 			# Under the blanket: not standing about the room.
 			room = room.duplicate()
 			room["b"] = true
-		_interior_manager.coop_partner(room)
+		_interior_manager.coop_partner(room, id)
 
 
 ## Co-op: knocked down, not dead. You fall and lie where you fell (the other warden sees
@@ -4360,23 +4379,48 @@ func _coop_get_up(helped: bool) -> void:
 	_set_player_health(COOP_COME_TO_HEALTH, false)
 	if _hud_manager != null:
 		if helped:
-			_hud_manager.push_status("%s hauls you up by the jacket. \"Come on. Not here.\"" % Coop.partner_name(), 1)
+			_hud_manager.push_status("%s hauls you up by the jacket. \"Come on. Not here.\"" % Coop.sender_name(), 1)
 		else:
 			_hud_manager.push_status("You come to on the office step. You don't remember getting here.", 2)
 
 
-## The other warden lying near you (knocked down): E gets them up.
+## Another warden lying near you (knocked down): E gets them up (the nearest of them).
+var _coop_down_near_id := 0
+
+
 func _coop_partner_down_near() -> bool:
-	if not bool(Coop.partner_state.get("dn", false)) or _player == null or not is_instance_valid(_player):
+	_coop_down_near_id = 0
+	if _player == null or not is_instance_valid(_player):
 		return false
-	var fig := Coop.remote_figure()
-	return fig != null and fig.visible and Vector2(fig.global_position.x - _player.global_position.x, fig.global_position.z - _player.global_position.z).length() < 2.2
+	var best := 2.2
+	for id in Coop.others():
+		if not bool(Coop.state_of(id).get("dn", false)):
+			continue
+		var fig := Coop.figure_of(id)
+		if fig == null or not fig.visible:
+			continue
+		var d := Vector2(fig.global_position.x - _player.global_position.x, fig.global_position.z - _player.global_position.z).length()
+		if d < best:
+			best = d
+			_coop_down_near_id = int(id)
+	return _coop_down_near_id != 0
 
 
 func _coop_lift_partner() -> void:
-	Coop.send_play("lift", [])
+	# Every machine hears it; only the one lying there gets up (coop_lifted).
+	Coop.send_play("lift", [_coop_down_near_id])
 	if _hud_manager != null:
-		_hud_manager.push_status("You get %s up. They are shaking." % Coop.partner_name(), 1)
+		_hud_manager.push_status("You get %s up. They are shaking." % Coop.name_of(_coop_down_near_id), 1)
+
+
+## The other wardens' names as said: "Jana", "Jana and Pepa", "Jana, Pepa and Bara".
+func _coop_names_said() -> String:
+	var names: Array = []
+	for id in Coop.others():
+		names.append(Coop.name_of(id))
+	if names.size() <= 1:
+		return "".join(names)
+	return ", ".join(names.slice(0, names.size() - 1)) + " and " + str(names[-1])
 
 
 func _coop_biz_change(kind: String, a: Array) -> void:
@@ -4399,7 +4443,9 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 
 
 ## The other machine: the other warden got you up.
-func coop_lifted() -> void:
+func coop_lifted(who: int = 0) -> void:
+	if who != 0 and who != multiplayer.get_unique_id():
+		return
 	_coop_get_up(true)
 
 
@@ -4453,7 +4499,7 @@ var _coop_till_shown := -1
 var _coop_till_seq := 0
 var _coop_till_pending: Array = []      # [[seq, delta]]
 ## The host: the last of the other warden's till changes it has counted.
-var _coop_till_acked := 0
+var _coop_till_acked: Dictionary = {}     # peer id -> the last change counted
 
 
 func _coop_follow_till(host_money: int, acked: int) -> void:
@@ -4658,8 +4704,15 @@ func coop_screen_frame() -> PackedByteArray:
 	if _interior_manager == null or not _interior_manager.has_method("coop_room"):
 		return PackedByteArray()
 	var mine: Dictionary = _interior_manager.coop_room()
-	var theirs: Dictionary = Coop.partner_state.get("room", {})
-	if str(mine.get("t", "")) != "office" or str(mine.get("w", "")) != "pc" or str(theirs.get("t", "")) != "office" or str(theirs.get("s", "")) != "office":
+	if str(mine.get("t", "")) != "office" or str(mine.get("w", "")) != "pc":
+		return PackedByteArray()
+	# Someone in the office to look over your shoulder.
+	var watched := false
+	for id in Coop.others():
+		var theirs: Dictionary = Coop.state_of(id).get("room", {})
+		if str(theirs.get("t", "")) == "office" and str(theirs.get("s", "")) == "office" and str(theirs.get("w", "")) != "pc":
+			watched = true
+	if not watched:
 		return PackedByteArray()
 	var bi = _interior_manager.get("_building_interior")
 	return bi.coop_screen_frame() if bi != null and bi.has_method("coop_screen_frame") else PackedByteArray()
@@ -4786,8 +4839,8 @@ func coop_request(kind: String, data: Array) -> void:
 		"till":
 			# Spent or taken on the other machine (the town, the pub, the pump...).
 			var seq := int(data[0])
-			if seq > _coop_till_acked:
-				_coop_till_acked = seq
+			if seq > int(_coop_till_acked.get(Coop.sender, 0)):
+				_coop_till_acked[Coop.sender] = seq
 				var delta := int(data[1])
 				if delta >= 0:
 					CoreRoot.actions.add_money(delta)
@@ -4812,8 +4865,8 @@ func coop_request(kind: String, data: Array) -> void:
 				bi_r.coop_set_radio_power(bool(data[0]))
 		"corn_take":
 			# The other warden leads them out: they follow the stand-in.
-			if _corn_hunt != null and is_instance_valid(_corn_hunt) and _coop_night != null and _coop_night.proxy() != null:
-				_corn_hunt.coop_take(_coop_night.proxy())
+			if _corn_hunt != null and is_instance_valid(_corn_hunt) and _coop_night != null and _coop_night.proxy(Coop.sender) != null:
+				_corn_hunt.coop_take(_coop_night.proxy(Coop.sender))
 		"repair":
 			if economy_manager != null and economy_manager.has_method("add_repair_progress"):
 				economy_manager.add_repair_progress(data[0], 1.0)
@@ -5083,7 +5136,7 @@ func coop_clock() -> Dictionary:
 	var night_passing: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.is_fast_forwarding()
 	var c := {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing, "mq": _coop_till_acked}
 	if _coop_night != null:
-		c["sn"] = float(_coop_night.sanity["other"])
+		c["sn"] = _coop_night.sanity_by_peer()
 	return c
 
 
@@ -5096,11 +5149,12 @@ func coop_apply_clock(c: Dictionary) -> void:
 		var day := maxi(1, int(c.get("d", _day_index)))
 		if int(state.day) != day:
 			state.day = day
-		_coop_follow_till(int(c.get("m", state.money)), int(c.get("mq", 0)))
+		var acked = c.get("mq", {})
+		_coop_follow_till(int(c.get("m", state.money)), int((acked as Dictionary).get(multiplayer.get_unique_id(), 0)) if acked is Dictionary else 0)
 	if time_system != null:
 		time_system.set_time_hours(float(c.get("h", _time_of_day_hours)))
-	if _coop_night != null and c.has("sn"):
-		_coop_night.take_own_sanity(float(c["sn"]))
+	if _coop_night != null and c.get("sn") is Dictionary and (c["sn"] as Dictionary).has(multiplayer.get_unique_id()):
+		_coop_night.take_own_sanity(float(c["sn"][multiplayer.get_unique_id()]))
 	var w := int(c.get("w", _weather_state))
 	if weather_system != null and w != _weather_state:
 		weather_system.set_weather(w)
@@ -6051,7 +6105,7 @@ func _pause_info_line() -> String:
 			line += "   SAVED %d H AGO" % (ago / 3600)
 	# Co-op: who you are with, or (the host alone) where the other can call in.
 	if Coop.has_partner():
-		line += "   WITH %s" % Coop.partner_name().to_upper()
+		line += "   WITH %s" % _coop_names_said().to_upper()
 	elif Coop.is_host():
 		var here: Array[String] = Coop.local_addresses()
 		if not here.is_empty():

@@ -605,15 +605,24 @@ const COOP_REFUSALS := {
 }
 
 
+## Another warden at the desk (0 none): their peer id.
+func _desk_warden() -> int:
+	for id in Coop.others():
+		var r: Dictionary = Coop.state_of(id).get("room", {})
+		if str(r.get("t", "")) == "office" and str(r.get("w", "")) == "desk":
+			return int(id)
+	return 0
+
+
 func _partner_at_desk() -> bool:
-	if not Coop.has_partner():
-		return false
-	var r: Dictionary = Coop.partner_state.get("room", {})
-	return str(r.get("t", "")) == "office" and str(r.get("w", "")) == "desk"
+	return _desk_warden() != 0
 
 
+## A thing in the office another warden has (the PC, the desk...): who has it is told by
+## name (the one at the desk, else the first of them).
 func coop_refuse(what: String) -> void:
-	var line := str(COOP_REFUSALS.get(what, COOP_REFUSALS["pc"])).replace("The other warden", Coop.partner_name())
+	var who := _desk_warden()
+	var line := str(COOP_REFUSALS.get(what, COOP_REFUSALS["pc"])).replace("The other warden", Coop.name_of(who) if who != 0 else Coop.partner_name())
 	_office_call("say", [line], null)
 
 
@@ -817,9 +826,10 @@ func _try_sleep() -> void:
 	var refusal := str(_office_call("sleep_refusal", [], ""))
 	# One bed, one warden (playtest 18. 10.): the other turns in in a tent, cabin or
 	# caravan of the camp's (scripts/lodge_bed.gd).
-	var their_room: Dictionary = Coop.partner_state.get("room", {})
-	if refusal == "" and Coop.has_partner() and bool(Coop.partner_state.get("z", false)) and str(their_room.get("k", "")) == "office":
-		refusal = "%s has the bed. Find a free bed in a tent, cabin or caravan." % Coop.partner_name()
+	for id in Coop.others():
+		var st: Dictionary = Coop.state_of(id)
+		if refusal == "" and bool(st.get("z", false)) and str((st.get("room", {}) as Dictionary).get("k", "")) == "office":
+			refusal = "%s has the bed. Find a free bed in a tent, cabin or caravan." % Coop.name_of(id)
 	if refusal != "":
 		_office_call("say", [refusal], null)
 		return

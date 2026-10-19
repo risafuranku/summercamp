@@ -583,9 +583,10 @@ attractions.
 2. How much may the terminal lie? (Section 2 rules apply: specific, never numeric.)
 3. The raccoon thing: tie it to waste (dumpsters overflowing) as a fifth threat?
 
-## 12. Two wardens (co-op)
+## 12. Wardens together (co-op, up to four)
 
-Decided with the user on 2026-10-17. Two players run one camp together; only in a
+Decided with the user on 2026-10-17 for two, widened to four on 2026-10-19 ("chceme cílit
+na 4 hráče"). Up to four players run one camp together; only in a
 **sandbox** camp (no month, no checklist, but the district's mail on how to start and a
 first booking sure to come once a bed stands; the story is for one warden, and NEW CAMP says
 so when STORY is chosen). Built and tested in stages, each mechanic gone

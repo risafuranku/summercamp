@@ -715,9 +715,20 @@ func _cabin_taken() -> String:
 
 ## The other warden's figure in the room this one is in: its pose, "" when none.
 ## The other warden's figure behind the pub's bar (room z past the counter).
+## The first of the other wardens' figures in your room (interior_manager._coop_figs).
+func _first_room_fig():
+	var im = _main.get("_interior_manager")
+	var figs: Dictionary = im.get("_coop_figs") if im != null else {}
+	for id in figs.keys():
+		var f = figs[id].get("fig")
+		if f != null and is_instance_valid(f):
+			return f
+	return null
+
+
 func _fig_behind_bar() -> bool:
 	var im = _main.get("_interior_manager")
-	var fig = im.get("_coop_fig") if im != null else null
+	var fig = _first_room_fig()
 	var si = im.get("_service_interior") if im != null else null
 	var root = si.get("_pub_main_root") if si != null else null
 	if fig == null or not is_instance_valid(fig) or root == null:
@@ -726,8 +737,7 @@ func _fig_behind_bar() -> bool:
 
 
 func _room_figure() -> String:
-	var im = _main.get("_interior_manager")
-	var fig = im.get("_coop_fig") if im != null else null
+	var fig = _first_room_fig()
 	if fig == null or not is_instance_valid(fig) or not (fig as Node3D).visible:
 		return ""
 	return str(fig.get("pose"))
@@ -784,16 +794,21 @@ func _pipe_net() -> Dictionary:
 		ds.sort()
 		rows.append("%s:%s" % [c, ds])
 	rows.sort()
-	var spr = crawl.mate._sprite
-	return {"hash": hash(str(rows)), "mate_seen": spr != null and is_instance_valid(spr) and spr.visible, "status": str(crawl._hud_status.text), "node": str(crawl._node), "level": int(crawl.raccoon_level)}
+	var seen := false
+	for spr in (crawl.mate._sprites as Dictionary).values():
+		seen = seen or (spr != null and is_instance_valid(spr) and spr.visible)
+	return {"hash": hash(str(rows)), "mate_seen": seen, "status": str(crawl._hud_status.text), "node": str(crawl._node), "level": int(crawl.raccoon_level)}
 
 
 ## The other warden in the place in Lesna you are in (scripts/town/town_room.gd).
 func _town_mate() -> bool:
 	var trip = _main.get("_interior_manager").get("_town_trip") if _main != null else null
 	var room = trip.get("_room") if trip != null else null
-	var mate = room.get("_mate") if room != null else null
-	return mate != null and is_instance_valid(mate) and (mate as Node3D).visible
+	var mates: Dictionary = room.get("_mates") if room != null else {}
+	for m in mates.values():
+		if m != null and is_instance_valid(m) and (m as Node3D).visible:
+			return true
+	return false
 
 
 ## Who has kicked the ball on the court here (warden keys: -11 the host, -12 the other).
@@ -888,7 +903,7 @@ func _write_fingerprint(tag: String) -> void:
 		"sanity": (_main.get("_coop_night").sanity as Dictionary).duplicate() if _main.get("_coop_night") != null else {},
 		"day_open": (_main.get("_day_events").open_events() as Array).map(func(e): return str(e["kind"])) if _main.get("_day_events") != null else [],
 		"corn_led_by_other": Coop.is_host() and _main.get("_corn_hunt") != null and is_instance_valid(_main.get("_corn_hunt")) and _main.get("_corn_hunt").leader != null and _main.get("_corn_hunt").leader == _main.get("_coop_night").proxy(),
-		"till_acked": int(_main.get("_coop_till_acked")),
+		"till_acked": int((_main.get("_coop_till_acked") as Dictionary).values().max()) if not (_main.get("_coop_till_acked") as Dictionary).is_empty() else 0,
 		"camp": _camp_rows(),
 		"bus_state": _bus_state(),
 		"att_me": _main.get("_warden_play").coop_state(),
@@ -897,6 +912,9 @@ func _write_fingerprint(tag: String) -> void:
 		"town_mate": _town_mate(),
 		"pipe_net": _pipe_net(),
 		"books": _books(),
+		"wardens": Coop.others().map(func(id): return [int(Coop.look_of(id)["m"]), int(Coop.look_of(id)["c"]), Coop.name_of(id), Coop.figure_of(id) != null and Coop.figure_of(id).visible]),
+		"night_passing": _main.get("camp_office") != null and bool(_main.get("camp_office").is_fast_forwarding()),
+		"my_slot": Coop.my_slot,
 		"corn_orders": (CoreRoot.get_state().biz.get("orders", []) as Array).filter(func(o): return str(o.get("key", "")) == "15:13").size(),
 		"radio": _radio_row(),
 		"down": bool(_main.get("_coop_down")),

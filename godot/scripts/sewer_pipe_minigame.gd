@@ -1761,11 +1761,11 @@ func _back_up() -> void:
 		_director.heard(_node, 1)
 
 
-## The other warden is in the way: their boots or their head, and nowhere to go.
+## One of the others is in the way: their boots or their head, and nowhere to go.
 func _blocked_by_mate() -> void:
 	_bump_t = 0.0
 	_play_one("bump.mp3", -4.0)
-	var who := Coop.partner_name()
+	var who := Coop.name_of(mate.blocker)
 	var m: Dictionary = mate.mate()
 	var facing_you := false
 	if not m.is_empty():
@@ -1781,7 +1781,7 @@ func coop_bumped() -> void:
 		return
 	_bump_t = 0.0
 	_play_one("bump.mp3", -2.0)
-	_set_status("Something knocks against you. %s." % Coop.partner_name())
+	_set_status("Something knocks against you. %s." % Coop.sender_name())
 
 
 ## The other machine: they clamped hole `i`.

@@ -93,7 +93,7 @@ func hint() -> String:
 	if _state == NONE and _near_boat() and not _coop_boat_away:
 		return "[E] Take the boat across"
 	if _state == NONE and _can_join():
-		return "[E] Get in with %s" % Coop.partner_name()
+		return "[E] Get in with %s" % Coop.name_of(_rower_id)
 	return ""
 
 
@@ -375,7 +375,7 @@ func _input(event: InputEvent) -> void:
 		match _hover:
 			"boat":
 				if _passenger:
-					_say("%s has the oars: wait for them." % Coop.partner_name())
+					_say("%s has the oars: wait for them." % Coop.name_of(_rower_id))
 				else:
 					_start_rowing("camp")
 			"hut":
@@ -706,6 +706,10 @@ const PASSENGER_SEAT := Vector3(0.0, 0.98, 1.0)
 func _can_join() -> bool:
 	if not _coop_boat_away or not _partner_rowing or not Coop.is_active():
 		return false
+	# One oarsman, one in the bow: the boat holds two.
+	for id in Coop.others():
+		if Coop.state_of(id).has("ride"):
+			return false
 	var lake = _lake_node()
 	var p := _player()
 	if lake == null or p == null or lake.boat == null:
@@ -745,7 +749,7 @@ func _start_passenger() -> void:
 	_lap.play()
 	_state = PASSENGER
 	_play("bump.mp3", -6.0)
-	_say("You climb into the bow. %s rows." % Coop.partner_name())
+	_say("You climb into the bow. %s rows." % Coop.name_of(_rower_id))
 
 
 func _update_passenger(delta: float) -> void:
@@ -775,7 +779,12 @@ func coop_state() -> Dictionary:
 ## The other warden's boat: where they have it (`xf`), or back at the camp jetty
 ## (null) when they are home again; `ashore`: they are up on the keeper's jetty. Not
 ## while you row it; a passenger follows them in and out of it.
-func coop_mirror_boat(xf, ashore := false) -> void:
+## Who of the others has the boat (peer id, 0 nobody).
+var _rower_id := 0
+
+
+func coop_mirror_boat(xf, ashore := false, rower := 0) -> void:
+	_rower_id = rower
 	_partner_rowing = xf is Transform3D and not ashore
 	_partner_ashore = xf is Transform3D and ashore
 	if _passenger:

@@ -6,6 +6,7 @@ extends Node3D
 ## missed fetches it, then serves. One player alone bounces the ball on the bat; the
 ## rest stand at the side and wait their turn. Stepped at 12 frames a second.
 
+const WARDEN_PLAY = preload("res://scripts/attractions/warden_play.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const FPS := 12.0
 const SFX_TOK := "res://assets/sfx/life/ball_kick.mp3"
@@ -97,7 +98,7 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 	var base := str(info.get("sprite_path", ""))
 	POSES.set_pose(sprite, base, "bat" if slot_now < 2 else "")
 	if slot_now < 2:
-		var mine := key == (-12 if Coop.is_client() else -11)
+		var mine := key == WARDEN_PLAY.local_key()
 		_bat_drawn[slot_now] = POSES.has_pose(base, "bat") and not mine
 	if sprite != null:
 		sprite.flip_h = slot_now == 1
@@ -130,7 +131,7 @@ func _process(delta: float) -> void:
 		var b := _bats[i] as Node3D
 		var side := -1.0 if i == 0 else 1.0
 		b.visible = not (_occupied(i) and bool(_bat_drawn.get(i, false)))
-		if _key_at(i) == (-12 if Coop.is_client() else -11):
+		if _key_at(i) == WARDEN_PLAY.local_key():
 			# Yours: in your hand before your eyes, swung at each hit.
 			var sw := clampf(1.0 - (_clock - float(_hit_at.get(i, -9.0))) / 0.25, 0.0, 1.0)
 			b.position = Vector3(side * (END_X - 0.28 - 0.25 * sw), BAT_Y + 0.22, 0.3 - 0.3 * sw)

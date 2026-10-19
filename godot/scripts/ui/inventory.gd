@@ -645,9 +645,12 @@ func coop_inv(kind: String, data: Array) -> void:
 			if str(d["by"]) == "client" and Time.get_ticks_msec() - int(d["ms"]) < DROP_LOCK_MS:
 				return
 			_remove_drop(id)
-			Coop.send_inv("give", [id, d["item"]])
+			# To whoever picked it up (the others just see it gone).
+			Coop.send_inv("give", [id, d["item"], Coop.sender])
 		"give":
 			_remove_drop(str(data[0]))
+			if data.size() > 2 and int(data[2]) != multiplayer.get_unique_id():
+				return
 			var item: Dictionary = data[1]
 			if add_item(str(item["id"]), int(item.get("n", 1))):
 				_play("pick.mp3")

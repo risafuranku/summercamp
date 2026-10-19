@@ -194,7 +194,7 @@ def main():
     hs = load("host_sees_work")
     if hs is None or hs["room_figure"] not in ("sweep", "crouch", "stand"):
         failures.append("the host does not see the other warden at their job (%s)" % (hs or {}).get("room_figure"))
-    elif cr is not None and hs["coop_taken"] != cr["task"]:
+    elif cr is not None and cr["task"] not in hs["coop_taken"]:
         failures.append("the other warden's job (%s) is not locked for the host (%s)" % (cr["task"], hs["coop_taken"]))
     for tag in ("host_tent", "client_tent"):
         ft = load(tag)
@@ -286,7 +286,7 @@ def main():
     if he is None or ce is None:
         failures.append("missing night enemy fingerprints")
     else:
-        if not any(t.endswith(":other") for t in he["night_targets"]):
+        if not any(not t.endswith(":host") and not t.endswith(":?") for t in he["night_targets"]):
             failures.append("the host's enemy does not hunt the other warden %s" % he["night_targets"])
         if ce["mirror"] < 1:
             failures.append("the other machine does not show the host's enemy (%s)" % ce["mirror"])

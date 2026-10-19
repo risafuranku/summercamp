@@ -455,9 +455,13 @@ func set_time_state(_state: int) -> void:
 # ── the buses ────────────────────────────────────────────────────────────────
 
 func _process(delta: float) -> void:
-	# Co-op: the other warden in the same place in Lesna stands there with you.
+	# Co-op: the other wardens in the same place in Lesna stand there with you.
 	if _room != null and _room.is_open():
-		_room.coop_mate(Coop.has_partner() and str(Coop.partner_state.get("tr", "")) == str(_room.place))
+		var here: Array = []
+		for id in Coop.others():
+			if str(Coop.state_of(id).get("tr", "")) == str(_room.place):
+				here.append(int(id))
+		_room.coop_mates(here)
 	var road := _road()
 	if road == null:
 		return
@@ -751,15 +755,19 @@ func _place_on(bus: Node3D, path: PackedVector3Array, e: float) -> void:
 
 # ── co-op: one bus for two wardens ───────────────────────────────────────────
 
-## The other warden on the bus at `stop_id` (not yet gone): it stands for them here too.
+## Another warden on the bus at `stop_id` (not yet gone): it stands for them here too.
 ## When it goes with them and not you, it goes from here as well.
 func _coop_hold(stop_id: String, bus: Node3D) -> void:
 	if bus == null or not Coop.has_partner():
 		return
-	var mate = Coop.partner_state.get("bus", {})
-	var m: Dictionary = mate if mate is Dictionary else {}
-	var theirs := not m.is_empty() and str(m.get("st", "")) == stop_id
-	var aboard := theirs and not bool(m.get("go", false))
+	var theirs := false
+	var aboard := false
+	for id in Coop.others():
+		var mate = Coop.state_of(id).get("bus", {})
+		var m: Dictionary = mate if mate is Dictionary else {}
+		if not m.is_empty() and str(m.get("st", "")) == stop_id:
+			theirs = true
+			aboard = aboard or not bool(m.get("go", false))
 	var mine: bool = _ride != null and _ride.is_open() and _boarding_stop == stop_id
 	var sp: Dictionary = _special.get(stop_id, {})
 	if aboard and sp.is_empty() and bus.visible and bus.is_door_open():

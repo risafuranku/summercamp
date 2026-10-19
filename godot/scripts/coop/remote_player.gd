@@ -251,7 +251,7 @@ func _process(delta: float) -> void:
 	if sb.has("att"):
 		# In an attraction: where this machine's attraction puts them (warden_play.gd).
 		var wp := get_tree().get_first_node_in_group("warden_play")
-		var place: Dictionary = wp.mate_place() if wp != null else {}
+		var place: Dictionary = wp.mate_place(int(get_meta("coop_id", 0))) if wp != null else {}
 		if not place.is_empty():
 			visible = true
 			global_position = place["pos"]

@@ -1483,26 +1483,27 @@ func _update_guests(delta: float) -> void:
 
 ## Co-op: the other warden on the map in their own look, where they walk; in a lodging
 ## or a block, at its door (a room key is its cell).
-var _mate: Dictionary = {}
+var _mates: Dictionary = {}   # peer id -> {cell, moving}
 
 
 func _update_mate() -> void:
-	var prev := _mate
-	_mate = {}
-	if not Coop.has_partner():
-		return
-	var cell := Vector2.INF
-	var fig := Coop.remote_figure()
-	if fig != null and fig.visible:
-		cell = _world_to_cell_f(fig.global_position)
-	else:
-		var key := str((Coop.partner_state.get("room", {}) as Dictionary).get("k", ""))
-		if key.contains(":"):
-			cell = Vector2(float(key.get_slice(":", 0)), float(key.get_slice(":", 1))) + Vector2(0.5, 0.9)
-	if cell == Vector2.INF:
-		return
-	var moving := not prev.is_empty() and Vector2(prev.get("cell", cell)).distance_to(cell) > 0.004
-	_mate = {"cell": cell, "moving": moving}
+	var prev := _mates
+	_mates = {}
+	for id in Coop.others():
+		var cell := Vector2.INF
+		var fig := Coop.figure_of(id)
+		if fig != null and fig.visible:
+			cell = _world_to_cell_f(fig.global_position)
+		else:
+			var key := str((Coop.state_of(id).get("room", {}) as Dictionary).get("k", ""))
+			if key.contains(":"):
+				# Several in one room: side by side at its door.
+				cell = Vector2(float(key.get_slice(":", 0)), float(key.get_slice(":", 1))) + Vector2(0.3 + 0.2 * float(Coop.others().find(id) % 3), 0.9)
+		if cell == Vector2.INF:
+			continue
+		var was: Dictionary = prev.get(id, {})
+		var moving := not was.is_empty() and Vector2(was.get("cell", cell)).distance_to(cell) > 0.004
+		_mates[id] = {"cell": cell, "moving": moving}
 
 
 func _update_extra_guest() -> void:
@@ -1564,10 +1565,11 @@ func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_
 		var p := _cell_to_iso_f(g["cell"], origin, tile_w, tile_h)
 		var dc := _display_cell_f(g["cell"])
 		entries.append({"guest": true, "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"], "phase": g["phase"], "facing": 0})
-	if not _mate.is_empty():
-		var pm := _cell_to_iso_f(_mate["cell"], origin, tile_w, tile_h)
-		var dm := _display_cell_f(_mate["cell"])
-		entries.append({"guest": true, "mate": true, "pos": pm, "order": dm.x + dm.y + 0.6, "archetype": "", "moving": _mate["moving"], "phase": 0.0})
+	for id in _mates.keys():
+		var m: Dictionary = _mates[id]
+		var pm := _cell_to_iso_f(m["cell"], origin, tile_w, tile_h)
+		var dm := _display_cell_f(m["cell"])
+		entries.append({"guest": true, "mate": int(id), "pos": pm, "order": dm.x + dm.y + 0.6, "archetype": "", "moving": m["moving"], "phase": float(id % 7)})
 	if _guest_time < _extra_guest_until:
 		var p2 := _cell_to_iso_f(_extra_guest_cell, origin, tile_w, tile_h)
 		var dc2 := _display_cell_f(_extra_guest_cell)
@@ -1599,9 +1601,9 @@ func _guest_mini(archetype: String, h: int) -> Texture2D:
 	return tex
 
 
-## The other warden's miniature: their look and jacket (warden_looks.gd).
-func _mate_mini(h: int) -> Texture2D:
-	var look: Dictionary = Coop.partner_look
+## Another warden's miniature: their look and jacket (warden_looks.gd).
+func _mate_mini(h: int, id: int) -> Texture2D:
+	var look: Dictionary = Coop.look_of(id)
 	var key := "mate|%d|%d" % [int(look.get("m", 1)), int(look.get("c", 0))]
 	var by: Dictionary = _guest_minis.get(key, {})
 	if not by.has(h):
@@ -1632,7 +1634,7 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
 	var tex: Texture2D = null
 	if e.has("mate"):
-		tex = _mate_mini(mini_h)
+		tex = _mate_mini(mini_h, int(e["mate"]))
 	elif not e.has("extra"):
 		tex = _guest_mini(str(e["archetype"]), mini_h)
 	if tex != null:
@@ -1645,7 +1647,7 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 		_cv.draw_texture(tex, (foot - Vector2(sz.x * 0.5, sz.y - bob)).floor())
 		if e.has("mate"):
 			# Their name over them, so they are not taken for a guest.
-			var who := Coop.partner_name()
+			var who := Coop.name_of(int(e["mate"]))
 			var tw := T.FONT.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 			_draw_tag(foot - Vector2(tw * 0.5 + 3.0, sz.y + 17.0), who, false)
 		return

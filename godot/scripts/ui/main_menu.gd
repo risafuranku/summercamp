@@ -818,7 +818,7 @@ func _refresh_coop() -> void:
 		_coop_address = Coop.last_address
 	var here: Array[String] = Coop.local_addresses() if Coop != null else []
 	_coop_list.set_item_sub("host", "  ".join(here.slice(0, 2)))
-	# The camp last hosted for two: its day and till.
+	# The camp last hosted in co-op: its day and till.
 	_coop_list.set_item_enabled("host_last", PROFILES.list_camps().any(func(c: Dictionary) -> bool: return bool(c.get("sandbox", false))))
 	_coop_list.set_item_sub("host_last", "")
 	_refresh_coop_address()
@@ -1076,7 +1076,7 @@ func _build_camp_pages(plate_h: float) -> void:
 	_look_list.set_items(look_items)
 	var lp_h := plate_h - _vp(28 + 18)
 	_look_preview = _warden_preview(_look_page, Vector2(_look_page.size.x - lp_h * 0.42 - _vp(12), _vp(28)), lp_h)
-	var look_hint := RETRO_UI.label("LEFT / RIGHT TO CHANGE. THE OTHER WARDEN SEES THIS.", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
+	var look_hint := RETRO_UI.label("LEFT / RIGHT TO CHANGE. THE OTHER WARDENS SEE THIS.", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
 	look_hint.position = Vector2(_vp(8), plate_h - _vp(13))
 	_look_page.add_child(look_hint)
 	# NEW CAMP
@@ -1181,7 +1181,7 @@ func _page_first() -> int:
 
 func _refresh_camps() -> void:
 	_camps = PROFILES.list_camps()
-	# For two only sandbox camps: a story camp is one warden's.
+	# In co-op only sandbox camps: a story camp is one warden's.
 	if _for_coop:
 		var sandbox_camps: Array[Dictionary] = []
 		for c in _camps:
@@ -1288,7 +1288,7 @@ func _refresh_camp_page() -> void:
 		_camp_thumb.texture = _thumb_texture(str(c.get("thumb", "")))
 	if _camp_info != null:
 		var made := Time.get_datetime_dict_from_unix_time(int(c.get("created", 0)))
-		_camp_info.text = "%s\nDAY %d   $%s\nGUESTS %d\nSEED %d\nSINCE %02d.%02d.%04d%s" % ["SANDBOX" if bool(c.get("sandbox", false)) else "STORY", int(c.get("day", 1)), _money(int(c.get("money", 0))), int(c.get("guests", 0)), int(c.get("seed", 0)), int(made.get("day", 1)), int(made.get("month", 1)), int(made.get("year", 1970)), "\nFOR TWO" if bool(c.get("coop", false)) else ""]
+		_camp_info.text = "%s\nDAY %d   $%s\nGUESTS %d\nSEED %d\nSINCE %02d.%02d.%04d%s" % ["SANDBOX" if bool(c.get("sandbox", false)) else "STORY", int(c.get("day", 1)), _money(int(c.get("money", 0))), int(c.get("guests", 0)), int(c.get("seed", 0)), int(made.get("day", 1)), int(made.get("month", 1)), int(made.get("year", 1970)), "\nCO-OP" if bool(c.get("coop", false)) else ""]
 	if _btn_del != null:
 		_btn_del.text = "Really delete?" if _camp_delete_armed else "Delete camp"
 	refresh_saves()
@@ -1339,7 +1339,7 @@ func _set_nc_mode(sandbox: bool) -> void:
 		_nc_warn.text = ""
 	else:
 		_nc_about.text = "AUNT VERA'S CAMP: HER MAILS, HER CHECKLIST, THE DISTRICT'S INSPECTION ON DAY 31. THE NIGHTS AS THEY COME."
-		_nc_warn.text = "A STORY CAMP IS FOR ONE WARDEN: IT CANNOT BE PLAYED IN CO-OP. HOST A SANDBOX CAMP FOR TWO."
+		_nc_warn.text = "A STORY CAMP IS FOR ONE WARDEN: IT CANNOT BE PLAYED IN CO-OP. HOST A SANDBOX CAMP (UP TO FOUR)."
 	if _for_coop:
 		_nc_about.text = "CO-OP CAMPS ARE SANDBOX CAMPS (THE STORY IS FOR ONE WARDEN). NO DEADLINE. YOU SET THE RULES:"
 	for id in _nc_opts:

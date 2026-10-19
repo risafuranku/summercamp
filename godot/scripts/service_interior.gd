@@ -245,7 +245,7 @@ func _process(delta: float) -> void:
 		return
 	_update_basement_machine_animation(delta)
 	if _marks != null and is_instance_valid(_marks):
-		_marks.busy = [coop_job(), coop_partner_job]
+		_marks.busy = [coop_job()] + coop_partner_jobs
 	# Behind the counter in a close-up: the room holds still.
 	if _counter_game != null and _counter_game.visible:
 		return
@@ -2311,9 +2311,9 @@ func coop_job_spot(job: String) -> Dictionary:
 	return {"pos": root.global_transform * (spot[0] as Vector3), "pose": str(spot[1])}
 
 
-## The other warden's job here (their warden state's room "w"): not marked as waiting
+## The other wardens' jobs here (their warden states' room "w"): not marked as waiting
 ## for you, it is being done.
-var coop_partner_job := ""
+var coop_partner_jobs: Array = []
 
 
 ## Seats the guests the simulation has in this pub / bistro / shop right now.
