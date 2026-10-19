@@ -121,7 +121,7 @@ static func _in_hue(h_deg: float, band: Array) -> bool:
 static func _recolor(img: Image, jacket: Dictionary, pose: String, color: Array) -> void:
 	var w := img.get_width()
 	var h := img.get_height()
-	var band: Array = (jacket["band"] as Dictionary).get(pose, [0.0, 1.0])
+	var band: Array = (jacket["band"] as Dictionary).get(pose, (jacket["band"] as Dictionary).get("stand", [0.0, 1.0]))
 	var y0 := int(float(band[0]) * h)
 	var y1 := int(float(band[1]) * h)
 	var out: Array = (jacket.get("out", {}) as Dictionary).get(pose, [])

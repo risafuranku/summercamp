@@ -501,6 +501,11 @@ func _process(delta: float) -> void:
 				var hb: Dictionary = hands.coop_state()
 				if not hb.is_empty():
 					s["hb"] = hb
+					# What the other machine draws you doing (warden_looks: smoke, light,
+					# drink, cigar, bottle); holding one while walking you walk.
+					var pose: String = hands.coop_pose(float(s.get("v", 0.0)))
+					if pose != "" and not s.has("act"):
+						s["act"] = pose
 			_warden.rpc(s)
 	# What all have (the office's lights, the register): sent when it changed here.
 	_sync_t -= delta

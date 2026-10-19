@@ -477,6 +477,27 @@ func coop_habit(kind: String, data: Array) -> void:
 			_sound(fig, "clink.mp3", -2.0)
 			if pockets != null:
 				pockets._play("fx", "clink.mp3", -3.0)
+				pockets._toast = 4
+				pockets._say("Na zdravi.")
+		"offer_cig":
+			# They hold their pack out to you: one cigarette into your bag.
+			if fig != null:
+				_sound(fig, "pack.mp3", -5.0)
+			if pockets != null and pockets.bag != null:
+				if pockets.bag.has_method("add_item") and pockets.bag.add_item("cigs", 1):
+					pockets._say("%s offers you a Start. C to smoke it." % Coop.partner_name())
+				else:
+					pockets._say("%s offers you a Start, but your bag is full." % Coop.partner_name())
+		"give_bottle":
+			# A bottle from their hand into yours (or at your feet, your hand full).
+			if pockets != null:
+				var lv := float(data[0])
+				if lv > 1.5:
+					if not pockets.take_bottle(1.0, false):
+						set_bottle_down(2.0)
+				elif not pockets.take_bottle(lv, true):
+					set_bottle_down(lv)
+				pockets._say("%s hands you a bottle." % Coop.partner_name())
 		"light_you":
 			# They held their flame or their cigarette to yours (to whom: data[0]).
 			if not data.is_empty() and int(data[0]) != multiplayer.get_unique_id():
@@ -537,7 +558,10 @@ func _partner(_delta: float) -> void:
 	_partner_fx.visible = true
 	var c := int(hb.get("c", 0))
 	var mouth := _partner_mouth(fig)
-	_partner_fx.global_position = mouth
+	# Where the burning end is drawn in their pose (found in its picture), else at the
+	# mouth or the hand by guess.
+	var drawn := _ember_point(fig)
+	_partner_fx.global_position = drawn if drawn != Vector3.INF else mouth
 	var lit := c in [3, 4]
 	_partner_ember.visible = lit
 	_partner_light.visible = lit
@@ -545,11 +569,12 @@ func _partner(_delta: float) -> void:
 		var drag := c == 4
 		_partner_ember.material_override = _ember_bright_mat if drag else _ember_mat
 		# It breathes: brighter and a pixel bigger on a drag, dimmer between.
-		(_partner_ember.mesh as QuadMesh).size = Vector2.ONE * (0.016 if drag else 0.011)
-		# Held at their side between drags, at their mouth on one.
-		_partner_ember.position = Vector3.ZERO if drag else Vector3(0.0, -0.45, 0.0)
+		(_partner_ember.mesh as QuadMesh).size = Vector2.ONE * (0.03 if drag else 0.02)
+		# Held at their side between drags, at their mouth on one (unless the pose says).
+		_partner_ember.position = Vector3.ZERO if drag or drawn != Vector3.INF else Vector3(0.0, -0.45, 0.0)
 		_partner_light.position = _partner_ember.position
-		_partner_light.light_energy = 0.55 if drag else 0.18 + 0.04 * float(int(_t * 12.0) % 3 == 0)
+		# A speck of light on their fingers and face, not a lamp: brighter on a drag.
+		_partner_light.light_energy = 0.12 if drag else 0.04 + 0.015 * float(int(_t * 12.0) % 3 == 0)
 	_partner_flame.visible = c == 2
 	if c == 2:
 		_partner_flame.texture = tex("flame_small" if int(_t * 12.0) % 4 != 0 else "flame_tall")
@@ -572,6 +597,52 @@ func _far_glow(n: String) -> StandardMaterial3D:
 	return m
 
 
+var _ember_px: Dictionary = {}
+
+
+## The burning end in the other warden's picture now (their pose's own pixels of ember),
+## in the world: on the sprite facing you, a touch in front of it. INF: none drawn.
+func _ember_point(fig: Node3D) -> Vector3:
+	var spr := fig.get_node_or_null("Sprite") as Sprite3D
+	if spr == null or spr.texture == null:
+		return Vector3.INF
+	var t := spr.texture
+	var key := t.get_rid().get_id()
+	if not _ember_px.has(key):
+		_ember_px[key] = Vector2.INF
+		var img := t.get_image()
+		if img != null:
+			if img.is_compressed():
+				img.decompress()
+			var sum := Vector2.ZERO
+			var n := 0
+			for y in img.get_height():
+				for x in img.get_width():
+					var c := img.get_pixel(x, y)
+					if c.a > 0.5 and c.r > 0.78 and c.g > 0.2 and c.g < 0.66 and c.b < 0.32 and c.r - c.g > 0.3:
+						sum += Vector2(x, y)
+						n += 1
+			if n > 0 and n < 40:
+				_ember_px[key] = sum / float(n)
+	var p: Vector2 = _ember_px[key]
+	if p == Vector2.INF:
+		return Vector3.INF
+	var cam := fig.get_viewport().get_camera_3d() if fig.get_viewport() != null else null
+	if cam == null:
+		return Vector3.INF
+	var w := float(t.get_width())
+	var h := float(t.get_height())
+	var dx := (p.x - w * 0.5) * spr.pixel_size * (-1.0 if spr.flip_h else 1.0)
+	var dy := (h - p.y) * spr.pixel_size
+	var right := cam.global_basis.x
+	right.y = 0.0
+	right = right.normalized()
+	var toward := cam.global_position - spr.global_position
+	toward.y = 0.0
+	toward = toward.normalized() if toward.length() > 0.01 else Vector3.ZERO
+	return spr.global_position + right * dx + Vector3.UP * (dy + spr.offset.y * spr.pixel_size - h * spr.pixel_size * 0.5) + toward * 0.03
+
+
 func _make_partner_fx(parent: Node) -> void:
 	if _partner_fx != null and is_instance_valid(_partner_fx):
 		_partner_fx.queue_free()
@@ -591,7 +662,7 @@ func _make_partner_fx(parent: Node) -> void:
 	_partner_fx.add_child(_partner_ember)
 	_partner_light = OmniLight3D.new()
 	_partner_light.light_color = Color(1.0, 0.45, 0.18)
-	_partner_light.omni_range = 0.9
+	_partner_light.omni_range = 0.5
 	_partner_light.shadow_enabled = false
 	_partner_fx.add_child(_partner_light)
 	_partner_flame = _sprite("flame_small")
@@ -621,12 +692,19 @@ func _offer_clink(fig: Node3D, hb: Dictionary) -> void:
 		return
 	if pockets.bottle.coop_code() < 3 or not _facing(fig, 1.3):
 		return
-	if Input.is_action_just_pressed("drink"):
+	if Input.is_action_just_pressed("drink") or Engine.get_process_frames() - int(pockets.b_tap_frame) <= 1:
 		_clink_cd = 6.0
 		_sound(fig, "clink.mp3", -2.0)
 		pockets._play("fx", "clink.mp3", -3.0)
+		pockets._toast = 4
 		send("clink", [])
 		pockets._say("Na zdravi.")
+
+
+## The other warden is close in front of you (to offer, hand over, light, clink).
+func partner_in_reach() -> bool:
+	var fig := _partner_figure()
+	return fig != null and _facing(fig, 1.6)
 
 
 func _facing(fig: Node3D, reach: float) -> bool:

@@ -116,6 +116,10 @@ var _shake := 0.0
 var _sway_t := 0.0
 var _hands: Node
 var _x_target := ""
+var _offer_t := -1.0
+## The pack held out to the other warden (seconds left of it).
+var _offering := 0.0
+var _toast := 0
 var _strike_kick := 0
 var _tap_kick := 0
 var _gulp_kick := 0
@@ -125,6 +129,9 @@ var _foam_t := 0.0
 var _dying_t := 0.0
 var _c_tap := false
 var _b_tap := false
+var _x_tap := false
+## The frame B was last pressed in (habit_world: a tap by the other warden clinks).
+var b_tap_frame := -10
 var _last_floor_y := 0.0
 var _was_on_floor := true
 var _vomit_t := -1.0
@@ -257,7 +264,9 @@ func _process(delta: float) -> void:
 	var can := _can_act()
 	var c_held := can and Input.is_action_pressed("smoke") and not _typing()
 	var b_held := can and Input.is_action_pressed("drink") and not _typing()
-	var x_held := can and Input.is_action_pressed("habit_drop") and not _typing()
+	# A tap of X shorter than a frame is a frame of it held (then let go: a tap).
+	var x_held := can and (Input.is_action_pressed("habit_drop") or _x_tap) and not _typing()
+	_x_tap = false
 	var c_pressed := (c_held and not _c_was) or (can and _c_tap)
 	var b_pressed := (b_held and not _b_was) or (can and _b_tap)
 	_c_tap = false
@@ -265,8 +274,21 @@ func _process(delta: float) -> void:
 	_c_was = c_held
 	_b_was = b_held
 	if c_pressed and not cig.active():
-		try_use("smoke")
+		if world != null and world.partner_in_reach() and bag != null and bag.has("cigs"):
+			# By the other warden: wait to see if it is a tap (smoke) or a hold (offer one).
+			_offer_t = 0.0
+		else:
+			try_use("smoke")
 		c_pressed = false
+	if _offer_t >= 0.0:
+		_offer_t += delta
+		if not c_held:
+			_offer_t = -1.0
+			if not cig.active():
+				try_use("smoke")
+		elif _offer_t >= 0.45:
+			_offer_t = -1.0
+			_offer_cig()
 	if b_pressed and not bottle.active():
 		try_use("drink")
 		b_pressed = false
@@ -311,6 +333,9 @@ func _input(event: InputEvent) -> void:
 			_c_tap = true
 		elif event.is_action("drink"):
 			_b_tap = true
+			b_tap_frame = Engine.get_process_frames()
+		elif event.is_action("habit_drop"):
+			_x_tap = true
 
 
 ## Typing in a text field (the PC's mail, a name): the keys are letters, not hands.
@@ -481,8 +506,13 @@ func _bottle_event(e: String, v) -> void:
 		"thrown":
 			world.throw_bottle(float(v))
 		"set_down":
-			_play("b", "bottle_set.mp3", -6.0)
-			world.set_bottle_down(float(v))
+			if world.partner_in_reach():
+				world.send("give_bottle", [float(v)])
+				_play("b", "bottle_set.mp3", -8.0)
+				_say("You hand %s the bottle." % Coop.partner_name())
+			else:
+				_play("b", "bottle_set.mp3", -6.0)
+				world.set_bottle_down(float(v))
 
 
 # ── drunk ────────────────────────────────────────────────────────────────────
@@ -648,7 +678,8 @@ func _layout() -> void:
 	var step := floorf(_tick * FPS)
 	# Rooms: above the room's own layers, under the close-ups.
 	layer = 61 if _indoors() else 58
-	var left_want: bool = _shown and cig.active() and cig.state != CIG.THROW or (cig.state == CIG.THROW and cig.t < 0.2)
+	_offering = maxf(0.0, _offering - 1.0 / FPS)
+	var left_want: bool = _shown and (cig.active() and cig.state != CIG.THROW or (cig.state == CIG.THROW and cig.t < 0.2) or _offering > 0.0)
 	_left_up = move_toward(_left_up, 1.0 if left_want else 0.0, 1.0 / FPS * 4.0)
 	var right_want: bool = _shown and bottle.active() and not (bottle.state == BOTTLE.THROW and bottle.t > 0.2)
 	_right_up = move_toward(_right_up, 1.0 if right_want else 0.0, 1.0 / FPS * 4.0)
@@ -682,6 +713,16 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		return
 	var frame := "hand2_v"
 	var mouth := false
+	if _offering > 0.0 and not cig.active():
+		# The pack held out at arm's length to the other warden, one tapped up for them.
+		var pt := tex("hand2_pack")
+		if pt != null:
+			_left.texture = pt
+			_left.size = pt.get_size() * s
+			_left.visible = true
+			var reach := 1.0 - absf(_offering - 0.55) / 0.55
+			_left.position = _ease("l", Vector2(vp.x * 0.42 - _left.size.x * 0.5, vp.y - bar - _left.size.y * (0.55 + 0.35 * reach) * up), s)
+		return
 	if cig.state in [CIG.HOLD, CIG.DRAG, CIG.EXHALE] and _cig_in_mouth():
 		# The left hand has the torch: the cigarette stays in your mouth.
 		_left.visible = false
@@ -965,7 +1006,23 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 		_foam_drip()
 	if bottle.state == BOTTLE.THROW:
 		pos += (Vector2(10.0, 8.0) if bottle.t < 0.15 else Vector2(-30.0, -60.0)) * s
+	if _toast > 0:
+		# Na zdravi: out and up towards the other bottle, a knock, back.
+		pos += Vector2(-28.0, -26.0) * s * (1.0 if _toast > 2 else 0.4)
+		_toast -= 1
 	_right.position = _ease("r", pos, s)
+
+
+## A cigarette from your pack for the other warden: the pack held out to them, one less
+## in it, one in their bag (they hear the pack and are told).
+func _offer_cig() -> void:
+	if bag == null or not bag.has("cigs"):
+		return
+	bag.consume("cigs")
+	_offering = 1.1
+	_play("c", "pack.mp3", -4.0)
+	world.send("offer_cig", [])
+	_say("You offer %s a Start." % Coop.partner_name())
 
 
 ## Where a hand is, moving towards where it should be: half the way each step (twelve a
@@ -1149,6 +1206,24 @@ func coop_state() -> Dictionary:
 	if not cig.active() and not bottle.active():
 		return {}
 	return {"c": cig.coop_code(), "l": snappedf(cig.length, 0.05), "b": bottle.coop_code()}
+
+
+## The pose the other machine draws your figure in (coop.gd puts it in "act"):
+## a drag, lighting up, drinking always; a cigarette or a bottle held only standing.
+func coop_pose(speed: float) -> String:
+	if bottle.state == BOTTLE.DRINK:
+		return "drink"
+	if cig.state == CIG.DRAG:
+		return "smoke"
+	if cig.state in [CIG.PACK, CIG.LIPS]:
+		return "light"
+	if speed > 0.4:
+		return ""
+	if cig.active() and cig.state != CIG.THROW:
+		return "cigar"
+	if bottle.active():
+		return "bottle"
+	return ""
 
 
 func coop_habit(kind: String, data: Array) -> void:
