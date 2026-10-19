@@ -979,6 +979,7 @@ func _write_fingerprint(tag: String) -> void:
 		"att_mates": _att_mate_count(),
 		"pipe_mates": _pipe_mate_count(),
 		"town_mates": _town_mate_count(),
+		"enemy_seen": _main.get("_coop_night").mirror_count() if Coop.is_client() and _main.get("_coop_night") != null else (1 if _enemy_shown_here() else 0),
 		"bus_mates": _bus_mate_count(),
 		"corn_orders": (CoreRoot.get_state().biz.get("orders", []) as Array).filter(func(o): return str(o.get("key", "")) == "15:13").size(),
 		"radio": _radio_row(),

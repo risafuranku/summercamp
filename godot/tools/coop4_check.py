@@ -46,8 +46,10 @@ def main():
     for r in ROLES[1:]:
         procs[r] = run(r)
         time.sleep(1.5)
+    # A fifth, once the four are in: turned away.
+    procs["c4"] = run("c4")
     try:
-        for r in ROLES[1:]:
+        for r in ROLES[1:] + ["c4"]:
             procs[r].wait(timeout=1700)
         procs["host"].wait(timeout=90)
     except subprocess.TimeoutExpired:
@@ -79,6 +81,22 @@ def main():
     slots = sorted(load("%s_seen" % r)["my_slot"] for r in ROLES[1:] if load("%s_seen" % r))
     if slots != [1, 2, 3]:
         failures.append("the joining wardens' places on the line are not 1, 2, 3 (%s)" % slots)
+    # The fifth: told the camp is full, not let in; the others never heard of them.
+    c4 = load("c4_full")
+    if c4 is None:
+        failures.append("the fifth warden wrote nothing")
+    else:
+        if "full" not in c4["notice"].lower():
+            failures.append("the fifth was not told the camp is full (%r)" % c4["notice"])
+        if c4["active"] or c4["in_game"]:
+            failures.append("the fifth got into the camp (active %s, in game %s)" % (c4["active"], c4["in_game"]))
+    ht0 = load("host_till")
+    if ht0 is not None and len(ht0["wardens"]) != 3:
+        failures.append("the host has %d others after the fifth called" % len(ht0["wardens"]))
+    for role in ROLES[1:]:
+        fp = load("%s_private" % role)
+        if fp is not None and len(fp["wardens"]) != 3:
+            failures.append("%s has %d others after the fifth called" % (role, len(fp["wardens"])))
     # The till: both spends paid by the host, once each.
     hs, ht = load("host_seen"), load("host_till")
     if hs is None or ht is None:
@@ -114,6 +132,22 @@ def main():
             failures.append("%s woke on day %s, the host on %s" % (role, fm["day"], hm["day"]))
     if hm is not None and hs is not None and hm["day"] <= hs["day"]:
         failures.append("the night did not pass (day %s -> %s)" % (hs["day"], hm["day"]))
+    # The night: one enemy only for the warden second on the line, then one for all.
+    hp = load("host_private")
+    if hp is None or hp["enemy_seen"] != 0:
+        failures.append("the host sees the enemy that is only one joining warden's (%s)" % (hp or {}).get("enemy_seen"))
+    for role in ROLES[1:]:
+        fp, fs = load("%s_private" % role), load("%s_shared" % role)
+        if fp is None or fs is None:
+            failures.append("%s: missing night fingerprints" % role)
+            continue
+        mine = fp["my_slot"] == 2
+        if mine and fp["enemy_seen"] == 0:
+            failures.append("%s (second on the line) does not see the enemy hunting them alone" % role)
+        if not mine and fp["enemy_seen"] != 0:
+            failures.append("%s sees the enemy that is only the second one's (%d)" % (role, fp["enemy_seen"]))
+        if fs["enemy_seen"] == 0:
+            failures.append("%s does not see the enemy everyone should" % role)
     # One bus for four: it waits for the last one, then all ride it; at U Jezera together.
     hw = load("host_bus_wait")
     if hw is None or hw["bus_state"] != "held":

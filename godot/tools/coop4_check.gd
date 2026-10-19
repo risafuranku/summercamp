@@ -5,11 +5,15 @@ extends "res://tools/coop_check.gd"
 ## coop_check.gd does. On the way:
 ##   - each joining warden comes with the next figure (their place on the line) and a
 ##     jacket of their own: everyone sees the other three, four different wardens;
+##   - a fifth calls the camp (role c4): told it is full, and nobody else hears of them;
 ##   - two of them spend in town: the host's till pays both, each counted once;
 ##   - all four round the host's new fire: each sees the other three sat at it;
 ##   - all four in the old cabin: each sees the other three standing about in it;
 ##   - all four down the sewer's pipes: each sees the other three lying in them, and the
 ##     ones behind the first crawl into boots;
+##   - at night an enemy on the host's goes for the warden second on the line, only for
+##     them: they see it, the other two and the host do not; then it hunts the third, not
+##     only theirs: all three joining machines see it;
 ##   - at night the host lies down in the back room, two others where they are: the night
 ##     does not pass while the fourth is up; it lies down too and all wake in the morning;
 ##   - the next day all four take the 13:20 to Lesna: three get on and sit, the host sits
@@ -28,6 +32,10 @@ const SPEND := {"c1": 30, "c2": 50}
 func _ready() -> void:
 	super._ready()
 	var spot: Array = SPOTS.get(_role, [12, 14])
+	if _role == "c4":
+		_steps = [["wait_menu"], ["coop_port"], ["coop_wait_file", "host_seen"], ["coop_join", "127.0.0.1"], ["wait", 8.0],
+			["coop4_turned_away"], ["coop_signal", "c4_done"]]
+		return
 	if _role == "host":
 		_steps = [
 			["wait_menu"], ["coop_port"], ["coop_look", 0, 0], ["call", "_on_menu_coop_host", []], ["wait_gameplay"], ["wait", 2.0],
@@ -36,13 +44,21 @@ func _ready() -> void:
 			["money", 9000], ["clear", 11, 12, 5, 5], ["wait", 1.0],
 			["coop_place", spot[0], spot[1], 1.0], ["coop_signal", "host_up"],
 			["coop_wait", "all_seen"], ["wait", 2.0], ["shot", "q1_host_sees_three"], ["coop_fingerprint", "host_seen"], ["coop_signal", "host_seen"],
-			["coop_wait_file", "c1_spent"], ["coop_wait_file", "c2_spent"], ["wait", 3.0], ["coop_fingerprint", "host_till"], ["coop_signal", "host_till"],
+			["coop_wait_file", "c1_spent"], ["coop_wait_file", "c2_spent"], ["coop_wait_file", "c4_done"], ["wait", 3.0], ["coop_fingerprint", "host_till"], ["coop_signal", "host_till"],
 			# The fire, built after the joins (the others' camps get it too): all four round it.
 			["build", "bonfire", 11, 12, 0], ["wait", 2.0], ["coop_signal", "host_built"],
 		] + _together(spot) + [
 			["coop_signal", "host_together_done"],
-			# The night: the host turns in in the back room first.
+			# The night: an enemy for one of them alone, then for another and all to see.
 			["eval", "debug_jump_to(1, 22.6)"], ["wait", 3.0],
+			["coop_signal", "host_night"], ["coop_wait_file", "c1_night"], ["coop_wait_file", "c2_night"], ["coop_wait_file", "c3_night"],
+			["eval", "debug_spawn_enemy('tourist', 3)"], ["wait", 1.0], ["coop4_aim", 2], ["eval", "_coop_night.set_private(_enemy_brains[0], true)"], ["wait", 5.0],
+			["coop_fingerprint", "host_private"], ["coop_signal", "host_private"],
+			["coop_wait_file", "c1_private"], ["coop_wait_file", "c2_private"], ["coop_wait_file", "c3_private"],
+			["eval", "_coop_night.set_private(_enemy_brains[0], false)"], ["coop4_aim", 3], ["wait", 5.0], ["coop_signal", "host_shared"],
+			["coop_wait_file", "c1_shared"], ["coop_wait_file", "c2_shared"], ["coop_wait_file", "c3_shared"],
+			["eval", "_stop_active_enemy_brain()"], ["wait", 1.0],
+			# The host turns in in the back room first.
 			["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
 			["eval", "_interior_manager._building_interior._extras._try_sleep()"], ["wait", 6.0], ["coop_signal", "host_in_bed"],
 			["coop_wait_file", "c1_in_bed"], ["coop_wait_file", "c2_in_bed"], ["wait", 4.0], ["coop_fingerprint", "host_waiting"], ["coop_signal", "host_waiting"],
@@ -66,6 +82,9 @@ func _ready() -> void:
 			_steps.append_array([["coop_spend", int(SPEND[r])], ["wait", 2.0], ["coop_signal", "%s_spent" % r]])
 		_steps.append_array([["coop_wait_file", "host_till"], ["coop_wait_file", "host_built"], ["wait", 2.0]])
 		_steps.append_array(_together(spot))
+		_steps.append_array([["coop_wait_file", "host_night"], ["wait", 2.0], ["coop_signal", "%s_night" % r],
+			["coop_wait_file", "host_private"], ["wait", 2.0], ["coop_fingerprint", "%s_private" % r], ["coop_signal", "%s_private" % r],
+			["coop_wait_file", "host_shared"], ["wait", 2.0], ["coop_fingerprint", "%s_shared" % r], ["shot", "q5_%s_enemy" % r], ["coop_signal", "%s_shared" % r]])
 		_steps.append_array([["coop_wait_file", "host_in_bed"]])
 		if r == "c3":
 			# The last one up: the night waits for them.
@@ -198,6 +217,22 @@ func _run_step(step: Array) -> void:
 		Coop.look_model = -1
 		Coop.look_color = int(step[1])
 		Coop.set("_look_override", true)
+		return
+	if str(step[0]) == "coop4_turned_away":
+		# What the fifth was told, and whether they are still on a line.
+		var menu = _main.get("_main_menu")
+		var notice = menu.get("_coop_notice") if menu != null else null
+		var f := FileAccess.open(_out_dir.path_join("c4_full.json"), FileAccess.WRITE)
+		f.store_string(JSON.stringify({"notice": str(notice.text) if notice != null else "", "active": Coop.is_active(), "in_game": bool(_main.get("_gameplay_started"))}))
+		f.close()
+		return
+	if str(step[0]) == "coop4_aim":
+		# The night's enemy on the warden at that place on the line.
+		var night = _main.get("_coop_night")
+		var brains: Array = _main.get("_enemy_brains")
+		for id in Coop.get("_slots").keys():
+			if int(Coop.get("_slots")[id]) == int(step[1]) and not brains.is_empty():
+				night._aim(brains[0], night.who_of(int(id)))
 		return
 	if str(step[0]) == "coop4_to_stop":
 		# To the camp stop, side by side along the kerb.

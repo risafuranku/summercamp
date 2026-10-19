@@ -86,6 +86,8 @@ var sender := 0
 var my_slot := 0
 ## The host: who has which place.
 var _slots: Dictionary = {}
+## Hellos from wardens not on the host's roster yet (peer id -> their look).
+var _early_looks: Dictionary = {}
 ## The host's last clock as it came in (a joining machine; harnesses compare it).
 var last_clock: Dictionary = {}
 ## The look from before wardens had their own (coop.cfg), for a warden who never chose
@@ -231,7 +233,9 @@ func nearest_other(pos: Vector3, max_dist := INF) -> int:
 func host() -> bool:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
-	if peer.create_server(port, MAX_WARDENS - 1) != OK:
+	# One more line than there are places: a fifth is told the camp is full, not left
+	# hanging (_on_peer_connected).
+	if peer.create_server(port, MAX_WARDENS) != OK:
 		return false
 	_peer = peer
 	multiplayer.multiplayer_peer = peer
@@ -275,6 +279,7 @@ func leave() -> void:
 		_drop_figure(int(id))
 	wardens.clear()
 	_slots.clear()
+	_early_looks.clear()
 	if _peer != null:
 		_peer.close()
 	_peer = null
@@ -357,6 +362,13 @@ func _add_warden(id: int) -> void:
 
 func _on_peer_connected(id: int) -> void:
 	if role == Role.HOST:
+		if wardens.size() >= MAX_WARDENS - 1:
+			print("Coop: a fifth warden called (%d): the camp is full" % id)
+			_full.rpc_id(id)
+			get_tree().create_timer(1.0).timeout.connect(func() -> void:
+				if _peer != null:
+					_peer.disconnect_peer(id))
+			return
 		_add_warden(id)
 		_patient(id)
 		# The next free place on the line (the figure of one who chose none).
@@ -369,20 +381,22 @@ func _on_peer_connected(id: int) -> void:
 		_hello.rpc_id(id, my_look())
 		warden_joined.emit(id)
 		peer_joined.emit()
-	elif role == Role.CLIENT:
-		# The host (1), or another joining warden the host relays to us.
-		if id != 1 and not _connected:
-			return
-		_add_warden(id)
-		if id != 1:
-			_hello.rpc_id(id, my_look())
-			warden_joined.emit(id)
-			peer_joined.emit()
+		_send_roster()
+	elif role == Role.CLIENT and id == 1:
+		_add_warden(1)
+	# Another joining warden the host relays to us: they come in with the host's roster
+	# (a fifth one turned away never does).
 
 
 func _on_peer_disconnected(id: int) -> void:
 	if not wardens.has(id):
 		return
+	_forget(id)
+	if role == Role.HOST:
+		_send_roster()
+
+
+func _forget(id: int) -> void:
 	print("Coop: %s hung up" % name_of(id))
 	_drop_figure(id)
 	# Told while they are still known (their name), then gone.
@@ -390,6 +404,35 @@ func _on_peer_disconnected(id: int) -> void:
 	wardens.erase(id)
 	_slots.erase(id)
 	peer_left.emit()
+
+
+## The host: who is in the camp now (the joining machines' peer ids), for every one of them.
+func _send_roster() -> void:
+	if role == Role.HOST and not wardens.is_empty():
+		_roster.rpc(others())
+
+
+## A joining machine: the host's roster. Those new to it say who you are (and are
+## told who they are); those gone from it are gone.
+@rpc("authority", "call_remote", "reliable")
+func _roster(ids: Array) -> void:
+	if role != Role.CLIENT:
+		return
+	var me := multiplayer.get_unique_id()
+	for id in ids:
+		var i := int(id)
+		if i == me or i == 1 or wardens.has(i):
+			continue
+		_add_warden(i)
+		if _early_looks.has(i):
+			wardens[i]["look"] = _early_looks[i]
+			_early_looks.erase(i)
+		_hello.rpc_id(i, my_look())
+		warden_joined.emit(i)
+		peer_joined.emit()
+	for id in wardens.keys():
+		if int(id) != 1 and not ids.has(id):
+			_forget(int(id))
 
 
 func _on_connected() -> void:
@@ -400,10 +443,7 @@ func _on_connected() -> void:
 	_patient(1)
 	_hello.rpc_id(1, my_look())
 	_request_world.rpc_id(1)
-	# Wardens already in the camp: they say who they are as the relay tells them of us.
-	for id in multiplayer.get_peers():
-		if int(id) != 1:
-			_on_peer_connected(int(id))
+	# Wardens already in the camp come with the host's roster (_roster).
 
 
 func _on_connection_failed() -> void:
@@ -431,6 +471,15 @@ func _patient(id: int) -> void:
 
 func _main() -> Node:
 	return get_tree().current_scene if get_tree() != null else null
+
+
+## The host: four wardens are in the camp already.
+@rpc("authority", "call_remote", "reliable")
+func _full() -> void:
+	if role != Role.CLIENT:
+		return
+	leave()
+	join_failed.emit("The camp is full: four wardens are in it.")
 
 
 ## The host tells a joining machine its place on the line.
@@ -617,12 +666,11 @@ func _screen(frame: PackedByteArray) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _hello(look: Dictionary) -> void:
 	var id := multiplayer.get_remote_sender_id()
-	if not wardens.has(id):
-		if role == Role.CLIENT and _connected:
-			_add_warden(id)
-		else:
-			return
 	var l := {"m": posmod(int(look.get("m", 1)), LOOKS.count()), "c": posmod(int(look.get("c", 0)), LOOKS.color_count()), "n": str(look.get("n", "")).strip_edges().left(24)}
+	if not wardens.has(id):
+		# Not on the host's roster yet: kept for when they are (_roster).
+		_early_looks[id] = l
+		return
 	wardens[id]["look"] = l
 	var f := figure_of(id)
 	if f != null:
@@ -749,6 +797,25 @@ func _inv(kind: String, data: Array) -> void:
 	if inv != null:
 		sender = id
 		inv.coop_inv(kind, data)
+		sender = 0
+
+
+## The bistros' kitchens (scripts/bistro/kitchen.gd), everyone's to everyone: a slice in
+## the pan, the pot stirred, a tray filled, a plate out of the hatch.
+func send_kitchen(key: String, op: String, data: Array) -> void:
+	if role != Role.NONE and not wardens.is_empty():
+		_kitchen.rpc(key, op, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _kitchen(key: String, op: String, data: Array) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not wardens.has(id):
+		return
+	var k := get_tree().get_first_node_in_group("kitchens")
+	if k != null:
+		sender = id
+		k.coop_kitchen(key, op, data)
 		sender = 0
 
 

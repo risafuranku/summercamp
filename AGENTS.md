@@ -306,7 +306,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **Co-op is for up to four** (`Coop.MAX_WARDENS`; 19. 10.): the other wardens are
   `Coop.others()` (peer ids, the host is 1), each with `state_of` / `look_of` / `name_of` /
   `figure_of`; in a handler of something that came in (`coop_request`, `coop_play`,
-  `coop_sync`, `coop_inv`, `coop_habit`) `Coop.sender` is who sent it. Everything goes to
+  `coop_sync`, `coop_inv`, `coop_habit`) `Coop.sender` is who sent it. Who is in the camp
+  is the host's roster (`Coop._roster`): a joining machine takes the other joining ones
+  from it, not from the relay's peer_connected (a fifth, told the camp is full, never
+  shows up there; a hello before the roster is kept, `_early_looks`). Everything goes to
   everyone (the host relays: SceneMultiplayer's server relay); something meant for one
   warden carries their id and the others drop it (the lift, a pipe knock, a light for a
   cigarette, an item picked up). `partner_*` / `remote_figure()` / `partner_name()` are the
