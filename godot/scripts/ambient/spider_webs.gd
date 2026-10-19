@@ -72,6 +72,7 @@ func _ready() -> void:
 	_silk_mat.texture_repeat = true
 	_silk_mat.roughness = 1.0
 	_silk_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	_silk_mat.vertex_color_use_as_albedo = true
 	if ResourceLoader.exists(SILK_TEX):
 		_silk_mat.albedo_texture = load(SILK_TEX)
 	_spider_tex = load(SPIDER_TEX) if ResourceLoader.exists(SPIDER_TEX) else null
@@ -106,7 +107,7 @@ func _ready() -> void:
 
 # ── where the webs are ───────────────────────────────────────────────────────
 
-## Between two trunks (or a trunk and a lamp post) 1.4 to 4.2 m apart, always the same
+## In the gap between two trunks (or a trunk and a lamp post) 1.4 to 4.2 m apart, always the same
 ## pairs (by where they stand), no more than MAX_WEBS of them.
 func _place() -> void:
 	var posts: Array = []
@@ -156,19 +157,16 @@ func _make_web(pa: Array, pb: Array, seed: int) -> Dictionary:
 	var flat := Vector3(b.x - a.x, 0, b.z - a.z).normalized()
 	var ea := Vector3(a.x, 0, a.z) + flat * float(pa[1])
 	var eb := Vector3(b.x, 0, b.z) - flat * float(pb[1])
-	var lo := r.randf_range(0.45, 0.85)
-	var hi := r.randf_range(1.55, 2.15)
-	var anchors := [ea + Vector3(0, lo, 0), ea + Vector3(0, hi, 0), eb + Vector3(0, hi + r.randf_range(-0.2, 0.2), 0), eb + Vector3(0, lo + r.randf_range(-0.15, 0.25), 0)]
-	var c := Vector3.ZERO
-	for p in anchors:
-		c += p
-	c = c * 0.25 + Vector3(r.randf_range(-0.15, 0.15), r.randf_range(-0.1, 0.15), 0)
-	# The orb itself is smaller than the gap: its frame drawn in towards the middle, held
-	# to the trunks by a mooring line at each corner.
-	var moor: Array = anchors.duplicate()
-	var shrink := r.randf_range(0.42, 0.55)
-	for k in anchors.size():
-		anchors[k] = c + ((anchors[k] as Vector3) - c) * shrink
+	# A garden spider's orb is a hand or two across, not the gap: 35 to 65 cm, hanging
+	# somewhere in it at chest to head height, held to the trunks by long mooring lines.
+	var t := r.randf_range(0.3, 0.7)
+	var c := ea.lerp(eb, t) + Vector3(0, r.randf_range(1.0, 1.65), 0)
+	var rad := r.randf_range(0.17, 0.32)
+	var anchors := [c + Vector3(0, -rad, 0) - flat * rad, c + Vector3(0, rad * 1.1, 0) - flat * rad * 0.9,
+		c + Vector3(0, rad, 0) + flat * rad, c + Vector3(0, -rad * 0.9, 0) + flat * rad * 1.05]
+	# The mooring lines: up and out to each trunk, the lower ones slanting down to it.
+	var moor: Array = [ea + Vector3(0, c.y - rad - r.randf_range(0.2, 0.6), 0), ea + Vector3(0, c.y + rad + r.randf_range(0.15, 0.5), 0),
+		eb + Vector3(0, c.y + rad + r.randf_range(0.15, 0.5), 0), eb + Vector3(0, c.y - rad - r.randf_range(0.2, 0.6), 0)]
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Web"
 	mesh.mesh = ImmediateMesh.new()
@@ -179,7 +177,7 @@ func _make_web(pa: Array, pb: Array, seed: int) -> Dictionary:
 	if _spider_tex != null:
 		spider = Sprite3D.new()
 		spider.texture = _spider_tex
-		spider.pixel_size = 0.0028
+		spider.pixel_size = 0.0022
 		spider.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		spider.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		spider.double_sided = true
@@ -321,6 +319,10 @@ func _process(delta: float) -> void:
 					_touch(w, player, eye)
 			elif int(w["broken"]) > 0 and d > 35.0 and float(w["torn_at"]) >= 0.0 and _t - float(w["torn_at"]) > REGROW_SEC:
 				_spin(w)
+	# How wide one pixel of the world's (low-res) picture is a metre away.
+	var px_m := 0.004
+	if cam != null:
+		px_m = 2.0 * tan(deg_to_rad(cam.fov) * 0.5) / maxf(1.0, float(get_viewport().get_visible_rect().size.y))
 	var dew := _dew(main)
 	_silk_mat.albedo_color = Color(0.75, 0.78, 0.82, 1.0) * dew
 	for w in _webs:
@@ -328,7 +330,7 @@ func _process(delta: float) -> void:
 		var show := d2 < DRAW_RANGE and not indoors
 		(w["mesh"] as MeshInstance3D).visible = show
 		if show:
-			_draw(w, eye)
+			_draw(w, eye, px_m)
 		_spider_step(w, delta, show)
 
 
@@ -429,6 +431,9 @@ func _touch(w: Dictionary, player: Node3D, eye: Vector3) -> void:
 		snapped += 1
 		if (pts[0] as Vector3).y > eye.y - 0.45:
 			face = true
+		# A mooring line you broke lets its corner of the orb fall away.
+		if int(c[0]) > RADIALS * RINGS and int(c[1]) == int(c[0]) + 1:
+			pinned[c[0]] = 0
 		for n in [c[0], c[1]]:
 			# The frame comes off the trunk where you hit it.
 			if pinned[n] == 1 and (pos[n] as Vector3).distance_to(pts[1]) < BODY_R * 1.4:
@@ -456,7 +461,7 @@ func _touch(w: Dictionary, player: Node3D, eye: Vector3) -> void:
 
 
 ## The strands as thin ribbons turned to the eye, the silk's picture along them.
-func _draw(w: Dictionary, eye: Vector3) -> void:
+func _draw(w: Dictionary, eye: Vector3, px_m: float) -> void:
 	var im: ImmediateMesh = (w["mesh"] as MeshInstance3D).mesh
 	im.clear_surfaces()
 	var pos: PackedVector3Array = w["pos"]
@@ -475,12 +480,19 @@ func _draw(w: Dictionary, eye: Vector3) -> void:
 			continue
 		var mid := (a + b) * 0.5
 		var dist := mid.distance_to(eye)
-		# Thin, but never thinner than about a pixel of the world's picture.
-		var width := maxf(0.006, dist * 0.0032) * (1.3 if int(c[3]) == 2 else 1.0)
+		# Silk is far thinner than a pixel: drawn a pixel wide (or it drops out of the
+		# picture), as bright as the little of that pixel it covers, and fading out with
+		# distance (added light: dimmer is fainter, not thicker).
+		var silk := 0.0022 * (1.4 if int(c[3]) == 2 else 1.0)
+		var width := maxf(silk, dist * px_m * 0.55)
 		var side := ab.cross(eye - mid).normalized() * width
+		var k := clampf(silk / width, 0.3, 1.0) * clampf(1.2 - (dist - 2.0) / 8.0, 0.0, 1.0)
+		if k <= 0.02:
+			continue
 		if not began:
 			im.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _silk_mat)
 			began = true
+		im.surface_set_color(Color(k, k, k, 1.0))
 		var u1 := l / 0.12
 		# One strand of the picture (a band a twelfth of it high).
 		var v0 := 0.0
