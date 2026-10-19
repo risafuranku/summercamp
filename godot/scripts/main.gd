@@ -13,6 +13,7 @@ const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const UTILITY_REPAIR_MINIGAME_SCRIPT = preload("res://scripts/utility_repair_minigame.gd")
 const SEWER_PIPE_MINIGAME_SCRIPT = preload("res://scripts/sewer_pipe_minigame.gd")
 const INTERIOR_MANAGER_SCRIPT = preload("res://scripts/interior_manager.gd")
+const BUS_TIMES = preload("res://scripts/town/bus_timetable.gd")
 const INTERACTION_CONTROLLER_SCRIPT = preload("res://scripts/interaction_controller.gd")
 const SILENT_MAN_BRAIN_SCRIPT = preload("res://scripts/enemies/silent_man_brain.gd")
 const TOURIST_BRAIN_SCRIPT = preload("res://scripts/enemies/tourist_brain.gd")
@@ -4124,6 +4125,9 @@ var _test_night := ""
 
 
 func _on_menu_test_night(enemy_id: String) -> void:
+	if enemy_id == "bus":
+		await _start_test_bus()
+		return
 	await _start_new_camp(true, enemy_id)
 	for _i in 60:
 		if not _menu_mode:
@@ -4160,6 +4164,28 @@ func _on_menu_test_night(enemy_id: String) -> void:
 			label = str(entry["text"])
 	if _hud_manager != null:
 		_hud_manager.push_status("Test night: the %s is out." % label, 2)
+
+
+## The bus test (L, "Bus to Lesna"): a fresh sandbox camp by day, the warden at the
+## camp's stop with money in the pocket just as the 13:50 comes up the road; from there
+## everything as in the game (the ticket machine, the ride, the request stop at Podlesi,
+## Lesna, the way back). Nothing is saved.
+func _start_test_bus() -> void:
+	await _start_new_camp(true, "bus")
+	for _i in 60:
+		if not _menu_mode:
+			break
+		await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
+	CoreRoot.actions.add_money(300)
+	# A few seconds before it pulls up (it comes in over town_trip.IN_HOURS).
+	debug_jump_to(1, BUS_TIMES.CAMP_ARRIVE[1] - 0.17)
+	var trip = _interior_manager.town_trip() if _interior_manager != null else null
+	if trip != null and trip.has_method("_put_player") and trip._road() != null:
+		trip._put_player(trip._road().wait_spot())
+	if _hud_manager != null:
+		_hud_manager.push_status("Test: the 380 is coming up the road. The ticket machine is inside.", 2)
 
 
 ## Which guests bring which test night's thing (main_menu.TEST_NIGHTS ids).

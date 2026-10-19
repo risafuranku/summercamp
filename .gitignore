@@ -4,6 +4,7 @@ godot/android/
 *.translation
 
 # OS junk
+.runtime/
 .DS_Store
 Thumbs.db
 desktop.ini

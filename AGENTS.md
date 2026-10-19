@@ -142,8 +142,12 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The check-in desk's key board (Dymo labels, the label maker), the room across the counter by hour/weather and its night scares | `scripts/reception/checkin_desk.gd` (`_slots`, `_pick_view`, `_roll_scare`); art `tools/artgen/desk_art.py views` |
 | Out of the camp: barrier, road, bus stop, timetable | `camp_gate.gd open_for_player / close_for_player`, `scripts/town/road_south.gd` (built by world gen), `bus_timetable.gd` (the one schedule), `timetable_closeup.gd` |
-| The 380 bus (outside, inside, the ride, the ticket machine) | `scripts/town/bus_model.gd`, `bus_ride.gd`, `ride_scenery.gd`, `ticket_closeup.gd`; buses run by the clock in `town_trip.gd` (`_plan`, `_run_special`, `_run_works`) |
+| The 380 bus (outside, inside, the ride, the ticket machine) | `scripts/town/bus_model.gd`, `bus_ride.gd`, `ride_scenery.gd`, `ticket_closeup.gd`; buses run by the clock in `town_trip.gd` (`_plan`, `_run_special`, `_run_works`); the Karosa's sounds `assets/sfx/bus/karosa_*` (rows in `tools/audiogen/prompts.tsv`; `bus_ride._sfx` falls back to the old ride.mp3 when one is missing) |
 | Lesna (village, people, shop, pub, motel, the pump job, pockets) | `scripts/town/town_lesna.gd`, `town_people.gd`, `shop_closeup.gd`, `pub_closeup.gd`, `pump_job.gd` + `pump_closeup.gd`, `pockets.gd`; all routed by `town_trip.gd` (InteriorManager module `trip`); art `tools/artgen/town_art.py` |
+| Lesna's houses, fronts and lettering | `town_lesna.gd` `_houses()` (the street list), `_gable_house` / `_hip_house` / `_eaves_house` / `_flat_house` build a house to fit its Grok elevation (`lib_*` rows in prompts.tsv) as measured by `tools/artgen/town_facades.py` (`lib_facades.json`: walls, eave; `<id>_win.png` lit windows, `<id>_side.png` side walls; window rectangles are measured by hand on the raw render); lettering `tools/artgen/lettering.py` (`sign_<name>.png`, put on a wall with `_letters`); the green `_green()`, fields `_fields()`; look at it with `res://tools/lesna_tour.tscn -- --out=<dir>` |
+| The transmitter masts, road posts | `scripts/town/liblice_masts.gd` (made by `town_trip._update_masts`, haze from the outdoor fog), `scripts/town/road_post.gd` (`place(parent, pos, to_road)`, `set_night`) |
+| Podlesi (the hamlet on the way, its request stop, Vondra's Skoda) | `scripts/town/hamlet_trip.gd` (state and save, its bus by `bus_timetable.hamlet_to_town/_camp`, the "ham_*" clicks, Vondra), the place `hamlet_podlesi.gd` (extends `town_lesna.gd` for the house kit: do not change the parent's method signatures), the repair close-up `car_closeup.gd`; in the ride: `ride_scenery.ROUTE` pieces "ruin", "hamlet", "pond", `stop_along("hamlet", towards_town)`, `bus_ride._press_stop` (STOP buttons, STOJIME), `arrived_where`; boarding there: stops "hamlet_town" / "hamlet_camp" (`town_trip._board`, fares in `ticket_closeup.FARES`) |
+| Testing the town and the bus | the title screen's secret page (L) "Bus to Lesna" (`main._start_test_bus`: a fresh camp, the camp stop as the 13:50 comes); played through for screenshots by `res://tools/bus_tour.tscn -- --out=<dir>`; Lesna alone `res://tools/lesna_tour.tscn` |
 | The camp computer (the panel: tabs and their keys, badges, boot, covers, one-click installs) | `scripts/os98/os_shell.gd` (`TABS`, `PROGRAMS`, `HOST`), a program's place `os_page.gd`, look: `os_theme.gd` |
 | Its programs (CampMail, Beeternet, CampStat, GuestRack, Files, Shops…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` (toolbar, keys, the building card) + `crt_map_panel.gd` (overlays `set_overlay`, `structure_at`, `building_clicked`); upgrades from the map `interior_manager.map_upgrade`, the crew to one building `main.request_maintenance_crew_at` |
 | Jobs and Games (the program folders) | `scripts/os98/apps/program_shelf.gd` (Web View folder pane) with `jobs_app.gd` (`datapunch_app`, `job_adclick`, `job_census`; pay through `shell.earn`, day limits `shell.job_done`) and `games_app.gd` (`mines_app`, `game_mosquito`, `game_hike`, `game_pexeso`; tables `shell.scores`, seeds `SCORE_SEEDS`, drawn by `score_board.gd`); icons `tools/artgen/panel_icons.py` |
@@ -509,7 +513,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 
 ## 7. Art, fonts and sound pipelines
 
-- **Generated art** — Grok Imagine through the Cursor agent CLI:
+- **Generated art** — Grok Imagine through the Cursor agent CLI (`cursor-agent`, logged in
+  with `cursor-agent login`; `gen.sh` finds it under `%LOCALAPPDATA%\cursor-agent` or takes
+  `CURSOR_AGENT`; the bare `agent` command may be the Grok CLI on some PCs):
   `tools/artgen/gen.sh <id>` reads `tools/artgen/prompts.tsv` (id, aspect, reference image
   relative to `godot/` or `-`, prompt), writes `tools/artgen/out/<id>/raw.png` (gitignored).
   **One at a time**: parallel runs swap outputs. ~2-5 min per image; `tools/artgen/queue.sh <id>...`
@@ -520,6 +526,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   box-downsamples, snaps to the game palette) or `texture <size> <dest>`.
   For sprites ask for a flat pure magenta `#FF00FF` background and pass an existing sprite
   as reference so pixel scale and palette match.
+- **Building fronts and lettering** (Lesna): ask Grok for a flat orthographic elevation on
+  magenta (`lib_*` rows), then `python tools/artgen/town_facades.py [id]`; signs are drawn,
+  not generated (Grok cannot spell Czech): `python tools/artgen/lettering.py [name]` (Windows
+  fonts for now, swap for OFL faces before a public release).
 - **Batches**: `tools/artgen/batch.sh <id>...` (textures, 128 px) and
   `tools/artgen/batch_panels.sh <width> <id>...` (posters, views) generate and process one
   after another; never start a second batch while one runs. `crop_goods.py` crops the

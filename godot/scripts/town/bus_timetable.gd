@@ -32,6 +32,33 @@ const HLUBOCANY_LEAVE := [3.0 + 35.0 / 60.0, 11.0 + 10.0 / 60.0, 16.0 + 35.0 / 6
 const HLUBOCANY_ARRIVE := [8.0 + 10.0 / 60.0, 15.0 + 45.0 / 60.0, 21.0 + 10.0 / 60.0]
 
 
+## Podlesi, the request stop at the turn for the hamlet (hamlet_trip.gd): the buses pass
+## it this far into their ride (where its pole is on ride_scenery.gd's route), so that
+## long after they leave either end. They stop only for somebody waiting there, or
+## asked (STOP in the bus, a ticket to Podlesi).
+const SCENERY = preload("res://scripts/town/ride_scenery.gd")
+
+
+static func hamlet_frac(towards_town: bool) -> float:
+	var length := float(SCENERY.ROUTE.size() - 1) * SCENERY.PIECE + SCENERY.PIECE * 0.5
+	return SCENERY.stop_along("hamlet", towards_town) / length
+
+
+## The buses past Podlesi towards Lesna (from the camp) and towards the camp (from Lesna).
+static func hamlet_to_town() -> Array:
+	var out: Array = []
+	for t in CAMP_LEAVE:
+		out.append(float(t) + hamlet_frac(true) * RIDE_HOURS)
+	return out
+
+
+static func hamlet_to_camp() -> Array:
+	var out: Array = []
+	for t in TOWN_LEAVE:
+		out.append(float(t) + hamlet_frac(false) * RIDE_HOURS)
+	return out
+
+
 static func hm(hours: float) -> String:
 	var m := int(roundf(fposmod(hours, 24.0) * 60.0)) % (24 * 60)
 	return "%d:%02d" % [m / 60, m % 60]
