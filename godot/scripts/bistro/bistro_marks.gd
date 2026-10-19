@@ -54,6 +54,8 @@ func _ready() -> void:
 		_load(MARK_DIR + m + ".png", m)
 	_load("res://assets/textury/bistro/ticket.png", "ticket")
 	_load("res://assets/textury/bistro/smoke.png", "smoke")
+	_load("res://assets/textury/bistro/star.png", "star")
+	_load("res://assets/textury/bistro/star_dim.png", "star_dim")
 	if kitchen != null:
 		kitchen.plate_out.connect(_on_plate_out)
 
@@ -171,6 +173,12 @@ func _draw_guests() -> void:
 			var col := RETRO_UI.C_AMBER_LIGHT
 			col.a = 1.0 - k * k
 			_text((at as Vector2) + Vector2(-8, -10 - k * 18.0), "+$%d" % int(l["amount"]), col, true)
+			# And how they liked it: one to three stars over the head.
+			var stars := int(l.get("stars", 0))
+			for i in 3:
+				var st: Texture2D = _tex.get("star" if i < stars else "star_dim")
+				if st != null:
+					draw_texture_rect(st, Rect2((at as Vector2) + Vector2(-14 + i * 10, -34 - k * 18.0), st.get_size()), false, Color(1, 1, 1, col.a))
 			continue
 		if bool(h.get("served", false)) or str(h.get("state", "")) != "seat":
 			continue
@@ -185,6 +193,9 @@ func _draw_guests() -> void:
 
 ## A speech bubble above `at` (its tail's tip) with `icon` and a bar `left` long.
 func _bubble(at: Vector2, icon: Texture2D, left: float, band: int) -> void:
+	if band == 2:
+		# Red: the bubble shakes (they are about to get up).
+		at.x += float([0, 1, 0, -1][int(_t * 12.0) % 4])
 	var w := 20.0
 	var h := 18.0 if left >= 0.0 else 10.0
 	var r := Rect2(at + Vector2(-w * 0.5, -h - 4), Vector2(w, h)).abs()

@@ -34,6 +34,7 @@ var _drum_snd: AudioStreamPlayer
 func _ready() -> void:
 	super._ready()
 	station = "potatoes"
+	how = "Sack: potatoes into the drum. Switch on, off when the bar is green. A peeled one into the cutter, pull the lever."
 	room = "basement"
 	picture = tex("st_potatoes")
 	for n in ["potato_raw", "potato_peeled", "chips_heap", "chips_bucket", "peelings"]:
@@ -179,13 +180,13 @@ func _paint(c: Control) -> void:
 		shake = Vector2((int(st) % 2) * 2 - 1, 0)
 	for i in _drum:
 		var a := st * 0.9 + i * 1.7 if _run >= 0.0 else i * 1.7
-		var p := DRUM.get_center() + Vector2(cos(a) * 28.0, -30.0 + sin(a) * 12.0) + shake
+		var p := Vector2(172, 100) + Vector2(cos(a) * 26.0, sin(a) * 14.0) + shake
 		blit(c, "potato_peeled" if RULES.peel_state(_peel_t) >= 1 else "potato_raw", p)
 	if _drum > 0:
-		var r := Rect2(DRUM.position.x + 10, DRUM.position.y - 12, DRUM.size.x - 20, 6)
+		var r := Rect2(DRUM.position.x + 10, DRUM.end.y + 12, DRUM.size.x - 20, 6)
 		meter(c, r, _peel_t / 9.0, Vector2(RULES.PEEL_DONE / 9.0, RULES.PEEL_OVER / 9.0), [RETRO_UI.C_BONE, RETRO_UI.C_GREEN, RETRO_UI.C_RED][RULES.peel_state(_peel_t)])
 		if _run >= 0.0 and int(st) % 6 < 3:
-			ink(c, SWITCH.position + Vector2(-6, -6), "ON", RETRO_UI.C_RED_LIGHT)
+			ink(c, SWITCH.position + Vector2(36, 20), "ON", RETRO_UI.C_RED_LIGHT)
 	# Peeled ones by the chute.
 	for i in _peeled:
 		blit(c, "potato_peeled", CHUTE_AT + Vector2(-30 + i * 18, -6 + (i % 2) * 4))
@@ -202,6 +203,7 @@ func _paint(c: Control) -> void:
 	# The bucket of raw chips (the stove's).
 	var chips := kitchen.prep(building_key, "chips_raw")
 	if chips > 0:
-		blit(c, "chips_heap", BUCKET.get_center() + Vector2(0, -10))
-	ink(c, BUCKET.position + Vector2(6, BUCKET.size.y + 8), "RAW CHIPS %d" % chips, RETRO_UI.C_BONE)
-	ink(c, SACK.position + Vector2(4, SACK.size.y + 8), "SACK %d" % maxi(0, BUSINESS.stock_of(building_key, "potatoes")), RETRO_UI.C_BONE)
+		for i in mini(chips, 6):
+			blit(c, "chips_heap", BUCKET.get_center() + Vector2(-14 + (i % 3) * 14, -26 - (i / 3) * 8))
+	ink(c, BUCKET.position + Vector2(-4, -20), "RAW CHIPS %d" % chips, RETRO_UI.C_BONE)
+	ink(c, SACK.position + Vector2(4, -6), "SACK %d" % maxi(0, BUSINESS.stock_of(building_key, "potatoes")), RETRO_UI.C_BONE)

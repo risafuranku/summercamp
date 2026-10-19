@@ -28,6 +28,7 @@ var _sizzle: AudioStreamPlayer
 func _ready() -> void:
 	super._ready()
 	station = "stove"
+	how = "Tray: a slice into the pan. Turn it when the bar goes green; both green: the rack. Bucket: the basket; click it down, up when golden."
 	room = "kitchen"
 	picture = tex("st_stove")
 	for n in ["slice_raw", "slice_golden", "slice_burnt", "slice_bad", "slice_raw_small", "slice_bad_small", "chips_rack", "slice_golden_small",

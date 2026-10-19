@@ -435,6 +435,21 @@ func _hand_work(key: String) -> void:
 		act(key, "plates", [int(pl["dirty"]), -int(pl["dirty"])])
 
 
+## Today's plates out of the hatch at `key`: {plates, stars (average), money}.
+func today(key: String) -> Dictionary:
+	var day := now_min() / 1440
+	var n := 0
+	var stars := 0
+	var money := 0
+	for rec in (site(key)["served"] as Dictionary).values():
+		if int((rec as Dictionary).get("at", -1)) / 1440 != day or bool(rec.get("hand", false)):
+			continue
+		n += 1
+		stars += int(rec.get("stars", 0))
+		money += int(rec.get("amount", 0))
+	return {"plates": n, "stars": float(stars) / float(maxi(1, n)), "money": money}
+
+
 # ── what the room shows ──────────────────────────────────────────────────────
 
 ## The stove's state for the marks: {burning: a slice or the chips going black, ready:

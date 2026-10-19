@@ -175,7 +175,16 @@ var _icon_cache: Dictionary = {}
 var _busy := 0
 var _poll := 0.0
 var _mouse := SCREEN * 0.5
-var _flash_mail := 0.0
+## Tabs flashing for attention: id -> seconds left.
+var _flash: Dictionary = {}
+const FLASH_SEC := 3.0
+## The boot's last part: the panel filling in (seconds since, -1 when done).
+var _reveal_t := -1.0
+## The Start menu sliding up out of the taskbar.
+var _menu_slide := {}
+## The modem's two little screens lighting with the traffic.
+var _net_t := 0.0
+var _net_lit := 0
 var _badges: Dictionary = {}       # tab id -> [text, colour]
 ## program id -> seconds into its one-click install.
 var _installing: Dictionary = {}
@@ -781,6 +790,7 @@ func message_box(p_title: String, text: String, kind := "info", buttons := ["OK"
 	row.position = Vector2(0, win.client_size().y - 32)
 	row.size = Vector2(win.client_size().x, 24)
 	c.add_child(row)
+	var first := true
 	for b in buttons:
 		var btn := Button.new()
 		btn.text = b
@@ -791,6 +801,14 @@ func message_box(p_title: String, text: String, kind := "info", buttons := ["OK"
 				cb.call(b)
 		)
 		row.add_child(btn)
+		if first:
+			# The default button: a black frame round it, and Enter presses it.
+			btn.add_theme_stylebox_override("normal", T.box("default", T.FACE, Vector4(6, 3, 6, 3)))
+			btn.add_theme_stylebox_override("hover", T.box("default", T.FACE, Vector4(6, 3, 6, 3)))
+			btn.add_theme_stylebox_override("pressed", T.box("default_pressed", T.FACE, Vector4(7, 4, 5, 2)))
+			btn.add_theme_stylebox_override("hover_pressed", T.box("default_pressed", T.FACE, Vector4(7, 4, 5, 2)))
+			btn.grab_focus.call_deferred()
+			first = false
 	win.close_requested.connect(func():
 		_close_window(win)
 		if cb.is_valid():
@@ -1324,7 +1342,35 @@ func _enter_desktop() -> void:
 		first = "mail"
 	_tab = ""
 	_select_tab(first)
+	# The panel fills in as the disk catches up: the wallpaper, the taskbar, the buttons
+	# one by one, then the program (it all takes clicks at once).
+	_reveal_t = 0.0
+	_tick_reveal(0.0)
 	desktop_ready.emit()
+
+
+const REVEAL_BAR := 0.12
+const REVEAL_TAB := 0.035
+const REVEAL_PAGE := 0.45
+
+
+func _tick_reveal(delta: float) -> void:
+	if _reveal_t < 0.0:
+		return
+	_reveal_t += delta
+	_taskbar.visible = _reveal_t >= REVEAL_BAR
+	var i := 0
+	for id in _tab_buttons:
+		(_tab_buttons[id] as Control).visible = _reveal_t >= REVEAL_BAR + 0.06 + REVEAL_TAB * i
+		i += 1
+	var p: Control = _pages.get(_tab)
+	if p != null:
+		p.visible = _reveal_t >= REVEAL_PAGE
+	if _reveal_t >= REVEAL_PAGE:
+		_reveal_t = -1.0
+		for id in _tab_buttons:
+			(_tab_buttons[id] as Control).visible = true
+		_taskbar.visible = true
 
 
 func _apply_state() -> void:
@@ -1455,10 +1501,24 @@ func _tick_desktop(delta: float) -> void:
 		var p: Control = _pages.get(_tab)
 		if p != null and p.cover != null and is_instance_valid(p.cover):
 			_update_cover(p.cover)
-	if _flash_mail > 0.0:
-		_flash_mail -= delta
-		if _tab_buttons.has("mail"):
-			(_tab_buttons["mail"] as Control).queue_redraw()
+	# Tabs that want you flash, as the taskbar did: half a second on, half off.
+	for id in _flash.keys():
+		var before := float(_flash[id])
+		var now := before - delta
+		if now <= 0.0 or id == _tab:
+			_flash.erase(id)
+		else:
+			_flash[id] = now
+		if _tab_buttons.has(id) and (now <= 0.0 or int(before * 2.0) != int(now * 2.0)):
+			(_tab_buttons[id] as Control).queue_redraw()
+	_tick_reveal(delta)
+	_tick_menu_slide(delta)
+	if _net_t > 0.0:
+		_net_t -= delta
+		var lit := 0 if _net_t <= 0.0 else (1 + int(_net_t * 8.0) % 2)
+		if lit != _net_lit:
+			_net_lit = lit
+			_tray_net.texture = _net_icon(lit)
 
 
 func _clock_text() -> String:
@@ -1599,8 +1659,12 @@ func _draw_tab(c: Control, i: int, tex: Texture2D) -> void:
 	var hov := bool(c.get_meta("hover"))
 	var r := Rect2(Vector2.ZERO, c.size)
 	# Plain: raised, lit when the mouse is on it, pressed in when it is the one open.
+	var flashing := _flash.has(id) and int(float(_flash[id]) * 2.0) % 2 == 1
 	if on:
 		c.draw_style_box(T.box("pressed", Color8(232, 232, 232), Vector4.ZERO), r)
+	elif flashing:
+		# Wants you: the button in the title bar's colour.
+		c.draw_style_box(T.box("raised", T.NAVY, Vector4.ZERO), r)
 	else:
 		c.draw_style_box(T.box("raised", Color8(214, 220, 236) if hov else T.FACE, Vector4.ZERO), r)
 	var o := Vector2(1, 1) if on else Vector2.ZERO
@@ -1616,14 +1680,12 @@ func _draw_tab(c: Control, i: int, tex: Texture2D) -> void:
 		c.draw_circle(m + Vector2(2, -1), 3.5, T.FACE if not on else Color8(232, 232, 232))
 	var badge: Array = _badges.get(id, [])
 	if not badge.is_empty():
-		var blink := id == "mail" and _flash_mail > 0.0 and fmod(_flash_mail, 0.5) < 0.25
-		if not blink:
-			var txt := str(badge[0])
-			var bw := txt.length() * 4 + 3
-			var br := Rect2(r.size.x - bw - 1, 0, bw, 9)
-			c.draw_rect(br, T.DARK)
-			c.draw_rect(br.grow(-1), badge[1])
-			_pixel_text(c, txt, br.position + Vector2(2, 2), T.WHITE, Color(0, 0, 0, 0))
+		var txt := str(badge[0])
+		var bw := txt.length() * 4 + 3
+		var br := Rect2(r.size.x - bw - 1, 0, bw, 9)
+		c.draw_rect(br, T.DARK)
+		c.draw_rect(br.grow(-1), badge[1])
+		_pixel_text(c, txt, br.position + Vector2(2, 2), T.WHITE, Color(0, 0, 0, 0))
 
 
 ## Digits (and a few marks) 3x5, for the keys and the badges.
@@ -1702,6 +1764,13 @@ func _refresh_badges() -> void:
 		if not jb.is_empty():
 			b["jobs"] = jb
 	if b != _badges:
+		# A count that went up (or a new one) flashes its tab, unless it is the open one.
+		for id in b:
+			var was: Array = _badges.get(id, [])
+			var now_n := int(str(b[id][0])) if str(b[id][0]).is_valid_int() else 0
+			var was_n := int(str(was[0])) if not was.is_empty() and str(was[0]).is_valid_int() else 0
+			if now_n > was_n and id != _tab and _state == Boot.DESKTOP and _reveal_t < 0.0:
+				_flash[id] = FLASH_SEC
 		_badges = b
 		for k in _tab_buttons:
 			(_tab_buttons[k] as Control).queue_redraw()
@@ -1714,7 +1783,8 @@ func _refresh_tray() -> void:
 
 func _on_email_received(_mail: Dictionary) -> void:
 	_refresh_badges()
-	_flash_mail = 3.0
+	if _tab != "mail":
+		_flash["mail"] = FLASH_SEC
 	play("mail", -6.0)
 	_refresh_mail_windows()
 
@@ -1723,6 +1793,24 @@ func _refresh_mail_windows() -> void:
 	var a = app_of("mail")
 	if a != null and a.has_method("refresh"):
 		a.refresh()
+
+
+const MENU_SLIDE_SEC := 0.12
+const MENU_SLIDE_STEPS := 5
+
+
+func _tick_menu_slide(delta: float) -> void:
+	if _menu_slide.is_empty():
+		return
+	var panel = _menu_slide.get("panel")
+	if panel == null or not is_instance_valid(panel):
+		_menu_slide = {}
+		return
+	_menu_slide["t"] = float(_menu_slide["t"]) + delta
+	var k := floorf(clampf(float(_menu_slide["t"]) / MENU_SLIDE_SEC, 0.0, 1.0) * MENU_SLIDE_STEPS) / MENU_SLIDE_STEPS
+	(panel as Control).position.y = floorf(float(_menu_slide["h"]) * (1.0 - k))
+	if k >= 1.0:
+		_menu_slide = {}
 
 
 func _build_start_menu() -> void:
@@ -1746,8 +1834,18 @@ func _open_start_menu() -> void:
 	var h := 6
 	for e in entries:
 		h += 8 if e[0] == "-" else 30
-	var panel := _menu_panel(Vector2(0, SCREEN.y - TASKBAR_H - h), Vector2(166, h), true)
-	_start_menu.add_child(panel)
+	# It slides up out of the taskbar in a few steps (the menu animation of the time);
+	# the clip is the menu's whole place, so clicks are caught there from the start.
+	var clip := Control.new()
+	clip.position = Vector2(0, SCREEN.y - TASKBAR_H - h)
+	clip.size = Vector2(166, h)
+	clip.clip_contents = true
+	clip.mouse_filter = Control.MOUSE_FILTER_PASS
+	_start_menu.add_child(clip)
+	var panel := _menu_panel(Vector2(0, h), Vector2(166, h), true)
+	clip.add_child(panel)
+	_menu_slide = {"panel": panel, "h": float(h), "t": 0.0}
+	play("click", -18.0)
 	var y := 3
 	for e in entries:
 		if e[0] == "-":
@@ -2093,21 +2191,77 @@ const HOURGLASS := [
 ]
 
 
+## The text cursor over a field you can type in.
+const IBEAM := [
+	"XXX.XXX",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"...X...",
+	"XXX.XXX",
+]
+## The small hourglass beside the arrow: working, but you can go on clicking.
+const MINI_GLASS := [
+	"XXXXXXX",
+	"X.....X",
+	" X...X ",
+	"  X.X  ",
+	" X.X.X ",
+	"X..X..X",
+	"XXXXXXX",
+]
+
+
 func _draw_cursor() -> void:
 	if not _open or _state != Boot.DESKTOP:
 		return
-	var pat: Array = HOURGLASS if _busy > 0 else (HAND if pointer_hand else ARROW)
 	var o := _mouse.floor()
-	if pat == HAND:
-		o.x -= 5
+	if _hovered_text_field():
+		_draw_pattern(IBEAM, o - Vector2(3, 7), true)
+		return
+	if pointer_hand:
+		_draw_pattern(HAND, o - Vector2(5, 0))
+	else:
+		_draw_pattern(ARROW, o)
+	if _busy > 0:
+		_draw_pattern(MINI_GLASS, o + Vector2(9, 11))
+
+
+func _draw_pattern(pat: Array, o: Vector2, ink_only := false) -> void:
 	for y in pat.size():
 		var row: String = pat[y]
 		for x in row.length():
 			var ch := row[x]
 			if ch == "X":
 				_cursor.draw_rect(Rect2(o + Vector2(x, y), Vector2.ONE), T.DARK)
-			elif ch == ".":
+			elif ch == "." and not ink_only:
 				_cursor.draw_rect(Rect2(o + Vector2(x, y), Vector2.ONE), T.WHITE)
+
+
+func _hovered_text_field() -> bool:
+	var vp := get_viewport()
+	if vp == null:
+		return false
+	var c := vp.gui_get_hovered_control()
+	if c is LineEdit:
+		return (c as LineEdit).editable
+	if c is TextEdit:
+		return (c as TextEdit).editable
+	return false
+
+
+## Data on the line (the browser loading, the modem): the tray's two screens light up.
+func net_activity() -> void:
+	_net_t = 0.4
 
 
 # ── small generated art ──────────────────────────────────────────────────────
@@ -2139,19 +2293,26 @@ func _start_logo() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
-func _net_icon() -> Texture2D:
+## The dial-up connection's two little screens; `lit` 1 or 2 lights one of them (data).
+func _net_icon(lit := 0) -> Texture2D:
+	var key := "net%d" % lit
+	if _icon_cache.has(key):
+		return _icon_cache[key]
 	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	for k in 2:
 		var ox := 1 + k * 6
 		var oy := 6 - k * 4
+		var face := Color8(80, 255, 255) if lit == k + 1 else Color8(0, 128, 128)
 		for x in range(ox, ox + 8):
 			for y in range(oy, oy + 6):
 				var edge := x == ox or x == ox + 7 or y == oy or y == oy + 5
-				img.set_pixel(x, y, T.DARK if edge else Color8(0, 128, 128))
+				img.set_pixel(x, y, T.DARK if edge else face)
 		img.set_pixel(ox + 3, oy + 6, T.DARK)
 		img.set_pixel(ox + 4, oy + 6, T.DARK)
-	return ImageTexture.create_from_image(img)
+	var tex := ImageTexture.create_from_image(img)
+	_icon_cache[key] = tex
+	return tex
 
 
 func _dialog_icon(kind: String) -> Texture2D:

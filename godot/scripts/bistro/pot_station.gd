@@ -34,6 +34,7 @@ var _slide: Array = []   # slices on their way off the board: seconds
 func _ready() -> void:
 	super._ready()
 	station = "pot"
+	how = "Hold in the pot and go round to stir. The tin tops it up. The steamer gives a loaf; click it to cut slices."
 	room = "kitchen"
 	picture = tex("st_pot")
 	for n in ["spoon", "loaf", "loaf_cut", "dumpling_slice", "tin", "steam", "smoke", "pot_empty"]:

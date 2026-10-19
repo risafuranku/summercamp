@@ -733,6 +733,8 @@ func _process(delta: float) -> void:
 	if busy:
 		_spin += delta * 3.2
 		_throbber.queue_redraw()
+		if _shell.has_method("net_activity"):
+			_shell.net_activity()
 	if _loading > 0.0:
 		_loading -= delta
 		get_node("StatusBar").queue_redraw()

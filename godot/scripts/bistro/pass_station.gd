@@ -42,6 +42,7 @@ var _stars_t := -1.0
 func _ready() -> void:
 	super._ready()
 	station = "pass"
+	how = "A plate from the stack, then what the ticket says. The big ticket ticks it off. The bell sends it out."
 	room = "kitchen"
 	picture = tex("st_pass")
 	for n in ["plate_top", "plates_stack", "food_goulash", "food_dumpling", "food_cheese", "food_fries", "food_tartar", "food_onion",
@@ -362,6 +363,11 @@ func _paint_ticket(c: Control) -> void:
 
 
 func _paint_bar(c: Control, r: Rect2) -> void:
+	if kitchen != null:
+		# Today at the hatch: plates, the stars on average, the money.
+		var d: Dictionary = kitchen.today(building_key)
+		if int(d["plates"]) > 0:
+			ink(c, Vector2(r.position.x + 4, r.position.y + 11), "TODAY %d  *%.1f  $%d" % [int(d["plates"]), float(d["stars"]), int(d["money"])], RETRO_UI.C_AMBER)
 	if _has_plate:
 		_button(c, _scrape_rect(), "SCRAPE", _hover == "#scrape", false)
 		r.size.x -= 86

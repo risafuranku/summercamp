@@ -63,4 +63,5 @@ func _ready() -> void:
 		["eval", _st("machine") + ".close_view()"], ["wait", 0.6],
 		["eval", SI + "._go_door('c_kitchen')"], ["wait", 3.0],
 		["eval", SI + "._go_door('k_dining')"], ["wait", 3.0], ["shot", "b23_dining_after"],
+		["eval", "debug_jump_to(1, 21.6)"], ["wait", 3.0], ["shot", "b24_dining_night"],
 	]

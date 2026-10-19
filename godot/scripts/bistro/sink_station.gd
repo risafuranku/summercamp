@@ -24,6 +24,7 @@ var _rack_t := -1.0
 func _ready() -> void:
 	super._ready()
 	station = "sink"
+	how = "Click the pile: a plate in the water. Hold on it and rub. Clean: click it onto the stack."
 	room = "kitchen"
 	picture = tex("st_sink")
 	for n in ["plate_dirty", "plate_top", "sponge", "bubbles", "plates_stack"]:

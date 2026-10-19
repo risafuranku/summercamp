@@ -23,6 +23,7 @@ var _dip_bowl := -1
 func _ready() -> void:
 	super._ready()
 	station = "breading"
+	how = "Cheese: a slice. Then flour, egg, crumbs, in that order. Then the tray."
 	room = "basement"
 	picture = tex("st_breading")
 	for n in ["cheese_plain", "cheese_floured", "cheese_egged", "cheese_breaded", "cheese_patchy", "slice_raw_small", "slice_bad_small"]:
@@ -112,7 +113,7 @@ func _paint(c: Control) -> void:
 	var good := kitchen.prep(building_key, "cheese_raw")
 	var bad := kitchen.prep(building_key, "cheese_bad")
 	for i in mini(8, good + bad):
-		blit(c, "slice_bad_small" if i >= good and tex("slice_bad_small") != null else "slice_raw_small", TRAY.position + Vector2(26 + (i % 2) * 44, 22 + (i / 2) * 24))
+		blit(c, "slice_bad_small" if i >= good and tex("slice_bad_small") != null else "slice_raw_small", TRAY.position + Vector2(30 + (i % 2) * 44, 30 + (i / 2) * 32))
 	ink(c, TRAY.position + Vector2(4, TRAY.size.y + 10), "TRAY %d" % (good + bad), RETRO_UI.C_BONE)
 	ink(c, BLOCK.position + Vector2(4, BLOCK.size.y + 10), "CHEESE %d" % maxi(0, BUSINESS.stock_of(building_key, "cheese")), RETRO_UI.C_BONE)
 	# The order of the bowls, ticked as it goes.

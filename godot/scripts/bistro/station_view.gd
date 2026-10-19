@@ -77,6 +77,11 @@ var _audio_i := 0
 var picked := ""
 ## Others at the stations of this room (co-op): station -> name, to grey their tabs.
 var taken: Dictionary = {}
+## What the station is for, said the first time it is opened in a game (subclasses set it).
+var how := ""
+static var _told_how: Dictionary = {}
+## The tickets on the rail last frame (a new one clips on with a ding).
+var _rail_seen: Dictionary = {}
 
 
 func _init() -> void:
@@ -149,7 +154,14 @@ func open_view() -> void:
 	_held = ""
 	_layout()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_rail_seen.clear()
+	for t in _tickets():
+		_rail_seen[str(t["id"])] = true
 	_opened()
+	if how != "" and not _told_how.has(station):
+		_told_how[station] = true
+		say("", how)
+		_msg_t = -4.0
 
 
 func close_view() -> void:
@@ -235,7 +247,21 @@ func _process(delta: float) -> void:
 		p["t"] = float(p["t"]) + delta
 	_pops = _pops.filter(func(p: Dictionary) -> bool: return float(p["t"]) < 1.3)
 	_tick(delta)
+	if int(_t * 2.0) != int((_t - delta) * 2.0):
+		_check_rail()
 	_canvas.queue_redraw()
+
+
+## Twice a second: a new ticket on the rail dings.
+func _check_rail() -> void:
+	var now := {}
+	var fresh := false
+	for t in _tickets():
+		now[str(t["id"])] = true
+		fresh = fresh or not _rail_seen.has(str(t["id"]))
+	if fresh:
+		sfx("order_in", -12.0)
+	_rail_seen = now
 
 
 func _set_open(f: float) -> void:
@@ -297,6 +323,14 @@ func _input(event: InputEvent) -> void:
 		var ke := event as InputEventKey
 		if ke.physical_keycode == KEY_S:
 			close_view()
+			return
+		# 1-4: the room's stations, as on the bar.
+		var n := ke.physical_keycode - KEY_1
+		var tabs: Array = ROOM_STATIONS.get(room, [])
+		if n >= 0 and n < tabs.size():
+			var st := str(tabs[n][0])
+			if st != station and str(taken.get(st, "")) == "":
+				switch_to.emit(st)
 			return
 		_key(ke)
 		return
@@ -435,6 +469,9 @@ func _draw_ticket(c: Control, t: Dictionary, r: Rect2) -> void:
 	var is_picked := str(t["id"]) == picked
 	if is_picked:
 		r.position.y += 4.0
+	if RULES.patience_band(int(t.get("age", 0))) == 2:
+		# Red: it shakes on its clip.
+		r.position.x += float([0, 1, 0, -1][int(_t * 12.0) % 4])
 	var age := int(t.get("age", 0))
 	var band := RULES.patience_band(age)
 	if tex("ticket") != null:
@@ -520,7 +557,7 @@ func _draw_bar(c: Control) -> void:
 		var st := str(tabs[i][0])
 		var label := str(tabs[i][1])
 		var busy := str(taken.get(st, "")) != ""
-		_button(c, _tab_rect(i), label if not busy else str(taken[st]).to_upper().substr(0, 8), _hover == "#tab:" + st, st == station, busy)
+		_button(c, _tab_rect(i), ("%d %s" % [i + 1, label]) if not busy else str(taken[st]).to_upper().substr(0, 8), _hover == "#tab:" + st, st == station, busy)
 	_paint_bar(c, Rect2(78 + tabs.size() * 70 + 6, y0 + 3, W - (78 + tabs.size() * 70 + 6) - 4, BAR_H - 6))
 
 

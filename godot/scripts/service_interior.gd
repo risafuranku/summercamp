@@ -2337,6 +2337,7 @@ func _bistro_taken() -> Dictionary:
 ## Each frame in the bistro: the stations' tabs know who is where, the dirty plates
 ## stand by the sink as many as there are.
 func _bistro_tick(delta: float) -> void:
+	_rat_tick(delta)
 	_taken_t -= delta
 	if _taken_t <= 0.0:
 		_taken_t = 0.5
@@ -2361,6 +2362,48 @@ func _bistro_tick(delta: float) -> void:
 		if dirty != _dirty_shown:
 			_dirty_shown = dirty
 			BISTRO_LAYOUT.dirty_pile(_restaurant_kitchen_root, dirty)
+
+
+## Now and then a rat runs along the cellar's back wall, in steps, and is gone behind the
+## sacks.
+var _rat: Sprite3D
+var _rat_t := -1.0
+var _rat_wait := 20.0
+
+
+func _rat_tick(delta: float) -> void:
+	if _restaurant_basement_root == null or _restaurant_room != "basement" or _station_open() != "":
+		if _rat != null and is_instance_valid(_rat):
+			_rat.visible = false
+		_rat_t = -1.0
+		return
+	if _rat_t < 0.0:
+		_rat_wait -= delta
+		if _rat_wait > 0.0:
+			return
+		_rat_wait = randf_range(25.0, 60.0)
+		var path := "res://assets/textury/camp/bistro_rat.png"
+		if not ResourceLoader.exists(path):
+			return
+		if _rat == null or not is_instance_valid(_rat) or _rat.get_parent() != _restaurant_basement_root:
+			_rat = Sprite3D.new()
+			_rat.texture = load(path)
+			_rat.pixel_size = 0.16 / float(_rat.texture.get_height())
+			_rat.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+			_rat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			_rat.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			_rat.shaded = true
+			_restaurant_basement_root.add_child(_rat)
+		_rat_t = 0.0
+	_rat_t += delta
+	var k := clampf(_rat_t / 2.2, 0.0, 1.0)
+	# Twelve steps a second, from the peeler to behind the machine.
+	var stepped := floorf(k * 26.0) / 26.0
+	_rat.visible = k < 1.0
+	_rat.flip_h = true
+	_rat.position = Vector3(lerpf(-2.3, 0.6, stepped), 0.13, -2.05)
+	if k >= 1.0:
+		_rat_t = -1.0
 
 
 func _bistro_play(path: String, db: float) -> void:
@@ -2711,6 +2754,17 @@ func _apply_time_profile(animated: bool = false) -> void:
 		_main_light.light_color = _main_light.light_color.lerp(sun_tint, 0.10 * daylight)
 		_main_light.light_energy = lerpf(_main_light.light_energy * 0.90, _main_light.light_energy * 1.10, daylight)
 	_apply_manual_service_light_profile(animated)
+	# The bistro's windows go dark with the evening (the view is a day picture).
+	if _restaurant_dining_root != null:
+		var view := Color(1, 1, 1)
+		if _time_state == TIME_EVENING:
+			view = Color(0.55, 0.45, 0.45)
+		elif _time_state == TIME_NIGHT:
+			view = Color(0.08, 0.09, 0.14)
+		for w in _restaurant_dining_root.find_children("*Window*", "MeshInstance3D", false, false):
+			var wm := (w as MeshInstance3D).material_override as StandardMaterial3D
+			if wm != null:
+				wm.albedo_color = view
 
 
 func _apply_manual_service_light_profile(animated: bool) -> void:
