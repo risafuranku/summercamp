@@ -291,7 +291,10 @@ func _process(delta: float) -> void:
 	if _current_profile == "rest":
 		_bistro_tick(delta)
 		# At a station, or the camera on its way to one or back: the room holds still.
-		if _station_open() != "" or (_station_tween != null and _station_tween.is_valid() and _station_tween.is_running()):
+		if _station_open() != "":
+			_station_lean(delta)
+			return
+		if _station_tween != null and _station_tween.is_valid() and _station_tween.is_running():
 			return
 	if _current_profile == "sewer" and _sewer_bulb != null and is_instance_valid(_sewer_bulb):
 		# The bare bulb that will not stay on.
@@ -2311,6 +2314,8 @@ func _open_station(id: String) -> void:
 	if _station_tween != null and _station_tween.is_valid():
 		_station_tween.kill()
 	_station_tween = CAM_MOVE.move(self, _interior_camera, {"transform": to}, 0.45 if was == "" else 0.3)
+	_station_pose = to
+	_lean = Vector2.ZERO
 	var view: CanvasLayer = _stations[id]
 	view.set("building_key", _upkeep_key)
 	view.set("taken", _bistro_taken())
@@ -2329,6 +2334,25 @@ func _switch_station(id: String) -> void:
 	if now != "":
 		(_stations[now] as CanvasLayer).call("close_now")
 	_open_station(id)
+
+
+## At a station the camera leans a little with the pointer (you look about the counter),
+## once it has glided there.
+var _station_pose: Transform3D
+var _lean := Vector2.ZERO
+
+
+func _station_lean(delta: float) -> void:
+	if _station_tween != null and _station_tween.is_valid() and _station_tween.is_running():
+		_station_pose = _interior_camera.transform
+		return
+	var size := get_viewport().get_visible_rect().size
+	var m := get_viewport().get_mouse_position() / size - Vector2(0.5, 0.5)
+	_lean = _lean.lerp(Vector2(clampf(m.x, -0.5, 0.5), clampf(m.y, -0.5, 0.5)), clampf(delta * 3.0, 0.0, 1.0))
+	var t := _station_pose
+	t.basis = t.basis * Basis(Vector3.UP, -_lean.x * 0.06) * Basis(Vector3.RIGHT, -_lean.y * 0.05)
+	t.origin += t.basis.x * (_lean.x * 0.04)
+	_interior_camera.transform = t
 
 
 ## Stepped away from a station: the camera glides back to where you stood in the room.
@@ -2582,6 +2606,16 @@ func _start_bistro_marks() -> void:
 	if not k.plate_out.is_connected(_on_plate_out):
 		k.plate_out.connect(_on_plate_out)
 	_make_stations()
+	# The steam and smoke over the stove and the pot (scripts/bistro/kitchen_fx.gd).
+	if _restaurant_kitchen_root != null:
+		var old := _restaurant_kitchen_root.get_node_or_null("KitchenFx")
+		if old != null:
+			old.queue_free()
+		var fx: Node3D = load("res://scripts/bistro/kitchen_fx.gd").new()
+		fx.name = "KitchenFx"
+		fx.set("kitchen", k)
+		fx.set("key", _upkeep_key)
+		_restaurant_kitchen_root.add_child(fx)
 	k.site(_upkeep_key)
 	_bistro_marks = BISTRO_MARKS.new()
 	_bistro_marks.name = "BistroMarks"

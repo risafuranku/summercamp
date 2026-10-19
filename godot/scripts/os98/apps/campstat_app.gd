@@ -139,6 +139,8 @@ func refresh() -> void:
 	if _head == null:
 		return
 	_snap = _snapshot()
+	if CoreRoot != null and _shell.has_method("store"):
+		_shell.store("cash_d%d" % CoreRoot.get_day(), CoreRoot.get_money())
 	var m: Node = _shell.main_node()
 	_upkeep = m.get_upkeep_snapshot() if m != null and m.has_method("get_upkeep_snapshot") else {}
 	_forecast = {}
@@ -747,6 +749,10 @@ func _page_bills(y: float) -> float:
 			"day %d, %s" % [int(b.get("due_day", 0)), _due(int(b.get("days_left", 0)), paid, overdue)], act])
 	y = _table(y, [["Bill", 54, HORIZONTAL_ALIGNMENT_LEFT], ["Used", 70, HORIZONTAL_ALIGNMENT_RIGHT], ["Amount", 58, HORIZONTAL_ALIGNMENT_RIGHT],
 		["Status", 74, HORIZONTAL_ALIGNMENT_LEFT], ["Due", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 70, HORIZONTAL_ALIGNMENT_CENTER]], rows, 20.0)
+	var unpaid_all := maxi(0, int(_snap.get("unpaid_total", 0)))
+	if unpaid_all > 0:
+		_button(Rect2(PAD, y, 160, 24), "Pay all  $%d" % unpaid_all, "payall://")
+		y += 32.0
 	return _para(y, "A bill comes every day at %s for the day before. An overdue bill cuts the power to the lamps and the buildings; this computer then runs on its UPS for six minutes." % _issue_time(), GREY)
 
 
@@ -947,6 +953,7 @@ func _page_money(y: float) -> float:
 				guests_income += maxi(1, int(g_any.get("daily_income", 1)))
 	var total := guests_income + passive
 	y = _lcd(y, [["Cash", "$%d" % CoreRoot.get_money()], ["Income a day", "$%d" % total], ["Guests paying", str(guests)]])
+	y = _week_chart(y)
 	var top := float(maxi(1, maxi(guests_income, passive)))
 	var rows: Array = [
 		["Guests (%d)" % guests, {"t": "$%d" % guests_income, "b": true}, {"bar": guests_income / top, "c": GREEN}],
@@ -960,6 +967,76 @@ func _page_money(y: float) -> float:
 			brows.append([str(l)])
 		y = _table(y, [["Facilities", 0, HORIZONTAL_ALIGNMENT_LEFT]], brows)
 	return _para(y, "Electricity is billed separately (see Bills).", GREY)
+
+
+## The last seven days: what guests paid (green), what the electricity cost (amber),
+## and the cash at each day's end (the line), as the utility's software drew its graphs.
+func _week_chart(y: float) -> float:
+	var c := _canvas
+	var today := CoreRoot.get_day() if CoreRoot != null else 1
+	var days: Array = []
+	for i in range(6, -1, -1):
+		if today - i >= 1:
+			days.append(today - i)
+	var income := {}
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state != null:
+		for tx in state.guest_transactions:
+			if tx is Dictionary:
+				var d := int(tx.get("day", 0))
+				income[d] = int(income.get(d, 0)) + maxi(0, int(tx.get("amount", 0)))
+	var power := {}
+	for b in _snap.get("bills", []):
+		if b is Dictionary:
+			var d2 := int(b.get("service_day", 0))
+			power[d2] = int(power.get(d2, 0)) + maxi(0, int(b.get("amount", 0)))
+	var cash := {}
+	for d3 in days:
+		var v = _shell.stored("cash_d%d" % int(d3), null) if _shell.has_method("stored") else null
+		if v != null:
+			cash[d3] = int(v)
+	var top := 1.0
+	for d4 in days:
+		top = maxf(top, float(maxi(int(income.get(d4, 0)), int(power.get(d4, 0)))))
+	var ctop := 1.0
+	var cbot := 0.0
+	for v2 in cash.values():
+		ctop = maxf(ctop, float(v2))
+		cbot = minf(cbot, float(v2))
+	_text(Vector2(PAD, y), "THE LAST SEVEN DAYS", T.NAVY, true)
+	_text(Vector2(PAD + 150, y), "guests paid", GREEN)
+	_text(Vector2(PAD + 230, y), "electricity", AMBER)
+	_text(Vector2(PAD + 304, y), "cash", T.NAVY)
+	y += 16.0
+	var r := Rect2(PAD, y, c.size.x - PAD * 2, 110)
+	c.draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), r)
+	var plot := Rect2(r.position + Vector2(8, 8), r.size - Vector2(16, 30))
+	for k in 4:
+		var gy := plot.position.y + plot.size.y * float(k) / 4.0
+		c.draw_rect(Rect2(plot.position.x, gy, plot.size.x, 1), Color8(228, 228, 236))
+	c.draw_rect(Rect2(plot.position.x, plot.end.y, plot.size.x, 1), T.SHADOW)
+	var n := maxi(1, days.size())
+	var cw := plot.size.x / 7.0
+	var pts := PackedVector2Array()
+	for i in days.size():
+		var d5 := int(days[i])
+		var x := plot.position.x + cw * i
+		var hi := plot.size.y * float(income.get(d5, 0)) / top
+		var hp := plot.size.y * float(power.get(d5, 0)) / top
+		var bw := floorf(cw * 0.3)
+		c.draw_rect(Rect2(x + cw * 0.5 - bw - 1, plot.end.y - hi, bw, hi), GREEN)
+		c.draw_rect(Rect2(x + cw * 0.5 + 1, plot.end.y - hp, bw, hp), Color8(220, 160, 20))
+		_text(Vector2(x, plot.end.y + 3), Season.weekday_short(d5) if d5 != today else "today", GREY, false, cw, HORIZONTAL_ALIGNMENT_CENTER)
+		if cash.has(d5):
+			var k2 := (float(cash[d5]) - cbot) / maxf(1.0, ctop - cbot)
+			pts.append(Vector2(x + cw * 0.5, plot.end.y - plot.size.y * (0.08 + 0.84 * k2)))
+	if pts.size() >= 2:
+		c.draw_polyline(pts, T.NAVY, 1.0)
+	for p in pts:
+		c.draw_rect(Rect2(p - Vector2(2, 2), Vector2(4, 4)), T.NAVY)
+	if n == 1 and income.is_empty() and power.is_empty():
+		_text(Vector2(plot.position.x + 8, plot.position.y + 8), "The first day. The graph fills in as the days go.", GREY)
+	return r.end.y + 10.0
 
 
 # ── reviews ──────────────────────────────────────────────────────────────────

@@ -35,6 +35,10 @@ var _card_guest: Dictionary = {}
 var _status: Label
 var _tick := 0.0
 var _guest_rows: Dictionary = {}   # TreeItem instance id -> snapshot dict
+## The guest list's sort: the column (0 mood, 1 name, 2 kind, 3 room, 4 leaving) and the way.
+var _sort_col := 4
+var _sort_desc := false
+var _map_btn: Button
 
 
 func setup(shell, win, _args: Dictionary) -> void:
@@ -53,13 +57,35 @@ func setup(shell, win, _args: Dictionary) -> void:
 	_tabs.add_child(guests_page)
 	_guests = _make_tree(guests_page, ["", "Name", "Kind", "Room", "Leaves in"], [22, 120, 92, 82, 64])
 	_guests.item_selected.connect(_on_guest_selected)
+	# A click on a column's head sorts by it; again, the other way.
+	_guests.column_title_clicked.connect(func(col: int, _b: int):
+		if _sort_col == col:
+			_sort_desc = not _sort_desc
+		else:
+			_sort_col = col
+			_sort_desc = col == 0
+		_shell.play("click", -14.0)
+		refresh.call_deferred())
 	_card = Control.new()
 	_card.draw.connect(_draw_card)
 	guests_page.add_child(_card)
+	_map_btn = Button.new()
+	_map_btn.text = "Show the room on the map"
+	_map_btn.focus_mode = Control.FOCUS_NONE
+	_map_btn.visible = false
+	_map_btn.pressed.connect(func():
+		if _card_guest.get("coord", null) is Vector2i:
+			_shell.show_on_map(_card_guest["coord"]))
+	_card.add_child(_map_btn)
+	_card.resized.connect(func(): _map_btn.position = Vector2(6, maxf(0.0, _card.size.y - 28)))
 	var arr_page := Control.new()
 	arr_page.name = "Arrivals"
 	_tabs.add_child(arr_page)
-	_arrivals = _make_tree(arr_page, ["", "Name", "Party", "Where", "Room(s)", "Ready"], [22, 120, 40, 140, 120, 56])
+	_arrivals = _make_tree(arr_page, ["", "Name", "Party", "Where", "Room(s)", "Ready", "Still to do"], [22, 110, 38, 120, 90, 44, 120])
+	_arrivals.item_activated.connect(func():
+		var it := _arrivals.get_selected()
+		if it != null and it.get_metadata(0) is Vector2i:
+			_shell.show_on_map(it.get_metadata(0)))
 	var room_page := Control.new()
 	room_page.name = "Rooms"
 	_tabs.add_child(room_page)
@@ -125,6 +151,8 @@ func _layout() -> void:
 	_guests.offset_right = -card_w - 4
 	_card.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
 	_card.offset_left = -card_w
+	_map_btn.size = Vector2(card_w - 12, 22)
+	_map_btn.position = Vector2(6, maxf(0.0, _card.size.y - 28))
 	for tr in [_arrivals, _rooms]:
 		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
@@ -159,6 +187,9 @@ func refresh() -> void:
 		str(to_do),
 	]
 	_counters.queue_redraw()
+	_tabs.set_tab_title(0, "Guests (%d)" % (int(ov.get("active", 0)) + int(ov.get("sleep", 0))))
+	_tabs.set_tab_title(1, "Arrivals (%d)" % arrivals.size() if not arrivals.is_empty() else "Arrivals")
+	_tabs.set_tab_title(2, "Rooms (%d to do)" % to_do if to_do > 0 else "Rooms")
 	_banner.set_meta("clock", "Day %d  %02d:%02d" % [day, hour, int(data.get("minute", 0))])
 	_banner.queue_redraw()
 	match _tabs.current_tab:
@@ -183,13 +214,40 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 	var root := _guests.create_item()
 	var shown := 0
 	var reselect: TreeItem = null
-	for g_any in guests:
+	# In the order asked for (the register comes sorted by departure).
+	var rows: Array = []
+	for i in guests.size():
+		var g_any = guests[i]
 		if not (g_any is Dictionary):
 			continue
-		var g: Dictionary = g_any
-		var st := str(g.get("status", ""))
-		if st == "expected" or st == "waiting":
+		var st0 := str((g_any as Dictionary).get("status", ""))
+		if st0 == "expected" or st0 == "waiting":
 			continue
+		rows.append([g_any, i])
+	rows.sort_custom(func(a, b) -> bool:
+		var ga: Dictionary = a[0]
+		var gb: Dictionary = b[0]
+		var ka: Variant = a[1]
+		var kb: Variant = b[1]
+		match _sort_col:
+			0:
+				ka = float(life.get(int(ga.get("id", -1)), {}).get("mood", 60.0))
+				kb = float(life.get(int(gb.get("id", -1)), {}).get("mood", 60.0))
+			1:
+				ka = str(ga.get("name", "")).to_lower()
+				kb = str(gb.get("name", "")).to_lower()
+			2:
+				ka = _kind(str(ga.get("archetype", "")))
+				kb = _kind(str(gb.get("archetype", "")))
+			3:
+				ka = str(rooms.get(int(ga.get("id", -1)), ""))
+				kb = str(rooms.get(int(gb.get("id", -1)), ""))
+		if ka == kb:
+			return int(a[1]) < int(b[1])
+		return (ka > kb) if _sort_desc else (ka < kb))
+	for row in rows:
+		var g: Dictionary = row[0]
+		var st := str(g.get("status", ""))
 		var id := int(g.get("id", -1))
 		var snap: Dictionary = life.get(id, {})
 		var it := _guests.create_item(root)
@@ -220,12 +278,15 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 	elif shown == 0:
 		_card_guest = {}
 	_card.queue_redraw()
-	_status.text = "%d record(s). Sorted by departure. Pick one for the card." % shown if shown > 0 else "Nobody is staying in the camp."
+	_map_btn.visible = _card_guest.get("coord", null) is Vector2i
+	var by: String = ["mood", "name", "kind", "room", "departure"][clampi(_sort_col, 0, 4)]
+	_status.text = "%d record(s). Sorted by %s. Pick one for the card; double-click for the map." % [shown, by] if shown > 0 else "Nobody is staying in the camp."
 
 
 func _on_guest_selected() -> void:
 	var it := _guests.get_selected()
 	_card_guest = _guest_rows.get(it.get_instance_id(), {}) if it != null else {}
+	_map_btn.visible = _card_guest.get("coord", null) is Vector2i
 	_card.queue_redraw()
 
 
@@ -247,16 +308,29 @@ func _fill_arrivals(rows: Array) -> void:
 		else:
 			it.set_text(3, "on the road, %d:%02d" % [mins / 60, mins % 60])
 		var labels: Array = []
+		var todo: Array = []
 		var ready := true
 		for room in r.get("rooms", []):
 			labels.append(str(room.get("label", "")))
-			ready = ready and bool(room.get("ready", false))
+			var ok := bool(room.get("ready", false))
+			ready = ready and ok
+			if it.get_metadata(0) == null:
+				var kp := str(room.get("key", "")).split(":")
+				if kp.size() == 2 and kp[0].is_valid_int() and kp[1].is_valid_int():
+					it.set_metadata(0, Vector2i(int(kp[0]), int(kp[1])))
+			if not ok:
+				# What is still to do in it, as the room's own list has it.
+				for t in GuestManager.get_room_state(str(room.get("key", ""))).get("remaining", []):
+					todo.append(str(t.get("label", t.get("id", ""))))
 		it.set_text(4, ", ".join(labels))
 		it.set_text(5, "yes" if ready else "NO")
 		it.set_custom_color(5, GREEN if ready else RED)
-		_stripe(it, i, 6)
+		it.set_text(6, ", ".join(todo) if not todo.is_empty() else ("-" if ready else "make it up"))
+		if not todo.is_empty():
+			it.set_custom_color(6, AMBER)
+		_stripe(it, i, 7)
 		i += 1
-	_status.text = "Nobody is on the way." if rows.is_empty() else "Make up the room, then check them in at the desk."
+	_status.text = "Nobody is on the way." if rows.is_empty() else "Make up the room, then check them in at the desk. Double-click for the map."
 
 
 func _fill_rooms() -> void:

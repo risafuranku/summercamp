@@ -222,6 +222,17 @@ ROWS = [
      "1) the cheese slice coated in breadcrumbs; 2) the cheese slice patchily coated, cheese showing; 3) a stack "
      "of white plates with blue rims; 4) a yellow kitchen sponge; 5) a long wooden cooking spoon; 6) a gold "
      "star; 7) the same star dull grey."),
+    # The fronts of the stations' counters in the rooms (the tops are the stations).
+    ("bf_stove", "16:9", REF_BT, BT_FRONT +
+     "The front of a black cast-iron 1980s canteen gas range and deep fryer side by side: a row of black knobs "
+     "along the top, two oven doors with small windows and chrome handles below, a fryer cabinet with a "
+     "thermostat dial on the right, grease stains, kick plate along the bottom."),
+    ("bf_steel", "16:9", REF_BT, BT_FRONT +
+     "The front of a long stainless steel canteen kitchen counter: three cupboard doors with recessed handles, "
+     "a drawer row along the top, dents and smudges, a kick plate along the bottom."),
+    ("bf_table", "16:9", REF_BT, BT_FRONT +
+     "The front of an old scrubbed wooden work table seen straight on: a thick worn top edge, a drawer with a "
+     "round knob, four square legs, a low shelf between them with a sack of flour and a basket of eggs."),
 ]
 
 

@@ -29,6 +29,7 @@ func _ready() -> void:
 		["eval", SI + "._look.set('yaw_deg', 0.0)"],
 		["eval", KS + ".tickets(" + SI + "._upkeep_key).size()"],
 		["eval", SI + "._go_door('d_kitchen')"], ["wait", 3.0], ["shot", "b04_kitchen"],
+		["eval", "[" + SI + "._interior_camera.global_position, " + SI + "._interior_camera.rotation_degrees, " + SI + "._cam_base_rot, get_viewport().get_mouse_position()]"],
 		["eval", SI + "._look.set('yaw_deg', 50.0)"], ["wait", 0.6], ["shot", "b05_kitchen_r"],
 		["eval", SI + "._look.set('yaw_deg', -50.0)"], ["wait", 0.6], ["shot", "b06_kitchen_l"],
 		["eval", SI + "._look.set('yaw_deg', 0.0)"],

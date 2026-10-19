@@ -448,7 +448,8 @@ static func cellar(parent: Node3D, si) -> Node3D:
 		mesh.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		mesh.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		mesh.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mesh.uv1_scale = Vector3(4.0, 3.6, 1.0)
+		mesh.uv1_scale = Vector3(2.4, 3.2, 1.0)
+		mesh.albedo_color = Color(0.55, 0.55, 0.52)
 		var wire := MeshInstance3D.new()
 		wire.name = "ChainLink"
 		var q := QuadMesh.new()
@@ -463,7 +464,7 @@ static func cellar(parent: Node3D, si) -> Node3D:
 		gq.size = Vector2(0.9, 2.1)
 		gate.mesh = gq
 		var gm := mesh.duplicate() as StandardMaterial3D
-		gm.uv1_scale = Vector3(2.2, 3.6, 1.0)
+		gm.uv1_scale = Vector3(1.35, 3.2, 1.0)
 		gate.material_override = gm
 		gate.position = Vector3(2.05 + 0.32, 1.15, -0.95 + 0.3)
 		gate.rotation_degrees.y = -40.0
