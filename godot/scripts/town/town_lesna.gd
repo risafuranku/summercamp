@@ -1,13 +1,15 @@
 extends Node3D
 
 ## Lesna, the village down the road where the bus goes (built by town_trip.gd the first
-## time you need it, far off in the same world: ORIGIN). A road runs east-west through
-## it; on the square (the naves) a little pond with the war memorial and benches round
-## it, the chapel, the Jednota shop (Lesna 42) with the bus stop for the camp in front of
-## it, the pub U Jezera, and the other side of the road the stop for Hlubocany, the
-## motel and, at the east end where the road meets the main road, the petrol station.
-## Houses in between, gardens, a forest all round and hills; invisible walls keep you to
-## the village. Buildings are textured boxes (Grok faces in assets/textury/town/).
+## time you need it, far off in the same world: ORIGIN). A small piece of a flat
+## central Bohemian farming village, after Liblice by Cesky Brod: a road runs east-west
+## through it between gabled houses; on its north side the Jednota and the pub U Jezera,
+## across the road from them the green (the naves) with its pond, the war memorial, the
+## bell pillar and the cross, the bus stop for the camp at its corner; the chapel set
+## back, the motel, and at the east end the petrol station. Open fields all round, the
+## two masts of the transmitter over the roofs to the west (liblice_masts.gd). Fronts are
+## Grok elevations with the house built behind them (lib_*, town_facades.py), lettering
+## on the walls from lettering.py; invisible walls keep you to the village.
 ##
 ## Local frame: x east, z south (the road along x at z = 0, north side -z).
 
@@ -16,6 +18,7 @@ const PEOPLE_SCRIPT = preload("res://scripts/town/town_people.gd")
 const PUMP_JOB = preload("res://scripts/town/pump_job.gd")
 ## Pavements, paths, fences, the street's things and the life in the yards.
 const DRESSING = preload("res://scripts/town/town_dressing.gd")
+const ROAD_POST = preload("res://scripts/town/road_post.gd")
 var dressing
 const TEX_CAMP := "res://assets/textury/camp/"
 const ORIGIN := Vector3(4200.0, 0.0, 0.0)
@@ -41,8 +44,9 @@ func build(p_worldgen: Node) -> void:
 	position = ORIGIN
 	_ground()
 	_roads()
+	_road_posts()
 	_walls()
-	_square()
+	_green()
 	_jednota(Vector3(-6.0, 0, -15.0))
 	_pub(Vector3(16.0, 0, -15.5))
 	_chapel(Vector3(-28.0, 0, -22.0))
@@ -52,7 +56,8 @@ func build(p_worldgen: Node) -> void:
 	_stop_north()
 	_stop_south()
 	_lamps()
-	_forest()
+	_fields()
+	_village_signs()
 	_hotspots()
 	_build_smoke()
 	dressing = DRESSING.new()
@@ -105,10 +110,11 @@ func bus_leave_path(stop: String) -> PackedVector3Array:
 	return out
 
 
-## Where you are put off the bus from the camp: on the square's side, facing it.
+## Where you are put off the bus from the camp: by the Jednota, looking down the street
+## with the green across the road and the masts at the end of it.
 func arrive_spot() -> Transform3D:
 	var pos := w(Vector3(9.0, 0.15, -4.6))
-	return Transform3D(Basis.looking_at(Vector3(-0.75, 0, -1), Vector3.UP), pos)
+	return Transform3D(Basis.looking_at(Vector3(-1, 0, 0.3), Vector3.UP), pos)
 
 
 ## Where you wait for the bus to the camp, in the shelter's mouth across the road.
@@ -232,6 +238,14 @@ func _roads() -> void:
 		_box(self, Vector3(0, 0.05, z), Vector3(480, 0.1, 0.2), kerb)
 
 
+## The road posts (road_post.gd) from where the village ends, both ways, opposite each
+## other every 50 m; none between the houses.
+func _road_posts() -> void:
+	for x in [-66.0, -116.0, -166.0, -216.0, 76.0, 126.0, 176.0, 226.0]:
+		for side in [-1.0, 1.0]:
+			ROAD_POST.place(self, Vector3(x, 0.0, side * (ROAD_HALF + 0.6)), Vector3(0, 0, -side))
+
+
 ## The village ends where the gardens and the forest start: walls you do not see.
 func _walls() -> void:
 	var r := BOUND
@@ -244,39 +258,6 @@ func _walls() -> void:
 		var b: Vector3 = l[1]
 		var body := _solid(self, (a + b) * 0.5 + Vector3(0, 2.0, 0), Vector3(0.4, 4.0, a.distance_to(b) + 0.4))
 		body.rotation.y = atan2(b.x - a.x, b.z - a.z)
-
-
-## The square: a pond in a low stone rim, the war memorial, benches, a lime tree.
-func _square() -> void:
-	var stone := _mat(TEX_CAMP + "plaster_stone.png", Color(0.82, 0.8, 0.76), Vector2(3.0, 1.0))
-	var pond := Vector3(-14.0, 0, -32.0)
-	_plane(self, pond + Vector3(0, 0.05, 0), Vector2(14.0, 9.0), _mat(TEX_CAMP + "lake_water.png", Color(0.6, 0.66, 0.66), Vector2(3.0, 2.0)))
-	for side in [[Vector3(0, 0.2, -4.6), Vector3(14.4, 0.4, 0.3)], [Vector3(0, 0.2, 4.6), Vector3(14.4, 0.4, 0.3)], [Vector3(-7.1, 0.2, 0), Vector3(0.3, 0.4, 9.2)], [Vector3(7.1, 0.2, 0), Vector3(0.3, 0.4, 9.2)]]:
-		_box(self, pond + side[0], side[1], stone, true)
-	spots["pond"] = w(pond)
-	# The memorial: a stone with a cross and the names.
-	var mem := Vector3(4.0, 0, -28.0)
-	_box(self, mem + Vector3(0, 0.15, 0), Vector3(2.0, 0.3, 1.4), stone, true)
-	_box(self, mem + Vector3(0, 1.3, 0), Vector3(1.0, 2.0, 0.5), _mat(TEX_CAMP + "plaster_stone.png", Color(0.7, 0.7, 0.68)), true)
-	_box(self, mem + Vector3(0, 2.6, 0), Vector3(0.12, 0.7, 0.12), stone)
-	_box(self, mem + Vector3(0, 2.75, 0), Vector3(0.5, 0.12, 0.12), stone)
-	_sign(self, mem + Vector3(0, 1.4, 0.25), Vector3(0, 0, 1), "1914 - 1918\n1939 - 1945", 22, Color(0.2, 0.18, 0.16))
-	spots["memorial"] = w(mem)
-	# Benches round the pond.
-	var planks := _mat(TEX_CAMP + "planks_grey.png", Color(0.7, 0.62, 0.5))
-	for b in [Vector3(-14.0, 0, -26.2), Vector3(-22.6, 0, -32.0), Vector3(-5.6, 0, -32.0)]:
-		_box(self, b + Vector3(0, 0.45, 0), Vector3(1.8, 0.08, 0.45), planks, true)
-		_box(self, b + Vector3(0, 0.75, 0.2), Vector3(1.8, 0.4, 0.06), planks)
-	spots["bench"] = w(Vector3(-14.0, 0, -26.2))
-	# A big lime tree by the memorial (the camp's birch, scaled up).
-	if worldgen != null and worldgen.has_method("_tree_mesh"):
-		for part in [["birch_trunk", worldgen._tree_material("bark", 0)], ["birch_crown", worldgen._tree_material("leaf", 0)]]:
-			var mi := MeshInstance3D.new()
-			mi.mesh = worldgen._tree_mesh(str(part[0]))
-			mi.material_override = part[1]
-			mi.position = Vector3(8.5, 0, -30.0)
-			mi.scale = Vector3(2.4, 2.0, 2.4)
-			add_child(mi)
 
 
 # ── buildings ───────────────────────────────────────────────────────────────
@@ -330,51 +311,83 @@ func _block(at: Vector3, size: Vector3, wall: Material, roof: String = "pitched"
 	return root
 
 
+## The Jednota: the 1970s co-op shop with a flat roof, its picture the whole front; on
+## the band over the windows the sheet-metal letters JEDNOTA and SAMOOBSLUHA (one of its
+## letters fell off years ago), rust down the render under them.
 func _jednota(at: Vector3) -> void:
 	var wall := _mat(TEX_CAMP + "concrete.png", Color(0.86, 0.84, 0.8), Vector2(3.0, 1.0))
-	var size := Vector3(16.0, 4.0, 10.0)
-	var root := _block(at, size, wall, "flat")
-	var front := _mat(_first([TEX + "shop_front.png"]), Color(0.7, 0.72, 0.74))
-	_face(root, Vector3(0, 2.0, size.z * 0.5), Vector2(7.1, 4.0), Vector3(0, 0, 1), front)
-	# The sign along the top: JEDNOTA in red on white.
-	_box(root, Vector3(0, 3.55, size.z * 0.5 + 0.06), Vector3(9.0, 0.7, 0.1), _mat("", Color(0.92, 0.9, 0.86)))
-	_sign(root, Vector3(0, 3.55, size.z * 0.5 + 0.12), Vector3(0, 0, 1), "JEDNOTA   SAMOOBSLUHA", 52, Color(0.72, 0.08, 0.06))
-	spots["jednota_door"] = w(at + Vector3(0, 0, size.z * 0.5 + 1.2))
+	var built := _flat_house("lib_jednota_front", at, 1.0, 10.0, wall)
+	var root: Node3D
+	var front_z := 5.0
+	if built.is_empty():
+		var size := Vector3(16.0, 4.0, 10.0)
+		root = _block(at, size, wall, "flat")
+		_face(root, Vector3(0, 2.0, size.z * 0.5), Vector2(7.1, 4.0), Vector3(0, 0, 1), _mat(_first([TEX + "shop_front.png"]), Color(0.7, 0.72, 0.74)))
+		_letters(root, "jednota", Vector3(-2.4, 3.6, front_z), Vector3(0, 0, 1))
+	else:
+		root = built[0]
+		var h: float = _front_meta("lib_jednota_front")["m"][1]
+		_letters(root, "jednota", Vector3(-2.3, h - 0.95, front_z), Vector3(0, 0, 1))
+		_letters(root, "samoobsluha", Vector3(2.7, h - 0.82, front_z), Vector3(0, 0, 1))
+	spots["jednota_door"] = w(at + Vector3(0, 0, front_z + 1.2))
 	spots["jednota"] = root
 
 
+## The pub U Jezera: an old inn with its eaves to the street, the name painted on the
+## plaster over the windows by a signwriter long ago.
 func _pub(at: Vector3) -> void:
 	var wall := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(0.78, 0.86, 0.74), Vector2(3.0, 1.0))
-	var size := Vector3(14.0, 4.6, 10.0)
-	var root := _block(at, size, wall)
-	var pub_face := _face(root, Vector3(0, 2.3, size.z * 0.5), Vector2(8.2, 4.6), Vector3(0, 0, 1), _mat(_first([TEX + "pub_front.png"]), Color(0.6, 0.66, 0.56)))
-	spots["pub_face"] = pub_face
-	_box(root, Vector3(0, 3.7, size.z * 0.5 + 0.06), Vector3(6.0, 0.6, 0.1), _mat("", Color(0.2, 0.18, 0.14)))
-	_sign(root, Vector3(0, 3.7, size.z * 0.5 + 0.12), Vector3(0, 0, 1), "HOSTINEC U JEZERA", 44, Color(0.95, 0.85, 0.6))
-	spots["pub_door"] = w(at + Vector3(0, 0, size.z * 0.5 + 1.2))
-	spots["pub"] = root
+	var built := _eaves_house("lib_pub_front", at, 1.0, 10.0, wall, 0.12)
+	if built.is_empty():
+		var size := Vector3(14.0, 4.6, 10.0)
+		var root := _block(at, size, wall)
+		spots["pub_face"] = _face(root, Vector3(0, 2.3, size.z * 0.5), Vector2(8.2, 4.6), Vector3(0, 0, 1), _mat(_first([TEX + "pub_front.png"]), Color(0.6, 0.66, 0.56)))
+		_letters(root, "hostinec", Vector3(0, 3.7, size.z * 0.5), Vector3(0, 0, 1))
+		spots["pub"] = root
+	else:
+		var root: Node3D = built[0]
+		var front: Array = built[1]
+		var h: float = _front_meta("lib_pub_front")["m"][1]
+		_letters(root, "hostinec", Vector3(0, h * 0.67, 5.0), Vector3(0, 0, 1))
+		spots["pub_face"] = front[0]
+		if front[2] != null:
+			spots["pub_lit"] = front[2]
+		spots["pub"] = root
+	spots["pub_door"] = w(at + Vector3(0, 0, 5.0 + 1.2))
 
 
+## The chapel of the Virgin Mary, set back from the street: its baroque front from the
+## picture when there is one.
 func _chapel(at: Vector3) -> void:
 	var wall := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(0.95, 0.92, 0.84), Vector2(2.0, 1.0))
-	var root := _block(at, Vector3(5.0, 5.0, 7.0), wall)
-	_box(root, Vector3(0, 7.0, -2.5), Vector3(1.6, 3.6, 1.6), wall, false)
-	_box(root, Vector3(0, 9.2, -2.5), Vector3(0.12, 0.9, 0.12), _mat("", Color(0.3, 0.3, 0.3)))
-	_box(root, Vector3(0, 9.4, -2.5), Vector3(0.5, 0.1, 0.1), _mat("", Color(0.3, 0.3, 0.3)))
-	_face(root, Vector3(0, 1.3, 3.5), Vector2(1.4, 2.6), Vector3(0, 0, 1), _mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.4, 0.3, 0.2)))
+	var house := _gable_house("lib_chapel", at.x, at.z + 3.5, 1.0, 7.0, wall, {"max_rise": 3.2})
+	if house.is_empty():
+		var root := _block(at, Vector3(5.0, 5.0, 7.0), wall)
+		_box(root, Vector3(0, 7.0, -2.5), Vector3(1.6, 3.6, 1.6), wall, false)
+		_box(root, Vector3(0, 9.2, -2.5), Vector3(0.12, 0.9, 0.12), _mat("", Color(0.3, 0.3, 0.3)))
+		_box(root, Vector3(0, 9.4, -2.5), Vector3(0.5, 0.1, 0.1), _mat("", Color(0.3, 0.3, 0.3)))
+		_face(root, Vector3(0, 1.3, 3.5), Vector2(1.4, 2.6), Vector3(0, 0, 1), _mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.4, 0.3, 0.2)))
 	spots["chapel"] = w(at + Vector3(0, 0, 4.5))
 
 
+## The motel: tube letters MOTEL standing on its roof on their brackets over the
+## entrance, LESNA in white metal beside them; the tubes light up after dark.
 func _motel(at: Vector3) -> void:
 	var wall := _mat(TEX_CAMP + "concrete.png", Color(0.9, 0.84, 0.72), Vector2(4.0, 2.0))
 	var size := Vector3(22.0, 6.4, 9.0)
 	var root := _block(at, size, wall, "flat")
 	# Its front faces the road (north, -z).
 	_face(root, Vector3(0, 3.2, -size.z * 0.5), Vector2(22.0, 6.4), Vector3(0, 0, -1), _mat(_first([TEX + "motel_front.png"]), Color(0.7, 0.6, 0.5), Vector2(2.0, 1.0)))
-	_box(root, Vector3(-6.0, 6.9, -size.z * 0.5 - 0.3), Vector3(7.0, 0.9, 0.12), _mat("", Color(0.16, 0.18, 0.3)))
-	var neon := _sign(root, Vector3(-6.0, 6.9, -size.z * 0.5 - 0.38), Vector3(0, 0, -1), "MOTEL  LESNA", 64, Color(1.0, 0.36, 0.3))
-	neon.name = "MotelSign"
-	spots["motel_sign"] = neon
+	var dark := _mat("", Color(0.16, 0.16, 0.17))
+	var fz := -size.z * 0.5 + 0.35
+	for x in [-8.2, -5.4, -1.9]:
+		_box(root, Vector3(x, size.y + 0.75, fz + 0.12), Vector3(0.08, 1.5, 0.08), dark)
+	_box(root, Vector3(-5.0, size.y + 0.3, fz + 0.12), Vector3(7.2, 0.08, 0.08), dark)
+	var neon := _letters(root, "motel", Vector3(-6.6, size.y + 0.7, fz), Vector3(0, 0, -1))
+	_letters(root, "motel_lesna", Vector3(-2.4, size.y + 0.45, fz), Vector3(0, 0, -1))
+	if neon != null:
+		neon.name = "MotelSign"
+		spots["motel_neon"] = neon.material_override
 	spots["motel_door"] = w(at + Vector3(-6.0, 0, -size.z * 0.5 - 1.2))
 	spots["motel"] = root
 
@@ -389,7 +402,8 @@ func _station(at: Vector3) -> void:
 		_box(root, p + Vector3(0, 2.4, 0), Vector3(0.3, 4.8, 0.3), steel, true)
 	_box(root, Vector3(0, 5.0, 0), Vector3(14.0, 0.5, 8.0), _mat("", Color(0.9, 0.9, 0.88)))
 	_box(root, Vector3(0, 4.9, -4.02), Vector3(14.0, 0.5, 0.06), _mat("", Color(0.82, 0.1, 0.08)))
-	_sign(root, Vector3(0, 4.9, -4.06), Vector3(0, 0, -1), "BENZINA", 56, Color(0.98, 0.95, 0.9))
+	# BENZINA in white metal letters along the red fascia.
+	_letters(root, "benzina", Vector3(0, 4.9, -4.05), Vector3(0, 0, -1))
 	var pump_face := _mat(_first([TEX + "fuel_pump.png"]), Color(0.8, 0.2, 0.15))
 	var pumps: Array = []
 	for x in [-2.6, 2.6]:
@@ -409,56 +423,6 @@ func _station(at: Vector3) -> void:
 	_face(kiosk, Vector3(0, 1.6, -3.0), Vector2(5.7, 3.2), Vector3(0, 0, -1), _mat(_first([TEX + "kiosk_front.png"]), Color(0.7, 0.72, 0.74)))
 	spots["kiosk_door"] = w(at + Vector3(0, 0, 9.0 - 4.2))
 	spots["station"] = root
-
-
-## Houses along the road and round the square, each with a window or two and a door.
-func _houses() -> void:
-	var walls := [_mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(1.0, 0.95, 0.85), Vector2(3.0, 1.0)),
-		_mat(TEX_CAMP + "brick_red.png", Color(0.95, 0.9, 0.85), Vector2(3.0, 1.0)),
-		_mat(_first([TEX + "plaster_yellow.png", TEX_CAMP + "roughcast_wall.png"]), Color(1.0, 1.0, 0.95), Vector2(3.0, 1.0)),
-		_mat(_first([TEX + "plaster_pink.png", TEX + "village_plaster.png"]), Color(1.0, 1.0, 1.0), Vector2(3.0, 1.0))]
-	# Windows of three kinds (curtains, shutters, geraniums), each with its lit twin: the
-	# light on behind the curtain (multiply: the picture shows, warmed and brighter).
-	var kinds: Array = []
-	for wp in [_first([TEX + "house_window.png", TEX_CAMP + "window_curtain.png"]), _first([TEX + "window_shutter.png", TEX + "house_window.png"]), _first([TEX + "window_flowers.png", TEX + "house_window.png"])]:
-		var dark_m := _mat(wp, Color(0.6, 0.66, 0.7) if wp.ends_with("house_window.png") else Color(0.9, 0.9, 0.9))
-		var lit_m := (dark_m as StandardMaterial3D).duplicate() as StandardMaterial3D
-		lit_m.emission_enabled = true
-		lit_m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-		lit_m.emission_texture = lit_m.albedo_texture
-		lit_m.emission = Color(1.0, 0.78, 0.45)
-		lit_m.emission_energy_multiplier = 1.4
-		kinds.append([dark_m, lit_m])
-	var lit_windows: Array = []
-	var houses: Array = []
-	var doors := [_mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.42, 0.3, 0.2)), _mat(_first([TEX + "house_door2.png", TEX + "house_door.png"]), Color(0.9, 0.9, 0.9))]
-	var places := [[Vector3(-44, 0, -16), 1.0], [Vector3(34, 0, -17), 1.0], [Vector3(-48, 0, 16), -1.0], [Vector3(10, 0, 19), -1.0], [Vector3(-60, 0, -18), 1.0], [Vector3(68, 0, -16), 1.0], [Vector3(-36, 0, -36), 1.0], [Vector3(30, 0, -34), 1.0]]
-	for p in places:
-		var at: Vector3 = p[0]
-		var facing := Vector3(0, 0, float(p[1]))
-		var size := Vector3(_rng.randf_range(9.0, 12.0), _rng.randf_range(3.6, 4.4), _rng.randf_range(7.0, 8.5))
-		var hi := houses.size()
-		var root := _block(at, size, walls[hi % walls.size()], "pitched", hi % 3 == 1)
-		var fz := size.z * 0.5 * facing.z
-		var kind: Array = kinds[hi % kinds.size()]
-		var window: Material = kind[0]
-		var lit: Material = kind[1]
-		var wsize := Vector2(1.3, 1.73) if hi % kinds.size() == 1 else Vector2(1.3, 1.3)
-		for wx in [-size.x * 0.28, size.x * 0.28]:
-			var win := _face(root, Vector3(wx, 1.7, fz), wsize, facing, window)
-			# Each window has its own evening: lit from some hour to some hour.
-			lit_windows.append({"mesh": win, "on": _rng.randf_range(17.5, 20.5), "off": _rng.randf_range(21.5, 24.5), "dark": window, "lit": lit})
-		houses.append({"at": at, "size": size, "facing": float(p[1]), "root": root})
-		var door: Material = doors[hi % 2]
-		# A chimney, and smoke from it when somebody has the stove going.
-		var chim := Vector3(size.x * 0.3, size.y + size.z * 0.34, -size.z * 0.12)
-		_box(root, chim, Vector3(0.6, 1.4, 0.6), _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.85, 0.8)))
-		if _rng.randf() < 0.7:
-			_chimneys.append(root.position + chim + Vector3(0, 0.8, 0))
-		_face(root, Vector3(0, 1.05, fz), Vector2(1.1, 2.1), facing, door)
-		# The garden's fence, its path and what is in it: town_dressing.gd.
-		spots["lit_windows"] = lit_windows
-	spots["houses"] = houses
 
 
 # ── the stops ───────────────────────────────────────────────────────────────
@@ -539,44 +503,559 @@ func _lamps() -> void:
 	spots["lamps"] = lights
 
 
-## Forest all round past the gardens, and hills.
-func _forest() -> void:
+## The naves across the road from the Jednota and the pub, as in Liblice ("Ve Stare
+## vsi"): grass with trodden paths, the little pond in its stone rim, the war memorial
+## facing the road, the white bell pillar (zvonicka) with the stone cross beside it,
+## lime trees and benches. The houses on its far side look over it at the road.
+func _green() -> void:
+	var stone := _mat(TEX_CAMP + "plaster_stone.png", Color(0.82, 0.8, 0.76), Vector2(3.0, 1.0))
+	var pond := Vector3(8.0, 0, 20.0)
+	_plane(self, pond + Vector3(0, 0.05, 0), Vector2(12.0, 8.0), _mat(TEX_CAMP + "lake_water.png", Color(0.56, 0.62, 0.6), Vector2(3.0, 2.0)))
+	for side in [[Vector3(0, 0.2, -4.1), Vector3(12.4, 0.4, 0.3)], [Vector3(0, 0.2, 4.1), Vector3(12.4, 0.4, 0.3)], [Vector3(-6.1, 0.2, 0), Vector3(0.3, 0.4, 8.2)], [Vector3(6.1, 0.2, 0), Vector3(0.3, 0.4, 8.2)]]:
+		_box(self, pond + side[0], side[1], stone, true)
+	spots["pond"] = w(pond)
+	# Trodden paths across the grass: from the stop to the memorial, from the road down
+	# to the pond, round to the houses beyond.
+	var dirt := _mat(_first([TEX + "dirt_path.png", TEX_CAMP + "gravel_road.png"]), Color(0.92, 0.88, 0.8))
+	for p in [[Vector3(1.0, 0, 6.0), Vector3(25.0, 0, 11.2)], [Vector3(13.0, 0, 5.4), Vector3(9.0, 0, 15.6)], [Vector3(15.0, 0, 21.0), Vector3(26.0, 0, 28.6)], [Vector3(-5.0, 0, 9.0), Vector3(-3.0, 0, 28.6)]]:
+		var a: Vector3 = p[0]
+		var b: Vector3 = p[1]
+		var length := a.distance_to(b)
+		var m := (dirt as StandardMaterial3D).duplicate() as StandardMaterial3D
+		m.uv1_scale = Vector3(1.0, length / 1.4, 1.0)
+		var pl := _plane(self, (a + b) * 0.5 + Vector3(0, 0.03, 0), Vector2(1.3, length), m)
+		pl.rotation.y = atan2(b.x - a.x, b.z - a.z)
+	# The memorial to the fallen, facing the road: a stone with a cross and the names.
+	var mem := Vector3(26.0, 0, 13.0)
+	_box(self, mem + Vector3(0, 0.15, 0), Vector3(2.0, 0.3, 1.4), stone, true)
+	_box(self, mem + Vector3(0, 1.3, 0), Vector3(1.0, 2.0, 0.5), _mat(TEX_CAMP + "plaster_stone.png", Color(0.7, 0.7, 0.68)), true)
+	_box(self, mem + Vector3(0, 2.6, 0), Vector3(0.12, 0.7, 0.12), stone)
+	_box(self, mem + Vector3(0, 2.75, 0), Vector3(0.5, 0.12, 0.12), stone)
+	_sign(self, mem + Vector3(0, 1.4, -0.25), Vector3(0, 0, -1), "1914 - 1918\n1939 - 1945", 22, Color(0.2, 0.18, 0.16))
+	spots["memorial"] = w(mem)
+	# Benches round the pond, looking at it.
+	_bench(Vector3(8.0, 0, 14.6), 0.0)
+	_bench(Vector3(0.6, 0, 20.0), PI * 0.5)
+	_bench(Vector3(15.4, 0, 20.0), -PI * 0.5)
+	spots["bench"] = w(Vector3(8.0, 0, 14.6))
+	_zvonicka(Vector3(-6.0, 0, 13.5))
+	_stone_cross(Vector3(-2.6, 0, 12.0))
+	# Lime trees (the camp's birch, scaled up) round the green.
+	if worldgen != null and worldgen.has_method("_tree_mesh"):
+		for t in [Vector3(19.5, 0, 8.8), Vector3(33.0, 0, 21.0), Vector3(-8.5, 0, 22.5), Vector3(-9.0, 0, 9.5)]:
+			for part in [["birch_trunk", worldgen._tree_material("bark", 0)], ["birch_crown", worldgen._tree_material("leaf", 0)]]:
+				var mi := MeshInstance3D.new()
+				mi.mesh = worldgen._tree_mesh(str(part[0]))
+				mi.material_override = part[1]
+				mi.position = t
+				mi.scale = Vector3(2.4, 2.0, 2.4)
+				add_child(mi)
+			_solid(self, t + Vector3(0, 1.5, 0), Vector3(0.6, 3.0, 0.6))
+
+
+## A bench: plank seat and back, looking along `yaw` (0 = towards +z).
+func _bench(at: Vector3, yaw: float) -> void:
+	var planks := _mat(TEX_CAMP + "planks_grey.png", Color(0.7, 0.62, 0.5))
+	var root := Node3D.new()
+	root.position = at
+	root.rotation.y = yaw
+	add_child(root)
+	_box(root, Vector3(0, 0.45, 0), Vector3(1.8, 0.08, 0.45), planks, true)
+	_box(root, Vector3(0, 0.75, -0.2), Vector3(1.8, 0.4, 0.06), planks)
+	for x in [-0.75, 0.75]:
+		_box(root, Vector3(x, 0.22, 0), Vector3(0.08, 0.44, 0.4), _mat("", Color(0.22, 0.2, 0.18)))
+
+
+## The bell pillar on the green: a white plastered pillar, an open belfry with the little
+## bell, a tin cap and a cross.
+func _zvonicka(at: Vector3) -> void:
+	var white := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(1.0, 1.0, 0.98), Vector2(1.0, 2.0))
+	var tin := _mat("", Color(0.36, 0.38, 0.36))
+	var root := Node3D.new()
+	root.position = at
+	add_child(root)
+	_box(root, Vector3(0, 0.15, 0), Vector3(1.3, 0.3, 1.3), _mat(TEX_CAMP + "plaster_stone.png", Color(0.7, 0.7, 0.68)), true)
+	_box(root, Vector3(0, 1.45, 0), Vector3(0.95, 2.3, 0.95), white, true)
+	_box(root, Vector3(0, 2.67, 0), Vector3(1.1, 0.14, 1.1), white)
+	for c in [Vector3(-0.4, 0, -0.4), Vector3(0.4, 0, -0.4), Vector3(-0.4, 0, 0.4), Vector3(0.4, 0, 0.4)]:
+		_box(root, c + Vector3(0, 3.2, 0), Vector3(0.14, 0.95, 0.14), white)
+	_box(root, Vector3(0, 3.72, 0), Vector3(1.1, 0.12, 1.1), white)
+	var bell := _box(root, Vector3(0, 3.2, 0), Vector3(0.36, 0.42, 0.36), _mat("", Color(0.42, 0.32, 0.16)))
+	bell.name = "Bell"
+	var cap := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.radial_segments = 4
+	cm.rings = 1
+	cm.top_radius = 0.02
+	cm.bottom_radius = 0.92
+	cm.height = 0.8
+	cap.mesh = cm
+	cap.material_override = tin
+	cap.position = Vector3(0, 4.18, 0)
+	cap.rotation.y = PI * 0.25
+	root.add_child(cap)
+	_box(root, Vector3(0, 4.85, 0), Vector3(0.05, 0.55, 0.05), tin)
+	_box(root, Vector3(0, 4.95, 0), Vector3(0.3, 0.05, 0.05), tin)
+	spots["zvonicka"] = w(at)
+
+
+## The stone wayside cross beside it, on its stepped plinth.
+func _stone_cross(at: Vector3) -> void:
+	var sand := _mat(TEX_CAMP + "plaster_stone.png", Color(0.86, 0.8, 0.68))
+	var root := Node3D.new()
+	root.position = at
+	add_child(root)
+	_box(root, Vector3(0, 0.12, 0), Vector3(1.1, 0.24, 1.1), sand, true)
+	_box(root, Vector3(0, 0.75, 0), Vector3(0.62, 1.0, 0.62), sand, true)
+	_box(root, Vector3(0, 1.32, 0), Vector3(0.72, 0.14, 0.72), sand)
+	_box(root, Vector3(0, 2.35, 0), Vector3(0.18, 1.9, 0.18), sand)
+	_box(root, Vector3(0, 2.75, 0), Vector3(0.9, 0.17, 0.17), sand)
+	_box(root, Vector3(0, 2.5, -0.1), Vector3(0.1, 0.55, 0.05), _mat("", Color(0.3, 0.28, 0.24)))
+
+
+# ── the street fronts (tools/artgen/town_facades.py) ────────────────────────
+
+const SIGN_PX_M := 48.0
+
+## What town_facades.py measured on each front: picture size in metres, the walls at the
+## bottom (fractions), where the gable or roof starts (fraction from the top).
+var _fronts: Dictionary = {}
+
+
+func _front_meta(fid: String) -> Dictionary:
+	if _fronts.is_empty() and ResourceLoader.exists(TEX + "lib_facades.json"):
+		var j = load(TEX + "lib_facades.json")
+		if j is JSON and j.data is Dictionary:
+			_fronts = j.data
+	if not ResourceLoader.exists(TEX + fid + ".png"):
+		return {}
+	return _fronts.get(fid, {})
+
+
+## The picture on a quad in front of the wall, cut out by its alpha; its windows lit
+## from the _win picture of an evening. Returns [mesh, dark, lit or null].
+func _front_quad(parent: Node3D, fid: String, pos: Vector3, facing: float, size: Vector2) -> Array:
+	var dark := StandardMaterial3D.new()
+	dark.albedo_texture = load(TEX + fid + ".png")
+	dark.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	dark.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	dark.alpha_scissor_threshold = 0.5
+	dark.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	dark.roughness = 1.0
+	var lit: StandardMaterial3D = null
+	if ResourceLoader.exists(TEX + fid + "_win.png"):
+		lit = dark.duplicate() as StandardMaterial3D
+		lit.emission_enabled = true
+		lit.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		lit.emission_texture = load(TEX + fid + "_win.png")
+		lit.emission = Color(1.0, 0.78, 0.45)
+		lit.emission_energy_multiplier = 1.5
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = size
+	mi.mesh = q
+	mi.position = pos + Vector3(0, 0, facing * 0.03)
+	mi.rotation.y = 0.0 if facing > 0.0 else PI
+	mi.material_override = dark
+	parent.add_child(mi)
+	return [mi, dark, lit]
+
+
+## Lettering (tools/artgen/lettering.py) on a wall: a cut-out quad its own size
+## (SIGN_PX_M pixels a metre). With a _glow picture it can light up (set the returned
+## material's emission energy).
+func _letters(parent: Node3D, sname: String, pos: Vector3, facing: Vector3) -> MeshInstance3D:
+	var path := TEX + "sign_%s.png" % sname
+	if not ResourceLoader.exists(path):
+		return null
+	var tex: Texture2D = load(path)
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	var glow_path := TEX + "sign_%s_glow.png" % sname
+	if ResourceLoader.exists(glow_path):
+		m.emission_enabled = true
+		m.emission = Color(0, 0, 0)
+		m.emission_texture = load(glow_path)
+		m.emission_energy_multiplier = 0.0
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(tex.get_width(), tex.get_height()) / SIGN_PX_M
+	mi.mesh = q
+	mi.position = pos + facing * 0.05
+	mi.rotation.y = atan2(facing.x, facing.z)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return mi
+
+
+## The house's other walls: a tile of plain wall cut from its own front (town_facades.py
+## <id>_side.png), so the sides are the colour and the dirt of the gable.
+func _side_mat(fid: String, fallback: Material) -> Material:
+	var p := TEX + fid + "_side.png"
+	if ResourceLoader.exists(p):
+		return _mat(p, Color(1, 1, 1), Vector2(3.0, 1.0))
+	return fallback
+
+
+## The roof tiles (or the grey asbestos-cement slates).
+func _roof_mat(eternit: bool, size: Vector3) -> Material:
+	var roof_tex := _first([TEX + "roof_eternit.png", TEX + "roof_tiles.png"]) if eternit else _first([TEX + "roof_tiles.png", TEX_CAMP + "corrugated_roof.png"])
+	return _tiled(_mat(roof_tex, Color(0.7, 0.4, 0.3) if not eternit else Color(0.9, 0.9, 0.9)), size)
+
+
+## A house with its gable to the street, the Liblice way: the picture (fid) is the gable
+## end; the walls run `depth` back into the yard, the gable's back, the roof and a
+## chimney built to fit the picture; windows and the door on the yard side (+x), a
+## house number by the right-hand window. Returns the house for town_dressing.
+func _gable_house(fid: String, cx: float, front_z: float, facing: float, depth: float, side_wall: Material, opts := {}) -> Dictionary:
+	var meta := _front_meta(fid)
+	if meta.is_empty():
+		return {}
+	var W: float = meta["m"][0]
+	var H: float = meta["m"][1]
+	var eave: float = meta["eave"]
+	var ww: float = (float(meta["wall_r"]) - float(meta["wall_l"])) * W
+	var wh := (1.0 - eave) * H
+	var rise := minf(eave * H, float(opts.get("max_rise", 99.0)))
+	var off: float = ((float(meta["wall_l"]) + float(meta["wall_r"])) * 0.5 - 0.5) * W
+	side_wall = _side_mat(fid, side_wall)
+	var root := Node3D.new()
+	root.position = Vector3(cx, 0, front_z - facing * depth * 0.5)
+	add_child(root)
+	var fz := facing * depth * 0.5
+	_box(root, Vector3(off, wh * 0.5, 0), Vector3(ww, wh, depth), _tiled(side_wall, Vector3(ww, wh, depth)), true)
+	for end in [-1.0, 1.0]:
+		var g := MeshInstance3D.new()
+		var pm := PrismMesh.new()
+		pm.size = Vector3(ww, rise - 0.06, 0.12)
+		g.mesh = pm
+		g.material_override = side_wall
+		g.position = Vector3(off, wh + (rise - 0.06) * 0.5, end * (depth * 0.5 - 0.08))
+		root.add_child(g)
+	var ang := atan2(rise, ww * 0.5)
+	var half := ww * 0.5 + 0.35
+	# A ruin ("ruin" in opts) has no roof left and no chimney: the picture's rafters are it.
+	if not bool(opts.get("ruin", false)):
+		var tiles := _roof_mat(bool(opts.get("eternit", false)), Vector3(half / cos(ang), 3.0, depth))
+		for side in [-1.0, 1.0]:
+			var r := _box(root, Vector3(off + side * half * 0.5, wh + rise - half * tan(ang) * 0.5 + 0.08, 0), Vector3(half / cos(ang), 0.14, depth + 0.5), tiles)
+			r.rotation.z = -side * ang
+		# The chimney through the right slope, towards the back.
+		var chx := off + ww * 0.22
+		var roof_y := wh + rise - (ww * 0.22) * tan(ang)
+		var chim := Vector3(chx, roof_y + 0.5, -fz * 0.3)
+		_box(root, chim, Vector3(0.55, 1.6, 0.55), _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.85, 0.8)))
+		if _rng.randf() < 0.7:
+			_chimneys.append(root.position + chim + Vector3(0, 0.9, 0))
+	# The street gable: the picture.
+	var front := _front_quad(root, fid, Vector3(0, H * 0.5, fz), facing, Vector2(W, H))
+	var lit_windows: Array = spots.get("lit_windows", [])
+	if front[2] != null:
+		lit_windows.append({"mesh": front[0], "on": _rng.randf_range(17.5, 20.5), "off": _rng.randf_range(21.5, 24.5), "dark": front[1], "lit": front[2]})
+	# The yard side: the door near the street, windows further back.
+	var yard := Vector3(off + ww * 0.5, 0, 0)
+	var kinds: Array = spots.get("window_kinds", [])
+	var kind: Array = kinds[int(opts.get("kind", 0)) % kinds.size()] if not kinds.is_empty() else []
+	var door_z := fz - facing * 2.2
+	var door_mats: Array = spots.get("door_mats", [_mat(TEX_CAMP + "door_wood.png", Color(0.42, 0.3, 0.2))])
+	_face(root, yard + Vector3(0, 1.05, door_z), Vector2(1.0, 2.1), Vector3(1, 0, 0), door_mats[int(opts.get("kind", 0)) % door_mats.size()])
+	if not kind.is_empty():
+		var k := 1
+		while depth * 0.5 - (2.2 + 3.0 * k) > -depth * 0.5 + 1.2:
+			var wz := fz - facing * (2.2 + 3.0 * k)
+			var win := _face(root, yard + Vector3(0, 1.7, wz), Vector2(1.2, 1.25), Vector3(1, 0, 0), kind[0])
+			lit_windows.append({"mesh": win, "on": _rng.randf_range(17.5, 20.5), "off": _rng.randf_range(21.5, 24.5), "dark": kind[0], "lit": kind[1]})
+			k += 1
+	spots["lit_windows"] = lit_windows
+	if opts.has("number"):
+		_letters(root, "cp_" + str(opts["number"]), Vector3(off + ww * 0.4 * facing, wh * 0.62, fz + facing * 0.02), Vector3(0, 0, facing))
+	return {"at": root.position, "size": Vector3(ww, wh, depth), "facing": facing, "root": root}
+
+
+## The 1970s cube house: its picture is the front with the hipped roof's outline; walls
+## and a four-sided roof built to fit.
+func _hip_house(fid: String, cx: float, front_z: float, facing: float, depth: float, side_wall: Material, opts := {}) -> Dictionary:
+	var meta := _front_meta(fid)
+	if meta.is_empty():
+		return {}
+	var W: float = meta["m"][0]
+	var H: float = meta["m"][1]
+	var eave: float = meta["eave"]
+	var ww: float = (float(meta["wall_r"]) - float(meta["wall_l"])) * W
+	var wh := (1.0 - eave) * H
+	var rise := eave * H
+	side_wall = _side_mat(fid, side_wall)
+	var root := Node3D.new()
+	root.position = Vector3(cx, 0, front_z - facing * depth * 0.5)
+	add_child(root)
+	_box(root, Vector3(0, wh * 0.5, 0), Vector3(ww, wh, depth), _tiled(side_wall, Vector3(ww, wh, depth)), true)
+	var hw := W * 0.5
+	var hd := depth * 0.5 + 0.3
+	var rl := maxf(0.0, hd - hw)
+	var top := wh + rise
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var a := Vector3(-hw, wh, -hd)
+	var b := Vector3(hw, wh, -hd)
+	var c := Vector3(hw, wh, hd)
+	var d := Vector3(-hw, wh, hd)
+	var r1 := Vector3(0, top, -rl)
+	var r2 := Vector3(0, top, rl)
+	# Clockwise from outside (Godot's front faces).
+	for tri in [[r2, c, d], [r1, a, b], [r1, b, c], [r2, r1, c], [r2, d, a], [r1, r2, a]]:
+		for p in tri:
+			st.set_uv(Vector2(p.x + p.z, p.y * 1.4) / 2.5)
+			st.add_vertex(p)
+	st.generate_normals()
+	var roof := MeshInstance3D.new()
+	roof.mesh = st.commit()
+	var rm := (_mat(_first([TEX + "roof_eternit.png", TEX + "roof_tiles.png"]), Color(0.9, 0.9, 0.9)) as StandardMaterial3D).duplicate() as StandardMaterial3D
+	rm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	roof.material_override = rm
+	root.add_child(roof)
+	var fz := facing * depth * 0.5
+	var front := _front_quad(root, fid, Vector3(0, H * 0.5, fz), facing, Vector2(W, H))
+	var lit_windows: Array = spots.get("lit_windows", [])
+	if front[2] != null:
+		lit_windows.append({"mesh": front[0], "on": _rng.randf_range(17.5, 20.5), "off": _rng.randf_range(21.5, 24.5), "dark": front[1], "lit": front[2]})
+	spots["lit_windows"] = lit_windows
+	var chim := Vector3(W * 0.2, top - 0.2, 0.0)
+	_box(root, chim, Vector3(0.5, 1.4, 0.5), _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.85, 0.8)))
+	_chimneys.append(root.position + chim + Vector3(0, 0.8, 0))
+	if opts.has("number"):
+		_letters(root, "cp_" + str(opts["number"]), Vector3(-ww * 0.36 * facing, wh * 0.35, fz + facing * 0.02), Vector3(0, 0, facing))
+	return {"at": root.position, "size": Vector3(ww, wh, depth), "facing": facing, "root": root}
+
+
+## A building with its long side and eaves to the street (the pub, the barn): the
+## picture is the front, its top `roof_frac` the roof seen edge-on; walls, a pitched roof
+## along the street and gables at both ends behind it. Returns [root, front array].
+func _eaves_house(fid: String, at: Vector3, facing: float, depth: float, side_wall: Material, roof_frac: float, eternit := false) -> Array:
+	var meta := _front_meta(fid)
+	if meta.is_empty():
+		return []
+	var W: float = meta["m"][0]
+	var H: float = meta["m"][1]
+	var wh := H * (1.0 - roof_frac)
+	side_wall = _side_mat(fid, side_wall)
+	var root := Node3D.new()
+	root.position = at
+	add_child(root)
+	_box(root, Vector3(0, wh * 0.5, 0), Vector3(W, wh, depth), _tiled(side_wall, Vector3(W, wh, depth)), true)
+	var rise := depth * 0.38
+	var ang := atan2(rise, depth * 0.5)
+	var half := depth * 0.5 + 0.4
+	var tiles := _roof_mat(eternit, Vector3(W, 3.0, half / cos(ang)))
+	for side in [-1.0, 1.0]:
+		var r := _box(root, Vector3(0, wh + rise - half * tan(ang) * 0.5 + 0.08, side * half * 0.5), Vector3(W + 0.5, 0.14, half / cos(ang)), tiles)
+		r.rotation.x = side * ang
+	for end in [-1.0, 1.0]:
+		var g := MeshInstance3D.new()
+		var pm := PrismMesh.new()
+		pm.size = Vector3(depth, rise - 0.06, 0.12)
+		g.mesh = pm
+		g.material_override = side_wall
+		g.position = Vector3(end * (W * 0.5 - 0.08), wh + (rise - 0.06) * 0.5, 0)
+		g.rotation.y = PI * 0.5
+		root.add_child(g)
+	var front := _front_quad(root, fid, Vector3(0, H * 0.5, facing * depth * 0.5), facing, Vector2(W, H))
+	return [root, front]
+
+
+## A flat-roofed front (the Jednota): a box the picture's size, a flat roof.
+func _flat_house(fid: String, at: Vector3, facing: float, depth: float, side_wall: Material) -> Array:
+	var meta := _front_meta(fid)
+	if meta.is_empty():
+		return []
+	var W: float = meta["m"][0]
+	var H: float = meta["m"][1]
+	var root := Node3D.new()
+	root.position = at
+	add_child(root)
+	_box(root, Vector3(0, H * 0.5, 0), Vector3(W, H, depth), _tiled(side_wall, Vector3(W, H, depth)), true)
+	_box(root, Vector3(0, H + 0.06, 0), Vector3(W + 0.2, 0.12, depth + 0.2), _mat("", Color(0.36, 0.36, 0.36)))
+	var front := _front_quad(root, fid, Vector3(0, H * 0.5, facing * depth * 0.5), facing, Vector2(W, H))
+	return [root, front]
+
+
+## The farmyard wall between two houses with its arched gate: the picture on a solid
+## wall.
+func _farm_wall(cx: float, front_z: float, facing: float) -> void:
+	var meta := _front_meta("lib_farm_gate")
+	if meta.is_empty():
+		return
+	var W: float = meta["m"][0]
+	var H: float = meta["m"][1]
+	var root := Node3D.new()
+	root.position = Vector3(cx, 0, front_z - facing * 0.2)
+	add_child(root)
+	_box(root, Vector3(0, H * 0.5 - 0.3, 0), Vector3(W, H - 0.6, 0.4), _mat(_first([TEX + "village_plaster.png"]), Color(0.95, 0.88, 0.7)), true)
+	_front_quad(root, "lib_farm_gate", Vector3(0, H * 0.5, facing * 0.2), facing, Vector2(W, H))
+
+
+# ── the houses ──────────────────────────────────────────────────────────────
+
+## The street: gabled houses one after another along the road, as in Liblice, a cube
+## house of the seventies here and there, a farmyard wall with its gate; more of them
+## round the far side of the green, the old barn with the slogan showing through its
+## whitewash and the fire station. Each gable is a Grok elevation (lib_*), the house
+## built behind it; a missing picture falls back to the next one that is there.
+func _houses() -> void:
+	var walls := {
+		"ochre": _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(1.0, 0.92, 0.7), Vector2(3.0, 1.0)),
+		"white": _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(1.0, 1.0, 1.0), Vector2(3.0, 1.0)),
+		"red": _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(0.86, 0.5, 0.42), Vector2(3.0, 1.0)),
+		"grey": _mat(_first([TEX_CAMP + "roughcast_wall.png", TEX + "village_plaster.png"]), Color(0.82, 0.82, 0.8), Vector2(3.0, 1.0)),
+	}
+	# Windows on the yard sides: three kinds, each with its lit twin.
+	var kinds: Array = []
+	for wp in [_first([TEX + "house_window.png", TEX_CAMP + "window_curtain.png"]), _first([TEX + "window_shutter.png", TEX + "house_window.png"]), _first([TEX + "window_flowers.png", TEX + "house_window.png"])]:
+		var dark_m := _mat(wp, Color(0.6, 0.66, 0.7) if wp.ends_with("house_window.png") else Color(0.9, 0.9, 0.9))
+		var lit_m := (dark_m as StandardMaterial3D).duplicate() as StandardMaterial3D
+		lit_m.emission_enabled = true
+		lit_m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		lit_m.emission_texture = lit_m.albedo_texture
+		lit_m.emission = Color(1.0, 0.78, 0.45)
+		lit_m.emission_energy_multiplier = 1.4
+		kinds.append([dark_m, lit_m])
+	spots["window_kinds"] = kinds
+	spots["door_mats"] = [_mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.42, 0.3, 0.2)), _mat(_first([TEX + "house_door2.png", TEX + "house_door.png"]), Color(0.9, 0.9, 0.9))]
+	var gables := ["lib_gable_white", "lib_gable_ochre", "lib_gable_grey", "lib_gable_red"]
+	var colour := {"lib_gable_white": "white", "lib_gable_ochre": "ochre", "lib_gable_grey": "grey", "lib_gable_red": "red"}
+	# [kind, x, front z, facing, depth, number]
+	var street := [
+		["lib_gable_white", -63.0, -9.5, 1.0, 14.0, 12], ["lib_gable_ochre", -52.0, -9.5, 1.0, 15.0, 27], ["lib_gable_grey", -41.0, -9.5, 1.0, 13.0, 31],
+		["gate", 5.1, -10.0, 1.0, 0.0, 0], ["kostka", 31.0, -9.5, 1.0, 9.0, 116], ["lib_gable_red", 42.0, -9.5, 1.0, 14.0, 44], ["gate", 52.0, -9.5, 1.0, 0.0, 0],
+		["lib_gable_ochre", 61.0, -9.5, 1.0, 15.0, 58], ["lib_gable_white", 72.0, -9.5, 1.0, 13.0, 63],
+		["lib_gable_grey", -66.0, 9.5, -1.0, 14.0, 71], ["lib_gable_red", -55.0, 9.5, -1.0, 13.0, 89], ["kostka", -44.0, 9.5, -1.0, 9.0, 128],
+		["lib_gable_ochre", 64.0, 9.5, -1.0, 14.0, 95], ["lib_gable_grey", 74.0, 9.5, -1.0, 13.0, 103],
+		# Over the green.
+		["lib_gable_red", -3.0, 30.0, -1.0, 13.0, 0], ["lib_gable_white", 26.0, 30.0, -1.0, 13.0, 0],
+	]
+	var houses: Array = []
+	var gi := 0
+	for row in street:
+		var kind_id: String = row[0]
+		var x: float = row[1]
+		var fz: float = row[2]
+		var f: float = row[3]
+		var depth: float = row[4]
+		var opts := {"kind": gi}
+		if int(row[5]) > 0:
+			opts["number"] = int(row[5])
+		var house := {}
+		if kind_id == "gate":
+			_farm_wall(x, fz, f)
+			continue
+		if kind_id == "kostka":
+			house = _hip_house("lib_kostka", x, fz, f, depth, walls["grey"], opts)
+			if house.is_empty():
+				kind_id = gables[gi % gables.size()]
+		if house.is_empty():
+			# The asked-for gable, or the next one there is a picture of.
+			for k in gables.size():
+				var g: String = gables[(gables.find(kind_id) + k) % gables.size()] if gables.has(kind_id) else gables[(gi + k) % gables.size()]
+				house = _gable_house(g, x, fz, f, depth, walls[colour[g]], dict_merge(opts, {"eternit": g == "lib_gable_grey"}))
+				if not house.is_empty():
+					break
+		if house.is_empty():
+			# No pictures at all: the old block with a door.
+			var size := Vector3(9.0, 4.0, depth)
+			var root := _block(Vector3(x, 0, fz - f * depth * 0.5), size, walls["white"], "pitched")
+			house = {"at": root.position, "size": size, "facing": f, "root": root}
+		houses.append(house)
+		gi += 1
+	spots["houses"] = houses
+	# The barn over the green with the old slogan coming through its whitewash, and the
+	# fire station on the corner.
+	var barn := _eaves_house("lib_barn", Vector3(11.0, 0, 30.0 + 5.0), -1.0, 10.0, _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.8, 0.72), Vector2(3.0, 1.0)), 0.2)
+	if not barn.is_empty():
+		_letters(barn[0], "slogan", Vector3(0, 4.6, -5.0 - 0.02), Vector3(0, 0, -1))
+	# The fire station: its hall's gable to the green, the hose tower beside it, the name
+	# painted over the doors.
+	var fire := _gable_house("lib_firehouse", 37.0, 30.0, -1.0, 12.0, _mat(_first([TEX + "village_plaster.png"]), Color(1.0, 0.94, 0.7), Vector2(3.0, 1.0)), {"max_rise": 3.6})
+	if not fire.is_empty():
+		spots["firehouse"] = fire["root"]
+		var fw: float = _front_meta("lib_firehouse")["m"][0]
+		_letters(fire["root"], "hasici", Vector3(0.08 * fw, 4.5, -6.0 - 0.02), Vector3(0, 0, -1))
+
+
+static func dict_merge(a: Dictionary, b: Dictionary) -> Dictionary:
+	var out := a.duplicate()
+	out.merge(b, true)
+	return out
+
+
+# ── the land round it ───────────────────────────────────────────────────────
+
+## The open Polabi round the village instead of a forest: ploughed land and stubble to
+## the sky line, poplars along a field track, an orchard behind the gardens, the masts
+## of the transmitter beyond (liblice_masts.gd, put in the world by town_trip). Flat:
+## no hills, the sky comes down to the fields.
+func _fields() -> void:
+	var plough := _mat(_first([TEX + "field_plough.png", TEX_CAMP + "pitch_grass.png"]), Color(0.86, 0.8, 0.72), Vector2(40.0, 30.0))
+	var stubble := _mat(_first([TEX + "field_stubble.png", TEX_CAMP + "pitch_grass.png"]), Color(0.92, 0.88, 0.76), Vector2(40.0, 30.0))
+	for f in [[Vector3(0, -0.01, -200.0), Vector2(480.0, 300.0), plough], [Vector3(0, -0.01, 200.0), Vector2(480.0, 300.0), stubble],
+			[Vector3(-250.0, -0.01, 0), Vector2(300.0, 100.0), stubble], [Vector3(250.0, -0.01, 0), Vector2(300.0, 100.0), plough]]:
+		_plane(self, f[0], f[1], f[2])
 	if worldgen == null or not worldgen.has_method("_tree_mesh"):
 		return
-	var xf: Array[Transform3D] = []
-	for k in 900:
-		var ang := _rng.randf() * TAU
-		var dist := _rng.randf_range(78.0, 200.0)
-		var p := Vector3(cos(ang) * dist * 1.1, 0, sin(ang) * dist * 0.75)
-		if absf(p.z) < ROAD_HALF + 2.0:
+	var poplars: Array[Transform3D] = []
+	var fruit: Array[Transform3D] = []
+	# Poplars along two field tracks and the main road west, a gap now and then.
+	for line in [[Vector3(-240.0, 0, -96.0), Vector3(240.0, 0, -96.0), 9.0], [Vector3(118.0, 0, -240.0), Vector3(118.0, 0, 240.0), 8.0], [Vector3(-90.0, 0, 9.0), Vector3(-400.0, 0, 9.0), 14.0], [Vector3(-90.0, 0, -9.0), Vector3(-400.0, 0, -9.0), 14.0]]:
+		var a: Vector3 = line[0]
+		var b: Vector3 = line[1]
+		var step: float = line[2]
+		var n := int(a.distance_to(b) / step)
+		for k in n:
+			if _rng.randf() < 0.12:
+				continue
+			var p := a.lerp(b, float(k) / float(n)) + Vector3(_rng.randf_range(-0.6, 0.6), 0, _rng.randf_range(-0.6, 0.6))
+			var sc := _rng.randf_range(0.9, 1.15)
+			poplars.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(0.7 * sc, 2.3 * sc, 0.7 * sc)), p))
+	# Orchards behind the gardens on both sides.
+	for k in 70:
+		var side := -1.0 if k % 2 == 0 else 1.0
+		var p := Vector3(_rng.randf_range(-80.0, 90.0), 0, side * _rng.randf_range(44.0, 70.0))
+		if absf(p.x) < 45.0 and side > 0.0 and p.z < 50.0:
 			continue
-		var sc := _rng.randf_range(0.9, 1.8)
-		xf.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc, sc * _rng.randf_range(0.9, 1.3), sc)), p))
-	for part in [["spruce_trunk", worldgen._tree_material("bark", 1)], ["spruce_crown", worldgen._tree_material("needles", 1)]]:
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = worldgen._tree_mesh(str(part[0]))
-		mm.instance_count = xf.size()
-		for i in xf.size():
-			mm.set_instance_transform(i, xf[i])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.material_override = part[1]
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(mmi)
-	# Gardens: a few fruit trees (birches stand in) behind the houses.
-	var hill_mat := _mat("", Color(0.28, 0.36, 0.26))
-	for k in 8:
-		var ang := TAU * float(k) / 8.0 + _rng.randf_range(-0.2, 0.2)
-		var hill := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		sphere.radial_segments = 8
-		sphere.rings = 4
-		hill.mesh = sphere
-		hill.material_override = hill_mat
-		hill.scale = Vector3(160.0, 40.0, 120.0)
-		hill.position = Vector3(cos(ang) * 330.0, -8.0, sin(ang) * 260.0)
-		add_child(hill)
+		var sc := _rng.randf_range(0.6, 0.85)
+		fruit.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc * 1.2, sc, sc * 1.2)), p))
+	for group in [[poplars, "birch_trunk", "birch_crown"], [fruit, "birch_trunk", "birch_crown"]]:
+		var xf: Array[Transform3D] = group[0]
+		if xf.is_empty():
+			continue
+		for part in [[str(group[1]), worldgen._tree_material("bark", 0)], [str(group[2]), worldgen._tree_material("leaf", 0)]]:
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = worldgen._tree_mesh(str(part[0]))
+			mm.instance_count = xf.size()
+			for i in xf.size():
+				mm.set_instance_transform(i, xf[i])
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			mmi.material_override = part[1]
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(mmi)
+
+
+## The village sign at both ends (IS 12a): the name on a white plate, black border,
+## facing the traffic coming in.
+func _village_signs() -> void:
+	var grey := _mat("", Color(0.42, 0.44, 0.42))
+	for s in [[Vector3(-69.0, 0, 5.6), Vector3(-1, 0, 0)], [Vector3(79.0, 0, -5.6), Vector3(1, 0, 0)]]:
+		var at: Vector3 = s[0]
+		var f: Vector3 = s[1]
+		_box(self, at + Vector3(0, 1.1, 0), Vector3(0.07, 2.2, 0.07), grey)
+		_box(self, at + Vector3(0, 1.95, 0) - f * 0.03, Vector3(0.03, 0.52, 1.12), grey)
+		_letters(self, "obec", at + Vector3(0, 1.95, 0) - f * 0.03, f)
 
 
 # ── what you click ──────────────────────────────────────────────────────────
@@ -588,7 +1067,7 @@ func _hotspots() -> void:
 	_click(Vector3(-30.0, 1.1, 10.4), Vector3(1.6, 2.2, 0.4), "town_door", "motel")
 	_click(Vector3(50.0, 1.1, 18.9), Vector3(1.6, 2.2, 0.4), "town_door", "kiosk")
 	_click(Vector3(-28.0, 1.3, -18.4), Vector3(1.6, 2.6, 0.4), "town_door", "chapel")
-	_click(Vector3(4.0, 1.4, -27.6), Vector3(1.2, 2.2, 0.8), "town_read", "memorial")
+	_click(Vector3(26.0, 1.4, 12.6), Vector3(1.2, 2.2, 0.8), "town_read", "memorial")
 	var pumps: Array = spots.get("pumps", [])
 	for i in pumps.size():
 		var body := _click((pumps[i] as Vector3) - ORIGIN + Vector3(0, 1.0, 1.2), Vector3(1.0, 1.8, 0.8), "town_pump", "pump")
@@ -661,9 +1140,10 @@ func set_hour(h: float) -> void:
 
 
 func set_night(night: bool) -> void:
+	ROAD_POST.set_night(night)
 	for pair in spots.get("lamps", []):
 		(pair[0] as OmniLight3D).visible = night
 		(pair[1] as StandardMaterial3D).emission = Color(1.0, 0.76, 0.42) * (1.6 if night else 0.0)
-	var neon = spots.get("motel_sign", null)
+	var neon = spots.get("motel_neon", null)
 	if neon != null:
-		(neon as Label3D).modulate = Color(1.0, 0.3, 0.26) * (1.6 if night else 0.7)
+		(neon as StandardMaterial3D).emission_energy_multiplier = 1.8 if night else 0.0

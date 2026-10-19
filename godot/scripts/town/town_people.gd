@@ -14,19 +14,19 @@ const PIXEL := 0.0145
 const SPOTS := {
 	"jednota": Vector3(-3.0, 0, -8.6),
 	"jednota_side": Vector3(-11.5, 0, -8.8),
-	"bench": Vector3(-14.0, 0, -25.4),
-	"memorial": Vector3(5.6, 0, -26.0),
+	"bench": Vector3(8.0, 0, 14.4),
+	"memorial": Vector3(24.4, 0, 11.4),
 	"chapel": Vector3(-28.0, 0, -17.2),
 	"pub": Vector3(19.2, 0, -9.4),
 	"station": Vector3(44.2, 0, 9.4),
 	"motel": Vector3(-29.0, 0, 9.6),
 	"home_hruba": Vector3(-36.0, 0, -30.5),
-	"home_franta": Vector3(34.0, 0, -12.0),
-	"home_pepik": Vector3(-44.0, 0, -11.0),
+	"home_franta": Vector3(23.8, 0, -16.5),
+	"home_pepik": Vector3(-46.5, 0, -11.0),
 }
 const LOOPS := {
 	"patrol": [Vector3(-52.0, 0, -4.6), Vector3(26.0, 0, -4.6), Vector3(26.0, 0, 4.4), Vector3(60.0, 0, 4.4), Vector3(26.0, 0, 4.4), Vector3(26.0, 0, -4.6)],
-	"bike": [Vector3(-20.0, 0, -12.0), Vector3(26.0, 0, -12.0), Vector3(26.0, 0, -22.0), Vector3(12.0, 0, -32.0), Vector3(-24.0, 0, -32.0), Vector3(-24.0, 0, -20.0)],
+	"bike": [Vector3(-62.0, 0, -2.6), Vector3(72.0, 0, -2.6), Vector3(72.0, 0, 2.6), Vector3(-62.0, 0, 2.6)],
 }
 ## Who: their name, sprite, day ([from, to, place or loop]) and what they say.
 const PEOPLE := {

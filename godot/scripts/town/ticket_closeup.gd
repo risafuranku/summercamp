@@ -27,8 +27,11 @@ const LCD := Color(1.0, 0.62, 0.16)
 const LCD_DIM := Color(0.36, 0.18, 0.06)
 ## Stops by where the bus stands: [label on the button, the stop, price $].
 const FARES := {
-	"camp": [["LESNA", "LESNA", 3], ["HLUBOC", "HLUBOCANY", 5], ["DAM", "DAM", 2]],
-	"town": [["KEMP", "KEMP", 3], ["DAM", "DAM", 2], ["HLUBOC", "HLUBOCANY", 2]],
+	"camp": [["LESNA", "LESNA", 3], ["HLUBOC", "HLUBOCANY", 5], ["DAM", "DAM", 2], ["PODL", "PODLESI", 1]],
+	"town": [["KEMP", "KEMP", 3], ["DAM", "DAM", 2], ["HLUBOC", "HLUBOCANY", 2], ["PODL", "PODLESI", 2]],
+	# Boarding at Podlesi's request stop, one way or the other.
+	"hamlet_town": [["LESNA", "LESNA", 2], ["HLUBOC", "HLUBOCANY", 4]],
+	"hamlet_camp": [["KEMP", "KEMP", 2]],
 }
 const EXTRAS := [["1/2", "half"], ["DOG", "dog"], ["BAG", "bag"], ["C", "cancel"]]
 
@@ -151,7 +154,8 @@ func _start_print() -> void:
 func _take() -> void:
 	ticket = {"to": str(_choice[1]), "kind": _kind, "price": _price(), "from": stop}
 	play("res://assets/sfx/desk/paper_pick.mp3", -8.0)
-	say("", "380   %s - %s   $%d%s" % ["KEMP" if stop == "camp" else "LESNA", str(_choice[1]), _price(), "   (half)" if _kind == "half" else ""])
+	var from := {"camp": "KEMP", "town": "LESNA", "hamlet_town": "PODLESI", "hamlet_camp": "PODLESI"}
+	say("", "380   %s - %s   $%d%s" % [str(from.get(stop, "LESNA")), str(_choice[1]), _price(), "   (half)" if _kind == "half" else ""])
 	ticket_taken.emit(ticket.duplicate())
 	_choice = []
 	_kind = "adult"

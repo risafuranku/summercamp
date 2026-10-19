@@ -10,7 +10,16 @@ extends CanvasLayer
 ##   - sitting down: the doors hiss shut, the engine labours, and for a minute the land
 ##     goes past the windows (scripts/town/ride_scenery.gd: forest, the reservoir,
 ##     fields, the first houses), mouse to look round, until it pulls up at the other
-##     end and town_trip.gd puts you out there (`arrived`).
+##     end and town_trip.gd puts you out there (`arrived`);
+##   - the red STOP buttons on the poles: the request stop at Podlesi (the buzzer, the
+##     STOJIME light over the driver), the bus pulls in there and you get off
+##     (`arrived_where` "hamlet"); a ticket to Podlesi stops it there too. Now and then
+##     somebody else gets off there and the bus goes on. Boarding at Podlesi
+##     ("hamlet_town" / "hamlet_camp") the ride starts there.
+## The sound of a rusty Karosa: the diesel at the back, the panes and panels rattling
+## harder on the bumps, the draught at a window, the gears crunching as it picks up
+## speed, potholes, a truck the other way, the driver's radio playing a polka, a cough,
+## a newspaper (assets/sfx/bus/karosa_*, tools/audiogen; the old ride.mp3 when missing).
 ## The game's clock runs on: the ride is the hour and a half the timetable says.
 ## Co-op: the other warden rides the same bus. You see them on board (standing at the
 ## front till they sit, then in their seat: from the front or, sat behind them, their
@@ -50,7 +59,23 @@ const DRIVER_LINES := {
 }
 const DRIVER_NIGHT := ["Sit where I can see you.", "Don't open the window.", "We don't stop in the forest. Whatever waves."]
 
-enum { CLOSED, BOARDING, SITTING, RIDING, STOPPING, DONE, HELD }
+enum { CLOSED, BOARDING, SITTING, RIDING, STOPPING, DONE, HELD, PAUSED }
+
+## Where the ride ended: "" at the end of the line, "hamlet" at the Podlesi request stop.
+var arrived_where := ""
+## The request stop: how far along the route (-1 none) and for whom ("you", "rider").
+var _stop_at := -1.0
+var _stop_who := ""
+var _pause_t := 0.0
+var _stojime: StandardMaterial3D
+var _rattle: AudioStreamPlayer
+var _wind: AudioStreamPlayer
+var _radio: AudioStreamPlayer
+var _two: AudioStreamPlayer
+var _gear_at := 0
+var _life_t := 9.0
+## The speeds where the gearbox crunches into the next gear (m/s).
+const GEARS := [4.0, 8.5, 13.0]
 
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## How long a bus waits for the other warden near the stop outside (real seconds).
@@ -160,7 +185,7 @@ func is_open() -> bool:
 
 
 func is_riding() -> bool:
-	return _state in [SITTING, RIDING, STOPPING, DONE, HELD]
+	return _state in [SITTING, RIDING, STOPPING, DONE, HELD, PAUSED]
 
 
 ## Co-op: where you are on this bus, for the other machine ({} off it): the stop, the
@@ -186,7 +211,8 @@ func _mate_aboard() -> bool:
 
 # ── in and out ───────────────────────────────────────────────────────────────
 
-## Gets on the bus standing at `at_stop` ("camp" or "town") at `hour`.
+## Gets on the bus standing at `at_stop` ("camp", "town", or at Podlesi "hamlet_town" /
+## "hamlet_camp") at `hour`.
 var _hour_now := 0.0
 
 
@@ -206,8 +232,14 @@ func open_ride(at_stop: String, hour: float, fog: float, raining: bool) -> void:
 	_mate_said = false
 	_speed = 0.0
 	set_time(hour, fog, raining)
-	_scenery.setup(stop == "camp", _night, worldgen)
+	var towards_town := stop == "camp" or stop == "hamlet_town"
+	_scenery.setup(towards_town, _night, worldgen, SCENERY.stop_along("hamlet", towards_town) if stop.begins_with("hamlet") else 0.0)
 	_scenery.advance(0.0, 0.0)
+	arrived_where = ""
+	_stop_at = -1.0
+	_stop_who = ""
+	_gear_at = 0
+	_set_stojime(false)
 	_seat_passengers()
 	_set_door(true)
 	_cam.position = STAND_POS
@@ -217,6 +249,10 @@ func open_ride(at_stop: String, hour: float, fog: float, raining: bool) -> void:
 	_ride.stream = _loop(load(SFX + "idle.mp3"))
 	_ride.volume_db = -14.0
 	_ride.play()
+	# Somebody on board wants Podlesi now and then (by day, when it is still ahead).
+	if not stop.begins_with("hamlet") and not _passengers.is_empty() and not _night and _rng.randf() < 0.3:
+		_stop_at = _scenery.stop_at("hamlet")
+		_stop_who = "rider"
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_say("", 0.0)
 
@@ -234,7 +270,7 @@ func close_interior() -> void:
 	match _state:
 		BOARDING:
 			leave()
-		SITTING, RIDING, STOPPING, DONE, HELD:
+		SITTING, RIDING, STOPPING, DONE, HELD, PAUSED:
 			_shut()
 			arrived.emit()
 
@@ -244,6 +280,9 @@ func _shut() -> void:
 	visible = false
 	_glint.clear()
 	_ride.stop()
+	for p in [_rattle, _wind, _radio]:
+		if p != null:
+			p.stop()
 	if _ticket_view != null and _ticket_view.visible:
 		_ticket_view.close_view()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -340,23 +379,46 @@ func _process(delta: float) -> void:
 		_say_label.modulate.a = clampf(_say_t / 0.4, 0.0, 1.0)
 	match _state:
 		RIDING:
-			var left: float = _scenery.route_length() - _scenery.travelled
+			var left: float = _target() - _scenery.travelled
 			if left <= _speed * _speed / (2.0 * BRAKE) + 2.0:
 				_state = STOPPING
-				_play("brake_inside.mp3", -15.0)
+				if _at_request():
+					_play_two("karosa_gravel.mp3", -6.0)
+					_play("karosa_indicator.mp3", -14.0)
+				else:
+					_play("brake_inside.mp3", -15.0)
 			else:
+				var was := _speed
 				_speed = move_toward(_speed, CRUISE, ACCEL * delta)
+				_shift(was)
 		STOPPING:
 			_speed = move_toward(_speed, 0.0, BRAKE * delta)
 			if _speed <= 0.05:
 				_speed = 0.0
-				_state = DONE
-				_done_t = 0.0
 				_set_door(true)
 				_play("door_open.mp3", -2.0)
 				_ride.stream = _loop(load(SFX + "idle.mp3"))
 				_ride.volume_db = -14.0
 				_ride.play()
+				if _at_request() and _stop_who == "rider":
+					# Somebody else gets off at Podlesi; the bus goes on.
+					_state = PAUSED
+					_pause_t = 0.0
+					_rider_off()
+				else:
+					if _at_request():
+						arrived_where = "hamlet"
+						_say("Driver: \"Podlesi.\"", 2.0)
+					_state = DONE
+					_done_t = 0.0
+		PAUSED:
+			_pause_t += delta
+			if _pause_t > 3.2:
+				_stop_at = -1.0
+				_stop_who = ""
+				_set_stojime(false)
+				_gear_at = 0
+				_depart()
 		DONE:
 			_done_t += delta
 			if _done_t > 1.1:
@@ -366,8 +428,15 @@ func _process(delta: float) -> void:
 	if _scenery != null and _speed > 0.0:
 		_scenery.advance(_speed * delta, delta)
 	if _state == RIDING or _state == STOPPING:
-		_ride.volume_db = lerpf(-12.0, -4.0, clampf(_speed / CRUISE, 0.0, 1.0))
-		_ride.pitch_scale = lerpf(0.85, 1.05, clampf(_speed / CRUISE, 0.0, 1.0))
+		var sp := clampf(_speed / CRUISE, 0.0, 1.0)
+		_ride.volume_db = lerpf(-12.0, -4.0, sp)
+		_ride.pitch_scale = lerpf(0.85, 1.05, sp)
+		if _rattle != null and _rattle.playing:
+			_rattle.volume_db = lerpf(-30.0, -11.0, sp) + _bump * 140.0
+		if _wind != null and _wind.playing:
+			_wind.volume_db = lerpf(-40.0, -17.0, sp)
+			_wind.pitch_scale = lerpf(0.8, 1.1, sp)
+		_update_life(delta)
 	_update_bumps(delta)
 	_update_swing(delta)
 	if _glass != null:
@@ -391,6 +460,9 @@ func _update_bumps(delta: float) -> void:
 	if _speed > 2.0 and _bump_t <= 0.0:
 		_bump_t = _rng.randf_range(0.8, 3.0)
 		_bump = _rng.randf_range(0.015, 0.04)
+		# A real pothole now and then: the thump and the whole body clattering.
+		if _bump > 0.032:
+			_play_two("karosa_pothole.mp3", -9.0)
 	_bump = maxf(0.0, _bump - delta * 0.12)
 	var tick := floorf(Time.get_ticks_msec() / 83.0)
 	var sway := 0.0
@@ -421,6 +493,8 @@ func _update_hover() -> void:
 
 func _hot_allowed(id: String) -> bool:
 	if _state != BOARDING:
+		if id.begins_with("stop:"):
+			return _state == RIDING
 		return id == "driver"
 	if id.begins_with("seat:"):
 		return not _taken.has(int(id.get_slice(":", 1)))
@@ -465,6 +539,8 @@ func _click(id: String) -> void:
 		leave()
 	elif id.begins_with("seat:"):
 		_try_sit(int(id.get_slice(":", 1)))
+	elif id.begins_with("stop:"):
+		_press_stop()
 
 
 # ── the ticket, the seat, the ride ───────────────────────────────────────────
@@ -492,13 +568,16 @@ func _open_machine() -> void:
 func _ticket_problem(t: Dictionary) -> String:
 	if t.is_empty():
 		return "Ticket. From the machine."
-	var goes_to := "LESNA" if stop == "camp" else "KEMP"
+	var goes_to := "LESNA" if stop == "camp" or stop == "hamlet_town" else "KEMP"
 	var to := str(t.get("to", ""))
 	if str(t.get("kind", "")) == "half":
 		return "Half fare? How old are you? Get a proper one."
 	if to in ["DOG", "BAG"]:
 		return "That's for a dog. You're not a dog. Are you?"
 	if to == goes_to or to == "HLUBOCANY":
+		return ""
+	# Podlesi is on the way from either end; the bus stops there for it.
+	if to == "PODLESI" and not stop.begins_with("hamlet"):
 		return ""
 	return "That's for the dam. This goes to %s." % ("Lesna" if goes_to == "LESNA" else "the camp")
 
@@ -530,14 +609,113 @@ func _try_sit(i: int) -> void:
 	)
 
 
-## The doors shut and it goes.
+## The doors shut and it goes: the Karosa's diesel, its rattle and the draught; the
+## driver's radio by day. A ticket to Podlesi asks for the stop by itself.
 func _depart() -> void:
 	_set_door(false)
 	_state = RIDING
 	_play("start_inside.mp3", -2.0)
-	_ride.stream = _loop(load(SFX + "ride.mp3"))
+	_ride.stream = _loop(_sfx("karosa_cruise.mp3", "ride.mp3"))
 	_ride.volume_db = -12.0
 	_ride.play()
+	for pair in [[_rattle, "karosa_rattle.mp3"], [_wind, "karosa_wind.mp3"]]:
+		var player: AudioStreamPlayer = pair[0]
+		var st := _sfx(str(pair[1]))
+		if player != null and st != null and not player.playing:
+			player.stream = _loop(st)
+			player.volume_db = -40.0
+			player.play()
+	if _radio != null and not _radio.playing and not _night:
+		var polka := _sfx("radio_polka.mp3")
+		if polka != null:
+			_radio.stream = _loop(polka)
+			_radio.volume_db = -21.0
+			_radio.play()
+	if str(_ticket.get("to", "")) == "PODLESI" and _stop_at < 0.0:
+		var at: float = _scenery.stop_at("hamlet")
+		if at > _scenery.travelled + 10.0:
+			_stop_at = at
+			_stop_who = "you"
+
+
+## Where the bus is braking for: the request stop when somebody asked for it, else the
+## end of the line.
+func _target() -> float:
+	if _stop_who != "" and _stop_at > _scenery.travelled - 1.0:
+		return _stop_at
+	return _scenery.route_length()
+
+
+func _at_request() -> bool:
+	return _stop_who != "" and absf(_stop_at - _scenery.travelled) < 40.0
+
+
+## A red STOP button: the buzzer, STOJIME lights up, the driver will pull in at
+## Podlesi, if it is still ahead and far enough to stop for.
+func _press_stop() -> void:
+	_play_two("karosa_stop_bell.mp3", -4.0)
+	var at: float = _scenery.stop_at("hamlet")
+	var room := _speed * _speed / (2.0 * BRAKE) + 6.0
+	if at < 0.0 or at < _scenery.travelled:
+		_say("Driver: \"Next stop is the end of the line.\"", 2.6)
+		return
+	if at - _scenery.travelled < room:
+		_say("Driver: \"Too late. I'm not a tram.\"", 2.6)
+		return
+	_stop_at = at
+	_stop_who = "you"
+	_set_stojime(true)
+	_say("Driver: \"Podlesi, on request.\"", 2.4)
+
+
+func _set_stojime(on: bool) -> void:
+	if _stojime != null:
+		_stojime.emission_energy_multiplier = 2.0 if on else 0.0
+
+
+## Somebody off at Podlesi: the one nearest the door goes.
+func _rider_off() -> void:
+	_set_stojime(true)
+	if _passengers.is_empty():
+		return
+	var best := 0
+	for i in _passengers.size():
+		if _passengers[i].position.z < _passengers[best].position.z:
+			best = i
+	_passengers[best].queue_free()
+	_passengers.remove_at(best)
+
+
+## The gearbox crunching into the next gear as it picks up speed.
+func _shift(was: float) -> void:
+	if _gear_at < GEARS.size() and was < float(GEARS[_gear_at]) and _speed >= float(GEARS[_gear_at]):
+		_gear_at += 1
+		_play_two("karosa_gear.mp3", -8.0)
+
+
+## The life on board: a cough, a newspaper, now and then.
+func _update_life(delta: float) -> void:
+	_life_t -= delta
+	if _life_t > 0.0:
+		return
+	_life_t = _rng.randf_range(11.0, 24.0)
+	if _passengers.is_empty():
+		return
+	_play_two("cough.mp3" if _rng.randf() < 0.5 else "newspaper.mp3", -14.0)
+
+
+func _sfx(name: String, fallback := "") -> AudioStream:
+	for f in [name, fallback]:
+		if str(f) != "" and ResourceLoader.exists(SFX + str(f)):
+			return load(SFX + str(f))
+	return null
+
+
+func _play_two(file: String, db: float) -> void:
+	if _two != null and ResourceLoader.exists(SFX + file):
+		_two.stream = load(SFX + file)
+		_two.volume_db = db
+		_two.play()
 
 
 ## Co-op: may it go? The other warden on board: once they sit (or it went for them).
@@ -784,6 +962,7 @@ func _build() -> void:
 	_cam.current = true
 	_scenery = SCENERY.new()
 	_vp.add_child(_scenery)
+	_scenery.car_passed.connect(func(): _play_two("karosa_truck.mp3", -13.0))
 	_build_cabin()
 	# Inside is lit by the bus, not the sun: the cabin on layer 2, the sun on layer 1
 	# only, a dim fill for the cabin by day (the strip lights at night).
@@ -801,6 +980,14 @@ func _build() -> void:
 	add_child(_ride)
 	_one = AudioStreamPlayer.new()
 	add_child(_one)
+	_two = AudioStreamPlayer.new()
+	add_child(_two)
+	_rattle = AudioStreamPlayer.new()
+	add_child(_rattle)
+	_wind = AudioStreamPlayer.new()
+	add_child(_wind)
+	_radio = AudioStreamPlayer.new()
+	add_child(_radio)
 	# What is said (the driver), along the bottom.
 	_say_label = Label.new()
 	_say_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
@@ -1013,8 +1200,20 @@ func _dress_cabin(cabin: Node3D, driver: Node3D, driver_parts: Array) -> void:
 	var red := _mat("stop_btn", "", Color(0.85, 0.12, 0.1))
 	red.emission_enabled = true
 	red.emission = Color(0.6, 0.05, 0.03)
-	for z in [-2.95, 0.65, 2.45]:
-		_box(cabin, Vector3(0.12, 1.42, z + 0.03), Vector3(0.07, 0.05, 0.07), red)
+	for k in 3:
+		var z: float = [-2.95, 0.65, 2.45][k]
+		var btn := _box(cabin, Vector3(0.12, 1.42, z + 0.03), Vector3(0.07, 0.05, 0.07), red)
+		_hot_body(cabin, "stop:%d" % k, Vector3(0.12, 1.42, z + 0.03), Vector3(0.22, 0.2, 0.22), [btn])
+	# STOJIME over the driver: lit red once somebody has pressed STOP.
+	var sj := _town_tex("sign_stojime")
+	if sj != null:
+		_stojime = _tex_mat(sj, true)
+		_stojime.emission_enabled = true
+		_stojime.emission = Color(0, 0, 0)
+		_stojime.emission_texture = sj
+		_stojime.emission_energy_multiplier = 0.0
+		_box(cabin, Vector3(-0.35, 2.02, FLOOR_Z.x + 0.1), Vector3(0.62, 0.2, 0.06), _mat("stojime_box", "", Color(0.08, 0.08, 0.08)))
+		_quad(cabin, Vector3(-0.35, 2.02, FLOOR_Z.x + 0.135), Vector2(sj.get_width(), sj.get_height()) / 120.0, 0.0, _stojime)
 	var ns := _town_tex("no_smoking")
 	if ns != null:
 		_quad(cabin, Vector3(0.6, 1.98, FLOOR_Z.x + 0.12), Vector2(0.16, 0.16), 0.0, _tex_mat(ns, true))

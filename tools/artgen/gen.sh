@@ -63,8 +63,12 @@ if [ "$ref" != "-" ]; then
   ref_clause="Pass ref.png from this folder to the image tool as the reference image. "
 fi
 full="Use your image generation tool. ${ref_clause}Generate natively in ${aspect} aspect ratio and keep the full canvas. ${prompt} Save the result as raw.png in the current directory and report its pixel size. Do not write any other files."
+# The Cursor agent CLI of whoever runs this (CURSOR_AGENT overrides). Not the bare
+# `agent`: on some PCs that name is the Grok CLI, which takes other flags.
+agent_cli="${CURSOR_AGENT:-$(cygpath -u "${LOCALAPPDATA:-}" 2>/dev/null)/cursor-agent/cursor-agent.cmd}"
+[ -f "$agent_cli" ] || agent_cli=$(command -v cursor-agent.cmd || command -v cursor-agent) || { echo "cursor-agent not found (set CURSOR_AGENT)"; exit 1; }
 for attempt in 1 2; do
-  timeout 900 /c/Users/arnold/AppData/Local/cursor-agent/cursor-agent.cmd -p --force --trust --model grok-4.7-medium-fast "$full" > gen.log 2>&1
+  timeout 900 "$agent_cli" -p --force --trust --model grok-4.7-medium-fast "$full" > gen.log 2>&1
   [ -f raw.png ] && break
 done
 echo "$id $( [ -f raw.png ] && echo ok || echo FAILED )"

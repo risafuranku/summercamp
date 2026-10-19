@@ -62,6 +62,8 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	{"id": "child", "text": "Extra Child", "sub": "Family"},
 	{"id": "basket", "text": "Basket Man", "sub": "Mushroom Picker"},
 	{"id": "stalker", "text": "Antlered Man", "sub": "Mixed camp"},
+	# Not a night: the camp's bus stop as the 380 comes up the road (main._start_test_bus).
+	{"id": "bus", "text": "Bus to Lesna", "sub": "Day, camp stop"},
 ]
 
 var _scale: int = 3
@@ -431,7 +433,7 @@ func _rebuild() -> void:
 	test_items.append_array(TEST_NIGHTS)
 	test_items.append({"id": "back", "text": "Back"})
 	_test_list.set_items(test_items)
-	var test_hint := RETRO_UI.label("A FRESH CAMP AT 20:00. NOTHING IS SAVED.", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
+	var test_hint := RETRO_UI.label("A FRESH CAMP. NOTHING IS SAVED.", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
 	test_hint.position = Vector2(_vp(8), plate_h - _vp(13))
 	_test_page.add_child(test_hint)
 

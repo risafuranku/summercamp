@@ -4,7 +4,8 @@ extends Node
 ## (scripts/camp_gate.gd), the road through the forest to the bus stop
 ## (scripts/town/road_south.gd) with its timetable (timetable_closeup.gd, the times from
 ## bus_timetable.gd), the line 380 bus (bus_model.gd outside, bus_ride.gd inside) and
-## Lesna at the other end (town_lesna.gd, built the first time you go).
+## Lesna at the other end (town_lesna.gd, built the first time you go); on the way the
+## request stop for Podlesi and its hamlet (hamlet_trip.gd: "ham_*" things, its bus).
 ##
 ## The buses run by the clock, whoever watches: at each stop a bus comes in, stands with
 ## its door open (half an hour at the camp: the end of the line) and goes. Click it while
@@ -22,6 +23,8 @@ const TIMETABLE_CLOSEUP = preload("res://scripts/town/timetable_closeup.gd")
 const BUS_MODEL = preload("res://scripts/town/bus_model.gd")
 const BUS_RIDE = preload("res://scripts/town/bus_ride.gd")
 const TOWN = preload("res://scripts/town/town_lesna.gd")
+const MASTS = preload("res://scripts/town/liblice_masts.gd")
+const HAMLET = preload("res://scripts/town/hamlet_trip.gd")
 const POCKETS = preload("res://scripts/town/pockets.gd")
 const SHOP = preload("res://scripts/town/shop_closeup.gd")
 const PUB = preload("res://scripts/town/pub_closeup.gd")
@@ -53,6 +56,9 @@ var _im: Node
 var _timetable
 var _ride
 var _town
+var _masts
+## Podlesi (hamlet_trip.gd): its place, bus and the Skoda.
+var _hamlet
 var _camp_bus
 var _town_bus
 ## The works bus after midnight (one for the camp's road, one for Lesna's).
@@ -81,6 +87,10 @@ var _runs: Dictionary = {}
 
 func setup(interior_manager: Node) -> void:
 	_im = interior_manager
+	if _hamlet == null:
+		_hamlet = HAMLET.new()
+		_hamlet.trip = self
+		add_child(_hamlet)
 	if pockets == null:
 		pockets = POCKETS.new()
 		add_child(pockets)
@@ -137,16 +147,22 @@ func _worldgen() -> Node:
 ## In Lesna (or anywhere far from the camp): the night leaves you alone there.
 func away() -> bool:
 	var p := _player()
-	return p != null and _town != null and p.global_position.distance_to(TOWN.ORIGIN) < AWAY_DIST
+	if p == null:
+		return false
+	if _hamlet != null and _hamlet.near(p.global_position):
+		return true
+	return _town != null and p.global_position.distance_to(TOWN.ORIGIN) < AWAY_DIST
 
 
 # ── clicking things out there ────────────────────────────────────────────────
 
 func handles(building_type: String) -> bool:
-	return building_type.begins_with("trip_") or building_type.begins_with("town_")
+	return building_type.begins_with("trip_") or building_type.begins_with("town_") or building_type.begins_with("ham_")
 
 
 func hint_for(structure: Node3D) -> String:
+	if str(structure.get_meta("building_type", "")).begins_with("ham_"):
+		return _hamlet.hint_for(structure)
 	match str(structure.get_meta("building_type", "")):
 		"trip_barrier":
 			var gate := _gate()
@@ -188,6 +204,9 @@ func _open(place: String) -> bool:
 
 
 func interact(structure: Node3D) -> void:
+	if str(structure.get_meta("building_type", "")).begins_with("ham_"):
+		_hamlet.interact(structure)
+		return
 	match str(structure.get_meta("building_type", "")):
 		"trip_barrier":
 			var gate := _gate()
@@ -396,7 +415,8 @@ func is_open() -> bool:
 	return (_timetable != null and _timetable.visible) or (_ride != null and _ride.is_open()) \
 		or (_shop != null and _shop.visible) or (_pub != null and _pub.visible) \
 		or (_room != null and _room.is_open()) \
-		or (_town != null and _town.spots["job"].is_open())
+		or (_town != null and _town.spots["job"].is_open()) \
+		or (_hamlet != null and _hamlet.is_open())
 
 
 func close_interior() -> void:
@@ -412,6 +432,8 @@ func close_interior() -> void:
 		_room.close()
 	if _town != null and _town.spots["job"].is_open():
 		_town.spots["job"].close()
+	if _hamlet != null:
+		_hamlet.close()
 
 
 func set_time_state(_state: int) -> void:
@@ -442,6 +464,8 @@ func _process(delta: float) -> void:
 		_night_poll = 1.0
 		_night = h >= 19.0 or h < 6.0
 		_camp_bus.set_night(_night)
+		_update_masts()
+		_hamlet.tick_hour(h, _night)
 		if _town != null:
 			_town.set_night(_night)
 			_town.set_hour(h)
@@ -449,6 +473,7 @@ func _process(delta: float) -> void:
 				_town_bus.set_night(_night)
 	_coop_hold("camp", _camp_bus)
 	_run_stop("camp", _camp_bus, delta, h)
+	_hamlet.update(h, delta)
 	_run_works(h, delta)
 	if _town != null:
 		_coop_hold("town", _town_bus)
@@ -457,6 +482,27 @@ func _process(delta: float) -> void:
 		_watch_job(h)
 	_update_village_sound(h)
 	_update_sleep(delta)
+
+
+## The transmitter's masts over the fields by Lesna (liblice_masts.gd): in the world from
+## the start, so their lamps show from the camp too.
+func _update_masts() -> void:
+	var main := _main()
+	if main == null:
+		return
+	if _masts == null or not is_instance_valid(_masts):
+		var world: Node = main.get("_world_3d")
+		if world == null:
+			return
+		_masts = MASTS.new()
+		_masts.position = TOWN.ORIGIN
+		world.add_child(_masts)
+		_masts.build()
+	_masts.set_night(_night)
+	var env_node = main.get("world_environment")
+	var p := _player()
+	if env_node != null and p != null:
+		_masts.update_haze((env_node as WorldEnvironment).environment, p.global_position)
 
 
 ## The shift ends when you walk off from the station or at nine.
@@ -761,12 +807,16 @@ func _board(stop_id: String) -> void:
 	if stop_id == "town_through":
 		_say("Driver: \"Hlubocany. Yours is the other side, to the camp.\"")
 		return
-	var bus = _camp_bus if stop_id == "camp" else _town_bus
+	var at_hamlet := stop_id.begins_with("hamlet")
+	var bus = _hamlet.bus_for(stop_id) if at_hamlet else (_camp_bus if stop_id == "camp" else _town_bus)
 	if bus == null or not bus.is_door_open():
 		return
 	_boarding_stop = stop_id
 	# The bus waits while you are on it.
-	_special[stop_id] = {"mode": "hold", "t": 0.0, "pose": bus.global_transform, "dest": bus.destination, "stop_id": stop_id}
+	if at_hamlet:
+		_hamlet.hold(stop_id)
+	else:
+		_special[stop_id] = {"mode": "hold", "t": 0.0, "pose": bus.global_transform, "dest": bus.destination, "stop_id": stop_id}
 	if _ride == null:
 		_ride = BUS_RIDE.new()
 		add_child(_ride)
@@ -786,6 +836,8 @@ func _board(stop_id: String) -> void:
 func _on_left_bus() -> void:
 	# Back out at the door: the bus goes on with its own time.
 	_special.erase(_boarding_stop)
+	if _boarding_stop.begins_with("hamlet"):
+		_hamlet.release()
 	if _im != null and _im.has_method("_door_transition"):
 		_im._door_transition(false)
 	_set_player_controls(true)
@@ -793,14 +845,23 @@ func _on_left_bus() -> void:
 
 func _on_ride_arrived() -> void:
 	var from := _boarding_stop
+	var towards_town := from == "camp" or from == "hamlet_town"
 	_special.erase(from)
-	var bus = _camp_bus if from == "camp" else _town_bus
-	if bus != null:
-		bus.set_running(false)
-		bus.set_driver_out(false)
+	if from.begins_with("hamlet"):
+		_hamlet.release()
+	else:
+		var bus = _camp_bus if from == "camp" else _town_bus
+		if bus != null:
+			bus.set_running(false)
+			bus.set_driver_out(false)
 	# Co-op: off the same bus, the other warden steps down beside the first.
 	var beside := Vector3(1.1, 0.0, 0.0) if Coop.is_client() else Vector3.ZERO
-	if from == "camp":
+	if _ride != null and str(_ride.arrived_where) == "hamlet":
+		# Off at Podlesi's request stop: the bus stands a moment and goes on its way.
+		_hamlet.ensure()
+		_put_player(_hamlet.arrive_spot(towards_town).translated(beside))
+		_hamlet.drop(towards_town)
+	elif towards_town:
 		_ensure_town()
 		_put_player(_town.arrive_spot().translated(beside))
 		# The bus you came on stands a moment by the square and goes on to Hlubocany.
@@ -845,13 +906,16 @@ func _ensure_town() -> void:
 # ── saved with the game ──────────────────────────────────────────────────────
 
 func export_state() -> Dictionary:
-	return {"in_town": away(), "cigarettes": pockets.cigarettes if pockets != null else 0, "beers": pockets.beers if pockets != null else 0}
+	return {"in_town": away(), "cigarettes": pockets.cigarettes if pockets != null else 0, "beers": pockets.beers if pockets != null else 0,
+		"hamlet": _hamlet.export_state() if _hamlet != null else {}}
 
 
 func import_state(d: Dictionary) -> void:
 	# Saved in Lesna: Lesna is there again (the player's position is the game's).
 	if bool(d.get("in_town", false)):
 		_ensure_town()
+	if _hamlet != null and d.get("hamlet") is Dictionary:
+		_hamlet.import_state(d["hamlet"])
 	if pockets != null:
 		pockets.cigarettes = int(d.get("cigarettes", 0))
 		pockets.beers = int(d.get("beers", 0))

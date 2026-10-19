@@ -3,15 +3,18 @@ extends Node3D
 ## What goes past the windows of the bus (scripts/town/bus_ride.gd): the bus stands at
 ## the origin facing -Z and the land comes at it. The road is laid in 60 m pieces ahead
 ## and dropped behind, each piece of a kind the route asks for at that distance. The
-## way to Lesna as it is in the Vysocina in late September: the forest from the camp, a
-## wayside cross where it opens, the reservoir, a cow pasture behind an electric fence,
-## maize standing high both sides of the road, stubble with round straw bales, a ploughed
-## field with a Zetor going up it and a roe deer at the far edge, the old apple alley with
-## its trunks painted white, the collective farm with its cowshed and silos, the LESNA
-## sign, farmhouses with their gables to the road and somebody cycling home, the square.
-## The other way round going back to the camp.
+## way to Lesna in late September, south Bohemia the way it is out of the window of a
+## Karosa: the forest from the camp, a wayside cross where it opens, the reservoir, the
+## ruined farmhouse by the road, the turn for Podlesi with its request stop and the dusty
+## track to the hamlet (scripts/town/hamlet_trip.gd), a cow pasture behind an electric
+## fence, the road along a fishpond's dam between old oaks, maize standing high both
+## sides, stubble with round straw bales, a ploughed field with a Zetor going up it and a
+## roe deer at the far edge, the old apple alley with its trunks painted white, the
+## collective farm with its cowshed and silos, the LESNA sign, farmhouses with their
+## gables to the road and somebody cycling home, the square. The other way round going
+## back to the camp.
 ##
-## Along the whole road the white posts with black tops, every 25 m. Trees are the camp's
+## Along the open road the Czech posts (road_post.gd), every 50 m. Trees are the camp's
 ## own meshes (world_generator.gd); animals, people, the tractor, the cross and the apple
 ## trees Build sprites (Grok, assets/textury/town/); buildings textured boxes. Now and then
 ## a car the other way, at night with its lights on; and at night not everything by the
@@ -23,13 +26,19 @@ const BEHIND := 90.0
 const ROAD_Y := -0.95
 ## The middle of the road: the bus keeps to the right half of it.
 const LANE := -1.5
+## The request stop's pole in its piece (z).
+const POLE_Z := -33.0
 ## The road's right edge (x).
 const EDGE := 1.5
 const TEX_CAMP := "res://assets/textury/camp/"
 const TEX_TOWN := "res://assets/textury/town/"
+const ROAD_POST = preload("res://scripts/town/road_post.gd")
 const CORN_TEX := "res://assets/textury/world/corn.png"
 ## The route out from the camp, a kind per piece (reversed on the way back).
-const ROUTE := ["camp", "forest", "forest_cross", "lake", "lake", "forest", "meadow", "corn", "corn", "stubble", "plough", "alley", "jzd", "alley", "edge", "village", "village", "town"]
+const ROUTE := ["camp", "forest", "forest_cross", "lake", "lake", "forest", "ruin", "hamlet", "meadow", "pond", "corn", "stubble", "plough", "alley", "jzd", "alley", "edge", "village", "village", "town"]
+
+## A car went past the other way (bus_ride.gd plays the whoosh).
+signal car_passed
 
 var to_town := true
 var night := false
@@ -47,10 +56,12 @@ var _actors: Array = []          # {node, vel, kind}
 var _tex: Dictionary = {}
 
 
-func setup(p_to_town: bool, p_night: bool, p_worldgen: Node) -> void:
+## `start_at`: metres along the route to begin at (boarding at the Podlesi request stop).
+func setup(p_to_town: bool, p_night: bool, p_worldgen: Node, start_at := 0.0) -> void:
 	to_town = p_to_town
 	night = p_night
 	worldgen = p_worldgen
+	ROAD_POST.set_night(night)
 	_rng.randomize()
 	for p in _pieces:
 		(p["node"] as Node).queue_free()
@@ -59,8 +70,8 @@ func setup(p_to_town: bool, p_night: bool, p_worldgen: Node) -> void:
 		(c["node"] as Node).queue_free()
 	_cars.clear()
 	_actors.clear()
-	travelled = 0.0
-	_next_at = -BEHIND
+	travelled = start_at
+	_next_at = floorf(start_at / PIECE) * PIECE - BEHIND
 	_figure_done = false
 	_church_done = false
 	_fill()
@@ -69,6 +80,23 @@ func setup(p_to_town: bool, p_night: bool, p_worldgen: Node) -> void:
 ## How far the route goes (the stop at the far end is where the bus stops).
 func route_length() -> float:
 	return float(ROUTE.size() - 1) * PIECE + PIECE * 0.5
+
+
+## Where along the route (this way round) the request stop of piece `kind` is: by its
+## pole (POLE_Z into the piece). Pieces start half a piece past each route index (the
+## first one is laid from -BEHIND), so piece i covers i * PIECE + PIECE / 2 onwards.
+## -1 if the route has none.
+static func stop_along(kind: String, towards_town: bool) -> float:
+	var i := ROUTE.find(kind)
+	if i < 0:
+		return -1.0
+	if not towards_town:
+		i = ROUTE.size() - 1 - i
+	return float(i) * PIECE + PIECE * 0.5 - POLE_Z
+
+
+func stop_at(kind: String) -> float:
+	return stop_along(kind, to_town)
 
 
 func advance(dist: float, delta: float) -> void:
@@ -117,7 +145,7 @@ func _build_piece(kind: String, at: float) -> Node3D:
 	match kind:
 		"forest", "forest_cross", "camp", "lake":
 			ground = "forest"
-		"meadow", "alley", "edge", "jzd":
+		"meadow", "alley", "edge", "jzd", "ruin", "hamlet", "pond":
 			ground = "meadow"
 		"corn", "stubble":
 			ground = "stubble"
@@ -126,7 +154,8 @@ func _build_piece(kind: String, at: float) -> Node3D:
 	_ground(root, ground, kind)
 	if kind != "camp":
 		_road(root)
-		_posts(root)
+		if kind != "village" and kind != "town":
+			_posts(root, at)
 	else:
 		_gravel(root)
 	match kind:
@@ -157,6 +186,12 @@ func _build_piece(kind: String, at: float) -> Node3D:
 				cow.flip_h = _rng.randf() < 0.5
 			_trees(root, -1.0, 40.0, 120.0, 30)
 			_trees(root, 1.0, 80.0, 150.0, 20)
+		"ruin":
+			_ruin(root)
+		"hamlet":
+			_hamlet(root)
+		"pond":
+			_pond(root)
 		"corn":
 			_corn(root, 1.0)
 			_corn(root, -1.0)
@@ -328,20 +363,15 @@ func _gravel(root: Node3D) -> void:
 	_plane(root, Vector3(0, ROAD_Y, -PIECE * 0.5), Vector2(4.6, PIECE), _mat("gravel", TEX_CAMP + "gravel_road.png", Color(0.95, 0.9, 0.82), Vector2(1.0, PIECE / 4.6)))
 
 
-## The white roadside posts with black tops (patniky), every 25 m both sides, an amber
-## reflector on each that catches the headlights at night.
-func _posts(root: Node3D) -> void:
-	var white := _mat("post_white", "", Color(0.92, 0.92, 0.88))
-	var black := _mat("post_black", "", Color(0.06, 0.06, 0.06))
-	var refl := _mat("post_refl", "", Color(0.95, 0.55, 0.1))
-	refl.emission_enabled = true
-	refl.emission = Color(1.0, 0.55, 0.1) * (1.2 if night else 0.1)
-	for z in [-12.0, -37.0]:
+## The roadside posts (patniky, road_post.gd) opposite each other both sides, every 50 m
+## of the route (CSN 73 6101 on the straight): the bus sees the orange reflectors on its
+## own side and the white ones across the road.
+func _posts(root: Node3D, at: float) -> void:
+	var d := ceilf(at / 50.0) * 50.0
+	while d < at + PIECE:
 		for side in [-1.0, 1.0]:
-			var x: float = LANE + side * 3.6
-			_box(root, Vector3(x, ROAD_Y + 0.45, z), Vector3(0.12, 0.9, 0.12), white)
-			_box(root, Vector3(x, ROAD_Y + 0.84, z), Vector3(0.125, 0.14, 0.125), black)
-			_box(root, Vector3(x - side * 0.065, ROAD_Y + 0.7, z), Vector3(0.01, 0.1, 0.05), refl)
+			ROAD_POST.place(root, Vector3(LANE + side * 3.6, ROAD_Y, -(d - at)), Vector3(-side, 0, 0))
+		d += 50.0
 
 
 func _trees(root: Node3D, side: float, from: float, to: float, count: int) -> void:
@@ -680,6 +710,129 @@ func _figure(root: Node3D) -> void:
 	root.add_child(s)
 
 
+## The ruined farmhouse by the road before Podlesi: its gable without a roof (Grok,
+## lib_ruin), three rafters left, nettles and elders round it, the Babetta leaning on
+## its wall and a car shell in the grass. North of the road: on your left going to Lesna.
+func _ruin(root: Node3D) -> void:
+	var side := -1.0 if to_town else 1.0
+	var pic := _texture("lib_ruin")
+	var w := 8.6
+	var h := w * (float(pic.get_height()) / float(pic.get_width())) if pic != null else 8.0
+	var near := 9.5
+	var depth := 12.0
+	var z := -26.0
+	var walls := _mat("ruin_wall", TEX_TOWN + "lib_ruin_side.png" if ResourceLoader.exists(TEX_TOWN + "lib_ruin_side.png") else TEX_TOWN + "village_plaster.png", Color(0.85, 0.85, 0.82), Vector2(4.0, 1.0))
+	var cx: float = LANE + side * (near + depth * 0.5)
+	_box(root, Vector3(cx, ROAD_Y + h * 0.25, z), Vector3(depth, h * 0.5, w * 0.94), walls)
+	if pic != null:
+		_quad(root, Vector3(LANE + side * (near - 0.03), ROAD_Y + h * 0.5, z), Vector2(w, h), -PI * 0.5 * side, _cut_mat("ruin_front", TEX_TOWN + "lib_ruin.png"))
+	var wood := _mat("rafter", TEX_CAMP + "log_bark.png", Color(0.45, 0.38, 0.3))
+	for k in 3:
+		var r := _box(root, Vector3(cx + side * (float(k) * 2.6 - 2.0), ROAD_Y + h * 0.5 + 1.2, z + (0.8 if k == 1 else -1.4)), Vector3(0.18, 3.4, 0.18), wood)
+		r.rotation.z = (0.5 if k % 2 == 0 else -0.35) * side
+	_billboard(root, "ham_moped", 1.1, Vector3(LANE + side * (near - 0.6), ROAD_Y, z + w * 0.5 + 0.8))
+	_billboard(root, "ham_car_wreck", 1.6, Vector3(LANE + side * (near + depth + 4.0), ROAD_Y, z - 8.0))
+	_trees(root, side, 22.0, 70.0, 26)
+	_trees(root, -side, 6.0, 60.0, 80)
+	for k in 5:
+		_billboard(root, "apple_tree", _rng.randf_range(3.0, 4.2), Vector3(LANE + side * _rng.randf_range(near - 2.0, near + depth + 6.0), ROAD_Y, -_rng.randf_range(4.0, 56.0)))
+
+
+## The turn for Podlesi: the request stop (a pole with the bus sign, PODLESI, rozc., and
+## its little "na znameni" plate) on the doors' side, the hamlet's dusty track leaving
+## the road south (your right going to Lesna) through the meadow, its few houses and the
+## garage at the end of it under the forest, the hamlet's sign at the turn.
+func _hamlet(root: Node3D) -> void:
+	var side := 1.0 if to_town else -1.0
+	var stop_z := POLE_Z + 3.0
+	# The pole on the doors' side, where the bus stops.
+	var grey := _mat("pole_grey", "", Color(0.42, 0.44, 0.42))
+	var px := EDGE + 1.3
+	_box(root, Vector3(px, ROAD_Y + 1.4, POLE_Z), Vector3(0.08, 2.8, 0.08), grey)
+	var sign := _mat("stop_sign_q", TEX_TOWN + "stop_sign.png", Color(0.9, 0.9, 0.86))
+	_quad(root, Vector3(px - 0.05, ROAD_Y + 2.5, POLE_Z), Vector2(0.6, 0.45), -PI * 0.5, sign)
+	var name_tex := _texture("sign_podlesi_stop")
+	if name_tex != null:
+		_quad(root, Vector3(px - 0.05, ROAD_Y + 2.05, POLE_Z), Vector2(name_tex.get_width(), name_tex.get_height()) / 48.0, -PI * 0.5, _cut_mat("podlesi_stop", TEX_TOWN + "sign_podlesi_stop.png"))
+	# The track: two ruts of dust and the grass between them, off to the hamlet.
+	var dust := _mat("dust", TEX_CAMP + "gravel_road.png", Color(1.02, 0.94, 0.78), Vector2(1.0, 30.0))
+	var grass := _mat("rut_grass", TEX_TOWN + "meadow.png", Color(0.86, 0.9, 0.7), Vector2(1.0, 30.0))
+	var tz := stop_z - 8.0
+	var a := Vector3(LANE + side * 4.5, ROAD_Y + 0.01, tz)
+	var b := Vector3(LANE + side * 130.0, ROAD_Y + 0.01, tz - 26.0)
+	var length := a.distance_to(b)
+	var yaw := atan2(b.x - a.x, b.z - a.z)
+	var t := _plane(root, (a + b) * 0.5, Vector2(3.2, length), dust)
+	t.rotation.y = yaw
+	var g := _plane(root, (a + b) * 0.5 + Vector3(0, 0.005, 0), Vector2(0.6, length), grass)
+	g.rotation.y = yaw
+	# The hamlet's sign at the turn.
+	var plate := _texture("sign_podlesi")
+	if plate != null:
+		var sx: float = LANE + side * 5.4
+		_box(root, Vector3(sx, ROAD_Y + 0.9, tz + 2.4), Vector3(0.06, 1.8, 0.06), grey)
+		_quad(root, Vector3(sx, ROAD_Y + 1.7, tz + 2.4), Vector2(plate.get_width(), plate.get_height()) / 48.0, 0.0, _cut_mat("podlesi_plate", TEX_TOWN + "sign_podlesi.png"))
+	# The houses at the far end, their fronts to the road, the forest behind them.
+	var far := 118.0
+	var k := 0
+	for fid in ["lib_baroque", "lib_cottage", "lib_garage", "lib_gable_ochre"]:
+		var pic := _texture(fid)
+		if pic == null:
+			continue
+		var w := 8.0 if fid != "lib_garage" else 5.0
+		var h := w * float(pic.get_height()) / float(pic.get_width())
+		var z := tz - 26.0 - 10.0 + float(k) * 11.0 - 14.0
+		var x: float = LANE + side * (far + float(k % 2) * 6.0)
+		_box(root, Vector3(x + side * 6.0, ROAD_Y + h * 0.3, z), Vector3(12.0, h * 0.6, w * 0.9), _mat("ham_wall", TEX_TOWN + "village_plaster.png", Color(0.95, 0.94, 0.9), Vector2(4.0, 1.0)))
+		_quad(root, Vector3(x - side * 0.03, ROAD_Y + h * 0.5, z), Vector2(w, h), -PI * 0.5 * side, _cut_mat("ham_front_" + fid, TEX_TOWN + fid + ".png"))
+		k += 1
+	_trees(root, side, 130.0, 190.0, 40)
+	_trees(root, -side, 40.0, 140.0, 30)
+	if _rng.randf() < 0.7:
+		_billboard(root, "apple_tree", 4.4, Vector3(LANE + side * 8.0, ROAD_Y, tz + 6.0))
+
+
+## A South Bohemian fishpond: the road runs along its dam between old oaks, the water
+## on one side, reeds at its edge, a fisherman's hut and the wooden sluice; the meadow
+## below the dam on the other side.
+func _pond(root: Node3D) -> void:
+	var side := 1.0 if to_town else -1.0
+	var water := _mat("pond", TEX_CAMP + "lake_water.png", Color(0.5, 0.58, 0.56), Vector2(30.0, 6.0))
+	_plane(root, Vector3(LANE + side * 70.0, ROAD_Y - 0.9, -PIECE * 0.5), Vector2(128.0, PIECE), water)
+	var bank := _mat("bank", TEX_CAMP + "lake_shore.png", Color(0.8, 0.8, 0.72), Vector2(2.0, PIECE / 4.0))
+	var bk := _plane(root, Vector3(LANE + side * 6.4, ROAD_Y - 0.45, -PIECE * 0.5), Vector2(2.4, PIECE), bank)
+	bk.rotation.z = side * 0.4
+	# Reeds along the water.
+	var reed := _mat("reed", CORN_TEX, Color(0.62, 0.66, 0.42))
+	reed.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	reed.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for k in 22:
+		var mi := MeshInstance3D.new()
+		mi.mesh = _cross_quad(Vector2(1.4, 1.8))
+		mi.material_override = reed
+		mi.position = Vector3(LANE + side * _rng.randf_range(8.5, 14.0), ROAD_Y - 0.9, -_rng.randf_range(1.0, 59.0))
+		root.add_child(mi)
+	# Old oaks on the dam both sides of the road (the camp's birch, broad and dark).
+	if worldgen != null and worldgen.has_method("_tree_mesh"):
+		var oaks: Array[Transform3D] = []
+		for k in 5:
+			for s in [-1.0, 1.0]:
+				var p := Vector3(LANE + s * _rng.randf_range(5.0, 6.5), ROAD_Y, -6.0 - k * 12.0 - _rng.randf_range(0.0, 3.0))
+				var sc := _rng.randf_range(1.6, 2.3)
+				oaks.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc * 1.3, sc, sc * 1.3)), p))
+		_multi(root, "birch_trunk", worldgen._tree_material("bark", 0), oaks)
+		_multi(root, "birch_crown", worldgen._tree_material("leaf", 1), oaks)
+	# The fisherman's hut on the bank and the sluice.
+	var planks := _mat("hut", TEX_CAMP + "planks_grey.png", Color(0.62, 0.56, 0.48), Vector2(2.0, 1.0))
+	var hx: float = LANE + side * 16.0
+	_box(root, Vector3(hx, ROAD_Y - 0.2, -40.0), Vector3(3.2, 2.4, 2.6), planks)
+	var roof := _box(root, Vector3(hx, ROAD_Y + 1.2, -40.0), Vector3(3.8, 0.12, 3.2), _mat("hut_roof", TEX_CAMP + "corrugated_roof.png", Color(0.6, 0.55, 0.5)))
+	roof.rotation.x = 0.18
+	_box(root, Vector3(LANE + side * 9.0, ROAD_Y - 0.4, -18.0), Vector3(0.8, 1.6, 0.8), planks)
+	_trees(root, -side, 50.0, 140.0, 20)
+	_bales(root, -side)
+
+
 # ── traffic ──────────────────────────────────────────────────────────────────
 
 ## Now and then a car the other way (a box with lights), at night only its lights first.
@@ -691,6 +844,9 @@ func _update_cars(dist: float, delta: float) -> void:
 	for c in _cars:
 		var n: Node3D = c["node"]
 		n.position.z += dist + float(c["speed"]) * delta
+		if not bool(c.get("passed", false)) and n.position.z > -6.0:
+			c["passed"] = true
+			car_passed.emit()
 	while not _cars.is_empty() and (_cars[0]["node"] as Node3D).position.z > BEHIND:
 		(_cars[0]["node"] as Node).queue_free()
 		_cars.pop_front()
