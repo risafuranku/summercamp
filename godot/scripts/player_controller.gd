@@ -230,6 +230,11 @@ func _ensure_camera() -> void:
 	camera.near = camera_near
 	camera.current = true
 	_ensure_flashlight()
+	# Your breath in the cold, panting when you are spent (scripts/ambient/player_breath.gd).
+	if camera.get_node_or_null("PlayerBreath") == null:
+		var breath = load("res://scripts/ambient/player_breath.gd").new()
+		breath.player = self
+		camera.add_child(breath)
 
 
 func _remove_barrel_overlay_if_present() -> void:

@@ -345,6 +345,12 @@ ROWS = [
     ("tex_glass_drops", "texture", 128, "world/glass_drops.png"),
     ("tex_glass_runs", "texture", 128, "world/glass_runs.png"),
     ("tex_window_cookie", "texture", 64, "world/window_cookie.png"),
+    # Your breath in the cold (scripts/ambient/player_breath.gd).
+    ("spr_breath_puff", "sprite", 16, "world/breath_puff.png"),
+    # The still air (scripts/ambient/air_life.gd): a midge, spider silk, thistle down.
+    ("spr_midge", "sprite", 4, "world/midge.png"),
+    ("spr_gossamer", "sprite", 14, "world/gossamer.png"),
+    ("spr_thistle_down", "sprite", 8, "world/thistle_down.png"),
     ("warden_a_bedfoot", "sprite", 56, "npc/warden_a_bedfoot.png"),
     ("warden_b_bedfoot", "sprite", 56, "npc/warden_b_bedfoot.png"),
     ("warden_c_bedfoot", "sprite", 56, "npc/warden_c_bedfoot.png"),

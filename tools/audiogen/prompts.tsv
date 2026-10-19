@@ -312,3 +312,6 @@ frogs_night	10.0	assets/sfx/world/frogs_night.mp3	Frogs croaking along a reedy l
 trees_rustle	5.0	assets/sfx/world/trees_rustle.mp3	A gust of wind rustling loudly through the dry autumn leaves of birch trees overhead and passing on, outdoors. No music.
 tree_creak	3.5	assets/sfx/world/tree_creak.mp3	A tall old pine trunk creaking and groaning slowly as it sways in strong wind, outdoors in a forest. No music.
 wind_gust	4.0	assets/sfx/world/wind_gust.mp3	A strong gust of wind sweeping across an open field and into the edge of a forest, a rising whoosh that dies away. No music.
+panting	5.0	assets/sfx/player/panting.mp3	A man out of breath after sprinting, heavy panting through the mouth, close to the ear, slowing down a little toward the end. No music.
+breath_cold	2.5	assets/sfx/player/breath_cold.mp3	One slow deep breath out through the mouth in the cold night air, a soft husky exhale, close to the ear. No music.
+midges_whine	3.0	assets/sfx/world/midges_whine.mp3	A swarm of tiny midges and gnats whining and buzzing right around the ear on a still autumn evening by a lake, thin high-pitched hum. No music.

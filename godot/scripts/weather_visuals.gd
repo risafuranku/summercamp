@@ -411,6 +411,10 @@ func setup_weather_particles() -> void:
 	var ws = load("res://scripts/ambient/world_sounds.gd").new()
 	ws.player_getter = _player_getter
 	_world_3d.add_child(ws)
+	# The still air: midges, spider silk, thistle down (scripts/ambient/air_life.gd).
+	var air = load("res://scripts/ambient/air_life.gd").new()
+	air.player_getter = _player_getter
+	_world_3d.add_child(air)
 	if _bolt.texture != null:
 		# Through the fog: the material is the sprite's own; fog off on it.
 		var bm := StandardMaterial3D.new()
@@ -590,6 +594,8 @@ func update_weather_runtime(delta: float) -> void:
 
 ## Kombinovaný per-frame visual update. Volat z main._process() po update_state().
 var _wind_now := 0.15
+## The way the wind blows now (the trees' shader has it too), for whatever drifts with it.
+var wind_dir := Vector2(0.94, 0.34)
 
 
 ## Wind for the trees (global shader parameters, see materials/tree_wind.gdshader).
@@ -606,6 +612,7 @@ func _update_wind(delta: float) -> void:
 		WEATHER_EVENT: target = 0.0
 	_wind_now = move_toward(_wind_now, target, delta * 0.25)
 	var dir := Vector2(0.94, 0.34).rotated(sin(_sky_anim_time * 0.05) * 0.35).normalized()
+	wind_dir = dir
 	RenderingServer.global_shader_parameter_set("wind_strength", _wind_now)
 	RenderingServer.global_shader_parameter_set("wind_dir", dir)
 
