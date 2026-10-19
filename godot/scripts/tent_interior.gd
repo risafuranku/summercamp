@@ -334,14 +334,11 @@ func _build_tent_room() -> void:
 	_add_box("SleepingBag", Vector3(-0.20, 0.06, -0.02), Vector3(0.64, 0.08, 1.34), Color(0.36, 0.58, 0.82))
 	_add_box("Pillow", Vector3(-0.20, 0.11, -0.68), Vector3(0.40, 0.08, 0.24), Color(0.42, 0.40, 0.36))
 
-	# Visible paper catalog.
+	# The upgrade catalog on the groundsheet: its cover (Grok, camp/tent_catalog.png) on
+	# the paper.
 	_catalog_mesh = _add_box("CatalogBacker", Vector3(0.46, 0.055, -0.18), Vector3(0.36, 0.01, 0.46), Color(0.08, 0.08, 0.08))
 	_add_box("Catalog", Vector3(0.46, 0.062, -0.18), Vector3(0.32, 0.02, 0.42), Color(0.96, 0.90, 0.74))
-	_add_box("CatalogText1", Vector3(0.46, 0.075, -0.30), Vector3(0.20, 0.005, 0.02), Color(0.12, 0.12, 0.12))
-	_add_box("CatalogText2", Vector3(0.46, 0.075, -0.24), Vector3(0.18, 0.005, 0.02), Color(0.12, 0.12, 0.12))
-	_add_box("CatalogText3", Vector3(0.46, 0.075, -0.18), Vector3(0.16, 0.005, 0.02), Color(0.12, 0.12, 0.12))
-	_add_box("CatalogPic", Vector3(0.44, 0.075, -0.08), Vector3(0.12, 0.005, 0.12), Color(0.74, 0.36, 0.24))
-	_add_box("CatalogMark", Vector3(0.56, 0.075, -0.08), Vector3(0.03, 0.005, 0.12), Color(0.92, 0.24, 0.22))
+	_add_catalog_cover(Vector3(0.46, 0.0725, -0.18), Vector2(0.31, 0.41))
 
 	# Level-based props.
 	# A storm lantern on a cord from the ridge, a rucksack by the door (level 2+).
@@ -573,6 +570,27 @@ func _add_gable(node_name: String, pos: Vector3, color: Color) -> MeshInstance3D
 	prism.left_to_right = 0.5
 	wall.mesh = prism
 	return wall
+
+
+## A picture lying flat on top of something (a quad: a box would show a third of it).
+func _add_catalog_cover(pos: Vector3, size: Vector2) -> void:
+	var path := "res://assets/textury/camp/tent_catalog.png"
+	if not ResourceLoader.exists(path):
+		return
+	var q := QuadMesh.new()
+	q.size = size
+	var mi := MeshInstance3D.new()
+	mi.name = "CatalogCover"
+	mi.mesh = q
+	mi.position = pos
+	mi.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load(path)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.roughness = 0.9
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	mi.material_override = mat
+	_tent_root.add_child(mi)
 
 
 func _add_box(node_name: String, pos: Vector3, box_size: Vector3, color: Color) -> MeshInstance3D:

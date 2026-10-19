@@ -331,6 +331,8 @@ ROWS = [
     ("cu_slot_lamp_on", "sprite", 9, "closeup/slot_lamp_on.png"),
     ("cu_slot_lamp_off", "sprite", 9, "closeup/slot_lamp_off.png"),
     ("cu_slot_button", "sprite", 22, "closeup/slot_button.png"),
+    # The tent's upgrade catalog on the groundsheet (scripts/tent_interior.gd).
+    ("face_tent_catalog", "panel", 40, "tent_catalog.png"),
     ("warden_a_bedfoot", "sprite", 56, "npc/warden_a_bedfoot.png"),
     ("warden_b_bedfoot", "sprite", 56, "npc/warden_b_bedfoot.png"),
     ("warden_c_bedfoot", "sprite", 56, "npc/warden_c_bedfoot.png"),
