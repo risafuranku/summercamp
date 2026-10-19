@@ -351,6 +351,11 @@ ROWS = [
     ("spr_midge", "sprite", 4, "world/midge.png"),
     ("spr_gossamer", "sprite", 14, "world/gossamer.png"),
     ("spr_thistle_down", "sprite", 8, "world/thistle_down.png"),
+    # Spider webs (scripts/ambient/spider_webs.gd): the garden spider, the silk with dew
+    # beads (the strands' texture), torn strands across your face.
+    ("spr_spider", "sprite", 14, "world/spider.png"),
+    ("tex_silk_strand", "texture", 64, "world/silk_strand.png"),
+    ("face_web_tangle", "panel", 320, "ui/web_face.png"),
     ("warden_a_bedfoot", "sprite", 56, "npc/warden_a_bedfoot.png"),
     ("warden_b_bedfoot", "sprite", 56, "npc/warden_b_bedfoot.png"),
     ("warden_c_bedfoot", "sprite", 56, "npc/warden_c_bedfoot.png"),
@@ -361,7 +366,7 @@ TEXTURY = os.path.join(HERE, "..", "..", "godot", "assets", "textury")
 UNSNAPPED_TEXTURES = {"tex_card_paper"}
 ## Thin bright things on black (water on glass): fattened before they are shrunk, or the
 ## shrinking averages them away.
-DILATED_TEXTURES = {"tex_glass_drops", "tex_glass_runs"}
+DILATED_TEXTURES = {"tex_glass_drops", "tex_glass_runs", "tex_silk_strand"}
 
 
 def rekeyed(art_id):

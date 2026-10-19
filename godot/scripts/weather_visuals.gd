@@ -415,6 +415,10 @@ func setup_weather_particles() -> void:
 	var air = load("res://scripts/ambient/air_life.gd").new()
 	air.player_getter = _player_getter
 	_world_3d.add_child(air)
+	# Spider webs you can walk through and tear (scripts/ambient/spider_webs.gd).
+	var webs = load("res://scripts/ambient/spider_webs.gd").new()
+	webs.player_getter = _player_getter
+	_world_3d.add_child(webs)
 	if _bolt.texture != null:
 		# Through the fog: the material is the sprite's own; fog off on it.
 		var bm := StandardMaterial3D.new()
