@@ -43,12 +43,11 @@ Podlesí po cestě. Poznámky z testů piš do sekce **Poznámky z testů**, úk
 ## Úkoly
 
 - [ ] **Zvuky Karosy a Podlesí ještě nejsou vygenerované**: v `tools/audiogen/.env` je
-      ID klíče, ne klíč (ElevenLabs: „API key ID used as API key“, pravý klíč začíná
-      `sk_`). Až tam bude pravý, stačí:
+      ID klíče, ne klíč (ElevenLabs: „API key ID used as API key“). Pravý klíč začíná
+      `sk_` a ElevenLabs ho ukáže jen jednou při vytvoření (Developers → API Keys →
+      Create API key). Až tam bude pravý, stačí:
       `python tools/audiogen/gen.py karosa_cruise karosa_climb karosa_rattle karosa_wind karosa_gear karosa_pothole karosa_indicator karosa_stop_bell karosa_gravel karosa_truck bus_radio_polka bus_cough bus_newspaper hamlet_day hamlet_night ruin_creak car_crank_fail car_click car_start car_idle hammer_hit fuel_pour siphon battery_clunk spark stocking garage_door pick_up`
       Kód je na ně připravený (do té doby hraje starý ride.mp3 a v Podlesí je ticho).
-- [ ] Stožáry Liblice B vidět i z autobusu (krajina za okny je samostatný svět,
-      `ride_scenery.gd`)
 - [ ] Co-op: Podlesí a oprava auta zatím jen pro jednoho; druhý správce tě tam uvidí,
       ale díly a stav auta se nesdílí a autobus v Podlesí na něj nečeká
 - [ ] Opravená Škoda zatím jen stojí a kouří; chtělo by to odměnu navíc (svézt se
@@ -61,8 +60,7 @@ Podlesí po cestě. Poznámky z testů piš do sekce **Poznámky z testů**, úk
       nahradit OFL fontem
 - [ ] Lípy na návsi a stromy v Podlesí jsou koule z břízy kempu, chtělo by to vlastní
       stromy
-- [ ] Stříška benzinky je holá bílá, motel má tmavé holé boční zdi
-- [ ] Pomník padlým: letopočty jsou ještě Label3D, ne nápis z `lettering.py`
+- [ ] Motel má tmavé holé boční zdi
 - [ ] Jméno města: zatím Lesna (případně přejmenovat i v jízdním řádu a hláškách)
 
 ## Hotovo
@@ -82,5 +80,7 @@ Podlesí po cestě. Poznámky z testů piš do sekce **Poznámky z testů**, úk
   prádlo se silonkami, špalek s kladivem, rybníček
 - Oprava Škody: benzín z Babetty, baterie z Trabantu, silonky místo klínového řemene,
   startér kladivem, klíček → Vondra dá $50
+- Stožáry Liblice B i z okna autobusu (před Lesnou rostou nad poli, cestou zpět za vámi)
+- Pomník padlým: PADLÝM a letopočty vytesané do kamene; stříška benzinky z betonu
 - Zvuky Karosy v kódu: motor, drnčení, průvan, řazení, výmoly, protijedoucí náklaďák,
   řidičovo rádio s dechovkou, kašel, noviny (čekají na vygenerování)

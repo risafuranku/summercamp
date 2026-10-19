@@ -33,6 +33,14 @@ const EDGE := 1.5
 const TEX_CAMP := "res://assets/textury/camp/"
 const TEX_TOWN := "res://assets/textury/town/"
 const ROAD_POST = preload("res://scripts/town/road_post.gd")
+const MASTS = preload("res://scripts/town/liblice_masts.gd")
+## The transmitter's masts beyond Lesna (liblice_masts.gd): ahead over the fields going
+## to town, behind going back. Kilometres off and the ride's camera sees 420 m, so they
+## are drawn nearer and smaller in the direction they really are (MAST_VIEW from the eye).
+const MAST_BEYOND := 1070.0
+const MAST_SIDE := [140.0, 350.0]
+const MAST_VIEW := 380.0
+const EYE := Vector3(0.0, 1.3, 0.0)
 const CORN_TEX := "res://assets/textury/world/corn.png"
 ## The route out from the camp, a kind per piece (reversed on the way back).
 const ROUTE := ["camp", "forest", "forest_cross", "lake", "lake", "forest", "ruin", "hamlet", "meadow", "pond", "corn", "stubble", "plough", "alley", "jzd", "alley", "edge", "village", "village", "town"]
@@ -54,6 +62,7 @@ var _figure_done := false
 var _church_done := false
 var _actors: Array = []          # {node, vel, kind}
 var _tex: Dictionary = {}
+var _masts
 
 
 ## `start_at`: metres along the route to begin at (boarding at the Podlesi request stop).
@@ -101,6 +110,7 @@ func stop_at(kind: String) -> float:
 
 func advance(dist: float, delta: float) -> void:
 	travelled += dist
+	_update_masts()
 	for p in _pieces:
 		(p["node"] as Node3D).position.z = travelled - float(p["at"])
 	while not _pieces.is_empty() and travelled - float(_pieces[0]["at"]) - PIECE > BEHIND:
@@ -110,6 +120,25 @@ func advance(dist: float, delta: float) -> void:
 	_fill()
 	_update_actors(delta)
 	_update_cars(dist, delta)
+
+
+## Where the masts really are from the bus now, and the same seen nearer.
+func _update_masts() -> void:
+	if _masts == null:
+		_masts = MASTS.new()
+		add_child(_masts)
+		_masts.build()
+	_masts.set_night(night)
+	_masts.set_haze_value(0.22 if night else 0.38, Color(0.05, 0.06, 0.09) if night else Color(0.74, 0.79, 0.84))
+	for i in 2:
+		var real: Vector3
+		if to_town:
+			real = Vector3(LANE - float(MAST_SIDE[i]), ROAD_Y, -(route_length() - travelled + MAST_BEYOND))
+		else:
+			real = Vector3(LANE + float(MAST_SIDE[i]), ROAD_Y, travelled + MAST_BEYOND)
+		var k := MAST_VIEW / (real - EYE).length()
+		# The node's own scale (SCALE) is for Lesna; here the whole size times k.
+		_masts.set_mast(i, EYE + (real - EYE) * k, k)
 
 
 func _kind_at(at: float) -> String:

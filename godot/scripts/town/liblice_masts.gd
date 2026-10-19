@@ -167,6 +167,26 @@ func set_night(night: bool) -> void:
 		(l as Node3D).visible = night
 
 
+## Put mast i somewhere else at another scale (the bus ride draws them near and small
+## in the direction they really are: ride_scenery.gd).
+func set_mast(i: int, pos: Vector3, s: float) -> void:
+	var r := get_child(i) as Node3D
+	if r != null:
+		r.position = pos
+		r.scale = Vector3.ONE * s
+
+
+## Haze by hand (the bus ride has no outdoor fog of the camp's to read).
+func set_haze_value(haze: float, col: Color) -> void:
+	for m in [_body, _wire]:
+		m.set_shader_parameter("haze", haze)
+		m.set_shader_parameter("haze_color", col)
+	var glow := 1.0 - haze * 0.75
+	_lamp.set_shader_parameter("glow", glow)
+	for t in _top_lamps:
+		((t as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("glow", glow)
+
+
 ## Haze by the outdoor fog (called now and then by town_trip.gd).
 func update_haze(env: Environment, from: Vector3) -> void:
 	if env == null:

@@ -55,6 +55,13 @@ SIGNS = {
     # STOJIME over the driver of the 380.
     "podlesi": dict(text="PODLESÍ", style="plate", cap=0.17, seed=12),
     "podlesi_stop": dict(text="PODLESÍ, rozc.", sub="na znamení", style="plate", cap=0.1, size=(1.1, 0.34), seed=13),
+    # The war memorial on Lesna's green: letters cut into the stone (dark, a lit edge).
+    "pomnik_padlym": dict(text="PADLÝM", font=(BAHN[0], b"SemiBold"), cap=0.11, style="painted",
+                          face=(48, 46, 42), shadow=(196, 192, 182), track=0.04, wear=0.0, seed=15),
+    "pomnik_1918": dict(text="1914 – 1918", font=(BAHN[0], b"SemiBold"), cap=0.08, style="painted",
+                        face=(48, 46, 42), shadow=(196, 192, 182), track=0.02, wear=0.0, seed=16),
+    "pomnik_1945": dict(text="1939 – 1945", font=(BAHN[0], b"SemiBold"), cap=0.08, style="painted",
+                        face=(48, 46, 42), shadow=(196, 192, 182), track=0.02, wear=0.0, seed=17),
     "stojime": dict(text="STOJÍME", font=(BAHN[0], b"Bold Condensed"), cap=0.3, style="neon",
                     face=(120, 30, 26), glow=(255, 60, 40), track=0.06, seed=14),
 }

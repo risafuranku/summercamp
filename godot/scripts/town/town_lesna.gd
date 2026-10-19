@@ -400,7 +400,8 @@ func _station(at: Vector3) -> void:
 	var steel := _mat("", Color(0.86, 0.86, 0.84))
 	for p in [Vector3(-6, 0, -3), Vector3(6, 0, -3), Vector3(-6, 0, 3), Vector3(6, 0, 3)]:
 		_box(root, p + Vector3(0, 2.4, 0), Vector3(0.3, 4.8, 0.3), steel, true)
-	_box(root, Vector3(0, 5.0, 0), Vector3(14.0, 0.5, 8.0), _mat("", Color(0.9, 0.9, 0.88)))
+	# The canopy: weathered concrete panels underneath, streaked white sheet at the edge.
+	_box(root, Vector3(0, 5.0, 0), Vector3(14.0, 0.5, 8.0), _tiled(_mat(TEX_CAMP + "concrete.png", Color(0.95, 0.95, 0.93), Vector2(3.0, 2.0)), Vector3(14.0, 0.5, 8.0)))
 	_box(root, Vector3(0, 4.9, -4.02), Vector3(14.0, 0.5, 0.06), _mat("", Color(0.82, 0.1, 0.08)))
 	# BENZINA in white metal letters along the red fascia.
 	_letters(root, "benzina", Vector3(0, 4.9, -4.05), Vector3(0, 0, -1))
@@ -531,7 +532,9 @@ func _green() -> void:
 	_box(self, mem + Vector3(0, 1.3, 0), Vector3(1.0, 2.0, 0.5), _mat(TEX_CAMP + "plaster_stone.png", Color(0.7, 0.7, 0.68)), true)
 	_box(self, mem + Vector3(0, 2.6, 0), Vector3(0.12, 0.7, 0.12), stone)
 	_box(self, mem + Vector3(0, 2.75, 0), Vector3(0.5, 0.12, 0.12), stone)
-	_sign(self, mem + Vector3(0, 1.4, -0.25), Vector3(0, 0, -1), "1914 - 1918\n1939 - 1945", 22, Color(0.2, 0.18, 0.16))
+	# Cut into the stone: PADLYM and the two wars' years.
+	for row in [["pomnik_padlym", 1.95], ["pomnik_1918", 1.55], ["pomnik_1945", 1.3]]:
+		_letters(self, str(row[0]), mem + Vector3(0, float(row[1]), -0.25), Vector3(0, 0, -1))
 	spots["memorial"] = w(mem)
 	# Benches round the pond, looking at it.
 	_bench(Vector3(8.0, 0, 14.6), 0.0)
