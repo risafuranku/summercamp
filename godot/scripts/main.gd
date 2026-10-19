@@ -190,6 +190,11 @@ var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
 var _pending_bazaar: Dictionary = {}
+## The camp on Goggle (scripts/reviews/goggle.gd): the reviews in public, the rating, the
+## blueprints it opens in Builder 98.
+var _goggle = preload("res://scripts/reviews/goggle.gd").new()
+var _pending_goggle: Dictionary = {}
+var _goggle_fresh := true
 var _director_was_inside := false
 var _night_jobs: Node
 var _paper_map: Node
@@ -490,6 +495,7 @@ func _setup_night_jobs() -> void:
 	if not _pending_bazaar.is_empty():
 		_bazaar.import_state(_pending_bazaar)
 		_pending_bazaar.clear()
+	_setup_goggle()
 	if not EventBus.guest_state_changed.is_connected(_on_guest_state_for_bazaar):
 		EventBus.guest_state_changed.connect(_on_guest_state_for_bazaar)
 	if _lake_trip == null or not is_instance_valid(_lake_trip):
@@ -2590,6 +2596,7 @@ func _on_day_phase_started() -> void:
 		_director_fx.clear()
 	# The bazaar's buyers called in the night: what sold is paid at dawn.
 	_settle_bazaar()
+	_settle_goggle()
 	if _night_jobs != null:
 		if _week_ledger != null:
 			_week_ledger.note_jobs_left(_night_jobs.open_jobs().size())
@@ -3127,6 +3134,107 @@ func _settle_bazaar() -> void:
 			_hud_manager.push_status("The red shoe is in the lost and found again.", 2)
 		for it in r["found"]:
 			_hud_manager.push_status("In the lost and found this morning: %s. Nobody left it." % str(it["name"]), 2)
+
+
+# ── Goggle (scripts/reviews/goggle.gd, the PC's Reviews tab) ──────────────────
+
+## At the start of play: a new camp's page (last summer's reviews), a loaded one's, or a
+## save from before Goggle (its guests' reviews put up again).
+func _setup_goggle() -> void:
+	if not _pending_goggle.is_empty():
+		_goggle.import_state(_pending_goggle)
+		_pending_goggle.clear()
+	elif _goggle_fresh:
+		_goggle.reset(world_generator.world_seed if world_generator != null else 0)
+		var state = CoreRoot.get_state()
+		if state != null:
+			for r in state.guest_reviews:
+				if r is Dictionary:
+					_goggle.add_guest_review(r, _day_index)
+		_goggle.check_tier(_day_index)
+	_goggle_fresh = false
+	if not EventBus.guest_review_posted.is_connected(_on_review_for_goggle):
+		EventBus.guest_review_posted.connect(_on_review_for_goggle)
+
+
+func _on_review_for_goggle(review: Dictionary) -> void:
+	if not _gameplay_started or not Coop.sim_here() or not (review is Dictionary):
+		return
+	_goggle.add_guest_review(review, _day_index)
+	_announce_goggle_tier(_goggle.check_tier(_day_index))
+
+
+func _announce_goggle_tier(opened: int) -> void:
+	if opened < 1 or _hud_manager == null:
+		return
+	_hud_manager.push_status("Goggle: the camp is rated %.1f. Builder 98 has new blueprints." % _goggle.rating(_day_index), 1)
+
+
+## The morning: SpotlessName's removals done (or caught), the apologies answered.
+func _settle_goggle() -> void:
+	var r: Dictionary = _goggle.settle(_day_index)
+	if _hud_manager != null:
+		for e in r["removed"]:
+			_hud_manager.push_status("SpotlessName Ltd: %s's review is gone." % str(e["name"]), 1)
+		for e in r["caught"]:
+			_hud_manager.push_status("Goggle caught the removal of %s's review. It stays, and so does the fee." % str(e["name"]), 2)
+		for e in r["edited"]:
+			_hud_manager.push_status("Goggle: %s added a star to their review." % str(e["name"]), 1)
+	_announce_goggle_tier(int(r["tier"]))
+
+
+## Reviews tab: have a review taken down by the morning. {ok, cost, reason}.
+func goggle_remove(id: int) -> Dictionary:
+	var cost: int = _goggle.removal_cost()
+	if CoreRoot.get_money() < cost:
+		return {"ok": false, "reason": "money", "cost": cost}
+	if Coop.is_client():
+		# The host's page; the fee goes with the till.
+		CoreRoot.actions.spend_money(cost)
+		var e: Dictionary = _goggle.by_id(id)
+		if not e.is_empty():
+			e["removing"] = _day_index
+		Coop.send_request("goggle_remove", [id])
+		return {"ok": true, "cost": cost}
+	if not _goggle.request_removal(id, _day_index):
+		return {"ok": false, "reason": "no", "cost": cost}
+	CoreRoot.actions.spend_money(cost)
+	return {"ok": true, "cost": cost}
+
+
+## Reviews tab: answer a review as the owner ("sorry" / "weather"). The guest book's mail
+## of the same review is answered with it (its effect on the bookings).
+func goggle_reply(id: int, kind: String) -> void:
+	var e: Dictionary = _goggle.by_id(id)
+	if e.is_empty():
+		return
+	if Coop.is_client():
+		e["reply"] = kind
+		e["reply_day"] = _day_index
+		Coop.send_request("goggle_reply", [id, kind])
+		return
+	if not _goggle.reply(id, kind, _day_index):
+		return
+	if EmailManager != null and EmailManager.has_method("reply_to_review") and int(e["guest_id"]) >= 0:
+		for m in EmailManager.inbox:
+			if m is Dictionary and str(m.get("type", "")) == "review" and int((m.get("review", {}) as Dictionary).get("guest_id", -2)) == int(e["guest_id"]):
+				EmailManager.reply_to_review(m, "sorry" if kind == "sorry" else "defend")
+				break
+
+
+## The guest book mail answered in CampMail: the same review on Goggle has the answer.
+func goggle_mail_replied(guest_id: int, reply_id: String) -> void:
+	if guest_id < 0:
+		return
+	for e in _goggle.reviews:
+		if int(e["guest_id"]) == guest_id and str(e["reply"]) == "":
+			_goggle.reply(int(e["id"]), {"sorry": "sorry", "thank": "thanks"}.get(reply_id, "weather"), _day_index)
+			return
+
+
+## Builder 98: may this be built (or this upgrade bought) at the camp's rating?
+func goggle_unlocked(item: String) -> bool:
+	return _goggle.unlocked(item)
 
 
 ## The bazaar page's "put it up" link (browser).
@@ -4494,7 +4602,7 @@ func coop_camp_pulse() -> Dictionary:
 	# The back office (CampStat, the bazaar): the reviews, the takings, the bills, the
 	# lost and found.
 	var books := {"rev": state.guest_reviews, "tx": state.guest_transactions, "sat": float(state.satisfaction), "karma": float(state.karma),
-		"hrot": float(state.hrotfaktor), "elec": _billing.export_state(), "baz": _bazaar.export_state()}
+		"hrot": float(state.hrotfaktor), "elec": _billing.export_state(), "baz": _bazaar.export_state(), "gog": _goggle.export_state()}
 	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books}
 
 
@@ -4587,6 +4695,8 @@ func coop_apply_pulse(p: Dictionary) -> void:
 			_billing.import_state(books["elec"], _day_index, false)
 		if books.get("baz", null) is Dictionary:
 			_bazaar.import_state(books["baz"])
+		if books.get("gog", null) is Dictionary:
+			_goggle.import_state(books["gog"])
 
 
 ## The other warden's machine: a party reached the barrier, was let in or gave up in the
@@ -4901,6 +5011,11 @@ func coop_request(kind: String, data: Array) -> void:
 			request_maintenance_crew_at(data[0])
 		"bazaar_list":
 			bazaar_list(int(data[0]))
+		"goggle_remove":
+			# Paid on their machine (the till brings it).
+			_goggle.request_removal(int(data[0]), _day_index)
+		"goggle_reply":
+			goggle_reply(int(data[0]), str(data[1]))
 
 
 ## The other warden's machine builds nothing of its own accord: what its Builder asks
@@ -5413,6 +5528,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"omens": _omens.export_state() if _omens != null else {},
 		"director": _director.export_state() if _director != null else {},
 		"bazaar": _bazaar.export_state(),
+		"goggle": _goggle.export_state(),
 		"ruined_cabin": _ruined_cabin_key,
 		"camp_office": camp_office.export_state() if camp_office != null else {},
 		"town_trip": _interior_manager.town_trip().export_state() if _interior_manager != null and _interior_manager.has_method("town_trip") and _interior_manager.town_trip() != null else {},
@@ -5707,6 +5823,11 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			_pending_director.clear()
 		_ruined_cabin_key = str(snapshot.get("ruined_cabin", ""))
 		call_deferred("_dress_ruined_cabin")
+		var gog_any = snapshot.get("goggle", {})
+		_pending_goggle = (gog_any as Dictionary).duplicate(true) if gog_any is Dictionary else {}
+		_goggle_fresh = true
+		if _gameplay_started:
+			_setup_goggle()
 		var baz_any = snapshot.get("bazaar", {})
 		_bazaar.reset()
 		_pending_bazaar = (baz_any as Dictionary).duplicate(true) if baz_any is Dictionary else {}
@@ -5955,6 +6076,8 @@ func _reset_state_for_new_game() -> void:
 		_director.last_log.clear()
 	_pending_bazaar.clear()
 	_bazaar.reset()
+	_pending_goggle.clear()
+	_goggle_fresh = true
 	if _director_fx != null:
 		_director_fx.clear()
 	CoreRoot.apply_changes({

@@ -1233,6 +1233,12 @@ func _on_cabin_upgrade_requested() -> void:
 
 
 func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String, enabled: bool) -> void:
+	# Not until the camp is rated well enough on Goggle.
+	var need := _upgrade_locked(str(_pending_upgrade_context.get("new_type", "")))
+	if need > 0.0:
+		_pending_upgrade_context.clear()
+		cost_text = "GOGGLE %.1f" % need
+		enabled = false
 	if _building_upgrade_menu == null:
 		return
 	var room: Node = null
@@ -1299,13 +1305,29 @@ func map_upgrade_offer(origin: Vector2i, current_type: String) -> Dictionary:
 	var floor_cost := int(UPGRADE_FLOOR.get(cur.get_slice("_", 0), 20))
 	var cost: int = max(floor_cost, _economy_manager.get_cost(next) - _economy_manager.get_cost(cur))
 	return {"mode": "replace", "origin": origin, "old_type": cur, "new_type": next, "cost": cost,
-		"label": str(_economy_manager.get_label(next))}
+		"label": str(_economy_manager.get_label(next)), "locked": _upgrade_locked(next)}
+
+
+## An upgrade to `new_type` waits for the camp's Goggle rating (scripts/reviews/goggle.gd):
+## the stars it needs, or 0.0 when it is open.
+func _upgrade_locked(new_type: String) -> float:
+	var main := get_tree().current_scene if get_tree() != null else null
+	var g = main.get("_goggle") if main != null else null
+	if g == null:
+		return 0.0
+	var lvl := new_type.get_slice("_", 1)
+	if lvl != "2" and lvl != "3":
+		return 0.0
+	var item := "upgrade:" + lvl
+	if g.unlocked(item):
+		return 0.0
+	return float(g.TIERS[g.tier_of(item)]["stars"])
 
 
 ## Builder's map: buy the upgrade there and then. False if it could not be paid or done.
 func map_upgrade(origin: Vector2i, current_type: String) -> bool:
 	var offer := map_upgrade_offer(origin, current_type)
-	if offer.is_empty() or bool(offer.get("max", false)):
+	if offer.is_empty() or bool(offer.get("max", false)) or float(offer.get("locked", 0.0)) > 0.0:
 		return false
 	if Coop.is_client():
 		Coop.send_request("upgrade", [offer.duplicate()])

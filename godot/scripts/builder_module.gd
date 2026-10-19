@@ -503,7 +503,21 @@ func _click() -> void:
 	_sfx.play()
 
 
+## The camp's Goggle rating has not opened this blueprint yet: the stars and reviews it
+## needs ({} when it is open).
+func _locked(type: String) -> Dictionary:
+	var main := get_tree().current_scene if get_tree() != null else null
+	var g = main.get("_goggle") if main != null else null
+	if g == null or type == "" or g.unlocked(type):
+		return {}
+	return g.TIERS[g.tier_of(type)]
+
+
 func _select(tool: String) -> void:
+	var lock := _locked(tool)
+	if not lock.is_empty():
+		message_requested.emit("Builder 98", "This blueprint is for Stavitel partner camps.\n\nRated %.1f on Goggle, with %d reviews or more." % [float(lock["stars"]), int(lock["reviews"])], "info")
+		return
 	_click()
 	_selected = tool
 	if tool != "" and not _insp.is_empty():
@@ -665,7 +679,11 @@ func _refresh_inspector() -> void:
 	var up: Dictionary = im.map_upgrade_offer(o, t) if im != null and lodging and im.has_method("map_upgrade_offer") else {}
 	var ub: Button = _insp_btns["upgrade"]
 	ub.visible = lodging
-	if not up.is_empty() and not bool(up.get("max", false)):
+	if not up.is_empty() and float(up.get("locked", 0.0)) > 0.0:
+		ub.text = "Upgrade at %.1f" % float(up["locked"])
+		ub.disabled = true
+		ub.tooltip_text = "Opens when the camp is rated %.1f on Goggle" % float(up["locked"])
+	elif not up.is_empty() and not bool(up.get("max", false)):
 		ub.text = "Upgrade  $%d" % int(up["cost"])
 		ub.disabled = CoreRoot.get_money() < int(up["cost"])
 		ub.tooltip_text = "To %s" % str(up.get("label", ""))
@@ -812,6 +830,10 @@ func _draw_inspector() -> void:
 		y += 14.0
 
 
+const PADLOCK_TEX := "res://assets/textury/os98/icons/padlock_16.png"
+var _padlock: Texture2D = load(PADLOCK_TEX) if ResourceLoader.exists(PADLOCK_TEX) else null
+
+
 func _make_card(type: String, w: int = CARD_W) -> Control:
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(w, 58)
@@ -852,6 +874,16 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 			var d := (isz * k).floor()
 			c.draw_texture_rect(icon, Rect2(Vector2(5, 6 + (46.0 - box_side) * 0.5) + o + ((box - d) * 0.5).floor(), d), false)
 		var afford := CoreRoot.get_money() >= _cost(type)
+		var lock := _locked(type)
+		if not lock.is_empty():
+			# Greyed, a padlock on the picture, the rating it waits for.
+			c.draw_rect(Rect2(Vector2(3, 3), c.size - Vector2(6, 6)), Color(0.75, 0.75, 0.75, 0.55))
+			if _padlock != null:
+				c.draw_texture_rect(_padlock, Rect2(Vector2(4, c.size.y - 20), Vector2(16, 16)), false)
+			c.draw_string(T.FONT_BOLD, Vector2(text_x, 17), label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
+			c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), "Goggle %.1f" % float(lock["stars"]), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
+			c.draw_string(T.FONT, Vector2(text_x, 47), "%d reviews" % int(lock["reviews"]), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
+			return
 		c.draw_string(T.FONT_BOLD, Vector2(text_x, 17) + o, label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT)
 		c.draw_string(T.FONT, Vector2(text_x, 32) + o, "$%d" % _cost(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
 		c.draw_string(T.FONT, Vector2(text_x, 47) + o, _stat_line(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(70, 70, 90))

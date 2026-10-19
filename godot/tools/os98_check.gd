@@ -124,7 +124,7 @@ func _run() -> void:
 
 	# The tabs: every one opens by its key; a program keeps running behind another.
 	for i in _shell.TABS.size():
-		_key(KEY_1 + i)
+		_key(KEY_1 + i if i < 9 else KEY_0)
 		await _frames(3)
 		_expect(_shell.current_tab() == str(_shell.TABS[i][0]), "key %d did not show %s (shows %s)" % [i + 1, _shell.TABS[i][0], _shell.current_tab()])
 		await _shot("tab_%d_%s" % [i + 1, _shell.TABS[i][0]])

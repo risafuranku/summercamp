@@ -48,6 +48,7 @@ const TABS := [
 	["camp_status", "CampStat", "campstat", true],
 	["guestrack", "GuestRack", "guestrack", true],
 	["mail", "Mail", "mail", true],
+	["reviews", "Reviews", "goggle", true],
 	["browser", "Web", "browser", false],
 	["shops", "Shops", "shop_app", false],
 	["jobs", "Jobs", "money", false],
@@ -56,11 +57,11 @@ const TABS := [
 ]
 const TAB_SCRIPTS := {
 	"builder": "builder_app", "camp_status": "campstat_app", "guestrack": "guestrack_app", "mail": "mail_app",
-	"browser": "browser_app", "shops": "shops_app", "jobs": "jobs_app", "games": "games_app", "files": "files_app",
+	"reviews": "goggle_app", "browser": "browser_app", "shops": "shops_app", "jobs": "jobs_app", "games": "games_app", "files": "files_app",
 }
 const TAB_TITLES := {
 	"builder": "Builder 98", "camp_status": "CampStat 98", "guestrack": "GuestRack 98", "mail": "CampMail",
-	"browser": "Beeternet Explorer", "shops": "SoftSklad programs", "jobs": "Jobs from home", "games": "Games", "files": "Files",
+	"reviews": "Goggle Reviews - Beeternet Explorer", "browser": "Beeternet Explorer", "shops": "SoftSklad programs", "jobs": "Jobs from home", "games": "Games", "files": "Files",
 }
 
 ## Everything that can be installed: its title, icon, the file it comes as, its size, the
@@ -131,6 +132,8 @@ const APP_ALIASES := {
 enum Boot { OFF, WARMUP, BIOS, SPLASH, OKNA, DESKTOP, SHUTTING, SAFE_OFF }
 
 var _state := Boot.OFF
+## The newest Goggle review the Reviews tab has shown (its badge counts the ones after).
+var _reviews_seen := -1
 var _open := false
 var _is_day := true
 var _unlocked: Dictionary = {}
@@ -1461,9 +1464,9 @@ func _clock_text() -> String:
 # ── the taskbar: Start, the tabs, the tray ───────────────────────────────────
 
 const START_W := 76
-const WIDE_W := 46
-const NARROW_W := 46
-const TAB_GAP := 3
+const WIDE_W := 42
+const NARROW_W := 42
+const TAB_GAP := 2
 const TAB_X := 84
 const TRAY_W := 112
 const TAB_H := 40
@@ -1572,7 +1575,7 @@ func _tab_tip(id: String) -> String:
 	var page: Control = _pages.get(id)
 	if page != null and is_instance_valid(page) and str(page.title) != "" and str(page.title) != name:
 		name = str(page.title)
-	return "%s   (key %d)" % [name, i + 1]
+	return "%s   (key %d)" % [name, (i + 1) % 10]
 
 
 func _tab_available(id: String) -> bool:
@@ -1598,7 +1601,7 @@ func _draw_tab(c: Control, i: int, tex: Texture2D) -> void:
 	var ix := floorf((r.size.x - 32) * 0.5)
 	c.draw_texture_rect(tex, Rect2(Vector2(ix, 4) + o, Vector2(32, 32)), false, Color.WHITE if avail else Color(1, 1, 1, 0.4))
 	# The key, in the icon's corner.
-	_pixel_text(c, str(i + 1), Vector2(3, r.size.y - 8) + o, T.WHITE, T.NAVY if avail else T.SHADOW)
+	_pixel_text(c, str((i + 1) % 10), Vector2(3, r.size.y - 8) + o, T.WHITE, T.NAVY if avail else T.SHADOW)
 	if id == "builder" and not _is_day and _is_program_unlocked("builder"):
 		# The moon: closed for the night.
 		var m := Vector2(r.size.x - 9, 7) + o
@@ -1668,6 +1671,24 @@ func _refresh_badges() -> void:
 	for id in INSTALL_TABS:
 		if not _is_program_unlocked(id) and not b.has(id):
 			b[id] = ["+", Color8(0, 120, 0)]
+	# Goggle: reviews posted since the Reviews tab was last looked at.
+	var g = m.get("_goggle") if m != null else null
+	if g != null:
+		var newest := 0
+		for e in g.reviews:
+			newest = maxi(newest, int(e["id"]))
+		if _tab == "reviews":
+			_reviews_seen = newest
+		elif _reviews_seen >= 0 and newest > _reviews_seen:
+			var fresh := 0
+			var low := false
+			for e in g.reviews:
+				if int(e["id"]) > _reviews_seen:
+					fresh += 1
+					low = low or int(e["stars"]) <= 2
+			b["reviews"] = [str(mini(fresh, 99)), Color8(200, 0, 0) if low else Color8(0, 120, 0)]
+		elif _reviews_seen < 0:
+			_reviews_seen = newest
 	var a = app_of("jobs")
 	if a != null and a.has_method("badge"):
 		var jb: Array = a.badge()
@@ -1982,6 +2003,8 @@ func _input(event: InputEvent) -> void:
 		var n := -1
 		if k >= KEY_1 and k <= KEY_9:
 			n = k - KEY_1
+		elif k == KEY_0 or event.keycode == KEY_KP_0:
+			n = 9
 		elif event.keycode >= KEY_KP_1 and event.keycode <= KEY_KP_9:
 			n = event.keycode - KEY_KP_1
 		if n >= 0 and n < TABS.size():

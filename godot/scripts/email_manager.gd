@@ -670,11 +670,21 @@ func _roll_customer_mail_count(bed_metrics: Dictionary, day: int, hour: int, int
 	if waiting >= clampi(1 + day, 2, 6):
 		return 0
 	var free_ratio := float(bed_metrics.get("free", 0)) / float(capacity)
-	var chance := clampf(0.14 + 0.07 * float(day - 1) + 0.18 * free_ratio + 0.4 * reputation, 0.06, 0.72)
+	var chance := clampf(0.14 + 0.07 * float(day - 1) + 0.18 * free_ratio + 0.4 * reputation + _goggle_pull(day), 0.06, 0.72)
 	var count := 1 if _rng.randf() < chance else 0
 	if count > 0 and day >= 3 and _rng.randf() < 0.25 * intensity:
 		count += 1
 	return count
+
+
+## The camp's stars on Goggle (scripts/reviews/goggle.gd): people look before they book.
+## Three stars nothing either way, each star above or below +-0.07.
+func _goggle_pull(day: int) -> float:
+	var main := get_tree().current_scene if get_tree() != null else null
+	var g = main.get("_goggle") if main != null else null
+	if g == null or int(g.count()) == 0:
+		return 0.0
+	return clampf((float(g.rating(day)) - 3.0) * 0.07, -0.14, 0.14)
 
 
 func _roll_spam(day: int, hour: int) -> bool:
@@ -1170,6 +1180,10 @@ func reply_to_review(mail: Dictionary, reply_id: String) -> float:
 			reputation = clampf(reputation + change, -0.25, 0.25)
 			mail["_actioned"] = true
 			mail["reply"] = reply_id
+			# The same review on Goggle has the answer too.
+			var main := get_tree().current_scene if get_tree() != null else null
+			if main != null and main.has_method("goggle_mail_replied"):
+				main.goggle_mail_replied(int(r.get("guest_id", -1)), reply_id)
 			send_mail("guestbook@cerne-jezero.cz", "Re: " + str(mail.get("subject", "")), str(opt["text"]), int(mail.get("day", 1)), _clock_now())
 			return change
 	return 0.0

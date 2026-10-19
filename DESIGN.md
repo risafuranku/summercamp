@@ -422,6 +422,32 @@ or sparks flying. The mess itself jitters under the brush. All of it moves in st
 8-12 frames a second, never smooth: the guests' walk, the bonfire's flames and sparks,
 the desk fan, the wicket gate, the ripples where a fish jumps. That stutter is the look.
 
+## 5i. The camp on Goggle
+
+The PC's tenth tab, Reviews (key 0), is the camp's page on Goggle, a 1998 search
+engine's places page (`scripts/reviews/goggle.gd` the logic, `os98/apps/goggle_app.gd`
+the page). Every guest's review goes up in public; the stars are the plain average of
+what is up, to one decimal. The page was there before you: seven reviews from last
+summer, mostly bad, and one nobody should have written ("Do not let the boy in the red
+shoes in. He knocks.", answered by someone who is not you).
+
+- The rating is the progression. Builder 98's blueprints open tier by tier (a rating and
+  enough reviews to count): tents, cabins, the basics from the start; caravans, the
+  restaurant, the pitch, the gnome and the corn stand at 3.0; the playground, ping-pong,
+  the flagpole and level-2 rooms at 3.5; the slide at 4.0; level-3 rooms at 4.3. A tier
+  once reached stays open. Locked cards are grey with a padlock and the stars they wait
+  for ("for Stavitel partner camps"); the room upgrades say GOGGLE 4.3.
+- People look before they book: each star above or below three moves the booking
+  chance by 0.07.
+- SpotlessName Ltd take a review down by the next morning, for $45 and $30 more for each
+  one after. Now and then Goggle notices (10 %, 5 % more per removal): the review stays,
+  the money is gone, and the page carries "Unusual review activity" and loses 0.3 stars
+  for three days.
+- The owner can answer: an apology to a one- or two-star review has a 40 % chance of an
+  edit by the morning (a star more), blaming the weather never does. Answering the same
+  review in CampMail's guest book answers it on Goggle too.
+- The tab's badge counts new reviews, red when one of them is bad.
+
 ## 6. Upkeep
 
 Every building has a condition (0-100%) that drops daily by its `maintenance_decay`.

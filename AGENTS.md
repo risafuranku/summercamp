@@ -98,6 +98,7 @@ godot --headless --path godot --script res://tools/checkin_check.gd
 godot --headless --path godot --script res://tools/season_check.gd
 godot --headless --path godot --script res://tools/director_check.gd
 godot --headless --path godot --script res://tools/bazaar_check.gd
+godot --headless --path godot --script res://tools/goggle_check.gd
 python godot/tools/coop_check.py [OUT_DIR]   # co-op: two windowed copies (host + client on 127.0.0.1), camps compared; looks, a build, a room's jobs both ways, the boat
 ```
 

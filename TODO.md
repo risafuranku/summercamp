@@ -4,6 +4,55 @@
 
 ---
 
+## BUILDER 98, A GAME IN THE GAME — 2026-10-19 (agreed with the user; handoff)
+
+The user: the Builder should feel like a 90s tycoon of its own, and fun. Everything below
+was agreed, except a star rating inside the Builder: the rating became Goggle (the PC's
+Reviews tab, DESIGN §5i), "a parody of Google reviews; not everything unlocked from the
+start, collect good ratings; pay to delete bad reviews".
+
+- [x] Goggle Reviews: the tenth tab (key 0), the page, blueprint tiers and room upgrades
+  locked by rating, the booking pull, SpotlessName Ltd removals (caught = flagged), the
+  owner's replies tied to CampMail's guest book, saved, co-op through the host
+  (`scripts/reviews/goggle.gd`, `os98/apps/goggle_app.gd`, `tools/goggle_check.gd`)
+- [ ] Goggle art still coming from Grok (rows in `tools/artgen/prompts.tsv`): `ico2_padlock`
+  and `web_spotless_banner`; then `python tools/artgen/web_review_art.py` and `--import`
+  (the page and the cards draw without them: no padlock, a plain banner box). Look at
+  the Builder catalogue with locked cards in a screenshot (dismiss the shareware nag
+  first, once there is one)
+- [ ] Building site instead of the drop-in: a scaffold with a worker hammering for a few
+  seconds (`iso_scaffold`, `iso_worker_a/b`; `assets/sfx/builder/hammer.mp3`,
+  `site_done.mp3`), then the building; in `crt_map_panel._on_build_confirmed` /
+  `_dropped` / `_draw_structure`. Rubble on demolition (`iso_rubble`, `rubble.mp3`) in
+  `_on_demolish_confirmed`
+- [ ] Money you can see: coins flying from a paying building to the cash counter
+  (`spr_coin` -> `builder/coin.png`, `coins.mp3`), the toolbar's cash (`builder_module._money`)
+  rolling like an odometer
+- [ ] Tool cursors (bulldozer, path, lamp, a blueprint) and drag-building rows of benches,
+  lamps and flower beds
+- [ ] The map follows the weather and the hour: rain streaks, fog, dusk tint (the night is
+  `_draw_night`)
+- [ ] Guests' thought bubbles over their heads (`think_*` -> `builder/think_*.png`) and a
+  guest card on click with their thoughts, some of them wrong ("The lake looked at me.")
+- [ ] The map lies, rarely: a tent nobody built for one frame, a tile that says "Something
+  is buried here"
+- [ ] A Graphs window (Transport Tycoon's): money, guests, satisfaction over 14 days (look
+  for a day-by-day history first, e.g. the week ledger)
+- [ ] Builder music: a General MIDI-style loop (ElevenLabs), detuned a little at night
+- [ ] Hlubočanský zpravodaj (the district paper) now and then, and award diplomas for the
+  camp
+- [ ] Cheats typed on the map (BOHEMIA: money, and the next day a letter from the district
+  asking about it)
+- [ ] Shareware: a nag after ~10 builds, a registration-locked Mega gnome, Help > About
+  with credits and a Snake easter egg
+- Planned: the living map's bits in `scripts/builder/map_life.gd`, small hooks in
+  `crt_map_panel.gd`
+- Open: the smoke test prints `Parameter "material" is null` (8x) since this evening;
+  not traced yet (maybe the other session's bistro work, maybe not); find who sets a
+  null material before shipping
+- Open question to the user: replace the other code-made sounds too (`tools/gen_phone_sfx.py`,
+  `tools/gen_splash_sfx.py`)?
+
 ## CO-OP — two wardens, step by step (DESIGN.md §12; each stage gone through with the user)
 
 - [x] 1  Connect and see each other: CO-OP in the menu (host a sandbox camp / join by address), the whole camp sent on joining (same seed, same trees), the host's clock, weather, power and till; the other warden as a figure with torch and steps; no pause in co-op; only the host saves (`tools/coop_check.py`)
