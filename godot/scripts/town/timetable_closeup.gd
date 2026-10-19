@@ -93,6 +93,16 @@ func _rule(c: Control, y: float) -> void:
 
 ## The table: a label then three times; "" rows draw a rule; a "*" label is this stop's.
 func _rows() -> Array:
+	if stop == "hamlet":
+		var to_town: Array = TIMES.hamlet_to_town()
+		var to_camp: Array = TIMES.hamlet_to_camp()
+		return [
+			["*to Lesna, Hlubocany", TIMES.hm(to_town[0]), TIMES.hm(to_town[1]), TIMES.hm(to_town[2])],
+			["  Lesna, Jednota", TIMES.hm(TIMES.TOWN_THROUGH[0]), TIMES.hm(TIMES.TOWN_THROUGH[1]), TIMES.hm(TIMES.TOWN_THROUGH[2])],
+			[],
+			["*to Cerne jezero, kemp", TIMES.hm(to_camp[0]), TIMES.hm(to_camp[1]), TIMES.hm(to_camp[2])],
+			["  Cerne jezero, kemp", TIMES.hm(TIMES.CAMP_ARRIVE[0]), TIMES.hm(TIMES.CAMP_ARRIVE[1]), TIMES.hm(TIMES.CAMP_ARRIVE[2])],
+		]
 	if stop == "town":
 		return [
 			["*to Cerne jezero, kemp", TIMES.hm(TIMES.TOWN_LEAVE[0]), TIMES.hm(TIMES.TOWN_LEAVE[1]), TIMES.hm(TIMES.TOWN_LEAVE[2])],
@@ -111,6 +121,8 @@ func _rows() -> Array:
 
 
 func _notes() -> Array:
+	if stop == "hamlet":
+		return ["Stop: PODLESI, rozc.   ON REQUEST", "Stand by the pole so the driver sees you.", "  Nobody else does."]
 	if stop == "town":
 		return ["Stop: LESNA, JEDNOTA      daily", "+ %s works bus to the dam." % TIMES.hm(TIMES.WORKS_TOWN)]
 	return ["Stop: CERNE JEZERO, KEMP  daily", "+ the %s works bus does not stop" % TIMES.hm(TIMES.WORKS_TOWN), "  here. Please do not wave at it."]

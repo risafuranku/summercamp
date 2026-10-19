@@ -335,19 +335,19 @@ func _street() -> void:
 		_face("phone_booth", Vector2(0.95, 2.4), booth + Vector3(0, 1.2, 0) + off, yaw)
 	_solid(booth + Vector3(0, 1.2, 0), Vector3(0.95, 2.4, 0.95))
 	# The post box on the shop's wall, bins by the stops and the square.
-	_sprite("post_box", 0.55, Vector3(-12.2, 1.0, -9.97), false, 0.0)
-	for b in [Vector3(-4.8, 0, 4.6), Vector3(8.4, 0, -5.0), Vector3(21.5, 0, -8.6), Vector3(-10.0, 0, -26.0)]:
+	_sprite("post_box", 0.55, Vector3(-10.6, 1.0, -9.9), false, 0.0)
+	for b in [Vector3(-4.8, 0, 4.6), Vector3(8.4, 0, -5.0), Vector3(21.5, 0, -8.6), Vector3(16.0, 0, 11.5)]:
 		_sprite("street_bin", 0.95, b, true)
 	# The loudspeaker on its pole at the square's east end, and its voice.
-	var radio := Vector3(25.5, 0, -11.6)
+	var radio := Vector3(24.2, 0, -11.6)
 	_sprite("village_radio", 7.5, radio, true)
 	_radio = _audio3d(SFX + "village_radio.mp3", 2.0, radio + Vector3(0, 7.0, 0), false, 140.0)
 	_radio.unit_size = 22.0
-	# The notice board by the square, the shrine at the west end of the village.
-	_sprite("noticeboard", 1.8, Vector3(27.5, 0, -6.4), false, 0.0)
-	_solid(Vector3(27.5, 0.9, -6.4), Vector3(1.6, 1.8, 0.3))
-	_sprite("shrine", 3.0, Vector3(-66.0, 0, -6.6), true)
-	_solid(Vector3(-66.0, 1.2, -6.6), Vector3(0.7, 2.4, 0.7))
+	# The notice board on the green by the stop, the shrine at the west end of the village.
+	_sprite("noticeboard", 1.8, Vector3(-7.0, 0, 8.4), false, PI)
+	_solid(Vector3(-7.0, 0.9, 8.4), Vector3(1.6, 1.8, 0.3))
+	_sprite("shrine", 3.0, Vector3(-69.3, 0, -6.4), true)
+	_solid(Vector3(-69.3, 1.2, -6.4), Vector3(0.7, 2.4, 0.7))
 	# The pub's sign, out on its bracket over the door.
 	_sprite("pub_sign", 0.8, Vector3(19.6, 2.7, -9.7), false, PI * 0.5)
 	# A wood pile by the pub's side, crates of empties at its back door.
@@ -382,9 +382,9 @@ func _poles() -> void:
 				wire.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
-## Two old Skodas parked: by the pub and in front of a house.
+## Two old Skodas parked: half on the pavement by a farm gate, and in front of the motel.
 func _cars() -> void:
-	for c in [[Vector3(29.5, 0, -8.2), 0.0], [Vector3(-40.0, 0, 6.2), PI]]:
+	for c in [[Vector3(47.0, 0, -4.4), 0.0], [Vector3(-26.5, 0, 7.4), PI]]:
 		var root := Node3D.new()
 		root.position = c[0]
 		root.rotation.y = c[1]
@@ -459,12 +459,15 @@ func _pub_evening(h: float) -> void:
 	var lit := open and (h >= 18.0 or h < 7.0)
 	if _pub_glow == null:
 		_pub_dark = (face as MeshInstance3D).material_override
-		_pub_glow = (_pub_dark as StandardMaterial3D).duplicate() as StandardMaterial3D
-		_pub_glow.emission_enabled = true
-		_pub_glow.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-		_pub_glow.emission_texture = _pub_glow.albedo_texture
-		_pub_glow.emission = Color(1.0, 0.72, 0.4)
-		_pub_glow.emission_energy_multiplier = 0.55
+		# The front's own windows lit (town_lesna "pub_lit"), or the old picture warmed.
+		_pub_glow = town.spots.get("pub_lit", null)
+		if _pub_glow == null:
+			_pub_glow = (_pub_dark as StandardMaterial3D).duplicate() as StandardMaterial3D
+			_pub_glow.emission_enabled = true
+			_pub_glow.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+			_pub_glow.emission_texture = _pub_glow.albedo_texture
+			_pub_glow.emission = Color(1.0, 0.72, 0.4)
+			_pub_glow.emission_energy_multiplier = 0.55
 		_pub_murmur = _audio3d("res://assets/sfx/pub/pub_room.mp3", -10.0, Vector3(16.0, 1.6, -9.6), true, 26.0)
 	(face as MeshInstance3D).material_override = _pub_glow if lit else _pub_dark
 	if open and not _pub_murmur.playing and _pub_murmur.stream != null:
