@@ -55,6 +55,11 @@ const PAPER_TEXTURE := "res://assets/textury/pipes/paper_map.png"
 const DIRECTOR = preload("res://scripts/pipes/pipe_director.gd")
 const OMENS = preload("res://scripts/omens.gd")
 const CATCH = preload("res://scripts/pipes/pipe_catch.gd")
+const PIPE_VIBE = preload("res://scripts/pipes/pipe_vibe.gd")
+## The free hand crawling: reaching, and planted on the wet floor (the open right glove,
+## mirrored, until they are made).
+const HAND_REACH := "res://assets/textury/hands/crawl_reach.png"
+const HAND_PLANT := "res://assets/textury/hands/crawl_plant.png"
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
 const WATER_SHADER = preload("res://materials/pipe_water.gdshader")
 ## Two in the pipes (co-op): the other warden's body in them (scripts/pipes/pipe_mate.gd).
@@ -69,7 +74,8 @@ var _s_down_at := -1.0
 ## hole already clamped, nothing to mend, the raccoon as ever.
 var explore := false
 const HAND_TORCH := "res://assets/textury/hands/torch.png"
-const GUTS_SPLATS := ["res://assets/textury/pipes/guts_splat.png", "res://assets/textury/pipes/guts_splat2.png", "res://assets/textury/pipes/guts_splat3.png"]
+## On the view: its blood running down, and a lump of its guts (the original raccoon art).
+const GUTS_SPLATS := ["res://assets/textury/pipes/rac/rac_hblood.png", "res://assets/textury/pipes/rac/rac_hblood.png", "res://assets/textury/pipes/rac/rac_hpile.png"]
 const HANDPRINT := "res://assets/textury/mess/decal_handprint.png"
 const SCUM := "res://assets/textury/pipes/sludge.png"
 const SFX_DIR := "res://assets/sfx/pipes/"
@@ -135,6 +141,12 @@ var _stuck_need := 0
 var _gore := 0.0                   # how much of it is on your gloves
 var _splats: Array = []            # {node, t, life, v}
 var _catch                         # pipes/pipe_catch.gd: what it does to you
+var _vibe                          # pipes/pipe_vibe.gd: breath, drops, the surge, chalk, scares
+## The trickle along the pipes: its quads and materials (the surge raises and speeds them).
+var _water_meshes: Array = []
+var _water_mats: Array = []
+var _hand_reach: Texture2D
+var _hand_plant: Texture2D
 var _caught_fade := false
 var _plates: Dictionary = {}     # Vector2i -> true
 var _landmarks: Array = []       # {a, b, kind, on_map}
@@ -304,6 +316,7 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	for d in _drips:
 		(d as AudioStreamPlayer3D).play()
 	_intro_t = 0.0
+	_vibe.start(raccoon_level, _rng.randi())
 	_play_one("ladder.mp3", -4.0)
 	_update_rig(0.0)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -358,6 +371,8 @@ func close_repair(cancelled: bool = true) -> void:
 		(d as AudioStreamPlayer3D).stop()
 	if _work_hand != null:
 		_work_hand.stop()
+	if _vibe != null:
+		_vibe.stop()
 	if cancelled:
 		repair_cancelled.emit()
 
@@ -626,6 +641,9 @@ func _build_shell() -> void:
 	_pull_player.volume_db = -8.0
 	add_child(_pull_player)
 	_build_hud_nodes()
+	_vibe = PIPE_VIBE.new()
+	_vibe.host = self
+	add_child(_vibe)
 
 
 ## The echo bus, made the first time it is asked for: a big hard room, a slap-back and a
@@ -723,6 +741,7 @@ func _build_water() -> void:
 		srcs.append(l["a"])
 	var dist := _distances_from_many(srcs)
 	var mat_cache := {}
+	_water_meshes.clear()
 	var scum: Texture2D = load(SCUM) if ResourceLoader.exists(SCUM) else null
 	# The pipe's invert is 0.08 below the junction floor: the water lies a little above it.
 	var floor_y := EYE_Y - PIPE_R * 0.9 - 0.02
@@ -751,6 +770,7 @@ func _build_water() -> void:
 		q.size = Vector2(PIPE_R * 0.9, CELL)
 		mi.mesh = q
 		mi.material_override = mat_cache[key]
+		_water_meshes.append(mi)
 		var pa := _world_pos(src)
 		var pb := _world_pos(dst)
 		mi.position = (pa + pb) * 0.5
@@ -759,6 +779,7 @@ func _build_water() -> void:
 		var dir := (pb - pa).normalized()
 		mi.rotation.y = atan2(dir.x, dir.z) + PI
 		_geo.add_child(mi)
+	_water_mats = mat_cache.values()
 
 
 ## A few places where it drips from the crown; they fall silent now and then.
@@ -1376,6 +1397,8 @@ func _input(event: InputEvent) -> void:
 			_look_toward(1)
 		KEY_F:
 			_flashlight.visible = not _flashlight.visible
+		KEY_C:
+			_vibe.chalk()
 		KEY_E:
 			if not _moving and not _turning and _node == _entry:
 				_climb_out()
@@ -1428,10 +1451,11 @@ func splatter(n: int) -> void:
 		r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		r.stretch_mode = TextureRect.STRETCH_SCALE
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var side := vp.y * _rng.randf_range(0.18, 0.42)
-		r.size = Vector2(side, side)
+		var side := vp.y * (_rng.randf_range(0.18, 0.42) if tex.get_width() < tex.get_height() else _rng.randf_range(0.08, 0.16))
+		r.size = Vector2(side * float(tex.get_width()) / float(tex.get_height()), side)
 		r.pivot_offset = r.size * 0.5
-		r.rotation = _rng.randf_range(-PI, PI)
+		# Runs of blood hang roughly downwards; a lump lands any way up.
+		r.rotation = _rng.randf_range(-0.35, 0.35) if tex.get_width() < tex.get_height() else _rng.randf_range(-PI, PI)
 		r.position = Vector2(_rng.randf_range(-0.1, 0.85) * vp.x, _rng.randf_range(-0.1, 0.7) * vp.y)
 		_root.add_child(r)
 		_root.move_child(r, _vignette.get_index() + 1)
@@ -1737,6 +1761,7 @@ func _on_pull() -> void:
 		_play_one("bump.mp3", -5.0)
 	if _director != null and _director.has_method("on_pull"):
 		_director.on_pull()
+	_vibe.on_pull(_pull_idx)
 
 
 func _play_pull(file: String, db: float) -> void:
@@ -1805,6 +1830,7 @@ func _process(delta: float) -> void:
 		_work_hand.stop()
 	if _director != null:
 		_director.tick(delta)
+	_vibe.tick(delta)
 	_update_torch(delta)
 	if _fixed and _director != null and _director.leaves_prints():
 		_place_handprints()
@@ -2041,6 +2067,17 @@ func _update_crawl_hand(vp: Vector2, k: float, pull_k: float) -> void:
 	elif _bump_t >= 0.0 and not _at_leak:
 		show = true
 		at = Vector2(vp.x * 0.30, vp.y * 0.30 + sz.y * 0.1 * (_bump_t / 0.4))
+	# The made hands: reaching while it goes forward, planted on the floor otherwise.
+	if _hand_plant == null and ResourceLoader.exists(HAND_PLANT):
+		_hand_plant = load(HAND_PLANT)
+	if _hand_reach == null and ResourceLoader.exists(HAND_REACH):
+		_hand_reach = load(HAND_REACH)
+	if _hand_plant != null:
+		var want: Texture2D = _hand_reach if (_moving and pull_k < 0.4 and _hand_reach != null) else _hand_plant
+		if _crawl_hand.texture != want:
+			_crawl_hand.texture = want
+			_crawl_hand.flip_h = false
+			_crawl_hand.size = want.get_size() * k
 	_crawl_hand.visible = show and _glance < 0.5 and _caught_t < 0.0
 	_crawl_hand.position = at.floor()
 

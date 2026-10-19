@@ -22,22 +22,25 @@ extends RefCounted
 ## Every catch can be explained afterwards (the chittering next door, the light off it).
 
 const SFX := "res://assets/sfx/pipes/"
-const SPR_STAND := "res://assets/textury/npc/rac_stand.png"
-const SPR_CRAWL := "res://assets/textury/npc/rac_crawl.png"
-const SPR_PEEK := "res://assets/textury/npc/rac_peek.png"
-const SPR_CRAWL_B := "res://assets/textury/npc/rac_crawl_b.png"
-const SPR_TWITCH := "res://assets/textury/npc/rac_twitch.png"
+## The raccoon is the original art (assets/textury/npc/racoon*.png, brought in with one
+## framing by tools/artgen/black_frames.py): rac_0 standing, rac_1..9 the guts letting go.
+const SPR_STAND := "res://assets/textury/pipes/rac/rac_0.png"
+const SPR_CRAWL := "res://assets/textury/pipes/rac/rac_0.png"
+const SPR_PEEK := "res://assets/textury/pipes/rac/rac_0.png"
+const SPR_CRAWL_B := "res://assets/textury/pipes/rac/rac_spell.png"
+const SPR_TWITCH := "res://assets/textury/pipes/rac/rac_spell.png"
 ## Lit too long, its belly opens in three frames and lets go.
-const SPR_BELLY := ["res://assets/textury/npc/rac_belly_1.png", "res://assets/textury/npc/rac_belly_2.png", "res://assets/textury/npc/rac_belly.png"]
-const BURST_FRAME := 0.25
+const SPR_BELLY := ["res://assets/textury/pipes/rac/rac_1.png", "res://assets/textury/pipes/rac/rac_2.png", "res://assets/textury/pipes/rac/rac_3.png", "res://assets/textury/pipes/rac/rac_4.png", "res://assets/textury/pipes/rac/rac_5.png", "res://assets/textury/pipes/rac/rac_6.png", "res://assets/textury/pipes/rac/rac_7.png", "res://assets/textury/pipes/rac/rac_8.png", "res://assets/textury/pipes/rac/rac_9.png"]
+const BURST_FRAME := 1.0 / 12.0
 const SPR_FALLBACK := "res://assets/textury/npc/pipe_thing_close.png"
-const GUTS_PILE := "res://assets/textury/pipes/guts_pile.png"
-const GUTS_TRAIL := "res://assets/textury/pipes/guts_trail.png"
-const GUTS_SPLAT := "res://assets/textury/pipes/guts_splat.png"
+const GUTS_PILE := "res://assets/textury/pipes/rac/rac_hpile.png"
+const GUTS_TRAIL := "res://assets/textury/pipes/rac/rac_hblood.png"
+const GUTS_SPLAT := "res://assets/textury/pipes/rac/rac_hblood.png"
 ## The pipes are 80 cm across: upright, it fills them, hunched under the crown.
-const STAND_H := 0.66
-const CRAWL_H := 0.30
-const PEEK_H := 0.40
+## The frames share one canvas (73 px, the raccoon 64 of it): ~0.6 m of raccoon.
+const STAND_H := 0.68
+const CRAWL_H := 0.68
+const PEEK_H := 0.68
 const CRAWL_SPEED := 4.4
 ## Seconds between its moves while hunting a sound / wandering (night is quicker).
 const HUNT_SEC := 2.3

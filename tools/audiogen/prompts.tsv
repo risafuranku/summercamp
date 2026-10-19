@@ -266,3 +266,9 @@ hb_bottle_set	0.7	assets/sfx/habits/bottle_set.mp3	An empty glass beer bottle se
 hb_hiccup	0.6	assets/sfx/habits/hiccup.mp3	A single drunk man's hiccup, short and involuntary, close, no words, no music.
 hb_vomit	2.8	assets/sfx/habits/vomit.mp3	A drunk man throwing up onto the ground, retching and splattering, close, no words, no music.
 hb_burp_big	1.6	assets/sfx/habits/burp_big.mp3	A long loud deep burp of a man after downing a whole bottle of beer, close, no music.
+pipe_surge	5.0	assets/sfx/pipes/surge.mp3	A surge of water coming through a network of concrete sewer pipes: a distant rumble that grows into a rushing roar passing right by the listener in a narrow pipe, sloshing, gurgling, then draining away, echo, no music.
+pipe_gurgle	3.0	assets/sfx/pipes/gurgle.mp3	Deep wet gurgling and bubbling from a drain in a sewer pipe, air coming up through sludge, slow, echoing, unsettling, no music.
+pipe_chalk	1.2	assets/sfx/pipes/chalk.mp3	A piece of chalk scratching a quick arrow on rough wet concrete, two strokes and a tick, close, no music.
+pipe_lensdrop	0.5	assets/sfx/pipes/lensdrop.mp3	A single cold drop of water hitting plastic very close to the ear, a small tick, quiet, no music.
+pipe_splash	0.6	assets/sfx/pipes/splash.mp3	A gloved hand slapping down into a thin layer of water on concrete, a small sharp splash, close, no music.
+pipe_wetdrop	1.0	assets/sfx/pipes/wetdrop.mp3	Something small and wet dropping into water in a pipe just behind the listener, a plop and a ripple, close, no music.
