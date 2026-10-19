@@ -705,9 +705,11 @@ func install_status(prog: String) -> String:
 	var info: Dictionary = PROGRAMS[prog]
 	if p < 0.25:
 		return "Connecting to www.%s..." % str(info["site"]).split("/")[0]
-	if p < 0.75:
-		return "Downloading %s  (%d of %d KB)" % [info["file"], int(float(info["kb"]) * (p - 0.25) / 0.5), int(info["kb"])]
-	return "Installing %s..." % info["title"]
+	if p < 0.7:
+		return "Downloading %s  (%d of %d KB)" % [info["file"], int(float(info["kb"]) * (p - 0.25) / 0.45), int(info["kb"])]
+	if p < 0.9:
+		return "Installing %s..." % info["title"]
+	return "Installation complete."
 
 
 func _tick_installs(delta: float) -> void:
@@ -970,10 +972,15 @@ func _select_tab(id: String) -> void:
 		if oa != null and oa.has_method("page_hidden"):
 			oa.page_hidden()
 		_last_tab = _tab
+	var was := _tab
 	_tab = id
 	for k in _pages:
 		(_pages[k] as Control).visible = k == id
 	pointer_hand = false
+	# The program comes up from its taskbar button (outlines over it; it never waits).
+	if was != "" and _extras != null and _tab_buttons.has(id):
+		var b: Control = _tab_buttons[id]
+		_extras.zoom(Rect2(b.global_position - global_position, b.size), Rect2(Vector2.ZERO, DESKTOP_SIZE))
 	_refresh_page(id)
 	var app = app_of(id)
 	if app != null and app.has_method("shown"):

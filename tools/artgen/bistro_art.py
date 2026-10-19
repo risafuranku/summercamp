@@ -52,9 +52,9 @@ SPRITES = [
 ]
 # (render id, [(name, [(height, file under godot/), ...]) left to right], gap)
 SHEETS = [
-    ("bts_fry", [("raw", [(17, B + "slice_raw.png"), (11, B + "slice_raw_small.png")]),
-                 ("golden", [(17, B + "slice_golden.png"), (11, B + "slice_golden_small.png")]),
-                 ("burnt", [(17, B + "slice_burnt.png")]),
+    ("bts_fry", [("raw", [(30, B + "slice_raw.png"), (19, B + "slice_raw_small.png")]),
+                 ("golden", [(30, B + "slice_golden.png"), (19, B + "slice_golden_small.png")]),
+                 ("burnt", [(30, B + "slice_burnt.png")]),
                  ("basket", [(35, B + "basket_empty.png")]), ("basket_raw", [(35, B + "basket_raw.png")]),
                  ("basket_gold", [(35, B + "basket_gold.png")])], 14),
     ("bts_plate", [("plate", [(60, B + "plate_top.png")]), ("goulash", [(29, B + "food_goulash.png")]),
@@ -63,14 +63,14 @@ SHEETS = [
                    ("fries", [(25, B + "food_fries.png"), (15, B + "chips_rack.png")]),
                    ("tartar", [(13, B + "food_tartar.png")]), ("onion", [(9, B + "food_onion.png")]),
                    ("dirty", [(60, B + "plate_dirty.png")])], 14),
-    ("bts_cellar", [("potato", [(8, B + "potato_raw.png")]), ("peeled", [(8, B + "potato_peeled.png")]),
-                    ("heap", [(13, B + "chips_heap.png"), (16, B + "chips_bucket.png")]), ("loaf", [(20, B + "loaf.png")]),
-                    ("plain", [(17, B + "cheese_plain.png")]), ("floured", [(17, B + "cheese_floured.png")]),
-                    ("egged", [(17, B + "cheese_egged.png")])], 14),
-    ("bts_misc", [("breaded", [(17, B + "cheese_breaded.png")]),
-                  ("patchy", [(17, B + "cheese_patchy.png"), (17, B + "slice_bad.png"), (11, B + "slice_bad_small.png")]),
+    ("bts_cellar", [("potato", [(10, B + "potato_raw.png")]), ("peeled", [(10, B + "potato_peeled.png")]),
+                    ("heap", [(13, B + "chips_heap.png"), (16, B + "chips_bucket.png")]), ("loaf", [(44, B + "loaf.png")]),
+                    ("plain", [(30, B + "cheese_plain.png")]), ("floured", [(30, B + "cheese_floured.png")]),
+                    ("egged", [(30, B + "cheese_egged.png")])], 14),
+    ("bts_misc", [("breaded", [(30, B + "cheese_breaded.png")]),
+                  ("patchy", [(30, B + "cheese_patchy.png"), (30, B + "slice_bad.png"), (19, B + "slice_bad_small.png")]),
                   ("stack", [(32, B + "plates_stack.png")]), ("sponge", [(13, B + "sponge.png")]),
-                  ("spoon", [(35, B + "spoon.png")]), ("star", [(9, B + "star.png")]), ("star_dim", [(9, B + "star_dim.png")])], 14),
+                  ("spoon", [(60, B + "spoon.png")]), ("star", [(9, B + "star.png")]), ("star_dim", [(9, B + "star_dim.png")])], 14),
     ("bsh_plates", [("clean", []), ("dirty", []), ("stack", []), ("sponge", []), ("bubbles", [(8, B + "bubbles.png")])], 14),
     ("bsh_marks", [("stir", [(18, UI + "mark_pot.png")]), ("pan", []), ("plates", [(18, UI + "mark_wash2.png")]),
                    ("potato", [(16, UI + "mark_potato.png")]), ("slice", [(14, UI + "mark_slice.png")]),
@@ -139,7 +139,10 @@ def _shrink(img, height, snap):
     """Box-downsampled to `height` (premultiplied, so the clear pixels do not darken the
     edge). The station screens' things keep their own colours (the palette has no deep
     orange: a golden slice came out red); the rooms' things are snapped to it."""
-    w = max(1, round(img.width * height / img.height))
+    # `height` is the longer side (a slice lies flat, a spoon lies along).
+    k = height / float(max(img.width, img.height))
+    w = max(1, round(img.width * k))
+    height = max(1, round(img.height * k))
     r, g, b, a = img.split()
     pre = Image.merge("RGBA", [Image.composite(ch, Image.new("L", img.size, 0), a) for ch in (r, g, b)] + [a])
     small = pre.resize((w, height), Image.Resampling.BOX)
@@ -175,7 +178,13 @@ def buildify(img, grit, seed=7):
     return rgb
 
 
+# The fried slices came out standing up: laid on their side for the pan and the trays.
+LAY_FLAT = ("slice_raw", "slice_golden", "slice_burnt", "slice_bad")
+
+
 def _save(im, dest):
+    if os.path.basename(dest).startswith(LAY_FLAT) and im.height > im.width:
+        im = im.transpose(Image.Transpose.ROTATE_90)
     path = os.path.join(process.GODOT, dest)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path)
