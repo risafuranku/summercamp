@@ -1256,6 +1256,10 @@ var _wisp_t := 0.0
 ## The puffs are the smoke sprites (smoke_0..5), from dense to almost gone over their
 ## life, at whole-pixel steps.
 func _draw_puffs() -> void:
+	# The smoke, the ash, the cap and the foam on the screen: the same light, shade
+	# steps and PS1 dither as the hands they come from.
+	if _hands != null and is_instance_valid(_hands) and _puff_layer.material != _hands.material:
+		_puff_layer.material = _hands.material
 	var vp := get_viewport().get_visible_rect().size
 	var s := HANDS_KIT.px(vp.y)
 	for p in _puffs:
@@ -1269,11 +1273,10 @@ func _draw_puffs() -> void:
 			continue
 		var sz := t.get_size() * s
 		var at := (((p["pos"] as Vector2) - sz * 0.5) / s).floor() * s
-		# Thin smoke, lit like the place, thinning out in steps.
-		var lit: Color = _hands.light if _hands != null and is_instance_valid(_hands) else Color.WHITE
+		# Thin smoke thinning out in steps; lit and dithered by the hands' material.
 		var a := floorf((0.55 * (1.0 - k * 0.7)) * 8.0) / 8.0
-		_puff_layer.draw_texture_rect(t, Rect2(at, sz), false, Color(lit.r, lit.g, lit.b, a))
-	var lit2: Color = _hands.light if _hands != null and is_instance_valid(_hands) else Color.WHITE
+		_puff_layer.draw_texture_rect(t, Rect2(at, sz), false, Color(1.0, 1.0, 1.0, a))
+	var lit2 := Color.WHITE
 	for f in _falls:
 		var t2: Texture2D = f["tex"]
 		var sc := s * float(f.get("big", 1.0))

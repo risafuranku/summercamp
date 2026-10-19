@@ -78,13 +78,19 @@ func _on_node_added(n: Node) -> void:
 
 ## Build's visibility for the shaders (build_vis_dist, build_vis_dark): by day things
 ## only dull a little far off; at night the dark comes in close, in steps.
+static var _globals_added := false
+
+
 static func _ensure_globals() -> void:
+	if _globals_added:
+		return
+	_globals_added = true
 	for p in [["build_vis_dist", 90.0], ["build_vis_dark", 0.0]]:
-		if not (p[0] in RenderingServer.global_shader_parameter_get_list()):
-			RenderingServer.global_shader_parameter_add(p[0], RenderingServer.GLOBAL_VAR_TYPE_FLOAT, p[1])
+		RenderingServer.global_shader_parameter_add(p[0], RenderingServer.GLOBAL_VAR_TYPE_FLOAT, p[1])
 
 
 func _visibility() -> void:
+	_ensure_globals()
 	var main := get_tree().current_scene
 	var h = main.get("_time_of_day_hours") if main != null else null
 	var night := 0.0
