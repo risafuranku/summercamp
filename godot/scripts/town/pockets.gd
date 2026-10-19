@@ -694,7 +694,11 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 			frame = "hand2_v_mouth"
 		CIG.EXHALE:
 			frame = "hand2_v_mouth" if cig.t < 0.18 else "hand2_v"
-	var t := tex(frame)
+	if frame == "hand2_v" and _hold_tex() != null:
+		frame = "hold"
+	elif frame == "hand2_v_mouth" and tex("hand4_cig_mouth") != null:
+		frame = "hand4_cig_mouth"
+	var t := _hold_tex() if frame == "hold" else tex(frame)
 	if t == null:
 		# No picture of this hand yet: the cigarette in your mouth still shows.
 		_left.visible = false
@@ -706,10 +710,15 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	_left.visible = true
 	var x := 0.0
 	var y := 0.0
-	var big := frame in ["hand2_v_mouth", "hand2_lighter", "hand2_pack"]
+	var big := frame in ["hand2_v_mouth", "hand4_cig_mouth", "hand2_lighter", "hand2_pack"]
 	# The tip of the cigarette in your mouth (cig_lips_*: it comes up from the bottom middle).
 	var lips_tip := vp.y - bar - 28.0 * s
-	if frame == "hand2_v_mouth":
+	if frame == "hand4_cig_mouth":
+		# At your mouth, the palm to you: the filter at the bottom middle, in your lips.
+		# (the filter's round end measured on the sprite: 58, 59)
+		x = vp.x * 0.5 - 58.0 * s
+		y = vp.y - bar - (59.0 + 6.0) * s * up + (1.0 - up) * _left.size.y * 0.3
+	elif frame == "hand2_v_mouth":
 		# Up at your mouth: the gap between the fingers just over the bottom middle, the
 		# back of the hand filling the lower view.
 		x = vp.x * 0.5 - float(ANCHOR[frame].x) * s
@@ -743,7 +752,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		pos += (Vector2(-8.0, 6.0) if cig.t < 0.15 else Vector2(46.0, -34.0)) * s
 	_left.position = _ease("l", pos, s)
 	# The cigarette in your mouth: from the bottom middle, its tip where the lighter is.
-	if mouth or cig.state == CIG.DRAG:
+	if mouth or (cig.state == CIG.DRAG and frame != "hand4_cig_mouth"):
 		_lay_lips(vp, s, bar, bob, false)
 	# The flame on the lighter (and a breath of it dying when the thumb comes off).
 	if cig.state == CIG.LIPS and cig.flame == 0 and _flame_was == 2:
@@ -780,8 +789,11 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 			_flame.position = (a - Vector2(_flame.size.x * 0.5, _flame.size.y * 0.92)).floor()
 			_flame.z_index = 2
 			_flame.visible = true
-	# Held: the cigarette between the fingers (under them).
-	if cig.state in [CIG.HOLD, CIG.EXHALE, CIG.THROW] and frame == "hand2_v":
+	# Held: the hand with the cigarette in it, burned down to its stage (one picture,
+	# cig_stages.py); the older two-piece hand only if that is missing.
+	if frame == "hand2_v" and _hold_tex() != null:
+		pass
+	elif cig.state in [CIG.HOLD, CIG.EXHALE, CIG.THROW] and frame == "hand2_v":
 		var ct := tex(cig.stage())
 		if ct == null:
 			ct = tex(cig.stage().replace("_out", "").replace("_ash", ""))
@@ -793,6 +805,59 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 			_cig_rect.visible = true
 			# Gone out in the rain: the paper greyer, no ember.
 			_cig_rect.modulate = Color(0.78, 0.78, 0.76) if not cig.lit else Color.WHITE
+
+
+const HOLD := "res://assets/textury/hands_lo/cig/hold_"
+var _tips: Dictionary = {}
+
+
+## The hand holding the cigarette at its stage now (null: not made).
+func _hold_tex() -> Texture2D:
+	var n := _hold_stage()
+	var t := tex("cig/hold_" + n)
+	if t == null and n.ends_with("_out"):
+		t = tex("cig/hold_" + n.trim_suffix("_out"))
+	return t
+
+
+## new, full, 3q, half, quarter, end; _ash with ash on it, _out gone out.
+func _hold_stage() -> String:
+	if not cig.lit and cig.length > 0.97:
+		return "new"
+	var st := "full"
+	if cig.length < 0.12:
+		st = "end"
+	elif cig.length < 0.38:
+		st = "quarter"
+	elif cig.length < 0.62:
+		st = "half"
+	elif cig.length < 0.86:
+		st = "3q"
+	if not cig.lit:
+		return st + "_out"
+	if cig.ash > 0.1:
+		if st == "full":
+			st = "3q"
+		if st != "end":
+			return st + "_ash"
+	return st
+
+
+## Where the burning end is on the screen now (Vector2.INF: not in view).
+func _tip_on_screen() -> Vector2:
+	if not _left.visible or _left.texture == null or not _left.texture.resource_path.contains("/cig/hold_"):
+		return Vector2.INF
+	if _tips.is_empty():
+		var f := FileAccess.open(HOLD + "tips.json", FileAccess.READ)
+		if f != null:
+			var d = JSON.parse_string(f.get_as_text())
+			_tips = d if d is Dictionary else {}
+	var key := _left.texture.resource_path.get_file().trim_prefix("hold_").trim_suffix(".png")
+	var tp: Array = _tips.get(key, [])
+	if tp.size() < 2:
+		return Vector2.INF
+	var s := _left.size.x / maxf(1.0, float(_left.texture.get_width()))
+	return _left.position + Vector2(float(tp[0]), float(tp[1])) * s
 
 
 ## The cigarette in your mouth, from the bottom middle of the view going away.
@@ -829,6 +894,13 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 		_right.visible = false
 		return
 	var frame: String = bottle.frame()
+	# Drinking as you see it: the neck at your lips at the bottom, the bottle going up and
+	# away (hand4_beer_drink); on the way up the neck comes towards you (hand4_beer_raise).
+	# The old tipped one had the neck pointing away: never shown when these are there.
+	if frame == "hand2_beer_drink" and tex("hand4_beer_drink") != null:
+		frame = "hand4_beer_drink"
+	elif frame == "hand2_beer_tilt":
+		frame = "hand4_beer_raise" if tex("hand4_beer_raise") != null else ("hand4_beer_drink" if tex("hand4_beer_drink") != null else "hand2_beer_drink")
 	var t := tex(frame)
 	if t == null:
 		_right.visible = false
@@ -838,7 +910,14 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 	_right.visible = true
 	var x := vp.x * 0.64
 	var y := vp.y - bar - _right.size.y * 0.72 * up
-	if frame == "hand2_beer_tilt":
+	if frame == "hand4_beer_drink":
+		# The neck in your mouth just under the bottom edge.
+		x = vp.x * 0.5 - _right.size.x * 0.5
+		y = vp.y - bar - _right.size.y * 0.97 * up + (1.0 - up) * _right.size.y * 0.4
+	elif frame == "hand4_beer_raise":
+		x = vp.x * 0.52 - _right.size.x * 0.4
+		y = vp.y - bar - _right.size.y * 0.85 * up
+	elif frame == "hand2_beer_tilt":
 		x = vp.x * 0.55 - _right.size.x * 0.5
 		y = vp.y - bar - _right.size.y * 0.85 * up
 	elif frame == "hand2_beer_drink":
@@ -852,9 +931,13 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 	elif frame == "hand2_beer_foam":
 		x += (1.0 if int(step) % 2 == 0 else -1.0) * s
 	var pos := Vector2(x, y) + bob
-	if frame == "hand2_beer_drink":
+	if frame == "hand2_beer_drink" or frame == "hand4_beer_drink":
 		# Tipped further up the emptier it is; each swallow a small jog.
-		pos.y -= (1.0 - bottle.level) * 14.0 * s
+		# (the neck stays at your lips: the new picture tips by its base sinking less)
+		if frame == "hand2_beer_drink":
+			pos.y -= (1.0 - bottle.level) * 14.0 * s
+		else:
+			pos.y += (1.0 - bottle.level) * 4.0 * s
 		if _gulp_kick > 0:
 			pos.y -= 2.0 * s
 			_gulp_kick -= 1
@@ -926,14 +1009,15 @@ func _blow(drag: float) -> void:
 
 
 func _ash_flake(amount: float) -> void:
-	if not _cig_rect.visible:
+	var tip := _tip_on_screen()
+	if tip == Vector2.INF and not _cig_rect.visible:
 		return
 	var vp := get_viewport().get_visible_rect().size
 	var t := tex("ash_long" if amount > 0.22 else "ash_flake")
 	if t == null:
 		return
 	# From the end of the cigarette in your fingers.
-	var at := _cig_rect.position + Vector2(_cig_rect.size.x * 0.9, _cig_rect.size.y * 0.1)
+	var at := tip if tip != Vector2.INF else _cig_rect.position + Vector2(_cig_rect.size.x * 0.9, _cig_rect.size.y * 0.1)
 	_falls.append({"pos": at, "vel": Vector2(_rng.randf_range(-20.0, 20.0), 40.0) * vp.y / 720.0, "tex": t, "life": 0.0})
 
 
@@ -971,11 +1055,13 @@ func _foam_drip() -> void:
 func _update_puffs(delta: float) -> void:
 	# A thread of smoke off the tip now and then while it is held lit.
 	_wisp_t -= delta
-	if _wisp_t <= 0.0 and cig.lit and cig.state == CIG.HOLD and _cig_rect.visible:
+	var tip := _tip_on_screen()
+	if _wisp_t <= 0.0 and cig.lit and cig.state == CIG.HOLD and (tip != Vector2.INF or _cig_rect.visible):
 		_wisp_t = _rng.randf_range(1.1, 2.0)
 		var vp := get_viewport().get_visible_rect().size
 		var wind := 0.0 if _indoors() else float(_env().get("wind", 0.0))
-		_puffs.append({"pos": _cig_rect.position + Vector2(_cig_rect.size.x * 0.92, -_cig_rect.size.y * 0.25),
+		var from := tip if tip != Vector2.INF else _cig_rect.position + Vector2(_cig_rect.size.x * 0.92, 0.0)
+		_puffs.append({"pos": from + Vector2(0.0, -float(tex("smoke_2").get_height() if tex("smoke_2") != null else 20) * HANDS_KIT.px(get_viewport().get_visible_rect().size.y) * 0.5),
 			"vel": Vector2(wind * 90.0 + _rng.randf_range(-6.0, 6.0), -26.0) * vp.y / 720.0,
 			"life": 0.0, "max": _rng.randf_range(1.6, 2.4), "delay": 0.0, "f0": 0, "seq": WISP_SEQ})
 	if _puffs.is_empty() and _falls.is_empty():
