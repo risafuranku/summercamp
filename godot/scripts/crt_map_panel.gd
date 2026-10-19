@@ -540,6 +540,9 @@ func _gui_input(event: InputEvent) -> void:
 				if not _pan_drag_moved and _rmb_pressed_without_selection and selected_building == "" and not _any_pending_interaction():
 					submenu_close_requested.emit()
 					_emit_status("Submenu closed.")
+				elif not _pan_drag_moved and not _rmb_pressed_without_selection and selected_building != "" and not _any_pending_interaction():
+					# A right click that did not drag puts the tool away (a drag pans and keeps it).
+					_cancel_tool_selection()
 				_pan_dragging = false
 				_rmb_pressed_without_selection = false
 				# Let go after a pause: no throw.
@@ -1300,8 +1303,8 @@ func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void
 		_cv.draw_string(T.FONT, r.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(250, 244, 226))
 
 
-## The building on a cell, as Builder's card wants it ({} for open ground, trees, corn
-## and paths).
+## The building on a cell, as Builder's card wants it ({} for open ground, trees and
+## corn). A path cell is "path", with `lamp` when one stands on it.
 func structure_at(coord: Vector2i) -> Dictionary:
 	if grid_manager == null or not _is_valid_coord(coord):
 		return {}
@@ -1312,9 +1315,12 @@ func structure_at(coord: Vector2i) -> Dictionary:
 	if root == null or root.is_in_group("trees") or root.is_in_group("corn"):
 		return {}
 	var t := str(root.get_meta("building_type", ""))
-	if t == "" or t == "path":
+	if t == "":
 		return {}
-	return {"type": t, "origin": root.get_meta("grid_origin", coord), "footprint": root.get_meta("grid_footprint", Vector2i.ONE), "root": root}
+	var o: Vector2i = root.get_meta("grid_origin", coord)
+	if t == "path":
+		return {"type": "path", "origin": coord, "footprint": Vector2i.ONE, "root": root, "lamp": _path_has_lamp(coord)}
+	return {"type": t, "origin": o, "footprint": root.get_meta("grid_footprint", Vector2i.ONE), "root": root}
 
 
 func set_overlay(id: String) -> void:
@@ -1937,6 +1943,37 @@ func _draw_placeholder(center: Vector2, tile_w: float, tile_h: float, building_t
 	_cv.draw_polyline(PackedVector2Array([top[0], top[1], top[2], top[3], top[0]]), Color(0.14, 0.14, 0.14), 1.0)
 
 
+## How far a light reaches on the ground, in tiles (the light overlay and the ghost).
+const LIGHT_REACH := {"lamp_post": 2.6, "lamp": 2.6, "bonfire": 3.4}
+
+
+## A pool of light on the ground: flat ellipses, brighter to the middle.
+func _draw_light_pool(center: Vector2, r: float, a: float) -> void:
+	_cv.draw_set_transform(center, 0.0, Vector2(1.0, 0.5))
+	for k in 4:
+		_cv.draw_circle(Vector2.ZERO, r * (1.0 - k * 0.22), Color(1.0, 0.85, 0.4, a))
+	_cv.draw_arc(Vector2.ZERO, r, 0, TAU, 48, Color(1.0, 0.9, 0.5, a * 4.0), 1.0)
+	_cv.draw_set_transform(Vector2.ZERO)
+
+
+## The camp in the middle and close enough to read (the first time Builder opens: it
+## started so far out the camp was a smudge).
+func focus_camp(zoom := 2.2) -> bool:
+	var gm = _grid_model()
+	if gm == null or size.x <= 0.0:
+		return false
+	for c in gm.cells:
+		if str((gm.cells[c] as Dictionary).get("type", "")) == "main_building":
+			_zoom_level = clampf(zoom, ZOOM_MIN, ZOOM_MAX)
+			_zoom_target = _zoom_level
+			_static_dirty = true
+			_pan_offset = Vector2.ZERO
+			debug_center_on(c)
+			return true
+	# A camp with no office (tools): nothing to look for again.
+	return not gm.cells.is_empty()
+
+
 func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	if selected_building == "" or selected_building == "path" or selected_building == "demolish":
 		return
@@ -1962,6 +1999,11 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	if icon_key != "":
 		_draw_building_icon(center, footprint, icon_key, _rotation_steps, Color(0.62, 0.82, 1.0, 0.76), tile_w, tile_h)
 
+	# A light: where it will reach, and (fainter) where the others already do.
+	if LIGHT_REACH.has(selected_building):
+		for l in _lights:
+			_draw_light_pool(_s2d(l[0]), tile_w * float(LIGHT_REACH.get(str(l[1]), 2.6)), 0.05)
+		_draw_light_pool(center, tile_w * float(LIGHT_REACH[selected_building]), 0.11)
 	if _supports_rotation(selected_building):
 		var dir = _rotation_to_screen_dir(_rotation_steps, tile_w, tile_h)
 		_draw_direction_arrow(center + Vector2(0.0, -tile_h * 0.10), dir, tile_h, Color(0.66, 0.90, 1.0, 0.98))
@@ -2847,7 +2889,11 @@ func _describe(coord: Vector2i) -> String:
 				what = _display_name(str(root.get_meta("building_type", "")))
 				var o = root.get_meta("grid_origin", null)
 				if o is Vector2i and GuestManager != null and GuestManager.room_number("%d:%d" % [o.x, o.y]) > 0:
-					return GuestManager.room_label("%d:%d" % [o.x, o.y])
+					# The room and how it stands: ready, dirty, taken.
+					var key := "%d:%d" % [o.x, o.y]
+					var rs: Dictionary = GuestManager.get_room_state(key)
+					var st := "guests" if bool(rs.get("occupied", false)) else ({"ready": "ready", "dirty": "dirty", "unprepared": "not made up"}.get(str(rs.get("status", "")), "") as String)
+					return GuestManager.room_label(key) + (("  -  " + st) if st != "" else "")
 	return "%d:%d  %s" % [coord.x, coord.y, what]
 
 

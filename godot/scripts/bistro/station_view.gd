@@ -1,12 +1,17 @@
 extends CanvasLayer
 
-## A station of the bistro played full screen, like a Papa's Burgeria station or a Sierra
-## close-up the size of the screen (DESIGN.md §7b): one hand-painted 640x360 picture (Grok,
-## assets/textury/bistro/st_*.png) drawn at its own resolution and scaled up by a whole
-## number (2 at 1280x720, 3 at 1920x1080: the whole screen), the things on it drawn over
-## it as Grok sprites, the game's pixel fonts.
+## A station of the bistro, played where it stands in the room (DESIGN.md §7b; the user,
+## 19. 10.: "the whole minigame in 3D with 2D sprites, carrying straight on from the
+## interior"). Its surface is a Build-engine texture (assets/textury/bistro/st_*.png,
+## 320x180 drawn two to one) with the things on it drawn over it as sprites, rendered into
+## a texture of its own (surface_texture) that lies on the station's counter in the 3D
+## room (scripts/bistro/bistro_layout.gd): the slices brown in the pan there whether
+## anyone is at the stove or not, and everybody in the room sees them. Stepping up to it,
+## the room's camera glides over it (service_interior._open_station) and the pointer is
+## taken through the counter onto the surface (`pick`). Coordinates on the surface are
+## its picture's, 640x360.
 ##
-## Every station has the same frame round it:
+## Over the room the station has the same frame round it:
 ##   the rail      the open tickets across the top, oldest at the left: who, what, how
 ##                 many, and a bar for how long they have waited (green, amber, red);
 ##   the sentence  over the bottom bar, what a click would do now ("Flip the slice"),
@@ -20,6 +25,8 @@ extends CanvasLayer
 ##   _press(id) / _release(id) / _drag(at)   the mouse on a spot (held: _drag each frame)
 ##   _tick(delta)
 ##   _opened() / _closing()
+## `_paint` draws onto the surface: it runs while the room is in view, not only while
+## somebody is at the station (set_live).
 
 signal closed
 ## The bar's tab for another station of this room was clicked (service_interior opens it).
@@ -56,6 +63,15 @@ var picture: Texture2D
 
 var _vp: SubViewport
 var _canvas: Control
+## The surface on the counter: its own viewport, drawn while the room is in view.
+var _svp: SubViewport
+var _surface: Control
+var _live := false
+var _live_acc := 0.0
+## Screen point -> surface point (or -1, -1 off it), given by the room.
+var pick: Callable
+## The pointer over the frame (the rail, the bar), in the frame's pixels.
+var _mouse_ui := Vector2(-1, -1)
 var _view: TextureRect
 var _backdrop: ColorRect
 var _k := 2
@@ -101,15 +117,27 @@ func _ready() -> void:
 	_vp = SubViewport.new()
 	_vp.size = Vector2i(W, H)
 	_vp.disable_3d = true
-	_vp.transparent_bg = false
+	_vp.transparent_bg = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
 	add_child(_vp)
 	_canvas = Control.new()
 	_canvas.size = Vector2(W, H)
 	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_canvas.draw.connect(_draw_all)
+	_canvas.draw.connect(_draw_chrome)
 	_vp.add_child(_canvas)
+	_svp = SubViewport.new()
+	_svp.size = Vector2i(W, H)
+	_svp.disable_3d = true
+	_svp.transparent_bg = false
+	_svp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_svp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
+	add_child(_svp)
+	_surface = Control.new()
+	_surface.size = Vector2(W, H)
+	_surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_surface.draw.connect(_draw_surface)
+	_svp.add_child(_surface)
 	_view = TextureRect.new()
 	_view.texture = _vp.get_texture()
 	_view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -142,12 +170,28 @@ func is_open() -> bool:
 	return visible and _closing_t < 0.0
 
 
+## The surface's picture, for the counter in the room.
+func surface_texture() -> Texture2D:
+	return _svp.get_texture()
+
+
+## The room this station stands in is in view (or not): its surface is kept drawn.
+func set_live(on: bool) -> void:
+	_live = on
+	if kitchen == null:
+		kitchen = get_tree().get_first_node_in_group("kitchens") as KITCHEN
+	_svp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on or visible else SubViewport.UPDATE_DISABLED
+	if on:
+		_surface.queue_redraw()
+
+
 func open_view() -> void:
 	if visible and _closing_t < 0.0:
 		return
 	kitchen = get_tree().get_first_node_in_group("kitchens") as KITCHEN
 	visible = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_svp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_open_t = 0.0
 	_closing_t = -1.0
 	_hover = ""
@@ -181,6 +225,7 @@ func close_now() -> void:
 		_closing()
 	visible = false
 	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	set_live(_live)
 	_closing_t = -1.0
 
 
@@ -220,6 +265,13 @@ func _layout() -> void:
 
 func _process(delta: float) -> void:
 	if not visible:
+		# Nobody at it: the surface goes on showing the stove as it cooks, in steps.
+		if _live:
+			_t += delta
+			_live_acc += delta
+			if _live_acc >= 1.0 / 12.0:
+				_live_acc = 0.0
+				_surface.queue_redraw()
 		return
 	if _closing_t >= 0.0:
 		_closing_t += delta
@@ -228,6 +280,7 @@ func _process(delta: float) -> void:
 		if f <= 0.0:
 			visible = false
 			_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+			set_live(_live)
 			closed.emit()
 		return
 	_t += delta
@@ -236,8 +289,11 @@ func _process(delta: float) -> void:
 	_set_open(clampf(_open_t / OPEN_SEC, 0.0, 1.0))
 	if get_tree().paused:
 		return
-	var m := (get_viewport().get_mouse_position() - _view.position) / float(_k)
-	_mouse = m if Rect2(Vector2.ZERO, Vector2(W, H)).has_point(m) else Vector2(-1, -1)
+	var screen := get_viewport().get_mouse_position()
+	var m := (screen - _view.position) / float(_k)
+	_mouse_ui = m if Rect2(Vector2.ZERO, Vector2(W, H)).has_point(m) else Vector2(-1, -1)
+	# On the counter: through the room's camera onto the surface (no camera: the frame's).
+	_mouse = pick.call(screen) if pick.is_valid() else _mouse_ui
 	_find_hover()
 	if _hover != "" or _held != "":
 		HandCursor.want(HandCursor.GRAB if _held != "" else HandCursor.POINT)
@@ -250,6 +306,7 @@ func _process(delta: float) -> void:
 	if int(_t * 2.0) != int((_t - delta) * 2.0):
 		_check_rail()
 	_canvas.queue_redraw()
+	_surface.queue_redraw()
 
 
 ## Twice a second: a new ticket on the rail dings.
@@ -264,11 +321,12 @@ func _check_rail() -> void:
 	_rail_seen = now
 
 
+## The frame slides in over the room (the room stays in view: the camera is over the
+## station).
 func _set_open(f: float) -> void:
 	var step := ceilf(f * OPEN_STEPS) / OPEN_STEPS
-	_view.pivot_offset = _view.size * 0.5
-	_view.scale = Vector2(1.0, maxf(0.02, step))
-	_backdrop.color = Color(0, 0, 0, 0.85 * f)
+	_view.modulate.a = step
+	_backdrop.color = Color(0, 0, 0, 0)
 
 
 # ── what is under the pointer ────────────────────────────────────────────────
@@ -276,17 +334,17 @@ func _set_open(f: float) -> void:
 func _all_spots() -> Array:
 	var out: Array = []
 	# The bar: back, the other stations of the room.
-	out.append({"id": "#back", "rect": Rect2(4, H - BAR_H + 3, 64, BAR_H - 6), "verb": "Back to the %s" % ("cellar" if room == "basement" else room)})
+	out.append({"id": "#back", "rect": Rect2(4, H - BAR_H + 3, 64, BAR_H - 6), "verb": "Back to the %s" % ("cellar" if room == "basement" else room), "ui": true})
 	var tabs: Array = _room_tabs()
 	for i in tabs.size():
 		var st := str(tabs[i][0])
 		if st == station:
 			continue
 		var who := str(taken.get(st, ""))
-		out.append({"id": "#tab:" + st, "rect": _tab_rect(i), "verb": ("%s is at the %s" % [who, str(tabs[i][1]).to_lower()]) if who != "" else "Go to the %s" % str(tabs[i][1]).to_lower()})
+		out.append({"id": "#tab:" + st, "rect": _tab_rect(i), "verb": ("%s is at the %s" % [who, str(tabs[i][1]).to_lower()]) if who != "" else "Go to the %s" % str(tabs[i][1]).to_lower(), "ui": true})
 	var tix := _tickets()
 	for i in mini(tix.size(), _rail_slots()):
-		out.append({"id": "#ticket:" + str(tix[i]["id"]), "rect": _ticket_rect(i), "verb": _ticket_verb(tix[i])})
+		out.append({"id": "#ticket:" + str(tix[i]["id"]), "rect": _ticket_rect(i), "verb": _ticket_verb(tix[i]), "ui": true})
 	out.append_array(_spots())
 	return out
 
@@ -294,13 +352,20 @@ func _all_spots() -> Array:
 func _find_hover() -> void:
 	_hover = ""
 	_hover_verb = ""
+	var spots := _all_spots()
+	# The frame over the room first (the rail, the bar), then the surface under them.
+	for s in spots:
+		if bool(s.get("ui", false)) and _mouse_ui.x >= 0.0 and (s["rect"] as Rect2).has_point(_mouse_ui):
+			_hover = str(s["id"])
+			_hover_verb = str(s.get("verb", ""))
+			return
+	if _mouse_ui.x >= 0.0 and (_mouse_ui.y < RAIL_H and _mouse_ui.x < _ticket_rect(mini(_tickets().size(), _rail_slots())).position.x or _mouse_ui.y > H - BAR_H):
+		return
 	if _mouse.x < 0.0:
 		return
-	var spots := _all_spots()
-	# Last drawn on top: the station's own spots before the chrome's are tested last.
 	for i in range(spots.size() - 1, -1, -1):
 		var s: Dictionary = spots[i]
-		if (s["rect"] as Rect2).has_point(_mouse):
+		if not bool(s.get("ui", false)) and (s["rect"] as Rect2).has_point(_mouse):
 			_hover = str(s["id"])
 			_hover_verb = str(s.get("verb", ""))
 			return
@@ -408,15 +473,25 @@ func _ticket_clicked(tid: String) -> void:
 
 # ── drawing ──────────────────────────────────────────────────────────────────
 
-func _draw_all() -> void:
+## The frame over the room: the rail and the bar.
+func _draw_chrome() -> void:
 	var c := _canvas
+	_draw_rail(c)
+	_draw_bar(c)
+
+
+## The station's surface, on the counter in the room: its picture, its things, the glint
+## under the pointer, the numbers floating up.
+func _draw_surface() -> void:
+	var c := _surface
 	c.draw_rect(Rect2(0, 0, W, H), Color(0.03, 0.03, 0.03))
 	if picture != null:
 		c.draw_texture_rect(picture, Rect2(0, 0, W, H), false)
+	if kitchen == null or building_key == "":
+		return
 	_paint(c)
-	_draw_glint(c)
-	_draw_rail(c)
-	_draw_bar(c)
+	if visible:
+		_draw_glint(c)
 	for p in _pops:
 		var k := float(p["t"]) / 1.3
 		var at: Vector2 = (p["at"] as Vector2) + Vector2(0, -22.0 * k)

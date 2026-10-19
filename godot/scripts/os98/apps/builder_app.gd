@@ -47,6 +47,8 @@ func focus_building(coord: Vector2i) -> void:
 		return
 	var map = _module._map_panel
 	var info: Dictionary = map.structure_at(coord)
+	if not _module.camp_focused:
+		_module.camp_focused = map.focus_camp()
 	map.debug_center_on(coord)
 	map.inspect_origin = info.get("origin", Vector2i(-1, -1))
 	map.inspect_footprint = info.get("footprint", Vector2i.ONE)

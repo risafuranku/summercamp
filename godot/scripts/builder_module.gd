@@ -141,6 +141,8 @@ var _cat_open := 0.0          # 0..1, the catalogue sliding open
 var _info: Control            # the card for what is selected
 var _hover_card := ""
 var _overlay_btn: Button
+## The view has been put on the camp once (it is the player's to move after that).
+var camp_focused := false
 ## The building card: what a clicked building is and what can be done about it.
 var _inspect: Control
 var _insp: Dictionary = {}     # {type, origin, footprint, root} from the map
@@ -583,7 +585,7 @@ func _build_inspector() -> void:
 	_inspect.visible = false
 	_inspect.draw.connect(_draw_inspector)
 	add_child(_inspect)
-	var defs := [["upgrade", "Upgrade"], ["crew", "Send the crew"], ["demolish", "Demolish"], ["rack", "GuestRack"]]
+	var defs := [["upgrade", "Upgrade"], ["crew", "Send the crew"], ["demolish", "Demolish"], ["rack", "GuestRack"], ["lamp", "Put a lamp here"]]
 	for i in defs.size():
 		var b := Button.new()
 		b.text = str(defs[i][1])
@@ -650,6 +652,13 @@ func _refresh_inspector() -> void:
 			lines.append(["Guests", "%s  (%d/%d)" % [", ".join(who.slice(0, 2)), who.size(), beds] if not who.is_empty() else "taken", Color8(40, 70, 170)])
 		else:
 			lines.append(["Room", {"ready": "ready, %d bed%s" % [beds, "" if beds == 1 else "s"], "dirty": "DIRTY: clean it", "unprepared": "not made up yet"}.get(st, st), Color8(0, 110, 0) if st == "ready" else Color8(170, 0, 0)])
+	elif t == "path":
+		# A path: whether it is lit; the lamp is put on it from here.
+		var lit := bool(_insp.get("lamp", false))
+		v["title"] = "Path with a lamp" if lit else "Path"
+		v["icon"] = _tool_art("lamp_post" if lit else "path")
+		v["sub"] = str(BLURBS["lamp_post" if lit else "path"])
+		lines.append(["Light", "lit at night" if lit else "dark at night", Color8(0, 110, 0) if lit else Color8(150, 100, 0)])
 	elif BLURBS.has(_base_type(t)):
 		v["sub"] = str(BLURBS[_base_type(t)])
 	# Wear and repairs.
@@ -703,9 +712,13 @@ func _refresh_inspector() -> void:
 	db.disabled = int(sum.get("count", 0)) <= 0 or bool(root.get_meta("permanent", false))
 	var rb: Button = _insp_btns["rack"]
 	rb.visible = lodging
+	var lb: Button = _insp_btns["lamp"]
+	lb.visible = t == "path" and not bool(_insp.get("lamp", false))
+	lb.text = "Put a lamp here  $%d" % _cost("lamp_post")
+	lb.disabled = CoreRoot.get_money() < _cost("lamp_post")
 	# The buttons that are there, two to a row from the bottom up, no gaps.
 	var shown: Array = []
-	for id in ["upgrade", "crew", "rack", "demolish"]:
+	for id in ["upgrade", "lamp", "crew", "rack", "demolish"]:
 		if (_insp_btns[id] as Button).visible:
 			shown.append(_insp_btns[id])
 	var rows := int(ceil(float(shown.size()) / 2.0))
@@ -800,6 +813,12 @@ func _insp_action(id: String) -> void:
 				_close_inspector())
 		"rack":
 			program_requested.emit("guestrack")
+		"lamp":
+			_map_panel._send_build_request("lamp_post", o, 0)
+			# The card shows the lamp once the camp has it.
+			get_tree().create_timer(0.35).timeout.connect(func():
+				if not _insp.is_empty() and _insp.get("origin") == o:
+					_on_building_clicked(_map_panel.structure_at(o)))
 	_refresh_inspector()
 
 
@@ -1032,6 +1051,9 @@ func _process(delta: float) -> void:
 	if _tick <= 0.0:
 		_tick = 0.5
 		_refresh_info()
+	# The first time the map has a size: the camp in the middle, near enough to read.
+	if not camp_focused and _map_panel != null and _map_panel.size.x > 0.0 and is_visible_in_tree():
+		camp_focused = _map_panel.focus_camp()
 	if _catalogue != null and _catalogue.visible and _cat_open < 1.0:
 		_cat_open = minf(1.0, _cat_open + delta * 7.0)
 		_layout()

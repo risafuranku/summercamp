@@ -38,6 +38,10 @@ const BISTRO_STATIONS := {
 	"machine": "res://scripts/bistro/machine_station.gd",
 }
 var _stations: Dictionary = {}
+## Where the camera was before it went over a station ([transform, rotation]; [] none).
+var _station_cam_from: Array = []
+var _station_tween: Tween
+const CAM_MOVE = preload("res://scripts/ui/cam_move.gd")
 var _sentence: Control
 var _bistro_marks: Control
 var _dirty_shown := -1
@@ -258,6 +262,8 @@ func close_service() -> void:
 			(g as CanvasLayer).visible = false
 	for v in _stations.values():
 		(v as CanvasLayer).call("close_now")
+		(v as CanvasLayer).call("set_live", false)
+	_station_cam_from = []
 	if _sentence != null:
 		_sentence.clear()
 	_stop_life()
@@ -284,7 +290,8 @@ func _process(delta: float) -> void:
 			return
 	if _current_profile == "rest":
 		_bistro_tick(delta)
-		if _station_open() != "":
+		# At a station, or the camera on its way to one or back: the room holds still.
+		if _station_open() != "" or (_station_tween != null and _station_tween.is_valid() and _station_tween.is_running()):
 			return
 	if _current_profile == "sewer" and _sewer_bulb != null and is_instance_valid(_sewer_bulb):
 		# The bare bulb that will not stay on.
@@ -1035,6 +1042,7 @@ func _set_restaurant_room(room: String, update_camera: bool = true) -> void:
 		_bodies_live(r, r.visible)
 	if _restaurant_room == "basement":
 		_fill_cellar()
+	_bistro_live()
 	if _room_env != null:
 		# The cellar has only its bulb: the room's own light down there is low.
 		_apply_time_profile()
@@ -2280,23 +2288,29 @@ func _station_open() -> String:
 
 ## Steps up to the station `id` (unless another warden is at it): its screen full size.
 func _open_station(id: String) -> void:
-	var path := str(BISTRO_STATIONS.get(id, ""))
-	if path == "" or not ResourceLoader.exists(path):
+	if not BISTRO_STATIONS.has(id):
 		return
 	var who := str(_bistro_taken().get(id, ""))
 	if who != "":
 		if _sentence != null:
 			_sentence.say("%s is at %s." % [who, str(BISTRO_LAYOUT.STATIONS[id]["label"])])
 		return
+	_make_stations()
+	if not _stations.has(id):
+		return
+	var was := _station_open()
 	for k in _stations:
 		if str(k) != id:
 			(_stations[k] as CanvasLayer).call("close_now")
-	if not _stations.has(id):
-		var v: CanvasLayer = load(path).new()
-		v.name = "Station_" + id
-		add_child(v)
-		v.connect("switch_to", _switch_station)
-		_stations[id] = v
+	# Over the station: the room's camera glides there (from the room, or from the station
+	# you were at), and back when you step away.
+	if was == "" and _station_cam_from.is_empty():
+		_station_cam_from = [_interior_camera.transform, _interior_camera.rotation]
+	var pose: Array = BISTRO_LAYOUT.pose(id)
+	var to := Transform3D(Basis(), pose[0]).looking_at(pose[1], Vector3.UP)
+	if _station_tween != null and _station_tween.is_valid():
+		_station_tween.kill()
+	_station_tween = CAM_MOVE.move(self, _interior_camera, {"transform": to}, 0.45 if was == "" else 0.3)
 	var view: CanvasLayer = _stations[id]
 	view.set("building_key", _upkeep_key)
 	view.set("taken", _bistro_taken())
@@ -2305,6 +2319,8 @@ func _open_station(id: String) -> void:
 	_hot_glint_on = null
 	if _sentence != null:
 		_sentence.clear()
+	if _bistro_marks != null and is_instance_valid(_bistro_marks):
+		_bistro_marks.visible = false
 
 
 ## A tab on a station's bar: straight to that station of the room.
@@ -2313,6 +2329,80 @@ func _switch_station(id: String) -> void:
 	if now != "":
 		(_stations[now] as CanvasLayer).call("close_now")
 	_open_station(id)
+
+
+## Stepped away from a station: the camera glides back to where you stood in the room.
+func _on_station_closed() -> void:
+	if _station_open() != "" or _station_cam_from.is_empty() or _interior_camera == null:
+		return
+	var back: Transform3D = _station_cam_from[0]
+	var rot: Vector3 = _station_cam_from[1]
+	_station_cam_from = []
+	if _station_tween != null and _station_tween.is_valid():
+		_station_tween.kill()
+	_station_tween = CAM_MOVE.move(self, _interior_camera, {"transform": back}, 0.4)
+	_station_tween.finished.connect(func():
+		_interior_camera.rotation = rot
+		_cam_base_rot = rot
+		_look.reset())
+	if _bistro_marks != null and is_instance_valid(_bistro_marks):
+		_bistro_marks.visible = true
+
+
+## Every station of the bistro, made once the building is known: each draws its surface
+## onto the counter it stands on (bistro_layout.SURFACES), live while its room is in view.
+func _make_stations() -> void:
+	if _upkeep_key == "" or _current_profile != "rest":
+		return
+	for id in BISTRO_STATIONS:
+		if not _stations.has(id):
+			var path := str(BISTRO_STATIONS[id])
+			if not ResourceLoader.exists(path):
+				continue
+			var v: CanvasLayer = load(path).new()
+			v.name = "Station_" + str(id)
+			add_child(v)
+			v.connect("switch_to", _switch_station)
+			v.connect("closed", _on_station_closed)
+			_stations[id] = v
+		var view: CanvasLayer = _stations[id]
+		view.set("building_key", _upkeep_key)
+		var quad := _surface_quad(str(id))
+		view.set("pick", func(screen: Vector2) -> Vector2: return _pick_surface(str(id), screen))
+		if quad != null:
+			var m := quad.material_override as StandardMaterial3D
+			var t: Texture2D = view.call("surface_texture")
+			m.albedo_texture = t
+			m.emission_texture = t
+	_bistro_live()
+
+
+func _surface_quad(id: String) -> MeshInstance3D:
+	for root in [_restaurant_kitchen_root, _restaurant_basement_root]:
+		if root == null:
+			continue
+		var n: Node = (root as Node3D).get_node_or_null("Surface_" + id)
+		if n != null:
+			return n as MeshInstance3D
+	return null
+
+
+## The pointer through the room's camera onto station `id`'s surface (its picture's
+## pixels), or (-1, -1).
+func _pick_surface(id: String, screen: Vector2) -> Vector2:
+	var quad := _surface_quad(id)
+	if quad == null or _interior_camera == null or _viewport == null:
+		return Vector2(-1, -1)
+	var size := get_viewport().get_visible_rect().size
+	var local := Vector2(clampf(screen.x / size.x, 0.0, 1.0) * float(_viewport.size.x), clampf(screen.y / size.y, 0.0, 1.0) * float(_viewport.size.y))
+	return BISTRO_LAYOUT.surface_point(quad, _interior_camera.project_ray_origin(local), _interior_camera.project_ray_normal(local))
+
+
+## The surfaces of the room you are in are drawn (and only those).
+func _bistro_live() -> void:
+	for id in _stations:
+		var st: Dictionary = BISTRO_LAYOUT.STATIONS.get(id, {})
+		(_stations[id] as CanvasLayer).call("set_live", _is_open and str(st.get("room", "")) == _restaurant_room)
 
 
 ## The other wardens at this bistro's stations: station -> their name.
@@ -2491,6 +2581,7 @@ func _start_bistro_marks() -> void:
 		return
 	if not k.plate_out.is_connected(_on_plate_out):
 		k.plate_out.connect(_on_plate_out)
+	_make_stations()
 	k.site(_upkeep_key)
 	_bistro_marks = BISTRO_MARKS.new()
 	_bistro_marks.name = "BistroMarks"
