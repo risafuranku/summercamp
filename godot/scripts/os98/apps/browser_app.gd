@@ -81,6 +81,8 @@ var _dial_then := ""
 var _anim := 0.0
 var _spin := 0.0
 var _counters: Dictionary = {}
+## Pages seen (kept on the machine between sittings: the visited links are purple).
+var _visited: Dictionary = {}
 var _link_re := RegEx.new()
 var _img_re := RegEx.new()
 ## Pictures still coming down the line: [{key, src: Image, tex, pass, t, kb}]
@@ -97,6 +99,8 @@ func setup(shell, win, args: Dictionary) -> void:
 	_win = win
 	_link_re.compile(LINK_RE)
 	_img_re.compile(IMG_RE)
+	var seen = shell.stored("web_visited", {}) if shell.has_method("stored") else {}
+	_visited = (seen as Dictionary).duplicate() if seen is Dictionary else {}
 	_build()
 	navigate(str(args.get("url", WEB.HOME)))
 
@@ -702,7 +706,10 @@ func _load(key: String, _fresh: bool) -> void:
 func _address_for(key: String) -> String:
 	if key.begins_with("search?"):
 		return "http://www.bohemia-online.cz/" + key
-	return "http://www." + key + ("/" if key.find("/") < 0 else "")
+	# A host with its own name in front (tv.bohemia-online.cz) has no www.
+	var host := key.split("/")[0]
+	var www := "" if host.count(".") >= 2 else "www."
+	return "http://" + www + key + ("/" if key.find("/") < 0 else "")
 
 
 func _describe(target: String) -> String:
@@ -905,6 +912,10 @@ func _show(key: String) -> void:
 	_throbber.queue_redraw()
 	get_node("StatusBar").queue_redraw()
 	_counters[key] = int(_counters.get(key, 0)) + 1
+	if not _visited.has(key):
+		_visited[key] = true
+		if _shell.has_method("store"):
+			_shell.store("web_visited", _visited.duplicate())
 
 
 func _page_for(key: String) -> Dictionary:
@@ -987,8 +998,46 @@ func _expand(body: String, link: String, key: String) -> String:
 		t = t.replace("{{chat}}", _chat())
 		t = t.replace("{{chatcount}}", "%d people here" % (9 + _day() % 5 + (1 if not _shell.is_day() else 0)))
 		t = t.replace("{{horoscope}}", _horoscope())
+		t = t.replace("{{news}}", _news())
+		t = t.replace("{{headline}}", _headline())
+		t = t.replace("{{tv}}", _tv())
+		t = t.replace("{{agro_days}}", _agro_days())
 	t = _pad_marquees(t)
-	return _link_re.sub(t, "[url=$1][color=%s]$2[/color][/url]" % link, true)
+	# Links to pages already seen in the visited colour, as every browser did.
+	var vlink := _vlink_for(link)
+	var out := ""
+	var pos := 0
+	for m in _link_re.search_all(t):
+		var target := m.get_string(1)
+		var col := vlink if _visited.has(normalize(target)) and target.find("://") < 0 else link
+		out += t.substr(pos, m.get_start() - pos) + "[url=%s][color=%s]%s[/color][/url]" % [target, col, m.get_string(2)]
+		pos = m.get_end()
+	return out + t.substr(pos)
+
+
+## The visited colour beside a page's link colour: purple on a light page, lilac on a dark one.
+static func _vlink_for(link: String) -> String:
+	var c := Color.html(link) if Color.html_is_valid(link) else Color8(0, 0, 238)
+	return "#cc99ff" if c.get_luminance() > 0.45 else "#551a8b"
+
+
+## Keys the way Beeternet had them: Backspace or Alt+Left back, Alt+Right forward, F5
+## again (not while you type into the address).
+func _input(e: InputEvent) -> void:
+	if not is_visible_in_tree() or not (e is InputEventKey) or not e.pressed or e.echo:
+		return
+	if _shell.wants_keyboard() or _shell.has_dialog():
+		return
+	var k: int = e.keycode
+	if k == KEY_BACKSPACE or (e.alt_pressed and k == KEY_LEFT):
+		_go_history(-1)
+	elif e.alt_pressed and k == KEY_RIGHT:
+		_go_history(1)
+	elif k == KEY_F5:
+		_load(_url, false)
+	else:
+		return
+	get_viewport().set_input_as_handled()
 
 
 ## A marquee's line is padded out to its width with no-break spaces, so its band of
@@ -1281,6 +1330,91 @@ func _horoscope() -> String:
 		var text: String = STARS[order[i]] if i != odd else STARS_ODD[rng.randi_range(0, STARS_ODD.size() - 1)]
 		t += "[b][color=#ffff66]%s[/color][/b]  %s\n" % [SIGNS[i].to_upper(), text]
 	return t
+
+
+## This week's Courier: the region's small news, what the camp is doing among it, by day.
+func _news_items() -> Array:
+	var day := _day()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4400 + day
+	var items: Array = []
+	var guests := _in_camp()
+	if day <= 3:
+		items.append(["Cerne jezero camp open again", "The camp by the reservoir, shut since last summer, is taking guests for the autumn. The district inspects it on 19 October; Agrostroj Hlubocany has asked for the land."])
+	elif guests > 0:
+		items.append(["Guests at the reservoir camp", "%d people stayed at Cerne jezero last night. \"More than we expected in October,\" said the district's accommodation office." % guests])
+	else:
+		items.append(["Quiet at the reservoir", "The camp at Cerne jezero had no guests last night. The district's inspection is on 19 October."])
+	var pool := [
+		["Batteries in Lesna", "A delivery of R20 batteries came to Jednota Lesna on Tuesday. They were sold out by noon."],
+		["Bridge repair put off again", "The bridge at Lesna stays closed to lorries until spring. The district has no money for it this year."],
+		["Feed mill plan before the council", "Agrostroj Hlubocany showed the council its plan for a feed mill by the reservoir. \"Forty jobs,\" said the director."],
+		["Hockey: Hlubocany lose again", "HC Hlubocany lost 2:7 at home. The coach blamed the ice."],
+		["Fire station ball on Saturday", "The Lesna volunteer firemen invite everyone to the ball. Music: INFRAVRANY (if they come)."],
+		["Mushroom season", "Pickers are out in the woods round the reservoir. The district reminds them that the forest is closed after ten at night."],
+		["The water is still rising", "The reservoir's level has risen again although it has not rained. The Water Board will look at the gauge."],
+		["Lost dog", "A brown dachshund answering to Bobik went missing near the dam. He was last seen walking into the water."],
+	]
+	var used := {}
+	for i in 3:
+		var k := (day * 3 + i * 3 + rng.randi_range(0, 2)) % pool.size()
+		while used.has(k):
+			k = (k + 1) % pool.size()
+		used[k] = true
+		items.append(pool[k])
+	var wx: String = WX_NAMES[clampi(_weather_state(), 0, 6)]
+	items.append(["Weather", "Today %s, %d degrees; tonight %d. %s" % [wx, Season.temp_high(day), Season.temp_low(day), "Frost in the valleys." if Season.hard_frost(day) else "Fog by the water after dark."]])
+	return items
+
+
+func _news() -> String:
+	var t := ""
+	for it in _news_items():
+		t += "[b][font_size=14]%s[/font_size][/b]\n%s\n\n" % [it[0], it[1]]
+	return t
+
+
+## The portal's ticker: the Courier's first story, the weather.
+func _headline() -> String:
+	var items := _news_items()
+	return "%s +++ %s" % [str(items[0][0]), str(items[items.size() - 1][1]).get_slice(";", 0)]
+
+
+## Tonight's television (four channels). After the late film the transmitters show the
+## test card. Some nights one of them shows something else at three.
+func _tv() -> String:
+	var day := _day()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9800 + day
+	var films := ["Columbo", "The Saint", "Kojak", "Derrick", "Murder, She Wrote", "Matlock"]
+	var czech := ["a Czech fairy tale", "Cottage by the Water (series)", "Hospital at the End of Town (repeat)", "the Saturday quiz", "a variety evening from Ostrava"]
+	var sport := ["Football: Sparta - Slavia", "Hockey: Vsetin - Trinec", "Motorcycles from Most"]
+	var nights := ["The Night Film", "Film Club", "The Late Western", "Horror at Midnight"]
+	var t := "[table=2]"
+	var chans := [
+		["CT1", [["18:45", "Bedtime story"], ["19:00", "The News"], ["19:30", "Weather"], ["20:00", czech[rng.randi_range(0, czech.size() - 1)]], ["21:35", films[rng.randi_range(0, films.size() - 1)]], ["23:10", "The News, last"], ["23:30", "Test card"]]],
+		["CT2", [["19:00", "Nature: the deer rut"], ["20:00", sport[rng.randi_range(0, sport.size() - 1)]], ["22:00", nights[rng.randi_range(0, nights.size() - 1)]], ["0:15", "Test card"]]],
+		["Nova", [["19:30", "Televizni noviny"], ["20:00", films[rng.randi_range(0, films.size() - 1)]], ["21:50", "Quiz: Who Wants to Win"], ["23:00", nights[rng.randi_range(0, nights.size() - 1)]], ["1:00", "Night music"]]],
+		["Prima", [["19:15", "Regional news"], ["20:00", "The Simpsons (dubbed)"], ["20:30", czech[rng.randi_range(0, czech.size() - 1)]], ["22:15", films[rng.randi_range(0, films.size() - 1)]], ["0:30", "Test card"]]],
+	]
+	if day >= 5 and rng.randf() < 0.15:
+		(chans[1][1] as Array).append(["3:00", "[color=#cc0000]Kemp Cerne jezero, live[/color]"])
+	for ch in chans:
+		t += "[cell padding=4,2,16,6][b][color=#ffff66]%s[/color][/b]\n" % ch[0]
+		for row in ch[1]:
+			t += "[color=#aaaaaa]%s[/color]  %s\n" % [row[0], row[1]]
+		t += "[/cell]"
+	return t + "[/table]"
+
+
+## Days to the district's inspection (19 October, 08:00: day 31).
+func _agro_days() -> String:
+	var left := 31 - _day()
+	if left > 1:
+		return "%d days" % left
+	if left == 1:
+		return "tomorrow"
+	return "now"
 
 
 func _search_page(q: String) -> Dictionary:

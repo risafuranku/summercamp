@@ -76,9 +76,34 @@ func _on_node_added(n: Node) -> void:
 		_queue.append(weakref(n))
 
 
+## Build's visibility for the shaders (build_vis_dist, build_vis_dark): by day things
+## only dull a little far off; at night the dark comes in close, in steps.
+static func _ensure_globals() -> void:
+	for p in [["build_vis_dist", 90.0], ["build_vis_dark", 0.0]]:
+		if not (p[0] in RenderingServer.global_shader_parameter_get_list()):
+			RenderingServer.global_shader_parameter_add(p[0], RenderingServer.GLOBAL_VAR_TYPE_FLOAT, p[1])
+
+
+func _visibility() -> void:
+	var main := get_tree().current_scene
+	var h = main.get("_time_of_day_hours") if main != null else null
+	var night := 0.0
+	if h != null:
+		var hr := float(h)
+		if hr >= 21.0 or hr < 5.0:
+			night = 1.0
+		elif hr >= 18.0:
+			night = (hr - 18.0) / 3.0
+		elif hr < 8.0:
+			night = (8.0 - hr) / 3.0
+	RenderingServer.global_shader_parameter_set("build_vis_dist", lerpf(90.0, 34.0, night))
+	RenderingServer.global_shader_parameter_set("build_vis_dark", lerpf(0.22, 0.55, night))
+
+
 func _process(delta: float) -> void:
 	if not enabled:
 		return
+	_visibility()
 	# New nodes, once they are in their world.
 	var q := _queue
 	_queue = []
@@ -380,6 +405,7 @@ func _sync(c: Dictionary, force := false) -> void:
 
 ## One shader per combination of render modes and features.
 func _shader(v: Dictionary) -> Shader:
+	_ensure_globals()
 	var key := str(v)
 	if _shaders.has(key):
 		return _shaders[key]
@@ -425,6 +451,12 @@ uniform float affine = 0.8;
 // dithered"): the bands still show, the checker between them is a fringe, not a sheet.
 uniform float light_steps = 10.0;
 uniform float light_dither = 0.5;
+// Halfway between the stepped light and the smooth one (playtest 20. 10.: "too strong").
+uniform float light_step_mix = 0.5;
+// Build's visibility: things darken with distance in shade steps (its palette's shade
+// tables), dithered between them; deeper at night (set every frame, see _visibility()).
+global uniform float build_vis_dist;
+global uniform float build_vis_dark;
 
 varying vec2 v_uv;
 varying vec2 v_texel;
@@ -483,8 +515,16 @@ void fragment() {
 #ifdef VCOLOR
 	c *= COLOR;
 #endif
-	ALBEDO = c.rgb;
 	v_texel = floor(FRAGCOORD.xy);
+	if (build_vis_dark > 0.0) {
+		const float BV[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+		vec2 bm = mod(v_texel, 4.0);
+		float bd = (BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 - 0.5;
+		float far = clamp(v_w / max(build_vis_dist, 1.0), 0.0, 1.0) * build_vis_dark;
+		far = max(floor(far * 8.0 + 0.5 + bd * 0.6), 0.0) / 8.0;
+		c.rgb *= 1.0 - far;
+	}
+	ALBEDO = c.rgb;
 #if ALPHA_MODE == 1
 	ALPHA = c.a;
 	ALPHA_SCISSOR_THRESHOLD = alpha_scissor;
@@ -518,7 +558,8 @@ void light() {
 		const float B[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
 		vec2 m = mod(v_texel, 4.0);
 		float d = (B[int(m.x) + int(m.y) * 4] + 0.5) / 16.0 - 0.5;
-		lit = max(floor(lit * light_steps + 0.5 + d * light_dither), 0.0) / light_steps;
+		float stepped = max(floor(lit * light_steps + 0.5 + d * light_dither), 0.0) / light_steps;
+		lit = mix(lit, stepped, light_step_mix);
 	}
 	DIFFUSE_LIGHT += LIGHT_COLOR * lit / PI;
 }

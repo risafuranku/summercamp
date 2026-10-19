@@ -282,7 +282,7 @@ func _run() -> void:
 				_failures.append("page %s links to missing %s" % [key, target])
 			if target.begins_with("download://") and _shell.installer_of(target.trim_prefix("download://")) == "":
 				_failures.append("page %s offers %s, which installs nothing" % [key, target])
-	for key in ["stavitel98.cz", "cerne-jezero.cz/guestbook", "kuryr-hlubocany.cz/1987", "volny.cz/~strasidla", "hostinec-u-jezera.cz", "povodi-hlubocany.cz", "bohemia-online.cz/weather", "bohemia-online.cz/hry", "bohemia-online.cz/prace", "bohemia-online.cz/chat"]:
+	for key in ["stavitel98.cz", "cerne-jezero.cz/guestbook", "kuryr-hlubocany.cz/1987", "volny.cz/~strasidla", "hostinec-u-jezera.cz", "povodi-hlubocany.cz", "bohemia-online.cz/weather", "bohemia-online.cz/hry", "bohemia-online.cz/prace", "bohemia-online.cz/chat", "kuryr-hlubocany.cz/dnes", "tv.bohemia-online.cz", "obec-lesna.cz", "agrostroj-hlubocany.cz", "bohemia-online.cz"]:
 		if WEB.PAGES.has(key):
 			br._show(key)
 			await _wait(3.0 if _shots != "" else 0.1)

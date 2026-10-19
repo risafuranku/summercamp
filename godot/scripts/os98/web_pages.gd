@@ -21,7 +21,7 @@ const UNDER := "[bgcolor=#ffd800][color=#000000] [b]/!\\ UNDER CONSTRUCTION /!\\
 const HR := "[color=#808080]________________________________________________________________[/color]"
 
 ## The browser's Favorites menu.
-const FAVORITES := ["bohemia-online.cz", "bohemia-online.cz/weather", "kuryr-hlubocany.cz", "cerne-jezero.cz", "povodi-hlubocany.cz", "volny.cz/~strasidla", "volny.cz/~infravrany"]
+const FAVORITES := ["bohemia-online.cz", "bohemia-online.cz/weather", "kuryr-hlubocany.cz/dnes", "tv.bohemia-online.cz", "kuryr-hlubocany.cz", "cerne-jezero.cz", "povodi-hlubocany.cz", "volny.cz/~strasidla", "volny.cz/~infravrany"]
 
 ## The search engine's masthead, on its front page and over the results.
 const SEARCH_HEAD := """[center][font_size=26][b][color=#003399]Bohemia[/color][color=#cc0000]Search[/color][/b][/font_size]
@@ -56,6 +56,10 @@ const INDEX := {
 	"bohemia-online.cz/prace": "work job jobs prace money earn home klikbanka sectito datapunch adverts count",
 	"bohemia-online.cz/chat": "chat talk people friends asl irc room",
 	"bohemia-online.cz/horoskop": "horoscope horoskop stars zodiac future",
+	"tv.bohemia-online.cz": "tv television program tonight film news ct1 ct2 nova prima",
+	"kuryr-hlubocany.cz/dnes": "news this week courier today camp reservoir hockey",
+	"obec-lesna.cz": "lesna village obec mayor fire station ball bridge church bell notices",
+	"agrostroj-hlubocany.cz": "agrostroj feed mill factory land camp plan director jobs",
 }
 
 const PAGES := {
@@ -66,7 +70,7 @@ const PAGES := {
 		"body": """[center]{{banner:mobile:bohemiatel.cz}}
 [font_size=24][b][color=#003399]BOHEMIA[/color] [color=#cc0000]ONLINE[/color][/b][/font_size]
 [color=#666666]your way into the Internet since 1996[/color][/center]
-[bgcolor=#003399][color=#ffff00][b][marquee w=560 speed=36]+++ Nagano gold: the hockey team is home +++ Okna 98 in the shops +++ Fog tonight +++[/marquee][/b][/color][/bgcolor]
+[bgcolor=#003399][color=#ffff00][b][marquee w=560 speed=36]+++ {{headline}} +++ Okna 98 in the shops +++[/marquee][/b][/color][/bgcolor]
 {{search}}
 [table=2]
 [cell][b]SOFTWARE[/b]
@@ -78,7 +82,9 @@ const PAGES := {
 
 [b]OUR REGION[/b]
  {okres-hlubocany.cz|District Office Hlubocany}
- {kuryr-hlubocany.cz|Hlubocany Courier} - news
+ {kuryr-hlubocany.cz/dnes|Hlubocany Courier} - this week
+ {obec-lesna.cz|Obec Lesna} - the village
+ {agrostroj-hlubocany.cz|Agrostroj Hlubocany} - feed and machinery
  {csad-jihlava.cz/380|Bus timetables} CSAD Jihlava
  {jednota-lesna.cz|Jednota Lesna} - shop
  {bazar-hlubocany.cz|Bazar Hlubocany} - classifieds
@@ -92,6 +98,7 @@ const PAGES := {
  {bohemia-online.cz/hry|Games} - shareware, free
  {bohemia-online.cz/chat|Chat} - talk to the district
  {bohemia-online.cz/horoskop|Horoscope}
+ {tv.bohemia-online.cz|TV tonight}
  {bohemia-online.cz/weather|Weather}
 
 [b]WORK[/b]
@@ -198,6 +205,74 @@ Type the old register into the computer, card by card, in the evening and at nig
 """ + HR + """
 [color=#996699]Madame Jarmila reads cards by phone: 0900 11 22 33 (25 Kc a minute).[/color]
 {bohemia-online.cz|<< Bohemia Online}""",
+	},
+
+	"kuryr-hlubocany.cz/dnes": {
+		"title": "Hlubocany Courier - this week",
+		"tile": "tile_paper",
+		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
+		"body": """[font_size=22][b]HLUBOCANY COURIER[/b][/font_size]   [color=#666666]{{date}}[/color]
+[i]weekly for the Hlubocany district[/i]
+""" + HR + """
+{{news}}""" + HR + """
+{kuryr-hlubocany.cz|The archive}  |  {bohemia-online.cz|Bohemia Online}""",
+	},
+	"tv.bohemia-online.cz": {
+		"title": "Bohemia Online - TV tonight",
+		"bg": "#000033", "fg": "#e0e0ff", "link": "#ffff66",
+		"body": """[center][font_size=22][b][color=#66ccff]TV TONIGHT[/color][/b][/font_size]
+[color=#9999cc]{{date}}  -  all channels, the Cervena hora transmitter[/color][/center]
+""" + HR + """
+{{tv}}
+""" + HR + """
+[color=#9999cc]The programme may change. The test card is not a programme.[/color]
+{bohemia-online.cz|<< Bohemia Online}""",
+	},
+	"obec-lesna.cz": {
+		"title": "Obec Lesna - official notice board",
+		"bg": "#ffffff", "fg": "#000000", "link": "#006600",
+		"body": """[bgcolor=#336600][color=#ffffff][b][font_size=18] OBEC LESNA [/font_size][/b]  the village by the reservoir, 412 inhabitants [/color][/bgcolor]
+[center]{{img:web_shop:200}}[/center]
+[b]NOTICE BOARD[/b]  [color=#666666](the mayor's office, open Monday 16:00-18:00)[/color]
+ * The volunteer firemen's ball is on Saturday at the fire station. Bring your own glass.
+ * The bridge is closed to vehicles over 3.5 t. The repairs are put off to the spring.
+ * Waste collection: Thursday. Bins out by 6:00, not the night before (the raccoons).
+ * The church bell has been heard at night. The parish says nobody rings it. Please do not go up the tower to look.
+ * Lost: brown dachshund, Bobik. Last seen at the dam. Reward.
+ * The 380 bus no longer waits at Lesna for the works bus.
+
+[b]THE VILLAGE[/b]
+Lesna has stood above the valley since 1352. When the reservoir was filled in 1962 the lower village, Zatopy, went under the water; its families moved up to Lesna. The bell of the old church at Zatopy was never brought up.
+
+[b]WHERE TO GO[/b]
+ {jednota-lesna.cz|Jednota} - the shop  |  {hostinec-u-jezera.cz|Hostinec U Jezera} - the pub  |  {csad-jihlava.cz/380|the bus}
+""" + HR + """
+{bohemia-online.cz|Bohemia Online}  |  you are visitor no. {{counter}}""",
+	},
+	"agrostroj-hlubocany.cz": {
+		"title": "Agrostroj Hlubocany a.s.",
+		"bg": "#f0f0f0", "fg": "#000000", "link": "#003399",
+		"body": """[bgcolor=#003399][color=#ffffff][b][font_size=20] AGROSTROJ [/font_size][/b] Hlubocany a.s.  -  feed, machinery, the future of the region [/color][/bgcolor]
+[center][i]"From the field to the trough since 1951."[/i][/center]
+""" + HR + """
+[b]THE NEW FEED MILL AT CERNE JEZERO[/b]
+Agrostroj is preparing a modern feed mill on the shore of the Cerne jezero reservoir, on the site of the former recreational facility. Forty jobs, a railway siding, a new road to the dam.
+
+[code]  application to the district      submitted 1.9.1998
+  inspection of the site            19.10.1998, 08:00
+  decision on the change of use     November 1998
+  building starts                   spring 1999[/code]
+[b]The inspection is in {{agro_days}}.[/b]
+
+[b]FROM THE DIRECTOR[/b]
+[i]The land by the water has been a camp for too long. A camp gives work for two months of the year. A mill gives work all year round. We have nothing against the camp. We are simply better for the region.[/i]
+  Ing. J. Prochazka, director
+
+[b]WE ARE HIRING[/b]
+ * Night watchman for the new site (from November). Must not be afraid of the dark.
+ * Driver with a C licence.
+""" + HR + """
+Agrostroj Hlubocany a.s., Prumyslova 4, Hlubocany  |  {bohemia-online.cz|Bohemia Online}""",
 	},
 
 	"bohemia-online.cz/search": {
@@ -527,6 +602,8 @@ The District Office pays $4 for every register card you type in at home, in the 
 [font_size=22][b]HLUBOCANY COURIER[/b][/font_size]
 [i]weekly for the Hlubocany district - archive on the Internet[/i]
 """ + HR + """
+{kuryr-hlubocany.cz/dnes|>> THIS WEEK'S ISSUE <<}
+
 [b]FROM THE ARCHIVE[/b]  (selected articles; the rest at the district library)
 
  {kuryr-hlubocany.cz/1998|1998}  District inspects Cerne jezero camp
