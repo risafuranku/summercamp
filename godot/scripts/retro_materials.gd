@@ -67,7 +67,11 @@ func _ready() -> void:
 		_on_node_added(n)
 
 
+## Meta "retro_skip": left as it is (the lightning far off past the fog keeps its own
+## fog-free material).
 func _on_node_added(n: Node) -> void:
+	if n.has_meta("retro_skip"):
+		return
 	if n is MeshInstance3D or n is Sprite3D or n is MultiMeshInstance3D:
 		_queue.append(weakref(n))
 

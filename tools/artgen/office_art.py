@@ -333,6 +333,13 @@ ROWS = [
     ("cu_slot_button", "sprite", 22, "closeup/slot_button.png"),
     # The tent's upgrade catalog on the groundsheet (scripts/tent_interior.gd).
     ("face_tent_catalog", "panel", 40, "tent_catalog.png"),
+    # The weather (scripts/weather_visuals.gd, season_look.gd): the rain's streak, its
+    # splash, the storm's bolt, a snowflake, a puddle.
+    ("spr_rain_streak", "sprite", 24, "world/rain_streak.png"),
+    ("spr_rain_splash", "sprite", 10, "world/rain_splash.png"),
+    ("spr_lightning_bolt", "sprite", 96, "world/lightning_bolt.png"),
+    ("spr_snowflake", "sprite", 6, "world/snowflake.png"),
+    ("spr_puddle", "sprite", 40, "world/puddle.png"),
     ("warden_a_bedfoot", "sprite", 56, "npc/warden_a_bedfoot.png"),
     ("warden_b_bedfoot", "sprite", 56, "npc/warden_b_bedfoot.png"),
     ("warden_c_bedfoot", "sprite", 56, "npc/warden_c_bedfoot.png"),

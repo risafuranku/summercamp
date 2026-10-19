@@ -281,3 +281,6 @@ pipe_pump	8.0	assets/sfx/pipes/pump.mp3	A distant old pumping station heard thro
 pipe_groan	3.0	assets/sfx/pipes/groan.mp3	A long low groan of an old iron and concrete pipe settling and stressing in the cold, a metallic moan that rises and creaks, somewhere in a sewer, echo, unsettling, no music.
 pipe_street	6.0	assets/sfx/pipes/street.mp3	Heard from below through a street drain grate: wind, light rain falling on asphalt and dripping through the grate, a car passing far off, a dog barking once, muffled, loopable, no music.
 pipe_flow	6.0	assets/sfx/pipes/flow.mp3	Water running steadily through another sewer pipe nearby, a hollow rushing and trickling, echo, loopable, no music.
+thunder_near_a	5.0	assets/sfx/weather/thunder_near_a.mp3	A lightning strike close by over a pine forest: an ear-splitting sharp crack of thunder that splits into a deep rolling rumble fading away, heavy rain falling. Outdoors, no music.
+thunder_near_b	5.5	assets/sfx/weather/thunder_near_b.mp3	Close thunder in a storm over a forest camp: a ripping tearing crackle across the sky, then a heavy boom and a long low rumble, rain pouring. Outdoors, no music.
+thunder_far	7.0	assets/sfx/weather/thunder_far.mp3	Distant thunder far away over a wide valley: a long slow low rumble rolling across the sky and dying out, steady rain. Outdoors, no music.

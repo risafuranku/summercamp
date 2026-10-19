@@ -187,6 +187,15 @@ var _sky_weather: int = -1
 ## What the shader was last given (parameter -> value), so unchanged ones are not sent.
 var _sky_sent: Dictionary = {}
 var _rain_particles: GPUParticles3D
+## The rain further off (bigger streaks, sheets of it in the fog), the drops hitting the
+## ground round you, and the lightning bolt the storm's flashes come from.
+var _rain_far: GPUParticles3D
+var _rain_splash: GPUParticles3D
+var _bolt: Sprite3D
+var _bolt_t := -1.0
+const RAIN_TEX := "res://assets/textury/world/rain_streak.png"
+const SPLASH_TEX := "res://assets/textury/world/rain_splash.png"
+const BOLT_TEX := "res://assets/textury/world/lightning_bolt.png"
 ## The campaign day (core/systems/season.gd): the autumn shifts the light.
 var season_day := 1
 ## Extra fog on top of the weather's (the lake at night, scripts/lake/night_row.gd).
@@ -273,55 +282,172 @@ func setup_celestial_bodies() -> void:
 	_cloud_speed_current = _cloud_speed_target
 
 
+## Two crossed strips w x h, the streak's picture on each (its top at the top).
 func _rain_streak_mesh(w: float, h: float) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for axis in [Vector3(1, 0, 0), Vector3(0, 0, 1)]:
 		var a: Vector3 = axis * w * 0.5
 		var up := Vector3(0, h * 0.5, 0)
-		for v in [-a - up, a - up, a + up, -a - up, a + up, -a + up]:
+		var corners := [[-a - up, Vector2(0, 1)], [a - up, Vector2(1, 1)], [a + up, Vector2(1, 0)], [-a - up, Vector2(0, 1)], [a + up, Vector2(1, 0)], [-a + up, Vector2(0, 0)]]
+		for cv in corners:
 			st.set_normal(Vector3(0, 0, 1))
-			st.add_vertex(v)
+			st.set_uv(cv[1])
+			st.add_vertex(cv[0])
 	return st.commit()
+
+
+## The rain (Grok streak, assets/textury/world/rain_streak.png): crossed strips that
+## follow their velocity, so a storm's rain flies sideways. Dense round you, bigger and
+## fainter further off, where the fog takes it into sheets. The streaks are lit by the
+## sky, not shaded: rain catches whatever light there is.
+func _rain_layer(node_name: String, amount: int, box: Vector3, w: float, h: float, life: float) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.name = node_name
+	_world_3d.add_child(p)
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = box
+	pm.direction = Vector3(0.0, -1.0, 0.0)
+	pm.spread = 0.0
+	pm.gravity = Vector3.ZERO
+	pm.initial_velocity_min = 20.0
+	pm.initial_velocity_max = 24.0
+	pm.particle_flag_align_y = true
+	var mesh := _rain_streak_mesh(w, h)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.albedo_color = Color(0.84, 0.88, 0.92, 0.5)
+	# Not a bar across the lens: gone within a stride of the eye.
+	mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	mat.distance_fade_min_distance = 0.6
+	mat.distance_fade_max_distance = 2.2
+	if ResourceLoader.exists(RAIN_TEX):
+		mat.albedo_texture = load(RAIN_TEX)
+	mesh.surface_set_material(0, mat)
+	p.process_material = pm
+	p.draw_pass_1 = mesh
+	p.amount = amount
+	p.lifetime = life
+	p.visibility_aabb = AABB(-box - Vector3(4, 14, 4), (box + Vector3(4, 14, 4)) * 2.0)
+	p.emitting = false
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return p
 
 
 func setup_weather_particles() -> void:
 	if _world_3d.has_node("RainParticles"):
 		_rain_particles = _world_3d.get_node("RainParticles")
+		_rain_far = _world_3d.get_node_or_null("RainFar")
+		_rain_splash = _world_3d.get_node_or_null("RainSplashes")
+		_bolt = _world_3d.get_node_or_null("LightningBolt")
 		return
-	_rain_particles = GPUParticles3D.new()
-	_rain_particles.name = "RainParticles"
-	_world_3d.add_child(_rain_particles)
-	var process_mat = ParticleProcessMaterial.new()
-	process_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	process_mat.emission_box_extents = Vector3(20.0, 10.0, 20.0)
-	process_mat.direction = Vector3(0.0, -1.0, 0.0)
-	process_mat.spread = 0.0
-	process_mat.gravity = Vector3(0.0, 0.0, 0.0)
-	process_mat.initial_velocity_min = 20.0
-	process_mat.initial_velocity_max = 24.0
-	# Streaks point where they fly, so sideways rain reads as sideways.
-	process_mat.particle_flag_align_y = true
-	# Two crossed strips, not a billboard: the streak follows its velocity (align_y),
-	# so a storm's rain flies sideways instead of falling straight.
-	var mesh = _rain_streak_mesh(0.035, 0.52)
-	var mat = StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-	mat.albedo_color = Color(0.84, 0.88, 0.92, 0.24)
-	mat.roughness = 1.0
-	mat.metallic = 0.0
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
-	mat.vertex_color_use_as_albedo = false
-	mesh.surface_set_material(0, mat)
-	_rain_particles.process_material = process_mat
-	_rain_particles.draw_pass_1 = mesh
-	_rain_particles.amount = 4000
-	_rain_particles.lifetime = 1.6
-	_rain_particles.visibility_aabb = AABB(Vector3(-30, -15, -30), Vector3(60, 30, 60))
-	_rain_particles.emitting = false
-	_rain_particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_rain_particles = _rain_layer("RainParticles", 6000, Vector3(12.0, 8.0, 12.0), 0.04, 1.0, 1.1)
+	_rain_far = _rain_layer("RainFar", 3000, Vector3(34.0, 12.0, 34.0), 0.16, 2.2, 1.5)
+	# The drops hitting the ground round you: a crown that grows and is gone.
+	_rain_splash = GPUParticles3D.new()
+	_rain_splash.name = "RainSplashes"
+	_world_3d.add_child(_rain_splash)
+	var spm := ParticleProcessMaterial.new()
+	spm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	spm.emission_box_extents = Vector3(9.0, 0.0, 9.0)
+	spm.gravity = Vector3.ZERO
+	spm.initial_velocity_min = 0.0
+	spm.initial_velocity_max = 0.0
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 0.45))
+	curve.add_point(Vector2(0.5, 1.0))
+	curve.add_point(Vector2(1.0, 1.15))
+	var ct := CurveTexture.new()
+	ct.curve = curve
+	spm.scale_curve = ct
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1, 1, 1, 0.9))
+	ramp.set_color(1, Color(1, 1, 1, 0.0))
+	var gt := GradientTexture1D.new()
+	gt.gradient = ramp
+	spm.color_ramp = gt
+	spm.scale_min = 0.7
+	spm.scale_max = 1.2
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.16, 0.12)
+	quad.center_offset = Vector3(0, 0.06, 0)
+	var smat := StandardMaterial3D.new()
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	smat.billboard_keep_scale = true
+	smat.vertex_color_use_as_albedo = true
+	smat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	if ResourceLoader.exists(SPLASH_TEX):
+		smat.albedo_texture = load(SPLASH_TEX)
+	quad.material = smat
+	_rain_splash.process_material = spm
+	_rain_splash.draw_pass_1 = quad
+	_rain_splash.amount = 900
+	_rain_splash.lifetime = 0.32
+	_rain_splash.visibility_aabb = AABB(Vector3(-11, -1, -11), Vector3(22, 2, 22))
+	_rain_splash.emitting = false
+	_rain_splash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The bolt behind a storm's flash: far off, past the fog, there for a few steps.
+	_bolt = Sprite3D.new()
+	_bolt.name = "LightningBolt"
+	if ResourceLoader.exists(BOLT_TEX):
+		_bolt.texture = load(BOLT_TEX)
+	_bolt.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	_bolt.shaded = false
+	_bolt.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_bolt.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	_bolt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_bolt.visible = false
+	_bolt.set_meta("retro_skip", true)
+	_world_3d.add_child(_bolt)
+	if _bolt.texture != null:
+		# Through the fog: the material is the sprite's own; fog off on it.
+		var bm := StandardMaterial3D.new()
+		bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		bm.albedo_texture = _bolt.texture
+		bm.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+		bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		bm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		bm.disable_fog = true
+		_bolt.material_override = bm
+
+
+## A bolt where you can see it (in front, a little to one side), far off, as tall as the
+## sky, flickering on and off for a few steps.
+func _strike_bolt(strength: float) -> void:
+	if _bolt == null or _bolt.texture == null or strength < 0.35:
+		return
+	var cam := _get_active_world_camera()
+	if cam == null:
+		return
+	var fwd := -cam.global_transform.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	var dir := fwd.rotated(Vector3.UP, randf_range(-0.8, 0.8))
+	var dist := randf_range(150.0, 260.0)
+	var tall := randf_range(110.0, 150.0)
+	_bolt.pixel_size = tall / float(_bolt.texture.get_height())
+	_bolt.flip_h = randf() < 0.5
+	_bolt.global_position = cam.global_position * Vector3(1, 0, 1) + dir * dist + Vector3(0, tall * 0.5 - 12.0, 0)
+	_bolt_t = 0.0
+
+
+func _update_bolt(delta: float) -> void:
+	if _bolt == null or _bolt_t < 0.0:
+		return
+	_bolt_t += delta
+	# On, off, on, gone: three steps of a sixteenth of a second.
+	var step := int(_bolt_t * 16.0)
+	_bolt.visible = step in [0, 2, 3]
+	if step > 3:
+		_bolt.visible = false
+		_bolt_t = -1.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -437,6 +563,7 @@ func update_weather_runtime(delta: float) -> void:
 		has_audio_flash_sync = true
 		synced_flash = float(_audio_mgr.consume_storm_flash_strength())
 	if synced_flash > 0.0:
+		_strike_bolt(synced_flash)
 		var boosted = max(_storm_flash_strength, synced_flash)
 		if not is_equal_approx(boosted, _storm_flash_strength):
 			_storm_flash_strength = boosted
@@ -487,6 +614,7 @@ func update_frame(delta: float) -> void:
 	update_sky_runtime(delta)
 	update_celestial_bodies()
 	update_weather_runtime(delta)
+	_update_bolt(delta)
 
 
 ## Weather vizuální overlay (fog, sky darkening, grain, sun mult).
@@ -1749,32 +1877,49 @@ func _update_weather_particles(_delta: float) -> void:
 	if _player_getter.is_valid(): center_node = _player_getter.call() as Node3D
 	if center_node == null: center_node = _fallback_cam
 	if center_node != null:
-		_rain_particles.global_position = center_node.global_position + Vector3(0.0, 12.0, 0.0)
+		var c := center_node.global_position
+		_rain_particles.global_position = c + Vector3(0.0, 9.0, 0.0)
+		if _rain_far != null:
+			_rain_far.global_position = c + Vector3(0.0, 12.0, 0.0)
+		if _rain_splash != null:
+			# The camp (and the road) lie at y 0.
+			_rain_splash.global_position = Vector3(c.x, 0.02, c.z)
 	var is_raining = (_weather_state == WEATHER_LIGHT_RAIN
 		or _weather_state == WEATHER_RAIN or _weather_state == WEATHER_STORM)
 	# When it comes down as snow, scripts/season_look.gd lets it snow instead.
 	if is_raining and Season.precip_is_snow(season_day, _time_of_day_hours):
 		is_raining = false
-	_rain_particles.emitting = is_raining
+	for layer in [_rain_particles, _rain_far, _rain_splash]:
+		if layer != null:
+			layer.emitting = is_raining
 	if not is_raining: return
 
-	var intensity = 1.0; var rain_speed = 22.0
-	if _weather_state == WEATHER_LIGHT_RAIN: intensity = 0.4
-	elif _weather_state == WEATHER_RAIN: intensity = 0.8
-	elif _weather_state == WEATHER_STORM: intensity = 2.5; rain_speed = 35.0
+	# How much of it, how fast, how clear: a drizzle, rain, a storm.
+	var intensity := 0.3
+	var rain_speed := 18.0
+	var alpha := 0.34
+	if _weather_state == WEATHER_RAIN:
+		intensity = 0.7; rain_speed = 22.0; alpha = 0.44
+	elif _weather_state == WEATHER_STORM:
+		intensity = 1.0; rain_speed = 30.0; alpha = 0.52
 
-	var draw_mesh = _rain_particles.draw_pass_1 as Mesh
-	if draw_mesh != null:
-		var rain_mat = draw_mesh.surface_get_material(0) as StandardMaterial3D
+	var daylight = clampf(compute_daylight_factor(), 0.0, 1.0)
+	var tint = Color(0.34, 0.37, 0.43).lerp(Color(0.86, 0.9, 0.95), daylight)
+	if _world_env != null and _world_env.environment != null:
+		tint = tint.lerp(_world_env.environment.ambient_light_color, 0.25)
+	for pair in [[_rain_particles, 1.0], [_rain_far, 0.55]]:
+		var layer: GPUParticles3D = pair[0]
+		if layer == null:
+			continue
+		var draw_mesh = layer.draw_pass_1 as Mesh
+		var rain_mat = draw_mesh.surface_get_material(0) as StandardMaterial3D if draw_mesh != null else null
 		if rain_mat != null:
-			var daylight = clampf(compute_daylight_factor(), 0.0, 1.0)
-			var tint = Color(0.30, 0.34, 0.40).lerp(Color(0.84, 0.88, 0.92), daylight)
-			if _world_env != null and _world_env.environment != null:
-				tint = tint.lerp(_world_env.environment.ambient_light_color, 0.30)
-			var rain_alpha = 0.17
-			if _weather_state == WEATHER_RAIN: rain_alpha = 0.20
-			elif _weather_state == WEATHER_STORM: rain_alpha = 0.24
-			rain_mat.albedo_color = Color(tint.r, tint.g, tint.b, rain_alpha)
+			rain_mat.albedo_color = Color(tint.r, tint.g, tint.b, alpha * float(pair[1]))
+	if _rain_splash != null:
+		var sm := (_rain_splash.draw_pass_1 as QuadMesh).material as StandardMaterial3D
+		if sm != null:
+			sm.albedo_color = Color(tint.r, tint.g, tint.b, minf(1.0, alpha * 1.6))
+		_rain_splash.amount_ratio = intensity
 
 	var wind = _rain_weather_wind()
 	var tilt_bounds = _rain_tilt_strength_bounds()
@@ -1785,14 +1930,16 @@ func _update_weather_particles(_delta: float) -> void:
 		elif wind_len > tilt_bounds.y: tilted_wind = tilted_wind.normalized() * tilt_bounds.y
 	elif tilt_bounds.x > 0.0:
 		tilted_wind = Vector2(0.94, 0.34).normalized() * tilt_bounds.x
-
-	_rain_particles.amount_ratio = min(1.0, intensity * 0.5)
-	var p_mat = _rain_particles.process_material as ParticleProcessMaterial
-	if p_mat != null:
-		p_mat.initial_velocity_min = rain_speed * 0.9
-		p_mat.initial_velocity_max = rain_speed * 1.1
-		p_mat.direction = Vector3(tilted_wind.x, -1.0, tilted_wind.y).normalized()
-		var spread_t = 0.0
-		if tilt_bounds.y > tilt_bounds.x:
-			spread_t = clampf((tilted_wind.length() - tilt_bounds.x) / (tilt_bounds.y - tilt_bounds.x), 0.0, 1.0)
-		p_mat.spread = lerpf(0.8, 2.6, spread_t)
+	var spread_t = 0.0
+	if tilt_bounds.y > tilt_bounds.x:
+		spread_t = clampf((tilted_wind.length() - tilt_bounds.x) / (tilt_bounds.y - tilt_bounds.x), 0.0, 1.0)
+	for layer in [_rain_particles, _rain_far]:
+		if layer == null:
+			continue
+		layer.amount_ratio = intensity
+		var p_mat = layer.process_material as ParticleProcessMaterial
+		if p_mat != null:
+			p_mat.initial_velocity_min = rain_speed * 0.9
+			p_mat.initial_velocity_max = rain_speed * 1.1
+			p_mat.direction = Vector3(tilted_wind.x, -1.0, tilted_wind.y).normalized()
+			p_mat.spread = lerpf(0.8, 2.6, spread_t)
