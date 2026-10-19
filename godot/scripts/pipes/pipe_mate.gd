@@ -20,6 +20,8 @@ const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## them lying are drawn to it, as everything is (the same Build-engine pixel throughout).
 const PIXEL := 1.74 / 128.0
 const SQUEEZE_FAR := 2.4
+## Closer than this (lying where you lie) they are not drawn.
+const NEAR_HIDE := 0.7
 
 var host                 # the minigame
 var key := ""            # the sewer, "x:y"
@@ -150,7 +152,9 @@ func _show(id: int, m: Dictionary) -> float:
 	# A pull in steps as they go.
 	var going := _cell(m.get("n")) != _cell(m.get("to"))
 	sp.position = pos + Vector3(0.0, 0.02 if going and int(Time.get_ticks_msec() / 220) % 2 == 0 else 0.0, 0.0)
-	sp.visible = true
+	# Right on top of you (down the same ladder, at the same junction): felt, not seen
+	# (their picture would cut through your eyes).
+	sp.visible = dist > NEAR_HIDE
 	return clampf(1.0 - dist / SQUEEZE_FAR, 0.0, 1.0)
 
 

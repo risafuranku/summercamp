@@ -715,6 +715,42 @@ func _cabin_taken() -> String:
 
 ## The other warden's figure in the room this one is in: its pose, "" when none.
 ## The other warden's figure behind the pub's bar (room z past the counter).
+## How many of the other wardens stand (or lie) in your room, seen.
+func _room_fig_count() -> int:
+	var im = _main.get("_interior_manager")
+	var figs: Dictionary = im.get("_coop_figs") if im != null else {}
+	var n := 0
+	for id in figs.keys():
+		var f = figs[id].get("fig")
+		var sl = figs[id].get("sleeper")
+		if (f != null and is_instance_valid(f) and (f as Node3D).visible) or (sl != null and is_instance_valid(sl)):
+			n += 1
+	return n
+
+
+## How many of the other wardens an attraction here has placed (warden_play._mates).
+func _att_mate_count() -> int:
+	var wp = _main.get("_warden_play")
+	var n := 0
+	for e in (wp.get("_mates") as Dictionary).values():
+		if not (e.get("place", {}) as Dictionary).is_empty():
+			n += 1
+	return n
+
+
+## How many of the other wardens are down the pipes with you (drawn, or lying right
+## where you lie).
+func _pipe_mate_count() -> int:
+	var crawl = _main.get("_sewer_pipe_minigame")
+	if crawl == null or not crawl.is_open():
+		return 0
+	var n := 0
+	for spr in (crawl.mate._sprites as Dictionary).values():
+		if spr != null and is_instance_valid(spr):
+			n += 1
+	return n
+
+
 ## The first of the other wardens' figures in your room (interior_manager._coop_figs).
 func _first_room_fig():
 	var im = _main.get("_interior_manager")
@@ -915,6 +951,9 @@ func _write_fingerprint(tag: String) -> void:
 		"wardens": Coop.others().map(func(id): return [int(Coop.look_of(id)["m"]), int(Coop.look_of(id)["c"]), Coop.name_of(id), Coop.figure_of(id) != null and Coop.figure_of(id).visible]),
 		"night_passing": _main.get("camp_office") != null and bool(_main.get("camp_office").is_fast_forwarding()),
 		"my_slot": Coop.my_slot,
+		"room_figs": _room_fig_count(),
+		"att_mates": _att_mate_count(),
+		"pipe_mates": _pipe_mate_count(),
 		"corn_orders": (CoreRoot.get_state().biz.get("orders", []) as Array).filter(func(o): return str(o.get("key", "")) == "15:13").size(),
 		"radio": _radio_row(),
 		"down": bool(_main.get("_coop_down")),

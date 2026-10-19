@@ -85,6 +85,20 @@ def main():
         failures.append("missing till fingerprints")
     elif hs["money"] - ht["money"] != 80:
         failures.append("the host's till paid %d of the 80 the two spent (%d -> %d)" % (hs["money"] - ht["money"], hs["money"], ht["money"]))
+    # All four round the fire, in the cabin, down the pipes: each sees the other three.
+    for scene, key in (("fire", "att_mates"), ("room", "room_figs"), ("pipes", "pipe_mates")):
+        for role in ROLES:
+            fp = load("%s_%s" % (role, scene))
+            if fp is None:
+                failures.append("%s: no fingerprint of the %s" % (role, scene))
+            elif fp[key] != 3:
+                failures.append("%s sees %s of the other three in the %s" % (role, fp[key], scene))
+    blocked = [r for r in ROLES[1:] if load("%s_pipes" % r) and any(w in load("%s_pipes" % r)["pipe_net"]["status"] for w in ("boots", "torch"))]
+    if not blocked:
+        failures.append("nobody behind the first crawled into anyone in the pipes %s" % [(load("%s_pipes" % r) or {}).get("pipe_net", {}).get("status") for r in ROLES[1:]])
+    hashes = set((load("%s_pipes" % r) or {}).get("pipe_net", {}).get("hash") for r in ROLES)
+    if len(hashes) != 1:
+        failures.append("the four are not in the same pipes (%d networks)" % len(hashes))
     # The night waits for the last one up, then everyone wakes.
     hw = load("host_waiting")
     if hw is None:
@@ -100,6 +114,13 @@ def main():
             failures.append("%s woke on day %s, the host on %s" % (role, fm["day"], hm["day"]))
     if hm is not None and hs is not None and hm["day"] <= hs["day"]:
         failures.append("the night did not pass (day %s -> %s)" % (hs["day"], hm["day"]))
+    # One went home: the other three still have each other (the host may be indoors), not them.
+    for role in ("host", "c1", "c2"):
+        fa = load("%s_after_c3" % role)
+        if fa is None:
+            failures.append("%s: no fingerprint after the fourth went home" % role)
+        elif len(fa["wardens"]) != 2:
+            failures.append("%s after the fourth went home: %s" % (role, fa["wardens"]))
     if failures:
         print("COOP4 CHECK: %d FAILURE(S)" % len(failures))
         for f in failures:

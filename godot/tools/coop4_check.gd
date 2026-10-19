@@ -6,8 +6,13 @@ extends "res://tools/coop_check.gd"
 ##   - each joining warden comes with the next figure (their place on the line) and a
 ##     jacket of their own: everyone sees the other three, four different wardens;
 ##   - two of them spend in town: the host's till pays both, each counted once;
+##   - all four round the host's new fire: each sees the other three sat at it;
+##   - all four in the old cabin: each sees the other three standing about in it;
+##   - all four down the sewer's pipes: each sees the other three lying in them, and the
+##     ones behind the first crawl into boots;
 ##   - at night the host lies down in the back room, two others where they are: the night
-##     does not pass while the fourth is up; it lies down too and all wake in the morning.
+##     does not pass while the fourth is up; it lies down too and all wake in the morning;
+##   - the fourth goes home: the other three play on, their figure gone.
 ## tools/coop4_check.py compares what each wrote.
 ##
 ##   godot --path godot res://tools/coop4_check.tscn -- --role=host|c1|c2|c3 --out=DIR
@@ -29,13 +34,19 @@ func _ready() -> void:
 			["coop_place", spot[0], spot[1], 1.0], ["coop_signal", "host_up"],
 			["coop_wait", "all_seen"], ["wait", 2.0], ["shot", "q1_host_sees_three"], ["coop_fingerprint", "host_seen"], ["coop_signal", "host_seen"],
 			["coop_wait_file", "c1_spent"], ["coop_wait_file", "c2_spent"], ["wait", 3.0], ["coop_fingerprint", "host_till"], ["coop_signal", "host_till"],
+			# The fire, built after the joins (the others' camps get it too): all four round it.
+			["build", "bonfire", 11, 12, 0], ["wait", 2.0], ["coop_signal", "host_built"],
+		] + _together(spot) + [
+			["coop_signal", "host_together_done"],
 			# The night: the host turns in in the back room first.
 			["eval", "debug_jump_to(1, 22.6)"], ["wait", 3.0],
 			["coop_open_office"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 3.0],
 			["eval", "_interior_manager._building_interior._extras._try_sleep()"], ["wait", 6.0], ["coop_signal", "host_in_bed"],
 			["coop_wait_file", "c1_in_bed"], ["coop_wait_file", "c2_in_bed"], ["wait", 4.0], ["coop_fingerprint", "host_waiting"], ["coop_signal", "host_waiting"],
 			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "host_morning"],
-			["coop_wait_file", "c1_morning"], ["coop_wait_file", "c2_morning"], ["coop_wait_file", "c3_morning"], ["coop_signal", "host_day2_done"],
+			["coop_wait_file", "c1_morning"], ["coop_wait_file", "c2_morning"], ["coop_wait_file", "c3_morning"],
+			["coop_signal", "host_morning_seen"], ["coop_wait_file", "c3_gone"], ["wait", 3.0], ["coop_fingerprint", "host_after_c3"],
+			["coop_signal", "host_after_c3"], ["coop_wait_file", "c1_after_c3"], ["coop_wait_file", "c2_after_c3"], ["coop_signal", "host_day2_done"],
 			["coop_wait", "partner_gone"], ["wait", 1.0],
 		]
 	else:
@@ -49,7 +60,9 @@ func _ready() -> void:
 		]
 		if SPEND.has(r):
 			_steps.append_array([["coop_spend", int(SPEND[r])], ["wait", 2.0], ["coop_signal", "%s_spent" % r]])
-		_steps.append_array([["coop_wait_file", "host_till"], ["coop_wait_file", "host_in_bed"]])
+		_steps.append_array([["coop_wait_file", "host_till"], ["coop_wait_file", "host_built"], ["wait", 2.0]])
+		_steps.append_array(_together(spot))
+		_steps.append_array([["coop_wait_file", "host_in_bed"]])
 		if r == "c3":
 			# The last one up: the night waits for them.
 			_steps.append_array([["coop_wait_file", "host_waiting"], ["eval", "camp_office.lie_down()"], ["coop_signal", "c3_in_bed"]])
@@ -57,8 +70,56 @@ func _ready() -> void:
 			_steps.append_array([["eval", "camp_office.lie_down()"], ["coop_signal", "%s_in_bed" % r]])
 		_steps.append_array([
 			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "%s_morning" % r], ["coop_signal", "%s_morning" % r],
-			["coop_wait_file", "host_day2_done"], ["coop_leave"], ["wait", 2.0],
-		])
+			["coop_wait_file", "host_morning_seen"]])
+		if r == "c3":
+			# Home first: the others play on without them.
+			_steps.append_array([["coop_leave"], ["wait", 1.0], ["coop_signal", "c3_gone"]])
+		else:
+			_steps.append_array([["coop_wait_file", "host_after_c3"], ["wait", 1.0], ["coop_fingerprint", "%s_after_c3" % r], ["coop_signal", "%s_after_c3" % r],
+				["coop_wait_file", "host_day2_done"], ["coop_leave"], ["wait", 2.0]])
+
+
+## Round the fire, in the old cabin, down the pipes: all four, each waiting for the rest
+## (files <role>_<scene>), seen and written down, then out again.
+func _together(spot: Array) -> Array:
+	var r := _role
+	var angle := {"host": 0.0, "c1": 90.0, "c2": 180.0, "c3": 270.0}
+	var out: Array = []
+	for scene in ["fire", "room", "pipes"]:
+		match scene:
+			"fire":
+				out.append_array([["coop_fire_at", float(angle.get(r, 0.0))], ["wait", 1.0]])
+			"room":
+				out.append_array([["open_room", ROOM.x, ROOM.y], ["wait", 2.0]])
+			"pipes":
+				out.append_array([
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('sewer'))"], ["wait", 2.0],
+					["eval", "_interior_manager._service_interior._try_request_service_repair()"], ["wait", 2.0],
+					["eval", "_sewer_pipe_minigame.set('_intro_t', 99.0)"], ["wait", 1.0]])
+		out.append(["coop_signal", "%s_%s_in" % [r, scene]])
+		for other in ["host", "c1", "c2", "c3"]:
+			if other != r:
+				out.append(["coop_wait_file", "%s_%s_in" % [other, scene]])
+		out.append(["wait", 2.5])
+		if scene == "pipes":
+			# The host crawls on first; the rest after them, into their boots.
+			if r == "host":
+				out.append_array([["eval", "_sewer_pipe_minigame._forward()"], ["wait", 7.0], ["coop_signal", "host_crawled"]])
+			else:
+				out.append_array([["coop_wait_file", "host_crawled"], ["wait", 1.0], ["eval", "_sewer_pipe_minigame._forward()"], ["wait", 1.0]])
+		out.append_array([["shot", "q2_%s_%s" % [r, scene]], ["coop_fingerprint", "%s_%s" % [r, scene]], ["coop_signal", "%s_%s_seen" % [r, scene]]])
+		for other in ["host", "c1", "c2", "c3"]:
+			if other != r:
+				out.append(["coop_wait_file", "%s_%s_seen" % [other, scene]])
+		match scene:
+			"fire":
+				out.append(["eval", "_warden_play.leave()"])
+			"room":
+				out.append(["eval", "_interior_manager._cabin_interior.close_cabin()"])
+			"pipes":
+				out.append(["eval", "_sewer_pipe_minigame.abort()"])
+		out.append_array([["wait", 1.5], ["coop_place", spot[0], spot[1], 1.0], ["wait", 0.5]])
+	return out
 
 
 func _condition_met(what: String) -> bool:
@@ -93,6 +154,18 @@ func _run_step(step: Array) -> void:
 		Coop.look_model = -1
 		Coop.look_color = int(step[1])
 		Coop.set("_look_override", true)
+		return
+	if str(step[0]) == "coop_fire_at":
+		# Round the fire from your own side (degrees round it), and sat at it.
+		var wp = _main.get("_warden_play")
+		var att: Node3D = wp.find_att("11,12")
+		var me: Node3D = _main.get("_player")
+		if att != null and me != null:
+			var a := deg_to_rad(float(step[1]))
+			me.global_position = att.global_position + Vector3(cos(a) * 2.4, 0.4, sin(a) * 2.4)
+			# Sat down (E by the woodpile would put a log on instead).
+			if not wp.is_active():
+				wp._join(att)
 		return
 	if str(step[0]) == "coop_wait" and str(step[1]) == "all_seen":
 		_waiting_for = "all_seen"
