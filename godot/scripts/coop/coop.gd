@@ -819,6 +819,27 @@ func _kitchen(key: String, op: String, data: Array) -> void:
 		sender = 0
 
 
+## The pubs' bars (scripts/pub/taproom.gd), everyone's to everyone: a mug poured, a keg
+## changed, the gas turned, a mug washed.
+func send_taproom(key: String, op: String, data: Array) -> void:
+	if role != Role.NONE and not wardens.is_empty():
+		_taproom.rpc(key, op, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _taproom(key: String, op: String, data: Array) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not wardens.has(id):
+		return
+	var t := get_tree().get_first_node_in_group("taprooms")
+	if t == null:
+		t = load("res://scripts/pub/taproom.gd").of(get_tree())
+	if t != null:
+		sender = id
+		t.coop_taproom(key, op, data)
+		sender = 0
+
+
 ## Something every machine has that the others must have too, everyone's to everyone
 ## (main.coop_sync): "office" [the lights, curtains and set], "register" [the desk's
 ## register and key hooks], "gate" ["up" / "down"] (a warden worked the barrier).

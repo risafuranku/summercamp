@@ -233,6 +233,14 @@ func biz_sale(key: String, amount: int, units: int, by_hand: bool, credit := tru
 	_biz_tell("sale", [key, amount, units, by_hand])
 
 
+## The pub's tap as it stands (scripts/pub/taproom.gd: the keg on the line, the gas, the
+## mugs), kept with the books for the save. The host's: the other machines follow its ops.
+func biz_tap(key: String, data: Dictionary) -> void:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if not site.is_empty():
+		site["tap"] = data.duplicate(true)
+
+
 ## Somebody went away unserved (out of stock, or nobody behind the counter).
 func biz_lost(key: String) -> void:
 	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
