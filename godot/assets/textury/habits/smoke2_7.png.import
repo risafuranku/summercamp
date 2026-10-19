@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://buri2guwdjahv"
-path="res://.godot/imported/hand5_lighting_strike.png-324a91e33a45dd691f9475838cbb88c3.ctex"
+uid="uid://dbgyhcv5syyxm"
+path="res://.godot/imported/smoke2_7.png-9fe6ca89ebfb27449ac489a426789801.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textury/hands_lo/hand5_lighting_strike.png"
-dest_files=["res://.godot/imported/hand5_lighting_strike.png-324a91e33a45dd691f9475838cbb88c3.ctex"]
+source_file="res://assets/textury/habits/smoke2_7.png"
+dest_files=["res://.godot/imported/smoke2_7.png-9fe6ca89ebfb27449ac489a426789801.ctex"]
 
 [params]
 

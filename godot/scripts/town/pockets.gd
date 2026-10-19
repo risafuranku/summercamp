@@ -48,8 +48,8 @@ const ANCHOR := {
 	"hand2_v": Vector2(61, 21), "hand2_v_mouth": Vector2(83, 29),
 	"hand2_lighter": Vector2(77, 4), "hand2_pack": Vector2(40, 15),
 	# The lighter held to the tip of the cigarette in your mouth, one picture: its nozzle;
-	# the filter comes in at the bottom at x 61.
-	"hand4_lighting": Vector2(61, 6),
+	# the filter comes in at the bottom at x 65.
+	"hand4_lighting": Vector2(65, 17),
 }
 ## Where on the cigarette pictures your fingers hold it (from its bottom left corner).
 const CIG_GRIP := Vector2(11, -11)
@@ -756,9 +756,13 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		frame = "hold"
 	elif frame == "hand2_v_mouth" and tex("hand4_cig_mouth") != null:
 		frame = "hand4_cig_mouth"
-	if cig.state == CIG.THROW and frame == "hold" and tex("hand5_cig_windup") != null:
-		# Cocked back, then the flick (the butt gone from the fingers).
-		frame = "hand5_cig_windup" if cig.t < 0.17 else "hand5_cig_flick"
+	if cig.state == CIG.THROW and frame == "hold" and tex("hand5_cig_flick") != null:
+		# Held a beat (cocked back by its offset), then the flick: the butt gone from the
+		# fingers (a wind-up picture of its own when there is one).
+		if cig.t >= 0.17:
+			frame = "hand5_cig_flick"
+		elif tex("hand5_cig_windup") != null:
+			frame = "hand5_cig_windup"
 	frame = _sequence("l", frame)
 	var t := _hold_tex() if frame == "hold" else tex(frame)
 	# The in-betweens with a cigarette in them burn down with it too.
@@ -784,9 +788,9 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	var lips_tip := vp.y - bar - 28.0 * s
 	if frame == "hand4_cig_mouth":
 		# At your mouth, the palm to you: the filter at the bottom middle, in your lips.
-		# (the filter's round end measured on the sprite: 58, 59)
-		x = vp.x * 0.5 - 58.0 * s
-		y = vp.y - bar - (59.0 + 6.0) * s * up + (1.0 - up) * _left.size.y * 0.3
+		# (the filter's round end measured on the sprite: 46 across, at its bottom edge)
+		x = vp.x * 0.5 - 46.0 * s
+		y = vp.y - bar - (_left.size.y - 3.0 * s) * up + (1.0 - up) * _left.size.y * 0.3
 	elif frame == "hand2_v_mouth":
 		# Up at your mouth: the gap between the fingers just over the bottom middle, the
 		# back of the hand filling the lower view.
@@ -795,7 +799,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	elif frame == "hand4_lighting":
 		# The cigarette's filter at your lips: the picture's bottom on the bottom edge,
 		# the filter in the middle.
-		x = vp.x * 0.5 - 61.0 * s
+		x = vp.x * 0.5 - 65.0 * s
 		y = vp.y - bar - _left.size.y * up + (1.0 - up) * _left.size.y * 0.25
 	elif frame == "hand2_lighter":
 		# The nozzle just under the tip of the one in your mouth.
@@ -809,7 +813,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		x = vp.x * 0.5 - _left.size.x * 0.5
 		y = vp.y - bar - _left.size.y * 0.88 * up
 	elif frame == "hand5_lighting_strike":
-		x = vp.x * 0.5 - 61.0 * s
+		x = vp.x * 0.5 - 65.0 * s
 		y = vp.y - bar - _left.size.y * up
 	elif frame == "hand5_cig_mid":
 		# Halfway to your mouth.
@@ -839,7 +843,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 			pos.y += 4.0 * s
 		elif cig.t > 0.72:
 			pos += Vector2(vp.x * 0.12, -10.0 * s)
-	if cig.state == CIG.THROW and not frame.begins_with("hand5_cig_"):
+	if cig.state == CIG.THROW and frame != "hand5_cig_flick":
 		pos += (Vector2(-8.0, 6.0) if cig.t < 0.15 else Vector2(46.0, -34.0)) * s
 	# Drinking, the cigarette hand drops out of the way (and comes back up after).
 	if bottle.state == BOTTLE.DRINK or (bottle.state == BOTTLE.FOAM and Input.is_action_pressed("drink")):

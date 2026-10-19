@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bhlxm11t0v0ib"
-path="res://.godot/imported/hand5_cig_windup.png-321be950a7217b3eacfcd6b6d1be1f06.ctex"
+uid="uid://ci6nf8eg5xm0b"
+path="res://.godot/imported/smoke2_5.png-ba55a5c71e8fc371542559830046a9a0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textury/hands_lo/hand5_cig_windup.png"
-dest_files=["res://.godot/imported/hand5_cig_windup.png-321be950a7217b3eacfcd6b6d1be1f06.ctex"]
+source_file="res://assets/textury/habits/smoke2_5.png"
+dest_files=["res://.godot/imported/smoke2_5.png-ba55a5c71e8fc371542559830046a9a0.ctex"]
 
 [params]
 

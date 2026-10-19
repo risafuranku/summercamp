@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dtm5pm7x7y5d5"
-path="res://.godot/imported/hand5_pack_mouth.png-ff1efc20392b5883657863d4130c038b.ctex"
+uid="uid://scno3o2onvdv"
+path="res://.godot/imported/smoke2_4.png-b55ab3f8cadbcaa5611b16e18d44537d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textury/hands_lo/hand5_pack_mouth.png"
-dest_files=["res://.godot/imported/hand5_pack_mouth.png-ff1efc20392b5883657863d4130c038b.ctex"]
+source_file="res://assets/textury/habits/smoke2_4.png"
+dest_files=["res://.godot/imported/smoke2_4.png-b55ab3f8cadbcaa5611b16e18d44537d.ctex"]
 
 [params]
 
