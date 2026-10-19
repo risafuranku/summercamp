@@ -179,7 +179,7 @@ def buildify(img, grit, seed=7):
 
 
 # The fried slices came out standing up: laid on their side for the pan and the trays.
-LAY_FLAT = ("slice_raw", "slice_golden", "slice_burnt", "slice_bad")
+LAY_FLAT = ("slice_raw", "slice_golden", "slice_burnt", "slice_bad", "loaf")
 
 
 def _save(im, dest):

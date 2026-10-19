@@ -8,11 +8,11 @@ extends "res://scripts/bistro/station_view.gd"
 ##   of it in the pan and it burns sooner (kitchen.gd prep "cheese_bad").
 
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
-const BLOCK := Rect2(30, 136, 136, 124)
-const BOWLS := [Rect2(166, 150, 96, 86), Rect2(274, 150, 96, 86), Rect2(380, 150, 96, 86)]
+const BLOCK := Rect2(10, 80, 145, 190)
+const BOWLS := [Rect2(160, 118, 100, 104), Rect2(276, 118, 100, 104), Rect2(396, 118, 100, 104)]
 const BOWL_NAMES := ["flour", "egg", "crumbs"]
-const TRAY := Rect2(482, 142, 124, 108)
-const HAND := Vector2(320, 270)
+const TRAY := Rect2(520, 95, 106, 168)
+const HAND := Vector2(330, 290)
 
 var _slice := false
 var _steps: Array = []     # the bowls it has been through, in order

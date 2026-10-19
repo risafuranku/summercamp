@@ -13,14 +13,14 @@ extends "res://scripts/bistro/station_view.gd"
 ##                 slides off to the heat shelf at the pass.
 
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
-const POT_C := Vector2(142, 158)
-const POT_R := Vector2(102, 48)
-const POT := Rect2(30, 100, 240, 120)
-const TINS := Rect2(356, 28, 70, 92)
-const STEAMER := Rect2(464, 44, 170, 128)
-const BOARD := Rect2(296, 150, 304, 146)
-const LOAF_AT := Vector2(448, 232)
-const LOAF_LEN := 168.0
+const POT_C := Vector2(160, 150)
+const POT_R := Vector2(92, 90)
+const POT := Rect2(55, 50, 210, 205)
+const TINS := Rect2(322, 5, 115, 135)
+const STEAMER := Rect2(466, 8, 160, 140)
+const BOARD := Rect2(326, 160, 230, 140)
+const LOAF_AT := Vector2(440, 262)
+const LOAF_LEN := 88.0
 const SLICE_W := 21.0
 
 var _stirring := false
@@ -205,7 +205,7 @@ func _paint(c: Control) -> void:
 				var k := int(st + j * 7) % 16
 				c.draw_rect(Rect2((POT_C + Vector2(-70 + (k * 37) % 140, -20 + (k * 13) % 40)).floor(), Vector2(3, 2)), Color(0.75, 0.45, 0.3, 0.8))
 	# The level on a chalk tag, the heat and the catching under it.
-	var tag := Rect2(468, 294, 166, 40)
+	var tag := Rect2(14, 290, 166, 40)
 	c.draw_rect(tag, Color(0.08, 0.07, 0.06, 0.85))
 	ink(c, tag.position + Vector2(6, 12), "GOULASH  %d / %d" % [level, RULES.POT_CAP], RETRO_UI.C_BONE)
 	ink(c, tag.position + Vector2(6, 24), "HEAT", RETRO_UI.C_BONE_DIM, RETRO_UI.FONT_TEXT)
@@ -247,4 +247,4 @@ func _paint(c: Control) -> void:
 		var k := clampf(float(t) / 0.6, 0.0, 1.0)
 		var from := Vector2(LOAF_AT.x - LOAF_LEN * 0.5 + LOAF_LEN * float(left) / float(RULES.LOAF_SLICES) + 10, LOAF_AT.y)
 		blit(c, "dumpling_slice", from + Vector2(k * 90.0, k * k * 40.0), 1.0 - k * 0.5)
-	ink(c, Vector2(300, 310), "AT THE PASS %d" % kitchen.prep(building_key, "dumpling"), RETRO_UI.C_BONE)
+	ink(c, Vector2(332, 314), "AT THE PASS %d" % kitchen.prep(building_key, "dumpling"), RETRO_UI.C_BONE)

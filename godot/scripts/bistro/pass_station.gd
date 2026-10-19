@@ -13,18 +13,18 @@ extends "res://scripts/bistro/station_view.gd"
 ##                right counts, how long they waited), the money and the tip, the stars.
 ##                Somebody else's dish comes back. SCRAPE on the bar bins the plate.
 
-const SHELF_CHEESE := Rect2(4, 88, 64, 36)
-const SHELF_FRIES := Rect2(70, 88, 64, 36)
-const SHELF_DUMPLING := Rect2(136, 88, 64, 36)
-const POT := Rect2(40, 168, 180, 90)
-const STACK := Rect2(228, 186, 66, 66)
-const PLATE_AT := Vector2(366, 252)
-const PLATE := Vector2(124, 76)
-const TARTAR := Rect2(456, 168, 72, 54)
-const ONION := Rect2(538, 158, 92, 66)
-const BELL := Rect2(484, 62, 58, 50)
-const BIG_TICKET := Rect2(560, 230, 76, 104)
-const SQUASH := 0.62
+const SHELF_CHEESE := Rect2(236, 92, 64, 36)
+const SHELF_FRIES := Rect2(304, 92, 64, 36)
+const SHELF_DUMPLING := Rect2(372, 92, 70, 36)
+const POT := Rect2(24, 96, 200, 180)
+const STACK := Rect2(236, 156, 66, 66)
+const PLATE_AT := Vector2(370, 248)
+const PLATE := Vector2(116, 116)
+const TARTAR := Rect2(450, 110, 85, 82)
+const ONION := Rect2(520, 175, 105, 100)
+const BELL := Rect2(548, 14, 66, 64)
+const BIG_TICKET := Rect2(444, 228, 72, 104)
+const SQUASH := 1.0
 ## Where each thing lies on the plate (offset from its centre, before the squash).
 const ON_PLATE := {
 	"goulash": Vector2(-16, -6), "dumpling": Vector2(22, -4), "onion": Vector2(-18, -10),

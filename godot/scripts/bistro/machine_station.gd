@@ -7,13 +7,13 @@ extends "res://scripts/bistro/station_view.gd"
 ## quite still. By day it is a dead machine. At night the lamp is lit with the plug out,
 ## the needle stands off zero and the drum has turned a little since you last looked.
 
-const PLUG := Rect2(40, 280, 120, 50)
-const LAMP := Rect2(410, 150, 40, 40)
-const GAUGE := Rect2(350, 140, 50, 50)
-const HOPPER := Rect2(200, 40, 220, 100)
-const CRANK := Rect2(470, 110, 120, 140)
-const TRAY := Rect2(230, 250, 170, 70)
-const PLATE := Rect2(150, 170, 120, 50)
+const PLUG := Rect2(505, 295, 100, 50)
+const LAMP := Rect2(140, 58, 30, 30)
+const GAUGE := Rect2(120, 115, 55, 60)
+const HOPPER := Rect2(180, 10, 300, 90)
+const CRANK := Rect2(480, 75, 75, 165)
+const TRAY := Rect2(205, 265, 245, 75)
+const PLATE := Rect2(265, 140, 145, 30)
 
 var night := false
 var _hum: AudioStreamPlayer

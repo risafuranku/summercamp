@@ -11,14 +11,14 @@ extends "res://scripts/bistro/station_view.gd"
 ##           down, black ones go in the bin).
 ## The pan and the fryer go on cooking when you leave (kitchen.gd): mind the room's marks.
 
-const SLOTS := [Vector2(172, 158), Vector2(248, 160), Vector2(210, 196)]
-const SLICE := Vector2(58, 34)
-const TRAY := Rect2(2, 96, 104, 78)
-const BUCKET := Rect2(2, 178, 66, 70)
-const FRYER := Rect2(352, 118, 146, 96)
-const BASKET_UP := Vector2(424, 108)
-const BASKET_DOWN := Vector2(424, 164)
-const RACK := Rect2(530, 128, 106, 116)
+const SLOTS := [Vector2(172, 122), Vector2(240, 124), Vector2(206, 175)]
+const SLICE := Vector2(60, 36)
+const TRAY := Rect2(0, 48, 64, 172)
+const BUCKET := Rect2(0, 228, 76, 60)
+const FRYER := Rect2(344, 56, 192, 192)
+const BASKET_UP := Vector2(440, 96)
+const BASKET_DOWN := Vector2(440, 160)
+const RACK := Rect2(584, 60, 56, 210)
 const BIN := Rect2(600, 268, 38, 44)
 
 var _flip: Dictionary = {}   # slot -> seconds since turned
@@ -224,7 +224,7 @@ func _paint(c: Control) -> void:
 	var good := kitchen.prep(building_key, "cheese_raw")
 	var bad := kitchen.prep(building_key, "cheese_bad")
 	for i in mini(8, good + bad):
-		var at := TRAY.position + Vector2(24 + (i % 3) * 28, 22 + (i / 3) * 18)
+		var at := TRAY.position + Vector2(18 + (i % 2) * 28, 44 + (i / 2) * 22)
 		blit(c, "slice_bad_small" if i >= good and tex("slice_bad_small") != null else "slice_raw_small", at)
 	ink(c, TRAY.position + Vector2(4, TRAY.size.y - 4), "%d" % (good + bad), RETRO_UI.C_BONE)
 	# The bucket of raw chips under it.
@@ -282,11 +282,11 @@ func _paint(c: Control) -> void:
 	# The rack: what is ready for the pass.
 	var cheese := kitchen.prep(building_key, "cheese")
 	for i in mini(6, cheese):
-		blit(c, "slice_golden_small", RACK.position + Vector2(24 + (i % 2) * 50, 26 + (i / 2) * 20))
+		blit(c, "slice_golden_small", RACK.position + Vector2(28, 18 + i * 14))
 	var fries := kitchen.prep(building_key, "fries")
 	for i in mini(6, fries):
-		blit(c, "chips_rack", RACK.position + Vector2(26 + (i % 2) * 48, 82 + (i / 2) * 14))
-	ink(c, RACK.position + Vector2(4, RACK.size.y + 12), "CHEESE %d  CHIPS %d" % [cheese, fries], RETRO_UI.C_BONE)
+		blit(c, "chips_rack", RACK.position + Vector2(28, 112 + i * 16))
+	ink(c, RACK.position + Vector2(-6, RACK.size.y + 12), "%d / %d" % [cheese, fries], RETRO_UI.C_BONE)
 
 
 func _band_col(state: int) -> Color:

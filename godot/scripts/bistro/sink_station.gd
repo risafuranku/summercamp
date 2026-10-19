@@ -7,10 +7,10 @@ extends "res://scripts/bistro/station_view.gd"
 ##   down, the goulash and the crumbs coming off stroke by stroke; clean, a click puts it
 ##   in the rack.
 
-const PILE := Rect2(14, 176, 200, 140)
-const WATER_AT := Vector2(330, 232)
-const WATER := Rect2(200, 168, 270, 124)
-const RACK := Rect2(408, 30, 218, 150)
+const PILE := Rect2(30, 75, 150, 190)
+const WATER_AT := Vector2(320, 175)
+const WATER := Rect2(195, 80, 250, 180)
+const RACK := Rect2(470, 50, 160, 160)
 const STROKES := 900.0
 
 var _in_water := false
@@ -128,8 +128,7 @@ func _paint(c: Control) -> void:
 		blit(c, "bubbles", (b["at"] as Vector2) + Vector2(0, -k * 10.0), 1.0 - k)
 	# The rack: the clean plates standing in it.
 	var clean := int(pl["clean"])
-	for i in mini(clean, 12):
-		var x := RACK.position.x + 14 + i * 13
-		c.draw_rect(Rect2(x, RACK.position.y + 40, 4, 70), Color(0.94, 0.94, 0.9))
-		c.draw_rect(Rect2(x + 3, RACK.position.y + 40, 1, 70), Color(0.3, 0.4, 0.7))
+	# The clean ones stacked on the counter, a stack a five.
+	for i in mini(clean, 15):
+		blit(c, "plates_stack", RACK.position + Vector2(40 + (i / 5) * 60, 120 - (i % 5) * 8))
 	ink(c, RACK.position + Vector2(4, RACK.size.y + 10), "CLEAN %d" % clean, RETRO_UI.C_BONE if clean > 0 else RETRO_UI.C_RED_LIGHT)

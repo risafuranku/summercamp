@@ -12,14 +12,14 @@ extends "res://scripts/bistro/station_view.gd"
 ##            the kitchen's: kitchen.gd prep "chips_raw").
 
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
-const SACK := Rect2(4, 188, 118, 134)
-const DRUM := Rect2(120, 80, 146, 160)
-const SWITCH := Rect2(198, 144, 44, 44)
-const CHUTE_AT := Vector2(222, 236)
-const CUTTER := Rect2(400, 120, 190, 140)
-const LEVER := Rect2(410, 40, 190, 190)
-const GRID_AT := Vector2(485, 192)
-const BUCKET := Rect2(284, 250, 84, 90)
+const SACK := Rect2(10, 200, 85, 125)
+const DRUM := Rect2(105, 60, 150, 110)
+const SWITCH := Rect2(212, 124, 34, 34)
+const CHUTE_AT := Vector2(258, 170)
+const CUTTER := Rect2(380, 60, 190, 120)
+const LEVER := Rect2(396, 18, 150, 124)
+const GRID_AT := Vector2(470, 155)
+const BUCKET := Rect2(262, 240, 82, 92)
 
 var _drum := 0          # potatoes in the drum
 var _run := -1.0        # seconds running, -1 off
