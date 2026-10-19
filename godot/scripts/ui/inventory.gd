@@ -225,12 +225,12 @@ func _item_at(cell: Vector2i) -> Dictionary:
 func use(it: Dictionary) -> void:
 	match str(it["id"]):
 		"cigs":
-			if pockets != null and pockets.try_use("smoke"):
+			if pockets != null and pockets.try_use("smoke", true):
 				close()
 			else:
 				_play("nope.mp3")
 		"beer":
-			if pockets != null and pockets.try_use("drink"):
+			if pockets != null and pockets.try_use("drink", true):
 				close()
 			else:
 				_play("nope.mp3")
@@ -337,8 +337,11 @@ func _input(event: InputEvent) -> void:
 		close()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact"):
-		# E does nothing in the world while the bag is open.
+		# E uses the thing under the cursor (a click only moves it); nothing in the world.
 		get_viewport().set_input_as_handled()
+		var hov := _hovered()
+		if not hov.is_empty():
+			use(hov)
 
 
 ## Picking a thing up off the ground: interact on it, the bag shut.
@@ -838,12 +841,45 @@ func _draw_bag() -> void:
 		var at := Vector2(PAD + int(it["x"]) * CELL, TOP + int(it["y"]) * CELL)
 		_draw_item(it, o + at * fs, fs, Color(1.15, 1.12, 1.05) if it == hover else Color.WHITE)
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if not hover.is_empty():
+		_draw_hint(hover, mouse)
 	if not _held.is_empty():
 		# On the cursor, lifted: its shadow below it.
 		var f := Vector2(_foot(_held)) * float(CELL) * fs
 		var tl := (mouse - f * 0.5).floor()
 		_draw_item(_held, tl + Vector2(3, 4) * fs, fs, Color(0, 0, 0, 0.5), false)
 		_draw_item(_held, tl, fs, Color.WHITE)
+
+
+## The thing under the cursor in the bag (nothing held), or {}.
+func _hovered() -> Dictionary:
+	if not _open or not _held.is_empty() or _canvas == null:
+		return {}
+	return _item_at(_cell_at(_canvas.get_local_mouse_position(), _scale()))
+
+
+## What E does with a thing, for the line by the cursor ("" nothing).
+const VERBS := {"cigs": "Smoke one", "beer": "Drink", "card": "Scratch it", "torch": "Torch on / off", "key_shed": "Read the tag"}
+
+
+## The line by the cursor over a thing: what it is for and that E does it (a click
+## picks it up to move it).
+func _draw_hint(it: Dictionary, mouse: Vector2) -> void:
+	var verb := str(VERBS.get(str(it["id"]), ""))
+	if verb == "":
+		return
+	var txt := "E  %s" % verb
+	if KINDS.get(str(it["id"]), {}).has("n"):
+		txt += "  (%d)" % int(it.get("n", 1))
+	var c := _canvas
+	var fs := float(_scale())
+	var w := RETRO_UI.FONT_LABEL.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, RETRO_UI.SIZE_LABEL).x
+	var at := (mouse + Vector2(10, 12) * fs).floor()
+	c.draw_set_transform(at, 0.0, Vector2(fs, fs))
+	c.draw_rect(Rect2(Vector2(-3, -9), Vector2(w + 6, 12)), Color(0.08, 0.06, 0.04, 0.92))
+	c.draw_rect(Rect2(Vector2(-3, -9), Vector2(w + 6, 12)), Color(0.55, 0.44, 0.28), false, 1.0)
+	c.draw_string(RETRO_UI.FONT_LABEL, Vector2(0, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE)
+	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## A thing with its top left at `at` (screen): its picture in the middle of its pockets,

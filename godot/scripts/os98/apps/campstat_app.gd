@@ -597,7 +597,7 @@ func _page_today(y: float) -> float:
 		for g in state.guests:
 			if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
 				guests += maxi(1, int(g.get("party_size", 1)))
-	y = _lcd(y, [["Cash", "$%d" % (CoreRoot.get_money() if CoreRoot != null else 0)], ["Bills to pay", "$%d" % unpaid, Color8(255, 90, 70) if int(_snap.get("overdue_count", 0)) > 0 else LCD_ON], ["Guests in camp", str(guests)]])
+	y = _lcd(y, [["Cash", "$" + _shell._group(CoreRoot.get_money() if CoreRoot != null else 0)], ["Bills to pay", "$%d" % unpaid, Color8(255, 90, 70) if int(_snap.get("overdue_count", 0)) > 0 else LCD_ON], ["Guests in camp", str(guests)]])
 	var rows: Array = []
 	# The bills.
 	var overdue := int(_snap.get("overdue_count", 0))
@@ -952,7 +952,7 @@ func _page_money(y: float) -> float:
 				guests += 1
 				guests_income += maxi(1, int(g_any.get("daily_income", 1)))
 	var total := guests_income + passive
-	y = _lcd(y, [["Cash", "$%d" % CoreRoot.get_money()], ["Income a day", "$%d" % total], ["Guests paying", str(guests)]])
+	y = _lcd(y, [["Cash", "$" + _shell._group(CoreRoot.get_money())], ["Income a day", "$%d" % total], ["Guests paying", str(guests)]])
 	y = _week_chart(y)
 	var top := float(maxi(1, maxi(guests_income, passive)))
 	var rows: Array = [

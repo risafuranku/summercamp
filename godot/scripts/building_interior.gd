@@ -1338,6 +1338,13 @@ func _sync_crt_viewport_to_window() -> void:
 
 ## `instant`: a new game starts already seated, the monitor filling the view from the
 ## first frame (no fly-in from the room view).
+## Sitting down at the PC and getting up (playtest 20. 10.: "the move to the computer is
+## too slow": it was 1.2 s in, then 1.1 s leaning to the screen, 0.8 s out).
+const CRT_SIT_SEC := 0.5
+const CRT_LEAN_IN_SEC := 0.4
+const CRT_STAND_SEC := 0.45
+
+
 func enter_crt_view(instant: bool = false) -> void:
 	if _crt_active: return
 	# Sitting down at it wakes the screen saver, as touching the mouse would.
@@ -1363,7 +1370,7 @@ func enter_crt_view(instant: bool = false) -> void:
 	# Screen Z global: -0.535.
 	# Target Z: 0.1
 	_crt_orbit_enabled = false
-	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_view_cam_pos, "rotation": _crt_rest_rot(_crt_view_cam_pos), "fov": CRT_ENTER_FOV}, 1.2, Tween.TRANS_CUBIC, Tween.EASE_OUT)
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_view_cam_pos, "rotation": _crt_rest_rot(_crt_view_cam_pos), "fov": CRT_ENTER_FOV}, CRT_SIT_SEC, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
@@ -1387,7 +1394,7 @@ func _exit_crt_view() -> void:
 		_crt_ui.close_panel()
 
 	if _camera_tween: _camera_tween.kill()
-	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _initial_cam_pos, "rotation": _initial_cam_rot, "fov": _initial_cam_fov}, 0.8, Tween.TRANS_CUBIC, Tween.EASE_OUT)
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _initial_cam_pos, "rotation": _initial_cam_rot, "fov": _initial_cam_fov}, CRT_STAND_SEC, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 
 
 func _input(event: InputEvent) -> void:
@@ -1755,7 +1762,7 @@ func _focus_crt_full() -> void:
 	# The desktop is up: lean in to it, slowly, to the pose the mouse orbit keeps (it used
 	# to snap there in 0.4 s to a fixed angle the orbit then pulled away from: a jerk).
 	_crt_orbit_enabled = false
-	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, 1.1, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, CRT_LEAN_IN_SEC, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return

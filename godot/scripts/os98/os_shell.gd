@@ -153,7 +153,8 @@ var _dialogs: Control
 var _dialog_catch: Control
 var _taskbar: Control
 var _start_btn: Control
-var _tab_buttons: Dictionary = {}  # tab id -> Control
+var _tab_buttons: Dictionary = {}
+var _tab_seps: Array = []  # tab id -> Control
 var _clock: Label
 var _money: Label
 var _tray_net: TextureRect
@@ -1530,11 +1531,15 @@ func _clock_text() -> String:
 
 # ── the taskbar: Start, the tabs, the tray ───────────────────────────────────
 
-const START_W := 76
+const START_W := 68
 const WIDE_W := 42
 const NARROW_W := 42
-const TAB_GAP := 2
-const TAB_X := 84
+const TAB_GAP := 1
+const TAB_X := 75
+## The tabs in their groups (the camp's work | what comes in from outside | the rest),
+## an etched line between them.
+const TAB_GROUP_ENDS := [3, 7]
+const TAB_GROUP_GAP := 7
 const TRAY_W := 112
 const TAB_H := 40
 
@@ -1556,8 +1561,8 @@ func _build_taskbar() -> void:
 		_start_btn.draw_style_box(T.box("pressed" if on else "raised", T.FACE, Vector4.ZERO), Rect2(Vector2.ZERO, _start_btn.size))
 		var o := Vector2(1, 1) if on else Vector2.ZERO
 		if _start_logo_tex != null:
-			_start_btn.draw_texture_rect(_start_logo_tex, Rect2(Vector2(6, 4) + o, Vector2(32, 32)), false)
-		_start_btn.draw_string(T.FONT_BOLD, Vector2(40, 25) + o, "Start", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+			_start_btn.draw_texture_rect(_start_logo_tex, Rect2(Vector2(4, 4) + o, Vector2(32, 32)), false)
+		_start_btn.draw_string(T.FONT_BOLD, Vector2(37, 25) + o, "Start", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	)
 	_start_btn.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
@@ -1576,6 +1581,15 @@ func _build_taskbar() -> void:
 		_taskbar.add_child(b)
 		_tab_buttons[id] = b
 		x += w + TAB_GAP
+		if i in TAB_GROUP_ENDS:
+			_tab_seps.append(x + floorf(TAB_GROUP_GAP * 0.5) - 1.0)
+			x += TAB_GROUP_GAP
+	_taskbar.draw.connect(func():
+		# The etched lines between the groups, and the grip after Start.
+		for sx in [float(TAB_X) - 4.0] + _tab_seps:
+			_taskbar.draw_rect(Rect2(sx, 6, 1, TAB_H - 6), T.SHADOW)
+			_taskbar.draw_rect(Rect2(sx + 1, 6, 1, TAB_H - 6), T.WHITE)
+	)
 	# The tray: the line, the till, the clock.
 	var tray := Panel.new()
 	tray.add_theme_stylebox_override("panel", T.box("well", T.FACE, Vector4.ZERO))
@@ -1661,7 +1675,11 @@ func _draw_tab(c: Control, i: int, tex: Texture2D) -> void:
 	# Plain: raised, lit when the mouse is on it, pressed in when it is the one open.
 	var flashing := _flash.has(id) and int(float(_flash[id]) * 2.0) % 2 == 1
 	if on:
-		c.draw_style_box(T.box("pressed", Color8(232, 232, 232), Vector4.ZERO), r)
+		c.draw_style_box(T.box("pressed", Color8(224, 224, 224), Vector4.ZERO), r)
+		# The checked face the pressed taskbar button had.
+		for yy in range(2, int(r.size.y) - 2):
+			for xx in range(2 + (yy % 2), int(r.size.x) - 2, 2):
+				c.draw_rect(Rect2(xx, yy, 1, 1), T.WHITE)
 	elif flashing:
 		# Wants you: the button in the title bar's colour.
 		c.draw_style_box(T.box("raised", T.NAVY, Vector4.ZERO), r)
@@ -1670,9 +1688,13 @@ func _draw_tab(c: Control, i: int, tex: Texture2D) -> void:
 	var o := Vector2(1, 1) if on else Vector2.ZERO
 	var avail := _tab_available(id)
 	var ix := floorf((r.size.x - 32) * 0.5)
-	c.draw_texture_rect(tex, Rect2(Vector2(ix, 4) + o, Vector2(32, 32)), false, Color.WHITE if avail else Color(1, 1, 1, 0.4))
-	# The key, in the icon's corner.
-	_pixel_text(c, str((i + 1) % 10), Vector2(3, r.size.y - 8) + o, T.WHITE, T.NAVY if avail else T.SHADOW)
+	c.draw_texture_rect(tex, Rect2(Vector2(ix, 3) + o, Vector2(32, 32)), false, Color.WHITE if avail else Color(1, 1, 1, 0.4))
+	# The key on a little keycap in the corner: a raised grey key with its digit.
+	var cap := Rect2(Vector2(r.size.x - 10, r.size.y - 11) + o, Vector2(8, 9))
+	c.draw_rect(cap, T.DARK)
+	c.draw_rect(Rect2(cap.position, cap.size - Vector2(1, 1)), T.WHITE)
+	c.draw_rect(Rect2(cap.position + Vector2(1, 1), cap.size - Vector2(2, 2)), T.FACE if avail else T.LIGHT)
+	_pixel_text(c, str((i + 1) % 10), cap.position + Vector2(2, 2), T.TEXT if avail else T.SHADOW, Color(0, 0, 0, 0))
 	if id == "builder" and not _is_day and _is_program_unlocked("builder"):
 		# The moon: closed for the night.
 		var m := Vector2(r.size.x - 9, 7) + o

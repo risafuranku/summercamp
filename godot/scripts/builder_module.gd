@@ -341,9 +341,11 @@ func _build_toolbar() -> void:
 	rot.pressed.connect(func(): _map_panel.rotate_selected_building(1))
 	row.add_child(rot)
 	var undo := Button.new()
-	undo.text = "Undo"
+	undo.icon = _tool_icon("undo")
+	undo.expand_icon = true
+	undo.add_theme_constant_override("icon_max_width", 24)
 	undo.tooltip_text = "Take back the last thing you built today (Ctrl+Z), money back"
-	undo.custom_minimum_size = Vector2(46, 34)
+	undo.custom_minimum_size = Vector2(36, 34)
 	undo.focus_mode = Control.FOCUS_NONE
 	undo.add_theme_font_override("font", T.FONT_BOLD)
 	_flat_style(undo)
@@ -351,9 +353,11 @@ func _build_toolbar() -> void:
 	row.add_child(undo)
 	for z in [["-", -1, "Zoom out (-)"], ["+", 1, "Zoom in (+)"]]:
 		var zb := Button.new()
-		zb.text = z[0]
+		zb.icon = _tool_icon("zoom_out" if int(z[1]) < 0 else "zoom_in")
+		zb.expand_icon = true
+		zb.add_theme_constant_override("icon_max_width", 24)
 		zb.tooltip_text = z[2]
-		zb.custom_minimum_size = Vector2(26, 34)
+		zb.custom_minimum_size = Vector2(32, 34)
 		zb.focus_mode = Control.FOCUS_NONE
 		zb.add_theme_font_override("font", T.FONT_BOLD)
 		_flat_style(zb)
@@ -363,10 +367,14 @@ func _build_toolbar() -> void:
 	row.add_child(_gap())
 	# What the map shows over the camp: off, wear, power, rooms, light (O).
 	_overlay_btn = Button.new()
-	_overlay_btn.custom_minimum_size = Vector2(58, 34)
+	_overlay_btn.custom_minimum_size = Vector2(36, 34)
+	_overlay_btn.toggle_mode = true
+	_overlay_btn.icon = _tool_icon("map")
+	_overlay_btn.expand_icon = true
+	_overlay_btn.add_theme_constant_override("icon_max_width", 24)
 	_overlay_btn.focus_mode = Control.FOCUS_NONE
 	_overlay_btn.tooltip_text = "Show on the map: wear, power, rooms, light at night (O)"
-	_overlay_btn.text = "Map:\nOff"
+	_overlay_btn.text = ""
 	_flat_style(_overlay_btn)
 	_overlay_btn.pressed.connect(func():
 		_click()
@@ -538,8 +546,8 @@ func _select(tool: String) -> void:
 func _set_overlay(id: String) -> void:
 	_map_panel.set_overlay(id)
 	if _overlay_btn != null:
-		_overlay_btn.text = "Map:\n%s" % OVERLAY_SHORT.get(_map_panel.overlay, "Off")
 		_overlay_btn.set_pressed_no_signal(_map_panel.overlay != "")
+		_overlay_btn.tooltip_text = "Map overlay: %s  (O for the next)" % OVERLAY_SHORT.get(_map_panel.overlay, "Off")
 
 
 ## The keys, while Builder is on the screen (and not under its title picture).
@@ -1195,7 +1203,63 @@ const TOOL_PIX := {
 		"....GGGG....",
 		"...KKKKKK..."],
 }
+const TOOL_PIX_MORE := {
+	"undo": [
+		"............",
+		"...K........",
+		"..KcK.......",
+		".KccKKKKK...",
+		"KcccccccKK..",
+		".KccKKKKcK..",
+		"..KcK...KcK.",
+		"...K....KcK.",
+		".......KcK..",
+		"....KKKcK...",
+		"....KccK....",
+		"....KKK....."],
+	"zoom_in": [
+		"..KKKK......",
+		".KwwwwK.....",
+		"KwwKKwwK....",
+		"KwKKKKwK....",
+		"KwwKKwwK....",
+		".KwwwwK.....",
+		"..KKKKMM....",
+		"......MMM...",
+		".......MMM..",
+		"........MMM.",
+		".........MM.",
+		"............"],
+	"zoom_out": [
+		"..KKKK......",
+		".KwwwwK.....",
+		"KwwwwwwK....",
+		"KwKKKKwK....",
+		"KwwwwwwK....",
+		".KwwwwK.....",
+		"..KKKKMM....",
+		"......MMM...",
+		".......MMM..",
+		"........MMM.",
+		".........MM.",
+		"............"],
+	"map": [
+		"............",
+		"KKKK.KKKK.KK",
+		"KggKKbbbbKgK",
+		"KggKbbbbKggK",
+		"KggKbbbKgggK",
+		"KgggKbbKggrK",
+		"KggggKbKgrgK",
+		"KggggKbKrggK",
+		"KgggKbbKggyK",
+		"KggKbbbKgyyK",
+		"KKK.KKKK.KKK",
+		"............"],
+}
 const PIX_COLORS := {
+	"c": Color8(60, 140, 60), "w": Color8(220, 236, 255), "M": Color8(120, 80, 40),
+	"g": Color8(110, 170, 80), "b": Color8(80, 130, 210), "r": Color8(200, 60, 40),
 	"Y": Color8(240, 200, 0), "K": Color8(20, 20, 20), "D": Color8(110, 110, 110), "B": Color8(150, 150, 160),
 	"T": Color8(110, 80, 40), "t": Color8(200, 170, 110), "d": Color8(160, 130, 80),
 	"y": Color8(255, 240, 140), "G": Color8(90, 90, 96),
@@ -1212,7 +1276,7 @@ func _tool_art(id: String) -> Texture2D:
 
 
 func _tool_icon(id: String) -> Texture2D:
-	var rows: Array = TOOL_PIX.get(id, [])
+	var rows: Array = TOOL_PIX.get(id, TOOL_PIX_MORE.get(id, []))
 	var img := Image.create(24, 24, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	for y in rows.size():

@@ -370,8 +370,13 @@ func _drift(delta: float) -> void:
 		n.global_position += (p["vel"] as Vector3) * delta
 		p["vel"] = (p["vel"] as Vector3) * (1.0 - delta * 0.5) + Vector3(0, 0.03, 0) * delta
 		# From dense to almost gone: the smoke sprites in order, a step at a time.
-		var fi: int = [0, 1, 3, 4, 5][mini(4, int(k * 5.0))]
-		n.texture = tex("smoke_%d" % fi)
+		# The soft frames when they are there (smoke2_*, real see-through), else the old.
+		if tex("smoke2_0") != null:
+			var t2 := tex("smoke2_%d" % mini(7, int(k * 8.0)))
+			n.texture = t2 if t2 != null else n.texture
+		else:
+			var fi: int = [0, 1, 3, 4, 5][mini(4, int(k * 5.0))]
+			n.texture = tex("smoke_%d" % fi)
 		n.pixel_size = PIXEL_M * 0.6 * (1.0 + k * 1.6)
 		n.modulate.a = floorf(0.45 * (1.0 - k) * 8.0) / 8.0
 		keep.append(p)

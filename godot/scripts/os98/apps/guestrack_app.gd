@@ -39,6 +39,8 @@ var _guest_rows: Dictionary = {}   # TreeItem instance id -> snapshot dict
 var _sort_col := 4
 var _sort_desc := false
 var _map_btn: Button
+var _empty_guests: Label
+var _empty_arrivals: Label
 
 
 func setup(shell, win, _args: Dictionary) -> void:
@@ -57,6 +59,7 @@ func setup(shell, win, _args: Dictionary) -> void:
 	_tabs.add_child(guests_page)
 	_guests = _make_tree(guests_page, ["", "Name", "Kind", "Room", "Leaves in"], [22, 120, 92, 82, 64])
 	_guests.item_selected.connect(_on_guest_selected)
+	_empty_guests = _empty_label(_guests)
 	# A click on a column's head sorts by it; again, the other way.
 	_guests.column_title_clicked.connect(func(col: int, _b: int):
 		if _sort_col == col:
@@ -82,6 +85,7 @@ func setup(shell, win, _args: Dictionary) -> void:
 	arr_page.name = "Arrivals"
 	_tabs.add_child(arr_page)
 	_arrivals = _make_tree(arr_page, ["", "Name", "Party", "Where", "Room(s)", "Ready", "Still to do"], [22, 110, 38, 120, 90, 44, 120])
+	_empty_arrivals = _empty_label(_arrivals)
 	_arrivals.item_activated.connect(func():
 		var it := _arrivals.get_selected()
 		if it != null and it.get_metadata(0) is Vector2i:
@@ -115,6 +119,20 @@ func setup(shell, win, _args: Dictionary) -> void:
 
 func reopen(_args: Dictionary) -> void:
 	refresh()
+
+
+## The grey line in the middle of an empty list.
+func _empty_label(tree: Tree) -> Label:
+	var l := Label.new()
+	l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	l.offset_top = 24
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_color_override("font_color", T.SHADOW)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.visible = false
+	tree.add_child(l)
+	return l
 
 
 func _make_tree(parent: Control, cols: Array, widths: Array) -> Tree:
@@ -279,6 +297,8 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 		_card_guest = {}
 	_card.queue_redraw()
 	_map_btn.visible = _card_guest.get("coord", null) is Vector2i
+	_empty_guests.visible = shown == 0
+	_empty_guests.text = "Nobody is staying in the camp.\nAccept a booking in CampMail; check the guests in at the desk."
 	var by: String = ["mood", "name", "kind", "room", "departure"][clampi(_sort_col, 0, 4)]
 	_status.text = "%d record(s). Sorted by %s. Pick one for the card; double-click for the map." % [shown, by] if shown > 0 else "Nobody is staying in the camp."
 
@@ -330,6 +350,8 @@ func _fill_arrivals(rows: Array) -> void:
 			it.set_custom_color(6, AMBER)
 		_stripe(it, i, 7)
 		i += 1
+	_empty_arrivals.visible = rows.is_empty()
+	_empty_arrivals.text = "Nobody is on the way.\nAccepted bookings show here until the guests are checked in."
 	_status.text = "Nobody is on the way." if rows.is_empty() else "Make up the room, then check them in at the desk. Double-click for the map."
 
 
@@ -415,6 +437,26 @@ func _draw_counters() -> void:
 		if i == 3 and v == "0":
 			col = GREEN
 		_counters.draw_string(T.FONT_BOLD, r.position + Vector2(6, 34), v, HORIZONTAL_ALIGNMENT_LEFT, w - 8, T.FONT_SIZE * 2, col)
+		# A little picture of what is counted, at the right of its box.
+		_pix(_counters, COUNTER_PIX[i], Vector2(r.end.x - 30, r.position.y + 12), 2)
+
+
+## The counters' pictures: a bed, people, a car, a broom (12x10, drawn at 2x).
+const COUNTER_PIX := [
+	["............", "K...........", "K.wwwKKKKKK.", "KwwwwKbbbbbK", "KKKKKKKKKKKK", "KbbbbbbbbbbK", "KKKKKKKKKKKK", "K..........K", "K..........K", "............"],
+	["...KK...KK..", "..KssK.KssK.", "..KssK.KssK.", "...KK...KK..", "..KbbK.KrrK.", ".KbbbbKrrrrK", ".KbbbbKrrrrK", ".KbbbbKrrrrK", "..K..K.K..K.", "..K..K.K..K."],
+	["............", "...KKKKK....", "..KwwKwwK...", ".KwwwKwwwK..", "KrrrrrrrrrrK", "KrrrrrrrrrrK", "KKKKKKKKKKKK", ".KK.....KK..", ".KK.....KK..", "............"],
+	["........KK..", ".......KK...", "......KK....", ".....KK.....", "....KK......", "..KyyyK.....", ".KyyyyyK....", "KyyyyyyyK...", "KyKyKyKyK...", "............"],
+]
+const PIX_COL := {"K": Color8(30, 30, 30), "w": Color8(240, 240, 240), "b": Color8(70, 110, 200), "r": Color8(200, 60, 40), "s": Color8(232, 184, 140), "y": Color8(220, 180, 60)}
+
+
+func _pix(c: Control, rows: Array, at: Vector2, k: int) -> void:
+	for y in rows.size():
+		var row: String = rows[y]
+		for x in row.length():
+			if PIX_COL.has(row[x]):
+				c.draw_rect(Rect2(at + Vector2(x * k, y * k), Vector2(k, k)), PIX_COL[row[x]])
 
 
 ## The record card of the picked guest: mood face, needs as bars, room, words.
