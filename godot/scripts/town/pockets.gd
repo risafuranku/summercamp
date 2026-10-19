@@ -47,6 +47,9 @@ const FALLBACK := {
 const ANCHOR := {
 	"hand2_v": Vector2(61, 21), "hand2_v_mouth": Vector2(83, 29),
 	"hand2_lighter": Vector2(77, 4), "hand2_pack": Vector2(40, 15),
+	# The lighter held to the tip of the cigarette in your mouth, one picture: its nozzle;
+	# the filter comes in at the bottom at x 61.
+	"hand4_lighting": Vector2(61, 6),
 }
 ## Where on the cigarette pictures your fingers hold it (from its bottom left corner).
 const CIG_GRIP := Vector2(11, -11)
@@ -688,8 +691,13 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		CIG.PACK:
 			frame = "hand2_pack"
 		CIG.LIPS:
-			frame = "hand2_lighter"
-			mouth = true
+			# The lighter and the cigarette in your mouth as one picture when there is one;
+			# its tip catches (the same picture, the end glowing) as you draw on the flame.
+			if tex("hand4_lighting") != null:
+				frame = "hand4_lighting"
+			else:
+				frame = "hand2_lighter"
+				mouth = true
 		CIG.DRAG:
 			frame = "hand2_v_mouth"
 		CIG.EXHALE:
@@ -699,6 +707,8 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	elif frame == "hand2_v_mouth" and tex("hand4_cig_mouth") != null:
 		frame = "hand4_cig_mouth"
 	var t := _hold_tex() if frame == "hold" else tex(frame)
+	if frame == "hand4_lighting" and (cig.lit or (cig.light_progress > 0.4 and int(floorf(_tick * FPS)) % 3 != 0)):
+		t = tex("hand4_lighting_lit") if tex("hand4_lighting_lit") != null else t
 	if t == null:
 		# No picture of this hand yet: the cigarette in your mouth still shows.
 		_left.visible = false
@@ -710,7 +720,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	_left.visible = true
 	var x := 0.0
 	var y := 0.0
-	var big := frame in ["hand2_v_mouth", "hand4_cig_mouth", "hand2_lighter", "hand2_pack"]
+	var big := frame in ["hand2_v_mouth", "hand4_cig_mouth", "hand2_lighter", "hand4_lighting", "hand2_pack"]
 	# The tip of the cigarette in your mouth (cig_lips_*: it comes up from the bottom middle).
 	var lips_tip := vp.y - bar - 28.0 * s
 	if frame == "hand4_cig_mouth":
@@ -723,6 +733,11 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		# back of the hand filling the lower view.
 		x = vp.x * 0.5 - float(ANCHOR[frame].x) * s
 		y = vp.y - bar - (float(ANCHOR[frame].y) + 10.0) * s * up + (1.0 - up) * _left.size.y * 0.3
+	elif frame == "hand4_lighting":
+		# The cigarette's filter at your lips: the picture's bottom on the bottom edge,
+		# the filter in the middle.
+		x = vp.x * 0.5 - 61.0 * s
+		y = vp.y - bar - _left.size.y * up + (1.0 - up) * _left.size.y * 0.25
 	elif frame == "hand2_lighter":
 		# The nozzle just under the tip of the one in your mouth.
 		x = vp.x * 0.5 - float(ANCHOR[frame].x) * s + 2.0 * s
@@ -750,6 +765,10 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 			pos += Vector2(vp.x * 0.12, -10.0 * s)
 	if cig.state == CIG.THROW:
 		pos += (Vector2(-8.0, 6.0) if cig.t < 0.15 else Vector2(46.0, -34.0)) * s
+	# Drinking, the cigarette hand drops out of the way (and comes back up after).
+	if bottle.state == BOTTLE.DRINK or (bottle.state == BOTTLE.FOAM and Input.is_action_pressed("drink")):
+		if cig.state in [CIG.HOLD, CIG.EXHALE]:
+			pos += Vector2(-6.0 * s, _left.size.y * 0.42)
 	_left.position = _ease("l", pos, s)
 	# The cigarette in your mouth: from the bottom middle, its tip where the lighter is.
 	if mouth or (cig.state == CIG.DRAG and frame != "hand4_cig_mouth"):
@@ -763,7 +782,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		if dt != null:
 			_flame.texture = dt
 			_flame.size = dt.get_size() * s
-			var a0: Vector2 = _left.position + Vector2(ANCHOR["hand2_lighter"]) * s
+			var a0: Vector2 = _left.position + Vector2(ANCHOR.get(frame, ANCHOR["hand2_lighter"])) * s
 			_flame.position = (a0 - Vector2(_flame.size.x * 0.5, _flame.size.y * 0.92)).floor()
 			_flame.z_index = 2
 			_flame.visible = true
@@ -785,7 +804,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		if ft != null:
 			_flame.texture = ft
 			_flame.size = ft.get_size() * s
-			var a: Vector2 = _left.position + Vector2(ANCHOR["hand2_lighter"]) * s
+			var a: Vector2 = _left.position + Vector2(ANCHOR.get(frame, ANCHOR["hand2_lighter"])) * s
 			_flame.position = (a - Vector2(_flame.size.x * 0.5, _flame.size.y * 0.92)).floor()
 			_flame.z_index = 2
 			_flame.visible = true
