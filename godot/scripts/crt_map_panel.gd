@@ -12,11 +12,19 @@ signal building_clicked(info: Dictionary)
 const T = preload("res://scripts/os98/os_theme.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
-## Sprites whose picture has no empty margin round the building (the Jednota fills its
-## whole canvas) look a size bigger than the rest on the same footprint: drawn smaller.
-## Map icons are fitted to their footprint; the small things are smaller than that.
-const ICON_SCALE := {"vecerka_iso": 0.76, "gnome": 0.32, "bench": 0.56, "flower_bed": 0.62, "picnic_table": 0.72,
-	"ping_pong": 0.78, "hammock": 0.82, "flagpole": 1.0}
+## How wide a building is on the map, in tile widths: its 3D model's width plus depth over
+## two (an isometric box is that wide on screen whichever way it is turned), measured from
+## building_models.gd (a tile is 4 m). The drawn part of its picture (not the empty canvas
+## round it, which differs from picture to picture) is fitted to that, so everything is
+## to one scale: a gnome next to a pub, a caravan smaller than a cabin. Anything not here
+## fills most of its footprint.
+const ICON_SPAN := {
+	"tent_1": 0.71, "tent_2": 0.8, "tent_3": 0.87, "cabin_1": 1.75, "cabin_2": 2.0, "cabin_3": 2.1,
+	"caravan_1": 1.27, "caravan_2": 1.27, "caravan_3": 1.27, "toilet_block": 0.85, "shower_block": 1.02,
+	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
+	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
+	"flower_bed": 0.42, "gnome": 0.2, "flagpole": 0.3, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.5,
+}
 const SFX_DIR := "res://assets/sfx/builder/"
 
 ## Status severity, consumed by builder_module for colour + audio feedback.
@@ -160,6 +168,7 @@ var _pan_drag_moved: bool = false
 var _rmb_pressed_without_selection: bool = false
 
 var _rotation_steps: int = 0
+var _drawn_rects: Dictionary = {}        # texture instance id -> Rect2 of its drawn part
 
 var _ghost_locked: bool = false
 var _ghost_coord: Vector2i = Vector2i(-1, -1)
@@ -349,6 +358,8 @@ func setup(new_grid_manager, new_building_manager) -> void:
 func set_selected_building(new_type: String) -> void:
 	var normalized = new_type.strip_edges()
 	selected_building = normalized
+	if _turns_round_only(selected_building) and _rotation_steps % 2 == 1:
+		_rotation_steps -= 1
 	_ghost_locked = false
 	_ghost_coord = Vector2i(-1, -1)
 	_pending_build_wait = false
@@ -834,7 +845,11 @@ func _rotate_building(step: int) -> void:
 	if selected_building == "" or selected_building == "path" or selected_building == "demolish":
 		_emit_status("Select a structure to rotate.", STATUS_DENY)
 		return
-	_rotation_steps = wrapi(_rotation_steps + step, 0, 4)
+	# An oblong one (a caravan, the pitch) only turns round: its footprint stays as it is.
+	if _turns_round_only(selected_building):
+		_rotation_steps = wrapi(_rotation_steps - _rotation_steps % 2 + (2 if step >= 0 else -2), 0, 4)
+	else:
+		_rotation_steps = wrapi(_rotation_steps + step, 0, 4)
 	_ghost_locked = false
 	if EventBus.has_signal("RequestRotate"):
 		EventBus.RequestRotate.emit(1 if step >= 0 else -1)
@@ -1870,8 +1885,7 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 
 	var icon_key = _icon_key_for_type(building_type)
 	if icon_key != "":
-		var scale_xy = maxf(1.0, (float(footprint.x) + float(footprint.y)) * 0.5) * float(ICON_SCALE.get(icon_key, 1.0))
-		var draw_size = Vector2(tile_w * scale_xy * 1.24, tile_h * scale_xy * 1.70)
+		var squash := 1.0
 		# Freshly built: it drops in from above and settles with a little bounce.
 		var origin_c: Vector2i = entry.get("origin", Vector2i.ZERO)
 		if _dropped.has(origin_c):
@@ -1882,8 +1896,8 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 				var k := clampf(age / 0.35, 0.0, 1.0)
 				center.y -= (1.0 - k) * (1.0 - k) * tile_h * 2.5
 				if k >= 1.0:
-					draw_size.y *= 1.0 - 0.08 * sin((age - 0.35) / 0.15 * PI)
-		if _draw_icon(center, draw_size, icon_key, rotation_steps, Color(1.0, 1.0, 1.0, 0.98)):
+					squash = 1.0 - 0.08 * sin((age - 0.35) / 0.15 * PI)
+		if _draw_building_icon(center, footprint, icon_key, rotation_steps, Color(1.0, 1.0, 1.0, 0.98), tile_w, tile_h, squash):
 			return
 
 	_draw_placeholder(center, tile_w, tile_h, building_type)
@@ -1945,8 +1959,7 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	var center = _footprint_center_iso(coord, footprint, origin, tile_w, tile_h)
 	var icon_key = _icon_key_for_type(selected_building)
 	if icon_key != "":
-		var scale_xy = maxf(1.0, (float(footprint.x) + float(footprint.y)) * 0.5)
-		_draw_icon(center, Vector2(tile_w * scale_xy * 1.24, tile_h * scale_xy * 1.70), icon_key, _rotation_steps, Color(0.62, 0.82, 1.0, 0.76))
+		_draw_building_icon(center, footprint, icon_key, _rotation_steps, Color(0.62, 0.82, 1.0, 0.76), tile_w, tile_h)
 
 	if _supports_rotation(selected_building):
 		var dir = _rotation_to_screen_dir(_rotation_steps, tile_w, tile_h)
@@ -2124,8 +2137,11 @@ func _draw_rotation_panel() -> void:
 		{"id": 0, "pos": center + Vector2(0.0, 12.0), "dir": Vector2(0.0, 1.0)},
 		{"id": 3, "pos": center + Vector2(-20.0, -6.0), "dir": Vector2(-1.0, 0.0)},
 	]
+	var round_only := _turns_round_only(selected_building)
 	for arrow in arrows:
 		var arrow_id = int(arrow.get("id", -1))
+		if round_only and arrow_id % 2 == 1:
+			continue
 		var color = T.SHADOW
 		if arrow_id == active:
 			color = T.NAVY
@@ -2190,6 +2206,64 @@ func _draw_icon(center: Vector2, draw_size: Vector2, icon_key: String, rotation_
 	else:
 		_cv.draw_texture_rect(tex, rect, false, tint)
 	return true
+
+
+## A building's picture on the map: the drawn part of it as wide as the thing is
+## (ICON_SPAN), standing on the front corner of the ground it covers. `squash` flattens it
+## (the bounce when it lands).
+func _draw_building_icon(center: Vector2, footprint: Vector2i, icon_key: String, rotation_steps: int, tint: Color, tile_w: float, tile_h: float, squash: float = 1.0) -> bool:
+	var tex = _get_icon(icon_key)
+	if tex == null:
+		return false
+	var rs := wrapi(rotation_steps, 0, 4)
+	var back: Texture2D = _get_back_icon(icon_key) if (rs == 1 or rs == 2) else null
+	if back != null:
+		tex = back
+	var used := _drawn_rect(tex)
+	var span := float(ICON_SPAN.get(icon_key, float(footprint.x + footprint.y) * 0.45))
+	var k := span * tile_w / maxf(1.0, used.size.x)
+	var mirror = (rs == 2) if back != null else _should_mirror_icon(icon_key, rotation_steps)
+	var mid_x := (used.position.x + used.size.x * 0.5) * k
+	if mirror:
+		mid_x = float(tex.get_width()) * k - mid_x
+	var foot := center.y + span * tile_h * 0.5
+	var rect := Rect2(center.x - mid_x, foot - used.end.y * k * squash, float(tex.get_width()) * k, float(tex.get_height()) * k * squash)
+	if mirror:
+		_cv.draw_set_transform(Vector2(rect.position.x + rect.size.x, rect.position.y), 0.0, Vector2(-1.0, 1.0))
+		_cv.draw_texture_rect(tex, Rect2(Vector2.ZERO, rect.size), false, tint)
+		_cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	else:
+		_cv.draw_texture_rect(tex, rect, false, tint)
+	return true
+
+
+## The part of a picture that is drawn (not its empty canvas), in its own pixels; read
+## once from a small copy of it.
+func _drawn_rect(tex: Texture2D) -> Rect2:
+	var id := tex.get_instance_id()
+	if _drawn_rects.has(id):
+		return _drawn_rects[id]
+	var r := Rect2(Vector2.ZERO, tex.get_size())
+	var img := tex.get_image()
+	if img != null:
+		img = img.duplicate()
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+		var sc := minf(1.0, 160.0 / float(maxi(img.get_width(), img.get_height())))
+		img.resize(maxi(1, int(img.get_width() * sc)), maxi(1, int(img.get_height() * sc)), Image.INTERPOLATE_BILINEAR)
+		var lo := Vector2i(img.get_width(), img.get_height())
+		var hi := Vector2i(-1, -1)
+		for y in img.get_height():
+			for x in img.get_width():
+				if img.get_pixel(x, y).a > 0.25:
+					lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
+					hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
+		if hi.x >= lo.x:
+			var f := Vector2(tex.get_size()) / Vector2(img.get_width(), img.get_height())
+			r = Rect2(Vector2(lo) * f, Vector2(hi - lo + Vector2i.ONE) * f)
+	_drawn_rects[id] = r
+	return r
 
 
 func _should_mirror_icon(icon_key: String, rotation_steps: int) -> bool:
@@ -2390,6 +2464,14 @@ func _get_footprint(building_type: String) -> Vector2i:
 	if def != null:
 		return def.footprint
 	return Vector2i.ONE
+
+
+## Oblong footprints turn only half round (building_manager.gd turns them so too).
+func _turns_round_only(building_type: String) -> bool:
+	if not _supports_rotation(building_type):
+		return false
+	var fp := _get_footprint(building_type)
+	return fp.x != fp.y
 
 
 func _supports_rotation(building_type: String) -> bool:
