@@ -61,8 +61,8 @@ func _ready() -> void:
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.draw.connect(_draw)
 	add_child(_overlay)
-	_tick = _player(SFX + "clock_tick.wav", -16.0, true)
-	_alarm = _player(SFX + "alarm.wav", -9.0, true)
+	_tick = _player(SFX + "clock_tick.mp3", -16.0, true)
+	_alarm = _player(SFX + "alarm.mp3", -9.0, true)
 	_one = AudioStreamPlayer.new()
 	add_child(_one)
 	visible = false
@@ -77,6 +77,9 @@ func _player(path: String, db: float, loop: bool) -> AudioStreamPlayer:
 			s = (s as AudioStreamWAV).duplicate()
 			s.loop_mode = AudioStreamWAV.LOOP_FORWARD
 			s.loop_end = int(s.get_length() * s.mix_rate)
+		elif loop and s is AudioStreamMP3:
+			s = (s as AudioStreamMP3).duplicate()
+			s.loop = true
 		p.stream = s
 	add_child(p)
 	return p
@@ -107,7 +110,7 @@ func start() -> void:
 	_ff_started = false
 	_lids = 0.0
 	_enter(LIE)
-	_sfx("bed_creak.wav", -6.0)
+	_sfx("bed_creak.mp3", -6.0)
 
 
 func _enter(p: int) -> void:
@@ -117,7 +120,7 @@ func _enter(p: int) -> void:
 		WATCH:
 			if lamp.is_valid():
 				lamp.call(false)
-			_sfx("lamp_click.wav", -6.0)
+			_sfx("lamp_click.mp3", -6.0)
 			if tv_focus.is_valid():
 				tv_focus.call(true)
 		DARK:
@@ -139,7 +142,7 @@ func _enter(p: int) -> void:
 			_tick.stop()
 			if tv_focus.is_valid():
 				tv_focus.call(false)
-			_sfx("lamp_click.wav", -10.0)
+			_sfx("lamp_click.mp3", -10.0)
 
 
 func _process(delta: float) -> void:
@@ -226,7 +229,7 @@ func _input(event: InputEvent) -> void:
 				woke_early.call()
 		ALARM:
 			if _t > 0.25:
-				_sfx("lamp_click.wav", -4.0)
+				_sfx("lamp_click.mp3", -4.0)
 				_enter(WAKE)
 		WAKE:
 			_finish()

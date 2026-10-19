@@ -126,7 +126,7 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	tv_light.position = TV + o + Vector3(0, 0.22, -0.45)
 	root.add_child(tv_light)
 
-	_tv_hiss = _loop3d(SFX + "tv_hiss.wav", -22.0)
+	_tv_hiss = _loop3d(SFX + "tv_hiss.mp3", -22.0)
 	_tv_tone = _loop3d(SFX + "tv_tone.wav", -30.0)
 	_one = AudioStreamPlayer.new()
 	audio_parent.add_child(_one)
@@ -260,6 +260,9 @@ func _loop3d(path: String, db: float) -> AudioStreamPlayer3D:
 			s = (s as AudioStreamWAV).duplicate()
 			s.loop_mode = AudioStreamWAV.LOOP_FORWARD
 			s.loop_end = int(s.get_length() * s.mix_rate)
+		elif s is AudioStreamMP3:
+			s = (s as AudioStreamMP3).duplicate()
+			s.loop = true
 		p.stream = s
 	p.volume_db = db
 	p.unit_size = 1.5
@@ -377,7 +380,7 @@ func toggle_tv() -> void:
 func _set_tv(on: bool, sound: bool) -> void:
 	tv_on = on
 	if sound:
-		_play("tv_on.wav" if on else "tv_off.wav", -8.0)
+		_play("tv_on.mp3" if on else "tv_off.mp3", -8.0)
 	if on:
 		_tv_hiss.play()
 		_apply_programme()
@@ -398,7 +401,7 @@ func set_lamp(on: bool) -> void:
 
 func toggle_lamp() -> void:
 	set_lamp(not lamp_on)
-	_play("lamp_click.wav", -6.0)
+	_play("lamp_click.mp3", -6.0)
 
 
 func _play(file: String, db: float) -> void:

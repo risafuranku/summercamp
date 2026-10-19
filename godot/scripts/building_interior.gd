@@ -2434,7 +2434,7 @@ func toggle_desk_lamp(sound := true) -> void:
 	_desk_lamp_on = not _desk_lamp_on
 	if sound:
 		var p := AudioStreamPlayer.new()
-		p.stream = load("res://assets/sfx/backroom/lamp_click.wav") if ResourceLoader.exists("res://assets/sfx/backroom/lamp_click.wav") else null
+		p.stream = load("res://assets/sfx/backroom/lamp_click.mp3") if ResourceLoader.exists("res://assets/sfx/backroom/lamp_click.mp3") else null
 		p.volume_db = -6.0
 		add_child(p)
 		p.finished.connect(p.queue_free)
@@ -2483,7 +2483,7 @@ func coop_take_office_state(d: Dictionary) -> void:
 		if d.has("lamp") and bool(d["lamp"]) != bool(back.lamp_on):
 			back.set_lamp(bool(d["lamp"]))
 			if here:
-				back._play("lamp_click.wav", -6.0)
+				back._play("lamp_click.mp3", -6.0)
 		if d.has("tv") and bool(d["tv"]) != bool(back.tv_on):
 			back._set_tv(bool(d["tv"]), here)
 	if d.has("bulb") and _extras.store != null and bool(d["bulb"]) != bool(_extras.store.bulb_on):

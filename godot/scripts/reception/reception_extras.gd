@@ -28,8 +28,11 @@ const SLEEP = preload("res://scripts/reception/sleep_sequence.gd")
 const PHONE_CLOSEUP = preload("res://scripts/closeup/phone_closeup.gd")
 const BOARD_CLOSEUP = preload("res://scripts/closeup/board_closeup.gd")
 const INVENTORY = preload("res://scripts/ui/inventory.gd")
-const SFX_DOOR := "res://assets/sfx/backroom/door_creak.wav"
-const SFX_LATCH := "res://assets/sfx/dverezavrit.mp3"
+## The light inner doors (to your room, to the store): recorded (ElevenLabs), not made up
+## in code (playtest 19. 10.).
+const SFX_DOOR := "res://assets/sfx/backroom/room_door_open.mp3"
+const SFX_LATCH := "res://assets/sfx/backroom/room_door_close.mp3"
+const SFX_STORE_DOOR := "res://assets/sfx/backroom/store_door_open.mp3"
 const BOARD_TEX := "res://assets/textury/closeup/board.png"
 const CURTAIN = preload("res://scripts/reception/curtain.gd")
 const RL = preload("res://scripts/reception/reception_layout.gd")
@@ -674,7 +677,7 @@ func go_store() -> void:
 	if _walking() or where != "office":
 		return
 	glint.clear()
-	_play(SFX_DOOR, -10.0)
+	_play(SFX_STORE_DOOR, -9.0)
 	_play_steps()
 	_note_walk("store", 1.9)
 	var ahead := Vector3(-0.05, PI, 0.0)
