@@ -28,9 +28,9 @@ const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const BG := {"bolts": "repair_flange.png", "valve": "repair_valve.png", "tar": "repair_crack.png", "clog": "repair_clog.png"}
 ## Where the work is on each close-up, as fractions of it.
 const BOLTS := [Vector2(0.31, 0.27), Vector2(0.69, 0.27), Vector2(0.69, 0.73), Vector2(0.31, 0.73)]
-const SPINDLE := Vector2(0.5, 0.45)
-const CRACK_Y := 0.48
-const CLOG_AT := Vector2(0.5, 0.5)
+const SPINDLE := Vector2(0.5, 0.2)
+const CRACK_Y := 0.53
+const CLOG_AT := Vector2(0.5, 0.55)
 const TURNS := 3
 const VALVE_TURNS := 26
 const TAR_SEGMENTS := 14
@@ -354,7 +354,7 @@ func _update_valve(delta: float) -> void:
 		# Let go and it creeps back.
 		_turns = maxf(0.0, _turns - delta * 1.5)
 	var c: Vector2 = _at(SPINDLE)
-	_place(_wheel, c, 0.62)
+	_place(_wheel, c, 0.4)
 	_wheel.rotation = floorf(_turns) * deg_to_rad(13.0)
 	var want := -_last_side if _last_side != 0 else -1
 	_cap(_key, "A" if want < 0 else "D", c + Vector2(-_panel.size.x * 0.36 if want < 0 else _panel.size.x * 0.36, 0))
