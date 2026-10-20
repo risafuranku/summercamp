@@ -1,6 +1,6 @@
 extends "res://scripts/enemies/enemy_base.gd"
 
-## The Girl: a Cheap Chick guest of yours, turned for the night (DESIGN §5).
+## The Girl: a Cheap Chick guest of yours, turned for the night (DESIGN Â§5).
 ##
 ## The one rule, which every loop of hers teaches: SHE ONLY MOVES WHILE YOU DO NOT SEE
 ## HER. In the dark you see her only in light: your torch on her, a lamp near her, or
@@ -133,6 +133,17 @@ var _ring_t := -1.0
 var _ring_done := false
 ## After the ring: her eyes, the pair that stayed, glow by themselves behind you a while.
 var _ring_stay_until := -1.0
+## Indoors (an outdoor hunter: she cannot hurt you in there, she wants you out): in
+## order, a pause between: her humming through the wall; heels going round outside;
+## a giggle and three slow knocks at the door; her at the window you look at, pressed to
+## the glass; her teeth chattering behind the wall; then one of your guests instead.
+var _in_room := false
+var _away_in := false
+var _lure_n := 0
+var _lure_next := -1.0
+var _glass_until := -1.0
+var _glass_light: OmniLight3D
+var _sound2d: AudioStreamPlayer
 const RING_AFTER := 6.0
 const RING_PAIRS := 9
 ## Far off, found again, she is not standing as a person stands: upside down, hanging
@@ -178,6 +189,8 @@ func _on_start() -> void:
 		_eye_spot[art] = _find_eyes(art)
 	_static = _loop(SFX_STATIC, -60.0)
 	_hum = _loop(SFX_HUM, -60.0)
+	_sound2d = AudioStreamPlayer.new()
+	_root.add_child(_sound2d)
 	_begin_loop()
 
 
@@ -185,6 +198,7 @@ func _on_stop() -> void:
 	_release_player()
 	_drop_decoy()
 	_drop_ring()
+	_hide_glass()
 	if not _strike_cam.is_empty():
 		_cam_set(0.0, 0.0)
 		_strike_cam = {}
@@ -199,7 +213,7 @@ func _on_stop() -> void:
 		_player.call("set_controls_enabled", true)
 
 
-# ── the loop ─────────────────────────────────────────────────────────────────
+# â”€â”€ the loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ## Omen: out in the dark, far, humming; the guest still, in her own clothes.
 func _begin_loop() -> void:
@@ -481,6 +495,187 @@ func _round_the_light(from: Vector3, dist: float) -> Vector3:
 			best_k = k
 			best = p
 	return best
+
+
+## The base ticks nothing while you are indoors; she does her own work there. Back out,
+## she begins again far off (the door is not her mouth).
+func tick(delta: float) -> void:
+	if _night_active and _phase != STRIKE:
+		if not _is_ready():
+			if not _away_in:
+				_away_in = true
+				_drop_decoy()
+				_drop_ring()
+			_tick_room()
+		elif _away_in:
+			_away_in = false
+			_in_room = false
+			_hide_glass()
+			_begin_loop()
+	super(delta)
+	if _night_active and _away_in and _glass_until > 0.0 and _body != null:
+		_body.visible = true
+		_tick_eyes(delta)
+
+
+func _wall_clock() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+
+func _indoors_now() -> bool:
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	if scene == null:
+		return false
+	var night: bool = scene.has_method("_is_enemy_night_active") and bool(scene.call("_is_enemy_night_active"))
+	var inside: bool = scene.has_method("_is_any_interior_open") and bool(scene.call("_is_any_interior_open"))
+	return night and inside
+
+
+func _tick_room() -> void:
+	if not _indoors_now():
+		_in_room = false
+		return
+	if not _in_room:
+		_in_room = true
+		_lure_n = 0
+		_lure_next = _wall_clock() + _rng.randf_range(9.0, 15.0)
+	if _glass_until > 0.0 and _wall_clock() >= _glass_until:
+		_hide_glass()
+	if _wall_clock() < _lure_next:
+		return
+	_lure_next = _wall_clock() + _rng.randf_range(14.0, 24.0)
+	# Only the warden she hunts hears it (co-op).
+	if _fx() == null:
+		return
+	_room_lure(_lure_n)
+	_lure_n += 1
+
+
+func _room_lure(n: int) -> void:
+	var scene := _world_root.get_tree().current_scene
+	var im = scene.get("_interior_manager") if scene != null else null
+	match n % 6:
+		0:
+			_room_2d(SFX_HUM, -14.0, 0.95)
+		1:
+			for i in 5:
+				_later(0.55 * float(i), func(): _room_2d(SFX_HEEL, -10.0 - 2.0 * float(i), _rng.randf_range(0.9, 1.0)))
+		2:
+			_room_2d(SFX_GIGGLE, -8.0, 0.9)
+			for i in 3:
+				_later(1.3 + 0.9 * float(i), func(): _room_2d("res://assets/sfx/director/knock.mp3", -6.0, 0.85))
+		3:
+			if not _at_glass(im):
+				_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0, 0.9)
+		4:
+			for i in 12:
+				_later(0.05 * float(i), func(): _room_2d(SFX_SNAP, -12.0, _rng.randf_range(2.2, 2.8)))
+			_later(1.2, func(): _room_2d(SFX_DROOL, -8.0, 0.8))
+		_:
+			_visit_guest()
+
+
+func _later(seconds: float, f: Callable) -> void:
+	if _root != null and _root.is_inside_tree():
+		_root.get_tree().create_timer(seconds).timeout.connect(func():
+			if _night_active and _away_in:
+				f.call())
+
+
+func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
+	if _sound2d == null or not ResourceLoader.exists(file):
+		return
+	# One sound over another: each its own player when the one is busy.
+	var p := _sound2d
+	if p.playing:
+		p = AudioStreamPlayer.new()
+		_root.add_child(p)
+		p.finished.connect(p.queue_free)
+	p.stream = load(file)
+	p.volume_db = db
+	p.pitch_scale = pitch
+	p.play()
+
+
+## The cabin you are in: she stands at the window you look at, pressed to the glass,
+## her face in it and her eyes; for two frames, the face she pretends with.
+func _at_glass(im) -> bool:
+	var cab = im.get("_cabin_interior") if im != null else null
+	if cab == null or not is_instance_valid(cab) or not cab.has_method("outside_windows") or not bool(cab.call("is_open")):
+		return false
+	var wins: Array = cab.call("outside_windows")
+	if wins.is_empty():
+		return false
+	var w: Dictionary = wins[0]
+	for c in wins:
+		if float(c.get("facing", 0.0)) > float(w.get("facing", 0.0)):
+			w = c
+	var p := _ground((w["pos"] as Vector3) + (w["out"] as Vector3) * 0.3)
+	if p == Vector3.INF:
+		return false
+	_room_2d("res://assets/sfx/director/window_tap.mp3", -6.0, 1.1)
+	_body.global_position = p
+	_set_pose(false)
+	_set_body_tex(_stage(0) if _stage(0) != "" else GUEST)
+	_body.visible = true
+	_glass_until = _wall_clock() + _rng.randf_range(3.5, 5.0)
+	if _eyes != null:
+		var spot: Vector2 = _eye_spot.get(_body.texture, Vector2(0.0, float(_body.texture.get_height()) * 0.86))
+		_eyes.set("height", spot.y * _body.pixel_size)
+		_eyes.set("x_off", spot.x * _body.pixel_size)
+		_eyes.set("view_from", (w["pos"] as Vector3) - (w["out"] as Vector3) * 1.5)
+		_eyes.set("want", 1.0)
+		_eyes.set("size_k", 1.6)
+		# Her face in the middle of the glass.
+		_body.global_position.y = (w["pos"] as Vector3).y - float(_eyes.get("height")) - 0.04
+	if _glass_light == null:
+		_glass_light = OmniLight3D.new()
+		_glass_light.light_color = Color(1.0, 0.8, 0.55)
+		_glass_light.omni_range = 2.2
+		_glass_light.light_energy = 1.0
+		_root.add_child(_glass_light)
+	_glass_light.global_position = (w["pos"] as Vector3) + (w["out"] as Vector3) * 0.15
+	_glass_light.visible = true
+	if float(w.get("facing", 0.0)) > 0.8 and _tex.has(T_SMILE):
+		_later(0.8, func():
+			var fx := _fx()
+			if fx != null:
+				fx.subliminal(_tex[T_SMILE], 2, 1.0, Color(1, 1, 1, 0.8))
+				_room_2d(SFX_STING, -6.0, 0.9))
+	_later(1.6, func(): _room_2d(SFX_GIGGLE, -10.0, 0.7))
+	return true
+
+
+func _hide_glass() -> void:
+	if _glass_until < 0.0:
+		return
+	_glass_until = -1.0
+	if _body != null:
+		_body.visible = false
+	if _eyes != null:
+		_eyes.set("view_from", Vector3.INF)
+		_eyes.set("want", 0.0)
+	if _glass_light != null:
+		_glass_light.visible = false
+
+
+## Hide long enough and it is somebody else: a guest's night goes wrong (one of the
+## Cheap Chicks first: she was one of them).
+func _visit_guest() -> void:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or GuestManager == null:
+		return
+	var pick := {}
+	for g in state.guests:
+		if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
+			pick = g
+			if str(g.get("archetype", "")) == "cheap_chick":
+				break
+	if pick.is_empty():
+		_room_2d(SFX_GIGGLE, -10.0, 0.6)
+		return
+	_room_2d(SFX_GIGGLE, -16.0, 0.75)
+	GuestManager.apply_guest_event(int(pick.get("id", -1)), -18.0, "A woman stood outside all night, laughing at nothing. She knew my name.")
 
 
 ## Upside down (hanging from nothing, her feet up in the dark) or far too tall; else as a
@@ -837,7 +1032,7 @@ func _update_stutter(dt: float, d: float, coming: bool) -> void:
 			fx.subliminal(_face(_rng.randi_range(0, 2)), 2, 0.8, Color(1, 1, 1, 0.5))
 
 
-# ── the strike ───────────────────────────────────────────────────────────────
+# â”€â”€ the strike â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ## The strike, about four seconds you cannot move or look away from (Richard, 20. 10.:
 ## "10/10 morbid"), in steps of twelve a second like the rest of her:
