@@ -91,11 +91,35 @@ def sheet(art_id, items):
         print(dest, small.size)
 
 
+# The stations' Build paintings (16:9, seen from above), the bistro's way
+# (bistro_art.do_panels): 640 wide, roughened, snapped to the palette; the room lays them
+# on the counter at its own pixel (station3d.room_tex).
+PANELS = [("ct_counter", C + "st_counter.png"), ("ct_husk", C + "st_husk.png")]
+
+
+def panel(art_id, dest):
+    import bistro_art  # noqa: E402
+    src_path = os.path.join(OUT, art_id, "raw.png")
+    if not os.path.exists(src_path):
+        print("skip (no render)", art_id)
+        return
+    src = Image.open(src_path).convert("RGB")
+    small = src.resize((bistro_art.PANEL_W, round(src.height * bistro_art.PANEL_W / src.width)), Image.Resampling.BOX)
+    out = process.snap(bistro_art.buildify(small, 12), False)
+    path = os.path.join(GODOT, dest)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    out.save(path)
+    print(dest, out.size)
+
+
 def main():
     want = set(sys.argv[1:])
     for art_id, items in SHEETS:
         if not want or art_id in want:
             sheet(art_id, items)
+    for art_id, dest in PANELS:
+        if not want or art_id in want:
+            panel(art_id, dest)
 
 
 if __name__ == "__main__":

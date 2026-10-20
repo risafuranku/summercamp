@@ -551,10 +551,9 @@ the head through the end of the turn.
 - **The pub's cellar.** A door by the bar end goes down to the kegs: the keg on the line
   on its pallet (the keg's station, below), the full ones along the rack (a keg is 50
   pints of the books' beer), crates of rum and kofola; click the rack for the books.
-- **The corn stand** is one more of them: E behind its counter (either warden), the
-  wholesaler's leaflet beside the cash box orders corn and butter (the books' ORDER
-  page), Klasek 98 on the office PC runs it like the others; the other warden sees you
-  behind it at the pot.
+- **The corn stand** is one more of them: E behind its counter (either warden), its two
+  stations on the counter with the camp beyond it (below, "The corn stand"), the books on
+  the frame (BOOKS, or the cash box), Klasek 98 on the office PC runs it like the others.
 - **For two.** The other warden is in the room with you at the job they have open,
   behind the bar pulling a beer, at the bottles, the washer, the pass, the stove, the
   till, over the books; the place they are at is theirs (no mark over it for you), and
@@ -689,6 +688,46 @@ engine; clear the first time without a tutorial").*
 - **For four**: as the bistro: each station one warden's while they are at it, seen
   there, named, refused to the others; what is poured, washed and changed is an op every
   machine applies at once (`scripts/pub/taproom.gd`, `Coop.send_taproom`).
+
+### The corn stand (2026-10-20)
+
+*Agent C, phase 3 of the businesses. The playtest's split stays (18. 10.: "the corn stand
+is the bottom of the screen, the top is the live view into the camp"); the user, 20. 10.:
+the stations in 3D, like the bistro's and the pub's.*
+
+- **Behind the counter, out in the camp.** E at the stand and you are behind it: a camera
+  of its own in the camp's world stands behind the counter and looks out over it, so the
+  counter is the bottom of the picture and the camp the top of it (whoever comes up to the
+  stand, the paths, the weather), through the Build palette like every view. Your warden
+  stands behind the counter meanwhile (the others see you there). The frame under it as
+  at the bistro: BACK (S, the right button), the two stations (Tab, 1-2), BOOKS.
+- **Two stations on the counter**, worked where they are (the stand's own Build
+  pictures laid on its counter top; everybody going by sees the cobs in the pot):
+  - *The husking* (the left): the crate of cobs in their husks; a click puts one on the
+    table (off the books' cobs); hold the button on it and pull away: a leaf comes off and
+    flies into the bucket (four leaves; two with the husking table); then the silk at its
+    tip, a click a tuft (three); clean, a click puts it in the bowl.
+  - *The counter* (the right): the pot of boiling water, the board, the butter and its
+    brush, the salt, the napkins, the cash box. A click on the pot puts a husked cob from
+    the bowl in (three places; six with the bigger pot); it boils pale, then bright yellow
+    (done, nine seconds), then from twenty-one seconds grey and soft. A cob out onto the
+    board (a click, however done it is), brushed with butter where the brush passes (hold
+    and rub along it; the butter warmer does it in one stroke), a shake of salt a click,
+    a napkin round it, then over the counter to the slip picked on the rail (else the
+    oldest). Hard, soft, unbuttered or the salt far off and they hand it back. BIN throws
+    away what is on the board.
+- **The orders** are paper slips on the rail: the name, a cob, the salt they want (a mark a
+  shake, NO S for none), the wait; the picked one big in the corner, ticking off BUTTER,
+  the salt (green when it is right, red when too much) and NAPKIN. One cob each, all at
+  once; after an hour of waiting they go. Papa's score from the wait, the build (butter,
+  salt) and the cooking into the tip, the stars and the mood.
+- **The hands at the stand**: the husk's takes cobs from the crate and husks them into the
+  bowl (one dropped now and then), the counter's puts them in the pot as wanted, takes a
+  done one out, butters it and salts it to the order (the salt off now and then) and hands
+  it over; a soft one they throw away.
+- **For four**: one warden a station (the other gets the husking: "Jana is at the
+  counter"); the pot, the bowl and what was served are ops every machine applies
+  (`scripts/corn/cornstand.gd`, `Coop.send_place`).
 
 ### The businesses' shared systems (2026-10-20)
 

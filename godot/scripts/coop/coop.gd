@@ -840,6 +840,25 @@ func _taproom(key: String, op: String, data: Array) -> void:
 		sender = 0
 
 
+## A business's own place (the corn stands: scripts/corn/cornstand.gd), everyone's to
+## everyone: the node in group "places_<kind>" takes it (coop_place).
+func send_place(kind: String, key: String, op: String, data: Array) -> void:
+	if role != Role.NONE and not wardens.is_empty():
+		_place.rpc(kind, key, op, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _place(kind: String, key: String, op: String, data: Array) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not wardens.has(id):
+		return
+	var n := get_tree().get_first_node_in_group("places_" + kind)
+	if n != null and n.has_method("coop_place"):
+		sender = id
+		n.coop_place(key, op, data)
+		sender = 0
+
+
 ## Something every machine has that the others must have too, everyone's to everyone
 ## (main.coop_sync): "office" [the lights, curtains and set], "register" [the desk's
 ## register and key hooks], "gate" ["up" / "down"] (a warden worked the barrier).

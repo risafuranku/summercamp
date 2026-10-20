@@ -347,7 +347,8 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [ ] Phase 1 left: the chalk strike on the menu board (bzs_chalk), a note on the door when a hand is away; the bistro's gear in the room from its pictures (camp/gear_*.png, processed)
 - [x] Phase 2: the pub (stations along the bar in 3D, the keg in the cellar, its hands by role, kegs that go flat, gear; pub_check, pub_shots, pub_coop)
 - [ ] Phase 2 left: the gear's pictures in the pub (camp/gear_glasswasher, gear_cooler, gear_tap2), sounds for the keg (keg_roll, coupler, gas_hiss) and the order ding of its own
-- [ ] Phase 3: the corn stand (counter and husking in 3D, the live camp view above)
+- [x] Phase 3: the corn stand (counter and husking in 3D on the stand's counter, the live camp beyond it; its hands, gear; stand_check, stand_shots, stand_coop)
+- [ ] Phase 3 left: the gear seen at the stand (camp/gear_cornpot, gear_butter, gear_husktable), sounds of its own (the boil, a leaf torn, the salt)
 - [ ] Phase 4: the Jednota (the building, store, shelves, till; dear and loved)
 - [ ] Phase 5: PROTOTYP 540 (fed at night, the goulash's meat for nothing)
 - [ ] Cellar / machine room: design the dark mechanic (the meatball machine) and prepare

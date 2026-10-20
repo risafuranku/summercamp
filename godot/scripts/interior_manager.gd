@@ -44,9 +44,10 @@ const INTERIOR_MODULE_CABIN := "cabin"
 const INTERIOR_MODULE_SERVICE := "service"
 ## "trip_*" and "town_*" things outside the camp (town_trip.handles()).
 const INTERIOR_MODULE_TRIP := "trip"
-## The corn stand: behind its counter (scripts/business/corn_closeup.gd).
+## The corn stand: behind its counter (scripts/corn/stand_view.gd: its two stations in 3D,
+## the camp beyond the counter).
 const INTERIOR_MODULE_STAND := "stand"
-const CORN_CLOSEUP = preload("res://scripts/business/corn_closeup.gd")
+const STAND_VIEW = preload("res://scripts/corn/stand_view.gd")
 var _corn_stand: CanvasLayer
 const INTERIOR_ASSIGNMENTS := [
 	{
@@ -473,11 +474,11 @@ func handle_structure_interact(structure: Node3D) -> void:
 			return
 
 
-## Behind the corn stand's counter: its close-up (the pot, the butter, the salt, the
-## customers), the books a tab on it.
+## Behind the corn stand's counter: its stations (the pot, the butter, the salt, the husking)
+## with the camp beyond the counter, the books on the frame.
 func _on_corn_stand_interact(structure: Node3D) -> void:
 	if _corn_stand == null:
-		_corn_stand = CORN_CLOSEUP.new()
+		_corn_stand = STAND_VIEW.new()
 		add_child(_corn_stand)
 		_corn_stand.closed.connect(func():
 			_set_player_controls_enabled(true)
@@ -1492,6 +1493,9 @@ func _coop_push_jobs() -> void:
 ## The room you are in, for the other machine: {k: room key, t: kind, s: which part
 ## of it, w: the job your hands are on}, or {} outside the rooms.
 func coop_room() -> Dictionary:
+	# Behind the corn stand: which station (scripts/corn/stand_view.gd).
+	if _corn_stand != null and _corn_stand.is_open():
+		return _corn_stand.coop_room()
 	var it = _open_room_interior()
 	if it == null:
 		return {}
@@ -1625,6 +1629,10 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 		coop_drop_partner(id)
 		return
 	var it = _open_room_interior()
+	if it == null:
+		# Both behind the corn stand: they are seen there in the camp, as they are.
+		coop_drop_partner(id)
+		return
 	var e := _coop_entry(id)
 	# Their job is theirs while they are at it.
 	e["job"] = str(info.get("w", ""))
