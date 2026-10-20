@@ -4,11 +4,14 @@ extends Control
 ## facilities). A banner with the district's crest, four counters, then three lists:
 ## who is staying (with a card for the one you pick: mood, needs, room, what they said),
 ## who is on the way or waiting at the barrier and whether their room is ready, and every
-## room with what is still to do.
+## room with what is still to do beside a plan of the camp (camp_plan.gd): every "show me"
+## in the office (CampStat's dirty rooms and upkeep, the guest card, a double-click) opens
+## the plan on that building; Builder stays for building.
 ##
 ## On some evenings the register has one row more than the camp has guests.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const PLAN = preload("res://scripts/os98/apps/camp_plan.gd")
 const NEEDS = preload("res://core/systems/guest_needs_system.gd")
 const UNBOOKED_FROM_HOUR := 18
 const UNBOOKED_TO_HOUR := 20
@@ -41,6 +44,8 @@ var _sort_desc := false
 var _map_btn: Button
 var _empty_guests: Label
 var _empty_arrivals: Label
+var _plan: Control
+var _room_page: Control
 
 
 func setup(shell, win, _args: Dictionary) -> void:
@@ -73,12 +78,12 @@ func setup(shell, win, _args: Dictionary) -> void:
 	_card.draw.connect(_draw_card)
 	guests_page.add_child(_card)
 	_map_btn = Button.new()
-	_map_btn.text = "Show the room on the map"
+	_map_btn.text = "Show the room on the plan"
 	_map_btn.focus_mode = Control.FOCUS_NONE
 	_map_btn.visible = false
 	_map_btn.pressed.connect(func():
 		if _card_guest.get("coord", null) is Vector2i:
-			_shell.show_on_map(_card_guest["coord"]))
+			focus(_card_guest["coord"]))
 	_card.add_child(_map_btn)
 	_card.resized.connect(func(): _map_btn.position = Vector2(6, maxf(0.0, _card.size.y - 28)))
 	var arr_page := Control.new()
@@ -89,21 +94,32 @@ func setup(shell, win, _args: Dictionary) -> void:
 	_arrivals.item_activated.connect(func():
 		var it := _arrivals.get_selected()
 		if it != null and it.get_metadata(0) is Vector2i:
-			_shell.show_on_map(it.get_metadata(0)))
-	var room_page := Control.new()
-	room_page.name = "Rooms"
-	_tabs.add_child(room_page)
-	_rooms = _make_tree(room_page, ["", "Room", "State", "Guests", "Still to do"], [22, 100, 90, 60, 220])
-	# A double-click shows the room on Builder's map.
-	_rooms.item_activated.connect(func():
+			focus(it.get_metadata(0)))
+	_room_page = Control.new()
+	_room_page.name = "Rooms"
+	_tabs.add_child(_room_page)
+	_plan = PLAN.new()
+	var m = _shell.main_node() if _shell != null else null
+	_plan.grid_manager = m.get("grid_manager") if m != null else null
+	_room_page.add_child(_plan)
+	_rooms = _make_tree(_room_page, ["", "Room", "State", "Still to do"], [22, 70, 84, 120])
+	# A room picked in the list blinks on the plan; a building picked on the plan is
+	# picked in the list (a room) or told in the status line (anything else).
+	_rooms.item_selected.connect(func():
 		var it := _rooms.get_selected()
 		if it != null and it.get_metadata(0) is Vector2i:
-			_shell.show_on_map(it.get_metadata(0)))
+			_plan.focus = it.get_metadata(0)
+			_plan.queue_redraw()
+			_tell(it.get_metadata(0)))
+	_plan.picked.connect(func(c: Vector2i):
+		_shell.play("click", -14.0)
+		_select_room(c)
+		_tell(c))
 	_guests.item_activated.connect(func():
 		var it := _guests.get_selected()
 		var info: Dictionary = _guest_rows.get(it.get_instance_id(), {}) if it != null else {}
 		if info.get("coord", null) is Vector2i:
-			_shell.show_on_map(info["coord"]))
+			focus(info["coord"]))
 	var bar := Panel.new()
 	bar.add_theme_stylebox_override("panel", T.box("well", T.FACE, Vector4.ZERO))
 	bar.name = "StatusBar"
@@ -117,8 +133,59 @@ func setup(shell, win, _args: Dictionary) -> void:
 	refresh()
 
 
-func reopen(_args: Dictionary) -> void:
+func reopen(args: Dictionary) -> void:
+	if args.get("focus", null) is Vector2i:
+		focus(args["focus"])
+	else:
+		refresh()
+
+
+## The plan on one building (a room's origin or any cell of a building): the Rooms tab
+## comes forward, the building blinks, a room is picked in the list.
+func focus(coord: Vector2i) -> void:
+	if _tabs == null:
+		return
+	_tabs.current_tab = _room_page.get_index()
 	refresh()
+	var b: Dictionary = _plan.building_at(coord)
+	var og: Vector2i = b.get("origin", coord)
+	_plan.focus = og
+	_plan.rebuild()
+	_select_room(og)
+	_tell(og)
+
+
+func _select_room(c: Vector2i) -> void:
+	var root := _rooms.get_root()
+	var it := root.get_first_child() if root != null else null
+	while it != null:
+		if it.get_metadata(0) == c:
+			if _rooms.get_selected() != it:
+				it.select(0)
+			_rooms.scroll_to_item(it)
+			return
+		it = it.get_next()
+	_rooms.deselect_all()
+
+
+## The status line about the building picked on the plan.
+func _tell(c: Vector2i) -> void:
+	var b: Dictionary = _plan.building_at(c)
+	if b.is_empty():
+		return
+	var rs: Dictionary = b.get("room", {})
+	if rs.is_empty():
+		var def = CoreRoot.registry.get_def(StringName(str(b["type"]))) if CoreRoot != null and CoreRoot.registry != null else null
+		var nm := str(def.display_name).split(" (")[0] if def != null else str(b["type"]).capitalize()
+		var cond := float(b.get("condition", -1.0))
+		_status.text = "%s: BROKEN, it serves no one until it is repaired." % nm if bool(b["broken"]) else ("%s: %d%% condition." % [nm, int(round(cond * 100.0))] if cond >= 0.0 else nm + ".")
+		return
+	var names: Array = []
+	for t in rs.get("remaining", []):
+		names.append(str(t.get("label", t.get("id", ""))))
+	var st := str(rs.get("status", ""))
+	var word := "occupied" if bool(rs.get("occupied", false)) else {"ready": "ready", "dirty": "DIRTY", "unprepared": "not made up"}.get(st, st) as String
+	_status.text = "%s: %s%s" % [str(rs.get("label", "")), word, (". Still to do: " + ", ".join(names)) if not names.is_empty() else "."]
 
 
 ## The grey line in the middle of an empty list.
@@ -148,7 +215,23 @@ func _make_tree(parent: Control, cols: Array, widths: Array) -> Tree:
 		tr.set_column_expand(c, c == cols.size() - 1)
 		tr.set_column_clip_content(c, true)
 	parent.add_child(tr)
+	# The stripes would paint over the picked row: it goes navy like any list's.
+	tr.item_selected.connect(_restripe.bind(tr))
 	return tr
+
+
+func _restripe(tr: Tree) -> void:
+	var root := tr.get_root()
+	var it := root.get_first_child() if root != null else null
+	var i := 0
+	while it != null:
+		for c in tr.columns:
+			if it.is_selected(0) or i % 2 == 0:
+				it.clear_custom_bg_color(c)
+			else:
+				it.set_custom_bg_color(c, ROW_B)
+		it = it.get_next()
+		i += 1
 
 
 func _layout() -> void:
@@ -171,8 +254,14 @@ func _layout() -> void:
 	_card.offset_left = -card_w
 	_map_btn.size = Vector2(card_w - 12, 22)
 	_map_btn.position = Vector2(6, maxf(0.0, _card.size.y - 28))
-	for tr in [_arrivals, _rooms]:
-		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_arrivals.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# The plan as big as the page is tall, the list beside it.
+	var page_h := maxf(80.0, _tabs.size.y - 30.0)
+	var plan_w := clampf(page_h, 120.0, size.x * 0.5)
+	_plan.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+	_plan.offset_right = plan_w
+	_rooms.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_rooms.offset_left = plan_w + 4
 
 
 func _process(delta: float) -> void:
@@ -217,6 +306,7 @@ func refresh() -> void:
 			_fill_arrivals(arrivals)
 		2:
 			_fill_rooms()
+			_plan.rebuild()
 
 
 # ── lists ────────────────────────────────────────────────────────────────────
@@ -382,14 +472,19 @@ func _fill_rooms() -> void:
 		it.set_custom_color(2, col)
 		if st != "ready":
 			to_do += 1
-		it.set_text(3, "yes" if occupied else "-")
 		var names: Array = []
 		for t in rs.get("remaining", []):
 			names.append(str(t.get("label", t.get("id", ""))))
-		it.set_text(4, ", ".join(names))
-		_stripe(it, i, 5)
+		it.set_text(3, ", ".join(names))
+		it.set_tooltip_text(3, ", ".join(names))
+		_stripe(it, i, 4)
 		i += 1
-	_status.text = "%d room(s), %d to make up. Double-click one to see it on the map." % [keys.size(), to_do]
+	var sel = _plan.focus if _plan != null else Vector2i(-1, -1)
+	_select_room(sel)
+	if sel.x >= 0 and _rooms.get_selected() == null:
+		(func(): _tell(_plan.focus)).call_deferred()
+	elif sel.x < 0:
+		_status.text = "%d room(s), %d to make up." % [keys.size(), to_do]
 
 
 func _stripe(it: TreeItem, i: int, cols: int) -> void:

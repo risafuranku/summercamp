@@ -150,7 +150,7 @@ func _poll(here: Vector3) -> void:
 	# Lamps: the few nearest that are lit.
 	var lit: Array = []
 	for id in _lamps.keys():
-		var p: AudioStreamPlayer3D = _lamps[id]
+		var p = _lamps[id]
 		if not is_instance_valid(p):
 			_lamps.erase(id)
 			continue
@@ -170,7 +170,9 @@ func _poll(here: Vector3) -> void:
 	# The generator, while the camp has power.
 	var powered: bool = main == null or not main.has_method("_is_grid_powered") or bool(main.call("_is_grid_powered"))
 	for id in _gens.keys():
-		var g: AudioStreamPlayer3D = _gens[id]
+		# Untyped first: a generator taken down since is a freed instance, and assigning
+		# that to a typed variable is an error before is_instance_valid can look at it.
+		var g = _gens[id]
 		if not is_instance_valid(g):
 			_gens.erase(id)
 			continue

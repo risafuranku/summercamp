@@ -132,7 +132,7 @@ func _run() -> void:
 	var cs_before = _shell.app_of("camp_status")
 	_key(KEY_4)
 	await _frames(2)
-	_key(KEY_2)
+	_key(KEY_1 + _shell._tab_index("camp_status"))
 	await _frames(2)
 	_expect(cs_before != null and _shell.app_of("camp_status") == cs_before, "CampStat was started again on switching back (should keep running)")
 	# A text field takes the digits: no switching while you type.

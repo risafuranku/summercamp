@@ -635,13 +635,21 @@ func _page_today(y: float) -> float:
 			rows.append([{"chip": "%d AT DESK" % at_gate, "c": RED}, "Guests are waiting at reception. Check them in.", {"btn": "GuestRack", "act": "tab://guestrack"}])
 		if coming > 0:
 			rows.append([{"chip": "%d COMING" % coming, "c": T.NAVY}, ("Rooms not ready for them: %d." % not_ready) if not_ready > 0 else "Their rooms are ready.", {"btn": "GuestRack", "act": "tab://guestrack"}])
-		var dirty := 0
-		for key in GuestManager.get_accommodation_states():
+		# Which ones, by their numbers; the button shows the first on GuestRack's plan.
+		var dirty: Array = []
+		var keys := GuestManager.get_accommodation_states().keys()
+		keys.sort()
+		for key in keys:
 			var rs: Dictionary = GuestManager.get_room_state(str(key))
 			if not rs.is_empty() and str(rs.get("status", "")) == "dirty" and not bool(rs.get("occupied", false)):
-				dirty += 1
-		if dirty > 0:
-			rows.append([{"chip": "%d DIRTY" % dirty, "c": AMBER}, "Rooms to clean before anyone can have them.", {"btn": "GuestRack", "act": "tab://guestrack"}])
+				dirty.append(str(key))
+		if not dirty.is_empty():
+			var names: Array = []
+			for key in dirty:
+				names.append(GuestManager.room_short(key))
+			var line := "%s %s to clean before anyone can have %s." % [", ".join(names.slice(0, 6)) + (" ..." if names.size() > 6 else ""),
+				"is" if names.size() == 1 else "are", "it" if names.size() == 1 else "them"]
+			rows.append([{"chip": "%d DIRTY" % dirty.size(), "c": AMBER}, line, {"btn": "Show", "act": "map://%s" % dirty[0]}])
 	# The mail.
 	var unread := EmailManager.get_unread_count() if EmailManager != null else 0
 	if unread > 0:
@@ -895,7 +903,7 @@ func _page_upkeep(y: float) -> float:
 			col = AMBER
 			word = "WORN"
 		var c = r.get("coord", null)
-		var map_btn: Variant = {"btn": "Map", "act": "map://%d:%d" % [c.x, c.y]} if c is Vector2i else ""
+		var map_btn: Variant = {"btn": "Show", "act": "map://%d:%d" % [c.x, c.y]} if c is Vector2i else ""
 		rows.append([str(r.get("label", "?")), {"bar": 0.0 if broken else cond, "c": col}, "%d%%" % int(round(cond * 100.0)), {"chip": word, "c": col},
 			"%s $%d" % ["repair" if broken else "service", int(r.get("cost", 0))], map_btn])
 	y = _table(y, [["Building", 0, HORIZONTAL_ALIGNMENT_LEFT], ["Condition", 100, HORIZONTAL_ALIGNMENT_LEFT], ["", 36, HORIZONTAL_ALIGNMENT_RIGHT],

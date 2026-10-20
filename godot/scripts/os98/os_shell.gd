@@ -45,8 +45,8 @@ const BIOS_FONT: FontFile = preload("res://assets/fonts/pomono.fnt")
 ## The tabs, in key order: id, label, icon, wide (a label beside the icon).
 const TABS := [
 	["builder", "Builder", "builder", true],
-	["camp_status", "CampStat", "campstat", true],
 	["guestrack", "GuestRack", "guestrack", true],
+	["camp_status", "CampStat", "campstat", true],
 	["mail", "Mail", "mail", true],
 	["reviews", "Reviews", "goggle", true],
 	["browser", "Web", "browser", false],
@@ -272,6 +272,9 @@ func setup(grid_mgr, building_mgr, _ui_adapter = null, interior_host: Node = nul
 func open_panel() -> bool:
 	_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+	if not _has_power():
+		# The camp's power is off: a dead screen, nothing to boot.
+		return true
 	if _state == Boot.OFF or _state == Boot.SAFE_OFF:
 		_start_boot()
 	elif _state == Boot.DESKTOP:
@@ -495,10 +498,10 @@ func play(name: String, volume_db := 0.0) -> void:
 func sound_db() -> float:
 	var m := main_node()
 	if m != null:
-		if not bool(m.get("_gameplay_started")):
+		if m.get("_gameplay_started") == false:
 			return -80.0
 		var menu = m.get("_main_menu")
-		if menu != null and is_instance_valid(menu) and bool(menu.get("visible")):
+		if menu != null and is_instance_valid(menu) and menu.get("visible") == true:
 			return -80.0
 	if _state != Boot.DESKTOP:
 		return -80.0
@@ -887,15 +890,11 @@ func open_app(app_id: String, args: Dictionary = {}, _new_instance := false) -> 
 	return page
 
 
-## Builder's map on a building (GuestRack's rooms, CampStat's upkeep): the tab comes
-## forward, the map centres on it and its card opens. Night or not installed: the
-## Builder tab says why.
+## A building shown (CampStat's dirty rooms and upkeep, GuestRack's lists): GuestRack's
+## plan of the camp, the building blinking. Not Builder, which is for building (the user
+## 20. 10.).
 func show_on_map(coord: Vector2i) -> void:
-	if open_app("builder") == null:
-		return
-	var a = app_of("builder")
-	if a != null and a.has_method("focus_building"):
-		a.focus_building(coord)
+	open_app("guestrack", {"focus": coord})
 
 
 ## The program on a tab (or the tab that hosts it), or null.
@@ -1274,7 +1273,28 @@ func _start_boot() -> void:
 	play("degauss", -6.0)
 
 
+## The office's mains (building_interior keeps it): out, the PC dies at once (it went
+## on working, music and all, through a blackout), and boots again only when you sit at
+## it with the power back.
+func _has_power() -> bool:
+	return _host == null or _host.get("_grid_power_available") != false
+
+
+var _power_t := 0.0
+## Off because the power went (not shut down): it comes back on with the power.
+var _blacked_out := false
+
+
 func _process(delta: float) -> void:
+	_power_t -= delta
+	if _power_t <= 0.0:
+		_power_t = 0.25
+		if not _has_power() and _state != Boot.OFF and _state != Boot.SAFE_OFF:
+			power_off()
+			_blacked_out = true
+		elif _has_power() and _blacked_out and _open and _state == Boot.OFF:
+			_blacked_out = false
+			_start_boot()
 	match _state:
 		Boot.WARMUP:
 			_boot_t += delta
@@ -1341,8 +1361,8 @@ func _tick_bios(delta: float) -> void:
 				lines.append(str(row[1]))
 	_boot_lines = lines
 	_boot.queue_redraw()
-	if _boot_t > 0.85 and _boot_t - delta <= 0.85:
-		play("post_beep", -10.0)
+	# No POST beep: at the desk it was a harsh buzz every time the PC came on (playtest
+	# 20. 10.); the disk and the fan say it is starting.
 	if _boot_t > 0.95 and _boot_t - delta <= 0.95:
 		play("hdd", -6.0)
 	if _boot_t > 1.65 and _boot_t - delta <= 1.65:
@@ -1359,7 +1379,7 @@ func _enter_desktop() -> void:
 	_refresh_badges()
 	_refresh_tray()
 	play("hdd_long", -14.0)
-	play("startup", -6.0)
+	play("startup", -14.0)
 	# CampMail is in the startup group (OKNA.INI: run=CAMPMAIL.EXE): with unread mail the
 	# panel opens on it, else where you left it.
 	var first := _last_tab

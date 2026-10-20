@@ -11,6 +11,9 @@ extends Control
 ## couple of gulps, then the pictures one by one, interlaced. GIF banners rotate their
 ## frames once they are down; some pages are papered with a tile; [blink] blinks and
 ## [marquee] runs.
+##
+## Tabs (the user 20. 10.): the middle button on a link opens it in a tab behind; the
+## strip shows from the second tab, a click picks one, the middle button or its x closes it.
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const WEB = preload("res://scripts/os98/web_pages.gd")
@@ -25,6 +28,8 @@ const MENU_H := 18
 const TOOL_H := 42
 const BAND_H := 24
 const STATUS_H := 20
+const TAB_H := 20
+const MAX_TABS := 8
 const THROB_W := 50
 const BANNER_FRAME := 2.6
 const LINKS := [["Bohemia", "bohemia-online.cz"], ["Courier", "kuryr-hlubocany.cz"], ["Weather", "bohemia-online.cz/weather"], ["Camp", "cerne-jezero.cz"]]
@@ -92,6 +97,12 @@ var _pic_i := 0
 var _banners: Array = []
 var _menu: Control
 var _menu_catch: Control
+## Every tab's page and history ({url, history, hist_i, scroll}); the one shown lives in
+## _url / _history / _hist_i and is written back on a switch.
+var _tab_list: Array = []
+var _tab := 0
+var _tabbar: Control
+var _hover_meta := ""
 
 
 func setup(shell, win, args: Dictionary) -> void:
@@ -223,14 +234,23 @@ func _build() -> void:
 	_page.install_effect(MarqueeFx.new())
 	_page.meta_clicked.connect(func(m): _on_link(str(m)))
 	_page.meta_hover_started.connect(func(m):
+		_hover_meta = str(m)
 		_shell.pointer_hand = true
 		_status.text = "Shortcut to " + _describe(str(m))
 	)
 	_page.meta_hover_ended.connect(func(_m):
+		_hover_meta = ""
 		_shell.pointer_hand = false
 		_status.text = _status_idle
 	)
-	_page.mouse_exited.connect(func(): _shell.pointer_hand = false)
+	_page.mouse_exited.connect(func():
+		_hover_meta = ""
+		_shell.pointer_hand = false)
+	_page.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_MIDDLE and _hover_meta != "":
+			open_in_tab(_hover_meta)
+			_page.accept_event()
+	)
 	_frame.add_child(_page)
 
 	# The status bar: the text, the progress, the zone.
@@ -244,6 +264,15 @@ func _build() -> void:
 	_status.clip_text = true
 	bar.add_child(_status)
 	_progress = bar
+
+	_tabbar = Control.new()
+	_tabbar.name = "TabBar"
+	_tabbar.visible = false
+	_tabbar.mouse_filter = Control.MOUSE_FILTER_STOP
+	_tabbar.draw.connect(_draw_tabs)
+	_tabbar.gui_input.connect(_tab_input)
+	add_child(_tabbar)
+	_tab_list = [{"url": "", "history": [], "hist_i": -1, "scroll": 0}]
 
 	_build_dialer()
 	resized.connect(_layout)
@@ -268,6 +297,11 @@ func _layout() -> void:
 	links.position = Vector2(size.x - lw - 6, by + 2)
 	links.size = Vector2(lw, 20)
 	var top := by + BAND_H + 2
+	_tabbar.visible = _tab_list.size() > 1
+	if _tabbar.visible:
+		_tabbar.position = Vector2(0, top)
+		_tabbar.size = Vector2(size.x, TAB_H)
+		top += TAB_H
 	_frame.position = Vector2(0, top)
 	_frame.size = Vector2(size.x, size.y - top - STATUS_H - 1)
 	_page.size = _frame.size - Vector2(4, 4)
@@ -905,6 +939,8 @@ func _show(key: String) -> void:
 	_page.visible_ratio = 0.0
 	_reveal = 0.0
 	_win.title = "%s - Beeternet Explorer" % str(page.get("title", key))
+	if _tabbar != null:
+		_tabbar.queue_redraw()
 	_status_idle = "Done" if _pictures.is_empty() else "Downloading picture 1 of %d..." % _pictures.size()
 	_status.text = _status_idle
 	if _pictures.is_empty():
@@ -979,6 +1015,141 @@ func _on_link(target: String) -> void:
 	navigate(target)
 
 
+# ── tabs ─────────────────────────────────────────────────────────────────────
+
+## A link in a tab of its own, behind the one you read (the middle button). A licence,
+## a download or a bazaar ad has no page of its own: it goes as a plain click.
+func open_in_tab(target: String) -> void:
+	if target.contains("://"):
+		_on_link(target)
+		return
+	var key := normalize(target)
+	if _tab_list.size() >= MAX_TABS:
+		_shell.play("ding", -12.0)
+		_status.text = "Too many windows open. Close one first."
+		return
+	# Online it comes down behind the one you read; offline it waits for the modem.
+	_tab_list.insert(_tab + 1, {"url": key if _shell.is_online() else "", "history": [key], "hist_i": 0, "scroll": 0})
+	_shell.play("click", -12.0)
+	_status.text = "Opened in a new tab: " + _describe(key)
+	_layout()
+	_tabbar.queue_redraw()
+
+
+func _save_tab() -> void:
+	_tab_list[_tab] = {"url": _url, "history": _history.duplicate(), "hist_i": _hist_i, "scroll": int(_page.get_v_scroll_bar().value)}
+
+
+func select_tab(i: int) -> void:
+	if i < 0 or i >= _tab_list.size() or i == _tab:
+		return
+	_save_tab()
+	_tab = i
+	var t: Dictionary = _tab_list[i]
+	_history.assign(t["history"])
+	_hist_i = int(t["hist_i"])
+	_set_tool_enabled("back", _hist_i > 0)
+	_set_tool_enabled("forward", _hist_i < _history.size() - 1)
+	_tabbar.queue_redraw()
+	if str(t["url"]) == "":
+		if _hist_i >= 0 and _hist_i < _history.size():
+			_load(_history[_hist_i], false)
+		return
+	# A tab behind came in while you read the other one: it is there at once.
+	if _loading > 0.0:
+		_loading = 0.0
+		_shell.set_busy(false)
+	_show(str(t["url"]))
+	_page.visible_ratio = 1.0
+	_reveal = -1.0
+	for pic in _pictures:
+		(pic["tex"] as ImageTexture).update(pic["src"])
+	_pic_i = _pictures.size()
+	_status_idle = "Done"
+	_status.text = _status_idle
+	_set_tool_enabled("stop", false)
+	var sc := int(t.get("scroll", 0))
+	(func(): _page.get_v_scroll_bar().value = sc).call_deferred()
+
+
+func close_tab(i: int) -> void:
+	if _tab_list.size() <= 1 or i < 0 or i >= _tab_list.size():
+		return
+	_shell.play("click", -12.0)
+	if i == _tab:
+		_tab_list.remove_at(i)
+		_tab = -1
+		select_tab(mini(i, _tab_list.size() - 1))
+	else:
+		_tab_list.remove_at(i)
+		if i < _tab:
+			_tab -= 1
+	_layout()
+	_tabbar.queue_redraw()
+
+
+func _tab_rects() -> Array:
+	var n := _tab_list.size()
+	var w := floorf(minf(150.0, (size.x - 4.0) / float(n)))
+	var out: Array = []
+	for i in n:
+		out.append(Rect2(2 + i * w, 2, w - 1, TAB_H - 2))
+	return out
+
+
+func _tab_title(i: int) -> String:
+	var t: Dictionary = _tab_list[i]
+	var key := _url if i == _tab else str(t["url"])
+	if key == "":
+		var h: Array = t["history"]
+		key = str(h[int(t["hist_i"])]) if not h.is_empty() else ""
+	return _title_of(key) if key != "" else "about:blank"
+
+
+func _draw_tabs() -> void:
+	var c := _tabbar
+	c.draw_rect(Rect2(Vector2.ZERO, c.size), T.FACE)
+	c.draw_rect(Rect2(0, c.size.y - 1, c.size.x, 1), T.WHITE)
+	var rects := _tab_rects()
+	for i in rects.size():
+		var r: Rect2 = rects[i]
+		var on := i == _tab
+		if not on:
+			r = Rect2(r.position + Vector2(0, 2), r.size - Vector2(0, 2))
+		c.draw_rect(r, T.FACE if not on else T.LIGHT)
+		c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), T.WHITE)
+		c.draw_rect(Rect2(r.position, Vector2(1, r.size.y)), T.WHITE)
+		c.draw_rect(Rect2(r.end.x - 1, r.position.y + 1, 1, r.size.y - 1), T.DARK)
+		c.draw_rect(Rect2(r.end.x - 2, r.position.y + 1, 1, r.size.y - 1), T.SHADOW)
+		if on:
+			c.draw_rect(Rect2(r.position.x + 1, c.size.y - 1, r.size.x - 2, 1), T.LIGHT)
+		c.draw_texture_rect(ICONS.get_icon("page"), Rect2(r.position.x + 3, r.position.y + 1, 16, 16), false)
+		c.draw_string(T.FONT_BOLD if on else T.FONT, Vector2(r.position.x + 21, r.position.y + 13), _tab_title(i), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 36, T.FONT_SIZE, T.TEXT)
+		# The x that closes it.
+		var x := Vector2(r.end.x - 11, r.position.y + 5)
+		for k in 5:
+			c.draw_rect(Rect2(x + Vector2(k, k), Vector2(2, 1)), T.TEXT)
+			c.draw_rect(Rect2(x + Vector2(4 - k, k), Vector2(2, 1)), T.TEXT)
+
+
+func _tab_input(e: InputEvent) -> void:
+	if not (e is InputEventMouseButton) or not e.pressed:
+		return
+	var rects := _tab_rects()
+	for i in rects.size():
+		var r: Rect2 = rects[i]
+		if not r.has_point(e.position):
+			continue
+		if e.button_index == MOUSE_BUTTON_MIDDLE or (e.button_index == MOUSE_BUTTON_LEFT and e.position.x > r.end.x - 14):
+			close_tab(i)
+		elif e.button_index == MOUSE_BUTTON_LEFT:
+			if i != _tab:
+				_shell.play("click", -14.0)
+			select_tab(i)
+		_tabbar.accept_event()
+		return
+
+
 # ── page content ─────────────────────────────────────────────────────────────
 
 func _expand(body: String, link: String, key: String) -> String:
@@ -1035,6 +1206,10 @@ func _input(e: InputEvent) -> void:
 		_go_history(1)
 	elif k == KEY_F5:
 		_load(_url, false)
+	elif e.ctrl_pressed and k == KEY_TAB and _tab_list.size() > 1:
+		select_tab(wrapi(_tab + (-1 if e.shift_pressed else 1), 0, _tab_list.size()))
+	elif e.ctrl_pressed and k == KEY_W and _tab_list.size() > 1:
+		close_tab(_tab)
 	else:
 		return
 	get_viewport().set_input_as_handled()

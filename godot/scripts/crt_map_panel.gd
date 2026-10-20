@@ -124,6 +124,19 @@ const ICON_BACK_PATHS := {
 	"shower_block": "res://assets/textury/builder/back_showers.png",
 }
 
+## The camp's models face +Z (south) at a turn of 0, their door down-left on the map.
+## Most pictures are drawn that way (the door on the left face) and are turned on by one
+## step (a turn of 0 is the picture as drawn, 1 mirrored, 2 the back, 3 the back
+## mirrored); these few are drawn with the door on the right face and keep the old turns.
+## (Every building stood a quarter turn off: the pub's door where the 3D pub had a wall.)
+const ICON_DOOR_RIGHT := {"shower_block": true, "caravan_1": true, "caravan_2": true, "caravan_3": true, "vecerka_iso": true}
+
+
+func _view_steps(icon_key: String, rotation_steps: int) -> int:
+	var rs := wrapi(rotation_steps, 0, 4)
+	return rs if ICON_DOOR_RIGHT.has(icon_key) or ICON_NO_MIRROR.has(icon_key) else wrapi(rs + 3, 0, 4)
+
+
 const ICON_NO_MIRROR := {
 	"main_building": true,
 	"tree": true,
@@ -1538,7 +1551,7 @@ func _draw_dynamic() -> void:
 	if overlay != "light":
 		_draw_dusk()
 		_draw_night(lights, tile_w, tile_h)
-		_draw_weather()
+		_draw_weather(origin, tile_w, tile_h)
 	_draw_fx(origin, tile_w, tile_h)
 	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
 	var valid_c := Callable(self, "_is_valid_coord")
@@ -2635,6 +2648,7 @@ func _draw_icon(center: Vector2, draw_size: Vector2, icon_key: String, rotation_
 	var tex = _get_icon(icon_key)
 	if tex == null:
 		return false
+	rotation_steps = _view_steps(icon_key, rotation_steps)
 	var rs := wrapi(rotation_steps, 0, 4)
 	var back: Texture2D = _get_back_icon(icon_key) if (rs == 1 or rs == 2) else null
 	if back != null:
@@ -2664,6 +2678,7 @@ func _draw_building_icon(center: Vector2, footprint: Vector2i, icon_key: String,
 	var tex = _get_icon(icon_key)
 	if tex == null:
 		return false
+	rotation_steps = _view_steps(icon_key, rotation_steps)
 	var rs := wrapi(rotation_steps, 0, 4)
 	var back: Texture2D = _get_back_icon(icon_key) if (rs == 1 or rs == 2) else null
 	if back != null:
@@ -3365,7 +3380,7 @@ func _draw_dusk() -> void:
 
 ## Rain in slanting streaks (the wind's slant), splashes on the ground, snow as flakes
 ## drifting down; fog in dithered bands; the storm's flash with the camp's.
-func _draw_weather() -> void:
+func _draw_weather(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	var state := int(_wx.get("state", 0))
 	var wind := float(_wx.get("wind", 0.15))
 	var dir: Vector2 = _wx.get("dir", Vector2(0.94, 0.34))
@@ -3406,20 +3421,27 @@ func _draw_weather() -> void:
 	# Under rain the map goes overcast (a flat shade, a step darker in a storm).
 	if n > 0 and not snow:
 		_cv.draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.06, 0.12, 0.18 if state == 5 else 0.10))
-	# Fog: the map behind a thin dithered veil, banks of it drifting with the wind (big
-	# soft puffs of the dust picture, in steps).
+	# Fog: a thin dithered veil, and banks of it lying on the ground (on the map's own
+	# tiles: they stay where they are when the map moves), drifting with the wind, each a
+	# long low wisp of three puffs, thin enough to see the camp through.
 	if state == 2:
 		_ensure_dither()
 		var fc := Color(0.80, 0.82, 0.84)
-		_cv.draw_texture_rect(_dither[0], Rect2(Vector2.ZERO, size), true, Color(fc, 0.30))
-		var tb := floorf(_time * 4.0) / 4.0
-		if _fog_tex != null:
-			for b in 8:
+		_cv.draw_texture_rect(_dither[0], Rect2(Vector2.ZERO, size), true, Color(fc, 0.16))
+		if _fog_tex != null and grid_manager != null:
+			var gw := float(grid_manager.grid_width)
+			var gh := float(grid_manager.grid_height)
+			var tb := floorf(_time * 4.0) / 4.0
+			var drift := Vector2(dir.x, dir.y) * tb * 0.04
+			for b in 12:
 				var d: Array = _wx_drops[(b * 17) % _wx_drops.size()]
-				var bw := w * (0.30 + 0.22 * float(d[2]))
-				var bx := fposmod(float(d[0]) * (w + bw) + tb * 5.0 * signf(dir.x + 0.001), w + bw) - bw * 0.5
-				var by := float(d[1]) * h
-				_cv.draw_texture_rect(_fog_tex, Rect2(Vector2(bx - bw * 0.5, by - bw * 0.22).floor(), Vector2(bw, bw * 0.44).floor()), false, Color(fc, 0.34))
+				var cell := Vector2(fposmod(float(d[0]) * gw + drift.x, gw), fposmod(float(d[1]) * gh + drift.y, gh))
+				var c := _cell_to_iso_f(cell, origin, tile_w, tile_h)
+				var bw := tile_w * (3.0 + 3.0 * float(d[2]))
+				for k in 3:
+					var off := Vector2((float(k) - 1.0) * bw * 0.32, (float(k % 2) - 0.5) * tile_h * 0.4)
+					var pw := bw * (0.55 if k != 1 else 0.7)
+					_cv.draw_texture_rect(_fog_tex, Rect2((c + off - Vector2(pw * 0.5, pw * 0.12)).floor(), Vector2(pw, pw * 0.24).floor()), false, Color(fc, 0.2))
 	# Leaves on the wind (the autumn's, before the snow).
 	if wind > 0.6 and not snow:
 		var lc := [Color8(150, 74, 30), Color8(186, 130, 44), Color8(120, 70, 36)]
