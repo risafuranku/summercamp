@@ -41,8 +41,10 @@ finished game, by impact:
 - [x] Golden hour (17:00) hardly shows; the red sunset (18:15) is one flat red over
   everything — the evening's own skies (gold, sunset, blue hour; glow in the west) and
   light (golden sun and cool shade, red light and lilac shade, blue) (20. 10.)
-- [ ] Snow falling does not show at noon; snow cover has the dot grid in the shade
-- [ ] Storm: a leaf blown into the lens fills a corner as a big blurred blob
+- [x] Snow falling does not show at noon; snow cover has the dot grid in the shade — the
+  flakes bigger and denser in two layers; the dot grid was the breath (20. 10.)
+- [x] Storm: a leaf blown into the lens fills a corner as a big blurred blob — no leaf
+  nearer the eye than 2.2 m (20. 10.)
 - [x] Rain: splashes and puddles hardly read from eye height; grey slabs of rain across
   the view — paler crowns, puddles nearer and mirroring the sky, the far streaks kept off
   (20. 10.); the water on the windows from inside (room_weather.gd) is as light as the
