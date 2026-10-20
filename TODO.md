@@ -4,6 +4,27 @@
 
 ---
 
+## PODNIKY POLISH — 2026-10-20 (the brief: the four places to the top)
+
+- [x] Two pointers in the rooms: the finger and the glint for what works, the eye for what is only worth a look
+- [x] Your gloved hand with the station's tool at every station (station_hands.gd, 12 fps, phased presses)
+- [x] Papa's slip after every serve (wait, order, cooking, stars, tip, a word, a sound)
+- [x] The Z report: goods, net, all places, the mark A-E and what to mend; SoftSklad's Books show it
+- [x] Thirst as a need; the plates over heads and GuestRack's NEEDS column; the Builder card says what a place fills
+- [x] The Jednota's bag that feeds them for days; the evening rush 17:45-20:00
+- [x] The ladder: build, licence, wages, prices, guest_services (corn < pub < bistro < Jednota)
+- [x] The hands' temper on the guests' mood; the stand's hands seen behind its counter; SoftSklad says what a hand is like
+- [x] Corn: the drinks table (iced tea, lemonade in a bag), the queue in a line out into the camp, the pot's water rolling
+- [x] Pub: the tab (marks on the mats, the bill, the wallet, make-it tips, unpaid bills), hands settle bills
+- [x] Pub: the fun (LUCKY 7, darts, oko bere), the guests play too
+- [x] Bistro: the grill and the klobasa plate, the bufet (soup of the day, bottles with the opener, flying caps)
+- [x] Jednota: cards, magazines, rum, cigarettes behind the till; the deli counter (cut, weigh, wrap, by weight)
+- [x] Harness tools/podniky_check.tscn; co-op on two copies tools/podniky_coop.py
+- [ ] Grok pictures still in the queue (rows pk_* in tools/artgen/prompts_podniky.tsv; `python tools/artgen/podniky_art.py` then `--import`): the stations' Build tops st_drinks, st_grill, st_bufet, st_deli (until then a plain top); the things on them (corn drinks, grill, bufet, deli, the new Jednota goods, the slot, reels, darts, cards, the wallet; until then the station works with the bare glove over an empty top); the tool hands (grab, press, cup, salt shake, bottle, wash, pencil, coin, dart, ladle, opener, knife, wrap); the bistro's new ticket icons (the ticket says the dish in words till then)
+- [ ] The second variant of every hand frame to pick from (the brief: two each, picked by hand); most _b rows were left out of the first run to get the A frames through the shared queue
+- [ ] The pub's slot machine, darts and cards stations want a second look once their pictures are in
+- [ ] A guest figure at the slot machine and the dartboard while they play (now only the reels, the darts and the sounds)
+
 ## WORLD POLISH (agent B) — 2026-10-20 (the brief: the camp world, weather, light, sound, body)
 
 The inventory: `godot/tools/_tmp_B_tour` (agent B's scratch, not in the repo) walks one
