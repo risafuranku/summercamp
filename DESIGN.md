@@ -200,9 +200,33 @@ by all): grain, the colour bleeding apart and draining to rust as it comes close
 strike the frame stops, a face for a few frames, tears and split channels, red, a ring in
 the ears with the world muffled under it.
 
-All of them: forecast before encountered (night risk + one feed line on first sign);
+All of them: forecast before encountered (night risk, then its sound on first sign);
 avoidable by attention (each has a tell and a counter); bodies are lit by the scene, so
-in the dark they exist only where the flashlight or a lamp touches them.
+in the dark they exist only where the flashlight or a lamp touches them, and their
+**eyes** (below) are what you see of them in the dark.
+
+**No text at night** (Richard, 20. 10.: it kills the vibe). No line on the screen says
+what is out there or what just happened: no "somebody is whistling", no "he was right
+behind you". The sounds, the eyes, the sixth sense and the HUD face say it. (The brains
+still call `_announce`/`_feed`; main keeps the line for the log, `last_enemy_line`.) In
+co-op a warden who is hit cries out, a real call far off from where they are, not a line.
+
+**Every enemy has its own eyes** (`scripts/enemies/enemy_eyes.gd`, STYLES): two small
+glowing points in the world, in whole game pixels, the shape near and a point far off
+(never under two game pixels, two always apart), only while it is in the dark and in
+your line of sight; a torch on them makes them flare. They are in the world, so they show
+through a cabin's window and the other wardens see them. You know what it is before you
+know where it is:
+
+| Enemy | Eyes |
+| --- | --- |
+| Silent Man | his glasses: two round lenses glinting a dull yellow, nothing behind them, a little too far apart, never blinking; now and then a light runs over the glass, one lens then the other. They sit on his glasses in every piece of art (tilted with his head) and flare white in your torch before he comes apart |
+| The Photographer | one eye, the lens: a cold blue ring with a light in it; the red focus lamp blinks in its middle |
+| The Girl | her eyeshine (drawn on the screen, `nightmare_fx.set_eyes`): two pale points, each blinking on its own, only where the torch points but does not reach |
+| The Antlered Man | deer eyeshine in the skull's sockets, pale green, high, far apart; both go out together now and then |
+| The Basket Man | two wet red points deep in the hood, close together, swinging slowly over the ground |
+| The Extra Child | nothing while its back is to you; turned and running, two small white points that do not blink |
+| The Whistler | not on its body (never in sight): two pale slits up in the trees where the tune was, a little while after each one |
 
 | Enemy | From | Tell | Counter | Punishes |
 | --- | --- | --- | --- | --- |
@@ -243,7 +267,7 @@ game, every time, and never scripted to a place.
   of the light, caught mid-stride; look at him and he goes, look away and he is gone when
   you look back. The first time he reaches your neck you get longer to react, and he does
   not bite: he turns you round to him, face to face, the skin over his mouth tearing, and
-  comes apart. The feed then says the rule: "Turn round. Put a light on him."
+  comes apart. No text says the rule: the turn itself teaches it.
 - **The sixth sense** (`nightmare_fx.set_presence`): a pressure builds while you are out
   in the dark and he comes on, faster the closer he is; it drains in the light. You feel
   it as a drone in the ears that climbs (two low tones beating, a pressure whine), your
@@ -257,7 +281,9 @@ game, every time, and never scripted to a place.
 - **Indoors** (an outdoor hunter): in order, a pause of 16-28 s between: the humming
   through the wall; three knocks, and a fourth after you have stopped listening; the
   handle tried; a hand brushing along the outside wall, following you; a tap at the
-  window (in the office, his figure at the window: the window is a view of the real camp);
+  window (in the office, his figure at the window; in a cabin, he stoops to the glass of
+  the window you look at, his face in it and his glasses glowing, lit by the room's light
+  falling out, and is gone in a few seconds: the window is a view of the real camp);
   then he goes to a guest (a Quiet Guy first): a tent zip somewhere, slowly, and that
   guest's night is spoiled.
 

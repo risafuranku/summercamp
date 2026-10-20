@@ -34,6 +34,8 @@ func _on_start() -> void:
 	_charge_speed = lerpf(5.2, 6.4, t)
 	_hit = int(lerpf(40.0, 55.0, t))
 	_body = _make_body(SPRITE, 2.35)
+	# In the skull's sockets.
+	_make_eyes("stalker", 1.85)
 	_build_perimeter()
 	if _perimeter.size() >= 2:
 		_seg = _rng.randi_range(0, _perimeter.size() - 1)

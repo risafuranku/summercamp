@@ -25,6 +25,16 @@ float hash(vec2 p) {
 void fragment() {
 	vec2 uv = SCREEN_UV;
 	vec2 px = SCREEN_PIXEL_SIZE * cell;
+	// Presence: the world bends. A slow wave runs through the picture in whole game
+	// pixels, and the view narrows towards the middle (tunnel vision), both with the dread
+	// that is in you, not with anything you see.
+	float pr = clamp(squeeze, 0.0, 1.0);
+	if (pr > 0.2) {
+		float w = (pr - 0.2) / 0.8;
+		float wave = sin(uv.y * 9.0 + floor(time_s * 6.0) * 0.55) * 0.5 + sin(uv.y * 23.0 - floor(time_s * 6.0) * 0.9) * 0.25;
+		uv.x += floor(wave * w * 3.0) * px.x;
+		uv = 0.5 + (uv - 0.5) * (1.0 - 0.045 * w * w - beat * 0.006 * w);
+	}
 	float a = clamp(amount, 0.0, 1.0);
 	float d = clamp(dread, 0.0, 1.0);
 	float tick = floor(time_s * 12.0);

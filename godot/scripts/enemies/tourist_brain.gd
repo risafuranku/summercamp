@@ -53,6 +53,8 @@ func _on_start() -> void:
 	_dist = lerpf(24.0, 18.0, t)
 	_min_dist = lerpf(12.0, 8.0, t)
 	_body = _make_body(SPRITE, 1.9)
+	# One eye, the lens; the focus lamp blinks red in the middle of it.
+	_make_eyes("tourist", 1.65)
 	_flash = OmniLight3D.new()
 	_flash.light_color = Color(0.92, 0.95, 1.0)
 	_flash.omni_range = 30.0

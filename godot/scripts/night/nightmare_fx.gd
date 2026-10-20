@@ -62,6 +62,8 @@ var _sense_ph := [0.0, 0.0, 0.0]
 var _beat_t := 0.0
 var _beat_env := 0.0
 var _beat_n := 0
+## The world muffled under the presence (a low-pass on Master, its own, found by itself).
+var _muffle: AudioEffectLowPassFilter
 const SENSE_RATE := 22050.0
 
 
@@ -280,6 +282,7 @@ func _process(delta: float) -> void:
 	_presence_src.clear()
 	_presence = move_toward(_presence, want_p, delta * (0.5 if want_p > _presence else 0.3))
 	_update_sense(delta)
+	_update_muffle()
 	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01
 	_screen.visible = on
 	if on:
@@ -381,6 +384,27 @@ func _update_sense(delta: float) -> void:
 		_sense_pb.push_frame(Vector2(v, v))
 
 
+## Your ears close over: the camp's sounds go far away as the presence rises, till
+## there is the drone, the heart and him.
+func _update_muffle() -> void:
+	var master := AudioServer.get_bus_index("Master")
+	var want := _presence > 0.25
+	if want and _muffle == null:
+		_muffle = AudioEffectLowPassFilter.new()
+		AudioServer.add_bus_effect(master, _muffle)
+	if _muffle == null:
+		return
+	if not want:
+		for i in AudioServer.get_bus_effect_count(master):
+			if AudioServer.get_bus_effect(master, i) == _muffle:
+				AudioServer.remove_bus_effect(master, i)
+				break
+		_muffle = null
+		return
+	var k := clampf((_presence - 0.25) / 0.75, 0.0, 1.0)
+	_muffle.cutoff_hz = lerpf(14000.0, 1600.0, k * k)
+
+
 func _update_ring(delta: float) -> void:
 	if _ring_len <= 0.0:
 		return
@@ -401,7 +425,9 @@ func _update_ring(delta: float) -> void:
 		_ring.stop()
 		_ring_pb = null
 		var master := AudioServer.get_bus_index("Master")
-		if _lowpass != null and _lowpass_idx >= 0 and _lowpass_idx < AudioServer.get_bus_effect_count(master):
-			AudioServer.remove_bus_effect(master, _lowpass_idx)
+		for i in AudioServer.get_bus_effect_count(master):
+			if _lowpass != null and AudioServer.get_bus_effect(master, i) == _lowpass:
+				AudioServer.remove_bus_effect(master, i)
+				break
 		_lowpass = null
 		_lowpass_idx = -1

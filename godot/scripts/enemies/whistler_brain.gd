@@ -24,6 +24,8 @@ var _last_dist := 0.0
 var _hit := 30
 var _resting_until := 0.0
 var _strike_at := -1.0
+## Its eyes in the trees where the tune was, a little while after each one.
+var _eyes_until := -1.0
 
 
 func get_enemy_id() -> String:
@@ -35,6 +37,8 @@ func _on_start() -> void:
 	_hit = int(lerpf(25.0, 40.0, t))
 	_body = _make_body(SPRITE, 2.3)
 	_body.visible = false
+	# Not on its body (never in sight): up in the trees, where the whistling is.
+	_make_eyes("whistler", 2.08).set("anchor", null)
 	_relocate()
 
 
@@ -48,7 +52,9 @@ func _relocate() -> void:
 
 
 func _on_tick(dt: float) -> void:
+	_eyes.set("want", 1.0 if _elapsed < _eyes_until and _strike_at < 0.0 else 0.0)
 	if _elapsed < _resting_until or _source == Vector3.INF:
+		_eyes.set("want", 0.0)
 		return
 	var player := _player_pos()
 	var in_light := _lamp_light_at(player) > LAMP_SAFE
@@ -70,6 +76,8 @@ func _on_tick(dt: float) -> void:
 		# It drifts between songs, keeping its distance.
 		_source = _source.lerp(_point_from_player(_rng.randf_range(16.0, 24.0), _rng.randf_range(-90.0, 90.0)), 0.5)
 		_sound(SFX_TUNE, _source + Vector3(0, 1.6, 0), 0.0, _rng.randf_range(0.95, 1.05), 60.0)
+		_eyes.set("point", _source + Vector3(0, 2.08, 0))
+		_eyes_until = _elapsed + _rng.randf_range(2.0, 3.5)
 		_announce("Somebody is whistling out in the trees.")
 	var d := _distance_to_player(_source)
 	if in_light:

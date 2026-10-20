@@ -1918,9 +1918,14 @@ func _start_enemy_brain(script: Script, night_index: int, difficulty: int, night
 
 
 ## An enemy's first sign of the night, as one feed line.
+## The night things' lines (enemy_base._announce/_feed) are not shown: no text tells
+## you what is out there or what just happened (Richard, 20. 10.: it kills the vibe).
+## The sounds, the eyes and the sixth sense say it. Kept for the log only.
+var last_enemy_line := ""
+
+
 func _on_enemy_notice(text: String) -> void:
-	if _hud_manager != null:
-		_hud_manager.push_status(text, 2)
+	last_enemy_line = text
 
 
 # ── the corn (night job, scripts/corn_hunt.gd) ───────────────────────────────

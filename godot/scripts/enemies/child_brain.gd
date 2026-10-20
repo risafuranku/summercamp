@@ -31,6 +31,7 @@ func _on_start() -> void:
 	var t := float(_difficulty - 1) / 4.0
 	_hit = int(lerpf(22.0, 38.0, t))
 	_body = _make_body(SPRITE, 1.15)
+	_make_eyes("child", 1.0)
 	_appear()
 
 
@@ -44,6 +45,8 @@ func _appear() -> void:
 
 
 func _on_tick(dt: float) -> void:
+	# Its back is to you: no eyes. Turned and running, they are there.
+	_eyes.set("want", 1.0 if _running else 0.0)
 	if _elapsed < _gone_until:
 		_body.visible = false
 		return

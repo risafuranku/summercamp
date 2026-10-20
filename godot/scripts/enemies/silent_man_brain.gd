@@ -45,7 +45,7 @@ class_name SilentManBrain
 ## step out of the light the humming stops and he is there in front of you, at the edge
 ## of the light, caught mid-stride; look at him and he goes. The first time he reaches
 ## your neck he does not bite: he turns you round to him, face to face, the skin over his
-## mouth pulling, and comes apart into the dark. "Turn round. Put a light on him."
+## mouth pulling, and comes apart into the dark. (No text says so: the turn teaches it.)
 ##
 ## Indoors he does not hurt you (an indoor hunter is another kind of thing): he wants you
 ## out. Through the wall, the humming; three knocks, then a fourth after you stop
@@ -115,6 +115,10 @@ var _peek_until := 0.0
 var _vanish_at := -1.0
 var _shown_guest := false
 var _tex := {}
+## Where his glasses are in each piece of art (sm2_*, texels from the top, the middle
+## between them from the left, the head's tilt): his eyes in the dark sit on them.
+const EYES_AT := {GUEST: [12.0, 31.5, 0.0], T_M1: [10.0, 19.5, 0.0], T_M2: [17.0, 21.5, -0.42],
+	T_LIT: [13.5, 24.5, 0.0], "walk0": [12.0, 22.5, 0.0], "walk1": [11.0, 23.0, 0.0]}
 var _hum: AudioStreamPlayer3D
 var _breath: AudioStreamPlayer3D
 var _walk_from := Vector3.ZERO
@@ -152,6 +156,12 @@ var _lure_next := -1.0
 var _lure_n := 0
 var _indoors := false
 var _sound2d: AudioStreamPlayer
+## A face in the corner of your eye, two frames, when it gets bad.
+var _sub_next := 5.0
+## At a cabin's window while you are inside: until when.
+var _glass_until := -1.0
+## The room's light falling out through the glass onto him.
+var _glass_light: OmniLight3D
 
 
 func get_enemy_id() -> String:
@@ -172,6 +182,7 @@ func _on_start() -> void:
 				_tex[p] = load(alt)
 				break
 	_body = _make_body(GUEST, HEIGHT)
+	_make_eyes("silent_man", HEIGHT * 0.92)
 	_hum = _loop(SFX_HUM, -60.0)
 	_breath = _loop(SFX_BREATH, -60.0)
 	_reset_far(_rng.randf_range(3.0, 6.0))
@@ -196,9 +207,17 @@ func tick(delta: float) -> void:
 			_indoors = false
 			_on_return()
 	super(delta)
+	if _night_active and _away and _glass_until > 0.0 and _body != null:
+		_body.visible = true
+		_tick_eyes(delta)
 
 
 func _on_return() -> void:
+	_glass_until = -1.0
+	if _eyes != null:
+		_eyes.set("view_from", Vector3.INF)
+	if _glass_light != null:
+		_glass_light.visible = false
 	_neck_until = -1.0
 	_vanish_at = -1.0
 	_walk_t = -1.0
@@ -223,6 +242,8 @@ func _on_stop() -> void:
 
 func _on_tick(dt: float) -> void:
 	_track_speed(dt)
+	if _eyes != null:
+		_eyes.set("want", 1.0)
 	if not _seq.is_empty():
 		_update_seq(dt)
 		return
@@ -473,6 +494,21 @@ func _set_tex(path: String) -> void:
 	_body.offset = Vector2(0.0, float(tex.get_height()) * 0.5)
 	if path == GUEST:
 		_shown_guest = true
+	_pose_eyes(path, tex)
+
+
+## His eyes onto the glasses of the art he is in now.
+func _pose_eyes(path: String, tex: Texture2D) -> void:
+	if _eyes == null:
+		return
+	var key := path
+	if T_WALK.has(path):
+		key = "walk%d" % T_WALK.find(path)
+	var at: Array = EYES_AT.get(key, [12.0, float(tex.get_width()) * 0.5, 0.0])
+	var px := _body.pixel_size
+	_eyes.set("height", (float(tex.get_height()) - float(at[0])) * px)
+	_eyes.set("x_off", (float(at[1]) - float(tex.get_width()) * 0.5) * px)
+	_eyes.set("tilt", float(at[2]))
 
 
 func _update_audio(dt: float) -> void:
@@ -525,10 +561,10 @@ func _update_lit(_dt: float) -> void:
 	var k := clampf(1.0 - left / LIT_SECONDS, 0.0, 1.0)
 	if k > 0.1:
 		_player.set("flashlight_stutter", 0.0)
-	var fx := _fx()
-	var cam := _camera()
-	if fx != null and cam != null and k < 0.25:
-		fx.set_eyes("silent_man", _body.global_position + Vector3(0, HEIGHT * 0.9, 0), cam, 1.0, 0.0, 0.05)
+	# The glasses flare white in the light, then nothing is behind them.
+	if _eyes != null:
+		_eyes.set("want", 1.0 if k < 0.25 else 0.0)
+		_eyes.set("flare", 1.0)
 	# After the flare: the dither takes him, a frame at a time, as he goes back a step.
 	if k > 0.15 and _dissolve_base != null:
 		var frames: Array = _dissolve_frames(_dissolve_base)
@@ -852,6 +888,11 @@ func _update_presence(dt: float) -> void:
 		level = 1.0
 	if fx != null:
 		fx.set_presence("silent_man", level)
+		if level > 0.7 and _neck_until < 0.0:
+			_sub_next -= dt
+			if _sub_next <= 0.0:
+				_sub_next = _rng.randf_range(4.0, 9.0) * (1.8 - level)
+				fx.subliminal(_t(T_FACE), 2, _rng.randf_range(0.8, 1.15), Color(0.55, 0.45, 0.42))
 	# The torch in your hand catches and stutters as it gets bad.
 	if level > 0.55 and _player != null:
 		_stutter_next -= dt
@@ -986,6 +1027,14 @@ func _tick_indoors(delta: float) -> void:
 		_indoors = true
 		_lure_n = 0
 		_lure_next = _wall_clock() + _rng.randf_range(10.0, 16.0)
+	# Gone from the glass when his time there is up.
+	if _glass_until > 0.0 and _wall_clock() >= _glass_until:
+		_glass_until = -1.0
+		_body.visible = false
+		if _eyes != null:
+			_eyes.set("view_from", Vector3.INF)
+		if _glass_light != null:
+			_glass_light.visible = false
 	if _wall_clock() < _lure_next:
 		return
 	_lure_next = _wall_clock() + _rng.randf_range(16.0, 28.0)
@@ -1042,10 +1091,52 @@ func _lure(n: int) -> void:
 		4:
 			if office and fxd != null:
 				fxd.run("figure_window", {})
-			else:
+			elif not _at_glass(im):
 				_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0)
 		_:
 			_visit_guest()
+
+
+## The cabin you are in: he stands outside one of its windows, close to the glass, and
+## the window (a view of the real camp) shows him. A tap on it first. Then he is not there.
+func _at_glass(im) -> bool:
+	var cab = im.get("_cabin_interior") if im != null else null
+	if cab == null or not is_instance_valid(cab) or not cab.has_method("outside_windows") or not bool(cab.call("is_open")):
+		return false
+	var wins: Array = cab.call("outside_windows")
+	if wins.is_empty():
+		return false
+	# Mostly the window you are looking at; now and then the one at the edge of your eye.
+	var w: Dictionary = wins[_rng.randi() % wins.size()]
+	if _rng.randf() < 0.7:
+		for c in wins:
+			if float(c.get("facing", 0.0)) > float(w.get("facing", 0.0)):
+				w = c
+	var p := _ground((w["pos"] as Vector3) + (w["out"] as Vector3) * 0.55)
+	if p == Vector3.INF:
+		return false
+	_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0)
+	_body.global_position = p
+	_body.visible = true
+	_set_tex(T_M2 if _tex.has(T_M2) else T_M1)
+	_glass_until = _wall_clock() + _rng.randf_range(3.5, 5.5)
+	# His glasses in the window, seen from the room (the window's own camera).
+	if _eyes != null:
+		_eyes.set("view_from", (w["pos"] as Vector3) - (w["out"] as Vector3) * 1.5)
+		# Stooped to the glass: his face in the middle of the window, not his shirt.
+		_body.global_position.y = (w["pos"] as Vector3).y - float(_eyes.get("height")) - 0.05
+	if _glass_light == null:
+		_glass_light = OmniLight3D.new()
+		_glass_light.light_color = Color(1.0, 0.78, 0.5)
+		_glass_light.omni_range = 2.2
+		_glass_light.light_energy = 0.9
+		_root.add_child(_glass_light)
+	_glass_light.global_position = (w["pos"] as Vector3) + (w["out"] as Vector3) * 0.15
+	_glass_light.visible = true
+	get_tree_timer(1.0, func():
+		if _indoors and _fx() != null:
+			_room_2d(SFX_HUM, -12.0, 0.85))
+	return true
 
 
 func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
@@ -1079,9 +1170,40 @@ func _visit_guest() -> void:
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 func _is_lit_and_seen(head: Vector3) -> bool:
+	# Another warden's torch on him drives him off too: watching each other's backs.
+	if _lit_by_others(head):
+		return true
 	if not _is_seen(head, 0.0):
 		return false
 	return _in_flashlight(head) or _lamp_light_at(_body.global_position) >= DARK_LIGHT
+
+
+## The other wardens (co-op): the host's own warden when he hunts a stand-in, and every
+## stand-in but the one he hunts. Their torches by where they really point.
+func _lit_by_others(point: Vector3) -> bool:
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	if scene == null:
+		return false
+	var others: Array = []
+	var mp = scene.get("_player")
+	if mp != null and mp != _player and is_instance_valid(mp):
+		others.append(mp)
+	var cn = scene.get("_coop_night")
+	if cn != null and cn.get("_proxies") is Dictionary:
+		for p in (cn.get("_proxies") as Dictionary).values():
+			if p != _player and is_instance_valid(p):
+				others.append(p)
+	for o in others:
+		if not o.has_method("get_flashlight_aim"):
+			continue
+		var aim: Dictionary = o.call("get_flashlight_aim")
+		if aim.is_empty():
+			continue
+		var to: Vector3 = point - (aim["origin"] as Vector3)
+		var d := to.length()
+		if d <= float(aim["range"]) and (aim["dir"] as Vector3).normalized().dot(to / maxf(d, 0.01)) > cos(deg_to_rad(float(aim["half_angle"]))):
+			return true
+	return false
 
 
 func _track_speed(dt: float) -> void:

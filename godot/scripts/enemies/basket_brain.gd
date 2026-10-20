@@ -37,6 +37,8 @@ func _on_start() -> void:
 	_hit = int(lerpf(30.0, 45.0, t))
 	_body = _make_body(SPRITE, 1.9)
 	_body.visible = false
+	# Deep in the hood, a little off the middle (the art's face).
+	_make_eyes("basket", 1.72).set("x_off", 0.04)
 
 
 func _hour() -> float:
