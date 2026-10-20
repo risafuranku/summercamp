@@ -125,6 +125,26 @@ var _eye_tilt0 := 0.12
 ## Her head turned upside down on her neck (made from her art: the head cut out and
 ## flipped), and where its eyes are.
 var _upside_tex: ImageTexture
+## The ring: under a lamp long enough, pairs of her eyes open one after another all
+## round the edge of its light, each blinking on its own, giggles over each other; then
+## all of them go out at once but one. Once a loop. ({eyes, at} each; only yours.)
+var _ring: Array = []
+var _ring_t := -1.0
+var _ring_done := false
+const RING_AFTER := 6.0
+const RING_PAIRS := 9
+## Far off, found again, she is not standing as a person stands: upside down, hanging
+## from nothing, or far too tall. Till she moves.
+var _pose_flip := false
+var _pose_tall := 1.0
+## Teeth chattering in the dark, close, while you do not look.
+var _chatter_next := 6.0
+## After she has had you: for a while her face is still there for a frame now and then.
+var _residue_until := -1.0
+var _residue_next := 4.0
+const T_SMILE := N + "girl6_smile.png"
+const T_CROWD := N + "girl6_crowd.png"
+const T_EYE := N + "girl6_eye.png"
 const HUSH_DIST := 4.5
 const DECOY_EVERY := Vector2(14.0, 26.0)
 
@@ -138,7 +158,7 @@ func _on_start() -> void:
 	_step_after = lerpf(2.4, 1.3, t)
 	_step = Vector2(lerpf(2.2, 3.2, t), lerpf(3.6, 5.2, t))
 	_hit = int(lerpf(30.0, 45.0, t))
-	for p in [GUEST, REACH_TEX, T_LUNGE, T_HANDS, T_SPLIT, T_MAW, T_UPSIDE]:
+	for p in [GUEST, REACH_TEX, T_LUNGE, T_HANDS, T_SPLIT, T_MAW, T_UPSIDE, T_SMILE, T_CROWD, T_EYE]:
 		if ResourceLoader.exists(p):
 			_tex[p] = load(p)
 	for alts in M:
@@ -162,6 +182,7 @@ func _on_start() -> void:
 func _on_stop() -> void:
 	_release_player()
 	_drop_decoy()
+	_drop_ring()
 	if not _strike_cam.is_empty():
 		_cam_set(0.0, 0.0)
 		_strike_cam = {}
@@ -188,6 +209,8 @@ func _begin_loop() -> void:
 	_behind_done = false
 	_fake_done = false
 	_breath_done = false
+	_ring_done = false
+	_set_pose(false)
 	for _i in 16:
 		# Off to one side of where you look: you can find her if you look for her.
 		var side := _rng.randf_range(35.0, 150.0) * (1.0 if _rng.randf() < 0.5 else -1.0)
@@ -213,6 +236,8 @@ func _on_tick(dt: float) -> void:
 		_body.visible = false
 		_set_audio(0.0)
 		_drop_decoy()
+		_drop_ring()
+		_tick_residue(dt)
 		var fxg := _fx()
 		if fxg != null:
 			fxg.set_presence("girl", 0.0)
@@ -248,11 +273,18 @@ func _on_tick(dt: float) -> void:
 			if d < 16.0:
 				# Found again, nearer than she was: the sound of it.
 				_sound(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), lerpf(-2.0, -12.0, d / 16.0))
+				# And for two frames, the face she pretends with.
+				if d < 11.0 and _tex.has(T_SMILE) and _fx() != null and _rng.randf() < 0.5:
+					_fx().subliminal(_tex[T_SMILE], 2, 0.95, Color(1, 1, 1, 0.85))
 	else:
 		_unseen_for += dt * (2.5 if stuttering else 1.0)
+		_tick_chatter(dt, d)
+	_tick_ring(dt)
 	# Under a lamp you are out of her reach; long enough and she lets this loop go.
 	if _lamp_light_at(_player_pos()) > LAMP_SAFE:
 		_in_lamp_for += dt
+		if _in_lamp_for >= RING_AFTER and not _ring_done and _ring_t < 0.0:
+			_start_ring()
 		if _in_lamp_for >= GIVE_UP_IN_LAMP:
 			_sound(SFX_GIGGLE, head, -6.0)
 			_leave(_rng.randf_range(10.0, 16.0))
@@ -371,6 +403,7 @@ func _go_behind() -> void:
 		return
 	_body.global_position = p
 	_set_look(false, BEHIND_DIST)
+	_set_pose(false)
 	_jump_ready = true
 	_moved_unseen = false
 	_sound(SFX_GIGGLE, p + Vector3(0, 1.5, 0), -16.0)
@@ -413,6 +446,7 @@ func _advance(small: bool) -> void:
 	_body.global_position = target
 	var nd := _distance_to_player(target)
 	_set_look(false, nd)
+	_set_pose(not small and nd > 12.0 and _rng.randf() < 0.3)
 	_moved_unseen = true
 	_sound(SFX_HEEL if small else SFX_RUSH, target, lerpf(-3.0, -16.0, clampf(nd / 22.0, 0.0, 1.0)), _rng.randf_range(0.92, 1.08))
 	# The nearest lamp out there stutters as she passes it (never one you stand under).
@@ -442,6 +476,130 @@ func _round_the_light(from: Vector3, dist: float) -> Vector3:
 			best_k = k
 			best = p
 	return best
+
+
+## Upside down (hanging from nothing, her feet up in the dark) or far too tall; else as a
+## person stands.
+func _set_pose(wrong: bool) -> void:
+	_pose_flip = false
+	_pose_tall = 1.0
+	if wrong:
+		if _rng.randf() < 0.5:
+			_pose_flip = true
+		else:
+			_pose_tall = _rng.randf_range(1.45, 1.75)
+	_body.flip_v = _pose_flip
+	_body.scale = Vector3(1.0 / sqrt(_pose_tall), _pose_tall, 1.0)
+
+
+## Close, while you do not look: her teeth, chattering, fast, from where she is.
+func _tick_chatter(dt: float, d: float) -> void:
+	if d > 8.0 or _root == null or not _root.is_inside_tree():
+		return
+	_chatter_next -= dt
+	if _chatter_next > 0.0:
+		return
+	_chatter_next = _rng.randf_range(5.0, 10.0)
+	var at := _eyes_world() - Vector3(0, 0.1, 0)
+	var n := _rng.randi_range(8, 14)
+	for i in n:
+		_root.get_tree().create_timer(0.055 * float(i)).timeout.connect(func():
+			if _phase == STALK:
+				_sound(SFX_SNAP, at, lerpf(-6.0, -16.0, d / 8.0), _rng.randf_range(2.1, 2.7), 14.0))
+
+
+## Under a lamp: the ring of her eyes round the edge of the light.
+func _start_ring() -> void:
+	var cam := _camera()
+	if cam == null or _fx() == null:
+		return
+	_ring_done = true
+	_ring_t = 0.0
+	_drop_ring()
+	var me := _player_pos()
+	var base := _rng.randf_range(0.0, TAU)
+	for i in RING_PAIRS:
+		var ang := base + TAU * float(i) / float(RING_PAIRS) + _rng.randf_range(-0.2, 0.2)
+		var dir := Vector3(sin(ang), 0.0, cos(ang))
+		# Out to where the light ends.
+		var p := Vector3.INF
+		for r in [6.0, 8.0, 10.0, 12.0, 14.0]:
+			var q := _ground(me + dir * float(r))
+			if q != Vector3.INF and _lamp_light_at(q) <= LAMP_SAFE:
+				p = q
+				break
+		if p == Vector3.INF:
+			continue
+		var e: Node3D = ENEMY_EYES.new()
+		_world_root.add_child(e)
+		e.call("setup", "girl", 0.0, null)
+		e.set("anchor", null)
+		e.set("point", p + Vector3(0, HEIGHT * _rng.randf_range(0.75, 1.05), 0))
+		e.set("tilt", _rng.randf_range(-0.4, 0.4))
+		e.set("size_k", 2.2)
+		e.set("gap_k", 1.7)
+		_ring.append({"eyes": e, "open_at": 0.25 * float(i) + _rng.randf_range(0.0, 0.2), "at": p})
+	if _tex.has(T_CROWD):
+		_fx().subliminal(_tex[T_CROWD], 3, 1.0, Color(1, 1, 1, 0.7))
+
+
+func _tick_ring(dt: float) -> void:
+	if _ring_t < 0.0:
+		return
+	_ring_t += dt
+	var cam := _camera()
+	for r in _ring:
+		var e: Node3D = r["eyes"]
+		if e == null or not is_instance_valid(e) or cam == null:
+			continue
+		var on := _ring_t >= float(r["open_at"])
+		if on and not bool(r.get("heard", false)):
+			r["heard"] = true
+			_sound(SFX_GIGGLE, (r["at"] as Vector3) + Vector3(0, 1.5, 0), -16.0, _rng.randf_range(0.55, 1.1), 30.0)
+		e.set("strength", 1.0 if on else 0.0)
+		e.call("update", dt, cam)
+	# All of them out at once; the one that stays is her, behind you.
+	if _ring_t >= 0.25 * float(RING_PAIRS) + 3.5:
+		_drop_ring()
+		_ring_t = -1.0
+		var p := _point_from_player(_rng.randf_range(7.0, 9.0), 180.0 + _rng.randf_range(-25.0, 25.0))
+		if p != Vector3.INF and _lamp_light_at(p) <= LAMP_SAFE:
+			_body.global_position = p
+			_set_look(false, _distance_to_player(p))
+			_moved_unseen = true
+		_sound(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), -4.0, 0.8)
+
+
+func _drop_ring() -> void:
+	for r in _ring:
+		var e: Node3D = r["eyes"]
+		if e != null and is_instance_valid(e):
+			e.queue_free()
+	_ring.clear()
+
+
+## For a while after she has had you: her face for a frame now and then, faint, even
+## with her gone; the torch catching in your hand.
+func _tick_residue(dt: float) -> void:
+	if _elapsed >= _residue_until:
+		return
+	_residue_next -= dt
+	if _residue_next > 0.0:
+		return
+	_residue_next = _rng.randf_range(5.0, 11.0)
+	var fx := _fx()
+	if fx == null:
+		return
+	var pics: Array = [_face(0), _upside()]
+	if _tex.has(T_SMILE):
+		pics.append(_tex[T_SMILE])
+	var pic: Texture2D = pics[_rng.randi() % pics.size()]
+	fx.subliminal(pic, 1, _rng.randf_range(0.8, 1.2), Color(1, 1, 1, 0.45))
+	if _flashlight_on() and _rng.randf() < 0.5:
+		_player.set("flashlight_stutter", 1.0)
+		_root.get_tree().create_timer(0.12).timeout.connect(func():
+			if _player != null and is_instance_valid(_player):
+				_player.set("flashlight_stutter", 0.0))
 
 
 ## Two frames of her not as she is, while you look at her: her head upside down on her
@@ -564,7 +722,10 @@ func _update_shine(d: float, lit: bool, stuttering: bool) -> void:
 	if _eyes == null:
 		return
 	var spot: Vector2 = _eye_spot.get(_body.texture, Vector2(0.0, float(_body.texture.get_height()) * 0.86))
-	_eyes.set("height", spot.y * _body.pixel_size)
+	var eh := spot.y * _body.pixel_size
+	if _pose_flip:
+		eh = float(_body.texture.get_height()) * _body.pixel_size - eh
+	_eyes.set("height", eh * _pose_tall)
 	_eyes.set("x_off", spot.x * _body.pixel_size)
 	# Her face stretching: nearer, wider apart and bigger.
 	var near := clampf(1.0 - d / 16.0, 0.0, 1.0)
@@ -620,6 +781,8 @@ func _update_decoy(dt: float, holding: bool, d: float) -> void:
 	e.set("anchor", null)
 	e.set("point", at)
 	e.set("tilt", float(_eyes.get("tilt")) if _eyes != null else 0.1)
+	e.set("size_k", 1.8)
+	e.set("gap_k", 1.5)
 	_decoy = {"eyes": e, "at": at, "t": _rng.randf_range(3.5, 6.0)}
 	_sound(SFX_GIGGLE, at, -18.0, _rng.randf_range(0.85, 1.0), 30.0)
 
@@ -725,6 +888,9 @@ func _mouth() -> Texture2D:
 func _start_strike() -> void:
 	_phase = STRIKE
 	_drop_decoy()
+	_drop_ring()
+	_ring_t = -1.0
+	_set_pose(false)
 	if _eyes != null:
 		_eyes.set("want", 0.0)
 	_strike_t = 0.0
@@ -782,8 +948,12 @@ func _update_strike(dt: float) -> void:
 		# Not the full tunnel while her face is there: it would eat the art.
 		# After the bite your heart stops: no drone, no beat, only the ring and her eating.
 		fx.set_presence("girl", 0.45 if st < 1.9 else (0.0 if st < 2.9 else 0.4))
-	# Lunge.
-	if st < 0.3:
+	# Her eye, an inch from yours, for a step; then the lunge.
+	if st < 0.09 and _tex.has(T_EYE):
+		if fx != null:
+			fx.close_up(_tex[T_EYE], 1.25, 1.0, 0.006, 0.0)
+		_cam_set(0.0, 0.0)
+	elif st < 0.3:
 		var k := st / 0.3
 		if fx != null:
 			fx.close_up(_t5(T_LUNGE, face0), lerpf(0.35, 1.15, k), 1.0, 0.01 + 0.02 * k, _twitch(st))
@@ -854,13 +1024,23 @@ func _update_strike(dt: float) -> void:
 				fx.blood(1.0)
 				fx.tinnitus(6.0)
 				fx.glitch(1.0, 1.0)
-	# Black: chewing under the ring; you go over sideways.
+	# Black: chewing under the ring; you go over sideways; she drags you along the
+	# ground by the head, in jerks, the picture coming and going.
 	elif st < 2.9:
 		var k := (st - 2.0) / 0.9
 		if fx != null:
 			fx.close_up_off()
-			fx.set_black(1.0)
+			var drag := st >= 2.3 and st < 2.8
+			fx.set_black(1.0 if not drag else (0.35 if int(st * 12.0) % 2 == 0 else 0.8))
 		_cam_set(lerpf(-0.26, -0.1, k), lerpf(0.0, 1.3, k) * _strike_side)
+		for i in 5:
+			var at := 2.3 + 0.1 * float(i)
+			if _cue(at, "drag%d" % i):
+				var to := _ground(_player_pos() + _forward_flat() * 0.45)
+				if to != Vector3.INF:
+					_player.global_position = to + Vector3(0, 0.05, 0)
+				_ear_sfx(SFX_HEEL, -4.0, 0.45)
+				_ear_sfx(SFX_RUSTLE, -6.0, 0.7)
 		if _cue(2.15, "chew"):
 			_ear_sfx(SFX_DROOL, -2.0, 0.7)
 		if _cue(2.5, "chew2"):
@@ -924,6 +1104,9 @@ func _update_strike(dt: float) -> void:
 
 
 func _end_strike() -> void:
+	_residue_until = _elapsed + 40.0
+	_residue_next = _rng.randf_range(3.0, 6.0)
+	_set_pose(false)
 	_cam_set(0.0, 0.0)
 	_strike_cam = {}
 	var fx := _fx()
