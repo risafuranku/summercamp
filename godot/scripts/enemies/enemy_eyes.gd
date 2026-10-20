@@ -76,6 +76,8 @@ var x_off := 0.0
 ## The brain's stretch: how much wider apart (gap) and bigger (size) than the style.
 var gap_k := 1.0
 var size_k := 1.0
+## Their colour for now instead of the style's (alpha 0: the style's).
+var tint := Color(0, 0, 0, 0)
 var tilt := 0.0
 ## Seen from here instead of the camera (a window's camera); INF: the camera.
 var view_from := Vector3.INF
@@ -164,7 +166,7 @@ func update(dt: float, cam: Camera3D) -> void:
 	var base := at + toward * minf(0.3, d * 0.08) + right * sway
 	_update_blinks(dt)
 	var glint := _glint(dt)
-	var col: Color = (style["color"] as Color).lerp(style["flare_color"] as Color, fl)
+	var col: Color = (style["color"] as Color).lerp(style["flare_color"] as Color, fl) if tint.a <= 0.0 else tint
 	for i in _eye.size():
 		var e := _eye[i]
 		var side := 0.0 if _eye.size() == 1 else (-1.0 if i == 0 else 1.0)

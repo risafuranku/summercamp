@@ -50,7 +50,20 @@ var _lowpass_idx := -1
 var _eyes_layer: Control
 var _eyes := {}                    # source -> {pos: Vector2 (window), spread, open, tilt, near}
 var _close: TextureRect
+## A second picture over the close-up (hands round your head while the face is there).
+var _over: TextureRect
 var _black: ColorRect
+## Blood on the lens (`blood`): splats of game pixels and the drips running down from
+## them, drying darker and fading. Drawn only while there is some.
+var _blood_layer: Control
+var _splats: Array = []            # {cells: [[Vector2 cell, shade]], a}
+var _drips: Array = []             # {x, y, v, len, w, shade}
+var _blood_a := 0.0
+## A face split down the middle (`split`): its two halves pulled apart, and between them
+## the wet dark inside, rows of teeth along both edges, strings across. One frame.
+var _halves: Array = []            # two TextureRects
+var _gap_layer: Control
+var _gap := {}                     # {cx, w, top, bottom, t}
 ## The sixth sense: the largest presence any source set this frame, eased; a generated
 ## drone (two low tones beating, a pressure whine over them) and the heart, faster as it
 ## rises; the picture's edges close in with it.
@@ -120,6 +133,31 @@ func _build() -> void:
 	_close.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_close.visible = false
 	add_child(_close)
+	_over = TextureRect.new()
+	_over.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_over.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_over.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_over.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_over.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_over.visible = false
+	add_child(_over)
+	_gap_layer = Control.new()
+	_gap_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_gap_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gap_layer.draw.connect(_draw_gap)
+	_gap_layer.visible = false
+	add_child(_gap_layer)
+	for i in 2:
+		var h := TextureRect.new()
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.stretch_mode = TextureRect.STRETCH_SCALE
+		h.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		h.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		h.visible = false
+		add_child(h)
+		_halves.append(h)
+	# The hands go over the split face.
+	move_child(_over, get_child_count() - 1)
 	_eyes_layer = Control.new()
 	_eyes_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_eyes_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -129,6 +167,12 @@ func _build() -> void:
 	# the screen effect, or its split channels turn the two white points into a rainbow.
 	move_child(_screen, get_child_count() - 1)
 	move_child(_eyes_layer, get_child_count() - 1)
+	_blood_layer = Control.new()
+	_blood_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_blood_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_blood_layer.draw.connect(_draw_blood)
+	_blood_layer.visible = false
+	add_child(_blood_layer)
 	_flash = ColorRect.new()
 	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -204,6 +248,185 @@ func close_up(tex: Texture2D, scale: float, stretch_y: float = 1.0, shake: float
 func close_up_off() -> void:
 	_close.visible = false
 	_close.texture = null
+	overlay_off()
+	split_off()
+
+
+## A picture over the close-up for this frame (hands gripping your head): as close_up.
+func overlay(tex: Texture2D, scale: float, shake: float = 0.0, off: Vector2 = Vector2.ZERO, rot: float = 0.0) -> void:
+	if not is_inside_tree() or tex == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	_over.texture = tex
+	_over.visible = true
+	_over.pivot_offset = vp * 0.5
+	_over.scale = Vector2(scale, scale)
+	_over.rotation = rot
+	var j := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake * vp.y
+	_over.position = (j + off * vp).floor()
+
+
+## Her face split open for this frame: `tex` cut down the middle, the halves `open`
+## (0 shut .. 1 a third of the screen apart) and a little turned away from the split,
+## `scale` 1 = the screen's height. Call every frame; `split_off` ends it.
+func split(tex: Texture2D, scale: float, open: float, shake: float = 0.0) -> void:
+	if not is_inside_tree() or tex == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var cell := float(maxi(2, int(round(float(DisplayServer.window_get_size().y) / 240.0))))
+	var h := vp.y * scale
+	var w := h * float(tex.get_width()) / float(tex.get_height())
+	var gap := floorf(vp.x * 0.42 * clampf(open, 0.0, 1.0) / cell) * cell
+	var j := (Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake * vp.y).floor()
+	var top := (vp.y - h) * 0.5 + j.y
+	for i in 2:
+		var at := AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(float(i) * tex.get_width() * 0.5, 0, tex.get_width() * 0.5, tex.get_height())
+		var r: TextureRect = _halves[i]
+		r.texture = at
+		r.size = Vector2(w * 0.5, h)
+		var x := vp.x * 0.5 - w * 0.5 - gap * 0.5 if i == 0 else vp.x * 0.5 + gap * 0.5
+		r.position = Vector2(x, top) + Vector2(j.x, 0)
+		r.pivot_offset = Vector2(w * 0.5 if i == 0 else 0.0, h * 0.5)
+		r.rotation = (-0.16 if i == 0 else 0.16) * open
+		r.visible = true
+	_gap = {"cx": vp.x * 0.5 + j.x, "w": gap, "top": top + h * 0.08, "bottom": top + h * 0.97}
+	_gap_layer.visible = gap > 0.0
+	_gap_layer.queue_redraw()
+
+
+func split_off() -> void:
+	for r in _halves:
+		(r as TextureRect).visible = false
+		(r as TextureRect).texture = null
+	_gap_layer.visible = false
+	_gap = {}
+
+
+## The inside of the split: wet dark red going black at the middle, a row of long pale
+## teeth along each edge pointing in, strings of drool across. Whole game pixels.
+func _draw_gap() -> void:
+	if _gap.is_empty():
+		return
+	var cell := float(maxi(2, int(round(float(DisplayServer.window_get_size().y) / 240.0))))
+	var cx: float = _gap["cx"]
+	var w: float = _gap["w"]
+	var top: float = _gap["top"]
+	var bottom: float = _gap["bottom"]
+	var cols := int(w / cell)
+	for c in cols:
+		var u := absf((float(c) + 0.5) / float(maxi(1, cols)) - 0.5) * 2.0
+		var col := Color(lerpf(0.05, 0.42, u * u), 0.0, lerpf(0.02, 0.05, u), 1.0)
+		_gap_layer.draw_rect(Rect2(Vector2(cx - w * 0.5 + float(c) * cell, top), Vector2(cell, bottom - top)), col)
+	# Wet glints on the flesh.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	for _i in int(cols * (bottom - top) / cell * 0.01):
+		var p := Vector2(cx - w * 0.5 + floorf(rng.randf() * float(cols)) * cell, top + floorf(rng.randf() * (bottom - top) / cell) * cell)
+		_gap_layer.draw_rect(Rect2(p, Vector2(cell, cell)), Color(0.75, 0.2, 0.2, 0.8))
+	# Teeth along both edges, pointing in: long, uneven, yellowed.
+	var tooth_h := cell * 10.0
+	var y := top
+	var k := 0
+	while y < bottom - tooth_h * 0.5:
+		var tlen := cell * float(6 + (k * 7) % 7) * (1.0 + 1.4 * clampf(w / 300.0, 0.0, 1.0))
+		for side in [-1.0, 1.0]:
+			var edge: float = cx + side * w * 0.5
+			var rows := int(tooth_h / cell)
+			for r in rows:
+				var t := 1.0 - absf(float(r) / float(maxi(1, rows - 1)) - 0.5) * 2.0
+				var l := floorf(tlen * t / cell) * cell
+				var x0: float = edge - l if side > 0.0 else edge
+				_gap_layer.draw_rect(Rect2(Vector2(x0, y + float(r) * cell), Vector2(maxf(cell, l), cell)), Color(0.86, 0.8, 0.62, 1.0) if r != 0 else Color(0.6, 0.52, 0.38, 1.0))
+		y += tooth_h + cell
+		k += 1
+	# Strings of drool across the gap.
+	for i in 5:
+		var sy := top + (bottom - top) * (0.15 + 0.17 * float(i)) + sin(_time * 3.0 + float(i)) * cell * 2.0
+		var sag := cell * float(2 + i % 3)
+		var steps := maxi(2, int(w / cell))
+		for s in steps:
+			var u2 := float(s) / float(steps - 1)
+			var yy := floorf((sy + sin(u2 * PI) * sag) / cell) * cell
+			_gap_layer.draw_rect(Rect2(Vector2(cx - w * 0.5 + float(s) * cell, yy), Vector2(cell, cell)), Color(0.85, 0.82, 0.78, 0.55))
+
+
+func overlay_off() -> void:
+	_over.visible = false
+	_over.texture = null
+
+
+## Blood on the lens: `amount` 0..1 of a splatter (a few splats, more and bigger with
+## more), each running down in drips. It dries darker and goes over some seconds.
+func blood(amount: float, at: Vector2 = Vector2(-1, -1)) -> void:
+	if not is_inside_tree():
+		return
+	var cell := float(maxi(2, int(round(float(DisplayServer.window_get_size().y) / 240.0))))
+	var vp := get_viewport().get_visible_rect().size
+	var cols := int(vp.x / cell)
+	var rows := int(vp.y / cell)
+	var n := 1 + int(round(clampf(amount, 0.0, 1.0) * 6.0))
+	for _i in n:
+		var c := Vector2(randi_range(0, cols - 1), randi_range(0, int(rows * 0.7)))
+		if at.x >= 0.0:
+			c = (at * Vector2(cols, rows) + Vector2(randf_range(-30, 30), randf_range(-20, 20))).floor()
+		var r := randf_range(3.0, 6.0 + 10.0 * amount)
+		var cells: Array = []
+		for y in range(-int(r), int(r) + 1):
+			for x in range(-int(r * 1.3), int(r * 1.3) + 1):
+				var d := Vector2(x / 1.3, y).length()
+				# A ragged edge, and flecks thrown off round it.
+				if d <= r * randf_range(0.6, 1.0) or (d <= r * 1.8 and randf() < 0.06):
+					cells.append([c + Vector2(x, y), randf_range(0.0, 1.0)])
+		_splats.append({"cells": cells})
+		for _k in randi_range(1, 3):
+			_drips.append({"x": c.x + float(randi_range(-int(r), int(r))), "y": c.y + r * 0.5, "v": randf_range(4.0, 14.0), "len": 0.0,
+				"max": randf_range(12.0, 60.0) * (0.5 + amount), "w": randi_range(1, 2), "shade": randf()})
+	_blood_a = 1.0
+	_blood_layer.visible = true
+
+
+func _tick_blood(delta: float) -> void:
+	if _blood_a <= 0.0:
+		return
+	for d in _drips:
+		if float(d["len"]) < float(d["max"]):
+			d["len"] = float(d["len"]) + float(d["v"]) * delta
+			d["v"] = maxf(1.5, float(d["v"]) - delta * 2.0)
+	_blood_a = maxf(0.0, _blood_a - delta / 7.0)
+	if _blood_a <= 0.0:
+		_splats.clear()
+		_drips.clear()
+		_blood_layer.visible = false
+	_blood_layer.queue_redraw()
+
+
+func _draw_blood() -> void:
+	var cell := float(maxi(2, int(round(float(DisplayServer.window_get_size().y) / 240.0))))
+	# Fresh it is bright and wet; drying it goes brown-black.
+	var dry := 1.0 - _blood_a
+	var a := clampf(_blood_a * 1.6, 0.0, 0.92)
+	for s in _splats:
+		for c in s["cells"]:
+			var k: float = c[1]
+			var col := Color(lerpf(0.55, 0.22, dry) * (0.7 + 0.3 * k), 0.02 * k, 0.02, a * (0.75 + 0.25 * k))
+			_blood_layer.draw_rect(Rect2((c[0] as Vector2) * cell, Vector2(cell, cell)), col)
+	for d in _drips:
+		var k2: float = d["shade"]
+		var col2 := Color(lerpf(0.5, 0.2, dry) * (0.7 + 0.3 * k2), 0.01, 0.01, a)
+		var h := floorf(float(d["len"]))
+		_blood_layer.draw_rect(Rect2(Vector2(float(d["x"]), float(d["y"])) * cell, Vector2(cell * float(d["w"]), cell * maxf(1.0, h))), col2)
+		# The bead at its end.
+		_blood_layer.draw_rect(Rect2(Vector2(float(d["x"]) - 0.0, float(d["y"]) + h) * cell, Vector2(cell * (float(d["w"]) + 1.0), cell * 2.0)), col2)
+
+
+## No blood left on the lens (a new night, the menu).
+func blood_off() -> void:
+	_splats.clear()
+	_drips.clear()
+	_blood_a = 0.0
+	_blood_layer.visible = false
 
 
 func set_black(alpha: float) -> void:
@@ -308,6 +531,7 @@ func _process(delta: float) -> void:
 		_flash.color.a = maxf(0.0, _flash.color.a - delta * 1.6)
 		_flash.visible = _flash.color.a > 0.0
 	_update_ring(delta)
+	_tick_blood(delta)
 
 
 ## Two pale points, one game pixel each, close together; nothing round them. Each eye
