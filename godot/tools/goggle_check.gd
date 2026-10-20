@@ -44,20 +44,26 @@ func _run() -> void:
 	print("start rating %.1f (%d)" % [start, g.count()])
 	_expect(start > 1.5 and start < 3.0, "the old page should rate it low (2-3), it is %.1f" % start)
 	_expect(g.tier == 0, "only the first blueprints open on a new camp (tier %d)" % g.tier)
-	_expect(g.unlocked("tent_1") and g.unlocked("pub") and not g.unlocked("lake_slide") and not g.unlocked("upgrade:2"), "the first tier opens tents and the pub, not the slide or upgrades")
-	_expect(not g.unlocked("vecerka") and GOGGLE.tier_of("vecerka") == GOGGLE.tier_of("lake_slide"), "the Jednota waits for 4.0 with the slide")
-	# Good guests.
+	_expect(g.unlocked("tent_1") and g.unlocked("corn_stand") and not g.unlocked("pub") and not g.unlocked("lake_slide") and not g.unlocked("upgrade:2"), "the first tier opens tents and the corn stand, not the pub, the slide or upgrades")
+	# Good guests: reviews open nothing now (the rating is shown, it plays no part).
 	for i in 20:
 		g.add_guest_review(_guest("G%d" % i, 5, 2 + i / 4, 100 + i), 2)
-	var opened: int = g.check_tier(8)
+	g.check_tier(8)
 	print("after 20 good: %.1f (%d), tier %d" % [g.rating(8), g.count(), g.tier])
 	_expect(g.rating(8) > 4.0, "twenty five-star reviews should lift it over 4 (%.1f)" % g.rating(8))
-	_expect(opened >= 2 and g.unlocked("playground") and g.unlocked("upgrade:2"), "the good reviews should open the playground and the upgrades (tier %d)" % g.tier)
-	_expect(g.unlocked("vecerka") == (g.rating(8) >= 4.0 and g.count() >= 22), "the Jednota opens at 4.0 with 22 reviews (%.1f, %d)" % [g.rating(8), g.count()])
-	# A tier stays open when the rating falls back.
+	_expect(g.tier == 0, "reviews alone open no tier (tier %d)" % g.tier)
+	# Guests in the camp at once: 10 the pub, 20 the restaurant and upgrades, 30 the Jednota.
+	_expect(g.check_guests(9) == -1 and not g.unlocked("pub"), "nine guests open nothing")
+	_expect(g.check_guests(10) == 1 and g.unlocked("pub") and not g.unlocked("restaurant"), "ten guests open the pub")
+	g.check_guests(23)
+	_expect(g.unlocked("restaurant") and g.unlocked("upgrade:2") and not g.unlocked("vecerka"), "twenty open the restaurant and the upgrades, not the Jednota")
+	g.check_guests(31)
+	_expect(g.unlocked("vecerka") and g.unlocked("lake_slide"), "thirty open the Jednota and the slide")
+	# A tier stays open when the camp empties.
 	var tier_before: int = g.tier
 	for i in 30:
 		g.add_guest_review(_guest("B%d" % i, 1, 9, 200 + i), 9)
+	g.check_guests(2)
 	g.check_tier(9)
 	_expect(g.tier == tier_before, "a tier once open stays open (%d -> %d)" % [tier_before, g.tier])
 	# Removal: dearer each time, gone by the morning (or caught).
@@ -102,4 +108,4 @@ func _run() -> void:
 	var saved = JSON.parse_string(JSON.stringify(g.export_state()))
 	var g4 = GOGGLE.new(1)
 	g4.import_state(saved)
-	_expect(g4.count() == g.count() and is_equal_approx(g4.rating(10), g.rating(10)) and g4.tier == g.tier and g4.removal_cost() == g.removal_cost(), "the page survives a save")
+	_expect(g4.count() == g.count() and is_equal_approx(g4.rating(10), g.rating(10)) and g4.tier == g.tier and g4.peak_guests == g.peak_guests and g4.removal_cost() == g.removal_cost(), "the page survives a save")

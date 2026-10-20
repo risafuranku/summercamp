@@ -107,8 +107,11 @@ const CRT_YAW_DEG := 18.0
 const CRT_PIVOT := Vector3(0.24, 1.35, -1.53)
 const CRT_SEAT_ROT := Vector3(0.0, 0.3141593, 0.0)   # CRT_YAW_DEG in radians
 const DESK_ROOM = preload("res://scripts/reception/desk_room.gd")
-const RADIO_CLICK_CENTER_LOCAL := Vector3(-0.10, 0.92, -1.52) + PC_OFFSET
-const RADIO_CLICK_SIZE := Vector3(0.46, 0.42, 0.38)
+## The radio stands on the right end of the desk, clear of the monitor (its click box once
+## lay over the monitor's left side: a click on the monitor switched the radio off).
+const RADIO_AT := Vector3(1.12, 0.82, -1.6)
+const RADIO_CLICK_CENTER_LOCAL := RADIO_AT + Vector3(0.0, 0.11, 0.0) + PC_OFFSET
+const RADIO_CLICK_SIZE := Vector3(0.38, 0.26, 0.2)
 const NOTEBOOK_CLICK_CENTER_LOCAL := Vector3(-0.12, 1.0, 0.34)
 const NOTEBOOK_CLICK_SIZE := Vector3(0.70, 0.22, 0.50)
 const CRT_ENTER_FOV: float = 41.0
@@ -466,6 +469,7 @@ func _process(delta: float) -> void:
 			_window_refresh_t = 1.0
 			_window_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 		return
+	_tick_photo_flash(get_process_delta_time())
 	_update_window_portal()
 	if _interior_camera != null:
 		_update_torch(delta)
@@ -546,6 +550,8 @@ func _update_office_hover() -> void:
 		var collider = hit.get("collider", null) as Node
 		if collider != null and _node_has_click_type(collider, "office_light_switch") and _office_light_switch_mesh != null:
 			meshes.append(_office_light_switch_mesh)
+		elif collider != null and _node_has_click_type(collider, "crt_power"):
+			HandCursor.want(HandCursor.POINT)
 		elif _crt_screen != null and _map_mouse_to_crt(m, false) != Vector2.INF:
 			HandCursor.want(HandCursor.POINT)
 	if not meshes.is_empty():
@@ -878,8 +884,8 @@ func _build_room() -> void:
 	_ceiling_light.position = Vector3(0.0, 2.50, 0.2)
 	_ceiling_light.light_color = Color(0.98, 0.94, 0.84)
 	_ceiling_light.light_energy = 1.88
-	_ceiling_light.omni_range = 6.5
-	_ceiling_light.omni_attenuation = 1.4
+	_ceiling_light.omni_range = 8.5
+	_ceiling_light.omni_attenuation = 0.9
 	_ceiling_light.shadow_enabled = true
 	_room_root.add_child(_ceiling_light)
 
@@ -1040,6 +1046,7 @@ func _build_room() -> void:
 	_crt_full_cam_pos = _crt_seat(Vector3(0.28, 1.35, -0.34))
 
 	_build_monitor_boxes()
+	_build_monitor_switch()
 	var crt_col = CollisionShape3D.new()
 	var crt_shape = BoxShape3D.new()
 	crt_shape.size = Vector3(0.86, 0.64, 0.66)
@@ -1157,11 +1164,7 @@ func _build_room() -> void:
 	blade_b.material_override = _make_psx_material(Color(0.46, 0.46, 0.40), 0.0, 0.0, 0.0, "")
 	_fan_pivot.add_child(blade_b)
 
-	# ── RADIO (shifted right +0.5) ────────────────────────────────────────────
-	_add_box(pc_root, "RadioBody",    Vector3(-0.10, 0.88, -1.54), Vector3(0.26, 0.14, 0.12), Color(0.58, 0.54, 0.46))
-	_add_box(pc_root, "RadioSpeaker", Vector3(-0.10, 0.88, -1.48), Vector3(0.10, 0.08, 0.02), Color(0.26, 0.24, 0.20))
-	_add_box(pc_root, "RadioDial",    Vector3(-0.01, 0.90, -1.48), Vector3(0.06, 0.04, 0.02), Color(0.20, 0.36, 0.60))
-	_add_box(pc_root, "RadioAntenna", Vector3(-0.03, 0.98, -1.54), Vector3(0.02, 0.22, 0.02), Color(0.66, 0.64, 0.54))
+	_build_radio(pc_root)
 
 	_create_radio_power_click_body()
 
@@ -1355,6 +1358,8 @@ const CRT_STAND_SEC := 0.45
 
 func enter_crt_view(instant: bool = false) -> void:
 	if _crt_active: return
+	if not _monitor_on:
+		_toggle_monitor()
 	# Sitting down at it wakes the screen saver, as touching the mouse would.
 	if _crt_ui != null and _crt_ui.has_method("extras") and _crt_ui.extras() != null:
 		_crt_ui.extras().poke()
@@ -1804,7 +1809,7 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 	if _ceiling_light != null:
 		# The tube's cold white, which the evening and the day only warm a little.
 		_ceiling_light.light_color = _tri(d, Color(0.86, 0.92, 1.0), Color(0.94, 0.92, 0.9), Color(1.0, 0.98, 0.92))
-		_ceiling_light.light_energy = _tri(d, 1.3, 1.4, 1.88)
+		_ceiling_light.light_energy = _tri(d, 2.5, 2.2, 1.88)
 	if _desk_lamp != null:
 		_desk_lamp.light_energy = _tri(d, 0.9, 0.8, 0.7)
 		_desk_lamp.light_color = Color(1.0, 0.86, 0.6)
@@ -1832,6 +1837,13 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		_sun_beam.light_energy = 3.2 * daylight * daylight * lerpf(0.06, 1.0, open)
 	if _room_environment != null and _office_curtain != null:
 		_room_environment.ambient_light_energy *= lerpf(0.55, 1.0, _office_curtain.open) if daylight > 0.3 else 1.0
+	# The tubes on: their cold light is everywhere in a small room (the walls, the
+	# ceiling, under the desk), not only where the lamp's cone falls; more so the darker
+	# it is outside. Off (the switch by the door) or no power: only what else there is.
+	if _room_environment != null and _office_lights_on and _grid_power_available:
+		var fill := lerpf(0.55, 0.12, daylight)
+		_room_environment.ambient_light_color = _room_environment.ambient_light_color.lerp(Color(0.82, 0.88, 0.96), lerpf(0.6, 0.1, daylight))
+		_room_environment.ambient_light_energy = maxf(_room_environment.ambient_light_energy, fill)
 	_sync_reception_glass()
 	_apply_manual_office_light_profile(animated)
 	_update_window_texture()
@@ -2113,6 +2125,65 @@ func _update_window_portal() -> void:
 		_door_quad.visible = door_on
 
 
+## The office building's windows for whatever is outside at night (the Photographer,
+## scripts/enemies/tourist_brain.gd): the office window and the back room's, each with
+## where it is in the camp, which way it faces, how squarely you look at it and its
+## curtain. Only those of the part you are in (from the back room, the office's too
+## while its door is open).
+func photo_windows() -> Array:
+	var out: Array = []
+	if not _portal_ok and not _place_window_camera():
+		return out
+	if _room_root == null or _interior_camera == null:
+		return out
+	var in_back: bool = _extras != null and _extras.in_back_room()
+	var specs: Array = []
+	if not in_back or _extras.back_door_open():
+		specs.append([WINDOW_CENTER, Vector3(0, 0, -1), _office_curtain])
+	if in_back:
+		specs.append([RL.BACK_WINDOW_CENTER, Vector3(-1, 0, 0), _extras.back.curtain if _extras != null else null])
+	for sp in specs:
+		var c: Vector3 = sp[0]
+		var o: Vector3 = sp[1]
+		var cur = sp[2]
+		var at := _room_root.global_transform * c
+		var to := (at - _interior_camera.global_position).normalized()
+		out.append({"pos": _portal_xform * c, "out": (_portal_xform.basis * o).normalized(),
+			"facing": (-_interior_camera.global_transform.basis.z).dot(to),
+			"open": float(cur.open) if cur != null else 1.0,
+			"flash": _photo_flash.bind(c, o, cur)})
+	return out
+
+
+## The flash through a window: a cold light popping in the room (the drawn curtain lets
+## a little through), the glass white for a moment.
+var _photo_light: OmniLight3D
+var _photo_t := 0.0
+
+
+func _photo_flash(c: Vector3, o: Vector3, cur) -> void:
+	if _room_root == null:
+		return
+	if _photo_light == null or not is_instance_valid(_photo_light) or _photo_light.get_parent() != _room_root:
+		_photo_light = OmniLight3D.new()
+		_photo_light.name = "PhotoFlash"
+		_photo_light.light_color = Color(0.9, 0.94, 1.0)
+		_photo_light.omni_range = 7.0
+		_photo_light.shadow_enabled = true
+		_room_root.add_child(_photo_light)
+	_photo_light.position = c - o * 0.4
+	var through := lerpf(0.15, 1.0, float(cur.open)) if cur != null else 1.0
+	_photo_light.set_meta("peak", 10.0 * through)
+	_photo_t = 0.45
+
+
+func _tick_photo_flash(delta: float) -> void:
+	if _photo_light == null or not is_instance_valid(_photo_light):
+		return
+	_photo_t = maxf(0.0, _photo_t - delta)
+	_photo_light.light_energy = float(_photo_light.get_meta("peak", 0.0)) * pow(_photo_t / 0.45, 1.6)
+
+
 func _set_window_view_live(on: bool) -> void:
 	if _window_vp == null:
 		return
@@ -2250,6 +2321,98 @@ func _setup_office_light_system() -> void:
 	_create_office_light_switch()
 	_apply_office_switch_visual()
 	_apply_office_wall_texture_state()
+
+
+# ── the radio and the monitor's switch ───────────────────────────────────────
+
+## The radio: a brown Tesla portable from the eighties on the right end of the desk, a
+## Build-engine box with its faces painted (Grok: camp/radio_front, radio_side), a
+## chrome carrying handle and a telescopic aerial. Click it to switch it on or off.
+func _build_radio(pc_root: Node3D) -> void:
+	var K := INTERIOR_KIT
+	var set_root := Node3D.new()
+	set_root.name = "RadioSet"
+	set_root.position = pc_root.position + RADIO_AT
+	# Turned between the counter and the chair: its front seen from both.
+	set_root.rotation_degrees.y = 8.0
+	_room_root.add_child(set_root)
+	var w := 0.34
+	var h := 0.2
+	var d := 0.11
+	var side := K.surface("radio_side", 0.2) if ResourceLoader.exists("res://assets/textury/camp/radio_side.png") else K.surface("plastic", 0.3, Color(0.36, 0.24, 0.16))
+	K.slab(set_root, Vector3(w, h, d), Vector3(0.0, h * 0.5, 0.0), side, "RadioBody")
+	var front := _face(set_root, "radio_front", Vector2(w - 0.004, h - 0.004), Vector3(0.0, h * 0.5, d * 0.5 + 0.002), 0.0)
+	front.name = "RadioSpeaker"
+	var chrome := K.surface("galvanized", 0.3, Color(0.86, 0.86, 0.84))
+	# The handle: two posts and the grip across the top.
+	K.slab(set_root, Vector3(0.016, 0.05, 0.02), Vector3(-w * 0.38, h + 0.025, 0.0), chrome, "RadioHandleL")
+	K.slab(set_root, Vector3(0.016, 0.05, 0.02), Vector3(w * 0.38, h + 0.025, 0.0), chrome, "RadioHandleR")
+	K.slab(set_root, Vector3(w * 0.8, 0.016, 0.026), Vector3(0.0, h + 0.05, 0.0), K.surface("plastic", 0.2, Color(0.12, 0.1, 0.08)), "RadioGrip")
+	# The aerial, pulled out and leaning back.
+	var ant := K.slab(set_root, Vector3(0.008, 0.42, 0.008), Vector3(w * 0.42, h + 0.2, -0.03), chrome, "RadioAntenna")
+	ant.rotation_degrees.z = -18.0
+	ant.rotation_degrees.x = -10.0
+	_create_radio_power_click_body()
+
+
+## The monitor's power: a button and its lamp on the bezel's lower right. Off, the
+## picture goes and the screen stops lighting the room (for a dark office at night); the
+## computer underneath runs on. Sitting down at it switches it back on.
+var _monitor_on := true
+var _monitor_led_mat: StandardMaterial3D
+
+
+func _build_monitor_switch() -> void:
+	if _crt_body == null:
+		return
+	var K := INTERIOR_KIT
+	var at := Vector3(0.29, -0.24, 0.352)
+	K.slab(_crt_body, Vector3(0.05, 0.028, 0.014), at, K.surface("plastic", 0.2, Color(0.7, 0.66, 0.56)), "CRTPowerButton")
+	var led := MeshInstance3D.new()
+	led.name = "CRTPowerLed"
+	var lm := BoxMesh.new()
+	lm.size = Vector3(0.012, 0.012, 0.01)
+	led.mesh = lm
+	_monitor_led_mat = StandardMaterial3D.new()
+	_monitor_led_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_monitor_led_mat.albedo_color = Color(0.3, 1.0, 0.35)
+	led.material_override = _monitor_led_mat
+	led.position = at + Vector3(-0.055, 0.0, 0.004)
+	_crt_body.add_child(led)
+	var body := StaticBody3D.new()
+	body.name = "CRTPowerClick"
+	body.set_meta("interior_click_type", "crt_power")
+	body.position = at + Vector3(-0.02, 0.0, 0.02)
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.12, 0.07, 0.05)
+	cs.shape = bs
+	body.add_child(cs)
+	_crt_body.add_child(body)
+
+
+func _toggle_monitor() -> void:
+	_monitor_on = not _monitor_on
+	var mat := _crt_screen.material_override as ShaderMaterial if _crt_screen != null else null
+	if mat != null:
+		mat.set_shader_parameter("powered", 1.0 if _monitor_on else 0.0)
+	if _monitor_led_mat != null:
+		_monitor_led_mat.albedo_color = Color(0.3, 1.0, 0.35) if _monitor_on else Color(0.16, 0.2, 0.16)
+	_play_click_sfx("res://assets/sfx/desk/crt_power_on.mp3" if _monitor_on else "res://assets/sfx/desk/crt_power_off.mp3")
+
+
+var _click_sfx: AudioStreamPlayer
+
+
+func _play_click_sfx(path: String) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	if _click_sfx == null or not is_instance_valid(_click_sfx):
+		_click_sfx = AudioStreamPlayer.new()
+		_click_sfx.volume_db = -6.0
+		add_child(_click_sfx)
+	_click_sfx.stream = load(path)
+	_click_sfx.play()
 
 
 func _create_radio_power_click_body() -> void:
@@ -3636,10 +3799,17 @@ func _find_node3d_by_name_fragment(root: Node, fragment: String) -> Node3D:
 
 
 func _try_click_room(event: InputEventMouseButton) -> bool:
+	# The monitor's own power button (before the radio's box, which is forgiving).
+	var hit0 = _raycast_room(event.position)
+	var c0 = hit0.get("collider", null) as Node
+	if c0 != null and _node_has_click_type(c0, "crt_power"):
+		_toggle_monitor()
+		return true
 	# AABB hotspots take priority over the physics raycast: the props are small and
 	# the collider mesh is easy to miss, so the box test is the forgiving path.
 	if _is_mouse_over_radio(event.position):
 		_toggle_radio_power()
+		_play_click_sfx("res://assets/sfx/desk/radio_switch.mp3")
 		return true
 
 	var hit = _raycast_room(event.position)
@@ -3761,7 +3931,7 @@ func _ray_intersects_aabb(ray_origin: Vector3, ray_dir: Vector3, box_center: Vec
 func _update_crt_monitor_light(delta: float) -> void:
 	if _crt_glow_light == null:
 		return
-	if not visible or _crt_viewport == null:
+	if not visible or _crt_viewport == null or not _monitor_on:
 		_crt_glow_light.light_energy = lerpf(_crt_glow_light.light_energy, 0.0, clampf(delta * 8.0, 0.0, 1.0))
 		return
 

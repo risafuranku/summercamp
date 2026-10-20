@@ -103,7 +103,7 @@ const BLURBS := {
 	"playground": "Swings and a seesaw. Families will thank you.",
 	"ping_pong": "A table, two bats and an argument.",
 	"hammock": "One guest, one book, one hour of peace.",
-	"corn_stand": "Boiled corn with butter and salt. Cheap, quick, everybody wants one.",
+	"corn_stand": "Boiled corn with butter and salt, and a cup of kofola. Cheap, quick, everybody wants one.",
 	"path": "Drag to lay a path. Guests walk on paths.",
 	"lamp_post": "Light at night. A lit path is a safe path.",
 	"demolish": "Drag over trees or buildings, then click inside to clear them.",
@@ -611,7 +611,7 @@ func _select(tool: String) -> void:
 		message_requested.emit("Builder 98", "The Mega gnome comes with registered copies of Builder 98.\n\nHelp > Register...", "info")
 		return
 	if not lock.is_empty():
-		message_requested.emit("Builder 98", "This blueprint is for Stavitel partner camps.\n\nRated %.1f on Goggle, with %d reviews or more." % [float(lock["stars"]), int(lock["reviews"])], "info")
+		message_requested.emit("Builder 98", "This blueprint is for Stavitel partner camps.\n\nIt opens when your camp has %d guests at once." % int(lock["guests"]), "info")
 		return
 	_click()
 	_selected = tool
@@ -947,9 +947,9 @@ func _refresh_inspector() -> void:
 	var ub: Button = _insp_btns["upgrade"]
 	ub.visible = lodging
 	if not up.is_empty() and float(up.get("locked", 0.0)) > 0.0:
-		ub.text = "Upgrade at %.1f" % float(up["locked"])
+		ub.text = "Upgrade at %d guests" % int(up["locked"])
 		ub.disabled = true
-		ub.tooltip_text = "Opens when the camp is rated %.1f on Goggle" % float(up["locked"])
+		ub.tooltip_text = "Opens when the camp has had %d guests at once" % int(up["locked"])
 	elif not up.is_empty() and not bool(up.get("max", false)):
 		ub.text = "Upgrade  $%d" % int(up["cost"])
 		ub.disabled = CoreRoot.get_money() < int(up["cost"])
@@ -1164,13 +1164,9 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 				c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), "Registered", HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
 				c.draw_string(T.FONT, Vector2(text_x, 47), "copies only", HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
 				return
-			# The stars it waits for: Goggle's own star and the number (the word did not fit).
-			var sx := text_x
-			if _star != null:
-				c.draw_texture_rect(_star, Rect2(Vector2(sx, 22), Vector2(12, 12)), false)
-				sx += 15.0
-			c.draw_string(T.FONT_BOLD, Vector2(sx, 32), "%.1f" % float(lock["stars"]), HORIZONTAL_ALIGNMENT_LEFT, text_w - (sx - text_x), T.FONT_SIZE, Color8(150, 100, 0))
-			c.draw_string(T.FONT, Vector2(text_x, 47), "%d reviews" % int(lock["reviews"]), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
+			# The guests in the camp it waits for.
+			c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), "%d guests" % int(lock["guests"]), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
+			c.draw_string(T.FONT, Vector2(text_x, 47), "in the camp", HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
 			return
 		c.draw_string(T.FONT_BOLD, Vector2(text_x, 17) + o, label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT)
 		c.draw_string(T.FONT, Vector2(text_x, 32) + o, "$%d" % _cost(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
@@ -1776,7 +1772,7 @@ func _camp_facts() -> Dictionary:
 			sum2 += float(r["stars"])
 		start = snappedf(sum2 / float(maxi(1, olds.size())), 0.1)
 		for i in g.TIERS.size():
-			tier_stars[i] = "%.1f" % float(g.TIERS[i]["stars"])
+			tier_stars[i] = "%d" % int(g.TIERS[i]["guests"])
 	return {
 		"caravan": types.keys().any(func(t): return str(t).begins_with("caravan")),
 		"slide": types.has("lake_slide"), "pub": types.has("pub") or types.has("pub_2"),

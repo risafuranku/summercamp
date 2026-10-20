@@ -5,8 +5,10 @@ extends RefCounted
 ## logic (seeded), saved by main ("goggle"), checked by tools/goggle_check.gd.
 ##   - the camp's page was there before you: a few reviews from last summer, mostly bad
 ##     (and one or two that nobody should have written);
-##   - the average (of what is up, to one decimal) opens Builder 98's blueprints, tier by
-##     tier (TIERS: a rating and enough reviews to count), and the room upgrades;
+##   - the average (of what is up, to one decimal) is shown, and opens nothing for now
+##     (Richard, 20. 10.: the start must play; the rating may matter again later);
+##   - Builder 98's blueprints and the room upgrades open by how many guests the camp has
+##     had at once (TIERS: 10, 20, 30...; `peak_guests`, main feeds it); once open, open;
 ##   - a review you do not like can go: SpotlessName Ltd take it down by the next morning,
 ##     for a price that rises with each one; now and then Goggle notices, the review
 ##     stays, the money is gone and the page says so for a few days (the rating with it);
@@ -14,13 +16,14 @@ extends RefCounted
 ##     morning (a star more), blaming the weather never does.
 ## Main feeds it the guests' reviews (EventBus.guest_review_posted) and settles it at dawn.
 
-## A blueprint tier: the stars it needs, how many reviews it takes to count, what it opens.
+## A blueprint tier: the guests in the camp at once it needs, what it opens. The corn
+## stand is there from the first day: cheap food and a drink when nothing else is open.
 const TIERS := [
-	{"stars": 0.0, "reviews": 0, "items": ["tent_1", "cabin_1", "toilet_block", "shower_block", "pub", "sewer", "bonfire", "bench", "flower_bed", "picnic_table", "path", "lamp_post"]},
-	{"stars": 3.0, "reviews": 5, "items": ["caravan_1", "restaurant", "sports_field", "hammock", "gnome", "corn_stand"]},
-	{"stars": 3.5, "reviews": 12, "items": ["playground", "ping_pong", "flagpole", "upgrade:2"]},
-	{"stars": 4.0, "reviews": 22, "items": ["lake_slide", "vecerka"]},
-	{"stars": 4.3, "reviews": 32, "items": ["upgrade:3"]},
+	{"guests": 0, "items": ["tent_1", "cabin_1", "toilet_block", "shower_block", "corn_stand", "sewer", "bonfire", "bench", "flower_bed", "picnic_table", "path", "lamp_post"]},
+	{"guests": 10, "items": ["pub", "caravan_1", "hammock", "gnome", "sports_field"]},
+	{"guests": 20, "items": ["restaurant", "playground", "ping_pong", "flagpole", "upgrade:2"]},
+	{"guests": 30, "items": ["vecerka", "lake_slide"]},
+	{"guests": 40, "items": ["upgrade:3"]},
 ]
 ## SpotlessName Ltd's price for the first review, and what each one after adds.
 const REMOVE_BASE := 45
@@ -59,6 +62,8 @@ var flagged_until := -999
 var settled_day := 0
 ## The best tier the camp has reached (a tier once open stays open).
 var tier := 0
+## The most guests the camp has had at once (what opens the tiers).
+var peak_guests := 0
 var _next_id := 1
 var _rng := RandomNumberGenerator.new()
 
@@ -77,6 +82,7 @@ func reset(seed_value: int = 0) -> void:
 	flagged_until = -999
 	settled_day = 0
 	tier = 0
+	peak_guests = 0
 	_next_id = 1
 	if seed_value != 0:
 		_rng.seed = seed_value
@@ -158,13 +164,10 @@ func histogram() -> Array:
 # ── the blueprints ────────────────────────────────────────────────────────────
 
 ## The tier open now (the best one reached; it stays open).
-func _refresh_tier(day: int = 1) -> int:
-	var r := rating(day)
-	var n := count()
+func _refresh_tier(_day: int = 1) -> int:
 	var best := tier
 	for i in TIERS.size():
-		var t: Dictionary = TIERS[i]
-		if r >= float(t["stars"]) - 0.001 and n >= int(t["reviews"]):
+		if peak_guests >= int(TIERS[i]["guests"]):
 			best = maxi(best, i)
 	var opened := best > tier
 	tier = best
@@ -174,6 +177,13 @@ func _refresh_tier(day: int = 1) -> int:
 ## After a change: the tier just opened (-1 none).
 func check_tier(day: int) -> int:
 	return _refresh_tier(day)
+
+
+## The guests in the camp now (main, every few seconds): the most at once is what counts.
+## The tier just opened (-1 none).
+func check_guests(n: int) -> int:
+	peak_guests = maxi(peak_guests, n)
+	return _refresh_tier()
 
 
 ## Which tier `item` is in (a building type, or "upgrade:2" / "upgrade:3"); 0 if unlisted.
@@ -188,7 +198,7 @@ func unlocked(item: String) -> bool:
 	return tier_of(item) <= tier
 
 
-## The next tier still shut: {stars, reviews, items} or {}.
+## The next tier still shut: {guests, items} or {}.
 func next_tier() -> Dictionary:
 	return TIERS[tier + 1] if tier + 1 < TIERS.size() else {}
 
@@ -255,7 +265,7 @@ func settle(day: int) -> Dictionary:
 
 func export_state() -> Dictionary:
 	return {"reviews": reviews.duplicate(true), "removed_count": removed_count, "flagged_until": flagged_until,
-		"settled_day": settled_day, "tier": tier, "next_id": _next_id}
+		"settled_day": settled_day, "tier": tier, "next_id": _next_id, "peak_guests": peak_guests}
 
 
 func import_state(d: Dictionary) -> void:
@@ -274,4 +284,5 @@ func import_state(d: Dictionary) -> void:
 	flagged_until = int(d.get("flagged_until", -999))
 	settled_day = int(d.get("settled_day", 0))
 	tier = int(d.get("tier", 0))
+	peak_guests = int(d.get("peak_guests", 0))
 	_next_id = maxi(1, int(d.get("next_id", reviews.size() + 1)))

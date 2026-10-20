@@ -305,6 +305,7 @@ func close_service() -> void:
 func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
+	_tick_windows(delta)
 	_hook_zreport()
 	_update_late_night(delta)
 	_update_basement_machine_animation(delta)
@@ -483,6 +484,12 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 		if _sentence != null:
 			_sentence.say(seen)
 		return true
+	if _node_has_click_type(collider, "window_curtain"):
+		var wp = _meta_up_object(collider, "window_portal")
+		if wp != null:
+			wp.toggle_curtain()
+			_send_curtains()
+		return true
 	if _node_has_click_type(collider, "service_light_switch"):
 		_toggle_manual_service_lights()
 		return true
@@ -507,7 +514,7 @@ func _hover_click_type() -> String:
 	var collider = hit.get("collider", null) as Node
 	if collider == null or not (collider is Node3D and (collider as Node3D).is_visible_in_tree()):
 		return ""
-	for t in ["service_light_switch", "service_counter_game", "service_ledger", "service_stock", "sewer_enter", "sewer_terminal", "bistro_station", "bistro_look"]:
+	for t in ["service_light_switch", "service_counter_game", "service_ledger", "service_stock", "sewer_enter", "sewer_terminal", "bistro_station", "bistro_look", "window_curtain"]:
 		if _node_has_click_type(collider, t):
 			return t
 	var n := collider as Node
@@ -1015,6 +1022,7 @@ func _build_service_room(profile: String) -> void:
 	_room_root.name = "ServiceRoom"
 	_viewport.add_child(_room_root)
 	_doors.clear()
+	_free_windows()
 	_doors.host = self
 	_dirty_shown = -1
 	_hot_glint.clear()
@@ -1112,6 +1120,7 @@ func _build_service_room(profile: String) -> void:
 	_build_ledger(profile)
 	_build_extra_games(profile)
 	_build_business_doors(profile)
+	_make_windows(profile)
 	if profile == "rest":
 		# Every click box is built now: the hidden rooms' ones off.
 		for r in [_restaurant_dining_root, _restaurant_kitchen_root, _restaurant_basement_root]:
@@ -3083,6 +3092,127 @@ func _bistro_sentence(collider: Node, door: String) -> String:
 	if _node_has_click_type(collider, "service_light_switch"):
 		return "The light switch"
 	return ""
+
+
+# -- windows: real views out, curtains, the Photographer's flash -----------------------
+
+## The rooms' windows (scripts/ui/window_portal.gd): [{w, root}]. The layouts paint a
+## "window_view" picture where a window is; it is made a real one here (its glass a view
+## of the camp from where the building stands, a curtain to draw). The Jednota's shop gets
+## one in its right wall.
+const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
+var _windows: Array = []
+
+
+func _make_windows(profile: String) -> void:
+	_free_windows()
+	var roots: Array = []
+	match profile:
+		"rest":
+			roots = [_restaurant_dining_root]
+		"pub":
+			roots = [_pub_main_root]
+		"vecerka":
+			roots = [_vecerka_shop_root]
+	for root in roots:
+		if root == null:
+			continue
+		for n in (root as Node3D).find_children("*", "MeshInstance3D", false, false):
+			# The painted views (the second of a name is renamed by Godot: told by the picture).
+			var pic := n as MeshInstance3D
+			var q := pic.mesh as QuadMesh
+			var pm := pic.material_override as StandardMaterial3D
+			if q == null or pm == null or pm.albedo_texture == null or not str(pm.albedo_texture.resource_path).ends_with("window_view.png"):
+				continue
+			# A picture faces +Z turned by its yaw: that is into the room; out is the other way.
+			var into := pic.transform.basis.z
+			var w = WINDOW_PORTAL.make(self, root, pic.position + into * 0.01, -into, q.size, "curtain_floral")
+			pic.visible = false
+			for c in (root as Node3D).get_children():
+				# The rain on the glass and the lightning (scripts/ambient/room_weather.gd).
+				if c.has_method("add_window"):
+					c.add_window(w.quad)
+				var cm = (c as MeshInstance3D).material_override as StandardMaterial3D if c is MeshInstance3D else null
+				if cm != null and cm.albedo_texture != null and str(cm.albedo_texture.resource_path).ends_with("window_curtain.png") and (c as Node3D).position.distance_to(pic.position) < 0.3:
+					(c as Node3D).visible = false
+			_windows.append({"w": w, "root": root})
+	if profile == "vecerka" and _vecerka_shop_root != null:
+		var w2 = WINDOW_PORTAL.make(self, _vecerka_shop_root, Vector3(3.17, 1.55, 1.55), Vector3(1, 0, 0), Vector2(1.0, 0.8), "curtain_floral")
+		_windows.append({"w": w2, "root": _vecerka_shop_root})
+
+
+func _free_windows() -> void:
+	for e in _windows:
+		e["w"].free_all()
+	_windows.clear()
+
+
+func _tick_windows(delta: float) -> void:
+	if _windows.is_empty():
+		return
+	var anchor := _service_anchor()
+	var world: World3D = anchor.get_world_3d() if anchor != null else null
+	for e in _windows:
+		var root: Node3D = e["root"]
+		var live: bool = anchor != null and root.is_visible_in_tree()
+		var xf: Transform3D = WINDOW_PORTAL.room_to_world(anchor, e["w"], 0.0) if anchor != null else Transform3D()
+		e["w"].update(root, _interior_camera, xf, live, world, delta)
+
+
+## The building outside (InteriorManager's open structure).
+func _service_anchor() -> Node3D:
+	var im := get_parent()
+	var n = im.get("_active_service_node") if im != null else null
+	return n as Node3D if n != null and is_instance_valid(n) and (n as Node3D).is_inside_tree() else null
+
+
+## The windows of the part you are in, for whatever is outside (the Photographer):
+## [{pos, out (world), facing, open (the curtain 0..1), flash: Callable}].
+func photo_windows() -> Array:
+	var out: Array = []
+	var anchor := _service_anchor()
+	if anchor == null:
+		return out
+	for e in _windows:
+		var root: Node3D = e["root"]
+		if not root.is_visible_in_tree():
+			continue
+		var w = e["w"]
+		var o: Dictionary = w.outside(WINDOW_PORTAL.room_to_world(anchor, w, 0.0))
+		o["facing"] = w.facing(root, _interior_camera)
+		o["open"] = w.curtain_open()
+		o["flash"] = w.flash
+		out.append(o)
+	return out
+
+
+## The curtains as they are (by window), for the other wardens in the same building.
+func curtains_state() -> Array:
+	var out: Array = []
+	for e in _windows:
+		out.append(e["w"].curtain_open() > 0.5)
+	return out
+
+
+func take_curtains(state: Array) -> void:
+	for i in mini(state.size(), _windows.size()):
+		_windows[i]["w"].set_curtain(bool(state[i]))
+
+
+func _send_curtains() -> void:
+	var im := get_parent()
+	if im != null and im.has_method("coop_send_curtains"):
+		im.coop_send_curtains(curtains_state())
+
+
+## An Object a meta of `node` or a parent holds (null none).
+func _meta_up_object(node: Node, meta: String) -> Object:
+	var n := node
+	while n != null:
+		if n.has_meta(meta):
+			return n.get_meta(meta)
+		n = n.get_parent()
+	return null
 
 
 ## The click boxes under `root` on (their own layers) or off (none).

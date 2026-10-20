@@ -17,6 +17,8 @@ const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 ## Your torch, in here when it is dark: it shines where the cursor points.
 var _torch: Node
+## The windows' curtains (scripts/reception/curtain.gd).
+const CURTAIN = preload("res://scripts/reception/curtain.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
@@ -269,7 +271,21 @@ func _add_portal(n: String, centre: Vector3, outward: Vector3, size: Vector2, lv
 	quad.visible = false
 	_cabin_root.add_child(quad)
 	_room_weather().add_window(quad)
-	_portals.append({"vp": vp, "cam": cam, "quad": quad, "frame": frame, "size": size, "outward": outward.normalized(), "lv1_only": lv1_only})
+	# A curtain to draw over it (the Photographer takes pictures through the glass).
+	var cur = CURTAIN.new()
+	cur.build(_cabin_root, centre - outward.normalized() * 0.09, size.x + 0.1, size.y + 0.3, rad_to_deg(atan2(-outward.x, -outward.z)), "curtain_floral", 0.7, self, true)
+	var cbody := StaticBody3D.new()
+	cbody.name = n + "CurtainBody"
+	cbody.set_meta("interior_click_type", "cabin_curtain")
+	cbody.set_meta("portal_index", _portals.size())
+	var cshape := CollisionShape3D.new()
+	var cbox := BoxShape3D.new()
+	cbox.size = Vector3(size.x + 0.5, size.y + 0.4, 0.14)
+	cshape.shape = cbox
+	cbody.add_child(cshape)
+	cbody.transform = Transform3D(frame.basis, centre - outward.normalized() * 0.1)
+	_cabin_root.add_child(cbody)
+	_portals.append({"vp": vp, "cam": cam, "quad": quad, "frame": frame, "size": size, "outward": outward.normalized(), "lv1_only": lv1_only, "curtain": cur, "cbody": cbody})
 
 
 ## The windows that look out now, as the camp has them: [{pos (the glass's middle,
@@ -297,13 +313,81 @@ func outside_windows() -> Array:
 	return out
 
 
+## The windows for whatever is outside at night (the Photographer): outside_windows()
+## with each one's curtain and its flash. [{pos, out, facing, open, flash: Callable}].
+func photo_windows() -> Array:
+	var out: Array = []
+	var i := 0
+	var wins := outside_windows()
+	for pt in _portals:
+		if bool(pt["lv1_only"]) and _cabin_level != 1:
+			continue
+		if i >= wins.size():
+			break
+		var w: Dictionary = wins[i]
+		i += 1
+		var cur = pt.get("curtain")
+		w["open"] = float(cur.open) if cur != null else 1.0
+		w["flash"] = _photo_flash.bind(pt)
+		out.append(w)
+	return out
+
+
+var _photo_light: OmniLight3D
+var _photo_t := 0.0
+
+
+func _photo_flash(pt: Dictionary) -> void:
+	if _photo_light == null or not is_instance_valid(_photo_light) or _photo_light.get_parent() != _cabin_root:
+		_photo_light = OmniLight3D.new()
+		_photo_light.name = "PhotoFlash"
+		_photo_light.light_color = Color(0.9, 0.94, 1.0)
+		_photo_light.omni_range = 6.0
+		_photo_light.shadow_enabled = true
+		_cabin_root.add_child(_photo_light)
+	var frame: Transform3D = pt["frame"]
+	_photo_light.position = frame.origin - (pt["outward"] as Vector3) * 0.4
+	var cur = pt.get("curtain")
+	_photo_light.set_meta("peak", 9.0 * (lerpf(0.15, 1.0, float(cur.open)) if cur != null else 1.0))
+	_photo_t = 0.45
+
+
+func _tick_photo_flash(delta: float) -> void:
+	if _photo_light == null or not is_instance_valid(_photo_light):
+		return
+	_photo_t = maxf(0.0, _photo_t - delta)
+	_photo_light.light_energy = float(_photo_light.get_meta("peak", 0.0)) * pow(_photo_t / 0.45, 1.6)
+
+
+func curtains_state() -> Array:
+	var out: Array = []
+	for pt in _portals:
+		var cur = pt.get("curtain")
+		out.append(cur == null or cur.is_open())
+	return out
+
+
+func take_curtains(state: Array) -> void:
+	for i in mini(state.size(), _portals.size()):
+		var cur = _portals[i].get("curtain")
+		if cur != null and cur.is_open() != bool(state[i]):
+			cur.set_open(bool(state[i]))
+
+
 ## Each frame while you are in: every window's camera where your eye is, mapped out into
 ## the camp, the window its near plane (so it moves as you turn, a real view).
 func _update_portals() -> void:
 	var live := _anchor != null and is_instance_valid(_anchor) and _anchor.is_inside_tree()
 	var ws: Vector3 = _anchor.get_meta("wall_size", Vector3(6.24, 2.4, 6.24)) if live else Vector3.ZERO
+	_tick_photo_flash(get_process_delta_time())
 	for pt in _portals:
-		var on: bool = live and _active_room == "main" and (not bool(pt["lv1_only"]) or _cabin_level == 1)
+		var cur = pt.get("curtain")
+		var shown: bool = _active_room == "main" and (not bool(pt["lv1_only"]) or _cabin_level == 1)
+		if cur != null:
+			cur.update(get_process_delta_time())
+			(cur.root as Node3D).visible = shown
+			(pt["cbody"] as StaticBody3D).collision_layer = 1 if shown else 0
+		var on: bool = live and shown and (cur == null or cur.open > 0.03)
 		(pt["quad"] as MeshInstance3D).visible = on
 		var vp: SubViewport = pt["vp"]
 		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
@@ -438,6 +522,17 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 		return false
 	if _node_has_click_type(collider, "cabin_light_switch"):
 		_toggle_manual_lights()
+		return true
+	if _node_has_click_type(collider, "cabin_curtain"):
+		var n: Node = collider
+		while n != null and not n.has_meta("portal_index"):
+			n = n.get_parent()
+		if n != null:
+			var pt: Dictionary = _portals[int(n.get_meta("portal_index"))]
+			pt["curtain"].toggle()
+			var im := get_parent()
+			if im != null and im.has_method("coop_send_curtains"):
+				im.coop_send_curtains(curtains_state())
 		return true
 	return false
 

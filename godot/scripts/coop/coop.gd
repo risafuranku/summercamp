@@ -806,6 +806,26 @@ func _inv(kind: String, data: Array) -> void:
 		sender = 0
 
 
+## A room's curtains (scripts/ui/window_portal.gd), everyone's to everyone: the building
+## (its room key) and each window's curtain open or shut, drawn on every machine.
+func send_curtains(key: String, state: Array) -> void:
+	if role != Role.NONE and not wardens.is_empty():
+		_curtains.rpc(key, state)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _curtains(key: String, state: Array) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not wardens.has(id):
+		return
+	var main := _main()
+	var im = main.get("_interior_manager") if main != null else null
+	if im != null and im.has_method("coop_take_curtains"):
+		sender = id
+		im.coop_take_curtains(key, state)
+		sender = 0
+
+
 ## The bistros' kitchens (scripts/bistro/kitchen.gd), everyone's to everyone: a slice in
 ## the pan, the pot stirred, a tray filled, a plate out of the hatch.
 func send_kitchen(key: String, op: String, data: Array) -> void:
