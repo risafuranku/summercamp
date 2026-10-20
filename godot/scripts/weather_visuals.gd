@@ -1778,13 +1778,15 @@ func _set_sprite_size(sprite: MeshInstance3D, size: float) -> void:
 
 
 func _weather_fog_color(dark_mix: float) -> Color:
-	var weather_tint = Color(0.36, 0.40, 0.46)
+	# Plain wet greys: with even a breath of blue the palette dithered the far forest into
+	# bright blue in the rain, the storm and the snow (weather pass 21. 10.).
+	var weather_tint = Color(0.38, 0.40, 0.43)
 	match _weather_state:
-		WEATHER_WINDY: weather_tint = Color(0.46, 0.48, 0.54)
-		WEATHER_FOG: weather_tint = Color(0.62, 0.66, 0.72)
-		WEATHER_LIGHT_RAIN: weather_tint = Color(0.50, 0.56, 0.64)
-		WEATHER_RAIN: weather_tint = Color(0.42, 0.48, 0.58)
-		WEATHER_STORM: weather_tint = Color(0.30, 0.36, 0.46)
+		WEATHER_WINDY: weather_tint = Color(0.47, 0.48, 0.51)
+		WEATHER_FOG: weather_tint = Color(0.65, 0.65, 0.65)
+		WEATHER_LIGHT_RAIN: weather_tint = Color(0.55, 0.55, 0.55)
+		WEATHER_RAIN: weather_tint = Color(0.47, 0.47, 0.47)
+		WEATHER_STORM: weather_tint = Color(0.34, 0.34, 0.34)
 	var sky_phase = _current_sky_phase()
 	if sky_phase == SKY_PHASE_EVENING or sky_phase == SKY_PHASE_DUSK:
 		weather_tint = weather_tint.lerp(Color(0.56, 0.40, 0.34), 0.22)
@@ -1848,17 +1850,22 @@ func _update_weather_particles(_delta: float) -> void:
 			layer.emitting = is_raining
 	if not is_raining: return
 
-	# How much of it, how fast, how clear: a drizzle, rain, a storm.
-	var intensity := 0.3
-	var rain_speed := 18.0
-	var alpha := 0.34
+	# How much of it, how fast, how long the drops, how clear: a drizzle (fine short drops
+	# drifting down slowly: at full length and slow they stood in the grass like sticks),
+	# rain, a storm that comes in gusts (sheets of it, then less).
+	var intensity := 0.55
+	var rain_speed := 7.0
+	var alpha := 0.26
+	var drop := 0.38
 	if _weather_state == WEATHER_RAIN:
-		intensity = 0.7; rain_speed = 22.0; alpha = 0.44
+		intensity = 0.7; rain_speed = 22.0; alpha = 0.44; drop = 1.0
 	elif _weather_state == WEATHER_STORM:
-		intensity = 1.0; rain_speed = 30.0; alpha = 0.52
+		var gust := maxf(0.0, sin(_sky_anim_time * 0.7) * sin(_sky_anim_time * 0.23 + 1.0))
+		intensity = 0.72 + 0.28 * gust; rain_speed = 28.0 + 6.0 * gust; alpha = 0.5; drop = 1.15
 
 	var daylight = clampf(compute_daylight_factor(), 0.0, 1.0)
-	var tint = Color(0.34, 0.37, 0.43).lerp(Color(0.86, 0.9, 0.95), daylight)
+	# Grey water, as grey as the wet fog (both a little blue, the palette made it blue).
+	var tint = Color(0.35, 0.36, 0.39).lerp(Color(0.85, 0.86, 0.88), daylight)
 	if _world_env != null and _world_env.environment != null:
 		tint = tint.lerp(_world_env.environment.ambient_light_color, 0.25)
 	for pair in [[_rain_particles, 1.0], [_rain_far, 0.55]]:
@@ -1898,5 +1905,7 @@ func _update_weather_particles(_delta: float) -> void:
 		if p_mat != null:
 			p_mat.initial_velocity_min = rain_speed * 0.9
 			p_mat.initial_velocity_max = rain_speed * 1.1
+			p_mat.scale_min = drop
+			p_mat.scale_max = drop
 			p_mat.direction = Vector3(tilted_wind.x, -1.0, tilted_wind.y).normalized()
 			p_mat.spread = lerpf(0.8, 2.6, spread_t)

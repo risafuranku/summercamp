@@ -115,6 +115,10 @@ finished game, by impact:
   the country far off by the hour (far_life.gd); the flagpole, the washrooms' tube and tap
   (the transformer by the corn and the swings were there) — 20. 10.
 - [x] Sound: the jacket and the keys as you move (20. 10.)
+- [x] Weather pass (21. 10.): the drizzle's slow full-length streaks stood in the grass
+  like sticks (fine short drops now); the far forest went bright blue in rain, storm and
+  snow (the wet fog's tint); falling snow did not show (self-lit, steady fall); the
+  storm's rain comes in gusts
 - [x] Snow: boot prints behind every warden, frozen puddles; snowfall no longer grew
   puddles with rain rings on them (21. 10.)
 - [x] A broken lamp shorts: sparks, a flash, the crackle (21. 10., lamp_sparks.gd)

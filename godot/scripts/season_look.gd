@@ -57,8 +57,16 @@ func setup(follow: Callable) -> void:
 	# The snow round you dense and the flakes big enough to see (2600 of 4 cm over forty
 	# metres were a pixel or less: snowfall did not show at noon, inventory 20. 10.), and
 	# beyond them bigger ones, as the rain has its far layer.
-	_snow = _make_particles("Snowfall", 4200, 7.0, Vector3(11, 7, 11), _flake_mesh(0.07, 0.0, 0.0))
+	_snow = _make_particles("Snowfall", 4200, 7.0, Vector3(11, 7, 11), _flake_mesh(0.09, 0.0, 0.0))
 	_snow_far = _make_particles("SnowfallFar", 3200, 9.0, Vector3(30, 10, 30), _flake_mesh(0.16, 8.0, 14.0))
+	# Snow sinks at a steady metre a second (damped): falling faster and faster like the
+	# leaves it left the air round you within three seconds and hardly any showed.
+	for layer in [_snow, _snow_far]:
+		var spm := layer.process_material as ParticleProcessMaterial
+		spm.initial_velocity_min = 0.7
+		spm.initial_velocity_max = 1.1
+		spm.damping_min = 0.45
+		spm.damping_max = 0.6
 	apply(true)
 
 
@@ -148,10 +156,14 @@ func apply(_force: bool) -> void:
 	for layer in [_snow, _snow_far]:
 		layer.emitting = snowing
 		if snowing:
-			layer.amount_ratio = [0.0, 0.35, 0.7, 1.0][clampi(precip, 0, 3)]
+			layer.amount_ratio = [0.0, 0.5, 0.8, 1.0][clampi(precip, 0, 3)]
 			var pm2 := layer.process_material as ParticleProcessMaterial
 			var blow := 0.6 + (2.5 if precip >= 3 else 0.0)
-			pm2.gravity = Vector3(wind.x * blow, -1.4, wind.y * blow)
+			pm2.gravity = Vector3(wind.x * blow, -0.35, wind.y * blow)
+			var fm := (layer.draw_pass_1 as QuadMesh).material as StandardMaterial3D
+			if fm != null:
+				var l := _snow_light()
+				fm.albedo_color = Color(l, l, l * 1.03, fm.albedo_color.a)
 
 
 ## The season's colour of the ground, as wet as it is now.
@@ -245,13 +257,24 @@ func _leaf_sheet() -> Texture2D:
 	return ImageTexture.create_from_image(sheet)
 
 
+## How bright the falling snow is: white by day, a dim grey at night (it shows where a
+## light falls on it all the same, being so close).
+func _snow_light() -> float:
+	var main := get_tree().current_scene
+	var wv = main.get("_weather_visuals") if main != null else null
+	var day := clampf(float(wv.call("compute_daylight_factor")), 0.0, 1.0) if wv != null and wv.has_method("compute_daylight_factor") else 1.0
+	return lerpf(0.3, 0.97, day)
+
+
 ## A flake `size` metres across; with `fade_to` > 0 seen only from `fade_from` metres on.
 func _flake_mesh(size: float, fade_from: float, fade_to: float) -> QuadMesh:
 	var q := QuadMesh.new()
 	q.size = Vector2(size, size)
 	var m := StandardMaterial3D.new()
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	# Its own light by the hour (_snow_light): lit by the snow's grey overcast the flakes
+	# were the sky's own grey and did not show at all (weather pass 21. 10.).
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_color = Color(0.95, 0.96, 1.0, 0.9)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
