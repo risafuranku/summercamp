@@ -25,6 +25,8 @@ const CELLAR := Vector3(5.8, 2.5, 4.6)
 
 ## The guests' tables (room coordinates, on the floor): the regulars' first.
 const TABLES := [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]
+## The ashtray on the second table, where the cards (the station "cards") are played.
+const ASHTRAY_CARDS := Vector3(0.3, 0.74, -0.28)
 
 ## The stations: id -> {room, at (click box centre), size, stand (where the warden stands
 ## at it), pose (their picture there), mark (where its status hangs), label, tab_label
@@ -55,7 +57,7 @@ const SURFACES := {
 	# the dartboard seen from the line, the second table's top.
 	"slot": {"at": Vector3(-2.35, 0.865, -1.93), "size": Vector2(0.96, 0.54), "yaw": 0.0, "flat": false, "cam_back": 0.8},
 	"darts": {"at": Vector3(-2.86, 1.46, -1.0), "size": Vector2(0.853, 0.48), "yaw": 90.0, "flat": false, "cam_back": 1.25},
-	"cards": {"at": Vector3(-1.6, 0.745, 0.9), "size": Vector2(0.8, 0.45), "yaw": 0.0, "flat": true, "cam_back": 0.55, "cam_up": 0.45, "cam_aim": 0.0},
+	"cards": {"at": Vector3(-1.6, 0.792, 0.9), "size": Vector2(0.8, 0.45), "yaw": 0.0, "flat": true, "cam_back": 0.55, "cam_up": 0.45, "cam_aim": 0.0},
 }
 
 
@@ -179,11 +181,12 @@ static func bar(parent: Node3D, si) -> void:
 		K.prop(parent, "pub_table", t)
 		K.prop(parent, "chair_wood", t + Vector3(-0.55, 0, 0), 90.0)
 		K.prop(parent, "chair_wood", t + Vector3(0.55, 0, 0), -90.0)
-		K.cutout(parent, "ashtray", Vector2(0.15, 0.13), t + Vector3(0.1, 0.74, 0.1), 0.0, true, "Ashtray")
+		# The second table's ashtray in its far corner, out of the cards' way.
+		K.cutout(parent, "ashtray", Vector2(0.15, 0.13), t + (Vector3(0.1, 0.74, 0.1) if i == 0 else ASHTRAY_CARDS), 0.0, true, "Ashtray")
 		si._pub_lamp(parent, t + Vector3(0, 2.05, 0))
 	_cut(parent, "pub_plaque", Vector2(0.2, 0.14), TABLES[0] + Vector3(-0.12, 0.74, -0.12), 0.0, true, "Plaque")
 	look(parent, "regulars' table", "STAMGAST. The regulars' table. Nobody sits there, even when it is empty.", TABLES[0] + Vector3(-0.1, 0.85, -0.1), Vector3(0.3, 0.2, 0.3))
-	look(parent, "ashtray", "From the Slavia hotel. Somebody walked out with it in 1979.", TABLES[1] + Vector3(0.1, 0.8, 0.1), Vector3(0.2, 0.12, 0.2))
+	look(parent, "ashtray", "From the Slavia hotel. Somebody walked out with it in 1979.", TABLES[1] + ASHTRAY_CARDS + Vector3(0, 0.06, 0), Vector3(0.2, 0.12, 0.2))
 	si._pub_lamp(parent, Vector3(1.35, 2.15, -1.2))
 	# The back wall: the brewery's sign, the pennants, the calendar, the clock.
 	K.picture(parent, "pub_sign", Vector2(0.7, 0.52), Vector3(-0.9, 1.75, -2.28), 0.0, "BrewerySign")
@@ -201,8 +204,6 @@ static func bar(parent: Node3D, si) -> void:
 	# The LUCKY 7 at its picture's own proportions (camp/pub_slot.png 74 x 136): its reel
 	# window at 0.87 m, where the station's surface is (SURFACES "slot").
 	_cut(parent, "pub_slot", Vector2(0.74, 1.36), Vector3(-2.35, 0.05, -1.95), 0.0, true, "SlotMachine")
-	# The cards on the second table (a station: cards).
-	_cut(parent, "pub_cards", Vector2(0.3, 0.22), TABLES[1] + Vector3(-0.15, 0.745, -0.05), 0.0, true, "Cards")
 	K.cutout(parent, "antlers", Vector2(0.4, 0.52), Vector3(-2.88, 1.6, -1.75), 90.0, false, "Antlers")
 	look(parent, "antlers", "A six-pointer. Shot by the landlord's father, or bought at the market in Pisek: it depends who tells it.", Vector3(-2.85, 1.85, -1.75), Vector3(0.1, 0.5, 0.45))
 	_cut(parent, "pub_boar", Vector2(0.55, 0.55), Vector3(-2.88, 1.55, 1.75), 90.0, false, "Boar")
