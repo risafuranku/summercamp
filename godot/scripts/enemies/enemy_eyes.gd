@@ -22,6 +22,12 @@ const DIR := "res://assets/textury/npc/eyes/"
 const STYLES := {
 	# The Quiet Guy: his glasses. Two round lenses catching a dull yellow light that is
 	# not there, no eye behind them, a little too far apart. They never blink.
+	# The Girl: eyeshine, two pale points, each blinking on its own, only where your torch
+	# points (her brain says when); the nearer she is the bigger and wider apart they are
+	# (her face stretching: `gap_k`, `size_k`), one a little higher than the other.
+	"girl": {"near": "eye_dot", "mid": "eye_dot", "far": "eye_dot", "near_m": 99.0, "mid_m": 99.0,
+		"size": 0.025, "gap": 0.035, "color": Color(0.88, 0.87, 0.8), "blink": 5.0, "blink_len": 0.22,
+		"flare_color": Color(1.0, 1.0, 0.96)},
 	"silent_man": {"near": "eye_ring5", "mid": "eye_ring3", "far": "eye_dot2", "near_m": 9.0, "mid_m": 22.0,
 		"size": 0.075, "gap": 0.072, "color": Color(0.96, 0.76, 0.22), "blink": 0.0, "glint": 4.0,
 		"flare_color": Color(1.0, 0.97, 0.82)},
@@ -67,6 +73,9 @@ var flare := 0.0
 ## Where on the head, as the art has it: metres to the right of the middle (seen from
 ## you), and the head's tilt (radians, + the right one lower).
 var x_off := 0.0
+## The brain's stretch: how much wider apart (gap) and bigger (size) than the style.
+var gap_k := 1.0
+var size_k := 1.0
 var tilt := 0.0
 ## Seen from here instead of the camera (a window's camera); INF: the camera.
 var view_from := Vector3.INF
@@ -145,11 +154,11 @@ func update(dt: float, cam: Camera3D) -> void:
 	var tw := float(tex.get_width())
 	# A texel a little over a game pixel: the screen's pixelation samples cell middles,
 	# and a texel of exactly one cell can fall between them (a ring loses a side).
-	var pix := maxf(float(style["size"]) / tw, px * 1.3)
+	var pix := maxf(float(style["size"]) * size_k / tw, px * 1.3 * size_k)
 	pix *= 1.0 + 0.45 * fl
 	var w := tw * pix
 	# Never closer than two dark game pixels between them, so two read as two.
-	var gap := maxf(float(style["gap"]), w * 0.5 + px)
+	var gap := maxf(float(style["gap"]) * gap_k, w * 0.5 + px)
 	var sway := sin(_t * 0.9) * float(style.get("scan", 0.0))
 	# Well in front of its own sprite (the billboards turn differently; no clipping).
 	var base := at + toward * minf(0.3, d * 0.08) + right * sway

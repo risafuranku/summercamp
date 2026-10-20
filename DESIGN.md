@@ -222,7 +222,7 @@ know where it is:
 | --- | --- |
 | Silent Man | his glasses: two round lenses glinting a dull yellow, nothing behind them, a little too far apart, never blinking; now and then a light runs over the glass, one lens then the other. They sit on his glasses in every piece of art (tilted with his head) and flare white in your torch before he comes apart |
 | The Photographer | one eye, the lens: a cold blue ring with a light in it; the red focus lamp blinks in its middle |
-| The Girl | her eyeshine (drawn on the screen, `nightmare_fx.set_eyes`): two pale points, each blinking on its own, only where the torch points but does not reach |
+| The Girl | her eyeshine: two pale points, each blinking on its own, one a little higher, only where the torch points but does not reach (to 45 m); nearer, bigger and wider apart (her face stretching). The terror pass (20. 10.): when your torch dies near her she takes her step in that dark and you see her eyes there, nearer; while your torch holds her, a second pair of her eyes opens off to one side with a soft giggle (look and it is gone, and she has moved); under a lamp she goes round the edge of its light towards your back; the drone and the heart as she comes |
 | The Antlered Man | deer eyeshine in the skull's sockets, pale green, high, far apart; both go out together now and then |
 | The Basket Man | two wet red points deep in the hood, close together, swinging slowly over the ground |
 | The Extra Child | nothing while its back is to you; turned and running, two small white points that do not blink |

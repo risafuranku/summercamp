@@ -12,8 +12,20 @@ extends "res://scripts/enemies/enemy_base.gd"
 ##
 ## Her signature, from far off: eyeshine. Out in the dark, where your torch points but
 ## does not reach, two small pale points where her eyes are, each blinking on its own
-## (drawn on the screen by nightmare_fx, one game pixel each, at the eyes of whichever
-## stage she is in). Lit, you see her own eyes instead. And a woman humming.
+## (enemy_eyes "girl", in the world, at the eyes of whichever stage she is in); the
+## nearer she is, the bigger and wider apart they are. Lit, you see her own eyes
+## instead. And a woman humming.
+##
+## The terror pass (Richard, 20. 10.: "total terror"):
+##   the dead torch  close, when your torch dies in your hand she takes her step in that
+##                   dark, and you see her eyes there, nearer, before the light comes back
+##   the decoy       while your torch holds her, a second pair of her eyes opens out in the
+##                   dark to one side, and a soft giggle from there; swing to it and there
+##                   is nothing, and she has moved (you looked away)
+##   the lamp's edge under a lamp she cannot come in: she goes round the edge of its light,
+##                   a little further each time you look away, towards your back
+##   your heart      the pressure, the drone and the heart (nightmare_fx.set_presence) as
+##                   she comes, more in a dead torch
 ##
 ## A loop, the same grammar as every night thing:
 ##   omen      far out, the eyes and the humming; the first time it is still the guest in
@@ -83,8 +95,6 @@ var _stutter_t := 0.0
 var _step_in_dark := false
 var _moved_unseen := false
 var _last_d := 99.0
-var _blink_next := [4.0, 5.2]
-var _blink_t := [0.0, 0.0]
 var _eye_spot := {}                 # texture -> Vector2(px right of centre, px up from feet)
 var _strike_t := -1.0
 var _wet_next := 3.0
@@ -97,6 +107,11 @@ var _strike_cues := {}
 var _tex := {}
 var _static: AudioStreamPlayer3D
 var _hum: AudioStreamPlayer3D
+## The decoy: a second pair of her eyes in the dark ({eyes, at, t}; not under _root, only
+## the warden she hunts sees it), and when the next may open.
+var _decoy := {}
+var _decoy_next := 8.0
+const DECOY_EVERY := Vector2(14.0, 26.0)
 
 
 func get_enemy_id() -> String:
@@ -120,6 +135,7 @@ func _on_start() -> void:
 			if ResourceLoader.exists(p):
 				_tex[p] = load(p)
 	_body = _make_body(GUEST, HEIGHT)
+	_make_eyes("girl", HEIGHT * 0.9).set("tilt", 0.12 if _rng.randf() < 0.5 else -0.12)
 	for art in _tex.values():
 		_eye_spot[art] = _find_eyes(art)
 	_static = _loop(SFX_STATIC, -60.0)
@@ -129,10 +145,12 @@ func _on_start() -> void:
 
 func _on_stop() -> void:
 	_release_player()
+	_drop_decoy()
 	var fx := _fx()
 	if fx != null:
 		fx.close_up_off()
 		fx.set_black(0.0)
+		fx.set_presence("girl", 0.0)
 	if _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled") and _phase == STRIKE:
 		_player.call("set_controls_enabled", true)
 
@@ -172,6 +190,10 @@ func _on_tick(dt: float) -> void:
 	if _phase == GONE:
 		_body.visible = false
 		_set_audio(0.0)
+		_drop_decoy()
+		var fxg := _fx()
+		if fxg != null:
+			fxg.set_presence("girl", 0.0)
 		if _elapsed >= _gone_until:
 			_begin_loop()
 		return
@@ -220,9 +242,14 @@ func _on_tick(dt: float) -> void:
 	var coming := _last_d - d > 0.02 and d < TOO_CLOSE
 	_update_stutter(dt, d, coming)
 	_last_d = d
-	_update_eyes(dt, head, d, lit)
+	_update_shine(d, lit, stuttering)
+	_update_decoy(dt, sees and torch_on_her, d)
 	var near := clampf(1.0 - d / 22.0, 0.0, 1.0)
 	_set_audio(near)
+	var fxp := _fx()
+	if fxp != null:
+		var in_lamp := _lamp_light_at(_player_pos()) > LAMP_SAFE
+		fxp.set_presence("girl", 0.0 if in_lamp else clampf(near * near * 0.9 + (0.25 if stuttering and d < TOO_CLOSE else 0.0), 0.0, 1.0))
 	# Close: her drool on the gravel, now and then a wet laugh through the teeth.
 	if d < 7.0:
 		_wet_next -= dt
@@ -349,9 +376,11 @@ func _advance(small: bool) -> void:
 	var target := _ground(from + to_player.normalized() * step + sideways)
 	if target == Vector3.INF:
 		return
-	# Lamp light is a wall to her.
+	# Lamp light is a wall to her: she goes round its edge instead, towards your back.
 	if _lamp_light_at(target) > LAMP_SAFE:
-		return
+		target = _round_the_light(from, dist)
+		if target == Vector3.INF:
+			return
 	_body.global_position = target
 	var nd := _distance_to_player(target)
 	_set_look(false, nd)
@@ -361,6 +390,29 @@ func _advance(small: bool) -> void:
 	if not small and _rng.randf() < 0.35 and _building_manager != null and _building_manager.has_method("darken_lamp_near"):
 		if _lamp_light_at(_player_pos()) <= LAMP_SAFE:
 			_building_manager.call("darken_lamp_near", target, 7.0, _rng.randf_range(0.3, 0.8))
+
+
+## At the edge of the light you stand in: a step round it at the same distance, the way
+## that is more behind you. INF if there is no dark there.
+func _round_the_light(from: Vector3, dist: float) -> Vector3:
+	var me := _player_pos()
+	var out := from - me
+	out.y = 0.0
+	if out.length() < 0.5:
+		return Vector3.INF
+	var fwd := _forward_flat()
+	var best := Vector3.INF
+	var best_k := 2.0
+	for ang in [30.0, -30.0, 55.0, -55.0]:
+		var dir := out.normalized().rotated(Vector3.UP, deg_to_rad(ang))
+		var p := _ground(me + dir * maxf(dist - 0.3, 2.0))
+		if p == Vector3.INF or _lamp_light_at(p) > LAMP_SAFE:
+			continue
+		var k := fwd.dot(dir)
+		if k < best_k:
+			best_k = k
+			best = p
+	return best
 
 
 ## Her look by how near she is: the guest herself only the first time, far off; then
@@ -396,34 +448,78 @@ func _set_body_tex(path: String) -> void:
 
 
 ## Eyeshine: in the dark, where your torch points (it need not reach her), her eyes
-## catch it: two small pale points, each blinking on its own. Not while she is lit (you
-## see her own eyes then), not behind things.
-func _update_eyes(dt: float, _head: Vector3, d: float, lit: bool) -> void:
-	var fx := _fx()
-	var cam := _camera()
-	if fx == null or cam == null:
+## catch it: two small pale points, each blinking on its own, on the eyes of the stage
+## she is in. Not while she is lit (you see her own eyes then), not behind things (the
+## eyes' own line of sight). In a dead torch near you they are there by themselves.
+func _update_shine(d: float, lit: bool, stuttering: bool) -> void:
+	if _eyes == null:
 		return
-	var open := [1.0, 1.0]
-	for i in 2:
-		_blink_next[i] -= dt
-		if _blink_next[i] <= 0.0:
-			_blink_t[i] = 0.22
-			_blink_next[i] = _rng.randf_range(2.5, 7.5)
-		if _blink_t[i] > 0.0:
-			_blink_t[i] -= dt
-			open[i] = 0.0
+	var spot: Vector2 = _eye_spot.get(_body.texture, Vector2(0.0, float(_body.texture.get_height()) * 0.86))
+	_eyes.set("height", spot.y * _body.pixel_size)
+	_eyes.set("x_off", spot.x * _body.pixel_size)
+	# Her face stretching: nearer, wider apart and bigger.
+	var near := clampf(1.0 - d / 16.0, 0.0, 1.0)
+	_eyes.set("gap_k", 1.0 + 1.1 * near * near)
+	_eyes.set("size_k", 1.0 + 0.35 * near)
+	_eyes.set("want", 1.0 if _shines(d, lit) or (stuttering and d < TOO_CLOSE) else 0.0)
+
+
+func _shines(d: float, lit: bool) -> bool:
 	if lit or d > SHINE_RANGE or not _flashlight_on():
-		return
-	var eyes := _eyes_world()
+		return false
 	var aim: Dictionary = _player.call("get_flashlight_aim") if _player.has_method("get_flashlight_aim") else {}
 	if aim.is_empty():
+		return false
+	var to: Vector3 = _eyes_world() - (aim["origin"] as Vector3)
+	return (aim["dir"] as Vector3).normalized().dot(to.normalized()) >= cos(deg_to_rad(SHINE_DEG))
+
+
+## The decoy: while your torch holds her, now and then a second pair of her eyes opens in
+## the dark off to one side, with a soft giggle from there. Look at it and it goes out;
+## it goes out by itself in a few seconds. Never two.
+func _update_decoy(dt: float, holding: bool, d: float) -> void:
+	var cam := _camera()
+	if not _decoy.is_empty():
+		var e: Node3D = _decoy["eyes"]
+		_decoy["t"] = float(_decoy["t"]) - dt
+		var looked := false
+		if cam != null:
+			var to: Vector3 = (_decoy["at"] as Vector3) - cam.global_position
+			looked = (-cam.global_transform.basis.z).dot(to.normalized()) > cos(deg_to_rad(10.0))
+		if float(_decoy["t"]) <= 0.0 or looked or e == null or not is_instance_valid(e) or cam == null:
+			_drop_decoy()
+			return
+		e.set("strength", 1.0)
+		e.call("update", dt, cam)
 		return
-	var to: Vector3 = eyes - (aim["origin"] as Vector3)
-	if (aim["dir"] as Vector3).normalized().dot(to.normalized()) < cos(deg_to_rad(SHINE_DEG)):
+	_decoy_next -= dt if holding else dt * 0.25
+	if not holding or _decoy_next > 0.0 or d < 6.0 or cam == null or _fx() == null:
 		return
-	if _ray_blocked(cam.global_position, eyes):
+	_decoy_next = _rng.randf_range(DECOY_EVERY.x, DECOY_EVERY.y)
+	var side := -1.0 if _rng.randf() < 0.5 else 1.0
+	var p := _point_from_player(clampf(d * _rng.randf_range(0.8, 1.2), 8.0, 24.0), side * _rng.randf_range(24.0, 38.0))
+	if p == Vector3.INF or _lamp_light_at(p) > LAMP_SAFE:
 		return
-	fx.set_eyes("girl", eyes, cam, open[0], 0.0, 2.2 * _body.pixel_size, open[1])
+	var at := p + Vector3(0, HEIGHT * 0.9, 0)
+	if _ray_blocked(cam.global_position, at):
+		return
+	var e: Node3D = ENEMY_EYES.new()
+	_world_root.add_child(e)
+	e.call("setup", "girl", 0.0, null)
+	e.set("anchor", null)
+	e.set("point", at)
+	e.set("tilt", float(_eyes.get("tilt")) if _eyes != null else 0.1)
+	_decoy = {"eyes": e, "at": at, "t": _rng.randf_range(3.5, 6.0)}
+	_sound(SFX_GIGGLE, at, -18.0, _rng.randf_range(0.85, 1.0), 30.0)
+
+
+func _drop_decoy() -> void:
+	if _decoy.is_empty():
+		return
+	var e: Node3D = _decoy["eyes"]
+	if e != null and is_instance_valid(e):
+		e.queue_free()
+	_decoy = {}
 
 
 ## The torch dies in your hand now and then when she is close: a moment of dark she uses.
@@ -445,7 +541,10 @@ func _update_stutter(dt: float, d: float, coming: bool) -> void:
 	_stutter_next = _rng.randf_range(2.2, 4.0) * lerpf(0.6, 1.0, d / 12.0)
 	_stutter_t = _rng.randf_range(0.2, 0.34)
 	_player.set("flashlight_stutter", 1.0)
-	_step_in_dark = d < TOO_CLOSE
+	_step_in_dark = false
+	# Her step, in this dark: you see her eyes there, nearer, before the light is back.
+	if d < TOO_CLOSE:
+		_advance(true)
 	var fx := _fx()
 	if fx != null:
 		if not _fake_done and d < 8.0:
@@ -462,6 +561,9 @@ func _update_stutter(dt: float, d: float, coming: bool) -> void:
 
 func _start_strike() -> void:
 	_phase = STRIKE
+	_drop_decoy()
+	if _eyes != null:
+		_eyes.set("want", 0.0)
 	_strike_t = 0.0
 	_strike_cues.clear()
 	_release_player()
