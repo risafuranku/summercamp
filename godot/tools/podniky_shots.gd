@@ -64,7 +64,7 @@ func _ready() -> void:
 				["eval", _st("tap") + ".debug_click('bill:5')"], ["eval", _st("tap") + ".debug_click('bill:2')"], ["wait", 0.3], ["shot", "u07_change"],
 				["eval", _st("tap") + ".close_station()"], ["wait", 0.6],
 				# The LUCKY 7.
-				["eval", SI + "._open_station('slot')"], ["wait", 1.2], _to("slot", 565, 130), ["wait", 0.3], ["shot", "u08_slot"],
+				["eval", SI + "._open_station('slot')"], ["wait", 1.2], _to("slot", 590, 110), ["wait", 0.3], ["shot", "u08_slot"],
 				["eval", _st("slot") + ".debug_pull()"], ["wait", F * 3], ["shot", "u09a_reels"], ["wait", F * 3], ["shot", "u09b_reels"],
 				["wait", 1.6], ["shot", "u09c_stopped"],
 				["eval", _st("slot") + ".close_station()"], ["wait", 0.6],
@@ -92,9 +92,9 @@ func _ready() -> void:
 				["eval", _st("bufet") + ".close_station()"], ["wait", 0.6],
 				# The kitchen: the grill, a klobasa at the pass.
 				["eval", SI + "._go_door('d_kitchen')"], ["wait", 3.0], ["shot", "b08_kitchen"],
-				["eval", SI + "._open_station('grill')"], ["wait", 1.2], _to("grill", 60, 170), ["wait", 0.3], ["shot", "b09_grill"],
+				["eval", SI + "._open_station('grill')"], ["wait", 1.2], _to("grill", 82, 200), ["wait", 0.3], ["shot", "b09_grill"],
 				["eval", _st("grill") + ".debug_click('tray')"], ["eval", _st("grill") + ".debug_click('tray')"], ["eval", _st("grill") + ".debug_click('tray')"],
-				["eval", _st("grill") + ".debug_cook(8.0)"], _to("grill", 256, 130, 0.02), ["wait", 0.3], ["shot", "b10_grill_on"],
+				["eval", _st("grill") + ".debug_cook(8.0)"], _to("grill", 250, 150, 0.02), ["wait", 0.3], ["shot", "b10_grill_on"],
 				["eval", _st("grill") + ".press()"], ["wait", F], ["shot", "b11a_turn"], ["eval", _st("grill") + ".release()"], ["wait", F * 2], ["shot", "b11b_turn"],
 				["eval", _st("grill") + ".debug_cook(16.0)"], ["wait", 0.5], ["shot", "b12_burning"],
 				["eval", _st("grill") + ".debug_cook(8.0)"], ["eval", _st("grill") + ".debug_click('slot:1')"], ["eval", _st("grill") + ".debug_cook(8.0)"], ["eval", _st("grill") + ".debug_click('slot:1')"],

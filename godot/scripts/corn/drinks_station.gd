@@ -53,9 +53,9 @@ func _build() -> void:
 	for n in ["tea", "limo"]:
 		var p := MARKS + "mark_%s.png" % n
 		_icons[n] = load(p) if ResourceLoader.exists(p) else null
-	_barrel = _stand("drink_barrel", 0.42)
+	_barrel = _stand("drink_barrel", 0.3)
 	put(_barrel, BARREL_AT, 0.0)
-	_bottle = _stand("drink_bottle", 0.34)
+	_bottle = _stand("drink_bottle", 0.26)
 	put(_bottle, BOTTLE_AT, 0.0)
 	_cup_empty = _stand("cup_empty", CUP_M)
 	_cup_full = _stand("cup_tea", CUP_M)

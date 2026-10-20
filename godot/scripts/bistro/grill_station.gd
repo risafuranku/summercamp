@@ -12,10 +12,12 @@ extends "res://scripts/bistro/bistro_station.gd"
 ## The column over each is the side on the fire: brown in the green, black past it. The
 ## grill goes on without you (kitchen.gd): a sausage left on it burns.
 
-const TRAY := Rect2(8, 60, 112, 236)
-const SLOTS := [Vector2(256, 130), Vector2(384, 130), Vector2(256, 228), Vector2(384, 228)]
-const RACK := Rect2(500, 48, 132, 268)
-const SAUSAGE_M := 0.15
+## Where the Build picture (bistro/st_grill.png) has them: the steel box, the grate, the
+## rack.
+const TRAY := Rect2(36, 118, 92, 172)
+const SLOTS := [Vector2(250, 150), Vector2(380, 150), Vector2(250, 262), Vector2(380, 262)]
+const RACK := Rect2(476, 100, 132, 222)
+const SAUSAGE_M := 0.12
 
 var _tray: Array = []
 var _sausages: Array = []
@@ -29,7 +31,7 @@ func _build() -> void:
 	super._build()
 	for i in 6:
 		var t := sprite(TEX + "sausage_raw.png", SAUSAGE_M, true)
-		put(t, TRAY.position + Vector2(56, 30 + i * 34), 0.012)
+		put(t, TRAY.position + Vector2(46, 16 + i * 28), 0.012)
 		_tray.append(t)
 	for i in SLOTS.size():
 		var s := sprite(TEX + "sausage_raw.png", SAUSAGE_M, true)
@@ -45,7 +47,7 @@ func _build() -> void:
 		_smoke.append(puff)
 	for i in 6:
 		var r := sprite(TEX + "sausage_done.png", SAUSAGE_M, true)
-		put(r, RACK.position + Vector2(66, 30 + i * 40), 0.014)
+		put(r, RACK.position + Vector2(66, 22 + i * 36), 0.014)
 		_rack.append(r)
 	_sizzle = AudioStreamPlayer.new()
 	var path := "res://assets/sfx/bistro/fryer.mp3"

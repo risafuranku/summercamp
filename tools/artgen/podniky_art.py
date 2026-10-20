@@ -106,12 +106,14 @@ MARKS = [
     ("pk_bts_bufet", 2, FOOD + "icon_kofola.png", 16),
     ("pk_bts_bufet", 4, FOOD + "icon_malinovka.png", 16),
 ]
-# The stations' Build pictures: (render id, file, width px: the bistro's PANEL_W).
+# The stations' Build pictures: (render id, file, width px: the bistro's PANEL_W, the top
+# of the counter in the render when Grok drew it in perspective with its front: its four
+# corners upper left, lower left, lower right, upper right, or None).
 TEXTURES = [
-    ("pk_ct_drinks", C + "st_drinks.png", 0),
-    ("pk_bt_grill", B + "st_grill.png", 0),
-    ("pk_bt_bufet", B + "st_bufet.png", 0),
-    ("pk_jt_deli", J + "st_deli.png", 0),
+    ("pk_ct_drinks", C + "st_drinks.png", 0, None),
+    ("pk_bt_grill", B + "st_grill.png", 0, (86, 64, 10, 566, 1270, 566, 1196, 64)),
+    ("pk_bt_bufet", B + "st_bufet.png", 0, None),
+    ("pk_jt_deli", J + "st_deli.png", 0, None),
 ]
 
 
@@ -209,7 +211,7 @@ def sheets(only):
 
 
 def textures(only):
-    for art_id, dest, width in TEXTURES:
+    for art_id, dest, width, top in TEXTURES:
         if only and art_id not in only:
             continue
         src = raw(art_id)
@@ -219,6 +221,9 @@ def textures(only):
         # The bistro's way (bistro_art.buildify): shrunk, roughened, snapped.
         import bistro_art  # noqa: E402
         img = Image.open(src).convert("RGB")
+        if top is not None:
+            # Only the top, unwarped to the station's 16:9.
+            img = img.transform((1280, 720), Image.Transform.QUAD, top, Image.Resampling.BICUBIC)
         small = img.resize((bistro_art.PANEL_W, round(img.height * bistro_art.PANEL_W / img.width)), Image.Resampling.BOX)
         save(process.snap(bistro_art.buildify(small, 12), False), dest)
 

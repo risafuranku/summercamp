@@ -12,13 +12,14 @@ extends "res://scripts/pub/pub_station.gd"
 ## and what they leave in it is the pub's takings.
 
 const FUN := preload("res://core/systems/pub_fun.gd")
-## On the machine's face (design px over pub_layout SURFACES["slot"]): the three reels in
-## its window, the lever's foot at its right side.
-const REEL_AT := [Vector2(232, 176), Vector2(320, 176), Vector2(408, 176)]
-const REEL_M := 0.11
-const LEVER_AT := Vector2(560, 196)
-const LEVER_M := 0.32
-const LEVER := Rect2(500, 40, 130, 200)
+## On the machine's face (design px over pub_layout SURFACES["slot"], 0.96 m across): the
+## three reels in the window of its picture (camp/pub_slot.png), the lever's foot at its
+## right side.
+const REEL_AT := [Vector2(197, 180), Vector2(305, 180), Vector2(417, 180)]
+const REEL_M := 0.14
+const LEVER_AT := Vector2(587, 186)
+const LEVER_M := 0.24
+const LEVER := Rect2(548, 10, 84, 236)
 const TRAY_AT := Vector2(320, 330)
 ## Pulled this far down the screen (a share of the view's height) the lever goes.
 const PULL := 0.12
