@@ -11,7 +11,11 @@ extends "res://scripts/pub/pub_station.gd"
 ##           while you wait; over the rim it runs onto the tray.
 ##   knife   a click takes the top off the head
 ##   serve   click the mug: over the bar to the mat you picked, or to whoever's order it
-##           matches best (pub_rules.judge_pour); the wrong pour they send back.
+##           matches best (pub_rules.judge_pour); the wrong pour they send back: a mark
+##           in pencil on their mat, the money when they go.
+##   the bill on the bar's right (scripts/pub/bill_spot.gd): the mat of whoever wants to
+##           pay, their note, your wallet; count the marks, take the note, the change
+##           onto the mat, hand it over.
 ## The three pours: hladinka (beer to the line, a collar of foam to the rim), snyt (half
 ## and half), mliko (all foam, a finger of beer). The keg in the cellar decides how it
 ## comes: the gas low, slow and flat; high, all foam; the keg spent, it coughs; flat when
@@ -66,6 +70,8 @@ var _board_mugs: Array = []
 var _handle: Sprite3D
 var _handle_pivot: Node3D
 var _level_meter: Sprite3D
+## The bill on the bar's right (bill_spot.gd).
+var _bill: Node3D
 
 
 func _build() -> void:
@@ -96,6 +102,10 @@ func _build() -> void:
 		_pour_loop.stream = st
 	_pour_loop.volume_db = -60.0
 	add_child(_pour_loop)
+	_bill = load("res://scripts/pub/bill_spot.gd").new()
+	_bill.name = "Bill"
+	add_child(_bill)
+	_bill.call("setup", self)
 
 
 ## The tower (a sprite standing on the bar, its foot at TOWER_AT), the drip tray under the
@@ -120,9 +130,20 @@ func _build_tower() -> void:
 
 # ── what the state looks like ────────────────────────────────────────────────
 
+## The bill being worked here: the picked one if it is a bill, else the oldest.
+func current_bill() -> Dictionary:
+	var all := bills()
+	for b in all:
+		if str(b["id"]) == picked:
+			return b
+	return all[0] if not all.is_empty() else {}
+
+
 func _show() -> void:
 	if taproom == null or building_key == "":
 		return
+	_bill.call("pick", current_bill())
+	_bill.call("show_state")
 	_tap2.visible = BUSINESS.has_gear(building_key, "tap2")
 	var clean := int(taproom.mugs(building_key)["clean"]) - (1 if _mug else 0)
 	for i in _board_mugs.size():
@@ -193,7 +214,18 @@ func _spots() -> Array:
 		out.append({"id": "mug", "node": _mug_spr, "verb": _mug_verb()})
 	if _mug and _foam > 0.04 and _slide < 0.0:
 		out.append({"id": "knife", "node": _knife, "verb": "Cut the top off the head"})
+	out.append_array(_bill.call("spots"))
 	return out
+
+
+## The tap's handle in the fist, the bare glove for the mugs, the money for the bill.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	if id == "handle":
+		return "tap"
+	if id.begins_with("bill:"):
+		return "coin" if bool(_bill.get("taken")) else "open"
+	return "open"
 
 
 func _handle_verb() -> String:
@@ -221,6 +253,8 @@ func _mug_verb() -> String:
 
 
 func _press(id: String) -> void:
+	if bool(_bill.call("press", id)):
+		return
 	match id:
 		"board":
 			_put_mug()
@@ -377,15 +411,32 @@ func _serve() -> void:
 		return
 	picked = ""
 	_slide = 0.0
-	sfx("coins_bar", -8.0)
+	sfx("glass_down", -8.0)
+	sfx("pencil", -12.0)
+	# A mark on their mat (the pencil in your hand a moment), the money when they go.
 	var col := RETRO_UI.C_AMBER_LIGHT if int(verdict["tip"]) > 0 else RETRO_UI.C_BONE
-	pop("+$%d" % int(verdict["amount"]), MUG_FOOT + Vector2(0, -120), col, true)
+	pop("|", MUG_FOOT + Vector2(0, -120), col, true)
+	if _hands_ui != null and is_instance_valid(_hands_ui):
+		_hands_ui.call("flash", "pencil", 4)
+	score_card(verdict, PUB.label(str(best["drink"])))
 	if int(verdict["stars"]) >= 3:
 		say(who, ["Now that's a beer.", "Like my grandad poured.", "Na zdravi!", "Ahh. Perfect.", "You've done this before."][_rng.randi() % 5])
 	elif float(verdict["accuracy"]) >= 0.6:
 		say(who, ["It'll do.", "Cheers.", "Bit off. Fine."][_rng.randi() % 3] + ("" if _spilled < 0.05 else " And mind the bar."))
 	else:
 		say(who, "Hm. Thanks.")
+
+
+func bar_buttons() -> Array:
+	if not (_bill.get("given") as Array).is_empty():
+		return [{"id": "clear", "label": "CLEAR"}]
+	return []
+
+
+func bar_button(id: String) -> void:
+	if id == "clear":
+		_bill.call("clear")
+		sfx("res://assets/sfx/jednota/coin.mp3", -12.0, 0.8)
 
 
 func _opened() -> void:

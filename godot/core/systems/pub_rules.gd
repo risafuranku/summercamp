@@ -15,21 +15,39 @@ extends RefCounted
 ##   back bar the spirits and the kofola, poured to the line of their glass
 ##   washer   the mugs come back dirty when they are drunk: scrubbed on the brushes,
 ##            racked; no clean mugs, no beer
-## Nobody carries anything: what you pour goes to whoever ordered it, and a stroke of the
+## Nobody carries anything: what you pour goes to whoever ordered it, and a mark of the
 ## pencil goes on their beer mat (the rail of every station is the mats).
+##
+## The tab, the Czech way (the brief of 20. 10.): nothing is paid as it is poured. Every
+## drink is a mark on the guest's mat, a stroke for a beer, a cross for a shot, a ring for
+## a kofola (TAB, the price board's prices); when they have had their last, or their time
+## is nearly up, they ask for the bill: the landlord counts the marks, they put down a note
+## (often too big, pay_note) and maybe say "make it" a round sum (the tip), and the change
+## is counted out of the waiter's wallet onto the mat. Nobody comes and they leave the
+## money on the bar, or, if they are cross, nothing at all.
 
 ## What can be ordered: kind tap (a mug, poured at the tap) or bar (the back bar: a shot
 ## glass, or the tall glass for the kofola). beer: the share of the mug that should be
 ## beer (the rest foam to the rim); good: what it takes off the shelf.
 const DRINKS := {
-	"hladinka": {"label": "Hladinka", "kind": "tap", "beer": 0.78, "price": 4, "good": "beer"},
-	"snyt": {"label": "Snyt", "kind": "tap", "beer": 0.46, "price": 3, "good": "beer"},
-	"mliko": {"label": "Mliko", "kind": "tap", "beer": 0.12, "price": 2, "good": "beer"},
-	"rum": {"label": "Rum", "kind": "bar", "tall": false, "price": 3, "good": "rum"},
-	"zelena": {"label": "Zelena", "kind": "bar", "tall": false, "price": 3, "good": "rum"},
-	"slivovice": {"label": "Slivovice", "kind": "bar", "tall": false, "price": 4, "good": "rum"},
-	"kofola": {"label": "Kofola", "kind": "bar", "tall": true, "price": 2, "good": "kofola"},
+	"hladinka": {"label": "Hladinka", "kind": "tap", "beer": 0.78, "price": 4, "good": "beer", "tab": "beer"},
+	"snyt": {"label": "Snyt", "kind": "tap", "beer": 0.46, "price": 4, "good": "beer", "tab": "beer"},
+	"mliko": {"label": "Mliko", "kind": "tap", "beer": 0.12, "price": 4, "good": "beer", "tab": "beer"},
+	"rum": {"label": "Rum", "kind": "bar", "tall": false, "price": 3, "good": "rum", "tab": "shot"},
+	"zelena": {"label": "Zelena", "kind": "bar", "tall": false, "price": 3, "good": "rum", "tab": "shot"},
+	"slivovice": {"label": "Slivovice", "kind": "bar", "tall": false, "price": 3, "good": "rum", "tab": "shot"},
+	"kofola": {"label": "Kofola", "kind": "bar", "tall": true, "price": 2, "good": "kofola", "tab": "kofola"},
 }
+## The marks on a mat and what each costs (the price board over the bar).
+const TAB := {"beer": {"mark": "|", "price": 4}, "shot": {"mark": "x", "price": 3}, "kofola": {"mark": "o", "price": 2}}
+## Game minutes: the bill is asked for this long before their time is up (or when they
+## have finished their last), and they wait this long for it.
+const BILL_LEAD := 10
+const BILL_WAIT := 15
+## What they put down: the smallest of these it fits under (fifties for more).
+const PAY_NOTES := [10, 20, 50]
+## The waiter's wallet: what change is counted out in.
+const CHANGE := [1, 2, 5, 10]
 ## What each kind of guest drinks (weights).
 const TASTE := {
 	"drunk": {"hladinka": 8, "snyt": 1, "rum": 3, "zelena": 2},
@@ -113,6 +131,9 @@ static func rounds(archetype: String) -> int:
 ##   returns [{id, member, round, drink, price, since, age}]
 static func tickets_for(visit: String, archetype: String, figures: int, arrive: int, served: Dictionary, now: int) -> Array:
 	var out: Array = []
+	# Their time is nearly up: they ask for the bill instead (bill_for).
+	if now >= arrive + stay(archetype) - BILL_LEAD:
+		return out
 	for m in maxi(1, figures):
 		var since := arrive + ORDER_DELAY + m
 		for r in rounds(archetype):
@@ -182,3 +203,113 @@ static func gas_band(gas: float) -> String:
 	if gas < GAS_LOW:
 		return "LOW"
 	return "HIGH" if gas > GAS_HIGH else "OK"
+
+
+# ── the tab ──────────────────────────────────────────────────────────────────
+
+static func tab_class(drink: String) -> String:
+	return str((DRINKS.get(drink, {}) as Dictionary).get("tab", "beer"))
+
+
+## A visit's tab from what was poured for it: {counts: {beer, shot, kofola}, total (the
+## marks at the board's prices), tips (what they would add for good service), last_at
+## (the last drink's minute), n (drinks)}.
+static func tab_of(visit: String, served: Dictionary) -> Dictionary:
+	var counts := {"beer": 0, "shot": 0, "kofola": 0}
+	var total := 0
+	var tips := 0
+	var last := -1
+	var n := 0
+	for tid in served:
+		var id := str(tid)
+		if not id.begins_with(visit + "#") or id.ends_with("#bill"):
+			continue
+		var rec: Dictionary = served[tid]
+		var c := tab_class(str(rec.get("drink", "hladinka")))
+		counts[c] = int(counts[c]) + 1
+		total += int(TAB[c]["price"])
+		tips += int(rec.get("tip", 0))
+		last = maxi(last, int(rec.get("at", 0)))
+		n += 1
+	return {"counts": counts, "total": total, "tips": tips, "last_at": last, "n": n}
+
+
+## Whether the visit has more rounds coming (an order open, or the next one not due yet
+## because they are still drinking).
+static func more_rounds(visit: String, archetype: String, figures: int, arrive: int, served: Dictionary, now: int) -> bool:
+	for m in maxi(1, figures):
+		var since := arrive + ORDER_DELAY + m
+		for r in rounds(archetype):
+			var tid := "%s#%d/%d" % [visit, m, r]
+			if served.has(tid):
+				since = int((served[tid] as Dictionary).get("at", now)) + DRINK_MINUTES
+				continue
+			if now - since < PATIENCE_GONE:
+				return true
+			break
+	return false
+
+
+## How long a visit stays in the pub (game minutes from coming in): their rounds and a
+## little over; the pub keeps them past their time while their tab is open (taproom.gd,
+## orders.set_holds).
+static func stay(archetype: String) -> int:
+	return ORDER_DELAY + rounds(archetype) * DRINK_MINUTES + BILL_LEAD
+
+
+## Their bill when they want to pay ({} not yet, nothing on the tab, or paid): {id
+## (visit#bill), kind "bill", visit, counts, total, make_it (the round sum they ask for
+## with a tip: 0 none), note (what they put down: 0 the right money), since, age}. Asked
+## for when they have finished their last drink, or BILL_LEAD before their time is up.
+static func bill_for(visit: String, archetype: String, figures: int, arrive: int, served: Dictionary, now: int) -> Dictionary:
+	if served.has(visit + "#bill"):
+		return {}
+	var tab := tab_of(visit, served)
+	if int(tab["n"]) <= 0:
+		return {}
+	var due := arrive + stay(archetype) - BILL_LEAD
+	if not more_rounds(visit, archetype, figures, arrive, served, now):
+		due = mini(due, int(tab["last_at"]) + DRINK_MINUTES)
+	if now < due:
+		return {}
+	var total := int(tab["total"])
+	var make_it := 0
+	if int(tab["tips"]) > 0:
+		# "Make it twenty": up to the next five with their tip in it.
+		make_it = int(ceil(float(total + int(tab["tips"])) / 5.0)) * 5
+	var to_pay := make_it if make_it > 0 else total
+	return {"id": visit + "#bill", "kind": "bill", "visit": visit, "counts": tab["counts"], "total": total,
+		"make_it": make_it, "note": pay_note(to_pay, visit), "since": due, "age": now - due}
+
+
+## What they put down for `amount`: the right money now and then (0), else the smallest
+## note it fits under, or fifties.
+static func pay_note(amount: int, visit: String) -> int:
+	if absi(hash(visit + ":bill")) % 4 == 0:
+		return 0
+	for note in PAY_NOTES:
+		if int(note) > amount:
+			return int(note)
+	return 50 * int(ceil(float(amount + 1) / 50.0))
+
+
+## What the bill comes to with their tip in it (the round sum, or the marks).
+static func to_pay(bill: Dictionary) -> int:
+	return int(bill.get("make_it", 0)) if int(bill.get("make_it", 0)) > 0 else int(bill.get("total", 0))
+
+
+## The change due on a bill (0 when they paid right).
+static func change_due(bill: Dictionary) -> int:
+	return maxi(0, int(bill.get("note", 0)) - to_pay(bill)) if int(bill.get("note", 0)) > 0 else 0
+
+
+## The change counted out against what is due: {ok, accuracy, speed, over, short}. Short:
+## they say so and wait; too much: they keep it.
+static func judge_change(given: int, due: int, age: int) -> Dictionary:
+	var speed := 1.0 if age < 5 else (0.7 if age < int(BILL_WAIT * 0.6) else 0.35)
+	if given < due:
+		return {"ok": false, "accuracy": 0.0, "speed": speed, "over": 0, "short": due - given}
+	var over := given - due
+	var acc := 1.0 if over == 0 else clampf(1.0 - 0.2 * float(over), 0.3, 0.9)
+	return {"ok": true, "accuracy": acc, "speed": speed, "over": over, "short": 0}
+

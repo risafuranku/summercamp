@@ -8,8 +8,17 @@ extends Node
 ## Run as a SCENE (CoreRoot / EventBus autoloads). Asserts:
 ## - a pub's tap from the books: sixteen clean mugs, the keg on the line, tapped today;
 ## - the orders come from the guests in it, the same ones every time;
-## - a good pour served (Papa's score): the price and a tip, three stars, a mug off the
-##   board, a pint off the keg and the books, the shift's tally; a poor one fewer stars;
+## - a good pour served (Papa's score): three stars and a tip, on the tab (no money yet, a
+##   mark on the mat), a mug off the board, a pint off the keg and the books, the shift's
+##   tally; a poor one fewer stars;
+## - the bill: asked for when their time is up, no more rounds then; short change is
+##   refused, the right change takes the marks' money (and the round sum with a tip);
+##   the bill counted at the tap as a player does it; one nobody came for is left on
+##   the bar by a happy guest;
+## - the fun (pub_fun.gd): the LUCKY 7 keeps a house edge and pays three sevens, a dart in
+##   the bull is fifty and one in the treble twenty sixty, two aces win at cards; the
+##   guests have their go (the machine's take in the till, their darts in the board); a
+##   warden's game of cards moves the stake; the three stations build;
 ## - the keg on the line goes flat after three days (six with the keg cooler); what is
 ##   left in it thrown out is the books' waste;
 ## - the hands: the tap's pours the oldest beer ordered, the bar's a shot or a kofola,
@@ -23,6 +32,7 @@ const PUB := preload("res://core/systems/pub_rules.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const TAPROOM := preload("res://scripts/pub/taproom.gd")
+const FUN := preload("res://core/systems/pub_fun.gd")
 const KEY := "6:6"
 
 var _failures: Array[String] = []
@@ -84,7 +94,8 @@ func _ready() -> void:
 	var verdict: Dictionary = tr.serve(KEY, tap_t, v)
 	_expect(bool(verdict.get("ok", false)), "served")
 	_expect(int(verdict["stars"]) == 3 and int(verdict["tip"]) > 0, "three stars and a tip (%s)" % str(verdict))
-	_expect(state.money == money0 + int(verdict["amount"]) and int(verdict["amount"]) == int(tap_t["price"]) + int(verdict["tip"]), "the money in the till")
+	_expect(state.money == money0 and bool(verdict.get("tab", false)), "on the tab: nothing in the till yet")
+	_expect(int(PUB.tab_of(str(tap_t["visit"]), tr.site(KEY)["served"])["n"]) == 1, "a mark on their mat")
 	_expect(int(site["stock"]["beer"]) == beer0 - 1, "a pint off the books")
 	_expect(int(tr.mugs(KEY)["clean"]) == PUB.MUGS - 1, "a mug off the board")
 	_expect(int(tr.keg(KEY)["line"]) == mini(PUB.KEG_PINTS, beer0) - 1, "a pint off the keg")
@@ -167,7 +178,7 @@ func _ready() -> void:
 	var room := Node3D.new()
 	add_child(room)
 	var st := {}
-	for id in ["tap", "back", "wash", "keg"]:
+	for id in ["tap", "back", "wash", "keg", "slot", "darts", "cards"]:
 		var v3: Node3D = load("res://scripts/pub/%s_station.gd" % id).new()
 		var surf: Dictionary = load("res://scripts/pub/pub_layout.gd").SURFACES[id]
 		v3.set("building_key", KEY)
@@ -223,6 +234,80 @@ func _ready() -> void:
 	_expect(bool(tr.keg(KEY)["coupled"]) and tr.tap_trouble(KEY) == "", "the head back on: it pours")
 	# The second tap's gear makes the tap's beer come faster; the coupler the head.
 	_expect(RULES.gear_list("pub").has("tap2") and RULES.gear_list("pub").has("coupler"), "the pub's gear")
+
+	# The fun.
+	var edge := FUN.house_edge()
+	_expect(edge > 0.05 and edge < 0.45, "the LUCKY 7 keeps a house edge (%.2f)" % edge)
+	_expect(FUN.payout(["seven", "seven", "seven"]) == int(FUN.PAY_THREE["seven"]) and FUN.payout(["lemon", "bell", "plum"]) == 0, "three sevens pay, a mixed line does not")
+	_expect(FUN.dart_score(Vector2.ZERO) == 50 and FUN.dart_score(Vector2(0, -0.6)) == 60 and FUN.dart_score(Vector2(0, -1.2)) == 0, "the bull, the treble twenty, off the board")
+	_expect(FUN.result(["ace", "ace"], ["10", "ace"]) == 1 and FUN.result(["10", "9", "8"], ["7"]) == -1, "two aces win; over twenty-one loses")
+	_expect(FUN.pack(7).size() == 32 and FUN.pack(7) == FUN.pack(7), "the same shuffled pack for a game")
+	var takings0 := int(site["today"]["takings"])
+	var hour0: int = GuestManager._last_known_hour
+	GuestManager._last_known_hour = hour0 + 1
+	tr._guests_play(KEY, TAPROOM.now_min())
+	var played: Dictionary = tr.fun(KEY)["played"]
+	_expect(not played.is_empty(), "the guests have their go (%d)" % played.size())
+	var any_slot := false
+	for k2 in played:
+		any_slot = any_slot or str(k2).ends_with(":slot")
+	if any_slot:
+		_expect(int(site["today"]["takings"]) > takings0 and not (tr.fun(KEY)["slot"] as Dictionary).is_empty(), "what they fed the LUCKY 7 is in the till")
+	GuestManager._last_known_hour = hour0
+	var m_cards: int = state.money
+	tr.cards_done(KEY, 900, 1)
+	_expect(state.money == m_cards + FUN.STAKE, "a game of cards won: their stake in the till")
+	tr.cards_done(KEY, 900, -1)
+	_expect(state.money == m_cards, "and lost: yours to them")
+	st["slot"].debug_pull()
+	_expect(not (tr.fun(KEY)["slot"] as Dictionary).is_empty() and str(tr.fun(KEY)["slot"]["who"]) == "you", "the lever pulled: a game")
+	for i in 3:
+		st["darts"].debug_throw(Vector2(0, -0.6))
+	_expect(int(tr.fun(KEY)["darts"].get("total", 0)) == 180, "three in the treble twenty: one hundred and eighty")
+	_expect(st["cards"].debug_game(["ace", "ace"], ["10", "9"]) == 1, "oko at the table")
+
+	# The tab and the bill: their time is up (the clock on three hours), the bills asked for.
+	GuestManager._last_known_hour = 21
+	var bills: Array = tr.bills(KEY)
+	_expect(not bills.is_empty(), "bills asked for when their time is up (%d)" % bills.size())
+	_expect(tr.tickets(KEY).is_empty(), "no more rounds while they pay (%d)" % tr.tickets(KEY).size())
+	if not bills.is_empty():
+		var b: Dictionary = bills[0]
+		var tab: Dictionary = PUB.tab_of(str(b["visit"]), tr.site(KEY)["served"])
+		_expect(int(b["total"]) == int(tab["total"]) and int(b["total"]) > 0, "the bill is the marks (%s)" % str(b["counts"]))
+		var due := PUB.change_due(b)
+		var m0: int = state.money
+		if due > 0:
+			var short: Dictionary = tr.settle(KEY, b, due - 1)
+			_expect(not bool(short["ok"]) and state.money == m0, "short change refused")
+		var ok: Dictionary = tr.settle(KEY, b, due)
+		_expect(bool(ok["ok"]) and state.money == m0 + PUB.to_pay(b), "the right change: the bill's money in the till (%d)" % (state.money - m0))
+		_expect(tr.bill_of(KEY, str(b["visit"])).is_empty(), "that bill settled")
+	# The bill at the tap, as a player counts it: the note taken, the change, handed over.
+	var at_tap: Array = tr.bills(KEY)
+	if not at_tap.is_empty():
+		var b2: Dictionary = at_tap[0]
+		var spot = st["tap"].get("_bill")
+		spot.call("pick", b2)
+		var m1: int = state.money
+		spot.call("press", "bill:mat")
+		var due2 := PUB.change_due(b2)
+		for coin in [10, 5, 2, 1]:
+			while int(spot.call("given_sum")) + coin <= due2:
+				spot.call("press", "bill:%d" % coin)
+		if int(b2["note"]) > 0:
+			spot.call("press", "bill:mat")
+		_expect(tr.bill_of(KEY, str(b2["visit"])).is_empty() and state.money == m1 + PUB.to_pay(b2), "the bill counted at the tap (%d)" % (state.money - m1))
+	# One nobody comes for: left on the bar by a guest who liked it.
+	var left: Array = tr.bills(KEY)
+	if not left.is_empty():
+		var b3: Dictionary = left[0]
+		GuestManager._last_known_hour = 23
+		var m2: int = state.money
+		tr._bills_waiting(KEY, TAPROOM.now_min())
+		var rec: Dictionary = tr.site(KEY)["served"].get(str(b3["id"]), {})
+		_expect(bool(rec.get("left", false)), "an unpaid bill is settled by itself (%s)" % str(rec))
+		_expect(state.money == m2 + int(rec.get("kept", 0)), "what was left on the bar is in the till")
 
 	print("")
 	if _failures.is_empty():
