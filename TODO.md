@@ -30,8 +30,10 @@ finished game, by impact:
   its smoke a dither shader (generated sprites)
 - [x] A clear night has the overcast sky: no stars, no moon — stars, the milky way and
   the full moon since 20. 10. (`night_sky.py`)
-- [ ] The sun, its glow and its flare are still drawn by code (`weather_visuals`
-  `_create_pixel_sun_*`), the clouds' sprites too (`_create_pixel_cloud_texture`)
+- [x] The sun, its glow and its flare are still drawn by code (`weather_visuals`
+  `_create_pixel_sun_*`), the clouds' sprites too — Grok sun and clouds, no glow or flare
+  (20. 10.; the first render was a cartoon orb and cute clouds, redone in the sky's own
+  digitized-photo look)
 - [x] Dawn (6:30) is flat and dark: no mist in the hollows and over the lake, no colour in
   the sky — a dawn sky (rose and peach in the east, the stars going) and the morning mist
   over the meadow and the lake, lifting by 8:30 (20. 10.)

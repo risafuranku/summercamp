@@ -7,6 +7,8 @@ is the light in a few flat shade steps, for additive drawing (agent B, 20. 10.).
       drawn added to what is behind it (scripts/building_manager.gd, LAMP_BEAM_TEX).
   spr_mist_bank -> godot/assets/textury/world/mist_bank.png (96 wide): a bank of ground
       mist, white, see-through in four steps (scripts/ambient/ground_life.gd tints it).
+  spr_sun -> godot/assets/textury/skybox/sun.png (40 x 40): the sun, its white-hot disc
+      and its haze in four steps, drawn added to the sky (weather_visuals.gd).
   spr_rain_rings -> godot/assets/textury/world/rain_ring.png (64 x 16): a raindrop's ripple
       on a puddle in four frames side by side, each cut out of the render round its own
       middle at one common size (ground_life.gd plays them).
@@ -26,6 +28,8 @@ GODOT = os.path.join(HERE, "..", "..", "godot")
 
 # Lamplight from the dimmest step to the brightest (a palette's ramp: its own hue).
 WARM = [(70, 44, 20), (128, 84, 40), (196, 140, 72), (250, 214, 150)]
+# The sun, from its haze's edge to its disc.
+SUN = [(110, 70, 40), (190, 130, 80), (250, 210, 150), (255, 250, 235)]
 # White, from the thinnest step to the thickest (as see-through as a translucency table).
 MIST = [(255, 255, 255, 36), (255, 255, 255, 72), (255, 255, 255, 108), (255, 255, 255, 144)]
 
@@ -33,6 +37,7 @@ ROWS = {
     # (dest, size, ramp, the light's threshold in the render, the steps' bounds 0..1)
     "spr_lamp_beam": ("assets/textury/camp/lamp_beam.png", (48, 112), WARM, 0.07, (0.3, 0.55, 0.8)),
     "spr_mist_bank": ("assets/textury/world/mist_bank.png", (96, 0), MIST, 0.06, (0.25, 0.5, 0.75)),
+    "spr_sun": ("assets/textury/skybox/sun.png", (40, 40), SUN, 0.05, (0.22, 0.5, 0.82)),
 }
 
 

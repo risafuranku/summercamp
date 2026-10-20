@@ -22,6 +22,10 @@
       before the sun goes down, just after it, the blue hour)
       -> skybox/skygolden.png, skysunset.png, skybluehour.png, the same way with the glow
          in the west (+X, u 0.25), where the sun goes down.
+  out/spr_clouds/raw.png (four ragged clouds in a row on magenta)
+      -> skybox/cloud_0..3.png, 64 wide (weather_visuals.gd's drifting clouds): the
+         magenta keyed out (process.py), each cut out, scaled by area (its colour weighed
+         by how much of each cell is cloud, no pink fringe), the edge hard.
   out/spr_moon/raw.png (the full moon on magenta)
       -> godot/assets/textury/skybox/moon.png, 24 x 24 with alpha (the moon is some 20 of
          the screen's lines across at Build 240p: its pixels about the screen's).
@@ -162,6 +166,45 @@ def build_glow_sky(art_id: str, name: str, glow_u: float) -> None:
     print("->", dst, img.size, os.path.getsize(dst) // 1024, "KB")
 
 
+def build_clouds() -> None:
+    sys.path.insert(0, HERE)
+    import process
+    img = process.key_out(Image.open(os.path.join(OUT, "spr_clouds", "raw.png")))
+    a = np.asarray(img).astype(np.float32)
+    alpha = a[..., 3] / 255.0
+    cols = np.nonzero((alpha > 0.5).any(axis=0))[0]
+    runs, start = [], cols[0]
+    for c0, c1 in zip(cols[:-1], cols[1:]):
+        if c1 - c0 > 6:
+            runs.append((start, c0 + 1))
+            start = c1
+    runs.append((start, cols[-1] + 1))
+    # A stray wisp between two clouds is not a cloud.
+    runs = [r for r in runs if r[1] - r[0] >= 40]
+    for i, (x0, x1) in enumerate(runs):
+        rows = np.nonzero((alpha[:, x0:x1] > 0.5).any(axis=1))[0]
+        y0, y1 = rows[0], rows[-1] + 1
+        piece = a[y0:y1, x0:x1]
+        w = 64
+        h = max(1, round((y1 - y0) * w / (x1 - x0)))
+        # Colour weighed by coverage (premultiplied), so the keyed edge brings no pink.
+        prem = piece[..., :3] * (piece[..., 3:4] / 255.0)
+        pc = np.asarray(Image.fromarray(prem.clip(0, 255).astype(np.uint8)).resize((w, h), Image.BOX)).astype(np.float32)
+        pa = np.asarray(Image.fromarray(piece[..., 3].astype(np.uint8), "L").resize((w, h), Image.BOX)).astype(np.float32) / 255.0
+        out = np.zeros((h, w, 4), np.uint8)
+        m = pa >= 0.5
+        col = (pc / np.maximum(pa[..., None], 1e-3)).clip(0, 255)
+        # What magenta the key left in the thin wisps: grey like the rest.
+        pink = (col[..., 0] + col[..., 2]) * 0.5 - col[..., 1] > 18.0
+        lum = col.mean(axis=2, keepdims=True)
+        col = np.where(pink[..., None], lum * np.array([0.98, 1.0, 1.04]), col)
+        out[m, :3] = col[m].clip(0, 255)
+        out[m, 3] = 255
+        dst = os.path.join(SKY, "cloud_%d.png" % i)
+        Image.fromarray(out, "RGBA").save(dst)
+        print("->", dst, (w, h))
+
+
 def build_moon() -> None:
     a = np.asarray(Image.open(os.path.join(OUT, "spr_moon", "raw.png")).convert("RGB")).astype(np.float32)
     # Magenta is red and blue with no green; the moon's grey and yellow have their green
@@ -199,6 +242,8 @@ if __name__ == "__main__":
         build_sky()
     if "dawn" in what:
         build_dawn()
+    if "clouds" in what:
+        build_clouds()
     for k, (art_id, name) in EVENING.items():
         if k in what:
             build_glow_sky(art_id, name, 0.25)
