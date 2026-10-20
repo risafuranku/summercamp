@@ -49,7 +49,8 @@ finished game, by impact:
   (20. 10.)
 - [x] The bonfire's smoke a dither shader — Grok puffs at Build's translucencies (20. 10.);
   the fire's light on the ground round it reads at night
-- [ ] The bonfire's sparks are flat-coloured quads (one or two pixels on screen)
+- [x] The bonfire's sparks are flat-coloured quads (one or two pixels on screen) — Grok
+  embers in three ages, added to the scene like light (20. 10.)
 - [x] A clear night has the overcast sky: no stars, no moon — stars, the milky way and
   the full moon since 20. 10. (`night_sky.py`)
 - [x] The sun, its glow and its flare are still drawn by code (`weather_visuals`
@@ -77,20 +78,26 @@ finished game, by impact:
 - [x] Rain: drips off the eaves after it stops (20. 10., world_sounds.gd)
 - [x] Rain sound by surface: tin roofs, the tents' canvas, the lake, the trees over you
   (20. 10., world_sounds.gd)
-- [ ] Rain: drips you can see off roofs and trees
+- [x] Rain: drips you can see off roofs and trees — from fixed spots along each roof's
+  lowest edge and off the trees near you, a crown where they land (20. 10.)
 - [x] Sound: the lake's lapping and the frogs played in the middle of the camp (the jetty's
   body sits at the lake's origin) — fixed 20. 10.
 - [x] Sound: footsteps on snow and in puddles (the jetty's boards were there); guests and
   the country far off by the hour (far_life.gd); the flagpole, the washrooms' tube and tap
   (the transformer by the corn and the swings were there) — 20. 10.
 - [x] Sound: the jacket and the keys as you move (20. 10.)
-- [ ] Sound: reverb by room; the small fridge hums in a better cabin
+- [x] Sound: reverb by room — the room's own sounds through a Room bus (wood rings a
+  little, canvas hardly), the outside low-passed through the walls (20. 10.)
+- [ ] Sound: the small fridge hums in a better cabin (`cabin_interior.gd` was another
+  session's open file on 20. 10.)
 - [x] Body, movement: slower in snow, mud and puddles, slower out of breath, the view a
   little wider in a run (acceleration, the stepped bob, the lean and the landing were
   there) — 20. 10.
+- [x] Body: doors with a feel — the guests' doors swing with weight, knock on the frame,
+  creak and thud (20. 10.)
 - [ ] Body: hands (one glove for every tool, more frames, sway, cold and fear tremor,
-  reaching for doors and switches; another session's area since 0749f84); doors with a
-  feel; things to nudge; the menu camera
+  reaching for doors and switches; another session's area since 0749f84); things to
+  nudge; the menu camera
 - [x] Every sound the code synthesised is a recording now (the camera, the thump, the
   pager, the station, the phone line, the splash's neon, the set's tone)
 - [x] Production, frame time at 1920x1080 (the tour camp, clear and rain, noon and 20:30,

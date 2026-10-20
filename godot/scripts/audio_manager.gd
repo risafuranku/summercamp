@@ -151,6 +151,9 @@ const LAKE_INSECTS_CHECK_INTERVAL_SECONDS: float = 0.35
 const GRID_TILE_TYPE_LAKE: int = 1
 const INTERIOR_AUDIO_DUCK_DB: float = -10.0
 const INTERIOR_AUDIO_DUCK_FADE_SECONDS: float = 0.35
+## The outside through the walls: low-passed to this indoors (open, it is all there).
+const OUTDOOR_LOWPASS_INDOORS_HZ: float = 1200.0
+const OUTDOOR_LOWPASS_OPEN_HZ: float = 20500.0
 const OUTDOOR_AMBIENCE_BUS_NAME := "OutdoorAmbience"
 ## Crickets, frogs, the owl and the lake insects: a sub-bus of the outdoor ambience that
 ## falls silent around a night presence (set_insect_hush, fed by threat_senses.gd).
@@ -1573,6 +1576,35 @@ func _update_interior_audio_ducking(should_duck: bool) -> void:
 		target_db,
 		INTERIOR_AUDIO_DUCK_FADE_SECONDS
 	)
+	# Through the walls the outside loses its top: the rain, the wind, the frogs muffled.
+	var lp := _outdoor_lowpass()
+	if lp != null:
+		_interior_audio_duck_tween.parallel().tween_method(
+			Callable(self, "_set_outdoor_lowpass_hz"),
+			lp.cutoff_hz,
+			OUTDOOR_LOWPASS_INDOORS_HZ if should_duck else OUTDOOR_LOWPASS_OPEN_HZ,
+			INTERIOR_AUDIO_DUCK_FADE_SECONDS
+		)
+
+
+## The outdoor bus's low-pass (made with the bus, open outdoors).
+func _outdoor_lowpass() -> AudioEffectLowPassFilter:
+	if _outdoor_ambience_bus_index < 0 or _outdoor_ambience_bus_index >= AudioServer.get_bus_count():
+		return null
+	for i in AudioServer.get_bus_effect_count(_outdoor_ambience_bus_index):
+		var fx := AudioServer.get_bus_effect(_outdoor_ambience_bus_index, i)
+		if fx is AudioEffectLowPassFilter:
+			return fx
+	var lp := AudioEffectLowPassFilter.new()
+	lp.cutoff_hz = OUTDOOR_LOWPASS_OPEN_HZ
+	AudioServer.add_bus_effect(_outdoor_ambience_bus_index, lp)
+	return lp
+
+
+func _set_outdoor_lowpass_hz(hz: float) -> void:
+	var lp := _outdoor_lowpass()
+	if lp != null:
+		lp.cutoff_hz = hz
 
 
 func _set_outdoor_ambience_bus_volume_db(volume_db: float) -> void:

@@ -17,6 +17,7 @@ const POSES = preload("res://scripts/attractions/poses.gd")
 const SFX_SIZZLE := "res://assets/sfx/life/sausage_sizzle.mp3"
 const SMOKE_SHADER = preload("res://materials/fire_smoke.gdshader")
 const SMOKE_TEX := "res://assets/textury/camp/fire_smoke.png"
+const EMBERS_TEX := "res://assets/textury/camp/embers.png"
 const SFX_CRACKLE := "res://assets/sfx/life/fire_crackle.mp3"
 const SFX_LOG := "res://assets/sfx/life/fire_log.mp3"
 const SFX_POP := "res://assets/sfx/life/fire_pop.mp3"
@@ -95,11 +96,22 @@ func _setup() -> void:
 			_pile.append(c)
 		elif c is MeshInstance3D and str(c.name).begins_with("FireLog"):
 			_burning.append(c)
-	for col in [Color(1.0, 0.92, 0.5), Color(1.0, 0.62, 0.18), Color(0.86, 0.26, 0.06)]:
+	# The sparks' three ages: Grok embers (camp/embers.png, young, older, nearly out side by
+	# side), added to the scene like light (they were flat-coloured squares).
+	var ember_tex: Texture2D = load(EMBERS_TEX) if ResourceLoader.exists(EMBERS_TEX) else null
+	for i in 3:
 		var m := StandardMaterial3D.new()
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_color = col
 		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		if ember_tex != null:
+			m.albedo_texture = ember_tex
+			m.uv1_scale = Vector3(1.0 / 3.0, 1.0, 1.0)
+			m.uv1_offset = Vector3(float(i) / 3.0, 0.0, 0.0)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		else:
+			m.albedo_color = [Color(1.0, 0.92, 0.5), Color(1.0, 0.62, 0.18), Color(0.86, 0.26, 0.06)][i]
 		_spark_mats.append(m)
 	_crackle = _sound(SFX_CRACKLE, -30.0, 16.0)
 	_loop(_crackle)
@@ -288,11 +300,13 @@ func _burst(n: int) -> void:
 			return
 		var s := MeshInstance3D.new()
 		var q := QuadMesh.new()
-		var sz := _rng.randf_range(0.018, 0.036)
+		var sz := _rng.randf_range(0.04, 0.07)
 		q.size = Vector2(sz, sz)
 		s.mesh = q
 		s.material_override = _spark_mats[0]
 		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Their own material (added light): not the PS1 surfaces' (retro_materials.gd).
+		s.set_meta("retro_skip", true)
 		add_child(s)
 		s.position = Vector3(_rng.randf_range(-0.2, 0.2), 0.45 + _rng.randf() * 0.3, _rng.randf_range(-0.2, 0.2))
 		var up := _rng.randf_range(0.08, 0.2) * (1.0 + _flare)

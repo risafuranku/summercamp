@@ -3,6 +3,9 @@ extends Node3D
 ## The weather on the ground round you, outdoors (the camp, the road, Lesna):
 ##   - rain: puddles gather where you are (they grow the longer it rains and dry up after,
 ##     slowly), rings spread on them as the drops hit, in steps;
+##   - after the rain, while it is still wet: drops fall off the eaves of the buildings near
+##     you and the branches of the trees, a crown where each lands (Grok world/water_drop.png,
+##     world/rain_splash.png), fewer as it dries (world_sounds.gd has their sound);
 ##   - night, the morning and fog: low mist lies along the ground and creeps with the wind,
 ##     thicker in the small hours, the most at first light (in the hollows, over the lake),
 ##     gone by half past eight, and in the fog all day: banks of it (Grok world/mist_bank.png,
@@ -17,6 +20,9 @@ const RADIUS := 22.0
 const MIST_TEX := "res://assets/textury/world/mist_bank.png"
 ## A raindrop's ripple, four frames of 16 px side by side (tools/artgen/light_sprites.py).
 const RING_TEX := "res://assets/textury/world/rain_ring.png"
+const DROP_TEX := "res://assets/textury/world/water_drop.png"
+const SPLASH_TEX := "res://assets/textury/world/rain_splash.png"
+const DRIPS := 24
 
 var player_getter: Callable
 var indoors: Callable
@@ -35,6 +41,10 @@ var _acc := 0.0
 var _t := 0.0
 var _anchor := Vector3.INF
 var _rain := 0.0
+var _drips: Array = []           # {drop: Sprite3D, crown: Sprite3D, v, t (crown frames left)}
+var _drip_t := 1.0               # the next drop off a tree
+var _drip_eaves: Dictionary = {} # building id -> {pts: [Vector3], t: [float]}: the eaves near you
+var _drip_scan := 0.0
 
 
 func _ready() -> void:
@@ -84,6 +94,29 @@ func _ready() -> void:
 			add_child(r)
 			rings.append({"sprite": r, "t": _rng.randf() * 0.6})
 		_puddles.append({"mesh": mi, "size": s, "rings": rings, "spot": Vector3.ZERO})
+	var drop_tex: Texture2D = load(DROP_TEX) if ResourceLoader.exists(DROP_TEX) else null
+	var crown_tex: Texture2D = load(SPLASH_TEX) if ResourceLoader.exists(SPLASH_TEX) else null
+	for i in DRIPS:
+		var dr := Sprite3D.new()
+		dr.texture = drop_tex
+		dr.pixel_size = 0.0075
+		dr.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		dr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		dr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		dr.shaded = false
+		dr.visible = false
+		add_child(dr)
+		var cr := Sprite3D.new()
+		cr.texture = crown_tex
+		cr.pixel_size = 0.014
+		cr.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		cr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		cr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		cr.shaded = false
+		cr.offset = Vector2(0, 5)
+		cr.visible = false
+		add_child(cr)
+		_drips.append({"drop": dr, "crown": cr, "v": 0.0, "t": 0, "live": false})
 	var mist_tex := _mist_texture()
 	for i in MIST:
 		var sp := Sprite3D.new()
@@ -229,3 +262,171 @@ func _process(delta: float) -> void:
 		var a := _mist_amount * 0.9 * clampf((off.length() - 10.0) / 10.0, 0.2, 1.0)
 		sp.modulate = Color(tint.r, tint.g, tint.b, a)
 		sp.visible = a > 0.01
+	_step_drips(centre, tint)
+
+
+## The drops after the rain: off an eave near you or a tree's branch, falling, a crown where
+## it lands; more often the wetter it still is. In steps, twelve a second.
+func _step_drips(centre: Vector3, tint: Color) -> void:
+	var dt := 1.0 / FPS
+	var col := tint.lightened(0.45)
+	for d in _drips:
+		var cr: Sprite3D = d["crown"]
+		if int(d["t"]) > 0:
+			d["t"] = int(d["t"]) - 1
+			cr.visible = int(d["t"]) > 0
+		if not d["live"]:
+			continue
+		var dr: Sprite3D = d["drop"]
+		d["v"] = float(d["v"]) + 9.8 * dt
+		var p := dr.global_position - Vector3(0, float(d["v"]) * dt, 0)
+		if p.y <= 0.06:
+			d["live"] = false
+			dr.visible = false
+			cr.global_position = Vector3(p.x, 0.03, p.z)
+			cr.modulate = col
+			cr.visible = true
+			d["t"] = 3
+			continue
+		dr.global_position = p
+		dr.modulate = col
+	if _rain > 0.0 or _wet < 0.15:
+		return
+	var wetness := clampf((_wet - 0.15) / 0.6, 0.0, 1.0)
+	# The eaves of the buildings near you, looked up again every second: each spot where the
+	# water gathers drips on its own beat, faster the wetter it still is.
+	_drip_scan -= dt
+	if _drip_scan <= 0.0:
+		_drip_scan = 1.0
+		_scan_eaves(centre)
+	for id in _drip_eaves:
+		var e: Dictionary = _drip_eaves[id]
+		var pts: Array = e["pts"]
+		var ts: Array = e["t"]
+		for i in pts.size():
+			ts[i] = float(ts[i]) - dt
+			if float(ts[i]) <= 0.0:
+				ts[i] = lerpf(3.2, 0.9, wetness) * _rng.randf_range(0.7, 1.3)
+				_drop_from(pts[i], col)
+	# Now and then off a tree near you.
+	_drip_t -= dt
+	if _drip_t > 0.0:
+		return
+	_drip_t = lerpf(1.6, 0.35, wetness) * _rng.randf_range(0.6, 1.4)
+	var near: Array = []
+	for t in get_tree().get_nodes_in_group("trees"):
+		if t is Node3D:
+			var tp := (t as Node3D).global_position
+			if Vector2(tp.x - centre.x, tp.z - centre.z).length() < 10.0:
+				near.append(tp)
+	if not near.is_empty():
+		var tp: Vector3 = near[_rng.randi() % near.size()]
+		_drop_from(tp + Vector3(_rng.randf_range(-1.6, 1.6), _rng.randf_range(2.5, 4.5), _rng.randf_range(-1.6, 1.6)), col)
+
+
+func _drop_from(from: Vector3, col: Color) -> void:
+	for d in _drips:
+		if not d["live"]:
+			d["live"] = true
+			d["v"] = 0.0
+			var dr: Sprite3D = d["drop"]
+			dr.global_position = from
+			dr.modulate = col
+			dr.visible = true
+			return
+
+
+## The buildings within reach, the four nearest; a building keeps its drips' beat while it
+## stays near.
+func _scan_eaves(centre: Vector3) -> void:
+	var main := get_tree().current_scene
+	var bm = main.get("building_manager") if main != null else null
+	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
+	var found: Array = []
+	if structures != null:
+		for c in structures.get_children():
+			if not (c is Node3D) or str(c.get_meta("building_type", "")) == "":
+				continue
+			var cp := (c as Node3D).global_position
+			var dd := Vector2(cp.x - centre.x, cp.z - centre.z).length()
+			if dd < 16.0:
+				found.append([dd, c])
+	found.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	var keep: Dictionary = {}
+	for f in found:
+		if keep.size() >= 4:
+			break
+		var s: Node3D = f[1]
+		var id := s.get_instance_id()
+		var pts := _eave_points(s)
+		if pts.is_empty():
+			continue
+		if _drip_eaves.has(id) and (_drip_eaves[id]["pts"] as Array).size() == pts.size():
+			keep[id] = _drip_eaves[id]
+			keep[id]["pts"] = pts
+			continue
+		var ts: Array = []
+		for i in pts.size():
+			ts.append(_rng.randf_range(0.0, 2.0))
+		keep[id] = {"pts": pts, "t": ts}
+	_drip_eaves = keep
+
+
+## Where the water gathers on a building's roof edge and drips off: a few spots along its
+## eaves, just under them. A roof is whatever spans most of the building and starts high
+## up; its eave is its lowest edge (a gable slab's outer edge, all four of a flat roof's).
+## Kept on the building until it moves.
+func _eave_points(s: Node3D) -> Array:
+	if s.has_meta("drip_pts") and s.get_meta("drip_xf") == s.global_transform:
+		return s.get_meta("drip_pts")
+	var pts: Array = []
+	var inv := s.global_transform.affine_inverse()
+	var whole := AABB()
+	var parts: Array = []
+	for m in s.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		if mi.mesh == null or not mi.is_visible_in_tree():
+			continue
+		var xf := inv * mi.global_transform
+		var box: AABB = xf * mi.get_aabb()
+		parts.append([mi, xf, box])
+		whole = box if parts.size() == 1 else whole.merge(box)
+	var edges: Array = []
+	if whole.size.y >= 1.4 and whole.size.x >= 1.2 and whole.size.z >= 1.2:
+		for pa in parts:
+			var box: AABB = pa[2]
+			if box.position.y < whole.position.y + whole.size.y * 0.4:
+				continue
+			if box.size.x < whole.size.x * 0.6 and box.size.z < whole.size.z * 0.6:
+				continue
+			# Flat sheets (a gable's end triangles) have no edge to drip from.
+			var own: AABB = (pa[0] as MeshInstance3D).get_aabb()
+			if minf(own.size.x, minf(own.size.y, own.size.z)) < 0.01:
+				continue
+			var low: Array = []
+			var ymin := INF
+			for k in 8:
+				var c: Vector3 = (pa[1] as Transform3D) * own.get_endpoint(k)
+				low.append(c)
+				ymin = minf(ymin, c.y)
+			low = low.filter(func(c): return c.y < ymin + 0.03)
+			if low.size() == 2:
+				edges.append([low[0], low[1]])
+			elif low.size() == 4:
+				var mid: Vector3 = (low[0] + low[1] + low[2] + low[3]) * 0.25
+				low.sort_custom(func(a, b): return atan2(a.z - mid.z, a.x - mid.x) < atan2(b.z - mid.z, b.x - mid.x))
+				for k in 4:
+					edges.append([low[k], low[(k + 1) % 4]])
+	for ed in edges:
+		var a: Vector3 = ed[0] - Vector3(0, 0.03, 0)
+		var b: Vector3 = ed[1] - Vector3(0, 0.03, 0)
+		var n := maxi(1, int(a.distance_to(b) / 1.1))
+		for i in n:
+			if _rng.randf() < 0.35:
+				pts.append(s.global_transform * a.lerp(b, (float(i) + _rng.randf_range(0.2, 0.8)) / float(n)))
+	if pts.size() > 6:
+		pts.shuffle()
+		pts = pts.slice(0, 6)
+	s.set_meta("drip_pts", pts)
+	s.set_meta("drip_xf", s.global_transform)
+	return pts

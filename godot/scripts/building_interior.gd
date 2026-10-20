@@ -1052,8 +1052,9 @@ func _build_room() -> void:
 	_add_box(pc_root, "DeskDrawerB", Vector3(0.82, 0.52, -0.96), Vector3(0.52, 0.18, 0.04), Color(0.34, 0.24, 0.16))
 	_add_box(pc_root, "DrawerHandleA", Vector3(0.04, 0.52, -0.93), Vector3(0.10, 0.04, 0.03), Color(0.64, 0.56, 0.42))
 	_add_box(pc_root, "DrawerHandleB", Vector3(0.82, 0.52, -0.93), Vector3(0.10, 0.04, 0.03), Color(0.64, 0.56, 0.42))
-	# Cup / ashtray on desk
-	_add_box(pc_root, "DeskCup", Vector3(1.20, 0.90, -0.98), Vector3(0.08, 0.14, 0.08), Color(0.50, 0.26, 0.18))
+	# The warden's enamel mug (Grok, camp/desk_mug.png; a plain box until it is there).
+	if not _desk_cutout(pc_root, "desk_mug", Vector2(0.11, 0.12), Vector3(1.20, 0.83, -0.98), "DeskCup"):
+		_add_box(pc_root, "DeskCup", Vector3(1.20, 0.90, -0.98), Vector3(0.08, 0.14, 0.08), Color(0.50, 0.26, 0.18))
 	_build_desk_lamp(pc_root)
 
 	# ── RETRO COMPUTER SETUP (monitor + tower + keyboard + mouse) ─────────────
@@ -1167,27 +1168,8 @@ func _build_room() -> void:
 		Color(0.74, 0.74, 0.76)
 	)
 
-	# ── DESK FAN (shifted right +0.5) ─────────────────────────────────────────
-	_add_box(pc_root, "FanBase", Vector3(1.12, 0.86, -1.54), Vector3(0.14, 0.04, 0.14), Color(0.62, 0.60, 0.52))
-	_add_box(pc_root, "FanStem", Vector3(1.12, 0.94, -1.54), Vector3(0.04, 0.14, 0.04), Color(0.56, 0.54, 0.48))
-	_add_box(pc_root, "FanCage", Vector3(1.12, 1.06, -1.54), Vector3(0.22, 0.22, 0.10), Color(0.54, 0.52, 0.44))
-	# Spinning blade pivot
-	_fan_pivot = Node3D.new()
-	_fan_pivot.name = "FanBladePivot"
-	_fan_pivot.position = Vector3(1.12, 1.06, -1.52)
-	pc_root.add_child(_fan_pivot)
-	var blade_a = MeshInstance3D.new()
-	blade_a.name = "BladeA"
-	var ba = BoxMesh.new(); ba.size = Vector3(0.17, 0.028, 0.038)
-	blade_a.mesh = ba
-	blade_a.material_override = _make_psx_material(Color(0.46, 0.46, 0.40), 0.0, 0.0, 0.0, "")
-	_fan_pivot.add_child(blade_a)
-	var blade_b = MeshInstance3D.new()
-	blade_b.name = "BladeB"
-	var bb = BoxMesh.new(); bb.size = Vector3(0.028, 0.17, 0.038)
-	blade_b.mesh = bb
-	blade_b.material_override = _make_psx_material(Color(0.46, 0.46, 0.40), 0.0, 0.0, 0.0, "")
-	_fan_pivot.add_child(blade_b)
+	# No desk fan: the radio stands where it was (RADIO_AT), and its boxes stuck out of the
+	# set as the "untextured cuboids round the PC" (the user 20. 10.); it is October.
 
 	_build_radio(pc_root)
 
@@ -2594,6 +2576,16 @@ func _apply_office_wall_texture_state() -> void:
 
 ## The green banker's lamp at the left end of the PC desk: click it (or the switch on
 ## its foot) and it goes off and on, with the click of the button.
+## A picture standing on the desk (camp/<tex>.png, turned to you as Build's sprites were),
+## `pos` its foot; false (nothing made) if the picture is not there.
+func _desk_cutout(parent: Node3D, tex: String, size: Vector2, pos: Vector3, node_name: String) -> bool:
+	if not ResourceLoader.exists(INTERIOR_KIT.TEX + tex + ".png"):
+		return false
+	var mi := INTERIOR_KIT.cutout(parent, tex, size, pos, 0.0, true, node_name)
+	mi.material_override = (mi.material_override as StandardMaterial3D).duplicate()
+	return true
+
+
 ## In front of the PC, at the desk's front left by the keyboard (it stood back beside the
 ## monitor; playtest 19. 10.: "lampičku u kompu dát před komp, ne za něj").
 const DESK_LAMP_AT := Vector3(-0.2, 0.82, -1.02)
@@ -2604,13 +2596,20 @@ var _desk_lamp_body: StaticBody3D
 
 func _build_desk_lamp(pc_root: Node3D) -> void:
 	var at := DESK_LAMP_AT
-	_add_box(pc_root, "DeskLampFoot", at + Vector3(0, 0.015, 0), Vector3(0.2, 0.03, 0.14), Color(0.62, 0.5, 0.26))
-	_add_box(pc_root, "DeskLampStem", at + Vector3(0, 0.17, 0.02), Vector3(0.025, 0.3, 0.025), Color(0.66, 0.54, 0.3))
-	_add_box(pc_root, "DeskLampButton", at + Vector3(0.06, 0.04, -0.03), Vector3(0.03, 0.02, 0.03), Color(0.2, 0.18, 0.16))
-	_add_box(pc_root, "DeskLampShade", at + Vector3(0, 0.33, 0.06), Vector3(0.3, 0.07, 0.15), Color(0.16, 0.42, 0.24))
-	_desk_lamp_shade = pc_root.get_node_or_null("DeskLampShade") as MeshInstance3D
-	# The brass lip under the shade, clear of its bottom face (they used to share it: flicker).
-	_add_box(pc_root, "DeskLampShadeLip", at + Vector3(0, 0.284, 0.06), Vector3(0.32, 0.012, 0.17), Color(0.66, 0.54, 0.3))
+	# The lamp as a picture (Grok, camp/desk_lamp.png), lit by its own glow; the boxes if
+	# the picture is not there.
+	if _desk_cutout(pc_root, "desk_lamp", Vector2(0.38, 0.4), at, "DeskLampSprite"):
+		_desk_lamp_shade = pc_root.get_node_or_null("DeskLampSprite") as MeshInstance3D
+		# Not lit by its own bulb a hand away (that burnt it white): as bright as it is.
+		(_desk_lamp_shade.material_override as StandardMaterial3D).shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	else:
+		_add_box(pc_root, "DeskLampFoot", at + Vector3(0, 0.015, 0), Vector3(0.2, 0.03, 0.14), Color(0.62, 0.5, 0.26))
+		_add_box(pc_root, "DeskLampStem", at + Vector3(0, 0.17, 0.02), Vector3(0.025, 0.3, 0.025), Color(0.66, 0.54, 0.3))
+		_add_box(pc_root, "DeskLampButton", at + Vector3(0.06, 0.04, -0.03), Vector3(0.03, 0.02, 0.03), Color(0.2, 0.18, 0.16))
+		_add_box(pc_root, "DeskLampShade", at + Vector3(0, 0.33, 0.06), Vector3(0.3, 0.07, 0.15), Color(0.16, 0.42, 0.24))
+		_desk_lamp_shade = pc_root.get_node_or_null("DeskLampShade") as MeshInstance3D
+		# The brass lip under the shade, clear of its bottom face (they used to share it: flicker).
+		_add_box(pc_root, "DeskLampShadeLip", at + Vector3(0, 0.284, 0.06), Vector3(0.32, 0.012, 0.17), Color(0.66, 0.54, 0.3))
 	_desk_lamp_body = StaticBody3D.new()
 	_desk_lamp_body.name = "DeskLampHot"
 	_desk_lamp_body.set_meta("extra_hot", "desklamp")
@@ -2629,7 +2628,7 @@ func desk_lamp_meshes() -> Array:
 	var out: Array = []
 	var pc := _room_root.get_node_or_null("PCCorner") if _room_root != null else null
 	if pc != null:
-		for n in ["DeskLampFoot", "DeskLampStem", "DeskLampShade", "DeskLampShadeLip", "DeskLampButton"]:
+		for n in ["DeskLampSprite", "DeskLampFoot", "DeskLampStem", "DeskLampShade", "DeskLampShadeLip", "DeskLampButton"]:
 			var m := pc.get_node_or_null(n)
 			if m != null:
 				out.append(m)
@@ -2648,9 +2647,13 @@ func toggle_desk_lamp(sound := true) -> void:
 	if _desk_lamp_shade != null:
 		var m := _desk_lamp_shade.material_override as StandardMaterial3D
 		if m != null:
-			m.emission_enabled = _desk_lamp_on
-			m.emission = Color(0.25, 0.7, 0.35)
-			m.emission_energy_multiplier = 0.35
+			if _desk_lamp_shade.name == "DeskLampSprite":
+				# Lit, it is as it is; off, a shade darker.
+				m.albedo_color = Color(0.92, 0.92, 0.88) if _desk_lamp_on else Color(0.5, 0.5, 0.52)
+			else:
+				m.emission_enabled = _desk_lamp_on
+				m.emission = Color(0.25, 0.7, 0.35)
+				m.emission_energy_multiplier = 0.35
 	_apply_room_time_profile(true)
 
 

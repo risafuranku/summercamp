@@ -22,6 +22,10 @@ const DROPS_TEX := "res://assets/textury/world/glass_drops.png"
 const RUNS_TEX := "res://assets/textury/world/glass_runs.png"
 const COOKIE_TEX := "res://assets/textury/world/window_cookie.png"
 const SFX := "res://assets/sfx/weather/"
+## The room's own sounds (the rain on its roof, its timbers, the drip) through the room's
+## echo: a small wooden room (the office, a cabin, a caravan) rings a little, a tent's
+## canvas is all but dry. One bus for whichever room you are in (_set_room_echo).
+const ROOM_BUS := "Room"
 const FPS := 12.0
 const GLASS_SHADER := """
 shader_type spatial;
@@ -74,6 +78,7 @@ var _t := 0.0
 var _acc := 0.0
 ## The day's light outside (weather_visuals.compute_daylight_factor()).
 var _day := 1.0
+var _was_open := false
 var _gust_t := 8.0
 var _rng := RandomNumberGenerator.new()
 var _loop: AudioStreamPlayer
@@ -109,6 +114,32 @@ func _ready() -> void:
 	_drip_snd = _player("roof_drip.mp3", false)
 
 
+## The room's echo bus (made the first time, a reverb on it, sent to Master).
+static func _room_bus() -> int:
+	var i := AudioServer.get_bus_index(ROOM_BUS)
+	if i < 0:
+		i = AudioServer.bus_count
+		AudioServer.add_bus(i)
+		AudioServer.set_bus_name(i, ROOM_BUS)
+		AudioServer.set_bus_send(i, "Master")
+		AudioServer.add_bus_effect(i, AudioEffectReverb.new())
+	return i
+
+
+## This room's echo on the room bus: wood rings a little, canvas hardly.
+func _set_room_echo() -> void:
+	var i := _room_bus()
+	var rv := AudioServer.get_bus_effect(i, 0) as AudioEffectReverb if AudioServer.get_bus_effect_count(i) > 0 else null
+	if rv == null:
+		return
+	rv.room_size = 0.12 if canvas else 0.3
+	rv.damping = 0.85 if canvas else 0.6
+	rv.spread = 0.6
+	rv.predelay_msec = 8.0 if canvas else 18.0
+	rv.wet = 0.04 if canvas else 0.14
+	rv.dry = 1.0
+
+
 func _tex(path: String) -> Texture2D:
 	return load(path) if ResourceLoader.exists(path) else null
 
@@ -116,6 +147,7 @@ func _tex(path: String) -> Texture2D:
 func _player(file: String, loop: bool) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
 	p.volume_db = -80.0
+	p.bus = ROOM_BUS if _room_bus() >= 0 else "Master"
 	if file != "" and ResourceLoader.exists(SFX + file):
 		var st = load(SFX + file)
 		if loop and st is AudioStreamMP3:
@@ -214,6 +246,9 @@ func _make_canvas_flash() -> void:
 
 func _process(delta: float) -> void:
 	var open: bool = _room_open()
+	if open and not _was_open:
+		_set_room_echo()
+	_was_open = open
 	var main := get_tree().current_scene if is_inside_tree() else null
 	if main == null:
 		return

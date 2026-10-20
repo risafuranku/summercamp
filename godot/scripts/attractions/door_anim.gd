@@ -3,14 +3,24 @@ extends RefCounted
 ## The doors guests walk in and out by (guest_agents.gd): the building's door leaf (a box
 ## named Door, Door0, DoorLeaf in the model) is hung on a hinge at its left edge the first
 ## time anyone uses it, swings inward while someone goes through and shuts after them, in
-## steps like everything else (12 a second). A building without a door leaf (a tent) has
-## none to swing: people duck in under the flap (the agents squash the sprite).
+## steps like everything else (12 a second), with some weight to it: it swings open fast
+## and slows as it opens, swings back faster and faster, knocks on the frame and jumps back
+## a hair; its hinges creak as it opens and it shuts with a thud and the latch (ElevenLabs,
+## sfx/world/door_*; the warden's own door, open_now, shuts quiet: the room has played its
+## door). A building without a door leaf (a tent) has none to swing: people duck in under
+## the flap (the agents squash the sprite).
 
 const FPS := 12.0
 ## Out toward you (the buildings are solid boxes: swung in, the leaf vanished into the
 ## wall); behind it a dark doorway shows while it stands open.
 const OPEN_DEG := -82.0
 const SPEED_DEG := 420.0
+## Opening: this much of the way left goes each second (it slows as it opens).
+const OPEN_EASE := 10.0
+## The jump back off the frame when it shuts.
+const REBOUND_DEG := -5.0
+const CREAKS := ["res://assets/sfx/world/door_creak_a.mp3", "res://assets/sfx/world/door_creak_b.mp3"]
+const SHUTS := ["res://assets/sfx/world/door_shut_a.mp3", "res://assets/sfx/world/door_shut_b.mp3"]
 
 ## door instance id -> {door, pivot, base: Basis, angle, open_until}
 static var _doors: Dictionary = {}
@@ -89,6 +99,7 @@ static func open(door: MeshInstance3D, seconds: float = 1.6) -> void:
 		if not _hang(door):
 			return
 	_doors[id]["open_until"] = _clock + seconds
+	_doors[id]["quiet"] = false
 
 
 ## Open `door` at once, no swing (the warden stepping out through it: a leaf still
@@ -99,6 +110,7 @@ static func open_now(door: MeshInstance3D, seconds: float = 1.6) -> void:
 		return
 	var d: Dictionary = _doors[door.get_instance_id()]
 	d["angle"] = OPEN_DEG
+	d["quiet"] = true
 	(d["pivot"] as Node3D).basis = (d["base"] as Basis) * Basis(Vector3.UP, deg_to_rad(OPEN_DEG))
 	if is_instance_valid(d.get("hole", null)):
 		(d["hole"] as Node3D).visible = true
@@ -148,8 +160,34 @@ static func _hang(door: MeshInstance3D) -> bool:
 	door.transform = Transform3D(Basis(), Vector3(box.size.x * 0.5, 0, 0))
 	for f in fittings:
 		(f as Node3D).reparent(door, true)
-	_doors[door.get_instance_id()] = {"door": door, "pivot": pivot, "hole": hole, "base": pivot.basis, "base_global": base_global, "centre_global": centre_global, "angle": 0.0, "open_until": -1.0}
+	# Its creak and its thud, from the door.
+	var snd := AudioStreamPlayer3D.new()
+	snd.name = door.name + "Sound"
+	snd.bus = "OutdoorAmbience" if AudioServer.get_bus_index("OutdoorAmbience") >= 0 else "Master"
+	snd.unit_size = 2.0
+	snd.max_distance = 16.0
+	snd.position = pivot.position
+	parent.add_child(snd)
+	_doors[door.get_instance_id()] = {"door": door, "pivot": pivot, "hole": hole, "snd": snd, "base": pivot.basis, "base_global": base_global, "centre_global": centre_global, "angle": 0.0, "open_until": -1.0, "speed": 0.0, "bounced": false, "quiet": false}
 	return true
+
+
+static var _streams: Dictionary = {}
+
+
+static func _sound(d: Dictionary, paths: Array, db: float) -> void:
+	var snd = d.get("snd", null)
+	if snd == null or not is_instance_valid(snd):
+		return
+	var path: String = paths[randi() % paths.size()]
+	if not _streams.has(path):
+		_streams[path] = load(path) if ResourceLoader.exists(path) else null
+	if _streams[path] == null:
+		return
+	(snd as AudioStreamPlayer3D).stream = _streams[path]
+	(snd as AudioStreamPlayer3D).volume_db = db + randf_range(-2.0, 1.0)
+	(snd as AudioStreamPlayer3D).pitch_scale = randf_range(0.92, 1.08)
+	(snd as AudioStreamPlayer3D).play()
 
 
 static func tick(delta: float) -> void:
@@ -167,8 +205,28 @@ static func tick(delta: float) -> void:
 			continue
 		var pivot: Node3D = d["pivot"]
 		var want := OPEN_DEG if _clock < float(d["open_until"]) else 0.0
-		var a := move_toward(float(d["angle"]), want, SPEED_DEG * step)
-		if a != float(d["angle"]):
+		var a0 := float(d["angle"])
+		var a := a0
+		if want != 0.0:
+			# Opening: fast, slowing as it goes; its hinges creak as it starts.
+			if absf(a0) < 0.5 and not bool(d.get("quiet", false)):
+				_sound(d, CREAKS, -15.0)
+			d["bounced"] = false
+			d["speed"] = 0.0
+			a = a0 + (want - a0) * (1.0 - exp(-OPEN_EASE * step))
+			if absf(want - a) < 0.5:
+				a = want
+		elif a0 < 0.0:
+			# Shutting: faster and faster till it knocks on the frame and jumps back.
+			d["speed"] = minf(float(d.get("speed", 0.0)) + 900.0 * step, SPEED_DEG * 1.6)
+			a = minf(0.0, a0 + float(d["speed"]) * step)
+			if a >= 0.0 and not bool(d.get("bounced", false)):
+				d["bounced"] = true
+				d["speed"] = 60.0
+				a = REBOUND_DEG
+				if not bool(d.get("quiet", false)):
+					_sound(d, SHUTS, -12.0)
+		if a != a0:
 			d["angle"] = a
 			pivot.basis = (d["base"] as Basis) * Basis(Vector3.UP, deg_to_rad(a))
 			if is_instance_valid(d.get("hole", null)):

@@ -172,13 +172,18 @@ func open_cabin(level: int = 1) -> void:
 	_is_open = true
 	visible = true
 	_sync_viewport_to_window()
-	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
+	# A little down: the floor in view to clean it at once, the window still whole (the
+	# user 20. 10.).
+	_interior_camera.rotation_degrees = Vector3(MAIN_PITCH_DEG, 0.0, 0.0)
 	_set_cabin_room("main", false)
 	_apply_level_variant()
 	_apply_time_profile()
 	_refresh_guest_visuals()
 	_cam_base_rot = _interior_camera.rotation
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+const MAIN_PITCH_DEG := -13.0
 
 
 ## The cabin you are in, outside: its windows look out of it.
@@ -1225,7 +1230,7 @@ func _set_cabin_room(room: String, update_camera: bool = true) -> void:
 			_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 		else:
 			_interior_camera.position = Vector3(0.0, 1.5, 1.0)
-			_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
+			_interior_camera.rotation_degrees = Vector3(MAIN_PITCH_DEG, 0.0, 0.0)
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()
 
