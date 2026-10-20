@@ -53,9 +53,11 @@ finished game, by impact:
   canvas, leaves, the lake)
 - [x] Sound: the lake's lapping and the frogs played in the middle of the camp (the jetty's
   body sits at the lake's origin) — fixed 20. 10.
-- [ ] Sound: places sound alike (layers by place and hour, occlusion indoors, reverb by
-  room); footsteps on snow, puddles and the jetty; the jacket, the keys, breath; guests
-  far off by the hour; the fridge, the transformer by the corn, the swing in the wind
+- [x] Sound: footsteps on snow and in puddles (the jetty's boards were there); guests and
+  the country far off by the hour (far_life.gd); the flagpole, the washrooms' tube and tap
+  (the transformer by the corn and the swings were there) — 20. 10.
+- [ ] Sound: reverb by room; the jacket and the keys as you move; the fridge in the back
+  room
 - [ ] Body: movement, landing, head bob, lean, fatigue; hands (one glove for every tool,
   more frames, sway, cold and fear tremor, reaching for doors and switches); doors with a
   feel; things to nudge; the menu camera

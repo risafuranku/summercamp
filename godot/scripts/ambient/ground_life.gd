@@ -132,6 +132,15 @@ func _mist_texture() -> Texture2D:
 	return load(MIST_TEX) if ResourceLoader.exists(MIST_TEX) else null
 
 
+## Whether one of the puddles lies at `p` (your feet: player_controller.gd's footsteps).
+func puddle_at(p: Vector3) -> bool:
+	for pd in _puddles:
+		var mi: MeshInstance3D = pd["mesh"]
+		if mi.visible and Vector2(mi.global_position.x - p.x, mi.global_position.z - p.z).length() < float(pd["size"]) * 0.4 * mi.scale.x:
+			return true
+	return false
+
+
 # ── every frame ──────────────────────────────────────────────────────────────
 
 func _process(delta: float) -> void:

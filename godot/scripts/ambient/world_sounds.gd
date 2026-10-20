@@ -6,7 +6,11 @@ extends Node3D
 ##   - the generator thrums in its shed while the camp has power;
 ##   - the lake laps at the jetty, and at night the frogs start along the shore;
 ##   - in the wind the trees round you rustle and creak, a gust sweeps across now and then
-##     (more and harder in a storm).
+##     (more and harder in a storm);
+##   - the flagpole's rope clanks against the pole in the wind, the harder it blows the
+##     more often;
+##   - the toilet and the shower block: a tap drips, and at night (while there is power)
+##     the fluorescent tube inside buzzes.
 ## Made by weather_visuals.gd in the camp's world, like the rain.
 
 const SFX := "res://assets/sfx/world/"
@@ -17,6 +21,8 @@ var player_getter: Callable
 
 var _lamps: Dictionary = {}        # lamp instance id -> AudioStreamPlayer3D
 var _gens: Dictionary = {}         # generator instance id -> AudioStreamPlayer3D
+var _flags: Dictionary = {}        # flagpole instance id -> {player, t}
+var _washrooms: Dictionary = {}    # block instance id -> {tube, drip}
 var _lake: AudioStreamPlayer3D
 var _frogs: AudioStreamPlayer3D
 var _wind: Array = []              # one-shot players for the trees and the gusts
@@ -95,9 +101,21 @@ func _scan(here: Vector3) -> void:
 	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
 	if structures != null:
 		for c in structures.get_children():
-			if str(c.get_meta("building_type", "")) != "power_generator" or _gens.has(c.get_instance_id()):
-				continue
-			_gens[c.get_instance_id()] = _loop_player(c as Node3D, "generator_thrum.mp3", Vector3(0, 1.0, 0), 3.0, 32.0)
+			var bt := str(c.get_meta("building_type", ""))
+			var id := c.get_instance_id()
+			if bt == "power_generator" and not _gens.has(id):
+				_gens[id] = _loop_player(c as Node3D, "generator_thrum.mp3", Vector3(0, 1.0, 0), 3.0, 32.0)
+			elif bt == "flagpole" and not _flags.has(id):
+				var fp := AudioStreamPlayer3D.new()
+				fp.bus = BUS
+				fp.unit_size = 4.0
+				fp.max_distance = 40.0
+				fp.position = Vector3(0, 4.5, 0)
+				(c as Node3D).add_child(fp)
+				_flags[id] = {"player": fp, "t": _rng.randf_range(1.0, 4.0)}
+			elif (bt == "toilet_block" or bt == "shower_block") and not _washrooms.has(id):
+				_washrooms[id] = {"tube": _loop_player(c as Node3D, "tube_buzz.mp3", Vector3(0, 2.0, 0), 1.0, 10.0),
+					"drip": _loop_player(c as Node3D, "tap_drip.mp3", Vector3(0, 1.0, 0), 0.8, 8.0)}
 	if _lake == null or not is_instance_valid(_lake):
 		# The jetty's body sits at the lake's origin: its deck is where the jetty is.
 		var jetty := root.find_child("Jetty", true, false) as Node3D
@@ -142,12 +160,41 @@ func _poll(here: Vector3) -> void:
 			_gens.erase(id)
 			continue
 		_set_loop(g, powered, -10.0)
+	for id in _washrooms.keys():
+		var wr: Dictionary = _washrooms[id]
+		if not is_instance_valid(wr["tube"]):
+			_washrooms.erase(id)
+			continue
+		_set_loop(wr["tube"], night and powered, -18.0)
+		_set_loop(wr["drip"], true, -22.0)
 	if _lake != null and is_instance_valid(_lake):
 		_set_loop(_lake, true, -12.0)
 	if _frogs != null and is_instance_valid(_frogs):
 		var day := int(main.get("_day_index")) if main != null and main.get("_day_index") != null else 1
 		# Gone quiet in the last cold nights.
 		_set_loop(_frogs, night and day < 24, -13.0)
+
+
+## The flag's rope clanking on its pole: more often the harder it blows, hardly in a calm.
+func _flagpoles(delta: float, wind: float) -> void:
+	for id in _flags.keys():
+		var f: Dictionary = _flags[id]
+		var p: AudioStreamPlayer3D = f["player"]
+		if not is_instance_valid(p):
+			_flags.erase(id)
+			continue
+		f["t"] = float(f["t"]) - delta
+		if float(f["t"]) > 0.0:
+			continue
+		f["t"] = _rng.randf_range(2.0, 7.0) / maxf(0.15, wind)
+		if wind < 0.3 and _rng.randf() < 0.7:
+			continue
+		p.stream = _stream("flag_clank_a.mp3" if _rng.randf() < 0.5 else "flag_clank_b.mp3", false)
+		if p.stream == null:
+			continue
+		p.volume_db = lerpf(-20.0, -9.0, clampf(wind, 0.0, 1.0)) + _rng.randf_range(-2.0, 1.0)
+		p.pitch_scale = _rng.randf_range(0.94, 1.06)
+		p.play()
 
 
 func _set_loop(p: AudioStreamPlayer3D, on: bool, db: float) -> void:
@@ -167,6 +214,7 @@ func _trees(delta: float, here: Vector3) -> void:
 	var w := int(main.get("_weather_state")) if main != null and main.get("_weather_state") != null else 0
 	var wind: float = float({1: 0.8, 3: 0.35, 4: 0.55, 5: 1.0}.get(w, 0.12))
 	# A wind that picks up does not wait out the calm's long pause.
+	_flagpoles(delta, wind)
 	_gust_t = minf(_gust_t - delta, 14.0 / maxf(0.25, wind))
 	if _gust_t > 0.0:
 		return

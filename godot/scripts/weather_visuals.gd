@@ -444,6 +444,11 @@ func setup_weather_particles() -> void:
 	var wl = load("res://scripts/ambient/window_lights.gd").new()
 	wl.player_getter = _player_getter
 	_world_3d.add_child(wl)
+	# Life far off by the hour: voices at the fire, children, a dog, a car, the village
+	# bell (scripts/ambient/far_life.gd).
+	var far = load("res://scripts/ambient/far_life.gd").new()
+	far.player_getter = _player_getter
+	_world_3d.add_child(far)
 	if _bolt.texture != null:
 		# Through the fog: the material is the sprite's own; fog off on it.
 		var bm := StandardMaterial3D.new()

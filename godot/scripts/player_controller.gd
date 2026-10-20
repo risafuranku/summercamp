@@ -83,9 +83,10 @@ var terrain_speed_mult: float = 1.0
 
 ## One footstep at a time (ElevenLabs, sfx/steps/<surface>_a..d.mp3), on the step of the
 ## head bob, by what is under you: grass, the gravel of a path or the road, the planks of
-## the jetty or a porch, mud when the ground is wet through. A thud when you land.
+## the jetty or a porch, mud when the ground is wet through, a puddle you step in (the
+## rain's, scripts/ambient/ground_life.gd), snow once it lies. A thud when you land.
 const STEP_DIR := "res://assets/sfx/steps/"
-const STEP_SURFACES := ["grass", "gravel", "wood", "mud"]
+const STEP_SURFACES := ["grass", "gravel", "wood", "mud", "snow", "puddle"]
 const FOOTSTEP_GRASS_PATH := "res://assets/sfx/grassfootsteps.mp3"
 const FOOTSTEP_GRAVEL_PATH := "res://assets/sfx/gravelfootsteps.mp3"
 const FOOTSTEP_SILENT_DB := -80.0
@@ -150,6 +151,7 @@ var _flashlight_user_chose_off: bool = false
 var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
 var _steps: Dictionary = {}          # surface -> [AudioStream]
+var _ground_life: Node               # the puddles (scripts/ambient/ground_life.gd)
 var _step_players: Array = []
 var _step_next := 0
 var _step_last := -1
@@ -931,8 +933,25 @@ func _load_steps() -> void:
 		_step_players.append(p)
 
 
-## What you are standing on.
+## What you are standing on: the boards of a porch or the jetty, else a puddle, the snow,
+## the ground under them.
 func _surface_under() -> String:
+	var ground := _ground_under()
+	if ground == "wood":
+		return ground
+	var main := get_tree().current_scene if is_inside_tree() else null
+	if main != null and (_ground_life == null or not is_instance_valid(_ground_life)):
+		_ground_life = main.find_child("GroundLife", true, false)
+	var gl := _ground_life
+	if gl != null and gl.has_method("puddle_at") and bool(gl.puddle_at(global_position)):
+		return "puddle"
+	if main != null and main.get("_day_index") != null and main.get("_time_of_day_hours") != null:
+		if Season.snow_cover(int(main.get("_day_index")), float(main.get("_time_of_day_hours"))) >= 0.2:
+			return "snow"
+	return ground
+
+
+func _ground_under() -> String:
 	if _sample_gravel_surface_mix() > 0.5:
 		return "gravel"
 	var space := get_world_3d().direct_space_state if is_inside_tree() else null
