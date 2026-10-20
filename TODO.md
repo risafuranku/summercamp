@@ -54,8 +54,9 @@ finished game, by impact:
   (20. 10.); the water on the windows from inside (room_weather.gd) is as light as the
   light outside (at night it was a screen of grey static)
 - [x] Rain: drips off the eaves after it stops (20. 10., world_sounds.gd)
-- [ ] Rain: drips you can see off roofs and trees; rain sound by surface (tin roof,
-  canvas, leaves, the lake)
+- [x] Rain sound by surface: tin roofs, the tents' canvas, the lake, the trees over you
+  (20. 10., world_sounds.gd)
+- [ ] Rain: drips you can see off roofs and trees
 - [x] Sound: the lake's lapping and the frogs played in the middle of the camp (the jetty's
   body sits at the lake's origin) — fixed 20. 10.
 - [x] Sound: footsteps on snow and in puddles (the jetty's boards were there); guests and

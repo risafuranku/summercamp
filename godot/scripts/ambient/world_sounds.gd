@@ -12,14 +12,19 @@ extends Node3D
 ##   - the toilet and the shower block: a tap drips, and at night (while there is power)
 ##     the fluorescent tube inside buzzes;
 ##   - after the rain, while the ground is still wet, water drips off the eaves of the
-##     buildings near you, slower as it dries.
+##     buildings near you, slower as it dries;
+##   - in the rain, by what it falls on: it drums on the tin roofs of the buildings near
+##     you and patters on the tents' canvas, hisses on the lake by the jetty, crackles in
+##     the trees over you.
 ## Made by weather_visuals.gd in the camp's world, like the rain.
 
 const SFX := "res://assets/sfx/world/"
 const BUS := "OutdoorAmbience"
 const LAMP_HUMS := 4
-## The rooms' drip (room_weather.gd), off the eaves after the rain here.
+## The rooms' drip (room_weather.gd), off the eaves after the rain here; the rain on a
+## tent's canvas (room_weather.gd's too), from outside here.
 const DRIP := "res://assets/sfx/weather/roof_drip.mp3"
+const RAIN_CANVAS := "res://assets/sfx/weather/rain_canvas.mp3"
 
 var player_getter: Callable
 
@@ -28,6 +33,9 @@ var _gens: Dictionary = {}         # generator instance id -> AudioStreamPlayer3
 var _flags: Dictionary = {}        # flagpole instance id -> {player, t}
 var _washrooms: Dictionary = {}    # block instance id -> {tube, drip}
 var _eaves: Array = []             # one-shot players for the drips after the rain
+var _rain_spots: Array = []        # the rain on the nearest roofs and canvas
+var _rain_lake: AudioStreamPlayer3D
+var _rain_trees: AudioStreamPlayer3D
 var _eaves_t := 2.0
 var _lake: AudioStreamPlayer3D
 var _frogs: AudioStreamPlayer3D
@@ -129,6 +137,7 @@ func _scan(here: Vector3) -> void:
 		if deck != null:
 			var at := deck.position
 			_lake = _loop_player(jetty, "lake_lapping.mp3", at + Vector3(0, -0.1, 4.0), 4.0, 30.0)
+			_rain_lake = _loop_player(jetty, "rain_lake.mp3", at + Vector3(0, 0.2, 8.0), 6.0, 40.0)
 			_frogs = _loop_player(jetty, "frogs_night.mp3", at + Vector3(-12.0, -0.1, 2.0), 8.0, 70.0)
 
 
@@ -173,12 +182,91 @@ func _poll(here: Vector3) -> void:
 			continue
 		_set_loop(wr["tube"], night and powered, -18.0)
 		_set_loop(wr["drip"], true, -22.0)
+	_rain_by_surface(here, main)
 	if _lake != null and is_instance_valid(_lake):
 		_set_loop(_lake, true, -12.0)
 	if _frogs != null and is_instance_valid(_frogs):
 		var day := int(main.get("_day_index")) if main != null and main.get("_day_index") != null else 1
 		# Gone quiet in the last cold nights.
 		_set_loop(_frogs, night and day < 24, -13.0)
+
+
+## The rain by what it falls on: the tin roofs and the tents' canvas of the three buildings
+## nearest you, the lake by the jetty, the nearest tree over you.
+func _rain_by_surface(here: Vector3, main: Node) -> void:
+	var w := int(main.get("_weather_state")) if main != null and main.get("_weather_state") != null else 0
+	var sl = main.get("_season_look") if main != null else null
+	var snowing: bool = sl != null and sl.has_method("is_snowing") and bool(sl.is_snowing())
+	var raining := w >= 3 and w <= 5 and not snowing
+	var db: float = float({3: -17.0, 4: -11.0, 5: -8.0}.get(w, -80.0))
+	if _rain_spots.is_empty():
+		for i in 3:
+			var rp := AudioStreamPlayer3D.new()
+			rp.bus = BUS
+			rp.unit_size = 3.0
+			rp.max_distance = 22.0
+			add_child(rp)
+			_rain_spots.append(rp)
+	var near: Array = []
+	if raining:
+		var bm = main.get("building_manager")
+		var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
+		if structures != null:
+			for c in structures.get_children():
+				var bt := str(c.get_meta("building_type", ""))
+				if bt == "" or bt in ["path", "lamp_post", "flagpole", "bench", "gnome", "flower_bed", "picnic_table", "bonfire", "sports_field", "hammock"]:
+					continue
+				var d := (c as Node3D).global_position.distance_to(here)
+				if d < 18.0:
+					near.append([d, c, bt])
+		near.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	for i in _rain_spots.size():
+		var rp: AudioStreamPlayer3D = _rain_spots[i]
+		if i >= near.size():
+			if rp.playing:
+				rp.stop()
+			continue
+		var path := RAIN_CANVAS if str(near[i][2]).begins_with("tent") else SFX + "rain_tin.mp3"
+		var st := _loop_stream(path)
+		if rp.stream != st:
+			rp.stream = st
+			rp.stop()
+		rp.global_position = (near[i][1] as Node3D).global_position + Vector3(0, 2.4, 0)
+		if st != null and not rp.playing:
+			rp.play(_rng.randf() * 4.0)
+		rp.volume_db = db
+	if _rain_lake != null and is_instance_valid(_rain_lake):
+		_set_loop(_rain_lake, raining, db + 1.0)
+	# The trees: the nearest within twelve metres.
+	if _rain_trees == null:
+		_rain_trees = AudioStreamPlayer3D.new()
+		_rain_trees.bus = BUS
+		_rain_trees.unit_size = 4.0
+		_rain_trees.max_distance = 24.0
+		_rain_trees.stream = _stream("rain_leaves.mp3", true)
+		add_child(_rain_trees)
+	var tree_at := Vector3.INF
+	if raining:
+		var best := 12.0
+		for t in get_tree().get_nodes_in_group("trees"):
+			var tp := (t as Node3D).global_position if t is Node3D else Vector3.INF
+			var td := Vector2(tp.x - here.x, tp.z - here.z).length()
+			if td < best:
+				best = td
+				tree_at = tp
+	if tree_at != Vector3.INF:
+		_rain_trees.global_position = tree_at + Vector3(0, 4.0, 0)
+	_set_loop(_rain_trees, tree_at != Vector3.INF, db - 2.0)
+
+
+func _loop_stream(path: String) -> AudioStream:
+	if not _streams.has(path):
+		var st = load(path) if ResourceLoader.exists(path) else null
+		if st is AudioStreamMP3:
+			st = (st as AudioStreamMP3).duplicate()
+			(st as AudioStreamMP3).loop = true
+		_streams[path] = st
+	return _streams[path]
 
 
 ## After the rain: drips off the eaves of the buildings near you while the ground is wet.

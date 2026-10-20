@@ -36,3 +36,6 @@ far_dog	3.0	assets/sfx/far/dog.mp3	A single farm dog barking a few times far awa
 far_car	6.0	assets/sfx/far/car.mp3	An old car passing on a country road some distance away at night, coming nearer and fading away, the hiss of its tyres, outdoors. No music.
 far_train	8.0	assets/sfx/far/train.mp3	A diesel train's horn far away across the countryside at night, two long notes, then the faint rumble of the train fading into the distance, outdoors. No music.
 far_bell	6.0	assets/sfx/far/bell.mp3	A small village church bell ringing slowly far away across the fields, heard faintly in the open air, outdoors. No music.
+world_rain_tin	6.0	assets/sfx/world/rain_tin.mp3	Steady rain drumming on the corrugated tin roof of a small shed, heard from just outside it a few metres away, the metallic patter and the water running off the eaves, seamless loop. No music.
+world_rain_lake	6.0	assets/sfx/world/rain_lake.mp3	Steady rain falling on the flat water of a small lake, a soft hiss of countless drops on water and a few bigger plops, heard from the shore, seamless loop. No music.
+world_rain_leaves	6.0	assets/sfx/world/rain_leaves.mp3	Rain falling on the leaves of birch and spruce trees overhead, a soft crackling patter and heavier drops falling from the branches, outdoors, seamless loop. No music.
