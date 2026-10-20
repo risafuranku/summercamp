@@ -616,6 +616,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   rows in `prompts_sky.tsv`): two renders per sky, the glow side and the other, side by
   side round the sky (no mirror), seams blended, Grok's fuzzy 4-wide blocks taken out
   (down by area, up smooth, 160 colours): the 4 x 4 blow-up read as coarse blocks.
+  `python tools/artgen/cloud_sprites.py` cuts the cloud layers' high streaks and low scud
+  (`spr_clouds_high`, `spr_clouds_low` in `prompts_sky.tsv`) into `skybox/cloud_hi_*` and
+  `cloud_lo_*` with soft edges (`scripts/ambient/cloud_layers.gd` draws them filtered).
   `python tools/artgen/ground_tex.py <id> <dest> [size] [--own]` makes a ground render
   tile (Grok's "seamless" does not) and snaps it to the palette, or with `--own` to 48
   colours of its own (the palette has few mid greens). Agent B's world rows

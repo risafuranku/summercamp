@@ -106,7 +106,8 @@ const SKY_PHASE_DAY: int = 0
 const SKY_PHASE_EVENING: int = 1
 const SKY_PHASE_DUSK: int = 2
 const SKY_PHASE_NIGHT: int = 3
-const CLOUD_LAYER_COUNT: int = 8
+## The eight drifting clouds are now the layers of scripts/ambient/cloud_layers.gd.
+const CLOUD_LAYER_COUNT: int = 0
 const CLOUD_WORLD_HALF_EXTENT: float = 170.0
 const CLOUD_ALTITUDE_MIN: float = 24.0
 const CLOUD_ALTITUDE_MAX: float = 42.0
@@ -471,6 +472,11 @@ func setup_weather_particles() -> void:
 	var far = load("res://scripts/ambient/far_life.gd").new()
 	far.player_getter = _player_getter
 	_world_3d.add_child(far)
+	# The clouds in layers over the world, by the weather and the wind
+	# (scripts/ambient/cloud_layers.gd).
+	var cl = load("res://scripts/ambient/cloud_layers.gd").new()
+	cl.visuals = self
+	_world_3d.add_child(cl)
 	# Things you nudge with your foot: bottles, cans, buckets, cones
 	# (scripts/ambient/nudge_props.gd).
 	var nudge = load("res://scripts/ambient/nudge_props.gd").new()
@@ -1546,6 +1552,14 @@ func _sky_param(param: String, value: Variant) -> void:
 
 
 func _get_active_world_camera() -> Camera3D:
+	# The camera that is looking (the bus's, the car's, a scene's): the sun and the moon go
+	# with it. With the player's own they stayed round the camp while the bus drove off,
+	# and the moon sank into the ground behind it (the user 20. 10.).
+	# (The world's own viewport: the game draws it in a SubViewport.)
+	var vp := _world_3d.get_viewport() if _world_3d != null and _world_3d.is_inside_tree() else get_viewport()
+	var live := vp.get_camera_3d() if vp != null else null
+	if live != null and is_instance_valid(live) and live.is_inside_tree():
+		return live
 	if _player_getter.is_valid():
 		var player = _player_getter.call()
 		if player != null:

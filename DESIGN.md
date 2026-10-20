@@ -1311,6 +1311,13 @@ in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD 
   more days without weather of their own go under a leaden grey lid instead of the blue
   (from four fifths all of them); their evening is a dull red slit under the cloud, their
   night overcast, no dawn glow.
+- **Clouds over the world**, not only painted in the sky: high thin streaks lying flat
+  far up, the ragged clouds in the middle, low dark scud racing in the wind under rain.
+  The weather sets how many of each are out (they come and go one by one as it turns),
+  how dark their bellies are and how fast they go; they drift with the wind, take the
+  hour's light (dark against the red after sunset), the lightning lights them, and cloud
+  passes over the moon. In fog they are hardly there. The sun, the moon and the clouds go
+  with whoever is looking, on the bus too: they never sink into the ground behind you.
 - **The lamps** are the light itself at night: the bulb bright, its cone of light a warm
   shaft that shows faintly in clear air and fully in mist and rain.
 
