@@ -57,6 +57,9 @@ const SKY_TEX_DAWN_PATHS := ["res://assets/textury/skybox/skyf_dawn.png", "res:/
 ## red: inventory 20. 10.). The Redneck ones stay for the red anomaly, and as fallbacks.
 const SKY_TEX_GOLDEN_PATHS := ["res://assets/textury/skybox/skyf_golden.png", "res://assets/textury/skybox/skygolden.png"]
 const SKY_TEX_SUNSET_PATHS := ["res://assets/textury/skybox/skyf_sunset.png", "res://assets/textury/skybox/skysunset.png", "res://assets/textury/skybox/skyeve.png"]
+## After the sun has gone, before the blue hour: the sunset's sky gone dark and blood red,
+## as the Redneck dusk was (the user 20. 10.: the red after dark was darker, bloody).
+const SKY_TEX_BLOOD_PATHS := ["res://assets/textury/skybox/skyf_blood.png", "res://assets/textury/skybox/skydusk.png"]
 const SKY_TEX_BLUE_PATHS := ["res://assets/textury/skybox/skyf_blue.png", "res://assets/textury/skybox/skybluehour.png", "res://assets/textury/skybox/skydusk.png"]
 ## The late autumn, winter coming: more and more of the days without weather of their own
 ## go under a leaden lid instead of the blue (LATE_GREY_FROM .. LATE_GREY_FULL of the
@@ -1016,7 +1019,8 @@ func sample_time_profile(hour: float) -> Dictionary:
 		0.72,
 		Color(0.74, 0.48, 0.48),
 		0.0078,
-		0.20,
+		# Over the sky only a little (it washed the red salmon: the user 20. 10.).
+		0.07,
 		Color(1.0, 0.50, 0.28),
 		0.76,
 		0.34,
@@ -1033,7 +1037,7 @@ func sample_time_profile(hour: float) -> Dictionary:
 		0.38,
 		Color(0.22, 0.22, 0.36),
 		0.0116,
-		0.26,
+		0.08,
 		Color(0.90, 0.40, 0.32),
 		0.08,
 		0.72,
@@ -1414,9 +1418,10 @@ func _sky_pair() -> Array:
 	if golden == "":
 		golden = day
 	var sunset := _sky_path(SKY_TEX_LATE_EVE_PATHS if grey else SKY_TEX_SUNSET_PATHS)
+	var blood := _sky_path(SKY_TEX_LATE_EVE_PATHS if grey else SKY_TEX_BLOOD_PATHS)
 	var blue := _sky_path(SKY_TEX_LATE_EVE_PATHS if grey else SKY_TEX_BLUE_PATHS)
-	var keys: Array = [[16.0, day], [17.0, golden], [17.75, golden], [18.25, sunset], [18.6, sunset],
-		[19.1, blue], [NIGHT_SKY_FADE_START_HOUR, blue], [NIGHT_MID_HOUR, night]]
+	var keys: Array = [[16.0, day], [17.0, golden], [17.75, golden], [18.25, sunset], [18.45, sunset],
+		[18.85, blood], [19.25, blood], [19.6, blue], [NIGHT_MID_HOUR, night]]
 	if h < float(keys[0][0]):
 		return [day, day, 0.0]
 	for i in keys.size() - 1:

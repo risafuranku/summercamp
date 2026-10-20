@@ -34,6 +34,7 @@ SKIES = {
     "skyf_dawn.png": ("skyf_dawn_w", "skyf_dawn_e"),
     "skyf_golden.png": ("skyf_golden_w", "skyf_golden_e"),
     "skyf_sunset.png": ("skyf_sunset_w", "skyf_sunset_e"),
+    "skyf_blood.png": ("skyf_sunset_w", "skyf_sunset_e"),
     "skyf_blue.png": ("skyf_blue_w", "skyf_blue_e"),
     "skyf_grey.png": ("skyf_grey_a", "skyf_grey_b"),
     "skyf_greyeve.png": ("skyf_greyeve_w", "skyf_greyeve_e"),
@@ -59,6 +60,26 @@ def smooth_cols(a: np.ndarray, k: int) -> np.ndarray:
     return (cs[2 * k + 1:] - cs[:-2 * k - 1])[:n] / (2 * k + 1)
 
 
+def blood(up: np.ndarray) -> np.ndarray:
+    """The sunset's renders after dark (the user 20. 10.: "ruda puvodni byla darker po
+    setmeni, az krvave", as the Redneck dusk was): high up almost black wine, down to a
+    deep blood red, an ember line along the horizon; the west crimson, the east plum."""
+    y = (np.arange(H) / (H - 1))[:, None, None]
+    k = 0.26 + 0.45 * y ** 1.4 + 0.20 * np.clip((y - 0.9) / 0.1, 0.0, 1.0)
+    u = (np.arange(2 * W) + 0.5) / (2 * W)
+    west = (0.5 + 0.5 * np.cos(2.0 * np.pi * (u - 0.25)))[None, :, None]
+    crimson = np.array([1.0, 0.38, 0.30])
+    plum = np.array([0.85, 0.30, 0.55])
+    tint = crimson * west + plum * (1.0 - west)
+    # The ember line keeps more of its orange.
+    ember = np.clip((y - 0.93) / 0.07, 0.0, 1.0) * west
+    tint = tint * (1.0 - ember) + np.array([1.0, 0.62, 0.40]) * ember
+    return up * k * tint
+
+
+TONES = {"skyf_blood.png": (blood, 0.75)}
+
+
 def build(name: str, west_id: str, east_id: str) -> None:
     a, b = render(west_id), render(east_id)
     # Each row of each half shifted toward the other's colour the nearer it is to a seam
@@ -78,11 +99,14 @@ def build(name: str, west_id: str, east_id: str) -> None:
             lc = left[:, W - 1 - d] if d >= 0 else left[:, W + d]
             rc = right[:, d] if d >= 0 else right[:, -d - 1]
             up[:, (s + d) % (2 * W)] = lc * (1 - t) + rc * t
+    tone, below = TONES.get(name, (None, 0.45))
+    if tone is not None:
+        up = tone(up)
     # Below the horizon: the horizon's last rows, smoothed along, going in a few rows to a
     # darker shade of it and staying (behind the trees; a long gradient banded in curves).
     horizon = smooth_cols(up[H - 6: H].mean(axis=0), 200)
     low = np.empty_like(up)
-    f = 1.0 - 0.45 * np.clip(np.arange(H) / (H * 0.12), 0.0, 1.0)
+    f = 1.0 - below * np.clip(np.arange(H) / (H * 0.12), 0.0, 1.0)
     low[:] = horizon[None, :, :] * f[:, None, None]
     pano = np.concatenate([up, low], axis=0)
     img = Image.fromarray(pano.clip(0, 255).astype(np.uint8))
