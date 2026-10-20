@@ -21,9 +21,13 @@ finished game, by impact:
 - [x] Coarse halftone dots in shade (the torch's edge, dawn, snow): it was your breath,
   a 2 x 2 screen door lit black at night (an A/B of the post, light and distance dither
   found it); the breath is a see-through sprite now (20. 10.)
-- [ ] Lamps: standing by a lamp post its light cone is a big grey slab across the view
-- [ ] Lamps barely light the ground round them at night; the fire's light on its
-  surroundings; the bulbs themselves hardly read
+- [x] Lamps: standing by a lamp post its light cone is a big grey slab across the view —
+  it fades out within two metres (20. 10.)
+- [x] Lamps: the bulbs hardly read, the cone of light a grey column — the bulb lit at
+  full, the cone a stepped warm sprite added to the scene, stronger in fog and rain
+  (20. 10.)
+- [ ] The fire's light on its surroundings; the bonfire's sparks are code-drawn boxes and
+  its smoke a dither shader (generated sprites)
 - [x] A clear night has the overcast sky: no stars, no moon — stars, the milky way and
   the full moon since 20. 10. (`night_sky.py`)
 - [ ] The sun, its glow and its flare are still drawn by code (`weather_visuals`
