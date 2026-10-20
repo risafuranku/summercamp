@@ -509,6 +509,7 @@ func _update_lurk(dt: float) -> void:
 		_peek_t -= dt
 		if _peek_t <= 0.0:
 			_body.global_position = _lurk_spot
+			_body.flip_h = false
 			_set_tex(_look_for(_distance_to_player(_lurk_spot)))
 		return
 	_peek_next -= dt
@@ -517,11 +518,29 @@ func _update_lurk(dt: float) -> void:
 		_peek_t = _rng.randf_range(0.9, 1.5)
 		_body.global_position = _peek_spot
 		if _tex.has(T_NECK) and _rng.randf() < 0.4:
-			# Only his neck comes round the corner, long, the head at the end of it.
-			_set_tex(T_NECK)
+			_show_neck(_peek_spot, _lurk_spot)
 			_sound(SFX_STRETCH, _peek_spot + Vector3(0, 1.6, 0), -6.0, _rng.randf_range(0.9, 1.05), 22.0)
 		else:
 			_sound(SFX_RUSTLE, _peek_spot + Vector3(0, 1.2, 0), -14.0, _rng.randf_range(0.9, 1.1), 20.0)
+
+
+## Only his neck comes round the corner, long, the head at the end of it: the neck's
+## root (the sprite's left edge) on the side he stands (`behind`), tucked behind it.
+func _show_neck(at: Vector3, behind: Vector3) -> void:
+	_set_tex(T_NECK)
+	var cam := _camera()
+	var right := cam.global_transform.basis.x if cam != null else Vector3.RIGHT
+	right.y = 0.0
+	var side := signf((behind - at).dot(right))
+	if side == 0.0:
+		side = -1.0
+	# The art has the root on the left: flip it when he stands to the right.
+	_body.flip_h = side > 0.0
+	_body.global_position = at + right.normalized() * side * 0.45
+	if _eyes != null:
+		_pose_eyes(T_NECK, _body.texture)
+		if side > 0.0:
+			_eyes.set("x_off", -float(_eyes.get("x_off")))
 
 
 ## Right behind you: turn round or get away, now.
@@ -598,6 +617,7 @@ func _set_tex(path: String) -> void:
 	if tex == null or _body.texture == tex:
 		return
 	_body.texture = tex
+	_body.flip_h = false
 	# One pixel scale for all of him (the guest's): a stage drawn taller stands taller.
 	var guest: Texture2D = _tex.get(GUEST)
 	_body.pixel_size = HEIGHT / float(guest.get_height() if guest != null else tex.get_height())
