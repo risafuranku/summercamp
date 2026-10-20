@@ -455,6 +455,41 @@ shoes in. He knocks.", answered by someone who is not you).
   searched for": Agrostroj Hlubocany's feed mill (planned; its site opens in the browser),
   U Jezera, Jednota Lesna.
 
+## 5j. Builder 98, a game in the game
+
+The user: "the Builder should feel like a game of its own: an imitation of the 90s
+tycoon games, and fun." Builder 98 is Stavitel software's shareware site planner, and it
+plays like RollerCoaster Tycoon or Transport Tycoon on a cheap 1998 PC
+(`builder_module.gd` the program, `crt_map_panel.gd` the map). A star rating of its own
+was left out: the camp's rating is Goggle (§5i), and it opens the blueprints.
+
+- **A build is a building site.** For a moment the plot is a scaffold with a worker
+  kneeling at a plank, hammering (two frames, a blow every 0.36 s), and on bigger plots a
+  second one on his own beat; dust at the blows, the hammer's sound; then the building
+  stands up with a thump and a bounce. Small things go up in a second, a cabin in about
+  three, the biggest in four. The sim has the building at once: the site is only the
+  map's picture, so nothing else waits for it. A room upgrade is a site too. In co-op the
+  host's builds are sites on the other machine as well.
+- **A demolition leaves rubble.** A heap of planks, bricks and tin where it stood, a wisp
+  of smoke, the collapse's sound, gone after four seconds. The refund and the bulldozer's
+  fee pop up side by side.
+- **Money you can see.** Coins fly from the building that earned them to the cash: from a
+  room when its guests pay, from a business when its takings rise. The cash in the
+  toolbar is an odometer: the sum rolls to the camp's money, its wheels turning over one
+  into the next, green coming in, red going out.
+- **The tool on the pointer.** Over the map, the bulldozer, the path, the lamp or a
+  blueprint (any building) sits beside the arrow; the arrow's tip is still where the
+  click goes.
+- **Rows by dragging.** Benches, lamps, flower beds, picnic tables, gnomes and flagpoles
+  are dragged out in a straight row, a ghost on every tile and the price on a tag
+  ("6 x $25 = $150"), built on letting go, as many as the till pays for; undo takes the
+  row back. A click without a drag builds one, as before.
+- **Music.** A cheerful General MIDI loop (ElevenLabs, cut to sixteen bars with
+  `tools/audiogen/loop_cut.py`) plays while the Builder is open, from the PC's speaker
+  (quieter away from it). From 18:00 to the lock at 20:00 it goes a little flat and slow,
+  more so on the eve of a bad night (NIGHT RISK high); the speaker button in the toolbar
+  turns it off (remembered by the PC).
+
 ## 6. Upkeep
 
 Every building has a condition (0-100%) that drops daily by its `maintenance_decay`.

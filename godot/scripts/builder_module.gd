@@ -126,6 +126,38 @@ var _status_msg: Label
 var _status_tile: Label
 var _status_cost: Label
 var _money: Label
+## The cash as a 1998 odometer: the shown sum rolls to the camp's money, its digits
+## turning over one into the next (green coming in, red going out).
+var _odo: Control
+var _odo_v := -1.0
+var _odo_flash := 0.0
+var _odo_dir := 0
+## Coins flying from the building that earned them to the cash (guests paying for their
+## rooms, the businesses' takings): {from, t, life} on a layer over everything.
+const COIN_TEX := "res://assets/textury/builder/coin.png"
+var _coin_tex: Texture2D = load(COIN_TEX) if ResourceLoader.exists(COIN_TEX) else null
+var _coin_layer: Control
+var _coins: Array = []
+var _coin_cd := 0.0
+var _coin_scan := 0.0
+var _takings_seen: Dictionary = {}
+var _paid: Dictionary = {}       # coord -> amount waiting to fly (batched)
+## Builder's own tune (a General MIDI loop, assets/sfx/builder/music.ogg): toward the
+## evening and on a bad night's eve it goes a little flat and slow.
+const MUSIC := "res://assets/sfx/builder/music.ogg"
+const MUSIC_DB := -19.0
+## The tool in hand on the pointer over the map (os_shell.tool_cursor).
+const TOOL_CURSORS := {
+	"demolish": "res://assets/textury/builder/tb2_bulldoze.png",
+	"path": "res://assets/textury/builder/tb2_path.png",
+	"lamp_post": "res://assets/textury/builder/tb2_lamp.png",
+	"": "",
+	"*": "res://assets/textury/builder/cur_blueprint.png",
+}
+var _cursor_tex: Dictionary = {}
+var _music: AudioStreamPlayer
+var _music_btn: Button
+var _music_t := 0.0
 var _clock: Label
 var _tool_buttons: Dictionary = {}
 var _cat_buttons: Dictionary = {}
@@ -380,6 +412,21 @@ func _build_toolbar() -> void:
 		_click()
 		_set_overlay(str(_map_panel.OVERLAYS[(_map_panel.OVERLAYS.find(_map_panel.overlay) + 1) % _map_panel.OVERLAYS.size()])))
 	row.add_child(_overlay_btn)
+	# The music on and off (remembered by the PC).
+	_music_btn = Button.new()
+	_music_btn.focus_mode = Control.FOCUS_NONE
+	_music_btn.custom_minimum_size = Vector2(36, 34)
+	_music_btn.expand_icon = true
+	_music_btn.add_theme_constant_override("icon_max_width", 26)
+	_music_btn.tooltip_text = "Music"
+	_music_btn.icon = _music_icon(bool(_shell_stored("builder_music_off", false)))
+	if _music_btn.icon == null:
+		_music_btn.text = "Music"
+	_flat_style(_music_btn)
+	_music_btn.pressed.connect(func():
+		_click()
+		_toggle_music())
+	row.add_child(_music_btn)
 	# Cash and clock, right-aligned in sunken wells.
 	var cash := Panel.new()
 	cash.name = "Cash"
@@ -389,7 +436,13 @@ func _build_toolbar() -> void:
 	_money.add_theme_font_override("font", T.FONT_BOLD)
 	_money.add_theme_color_override("font_color", Color8(80, 255, 80))
 	_money.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_money.visible = false
 	cash.add_child(_money)
+	_odo = Control.new()
+	_odo.clip_contents = true
+	_odo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_odo.draw.connect(_draw_odo)
+	cash.add_child(_odo)
 	_clock = Label.new()
 	_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_toolbar.add_child(_clock)
@@ -398,6 +451,8 @@ func _build_toolbar() -> void:
 		cash.size = Vector2(90, 18)
 		_money.position = Vector2(4, 2)
 		_money.size = Vector2(80, 14)
+		_odo.position = Vector2(3, 2)
+		_odo.size = Vector2(84, 14)
 		_clock.position = Vector2(_toolbar.size.x - 150, 23)
 		_clock.size = Vector2(146, 14)
 	)
@@ -1066,6 +1121,10 @@ func _process(delta: float) -> void:
 	if _tick <= 0.0:
 		_tick = 0.5
 		_refresh_info()
+	_tick_odo(delta)
+	_tick_coins(delta)
+	_tick_music(delta)
+	_tick_cursor()
 	# The first time the map has a size: the camp in the middle, near enough to read.
 	if not camp_focused and _map_panel != null and _map_panel.size.x > 0.0 and is_visible_in_tree():
 		camp_focused = _map_panel.focus_camp()
@@ -1091,6 +1150,237 @@ func _process(delta: float) -> void:
 			_splash = null
 			_splash_bar = null
 			splash_finished.emit()
+
+
+func _tick_odo(delta: float) -> void:
+	if _odo == null:
+		return
+	var target := float(CoreRoot.get_money())
+	if _odo_v < 0.0:
+		_odo_v = target
+	if absf(target - _odo_v) > 0.01:
+		var step := maxf(4.0, absf(target - _odo_v) * 3.5) * delta
+		_odo_dir = 1 if target > _odo_v else -1
+		_odo_v = move_toward(_odo_v, target, step)
+		_odo_flash = 0.8
+		_odo.queue_redraw()
+	elif _odo_flash > 0.0:
+		_odo_flash -= delta
+		if _odo_flash <= 0.0:
+			_odo.queue_redraw()
+
+
+func _draw_odo() -> void:
+	var v := maxf(0.0, _odo_v)
+	var whole := int(floor(v))
+	var frac := v - float(whole)
+	var col := Color8(80, 255, 80)
+	if _odo_flash > 0.0:
+		col = Color8(170, 255, 140) if _odo_dir > 0 else Color8(255, 96, 80)
+	var text := "$" + _group(whole)
+	var cw := 7.0
+	var h := _odo.size.y
+	var x := _odo.size.x
+	var place := 0
+	for i in range(text.length() - 1, -1, -1):
+		var ch := text[i]
+		x -= cw if ch.is_valid_int() else T.FONT_BOLD.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 1.0
+		if not ch.is_valid_int():
+			_odo.draw_string(T.FONT_BOLD, Vector2(x, 12), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
+			continue
+		var d := int(ch)
+		# A wheel turns while every wheel under it stands on 9 (and the last one always).
+		var p10 := int(pow(10, place))
+		var roll := frac if place == 0 or whole % p10 == p10 - 1 else 0.0
+		roll = floorf(roll * 4.0) / 4.0
+		_odo.draw_string(T.FONT_BOLD, Vector2(x, 12 - roll * h), str(d), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
+		if roll > 0.0:
+			_odo.draw_string(T.FONT_BOLD, Vector2(x, 12 + (1.0 - roll) * h), str((d + 1) % 10), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
+		place += 1
+
+
+## A guest paid for their room: coins from the room to the cash.
+func _on_guest_paid(amount: int, guest_id: int) -> void:
+	if not is_visible_in_tree() or amount <= 0:
+		return
+	var st = CoreRoot.get_state()
+	if st == null:
+		return
+	for g in st.guests:
+		if g is Dictionary and int(g.get("id", -2)) == guest_id:
+			var slots: Array = g.get("lodging_slots", []) if g.get("lodging_slots", []) is Array else []
+			if not slots.is_empty() and slots[0] is Dictionary:
+				var key := str((slots[0] as Dictionary).get("accommodation_key", ""))
+				if key.contains(":"):
+					var c := Vector2i(int(key.get_slice(":", 0)), int(key.get_slice(":", 1)))
+					_paid[c] = int(_paid.get(c, 0)) + amount
+			return
+
+
+func _tick_coins(delta: float) -> void:
+	_coin_cd -= delta
+	if _coin_layer == null:
+		_coin_layer = Control.new()
+		_coin_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_coin_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_coin_layer.z_index = 50
+		_coin_layer.draw.connect(_draw_coins)
+		add_child(_coin_layer)
+		if EventBus.has_signal("guest_payment_received"):
+			EventBus.guest_payment_received.connect(_on_guest_paid)
+	# The businesses' takings since the last look (their books in GameState.biz).
+	_coin_scan -= delta
+	if _coin_scan <= 0.0:
+		_coin_scan = 0.6
+		var st = CoreRoot.get_state()
+		var sites: Dictionary = st.biz.get("sites", {}) if st != null and st.biz is Dictionary else {}
+		for key in sites:
+			var today: Dictionary = (sites[key] as Dictionary).get("today", {}) if sites[key] is Dictionary else {}
+			var tk := int(today.get("takings", 0))
+			var seen := int(_takings_seen.get(key, -1))
+			if seen >= 0 and tk > seen and str(key).contains(":"):
+				var c := Vector2i(int(str(key).get_slice(":", 0)), int(str(key).get_slice(":", 1)))
+				_paid[c] = int(_paid.get(c, 0)) + tk - seen
+			_takings_seen[key] = tk
+		for c in _paid.keys():
+			_launch_coins(c, int(_paid[c]))
+		_paid.clear()
+	for i in range(_coins.size() - 1, -1, -1):
+		_coins[i]["t"] = float(_coins[i]["t"]) + delta
+		if float(_coins[i]["t"]) >= float(_coins[i]["life"]):
+			_coins.remove_at(i)
+			_odo_flash = 0.8
+	if not _coins.is_empty() or _coin_layer.has_meta("drawn"):
+		_coin_layer.queue_redraw()
+		if _coins.is_empty():
+			_coin_layer.remove_meta("drawn")
+
+
+func _launch_coins(coord: Vector2i, amount: int) -> void:
+	if _map_panel == null or _odo == null or not is_visible_in_tree() or amount <= 0:
+		return
+	var p: Vector2 = _map_panel.cell_screen_point(coord)
+	if not p.is_finite():
+		return
+	var to_layer := _coin_layer.get_global_transform().affine_inverse()
+	var from: Vector2 = to_layer * (_map_panel.get_global_transform() * p)
+	var n := clampi(amount / 8 + 1, 1, 6)
+	for i in n:
+		_coins.append({"from": from + Vector2(randf_range(-5, 5), randf_range(-3, 3)), "t": -0.08 * float(i), "life": randf_range(0.7, 0.9)})
+	if _coin_cd <= 0.0 and _map_panel.has_method("_play"):
+		_map_panel._play("coins", -16.0)
+		_coin_cd = 0.6
+
+
+## Each coin on an arc to the cash, turning in four steps (face, edge, back, edge).
+func _draw_coins() -> void:
+	if _coin_tex == null or _odo == null:
+		return
+	_coin_layer.set_meta("drawn", true)
+	var to_layer := _coin_layer.get_global_transform().affine_inverse()
+	var target: Vector2 = to_layer * (_odo.get_global_transform() * (_odo.size * 0.5))
+	for c in _coins:
+		var t := float(c["t"])
+		if t < 0.0:
+			continue
+		var k := t / float(c["life"])
+		var a: Vector2 = c["from"]
+		var mid := (a + target) * 0.5 + Vector2(0, -60.0)
+		var p := a.lerp(mid, k).lerp(mid.lerp(target, k), k)
+		var turn: float = [1.0, 0.55, 0.15, 0.55][int(t * 12.0) % 4]
+		var sz := _coin_tex.get_size()
+		var w := maxf(2.0, sz.x * turn)
+		_coin_layer.draw_texture_rect(_coin_tex, Rect2((p - Vector2(w, sz.y) * 0.5).floor(), Vector2(w, sz.y)), false)
+
+
+func _tick_music(delta: float) -> void:
+	if _music == null:
+		if not ResourceLoader.exists(MUSIC):
+			return
+		_music = AudioStreamPlayer.new()
+		var s = load(MUSIC)
+		if s is AudioStreamOggVorbis:
+			(s as AudioStreamOggVorbis).loop = true
+		_music.stream = s
+		_music.volume_db = MUSIC_DB
+		add_child(_music)
+	var off := bool(_shell_stored("builder_music_off", false))
+	var want := is_visible_in_tree() and not off and _splash == null
+	if want and not _music.playing:
+		_music.play()
+	elif not want and _music.playing:
+		_music.stop()
+	if not _music.playing:
+		return
+	_music_t += delta
+	# Flat and slow toward the evening (18:00 to the lock at 20:00), more on a bad night's eve.
+	var main = get_tree().current_scene if get_tree() != null else null
+	var h := float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 12.0
+	var dusk := clampf((h - 18.0) / 2.0, 0.0, 1.0)
+	var hud = main.get("_hud_manager") if main != null else null
+	var risk := int(hud.get("_risk_level_index")) if hud != null and hud.get("_risk_level_index") != null else 0
+	var flat := dusk * 0.05 + (0.02 if risk >= 3 else 0.0)
+	var wow := sin(_music_t * 0.8) * 0.004 * (1.0 + 6.0 * flat)
+	_music.pitch_scale = clampf(1.0 - flat + wow, 0.85, 1.05)
+	var shell = _shell_node()
+	var dist := float(shell.call("_distance_db")) if shell != null and shell.has_method("_distance_db") else 0.0
+	_music.volume_db = MUSIC_DB + dist
+
+
+func _tick_cursor() -> void:
+	var shell := _shell_node()
+	if shell == null or _map_panel == null:
+		return
+	var tex: Texture2D = null
+	# Where the shell draws its pointer (the PC's own mouse, in its screen's pixels).
+	var m = shell.get("_mouse")
+	var at: Vector2 = m if m is Vector2 else _map_panel.get_global_mouse_position()
+	if is_visible_in_tree() and _map_panel.get_global_rect().has_point(at):
+		tex = cursor_texture(_selected)
+	if shell.get("tool_cursor") != tex:
+		shell.set("tool_cursor", tex)
+
+
+## The picture beside the arrow for a tool ("" none, any building the blueprint).
+func cursor_texture(tool: String) -> Texture2D:
+	var key := tool if TOOL_CURSORS.has(tool) else "*"
+	if not _cursor_tex.has(key):
+		var p := str(TOOL_CURSORS[key])
+		_cursor_tex[key] = load(p) if p != "" and ResourceLoader.exists(p) else null
+	return _cursor_tex[key]
+
+
+func _exit_tree() -> void:
+	var shell := _shell_node()
+	if shell != null and shell.get("tool_cursor") != null:
+		shell.set("tool_cursor", null)
+
+
+func _shell_node() -> Node:
+	var n: Node = self
+	while n != null and not n.has_method("stored"):
+		n = n.get_parent()
+	return n
+
+
+func _shell_stored(key: String, default: Variant) -> Variant:
+	var s := _shell_node()
+	return s.call("stored", key, default) if s != null else default
+
+
+func _toggle_music() -> void:
+	var s := _shell_node()
+	if s == null:
+		return
+	var off := not bool(s.call("stored", "builder_music_off", false))
+	s.call("store", "builder_music_off", off)
+	if _music_btn != null:
+		_music_btn.icon = _music_icon(off)
+
+
+func _music_icon(off: bool) -> Texture2D:
+	var p := "res://assets/textury/builder/tb2_music_%s.png" % ("off" if off else "on")
+	return load(p) if ResourceLoader.exists(p) else null
 
 
 func _refresh_info() -> void:

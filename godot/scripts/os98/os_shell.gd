@@ -161,6 +161,14 @@ var _tray_net: TextureRect
 var _start_menu: Control
 var _boot: Control
 var _cursor: Control
+## A program's tool on the pointer (Builder 98: the bulldozer, the path, the lamp, the
+## blueprint): drawn small beside the arrow, the arrow's tip still where the click goes.
+var tool_cursor: Texture2D = null:
+	set(v):
+		if v != tool_cursor:
+			tool_cursor = v
+			if _cursor != null:
+				_cursor.queue_redraw()
 ## Over a link: the cursor is the pointing hand.
 var pointer_hand := false:
 	set(v):
@@ -2254,6 +2262,8 @@ func _draw_cursor() -> void:
 		_draw_pattern(HAND, o - Vector2(5, 0))
 	else:
 		_draw_pattern(ARROW, o)
+		if tool_cursor != null:
+			_cursor.draw_texture_rect(tool_cursor, Rect2(o + Vector2(8, 9), Vector2(18, 18)), false)
 	if _busy > 0:
 		_draw_pattern(MINI_GLASS, o + Vector2(9, 11))
 

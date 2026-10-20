@@ -76,15 +76,15 @@ start, collect good ratings; pay to delete bad reviews".
 - [x] Goggle's art (padlock, SpotlessName's banner, stars) processed and seen in both
   resolutions; the Jednota at 4.0 with the slide; Photos and People also searched for;
   how many found a review helpful; the owner's badge; long reviews cut with "..."
-- [ ] Building site instead of the drop-in: a scaffold with a worker hammering for a few
+- [x] Building site instead of the drop-in: a scaffold with a worker hammering for a few
   seconds (`iso_scaffold`, `iso_worker_a/b`; `assets/sfx/builder/hammer.mp3`,
   `site_done.mp3`), then the building; in `crt_map_panel._on_build_confirmed` /
   `_dropped` / `_draw_structure`. Rubble on demolition (`iso_rubble`, `rubble.mp3`) in
   `_on_demolish_confirmed`
-- [ ] Money you can see: coins flying from a paying building to the cash counter
+- [x] Money you can see: coins flying from a paying building to the cash counter
   (`spr_coin` -> `builder/coin.png`, `coins.mp3`), the toolbar's cash (`builder_module._money`)
   rolling like an odometer
-- [ ] Tool cursors (bulldozer, path, lamp, a blueprint) and drag-building rows of benches,
+- [x] Tool cursors (bulldozer, path, lamp, a blueprint) and drag-building rows of benches,
   lamps and flower beds
 - [ ] The map follows the weather and the hour: rain streaks, fog, dusk tint (the night is
   `_draw_night`)
@@ -94,7 +94,7 @@ start, collect good ratings; pay to delete bad reviews".
   is buried here"
 - [ ] A Graphs window (Transport Tycoon's): money, guests, satisfaction over 14 days (look
   for a day-by-day history first, e.g. the week ledger)
-- [ ] Builder music: a General MIDI-style loop (ElevenLabs), detuned a little at night
+- [x] Builder music: a General MIDI-style loop (ElevenLabs), detuned a little at night
 - [ ] Hlubočanský zpravodaj (the district paper) now and then, and award diplomas for the
   camp
 - [ ] Cheats typed on the map (BOHEMIA: money, and the next day a letter from the district

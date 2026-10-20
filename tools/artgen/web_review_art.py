@@ -9,6 +9,7 @@ renders in tools/artgen/out/<id>/raw.png. Runs on whatever has been generated.
    godot/assets/textury/builder/think_*.png (24 px)             guests' thought bubbles
    godot/assets/textury/builder/coin.png                        the coin that flies
    godot/assets/textury/builder/site_scaffold|site_worker_*|rubble.png   the building site
+   godot/assets/textury/builder/tb2_music_on|off, tb2_graphs, cur_blueprint, diploma.png
 """
 import os
 import sys
@@ -119,6 +120,19 @@ def main():
     iso("iso_worker_a2", os.path.join(b, "site_worker_a2.png"), 64, unpink=True)
     iso("iso_worker_b", os.path.join(b, "site_worker_b.png"), 52, unpink=True)
     pair_frames(os.path.join(b, "site_worker_a.png"), os.path.join(b, "site_worker_a2.png"))
+    # The toolbar's music and graphs buttons (32 px like the other tb2_ icons), the
+    # blueprint beside the pointer (24 px), the district's diploma (its paper, no words).
+    for n in ["music_on", "music_off", "graphs"]:
+        k = os_art.keyed("tb2_" + n)
+        if k is not None:
+            os_art.fit(k, 32, 1).save(os.path.join(b, "tb2_%s.png" % n))
+            print("tb2", n)
+    small("cur_blueprint", os.path.join(b, "cur_blueprint.png"), 24)
+    dip = os_art.raw("diploma_blank")
+    if dip is not None:
+        dip = dip.convert("RGB").resize((240, 320), Image.LANCZOS)
+        dip.quantize(colors=96, dither=Image.Dither.NONE).convert("RGB").save(os.path.join(b, "diploma.png"))
+        print("diploma")
 
 
 def _helmet(img):

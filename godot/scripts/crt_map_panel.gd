@@ -61,6 +61,8 @@ const MAP_ROTATION_STEPS := 1
 const ROTATION_LABELS: Array[String] = ["SOUTH", "EAST", "NORTH", "WEST"]
 
 const ICON_PATHS := {
+	"site_scaffold": "res://assets/textury/builder/site_scaffold.png",
+	"rubble": "res://assets/textury/builder/rubble.png",
 	"main_building": "res://assets/textury/builder/base.png",
 	"tent_1": "res://assets/textury/builder/stan1.png",
 	"cabin_1": "res://assets/textury/builder/chata1.PNG",
@@ -193,6 +195,17 @@ const PATH_HAVE := 1
 const PATH_BLOCKED := 2
 ## Sent on release and not answered yet (a co-op client hears back later).
 var _path_batch: Dictionary = {}
+## Small things built in a row by dragging (a line of benches, lamps, flower beds): the
+## line while the button is down, then one build each, one price.
+const ROW_TYPES := ["bench", "lamp_post", "flower_bed", "picnic_table", "gnome", "flagpole"]
+var _row_drag := false
+var _row_start := Vector2i(-1, -1)
+var _row_press := Vector2.ZERO
+var _row_line: Array = []        # [coord, ok]
+var _row_batch: Dictionary = {}
+var _row_cost := 0
+var _row_built := 0
+var _row_sending := false
 var _path_batch_sending := false
 var _batch_cells: Array = []
 var _batch_cost := 0
@@ -253,6 +266,29 @@ var _lake_lines := PackedVector2Array()
 var _lake_units: Array = []     # [unit centre, hash]
 ## The puff a building lands with (Grok, tools/artgen/os_art.py); circles without it.
 const DUST_TEX := "res://assets/textury/builder/dust.png"
+## A build is a building site on the map for a moment before the building stands (the
+## sim has it at once: this is only the picture): the scaffold, the workers hammering in
+## steps, then the building with a thump. A demolition leaves a heap of rubble a while.
+const WORKER_TEX := [
+	"res://assets/textury/builder/site_worker_a.png",
+	"res://assets/textury/builder/site_worker_a2.png",
+	"res://assets/textury/builder/site_worker_b.png",
+]
+## Small things go up in a moment; a building takes longer the bigger it is.
+const SITE_QUICK := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic_table", "hammock"]
+const HAMMER_EVERY := 0.36
+const RUBBLE_LIFE := 4.0
+var _site_len: Dictionary = {}    # origin -> seconds the site stands
+var _site_fp: Dictionary = {}     # origin -> footprint
+var _site_done: Dictionary = {}   # origin -> true once the building stood up
+var _rubble: Array = []           # {o, f, t}
+## What the static layer last drew, by origin: [type, footprint] (rubble needs to know
+## what went: the removal says only where).
+var _known: Dictionary = {}
+var _hammer_cd := 0.0
+var _rubble_cd := 0.0
+var _worker_tex: Array = WORKER_TEX.map(func(p): return load(p) if ResourceLoader.exists(p) else null)
+var _worker_minis: Dictionary = {}
 var _dust_tex: Texture2D = load(DUST_TEX) if ResourceLoader.exists(DUST_TEX) else null
 var _water_cells: Array = []    # [centre on the static layer, hash]
 var _smokers: Array = []        # [centre, strength, seed]
@@ -322,17 +358,105 @@ func _on_world_placed(id: String, o: Vector2i, f: Vector2i, _r: int) -> void:
 		return
 	if id != "tree" and id != "corn" and is_visible_in_tree():
 		_bfx.built(_footprint_cells(o, f))
+		if id != "path":
+			_start_site(id, o, f)
 
 
 func _on_world_removed(o: Vector2i) -> void:
 	_static_dirty = true
 	_demolish_sum = {}
 	_demolish_hatch_key = ""
+	if is_visible_in_tree() and _known.has(o):
+		_leave_rubble(o, _known[o])
 	if _pending_demolish_wait:
 		_demolish_removed.append(o)
 		return
 	if is_visible_in_tree():
 		_bfx.built([o], true)
+
+
+func _start_site(id: String, o: Vector2i, f: Vector2i) -> void:
+	var area := maxi(1, f.x * f.y)
+	_site_len[o] = 1.1 if SITE_QUICK.has(id) else clampf(1.8 + 0.45 * float(area), 2.2, 4.0)
+	_site_fp[o] = f
+	_site_done.erase(o)
+	_dropped[o] = _time
+	# An upgrade takes the old one down first: no rubble under the new site.
+	_rubble = _rubble.filter(func(r): return r["o"] != o)
+	_static_dirty = true
+	if _hammer_cd <= 0.0:
+		_play("hammer", -9.0)
+		_hammer_cd = 1.25
+
+
+func _leave_rubble(o: Vector2i, known: Array) -> void:
+	var t := str(known[0])
+	if t == "" or t == "path" or t == "lamp_post":
+		return
+	_rubble.append({"o": o, "f": known[1], "t": _time})
+	if _rubble_cd <= 0.0:
+		_play("rubble", -7.0)
+		_rubble_cd = 0.8
+
+
+## The sites going up (a blow now and then, dust; done: the thump) and the rubble going.
+func _tick_sites(delta: float) -> void:
+	_hammer_cd -= delta
+	_rubble_cd -= delta
+	var busy := false
+	for o in _dropped.keys():
+		var age := _time - float(_dropped[o])
+		var site := float(_site_len.get(o, 0.0))
+		var f: Vector2i = _site_fp.get(o, Vector2i.ONE)
+		var mid := Vector2(o) + Vector2(f - Vector2i.ONE) * 0.5
+		if age < site:
+			busy = true
+			if int(age / HAMMER_EVERY) != int(maxf(0.0, age - delta) / HAMMER_EVERY) and randf() < 0.4:
+				_add_fx("dust", mid + Vector2(0.3, 0.3), 0.45)
+		elif site > 0.0 and not _site_done.has(o):
+			_site_done[o] = true
+			for k in 5:
+				_add_fx("dust", mid + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 0.7)
+			_play("site_done", -8.0)
+		if age > site + 0.5:
+			_dropped.erase(o)
+			_site_len.erase(o)
+			_site_fp.erase(o)
+			_site_done.erase(o)
+	if busy and _hammer_cd <= 0.0:
+		_play("hammer", -10.0)
+		_hammer_cd = 1.25
+	for i in range(_rubble.size() - 1, -1, -1):
+		if _time - float(_rubble[i]["t"]) > RUBBLE_LIFE:
+			_rubble.remove_at(i)
+
+
+## The scaffold as wide as the building will be, the workers by its front corner: one
+## hammering (the blow every HAMMER_EVERY), the other bobbing on his own beat.
+func _draw_site(center: Vector2, fp: Vector2i, age: float, tile_w: float, tile_h: float) -> void:
+	_draw_building_icon(center, fp, "site_scaffold", 0, Color.WHITE, tile_w, tile_h)
+	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
+	var wh := maxi(8, int(round(mini_h * 0.85)))
+	var down := float(fp.x + fp.y) * tile_h * 0.18
+	var blow := fmod(age, HAMMER_EVERY) < 0.12
+	var a: Texture2D = _worker_mini(1 if blow else 0, wh)
+	if a != null:
+		var at := center + Vector2(-tile_w * 0.28 * float(fp.y), down)
+		_cv.draw_texture(a, (at - Vector2(a.get_width() * 0.5, a.get_height())).floor())
+	if fp.x + fp.y > 2:
+		var b: Texture2D = _worker_mini(2, maxi(8, int(round(wh * 0.85))))
+		if b != null:
+			var bob := -1.0 if fmod(age + 0.17, HAMMER_EVERY) < 0.12 else 0.0
+			var bt := center + Vector2(tile_w * 0.28 * float(fp.x), down)
+			_cv.draw_texture(b, (bt - Vector2(b.get_width() * 0.5, b.get_height() - bob)).floor())
+
+
+func _worker_mini(i: int, h: int) -> Texture2D:
+	var key := "%d|%d" % [i, h]
+	if not _worker_minis.has(key):
+		var src: Texture2D = _worker_tex[i] if i < _worker_tex.size() else null
+		_worker_minis[key] = _mini_of(src, h) if src != null else null
+	return _worker_minis[key]
 
 
 func _footprint_cells(o: Vector2i, f: Vector2i) -> Array:
@@ -402,6 +526,7 @@ func _process(delta: float) -> void:
 		return
 	_time += delta
 	_bfx.tick(delta)
+	_tick_sites(delta)
 	for i in range(_fx.size() - 1, -1, -1):
 		_fx[i]["t"] = float(_fx[i]["t"]) + delta
 		if float(_fx[i]["t"]) >= float(_fx[i]["life"]):
@@ -506,6 +631,8 @@ func _gui_input(event: InputEvent) -> void:
 			_clamp_pan_offset_for_current_map()
 		if _path_drag_active:
 			_request_path_at(event.position)
+		if _row_drag:
+			_update_row(_local_to_grid(event.position))
 		if _demolish_drag_active:
 			_update_demolish_drag(event.position)
 		hover_coord = _local_to_grid(event.position)
@@ -531,9 +658,11 @@ func _gui_input(event: InputEvent) -> void:
 				# Only the line or the box being drawn goes; the tool stays in hand (the
 				# right button pans: it put the tool away on every pan). The tool goes with
 				# a second click on its button or card.
-				if _path_drag_active or _demolish_drag_active:
+				if _path_drag_active or _demolish_drag_active or _row_drag:
 					_path_drag_active = false
 					_path_line.clear()
+					_row_drag = false
+					_row_line.clear()
 					_demolish_drag_active = false
 					_emit_status("Canceled.")
 			else:
@@ -562,6 +691,8 @@ func _gui_input(event: InputEvent) -> void:
 			else:
 				if _path_drag_active:
 					_end_path_drag()
+				if _row_drag:
+					_end_row()
 				if _demolish_drag_active:
 					_finish_demolish_drag()
 			queue_redraw()
@@ -585,7 +716,76 @@ func _handle_left_press(local_pos: Vector2) -> void:
 	if selected_building == "demolish":
 		_begin_demolish_press(local_pos)
 		return
+	if ROW_TYPES.has(selected_building) and _get_footprint(selected_building) == Vector2i.ONE:
+		var c0 := _local_to_grid(local_pos)
+		if _is_valid_coord(c0):
+			_row_drag = true
+			_row_start = c0
+			_row_press = local_pos
+			_update_row(c0)
+			return
 	_handle_structure_press(local_pos)
+
+
+## The row from where the button went down to here, along the longer way; each tile
+## fits or not.
+func _update_row(coord: Vector2i) -> void:
+	if not _is_valid_coord(coord):
+		return
+	var d := coord - _row_start
+	var end := Vector2i(coord.x, _row_start.y) if absi(d.x) >= absi(d.y) else Vector2i(_row_start.x, coord.y)
+	_row_line.clear()
+	var step := (end - _row_start).sign()
+	var p := _row_start
+	while true:
+		_row_line.append([p, _can_place(p, Vector2i.ONE, selected_building)])
+		if p == end:
+			break
+		p += step
+	var n := _row_line.filter(func(e): return bool(e[1])).size()
+	if _row_line.size() > 1:
+		_emit_status("%s: %d, $%d. Let go to build." % [_display_name(selected_building), n, n * _get_cost(selected_building)])
+
+
+func _end_row() -> void:
+	_row_drag = false
+	var todo: Array = _row_line.filter(func(e): return bool(e[1])).map(func(e): return e[0])
+	var one := _row_line.size() <= 1
+	_row_line.clear()
+	if one:
+		# No drag: the one thing where it was clicked, as always.
+		_handle_structure_press(_row_press)
+		return
+	if todo.is_empty():
+		_emit_status("Nothing to build: the row is blocked.", STATUS_DENY)
+		_deny_fx(_row_start, "Blocked")
+		return
+	var cost := _get_cost(selected_building)
+	var n := todo.size() if cost <= 0 else mini(todo.size(), int(CoreRoot.get_money()) / cost)
+	if n <= 0:
+		_emit_status("Not enough money: %s costs $%d." % [_display_name(selected_building), cost], STATUS_DENY)
+		_deny_fx(todo[0], "$%d" % cost)
+		return
+	_undo_group += 1
+	_row_batch.clear()
+	_row_cost = 0
+	_row_built = 0
+	for i in n:
+		_row_batch[todo[i]] = selected_building
+	_row_sending = true
+	for i in n:
+		EventBus.RequestBuild.emit(selected_building, todo[i], _rotation_steps)
+	_row_sending = false
+	if _row_batch.is_empty():
+		_flush_row()
+
+
+func _flush_row() -> void:
+	if _row_built <= 0:
+		_emit_status("Refused: nothing built.", STATUS_DENY)
+		return
+	_emit_status("Built %d, $%d." % [_row_built, _row_cost], STATUS_GOOD)
+	_play("place", -10.0)
 
 
 func _handle_structure_press(local_pos: Vector2) -> void:
@@ -916,6 +1116,19 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 		if _path_batch.is_empty() and not _path_batch_sending:
 			_flush_path_batch()
 		return
+	if _row_batch.has(pos) and str(_row_batch[pos]) == building_type:
+		_row_batch.erase(pos)
+		var st_r = CoreRoot.get_state()
+		_undo.append({"type": building_type, "coord": pos, "cost": _get_cost(building_type), "group": _undo_group, "day": int(st_r.day) if st_r != null else 1})
+		while _undo.size() > 40:
+			_undo.remove_at(0)
+		_row_cost += _get_cost(building_type)
+		_row_built += 1
+		_add_fx("pop", Vector2(pos), 1.0, "-$%d" % _get_cost(building_type), Color8(255, 220, 80))
+		_static_dirty = true
+		if _row_batch.is_empty() and not _row_sending:
+			_flush_row()
+		return
 	var mine := _pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord
 	# A lamp on a path belongs to the path: not something undo can take off it.
 	if mine and not (building_type == "lamp_post" and _path_cell(pos)):
@@ -937,15 +1150,14 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 			_play("path", -14.0)
 	else:
 		_emit_status("Built: %s" % _display_name(building_type), STATUS_GOOD)
-		_dropped[pos] = _time
-		for k in 5:
-			_add_fx("dust", mid + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 0.7)
+		for k in 2:
+			_add_fx("dust", mid + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 0.5)
 		var snd := "place"
 		if building_type.begins_with("tent"):
 			snd = "tent"
 		elif building_type == "lamp_post":
 			snd = "lamp"
-		_play(snd, -6.0)
+		_play(snd, -10.0)
 	if cost > 0:
 		_add_fx("pop", mid, 1.3, "-$%d" % cost, Color8(255, 220, 80))
 	_static_dirty = true
@@ -958,6 +1170,11 @@ func _on_build_rejected(building_type: String, pos: Vector2i, rot: int, reason: 
 		_batch_refused += 1
 		if _path_batch.is_empty() and not _path_batch_sending:
 			_flush_path_batch()
+		return
+	if _row_batch.has(pos):
+		_row_batch.erase(pos)
+		if _row_batch.is_empty() and not _row_sending:
+			_flush_row()
 		return
 	if _pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord and wrapi(rot, 0, 4) == _pending_build_rot:
 		_pending_build_wait = false
@@ -983,10 +1200,11 @@ func _on_demolish_confirmed(area: Rect2i, removed_count: int, fee_paid: int, ref
 		if is_visible_in_tree():
 			_bfx.built(gone, true)
 	var mid := Vector2(area.position) + Vector2(area.size - Vector2i.ONE) * 0.5
+	# The refund and the bulldozer's fee side by side (one over the other they ran together).
 	if refund_total > 0:
-		_add_fx("pop", mid + Vector2(0, -0.3), 1.4, "+$%d" % refund_total, Color8(120, 255, 120))
+		_add_fx("pop", mid + Vector2(-0.45, 0.45), 1.4, "+$%d" % refund_total, Color8(120, 255, 120))
 	if fee_paid > 0:
-		_add_fx("pop", mid, 1.3, "-$%d" % fee_paid, Color8(255, 220, 80))
+		_add_fx("pop", mid + Vector2(0.45, -0.45), 1.3, "-$%d" % fee_paid, Color8(255, 220, 80))
 	_play("bulldoze", -6.0)
 	_static_dirty = true
 	queue_redraw()
@@ -1018,6 +1236,7 @@ func _draw_static() -> void:
 	_smokers.clear()
 	_lights.clear()
 	_anim_entries.clear()
+	_known.clear()
 	if grid_manager == null:
 		return
 	var grid_w: int = int(grid_manager.grid_width)
@@ -1031,7 +1250,10 @@ func _draw_static() -> void:
 	_draw_ground(gm, grid_w, grid_h, origin, tile_w)
 	for entry in _collect_structures(gm, grid_w, grid_h, origin, tile_w, tile_h):
 		var ty := str(entry.get("type", ""))
-		# Still dropping in: the dynamic layer draws it until it lands.
+		var er = entry.get("root")
+		if ty != "" and er != null and not er.is_in_group("trees") and not er.is_in_group("corn"):
+			_known[entry.get("origin", Vector2i.ZERO)] = [ty, entry.get("footprint", Vector2i.ONE)]
+		# Still a building site: the dynamic layer draws it until it stands.
 		if _dropped.has(entry.get("origin", Vector2i.ZERO)):
 			_anim_entries.append(entry)
 			continue
@@ -1240,6 +1462,10 @@ func _draw_dynamic() -> void:
 		var a := 0.18 + 0.14 * sin(ph)
 		var off := Vector2(sin(ph * 0.7) * tile_w * 0.12, cos(ph * 0.5) * tile_h * 0.10)
 		_cv.draw_line(c + off - Vector2(tile_w * 0.12, 0), c + off + Vector2(tile_w * 0.12, 0), Color(0.7, 0.85, 1.0, a), 1.0)
+	for rb in _rubble:
+		var rc := _footprint_center_iso(rb["o"], rb["f"], origin, tile_w, tile_h)
+		var fade := clampf((RUBBLE_LIFE - (_time - float(rb["t"]))) / 0.8, 0.0, 1.0)
+		_draw_building_icon(rc, rb["f"], "rubble", 0, Color(1, 1, 1, fade), tile_w, tile_h)
 	for e in _anim_entries:
 		var moved: Dictionary = (e as Dictionary).duplicate()
 		moved["center"] = _s2d(e["center"])
@@ -1301,6 +1527,19 @@ func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void
 		_cv.draw_rect(r.grow(1), Color(0, 0, 0, 0.55))
 		_cv.draw_rect(r, col)
 		_cv.draw_string(T.FONT, r.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(250, 244, 226))
+
+
+## Where a building on `coord` stands on the panel now (its footprint's middle, in the
+## panel's own coordinates), or Vector2.INF when it is off the map or off the screen.
+func cell_screen_point(coord: Vector2i) -> Vector2:
+	if grid_manager == null or not _is_valid_coord(coord):
+		return Vector2.INF
+	var iso = _compute_iso_layout(int(grid_manager.grid_width), int(grid_manager.grid_height))
+	var info := structure_at(coord)
+	var o: Vector2i = info.get("origin", coord)
+	var f: Vector2i = info.get("footprint", Vector2i.ONE)
+	var p := _footprint_center_iso(o, f, iso.origin, iso.tile_w, iso.tile_h) - Vector2(0, iso.tile_h * 0.6)
+	return p if Rect2(Vector2.ZERO, size).grow(-4.0).has_point(p) else Vector2.INF
 
 
 ## The building on a cell, as Builder's card wants it ({} for open ground, trees and
@@ -1893,17 +2132,17 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 	var icon_key = _icon_key_for_type(building_type)
 	if icon_key != "":
 		var squash := 1.0
-		# Freshly built: it drops in from above and settles with a little bounce.
+		# Freshly built: a building site for a moment, then it stands up with a bounce.
 		var origin_c: Vector2i = entry.get("origin", Vector2i.ZERO)
 		if _dropped.has(origin_c):
 			var age := _time - float(_dropped[origin_c])
-			if age > 0.5:
-				_dropped.erase(origin_c)
-			else:
-				var k := clampf(age / 0.35, 0.0, 1.0)
-				center.y -= (1.0 - k) * (1.0 - k) * tile_h * 2.5
-				if k >= 1.0:
-					squash = 1.0 - 0.08 * sin((age - 0.35) / 0.15 * PI)
+			var site := float(_site_len.get(origin_c, 0.0))
+			if age < site:
+				_draw_site(center, footprint, age, tile_w, tile_h)
+				return
+			age -= site
+			var k := clampf(age / 0.3, 0.0, 1.0)
+			squash = (0.82 + 0.18 * k + 0.1 * sin(k * PI)) if k < 1.0 else 1.0
 		if _draw_building_icon(center, footprint, icon_key, rotation_steps, Color(1.0, 1.0, 1.0, 0.98), tile_w, tile_h, squash):
 			return
 
@@ -1976,6 +2215,9 @@ func focus_camp(zoom := 2.2) -> bool:
 
 func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	if selected_building == "" or selected_building == "path" or selected_building == "demolish":
+		return
+	if _row_drag and _row_line.size() > 1:
+		_draw_row_preview(origin, tile_w, tile_h)
 		return
 	var coord = _ghost_coord if _ghost_locked else hover_coord
 	if not _is_valid_coord(coord):
@@ -2052,6 +2294,25 @@ func _draw_path_drag_preview(origin: Vector2, tile_w: float, tile_h: float) -> v
 
 
 ## A small priced tag (the ghost's), pale red when it is a no.
+func _draw_row_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	var icon_key := _icon_key_for_type(selected_building)
+	var iso_g := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
+	var n := 0
+	for e in _row_line:
+		var c: Vector2i = e[0]
+		var ok := bool(e[1])
+		_bfx.draw_area(_cv, iso_g, [c], tile_w, tile_h, Color(0.55, 0.85, 1.0) if ok else Color(1.0, 0.36, 0.3), _time, not ok, 0.2)
+		if ok:
+			n += 1
+			if icon_key != "":
+				_draw_building_icon(_footprint_center_iso(c, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, icon_key, _rotation_steps, Color(0.62, 0.82, 1.0, 0.7), tile_w, tile_h)
+	var cost := n * _get_cost(selected_building)
+	var afford := int(CoreRoot.get_money()) >= cost
+	var last: Vector2i = _row_line.back()[0]
+	var tag := "%d x $%d = $%d" % [n, _get_cost(selected_building), cost] if afford else "$%d - no money for all" % cost
+	_draw_tag(_footprint_center_iso(last, Vector2i.ONE, origin, tile_w, tile_h) + Vector2(tile_w * 0.45, -tile_h * 1.4), tag, not afford or n == 0)
+
+
 func _draw_tag(at: Vector2, tag: String, bad: bool) -> void:
 	var tw := T.FONT.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 	var tp := at.floor()
