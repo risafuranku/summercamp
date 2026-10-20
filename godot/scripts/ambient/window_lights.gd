@@ -37,7 +37,7 @@ const CAMP := "res://assets/textury/camp/"
 const ROOMS := {
 	"cabin": {"wall": "knotty_pine", "floor": "parquet", "ceil": "ceiling_pine", "curtain": "curtain_floral", "props": "window_room_cabin", "props_h": 1.85,
 		"depth": 2.6, "w": 2.8, "h": 2.35, "floor_up": 0.12},
-	"caravan": {"wall": "wallpaper_70s", "floor": "formica", "ceil": "ceiling_board", "curtain": "curtain_floral", "props": "window_room_caravan", "props_h": 1.45,
+	"caravan": {"wall": "wallpaper_70s", "floor": "formica", "ceil": "ceiling_board", "curtain": "curtain_floral", "props": "window_room_caravan", "props_h": 1.05,
 		"depth": 1.8, "w": 2.1, "h": 1.95, "floor_up": 0.5},
 }
 
@@ -324,7 +324,7 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool) -> void:
 				mi.material_override = want_mat
 			if on:
 				room.set_shader_parameter("light", Vector3(col.r, col.g, col.b) if col != LIT_TINT else Vector3(LAMP.r, LAMP.g, LAMP.b))
-				room.set_shader_parameter("energy", clampf(amount * (0.62 if kind == "cabin" else 0.42), 0.0, 1.2))
+				room.set_shader_parameter("energy", clampf(amount * (0.62 if kind == "cabin" else 0.3), 0.0, 1.2))
 				room.set_shader_parameter("curtain", 0.32 if not tv else 0.5)
 			continue
 		var want: Texture2D = pic if pic != null else m.albedo_texture
