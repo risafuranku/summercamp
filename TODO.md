@@ -88,8 +88,8 @@ finished game, by impact:
 - [x] Sound: the jacket and the keys as you move (20. 10.)
 - [x] Sound: reverb by room — the room's own sounds through a Room bus (wood rings a
   little, canvas hardly), the outside low-passed through the walls (20. 10.)
-- [ ] Sound: the small fridge hums in a better cabin (`cabin_interior.gd` was another
-  session's open file on 20. 10.)
+- [x] Sound: the small fridge hums in a better cabin — runs and rests, knocks as it
+  starts, silent without power (20. 10.)
 - [x] Body, movement: slower in snow, mud and puddles, slower out of breath, the view a
   little wider in a run (acceleration, the stepped bob, the lean and the landing were
   there) — 20. 10.

@@ -54,3 +54,5 @@ kick_can_a	1.0	assets/sfx/world/kick_can_a.mp3	An empty aluminium drink can kick
 kick_can_b	1.0	assets/sfx/world/kick_can_b.mp3	An empty crushed tin can knocked by a foot on packed dirt: a light hollow clank and a skitter, outdoors, close, nothing else. No music.
 kick_bucket	1.4	assets/sfx/world/kick_bucket.mp3	An old empty zinc bucket bumped by a foot on grass: a dull metallic clang, its wire handle rattling, then it rocks and settles, outdoors, close, nothing else. No music.
 kick_cone	0.6	assets/sfx/world/kick_cone.mp3	A dry spruce cone kicked across the forest floor: a faint light woody tap and a soft rustle of dry needles, outdoors, very close, quiet, nothing else. No music.
+fridge_hum	6.0	assets/sfx/world/fridge_hum.mp3	A small old 1980s fridge running in a quiet wooden cabin room: the low steady hum of its compressor with a faint buzzing rattle, heard from a couple of metres away indoors, seamless loop. No music.
+fridge_knock	1.0	assets/sfx/world/fridge_knock.mp3	The compressor of a small old fridge switching on: one dull knock and a short shudder from inside the fridge, heard from a couple of metres away indoors, nothing else. No music.

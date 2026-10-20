@@ -54,6 +54,16 @@ var _guest_visual_root: Node3D
 var _guest_occupants: Array = []
 var _room_env: Environment
 var _main_light: OmniLight3D
+## The small fridge (level 2 and up) while there is power: its compressor runs a while
+## and rests a while, and knocks as it starts (ElevenLabs world/fridge_hum, fridge_knock),
+## through the room's echo (room_weather.gd's Room bus). The whole room is two metres
+## across, so it is not placed (the room's own world has no listener of its own).
+const FRIDGE_HUM := "res://assets/sfx/world/fridge_hum.mp3"
+const FRIDGE_KNOCK := "res://assets/sfx/world/fridge_knock.mp3"
+var _fridge_hum: AudioStreamPlayer
+var _fridge_knock: AudioStreamPlayer
+var _fridge_on := false
+var _fridge_t := 0.0
 var _window_view_sky: MeshInstance3D
 ## The cabin outside (InteriorManager sets it): the windows look out of it into the camp
 ## (off-axis cameras through each window, like the reception's), not at a picture.
@@ -419,6 +429,9 @@ func _update_portals() -> void:
 func close_cabin() -> void:
 	if not _is_open:
 		return
+	# Off while nobody listens; the next visit finds it starting up soon enough.
+	_fridge_set(false, false)
+	_fridge_t = randf_range(1.0, 25.0)
 	_is_open = false
 	if _swipe_tween != null and is_instance_valid(_swipe_tween):
 		_swipe_tween.kill()
@@ -437,6 +450,7 @@ func _process(delta: float) -> void:
 	_apply_idle_mouse_look(delta)
 	_update_portals()
 	_update_torch(delta)
+	_update_fridge(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
 		_side_hints = INTERIOR_LOOK.make_side_hints(self)
@@ -445,6 +459,54 @@ func _process(delta: float) -> void:
 		INTERIOR_LOOK.set_side_hints(_side_hints, "Room  [A]", "")
 	else:
 		INTERIOR_LOOK.set_side_hints(_side_hints, "", "Bathroom  [D]" if _cabin_level >= 2 else "")
+
+
+func _fridge_player(path: String, db: float, loop: bool) -> AudioStreamPlayer:
+	var p := AudioStreamPlayer.new()
+	p.bus = "Room" if AudioServer.get_bus_index("Room") >= 0 else "Master"
+	p.volume_db = db
+	if ResourceLoader.exists(path):
+		var st = load(path)
+		if loop and st is AudioStreamMP3:
+			st = (st as AudioStreamMP3).duplicate()
+			st.loop = true
+		p.stream = st
+	add_child(p)
+	return p
+
+
+## Runs a while, rests a while; a new visit finds it either way.
+func _update_fridge(delta: float) -> void:
+	var can := _cabin_level >= 2 and _grid_power_available and not _derelict
+	if not can:
+		if _fridge_on:
+			_fridge_set(false, false)
+		_fridge_t = randf_range(4.0, 30.0)
+		return
+	if _fridge_hum == null:
+		_fridge_hum = _fridge_player(FRIDGE_HUM, -17.0, true)
+		_fridge_knock = _fridge_player(FRIDGE_KNOCK, -15.0, false)
+		_fridge_on = randf() < 0.6
+		_fridge_t = randf_range(5.0, 40.0)
+		if _fridge_on:
+			_fridge_hum.play(randf() * 4.0)
+	_fridge_t -= delta
+	if _fridge_t <= 0.0:
+		_fridge_set(not _fridge_on, true)
+		_fridge_t = randf_range(35.0, 70.0) if _fridge_on else randf_range(20.0, 45.0)
+
+
+func _fridge_set(on: bool, knock: bool) -> void:
+	_fridge_on = on
+	if _fridge_hum == null:
+		return
+	if on and not _fridge_hum.playing:
+		_fridge_hum.play()
+	elif not on:
+		_fridge_hum.stop()
+	if knock and _fridge_knock != null and _fridge_knock.stream != null:
+		_fridge_knock.pitch_scale = randf_range(0.94, 1.06)
+		_fridge_knock.play()
 
 
 func _apply_idle_mouse_look(delta: float) -> void:

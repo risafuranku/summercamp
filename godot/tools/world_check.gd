@@ -30,7 +30,7 @@ const SOUNDS := ["steps/snow_a.mp3", "steps/snow_b.mp3", "steps/snow_c.mp3", "st
 	"player/jacket_a.mp3", "player/jacket_b.mp3", "player/jacket_c.mp3", "player/keys_a.mp3", "player/keys_b.mp3",
 	"world/door_creak_a.mp3", "world/door_creak_b.mp3", "world/door_shut_a.mp3", "world/door_shut_b.mp3",
 	"world/kick_bottle_a.mp3", "world/kick_bottle_b.mp3", "world/kick_can_a.mp3", "world/kick_can_b.mp3",
-	"world/kick_bucket.mp3", "world/kick_cone.mp3"]
+	"world/kick_bucket.mp3", "world/kick_cone.mp3", "world/fridge_hum.mp3", "world/fridge_knock.mp3"]
 
 
 var _done: Array[String] = []
@@ -104,7 +104,8 @@ func _skies(failures: Array[String]) -> void:
 	var dawn := _first_sky(WEATHER_VISUALS.SKY_TEX_DAWN_PATHS)
 	var golden := _first_sky(WEATHER_VISUALS.SKY_TEX_GOLDEN_PATHS)
 	var sunset := _first_sky(WEATHER_VISUALS.SKY_TEX_SUNSET_PATHS)
-	var blue := _first_sky(WEATHER_VISUALS.SKY_TEX_BLUE_PATHS)
+	# After the sunset the blood-red sky (35ac52b), then the blue hour.
+	var blood := _first_sky(WEATHER_VISUALS.SKY_TEX_BLOOD_PATHS)
 	var want := {
 		[0, 3.0]: ["skystars", "skystars"],
 		[0, 5.6]: ["skystars", dawn],
@@ -113,7 +114,7 @@ func _skies(failures: Array[String]) -> void:
 		[0, 12.0]: ["sky1", "sky1"],
 		[0, 17.2]: [golden, golden],
 		[0, 18.4]: [sunset, sunset],
-		[0, 19.2]: [blue, blue],
+		[0, 19.05]: [blood, blood],
 		[0, 23.0]: ["skystars", "skystars"],
 		[1, 23.0]: ["skystars", "skystars"],
 		[4, 12.0]: ["rrsky4", "rrsky4"],
