@@ -18,15 +18,18 @@ extends "res://scripts/corn/corn_station.gd"
 
 const DRINK_TEX := "res://assets/textury/corn/"
 ## On the table (design px across its picture, stand_layout.SURFACES "drinks").
-const CUPS := Rect2(8, 60, 96, 150)
-const GRATE_AT := Vector2(214, 236)
-const BARREL_AT := Vector2(214, 132)
-const TAP := Rect2(160, 40, 110, 170)
-const BAG_AT := Vector2(452, 244)
-const BOTTLE_AT := Vector2(458, 120)
-const BOTTLE := Rect2(410, 30, 96, 170)
-const BAGS := Rect2(530, 150, 104, 150)
-const STRAWS := Rect2(536, 40, 96, 100)
+## Where the Build picture (corn/st_drinks.png) has them: the stack of cups at the back
+## left, the round drip grate before it, the tray of bags (its back) and straws (its front)
+## on the right; the barrel stands behind the grate, the bottle in the middle.
+const CUPS := Rect2(14, 44, 76, 110)
+const GRATE_AT := Vector2(152, 222)
+const BARREL_AT := Vector2(188, 150)
+const TAP := Rect2(110, 30, 156, 180)
+const BAG_AT := Vector2(372, 250)
+const BOTTLE_AT := Vector2(340, 130)
+const BOTTLE := Rect2(296, 30, 90, 170)
+const BAGS := Rect2(540, 64, 84, 150)
+const STRAWS := Rect2(462, 170, 96, 140)
 const HAND := Rect2(120, 0, 400, 40)
 const CUP_M := 0.1
 const BAG_M := 0.16
@@ -53,7 +56,7 @@ func _build() -> void:
 	for n in ["tea", "limo"]:
 		var p := MARKS + "mark_%s.png" % n
 		_icons[n] = load(p) if ResourceLoader.exists(p) else null
-	_barrel = _stand("drink_barrel", 0.3)
+	_barrel = _stand("drink_barrel", 0.26)
 	put(_barrel, BARREL_AT, 0.0)
 	_bottle = _stand("drink_bottle", 0.26)
 	put(_bottle, BOTTLE_AT, 0.0)
