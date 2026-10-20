@@ -16,6 +16,7 @@ extends Node
 
 const WINDOW_LIGHTS := preload("res://scripts/ambient/window_lights.gd")
 const WEATHER_VISUALS := preload("res://scripts/weather_visuals.gd")
+const NATURE_LIFE := preload("res://scripts/ambient/nature_life.gd")
 
 const PICTURES := ["skybox/skystars.png", "skybox/skydawn.png", "skybox/skygolden.png", "skybox/skysunset.png",
 	"skybox/skybluehour.png", "skybox/moon.png", "camp/window_lit.png", "camp/window_tv.png", "camp/breath_puff.png",
@@ -30,7 +31,9 @@ const SOUNDS := ["steps/snow_a.mp3", "steps/snow_b.mp3", "steps/snow_c.mp3", "st
 	"player/jacket_a.mp3", "player/jacket_b.mp3", "player/jacket_c.mp3", "player/keys_a.mp3", "player/keys_b.mp3",
 	"world/door_creak_a.mp3", "world/door_creak_b.mp3", "world/door_shut_a.mp3", "world/door_shut_b.mp3",
 	"world/kick_bottle_a.mp3", "world/kick_bottle_b.mp3", "world/kick_can_a.mp3", "world/kick_can_b.mp3",
-	"world/kick_bucket.mp3", "world/kick_cone.mp3", "world/fridge_hum.mp3", "world/fridge_knock.mp3"]
+	"world/kick_bucket.mp3", "world/kick_cone.mp3", "world/fridge_hum.mp3", "world/fridge_knock.mp3",
+	"nature/dawn_chorus.mp3", "nature/day_birds.mp3", "nature/grasshoppers.mp3", "nature/woodpecker_a.mp3",
+	"nature/woodpecker_b.mp3", "nature/ducks_a.mp3", "nature/ducks_b.mp3", "nature/crow.mp3"]
 
 
 var _done: Array[String] = []
@@ -40,10 +43,11 @@ func _ready() -> void:
 	var failures: Array[String] = []
 	_lights(failures)
 	_skies(failures)
+	_nature(failures)
 	_snow(failures)
 	_assets(failures)
 	# A check that stopped on an error has not said its last word.
-	for part in ["lights", "skies", "snow", "assets"]:
+	for part in ["lights", "skies", "nature", "snow", "assets"]:
 		if not _done.has(part):
 			failures.append("%s: did not run to its end" % part)
 	if failures.is_empty():
@@ -88,6 +92,28 @@ func _lights(failures: Array[String]) -> void:
 	if dshare < 0.15 or dshare > 0.6:
 		failures.append("lights: %.2f up at 6:24 (want some, not all)" % dshare)
 	_done.append("lights")
+
+
+## The country's layers by hour, place and weather (nature_life.wants).
+func _nature(failures: Array[String]) -> void:
+	var cases := [
+		# [hour, weather, autumn, nearest tree m, layer, at least, at most]
+		[6.5, 0, 0.1, 5.0, "dawn", 0.5, 1.0],
+		[6.5, 0, 0.1, 40.0, "dawn", 0.0, 0.2],
+		[6.5, 4, 0.1, 5.0, "dawn", 0.0, 0.0],
+		[13.0, 0, 0.1, 30.0, "hoppers", 0.6, 1.0],
+		[13.0, 0, 0.1, 2.0, "hoppers", 0.0, 0.0],
+		[13.0, 0, 0.9, 30.0, "hoppers", 0.0, 0.0],
+		[13.0, 0, 0.1, 5.0, "birds", 0.5, 1.0],
+		[23.0, 0, 0.1, 5.0, "birds", 0.0, 0.0],
+		[23.0, 0, 0.1, 5.0, "dawn", 0.0, 0.0],
+		[13.0, 5, 0.1, 5.0, "birds", 0.0, 0.0],
+	]
+	for c in cases:
+		var got := float(NATURE_LIFE.wants(float(c[0]), int(c[1]), float(c[2]), float(c[3]))[str(c[4])])
+		if got < float(c[5]) - 0.001 or got > float(c[6]) + 0.001:
+			failures.append("nature: %s at %.1f, weather %d, autumn %.1f, tree %.0f m is %.2f, want %.2f..%.2f" % [c[4], c[0], c[1], c[2], c[3], got, c[5], c[6]])
+	_done.append("nature")
 
 
 func _first_sky(paths: Array) -> String:
