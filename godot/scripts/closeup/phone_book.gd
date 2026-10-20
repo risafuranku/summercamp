@@ -71,7 +71,7 @@ static func dial(number: String, ctx: Dictionary) -> Dictionary:
 		ELECTRICIAN:
 			return _electrician(ctx, night, n)
 		"066321007":
-			return _machine("VET", 3, [["", "Veterinary practice, Lesna. Surgery hours are eight till twelve. For large animals, ring after six.", "vet"]])
+			return _machine("VET", 3, [["", "Veterinary practice, Liblice. Surgery hours are eight till twelve. For large animals, ring after six.", "vet"]])
 		"066330112":
 			if night or hour < 8.0 or hour >= 15.0:
 				return {"kind": "noanswer", "rings": 9}
@@ -82,12 +82,12 @@ static func dial(number: String, ctx: Dictionary) -> Dictionary:
 		"066330150":
 			return _machine("WATER BOARD", 2, [["", "Water board. Blockages inside the camp are the operator's responsibility. Do not flush rags.", "water"]])
 		"066321333":
-			return _machine("BUS STATION", 1, [["", "Hlubocany bus station. Line three-eighty to Cerne jezero: six fifteen, nine forty, thirteen oh five, sixteen thirty and eighteen forty. The last bus back from the camp leaves at nineteen fifteen.", "bus"]])
+			return _machine("BUS STATION", 1, [["", "Hlubocany bus station. Line three-eighty, Lstibor, Liblice, Pristoupim, Cerne jezero: from Liblice at five thirty, thirteen oh five and eighteen thirty. The last bus back from the camp leaves at nineteen fifteen.", "bus"]])
 		"066321090":
 			if hour < 7.0 or hour >= 18.0:
 				return {"kind": "noanswer", "rings": 8}
 			return _talk("JEDNOTA", 3, [
-				["", "Jednota, Lesna.", "jed_1"],
+				["", "Jednota u Marku, Liblice.", "jed_1"],
 				["YOU", "It's Vera's camp.", ""],
 				["", "Bread comes with the van. And tell Vera the crates are hers to bring back.", "jed_2"]])
 		"066321515":

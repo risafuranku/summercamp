@@ -20,7 +20,7 @@ const VIRTUAL_LINES := 200.0
 ## read better with fewer).
 const SHADES := 16.0
 ## Priorities: the higher keeps the hand.
-const PRIO := {"work": 3, "bottle": 2, "lighter": 2, "torch": 1, "cig": 1}
+const PRIO := {"work": 3, "bottle": 2, "lighter": 2, "torch": 1, "cig": 1, "radio": 2, "megaphone": 2}
 
 ## The colour the hands are drawn with this frame (white = full daylight), in shade steps.
 var light := Color.WHITE

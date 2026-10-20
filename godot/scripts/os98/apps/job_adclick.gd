@@ -17,7 +17,7 @@ const POP := Vector2(214, 96)
 const MAX_OPEN := 7
 const ADS := [
 	["Budvar", "BUDVAR 12", "Beer from Budweis.\nOn tap at Hostinec U Jezera."],
-	["Jednota Lesna", "JEDNOTA LESNA", "Rolls 1.20 Kc!\nBatteries: still sold out."],
+	["Jednota u Marku", "JEDNOTA U MARKU", "Rolls 1.20 Kc!\nBatteries: still sold out."],
 	["CSAD Jihlava", "LINE 380", "The bus to the reservoir.\nIt stops where it stops."],
 	["Bohemia Online", "BOHEMIA ONLINE", "The Internet for 1.20 Kc\na minute. Since 1996."],
 	["Kofola", "KOFOLA", "If you love it,\nthere is nothing to discuss."],

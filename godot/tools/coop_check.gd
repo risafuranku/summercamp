@@ -491,7 +491,7 @@ func _run_step(step: Array) -> void:
 			# A ticket to Lesna out of the machine.
 			var ride = _main.get("_interior_manager").get("_town_trip").get("_ride")
 			if ride != null:
-				ride.set("_ticket", {"to": "LESNA", "kind": "full"})
+				ride.set("_ticket", {"to": "LIBLICE", "kind": "full"})
 		"coop_spend":
 			CoreRoot.actions.spend_money(int(step[1]))
 		"coop_sign_delivery":

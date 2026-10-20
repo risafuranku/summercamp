@@ -35,6 +35,8 @@ var root: Node3D
 var window_quad: MeshInstance3D
 var curtain
 var hot: Dictionary = {}     # id -> {body, meshes}
+## The camp's megaphone on the chest of drawers (gone into your bag once taken).
+var megaphone: MeshInstance3D
 var tv_on := true
 var lamp_on := true
 var lamp: OmniLight3D
@@ -87,6 +89,20 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	_prop("lamp", "lantern", Vector3(-4.24, 0.6, -0.08) + o, 0.0)
 	_prop("tv", "tv_small", TV + o, 180.0)
 	K.prop(root, "dresser", Vector3(-5.0, 0.05, 2.36) + o, 180.0)
+	# The camp's megaphone on the floor by the chest of drawers (take it: the bag).
+	megaphone = K.cutout(root, "megaphone", Vector2(0.36, 0.43), Vector3(-4.42, 0.05, 2.36) + o, 0.0, true, "Megaphone")
+	if megaphone != null:
+		var mbody := StaticBody3D.new()
+		mbody.name = "Hot_megaphone"
+		mbody.set_meta("extra_hot", "megaphone")
+		var mshape := CollisionShape3D.new()
+		var mbox := BoxShape3D.new()
+		mbox.size = Vector3(0.46, 0.36, 0.3)
+		mshape.shape = mbox
+		mbody.add_child(mshape)
+		mbody.position = megaphone.position + Vector3(0, 0.21, 0)
+		root.add_child(mbody)
+		hot["megaphone"] = {"body": mbody, "meshes": [megaphone]}
 	K.prop(root, "wardrobe", Vector3(-3.15, 0.05, 0.12) + o, 0.0)
 	K.prop(root, "coat_hooks", Vector3(-2.66, 1.55, 2.2) + o, -90.0)
 	K.cutout(root, "coat_hook", Vector2(0.42, 0.62), Vector3(-2.64, 0.86, 2.2) + o, -90.0, false, "Coat")
@@ -237,6 +253,17 @@ func _prop(id: String, prop_name: String, pos: Vector3, yaw: float) -> Node3D:
 	root.add_child(body)
 	hot[id] = {"body": body, "meshes": [n]}
 	return n
+
+
+## The megaphone where it stands, or not (in somebody's bag, on the ground somewhere).
+func show_megaphone(on: bool) -> void:
+	if megaphone == null:
+		return
+	megaphone.visible = on
+	var h: Dictionary = hot.get("megaphone", {})
+	var body: StaticBody3D = h.get("body")
+	if body != null:
+		body.collision_layer = 1 if on else 0
 
 
 static func _aabb_of(n: Node3D) -> AABB:

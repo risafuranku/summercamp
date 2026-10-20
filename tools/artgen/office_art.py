@@ -119,6 +119,8 @@ ROWS = [
     ("face_bus_dash", "panel", 192, "town/bus_dash.png"),
     ("face_bus_door_in", "panel", 56, "town/bus_door_in.png"),
     ("spr_bus_driver_back", "sprite", 112, "town/bus_driver_back.png"),
+    ("spr_bus_driver_seated", "sprite", 112, "town/bus_driver_seated.png"),
+    ("spr_bus_driver_seated_front", "sprite", 112, "town/bus_driver_seated_front.png"),
     ("spr_bus_mascot", "sprite", 40, "town/bus_mascot.png"),
     ("spr_no_smoking", "sprite", 32, "town/no_smoking.png"),
     ("spr_bus_litter", "sprite", 48, "town/bus_litter.png"),
@@ -190,6 +192,9 @@ ROWS = [
     ("spr_corn_cob", "sprite", 48, "corn_cob.png"),
     ("spr_corn_raw", "sprite", 48, "corn_raw.png"),
     ("closeup_corn", "close", 320, "closeup/corn_stand.png"),
+    ("closeup_ruin", "close", 320, "town/closeup_ruin.png"),
+    ("spr_ruin_boy", "sprite", 64, "town/ruin_boy.png"),
+    ("spr_vondra_driving", "sprite", 110, "town/vondra_driving.png"),
     # The counter games' new close-ups and the books.
     ("closeup_pub_shots", "close", 320, "closeup/pub_shots.png"),
     ("closeup_glass_wash", "close", 320, "closeup/glass_wash.png"),

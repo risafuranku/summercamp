@@ -103,7 +103,7 @@ static func bar(parent: Node3D, si) -> void:
 	look(parent, "brewery sign", "The brewery closed in 1991. The sign stayed; the beer changed.", Vector3(-0.9, 1.75, -2.25), Vector3(0.7, 0.52, 0.1))
 	_cut(parent, "pub_pennant", Vector2(0.3, 0.36), Vector3(-2.0, 1.9, -2.28), 0.0, false, "Pennant")
 	_cut(parent, "pub_pennant", Vector2(0.28, 0.34), Vector3(-1.62, 1.95, -2.28), 0.0, false, "Pennant")
-	look(parent, "pennants", "SK Lesna. Promoted in 1983, relegated in 1984.", Vector3(-1.8, 2.0, -2.25), Vector3(0.7, 0.4, 0.1))
+	look(parent, "pennants", "SK Liblice. Promoted in 1983, relegated in 1984.", Vector3(-1.8, 2.0, -2.25), Vector3(0.7, 0.4, 0.1))
 	_pic(parent, "pub_calendar", Vector2(0.32, 0.46), Vector3(0.15, 1.65, -2.28), 0.0, "Calendar")
 	look(parent, "calendar", "September 1986. Nobody has turned it over.", Vector3(0.15, 1.65, -2.25), Vector3(0.32, 0.46, 0.1))
 	K.cutout(parent, "wall_clock", Vector2(0.3, 0.3), Vector3(2.4, 1.85, -2.28), 0.0, false, "Clock")

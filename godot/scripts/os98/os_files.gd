@@ -81,11 +81,11 @@ If the main trips, read NOCI.TXT.
 	"TELEFONY.TXT": """TELEPHONE NUMBERS                        (updated 4/96)
 
 Electrician Novotny ............ 0663 22 418  (not after 9 pm)
-Vet, Lesna ..................... 0663 21 007
+Vet, Liblice ................... 0663 21 007
 District office, accommodation . 0663 30 112
 Water board .................... 0663 30 150
 Bus station Hlubocany .......... 0663 21 333
-Jednota Lesna (shop) ........... 0663 21 090
+Jednota u Marku (shop) ......... 0663 21 090
 Hostinec U Jezera (pub) ........ 0663 21 515
 Pan Hruby (lake keeper) ........ -- no longer --
 Police ......................... 158

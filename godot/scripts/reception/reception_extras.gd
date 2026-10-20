@@ -17,6 +17,7 @@ extends RefCounted
 
 ## Walking between the rooms: one smooth move (scripts/ui/walk_path.gd).
 const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
+const INVENTORY_BAG = preload("res://scripts/ui/inventory.gd")
 const STORE_ROOM = preload("res://scripts/reception/store_room.gd")
 const SFX_STEPS := "res://assets/sfx/rooms/steps_wood.mp3"
 const DOOR_TEX := "res://assets/textury/camp/door_interior.png"
@@ -589,6 +590,8 @@ func click() -> bool:
 			host.toggle_desk_lamp()
 		"lamp":
 			back.toggle_lamp()
+		"megaphone":
+			_take_megaphone()
 		_:
 			return host.has_method("dressing_click") and host.dressing_click(_hover)
 	return true
@@ -652,9 +655,28 @@ func handle_exit() -> bool:
 
 # ── walking between the rooms ────────────────────────────────────────────────
 
+## The megaphone into your bag (the room behind the office): hold its key to shout.
+func _take_megaphone() -> void:
+	var bag = INVENTORY_BAG.find(host.get_tree())
+	if bag == null or not bag.add_item("megaphone"):
+		_office_call("say", ["No room for the megaphone in your bag."], null)
+		return
+	glint.clear()
+	back.show_megaphone(false)
+	_office_call("say", ["The camp's megaphone. Hold %s and the whole camp hears you." % GameSettings.key_name("megaphone_talk")], null)
+
+
+## The megaphone on the chest of drawers unless somebody has it (a bag, the ground).
+func _refresh_megaphone() -> void:
+	var bag = INVENTORY_BAG.find(host.get_tree())
+	var taken: bool = bag != null and (bag.has("megaphone") or bag.has_dropped("megaphone"))
+	back.show_megaphone(not taken)
+
+
 func go_back_room() -> void:
 	if _walking() or where != "office":
 		return
+	_refresh_megaphone()
 	glint.clear()
 	_play(SFX_DOOR, -9.0)
 	_play_steps()

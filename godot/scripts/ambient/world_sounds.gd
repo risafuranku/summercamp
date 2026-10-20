@@ -134,11 +134,12 @@ func _poll(here: Vector3) -> void:
 	# The generator, while the camp has power.
 	var powered: bool = main == null or not main.has_method("_is_grid_powered") or bool(main.call("_is_grid_powered"))
 	for id in _gens.keys():
-		var g: AudioStreamPlayer3D = _gens[id]
+		# Untyped first: a freed one cannot even be assigned to a typed variable.
+		var g = _gens[id]
 		if not is_instance_valid(g):
 			_gens.erase(id)
 			continue
-		_set_loop(g, powered, -10.0)
+		_set_loop(g as AudioStreamPlayer3D, powered, -10.0)
 	if _lake != null and is_instance_valid(_lake):
 		_set_loop(_lake, true, -12.0)
 	if _frogs != null and is_instance_valid(_frogs):

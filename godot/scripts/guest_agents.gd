@@ -451,6 +451,47 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 				sprite.rotation.z = sin(_time * 0.8 + float(i)) * 0.01
 		member.position = pos
 	_update_marker(party, info, marker_pos, visible_now)
+	_update_alert(party, visible_now)
+
+
+## Somebody on the megaphone (scripts/coop/voice.gd): the guests within `radius` of
+## `at` look up, a "!" over them for `secs`.
+func alert(at: Vector3, radius: float, secs: float) -> void:
+	var until := Time.get_ticks_msec() + int(secs * 1000.0)
+	for party in _parties.values():
+		var pd: Dictionary = party
+		var p: Vector3 = pd.get("last_pos", Vector3.INF)
+		if p == Vector3.INF or Vector2(p.x - at.x, p.z - at.z).length() > radius:
+			continue
+		pd["alert_ms"] = maxi(int(pd.get("alert_ms", 0)), until)
+
+
+func _update_alert(party: Dictionary, visible_now: bool) -> void:
+	var on := visible_now and Time.get_ticks_msec() < int(party.get("alert_ms", 0))
+	var mark = party.get("alert_mark")
+	if on and (mark == null or not is_instance_valid(mark)):
+		var members: Array = party.get("members", [])
+		if members.is_empty() or not (members[0] is Node3D):
+			return
+		var l := Label3D.new()
+		l.text = "!"
+		l.font = load("res://assets/fonts/jersey10.fnt")
+		l.font_size = 48
+		l.pixel_size = 0.012
+		l.outline_size = 0
+		l.modulate = Color(1.0, 0.86, 0.3)
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		l.no_depth_test = false
+		l.position = Vector3(0, SPRITE_HEIGHT_M + 0.42, 0)
+		(members[0] as Node3D).add_child(l)
+		party["alert_mark"] = l
+		mark = l
+	if mark != null and is_instance_valid(mark):
+		(mark as Label3D).visible = on
+		if on:
+			# A little hop, in steps.
+			(mark as Label3D).position.y = SPRITE_HEIGHT_M + 0.42 + (0.05 if int(_time * 6.0) % 2 == 0 else 0.0)
 
 
 ## Stooped by `f` (0 upright .. 1 right down under a tent flap), feet where they were.

@@ -254,7 +254,7 @@ func _ring() -> void:
 	for b in _basket:
 		needs[str(b)] = int(needs.get(str(b), 0)) + 1
 	if not BUSINESS.sell(building_key, needs, typed, false):
-		say(who, "You haven't got it on the shelf? Then I'll go to Lesna.")
+		say(who, "You haven't got it on the shelf? Then I'll go to Liblice.")
 		if CoreRoot != null and CoreRoot.actions != null:
 			CoreRoot.actions.biz_lost(building_key)
 		ORDERS.note_served(_who)
