@@ -95,9 +95,13 @@ finished game, by impact:
   there) — 20. 10.
 - [x] Body: doors with a feel — the guests' doors swing with weight, knock on the frame,
   creak and thud (20. 10.)
+- [x] Things to nudge: bottles, cans, a bucket, cones your (and the other wardens') feet
+  kick, with their sounds (20. 10., `nudge_props.gd`)
 - [ ] Body: hands (one glove for every tool, more frames, sway, cold and fear tremor,
-  reaching for doors and switches; another session's area since 0749f84); things to
-  nudge; the menu camera
+  reaching for doors and switches; another session's area since 0749f84)
+- [x] The menu camera: calm film shots since 77e5bac; all of them seen again on 20. 10.
+  after the new light (the misty jetty, the golden corn, the office in the rain, the far
+  shore, the gate at night, the red sky after sunset of 35ac52b): they read
 - [x] Every sound the code synthesised is a recording now (the camera, the thump, the
   pager, the station, the phone line, the splash's neon, the set's tone)
 - [x] Production, frame time at 1920x1080 (the tour camp, clear and rain, noon and 20:30,
@@ -105,8 +109,15 @@ finished game, by impact:
   and GPU 3.0 ms on average, after it (9193f0d + the fire) 28.7 ms and 3.0 ms, fps at the
   50 cap in both: the lit windows, the lamps' cones, the skies, far life and the rest
   cost nothing measurable (20. 10.; single spots vary by ±8 ms with other work on the PC)
-- [ ] Production: draw distance and pop-in, the forests and the lake from far off, the
-  menu flythrough, coop4_check
+- [x] Production: draw distance and pop-in, the forests and the lake from far off, the
+  menu flythrough — seen 20. 10. (jetty, forest edge, west, east, gate; noon and 18:15,
+  clear and fog): the forest ring has no gaps, the far shore and its houses read across
+  the lake, the fog falls off in steps; the only thing cut by distance is the ground
+  cover at 70 m (a tuft is a pixel there)
+- [ ] coop4_check on HEAD 14e8dd1 (20. 10.): 23 failures, all the trip to town (in_town,
+  the bus, Lesna, the bar of U Jezera, the fingerprints), no SCRIPT ERROR; coop_check
+  the same in_town wait plus the derelict cabin and the jobs, on clean HEAD too (town:
+  Cod3x)
 
 ## BUILDER 98, A GAME IN THE GAME — 2026-10-19 (agreed with the user; handoff)
 

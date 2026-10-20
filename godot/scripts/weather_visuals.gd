@@ -471,6 +471,11 @@ func setup_weather_particles() -> void:
 	var far = load("res://scripts/ambient/far_life.gd").new()
 	far.player_getter = _player_getter
 	_world_3d.add_child(far)
+	# Things you nudge with your foot: bottles, cans, buckets, cones
+	# (scripts/ambient/nudge_props.gd).
+	var nudge = load("res://scripts/ambient/nudge_props.gd").new()
+	nudge.player_getter = _player_getter
+	_world_3d.add_child(nudge)
 	if _bolt.texture != null:
 		# Through the fog: the material is the sprite's own; fog off on it.
 		var bm := StandardMaterial3D.new()

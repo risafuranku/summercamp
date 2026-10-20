@@ -48,3 +48,9 @@ door_creak_a	0.8	assets/sfx/world/door_creak_a.mp3	The dry hinges of an old wood
 door_creak_b	0.8	assets/sfx/world/door_creak_b.mp3	A short squeak of rusty hinges as a light wooden door is pushed open, heard from a few metres away outdoors, nothing else. No music.
 door_shut_a	0.6	assets/sfx/world/door_shut_a.mp3	A wooden cabin door swinging shut against its frame: a soft hollow thud and the click of the latch, heard from a few metres away outdoors, nothing else. No music.
 door_shut_b	0.6	assets/sfx/world/door_shut_b.mp3	A light wooden door banging shut in its frame with a rattle of the latch, heard from a few metres away outdoors, nothing else. No music.
+kick_bottle_a	1.2	assets/sfx/world/kick_bottle_a.mp3	An empty glass beer bottle knocked over by a walking foot on a gravel path: a hollow glass clink, then a short roll over the grit, outdoors, close, nothing else. No music.
+kick_bottle_b	1.2	assets/sfx/world/kick_bottle_b.mp3	An empty glass bottle kicked by accident on dry ground: one clear clink and a rattling roll that stops, outdoors, close, nothing else. No music.
+kick_can_a	1.0	assets/sfx/world/kick_can_a.mp3	An empty aluminium drink can kicked along a gravel path: a tinny clatter, two little bounces and a short scrape, outdoors, close, nothing else. No music.
+kick_can_b	1.0	assets/sfx/world/kick_can_b.mp3	An empty crushed tin can knocked by a foot on packed dirt: a light hollow clank and a skitter, outdoors, close, nothing else. No music.
+kick_bucket	1.4	assets/sfx/world/kick_bucket.mp3	An old empty zinc bucket bumped by a foot on grass: a dull metallic clang, its wire handle rattling, then it rocks and settles, outdoors, close, nothing else. No music.
+kick_cone	0.6	assets/sfx/world/kick_cone.mp3	A dry spruce cone kicked across the forest floor: a faint light woody tap and a soft rustle of dry needles, outdoors, very close, quiet, nothing else. No music.
