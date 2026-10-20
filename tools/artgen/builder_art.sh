@@ -15,7 +15,7 @@ case "$base" in
 	gst_family) $cut "$id" assets/textury/builder/peeps family 8 96 20 && cp godot/assets/textury/builder/peeps/family_7.png godot/assets/textury/builder/peeps/family_6.png ;;
 	gst_picker) $cut "$id" assets/textury/builder/peeps picker 8 96 8 ;;
 	bld_react) python tools/artgen/split_sheet.py "$id" 0.17 assets/textury/builder/react smile,angry,sick,hearts,notes,zzz,sweat,alert 8 ;;
-	bld_stages) $cut "$id" assets/textury/builder/site stage 3 200 ;;
+	bld_stages) $cut "$id" assets/textury/builder/site stage 3 200 10 ;;
 	bld_dozer) $cut "$id" assets/textury/builder/site dozer 8 64 ;;
 	bld_dust) $cut "$id" assets/textury/builder/site dust 4 64 ;;
 	bld_tree) $cut "$id" assets/textury/builder/life tree 4 120 ;;
