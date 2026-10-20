@@ -10,7 +10,7 @@ cut="python tools/artgen/cut_frames.py"
 case "$base" in
 	gst_quiet) $cut "$id" assets/textury/builder/peeps quiet 8 96 ;;
 	gst_drunk) $cut "$id" assets/textury/builder/peeps drunk 8 96 ;;
-	gst_chick) $cut "$id" assets/textury/builder/peeps chick 8 96 ;;
+	gst_chick) $cut "$id" assets/textury/builder/peeps chick 8 96 6 ;;
 	gst_tramp) $cut "$id" assets/textury/builder/peeps tramp 8 96 ;;
 	gst_family) $cut "$id" assets/textury/builder/peeps family 8 96 ;;
 	gst_picker) $cut "$id" assets/textury/builder/peeps picker 8 96 ;;
