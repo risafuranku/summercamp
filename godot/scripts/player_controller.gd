@@ -152,6 +152,10 @@ var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
 var _steps: Dictionary = {}          # surface -> [AudioStream]
 var _ground_life: Node               # the puddles (scripts/ambient/ground_life.gd)
+## How much what is under you lets you go (looked at four times a second).
+const SURFACE_SPEED := {"snow": 0.86, "mud": 0.92, "puddle": 0.94}
+var _surface_speed := 1.0
+var _surface_t := 0.0
 var _step_players: Array = []
 var _step_next := 0
 var _step_last := -1
@@ -303,7 +307,13 @@ func _physics_process(delta: float) -> void:
 	var sprinting := wants_sprint and not _stamina_locked and stamina > 0.0
 	sprint_lower = move_toward(sprint_lower, 1.0 if sprinting else 0.0, delta * 3.0)
 	_update_stamina(delta, sprinting)
-	var current_speed = (sprint_speed if sprinting else move_speed) * terrain_speed_mult
+	# What you walk in slows you (snow, mud, a puddle), and so does being out of breath.
+	_surface_t -= delta
+	if _surface_t <= 0.0:
+		_surface_t = 0.25
+		_surface_speed = float(SURFACE_SPEED.get(_surface_under(), 1.0)) if is_on_floor() else _surface_speed
+	var winded := 0.9 if _stamina_locked else 1.0
+	var current_speed = (sprint_speed if sprinting else move_speed) * terrain_speed_mult * _surface_speed * winded
 	var target_x = move_dir.x * current_speed
 	var target_z = move_dir.z * current_speed
 	var accel = air_acceleration if not is_on_floor() else ground_acceleration
@@ -673,7 +683,8 @@ func _update_head_motion(delta: float) -> void:
 	_current_tilt = lerp(_current_tilt, input_tilt, delta * tilt_smoothing)
 	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y
 	if _camera != null:
-		var target_fov = camera_fov + (abs(pitch_ratio) * pseudo_pitch_fov_shift) + _damage_fov_push
+		# A little wider in a run.
+		var target_fov = camera_fov + (abs(pitch_ratio) * pseudo_pitch_fov_shift) + _damage_fov_push + sprint_lower * 2.5
 		_camera.fov = lerp(_camera.fov, target_fov, clamp(delta * 9.0, 0.0, 1.0))
 
 

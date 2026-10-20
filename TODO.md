@@ -49,7 +49,8 @@ finished game, by impact:
   the view — paler crowns, puddles nearer and mirroring the sky, the far streaks kept off
   (20. 10.); the water on the windows from inside (room_weather.gd) is as light as the
   light outside (at night it was a screen of grey static)
-- [ ] Rain: drips from roofs and trees after it stops; rain sound by surface (tin roof,
+- [x] Rain: drips off the eaves after it stops (20. 10., world_sounds.gd)
+- [ ] Rain: drips you can see off roofs and trees; rain sound by surface (tin roof,
   canvas, leaves, the lake)
 - [x] Sound: the lake's lapping and the frogs played in the middle of the camp (the jetty's
   body sits at the lake's origin) — fixed 20. 10.
@@ -58,8 +59,11 @@ finished game, by impact:
   (the transformer by the corn and the swings were there) — 20. 10.
 - [ ] Sound: reverb by room; the jacket and the keys as you move; the fridge in the back
   room
-- [ ] Body: movement, landing, head bob, lean, fatigue; hands (one glove for every tool,
-  more frames, sway, cold and fear tremor, reaching for doors and switches); doors with a
+- [x] Body, movement: slower in snow, mud and puddles, slower out of breath, the view a
+  little wider in a run (acceleration, the stepped bob, the lean and the landing were
+  there) — 20. 10.
+- [ ] Body: hands (one glove for every tool, more frames, sway, cold and fear tremor,
+  reaching for doors and switches; another session's area since 0749f84); doors with a
   feel; things to nudge; the menu camera
 - [x] Every sound the code synthesised is a recording now (the camera, the thump, the
   pager, the station, the phone line, the splash's neon, the set's tone)
