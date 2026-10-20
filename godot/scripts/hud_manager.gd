@@ -131,6 +131,9 @@ var _objective_panel: Control
 var _arrivals_panel: Control
 ## The plates at the right edge: parties on the way or at the desk (scripts/ui/arrival_strip.gd).
 var _arrival_rings: Control
+## The camp's troubles as plates under the arrivals' (scripts/ui/trouble_strip.gd).
+var _trouble_strip: Control
+var _troubles: Array = []
 var _side_layer: CanvasLayer
 var _side_root: Control
 var _arrivals_box: VBoxContainer
@@ -812,6 +815,12 @@ func _build_arrivals() -> void:
 	_feed_layer.add_child(_arrival_rings)
 	if not _arrivals.is_empty():
 		_arrival_rings.set_rows(_arrivals)
+	_trouble_strip = load("res://scripts/ui/trouble_strip.gd").new()
+	_trouble_strip.name = "TroubleStrip"
+	_trouble_strip.set("font", RETRO_UI.FONT_TEXT)
+	_trouble_strip.set("ui_scale", _scale)
+	_feed_layer.add_child(_trouble_strip)
+	_trouble_strip.set_rows(_troubles)
 	var panel := _plate()
 	panel.name = "Arrivals"
 	panel.anchor_left = 1.0
@@ -875,6 +884,16 @@ func _refresh_jobs() -> void:
 	_jobs_panel.size = Vector2(_vp(TRACKER_WIDTH_VP), 0)
 
 
+## The camp's troubles as plates (main._trouble_rows: the day's events, the night's jobs,
+## the businesses' queues).
+func set_troubles(rows: Array) -> void:
+	if rows == _troubles:
+		return
+	_troubles = rows.duplicate(true)
+	if _trouble_strip != null and is_instance_valid(_trouble_strip):
+		_trouble_strip.set_rows(_troubles)
+
+
 ## Rows from GuestManager.get_arrivals(): who is coming, when, to which room, ready?
 func set_arrivals(rows: Array) -> void:
 	if rows == _arrivals:
@@ -882,6 +901,8 @@ func set_arrivals(rows: Array) -> void:
 	_arrivals = rows.duplicate(true)
 	if _arrival_rings != null and is_instance_valid(_arrival_rings):
 		_arrival_rings.set_rows(_arrivals)
+	if _trouble_strip != null and is_instance_valid(_trouble_strip):
+		_trouble_strip.set("arrivals", mini(_arrivals.size(), 6))
 	_refresh_arrivals()
 
 
@@ -964,8 +985,10 @@ func _build_card() -> void:
 	names.add_child(_card_name)
 	_card_sub = _caption("")
 	names.add_child(_card_sub)
+	# The needs two to a row (seven of them one under another ran the card into the status
+	# bar at 720p once DRINK came).
 	var grid := GridContainer.new()
-	grid.columns = 2
+	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", int(_vp(3)))
 	grid.add_theme_constant_override("v_separation", int(_vp(2)))
 	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE

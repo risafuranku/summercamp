@@ -1625,6 +1625,33 @@ func _poll_arrivals(delta: float) -> void:
 		_hud_manager.set_jobs(day_rows + serve_rows, "TODAY")
 	elif _night_jobs != null:
 		_hud_manager.set_jobs(serve_rows + _night_jobs.hud_rows())
+	if _hud_manager.has_method("set_troubles"):
+		_hud_manager.set_troubles(_trouble_rows(biz))
+
+
+## The camp's troubles for the HUD's plates (scripts/ui/trouble_strip.gd): the day's open
+## events with their time running out, the night's open jobs, the businesses with guests
+## waiting and how many. The same on every co-op machine (all three are the host's).
+const TROUBLE_KIND := {"rest": "rest", "pub": "pub", "vecerka": "vecerka", "corn": "stand"}
+const TROUBLE_WORD := {"rest": "Bistro", "pub": "Pub", "vecerka": "Jednota", "corn": "Corn"}
+
+
+func _trouble_rows(biz) -> Array:
+	var rows: Array = []
+	var abs_minute := (maxi(1, _day_index) - 1) * 1440 + _clock_minutes_from_hours(_time_of_day_hours)
+	if _day_events != null and camp_rule("events"):
+		for ev in _day_events.open_events():
+			var span := float(int(ev.get("deadline", 0)) - int(ev.get("at", 0)))
+			var left := clampf(float(int(ev.get("deadline", 0)) - abs_minute) / span, 0.0, 1.0) if span > 0.0 else -1.0
+			rows.append({"id": "d%s" % str(ev.get("id", "")), "kind": str(ev.get("kind", "")), "word": str(ev.get("short", "")), "cat": "day", "left": left})
+	if _night_jobs != null:
+		for job in _night_jobs.open_jobs():
+			rows.append({"id": "n%s@%d" % [str(job.get("kind", "")), int(job.get("at", 0))], "kind": str(job.get("kind", "")), "word": str(job.get("short", "")), "cat": "night", "left": -1.0})
+	if biz != null and biz.has_method("waiting_sites"):
+		for site in biz.waiting_sites():
+			var kind := str(biz.site(str(site["key"])).get("kind", ""))
+			rows.append({"id": "b%s" % str(site["key"]), "kind": str(TROUBLE_KIND.get(kind, "pub")), "word": str(TROUBLE_WORD.get(kind, "Guests")), "cat": "biz", "left": -1.0, "n": int(site["n"])})
+	return rows
 
 
 func _on_guest_at_gate(row: Dictionary) -> void:
