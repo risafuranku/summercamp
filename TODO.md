@@ -63,15 +63,13 @@ was agreed, except a star rating inside the Builder: the rating became Goggle (t
 Reviews tab, DESIGN §5i), "a parody of Google reviews; not everything unlocked from the
 start, collect good ratings; pay to delete bad reviews".
 
-- [x] Goggle Reviews: the tenth tab (key 0), the page, blueprint tiers and room upgrades
+- [x] Goggle Reviews: the fifth tab (key 5), the page, blueprint tiers and room upgrades
   locked by rating, the booking pull, SpotlessName Ltd removals (caught = flagged), the
   owner's replies tied to CampMail's guest book, saved, co-op through the host
   (`scripts/reviews/goggle.gd`, `os98/apps/goggle_app.gd`, `tools/goggle_check.gd`)
-- [ ] Goggle art still coming from Grok (rows in `tools/artgen/prompts.tsv`): `ico2_padlock`
-  and `web_spotless_banner`; then `python tools/artgen/web_review_art.py` and `--import`
-  (the page and the cards draw without them: no padlock, a plain banner box). Look at
-  the Builder catalogue with locked cards in a screenshot (dismiss the shareware nag
-  first, once there is one)
+- [x] Goggle's art (padlock, SpotlessName's banner, stars) processed and seen in both
+  resolutions; the Jednota at 4.0 with the slide; Photos and People also searched for;
+  how many found a review helpful; the owner's badge; long reviews cut with "..."
 - [ ] Building site instead of the drop-in: a scaffold with a worker hammering for a few
   seconds (`iso_scaffold`, `iso_worker_a/b`; `assets/sfx/builder/hammer.mp3`,
   `site_done.mp3`), then the building; in `crt_map_panel._on_build_confirmed` /

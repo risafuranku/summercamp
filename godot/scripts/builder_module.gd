@@ -27,7 +27,7 @@ const OVERLAY_SHORT := {"": "Off", "condition": "Wear", "power": "Power", "rooms
 
 const CATEGORIES: Array = [
 	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/tb_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
-	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand"]},
+	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand", "vecerka"]},
 	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide", "playground", "ping_pong", "hammock"]},
 	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/tb_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole"]},
 	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer"]},
@@ -62,7 +62,7 @@ const ITEM_ICONS := {
 const TINY_NAMES := {
 	"sports_field": "Pitch", "lake_slide": "Slide", "playground": "Swings", "picnic_table": "Picnic",
 	"flower_bed": "Flowers", "toilet_block": "WC", "shower_block": "Showers", "restaurant": "Bistro",
-	"ping_pong": "Pingpong",
+	"ping_pong": "Pingpong", "corn_stand": "Corn",
 }
 ## Card size in the catalogue strip: as wide as this, narrower when there are more of
 ## them than fit (the strip never scrolls: every card of a catalogue is on screen).
@@ -86,7 +86,7 @@ const BLURBS := {
 	"caravan_1": "Two cheap beds on wheels. Needs power. Kids love the bunks.",
 	"toilet_block": "Without it, guests use the bushes. Needs the sewer.",
 	"shower_block": "Guests get dirty. Needs the sewer.",
-	"vecerka": "Bread, sausages, beer. Cheap food.",
+	"vecerka": "Bread, salami, ice cream, beer. Guests love it.",
 	"restaurant": "Proper hot meals. Needs power.",
 	"pub": "Beer and noise. Guests love it, then they get loud.",
 	"bonfire": "Fun, food on sticks, and a light that feels safe at night.",
@@ -858,7 +858,9 @@ func _draw_inspector() -> void:
 
 
 const PADLOCK_TEX := "res://assets/textury/os98/icons/padlock_16.png"
+const STAR_TEX := "res://assets/textury/os98/web/star_full.png"
 var _padlock: Texture2D = load(PADLOCK_TEX) if ResourceLoader.exists(PADLOCK_TEX) else null
+var _star: Texture2D = load(STAR_TEX) if ResourceLoader.exists(STAR_TEX) else null
 
 
 func _make_card(type: String, w: int = CARD_W) -> Control:
@@ -908,7 +910,12 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 			if _padlock != null:
 				c.draw_texture_rect(_padlock, Rect2(Vector2(4, c.size.y - 20), Vector2(16, 16)), false)
 			c.draw_string(T.FONT_BOLD, Vector2(text_x, 17), label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
-			c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), "Goggle %.1f" % float(lock["stars"]), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
+			# The stars it waits for: Goggle's own star and the number (the word did not fit).
+			var sx := text_x
+			if _star != null:
+				c.draw_texture_rect(_star, Rect2(Vector2(sx, 22), Vector2(12, 12)), false)
+				sx += 15.0
+			c.draw_string(T.FONT_BOLD, Vector2(sx, 32), "%.1f" % float(lock["stars"]), HORIZONTAL_ALIGNMENT_LEFT, text_w - (sx - text_x), T.FONT_SIZE, Color8(150, 100, 0))
 			c.draw_string(T.FONT, Vector2(text_x, 47), "%d reviews" % int(lock["reviews"]), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
 			return
 		c.draw_string(T.FONT_BOLD, Vector2(text_x, 17) + o, label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT)

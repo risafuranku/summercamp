@@ -45,6 +45,7 @@ func _run() -> void:
 	_expect(start > 1.5 and start < 3.0, "the old page should rate it low (2-3), it is %.1f" % start)
 	_expect(g.tier == 0, "only the first blueprints open on a new camp (tier %d)" % g.tier)
 	_expect(g.unlocked("tent_1") and g.unlocked("pub") and not g.unlocked("lake_slide") and not g.unlocked("upgrade:2"), "the first tier opens tents and the pub, not the slide or upgrades")
+	_expect(not g.unlocked("vecerka") and GOGGLE.tier_of("vecerka") == GOGGLE.tier_of("lake_slide"), "the Jednota waits for 4.0 with the slide")
 	# Good guests.
 	for i in 20:
 		g.add_guest_review(_guest("G%d" % i, 5, 2 + i / 4, 100 + i), 2)
@@ -52,6 +53,7 @@ func _run() -> void:
 	print("after 20 good: %.1f (%d), tier %d" % [g.rating(8), g.count(), g.tier])
 	_expect(g.rating(8) > 4.0, "twenty five-star reviews should lift it over 4 (%.1f)" % g.rating(8))
 	_expect(opened >= 2 and g.unlocked("playground") and g.unlocked("upgrade:2"), "the good reviews should open the playground and the upgrades (tier %d)" % g.tier)
+	_expect(g.unlocked("vecerka") == (g.rating(8) >= 4.0 and g.count() >= 22), "the Jednota opens at 4.0 with 22 reviews (%.1f, %d)" % [g.rating(8), g.count()])
 	# A tier stays open when the rating falls back.
 	var tier_before: int = g.tier
 	for i in 30:

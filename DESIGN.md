@@ -424,7 +424,7 @@ the desk fan, the wicket gate, the ripples where a fish jumps. That stutter is t
 
 ## 5i. The camp on Goggle
 
-The PC's tenth tab, Reviews (key 0), is the camp's page on Goggle, a 1998 search
+The PC's fifth tab, Reviews (key 5, after Mail), is the camp's page on Goggle, a 1998 search
 engine's places page (`scripts/reviews/goggle.gd` the logic, `os98/apps/goggle_app.gd`
 the page). Every guest's review goes up in public; the stars are the plain average of
 what is up, to one decimal. The page was there before you: seven reviews from last
@@ -434,9 +434,10 @@ shoes in. He knocks.", answered by someone who is not you).
 - The rating is the progression. Builder 98's blueprints open tier by tier (a rating and
   enough reviews to count): tents, cabins, the basics from the start; caravans, the
   restaurant, the pitch, the gnome and the corn stand at 3.0; the playground, ping-pong,
-  the flagpole and level-2 rooms at 3.5; the slide at 4.0; level-3 rooms at 4.3. A tier
-  once reached stays open. Locked cards are grey with a padlock and the stars they wait
-  for ("for Stavitel partner camps"); the room upgrades say GOGGLE 4.3.
+  the flagpole and level-2 rooms at 3.5; the slide and the Jednota at 4.0; level-3 rooms
+  at 4.3. A tier once reached stays open. Locked cards are grey with a padlock, Goggle's
+  star and the rating they wait for ("for Stavitel partner camps"); the room upgrades say
+  GOGGLE 4.3.
 - People look before they book: each star above or below three moves the booking
   chance by 0.07.
 - SpotlessName Ltd take a review down by the next morning, for $45 and $30 more for each
@@ -447,6 +448,12 @@ shoes in. He knocks.", answered by someone who is not you).
   edit by the morning (a star more), blaming the weather never does. Answering the same
   review in CampMail's guest book answers it on Goggle too.
 - The tab's badge counts new reviews, red when one of them is bad.
+- Photos (the tab after the sorts): last summer's guests' snaps of the camp, a cheap
+  compact's prints with the orange date in the corner (`tools/artgen/goggle_photos.py`,
+  made from the game's own frames), big on a click. In one of them somebody stands at the
+  edge of the trees behind the tents; nothing on the page says so. Under them "People also
+  searched for": Agrostroj Hlubocany's feed mill (planned; its site opens in the browser),
+  U Jezera, Jednota Lesna.
 
 ## 6. Upkeep
 
