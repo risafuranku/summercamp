@@ -229,6 +229,24 @@ def even_row(img, n):
     return boxes
 
 
+# Sheets whose pieces are drawn in a ring that the station already has (the corn pot's
+# rim round the boiling frames): only what is inside that share of each piece's half.
+INNER_ONLY = {"pk_pot_boil": 0.66}
+
+
+def inner_only(img, boxes, share):
+    img = img.copy()
+    px = img.load()
+    for x0, y0, x1, y1 in boxes:
+        cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+        r = min(x1 - x0, y1 - y0) / 2.0 * share
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                if (x - cx) ** 2 + (y - cy) ** 2 > r * r:
+                    px[x, y] = (0, 0, 0, 0)
+    return img
+
+
 def sheets(only):
     for art_id, outs in SHEETS:
         if only and art_id not in only:
@@ -240,6 +258,11 @@ def sheets(only):
         img, boxes = got
         if art_id in EVEN_ROWS:
             boxes = even_row(img, len(outs))
+        if art_id in INNER_ONLY:
+            # The rings are the biggest pieces; what lies inside each (the bubbles) goes
+            # with it.
+            boxes = sorted(sorted(boxes, key=lambda bx: (bx[2] - bx[0]) * (bx[3] - bx[1]), reverse=True)[:len(outs)], key=lambda bx: bx[0])
+            img = inner_only(img, boxes, INNER_ONLY[art_id])
         if len(boxes) != len(outs):
             print("  %s: %d pieces for %d names (look at out/%s/_cut.png)" % (art_id, len(boxes), len(outs), art_id))
         for box, (dest, longest) in zip(boxes, outs):

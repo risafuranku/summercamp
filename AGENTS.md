@@ -536,6 +536,13 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   works is its picture's topmost end (`_tip_of`). Shot drivers move the pointer with
   `station.debug_mouse_to(design px)` (a warped mouse does not always reach the window
   in a test run: `station3d.debug_mouse`, read through `mouse_of`).
+- **Grok draws a station's top in perspective** (its front showing, black round it): the
+  four corners of the top go in `tools/artgen/podniky_art.py` TEXTURES and the top is
+  unwarped to 16:9; then the station's rects are moved onto the picture's things. Pieces
+  that touch (a row of cards) are cut in even slices (EVEN_ROWS); things Grok drew beside a
+  hand that the station has as its own sprites are cleared (CLEAR); a ring drawn round
+  frames the station already has is cut away (INNER_ONLY). Each run of gen.sh may rewrite
+  its raw.png a second time (the agent's own retouch): process again when it does.
 - **A pub bill lives fifteen game minutes** (`pub_rules.BILL_WAIT`; the clock runs about a
   minute a real second), then it is left on the bar or walked out on. A harness that jumps
   the clock to get one must wait for it (`["until", "<taproom>.bills(key).size() > 0"]`)

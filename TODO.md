@@ -20,9 +20,9 @@
 - [x] Bistro: the grill and the klobasa plate, the bufet (soup of the day, bottles with the opener, flying caps)
 - [x] Jednota: cards, magazines, rum, cigarettes behind the till; the deli counter (cut, weigh, wrap, by weight)
 - [x] Harness tools/podniky_check.tscn; co-op on two copies tools/podniky_coop.py
-- [ ] Grok pictures still in the queue (rows pk_* in tools/artgen/prompts_podniky.tsv; `python tools/artgen/podniky_art.py` then `--import`): the stations' Build tops st_drinks, st_grill, st_bufet, st_deli (until then a plain top); the things on them (corn drinks, grill, bufet, deli, the new Jednota goods, the slot, reels, darts, cards, the wallet; until then the station works with the bare glove over an empty top); the tool hands (grab, press, cup, salt shake, bottle, wash, pencil, coin, dart, ladle, opener, knife, wrap); the bistro's new ticket icons (the ticket says the dish in words till then)
-- [ ] The second variant of every hand frame to pick from (the brief: two each, picked by hand); most _b rows were left out of the first run to get the A frames through the shared queue
-- [ ] The pub's slot machine, darts and cards stations want a second look once their pictures are in
+- [x] The Grok pictures of the stations (rows pk_* in tools/artgen/prompts_podniky.tsv, `python tools/artgen/podniky_art.py`): the Build tops of the drinks table, grill, bufet and deli; the corn drinks, sausages, bufet bowls and bottles, deli goods, the new Jednota goods, LUCKY 7 and its reels, darts and the clean board, the cards, the wallet, the pot's bubbles; every tool hand; the new ticket icons
+- [ ] The second variant of every hand frame to pick from (the brief: two each, picked by hand); only grab and press got their _b so far (both A kept), the rest went through as A to get them past the shared queue
+- [x] The pub's slot machine, darts and cards looked at with their pictures (the cards were under the table top, the darts scored round the board's bottom edge: both fixed)
 - [ ] A guest figure at the slot machine and the dartboard while they play (now only the reels, the darts and the sounds)
 
 ## WORLD POLISH (agent B) — 2026-10-20 (the brief: the camp world, weather, light, sound, body)
