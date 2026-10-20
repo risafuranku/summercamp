@@ -13,14 +13,17 @@ extends "res://scripts/bistro/bistro_station.gd"
 ##   the tins     (the pot's foot) a click when it runs low: the books' soup into it
 ## The guests' soups and bottles are tickets of their own (bistro_rules: drink_wish).
 
-const POT := Rect2(20, 40, 220, 220)
-const POT_AT := Vector2(130, 150)
-const TINS := Rect2(20, 266, 120, 80)
-const STACK := Rect2(256, 60, 84, 96)
-const BOWL_AT := Vector2(300, 262)
-const CRATE := Rect2(440, 36, 192, 172)
-const BOTTLE_AT := Vector2(500, 274)
-const OPENER := Rect2(556, 238, 76, 100)
+## Where the Build picture (bistro/st_bufet.png) has them: the pot on its plate (its foot
+## the tins), the stack of bowls, the opener on its string, the crate; a bowl and a bottle
+## are worked on the bare top in front.
+const POT := Rect2(4, 24, 166, 200)
+const POT_AT := Vector2(82, 141)
+const TINS := Rect2(4, 228, 166, 100)
+const STACK := Rect2(180, 70, 112, 150)
+const BOWL_AT := Vector2(262, 292)
+const CRATE := Rect2(522, 0, 118, 300)
+const BOTTLE_AT := Vector2(430, 290)
+const OPENER := Rect2(466, 40, 64, 190)
 const BOWL_M := 0.13
 const BOTTLE_M := 0.24
 const CAP_M := 0.03
@@ -57,7 +60,7 @@ func _build() -> void:
 	_bottle_spr = sprite(TEX + "bottle_kofola.png", BOTTLE_M, false)
 	_bottle_spr.visible = false
 	_level_spr = meter(5, 16)
-	_level_spr.position = local_at(POT_AT + Vector2(100, -60), 0.04)
+	_level_spr.position = local_at(POT_AT + Vector2(-66, -96), 0.04)
 
 
 func _foot(s: Sprite3D) -> void:

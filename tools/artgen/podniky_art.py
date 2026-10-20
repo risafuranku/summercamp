@@ -112,7 +112,7 @@ MARKS = [
 TEXTURES = [
     ("pk_ct_drinks", C + "st_drinks.png", 0, (0, 62, 0, 590, 1280, 590, 1280, 62)),
     ("pk_bt_grill", B + "st_grill.png", 0, (86, 64, 10, 566, 1270, 566, 1196, 64)),
-    ("pk_bt_bufet", B + "st_bufet.png", 0, None),
+    ("pk_bt_bufet", B + "st_bufet.png", 0, (2, 50, 2, 585, 1276, 585, 1276, 50)),
     ("pk_jt_deli", J + "st_deli.png", 0, (0, 68, 0, 608, 1280, 608, 1280, 68)),
 ]
 
