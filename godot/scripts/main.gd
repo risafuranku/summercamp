@@ -1213,6 +1213,8 @@ func _process(delta: float) -> void:
 		weather_system.process(delta * BALANCE_CONFIG.GAME_MINUTES_PER_SECOND, _time_of_day_hours)
 	_sync_runtime_state_from_systems()
 	_sync_season()
+	if sim:
+		_tick_blueprint_guests(delta)
 	if _weather_visuals != null:
 		_weather_visuals.update_state(_time_state, _time_of_day_hours, _weather_state)
 		_weather_visuals.update_frame(delta)
@@ -3181,7 +3183,32 @@ func _on_review_for_goggle(review: Dictionary) -> void:
 func _announce_goggle_tier(opened: int) -> void:
 	if opened < 1 or _hud_manager == null:
 		return
-	_hud_manager.push_status("Goggle: the camp is rated %.1f. Builder 98 has new blueprints." % _goggle.rating(_day_index), 1)
+	_hud_manager.push_status("%d guests in the camp. Builder 98 has new blueprints." % int(_goggle.TIERS[opened]["guests"]), 1)
+
+
+## Builder 98's blueprints open by the guests in the camp at once (goggle.check_guests;
+## 10, 20, 30...), not by the rating (Richard, 20. 10.). Counted every two seconds.
+var _blueprint_guests_t := 0.0
+
+
+func _tick_blueprint_guests(delta: float) -> void:
+	if not _gameplay_started or _menu_mode or GuestManager == null:
+		return
+	_blueprint_guests_t -= delta
+	if _blueprint_guests_t > 0.0:
+		return
+	_blueprint_guests_t = 2.0
+	_announce_goggle_tier(_goggle.check_guests(guests_in_camp()))
+
+
+## People staying in the camp now (each party's size; not the ones still at the gate).
+func guests_in_camp() -> int:
+	var n := 0
+	if GuestManager.has_method("get_guest_life_snapshot"):
+		for g in GuestManager.get_guest_life_snapshot():
+			if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
+				n += int(g.get("party_size", 1))
+	return n
 
 
 ## The morning: SpotlessName's removals done (or caught), the apologies answered.

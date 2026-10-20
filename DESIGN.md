@@ -519,13 +519,16 @@ what is up, to one decimal. The page was there before you: seven reviews from la
 summer, mostly bad, and one nobody should have written ("Do not let the boy in the red
 shoes in. He knocks.", answered by someone who is not you).
 
-- The rating is the progression. Builder 98's blueprints open tier by tier (a rating and
-  enough reviews to count): tents, cabins, the basics from the start; caravans, the
-  restaurant, the pitch, the gnome and the corn stand at 3.0; the playground, ping-pong,
-  the flagpole and level-2 rooms at 3.5; the slide and the Jednota at 4.0; level-3 rooms
-  at 4.3. A tier once reached stays open. Locked cards are grey with a padlock, Goggle's
-  star and the rating they wait for ("for Stavitel partner camps"); the room upgrades say
-  GOGGLE 4.3.
+- **The guests are the progression, not the rating** (Richard, 2026-10-20: the start
+  must play; the rating stays on the page and may matter again later, for now it opens
+  nothing). Builder 98's blueprints open by the most guests the camp has had at once
+  (`goggle.peak_guests`, main counts them every two seconds): tents, cabins, the
+  basics and the **corn stand** from the start (the basic service: a cob and a drink,
+  cheap, when nothing else is open); at 10 guests the pub, caravans, the hammock, the
+  gnome and the pitch; at 20 the restaurant, the playground, ping-pong, the flagpole and
+  level-2 rooms; at 30 the Jednota and the slide; at 40 level-3 rooms. A tier once
+  reached stays open. Locked cards are grey with a padlock and the guests they wait for
+  ("for Stavitel partner camps"); the room upgrades say 40 GUESTS.
 - People look before they book: each star above or below three moves the booking
   chance by 0.07.
 - SpotlessName Ltd take a review down by the next morning, for $45 and $30 more for each
@@ -549,7 +552,7 @@ The user: "the Builder should feel like a game of its own: an imitation of the 9
 tycoon games, and fun." Builder 98 is Stavitel software's shareware site planner, and it
 plays like RollerCoaster Tycoon or Transport Tycoon on a cheap 1998 PC
 (`builder_module.gd` the program, `crt_map_panel.gd` the map). A star rating of its own
-was left out: the camp's rating is Goggle (§5i), and it opens the blueprints.
+was left out: the camp's rating is Goggle (§5i); the blueprints open by guests (§5i).
 
 - **A build is a building site.** For a moment the plot is a scaffold with a worker
   kneeling at a plank, hammering (two frames, a blow every 0.36 s), and on bigger plots a
@@ -863,11 +866,11 @@ the stations in 3D, like the bistro's and the pub's.*
 
 *Agent C, phase 4 of the businesses. Decided with the user on 2026-10-20: store, shelf and
 till work only; very dear; the guests love it; it needs several hands; its blueprint opens
-at Goggle 4.0; a building of three by three with a Build model and a Builder picture of
+at 30 guests (was Goggle 4.0); a building of three by three with a Build model and a Builder picture of
 its own.*
 
 - **The building.** Three tiles by three, $1800 and the licence (Pult 98) $100; the
-  Builder's blueprint opens at Goggle 4.0 (Stavitel partner camps). A long single-storey
+  Builder's blueprint opens at 30 guests in the camp (Stavitel partner camps). A long single-storey
   1970s village samoobsluha under a flat concrete roof (`building_models._jednota`, Grok
   faces): the band of shop windows with green racks behind the glass, the glass door
   under a small canopy, the red board with the sheet-metal letters JEDNOTA (Lesna's), the

@@ -1241,7 +1241,7 @@ func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String
 	var need := _upgrade_locked(str(_pending_upgrade_context.get("new_type", "")))
 	if need > 0.0:
 		_pending_upgrade_context.clear()
-		cost_text = "GOGGLE %.1f" % need
+		cost_text = "%d GUESTS" % int(need)
 		enabled = false
 	if _building_upgrade_menu == null:
 		return
@@ -1313,7 +1313,7 @@ func map_upgrade_offer(origin: Vector2i, current_type: String) -> Dictionary:
 
 
 ## An upgrade to `new_type` waits for the camp's Goggle rating (scripts/reviews/goggle.gd):
-## the stars it needs, or 0.0 when it is open.
+## the guests in the camp it needs, or 0.0 when it is open.
 func _upgrade_locked(new_type: String) -> float:
 	var main := get_tree().current_scene if get_tree() != null else null
 	var g = main.get("_goggle") if main != null else null
@@ -1325,7 +1325,7 @@ func _upgrade_locked(new_type: String) -> float:
 	var item := "upgrade:" + lvl
 	if g.unlocked(item):
 		return 0.0
-	return float(g.TIERS[g.tier_of(item)]["stars"])
+	return float(g.TIERS[g.tier_of(item)]["guests"])
 
 
 ## Builder's map: buy the upgrade there and then. False if it could not be paid or done.

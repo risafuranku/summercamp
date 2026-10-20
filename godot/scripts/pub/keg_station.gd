@@ -19,6 +19,8 @@ const SPARES := Rect2(520, 40, 120, 220)
 const VALVE_AT := Vector2(90, 160)
 const TWIST_SEC := 0.9
 const KEG_M := 0.6
+## Off the keg, the head hangs on its hose here (station pixels from the pallet).
+const HEAD_HANG := Vector2(-95, 6)
 
 var _twist := -1.0
 var _valve_from := -1.0
@@ -92,12 +94,16 @@ func _show() -> void:
 	_left_meter.visible = pallet == "full"
 	if pallet == "full":
 		set_meter(_left_meter, float(int(k["line"])) / float(PUB.KEG_PINTS), Vector2(-1, -1), RETRO_UI.C_AMBER if int(k["line"]) > 6 else RETRO_UI.C_RED, int(k["line"]) <= 3)
-	# The head: on the keg's top when coupled, else hanging on its hose over the pallet.
+	# The head: on the keg's top when coupled, else hanging on its hose beside the keg at
+	# the height of its top (over it, it hung out of the picture and could not be got
+	# back: Richard, 20. 10.).
 	var on := bool(k["coupled"]) and pallet != "none"
-	var up := KEG_M * 0.98 if on else KEG_M + 0.25
+	var up := KEG_M * 0.98 if on else KEG_M * 0.72
+	var at := PALLET if on else PALLET + HEAD_HANG
 	if _twist >= 0.0:
 		up = KEG_M + 0.1 - floorf(_twist / TWIST_SEC * 4.0) / 4.0 * 0.08
-	put(_head, PALLET, up)
+		at = PALLET
+	put(_head, at, up)
 	# The quick coupler (gear): its own head on the hose.
 	if BUSINESS.has_gear(building_key, "coupler"):
 		retex(_head, "res://assets/textury/camp/gear_coupler.png", 0.16)

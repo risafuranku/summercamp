@@ -327,7 +327,7 @@ func _draw_banner(c: Control, g, r: Rect2) -> void:
 	_text(c, T.FONT, Vector2(tx, ty + 88), "Discreet. Fast. Legal*", Color8(60, 60, 60), 10)
 
 
-## Stavitel software's partner programme: what the next rating opens in Builder 98.
+## Stavitel software's partner programme: what the next guests open in Builder 98.
 func _draw_partner(c: Control, g, r: Rect2) -> void:
 	var nt: Dictionary = g.next_tier()
 	c.draw_style_box(T.box("field", Color8(255, 252, 230), Vector4.ZERO), r)
@@ -339,8 +339,7 @@ func _draw_partner(c: Control, g, r: Rect2) -> void:
 		_text(c, T.FONT, Vector2(x, y), "Every blueprint is yours.", T.TEXT)
 		return
 	var pad: Texture2D = _art.get(PADLOCK)
-	_draw_stars(c, Vector2(x, y - 10), float(nt["stars"]), 11)
-	_text(c, T.FONT, Vector2(x + 62, y), "%.1f and %d reviews" % [float(nt["stars"]), int(nt["reviews"])], T.TEXT)
+	_text(c, T.FONT_BOLD, Vector2(x, y), "%d guests in the camp" % int(nt["guests"]), T.TEXT)
 	y += 15
 	var items: Array = nt["items"]
 	var col_w := (r.size.x - 12.0) * 0.5
