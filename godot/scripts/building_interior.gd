@@ -2333,7 +2333,8 @@ func _build_radio(pc_root: Node3D) -> void:
 	var set_root := Node3D.new()
 	set_root.name = "RadioSet"
 	set_root.position = pc_root.position + RADIO_AT
-	set_root.rotation_degrees.y = -14.0
+	# Turned between the counter and the chair: its front seen from both.
+	set_root.rotation_degrees.y = 8.0
 	_room_root.add_child(set_root)
 	var w := 0.34
 	var h := 0.2
