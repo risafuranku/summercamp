@@ -62,8 +62,8 @@ finished game, by impact:
 - [x] Sound: footsteps on snow and in puddles (the jetty's boards were there); guests and
   the country far off by the hour (far_life.gd); the flagpole, the washrooms' tube and tap
   (the transformer by the corn and the swings were there) — 20. 10.
-- [ ] Sound: reverb by room; the jacket and the keys as you move; the fridge in the back
-  room
+- [x] Sound: the jacket and the keys as you move (20. 10.)
+- [ ] Sound: reverb by room; the small fridge hums in a better cabin
 - [x] Body, movement: slower in snow, mud and puddles, slower out of breath, the view a
   little wider in a run (acceleration, the stepped bob, the lean and the landing were
   there) — 20. 10.

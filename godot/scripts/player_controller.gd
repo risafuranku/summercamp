@@ -86,6 +86,9 @@ var terrain_speed_mult: float = 1.0
 ## the jetty or a porch, mud when the ground is wet through, a puddle you step in (the
 ## rain's, scripts/ambient/ground_life.gd), snow once it lies. A thud when you land.
 const STEP_DIR := "res://assets/sfx/steps/"
+## You as you move (ElevenLabs, sfx/player/): your jacket's sleeves with every other step,
+## the keys on your belt when you run.
+const FOLEY_DIR := "res://assets/sfx/player/"
 const STEP_SURFACES := ["grass", "gravel", "wood", "mud", "snow", "puddle"]
 const FOOTSTEP_GRASS_PATH := "res://assets/sfx/grassfootsteps.mp3"
 const FOOTSTEP_GRAVEL_PATH := "res://assets/sfx/gravelfootsteps.mp3"
@@ -152,6 +155,9 @@ var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
 var _steps: Dictionary = {}          # surface -> [AudioStream]
 var _ground_life: Node               # the puddles (scripts/ambient/ground_life.gd)
+var _foley: Dictionary = {}
+var _foley_player: AudioStreamPlayer
+var _foley_step := 0
 ## How much what is under you lets you go (looked at four times a second).
 const SURFACE_SPEED := {"snow": 0.86, "mud": 0.92, "puddle": 0.94}
 var _surface_speed := 1.0
@@ -942,6 +948,13 @@ func _load_steps() -> void:
 		p.name = "Step%d" % i
 		add_child(p)
 		_step_players.append(p)
+	for f in ["jacket_a", "jacket_b", "jacket_c", "keys_a", "keys_b"]:
+		var fp: String = FOLEY_DIR + str(f) + ".mp3"
+		if ResourceLoader.exists(fp):
+			_foley[f] = load(fp)
+	_foley_player = AudioStreamPlayer.new()
+	_foley_player.name = "Foley"
+	add_child(_foley_player)
 
 
 ## What you are standing on: the boards of a porch or the jetty, else a puddle, the snow,
@@ -1009,6 +1022,24 @@ func _play_step(motion: float) -> void:
 	p.volume_db = lerpf(-15.0, -8.0, run) + randf_range(-1.5, 1.0)
 	p.pitch_scale = lerpf(0.97, 1.06, run) * randf_range(0.93, 1.07)
 	p.play()
+	_play_foley(run)
+
+
+func _play_foley(run: float) -> void:
+	_foley_step += 1
+	if _foley_player == null or _foley.is_empty():
+		return
+	var key := ""
+	if run > 0.6 and randf() < 0.55:
+		key = "keys_a" if randf() < 0.5 else "keys_b"
+	elif _foley_step % 2 == 0:
+		key = "jacket_c" if run > 0.6 else ("jacket_a" if _foley_step % 4 == 0 else "jacket_b")
+	if key == "" or not _foley.has(key):
+		return
+	_foley_player.stream = _foley[key]
+	_foley_player.volume_db = (lerpf(-25.0, -19.0, run) if key.begins_with("jacket") else -19.0) + randf_range(-2.0, 1.0)
+	_foley_player.pitch_scale = randf_range(0.94, 1.06)
+	_foley_player.play()
 
 
 ## A thud when you come down (from a jump, a step down).
