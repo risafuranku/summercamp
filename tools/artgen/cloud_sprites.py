@@ -1,12 +1,19 @@
 """The cloud layers' sprites (scripts/ambient/cloud_layers.gd), from Grok's renders of four
 clouds on magenta (prompts_sky.tsv):
 
-    python tools/artgen/cloud_sprites.py [high] [low]
+    python tools/artgen/cloud_sprites.py [high] [low] [cover]
 
   out/spr_clouds_high/raw.png (four long thin streaks, one above another)
       -> godot/assets/textury/skybox/cloud_hi_0..3.png, 256 wide
   out/spr_clouds_low/raw.png (four dark torn scud clouds in a row)
       -> skybox/cloud_lo_0..3.png, 128 wide
+  out/tex_cloud_cover, tex_cloud_cover_b/raw.png (prompts_deck.tsv: a cloud cover seen
+      from below, brightness = how thick)
+      -> skybox/cloud_cover_a.png, cloud_cover_b.png, 1024 square, grey: made to tile
+         (ground_tex.tileable), its values spread evenly over 0..1 by rank (the black
+         between the clouds by how near them it is), so the deck's `coverage` 0.3 is
+         three tenths of the sky under cloud, the clouds swelling as it grows
+         (materials/cloud_deck.gdshader)
 The magenta keyed out (process.py), each cloud cut out along whichever way they are laid
 out, scaled by area (its colour weighed by how much of each cell is cloud, so no pink
 fringe), the edge soft (cloud_layers.gd filters them); what pink the key left in thin
@@ -79,6 +86,44 @@ def build(key: str) -> None:
         print("only", len(pieces), "clouds found in", art_id)
 
 
+def blur_wrap(a: np.ndarray, k: int) -> np.ndarray:
+    """A box blur that wraps round the edges (the cover tiles)."""
+    pad = np.pad(a, k, mode="wrap")
+    cs = np.pad(pad.cumsum(0).cumsum(1), ((1, 0), (1, 0)))
+    n = 2 * k + 1
+    out = (cs[n:, n:] - cs[:-n, n:] - cs[n:, :-n] + cs[:-n, :-n]) / (n * n)
+    return out[: a.shape[0], : a.shape[1]]
+
+
+def build_cover() -> None:
+    sys.path.insert(0, HERE)
+    import ground_tex
+    for art_id, name in (("tex_cloud_cover", "cloud_cover_a.png"), ("tex_cloud_cover_b", "cloud_cover_b.png")):
+        src = os.path.join(OUT, art_id, "raw.png")
+        if not os.path.exists(src):
+            print("missing", src)
+            continue
+        im = Image.open(src).convert("RGB")
+        side = min(im.size)
+        im = im.crop(((im.width - side) // 2, (im.height - side) // 2, (im.width + side) // 2, (im.height + side) // 2))
+        im = ground_tex.tileable(im.resize((1024, 1024), Image.LANCZOS))
+        lum = blur_wrap(np.asarray(im).astype(np.float32).mean(axis=2) / 255.0, 2)
+        # The black between the clouds ranked by how near the clouds it is (a wide blur of
+        # them), under every cloud: as the cover grows the clouds swell out from their
+        # middles, instead of the sea's noise coming up as clouds of its own.
+        pre = lum + 0.18 * blur_wrap(lum, 14) + 0.12 * blur_wrap(lum, 40)
+        order = pre.ravel().argsort(kind="stable")
+        rank = np.empty(order.size, np.float32)
+        rank[order] = np.arange(order.size, dtype=np.float32) / (order.size - 1)
+        out = (rank.reshape(pre.shape) * 255).astype(np.uint8)
+        dst = os.path.join(SKY, name)
+        Image.fromarray(out, "L").save(dst)
+        print("->", dst, out.shape)
+
+
 if __name__ == "__main__":
-    for k in sys.argv[1:] or list(SETS):
-        build(k)
+    for k in sys.argv[1:] or list(SETS) + ["cover"]:
+        if k == "cover":
+            build_cover()
+        else:
+            build(k)

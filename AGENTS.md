@@ -628,7 +628,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   (down by area, up smooth, 160 colours): the 4 x 4 blow-up read as coarse blocks.
   `python tools/artgen/cloud_sprites.py` cuts the cloud layers' high streaks and low scud
   (`spr_clouds_high`, `spr_clouds_low` in `prompts_sky.tsv`) into `skybox/cloud_hi_*` and
-  `cloud_lo_*` with soft edges (`scripts/ambient/cloud_layers.gd` draws them filtered).
+  `cloud_lo_*` with soft edges (`scripts/ambient/cloud_layers.gd` draws them filtered);
+  `cloud_sprites.py cover` makes the cloud deck's cover (`tex_cloud_cover`, `_b` in
+  `prompts_deck.tsv`: satellite views straight down, brightness = thickness) into
+  `skybox/cloud_cover_a/b.png`, tiling, ranked so `coverage` is the share of sky.
   `python tools/artgen/ground_tex.py <id> <dest> [size] [--own]` makes a ground render
   tile (Grok's "seamless" does not) and snaps it to the palette, or with `--own` to 48
   colours of its own (the palette has few mid greens). Agent B's world rows
