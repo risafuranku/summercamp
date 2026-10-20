@@ -156,6 +156,7 @@ var _chatter_next := 6.0
 var _residue_until := -1.0
 var _residue_next := 4.0
 const T_SMILE := N + "girl6_smile.png"
+const FX_TEX := preload("res://scripts/night/fx_tex.gd")
 const T_CROWD := N + "girl6_crowd.png"
 const T_EYE := N + "girl6_eye.png"
 const HUSH_DIST := 4.5
@@ -201,6 +202,7 @@ func _on_stop() -> void:
 	_hide_glass()
 	if not _strike_cam.is_empty():
 		_cam_set(0.0, 0.0)
+		_view_end()
 		_strike_cam = {}
 	if _after_light != null and is_instance_valid(_after_light):
 		_after_light.visible = false
@@ -523,12 +525,7 @@ func _wall_clock() -> float:
 
 
 func _indoors_now() -> bool:
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
-	if scene == null:
-		return false
-	var night: bool = scene.has_method("_is_enemy_night_active") and bool(scene.call("_is_enemy_night_active"))
-	var inside: bool = scene.has_method("_is_any_interior_open") and bool(scene.call("_is_any_interior_open"))
-	return night and inside
+	return _quarry_indoors()
 
 
 func _tick_room() -> void:
@@ -583,6 +580,8 @@ func _later(seconds: float, f: Callable) -> void:
 
 
 func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
+	if _play_2d_remote(file, db, pitch):
+		return
 	if _sound2d == null or not ResourceLoader.exists(file):
 		return
 	# One sound over another: each its own player when the one is busy.
@@ -600,6 +599,9 @@ func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
 ## The cabin you are in: she stands at the window you look at, pressed to the glass,
 ## her face in it and her eyes; for two frames, the face she pretends with.
 func _at_glass(im) -> bool:
+	# Their cabin is on their machine, not in this one's rooms.
+	if _quarry_peer() != 0:
+		return false
 	var cab = im.get("_cabin_interior") if im != null else null
 	if cab == null or not is_instance_valid(cab) or not cab.has_method("outside_windows") or not bool(cab.call("is_open")):
 		return false
@@ -731,7 +733,8 @@ func _start_ring() -> void:
 		if p == Vector3.INF:
 			continue
 		var e: Node3D = ENEMY_EYES.new()
-		_world_root.add_child(e)
+		_root.add_child(e)
+		e.set_meta("coop_quarry_only", true)
 		e.call("setup", "girl", 0.0, null)
 		e.set("anchor", null)
 		e.set("point", p + Vector3(0, HEIGHT * _rng.randf_range(0.75, 1.05), 0))
@@ -755,7 +758,7 @@ func _tick_ring(dt: float) -> void:
 		var on := _ring_t >= float(r["open_at"])
 		if on and not bool(r.get("heard", false)):
 			r["heard"] = true
-			_sound(SFX_GIGGLE, (r["at"] as Vector3) + Vector3(0, 1.5, 0), -16.0, _rng.randf_range(0.55, 1.1), 30.0)
+			_sound_quarry(SFX_GIGGLE, (r["at"] as Vector3) + Vector3(0, 1.5, 0), -16.0, _rng.randf_range(0.55, 1.1), 30.0)
 		e.set("strength", 1.0 if on else 0.0)
 		e.call("update", dt, cam)
 	# All of them out at once; the one that stays is her, behind you.
@@ -847,36 +850,16 @@ func _upside() -> Texture2D:
 	var src: Texture2D = _tex.get(T_UPSIDE, _tex.get(GUEST))
 	if src == null:
 		return null
-	var img := src.get_image()
-	if img == null:
+	_upside_tex = FX_TEX.flip_head(src, 0.17)
+	if _upside_tex == null:
 		return null
-	img = img.duplicate()
-	if img.is_compressed():
-		img.decompress()
-	img.convert(Image.FORMAT_RGBA8)
-	var w := img.get_width()
-	var h := img.get_height()
-	var top := 0
-	for y in h:
-		var hit := false
-		for x in w:
-			if img.get_pixel(x, y).a > 0.5:
-				hit = true
-				break
-		if hit:
-			top = y
-			break
-	var hh := int(float(h) * 0.17)
-	var head := img.get_region(Rect2i(0, top, w, hh))
-	head.flip_y()
-	img.fill_rect(Rect2i(0, top, w, hh), Color(0, 0, 0, 0))
-	img.blit_rect(head, Rect2i(0, 0, w, hh), Vector2i(0, top))
-	_upside_tex = ImageTexture.create_from_image(img)
 	# Its eyes: where the art's are, mirrored in the head.
+	var h := float(src.get_height())
+	var top := float(_upside_tex.get_meta("flip_top", 0))
+	var hh := float(_upside_tex.get_meta("flip_h", 0))
 	var spot: Vector2 = _eye_spot.get(src, _find_eyes(src))
-	var from_top := float(h) - spot.y
-	var flipped := float(top) + float(hh) - (from_top - float(top))
-	_eye_spot[_upside_tex] = Vector2(spot.x, float(h) - flipped)
+	var from_top := h - spot.y
+	_eye_spot[_upside_tex] = Vector2(spot.x, h - (top + hh - (from_top - top)))
 	return _upside_tex
 
 
@@ -977,7 +960,8 @@ func _update_decoy(dt: float, holding: bool, d: float) -> void:
 	if _ray_blocked(cam.global_position, at):
 		return
 	var e: Node3D = ENEMY_EYES.new()
-	_world_root.add_child(e)
+	_root.add_child(e)
+	e.set_meta("coop_quarry_only", true)
 	e.call("setup", "girl", 0.0, null)
 	e.set("anchor", null)
 	e.set("point", at)
@@ -985,7 +969,7 @@ func _update_decoy(dt: float, holding: bool, d: float) -> void:
 	e.set("size_k", 1.8)
 	e.set("gap_k", 1.5)
 	_decoy = {"eyes": e, "at": at, "t": _rng.randf_range(3.5, 6.0)}
-	_sound(SFX_GIGGLE, at, -18.0, _rng.randf_range(0.85, 1.0), 30.0)
+	_sound_quarry(SFX_GIGGLE, at, -18.0, _rng.randf_range(0.85, 1.0), 30.0)
 
 
 func _drop_decoy() -> void:
@@ -1063,6 +1047,14 @@ var _after_light: OmniLight3D
 var _strike_side := 1.0
 
 
+## Co-op: only the one she hunts sees her while she scares them (the strike, right behind
+## them, at their window, close, the frames she is not as she is).
+func is_private_now() -> bool:
+	if _phase == STRIKE or _jump_ready or _glass_until > 0.0 or _curse_frames > 0 or _elapsed < _ring_stay_until:
+		return true
+	return _body != null and _body.visible and _distance_to_player(_body.global_position) < 6.0
+
+
 func _t5(path: String, fallback: Texture2D) -> Texture2D:
 	return _tex.get(path, fallback)
 
@@ -1102,7 +1094,8 @@ func _start_strike() -> void:
 	if _player.has_method("set_controls_enabled"):
 		_player.call("set_controls_enabled", false)
 	var to := _body.global_position - _player_pos()
-	_player.rotation.y = atan2(-to.x, -to.z)
+	_view_begin()
+	_set_yaw(atan2(-to.x, -to.z))
 	var cam := _camera()
 	_strike_cam = {"pitch0": cam.rotation.x if cam != null else 0.0, "roll0": cam.rotation.z if cam != null else 0.0}
 	_set_audio(0.0)
@@ -1131,11 +1124,10 @@ func _ear_sfx(file: String, db: float, pitch: float = 1.0) -> void:
 
 
 func _cam_set(pitch: float, roll: float) -> void:
-	var cam := _camera()
-	if cam == null or _strike_cam.is_empty():
+	if _strike_cam.is_empty():
 		return
-	cam.rotation.x = float(_strike_cam["pitch0"]) + pitch
-	cam.rotation.z = float(_strike_cam["roll0"]) + roll
+	_set_pitch(float(_strike_cam["pitch0"]) + pitch)
+	_set_roll(float(_strike_cam["roll0"]) + roll)
 
 
 func _update_strike(dt: float) -> void:
@@ -1239,7 +1231,7 @@ func _update_strike(dt: float) -> void:
 			if _cue(at, "drag%d" % i):
 				var to := _ground(_player_pos() + _forward_flat() * 0.45)
 				if to != Vector3.INF:
-					_player.global_position = to + Vector3(0, 0.05, 0)
+					_move_player(to + Vector3(0, 0.05, 0))
 				_ear_sfx(SFX_HEEL, -4.0, 0.45)
 				_ear_sfx(SFX_RUSTLE, -6.0, 0.7)
 		if _cue(2.15, "chew"):
@@ -1309,6 +1301,7 @@ func _end_strike() -> void:
 	_residue_next = _rng.randf_range(3.0, 6.0)
 	_set_pose(false)
 	_cam_set(0.0, 0.0)
+	_view_end()
 	_strike_cam = {}
 	var fx := _fx()
 	if fx != null:

@@ -16,6 +16,24 @@ var flashlight_drain_boost := 0.0:
 		flashlight_drain_boost = v
 
 
+## The torch dying in their hand, the hold on them, their hands off the controls (an
+## enemy's work on whoever it hunts): sent to their machine.
+var flashlight_stutter := 0.0:
+	set(v):
+		if not is_equal_approx(v, flashlight_stutter):
+			Coop.send_night_event("stutter", [v], int(get_meta("coop_id", 0)))
+		flashlight_stutter = v
+var held_speed_mult := 1.0:
+	set(v):
+		if not is_equal_approx(v, held_speed_mult):
+			Coop.send_night_event("held", [v], int(get_meta("coop_id", 0)))
+		held_speed_mult = v
+
+
+func set_controls_enabled(on: bool) -> void:
+	Coop.send_night_event("controls", [on], int(get_meta("coop_id", 0)))
+
+
 ## Their warden state (the stand-in's peer id is its meta "coop_id").
 func _state() -> Dictionary:
 	return Coop.state_of(int(get_meta("coop_id", 0)))

@@ -38,6 +38,12 @@ var _cue_time: float = -999.0
 const CUE_MEMORY_SECONDS := 4.0
 const NIGHTMARE_FX = preload("res://scripts/night/nightmare_fx.gd")
 const ENEMY_EYES = preload("res://scripts/enemies/enemy_eyes.gd")
+const REMOTE_FX = preload("res://scripts/coop/remote_fx.gd")
+## Co-op: the screen of the warden on another machine this hunts (remote_fx.gd).
+var _remote_fx: Node
+## The view when a turn of it began (_view_begin): yaw, pitch, roll; and the turn now.
+var _view0 := {}
+var _view_now := Vector3.ZERO
 ## Lamp light round the eyes at which they no longer glow (you see it instead).
 const EYES_GONE_IN_LIGHT := 0.4
 
@@ -85,6 +91,9 @@ func tick(delta: float) -> void:
 func stop_night() -> void:
 	_night_active = false
 	_on_stop()
+	if _remote_fx != null and is_instance_valid(_remote_fx):
+		_remote_fx.free()
+	_remote_fx = null
 	if _root != null and is_instance_valid(_root):
 		_root.queue_free()
 	_root = null
@@ -159,15 +168,137 @@ func _player_health() -> int:
 	return int(h) if h != null else 100
 
 
-## The night's screen and ears (scripts/night/nightmare_fx.gd), when what it hunts is the
-## one at this machine (null while it hunts the other warden's stand-in in co-op).
+## The night's screen and ears of the warden it hunts: this machine's
+## (scripts/night/nightmare_fx.gd), or, while it hunts another warden's stand-in in
+## co-op, theirs, on their machine (scripts/coop/remote_fx.gd: the same calls, sent).
 func _fx() -> Node:
 	if _player == null or _world_root == null:
 		return null
+	var peer := _quarry_peer()
+	if peer != 0:
+		if _remote_fx == null or not is_instance_valid(_remote_fx) or int(_remote_fx.get("peer")) != peer:
+			if _remote_fx != null and is_instance_valid(_remote_fx):
+				_remote_fx.free()
+			_remote_fx = REMOTE_FX.new(peer)
+		return _remote_fx
+	return NIGHTMARE_FX.get_for(_world_root)
+
+
+## Co-op: the peer of the warden whose stand-in this hunts (0: the one at this machine).
+func _quarry_peer() -> int:
+	if _player == null or not is_instance_valid(_player):
+		return 0
 	var s = _player.get_script()
 	if s != null and str(s.resource_path).ends_with("coop_proxy.gd"):
-		return null
-	return NIGHTMARE_FX.get_for(_world_root)
+		return int(_player.get_meta("coop_id", 0))
+	return 0
+
+
+## Only the warden it hunts may see it now (co-op: a scare is theirs; the others do not
+## glimpse it). coop_night.gd hides it everywhere else while this says so.
+func is_private_now() -> bool:
+	return false
+
+
+## Is the warden it hunts in a room now (the night is on)?
+func _quarry_indoors() -> bool:
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	if scene == null:
+		return false
+	var night: bool = scene.has_method("_is_enemy_night_active") and bool(scene.call("_is_enemy_night_active"))
+	var peer := _quarry_peer()
+	if peer != 0:
+		return night and bool(Coop.state_of(peer).get("in", false))
+	var inside: bool = scene.has_method("_is_any_interior_open") and bool(scene.call("_is_any_interior_open"))
+	return night and inside
+
+
+# ── what is done to the warden it hunts (here, or on their machine) ───────────
+
+## A turn of their view begins: what follows is from where it is now.
+func _view_begin() -> void:
+	var cam := _camera()
+	_view0 = {"yaw": _player.rotation.y, "pitch": cam.rotation.x if cam != null else 0.0, "roll": cam.rotation.z if cam != null else 0.0}
+	_view_now = Vector3.ZERO
+
+
+func _set_yaw(v: float) -> void:
+	if _view0.is_empty():
+		_view_begin()
+	if _quarry_peer() != 0:
+		_view_now.z = v - float(_view0["yaw"])
+		_send_view()
+	else:
+		_player.rotation.y = v
+
+
+func _set_pitch(v: float) -> void:
+	if _view0.is_empty():
+		_view_begin()
+	if _quarry_peer() != 0:
+		_view_now.x = v - float(_view0["pitch"])
+		_send_view()
+	else:
+		var cam := _camera()
+		if cam != null:
+			cam.rotation.x = v
+
+
+func _set_roll(v: float) -> void:
+	if _view0.is_empty():
+		_view_begin()
+	if _quarry_peer() != 0:
+		_view_now.y = v - float(_view0["roll"])
+		_send_view()
+	else:
+		var cam := _camera()
+		if cam != null:
+			cam.rotation.z = v
+
+
+var _view_sent := Vector3(99, 99, 99)
+
+
+func _send_view() -> void:
+	var q := _view_now.snapped(Vector3(0.005, 0.005, 0.005))
+	if q == _view_sent:
+		return
+	_view_sent = q
+	var fx := _fx()
+	if fx != null:
+		fx.call("view", q.x, q.y, q.z)
+
+
+## The turn is over: their view is theirs again.
+func _view_end() -> void:
+	if _quarry_peer() != 0:
+		var fx := _fx()
+		if fx != null:
+			fx.call("view_off")
+	_view0 = {}
+	_view_now = Vector3.ZERO
+	_view_sent = Vector3(99, 99, 99)
+
+
+## Their warden moved (dragged).
+func _move_player(to: Vector3) -> void:
+	if _quarry_peer() != 0:
+		var fx := _fx()
+		if fx != null:
+			fx.call("move_to", to)
+	else:
+		_player.global_position = to
+
+
+## A sound in the room with them, on their machine; false if it is this one (the
+## brain plays it here itself).
+func _play_2d_remote(file: String, db: float, pitch: float) -> bool:
+	if _quarry_peer() == 0:
+		return false
+	var fx := _fx()
+	if fx != null:
+		fx.call("play_2d", file, db, pitch)
+	return true
 
 
 # ── the player ────────────────────────────────────────────────────────────────
@@ -361,6 +492,15 @@ func _sound(path: String, at: Vector3, volume_db: float = 0.0, pitch: float = 1.
 	if Vector2(at.x - _player.global_position.x, at.z - _player.global_position.z).length() > 1.5:
 		_cue_pos = at
 		_cue_time = _elapsed
+	return p
+
+
+## A sound only the warden it hunts hears (co-op: muted on the other machines; a decoy's
+## giggle, the voices round the lamp).
+func _sound_quarry(path: String, at: Vector3, volume_db: float = 0.0, pitch: float = 1.0, max_dist: float = 40.0) -> AudioStreamPlayer3D:
+	var p := _sound(path, at, volume_db, pitch, max_dist)
+	if p != null:
+		p.set_meta("coop_quarry_only", true)
 	return p
 
 

@@ -3733,7 +3733,7 @@ msgid ""
 "This blueprint is for Stavitel partner camps.\n"
 "\n"
 "It opens when your camp has %d guests at once."
-msgstr ""
+msgstr "Tenhle plán je jen pro partnerské kempy Stavitele.\n\nOtevře se, až budeš mít v kempu najednou %d {hosta|hosty|hostů}."
 
 #: scripts/builder_module.gd:706
 msgid "Map overlay: %s  (O for the next)"
@@ -3966,11 +3966,11 @@ msgstr ""
 
 #: scripts/builder_module.gd:1069
 msgid "Upgrade at %d guests"
-msgstr ""
+msgstr "Vylepšení od %d {hosta|hostů|hostů}"
 
 #: scripts/builder_module.gd:1071
 msgid "Opens when the camp has had %d guests at once"
-msgstr ""
+msgstr "Otevře se, až bude v kempu najednou %d {host|hosté|hostů}"
 
 #: scripts/builder_module.gd:1073
 msgid "Upgrade  $%d"
@@ -4052,11 +4052,11 @@ msgstr ""
 #: scripts/builder_module.gd:1292 scripts/business/business_runtime.gd:415
 #. uses 2
 msgid "%d guests"
-msgstr ""
+msgstr "%d {host|hosté|hostů}"
 
 #: scripts/builder_module.gd:1293
 msgid "in the camp"
-msgstr ""
+msgstr "v kempu"
 
 #: scripts/builder_module.gd:1296 scripts/builder_module.gd:1413 scripts/crt_map_panel.gd:977 scripts/crt_map_panel.gd:1022 (+31)
 #. uses 35
@@ -8218,7 +8218,7 @@ msgstr ""
 
 #: scripts/interior_manager.gd:1373
 msgid "%d GUESTS"
-msgstr ""
+msgstr "%d {HOST|HOSTÉ|HOSTŮ}"
 
 #: scripts/interior_prep.gd:226
 msgid "PEPA WAS HERE 94"
@@ -8644,7 +8644,7 @@ msgstr ""
 
 #: scripts/main.gd:3205
 msgid "%d guests in the camp. Builder 98 has new blueprints."
-msgstr ""
+msgstr "V kempu: %d {host|hosté|hostů}. Builder 98 má nové plány."
 
 #: scripts/main.gd:3239
 msgid "SpotlessName Ltd: %s's review is gone."
@@ -11419,11 +11419,11 @@ msgstr ""
 
 #: scripts/builder/courier_news.gd:16
 msgid "{n} GUESTS AND GROWING AT THE RESERVOIR"
-msgstr ""
+msgstr "{n} HOSTŮ NA PŘEHRADĚ A POŘÁD PŘIBÝVAJÍ"
 
 #: scripts/builder/courier_news.gd:16
 msgid "Cerne jezero has had {n} guests at once this summer, and is building again. \"People go where people are,\" said a woman from the district's tourist office, who has not been there."
-msgstr ""
+msgstr "Na Černém jezeře bylo letos najednou {n} hostů a zase se tam staví. „Lidi jdou tam, kde jsou lidi,“ řekla paní z okresní turistické kanceláře, která tam nikdy nebyla."
 
 #: scripts/builder/courier_news.gd:17
 msgid "CAMP CAUGHT TIDYING UP ITS REVIEWS"
@@ -13027,7 +13027,7 @@ msgstr ""
 
 #: scripts/enemies/girl_brain.gd:680
 msgid "A woman stood outside all night, laughing at nothing. She knew my name."
-msgstr ""
+msgstr "Celou noc stála venku nějaká ženská a smála se ničemu. Znala moje jméno."
 
 #: scripts/enemies/girl_brain.gd:1231
 msgid "drag%d"
@@ -13048,7 +13048,7 @@ msgstr ""
 
 #: scripts/enemies/silent_man_brain.gd:1480
 msgid "Someone stood at my tent all night. I did not open it."
-msgstr ""
+msgstr "Celou noc mi někdo stál u stanu. Neotevřel jsem mu."
 
 #: scripts/enemies/silent_man_brain.gd:1481
 msgid "Somewhere in the camp a tent zip goes, slowly. Then nothing."
@@ -19183,7 +19183,7 @@ msgstr ""
 
 #: scripts/os98/apps/goggle_app.gd:342
 msgid "%d guests in the camp"
-msgstr ""
+msgstr "V kempu: %d {host|hosté|hostů}"
 
 #: scripts/os98/apps/goggle_app.gd:363
 msgid "Lowest"

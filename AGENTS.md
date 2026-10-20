@@ -407,6 +407,25 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   keep an enemy's look inside its root; anything else of the host's that the other should
   see (a caller like the electrician) goes in the `coop_mirror` group. The sanity is never
   to be shown or named.
+- **Co-op scares are the quarry's alone** (21. 10.: "the other must not glimpse it"):
+  - while a brain's `is_private_now()` says so (the strike, right behind them, at their
+    window, close), `coop_night._is_private` hides it on every machine but its quarry's
+    (the host's root hidden and muted, left out of the others' pictures);
+  - what is only ever the quarry's (a decoy pair of eyes, the ring round the lamp, Quiet
+    Guy's false glasses) is a child of `_root` with meta `coop_quarry_only`, and a sound
+    only they hear is `_sound_quarry`;
+  - the quarry's screen is reached through `_fx()`: on the host's own warden it is
+    nightmare_fx, on a stand-in it is `scripts/coop/remote_fx.gd`, which sends the same
+    calls (`Coop.send_night_fx` → `coop_night.on_fx`, which holds levels and close-ups and
+    applies them each frame);
+  - never set the camera or the player directly in a scare: `_view_begin`, `_set_yaw`,
+    `_set_pitch`, `_set_roll`, `_view_end`, `_move_player`, `_play_2d_remote` (a sound in
+    their room), `_quarry_indoors` (their room, not the host's). The stand-in forwards
+    `flashlight_stutter`, `held_speed_mult` and `set_controls_enabled`;
+  - a texture made in code that has to show on the other machine carries meta `fx_src`
+    (`scripts/night/fx_tex.gd` makes and remakes it); an AtlasTexture travels as is;
+  - `tools/coop_scare.py` checks it: a strike on either warden is on their screen and
+    nowhere on the other's.
 - **Co-op till**: the other machine's money is the host's plus its own changes not yet
   counted there (`main._coop_follow_till`: any change of `state.money` on that machine goes
   over as a numbered "till" delta, the host's clock says up to which it counted). So

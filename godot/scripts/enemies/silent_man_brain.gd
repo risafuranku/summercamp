@@ -204,6 +204,12 @@ func get_enemy_id() -> String:
 	return "silent_man"
 
 
+## Co-op: only the one he hunts sees him while he scares them (a catch, at their neck,
+## the first meeting, his flare, at their window, close behind them).
+func is_private_now() -> bool:
+	return not _seq.is_empty() or _neck_until > 0.0 or _reveal_t >= 0.0 or _vanish_at > 0.0 or _glass_until > 0.0 or (not _lurking and _dist < 5.0)
+
+
 func _on_start() -> void:
 	var t := float(_difficulty - 1) / 4.0
 	_step_gain = lerpf(1.3, 2.2, t)
@@ -844,6 +850,7 @@ func _start_catch(forced := "") -> void:
 		_last_strike = kind
 	var cam := _camera()
 	_seq = {"kind": kind, "t": 0.0, "cues": {}, "kill": kill, "yaw0": _player.rotation.y, "roll0": cam.rotation.z if cam != null else 0.0, "pitch0": cam.rotation.x if cam != null else 0.0}
+	_view_begin()
 	if _player.has_method("set_controls_enabled"):
 		_player.call("set_controls_enabled", false)
 	_player.set("flashlight_stutter", 0.0)
@@ -891,8 +898,8 @@ func _update_seq(dt: float) -> void:
 		"ear":
 			# Your head is pulled to the side: his face at your ear; the skin tears; the bite.
 			if cam != null:
-				cam.rotation.z = float(_seq["roll0"]) + 0.32 * clampf(st / 0.25, 0.0, 1.0)
-			_player.rotation.y = float(_seq["yaw0"]) + deg_to_rad(75.0) * clampf(st / 0.25, 0.0, 1.0)
+				_set_roll(float(_seq["roll0"]) + 0.32 * clampf(st / 0.25, 0.0, 1.0))
+			_set_yaw(float(_seq["yaw0"]) + deg_to_rad(75.0) * clampf(st / 0.25, 0.0, 1.0))
 			if fx != null:
 				if st < 0.7:
 					fx.close_up(_t(T_FACE), lerpf(1.0, 1.25, st / 0.7), 1.0, 0.006, -0.25)
@@ -923,7 +930,7 @@ func _update_seq(dt: float) -> void:
 			_fade_out(fx, t, 1.2, 1.7)
 		"turn":
 			# You are turned round to him, in three jerks; face to face; the skin tears.
-			_player.rotation.y = float(_seq["yaw0"]) + PI * clampf(floorf(st / 0.08) / 3.0, 0.0, 1.0)
+			_set_yaw(float(_seq["yaw0"]) + PI * clampf(floorf(st / 0.08) / 3.0, 0.0, 1.0))
 			if fx != null:
 				if st < 0.3:
 					pass
@@ -954,7 +961,7 @@ func _update_seq(dt: float) -> void:
 			if _cue(1.4, "breath"):
 				_ear(SFX_BREATH, 6.0, 0.85)
 			if cam != null:
-				cam.rotation.x = float(_seq["pitch0"]) + 0.12 * clampf(st / 1.5, 0.0, 1.0)
+				_set_pitch(float(_seq["pitch0"]) + 0.12 * clampf(st / 1.5, 0.0, 1.0))
 			if _cue(3.0, "hit"):
 				_hit_now()
 			_fade_out(fx, t, 3.0, 3.6)
@@ -964,7 +971,7 @@ func _update_seq(dt: float) -> void:
 			if fx != null and st < 0.6:
 				fx.close_up(_t(T_HANDS, T_FACE), lerpf(1.6, 1.15, st / 0.6), 1.0, 0.012)
 			var turn := clampf(floorf((st - 0.6) / 0.1) / 6.0, 0.0, 1.0)
-			_player.rotation.y = float(_seq["yaw0"]) + PI * turn
+			_set_yaw(float(_seq["yaw0"]) + PI * turn)
 			if _cue(0.6, "grind"):
 				_ear(SFX_CHOKE, 0.0, 1.3)
 			if _cue(1.2, "snap"):
@@ -973,7 +980,7 @@ func _update_seq(dt: float) -> void:
 					fx.red_flash(0.8)
 					fx.glitch(0.9, 0.6)
 			if cam != null and st >= 1.25:
-				cam.rotation.z = float(_seq["roll0"]) + 1.45 * clampf((st - 1.25) / 0.25, 0.0, 1.0)
+				_set_roll(float(_seq["roll0"]) + 1.45 * clampf((st - 1.25) / 0.25, 0.0, 1.0))
 			if fx != null and st >= 1.5 and st < 2.9:
 				fx.close_up(_t(T_OVER, T_FACE), 1.05, 1.0, 0.0, 0.0)
 				fx.set_black(clampf((st - 2.0) / 0.9, 0.0, 0.8))
@@ -995,8 +1002,8 @@ func _update_seq(dt: float) -> void:
 					fx.red_flash(1.0)
 			if cam != null and st >= 1.3:
 				# You go down.
-				cam.rotation.x = float(_seq["pitch0"]) - 0.9 * clampf((st - 1.3) / 0.4, 0.0, 1.0)
-				cam.rotation.z = float(_seq["roll0"]) + 0.6 * clampf((st - 1.3) / 0.4, 0.0, 1.0)
+				_set_pitch(float(_seq["pitch0"]) - 0.9 * clampf((st - 1.3) / 0.4, 0.0, 1.0))
+				_set_roll(float(_seq["roll0"]) + 0.6 * clampf((st - 1.3) / 0.4, 0.0, 1.0))
 			if _cue(1.8, "hit"):
 				_hit_now()
 			_fade_out(fx, t, 1.3, 2.3)
@@ -1010,7 +1017,7 @@ func _update_seq_worse(kind: String, t: float, st: float, fx, cam: Camera3D) -> 
 		"cross":
 			# Face to face, and the skin over his mouth splits in four and folds back: the
 			# throat is teeth, ring after ring, going down; it comes over you.
-			_player.rotation.y = float(_seq["yaw0"]) + PI * clampf(floorf(st / 0.08) / 3.0, 0.0, 1.0)
+			_set_yaw(float(_seq["yaw0"]) + PI * clampf(floorf(st / 0.08) / 3.0, 0.0, 1.0))
 			if fx != null:
 				if st < 0.6:
 					fx.close_up(_t(T_FACE), lerpf(1.05, 1.3, st / 0.6), 1.0, 0.006)
@@ -1062,7 +1069,7 @@ func _update_seq_worse(kind: String, t: float, st: float, fx, cam: Camera3D) -> 
 			if _cue(1.8, "give"):
 				_ear(SFX_BITE, 6.0, 0.6)
 			if cam != null:
-				cam.rotation.x = float(_seq["pitch0"]) + 0.25 * clampf(st / 1.0, 0.0, 1.0)
+				_set_pitch(float(_seq["pitch0"]) + 0.25 * clampf(st / 1.0, 0.0, 1.0))
 			if _cue(2.4, "hit"):
 				_hit_now()
 			_fade_out(fx, t, 2.4, 3.0)
@@ -1090,8 +1097,9 @@ func _end_seq() -> void:
 		return
 	var cam := _camera()
 	if cam != null and is_instance_valid(cam):
-		cam.rotation.z = float(_seq["roll0"])
-		cam.rotation.x = float(_seq["pitch0"])
+		_set_roll(float(_seq["roll0"]))
+		_set_pitch(float(_seq["pitch0"]))
+	_view_end()
 	var kill: bool = _seq.get("kill", false)
 	_seq = {}
 	var fx := _fx()
@@ -1193,7 +1201,8 @@ func _update_phantoms(dt: float) -> void:
 	if _ray_blocked(cam.global_position, at):
 		return
 	var e: Node3D = ENEMY_EYES.new()
-	_world_root.add_child(e)
+	_root.add_child(e)
+	e.set_meta("coop_quarry_only", true)
 	e.call("setup", "silent_man", 0.0, null)
 	e.set("anchor", null)
 	e.set("point", at)
@@ -1348,12 +1357,7 @@ func _wall_clock() -> float:
 
 
 func _indoors_now() -> bool:
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
-	if scene == null:
-		return false
-	var night: bool = scene.has_method("_is_enemy_night_active") and bool(scene.call("_is_enemy_night_active"))
-	var inside: bool = scene.has_method("_is_any_interior_open") and bool(scene.call("_is_any_interior_open"))
-	return night and inside
+	return _quarry_indoors()
 
 
 func _lure(n: int) -> void:
@@ -1405,6 +1409,9 @@ func _lure(n: int) -> void:
 ## The cabin you are in: he stands outside one of its windows, close to the glass, and
 ## the window (a view of the real camp) shows him. A tap on it first. Then he is not there.
 func _at_glass(im) -> bool:
+	# Their cabin is on their machine, not in this one's rooms.
+	if _quarry_peer() != 0:
+		return false
 	var cab = im.get("_cabin_interior") if im != null else null
 	if cab == null or not is_instance_valid(cab) or not cab.has_method("outside_windows") or not bool(cab.call("is_open")):
 		return false
@@ -1445,6 +1452,8 @@ func _at_glass(im) -> bool:
 
 
 func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
+	if _play_2d_remote(file, db, pitch):
+		return
 	if _sound2d == null or not ResourceLoader.exists(file):
 		return
 	_sound2d.stream = load(file)

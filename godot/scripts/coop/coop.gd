@@ -629,6 +629,34 @@ func send_night_event(kind: String, data: Array, to := 0) -> void:
 		_night_event.rpc(kind, data)
 
 
+## The night's screen of the warden an enemy hunts, from the host's brain to their
+## machine (scripts/coop/remote_fx.gd): a close-up, a face for two frames, the head
+## turned ("look", unreliable: each frame says it all), the hands stopped.
+func send_night_fx(method: String, args: Array, to: int) -> void:
+	if role != Role.HOST or not wardens.has(to):
+		return
+	if method == "look":
+		_night_look.rpc_id(to, args)
+	else:
+		_night_fx.rpc_id(to, method, args)
+
+
+@rpc("authority", "call_remote", "reliable", 7)
+func _night_fx(method: String, args: Array) -> void:
+	var main := _main()
+	var night = main.get("_coop_night") if main != null else null
+	if night != null and role == Role.CLIENT:
+		night.on_fx(method, args)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered", 7)
+func _night_look(args: Array) -> void:
+	var main := _main()
+	var night = main.get("_coop_night") if main != null else null
+	if night != null and role == Role.CLIENT:
+		night.on_fx("look", args)
+
+
 @rpc("authority", "call_remote", "unreliable_ordered", 5)
 func _night_view(items: Array) -> void:
 	var main := _main()

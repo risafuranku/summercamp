@@ -22,6 +22,16 @@ extends Node
 ## (main._coop_night).
 
 const RETARGET_EVERY := 6.0
+const FX_TEX := preload("res://scripts/night/fx_tex.gd")
+const NIGHTMARE_FX := preload("res://scripts/night/nightmare_fx.gd")
+## The other machine: what the host's enemies do to this warden's screen (remote_fx.gd),
+## held here and given to nightmare_fx each frame: the levels (by source, with when they
+## came), the close-up / overlay / split as last sent (shaken here each frame), the turn
+## of the view (from where it was when it began).
+var _rfx_levels := {}
+var _rfx_held := {}
+var _view_base := {}
+var _view_off := Vector3.ZERO
 const VIEW_HZ := 10.0
 const EYE := Vector3(0.0, 1.62, 0.0)
 const TOGETHER_M := 7.0
@@ -71,6 +81,10 @@ func _process(delta: float) -> void:
 	_phantom_tick(delta)
 	if Coop.is_host():
 		_host_tick(delta)
+	else:
+		_rfx_tick()
+	if Coop.is_host():
+		pass
 	elif _mirror_left > 0.0:
 		_mirror_left -= delta
 		if _mirror_left <= 0.0:
@@ -394,9 +408,19 @@ func _drop_proxies() -> void:
 const PROXY_SCRIPT = preload("res://scripts/coop/coop_proxy.gd")
 
 
+## Only its quarry sees it now: a private one ("didn't you see that?"), or any while it
+## scares the one it hunts (brain.is_private_now: the strike, right behind them, at their
+## window...): the others must not glimpse it, or the scare is spoilt.
+func _is_private(b) -> bool:
+	if bool(_private.get(b.get_instance_id(), false)):
+		return true
+	return b.has_method("is_private_now") and bool(b.call("is_private_now"))
+
+
 ## A private enemy hunting another warden: on this machine it is neither seen nor heard
 ## (its root hidden, its sounds silent; what they were is kept for the picture sent
-## over: "coop_db").
+## over: "coop_db"). What is only ever its quarry's (meta "coop_quarry_only": a decoy
+## pair of eyes, the ring round the lamp) likewise, while the quarry is not here.
 func _hide_private(brains: Array) -> void:
 	for b in brains:
 		if b == null:
@@ -404,11 +428,15 @@ func _hide_private(brains: Array) -> void:
 		var root = b.get("_root")
 		if root == null or not is_instance_valid(root):
 			continue
-		var theirs_alone := bool(_private.get(b.get_instance_id(), false)) and str(_targets.get(b.get_instance_id(), "")) != "host"
-		(root as Node3D).visible = not theirs_alone
+		var quarry := str(_targets.get(b.get_instance_id(), "host"))
+		var theirs_alone := _is_private(b) and quarry != "host"
+		_privacy(root as Node3D, theirs_alone)
+		for n in (root as Node).find_children("*", "Node3D", true, false):
+			if (n as Node).has_meta("coop_quarry_only"):
+				_privacy(n as Node3D, quarry != "host")
 		for n in (root as Node).find_children("*", "AudioStreamPlayer3D", true, false):
 			var a := n as AudioStreamPlayer3D
-			if theirs_alone:
+			if theirs_alone or (quarry != "host" and _quarry_only(a, root)):
 				if a.volume_db > -79.0:
 					a.set_meta("coop_db", a.volume_db)
 					a.volume_db = -80.0
@@ -417,17 +445,40 @@ func _hide_private(brains: Array) -> void:
 				a.remove_meta("coop_db")
 
 
+## Hidden here for privacy (and marked so: the quarry's picture still shows it).
+static func _privacy(n: Node3D, hide: bool) -> void:
+	if hide:
+		if n.visible or n.has_meta("coop_privacy"):
+			n.set_meta("coop_privacy", true)
+			n.visible = false
+	elif n.has_meta("coop_privacy"):
+		n.remove_meta("coop_privacy")
+		n.visible = true
+
+
 ## Shown under `root`, leaving out the root itself (hidden for a private one); the root
-## itself, as it is shown.
-static func _shown_below(n: Node, root: Node) -> bool:
+## itself, as it is shown. For its quarry what is hidden only for privacy counts as shown.
+static func _shown_below(n: Node, root: Node, for_quarry := false) -> bool:
 	if n == root:
-		return (n as Node3D).is_visible_in_tree()
+		return (n as Node3D).visible or (for_quarry and n.has_meta("coop_privacy"))
 	var at := n
-	while at != null and at != root:
-		if at is Node3D and not (at as Node3D).visible:
+	while at != null:
+		if at is Node3D and not (at as Node3D).visible and not (for_quarry and at.has_meta("coop_privacy")):
 			return false
+		if at == root:
+			break
 		at = at.get_parent()
 	return true
+
+
+## Under something only its quarry sees?
+static func _quarry_only(n: Node, root: Node) -> bool:
+	var at := n
+	while at != null and at != root:
+		if at.has_meta("coop_quarry_only"):
+			return true
+		at = at.get_parent()
+	return false
 
 
 ## What the enemies show to `viewer`: every sprite, light and sound under each enemy's
@@ -437,36 +488,33 @@ func _snapshot(brains: Array, viewer: String) -> Array:
 	for b in brains:
 		if b == null:
 			continue
-		var quarry := str(_targets.get(b.get_instance_id(), ""))
-		if bool(_private.get(b.get_instance_id(), false)) and quarry != viewer:
+		var quarry := str(_targets.get(b.get_instance_id(), "host"))
+		if _is_private(b) and quarry != viewer:
 			continue
 		var root = b.get("_root")
 		if root == null or not is_instance_valid(root):
 			continue
-		var at := out.size()
-		_snapshot_root(root, str(b.get_instance_id()), out)
-		# Hidden here (only its quarry sees it): shown there all the same.
-		if quarry == viewer and bool(_private.get(b.get_instance_id(), false)):
-			for i in range(at, out.size()):
-				if out[i].has("v"):
-					out[i]["v"] = true
+		_snapshot_root(root, str(b.get_instance_id()), out, false, quarry == viewer)
 	return out
 
 
 ## Every sprite, light and playing sound under `root` (and the root itself when
 ## `with_root`: a lone sprite in the mirror group), keyed `prefix/path`, into `out`.
-func _snapshot_root(root: Node, prefix: String, out: Array, with_root := false) -> void:
+func _snapshot_root(root: Node, prefix: String, out: Array, with_root := false, for_quarry := false) -> void:
 	var nodes: Array = root.find_children("*", "", true, false)
 	if with_root:
 		nodes.push_front(root)
 	for n in nodes:
+		if not for_quarry and _quarry_only(n, root):
+			continue
 		var key := prefix + "/" + str(root.get_path_to(n))
 		if n is Sprite3D:
 			var sp := n as Sprite3D
-			if sp.texture == null or sp.texture.resource_path == "":
+			var tex = FX_TEX.encode(sp.texture)
+			if tex == null:
 				continue
-			out.append({"k": key, "t": "s", "tex": sp.texture.resource_path, "xf": sp.global_transform, "v": _shown_below(sp, root),
-				"px": sp.pixel_size, "off": sp.offset, "fh": sp.flip_h, "mod": sp.modulate, "sh": sp.shaded, "bb": int(sp.billboard),
+			out.append({"k": key, "t": "s", "tex": tex, "xf": sp.global_transform, "v": _shown_below(sp, root, for_quarry),
+				"px": sp.pixel_size, "off": sp.offset, "fh": sp.flip_h, "fv": sp.flip_v, "mod": sp.modulate, "sh": sp.shaded, "bb": int(sp.billboard),
 				"tag": str(sp.get_meta("coop_tag", ""))})
 		elif n is AudioStreamPlayer3D:
 			var a := n as AudioStreamPlayer3D
@@ -476,7 +524,7 @@ func _snapshot_root(root: Node, prefix: String, out: Array, with_root := false) 
 				"md": a.max_distance, "us": a.unit_size, "at": a.get_playback_position()})
 		elif n is Light3D:
 			var l := n as Light3D
-			out.append({"k": key, "t": "l", "spot": n is SpotLight3D, "xf": l.global_transform, "v": _shown_below(l, root), "c": l.light_color,
+			out.append({"k": key, "t": "l", "spot": n is SpotLight3D, "xf": l.global_transform, "v": _shown_below(l, root, for_quarry), "c": l.light_color,
 				"e": l.light_energy, "r": (l as SpotLight3D).spot_range if n is SpotLight3D else (l as OmniLight3D).omni_range,
 				"ang": (l as SpotLight3D).spot_angle if n is SpotLight3D else 0.0})
 
@@ -624,14 +672,16 @@ func show_view(items: Array) -> void:
 					sp.double_sided = true
 					_mirror_root.add_child(sp)
 					_mirror[key] = sp
-				var tex_path := str(it["tex"])
-				if sp.texture == null or sp.texture.resource_path != tex_path:
-					sp.texture = load(tex_path) if ResourceLoader.exists(tex_path) else null
+				var tex_key := str(it["tex"])
+				if sp.texture == null or str(sp.get_meta("tex_key", "")) != tex_key:
+					sp.texture = FX_TEX.decode(it["tex"])
+					sp.set_meta("tex_key", tex_key)
 				sp.global_transform = it["xf"]
 				sp.visible = bool(it["v"])
 				sp.pixel_size = float(it["px"])
 				sp.offset = it["off"]
 				sp.flip_h = bool(it["fh"])
+				sp.flip_v = bool(it.get("fv", false))
 				sp.modulate = it["mod"]
 				sp.shaded = bool(it["sh"])
 				sp.billboard = int(it["bb"]) as BaseMaterial3D.BillboardMode
@@ -678,6 +728,154 @@ func show_view(items: Array) -> void:
 				else:
 					(gone as Node).queue_free()
 			_mirror.erase(key)
+
+
+# ── the scare on this machine, from the host's enemies ───────────────────────
+
+func _rfx() -> Node:
+	return NIGHTMARE_FX.get_for(main) if main != null else null
+
+
+## What a host's enemy does to this warden's screen (remote_fx.gd -> Coop.send_night_fx):
+## nightmare_fx's calls, the turn of the view ("look"), being dragged, a sound in the room,
+## an enemy's own thing ("ext").
+func on_fx(method: String, args: Array) -> void:
+	var a: Array = _unpack(args)
+	match method:
+		"look":
+			_view_set(Vector3(float(a[0]), float(a[1]), float(a[2])))
+		"view_off":
+			_view_clear()
+		"move_to":
+			var pn = main.get("_player") if main != null else null
+			if pn != null:
+				(pn as Node3D).global_position = a[0]
+		"play_2d":
+			var path := str(a[0])
+			if ResourceLoader.exists(path):
+				var p := AudioStreamPlayer.new()
+				p.stream = load(path)
+				p.volume_db = float(a[1])
+				p.pitch_scale = float(a[2])
+				add_child(p)
+				p.finished.connect(p.queue_free)
+				p.play()
+		"ext":
+			_on_ext(str(a[0]), a[1] as Array)
+		_:
+			_rfx_apply(method, a)
+
+
+## An enemy's own thing on this screen (the Photographer's pictures): its writer's.
+func _on_ext(_what: String, _args: Array) -> void:
+	pass
+
+
+## remote_fx.pack backwards: a texture from fx_tex, "their camera" this warden's.
+func _unpack(v):
+	if v is Dictionary:
+		if (v as Dictionary).has("_tex"):
+			return FX_TEX.decode((v as Dictionary)["_tex"])
+		if (v as Dictionary).has("_cam"):
+			return _view_cam()
+		return v
+	if v is Array:
+		var out: Array = []
+		for x in v:
+			out.append(_unpack(x))
+		return out
+	return v
+
+
+## One of nightmare_fx's calls (its textures and camera made here already); what holds
+## is kept and given again each frame (_rfx_tick).
+func _rfx_apply(method: String, args: Array) -> void:
+	var fx := _rfx()
+	if fx == null:
+		return
+	match method:
+		"set_dread", "set_presence":
+			_rfx_levels[method + "|" + str(args[0])] = [method, str(args[0]), float(args[1]), Time.get_ticks_msec()]
+		"set_eyes":
+			_rfx_levels["set_eyes|" + str(args[0])] = ["set_eyes", args, 0.0, Time.get_ticks_msec()]
+		"close_up", "overlay", "split":
+			if args.is_empty() or args[0] == null:
+				return
+			_rfx_held[method] = args
+			fx.callv(method, args)
+		"close_up_off":
+			_rfx_held.clear()
+			fx.call("close_up_off")
+		"overlay_off", "split_off":
+			_rfx_held.erase(method.trim_suffix("_off"))
+			fx.call(method)
+		"subliminal":
+			if args[0] != null:
+				fx.callv("subliminal", args)
+		_:
+			if fx.has_method(method):
+				fx.callv(method, args)
+
+
+## Each frame: the levels while they hold (gone a second after the host stops saying),
+## the close-up and the rest shaken again.
+func _rfx_tick() -> void:
+	if _rfx_levels.is_empty() and _rfx_held.is_empty() and _view_base.is_empty():
+		return
+	var fx := _rfx()
+	if fx == null:
+		return
+	var now := Time.get_ticks_msec()
+	for k in _rfx_levels.keys():
+		var e: Array = _rfx_levels[k]
+		if now - int(e[3]) > (250 if str(e[0]) == "set_eyes" else 1000):
+			_rfx_levels.erase(k)
+			continue
+		if str(e[0]) == "set_eyes":
+			fx.callv("set_eyes", e[1])
+		else:
+			fx.call(str(e[0]), str(e[1]), float(e[2]))
+	for m in _rfx_held:
+		fx.callv(m, _rfx_held[m])
+	if not _view_base.is_empty():
+		_view_apply()
+
+
+func _view_cam() -> Camera3D:
+	var pl = main.get("_player") if main != null else null
+	if pl == null:
+		return null
+	return (pl as Node).get_node_or_null("Head/Camera3D") as Camera3D
+
+
+## The host's enemy turns this warden's view: pitch, roll, yaw from where it was.
+func _view_set(off: Vector3) -> void:
+	var pl = main.get("_player") if main != null else null
+	var cam := _view_cam()
+	if pl == null or cam == null:
+		return
+	if _view_base.is_empty():
+		_view_base = {"yaw": (pl as Node3D).rotation.y, "pitch": cam.rotation.x, "roll": cam.rotation.z}
+	_view_off = off
+	_view_apply()
+
+
+func _view_apply() -> void:
+	var pl = main.get("_player")
+	var cam := _view_cam()
+	if pl == null or cam == null:
+		return
+	(pl as Node3D).rotation.y = float(_view_base["yaw"]) + _view_off.z
+	cam.rotation.x = float(_view_base["pitch"]) + _view_off.x
+	cam.rotation.z = float(_view_base["roll"]) + _view_off.y
+
+
+func _view_clear() -> void:
+	if _view_base.is_empty():
+		return
+	_view_off = Vector3.ZERO
+	_view_apply()
+	_view_base = {}
 
 
 ## Another machine: a shown thing of the host's tagged `tag` within `radius` of `at`
@@ -730,6 +928,18 @@ func on_event(kind: String, data: Array) -> void:
 			print("Coop: the night, here: %s" % str(data[0]))
 			if fx != null and fx.has_method("run"):
 				fx.run(str(data[0]), main._director_context())
+		"stutter":
+			var ps = main.get("_player")
+			if ps != null:
+				ps.set("flashlight_stutter", float(data[0]))
+		"held":
+			var ph = main.get("_player")
+			if ph != null and "held_speed_mult" in ph:
+				ph.set("held_speed_mult", float(data[0]))
+		"controls":
+			var pc = main.get("_player")
+			if pc != null and pc.has_method("set_controls_enabled"):
+				pc.call("set_controls_enabled", bool(data[0]))
 		"drain":
 			var pl = main.get("_player")
 			if pl != null:

@@ -59,6 +59,8 @@ var _blood_layer: Control
 var _splats: Array = []            # {cells: [[Vector2 cell, shade]], a}
 var _drips: Array = []             # {x, y, v, len, w, shade}
 var _blood_a := 0.0
+var _white: ColorRect
+var _white_t := 0.0
 ## A face split down the middle (`split`): its two halves pulled apart, and between them
 ## the wet dark inside, rows of teeth along both edges, strings across. One frame.
 var _halves: Array = []            # two TextureRects
@@ -185,6 +187,12 @@ func _build() -> void:
 	_black.color = Color(0, 0, 0, 0)
 	_black.visible = false
 	add_child(_black)
+	_white = ColorRect.new()
+	_white.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_white.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_white.color = Color(1, 1, 1, 0)
+	_white.visible = false
+	add_child(_white)
 	_ring = AudioStreamPlayer.new()
 	var gen := AudioStreamGenerator.new()
 	gen.mix_rate = 22050.0
@@ -468,6 +476,13 @@ func freeze(seconds: float) -> void:
 	_freeze_t = seconds
 
 
+## A camera flash in your eyes (the Photographer): white over everything, falling off
+## over a second.
+func white_blast(strength: float = 1.0) -> void:
+	_white_t = maxf(_white_t, clampf(strength, 0.0, 1.0))
+	_white.visible = true
+
+
 func red_flash(alpha: float) -> void:
 	_flash.color.a = maxf(_flash.color.a, clampf(alpha, 0.0, 1.0))
 	_flash.visible = true
@@ -530,6 +545,10 @@ func _process(delta: float) -> void:
 	if _flash.visible:
 		_flash.color.a = maxf(0.0, _flash.color.a - delta * 1.6)
 		_flash.visible = _flash.color.a > 0.0
+	if _white.visible:
+		_white_t = maxf(0.0, _white_t - delta * 0.9)
+		_white.color.a = pow(_white_t, 1.5) * 0.95
+		_white.visible = _white_t > 0.0
 	_update_ring(delta)
 	_tick_blood(delta)
 
