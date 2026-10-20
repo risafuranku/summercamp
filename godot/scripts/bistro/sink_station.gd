@@ -12,6 +12,8 @@ const PILE := Rect2(30, 70, 150, 200)
 const WATER_AT := Vector2(320, 168)
 const WATER := Rect2(195, 80, 250, 180)
 const RACK := Rect2(470, 40, 160, 220)
+## The dishwasher (gear) stands on the counter's right end.
+const WASHER_AT := Vector2(590, 120)
 const STROKES := 900.0
 const DRAG_FAR := 8.0
 
@@ -27,6 +29,8 @@ var _plate_dirt: Sprite3D
 var _sponge: Sprite3D
 var _bubble_spr: Array = []
 var _shine: Sprite3D
+var _washer: MeshInstance3D
+var _washer_meter: Sprite3D
 var _hand_what := ""
 var _press_at := Vector2(-1, -1)
 var _far := false
@@ -48,6 +52,25 @@ func _build() -> void:
 		_bubble_spr.append(b)
 	_shine = meter(5, 18)
 	_shine.position = local_at(Vector2(WATER.end.x + 6, WATER.position.y + 40), 0.04)
+	_washer = MeshInstance3D.new()
+	_washer.name = "Dishwasher"
+	var box := BoxMesh.new()
+	box.size = Vector3(0.3, 0.42, 0.4)
+	_washer.mesh = box
+	var wm := StandardMaterial3D.new()
+	wm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	wm.roughness = 1.0
+	var front := "res://assets/textury/camp/gear_washer.png"
+	var steel := "res://assets/textury/camp/steel_brushed.png"
+	wm.albedo_texture = load(front) if ResourceLoader.exists(front) else (load(steel) if ResourceLoader.exists(steel) else null)
+	wm.albedo_color = Color(0.85, 0.85, 0.88)
+	_washer.material_override = wm
+	_washer.position = local_at(WASHER_AT, 0.21)
+	_washer.visible = false
+	add_child(_washer)
+	_washer_meter = meter(5, 16)
+	_washer_meter.position = local_at(WASHER_AT + Vector2(-34, -40), 0.45)
+	_washer_meter.visible = false
 
 
 func _show() -> void:
@@ -89,6 +112,11 @@ func _show() -> void:
 	_shine.visible = _in_water and not in_hand
 	if _shine.visible:
 		set_meter(_shine, 1.0 - _dirt, Vector2(-1, -1), RETRO_UI.C_GREEN)
+	_washer.visible = KITCHEN.gear(building_key, "washer")
+	var w: Dictionary = kitchen.site(building_key)["washer"]
+	_washer_meter.visible = _washer.visible and int(w.get("n", 0)) > 0
+	if _washer_meter.visible:
+		set_meter(_washer_meter, 1.0 - float(w.get("t", 0.0)) / KITCHEN.WASHER_SEC, Vector2(-1, -1), RETRO_UI.C_GREEN)
 
 
 func _spots() -> Array:
@@ -101,6 +129,10 @@ func _spots() -> Array:
 		out.append({"id": "pile", "rect": PILE, "verb": "A dirty plate into the water (%d)" % dirty})
 	if _in_water:
 		out.append({"id": "plate", "node": _plate, "verb": "Scrub the plate: hold and rub" if _dirt > 0.0 else "Clean: onto the others"})
+	if _washer.visible:
+		var w: Dictionary = kitchen.site(building_key)["washer"]
+		if int(w.get("n", 0)) == 0 and dirty > 0:
+			out.append({"id": "washer", "node": _washer, "verb": "Load the dirty plates into the dishwasher (%d)" % dirty})
 	return out
 
 
@@ -113,6 +145,11 @@ func _press(id: String) -> void:
 				return
 			_hand_what = "pile"
 			sfx("tick", -16.0, 1.3)
+		"washer":
+			var n: int = kitchen.load_washer(building_key)
+			if n > 0:
+				sfx("plate_rack", -6.0, 0.8)
+				pop("%d IN" % n, WASHER_AT + Vector2(0, -60), RETRO_UI.C_BONE)
 		"plate":
 			if _dirt <= 0.0:
 				_hand_what = "clean"

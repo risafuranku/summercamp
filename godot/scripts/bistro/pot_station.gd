@@ -96,7 +96,7 @@ func _spots() -> Array:
 	if level > 0:
 		out.append({"id": "pot", "rect": POT, "verb": "Stir the pot: hold and go round" if float(pot["catch"]) > 0.3 else "Stir the pot"})
 	var stock: int = maxi(0, BUSINESS.stock_of(building_key, "goulash"))
-	var room_left := RULES.POT_CAP - level
+	var room_left := KITCHEN.pot_cap(building_key) - level
 	if stock > 0 and room_left > 0:
 		out.append({"id": "tins", "rect": TINS, "verb": "Top the pot up from a tin (%d in the cellar)" % stock})
 	var loaf: Dictionary = s["loaf"]
@@ -156,7 +156,7 @@ func _drag(at: Vector2) -> void:
 
 func _top_up() -> void:
 	var pot: Dictionary = (kitchen.site(building_key)["pot"] as Dictionary).duplicate()
-	var room_left := RULES.POT_CAP - int(pot["level"])
+	var room_left := KITCHEN.pot_cap(building_key) - int(pot["level"])
 	if room_left <= 0:
 		say("", "The pot is full.")
 		return
@@ -220,7 +220,7 @@ func bar_text() -> String:
 	if kitchen == null:
 		return ""
 	var pot: Dictionary = kitchen.site(building_key)["pot"]
-	return "GOULASH %d/%d  DUMPLINGS %d" % [int(pot["level"]), RULES.POT_CAP, kitchen.prep(building_key, "dumpling")]
+	return "GOULASH %d/%d  DUMPLINGS %d" % [int(pot["level"]), KITCHEN.pot_cap(building_key), kitchen.prep(building_key, "dumpling")]
 
 
 # ── debug (tools/bistro_shots.gd, tools/bistro_coop.gd) ──────────────────────

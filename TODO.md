@@ -325,6 +325,16 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 ### 11. More interiors
 - [x] Cabins: room, bed, bathroom/WC, cleaning, prep
 - [ ] Pub / restaurant: complete interior, own interactions, more life, activities
+
+## BUSINESSES (agent C, 2026-10-20; DESIGN §7b)
+
+- [x] Phase 0: the bistro's stations in the 3D room (`scripts/business/station3d.gd`, the rail, the frame)
+- [x] Phase 1: Papa's ratings, the Z report, goods going off by lots, one order from the PC, gear, the hands (roles, shifts, away, theft, the strange two), open late with the night inside
+- [ ] Phase 1 left: the gear's own pictures (Grok rows bzg_*), the chalk strike on the menu board (bzs_chalk), a note on the door when a hand is away
+- [ ] Phase 2: the pub (stations in 3D, its hands, kegs that go flat, gear)
+- [ ] Phase 3: the corn stand (counter and husking in 3D, the live camp view above)
+- [ ] Phase 4: the Jednota (the building, store, shelves, till; dear and loved)
+- [ ] Phase 5: PROTOTYP 540 (fed at night, the goulash's meat for nothing)
 - [ ] Cellar / machine room: design the dark mechanic (the meatball machine) and prepare
       the space so it can be hooked up (design doc + interactive stub)
 

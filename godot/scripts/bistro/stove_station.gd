@@ -12,7 +12,8 @@ extends "res://scripts/bistro/bistro_station.gd"
 ##                 lifts it: golden onto the rack, pale back in, black in the bin.
 ## The pan and the fryer go on without you (kitchen.gd); the room's marks say so.
 
-const SLOTS := [Vector2(172, 122), Vector2(240, 124), Vector2(206, 175)]
+## The places in the pan (the fourth with the heavy pan).
+const SLOTS := [Vector2(172, 122), Vector2(240, 124), Vector2(206, 175), Vector2(146, 176)]
 const TRAY := Rect2(0, 48, 64, 172)
 const BUCKET := Rect2(0, 228, 76, 60)
 const FRYER := Rect2(344, 56, 192, 192)
@@ -29,6 +30,7 @@ var _slices: Array = []
 var _slice_meters: Array = []
 var _spits: Array = []
 var _basket: Sprite3D
+var _basket2: Sprite3D
 var _basket_meter: Sprite3D
 var _bubbles: Array = []
 var _rack_cheese: Array = []
@@ -59,6 +61,9 @@ func _build() -> void:
 			spits.append(bsprite("oil_spit"))
 		_spits.append(spits)
 	_basket = bsprite("basket_empty")
+	# The second basket (gear), beside the first, doing what it does.
+	_basket2 = bsprite("basket_empty")
+	_basket2.visible = false
 	_basket_meter = meter(4, 18)
 	_basket_meter.position = local_at(Vector2(FRYER.end.x + 12, FRYER.position.y + 40), 0.03)
 	for j in 6:
@@ -109,8 +114,15 @@ func _show() -> void:
 			put(spr, TRAY.position + Vector2(18 + (i % 2) * 28, 30 + (i / 2) * 26), 0.012 + (i % 2) * 0.002)
 	_bucket.visible = kitchen.prep(building_key, "chips_raw") > 0
 	# The pan: each slice, the side up as it is, the side down on its column.
+	var pans: Array = s["pan"]
 	for i in SLOTS.size():
-		var slot: Dictionary = s["pan"][i]
+		if i >= pans.size():
+			(_slices[i] as Sprite3D).visible = false
+			(_slice_meters[i] as Sprite3D).visible = false
+			for sp in _spits[i]:
+				(sp as Sprite3D).visible = false
+			continue
+		var slot: Dictionary = pans[i]
 		var spr: Sprite3D = _slices[i]
 		var m: Sprite3D = _slice_meters[i]
 		var empty := slot.is_empty() or _hand_what == "slot:%d" % i
@@ -149,6 +161,11 @@ func _show() -> void:
 	bretex(_basket, key, 2.0)
 	_basket.modulate = Color(0.45, 0.35, 0.28) if bt > RULES.FRIES_BURNT else (Color(0.8, 0.7, 0.55) if down else Color(1, 1, 1))
 	put(_basket, BASKET_AT, BASKET_DOWN if down else BASKET_UP)
+	_basket2.visible = KITCHEN.gear(building_key, "basket2")
+	if _basket2.visible:
+		bretex(_basket2, key, 2.0)
+		_basket2.modulate = _basket.modulate
+		put(_basket2, BASKET_AT + Vector2(-62, 0), BASKET_DOWN if down else BASKET_UP)
 	for j in _bubbles.size():
 		var bub: Sprite3D = _bubbles[j]
 		bub.visible = down
@@ -193,7 +210,7 @@ func _spots() -> Array:
 		out.append({"id": "bucket", "rect": BUCKET, "verb": "Fill the basket with raw chips (%d)" % chips})
 	if int(b["n"]) > 0:
 		out.append({"id": "basket", "node": _basket, "verb": _basket_verb(b)})
-	for i in SLOTS.size():
+	for i in mini(SLOTS.size(), (s["pan"] as Array).size()):
 		var slot: Dictionary = s["pan"][i]
 		if not slot.is_empty():
 			out.append({"id": "slot:%d" % i, "node": _slices[i], "verb": _slot_verb(slot)})
@@ -302,7 +319,7 @@ func _release(id: String) -> void:
 func _slot_near(at: Vector2) -> int:
 	var best := -1
 	var best_d := 64.0
-	for i in SLOTS.size():
+	for i in mini(SLOTS.size(), (_ks()["pan"] as Array).size()):
 		if not (_ks()["pan"][i] as Dictionary).is_empty():
 			continue
 		var d := at.distance_to(SLOTS[i])
@@ -313,7 +330,7 @@ func _slot_near(at: Vector2) -> int:
 
 
 func _first_free() -> int:
-	for i in SLOTS.size():
+	for i in mini(SLOTS.size(), (_ks()["pan"] as Array).size()):
 		if (_ks()["pan"][i] as Dictionary).is_empty():
 			return i
 	return -1
@@ -353,14 +370,15 @@ func _to_rack(i: int) -> void:
 	if not kitchen.room_for(building_key, "cheese"):
 		say("", "The rack is full.")
 		return
+	var q: float = KITCHEN.slice_quality(_ks()["pan"][i])
 	kitchen.act(building_key, "pan", [i, {}])
-	kitchen.act(building_key, "prep", ["cheese", 1])
+	kitchen.act(building_key, "prep", ["cheese", 1, [q]])
 	pop("+1", RACK.get_center() + Vector2(0, -60), RETRO_UI.C_GREEN_LIGHT)
 	sfx("plate_down", -10.0, 1.2)
 
 
 func _fill_basket() -> void:
-	var n := mini(RULES.BASKET_PORTIONS, kitchen.prep(building_key, "chips_raw"))
+	var n := mini(KITCHEN.basket_portions(building_key), kitchen.prep(building_key, "chips_raw"))
 	if n <= 0:
 		return
 	kitchen.act(building_key, "prep", ["chips_raw", -n])
@@ -394,8 +412,12 @@ func _basket_click() -> void:
 			b["st"] = "up"
 			kitchen.act(building_key, "basket", [b])
 			return
+		var fq: float = KITCHEN.fries_quality(float(b["t"]))
+		var qs: Array = []
+		for k in room_left:
+			qs.append(fq)
 		kitchen.act(building_key, "basket", [{"st": "up", "t": 0.0, "n": 0}])
-		kitchen.act(building_key, "prep", ["fries", room_left])
+		kitchen.act(building_key, "prep", ["fries", room_left, qs])
 		pop("+%d" % room_left, RACK.get_center() + Vector2(0, 40), RETRO_UI.C_GREEN_LIGHT)
 		sfx("basket_lift", -6.0)
 

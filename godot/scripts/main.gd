@@ -4578,9 +4578,20 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 		"order":
 			act.biz_add_order(str(a[0]), a[1], int(a[2]), int(a[3]))
 		"hire":
-			act.biz_hire(str(a[0]), str(a[1]), int(a[2]))
+			if a.size() > 2 and a[1] is Dictionary:
+				act.biz_hire(str(a[0]), a[1], int(a[2]))
 		"fire":
-			act.biz_fire(str(a[0]))
+			act.biz_fire(str(a[0]), str(a[1]) if a.size() > 1 else "")
+		"bin":
+			act.biz_bin(str(a[0]))
+		"gear":
+			act.biz_add_gear(str(a[0]), str(a[1]))
+		"job":
+			act.biz_set_job(str(a[0]), str(a[1]), str(a[2]), str(a[3]))
+		"late":
+			act.biz_set_late(str(a[0]), bool(a[1]))
+		"score":
+			act.biz_score(str(a[0]), a[1])
 
 
 ## The other machine: the other warden got you up.
@@ -4961,6 +4972,10 @@ func coop_request(kind: String, data: Array) -> void:
 		"served":
 			var visit := str(data[0])
 			ORDERS_SERVED._served[visit] = int(ORDERS_SERVED._served.get(visit, 0)) + 1
+		"meal":
+			# What the other warden served, for the guest's review (scripts/food/orders.gd).
+			if GuestManager != null and GuestManager.has_method("note_meal") and data.size() >= 3:
+				GuestManager.note_meal(int(data[0]), str(data[1]), int(data[2]))
 		"build":
 			var turned: Array = []
 			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])

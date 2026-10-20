@@ -25,6 +25,15 @@ const K := preload("res://scripts/interior_kit.gd")
 const TEX := "res://assets/textury/camp/"
 const SIZE := Vector3(6.2, 2.9, 4.8)
 
+## The menu board's lines: [dish ("" the heading), the chalk].
+const MENU_LINES := [
+	["", "DNES VARIME / TODAY"],
+	["goulash", "Goulash, dumplings ...... $7"],
+	["smazak", "Fried cheese, chips ..... $8"],
+	["fries", "Chips, tartar ........... $3"],
+	["kofola", "Kofola .................. $2"],
+]
+
 ## The guests' tables in the dining room (room coordinates, on the floor).
 const TABLES := [Vector3(-2.05, 0.05, -1.35), Vector3(-2.05, 0.05, 0.35), Vector3(-0.2, 0.05, -1.45), Vector3(0.2, 0.05, 0.0)]
 
@@ -207,14 +216,22 @@ static func dining(parent: Node3D, si) -> void:
 	var board := K.slab(parent, Vector3(1.9, 0.86, 0.04), Vector3(-1.45, 1.92, -2.36), K.surface("ceiling_board", 4.0, Color(0.32, 0.34, 0.3)), "MenuBoard")
 	board.name = "DiningMenuBoard"
 	K.slab(parent, Vector3(1.98, 0.94, 0.03), Vector3(-1.45, 1.92, -2.385), K.surface("planks_dark", 0.6), "MenuFrame")
-	var menu := Label3D.new()
-	menu.text = "DNES VARIME / TODAY\nGoulash, dumplings ...... $7\nFried cheese, chips ..... $8\nChips, tartar ........... $3\nKofola .................. $2"
-	menu.position = Vector3(-1.45, 1.92, -2.33)
-	menu.font_size = 18
-	menu.modulate = Color(0.92, 0.92, 0.86, 0.95)
-	menu.outline_size = 0
-	menu.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	parent.add_child(menu)
+	# The menu in chalk, a line a dish: what cannot be made today is crossed out
+	# (service_interior._update_menu_board, from the cellar's shelves).
+	for i in MENU_LINES.size():
+		var line := Label3D.new()
+		line.name = "MenuLine_" + str(MENU_LINES[i][0])
+		line.text = str(MENU_LINES[i][1])
+		line.position = Vector3(-2.3, 2.22 - i * 0.14, -2.33)
+		line.font_size = 18
+		line.modulate = Color(0.92, 0.92, 0.86, 0.95)
+		line.outline_size = 0
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		parent.add_child(line)
+		if str(MENU_LINES[i][0]) != "" and has_tex("chalk_strike"):
+			var strike := K.cutout(parent, "chalk_strike", Vector2(1.5, 0.1), Vector3(-1.5, 2.17 - i * 0.14, -2.325), 0.0, false, "MenuStrike_" + str(MENU_LINES[i][0]))
+			strike.visible = false
 	look(parent, "menu board", "Somebody rubbed out SVICKOVA and never wrote anything in its place.", Vector3(-1.45, 1.92, -2.3), Vector3(1.9, 0.86, 0.1))
 	si._sign(parent, "BUFET\ndiner", Vector3(-1.45, 2.6, -2.33), 30, "enamel")
 	# The hatch into the kitchen, beside its door: a steel sill, the kitchen lit behind.
@@ -336,6 +353,7 @@ static func kitchen(parent: Node3D, si) -> void:
 		(glow.material_override as StandardMaterial3D).emission = Color(1.0, 0.25, 0.1)
 		(glow.material_override as StandardMaterial3D).emission_energy_multiplier = 2.0
 		var l := OmniLight3D.new()
+		l.name = "LampLight"
 		l.light_color = Color(1.0, 0.35, 0.18)
 		l.light_energy = 0.5
 		l.omni_range = 1.3
@@ -353,6 +371,10 @@ static func kitchen(parent: Node3D, si) -> void:
 	look(parent, "stock pot", "Bones for the broth. They have been simmering since before you came.", Vector3(0.3, 1.1, 0.25), Vector3(0.4, 0.36, 0.4))
 	_tube(parent, Vector3(-1.0, 2.88, 0.0))
 	_tube(parent, Vector3(1.2, 2.88, 0.0))
+	# The ticket clock (gear) over the pass, its stubs in its rim: hidden till bought.
+	var clock := _cut(parent, "gear_clock" if has_tex("gear_clock") else "wall_clock", Vector2(0.34, 0.34), Vector3(-3.07, 2.15, -1.25), 90.0, false, "GearClock")
+	if clock != null:
+		clock.visible = false
 	_pic(parent, "calendar", Vector2(0.32, 0.46), Vector3(-3.06, 1.95, 1.0), 90.0, "Calendar")
 	look(parent, "calendar", "1987. Every Thursday ringed in red.", Vector3(-3.0, 1.95, 1.0), Vector3(0.1, 0.46, 0.32))
 

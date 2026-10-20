@@ -571,8 +571,87 @@ imperfect human Build-engine textures."*
   (`scripts/bistro/kitchen.gd`, `Coop.send_kitchen`), so the stove burns the same on all
   four; the tickets are worked out from the guests on each machine alike. Splitting the
   work is the game: one in the cellar, one at the stove, one at the pass, one washing up.
-- **A hand** (taken on in the books) serves everybody at once as before and keeps the
-  trays, the pot and the plates going.
+- **The hands** work the kitchen by job (below, "The hands"): one at the cellar fills
+  the trays, one at the stove turns and racks the slices and minds the basket and the pot,
+  one at the pass plates whatever ticket it has everything ready for, one at the sink
+  washes up. What nobody does is yours; a warden at a hand's station works beside them.
+
+### The businesses' shared systems (2026-10-20)
+
+*Decided with the user on 2026-10-20 (Q&A): Papa's ratings; goods that go off; one order
+for every place from the office PC once licensed; better gear as the only progression;
+hands taken on one by one, each with a job and a shift; places open late into the night.
+Built once for all four places (the bistro first); `core/systems/business_rules.gd`,
+`actions.biz_*`, `scripts/business/`.*
+
+- **How an order went down (Papa's).** Each order is scored 0-100 from its wait, its build
+  against the ticket and its cooking (the slice's two sides across the golden window, best
+  in its middle; the chips likewise; the goulash hot off the boil and not catching), and
+  the score is the tip (none under 65, a third of the price from 80, half from 95), the
+  stars (1-3) and the guest's mood. The guest remembers the best and the worst meal of
+  the stay, and their review says so: "The fried cheese was perfect.", "The goulash was
+  burnt at the bottom.", "Waited forever for my food at the bistro." (the review reaches
+  Goggle as before). Food left on the shelf goes cold (a tenth of its quality every half
+  minute, down to half) unless the heat lamp is bought.
+- **The shift's end.** At 20:00 (or 23:00 when open late) the till prints its Z report: a
+  long thermal receipt with the orders, the average score, the tips, the best and the
+  worst order and whose they were, who went away unserved, what was thrown out, the
+  takings and the wages tonight, one to three stars for the shift. It comes out of the
+  till if you are in the place; else the books keep it (BOOKS, Z REPORT). The books also
+  keep the place's running average.
+- **Goods go off.** Each delivery is a lot dated the day it came; the oldest is used
+  first. Past its days (bread and rolls 2, dumplings and milk 3, cobs and fruit 4,
+  potatoes 5, cheese 6, beer 6 a tapped keg, the tins and the spirits never) a lot goes
+  bad on the shelf: it is not sold, it is there in the cellar (sprouting, mouldy, bloated
+  sprites) and in red in the books till somebody throws it out (THROW OUT: the books
+  count it as waste). The chiller and the keg cooler double their goods' days. What the
+  shelves cannot make today is crossed off the menu board in chalk.
+- **Ordering.** In the place, on the books' ORDER page, as before (the van in the
+  morning). With a licence (softsklad.cz) the office PC's SoftSklad window runs every
+  licensed place at once: a tab per place, and one order across all of them that one van
+  brings for one fee.
+- **Gear, the only progression.** The menu is whole from the first day; what money buys
+  is better gear for a place, Papa's way: the bistro's second fryer basket (two baskets'
+  worth at once), the heavy pan (a fourth place, slower to burn), the dishwasher (the
+  dirty plates in, clean out a while later), the big pot (twenty portions, catches
+  slower), the heat lamp (fried food keeps hot), the ticket clock (the guests wait a
+  quarter longer); the pub's second tap, glass washer, keg cooler and quick coupler; the
+  corn stand's bigger pot, butter warmer and husking table; the Jednota's second till,
+  pallet truck, chiller cabinet and more shelves. Bought in the books (GEAR) or on the PC;
+  each is seen in the room once it is in (the lamps over the pass lit, the clock on the
+  wall, the dishwasher on the sink's counter, the fourth slice in the pan).
+- **The hands.** Taken on one by one from the three who ask at a place each day (the
+  same three on every machine; nobody already working in the camp). Each is a person with
+  an ID photo and the sprites of the photo (Grok), their speed (seconds a piece of work:
+  9, 6, 4), their honesty (never said: a dishonest one asks a little less, their papers
+  are thin, and now and then the books come up short, money or goods), their temper
+  (warm, flat, sour) and the wage that follows from them. Each has a job (the place's
+  front job first: the bistro's pass, the pub's tap, the stand's counter, the Jednota's
+  till; then the others) and a shift (day, or late at half as much again). They are seen
+  at their job in the room, at work; one whose station a warden takes stands back. They
+  are slower and worse than a good warden: a slice left to burn, a plate dropped, six
+  dumplings for four, a badly breaded slice. About one shift in twenty one does not come
+  in (a note on the door, a line in the feed); paid at the day's close for the shift they
+  did, and two days unpaid they leave.
+- **The two nobody quite remembers** (asking now and then among the others, every few
+  days): *Jaromir*, "has worked here before" though the camp was shut all last year:
+  quick, warm, honest, cheap; when the place is shut at night he is at his place in the
+  dark, and in the morning the plates are washed and what went off is gone, though nobody
+  had a key. *Marta*, references left blank: as good and as cheap, never away, never
+  announced in the feed, already at her place when anybody comes in, and her ID photo is
+  a little different every other day (the eyes a touch further apart, the mouth a little
+  longer). Let go, they do not argue. Neither is ever explained.
+- **Open late** (the books' BOOKS page, or the PC): the place shuts at 23:00 instead of
+  20:00. The night comes into it: some guests go out to it in the evening (the drinkers
+  most), the prices are a quarter higher, the late shift's hands cost half as much again,
+  and inside it the night's director plays it by its tension: the tubes buzz and
+  flicker, static creeps under the room, something scrapes or knocks in the cellar, the
+  breaker drops the lights for a few seconds (once a shift at most), and once a shift at
+  most there is one more at a table than came in, facing away, dark, two small pale
+  points for eyes, gone at the next flicker or when you look at it a moment. The
+  forecast says so: from the afternoon the NIGHT RISK footer alternates with "PUB LATE",
+  and the feed says the place is open late tonight. The scares are rare and fast; nothing
+  in a place hurts.
 
 ## 8. The pipe crawl (sewer repair)
 

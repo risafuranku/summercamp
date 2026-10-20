@@ -31,6 +31,8 @@ const ON_PLATE := {
 const PLATE_LIFT := 0.016
 
 var _plate: Array = []
+## How good each thing on the plate was (the stove's slice, the chips, the goulash).
+var _plate_q: Array = []
 var _has_plate := false
 var _out_t := -1.0
 var _out_from := Vector3.ZERO
@@ -219,6 +221,7 @@ func _press(id: String) -> void:
 			kitchen.act(building_key, "plates", [-1, 0])
 			_has_plate = true
 			_plate = []
+			_plate_q = []
 			_drop.clear()
 			_auto_pick()
 			sfx("plate_down", -8.0)
@@ -229,6 +232,8 @@ func _press(id: String) -> void:
 		"plate":
 			if _plate.is_empty():
 				return
+			if not _plate_q.is_empty():
+				_plate_q.pop_back()
 			_give_back(str(_plate.pop_back()))
 			sfx("ladle_plate", -14.0, 1.3)
 		_:
@@ -239,6 +244,7 @@ func _add(part: String) -> void:
 	if not _has_plate:
 		return
 	var counts := _counts()
+	var q := -1.0
 	match part:
 		"goulash":
 			var pot: Dictionary = (kitchen.site(building_key)["pot"] as Dictionary).duplicate()
@@ -249,13 +255,17 @@ func _add(part: String) -> void:
 				return
 			if int(counts.get("goulash", 0)) >= 2:
 				return
+			q = KITCHEN.goulash_quality(pot)
 			pot["level"] = int(pot["level"]) - 1
 			kitchen.act(building_key, "pot", [pot])
 			sfx("ladle_plate", -6.0)
 		"cheese", "fries", "dumpling":
-			if not kitchen.take(building_key, part):
+			var got: Array = kitchen.take_q(building_key, part)
+			if got.is_empty():
 				sfx("tick", -14.0, 0.7)
 				return
+			if part != "dumpling":
+				q = float(got[0])
 			sfx("plate_down", -12.0, 1.3 if part == "dumpling" else 1.0)
 		"tartar", "onion":
 			if int(counts.get(part, 0)) >= 2:
@@ -263,6 +273,7 @@ func _add(part: String) -> void:
 			sfx("ladle_plate", -12.0, 1.5)
 		_:
 			return
+	_plate_q.append(q)
 	_plate.append(part)
 	_drop[_plate.size() - 1] = 0.0
 
@@ -293,7 +304,7 @@ func _ring() -> void:
 	if t.is_empty():
 		say("", "Nobody ordered that.")
 		return
-	var verdict: Dictionary = kitchen.serve(building_key, t, _counts())
+	var verdict: Dictionary = kitchen.serve(building_key, t, _counts(), _cook_q())
 	var who := ORDERS_first(str(t["name"]))
 	if not bool(verdict.get("ok", false)):
 		say(who, ["That's not what I ordered.", "Whose is this?", "No. Look at the ticket."][randi() % 3])
@@ -315,6 +326,17 @@ func _ring() -> void:
 		lines = ["Finally.", "Thought you'd gone fishing.", "Cheers."]
 	say(who, str(lines[randi() % lines.size()]))
 	picked = ""
+
+
+## The plate's cooking: what was cooked on it, on average (-1 nothing cooked).
+func _cook_q() -> float:
+	var total := 0.0
+	var n := 0
+	for q in _plate_q:
+		if float(q) >= 0.0:
+			total += float(q)
+			n += 1
+	return total / float(n) if n > 0 else -1.0
 
 
 func _tick(delta: float) -> void:

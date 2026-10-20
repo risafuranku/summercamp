@@ -422,6 +422,11 @@ func _set_hover(id: String, verb: String, what = null) -> void:
 		return
 	if what is Sprite3D:
 		_glint_sprite(what as Sprite3D)
+	elif what is MeshInstance3D:
+		if _glint_on != what:
+			_glint_off()
+			_glint.show_on([what])
+			_glint_on = what
 	elif what is Rect2:
 		_glint_rect(what as Rect2)
 	else:
