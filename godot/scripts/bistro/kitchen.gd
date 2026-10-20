@@ -10,6 +10,8 @@ extends Node
 ##   pot     the goulash pot {level, heat 0..1, catch 0..1}
 ##   loaf    the dumpling loaf on the board {left: slices still on it}
 ##   plates  {clean, dirty}
+##   grill   the grill's places on the kitchen island: a sausage each {down, t: [a, b]}
+##   soup    the soup of the day's pot at the bufet {level}
 ##   served  tickets served: id -> {dish, at (game minute), parts}
 ## The stove and the pot go on cooking whether anybody is at them or not: a slice left in
 ## the pan burns, the pot left unstirred catches on the bottom (the room's marks say so).
@@ -73,13 +75,16 @@ func has_site(key: String) -> bool:
 
 func _fresh(key: String) -> Dictionary:
 	var saved: Dictionary = BUSINESS.site(key).get("kitchen", {}) if BUSINESS.site(key).get("kitchen", {}) is Dictionary else {}
-	var prep := {"chips_raw": 0, "cheese_raw": 0, "cheese_bad": 0, "cheese": 0, "fries": 0, "dumpling": 0}
+	var prep := {"chips_raw": 0, "cheese_raw": 0, "cheese_bad": 0, "cheese": 0, "fries": 0, "dumpling": 0, "sausage": 0}
 	for k in (saved.get("prep", {}) as Dictionary):
 		if prep.has(k):
 			prep[k] = int(saved["prep"][k])
 	var pans: Array = []
 	for i in pan_slots(key):
 		pans.append({})
+	var grill: Array = []
+	for i in RULES.GRILL_SLOTS:
+		grill.append({})
 	return {
 		"prep": prep,
 		# How good each thing on the trays is (0..1), oldest first, as they were made.
@@ -89,6 +94,8 @@ func _fresh(key: String) -> Dictionary:
 		"pot": {"level": int(saved.get("pot", 6)), "heat": 1.0, "catch": 0.0},
 		"loaf": {"left": int(saved.get("loaf", 0))},
 		"plates": {"clean": int(saved.get("clean", RULES.PLATES)), "dirty": int(saved.get("dirty", 0))},
+		"grill": grill,
+		"soup": {"level": int(saved.get("soup", 8))},
 		# The dishwasher (gear): plates in it and the seconds left.
 		"washer": {"n": int(saved.get("washer_n", 0)), "t": float(saved.get("washer_t", 0.0))},
 		"served": {},
@@ -157,8 +164,9 @@ static func patience_k(key: String) -> float:
 
 ## Open tickets at `key`, oldest first: [{id, visit, member, guest_id, name, arch, dish,
 ## parts, price, since, age}]. Nobody served by a hand; not served yet; up once they
-## have read the menu.
-func tickets(key: String) -> Array:
+## have read the menu. `where`: "pass" (the plates), "bufet" (the soup, the bottles),
+## "" all of them.
+func tickets(key: String, where := "") -> Array:
 	var out: Array = []
 	var now := now_min()
 	var served: Dictionary = site(key)["served"]
@@ -173,6 +181,8 @@ func tickets(key: String) -> Array:
 			continue
 		for t in RULES.tickets_for(visit, str(v["archetype"]), figures):
 			if served.has(str(t["id"])):
+				continue
+			if where != "" and RULES.at_bufet(str(t["dish"])) != (where == "bufet"):
 				continue
 			t["visit"] = visit
 			t["guest_id"] = int(v["id"])
@@ -225,6 +235,8 @@ func ticket_of(key: String, visit: String, member: int) -> Dictionary:
 ##   plates [clean delta, dirty delta]
 ##   served [ticket id, record]
 ##   proto [fields]                    the cellar's machine (sack, fed, tray, taken)
+##   grill [slot, state]        a place on the grill ({} empty)
+##   soup [state]               the bufet's soup pot
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
 	if Coop.is_active():
@@ -261,6 +273,13 @@ func _apply(key: String, op: String, args: Array) -> void:
 				s["pan"][slot] = (args[1] as Dictionary).duplicate(true)
 		"basket":
 			s["basket"] = (args[0] as Dictionary).duplicate(true)
+		"grill":
+			var gslot := int(args[0])
+			if gslot >= 0 and gslot < (s["grill"] as Array).size():
+				s["grill"][gslot] = (args[1] as Dictionary).duplicate(true)
+		"soup":
+			s["soup"] = (args[0] as Dictionary).duplicate(true)
+			_note_save(key)
 		"pot":
 			s["pot"] = (args[0] as Dictionary).duplicate(true)
 			_note_save(key)
@@ -285,7 +304,7 @@ func _apply(key: String, op: String, args: Array) -> void:
 			plate_out.emit(key, str(args[0]), rec)
 		"snap":
 			var got: Dictionary = args[0]
-			for k in ["prep", "q", "pan", "basket", "pot", "loaf", "plates", "washer", "proto"]:
+			for k in ["prep", "q", "pan", "basket", "pot", "loaf", "plates", "washer", "proto", "grill", "soup"]:
 				if got.has(k):
 					s[k] = (got[k] as Dictionary).duplicate(true) if got[k] is Dictionary else (got[k] as Array).duplicate(true)
 			for tid in (got.get("served", {}) as Dictionary):
@@ -306,7 +325,7 @@ func coop_kitchen(key: String, op: String, args: Array) -> void:
 
 func _snapshot(key: String) -> Dictionary:
 	var s := site(key)
-	return {"prep": s["prep"], "q": s["q"], "pan": s["pan"], "basket": s["basket"], "pot": s["pot"], "loaf": s["loaf"], "plates": s["plates"], "washer": s["washer"], "served": s["served"], "proto": s["proto"]}
+	return {"prep": s["prep"], "q": s["q"], "pan": s["pan"], "basket": s["basket"], "pot": s["pot"], "loaf": s["loaf"], "plates": s["plates"], "washer": s["washer"], "served": s["served"], "proto": s["proto"], "grill": s["grill"], "soup": s["soup"]}
 
 
 ## Takes `n` of `item` off a tray; false when there is not that much.
@@ -340,6 +359,14 @@ static func slice_quality(slot: Dictionary) -> float:
 		q += _window_q(float(t), RULES.CHEESE_GOLD, burnt)
 	q *= 0.5
 	return q * (0.75 if bad else 1.0)
+
+
+## A sausage off the grill: both sides brown, best in the middle of the window.
+static func sausage_quality(slot: Dictionary) -> float:
+	var q := 0.0
+	for t in slot.get("t", [0.0, 0.0]):
+		q += _window_q(float(t), RULES.GRILL_GOLD, RULES.GRILL_BURNT)
+	return q * 0.5
 
 
 ## Chips out of the oil after `t` seconds.
@@ -383,11 +410,17 @@ func serve(key: String, t: Dictionary, parts: Dictionary, cook := -1.0, hand := 
 	verdict["mood"] = float(r["mood"])
 	var amount := int(round((int(t["price"]) + int(verdict["tip"])) * BUSINESS.price_k(key)))
 	verdict["amount"] = amount
-	BUSINESS.sell(key, {}, amount)
+	# A bottle off the shelf; the rest came off the shelves as it was made.
+	var needs := {}
+	if RULES.DRINKS.has(str(t["dish"])):
+		needs[str(RULES.DRINKS[str(t["dish"])]["good"])] = 1
+	if not BUSINESS.sell(key, needs, amount):
+		return {"ok": false, "why": "dry", "accuracy": 0.0, "speed": 0.0, "tip": 0, "stars": 0, "mood": 0.0}
 	var v := {"id": int(t["guest_id"]), "visit": str(t["visit"])}
 	ORDERS.note_served(v)
 	var line := _review_line(str(t["dish"]), verdict)
-	ORDERS.mood(int(t["guest_id"]), float(verdict["mood"]), line)
+	var role := "bufet" if RULES.at_bufet(str(t["dish"])) else "pass"
+	ORDERS.mood(int(t["guest_id"]), float(verdict["mood"]) + (BUSINESS.hand_mood(key, role) if hand != "" else 0.0), line)
 	ORDERS.note_meal(int(t["guest_id"]), line, pts)
 	act(key, "served", [str(t["id"]), {"dish": str(t["dish"]), "at": now_min(), "parts": parts, "stars": int(verdict["stars"]), "amount": amount, "score": pts}])
 	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
@@ -408,6 +441,10 @@ func _review_line(dish: String, verdict: Dictionary) -> String:
 				return "The goulash was burnt at the bottom."
 			"smazak":
 				return "The fried cheese was greasy and half raw."
+			"sausage":
+				return "The sausage at the bistro was black on one side and raw on the other."
+			"soup":
+				return "The soup of the day was lukewarm."
 			_:
 				return "The chips were pale and limp."
 	if int(verdict.get("score", 0)) >= 92:
@@ -416,6 +453,12 @@ func _review_line(dish: String, verdict: Dictionary) -> String:
 				return "The goulash was like my grandmother's."
 			"smazak":
 				return "The fried cheese was perfect."
+			"sausage":
+				return "A proper klobasa off the grill, with mustard and bread."
+			"soup":
+				return "The soup of the day was like at a wedding."
+			"kofola", "malinovka":
+				return ""
 			_:
 				return "Proper chips at the bistro. Golden."
 	if int(verdict.get("stars", 0)) >= 3:
@@ -470,6 +513,11 @@ func _cook(key: String, delta: float) -> void:
 	var b: Dictionary = s["basket"]
 	if str(b["st"]) == "down":
 		b["t"] = float(b["t"]) + delta
+	for gs in s["grill"]:
+		if (gs as Dictionary).is_empty():
+			continue
+		var gd := int(gs["down"])
+		gs["t"][gd] = float(gs["t"][gd]) + delta
 	var pot: Dictionary = s["pot"]
 	if int(pot["level"]) > 0:
 		pot["heat"] = minf(1.0, float(pot["heat"]) + delta / RULES.POT_HEAT_SEC)
@@ -525,7 +573,9 @@ func _host_second() -> void:
 					hold = maxi(hold, done)
 					if now >= done and not _cleared.has(tid):
 						_cleared[tid] = true
-						act(key, "plates", [0, 1])
+						# A plate or a bowl back to the sink (a bottle goes in the crate).
+						if not RULES.DRINKS.has(str(served[tid].get("dish", ""))):
+							act(key, "plates", [0, 1])
 				elif int(ORDERS._served.get(visit, 0)) < figures:
 					hold = maxi(hold, since + int(t["member"]) + int(RULES.PATIENCE_GONE / patience_k(key)))
 			if hold > now:
@@ -542,7 +592,8 @@ func _host_second() -> void:
 					break
 			if not here:
 				_cleared[tid] = true
-				act(key, "plates", [0, 1])
+				if not RULES.DRINKS.has(str(served[tid].get("dish", ""))):
+					act(key, "plates", [0, 1])
 		if _save_due.has(key):
 			_save_due.erase(key)
 			_save(key)
@@ -637,7 +688,7 @@ func _save(key: String) -> void:
 		"loaf": int(s["loaf"].get("left", 0)), "clean": int(s["plates"]["clean"]), "dirty": int(s["plates"]["dirty"]),
 		"washer_n": int(s["washer"].get("n", 0)), "washer_t": float(s["washer"].get("t", 0.0)),
 		"proto_sack": int(s["proto"]["sack"]), "proto_fed": int(s["proto"]["fed"]), "proto_tray": int(s["proto"]["tray"]),
-		"proto_taken": int(s["proto"]["taken"])})
+		"proto_taken": int(s["proto"]["taken"]), "soup": int(s["soup"]["level"])})
 
 
 ## The hands in the kitchen, each at their job (DESIGN.md §7b, the hands), one piece of
@@ -648,6 +699,8 @@ func _save(key: String) -> void:
 ##           basket and the pot
 ##   pass    plates the oldest ticket it has everything ready for, and sends it out
 ##   sink    washes the dirty plates
+##   grill   puts sausages on, turns them, racks the brown ones, bins the black ones
+##   bufet   ladles the soup of the day and opens the bottles over the counter
 ## A warden at the same station works alongside them (the stove's slices are the same).
 ## Seconds till each hand's next piece of work: "key/slug" -> seconds.
 var _crew_t: Dictionary = {}
@@ -672,7 +725,73 @@ func _crew_work(key: String, crew: Array) -> void:
 				did = _crew_pass(key, p, slip)
 			"sink":
 				did = _crew_sink(key, slip)
+			"grill":
+				did = _crew_grill(key, slip)
+			"bufet":
+				did = _crew_bufet(key, p, slip)
 		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) if did else 1.0
+
+
+## The grill: the black ones off into the bin, the brown ones turned or onto the rack, a
+## new one on while sausages are wanted.
+func _crew_grill(key: String, slip: bool) -> bool:
+	var g: Array = site(key)["grill"]
+	var on := 0
+	for i in g.size():
+		var slot: Dictionary = g[i]
+		if slot.is_empty():
+			continue
+		on += 1
+		var d := RULES.sausage_side(float(slot["t"][int(slot["down"])]))
+		var u := RULES.sausage_side(float(slot["t"][1 - int(slot["down"])]))
+		if d == 2 or u == 2:
+			act(key, "grill", [i, {}])
+			return true
+		if d == 1 and u == 1:
+			if room_for(key, "sausage"):
+				act(key, "grill", [i, {}])
+				act(key, "prep", ["sausage", 1, [sausage_quality(slot)]])
+				return true
+		elif d == 1 and not slip:
+			var turned := slot.duplicate(true)
+			turned["down"] = 1 - int(slot["down"])
+			act(key, "grill", [i, turned])
+			return true
+	var wanted := 0
+	for t in tickets(key, "pass"):
+		wanted += int((t["parts"] as Dictionary).get("sausage", 0))
+	if prep(key, "sausage") + on < mini(3, wanted + 1) and BUSINESS.stock_of(key, "sausage") > 0:
+		for i in g.size():
+			if (g[i] as Dictionary).is_empty() and CoreRoot.actions.biz_take(key, {"sausage": 1}):
+				act(key, "grill", [i, {"down": 0, "t": [0.0, 0.0]}])
+				return true
+	return false
+
+
+## The bufet: the oldest soup or bottle wanted, over the counter (the soup pot topped up
+## from the tins when it runs low).
+func _crew_bufet(key: String, p: Dictionary, slip: bool) -> bool:
+	var soup: Dictionary = site(key)["soup"]
+	if int(soup["level"]) < 3 and BUSINESS.stock_of(key, "soup") > 0:
+		var n := mini(RULES.SOUP_REFILL, BUSINESS.stock_of(key, "soup"))
+		if CoreRoot.actions.biz_take(key, {"soup": n}):
+			act(key, "soup", [{"level": int(soup["level"]) + n}])
+			return true
+	for t in tickets(key, "bufet"):
+		var dish := str(t["dish"])
+		if dish == "soup":
+			if int(soup["level"]) <= 0 or int(plates(key)["clean"]) <= 0:
+				continue
+			act(key, "soup", [{"level": int(soup["level"]) - 1}])
+			act(key, "plates", [-1, 0])
+			serve(key, t, {"soup": 1}, 0.75 if slip else 0.9, str(p.get("name", "")))
+			return true
+		var good := str(RULES.DRINKS[dish]["good"])
+		if BUSINESS.stock_of(key, good) <= 0:
+			continue
+		serve(key, t, {dish: 1}, -1.0, str(p.get("name", "")))
+		return true
+	return false
 
 
 func _crew_cellar(key: String, slip: bool) -> bool:
@@ -769,7 +888,7 @@ func _crew_pass(key: String, p: Dictionary, slip: bool) -> bool:
 	if int(plates(key)["clean"]) <= 0:
 		return false
 	var pot: Dictionary = site(key)["pot"]
-	for t in tickets(key):
+	for t in tickets(key, "pass"):
 		var want: Dictionary = t["parts"]
 		var ok := true
 		for part in want:
@@ -777,8 +896,10 @@ func _crew_pass(key: String, p: Dictionary, slip: bool) -> bool:
 			match str(part):
 				"goulash":
 					ok = ok and int(pot["level"]) >= n and float(pot["heat"]) >= 0.6
-				"cheese", "fries", "dumpling":
+				"cheese", "fries", "dumpling", "sausage":
 					ok = ok and prep(key, str(part)) >= n
+				"bread":
+					ok = ok and BUSINESS.stock_of(key, "bread") >= n
 		if not ok:
 			continue
 		var parts: Dictionary = want.duplicate()
@@ -791,10 +912,12 @@ func _crew_pass(key: String, p: Dictionary, slip: bool) -> bool:
 					qs.append(goulash_quality(p2))
 					p2["level"] = int(p2["level"]) - n2
 					act(key, "pot", [p2])
-				"cheese", "fries":
+				"cheese", "fries", "sausage":
 					qs.append_array(take_q(key, str(part), n2))
 				"dumpling":
 					take(key, "dumpling", n2)
+				"bread":
+					CoreRoot.actions.biz_take(key, {"bread": n2})
 		act(key, "plates", [-1, 0])
 		if slip:
 			# Not quite: the dumplings miscounted, or the tartar forgotten.
@@ -802,6 +925,8 @@ func _crew_pass(key: String, p: Dictionary, slip: bool) -> bool:
 				parts["dumpling"] = maxi(2, int(parts["dumpling"]) + (2 if randf() < 0.5 else -2))
 			elif parts.has("tartar"):
 				parts.erase("tartar")
+			elif parts.has("mustard"):
+				parts.erase("mustard")
 		var cook := -1.0
 		if not qs.is_empty():
 			cook = 0.0
@@ -855,6 +980,22 @@ func today(key: String) -> Dictionary:
 
 # ── what the room shows ──────────────────────────────────────────────────────
 
+## The grill's state for the marks: {burning, ready, cooking} as the stove's.
+func grill_state(key: String) -> Dictionary:
+	var out := {"burning": false, "ready": false, "cooking": false}
+	for slot in site(key)["grill"]:
+		if (slot as Dictionary).is_empty():
+			continue
+		out["cooking"] = true
+		var d := RULES.sausage_side(float(slot["t"][int(slot["down"])]))
+		var u := RULES.sausage_side(float(slot["t"][1 - int(slot["down"])]))
+		if d == 2 or u == 2:
+			out["burning"] = true
+		elif d == 1:
+			out["ready"] = true
+	return out
+
+
 ## The stove's state for the marks: {burning: a slice or the chips going black, ready:
 ## something golden waiting to come out, cooking: anything in the oil}.
 func stove_state(key: String) -> Dictionary:
@@ -880,3 +1021,17 @@ func stove_state(key: String) -> Dictionary:
 		elif st == 1:
 			out["ready"] = true
 	return out
+
+
+# ── debug (tools/podniky_coop.gd) ────────────────────────────────────────────
+
+## The oldest bufet ticket served as it should be (a bowl of soup, a bottle): true when
+## there was one.
+func debug_serve_first_bufet(key: String) -> bool:
+	for t in tickets(key, "bufet"):
+		var dish := str(t["dish"])
+		if dish == "soup":
+			act(key, "plates", [-1, 0])
+			return bool(serve(key, t, {"soup": 1}, 1.0).get("ok", false))
+		return bool(serve(key, t, {dish: 1}, -1.0).get("ok", false))
+	return false

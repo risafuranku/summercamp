@@ -223,6 +223,11 @@ func bar_text() -> String:
 	return "GOULASH %d/%d  DUMPLINGS %d" % [int(pot["level"]), KITCHEN.pot_cap(building_key), kitchen.prep(building_key, "dumpling")]
 
 
+## The ladle in the goulash, the bare glove for the tins, the loaf and the steamer.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	return "ladle" if id == "pot" else "open"
+
 # ── debug (tools/bistro_shots.gd, tools/bistro_coop.gd) ──────────────────────
 
 func debug_click(id: String) -> void:

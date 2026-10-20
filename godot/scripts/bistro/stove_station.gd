@@ -449,6 +449,13 @@ func _closing() -> void:
 	_hand.visible = false
 
 
+## The tongs over the pan and the basket, the bare glove for the tray and the bucket.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	if id.begins_with("slot:") or id == "basket":
+		return "tongs"
+	return "open"
+
 # ── debug (tools/bistro_shots.gd, tools/bistro_coop.gd) ──────────────────────
 
 ## As a player would: a slice from the tray into the first free place.

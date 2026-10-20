@@ -112,10 +112,12 @@ func _draw() -> void:
 	if room == "dining":
 		_draw_guests()
 		var hatch_root: Node3D = roots.get("dining", null)
-		if hatch_root != null and not tix.is_empty():
+		var plates_tix: Array = kitchen.tickets(key, "pass")
+		if hatch_root != null and not plates_tix.is_empty():
 			var at = _project(hatch_root.global_transform * Vector3(0.45, 1.75, -2.35))
 			if at != null:
-				_badge(at, "mark_ticket", str(tix.size()), _oldest_band(tix) == 2)
+				_badge(at, "mark_ticket", str(plates_tix.size()), _oldest_band(plates_tix) == 2)
+		_draw_stations(room, kitchen.tickets(key, "bufet"))
 	elif room == "kitchen" or room == "basement":
 		_draw_stations(room, tix)
 
@@ -245,8 +247,27 @@ func _draw_stations(room: String, tix: Array) -> void:
 			"pot":
 				_pot(at, s["pot"])
 			"pass":
+				var ptix: Array = kitchen.tickets(key, "pass")
+				if not ptix.is_empty():
+					_badge(at, "mark_ticket", str(ptix.size()), _oldest_band(ptix) == 2)
+			"grill":
+				var gs: Dictionary = kitchen.grill_state(key)
+				if bool(gs["burning"]):
+					_smoke(at + Vector2(0, 30), Color(0.35, 0.33, 0.32))
+					_badge(at, "mark_pan", "BURNING", true)
+				elif bool(gs["ready"]):
+					_badge(at, "mark_pan", "TURN", false)
+				else:
+					var want := 0
+					for t in kitchen.tickets(key, "pass"):
+						want += int((t["parts"] as Dictionary).get("sausage", 0))
+					if want > kitchen.prep(key, "sausage"):
+						_badge(at, "mark_pan", str(want - kitchen.prep(key, "sausage")), false)
+			"bufet":
 				if not tix.is_empty():
 					_badge(at, "mark_ticket", str(tix.size()), _oldest_band(tix) == 2)
+				elif int(s["soup"]["level"]) <= 2:
+					_badge(at, "mark_pot", "SOUP", true)
 			"sink":
 				var pl: Dictionary = s["plates"]
 				if int(pl["dirty"]) > 0 or int(pl["clean"]) == 0:

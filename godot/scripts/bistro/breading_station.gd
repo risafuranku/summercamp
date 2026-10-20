@@ -205,6 +205,11 @@ func has_rail() -> bool:
 	return true
 
 
+## The knife for the cheese block, the bare glove for the slices and the bowls.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	return "knife" if id == "block" else "open"
+
 # ── debug (tools/bistro_shots.gd) ────────────────────────────────────────────
 
 func debug_click(id: String) -> void:

@@ -8,8 +8,9 @@ extends "res://scripts/bistro/bistro_station.gd"
 ##   the ticket   the oldest is picked for you (click another on the rail to take that
 ##                one); it hangs big in the frame and ticks off what is on the plate;
 ##   the plate    a plate off the stack, then each thing for it (the ladle, a slice of
-##                dumpling a click, the cheese, the chips, the tartar, the onion); a click
-##                on the plate takes the last thing off again; SCRAPE bins it;
+##                dumpling a click, the cheese, the chips, the tartar, the onion; the
+##                grill's sausage off its shelf, a spoon of mustard, a slice of bread); a
+##                click on the plate takes the last thing off again; SCRAPE bins it;
 ##   the bell     out through the hatch to whoever the ticket is: judged (the right dish,
 ##                the right counts, how long they waited), the money, the tip, the stars.
 ##                Somebody else's dish comes back.
@@ -23,10 +24,15 @@ const PLATE_AT := Vector2(372, 250)
 const TARTAR := Rect2(450, 110, 85, 82)
 const ONION := Rect2(520, 175, 105, 100)
 const BELL := Rect2(548, 6, 70, 60)
+## The grilled sausages off the grill, the mustard jar, the bread basket.
+const SHELF_SAUSAGE := Rect2(446, 44, 98, 60)
+const MUSTARD := Rect2(452, 282, 66, 70)
+const BREAD := Rect2(528, 282, 104, 72)
 ## Where each thing lies on the plate (offset from its centre, design px).
 const ON_PLATE := {
 	"goulash": Vector2(-14, -6), "dumpling": Vector2(20, -4), "onion": Vector2(-16, -12),
 	"cheese": Vector2(-12, -2), "fries": Vector2(18, 2), "tartar": Vector2(4, 20),
+	"sausage": Vector2(-6, -2), "mustard": Vector2(14, -12), "bread": Vector2(20, 14),
 }
 const PLATE_LIFT := 0.016
 
@@ -56,6 +62,12 @@ func _build() -> void:
 		(_shelf["fries"] as Array).append(bsprite("chips_rack"))
 	for i in 12:
 		(_shelf["dumpling"] as Array).append(bsprite("dumpling_slice", true, 1.4))
+	_shelf["sausage"] = []
+	for i in 4:
+		var ss := sprite(TEX + "sausage_done.png", 0.12, true)
+		(_shelf["sausage"] as Array).append(ss)
+	put(sprite(TEX + "mustard_jar.png", 0.1, false), MUSTARD.get_center() + Vector2(0, 14), 0.0)
+	put(sprite(TEX + "bread_basket.png", 0.16, true), BREAD.get_center(), 0.01)
 	_plate_spr = bsprite("plate_top")
 	_plate_spr.visible = false
 	for i in 14:
@@ -68,6 +80,10 @@ func _build() -> void:
 		st.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		st.shaded = false
 		_stars.append(st)
+
+
+func where() -> String:
+	return "pass"
 
 
 func _opened() -> void:
@@ -120,7 +136,7 @@ func _show() -> void:
 		var p: Sprite3D = _stack[i]
 		p.visible = i < n_stack
 		put(p, STACK.get_center() + Vector2(-16 + i * 30, 10), 0.0)
-	var shelf_rects := {"cheese": SHELF_CHEESE, "fries": SHELF_FRIES, "dumpling": SHELF_DUMPLING}
+	var shelf_rects := {"cheese": SHELF_CHEESE, "fries": SHELF_FRIES, "dumpling": SHELF_DUMPLING, "sausage": SHELF_SAUSAGE}
 	for part in _shelf:
 		var have := kitchen.prep(building_key, str(part))
 		var list: Array = _shelf[part]
@@ -130,6 +146,8 @@ func _show() -> void:
 			spr.visible = i < have
 			if part == "dumpling":
 				put(spr, r.position + Vector2(10 + (i % 4) * 15, 12 + (i / 4) * 12), 0.014)
+			elif part == "sausage":
+				put(spr, r.position + Vector2(48, 10 + i * 12), 0.014 + i * 0.002)
 			else:
 				put(spr, r.position + Vector2(18 + (i % 2) * 26, 12 + (i / 2) * 14), 0.014 + (i / 2) * 0.004)
 	# The plate on the counter (or on its way up through the hatch) and what is on it.
@@ -182,13 +200,16 @@ func _spots() -> Array:
 		var pot: Dictionary = kitchen.site(building_key)["pot"]
 		if int(pot["level"]) > 0:
 			out.append({"id": "goulash", "rect": POT, "verb": "Ladle goulash onto the plate" if float(pot["heat"]) >= 0.6 else "The goulash is not hot yet"})
-		for part in ["cheese", "fries", "dumpling"]:
+		for part in ["cheese", "fries", "dumpling", "sausage"]:
 			var have := kitchen.prep(building_key, part)
 			if have > 0:
-				var r: Rect2 = {"cheese": SHELF_CHEESE, "fries": SHELF_FRIES, "dumpling": SHELF_DUMPLING}[part]
+				var r: Rect2 = {"cheese": SHELF_CHEESE, "fries": SHELF_FRIES, "dumpling": SHELF_DUMPLING, "sausage": SHELF_SAUSAGE}[part]
 				out.append({"id": part, "rect": r, "verb": "Put %s on the plate (%d)" % [_label(part), have]})
 		out.append({"id": "tartar", "rect": TARTAR, "verb": "Put tartar on the plate"})
 		out.append({"id": "onion", "rect": ONION, "verb": "Put onion on the plate"})
+		out.append({"id": "mustard", "rect": MUSTARD, "verb": "A spoon of mustard on the plate"})
+		if BUSINESS.stock_of(building_key, "bread") != 0:
+			out.append({"id": "bread", "rect": BREAD, "verb": "A slice of bread on the plate"})
 		if not _plate.is_empty():
 			out.append({"id": "plate", "node": _plate_spr, "verb": "Take the %s off again" % _label(str(_plate[-1]))})
 			var t := _picked_ticket()
@@ -197,8 +218,22 @@ func _spots() -> Array:
 	return out
 
 
+## The tongs for the sausages, the ladle in the goulash, the bare glove for the rest.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	match id:
+		"sausage", "cheese":
+			return "tongs"
+		"goulash":
+			return "ladle"
+		"bell":
+			return "press"
+	return "open"
+
+
 func _label(part: String) -> String:
-	return {"goulash": "goulash", "dumpling": "a slice of dumpling", "onion": "onion", "cheese": "the fried cheese", "fries": "chips", "tartar": "tartar"}.get(part, part)
+	return {"goulash": "goulash", "dumpling": "a slice of dumpling", "onion": "onion", "cheese": "the fried cheese", "fries": "chips", "tartar": "tartar",
+		"sausage": "the sausage", "mustard": "mustard", "bread": "a slice of bread"}.get(part, part)
 
 
 func bar_buttons() -> Array:
@@ -259,7 +294,7 @@ func _add(part: String) -> void:
 			pot["level"] = int(pot["level"]) - 1
 			kitchen.act(building_key, "pot", [pot])
 			sfx("ladle_plate", -6.0)
-		"cheese", "fries", "dumpling":
+		"cheese", "fries", "dumpling", "sausage":
 			var got: Array = kitchen.take_q(building_key, part)
 			if got.is_empty():
 				sfx("tick", -14.0, 0.7)
@@ -267,7 +302,14 @@ func _add(part: String) -> void:
 			if part != "dumpling":
 				q = float(got[0])
 			sfx("plate_down", -12.0, 1.3 if part == "dumpling" else 1.0)
-		"tartar", "onion":
+		"bread":
+			if int(counts.get("bread", 0)) >= 2:
+				return
+			if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"bread": 1}):
+				sfx("tick", -14.0, 0.7)
+				return
+			sfx("plate_down", -14.0, 1.4)
+		"tartar", "onion", "mustard":
 			if int(counts.get(part, 0)) >= 2:
 				return
 			sfx("ladle_plate", -12.0, 1.5)
@@ -285,7 +327,7 @@ func _give_back(part: String) -> void:
 			var pot: Dictionary = (kitchen.site(building_key)["pot"] as Dictionary).duplicate()
 			pot["level"] = int(pot["level"]) + 1
 			kitchen.act(building_key, "pot", [pot])
-		"cheese", "fries", "dumpling":
+		"cheese", "fries", "dumpling", "sausage":
 			kitchen.act(building_key, "prep", [part, 1])
 
 
