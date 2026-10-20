@@ -42,7 +42,8 @@ func _ready() -> void:
 		s.append(["build", "path", x, 3, 0])
 	s.append_array([["build", "lamp_post", 6, 3, 0], ["build", "lamp_post", 10, 3, 0], ["wait", 1.5],
 		["prep_all"], ["book", "Novak family", "family", 2, 2], ["prep_all"], ["book", "Pepa", "drunk", 1, 2], ["prep_all"],
-		["book", "Kristyna", "cheap_chick", 1, 1], ["prep_all"], ["book", "Vlasta", "picker", 1, 2],
+		["book", "Kristyna", "cheap_chick", 1, 1], ["prep_all"], ["book", "Vlasta", "picker", 1, 2], ["prep_all"],
+		["book", "Mirek", "quiet_guy", 1, 2], ["prep_all"], ["book", "Franta", "tramp", 1, 2],
 		["timescale", 3.0], ["wait", 8.0], ["timescale", 1.0]])
 	s.append_array([
 		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],

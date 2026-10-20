@@ -73,12 +73,13 @@ def sheet(t):
 
 
 def biggest_part(img):
-    """The keyed quarter's drawn part, without specks Grok left at its edges."""
+    """The keyed quarter's drawn part: every piece of it (a chair beside the caravan, the
+    tow bar), not the specks Grok leaves round its edges."""
     a = img.getchannel("A").point(lambda x: 255 if x > 40 else 0)
     w, h = a.size
     px = a.load()
     seen = bytearray(w * h)
-    best = None
+    parts = []
     for y0 in range(h):
         for x0 in range(w):
             if px[x0, y0] == 0 or seen[y0 * w + x0]:
@@ -95,15 +96,12 @@ def biggest_part(img):
                     if 0 <= nx < w and 0 <= ny < h and px[nx, ny] and not seen[ny * w + nx]:
                         seen[ny * w + nx] = 1
                         stack.append((nx, ny))
-            if best is None or n > best[0]:
-                best = (n, (x1, y1, x2 + 1, y2 + 1))
-    # Everything within a few pixels of the main part belongs to it (a chimney, a sign).
-    if best is None:
+            parts.append((n, (x1, y1, x2 + 1, y2 + 1)))
+    if not parts:
         return None
-    x1, y1, x2, y2 = best[1]
-    pad = max(4, (x2 - x1) // 25)
-    full = a.crop((max(0, x1 - pad), max(0, y1 - pad), min(w, x2 + pad), min(h, y2 + pad))).getbbox()
-    return (max(0, x1 - pad) + full[0], max(0, y1 - pad) + full[1], max(0, x1 - pad) + full[2], max(0, y1 - pad) + full[3])
+    big = max(p[0] for p in parts)
+    keep = [p[1] for p in parts if p[0] >= max(40, big * 0.01)]
+    return (min(b[0] for b in keep), min(b[1] for b in keep), max(b[2] for b in keep), max(b[3] for b in keep))
 
 
 def shrink(img, size):

@@ -187,6 +187,23 @@ def shrink(piece, longest):
     return process.snap(small, True)
 
 
+# Sheets whose pieces touch (a row of cards): cut into even slices of the row instead.
+EVEN_ROWS = {"pk_ps_cards"}
+
+
+def even_row(img, n):
+    """n boxes: the row's content split into n even slices, each trimmed to its piece."""
+    alpha = img.getchannel("A").point(lambda a: 255 if a > 40 else 0)
+    x0, y0, x1, y1 = alpha.getbbox()
+    step = (x1 - x0) / n
+    boxes = []
+    for i in range(n):
+        sx0, sx1 = round(x0 + i * step), round(x0 + (i + 1) * step)
+        bb = alpha.crop((sx0, y0, sx1, y1)).getbbox()
+        boxes.append((sx0 + bb[0], y0 + bb[1], sx0 + bb[2], y0 + bb[3]) if bb else (sx0, y0, sx1, y1))
+    return boxes
+
+
 def sheets(only):
     for art_id, outs in SHEETS:
         if only and art_id not in only:
@@ -196,6 +213,8 @@ def sheets(only):
             print("missing", art_id)
             continue
         img, boxes = got
+        if art_id in EVEN_ROWS:
+            boxes = even_row(img, len(outs))
         if len(boxes) != len(outs):
             print("  %s: %d pieces for %d names (look at out/%s/_cut.png)" % (art_id, len(boxes), len(outs), art_id))
         for box, (dest, longest) in zip(boxes, outs):
