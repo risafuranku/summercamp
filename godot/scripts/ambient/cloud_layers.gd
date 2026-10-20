@@ -1,59 +1,86 @@
 extends Node3D
 
-## Layers of cloud over the world, under the panorama (DESIGN.md "the sky"): high thin
-## streaks lying flat up high, the ragged clouds in the middle, low dark scud under rain.
-## Each layer's amount, shade and speed by the weather (fading in and out one cloud at a
-## time as the weather turns), all drifting with the wind, the slow high ones the least;
-## wrapped round whichever camera is looking (the bus's and the car's too: the clouds were
-## pinned round the camp). A cloud far off fades into the sky, before the horizon.
-## It goes on from agent B's drifting clouds (the four ragged Grok clouds, cloud_0..3, eight
-## of them round the camp): those are the middle layer, as many out, as solid and as fast
-## as weather_visuals' own cloud targets say (set_cloud_targets_from_weather, eased in
-## update_sky_runtime), with the same tint for the hour and the weather.
-## Made by weather_visuals.gd (setup_weather_particles), which it reads: the weather, the
-## wind, its cloud targets, the sun's height, the clouds' tint, the lightning.
+## Clouds over the world in layers, under the panorama (DESIGN.md "the sky"): high thin
+## streaks lying flat up high; in the middle the cloud deck, a thick body of cloud with a
+## belly, sides and a top; low dark scud under rain, each piece a cluster of puffs at
+## different depths. All by the weather, drifting with the wind, wrapped round whichever
+## camera is looking (the bus's and the car's too), faded before the horizon.
+##
+## The deck (the user 20. 10.: "chtel bych je nejak vic prostorovy, nejen sprites") is a
+## stack of wide planes, one over another, each reading Grok's cloud cover seen from below
+## (materials/cloud_deck.gdshader): a slice higher up shows only thicker cloud, so from
+## under it and toward the horizon the clouds have depth, and move against each other and
+## against the scud as you walk. How much of the sky it covers, how dark its belly is and
+## how fast it goes are agent B's own cloud targets (weather_visuals
+## set_cloud_targets_from_weather, eased in update_sky_runtime), its light B's tint for the
+## hour and the weather; with the sun low its belly takes the sun's colour from below
+## (rose at dawn, red-orange at sunset), after sunset it is dark against the red.
+## Made by weather_visuals.gd (setup_weather_particles), which it reads.
+
+const DECK_SHADER := preload("res://materials/cloud_deck.gdshader")
+const COVER_A := "res://assets/textury/skybox/cloud_cover_a.png"
+const COVER_B := "res://assets/textury/skybox/cloud_cover_b.png"
+## The deck: slices, the lowest's height, the gap between them, how far round the camera.
+const DECK_SLICES := 6
+const DECK_BASE := 95.0
+const DECK_GAP := 5.5
+const DECK_RADIUS := 950.0
+## The weather (weather_visuals WEATHER_*: clear, windy, fog, light rain, rain, storm, the
+## red anomaly) -> the deck's cover: 0 scattered fair-weather clouds .. 1 torn overcast.
+const COVER_MIX := {0: 0.0, 1: 0.25, 2: 0.5, 3: 0.6, 4: 0.9, 5: 1.0, 6: 0.3}
 
 const LAYERS := [
 	# High: flat streaks, seen from below, foreshortened toward the horizon.
 	{"tex": "res://assets/textury/skybox/cloud_hi_%d.png", "n": 16, "alt": Vector2(160.0, 220.0),
-		"extent": 650.0, "w": Vector2(120.0, 220.0), "speed": 0.45, "shade": 1.04, "alpha": 0.62, "flat": true},
-	# The ragged clouds of the sky's own look (cloud_0..3).
-	{"tex": "res://assets/textury/skybox/cloud_%d.png", "n": 30, "alt": Vector2(70.0, 120.0),
-		"extent": 480.0, "w": Vector2(40.0, 90.0), "speed": 1.0, "shade": 0.94, "alpha": 0.9, "flat": false},
-	# Low scud: dark, torn, fast in the wind.
-	{"tex": "res://assets/textury/skybox/cloud_lo_%d.png", "n": 26, "alt": Vector2(28.0, 45.0),
-		"extent": 300.0, "w": Vector2(30.0, 60.0), "speed": 2.4, "shade": 0.66, "alpha": 0.86, "flat": false},
+		"extent": 650.0, "w": Vector2(120.0, 220.0), "speed": 0.45, "shade": 1.04, "alpha": 0.62, "flat": true, "puffs": 1},
+	# Low scud: dark, torn, fast in the wind; each a cluster of puffs, the belly darker and
+	# nearer, a lighter top (agent B's ragged cloud) above and behind it.
+	{"tex": "res://assets/textury/skybox/cloud_lo_%d.png", "n": 22, "alt": Vector2(30.0, 46.0),
+		"extent": 320.0, "w": Vector2(30.0, 56.0), "speed": 2.4, "shade": 0.66, "alpha": 0.86, "flat": false, "puffs": 3},
 ]
-## The weather (weather_visuals WEATHER_*: clear, windy, fog, light rain, rain, storm, the
-## red anomaly) -> how much of each layer is out [high, middle, low], 0..1 (the middle one
-## is weather_visuals' _cloud_density_current when it has it).
+## The puffs of a cluster: [size, shade, rise (of the width), depth spread (of the width)].
+const PUFFS := [[1.0, 0.82, 0.0, 0.0], [0.78, 1.0, 0.16, 0.32], [0.62, 1.22, 0.30, 0.38]]
+const TOP_PUFF_TEX := "res://assets/textury/skybox/cloud_%d.png"
+## The weather -> how much of each sprite layer is out [high, low], 0..1.
 const AMOUNT := {
-	0: [0.40, 0.30, 0.0], 1: [0.55, 0.55, 0.30], 2: [0.0, 0.30, 0.45], 3: [0.10, 0.70, 0.55],
-	4: [0.0, 0.92, 0.90], 5: [0.0, 1.0, 1.0], 6: [0.0, 0.30, 0.0],
+	0: [0.40, 0.0], 1: [0.55, 0.30], 2: [0.0, 0.45], 3: [0.10, 0.55],
+	4: [0.0, 0.90], 5: [0.0, 1.0], 6: [0.0, 0.0],
 }
 ## In fog the clouds are hardly there (the fog is the sky).
 const SEEN := {2: 0.35}
 ## How much darker the weather makes them (their bellies in the rain), 0..1.
 const DARK := {1: 0.10, 2: 0.20, 3: 0.35, 4: 0.55, 5: 0.68}
-## A late autumn day under the grey lid (weather_visuals._late_grey_day): more of the middle.
-const GREY_DAY_AMOUNT := [0.0, 0.70, 0.20]
+## A late autumn day under the grey lid (weather_visuals._late_grey_day): the deck's cover
+## at least this, no high streaks, a little scud.
+const GREY_DAY_COVER := 0.72
+const GREY_DAY_AMOUNT := [0.0, 0.20]
 ## How fast the amounts follow the weather (per second; a cloud fades over FADE of it).
 const AMOUNT_RATE := 0.025
 const FADE := 0.10
-## Metres a second at the middle layer's pace, by the wind (weather_visuals._wind_now 0..1).
+## Metres a second at the deck's pace, by the wind (weather_visuals._wind_now 0..1).
 const DRIFT_CALM := 0.5
 const DRIFT_GALE := 6.0
 const SEED := 19980919
 
 var visuals: Node = null
 
-var _clouds: Array = []   # {node, mat, layer, at: Vector3 (world xz, altitude), r, alpha_j}
-var _amount := [0.0, 0.0, 0.0]
+var _clouds: Array = []   # {puffs: [{node, mat, off: Vector3, shade}], layer, at, r, alpha_j}
+var _amount := [0.0, 0.0]
+var _deck: Array = []     # MeshInstance3D, lowest first
+var _deck_mats: Array = []
+var _deck_scroll := Vector2.ZERO
+var _cover := 0.3
+var _cover_mix := 0.0
 
 
 func _ready() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
+	_build_deck()
+	var tops: Array = []
+	for k in 4:
+		if ResourceLoader.exists(TOP_PUFF_TEX % k):
+			tops.append(load(TOP_PUFF_TEX % k))
 	for li in LAYERS.size():
 		var layer: Dictionary = LAYERS[li]
 		var texs: Array = []
@@ -65,50 +92,83 @@ func _ready() -> void:
 			continue
 		var n := int(layer["n"])
 		for i in n:
-			var tex: Texture2D = texs[i % texs.size()]
 			var w := rng.randf_range(float(layer["w"].x), float(layer["w"].y))
-			var mi := MeshInstance3D.new()
-			var q := QuadMesh.new()
-			q.size = Vector2(w, w * float(tex.get_height()) / float(tex.get_width()))
-			mi.mesh = q
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mi.set_meta("retro_skip", true)
-			var m := StandardMaterial3D.new()
-			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			m.albedo_texture = tex
-			# Smooth, as the panorama is (the post pass gives them the game's pixel): drawn
-			# nearest, a cloud overhead showed its texels as steps metres wide.
-			m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-			m.cull_mode = BaseMaterial3D.CULL_DISABLED
-			m.disable_fog = true
-			if not bool(layer["flat"]):
-				m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-			# Over the sun (8) and the moon (1), far behind them all: the cloud goes over
-			# the moon. Higher layers drawn first, the scud over them.
-			m.render_priority = 9 + li
-			mi.material_override = m
-			if bool(layer["flat"]):
-				# Lying flat, its picture seen from below.
-				mi.rotation = Vector3(PI * 0.5, rng.randf_range(-0.25, 0.25), 0.0)
-			mi.visible = false
-			add_child(mi)
+			var puffs: Array = []
+			for pi in int(layer["puffs"]):
+				var p: Array = PUFFS[pi]
+				var tex: Texture2D = texs[(i + pi) % texs.size()]
+				if pi == 2 and not tops.is_empty():
+					tex = tops[i % tops.size()]
+				var pw := w * float(p[0])
+				var mi := MeshInstance3D.new()
+				var q := QuadMesh.new()
+				q.size = Vector2(pw, pw * float(tex.get_height()) / float(tex.get_width()))
+				mi.mesh = q
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				mi.set_meta("retro_skip", true)
+				var m := StandardMaterial3D.new()
+				m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				m.albedo_texture = tex
+				# Smooth, as the panorama is (the post pass gives them the game's pixel).
+				m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+				m.cull_mode = BaseMaterial3D.CULL_DISABLED
+				m.disable_fog = true
+				if not bool(layer["flat"]):
+					m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+				# Over the sun (8) and the moon (1); the high streaks (9) behind the deck
+				# (10..15), the scud in front of it, a cluster's belly over its top.
+				m.render_priority = 9 if li == 0 else 18 - pi
+				mi.material_override = m
+				if bool(layer["flat"]):
+					mi.rotation = Vector3(PI * 0.5, rng.randf_range(-0.25, 0.25), 0.0)
+				mi.visible = false
+				add_child(mi)
+				var spread := float(p[3]) * w
+				puffs.append({"node": mi, "mat": m, "shade": float(p[1]),
+					"off": Vector3(rng.randf_range(-spread, spread), float(p[2]) * w, rng.randf_range(-spread, spread))})
 			var ext := float(layer["extent"])
-			_clouds.append({"node": mi, "mat": m, "layer": li,
+			_clouds.append({"puffs": puffs, "layer": li,
 				"at": Vector3(rng.randf_range(-ext, ext), rng.randf_range(float(layer["alt"].x), float(layer["alt"].y)), rng.randf_range(-ext, ext)),
 				# Its place in the order the layer's clouds come out (spread evenly, shuffled).
 				"r": (float(i) + rng.randf()) / float(n), "alpha_j": rng.randf_range(0.8, 1.1)})
 	_amount = _target()
 
 
+func _build_deck() -> void:
+	if not ResourceLoader.exists(COVER_A):
+		return
+	var a: Texture2D = load(COVER_A)
+	var b: Texture2D = load(COVER_B) if ResourceLoader.exists(COVER_B) else a
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(DECK_RADIUS * 2.0, DECK_RADIUS * 2.0)
+	for i in DECK_SLICES:
+		var m := ShaderMaterial.new()
+		m.shader = DECK_SHADER
+		m.set_shader_parameter("cover_a", a)
+		m.set_shader_parameter("cover_b", b)
+		m.set_shader_parameter("slice", float(i) / float(DECK_SLICES - 1))
+		m.set_shader_parameter("radius", DECK_RADIUS)
+		# Drawn top first: from under it the lowest slice is the nearest.
+		m.render_priority = 15 - i
+		var mi := MeshInstance3D.new()
+		mi.mesh = plane
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.set_meta("retro_skip", true)
+		# Never culled away by its bounds: it is always round the camera.
+		mi.extra_cull_margin = 400.0
+		add_child(mi)
+		_deck.append(mi)
+		_deck_mats.append(m)
+
+
 func _target() -> Array:
 	var ws := int(_v("_weather_state", 0))
 	var out: Array = (AMOUNT.get(ws, AMOUNT[0]) as Array).duplicate()
 	if _target_is_grey():
-		# No high streaks under the lid; more of the others.
 		out[0] = GREY_DAY_AMOUNT[0]
-		for i in [1, 2]:
-			out[i] = maxf(float(out[i]), float(GREY_DAY_AMOUNT[i]))
+		out[1] = maxf(float(out[1]), float(GREY_DAY_AMOUNT[1]))
 	return out
 
 
@@ -125,21 +185,15 @@ func _v(prop: String, fallback: Variant) -> Variant:
 
 
 func _process(delta: float) -> void:
-	if _clouds.is_empty():
-		return
 	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
 	if cam == null or not cam.is_inside_tree():
 		return
+	var ws := int(_v("_weather_state", 0))
 	var target := _target()
-	for i in 3:
+	for i in 2:
 		_amount[i] = move_toward(float(_amount[i]), float(target[i]), delta * AMOUNT_RATE)
-	# The middle layer: agent B's own cloud targets, eased there.
-	var b_density = _v("_cloud_density_current", null)
-	if b_density != null:
-		_amount[1] = maxf(float(b_density), float(_amount[1]))
-	var solid := clampf(0.45 + float(_v("_cloud_alpha_current", 0.4)), 0.0, 1.0)
-	var seen := float(SEEN.get(int(_v("_weather_state", 0)), 1.0))
-	var dark := float(DARK.get(int(_v("_weather_state", 0)), 0.0))
+	var seen := float(SEEN.get(ws, 1.0))
+	var dark := float(DARK.get(ws, 0.0))
 	var wind := float(_v("_wind_now", 0.15))
 	var wd: Vector2 = _v("wind_dir", Vector2(0.94, 0.34))
 	if wd.length() < 0.01:
@@ -157,15 +211,16 @@ func _process(delta: float) -> void:
 	var bright := lerpf(0.30, 1.0, day)
 	var flash := float(_v("_storm_flash_strength", 0.0))
 	var cp := cam.global_position
+	_update_deck(delta, cp, wd, pace, tint, bright, dark, seen, flash, sun)
 	for c in _clouds:
-		var layer: Dictionary = LAYERS[int(c["layer"])]
+		var li := int(c["layer"])
+		var layer: Dictionary = LAYERS[li]
 		var ext := float(layer["extent"])
 		var at: Vector3 = c["at"]
 		at.x += wd.x * pace * float(layer["speed"]) * delta
 		at.z += wd.y * pace * float(layer["speed"]) * delta
 		c["at"] = at
-		var mi: MeshInstance3D = c["node"]
-		var amt := float(_amount[int(c["layer"])])
+		var amt := float(_amount[li])
 		var a := clampf((amt - float(c["r"])) / FADE + 1.0, 0.0, 1.0) if amt > 0.001 else 0.0
 		# Round the camera: the world's place wrapped into the square about it.
 		var x := cp.x + fposmod(at.x - cp.x + ext, ext * 2.0) - ext
@@ -173,14 +228,60 @@ func _process(delta: float) -> void:
 		var far := Vector2(x - cp.x, z - cp.z).length() / ext
 		a *= 1.0 - smoothstep(0.55, 0.95, far)
 		a *= float(layer["alpha"]) * float(c["alpha_j"]) * seen
-		if int(c["layer"]) == 1:
-			a *= solid
-		if a < 0.02:
-			mi.visible = false
-			continue
-		mi.visible = true
-		mi.global_position = Vector3(x, at.y, z)
-		var col := tint * float(layer["shade"]) * bright * (1.0 - dark * (0.5 if int(c["layer"]) == 0 else 0.75))
-		col = col.lerp(Color(0.92, 0.95, 1.0), flash * 0.35)
-		col.a = clampf(a, 0.0, 0.95)
-		(c["mat"] as StandardMaterial3D).albedo_color = col
+		for p in c["puffs"]:
+			var mi: MeshInstance3D = p["node"]
+			if a < 0.02:
+				mi.visible = false
+				continue
+			mi.visible = true
+			mi.global_position = Vector3(x, at.y, z) + (p["off"] as Vector3)
+			var col := tint * float(layer["shade"]) * float(p["shade"]) * bright * (1.0 - dark * (0.5 if li == 0 else 0.75))
+			col = col.lerp(Color(0.92, 0.95, 1.0), flash * 0.35)
+			col.a = clampf(a, 0.0, 0.95)
+			(p["mat"] as StandardMaterial3D).albedo_color = col
+
+
+func _update_deck(delta: float, cp: Vector3, wd: Vector2, pace: float, tint: Color, bright: float,
+		dark: float, seen: float, flash: float, sun: Vector3) -> void:
+	if _deck.is_empty():
+		return
+	var ws := int(_v("_weather_state", 0))
+	# How much of the sky: B's cloud density, eased (clear some, the storm all of it).
+	var want := lerpf(0.04, 0.97, clampf(float(_v("_cloud_density_current", 0.2)), 0.0, 1.0))
+	if _target_is_grey():
+		want = maxf(want, GREY_DAY_COVER)
+	if ws == 6:
+		want = 0.2
+	_cover = move_toward(_cover, want, delta * AMOUNT_RATE)
+	_cover_mix = move_toward(_cover_mix, float(COVER_MIX.get(ws, 0.0)), delta * AMOUNT_RATE)
+	# The cover moves with the wind (the picture's place goes the other way).
+	_deck_scroll -= wd * pace * delta
+	_deck_scroll = Vector2(fposmod(_deck_scroll.x, 11000.0), fposmod(_deck_scroll.y, 11000.0))
+	var top := tint * bright * 1.04 * (1.0 - dark * 0.5)
+	var belly := tint * bright * 0.6 * (1.0 - dark * 0.8)
+	# The sun low: its light on the belly from below, the top in shade (rose at dawn,
+	# red-orange at sunset).
+	var low := clampf(1.0 - absf(sun.y + 0.02) / 0.16, 0.0, 1.0) * (1.0 - dark)
+	if low > 0.0:
+		var morning := float(_v("_time_of_day_hours", 18.0)) < 12.0
+		var warm := Color(1.0, 0.58, 0.62) if morning else Color(1.0, 0.46, 0.26)
+		belly = belly.lerp(warm * 0.95, low * 0.7)
+		top = top.lerp(top * 0.72, low * 0.5)
+	# The sun's side: lit white by day, the low sun's colour at dawn and sunset, none once
+	# it is down.
+	var rim := (tint * bright * 1.22).lerp(Color(1.0, 0.58, 0.62) if float(_v("_time_of_day_hours", 18.0)) < 12.0 else Color(1.0, 0.5, 0.28), low)
+	rim.a = clampf((sun.y + 0.04) / 0.12, 0.0, 1.0) * (1.0 - dark * 0.8) * 0.8
+	top = top.lerp(Color(0.92, 0.95, 1.0), flash * 0.4)
+	belly = belly.lerp(Color(0.80, 0.84, 0.95), flash * 0.4)
+	for i in _deck.size():
+		var mi: MeshInstance3D = _deck[i]
+		mi.global_position = Vector3(cp.x, DECK_BASE + DECK_GAP * float(i), cp.z)
+		var m: ShaderMaterial = _deck_mats[i]
+		m.set_shader_parameter("coverage", _cover)
+		m.set_shader_parameter("cover_mix", _cover_mix)
+		m.set_shader_parameter("scroll", _deck_scroll)
+		m.set_shader_parameter("top_color", top)
+		m.set_shader_parameter("belly_color", belly)
+		m.set_shader_parameter("alpha_max", 0.92 * seen)
+		m.set_shader_parameter("sun_dir", sun.normalized() if sun.length() > 0.01 else Vector3.UP)
+		m.set_shader_parameter("rim_color", rim)

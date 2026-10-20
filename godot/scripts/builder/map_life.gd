@@ -37,10 +37,20 @@ func has(kind: String) -> bool:
 	return _tex.has(kind + "_0")
 
 
-func _frame(map, key: String, h: int) -> Texture2D:
+## `h` is the first frame's height (of the sheet, or of `first_key`'s run: the glints on
+## the lake's row): the others keep their size to it (the dog sitting up taller, sniffing
+## lower, a glint growing), as the frames were cut at one scale (cut_frames.py).
+func _frame(map, key: String, h: int, first_key := "") -> Texture2D:
 	var mk := "%s|%d" % [key, h]
 	if not _minis.has(mk):
-		_minis[mk] = map._mini_of(_tex[key], h) if _tex.has(key) else null
+		var tex: Texture2D = _tex.get(key)
+		if first_key == "":
+			first_key = key.substr(0, key.rfind("_")) + "_0"
+		var first: Texture2D = _tex.get(first_key, tex)
+		var hk := h
+		if tex != null and first != null and first.get_height() > 0:
+			hk = maxi(1, roundi(h * float(tex.get_height()) / float(first.get_height())))
+		_minis[mk] = map._mini_of(tex, hk) if tex != null else null
 	return _minis[mk]
 
 
@@ -169,7 +179,7 @@ func draw(cv: CanvasItem, map, origin: Vector2, tile_w: float, tile_h: float, mi
 	# Glints on the water.
 	for g in _glints:
 		var f := 4 + mini(3, int(float(g["t"]) / 0.5 * 4.0))
-		var tex := _frame(map, "lake_%d" % f, maxi(3, int(mini_h * 0.3)))
+		var tex := _frame(map, "lake_%d" % f, maxi(3, int(mini_h * 0.3)), "lake_4")
 		if tex != null:
 			var p: Vector2 = map._cell_to_iso_f(g["cell"], origin, tile_w, tile_h)
 			cv.draw_texture(tex, (p - tex.get_size() * 0.5).floor())
@@ -192,7 +202,7 @@ func draw(cv: CanvasItem, map, origin: Vector2, tile_w: float, tile_h: float, mi
 	for m in _mice:
 		var k := clampf(float(m["t"]) / 1.2, 0.0, 2.0)
 		var at: Vector2 = (m["from"] as Vector2).lerp(m["to"], k if k <= 1.0 else 2.0 - k)
-		_put(cv, map, "bugs_%d" % (2 + int(step / 2.0) % 3), at, origin, tile_w, tile_h, maxi(3, int(mini_h * 0.16)), k > 1.0)
+		_put(cv, map, "bugs_%d" % (2 + int(step / 2.0) % 3), at, origin, tile_w, tile_h, maxi(3, int(mini_h * 0.16)), k > 1.0, "bugs_2")
 	# Moths round the lit lamps, after dusk.
 	if map._night > 0.15 and has("bugs"):
 		for l in map._lights:
@@ -207,7 +217,7 @@ func draw(cv: CanvasItem, map, origin: Vector2, tile_w: float, tile_h: float, mi
 	if mini_h >= 28 and has("bugs"):
 		for o in map._known:
 			if str(map._known[o][0]) == "picnic_table":
-				_put(cv, map, "bugs_%d" % (5 + int(step / 3.0) % 3), Vector2(o) + Vector2(0.35, 0.3), origin, tile_w, tile_h, maxi(3, int(mini_h * 0.18)), false)
+				_put(cv, map, "bugs_%d" % (5 + int(step / 3.0) % 3), Vector2(o) + Vector2(0.35, 0.3), origin, tile_w, tile_h, maxi(3, int(mini_h * 0.18)), false, "bugs_5")
 
 
 ## Birds over everything (they fly over the map, not on it).
@@ -227,8 +237,8 @@ func draw_sky(cv: CanvasItem, map, size: Vector2, mini_h: int) -> void:
 		cv.draw_texture(tex, (p - tex.get_size() * 0.5).floor())
 
 
-func _put(cv: CanvasItem, map, key: String, cell: Vector2, origin: Vector2, tile_w: float, tile_h: float, h: int, mirror: bool) -> void:
-	var tex := _frame(map, key, h)
+func _put(cv: CanvasItem, map, key: String, cell: Vector2, origin: Vector2, tile_w: float, tile_h: float, h: int, mirror: bool, first_key := "") -> void:
+	var tex := _frame(map, key, h, first_key)
 	if tex == null:
 		return
 	var foot: Vector2 = map._cell_to_iso_f(cell, origin, tile_w, tile_h)

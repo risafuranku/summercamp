@@ -698,7 +698,8 @@ the camp's sim has the building at once (guests, books, everything), and nothing
 the show, hinders or hurts (`scripts/god/god_cursor.gd`).
 
 - **What it is**: the Builder's own pointer (the OS's arrow with the tool beside it: the
-  blueprint, the path, the lamp, the bulldozer), thirty metres of flat pixels in the sky,
+  blueprint unrolling, the spade digging, the lamp blinking, the bulldozer's blade going
+  up and down, the same frames as on the PC), thirty metres of flat pixels in the sky,
   the haze of the camp's fog over it and banks of mist drifting through it, dithered away
   and back in Build's way; it glides slowly to the work and rises back into the haze after.
   A deep hum like thunder and organ pipes from far off; the slowed, giant Okna click and
@@ -1317,8 +1318,11 @@ in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD 
   more days without weather of their own go under a leaden grey lid instead of the blue
   (from four fifths all of them); their evening is a dull red slit under the cloud, their
   night overcast, no dawn glow.
-- **Clouds over the world**, not only painted in the sky: high thin streaks lying flat
-  far up, the ragged clouds in the middle, low dark scud racing in the wind under rain.
+- **Clouds over the world**, not only painted in the sky, and with body, not flat
+  cards: high thin streaks lying flat far up; in the middle a deck of cloud with a dark
+  belly, sides and a lit top, seen in perspective to the horizon, moving against the
+  scud as you walk, its sun side lit (rose at dawn, red-orange at sunset); low dark scud
+  racing in the wind under rain, each a cluster of puffs.
   The weather sets how many of each are out (they come and go one by one as it turns),
   how dark their bellies are and how fast they go; they drift with the wind, take the
   hour's light (dark against the red after sunset), the lightning lights them, and cloud

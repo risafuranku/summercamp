@@ -561,6 +561,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   (`tools/iso_render.tscn`, then `iso_views.py cut`/`raw`); never mirror one to make
   another side (a mirrored front put the pub's door where the camp has a wall). Bit 19 of
   the render layers is the glass layer (every window in the camp): the render uses bit 18.
+  The render turns the retro shader's vertex snap off (`iso_render._unsnap`): at 150 lines
+  on its 768 px a thin part (a flagpole's pole, the gnome's coat, a lamp's post) folded to
+  nothing from one corner, and Grok repainted the hole.
 - **The god cursor hides what it has still to bring down** (`visible` off, the body's
   collision layer 0, a shadow on the ground) until it lands: code that reads a building's
   visibility must expect it; `finish_all()` brings all of it down at once.
@@ -625,7 +628,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   (down by area, up smooth, 160 colours): the 4 x 4 blow-up read as coarse blocks.
   `python tools/artgen/cloud_sprites.py` cuts the cloud layers' high streaks and low scud
   (`spr_clouds_high`, `spr_clouds_low` in `prompts_sky.tsv`) into `skybox/cloud_hi_*` and
-  `cloud_lo_*` with soft edges (`scripts/ambient/cloud_layers.gd` draws them filtered).
+  `cloud_lo_*` with soft edges (`scripts/ambient/cloud_layers.gd` draws them filtered);
+  `cloud_sprites.py cover` makes the cloud deck's cover (`tex_cloud_cover`, `_b` in
+  `prompts_deck.tsv`: satellite views straight down, brightness = thickness) into
+  `skybox/cloud_cover_a/b.png`, tiling, ranked so `coverage` is the share of sky.
   `python tools/artgen/ground_tex.py <id> <dest> [size] [--own]` makes a ground render
   tile (Grok's "seamless" does not) and snaps it to the palette, or with `--own` to 48
   colours of its own (the palette has few mid greens). Agent B's world rows

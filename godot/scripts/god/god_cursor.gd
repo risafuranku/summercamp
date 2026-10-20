@@ -24,9 +24,10 @@ const SFX := "res://assets/sfx/god/"
 const FPS := 12.0
 const STEP := 1.0 / FPS
 const BUS := "OutdoorAmbience"
-## How tall the pointer is (m) and its picture's pixels (the OS's arrow and the tool).
-const CURSOR_H := 32.0
-const CURSOR_PX := 48
+## How tall the pointer's picture is (m) and its pixels (the OS's arrow and the tool, both
+## at two pixels a pixel: the arrow fills the top left 48, the tool hangs below right of it).
+const CURSOR_H := 48.0
+const CURSOR_PX := 72
 ## Where it rests between jobs, over the middle of the camp, and how fast it goes.
 const IDLE_H := 70.0
 const SPEED := 26.0
@@ -50,6 +51,12 @@ const TOOL_TEX := {
 	"lamp_post": "res://assets/textury/builder/tb2_lamp.png",
 	"wreck": "res://assets/textury/builder/tb2_bulldoze.png",
 }
+## The Builder's own moving tools when they are in (builder_module.CURSOR_FRAMES, Grok
+## bld_cursors: the blade, the spade, the lamp blinking, the blueprint unrolling), so it
+## is the PC's pointer over the camp; four frames a second as there. Else TOOL_TEX.
+const TOOL_FRAMES := {"build": ["bp", 3], "path": ["path", 3], "lamp_post": ["lamp", 2], "wreck": ["dozer", 3]}
+const TOOL_FRAME := "res://assets/textury/builder/cursors/%s_%d.png"
+const TOOL_FPS := 4.0
 ## The OS's own arrow (os_shell.gd ARROW), the pointer's body.
 const OS_SHELL := preload("res://scripts/os98/os_shell.gd")
 const SMALL := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic_table", "hammock", "sewer", "tent_1", "tent_2", "tent_3", "bonfire", "corn_stand", "ping_pong"]
@@ -75,7 +82,8 @@ void fragment() {
 	const float BV[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
 	vec2 bm = mod(floor(FRAGCOORD.xy), 4.0);
 	// Banks of mist drifting across it: bands where it thins to nothing and comes back.
-	float band = 0.5 + 0.5 * sin(UV.y * 7.0 + UV.x * 2.0 - drift);
+	// (Per the arrow's 48 px: the picture is 72 since the tool is doubled.)
+	float band = 0.5 + 0.5 * sin(UV.y * 10.5 + UV.x * 3.0 - drift);
 	float f = fade * (0.45 + 0.55 * floor(band * 4.0 + 0.5) / 4.0);
 	if ((BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 > f) {
 		discard;
@@ -102,6 +110,8 @@ var _cursor: MeshInstance3D
 var _mat: ShaderMaterial
 var _tex: Dictionary = {}
 var _tool := ""
+var _tool_frame := 0
+var _frames_in: Dictionary = {}   # tool -> how many frames are in
 var _pos := Vector3(0, IDLE_H, 0)
 var _vis := 0.0
 var _vis_want := 0.0
@@ -387,13 +397,15 @@ func _build_cursor() -> void:
 
 
 ## The pointer's picture: the OS's arrow with the tool beside it, as on the PC.
-func _cursor_tex(tool: String) -> Texture2D:
-	if _tex.has(tool):
-		return _tex[tool]
+func _cursor_tex(tool: String, frame := 0) -> Texture2D:
+	var key := "%s|%d" % [tool, frame]
+	if _tex.has(key):
+		return _tex[key]
 	var img := Image.create(CURSOR_PX, CURSOR_PX, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	# The arrow at two pixels a pixel and the tool at its own size beside it, so the tool
-	# reads up in the haze (at the PC's size it went to a blob).
+	# The arrow at two pixels a pixel and the tool too, where the PC has it (os_shell: 8, 9
+	# from the tip), so it reads up in the haze (at one pixel a pixel the spade and the lamp
+	# went thin and grey into it; at the PC's size it went to a blob).
 	var pat: Array = OS_SHELL.ARROW
 	for y in pat.size():
 		var row: String = pat[y]
@@ -402,23 +414,52 @@ func _cursor_tex(tool: String) -> Texture2D:
 			if c.a > 0.0:
 				img.fill_rect(Rect2i(x * 2, y * 2, 2, 2), c)
 	var path := str(TOOL_TEX.get(tool, ""))
+	if _tool_frames(tool) > 0:
+		# The frames are drawn on a 24 px square: doubled, every pixel two.
+		path = TOOL_FRAME % [str(TOOL_FRAMES[tool][0]), frame]
 	if path != "" and ResourceLoader.exists(path):
 		var t := (load(path) as Texture2D).get_image().duplicate() as Image
 		if t.is_compressed():
 			t.decompress()
 		t.convert(Image.FORMAT_RGBA8)
-		t.resize(26, 26, Image.INTERPOLATE_NEAREST)
-		img.blend_rect(t, Rect2i(0, 0, 26, 26), Vector2i(20, 21))
+		t.resize(48, 48, Image.INTERPOLATE_NEAREST)
+		img.blend_rect(t, Rect2i(0, 0, 48, 48), Vector2i(16, 18))
 	var tex := ImageTexture.create_from_image(img)
-	_tex[tool] = tex
+	_tex[key] = tex
 	return tex
+
+
+## How many of the Builder's frames a tool has in (0: the still icon).
+func _tool_frames(tool: String) -> int:
+	if not TOOL_FRAMES.has(tool):
+		return 0
+	if not _frames_in.has(tool):
+		var n := int(TOOL_FRAMES[tool][1])
+		for i in n:
+			if not ResourceLoader.exists(TOOL_FRAME % [str(TOOL_FRAMES[tool][0]), i]):
+				n = 0
+				break
+		_frames_in[tool] = n
+	return int(_frames_in[tool])
 
 
 func _set_tool(tool: String) -> void:
 	if tool == _tool:
 		return
 	_tool = tool
+	_tool_frame = 0
 	_mat.set_shader_parameter("tex", _cursor_tex(tool))
+
+
+## The tool's frame by the clock (in the stepped tick, so it moves in steps with the rest).
+func _tick_tool() -> void:
+	var n := _tool_frames(_tool)
+	if n <= 1:
+		return
+	var f := int(_t * TOOL_FPS) % n
+	if f != _tool_frame:
+		_tool_frame = f
+		_mat.set_shader_parameter("tex", _cursor_tex(_tool, f))
 
 
 ## How far off the warden watches from: the pieces fall from higher the further off, so
@@ -466,6 +507,7 @@ func _speed() -> float:
 
 func _step() -> void:
 	_tick_dust()
+	_tick_tool()
 	_tick_push()
 	_sweep_hidden()
 	if _job.is_empty():
@@ -809,7 +851,9 @@ func _tick_look(delta: float) -> void:
 	var right := cam.global_transform.basis.x if cam != null else Vector3.RIGHT
 	var up := cam.global_transform.basis.y if cam != null else Vector3.UP
 	var toward := (cam.global_position - _pos).normalized() if cam != null else Vector3.BACK
-	var body := _pos + right * CURSOR_H * 0.22 - up * CURSOR_H * 0.38
+	# The arrow's middle (in its picture's pixels, right and down from the tip).
+	var px_m := CURSOR_H / float(CURSOR_PX)
+	var body := _pos + right * 10.5 * px_m - up * 18.2 * px_m
 	var drift := floorf(_t * 4.0) / 4.0
 	_mat.set_shader_parameter("drift", drift * 0.35)
 	# A pale grey-blue haze (the fog's light colour went green on the mist's picture).

@@ -1466,7 +1466,9 @@ func _draw_dozers(origin: Vector2, tile_w: float, tile_h: float, mini_h: int) ->
 		if not _dozer_dust.is_empty() and t > life * 0.4 and t < life * 0.8:
 			var df := clampi(int((t - life * 0.4) / (life * 0.4) * 4.0), 0, 3)
 			var dt: Texture2D = _dozer_dust[df]
-			var ds := tile_h * 1.6 / maxf(1.0, dt.get_height())
+			# One scale for all four (from the first, the puff alone): the later ones are
+			# bigger with the bits flying off, so the dust bursts instead of shrinking.
+			var ds := tile_h * 1.15 / maxf(1.0, (_dozer_dust[0] as Texture2D).get_height())
 			var dp := _cell_to_iso_f(b, origin, tile_w, tile_h)
 			_cv.draw_texture_rect(dt, Rect2((dp - Vector2(dt.get_width(), dt.get_height() * 1.4) * ds * 0.5).floor(), dt.get_size() * ds), false, Color(1, 1, 1, 0.9))
 
