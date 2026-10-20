@@ -250,6 +250,9 @@ func photo_windows() -> Array:
 		o["facing"] = w.facing(_root, _interior_camera)
 		o["open"] = w.curtain_open()
 		o["flash"] = w.flash
+		o["room_world"] = _viewport.find_world_3d() if _viewport != null else null
+		o["glass"] = _root.global_transform * w.frame.origin
+		o["eye"] = _interior_camera.global_position
 		out.append(o)
 	return out
 

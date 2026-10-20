@@ -24,6 +24,22 @@ extends "res://scripts/enemies/enemy_base.gd"
 ##                 and he goes to another window. No windows (a tent): he walks round it
 ##                 humming and the flash lights the canvas, no more.
 ##   up close      walking into him he does not bother with the camera.
+##
+## Worse (21. 10., the user: "like the Girl, almost over the line, evil made flesh"):
+##   the pictures  they are real: each hit, the photo he took slides in at the corner of
+##                 your eye and develops, and it is you, from where he stood (your own
+##                 warden, from behind); every third one, he is in it too, right behind
+##                 you, grinning into the lens. Through a window: you in your room, from
+##                 the glass.
+##   burnt in      his face, close, two camera lenses grown into the sockets, or the face
+##                 peeling off like a wet print, for a few frames after the flash.
+##   as it goes    two hits and his neck has gone: the head hangs at a broken angle and
+##                 still he raises the camera (the crack of it as he stops). Three hits and
+##                 he runs: out of the dark behind you in a lurch, boots on the gravel and
+##                 the laugh, and the flash right at your ear. Do not turn round to it.
+##   the last one  when a picture would be your last: the frame stops, his lens-face comes
+##                 at you in steps, the word whispered wet in your ear, the flash, and the
+##                 photo of your own face develops in the middle of the screen.
 
 const SPRITE := "res://assets/textury/npc/tourist_idle.png"
 const POSES := {
@@ -34,7 +50,18 @@ const POSES := {
 	"wave": "res://assets/textury/npc/tourist_wave.png",
 	"glass": "res://assets/textury/npc/tourist_glass.png",
 	"back": "res://assets/textury/npc/tourist_back.png",
+	"neck": "res://assets/textury/npc/ph_neck.png",
+	"run": "res://assets/textury/npc/ph_run.png",
+	"face_lens": "res://assets/textury/npc/ph_face_lens.png",
+	"face_peel": "res://assets/textury/npc/ph_face_peel.png",
 }
+const POLAROID = preload("res://scripts/enemies/polaroid.gd")
+const SFX_WHISPER := "res://assets/sfx/npc/ph_whisper_smile.mp3"
+const SFX_LAUGH_WET := "res://assets/sfx/npc/ph_laugh_wet.mp3"
+const SFX_PEEL := "res://assets/sfx/npc/ph_peel.mp3"
+const SFX_RUSH := "res://assets/sfx/npc/ph_rush.mp3"
+const SFX_CRACK := "res://assets/sfx/npc/ph_crack.mp3"
+const RUSH_SPEED := 9.5
 const SFX_WHINE := "res://assets/sfx/npc/flash_whine.mp3"
 const SFX_SHUTTER := "res://assets/sfx/npc/shutter.mp3"
 const SFX_ADVANCE := "res://assets/sfx/npc/photo_advance.mp3"
@@ -52,7 +79,7 @@ const GRAB_DISTANCE := 2.6
 const WALK_SPEED := 3.2
 const STEP := 1.0 / 12.0
 
-enum Phase { WALK, SETTLE, FRAME, AFTER }
+enum Phase { WALK, SETTLE, FRAME, AFTER, RUSH }
 
 var _phase := Phase.WALK
 var _phase_end := 0.0
@@ -88,6 +115,9 @@ var _room_audio: AudioStreamPlayer
 ## A dim light on him at the glass (the room's lamp through it), so the window shows him.
 var _glass_light: OmniLight3D
 var _self_light: OmniLight3D
+var _polaroid: CanvasLayer
+var _killing := false
+var _rush_from := Vector3.ZERO
 var _blast: CanvasLayer
 var _blast_rect: ColorRect
 var _blast_t := 0.0
@@ -212,11 +242,17 @@ func _on_tick(dt: float) -> void:
 		Phase.AFTER:
 			if _elapsed >= _phase_end:
 				_enter_walk()
+		Phase.RUSH:
+			_tick_rush(dt)
 
 
 # ── outdoors ─────────────────────────────────────────────────────────────────
 
 func _enter_walk() -> void:
+	# Three pictures of you tonight and he runs at you from behind now and then.
+	if _hits >= 3 and _rng.randf() < 0.35 and not _is_seen(_head(), 10.0) and _distance_to_player(_body.global_position) < 22.0:
+		_enter_rush()
+		return
 	_phase = Phase.WALK
 	_set_af(false)
 	_walk_from = _body.global_position
@@ -241,7 +277,12 @@ func _tick_walk(dt: float) -> void:
 	if k >= 1.0:
 		_phase = Phase.SETTLE
 		_phase_end = _elapsed + _rng.randf_range(0.5, 0.9)
-		_set_pose("idle")
+		# Two pictures of you and his neck has gone: the head hangs, it cracks as he stops.
+		if _hits >= 2 and _tex.has("neck"):
+			_set_pose("neck")
+			_sound(SFX_CRACK, _head(), 4.0, _rng.randf_range(0.9, 1.05), 25.0)
+		else:
+			_set_pose("idle")
 		_sound(SFX_WIND, _head(), 2.0, _rng.randf_range(0.95, 1.05), 40.0)
 
 
@@ -250,7 +291,7 @@ func _enter_frame() -> void:
 	_phase_end = _elapsed + _frame_seconds
 	_next_beep = _elapsed
 	_whine_started = false
-	_set_pose("aim")
+	_set_pose("neck" if _hits >= 2 and _tex.has("neck") else "aim")
 	_sound(SFX_ZOOM, _head(), 0.0, 1.0, 30.0)
 	_announce("Humming between the trees. A red light. Beep... beep... Do not look at the flash.")
 
@@ -283,8 +324,12 @@ func _fire() -> void:
 	_hit_last = _is_seen(head, 4.0)
 	if _hit_last:
 		_hits += 1
+		if _player_health() <= _photo_damage:
+			_kill(head)
+			return
 		_hurt(_photo_damage)
 		_blast_you()
+		_picture_of_you(head, null)
 		_feed("FLASH. He has you on film.")
 	else:
 		_dist = maxf(_min_dist, _dist - 2.0)
@@ -457,8 +502,12 @@ func _fire_through(w: Dictionary) -> void:
 	var open := float(w.get("open", 1.0))
 	if open > 0.25 and float(w.get("facing", -1.0)) > 0.2:
 		_hits += 1
+		if _player_health() <= _photo_damage:
+			_kill(_head())
+			return
 		_hurt(_photo_damage)
 		_blast_you()
+		_picture_of_you(_head(), w)
 		_feed("FLASH through the window. Draw the curtains.")
 		get_tree_timer(0.5, func(): _room(SFX_GIGGLE, -4.0))
 	elif open <= 0.25:
@@ -521,6 +570,8 @@ func _set_pose(p: String) -> void:
 	_body.texture = t
 	# At the glass he is the upper half of him, pressed to it (a picture of the waist up).
 	var h := 1.05 if p == "glass" else 1.9
+	if p == "neck":
+		h = 2.5  # the neck stretched: he stands that much taller
 	var lift := 0.75 if p == "glass" else 0.0
 	_body.pixel_size = h / float(t.get_height())
 	_body.offset = Vector2(0, t.get_height() * 0.5 + lift / _body.pixel_size)
@@ -550,11 +601,14 @@ func _blast_you() -> void:
 	_blast_t = 1.0
 	if fx.has_method("tinnitus"):
 		fx.tinnitus(1.6)
-	if fx.has_method("subliminal") and _tex.has("flash"):
+	var burnt: Texture2D = _tex.get("face_peel" if _hits % 2 == 0 else "face_lens", _tex.get("flash"))
+	if fx.has_method("subliminal") and burnt != null:
 		get_tree_timer(0.18, func():
 			var f := _fx()
 			if f != null:
-				f.subliminal(_tex["flash"], 3, 1.6, Color(0.6, 0.65, 0.75)))
+				f.subliminal(burnt, 4, 1.0, Color(0.75, 0.78, 0.9)))
+	if _hits % 2 == 0:
+		get_tree_timer(0.4, func(): _room(SFX_PEEL, -6.0))
 
 
 func _tick_blast(delta: float) -> void:
@@ -568,6 +622,114 @@ func get_tree_timer(sec: float, fn: Callable) -> void:
 	if _world_root == null or not _world_root.is_inside_tree():
 		return
 	_world_root.get_tree().create_timer(sec).timeout.connect(fn)
+
+
+# ── worse ────────────────────────────────────────────────────────────────────
+
+## The picture he took (scripts/enemies/polaroid.gd): you, from his lens. Every third,
+## him right behind you in it. Through a window `w`: taken in your room, from the glass.
+func _picture_of_you(lens: Vector3, w) -> void:
+	if _fx() == null:
+		return
+	if _polaroid == null or not is_instance_valid(_polaroid):
+		_polaroid = POLAROID.new()
+		_world_root.get_tree().root.add_child(_polaroid)
+	var extra: Texture2D = _tex.get("idle") if _hits % 3 == 0 else null
+	var cam := _camera()
+	if w is Dictionary and (w as Dictionary).has("room_world") and w["room_world"] != null:
+		var eye: Vector3 = w["eye"]
+		var glass: Vector3 = w["glass"]
+		var floor_at := Vector3(eye.x, eye.y - 1.55, eye.z)
+		var face := (eye - glass)
+		face.y = 0.0
+		# After the room's own flash has died down (else it is only white).
+		var room_world: World3D = w["room_world"]
+		get_tree_timer(0.7, func():
+			if is_instance_valid(_polaroid):
+				_polaroid.call("take", room_world, glass + (eye - glass).normalized() * 0.3, eye + Vector3(0, -0.25, 0), floor_at, face.normalized(), extra))
+		return
+	if cam == null:
+		return
+	var you := _player_pos()
+	var fwd := -cam.global_transform.basis.z
+	fwd.y = 0.0
+	_polaroid.call("take", _world_root.get_world_3d(), lens, cam.global_position + Vector3(0, -0.3, 0), you, fwd.normalized(), extra)
+
+
+## The last picture: the frame stops, his lens-face comes at you in steps, the word wet
+## in your ear, the flash, and your own face develops in the middle of the screen.
+func _kill(lens: Vector3) -> void:
+	if _killing:
+		return
+	_killing = true
+	var fx := _fx()
+	var face: Texture2D = _tex.get("face_lens")
+	if fx == null or face == null:
+		_hurt(_photo_damage)
+		_killing = false
+		return
+	fx.freeze(0.25)
+	_room(SFX_WHISPER, 4.0)
+	for i in 6:
+		var k := float(i) / 5.0
+		get_tree_timer(0.18 * float(i), func():
+			var f := _fx()
+			if f != null:
+				f.close_up(face, lerpf(0.55, 1.5, k), 1.0, 0.004 + 0.01 * k))
+	get_tree_timer(1.15, func():
+		var f := _fx()
+		if f != null:
+			f.close_up_off()
+		_room(SFX_SHUTTER, 8.0, 0.8)
+		_room(SFX_LAUGH_WET, 2.0)
+		_blast_you()
+		if _polaroid == null or not is_instance_valid(_polaroid):
+			_polaroid = POLAROID.new()
+			_world_root.get_tree().root.add_child(_polaroid)
+		var cam := _camera()
+		if cam != null:
+			# Your face, from right in front of it, looking at him.
+			var at := cam.global_position
+			var from := at + (lens - at).normalized() * 1.1
+			var face_dir := lens - at
+			face_dir.y = 0.0
+			_polaroid.call("take", _world_root.get_world_3d(), from, at + Vector3(0, -0.15, 0), _player_pos(), face_dir.normalized(), null, true)
+		_hurt(_photo_damage * 3)
+		_killing = false)
+
+
+## Out of the dark behind you, at a run, laughing, and the flash at your ear: turn round
+## to it and it is in your eyes.
+func _enter_rush() -> void:
+	_phase = Phase.RUSH
+	_set_af(false)
+	var behind := _point_from_player(_rng.randf_range(14.0, 18.0), _rng.randf_range(160.0, 200.0))
+	if behind != Vector3.INF:
+		_body.global_position = behind
+	_rush_from = _body.global_position
+	_set_pose("run" if _tex.has("run") else "walk_a")
+	_sound(SFX_RUSH, _head(), 8.0, 1.0, 40.0)
+	get_tree_timer(0.3, func(): _sound(SFX_LAUGH_WET, _head(), 4.0, 1.1, 30.0))
+
+
+func _tick_rush(dt: float) -> void:
+	_step_acc += dt
+	if _step_acc < STEP:
+		return
+	var to := _player_pos() - _body.global_position
+	to.y = 0.0
+	if to.length() <= 3.0:
+		# At your ear: the whisper, the flash.
+		_room(SFX_WHISPER, 2.0)
+		_phase = Phase.FRAME
+		_phase_end = _elapsed + 0.35
+		_whine_started = true
+		_next_beep = _elapsed + 1.0
+		return
+	var p := _body.global_position + to.normalized() * minf(to.length() - 2.8, RUSH_SPEED * _step_acc)
+	_step_acc = 0.0
+	var g := _ground(p)
+	_body.global_position = g if g != Vector3.INF else p
 
 
 func _head() -> Vector3:

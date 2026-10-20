@@ -66,6 +66,18 @@ const T_TEAR := N + "sm_face_tear.png"
 const T_UPSIDE := N + "sm_face_upside.png"
 const T_HANDS := N + "sm_hands.png"
 const T_OVER := N + "sm_over.png"
+## Worse (21. 10., the user: "like the Girl, almost over the line"): the sealed mouth
+## splitting in a cross on a throat of teeth; a second face pushing out through it; the
+## neck that comes round a corner without him; on the ceiling; his thumbs on your eyes.
+const T_CROSS := N + "sm_face_cross.png"
+const T_SECOND := N + "sm_face_second.png"
+const T_NECK := N + "sm_neck_long.png"
+const T_CEILING := N + "sm_ceiling.png"
+const T_EYES := N + "sm_hands_eyes.png"
+const SFX_THROAT := "res://assets/sfx/npc/sm_throat.mp3"
+const SFX_STRETCH := "res://assets/sfx/npc/sm_stretch.mp3"
+const SFX_CEILING := "res://assets/sfx/npc/sm_ceiling.mp3"
+const SFX_SECOND := "res://assets/sfx/npc/sm_second_voice.mp3"
 const SFX_STEPS := "res://assets/sfx/npc/silent_steps.mp3"
 const SFX_STEP := "res://assets/sfx/npc/sm_step.mp3"
 const SFX_WHISPER := "res://assets/sfx/npc/silent_whisper.mp3"
@@ -90,12 +102,12 @@ const RUN_SPEED := 4.2
 const HEIGHT := 1.82
 const WALK_SECONDS := 0.55
 const LIT_SECONDS := 0.9
-const STRIKES := ["ear", "above", "turn"]
+const STRIKES := ["ear", "above", "turn", "cross"]
 ## Lurking: how far off, and how dark the spot must be.
 const LURK_DIST := Vector2(7.0, 13.0)
 const LURK_DARK := 0.15
 const DISSOLVE_FRAMES := 6
-const KILLS := ["strangle", "snap", "bite"]
+const KILLS := ["strangle", "snap", "bite", "inside", "eyes"]
 
 var _dist := START_DIST
 var _step_gain := 1.6
@@ -118,7 +130,7 @@ var _tex := {}
 ## Where his glasses are in each piece of art (sm2_*, texels from the top, the middle
 ## between them from the left, the head's tilt): his eyes in the dark sit on them.
 const EYES_AT := {GUEST: [12.0, 31.5, 0.0], T_M1: [10.0, 19.5, 0.0], T_M2: [17.0, 21.5, -0.42],
-	T_LIT: [13.5, 24.5, 0.0], "walk0": [12.0, 22.5, 0.0], "walk1": [11.0, 23.0, 0.0]}
+	T_LIT: [13.5, 24.5, 0.0], "walk0": [12.0, 22.5, 0.0], "walk1": [11.0, 23.0, 0.0], T_NECK: [45.0, 67.0, -0.15]}
 var _hum: AudioStreamPlayer3D
 var _breath: AudioStreamPlayer3D
 var _walk_from := Vector3.ZERO
@@ -200,7 +212,7 @@ func _on_start() -> void:
 	_damage = int(lerpf(14.0, 24.0, t))
 	# Each piece of art by its first name; the body-horror round (sm2_*) wins where it is
 	# there (playtest 18. 10.: the first round was "not disgusting enough").
-	for p in [GUEST, T_M1, T_M2, T_LIT, T_FACE, T_TEAR, T_UPSIDE, T_HANDS, T_OVER] + T_WALK:
+	for p in [GUEST, T_M1, T_M2, T_LIT, T_FACE, T_TEAR, T_UPSIDE, T_HANDS, T_OVER, T_CROSS, T_SECOND, T_NECK, T_CEILING, T_EYES] + T_WALK:
 		for alt in [p.replace("/sm_", "/sm2_"), p]:
 			if ResourceLoader.exists(alt):
 				_tex[p] = load(alt)
@@ -497,13 +509,19 @@ func _update_lurk(dt: float) -> void:
 		_peek_t -= dt
 		if _peek_t <= 0.0:
 			_body.global_position = _lurk_spot
+			_set_tex(_look_for(_distance_to_player(_lurk_spot)))
 		return
 	_peek_next -= dt
 	if _peek_next <= 0.0 and _peek_spot != Vector3.INF:
 		_peek_next = _rng.randf_range(6.0, 11.0)
 		_peek_t = _rng.randf_range(0.9, 1.5)
 		_body.global_position = _peek_spot
-		_sound(SFX_RUSTLE, _peek_spot + Vector3(0, 1.2, 0), -14.0, _rng.randf_range(0.9, 1.1), 20.0)
+		if _tex.has(T_NECK) and _rng.randf() < 0.4:
+			# Only his neck comes round the corner, long, the head at the end of it.
+			_set_tex(T_NECK)
+			_sound(SFX_STRETCH, _peek_spot + Vector3(0, 1.6, 0), -6.0, _rng.randf_range(0.9, 1.05), 22.0)
+		else:
+			_sound(SFX_RUSTLE, _peek_spot + Vector3(0, 1.2, 0), -14.0, _rng.randf_range(0.9, 1.1), 20.0)
 
 
 ## Right behind you: turn round or get away, now.
@@ -797,7 +815,8 @@ func _reset_far(pause: float) -> void:
 
 func _start_catch(forced := "") -> void:
 	var kill := forced == "" and _player_health() - _damage <= 0
-	var pool: Array = (KILLS if kill else STRIKES).filter(func(k): return k != (_last_kill if kill else _last_strike))
+	var needs := {"cross": T_CROSS, "inside": T_SECOND, "eyes": T_EYES}
+	var pool: Array = (KILLS if kill else STRIKES).filter(func(k): return k != (_last_kill if kill else _last_strike) and (not needs.has(k) or _tex.has(needs[k])))
 	var kind: String = forced if forced != "" else pool[_rng.randi() % pool.size()]
 	if kill:
 		_last_kill = kind
@@ -961,6 +980,72 @@ func _update_seq(dt: float) -> void:
 			if _cue(1.8, "hit"):
 				_hit_now()
 			_fade_out(fx, t, 1.3, 2.3)
+		_:
+			_update_seq_worse(str(_seq["kind"]), t, st, fx, cam)
+
+
+## The worse catches: in _update_seq's match (its `_` arm calls this).
+func _update_seq_worse(kind: String, t: float, st: float, fx, cam: Camera3D) -> void:
+	match kind:
+		"cross":
+			# Face to face, and the skin over his mouth splits in four and folds back: the
+			# throat is teeth, ring after ring, going down; it comes over you.
+			_player.rotation.y = float(_seq["yaw0"]) + PI * clampf(floorf(st / 0.08) / 3.0, 0.0, 1.0)
+			if fx != null:
+				if st < 0.6:
+					fx.close_up(_t(T_FACE), lerpf(1.05, 1.3, st / 0.6), 1.0, 0.006)
+				elif st < 1.4:
+					fx.close_up(_t(T_CROSS, T_TEAR), lerpf(1.2, 2.6, (st - 0.6) / 0.8), 1.0, 0.01 + 0.025 * (st - 0.6))
+			if _cue(0.5, "stretch"):
+				_ear(SFX_STRETCH, 4.0)
+			if _cue(0.7, "throat"):
+				_ear(SFX_THROAT, 6.0)
+			if _cue(1.3, "bite"):
+				_ear(SFX_BITE, 8.0, 0.8)
+				_hit_now()
+			_fade_out(fx, t, 1.4, 1.9)
+		"inside":
+			# Something pushes out through where his mouth should be: a second face,
+			# screaming without a sound you can hear past his skin; then his own mouth
+			# opens round it and round you.
+			if fx != null:
+				if st < 0.5:
+					fx.close_up(_t(T_FACE), lerpf(1.0, 1.25, st / 0.5), 1.0, 0.004)
+				elif st < 1.9:
+					fx.close_up(_t(T_SECOND, T_TEAR), lerpf(1.2, 1.6, (st - 0.5) / 1.4), 1.0, 0.004 + 0.02 * (st - 0.5))
+				elif st < 2.6:
+					fx.close_up(_t(T_CROSS, T_TEAR), lerpf(1.6, 4.0, (st - 1.9) / 0.7), 1.0, 0.03)
+					fx.set_black(clampf((st - 2.2) / 0.4, 0.0, 0.9))
+			if _cue(0.5, "second"):
+				_ear(SFX_SECOND, 6.0)
+			if _cue(1.9, "throat"):
+				_ear(SFX_THROAT, 8.0, 0.85)
+			if _cue(2.5, "bite"):
+				_ear(SFX_BITE, 10.0, 0.75)
+				if fx != null:
+					fx.red_flash(1.0)
+			if _cue(2.6, "hit"):
+				_hit_now()
+			_fade_out(fx, t, 2.6, 3.2)
+		"eyes":
+			# His thumbs come over your eyes from behind and press: the picture goes dark
+			# from the edges in, red, and the wet give.
+			if fx != null and st < 2.4:
+				fx.close_up(_t(T_EYES, T_HANDS), lerpf(1.6, 1.05, clampf(st / 0.8, 0.0, 1.0)), 1.0, 0.004 + 0.01 * st)
+				fx.set_black(clampf((st - 0.8) / 1.4, 0.0, 0.95))
+				if st > 1.6:
+					fx.red_flash(0.5)
+			if _cue(0.1, "breath"):
+				_ear(SFX_BREATH, 6.0, 0.8)
+			if _cue(0.9, "stretch"):
+				_ear(SFX_STRETCH, 6.0, 0.8)
+			if _cue(1.8, "give"):
+				_ear(SFX_BITE, 6.0, 0.6)
+			if cam != null:
+				cam.rotation.x = float(_seq["pitch0"]) + 0.25 * clampf(st / 1.0, 0.0, 1.0)
+			if _cue(2.4, "hit"):
+				_hit_now()
+			_fade_out(fx, t, 2.4, 3.0)
 
 
 ## After the hit: black, then (a catch, not a kill) the world back, him gone for a while.
@@ -1026,7 +1111,11 @@ func _update_presence(dt: float) -> void:
 			_sub_next -= dt
 			if _sub_next <= 0.0:
 				_sub_next = _rng.randf_range(4.0, 9.0) * (1.8 - level)
-				fx.subliminal(_t(T_FACE), 2, _rng.randf_range(0.8, 1.15), Color(0.55, 0.45, 0.42))
+				var faces: Array = [T_FACE]
+				for f in [T_CROSS, T_SECOND, T_CEILING]:
+					if _tex.has(f):
+						faces.append(f)
+				fx.subliminal(_t(faces[_rng.randi() % faces.size()]), 2, _rng.randf_range(0.8, 1.15), Color(0.55, 0.45, 0.42))
 	# The torch in your hand catches and stutters as it gets bad.
 	if level > 0.55 and _player != null:
 		_stutter_next -= dt
@@ -1272,6 +1361,14 @@ func _lure(n: int) -> void:
 			else:
 				_room_2d("res://assets/sfx/director/handle.mp3", -3.0)
 		3:
+			if _tex.has(T_CEILING) and _rng.randf() < 0.5:
+				# Over you, across the ceiling, and it stops right above you.
+				_room_2d(SFX_CEILING, -2.0)
+				get_tree_timer(2.4, func():
+					var f := _fx()
+					if _indoors and f != null:
+						f.subliminal(_t(T_CEILING), 3, 1.0, Color(0.5, 0.45, 0.45)))
+				return
 			_room_2d("res://assets/sfx/director/wall_brush.mp3", -6.0)
 			get_tree_timer(2.2, func():
 				if _indoors and _fx() != null:

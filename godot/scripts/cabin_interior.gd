@@ -344,6 +344,9 @@ func photo_windows() -> Array:
 		var cur = pt.get("curtain")
 		w["open"] = float(cur.open) if cur != null else 1.0
 		w["flash"] = _photo_flash.bind(pt)
+		w["room_world"] = _viewport.find_world_3d() if _viewport != null else null
+		w["glass"] = _cabin_root.global_transform * (pt["frame"] as Transform3D).origin
+		w["eye"] = _interior_camera.global_position
 		out.append(w)
 	return out
 
