@@ -172,6 +172,9 @@ var _occ: Array = []
 const SWAY_WIND := 0.35
 var _sway_step := 0
 var _swaying := false
+## Flags waving: the flagpole's frames from its 3D flag in the wind (iso_views frames,
+## <s>_f<k>), drawn on the dynamic layer, four a second (faster in a wind).
+var _flags: Array = []        # [static centre, turn]
 ## The building site in its stages (Grok bld_stages: the foundation, the walls going up,
 ## the roof) and the little yellow bulldozer of a demolition (bld_dozer, Transport
 ## Tycoon's), with its dust (bld_dust); the old scaffold and plain dust without them.
@@ -1495,6 +1498,7 @@ func _draw_static() -> void:
 	_lights.clear()
 	_lit_spots.clear()
 	_occ.clear()
+	_flags.clear()
 	_anim_entries.clear()
 	_known.clear()
 	if grid_manager == null:
@@ -1516,6 +1520,9 @@ func _draw_static() -> void:
 		# Still a building site: the dynamic layer draws it until it stands.
 		if _dropped.has(entry.get("origin", Vector2i.ZERO)):
 			_anim_entries.append(entry)
+			continue
+		if ty == "flagpole" and _views.has("flagpole_0_f0"):
+			_flags.append([entry["center"], int(entry.get("rotation", 0))])
 			continue
 		_draw_structure(entry, tile_w, tile_h)
 		if ty != "path":
@@ -1724,8 +1731,8 @@ func _draw_dynamic() -> void:
 	var tile_h: float = iso.tile_h
 	var origin: Vector2 = iso.origin
 	var k := _static_layer.scale.x
-	# Light moving on the water.
-	for w in _water_cells:
+	# Light moving on the water (lines, until the Grok glints are there: map_life draws those).
+	for w in ([] if _life.has("lake") else _water_cells):
 		var c := _s2d(w[0])
 		var ph := _time * 1.3 + float(w[1]) * 6.28
 		var a := 0.18 + 0.14 * sin(ph)
@@ -1752,6 +1759,11 @@ func _draw_dynamic() -> void:
 		_draw_structure(moved, tile_w, tile_h)
 	for sm in _smokers:
 		_draw_smoke(_s2d(sm[0]), tile_h, float(sm[1]), int(sm[2]))
+	var fk := int(_time * (4.0 + 4.0 * clampf(float(_wx.get("wind", 0.15)), 0.0, 1.0))) % 4
+	for fl in _flags:
+		var fv: Array = _views.get("flagpole_%d_f%d" % [wrapi(view_rot + int(fl[1]), 0, 4), fk], [])
+		if not fv.is_empty():
+			_draw_view(fv, _s2d(fl[0]), Color.WHITE, tile_w)
 	var entries: Array = []
 	_append_guest_entries(entries, origin, tile_w, tile_h)
 	var lights: Array = []
@@ -2254,6 +2266,9 @@ func _update_minds() -> void:
 			react = "sweat"
 		elif mood < 25.0:
 			react = "angry"
+		elif str(g.get("archetype", "")) == "drunk" and float(_wx.get("hour", 12.0)) >= 17.0:
+			# The drunk in the evening: one beat sick, one singing.
+			react = "sick" if (int(g.get("id", 0)) + int(_guest_time / 9.0)) % 2 == 0 else "notes"
 		elif mood > 82.0:
 			react = ["hearts", "notes", "smile"][int(g.get("id", 0)) % 3]
 		_guest_minds[int(g.get("id", -1))] = {"think": think, "value": wv, "react": react}

@@ -23,6 +23,8 @@ const TYPES := ["tent_1", "tent_2", "tent_3", "cabin_1", "cabin_2", "cabin_3", "
 	"playground", "ping_pong", "hammock", "bench", "picnic_table", "flower_bed", "gnome", "mega_gnome", "flagpole", "sewer",
 	"lamp_post", "power_generator", "main_building"]
 const AT := Vector2i(9, 5)
+## Things drawn again a few times, their own motion going on between (frames for the map).
+const ANIMATED := {"flagpole": 4}
 ## Levels 2 and 3 are not built but upgraded from the first (the room's own replace).
 const UPGRADED := {"tent_2": "tent_1", "tent_3": "tent_1", "cabin_2": "cabin_1", "cabin_3": "cabin_1", "caravan_2": "caravan_1", "caravan_3": "caravan_1"}
 
@@ -56,6 +58,10 @@ func _ready() -> void:
 		for v in 4:
 			s.append_array([["iso_setup", t, v], ["wait", 0.35], ["iso_save", t, v],
 				["iso_win", t], ["wait", 0.25], ["iso_save_win", t, v], ["iso_unwin"]])
+			# What moves on its own in the camp (the flag in the wind): a few frames of it.
+			if ANIMATED.has(t):
+				for f in int(ANIMATED[t]):
+					s.append_array([["wait", 0.17], ["iso_save", t, v, "_f%d" % f]])
 		if t != "main_building":
 			s.append_array([["clear", AT.x - 1, AT.y - 1, 6, 6], ["wait", 0.8]])
 	s.append(["iso_done"])
@@ -76,7 +82,7 @@ func _run_step(step: Array) -> void:
 		"iso_setup":
 			_setup(str(step[1]), int(step[2]))
 		"iso_save":
-			_save(str(step[1]), int(step[2]))
+			_save(str(step[1]), int(step[2]), str(step[3]) if step.size() > 3 else "")
 		"iso_win":
 			_windows_only(str(step[1]))
 		"iso_save_win":

@@ -18,6 +18,9 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--part="):
 			_part = a.substr(7)
+	if _part == "all":
+		_steps = _every_building()
+		return
 	var s: Array = [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
@@ -69,6 +72,66 @@ func _ready() -> void:
 	for v in 4:
 		s.append_array([["iso_cam", 10, 9, v], ["wait", 0.6], ["shot", "v%d_camp" % v]])
 	_steps = s
+
+
+## --part=all: every kind of building in each of its turns, a few kinds at a time; for
+## each lot the map in its four views and the camp from the same four corners
+## (<lot>_v<view>_map.png beside <lot>_v<view>_camp.png). Levels 2 and 3 are upgraded
+## in place from the first.
+const LOTS := [
+	["tent_1", "tent_2", "tent_3", "toilet_block", "shower_block", "corn_stand"],
+	["cabin_1", "cabin_2", "cabin_3"],
+	["pub", "restaurant", "caravan_1", "caravan_2", "caravan_3"],
+	["vecerka", "sports_field", "lake_slide", "playground"],
+	["bonfire", "ping_pong", "hammock", "bench", "picnic_table", "flower_bed", "gnome", "flagpole", "sewer", "lamp_post", "power_generator", "mega_gnome"],
+]
+const UPGRADED := {"tent_2": "tent_1", "tent_3": "tent_1", "cabin_2": "cabin_1", "cabin_3": "cabin_1", "caravan_2": "caravan_1", "caravan_3": "caravan_1"}
+
+
+func _every_building() -> Array:
+	var s: Array = [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["eval", "debug_jump_to(1, 11.0)"], ["money", 900000],
+		["clear", 3, 3, 20, 16], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["signal", "program_installed", "builder"], ["wait", 1.0],
+		["eval", UI + ".open_app('builder') != null"], ["wait", 4.5], ["eval", "debug_close_msgboxes()"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0]]
+	for li in LOTS.size():
+		var lot: Array = LOTS[li]
+		s.append(["clear", 3, 3, 20, 16])
+		var y := 4
+		for t in lot:
+			var fp: Vector2i = _fp(str(t))
+			var step := maxi(fp.x, fp.y) + 1
+			for k in 4:
+				var x := 4 + k * (step + 1)
+				var base := str(UPGRADED.get(t, t))
+				s.append(["build", base, x, y, k])
+				if UPGRADED.has(t):
+					s.append(["wait", 0.2])
+					s.append(["eval", "_interior_manager._handle_replace_upgrade(Vector2i(%d, %d), '%s', '%s', 0)" % [x, y, base, t]])
+			y += maxi(fp.x, fp.y) + 1
+		s.append(["wait", 1.5])
+		s.append_array([["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 3.0],
+			["eval", UI + ".open_app('builder') != null"], ["wait", 1.5], ["eval", "debug_close_msgboxes()"],
+			["eval", MAP + ".set('_zoom_target', 1.7)"], ["eval", MAP + ".set('_zoom_level', 1.7)"]])
+		for v in 4:
+			s.append_array([["eval", MAP + ".set('view_rot', %d)" % v], ["eval", MAP + ".set('_static_dirty', true)"],
+				["eval", MAP + ".debug_center_on(Vector2i(12, %d))" % (4 + y / 2)], ["wait", 0.7], ["crt_screen", "l%d_v%d_map" % [li, v]]])
+		s.append_array([["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 0.5],
+			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0]])
+		for v in 4:
+			s.append_array([["iso_cam", 12, 4 + y / 2, v], ["wait", 0.6], ["shot", "l%d_v%d_camp" % [li, v]]])
+		s.append(["eval", "set('debug_camera', null)"])
+	return s
+
+
+func _fp(t: String) -> Vector2i:
+	var def = CoreRoot.registry.get_def(StringName(t)) if CoreRoot != null and CoreRoot.registry != null else null
+	return def.footprint if def != null else Vector2i.ONE
 
 
 func _run_step(step: Array) -> void:

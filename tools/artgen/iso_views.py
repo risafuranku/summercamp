@@ -21,6 +21,8 @@ cut:   Grok's repaint of that sheet back into four sprites (and the windows that
 sheet4 <name> <t1..t4>: four small things on one sheet, a row each (iso4_<name>), and
 cut4 <grok id> <t1..t4> back; for the decor, where one Grok picture does four.
 raw:   the same from the render itself (no Grok), for checking or as a stand-in.
+frames <type> <n>: a moving thing's frames from the render (the flag waving): each
+       view's n frames cut to one box, <type>_<v>_f<k>.png.
 """
 import json
 import os
@@ -201,6 +203,28 @@ def cut4(art_id, types):
             save_view(t, v, shrink(q.crop(part), (b[2] - b[0], b[3] - b[1])), b)
 
 
+def frames(t, n):
+    """A moving thing's frames (iso_render's <type>_v<v>_f<k>), each view's frames cut to one
+    box so they stand still against each other: <type>_<v>_f<k>.png."""
+    for v in range(4):
+        imgs = [Image.open(os.path.join(SRC, "%s_v%d_f%d.png" % (t, v, k))).convert("RGBA") for k in range(n)]
+        boxes = [bbox(i) for i in imgs]
+        box = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+        for k in range(n):
+            snapped = process.snap(imgs[k].crop(box), True)
+            name = "%s_%d_f%d" % (t, v, k)
+            snapped.save(os.path.join(DEST, name + ".png"))
+            canvas = imgs[k].size
+            index = {}
+            if os.path.exists(INDEX):
+                with open(INDEX, encoding="utf-8") as f:
+                    index = json.load(f)
+            index[name] = {"anchor": [round(canvas[0] * 0.5 - box[0], 1), round(canvas[1] * 0.5 - box[1], 1)], "size": list(snapped.size)}
+            with open(INDEX, "w", encoding="utf-8") as f:
+                json.dump(index, f, indent=1, sort_keys=True)
+        print("%s v%d: %d frames %s" % (t, v, n, box))
+
+
 def raw_views(t):
     for v in range(4):
         img = render(t, v)
@@ -221,6 +245,8 @@ def main():
         sheet4(sys.argv[2], sys.argv[3:7])
     elif sys.argv[1] == "cut4":
         cut4(sys.argv[2], sys.argv[3:7])
+    elif sys.argv[1] == "frames":
+        frames(sys.argv[2], int(sys.argv[3]))
     elif sys.argv[1] == "raw":
         for t in sys.argv[2:]:
             raw_views(t)
