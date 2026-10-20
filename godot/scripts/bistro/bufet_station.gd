@@ -49,15 +49,17 @@ func where() -> String:
 func _build() -> void:
 	super._build()
 	_rng.randomize()
+	# The bowls lie on the top (their pictures are drawn from above: seen standing from the
+	# steep view over the counter they were a line); the bottle stands up facing you, as
+	# a Build sprite does.
 	for i in 4:
-		var b := sprite(TEX + "bowl_empty.png", BOWL_M, false)
-		if b.texture != null:
-			b.offset = Vector2(0, float(b.texture.get_height()) * 0.5)
-		put(b, STACK.get_center() + Vector2(0, 20), 0.0 + i * 0.022)
+		var b := sprite(TEX + "bowl_empty.png", BOWL_M, true)
+		put(b, STACK.get_center() + Vector2(0, 20), 0.004 + i * 0.022)
 		_stack.append(b)
-	_bowl_spr = sprite(TEX + "bowl_empty.png", BOWL_M, false)
+	_bowl_spr = sprite(TEX + "bowl_empty.png", BOWL_M, true)
 	_bowl_spr.visible = false
 	_bottle_spr = sprite(TEX + "bottle_kofola.png", BOTTLE_M, false)
+	_bottle_spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_bottle_spr.visible = false
 	_level_spr = meter(5, 16)
 	_level_spr.position = local_at(POT_AT + Vector2(-66, -96), 0.04)
@@ -77,8 +79,7 @@ func _show() -> void:
 	_bowl_spr.visible = not _bowl.is_empty()
 	if _bowl_spr.visible:
 		retex(_bowl_spr, TEX + ("bowl_soup.png" if int(_bowl["ladles"]) > 0 else "bowl_empty.png"), BOWL_M)
-		_foot(_bowl_spr)
-		put(_bowl_spr, BOWL_AT, 0.0)
+		put(_bowl_spr, BOWL_AT, 0.006)
 	_bottle_spr.visible = not _bottle.is_empty()
 	if _bottle_spr.visible:
 		var kind := str(_bottle["kind"])
