@@ -19,6 +19,10 @@ boot_splash/use_filter=false
 boot_splash/image="res://assets/boot/undo_labs_boot.png"
 config/icon="res://assets/textury/crt/icons/builder.png"
 
+[audio]
+
+driver/enable_input=true
+
 [autoload]
 
 SaveManager="*res://scripts/save_manager.gd"

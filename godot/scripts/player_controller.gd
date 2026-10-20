@@ -193,6 +193,9 @@ var _damage_flicker_time: float = 0.0
 var _death_fall_active: bool = false
 var _death_fall_tween: Tween
 var controls_enabled: bool = true
+## Sat on something (a bench in Lesna: town_trip.gd): the mouse still looks round, the
+## feet stay where they are.
+var seated: bool = false
 
 func _ready() -> void:
 	name = "Player"
@@ -298,6 +301,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if seated:
+		velocity = Vector3.ZERO
+		_update_head_motion(delta)
+		_update_flashlight_effect(delta)
+		_update_damage_visuals(delta)
+		return
 	if not controls_enabled:
 		velocity.x = move_toward(velocity.x, 0.0, ground_deceleration * delta)
 		velocity.z = move_toward(velocity.z, 0.0, ground_deceleration * delta)

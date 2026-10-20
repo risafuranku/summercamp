@@ -23,7 +23,7 @@ DST = os.path.join(process.GODOT, "assets", "textury", "hands_lo")
 RAW = {
     "clamp": "hand_clamp", "oars": "hand_oars", "cig": "hand_cig",
     "cig_mouth": "hand_cig_mouth", "beer": "hand_beer", "beer_drink": "hand_beer_drink",
-    "nozzle": "hand_nozzle",
+    "nozzle": "hand_nozzle", "radio": "hand_radio", "megaphone": "hand_megaphone",
 }
 SCALE = 0.5
 

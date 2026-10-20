@@ -40,7 +40,18 @@ const HIDDEN_DWELL_KINDS := ["sleep", "rest", "arrive", "away"]
 const INTERACT_MAX_DISTANCE := 4.2
 const MARKER_ANGRY := preload("res://assets/textury/npc/mood_angry.png")
 const MARKER_HAPPY := preload("res://assets/textury/npc/mood_happy.png")
-const MARKER_NEED := preload("res://assets/textury/npc/mood_need.png")
+## What a guest needs, as a blue enamel plate with a pictogram (tools/gen_stink_sprites.py).
+## It was a yellow "?" bubble, which at night read as the eyes of the things in the dark
+## (playtest 20. 10.).
+const MARKER_NEEDS := {
+	"bladder": preload("res://assets/textury/npc/need_bladder.png"),
+	"hunger": preload("res://assets/textury/npc/need_hunger.png"),
+	"hygiene": preload("res://assets/textury/npc/need_hygiene.png"),
+	"fun": preload("res://assets/textury/npc/need_fun.png"),
+	"energy": preload("res://assets/textury/npc/need_energy.png"),
+	"safety": preload("res://assets/textury/npc/need_safety.png"),
+}
+const MARKER_NEED := preload("res://assets/textury/npc/need_any.png")
 
 var _move_acc := 0.0
 var _grid_manager: Node
@@ -451,6 +462,47 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 				sprite.rotation.z = sin(_time * 0.8 + float(i)) * 0.01
 		member.position = pos
 	_update_marker(party, info, marker_pos, visible_now)
+	_update_alert(party, visible_now)
+
+
+## Somebody on the megaphone (scripts/coop/voice.gd): the guests within `radius` of
+## `at` look up, a "!" over them for `secs`.
+func alert(at: Vector3, radius: float, secs: float) -> void:
+	var until := Time.get_ticks_msec() + int(secs * 1000.0)
+	for party in _parties.values():
+		var pd: Dictionary = party
+		var p: Vector3 = pd.get("last_pos", Vector3.INF)
+		if p == Vector3.INF or Vector2(p.x - at.x, p.z - at.z).length() > radius:
+			continue
+		pd["alert_ms"] = maxi(int(pd.get("alert_ms", 0)), until)
+
+
+func _update_alert(party: Dictionary, visible_now: bool) -> void:
+	var on := visible_now and Time.get_ticks_msec() < int(party.get("alert_ms", 0))
+	var mark = party.get("alert_mark")
+	if on and (mark == null or not is_instance_valid(mark)):
+		var members: Array = party.get("members", [])
+		if members.is_empty() or not (members[0] is Node3D):
+			return
+		var l := Label3D.new()
+		l.text = "!"
+		l.font = load("res://assets/fonts/jersey10.fnt")
+		l.font_size = 48
+		l.pixel_size = 0.012
+		l.outline_size = 0
+		l.modulate = Color(1.0, 0.86, 0.3)
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		l.no_depth_test = false
+		l.position = Vector3(0, SPRITE_HEIGHT_M + 0.42, 0)
+		(members[0] as Node3D).add_child(l)
+		party["alert_mark"] = l
+		mark = l
+	if mark != null and is_instance_valid(mark):
+		(mark as Label3D).visible = on
+		if on:
+			# A little hop, in steps.
+			(mark as Label3D).position.y = SPRITE_HEIGHT_M + 0.42 + (0.05 if int(_time * 6.0) % 2 == 0 else 0.0)
 
 
 ## Stooped by `f` (0 upright .. 1 right down under a tent flap), feet where they were.
@@ -481,8 +533,9 @@ func _attraction_at(tile: Vector2i) -> Node:
 
 
 ## Build games had no floating text; guests show a small marker instead: a red "!"
-## when miserable, a "?" while they are hunting for something they need, a heart when
-## delighted. What they actually say goes to the HUD quote line (see nearby_thoughts).
+## when miserable, a blue plate with what they badly need (WC, knife and fork, shower...),
+## a heart when delighted. What they actually say goes to the HUD quote line (see
+## nearby_thoughts).
 func _update_marker(party: Dictionary, info: Dictionary, lead_pos: Vector3, visible_now: bool) -> void:
 	var marker := party.get("marker", null) as Sprite3D
 	if marker == null:
@@ -493,7 +546,7 @@ func _update_marker(party: Dictionary, info: Dictionary, lead_pos: Vector3, visi
 	if mood < GUEST_NEEDS.UNHAPPY_MOOD:
 		tex = MARKER_ANGRY
 	elif not worst.is_empty() and float(worst.get("value", 100.0)) < GUEST_NEEDS.CRITICAL_THRESHOLD + 10.0:
-		tex = MARKER_NEED
+		tex = MARKER_NEEDS.get(str(worst.get("need", "")), MARKER_NEED)
 	elif mood >= 80.0:
 		tex = MARKER_HAPPY
 	if not visible_now or tex == null:

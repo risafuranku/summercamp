@@ -62,6 +62,9 @@ const REMOTE_PLAYER = preload("res://scripts/coop/remote_player.gd")
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const PROFILES = preload("res://scripts/profiles.gd")
 const NO_LOOK := {"m": 1, "c": 0, "n": ""}
+const VOICE = preload("res://scripts/coop/voice.gd")
+## The walkie-talkie and the megaphone (voice.gd).
+var voice
 
 var role := Role.NONE
 var port := DEFAULT_PORT
@@ -115,6 +118,9 @@ var remote_id: int:
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_cfg()
+	voice = VOICE.new()
+	voice.name = "Voice"
+	add_child(voice)
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected)
@@ -882,6 +888,21 @@ func _place(kind: String, key: String, op: String, data: Array) -> void:
 ## Something every machine has that the others must have too, everyone's to everyone
 ## (main.coop_sync): "office" [the lights, curtains and set], "register" [the desk's
 ## register and key hooks], "gate" ["up" / "down"] (a warden worked the barrier).
+## A packet of your voice (scripts/coop/voice.gd): `flags` say radio or megaphone, the
+## first and the last of a go; `data` 20 ms of 16 kHz mu-law.
+func send_voice(flags: int, data: PackedByteArray) -> void:
+	if role != Role.NONE and not wardens.is_empty():
+		_voice.rpc(flags, data)
+
+
+@rpc("any_peer", "call_remote", "unreliable_ordered", 6)
+func _voice(flags: int, data: PackedByteArray) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not wardens.has(id) or voice == null:
+		return
+	voice.on_voice(id, flags, data)
+
+
 func send_sync(kind: String, data: Array) -> void:
 	if role != Role.NONE and not wardens.is_empty():
 		_sync.rpc(kind, data)

@@ -32,6 +32,8 @@ var _info: Label
 var _options_plate: Control
 var _options
 var _controls_plate: Control
+var _credits_plate: Control
+var _credits
 var _controls
 var _info_text: String = ""
 ## "Go outside" and the like when there is somewhere to leave; "" outdoors.
@@ -153,6 +155,7 @@ func _rebuild() -> void:
 	_options.build()
 	_options.back_requested.connect(func() -> void: _show("main"))
 	_options.controls_requested.connect(func() -> void: _show("controls"))
+	_options.credits_requested.connect(func() -> void: _show("credits"))
 
 	_controls_plate = _centered_plate(Vector2(_vp(250), _vp(186)))
 	_add_plate_title(_controls_plate, "CONTROLS")
@@ -163,6 +166,16 @@ func _rebuild() -> void:
 	_controls_plate.add_child(_controls)
 	_controls.build()
 	_controls.back_requested.connect(func() -> void: _show("options"))
+
+	_credits_plate = _centered_plate(Vector2(_vp(250), _vp(186)))
+	_add_plate_title(_credits_plate, "CREDITS")
+	_credits = RETRO_MENU.CreditsPage.new()
+	_credits.ui_scale = _scale
+	_credits.position = Vector2(_vp(4), _vp(28))
+	_credits.size = Vector2(_credits_plate.size.x - _vp(8), _vp(150))
+	_credits_plate.add_child(_credits)
+	_credits.build()
+	_credits.back_requested.connect(func() -> void: _show("options"))
 	_show(_page)
 
 
@@ -196,6 +209,8 @@ func _show(page: String) -> void:
 	_plate.visible = page == "main"
 	_options_plate.visible = page == "options"
 	_controls_plate.visible = page == "controls"
+	if _credits_plate != null:
+		_credits_plate.visible = page == "credits"
 	if page == "options":
 		_options.refresh()
 
@@ -236,5 +251,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			used = _options.handle_input(event)
 		"controls":
 			used = _controls.handle_input(event)
+		"credits":
+			used = _credits.handle_input(event)
 	if used:
 		get_viewport().set_input_as_handled()

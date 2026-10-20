@@ -128,6 +128,18 @@ const MOOD_FOLLOW_PER_MINUTE := 0.6
 ## Sleep restores energy per minute, scaled by lodging comfort.
 const SLEEP_ENERGY_PER_MINUTE := 0.34
 
+## Asleep at night the body waits for the morning (playtest 20. 10.: "at three in the
+## morning they were cross with me over a broken toilet; at night guests sleep"):
+## hunger, bladder, hygiene and fun stand still and what is wrong in the camp does not
+## reach them. Only the bed (comfort, the drunks singing next door) and fear (safety)
+## sour a sleeper's mood, and only down to a ceiling (sleep_mood_target). The night is
+## paid on waking: the queue for the toilets and breakfast come when the warden is up.
+const MORNING_NEEDS := {NEED_BLADDER: 30.0, NEED_HUNGER: 20.0, NEED_HYGIENE: 8.0}
+## Comfort below which a bed spoils the night (a tent for the pensioner, Kristyna's).
+const BAD_BED := 45.0
+## Score a facility loses when it is at its filthiest (choosing where to go).
+const DIRT_PENALTY := 24.0
+
 
 static func archetype_profile(archetype: String) -> Dictionary:
 	return ARCHETYPES.get(archetype, ARCHETYPES["quiet_guy"])
@@ -169,7 +181,9 @@ static func normalize_needs(raw: Variant) -> Dictionary:
 
 
 ## Applies `minutes` of passive decay. `context` keys:
-##   sleeping (bool), comfort (0-100), is_night (bool), lit (bool: near light),
+##   sleeping (bool), night_sleep (bool: the night's rest, in bed or up in the night's
+##   trouble, see MORNING_NEEDS),
+##   comfort (0-100), is_night (bool), lit (bool: near light),
 ##   threat (0-1: enemy pressure near the guest), crowd (0-1).
 static func decay_needs(needs: Dictionary, archetype: String, minutes: float, context: Dictionary) -> Dictionary:
 	var out := needs.duplicate()
@@ -178,11 +192,14 @@ static func decay_needs(needs: Dictionary, archetype: String, minutes: float, co
 	var profile := archetype_profile(archetype)
 	var decay_mult: Dictionary = profile.get("decay", {})
 	var sleeping := bool(context.get("sleeping", false))
+	var night_sleep := bool(context.get("night_sleep", false))
 	var comfort := clampf(float(context.get("comfort", 50.0)), 0.0, 100.0)
 	for need in [NEED_HUNGER, NEED_BLADDER, NEED_HYGIENE, NEED_FUN]:
 		var rate := float(BASE_DECAY[need]) * float(decay_mult.get(need, 1.0))
-		if sleeping:
-			rate *= 0.35 if need != NEED_FUN else 0.0
+		if night_sleep or (sleeping and need == NEED_FUN):
+			rate = 0.0
+		elif sleeping:
+			rate *= 0.35
 		out[need] = clampf(float(out[need]) - rate * minutes, 0.0, 100.0)
 	if sleeping:
 		var quality := lerpf(0.55, 1.25, comfort / 100.0)
@@ -240,6 +257,27 @@ static func mood_target(needs: Dictionary, archetype: String, comfort: float) ->
 	return clampf(avg * 0.62 + worst * 0.38 + comfort_term, 0.0, 100.0)
 
 
+## A sleeper's mood target (see MORNING_NEEDS): where the mood was, sunk only by a bad
+## night: a poor bed for this kind of guest, the noise next door (`noise`, the comfort
+## points it takes), fear. Never up while asleep: the morning's rested energy does that.
+static func sleep_mood_target(current: float, needs: Dictionary, archetype: String, comfort: float, noise: float = 0.0) -> float:
+	var profile := archetype_profile(archetype)
+	var cw := float(profile.get("comfort_weight", 1.0))
+	var w_safety := float((profile.get("weight", {}) as Dictionary).get(NEED_SAFETY, 1.0))
+	var ceiling := 100.0 - maxf(0.0, BAD_BED - comfort) * 1.2 * cw
+	ceiling = minf(ceiling, 100.0 - maxf(0.0, noise) * 1.5)
+	ceiling = minf(ceiling, lerpf(100.0, float(needs.get(NEED_SAFETY, 80.0)), clampf(w_safety, 0.0, 1.5) / 1.5))
+	return clampf(minf(current, ceiling), 0.0, 100.0)
+
+
+## Waking up in the morning: the night's hunger and full bladder at once (MORNING_NEEDS).
+static func wake_needs(needs: Dictionary) -> Dictionary:
+	var out := needs.duplicate()
+	for need in MORNING_NEEDS:
+		out[need] = clampf(float(out.get(need, 70.0)) - float(MORNING_NEEDS[need]), 0.0, 100.0)
+	return out
+
+
 static func step_mood(current: float, target: float, minutes: float) -> float:
 	return clampf(move_toward(current, target, MOOD_FOLLOW_PER_MINUTE * maxf(minutes, 0.0)), 0.0, 100.0)
 
@@ -294,6 +332,8 @@ static func collect_facilities(grid, registry, flags: Dictionary) -> Array:
 			"footprint": def.footprint,
 			"working": working,
 			"reason": reason,
+			# How clean it is (the toilets and showers get dirty with use).
+			"condition": clampf(float(cell.get("maintenance", 1.0)), 0.0, 1.0),
 		})
 	return out
 
@@ -398,7 +438,9 @@ static func _best_facility_for(need: String, facilities: Array, from_coord: Vect
 		var crowd_penalty := 0.0 if busy < cap else 25.0 + float(busy - cap) * 12.0
 		var dist := float(travel_minutes(from_coord, f.get("coord", from_coord)))
 		var like := float(likes.get(str(f.get("type", "")), 1.0))
-		var score := gain * like - dist * 0.8 - crowd_penalty
+		# A dirty block: they would rather walk to a cleaner one.
+		var dirt := (1.0 - float(f.get("condition", 1.0))) * DIRT_PENALTY
+		var score := gain * like - dist * 0.8 - crowd_penalty - dirt
 		if score > best_score:
 			best_score = score
 			best = f

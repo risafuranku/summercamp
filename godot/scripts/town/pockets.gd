@@ -229,7 +229,7 @@ func try_use(what: String, from_bag := false) -> bool:
 		if cig.active():
 			return false
 		if bag == null or not bag.has("cigs"):
-			_say("No cigarettes. The Jednota in Lesna has Start.")
+			_say("No cigarettes. The Jednota in Liblice has Start.")
 			return false
 		bag.consume("cigs")
 		cig.start()
@@ -237,7 +237,7 @@ func try_use(what: String, from_bag := false) -> bool:
 	if bottle.active():
 		return false
 	if bag == null or not bag.has("beer"):
-		_say("No beer. The Jednota in Lesna has Lesnak.")
+		_say("No beer. The Jednota in Liblice has Lesnak.")
 		return false
 	bag.consume("beer")
 	bottle.start()

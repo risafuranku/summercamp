@@ -22,6 +22,13 @@ var _retro_preset: String = DEFAULT_RETRO_PRESET
 var _retro_palette_enabled: bool = true
 var _mouse_sensitivity: float = DEFAULT_MOUSE_SENSITIVITY
 var _invert_mouse_y: bool = false
+## Keys you can change in Controls: action -> [its line in the list, the key it starts on].
+## The walkie-talkie's is V (X is the cigarette's and the bottle's), the megaphone's G.
+const REBINDABLE := {
+	"radio_talk": ["Radio: talk (hold, co-op)", KEY_V],
+	"megaphone_talk": ["Megaphone: shout (hold)", KEY_G],
+}
+var _keys: Dictionary = {}
 
 
 func _ready() -> void:
@@ -159,6 +166,7 @@ func apply_settings() -> void:
 	_apply_window()
 	_apply_audio()
 	_apply_retro()
+	_apply_keys()
 
 
 func load_settings() -> void:
@@ -179,6 +187,8 @@ func load_settings() -> void:
 	_retro_palette_enabled = bool(cfg.get_value("video", "retro_palette", true))
 	_mouse_sensitivity = clampf(float(cfg.get_value("input", "mouse_sensitivity", DEFAULT_MOUSE_SENSITIVITY)), MOUSE_SENSITIVITY_MIN, MOUSE_SENSITIVITY_MAX)
 	_invert_mouse_y = bool(cfg.get_value("input", "invert_mouse_y", false))
+	for action in REBINDABLE.keys():
+		_keys[action] = int(cfg.get_value("keys", action, REBINDABLE[action][1]))
 
 	set_window_mode(mode, false, false)
 	set_resolution(Vector2i(w, h), false, false)
@@ -195,6 +205,8 @@ func save_settings() -> void:
 	cfg.set_value("audio", "master_db", _master_db)
 	cfg.set_value("input", "mouse_sensitivity", _mouse_sensitivity)
 	cfg.set_value("input", "invert_mouse_y", _invert_mouse_y)
+	for action in REBINDABLE.keys():
+		cfg.set_value("keys", action, get_key(action))
 	cfg.save(SETTINGS_PATH)
 
 
@@ -219,6 +231,50 @@ func _apply_window() -> void:
 		_:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 			DisplayServer.window_set_size(_resolution)
+
+
+## The key an action is on (a physical keycode).
+func get_key(action: String) -> int:
+	return int(_keys.get(action, REBINDABLE[action][1] if REBINDABLE.has(action) else KEY_NONE))
+
+
+func key_name(action: String) -> String:
+	return OS.get_keycode_string(get_key(action))
+
+
+func set_key(action: String, keycode: int, persist: bool = true) -> void:
+	if not REBINDABLE.has(action):
+		return
+	_keys[action] = keycode
+	_apply_keys()
+	if persist:
+		save_settings()
+	_emit_changed()
+
+
+## What else is on that key (a line for the Controls page), "" nothing.
+func key_clash(action: String, keycode: int) -> String:
+	for other in REBINDABLE.keys():
+		if other != action and get_key(other) == keycode:
+			return str(REBINDABLE[other][0])
+	for a in InputMap.get_actions():
+		var name := str(a)
+		if name.begins_with("ui_") or REBINDABLE.has(name):
+			continue
+		for ev in InputMap.action_get_events(a):
+			if ev is InputEventKey and ((ev as InputEventKey).physical_keycode == keycode or (ev as InputEventKey).keycode == keycode):
+				return name.replace("_", " ")
+	return ""
+
+
+func _apply_keys() -> void:
+	for action in REBINDABLE.keys():
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+		InputMap.action_erase_events(action)
+		var ev := InputEventKey.new()
+		ev.physical_keycode = get_key(action)
+		InputMap.action_add_event(action, ev)
 
 
 func _apply_audio() -> void:

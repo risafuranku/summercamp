@@ -25,6 +25,20 @@ const BUS_RIDE = preload("res://scripts/town/bus_ride.gd")
 const TOWN = preload("res://scripts/town/town_lesna.gd")
 const MASTS = preload("res://scripts/town/liblice_masts.gd")
 const HAMLET = preload("res://scripts/town/hamlet_trip.gd")
+const TICKET_MACHINE = preload("res://scripts/town/ticket_machine.gd")
+const MACHINE_CLOSEUP = preload("res://scripts/town/ticket_machine_closeup.gd")
+const GEO = preload("res://scripts/geo/geo_data.gd")
+const BALANCE = preload("res://core/balance/balance_config.gd")
+const GEO_WORLD = preload("res://scripts/geo/geo_world.gd")
+## The game's Liblice (town_lesna.gd: the Jednota, the pub, the green, the motel, the
+## station) stands with its centre this far up Bylanska past the stop, its street along
+## the real one.
+const LIBLICE_PAST_STOP := 213.0
+## The real land is built round you (geo_world.gd); the village and the farm when you
+## come this near them.
+const TOWN_NEAR := 1200.0
+const HAMLET_NEAR := 900.0
+const HAMLET_PLACE = preload("res://scripts/town/hamlet_podlesi.gd")
 const POCKETS = preload("res://scripts/town/pockets.gd")
 const INVENTORY = preload("res://scripts/ui/inventory.gd")
 const SHOP = preload("res://scripts/town/shop_closeup.gd")
@@ -42,19 +56,35 @@ const DRIVER_LINES := [
 	"Five minutes. Then I go, with you or without you.",
 	"The works bus? Not mine. Nobody's, if you ask me.",
 ]
+## His voice for each (tools/audiogen/bus_talk.tsv d_out*), from the bus's door.
+const DRIVER_VOICE := ["d_out1", "d_out2", "d_out3", "d_out4"]
 const MOTEL_PRICE := 15
+## Ten litres for Vondra's can at Liblice's pumps.
+const CAN_PRICE := 4
+const LOJZA_LINES := [
+	"Work? Grab a nozzle. Green's Natural, yellow's Special, black's diesel. Mix them up and I mix you up.",
+	"Paid by the car, and they tip if you stop it right on the money.",
+	"That Tatra comes through at night sometimes, no plates, never pays. I just fill it. You would too.",
+	"Everything off the twelve stops here. The ones going up to your camp fill up like they are not coming back.",
+]
+const LOJZA_NIGHT := "Closed. Go to bed."
 const MEMORIAL := "1914 - 1918, nine names. 1939 - 1945, four. Under them a newer brass plate, screwed on crooked: CERNE JEZERO 1994. No names. Somebody keeps it polished."
 const CHAPEL := "Locked. A card in the window: mass at nine on Sundays, the bell at noon and at six. Under it, in pencil: and at three in the morning, but that is not us."
 ## How long a bus takes to come in to a stop and to go (game hours).
 const IN_HOURS := 0.22
 const OUT_HOURS := 0.3
-## The Hlubocany bus stops in Lesna this long.
+## The Lstibor bus stops in Liblice this long.
 const THROUGH_STAND := 0.08
-## How long you are counted as in Lesna once you are this far from the camp (m).
-const AWAY_DIST := 1500.0
+## Out of the camp: this far from its middle (m) the night leaves you alone (the stop is
+## ~200 m off, Pristoupim 2 km, Liblice 2.9 km: scripts/geo/).
+const AWAY_DIST := 420.0
 
 var _im: Node
 var _timetable
+## The stop's ticket machine close up, and where the last ticket from it is for (the
+## ride stops at Podlesi by itself for one to PODLESI).
+var _machine
+var _bought_to := ""
 var _ride
 var _town
 var _masts
@@ -70,6 +100,7 @@ var _works_town
 var _special: Dictionary = {}
 var _boarding_stop := ""
 var _driver_line := 0
+var _lojza_line := 0
 var pockets
 ## The warden's bag (scripts/ui/inventory.gd): what is bought here goes into it.
 var inventory
@@ -121,9 +152,9 @@ func _pockets_allowed() -> bool:
 		return false
 	if not bool(main.get("_gameplay_started")) or bool(main.get("_menu_mode")):
 		return false
-	if (_ride != null and _ride.is_open()) or (_town != null and _town.spots["job"].is_open()):
+	if (_ride != null and _ride.is_open()) or (_job() != null and _job().is_open()):
 		return false
-	if _timetable != null and _timetable.visible:
+	if (_timetable != null and _timetable.visible) or (_machine != null and _machine.visible):
 		return false
 	return not _sleeping
 
@@ -162,9 +193,7 @@ func away() -> bool:
 	var p := _player()
 	if p == null:
 		return false
-	if _hamlet != null and _hamlet.near(p.global_position):
-		return true
-	return _town != null and p.global_position.distance_to(TOWN.ORIGIN) < AWAY_DIST
+	return Vector2(p.global_position.x, p.global_position.z).length() > AWAY_DIST
 
 
 # ── clicking things out there ────────────────────────────────────────────────
@@ -182,19 +211,27 @@ func hint_for(structure: Node3D) -> String:
 			return "Lower the barrier" if gate != null and gate.is_raised() else "Raise the barrier"
 		"trip_timetable":
 			return "Read the timetable"
+		"trip_ticket_machine":
+			return "Buy a ticket"
 		"trip_bus":
 			return "Get on the bus"
 		"town_npc":
 			return "Talk to %s" % (_town.spots["people"].name_of(str(structure.get_meta("who", ""))) if _town != null else "them")
 		"town_read":
 			return "Read the memorial"
+		"town_bench":
+			return "" if _seated_on != null else "Sit down"
 		"town_pump":
-			var job = _town.spots["job"] if _town != null else null
+			return "Fill the petrol can" if _hamlet != null and str(_hamlet.state["has"]["canister"]) == "empty" else "Look at the pump"
+		"trip_pump":
+			var job = _job()
 			if job != null and job.waiting_at(int(structure.get_meta("pump", 0))):
 				return "Fill the car"
 			if job != null and not job.on and _open("kiosk"):
 				return "Ask Lojza for work"
 			return ""
+		"trip_lojza":
+			return "Talk to Lojza"
 		"town_door":
 			match str(structure.get_meta("door", "")):
 				"jednota":
@@ -236,23 +273,39 @@ func interact(structure: Node3D) -> void:
 				_say(why)
 		"trip_timetable":
 			_open_timetable(str(structure.get_meta("stop", "camp")))
+		"trip_ticket_machine":
+			_open_machine(str(structure.get_meta("stop", "camp")))
 		"trip_bus":
 			_board(str(structure.get_meta("stop", "camp")))
 		"town_npc":
 			var who := str(structure.get_meta("who", ""))
 			if who == "driver":
-				_quote("Driver", DRIVER_LINES[_driver_line % DRIVER_LINES.size()])
+				var k := _driver_line % DRIVER_LINES.size()
+				_quote("Driver", DRIVER_LINES[k])
+				_driver_voice(str(DRIVER_VOICE[k]), structure)
 				_driver_line += 1
-				return
-			if who == "lojza" and _open("kiosk") and not _town.spots["job"].on:
-				_start_job()
 				return
 			var said: Array = _town.spots["people"].talk(who, hour())
 			_quote(str(said[0]), str(said[1]))
 		"town_read":
 			_say(MEMORIAL)
+		"town_bench":
+			_sit(structure)
 		"town_pump":
-			var job = _town.spots["job"]
+			_fill_can()
+		"trip_lojza":
+			var job = _job()
+			if job != null and _open("kiosk") and not job.on:
+				_start_job()
+			elif not _open("kiosk"):
+				_quote("Lojza", LOJZA_NIGHT)
+			else:
+				_quote("Lojza", LOJZA_LINES[_lojza_line % LOJZA_LINES.size()])
+				_lojza_line += 1
+		"trip_pump":
+			var job = _job()
+			if job == null:
+				return
 			var pump := int(structure.get_meta("pump", 0))
 			if not _open("kiosk"):
 				_quote("Lojza", "Come back when I have got cars. Mornings are best, the Tatra is gone by then.")
@@ -267,9 +320,46 @@ func interact(structure: Node3D) -> void:
 			_door(str(structure.get_meta("door", "")))
 
 
+## The driver's Czech (bus_talk.tsv "d_*") from where he is: his bus (or what was clicked).
+func _driver_voice(key: String, near: Node) -> void:
+	var path := "res://assets/sfx/bus/talk/%s_1.mp3" % key
+	if not ResourceLoader.exists(path):
+		return
+	var bus: Node = near
+	while bus != null and not bus.has_method("play"):
+		bus = bus.get_parent()
+	if bus != null:
+		bus.play(path, -2.0)
+
+
+## Lojza's job is at the Benzina by the camp's turn off road 12 (geo_world.gd); Liblice's
+## is only for filling up.
+func _job():
+	return _geo.pump_job if _geo != null and is_instance_valid(_geo) else null
+
+
+## Liblice's Benzina: self-service, pay at the kiosk window. Only your petrol can (from
+## Vondra's garage) wants filling.
+func _fill_can() -> void:
+	var has: Dictionary = _hamlet.state["has"] if _hamlet != null else {}
+	match str(has.get("canister", "")):
+		"empty":
+			if not _open("kiosk"):
+				_say("The pump is locked for the night. A card on it: 6 - 21.")
+			elif CoreRoot.get_money() < CAN_PRICE or not CoreRoot.actions.spend_money(CAN_PRICE):
+				_say("Ten litres of Natural is $%d at the kiosk window. You have not got it." % CAN_PRICE)
+			else:
+				has["canister"] = "full"
+				_say("Ten litres of Natural into the can, $%d through the kiosk window. It smells of the whole of 1985." % CAN_PRICE)
+		"full":
+			_say("The can is full already.")
+		_:
+			_say("Self-service: fill up, then pay at the kiosk window. You have nothing to fill.")
+
+
 ## Lojza's shift: cars come in off the road until you walk off or he shuts at nine.
 func _start_job() -> void:
-	var job = _town.spots["job"]
+	var job = _job()
 	if not job.paid.is_connected(_on_job_paid):
 		job.paid.connect(_on_job_paid)
 		job._closeup_closed_hook = _on_closeup_closed
@@ -293,7 +383,7 @@ func _door(which: String) -> void:
 	match which:
 		"jednota":
 			if not _open("jednota"):
-				_say("A card on the glass: JEDNOTA LESNA 42. Mon - Fri 7 - 17, Sat 7 - 11. Batteries sold out.")
+				_say("A card on the glass: JEDNOTA U MARKŮ, LIBLICE 42. Mon - Fri 7 - 17, Sat 7 - 11. Batteries sold out.")
 				return
 			_open_room("jednota")
 		"pub":
@@ -426,6 +516,17 @@ func _open_timetable(stop: String) -> void:
 	_timetable.open_view()
 
 
+func _open_machine(stop: String) -> void:
+	if _machine == null:
+		_machine = MACHINE_CLOSEUP.new()
+		add_child(_machine)
+		_machine.closed.connect(_on_closeup_closed)
+		_machine.ticket_taken.connect(func(to: String): _bought_to = to)
+	_machine.stop = stop
+	_set_player_controls(false)
+	_machine.open_view()
+
+
 func _on_closeup_closed() -> void:
 	_set_player_controls(true)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -446,16 +547,19 @@ func _say(text: String) -> void:
 
 ## A close-up or the bus of ours is open (InteriorManager counts it as a room).
 func is_open() -> bool:
-	return (_timetable != null and _timetable.visible) or (_ride != null and _ride.is_open()) \
+	return (_timetable != null and _timetable.visible) or (_machine != null and _machine.visible) \
+		or (_ride != null and _ride.is_open()) \
 		or (_shop != null and _shop.visible) or (_pub != null and _pub.visible) \
 		or (_room != null and _room.is_open()) \
-		or (_town != null and _town.spots["job"].is_open()) \
+		or (_job() != null and _job().is_open()) \
 		or (_hamlet != null and _hamlet.is_open())
 
 
 func close_interior() -> void:
 	if _timetable != null and _timetable.visible:
 		_timetable.close_view()
+	if _machine != null and _machine.visible:
+		_machine.close_view()
 	if _ride != null and _ride.is_open():
 		_ride.close_interior()
 	if _shop != null and _shop.visible:
@@ -464,8 +568,8 @@ func close_interior() -> void:
 		_pub.close_view()
 	if _room != null and _room.is_open():
 		_room.close()
-	if _town != null and _town.spots["job"].is_open():
-		_town.spots["job"].close()
+	if _job() != null and _job().is_open():
+		_job().close()
 	if _hamlet != null:
 		_hamlet.close()
 
@@ -487,6 +591,21 @@ func _process(delta: float) -> void:
 	var road := _road()
 	if road == null:
 		return
+	_ensure_country()
+	_update_seated()
+	_update_ride_clock()
+	var me := _player()
+	if _geo != null and is_instance_valid(_geo) and me != null:
+		_geo.update(_eye_for_geo(me))
+		if _town == null and me.global_position.distance_to(TOWN.ORIGIN) < TOWN_NEAR:
+			_ensure_town()
+		if me.global_position.distance_to(HAMLET_PLACE.HAMLET_ORIGIN) < HAMLET_NEAR:
+			_hamlet.ensure()
+	if _masts != null and is_instance_valid(_masts):
+		# The world's camera is in main's SubViewport, not ours: the player's eye.
+		var eye := _player()
+		if eye != null:
+			_masts.update_view(_eye_for_geo(eye) + Vector3(0, 1.6, 0))
 	if _camp_bus == null or not is_instance_valid(_camp_bus):
 		# A new game builds a new road (and the old bus went with the old one).
 		_runs.erase("camp")
@@ -502,6 +621,8 @@ func _process(delta: float) -> void:
 		_night_poll = 1.0
 		_night = h >= 19.0 or h < 6.0
 		_camp_bus.set_night(_night)
+		if _geo != null and is_instance_valid(_geo):
+			_geo.set_hour(h)
 		_update_masts()
 		_hamlet.tick_hour(h, _night)
 		if _town != null:
@@ -510,14 +631,17 @@ func _process(delta: float) -> void:
 			if _town_bus != null:
 				_town_bus.set_night(_night)
 	_coop_hold("camp", _camp_bus)
+	_coop_hold_hamlet()
 	_run_stop("camp", _camp_bus, delta, h)
+	_update_mate_bus(delta)
 	_hamlet.update(h, delta)
 	_run_works(h, delta)
 	if _town != null:
 		_coop_hold("town", _town_bus)
 		_run_stop("town", _town_bus, delta, h)
 		_town.spots["people"].update(h, delta)
-		_watch_job(h)
+		_town.spots["station_cars"].traffic = _open("kiosk")
+	_watch_job(h)
 	_update_village_sound(h)
 	_update_sleep(delta)
 
@@ -533,8 +657,8 @@ func _update_masts() -> void:
 		if world == null:
 			return
 		_masts = MASTS.new()
-		_masts.position = TOWN.ORIGIN
 		world.add_child(_masts)
+		_masts.position = Vector3.ZERO
 		_masts.build()
 	_masts.set_night(_night)
 	var env_node = main.get("world_environment")
@@ -544,12 +668,12 @@ func _update_masts() -> void:
 
 
 ## The shift ends when you walk off from the station or at nine.
-func _watch_job(h: float) -> void:
-	var job = _town.spots["job"]
-	if not job.on:
+func _watch_job(_h: float) -> void:
+	var job = _job()
+	if job == null or not job.on:
 		return
 	var p := _player()
-	var far: bool = p == null or p.global_position.distance_to(_town.w(Vector3(48.0, 0, 13.0))) > 32.0
+	var far: bool = p == null or p.global_position.distance_to(_geo.benzina_at) > 32.0
 	if far or not _open("kiosk"):
 		_quote("Lojza", job.end_shift())
 
@@ -680,7 +804,9 @@ func _run_works(h: float, delta: float) -> void:
 		road.add_child(_works_camp)
 		_works_camp.destination = "SLUZEBNI"
 		_works_camp.set_running(false)
-	_pass(_works_camp, road.works_bus_path(), fposmod(h - (TIMES.WORKS_CAMP - WORKS_HOURS * 0.5), 24.0) / WORKS_HOURS, delta)
+	# Along road 12 past the camp's turn, eastwards (scripts/geo/).
+	var r12a := GEO.s_near(Vector3(26.0, 0, -335.0))
+	_pass(_works_camp, GEO.line_path(r12a - 160.0, r12a + 700.0, 1.6, 10.0), fposmod(h - (TIMES.WORKS_CAMP - WORKS_HOURS * 0.5), 24.0) / WORKS_HOURS, delta)
 	if _town != null:
 		if _works_town == null or not is_instance_valid(_works_town):
 			_works_town = BUS_MODEL.new()
@@ -688,7 +814,8 @@ func _run_works(h: float, delta: float) -> void:
 			_town.add_child(_works_town)
 			_works_town.destination = "SLUZEBNI"
 			_works_town.set_running(false)
-		var path := PackedVector3Array([_town.w(Vector3(-150.0, 0, 1.6)), _town.w(Vector3(160.0, 0, 1.6))])
+		var s_l := GEO.stop_s("liblice")
+		var path := GEO.line_path(s_l - 300.0, s_l + 520.0, 1.6, 10.0)
 		_pass(_works_town, path, fposmod(h - (TIMES.WORKS_TOWN - WORKS_HOURS * 0.5), 24.0) / WORKS_HOURS, delta)
 
 
@@ -739,12 +866,12 @@ func _make_runs(stop: String) -> Array:
 	if stop == "camp":
 		var road := _road()
 		for i in TIMES.CAMP_ARRIVE.size():
-			runs.append({"arrive": TIMES.CAMP_ARRIVE[i], "leave": TIMES.CAMP_LEAVE[i], "in": road.bus_arrive_path(), "out": road.bus_leave_path(), "pose": road.bus_stop_pose(), "dest": "LESNA", "stop_id": "camp"})
+			runs.append({"arrive": TIMES.CAMP_ARRIVE[i], "leave": TIMES.CAMP_LEAVE[i], "in": road.bus_arrive_path(), "out": road.bus_leave_path(), "pose": road.bus_stop_pose(), "dest": "LIBLICE", "stop_id": "camp"})
 	else:
 		for i in TIMES.TOWN_ARRIVE.size():
 			runs.append({"arrive": TIMES.TOWN_ARRIVE[i], "leave": TIMES.TOWN_LEAVE[i], "in": _town.bus_arrive_path("to_camp"), "out": _town.bus_leave_path("to_camp"), "pose": _town.bus_pose("to_camp"), "dest": "KEMP", "stop_id": "town"})
 		for t in TIMES.TOWN_THROUGH:
-			runs.append({"arrive": t, "leave": float(t) + THROUGH_STAND, "in": _town.bus_arrive_path("to_hlub"), "out": _town.bus_leave_path("to_hlub"), "pose": _town.bus_pose("to_hlub"), "dest": "HLUBOCANY", "stop_id": "town_through"})
+			runs.append({"arrive": t, "leave": float(t) + THROUGH_STAND, "in": _town.bus_arrive_path("to_hlub"), "out": _town.bus_leave_path("to_hlub"), "pose": _town.bus_pose("to_hlub"), "dest": "LSTIBOR", "stop_id": "town_through"})
 	return runs
 
 
@@ -754,9 +881,12 @@ func _run_special(stop: String, bus: Node3D, sp: Dictionary, delta: float) -> vo
 	bus.set_driver_out(false)
 	if not bus.visible:
 		bus.set_running(true)
-		bus.destination = str(sp.get("dest", "LESNA"))
+		bus.destination = str(sp.get("dest", "LIBLICE"))
 		bus.set_stop(str(sp.get("stop_id", stop)))
 	match str(sp["mode"]):
+		"ride":
+			bus.set_running(false)
+			return
 		"hold":
 			bus.global_transform = sp["pose"]
 			bus.set_speed(0.0)
@@ -824,9 +954,87 @@ func _coop_hold(stop_id: String, bus: Node3D) -> void:
 			var out: PackedVector3Array = _road().bus_leave_path() if stop_id == "camp" else _town.bus_leave_path("to_camp")
 			var run := _plan(stop_id, hour())
 			_coop_gone[stop_id] = float(run.get("leave", hour())) + OUT_HOURS
-			_special[stop_id] = {"mode": "drop", "t": 2.6, "pose": sp["pose"], "leave": out, "dest": sp["dest"], "stop_id": stop_id}
+			_special[stop_id] = {"mode": "drop", "t": 2.6, "pose": sp["pose"], "leave": out, "dest": sp["dest"], "stop_id": stop_id, "mate": true}
 		else:
 			_special.erase(stop_id)
+
+
+## Co-op: another warden aboard at Pristoupim's pole and not gone: the bus there stands for
+## them here too; gone with them (and not you), it pulls away.
+var _hamlet_mate_hold := ""
+
+
+func _coop_hold_hamlet() -> void:
+	if _hamlet == null or not Coop.has_partner() or not _hamlet.is_built():
+		return
+	var aboard := ""
+	var gone := ""
+	for id in Coop.others():
+		var b = Coop.state_of(id).get("bus", {})
+		var m: Dictionary = b if b is Dictionary else {}
+		var st := str(m.get("st", ""))
+		if st.begins_with("hamlet"):
+			if bool(m.get("go", false)):
+				gone = st
+			else:
+				aboard = st
+	var mine: bool = _ride != null and _ride.is_open() and _boarding_stop.begins_with("hamlet")
+	if aboard != "" and not mine:
+		_hamlet.hold(aboard)
+		_hamlet_mate_hold = aboard
+	elif _hamlet_mate_hold != "" and not mine:
+		_hamlet.release()
+		if gone != "":
+			_hamlet.drop(gone == "hamlet_town")
+		_hamlet_mate_hold = ""
+
+
+## Co-op: the other warden's bus on the road, where their ride says it is (15 times a
+## second, eased between). It takes over from the stop's bus pulling away with them; not
+## while you ride (you are on it, or on your own).
+func _update_mate_bus(delta: float) -> void:
+	var want: Dictionary = {}
+	if Coop.has_partner() and not _riding_now():
+		for id in Coop.others():
+			var b = Coop.state_of(id).get("bus", {})
+			if b is Dictionary and (b as Dictionary).has("bt"):
+				want = b
+				break
+	if want.is_empty() and not debug_mate.is_empty():
+		want = debug_mate
+	if want.is_empty():
+		if _mate_bus != null and is_instance_valid(_mate_bus) and _mate_bus.visible:
+			_mate_bus.set_running(false)
+		return
+	if _mate_bus == null or not is_instance_valid(_mate_bus):
+		_mate_bus = BUS_MODEL.new()
+		_mate_bus.name = "Bus380Mate"
+		(_geo if _geo != null and is_instance_valid(_geo) else self).add_child(_mate_bus)
+		_mate_bus.set_running(false)
+	var t: Array = want["bt"]
+	var target := Transform3D(Basis(Vector3.UP, float(t[3])), Vector3(float(t[0]), float(t[1]), float(t[2])))
+	if not _mate_bus.visible:
+		_mate_bus.set_running(true)
+		_mate_bus.global_transform = target
+		_mate_bus.destination = str(want.get("d", GEO.TOWN.to_upper()))
+		_mate_bus.set_night(_night)
+		_mate_bus_night = _night
+		# The stop's bus that pulled away with them: this one is it now.
+		var st := str(want.get("st", ""))
+		var sp: Dictionary = _special.get(st, {})
+		if bool(sp.get("mate", false)):
+			_special.erase(st)
+			var stop_bus = _camp_bus if st == "camp" else (_town_bus if st == "town" else null)
+			if stop_bus != null and is_instance_valid(stop_bus):
+				stop_bus.set_running(false)
+	else:
+		var k := clampf(delta * 10.0, 0.0, 1.0)
+		var cur: Transform3D = _mate_bus.global_transform
+		_mate_bus.global_transform = Transform3D(cur.basis.orthonormalized().slerp(target.basis, k), cur.origin.lerp(target.origin, k))
+	_mate_bus.set_speed(float(want.get("v", 0.0)))
+	if _mate_bus_night != _night:
+		_mate_bus_night = _night
+		_mate_bus.set_night(_night)
 
 
 ## Runs that went early with the other warden: no bus at that stop till their time is up.
@@ -838,6 +1046,16 @@ func coop_state() -> Dictionary:
 	return _ride.coop_state() if _ride != null else {}
 
 
+## Co-op: Pristoupim's job (hamlet_trip.gd), for main's sync "hamlet".
+func coop_hamlet() -> Dictionary:
+	return _hamlet.shared() if _hamlet != null else {}
+
+
+func coop_take_hamlet(d: Dictionary) -> void:
+	if _hamlet != null:
+		_hamlet.take_shared(d)
+
+
 ## Co-op: the place in Lesna you are in ("pub", "jednota"...), "" outside them.
 func coop_place() -> String:
 	return str(_room.place) if _room != null and _room.is_open() else ""
@@ -847,7 +1065,8 @@ func coop_place() -> String:
 
 func _board(stop_id: String) -> void:
 	if stop_id == "town_through":
-		_say("Driver: \"Hlubocany. Yours is the other side, to the camp.\"")
+		_say("Driver: \"Lstibor. Yours is the other side, to the camp.\"")
+		_driver_voice("d_lstibor", _town_bus)
 		return
 	var at_hamlet := stop_id.begins_with("hamlet")
 	var bus = _hamlet.bus_for(stop_id) if at_hamlet else (_camp_bus if stop_id == "camp" else _town_bus)
@@ -866,6 +1085,8 @@ func _board(stop_id: String) -> void:
 		_ride.left_bus.connect(_on_left_bus)
 	_ride.worldgen = _worldgen()
 	_ride.stop_pos = bus.global_position
+	_ride.bought_to = _bought_to
+	_ride_road(stop_id, bus)
 	if _im != null and _im.has_method("_door_transition"):
 		_im._door_transition(true)
 	_set_player_controls(false)
@@ -875,9 +1096,108 @@ func _board(stop_id: String) -> void:
 	_ride.open_ride(stop_id, hour(), fog, rain)
 
 
+## The road this ride takes (scripts/geo/): from the bus where it stands to where you
+## will get off, in its lane, the speed the road allows at each point; the ride bus
+## put where the stop's bus stood, which steps out of the way.
+const RIDE_SPEED := {"road12": 19.5, "village": 12.0, "open": 15.5, "camp": 8.5}
+
+
+func _ride_road(stop_id: String, bus: Node3D) -> void:
+	var road := _road()
+	var s_p := GEO.stop_s("pristoupim")
+	var s_l := GEO.stop_s("liblice")
+	var pts := PackedVector3Array()
+	var lim := PackedFloat32Array()
+	var hamlet_at := Vector3.INF
+	match stop_id:
+		"camp":
+			_append(pts, lim, road.bus_leave_path(), -1.0)
+			_append_line(pts, lim, 60.0, s_l + 4.0)
+			hamlet_at = GEO.at(s_p + 5.0, 1.6)["p"]
+		"hamlet_town":
+			_append_line(pts, lim, s_p + 5.0, s_l + 4.0)
+		"town":
+			_append_line(pts, lim, s_l - 4.0, 60.0)
+			_append(pts, lim, road.bus_arrive_path(), -1.0)
+			hamlet_at = GEO.at(s_p - 5.0, -1.6)["p"]
+		"hamlet_camp":
+			_append_line(pts, lim, s_p - 5.0, 60.0)
+			_append(pts, lim, road.bus_arrive_path(), -1.0)
+	# Slower in the bends: what a bus can take round a curve of that radius.
+	for i in range(1, pts.size() - 1):
+		var a := pts[maxi(0, i - 3)]
+		var b := pts[i]
+		var c := pts[mini(pts.size() - 1, i + 3)]
+		var ang := (b - a).normalized().angle_to((c - b).normalized())
+		if ang > 0.02:
+			var radius := (a.distance_to(b) + b.distance_to(c)) / ang
+			lim[i] = minf(lim[i], maxf(4.0, sqrt(1.7 * radius)))
+	_ride.path = pts
+	_ride.path_limits = lim
+	_ride.path_hamlet = -1.0
+	if hamlet_at != Vector3.INF:
+		var acc := 0.0
+		var best := 1e9
+		for i in pts.size():
+			if i > 0:
+				acc += pts[i].distance_to(pts[i - 1])
+			var d := pts[i].distance_to(hamlet_at)
+			if d < best:
+				best = d
+				_ride.path_hamlet = acc
+	if _ride_bus == null or not is_instance_valid(_ride_bus):
+		_ride_bus = BUS_MODEL.new()
+		_ride_bus.name = "Bus380Ride"
+		_geo.add_child(_ride_bus)
+	_ride_bus.set_running(true)
+	_ride_bus.set_inside_visible(false)
+	_ride_bus.destination = bus.destination
+	_ride_bus.set_night(_night)
+	_ride_bus.set_driver_out(false)
+	_ride_bus.global_transform = bus.global_transform
+	_ride_bus.open_door(true, true)
+	_ride.ride_bus = _ride_bus
+	# The stop's own bus steps out (the ride's stands where it stood).
+	if stop_id.begins_with("hamlet"):
+		_hamlet.riding = true
+	else:
+		_special[stop_id]["mode"] = "ride"
+
+
+func _append(pts: PackedVector3Array, lim: PackedFloat32Array, more: PackedVector3Array, speed: float) -> void:
+	for p in more:
+		if pts.size() > 0 and pts[pts.size() - 1].distance_to(p) < 0.5:
+			continue
+		pts.append(p)
+		lim.append(speed if speed > 0.0 else float(RIDE_SPEED["camp"]))
+
+
+## The real route from `s0` to `s1` in the bus's lane, with the speed each stretch
+## allows: road 12 between the camp's junction and Pristoupim's, the villages, the open
+## road between.
+func _append_line(pts: PackedVector3Array, lim: PackedFloat32Array, s0: float, s1: float) -> void:
+	var r12a := GEO.s_near(Vector3(26.0, 0, -335.0))
+	var r12b := GEO.s_near(Vector3(2228.0, 0, 17.0))
+	var s_p := GEO.stop_s("pristoupim")
+	var s_l := GEO.stop_s("liblice")
+	var line := GEO.line_path(s0, s1, 1.6)
+	for k in line.size():
+		var s := lerpf(s0, s1, float(k) / float(maxi(1, line.size() - 1)))
+		var v: float = RIDE_SPEED["open"]
+		if s > r12a + 15.0 and s < r12b - 25.0:
+			v = RIDE_SPEED["road12"]
+		elif absf(s - s_p) < 160.0 or s > s_l - 260.0:
+			v = RIDE_SPEED["village"]
+		if pts.size() > 0 and pts[pts.size() - 1].distance_to(line[k]) < 0.5:
+			continue
+		pts.append(line[k])
+		lim.append(v)
+
+
 func _on_left_bus() -> void:
 	# Back out at the door: the bus goes on with its own time.
 	_special.erase(_boarding_stop)
+	_end_ride_bus()
 	if _boarding_stop.begins_with("hamlet"):
 		_hamlet.release()
 	if _im != null and _im.has_method("_door_transition"):
@@ -885,10 +1205,29 @@ func _on_left_bus() -> void:
 	_set_player_controls(true)
 
 
+## The ride's bus goes; the stop's buses are themselves again, the clock its pace.
+func _end_ride_bus() -> void:
+	if _ride_bus != null and is_instance_valid(_ride_bus):
+		_ride_bus.set_running(false)
+	if _hamlet != null:
+		_hamlet.riding = false
+	var main := _main()
+	if main != null:
+		main.set("clock_scale", 1.0)
+	if _ride != null:
+		_ride.clock_scale = 1.0
+
+
 func _on_ride_arrived() -> void:
 	var from := _boarding_stop
 	var towards_town := from == "camp" or from == "hamlet_town"
 	_special.erase(from)
+	# The run you rode is gone from where you got on (it left with you, early).
+	if from == "camp" or from == "town":
+		var run := _plan(from, hour())
+		if not run.is_empty():
+			_coop_gone[from] = float(run.get("leave", hour())) + OUT_HOURS
+	_end_ride_bus()
 	if from.begins_with("hamlet"):
 		_hamlet.release()
 	else:
@@ -907,15 +1246,73 @@ func _on_ride_arrived() -> void:
 		_ensure_town()
 		_put_player(_town.arrive_spot().translated(beside))
 		# The bus you came on stands a moment by the square and goes on to Hlubocany.
-		_special["town"] = {"mode": "drop", "t": 0.0, "pose": _town.bus_pose("to_hlub"), "leave": _town.bus_leave_path("to_hlub"), "dest": "HLUBOCANY", "stop_id": "town_through"}
+		_special["town"] = {"mode": "drop", "t": 0.0, "pose": _town.bus_pose("to_hlub"), "leave": _town.bus_leave_path("to_hlub"), "dest": "LSTIBOR", "stop_id": "town_through"}
 	else:
 		var road := _road()
 		_put_player(road.wait_spot().translated(beside))
 		# The end of the line: it stands, then turns in the loop and goes back.
-		_special["camp"] = {"mode": "drop", "t": -14.0, "pose": road.bus_stop_pose(), "leave": road.bus_leave_path(), "dest": "LESNA", "stop_id": "camp"}
+		_special["camp"] = {"mode": "drop", "t": -14.0, "pose": road.bus_stop_pose(), "leave": road.bus_leave_path(), "dest": "LIBLICE", "stop_id": "camp"}
 	if _im != null and _im.has_method("_door_transition"):
 		_im._door_transition(false)
 	_set_player_controls(true)
+
+
+## The stop's machine: a ticket for the 380 into the bag (punch it on the bus).
+func _buy_ticket() -> void:
+	if inventory != null and not inventory.room_for("ticket"):
+		_say("No room in the bag for a ticket.")
+		return
+	if CoreRoot.get_money() < TICKET_MACHINE.PRICE or not CoreRoot.actions.spend_money(TICKET_MACHINE.PRICE):
+		_say("Two dollars. You have not got two dollars.")
+		return
+	var a := AudioStreamPlayer.new()
+	a.stream = load("res://assets/sfx/bus/ticket_print.mp3")
+	a.volume_db = -6.0
+	add_child(a)
+	a.play()
+	a.finished.connect(a.queue_free)
+	if inventory != null:
+		inventory.add_item("ticket")
+	_bought_to = ""
+	_say("A ticket for the 380. Punch it on the bus, in the orange box.")
+
+
+## On a bench: down onto it looking the way it faces, the eye lower, the mouse still
+## looks round; walking (or E) gets you up again (_process).
+var _seated_on: Node3D
+var _seated_head := Vector3.ZERO
+var _seated_ms := 0
+
+
+func _sit(seat: Node3D) -> void:
+	var p := _player()
+	if p == null or _seated_on != null or not ("seated" in p):
+		return
+	var bench := seat.get_parent() as Node3D
+	var feet := bench.global_transform * Vector3(0, 0, 0.12)
+	p.global_position = Vector3(feet.x, p.global_position.y, feet.z)
+	p.rotation = Vector3(0, bench.global_rotation.y + PI, 0)
+	p.set("seated", true)
+	_seated_head = p.get("_base_head_pos")
+	p.set("_base_head_pos", _seated_head - Vector3(0, 0.5, 0))
+	_seated_on = bench
+	_seated_ms = Time.get_ticks_msec()
+
+
+func _update_seated() -> void:
+	if _seated_on == null:
+		return
+	var p := _player()
+	var moving := Input.get_vector("move_left", "move_right", "move_forward", "move_backward").length() > 0.2
+	var again := Input.is_action_just_pressed("interact") and Time.get_ticks_msec() - _seated_ms > 400
+	if p == null or moving or again or not is_instance_valid(_seated_on) or is_open():
+		if p != null:
+			p.set("seated", false)
+			p.set("_base_head_pos", _seated_head)
+			if is_instance_valid(_seated_on):
+				var out := _seated_on.global_transform * Vector3(0, 0, 0.75)
+				p.global_position = Vector3(out.x, p.global_position.y, out.z)
+		_seated_on = null
 
 
 func _put_player(xf: Transform3D) -> void:
@@ -929,7 +1326,120 @@ func _put_player(xf: Transform3D) -> void:
 		(p as CharacterBody3D).velocity = Vector3.ZERO
 
 
+## The real land round the camp (scripts/geo/geo_world.gd), made once for each new camp
+## road; it says where the two places stand.
+var _geo
+var _country_road_id := 0
+## The bus you ride (bus_model.gd): it carries bus_ride.gd's cabin along the real road;
+## the stops' own buses step out of the way for it and take over where you get off.
+var _ride_bus
+## Co-op: the bus the other warden rides, on this machine (their ride's "bt").
+var _mate_bus
+var _mate_bus_night := false
+## Tests only (tools): a ride state as if from the other machine, for the mate bus.
+var debug_mate := {}
+
+
+## The real land round the camp (scripts/geo/): built once per camp (a new game makes a
+## new road and with it the land again); Liblice's centre and the farm at Pristoupim set
+## in it first, their ground cleared of the real houses.
+func _ensure_country() -> void:
+	var road := _road()
+	if road == null or (_geo != null and is_instance_valid(_geo) and _country_road_id == road.get_instance_id()):
+		return
+	if _geo != null and is_instance_valid(_geo):
+		_geo.queue_free()
+	_place_towns()
+	var main := _main()
+	var world: Node = main.get("_world_3d") if main != null and main.get("_world_3d") != null else main
+	_geo = GEO_WORLD.new()
+	world.add_child(_geo)
+	_geo.build(_worldgen())
+	for poly in _clearings():
+		_geo.clear_area(poly)
+	_country_road_id = road.get_instance_id()
+	if _masts != null and is_instance_valid(_masts):
+		_masts.position = Vector3.ZERO
+
+
+## While you (or the other warden) ride, the clock runs so the ride takes the
+## timetable's minutes: thirteen of them for the real road's five or so.
+func _update_ride_clock() -> void:
+	var main := _main()
+	if main == null:
+		return
+	var scale := 1.0
+	if _ride != null and _ride.is_open() and _ride.is_riding():
+		if _ride.clock_scale >= 0.999:
+			var minutes := TIMES.RIDE_HOURS * 60.0
+			if _boarding_stop.begins_with("hamlet"):
+				minutes = (TIMES.RIDE_HOURS - TIMES.TO_PRISTOUPIM) * 60.0 if _boarding_stop == "hamlet_town" else TIMES.TO_PRISTOUPIM * 60.0
+			_ride.clock_scale = clampf(minutes / maxf(30.0, _ride.expected_seconds()) / BALANCE.GAME_MINUTES_PER_SECOND, 0.01, 1.0)
+		scale = _ride.clock_scale
+	elif _hamlet != null and _hamlet.driving():
+		scale = _hamlet.drive_clock()
+	elif Coop.has_partner() and Coop.is_host():
+		for id in Coop.others():
+			var b = Coop.state_of(id).get("bus", {})
+			if b is Dictionary and bool((b as Dictionary).get("go", false)):
+				scale = minf(scale, float((b as Dictionary).get("cs", 1.0)))
+	main.set("clock_scale", scale)
+
+
+## Where the land is built round: you, or the bus you ride.
+func _eye_for_geo(me: Node3D) -> Vector3:
+	if _riding_now():
+		return _ride_bus.global_position
+	# In old Vondra's Skoda (hamlet_trip.gd, skoda_ride.gd).
+	if _hamlet != null and _hamlet.driving():
+		return _hamlet.drive_eye()
+	return me.global_position
+
+
+func _riding_now() -> bool:
+	return _ride != null and _ride.is_open() and _ride_bus != null and is_instance_valid(_ride_bus) and _ride_bus.visible
+
+
+## The game's village in the real Liblice, its street along Bylanska past the stop, and
+## the farm at the Pristoupim stop, its road along 1131 (both frames: local +x along the
+## way the bus goes).
+func _place_towns() -> void:
+	TOWN.GEO_MODE = true
+	var c: Dictionary = GEO.at(GEO.stop_s("liblice") + LIBLICE_PAST_STOP)
+	var d: Vector3 = c["dir"]
+	TOWN.ORIGIN = c["p"]
+	TOWN.YAW = atan2(-d.z, d.x)
+	var h: Dictionary = GEO.stop_point("pristoupim")
+	var hd: Vector3 = h["dir"]
+	HAMLET_PLACE.HAMLET_ORIGIN = h["p"]
+	HAMLET_PLACE.HAMLET_YAW = atan2(-hd.z, hd.x)
+
+
+## The game's own places in the real land (world xz): Liblice's centre and its stop, the
+## farm at Pristoupim with its track, the ruin by the road, its stop poles.
+func _clearings() -> Array:
+	var out: Array = []
+	var tb := Basis(Vector3.UP, TOWN.YAW)
+	var stop_p: Vector3 = GEO.stop_point("liblice")["p"]
+	var stop_local := tb.inverse() * (stop_p - TOWN.ORIGIN)
+	out.append(_rect_poly(Rect2(-82.0, -62.0, 166.0, 112.0), TOWN.ORIGIN, tb))
+	out.append(_rect_poly(Rect2(stop_local.x - 14.0, -10.0, 28.0, 20.0), TOWN.ORIGIN, tb))
+	var hb := Basis(Vector3.UP, HAMLET_PLACE.HAMLET_YAW)
+	for r in [Rect2(-46.0, 5.0, 92.0, 152.0), Rect2(-84.0, -18.0, 28.0, 16.0), Rect2(-12.0, -9.0, 24.0, 18.0)]:
+		out.append(_rect_poly(r, HAMLET_PLACE.HAMLET_ORIGIN, hb))
+	return out
+
+
+func _rect_poly(r: Rect2, origin: Vector3, b: Basis) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for c in [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]:
+		var p: Vector3 = origin + b * Vector3(c.x, 0, c.y)
+		out.append(Vector2(p.x, p.z))
+	return out
+
+
 func _ensure_town() -> void:
+	_ensure_country()
 	if _town != null:
 		return
 	_town = TOWN.new()
@@ -953,6 +1463,7 @@ func export_state() -> Dictionary:
 
 
 func import_state(d: Dictionary) -> void:
+	_ensure_country()
 	# Saved in Lesna: Lesna is there again (the player's position is the game's).
 	if bool(d.get("in_town", false)):
 		_ensure_town()

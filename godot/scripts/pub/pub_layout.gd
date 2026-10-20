@@ -181,7 +181,7 @@ static func bar(parent: Node3D, si) -> void:
 	look(parent, "brewery sign", "The brewery closed in 1991. The sign stayed; the beer changed.", Vector3(-0.9, 1.75, -2.25), Vector3(0.7, 0.52, 0.1))
 	_cut(parent, "pub_pennant", Vector2(0.3, 0.36), Vector3(-2.0, 1.9, -2.28), 0.0, false, "Pennant")
 	_cut(parent, "pub_pennant", Vector2(0.28, 0.34), Vector3(-1.62, 1.95, -2.28), 0.0, false, "Pennant")
-	look(parent, "pennants", "SK Lesna. Promoted in 1983, relegated in 1984.", Vector3(-1.8, 2.0, -2.25), Vector3(0.7, 0.4, 0.1))
+	look(parent, "pennants", "SK Liblice. Promoted in 1983, relegated in 1984.", Vector3(-1.8, 2.0, -2.25), Vector3(0.7, 0.4, 0.1))
 	_cut(parent, "pub_calendar", Vector2(0.32, 0.46), Vector3(0.15, 1.65, -2.28), 0.0, false, "Calendar")
 	look(parent, "calendar", "September 1986. Nobody has turned it over.", Vector3(0.15, 1.65, -2.25), Vector3(0.32, 0.46, 0.1))
 	K.cutout(parent, "wall_clock", Vector2(0.3, 0.3), Vector3(2.4, 1.85, -2.28), 0.0, false, "Clock")
@@ -206,7 +206,7 @@ static func bar(parent: Node3D, si) -> void:
 	_cut(parent, "pub_board", Vector2(0.5, 0.42), Vector3(2.88, 1.55, 1.3), -90.0, false, "DebtSlate")
 	look(parent, "slate", "DLUZNICI, who owes for beer. The top name is rubbed out every morning and is back every night.", Vector3(2.85, 1.55, 1.3), Vector3(0.1, 0.42, 0.5))
 	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.88, 1.6, 0.55), -90.0, "PubPoster")
-	look(parent, "poster", "Lake Lesna, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, 0.55), Vector3(0.1, 0.8, 0.6))
+	look(parent, "poster", "Cerne jezero, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, 0.55), Vector3(0.1, 0.8, 0.6))
 	_cut(parent, "pub_hockey", Vector2(0.5, 0.36), Vector3(-0.2, 1.65, 2.28), 180.0, false, "TeamPhoto")
 	_cut(parent, "pub_print", Vector2(0.5, 0.4), Vector3(0.6, 1.65, 2.28), 180.0, false, "PondPrint")
 	# The front corner: the stove and its coal, the coat stand, the fly paper.

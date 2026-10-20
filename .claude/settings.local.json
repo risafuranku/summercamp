@@ -5,7 +5,9 @@
       "Bash(find:*)",
       "Bash(python3:*)",
       "Bash(/tmp/crt_builder_clean.gd:*)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(python -c ' *)",
+      "Bash(python tools/gen_stink_sprites.py)"
     ]
   }
 }

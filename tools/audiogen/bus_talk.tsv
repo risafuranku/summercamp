@@ -1,0 +1,82 @@
+# People on the 380 talking (scripts/town/bus_ride.gd plays them; tools/audiogen/bus_talk.py says them).
+# scene <TAB> n <TAB> role <TAB> voice <TAB> Czech (spoken) <TAB> English (subtitle)
+# role: a / b = two people sitting, driver = the driver up front, turn = one of them turns round to you,
+# vacek = old Vacek who gets on at Pristoupim and sits by you (v*: his scenes), d_* = the driver's own lines.
+s1	1	a	babka	Tak co, Jaroušku, už máte brambory doma?	So, Jarousek, got your potatoes in yet?
+s1	2	b	deda	Ále, půlku. Ten déšť mi to zase všecko rozmočil.	Half. The rain soaked the lot again.
+s1	3	a	babka	U nás taky. A drátovec letos, to je hrůza.	Same here. And the wireworm this year, terrible.
+s2	1	a	muz	Pane řidič, staví to v Přistoupimi?	Driver, does it stop at Pristoupim?
+s2	2	driver	ridic	Když zmáčknete, tak staví. Když ne, tak ne.	If you press, it stops. If you don't, it doesn't.
+s3	1	a	zena	Ve čtvrtek prej přivezou do Jednoty banány.	They say there'll be bananas at the Jednota on Thursday.
+s3	2	b	babka	Banány? To abych tam byla v sedm.	Bananas? Then I'd better be there at seven.
+s3	3	a	zena	Loni jich bylo deset kilo na celou vesnici.	Last year it was ten kilos for the whole village.
+s4	1	a	deda	Ten vysílač zase bručí v rádiu. Celou noc to slyším v kredenci.	The transmitter is humming in the radio again. I hear it in the cupboard all night.
+s4	2	b	babka	To je tím počasím.	It's the weather.
+s4	3	a	deda	Nebo tam zase něco dělaj.	Or they're up to something there again.
+s5	1	a	muz	Vy jezdíte až nahoru ke kempu?	You go all the way up to the camp?
+s5	2	driver	ridic	Až na konečnou.	To the end of the line.
+s5	3	a	muz	A vystupuje tam někdo?	Does anybody get off there?
+s5	4	driver	ridic	Ve dne jo. Po tmě ne. Nikdo.	By day, yes. After dark, no. Nobody.
+s6	1	a	zena	Byla jste na pohřbu u Vávrů?	Were you at the Vavras' funeral?
+s6	2	b	babka	Byla. Hezky to bylo. Přišla celá vesnice.	I was. It was nice. The whole village came.
+s6	3	b	babka	I ten z kempu tam stál. Vzadu u zdi.	Even the one from the camp was there. At the back, by the wall.
+s7	1	a	deda	Pane řidič, v Liblicích u hospody mi zastavte.	Driver, stop for me by the pub in Liblice.
+s7	2	driver	ridic	Tam nestavím. Zastávka je u Marků.	I don't stop there. The stop's by Marek's.
+s7	3	a	deda	Tak u Marků. To je stejně kousek.	By Marek's then. It's only a step anyway.
+t1	1	turn	babka	Vy jste z toho kempu, že jo? Je to na vás vidět.	You're from the camp, aren't you? It shows.
+t2	1	turn	deda	Nevíte, kolik je hodin? Mně se zastavily.	Do you know the time? Mine have stopped.
+t3	1	turn	zena	Jestli jedete k jezeru, tak se nekoukejte do vody.	If you're going to the lake, don't look into the water.
+t4	1	turn	muz	Promiňte. Zdálo se mi, že jste někdo jiný.	Sorry. I thought you were someone else.
+t5	1	turn	babka	Vy taky až na konečnou? Tak to vás lituju.	You're going to the end too? Then I'm sorry for you.
+# Old Vacek gets on at Pristoupim: at the door, sitting down by you, then one of his stories.
+vb	1	vacek	soused	Dobrej den. Do Liblic, prosím.	Afternoon. Liblice, please.
+vb	2	driver	ridic	Jo jo. Sedněte si.	Yeah, yeah. Sit down.
+vs	1	vacek	soused	Můžu? Tady je volno, ne?	May I? This one's free, isn't it?
+v1	1	vacek	soused	Vidíte ty dva stožáry? To je Liblice Bé. Tři sta padesát pět metrů, nejvyšší stavba u nás.	See those two masts? That's Liblice B. Three hundred and fifty-five metres, the tallest thing in the country.
+v1	2	vacek	soused	Můj táta je stavěl, v sedmdesátým šestým. Říkal, že nahoře je slyšet, jak to celý zpívá.	My dad built them, in seventy-six. He said up top you can hear the whole thing singing.
+v1	3	vacek	soused	A v noci, když fouká, tak to v rádiu šumí i tam, kde má bejt ticho.	And at night, when the wind blows, the radio hisses even where it ought to be quiet.
+v1	4	vacek	soused	Prej to chytá i to, co nikdo nevysílá. Ale to víte, řeči.	They say it picks up things nobody's sending. But you know. Talk.
+v2	1	vacek	soused	Vy jste od toho jezera, že jo? Z kempu.	You're from the lake, aren't you? The camp.
+v2	2	vacek	soused	Tam se dřív koupalo celý okolí. Teď tam nechodí ani houbaři.	The whole district used to swim there. Now not even the mushroom pickers go.
+v2	3	vacek	soused	Hronkovic kluk tam šel v osmdesátým čtvrtým na ryby. Prut našli. Jeho ne.	The Hronek boy went fishing there in eighty-four. They found the rod. Not him.
+v2	4	vacek	soused	No nic. Hezky se vám tam bydlí, ne?	Never mind. Nice place to stay, is it?
+v3	1	vacek	soused	Letos je to s houbama bída. Sucho, a co vyroste, to sežerou slimáci.	A poor year for mushrooms. Dry, and what does come up, the slugs get.
+v3	2	vacek	soused	Vondra si zase hraje s tou svou Škodou. Ta už nepojede. Říkám mu to dvacet let.	Vondra's at that Skoda of his again. It'll never run. I've told him for twenty years.
+v3	3	vacek	soused	A Marková má v Jednotě zase rohlíky ze včerejška. Ale co, aspoň že má.	And Mrs Marek at the Jednota has yesterday's rolls again. Still, at least she has some.
+v3	4	vacek	soused	Já jsem Vacek, od kapličky. Kdybyste něco potřebovali, každej ví, kde bydlím.	I'm Vacek, by the chapel. If you ever need anything, everyone knows where I live.
+vo	1	vacek	soused	Tak, a jsme tady. Mějte se. A večer nechoďte k vodě.	Well, here we are. Take care. And don't go near the water tonight.
+# The driver's own lines (bus_ride.gd / town_trip.gd say them by these keys).
+d_camp1	1	driver	ridic	Přistoupim, Liblice. Cvakněte si to v tý oranžový krabičce.	Pristoupim, Liblice. Punch it, the orange box.
+d_camp2	1	driver	ridic	Na drobný nejsem.	I don't do change.
+d_camp3	1	driver	ridic	Pojedem, až pojedem.	We go when we go.
+d_town1	1	driver	ridic	Do kempu? To je konečná. Dřív nikdo nevystupuje.	The camp? It's the end. Nobody gets off before.
+d_town2	1	driver	ridic	Automat. Ne já.	Machine. Not me.
+d_town3	1	driver	ridic	Poslední dneska. Sedněte si.	Last one tonight. Sit down.
+d_night1	1	driver	ridic	Sedněte si, kde vás vidím.	Sit where I can see you.
+d_night2	1	driver	ridic	Neotvírejte okno.	Don't open the window.
+d_night3	1	driver	ridic	V lese nestavíme. Ať mává, kdo chce.	We don't stop in the forest. Whatever waves.
+d_pristoupim	1	driver	ridic	Přistoupim.	Pristoupim.
+d_request	1	driver	ridic	Přistoupim, na znamení.	Pristoupim, on request.
+d_too_late	1	driver	ridic	Pozdě. Nejsem tramvaj.	Too late. I'm not a tram.
+d_end	1	driver	ridic	Příští je konečná.	Next stop is the end of the line.
+d_taken	1	driver	ridic	Tam se sedí. Koukejte.	That one's taken. Look.
+d_mate	1	driver	ridic	Jede ten váš kámoš, nebo co?	Your mate coming or what?
+d_no_money	1	driver	ridic	Tři. Nemáte tři? Tak pěšky.	Three. You haven't got three? Then walk.
+d_surcharge	1	driver	ridic	Tři, s přirážkou. Cvakněte si to.	Three, with the surcharge. Punch it.
+d_punch_first	1	driver	ridic	Nejdřív si to cvakněte. Oranžová krabička u dveří.	Punch it first. The orange box, by the door.
+d_no_ticket	1	driver	ridic	Jízdenku. Z automatu na zastávce, nebo ode mě s přirážkou.	Ticket. From the machine at the stop, or from me with the surcharge.
+d_half	1	driver	ridic	Poloviční? Kolik je vám let? Kupte si pořádnou.	Half fare? How old are you? Get a proper one.
+d_dog	1	driver	ridic	Ta je pro psa. Vy nejste pes. Nebo jo?	That's for a dog. You're not a dog. Are you?
+d_lstibor	1	driver	ridic	Lstiboř. Vy jedete na druhou stranu, do kempu.	Lstibor. Yours is the other side, to the camp.
+d_out1	1	driver	ridic	Automat je uvnitř. Na drobný nejsem.	Machine's inside. I don't do change.
+d_out2	1	driver	ridic	Dvacet let jezdím tři sta osmdesátku. Po tmě jsem u vás nikdy nikoho vystupovat neviděl.	Twenty years on the 380. I never once saw anybody get off at your camp after dark.
+d_out3	1	driver	ridic	Pět minut. Pak jedu, s váma nebo bez vás.	Five minutes. Then I go, with you or without you.
+d_out4	1	driver	ridic	Ten služební? Ten není můj. Ničí, jestli chcete vědět.	The works bus? Not mine. Nobody's, if you ask me.
+# Old Vondra drives you up to the camp in his Skoda once she runs (hamlet_trip.gd, skoda_ride.gd).
+vd_offer	1	vondra	vondra	Mám vás hodit nahoru do kempu? Sedněte si dopředu.	Shall I run you up to the camp? Sit in the front.
+vd_night	1	vondra	vondra	Teď? Po tmě? Nahoru k jezeru? Ani za nic. Ráno.	Now? After dark? Up to the lake? Not for anything. In the morning.
+vd1	1	vondra	vondra	Slyšíte ji? Jak šicí stroj plnej hřebíků. Ale jede.	Hear her? Like a sewing machine full of nails. But she goes.
+vd2	1	vondra	vondra	Tady na dvanáctce bejvala kontrola. Esenbáci stáli támhle u toho topolu.	There used to be a checkpoint here on the twelve. The police stood by that poplar.
+vd3	1	vondra	vondra	Ten vysílač. V noci z něj slyším rádio i v zubech. Marie říkala, že to jsou plomby.	That transmitter. At night I hear the radio in my teeth. Marie said it was the fillings.
+vd4	1	vondra	vondra	K jezeru vás vezu, ale z auta nevylezu. To mi nevyčítejte.	I'll take you to the lake, but I'm not getting out. Don't hold it against me.
+vd5	1	vondra	vondra	Tak. Vystupte. A zamkněte se, než se setmí.	There. Out you get. And lock up before dark.

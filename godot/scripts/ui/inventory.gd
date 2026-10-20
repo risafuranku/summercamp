@@ -34,6 +34,11 @@ const KINDS := {
 	"cigs": {"w": 1, "h": 1, "tex": "cigs.png", "n": 20},
 	"beer": {"w": 1, "h": 1, "tex": "beer.png"},
 	"card": {"w": 1, "h": 1, "tex": "card.png"},
+	# A ticket for the 380 (the stop's machine or the driver), and one punched on board.
+	"ticket": {"w": 1, "h": 1, "tex": "ticket.png"},
+	"ticket_used": {"w": 1, "h": 1, "tex": "ticket_used.png"},
+	# The camp's megaphone, from the room behind the office (scripts/coop/voice.gd).
+	"megaphone": {"w": 1, "h": 1, "tex": "megaphone.png"},
 }
 
 signal changed
@@ -111,6 +116,14 @@ func has(id: String) -> bool:
 		return true
 	for it in items:
 		if str(it["id"]) == id:
+			return true
+	return false
+
+
+## Lying on the ground somewhere (thrown out of a bag).
+func has_dropped(id: String) -> bool:
+	for d in _drops.values():
+		if str((d as Dictionary).get("item", {}).get("id", "")) == id:
 			return true
 	return false
 
@@ -244,6 +257,8 @@ func use(it: Dictionary) -> void:
 				player.toggle_flashlight()
 		"key_shed":
 			_say("On the tag, in pen: SHED - BACK.")
+		"megaphone":
+			_say("The camp's megaphone. Hold %s and shout: the whole camp hears you." % GameSettings.key_name("megaphone_talk"))
 
 
 # ── open and shut ────────────────────────────────────────────────────────────

@@ -42,7 +42,7 @@ SIGNS = {
                      face=(40, 44, 36), shadow=(150, 140, 110), track=0.05, wear=0.12, seed=5),
     "motel": dict(text="MOTEL", font=(BAHN[0], b"Bold Condensed"), cap=0.8, style="neon",
                   face=(150, 40, 36), glow=(255, 70, 52), track=0.12, seed=6),
-    "motel_lesna": dict(text="LESNA", font=(BAHN[0], b"SemiBold Condensed"), cap=0.42, style="raised",
+    "motel_lesna": dict(text="LIBLICE", font=(BAHN[0], b"SemiBold Condensed"), cap=0.42, style="raised",
                         face=(226, 222, 210), side=(120, 118, 110), track=0.1, rust=0.3, seed=7),
     "benzina": dict(text="BENZINA", font=(BAHN[0], b"Bold"), cap=0.36, style="raised",
                     face=(238, 234, 222), side=(150, 148, 140), track=0.05, rust=0.0, seed=8),
@@ -50,11 +50,17 @@ SIGNS = {
                    face=(126, 30, 24), shadow=None, track=0.05, wear=0.12, seed=9),
     "slogan": dict(text="SE SOVĚTSKÝM SVAZEM NA VĚČNÉ ČASY", font=(BAHN[0], b"Bold Condensed"), cap=0.42,
                    style="painted", face=(196, 150, 124), shadow=None, track=0.04, wear=0.3, seed=10),
-    "obec": dict(text="LESNA", style="plate", cap=0.2, seed=11),
+    "obec": dict(text="LIBLICE", style="plate", cap=0.2, size=(1.4, 0.5), seed=11),
+    # The real villages' white name plates where the road comes in (scripts/geo/).
+    "obec_pristoupim": dict(text="PŘISTOUPIM", style="plate", cap=0.2, size=(1.75, 0.5), seed=18),
+    "obec_brod": dict(text="ČESKÝ BROD", style="plate", cap=0.2, size=(1.8, 0.5), seed=19),
+    # The Jednota's other name, under JEDNOTA in the same rusting letters.
+    "u_marku": dict(text="U MARKŮ", font=(BAHN[0], b"Bold SemiCondensed"), cap=0.34, style="raised",
+                    face=(178, 30, 24), side=(104, 18, 14), track=0.05, rust=0.55, seed=20),
     # Podlesi: the hamlet's sign at its turn, the request stop's name plate, and the lit
     # STOJIME over the driver of the 380.
-    "podlesi": dict(text="PODLESÍ", style="plate", cap=0.17, seed=12),
-    "podlesi_stop": dict(text="PODLESÍ, rozc.", sub="na znamení", style="plate", cap=0.1, size=(1.1, 0.34), seed=13),
+    "podlesi": dict(text="PŘISTOUPIM", style="plate", cap=0.17, size=(1.55, 0.44), seed=12),
+    "podlesi_stop": dict(text="PŘISTOUPIM, rozc.", sub="na znamení", style="plate", cap=0.09, size=(1.25, 0.34), seed=13),
     # The war memorial on Lesna's green: letters cut into the stone (dark, a lit edge).
     "pomnik_padlym": dict(text="PADLÝM", font=(BAHN[0], b"SemiBold"), cap=0.11, style="painted",
                           face=(48, 46, 42), shadow=(196, 192, 182), track=0.04, wear=0.0, seed=15),

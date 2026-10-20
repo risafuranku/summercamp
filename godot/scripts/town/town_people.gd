@@ -44,11 +44,11 @@ const PEOPLE := {
 		"night": ["You should not be out. Go to the motel, Simek keeps a light on."]},
 	"franta": {"name": "Franta", "sprite": "town_tracksuit.png", "day": [[9.0, 19.0, "jednota"], [19.0, 23.5, "pub"]],
 		"lines": [
-			"The bus? Three a day. The last one up to you goes at five past seven. Nobody goes up there after dark anyway.",
+			"The bus? Three a day. The last one up to you goes at half past six. Nobody goes up there after dark anyway.",
 			"The works bus at midnight goes up to the dam. Nobody gets on, nobody gets off. My cousin drives it. He says it is heavier coming back.",
 			"Lesnak's at the Jednota. Ten degrees. Tastes like the reservoir.",
 			"They say your register never adds up. More people in the beds than in the book.",
-			"Lojza at the pumps pays cash if you can hold a nozzle steady. Do not ask him about the Tatra.",
+			"Lojza at the Benzina down by your turn pays cash if you can hold a nozzle steady. Do not ask him about the Tatra.",
 		],
 		"night": ["Pub's open. Kubat won't let you in the cellar, don't ask.", "Listen. No dogs tonight. When the dogs stop, I go home."]},
 	"kubat": {"name": "Mr Kubat", "sprite": "town_landlord.png", "day": [[10.0, 23.0, "pub"]],
@@ -59,13 +59,6 @@ const PEOPLE := {
 			"A beer is a dollar. The second one is a dollar too. The tenth one, we talk.",
 		],
 		"night": ["Last orders at eleven. After that I lock the door and I do not open it, whoever knocks. Whoever."]},
-	"lojza": {"name": "Lojza", "sprite": "town_pumpar.png", "day": [[6.0, 21.0, "station"]],
-		"lines": [
-			"Work? Grab a nozzle. Green's Natural, yellow's Special, black's diesel. Mix them up and I mix you up.",
-			"Paid by the car, and they tip if you stop it right on the money.",
-			"That Tatra comes through at night sometimes, no plates, never pays. I just fill it. You would too.",
-		],
-		"night": ["Closed. Go to bed."]},
 	"simek": {"name": "Mr Simek", "sprite": "town_motel.png", "day": [[0.0, 24.0, "motel"]],
 		"lines": [
 			"A room is fifteen. Breakfast is a promise, not a guarantee.",

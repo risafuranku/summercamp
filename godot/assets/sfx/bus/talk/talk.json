@@ -1,0 +1,706 @@
+{
+ "scenes": {
+  "s1": [
+   {
+    "n": 1,
+    "role": "a",
+    "voice": "babka",
+    "gender": "f",
+    "file": "s1_1.mp3",
+    "en": "So, Jarousek, got your potatoes in yet?"
+   },
+   {
+    "n": 2,
+    "role": "b",
+    "voice": "deda",
+    "gender": "m",
+    "file": "s1_2.mp3",
+    "en": "Half. The rain soaked the lot again."
+   },
+   {
+    "n": 3,
+    "role": "a",
+    "voice": "babka",
+    "gender": "f",
+    "file": "s1_3.mp3",
+    "en": "Same here. And the wireworm this year, terrible."
+   }
+  ],
+  "s2": [
+   {
+    "n": 1,
+    "role": "a",
+    "voice": "muz",
+    "gender": "m",
+    "file": "s2_1.mp3",
+    "en": "Driver, does it stop at Pristoupim?"
+   },
+   {
+    "n": 2,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "s2_2.mp3",
+    "en": "If you press, it stops. If you don't, it doesn't."
+   }
+  ],
+  "s3": [
+   {
+    "n": 1,
+    "role": "a",
+    "voice": "zena",
+    "gender": "f",
+    "file": "s3_1.mp3",
+    "en": "They say there'll be bananas at the Jednota on Thursday."
+   },
+   {
+    "n": 2,
+    "role": "b",
+    "voice": "babka",
+    "gender": "f",
+    "file": "s3_2.mp3",
+    "en": "Bananas? Then I'd better be there at seven."
+   },
+   {
+    "n": 3,
+    "role": "a",
+    "voice": "zena",
+    "gender": "f",
+    "file": "s3_3.mp3",
+    "en": "Last year it was ten kilos for the whole village."
+   }
+  ],
+  "s4": [
+   {
+    "n": 1,
+    "role": "a",
+    "voice": "deda",
+    "gender": "m",
+    "file": "s4_1.mp3",
+    "en": "The transmitter is humming in the radio again. I hear it in the cupboard all night."
+   },
+   {
+    "n": 2,
+    "role": "b",
+    "voice": "babka",
+    "gender": "f",
+    "file": "s4_2.mp3",
+    "en": "It's the weather."
+   },
+   {
+    "n": 3,
+    "role": "a",
+    "voice": "deda",
+    "gender": "m",
+    "file": "s4_3.mp3",
+    "en": "Or they're up to something there again."
+   }
+  ],
+  "s5": [
+   {
+    "n": 1,
+    "role": "a",
+    "voice": "muz",
+    "gender": "m",
+    "file": "s5_1.mp3",
+    "en": "You go all the way up to the camp?"
+   },
+   {
+    "n": 2,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "s5_2.mp3",
+    "en": "To the end of the line."
+   },
+   {
+    "n": 3,
+    "role": "a",
+    "voice": "muz",
+    "gender": "m",
+    "file": "s5_3.mp3",
+    "en": "Does anybody get off there?"
+   },
+   {
+    "n": 4,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "s5_4.mp3",
+    "en": "By day, yes. After dark, no. Nobody."
+   }
+  ],
+  "s6": [
+   {
+    "n": 1,
+    "role": "a",
+    "voice": "zena",
+    "gender": "f",
+    "file": "s6_1.mp3",
+    "en": "Were you at the Vavras' funeral?"
+   },
+   {
+    "n": 2,
+    "role": "b",
+    "voice": "babka",
+    "gender": "f",
+    "file": "s6_2.mp3",
+    "en": "I was. It was nice. The whole village came."
+   },
+   {
+    "n": 3,
+    "role": "b",
+    "voice": "babka",
+    "gender": "f",
+    "file": "s6_3.mp3",
+    "en": "Even the one from the camp was there. At the back, by the wall."
+   }
+  ],
+  "s7": [
+   {
+    "n": 1,
+    "role": "a",
+    "voice": "deda",
+    "gender": "m",
+    "file": "s7_1.mp3",
+    "en": "Driver, stop for me by the pub in Liblice."
+   },
+   {
+    "n": 2,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "s7_2.mp3",
+    "en": "I don't stop there. The stop's by Marek's."
+   },
+   {
+    "n": 3,
+    "role": "a",
+    "voice": "deda",
+    "gender": "m",
+    "file": "s7_3.mp3",
+    "en": "By Marek's then. It's only a step anyway."
+   }
+  ],
+  "t1": [
+   {
+    "n": 1,
+    "role": "turn",
+    "voice": "babka",
+    "gender": "f",
+    "file": "t1_1.mp3",
+    "en": "You're from the camp, aren't you? It shows."
+   }
+  ],
+  "t2": [
+   {
+    "n": 1,
+    "role": "turn",
+    "voice": "deda",
+    "gender": "m",
+    "file": "t2_1.mp3",
+    "en": "Do you know the time? Mine have stopped."
+   }
+  ],
+  "t3": [
+   {
+    "n": 1,
+    "role": "turn",
+    "voice": "zena",
+    "gender": "f",
+    "file": "t3_1.mp3",
+    "en": "If you're going to the lake, don't look into the water."
+   }
+  ],
+  "t4": [
+   {
+    "n": 1,
+    "role": "turn",
+    "voice": "muz",
+    "gender": "m",
+    "file": "t4_1.mp3",
+    "en": "Sorry. I thought you were someone else."
+   }
+  ],
+  "t5": [
+   {
+    "n": 1,
+    "role": "turn",
+    "voice": "babka",
+    "gender": "f",
+    "file": "t5_1.mp3",
+    "en": "You're going to the end too? Then I'm sorry for you."
+   }
+  ],
+  "vb": [
+   {
+    "n": 1,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "vb_1.mp3",
+    "en": "Afternoon. Liblice, please."
+   },
+   {
+    "n": 2,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "vb_2.mp3",
+    "en": "Yeah, yeah. Sit down."
+   }
+  ],
+  "vs": [
+   {
+    "n": 1,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "vs_1.mp3",
+    "en": "May I? This one's free, isn't it?"
+   }
+  ],
+  "v1": [
+   {
+    "n": 1,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v1_1.mp3",
+    "en": "See those two masts? That's Liblice B. Three hundred and fifty-five metres, the tallest thing in the country."
+   },
+   {
+    "n": 2,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v1_2.mp3",
+    "en": "My dad built them, in seventy-six. He said up top you can hear the whole thing singing."
+   },
+   {
+    "n": 3,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v1_3.mp3",
+    "en": "And at night, when the wind blows, the radio hisses even where it ought to be quiet."
+   },
+   {
+    "n": 4,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v1_4.mp3",
+    "en": "They say it picks up things nobody's sending. But you know. Talk."
+   }
+  ],
+  "v2": [
+   {
+    "n": 1,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v2_1.mp3",
+    "en": "You're from the lake, aren't you? The camp."
+   },
+   {
+    "n": 2,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v2_2.mp3",
+    "en": "The whole district used to swim there. Now not even the mushroom pickers go."
+   },
+   {
+    "n": 3,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v2_3.mp3",
+    "en": "The Hronek boy went fishing there in eighty-four. They found the rod. Not him."
+   },
+   {
+    "n": 4,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v2_4.mp3",
+    "en": "Never mind. Nice place to stay, is it?"
+   }
+  ],
+  "v3": [
+   {
+    "n": 1,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v3_1.mp3",
+    "en": "A poor year for mushrooms. Dry, and what does come up, the slugs get."
+   },
+   {
+    "n": 2,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v3_2.mp3",
+    "en": "Vondra's at that Skoda of his again. It'll never run. I've told him for twenty years."
+   },
+   {
+    "n": 3,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v3_3.mp3",
+    "en": "And Mrs Marek at the Jednota has yesterday's rolls again. Still, at least she has some."
+   },
+   {
+    "n": 4,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "v3_4.mp3",
+    "en": "I'm Vacek, by the chapel. If you ever need anything, everyone knows where I live."
+   }
+  ],
+  "vo": [
+   {
+    "n": 1,
+    "role": "vacek",
+    "voice": "soused",
+    "gender": "m",
+    "file": "vo_1.mp3",
+    "en": "Well, here we are. Take care. And don't go near the water tonight."
+   }
+  ],
+  "d_camp1": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_camp1_1.mp3",
+    "en": "Pristoupim, Liblice. Punch it, the orange box."
+   }
+  ],
+  "d_camp2": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_camp2_1.mp3",
+    "en": "I don't do change."
+   }
+  ],
+  "d_camp3": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_camp3_1.mp3",
+    "en": "We go when we go."
+   }
+  ],
+  "d_town1": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_town1_1.mp3",
+    "en": "The camp? It's the end. Nobody gets off before."
+   }
+  ],
+  "d_town2": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_town2_1.mp3",
+    "en": "Machine. Not me."
+   }
+  ],
+  "d_town3": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_town3_1.mp3",
+    "en": "Last one tonight. Sit down."
+   }
+  ],
+  "d_night1": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_night1_1.mp3",
+    "en": "Sit where I can see you."
+   }
+  ],
+  "d_night2": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_night2_1.mp3",
+    "en": "Don't open the window."
+   }
+  ],
+  "d_night3": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_night3_1.mp3",
+    "en": "We don't stop in the forest. Whatever waves."
+   }
+  ],
+  "d_pristoupim": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_pristoupim_1.mp3",
+    "en": "Pristoupim."
+   }
+  ],
+  "d_request": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_request_1.mp3",
+    "en": "Pristoupim, on request."
+   }
+  ],
+  "d_too_late": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_too_late_1.mp3",
+    "en": "Too late. I'm not a tram."
+   }
+  ],
+  "d_end": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_end_1.mp3",
+    "en": "Next stop is the end of the line."
+   }
+  ],
+  "d_taken": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_taken_1.mp3",
+    "en": "That one's taken. Look."
+   }
+  ],
+  "d_mate": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_mate_1.mp3",
+    "en": "Your mate coming or what?"
+   }
+  ],
+  "d_no_money": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_no_money_1.mp3",
+    "en": "Three. You haven't got three? Then walk."
+   }
+  ],
+  "d_surcharge": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_surcharge_1.mp3",
+    "en": "Three, with the surcharge. Punch it."
+   }
+  ],
+  "d_punch_first": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_punch_first_1.mp3",
+    "en": "Punch it first. The orange box, by the door."
+   }
+  ],
+  "d_no_ticket": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_no_ticket_1.mp3",
+    "en": "Ticket. From the machine at the stop, or from me with the surcharge."
+   }
+  ],
+  "d_half": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_half_1.mp3",
+    "en": "Half fare? How old are you? Get a proper one."
+   }
+  ],
+  "d_dog": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_dog_1.mp3",
+    "en": "That's for a dog. You're not a dog. Are you?"
+   }
+  ],
+  "d_lstibor": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_lstibor_1.mp3",
+    "en": "Lstibor. Yours is the other side, to the camp."
+   }
+  ],
+  "d_out1": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_out1_1.mp3",
+    "en": "Machine's inside. I don't do change."
+   }
+  ],
+  "d_out2": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_out2_1.mp3",
+    "en": "Twenty years on the 380. I never once saw anybody get off at your camp after dark."
+   }
+  ],
+  "d_out3": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_out3_1.mp3",
+    "en": "Five minutes. Then I go, with you or without you."
+   }
+  ],
+  "d_out4": [
+   {
+    "n": 1,
+    "role": "driver",
+    "voice": "ridic",
+    "gender": "m",
+    "file": "d_out4_1.mp3",
+    "en": "The works bus? Not mine. Nobody's, if you ask me."
+   }
+  ],
+  "vd_offer": [
+   {
+    "n": 1,
+    "role": "vondra",
+    "voice": "vondra",
+    "gender": "m",
+    "file": "vd_offer_1.mp3",
+    "en": "Shall I run you up to the camp? Sit in the front."
+   }
+  ],
+  "vd_night": [
+   {
+    "n": 1,
+    "role": "vondra",
+    "voice": "vondra",
+    "gender": "m",
+    "file": "vd_night_1.mp3",
+    "en": "Now? After dark? Up to the lake? Not for anything. In the morning."
+   }
+  ],
+  "vd1": [
+   {
+    "n": 1,
+    "role": "vondra",
+    "voice": "vondra",
+    "gender": "m",
+    "file": "vd1_1.mp3",
+    "en": "Hear her? Like a sewing machine full of nails. But she goes."
+   }
+  ],
+  "vd2": [
+   {
+    "n": 1,
+    "role": "vondra",
+    "voice": "vondra",
+    "gender": "m",
+    "file": "vd2_1.mp3",
+    "en": "There used to be a checkpoint here on the twelve. The police stood by that poplar."
+   }
+  ],
+  "vd3": [
+   {
+    "n": 1,
+    "role": "vondra",
+    "voice": "vondra",
+    "gender": "m",
+    "file": "vd3_1.mp3",
+    "en": "That transmitter. At night I hear the radio in my teeth. Marie said it was the fillings."
+   }
+  ],
+  "vd4": [
+   {
+    "n": 1,
+    "role": "vondra",
+    "voice": "vondra",
+    "gender": "m",
+    "file": "vd4_1.mp3",
+    "en": "I'll take you to the lake, but I'm not getting out. Don't hold it against me."
+   }
+  ],
+  "vd5": [
+   {
+    "n": 1,
+    "role": "vondra",
+    "voice": "vondra",
+    "gender": "m",
+    "file": "vd5_1.mp3",
+    "en": "There. Out you get. And lock up before dark."
+   }
+  ]
+ }
+}

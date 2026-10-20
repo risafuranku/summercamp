@@ -843,6 +843,24 @@ func service_building(coord: Vector2i, cost: int) -> bool:
 	return true
 
 
+## A guest used a toilet or shower block: it is a little dirtier (MaintenanceRules
+## SOILED_BY_USE). Its condition is the cells' "maintenance", which cleaning it inside
+## (service_building) puts back to 1.
+func soil_building(coord: Vector2i, amount: float) -> void:
+	if amount <= 0.0 or not _state.grid.cells.has(coord):
+		return
+	var root: Vector2i = _state.grid.cells[coord].get("root_coord", coord)
+	var inst_id := str(_state.grid.cells.get(root, {}).get("id", ""))
+	if inst_id.is_empty():
+		return
+	for c in _state.grid.cells:
+		var cell_data = _state.grid.cells[c] as Dictionary
+		if str(cell_data.get("id", "")) == inst_id:
+			cell_data["maintenance"] = maxf(0.0, float(cell_data.get("maintenance", 1.0)) - amount)
+			_state.grid.cells[c] = cell_data
+	EventBus.state_changed.emit({"maintenance": "soiled"})
+
+
 ## Takes the wear off a building that no longer wears (old saves, from before only the
 ## lamps did): full condition, no breakdown, nothing charged or announced.
 func clear_wear(coord: Vector2i) -> void:

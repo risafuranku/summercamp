@@ -106,7 +106,7 @@ const BOOKING_LETTERS := {
 		"Hello,\n\n%d bed(s), %d night(s). Arrival about %s. I will not be any trouble.\n\n%s",
 	],
 	ARCHETYPE_DRUNK: [
-		"AHOJ CAMP!!!\n\nwe are %d lads, %d nights, arriving %s-ish (depends on the pub in Lesna). is the beer cold? is there a pub? if no pub we bring our own. NA ZDRAVI\n\n%s",
+		"AHOJ CAMP!!!\n\nwe are %d lads, %d nights, arriving %s-ish (depends on the pub in Liblice). is the beer cold? is there a pub? if no pub we bring our own. NA ZDRAVI\n\n%s",
 		"hi\n\nneed %d beds for %d nights. coming around %s. do you have a pub. asking for a friend. the friend is me.\n\n%s",
 	],
 	ARCHETYPE_CHEAP_CHICK: [
@@ -171,7 +171,7 @@ const SPAM_MAILS: Array[Dictionary] = [
 	{"from": "Bohemia Online <info@bohemia-online.cz>", "subject": "Internet 33.6k now with 10 free hours",
 		"body": "Dear customer,\n\nconnect from home or office at 33,600 baud. The first ten hours each month are free. Installation diskette by post within 14 days.\n\nBohemia Online - your way into the Internet"},
 	{"from": "Autoservis Krejci <servis.krejci@quick.cz>", "subject": "Winter tyres - order now",
-		"body": "Winter tyres, all sizes, at last year's price. Fitting while you wait. Do not get caught by the first snow.\n\nAutoservis Krejci, Lesna 7. Closed on Sundays."},
+		"body": "Winter tyres, all sizes, at last year's price. Fitting while you wait. Do not get caught by the first snow.\n\nAutoservis Krejci, Liblice 7. Closed on Sundays."},
 	{"from": "Reality Vysocina <nabidky@reality-vys.cz>", "subject": "Recreational cottage for sale, quiet area",
 		"body": "Cottage near the reservoir, own well, electricity, quiet area, no neighbours. The previous owners left in a hurry, furniture included.\n\nSerious offers only."},
 	{"from": "Kancelarske potreby <obchod@kancpotreby.cz>", "subject": "Toner, paper, diskettes - price list", "attachment": "CENIK98.TXT",

@@ -164,6 +164,9 @@ var _boot_screen: CanvasLayer
 var _player_health: int = PLAYER_MAX_HEALTH
 var _blood_fx: Node
 var _game_over_active: bool = false
+## The game clock's pace against its usual (1): town_trip.gd slows it while a warden
+## rides the bus through the real land.
+var clock_scale := 1.0
 var _game_over_reason: String = GAME_OVER_REASON_DEATH
 var _game_over_screen: CanvasLayer
 var _liminal_forecast_snapshot: Dictionary = {}
@@ -1201,7 +1204,9 @@ func _process(delta: float) -> void:
 	# come in, coop_apply_clock), nor anything below that changes the camp.
 	var sim: bool = Coop.sim_here()
 	if time_system and sim:
-		time_system.process(delta)
+		# Slower while a warden rides the 380 through the real land (town_trip.gd):
+		# its thirteen minutes take the real road's five.
+		time_system.process(delta * clock_scale)
 	if weather_system and sim and not camp_rule("weather"):
 		if weather_system.current_weather != WEATHER_CLEAR:
 			weather_system.set_weather(WEATHER_CLEAR)
@@ -1210,7 +1215,7 @@ func _process(delta: float) -> void:
 		if state != null:
 			weather_system.set_anomaly_pressure(float(state.hrotfaktor))
 		weather_system.season_day = _day_index
-		weather_system.process(delta * BALANCE_CONFIG.GAME_MINUTES_PER_SECOND, _time_of_day_hours)
+		weather_system.process(delta * clock_scale * BALANCE_CONFIG.GAME_MINUTES_PER_SECOND, _time_of_day_hours)
 	_sync_runtime_state_from_systems()
 	_sync_season()
 	if sim:
@@ -3073,7 +3078,8 @@ func _generate_grid_world() -> void:
 		world_generator.create_emergency_ground(_world_3d)
 
 
-## Tools (screenshot driver) may park a camera here to look at the camp from outside.
+## Tools (screenshot driver) may park a camera here to look at the camp from outside;
+## old Vondra's Skoda (town/skoda_ride.gd) parks its passenger seat's here for the drive.
 var debug_camera: Camera3D
 
 
@@ -4232,7 +4238,7 @@ func _on_menu_test_night(enemy_id: String) -> void:
 		_hud_manager.push_status("Test night: the %s is out." % label, 2)
 
 
-## The bus test (L, "Bus to Lesna"): a fresh sandbox camp by day, the warden at the
+## The bus test (L, "Bus to Liblice"): a fresh sandbox camp by day, the warden at the
 ## camp's stop with money in the pocket just as the 13:50 comes up the road; from there
 ## everything as in the game (the ticket machine, the ride, the request stop at Podlesi,
 ## Lesna, the way back). Nothing is saved.
@@ -4251,7 +4257,7 @@ func _start_test_bus() -> void:
 	if trip != null and trip.has_method("_put_player") and trip._road() != null:
 		trip._put_player(trip._road().wait_spot())
 	if _hud_manager != null:
-		_hud_manager.push_status("Test: the 380 is coming up the road. The ticket machine is inside.", 2)
+		_hud_manager.push_status("Test: the 380 is coming up the road. Ticket from the yellow machine by the stop, punch it on board.", 2)
 
 
 ## Which guests bring which test night's thing (main_menu.TEST_NIGHTS ids).
@@ -4861,6 +4867,10 @@ func _coop_sync_things() -> Dictionary:
 	# their table on the other machine, and they stop waiting there).
 	if Coop.is_host():
 		out["served"] = ORDERS_SERVED._served.duplicate()
+	# Pristoupim's job (hamlet_trip.gd): one for everyone, merged forwards both ways.
+	var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
+	if trip != null and trip.has_method("coop_hamlet"):
+		out["hamlet"] = trip.coop_hamlet()
 	return out
 
 
@@ -4903,6 +4913,12 @@ func coop_sync(kind: String, data: Array) -> void:
 			var desk = bi.get("_desk_room") if bi != null else null
 			if desk != null and desk.has_method("coop_take_register"):
 				desk.coop_take_register(data[0])
+		"hamlet":
+			var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
+			if trip != null and trip.has_method("coop_take_hamlet") and data.size() > 0 and data[0] is Dictionary:
+				trip.coop_take_hamlet(data[0])
+				_coop_sync_last["hamlet"] = hash(var_to_bytes(trip.coop_hamlet()))
+			return
 		"gate":
 			var gate = get_tree().get_first_node_in_group("camp_gate")
 			if gate == null:

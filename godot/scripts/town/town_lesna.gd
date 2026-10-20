@@ -19,9 +19,16 @@ const PUMP_JOB = preload("res://scripts/town/pump_job.gd")
 ## Pavements, paths, fences, the street's things and the life in the yards.
 const DRESSING = preload("res://scripts/town/town_dressing.gd")
 const ROAD_POST = preload("res://scripts/town/road_post.gd")
+const GEO = preload("res://scripts/geo/geo_data.gd")
 var dressing
 const TEX_CAMP := "res://assets/textury/camp/"
-const ORIGIN := Vector3(4200.0, 0.0, 0.0)
+## Set by town_trip.gd before it is built: where its centre stands in the real Liblice
+## (on Bylanska, scripts/geo/) and which way its street runs (local +x along it, north).
+static var ORIGIN := Vector3(4200.0, 0.0, 0.0)
+static var YAW := 0.0
+## In the real land (scripts/geo/geo_world.gd): the ground, the street's asphalt, the
+## fields round it, the posts and the village signs are the real map's, not built here.
+static var GEO_MODE := false
 ## The walkable village: x and z extents.
 const BOUND := Rect2(-70.0, -46.0, 150.0, 84.0)
 const ROAD_HALF := 3.4
@@ -38,14 +45,15 @@ var spots: Dictionary = {}
 
 
 func build(p_worldgen: Node) -> void:
-	name = "Lesna"
+	name = "Liblice"
 	worldgen = p_worldgen
 	_rng.seed = 42
 	position = ORIGIN
-	_ground()
+	rotation.y = YAW
+	if not GEO_MODE:
+		_ground()
+		_road_posts()
 	_roads()
-	_road_posts()
-	_walls()
 	_green()
 	_jednota(Vector3(-6.0, 0, -15.0))
 	_pub(Vector3(16.0, 0, -15.5))
@@ -53,11 +61,13 @@ func build(p_worldgen: Node) -> void:
 	_motel(Vector3(-24.0, 0, 15.0))
 	_station(Vector3(48.0, 0, 13.0))
 	_houses()
+	_side_street()
 	_stop_north()
 	_stop_south()
 	_lamps()
-	_fields()
-	_village_signs()
+	if not GEO_MODE:
+		_fields()
+		_village_signs()
 	_hotspots()
 	_build_smoke()
 	dressing = DRESSING.new()
@@ -67,19 +77,39 @@ func build(p_worldgen: Node) -> void:
 	add_child(people)
 	people.build()
 	spots["people"] = people
-	var job = PUMP_JOB.new()
-	add_child(job)
-	var local_pumps: Array = []
+	# The Benzina is only for filling up now (Lojza's job is at the one by the camp's
+	# turn): the village's cars come in by day and fill up themselves.
+	var cars = PUMP_JOB.new()
+	cars.name = "StationCars"
+	cars.self_service = true
+	add_child(cars)
+	var stops: Array = []
+	var ins: Array = []
+	var outs: Array = []
 	for pw in spots.get("pumps", []):
-		local_pumps.append((pw as Vector3) - ORIGIN)
-	job.setup(local_pumps)
-	spots["job"] = job
+		var stop: Vector3 = unw(pw as Vector3) + Vector3(0, 0, -1.9)
+		stops.append(stop)
+		# Off the road and in between the canopy's pillars, out again the other way.
+		ins.append([Vector3(90.0, 0, 1.6), Vector3(66.0, 0, 1.6), Vector3(stop.x + 4.0, 0, 4.0), Vector3(stop.x + 1.5, 0, 8.6), stop])
+		outs.append([stop + Vector3(-3.0, 0, -0.9), stop + Vector3(-5.0, 0, -5.9), Vector3(34.0, 0, -1.6), Vector3(-90.0, 0, -1.6)])
+	cars.setup(stops, ins, outs)
+	spots["station_cars"] = cars
 
 
 # ── where things are (world space) ───────────────────────────────────────────
 
 func w(local: Vector3) -> Vector3:
-	return ORIGIN + local
+	return ORIGIN + Basis(Vector3.UP, YAW) * local
+
+
+## A world point in the village's frame.
+func unw(world: Vector3) -> Vector3:
+	return Basis(Vector3.UP, YAW).inverse() * (world - ORIGIN)
+
+
+## A direction in the village's frame, in the world's.
+func wdir(local: Vector3) -> Vector3:
+	return Basis(Vector3.UP, YAW) * local
 
 
 ## The bus to the camp ("to_camp") stands on the south side by the shelter, facing east
@@ -87,12 +117,17 @@ func w(local: Vector3) -> Vector3:
 ## the one from the camp to Hlubocany ("to_hlub") stops on the north side, by the square,
 ## facing west. Right-hand traffic: the doors are on the kerb side.
 func bus_pose(stop: String) -> Transform3D:
+	if GEO_MODE:
+		return _geo_pose(stop)
 	if stop == "to_camp":
 		return Transform3D(Basis.looking_at(Vector3(1, 0, 0), Vector3.UP), w(Vector3(-2.0, 0, 1.6)))
 	return Transform3D(Basis.looking_at(Vector3(-1, 0, 0), Vector3.UP), w(Vector3(8.0, 0, -1.6)))
 
 
 func bus_arrive_path(stop: String) -> PackedVector3Array:
+	if GEO_MODE:
+		var s := GEO.stop_s("liblice")
+		return GEO.line_path(s + 150.0, s - 4.0, 1.6) if stop == "to_camp" else GEO.line_path(s - 150.0, s + 4.0, 1.6)
 	var out := PackedVector3Array()
 	var end := bus_pose(stop).origin
 	var dir := 1.0 if stop == "to_camp" else -1.0
@@ -102,6 +137,9 @@ func bus_arrive_path(stop: String) -> PackedVector3Array:
 
 
 func bus_leave_path(stop: String) -> PackedVector3Array:
+	if GEO_MODE:
+		var s := GEO.stop_s("liblice")
+		return GEO.line_path(s - 4.0, s - 160.0, 1.6) if stop == "to_camp" else GEO.line_path(s + 4.0, s + 170.0, 1.6)
 	var out := PackedVector3Array()
 	var start := bus_pose(stop).origin
 	var dir := 1.0 if stop == "to_camp" else -1.0
@@ -113,14 +151,39 @@ func bus_leave_path(stop: String) -> PackedVector3Array:
 ## Where you are put off the bus from the camp: by the Jednota, looking down the street
 ## with the green across the road and the masts at the end of it.
 func arrive_spot() -> Transform3D:
+	if GEO_MODE:
+		# Off the bus from the camp on the east side, looking up Bylanska to the green.
+		var a := GEO.at(GEO.stop_s("liblice") + 6.0, 4.8)
+		return Transform3D(Basis.looking_at(a["dir"] + _right(a["dir"]) * 0.15, Vector3.UP), a["p"] + Vector3(0, 0.15, 0))
 	var pos := w(Vector3(9.0, 0.15, -4.6))
 	return Transform3D(Basis.looking_at(Vector3(-1, 0, 0.3), Vector3.UP), pos)
 
 
 ## Where you wait for the bus to the camp, in the shelter's mouth across the road.
 func wait_spot() -> Transform3D:
+	if GEO_MODE:
+		# In the shelter's mouth on the west side, looking down the road for the bus.
+		var b := GEO.at(GEO.stop_s("liblice") - 3.0, -4.6)
+		return Transform3D(Basis.looking_at(b["dir"] * -1.0 + _right(b["dir"]) * 0.4, Vector3.UP), b["p"] + Vector3(0, 0.15, 0))
 	var pos := w(Vector3(-2.0, 0.15, 4.6))
 	return Transform3D(Basis.looking_at(Vector3(-1, 0, -0.3), Vector3.UP), pos)
+
+
+## In the real Liblice the stop is south of the centre, on Bylanska (the route's
+## "liblice" stop): the bus for the camp on the west side facing south, the one from
+## the camp on the east side facing north, each by its pole, doors to the kerb.
+func _geo_pose(stop: String) -> Transform3D:
+	var s := GEO.stop_s("liblice")
+	if stop == "to_camp":
+		var a := GEO.at(s - 4.0, -1.6)
+		return Transform3D(Basis.looking_at(-(a["dir"] as Vector3), Vector3.UP), a["p"])
+	var b := GEO.at(s + 4.0, 1.6)
+	return Transform3D(Basis.looking_at(b["dir"], Vector3.UP), b["p"])
+
+
+## The right-hand side of a way along `dir` (xz).
+static func _right(dir: Vector3) -> Vector3:
+	return Vector3(-dir.z, 0.0, dir.x)
 
 
 # ── materials and boxes ─────────────────────────────────────────────────────
@@ -227,15 +290,18 @@ func _ground() -> void:
 
 func _roads() -> void:
 	var asphalt := _mat(_first([TEX + "asphalt.png", TEX_CAMP + "gravel_road.png"]), Color(0.62, 0.62, 0.64), Vector2(70.0, 2.0))
-	_plane(self, Vector3(0, 0.01, 0), Vector2(480, ROAD_HALF * 2.0), asphalt)
+	if not GEO_MODE:
+		_plane(self, Vector3(0, 0.01, 0), Vector2(480, ROAD_HALF * 2.0), asphalt)
 	# The square in front of the shop and the pub, and the station's forecourt.
 	var cobbles := _mat(_first([TEX + "cobbles.png", TEX_CAMP + "gravel_road.png"]), Color(0.86, 0.84, 0.8), Vector2(10.0, 4.0))
-	_plane(self, Vector3(4.0, 0.012, -8.0), Vector2(46.0, 9.0), cobbles)
-	_plane(self, Vector3(48.0, 0.012, 9.0), Vector2(26.0, 12.0), _mat(_first([TEX + "asphalt.png"]), Color(0.7, 0.7, 0.7), Vector2(6.0, 3.0)))
+	# (Over the real street's asphalt in the real land: a hair higher.)
+	var lift := 0.09 if GEO_MODE else 0.0
+	_plane(self, Vector3(4.0, 0.012 + lift, -8.0), Vector2(46.0, 9.0), cobbles)
+	_plane(self, Vector3(48.0, 0.012 + lift, 9.0), Vector2(26.0, 12.0), _mat(_first([TEX + "asphalt.png"]), Color(0.7, 0.7, 0.7), Vector2(6.0, 3.0)))
 	# Kerbs.
 	var kerb := _mat("", Color(0.6, 0.6, 0.58))
 	for z in [-ROAD_HALF, ROAD_HALF]:
-		_box(self, Vector3(0, 0.05, z), Vector3(480, 0.1, 0.2), kerb)
+		_box(self, Vector3(0, 0.05, z), Vector3(480 if not GEO_MODE else 160.0, 0.1, 0.2), kerb)
 
 
 ## The road posts (road_post.gd) from where the village ends, both ways, opposite each
@@ -328,7 +394,7 @@ func _jednota(at: Vector3) -> void:
 		root = built[0]
 		var h: float = _front_meta("lib_jednota_front")["m"][1]
 		_letters(root, "jednota", Vector3(-2.3, h - 0.95, front_z), Vector3(0, 0, 1))
-		_letters(root, "samoobsluha", Vector3(2.7, h - 0.82, front_z), Vector3(0, 0, 1))
+		_letters(root, "u_marku", Vector3(2.9, h - 0.86, front_z), Vector3(0, 0, 1))
 	spots["jednota_door"] = w(at + Vector3(0, 0, front_z + 1.2))
 	spots["jednota"] = root
 
@@ -378,6 +444,10 @@ func _motel(at: Vector3) -> void:
 	var root := _block(at, size, wall, "flat")
 	# Its front faces the road (north, -z).
 	_face(root, Vector3(0, 3.2, -size.z * 0.5), Vector2(22.0, 6.4), Vector3(0, 0, -1), _mat(_first([TEX + "motel_front.png"]), Color(0.7, 0.6, 0.5), Vector2(2.0, 1.0)))
+	# Its rooms go round: the same windows on the ends and along the back.
+	_face(root, Vector3(0, 3.2, size.z * 0.5), Vector2(22.0, 6.4), Vector3(0, 0, 1), _mat(_first([TEX + "motel_front.png"]), Color(0.66, 0.57, 0.48), Vector2(2.0, 1.0)))
+	for sx in [-1.0, 1.0]:
+		_face(root, Vector3(sx * size.x * 0.5, 3.2, 0), Vector2(size.z, 6.4), Vector3(sx, 0, 0), _mat(_first([TEX + "motel_front.png"]), Color(0.68, 0.58, 0.49), Vector2(size.z / 11.0, 1.0)))
 	var dark := _mat("", Color(0.16, 0.16, 0.17))
 	var fz := -size.z * 0.5 + 0.35
 	for x in [-8.2, -5.4, -1.9]:
@@ -435,6 +505,12 @@ func _stop_south() -> void:
 	var root := Node3D.new()
 	root.position = Vector3(-2.0, 0, 6.4)
 	root.rotation.y = PI
+	if GEO_MODE:
+		# West of the real street at the stop, open to the road (its +z towards it).
+		var a := GEO.at(GEO.stop_s("liblice") - 3.0, -6.2)
+		root.position = unw(a["p"])
+		var to_road: Vector3 = unw(a["p"] + _right(a["dir"])) - root.position
+		root.rotation.y = atan2(to_road.x, to_road.z)
 	add_child(root)
 	# The shelter, open to the road (south).
 	_box(root, Vector3(0, 1.2, -0.9), Vector3(4.2, 2.4, 0.18), concrete, true)
@@ -443,19 +519,26 @@ func _stop_south() -> void:
 	_box(root, Vector3(0, 2.5, 0.1), Vector3(4.7, 0.18, 2.5), concrete)
 	var planks := _mat(TEX_CAMP + "planks_grey.png", Color(0.7, 0.62, 0.5))
 	_box(root, Vector3(0, 0.45, -0.5), Vector3(3.4, 0.06, 0.45), planks)
-	_pole(root, Vector3(-2.8, 0, 1.3), "LESNA, JEDNOTA", "town")
+	_pole(root, Vector3(-2.8, 0, 1.3), "LIBLICE", "town")
 
 
 ## The stop for Hlubocany: only a pole by the square.
 func _stop_north() -> void:
 	var root := Node3D.new()
 	root.position = Vector3(10.0, 0, -5.6)
+	if GEO_MODE:
+		var b := GEO.at(GEO.stop_s("liblice") + 6.0, 5.4)
+		root.position = unw(b["p"])
+		var to_road: Vector3 = unw(b["p"] - _right(b["dir"])) - root.position
+		root.rotation.y = atan2(to_road.x, to_road.z)
 	add_child(root)
-	_pole(root, Vector3(0, 0, 0), "LESNA, JEDNOTA", "town_through")
+	_pole(root, Vector3(0, 0, 0), "LIBLICE", "town_through")
 
 
 ## A stop pole: the bus sign, the name, a timetable case (clickable).
 func _pole(root: Node3D, at: Vector3, stop_name: String, stop_id: String) -> void:
+	# The yellow ticket machine beside it, facing the road.
+	preload("res://scripts/town/ticket_machine.gd").place(root, at + Vector3(0.8, 0, 0.1), 0.0, "town")
 	var grey := _mat("", Color(0.42, 0.44, 0.42))
 	_box(root, at + Vector3(0, 1.4, 0), Vector3(0.08, 2.8, 0.08), grey)
 	_box(root, at + Vector3(0, 0.1, 0), Vector3(0.3, 0.2, 0.3), _mat(TEX_CAMP + "concrete.png", Color(0.8, 0.8, 0.78)))
@@ -543,30 +626,104 @@ func _green() -> void:
 	spots["bench"] = w(Vector3(8.0, 0, 14.6))
 	_zvonicka(Vector3(-6.0, 0, 13.5))
 	_stone_cross(Vector3(-2.6, 0, 12.0))
-	# Lime trees (the camp's birch, scaled up) round the green.
+	# Lindens round the green (world_generator.gd's linden: bole, dome, leaf cards).
 	if worldgen != null and worldgen.has_method("_tree_mesh"):
+		var k := 0
 		for t in [Vector3(19.5, 0, 8.8), Vector3(33.0, 0, 21.0), Vector3(-8.5, 0, 22.5), Vector3(-9.0, 0, 9.5)]:
-			for part in [["birch_trunk", worldgen._tree_material("bark", 0)], ["birch_crown", worldgen._tree_material("leaf", 0)]]:
-				var mi := MeshInstance3D.new()
-				mi.mesh = worldgen._tree_mesh(str(part[0]))
-				mi.material_override = part[1]
-				mi.position = t
-				mi.scale = Vector3(2.4, 2.0, 2.4)
-				add_child(mi)
-			_solid(self, t + Vector3(0, 1.5, 0), Vector3(0.6, 3.0, 0.6))
+			_linden(self, t, 0.95 + 0.06 * float(k % 3), 1.3 * float(k))
+			_solid(self, t + Vector3(0, 1.5, 0), Vector3(0.8, 3.0, 0.8))
+			k += 1
+
+
+## A linden (world_generator.gd's): its bole and limbs, the crown, the leaf cards.
+func _linden(parent: Node3D, at: Vector3, size: float, yaw: float) -> void:
+	for part in [["linden_trunk", worldgen._tree_material("bark", 0)], ["linden_crown", worldgen._tree_material("leaf", 0)], ["linden_cards", worldgen._tree_material("leaf_cards", 1)]]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = worldgen._tree_mesh(str(part[0]))
+		mi.material_override = part[1]
+		mi.position = at
+		mi.rotation.y = yaw
+		mi.scale = Vector3.ONE * size
+		parent.add_child(mi)
 
 
 ## A bench: plank seat and back, looking along `yaw` (0 = towards +z).
 func _bench(at: Vector3, yaw: float) -> void:
-	var planks := _mat(TEX_CAMP + "planks_grey.png", Color(0.7, 0.62, 0.5))
+	_park_bench(self, at, yaw)
+
+
+## A park bench the way the national committee set them out: two cast concrete sides,
+## three seat slats and three back slats of planed wood in faded green paint, the back
+## leaning a little. You can sit on it (building_type "town_bench": town_trip.gd sits you
+## down looking the way it faces, local +z).
+func _park_bench(parent: Node3D, at: Vector3, yaw: float) -> Node3D:
+	var wood := _mat(TEX_CAMP + "planks_grey.png", Color(0.42, 0.56, 0.4), Vector2(2.0, 0.3))
+	var concrete := _mat(TEX_CAMP + "concrete.png", Color(0.72, 0.72, 0.7), Vector2(0.3, 0.3))
+	var bolts := _mat("", Color(0.18, 0.16, 0.14))
 	var root := Node3D.new()
 	root.position = at
 	root.rotation.y = yaw
-	add_child(root)
-	_box(root, Vector3(0, 0.45, 0), Vector3(1.8, 0.08, 0.45), planks, true)
-	_box(root, Vector3(0, 0.75, -0.2), Vector3(1.8, 0.4, 0.06), planks)
-	for x in [-0.75, 0.75]:
-		_box(root, Vector3(x, 0.22, 0), Vector3(0.08, 0.44, 0.4), _mat("", Color(0.22, 0.2, 0.18)))
+	parent.add_child(root)
+	for x in [-0.78, 0.78]:
+		_box(root, Vector3(x, 0.21, 0.02), Vector3(0.1, 0.42, 0.5), concrete)
+		_box(root, Vector3(x, 0.02, 0.02), Vector3(0.14, 0.04, 0.56), concrete)
+		var arm := _box(root, Vector3(x, 0.66, -0.2), Vector3(0.09, 0.5, 0.09), concrete)
+		arm.rotation.x = -0.25
+	for k in 3:
+		_box(root, Vector3(0, 0.44, -0.14 + float(k) * 0.15), Vector3(1.86, 0.035, 0.12), wood)
+	for k in 3:
+		var slat := _box(root, Vector3(0, 0.6 + float(k) * 0.13, -0.24 - float(k) * 0.035), Vector3(1.86, 0.1, 0.03), wood)
+		slat.rotation.x = -0.25
+	for x in [-0.78, 0.78]:
+		_box(root, Vector3(x, 0.465, 0.0), Vector3(0.12, 0.012, 0.3), bolts)
+	_solid(root, Vector3(0, 0.25, 0.0), Vector3(1.8, 0.5, 0.5))
+	var seat := StaticBody3D.new()
+	seat.collision_layer = 1 << 11
+	seat.collision_mask = 0
+	seat.set_meta("building_type", "town_bench")
+	seat.add_to_group("town_bench")
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(1.8, 0.9, 0.7)
+	shape.shape = box
+	seat.add_child(shape)
+	seat.position = Vector3(0, 0.5, 0.05)
+	root.add_child(seat)
+	return root
+
+
+## The side street (Za Kaplickou): off the main road west of the chapel, north between
+## the gardens, then bending right towards the east behind the Jednota and the pub,
+## older patched asphalt without kerbs; three houses on its outer side, a farmyard gate,
+## a lamp at the bend, a bench under the chapel's wall.
+func _side_street() -> void:
+	var asphalt := _mat(_first([TEX + "asphalt.png", TEX_CAMP + "gravel_road.png"]), Color(0.6, 0.6, 0.6), Vector2(1.0, 6.0))
+	var pts: Array = [Vector3(-33.6, 0, -3.4), Vector3(-33.6, 0, -36.0)]
+	var centre := Vector3(-33.6 + 14.0, 0, -36.0)
+	for k in range(1, 9):
+		var a := PI * 0.5 * float(k) / 8.0
+		pts.append(centre + Vector3(-14.0 * cos(a), 0, -14.0 * sin(a)))
+	pts.append(Vector3(36.0, 0, -50.0))
+	for i in pts.size() - 1:
+		var a2: Vector3 = pts[i]
+		var b2: Vector3 = pts[i + 1]
+		var length := a2.distance_to(b2) + 0.5
+		var m := (asphalt as StandardMaterial3D).duplicate() as StandardMaterial3D
+		m.uv1_scale = Vector3(1.0, length / 5.0, 1.0)
+		var pl := _plane(self, (a2 + b2) * 0.5 + Vector3(0, 0.014, 0), Vector2(5.0, length), m)
+		pl.rotation.y = atan2(b2.x - a2.x, b2.z - a2.z)
+	spots["side_street"] = pts
+	var white := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(1.0, 0.98, 0.94), Vector2(3.0, 1.0))
+	var houses: Array = spots.get("houses", [])
+	var gi := houses.size()
+	for row in [["lib_gable_grey", -12.0, 31], ["lib_gable_red", 0.0, 37], ["lib_gable_white", 12.0, 41]]:
+		var house := _gable_house(str(row[0]), float(row[1]), -55.0, 1.0, 12.0, white, {"kind": gi, "number": int(row[2]), "eternit": str(row[0]) == "lib_gable_grey"})
+		if not house.is_empty():
+			houses.append(house)
+			gi += 1
+	spots["houses"] = houses
+	_farm_wall(23.0, -55.0, 1.0)
+	_park_bench(self, Vector3(-30.2, 0, -14.0), PI * 0.5)
 
 
 ## The bell pillar on the green: a white plastered pillar, an open belfry with the little
@@ -699,7 +856,15 @@ func _letters(parent: Node3D, sname: String, pos: Vector3, facing: Vector3) -> M
 
 ## The house's other walls: a tile of plain wall cut from its own front (town_facades.py
 ## <id>_side.png), so the sides are the colour and the dirt of the gable.
+## Fronts whose plain wall is too patchy to tile (the ochre one is brick showing through
+## all over: mirrored into a tile it made a kaleidoscope on the back walls), and the
+## plaster their other walls get instead.
+const SIDE_FROM := {"lib_gable_ochre": "village_plaster.png"}
+
+
 func _side_mat(fid: String, fallback: Material) -> Material:
+	if SIDE_FROM.has(fid) and ResourceLoader.exists(TEX + str(SIDE_FROM[fid])):
+		return _mat(TEX + str(SIDE_FROM[fid]), Color(1.0, 0.97, 0.94), Vector2(3.0, 1.0))
 	var p := TEX + fid + "_side.png"
 	if ResourceLoader.exists(p):
 		return _mat(p, Color(1, 1, 1), Vector2(3.0, 1.0))
@@ -754,8 +919,16 @@ func _gable_house(fid: String, cx: float, front_z: float, facing: float, depth: 
 		var roof_y := wh + rise - (ww * 0.22) * tan(ang)
 		var chim := Vector3(chx, roof_y + 0.5, -fz * 0.3)
 		_box(root, chim, Vector3(0.55, 1.6, 0.55), _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.85, 0.8)))
+		_box(root, chim + Vector3(0, 0.84, 0), Vector3(0.72, 0.08, 0.72), _house_mats()["sill"])
 		if _rng.randf() < 0.7:
 			_chimneys.append(root.position + chim + Vector3(0, 0.9, 0))
+		# The ridge tiles, the gutters along both eaves with the downpipe at the back of
+		# the yard side, and (on most) the TV aerial on its pole, turned to Liblice.
+		_box(root, Vector3(off, wh + rise + 0.15, 0), Vector3(0.26, 0.12, depth + 0.5), _house_mats()["ridge"])
+		var eave_y := wh + 0.08 - 0.35 * rise / (ww * 0.5)
+		_gutters(root, off, ww, half, eave_y, depth, -fz * 0.94)
+		if _rng.randf() < 0.65:
+			_aerial(root, Vector3(off - ww * 0.12, wh + rise + 0.1, -fz * 0.6))
 	# The street gable: the picture.
 	var front := _front_quad(root, fid, Vector3(0, H * 0.5, fz), facing, Vector2(W, H))
 	var lit_windows: Array = spots.get("lit_windows", [])
@@ -768,16 +941,28 @@ func _gable_house(fid: String, cx: float, front_z: float, facing: float, depth: 
 	var door_z := fz - facing * 2.2
 	var door_mats: Array = spots.get("door_mats", [_mat(TEX_CAMP + "door_wood.png", Color(0.42, 0.3, 0.2))])
 	_face(root, yard + Vector3(0, 1.05, door_z), Vector2(1.0, 2.1), Vector3(1, 0, 0), door_mats[int(opts.get("kind", 0)) % door_mats.size()])
+	if not bool(opts.get("ruin", false)):
+		_porch(root, yard, door_z)
 	if not kind.is_empty():
 		var k := 1
 		while depth * 0.5 - (2.2 + 3.0 * k) > -depth * 0.5 + 1.2:
 			var wz := fz - facing * (2.2 + 3.0 * k)
 			var win := _face(root, yard + Vector3(0, 1.7, wz), Vector2(1.2, 1.25), Vector3(1, 0, 0), kind[0])
+			_box(root, yard + Vector3(0.07, 1.04, wz), Vector3(0.14, 0.05, 1.36), _house_mats()["sill"])
 			lit_windows.append({"mesh": win, "on": _rng.randf_range(17.5, 20.5), "off": _rng.randf_range(21.5, 24.5), "dark": kind[0], "lit": kind[1]})
 			k += 1
+		# Two windows in the back wall over the garden, with their sills.
+		if not bool(opts.get("ruin", false)):
+			for bx in [-0.24, 0.24]:
+				var back := Vector3(off + bx * ww, 1.7, -fz)
+				var bwin := _face(root, back, Vector2(1.1, 1.2), Vector3(0, 0, -facing), kind[0])
+				lit_windows.append({"mesh": bwin, "on": _rng.randf_range(18.0, 21.0), "off": _rng.randf_range(21.0, 23.5), "dark": kind[0], "lit": kind[1]})
+				_box(root, back + Vector3(0, -0.63, -facing * 0.07), Vector3(1.24, 0.05, 0.14), _house_mats()["sill"])
 	spots["lit_windows"] = lit_windows
 	if opts.has("number"):
 		_letters(root, "cp_" + str(opts["number"]), Vector3(off + ww * 0.4 * facing, wh * 0.62, fz + facing * 0.02), Vector3(0, 0, facing))
+	_plinth(root, off, ww, depth, fz)
+	_front_sills(root, fid, W, H, fz, facing)
 	return {"at": root.position, "size": Vector3(ww, wh, depth), "facing": facing, "root": root}
 
 
@@ -830,10 +1015,112 @@ func _hip_house(fid: String, cx: float, front_z: float, facing: float, depth: fl
 	spots["lit_windows"] = lit_windows
 	var chim := Vector3(W * 0.2, top - 0.2, 0.0)
 	_box(root, chim, Vector3(0.5, 1.4, 0.5), _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.85, 0.8)))
+	_box(root, chim + Vector3(0, 0.74, 0), Vector3(0.66, 0.08, 0.66), _house_mats()["sill"])
 	_chimneys.append(root.position + chim + Vector3(0, 0.8, 0))
+	# Gutters round all four eaves, the aerial on the top.
+	for side in [-1.0, 1.0]:
+		_box(root, Vector3(side * (hw - 0.03), wh - 0.07, 0), Vector3(0.12, 0.1, hd * 2.0), _house_mats()["tin"])
+		_box(root, Vector3(0, wh - 0.07, side * (hd - 0.03)), Vector3(hw * 2.0, 0.1, 0.12), _house_mats()["tin"])
+	_box(root, Vector3(hw - 0.2, (wh - 0.1) * 0.5, -fz * 0.97), Vector3(0.08, wh - 0.1, 0.08), _house_mats()["tin"])
+	_aerial(root, Vector3(-W * 0.12, top - 0.1, -rl * 0.5))
+	_plinth(root, 0.0, ww, depth, fz)
+	_front_sills(root, fid, W, H, fz, facing)
 	if opts.has("number"):
 		_letters(root, "cp_" + str(opts["number"]), Vector3(-ww * 0.36 * facing, wh * 0.35, fz + facing * 0.02), Vector3(0, 0, facing))
 	return {"at": root.position, "size": Vector3(ww, wh, depth), "facing": facing, "root": root}
+
+
+# ── what a box with a picture on it lacks ─────────────────────────────────────
+# Playtest 20. 10.: "the houses better, in the style it is meant to be". The Build
+# engine's houses were never flat: things stand out of the walls. Here: a grey roughcast
+# plinth round the sides and the back (the street front has its own in the picture), a
+# sill under every window, gutters along the eaves with a downpipe, the ridge tiles, a cap
+# on each chimney, on most roofs a TV aerial on its pole turned towards the transmitter,
+# and at the yard door a concrete step and a little tin canopy.
+
+var _hmats: Dictionary = {}
+
+
+func _house_mats() -> Dictionary:
+	if _hmats.is_empty():
+		_hmats = {
+			"plinth": _mat(_first([TEX_CAMP + "roughcast_wall.png", TEX_CAMP + "concrete.png"]), Color(0.46, 0.46, 0.44), Vector2(6.0, 0.5)),
+			"sill": _mat(TEX_CAMP + "concrete.png", Color(0.72, 0.71, 0.67), Vector2(0.5, 0.2)),
+			"tin": _mat("", Color(0.44, 0.46, 0.45)),
+			"iron": _mat("", Color(0.2, 0.2, 0.2)),
+			"ridge": _mat(_first([TEX + "roof_tiles.png", TEX_CAMP + "corrugated_roof.png"]), Color(0.5, 0.3, 0.24), Vector2(0.3, 4.0)),
+			"canopy": _mat(_first([TEX_CAMP + "corrugated_roof.png", TEX + "roof_eternit.png"]), Color(0.7, 0.7, 0.68), Vector2(1.0, 1.0)),
+		}
+	return _hmats
+
+
+## The plinth (sokl): a band of grey roughcast 55 cm high, standing 2.5 cm out of the
+## two sides and the back of a house whose walls are `ww` wide and `depth` deep round
+## x = `cx` (its front at z = `fz`).
+func _plinth(root: Node3D, cx: float, ww: float, depth: float, fz: float) -> void:
+	var m: Material = _house_mats()["plinth"]
+	var h := 0.55
+	for side in [-1.0, 1.0]:
+		_box(root, Vector3(cx + side * (ww * 0.5 + 0.0125), h * 0.5, 0), Vector3(0.025, h, depth), m)
+	_box(root, Vector3(cx, h * 0.5, -fz - signf(fz) * 0.0125), Vector3(ww + 0.05, h, 0.025), m)
+
+
+## A concrete sill under each window of the front picture (lib_facades.json "windows",
+## fractions of the picture); not under a door.
+func _front_sills(root: Node3D, fid: String, W: float, H: float, fz: float, facing: float) -> void:
+	for win in _front_meta(fid).get("windows", []):
+		var x0: float = win[0]
+		var x1: float = win[2]
+		var bottom := H * (1.0 - float(win[3]))
+		if bottom < 0.5:
+			continue
+		var cx := facing * ((x0 + x1) * 0.5 - 0.5) * W
+		_box(root, Vector3(cx, bottom - 0.03, fz + facing * 0.1), Vector3((x1 - x0) * W + 0.16, 0.06, 0.16), _house_mats()["sill"])
+
+
+## Gutters under both eaves of a saddle roof (`half` out from `off`, its edge at `eave_y`)
+## and a downpipe down the yard side's back corner (z = `pipe_z`).
+func _gutters(root: Node3D, off: float, ww: float, half: float, eave_y: float, depth: float, pipe_z: float) -> void:
+	var tin: Material = _house_mats()["tin"]
+	for side in [-1.0, 1.0]:
+		_box(root, Vector3(off + side * (half - 0.05), eave_y - 0.1, 0), Vector3(0.12, 0.1, depth + 0.5), tin)
+	var px := off + ww * 0.5 + 0.08
+	_box(root, Vector3(px, (eave_y - 0.12) * 0.5, pipe_z), Vector3(0.08, eave_y - 0.12, 0.08), tin)
+	_box(root, Vector3((px + off + half - 0.05) * 0.5, eave_y - 0.14, pipe_z), Vector3(half - ww * 0.5 - 0.05, 0.07, 0.07), tin)
+	_box(root, Vector3(px + 0.08, 0.1, pipe_z), Vector3(0.24, 0.07, 0.08), tin)
+
+
+## A TV aerial on its pole on the roof (the poles are what you saw of every Czech
+## village's roofs): guy wires left out, a boom with its elements, all of them turned
+## west to the masts at Liblice.
+func _aerial(root: Node3D, at: Vector3) -> void:
+	var iron: Material = _house_mats()["iron"]
+	var a := Node3D.new()
+	a.position = at
+	a.rotation.y = -PI * 0.5 + _rng.randf_range(-0.12, 0.12)
+	root.add_child(a)
+	var h := _rng.randf_range(1.8, 2.8)
+	_box(a, Vector3(0, h * 0.5, 0), Vector3(0.07, h, 0.07), iron)
+	var booms := 2 if _rng.randf() < 0.4 else 1
+	for b in booms:
+		var y := h - 0.08 - float(b) * 0.55
+		var length := 1.5 - float(b) * 0.4
+		_box(a, Vector3(0, y, -length * 0.35), Vector3(0.045, 0.045, length), iron)
+		var n := 6 - b * 2
+		for k in n:
+			var z := -length * 0.35 - length * 0.5 + length * (float(k) + 0.5) / float(n)
+			_box(a, Vector3(0, y, z), Vector3(0.62 - 0.05 * float(k), 0.03, 0.03), iron)
+
+
+## The yard door's concrete step and the little canopy of corrugated tin over it on two
+## brackets. `yard`: the yard wall's foot (its x), `door_z` where the door is.
+func _porch(root: Node3D, yard: Vector3, door_z: float) -> void:
+	_box(root, Vector3(yard.x + 0.3, 0.09, door_z), Vector3(0.6, 0.18, 1.4), _house_mats()["sill"])
+	var c := _box(root, Vector3(yard.x + 0.42, 2.38, door_z), Vector3(0.86, 0.05, 1.5), _house_mats()["canopy"])
+	c.rotation.z = -0.18
+	for dz in [-0.62, 0.62]:
+		var br := _box(root, Vector3(yard.x + 0.25, 2.18, door_z + dz), Vector3(0.5, 0.04, 0.04), _house_mats()["iron"])
+		br.rotation.z = 0.55
 
 
 ## A building with its long side and eaves to the street (the pub, the barn): the
@@ -858,6 +1145,9 @@ func _eaves_house(fid: String, at: Vector3, facing: float, depth: float, side_wa
 	for side in [-1.0, 1.0]:
 		var r := _box(root, Vector3(0, wh + rise - half * tan(ang) * 0.5 + 0.08, side * half * 0.5), Vector3(W + 0.5, 0.14, half / cos(ang)), tiles)
 		r.rotation.x = side * ang
+		var eave_y := wh + 0.08 - 0.4 * rise / (depth * 0.5)
+		_box(root, Vector3(0, eave_y - 0.1, side * (half - 0.05)), Vector3(W + 0.5, 0.1, 0.12), _house_mats()["tin"])
+	_box(root, Vector3(0, wh + rise + 0.15, 0), Vector3(W + 0.5, 0.12, 0.26), _house_mats()["ridge"])
 	for end in [-1.0, 1.0]:
 		var g := MeshInstance3D.new()
 		var pm := PrismMesh.new()
@@ -1021,6 +1311,8 @@ func _fields() -> void:
 			if _rng.randf() < 0.12:
 				continue
 			var p := a.lerp(b, float(k) / float(n)) + Vector3(_rng.randf_range(-0.6, 0.6), 0, _rng.randf_range(-0.6, 0.6))
+			if absf(p.z) < 9.0 and absf(p.x) < 250.0:
+				continue
 			var sc := _rng.randf_range(0.9, 1.15)
 			poplars.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(0.7 * sc, 2.3 * sc, 0.7 * sc)), p))
 	# Orchards behind the gardens on both sides.
@@ -1073,7 +1365,7 @@ func _hotspots() -> void:
 	_click(Vector3(26.0, 1.4, 12.6), Vector3(1.2, 2.2, 0.8), "town_read", "memorial")
 	var pumps: Array = spots.get("pumps", [])
 	for i in pumps.size():
-		var body := _click((pumps[i] as Vector3) - ORIGIN + Vector3(0, 1.0, 1.2), Vector3(1.0, 1.8, 0.8), "town_pump", "pump")
+		var body := _click(unw(pumps[i] as Vector3) + Vector3(0, 1.0, 1.2), Vector3(1.0, 1.8, 0.8), "town_pump", "pump")
 		body.set_meta("pump", i)
 
 
