@@ -694,8 +694,14 @@ func _kill(lens: Vector3) -> void:
 			var face_dir := lens - at
 			face_dir.y = 0.0
 			_polaroid.call("take", _world_root.get_world_3d(), from, at + Vector3(0, -0.15, 0), _player_pos(), face_dir.normalized(), null, true)
-		_hurt(_photo_damage * 3)
-		_killing = false)
+		# You watch it develop, held still, and only then does it end.
+		if _player != null and _player.has_method("set_controls_enabled"):
+			_player.call("set_controls_enabled", false)
+		get_tree_timer(3.8, func():
+			if _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
+				_player.call("set_controls_enabled", true)
+			_hurt(_photo_damage * 3)
+			_killing = false))
 
 
 ## Out of the dark behind you, at a run, laughing, and the flash at your ear: turn round
@@ -759,7 +765,7 @@ func _glow_texture() -> Texture2D:
 
 func get_debug_snapshot() -> Dictionary:
 	return {
-		"phase": ["walk", "settle", "frame", "after"][_phase],
+		"phase": ["walk", "settle", "frame", "after", "rush"][_phase],
 		"distance": snappedf(_distance_to_player(_body.global_position), 0.1),
 		"shots": _shots,
 		"hits": _hits,

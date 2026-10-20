@@ -17,7 +17,7 @@ const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const FRAME := "res://assets/textury/npc/ph_polaroid_frame.png"
 const SFX_DEVELOP := "res://assets/sfx/npc/ph_develop.mp3"
 const PX := 112
-const DEVELOP := 3.4
+const DEVELOP := 2.6
 const HOLD := 2.6
 
 var _vp: SubViewport
@@ -96,8 +96,20 @@ func take(world: World3D, from: Vector3, target: Vector3, you: Vector3, face: Ve
 		holder.add_child(s)
 		var away := (you - from)
 		away.y = 0.0
-		s.global_position = you + away.normalized() * 0.55 + Vector3(0.18, 0, 0)
+		# Just behind you and to one side: over your shoulder, into the lens.
+		s.global_position = you + away.normalized() * 0.6 + away.normalized().cross(Vector3.UP) * 0.42
+	# Out of his own body (the lens is where his head is), towards you; and in front of
+	# whatever is between (a tree, a wall): he got the shot, so the picture has it clear.
+	if from.distance_to(target) > 3.0:
+		from += (target - from).normalized() * 0.8
+	var space := world.direct_space_state
+	if space != null:
+		# From you out towards him: the first thing in the way (the ray starts inside you).
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(target, from))
+		if not hit.is_empty() and (hit["position"] as Vector3).distance_to(target) > 0.8:
+			from = (hit["position"] as Vector3) + (target - from).normalized() * 0.3
 	var flash := OmniLight3D.new()
+	flash.light_volumetric_fog_energy = 0.0
 	flash.light_color = Color(0.95, 0.97, 1.0)
 	# A room is small: the same flash would only be white.
 	var reach := from.distance_to(target)
@@ -109,13 +121,15 @@ func take(world: World3D, from: Vector3, target: Vector3, you: Vector3, face: Ve
 	# but in the picture it always has).
 	var land := OmniLight3D.new()
 	land.light_color = Color(0.95, 0.97, 1.0)
+	land.light_volumetric_fog_energy = 0.0
 	land.light_energy = 2.4 if reach > 6.0 else 0.6
 	land.omni_range = 4.5
 	holder.add_child(land)
 	land.global_position = target + (from - target).normalized() * 1.4
 	_cam.global_position = from
 	_cam.look_at(target, Vector3.UP)
-	_cam.fov = 24.0 if big else 52.0
+	# A long lens: you fill the picture, however far off he was.
+	_cam.fov = 24.0 if big else clampf(rad_to_deg(2.0 * atan(1.7 / maxf(reach, 0.1))), 14.0, 52.0)
 	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
@@ -185,9 +199,9 @@ func _process(delta: float) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	# Developing: from flat grey through a ghost of it to all of it, in steps.
 	var dev := clampf(_t / DEVELOP, 0.0, 1.0)
-	var stepped := floorf(dev * 8.0) / 8.0
-	_rect.modulate = Color(0.32, 0.31, 0.3).lerp(Color(1, 1, 1), stepped)
-	_rect.self_modulate.a = 0.15 + 0.85 * stepped
+	var stepped := floorf(sqrt(dev) * 8.0) / 8.0
+	_rect.modulate = Color(0.45, 0.44, 0.42).lerp(Color(1, 1, 1), stepped)
+	_rect.self_modulate.a = 0.3 + 0.7 * stepped
 	if not _big:
 		var slide := clampf(_t / 0.35, 0.0, 1.0)
 		var out := clampf((_t - DEVELOP - HOLD) / 0.4, 0.0, 1.0)
