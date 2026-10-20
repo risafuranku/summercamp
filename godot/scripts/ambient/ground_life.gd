@@ -33,6 +33,10 @@ var hour_getter: Callable
 var _rng := RandomNumberGenerator.new()
 var _puddles: Array = []         # {mesh, mat, size, rings: [Sprite3D]}
 var _wet := 0.0                  # 0 dry .. 1 soaked
+## Ice on the puddles: once the snow lies, and on the cold nights and mornings of the last
+## third of the autumn. Pale, the sky's light in it, no splash when you step on it.
+var _frozen := false
+const ICE := Color(0.84, 0.9, 0.97)
 var _mist: Array = []            # {sprite, off: Vector3, drift}
 var _mist_amount := 0.0
 var _ring_frames: Array = []     # the ripple's frames: regions of RING_TEX
@@ -117,6 +121,10 @@ func _ready() -> void:
 		cr.visible = false
 		add_child(cr)
 		_drips.append({"drop": dr, "crown": cr, "v": 0.0, "t": 0, "live": false})
+	# Boot prints in the snow (scripts/ambient/snow_prints.gd).
+	var prints = load("res://scripts/ambient/snow_prints.gd").new()
+	prints.player_getter = player_getter
+	add_child(prints)
 	var mist_tex := _mist_texture()
 	for i in MIST:
 		var sp := Sprite3D.new()
@@ -167,6 +175,8 @@ func _mist_texture() -> Texture2D:
 
 ## Whether one of the puddles lies at `p` (your feet: player_controller.gd's footsteps).
 func puddle_at(p: Vector3) -> bool:
+	if _frozen:
+		return false
 	for pd in _puddles:
 		var mi: MeshInstance3D = pd["mesh"]
 		if mi.visible and Vector2(mi.global_position.x - p.x, mi.global_position.z - p.z).length() < float(pd["size"]) * 0.4 * mi.scale.x:
@@ -187,6 +197,12 @@ func _process(delta: float) -> void:
 	var h := float(hour_getter.call()) if hour_getter.is_valid() else 12.0
 	# 3 light rain, 4 rain, 5 storm.
 	_rain = [0.0, 0.0, 0.0, 0.45, 0.8, 1.0, 0.0][clampi(wtr, 0, 6)]
+	var main_n := get_tree().current_scene
+	var day := int(main_n.get("_day_index")) if main_n != null and main_n.get("_day_index") != null else 1
+	# Snow falling is no rain: no puddles growing under it, no rings on them.
+	if _rain > 0.0 and Season.precip_is_snow(day, h):
+		_rain = 0.0
+	_frozen = Season.snow_cover(day, h) >= 0.2 or (Season.progress(day, h) >= 0.7 and (h < 8.0 or h >= 21.0))
 	_wet = clampf(_wet + delta * (_rain * 0.012 if _rain > 0.0 else -0.004), 0.0, 1.0)
 	var night := h >= 21.0 or h < 5.0
 	var small_hours := h >= 1.0 and h < 5.0
@@ -249,8 +265,10 @@ func _process(delta: float) -> void:
 	for pd2 in _puddles:
 		var pm := (pd2["mesh"] as MeshInstance3D).material_override as StandardMaterial3D
 		if pm != null:
-			pm.emission = tint
-			pm.emission_energy_multiplier = sky_k
+			# Ice: its own pale light (through the water's dark picture it was a grey slab).
+			pm.emission = tint.lerp(ICE, 0.65) if _frozen else tint
+			pm.emission_texture = null if _frozen else pm.albedo_texture
+			pm.emission_energy_multiplier = 0.55 if _frozen else sky_k
 	for ms in _mist:
 		var sp: Sprite3D = ms["sprite"]
 		var off: Vector3 = ms["off"]

@@ -22,7 +22,8 @@ const PICTURES := ["skybox/skystars.png", "skybox/skydawn.png", "skybox/skygolde
 	"skybox/skybluehour.png", "skybox/moon.png", "camp/window_lit.png", "camp/window_tv.png", "camp/breath_puff.png",
 	"camp/recep_office_night.png", "camp/recep_back_night.png", "camp/lamp_beam.png", "world/grass_summer.png",
 	"world/mist_bank.png", "world/rain_ring.png", "camp/embers.png", "world/water_drop.png",
-	"world/kick_bottle.png", "world/kick_can.png", "world/kick_bucket.png", "world/kick_cone.png"]
+	"world/kick_bottle.png", "world/kick_can.png", "world/kick_bucket.png", "world/kick_cone.png",
+	"world/boot_print.png"]
 const SOUNDS := ["steps/snow_a.mp3", "steps/snow_b.mp3", "steps/snow_c.mp3", "steps/snow_d.mp3",
 	"steps/puddle_a.mp3", "steps/puddle_b.mp3", "steps/puddle_c.mp3", "steps/puddle_d.mp3",
 	"world/flag_clank_a.mp3", "world/flag_clank_b.mp3", "world/tube_buzz.mp3", "world/tap_drip.mp3",
