@@ -12,12 +12,15 @@ extends "res://scripts/jednota/jednota_station.gd"
 ##   the parcel  a click: over the counter; short and they want more, over and they take
 ##               it but it counts against you. It goes in their basket, paid at the till.
 
-const BOARD := Rect2(14, 40, 196, 270)
-const BOARD_AT := Vector2(112, 176)
-const SCALE := Rect2(232, 50, 176, 250)
-const PLATE_AT := Vector2(320, 150)
-const DISPLAY_AT := Vector2(320, 66)
-const PAPER := Rect2(432, 40, 196, 270)
+## Where the Build picture (jednota/st_deli.png) has them: the board, the scale with its
+## plate at the back and its dial in front, the roll of paper. The grams lie at the plate's
+## back edge: the hand at the plate hangs below the pointer and would hide the dial.
+const BOARD := Rect2(24, 117, 192, 215)
+const BOARD_AT := Vector2(120, 224)
+const SCALE := Rect2(234, 15, 170, 320)
+const PLATE_AT := Vector2(318, 92)
+const DISPLAY_AT := Vector2(318, 24)
+const PAPER := Rect2(418, 100, 210, 196)
 const PIECE_M := {"salami": 0.36, "cheese": 0.2, "bread": 0.26}
 const SLICES_M := {"salami": 0.08, "cheese": 0.1, "bread": 0.16}
 const PIECE_TEX := {"salami": "deli_salami", "cheese": "deli_cheese", "bread": "deli_bread"}
