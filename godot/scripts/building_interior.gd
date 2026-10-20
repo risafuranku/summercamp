@@ -97,6 +97,7 @@ const RADIO_POWER_TOGGLE_FADE_SEC: float = 0.5
 ## the front door; the computer is on the low desk to your left, the key board on the
 ## wall to your right. The PC corner was built under the window; PC_OFFSET carries it.
 const RECEPTION_CAM_POS := Vector3(0.0, 1.5, 1.15)
+const OFFICE_FOV := 68.0
 const ENTRY_YAW_DEG := 36.0
 const PC_OFFSET := Vector3(-1.94, 0.0, 1.68)
 const RL = preload("res://scripts/reception/reception_layout.gd")
@@ -417,6 +418,8 @@ func open_interior() -> void:
 		_extras.reset_to_office()
 	_interior_camera.rotation = Vector3(deg_to_rad(-9.0), 0.0, 0.0)
 	_interior_camera.position = RECEPTION_CAM_POS
+	# The room's own eye (left at the PC's 35 when the room was shut from the PC).
+	_interior_camera.fov = OFFICE_FOV
 	_interior_camera.current = true
 
 	_initial_cam_pos = _interior_camera.position
@@ -433,6 +436,28 @@ func open_interior() -> void:
 	_rebuild_radio_tracks_for_time(false)
 
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+## In by the front door on foot (interior_manager walked the warden up to it): the room
+## opens as ever, then its eye starts in the doorway where the camp's was and walks in
+## behind the counter (reception_extras.come_in_front).
+func open_interior_walk_in() -> void:
+	open_interior()
+	if _extras != null and _extras.has_method("come_in_front"):
+		_extras.come_in_front(_initial_cam_pos, _initial_cam_rot + Vector3(0.0, deg_to_rad(ENTRY_YAW_DEG), 0.0), _initial_cam_fov)
+
+
+## The camp's side of the walk in: where the warden's body stands so his eye is in the
+## room's doorway (reception_extras.FRONT_STEP_IN), facing in; {} without the camp.
+func walk_in_handoff() -> Dictionary:
+	var head := _player_ref.get_node_or_null("Head") as Node3D if _player_ref != null else null
+	if head == null or _room_root == null:
+		return {}
+	var at: Vector3 = RECEPTION_EXTRAS.FRONT_STEP_IN
+	var p := walk_out_pose(Vector3(at.x, walk_out_eye_y(at, at.y), at.z))
+	if p.is_empty():
+		return {}
+	return {"to": (p["pos"] as Vector3) - Vector3(0.0, head.position.y, 0.0), "dir": -(p["dir"] as Vector3)}
 
 
 func close_interior() -> void:

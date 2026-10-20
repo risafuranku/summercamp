@@ -583,13 +583,48 @@ func _apply_dynamic_light_to_interior(
 func _on_crt_interact() -> void:
 	if _building_interior == null:
 		return
-	if _building_interior.is_open():
+	if _building_interior.is_open() or stepping_out():
 		return
+	# Near the front door: the warden walks the last steps up into the doorway, the door
+	# opening, and the room takes the walk on from there (the user 20. 10.: coming in as
+	# smooth as going out). From further off the room opens as it did.
+	var body := _player as CharacterBody3D
+	var way: Dictionary = _building_interior.walk_in_handoff() if body != null and _building_interior.has_method("walk_in_handoff") else {}
+	if not way.is_empty() and Vector2(body.global_position.x - way["to"].x, body.global_position.z - way["to"].z).length() < WALK_IN_FROM_M:
+		var dist := body.global_position.distance_to(way["to"])
+		_set_player_controls_enabled(false)
+		_play_office_door(OFFICE_DOOR_OPEN)
+		var mask := body.collision_mask
+		body.collision_mask = 0
+		body.velocity = Vector3.ZERO
+		var dir: Vector3 = way["dir"]
+		body.rotation.y = atan2(-dir.x, -dir.z)
+		body.set("_pitch", 0.0)
+		body.set("_pitch_target", 0.0)
+		var tw := create_tween()
+		_stepping_out = tw
+		tw.tween_property(body, "global_position", way["to"], clampf(dist / 2.4, 0.25, 0.9)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_callback(func() -> void:
+			if is_instance_valid(body):
+				body.collision_mask = mask
+			_enter_office(true))
+		return
+	_enter_office(false)
+
+
+## How near the front door (m) the warden must be for the walk up to it.
+const WALK_IN_FROM_M := 4.5
+
+
+func _enter_office(walked_in: bool) -> void:
 	_apply_time_to_interior(_building_interior)
 	_door_transition(true)
-	_building_interior.open_interior()
-	if not _play_office_door(OFFICE_DOOR_OPEN) and _audio_manager != null and _audio_manager.has_method("play_door_open"):
-		_audio_manager.play_door_open()
+	if walked_in and _building_interior.has_method("open_interior_walk_in"):
+		_building_interior.open_interior_walk_in()
+	else:
+		_building_interior.open_interior()
+		if not _play_office_door(OFFICE_DOOR_OPEN) and _audio_manager != null and _audio_manager.has_method("play_door_open"):
+			_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
 
 
@@ -634,7 +669,7 @@ func _on_interior_visibility_changed() -> void:
 ## door, the warden a step out of it facing away, walking on off the doorstep. The door
 ## nearest to where you went in (the toilets have two); a sewer hatch has none to walk from.
 const STEP_OUT_FROM := 0.3
-const STEP_OUT_TO := 1.7
+const STEP_OUT_TO := 1.3
 const NO_STEP_OUT := ["sewer", "sewage_tank"]
 
 
@@ -708,7 +743,7 @@ func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3)
 ## through the doorway and off the porch under it, so the camp picks the walk up where
 ## the room left it (playtest 18. 10.: "absolutely smooth"). Through the building's
 ## door body and over the porch with no collisions; the keys are his when he is down.
-const WALK_OUT_SEC := 0.8
+const WALK_OUT_SEC := 0.55
 
 
 func _walk_on_out_of_office() -> void:

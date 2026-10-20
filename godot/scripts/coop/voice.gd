@@ -131,7 +131,7 @@ func _may_talk() -> bool:
 	if tree == null or tree.paused:
 		return false
 	var main := tree.current_scene
-	if main == null or not bool(main.get("_gameplay_started")) or bool(main.get("_menu_mode")):
+	if main == null or main.get("_gameplay_started") != true or main.get("_menu_mode") == true:
 		return false
 	var focus := get_viewport().gui_get_focus_owner()
 	return not (focus is LineEdit or focus is TextEdit)

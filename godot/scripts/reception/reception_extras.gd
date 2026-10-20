@@ -52,7 +52,12 @@ const STORE_DOOR_OPEN_DEG := 100.0
 ## The way out by the front door (go_out_front): how long, where the walk would end
 ## (out on the porch), the line in the doorway where the camp takes it over (before
 ## the doorway's view, building_interior DOOR_VIEW_CENTER, would be behind the eye).
-const FRONT_WALK_SEC := 2.8
+const FRONT_WALK_SEC := 2.3
+## In by it (come_in_front): from the doorway, where the camp's walk up hands over, round
+## the end of the counter and in behind it (the user 20. 10.: coming in as smooth as going
+## out); the door shuts behind you.
+const FRONT_WALK_IN_SEC := 2.0
+const FRONT_STEP_IN := Vector3(1.72, 1.48, -2.36)
 const FRONT_STEP_OUT := Vector3(1.72, 1.48, -3.1)
 const FRONT_FADE_Z := -2.45
 const FRONT_DOOR_OPEN_DEG := 82.0
@@ -750,6 +755,38 @@ func go_out_front() -> void:
 	_leaving = true
 	# The doorway is crossed before the end (process): this only if it never is.
 	_walk.tween_callback(_leave_by_front)
+
+
+## In by the front door: the room opens with its eye in the doorway where the camp's was
+## (building_interior.open_interior_walk_in) and walks in to `end_pos` / `end_rot` (the
+## place behind the counter, turned to the PC as on any way in), narrowing back from the
+## camp's eye to the room's.
+func come_in_front(end_pos: Vector3, end_rot: Vector3, end_fov: float) -> void:
+	if _walking():
+		return
+	glint.clear()
+	_play_steps()
+	var desk = host.get("_desk_room")
+	var door: Node3D = desk.front_door() if desk != null else null
+	var eye: float = host.walk_out_eye_y(FRONT_STEP_IN, FRONT_STEP_IN.y) if host.has_method("walk_out_eye_y") else FRONT_STEP_IN.y
+	var dur := FRONT_WALK_IN_SEC
+	var start := Vector3(FRONT_STEP_IN.x, eye, FRONT_STEP_IN.z)
+	camera.position = start
+	camera.rotation = Vector3(0.0, PI, 0.0)
+	camera.fov = FRONT_OUT_FOV
+	_walk = WALK_PATH.play(host, camera, [
+		{"pos": start, "rot": Vector3(0.0, PI, 0.0)},
+		{"pos": Vector3(1.8, lerpf(eye, 1.47, 0.6), -1.6), "rot": Vector3(-0.02, PI, 0.0)},
+		{"pos": Vector3(1.88, 1.48, -0.6), "rot": Vector3(-0.03, PI * 0.92, 0.0)},
+		{"pos": Vector3(1.95, 1.49, 0.62), "rot": Vector3(-0.05, PI * 0.62, 0.0)},
+		{"pos": Vector3(1.0, 1.5, 0.98), "rot": Vector3(-0.1, PI * 0.36, 0.0)},
+		{"pos": end_pos, "rot": end_rot},
+	], dur)
+	_walk.parallel().tween_property(camera, "fov", end_fov, dur * 0.6).set_delay(dur * 0.2)
+	if door != null:
+		door.rotation_degrees.y = FRONT_DOOR_OPEN_DEG
+		_walk.parallel().tween_property(door, "rotation_degrees:y", 0.0, 0.6) 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(dur * 0.42)
+		_walk.parallel().tween_callback(_play.bind(SFX_FRONT_DOOR, -12.0)).set_delay(dur * 0.42)
 
 
 ## Out of the room while still walking (the doorway's line crossed, process()): the
