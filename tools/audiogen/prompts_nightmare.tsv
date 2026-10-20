@@ -1,0 +1,11 @@
+# The Photographer and the Silent Man at their worst: id, seconds, destination, prompt.
+ph_whisper_smile	2.0	assets/sfx/npc/ph_whisper_smile.mp3	A man whispers very close into a microphone, wet and breathless, a single word that sounds like 'smile', with a soft giggle after, intimate and wrong, no music.
+ph_laugh_wet	3.0	assets/sfx/npc/ph_laugh_wet.mp3	A middle-aged man laughing with a throat full of liquid, a gurgling choking giggle that keeps going too long, close, no music.
+ph_peel	2.0	assets/sfx/npc/ph_peel.mp3	Wet skin slowly peeling away from flesh, a sticky tearing and dripping sound, close, disgusting, no music.
+ph_develop	4.0	assets/sfx/npc/ph_develop.mp3	An instant photo developing in a quiet room: a faint chemical fizz and a slow low hum rising, then a sharp tick, no music.
+ph_rush	2.0	assets/sfx/npc/ph_rush.mp3	Heavy hiking boots sprinting fast on gravel straight towards the listener, a camera rattling on its strap, panting laughter, ending right at the microphone, no music.
+ph_crack	1.5	assets/sfx/npc/ph_crack.mp3	A neck cracking and grinding slowly as a head turns too far, wet gristle popping, close, no music.
+sm_throat	3.0	assets/sfx/npc/sm_throat.mp3	A deep wet throat opening, a slow clicking of many small teeth inside it, a hollow gurgling exhale, close, no music.
+sm_stretch	3.0	assets/sfx/npc/sm_stretch.mp3	Skin and sinew stretching and creaking like wet leather pulled too far, slow, with small pops, close, no music.
+sm_ceiling	3.0	assets/sfx/npc/sm_ceiling.mp3	Something scuttling quickly across a wooden ceiling above, fingernails tapping, then stopping directly overhead, a drip falling, no music.
+sm_second_voice	3.0	assets/sfx/npc/sm_second_voice.mp3	A muffled scream heard from inside someone's closed mouth, as if a second person were trapped inside his head, no music.

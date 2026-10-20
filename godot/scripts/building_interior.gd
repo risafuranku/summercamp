@@ -2158,7 +2158,9 @@ func photo_windows() -> Array:
 		out.append({"pos": _portal_xform * c, "out": (_portal_xform.basis * o).normalized(),
 			"facing": (-_interior_camera.global_transform.basis.z).dot(to),
 			"open": float(cur.open) if cur != null else 1.0,
-			"flash": _photo_flash.bind(c, o, cur)})
+			"flash": _photo_flash.bind(c, o, cur),
+			"room_world": _viewport.find_world_3d() if _viewport != null else null,
+			"glass": at, "eye": _interior_camera.global_position})
 	return out
 
 
