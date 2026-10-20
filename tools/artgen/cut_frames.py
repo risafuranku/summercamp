@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cut a Grok row of animation frames into numbered sprites at one scale for all.
 
-    python tools/artgen/cut_frames.py <id> <dest dir relative to godot/> <name> <count> <height of the first> [gap]
+    python tools/artgen/cut_frames.py <id> <dest dir relative to godot/> <name> <count> <height of the first> [gap|cols]
 
 Like split_sheet.py (the same keying, the same items left to right), but the scale is
 taken from the first frame: it comes out <height> pixels tall and every other frame by the
@@ -9,6 +9,8 @@ same factor (a sitting or stooping one lower, not stretched). Writes <name>_0.pn
 <name>_<count-1>.png and, for checking, tools/artgen/out/<id>/_cut.png.
 Builder 98's map uses it for the little people (peeps/), the life (life/), the site and
 the bulldozer (site/), the cursors (cursors/) and the news icons (news/).
+"cols" for a row whose frames are not one blob each (a flock of three birds, spread as far
+apart as the flocks): the drawing's width in <count> equal columns, each trimmed.
 """
 import os
 import sys
@@ -40,14 +42,32 @@ def to_magenta(img, near=90):
 	return img
 
 
+def columns(img, count):
+	"""The drawing's box cut in `count` equal columns, each trimmed to what is in it."""
+	a = img.getchannel("A").point(lambda v: 255 if v > 40 else 0)
+	x0, y0, x1, y1 = a.getbbox()
+	step = (x1 - x0) / float(count)
+	boxes = []
+	for i in range(count):
+		c = (int(round(x0 + i * step)), y0, int(round(x0 + (i + 1) * step)), y1)
+		t = a.crop(c).getbbox()
+		boxes.append((c[0] + t[0], c[1] + t[1], c[0] + t[2], c[1] + t[3]))
+	return boxes
+
+
 def main():
 	if len(sys.argv) < 6:
 		print(__doc__)
 		sys.exit(1)
 	art_id, dest, name, count, first_h = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5])
-	gap = int(sys.argv[6]) if len(sys.argv) > 6 else 14
+	cols = len(sys.argv) > 6 and sys.argv[6] == "cols"
+	gap = int(sys.argv[6]) if len(sys.argv) > 6 and not cols else 14
 	img = process.key_out(to_magenta(Image.open(os.path.join(process.HERE, "out", art_id, "raw.png"))))
-	boxes, labels, w = split_sheet.items(img, gap)
+	if cols:
+		boxes = columns(img, count)
+		labels, w = None, None
+	else:
+		boxes, labels, w = split_sheet.items(img, gap)
 	check = img.copy()
 	d = ImageDraw.Draw(check)
 	for i, b in enumerate(boxes):
@@ -63,7 +83,8 @@ def main():
 	out_dir = os.path.join(process.GODOT, dest)
 	os.makedirs(out_dir, exist_ok=True)
 	for i, b in enumerate(boxes):
-		out = split_sheet.shrink(split_sheet.own(img, b, labels[b], w), scale)
+		pic = img.crop(b) if cols else split_sheet.own(img, b, labels[b], w)
+		out = split_sheet.shrink(pic, scale)
 		out.save(os.path.join(out_dir, "%s_%d.png" % (name, i)))
 		print("%s_%d %s" % (name, i, out.size))
 

@@ -28,14 +28,24 @@ for i in range(3):
 	p = 'godot/assets/textury/builder/life/lake_%d.png' % i
 	im = Image.open(p)
 	im.crop((0, 0, im.width, round(im.height * 0.74))).save(p)" ;;
-	bld_birds) $cut "$id" assets/textury/builder/life birds 8 36 ;;
-	bld_bugs) $cut "$id" assets/textury/builder/life bugs 8 12 ;;
+	bld_birds) $cut "$id" assets/textury/builder/life birds 8 36 cols ;;
+	bld_bugs) $cut "$id" assets/textury/builder/life bugs 8 12 22 ;;
 	bld_cursors) python tools/artgen/cursor_frames.py "$id" ;;
 	bld_icons)
-		$cut "$id" assets/textury/builder/news n 8 28
+		# The ticker draws them in a square (14 px, the corner window 30): the tallest made
+		# 28 high, each centred on a 28 px square so none is squeezed.
+		$cut "$id" assets/textury/builder/news n 8 24
 		d=godot/assets/textury/builder/news
 		names=(guest toilet medal coins rain cabin warning tree)
-		for i in "${!names[@]}"; do mv -f "$d/n_$i.png" "$d/${names[$i]}.png"; done ;;
+		for i in "${!names[@]}"; do mv -f "$d/n_$i.png" "$d/${names[$i]}.png"; done
+		python -c "
+import glob
+from PIL import Image
+for p in glob.glob('$d/*.png'):
+	im = Image.open(p).convert('RGBA')
+	sq = Image.new('RGBA', (28, 28), (0, 0, 0, 0))
+	sq.alpha_composite(im, ((28 - im.width) // 2, (28 - im.height) // 2))
+	sq.save(p)" ;;
 	# Rows left out ("-") stay the render's (iso_views.py raw): in decor1_a Grok painted the
 	# green bench brown and turned it front-on in all four, its gnome in a green coat; in
 	# decor2_a the flagpole and the lamp are other designs (and the flag waves from the

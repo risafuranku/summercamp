@@ -177,10 +177,10 @@ start, collect good ratings; pay to delete bad reviews".
   faces (`react/`), the building site in its three stages (`site/stage_<0-2>.png`), the
   little yellow bulldozer and its dust (`site/dozer_*`, `dust_*`), the dog (`life/dog_*`),
   the moving tool cursors (`cursors/`, also the god cursor's tool over the camp)
-- [ ] The rest of the map's Grok frames, in the queue (the code is in and draws nothing
-  until each lands; `tools/artgen/builder_art.sh <id>` cuts them): the news icons
-  (bld_icons -> `news/`), the ducks and glints, the bugs, the birds (bld_lake, bld_bugs,
-  bld_birds -> `life/`)
+- [x] The ducks and glints, the moths, mice and ants, the birds (`life/lake_*`, `bugs_*`,
+  `birds_*`; the ducks cut at the waterline, the flocks cut in columns)
+- [x] The news icons on the message line and in the corner window (Grok bld_icons ->
+  `news/`, each on a 28 px square)
 - [ ] The god cursor in co-op on two copies, by night and in the fog; its tempo by feel
 - [x] The map's flags waving (frames from the 3D flagpole, faster in a wind); the trees
   sway while it blows (`tools/artgen/tree_sway.py`: strom.png leaned by whole pixels,

@@ -24,9 +24,10 @@ const SFX := "res://assets/sfx/god/"
 const FPS := 12.0
 const STEP := 1.0 / FPS
 const BUS := "OutdoorAmbience"
-## How tall the pointer is (m) and its picture's pixels (the OS's arrow and the tool).
-const CURSOR_H := 32.0
-const CURSOR_PX := 48
+## How tall the pointer's picture is (m) and its pixels (the OS's arrow and the tool, both
+## at two pixels a pixel: the arrow fills the top left 48, the tool hangs below right of it).
+const CURSOR_H := 48.0
+const CURSOR_PX := 72
 ## Where it rests between jobs, over the middle of the camp, and how fast it goes.
 const IDLE_H := 70.0
 const SPEED := 26.0
@@ -81,7 +82,8 @@ void fragment() {
 	const float BV[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
 	vec2 bm = mod(floor(FRAGCOORD.xy), 4.0);
 	// Banks of mist drifting across it: bands where it thins to nothing and comes back.
-	float band = 0.5 + 0.5 * sin(UV.y * 7.0 + UV.x * 2.0 - drift);
+	// (Per the arrow's 48 px: the picture is 72 since the tool is doubled.)
+	float band = 0.5 + 0.5 * sin(UV.y * 10.5 + UV.x * 3.0 - drift);
 	float f = fade * (0.45 + 0.55 * floor(band * 4.0 + 0.5) / 4.0);
 	if ((BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 > f) {
 		discard;
@@ -401,8 +403,9 @@ func _cursor_tex(tool: String, frame := 0) -> Texture2D:
 		return _tex[key]
 	var img := Image.create(CURSOR_PX, CURSOR_PX, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	# The arrow at two pixels a pixel and the tool at its own size beside it, so the tool
-	# reads up in the haze (at the PC's size it went to a blob).
+	# The arrow at two pixels a pixel and the tool too, where the PC has it (os_shell: 8, 9
+	# from the tip), so it reads up in the haze (at one pixel a pixel the spade and the lamp
+	# went thin and grey into it; at the PC's size it went to a blob).
 	var pat: Array = OS_SHELL.ARROW
 	for y in pat.size():
 		var row: String = pat[y]
@@ -411,19 +414,16 @@ func _cursor_tex(tool: String, frame := 0) -> Texture2D:
 			if c.a > 0.0:
 				img.fill_rect(Rect2i(x * 2, y * 2, 2, 2), c)
 	var path := str(TOOL_TEX.get(tool, ""))
-	var side := 26
 	if _tool_frames(tool) > 0:
-		# The frames are drawn on a 24 px square: at their own size, not stretched.
+		# The frames are drawn on a 24 px square: doubled, every pixel two.
 		path = TOOL_FRAME % [str(TOOL_FRAMES[tool][0]), frame]
-		side = 24
 	if path != "" and ResourceLoader.exists(path):
 		var t := (load(path) as Texture2D).get_image().duplicate() as Image
 		if t.is_compressed():
 			t.decompress()
 		t.convert(Image.FORMAT_RGBA8)
-		if t.get_width() != side or t.get_height() != side:
-			t.resize(side, side, Image.INTERPOLATE_NEAREST)
-		img.blend_rect(t, Rect2i(0, 0, side, side), Vector2i(20 + (26 - side) / 2, 21 + 26 - side))
+		t.resize(48, 48, Image.INTERPOLATE_NEAREST)
+		img.blend_rect(t, Rect2i(0, 0, 48, 48), Vector2i(16, 18))
 	var tex := ImageTexture.create_from_image(img)
 	_tex[key] = tex
 	return tex
@@ -851,7 +851,9 @@ func _tick_look(delta: float) -> void:
 	var right := cam.global_transform.basis.x if cam != null else Vector3.RIGHT
 	var up := cam.global_transform.basis.y if cam != null else Vector3.UP
 	var toward := (cam.global_position - _pos).normalized() if cam != null else Vector3.BACK
-	var body := _pos + right * CURSOR_H * 0.22 - up * CURSOR_H * 0.38
+	# The arrow's middle (in its picture's pixels, right and down from the tip).
+	var px_m := CURSOR_H / float(CURSOR_PX)
+	var body := _pos + right * 10.5 * px_m - up * 18.2 * px_m
 	var drift := floorf(_t * 4.0) / 4.0
 	_mat.set_shader_parameter("drift", drift * 0.35)
 	# A pale grey-blue haze (the fog's light colour went green on the mist's picture).

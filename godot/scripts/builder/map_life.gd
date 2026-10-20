@@ -202,7 +202,7 @@ func draw(cv: CanvasItem, map, origin: Vector2, tile_w: float, tile_h: float, mi
 	for m in _mice:
 		var k := clampf(float(m["t"]) / 1.2, 0.0, 2.0)
 		var at: Vector2 = (m["from"] as Vector2).lerp(m["to"], k if k <= 1.0 else 2.0 - k)
-		_put(cv, map, "bugs_%d" % (2 + int(step / 2.0) % 3), at, origin, tile_w, tile_h, maxi(3, int(mini_h * 0.16)), k > 1.0)
+		_put(cv, map, "bugs_%d" % (2 + int(step / 2.0) % 3), at, origin, tile_w, tile_h, maxi(3, int(mini_h * 0.16)), k > 1.0, "bugs_2")
 	# Moths round the lit lamps, after dusk.
 	if map._night > 0.15 and has("bugs"):
 		for l in map._lights:
@@ -217,7 +217,7 @@ func draw(cv: CanvasItem, map, origin: Vector2, tile_w: float, tile_h: float, mi
 	if mini_h >= 28 and has("bugs"):
 		for o in map._known:
 			if str(map._known[o][0]) == "picnic_table":
-				_put(cv, map, "bugs_%d" % (5 + int(step / 3.0) % 3), Vector2(o) + Vector2(0.35, 0.3), origin, tile_w, tile_h, maxi(3, int(mini_h * 0.18)), false)
+				_put(cv, map, "bugs_%d" % (5 + int(step / 3.0) % 3), Vector2(o) + Vector2(0.35, 0.3), origin, tile_w, tile_h, maxi(3, int(mini_h * 0.18)), false, "bugs_5")
 
 
 ## Birds over everything (they fly over the map, not on it).
@@ -237,8 +237,8 @@ func draw_sky(cv: CanvasItem, map, size: Vector2, mini_h: int) -> void:
 		cv.draw_texture(tex, (p - tex.get_size() * 0.5).floor())
 
 
-func _put(cv: CanvasItem, map, key: String, cell: Vector2, origin: Vector2, tile_w: float, tile_h: float, h: int, mirror: bool) -> void:
-	var tex := _frame(map, key, h)
+func _put(cv: CanvasItem, map, key: String, cell: Vector2, origin: Vector2, tile_w: float, tile_h: float, h: int, mirror: bool, first_key := "") -> void:
+	var tex := _frame(map, key, h, first_key)
 	if tex == null:
 		return
 	var foot: Vector2 = map._cell_to_iso_f(cell, origin, tile_w, tile_h)
