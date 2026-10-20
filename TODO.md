@@ -38,8 +38,9 @@ finished game, by impact:
   the sky — a dawn sky (rose and peach in the east, the stars going) and the morning mist
   over the meadow and the lake, lifting by 8:30 (20. 10.)
 - [x] The meadow reads as burnt black ground by day — a generated late-summer meadow (20. 10.)
-- [ ] The Builder's map still draws the old Redneck grass for the summer
-  (`crt_map_panel.GROUND_TEX_SUMMER`, agent A's): `world/grass_summer.png` would match
+- [x] The Builder's map still draws the old Redneck grass for the summer
+  (`crt_map_panel.GROUND_TEX_SUMMER`, agent A's): `world/grass_summer.png` now, and the
+  minimap's open ground follows the season too (20. 10.)
 - [x] Golden hour (17:00) hardly shows; the red sunset (18:15) is one flat red over
   everything — the evening's own skies (gold, sunset, blue hour; glow in the west) and
   light (golden sun and cool shade, red light and lilac shade, blue) (20. 10.)

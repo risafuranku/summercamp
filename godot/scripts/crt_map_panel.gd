@@ -245,7 +245,7 @@ var _last_hover := Vector2i(-2, -2)
 var _sfx_players: Array = []
 var _night := 0.0              # 0 day .. 1 deep night, for the tint and the lamps
 
-const GROUND_TEX_SUMMER := "res://assets/textury/redneck/grass.png"
+const GROUND_TEX_SUMMER := "res://assets/textury/world/grass_summer.png"
 const GROUND_TEX_AUTUMN := "res://assets/textury/world/grass_autumn.png"
 const GROUND_TEX_SNOW := "res://assets/textury/world/snow_ground.png"
 ## The layer being drawn on (see _draw).
@@ -1426,7 +1426,7 @@ func _collect_structures(gm, grid_w: int, grid_h: int, origin: Vector2, tile_w: 
 	var dims := _display_grid_dimensions(grid_w, grid_h)
 	if _mini_img == null or _mini_img.get_width() != dims.x or _mini_img.get_height() != dims.y:
 		_mini_img = Image.create(dims.x, dims.y, false, Image.FORMAT_RGBA8)
-	_mini_img.fill(MINI_COLORS["grass"])
+	_mini_img.fill(_mini_ground())
 	for c in gm.tile_types:
 		var t := int(gm.tile_types[c])
 		if t == grid_manager.TILE_LAKE or t == grid_manager.TILE_RESERVED:
@@ -1447,11 +1447,11 @@ func _collect_structures(gm, grid_w: int, grid_h: int, origin: Vector2, tile_w: 
 		var root_id := root.get_instance_id()
 		var dcell := _rotate_coord_for_display(coord)
 		if kind_of.has(root_id):
-			_mini_img.set_pixelv(dcell, MINI_COLORS.get(kind_of[root_id], MINI_COLORS["grass"]))
+			_mini_img.set_pixelv(dcell, MINI_COLORS.get(kind_of[root_id], _mini_ground()))
 			continue
 		var mk := "corn" if root.is_in_group("corn") else ("tree" if root.is_in_group("trees") else _mini_kind(str(root.get_meta("building_type", ""))))
 		kind_of[root_id] = mk
-		_mini_img.set_pixelv(dcell, MINI_COLORS.get(mk, MINI_COLORS["grass"]))
+		_mini_img.set_pixelv(dcell, MINI_COLORS.get(mk, _mini_ground()))
 		var structure_origin: Vector2i = root.get_meta("grid_origin", coord)
 		var footprint: Vector2i = root.get_meta("grid_footprint", Vector2i.ONE)
 		var anchor := _rotate_coord_for_display(structure_origin + Vector2i(maxi(0, footprint.x - 1), maxi(0, footprint.y - 1)))
@@ -1875,6 +1875,17 @@ func _world_signature() -> String:
 
 ## The ground's picture: the game's own grass, autumn leaves from day 10, snow when it
 ## lies (the same pictures as the world, scripts/season_look.gd).
+## The minimap's open ground in the map's season (the late-summer meadow, the autumn's
+## leaves, the snow), as the big map's ground picture is.
+func _mini_ground() -> Color:
+	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
+	if Season.snow_cover(day, 12.0) >= 0.2:
+		return Color(0.82, 0.84, 0.86)
+	if day >= 10:
+		return Color(0.62, 0.48, 0.20)
+	return Color(0.48, 0.46, 0.20)
+
+
 func _season_ground_texture() -> Texture2D:
 	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
 	var path := GROUND_TEX_SUMMER
