@@ -300,8 +300,11 @@ func get_footprint_for_building(building_type: String) -> Vector2i:
 	match building_type:
 		"tent_1", "tent_2", "tent_3", "toilet_block", "shower_block", "bonfire", "power_generator", "sewer", "water_pump", "sewage_tank", "dumpsters", "path", "lamp_post":
 			return Vector2i(1, 1)
-		"cabin", "cabin_1", "cabin_2", "cabin_3", "restaurant", "pub", "vecerka":
+		"cabin", "cabin_1", "cabin_2", "cabin_3", "restaurant", "pub":
 			return Vector2i(2, 2)
+		"vecerka":
+			# The Jednota (agent C, 20. 10.): three by three, its model building_models._jednota.
+			return Vector2i(3, 3)
 		"caravan_1", "caravan_2", "caravan_3", "sports_field", "lake_slide", "playground":
 			return Vector2i(2, 1)
 		_:
@@ -328,7 +331,7 @@ func place_building_at(origin: Vector2i, building_type: String) -> bool:
 
 	match building_type:
 		"vecerka":
-			return place_vecerka_at(origin)
+			return _place_placeholder_at(origin, "vecerka", Vector2i(3, 3), Color(0.58, 0.60, 0.62), Color(0.72, 0.2, 0.16), "services", 3.6)
 		"cabin", "cabin_1":
 			return place_cabin_at(origin, 1)
 		"cabin_2":
@@ -896,100 +899,6 @@ func _get_lamp_beam_texture() -> Texture2D:
 	if _lamp_beam_texture == null and ResourceLoader.exists(LAMP_BEAM_TEX):
 		_lamp_beam_texture = load(LAMP_BEAM_TEX)
 	return _lamp_beam_texture
-
-
-func place_vecerka_at(origin: Vector2i) -> bool:
-	_ensure_structures_root()
-	if _grid_manager == null:
-		return false
-	var footprint = Vector2i(2, 2)
-	if not _grid_manager.can_place_footprint(origin, footprint):
-		return false
-
-	var vecerka = StaticBody3D.new()
-	vecerka.name = "Vecerka"
-	vecerka.add_to_group("services")
-	vecerka.set_meta("service_type", "vecerka")
-	vecerka.set_meta("interior_click_type", "building_door") # Allow clicking to enter
-	_tag_structure(vecerka, origin, footprint, "vecerka", true)
-	_structures_root.add_child(vecerka)
-
-	var center = _grid_manager.get_footprint_center(origin, footprint)
-	vecerka.position = center
-
-	var ts = _grid_manager.tile_size
-	var w = ts * 2.0 * 0.95
-	var d = ts * 2.0 * 0.95
-	var h = 3.6
-
-	# Main Body
-	var body_mesh = MeshInstance3D.new()
-	var body_box = BoxMesh.new()
-	body_box.size = Vector3(w, h, d)
-	body_mesh.mesh = body_box
-	body_mesh.position = Vector3(0.0, h * 0.5, 0.0)
-	var body_mat = _make_psx_material(Color(0.58, 0.60, 0.62), 0.010, 24.0, 6.0, 0.10, "service_vecerka_wall", 0.78)
-	if body_mat is StandardMaterial3D:
-		(body_mat as StandardMaterial3D).uv1_scale = Vector3(1.2, 1.2, 1.0)
-	body_mesh.material_override = body_mat
-	vecerka.add_child(body_mesh)
-
-	# Roof
-	var roof_mesh = MeshInstance3D.new()
-	var roof_box = BoxMesh.new()
-	roof_box.size = Vector3(w + 0.4, 0.2, d + 0.4)
-	roof_mesh.mesh = roof_box
-	roof_mesh.position = Vector3(0.0, h + 0.1, 0.0)
-	roof_mesh.material_override = _make_psx_material(Color(0.30, 0.28, 0.26), 0.012, 16.0, 2.0, 0.10, "roof")
-	vecerka.add_child(roof_mesh)
-
-	# Front Sign Board
-	var sign_mesh = MeshInstance3D.new()
-	var sign_box = BoxMesh.new()
-	sign_box.size = Vector3(w * 0.8, 0.8, 0.1)
-	sign_mesh.mesh = sign_box
-	sign_mesh.position = Vector3(0.0, h - 0.7, d * 0.5 + 0.06)
-	sign_mesh.material_override = _make_psx_material(Color(0.72, 0.20, 0.16), 0.005, 32.0, 4.0, 0.05, "metal")
-	vecerka.add_child(sign_mesh)
-
-	var sign_lbl = Label3D.new()
-	sign_lbl.text = "VECERKA"
-	sign_lbl.font_size = 64
-	sign_lbl.outline_size = 16
-	sign_lbl.position = Vector3(0.0, 0.0, 0.06)
-	sign_lbl.modulate = Color(1.0, 1.0, 0.9)
-	sign_mesh.add_child(sign_lbl)
-
-	# Door
-	var door_mesh = MeshInstance3D.new()
-	var door_box = BoxMesh.new()
-	door_box.size = Vector3(1.4, 2.4, 0.1)
-	door_mesh.mesh = door_box
-	door_mesh.position = Vector3(-w * 0.15, 1.2, d * 0.5 + 0.06)
-	door_mesh.material_override = _make_psx_material(Color(0.24, 0.22, 0.20), 0.008, 24.0, 6.0, 0.08, "building_door")
-	vecerka.add_child(door_mesh)
-
-	# Cola Machine (Outside Prop)
-	var cola_mesh = MeshInstance3D.new()
-	var cola_box = BoxMesh.new()
-	cola_box.size = Vector3(1.0, 2.0, 0.9)
-	cola_mesh.mesh = cola_box
-	cola_mesh.position = Vector3(w * 0.30, 1.0, d * 0.5 + 0.6)
-	cola_mesh.rotation_degrees = Vector3(0.0, -15.0, 0.0)
-	cola_mesh.material_override = _make_psx_material(Color(0.80, 0.20, 0.20), 0.006, 24.0, 6.0, 0.10, "service_vecerka_cola")
-	vecerka.add_child(cola_mesh)
-
-	# Collider
-	var collider = CollisionShape3D.new()
-	var shape = BoxShape3D.new()
-	shape.size = Vector3(w, h, d)
-	collider.shape = shape
-	collider.position = Vector3(0.0, h * 0.5, 0.0)
-	vecerka.add_child(collider)
-
-	_set_structure_condition_internal(vecerka, _default_condition_for_type("vecerka"))
-	_grid_manager.occupy_footprint(origin, footprint, vecerka)
-	return true
 
 
 func _place_caravan_at(origin: Vector2i, level: int = 1) -> bool:

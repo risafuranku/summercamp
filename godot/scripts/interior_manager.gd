@@ -77,7 +77,7 @@ const INTERIOR_ASSIGNMENTS := [
 		"hints": {
 			"restaurant": "Enter bistro",
 			"pub": "Enter pub",
-			"vecerka": "Enter Jednota Mart",
+			"vecerka": "Go into the Jednota",
 			"toilet_block": "Enter toilets",
 			"shower_block": "Enter showers",
 			"sewer": "Open sewer hatch",

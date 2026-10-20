@@ -60,18 +60,19 @@ const KINDS := {
 		"name": "Jednota", "wage": 40, "hand": ["Mrs Novakova", "Zdenka", "Ivan"],
 		"app": "shop_app", "app_name": "Pult 98", "licence": 100,
 		# The village shop the guests love (DESIGN.md §7b, the Jednota): everything they
-		# need, dear to stock and to staff.
+		# need, dear to build, stock and staff; it pays back in a fortnight of a busy camp
+		# (jednota_rules.day_model, tools/jednota_check).
 		"goods": {
-			"bread": {"label": "Bread", "unit": "loaves", "price": 4, "pack": 20, "pack_cost": 46, "cap": 40, "start": 10, "life": 2},
-			"roll": {"label": "Rolls", "unit": "rolls", "price": 1, "pack": 60, "pack_cost": 38, "cap": 120, "start": 40, "life": 2},
-			"salami": {"label": "Salami", "unit": "sticks", "price": 5, "pack": 12, "pack_cost": 40, "cap": 36, "start": 6, "life": 8},
-			"milk": {"label": "Milk", "unit": "bags", "price": 2, "pack": 24, "pack_cost": 34, "cap": 48, "start": 12, "life": 3},
-			"pickles": {"label": "Pickles", "unit": "jars", "price": 3, "pack": 12, "pack_cost": 26, "cap": 36, "start": 6, "life": 0},
-			"beer": {"label": "Lesnak", "unit": "bottles", "price": 2, "pack": 20, "pack_cost": 28, "cap": 60, "start": 20, "life": 0},
-			"icecream": {"label": "Ice cream", "unit": "cones", "price": 2, "pack": 24, "pack_cost": 30, "cap": 48, "start": 12, "life": 0},
-			"sweets": {"label": "Sweets", "unit": "bars", "price": 1, "pack": 40, "pack_cost": 26, "cap": 80, "start": 20, "life": 0},
-			"veg": {"label": "Fruit and veg", "unit": "bags", "price": 2, "pack": 20, "pack_cost": 24, "cap": 40, "start": 10, "life": 4},
-			"soap": {"label": "Soap and paper", "unit": "packs", "price": 3, "pack": 12, "pack_cost": 22, "cap": 24, "start": 6, "life": 0},
+			"bread": {"label": "Bread", "unit": "loaves", "price": 5, "pack": 20, "pack_cost": 46, "cap": 40, "start": 10, "life": 2},
+			"roll": {"label": "Rolls", "unit": "rolls", "price": 2, "pack": 60, "pack_cost": 38, "cap": 120, "start": 40, "life": 2},
+			"salami": {"label": "Salami", "unit": "sticks", "price": 8, "pack": 12, "pack_cost": 40, "cap": 36, "start": 6, "life": 8},
+			"milk": {"label": "Milk", "unit": "bottles", "price": 4, "pack": 24, "pack_cost": 34, "cap": 48, "start": 12, "life": 3},
+			"pickles": {"label": "Pickles", "unit": "jars", "price": 4, "pack": 12, "pack_cost": 26, "cap": 36, "start": 6, "life": 0},
+			"beer": {"label": "Lesnak", "unit": "bottles", "price": 4, "pack": 20, "pack_cost": 28, "cap": 60, "start": 20, "life": 0},
+			"icecream": {"label": "Ice cream", "unit": "bars", "price": 4, "pack": 24, "pack_cost": 30, "cap": 48, "start": 12, "life": 0},
+			"sweets": {"label": "Sweets", "unit": "bars", "price": 3, "pack": 40, "pack_cost": 26, "cap": 80, "start": 20, "life": 0},
+			"veg": {"label": "Fruit and veg", "unit": "heads", "price": 4, "pack": 20, "pack_cost": 24, "cap": 40, "start": 10, "life": 4},
+			"soap": {"label": "Soap and paper", "unit": "packs", "price": 5, "pack": 12, "pack_cost": 22, "cap": 24, "start": 6, "life": 0},
 		},
 		"wants": {"bread": 0.1, "roll": 0.18, "salami": 0.08, "milk": 0.12, "pickles": 0.04, "beer": 0.14, "icecream": 0.12, "sweets": 0.1, "veg": 0.08, "soap": 0.04},
 	},

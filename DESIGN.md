@@ -759,6 +759,74 @@ the stations in 3D, like the bistro's and the pub's.*
   counter"); the pot, the bowl and what was served are ops every machine applies
   (`scripts/corn/cornstand.gd`, `Coop.send_place`).
 
+### The Jednota (2026-10-20)
+
+*Agent C, phase 4 of the businesses. Decided with the user on 2026-10-20: store, shelf and
+till work only; very dear; the guests love it; it needs several hands; its blueprint opens
+at Goggle 4.0; a building of three by three with a Build model and a Builder picture of
+its own.*
+
+- **The building.** Three tiles by three, $1800 and the licence (Pult 98) $100; the
+  Builder's blueprint opens at Goggle 4.0 (Stavitel partner camps). A long single-storey
+  1970s village samoobsluha under a flat concrete roof (`building_models._jednota`, Grok
+  faces): the band of shop windows with green racks behind the glass, the glass door
+  under a small canopy, the red board with the sheet-metal letters JEDNOTA (Lesna's), the
+  crates of empties, the ice-cream freezer and the bench out front, the delivery door
+  and the staff door with its bell at the back. The Builder's map has it from the front
+  and from behind.
+- **Two rooms.** The shop: tiles, oil paint, two tubes; the long green rack at the back
+  with the cage trolley beside it, the till's counter on the right by the door and the
+  queue along it, the bread rack, the fridge, the shelf of tins and the ice-cream chest
+  on the left, the baskets by the door, the books on a shelf behind the till, the
+  storeroom's door in the back wall. The storeroom: concrete under a bare bulb, the
+  packing table with the shelf of cartons behind it and the trolley beside it, the empty
+  pallet, last year's cartons (the stock: click for the books), the locker, the empties.
+- **The guests** come in and look round at the racks for a few minutes, then take what
+  they came for off the rack into a basket, each kind its own (the drinkers beer and
+  salami, the families milk, rolls and ice cream, the pickers bread and veg; one to five
+  things); what is not on the rack they go without, and say so in their review if half of
+  it was sold out. With their basket they queue along the till in the order they came,
+  kept in the shop while they wait; after an hour of it they put it all back and go.
+  The camp's own Jednota is loved: a little more on their mood every time.
+- **The till** (the counter top, from behind it): their basket's goods are clicked
+  through one by one (a beep, the display adds it up, into their bag; the cabbage over
+  the scale); then they put their money on the mat, the right money now and then, mostly
+  the smallest note it fits under (5, 10, 20, 50); a click takes it into the drawer and
+  the display shows the change. The change is counted out of the drawer's four places
+  (1, 2, 5, 10) onto the mat, a piece back with a click, CLEAR all of it; GIVE (Enter)
+  hands it over. Short and they say so and wait; too much and they keep it (the money
+  lost, the score lower). Their receipt in the corner: each thing with its price, rung
+  up in ink, the total, what they paid, the change. Papa's score from how long they
+  stood and how right the change was.
+- **The shelves** (standing at the rack): every good has its place (sweets and soap at
+  the top; pickles, beer and veg; bread, rolls and salami; milk and ice cream at the
+  bottom), a little picture of it on the shelf's edge, six a place (eight with more
+  shelves). The boxes made up in the storeroom wait on the trolley: press on one, carry
+  it to its place, let go, and its goods go up one by one as far as there is room;
+  anywhere else it goes back on the trolley. What went off lies grey at the end of its
+  place; a click throws it out.
+- **The storeroom** (at the packing table): the cartons off the van on the shelf behind
+  it (what the books have that is not on the rack, the trolley or in a basket; what the
+  rack will run out of first on the lower board): a click brings one onto the table, a
+  drag across its tape cuts it open (with the pallet truck they come open), held down
+  the price gun prices what is in it, and onto the trolley it goes, six to a box. BOOKS
+  on the frame for the order.
+- **The hands**: the till's serves the first in the queue (a coin over now and then) and
+  leaves the till to a warden who steps up to it; the second till's (gear) the second in
+  the queue at its own counter by the door; the shelves' puts a box onto the emptiest
+  place it has one for (one dropped now and then: broken); the storeroom's throws out
+  what went off and makes up a box for what will run out first (twice as quick with the
+  pallet truck).
+- **Dear, and it pays with hands and a busy camp.** The shelf prices are the dearest
+  (bread 5, salami 8, milk, beer, pickles, ice cream and veg 4, soap 5, sweets 3, rolls 2),
+  the goods cheap off the van; with three hands at forty a day, a camp that sends
+  twenty-five baskets a day, served well, pays the building and the licence back in about
+  eight days (`jednota_rules.day_model`, `tools/jednota_check.tscn`); eight baskets a day
+  lose money.
+- **For four**: a warden a station, the others refused it ("Jana is at the till"); the
+  rack, the trolley, the queue, what is rung up and the change on the mat are ops every
+  machine applies (`scripts/jednota/jednota.gd`, `Coop.send_place("vecerka", ...)`).
+
 ### The businesses' shared systems (2026-10-20)
 
 *Decided with the user on 2026-10-20 (Q&A): Papa's ratings; goods that go off; one order

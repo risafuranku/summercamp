@@ -9,7 +9,9 @@ extends Node3D
 ##            room's pixel), nothing between rounds; the room murmurs;
 ##   bistro   at the gingham tables, eating (the food on the plate goes down); cutlery
 ##            and low voices;
-##   shop     standing at the racks, a step this way and that, one at the counter.
+##   shop     standing at the racks, a step this way and that; with their basket in
+##            the queue along the till, in its order (scripts/jednota/jednota.gd tickets);
+##            paid, or tired of waiting, out of the door, and they do not come back in.
 ## A visit goes: in through the door (from beside you, `entry`), across to a free seat,
 ## sit down and wait with nothing on the table, looking about for somebody; served (by
 ## you in the counter's game, or by a hand) the mug or the plate comes; when the visit
@@ -38,6 +40,14 @@ var seats: Array = []
 var setting: Dictionary = {}
 ## Where you stand (room, on the floor): they come in and go out just beside it.
 var entry := Vector3.INF
+## The Jednota: the queue's places along the till ([position, facing], the first at the
+## till); the station open on this machine (who stands where it is worked steps aside).
+var queue_spots: Array = []
+var queue2_spots: Array = []
+var open_of: Callable
+var _shop
+## The Jednota's visits that have paid or given up and gone out: not let back in.
+var _out_visits: Dictionary = {}
 
 ## "id:member" -> {node, sprite, seat, base, prop, food, t0, next, pose, state (in, seat,
 ## out), visit, served, member, from, to, walk_t0, walk_dur}
@@ -87,6 +97,8 @@ func setup(p: String, building_key: String, seat_list: Array, settings: Dictiona
 		_kitchen = get_tree().get_first_node_in_group("kitchens") as KITCHEN
 	elif p == "pub":
 		_taproom = TAPROOM.of(get_tree())
+	elif p == "vecerka":
+		_shop = get_tree().get_first_node_in_group("jednotas")
 	# Whoever is in already when you come in is in their seat.
 	_refresh(true)
 
@@ -151,9 +163,13 @@ func _visitors() -> Array:
 
 func _refresh(first := false) -> void:
 	var seen := {}
+	var visits := {}
 	for g in _visitors():
 		var act: Dictionary = g.get("activity", {})
 		var visit := "%d@%d" % [int(g.get("id", 0)), int(act.get("start", 0))]
+		visits[visit] = true
+		if _out_visits.has(visit):
+			continue
 		var n: int = POSES.figure_count(str(g.get("archetype", "")), int(g.get("party_size", 1)))
 		for i in n:
 			var k := "%d:%d" % [int(g.get("id", 0)), i]
@@ -168,6 +184,9 @@ func _refresh(first := false) -> void:
 		var p: Dictionary = _people[k]
 		if not seen.has(k) and str(p["state"]) != "out":
 			_leave(k, p)
+	for v in _out_visits.keys():
+		if not visits.has(v):
+			_out_visits.erase(v)
 
 
 func _free_seat() -> int:
@@ -305,6 +324,8 @@ func _cyl(parent: Node3D, r: float, h: float, m: Material) -> MeshInstance3D:
 
 func _animate() -> void:
 	var tables_drinking := {}
+	if _shop != null and is_instance_valid(_shop):
+		_queue_tick()
 	for k in _people.keys():
 		var p: Dictionary = _people[k]
 		var node: Node3D = p["node"]
@@ -329,6 +350,16 @@ func _animate() -> void:
 			POSES.set_pose(sprite, str(p["base"]), "" if bool(p["stand"]) else "sit")
 			continue
 		var s: Dictionary = seats[int(p["seat"])]
+		if int(p.get("queue", -1)) >= 0:
+			# In the queue: still, facing the till, a look round now and then.
+			if _t >= float(p["next"]):
+				p["next"] = _t + _rng.randf_range(2.5, 6.0)
+				sprite.flip_h = _rng.randf() < 0.25
+			continue
+		if bool(p["stand"]) and open_of.is_valid() and (s.get("clear_of", []) as Array).has(str(open_of.call())):
+			# Where a station is worked: out of its way.
+			node.position = s.get("aside", s["pos"])
+			continue
 		if bool(p["stand"]):
 			# Browsing: a small step along the rack now and then, a turn of the head.
 			if _t >= float(p["next"]):
@@ -395,6 +426,41 @@ func _animate() -> void:
 	for t in tables_drinking.keys():
 		if int(tables_drinking[t]) >= 1 and _rng.randf() < 0.5:
 			_cheers(int(t))
+
+
+## The Jednota: who has their basket walks to their place in the queue (the first at the
+## till); paid or given up, out of the door.
+func _queue_tick() -> void:
+	var q: Array = _shop.tickets(key)
+	var place := {}
+	for i in q.size():
+		place[str(q[i]["visit"])] = i
+	var site: Dictionary = _shop.site(key)
+	for k in _people.keys():
+		var p: Dictionary = _people[k]
+		var state := str(p["state"])
+		if state == "out":
+			continue
+		var visit := str(p["visit"])
+		if (site["served"] as Dictionary).has(visit) or (site["gone"] as Dictionary).has(visit):
+			_out_visits[visit] = true
+			if (site["gone"] as Dictionary).has(visit) and int(p["member"]) == 0:
+				_play("res://assets/sfx/bistro/guest_grumble.mp3", -12.0)
+			p["queue"] = -1
+			_leave(k, p)
+			continue
+		if state != "seat" or int(p["member"]) != 0:
+			continue
+		var want := int(place.get(visit, -1))
+		if want >= queue_spots.size():
+			want = -1
+		if int(p.get("queue", -1)) == want:
+			continue
+		var node: Node3D = p["node"]
+		var to: Vector3 = (queue_spots[want][0] as Vector3) if want >= 0 else (seats[int(p["seat"])]["pos"] as Vector3)
+		p["queue"] = want
+		POSES.set_pose(p["sprite"], str(p["base"]), "")
+		_walk(p, node.position, to, "in")
 
 
 func _cheers(table: int) -> void:

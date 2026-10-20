@@ -532,9 +532,8 @@ func _host_second() -> void:
 		if _save_due.has(key):
 			_save_due.erase(key)
 			_save(key)
-	var life = GuestManager.get("_life") if GuestManager != null else null
-	if life != null and "visit_holds" in life:
-		life.visit_holds = holds
+	# The Jednota keeps its own (orders.set_holds merges them).
+	ORDERS.set_holds("rest", holds)
 
 
 func _rest_sites() -> Array:

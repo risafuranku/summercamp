@@ -372,7 +372,7 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [ ] Phase 2 left: the gear's pictures in the pub (camp/gear_glasswasher, gear_cooler, gear_tap2), sounds for the keg (keg_roll, coupler, gas_hiss) and the order ding of its own
 - [x] Phase 3: the corn stand (counter and husking in 3D on the stand's counter, the live camp beyond it; its hands, gear; stand_check, stand_shots, stand_coop)
 - [ ] Phase 3 left: the gear seen at the stand (camp/gear_cornpot, gear_butter, gear_husktable), sounds of its own (the boil, a leaf torn, the salt)
-- [ ] Phase 4: the Jednota (the building, store, shelves, till; dear and loved)
+- [x] Phase 4: the Jednota (three by three with its Build model and Builder pictures; the till, the shelves and the storeroom in 3D; the queue; its hands, gear; dear and it pays; jednota_check, jednota_shots, jednota_coop)
 - [ ] Phase 5: PROTOTYP 540 (fed at night, the goulash's meat for nothing)
 - [ ] Cellar / machine room: design the dark mechanic (the meatball machine) and prepare
       the space so it can be hooked up (design doc + interactive stub)

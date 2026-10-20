@@ -14,7 +14,8 @@ const CAMP := "res://assets/textury/camp/"
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
-	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome"]
+	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome",
+	"vecerka"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -72,6 +73,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _hammock(root, w, d)
 		"corn_stand":
 			return _corn_stand(root, w, d)
+		"vecerka":
+			return _jednota(root, w, d)
 		# Built by BuildingManager's own placers; here for tools/model_viewer.
 		"cabin_1", "cabin_2", "cabin_3":
 			var lv := int(type.right(1))
@@ -1485,6 +1488,54 @@ func _corn_stand(r: Node3D, w: float, _d: float) -> Dictionary:
 	_use_script(r, "res://scripts/business/corn_stand_life.gd")
 	return {"size": Vector3(bw, 2.4, depth), "target": Vector3(0, 1.0, depth * 0.5 + 0.2)}
 
+
+# ── the Jednota (agent C, 20. 10.; iso_jednota): a 1970s village self-service grocery ───
+#    A long single-storey block under a flat concrete roof, its faces Grok pictures
+#    (camp/jednota_front: the band of shop windows, the glass door, the red board;
+#    jednota_side, jednota_back), the sheet-metal letters JEDNOTA on the board (the same as
+#    Lesna's: town/sign_jednota.png), a flat canopy over the door; out front the crates of
+#    empties, the ice-cream freezer, a bench. Inside it is scripts/jednota/jednota_layout.gd.
+
+func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var sx := 7.2
+	var sz := 6.0
+	var h := 3.4
+	var front := sz * 0.5
+	var plaster: Material = _camp_or("plaster_stone.png", Color(0.9, 0.86, 0.78), "wall", Vector3(2.0, 1.2, 1.0))
+	_plinth(r, sx + 0.3, sz + 0.3)
+	_box(r, "Shop", Vector3(sx, h, sz), Vector3(0, h * 0.5 + 0.1, 0), plaster)
+	_box(r, "Roof", Vector3(sx + 0.5, 0.25, sz + 0.5), Vector3(0, h + 0.22, 0), _camp_or("concrete.png", Color(0.62, 0.6, 0.58), "roof"))
+	if ResourceLoader.exists(CAMP + "jednota_front.png"):
+		_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _face_mat("jednota_front.png"))
+	if ResourceLoader.exists(CAMP + "jednota_side.png"):
+		_quad(r, "JednotaSideL", Vector2(sz, h), Vector3(-sx * 0.5 - 0.012, h * 0.5 + 0.1, 0), -PI * 0.5, _face_mat("jednota_side.png"))
+		_quad(r, "JednotaSideR", Vector2(sz, h), Vector3(sx * 0.5 + 0.012, h * 0.5 + 0.1, 0), PI * 0.5, _face_mat("jednota_side.png"))
+	if ResourceLoader.exists(CAMP + "jednota_back.png"):
+		_quad(r, "JednotaBack", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, -front - 0.012), PI, _face_mat("jednota_back.png"))
+	# The letters on the red board along the top of the front.
+	var letters := "res://assets/textury/town/sign_jednota.png"
+	if ResourceLoader.exists(letters):
+		var lm := _cut_face(letters)
+		_quad(r, "SignJEDNOTA", Vector2(1.6, 0.47), Vector3(0, h - 0.22, front + 0.03), 0.0, lm)
+	# The canopy over the door, on two thin posts.
+	_box(r, "Canopy", Vector3(2.0, 0.1, 1.1), Vector3(0, 2.62, front + 0.55), _camp_or("concrete.png", Color(0.7, 0.68, 0.64), "roof"))
+	for x: float in [-0.92, 0.92]:
+		_box(r, "CanopyPost", Vector3(0.07, 2.55, 0.07), Vector3(x, 1.33, front + 1.05), _metal())
+	_box(r, "Step", Vector3(2.2, 0.14, 0.8), Vector3(0, 0.07, front + 0.4), _psx_mat(Color(0.6, 0.6, 0.58), "stone"))
+	# Out front: the crates of empties by the wall, the freezer, the bench.
+	var crate := "res://assets/textury/camp/beer_crate_full.png"
+	if ResourceLoader.exists(crate):
+		for i in 5:
+			var at := Vector3(-2.6 + float(i % 3) * 0.58, 0.05 + float(i / 3) * 0.4, front + 0.35)
+			_quad(r, "Empties", Vector2(0.55, 0.42), at + Vector3(0, 0.21, 0), 0.0, _cut_face(crate))
+	var freezer := CAMP + "shop_freezer.png"
+	if ResourceLoader.exists(freezer):
+		_box(r, "Freezer", Vector3(1.1, 0.85, 0.62), Vector3(2.2, 0.48, front + 0.5), _flat(Color(0.72, 0.1, 0.08)))
+		_quad(r, "FreezerFace", Vector2(1.1, 0.84), Vector3(2.2, 0.48, front + 0.815), 0.0, _cut_face(freezer))
+	_box(r, "BenchSeat", Vector3(1.4, 0.06, 0.36), Vector3(-1.4, 0.48, front + 1.5), _wood())
+	for x: float in [-1.95, -0.85]:
+		_box(r, "BenchLeg", Vector3(0.06, 0.45, 0.32), Vector3(x, 0.24, front + 1.5), _wood())
+	return {"size": Vector3(sx + 0.6, h + 0.5, sz + 0.6), "target": Vector3(0.0, 1.2, front + 0.3)}
 
 ## A Grok sprite on a quad, its background keyed out.
 func _cut_face(path: String) -> StandardMaterial3D:

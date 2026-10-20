@@ -27,6 +27,7 @@ const ORDERS := preload("res://scripts/food/orders.gd")
 const KITCHEN_PATH := "res://scripts/bistro/kitchen.gd"
 const TAPROOM_PATH := "res://scripts/pub/taproom.gd"
 const CORNSTAND_PATH := "res://scripts/corn/cornstand.gd"
+const JEDNOTA_PATH := "res://scripts/jednota/jednota.gd"
 ## The day shift's first hour.
 const OPEN_HOUR := 7
 
@@ -57,6 +58,9 @@ func _ready() -> void:
 	# The corn stands (one may have made it already: a stand built before this).
 	if get_tree().get_first_node_in_group("cornstands") == null:
 		add_child(load(CORNSTAND_PATH).new())
+	# The Jednotas: their guests take their baskets, their hands work, nobody watching.
+	if get_tree().get_first_node_in_group("jednotas") == null:
+		add_child(load(JEDNOTA_PATH).new())
 
 
 func _process(delta: float) -> void:
@@ -352,8 +356,8 @@ func _watch_visits(sites: Dictionary) -> void:
 			var s: Dictionary = CoreRoot.get_state().biz["sites"].get(key, {})
 			# The bistro's hands work its kitchen ticket by ticket (kitchen.gd), the pub's
 			# pour at its bar order by order (taproom.gd), the stand's husk and boil
-			# (cornstand.gd).
-			if bool(s.get("staff", false)) and not (kind in ["rest", "pub", "corn"]):
+			# (cornstand.gd), the Jednota's stock its rack and ring its till (jednota.gd).
+			if bool(s.get("staff", false)) and not (kind in ["rest", "pub", "corn", "vecerka"]):
 				_hand_serves(rec)
 	# Gone: anybody nobody served went away hungry (or thirsty).
 	for id in _visits.keys():
