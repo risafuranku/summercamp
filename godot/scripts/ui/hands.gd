@@ -67,6 +67,14 @@ static func px(h: float) -> float:
 
 func _init() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_rng.randomize()
+
+
+func _ready() -> void:
+	# The hand that goes out to what you use (doors, switches, things to take).
+	var reach: Node = load("res://scripts/ui/reach_hand.gd").new()
+	reach.name = "ReachHand"
+	add_child(reach)
 	process_priority = -10
 
 
@@ -82,8 +90,8 @@ func release(hand: String, who: String) -> void:
 	_claims[hand].erase(who)
 
 
-## What has `hand` now (its kind, "" free).
-func owner(hand: String) -> String:
+## What holds `hand` now (its kind, "" free).
+func holder(hand: String) -> String:
 	return _owner(hand).get_slice("#", 0)
 
 
@@ -100,10 +108,10 @@ func _owner(hand: String) -> String:
 ## The torch's hand: "right", "left" when the right is busy and the left is not taken
 ## by something that outranks a cigarette, or "" (in your pocket).
 func torch_hand() -> String:
-	var r := owner("right")
+	var r := holder("right")
 	if r == "" or r == "torch":
 		return "right"
-	var l := owner("left")
+	var l := holder("left")
 	if l == "" or l == "cig" or l == "torch":
 		return "left"
 	return ""
@@ -169,7 +177,62 @@ func _move(delta: float) -> void:
 	_land = move_toward(_land, 0.0, delta * 30.0)
 	var still := Vector2(v.x, v.z).length() < 0.3
 	var breath := sin(_t * 1.7) * (1.2 if still else 0.4)
-	motion = Vector2(round(_sway.x), round(_sway.y + breath + _land))
+	var shake := _tremor(delta, main)
+	motion = Vector2(round(_sway.x + shake.x), round(_sway.y + breath + _land + shake.y))
+
+
+## How cold the hands are (0..1): out of doors at night, late in the autumn, in the
+## snow and the rain; and how afraid (0..1): something of the night close (threat_senses).
+var cold := 0.0
+var fear := 0.0
+## The shake now, in sprite pixels: picked twelve times a second (a tremble, not a wave).
+var _shake := Vector2.ZERO
+var _shake_acc := 0.0
+## A shiver of cold comes in fits: how long the one going on lasts, and till the next.
+var _shiver_left := 0.0
+var _shiver_wait := 3.0
+var _rng := RandomNumberGenerator.new()
+
+
+func _tremor(delta: float, main: Node) -> Vector2:
+	cold = move_toward(cold, _coldness(main), delta * 0.05)
+	var senses = main.get("_senses")
+	var f := float(senses.get("fear")) if senses != null else 0.0
+	fear = move_toward(fear, f, delta * (1.5 if f > fear else 0.25))
+	# Fits of shivering, more often and longer the colder it is.
+	_shiver_wait -= delta
+	if _shiver_wait <= 0.0 and cold > 0.15:
+		_shiver_left = _rng.randf_range(0.6, 1.6) * (0.6 + cold)
+		_shiver_wait = _rng.randf_range(4.0, 10.0) / (0.5 + cold)
+	_shiver_left = maxf(0.0, _shiver_left - delta)
+	_shake_acc += delta
+	if _shake_acc >= 1.0 / 12.0:
+		_shake_acc = 0.0
+		var amp := fear * 2.2 + (cold * 2.0 if _shiver_left > 0.0 else cold * 0.35)
+		if amp < 0.4:
+			_shake = Vector2.ZERO
+		else:
+			_shake = Vector2(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-0.6, 0.6)) * amp
+	return _shake
+
+
+func _coldness(main: Node) -> float:
+	if main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")):
+		return 0.0
+	var c := 0.0
+	var h = main.get("_time_of_day_hours")
+	if h != null and (float(h) >= 21.0 or float(h) < 6.0):
+		c += 0.35
+	var day = main.get("_day_index")
+	if day != null:
+		# The month runs from late September into the first snow.
+		c += clampf((float(day) - 8.0) / 22.0, 0.0, 1.0) * 0.35
+	if main.has_method("is_snowing") and bool(main.call("is_snowing")):
+		c += 0.35
+	var ws = main.get("weather_system")
+	if ws != null and ws.has_method("is_raining") and bool(ws.is_raining()):
+		c += 0.2
+	return clampf(c, 0.0, 1.0)
 
 
 func _process(delta: float) -> void:

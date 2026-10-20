@@ -1,0 +1,11 @@
+# The Photographer (scripts/enemies/tourist_brain.gd): id, seconds, destination, prompt.
+ph_hum	8.0	assets/sfx/npc/ph_hum.mp3	A chubby middle-aged man humming a cheerful old holiday tune to himself, out of tune, breathy, through a smile, slowly, outdoors at night in a forest about ten metres away, loopable, no music.
+ph_giggle	2.0	assets/sfx/npc/ph_giggle.mp3	A middle-aged man giggling quietly to himself, delighted, high and breathy, as if he just got a very good photo, outdoors at night, no music.
+ph_wind	1.5	assets/sfx/npc/ph_wind.mp3	An old film camera's advance lever cranked twice by thumb, ratcheting clicks and a soft whirr of film moving, close, no music.
+ph_rewind	3.0	assets/sfx/npc/ph_rewind.mp3	A 1980s film camera rewinding its film with a long whining motor buzz that ends with a click, outdoors at night, no music.
+ph_polaroid	2.5	assets/sfx/npc/ph_polaroid.mp3	An instant camera ejecting a photo: a motor whirr and the print sliding out, then a man flapping the photo in the air three times, close, no music.
+ph_glass_tap	2.0	assets/sfx/npc/ph_glass_tap.mp3	A hard plastic camera body tapping three times on a window pane from outside, the glass rattling slightly in its frame, heard from inside a quiet room, no music.
+ph_glass_breath	3.0	assets/sfx/npc/ph_glass_breath.mp3	A man breathing heavily through his nose right against a window pane from outside, the glass fogging, a soft squeak of a cheek against glass, heard from inside a room, no music.
+ph_steps	2.0	assets/sfx/npc/ph_steps.mp3	Heavy hiking boots walking quickly on gravel and dry pine needles, six steps, outdoors at night, about eight metres away, no music.
+ph_zoom	1.2	assets/sfx/npc/ph_zoom.mp3	A small electric lens zoom motor whirring in and out on an old compact camera, close, no music.
+ph_flash_room	1.0	assets/sfx/npc/ph_flash_room.mp3	A loud camera flash pop heard through a window from inside a small wooden room, a sharp electric snap with the glass buzzing, no music.

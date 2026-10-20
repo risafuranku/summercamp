@@ -797,6 +797,7 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 	_apply_time_to_interior(_caravan_interior)
 	_door_transition(true)
 	_caravan_interior.open_caravan(level)
+	call_deferred("_restore_curtains")
 	_push_room_state(_caravan_interior, _active_caravan_node)
 	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
@@ -880,6 +881,7 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 		_cabin_interior.set_world_anchor(_active_cabin_node)
 	_door_transition(true)
 	_cabin_interior.open_cabin(level)
+	call_deferred("_restore_curtains")
 	_sync_cabin_guest_visuals()
 	_push_room_state(_cabin_interior, _active_cabin_node)
 	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
@@ -983,6 +985,7 @@ func _on_service_interact(service_node: Node) -> void:
 	_service_interior.open_service(building_type)
 	if _service_interior.has_method("set_upkeep_target"):
 		_service_interior.set_upkeep_target(structure.get_meta("grid_origin", Vector2i(-999, -999)), building_type)
+	call_deferred("_restore_curtains")
 	if _service_interior.has_method("set_sewer_broken"):
 		var origin: Vector2i = structure.get_meta("grid_origin", Vector2i(-999, -999))
 		var state = CoreRoot.get_state() if CoreRoot != null else null
@@ -1250,7 +1253,7 @@ func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String
 	var need := _upgrade_locked(str(_pending_upgrade_context.get("new_type", "")))
 	if need > 0.0:
 		_pending_upgrade_context.clear()
-		cost_text = "GOGGLE %.1f" % need
+		cost_text = "%d GUESTS" % int(need)
 		enabled = false
 	if _building_upgrade_menu == null:
 		return
@@ -1322,7 +1325,7 @@ func map_upgrade_offer(origin: Vector2i, current_type: String) -> Dictionary:
 
 
 ## An upgrade to `new_type` waits for the camp's Goggle rating (scripts/reviews/goggle.gd):
-## the stars it needs, or 0.0 when it is open.
+## the guests in the camp it needs, or 0.0 when it is open.
 func _upgrade_locked(new_type: String) -> float:
 	var main := get_tree().current_scene if get_tree() != null else null
 	var g = main.get("_goggle") if main != null else null
@@ -1334,7 +1337,7 @@ func _upgrade_locked(new_type: String) -> float:
 	var item := "upgrade:" + lvl
 	if g.unlocked(item):
 		return 0.0
-	return float(g.TIERS[g.tier_of(item)]["stars"])
+	return float(g.TIERS[g.tier_of(item)]["guests"])
 
 
 ## Builder's map: buy the upgrade there and then. False if it could not be paid or done.
@@ -1469,6 +1472,55 @@ func _resolve_service_structure(node: Node) -> Node3D:
 
 func _is_supported_service_building_type(building_type: String) -> bool:
 	return _module_for_building_type(building_type) == INTERIOR_MODULE_SERVICE
+
+
+# ── windows: what is outside sees in (scripts/ui/window_portal.gd) ────────────
+
+## The windows of the room you are in, for whatever is outside at night (the
+## Photographer, scripts/enemies/tourist_brain.gd): [{pos, out (world), facing (how
+## squarely you look at it), open (its curtain 0..1), flash: Callable}]; [] outdoors or
+## in a room with none.
+func photo_windows() -> Array:
+	var it = _open_room_interior()
+	if it != null and it.has_method("photo_windows"):
+		return it.photo_windows()
+	return []
+
+
+## The building whose windows those are ("office", "x:y"), "" none.
+func photo_building() -> String:
+	var r := coop_room()
+	return str(r.get("k", ""))
+
+
+## Curtains drawn here: to the other wardens (they see them drawn when in the same room).
+var _curtains_by_room: Dictionary = {}
+
+
+func coop_send_curtains(state: Array) -> void:
+	var key := photo_building()
+	if key == "":
+		return
+	_curtains_by_room[key] = state.duplicate()
+	if Coop.is_active():
+		Coop.send_curtains(key, state)
+
+
+func coop_take_curtains(key: String, state: Array) -> void:
+	_curtains_by_room[key] = state.duplicate()
+	if photo_building() != key:
+		return
+	var it = _open_room_interior()
+	if it != null and it.has_method("take_curtains"):
+		it.take_curtains(state)
+
+
+## Coming into a room: its curtains as somebody left them.
+func _restore_curtains() -> void:
+	var key := photo_building()
+	var it = _open_room_interior()
+	if key != "" and _curtains_by_room.has(key) and it != null and it.has_method("take_curtains"):
+		it.take_curtains(_curtains_by_room[key])
 
 
 # ── co-op: the other warden in the same room (scripts/coop/coop.gd) ─────────

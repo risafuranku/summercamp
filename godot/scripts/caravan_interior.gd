@@ -153,6 +153,7 @@ func close_caravan() -> void:
 func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
+	_tick_windows(delta)
 	if not lodge_sleeping:
 		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 		_interior_camera.rotation = _cam_base_rot + offset
@@ -191,6 +192,78 @@ func _input(event: InputEvent) -> void:
 		if _brochure_hover():
 			request_upgrade.emit()
 			get_viewport().set_input_as_handled()
+			return
+		var wp = _curtain_under(event.position)
+		if wp != null:
+			wp.toggle_curtain()
+			var im := get_parent()
+			if im != null and im.has_method("coop_send_curtains"):
+				im.coop_send_curtains(curtains_state())
+			get_viewport().set_input_as_handled()
+
+
+# ── the windows (scripts/ui/window_portal.gd) ───────────────────────────────
+
+const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
+var _windows: Array = []
+## The caravan's floor stands on its axles, this much over the ground (a negative floor).
+const FLOOR_UP := -0.45
+
+
+func _anchor() -> Node3D:
+	var im := get_parent()
+	var n = im.get("_active_caravan_node") if im != null else null
+	return n as Node3D if n != null and is_instance_valid(n) and (n as Node3D).is_inside_tree() else null
+
+
+func _tick_windows(delta: float) -> void:
+	var a := _anchor()
+	var world: World3D = a.get_world_3d() if a != null else null
+	for w in _windows:
+		w.update(_root, _interior_camera, WINDOW_PORTAL.room_to_world(a, w, FLOOR_UP) if a != null else Transform3D(), a != null, world, delta)
+
+
+## The curtain under the pointer (a ray from the room's camera), null none.
+func _curtain_under(screen: Vector2):
+	if _viewport == null or _interior_camera == null:
+		return null
+	var size := get_viewport().get_visible_rect().size
+	var local := Vector2(screen.x / size.x * float(_viewport.size.x), screen.y / size.y * float(_viewport.size.y))
+	var from := _interior_camera.project_ray_origin(local)
+	var q := PhysicsRayQueryParameters3D.create(from, from + _interior_camera.project_ray_normal(local) * 8.0)
+	var hit := _viewport.find_world_3d().direct_space_state.intersect_ray(q)
+	var n: Node = hit.get("collider", null)
+	while n != null:
+		if n.has_meta("window_portal"):
+			return n.get_meta("window_portal")
+		n = n.get_parent()
+	return null
+
+
+func photo_windows() -> Array:
+	var out: Array = []
+	var a := _anchor()
+	if a == null:
+		return out
+	for w in _windows:
+		var o: Dictionary = w.outside(WINDOW_PORTAL.room_to_world(a, w, FLOOR_UP))
+		o["facing"] = w.facing(_root, _interior_camera)
+		o["open"] = w.curtain_open()
+		o["flash"] = w.flash
+		out.append(o)
+	return out
+
+
+func curtains_state() -> Array:
+	var out: Array = []
+	for w in _windows:
+		out.append(w.curtain_open() > 0.5)
+	return out
+
+
+func take_curtains(state: Array) -> void:
+	for i in mini(state.size(), _windows.size()):
+		_windows[i].set_curtain(bool(state[i]))
 
 
 func _brochure_hover() -> bool:
@@ -257,11 +330,12 @@ func _build_room() -> void:
 	door.material_override = _quad_mat("caravan_door", 0.0)
 	for wspec in [[Vector2(1.1, 0.62), Vector3(L * 0.5 - 0.004, 1.32, 0.0), -90.0], [Vector2(0.8, 0.5), Vector3(0.05, 1.45, -W * 0.5 + 0.004), 0.0],
 			[Vector2(0.7, 0.5), Vector3(1.75, 1.42, W * 0.5 - 0.004), 180.0], [Vector2(0.62, 0.48), Vector3(-L * 0.5 + 0.004, 1.42, 0.35), 90.0]]:
-		var wq := K.picture(_root, "caravan_window", wspec[0], wspec[1], float(wspec[2]), "Window")
-		var wm := _quad_mat("caravan_window", 0.0)
-		wq.material_override = wm
-		_window_mats.append(wm)
-		_room_weather().add_window(wq)
+		# The glass looks out of the caravan where it stands (scripts/ui/window_portal.gd),
+		# a curtain to draw over it.
+		var into := _inward(float(wspec[2]))
+		var wp = WINDOW_PORTAL.make(self, _root, (wspec[1] as Vector3) + into * 0.01, -into, wspec[0], "curtain_floral", 192)
+		_windows.append(wp)
+		_room_weather().add_window(wp.quad)
 		# A plain frame round it.
 		var fr := K.slab(_root, Vector3((wspec[0] as Vector2).x + 0.08, 0.05, 0.05), (wspec[1] as Vector3) + _inward(float(wspec[2])) * 0.02 + Vector3(0, -(wspec[0] as Vector2).y * 0.5 - 0.03, 0), veneer_dark, "Sill")
 		fr.rotation_degrees.y = float(wspec[2])
