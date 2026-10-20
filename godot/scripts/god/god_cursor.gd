@@ -50,6 +50,12 @@ const TOOL_TEX := {
 	"lamp_post": "res://assets/textury/builder/tb2_lamp.png",
 	"wreck": "res://assets/textury/builder/tb2_bulldoze.png",
 }
+## The Builder's own moving tools when they are in (builder_module.CURSOR_FRAMES, Grok
+## bld_cursors: the blade, the spade, the lamp blinking, the blueprint unrolling), so it
+## is the PC's pointer over the camp; four frames a second as there. Else TOOL_TEX.
+const TOOL_FRAMES := {"build": ["bp", 3], "path": ["path", 3], "lamp_post": ["lamp", 2], "wreck": ["dozer", 3]}
+const TOOL_FRAME := "res://assets/textury/builder/cursors/%s_%d.png"
+const TOOL_FPS := 4.0
 ## The OS's own arrow (os_shell.gd ARROW), the pointer's body.
 const OS_SHELL := preload("res://scripts/os98/os_shell.gd")
 const SMALL := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic_table", "hammock", "sewer", "tent_1", "tent_2", "tent_3", "bonfire", "corn_stand", "ping_pong"]
@@ -102,6 +108,8 @@ var _cursor: MeshInstance3D
 var _mat: ShaderMaterial
 var _tex: Dictionary = {}
 var _tool := ""
+var _tool_frame := 0
+var _frames_in: Dictionary = {}   # tool -> how many frames are in
 var _pos := Vector3(0, IDLE_H, 0)
 var _vis := 0.0
 var _vis_want := 0.0
@@ -387,9 +395,10 @@ func _build_cursor() -> void:
 
 
 ## The pointer's picture: the OS's arrow with the tool beside it, as on the PC.
-func _cursor_tex(tool: String) -> Texture2D:
-	if _tex.has(tool):
-		return _tex[tool]
+func _cursor_tex(tool: String, frame := 0) -> Texture2D:
+	var key := "%s|%d" % [tool, frame]
+	if _tex.has(key):
+		return _tex[key]
 	var img := Image.create(CURSOR_PX, CURSOR_PX, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	# The arrow at two pixels a pixel and the tool at its own size beside it, so the tool
@@ -402,23 +411,55 @@ func _cursor_tex(tool: String) -> Texture2D:
 			if c.a > 0.0:
 				img.fill_rect(Rect2i(x * 2, y * 2, 2, 2), c)
 	var path := str(TOOL_TEX.get(tool, ""))
+	var side := 26
+	if _tool_frames(tool) > 0:
+		# The frames are drawn on a 24 px square: at their own size, not stretched.
+		path = TOOL_FRAME % [str(TOOL_FRAMES[tool][0]), frame]
+		side = 24
 	if path != "" and ResourceLoader.exists(path):
 		var t := (load(path) as Texture2D).get_image().duplicate() as Image
 		if t.is_compressed():
 			t.decompress()
 		t.convert(Image.FORMAT_RGBA8)
-		t.resize(26, 26, Image.INTERPOLATE_NEAREST)
-		img.blend_rect(t, Rect2i(0, 0, 26, 26), Vector2i(20, 21))
+		if t.get_width() != side or t.get_height() != side:
+			t.resize(side, side, Image.INTERPOLATE_NEAREST)
+		img.blend_rect(t, Rect2i(0, 0, side, side), Vector2i(20 + (26 - side) / 2, 21 + 26 - side))
 	var tex := ImageTexture.create_from_image(img)
-	_tex[tool] = tex
+	_tex[key] = tex
 	return tex
+
+
+## How many of the Builder's frames a tool has in (0: the still icon).
+func _tool_frames(tool: String) -> int:
+	if not TOOL_FRAMES.has(tool):
+		return 0
+	if not _frames_in.has(tool):
+		var n := int(TOOL_FRAMES[tool][1])
+		for i in n:
+			if not ResourceLoader.exists(TOOL_FRAME % [str(TOOL_FRAMES[tool][0]), i]):
+				n = 0
+				break
+		_frames_in[tool] = n
+	return int(_frames_in[tool])
 
 
 func _set_tool(tool: String) -> void:
 	if tool == _tool:
 		return
 	_tool = tool
+	_tool_frame = 0
 	_mat.set_shader_parameter("tex", _cursor_tex(tool))
+
+
+## The tool's frame by the clock (in the stepped tick, so it moves in steps with the rest).
+func _tick_tool() -> void:
+	var n := _tool_frames(_tool)
+	if n <= 1:
+		return
+	var f := int(_t * TOOL_FPS) % n
+	if f != _tool_frame:
+		_tool_frame = f
+		_mat.set_shader_parameter("tex", _cursor_tex(_tool, f))
 
 
 ## How far off the warden watches from: the pieces fall from higher the further off, so
@@ -466,6 +507,7 @@ func _speed() -> float:
 
 func _step() -> void:
 	_tick_dust()
+	_tick_tool()
 	_tick_push()
 	_sweep_hidden()
 	if _job.is_empty():

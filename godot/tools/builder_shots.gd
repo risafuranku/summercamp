@@ -84,7 +84,9 @@ const LOTS := [
 	["cabin_1", "cabin_2", "cabin_3"],
 	["pub", "restaurant", "caravan_1", "caravan_2", "caravan_3"],
 	["vecerka", "sports_field", "lake_slide", "playground"],
-	["bonfire", "ping_pong", "hammock", "bench", "picnic_table", "flower_bed", "gnome", "flagpole", "sewer", "lamp_post", "power_generator", "mega_gnome"],
+	# The small things in two lots: twelve rows ran off the bottom of the map.
+	["bonfire", "ping_pong", "hammock", "bench", "picnic_table", "flower_bed"],
+	["gnome", "flagpole", "sewer", "lamp_post", "power_generator", "mega_gnome"],
 ]
 const UPGRADED := {"tent_2": "tent_1", "tent_3": "tent_1", "cabin_2": "cabin_1", "cabin_3": "cabin_1", "caravan_2": "caravan_1", "caravan_3": "caravan_1"}
 
@@ -117,11 +119,11 @@ func _every_building() -> Array:
 			y += maxi(fp.x, fp.y) + 1
 		s.append(["wait", 1.5])
 		s.append_array([["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 3.0],
-			["eval", UI + ".open_app('builder') != null"], ["wait", 1.5], ["eval", "debug_close_msgboxes()"],
+			["eval", UI + ".open_app('builder') != null"], ["wait", 1.5], ["eval", "debug_close_msgboxes()"], ["no_news"],
 			["eval", MAP + ".set('_zoom_target', 1.7)"], ["eval", MAP + ".set('_zoom_level', 1.7)"]])
 		for v in 4:
 			s.append_array([["eval", MAP + ".set('view_rot', %d)" % v], ["eval", MAP + ".set('_static_dirty', true)"],
-				["eval", MAP + ".debug_center_on(Vector2i(12, %d))" % (4 + y / 2)], ["wait", 0.7], ["crt_screen", "l%d_v%d_map" % [li, v]]])
+				["eval", MAP + ".debug_center_on(Vector2i(12, %d))" % (4 + y / 2)], ["wait", 0.7], ["no_news"], ["wait", 0.1], ["crt_screen", "l%d_v%d_map" % [li, v]]])
 		s.append_array([["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 0.5],
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0]])
 		for v in 4:
@@ -136,6 +138,18 @@ func _fp(t: String) -> Vector2i:
 
 
 func _run_step(step: Array) -> void:
+	if str(step[0]) == "no_news":
+		# The Courier's page over the map (a first caravan is news): away, and the rest of
+		# its queue with it, so the shots show the map.
+		var map = _main.call("debug_builder_map")
+		var bm: Node = map.get_parent() if map != null else null
+		if bm != null:
+			bm.set("_news_queue", [])
+			var page = bm.get("_news_open")
+			if page != null and is_instance_valid(page):
+				page.queue_free()
+			bm.set("_news_open", null)
+		return
 	if str(step[0]) == "iso_cam":
 		# The camp from the map's corner for view [3], looking at grid ([1], [2]).
 		var gm = _main.get("grid_manager")

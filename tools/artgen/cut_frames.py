@@ -20,13 +20,33 @@ import process  # noqa: E402
 import split_sheet  # noqa: E402
 
 
+def to_magenta(img, near=90):
+	"""Grok's background is not always pure magenta (bld_dozer_a came on #E8008A, which
+	key_out leaves as a pink rim): what is near the corner's colour becomes #FF00FF first."""
+	img = img.convert("RGBA")
+	px = img.load()
+	br, bg, bb, _a = px[0, 0]
+	if (br, bg, bb) == (255, 0, 255):
+		return img
+	for y in range(img.height):
+		for x in range(img.width):
+			r, g, b, a = px[x, y]
+			d = abs(r - br) + abs(g - bg) + abs(b - bb)
+			if d < near:
+				px[x, y] = (255, 0, 255, a)
+			elif d < near * 2 and r > g + 60 and b > g + 30:
+				# The rim between the pink and the outline: pulled to the dark it borders.
+				px[x, y] = (int(g * 0.9), g, int(g * 0.9), a)
+	return img
+
+
 def main():
 	if len(sys.argv) < 6:
 		print(__doc__)
 		sys.exit(1)
 	art_id, dest, name, count, first_h = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5])
 	gap = int(sys.argv[6]) if len(sys.argv) > 6 else 14
-	img = process.key_out(Image.open(os.path.join(process.HERE, "out", art_id, "raw.png")))
+	img = process.key_out(to_magenta(Image.open(os.path.join(process.HERE, "out", art_id, "raw.png"))))
 	boxes, labels, w = split_sheet.items(img, gap)
 	check = img.copy()
 	d = ImageDraw.Draw(check)

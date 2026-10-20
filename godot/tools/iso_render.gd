@@ -34,6 +34,7 @@ var _light: DirectionalLight3D
 var _anchors: Dictionary = {}
 var _hidden_lights: Array = []
 var _layers: Array = []          # [node, old layers]
+var _snaps: Dictionary = {}        # ShaderMaterial -> its snap_lines, put back after
 
 
 func _ready() -> void:
@@ -140,9 +141,34 @@ func _ensure_rig() -> void:
 
 func _isolate(node: Node) -> void:
 	for n in node.find_children("*", "VisualInstance3D", true, false) + [node]:
+		# The broom or the linen floating over an empty room (lodging_signs.gd) is the
+		# camp's notice, not the building: left off the layer, so not in the picture.
+		if n.name == "RoomMarker":
+			continue
 		if n is VisualInstance3D:
 			_layers.append([n, (n as VisualInstance3D).layers])
 			(n as VisualInstance3D).layers = LAYER
+	_unsnap()
+
+
+## The retro shader's vertices snap to 150 lines down the screen (retro_materials.gd): on
+## the 768 px render that is a fifth of a metre, and a thin thing (the flagpole's pole, the
+## gnome's coat, the lamp's post) folded to nothing from one corner or another. The map's
+## pictures are drawn still, so they are rendered unsnapped: every converted material (the
+## retro node sets them on the instances through the RenderingServer, not on the nodes).
+func _unsnap() -> void:
+	var retro := get_tree().root.get_node_or_null("RetroMaterials")
+	if retro == null:
+		return
+	var conv: Dictionary = retro.get("_conv")
+	for c in conv.values():
+		var sm := (c as Dictionary).get("mat") as ShaderMaterial
+		if sm == null or _snaps.has(sm):
+			continue
+		var was = sm.get_shader_parameter("snap_lines")
+		if was is float and float(was) > 0.0:
+			_snaps[sm] = was
+			sm.set_shader_parameter("snap_lines", 0.0)
 
 
 func _unisolate() -> void:
@@ -150,6 +176,10 @@ func _unisolate() -> void:
 		if is_instance_valid(e[0]):
 			(e[0] as VisualInstance3D).layers = int(e[1])
 	_layers.clear()
+	for sm in _snaps:
+		if is_instance_valid(sm):
+			(sm as ShaderMaterial).set_shader_parameter("snap_lines", _snaps[sm])
+	_snaps.clear()
 
 
 func _restore() -> void:

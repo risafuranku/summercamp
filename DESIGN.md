@@ -692,7 +692,8 @@ the camp's sim has the building at once (guests, books, everything), and nothing
 the show, hinders or hurts (`scripts/god/god_cursor.gd`).
 
 - **What it is**: the Builder's own pointer (the OS's arrow with the tool beside it: the
-  blueprint, the path, the lamp, the bulldozer), thirty metres of flat pixels in the sky,
+  blueprint unrolling, the spade digging, the lamp blinking, the bulldozer's blade going
+  up and down, the same frames as on the PC), thirty metres of flat pixels in the sky,
   the haze of the camp's fog over it and banks of mist drifting through it, dithered away
   and back in Build's way; it glides slowly to the work and rises back into the haze after.
   A deep hum like thunder and organ pipes from far off; the slowed, giant Okna click and

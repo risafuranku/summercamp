@@ -19,7 +19,8 @@ cut:   Grok's repaint of that sheet back into four sprites (and the windows that
        godot/assets/textury/builder/iso3d/<type>_<v>.png with the anchor (where the
        footprint's middle is in the picture) in iso3d/views.json.
 sheet4 <name> <t1..t4>: four small things on one sheet, a row each (iso4_<name>), and
-cut4 <grok id> <t1..t4> back; for the decor, where one Grok picture does four.
+cut4 <grok id> <t1..t4> back; for the decor, where one Grok picture does four ("-" for
+       a row left out: Grok's went wrong and that thing stays the render's, `raw`).
 raw:   the same from the render itself (no Grok), for checking or as a stand-in.
 frames <type> <n>: a moving thing's frames from the render (the flag waving): each
        view's n frames cut to one box, <type>_<v>_f<k>.png.
@@ -190,6 +191,8 @@ def cut4(art_id, types):
     raw = process.key_out(Image.open(os.path.join(process.HERE, "out", art_id, "raw.png")))
     cw, ch = raw.width // 4, raw.height // 4
     for r, t in enumerate(types):
+        if t == "-":
+            continue
         boxes, _k = layout(t)
         for v in range(4):
             q = raw.crop((v * cw, r * ch, (v + 1) * cw, (r + 1) * ch))

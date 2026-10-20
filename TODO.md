@@ -173,14 +173,18 @@ start, collect good ratings; pay to delete bad reviews".
   from the camp (`tools/god_shots.tscn`)
 - [ ] Grok's repaints of the rest of the buildings (the queue; until then the 3D render
   itself, palette-snapped): choose a or b for each and `iso_views.py cut`
-- [ ] The map's little people in frames (Grok gst_*, cut to `peeps/<kind>_<0-7>.png`), the
-  faces (`react/`), the news icons (`news/`), the animals (dog, ducks, moths, mice, ants,
-  birds), the building site in stages, the little yellow bulldozer, animated tool cursors
+- [x] The map's little people in frames (Grok gst_*, cut to `peeps/<kind>_<0-7>.png`), the
+  faces (`react/`), the building site in its three stages (`site/stage_<0-2>.png`), the
+  little yellow bulldozer and its dust (`site/dozer_*`, `dust_*`), the dog (`life/dog_*`),
+  the moving tool cursors (`cursors/`, also the god cursor's tool over the camp)
+- [ ] The rest of the map's Grok frames, in the queue (the code is in and draws nothing
+  until each lands; `tools/artgen/builder_art.sh <id>` cuts them): the news icons
+  (bld_icons -> `news/`), the ducks and glints, the bugs, the birds (bld_lake, bld_bugs,
+  bld_birds -> `life/`)
 - [ ] The god cursor in co-op on two copies, by night and in the fog; its tempo by feel
-- [ ] The map's trees and flags swaying in the wind, in steps (smoke and leaves go with
-  it already). The trees are baked into the static layer among the buildings in depth
-  order, so they cannot just be drawn again on top: draw them (and what stands in front
-  of them) in the dynamic layer only while it blows, or bake two or three lean frames
+- [x] The map's flags waving (frames from the 3D flagpole, faster in a wind); the trees
+  sway while it blows (`tools/artgen/tree_sway.py`: strom.png leaned by whole pixels,
+  Grok's bld_tree stood upright)
 - [ ] A hint of the cheats somewhere in the PC (a README.TXT in Files, Vera's note), never
   a list
 - [ ] Hear the music once: `assets/sfx/builder/music.ogg` was cut and measured

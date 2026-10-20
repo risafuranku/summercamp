@@ -561,6 +561,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   (`tools/iso_render.tscn`, then `iso_views.py cut`/`raw`); never mirror one to make
   another side (a mirrored front put the pub's door where the camp has a wall). Bit 19 of
   the render layers is the glass layer (every window in the camp): the render uses bit 18.
+  The render turns the retro shader's vertex snap off (`iso_render._unsnap`): at 150 lines
+  on its 768 px a thin part (a flagpole's pole, the gnome's coat, a lamp's post) folded to
+  nothing from one corner, and Grok repainted the hole.
 - **The god cursor hides what it has still to bring down** (`visible` off, the body's
   collision layer 0, a shadow on the ground) until it lands: code that reads a building's
   visibility must expect it; `finish_all()` brings all of it down at once.
