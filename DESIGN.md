@@ -1304,6 +1304,13 @@ in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD 
   last stars going out over it; mist lies over the meadow and the lake at first light and
   lifts by half past eight. The meadow is a late-summer meadow, green and straw, until
   the autumn dries it.
+- **The sky's colours** are the game's surreal look, painted fine like the old Build
+  skies (no big blocks): a blood-red west at sundown with a hot pink afterglow over the
+  violet shadow of the earth in the east, a rose, coral and violet dawn, a purple blue
+  hour with a last red line under it. **Winter coming**: from half the campaign more and
+  more days without weather of their own go under a leaden grey lid instead of the blue
+  (from four fifths all of them); their evening is a dull red slit under the cloud, their
+  night overcast, no dawn glow.
 - **The lamps** are the light itself at night: the bulb bright, its cone of light a warm
   shaft that shows faintly in clear air and fully in mist and rain.
 
