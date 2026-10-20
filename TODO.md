@@ -26,8 +26,9 @@ finished game, by impact:
 - [x] Lamps: the bulbs hardly read, the cone of light a grey column — the bulb lit at
   full, the cone a stepped warm sprite added to the scene, stronger in fog and rain
   (20. 10.)
-- [ ] The fire's light on its surroundings; the bonfire's sparks are code-drawn boxes and
-  its smoke a dither shader (generated sprites)
+- [x] The bonfire's smoke a dither shader — Grok puffs at Build's translucencies (20. 10.);
+  the fire's light on the ground round it reads at night
+- [ ] The bonfire's sparks are flat-coloured quads (one or two pixels on screen)
 - [x] A clear night has the overcast sky: no stars, no moon — stars, the milky way and
   the full moon since 20. 10. (`night_sky.py`)
 - [x] The sun, its glow and its flare are still drawn by code (`weather_visuals`

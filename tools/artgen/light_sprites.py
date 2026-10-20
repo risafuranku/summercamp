@@ -9,6 +9,10 @@ is the light in a few flat shade steps, for additive drawing (agent B, 20. 10.).
       mist, white, see-through in four steps (scripts/ambient/ground_life.gd tints it).
   spr_sun -> godot/assets/textury/skybox/sun.png (40 x 40): the sun, its white-hot disc
       and its haze in four steps, drawn added to the sky (weather_visuals.gd).
+  spr_fire_smoke -> godot/assets/textury/camp/fire_smoke.png (32 tall): a puff of the
+      bonfire's smoke on magenta; the logs Grok drew under it cut off (below y 745), keyed
+      (process.py), scaled by area, the cut bottom rounded, snapped to the palette
+      (campfire.gd through materials/fire_smoke.gdshader).
   spr_rain_rings -> godot/assets/textury/world/rain_ring.png (64 x 16): a raindrop's ripple
       on a puddle in four frames side by side, each cut out of the render round its own
       middle at one common size (ground_life.gd plays them).
@@ -67,6 +71,33 @@ def light_sprite(art_id: str) -> None:
     print(art_id, "->", dest, size)
 
 
+def fire_smoke() -> None:
+    sys.path.insert(0, HERE)
+    import process
+    img = Image.open(os.path.join(OUT, "spr_fire_smoke", "raw.png")).convert("RGB")
+    img = img.crop((0, 0, img.width, 745))
+    a = np.asarray(process.key_out(img)).astype(np.float32)
+    ys, xs = np.nonzero(a[..., 3] > 127)
+    piece = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    h = 32
+    w = max(1, round(piece.shape[1] * h / piece.shape[0]))
+    prem = piece[..., :3] * (piece[..., 3:4] / 255.0)
+    pc = np.asarray(Image.fromarray(prem.clip(0, 255).astype(np.uint8)).resize((w, h), Image.BOX)).astype(np.float32)
+    pa = np.asarray(Image.fromarray(piece[..., 3].astype(np.uint8), "L").resize((w, h), Image.BOX)).astype(np.float32) / 255.0
+    col = (pc / np.maximum(pa[..., None], 1e-3)).clip(0, 255)
+    pink = (col[..., 0] + col[..., 2]) * 0.5 - col[..., 1] > 18.0
+    col = np.where(pink[..., None], col.mean(axis=2, keepdims=True), col)
+    yy, xx = np.mgrid[0:h, 0:w]
+    inside = ((xx + 0.5 - w / 2) / (w * 0.52)) ** 2 + ((yy + 0.5 - h * 0.42) / (h * 0.6)) ** 2 <= 1.0
+    keep = (pa >= 0.5) & ~((yy > h * 0.5) & ~inside)
+    out = np.zeros((h, w, 4), np.uint8)
+    out[keep, :3] = col[keep]
+    out[keep, 3] = 255
+    snapped = process.snap(Image.fromarray(out, "RGBA"), True)
+    snapped.save(os.path.join(GODOT, "assets/textury/camp/fire_smoke.png"))
+    print("spr_fire_smoke -> assets/textury/camp/fire_smoke.png", snapped.size)
+
+
 def rain_rings() -> None:
     a = np.asarray(Image.open(os.path.join(OUT, "spr_rain_rings", "raw.png")).convert("RGB")).astype(np.float32)
     lum = a.mean(axis=2) / 255.0
@@ -96,8 +127,10 @@ def rain_rings() -> None:
 
 
 if __name__ == "__main__":
-    for i in sys.argv[1:] or list(ROWS) + ["spr_rain_rings"]:
+    for i in sys.argv[1:] or list(ROWS) + ["spr_rain_rings", "spr_fire_smoke"]:
         if i == "spr_rain_rings":
             rain_rings()
+        elif i == "spr_fire_smoke":
+            fire_smoke()
         else:
             light_sprite(i)
