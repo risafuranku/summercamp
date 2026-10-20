@@ -14,6 +14,8 @@ extends Node
 ## - a broken toilet stops serving guests ("rained_out"/"broken" logic in needs);
 ## - service_building() restores 100%, clears the failure, charges the cost, and
 ##   refuses (changing nothing) without the cash;
+## - the toilets and showers get dirty with use (soil_building), stink when dirty, guests
+##   pick a cleaner block, cleaning puts them back to 100%;
 ## - outdoor attractions close in rain.
 
 const RULES = preload("res://core/systems/maintenance_rules.gd")
@@ -98,6 +100,26 @@ func _ready() -> void:
 	_expect(not state.failures.has("2:2"), "repair clears the failure")
 	_expect(is_equal_approx(float(state.grid.cells[Vector2i(2, 2)].get("maintenance", 0.0)), 1.0), "repair restores 100%")
 	_expect(state.money == 100, "repair charged $%d (money now %d)" % [cost, state.money])
+
+	# The toilets and showers get dirty with use, stink when dirty, are clean once
+	# serviced (from inside), and guests would rather walk to a cleaner one.
+	state.failures.clear()
+	var visits_to_filthy := int(ceil((1.0 - RULES.FILTHY) / float(RULES.SOILED_BY_USE["toilet_block"])))
+	for i in visits_to_filthy:
+		CoreRoot.actions.soil_building(Vector2i(2, 2), float(RULES.SOILED_BY_USE["toilet_block"]))
+	var dirty := float(state.grid.cells[Vector2i(2, 2)].get("maintenance", 1.0))
+	_expect(dirty <= RULES.FILTHY + 0.001, "%d visits make the toilets filthy (%.2f)" % [visits_to_filthy, dirty])
+	_expect(RULES.stink(dirty) > 0.4 and is_equal_approx(RULES.stink(1.0), 0.0), "filthy toilets stink, clean ones do not")
+	_expect(not RULES.soils("bonfire") and RULES.soils("shower_block"), "only the toilets and showers get dirty")
+	var dirty_fac := _facility("toilet_block", {"failures": state.failures, "power_available": true, "weather": 0})
+	_expect(absf(float(dirty_fac.get("condition", 1.0)) - dirty) < 0.001, "the facility list carries how clean it is")
+	_place("toilet_block", Vector2i(3, 3))
+	var both := NEEDS.collect_facilities(state.grid, CoreRoot.registry, {"failures": state.failures, "power_available": true, "weather": 0})
+	var pick: Dictionary = NEEDS._best_facility_for("bladder", both, Vector2i(2, 3), {}, {})
+	_expect(pick.get("coord", Vector2i.ZERO) == Vector2i(3, 3), "a guest goes to the clean toilet next door (went to %s)" % str(pick.get("coord", "")))
+	state.money = 500
+	_expect(CoreRoot.actions.service_building(Vector2i(2, 2), RULES.service_cost(def, dirty)), "the dirty toilets are cleaned")
+	_expect(is_equal_approx(float(state.grid.cells[Vector2i(2, 2)].get("maintenance", 0.0)), 1.0), "cleaned toilets are clean again")
 
 	# Rain closes the bonfire, not the toilet.
 	state.failures.clear()

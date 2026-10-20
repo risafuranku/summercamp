@@ -14,7 +14,8 @@ const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const TEX := "res://assets/textury/bistro/"
 const FOOD_ICONS := "res://assets/textury/closeup/food/"
 ## Each dish's picture on a ticket, and the sides'.
-const ICONS := {"goulash": "icon_goulash", "smazak": "icon_cheese", "fries": "icon_fries", "dumpling": "icon_dumpling", "cheese": "icon_cheese", "tartar": "icon_tartar"}
+const ICONS := {"goulash": "icon_goulash", "smazak": "icon_cheese", "fries": "icon_fries", "dumpling": "icon_dumpling", "cheese": "icon_cheese", "tartar": "icon_tartar",
+	"sausage": "icon_sausage", "mustard": "icon_mustard", "bread": "icon_bread", "soup": "icon_soup", "kofola": "icon_kofola", "malinovka": "icon_malinovka"}
 ## The pictures were drawn for the surface two to one: a design pixel is half a
 ## picture's pixel (station3d.room_tex shrinks them to the room's pixel).
 const PIX := 2.0
@@ -71,10 +72,16 @@ func bretex(s: Sprite3D, name: String, scale := 1.0) -> void:
 
 # ── tickets ──────────────────────────────────────────────────────────────────
 
+## Which tickets this station's rail has: "pass" (plates), "bufet" (the soup, the
+## bottles), "" all.
+func where() -> String:
+	return ""
+
+
 func tickets() -> Array:
 	if kitchen == null or building_key == "":
 		return []
-	return kitchen.tickets(building_key)
+	return kitchen.tickets(building_key, where())
 
 
 func rail_tickets() -> Array:
@@ -128,6 +135,9 @@ func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
 	var ic: Texture2D = _icons.get(str(t.get("dish", "")))
 	if ic != null:
 		c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - ic.get_width()) * 0.5), 10), ic.get_size()), false)
+	else:
+		# No picture for the dish yet: its name in short.
+		c.draw_string(f, Vector2(2, 20), RULES.dish_label(str(t.get("dish", ""))).to_upper().substr(0, 6), HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.16, 0.12, 0.1))
 	var parts: Dictionary = t.get("parts", {})
 	var note := ""
 	var note_col := Color(0.16, 0.12, 0.1)
@@ -185,6 +195,7 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 	if main_ic != null:
 		c.draw_texture_rect(main_ic, Rect2(Vector2(r.end.x - main_ic.get_width() * 2 - 6, r.position.y + 6), main_ic.get_size() * 2.0), false)
 	y += 12
+	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), RULES.dish_label(str(t.get("dish", ""))).to_upper().substr(0, 14), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.16, 0.12, 0.1))
 	var want: Dictionary = t["parts"]
 	var have := plate_counts()
 	var plating := building_plate()
@@ -197,6 +208,8 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 		var ic: Texture2D = _icons.get(p)
 		if ic != null:
 			c.draw_texture_rect(ic, Rect2(x, y - 10, ic.get_width(), ic.get_height()), false)
+		else:
+			c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), str(p).substr(0, 2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.4, 0.3, 0.2))
 		var col := Color(0.16, 0.12, 0.1)
 		var mark := ""
 		if plating:
@@ -250,6 +263,13 @@ func mirror() -> Array:
 			var bt := float(b["t"])
 			var fs := RULES.fries_state(bt)
 			out.append({"icon": _icons.get("fries"), "fill": bt / (RULES.FRIES_BURNT + 3.0), "zone": Vector2(RULES.FRIES_GOLD / (RULES.FRIES_BURNT + 3.0), RULES.FRIES_BURNT / (RULES.FRIES_BURNT + 3.0)), "col": [RETRO_UI.C_BONE, RETRO_UI.C_GREEN, RETRO_UI.C_RED][fs], "blink": fs == 2})
+	if station != "grill":
+		for slot in s["grill"]:
+			if (slot as Dictionary).is_empty():
+				continue
+			var gt := float(slot["t"][int(slot["down"])])
+			var gs := RULES.sausage_side(gt)
+			out.append({"icon": _icons.get("sausage"), "fill": gt / (RULES.GRILL_BURNT + 2.0), "zone": Vector2(RULES.GRILL_GOLD / (RULES.GRILL_BURNT + 2.0), RULES.GRILL_BURNT / (RULES.GRILL_BURNT + 2.0)), "col": [RETRO_UI.C_BONE, RETRO_UI.C_GREEN, RETRO_UI.C_RED][gs], "blink": gs == 2})
 	if station != "pot":
 		var pot: Dictionary = s["pot"]
 		if int(pot["level"]) > 0 and float(pot["catch"]) > 0.35:

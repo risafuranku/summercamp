@@ -597,8 +597,13 @@ func _draw_staff(m: Rect2, site: Dictionary) -> void:
 	_button(Rect2(left.position.x + 8, by, 80, 22), "Job", "job", picked)
 	_button(Rect2(left.position.x + 92, by, 80, 22), "Shift", "shift", picked)
 	_button(Rect2(left.position.x + 176, by, 80, 22), "Let go", "fire", picked)
+	# What the one picked is like (their speed and temper: what the guests get from them).
+	if picked:
+		var pp := _crew_of(_crew_pick)
+		var ways: Array = [RULES.SPEED_WORD[clampi(int(pp.get("speed", 1)), 0, 2)], str(RULES.TEMPER_WORD.get(str(pp.get("temper", "flat")), ""))]
+		_t(Vector2(left.position.x + 8, by + 38), "  ".join(ways), T.TEXT)
 	if not bool(site.get("late", false)):
-		_t(Vector2(left.position.x + 8, by + 40), "Shuts at 20:00", T.SHADOW)
+		_t(Vector2(left.position.x + 8, by + 56 if picked else by + 40), "Shuts at 20:00", T.SHADOW)
 	# Who is asking today.
 	_group(right, "Asking today")
 	var ap := BUSINESS.applicants(_site)
@@ -647,17 +652,17 @@ func _draw_gear(m: Rect2, site: Dictionary) -> void:
 
 func _draw_books(m: Rect2, site: Dictionary) -> void:
 	var cols := [["", 104], ["Today", 70, true], ["Yesterday", 76, true]]
-	var rows := [["Sold", "sold", ""], ["Takings", "takings", "$"], ["Served by you", "by_hand", ""], ["Went away", "lost", ""], ["Thrown out", "waste", ""], ["Short", "short", "$"]]
+	var rows := [["Sold", "sold", ""], ["Takings", "takings", "$"], ["Goods used", "cost", "$"], ["Served by you", "by_hand", ""], ["Went away", "lost", ""], ["Thrown out", "waste", ""], ["Short", "short", "$"]]
 	var tm := Rect2(m.position, Vector2(256, 22 + rows.size() * ROW_H + 6))
 	_list(tm, cols)
 	for i in rows.size():
 		var y := tm.position.y + 22 + i * ROW_H
 		var key: String = rows[i][1]
-		var a := int((site["today"] as Dictionary).get(key, 0))
+		var a := int(round(float((site["today"] as Dictionary).get(key, 0))))
 		var bad := key in ["lost", "waste", "short"]
 		_t(Vector2(tm.position.x + 7, y + 13), str(rows[i][0]))
 		_tr(_col_x(tm, cols, 2) - 6, y + 13, "%s%d" % [rows[i][2], a], RED if bad and a > 0 else T.TEXT)
-		_tr(_col_x(tm, cols, 3) - 6, y + 13, "%s%d" % [rows[i][2], int((site["yesterday"] as Dictionary).get(key, 0))])
+		_tr(_col_x(tm, cols, 3) - 6, y + 13, "%s%d" % [rows[i][2], int(round(float((site["yesterday"] as Dictionary).get(key, 0))))])
 	# The average, the evening.
 	var g := Rect2(tm.position.x, tm.end.y + 12, tm.size.x, m.end.y - tm.end.y - 12)
 	_group(g, "The place")
@@ -665,6 +670,16 @@ func _draw_books(m: Rect2, site: Dictionary) -> void:
 	_t(g.position + Vector2(12, 22), "Orders rated: %d" % n)
 	if n > 0:
 		_t(g.position + Vector2(12, 40), "Average score: %d%%" % int(round(float(site.get("all_score", 0)) / float(n))), T.TEXT, true)
+	# The last shift's Z report: its mark and the one thing to mend.
+	var z: Dictionary = site.get("zreport", {}) if site.get("zreport", {}) is Dictionary else {}
+	if not z.is_empty():
+		var mark: Dictionary = {"grade": z["grade"], "advice": z.get("advice", "")} if z.has("grade") else RULES.day_grade(z)
+		var gr := str(mark["grade"])
+		_t(g.position + Vector2(150, 22), "Last shift: %s" % gr, GREEN if gr in ["A", "B"] else (RED if gr in ["D", "E"] else T.TEXT), true)
+		var adv := str(mark["advice"])
+		while adv.length() > 4 and _w(adv) > g.size.x - 162:
+			adv = adv.substr(0, adv.length() - 4) + "..."
+		_t(g.position + Vector2(150, 40), adv, T.SHADOW)
 	var late := bool(site.get("late", false))
 	_t(g.position + Vector2(12, 62), "Open till %s" % ("23:00" if late else "20:00"))
 	_button(Rect2(g.position.x + 12, g.position.y + 70, 120, 22), "Shut at 20:00" if late else "Open late", "late")

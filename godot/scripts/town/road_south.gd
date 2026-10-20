@@ -1,28 +1,35 @@
 extends Node3D
 
-## The road out of the camp, past the barrier, on through the forest to the bus stop
-## "Cerne jezero, kemp" about a minute's walk down, and on towards Lesna (only the bus goes
-## that way). Built by world_generator.gd right after the gate (scripts/camp_gate.gd lays
-## the first 120 m of gravel).
+## The road out of the camp, past the barrier, through the camp's spruce to the bus stop
+## "Cerne jezero, kemp" out in the fields, and on to where it meets the real road 1133 up
+## to road 12 (scripts/geo/: the land round the camp is the real one, 1:1). Built by
+## world_generator.gd right after the gate (scripts/camp_gate.gd lays the first 120 m
+## of gravel); asphalt from the stop on, as the real road is.
 ##
-## All generated: gravel strips with collision, spruce walls either side (multimeshes of
-## the camp's own tree meshes), invisible walls along the verges so the forest stays a
-## wall, and the stop: a concrete shelter with a bench, the sign and the timetable case
+## All generated: gravel strips with collision, spruce either side (multimeshes of the
+## camp's own tree meshes; you can walk off into them, scripts/geo/ lays the real land
+## round it), and the stop: a concrete shelter with a bench, the sign and the timetable case
 ## on a pole (building_type "trip_timetable": scripts/town/town_trip.gd opens the sheet),
 ## a lamp that comes on at night (and does not always stay on), a gravel loop where the
-## bus turns. Past the stop the way on is only the bus's.
+## bus turns. Past the stop the road goes on as the 380's asphalt to road 12 (the route
+## in scripts/geo/).
 ##
 ## Road points are relative to the gate: x from the gate's centre, z from the south fence
 ## line (south is -z).
 
 const TEX_DIR := "res://assets/textury/camp/"
 const TOWN_TEX := "res://assets/textury/town/"
+const GEO = preload("res://scripts/geo/geo_data.gd")
 const ROAD_WIDTH := 4.4
 ## The verge walls stand this far from the middle of the road.
 const WALL_OFF := 5.0
 ## Gate, bend, end of camp_gate's road, then this one: the stop is ROAD[STOP].
-const ROAD := [Vector2(0, 1), Vector2(2, -45), Vector2(14, -120), Vector2(17, -165), Vector2(12, -205), Vector2(9, -248), Vector2(6, -290), Vector2(-2, -345)]
-const STOP := 5
+## The last point is where the real road 1133 takes over (geo_data: the route's start,
+## OSM node 334442674, world (-13, -273) with the gate at (6, -55)).
+const ROAD := [Vector2(0, 1), Vector2(2, -45), Vector2(14, -120), Vector2(14, -152), Vector2(6, -182), Vector2(-10, -205), Vector2(-19, -218)]
+const STOP := 3
+## The camp's spruce goes this far along the road (the fields after).
+const TREES_TO := 2
 const OWN_FROM := 2
 ## The walkable pad round the stop, along the road (south +) and across it (east +).
 const PAD_NORTH := 24.0
@@ -53,10 +60,10 @@ func build(gate_x: float, fence_z: float, worldgen: Node, texture_style) -> void
 	_texture_style = texture_style
 	_rng.seed = 380
 	var gravel := _gravel_material()
+	var asphalt := _material(TOWN_TEX + "asphalt.png", "road", Color(0.66, 0.66, 0.68))
 	for i in range(OWN_FROM, ROAD.size() - 1):
-		_road_segment(point(i), point(i + 1), gravel)
-	_build_walls()
-	_build_ground()
+		_road_segment(point(i), point(i + 1), gravel if i < STOP else asphalt)
+	_build_pad_floor()
 	_build_trees()
 	_build_stop()
 	_build_loop(gravel)
@@ -85,43 +92,48 @@ func at_stop(along: float, across: float) -> Vector3:
 	return point(STOP) + stop_south() * along + stop_east() * across
 
 
-## Where the bus stands at the stop, facing back up the road (north, the way it came
-## in); its doors are on its right, at the shelter.
+## Where the bus stands at the stop: turned round in the loop already, facing back down
+## the road towards Lesna, its doors (on its right, bus_model.gd) at the shelter.
 func bus_stop_pose() -> Transform3D:
 	var pos := at_stop(0.5, 1.3)
-	return Transform3D(Basis.looking_at(-stop_south(), Vector3.UP), pos)
+	return Transform3D(Basis.looking_at(stop_south(), Vector3.UP), pos)
 
 
-## In from Lesna: up the east lane from out of sight to the stop.
+## In from Lesna: up the road on its right-hand lane (the shelter's opposite side) past
+## the stop, round the gravel loop and back down to the shelter, doors to it.
 func bus_arrive_path() -> PackedVector3Array:
 	var out := PackedVector3Array()
-	out.append(point(ROAD.size() - 1) + stop_east() * 1.1 + stop_south() * 40.0)
-	out.append(point(ROAD.size() - 1) + stop_east() * 1.1)
-	out.append(point(STOP + 1) + stop_east() * 1.1)
-	out.append(at_stop(14.0, 1.2))
-	out.append(bus_stop_pose().origin)
+	var start := bus_stop_pose().origin
+	var north := -stop_south()
+	var west := -stop_east()
+	# Down the real road 1133 from road 12 (scripts/geo/), on to the camp's own.
+	for p in GEO.route_path_head(60.0, 1.6):
+		out.append(p)
+	out.append(point(ROAD.size() - 1) - stop_east() * 1.1)
+	out.append(point(STOP + 1) - stop_east() * 1.1)
+	out.append(at_stop(16.0, -1.2))
+	out.append(at_stop(4.0, -3.0))
+	var turn_from := start + north * 7.0
+	var centre := turn_from + west * 7.0
+	for k in range(11, 0, -1):
+		var a := PI * float(k) / 12.0
+		out.append(centre - west * 7.0 * cos(a) + north * 7.0 * sin(a))
+	out.append(turn_from)
+	out.append(start)
 	return out
 
 
-## Out to Lesna: on up past the shelter, round the loop to the west and back down the
-## west lane, out of sight.
+## Out to Lesna: straight on down its own lane, out of sight.
 func bus_leave_path() -> PackedVector3Array:
 	var out := PackedVector3Array()
-	var start := bus_stop_pose().origin
-	out.append(start)
-	var north := -stop_south()
-	var west := -stop_east()
-	var turn_from := start + north * 7.0
-	out.append(turn_from)
-	var centre := turn_from + west * 7.0
-	for k in range(1, 13):
-		var a := PI * float(k) / 12.0
-		out.append(centre - west * 7.0 * cos(a) + north * 7.0 * sin(a))
-	out.append(at_stop(4.0, -3.0))
-	out.append(at_stop(16.0, -1.2))
-	out.append(point(STOP + 1) - stop_east() * 1.1)
-	out.append(point(ROAD.size() - 1) - stop_east() * 1.1)
-	out.append(point(ROAD.size() - 1) - stop_east() * 1.1 + stop_south() * 40.0)
+	out.append(bus_stop_pose().origin)
+	out.append(at_stop(14.0, 1.2))
+	out.append(point(STOP + 1) + stop_east() * 1.1)
+	out.append(point(ROAD.size() - 1) + stop_east() * 1.1)
+	# And up the real road towards road 12.
+	var up := GEO.route_path_head(60.0, -1.6)
+	for i in range(up.size() - 1, -1, -1):
+		out.append(up[i])
 	return out
 
 
@@ -193,28 +205,8 @@ func _road_segment(from: Vector3, to: Vector3, mat: StandardMaterial3D) -> void:
 	preload("res://scripts/town/road_verge.gd").build(self, from, to, ROAD_WIDTH)
 
 
-## The verges: a wall either side of every stretch from the gate down to the stop's pad,
-## and round the pad (open only where the road comes in from the camp).
-func _build_walls() -> void:
-	for i in range(0, STOP - 1):
-		var a := point(i)
-		var b := point(i + 1)
-		if i == 0:
-			a.z = _fz - 0.4
-		for side in [-1.0, 1.0]:
-			_wall_along(a, b, side * WALL_OFF, 1.5)
-	# The last stretch into the pad stops at its north edge.
-	var e := point(STOP - 1)
-	var pad_n := at_stop(-PAD_NORTH, 0.0)
-	for side in [-1.0, 1.0]:
-		_wall_along(e, pad_n, side * WALL_OFF, 1.0)
-	# The pad: north (either side of the road), east, south, west.
-	_wall_line(at_stop(-PAD_NORTH, WALL_OFF), at_stop(-PAD_NORTH, PAD_EAST))
-	_wall_line(at_stop(-PAD_NORTH, -WALL_OFF), at_stop(-PAD_NORTH, -PAD_WEST))
-	_wall_line(at_stop(-PAD_NORTH, PAD_EAST), at_stop(PAD_SOUTH, PAD_EAST))
-	_wall_line(at_stop(PAD_SOUTH, PAD_EAST), at_stop(PAD_SOUTH, -PAD_WEST))
-	_wall_line(at_stop(PAD_SOUTH, -PAD_WEST), at_stop(-PAD_NORTH, -PAD_WEST))
-	# The pad's floor.
+## The pad's floor round the stop (the rest of the ground is scripts/geo/'s).
+func _build_pad_floor() -> void:
 	var body := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -225,26 +217,6 @@ func _build_walls() -> void:
 	body.global_transform = Transform3D(Basis(stop_east(), Vector3.UP, -stop_south()), at_stop((PAD_SOUTH - PAD_NORTH) * 0.5, (PAD_EAST - PAD_WEST) * 0.5) + Vector3(0, -0.5, 0))
 
 
-func _wall_along(a: Vector3, b: Vector3, off: float, overlap: float) -> void:
-	var d := (b - a).normalized()
-	var east := Vector3(-d.z, 0.0, d.x)
-	_wall_line(a - d * overlap + east * off, b + d * overlap + east * off)
-
-
-func _wall_line(a: Vector3, b: Vector3) -> void:
-	var body := StaticBody3D.new()
-	body.name = "Verge"
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(0.4, 4.0, a.distance_to(b) + 0.4)
-	shape.shape = box
-	body.add_child(shape)
-	body.position = (a + b) * 0.5 + Vector3(0, 2.0, 0)
-	body.rotation.y = atan2(b.x - a.x, b.z - a.z)
-	add_child(body)
-
-
-## Forest floor under it all, past where the camp's own apron reaches.
 func _build_ground() -> void:
 	var lo := Vector2(INF, INF)
 	var hi := Vector2(-INF, -INF)
@@ -274,7 +246,7 @@ func _build_trees() -> void:
 		return
 	var xforms: Array[Transform3D] = []
 	var birches: Array[Transform3D] = []
-	for i in range(0, ROAD.size() - 1):
+	for i in range(0, TREES_TO):
 		var a := point(i)
 		var b := point(i + 1)
 		var length := a.distance_to(b)
@@ -296,8 +268,8 @@ func _build_trees() -> void:
 				birches.append(Transform3D(basis.scaled(Vector3(0.8, 0.8, 0.8)), Vector3(p.x, 0.0, p.z)))
 			else:
 				xforms.append(Transform3D(basis, Vector3(p.x, 0.0, p.z)))
-	# Round the stop: the forest closes in behind the pad.
-	for k in 520:
+	# Round the stop, out in the fields: a few old limes and shrubs behind the shelter.
+	for k in 26:
 		var along := _rng.randf_range(-PAD_NORTH - 10.0, PAD_SOUTH + 40.0)
 		var across := _rng.randf_range(-PAD_WEST - 36.0, PAD_EAST + 36.0)
 		var p := at_stop(along, across)
@@ -425,6 +397,8 @@ func _build_stop() -> void:
 	body.add_child(shape)
 	body.position = pole_at + Vector3(-0.1, 1.45, 0)
 	root.add_child(body)
+	# The yellow ticket machine beside the pole, facing the road.
+	preload("res://scripts/town/ticket_machine.gd").place(root, pole_at + Vector3(0.1, 0, -1.3), -PI * 0.5)
 	# The lamp: a concrete post with an old bowl lamp over the shelter's mouth.
 	var lamp_at := Vector3(3.6, 0.0, -2.8)
 	_box(root, lamp_at + Vector3(0, 2.3, 0), Vector3(0.16, 4.6, 0.16), concrete)

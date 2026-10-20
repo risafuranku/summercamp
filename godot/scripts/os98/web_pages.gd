@@ -36,9 +36,9 @@ const INDEX := {
 	"cerne-jezero.cz": "camp cerne jezero black lake vera karel guestbook",
 	"cerne-jezero.cz/guestbook": "guestbook guests camp",
 	"hostinec-u-jezera.cz": "pub hostinec beer food karbanatky meatballs",
-	"jednota-lesna.cz": "shop jednota batteries bulbs fuses paraffin bread",
+	"jednota-liblice.cz": "shop jednota batteries bulbs fuses paraffin bread",
 	"bazar-hlubocany.cz": "bazaar bazar classifieds ads sell buy second hand lost found",
-	"csad-jihlava.cz/380": "bus timetable 380 csad lesna",
+	"csad-jihlava.cz/380": "bus timetable 380 csad liblice pristoupim lstibor",
 	"kuryr-hlubocany.cz": "newspaper courier news archive",
 	"kuryr-hlubocany.cz/1987": "1987 girl missing jana search camp",
 	"kuryr-hlubocany.cz/1991": "1991 photographer camera flash missing",
@@ -58,7 +58,7 @@ const INDEX := {
 	"bohemia-online.cz/horoskop": "horoscope horoskop stars zodiac future",
 	"tv.bohemia-online.cz": "tv television program tonight film news ct1 ct2 nova prima",
 	"kuryr-hlubocany.cz/dnes": "news this week courier today camp reservoir hockey",
-	"obec-lesna.cz": "lesna village obec mayor fire station ball bridge church bell notices",
+	"obec-liblice.cz": "liblice village obec mayor fire station ball bridge church bell notices",
 	"agrostroj-hlubocany.cz": "agrostroj feed mill factory land camp plan director jobs",
 }
 
@@ -83,10 +83,10 @@ const PAGES := {
 [b]OUR REGION[/b]
  {okres-hlubocany.cz|District Office Hlubocany}
  {kuryr-hlubocany.cz/dnes|Hlubocany Courier} - this week
- {obec-lesna.cz|Obec Lesna} - the village
+ {obec-liblice.cz|Obec Liblice} - the village
  {agrostroj-hlubocany.cz|Agrostroj Hlubocany} - feed and machinery
  {csad-jihlava.cz/380|Bus timetables} CSAD Jihlava
- {jednota-lesna.cz|Jednota Lesna} - shop
+ {jednota-liblice.cz|Jednota u Marku} - shop
  {bazar-hlubocany.cz|Bazar Hlubocany} - classifieds
  {hostinec-u-jezera.cz|Hostinec U Jezera} - pub
  {povodi-hlubocany.cz|Water Board} - the reservoir
@@ -116,7 +116,7 @@ const PAGES := {
 	"bohemia-online.cz/weather": {
 		"title": "Bohemia Online - Weather",
 		"bg": "#ffffff", "fg": "#000000", "link": "#0000ee",
-		"body": """[center]{{banner:beer:jednota-lesna.cz}}[/center]
+		"body": """[center]{{banner:beer:jednota-liblice.cz}}[/center]
 [b][font_size=18]WEATHER - SOUTH BOHEMIA[/font_size][/b]   [color=#666666]{{date}}, {{time}}[/color]
 """ + HR + """
 {{weather}}
@@ -136,7 +136,7 @@ const PAGES := {
 [color=#aaaaff]shareware for Okna 95 and 98 - free to try, free to keep, do not tell your boss[/color][/center]
 """ + HR + """
 [b][color=#ffcc00]KOMAR 98[/color][/b]  [color=#ff3333][blink]NEW![/blink][/color]
-A camper is asleep in his tent. The mosquitoes are not. Swat them before they bite, and do not slap him by mistake. The hit of the summer at the Lesna fire station.
+A camper is asleep in his tent. The mosquitoes are not. Swat them before they bite, and do not slap him by mistake. The hit of the summer at the Liblice fire station.
  {download://KOMAR98.EXE|KOMAR98.EXE} (28 KB)
 
 [b][color=#ffcc00]VYLET 98[/color][/b]
@@ -228,8 +228,8 @@ Type the old register into the computer, card by card, in the evening and at nig
 [color=#9999cc]The programme may change. The test card is not a programme.[/color]
 {bohemia-online.cz|<< Bohemia Online}""",
 	},
-	"obec-lesna.cz": {
-		"title": "Obec Lesna - official notice board",
+	"obec-liblice.cz": {
+		"title": "Obec Liblice - official notice board",
 		"bg": "#ffffff", "fg": "#000000", "link": "#006600",
 		"body": """[bgcolor=#336600][color=#ffffff][b][font_size=18] OBEC LESNA [/font_size][/b]  the village by the reservoir, 412 inhabitants [/color][/bgcolor]
 [center]{{img:web_shop:200}}[/center]
@@ -239,13 +239,13 @@ Type the old register into the computer, card by card, in the evening and at nig
  * Waste collection: Thursday. Bins out by 6:00, not the night before (the raccoons).
  * The church bell has been heard at night. The parish says nobody rings it. Please do not go up the tower to look.
  * Lost: brown dachshund, Bobik. Last seen at the dam. Reward.
- * The 380 bus no longer waits at Lesna for the works bus.
+ * The 380 bus no longer waits at Liblice for the works bus.
 
 [b]THE VILLAGE[/b]
-Lesna has stood above the valley since 1352. When the reservoir was filled in 1962 the lower village, Zatopy, went under the water; its families moved up to Lesna. The bell of the old church at Zatopy was never brought up.
+Liblice has stood above the valley since 1352. When the reservoir was filled in 1962 the lower village, Zatopy, went under the water; its families moved up to Liblice. The bell of the old church at Zatopy was never brought up.
 
 [b]WHERE TO GO[/b]
- {jednota-lesna.cz|Jednota} - the shop  |  {hostinec-u-jezera.cz|Hostinec U Jezera} - the pub  |  {csad-jihlava.cz/380|the bus}
+ {jednota-liblice.cz|Jednota} - the shop  |  {hostinec-u-jezera.cz|Hostinec U Jezera} - the pub  |  {csad-jihlava.cz/380|the bus}
 """ + HR + """
 {bohemia-online.cz|Bohemia Online}  |  you are visitor no. {{counter}}""",
 	},
@@ -295,7 +295,7 @@ Agrostroj Hlubocany a.s., Prumyslova 4, Hlubocany  |  {bohemia-online.cz|Bohemia
  {okres-hlubocany.cz|District offices}
 
 [b]SHOPPING[/b]
- {jednota-lesna.cz|Shops}, {hostinec-u-jezera.cz|Pubs}
+ {jednota-liblice.cz|Shops}, {hostinec-u-jezera.cz|Pubs}
 
 [b]PERSONAL PAGES[/b]
  {volny.cz/~strasidla|Mysteries}, {volny.cz/~infravrany|Music}
@@ -392,7 +392,7 @@ Namesti Miru 1, 594 01 Hlubocany[/center]
 [b]NOTICE BOARD[/b]
  * {okres-hlubocany.cz/register|Accommodation facilities: guest register (GuestRack 98)}
  * Decree no. 4/1988: the forest around the reservoir is closed to the public from 22:00 to 05:00. [i]Still in force.[/i]
- * The bridge at Lesna is closed to vehicles over 3.5 t.
+ * The bridge at Liblice is closed to vehicles over 3.5 t.
  * Lost property: camera, Praktica MTL 5, found 1991 by the reservoir fence. Unclaimed. Ask at room 12.
  * The lake keeper's post at Cerne jezero is vacant. Applications to room 12.
 
@@ -420,11 +420,11 @@ Please note:
 	},
 
 	# ── local life ─────────────────────────────────────────────────────────────
-	"jednota-lesna.cz": {
-		"title": "Jednota Lesna",
+	"jednota-liblice.cz": {
+		"title": "Jednota u Marku, Liblice",
 		"bg": "#ffffff", "fg": "#000000", "link": "#cc0000",
 		"body": """[center][bgcolor=#cc0000][color=#ffffff][b][font_size=20] JEDNOTA [/font_size][/b][/color][/bgcolor]
-[b]Lesna 42[/b] - your shop by the reservoir
+[b]Liblice 42[/b] - your shop by the reservoir
 {{img:web_shop:224}}
 {{banner:beer:hostinec-u-jezera.cz}}[/center]
 
@@ -458,7 +458,7 @@ We do not deliver to the camp after the season.
 """ + HR + """
 [bgcolor=#cc6600][color=#ffffff][b] FOR SALE [/b][/color][/bgcolor]
 
-[b]Skoda 120 L[/b], 1984, red. Runs. Rust only where you do not look. 9 500 Kc. Lesna 14, after six.
+[b]Skoda 120 L[/b], 1984, red. Runs. Rust only where you do not look. 9 500 Kc. Liblice 14, after six.
 [b]Puppies[/b], mixed, free to a good home. Not to anyone by the lake.
 [b]Camera[/b], Praktica, flash works. The last film in it was never developed. I do not want it back. 300 Kc.
 [b]Antlers[/b], large, found by the camp fence in the spring. Not hunted. Free, please take them away.
@@ -503,22 +503,24 @@ The cellar is not open to guests.
 		"title": "CSAD Jihlava - line 380",
 		"bg": "#ffffff", "fg": "#000000", "link": "#0000ee",
 		"body": """[b]CSAD Jihlava a.s. - TIMETABLE[/b]
-[b]Line 380   Hlubocany - Lesna - Cerne jezero, camp[/b]   valid from 31.5.1998
+[b]Line 380   Lstibor - Liblice - Pristoupim - Cerne jezero, camp[/b]   valid from 31.5.1998
 [center]{{img:web_bus:224}}[/center]
 
 [code]                       daily  daily  daily    +
-Hlubocany, bus station  3:35  11:10  16:35  23:30
-Lesna, Jednota          4:15  11:50  17:15  23:46
-Cerne jezero, dam       5:20  12:55  18:20  23:55
-Cerne jezero, camp      5:45  13:20  18:45    |
+Lstibor, na navsi       5:09  12:49  18:09  23:35
+Liblice                 5:30  13:05  18:30  23:46
+Pristoupim, rozc. x     5:34  13:09  18:34    |
+Cerne jezero, camp      5:43  13:18  18:43    |
 
 Cerne jezero, camp      6:15  13:50  19:15
-Lesna, Jednota          7:45  15:20  20:45
-Hlubocany, bus station  8:10  15:45  21:10[/code]
+Pristoupim, rozc. x     6:24  13:59  19:24
+Liblice                 6:28  14:03  19:28
+Lstibor, na navsi       6:39  14:14  19:39[/code]
+x  stops on request
 
 [b]+[/b] works bus. It does not stop at Cerne jezero, camp. Please do not wave at it.
 
-The last bus from the camp to Hlubocany leaves at 19:15.
+The last bus from the camp to Liblice leaves at 19:15.
 """ + HR + """
 {bohemia-online.cz|Bohemia Online}""",
 	},
@@ -550,7 +552,7 @@ The last bus from the camp to Hlubocany leaves at 19:15.
  cabin .............. 120 Kc a night
  dogs free
 
-[b]HOW TO GET HERE[/b]  bus 380 from Hlubocany, stop "Cerne jezero, camp". {csad-jihlava.cz/380|timetable}
+[b]HOW TO GET HERE[/b]  bus 380 from Liblice, stop "Cerne jezero, camp". {csad-jihlava.cz/380|timetable}
 
 {cerne-jezero.cz/guestbook|>>> SIGN OUR GUEST BOOK <<<}
 
@@ -624,7 +626,7 @@ The District Office pays $4 for every register card you type in at home, in the 
 [center]{{img:news_1987:240}}
 [color=#666666][i]Volunteers and soldiers search the woods above the dam.[/i][/color][/center]
 
-Police, soldiers and volunteers from Lesna have searched the woods around the Cerne jezero reservoir for a fourth day. Jana K. (11) from Prague was last seen on Monday evening during the camp's evening programme.
+Police, soldiers and volunteers from Liblice have searched the woods around the Cerne jezero reservoir for a fourth day. Jana K. (11) from Prague was last seen on Monday evening during the camp's evening programme.
 
 "She was standing at the edge of the lights, where the path goes into the trees," said one of the leaders. "We counted the children at ten and she was there. At midnight we counted again and we had one more than we should have. Then one less."
 
@@ -696,11 +698,11 @@ The camp will open as usual on 1 July.
 		"body": """[color=#666666]Hlubocany Courier, 30 October 1996 - From our history[/color]
 [font_size=18][b]The Antlered Man[/b][/font_size]
 [center]{{img:news_1996:240}}
-[color=#666666][i]Parohac on a woodcut from Lesna, 19th century (district museum).[/i][/color][/center]
+[color=#666666][i]Parohac on a woodcut from Liblice, 19th century (district museum).[/i][/color][/center]
 
 Every village by the reservoir knows him. Children are told that "Parohac" walks the forest fence at night and takes those who are out after dark.
 
-The oldest written mention is in the gamekeeper's book from Lesna, autumn 1962, the year the reservoir was filled: [i]"Someone walked the new fence all night. Tall, with antlers like a twelve-pointer. The dogs would not go out. In the morning no tracks except along the fence."[/i]
+The oldest written mention is in the gamekeeper's book from Liblice, autumn 1962, the year the reservoir was filled: [i]"Someone walked the new fence all night. Tall, with antlers like a twelve-pointer. The dogs would not go out. In the morning no tracks except along the fence."[/i]
 
 The gamekeeper's book ends a few weeks later. The fence was built to keep people away from the water. It is still there.
 
@@ -773,7 +775,7 @@ my cousin plays in a band, check them out: {volny.cz/~infravrany|INFRAVRANY}
 
 [b][color=#ffffff]GIGS 1998[/color][/b]
  20.6.  Hlubocany, culture house - played
-  4.7.  Lesna, fire station ball - played
+  4.7.  Liblice, fire station ball - played
  11.7.  Kemp Cerne jezero, disco - [color=#ff3333][blink]CANCELLED[/blink][/color]
  25.7.  Jihlava, club Rubin - tickets 40 Kc
 

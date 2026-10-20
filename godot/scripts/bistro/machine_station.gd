@@ -183,7 +183,7 @@ func _press(id: String) -> void:
 			else:
 				say("", "Clean. Somebody scrubbed it, but not the corners.")
 		"plate":
-			say("", "PROTOTYP 540. JZD LESNA. The rest is scratched off with something sharp.")
+			say("", "PROTOTYP 540. JZD LIBLICE. The rest is scratched off with something sharp.")
 
 
 func _release(id: String) -> void:

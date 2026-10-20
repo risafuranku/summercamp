@@ -12,12 +12,18 @@ extends Node
 ##     Babetta's tank by the ruin to siphon, the Trabant's battery, the stockings on the
 ##     line for a fan belt, the hammer in the chopping block for the starter; get it
 ##     going and he pays.
-## Saved with the game (export_state / import_state). Co-op: not shared yet.
+## Saved with the game (export_state / import_state). Co-op: one job for everyone
+## (`shared` / `take_shared`, main's sync "hamlet": what is taken, fitted, poured, paid,
+## merged so nothing goes backwards); the bus pulls in for whichever warden waits by the
+## pole and stands for one aboard (town_trip._coop_hold_hamlet).
 
 const PLACE = preload("res://scripts/town/hamlet_podlesi.gd")
 const BUS_MODEL = preload("res://scripts/town/bus_model.gd")
 const TIMES = preload("res://scripts/town/bus_timetable.gd")
 const CAR = preload("res://scripts/town/car_closeup.gd")
+const RUIN = preload("res://scripts/town/ruin_closeup.gd")
+const SKODA_RIDE = preload("res://scripts/town/skoda_ride.gd")
+const TALK := "res://assets/sfx/bus/talk/"
 const SFX := "res://assets/sfx/hamlet/"
 ## The bus coming in to the pole, standing, going (game hours).
 const IN_HOURS := 0.16
@@ -44,6 +50,9 @@ var _decided: Dictionary = {}
 var _amb: AudioStreamPlayer
 var _idle: AudioStreamPlayer3D
 var _night := false
+## The bus you board here is the ride's (town_trip.gd) while you are on it: this one
+## keeps out of the way.
+var riding := false
 
 
 func is_built() -> bool:
@@ -53,6 +62,7 @@ func is_built() -> bool:
 func ensure() -> void:
 	if is_built():
 		return
+	trip._ensure_country()
 	var main: Node = trip._main()
 	var world: Node = main.get("_world_3d") if main != null and main.get("_world_3d") != null else main
 	place = PLACE.new()
@@ -117,6 +127,9 @@ func tick_hour(h: float, night: bool) -> void:
 
 
 func _update_bus(h: float, delta: float) -> void:
+	if riding:
+		bus.set_running(false)
+		return
 	if _hold != "":
 		var towards := _hold == "hamlet_town"
 		_show(towards, _hold)
@@ -166,7 +179,7 @@ func _update_bus(h: float, delta: float) -> void:
 func _show(towards: bool, stop_id: String) -> void:
 	if not bus.visible:
 		bus.set_running(true)
-		bus.destination = "LESNA" if towards else "KEMP"
+		bus.destination = "LIBLICE" if towards else "KEMP"
 		bus.set_stop(stop_id)
 		bus.set_night(_night)
 
@@ -200,13 +213,18 @@ func _run(towards: bool, stop_id: String, t: float, h: float, stops: bool, delta
 	bus.set_speed(was.distance_to(bus.global_position) / maxf(delta, 0.001))
 
 
-## Somebody (you) by the pole on that side as the bus comes.
+## Somebody (you, or the other warden) by the pole on that side as the bus comes.
 func _waiting(towards: bool) -> bool:
-	var p: Node3D = trip._player()
-	if p == null:
-		return false
 	var pole: Vector3 = place.w(PLACE.POLE_TOWN if towards else PLACE.POLE_CAMP)
-	return p.global_position.distance_to(pole) < WAIT_DIST
+	var p: Node3D = trip._player()
+	if p != null and p.global_position.distance_to(pole) < WAIT_DIST:
+		return true
+	for id in Coop.others():
+		var st: Dictionary = Coop.state_of(id)
+		var at: Vector3 = st.get("p", Vector3.INF)
+		if at != Vector3.INF and not bool(st.get("in", false)) and at.distance_to(pole) < WAIT_DIST:
+			return true
+	return false
 
 
 ## The hamlet's day or night round you, and the Skoda ticking over once it runs.
@@ -292,8 +310,7 @@ func interact(structure: Node3D) -> void:
 			has["hammer"] = true
 			_take("hammer", "The hammer from the block. The handle is warm, as if somebody just put it down.")
 		"ham_ruin":
-			_sfx("ruin_creak.mp3")
-			trip._say("The Hronek place. Empty since 1974. The door is gone. The dark inside is not.")
+			_open_ruin()
 
 
 func _take(what: String, line: String) -> void:
@@ -323,7 +340,7 @@ func _talk() -> void:
 		if not bool(state["paid"]):
 			_pay()
 		else:
-			trip._quote("Vondra", "Like a sewing machine full of nails. And when you go back up to that camp: not the last bus. The one before.")
+			_offer_lift()
 		return
 	if not bool(state["talked"]):
 		state["talked"] = true
@@ -363,6 +380,71 @@ func _open_car() -> void:
 	_closeup.open_view()
 
 
+## In through the Hronek ruin's doorway (ruin_closeup.gd): its kitchen, and now and then
+## the boy in the back doorway.
+var _ruin_view
+
+
+func _open_ruin() -> void:
+	if _ruin_view == null:
+		_ruin_view = RUIN.new()
+		add_child(_ruin_view)
+		_ruin_view.closed.connect(trip._on_closeup_closed)
+	_ruin_view.state = state
+	trip._set_player_controls(false)
+	_ruin_view.open_view()
+
+
+## Once she runs and he has paid: a lift up to the camp in her (skoda_ride.gd), by day.
+## After dark not for anything.
+var _drive
+
+
+func driving() -> bool:
+	return _drive != null and _drive.is_driving()
+
+
+func drive_eye() -> Vector3:
+	return _drive.eye() if driving() else Vector3.INF
+
+
+func drive_clock() -> float:
+	return float(_drive.clock_scale) if driving() else 1.0
+
+
+func _offer_lift() -> void:
+	var h: float = trip.hour()
+	if h >= 20.0 or h < 6.0:
+		_say_line("vd_night", "Now? After dark? Up to the lake? Not for anything. In the morning.")
+		return
+	_say_line("vd_offer", "Shall I run you up to the camp? Sit in the front.")
+	if _drive == null:
+		_drive = SKODA_RIDE.new()
+		add_child(_drive)
+		_drive.finished.connect(func(): trip._say("Vondra's Skoda goes back down the lane."))
+	_drive.trip = trip
+	_drive.place = place
+	get_tree().create_timer(2.6).timeout.connect(func():
+		if not driving() and is_built():
+			_drive.start()
+	)
+
+
+## Vondra says a line: his Czech from where he stands (bus_talk.tsv vd*), the English in
+## the strip.
+func _say_line(key: String, en: String) -> void:
+	trip._quote("Vondra", en)
+	var path := TALK + key + "_1.mp3"
+	if ResourceLoader.exists(path) and is_built() and place.get("vondra") != null:
+		var a := AudioStreamPlayer3D.new()
+		a.stream = load(path)
+		a.unit_size = 4.0
+		place.add_child(a)
+		a.global_position = (place.vondra as Node3D).global_position + Vector3(0, 1.6, 0)
+		a.play()
+		a.finished.connect(a.queue_free)
+
+
 ## The Skoda ticking over in the garage: its idle and its black smoke.
 func _engine_on() -> void:
 	if not is_built():
@@ -382,12 +464,61 @@ func _engine_on() -> void:
 
 
 func is_open() -> bool:
-	return _closeup != null and _closeup.visible
+	return (_closeup != null and _closeup.visible) or (_ruin_view != null and _ruin_view.visible)
 
 
 func close() -> void:
 	if _closeup != null and _closeup.visible:
 		_closeup.close_view()
+	if _ruin_view != null and _ruin_view.visible:
+		_ruin_view.close_view()
+
+
+# ── co-op: one job for everyone ────────────────────────────────────────────
+
+## The job as it stands, for the other machines (main._coop_sync_things "hamlet").
+func shared() -> Dictionary:
+	return state.duplicate(true)
+
+
+## Theirs into ours, only forwards: taken things stay taken, a part in the car stays in,
+## poured petrol stays poured, paid stays paid; what you carry is what either of you
+## picked up and nobody has fitted yet (one bag for the job).
+func take_shared(d: Dictionary) -> void:
+	if d.is_empty():
+		return
+	var was_running := bool(state["car"].get("running", false))
+	var car: Dictionary = state["car"]
+	var theirs: Dictionary = d.get("car", {})
+	for k in ["battery", "red", "black", "unstuck", "running"]:
+		car[k] = bool(car.get(k, false)) or bool(theirs.get(k, false))
+	car["fuel"] = maxf(float(car.get("fuel", 0.0)), float(theirs.get("fuel", 0.0)))
+	car["clicks"] = maxi(int(car.get("clicks", 0)), int(theirs.get("clicks", 0)))
+	var belt: Array = car.get("belt", [])
+	for b in theirs.get("belt", []):
+		if not belt.has(b):
+			belt.append(b)
+	car["belt"] = belt
+	var has: Dictionary = state["has"]
+	var th: Dictionary = d.get("has", {})
+	has["battery"] = (bool(has.get("battery", false)) or bool(th.get("battery", false))) and not bool(car["battery"])
+	has["stockings"] = (bool(has.get("stockings", false)) or bool(th.get("stockings", false))) and belt.size() < 4
+	has["hammer"] = bool(has.get("hammer", false)) or bool(th.get("hammer", false))
+	var order := ["", "empty", "full"]
+	var can: String = order[maxi(order.find(str(has.get("canister", ""))), order.find(str(th.get("canister", ""))))]
+	if float(car["fuel"]) >= 0.5 and can == "full":
+		can = "empty"
+	has["canister"] = can
+	for what in d.get("taken", []):
+		if not (state["taken"] as Array).has(what):
+			state["taken"].append(what)
+			if is_built():
+				place.take(str(what))
+	state["talked"] = bool(state["talked"]) or bool(d.get("talked", false))
+	state["paid"] = bool(state["paid"]) or bool(d.get("paid", false))
+	state["ruin"] = maxi(int(state.get("ruin", 0)), int(d.get("ruin", 0)))
+	if not was_running and bool(car["running"]):
+		_engine_on()
 
 
 # ── saved with the game ──────────────────────────────────────────────────────
@@ -407,5 +538,6 @@ func import_state(d: Dictionary) -> void:
 	state["taken"] = (d.get("taken", []) as Array).duplicate()
 	state["talked"] = bool(d.get("talked", false))
 	state["paid"] = bool(d.get("paid", false))
+	state["ruin"] = int(d.get("ruin", 0))
 	if bool(d.get("built", false)):
 		ensure()

@@ -11,7 +11,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## Paper rectangles on the picture (px), and the text written on each.
 const NOTES := {
 	"phones": {"rect": Rect2(26, 17, 89, 83), "paper": Color(0.86, 0.84, 0.78), "ink": Color(0.1, 0.1, 0.12), "font": "label",
-		"text": "TELEPHONE   (4/96)\n\nElectrician Novotny\n      0663 22 418\nVet, Lesna    0663 21 007\nDistrict office\n      0663 30 112\nWater board   0663 30 150\nBus station   0663 21 333\nJednota       0663 21 090\nU Jezera (pub)\n      0663 21 515\nPower, faults 0663 30 199\nPolice 158   Ambulance 155"},
+		"text": "TELEPHONE   (4/96)\n\nElectrician Novotny\n      0663 22 418\nVet, Liblice    0663 21 007\nDistrict office\n      0663 30 112\nWater board   0663 30 150\nBus station   0663 21 333\nJednota       0663 21 090\nU Jezera (pub)\n      0663 21 515\nPower, faults 0663 30 199\nPolice 158   Ambulance 155"},
 	"novotny": {"rect": Rect2(132, 23, 68, 74), "paper": Color(0.86, 0.74, 0.42), "ink": Color(0.1, 0.12, 0.3),
 		"text": "NOVOTNY !!\n0663 22 418\n\nthe main, the lamps,\nthe pump. He comes\nout in the van.\n\nNOT after 9 - he will\ncome but he will moan\nand it is double.\n\nCash.  V."},
 	"private": {"rect": Rect2(224, 21, 70, 74), "paper": Color(0.86, 0.66, 0.64), "ink": Color(0.3, 0.06, 0.1),
@@ -19,7 +19,7 @@ const NOTES := {
 	"photo": {"rect": Rect2(24, 109, 78, 85), "paper": Color(0.86, 0.84, 0.78), "ink": Color(0.14, 0.12, 0.2),
 		"text": "Hruby, '91\n\n(the lake from the\njetty. Somebody has\npressed a thumbnail\ninto the water, in\nthe middle, hard\nenough to dent it.)"},
 	"bus": {"rect": Rect2(110, 126, 70, 81), "paper": Color(0.62, 0.7, 0.78), "ink": Color(0.08, 0.1, 0.22),
-		"text": "BUS  380\nLesna - camp\n 4:15  11:50  17:15\n\nback to town:\n 6:15   13:50\nlast one 19:15.\nthe 23:46 does not\nstop. do not wave.\n\nJednota van:\nTue + Fri, at the gate."},
+		"text": "BUS  380\nLiblice - camp\n 5:30  13:05  18:30\n\nback to Liblice:\n 6:15   13:50\nlast one 19:15.\nthe 23:46 does not\nstop. do not wave.\n\nJednota van:\nTue + Fri, at the gate."},
 	"hruby": {"rect": Rect2(188, 130, 36, 71), "paper": Color(0.74, 0.7, 0.62), "ink": Color(0.14, 0.12, 0.12),
 		"text": "Hruby - lake\nkeeper - boats,\nthe sluice\n\n0663 21 224\n\n-- no longer --", "struck": [0, 4]},
 	"card": {"rect": Rect2(254, 157, 47, 55), "paper": Color(0.84, 0.78, 0.6), "ink": Color(0.12, 0.1, 0.08), "font": "label",

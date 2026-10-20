@@ -37,8 +37,11 @@ func sfx_dir() -> String:
 	return "res://assets/sfx/pub/"
 
 
-## A pub sound, else the bistro's of the same name.
+## A pub sound, else the bistro's of the same name (or a whole path).
 func sfx(n: String, db := -8.0, pitch := 1.0) -> void:
+	if n.begins_with("res://"):
+		super.sfx(n, db, pitch)
+		return
 	var p := sfx_dir() + n + ".mp3"
 	if not ResourceLoader.exists(p):
 		p = "res://assets/sfx/bistro/" + n + ".mp3"
@@ -68,6 +71,14 @@ func tickets() -> Array:
 
 func rail_tickets() -> Array:
 	var out: Array = []
+	# Who wants to pay: their mat with the marks, BILL on it (the tap settles it).
+	for b in bills():
+		var d: Dictionary = (b as Dictionary).duplicate()
+		var age := int(b.get("age", 0))
+		d["band"] = 0 if age < PUB.BILL_WAIT / 2 else (1 if age < PUB.BILL_WAIT - 3 else 2)
+		d["left"] = 1.0 - clampf(float(age) / float(PUB.BILL_WAIT), 0.0, 1.0)
+		d["sig"] = "bill|%d" % int(float(d["left"]) * 12.0)
+		out.append(d)
 	for t in tickets():
 		var d: Dictionary = (t as Dictionary).duplicate()
 		var age := int(t.get("age", 0))
@@ -77,6 +88,10 @@ func rail_tickets() -> Array:
 		d["sig"] = "%d|%d" % [int(float(d["left"]) * 12.0), int(d["had"])]
 		out.append(d)
 	return out
+
+
+func bills() -> Array:
+	return taproom.bills(building_key) if taproom != null and building_key != "" else []
 
 
 func picked_ticket() -> String:
@@ -105,6 +120,9 @@ func orders_here(kind_of: String) -> Array:
 func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
 	if t.is_empty():
 		return
+	if str(t.get("kind", "")) == "bill":
+		_draw_bill_slip(c, t, size)
+		return
 	var f: Font = RETRO_UI.FONT_TEXT
 	var mat: Texture2D = _icons.get("mat")
 	var disc := Rect2(Vector2(0, 7), Vector2(size.x, size.x - 2))
@@ -132,6 +150,58 @@ func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
 		c.draw_rect(Rect2(Vector2.ZERO, size), RETRO_UI.C_AMBER, false, 1.0)
 
 
+## A bill on the rail: the mat with its marks, BILL in red over it.
+func _draw_bill_slip(c: Control, t: Dictionary, size: Vector2) -> void:
+	var f: Font = RETRO_UI.FONT_TEXT
+	var mat: Texture2D = _icons.get("mat")
+	var disc := Rect2(Vector2(0, 7), Vector2(size.x, size.x - 2))
+	if mat != null:
+		c.draw_texture_rect(mat, disc, false)
+	else:
+		c.draw_rect(disc, Color(0.9, 0.87, 0.8))
+	c.draw_string(f, Vector2(1, 6), ORDERS_first(str(t.get("name", ""))).to_upper().substr(0, 5), HORIZONTAL_ALIGNMENT_LEFT, size.x - 2, 8, Color(0.95, 0.85, 0.6))
+	_draw_marks(c, t.get("counts", {}), Rect2(disc.position + Vector2(4, 5), disc.size - Vector2(8, 14)), 1)
+	var word := "BILL"
+	var w := f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	c.draw_string(f, Vector2(floorf((size.x - w) * 0.5), disc.end.y - 1), word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.62, 0.08, 0.05))
+	var band := int(t.get("band", 0))
+	var col: Color = [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band]
+	var bar := Rect2(3, size.y - 3, size.x - 6, 2)
+	c.draw_rect(bar, Color(0.1, 0.08, 0.06))
+	c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * float(t.get("left", 1.0))), bar.size.y)), col)
+
+
+## The pencil marks on a mat, in rows: strokes (beer), crosses (shots), rings (kofola);
+## `k` pixels a pencil line is wide.
+static func _draw_marks(c: Control, counts: Dictionary, r: Rect2, k: int) -> void:
+	var ink := Color(0.2, 0.18, 0.22, 0.95)
+	var x := r.position.x
+	var y := r.position.y
+	var step := 3 * k
+	var h := 5 * k
+	for cls in ["beer", "shot", "kofola"]:
+		var n := int(counts.get(cls, 0))
+		for i in n:
+			if x + step > r.end.x:
+				x = r.position.x
+				y += h + 2 * k
+			match cls:
+				"beer":
+					c.draw_rect(Rect2(x + k, y, k, h), ink)
+				"shot":
+					for j in 3:
+						c.draw_rect(Rect2(x + j * k, y + j * k + k, k, k), ink)
+						c.draw_rect(Rect2(x + (2 - j) * k, y + j * k + k, k, k), ink)
+				"kofola":
+					c.draw_rect(Rect2(x, y + k, 3 * k, k), ink)
+					c.draw_rect(Rect2(x, y + 3 * k, 3 * k, k), ink)
+					c.draw_rect(Rect2(x, y + k, k, 3 * k), ink)
+					c.draw_rect(Rect2(x + 2 * k, y + k, k, 3 * k), ink)
+			x += step + (k if cls != "beer" else 0)
+		if n > 0:
+			x += 2 * k
+
+
 static func ORDERS_first(full: String) -> String:
 	var p := full.split(" ")
 	return p[0] if p.size() > 0 else full
@@ -141,11 +211,41 @@ func big_ticket() -> Dictionary:
 	for t in tickets():
 		if str(t["id"]) == picked:
 			return t
+	for b in bills():
+		if str(b["id"]) == picked:
+			return b
 	return {}
+
+
+## A bill big: the mat with the marks, the board's prices, what they put down, the round
+## sum they asked for.
+func _draw_big_bill(c: Control, r: Rect2, t: Dictionary) -> void:
+	var mat: Texture2D = _icons.get("mat")
+	var disc := Rect2(r.position + Vector2(0, 10), Vector2(r.size.x, r.size.x))
+	if mat != null:
+		c.draw_texture_rect(mat, disc, false)
+	else:
+		c.draw_rect(disc, Color(0.9, 0.87, 0.8))
+	c.draw_string(RETRO_UI.FONT_LABEL, r.position + Vector2(4, 8), ORDERS_first(str(t["name"])).to_upper().substr(0, 9), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, RETRO_UI.C_AMBER_LIGHT)
+	_draw_marks(c, t.get("counts", {}), Rect2(disc.position + Vector2(12, 14), disc.size - Vector2(24, 30)), 2)
+	var ink := Color(0.16, 0.12, 0.1)
+	var y := disc.end.y + 2
+	var f: Font = RETRO_UI.FONT_TEXT
+	c.draw_rect(Rect2(r.position.x, y - 9, r.size.x, r.end.y - y + 9), Color(0.92, 0.88, 0.76))
+	c.draw_string(f, Vector2(r.position.x + 4, y), "| %d  X %d  O %d" % [int(PUB.TAB["beer"]["price"]), int(PUB.TAB["shot"]["price"]), int(PUB.TAB["kofola"]["price"])], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 6, 8, ink)
+	y += 11
+	var note := int(t.get("note", 0))
+	c.draw_string(f, Vector2(r.position.x + 4, y), "PAYS $%d" % note if note > 0 else "RIGHT MONEY", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 6, 8, ink)
+	if int(t.get("make_it", 0)) > 0:
+		y += 11
+		c.draw_string(f, Vector2(r.position.x + 4, y), "MAKE IT $%d" % int(t["make_it"]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 6, 8, Color(0.1, 0.4, 0.12))
 
 
 ## The picked mat big: who, what, how many they have had, the wait.
 func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
+	if str(t.get("kind", "")) == "bill":
+		_draw_big_bill(c, r, t)
+		return
 	var mat: Texture2D = _icons.get("mat")
 	var disc := Rect2(r.position + Vector2(0, 10), Vector2(r.size.x, r.size.x))
 	if mat != null:

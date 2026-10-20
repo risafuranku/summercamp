@@ -141,6 +141,8 @@ var _weather_visuals: Node
 var _interior_manager: Node
 var _interaction_controller: Node
 var _guest_agents: Node3D
+## The giant pointer over the camp that brings down what the Builder builds (theatre only).
+var _god_cursor: Node3D
 var _quest_manager: Node
 var _maintenance: Node
 var _pending_quest_state: Dictionary = {}
@@ -164,6 +166,9 @@ var _boot_screen: CanvasLayer
 var _player_health: int = PLAYER_MAX_HEALTH
 var _blood_fx: Node
 var _game_over_active: bool = false
+## The game clock's pace against its usual (1): town_trip.gd slows it while a warden
+## rides the bus through the real land.
+var clock_scale := 1.0
 var _game_over_reason: String = GAME_OVER_REASON_DEATH
 var _game_over_screen: CanvasLayer
 var _liminal_forecast_snapshot: Dictionary = {}
@@ -335,6 +340,7 @@ func _bootstrap_runtime() -> void:
 	await _boot_step("Raking the paths", 0.85)
 	_rebuild_core_cells_from_visual_structures()
 	_setup_guest_agents()
+	_setup_god_cursor()
 	fallback_camera.current = true
 	await _boot_step("Lighting the lamps", 0.9)
 
@@ -987,6 +993,14 @@ func _setup_guest_agents() -> void:
 	_guest_agents.setup(grid_manager, Callable(self, "_now_abs_minutes_float"))
 
 
+func _setup_god_cursor() -> void:
+	if _god_cursor != null and is_instance_valid(_god_cursor):
+		return
+	_god_cursor = preload("res://scripts/god/god_cursor.gd").new()
+	_world_3d.add_child(_god_cursor)
+	_god_cursor.setup(self, grid_manager)
+
+
 ## Absolute game time in minutes (day 1 00:00 = 0), with the fractional minute.
 func _now_abs_minutes_float() -> float:
 	return float(maxi(1, _day_index) - 1) * 1440.0 + _time_of_day_hours * 60.0
@@ -1207,7 +1221,9 @@ func _process(delta: float) -> void:
 	# come in, coop_apply_clock), nor anything below that changes the camp.
 	var sim: bool = Coop.sim_here()
 	if time_system and sim:
-		time_system.process(delta)
+		# Slower while a warden rides the 380 through the real land (town_trip.gd):
+		# its thirteen minutes take the real road's five.
+		time_system.process(delta * clock_scale)
 	if weather_system and sim and not camp_rule("weather"):
 		if weather_system.current_weather != WEATHER_CLEAR:
 			weather_system.set_weather(WEATHER_CLEAR)
@@ -1216,7 +1232,7 @@ func _process(delta: float) -> void:
 		if state != null:
 			weather_system.set_anomaly_pressure(float(state.hrotfaktor))
 		weather_system.season_day = _day_index
-		weather_system.process(delta * BALANCE_CONFIG.GAME_MINUTES_PER_SECOND, _time_of_day_hours)
+		weather_system.process(delta * clock_scale * BALANCE_CONFIG.GAME_MINUTES_PER_SECOND, _time_of_day_hours)
 	_sync_runtime_state_from_systems()
 	_sync_season()
 	if sim:
@@ -3048,7 +3064,8 @@ func _generate_grid_world() -> void:
 		world_generator.create_emergency_ground(_world_3d)
 
 
-## Tools (screenshot driver) may park a camera here to look at the camp from outside.
+## Tools (screenshot driver) may park a camera here to look at the camp from outside;
+## old Vondra's Skoda (town/skoda_ride.gd) parks its passenger seat's here for the drive.
 var debug_camera: Camera3D
 
 
@@ -4207,7 +4224,7 @@ func _on_menu_test_night(enemy_id: String) -> void:
 		_hud_manager.push_status("Test night: the %s is out." % label, 2)
 
 
-## The bus test (L, "Bus to Lesna"): a fresh sandbox camp by day, the warden at the
+## The bus test (L, "Bus to Liblice"): a fresh sandbox camp by day, the warden at the
 ## camp's stop with money in the pocket just as the 13:50 comes up the road; from there
 ## everything as in the game (the ticket machine, the ride, the request stop at Podlesi,
 ## Lesna, the way back). Nothing is saved.
@@ -4226,7 +4243,7 @@ func _start_test_bus() -> void:
 	if trip != null and trip.has_method("_put_player") and trip._road() != null:
 		trip._put_player(trip._road().wait_spot())
 	if _hud_manager != null:
-		_hud_manager.push_status("Test: the 380 is coming up the road. The ticket machine is inside.", 2)
+		_hud_manager.push_status("Test: the 380 is coming up the road. Ticket from the yellow machine by the stop, punch it on board.", 2)
 
 
 ## Which guests bring which test night's thing (main_menu.TEST_NIGHTS ids).
@@ -4841,6 +4858,10 @@ func _coop_sync_things() -> Dictionary:
 	# their table on the other machine, and they stop waiting there).
 	if Coop.is_host():
 		out["served"] = ORDERS_SERVED._served.duplicate()
+	# Pristoupim's job (hamlet_trip.gd): one for everyone, merged forwards both ways.
+	var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
+	if trip != null and trip.has_method("coop_hamlet"):
+		out["hamlet"] = trip.coop_hamlet()
 	return out
 
 
@@ -4883,6 +4904,12 @@ func coop_sync(kind: String, data: Array) -> void:
 			var desk = bi.get("_desk_room") if bi != null else null
 			if desk != null and desk.has_method("coop_take_register"):
 				desk.coop_take_register(data[0])
+		"hamlet":
+			var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
+			if trip != null and trip.has_method("coop_take_hamlet") and data.size() > 0 and data[0] is Dictionary:
+				trip.coop_take_hamlet(data[0])
+				_coop_sync_last["hamlet"] = hash(var_to_bytes(trip.coop_hamlet()))
+			return
 		"gate":
 			var gate = get_tree().get_first_node_in_group("camp_gate")
 			if gate == null:
@@ -4995,10 +5022,15 @@ func coop_apply_fact(kind: String, data: Array) -> void:
 	state.money = 1 << 30
 	match kind:
 		# Straight to the builder (the joining machine's own requests go to the host).
+		# The host built it at its PC: the god cursor brings it down here too.
 		"build":
+			_god_from_peer(true)
 			CoreRoot.builder_authority._on_request_build(str(data[0]), data[1], int(data[2]))
+			_god_from_peer(false)
 		"demolish":
+			_god_from_peer(true)
 			CoreRoot.builder_authority._on_request_demolish(data[0])
+			_god_from_peer(false)
 		"build_rejected":
 			EventBus.BuildRejected.emit(str(data[0]), data[1], int(data[2]), str(data[3]))
 		"demolish_rejected":
@@ -5029,7 +5061,9 @@ func coop_request(kind: String, data: Array) -> void:
 			var turned: Array = []
 			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])
 			EventBus.BuildRejected.connect(cb)
+			_god_from_peer(true)
 			EventBus.RequestBuild.emit(str(data[0]), data[1], int(data[2]))
+			_god_from_peer(false)
 			EventBus.BuildRejected.disconnect(cb)
 			if not turned.is_empty():
 				Coop.send_fact("build_rejected", turned[0])
@@ -5037,7 +5071,9 @@ func coop_request(kind: String, data: Array) -> void:
 			var turned2: Array = []
 			var cb2 := func(rect: Rect2i, reason: String) -> void: turned2.append([rect, reason])
 			EventBus.DemolishRejected.connect(cb2)
+			_god_from_peer(true)
 			EventBus.RequestDemolish.emit(data[0])
+			_god_from_peer(false)
 			EventBus.DemolishRejected.disconnect(cb2)
 			if not turned2.is_empty():
 				Coop.send_fact("demolish_rejected", turned2[0])
@@ -5111,6 +5147,12 @@ func coop_request(kind: String, data: Array) -> void:
 			# letter comes in the host's mail (the other machine gets it from there).
 			if EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
 				EmailManager.schedule_pool_mail(preload("res://scripts/builder/shareware.gd").mail_for(str(data[0]), str(data[1]), _day_index))
+
+
+## A build or demolition from another warden's PC: the god cursor stages it here too.
+func _god_from_peer(on: bool) -> void:
+	if _god_cursor != null and is_instance_valid(_god_cursor):
+		_god_cursor.from_peer = on
 
 
 ## The other warden's machine builds nothing of its own accord: what its Builder asks
@@ -6303,6 +6345,8 @@ func _leave_everything(silent: bool) -> void:
 		_lake_trip.return_home()
 	if _interior_manager != null and _interior_manager.has_method("close_everything"):
 		_interior_manager.close_everything(silent)
+	if _god_cursor != null and is_instance_valid(_god_cursor):
+		_god_cursor.finish_all()
 
 
 ## Built once at bootstrap so it is ready (and laid out) long before the first Esc.

@@ -12,17 +12,22 @@ extends RefCounted
 
 const NEED_ENERGY := "energy"
 const NEED_HUNGER := "hunger"
+## Something to drink (the brief of 20. 10.: the businesses' ladder, a small drink at the
+## corn stand, a light one at the pub, a big one at the bistro, the Jednota's bottles to
+## take home). Their own tap water at the lodging keeps them from going dry, no more.
+const NEED_THIRST := "thirst"
 const NEED_BLADDER := "bladder"
 const NEED_HYGIENE := "hygiene"
 const NEED_FUN := "fun"
 const NEED_SAFETY := "safety"
-const NEEDS: Array[String] = [NEED_ENERGY, NEED_HUNGER, NEED_BLADDER, NEED_HYGIENE, NEED_FUN, NEED_SAFETY]
+const NEEDS: Array[String] = [NEED_ENERGY, NEED_HUNGER, NEED_THIRST, NEED_BLADDER, NEED_HYGIENE, NEED_FUN, NEED_SAFETY]
 ## Needs a guest actively walks somewhere to fix (energy/safety are handled by sleep/light).
-const SEEKABLE_NEEDS: Array[String] = [NEED_HUNGER, NEED_BLADDER, NEED_HYGIENE, NEED_FUN]
+const SEEKABLE_NEEDS: Array[String] = [NEED_HUNGER, NEED_THIRST, NEED_BLADDER, NEED_HYGIENE, NEED_FUN]
 
 const NEED_LABELS := {
 	NEED_ENERGY: "Energy",
 	NEED_HUNGER: "Hunger",
+	NEED_THIRST: "Thirst",
 	NEED_BLADDER: "Bladder",
 	NEED_HYGIENE: "Hygiene",
 	NEED_FUN: "Fun",
@@ -30,10 +35,11 @@ const NEED_LABELS := {
 }
 
 ## Base decay per game minute while awake (100 -> 0 in roughly: energy 22h, hunger 10h,
-## bladder 6h, hygiene 24h, fun 14h).
+## thirst 12h, bladder 6h, hygiene 24h, fun 14h).
 const BASE_DECAY := {
 	NEED_ENERGY: 0.075,
 	NEED_HUNGER: 0.16,
+	NEED_THIRST: 0.14,
 	NEED_BLADDER: 0.27,
 	NEED_HYGIENE: 0.07,
 	NEED_FUN: 0.12,
@@ -44,41 +50,41 @@ const BASE_DECAY := {
 ## which facilities they love (score multiplier when choosing where to go).
 const ARCHETYPES := {
 	"quiet_guy": {
-		"decay": {NEED_ENERGY: 1.0, NEED_HUNGER: 0.9, NEED_BLADDER: 0.9, NEED_HYGIENE: 1.1, NEED_FUN: 0.7},
-		"weight": {NEED_HYGIENE: 1.3, NEED_FUN: 0.7, NEED_SAFETY: 1.3},
+		"decay": {NEED_ENERGY: 1.0, NEED_HUNGER: 0.9, NEED_THIRST: 0.8, NEED_BLADDER: 0.9, NEED_HYGIENE: 1.1, NEED_FUN: 0.7},
+		"weight": {NEED_HYGIENE: 1.3, NEED_FUN: 0.7, NEED_SAFETY: 1.3, NEED_THIRST: 0.6},
 		"likes": {"corn_stand": 0.9, "bonfire": 1.4, "lake_slide": 0.8, "pub": 0.5, "sports_field": 0.7, "restaurant": 1.1, "bench": 1.4, "hammock": 1.6, "ping_pong": 1.0, "picnic_table": 1.0, "playground": 0.3},
 		"comfort_weight": 0.8,
 	},
 	"drunk": {
-		"decay": {NEED_ENERGY: 1.1, NEED_HUNGER: 1.2, NEED_BLADDER: 1.5, NEED_HYGIENE: 0.6, NEED_FUN: 1.4},
-		"weight": {NEED_FUN: 1.4, NEED_HUNGER: 1.1, NEED_HYGIENE: 0.6},
+		"decay": {NEED_ENERGY: 1.1, NEED_HUNGER: 1.2, NEED_THIRST: 1.6, NEED_BLADDER: 1.5, NEED_HYGIENE: 0.6, NEED_FUN: 1.4},
+		"weight": {NEED_FUN: 1.4, NEED_HUNGER: 1.1, NEED_HYGIENE: 0.6, NEED_THIRST: 1.2},
 		"likes": {"corn_stand": 1.0, "pub": 2.0, "bonfire": 1.4, "vecerka": 1.3, "sports_field": 0.6, "picnic_table": 1.4, "ping_pong": 1.3, "bench": 1.1, "hammock": 1.2, "playground": 0.2},
 		"comfort_weight": 0.5,
 	},
 	"cheap_chick": {
-		"decay": {NEED_ENERGY: 0.9, NEED_HUNGER: 0.9, NEED_BLADDER: 1.0, NEED_HYGIENE: 1.5, NEED_FUN: 1.2},
-		"weight": {NEED_HYGIENE: 1.5, NEED_FUN: 1.2},
+		"decay": {NEED_ENERGY: 0.9, NEED_HUNGER: 0.9, NEED_THIRST: 1.1, NEED_BLADDER: 1.0, NEED_HYGIENE: 1.5, NEED_FUN: 1.2},
+		"weight": {NEED_HYGIENE: 1.5, NEED_FUN: 1.2, NEED_THIRST: 0.8},
 		"likes": {"corn_stand": 1.4, "lake_slide": 1.7, "sports_field": 1.2, "restaurant": 1.3, "shower_block": 1.2, "pub": 0.8, "hammock": 1.5, "ping_pong": 1.1, "bench": 0.8, "picnic_table": 1.0, "playground": 0.4},
 		"comfort_weight": 1.5,
 	},
 	# Tramps: sleep anywhere, live at the fire with a guitar, wash in the lake (or not).
 	"tramp": {
-		"decay": {NEED_ENERGY: 0.8, NEED_HUNGER: 1.1, NEED_BLADDER: 1.0, NEED_HYGIENE: 0.5, NEED_FUN: 1.3},
-		"weight": {NEED_FUN: 1.5, NEED_HUNGER: 1.0, NEED_HYGIENE: 0.4, NEED_SAFETY: 0.8},
+		"decay": {NEED_ENERGY: 0.8, NEED_HUNGER: 1.1, NEED_THIRST: 1.2, NEED_BLADDER: 1.0, NEED_HYGIENE: 0.5, NEED_FUN: 1.3},
+		"weight": {NEED_FUN: 1.5, NEED_HUNGER: 1.0, NEED_HYGIENE: 0.4, NEED_SAFETY: 0.8, NEED_THIRST: 0.9},
 		"likes": {"corn_stand": 1.3, "bonfire": 2.2, "pub": 1.4, "vecerka": 1.2, "lake_slide": 0.9, "restaurant": 0.5, "bench": 1.2, "hammock": 1.4, "picnic_table": 1.3, "ping_pong": 0.7, "playground": 0.3},
 		"comfort_weight": 0.3,
 	},
 	# Family: kids are hungry and bored every hour, parents want it clean and safe.
 	"family": {
-		"decay": {NEED_ENERGY: 1.1, NEED_HUNGER: 1.4, NEED_BLADDER: 1.3, NEED_HYGIENE: 1.2, NEED_FUN: 1.6},
-		"weight": {NEED_FUN: 1.3, NEED_HYGIENE: 1.3, NEED_SAFETY: 1.6, NEED_HUNGER: 1.2},
+		"decay": {NEED_ENERGY: 1.1, NEED_HUNGER: 1.4, NEED_THIRST: 1.3, NEED_BLADDER: 1.3, NEED_HYGIENE: 1.2, NEED_FUN: 1.6},
+		"weight": {NEED_FUN: 1.3, NEED_HYGIENE: 1.3, NEED_SAFETY: 1.6, NEED_HUNGER: 1.2, NEED_THIRST: 0.9},
 		"likes": {"corn_stand": 1.8, "sports_field": 1.8, "lake_slide": 1.8, "restaurant": 1.5, "vecerka": 1.2, "shower_block": 1.3, "pub": 0.4, "playground": 2.4, "picnic_table": 1.6, "ping_pong": 1.3, "bench": 1.0, "hammock": 0.9},
 		"comfort_weight": 1.3,
 	},
 	# Mushroom pickers: early to bed, up at four, out in the woods; hate noise.
 	"picker": {
-		"decay": {NEED_ENERGY: 1.2, NEED_HUNGER: 0.8, NEED_BLADDER: 1.2, NEED_HYGIENE: 0.9, NEED_FUN: 0.5},
-		"weight": {NEED_ENERGY: 1.4, NEED_SAFETY: 1.2, NEED_FUN: 0.5},
+		"decay": {NEED_ENERGY: 1.2, NEED_HUNGER: 0.8, NEED_THIRST: 0.9, NEED_BLADDER: 1.2, NEED_HYGIENE: 0.9, NEED_FUN: 0.5},
+		"weight": {NEED_ENERGY: 1.4, NEED_SAFETY: 1.2, NEED_FUN: 0.5, NEED_THIRST: 0.7},
 		"likes": {"corn_stand": 1.2, "restaurant": 1.4, "vecerka": 1.5, "bonfire": 0.8, "pub": 0.4, "sports_field": 0.3, "bench": 1.6, "picnic_table": 1.3, "hammock": 0.8, "ping_pong": 0.5, "playground": 0.3},
 		"comfort_weight": 1.2,
 	},
@@ -114,6 +120,16 @@ const NOISE_COMFORT := 24.0
 
 ## A need below this is something the guest goes and deals with.
 const SEEK_THRESHOLD := 62.0
+## The evening rush (the brief of 20. 10.: "the peak of the day: queues at every place"):
+## from a quarter to six to eight nearly everybody goes for supper, a drink and a bit of
+## fun, so the places' needs are seen to much sooner than by day.
+const RUSH_FROM := 17.75
+const RUSH_TO := 20.0
+const RUSH_SEEK := {NEED_HUNGER: 90.0, NEED_THIRST: 88.0, NEED_FUN: 80.0}
+
+
+static func is_rush(hour: float) -> bool:
+	return hour >= RUSH_FROM and hour < RUSH_TO
 ## Below this the need becomes an emergency (bushes, storm-off pressure).
 const CRITICAL_THRESHOLD := 12.0
 ## Mood below this counts as "unhappy" (liminal pressure, early departure clock).
@@ -127,6 +143,22 @@ const MOOD_FOLLOW_PER_MINUTE := 0.6
 
 ## Sleep restores energy per minute, scaled by lodging comfort.
 const SLEEP_ENERGY_PER_MINUTE := 0.34
+
+## Asleep at night the body waits for the morning (playtest 20. 10.: "at three in the
+## morning they were cross with me over a broken toilet; at night guests sleep"):
+## hunger, bladder, hygiene and fun stand still and what is wrong in the camp does not
+## reach them. Only the bed (comfort, the drunks singing next door) and fear (safety)
+## sour a sleeper's mood, and only down to a ceiling (sleep_mood_target). The night is
+## paid on waking: the queue for the toilets and breakfast come when the warden is up.
+const MORNING_NEEDS := {NEED_BLADDER: 30.0, NEED_HUNGER: 20.0, NEED_THIRST: 15.0, NEED_HYGIENE: 8.0}
+## Back at their lodging (a lie-down, a night's rest) they drink their own water: thirst
+## comes back up to here, never higher (a proper drink is the businesses').
+const HOME_WATER := 55.0
+const HOME_WATER_PER_MINUTE := 0.12
+## Comfort below which a bed spoils the night (a tent for the pensioner, Kristyna's).
+const BAD_BED := 45.0
+## Score a facility loses when it is at its filthiest (choosing where to go).
+const DIRT_PENALTY := 24.0
 
 
 static func archetype_profile(archetype: String) -> Dictionary:
@@ -169,7 +201,9 @@ static func normalize_needs(raw: Variant) -> Dictionary:
 
 
 ## Applies `minutes` of passive decay. `context` keys:
-##   sleeping (bool), comfort (0-100), is_night (bool), lit (bool: near light),
+##   sleeping (bool), night_sleep (bool: the night's rest, in bed or up in the night's
+##   trouble, see MORNING_NEEDS),
+##   comfort (0-100), is_night (bool), lit (bool: near light),
 ##   threat (0-1: enemy pressure near the guest), crowd (0-1).
 static func decay_needs(needs: Dictionary, archetype: String, minutes: float, context: Dictionary) -> Dictionary:
 	var out := needs.duplicate()
@@ -178,12 +212,17 @@ static func decay_needs(needs: Dictionary, archetype: String, minutes: float, co
 	var profile := archetype_profile(archetype)
 	var decay_mult: Dictionary = profile.get("decay", {})
 	var sleeping := bool(context.get("sleeping", false))
+	var night_sleep := bool(context.get("night_sleep", false))
 	var comfort := clampf(float(context.get("comfort", 50.0)), 0.0, 100.0)
-	for need in [NEED_HUNGER, NEED_BLADDER, NEED_HYGIENE, NEED_FUN]:
+	for need in [NEED_HUNGER, NEED_THIRST, NEED_BLADDER, NEED_HYGIENE, NEED_FUN]:
 		var rate := float(BASE_DECAY[need]) * float(decay_mult.get(need, 1.0))
-		if sleeping:
-			rate *= 0.35 if need != NEED_FUN else 0.0
-		out[need] = clampf(float(out[need]) - rate * minutes, 0.0, 100.0)
+		if night_sleep or (sleeping and need == NEED_FUN):
+			rate = 0.0
+		elif sleeping:
+			rate *= 0.35
+		out[need] = clampf(float(out.get(need, 70.0)) - rate * minutes, 0.0, 100.0)
+	if sleeping and not night_sleep and float(out[NEED_THIRST]) < HOME_WATER:
+		out[NEED_THIRST] = minf(HOME_WATER, float(out[NEED_THIRST]) + HOME_WATER_PER_MINUTE * minutes)
 	if sleeping:
 		var quality := lerpf(0.55, 1.25, comfort / 100.0)
 		out[NEED_ENERGY] = clampf(float(out[NEED_ENERGY]) + SLEEP_ENERGY_PER_MINUTE * quality * minutes, 0.0, 100.0)
@@ -240,6 +279,27 @@ static func mood_target(needs: Dictionary, archetype: String, comfort: float) ->
 	return clampf(avg * 0.62 + worst * 0.38 + comfort_term, 0.0, 100.0)
 
 
+## A sleeper's mood target (see MORNING_NEEDS): where the mood was, sunk only by a bad
+## night: a poor bed for this kind of guest, the noise next door (`noise`, the comfort
+## points it takes), fear. Never up while asleep: the morning's rested energy does that.
+static func sleep_mood_target(current: float, needs: Dictionary, archetype: String, comfort: float, noise: float = 0.0) -> float:
+	var profile := archetype_profile(archetype)
+	var cw := float(profile.get("comfort_weight", 1.0))
+	var w_safety := float((profile.get("weight", {}) as Dictionary).get(NEED_SAFETY, 1.0))
+	var ceiling := 100.0 - maxf(0.0, BAD_BED - comfort) * 1.2 * cw
+	ceiling = minf(ceiling, 100.0 - maxf(0.0, noise) * 1.5)
+	ceiling = minf(ceiling, lerpf(100.0, float(needs.get(NEED_SAFETY, 80.0)), clampf(w_safety, 0.0, 1.5) / 1.5))
+	return clampf(minf(current, ceiling), 0.0, 100.0)
+
+
+## Waking up in the morning: the night's hunger and full bladder at once (MORNING_NEEDS).
+static func wake_needs(needs: Dictionary) -> Dictionary:
+	var out := needs.duplicate()
+	for need in MORNING_NEEDS:
+		out[need] = clampf(float(out.get(need, 70.0)) - float(MORNING_NEEDS[need]), 0.0, 100.0)
+	return out
+
+
 static func step_mood(current: float, target: float, minutes: float) -> float:
 	return clampf(move_toward(current, target, MOOD_FOLLOW_PER_MINUTE * maxf(minutes, 0.0)), 0.0, 100.0)
 
@@ -294,6 +354,8 @@ static func collect_facilities(grid, registry, flags: Dictionary) -> Array:
 			"footprint": def.footprint,
 			"working": working,
 			"reason": reason,
+			# How clean it is (the toilets and showers get dirty with use).
+			"condition": clampf(float(cell.get("maintenance", 1.0)), 0.0, 1.0),
 		})
 	return out
 
@@ -333,19 +395,25 @@ static func pick_goal(
 	facilities: Array,
 	from_coord: Vector2i,
 	usage: Dictionary,
-	rng: RandomNumberGenerator
+	rng: RandomNumberGenerator,
+	hour := -1.0
 ) -> Dictionary:
 	var profile := archetype_profile(archetype)
 	var weights: Dictionary = profile.get("weight", {})
 	var likes: Dictionary = profile.get("likes", {})
+	var rush := is_rush(hour)
 
 	# Rank needs by urgency; sample among the pressing ones so guests are not robots.
 	var candidates: Array = []
 	for need in SEEKABLE_NEEDS:
 		var value := float(needs.get(need, 70.0))
-		if value >= SEEK_THRESHOLD:
+		var seek := float(RUSH_SEEK.get(need, SEEK_THRESHOLD)) if rush else SEEK_THRESHOLD
+		if value >= seek:
 			continue
 		var urgency := pow((100.0 - value) / 100.0, 2.0) * float(weights.get(need, 1.0))
+		if rush and RUSH_SEEK.has(need):
+			# Supper time: going for it is the thing to do, however full they are.
+			urgency += 0.25
 		candidates.append({"need": need, "urgency": urgency, "value": value})
 	if float(needs.get(NEED_ENERGY, 100.0)) < 25.0:
 		candidates.append({"need": NEED_ENERGY, "urgency": 0.6, "value": float(needs.get(NEED_ENERGY, 0.0))})
@@ -398,7 +466,9 @@ static func _best_facility_for(need: String, facilities: Array, from_coord: Vect
 		var crowd_penalty := 0.0 if busy < cap else 25.0 + float(busy - cap) * 12.0
 		var dist := float(travel_minutes(from_coord, f.get("coord", from_coord)))
 		var like := float(likes.get(str(f.get("type", "")), 1.0))
-		var score := gain * like - dist * 0.8 - crowd_penalty
+		# A dirty block: they would rather walk to a cleaner one.
+		var dirt := (1.0 - float(f.get("condition", 1.0))) * DIRT_PENALTY
+		var score := gain * like - dist * 0.8 - crowd_penalty - dirt
 		if score > best_score:
 			best_score = score
 			best = f
@@ -488,3 +558,43 @@ static func mood_label(mood: float) -> String:
 static func review_stars(mood: float, camp_satisfaction: float) -> int:
 	var blended := clampf(mood, 0.0, 100.0) * 0.8 + clampf(camp_satisfaction, 0.0, 100.0) * 0.2
 	return clampi(int(round((blended + 5.0) / 20.0)), 1, 5)
+
+
+## The Jednota's bag to take home (the brief of 20. 10.: "supplies for the whole stay"):
+## what they bought keeps topping their needs up when they run low, a little a minute,
+## until it is used up. `stash` is {need: points left}; returns [needs, stash].
+const STASH_BELOW := 60.0
+const STASH_PER_MINUTE := 0.25
+## What a basket from a place puts in the bag (points a need, used as above), at most
+## STASH_CAP of each kept.
+const STASH_FROM := {"vecerka": {NEED_HUNGER: 45.0, NEED_THIRST: 45.0, NEED_FUN: 20.0, NEED_HYGIENE: 25.0}}
+const STASH_CAP := 120.0
+
+
+## The bag after a basket from `building_type` (unchanged when it fills nothing).
+static func add_stash(stash: Dictionary, building_type: String) -> Dictionary:
+	var out := stash.duplicate()
+	var from: Dictionary = STASH_FROM.get(building_type, {})
+	for need in from:
+		out[need] = minf(STASH_CAP, float(out.get(need, 0.0)) + float(from[need]))
+	return out
+
+
+static func use_stash(needs: Dictionary, stash: Dictionary, minutes: float) -> Array:
+	if stash.is_empty() or minutes <= 0.0:
+		return [needs, stash]
+	var out := needs.duplicate()
+	var left := stash.duplicate()
+	for need in left.keys():
+		var have := float(left[need])
+		var v := float(out.get(need, 70.0))
+		if have <= 0.0 or v >= STASH_BELOW:
+			continue
+		var take := minf(have, minf(STASH_PER_MINUTE * minutes, STASH_BELOW - v))
+		out[need] = v + take
+		left[need] = have - take
+	for need in left.keys():
+		if float(left[need]) <= 0.01:
+			left.erase(need)
+	return [out, left]
+

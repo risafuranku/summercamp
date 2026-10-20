@@ -272,7 +272,7 @@ static func create_camp(name: String, seed: int, sandbox: bool, coop: bool) -> S
 
 static func default_camp_name() -> String:
 	var n := list_camps().size() + 1
-	var names := ["Black Lake", "Spruce Hollow", "Lesna Meadow", "Kettle Pond", "Birch Bend", "Mill Race", "Fox Hill", "Reed Shore"]
+	var names := ["Black Lake", "Spruce Hollow", "Liblice Meadow", "Kettle Pond", "Birch Bend", "Mill Race", "Fox Hill", "Reed Shore"]
 	return "%s %d" % [names[n % names.size()], n]
 
 

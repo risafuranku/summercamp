@@ -36,7 +36,8 @@ var _taken_t := 0.0
 
 
 func _init() -> void:
-	layer = 95
+	# Under your hand at the station (station_hands.gd, 95) and the frame (96).
+	layer = 94
 	add_to_group("closeup")  # the hands are on it (pockets.gd)
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -156,7 +157,7 @@ func _open_books() -> void:
 	if _ledger == null:
 		_ledger = LEDGER.new()
 		add_child(_ledger)
-	_ledger.layer = layer + 2
+	_ledger.layer = 98
 	_ledger.open_for(building_key, "corn_stand", "stock")
 
 
@@ -252,7 +253,7 @@ func _process(delta: float) -> void:
 		return
 	var st: Node = _stations[open]
 	var moving := _tween != null and _tween.is_valid() and _tween.is_running()
-	var mouse := get_viewport().get_mouse_position()
+	var mouse: Vector2 = STATION3D.mouse_of(get_viewport())
 	var ui := str(_hud.call("hit", mouse))
 	_hud.call("set_hover", ui if ui.begins_with("#tab") or ui.begins_with("#btn") or ui == "#back" else "")
 	var vp_mouse := _view_px(mouse)

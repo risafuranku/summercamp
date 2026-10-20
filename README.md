@@ -44,3 +44,9 @@ tools/          Python/Node tooling: font baker, art generation, SFX synthesis, 
 mementowiki/    superseded, kept only as historical changelog
 ost/            music and radio source files (not imported into the project)
 ```
+
+## Third-party data
+
+The land round the camp (roads, fields, buildings, the villages along the bus route) is
+built from OpenStreetMap data, (c) OpenStreetMap contributors, available under the Open
+Database License (https://www.openstreetmap.org/copyright). See `tools/geo/build_world.py`.

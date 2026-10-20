@@ -11,10 +11,23 @@ const PUFFS := 3
 const LAYOUT := preload("res://scripts/corn/stand_layout.gd")
 const CORNSTAND := preload("res://scripts/corn/cornstand.gd")
 const POSES := preload("res://scripts/attractions/poses.gd")
-## Where those who come for a cob stand, in front of the counter (the stand's space; the
-## first at the counter, the rest a loose queue behind), facing it.
-const QUEUE := [Vector3(-0.45, 0, 1.15), Vector3(0.5, 0, 1.25), Vector3(0.0, 0, 1.85), Vector3(-0.95, 0, 2.05),
-	Vector3(0.95, 0, 2.15), Vector3(-0.35, 0, 2.7), Vector3(0.6, 0, 2.85), Vector3(0.0, 0, 3.4)]
+## The hands at their places behind the counter (scripts/business/crew_figures.gd): seen
+## at work from the camp and from behind the counter; one whose station a warden is at
+## steps back out of the way.
+const CREW_FIGURES := preload("res://scripts/business/crew_figures.gd")
+const CREW_AT := {"counter": Vector3(-0.62, 0, -0.98), "husk": Vector3(0.68, 0, -0.98), "drinks": Vector3(-1.8, 0, -0.95)}
+const CREW_ASIDE := {"counter": Vector3(0.2, 0, -0.75), "husk": Vector3(-0.2, 0, -0.75), "drinks": Vector3(0.0, 0, -0.75)}
+var _crew: Node3D
+## Where those who come for a cob stand, in front of the counter (the stand's space),
+## facing it: the first two at the counter, the rest in a line out into the camp, slanting
+## off to the side so that from behind the counter you see every one of them (the brief
+## of 20. 10.: "the queue out in the camp, seen from the counter"). They step up the line
+## as those in front are served.
+const QUEUE := [Vector3(-0.5, 0, 1.12), Vector3(0.35, 0, 1.18), Vector3(1.0, 0, 1.75), Vector3(1.45, 0, 2.35),
+	Vector3(1.9, 0, 2.95), Vector3(2.35, 0, 3.55), Vector3(2.8, 0, 4.15), Vector3(3.25, 0, 4.75),
+	Vector3(3.7, 0, 5.35), Vector3(4.15, 0, 5.95)]
+## Walking up the line, metres a second.
+const STEP_UP := 1.1
 
 var guests_here := 0
 
@@ -86,6 +99,18 @@ func covers_tile(tile: Vector2i) -> bool:
 
 var _spot_of: Dictionary = {}
 var _spot_seen: Dictionary = {}
+## Where each one in the line is now (walking up to their place) and when they last moved.
+var _at_of: Dictionary = {}
+var _moved_t: Dictionary = {}
+
+
+## Those further back step up into the places in front that came free, in the order they
+## stand.
+func _close_up() -> void:
+	var keys: Array = _spot_of.keys()
+	keys.sort_custom(func(a, b) -> bool: return int(_spot_of[a]) < int(_spot_of[b]))
+	for idx in keys.size():
+		_spot_of[keys[idx]] = idx
 
 
 ## A guest come for a cob: at a place in front of the counter (the first free one from
@@ -101,6 +126,7 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 		if _t - float(_spot_seen[k]) > 3.0:
 			_spot_seen.erase(k)
 			_spot_of.erase(k)
+			_at_of.erase(k)
 	if not _spot_of.has(key):
 		var taken: Array = _spot_of.values()
 		var free := -1
@@ -111,8 +137,15 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 		if free < 0:
 			return false
 		_spot_of[key] = free
+		_at_of[key] = QUEUE[mini(QUEUE.size() - 1, free + 1)]
 	_spot_seen[key] = _t
-	member.global_position = r.global_transform * (QUEUE[int(_spot_of[key])] as Vector3)
+	_close_up()
+	var want: Vector3 = QUEUE[int(_spot_of[key])]
+	var at: Vector3 = _at_of.get(key, want)
+	at = at.move_toward(want, STEP_UP * maxf(0.0, _t - float(_moved_t.get(key, _t))))
+	_moved_t[key] = _t
+	_at_of[key] = at
+	member.global_position = r.global_transform * at
 	member.set_meta("marker_drop", 0.0)
 	# Standing (the eating pictures are sat at a table).
 	POSES.set_pose(sprite, str(info.get("sprite_path", "")), "")
@@ -155,11 +188,43 @@ func make_stations(key: String) -> Dictionary:
 		v.set("state", stand)
 		r.add_child(v)
 		stations[id] = v
+	_start_crew(r, key)
 	# The steam off the painted pot (the counter's).
 	var c: Node3D = stations.get("counter", null)
 	if c != null:
 		_steam_at = c.transform * (c.call("local_at", Vector2(95, 172), 0.08) as Vector3)
 	return stations
+
+
+func _start_crew(r: Node3D, key: String) -> void:
+	if _crew != null and is_instance_valid(_crew):
+		_crew.call("clear")
+		_crew.queue_free()
+	_crew = CREW_FIGURES.new()
+	_crew.name = "StandCrew"
+	_crew.set("key", key)
+	var spots := {}
+	for role in CREW_AT:
+		spots[role] = {"root": r, "pos": CREW_AT[role], "station": role, "aside": CREW_ASIDE[role], "note": (CREW_AT[role] as Vector3) + Vector3(0, 1.25, 0.5)}
+	_crew.set("spots", spots)
+	_crew.set("busy_of", _busy)
+	r.add_child(_crew)
+
+
+## The stand's stations somebody is at: here, or another warden (their room's job).
+func _busy() -> Array:
+	var out: Array = []
+	for id in stations:
+		var st = stations[id]
+		if is_instance_valid(st) and bool(st.call("is_open")):
+			out.append(str(id))
+	if Coop.is_active() and not stations.is_empty():
+		var key := str(stations.values()[0].get("building_key"))
+		for pid in Coop.others():
+			var room: Dictionary = Coop.state_of(pid).get("room", {})
+			if str(room.get("k", "")) == key and str(room.get("t", "")) == "corn":
+				out.append(str(room.get("w", "")))
+	return out
 
 
 func _process(delta: float) -> void:

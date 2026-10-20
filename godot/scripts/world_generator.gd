@@ -26,6 +26,10 @@ var _rng = RandomNumberGenerator.new()
 var world_seed: int = 0
 
 var _terrain_root: Node3D
+## The low hills on the horizon (_spawn_horizon). Off where the real land is built round
+## the camp (scripts/geo/): they would stand in its fields. Still made (the generator's
+## dice stay the same), only hidden.
+var horizon_hills := true
 var _nature_root: Node3D
 var _texture_style
 
@@ -958,6 +962,24 @@ func _tree_mesh(id: String) -> Mesh:
 				for k in 3:
 					_st_card(st, c, size, deg_to_rad(60.0 * k + float(blob[1]) * 40.0), 0.0)
 				_st_card(st, c + Vector3(0.0, float(blob[1]) * 0.35, 0.0), size * 0.9, deg_to_rad(25.0), deg_to_rad(62.0))
+		"linden_trunk":
+			# A village linden: a short thick bole, three limbs up into the crown.
+			_st_cone(st, Vector3.ZERO, 0.42, 0.24, 4.6, 7, 1.0)
+			_st_branch(st, Vector3(0.0, 3.2, 0.0), Vector3(1.4, 1.6, 0.4), 0.12)
+			_st_branch(st, Vector3(0.0, 3.6, 0.0), Vector3(-1.2, 1.8, -0.6), 0.11)
+			_st_branch(st, Vector3(0.0, 4.2, 0.0), Vector3(0.3, 1.6, -1.2), 0.1)
+		"linden_crown":
+			# Its crown: a broad dome down low, lumpy, a little taller than wide.
+			for blob in LINDEN_BLOBS:
+				var r: float = blob[1]
+				_st_blob(st, blob[0], Vector3(r, r * 0.92, r))
+		"linden_cards":
+			for blob in LINDEN_BLOBS:
+				var c: Vector3 = blob[0]
+				var size: float = float(blob[1]) * 2.3
+				for k in 3:
+					_st_card(st, c, size, deg_to_rad(60.0 * k + float(blob[1]) * 40.0), 0.0)
+				_st_card(st, c + Vector3(0.0, float(blob[1]) * 0.35, 0.0), size * 0.9, deg_to_rad(25.0), deg_to_rad(62.0))
 		"dead":
 			_st_cone(st, Vector3.ZERO, 0.2, 0.05, 4.6, 5, 1.0)
 			_st_branch(st, Vector3(0.0, 2.2, 0.0), Vector3(0.9, 0.9, 0.1), 0.07)
@@ -1059,6 +1081,10 @@ func _st_branch(st: SurfaceTool, from: Vector3, dir: Vector3, r: float) -> void:
 ## A birch's crown: its lumps (centre, size), the cards of leaves round them.
 const BIRCH_BLOBS := [[Vector3(0.0, 3.6, 0.0), 1.25], [Vector3(0.45, 4.4, 0.2), 0.9], [Vector3(-0.4, 3.2, -0.3), 0.8]]
 const BIRCH_LEAVES_TEX := "res://assets/textury/world/spr_birch_leaves.png"
+## The linden's crown (scripts/geo/ and the villages): [centre, radius] of its lumps.
+const LINDEN_BLOBS := [[Vector3(0.0, 6.0, 0.0), 3.1], [Vector3(1.9, 5.0, 0.7), 2.1], [Vector3(-1.8, 5.2, -0.8), 2.2],
+	[Vector3(0.5, 4.8, -2.0), 2.0], [Vector3(-0.7, 4.7, 1.9), 2.0], [Vector3(0.3, 8.3, 0.2), 2.1],
+	[Vector3(-1.1, 9.1, 0.6), 1.3], [Vector3(1.2, 8.9, -0.7), 1.3]]
 
 
 func _tree_material(kind: String, variant: int) -> Material:
@@ -1218,6 +1244,8 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 			ang = -PI * 0.5 + signf(off_road if off_road != 0.0 else 1.0) * 0.6
 		var dist := half * _rng.randf_range(3.2, 4.6)
 		var hill := MeshInstance3D.new()
+		hill.name = "Hill%d" % i
+		hill.visible = horizon_hills
 		hill.mesh = hill_mesh
 		hill.material_override = hill_mat
 		hill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

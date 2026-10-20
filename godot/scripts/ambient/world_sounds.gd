@@ -324,10 +324,12 @@ func _after_rain(delta: float, here: Vector3, w: int) -> void:
 func _flagpoles(delta: float, wind: float) -> void:
 	for id in _flags.keys():
 		var f: Dictionary = _flags[id]
-		var p: AudioStreamPlayer3D = f["player"]
-		if not is_instance_valid(p):
+		# A bulldozed pole's player is freed with it: check before the typed assignment
+		# (it raised a script error every frame from then on).
+		if not is_instance_valid(f["player"]):
 			_flags.erase(id)
 			continue
+		var p: AudioStreamPlayer3D = f["player"]
 		f["t"] = float(f["t"]) - delta
 		if float(f["t"]) > 0.0:
 			continue

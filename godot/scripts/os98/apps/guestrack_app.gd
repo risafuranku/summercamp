@@ -62,7 +62,7 @@ func setup(shell, win, _args: Dictionary) -> void:
 	var guests_page := Control.new()
 	guests_page.name = "Guests"
 	_tabs.add_child(guests_page)
-	_guests = _make_tree(guests_page, ["", "Name", "Kind", "Room", "Leaves in"], [22, 120, 92, 82, 64])
+	_guests = _make_tree(guests_page, ["", "Name", "Kind", "Room", "Leaves in", "Needs"], [22, 112, 84, 72, 58, 96])
 	_guests.item_selected.connect(_on_guest_selected)
 	_empty_guests = _empty_label(_guests)
 	# A click on a column's head sorts by it; again, the other way.
@@ -350,6 +350,9 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 			3:
 				ka = str(rooms.get(int(ga.get("id", -1)), ""))
 				kb = str(rooms.get(int(gb.get("id", -1)), ""))
+			5:
+				ka = _worst_need(life.get(int(ga.get("id", -1)), {}).get("needs", {}))[1]
+				kb = _worst_need(life.get(int(gb.get("id", -1)), {}).get("needs", {}))[1]
 		if ka == kb:
 			return int(a[1]) < int(b[1])
 		return (ka > kb) if _sort_desc else (ka < kb))
@@ -365,7 +368,16 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 		it.set_text(2, _kind(str(g.get("archetype", ""))))
 		it.set_text(3, str(rooms.get(id, "")))
 		it.set_text(4, str(g.get("remaining_label", "")))
-		_stripe(it, shown, 5)
+		# What they are short of: the worst one's plate (as over their head in the camp)
+		# and the words for all they would go and look for.
+		var needs: Dictionary = snap.get("needs", {}) if snap.get("needs", {}) is Dictionary else {}
+		var worst: Array = _worst_need(needs)
+		if str(worst[0]) != "" and float(worst[1]) < NEEDS.SEEK_THRESHOLD:
+			it.set_icon(5, _need_icon(str(worst[0])))
+			it.set_icon_max_width(5, 14)
+			it.set_text(5, _short_of(needs))
+			it.set_custom_color(5, RED if float(worst[1]) < 30.0 else AMBER)
+		_stripe(it, shown, 6)
 		var info := snap.duplicate()
 		info["room"] = rooms.get(id, "")
 		info["coord"] = _room_coord_of(g)
@@ -380,7 +392,7 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 		it.set_icon(0, _face_icon(-1.0))
 		for c in range(1, 5):
 			it.set_text(c, "-")
-		_stripe(it, shown, 5)
+		_stripe(it, shown, 6)
 	if reselect != null:
 		reselect.select(0)
 	elif shown == 0:
@@ -389,8 +401,45 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 	_map_btn.visible = _card_guest.get("coord", null) is Vector2i
 	_empty_guests.visible = shown == 0
 	_empty_guests.text = "Nobody is staying in the camp.\nAccept a booking in CampMail; check the guests in at the desk."
-	var by: String = ["mood", "name", "kind", "room", "departure"][clampi(_sort_col, 0, 4)]
+	var by: String = ["mood", "name", "kind", "room", "departure", "needs"][clampi(_sort_col, 0, 5)]
 	_status.text = "%d record(s). Sorted by %s. Pick one for the card; double-click for the map." % [shown, by] if shown > 0 else "Nobody is staying in the camp."
+
+
+const NEED_WORDS := {"hunger": "Food", "thirst": "Drink", "bladder": "WC", "hygiene": "Wash", "fun": "Fun", "energy": "Sleep"}
+
+
+## The need a guest is shortest of that they would go and see to: [need, value] (["", 100]
+## when none).
+func _worst_need(needs: Dictionary) -> Array:
+	var worst := ""
+	var v := 100.0
+	for k in NEEDS.SEEKABLE_NEEDS:
+		var x := float(needs.get(k, 100.0))
+		if x < v:
+			v = x
+			worst = k
+	return [worst, v]
+
+
+## The words for every need they are short of, the worst first ("Drink, Fun").
+func _short_of(needs: Dictionary) -> String:
+	var rows: Array = []
+	for k in NEEDS.SEEKABLE_NEEDS:
+		if float(needs.get(k, 100.0)) < NEEDS.SEEK_THRESHOLD:
+			rows.append([float(needs[k]), str(NEED_WORDS.get(k, k))])
+	rows.sort_custom(func(a, b) -> bool: return float(a[0]) < float(b[0]))
+	return ", ".join(rows.map(func(r) -> String: return str(r[1])))
+
+
+var _need_icons: Dictionary = {}
+
+
+## The plate over a guest's head for `need` (npc/need_<need>.png).
+func _need_icon(need: String) -> Texture2D:
+	if not _need_icons.has(need):
+		var p := "res://assets/textury/npc/need_%s.png" % need
+		_need_icons[need] = load(p) if ResourceLoader.exists(p) else null
+	return _need_icons[need]
 
 
 func _on_guest_selected() -> void:

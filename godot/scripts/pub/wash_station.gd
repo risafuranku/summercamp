@@ -196,6 +196,11 @@ func _closing() -> void:
 	_hand_what = ""
 
 
+## A mug in the hand at the brushes, the bare glove for the pile.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	return "wash" if id == "mug" else "open"
+
 # ── debug (tools/pub_shots.gd) ───────────────────────────────────────────────
 
 func debug_wash_one() -> void:

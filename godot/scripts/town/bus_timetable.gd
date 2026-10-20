@@ -1,61 +1,66 @@
 extends RefCounted
 
-## Line 380, Hlubocany - Lesna - Cerne jezero, camp (CSAD Jihlava): the buses the game
-## runs (scripts/town/town_trip.gd) and the timetables on the poles
+## Line 380, Cerne jezero, kemp - Pristoupim - Liblice - Lstibor (CSAD Kolin): the buses
+## the game runs (scripts/town/town_trip.gd) and the timetables on the poles
 ## (scripts/town/timetable_closeup.gd) both come from here, so what is printed runs.
 ##
-## Three a day each way. The camp is the end of the line: the bus comes up from Lesna,
-## stands half an hour at the stop (the driver smokes), turns in the loop and goes back
-## down through Lesna to Hlubocany. The first one in, at 5:45, is the one Vera comes out
-## on for the district's inspection on day 31 (main.gd's pager). In Lesna the bus to the
-## camp stands a quarter of an hour by the Jednota. A ride between the two takes an hour
-## and a half of game time (a minute). The 23:46 works bus does not stop at the camp: do
-## not wave.
+## The real road (scripts/geo/): up from the camp's stop to road 12, east along it, at
+## Pristoupim north to the stop at the fork and on up Pristoupimska to Liblice, then
+## along Bylanska and out east to Lstibor. Three a day each way. The camp is the end of
+## the line: the bus comes down from Liblice, turns in the loop, stands half an hour
+## (the driver smokes at his wheel) and goes back up. In Liblice the bus for the camp
+## stands ten minutes at the stop on the far side. Camp to Liblice is thirteen minutes
+## (Pristoupim at nine): ridden, the game's clock runs slow so the minutes are the real
+## road's (town_trip.gd). The 23:46 works bus does not stop at the camp: do not wave.
 ##
 ## Times are game hours (7.5 = 7:30).
 
-const RIDE_HOURS := 1.5
+## Camp to Liblice and back, Pristoupim on the way (hours).
+const RIDE_HOURS := 13.0 / 60.0
+const TO_PRISTOUPIM := 9.0 / 60.0
+## Liblice to Pristoupim going down to the camp.
+const FROM_LIBLICE_PRISTOUPIM := 4.0 / 60.0
+## Liblice to Lstibor, for the printed sheet.
+const ON_TO_LSTIBOR := 11.0 / 60.0
 
-## At the camp stop: in from Lesna, out to Lesna and Hlubocany.
-const CAMP_ARRIVE := [5.0 + 45.0 / 60.0, 13.0 + 20.0 / 60.0, 18.0 + 45.0 / 60.0]
+## At the camp stop: in from Liblice, out to Liblice.
 const CAMP_LEAVE := [6.0 + 15.0 / 60.0, 13.0 + 50.0 / 60.0, 19.0 + 15.0 / 60.0]
-## In Lesna, the bus to the camp: in from Hlubocany, out to the camp.
-const TOWN_ARRIVE := [4.0, 11.0 + 35.0 / 60.0, 17.0]
-const TOWN_LEAVE := [4.0 + 15.0 / 60.0, 11.0 + 50.0 / 60.0, 17.0 + 15.0 / 60.0]
-## In Lesna, the bus from the camp on its way to Hlubocany (it stops a minute).
-const TOWN_THROUGH := [7.0 + 45.0 / 60.0, 15.0 + 20.0 / 60.0, 20.0 + 45.0 / 60.0]
-## The works bus: through Lesna at 23:46, past the camp stop a little after midnight.
+const TOWN_LEAVE := [5.5, 13.0 + 5.0 / 60.0, 18.5]
+const CAMP_ARRIVE := [5.5 + RIDE_HOURS, 13.0 + 5.0 / 60.0 + RIDE_HOURS, 18.5 + RIDE_HOURS]
+## In Liblice, the bus for the camp: in from Lstibor ten minutes before it goes.
+const TOWN_ARRIVE := [5.5 - 10.0 / 60.0, 13.0 - 5.0 / 60.0, 18.5 - 10.0 / 60.0]
+## In Liblice, the bus from the camp on its way to Lstibor (it stops a minute).
+const TOWN_THROUGH := [6.25 + RIDE_HOURS, 13.0 + 50.0 / 60.0 + RIDE_HOURS, 19.25 + RIDE_HOURS]
+## The works bus: through Liblice at 23:46, along road 12 past the camp's turn just after
+## midnight.
 const WORKS_TOWN := 23.0 + 46.0 / 60.0
 const WORKS_CAMP := 0.0 + 6.0 / 60.0
-## Hlubocany, for the printed sheet.
-const HLUBOCANY_LEAVE := [3.0 + 35.0 / 60.0, 11.0 + 10.0 / 60.0, 16.0 + 35.0 / 60.0]
-const HLUBOCANY_ARRIVE := [8.0 + 10.0 / 60.0, 15.0 + 45.0 / 60.0, 21.0 + 10.0 / 60.0]
+## Lstibor, for the printed sheet: where the bus for the camp starts, and where the one
+## from the camp ends.
+const LSTIBOR_LEAVE := [5.5 - 21.0 / 60.0, 13.0 - 16.0 / 60.0, 18.5 - 21.0 / 60.0]
+const LSTIBOR_ARRIVE := [6.25 + RIDE_HOURS + ON_TO_LSTIBOR, 13.0 + 50.0 / 60.0 + RIDE_HOURS + ON_TO_LSTIBOR, 19.25 + RIDE_HOURS + ON_TO_LSTIBOR]
 
 
-## Podlesi, the request stop at the turn for the hamlet (hamlet_trip.gd): the buses pass
-## it this far into their ride (where its pole is on ride_scenery.gd's route), so that
-## long after they leave either end. They stop only for somebody waiting there, or
-## asked (STOP in the bus, a ticket to Podlesi).
-const SCENERY = preload("res://scripts/town/ride_scenery.gd")
-
-
+## Pristoupim, the request stop at the fork for Liblice (hamlet_trip.gd): the buses
+## pass it this long after they leave either end. They stop only for somebody waiting
+## there, or asked (STOP in the bus, a ticket to Pristoupim).
 static func hamlet_frac(towards_town: bool) -> float:
-	var length := float(SCENERY.ROUTE.size() - 1) * SCENERY.PIECE + SCENERY.PIECE * 0.5
-	return SCENERY.stop_along("hamlet", towards_town) / length
+	return TO_PRISTOUPIM / RIDE_HOURS if towards_town else FROM_LIBLICE_PRISTOUPIM / RIDE_HOURS
 
 
-## The buses past Podlesi towards Lesna (from the camp) and towards the camp (from Lesna).
+## The buses past Pristoupim towards Liblice (from the camp) and towards the camp (from
+## Liblice).
 static func hamlet_to_town() -> Array:
 	var out: Array = []
 	for t in CAMP_LEAVE:
-		out.append(float(t) + hamlet_frac(true) * RIDE_HOURS)
+		out.append(float(t) + TO_PRISTOUPIM)
 	return out
 
 
 static func hamlet_to_camp() -> Array:
 	var out: Array = []
 	for t in TOWN_LEAVE:
-		out.append(float(t) + hamlet_frac(false) * RIDE_HOURS)
+		out.append(float(t) + FROM_LIBLICE_PRISTOUPIM)
 	return out
 
 

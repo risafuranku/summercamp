@@ -124,6 +124,14 @@ func _spots() -> Array:
 	return out
 
 
+## The bare glove for the crate and the bowl, the fist on a leaf as it is pulled.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	if id == "cob" and not _cob.is_empty() and int(_cob["leaves"]) > 0:
+		return "husk"
+	return "open"
+
+
 func _press(id: String) -> void:
 	match id:
 		"crate":

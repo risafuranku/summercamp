@@ -40,7 +40,19 @@ const HIDDEN_DWELL_KINDS := ["sleep", "rest", "arrive", "away"]
 const INTERACT_MAX_DISTANCE := 4.2
 const MARKER_ANGRY := preload("res://assets/textury/npc/mood_angry.png")
 const MARKER_HAPPY := preload("res://assets/textury/npc/mood_happy.png")
-const MARKER_NEED := preload("res://assets/textury/npc/mood_need.png")
+## What a guest needs, as a blue enamel plate with a pictogram (tools/gen_stink_sprites.py).
+## It was a yellow "?" bubble, which at night read as the eyes of the things in the dark
+## (playtest 20. 10.).
+const MARKER_NEEDS := {
+	"bladder": preload("res://assets/textury/npc/need_bladder.png"),
+	"hunger": preload("res://assets/textury/npc/need_hunger.png"),
+	"thirst": preload("res://assets/textury/npc/need_thirst.png"),
+	"hygiene": preload("res://assets/textury/npc/need_hygiene.png"),
+	"fun": preload("res://assets/textury/npc/need_fun.png"),
+	"energy": preload("res://assets/textury/npc/need_energy.png"),
+	"safety": preload("res://assets/textury/npc/need_safety.png"),
+}
+const MARKER_NEED := preload("res://assets/textury/npc/need_any.png")
 
 var _move_acc := 0.0
 var _grid_manager: Node
@@ -159,7 +171,22 @@ func get_visible_guest_positions() -> Array:
 			continue
 		var lead := members[0] as Node3D
 		if lead != null and lead.visible:
-			out.append({"guest_id": int(id), "position": lead.global_position, "archetype": str((party.get("info", {}) as Dictionary).get("archetype", ""))})
+			# Builder 98's map draws each of them as the camp has them now: where, in what
+			# picture (the attraction's pose: sat at the fire, eating, a kick), turned which
+			# way, and what they are about.
+			var each: Array = []
+			for m in members:
+				var mn := m as Node3D
+				if mn == null or not mn.visible:
+					continue
+				var sp := mn.get_node_or_null("Sprite") as Sprite3D
+				each.append({"position": mn.global_position, "pose": sp.texture.resource_path if sp != null and sp.texture != null else "",
+					"flip": sp.flip_h if sp != null else false})
+			var info: Dictionary = party.get("info", {})
+			var act: Dictionary = info.get("activity", {})
+			out.append({"guest_id": int(id), "position": lead.global_position, "archetype": str(info.get("archetype", "")),
+				"members": each, "kind": str(act.get("kind", "")), "target": str(act.get("target_type", "")),
+				"posed": party.get("target_tile", Vector2i(-1, -1)) != Vector2i(-1, -1) and OPEN_AIR_TYPES.has(str(act.get("target_type", "")))})
 	return out
 
 
@@ -449,8 +476,84 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			pos.y = 0.0
 			if sprite != null:
 				sprite.rotation.z = sin(_time * 0.8 + float(i)) * 0.01
-		member.position = pos
+		member.position = pos + _dodge_offset(party)
 	_update_marker(party, info, marker_pos, visible_now)
+	_update_alert(party, visible_now)
+
+
+## Somebody on the megaphone (scripts/coop/voice.gd): the guests within `radius` of
+## `at` look up, a "!" over them for `secs`.
+func alert(at: Vector3, radius: float, secs: float) -> void:
+	var until := Time.get_ticks_msec() + int(secs * 1000.0)
+	for party in _parties.values():
+		var pd: Dictionary = party
+		var p: Vector3 = pd.get("last_pos", Vector3.INF)
+		if p == Vector3.INF or Vector2(p.x - at.x, p.z - at.z).length() > radius:
+			continue
+		pd["alert_ms"] = maxi(int(pd.get("alert_ms", 0)), until)
+
+
+## Something heavy coming down (the god cursor, scripts/god/god_cursor.gd): the guests
+## within `radius` of `at` jump out from under it, a few metres off, then drift back to
+## what they were doing; they look up too.
+func dodge(at: Vector3, radius: float, secs: float) -> void:
+	var now := Time.get_ticks_msec()
+	for party in _parties.values():
+		var pd: Dictionary = party
+		var p: Vector3 = pd.get("last_pos", Vector3.INF)
+		if p == Vector3.INF:
+			continue
+		var d := Vector2(p.x - at.x, p.z - at.z)
+		if d.length() > radius:
+			continue
+		var away := d.normalized() if d.length() > 0.05 else Vector2.RIGHT.rotated(float(int(pd.get("info", {}).get("id", 0)) % 7))
+		pd["dodge"] = Vector3(away.x, 0.0, away.y) * (radius - d.length() + 1.0)
+		pd["dodge_from"] = now
+		pd["dodge_ms"] = int(secs * 1000.0)
+	alert(at, radius + 4.0, secs)
+
+
+## Where the jump aside has them now: out in a hop (in steps), back over the last part.
+func _dodge_offset(party: Dictionary) -> Vector3:
+	if not party.has("dodge"):
+		return Vector3.ZERO
+	var t := float(Time.get_ticks_msec() - int(party["dodge_from"])) / 1000.0
+	var total := float(party["dodge_ms"]) / 1000.0
+	if t >= total:
+		party.erase("dodge")
+		return Vector3.ZERO
+	t = floorf(t * ANIM_FPS) / ANIM_FPS
+	var k := clampf(t / 0.35, 0.0, 1.0) if t < 0.35 else clampf(1.0 - (t - total * 0.6) / (total * 0.4), 0.0, 1.0)
+	var hop := sin(clampf(t / 0.35, 0.0, 1.0) * PI) * 0.45 if t < 0.35 else 0.0
+	return (party["dodge"] as Vector3) * k + Vector3(0, hop, 0)
+
+
+func _update_alert(party: Dictionary, visible_now: bool) -> void:
+	var on := visible_now and Time.get_ticks_msec() < int(party.get("alert_ms", 0))
+	var mark = party.get("alert_mark")
+	if on and (mark == null or not is_instance_valid(mark)):
+		var members: Array = party.get("members", [])
+		if members.is_empty() or not (members[0] is Node3D):
+			return
+		var l := Label3D.new()
+		l.text = "!"
+		l.font = load("res://assets/fonts/jersey10.fnt")
+		l.font_size = 48
+		l.pixel_size = 0.012
+		l.outline_size = 0
+		l.modulate = Color(1.0, 0.86, 0.3)
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		l.no_depth_test = false
+		l.position = Vector3(0, SPRITE_HEIGHT_M + 0.42, 0)
+		(members[0] as Node3D).add_child(l)
+		party["alert_mark"] = l
+		mark = l
+	if mark != null and is_instance_valid(mark):
+		(mark as Label3D).visible = on
+		if on:
+			# A little hop, in steps.
+			(mark as Label3D).position.y = SPRITE_HEIGHT_M + 0.42 + (0.05 if int(_time * 6.0) % 2 == 0 else 0.0)
 
 
 ## Stooped by `f` (0 upright .. 1 right down under a tent flap), feet where they were.
@@ -481,8 +584,9 @@ func _attraction_at(tile: Vector2i) -> Node:
 
 
 ## Build games had no floating text; guests show a small marker instead: a red "!"
-## when miserable, a "?" while they are hunting for something they need, a heart when
-## delighted. What they actually say goes to the HUD quote line (see nearby_thoughts).
+## when miserable, a blue plate with what they badly need (WC, knife and fork, shower...),
+## a heart when delighted. What they actually say goes to the HUD quote line (see
+## nearby_thoughts).
 func _update_marker(party: Dictionary, info: Dictionary, lead_pos: Vector3, visible_now: bool) -> void:
 	var marker := party.get("marker", null) as Sprite3D
 	if marker == null:
@@ -493,7 +597,7 @@ func _update_marker(party: Dictionary, info: Dictionary, lead_pos: Vector3, visi
 	if mood < GUEST_NEEDS.UNHAPPY_MOOD:
 		tex = MARKER_ANGRY
 	elif not worst.is_empty() and float(worst.get("value", 100.0)) < GUEST_NEEDS.CRITICAL_THRESHOLD + 10.0:
-		tex = MARKER_NEED
+		tex = MARKER_NEEDS.get(str(worst.get("need", "")), MARKER_NEED)
 	elif mood >= 80.0:
 		tex = MARKER_HAPPY
 	if not visible_now or tex == null:

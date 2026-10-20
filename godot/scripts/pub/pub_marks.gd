@@ -199,6 +199,7 @@ func _draw_stations(room: String, tix: Array) -> void:
 			bar_n += 1
 			red_bar = red_bar or band == 2
 	var mugs: Dictionary = taproom.mugs(key)
+	var n_bills: int = taproom.bills(key).size()
 	var trouble: String = taproom.tap_trouble(key)
 	var gas := float(taproom.keg(key)["gas"])
 	for id in LAYOUT.STATIONS:
@@ -218,7 +219,9 @@ func _draw_stations(room: String, tix: Array) -> void:
 				elif int(mugs["clean"]) == 0 and tap_n > 0:
 					_badge(at, "mark_dirty", "NO MUGS", true)
 				elif tap_n > 0:
-					_badge(at, "mark_mug", str(tap_n), red_tap)
+					_badge(at, "mark_mug", str(tap_n) + ("  BILL %d" % n_bills if n_bills > 0 else ""), red_tap)
+				elif n_bills > 0:
+					_badge(at, "mark_mug", "BILL %d" % n_bills, false)
 			"back":
 				if bar_n > 0:
 					_badge(at, "mark_shot", str(bar_n), red_bar)

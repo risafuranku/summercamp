@@ -1,6 +1,6 @@
 extends "res://scripts/town/town_lesna.gd"
 
-## Podlesi: a hamlet of a few houses off the road between the camp and Lesna, south
+## Pristoupim (the scripts keep the old name): a hamlet of a few houses off the road between the camp and Liblice, south
 ## Bohemia's backwater (built by hamlet_trip.gd the first time you get off there, far off
 ## in the same world: HAMLET_ORIGIN). The road runs east-west past it with its Czech road
 ## posts; at the turn the request stop PODLESI, rozc. on both sides (south for the buses
@@ -15,7 +15,10 @@ extends "res://scripts/town/town_lesna.gd"
 ## It shares Lesna's house kit (town_lesna.gd: fronts from Grok elevations, lettering on
 ## the walls); its own frame (x east, z south, the road at z = 0, the hamlet at z ~120).
 
-const HAMLET_ORIGIN := Vector3(1800.0, 0.0, -2600.0)
+## Set by town_trip.gd before it is built: Pristoupim's real stop (scripts/geo/) and
+## which way its road runs (its local +x is towards Liblice).
+static var HAMLET_ORIGIN := Vector3(1800.0, 0.0, -2600.0)
+static var HAMLET_YAW := 0.0
 ## Where the bus stops for you (the pole) going to Lesna (+x) and to the camp (-x).
 const POLE_TOWN := Vector3(8.0, 0, 4.4)
 const POLE_CAMP := Vector3(-8.0, 0, -4.4)
@@ -31,57 +34,79 @@ var _smoke_car: Array = []
 
 
 func build(p_worldgen: Node) -> void:
-	name = "Podlesi"
+	name = "Pristoupim"
 	worldgen = p_worldgen
 	_rng.seed = 7
 	position = HAMLET_ORIGIN
-	_ground_h()
-	_road_h()
-	_walls_h()
+	rotation.y = HAMLET_YAW
+	# In the real land the ground, the road and the trees round it are the map's.
+	if not GEO_MODE:
+		_ground_h()
+		_road_h()
 	_stops_h()
 	_track()
 	_ruin_h()
 	_hamlet_houses()
 	_garage()
 	_yard()
-	_forest_h()
+	if not GEO_MODE:
+		_forest_h()
 	_lamps_h()
 	_build_smoke()
 
 
 func w(local: Vector3) -> Vector3:
-	return HAMLET_ORIGIN + local
+	return HAMLET_ORIGIN + _dir(local)
+
+
+## A direction in the hamlet's frame, in the world's.
+func _dir(v: Vector3) -> Vector3:
+	return Basis(Vector3.UP, HAMLET_YAW) * v
 
 
 ## Where you get off: by the pole the bus came to, facing the turn.
 func hamlet_arrive_spot(towards_town: bool) -> Transform3D:
 	var pole := POLE_TOWN if towards_town else POLE_CAMP
 	var pos := w(pole + Vector3(-1.4 if towards_town else 1.4, 0.15, 0.9 if towards_town else -0.9))
-	return Transform3D(Basis.looking_at(Vector3(-0.8, 0, 1.0) if towards_town else Vector3(0.9, 0, 0.9), Vector3.UP), pos)
+	return Transform3D(Basis.looking_at(_dir(Vector3(-0.8, 0, 1.0) if towards_town else Vector3(0.9, 0, 0.9)), Vector3.UP), pos)
 
 
 ## The bus standing at the pole for `towards_town`, and its way in and out.
 func hamlet_bus_pose(towards_town: bool) -> Transform3D:
+	if GEO_MODE:
+		# On the real road (its frame is the route's here): each way in its own lane.
+		var s := GEO.stop_s("pristoupim")
+		if towards_town:
+			var a := GEO.at(s + 5.0, 1.6)
+			return Transform3D(Basis.looking_at(a["dir"], Vector3.UP), a["p"])
+		var b := GEO.at(s - 5.0, -1.6)
+		return Transform3D(Basis.looking_at(-(b["dir"] as Vector3), Vector3.UP), b["p"])
 	if towards_town:
-		return Transform3D(Basis.looking_at(Vector3(1, 0, 0), Vector3.UP), w(Vector3(5.0, 0, 1.6)))
-	return Transform3D(Basis.looking_at(Vector3(-1, 0, 0), Vector3.UP), w(Vector3(-5.0, 0, -1.6)))
+		return Transform3D(Basis.looking_at(_dir(Vector3(1, 0, 0)), Vector3.UP), w(Vector3(5.0, 0, 1.6)))
+	return Transform3D(Basis.looking_at(_dir(Vector3(-1, 0, 0)), Vector3.UP), w(Vector3(-5.0, 0, -1.6)))
 
 
 func hamlet_in_path(towards_town: bool) -> PackedVector3Array:
+	if GEO_MODE:
+		var s := GEO.stop_s("pristoupim")
+		return GEO.line_path(s - 150.0, s + 5.0, 1.6) if towards_town else GEO.line_path(s + 150.0, s - 5.0, 1.6)
 	var end := hamlet_bus_pose(towards_town).origin
 	var d := 1.0 if towards_town else -1.0
 	var out := PackedVector3Array()
-	for k in [-220.0, -120.0, -50.0, -14.0, 0.0]:
-		out.append(end + Vector3(d * k, 0, 0))
+	for k in [-115.0, -80.0, -40.0, -14.0, 0.0]:
+		out.append(end + _dir(Vector3(d * k, 0, 0)))
 	return out
 
 
 func hamlet_out_path(towards_town: bool) -> PackedVector3Array:
+	if GEO_MODE:
+		var s := GEO.stop_s("pristoupim")
+		return GEO.line_path(s + 5.0, s + 170.0, 1.6) if towards_town else GEO.line_path(s - 5.0, s - 170.0, 1.6)
 	var start := hamlet_bus_pose(towards_town).origin
 	var d := 1.0 if towards_town else -1.0
 	var out := PackedVector3Array()
-	for k in [0.0, 14.0, 50.0, 120.0, 230.0]:
-		out.append(start + Vector3(d * k, 0, 0))
+	for k in [0.0, 14.0, 50.0, 90.0, 118.0]:
+		out.append(start + _dir(Vector3(d * k, 0, 0)))
 	return out
 
 
@@ -89,22 +114,22 @@ func hamlet_out_path(towards_town: bool) -> PackedVector3Array:
 
 func _ground_h() -> void:
 	var grass := _mat(_first([TEX + "meadow.png", TEX_CAMP + "pitch_grass.png"]), Color(0.86, 0.92, 0.72), Vector2(90.0, 90.0))
-	_plane(self, Vector3(0, -0.02, 60.0), Vector2(520, 520), grass).add_to_group("season_ground")
-	_solid(self, Vector3(0, -0.5, 60.0), Vector3(300.0, 1.0, 300.0))
+	_plane(self, Vector3(0, -0.02, 60.0), Vector2(320, 320), grass).add_to_group("season_ground")
 
 
 ## The road from the camp to Lesna: patched asphalt, a worn centre line, grass verges,
 ## the posts both sides every 50 m (none at the turn).
 func _road_h() -> void:
 	var asphalt := _mat(_first([TEX + "asphalt.png", TEX_CAMP + "gravel_road.png"]), Color(0.66, 0.66, 0.68), Vector2(80.0, 1.0))
-	_plane(self, Vector3(0, 0.01, 0), Vector2(480, 6.0), asphalt)
+	# Its own stretch of the road (off the real map: scripts/geo/ lays the real one).
+	_plane(self, Vector3(0, 0.012, 0), Vector2(240.0, 6.0), asphalt)
 	var paint := _mat("", Color(0.86, 0.84, 0.76))
-	var x := -236.0
-	while x < 236.0:
+	var x := -116.0
+	while x < 116.0:
 		if _rng.randf() < 0.85:
 			_plane(self, Vector3(x, 0.02, 0), Vector2(3.0, 0.12), paint)
 		x += 10.0
-	for px in [-200.0, -150.0, -100.0, -50.0, 50.0, 100.0, 150.0, 200.0]:
+	for px in [-100.0, -50.0, 50.0, 100.0]:
 		for side in [-1.0, 1.0]:
 			ROAD_POST.place(self, Vector3(px, 0.0, side * 3.7), Vector3(0, 0, -side))
 
@@ -165,7 +190,7 @@ func _track() -> void:
 		_box(self, Vector3(-4.6 + (sin(z * 0.08) * 2.0), 0.55, z), Vector3(0.12, 1.1, 0.12), wood)
 	if worldgen != null and worldgen.has_method("_tree_mesh"):
 		for t in [Vector3(7.5, 0, 22.0), Vector3(-6.5, 0, 52.0), Vector3(6.0, 0, 84.0)]:
-			for part in [["birch_trunk", worldgen._tree_material("birch_bark", 0)], ["birch_crown", worldgen._tree_material("leaf", 1)]]:
+			for part in [["birch_trunk", worldgen._tree_material("birch_bark", 0)], ["birch_crown", worldgen._tree_material("leaf", 1)], ["birch_cards", worldgen._tree_material("leaf_cards", 1)]]:
 				var mi := MeshInstance3D.new()
 				mi.mesh = worldgen._tree_mesh(str(part[0]))
 				mi.material_override = part[1]
@@ -292,9 +317,8 @@ func _yard() -> void:
 	things["stockings"] = _sprite_thing("ham_stockings", 0.8, Vector3(9.6, 1.15, 118.0), "ham_stockings", Vector3(1.0, 1.0, 0.5))
 	# The Trabant behind Vondra's house.
 	things["wreck"] = _sprite_thing("ham_car_wreck", 1.5, Vector3(-30.5, 0, 121.0), "ham_wreck", Vector3(3.0, 1.6, 2.0))
-	# A bench by the cottage.
-	_box(self, Vector3(2.0, 0.45, 127.4), Vector3(1.8, 0.08, 0.45), planks, true)
-	_box(self, Vector3(2.0, 0.75, 127.6), Vector3(1.8, 0.4, 0.06), planks)
+	# A bench by the cottage, looking at the pond.
+	_park_bench(self, Vector3(2.0, 0, 127.4), PI)
 	# Vondra by the garage by day.
 	var tex_path := "res://assets/textury/npc/town_vondra.png"
 	if ResourceLoader.exists(tex_path):
@@ -320,6 +344,9 @@ func _forest_h() -> void:
 		# Not on the road, the track's meadow or the hamlet.
 		if absf(p.z) < 26.0 or (absf(p.x) < 60.0 and p.z > 0.0 and p.z < 165.0):
 			continue
+		# Not on the road's bend towards Liblice past the hamlet.
+		if p.x > 125.0 and p.z < 30.0:
+			continue
 		if p.z < 0.0 and absf(p.x) < 110.0 and p.z > -60.0 and _rng.randf() < 0.7:
 			continue
 		var sc := _rng.randf_range(0.9, 1.8)
@@ -336,16 +363,10 @@ func _forest_h() -> void:
 		mmi.material_override = part[1]
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mmi)
+	# Behind the farm: a row of old lindens.
 	for k in 6:
 		var t := Vector3(_rng.randf_range(-36.0, 36.0), 0, _rng.randf_range(140.0, 150.0))
-		if worldgen.has_method("_tree_mesh"):
-			for part in [["birch_trunk", worldgen._tree_material("bark", 0)], ["birch_crown", worldgen._tree_material("leaf", 1)]]:
-				var mi := MeshInstance3D.new()
-				mi.mesh = worldgen._tree_mesh(str(part[0]))
-				mi.material_override = part[1]
-				mi.position = t
-				mi.scale = Vector3(1.2, 0.9, 1.2)
-				add_child(mi)
+		_linden(self, t, _rng.randf_range(0.7, 0.95), _rng.randf() * TAU)
 
 
 ## A lamp at the turn and one on the square (on at night, set_night).
@@ -447,7 +468,7 @@ func car_running(on: bool) -> void:
 		s.shaded = false
 		add_child(s)
 		_smoke_car.append(s)
-		_smoke.append({"sprite": s, "base": car_root.global_position - HAMLET_ORIGIN + Vector3(0, 0.3, -2.6), "phase": float(k) / 6.0})
+		_smoke.append({"sprite": s, "base": to_local(car_root.global_position) + Vector3(0, 0.3, -2.6), "phase": float(k) / 6.0})
 
 
 ## Vondra is out by the garage by day, indoors at night.

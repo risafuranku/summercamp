@@ -231,6 +231,11 @@ func bar_text() -> String:
 	return "CLEAN %d  DIRTY %d" % [int(pl["clean"]), int(pl["dirty"])]
 
 
+## A plate in the hand at the brushes, the bare glove for the pile and the washer.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	return "wash" if id == "plate" else "open"
+
 # ── debug (tools/bistro_shots.gd) ────────────────────────────────────────────
 
 func debug_wash_one() -> void:

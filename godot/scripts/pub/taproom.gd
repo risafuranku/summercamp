@@ -3,15 +3,22 @@ extends Node
 ## The pubs' bars while the game runs (core/systems/pub_rules.gd has the numbers; DESIGN.md
 ## §7b the idea), the bistro's kitchen.gd made for the pub. One node for the game, made
 ## the first time a pub needs it (of()), a record per pub ("x:y" key) of what is in it:
-##   served  what was poured for whom: ticket id -> {drink, at (game minute), stars, amount}
+##   served  what was poured for whom: ticket id -> {drink, at (game minute), stars, amount,
+##           tip}; a settled bill: "<visit>#bill" -> {bill: true, at, kept, over, left}
 ##   mugs    {clean, dirty}: every beer goes out in a clean mug and comes back dirty when
 ##           it has been drunk
 ##   keg     the keg on the line in the cellar: {line (pints left in it), coupled (the
 ##           head on it), pallet ("full", "empty" spent, "none" rolled off), gas 0..1}
 ##   pints   pints drawn since the gas last crept down a notch
+##   fun     the pub's games as they stand (pub_fun.gd): slot {id, seed, who, name} (the
+##           last game on the LUCKY 7), darts {at: [[x, y] x3], total, name} (the last turn
+##           in the board), guest {name, total} (the last guest's turn: what to beat),
+##           played {visit: true} (who has had their go this visit)
 ## The orders are not kept: they are worked out each time from whoever the guest
 ## simulation has in the pub and what was served (pub_rules.tickets_for), so every
-## machine in co-op has the same ones; only what was served is told.
+## machine in co-op has the same ones; only what was served is told. Nothing is paid as
+## it is poured: it goes on their tab (a mark on the mat) and the bill is settled when
+## they go (pub_rules.bill_for, settle): the money comes in then.
 ##
 ## Co-op (up to four): everything done here is an op (`act`) applied at once and sent to
 ## everyone (Coop.send_taproom); counts go as changes, the keg as its whole new state.
@@ -23,6 +30,7 @@ const RULES := preload("res://core/systems/pub_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const BIZ_RULES := preload("res://core/systems/business_rules.gd")
+const FUN := preload("res://core/systems/pub_fun.gd")
 ## Days a keg keeps on the line before it is flat (twice as long with the keg cooler).
 const KEG_DAYS := 3
 
@@ -81,6 +89,7 @@ func _fresh(key: String) -> Dictionary:
 			"pallet": str(saved.get("pallet", "full")), "gas": float(saved.get("gas", RULES.GAS_START)),
 			"tapped": int(saved.get("tapped", CoreRoot.get_day() if CoreRoot != null else 1))},
 		"pints": int(saved.get("pints", 0)),
+		"fun": {"slot": {}, "darts": {}, "guest": {}, "played": {}},
 	}
 
 
@@ -150,6 +159,9 @@ func tickets(key: String) -> Array:
 		# A hand behind the bar served the lot (business_runtime._hand_serves).
 		if int(ORDERS._served.get(visit, 0)) > 0 and not _any_served(served, visit):
 			continue
+		# Asking for the bill: no more rounds.
+		if served.has(visit + "#bill") or now >= int(v.get("arrive", now)) + RULES.stay(str(v["archetype"])) - RULES.BILL_LEAD:
+			continue
 		for t in RULES.tickets_for(visit, str(v["archetype"]), int(v.get("figures", 1)), int(v.get("arrive", now)), served, now):
 			t["visit"] = visit
 			t["guest_id"] = int(v["id"])
@@ -158,6 +170,69 @@ func tickets(key: String) -> Array:
 			out.append(t)
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["since"]) < int(b["since"]) or (int(a["since"]) == int(b["since"]) and str(a["id"]) < str(b["id"])))
 	return out
+
+
+## The bills asked for at `key`, oldest first: [{id, kind "bill", visit, guest_id, name,
+## counts, total, make_it, note, since, age}] (pub_rules.bill_for).
+func bills(key: String) -> Array:
+	var out: Array = []
+	var now := now_min()
+	var served: Dictionary = site(key)["served"]
+	for v in ORDERS.visitors(key):
+		var b := RULES.bill_for(str(v["visit"]), str(v["archetype"]), int(v.get("figures", 1)), int(v.get("arrive", now)), served, now)
+		if b.is_empty():
+			continue
+		b["guest_id"] = int(v["id"])
+		b["name"] = str(v["name"])
+		b["arch"] = str(v["archetype"])
+		out.append(b)
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["since"]) < int(b["since"]))
+	return out
+
+
+## The bill of `visit` ({} none asked for).
+func bill_of(key: String, visit: String) -> Dictionary:
+	for b in bills(key):
+		if str(b["visit"]) == visit:
+			return b
+	return {}
+
+
+## A bill settled: `given` the change counted out (judged against what is due), the money
+## in the till (what they paid less the change), their mood. Returns the verdict: {ok,
+## kept, over, short, accuracy, speed, score, stars, tip}; not ok when the change was
+## short (they say so and wait).
+func settle(key: String, b: Dictionary, given: int, by_hand := false) -> Dictionary:
+	var due := RULES.change_due(b)
+	var v := RULES.judge_change(given, due, int(b.get("age", 0)))
+	if not bool(v["ok"]):
+		return v
+	var to_pay := RULES.to_pay(b)
+	var kept := to_pay - int(v["over"])
+	var pts := BIZ_RULES.score(float(v["speed"]), float(v["accuracy"]))
+	var r := BIZ_RULES.reward(pts, to_pay)
+	v["score"] = pts
+	v["stars"] = int(r["stars"])
+	v["tip"] = maxi(0, to_pay - int(b.get("total", 0)))
+	v["kept"] = kept
+	v["amount"] = kept
+	v["build"] = float(v["accuracy"])
+	_take_money(key, kept, by_hand)
+	act(key, "served", [str(b["id"]), {"bill": true, "at": now_min(), "kept": kept, "over": int(v["over"]), "left": false}])
+	ORDERS.mood(int(b.get("guest_id", -1)), 0.5 if int(v["over"]) == 0 else 0.2, "")
+	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
+		CoreRoot.actions.biz_score(key, {"score": pts, "tip": 0, "what": "The bill", "who": str(b.get("name", "")), "hand": by_hand})
+	return v
+
+
+## The money for a tab into the till (the books' takings; a sale of nothing).
+func _take_money(key: String, amount: int, by_hand: bool) -> void:
+	if amount <= 0 or CoreRoot == null or CoreRoot.actions == null:
+		return
+	if (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).has(key):
+		CoreRoot.actions.biz_sale(key, amount, 0, by_hand)
+	else:
+		ORDERS.pay(amount)
 
 
 func _any_served(served: Dictionary, visit: String) -> bool:
@@ -231,6 +306,14 @@ func _apply(key: String, op: String, args: Array) -> void:
 			_save_due[key] = true
 		"pints":
 			s["pints"] = maxi(0, int(s["pints"]) + int(args[0]))
+		"slot":
+			s["fun"]["slot"] = (args[0] as Dictionary).duplicate(true)
+		"darts":
+			s["fun"]["darts"] = (args[0] as Dictionary).duplicate(true)
+			if str(args[0].get("name", "")) != "you":
+				s["fun"]["guest"] = {"name": str(args[0]["name"]), "total": int(args[0].get("total", 0))}
+		"played":
+			s["fun"]["played"][str(args[0])] = true
 		"snap":
 			var got: Dictionary = args[0]
 			for k in ["mugs", "keg"]:
@@ -257,6 +340,97 @@ func _snapshot(key: String) -> Dictionary:
 	return {"served": s["served"], "mugs": s["mugs"], "keg": s["keg"], "pints": s["pints"]}
 
 
+# ── the fun (pub_fun.gd) ─────────────────────────────────────────────────────
+
+func fun(key: String) -> Dictionary:
+	return site(key)["fun"]
+
+
+## A game on the LUCKY 7 (`who`: "you", or a guest's name): the reels spin on every
+## machine for everyone in the pub.
+func slot_play(key: String, seed: int, who: String) -> void:
+	_slots += 1
+	act(key, "slot", [{"id": "%d-%d" % [multiplayer.get_unique_id() if multiplayer != null and multiplayer.has_multiplayer_peer() else 1, _slots], "seed": seed, "who": who}])
+
+
+var _slots := 0
+
+
+## A warden's game done (slot_station.gd): three sevens and the pub cheers.
+func slot_done(key: String, spin: Dictionary) -> void:
+	var reels := FUN.spin(int(spin.get("seed", 0)))
+	if FUN.payout(reels) < int(FUN.PAY_THREE["seven"]):
+		return
+	for v in ORDERS.visitors(key):
+		ORDERS.mood(int(v["id"]), 1.0, "The warden hit three sevens on the LUCKY 7. The whole pub cheered.")
+	_feed("Three sevens on the LUCKY 7! The whole pub is cheering.")
+
+
+## A warden's turn of darts done (darts_station.gd): against the last guest's in the
+## board. Returns {name, theirs}; the guest liked the game either way.
+func darts_done(key: String, at: Array, total: int) -> Dictionary:
+	var d: Dictionary = fun(key).get("guest", {})
+	var out := {"name": "", "theirs": 0}
+	for v in ORDERS.visitors(key):
+		if str(v["name"]) == str(d.get("name", "")):
+			out = {"name": ORDERS.first_name(str(v["name"])), "theirs": int(d.get("total", 0))}
+			ORDERS.mood(int(v["id"]), 0.5, "Played darts with the warden at the pub.")
+			break
+	var pts: Array = []
+	for a in at:
+		pts.append([float((a as Vector2).x), float((a as Vector2).y)])
+	act(key, "darts", [{"at": pts, "total": total, "name": "you"}])
+	return out
+
+
+## A warden's game of cards with a guest done: `r` 1 you won (their stake into the
+## till), -1 they won (yours to them, and they like you better), 0 a draw.
+func cards_done(key: String, guest_id: int, r: int) -> void:
+	if r > 0:
+		_take_money(key, FUN.STAKE, true)
+		ORDERS.mood(guest_id, 0.2, "Lost two dollars to the warden at cards. Good game.")
+	elif r < 0:
+		if CoreRoot != null and CoreRoot.actions != null:
+			CoreRoot.actions.spend_money(FUN.STAKE)
+		ORDERS.mood(guest_id, 1.0, "Won two dollars off the warden at cards.")
+
+
+## Host, once a second: the guests have their go at the LUCKY 7 and the darts, once a
+## visit each, when their minute comes (pub_fun by kind): what they feed the machine is
+## the pub's takings, and they like the pub better for it.
+const SLOT_ODDS := {"drunk": 0.75, "tramp": 0.5, "cheap_chick": 0.4, "quiet_guy": 0.2, "picker": 0.1, "family": 0.15}
+const DARTS_ODDS := {"drunk": 0.5, "tramp": 0.4, "cheap_chick": 0.3, "quiet_guy": 0.2, "picker": 0.1, "family": 0.5}
+
+
+func _guests_play(key: String, now: int) -> void:
+	var f: Dictionary = fun(key)
+	for v in ORDERS.visitors(key):
+		var visit := str(v["visit"])
+		var arch := str(v["archetype"])
+		var h := absi(hash(visit + ":fun"))
+		# Their go comes a while after they sit down, at a minute of their own.
+		var at := int(v.get("arrive", now)) + 6 + h % 30
+		if now < at:
+			continue
+		if not f["played"].has(visit + ":slot") and float(h % 100) / 100.0 < float(SLOT_ODDS.get(arch, 0.2)):
+			act(key, "played", [visit + ":slot"])
+			var games := 4 + h % 9
+			var take := maxi(1, int(round(float(games * FUN.COIN) * maxf(0.2, FUN.house_edge()))))
+			slot_play(key, h, str(v["name"]))
+			_take_money(key, take, false)
+			ORDERS.mood(int(v["id"]), 0.5, "")
+		elif not f["played"].has(visit + ":darts") and float((h / 100) % 100) / 100.0 < float(DARTS_ODDS.get(arch, 0.2)) and now >= at + 10:
+			act(key, "played", [visit + ":darts"])
+			var darts := FUN.guest_turn(arch, h)
+			var total := 0
+			var pts: Array = []
+			for d in darts:
+				total += FUN.dart_score(d)
+				pts.append([float(d.x), float(d.y)])
+			act(key, "darts", [{"at": pts, "total": total, "name": str(v["name"])}])
+			ORDERS.mood(int(v["id"]), 0.4, "")
+
+
 ## Sets the keg's state (a copy changed by `edit`).
 func set_keg(key: String, edit: Dictionary) -> void:
 	var k := keg(key).duplicate(true)
@@ -279,13 +453,16 @@ func serve(key: String, t: Dictionary, verdict: Dictionary) -> Dictionary:
 	verdict["tip"] = int(r["tip"])
 	verdict["stars"] = int(r["stars"])
 	verdict["mood"] = float(r["mood"])
-	var amount := int(round((int(t["price"]) + int(verdict.get("tip", 0))) * BUSINESS.price_k(key)))
-	if not BUSINESS.sell(key, {good: 1}, amount):
+	# On the tab: the goods off the shelf now, the money when they pay (the mark's price).
+	var amount := int(round(float(RULES.TAB[RULES.tab_class(drink)]["price"]) * BUSINESS.price_k(key)))
+	if not BUSINESS.sell(key, {good: 1}, 0):
 		return {"ok": false, "why": "dry"}
 	verdict["amount"] = amount
+	verdict["tab"] = true
 	var v := {"id": int(t["guest_id"]), "visit": str(t["visit"])}
 	ORDERS.note_served(v)
-	ORDERS.mood(int(t["guest_id"]), float(verdict.get("mood", 0.0)), _thought(drink, verdict))
+	var hand := BUSINESS.hand_mood(key, "tap" if RULES.kind(drink) == "tap" else "bar") if bool(verdict.get("hand", false)) else 0.0
+	ORDERS.mood(int(t["guest_id"]), float(verdict.get("mood", 0.0)) + hand, _thought(drink, verdict))
 	if RULES.kind(drink) == "tap":
 		act(key, "mugs", [-1, 0])
 		var k := keg(key).duplicate(true)
@@ -298,7 +475,7 @@ func serve(key: String, t: Dictionary, verdict: Dictionary) -> Dictionary:
 		else:
 			act(key, "pints", [1])
 		act(key, "keg", [k])
-	act(key, "served", [str(t["id"]), {"drink": drink, "at": now_min(), "stars": int(verdict.get("stars", 0)), "amount": amount}])
+	act(key, "served", [str(t["id"]), {"drink": drink, "at": now_min(), "stars": int(verdict.get("stars", 0)), "amount": amount, "tip": int(verdict.get("tip", 0))}])
 	ORDERS.note_meal(int(t["guest_id"]), _thought(drink, verdict), pts)
 	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
 		CoreRoot.actions.biz_score(key, {"score": pts, "tip": int(verdict["tip"]), "what": RULES.label(drink), "who": str(t.get("name", "")), "hand": bool(verdict.get("hand", false))})
@@ -363,6 +540,8 @@ func _host_second() -> void:
 		var beer := maxi(0, BUSINESS.stock_of(key, "beer"))
 		if int(k["line"]) > beer:
 			set_keg(key, {"line": beer, "pallet": "empty" if beer == 0 else str(k["pallet"])})
+		_bills_waiting(key, now)
+		_guests_play(key, now)
 		var crew: Array = BUSINESS.crew_now(key)
 		if not crew.is_empty():
 			_crew_work(key, crew)
@@ -371,6 +550,62 @@ func _host_second() -> void:
 		if _save_due.has(key):
 			_save_due.erase(key)
 			_save(key)
+
+
+## Host: the guests with a tab open are kept in the pub till it is settled (orders
+## .set_holds "pub"); a bill nobody comes for in BILL_WAIT is left on the bar as the right
+## money by a guest who liked it here, and by one who did not, not at all.
+var _holds: Dictionary = {}
+
+
+func _bills_waiting(key: String, now: int) -> void:
+	var served: Dictionary = site(key)["served"]
+	var holds := {}
+	for v in ORDERS.visitors(key):
+		var visit := str(v["visit"])
+		if served.has(visit + "#bill"):
+			continue
+		var tab := RULES.tab_of(visit, served)
+		if int(tab["n"]) <= 0:
+			continue
+		holds[int(v["id"])] = int(v.get("arrive", now)) + RULES.stay(str(v["archetype"])) + RULES.BILL_WAIT + 2
+	for b in bills(key):
+		holds[int(b["guest_id"])] = int(b["since"]) + RULES.BILL_WAIT + 2
+		if int(b["age"]) < RULES.BILL_WAIT:
+			continue
+		var stars := _stars_of(served, str(b["visit"]))
+		var left := stars >= 1.8
+		var kept := int(b["total"]) if left else 0
+		_take_money(key, kept, false)
+		act(key, "served", [str(b["id"]), {"bill": true, "at": now, "kept": kept, "over": 0, "left": true}])
+		var who := ORDERS.first_name(str(b.get("name", "A guest")))
+		_feed("%s left the money for their tab on the bar." % who if left else "%s walked out of the pub without paying." % who)
+		if not left:
+			ORDERS.mood(int(b["guest_id"]), -1.0, "Nobody came to take my money at the pub.")
+		holds.erase(int(b["guest_id"]))
+	_holds[key] = holds
+	var all := {}
+	for k in _holds:
+		for gid in _holds[k]:
+			all[gid] = maxi(int(all.get(gid, -1)), int(_holds[k][gid]))
+	ORDERS.set_holds("pub", all)
+
+
+func _stars_of(served: Dictionary, visit: String) -> float:
+	var n := 0
+	var sum := 0
+	for tid in served:
+		if str(tid).begins_with(visit + "#") and not str(tid).ends_with("#bill"):
+			n += 1
+			sum += int((served[tid] as Dictionary).get("stars", 1))
+	return float(sum) / float(maxi(1, n))
+
+
+func _feed(text: String) -> void:
+	var main := get_tree().current_scene
+	var hud = main.get("_hud_manager") if main != null else null
+	if hud != null and hud.has_method("push_status"):
+		hud.push_status(text, 0, "pub_bill")
 
 
 func _pub_sites() -> Array:
@@ -420,9 +655,9 @@ func _crew_work(key: String, crew: Array) -> void:
 		var did := false
 		match str(p.get("role", "")):
 			"tap":
-				did = _crew_pour(key, p, "tap", slip, speed)
+				did = _crew_bill(key, slip) or _crew_pour(key, p, "tap", slip, speed)
 			"bar":
-				did = _crew_pour(key, p, "bar", slip, speed)
+				did = _crew_bill(key, slip) or _crew_pour(key, p, "bar", slip, speed)
 			"wash":
 				did = _crew_wash(key, slip)
 			"cellar":
@@ -435,6 +670,19 @@ func _crew_work(key: String, crew: Array) -> void:
 		if str(p.get("role", "")) == "cellar" and BUSINESS.has_gear(key, "coupler"):
 			k = 0.4
 		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) * k if did else 1.0
+
+
+## A hand behind the bar takes the oldest bill: counts the marks and gives the change
+## (a coin or two over now and then).
+func _crew_bill(key: String, slip: bool) -> bool:
+	var open := bills(key)
+	if open.is_empty():
+		return false
+	var b: Dictionary = open[0]
+	var due := RULES.change_due(b)
+	var given := due + (_rng.randi_range(1, 2) if slip and due > 0 else 0)
+	settle(key, b, given, true)
+	return true
 
 
 ## The oldest order of the kind poured, judged as a fair pour by a hand.
@@ -492,3 +740,25 @@ func _glasswasher(key: String) -> void:
 	var m: Dictionary = mugs(key)
 	if int(m["dirty"]) > 0:
 		act(key, "mugs", [int(m["dirty"]), -int(m["dirty"])])
+
+
+# ── debug (tools/podniky_coop.gd) ────────────────────────────────────────────
+
+## The oldest bill settled with the right change (as a player counts it): true when
+## there was one.
+func debug_settle_first(key: String) -> bool:
+	var open := bills(key)
+	if open.is_empty():
+		return false
+	return bool(settle(key, open[0], RULES.change_due(open[0]))["ok"])
+
+
+## A fair pour for the oldest orders (`n` of them), as the tap's hand would.
+func debug_pour_some(key: String, n: int) -> int:
+	var done := 0
+	for t in tickets(key):
+		if done >= n:
+			break
+		if bool(serve(key, t, {"ok": true, "accuracy": 0.9, "speed": 1.0}).get("ok", false)):
+			done += 1
+	return done

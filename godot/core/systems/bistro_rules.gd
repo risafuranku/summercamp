@@ -13,7 +13,12 @@ extends RefCounted
 ##            raw chips -> the basket, golden -> chips ("fries")
 ##            goulash (stock) -> the pot, hot, stirred -> ladled
 ##            dumplings (stock) -> a loaf on the board, cut with the thread -> slices ("dumpling")
+##   kitchen  sausages (stock) -> the grill on the island, turned till both sides are brown
+##            -> grilled ("sausage")
 ##   pass     a clean plate, what the ticket says, the bell -> the guest's table
+##   bufet    (the dining room's counter, the brief of 20. 10.): the soup of the day out of
+##            its pot into a bowl, over the counter; the big drinks in glass bottles,
+##            kofola and malinovka, opened there (the cap flies off and lies where it lands)
 ##   sink     the plates come back dirty -> washed -> clean again
 
 ## What a guest can order. parts: what goes on the plate; the ticket may change the
@@ -22,18 +27,35 @@ const DISHES := {
 	"goulash": {"label": "Goulash", "price": 7, "parts": {"goulash": 1, "dumpling": 4}},
 	"smazak": {"label": "Fried cheese", "price": 8, "parts": {"cheese": 1, "fries": 1, "tartar": 1}},
 	"fries": {"label": "Chips", "price": 3, "parts": {"fries": 1, "tartar": 1}},
+	"sausage": {"label": "Grilled sausage", "price": 6, "parts": {"sausage": 1, "mustard": 1, "bread": 1}},
+	# Served at the bufet in a bowl (not at the pass).
+	"soup": {"label": "Soup of the day", "price": 3, "parts": {"soup": 1}, "bufet": true},
+}
+## The big drinks in glass bottles, opened at the bufet: a ticket of their own.
+const DRINKS := {
+	"kofola": {"label": "Kofola", "price": 3, "good": "kofola"},
+	"malinovka": {"label": "Malinovka", "price": 3, "good": "malinovka"},
 }
 ## The things a plate is built from at the pass, in the order they are drawn on it.
-const PARTS := ["goulash", "dumpling", "onion", "cheese", "fries", "tartar"]
+const PARTS := ["goulash", "dumpling", "onion", "cheese", "fries", "tartar", "sausage", "mustard", "bread", "soup"]
 ## What each kind of guest likes to order (weights).
 const TASTE := {
-	"drunk": {"goulash": 5, "smazak": 2, "fries": 1},
-	"tramp": {"goulash": 4, "fries": 2},
-	"quiet_guy": {"smazak": 4, "goulash": 2},
-	"cheap_chick": {"fries": 4, "smazak": 2},
-	"picker": {"goulash": 4, "smazak": 1},
-	"family": {"smazak": 3, "fries": 3, "goulash": 1},
+	"drunk": {"goulash": 5, "smazak": 2, "fries": 1, "sausage": 4, "soup": 1},
+	"tramp": {"goulash": 4, "fries": 2, "sausage": 3, "soup": 2},
+	"quiet_guy": {"smazak": 4, "goulash": 2, "soup": 2},
+	"cheap_chick": {"fries": 4, "smazak": 2, "soup": 2},
+	"picker": {"goulash": 4, "smazak": 1, "soup": 3, "sausage": 1},
+	"family": {"smazak": 3, "fries": 3, "goulash": 1, "sausage": 2, "soup": 1},
 }
+## The grill: seconds a side over the coals till brown, and till it is black; places on it.
+const GRILL_GOLD := 7.0
+const GRILL_BURNT := 15.0
+const GRILL_SLOTS := 4
+## The soup pot at the bufet: bowls it holds, a refill (the books' soup), and how a bowl
+## is ladled: two ladles to a bowl (a third and it slops over).
+const SOUP_CAP := 16
+const SOUP_REFILL := 10
+const SOUP_LADLES := 2
 
 ## Minutes of game time (1.5 a second): the ticket goes up this long after they sit down
 ## (reading the menu); green while it is younger than PATIENCE_OK, amber to PATIENCE_LATE,
@@ -79,7 +101,19 @@ const PLATES := 10
 
 
 static func dish_label(dish: String) -> String:
+	if DRINKS.has(dish):
+		return str(DRINKS[dish]["label"])
 	return str((DISHES.get(dish, {}) as Dictionary).get("label", dish))
+
+
+## Whether a ticket's dish is done at the bufet (the soup, the drinks) and not the pass.
+static func at_bufet(dish: String) -> bool:
+	return DRINKS.has(dish) or bool((DISHES.get(dish, {}) as Dictionary).get("bufet", false))
+
+
+## The drink a guest wants with their food ("" none): the same on every machine.
+static func drink_wish(tid: String) -> String:
+	return ["kofola", "", "malinovka", "", "kofola", ""][absi(hash(tid + ":drink")) % 6]
 
 
 ## The tickets one visit puts up: one per person at the table. Decided by the visit and
@@ -108,6 +142,10 @@ static func tickets_for(visit: String, archetype: String, figures: int) -> Array
 				if roll < 40:
 					parts.erase("tartar")
 		out.append({"id": tid, "member": m, "dish": dish, "parts": parts, "price": price})
+		# A big drink with it, on a ticket of its own (opened at the bufet).
+		var d := drink_wish(tid)
+		if d != "":
+			out.append({"id": tid + ":d", "member": m, "dish": d, "parts": {d: 1}, "price": int(DRINKS[d]["price"]), "drink": true})
 	return out
 
 
@@ -127,6 +165,13 @@ static func pick_dish(archetype: String, roll: int) -> String:
 ## The main thing on a plate: what the guest would call it (goulash, fried cheese, chips),
 ## "" for an empty plate or a heap of sides.
 static func main_of(parts: Dictionary) -> String:
+	for d in DRINKS:
+		if int(parts.get(d, 0)) > 0:
+			return str(d)
+	if int(parts.get("soup", 0)) > 0:
+		return "soup"
+	if int(parts.get("sausage", 0)) > 0:
+		return "sausage"
 	if int(parts.get("goulash", 0)) > 0:
 		return "goulash"
 	if int(parts.get("cheese", 0)) > 0:
@@ -178,6 +223,13 @@ static func fries_state(t: float) -> int:
 	if t < FRIES_GOLD:
 		return 0
 	return 1 if t < FRIES_BURNT else 2
+
+
+## A sausage's side on the grill after `t` seconds: 0 pink, 1 brown, 2 black.
+static func sausage_side(t: float) -> int:
+	if t < GRILL_GOLD:
+		return 0
+	return 1 if t < GRILL_BURNT else 2
 
 
 ## The peeler after `t` seconds: 0 still in their skins, 1 peeled, 2 worn to marbles.

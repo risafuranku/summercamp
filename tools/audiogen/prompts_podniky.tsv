@@ -1,0 +1,15 @@
+# The businesses' polish (the brief of 20. 10., "podniky"): id, seconds, destination, prompt.
+pk_tea_pour	1.6	assets/sfx/corn/tea_pour.mp3	Cold iced tea running from the small plastic push tap of an orange drinks cooler barrel into a thin plastic cup, filling it, outdoors at a roadside stand. Close up, no music, no voices.
+pk_bag_tie	0.9	assets/sfx/corn/bag_tie.mp3	A small clear plastic bag full of lemonade twisted shut round a bendy drinking straw and knotted: crinkling plastic, a short squeak. Close up, outdoors, no music, no voices.
+pk_slot_lever	0.9	assets/sfx/pub/slot_lever.mp3	The heavy chrome side lever of an old 1970s mechanical one-armed-bandit slot machine pulled down and released: a metal ratchet clunk and a spring snapping back. Close up, small village pub, no music, no voices.
+pk_slot_reels	2.0	assets/sfx/pub/slot_reels.mp3	The three mechanical reels of an old one-armed-bandit slot machine spinning: a fast whirring clatter of gears inside a metal cabinet. Close up, small pub, no music, no voices.
+pk_slot_stop	0.5	assets/sfx/pub/slot_stop.mp3	One mechanical reel of an old slot machine stopping with a single sharp clack. Close up, no music, no voices.
+pk_slot_win	2.2	assets/sfx/pub/slot_win.mp3	A small win on an old mechanical slot machine: a little bell rings twice and a handful of coins clatter down into its metal payout tray. Close up, village pub, no music, no voices.
+pk_dart_throw	0.6	assets/sfx/pub/dart_throw.mp3	A steel-tipped dart thrown and hitting a sisal dartboard on a wooden wall: a short whoosh and a dull thock. Small pub, no music, no voices.
+pk_pencil	0.6	assets/sfx/pub/pencil.mp3	A short stroke of a carpenter's pencil on a cardboard beer mat lying on a wooden bar: a quick dry scratch. Close up, no music, no voices.
+pk_card_deal	0.8	assets/sfx/pub/card_deal.mp3	One old worn playing card dealt and flipped onto a wooden pub table: a soft slap and slide. Close up, no music, no voices.
+pk_bottle_pop	1.0	assets/sfx/bistro/bottle_pop.mp3	A gold crown cap levered off a cold half-litre glass soda bottle with a steel bottle opener: a sharp pop and a short fizzing hiss, the little metal cap pinging off onto a laminate counter. Close up, canteen, no music, no voices.
+pk_grill_turn	0.7	assets/sfx/bistro/grill_turn.mp3	A thick sausage turned over on a hot cast-iron grill grate with steel tongs: a click of the tongs and a fresh loud sizzle. Close up, kitchen, no music, no voices.
+pk_knife_slice	0.7	assets/sfx/jednota/knife_slice.mp3	A long sharp knife cutting one thin slice off a hard salami stick on a wooden board: a short firm slicing sound and a tap on the board. Close up, small grocery, no music, no voices.
+pk_scale	0.9	assets/sfx/jednota/scale.mp3	Something set down on the steel plate of an old mechanical shop scale: a soft clank and the needle springing round, settling with a little rattle. Close up, small grocery, no music, no voices.
+pk_paper_wrap	1.2	assets/sfx/jednota/paper_wrap.mp3	A few slices of salami wrapped in stiff grey grocer's paper: the paper torn off the roll, folded and creased with quick crinkling. Close up, no music, no voices.

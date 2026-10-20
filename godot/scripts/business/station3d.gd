@@ -35,6 +35,7 @@ extends Node3D
 ##   big_ticket() -> Dictionary   the ticket shown big in the frame ({} none)
 ##   bar_text() -> String  the counts at the right end of the bar
 ##   rail_tickets() -> Array      the tickets on the rail ([] none: no rail)
+##   hand_tool() -> String the tool in your gloved hand now (station_hands.gd TOOLS)
 
 signal closed
 ## Another station of this room was asked for (the bar's tab, a number key, Tab).
@@ -104,8 +105,18 @@ var _pops: Array = []
 var _rail: Node3D
 ## The tickets on the rail last time (a new one clips on with a ding).
 var _rail_seen: Dictionary = {}
+## Your gloved hand with the station's tool in it (station_hands.gd), while you are at it.
+var _hands_ui: CanvasLayer
 
 static var _room_tex: Dictionary = {}
+## The shot drivers' pointer (screen px; x < 0: the real one): a warped mouse does not
+## always reach the window in a test run.
+static var debug_mouse := Vector2(-1, -1)
+
+
+## The pointer on the screen (the shot drivers' when they set one).
+static func mouse_of(vp: Viewport) -> Vector2:
+	return debug_mouse if debug_mouse.x >= 0.0 else vp.get_mouse_position()
 static var _sprite_glint_mats: Dictionary = {}
 
 
@@ -354,6 +365,7 @@ func point(vp_mouse: Vector2) -> void:
 	_mouse_free = Vector2(-1, -1)
 	if camera == null or not is_instance_valid(camera) or vp_mouse.x < 0.0:
 		_set_hover("", "")
+		_point_hand()
 		return
 	var inv := global_transform.affine_inverse()
 	var o: Vector3 = inv * camera.project_ray_origin(vp_mouse)
@@ -376,6 +388,15 @@ func point(vp_mouse: Vector2) -> void:
 	_find_hover()
 	if _held != "":
 		_drag(_mouse_free)
+	_point_hand()
+
+
+## The hand after the pointer, with the tool for what is under it.
+func _point_hand() -> void:
+	if _hands_ui == null or not is_instance_valid(_hands_ui):
+		return
+	_hands_ui.set("tool", hand_tool())
+	_hands_ui.set("on_work", _held != "" or _hover != "" or _mouse.x >= 0.0)
 
 
 func _find_hover() -> void:
@@ -505,6 +526,9 @@ func press() -> void:
 		return
 	_held = _hover
 	_glint_off()
+	_point_hand()
+	if _hands_ui != null and is_instance_valid(_hands_ui):
+		_hands_ui.call("act", true)
 	_press(_held)
 
 
@@ -513,6 +537,8 @@ func release() -> void:
 		return
 	var was := _held
 	_held = ""
+	if _hands_ui != null and is_instance_valid(_hands_ui):
+		_hands_ui.call("act", false)
 	_release(was)
 
 
@@ -532,6 +558,10 @@ func open_station(cam: Camera3D) -> void:
 	for t in rail_tickets():
 		_rail_seen[str(t.get("id", ""))] = true
 	_make_rail()
+	if _hands_ui == null or not is_instance_valid(_hands_ui):
+		_hands_ui = load("res://scripts/business/station_hands.gd").new()
+		_hands_ui.name = "StationHand"
+		get_tree().root.add_child(_hands_ui)
 	_opened()
 
 
@@ -548,6 +578,9 @@ func close_station() -> void:
 	if _rail != null and is_instance_valid(_rail):
 		_rail.queue_free()
 	_rail = null
+	if _hands_ui != null and is_instance_valid(_hands_ui):
+		_hands_ui.queue_free()
+	_hands_ui = null
 	closed.emit()
 
 
@@ -577,6 +610,12 @@ func rail_ticket_at(vp_mouse: Vector2) -> String:
 func say(who: String, text: String) -> void:
 	if hud != null and is_instance_valid(hud):
 		hud.call("say", who, text)
+
+
+## Papa's slip for an order just served, in the frame (station_hud.serve_card).
+func score_card(v: Dictionary, what := "") -> void:
+	if hud != null and is_instance_valid(hud) and hud.has_method("serve_card"):
+		hud.call("serve_card", v, what)
 
 
 func sfx(path_or_name: String, db := -8.0, pitch := 1.0) -> void:
@@ -678,6 +717,11 @@ func rail_tickets() -> Array:
 	return []
 
 
+## The tool in your hand for what the pointer is over (or holds): station_hands.gd TOOLS.
+func hand_tool() -> String:
+	return "press" if _hover != "" else "open"
+
+
 ## The rail's picked ticket's id ("" none).
 func picked_ticket() -> String:
 	return ""
@@ -743,3 +787,23 @@ func _opened() -> void:
 
 func _closing() -> void:
 	pass
+
+
+# ── debug (the shot drivers) ─────────────────────────────────────────────────
+
+## The mouse onto a point of the surface (design px), `lift` metres over it: the hand
+## and the glint follow it as they would the player's.
+func debug_mouse_to(px: Vector2, lift := 0.0) -> void:
+	if camera == null or not is_instance_valid(camera):
+		return
+	var g: Vector3 = global_transform * local_at(px, lift)
+	var sp := camera.unproject_position(g)
+	var vsize := camera.get_viewport().get_visible_rect().size
+	var win := get_tree().root.get_visible_rect().size
+	debug_mouse = sp / vsize * win
+	get_tree().root.warp_mouse(debug_mouse)
+
+
+## Back to the real pointer.
+func debug_mouse_free() -> void:
+	debug_mouse = Vector2(-1, -1)

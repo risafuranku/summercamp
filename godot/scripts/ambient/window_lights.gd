@@ -204,6 +204,15 @@ static func lit_at(key: String, day: int, hour: float) -> bool:
 
 # ── drawing ──────────────────────────────────────────────────────────────────
 
+## Builder 98's map lights the same windows (crt_map_panel.gd): {} when the lodging at
+## `key` ("x:y") is dark, else {tv, candle}.
+func lit_state(key: String) -> Dictionary:
+	var rec: Dictionary = _lodgings.get(key, {})
+	if rec.is_empty() or not bool(rec.get("on", false)):
+		return {}
+	return {"tv": bool(rec.get("tv", false)), "candle": bool(rec.get("candle", false)), "kind": str(rec.get("kind", ""))}
+
+
 func _update() -> void:
 	var main := get_tree().current_scene
 	if main == null:
@@ -282,3 +291,5 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool) -> void:
 		light.light_color = LAMP if col == LIT_TINT else (CANDLE if candle else col)
 		light.light_energy = amount * (0.55 if kind == "tent" else 0.7)
 	rec["on"] = on
+	rec["tv"] = tv and not candle
+	rec["candle"] = candle

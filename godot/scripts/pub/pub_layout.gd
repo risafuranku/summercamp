@@ -34,6 +34,10 @@ const STATIONS := {
 	"back": {"room": "bar", "at": Vector3(0.63, 1.25, -1.4), "size": Vector3(0.52, 0.32, 0.3), "stand": Vector3(0.63, 0.05, -1.99), "pose": "pour", "mark": Vector3(0.63, 1.7, -1.4), "label": "the bottles", "tab_label": "BOTTLES"},
 	"wash": {"room": "bar", "at": Vector3(2.12, 1.15, -1.3), "size": Vector3(0.45, 0.12, 0.62), "stand": Vector3(2.12, 0.05, -1.99), "pose": "wash", "mark": Vector3(2.12, 1.6, -1.4), "label": "the washer", "tab_label": "WASH"},
 	"keg": {"room": "cellar", "at": Vector3(-1.0, 0.55, -1.85), "size": Vector3(1.0, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg", "tab_label": "KEG"},
+	# The fun (pub_fun.gd): clicked in the room, not on the frame's bar ("tab": false).
+	"slot": {"room": "bar", "at": Vector3(-2.35, 0.8, -1.9), "size": Vector3(0.7, 1.55, 0.5), "stand": Vector3(-2.35, 0.05, -1.2), "pose": "stand", "mark": Vector3(-2.35, 1.85, -1.85), "label": "the LUCKY 7", "tab_label": "LUCKY 7", "tab": false},
+	"darts": {"room": "bar", "at": Vector3(-2.82, 1.46, -1.0), "size": Vector3(0.15, 0.55, 0.55), "stand": Vector3(-0.6, 0.05, -1.0), "pose": "stand", "mark": Vector3(-2.75, 1.85, -1.0), "label": "the darts", "tab_label": "DARTS", "tab": false},
+	"cards": {"room": "bar", "at": Vector3(-1.6, 0.8, 0.9), "size": Vector3(0.9, 0.2, 0.7), "stand": Vector3(-1.6, 0.05, 1.6), "pose": "stand", "mark": Vector3(-1.6, 1.3, 0.9), "label": "the cards", "tab_label": "CARDS", "tab": false},
 }
 ## Where each station is worked (scripts/business/station3d.gd): its centre, size in
 ## metres, which way the worker faces it (yaw), flat (a top) or a wall; how far back and
@@ -47,6 +51,11 @@ const SURFACES := {
 	"back": {"at": Vector3(0.65, 1.10, -1.33), "size": Vector2(1.6, 0.9), "yaw": 180.0, "flat": true, "cam_back": 0.62, "cam_up": 0.4, "cam_aim": 0.12},
 	"wash": {"at": Vector3(2.05, 1.10, -1.33), "size": Vector2(1.6, 0.9), "yaw": 180.0, "flat": true, "cam_back": 0.62, "cam_up": 0.42, "cam_aim": 0.06},
 	"keg": {"at": Vector3(-1.0, 0.15, -1.75), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true, "cam_back": 0.85, "cam_up": 0.68, "cam_aim": 0.25},
+	# The LUCKY 7's face (a wall: the cabinet stands against the back wall), the wall round
+	# the dartboard seen from the line, the second table's top.
+	"slot": {"at": Vector3(-2.35, 0.865, -1.93), "size": Vector2(0.96, 0.54), "yaw": 0.0, "flat": false, "cam_back": 0.8},
+	"darts": {"at": Vector3(-2.86, 1.46, -1.0), "size": Vector2(0.853, 0.48), "yaw": 90.0, "flat": false, "cam_back": 1.25},
+	"cards": {"at": Vector3(-1.6, 0.745, 0.9), "size": Vector2(0.8, 0.45), "yaw": 0.0, "flat": true, "cam_back": 0.55, "cam_up": 0.45, "cam_aim": 0.0},
 }
 
 
@@ -181,14 +190,19 @@ static func bar(parent: Node3D, si) -> void:
 	look(parent, "brewery sign", "The brewery closed in 1991. The sign stayed; the beer changed.", Vector3(-0.9, 1.75, -2.25), Vector3(0.7, 0.52, 0.1))
 	_cut(parent, "pub_pennant", Vector2(0.3, 0.36), Vector3(-2.0, 1.9, -2.28), 0.0, false, "Pennant")
 	_cut(parent, "pub_pennant", Vector2(0.28, 0.34), Vector3(-1.62, 1.95, -2.28), 0.0, false, "Pennant")
-	look(parent, "pennants", "SK Lesna. Promoted in 1983, relegated in 1984.", Vector3(-1.8, 2.0, -2.25), Vector3(0.7, 0.4, 0.1))
+	look(parent, "pennants", "SK Liblice. Promoted in 1983, relegated in 1984.", Vector3(-1.8, 2.0, -2.25), Vector3(0.7, 0.4, 0.1))
 	_cut(parent, "pub_calendar", Vector2(0.32, 0.46), Vector3(0.15, 1.65, -2.28), 0.0, false, "Calendar")
 	look(parent, "calendar", "September 1986. Nobody has turned it over.", Vector3(0.15, 1.65, -2.25), Vector3(0.32, 0.46, 0.1))
 	K.cutout(parent, "wall_clock", Vector2(0.3, 0.3), Vector3(2.4, 1.85, -2.28), 0.0, false, "Clock")
 	look(parent, "clock", "Ten to closing. It always says ten to closing.", Vector3(2.4, 2.0, -2.25), Vector3(0.32, 0.32, 0.1))
-	# The left wall: the dartboard, the antlers, the boar, the window on the car park.
+	# The left wall: the dartboard (a station: darts), the antlers, the boar, the window on
+	# the car park; in the corner by it the LUCKY 7 (a station: the slot machine).
 	K.cutout(parent, "dartboard", Vector2(0.48, 0.48), Vector3(-2.88, 1.46, -1.0), 90.0, false, "PubDartBoard")
-	look(parent, "dartboard", "Three darts in the treble twenty. Nobody in here throws like that.", Vector3(-2.85, 1.7, -1.0), Vector3(0.1, 0.5, 0.5))
+	# The LUCKY 7 at its picture's own proportions (camp/pub_slot.png 74 x 136): its reel
+	# window at 0.87 m, where the station's surface is (SURFACES "slot").
+	_cut(parent, "pub_slot", Vector2(0.74, 1.36), Vector3(-2.35, 0.05, -1.95), 0.0, true, "SlotMachine")
+	# The cards on the second table (a station: cards).
+	_cut(parent, "pub_cards", Vector2(0.3, 0.22), TABLES[1] + Vector3(-0.15, 0.745, -0.05), 0.0, true, "Cards")
 	K.cutout(parent, "antlers", Vector2(0.4, 0.52), Vector3(-2.88, 1.6, -1.75), 90.0, false, "Antlers")
 	look(parent, "antlers", "A six-pointer. Shot by the landlord's father, or bought at the market in Pisek: it depends who tells it.", Vector3(-2.85, 1.85, -1.75), Vector3(0.1, 0.5, 0.45))
 	_cut(parent, "pub_boar", Vector2(0.55, 0.55), Vector3(-2.88, 1.55, 1.75), 90.0, false, "Boar")
@@ -206,7 +220,7 @@ static func bar(parent: Node3D, si) -> void:
 	_cut(parent, "pub_board", Vector2(0.5, 0.42), Vector3(2.88, 1.55, 1.3), -90.0, false, "DebtSlate")
 	look(parent, "slate", "DLUZNICI, who owes for beer. The top name is rubbed out every morning and is back every night.", Vector3(2.85, 1.55, 1.3), Vector3(0.1, 0.42, 0.5))
 	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.88, 1.6, 0.55), -90.0, "PubPoster")
-	look(parent, "poster", "Lake Lesna, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, 0.55), Vector3(0.1, 0.8, 0.6))
+	look(parent, "poster", "Cerne jezero, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, 0.55), Vector3(0.1, 0.8, 0.6))
 	_cut(parent, "pub_hockey", Vector2(0.5, 0.36), Vector3(-0.2, 1.65, 2.28), 180.0, false, "TeamPhoto")
 	_cut(parent, "pub_print", Vector2(0.5, 0.4), Vector3(0.6, 1.65, 2.28), 180.0, false, "PondPrint")
 	# The front corner: the stove and its coal, the coat stand, the fly paper.

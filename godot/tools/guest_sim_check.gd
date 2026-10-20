@@ -9,6 +9,8 @@ extends Node
 ## simulation does sensible things: facilities get visited, moods stay in range, broken
 ## toilets hurt, and departures write reviews. Run as a SCENE (autoloads required).
 
+const NEEDS_SYS = preload("res://core/systems/guest_needs_system.gd")
+
 var _failures: Array[String] = []
 var _day := 1
 var _hour := 9
@@ -115,6 +117,8 @@ func _ready() -> void:
 	_expect(saw_complaint, "guests complain about the toilets")
 	state2.failures.clear()
 
+	_check_night_sleep(state2)
+
 	# Run until everyone has checked out.
 	_run_minutes(4 * 24 * 60)
 	_expect(CoreRoot.get_state().guests.is_empty(), "all guests checked out (left %d)" % CoreRoot.get_state().guests.size())
@@ -151,6 +155,45 @@ func _ready() -> void:
 		for f in _failures:
 			print("  - " + f)
 		get_tree().quit(1)
+
+
+## Asleep at night nothing in the camp reaches the guests (playtest 20. 10.): the toilets
+## and showers break at ten in the evening, and at three in the morning nobody is
+## crosser for it, their bladders have waited; on waking the night's need comes at once.
+func _check_night_sleep(state) -> void:
+	while not (_hour == 22 and _minute == 0):
+		_run_minutes(1)
+	state.failures["7:9"] = {"type": "toilet_block", "coord": Vector2i(7, 9), "since_day": state.day, "repair_progress": 0.0, "night": true}
+	state.failures["8:9"] = {"type": "shower_block", "coord": Vector2i(8, 9), "since_day": state.day, "repair_progress": 0.0, "night": true}
+	var before := {}
+	for g_any in state.guests:
+		var g: Dictionary = g_any
+		var act: Dictionary = g.get("activity", {})
+		if str(act.get("kind", "")) == "sleep" and int(act.get("arrive", 0)) <= (_day - 1) * 1440 + 22 * 60:
+			before[int(g["id"])] = {"mood": float(g["mood"]), "bladder": float(g["needs"]["bladder"]), "unhappy": int(g.get("unhappy_minutes", 0))}
+	_expect(not before.is_empty(), "someone is asleep at ten in the evening")
+	_run_minutes(5 * 60)
+	var night := {}
+	for g_any in state.guests:
+		var g: Dictionary = g_any
+		var id := int(g["id"])
+		if not before.has(id):
+			continue
+		var b: Dictionary = before[id]
+		var bl := float(g["needs"]["bladder"])
+		night[id] = bl
+		print("  asleep %-14s mood %5.1f -> %5.1f  bladder %5.1f -> %5.1f" % [g["name"], float(b["mood"]), float(g["mood"]), float(b["bladder"]), bl])
+		_expect(is_equal_approx(bl, float(b["bladder"])), "%s's bladder waits for the morning" % g["name"])
+		_expect(int(g.get("unhappy_minutes", 0)) <= int(b["unhappy"]), "%s is not getting crosser asleep" % g["name"])
+		_expect(float(g["mood"]) >= NEEDS_SYS.UNHAPPY_MOOD or float(b["mood"]) < NEEDS_SYS.UNHAPPY_MOOD, "%s is not cross at three in the morning (%.1f)" % [g["name"], float(g["mood"])])
+	# Up at half past six: two minutes later, before anyone could have got anywhere.
+	_run_minutes(3 * 60 + 32)
+	for g_any in state.guests:
+		var g: Dictionary = g_any
+		var id := int(g["id"])
+		if night.has(id):
+			_expect(float(g["needs"]["bladder"]) <= float(night[id]) - 20.0 or float(g["needs"]["bladder"]) <= 1.0, "%s wakes up needing the toilet" % g["name"])
+	state.failures.clear()
 
 
 func _place(type: String, origin: Vector2i, footprint: Vector2i = Vector2i.ONE) -> void:

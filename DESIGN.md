@@ -628,6 +628,92 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
 - **About** has the credits and, under them, a little bulldozer flattening tents in a
   strip of grass; it drives itself until the arrow keys take it.
 - The Jednota is buildable again (the camp's own; locked at Goggle 4.0).
+- **The buildings stand as the camp has them** (playtest 20. 10.: the mirrored front and
+  back pictures put the pub's door where the 3D pub has a wall). Every building's four
+  pictures are drawn from its own 3D model, from the four corners the map turns to, at the
+  map's angle and one scale for all (`tools/iso_render.tscn`), repainted by Grok in the
+  tycoon look and fitted back over the render, so the door, the porch, the chimney are
+  where they are in the camp and a gnome is a gnome's size next to a pub.
+- **The map turns** a quarter at a time, as RCT's park did (T, Shift+T back, the toolbar's
+  turning tile): the ground, the paths, the trees, the guests and the order things stand
+  in turn with it; the spot in the middle stays there. The PC remembers which way.
+- **Its people.** The guests are drawn as the camp has them: walking, or posed by what they
+  are at (sat at the fire, eating, a kick on the pitch); their faces over them now and then
+  (a smile, hearts, a song, anger, panic for the toilet, fright), a Zzz over the lodgings
+  somebody sleeps in. Their walk towards you and away and each kind's own doings come in
+  frames (the quiet man watching the lake or smoking, the drunk staggering or sick, the
+  woman in heels with her cigarette and her shopping, the tramp strumming on a log or
+  carrying firewood, the father hanging washing while the boy kicks a ball, the old picker
+  after a mushroom): `peeps/<kind>_<0-7>.png`, the camp's pose until they are there.
+  They walk behind the buildings and trees in front of them (RCT's: what stands nearer is
+  drawn again over them), not over the roofs. Their card says what they are about ("by the
+  fire", "in the pub", "asleep"), how many nights they booked and what they have paid.
+- **The small life of the map** (Grok frames, stepped; none of it without the pictures):
+  the camp's dog trotting from lodging to lodging, sniffing, sitting, barking; ducks
+  paddling and dipping on the lake and the sun glinting on the water; moths round the lit
+  lamps after dusk; a mouse darting out by the pub, the bistro, the Jednota or the corn
+  stand; ants at the picnic tables when close enough to see; now and then a few birds
+  crossing the whole map with a flutter. The trees sway in a wind (three frames a second,
+  each a beat after its neighbour: a gust going over the map).
+- **A building site in its stages**: the foundation (formwork and fresh concrete), the walls
+  going up in a scaffold, the roof on its trusses under a tarpaulin, a third of the time
+  each, each with its sound (the concrete, the planks, the tiles); the worker hammering as
+  before. **A demolition** brings the little yellow bulldozer (Transport Tycoon's): it
+  drives in over what went, shoves, backs off in a puff of smoke, dust bursting where it
+  pushed. The tools on the pointer move (the blade, the spade, the lamp blinking, the
+  blueprint unrolling).
+- **Every click has its sound** (Builder's own, not the PC's): a toolbar button, a
+  catalogue card sliding out, a window opening and closing, a tool picked up, a refusal, the
+  map turning, the message line's tick.
+- **The message line** along the foot of the map, RCT's: what happens in the camp as it
+  happens, each with its little picture (a guest's new thought, who is at the gate, who
+  moved in, who drove off, a room to clean, toilets gone filthy, a breakdown and its fix,
+  a review, the Courier and the diplomas), sliding in, creeping along when long; a click
+  takes the map there or follows the guest. What matters more (a breakdown, guests driving
+  off, a diploma) pops up a moment as a small window in the map's corner.
+- **The building's card is alive**: its picture turns slowly through its four sides, and
+  besides the room, the guests in it, the wear and the power it says how clean a toilet or
+  shower block is and what a business took and served today.
+- **The map's sound** under the pointer: the lake lapping, the woods, the playground, a
+  pub's door, the camp; quiet loops fading into each other as the pointer goes over the map.
+- **Lit windows at dusk**: the lodgings lived in light their windows on the map as the camp
+  lights them (`window_lights.gd`): a lamp behind the curtains, the telly's blue, a candle
+  with the power off, a tent glowing through its cloth; the windows are the model's own
+  (the render's window pass), so they sit on the picture's windows.
+- **Music**: the loop's seam measured (no click, the beat lands on the loop's start, a dip
+  of a few hundredths of a second where it was cross-faded); still to be heard by an ear.
+
+## 5k. The god cursor
+
+The user: when the Builder builds, a giant computer cursor appears high over the camp you
+stand in and puts the paths and buildings down into it: surreal, the camp a simulation
+somebody assembles with a mouse. **Only theatre**: the Builder builds at once as before,
+the camp's sim has the building at once (guests, books, everything), and nothing waits for
+the show, hinders or hurts (`scripts/god/god_cursor.gd`).
+
+- **What it is**: the Builder's own pointer (the OS's arrow with the tool beside it: the
+  blueprint, the path, the lamp, the bulldozer), thirty metres of flat pixels in the sky,
+  the haze of the camp's fog over it and banks of mist drifting through it, dithered away
+  and back in Build's way; it glides slowly to the work and rises back into the haze after.
+  A deep hum like thunder and organ pipes from far off; the slowed, giant Okna click and
+  ding; heavy landings with an echo from the woods (ElevenLabs, `assets/sfx/god/`).
+- **Paths like dominoes**: the pointer clicks, the line's tiles come down one after
+  another from high up, a thud and dust each (louder every third).
+- **Buildings in their parts**: the foundations, the walls, the roof (its own meshes, split
+  by height), each falling in steps of a twelfth of a second, landing with a boom and a ring
+  of dust; small things in one piece.
+- **Bulldozing** is short: the pointer dives with the bulldozer, clicks, and what was there
+  (copies of its meshes: the camp has already taken it away) is pressed flat in four steps
+  and sinks into the ground in a burst of dust and a crunch.
+- **The queue**: what the Builder ordered waits as a shadow on the ground (the building
+  hidden, not a wall to walk into) and comes down in turn, quicker the longer the queue.
+  While the warden sits at the PC it waits; it comes down when they stand up, seen through
+  the office window (a portal into the camp), from its door or outside. In co-op each
+  machine plays its own theatre of the builds it hears of: the other warden outside sees
+  the host's Builder come down (who builds is told by what happens where).
+- **Under it**: the shadow grows as it falls; guests round it jump out of the way and look
+  up; a warden standing under it is pushed off and the view shakes. Nobody is hurt.
+- Leaving the camp (the menu, a load) brings everything still waiting down at once, unseen.
 
 ## 6. Upkeep
 
@@ -1006,6 +1092,106 @@ Built once for all four places (the bistro first); `core/systems/business_rules.
   forecast says so: from the afternoon the NIGHT RISK footer alternates with "PUB LATE",
   and the feed says the place is open late tonight. The scares are rare and fast; nothing
   in a place hurts.
+
+### The businesses' polish (2026-10-20, "podniky")
+
+*The user's brief of 2026-10-20 ("bring the four places to the top: looks, mechanics,
+hands, sound, readability, economy, co-op"). The camp is about time: one warden manages the
+upkeep, the rooms and one place, not all of it at once; a place takes one warden's whole
+attention, or hands. Two wardens: one cooks, one cleans, or each holds a place.*
+
+- **The ladder.** Corn stand < pub < bistro < Jednota, in what they cost to build and to
+  license ($140/$60, $420/$120, $640/$140, $1800/$220), what a hand asks a day (15, 30,
+  35, 40), what a visit spends and what it fills of the guests' needs
+  (`data/buildings/*.tres` guest_services): the stand a quick bite and a small drink
+  (hunger 45, thirst 25), the pub a light drink and fun (thirst 60, fun 50), the bistro a
+  big meal and a big drink (hunger 95, thirst 55), the Jednota the most at once (hunger,
+  thirst, fun, wash) and a bag to take home (below). The Builder's card says what a place
+  fills ("food, drink, fun").
+- **Thirst** is a need of its own (`guest_needs_system.NEED_THIRST`): it falls by day
+  (twelve hours to empty, faster for the drunks), a night costs a little of it, their own
+  water at the lodging brings it back to about half and no further: a proper drink is the
+  places'. A guest short of it walks to one; over their head the blue plate with a cup
+  (`need_thirst.png`), in GuestRack's list a NEEDS column with the worst need's plate and
+  the words of all they are short of.
+- **The Jednota's bag.** A basket rung up at the Jednota goes home with them
+  (`guest_needs_system.STASH_FROM`, `use_stash`): food, drink, a magazine, the soap, which
+  top their needs up a little a minute whenever they run low, for days, till the bag is
+  empty. The top of the ladder pays for the whole stay.
+- **The evening rush** (`RUSH_FROM` 17:45 to 20:00): supper time, everybody goes for food,
+  a drink and some fun much sooner than by day (`RUSH_SEEK`), so every place has a queue.
+  One warden at one place holds it; at all of them, no.
+- **Two pointers in the rooms.** The gloved finger and the glint only over what does
+  something (a station, a door, the books, a switch); over what is only worth a look the
+  eye (`HandCursor.LOOK`, `cursor_look.png`): a click says a line under the room and
+  nothing more. What is neither is not clickable.
+- **Your hands at every station** (`scripts/business/station_hands.gd`): the right hand in
+  the work glove comes up from the bottom of the view with the station's tool, Duke 3D
+  style: whole pictures at twelve a second on the hands' pixel grid, lit like the other
+  hands, the press phased (wind-up, the act held, the follow-through); the tongs over the
+  pot and the grill, the butter brush, the salt, the tap's handle, the bottle, a mug at the
+  brushes, the pencil marking a mat, the coins from the wallet and the till, the dart, the
+  ladle, the opener, the knife, the wrapping paper; the bare glove for the rest. Off the
+  work it sinks; it never turns. Each station says its tool (`hand_tool()`).
+- **Papa's slip after every serve** (`station_hud.serve_card`): the wait, the order and
+  the cooking as bars, one to three stars as they land, the money and the tip, a word for
+  it (POOR, GOOD, PERFECT!), a sound by how it went; SENT BACK with their words when it
+  comes back. The money floats up off the counter as before.
+- **The Z report's mark.** The receipt has the goods used and the net, all the places'
+  takings today beside this one's, the average stars; by it the manager's note in pencil:
+  the shift's mark A to E (`business_rules.day_grade`: the orders' scores, how many of
+  those who came were served, whether it paid) and the one thing to mend first (another
+  pair of hands for the rush, mind the worst dish, order less more often, the wages ate
+  the takings). SoftSklad's Books show the last mark and the goods used.
+- **The hands by their ways.** Speed is how good and how quick their work is (a quick one
+  pours better than a slow one), honesty is the till, and the temper is the guests' mood
+  (`TEMPER_MOOD`: a warm hand cheers who they serve, a sour one sours them). A quick, warm,
+  honest hand asks the most and can be better than a warden in a hurry. The stand's hands
+  stand at their places behind its counter (`crew_figures` in `corn_stand_life.gd`).
+  SoftSklad's Staff page says what the one picked is like.
+- **The corn stand** gets its drinks: the little table at its end (a third station), iced
+  tea run from the orange barrel's tap into a cup, raspberry lemonade poured into a bag and
+  tied round a straw, filled to the line (`corn_rules.DRINKS`, `FILL_OK`); a drink slip of
+  its own on the rail beside the cob's. The pot's water rolls (three Grok frames). The
+  queue stands in a line out into the camp, slanting off so every one of them is seen
+  from behind the counter, stepping up as those in front are served.
+- **The pub's tab.** Nothing is paid as it is poured: a mark in pencil on the guest's mat
+  (a stroke a beer, a cross a shot, a ring a kofola: `pub_rules.TAB`, the board's prices
+  4, 3, 2). When they have had their last, or their time is nearly up, the mat comes back
+  on the rail as BILL: at the tap's right their mat and the note they put down (often too
+  big), and your black waiter's wallet with its four places; count the marks, take the
+  note, the change onto the mat, hand it over. A guest pleased with the evening says
+  "make it" a round sum (their tip). Short and they wait; too much and they keep it. Nobody
+  comes in a quarter of an hour: the happy ones leave the money on the bar, the cross ones
+  nothing. The hands at the tap and the bar settle bills too.
+- **The pub's fun** (`core/systems/pub_fun.gd`): the LUCKY 7 in the corner (pull the lever
+  down, three reels stop one after another; it is the camp's machine, so a warden plays for
+  the fun of it, but three sevens and the pub cheers); darts at the board on the left wall
+  (hold to aim, the hand sways the longer you hold, three darts against the last guest's
+  turn); oko bere with the Czech pack at the second table, two dollars a game against
+  whoever is in. The guests have their go too (`taproom._guests_play`): what they feed the
+  LUCKY 7 is the pub's takings, their darts stay in the board; they like the pub better.
+- **The bistro's grill and bufet.** On the kitchen island the grill (a station): sausages
+  out of the box onto the grate, turned with the tongs, brown on both sides onto the rack,
+  black into the bin; at the pass a klobasa plate is a sausage, a spoon of mustard and a
+  slice of bread. In the dining room the bufet counter (a station): the soup of the day
+  ladled into a bowl (two ladles; a third slops) and over the counter, quick and cheap;
+  the big drinks in glass bottles, kofola and malinovka, a ticket of their own for some
+  guests, opened with the opener (hold on the cap and lift: the cap flies off and lies
+  where it lands). Hands for the grill and the bufet.
+- **The Jednota's whole range and its deli counter.** The rack's top shelf has playing
+  cards and magazines, the rum stands by the beer, the cigarettes are behind the till (they
+  ask; you take a pack off the wall before it can be rung up). At the till counter's far
+  end the deli counter: salami, cheese, bread cut to the weight they ask (in deka): slices
+  off the piece onto the scale (each a little thicker or thinner), the scale's window says
+  the grams, wrap it in paper, hand the parcel over; short and they want more, over and
+  they take it but it counts against you. The parcel goes into their basket and is paid at
+  the till by its weight. A deli hand.
+- **For two.** Every new thing is an op of its place (`cornstand.act`, `taproom.act`,
+  `kitchen.act`, `jednota.act`): a drink served, a bill settled, the slot's spin, the
+  darts in the board, a sausage on the grill, the soup pot, a deli order, a cut kilo; the
+  money is wherever it was taken (the till follows the host's). Checked on two copies by
+  `tools/podniky_coop.py`.
 
 ## 8. The pipe crawl (sewer repair)
 

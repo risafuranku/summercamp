@@ -31,6 +31,7 @@ const SPOTS := {
 		"till": ["shop", Vector3(2.0, 1.7, -0.2), "mark_till"],
 		"shelves": ["shop", Vector3(-0.75, 1.62, -2.25), "res://assets/textury/jednota/box_closed.png"],
 		"store": ["store", Vector3(-0.2, 1.6, -1.62), "res://assets/textury/jednota/box_closed.png"],
+		"deli": ["shop", Vector3(2.0, 1.7, -1.75), "res://assets/textury/jednota/parcel.png"],
 	},
 }
 
@@ -102,6 +103,8 @@ func wanted() -> Array:
 				return out
 			if not shop.tickets(key).is_empty():
 				out.append("till")
+			if not shop.deli_tickets(key).is_empty():
+				out.append("deli")
 			var gone := ""
 			var room_for_box := false
 			var store_has := false

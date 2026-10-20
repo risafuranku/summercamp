@@ -11,7 +11,11 @@ extends CanvasLayer
 ##                  what is on the plate;
 ##   the timers     what is cooking at the other stations of the room (the pan, the
 ##                  basket, the pot), small columns at the left, so you can mind the stove
-##                  from the pass.
+##                  from the pass;
+##   the score      Papa's slip for an order just served (`serve_card`): the wait, the
+##                  order and the cooking as bars, one to three stars, the money and the
+##                  tip, a word for it; it drops in, stays a moment and goes, with a
+##                  sound by how it went (the brief of 20. 10.).
 ## One per business room, made by scripts/service_interior.gd; shown while a station is
 ## open. Nothing here explains anything: the things in the room do.
 
@@ -41,6 +45,15 @@ var _msg := ""
 var _msg_who := ""
 var _msg_t := 99.0
 var _t := 0.0
+## The score slip up now ({} none) and how long it has been up.
+var _card: Dictionary = {}
+var _card_t := 99.0
+var _paper: Texture2D
+var _star: Texture2D
+var _star_dim: Texture2D
+var _sfx: AudioStreamPlayer
+const CARD_SEC := 3.2
+const CARD := Vector2(112, 86)
 
 
 func _ready() -> void:
@@ -54,6 +67,31 @@ func _ready() -> void:
 	_c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_c.draw.connect(_draw)
 	add_child(_c)
+	for pair in [["_paper", "res://assets/textury/bistro/ticket.png"], ["_star", "res://assets/textury/bistro/star.png"], ["_star_dim", "res://assets/textury/bistro/star_dim.png"]]:
+		if ResourceLoader.exists(str(pair[1])):
+			set(str(pair[0]), load(str(pair[1])))
+	_sfx = AudioStreamPlayer.new()
+	_sfx.volume_db = -9.0
+	add_child(_sfx)
+
+
+## Papa's slip for an order just served: `v` is the verdict (speed, build, cook (-1: no
+## cooking), stars, tip, amount, ok; notes when sent back), `what` the thing ("Corn").
+func serve_card(v: Dictionary, what := "") -> void:
+	_card = v.duplicate()
+	_card["what"] = what
+	_card_t = 0.0
+	var stars := int(v.get("stars", 0))
+	var sound := "guest_grumble"
+	if bool(v.get("ok", true)) and stars >= 3:
+		sound = "guest_happy"
+	elif bool(v.get("ok", true)) and stars == 2:
+		sound = "bell_ding"
+	var path := "res://assets/sfx/bistro/%s.mp3" % sound
+	if ResourceLoader.exists(path):
+		_sfx.stream = load(path)
+		_sfx.volume_db = -10.0 if sound == "bell_ding" else -7.0
+		_sfx.play()
 
 
 func say(who: String, text: String) -> void:
@@ -72,6 +110,7 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	_msg_t += delta
+	_card_t += delta
 	_c.queue_redraw()
 
 
@@ -157,6 +196,68 @@ func _draw() -> void:
 	_draw_sentence()
 	_draw_big()
 	_draw_mirror()
+	_draw_card()
+
+
+## The score slip: drops in from the top in steps (twelve a second), hangs, goes.
+func _draw_card() -> void:
+	if _card.is_empty() or _card_t > CARD_SEC:
+		return
+	var steps := floorf(minf(_card_t, 0.34) * 12.0) / 4.0
+	var y := -CARD.y + (CARD.y + 40.0) * minf(1.0, steps)
+	if _card_t > CARD_SEC - 0.34:
+		y -= floorf((_card_t - (CARD_SEC - 0.34)) * 12.0) / 4.0 * (CARD.y + 40.0)
+	var r := Rect2(floorf((W - CARD.x) * 0.5), floorf(y), CARD.x, CARD.y)
+	_c.draw_rect(r.grow(1.0), Color(0.05, 0.04, 0.03, 0.9))
+	if _paper != null:
+		_c.draw_texture_rect(_paper, r, false)
+	else:
+		_c.draw_rect(r, Color(0.92, 0.88, 0.76))
+	var ink := Color(0.16, 0.12, 0.1)
+	var f: Font = RETRO_UI.FONT_TEXT
+	var x := r.position.x + 7
+	var ok := bool(_card.get("ok", true))
+	var title := str(_card.get("what", "")).to_upper()
+	if not ok:
+		_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, r.position.y + 14), (title + " " if title != "" else "") + "SENT BACK", HORIZONTAL_ALIGNMENT_LEFT, CARD.x - 12, 8, Color(0.62, 0.08, 0.05))
+		var notes: Array = _card.get("notes", [])
+		var ly := r.position.y + 30
+		for n in notes.slice(0, 3):
+			_c.draw_string(f, Vector2(x, ly), str(n), HORIZONTAL_ALIGNMENT_LEFT, CARD.x - 12, 8, ink)
+			ly += 12
+		return
+	_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, r.position.y + 14), title if title != "" else "SERVED", HORIZONTAL_ALIGNMENT_LEFT, CARD.x - 12, 8, Color(0.55, 0.1, 0.08))
+	var rows: Array = [["WAIT", float(_card.get("speed", -1.0))], ["ORDER", float(_card.get("build", -1.0))], ["COOKING", float(_card.get("cook", -1.0))]]
+	var ry := r.position.y + 24
+	for row in rows:
+		if float(row[1]) < 0.0:
+			continue
+		var v := clampf(float(row[1]), 0.0, 1.0)
+		_c.draw_string(f, Vector2(x, ry + 7), str(row[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
+		var bar := Rect2(x + 44, ry + 1, CARD.x - 58, 5)
+		_c.draw_rect(bar.grow(1.0), Color(0.1, 0.08, 0.06))
+		_c.draw_rect(bar, Color(0.3, 0.26, 0.2))
+		var col: Color = RETRO_UI.C_GREEN if v >= 0.8 else (RETRO_UI.C_AMBER if v >= 0.5 else RETRO_UI.C_RED)
+		_c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * v), bar.size.y)), col)
+		ry += 11
+	# The stars, one after another as the slip lands.
+	var stars := int(_card.get("stars", 1))
+	var shown := clampi(int((_card_t - 0.34) * 6.0), 0, 3)
+	for i in 3:
+		var tex: Texture2D = _star if i < stars and i < shown else _star_dim
+		if tex == null:
+			continue
+		var sz := Vector2(12, 12)
+		_c.draw_texture_rect(tex, Rect2(Vector2(x + i * 14, r.end.y - 30), sz), false)
+	var money := "+$%d" % int(_card.get("amount", 0))
+	_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x + 46, r.end.y - 20), money, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.1, 0.4, 0.12))
+	var tip := int(_card.get("tip", 0))
+	if tip > 0:
+		_c.draw_string(f, Vector2(x + 76, r.end.y - 20), "TIP $%d" % tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
+	var word: String = ["", "POOR", "GOOD", "PERFECT!"][clampi(stars, 0, 3)]
+	if int(_card.get("score", 0)) < 50:
+		word = "POOR"
+	_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, r.end.y - 6), word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.55, 0.1, 0.08) if stars >= 3 else ink)
 
 
 func _draw_sentence() -> void:

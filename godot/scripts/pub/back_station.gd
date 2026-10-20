@@ -224,6 +224,13 @@ func _closing() -> void:
 		_spill = 0.0
 
 
+## The bottle in the hand once taken (tipped while it pours), the bare glove else.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	if id == "pour" or id.begins_with("bottle:"):
+		return "bottle"
+	return "open"
+
 # ── debug (tools/pub_check.gd, tools/pub_shots.gd) ───────────────────────────
 
 func debug_pour(bottle: String, fill: float) -> void:

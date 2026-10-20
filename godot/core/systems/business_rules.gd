@@ -53,12 +53,19 @@ const KINDS := {
 			"cheese": {"label": "Cheese", "unit": "slices", "price": 8, "pack": 20, "pack_cost": 64, "cap": 60, "start": 10, "life": 6},
 			"potatoes": {"label": "Potatoes", "unit": "portions", "price": 3, "pack": 30, "pack_cost": 30, "cap": 90, "start": 20, "life": 5},
 			"dumplings": {"label": "Dumplings", "unit": "plates", "price": 0, "pack": 30, "pack_cost": 24, "cap": 90, "start": 15, "life": 3},
+			# The grill, the bufet (bistro_rules: the sausage, the soup of the day, the big
+			# drinks in glass bottles).
+			"sausage": {"label": "Sausages", "unit": "sausages", "price": 6, "pack": 20, "pack_cost": 46, "cap": 60, "start": 10, "life": 5},
+			"bread": {"label": "Rye bread", "unit": "slices", "price": 0, "pack": 40, "pack_cost": 10, "cap": 80, "start": 20, "life": 2},
+			"soup": {"label": "Soup tins", "unit": "bowls", "price": 3, "pack": 30, "pack_cost": 24, "cap": 90, "start": 20, "life": 0},
+			"kofola": {"label": "Kofola", "unit": "bottles", "price": 3, "pack": 20, "pack_cost": 20, "cap": 60, "start": 20, "life": 0},
+			"malinovka": {"label": "Malinovka", "unit": "bottles", "price": 3, "pack": 20, "pack_cost": 18, "cap": 60, "start": 20, "life": 0},
 		},
-		"wants": {"goulash": 0.45, "cheese": 0.3, "potatoes": 0.25},
+		"wants": {"goulash": 0.3, "cheese": 0.2, "potatoes": 0.15, "sausage": 0.15, "soup": 0.1, "kofola": 0.1},
 	},
 	"vecerka": {
 		"name": "Jednota", "wage": 40, "hand": ["Mrs Novakova", "Zdenka", "Ivan"],
-		"app": "shop_app", "app_name": "Pult 98", "licence": 100,
+		"app": "shop_app", "app_name": "Pult 98", "licence": 220,
 		# The village shop the guests love (DESIGN.md §7b, the Jednota): everything they
 		# need, dear to build, stock and staff; it pays back in a fortnight of a busy camp
 		# (jednota_rules.day_model, tools/jednota_check).
@@ -73,8 +80,17 @@ const KINDS := {
 			"sweets": {"label": "Sweets", "unit": "bars", "price": 3, "pack": 40, "pack_cost": 26, "cap": 80, "start": 20, "life": 0},
 			"veg": {"label": "Fruit and veg", "unit": "heads", "price": 4, "pack": 20, "pack_cost": 24, "cap": 40, "start": 10, "life": 4},
 			"soap": {"label": "Soap and paper", "unit": "packs", "price": 5, "pack": 12, "pack_cost": 22, "cap": 24, "start": 6, "life": 0},
+			# The brief of 20. 10.: the fun (cards, magazines), the rum, the cigarettes behind
+			# the till; the deli counter's salami, cheese and bread by the kilo.
+			"cards": {"label": "Playing cards", "unit": "packs", "price": 4, "pack": 10, "pack_cost": 18, "cap": 20, "start": 6, "life": 0},
+			"magazine": {"label": "Magazines", "unit": "copies", "price": 2, "pack": 20, "pack_cost": 16, "cap": 30, "start": 10, "life": 7},
+			"rum": {"label": "Tuzemak", "unit": "bottles", "price": 9, "pack": 12, "pack_cost": 54, "cap": 24, "start": 6, "life": 0},
+			"cigs": {"label": "Cigarettes", "unit": "packs", "price": 3, "pack": 40, "pack_cost": 70, "cap": 80, "start": 20, "life": 0},
+			"deli_salami": {"label": "Salami (deli)", "unit": "kg", "price": 30, "pack": 4, "pack_cost": 48, "cap": 12, "start": 3, "life": 8},
+			"deli_cheese": {"label": "Cheese (deli)", "unit": "kg", "price": 20, "pack": 4, "pack_cost": 34, "cap": 12, "start": 3, "life": 10},
+			"deli_bread": {"label": "Bread (deli)", "unit": "kg", "price": 10, "pack": 6, "pack_cost": 18, "cap": 12, "start": 4, "life": 2},
 		},
-		"wants": {"bread": 0.1, "roll": 0.18, "salami": 0.08, "milk": 0.12, "pickles": 0.04, "beer": 0.14, "icecream": 0.12, "sweets": 0.1, "veg": 0.08, "soap": 0.04},
+		"wants": {"bread": 0.08, "roll": 0.14, "salami": 0.06, "milk": 0.1, "pickles": 0.04, "beer": 0.12, "icecream": 0.1, "sweets": 0.08, "veg": 0.06, "soap": 0.05, "cards": 0.03, "magazine": 0.04, "rum": 0.04, "cigs": 0.06},
 	},
 	"corn": {
 		"name": "Corn stand", "wage": 15, "hand": ["Pepicek", "Klara", "the Novak boy"],
@@ -82,14 +98,19 @@ const KINDS := {
 		"goods": {
 			"cobs": {"label": "Corn cobs", "unit": "cobs", "price": 2, "pack": 40, "pack_cost": 32, "cap": 80, "start": 20, "life": 4},
 			"butter": {"label": "Butter", "unit": "knobs", "price": 0, "pack": 60, "pack_cost": 15, "cap": 120, "start": 30, "life": 6},
+			# The small drinks (corn_rules.DRINKS): the barrel of iced tea in cups, the
+			# lemonade in bags off the big bottles.
+			"tea": {"label": "Iced tea", "unit": "cups", "price": 1, "pack": 60, "pack_cost": 12, "cap": 120, "start": 30, "life": 3},
+			"limo": {"label": "Lemonade", "unit": "bags", "price": 1, "pack": 36, "pack_cost": 9, "cap": 72, "start": 18, "life": 0},
 		},
-		"wants": {"cobs": 1.0},
+		"wants": {"cobs": 0.7, "tea": 0.15, "limo": 0.15},
 	},
 }
 ## What a dish or a drink takes off the shelf (the counter games' names).
 const RECIPES := {
-	"rest": {"goulash": {"goulash": 1, "dumplings": 1}, "smazak": {"cheese": 1, "potatoes": 1}, "fries": {"potatoes": 1}},
-	"corn": {"cob": {"cobs": 1, "butter": 1}},
+	"rest": {"goulash": {"goulash": 1, "dumplings": 1}, "smazak": {"cheese": 1, "potatoes": 1}, "fries": {"potatoes": 1},
+		"sausage": {"sausage": 1, "bread": 1}, "soup": {"soup": 1}, "kofola": {"kofola": 1}, "malinovka": {"malinovka": 1}},
+	"corn": {"cob": {"cobs": 1, "butter": 1}, "tea": {"tea": 1}, "limo": {"limo": 1}},
 }
 ## The van: what one delivery costs on top of the goods, the day after you order.
 const DELIVERY_FEE := 10
@@ -254,12 +275,17 @@ static func menu(kind: String, stock: Dictionary) -> Dictionary:
 			out["goulash"] = int(stock.get("goulash", 0)) > 0 and int(stock.get("dumplings", 0)) > 0
 			out["smazak"] = int(stock.get("cheese", 0)) > 0 and int(stock.get("potatoes", 0)) > 0
 			out["fries"] = int(stock.get("potatoes", 0)) > 0
+			out["sausage"] = int(stock.get("sausage", 0)) > 0 and int(stock.get("bread", 0)) > 0
+			out["soup"] = int(stock.get("soup", 0)) > 0
+			out["kofola"] = int(stock.get("kofola", 0)) > 0 or int(stock.get("malinovka", 0)) > 0
 		"pub":
 			out["beer"] = int(stock.get("beer", 0)) > 0
 			out["rum"] = int(stock.get("rum", 0)) > 0
 			out["kofola"] = int(stock.get("kofola", 0)) > 0
 		"corn":
 			out["cob"] = int(stock.get("cobs", 0)) > 0
+			out["tea"] = int(stock.get("tea", 0)) > 0
+			out["limo"] = int(stock.get("limo", 0)) > 0
 		"vecerka":
 			for g in goods(kind):
 				out[g] = int(stock.get(g, 0)) > 0
@@ -331,10 +357,10 @@ static func life_of(kind: String, good: String, site: Dictionary) -> int:
 ## The jobs of each place, in the order they matter (the first is the front: with it
 ## covered the place serves without you).
 const ROLES := {
-	"rest": [["pass", "Pass"], ["stove", "Stove"], ["cellar", "Cellar"], ["sink", "Sink"]],
+	"rest": [["pass", "Pass"], ["stove", "Stove"], ["cellar", "Cellar"], ["sink", "Sink"], ["grill", "Grill"], ["bufet", "Bufet"]],
 	"pub": [["tap", "Tap"], ["bar", "Back bar"], ["wash", "Washer"], ["cellar", "Cellar"]],
-	"corn": [["counter", "Counter"], ["husk", "Husking"]],
-	"vecerka": [["till", "Till"], ["shelves", "Shelves"], ["store", "Storeroom"], ["till2", "Second till"]],
+	"corn": [["counter", "Counter"], ["husk", "Husking"], ["drinks", "Drinks"]],
+	"vecerka": [["till", "Till"], ["shelves", "Shelves"], ["store", "Storeroom"], ["deli", "Deli counter"], ["till2", "Second till"]],
 }
 
 
@@ -373,6 +399,9 @@ const SPEED_SEC := [9.0, 6.0, 4.0]
 const SPEED_SLIP := [0.14, 0.08, 0.05]
 const SPEED_WORD := ["Takes their time.", "Steady.", "Quick on their feet."]
 const TEMPER_WORD := {"warm": "Talks to everybody.", "flat": "Keeps to themselves.", "sour": "Not much of a smile."}
+## What a hand's temper does to the mood of the guest they serve (business_runtime
+## .hand_mood): a warm one is worth a word, a sour one costs it.
+const TEMPER_MOOD := {"warm": 0.4, "flat": 0.0, "sour": -0.6}
 ## A late shift costs this much more than a day.
 const LATE_PAY := 1.5
 ## Opening: the day shift to 20:00, the late one to 23:00.
@@ -503,4 +532,42 @@ static func reward(score_pts: int, price: int) -> Dictionary:
 
 ## A fresh shift's tally: orders, the score summed, tips, the best and the worst order.
 static func empty_shift() -> Dictionary:
-	return {"orders": 0, "score": 0, "tips": 0, "best": {}, "worst": {}, "waste": 0, "lost": 0, "by_hands": 0, "opened": -1}
+	return {"orders": 0, "score": 0, "tips": 0, "stars": 0, "cost": 0.0, "best": {}, "worst": {}, "waste": 0, "lost": 0, "by_hands": 0, "opened": -1}
+
+
+## What one unit of a good costs off the van (its pack's price over the pack).
+static func unit_cost(kind: String, good: String) -> float:
+	var d: Dictionary = goods(kind).get(good, {})
+	return float(d.get("pack_cost", 0)) / float(maxi(1, int(d.get("pack", 1))))
+
+
+## The shift's mark on the Z report (the brief of 20. 10.: "the grade of the day and what
+## to do better, short and spurring on"): A to E from how the orders went, how many were
+## served of those who came, and whether it paid; and the one thing to mend first.
+static func day_grade(z: Dictionary) -> Dictionary:
+	var n := int(z.get("orders", 0))
+	var lost := int(z.get("lost", 0))
+	if n <= 0 and lost <= 0:
+		return {"grade": "-", "advice": "Nobody came. Open in the evening rush."}
+	var avg := float(z.get("score", 0)) / float(maxi(1, n))
+	var served := float(n) / float(maxi(1, n + lost))
+	var profit := int(z.get("takings", 0)) - int(z.get("wages", 0)) - int(round(float(z.get("cost", 0.0))))
+	var pts := avg * 0.55 + served * 45.0 - (8.0 if profit < 0 else 0.0)
+	var grade := "E"
+	for g in [["A", 86.0], ["B", 74.0], ["C", 62.0], ["D", 50.0]]:
+		if pts >= float(g[1]):
+			grade = str(g[0])
+			break
+	var advice := "A good shift. Same again tomorrow."
+	if served < 0.75:
+		advice = "Too many went away unserved. Another pair of hands for the rush."
+	elif avg < 60.0:
+		var worst: Dictionary = z.get("worst", {})
+		advice = "The orders went out poor. Mind the %s." % str(worst.get("what", "orders")).to_lower() if not worst.is_empty() else "The orders went out poor."
+	elif int(z.get("waste", 0)) > 6:
+		advice = "Too much went off. Order less, more often."
+	elif profit < 0:
+		advice = "The wages ate the takings. Fewer hands, or more guests."
+	elif grade == "A":
+		advice = "The best in the district. Keep it so."
+	return {"grade": grade, "advice": advice}

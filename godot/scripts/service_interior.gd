@@ -35,6 +35,8 @@ const BISTRO_STATIONS := {
 	"potatoes": "res://scripts/bistro/potato_station.gd",
 	"breading": "res://scripts/bistro/breading_station.gd",
 	"machine": "res://scripts/bistro/machine_station.gd",
+	"grill": "res://scripts/bistro/grill_station.gd",
+	"bufet": "res://scripts/bistro/bufet_station.gd",
 }
 var _stations: Dictionary = {}
 const STATION3D = preload("res://scripts/business/station3d.gd")
@@ -67,6 +69,9 @@ const PUB_STATIONS := {
 	"back": "res://scripts/pub/back_station.gd",
 	"wash": "res://scripts/pub/wash_station.gd",
 	"keg": "res://scripts/pub/keg_station.gd",
+	"slot": "res://scripts/pub/slot_station.gd",
+	"darts": "res://scripts/pub/darts_station.gd",
+	"cards": "res://scripts/pub/cards_station.gd",
 }
 var _pub_marks: Control
 ## The Jednota (scripts/jednota/): its shop and its storeroom, its stations worked in the
@@ -78,6 +83,7 @@ const JEDNOTA_STATIONS := {
 	"till": "res://scripts/jednota/till_station.gd",
 	"shelves": "res://scripts/jednota/shelves_station.gd",
 	"store": "res://scripts/jednota/store_station.gd",
+	"deli": "res://scripts/jednota/deli_station.gd",
 }
 ## The pub's rooms: the bar room and the cellar under it (its kegs).
 var _pub_cellar_root: Node3D
@@ -359,8 +365,14 @@ func _process(delta: float) -> void:
 			HandCursor.want(HandCursor.WALK)
 			_hover_things(null)
 		elif _hover_click_type() != "":
-			HandCursor.want(HandCursor.POINT)
-			_hover_things(collider)
+			# Only worth a look (a line under the room): the eye; something that does
+			# something: the finger and its glint.
+			if _hover_click_type() == "bistro_look":
+				HandCursor.want(HandCursor.LOOK)
+				_hover_things(null)
+			else:
+				HandCursor.want(HandCursor.POINT)
+				_hover_things(collider)
 		else:
 			_hover_things(null)
 		if _sentence != null and _current_profile in ["rest", "pub", "vecerka"]:
@@ -2395,8 +2407,8 @@ const CREW_FIGURES = preload("res://scripts/business/crew_figures.gd")
 var _crew: Node3D
 ## Which station each of the bistro's jobs is worked at, and where the hand steps back to
 ## when a warden takes it (behind the warden, out of the camera's way).
-const BISTRO_ROLE_AT := {"pass": "pass", "stove": "stove", "cellar": "potatoes", "sink": "sink"}
-const BISTRO_ASIDE := {"pass": Vector3(1.4, 0, 0.6), "stove": Vector3(0.3, 0, 1.4), "potatoes": Vector3(1.3, 0, 0.9), "sink": Vector3(-1.4, 0, 0.7)}
+const BISTRO_ROLE_AT := {"pass": "pass", "stove": "stove", "cellar": "potatoes", "sink": "sink", "grill": "grill", "bufet": "bufet"}
+const BISTRO_ASIDE := {"pass": Vector3(1.4, 0, 0.6), "stove": Vector3(0.3, 0, 1.4), "potatoes": Vector3(1.3, 0, 0.9), "sink": Vector3(-1.4, 0, 0.7), "grill": Vector3(1.1, 0, 0.4), "bufet": Vector3(-0.8, 0, 1.2)}
 ## The pub's: behind the bar along the narrow way between the bar and the shelf (the
 ## tap's hand stands in front of the bottles: out of the way when you turn to them),
 ## the cellar's by the pallet.
@@ -2405,8 +2417,8 @@ const PUB_ASIDE := {"tap": Vector3(0.6, 0, 0), "back": Vector3(-0.6, 0, 0), "was
 const PUB_CLEAR_OF := {"tap": ["back"]}
 ## The Jednota's: behind the till, in front of the rack, at the packing table; aside out
 ## of the station's camera.
-const JEDNOTA_ROLE_AT := {"till": "till", "shelves": "shelves", "store": "store"}
-const JEDNOTA_ASIDE := {"till": Vector3(0.0, 0, -1.1), "shelves": Vector3(-1.5, 0, 0.6), "store": Vector3(1.2, 0, 0.5)}
+const JEDNOTA_ROLE_AT := {"till": "till", "shelves": "shelves", "store": "store", "deli": "deli"}
+const JEDNOTA_ASIDE := {"till": Vector3(0.0, 0, -1.1), "shelves": Vector3(-1.5, 0, 0.6), "store": Vector3(1.2, 0, 0.5), "deli": Vector3(0.0, 0, 0.7)}
 
 
 func _start_crew() -> void:
@@ -2422,7 +2434,7 @@ func _start_crew() -> void:
 			for role in BISTRO_ROLE_AT:
 				var st_id: String = BISTRO_ROLE_AT[role]
 				var st: Dictionary = BISTRO_LAYOUT.STATIONS[st_id]
-				var root: Node3D = _restaurant_kitchen_root if str(st["room"]) == "kitchen" else _restaurant_basement_root
+				var root: Node3D = _bistro_root(str(st["room"]))
 				if root != null:
 					spots[role] = {"root": root, "pos": st["stand"], "station": st_id, "aside": BISTRO_ASIDE.get(st_id, Vector3(0.8, 0, 0.8)), "note": (st["mark"] as Vector3) - Vector3(0, 0.45, 0)}
 			_crew.busy_of = func() -> Array: return [_station_open()] + _bistro_taken().keys()
@@ -2488,7 +2500,7 @@ func _start_marks() -> void:
 func _build_bistro_stations() -> void:
 	for id in BISTRO_LAYOUT.STATIONS:
 		var room := str(BISTRO_LAYOUT.STATIONS[id]["room"])
-		var parent: Node3D = _restaurant_kitchen_root if room == "kitchen" else _restaurant_basement_root
+		var parent: Node3D = _bistro_root(room)
 		if parent != null:
 			BISTRO_LAYOUT.station_body(parent, str(id))
 	_ensure_sentence()
@@ -2527,7 +2539,17 @@ func _station_root(room: String) -> Node3D:
 		return _pub_cellar_root if room == "cellar" else _pub_main_root
 	if _current_profile == "vecerka":
 		return _vecerka_storage_root if room == "store" else _vecerka_shop_root
-	return _restaurant_kitchen_root if room == "kitchen" else _restaurant_basement_root
+	return _bistro_root(room)
+
+
+## The bistro's room by its name: the kitchen, the cellar, the dining room.
+func _bistro_root(room: String) -> Node3D:
+	match room:
+		"kitchen":
+			return _restaurant_kitchen_root
+		"dining":
+			return _restaurant_dining_root
+	return _restaurant_basement_root
 
 
 ## The station open now ("" none).
@@ -2654,7 +2676,7 @@ func _on_station_closed() -> void:
 func _station_frame(open: String) -> void:
 	var st: Node = _stations[open]
 	var moving := _station_tween != null and _station_tween.is_valid() and _station_tween.is_running()
-	var mouse := get_viewport().get_mouse_position()
+	var mouse: Vector2 = STATION3D.mouse_of(get_viewport())
 	var hud := _hud()
 	var ui := str(hud.call("hit", mouse))
 	hud.call("set_hover", ui if ui.begins_with("#tab") or ui.begins_with("#btn") or ui == "#back" else "")
@@ -3352,7 +3374,7 @@ func coop_job_spot(job: String) -> Dictionary:
 	if _current_profile == "rest" and BISTRO_LAYOUT.STATIONS.has(job):
 		# At a station of the bistro (scripts/bistro/bistro_layout.gd STATIONS).
 		var st: Dictionary = BISTRO_LAYOUT.STATIONS[job]
-		var sroot: Node3D = _restaurant_kitchen_root if str(st["room"]) == "kitchen" else _restaurant_basement_root
+		var sroot: Node3D = _bistro_root(str(st["room"]))
 		if sroot == null or not sroot.is_visible_in_tree():
 			return {}
 		return {"pos": sroot.global_transform * (st["stand"] as Vector3), "pose": str(st["pose"])}

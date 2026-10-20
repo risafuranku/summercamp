@@ -47,6 +47,10 @@ const STATIONS := {
 	"potatoes": {"room": "basement", "at": Vector3(-2.85, 0.72, -0.55), "size": Vector3(0.5, 1.4, 2.4), "stand": Vector3(-2.0, 0.05, -0.55), "pose": "cook", "mark": Vector3(-2.7, 1.75, -0.55), "label": "the potatoes"},
 	"breading": {"room": "basement", "at": Vector3(2.5, 0.5, 0.05), "size": Vector3(0.95, 0.8, 1.7), "stand": Vector3(1.8, 0.05, 0.05), "pose": "cook", "mark": Vector3(2.5, 1.55, 0.05), "label": "the breading table"},
 	"machine": {"room": "basement", "at": Vector3(1.45, 0.75, -2.2), "size": Vector3(2.4, 1.4, 0.4), "stand": Vector3(1.2, 0.05, -1.2), "pose": "stand", "mark": Vector3(1.45, 1.75, -2.2), "label": "the machine", "tab": false},
+	# The grill on the kitchen island, the bufet counter in the dining room (the brief of
+	# 20. 10.: the sausage off the grill, the soup of the day, the bottles).
+	"grill": {"room": "kitchen", "at": Vector3(0.0, 0.6, 0.3), "size": Vector3(1.06, 0.9, 0.64), "stand": Vector3(0.0, 0.05, 1.0), "pose": "cook", "mark": Vector3(0.0, 1.6, 0.3), "label": "the grill"},
+	"bufet": {"room": "dining", "at": Vector3(2.62, 0.6, 0.75), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(1.9, 0.05, 0.75), "pose": "cook", "mark": Vector3(2.62, 1.7, 0.75), "label": "the bufet", "tab_label": "BUFET"},
 }
 ## Where each station's work surface lies (scripts/business/station3d.gd stands on it;
 ## its counter's top is its Build picture, assets/textury/bistro/st_<id>.png): the centre,
@@ -62,6 +66,8 @@ const SURFACES := {
 	"potatoes": {"at": Vector3(-3.08, 0.72, -0.55), "size": Vector2(2.4, 1.35), "yaw": 90.0, "flat": false, "cam_back": 1.3},
 	"breading": {"at": Vector3(2.5, 0.802, 0.05), "size": Vector2(1.6, 0.9), "yaw": -90.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
 	"machine": {"at": Vector3(1.45, 0.72, -2.38), "size": Vector2(2.4, 1.35), "yaw": 0.0, "flat": false, "cam_back": 1.25},
+	"grill": {"at": Vector3(0.0, 0.952, 0.3), "size": Vector2(1.0, 0.5625), "yaw": 0.0, "flat": true, "cam_back": 0.3, "cam_up": 0.54},
+	"bufet": {"at": Vector3(2.62, 0.952, 0.75), "size": Vector2(1.6, 0.9), "yaw": -90.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
 }
 
 
@@ -212,6 +218,10 @@ static func dining(parent: Node3D, si) -> void:
 	K.prop(parent, "radio_set", Vector3(2.75, 1.0, -1.45), -30.0)
 	look(parent, "cake case", "Laskonky, a vetrnik, two rakvicky. The same ones as on Monday.", Vector3(2.05, 1.25, -1.05), Vector3(0.6, 0.5, 0.3))
 	look(parent, "Kofola tap", "Kofola on draught. The line hisses when nobody's pouring.", Vector3(1.6, 1.2, -1.35), Vector3(0.3, 0.45, 0.3))
+	# The bufet counter along the right wall (a station): the soup of the day, the crate of
+	# bottles and the opener.
+	_counter(parent, "bufet", K.surface("formica", 0.6, Color(0.72, 0.6, 0.45)))
+	surface(parent, "bufet")
 	# The menu board over the tables, chalk prices, and the sign.
 	var board := K.slab(parent, Vector3(1.9, 0.86, 0.04), Vector3(-1.45, 1.92, -2.36), K.surface("ceiling_board", 4.0, Color(0.32, 0.34, 0.3)), "MenuBoard")
 	board.name = "DiningMenuBoard"
@@ -364,11 +374,10 @@ static func kitchen(parent: Node3D, si) -> void:
 	_counter(parent, "sink", steel)
 	surface(parent, "sink")
 	K.prop(parent, "fridge_tall", Vector3(2.72, 0.05, -1.75), -90.0)
-	# The island: the board, onions, eggs, the flour sacks under it.
-	K.prop(parent, "steel_counter", Vector3(0.0, 0.05, 0.25), 0.0, 0.8)
-	_cut(parent, "bistro_flour", Vector2(0.45, 0.55), Vector3(-0.3, 0.05, 0.5), 0.0, true, "FlourSack")
-	_cut(parent, "bistro_stockpot", Vector2(0.4, 0.36), Vector3(0.3, 0.92, 0.25), 0.0, true, "StockPot")
-	look(parent, "stock pot", "Bones for the broth. They have been simmering since before you came.", Vector3(0.3, 1.1, 0.25), Vector3(0.4, 0.36, 0.4))
+	# The island: the grill set into it (a station), the flour sack by it.
+	_counter(parent, "grill", steel)
+	surface(parent, "grill")
+	_cut(parent, "bistro_flour", Vector2(0.45, 0.55), Vector3(-1.0, 0.05, 0.6), 0.0, true, "FlourSack")
 	_tube(parent, Vector3(-1.0, 2.88, 0.0))
 	_tube(parent, Vector3(1.2, 2.88, 0.0))
 	# The ticket clock (gear) over the pass, its stubs in its rim: hidden till bought.

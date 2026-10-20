@@ -21,6 +21,9 @@ extends RefCounted
 const NEEDS := preload("res://core/systems/guest_needs_system.gd")
 const BALANCE_CONFIG := preload("res://core/balance/balance_config.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
+const MAINT_RULES := preload("res://core/systems/maintenance_rules.gd")
+## Mood a guest loses using a filthy toilet or shower block (MaintenanceRules.FILTHY).
+const FILTHY_MOOD := 5.0
 
 const MAX_CHUNK_MINUTES := 20
 const QUEUE_GIVE_UP_MINUTES := 16
@@ -243,6 +246,8 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 		if not night_now and kind == "sleep":
 			guest["activity"] = {}
 			guest["tile"] = str(act.get("to", guest.get("tile", "")))
+			# The night's hunger and full bladder come now (GuestNeedsSystem.MORNING_NEEDS).
+			guest["needs"] = NEEDS.wake_needs(guest["needs"])
 			_say(guest, _morning_thought(guest), t)
 			continue
 
@@ -254,11 +259,17 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 		var minutes := float(seg_end - t)
 		var dwelling := t >= int(act.get("arrive", t))
 		var sleeping := dwelling and (kind == "sleep" or kind == "rest")
+		# The night's rest (in bed, on the way to it, or up in the night's trouble and
+		# back): the needs wait for the morning and the mood hears only the bed and fear,
+		# not a broken toilet at three in the morning.
+		var night_sleep := night_now and (kind == "sleep" or kind == "night_out")
 		var here := _parse_key(str(act.get("to", guest.get("tile", "")))) if dwelling else _parse_key(str(guest.get("tile", "")))
 		# Singing next door: a light sleeper near a drunk party sleeps badly.
-		var seg_comfort := comfort - (_noise_for(guest, t) if sleeping and night_now else 0.0)
+		var noise := _noise_for(guest, t) if sleeping and night_now else 0.0
+		var seg_comfort := comfort - noise
 		var context := {
 			"sleeping": sleeping,
+			"night_sleep": night_sleep,
 			"comfort": seg_comfort if kind == "sleep" else seg_comfort * 0.8,
 			"is_night": night_now,
 			"lit": _is_lit(here),
@@ -266,10 +277,19 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 			"weirdness": weirdness,
 		}
 		var needs: Dictionary = NEEDS.decay_needs(guest["needs"], archetype, minutes, context)
+		# The Jednota's bag keeps them going (a roll, a bottle, the soap) while it lasts.
+		var stash = guest.get("stash", {})
+		if stash is Dictionary and not (stash as Dictionary).is_empty() and not night_sleep:
+			var used: Array = NEEDS.use_stash(needs, stash, minutes)
+			needs = used[0]
+			guest["stash"] = used[1]
 		guest["needs"] = needs
-		var target_mood := NEEDS.mood_target(needs, archetype, seg_comfort)
-		guest["mood"] = NEEDS.step_mood(float(guest.get("mood", 60.0)), target_mood, minutes)
-		_track_unhappiness(guest, int(minutes), t, night_now)
+		var mood := float(guest.get("mood", 60.0))
+		var target_mood := NEEDS.sleep_mood_target(mood, needs, archetype, comfort, noise) if night_sleep \
+			else NEEDS.mood_target(needs, archetype, seg_comfort)
+		guest["mood"] = NEEDS.step_mood(mood, target_mood, minutes)
+		if not night_sleep:
+			_track_unhappiness(guest, int(minutes), t, night_now)
 		t = seg_end
 
 		if not bool(act.get("arrived", false)) and t >= int(act.get("arrive", t)):
@@ -327,7 +347,7 @@ func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 		return _plan_sleep(guest, t)
 	var here := _parse_key(str(guest.get("tile", "")))
 	var archetype := str(guest.get("archetype", "quiet_guy"))
-	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, _facilities, here, _usage, _rng)
+	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, _facilities, here, _usage, _rng, float(t % 1440) / 60.0)
 	var thought := str(goal.get("thought", ""))
 	match str(goal.get("kind", "wander")):
 		"visit":
@@ -477,16 +497,27 @@ func _on_complete(guest: Dictionary, act: Dictionary, t: int) -> void:
 				return
 			var services: Dictionary = f.get("services", {})
 			var visit := "%d@%d" % [int(guest.get("id", 0)), int(act.get("start", 0))]
-			var fed := not services.has("hunger") or ORDERS.served(str(act.get("target_key", "")), visit)
-			if not fed:
-				# Nobody served them: the beer with friends was something, the meal was not
-				# (business_runtime has them grumble about it).
+			var sold := not (services.has("hunger") or services.has("thirst")) or ORDERS.served(str(act.get("target_key", "")), visit)
+			var fed := sold
+			if not sold:
+				# Nobody served them: the company was something, the meal and the drink were
+				# not (business_runtime has them grumble about it).
 				services = services.duplicate()
 				services.erase("hunger")
+				services.erase("thirst")
+			elif NEEDS.STASH_FROM.has(str(f.get("type", ""))):
+				# A basket to take home: it keeps them going for days.
+				guest["stash"] = NEEDS.add_stash(guest.get("stash", {}) if guest.get("stash", {}) is Dictionary else {}, str(f.get("type", "")))
 			guest["needs"] = NEEDS.apply_facility(guest["needs"], services, str(guest.get("archetype", "")), str(f.get("type", "")))
 			guest["visits"] = int(guest.get("visits", 0)) + 1
-			_events.append({"type": "visit", "guest_id": int(guest.get("id", -1)), "facility": str(f.get("type", "")), "abs": t})
-			if fed and _rng.randf() < 0.3:
+			# "key": GuestManager has the toilets and showers soiled by it (soil_building).
+			_events.append({"type": "visit", "guest_id": int(guest.get("id", -1)), "facility": str(f.get("type", "")), "key": str(f.get("key", "")), "abs": t})
+			if MAINT_RULES.soils(str(f.get("type", ""))) and float(f.get("condition", 1.0)) < MAINT_RULES.FILTHY:
+				# A filthy block: they notice, every time.
+				guest["complaints"] = int(guest.get("complaints", 0)) + 1
+				guest["mood"] = clampf(float(guest.get("mood", 50.0)) - FILTHY_MOOD, 0.0, 100.0)
+				_say(guest, _thought_filthy(str(f.get("type", ""))), t)
+			elif fed and _rng.randf() < 0.3:
 				_say(guest, _thought_after_visit(str(f.get("type", "")), guest), t)
 		"bushes":
 			var needs: Dictionary = guest["needs"]
@@ -773,6 +804,12 @@ func _morning_thought(guest: Dictionary) -> String:
 	if float(needs.get("energy", 50.0)) < 45.0:
 		return "Barely slept. That bed is a crime."
 	return ["Morning. Smells like pine and diesel.", "Slept like a log.", "Who was whistling at 3 AM?"][_rng.randi_range(0, 2)]
+
+
+func _thought_filthy(type: String) -> String:
+	if type == "shower_block":
+		return ["The shower floor is slimy. I came out dirtier.", "Somebody's hair in the drain. A lot of it.", "The showers stink. Does anyone ever clean them?"][_rng.randi_range(0, 2)]
+	return ["The toilets stink. You can smell them from the path.", "Nobody has cleaned that toilet in days.", "I held my breath the whole time in there."][_rng.randi_range(0, 2)]
 
 
 func _thought_after_visit(type: String, guest: Dictionary) -> String:

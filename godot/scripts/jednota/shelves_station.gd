@@ -21,7 +21,7 @@ const TROLLEY_M := 1.3
 const TROLLEY_OUT := 0.42
 const BOX_M := 0.27
 const GOOD_M := {"bread": 0.2, "roll": 0.19, "salami": 0.21, "milk": 0.2, "pickles": 0.15, "beer": 0.22,
-	"icecream": 0.14, "sweets": 0.13, "veg": 0.17, "soap": 0.1}
+	"icecream": 0.14, "sweets": 0.13, "veg": 0.17, "soap": 0.1, "cards": 0.09, "magazine": 0.18, "rum": 0.24}
 const OFF := {"bread": "off_bread", "roll": "off_rolls", "milk": "off_milk", "salami": "off_salami", "veg": "off_potatoes", "pickles": "off_pickles"}
 const MAX_UNITS := 8
 const TROLLEY_PLACES := 8

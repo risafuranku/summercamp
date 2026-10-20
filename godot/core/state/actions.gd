@@ -262,9 +262,15 @@ func biz_take(key: String, needs: Dictionary) -> bool:
 	if site.is_empty() or not BIZ_RULES.can_take(site["stock"], needs):
 		return false
 	_biz_upgrade(site)
+	var cost := 0.0
 	for g in needs:
 		site["stock"][g] = int(site["stock"].get(g, 0)) - int(needs[g])
 		site["lots"][g] = BIZ_RULES.lots_take(site["lots"].get(g, []), int(needs[g]))
+		cost += BIZ_RULES.unit_cost(str(site["kind"]), str(g)) * int(needs[g])
+	# What the goods cost off the van, for the Z report.
+	site["today"]["cost"] = float(site["today"].get("cost", 0.0)) + cost
+	if site.get("shift", {}) is Dictionary:
+		site["shift"]["cost"] = float(site["shift"].get("cost", 0.0)) + cost
 	_biz_tell("take", [key, needs])
 	return true
 
@@ -648,6 +654,7 @@ func biz_score(key: String, rec: Dictionary) -> void:
 	sh["orders"] = int(sh.get("orders", 0)) + 1
 	sh["score"] = int(sh.get("score", 0)) + int(rec.get("score", 0))
 	sh["tips"] = int(sh.get("tips", 0)) + int(rec.get("tip", 0))
+	sh["stars"] = int(sh.get("stars", 0)) + int(BIZ_RULES.reward(int(rec.get("score", 0)), 0)["stars"])
 	if bool(rec.get("hand", false)):
 		sh["by_hands"] = int(sh.get("by_hands", 0)) + 1
 	var best: Dictionary = sh.get("best", {})
@@ -675,6 +682,9 @@ func biz_close_shift(key: String, wages: int, day: int, late: bool) -> Dictionar
 	z["late"] = late
 	z["takings"] = int(site["today"].get("takings", 0))
 	z["kind"] = str(site["kind"])
+	var grade := BIZ_RULES.day_grade(z)
+	z["grade"] = str(grade["grade"])
+	z["advice"] = str(grade["advice"])
 	site["zreport"] = z
 	site["zreport_read"] = false
 	site["shift"] = BIZ_RULES.empty_shift()
@@ -841,6 +851,24 @@ func service_building(coord: Vector2i, cost: int) -> bool:
 	EventBus.state_changed.emit({"maintenance": "serviced", "failures": "repaired" if was_broken else ""})
 	EventBus.building_serviced.emit(root, type, was_broken, cost)
 	return true
+
+
+## A guest used a toilet or shower block: it is a little dirtier (MaintenanceRules
+## SOILED_BY_USE). Its condition is the cells' "maintenance", which cleaning it inside
+## (service_building) puts back to 1.
+func soil_building(coord: Vector2i, amount: float) -> void:
+	if amount <= 0.0 or not _state.grid.cells.has(coord):
+		return
+	var root: Vector2i = _state.grid.cells[coord].get("root_coord", coord)
+	var inst_id := str(_state.grid.cells.get(root, {}).get("id", ""))
+	if inst_id.is_empty():
+		return
+	for c in _state.grid.cells:
+		var cell_data = _state.grid.cells[c] as Dictionary
+		if str(cell_data.get("id", "")) == inst_id:
+			cell_data["maintenance"] = maxf(0.0, float(cell_data.get("maintenance", 1.0)) - amount)
+			_state.grid.cells[c] = cell_data
+	EventBus.state_changed.emit({"maintenance": "soiled"})
 
 
 ## Takes the wear off a building that no longer wears (old saves, from before only the

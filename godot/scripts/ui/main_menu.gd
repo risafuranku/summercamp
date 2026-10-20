@@ -70,7 +70,7 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	# Not a thing: the sewer breaks again as soon as it is mended (main.TEST_SEWER).
 	{"id": "sewer", "text": "Sewer", "sub": "Pipes minigame"},
 	# Not a night: the camp's bus stop as the 380 comes up the road (main._start_test_bus).
-	{"id": "bus", "text": "Bus to Lesna", "sub": "Day, camp stop"},
+	{"id": "bus", "text": "Bus to Liblice", "sub": "Day, camp stop"},
 ]
 
 var _scale: int = 3
@@ -93,6 +93,8 @@ var _save_hint: Label
 var _options_page: Control
 var _options
 var _controls_page: Control
+var _credits_page: Control
+var _credits
 var _controls
 var _test_page: Control
 var _test_list
@@ -235,6 +237,8 @@ func show_page(page: String) -> void:
 	_load_page.visible = page == "load"
 	_options_page.visible = page == "options"
 	_controls_page.visible = page == "controls"
+	if _credits_page != null:
+		_credits_page.visible = page == "credits"
 	if _test_page != null:
 		_test_page.visible = page == "test"
 	if _coop_page != null:
@@ -434,6 +438,7 @@ func _rebuild() -> void:
 	_options.build()
 	_options.back_requested.connect(func() -> void: show_page("main"))
 	_options.controls_requested.connect(func() -> void: show_page("controls"))
+	_options.credits_requested.connect(func() -> void: show_page("credits"))
 
 	# CONTROLS
 	_controls_page = _page_frame("CONTROLS", plate_h)
@@ -444,6 +449,16 @@ func _rebuild() -> void:
 	_controls_page.add_child(_controls)
 	_controls.build()
 	_controls.back_requested.connect(func() -> void: show_page("options"))
+
+	# CREDITS
+	_credits_page = _page_frame("CREDITS", plate_h)
+	_credits = RETRO_MENU.CreditsPage.new()
+	_credits.ui_scale = _scale
+	_credits.position = Vector2(_vp(4), _vp(28))
+	_credits.size = Vector2(_credits_page.size.x - _vp(8), _vp(150))
+	_credits_page.add_child(_credits)
+	_credits.build()
+	_credits.back_requested.connect(func() -> void: show_page("options"))
 
 	# TEST NIGHTS (secret: L on the main page)
 	_test_page = _page_frame("TEST NIGHTS", plate_h)
@@ -744,6 +759,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			used = _options.handle_input(event)
 		"controls":
 			used = _controls.handle_input(event)
+		"credits":
+			used = _credits.handle_input(event)
 	if used:
 		get_viewport().set_input_as_handled()
 

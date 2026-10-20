@@ -229,6 +229,11 @@ func big_ticket() -> Dictionary:
 	return {}
 
 
+## The bare glove on the keg, the head and the valve (a grip, a press).
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	return "press" if id == "valve" else "open"
+
 # ── debug (tools/pub_check.gd) ───────────────────────────────────────────────
 
 func debug_click(id: String) -> void:

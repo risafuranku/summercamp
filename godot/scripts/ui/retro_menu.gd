@@ -365,6 +365,7 @@ class OptionsPage:
 
 	signal back_requested
 	signal controls_requested
+	signal credits_requested
 
 	const MODE_IDS := ["windowed", "fullscreen", "borderless"]
 	const MODE_LABELS := ["WINDOWED", "FULLSCREEN", "BORDERLESS"]
@@ -410,6 +411,7 @@ class OptionsPage:
 			{"id": "mouse", "name": "Mouse speed", "bar": MOUSE_STEPS.size() - 1},
 			{"id": "invert", "name": "Invert mouse Y"},
 			{"id": "controls", "name": "Controls", "action": true},
+			{"id": "credits", "name": "Credits", "action": true},
 			{"id": "reset", "name": "Reset defaults", "action": true},
 			{"id": "back", "name": "Back", "action": true},
 		]
@@ -587,6 +589,10 @@ class OptionsPage:
 				if activate:
 					controls_requested.emit()
 				return
+			"credits":
+				if activate:
+					credits_requested.emit()
+				return
 			"reset":
 				if activate:
 					GameSettings.reset_defaults()
@@ -614,10 +620,25 @@ class OptionsPage:
 
 ## Read-only controls reference (bindings are registered at runtime, so this is the
 ## only place a player can find them).
-class ControlsPage:
+## What the game is made with and owes a line to: the map's data (OpenStreetMap, ODbL:
+## the credit is required), the fonts, the engine, the voices.
+class CreditsPage:
 	extends Control
 
 	signal back_requested
+
+	const LINES := [
+		["CURSED CAMP", ""],
+		["", ""],
+		["Map data", "(c) OpenStreetMap contributors"],
+		["", "ODbL - openstreetmap.org/copyright"],
+		["Engine", "Godot Engine (MIT licence)"],
+		["", "(c) Juan Linietsky, Ariel Manzur & contributors"],
+		["Fonts", "Jersey 10, Silkscreen, Tiny5, W95FA"],
+		["", "SIL Open Font License 1.1"],
+		["", "Pixel Operator (CC0)"],
+		["Voices", "ElevenLabs text to speech"],
+	]
 
 	var ui_scale: int = 3
 
@@ -630,7 +651,60 @@ class ControlsPage:
 			child.queue_free()
 		var s := float(ui_scale)
 		var y := 0.0
+		for entry in LINES:
+			var what := RETRO_UI.label(str(entry[0]), RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_BONE, ui_scale)
+			what.position = Vector2(6.0 * s, y)
+			add_child(what)
+			var who := RETRO_UI.label(str(entry[1]).to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, ui_scale)
+			who.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			who.anchor_right = 1.0
+			who.offset_left = size.x * 0.3
+			who.offset_right = -6.0 * s
+			who.offset_top = y + s
+			who.offset_bottom = y + 11.0 * s
+			add_child(who)
+			y += 11.0 * s
+		var hint := RETRO_UI.label("ESC / CLICK TO GO BACK", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, ui_scale)
+		hint.position = Vector2(6.0 * s, y + 6.0 * s)
+		add_child(hint)
+		custom_minimum_size = Vector2(0.0, y + 18.0 * s)
+
+	func handle_input(event: InputEvent) -> bool:
+		if event.is_action_pressed("ui_cancel") or event.is_action_pressed("ui_accept"):
+			back_requested.emit()
+			return true
+		return false
+
+	func _gui_input(event: InputEvent) -> void:
+		var mb := event as InputEventMouseButton
+		if mb != null and mb.pressed:
+			back_requested.emit()
+
+
+class ControlsPage:
+	extends Control
+
+	signal back_requested
+
+	var ui_scale: int = 3
+	## The key being changed (GameSettings.REBINDABLE), "" none; what it said after.
+	var _waiting := ""
+	var _note := ""
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_STOP
+
+	func build() -> void:
+		for child in get_children():
+			remove_child(child)
+			child.queue_free()
+		var s := float(ui_scale)
+		var y := 0.0
 		var entries: Array = SETTINGS_PANEL.CONTROL_REFERENCE.duplicate()
+		# The keys you can change: click one, then press the new key.
+		for action in GameSettings.REBINDABLE.keys():
+			var shown := "PRESS A KEY..." if _waiting == action else "%s  [CHANGE]" % GameSettings.key_name(action)
+			entries.append([str(GameSettings.REBINDABLE[action][0]), shown, action])
 		if OS.is_debug_build():
 			entries.append(["", ""])
 			for e in SETTINGS_PANEL.DEBUG_CONTROL_REFERENCE:
@@ -647,13 +721,43 @@ class ControlsPage:
 			keys.offset_top = y + s
 			keys.offset_bottom = y + 11.0 * s
 			add_child(keys)
+			if entry.size() > 2:
+				var which := str(entry[2])
+				keys.mouse_filter = Control.MOUSE_FILTER_STOP
+				keys.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+				keys.gui_input.connect(func(ev: InputEvent) -> void:
+					var mb := ev as InputEventMouseButton
+					if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+						_waiting = which
+						_note = ""
+						build()
+						accept_event()
+				)
 			y += 11.0 * s
+		if _note != "":
+			var note := RETRO_UI.label(_note.to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, ui_scale)
+			note.position = Vector2(6.0 * s, y + 2.0 * s)
+			add_child(note)
+			y += 10.0 * s
 		var hint := RETRO_UI.label("ESC / CLICK TO GO BACK", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, ui_scale)
 		hint.position = Vector2(6.0 * s, y + 6.0 * s)
 		add_child(hint)
 		custom_minimum_size = Vector2(0.0, y + 18.0 * s)
 
 	func handle_input(event: InputEvent) -> bool:
+		# Waiting for the new key: that key (Esc leaves it as it was).
+		if _waiting != "":
+			var key := event as InputEventKey
+			if key != null and key.pressed and not key.echo:
+				if key.keycode != KEY_ESCAPE:
+					var code := key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
+					var clash := GameSettings.key_clash(_waiting, code)
+					GameSettings.set_key(_waiting, code)
+					_note = ("%s is also: %s" % [OS.get_keycode_string(code), clash]) if clash != "" else ""
+				_waiting = ""
+				build()
+				return true
+			return event is InputEventKey
 		if event.is_action_pressed("ui_cancel") or event.is_action_pressed("ui_accept"):
 			back_requested.emit()
 			return true
@@ -662,4 +766,8 @@ class ControlsPage:
 	func _gui_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		if mb != null and mb.pressed:
+			if _waiting != "":
+				_waiting = ""
+				build()
+				return
 			back_requested.emit()

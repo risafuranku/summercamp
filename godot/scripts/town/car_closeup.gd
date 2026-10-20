@@ -149,7 +149,7 @@ func _pulley(i: int) -> void:
 	_snd("stocking.mp3", "res://assets/sfx/bus/button.mp3")
 	if belt.size() >= PULLEYS.size():
 		has["stockings"] = false
-		say("", "Round all four and knotted. It will do to Lesna and back. Probably.")
+		say("", "Round all four and knotted. It will do to Liblice and back. Probably.")
 	else:
 		say("", "Round that one. %d to go." % (PULLEYS.size() - belt.size()))
 
