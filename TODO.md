@@ -110,11 +110,22 @@ start, collect good ratings; pay to delete bad reviews".
   asking about it)
 - [x] Shareware: a nag after ~10 builds, a registration-locked Mega gnome, Help > About
   with credits and a Snake easter egg
-- Planned: the living map's bits in `scripts/builder/map_life.gd`, small hooks in
-  `crt_map_panel.gd`
-- Open: the smoke test prints `Parameter "material" is null` (8x) since this evening;
-  not traced yet (maybe the other session's bistro work, maybe not); find who sets a
-  null material before shipping
+- [ ] The map's trees and flags swaying in the wind, in steps (smoke and leaves go with
+  it already). The trees are baked into the static layer among the buildings in depth
+  order, so they cannot just be drawn again on top: draw them (and what stands in front
+  of them) in the dynamic layer only while it blows, or bake two or three lean frames
+- [ ] A hint of the cheats somewhere in the PC (a README.TXT in Files, Vera's note), never
+  a list
+- [ ] Hear the music once: `assets/sfx/builder/music.ogg` was cut and measured
+  (`loop_cut.py`: 16 bars, the seam cross-faded, -23 LUFS), not listened to
+- Notes for agent C: `tools/coop_check` still opens the old pub tap close-up
+  (`_service_interior._open_counter_game()`), so "the other warden does not see the host
+  behind the bar" fails since the tap went 3D (457d21b); `scripts/business/corn_closeup.gd`
+  connects its canvas to `_draw` (the Control's own: it draws on another node from it and
+  floods the log with "Drawing is only allowed inside this node's _draw()"; Goggle had the
+  same, fixed by a `_draw_page` of its own) - moot if the corn stand's 3D stations
+  replace it
+- [x] `Parameter "material" is null` (8x) in the smoke test: gone by 20. 10. morning
 - [x] Replace the other code-made sounds too? Yes, all of them (the user, 20. 10.): the
   Photographer's camera, the thump, the pager, the station that does not exist, the phone
   line, the splash's neon and the set's tone are recordings now (agent B; only the radio's
