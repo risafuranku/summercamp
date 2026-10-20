@@ -71,6 +71,13 @@ finished game, by impact:
   feel; things to nudge; the menu camera
 - [x] Every sound the code synthesised is a recording now (the camera, the thump, the
   pager, the station, the phone line, the splash's neon, the set's tone)
+- [x] Production, frame time at 1920x1080 (the tour camp, clear and rain, noon and 20:30,
+  reception, tents, cabins): before agent B's world polish (7011a1b) CPU process 28.8 ms
+  and GPU 3.0 ms on average, after it (9193f0d + the fire) 28.7 ms and 3.0 ms, fps at the
+  50 cap in both: the lit windows, the lamps' cones, the skies, far life and the rest
+  cost nothing measurable (20. 10.; single spots vary by ±8 ms with other work on the PC)
+- [ ] Production: draw distance and pop-in, the forests and the lake from far off, the
+  menu flythrough, coop4_check
 
 ## BUILDER 98, A GAME IN THE GAME — 2026-10-19 (agreed with the user; handoff)
 
