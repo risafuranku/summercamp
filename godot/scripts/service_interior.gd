@@ -1659,6 +1659,12 @@ func _set_hygiene_room(room: String) -> void:
 		return
 	_active_subroom = room
 	if _current_profile == "toilet":
+		# Only this stall is there; the other one is another room.
+		for side in _toilet_stalls:
+			var stall: Node3D = _toilet_stalls[side]
+			if is_instance_valid(stall):
+				stall.visible = str(side) == ("right" if room == "right" else "left")
+				_bodies_live(stall, stall.visible)
 		# In the doorway of the stall, looking down at the bowl.
 		var sx := TOILET_STALL_X * (1.0 if room == "right" else -1.0)
 		_interior_camera.position = Vector3(sx, 1.55, TOILET_D * 0.5 - 0.12)
@@ -1743,8 +1749,17 @@ func _build_toilet_layout() -> void:
 	wall_shape.shape = wall_box
 	wall_body.add_child(wall_shape)
 	r.add_child(wall_body)
+	# Each stall is a room of its own (playtest 20. 10.: "I can clean the other toilet
+	# through the wall"): its things and its mess under its own root, only the stall you
+	# came in by shown (_set_hygiene_room); the other one is not there to see or reach.
+	_toilet_stalls.clear()
 	for side: float in [-1.0, 1.0]:
 		var cx := side * TOILET_STALL_X
+		var stall := Node3D.new()
+		stall.name = "StallLeft" if side < 0.0 else "StallRight"
+		_room_root.add_child(stall)
+		_toilet_stalls["left" if side < 0.0 else "right"] = stall
+		r = stall
 		_build_bowl(r, Vector3(cx, 0.0, -d * 0.5 + 0.32))
 		# Paper on the partition, the newspaper on a nail on the outer wall.
 		var roll := MeshInstance3D.new()
@@ -1776,8 +1791,8 @@ func _build_toilet_layout() -> void:
 		bulb.material_override = bulb_mat
 		bulb.position = Vector3(cx, h - 0.22, 0.0)
 		r.add_child(bulb)
-	_sign(r, "ZENY", Vector3(-TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
-	_sign(r, "MUZI", Vector3(TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
+	_sign(_toilet_stalls["left"], "ZENY", Vector3(-TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
+	_sign(_toilet_stalls["right"], "MUZI", Vector3(TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
 	_interior_camera.position = Vector3(-TOILET_STALL_X, 1.55, d * 0.5 - 0.12)
 	_interior_camera.rotation_degrees = Vector3(-30.0, 0.0, 0.0)
 
@@ -1785,6 +1800,14 @@ func _build_toilet_layout() -> void:
 const TOILET_W := 2.9
 const TOILET_D := 2.1
 const TOILET_STALL_X := 0.72
+## The toilet block's stalls, each a room of its own: "left" / "right" -> its root.
+var _toilet_stalls: Dictionary = {}
+
+
+## The root of a toilet stall ("left" / "right"; the room when there is none).
+func _toilet_stall(side: String) -> Node3D:
+	var n = _toilet_stalls.get(side, null)
+	return n if n != null and is_instance_valid(n) else _room_root
 
 
 ## A proper outhouse toilet, Build style: the pedestal, the bowl, the black seat with the
@@ -2185,13 +2208,16 @@ func _build_upkeep_spots(block: String) -> void:
 	_upkeep_prep = INTERIOR_PREP.new()
 	var r := _room_root
 	if block == "toilet":
+		# Each stall's mess in its own stall (only the one you are in is there).
 		var bz := -TOILET_D * 0.5 + 0.32 + 0.06
-		_upkeep_prep.add_spot("bowl_l", r, Vector3(-TOILET_STALL_X, 0.43, bz))
-		_upkeep_prep.add_spot("bowl_r", r, Vector3(TOILET_STALL_X, 0.43, bz))
-		_upkeep_prep.add_spot("stall_l", r, Vector3(-TOILET_STALL_X - 0.3, 0.01, -0.35))
-		_upkeep_prep.add_spot("stall_r", r, Vector3(TOILET_STALL_X + 0.3, 0.01, -0.35))
-		_upkeep_prep.add_spot("wall_l", r, Vector3(-TOILET_W * 0.5 + 0.02, 1.3, -0.1), PI * 0.5, true)
-		_upkeep_prep.add_spot("wall_r", r, Vector3(TOILET_W * 0.5 - 0.02, 1.3, -0.1), -PI * 0.5, true)
+		var sl := _toilet_stall("left")
+		var sr := _toilet_stall("right")
+		_upkeep_prep.add_spot("bowl_l", sl, Vector3(-TOILET_STALL_X, 0.43, bz))
+		_upkeep_prep.add_spot("bowl_r", sr, Vector3(TOILET_STALL_X, 0.43, bz))
+		_upkeep_prep.add_spot("stall_l", sl, Vector3(-TOILET_STALL_X - 0.3, 0.01, -0.35))
+		_upkeep_prep.add_spot("stall_r", sr, Vector3(TOILET_STALL_X + 0.3, 0.01, -0.35))
+		_upkeep_prep.add_spot("wall_l", sl, Vector3(-TOILET_W * 0.5 + 0.02, 1.3, -0.1), PI * 0.5, true)
+		_upkeep_prep.add_spot("wall_r", sr, Vector3(TOILET_W * 0.5 - 0.02, 1.3, -0.1), -PI * 0.5, true)
 	else:
 		_upkeep_prep.add_spot("shower_l", r, Vector3(-1.15, 0.5, -1.54), 0.0, true)
 		_upkeep_prep.add_spot("shower_r", r, Vector3(1.15, 0.5, -1.54), 0.0, true)

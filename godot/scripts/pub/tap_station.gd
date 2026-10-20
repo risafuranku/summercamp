@@ -225,9 +225,11 @@ func _press(id: String) -> void:
 		"board":
 			_put_mug()
 		"handle":
-			_grab_y = _mouse_free.y
-			if not _put_mug():
-				_grab_y = -1.0
+			# The handle always goes with the hand (no mug under it: nothing comes out). It
+			# is pulled by how far the pointer moves on the screen: the handle stands high on
+			# the tower, where the pointer's ray may not even meet the bar's top.
+			_grab_y = _vp_mouse.y
+			_put_mug()
 		"mug":
 			_serve()
 		"knife":
@@ -236,12 +238,16 @@ func _press(id: String) -> void:
 			sfx("scrape", -14.0, 1.4)
 
 
-func _drag(at: Vector2) -> void:
-	if _held != "handle" or _grab_y < 0.0 or at.x < -500.0:
+func _drag(_at: Vector2) -> void:
+	if _held != "handle" or _grab_y < 0.0 or _vp_mouse.y < 0.0:
 		return
-	# Towards you (down the bar's picture) draws the beer, away pushes the foam.
+	# Towards you (down the screen) draws the beer, away pushes the foam: a tenth of the
+	# picture's height is the whole way.
 	var was := _lever
-	_lever = clampf((at.y - _grab_y) / 70.0, -1.0, 1.0)
+	var full := 36.0
+	if camera != null and is_instance_valid(camera):
+		full = maxf(12.0, float(camera.get_viewport().size.y) * 0.1)
+	_lever = clampf((_vp_mouse.y - _grab_y) / full, -1.0, 1.0)
 	if absf(_lever) > 0.5 and absf(was) <= 0.5:
 		_start(_lever > 0.0)
 	elif absf(_lever) <= 0.5 and absf(was) > 0.5:
