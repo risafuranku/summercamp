@@ -95,9 +95,11 @@ finished game, by impact:
   there) — 20. 10.
 - [x] Body: doors with a feel — the guests' doors swing with weight, knock on the frame,
   creak and thud (20. 10.)
+- [x] Things to nudge: bottles, cans, a bucket, cones your (and the other wardens') feet
+  kick, with their sounds (20. 10., `nudge_props.gd`)
 - [ ] Body: hands (one glove for every tool, more frames, sway, cold and fear tremor,
-  reaching for doors and switches; another session's area since 0749f84); things to
-  nudge; the menu camera
+  reaching for doors and switches; another session's area since 0749f84); the menu
+  camera (calm film shots since 77e5bac: check them after the new light)
 - [x] Every sound the code synthesised is a recording now (the camera, the thump, the
   pager, the station, the phone line, the splash's neon, the set's tone)
 - [x] Production, frame time at 1920x1080 (the tour camp, clear and rain, noon and 20:30,

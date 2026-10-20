@@ -20,14 +20,17 @@ const WEATHER_VISUALS := preload("res://scripts/weather_visuals.gd")
 const PICTURES := ["skybox/skystars.png", "skybox/skydawn.png", "skybox/skygolden.png", "skybox/skysunset.png",
 	"skybox/skybluehour.png", "skybox/moon.png", "camp/window_lit.png", "camp/window_tv.png", "camp/breath_puff.png",
 	"camp/recep_office_night.png", "camp/recep_back_night.png", "camp/lamp_beam.png", "world/grass_summer.png",
-	"world/mist_bank.png", "world/rain_ring.png", "camp/embers.png", "world/water_drop.png"]
+	"world/mist_bank.png", "world/rain_ring.png", "camp/embers.png", "world/water_drop.png",
+	"world/kick_bottle.png", "world/kick_can.png", "world/kick_bucket.png", "world/kick_cone.png"]
 const SOUNDS := ["steps/snow_a.mp3", "steps/snow_b.mp3", "steps/snow_c.mp3", "steps/snow_d.mp3",
 	"steps/puddle_a.mp3", "steps/puddle_b.mp3", "steps/puddle_c.mp3", "steps/puddle_d.mp3",
 	"world/flag_clank_a.mp3", "world/flag_clank_b.mp3", "world/tube_buzz.mp3", "world/tap_drip.mp3",
 	"far/chatter.mp3", "far/kids.mp3", "far/dog.mp3", "far/car.mp3", "far/train.mp3", "far/bell.mp3",
 	"world/rain_tin.mp3", "world/rain_lake.mp3", "world/rain_leaves.mp3",
 	"player/jacket_a.mp3", "player/jacket_b.mp3", "player/jacket_c.mp3", "player/keys_a.mp3", "player/keys_b.mp3",
-	"world/door_creak_a.mp3", "world/door_creak_b.mp3", "world/door_shut_a.mp3", "world/door_shut_b.mp3"]
+	"world/door_creak_a.mp3", "world/door_creak_b.mp3", "world/door_shut_a.mp3", "world/door_shut_b.mp3",
+	"world/kick_bottle_a.mp3", "world/kick_bottle_b.mp3", "world/kick_can_a.mp3", "world/kick_can_b.mp3",
+	"world/kick_bucket.mp3", "world/kick_cone.mp3"]
 
 
 var _done: Array[String] = []
@@ -87,18 +90,30 @@ func _lights(failures: Array[String]) -> void:
 	_done.append("lights")
 
 
+func _first_sky(paths: Array) -> String:
+	for p in paths:
+		if ResourceLoader.exists(str(p)):
+			return str(p).get_file().get_basename()
+	return ""
+
+
 func _skies(failures: Array[String]) -> void:
 	var wv = WEATHER_VISUALS.new()
 	wv.season_day = 1
+	# The first of each key's skies that is there (the finer skyf_* ones since 20. 10.).
+	var dawn := _first_sky(WEATHER_VISUALS.SKY_TEX_DAWN_PATHS)
+	var golden := _first_sky(WEATHER_VISUALS.SKY_TEX_GOLDEN_PATHS)
+	var sunset := _first_sky(WEATHER_VISUALS.SKY_TEX_SUNSET_PATHS)
+	var blue := _first_sky(WEATHER_VISUALS.SKY_TEX_BLUE_PATHS)
 	var want := {
 		[0, 3.0]: ["skystars", "skystars"],
-		[0, 5.6]: ["skystars", "skydawn"],
-		[0, 6.1]: ["skydawn", "skydawn"],
-		[0, 6.8]: ["skydawn", "sky1"],
+		[0, 5.6]: ["skystars", dawn],
+		[0, 6.1]: [dawn, dawn],
+		[0, 6.8]: [dawn, "sky1"],
 		[0, 12.0]: ["sky1", "sky1"],
-		[0, 17.2]: ["skygolden", "skygolden"],
-		[0, 18.4]: ["skysunset", "skysunset"],
-		[0, 19.2]: ["skybluehour", "skybluehour"],
+		[0, 17.2]: [golden, golden],
+		[0, 18.4]: [sunset, sunset],
+		[0, 19.2]: [blue, blue],
 		[0, 23.0]: ["skystars", "skystars"],
 		[1, 23.0]: ["skystars", "skystars"],
 		[4, 12.0]: ["rrsky4", "rrsky4"],
