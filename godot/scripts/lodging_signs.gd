@@ -140,10 +140,11 @@ func _bob(delta: float) -> void:
 	_bob_t += delta
 	var y := floorf(sin(_bob_t * 2.2) * 3.0) / 3.0 * 0.06
 	for i in range(_markers.size() - 1, -1, -1):
-		var m: Sprite3D = _markers[i]
-		if not is_instance_valid(m):
+		# A demolished lodging's marker is freed: checked before the typed assignment.
+		if not is_instance_valid(_markers[i]):
 			_markers.remove_at(i)
 			continue
+		var m: Sprite3D = _markers[i]
 		if m.visible:
 			m.position = (m.get_meta("base", Vector3.ZERO) as Vector3) + Vector3(0, y, 0)
 
