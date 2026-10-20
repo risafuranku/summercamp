@@ -648,11 +648,23 @@ imperfect human Build-engine textures."*
   Mostly dry; a few are wrong in the quiet way of the rest of the game.
 - **The cellar** is the prep room: the potato peeler and the chip cutter, the breading
   table, the shelves of stock (the books), and behind a chain-link partition the
-  machine nobody ordered, PROTOTYP 540. For now it is only looked at: unplugged, dead by
-  day; at night its lamp is lit with the plug out, the gauge stands off nought, the crank
-  turns a quarter by itself. *What it is for is still to be decided with the user* (a
-  proposal: it would make the goulash meat for nothing, at night, if fed; what it is fed
-  is the dark side of the bistro).
+  machine nobody ordered, PROTOTYP 540: unplugged, dead by day; at night (and from eight
+  while the bistro is open late) its lamp is lit with the plug out, the gauge stands off
+  nought, the crank turns a quarter by itself.
+- **PROTOTYP 540** (decided 2026-10-20, agent C, on the user's brief: the goulash's meat
+  for nothing, at night, if it is fed; what it is fed is the bistro's dark side and is
+  never said). Some nights a jute sack lies against the wall beside it, tied, heavy, that
+  nobody brought down: always the night after the camp woke without somebody (a guest
+  gone at dawn, whom the night took: `main._claim_turned_guests`), else about one night
+  in five. Hold the button on it and it goes up into the hopper; the lid drops, the lamp
+  burns steady, the machine shakes in its bolts and grinds till morning, and in the
+  morning its tray is heaped with meat for twenty goulashes, in the cellar's stock as a
+  lot of that day that nobody paid for. A sack nobody lifts is gone in the morning. The
+  game never says what is in the sack, never shows it, never puts the sack and the one
+  who was gone side by side: no name, no shape, no line in the feed or a review; the only
+  word for it is the verb, "Lift it into the hopper". The hands never go near it. Rare,
+  quiet, serious (`bistro_rules.proto_*`, `kitchen.gd _proto`, `machine_station.gd`,
+  `actions.biz_gift`; `tools/proto_check.tscn`, `tools/proto_shots.tscn`).
 - **For four.** Each station is one warden's while they are at it: the others see them
   there in the room at the job (the cook's pose, the washer's), see their name over it
   instead of its mark, and get "Jana is at the stove" if they click it; the bar's tab

@@ -51,6 +51,8 @@ var burnt_flash: Dictionary = {}
 func _ready() -> void:
 	name = "Kitchens"
 	add_to_group("kitchens")
+	if not EventBus.guest_state_changed.is_connected(_on_guest_state):
+		EventBus.guest_state_changed.connect(_on_guest_state)
 
 
 static func of(tree: SceneTree) -> Node:
@@ -90,6 +92,11 @@ func _fresh(key: String) -> Dictionary:
 		# The dishwasher (gear): plates in it and the seconds left.
 		"washer": {"n": int(saved.get("washer_n", 0)), "t": float(saved.get("washer_t", 0.0))},
 		"served": {},
+		# PROTOTYP 540 in the cellar (bistro_rules proto_*): the night a sack lay in front
+		# of it, the night it was fed, the day its tray had meat in it, the last morning the
+		# camp woke without somebody (-1 never).
+		"proto": {"sack": int(saved.get("proto_sack", -1)), "fed": int(saved.get("proto_fed", -1)),
+			"tray": int(saved.get("proto_tray", -1)), "taken": int(saved.get("proto_taken", -1))},
 	}
 
 
@@ -217,6 +224,7 @@ func ticket_of(key: String, visit: String, member: int) -> Dictionary:
 ##   loaf [state]
 ##   plates [clean delta, dirty delta]
 ##   served [ticket id, record]
+##   proto [fields]                    the cellar's machine (sack, fed, tray, taken)
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
 	if Coop.is_active():
@@ -267,6 +275,9 @@ func _apply(key: String, op: String, args: Array) -> void:
 		"washer":
 			s["washer"] = (args[0] as Dictionary).duplicate(true)
 			_note_save(key)
+		"proto":
+			(s["proto"] as Dictionary).merge(args[0] as Dictionary, true)
+			_note_save(key)
 		"served":
 			var rec: Dictionary = (args[1] as Dictionary).duplicate(true)
 			s["served"][str(args[0])] = rec
@@ -274,7 +285,7 @@ func _apply(key: String, op: String, args: Array) -> void:
 			plate_out.emit(key, str(args[0]), rec)
 		"snap":
 			var got: Dictionary = args[0]
-			for k in ["prep", "q", "pan", "basket", "pot", "loaf", "plates", "washer"]:
+			for k in ["prep", "q", "pan", "basket", "pot", "loaf", "plates", "washer", "proto"]:
 				if got.has(k):
 					s[k] = (got[k] as Dictionary).duplicate(true) if got[k] is Dictionary else (got[k] as Array).duplicate(true)
 			for tid in (got.get("served", {}) as Dictionary):
@@ -295,7 +306,7 @@ func coop_kitchen(key: String, op: String, args: Array) -> void:
 
 func _snapshot(key: String) -> Dictionary:
 	var s := site(key)
-	return {"prep": s["prep"], "q": s["q"], "pan": s["pan"], "basket": s["basket"], "pot": s["pot"], "loaf": s["loaf"], "plates": s["plates"], "washer": s["washer"], "served": s["served"]}
+	return {"prep": s["prep"], "q": s["q"], "pan": s["pan"], "basket": s["basket"], "pot": s["pot"], "loaf": s["loaf"], "plates": s["plates"], "washer": s["washer"], "served": s["served"], "proto": s["proto"]}
 
 
 ## Takes `n` of `item` off a tray; false when there is not that much.
@@ -498,6 +509,7 @@ func _host_second() -> void:
 		var crew: Array = BUSINESS.crew_now(key)
 		if not crew.is_empty():
 			_crew_work(key, crew)
+		_proto(key)
 		for v in ORDERS.visitors(key):
 			var visit := str(v["visit"])
 			var gid := int(v["id"])
@@ -547,6 +559,69 @@ func _rest_sites() -> Array:
 	return out
 
 
+## PROTOTYP 540, the host's, once a second (DESIGN.md §7b "The bistro"): awake, on one of
+## its nights a sack lies in front of it; the morning after it was fed, its tray holds
+## meat for twenty goulashes, in the stock as a lot of today's (actions.biz_gift). A sack
+## nobody lifted is gone in the morning. The hands never go near it.
+func _proto(key: String) -> void:
+	if GuestManager == null:
+		return
+	var p: Dictionary = site(key)["proto"]
+	var day := maxi(1, int(GuestManager._last_known_day))
+	var hour := int(GuestManager._last_known_hour)
+	var late := BUSINESS.shift_now(BUSINESS.site(key)) == "late"
+	var night := RULES.proto_night(day, hour)
+	if RULES.proto_awake(hour, late):
+		if int(p["sack"]) < night and int(p["fed"]) < night and RULES.proto_sack(key, night, int(p["taken"]) == night):
+			act(key, "proto", [{"sack": night}])
+	elif hour >= 6 and hour < 20 and int(p["fed"]) == day - 1 and int(p["tray"]) < day:
+		act(key, "proto", [{"tray": day}])
+		if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_gift"):
+			CoreRoot.actions.biz_gift(key, {"goulash": RULES.PROTO_MEAT})
+
+
+## Tonight's sack there now (tools/proto_shots.gd).
+func debug_proto_sack(key: String) -> void:
+	var day := maxi(1, int(GuestManager._last_known_day)) if GuestManager != null else 1
+	var hour := int(GuestManager._last_known_hour) if GuestManager != null else 22
+	act(key, "proto", [{"taken": RULES.proto_night(day, hour)}])
+	_proto(key)
+
+
+## Fed tonight: the sack into its hopper (from the machine's station, either warden).
+func proto_feed(key: String) -> void:
+	var day := maxi(1, int(GuestManager._last_known_day)) if GuestManager != null else 1
+	var hour := int(GuestManager._last_known_hour) if GuestManager != null else 22
+	act(key, "proto", [{"fed": RULES.proto_night(day, hour)}])
+
+
+## The machine's state for the station: {awake, sack (lies there now), fed (tonight),
+## running, meat (in the tray now)}.
+func proto_state(key: String) -> Dictionary:
+	var p: Dictionary = site(key)["proto"]
+	var day := maxi(1, int(GuestManager._last_known_day)) if GuestManager != null else 1
+	var hour := int(GuestManager._last_known_hour) if GuestManager != null else 12
+	var late := BUSINESS.shift_now(BUSINESS.site(key)) == "late"
+	var awake := RULES.proto_awake(hour, late)
+	var night := RULES.proto_night(day, hour)
+	var fed := int(p["fed"]) == night
+	return {"awake": awake, "sack": awake and int(p["sack"]) == night and not fed, "fed": fed, "running": awake and fed,
+		"meat": not awake and int(p["tray"]) == day}
+
+
+## A guest gone at dawn (the night took them; main._claim_turned_guests) or before it: the
+## machine's next night has its sack. The host's.
+func _on_guest_state(_id: int, _old: String, new_state: String) -> void:
+	if new_state != "departed" or GuestManager == null or not Coop.sim_here():
+		return
+	var hour := int(GuestManager._last_known_hour)
+	if hour < 3 or hour >= 8:
+		return
+	var day := maxi(1, int(GuestManager._last_known_day))
+	for key in _rest_sites():
+		act(str(key), "proto", [{"taken": day}])
+
+
 func _note_save(key: String) -> void:
 	_save_due[key] = true
 
@@ -558,7 +633,9 @@ func _save(key: String) -> void:
 	var s := site(key)
 	CoreRoot.actions.biz_kitchen(key, {"prep": (s["prep"] as Dictionary).duplicate(), "pot": int(s["pot"]["level"]),
 		"loaf": int(s["loaf"].get("left", 0)), "clean": int(s["plates"]["clean"]), "dirty": int(s["plates"]["dirty"]),
-		"washer_n": int(s["washer"].get("n", 0)), "washer_t": float(s["washer"].get("t", 0.0))})
+		"washer_n": int(s["washer"].get("n", 0)), "washer_t": float(s["washer"].get("t", 0.0)),
+		"proto_sack": int(s["proto"]["sack"]), "proto_fed": int(s["proto"]["fed"]), "proto_tray": int(s["proto"]["tray"]),
+		"proto_taken": int(s["proto"]["taken"])})
 
 
 ## The hands in the kitchen, each at their job (DESIGN.md §7b, the hands), one piece of

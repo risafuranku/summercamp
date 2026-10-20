@@ -373,9 +373,8 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [x] Phase 3: the corn stand (counter and husking in 3D on the stand's counter, the live camp beyond it; its hands, gear; stand_check, stand_shots, stand_coop)
 - [ ] Phase 3 left: the gear seen at the stand (camp/gear_cornpot, gear_butter, gear_husktable), sounds of its own (the boil, a leaf torn, the salt)
 - [x] Phase 4: the Jednota (three by three with its Build model and Builder pictures; the till, the shelves and the storeroom in 3D; the queue; its hands, gear; dear and it pays; jednota_check, jednota_shots, jednota_coop)
-- [ ] Phase 5: PROTOTYP 540 (fed at night, the goulash's meat for nothing)
-- [ ] Cellar / machine room: design the dark mechanic (the meatball machine) and prepare
-      the space so it can be hooked up (design doc + interactive stub)
+- [x] Phase 5: PROTOTYP 540 (awake at night and on the late shift; the sack on its nights; fed, the goulash's meat for nothing by morning; proto_check, proto_shots)
+- [x] Cellar / machine room: the dark mechanic designed and hooked up (PROTOTYP 540, DESIGN §7b "The bistro")
 
 ### 12. 3D models and the camp's look
 - [x] New gatehouse (generated textures)

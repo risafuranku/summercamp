@@ -406,6 +406,28 @@ func biz_receive(day: int) -> int:
 	return n
 
 
+## Goods that came with no order and no bill (the bistro cellar's machine): onto the shelf
+## as a lot of today's, as much as the shelf takes. The books do not say from where.
+func biz_gift(key: String, goods: Dictionary) -> void:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty():
+		return
+	_biz_upgrade(site)
+	var kind := str(site["kind"])
+	var day := maxi(1, int(_state.day))
+	for g in goods:
+		var before := int(site["stock"].get(g, 0))
+		var after := mini(BIZ_RULES.cap_of(kind, str(g), site), before + int(goods[g]))
+		if after <= before:
+			continue
+		site["stock"][g] = after
+		var lots: Array = site["lots"].get(g, [])
+		lots.append([after - before, day])
+		site["lots"][g] = lots
+	EventBus.state_changed.emit({"biz": "gift"})
+	_biz_tell("gift", [key, goods])
+
+
 ## The van went away without anybody signing: what was due comes a day later.
 func biz_postpone(day: int) -> void:
 	for o in _biz()["orders"]:

@@ -185,3 +185,25 @@ static func peel_state(t: float) -> int:
 	if t < PEEL_DONE:
 		return 0
 	return 1 if t < PEEL_OVER else 2
+
+
+# ── PROTOTYP 540, the cellar's machine (DESIGN.md §7b "The bistro") ──────────
+
+## Portions of goulash meat it leaves in its tray by morning when it was fed in the night.
+const PROTO_MEAT := 20
+
+
+## Whether it is awake at `hour`: the night, and from eight while the bistro is open late.
+static func proto_awake(hour: int, late: bool) -> bool:
+	return hour >= 21 or hour < 5 or (late and hour >= 20)
+
+
+## The night `hour` of `day` belongs to (a night is the day it began on).
+static func proto_night(day: int, hour: int) -> int:
+	return day if hour >= 12 else day - 1
+
+
+## Whether a sack lies in front of it on `night`: always the night after the camp woke
+## without somebody (`taken`), else one night in five (the same on every machine).
+static func proto_sack(key: String, night: int, taken: bool) -> bool:
+	return taken or absi(hash("540:%s:%d" % [key, night])) % 5 == 0
