@@ -660,6 +660,24 @@ per day, 40 s visual crossfades. The anomaly (red haze) only at night, rarer and
 likely the stranger the camp (hrotfaktor), at most once a day. Rain closes outdoor
 attractions.
 
+## 9b. The camp world: weather, light, sound, body
+
+The camp is where the game is lived, so it has to read as a real place at every hour and
+in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD POLISH).
+
+- **The night is lived in.** A cabin, caravan or tent with its guests in is lit after
+  dark: a cabin's red curtains glow from a lamp behind them, or in one cabin in three the
+  blue of a telly flickers through them; a caravan's curtains glow orange, a tent glows
+  through its canvas, and their light lies on the grass in front. Each lodging puts its
+  light out at its own time between 21:00 and 23:30; now and then one lights again round
+  three in the morning, and before dawn some are up early. With the power off the cabins
+  have candles. The same windows light on every machine in co-op.
+- **The sky.** A clear night has its stars, the milky way and a full moon; under cloud
+  (rain, fog, snow, the storm) the night is overcast and the moon hidden. The reception's
+  lit windows show the office and the back room behind them.
+- **Your breath** shows in the cold, a puff drawn see-through as Build drew its smoke,
+  only as bright as the light it is in: at night you see it in your torch.
+
 ## 10. Presentation rules
 
 - Everything 2D is pixel art on an integer scale: baked bitmap fonts (Silkscreen, Tiny5,
@@ -672,7 +690,12 @@ attractions.
 - The terminal is a separate, period-correct Win95 aesthetic (it is a program inside the
   world), the HUD and menus are the game's own Build-engine chrome.
 - New art: generated with Grok Imagine (AGENTS.md §7), then keyed, downsampled and snapped
-  to the game palette, so it matches the existing sprites pixel for pixel.
+  to the game palette, so it matches the existing sprites pixel for pixel. Nothing seen
+  in the world is drawn by code: the stars and the moon are generated too.
+- See-through things (breath, steam, smoke) are drawn as Build drew them: the whole
+  sprite at one of a few fixed levels of see-through, never a screen door of dots.
+- Every sound effect is a recording (ElevenLabs); tones and cadences that must be exact
+  are cut from recordings by script. Only the radio's dread is layered in code.
 
 ## 11. Open questions
 

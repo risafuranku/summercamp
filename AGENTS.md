@@ -534,6 +534,12 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   `tools/artgen/batch_panels.sh <width> <id>...` (posters, views) generate and process one
   after another; never start a second batch while one runs. `crop_goods.py` crops the
   shop-goods renders (Grok puts the row at the bottom of a dark canvas).
+- **The night sky and the moon**: `python tools/artgen/night_sky.py` turns the
+  `sky_night_stars` render into `godot/assets/textury/skybox/skystars.png` (the clear
+  night's panorama: the render mirrored round the sky, the stars taken out and set back
+  as sharp pixels, each of the render's pixels 4 x 4 so the sky shader's linear filter
+  keeps them hard) and `spr_moon` into `skybox/moon.png` (24 px). Agent B's world rows
+  (the lit windows, the reception at night, the sky) are in `tools/artgen/prompts_world.tsv`.
 - **Interior props (Blender)**: `tools/blender/build_props.py` (+ `props_more.py`, kit in
   `propkit.py`) builds every low-poly prop from parts and exports
   `godot/assets/models/interior/<name>.glb` **without images** plus `materials.json`

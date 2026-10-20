@@ -12,15 +12,22 @@ camp (sandbox, seed 4242, built up, guests in) at 6:30, 12:00, 17:00, 18:15, 20:
 jetty, the forest edge, the corn, the gate road and the cabins. What did not look like a
 finished game, by impact:
 
-- [ ] Night: the cabins, caravans and tents stay dark with guests in them (only the
-  reception's windows light): the camp looks empty after 20:00. Lit while a guest is in,
-  out when they sleep, now and then one at three in the morning
-- [ ] The reception's lit windows are flat white quads at night (no frame, no curtain)
-- [ ] Coarse halftone dots: the light steps' dither shows as a big dot grid in shade (the
-  torch's edge, dawn, buildings' shadows on snow) ("the torch dithered too harshly")
+- [x] Night: the cabins, caravans and tents stay dark with guests in them (only the
+  reception's windows light): the camp looks empty after 20:00 — lit since 20. 10.
+  (`window_lights.gd`: curtains, the telly, tents, candles without power, lights out
+  21:00-23:30, now and then one at three in the morning)
+- [x] The reception's lit windows are flat white quads at night — the office and the
+  back room show behind the glass (20. 10.)
+- [x] Coarse halftone dots in shade (the torch's edge, dawn, snow): it was your breath,
+  a 2 x 2 screen door lit black at night (an A/B of the post, light and distance dither
+  found it); the breath is a see-through sprite now (20. 10.)
+- [ ] Lamps: standing by a lamp post its light cone is a big grey slab across the view
 - [ ] Lamps barely light the ground round them at night; the fire's light on its
   surroundings; the bulbs themselves hardly read
-- [ ] A clear night has the overcast sky: no stars, no moon
+- [x] A clear night has the overcast sky: no stars, no moon — stars, the milky way and
+  the full moon since 20. 10. (`night_sky.py`)
+- [ ] The sun, its glow and its flare are still drawn by code (`weather_visuals`
+  `_create_pixel_sun_*`), the clouds' sprites too (`_create_pixel_cloud_texture`)
 - [ ] Dawn (6:30) is flat and dark: no mist in the hollows and over the lake, no colour in
   the sky
 - [ ] The meadow reads as burnt black ground by day (the ground under the tufts too dark)

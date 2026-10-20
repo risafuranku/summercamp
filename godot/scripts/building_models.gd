@@ -863,11 +863,12 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 	# Its number on an enamel plate beside the door (scripts/lodging_signs.gd).
 	r.set_meta("number_plate", Transform3D(Basis(), Vector3(door_x + 0.56, y0 + 1.2, lz * 0.5 + 0.03)))
 	var glass := _camp_or("caravan_window.png", Color(1, 1, 1), "glass")
+	# (Lit at night while the guests are in: scripts/ambient/window_lights.gd.)
 	for wx: float in [lx * 0.14, lx * 0.37]:
-		_side_quad(r, "Window", Vector2(0.78, 0.56), Vector3(wx, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass)
-	_side_quad(r, "WindowSide", Vector2(0.62, 0.5), Vector3(-lx * 0.4, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass)
+		_side_quad(r, "Window", Vector2(0.78, 0.56), Vector3(wx, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass).set_meta("lit_window", true)
+	_side_quad(r, "WindowSide", Vector2(0.62, 0.5), Vector3(-lx * 0.4, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass).set_meta("lit_window", true)
 	for wx2: float in [-lx * 0.3, lx * 0.05, lx * 0.33]:
-		_side_quad(r, "WindowBack", Vector2(0.7, 0.5), Vector3(wx2, y0 + h * 0.66, -lz * 0.5 - 0.012), PI, glass)
+		_side_quad(r, "WindowBack", Vector2(0.7, 0.5), Vector3(wx2, y0 + h * 0.66, -lz * 0.5 - 0.012), PI, glass).set_meta("lit_window", true)
 	# Running gear: one axle (two on Lv3), the drawbar with its jockey wheel, the gas.
 	var axles: Array = [0.0] if lv < 3 else [-0.36, 0.36]
 	for ax in axles:
@@ -1355,9 +1356,11 @@ func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0) -> void:
 	var frame := _box(r, "WindowFrame", Vector3(size.x + 0.12, size.y + 0.12, 0.05), pos, _wood())
 	frame.rotation.y = yaw
 	var glass_mat := _camp("window_curtain.png", Color(0.8, 0.84, 0.86))
-	var out := Basis(Vector3.UP, yaw) * Vector3(0, 0, 0.01)
-	var glass := _box(r, "Window", Vector3(size.x, size.y, 0.06), pos + out, glass_mat)
-	glass.rotation.y = yaw
+	# The whole picture on the pane, a quad over the frame's face (a box mapped by its
+	# metres showed a dark corner of it: inventory 20. 10.); lit at night by
+	# scripts/ambient/window_lights.gd while the guests are in.
+	var glass := _side_quad(r, "Window", size, pos + Basis(Vector3.UP, yaw) * Vector3(0, 0, 0.03), yaw, glass_mat)
+	glass.set_meta("lit_window", true)
 	var bar := _box(r, "WindowBar", Vector3(0.04, size.y, 0.07), pos, _wood())
 	bar.rotation.y = yaw
 	# Not seen by the cameras that look out through this window from inside.
@@ -1637,12 +1640,12 @@ func reception(r: Node3D) -> Dictionary:
 	_box(r, "OfficeMullionV", Vector3(0.06, ws.y, 0.05), Vector3(wc.x, wc.y, z1 + t * 0.5), trim)
 	_box(r, "OfficeMullionH", Vector3(ws.x, 0.06, 0.05), Vector3(wc.x, wc.y, z1 + t * 0.5), trim)
 	_box(r, "OfficeSill", Vector3(wx1 - wx0 + 0.1, 0.06, 0.22), Vector3(wc.x, wy0 - 0.02, z1 + t + 0.1), trim)
-	var og := _glass(r, "OfficeGlass", Vector3(ws.x, ws.y, 0.02), Vector3(wc.x, wc.y, z1 + 0.04))
+	var og := _glass(r, "OfficeGlass", Vector3(ws.x, ws.y, 0.02), Vector3(wc.x, wc.y, z1 + 0.04), "recep_office_night.png")
 	# The back room's window, east: small, a frame, the glass.
 	_frame_z(r, "BackWindowFrame", bz0 - 0.07, bz1 + 0.07, by0 - 0.07, by1 + 0.07, x1 + t + 0.02, trim)
 	_box(r, "BackMullion", Vector3(0.05, bs.y, 0.06), Vector3(x1 + t * 0.5, bc.y, bc.z), trim)
 	_box(r, "BackSill", Vector3(0.2, 0.06, bs.x + 0.24), Vector3(x1 + t + 0.08, by0 - 0.09, bc.z), trim)
-	var bg := _glass(r, "BackGlass", Vector3(0.02, bs.y, bs.x), Vector3(x1 + 0.04, bc.y, bc.z))
+	var bg := _glass(r, "BackGlass", Vector3(0.02, bs.y, bs.x), Vector3(x1 + 0.04, bc.y, bc.z), "recep_back_night.png")
 
 	_reception_store(r, L, z0 - t, tin)
 	# Firewood against the west wall.
@@ -1732,8 +1735,10 @@ func _frame_z(r: Node3D, n: String, a: float, b: float, lo: float, hi: float, x:
 
 
 ## Glass: dark and a little glossy by day; the office lights it at night
-## (building_interior.gd: set_reception_glass). On GLASS_LAYER.
-func _glass(r: Node3D, n: String, size: Vector3, pos: Vector3) -> MeshInstance3D:
+## (building_interior.gd: set_reception_glass): the room behind it, `night` (Grok: the
+## office, the back room, seen through the glass with the lamps on; it was a flat lit
+## pane, inventory 20. 10.), glows in the lamps' colour. On GLASS_LAYER.
+func _glass(r: Node3D, n: String, size: Vector3, pos: Vector3, night := "") -> MeshInstance3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.16, 0.2, 0.24)
 	m.roughness = 0.12
@@ -1742,6 +1747,12 @@ func _glass(r: Node3D, n: String, size: Vector3, pos: Vector3) -> MeshInstance3D
 	m.emission_enabled = true
 	m.emission = Color(1.0, 0.78, 0.46)
 	m.emission_energy_multiplier = 0.0
+	if night != "" and ResourceLoader.exists(CAMP + night):
+		m.emission_texture = load(CAMP + night)
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		m.emission = Color(1.0, 0.9, 0.76)
+		# A box's face is a third by a half of the picture: the whole of it on each.
+		m.uv1_scale = Vector3(3.0, 2.0, 1.0)
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	var g := _box(r, n, size, pos, m)
 	g.layers = GLASS_LAYER

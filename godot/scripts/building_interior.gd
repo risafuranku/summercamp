@@ -2222,7 +2222,10 @@ static func _glow_glass(g, amount: float) -> void:
 	if m == null:
 		return
 	m.emission_energy_multiplier = 1.4 * amount
-	m.albedo_color = Color(0.16, 0.2, 0.24).lerp(Color(0.5, 0.4, 0.26), clampf(amount, 0.0, 1.0))
+	# A pane with the room's picture (building_models._glass) shows the room lit; a plain
+	# one turns warm all over.
+	var pic := 0.2 if m.emission_texture != null else 1.0
+	m.albedo_color = Color(0.16, 0.2, 0.24).lerp(Color(0.5, 0.4, 0.26), clampf(amount, 0.0, 1.0) * pic)
 
 
 func set_weather_state(weather: int) -> void:
