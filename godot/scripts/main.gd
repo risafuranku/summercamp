@@ -141,6 +141,8 @@ var _weather_visuals: Node
 var _interior_manager: Node
 var _interaction_controller: Node
 var _guest_agents: Node3D
+## The giant pointer over the camp that brings down what the Builder builds (theatre only).
+var _god_cursor: Node3D
 var _quest_manager: Node
 var _maintenance: Node
 var _pending_quest_state: Dictionary = {}
@@ -332,6 +334,7 @@ func _bootstrap_runtime() -> void:
 	await _boot_step("Raking the paths", 0.85)
 	_rebuild_core_cells_from_visual_structures()
 	_setup_guest_agents()
+	_setup_god_cursor()
 	fallback_camera.current = true
 	await _boot_step("Lighting the lamps", 0.9)
 
@@ -982,6 +985,14 @@ func _setup_guest_agents() -> void:
 	_guest_agents = GUEST_AGENTS_SCRIPT.new()
 	_world_3d.add_child(_guest_agents)
 	_guest_agents.setup(grid_manager, Callable(self, "_now_abs_minutes_float"))
+
+
+func _setup_god_cursor() -> void:
+	if _god_cursor != null and is_instance_valid(_god_cursor):
+		return
+	_god_cursor = preload("res://scripts/god/god_cursor.gd").new()
+	_world_3d.add_child(_god_cursor)
+	_god_cursor.setup(self, grid_manager)
 
 
 ## Absolute game time in minutes (day 1 00:00 = 0), with the fractional minute.
@@ -5031,10 +5042,15 @@ func coop_apply_fact(kind: String, data: Array) -> void:
 	state.money = 1 << 30
 	match kind:
 		# Straight to the builder (the joining machine's own requests go to the host).
+		# The host built it at its PC: the god cursor brings it down here too.
 		"build":
+			_god_from_peer(true)
 			CoreRoot.builder_authority._on_request_build(str(data[0]), data[1], int(data[2]))
+			_god_from_peer(false)
 		"demolish":
+			_god_from_peer(true)
 			CoreRoot.builder_authority._on_request_demolish(data[0])
+			_god_from_peer(false)
 		"build_rejected":
 			EventBus.BuildRejected.emit(str(data[0]), data[1], int(data[2]), str(data[3]))
 		"demolish_rejected":
@@ -5065,7 +5081,9 @@ func coop_request(kind: String, data: Array) -> void:
 			var turned: Array = []
 			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])
 			EventBus.BuildRejected.connect(cb)
+			_god_from_peer(true)
 			EventBus.RequestBuild.emit(str(data[0]), data[1], int(data[2]))
+			_god_from_peer(false)
 			EventBus.BuildRejected.disconnect(cb)
 			if not turned.is_empty():
 				Coop.send_fact("build_rejected", turned[0])
@@ -5073,7 +5091,9 @@ func coop_request(kind: String, data: Array) -> void:
 			var turned2: Array = []
 			var cb2 := func(rect: Rect2i, reason: String) -> void: turned2.append([rect, reason])
 			EventBus.DemolishRejected.connect(cb2)
+			_god_from_peer(true)
 			EventBus.RequestDemolish.emit(data[0])
+			_god_from_peer(false)
 			EventBus.DemolishRejected.disconnect(cb2)
 			if not turned2.is_empty():
 				Coop.send_fact("demolish_rejected", turned2[0])
@@ -5147,6 +5167,12 @@ func coop_request(kind: String, data: Array) -> void:
 			# letter comes in the host's mail (the other machine gets it from there).
 			if EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
 				EmailManager.schedule_pool_mail(preload("res://scripts/builder/shareware.gd").mail_for(str(data[0]), str(data[1]), _day_index))
+
+
+## A build or demolition from another warden's PC: the god cursor stages it here too.
+func _god_from_peer(on: bool) -> void:
+	if _god_cursor != null and is_instance_valid(_god_cursor):
+		_god_cursor.from_peer = on
 
 
 ## The other warden's machine builds nothing of its own accord: what its Builder asks
@@ -6339,6 +6365,8 @@ func _leave_everything(silent: bool) -> void:
 		_lake_trip.return_home()
 	if _interior_manager != null and _interior_manager.has_method("close_everything"):
 		_interior_manager.close_everything(silent)
+	if _god_cursor != null and is_instance_valid(_god_cursor):
+		_god_cursor.finish_all()
 
 
 ## Built once at bootstrap so it is ready (and laid out) long before the first Esc.

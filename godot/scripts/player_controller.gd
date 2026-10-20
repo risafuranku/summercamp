@@ -461,6 +461,14 @@ func play_damage_feedback(tier: int, _damage_amount: int, fatal: bool = false) -
 	_sync_damage_overlay_visual()
 
 
+## Something heavy landing near (the god cursor's drops): the view shakes, nothing hurts.
+func ground_shake(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	_damage_shake_intensity = maxf(_damage_shake_intensity, amount)
+	_damage_shake_decay_speed = 0.9
+
+
 func play_death_fall() -> float:
 	if _death_fall_active:
 		return DEATH_FALL_DURATION + DEATH_FALL_HOLD_SEC

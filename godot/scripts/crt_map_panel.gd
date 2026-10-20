@@ -58,7 +58,11 @@ const ZOOM_MAX := 6.50
 const KEYBOARD_PAN_SPEED := 360.0
 const KEYBOARD_PAN_SPRINT_MULT := 1.7
 const MAP_VISUAL_PADDING := 0.28
-const MAP_ROTATION_STEPS := 1
+## The way the map is turned (RCT's four views, T or the toolbar): 0..3, each a quarter
+## turn of the camp; the screen's bottom faces VIEW_NAMES[view_rot]. 1 is how it always
+## stood. Remembered by the PC (builder_module).
+var view_rot := 1
+const VIEW_NAMES: Array[String] = ["south-east", "south-west", "north-west", "north-east"]
 
 const ROTATION_LABELS: Array[String] = ["SOUTH", "EAST", "NORTH", "WEST"]
 
@@ -135,6 +139,94 @@ const ICON_DOOR_RIGHT := {"shower_block": true, "caravan_1": true, "caravan_2": 
 func _view_steps(icon_key: String, rotation_steps: int) -> int:
 	var rs := wrapi(rotation_steps, 0, 4)
 	return rs if ICON_DOOR_RIGHT.has(icon_key) or ICON_NO_MIRROR.has(icon_key) else wrapi(rs + 3, 0, 4)
+
+
+## The buildings as the camp's 3D models stand (playtest 20. 10.: the mirrored front and
+## back pictures put doors where the 3D building had walls): each one drawn from its
+## model from the four corners the map turns to (tools/iso_render.tscn), repainted by
+## Grok and fitted back over the render (tools/artgen/iso_views.py). <type>_<s>.png, where
+## s = the view plus the building's own turn, at VIEW_PX across a tile's width, with the
+## point of the picture over the middle of its footprint (views.json). Pictures without
+## them fall back to the old front and back ones above.
+const VIEW_DIR := "res://assets/textury/builder/iso3d/"
+const VIEW_PX := 128.0
+const VIEW_TYPE := {"vecerka_iso": "vecerka", "lamp_iso": "lamp_post", "pub_2": "pub", "cabin": "cabin_1"}
+var _views: Dictionary = {}   # "<type>_<s>" -> [texture, anchor, lit windows or null]
+## Lodgings whose windows can light on the map: [static-layer centre, view, origin, type].
+var _lit_spots: Array = []
+var _window_lights: Node
+
+
+func _load_views() -> void:
+	_views.clear()
+	var f := FileAccess.open(VIEW_DIR + "views.json", FileAccess.READ)
+	if f == null:
+		return
+	var index = JSON.parse_string(f.get_as_text())
+	if not (index is Dictionary):
+		return
+	for key in index:
+		var path := VIEW_DIR + str(key) + ".png"
+		if ResourceLoader.exists(path):
+			var a: Array = (index[key] as Dictionary).get("anchor", [0, 0])
+			var win := VIEW_DIR + str(key) + "_win.png"
+			_views[str(key)] = [load(path), Vector2(float(a[0]), float(a[1])), load(win) if ResourceLoader.exists(win) else null]
+
+
+## `type`'s picture for a building turned `rot` on the map as it is turned now ([] if none).
+func _view_of(icon_key: String, rot: int) -> Array:
+	var t := str(VIEW_TYPE.get(icon_key, icon_key))
+	return _views.get("%s_%d" % [t, wrapi(view_rot + rot, 0, 4)], [])
+
+
+## The picture standing on the middle of its footprint (`center`, on the ground), at the
+## map's scale; `squash` flattens it toward its foot (the bounce when it lands).
+func _draw_view(view: Array, center: Vector2, tint: Color, tile_w: float, squash := 1.0) -> void:
+	var tex: Texture2D = view[0]
+	var k := tile_w / VIEW_PX
+	var sz := tex.get_size() * k
+	var top := center - (view[1] as Vector2) * k
+	var bottom := top.y + sz.y
+	_cv.draw_texture_rect(tex, Rect2(Vector2(top.x, bottom - sz.y * squash).floor(), Vector2(sz.x, sz.y * squash)), false, tint)
+
+
+## A building's picture from one of the four sides (the card's turning view), or null.
+func card_view(building_type: String, side: int) -> Texture2D:
+	var t := str(VIEW_TYPE.get(building_type, building_type))
+	var v: Array = _views.get("%s_%d" % [t, wrapi(side, 0, 4)], [])
+	return v[0] if not v.is_empty() else null
+
+
+## Turns the map a quarter (RCT's view): the same spot of the camp stays in the middle.
+func rotate_view(step: int) -> void:
+	if grid_manager == null:
+		return
+	var iso = _compute_iso_layout(int(grid_manager.grid_width), int(grid_manager.grid_height))
+	var mid := _panel_to_cell_f(size * 0.5, iso)
+	view_rot = wrapi(view_rot + (1 if step >= 0 else -1), 0, 4)
+	_static_dirty = true
+	_demolish_hatch_key = ""
+	_pan_offset += size * 0.5 - _cell_iso(mid)
+	_pan_vel = Vector2.ZERO
+	_clamp_pan_offset_for_current_map()
+	_emit_status("View from the %s." % VIEW_NAMES[view_rot])
+	_play("turn_view", -9.0)
+	queue_redraw()
+
+
+## A point of the panel to the grid cell under it, fractional (the inverse of _cell_to_iso_f).
+func _panel_to_cell_f(p: Vector2, iso: Dictionary) -> Vector2:
+	var dlt: Vector2 = p - Vector2(iso.origin)
+	var ua: float = dlt.x / (float(iso.tile_w) * 0.5)
+	var vb: float = dlt.y / (float(iso.tile_h) * 0.5)
+	var d := Vector2((ua + vb) * 0.5, (vb - ua) * 0.5)
+	var gw := float(grid_manager.grid_width)
+	var gh := float(grid_manager.grid_height)
+	match wrapi(view_rot, 0, 4):
+		1: return Vector2(gw - 1.0 - d.y, d.x)
+		2: return Vector2(gw - 1.0 - d.x, gh - 1.0 - d.y)
+		3: return Vector2(d.y, gh - 1.0 - d.x)
+	return d
 
 
 const ICON_NO_MIRROR := {
@@ -391,6 +483,8 @@ func _ready() -> void:
 	if EventBus.has_signal("building_removed"):
 		EventBus.building_removed.connect(_on_world_removed)
 	_preload_icons()
+	_load_views()
+	_load_peeps()
 	_connect_event_bus()
 	_emit_status("Select a tool to begin.")
 
@@ -1290,6 +1384,7 @@ func _draw_static() -> void:
 	_water_cells.clear()
 	_smokers.clear()
 	_lights.clear()
+	_lit_spots.clear()
 	_anim_entries.clear()
 	_known.clear()
 	if grid_manager == null:
@@ -1313,6 +1408,10 @@ func _draw_static() -> void:
 			_anim_entries.append(entry)
 			continue
 		_draw_structure(entry, tile_w, tile_h)
+		if ty.begins_with("tent") or ty.begins_with("cabin") or ty.begins_with("caravan"):
+			var lv := _view_of(_icon_key_for_type(ty), int(entry.get("rotation", 0)))
+			if not lv.is_empty():
+				_lit_spots.append([entry["center"], lv, entry["origin"], ty])
 		if SMOKERS.has(ty):
 			_smokers.append([entry["center"], float(SMOKERS[ty]), int(entry["origin"].x * 7 + entry["origin"].y * 13)])
 		if ty == "lamp_post" or ty == "bonfire":
@@ -1362,7 +1461,7 @@ func _ground_signature(gm, grid_w: int, grid_h: int) -> String:
 		elif t == grid_manager.TILE_RESERVED:
 			reserved += 1
 			sum += c.x * 7919 + c.y * 13
-	return "%dx%d|%d|%d|%d|%s" % [grid_w, grid_h, lake, reserved, sum, _ground_tex.resource_path if _ground_tex != null else "-"]
+	return "%dx%d|%d|%d|%d|%s|v%d" % [grid_w, grid_h, lake, reserved, sum, _ground_tex.resource_path if _ground_tex != null else "-", view_rot]
 
 
 ## Vertex colours are kept under 1 (meshes store them as bytes); the brightening the
@@ -1547,10 +1646,12 @@ func _draw_dynamic() -> void:
 	_draw_inspected(origin, tile_w, tile_h)
 	for g in entries:
 		_draw_guest(g, tile_h)
+	_draw_sleepers(origin, tile_w, tile_h)
 	_draw_lodging_badges(origin, tile_w, tile_h)
 	if overlay != "light":
 		_draw_dusk()
 		_draw_night(lights, tile_w, tile_h)
+		_draw_lit_windows(tile_w)
 		_draw_weather(origin, tile_w, tile_h)
 	_draw_fx(origin, tile_w, tile_h)
 	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
@@ -1969,8 +2070,22 @@ func _update_guests(delta: float) -> void:
 		var id := int(g.get("guest_id", -1))
 		var cell := _world_to_cell_f(g.get("position", Vector3.ZERO))
 		var prev: Dictionary = _guests.get(id, {})
-		var moving := not prev.is_empty() and Vector2(prev.get("cell", cell)).distance_to(cell) > 0.004
-		_guests[id] = {"cell": cell, "archetype": str(g.get("archetype", "")), "moving": moving, "phase": float(prev.get("phase", randf() * 10.0))}
+		var was: Vector2 = prev.get("cell", cell)
+		var moving := not prev.is_empty() and was.distance_to(cell) > 0.004
+		# Which way they go on the screen: towards you or away, left or right.
+		var dir := int(prev.get("dir", 0))
+		var mirror := bool(prev.get("mirror", false))
+		if moving:
+			var dd := _display_cell_f(cell) - _display_cell_f(was)
+			dir = 0 if dd.x + dd.y >= 0.0 else 1
+			mirror = dd.x - dd.y > 0.0
+		var each: Array = []
+		for m in g.get("members", []):
+			each.append({"cell": _world_to_cell_f((m as Dictionary).get("position", Vector3.ZERO)), "pose": str(m.get("pose", "")), "flip": bool(m.get("flip", false))})
+		if each.is_empty():
+			each.append({"cell": cell, "pose": "", "flip": false})
+		_guests[id] = {"cell": cell, "archetype": str(g.get("archetype", "")), "moving": moving, "phase": float(prev.get("phase", randf() * 10.0)),
+			"dir": dir, "mirror": mirror, "members": each, "kind": str(g.get("kind", "")), "posed": bool(g.get("posed", false))}
 		seen[id] = true
 	for id in _guests.keys():
 		if not seen.has(id):
@@ -1985,6 +2100,7 @@ func _update_guests(delta: float) -> void:
 
 func _update_minds() -> void:
 	_guest_minds.clear()
+	_sleepers.clear()
 	if GuestManager == null or not GuestManager.has_method("get_guest_life_snapshot"):
 		return
 	for g in GuestManager.get_guest_life_snapshot():
@@ -2001,10 +2117,26 @@ func _update_minds() -> void:
 			think = wk
 		elif float(g.get("mood", 50.0)) > 78.0:
 			think = "happy"
-		_guest_minds[int(g.get("id", -1))] = {"think": think, "value": wv}
+		# The face over them (RCT's): how they feel now, a beat of its own.
+		var needs: Dictionary = g.get("needs", {})
+		var mood := float(g.get("mood", 50.0))
+		var react := ""
+		if float(needs.get("safety", 100.0)) < 30.0:
+			react = "alert"
+		elif float(needs.get("bladder", 100.0)) < 22.0:
+			react = "sweat"
+		elif mood < 25.0:
+			react = "angry"
+		elif mood > 82.0:
+			react = ["hearts", "notes", "smile"][int(g.get("id", 0)) % 3]
+		_guest_minds[int(g.get("id", -1))] = {"think": think, "value": wv, "react": react}
+		# Asleep in their lodging: a Zzz over its roof.
+		var lodg = g.get("lodging", null)
+		if str(g.get("status", "")) == "sleep" and lodg is Vector2i and (lodg as Vector2i).x >= 0:
+			_sleepers[lodg] = true
 
 
-## The guest under a point of the panel (their figure), or -1.
+## The guest under a point of the panel (any of their party's figures), or -1.
 func guest_at(local_pos: Vector2) -> int:
 	if grid_manager == null:
 		return -1
@@ -2013,13 +2145,14 @@ func guest_at(local_pos: Vector2) -> int:
 	var best := -1
 	var best_d := 1e9
 	for id in _guests:
-		var foot := _cell_to_iso_f(_guests[id]["cell"], iso.origin, iso.tile_w, iso.tile_h)
-		var r := Rect2(foot - Vector2(mini_h * 0.35, mini_h), Vector2(mini_h * 0.7, mini_h + 2.0))
-		if r.has_point(local_pos):
-			var d := foot.distance_to(local_pos)
-			if d < best_d:
-				best_d = d
-				best = int(id)
+		for m in _guests[id].get("members", [{"cell": _guests[id]["cell"]}]):
+			var foot := _cell_to_iso_f(m["cell"], iso.origin, iso.tile_w, iso.tile_h)
+			var r := Rect2(foot - Vector2(mini_h * 0.35, mini_h), Vector2(mini_h * 0.7, mini_h + 2.0))
+			if r.has_point(local_pos):
+				var d := foot.distance_to(local_pos)
+				if d < best_d:
+					best_d = d
+					best = int(id)
 	return best
 
 
@@ -2099,7 +2232,7 @@ func _world_to_cell_f(p: Vector3) -> Vector2:
 func _display_cell_f(c: Vector2) -> Vector2:
 	var gw := float(grid_manager.grid_width)
 	var gh := float(grid_manager.grid_height)
-	match wrapi(MAP_ROTATION_STEPS, 0, 4):
+	match wrapi(view_rot, 0, 4):
 		1: return Vector2(c.y, gw - 1.0 - c.x)
 		2: return Vector2(gw - 1.0 - c.x, gh - 1.0 - c.y)
 		3: return Vector2(gh - 1.0 - c.y, c.x)
@@ -2119,9 +2252,14 @@ func _cell_to_iso_f(c: Vector2, origin: Vector2, tile_w: float, tile_h: float) -
 func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_h: float) -> void:
 	for id in _guests.keys():
 		var g: Dictionary = _guests[id]
-		var p := _cell_to_iso_f(g["cell"], origin, tile_w, tile_h)
-		var dc := _display_cell_f(g["cell"])
-		entries.append({"guest": true, "id": int(id), "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"], "phase": g["phase"], "facing": 0})
+		var members: Array = g.get("members", [])
+		for i in members.size():
+			var m: Dictionary = members[i]
+			var p := _cell_to_iso_f(m["cell"], origin, tile_w, tile_h)
+			var dc := _display_cell_f(m["cell"])
+			entries.append({"guest": true, "id": int(id), "member": i, "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"],
+				"phase": float(g["phase"]) + float(i) * 0.7, "dir": int(g.get("dir", 0)), "mirror": bool(g.get("mirror", false)), "pose": str(m.get("pose", "")),
+				"flip": bool(m.get("flip", false)), "kind": str(g.get("kind", "")), "posed": bool(g.get("posed", false))})
 	for id in _mates.keys():
 		var m: Dictionary = _mates[id]
 		var pm := _cell_to_iso_f(m["cell"], origin, tile_w, tile_h)
@@ -2131,6 +2269,7 @@ func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_
 		var p2 := _cell_to_iso_f(_extra_guest_cell, origin, tile_w, tile_h)
 		var dc2 := _display_cell_f(_extra_guest_cell)
 		entries.append({"guest": true, "pos": p2, "order": dc2.x + dc2.y + 0.6, "archetype": "", "moving": false, "phase": 0.0, "extra": true})
+	entries.sort_custom(func(a, b): return float(a["order"]) < float(b["order"]))
 
 
 ## A guest as RCT drew them: a few pixels tall, shirt colour by archetype, head,
@@ -2190,6 +2329,13 @@ func _mini_of(src: Texture2D, h: int) -> Texture2D:
 func _draw_think(e: Dictionary, foot: Vector2, sz: Vector2) -> void:
 	var mind: Dictionary = _guest_minds.get(int(e.get("id", -1)), {})
 	var think := str(mind.get("think", ""))
+	# Their face (RCT's): between the bubbles, on a beat of its own.
+	var react := str(mind.get("react", ""))
+	var rt: Texture2D = _react_tex.get(react)
+	if rt != null and fmod(_guest_time + float(e["phase"]) * 3.0 + 4.5, 9.0) < 2.0:
+		var rs := clampf(sz.y * 0.55, 10.0, 18.0)
+		var hop := -1.0 if int(_guest_time * 6.0) % 2 == 0 else 0.0
+		_cv.draw_texture_rect(rt, Rect2((foot + Vector2(-rs * 0.5, -sz.y - rs - 1.0 + hop)).floor(), Vector2(rs, rs)), false)
 	if think == "":
 		return
 	# Up for two and a half seconds in every nine, each guest on their own beat.
@@ -2205,22 +2351,105 @@ func _draw_think(e: Dictionary, foot: Vector2, sz: Vector2) -> void:
 	_cv.draw_texture_rect(tex, Rect2((foot + Vector2(sz.x * 0.1, -sz.y - bs + 2.0)).floor(), Vector2(bs, bs)), false)
 
 
+## The map's own little people (Grok gst_*, tools/artgen: peeps/<kind>_<0-7>.png): 0-1
+## walking towards you, 2-3 walking away (mirrored for the other way), 4-5 and 6-7 two
+## things each kind does when it has nothing on: the quiet man watching the lake and
+## smoking, the drunk staggering and being sick, the woman in heels smoking and carrying
+## her shopping, the tramp strumming on a log and carrying firewood, the father hanging
+## washing and the boy kicking a ball, the old picker after a mushroom and eating.
+## Without them (or at an attraction) they are the camp's own picture of them, posed as
+## the camp poses them (sat at the fire, eating, a kick).
+const PEEP_DIR := "res://assets/textury/builder/peeps/"
+const PEEP_KIND := {"quiet_guy": "quiet", "drunk": "drunk", "cheap_chick": "chick", "tramp": "tramp", "family": "family", "picker": "picker"}
+## The faces over them (Grok bld_react, builder/react/<name>.png).
+const REACT_DIR := "res://assets/textury/builder/react/"
+const REACTS := ["smile", "angry", "sick", "hearts", "notes", "zzz", "sweat", "alert"]
+var _peeps: Dictionary = {}       # kind -> [8 textures] (or [])
+var _react_tex: Dictionary = {}
+var _sleepers: Dictionary = {}    # lodging origin -> true: somebody asleep in it
+var _pose_minis: Dictionary = {}  # "path|h" -> texture
+
+
+func _load_peeps() -> void:
+	for a in PEEP_KIND:
+		var kind := str(PEEP_KIND[a])
+		var frames: Array = []
+		for i in 8:
+			var path := PEEP_DIR + "%s_%d.png" % [kind, i]
+			if not ResourceLoader.exists(path):
+				frames = []
+				break
+			frames.append(load(path))
+		_peeps[kind] = frames
+	for r in REACTS:
+		var path := REACT_DIR + str(r) + ".png"
+		_react_tex[r] = load(path) if ResourceLoader.exists(path) else null
+
+
+## A picture brought down to `h` pixels tall once (the camp's pose pictures are 128 px).
+func _pose_mini(path: String, h: int) -> Texture2D:
+	var key := "%s|%d" % [path, h]
+	if not _pose_minis.has(key):
+		_pose_minis[key] = _mini_of(load(path) as Texture2D, h) if path != "" and ResourceLoader.exists(path) else null
+	return _pose_minis[key]
+
+
+## The frame of a little person now: walking, their kind's own doings, or null (the
+## camp's pose picture instead).
+func _peep_frame(e: Dictionary, h: int) -> Array:
+	var frames: Array = _peeps.get(str(PEEP_KIND.get(str(e.get("archetype", "")), "")), [])
+	if frames.is_empty():
+		return []
+	var beat := int(floorf((_guest_time + float(e["phase"])) * 4.0))
+	var i := -1
+	var mirror := bool(e.get("mirror", false))
+	if bool(e["moving"]):
+		i = (0 if int(e.get("dir", 0)) == 0 else 2) + beat % 2
+	elif not bool(e.get("posed", false)) and not ["sleep", "rest", "wait_gate", "arrive", "away"].has(str(e.get("kind", ""))):
+		# Standing about: now one of their doings, now the other, now just standing.
+		var spell := (int(e.get("id", 0)) * 7 + int(_guest_time / 14.0)) % 3
+		if spell == 2:
+			return []
+		i = 4 + spell * 2 + int(floorf((_guest_time + float(e["phase"])) * 2.5)) % 2
+		mirror = bool(e.get("flip", false))
+	if i < 0:
+		return []
+	var key := "peep|%s|%d|%d" % [str(e.get("archetype", "")), i, h]
+	if not _pose_minis.has(key):
+		_pose_minis[key] = _mini_of(frames[i], h)
+	return [_pose_minis[key], mirror]
+
+
 func _draw_guest(e: Dictionary, tile_h: float) -> void:
 	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
 	var tex: Texture2D = null
+	var mirror := false
 	if e.has("mate"):
 		tex = _mate_mini(mini_h, int(e["mate"]))
 	elif not e.has("extra"):
-		tex = _guest_mini(str(e["archetype"]), mini_h)
+		var pf := _peep_frame(e, mini_h)
+		if not pf.is_empty():
+			tex = pf[0]
+			mirror = bool(pf[1])
+		else:
+			var pose := str(e.get("pose", ""))
+			tex = _pose_mini(pose, mini_h) if pose != "" else _guest_mini(str(e["archetype"]), mini_h)
+			mirror = bool(e.get("flip", false))
 	if tex != null:
 		var bob := 0.0
-		if bool(e["moving"]):
+		if bool(e["moving"]) and _peeps.get(str(PEEP_KIND.get(str(e.get("archetype", "")), "")), []).is_empty():
 			bob = -1.0 if fmod(_guest_time * 6.0 + float(e["phase"]), 2.0) < 1.0 else 0.0
 		var foot: Vector2 = Vector2(e["pos"]).floor()
 		var sz := tex.get_size()
 		_cv.draw_rect(Rect2(foot + Vector2(-sz.x * 0.4, -1.0), Vector2(sz.x * 0.8, 2.0)), Color(0, 0, 0, 0.35))
-		_cv.draw_texture(tex, (foot - Vector2(sz.x * 0.5, sz.y - bob)).floor())
-		if not e.has("mate"):
+		var at := (foot - Vector2(sz.x * 0.5, sz.y - bob)).floor()
+		if mirror:
+			_cv.draw_set_transform(at + Vector2(sz.x, 0), 0.0, Vector2(-1, 1))
+			_cv.draw_texture(tex, Vector2.ZERO)
+			_cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		else:
+			_cv.draw_texture(tex, at)
+		if not e.has("mate") and int(e.get("member", 0)) == 0:
 			_draw_think(e, foot, sz)
 		if e.has("mate"):
 			# Their name over them, so they are not taken for a guest.
@@ -2258,6 +2487,19 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 		_cv.draw_rect(Rect2(p + Vector2(0.5 * u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
 
 
+## A Zzz over every lodging somebody sleeps in, rising in steps.
+func _draw_sleepers(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	var tex: Texture2D = _react_tex.get("zzz")
+	if tex == null or _sleepers.is_empty():
+		return
+	for o in _sleepers:
+		var f: Vector2i = (_known.get(o, ["", Vector2i.ONE]) as Array)[1]
+		var c := _footprint_center_iso(o, f, origin, tile_w, tile_h)
+		var rise := float(int(_time * 3.0 + float(o.x)) % 4) * 2.0
+		var bs := clampf(tile_h * 0.5, 10.0, 20.0)
+		_cv.draw_texture_rect(tex, Rect2((c + Vector2(tile_w * 0.1, -tile_h * 1.4 - rise)).floor(), Vector2(bs, bs)), false, Color(1, 1, 1, 0.9))
+
+
 func _hash01(c: Vector2i) -> float:
 	var n := (c.x * 73856093) ^ (c.y * 19349663)
 	return float(absi(n) % 1000) / 1000.0
@@ -2283,8 +2525,15 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 	if building_type == "path":
 		_draw_path(center, entry.get("origin", Vector2i.ZERO), tile_w, tile_h)
 		if _path_has_lamp(entry.get("origin", Vector2i.ZERO)):
-			var lc := _path_lamp_point(entry.get("origin", Vector2i.ZERO), center, tile_w, tile_h)
-			_draw_icon(lc, Vector2(tile_w * 0.6, tile_h * 1.5), _icon_key_for_type("lamp_post"), 0, Color.WHITE)
+			var po: Vector2i = entry.get("origin", Vector2i.ZERO)
+			var lc := _path_lamp_point(po, center, tile_w, tile_h)
+			# Turned as the camp turns it, its arm over the path (LampSpot.yaw).
+			var turn := wrapi(roundi(LampSpot.yaw(LampSpot.offset(po, Callable(self, "_path_cell"))) / (PI * 0.5)), 0, 4)
+			var lamp := _view_of("lamp_post", turn)
+			if not lamp.is_empty():
+				_draw_view(lamp, lc, Color.WHITE, tile_w)
+			else:
+				_draw_icon(lc, Vector2(tile_w * 0.6, tile_h * 1.5), _icon_key_for_type("lamp_post"), 0, Color.WHITE)
 		return
 
 	var icon_key = _icon_key_for_type(building_type)
@@ -2591,14 +2840,13 @@ func _draw_rotation_panel() -> void:
 	var panel_rect = Rect2(panel_pos, panel_size)
 	_cv.draw_style_box(T.box("window", T.FACE, Vector4.ZERO), panel_rect)
 
-	var center = panel_rect.position + panel_rect.size * 0.5
+	var center = panel_rect.position + panel_rect.size * 0.5 + Vector2(0.0, -6.0)
 	var active = _rotation_steps
-	var arrows = [
-		{"id": 2, "pos": center + Vector2(0.0, -24.0), "dir": Vector2(0.0, -1.0)},
-		{"id": 1, "pos": center + Vector2(20.0, -6.0), "dir": Vector2(1.0, 0.0)},
-		{"id": 0, "pos": center + Vector2(0.0, 12.0), "dir": Vector2(0.0, 1.0)},
-		{"id": 3, "pos": center + Vector2(-20.0, -6.0), "dir": Vector2(-1.0, 0.0)},
-	]
+	# Each way the building can face, where it lies on the map as it is turned now.
+	var arrows: Array = []
+	for id in 4:
+		var sd := _rotation_to_screen_dir(id, 2.0, 1.0)
+		arrows.append({"id": id, "pos": center + Vector2(sd.x * 20.0, sd.y * 18.0), "dir": sd})
 	var round_only := _turns_round_only(selected_building)
 	for arrow in arrows:
 		var arrow_id = int(arrow.get("id", -1))
@@ -2675,6 +2923,10 @@ func _draw_icon(center: Vector2, draw_size: Vector2, icon_key: String, rotation_
 ## (ICON_SPAN), standing on the front corner of the ground it covers. `squash` flattens it
 ## (the bounce when it lands).
 func _draw_building_icon(center: Vector2, footprint: Vector2i, icon_key: String, rotation_steps: int, tint: Color, tile_w: float, tile_h: float, squash: float = 1.0) -> bool:
+	var view := _view_of(icon_key, rotation_steps)
+	if not view.is_empty():
+		_draw_view(view, center, tint, tile_w, squash)
+		return true
 	var tex = _get_icon(icon_key)
 	if tex == null:
 		return false
@@ -3064,13 +3316,13 @@ func _pan_on_map(pan: Vector2, origin0: Vector2, tile_w: float, tile_h: float, d
 
 
 func _display_grid_dimensions(grid_w: int, grid_h: int) -> Vector2i:
-	if wrapi(MAP_ROTATION_STEPS, 0, 4) % 2 == 1:
+	if wrapi(view_rot, 0, 4) % 2 == 1:
 		return Vector2i(grid_h, grid_w)
 	return Vector2i(grid_w, grid_h)
 
 
 func _rotate_coord_for_display(coord: Vector2i) -> Vector2i:
-	var rot = wrapi(MAP_ROTATION_STEPS, 0, 4)
+	var rot = wrapi(view_rot, 0, 4)
 	if rot == 0 or grid_manager == null:
 		return coord
 	var grid_w: int = int(grid_manager.grid_width)
@@ -3111,7 +3363,7 @@ func _local_to_grid(local_pos: Vector2) -> Vector2i:
 	var vb := dlt.y / (tile_h * 0.5)
 	var dcell := Vector2i(roundi((ua + vb) * 0.5), roundi((vb - ua) * 0.5))
 	var coord := dcell
-	match wrapi(MAP_ROTATION_STEPS, 0, 4):
+	match wrapi(view_rot, 0, 4):
 		1:
 			coord = Vector2i(grid_w - 1 - dcell.y, dcell.x)
 		2:
@@ -3478,6 +3730,36 @@ func _ensure_dither() -> void:
 		_dither.append(ImageTexture.create_from_image(img))
 
 
+## The lodgings lived in after dark, as the camp has them (scripts/ambient/window_lights.gd):
+## a cabin's or a caravan's windows lit (their picture from the model's own windows), the
+## telly's blue in steps, a candle when the power is off; a tent glowing through its cloth.
+func _draw_lit_windows(tile_w: float) -> void:
+	if _night <= 0.02 and float(_wx.get("hour", 12.0)) < 17.0:
+		return
+	if _window_lights == null or not is_instance_valid(_window_lights):
+		_window_lights = get_tree().root.find_child("WindowLights", true, false) if get_tree() != null else null
+		if _window_lights == null:
+			return
+	var step := int(_time * 12.0)
+	for s in _lit_spots:
+		var o: Vector2i = s[2]
+		var lit: Dictionary = _window_lights.lit_state("%d:%d" % [o.x, o.y])
+		if lit.is_empty():
+			continue
+		var view: Array = s[1]
+		var col := Color(1.0, 0.82, 0.46)
+		if bool(lit.get("candle", false)):
+			col = Color(1.0, 0.62, 0.3) * (0.8 + 0.2 * float((step + o.x) % 3) / 2.0)
+		elif bool(lit.get("tv", false)):
+			col = Color(0.55, 0.7, 1.0).lerp(Color(0.92, 0.94, 1.0), float((step / 3 + o.y) % 4) / 3.0)
+		var a := clampf(0.35 + _night, 0.0, 1.0)
+		if str(s[3]).begins_with("tent") or view.size() < 3 or view[2] == null:
+			# The cloth lit from inside: the tent's own picture in the lantern's colour.
+			_draw_view(view, _s2d(s[0]), Color(col.r, col.g * 0.9, col.b * 0.6, 0.4 * a), tile_w)
+		else:
+			_draw_view([view[2], view[1]], _s2d(s[0]), Color(col.r, col.g, col.b, a), tile_w)
+
+
 ## Dusk and night: the map darkens, lamps and fires make pools of light.
 func _draw_night(lights: Array, tile_w: float, tile_h: float) -> void:
 	if _night <= 0.01:
@@ -3533,6 +3815,41 @@ func _play(name: String, db := 0.0) -> void:
 	add_child(p)
 	p.play()
 	p.finished.connect(p.queue_free)
+
+
+## What the map sounds like under the pointer (builder_module's loops): what is most of
+## the ground round it, "" off the map.
+func sound_under_pointer() -> String:
+	if grid_manager == null or not _is_valid_coord(hover_coord):
+		return ""
+	var count := {"lake": 0, "forest": 0, "play": 0, "pub": 0, "camp": 0}
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			var c := hover_coord + Vector2i(dx, dy)
+			if not _is_valid_coord(c):
+				continue
+			var tile = grid_manager.get_tile(c)
+			if tile == null:
+				continue
+			var k := "camp"
+			if tile.tile_type == grid_manager.TILE_LAKE:
+				k = "lake"
+			elif tile.occupied and tile.occupant != null:
+				var root = _resolve_occupant_root(tile.occupant)
+				if root != null and (root.is_in_group("trees") or root.is_in_group("corn")):
+					k = "forest"
+				elif root != null:
+					var t := str(root.get_meta("building_type", ""))
+					if t in ["playground", "sports_field", "lake_slide", "ping_pong", "bonfire"]:
+						k = "play"
+					elif t in ["pub", "restaurant", "vecerka", "corn_stand"]:
+						k = "pub"
+			count[k] = int(count[k]) + (2 if dx == 0 and dy == 0 else 1)
+	var best := "camp"
+	for k in count:
+		if int(count[k]) > int(count[best]):
+			best = k
+	return best
 
 
 ## "12:7  Tent", "4:3  Forest", "20:1  Lake", for the status bar.

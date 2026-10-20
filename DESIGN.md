@@ -628,6 +628,75 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
 - **About** has the credits and, under them, a little bulldozer flattening tents in a
   strip of grass; it drives itself until the arrow keys take it.
 - The Jednota is buildable again (the camp's own; locked at Goggle 4.0).
+- **The buildings stand as the camp has them** (playtest 20. 10.: the mirrored front and
+  back pictures put the pub's door where the 3D pub has a wall). Every building's four
+  pictures are drawn from its own 3D model, from the four corners the map turns to, at the
+  map's angle and one scale for all (`tools/iso_render.tscn`), repainted by Grok in the
+  tycoon look and fitted back over the render, so the door, the porch, the chimney are
+  where they are in the camp and a gnome is a gnome's size next to a pub.
+- **The map turns** a quarter at a time, as RCT's park did (T, Shift+T back, the toolbar's
+  turning tile): the ground, the paths, the trees, the guests and the order things stand
+  in turn with it; the spot in the middle stays there. The PC remembers which way.
+- **Its people.** The guests are drawn as the camp has them: walking, or posed by what they
+  are at (sat at the fire, eating, a kick on the pitch); their faces over them now and then
+  (a smile, hearts, a song, anger, panic for the toilet, fright), a Zzz over the lodgings
+  somebody sleeps in. Their walk towards you and away and each kind's own doings come in
+  frames (the quiet man watching the lake or smoking, the drunk staggering or sick, the
+  woman in heels with her cigarette and her shopping, the tramp strumming on a log or
+  carrying firewood, the father hanging washing while the boy kicks a ball, the old picker
+  after a mushroom): `peeps/<kind>_<0-7>.png`, the camp's pose until they are there.
+- **Every click has its sound** (Builder's own, not the PC's): a toolbar button, a
+  catalogue card sliding out, a window opening and closing, a tool picked up, a refusal, the
+  map turning, the message line's tick.
+- **The message line** along the foot of the map, RCT's: what happens in the camp as it
+  happens, each with its little picture (a guest's new thought, who is at the gate, who
+  moved in, who drove off, a room to clean, toilets gone filthy, a breakdown and its fix,
+  a review, the Courier and the diplomas), sliding in, creeping along when long; a click
+  takes the map there or follows the guest. What matters more (a breakdown, guests driving
+  off, a diploma) pops up a moment as a small window in the map's corner.
+- **The building's card is alive**: its picture turns slowly through its four sides, and
+  besides the room, the guests in it, the wear and the power it says how clean a toilet or
+  shower block is and what a business took and served today.
+- **The map's sound** under the pointer: the lake lapping, the woods, the playground, a
+  pub's door, the camp; quiet loops fading into each other as the pointer goes over the map.
+- **Lit windows at dusk**: the lodgings lived in light their windows on the map as the camp
+  lights them (`window_lights.gd`): a lamp behind the curtains, the telly's blue, a candle
+  with the power off, a tent glowing through its cloth; the windows are the model's own
+  (the render's window pass), so they sit on the picture's windows.
+- **Music**: the loop's seam measured (no click, the beat lands on the loop's start, a dip
+  of a few hundredths of a second where it was cross-faded); still to be heard by an ear.
+
+## 5k. The god cursor
+
+The user: when the Builder builds, a giant computer cursor appears high over the camp you
+stand in and puts the paths and buildings down into it: surreal, the camp a simulation
+somebody assembles with a mouse. **Only theatre**: the Builder builds at once as before,
+the camp's sim has the building at once (guests, books, everything), and nothing waits for
+the show, hinders or hurts (`scripts/god/god_cursor.gd`).
+
+- **What it is**: the Builder's own pointer (the OS's arrow with the tool beside it: the
+  blueprint, the path, the lamp, the bulldozer), thirty metres of flat pixels in the sky,
+  the haze of the camp's fog over it and banks of mist drifting through it, dithered away
+  and back in Build's way; it glides slowly to the work and rises back into the haze after.
+  A deep hum like thunder and organ pipes from far off; the slowed, giant Okna click and
+  ding; heavy landings with an echo from the woods (ElevenLabs, `assets/sfx/god/`).
+- **Paths like dominoes**: the pointer clicks, the line's tiles come down one after
+  another from high up, a thud and dust each (louder every third).
+- **Buildings in their parts**: the foundations, the walls, the roof (its own meshes, split
+  by height), each falling in steps of a twelfth of a second, landing with a boom and a ring
+  of dust; small things in one piece.
+- **Bulldozing** is short: the pointer dives with the bulldozer, clicks, and what was there
+  (copies of its meshes: the camp has already taken it away) is pressed flat in four steps
+  and sinks into the ground in a burst of dust and a crunch.
+- **The queue**: what the Builder ordered waits as a shadow on the ground (the building
+  hidden, not a wall to walk into) and comes down in turn, quicker the longer the queue.
+  While the warden sits at the PC it waits; it comes down when they stand up, seen through
+  the office window (a portal into the camp), from its door or outside. In co-op each
+  machine plays its own theatre of the builds it hears of: the other warden outside sees
+  the host's Builder come down (who builds is told by what happens where).
+- **Under it**: the shadow grows as it falls; guests round it jump out of the way and look
+  up; a warden standing under it is pushed off and the view shakes. Nobody is hurt.
+- Leaving the camp (the menu, a load) brings everything still waiting down at once, unseen.
 
 ## 6. Upkeep
 

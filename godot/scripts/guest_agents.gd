@@ -170,7 +170,22 @@ func get_visible_guest_positions() -> Array:
 			continue
 		var lead := members[0] as Node3D
 		if lead != null and lead.visible:
-			out.append({"guest_id": int(id), "position": lead.global_position, "archetype": str((party.get("info", {}) as Dictionary).get("archetype", ""))})
+			# Builder 98's map draws each of them as the camp has them now: where, in what
+			# picture (the attraction's pose: sat at the fire, eating, a kick), turned which
+			# way, and what they are about.
+			var each: Array = []
+			for m in members:
+				var mn := m as Node3D
+				if mn == null or not mn.visible:
+					continue
+				var sp := mn.get_node_or_null("Sprite") as Sprite3D
+				each.append({"position": mn.global_position, "pose": sp.texture.resource_path if sp != null and sp.texture != null else "",
+					"flip": sp.flip_h if sp != null else false})
+			var info: Dictionary = party.get("info", {})
+			var act: Dictionary = info.get("activity", {})
+			out.append({"guest_id": int(id), "position": lead.global_position, "archetype": str(info.get("archetype", "")),
+				"members": each, "kind": str(act.get("kind", "")), "target": str(act.get("target_type", "")),
+				"posed": party.get("target_tile", Vector2i(-1, -1)) != Vector2i(-1, -1) and OPEN_AIR_TYPES.has(str(act.get("target_type", "")))})
 	return out
 
 
@@ -460,7 +475,7 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			pos.y = 0.0
 			if sprite != null:
 				sprite.rotation.z = sin(_time * 0.8 + float(i)) * 0.01
-		member.position = pos
+		member.position = pos + _dodge_offset(party)
 	_update_marker(party, info, marker_pos, visible_now)
 	_update_alert(party, visible_now)
 
@@ -475,6 +490,41 @@ func alert(at: Vector3, radius: float, secs: float) -> void:
 		if p == Vector3.INF or Vector2(p.x - at.x, p.z - at.z).length() > radius:
 			continue
 		pd["alert_ms"] = maxi(int(pd.get("alert_ms", 0)), until)
+
+
+## Something heavy coming down (the god cursor, scripts/god/god_cursor.gd): the guests
+## within `radius` of `at` jump out from under it, a few metres off, then drift back to
+## what they were doing; they look up too.
+func dodge(at: Vector3, radius: float, secs: float) -> void:
+	var now := Time.get_ticks_msec()
+	for party in _parties.values():
+		var pd: Dictionary = party
+		var p: Vector3 = pd.get("last_pos", Vector3.INF)
+		if p == Vector3.INF:
+			continue
+		var d := Vector2(p.x - at.x, p.z - at.z)
+		if d.length() > radius:
+			continue
+		var away := d.normalized() if d.length() > 0.05 else Vector2.RIGHT.rotated(float(int(pd.get("info", {}).get("id", 0)) % 7))
+		pd["dodge"] = Vector3(away.x, 0.0, away.y) * (radius - d.length() + 1.0)
+		pd["dodge_from"] = now
+		pd["dodge_ms"] = int(secs * 1000.0)
+	alert(at, radius + 4.0, secs)
+
+
+## Where the jump aside has them now: out in a hop (in steps), back over the last part.
+func _dodge_offset(party: Dictionary) -> Vector3:
+	if not party.has("dodge"):
+		return Vector3.ZERO
+	var t := float(Time.get_ticks_msec() - int(party["dodge_from"])) / 1000.0
+	var total := float(party["dodge_ms"]) / 1000.0
+	if t >= total:
+		party.erase("dodge")
+		return Vector3.ZERO
+	t = floorf(t * ANIM_FPS) / ANIM_FPS
+	var k := clampf(t / 0.35, 0.0, 1.0) if t < 0.35 else clampf(1.0 - (t - total * 0.6) / (total * 0.4), 0.0, 1.0)
+	var hop := sin(clampf(t / 0.35, 0.0, 1.0) * PI) * 0.45 if t < 0.35 else 0.0
+	return (party["dodge"] as Vector3) * k + Vector3(0, hop, 0)
 
 
 func _update_alert(party: Dictionary, visible_now: bool) -> void:

@@ -119,6 +119,23 @@ start, collect good ratings; pay to delete bad reviews".
   asking about it)
 - [x] Shareware: a nag after ~10 builds, a registration-locked Mega gnome, Help > About
   with credits and a Snake easter egg
+- [x] Builder polish (20. 10. evening, the brief "Builder 98 jako samostatna tycoon hra"):
+  every building's four pictures from its 3D model (`tools/iso_render.tscn` ->
+  `tools/artgen/iso_views.py` -> Grok -> fitted back), checked against the camp from the
+  same corners in all four views (`tools/builder_shots.tscn`); the map turns (T); the
+  guests as the camp poses them, their faces, Zzz over sleepers; every click's sound; the
+  message line and the corner window; the card's turning picture, clean, today's takings;
+  the sound under the pointer; lit windows at dusk; the music's seam measured
+- [x] The god cursor over the camp (DESIGN §5k, `scripts/god/god_cursor.gd`): the queue
+  with shadows, dominoes, buildings in parts, bulldozing pressed flat, hum, clicks and
+  booms, guests jumping aside, the warden pushed off; co-op through `from_peer`; looked at
+  from the camp (`tools/god_shots.tscn`)
+- [ ] Grok's repaints of the rest of the buildings (the queue; until then the 3D render
+  itself, palette-snapped): choose a or b for each and `iso_views.py cut`
+- [ ] The map's little people in frames (Grok gst_*, cut to `peeps/<kind>_<0-7>.png`), the
+  faces (`react/`), the news icons (`news/`), the animals (dog, ducks, moths, mice, ants,
+  birds), the building site in stages, the little yellow bulldozer, animated tool cursors
+- [ ] The god cursor in co-op on two copies, by night and in the fog; its tempo by feel
 - [ ] The map's trees and flags swaying in the wind, in steps (smoke and leaves go with
   it already). The trees are baked into the static layer among the buildings in depth
   order, so they cannot just be drawn again on top: draw them (and what stands in front
@@ -126,7 +143,9 @@ start, collect good ratings; pay to delete bad reviews".
 - [ ] A hint of the cheats somewhere in the PC (a README.TXT in Files, Vera's note), never
   a list
 - [ ] Hear the music once: `assets/sfx/builder/music.ogg` was cut and measured
-  (`loop_cut.py`: 16 bars, the seam cross-faded, -23 LUFS), not listened to
+  (`loop_cut.py`: 16 bars, the seam cross-faded, -23 LUFS), not listened to; measured
+  again 20. 10.: no click at the seam, the beat lands on the loop's start (19.2 s, a beat
+  every 0.302 s), a dip of ~50 ms where it was cross-faded
 - Notes for agent C: `tools/coop_check` still opens the old pub tap close-up
   (`_service_interior._open_counter_game()`), so "the other warden does not see the host
   behind the bar" fails since the tap went 3D (457d21b); `scripts/business/corn_closeup.gd`

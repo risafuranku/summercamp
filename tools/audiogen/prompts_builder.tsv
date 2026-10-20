@@ -1,0 +1,31 @@
+# Builder 98's own sounds (the clicks of its toolbar, its map's life) and the god cursor over the camp.
+# id	seconds	destination (relative to godot/)	prompt
+bld_btn	0.6	assets/sfx/builder/ui_button.mp3	A single short click of a chunky 1990s beige plastic computer mouse button followed by a tiny soft wooden tock, like pressing a toolbar button in a 1998 tycoon game, very close, dry, no reverb, no music.
+bld_card	0.8	assets/sfx/builder/ui_card.mp3	A short crisp flick of a stiff paper index card being slid out of a box and laid on a desk, quick and light, very close, dry, no music.
+bld_window_open	0.7	assets/sfx/builder/ui_open.mp3	A short soft swish and a light plastic clack, like a little window popping open in a 1998 computer game, cheerful and tiny, close, dry, no music.
+bld_window_close	0.6	assets/sfx/builder/ui_close.mp3	A short downward swish ending in a soft muffled plastic tap, like a little window closing in a 1998 computer game, close, dry, no music.
+bld_tool	0.7	assets/sfx/builder/ui_tool.mp3	Picking up a small metal hand tool from a wooden workbench: a short bright clink of steel and a soft knock of wood, close, dry, no music.
+bld_deny	0.7	assets/sfx/builder/ui_deny.mp3	A dull hollow wooden thunk with a short low buzzer under it, like a refused action in an old 1990s computer game, close, dry, no music.
+bld_turn_view	0.9	assets/sfx/builder/turn_view.mp3	A large sheet of cardboard turned quickly on a table: a short whoosh of air and a soft papery slide ending in a light tap, close, dry, no music.
+bld_ticker	0.6	assets/sfx/builder/ticker.mp3	A single short mechanical teleprinter tick, a tiny metallic clack of an old news ticker machine, close, dry, no music.
+bld_event	1.2	assets/sfx/builder/event.mp3	A short friendly two-note chime on a General MIDI glockenspiel from a cheap 1998 sound card, like a message popping up in a tycoon computer game, bright and small, no voice.
+bld_dozer	2.5	assets/sfx/builder/dozer.mp3	A small old diesel bulldozer revving and pushing a heap of broken planks and bricks: engine roar, clanking tracks, splintering wood and crunching rubble, close outdoors, no music.
+bld_found	1.6	assets/sfx/builder/site_found.mp3	Wet concrete being tipped from a wheelbarrow and spread with a shovel, a heavy slosh and a scrape, close outdoors, no music.
+bld_walls	1.6	assets/sfx/builder/site_walls.mp3	Wooden planks dropped on a stack and nailed with three quick hammer blows, close outdoors, no music.
+bld_roof	1.4	assets/sfx/builder/site_roof.mp3	Roof tiles and a sheet of corrugated tin laid on a roof, a clatter of tiles and a wobbly tin bang, close outdoors, no music.
+bld_amb_lake	12.0	assets/sfx/builder/amb_lake.mp3	Gentle lake water lapping on a reed shore in a quiet Czech forest in summer, ducks quacking softly in the distance, a light breeze, steady and even, seamless, no music, no voices.
+bld_amb_forest	12.0	assets/sfx/builder/amb_forest.mp3	A pine forest in summer: wind softly hissing in the pine tops, a woodpecker far off, small birds chirping, steady and even, seamless, no music, no voices.
+bld_amb_play	12.0	assets/sfx/builder/amb_play.mp3	A summer camp playground at a distance: children laughing and shouting faintly, a ball being kicked, a swing chain creaking, steady and even, no music, no clear words.
+bld_amb_pub	12.0	assets/sfx/builder/amb_pub.mp3	A small Czech village pub heard from just outside its open door: muffled chatter and laughter, beer glasses clinking, a chair scraping, steady and even, no music, no clear words.
+bld_amb_camp	12.0	assets/sfx/builder/amb_camp.mp3	A quiet summer camp in a forest clearing by day heard from a little way off: far voices, a distant axe chopping, birds, a light breeze, steady and even, no music, no clear words.
+bld_dog	1.0	assets/sfx/builder/dog.mp3	A small mongrel dog barking twice, a little way off outdoors in a forest camp, no music.
+bld_duck	1.0	assets/sfx/builder/duck.mp3	A single mallard duck quacking twice on a lake, a little way off, no music.
+bld_birds	1.5	assets/sfx/builder/birds.mp3	A small flock of birds taking off together, a flurry of wing flaps passing overhead, outdoors, no music.
+god_hum	15.0	assets/sfx/god/hum.mp3	A colossal deep drone high above a forest valley, like the lowest pipes of a cathedral organ blending with distant rolling thunder, slow swelling and fading, enormous and far away, steady, seamless, no melody, no music beat.
+god_click	3.0	assets/sfx/god/click.mp3	A gigantic slowed-down computer mouse click booming across a forest valley like a thunderclap, deep and distorted, followed by a long rolling echo from the hills, no music.
+god_ding	4.0	assets/sfx/god/ding.mp3	A huge slowed-down and detuned computer chime, a deep bell-like two-tone ding that warbles and rings out over a forest valley with a long cavernous echo, eerie and enormous, no music beat.
+god_thud_a	3.0	assets/sfx/god/thud_a.mp3	A massive concrete slab dropped from a great height onto soft forest ground: a deep earth-shaking boom, gravel and dust settling, then an echo rolling back from the forest, outdoors, no music.
+god_thud_b	3.0	assets/sfx/god/thud_b.mp3	A huge heavy wooden block crashing down onto the ground from high up: a deep wooden boom that shakes the ground, small debris rattling, an echo from the trees, outdoors, no music.
+god_thud_c	3.0	assets/sfx/god/thud_c.mp3	A gigantic stone tile slammed flat onto a dirt path from above, a deep dull crump with a short rumble and an echo from the forest edge, outdoors, no music.
+god_fall	2.0	assets/sfx/god/fall.mp3	A huge heavy object falling fast through the air from very high up, a deep descending whoosh growing louder, outdoors, no impact, no music.
+god_dozer	3.0	assets/sfx/god/dozer.mp3	A colossal unseen machine crushing a wooden cabin in one push: an enormous crunch of splintering timber and collapsing tin, a deep rumble, dust, an echo from the forest, outdoors, no music.
