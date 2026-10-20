@@ -52,6 +52,7 @@ const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
 const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const PROFILES = preload("res://scripts/profiles.gd")
+const LANG = preload("res://scripts/lang.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const BOOT_SCREEN = preload("res://scripts/ui/boot_screen.gd")
 const TILE_COLS := 3
@@ -112,6 +113,8 @@ var _look_list
 var _look_preview: TextureRect
 var _look_pid := ""
 var _look_back := "profiles"
+## The language row's flags (scripts/lang.gd LANGS -> the flag), a click picks one.
+var _look_flags: Dictionary = {}
 ## Direct connect: the window over the CO-OP page with the address field.
 var _connect_box: Control
 var _connect_field: LineEdit
@@ -1008,7 +1011,7 @@ func _summary(entry: Dictionary) -> String:
 	var hours := float(entry.get("time_hours", 9.0))
 	var h := int(floor(hours)) % 24
 	var m := int(floor((hours - floor(hours)) * 60.0))
-	return "DAY %d  %02d:%02d  $%s" % [int(entry.get("day", 1)), h, m, _money(int(entry.get("money", 0)))]
+	return tr("DAY %d  %02d:%02d  $%s") % [int(entry.get("day", 1)), h, m, _money(int(entry.get("money", 0)))]
 
 
 func _money(amount: int) -> String:
@@ -1026,12 +1029,12 @@ func _ago(unix: int) -> String:
 		return ""
 	var delta := int(Time.get_unix_time_from_system()) - unix
 	if delta < 90:
-		return "JUST NOW"
+		return tr("JUST NOW")
 	if delta < 3600:
-		return "%d MIN AGO" % (delta / 60)
+		return tr("%d MIN AGO") % (delta / 60)
 	if delta < 86400:
-		return "%d H AGO" % (delta / 3600)
-	return "%d DAYS AGO" % (delta / 86400)
+		return tr("%d H AGO") % (delta / 3600)
+	return tr("%d DAYS AGO") % (delta / 86400)
 
 
 # ── wardens, camps ────────────────────────────────────────────────────────────
@@ -1088,11 +1091,14 @@ func _build_camp_pages(plate_h: float) -> void:
 	_lantern(_look_list)
 	var look_items: Array[Dictionary] = [
 		{"id": "name", "text": "Name"},
+		{"id": "lang", "text": "Language"},
 		{"id": "figure", "text": "Figure"},
 		{"id": "jacket", "text": "Jacket"},
 		{"id": "done", "text": "Done"},
 	]
+	_look_list.size.y = _vp(22 * look_items.size())
 	_look_list.set_items(look_items)
+	_build_look_flags()
 	var lp_h := plate_h - _vp(28 + 18)
 	_look_preview = _warden_preview(_look_page, Vector2(_look_page.size.x - lp_h * 0.42 - _vp(12), _vp(28)), lp_h)
 	var look_hint := RETRO_UI.label("LEFT / RIGHT TO CHANGE. THE OTHER WARDENS SEE THIS.", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale)
@@ -1422,7 +1428,7 @@ func _refresh_profiles() -> void:
 	for pr in PROFILES.list_profiles():
 		_profile_ids.append(str(pr["id"]))
 		var mine := str(pr["id"]) == PROFILES.profile_id
-		var sub := "PRESS DEL AGAIN TO DELETE" if _profile_delete_armed == str(pr["id"]) else "%d CAMP%s%s" % [int(pr["camps"]), "" if int(pr["camps"]) == 1 else "S", "  (PLAYING)" if mine else ""]
+		var sub := "PRESS DEL AGAIN TO DELETE" if _profile_delete_armed == str(pr["id"]) else LANG.t_n(int(pr["camps"]), "%d camp", "%d camps") + (tr("  (PLAYING)") if mine else "")
 		items.append({"id": "p:" + str(pr["id"]), "text": str(pr["name"]), "sub": sub})
 	if PROFILES.has_profile():
 		items.append({"id": "edit", "text": "Edit warden", "sub": PROFILES.profile_name().to_upper()})
@@ -1461,6 +1467,8 @@ func _make_profile(name: String) -> void:
 	refresh_saves()
 	profile_changed.emit()
 	_open_look(pid, "main")
+	# A new warden starts at the flags: the language is the first thing to choose.
+	_look_list.select_id("lang")
 
 
 ## A frame of the warden standing (the look page, the CO-OP page).
@@ -1499,6 +1507,8 @@ func _refresh_look() -> void:
 		return
 	var look := _look_now()
 	_look_list.set_item_sub("name", PROFILES.profile_name(_look_pid).to_upper())
+	for code in _look_flags:
+		(_look_flags[code] as Control).queue_redraw()
 	_look_list.set_item_sub("figure", "<  %s  >" % WARDEN_LOOKS.FIGURES[int(look["m"])])
 	_look_list.set_item_sub("jacket", "<  %s  >" % WARDEN_LOOKS.color_name(int(look["c"])))
 	_look_preview.texture = WARDEN_LOOKS.texture(int(look["m"]), int(look["c"]), "stand")
@@ -1516,12 +1526,67 @@ func _look_cycle(which: String, dir: int) -> void:
 	_refresh_look()
 
 
+## The flags in the language row, after its name: the warden's own lit and framed.
+func _build_look_flags() -> void:
+	_look_flags.clear()
+	var row := _look_list.get_node_or_null("Row_lang") as Control
+	if row == null:
+		return
+	var sub := row.get_node("Sub") as Control
+	var x := sub.position.x
+	for code in LANG.LANGS:
+		var tex: Texture2D = load(LANG.FLAGS[code])
+		var flag := Control.new()
+		flag.name = "Flag_" + code
+		flag.size = Vector2(_vp(26), _vp(18))
+		flag.position = Vector2(x, _vp(2))
+		flag.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		flag.draw.connect(func() -> void:
+			var mine: bool = PROFILES.profile_lang(_look_pid) == code
+			var s := float(_scale)
+			flag.draw_rect(Rect2(Vector2.ZERO, flag.size), RETRO_UI.C_AMBER if mine else Color(0, 0, 0, 0.8))
+			flag.draw_texture_rect(tex, Rect2(Vector2(s, s), flag.size - Vector2(s, s) * 2.0), false, Color.WHITE if mine else Color(0.45, 0.42, 0.4, 1.0)))
+		flag.gui_input.connect(func(ev: InputEvent) -> void:
+			var mb := ev as InputEventMouseButton
+			if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+				_look_list.select_id("lang")
+				_set_look_lang(code)
+				get_viewport().set_input_as_handled())
+		row.add_child(flag)
+		_look_flags[code] = flag
+		x += _vp(30)
+	sub.position.x = x + _vp(2)
+
+
+## The warden's language: kept, the game's at once if it is the warden playing, and the
+## menu built again in it.
+func _set_look_lang(code: String) -> void:
+	if code == PROFILES.profile_lang(_look_pid):
+		return
+	PROFILES.set_profile_lang(_look_pid, code)
+	if _look_pid != PROFILES.profile_id:
+		_refresh_look()
+		return
+	var pid := _look_pid
+	var back := _look_back
+	_rebuild()
+	_open_look(pid, back)
+	_look_list.select_id("lang")
+
+
+func _cycle_look_lang(dir: int) -> void:
+	var i := LANG.LANGS.find(PROFILES.profile_lang(_look_pid))
+	_set_look_lang(LANG.LANGS[posmod(i + dir, LANG.LANGS.size())])
+
+
 func _on_look_activated(id: String) -> void:
 	match id:
 		"name":
 			_ask("WARDEN'S NAME", PROFILES.profile_name(_look_pid), "Name", func(text: String) -> void:
 				PROFILES.rename_profile(_look_pid, text)
 				_refresh_look())
+		"lang":
+			_cycle_look_lang(1)
 		"figure", "jacket":
 			_look_cycle(id, 1)
 		"done":
@@ -1542,6 +1607,10 @@ func _handle_look_input(event: InputEvent) -> bool:
 		_close_look()
 		return true
 	var row: String = _look_list.current_id()
+	if row == "lang":
+		if event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right"):
+			_cycle_look_lang(-1 if event.is_action_pressed("ui_left") else 1)
+			return true
 	if row in ["figure", "jacket"]:
 		if event.is_action_pressed("ui_left", true):
 			_look_cycle(row, -1)

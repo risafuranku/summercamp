@@ -4,6 +4,35 @@
 
 ---
 
+## CZECH VERSION — 2026-10-21 (the user: "the language is the warden's, flags when a warden is made; the whole game in Czech; from now on everything in English and Czech")
+
+How it works: AGENTS.md §8. Left: `python tools/i18n/extract.py --stats` / `--todo`.
+
+- [x] The language layer: `scripts/lang.gd` reads `locale/cs.po` and answers the engine's
+  lookups (exact, UPPER-CASE, formatted, wrapped, line by line, plural forms, the warden's
+  gender); `tools/lang_check.gd`
+- [x] The language is the warden's (profiles "lang"), flags on the WARDEN page, the menu
+  rebuilt in it at once; `-- --lang=cs` for tools and shots
+- [x] Czech letters in every font (Silkscreen and W95FA composed in `gen_pixel_fonts.py`);
+  taller big menu rows in Czech (capitals' accents)
+- [x] `tools/i18n/extract.py` (5,125 strings found) and `fill.py`; the title screen, its
+  pages, the options and controls translated (~200)
+- [ ] The HUD, the pause menu, prompts and the feed
+- [ ] Drawn text through `tr()`: ~350 `draw_string` calls (the PC's programs, the Builder,
+  the stations, the close-ups, the paper map)
+- [ ] The PC: Okna 98, CampMail and the mails (`data/pools/emails`), CampStat, GuestRack,
+  Goggle, SoftSklad, the web pages, Files, the games and jobs
+- [ ] The camp: buildings (`data/buildings` display names), guests and their lines, day
+  events, night jobs, the director's log, Vera's checklist, the businesses and their
+  stations, Papa's slip, the Z report
+- [ ] Liblice, the bus (the driver is already Czech), Pristoupim, the phone book
+- [ ] Text put together from pieces in code: find them in Czech shots, make them one
+  format string
+- [ ] Pictures with words (signs, posters, the web's pictures, the Builder's splash) and
+  English voices (the phone, the electrician): Czech versions through locale remaps
+- [ ] Money in Czech: dollars or crowns? (ask the user)
+- [ ] Play a day and a night in Czech end to end and fix what reads wrong
+
 ## PODNIKY POLISH — 2026-10-20 (the brief: the four places to the top)
 
 - [x] Two pointers in the rooms: the finger and the glint for what works, the eye for what is only worth a look

@@ -13,7 +13,9 @@ Quick orientation:
   signal hub. Systems in `core/systems/` stay pure.
 - Buildings live only in `data/buildings/*.tres` (BuildingRegistry).
 - Harnesses in `godot/tools/` and the screenshot driver: see AGENTS.md §3.
-- The game ships in **English**; Czech belongs in comments and commit messages only.
+- The game ships in **English and Czech**: code strings in English, their Czech in
+  `godot/locale/cs.po`; every new player-facing string gets its Czech in the same change
+  (AGENTS.md §8: drawn text needs `tr()`, `tools/i18n/extract.py`, `fill.py`, `lang_check`).
 
 Then: [PRODUCT.md](PRODUCT.md) for feature status, [DESIGN.md](DESIGN.md) for intent,
 [ARCHITECTURE.md](ARCHITECTURE.md) for wiring, [TODO.md](TODO.md) for priorities.

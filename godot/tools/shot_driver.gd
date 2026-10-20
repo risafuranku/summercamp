@@ -134,6 +134,19 @@ const SCENARIOS := {
 		["call_on", "_main_menu", "show_page", ["main"]],
 		["call_on", "_main_menu", "show_loading", ["Generating a fresh camp..."]], ["wait", 0.6], ["shot", "08_menu_loading"],
 	],
+	# Every page of the title screen (run it with -- --lang=cs to see the Czech).
+	"menupages": [
+		["wait_menu"], ["wait", 2.5], ["shot", "m1_main"],
+		["call_on", "_main_menu", "show_page", ["profiles"]], ["wait", 0.4], ["shot", "m2_wardens"],
+		["call_on", "_main_menu", "_on_profile_activated", ["edit"]], ["wait", 0.4], ["shot", "m3_warden"],
+		["call_on", "_main_menu", "show_page", ["newcamp"]], ["wait", 0.4], ["shot", "m4_newcamp"],
+		["call_on", "_main_menu", "show_page", ["camps"]], ["wait", 0.4], ["shot", "m5_camps"],
+		["call_on", "_main_menu", "show_page", ["load"]], ["wait", 0.4], ["shot", "m6_load"],
+		["call_on", "_main_menu", "show_page", ["coop"]], ["wait", 0.4], ["shot", "m7_coop"],
+		["call_on", "_main_menu", "show_page", ["options"]], ["wait", 0.4], ["shot", "m8_options"],
+		["call_on", "_main_menu", "show_page", ["controls"]], ["wait", 0.4], ["shot", "m9_controls"],
+		["call_on", "_main_menu", "show_page", ["main"]],
+	],
 	"pause": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
 		["call", "_open_pause_menu", []], ["wait", 0.5], ["shot", "50_pause"],

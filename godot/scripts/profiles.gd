@@ -6,9 +6,10 @@ extends RefCounted
 ## camp opens its list of saves; delete a camp, duplicate a camp".
 ##
 ##   user://profiles/last.json                      {"profile": id, "camp": id}
-##   user://profiles/<profile>/profile.json         {"name", "created", "look_model", "look_color"}
+##   user://profiles/<profile>/profile.json         {"name", "created", "look_model", "look_color", "lang"}
 ##       (the look: which warden figure and jacket colour, scripts/coop/warden_looks.gd;
-##       the other warden in co-op sees it and the name)
+##       the other warden in co-op sees it and the name; lang: the warden's language,
+##       "en" or "cs", scripts/lang.gd, set for the whole game when the warden is chosen)
 ##   user://profiles/<profile>/camps/<camp>/camp.json
 ##       {"name", "seed", "created", "played", "sandbox", "coop", "day", "money", "guests"}
 ##   user://profiles/<profile>/camps/<camp>/thumb.png   the camp at its last save
@@ -18,6 +19,7 @@ extends RefCounted
 ## a camp before loading or starting it. The saves from before profiles (user://saves)
 ## are copied into the first warden made, a camp per world seed.
 
+const LANG := preload("res://scripts/lang.gd")
 const ROOT := "user://profiles"
 const LEGACY := "user://saves"
 const THUMB_SIZE := Vector2i(192, 108)
@@ -105,8 +107,10 @@ static func boot() -> void:
 		pid = str(all[0]["id"]) if not all.is_empty() else ""
 	profile_id = pid
 	camp_id = ""
+	LANG.apply(profile_lang(pid) if pid != "" else LANG.system_default())
 	if pid == "":
 		return
+	LANG.set_figure(int(profile_look(pid)["m"]))
 	var cid := str(last.get("camp", ""))
 	if cid != "" and FileAccess.file_exists(camp_dir(cid).path_join("camp.json")):
 		activate_camp(cid)
@@ -174,13 +178,35 @@ static func set_profile_look(pid: String, model: int, color: int) -> void:
 	p["look_model"] = model
 	p["look_color"] = color
 	_write(path, p)
+	if pid == profile_id:
+		LANG.set_figure(model)
+
+
+## The warden's language ("en" or "cs"; a warden from before languages: English).
+static func profile_lang(pid: String = profile_id) -> String:
+	var lang := str(_read(profile_dir(pid).path_join("profile.json")).get("lang", "en"))
+	return lang if lang in LANG.LANGS else "en"
+
+
+## Kept with the warden, and the game's language at once if it is the warden playing.
+static func set_profile_lang(pid: String, lang: String) -> void:
+	var path := profile_dir(pid).path_join("profile.json")
+	var p := _read(path)
+	if p.is_empty() or not lang in LANG.LANGS:
+		return
+	p["lang"] = lang
+	_write(path, p)
+	if pid == profile_id:
+		LANG.apply(lang)
 
 
 ## A new warden, chosen at once. The first one made takes in the saves from before.
-static func create_profile(name: String, look_model: int = -1, look_color: int = 0) -> String:
+static func create_profile(name: String, look_model: int = -1, look_color: int = 0, lang: String = "") -> String:
 	var first := list_profiles().is_empty()
 	var pid := _new_id("p")
-	_write(profile_dir(pid).path_join("profile.json"), {"name": name.strip_edges().left(24), "created": _now(), "look_model": look_model, "look_color": look_color})
+	if not lang in LANG.LANGS:
+		lang = LANG.current
+	_write(profile_dir(pid).path_join("profile.json"), {"name": name.strip_edges().left(24), "created": _now(), "look_model": look_model, "look_color": look_color, "lang": lang})
 	select_profile(pid)
 	if first:
 		_import_legacy()
@@ -190,6 +216,8 @@ static func create_profile(name: String, look_model: int = -1, look_color: int =
 static func select_profile(pid: String) -> void:
 	profile_id = pid
 	camp_id = ""
+	LANG.apply(profile_lang(pid))
+	LANG.set_figure(int(profile_look(pid)["m"]))
 	var camps := list_camps()
 	if not camps.is_empty():
 		activate_camp(str(camps[0]["id"]))

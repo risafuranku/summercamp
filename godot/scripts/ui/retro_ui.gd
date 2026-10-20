@@ -460,7 +460,7 @@ class PixelTitle:
 		_relayout()
 
 	func _notification(what: int) -> void:
-		if what == NOTIFICATION_RESIZED:
+		if what == NOTIFICATION_RESIZED or what == NOTIFICATION_TRANSLATION_CHANGED:
 			_relayout()
 
 	func _font_px() -> float:
@@ -472,7 +472,9 @@ class PixelTitle:
 			return
 		var fsize := size_vp * ui_scale
 		var px := _font_px()
-		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+		# Drawn, so translated here (scripts/lang.gd answers the upper-case copy too).
+		var shown := tr(text)
+		var w := font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
 		var cap_px := (10.0 if font == FONT_BIG else 5.0) * px
 		# Tight box: outline above, cap height, outline + 2px shadow below. Titles are
 		# set in capitals; descenders may hang below the box.
@@ -483,7 +485,7 @@ class PixelTitle:
 		for stamp in [_base, _top]:
 			stamp.font = font
 			stamp.font_size = fsize
-			stamp.text = text
+			stamp.text = shown
 			stamp.px = px
 			stamp.origin = Vector2(origin_x, baseline)
 			stamp.position = Vector2.ZERO
@@ -495,8 +497,11 @@ class PixelTitle:
 		_top.outline = Color(0, 0, 0, 0)
 		_top.shadow = Color(0, 0, 0, 0)
 		var split_y := cap_top + floorf(cap_px * split / px) * px
-		_clip.position = Vector2.ZERO
-		_clip.size = Vector2(size.x, maxf(0.0, split_y))
+		# The top colour reaches up over the box too: a capital's accent (Czech) stands
+		# above the cap height.
+		_clip.position = Vector2(0.0, -cap_px)
+		_clip.size = Vector2(size.x, maxf(0.0, split_y) + cap_px)
+		_top.position = Vector2(0.0, cap_px)
 		_base.queue_redraw()
 		_top.queue_redraw()
 

@@ -16,7 +16,7 @@ for intent. [PRODUCT.md](PRODUCT.md) says what exists.
 | `EventBus` is the only cross-module signal hub | Modules listen, core emits |
 | Systems in `core/systems/` stay pure | No `get_node`, no `SceneTree`; data in, numbers out. Rules modules (`maintenance_rules.gd`, `weather_system.gd`) are static/pure too |
 | UI is a read-only view | UI forwards intent; it does not compute costs or odds |
-| The game ships in **English** | Czech in comments/commits is fine, never in player-facing strings |
+| The game ships in **English and Czech** (since 21. 10.) | The code's strings are English; the Czech is in `godot/locale/cs.po` (§8). Every new player-facing string goes in with its Czech in the same change. Czech in comments/commits is fine |
 | Refactor strangler-style | New module → route through it → delete the legacy block; one concern per change, verify between |
 | Tabs, not spaces | |
 | `config/name` stays `"icloud ccs2"` | It names the `user://` folder holding players' saves/settings. The displayed title is set at runtime (`main.WINDOW_TITLE`) |
@@ -100,6 +100,7 @@ godot --headless --path godot --script res://tools/director_check.gd
 godot --headless --path godot --script res://tools/bazaar_check.gd
 godot --headless --path godot --script res://tools/goggle_check.gd
 godot --headless --path godot --script res://tools/builder98_check.gd
+godot --headless --path godot --script res://tools/lang_check.gd    # the Czech lookup, every translation keeps its values (§8)
 godot --headless --path godot --script res://tools/bistro_check.gd
 godot --headless --path godot res://tools/business_check.tscn   # the books: lots, going off, gear, one order, wages
 godot --headless --path godot res://tools/staff_check.tscn      # the hands: ways, applicants, shifts, away, theft, the kitchen's crew
@@ -653,6 +654,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   colour-matched rips are left only on the cellar machine animation and a few small bits).
 - **Fonts**: `python tools/gen_pixel_fonts.py` bakes `tools/font_src/*.ttf` into
   `godot/assets/fonts/*.fnt/.png` on their native grid. Import setting `scaling_mode=1`.
+  Czech letters a font lacks (Silkscreen's č ř ě ď ť ň ů, all of W95FA's carons, its broken
+  ý Ý) are put together there from the base letter and a mark (`compose_czech`).
+- **Flags** (the WARDEN page's languages): `python tools/gen_flags.py`.
 - **No synthesised SFX** (the user: "to nechcem", 20. 10.: replace them all): every sound is a
   recording (ElevenLabs, `tools/audiogen/`); exact timings are cut from recordings
   (`tools/audiogen/cuts.py`: the phone line's 425 Hz tone to its cadences, ring 1 s / 4 s,
@@ -663,3 +667,49 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 Licensing: most world textures are rips from Redneck Rampage (`assets/textury/redneck/RRTX*`).
 Fine for a private prototype, a blocker for any public release; replace them with generated
 textures (§7) before shipping.
+
+---
+
+## 8. Languages (English and Czech)
+
+The user, 21. 10.: "the language is the warden's, flags when a warden is made; the whole
+game in Czech; from now on everything we make, in English and Czech".
+
+- **How it works**: the code is written in English; `godot/locale/cs.po` (gettext, the
+  English text is the msgid) holds the Czech. `scripts/lang.gd` reads it (the file is kept
+  as is, `cs.po.import` = keep) and answers every lookup the engine makes: Controls,
+  Label3D and RichTextLabel translate their own text, so most code needs no change. The
+  lookup also answers an UPPER-CASE copy of a msgid (menus upper-case their rows), a
+  formatted one ("3 CAMPS" from the msgid "%d CAMPS": the values carried over, a %s value
+  looked up itself), a line wrapped in non-words ("<  Plum  >") and text line by line.
+- **The language is the warden's**: `profiles.gd` "lang" ("en"/"cs"), the flags on the
+  WARDEN page (a new warden starts on them; the system's language is the default),
+  `LANG.apply()` when a warden is chosen. `-- --lang=cs` on the command line overrides it
+  (tools, shots: never switch the user's own wardens to test).
+- **What you must do in code**:
+  - Text drawn with `draw_string` / `draw_multiline_string` is not translated by the
+    engine: pass `tr(text)` (in static code `LANG.t(text)`). Translate *before*
+    `to_upper()`, padding, measuring or cutting it.
+  - Text put together from pieces ("Hello " + name) is never found: write it as one
+    format string, `tr("Hello %s") % name`.
+  - A count with a noun: `LANG.t_n(n, "%d guest", "%d guests")` (Czech has three forms:
+    1, 2-4, 5+), or in the translation `{host|hosté|hostů}` after the number.
+  - Czech past tense has a gender: `{g:zemřel|zemřela}` in a translation takes the warden
+    figure's (`LANG.FEMININE_FIGURES`: Jana, Bara).
+- **New strings**: `python tools/i18n/extract.py` merges the code's strings into cs.po
+  (keeps every translation; `--stats`, `--todo [N] [--file part]` for what is left);
+  translations go in by `python tools/i18n/fill.py <batch.json>` ({msgid: msgstr},
+  `"one||many": [three forms]`; the batches are kept in `tools/i18n/batches/`) or by hand.
+  `godot --headless --path godot --script res://tools/lang_check.gd` checks the lookup and
+  that every translation keeps its msgid's values. See it: the shot driver with
+  `-- --lang=cs` (scenario `menupages`: every title page).
+- **Words** (keep them the same everywhere): warden = správce, camp = kemp, guest = host,
+  booking = rezervace, sandbox = volná hra, story = příběh, the Builder stays Builder,
+  CampMail/CampStat/GuestRack/Goggle and the like keep their names; the player is "ty".
+  Money stays in dollars for now (the user decides). The tone is the English one's: dry,
+  short, a 1998 Czech camp.
+- **In Czech the big menu rows are taller** (`retro_menu.MenuList._row_vp`): a capital's
+  accent stands four of the big font's pixels above the letters.
+- Not done yet: textures with words on them (signs, posters, the web's pictures) and
+  recorded voices in English (the phone, the electrician) need Czech versions (Godot's
+  locale remaps: `internationalization/locale/translation_remaps`).

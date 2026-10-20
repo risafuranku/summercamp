@@ -10,6 +10,7 @@ extends RefCounted
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const SETTINGS_PANEL = preload("res://scripts/settings_panel.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+const LANG = preload("res://scripts/lang.gd")
 
 const SFX_MOVE_PATH := "res://assets/sfx/rednecksfx/rrtick.wav"
 
@@ -222,6 +223,14 @@ class MenuList:
 				return i
 		return -1
 
+	## A row's height; in Czech room for the capitals' accents over the letters (four of
+	## the big font's pixels above its ten of cap height), or a row's accents seem to
+	## belong to the row above.
+	func _row_vp() -> float:
+		if LANG.current == "en":
+			return float(row_height_vp)
+		return maxf(float(row_height_vp), float(size_vp) * 1.5)
+
 	func _rebuild() -> void:
 		for child in get_children():
 			if child == _sfx:
@@ -237,7 +246,7 @@ class MenuList:
 			var row := Control.new()
 			row.name = "Row_%s" % str(item.get("id", i))
 			row.position = Vector2(0.0, y)
-			row.size = Vector2(size.x, float(row_height_vp) * s)
+			row.size = Vector2(size.x, _row_vp() * s)
 			row.mouse_filter = Control.MOUSE_FILTER_STOP
 			row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 			var index := i
@@ -265,7 +274,7 @@ class MenuList:
 			sub.position.y = baseline - RETRO_UI.FONT_LABEL.get_ascent(RETRO_UI.SIZE_LABEL * ui_scale)
 			row.add_child(sub)
 			_rows.append(row)
-			y += float(row_height_vp) * s
+			y += _row_vp() * s
 		custom_minimum_size = Vector2(0.0, y)
 		_cursor = Control.new()
 		_cursor.name = "Cursor"

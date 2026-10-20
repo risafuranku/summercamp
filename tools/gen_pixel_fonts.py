@@ -98,6 +98,122 @@ def rasterise(font_path: str, unit: int, ascent: int, descent: int, bold: bool =
     return glyphs
 
 
+# ── Czech letters a font lacks: the base letter and a mark ─────────────────────────
+# (Silkscreen has no č ř ě ď ť ň ů, W95FA none of the carons, and its ý Ý have lost their
+# acute.) A mark is taken from a letter the font does have (the acute from É/E, the caron
+# from Š/S) or drawn here, centred over the base, as far above it as the font puts its own
+# accents. ď and ť take the apostrophe at their right, unless the font's small letters are
+# its capitals (Silkscreen): then they take the caron like Ď and Ť.
+
+CZECH = {
+    "Á": ("A", "acute"), "á": ("a", "acute"), "É": ("E", "acute"), "é": ("e", "acute"),
+    "Í": ("I", "acute"), "í": ("i", "acute"), "Ó": ("O", "acute"), "ó": ("o", "acute"),
+    "Ú": ("U", "acute"), "ú": ("u", "acute"), "Ý": ("Y", "acute"), "ý": ("y", "acute"),
+    "Č": ("C", "caron"), "č": ("c", "caron"), "Ď": ("D", "caron"), "ď": ("d", "apos"),
+    "Ě": ("E", "caron"), "ě": ("e", "caron"), "Ň": ("N", "caron"), "ň": ("n", "caron"),
+    "Ř": ("R", "caron"), "ř": ("r", "caron"), "Š": ("S", "caron"), "š": ("s", "caron"),
+    "Ť": ("T", "caron"), "ť": ("t", "apos"), "Ž": ("Z", "caron"), "ž": ("z", "caron"),
+    "Ů": ("U", "ring"), "ů": ("u", "ring"),
+}
+MARKS = {
+    "caron": ["#.#", ".#."],
+    "ring": [".#.", "#.#", ".#."],
+    "acute": [".#", "#."],
+}
+SOURCES = {"acute": [("É", "E"), ("é", "e"), ("Á", "A"), ("á", "a")], "caron": [("Š", "S"), ("š", "s"), ("Ž", "Z"), ("ž", "z")]}
+
+
+def _pixels(g):
+    out = set()
+    if g is None or g["img"] is None:
+        return out
+    px = g["img"].load()
+    w, h = g["img"].size
+    for y in range(h):
+        for x in range(w):
+            if px[x, y]:
+                out.add((x + g["xoff"], y + g["yoff"]))
+    return out
+
+
+def _box(pix):
+    xs = [p[0] for p in pix]
+    ys = [p[1] for p in pix]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _mark_from_font(glyphs, kind, upper):
+    """(pixels relative to their own top left, gap rows between mark and base) or None."""
+    for acc, base in SOURCES.get(kind, []):
+        if acc.isupper() != upper:
+            continue
+        a, b = glyphs.get(ord(acc)), glyphs.get(ord(base))
+        pa, pb = _pixels(a), _pixels(b)
+        if not pa or not pb:
+            continue
+        top = _box(pb)[1]
+        mark = {p for p in pa - pb if p[1] < top}
+        if not mark or pa - mark != pb:
+            continue
+        x0, y0, x1, y1 = _box(mark)
+        return {(x - x0, y - y0) for x, y in mark}, top - y1 - 1
+    return None
+
+
+def _drawn(kind):
+    rows = MARKS[kind]
+    return {(x, y) for y, r in enumerate(rows) for x, c in enumerate(r) if c == "#"}
+
+
+def compose_czech(glyphs, bold=False):
+    caps_only = _pixels(glyphs.get(ord("d"))) == _pixels(glyphs.get(ord("D")))
+    made = []
+    for ch, (base_ch, kind) in CZECH.items():
+        cp = ord(ch)
+        base = glyphs.get(ord(base_ch))
+        pb = _pixels(base)
+        if not pb:
+            continue
+        have = glyphs.get(cp)
+        if have is not None and _pixels(have) != pb:
+            continue  # the font's own, with its accent
+        if kind == "apos" and caps_only:
+            kind = "caron"
+        upper = base_ch.isupper() or caps_only
+        bx0, by0, bx1, by1 = _box(pb)
+        adv = base["adv"]
+        if kind == "apos":
+            ap = _pixels(glyphs.get(ord("'")))
+            if not ap:
+                continue
+            ax0, ay0, _, ay1 = _box(ap)
+            # beside the stem, its top at the stem's top, a column clear of it
+            h = min(ay1 - ay0 + 1, 2)
+            mark = {(bx1 + 2, by0 + k) for k in range(h)}
+            adv += 2
+        else:
+            found = _mark_from_font(glyphs, kind, upper)
+            shape, gap = found if found else (_drawn(kind), 1)
+            if not found and bold:
+                shape = shape | {(x + 1, y) for x, y in shape}
+            if kind == "ring" and not found:
+                gap = 0 if upper else 1
+            mx1 = max(p[0] for p in shape)
+            my1 = max(p[1] for p in shape)
+            ox = bx0 + (bx1 - bx0 + 1 - (mx1 + 1)) // 2
+            oy = by0 - gap - 1 - my1
+            mark = {(ox + x, oy + y) for x, y in shape}
+        pix = pb | mark
+        x0, y0, x1, y1 = _box(pix)
+        img = Image.new("L", (x1 - x0 + 1, y1 - y0 + 1), 0)
+        ip = img.load()
+        for x, y in pix:
+            ip[x - x0, y - y0] = 255
+        glyphs[cp] = {"img": img, "xoff": x0, "yoff": y0, "adv": adv}
+        made.append(ch)
+    return made
+
+
 def pack(glyphs, width: int = 256):
     x = y = 1
     row_h = 0
@@ -155,9 +271,10 @@ def main():
         path = os.path.join(SRC, src)
         face = TTFont(path)["name"].getDebugName(1) or name
         glyphs = rasterise(path, unit, ascent, descent, bold)
+        made = compose_czech(glyphs, bold)
         atlas, placed = pack(glyphs)
         write_fnt(name, face, size, ascent, descent, spacing, glyphs, placed, atlas)
-        print("%-10s %3d glyphs  atlas %dx%d" % (name, len(glyphs), atlas.width, atlas.height))
+        print("%-10s %3d glyphs  atlas %dx%d%s" % (name, len(glyphs), atlas.width, atlas.height, ("  composed " + "".join(made)) if made else ""))
 
 
 if __name__ == "__main__":
