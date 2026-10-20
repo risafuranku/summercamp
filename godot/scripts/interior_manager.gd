@@ -13,6 +13,7 @@ const CARAVAN_INTERIOR_SCRIPT = preload("res://scripts/caravan_interior.gd")
 const SERVICE_INTERIOR_SCRIPT = preload("res://scripts/service_interior_generator.gd")
 const BUILDING_UPGRADE_MENU_SCRIPT = preload("res://scripts/building_upgrade_menu.gd")
 const GUEST_DIALOG_SCRIPT = preload("res://scripts/guest_dialog.gd")
+const MAINT_RULES = preload("res://core/systems/maintenance_rules.gd")
 ## Through the door and back: the frozen frame breaking up in steps (twelve a second).
 const DOOR_TRANSITION_SCRIPT = preload("res://scripts/ui/door_transition.gd")
 ## Out of the camp: the barrier, the road, the bus stop (scripts/town/town_trip.gd).
@@ -526,7 +527,18 @@ func get_hint_for_structure(structure: Node3D) -> String:
 	var building_type := str(structure.get_meta("building_type", ""))
 	if _town_trip != null and _town_trip.handles(building_type):
 		return str(_town_trip.hint_for(structure))
-	return _hint_for_building_type(building_type)
+	var hint := _hint_for_building_type(building_type)
+	# The toilets and showers get dirty with use and are cleaned inside.
+	if MAINT_RULES.soils(building_type) and not hint.is_empty():
+		var state = CoreRoot.get_state()
+		var origin: Vector2i = structure.get_meta("grid_origin", Vector2i(-999, -999))
+		var cell: Dictionary = state.grid.cells.get(origin, {}) if state != null and state.grid != null else {}
+		var condition := float(cell.get("maintenance", 1.0))
+		if condition < MAINT_RULES.FILTHY:
+			hint += " - filthy, clean it"
+		elif condition < 0.9:
+			hint += " - needs cleaning"
+	return hint
 
 
 func _set_player_controls_enabled(enabled: bool) -> void:

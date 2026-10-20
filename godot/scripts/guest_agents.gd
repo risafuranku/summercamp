@@ -40,7 +40,18 @@ const HIDDEN_DWELL_KINDS := ["sleep", "rest", "arrive", "away"]
 const INTERACT_MAX_DISTANCE := 4.2
 const MARKER_ANGRY := preload("res://assets/textury/npc/mood_angry.png")
 const MARKER_HAPPY := preload("res://assets/textury/npc/mood_happy.png")
-const MARKER_NEED := preload("res://assets/textury/npc/mood_need.png")
+## What a guest needs, as a blue enamel plate with a pictogram (tools/gen_stink_sprites.py).
+## It was a yellow "?" bubble, which at night read as the eyes of the things in the dark
+## (playtest 20. 10.).
+const MARKER_NEEDS := {
+	"bladder": preload("res://assets/textury/npc/need_bladder.png"),
+	"hunger": preload("res://assets/textury/npc/need_hunger.png"),
+	"hygiene": preload("res://assets/textury/npc/need_hygiene.png"),
+	"fun": preload("res://assets/textury/npc/need_fun.png"),
+	"energy": preload("res://assets/textury/npc/need_energy.png"),
+	"safety": preload("res://assets/textury/npc/need_safety.png"),
+}
+const MARKER_NEED := preload("res://assets/textury/npc/need_any.png")
 
 var _move_acc := 0.0
 var _grid_manager: Node
@@ -522,8 +533,9 @@ func _attraction_at(tile: Vector2i) -> Node:
 
 
 ## Build games had no floating text; guests show a small marker instead: a red "!"
-## when miserable, a "?" while they are hunting for something they need, a heart when
-## delighted. What they actually say goes to the HUD quote line (see nearby_thoughts).
+## when miserable, a blue plate with what they badly need (WC, knife and fork, shower...),
+## a heart when delighted. What they actually say goes to the HUD quote line (see
+## nearby_thoughts).
 func _update_marker(party: Dictionary, info: Dictionary, lead_pos: Vector3, visible_now: bool) -> void:
 	var marker := party.get("marker", null) as Sprite3D
 	if marker == null:
@@ -534,7 +546,7 @@ func _update_marker(party: Dictionary, info: Dictionary, lead_pos: Vector3, visi
 	if mood < GUEST_NEEDS.UNHAPPY_MOOD:
 		tex = MARKER_ANGRY
 	elif not worst.is_empty() and float(worst.get("value", 100.0)) < GUEST_NEEDS.CRITICAL_THRESHOLD + 10.0:
-		tex = MARKER_NEED
+		tex = MARKER_NEEDS.get(str(worst.get("need", "")), MARKER_NEED)
 	elif mood >= 80.0:
 		tex = MARKER_HAPPY
 	if not visible_now or tex == null:

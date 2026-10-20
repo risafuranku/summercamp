@@ -13,6 +13,7 @@ const GUEST_LIFE_SCRIPT = preload("res://scripts/guest_life.gd")
 const GUEST_NEEDS = preload("res://core/systems/guest_needs_system.gd")
 const ROOM_RULES = preload("res://core/systems/room_rules.gd")
 const MESS_RULES = preload("res://core/systems/mess_rules.gd")
+const MAINT_RULES = preload("res://core/systems/maintenance_rules.gd")
 
 const STATUS_ACTIVE := "active"
 const STATUS_SLEEP := "sleep"
@@ -275,6 +276,11 @@ func _advance_guest_life(now_abs: int) -> bool:
 			"bushes":
 				if CoreRoot.has_method("apply_changes"):
 					CoreRoot.apply_changes({"karma": float(state.karma) - 0.25})
+			"visit":
+				# The toilets and showers get dirty with use (cleaned inside).
+				var used := str(event.get("facility", ""))
+				if MAINT_RULES.soils(used) and CoreRoot.actions != null:
+					CoreRoot.actions.soil_building(_life._parse_key(str(event.get("key", ""))), float(MAINT_RULES.SOILED_BY_USE[used]))
 			"storm_off":
 				if EventBus.has_signal("guest_state_changed"):
 					EventBus.guest_state_changed.emit(int(event.get("guest_id", -1)), STATUS_ACTIVE, "storming_off")

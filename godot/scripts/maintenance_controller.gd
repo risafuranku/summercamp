@@ -3,7 +3,9 @@ extends Node
 ## Upkeep in the world: what the player sees and does about building condition.
 ## Only the lamps wear (core/systems/maintenance_rules.gd): they dim day by day and go out
 ## when spent; hold R at one to put in a new bulb (the wrench). The derelict cabin of the
-## start is the other thing R mends. Wear left on anything else (old saves) is cleared.
+## start is the other thing R mends. Wear left on anything else (old saves) is cleared,
+## except on the toilet and shower blocks: theirs is dirt from use (cleaned inside), and
+## a dirty one stinks where you can see it (stink_fx.gd, `_sync_stink`).
 ##
 ## - Every building's condition (GridModel cell "maintenance", 0..1) is mirrored onto
 ##   its structure, which darkens and corrodes as it wears (BuildingManager).
@@ -19,6 +21,7 @@ extends Node
 ## durations) live in core/systems/maintenance_rules.gd.
 
 const RULES = preload("res://core/systems/maintenance_rules.gd")
+const STINK_FX = preload("res://scripts/stink_fx.gd")
 const SFX_WORK := "res://assets/sfx/rednecksfx/rrtick.wav"
 const SFX_DONE := "res://assets/sfx/rednecksfx/rrgeneratorpowerup.wav"
 const SYNC_EVERY := 0.5
@@ -34,6 +37,8 @@ var _camera_getter: Callable
 var _hud: Node
 var _markers_root: Node3D
 var _markers: Dictionary = {}
+## The green fumes over dirty toilet and shower blocks.
+var _stink: Node3D
 var _sync_t: float = 0.0
 var _blink_t: float = 0.0
 var _conditions_shown: Dictionary = {}
@@ -57,6 +62,10 @@ func setup(world: Node3D, building_manager: Node, camera_getter: Callable, hud: 
 		_markers_root = Node3D.new()
 		_markers_root.name = "UpkeepSigns"
 		_world.add_child(_markers_root)
+	if _stink == null or not is_instance_valid(_stink):
+		_stink = STINK_FX.new()
+		_stink.name = "Stink"
+		_world.add_child(_stink)
 	if _sfx == null:
 		_sfx = AudioStreamPlayer.new()
 		_sfx.volume_db = -8.0
@@ -83,6 +92,8 @@ func stop() -> void:
 			m.queue_free()
 	_markers.clear()
 	_conditions_shown.clear()
+	if _stink != null and is_instance_valid(_stink):
+		_stink.clear_all()
 
 
 ## Called every gameplay frame. `can_act`: first-person, no interior or menu open.
@@ -156,6 +167,33 @@ func _sync_world() -> void:
 	for key in _conditions_shown.keys():
 		if not seen.has(key):
 			_conditions_shown.erase(key)
+	_sync_stink(state)
+
+
+## Dirty toilet and shower blocks stink where you can see it (stink_fx.gd), from their
+## condition (on the joining machine the host's, with the camp pulse).
+func _sync_stink(state) -> void:
+	if _stink == null or not is_instance_valid(_stink):
+		return
+	var structures := {}
+	var seen := {}
+	for coord_any in state.grid.cells.keys():
+		var coord: Vector2i = coord_any
+		var cell: Dictionary = state.grid.cells[coord]
+		if cell.get("root_coord", coord) != coord or not RULES.soils(str(cell.get("type", ""))):
+			continue
+		var level := RULES.stink(float(cell.get("maintenance", 1.0)))
+		if level <= 0.0:
+			continue
+		if structures.is_empty():
+			structures = _structures_by_key()
+		var key := "%d:%d" % [coord.x, coord.y]
+		var s: Node3D = structures.get(key, null)
+		if s == null:
+			continue
+		_stink.set_block(key, s, level)
+		seen[key] = true
+	_stink.keep_only(seen)
 
 
 ## What can be mended: every lamp (on its own tile or on a path) and the derelict cabin.
@@ -190,7 +228,8 @@ func _wear_rows() -> Array:
 
 
 ## Old saves: buildings worn or broken from before only the lamps wore go back to whole
-## (a derelict building stays as it is: that one is mended by hand).
+## (a derelict building stays as it is: that one is mended by hand; the toilets and
+## showers keep their dirt).
 func _clear_old_wear(state) -> void:
 	var lamp_keys := {}
 	for coord in state.grid.lamp_coords():
@@ -207,6 +246,9 @@ func _clear_old_wear(state) -> void:
 		var coord: Vector2i = coord_any
 		var cell: Dictionary = state.grid.cells[coord]
 		if cell.get("root_coord", coord) != coord or str(cell.get("type", "")) == "lamp_post":
+			continue
+		# The toilets and showers are not worn but dirty (MaintenanceRules.SOILED_BY_USE).
+		if RULES.soils(str(cell.get("type", ""))):
 			continue
 		if float(cell.get("maintenance", 1.0)) < 1.0 and not state.failures.has("%d:%d" % [coord.x, coord.y]):
 			CoreRoot.actions.clear_wear(coord)
