@@ -164,11 +164,33 @@ def pairs(only):
             save(shrink(piece, longest), HL + name + ".png")
 
 
+# Things Grok drew beside a hand that the station has as sprites of its own (the bottles
+# under the opener): render id -> boxes cleared, and boxes where only the gold of a cap
+# is cleared (the opener's ring round it stays).
+CLEAR = {"pk_hs_opener": [(0, 285, 200, 720), (700, 0, 850, 720)]}
+CLEAR_GOLD = {"pk_hs_opener": [(80, 220, 200, 285)]}
+
+
+def clear(art_id, img):
+    px = img.load()
+    for x0, y0, x1, y1 in CLEAR.get(art_id, []):
+        for y in range(y0, min(y1, img.height)):
+            for x in range(x0, min(x1, img.width)):
+                px[x, y] = (0, 0, 0, 0)
+    for x0, y0, x1, y1 in CLEAR_GOLD.get(art_id, []):
+        for y in range(y0, min(y1, img.height)):
+            for x in range(x0, min(x1, img.width)):
+                r, g, b, a = px[x, y]
+                if a > 0 and r > 120 and g > 80 and r - b > 70 and abs(r - g) < 90:
+                    px[x, y] = (0, 0, 0, 0)
+    return img
+
+
 def cut(art_id):
     src = raw(art_id)
     if src is None:
         return None
-    img = process.key_out(Image.open(src))
+    img = clear(art_id, process.key_out(Image.open(src)))
     boxes, _labels, _w = split_sheet.items(img, 14)
     return img, boxes
 
