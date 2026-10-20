@@ -7,8 +7,9 @@ const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const DEMOLISH_FEE_PER_TILE: int = 4
 ## Only a sanity bound on one request: the whole site fits under it.
 const DEMOLISH_MAX_SIZE: int = 64
-## Jednota (vecerka) is not here: the shop is in the town down the road (old saves
-## still load theirs).
+## Jednota (vecerka) is back (DESIGN §5i, the user 20. 10.): the camp's own, very dear,
+## opened on Goggle at 4.0 (the lock is Builder 98's, scripts/reviews/goggle.gd). The
+## Mega gnome is Builder 98's registered copies' (scripts/builder/shareware.gd).
 const ALLOWED_BUILD_TYPES: Dictionary = {
 	"tent_1": true,
 	"cabin_1": true,
@@ -32,6 +33,8 @@ const ALLOWED_BUILD_TYPES: Dictionary = {
 	"ping_pong": true,
 	"hammock": true,
 	"corn_stand": true,
+	"vecerka": true,
+	"mega_gnome": true,
 }
 
 var _state

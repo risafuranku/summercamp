@@ -99,6 +99,7 @@ godot --headless --path godot --script res://tools/season_check.gd
 godot --headless --path godot --script res://tools/director_check.gd
 godot --headless --path godot --script res://tools/bazaar_check.gd
 godot --headless --path godot --script res://tools/goggle_check.gd
+godot --headless --path godot --script res://tools/builder98_check.gd
 godot --headless --path godot --script res://tools/bistro_check.gd
 godot --headless --path godot res://tools/business_check.tscn   # the books: lots, going off, gear, one order, wages
 godot --headless --path godot res://tools/staff_check.tscn      # the hands: ways, applicants, shifts, away, theft, the kitchen's crew
@@ -178,7 +179,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | The thing in the pipes, its staging | `scripts/pipes/pipe_director.gd` (the minigame keeps the network, movement, map, clamp) |
 | The night's director (tension, events, log) | `scripts/night/night_director.gd` (pure logic, `tools/director_check.gd`), effects `scripts/night/director_effects.gd`, context `main._director_context()`; sounds `assets/sfx/director/`; F10 panel (debug builds) |
 | The reception's plan (office, back room, building, windows) | `scripts/reception/reception_layout.gd`; the building `building_models.reception()`; curtains `scripts/reception/curtain.gd` |
-| Builder construction effects | `scripts/builder_fx.gd` (wave, local grid, outlines, ripples); lamp spot on paths `scripts/lamp_spot.gd`; building sites and rubble in `crt_map_panel.gd` (`_start_site`, `_tick_sites`, `_draw_site`, `_leave_rubble`; `_known` = what the static layer last drew), rows by dragging (`ROW_TYPES`, `_update_row`, `_end_row`); coins, the odometer, the music and the tool on the pointer in `builder_module.gd` (`_launch_coins`, `_draw_odo`, `_tick_music`, `cursor_texture` -> `os_shell.tool_cursor`); the sprites from `tools/artgen/web_review_art.py` |
+| Builder construction effects | `scripts/builder_fx.gd` (wave, local grid, outlines, ripples); lamp spot on paths `scripts/lamp_spot.gd`; building sites and rubble in `crt_map_panel.gd` (`_start_site`, `_tick_sites`, `_draw_site`, `_leave_rubble`; `_known` = what the static layer last drew), rows by dragging (`ROW_TYPES`, `_update_row`, `_end_row`); coins, the odometer, the music and the tool on the pointer in `builder_module.gd` (`_launch_coins`, `_draw_odo`, `_tick_music`, `cursor_texture` -> `os_shell.tool_cursor`); the sprites from `tools/artgen/web_review_art.py`; `scripts/builder/`: `day_graph.gd` (main's `_day_graph`, recorded at dawn) and `graphs_window.gd`, `shareware.gd` (the nag, the key, the cheats; the PC's store "builder98"), `courier_news.gd` + `news_paper.gd` (extra editions, diplomas; the PC's store "courier"), `about_dozer.gd`; the Mega gnome `data/buildings/mega_gnome.tres` + `building_models._mega_gnome` |
 | Toilet scrubbing | `scripts/scrub_minigame.gd` (opened by `interior_tasks.gd` for tasks with `scrub`) |
 | Night work programs | `scripts/os98/apps/datapunch_app.gd`; guest book replies `EmailManager.reply_to_review` |
 | The lost and found, the bazaar | `scripts/bazaar.gd` (pure, `tools/bazaar_check.gd`); main `_on_guest_state_for_bazaar` / `_settle_bazaar`; page `bazar-hlubocany.cz` in `web_pages.gd`, `{{bazaar}}` and `bazaar://list/ID` in `browser_app.gd` |

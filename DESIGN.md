@@ -507,6 +507,36 @@ was left out: the camp's rating is Goggle (§5i), and it opens the blueprints.
   each camp (from its seed, open forest away from the middle) says in the status line
   that something is buried there. The site report now and then counts one guest more
   than there are, after six.
+- **Graphs** (the toolbar's chart, or G): Transport Tycoon's window in the 98 look, one
+  page at a time: Cash, Guests (people staying), Mood, Goggle, Takings (a line per kind
+  of business, each name in the legend turning it off and on), the last two weeks with
+  today's point live. Main records each day that ended at dawn
+  (`scripts/builder/day_graph.gd`, saved as "graph").
+- **The Courier's extra editions.** The district paper the web has a page of (the
+  Hlubocany Courier) brings out an extra in the Builder when the camp does something
+  worth printing: the first caravan, the slide, a pub, its own Jednota, the Mega gnome,
+  each Goggle tier, being caught tidying up its reviews, ten, twenty, forty, eighty guests
+  at once. A newspaper window: the masthead, the date, the headline, a halftone of the
+  thing, the story; a fanfare; a click puts it away. Each runs once; a camp already
+  going when this came in has its old news counted as printed.
+- **The district's diplomas**, each once: Most Improved Camp (a star more on Goggle than
+  last summer's page), the Guests' Favourite (ten or more in good spirits), the Tidiest
+  Camp (ten buildings or more in good repair). The district's own paper (Grok, no words)
+  with the award typed on it.
+- **Shareware.** Stavitel software's nag after ten builds and every twelve after
+  ("You have built 10 things with an unregistered copy..."), and once when it starts.
+  Help > Register...: $99 of the camp's money, the key by mail the next morning
+  (Stavitel software), typed in; registered: no nag, About says so, and the Mega gnome
+  (a garden gnome four and a half times over on a 2x2, $1998) is in Decor. All of it on
+  the PC (os_shell's store "builder98", `scripts/builder/shareware.gd`).
+- **Cheats**, typed on the map, written down nowhere: BOHEMIA ($5,000, and the next
+  morning a letter from the district asking where it came from), KAREL (the uncle's old
+  camp over the map a few seconds, pale), MOLE (the buried tile marked), VERA (Vera has
+  a word). Their letters are tool keys too; once a cheat is typed the tools are put back
+  as they were.
+- **About** has the credits and, under them, a little bulldozer flattening tents in a
+  strip of grass; it drives itself until the arrow keys take it.
+- The Jednota is buildable again (the camp's own; locked at Goggle 4.0).
 
 ## 6. Upkeep
 

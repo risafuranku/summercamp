@@ -14,7 +14,7 @@ const CAMP := "res://assets/textury/camp/"
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
-	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand"]
+	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -60,6 +60,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _flowerbed(root, w, d)
 		"gnome":
 			return _gnome(root, w, d)
+		"mega_gnome":
+			return _mega_gnome(root, w, d)
 		"flagpole":
 			return _flagpole(root, w, d)
 		"playground":
@@ -1062,6 +1064,17 @@ func _gnome(r: Node3D, _w: float, _d: float) -> Dictionary:
 	lamp.name = "Lantern"
 	_use_script(g, "res://scripts/attractions/gnome.gd")
 	return {"size": Vector3(0.5, 0.65, 0.5), "target": Vector3(0, 0.4, 0.3)}
+
+
+## Builder 98's registered copies' gnome: the garden gnome, four and a half times over
+## (as tall as a cabin), on its 2x2.
+func _mega_gnome(r: Node3D, w: float, d: float) -> Dictionary:
+	var info := _gnome(r, w, d)
+	var g := r.get_node_or_null("Gnome") as Node3D
+	var k := 4.5
+	if g != null:
+		g.scale = Vector3(k, k, k)
+	return {"size": (info["size"] as Vector3) * k, "target": (info["target"] as Vector3) * k}
 
 
 func _flagpole(r: Node3D, _w: float, _d: float) -> Dictionary:

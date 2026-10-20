@@ -100,14 +100,14 @@ start, collect good ratings; pay to delete bad reviews".
   guest card on click with their thoughts, some of them wrong ("The lake looked at me.")
 - [x] The map lies, rarely: a tent nobody built for one frame, a tile that says "Something
   is buried here"
-- [ ] A Graphs window (Transport Tycoon's): money, guests, satisfaction over 14 days (look
+- [x] A Graphs window (Transport Tycoon's): money, guests, satisfaction over 14 days (look
   for a day-by-day history first, e.g. the week ledger)
 - [x] Builder music: a General MIDI-style loop (ElevenLabs), detuned a little at night
-- [ ] Hlubočanský zpravodaj (the district paper) now and then, and award diplomas for the
+- [x] Hlubočanský zpravodaj (the district paper) now and then, and award diplomas for the
   camp
-- [ ] Cheats typed on the map (BOHEMIA: money, and the next day a letter from the district
+- [x] Cheats typed on the map (BOHEMIA: money, and the next day a letter from the district
   asking about it)
-- [ ] Shareware: a nag after ~10 builds, a registration-locked Mega gnome, Help > About
+- [x] Shareware: a nag after ~10 builds, a registration-locked Mega gnome, Help > About
   with credits and a Snake easter egg
 - Planned: the living map's bits in `scripts/builder/map_life.gd`, small hooks in
   `crt_map_panel.gd`

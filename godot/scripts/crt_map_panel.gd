@@ -25,7 +25,7 @@ const ICON_SPAN := {
 	"caravan_1": 1.27, "caravan_2": 1.27, "caravan_3": 1.27, "toilet_block": 0.85, "shower_block": 1.02,
 	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
 	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
-	"flower_bed": 0.42, "gnome": 0.2, "flagpole": 0.3, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.5,
+	"flower_bed": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.5,
 }
 const SFX_DIR := "res://assets/sfx/builder/"
 
@@ -91,6 +91,7 @@ const ICON_PATHS := {
 	"picnic_table": "res://assets/textury/builder/iso_picnic.png",
 	"flower_bed": "res://assets/textury/builder/iso_flowerbed.png",
 	"gnome": "res://assets/textury/builder/iso_gnome.png",
+	"mega_gnome": "res://assets/textury/builder/iso_gnome.png",
 	"flagpole": "res://assets/textury/builder/iso_flagpole.png",
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
@@ -312,6 +313,9 @@ var _guest_minds: Dictionary = {}   # id -> {think, value}
 var _lie_at := 900.0               # Builder time of the next phantom
 var _lie: Dictionary = {}          # {cell, until}
 var _buried := Vector2i(-2, -2)
+## Cheats' pictures (builder_module): KAREL the uncle's old camp, MOLE the buried tile.
+var _karel_until := -1.0
+var _mole_until := -1.0
 var _mind_poll := 0.0
 var _wx_drops: Array = []
 var _dither: Array = []          # ordered-dither textures, 25/50/75 % ink
@@ -1497,6 +1501,13 @@ func _draw_dynamic() -> void:
 		var off := Vector2(sin(ph * 0.7) * tile_w * 0.12, cos(ph * 0.5) * tile_h * 0.10)
 		_cv.draw_line(c + off - Vector2(tile_w * 0.12, 0), c + off + Vector2(tile_w * 0.12, 0), Color(0.7, 0.85, 1.0, a), 1.0)
 	_tick_lie()
+	if _time < _karel_until:
+		_draw_old_camp(origin, tile_w, tile_h)
+	if _time < _mole_until and _is_valid_coord(_buried_tile()):
+		var bc := _footprint_center_iso(_buried_tile(), Vector2i.ONE, origin, tile_w, tile_h)
+		var r := tile_h * 0.35
+		_cv.draw_line(bc - Vector2(r, r * 0.5), bc + Vector2(r, r * 0.5), Color8(200, 20, 20), 2.0)
+		_cv.draw_line(bc + Vector2(-r, r * 0.5), bc + Vector2(r, -r * 0.5), Color8(200, 20, 20), 2.0)
 	if not _lie.is_empty() and _time < float(_lie["until"]):
 		var lc: Vector2i = _lie["cell"]
 		_draw_building_icon(_footprint_center_iso(lc, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, "tent_1", 0, Color(0.92, 0.92, 0.92, 0.96), tile_w, tile_h)
@@ -2744,7 +2755,7 @@ func _icon_key_for_type(building_type: String) -> String:
 			return "cabin_1"
 		"caravan_1", "caravan_2", "caravan_3", "bonfire", "sports_field", "lake_slide":
 			return building_type
-		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand":
+		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome":
 			return building_type
 		"toilet_block":
 			return "toilet_block"
@@ -3210,6 +3221,43 @@ func _draw_smoke(center: Vector2, tile_h: float, strength: float, seed: int) -> 
 			_cv.draw_texture_rect(_dust_tex, Rect2(q - Vector2(r, r * 0.8), Vector2(r * 2.0, r * 1.6)), false, col)
 		else:
 			_cv.draw_rect(Rect2(q - Vector2(r, r) * 0.5, Vector2(r, r)), col)
+
+
+## KAREL: how the camp stood under the uncle, over the map a few seconds (from the
+## world's seed, the same each time: tents in rows by the lake, two cabins, a fire).
+func show_old_camp(seconds: float) -> void:
+	_karel_until = _time + seconds
+
+
+func show_buried(seconds: float) -> void:
+	_mole_until = _time + seconds
+	_emit_status("Something is buried here.")
+
+
+func _draw_old_camp(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	if grid_manager == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	var wg = get_tree().current_scene.get("world_generator") if get_tree().current_scene != null else null
+	rng.seed = (int(wg.get("world_seed")) if wg != null else 0) * 13 + 5
+	var gw := int(grid_manager.grid_width)
+	var gh := int(grid_manager.grid_height)
+	var a := clampf((_karel_until - _time) / 0.8, 0.0, 1.0) * 0.45
+	var tint := Color(0.86, 0.80, 0.66, a)
+	var rows := rng.randi_range(2, 3)
+	var start := Vector2i(rng.randi_range(3, gw / 2), rng.randi_range(3, gh / 2))
+	for r in rows:
+		for i in 5:
+			var c := start + Vector2i(i * 2, r * 2)
+			if _is_valid_coord(c):
+				_draw_building_icon(_footprint_center_iso(c, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, "tent_1", 0, tint, tile_w, tile_h)
+	for k in 2:
+		var cc := start + Vector2i(11 + k * 3, 1)
+		if _is_valid_coord(cc):
+			_draw_building_icon(_footprint_center_iso(cc, Vector2i(2, 2), origin, tile_w, tile_h), Vector2i(2, 2), "cabin_1", 0, tint, tile_w, tile_h)
+	var fc := start + Vector2i(4, rows * 2 + 1)
+	if _is_valid_coord(fc):
+		_draw_building_icon(_footprint_center_iso(fc, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, "bonfire", 0, tint, tile_w, tile_h)
 
 
 func _tick_lie() -> void:

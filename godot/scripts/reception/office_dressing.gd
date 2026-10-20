@@ -37,6 +37,11 @@ var _stoke := 0.0
 var _flick := 1.0
 var _flick_t := 0.0
 var _shown_minute := -1
+## The district's diplomas for the camp (Builder 98's Courier, DESIGN §5j: the PC's store
+## "courier"), framed in a row under the key board as they come.
+const DIPLOMA_AT := [Vector3(2.488, 1.1, 0.3), Vector3(2.488, 1.1, 0.7), Vector3(2.488, 1.1, 1.1)]
+var _diplomas_hung := 0
+var _diploma_t := 0.0
 
 
 func build(parent: Node3D) -> void:
@@ -236,7 +241,29 @@ func _hand(parent: Node3D, length: float, width: float, mat: Material, z: float)
 
 ## Every frame: the clock, the fire (in steps, twelve a second, like the campfire), the
 ## ceiling light's glass.
+func _hang_diplomas() -> void:
+	if root == null or not root.is_inside_tree():
+		return
+	var main = root.get_tree().current_scene
+	var im = main.get("_interior_manager") if main != null else null
+	var bi = im.get("_building_interior") if im != null else null
+	var pc = bi.get("_crt_ui") if bi != null else null
+	if pc == null or not pc.has_method("stored"):
+		return
+	var c = pc.stored("courier", {})
+	var n := mini(DIPLOMA_AT.size(), ((c as Dictionary).get("diplomas", []) as Array).size() if c is Dictionary else 0)
+	while _diplomas_hung < n:
+		var at: Vector3 = DIPLOMA_AT[_diplomas_hung]
+		K.slab(root, Vector3(0.02, 0.44, 0.34), at + Vector3(0.012, 0, 0), K.surface("galvanized", 0.2, Color(0.22, 0.15, 0.09)), "DiplomaFrame%d" % _diplomas_hung)
+		K.picture(root, "diploma_frame", Vector2(0.3, 0.4), at - Vector3(0.002, 0, 0), -90.0, "Diploma%d" % _diplomas_hung)
+		_diplomas_hung += 1
+
+
 func update(delta: float, hour: float, lights_on: bool) -> void:
+	_diploma_t -= delta
+	if _diploma_t <= 0.0:
+		_diploma_t = 2.0
+		_hang_diplomas()
 	_t += delta
 	var minute := int(floor(hour * 60.0)) % (24 * 60)
 	if minute != _shown_minute:

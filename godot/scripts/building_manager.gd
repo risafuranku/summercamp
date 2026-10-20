@@ -363,6 +363,8 @@ func place_building_at(origin: Vector2i, building_type: String) -> bool:
 			return _place_placeholder_at(origin, "dumpsters", Vector2i(1, 1), Color(0.22, 0.38, 0.28), Color(0.18, 0.30, 0.22), "utilities", 0.9)
 		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "ping_pong", "hammock":
 			return _place_placeholder_at(origin, building_type, Vector2i(1, 1), Color(0.4, 0.5, 0.3), Color(0.8, 0.7, 0.5), "attractions", 0.6)
+		"mega_gnome":
+			return _place_placeholder_at(origin, "mega_gnome", Vector2i(2, 2), Color(0.4, 0.5, 0.3), Color(0.8, 0.7, 0.5), "attractions", 2.9)
 		"playground":
 			return _place_placeholder_at(origin, "playground", Vector2i(2, 1), Color(0.6, 0.5, 0.3), Color(0.9, 0.3, 0.2), "attractions", 1.2)
 		"corn_stand":
