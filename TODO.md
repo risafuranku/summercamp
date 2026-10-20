@@ -97,8 +97,10 @@ finished game, by impact:
   creak and thud (20. 10.)
 - [x] Things to nudge: bottles, cans, a bucket, cones your (and the other wardens') feet
   kick, with their sounds (20. 10., `nudge_props.gd`)
-- [ ] Body: hands (one glove for every tool, more frames, sway, cold and fear tremor,
-  reaching for doors and switches; another session's area since 0749f84)
+- [x] Body: the hands' sway and swing back on a turn, the cold and fear tremor, reaching
+  for things (36b51c2, another session's area since 0749f84)
+- [ ] Body: one glove and sleeve for every tool, more frames a motion, a look at the watch
+  when idle (the hands' session)
 - [x] The menu camera: calm film shots since 77e5bac; all of them seen again on 20. 10.
   after the new light (the misty jetty, the golden corn, the office in the rain, the far
   shore, the gate at night, the red sky after sunset of 35ac52b): they read
