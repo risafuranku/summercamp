@@ -29,16 +29,17 @@ var _sizzle: AudioStreamPlayer
 
 func _build() -> void:
 	super._build()
-	for i in 6:
+	for i in 4:
 		var t := sprite(TEX + "sausage_raw.png", SAUSAGE_M, true)
-		put(t, TRAY.position + Vector2(46, 16 + i * 28), 0.012)
+		# Lying lengthways in the box, two by two.
+		put(t, TRAY.position + Vector2(24 + (i % 2) * 44, 42 + (i / 2) * 90), 0.012 + 0.001 * i)
 		_tray.append(t)
 	for i in SLOTS.size():
 		var s := sprite(TEX + "sausage_raw.png", SAUSAGE_M, true)
 		put(s, SLOTS[i], 0.016)
 		_sausages.append(s)
 		var m := meter(5, 16)
-		m.position = local_at(SLOTS[i] + Vector2(0, -34), 0.03)
+		m.position = local_at(SLOTS[i] + Vector2(30, -20), 0.03)
 		_meters.append(m)
 		var puff := sprite("res://assets/textury/camp/steam_puff.png", 0.08, false)
 		puff.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -47,7 +48,7 @@ func _build() -> void:
 		_smoke.append(puff)
 	for i in 6:
 		var r := sprite(TEX + "sausage_done.png", SAUSAGE_M, true)
-		put(r, RACK.position + Vector2(66, 22 + i * 36), 0.014)
+		put(r, RACK.position + Vector2(22 + (i % 3) * 44, 58 + (i / 3) * 104), 0.014)
 		_rack.append(r)
 	_sizzle = AudioStreamPlayer.new()
 	var path := "res://assets/sfx/bistro/fryer.mp3"

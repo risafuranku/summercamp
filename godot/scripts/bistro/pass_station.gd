@@ -26,8 +26,8 @@ const ONION := Rect2(520, 175, 105, 100)
 const BELL := Rect2(548, 6, 70, 60)
 ## The grilled sausages off the grill, the mustard jar, the bread basket.
 const SHELF_SAUSAGE := Rect2(446, 44, 98, 60)
-const MUSTARD := Rect2(452, 282, 66, 70)
-const BREAD := Rect2(528, 282, 104, 72)
+const MUSTARD := Rect2(556, 72, 72, 96)
+const BREAD := Rect2(440, 198, 78, 76)
 ## Where each thing lies on the plate (offset from its centre, design px).
 const ON_PLATE := {
 	"goulash": Vector2(-14, -6), "dumpling": Vector2(20, -4), "onion": Vector2(-16, -12),
