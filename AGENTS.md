@@ -130,6 +130,11 @@ GuestManager method: `eval` cannot reach autoloads), `prep_all`. Steps include `
 `eval` (Expression against Main; autoload names are not reachable from it).
 Check visual changes at 1280x720 **and** 1920x1080.
 
+Films of the businesses' work (the camera to a station, frying, a beer, the till, PROTOTYP 540):
+`godot --path godot --write-movie <out>/<movie>.avi --fixed-fps 30 res://tools/movie_driver.tscn -- --movie=till|fry|tap|proto --out=<out> --size=1280x720`,
+then `python tools/movie_cut.py <out>/<movie>.avi` keeps only the work (its `mark` steps) as `<movie>_cut.avi` and
+a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `proto_shots`) take `--size=WxH` too.
+
 ---
 
 ## 4. Where things live

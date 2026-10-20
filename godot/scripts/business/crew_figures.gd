@@ -5,7 +5,8 @@ extends Node3D
 ## (assets/textury/npc/staff/<slug>_work.png, Grok, the people of the ID photos); one
 ## whose place a warden has taken stands aside, idle. Somebody away today is not there.
 ## The one who worked here before is at his place at night too, when the place is shut
-## and dark, and nobody asked him to be. Made by scripts/service_interior.gd for a room.
+## and dark, and nobody asked him to be. One who did not come in today left a note where
+## they would stand (a click reads it). Made by scripts/service_interior.gd for a room.
 
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const STAFF_DIR := "res://assets/textury/npc/staff/"
@@ -15,7 +16,8 @@ const STEP := 0.5
 
 var key := ""
 ## role -> {root: Node3D (the room it is in), pos: Vector3 (on the floor, room space),
-## station: the station id the role works at ("" none)}
+## station: the station id the role works at ("" none), note: where the note of one away
+## today is pinned (room space; over the place by default)}
 var spots: Dictionary = {}
 ## -> [station ids a warden is at now]
 var busy_of: Callable
@@ -24,6 +26,9 @@ var busy_of: Callable
 var open_of: Callable
 
 var _figs: Dictionary = {}
+## role -> the note of a hand away today (Sprite3D, with its look box).
+var _notes: Dictionary = {}
+const NOTE_TEX := "res://assets/textury/camp/note_away.png"
 var _acc := 0.0
 static var _tex: Dictionary = {}
 
@@ -81,6 +86,7 @@ func refresh() -> void:
 		if aside:
 			pos += (spot.get("aside", Vector3(0.7, 0, 0.4)) as Vector3)
 		fig.position = pos
+	_show_notes(s, want)
 	for slug in _figs.keys():
 		var keep := false
 		for r in want:
@@ -109,3 +115,54 @@ func clear() -> void:
 		if is_instance_valid(_figs[slug]):
 			(_figs[slug] as Node).queue_free()
 	_figs.clear()
+	for r in _notes:
+		if is_instance_valid(_notes[r]):
+			(_notes[r] as Node).queue_free()
+	_notes.clear()
+
+
+## Notes where the hands away today would stand (not where somebody else works the job).
+func _show_notes(s: Dictionary, working: Dictionary) -> void:
+	var day := int(CoreRoot.get_day()) if CoreRoot != null else -1
+	var want := {}
+	for p in s.get("crew", []):
+		var role := str(p.get("role", ""))
+		if int(p.get("absent", -1)) != day or not spots.has(role) or working.has(role):
+			continue
+		want[role] = str(p.get("name", "a hand"))
+	for role in want:
+		if _notes.has(role) and is_instance_valid(_notes[role]):
+			continue
+		if not ResourceLoader.exists(NOTE_TEX):
+			continue
+		var spot: Dictionary = spots[role]
+		var n := Sprite3D.new()
+		n.name = "AwayNote_" + str(role)
+		n.texture = load(NOTE_TEX)
+		n.pixel_size = 0.16 / float(maxi(1, n.texture.get_height()))
+		n.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		n.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		n.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		n.shaded = true
+		n.position = spot.get("note", (spot["pos"] as Vector3) + Vector3(0, 1.0, 0))
+		var body := StaticBody3D.new()
+		body.set_meta("interior_click_type", "bistro_look")
+		body.set_meta("bistro_look", "A note in pencil from %s: not coming in today." % str(want[role]))
+		body.set_meta("bistro_name", "note")
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(0.2, 0.22, 0.2)
+		shape.shape = box
+		body.add_child(shape)
+		# In a room not shown now its box is off till the room is (service_interior._bodies_live).
+		body.set_meta("live_layer", body.collision_layer)
+		if not (spot["root"] as Node3D).visible:
+			body.collision_layer = 0
+		n.add_child(body)
+		(spot["root"] as Node3D).add_child(n)
+		_notes[role] = n
+	for role in _notes.keys():
+		if not want.has(role):
+			if is_instance_valid(_notes[role]):
+				(_notes[role] as Node).queue_free()
+			_notes.erase(role)

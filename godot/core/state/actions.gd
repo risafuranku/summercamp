@@ -167,6 +167,10 @@ func _biz() -> Dictionary:
 	for k in ["sites", "orders", "licences"]:
 		if not _state.biz.has(k):
 			_state.biz[k] = {} if k == "sites" else []
+	# The books' stamp: another camp's books, another stamp (saved with them), so what the
+	# places keep in memory (the kitchen's pans, the shop's rack) goes with the camp.
+	if int(_state.biz.get("stamp", 0)) == 0:
+		_state.biz["stamp"] = 1 + randi() % 1000000000
 	return _state.biz
 
 
@@ -185,8 +189,11 @@ func _biz_tell(kind: String, args: Array) -> void:
 ## older save's record gets what it lacks (the lots dated today, its one hand as a person).
 func biz_site(key: String, building_type: String) -> Dictionary:
 	var sites: Dictionary = _biz()["sites"]
+	var kind := BIZ_RULES.kind_of(building_type)
+	# Another kind of place stands there now than the books knew: its own books.
+	if sites.has(key) and kind != "" and str((sites[key] as Dictionary).get("kind", kind)) != kind:
+		sites.erase(key)
 	if not sites.has(key):
-		var kind := BIZ_RULES.kind_of(building_type)
 		if kind == "":
 			return {}
 		sites[key] = BIZ_RULES.new_site(kind, maxi(1, int(_state.day)))

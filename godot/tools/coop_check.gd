@@ -84,8 +84,8 @@ func _ready() -> void:
 			["coop_wait_file", "client_court_done"], ["eval", "_warden_play.leave()"], ["wait", 0.5], ["coop_place", 12, 14, 1.0],
 			# Behind the pub's bar at the tap: the other warden sees them there.
 			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('pub'))"], ["wait", 2.0],
-			["eval", "_interior_manager._service_interior._open_counter_game()"], ["wait", 1.0], ["coop_signal", "host_at_tap"],
-			["coop_wait_file", "client_saw_tap"], ["eval", "_interior_manager._service_interior._counter_game.close_view()"], ["wait", 0.5],
+			["eval", "_interior_manager._service_interior._open_station('tap')"], ["wait", 1.0], ["coop_signal", "host_at_tap"],
+			["coop_wait_file", "client_saw_tap"], ["eval", "_interior_manager._service_interior._stations['tap'].close_station()"], ["wait", 0.5],
 			["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0], ["coop_place", 12, 14, 1.0],
 			# The other warden behind the corn stand, ordering corn: seen there, the order in
 			# the host's books.

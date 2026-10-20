@@ -367,11 +367,11 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 
 - [x] Phase 0: the bistro's stations in the 3D room (`scripts/business/station3d.gd`, the rail, the frame)
 - [x] Phase 1: Papa's ratings, the Z report, goods going off by lots, one order from the PC, gear, the hands (roles, shifts, away, theft, the strange two), open late with the night inside
-- [ ] Phase 1 left: the chalk strike on the menu board (bzs_chalk), a note on the door when a hand is away; the bistro's gear in the room from its pictures (camp/gear_*.png, processed)
+- [x] Phase 1 left: the chalk strike on the menu board, a note where a hand away today would stand (camp/note_away, crew_figures), the bistro's gear in the room (heat lamps, ticket clock, dishwasher)
 - [x] Phase 2: the pub (stations along the bar in 3D, the keg in the cellar, its hands by role, kegs that go flat, gear; pub_check, pub_shots, pub_coop)
-- [ ] Phase 2 left: the gear's pictures in the pub (camp/gear_glasswasher, gear_cooler, gear_tap2), sounds for the keg (keg_roll, coupler, gas_hiss) and the order ding of its own
+- [x] Phase 2 left: the pub's gear seen (the second tap by the tower, the quick coupler's head, the glass washer, the cooler), sounds of the keg (keg_roll, coupler, gas_hiss) and its own order (a coin on the bar)
 - [x] Phase 3: the corn stand (counter and husking in 3D on the stand's counter, the live camp beyond it; its hands, gear; stand_check, stand_shots, stand_coop)
-- [ ] Phase 3 left: the gear seen at the stand (camp/gear_cornpot, gear_butter, gear_husktable), sounds of its own (the boil, a leaf torn, the salt)
+- [x] Phase 3 left: the gear seen at the stand (the bigger pot, the butter warmer, the husking table), sounds of its own (a leaf torn, a cob into the pot, the butter, the salt)
 - [x] Phase 4: the Jednota (three by three with its Build model and Builder pictures; the till, the shelves and the storeroom in 3D; the queue; its hands, gear; dear and it pays; jednota_check, jednota_shots, jednota_coop)
 - [x] Phase 5: PROTOTYP 540 (awake at night and on the late shift; the sack on its nights; fed, the goulash's meat for nothing by morning; proto_check, proto_shots)
 - [x] Cellar / machine room: the dark mechanic designed and hooked up (PROTOTYP 540, DESIGN §7b "The bistro")

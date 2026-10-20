@@ -33,9 +33,16 @@ var _rng := RandomNumberGenerator.new()
 var open_books: Callable
 
 
+## The husking table once bought, under the cob being husked.
+var _gear_table: Sprite3D
+
+
 func _build() -> void:
 	super._build()
 	_rng.randomize()
+	_gear_table = sprite("res://assets/textury/camp/gear_husktable.png", 0.42, true)
+	put(_gear_table, TABLE_AT, 0.002)
+	_gear_table.visible = false
 	_cob_spr = lying("cob_raw", COB_M)
 	_cob_spr.visible = false
 	for i in CORN.LEAVES:
@@ -57,6 +64,7 @@ func _build() -> void:
 func _show() -> void:
 	if stand == null or building_key == "":
 		return
+	_gear_table.visible = BUSINESS.has_gear(building_key, "table")
 	var n := int(stand.bowl(building_key))
 	for i in _bowl_spr.size():
 		var b: Sprite3D = _bowl_spr[i]

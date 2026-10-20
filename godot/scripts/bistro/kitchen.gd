@@ -430,7 +430,9 @@ func _process(delta: float) -> void:
 		return
 	# Another camp (a new game, a load, a co-op camp arriving): its own kitchens.
 	var st = CoreRoot.get_state() if CoreRoot != null else null
-	var sid: int = st.get_instance_id() if st != null else 0
+	# The state object may stay the same from camp to camp: the books' stamp does not
+	# (actions._biz).
+	var sid: int = (st.get_instance_id() + int((st.biz as Dictionary).get("stamp", 0))) if st != null and st.biz is Dictionary else 0
 	if sid != _state_id:
 		_state_id = sid
 		_sites.clear()

@@ -6192,6 +6192,9 @@ func _reset_state_for_new_game() -> void:
 	state.guest_reviews.clear()
 	state.guest_transactions.clear()
 	state.next_guest_id = 1
+	# The businesses' books too (the menu's preview of the last save left them in: its
+	# places, stock, orders and licences); actions._biz starts them anew with a new stamp.
+	state.biz = {}
 	if EmailManager != null and EmailManager.has_method("reset_runtime"):
 		EmailManager.reset_runtime(true)
 	if GuestManager != null and GuestManager.has_method("reset_runtime_state"):

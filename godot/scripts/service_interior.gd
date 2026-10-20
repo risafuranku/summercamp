@@ -2389,7 +2389,7 @@ func _start_crew() -> void:
 				var st: Dictionary = BISTRO_LAYOUT.STATIONS[st_id]
 				var root: Node3D = _restaurant_kitchen_root if str(st["room"]) == "kitchen" else _restaurant_basement_root
 				if root != null:
-					spots[role] = {"root": root, "pos": st["stand"], "station": st_id, "aside": BISTRO_ASIDE.get(st_id, Vector3(0.8, 0, 0.8))}
+					spots[role] = {"root": root, "pos": st["stand"], "station": st_id, "aside": BISTRO_ASIDE.get(st_id, Vector3(0.8, 0, 0.8)), "note": (st["mark"] as Vector3) - Vector3(0, 0.45, 0)}
 			_crew.busy_of = func() -> Array: return [_station_open()] + _bistro_taken().keys()
 		"pub":
 			for role in PUB_ROLE_AT:
@@ -2397,7 +2397,7 @@ func _start_crew() -> void:
 				var pst: Dictionary = PUB_LAYOUT.STATIONS[pst_id]
 				var proot: Node3D = _pub_cellar_root if str(pst["room"]) == "cellar" else _pub_main_root
 				if proot != null:
-					spots[role] = {"root": proot, "pos": pst["stand"], "station": pst_id, "aside": PUB_ASIDE.get(pst_id, Vector3(0.6, 0, 0)), "clear_of": PUB_CLEAR_OF.get(pst_id, [])}
+					spots[role] = {"root": proot, "pos": pst["stand"], "station": pst_id, "aside": PUB_ASIDE.get(pst_id, Vector3(0.6, 0, 0)), "clear_of": PUB_CLEAR_OF.get(pst_id, []), "note": (pst["mark"] as Vector3) - Vector3(0, 0.45, 0)}
 			_crew.busy_of = func() -> Array: return [_station_open()] + _bistro_taken().keys()
 			_crew.open_of = func() -> String: return _station_open()
 		"vecerka":
@@ -2406,7 +2406,7 @@ func _start_crew() -> void:
 				var jst: Dictionary = JEDNOTA_LAYOUT.STATIONS[jst_id]
 				var jroot: Node3D = _station_root(str(jst["room"]))
 				if jroot != null:
-					spots[role] = {"root": jroot, "pos": jst["stand"], "station": jst_id, "aside": JEDNOTA_ASIDE.get(jst_id, Vector3(0.6, 0, 0.6))}
+					spots[role] = {"root": jroot, "pos": jst["stand"], "station": jst_id, "aside": JEDNOTA_ASIDE.get(jst_id, Vector3(0.6, 0, 0.6)), "note": (jst["mark"] as Vector3) - Vector3(0, 0.45, 0)}
 			# The second till's hand at their own counter by the door (gear).
 			if _vecerka_shop_root != null:
 				spots["till2"] = {"root": _vecerka_shop_root, "pos": JEDNOTA_LAYOUT.TILL2_STAND, "station": ""}
