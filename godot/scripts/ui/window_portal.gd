@@ -37,13 +37,14 @@ var _live := false
 ## A window in `room` (a Node3D of the room, room space) at `centre`, facing `outward`
 ## (room space, horizontal), `size` metres; viewport nodes under `host`. `curtain_tex` ""
 ## for none.
-static func make(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: Vector2, curtain_tex := "curtain_floral", px := 224):
+static func make(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: Vector2, curtain_tex := "curtain_floral", px := 224, wood_frame := true):
 	var w = load("res://scripts/ui/window_portal.gd").new()
-	w._build(host, room, centre, out_dir, glass, curtain_tex, px)
+	w._build(host, room, centre, out_dir, glass, curtain_tex, px, wood_frame)
 	return w
 
 
-func _build(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: Vector2, curtain_tex: String, px: int) -> void:
+## `wood_frame` false: no sill and frame (a tent's doorway: the canvas is its frame).
+func _build(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: Vector2, curtain_tex: String, px: int, wood_frame := true) -> void:
 	size = glass
 	outward = Vector3(out_dir.x, 0.0, out_dir.z).normalized()
 	var z := -outward
@@ -78,11 +79,12 @@ func _build(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: 
 	holder.name = "WindowFrame"
 	holder.transform = Transform3D(frame.basis, centre)
 	room.add_child(holder)
-	K.slab(holder, Vector3(glass.x + 0.12, 0.06, 0.14), Vector3(0, -glass.y * 0.5 - 0.03, 0.05), wood, "Sill")
-	K.slab(holder, Vector3(glass.x + 0.12, 0.06, 0.06), Vector3(0, glass.y * 0.5 + 0.03, 0.01), wood, "Top")
-	for sx: float in [-1.0, 1.0]:
-		K.slab(holder, Vector3(0.06, glass.y + 0.12, 0.06), Vector3(sx * (glass.x * 0.5 + 0.03), 0, 0.01), wood, "Side")
-	K.slab(holder, Vector3(0.035, glass.y, 0.04), Vector3(0, 0, 0.0), wood, "Mullion")
+	if wood_frame:
+		K.slab(holder, Vector3(glass.x + 0.12, 0.06, 0.14), Vector3(0, -glass.y * 0.5 - 0.03, 0.05), wood, "Sill")
+		K.slab(holder, Vector3(glass.x + 0.12, 0.06, 0.06), Vector3(0, glass.y * 0.5 + 0.03, 0.01), wood, "Top")
+		for sx: float in [-1.0, 1.0]:
+			K.slab(holder, Vector3(0.06, glass.y + 0.12, 0.06), Vector3(sx * (glass.x * 0.5 + 0.03), 0, 0.01), wood, "Side")
+		K.slab(holder, Vector3(0.035, glass.y, 0.04), Vector3(0, 0, 0.0), wood, "Mullion")
 	light = OmniLight3D.new()
 	light.name = "WindowFlash"
 	light.light_color = Color(0.9, 0.94, 1.0)

@@ -16,7 +16,7 @@ const SURFACES := {
 	"FloorMat": ["tent_floor", 0.8], "LeftWall": ["tarp_canvas", 0.9], "RightWall": ["tarp_canvas", 0.9],
 	"BackWall": ["tarp_canvas", 0.9], "FrontWall": ["tarp_canvas", 0.9], "CeilingRidge": ["planks_dark", 0.5],
 	"ZipLine": ["tarp_canvas", 0.4], "SleepingBag": ["blanket_check", 0.5], "Pillow": ["mattress", 0.4],
-	"Rug": ["rug", 1.1], "MiniTable": ["knotty_pine", 0.5], "MiniShelf": ["knotty_pine", 0.5],
+	"Rug": ["rug", 1.1], "MiniTable": ["knotty_pine", 0.5], "MiniShelf": ["knotty_pine", 0.5], "DoorRoll": ["tarp_canvas", 0.4], "ZipHandle": ["galvanized", 0.2],
 }
 
 signal room_task_completed(task_id: String)
@@ -153,6 +153,8 @@ func open_tent(level: int = 1) -> void:
 	_refresh_guest_visuals()
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()
+	_facing_door = false
+	_set_door_open(false)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
@@ -160,6 +162,10 @@ func close_tent() -> void:
 	if not _is_open:
 		return
 	_is_open = false
+	if _turn_tween != null and _turn_tween.is_valid():
+		_turn_tween.kill()
+	_facing_door = false
+	_set_door_open(false)
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
@@ -169,6 +175,8 @@ func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
 	_apply_idle_mouse_look(delta)
+	_tick_turn(delta)
+	_tick_door(delta)
 	_update_torch(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
@@ -223,6 +231,13 @@ func _try_click() -> void:
 
 	# Exit is handled only by ESC.
 
+	# Turned to the door: a click on it unzips it (or zips it up).
+	if _facing_door:
+		var door := _door_screen_rect()
+		if door.has_point(norm):
+			_set_door_open(not _door_open)
+			get_viewport().set_input_as_handled()
+		return
 	if _catalog_screen_rect().has_point(norm):
 		request_upgrade.emit()
 
@@ -592,6 +607,105 @@ func _add_gable(node_name: String, pos: Vector3, color: Color) -> MeshInstance3D
 	prism.left_to_right = 0.5
 	wall.mesh = prism
 	return wall
+
+
+# -- turning round, the door (the user 20. 10.: turn round in the tent and unzip it, the
+# camp outside as it really is from there) --
+
+const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
+const STEP12 = preload("res://scripts/ui/step12.gd")
+const SFX_ZIP := "res://assets/sfx/rooms/tent_zip.mp3"
+## Held at the end of the turn (A/D, or the cursor in the edge band) this long: round.
+const TURN_DWELL_SEC := 0.55
+const TURN_SEC := 0.6
+var _facing_door := false
+var _door_open := false
+var _door_portal
+var _turn_tween: Tween
+var _dwell := 0.0
+var _zip: AudioStreamPlayer
+
+
+## The head held on at the end of its turn: round to the door, or back to the bed.
+func _tick_turn(delta: float) -> void:
+	if _turn_tween != null and _turn_tween.is_valid() and _turn_tween.is_running():
+		_look.take_push()
+		return
+	var push: int = _look.take_push()
+	var cur := INTERIOR_LOOK.cursor_of(get_viewport())
+	var at_end := absf(float(_look.yaw_deg)) >= float(_look.yaw_limit_deg) - 1.5
+	var in_band := cur.x >= 0.0 and (cur.x < INTERIOR_LOOK.EDGE_BAND * 0.6 or cur.x > 1.0 - INTERIOR_LOOK.EDGE_BAND * 0.6)
+	_dwell = _dwell + delta if at_end and in_band else 0.0
+	if push == 0 and _dwell < TURN_DWELL_SEC:
+		return
+	_dwell = 0.0
+	_facing_door = not _facing_door
+	var yaw := float(_look.yaw_deg)
+	var side := signf(yaw) if absf(yaw) > 1.0 else 1.0
+	# Round the way the head was already turned: the base takes the head's turn, swings
+	# on to the half turn, and the head starts again from the middle.
+	_cam_base_rot.y += deg_to_rad(yaw)
+	var to := Vector3(_cam_base_rot.x, _cam_base_rot.y + side * (PI - deg_to_rad(absf(yaw))), 0.0)
+	_look.reset()
+	_turn_tween = STEP12.move(self, self, {"_cam_base_rot": to}, TURN_SEC)
+	_turn_tween.tween_callback(func() -> void:
+		_cam_base_rot.y = wrapf(_cam_base_rot.y, -PI, PI))
+
+
+## The doorway's view out (a portal in the front gable), live while it is open.
+func _tick_door(delta: float) -> void:
+	if _door_portal == null:
+		return
+	var im := get_parent()
+	var a = im.get("_active_tent_node") if im != null else null
+	var anchor := a as Node3D if a != null and is_instance_valid(a) and (a as Node3D).is_inside_tree() else null
+	var world: World3D = anchor.get_world_3d() if anchor != null else null
+	_door_portal.update(_tent_root, _interior_camera, WINDOW_PORTAL.room_to_world(anchor, _door_portal) if anchor != null else Transform3D(), _door_open and anchor != null, world, delta)
+
+
+func _set_door_open(open: bool) -> void:
+	if _tent_root == null:
+		return
+	if _door_portal == null:
+		_door_portal = WINDOW_PORTAL.make(self, _tent_root, Vector3(0.0, TENT_RIDGE_HEIGHT * 0.48, 1.16), Vector3(0, 0, 1),
+			Vector2(TENT_HALF_WIDTH * 2.0, TENT_RIDGE_HEIGHT), "", 192, false)
+		_door_portal.quad.visible = false
+		# The flaps rolled up and tied either side of the doorway.
+		for sx: float in [-1.0, 1.0]:
+			var roll := _add_box("DoorRoll%s" % ("L" if sx < 0.0 else "R"), Vector3(sx * TENT_HALF_WIDTH * 0.62, 0.42, 1.1), Vector3(0.09, 0.62, 0.09), Color(0.58, 0.48, 0.40))
+			roll.rotation_degrees.z = -sx * rad_to_deg(atan2(TENT_HALF_WIDTH, TENT_RIDGE_HEIGHT)) * 0.9
+			roll.visible = false
+	var changed := open != _door_open
+	_door_open = open
+	_door_portal.quad.visible = open
+	for n in ["FrontWall", "ZipLine", "ZipHandle"]:
+		var m := _tent_root.get_node_or_null(n) as Node3D
+		if m != null:
+			m.visible = not open
+	for n in ["DoorRollL", "DoorRollR"]:
+		var r := _tent_root.get_node_or_null(n) as Node3D
+		if r != null:
+			r.visible = open
+	if changed and _is_open:
+		if _zip == null:
+			_zip = AudioStreamPlayer.new()
+			add_child(_zip)
+		_zip.stream = load(SFX_ZIP) if ResourceLoader.exists(SFX_ZIP) else null
+		_zip.volume_db = -8.0
+		if _zip.stream != null:
+			_zip.play()
+
+
+## The door on screen (normalised): the front gable, or the doorway when open.
+func _door_screen_rect() -> Rect2:
+	if _viewport == null:
+		return Rect2()
+	var m := _tent_root.get_node_or_null("FrontWall") as MeshInstance3D
+	if _door_open and _door_portal != null:
+		m = _door_portal.quad
+	elif m != null and not m.visible:
+		return Rect2()
+	return INTERIOR_LOOK.screen_rect_of(_interior_camera, Vector2(_viewport.size), m)
 
 
 ## A picture lying flat on top of something (a quad: a box would show a third of it).
