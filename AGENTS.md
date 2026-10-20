@@ -544,7 +544,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   as sharp pixels, each of the render's pixels 4 x 4 so the sky shader's linear filter
   keeps them hard) and `spr_moon` into `skybox/moon.png` (24 px).
   `python tools/artgen/light_sprites.py` turns a render of light on black (the lamp's
-  cone) into a sprite of four warm shade steps for additive drawing. Agent B's world rows
+  cone) into a sprite of four warm shade steps for additive drawing, or of mist into four
+  steps of see-through white. `night_sky.py dawn` makes the dawn panorama.
+  `python tools/artgen/ground_tex.py <id> <dest> [size] [--own]` makes a ground render
+  tile (Grok's "seamless" does not) and snaps it to the palette, or with `--own` to 48
+  colours of its own (the palette has few mid greens). Agent B's world rows
   (the lit windows, the reception at night, the sky) are in `tools/artgen/prompts_world.tsv`.
 - **Interior props (Blender)**: `tools/blender/build_props.py` (+ `props_more.py`, kit in
   `propkit.py`) builds every low-poly prop from parts and exports

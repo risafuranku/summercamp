@@ -44,6 +44,13 @@ const SKY_TEX_NIGHT_PATHS := ["res://assets/textury/skybox/skynight.png"]
 ## the inventory of 20. 10.: every night had the overcast sky, and the ten code-drawn
 ## stars on it hardly showed).
 const SKY_TEX_NIGHT_CLEAR_PATHS := ["res://assets/textury/skybox/skystars.png"]
+## A clear morning before the sun (Grok `sky_dawn`): the peach and rose glow low along the
+## horizon; the clear night turns into it from 5:15 and it into the day by 7:15 (season
+## hours; the dawn was the night fading straight into noon's sky: inventory 20. 10.).
+const SKY_TEX_DAWN_PATHS := ["res://assets/textury/skybox/skydawn.png"]
+const DAWN_SKY_START_HOUR: float = 5.25
+const DAWN_SKY_FULL_HOUR: float = 6.0
+const DAWN_SKY_END_HOUR: float = 7.25
 ## The full moon (Grok, tools/artgen/night_sky.py; it was a code-drawn crescent).
 const MOON_TEX := "res://assets/textury/skybox/moon.png"
 const SKY_TEX_FALLBACK_PATHS := [
@@ -1345,6 +1352,15 @@ func _sky_pair() -> Array:
 	# The stars when the sky is clear; under a weather's own sky its cloud by night too.
 	var night := _sky_path(SKY_TEX_NIGHT_CLEAR_PATHS if own == "" else SKY_TEX_NIGHT_PATHS)
 	var day := own if own != "" else _sky_path(SKY_TEX_CLEAR_PATHS)
+	var dawn := _first_existing_path(SKY_TEX_DAWN_PATHS) if own == "" else ""
+	if dawn != "" and h < DAWN_SKY_END_HOUR:
+		if h < DAWN_SKY_START_HOUR:
+			return [night, night, 0.0]
+		if h < DAWN_SKY_FULL_HOUR:
+			return [night, dawn, _sky_fade_t(h, DAWN_SKY_START_HOUR, DAWN_SKY_FULL_HOUR)]
+		if h < DAY_SKY_FADE_START_HOUR:
+			return [dawn, dawn, 0.0]
+		return [dawn, day, _sky_fade_t(h, DAY_SKY_FADE_START_HOUR, DAWN_SKY_END_HOUR)]
 	if h < DAY_SKY_FADE_START_HOUR:
 		return [night, night, 0.0]
 	if h < DAY_SKY_FADE_END_HOUR:

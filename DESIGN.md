@@ -756,6 +756,12 @@ in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD 
   lit windows show the office and the back room behind them.
 - **Your breath** shows in the cold, a puff drawn see-through as Build drew its smoke,
   only as bright as the light it is in: at night you see it in your torch.
+- **The morning.** Before the sun a clear sky turns rose and peach low in the east, the
+  last stars going out over it; mist lies over the meadow and the lake at first light and
+  lifts by half past eight. The meadow is a late-summer meadow, green and straw, until
+  the autumn dries it.
+- **The lamps** are the light itself at night: the bulb bright, its cone of light a warm
+  shaft that shows faintly in clear air and fully in mist and rain.
 
 ## 10. Presentation rules
 

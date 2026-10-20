@@ -13,6 +13,11 @@
          behind brought to 40 colours, and the stars set back as one sharp pixel each (the
          brightest with a cross), the ones in the mirrored half moved along, not mirrored,
          so no star has a twin; below the horizon the horizon's navy, darkening.
+  out/sky_dawn/raw.png (16:9, the sky before sunrise, the glow low along the horizon)
+      -> godot/assets/textury/skybox/skydawn.png, the same way (no stars to reset: its
+         few faint ones are left as they are), the glow strongest in the east where the
+         sun comes up (-X, a quarter turn before the panorama's middle; SKY_COORDS u 0.75)
+         and the west's horizon cooler and dimmer.
   out/spr_moon/raw.png (the full moon on magenta)
       -> godot/assets/textury/skybox/moon.png, 24 x 24 with alpha (the moon is some 20 of
          the screen's lines across at Build 240p: its pixels about the screen's).
@@ -114,6 +119,34 @@ def build_sky() -> None:
     print("->", dst, img.size, os.path.getsize(dst) // 1024, "KB")
 
 
+def build_dawn() -> None:
+    raw = np.asarray(Image.open(os.path.join(OUT, "sky_dawn", "raw.png")).convert("RGB")).astype(np.float32)
+    sky = native(raw)                                # 320 x 180: the upper half
+    nh, nw = sky.shape[:2]
+    pano = np.zeros((nh * 2, nw * 2, 3), np.float32)
+    pano[:nh, :nw] = sky
+    pano[:nh, nw:] = sky[:, ::-1]
+    # East glows, west is the cold side: the same sky greyed and dimmed, more so lower down.
+    u = (np.arange(nw * 2) + 0.5) / (nw * 2)
+    east = 0.5 + 0.5 * np.cos(2.0 * np.pi * (u - 0.75))
+    lum = pano[:nh].mean(axis=2, keepdims=True)
+    cold = lum * np.array([0.78, 0.82, 0.98]) * 0.85
+    low = np.linspace(0.0, 1.0, nh)[:, None, None] ** 1.5
+    west_mix = (1.0 - east)[None, :, None] * 0.75 * low
+    pano[:nh] = pano[:nh] * (1.0 - west_mix) + cold * west_mix
+    # Below the horizon: the horizon's colour all round, darkening (by the column it made
+    # curved bands of the palette's steps).
+    horizon = pano[nh - 4: nh].mean(axis=(0, 1))
+    for y in range(nh, nh * 2):
+        pano[y] = horizon * (1.0 - 0.5 * (y - nh) / nh)
+    img = Image.fromarray(pano.clip(0, 255).astype(np.uint8))
+    img = img.quantize(colors=96, method=Image.MEDIANCUT, dither=Image.NONE).convert("RGB")
+    img = img.resize((nw * 2 * UP, nh * 2 * UP), Image.NEAREST)
+    dst = os.path.join(SKY, "skydawn.png")
+    img.save(dst, optimize=True)
+    print("->", dst, img.size, os.path.getsize(dst) // 1024, "KB")
+
+
 def build_moon() -> None:
     a = np.asarray(Image.open(os.path.join(OUT, "spr_moon", "raw.png")).convert("RGB")).astype(np.float32)
     # Magenta is red and blue with no green; the moon's grey and yellow have their green
@@ -146,8 +179,10 @@ def build_moon() -> None:
 
 
 if __name__ == "__main__":
-    what = sys.argv[1:] or ["sky", "moon"]
+    what = sys.argv[1:] or ["sky", "dawn", "moon"]
     if "sky" in what:
         build_sky()
+    if "dawn" in what:
+        build_dawn()
     if "moon" in what:
         build_moon()

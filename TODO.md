@@ -32,9 +32,12 @@ finished game, by impact:
   the full moon since 20. 10. (`night_sky.py`)
 - [ ] The sun, its glow and its flare are still drawn by code (`weather_visuals`
   `_create_pixel_sun_*`), the clouds' sprites too (`_create_pixel_cloud_texture`)
-- [ ] Dawn (6:30) is flat and dark: no mist in the hollows and over the lake, no colour in
-  the sky
-- [ ] The meadow reads as burnt black ground by day (the ground under the tufts too dark)
+- [x] Dawn (6:30) is flat and dark: no mist in the hollows and over the lake, no colour in
+  the sky — a dawn sky (rose and peach in the east, the stars going) and the morning mist
+  over the meadow and the lake, lifting by 8:30 (20. 10.)
+- [x] The meadow reads as burnt black ground by day — a generated late-summer meadow (20. 10.)
+- [ ] The Builder's map still draws the old Redneck grass for the summer
+  (`crt_map_panel.GROUND_TEX_SUMMER`, agent A's): `world/grass_summer.png` would match
 - [ ] Golden hour (17:00) hardly shows; the red sunset (18:15) is one flat red over
   everything (no ramp from the horizon up, no long shadows)
 - [ ] Snow falling does not show at noon; snow cover has the dot grid in the shade

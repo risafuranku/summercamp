@@ -3,17 +3,18 @@ extends Node3D
 ## The weather on the ground round you, outdoors (the camp, the road, Lesna):
 ##   - rain: puddles gather where you are (they grow the longer it rains and dry up after,
 ##     slowly), rings spread on them as the drops hit, in steps;
-##   - night and fog: low mist lies along the ground and creeps with the wind, thicker in
-##     the small hours and in the fog, a Build-style dithered sprite (see-through in a
-##     checker of pixels, like Blood's smoke);
-## The puddle is a Grok picture (world/puddle.png); the rings and the mist are pixel art
-## made here. Not while you are in a room. Made by
+##   - night, the morning and fog: low mist lies along the ground and creeps with the wind,
+##     thicker in the small hours, the most at first light (in the hollows, over the lake),
+##     gone by half past eight, and in the fog all day: banks of it (Grok world/mist_bank.png,
+##     see-through in four steps like Blood's smoke) in the fog's colour for the hour;
+## The puddle is a Grok picture (world/puddle.png); the rings are pixel art made here. Not while you are in a room. Made by
 ## InteriorManager.setup() in the camp's world, like sky_life.gd and wind_life.gd.
 
 const FPS := 12.0
 const PUDDLES := 26
 const MIST := 18
 const RADIUS := 22.0
+const MIST_TEX := "res://assets/textury/world/mist_bank.png"
 
 var player_getter: Callable
 var indoors: Callable
@@ -80,7 +81,7 @@ func _ready() -> void:
 		sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 		sp.transparent = true
 		sp.shaded = false
-		sp.pixel_size = _rng.randf_range(0.16, 0.24)
+		sp.pixel_size = _rng.randf_range(0.11, 0.16)
 		sp.modulate = Color(0.75, 0.78, 0.82, 0.0)
 		sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(sp)
@@ -126,24 +127,10 @@ func _ring_texture(stage: int) -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
-## A long low bank of mist: soft clouds of pixels in four steps of see-through (Blood's
-## translucent sprites; a checker of pixels read as a fault up close).
-func _mist_texture() -> ImageTexture:
-	var w := 64
-	var h := 14
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var seed := _rng.randf() * 10.0
-	for y in h:
-		for x in w:
-			var dx := absf(x - w * 0.5) / (w * 0.5)
-			var dy := absf(y - h * 0.6) / (h * 0.5)
-			var n := 0.5 + 0.25 * sin(x * 0.37 + seed) * cos(y * 0.9 + seed * 0.7) + 0.25 * sin(x * 0.13 + y * 0.4 + seed * 1.3)
-			var dens := clampf((1.0 - dx * dx) * (1.0 - dy * dy) * n * 1.6, 0.0, 1.0)
-			var a := floorf(dens * 4.0) / 4.0 * 0.5
-			if a > 0.0:
-				img.set_pixel(x, y, Color(1, 1, 1, a))
-	return ImageTexture.create_from_image(img)
+## A long low bank of mist (Grok `spr_mist_bank`, tools/artgen/light_sprites.py: white,
+## see-through in four steps as Blood's translucent sprites; it was drawn here in code).
+func _mist_texture() -> Texture2D:
+	return load(MIST_TEX) if ResourceLoader.exists(MIST_TEX) else null
 
 
 # ── every frame ──────────────────────────────────────────────────────────────
@@ -160,11 +147,15 @@ func _process(delta: float) -> void:
 	# 3 light rain, 4 rain, 5 storm.
 	_rain = [0.0, 0.0, 0.0, 0.45, 0.8, 1.0, 0.0][clampi(wtr, 0, 6)]
 	_wet = clampf(_wet + delta * (_rain * 0.012 if _rain > 0.0 else -0.004), 0.0, 1.0)
-	var night := h >= 21.0 or h < 6.0
-	var small_hours := h >= 1.0 and h < 6.0
+	var night := h >= 21.0 or h < 5.0
+	var small_hours := h >= 1.0 and h < 5.0
 	var want_mist := 0.0
 	if wtr == 2:
 		want_mist = 1.0
+	elif h >= 5.0 and h < 8.5:
+		# First light: the mist at its thickest, lifting from half past six (the dawn was
+		# flat and bare: inventory 20. 10.).
+		want_mist = 0.75 * clampf((8.5 - h) / 2.0, 0.0, 1.0)
 	elif night:
 		want_mist = 0.55 if small_hours else 0.35
 	if _rain > 0.6:
