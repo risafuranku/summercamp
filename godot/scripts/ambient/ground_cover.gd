@@ -12,22 +12,27 @@ extends Node3D
 ##   - built again when what stands on the grid changes (built, cleared, a camp loaded):
 ##     no grass through a floor;
 ##   - the wind and the season are the world's (the trees' global uniforms: the grass
-##     yellows with the leaves, snow lies on it).
+##     yellows with the leaves, snow lies on it);
+##   - what grows takes the ground's colour (the user 20. 10.: the grass sprites did not
+##     match the grass): each picture's average brought to the ground picture's average
+##     as it is drawn now (season_look.gd's tint, the autumn's picture), its own light and
+##     dark kept; the flowers only a little, the stones not at all.
 
 const DIR := "res://assets/textury/world/"
 const SHADER = preload("res://materials/ground_tuft.gdshader")
-## Kind: picture, height (m), how often (weight), how far it leans in the wind.
+## Kind: picture, height (m), how often (weight), how far it leans in the wind, how far
+## it takes the ground's colour.
 const KINDS := [
-	["spr_tuft_grass_a", 0.46, 30.0, 0.09],
-	["spr_tuft_grass_b", 0.34, 20.0, 0.06],
-	["spr_tuft_dry", 0.40, 15.0, 0.08],
-	["spr_tuft_clover", 0.14, 12.0, 0.01],
-	["spr_flower_dandelion", 0.30, 6.0, 0.06],
-	["spr_flower_yarrow", 0.48, 5.0, 0.08],
-	["spr_thistle", 0.72, 3.0, 0.05],
-	["spr_stones_small", 0.16, 5.0, 0.0],
-	["spr_twigs", 0.12, 3.0, 0.0],
-	["spr_pinecones", 0.10, 1.5, 0.0],
+	["spr_tuft_grass_a", 0.46, 30.0, 0.09, 0.9],
+	["spr_tuft_grass_b", 0.34, 20.0, 0.06, 0.9],
+	["spr_tuft_dry", 0.40, 15.0, 0.08, 0.65],
+	["spr_tuft_clover", 0.14, 12.0, 0.01, 0.85],
+	["spr_flower_dandelion", 0.30, 6.0, 0.06, 0.25],
+	["spr_flower_yarrow", 0.48, 5.0, 0.08, 0.25],
+	["spr_thistle", 0.72, 3.0, 0.05, 0.35],
+	["spr_stones_small", 0.16, 5.0, 0.0, 0.0],
+	["spr_twigs", 0.12, 3.0, 0.0, 0.0],
+	["spr_pinecones", 0.10, 1.5, 0.0, 0.0],
 ]
 const PER_TILE := Vector2i(5, 10)
 const CHUNK := 8
@@ -40,6 +45,10 @@ var _quad: QuadMesh
 var _dirty := false
 var _check_t := 0.0
 var _occupied_hash := 0
+var _tint_t := 0.0
+var _ground_key := ""
+## A picture's average colour (its opaque pixels), by its path.
+var _means: Dictionary = {}
 
 
 func build(grid_manager: Node, world_seed: int) -> void:
@@ -59,6 +68,8 @@ func build(grid_manager: Node, world_seed: int) -> void:
 		m.set_shader_parameter("sway", float(k[3]))
 		# Stones, twigs and cones keep their colour; what grows turns with the leaves.
 		m.set_shader_parameter("seasonal", 0.0 if float(k[3]) <= 0.0 else 0.55)
+		m.set_shader_parameter("ground_match", float(k[4]))
+		m.set_meta("mean", _mean_of(m.get_shader_parameter("tex")))
 		_mats[str(k[0])] = m
 	if not EventBus.BuildConfirmed.is_connected(_on_built):
 		EventBus.BuildConfirmed.connect(_on_built)
@@ -82,9 +93,66 @@ func _process(delta: float) -> void:
 		_check_t = 2.0
 		if _occupancy() != _occupied_hash:
 			_dirty = true
+	_tint_t -= delta
+	if _tint_t <= 0.0:
+		_tint_t = 2.0
+		_match_ground()
 	if _dirty:
 		_dirty = false
 		_rebuild()
+
+
+## The ground's colour as it is drawn now (the camp's ground: its picture's average times
+## its tint), and each picture's way to it.
+func _match_ground() -> void:
+	var ground: BaseMaterial3D = null
+	for n in get_tree().get_nodes_in_group("season_ground"):
+		var gi := n as GeometryInstance3D
+		if gi != null and not gi.has_meta("season_keep_texture") and gi.material_override is BaseMaterial3D:
+			ground = gi.material_override
+			break
+	if ground == null or ground.albedo_texture == null:
+		return
+	var key := "%s|%s" % [ground.albedo_texture.resource_path, str(ground.albedo_color)]
+	if key == _ground_key:
+		return
+	_ground_key = key
+	var gm: Color = _mean_of(ground.albedo_texture)
+	var g := Vector3(gm.r * ground.albedo_color.r, gm.g * ground.albedo_color.g, gm.b * ground.albedo_color.b)
+	for m in _mats.values():
+		var tm: Color = m.get_meta("mean", Color(0.5, 0.5, 0.5))
+		var ratio := Vector3(g.x / maxf(tm.r, 0.02), g.y / maxf(tm.g, 0.02), g.z / maxf(tm.b, 0.02))
+		(m as ShaderMaterial).set_shader_parameter("ground_ratio", ratio.clamp(Vector3.ONE * 0.25, Vector3.ONE * 3.0))
+
+
+func _mean_of(tex: Texture2D) -> Color:
+	if tex == null:
+		return Color(0.5, 0.5, 0.5)
+	var path := tex.resource_path
+	if _means.has(path):
+		return _means[path]
+	var img := tex.get_image()
+	if img == null:
+		return Color(0.5, 0.5, 0.5)
+	if img.is_compressed():
+		img.decompress()
+	var sum := Vector3.ZERO
+	var n := 0
+	var step := maxi(1, int(img.get_width() * img.get_height() / 4096))
+	var i := 0
+	for y in img.get_height():
+		for x in img.get_width():
+			i += 1
+			if i % step != 0:
+				continue
+			var c := img.get_pixel(x, y)
+			if c.a < 0.5:
+				continue
+			sum += Vector3(c.r, c.g, c.b)
+			n += 1
+	var out := Color(sum.x / n, sum.y / n, sum.z / n) if n > 0 else Color(0.5, 0.5, 0.5)
+	_means[path] = out
+	return out
 
 
 ## Which grass tiles have something on them, as one number.

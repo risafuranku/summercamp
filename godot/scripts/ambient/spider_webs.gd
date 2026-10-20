@@ -16,7 +16,9 @@ extends Node3D
 ##     it. The silk tears in your ear; the spider runs off along a strand and is gone.
 ##   - At face height it sticks to your face: torn strands across your view (ui/web_face.png)
 ##     that you wipe off in a moment, and you splutter (ElevenLabs).
-##   - A torn web is spun again a while after you have left it.
+##   - A torn web is spun again a while after you have left it; a web whose trunk or lamp
+##     is gone (felled, cleared, demolished) goes with it, and new pairs are looked for
+##     now and then (webs hung in the air where the trees had been: the user 20. 10.).
 ## Made by weather_visuals.gd in the camp's world.
 
 const SILK_TEX := "res://assets/textury/world/silk_strand.png"
@@ -38,7 +40,7 @@ uniform float fade = 0.0;
 void fragment() {
 	vec4 c = texture(TEXTURE, UV);
 	float a = smoothstep(0.12, 0.6, max(c.r, max(c.g, c.b))) * fade;
-	COLOR = vec4(c.rgb * 1.1, a * 0.85);
+	COLOR = vec4(c.rgb * 1.1, a * 0.7);
 }
 """
 
@@ -58,6 +60,8 @@ var _face_cd := 0.0
 var _face: TextureRect
 var _face_mat: ShaderMaterial
 var _face_t := -1.0
+var _check_t := 2.0
+var _replace_t := 60.0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -84,14 +88,16 @@ func _ready() -> void:
 	add_child(_tear)
 	_splutter = AudioStreamPlayer.new()
 	_splutter.stream = load(SFX_SPLUTTER) if ResourceLoader.exists(SFX_SPLUTTER) else null
-	_splutter.volume_db = -8.0
+	_splutter.volume_db = -13.0
 	add_child(_splutter)
 	# The strands on your face: over the camp's picture (low-res, like the world).
 	var layer := CanvasLayer.new()
 	layer.layer = 40
 	add_child(layer)
 	_face = TextureRect.new()
-	_face.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# A corner of the view, not all of it (it took too much: the user 20. 10.): sized and
+	# placed when it sticks (_stick_face).
+	_face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_face.stretch_mode = TextureRect.STRETCH_SCALE
 	_face.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -133,6 +139,13 @@ func _place() -> void:
 			pairs.append([h, i, j])
 	pairs.sort_custom(func(x, y): return int(x[0]) < int(y[0]))
 	var used := {}
+	# Trunks that hold a web already (looked again later: one web to a trunk still).
+	for w in _webs:
+		for n in w.get("posts", []):
+			if is_instance_valid(n):
+				for k in posts.size():
+					if posts[k][2] == n:
+						used[k] = true
 	for pr in pairs:
 		if _webs.size() >= MAX_WEBS:
 			break
@@ -145,8 +158,44 @@ func _place() -> void:
 			continue
 		used[i] = true
 		used[j] = true
-		_webs.append(_make_web(posts[i], posts[j], int(pr[0])))
+		var key := _pair_key(posts[i][0], posts[j][0])
+		if _has_pair(key):
+			continue
+		var w := _make_web(posts[i], posts[j], int(pr[0]))
+		w["posts"] = [posts[i][2], posts[j][2]]
+		w["pair"] = key
+		_webs.append(w)
 	_placed = true
+
+
+static func _pair_key(a: Vector3, b: Vector3) -> String:
+	var ka := "%d,%d" % [roundi(a.x * 10.0), roundi(a.z * 10.0)]
+	var kb := "%d,%d" % [roundi(b.x * 10.0), roundi(b.z * 10.0)]
+	return ka + "|" + kb if ka < kb else kb + "|" + ka
+
+
+func _has_pair(key: String) -> bool:
+	for w in _webs:
+		if str(w.get("pair", "")) == key:
+			return true
+	return false
+
+
+## Webs whose trunk or lamp is gone go with it.
+func _drop_orphans() -> void:
+	for i in range(_webs.size() - 1, -1, -1):
+		var w: Dictionary = _webs[i]
+		var gone := false
+		for n in w.get("posts", []):
+			if not is_instance_valid(n) or not (n as Node).is_inside_tree() or (n as Node).is_queued_for_deletion():
+				gone = true
+		if not gone:
+			continue
+		if is_instance_valid(w["mesh"]):
+			(w["mesh"] as Node).queue_free()
+		if w["spider"] != null and is_instance_valid(w["spider"]):
+			(w["spider"] as Node).queue_free()
+		_webs.remove_at(i)
 
 
 func _make_web(pa: Array, pb: Array, seed: int) -> Dictionary:
@@ -299,6 +348,14 @@ func _process(delta: float) -> void:
 	_tear_cd -= delta
 	_face_cd -= delta
 	_update_face(delta)
+	_check_t -= delta
+	if _check_t <= 0.0:
+		_check_t = 2.0
+		_drop_orphans()
+	_replace_t -= delta
+	if _replace_t <= 0.0:
+		_replace_t = 60.0
+		_place()
 	var main := get_tree().current_scene
 	var indoors: bool = main != null and main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open"))
 	var cam := get_viewport().get_camera_3d()
@@ -455,6 +512,7 @@ func _touch(w: Dictionary, player: Node3D, eye: Vector3) -> void:
 	if face and _face_cd <= 0.0:
 		_face_cd = 4.0
 		_face_t = 0.0
+		_stick_face()
 		if _splutter.stream != null:
 			_splutter.pitch_scale = _rng.randf_range(0.95, 1.05)
 			get_tree().create_timer(0.25).timeout.connect(func(): if is_instance_valid(_splutter): _splutter.play())
@@ -544,6 +602,19 @@ func _spider_step(w: Dictionary, delta: float, show: bool) -> void:
 			w["spider_state"] = "gone"
 
 
+## Where on your face it sticks: a corner or an edge of the view, under half of it.
+func _stick_face() -> void:
+	var vs := get_viewport().get_visible_rect().size
+	var sz := vs * _rng.randf_range(0.36, 0.48)
+	sz.y = sz.x * 0.75
+	_face.size = sz
+	_face.flip_h = _rng.randf() < 0.5
+	_face.flip_v = _rng.randf() < 0.3
+	var corner := Vector2(0.0 if _face.flip_h else 1.0, 0.0 if _rng.randf() < 0.6 else 1.0)
+	_face.set_meta("home", ((vs - sz) * corner + Vector2(_rng.randf_range(-0.04, 0.04), _rng.randf_range(-0.04, 0.04)) * vs).floor())
+	_face.position = _face.get_meta("home")
+
+
 func _update_face(delta: float) -> void:
 	if _face_t < 0.0:
 		_face.visible = false
@@ -558,4 +629,4 @@ func _update_face(delta: float) -> void:
 	# Stuck on, then wiped off downwards, in steps.
 	var ks := floorf(k * 12.0) / 12.0
 	_face_mat.set_shader_parameter("fade", 1.0 if ks < 0.35 else 1.0 - (ks - 0.35) / 0.65)
-	_face.position = Vector2(0, maxf(0.0, ks - 0.35) * 120.0)
+	_face.position = (_face.get_meta("home", Vector2.ZERO) as Vector2) + Vector2(0, maxf(0.0, ks - 0.35) * 120.0)

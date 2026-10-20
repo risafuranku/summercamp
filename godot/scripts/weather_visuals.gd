@@ -217,6 +217,8 @@ const BOLT_TEX := "res://assets/textury/world/lightning_bolt.png"
 var season_day := 1
 ## Extra fog on top of the weather's (the lake at night, scripts/lake/night_row.gd).
 var fog_boost := 0.0
+## More while you are inside a bank of fog (scripts/ambient/fog_walk.gd sets it).
+var walk_fog_boost := 0.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -442,6 +444,10 @@ func setup_weather_particles() -> void:
 	var webs = load("res://scripts/ambient/spider_webs.gd").new()
 	webs.player_getter = _player_getter
 	_world_3d.add_child(webs)
+	# Fog banks you walk through (scripts/ambient/fog_walk.gd).
+	var fog_walk = load("res://scripts/ambient/fog_walk.gd").new()
+	fog_walk.player_getter = _player_getter
+	_world_3d.add_child(fog_walk)
 	# The lodgings lit at night while their guests are in (scripts/ambient/window_lights.gd).
 	var wl = load("res://scripts/ambient/window_lights.gd").new()
 	wl.player_getter = _player_getter
@@ -718,7 +724,7 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	var ambient_gray = Color(ambient_luma, ambient_luma, ambient_luma, ambient_col.a)
 	env.ambient_light_color = ambient_col.lerp(ambient_gray, clampf(sky_desaturation * 0.75, 0.0, 1.0)).lerp(w["tint"], float(w["tint_mix"]) * 0.5)
 	env.fog_enabled = fog_enabled
-	env.fog_density = fog_density + fog_boost
+	env.fog_density = fog_density + fog_boost + walk_fog_boost
 	env.fog_sky_affect = fog_sky_affect
 	env.fog_light_color = fog_color.lerp(Color(0.90, 0.92, 1.0), flash * 0.85)
 	_sun.light_energy = (_base_sun_energy * sun_multiplier) + (0.9 * flash)
@@ -855,7 +861,7 @@ func apply_time_from_clock(force_sky_snap: bool = false) -> void:
 	env.ambient_light_energy = ambient_energy
 	env.fog_enabled = fog_density > 0.0001
 	env.fog_light_color = fog_color
-	env.fog_density = fog_density + fog_boost
+	env.fog_density = fog_density + fog_boost + walk_fog_boost
 	env.fog_sky_affect = fog_sky_affect
 	if _sun != null:
 		# The sun turns in steps of SUN_STEP_HOURS: turned a little every frame, every

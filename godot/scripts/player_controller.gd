@@ -1,9 +1,10 @@
 extends CharacterBody3D
 
 const YAW_SENSITIVITY_FACTOR := 2.0
-## Stamina: a full bar is ~6 s of sprinting; it refills in ~9 s and, once empty,
-## sprinting stays locked until it is back to STAMINA_UNLOCK.
-const STAMINA_DRAIN_PER_SEC := 1.0 / 6.0
+## Stamina: a full bar is ~7.5 s of sprinting (6 was too short: the user 20. 10., +25 %);
+## it refills in ~9 s and, once empty, sprinting stays locked until it is back to
+## STAMINA_UNLOCK.
+const STAMINA_DRAIN_PER_SEC := 1.0 / 7.5
 const STAMINA_REGEN_PER_SEC := 1.0 / 9.0
 const STAMINA_UNLOCK := 0.25
 ## Flashlight battery: ~5 real minutes of light on a charge; the night lasts ~7.
@@ -24,6 +25,9 @@ var held_speed_mult: float = 1.0
 @export var invert_vertical_look: bool = false
 @export var vertical_look_sensitivity_multiplier: float = 0.85
 @export var vertical_look_limit_degrees: float = 24.0
+## Down further than up: to your feet, the path, what lies on the ground (the user 20. 10.:
+## let me look further down).
+@export var look_down_limit_degrees: float = 46.0
 @export var vertical_look_snap_degrees: float = 1.4
 @export var vertical_look_smoothing: float = 14.0
 @export var pseudo_pitch_vertical_shift: float = 0.045
@@ -279,7 +283,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_current_tilt = lerp(_current_tilt, clamp(event.relative.x * rotation_tilt_amount, -0.1, 0.1), 0.15)
 		
 		_pitch_target += pitch_input * mouse_sensitivity * vertical_look_sensitivity_multiplier * look_scale
-		_pitch_target = clamp(_pitch_target, -deg_to_rad(vertical_look_limit_degrees), deg_to_rad(vertical_look_limit_degrees))
+		_pitch_target = clamp(_pitch_target, -deg_to_rad(look_down_limit_degrees), deg_to_rad(vertical_look_limit_degrees))
 		_mouse_impact += Vector2(0.0, -event.relative.x) * handheld_look_strength
 		_mouse_impact.y = clamp(_mouse_impact.y, -0.08, 0.08)
 

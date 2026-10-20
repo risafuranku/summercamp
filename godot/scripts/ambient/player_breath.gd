@@ -8,8 +8,10 @@ extends Node3D
 ##     thinner, gone in a second); as bright as the light it is in: by day pale, at
 ##     night only in your torch, not seen in the dark without one. Quicker breaths when
 ##     you walk, a quick run of them when you are out of breath;
-##   - run yourself out (the stamina gone) and you hear yourself pant until you have it
-##     back; on a cold night now and then a long breath out (ElevenLabs, sfx/player/).
+##   - run yourself out (the stamina gone) and you hear yourself pant, quietly, for a few
+##     breaths (it eases off as the stamina comes back), and not again for a while; on a
+##     cold night now and then a long breath out (ElevenLabs, sfx/player/). (The user 20.
+##     10.: the panting was annoying, too often, too loud and too long.)
 ## Moved in steps (twelve a second) like the rest of the Build world.
 
 const PUFF_SHADER = preload("res://materials/breath_puff.gdshader")
@@ -22,6 +24,13 @@ const SFX_PANT := "res://assets/sfx/player/panting.mp3"
 const SFX_BREATH := "res://assets/sfx/player/breath_cold.mp3"
 const FPS := 12.0
 const LIFE := 1.3
+## The panting: how loud, at most how long (s, then it fades), and how long after one
+## before you pant again.
+const PANT_DB := -19.0
+const PANT_MAX_SEC := 2.6
+const PANT_GAP_SEC := 45.0
+## A long breath out in the cold: one breath in this many, by chance.
+const SIGH_CHANCE := 0.06
 
 ## The player (scripts/player_controller.gd): its stamina and its speed.
 var player: Node
@@ -31,6 +40,8 @@ var _next := 2.0
 var _acc := 0.0
 var _breaths := 0
 var _panting := false
+var _pant_t := 0.0
+var _since_pant := 999.0
 var _pant: AudioStreamPlayer
 var _sigh: AudioStreamPlayer
 var _rng := RandomNumberGenerator.new()
@@ -55,11 +66,11 @@ func _ready() -> void:
 		_puffs.append({"sprite": s, "mat": m, "t": -1.0, "vel": Vector3.ZERO})
 	_pant = AudioStreamPlayer.new()
 	_pant.stream = load(SFX_PANT) if ResourceLoader.exists(SFX_PANT) else null
-	_pant.volume_db = -10.0
+	_pant.volume_db = PANT_DB
 	add_child(_pant)
 	_sigh = AudioStreamPlayer.new()
 	_sigh.stream = load(SFX_BREATH) if ResourceLoader.exists(SFX_BREATH) else null
-	_sigh.volume_db = -22.0
+	_sigh.volume_db = -26.0
 	add_child(_sigh)
 
 
@@ -89,13 +100,22 @@ func _outdoors() -> bool:
 func _process(delta: float) -> void:
 	var out := _outdoors()
 	var spent: bool = player != null and bool(player.get("_stamina_locked"))
-	# Out of breath: pant until it is back.
-	if spent and not _panting and _pant.stream != null:
+	# Out of breath: a few quiet pants, eased off as it comes back; not every time.
+	_since_pant += delta
+	if spent and not _panting and _pant.stream != null and _since_pant >= PANT_GAP_SEC:
 		_panting = true
+		_pant_t = 0.0
+		_since_pant = 0.0
 		_pant.pitch_scale = _rng.randf_range(0.95, 1.05)
+		_pant.volume_db = PANT_DB
 		_pant.play()
-	elif not spent and _panting:
-		_panting = false
+	elif _panting:
+		_pant_t += delta
+		if not spent or _pant_t > PANT_MAX_SEC:
+			_pant.volume_db -= delta * 30.0
+			if _pant.volume_db < -50.0:
+				_pant.stop()
+				_panting = false
 	# The breaths: slow standing, quicker walking, quick when spent.
 	var speed := 0.0
 	if player is CharacterBody3D:
@@ -161,6 +181,6 @@ func _breathe(spent: bool) -> void:
 		s.visible = true
 		break
 	_breaths += 1
-	if not spent and _breaths % 4 == 0 and _sigh.stream != null and not _sigh.playing:
+	if not spent and _rng.randf() < SIGH_CHANCE and _sigh.stream != null and not _sigh.playing:
 		_sigh.pitch_scale = _rng.randf_range(0.94, 1.05)
 		_sigh.play()

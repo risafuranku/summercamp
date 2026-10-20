@@ -41,6 +41,7 @@ OUT = os.path.join(HERE, "out")
 SKY = os.path.join(HERE, "..", "..", "godot", "assets", "textury", "skybox")
 PX = 4          # the render's pixel
 UP = 4          # the panorama's pixel
+STAR_KEEP = 0.4 # the share of the render's stars set back, the brightest
 
 
 def native(a: np.ndarray) -> np.ndarray:
@@ -81,14 +82,18 @@ def stars_of(a: np.ndarray) -> list:
 
 def build_sky() -> None:
     raw = np.asarray(Image.open(os.path.join(OUT, "sky_night_stars", "raw.png")).convert("RGB"))
-    stars = stars_of(raw)
+    found = stars_of(raw)
     # A cross on the brightest one in a hundred (the render's own few sparkles).
-    big = float(np.percentile([st[3] for st in stars], 99))
-    print("stars found:", len(stars), "cross over", round(big))
+    big = float(np.percentile([st[3] for st in found], 99))
+    # Only the brighter ones go back (all of them were too many: the user 20. 10.); the
+    # dimmer ones are taken out with the rest and not set back.
+    keep = float(np.percentile([st[3] for st in found], 100.0 * (1.0 - STAR_KEEP)))
+    stars = [st for st in found if st[3] >= keep]
+    print("stars found:", len(found), "kept", len(stars), "cross over", round(big))
     # The sky without its stars, at the render's own pixel size.
     clean = raw.astype(np.float32).copy()
     blur = box_blur(clean, 6)
-    for x, y, _c, _s in stars:
+    for x, y, _c, _s in found:
         y0, y1, x0, x1 = max(y - 4, 0), min(y + 5, raw.shape[0]), max(x - 4, 0), min(x + 5, raw.shape[1])
         clean[y0:y1, x0:x1] = blur[y0:y1, x0:x1]
     sky = native(clean)                              # 320 x 180: the upper half of the sky
