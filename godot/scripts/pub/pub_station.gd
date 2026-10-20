@@ -1,79 +1,97 @@
-extends "res://scripts/bistro/station_view.gd"
+extends "res://scripts/business/station3d.gd"
 
-## A station of the pub played full screen, the bistro's way (station_view.gd: the picture
-## a flat Build-engine texture, the things on it Grok sprites, the sentence, the bar).
-## The rail across the top is the beer mats of everybody with an order open, oldest at
-## the left: their name in the landlord's pencil, what they want, a stroke for every one
-## they have had, a bar for how long they have waited. Click a mat to pour for them.
-## The bar's right end: the mugs on the rack and in the washer, the keg.
+## A station of the pub, worked in the room (scripts/business/station3d.gd; DESIGN.md §7b
+## "the pub"): the taproom's state (taproom.gd: the mugs, the keg, the gas, what was
+## poured for whom), the orders on the rail as the guests' beer mats (their name in the
+## landlord's pencil, what they want, a stroke for every one they have had, how long
+## they have waited), the picked one big in the frame, the mugs and the keg on the bar.
+## The stations: tap, back (the back bar), wash (the washer) in the bar room, keg in the
+## cellar.
 
 const PUB := preload("res://core/systems/pub_rules.gd")
 const TAPROOM := preload("res://scripts/pub/taproom.gd")
 const PUB_TEX := "res://assets/textury/pub/"
-const PUB_SFX := "res://assets/sfx/pub/"
 const MARKS := "res://assets/textury/ui/"
-## The stations of the pub's rooms, in the order their tabs stand on the bar.
-const PUB_TABS := {"bar": [["tap", "TAP"], ["back", "BACK BAR"], ["wash", "WASHER"]], "cellar": [["keg", "KEG"]]}
 ## The little pictures on the mats (assets/textury/ui/mark_*.png, Grok).
 const DRINK_ICONS := {"hladinka": "mark_mug", "snyt": "mark_mug", "mliko": "mark_foam", "rum": "mark_shot",
 	"zelena": "mark_shot", "slivovice": "mark_shot", "kofola": "mark_kofola"}
 const SPIRIT_TINT := {"rum": Color(0.75, 0.45, 0.2), "zelena": Color(0.45, 0.8, 0.35), "slivovice": Color(1.0, 1.0, 0.92), "kofola": Color(1, 1, 1)}
+const SHORT := {"hladinka": "HLAD", "snyt": "SNYT", "mliko": "MLIKO", "rum": "RUM", "zelena": "ZEL", "slivovice": "SLIV", "kofola": "KOF"}
+
+## The mat picked on the rail (the tap pours for it first).
+static var picked := ""
 
 var taproom
+var _icons: Dictionary = {}
 
 
-func _ready() -> void:
-	super._ready()
-	room = "bar"
-	for n in ["mat", "mark_mug", "mark_foam", "mark_shot", "mark_kofola", "mark_keg", "mark_dirty"]:
-		tex(n)
+func _build() -> void:
+	taproom = state if state != null else TAPROOM.of(get_tree())
+	for n in ["mark_mug", "mark_foam", "mark_shot", "mark_kofola", "mark_keg", "mark_dirty"]:
+		_icons[n] = load(MARKS + n + ".png") if ResourceLoader.exists(MARKS + n + ".png") else null
+	var mat := PUB_TEX + "mat.png"
+	_icons["mat"] = load(mat) if ResourceLoader.exists(mat) else null
 
 
-## A picture of the pub's (assets/textury/pub/<n>.png), else the bistro's or a mark.
-func tex(n: String) -> Texture2D:
-	if not _tex.has(n):
-		var found: Texture2D = null
-		for dir in [PUB_TEX, TEX, MARKS]:
-			var p: String = dir + n + ".png"
-			if ResourceLoader.exists(p):
-				found = load(p)
-				break
-		_tex[n] = found
-	return _tex[n]
+func sfx_dir() -> String:
+	return "res://assets/sfx/pub/"
 
 
+## A pub sound, else the bistro's of the same name.
 func sfx(n: String, db := -8.0, pitch := 1.0) -> void:
-	for dir in [PUB_SFX, SFX_DIR]:
-		var path: String = dir + n + ".mp3"
-		if ResourceLoader.exists(path):
-			var a: AudioStreamPlayer = _audio[_audio_i]
-			_audio_i = (_audio_i + 1) % _audio.size()
-			a.stream = load(path)
-			a.volume_db = db
-			a.pitch_scale = pitch
-			a.play()
-			return
+	var p := sfx_dir() + n + ".mp3"
+	if not ResourceLoader.exists(p):
+		p = "res://assets/sfx/bistro/" + n + ".mp3"
+	super.sfx(p, db, pitch)
 
 
-func open_view() -> void:
-	taproom = TAPROOM.of(get_tree())
-	super.open_view()
+## A pub picture laid on the bar, its longer side `metres` long.
+func psprite(name: String, metres: float, flat := false) -> Sprite3D:
+	var s := sprite(PUB_TEX + name + ".png", metres, flat)
+	if not flat:
+		# Standing on the bar: its foot on the surface.
+		s.offset = Vector2(0, float(s.texture.get_height()) * 0.5) if s.texture != null else Vector2.ZERO
+	return s
 
 
-func _room_tabs() -> Array:
-	return PUB_TABS.get(room, [])
+func pretex(s: Sprite3D, name: String, metres: float) -> void:
+	retex(s, PUB_TEX + name + ".png", metres)
+	if s.texture != null and s.axis != Vector3.AXIS_Y:
+		s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
 
 
 # ── the mats ─────────────────────────────────────────────────────────────────
 
-func _tickets() -> Array:
+func tickets() -> Array:
 	return taproom.tickets(building_key) if taproom != null and building_key != "" else []
+
+
+func rail_tickets() -> Array:
+	var out: Array = []
+	for t in tickets():
+		var d: Dictionary = (t as Dictionary).duplicate()
+		var age := int(t.get("age", 0))
+		d["band"] = PUB.patience_band(age)
+		d["left"] = 1.0 - clampf(float(age) / float(PUB.PATIENCE_GONE), 0.0, 1.0)
+		d["had"] = taproom.strokes(building_key, str(t["visit"]), int(t["member"])) if taproom != null else 0
+		d["sig"] = "%d|%d" % [int(float(d["left"]) * 12.0), int(d["had"])]
+		out.append(d)
+	return out
+
+
+func picked_ticket() -> String:
+	return picked
+
+
+func rail_clicked(id: String) -> void:
+	picked = "" if picked == id else id
+	sfx("tick", -12.0, 1.2)
 
 
 ## The orders this station pours ("tap" or "bar"), oldest first; the picked one first.
 func orders_here(kind_of: String) -> Array:
 	var out: Array = []
-	for t in _tickets():
+	for t in tickets():
 		if PUB.kind(str(t["drink"])) == kind_of:
 			if str(t["id"]) == picked:
 				out.push_front(t)
@@ -82,95 +100,93 @@ func orders_here(kind_of: String) -> Array:
 	return out
 
 
-func _ticket_verb(t: Dictionary) -> String:
-	var bits := PUB.label(str(t["drink"]))
-	if int(t["round"]) > 0:
-		bits += " (another)"
-	return "%s: %s" % [ORDERS_first(str(t["name"])), bits]
-
-
-func _draw_ticket(c: Control, t: Dictionary, r: Rect2) -> void:
-	var is_picked := str(t["id"]) == picked
-	if is_picked:
-		r.position.y += 4.0
-	var age := int(t.get("age", 0))
-	var band := PUB.patience_band(age)
-	var mat := tex("mat")
-	var disc := Rect2(r.position + Vector2(0, 8), Vector2(r.size.x, r.size.x))
+## A guest's beer mat on the rail (26 x 36 px): their name, the drink's picture and its
+## word, a stroke a drink they have had, how long they have waited.
+func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
+	if t.is_empty():
+		return
+	var f: Font = RETRO_UI.FONT_TEXT
+	var mat: Texture2D = _icons.get("mat")
+	var disc := Rect2(Vector2(0, 7), Vector2(size.x, size.x - 2))
 	if mat != null:
 		c.draw_texture_rect(mat, disc, false)
 	else:
 		c.draw_rect(disc, Color(0.9, 0.87, 0.8))
-	# The name across the top of the mat in red pencil, the drink in the middle.
-	var who := ORDERS_first(str(t["name"])).substr(0, 7).to_upper()
-	var nw := RETRO_UI.FONT_TEXT.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(floorf(r.position.x + (r.size.x - nw) * 0.5), r.position.y + 6), who, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.95, 0.85, 0.6))
-	var drink := str(t["drink"])
-	var ic := tex(str(DRINK_ICONS.get(drink, "mark_mug")))
+	var who := ORDERS_first(str(t.get("name", ""))).to_upper().substr(0, 5)
+	c.draw_string(f, Vector2(1, 6), who, HORIZONTAL_ALIGNMENT_LEFT, size.x - 2, 8, Color(0.95, 0.85, 0.6))
+	var drink := str(t.get("drink", ""))
+	var ic: Texture2D = _icons.get(str(DRINK_ICONS.get(drink, "mark_mug")))
 	if ic != null:
-		var tint: Color = SPIRIT_TINT.get(drink, Color(1, 1, 1))
-		c.draw_texture_rect(ic, Rect2((disc.get_center() - ic.get_size() * 0.5 - Vector2(0, 4)).floor(), ic.get_size()), false, tint)
-	var short: String = {"hladinka": "HLAD", "snyt": "SNYT", "mliko": "MLIKO", "rum": "RUM", "zelena": "ZELENA", "slivovice": "SLIVO", "kofola": "KOFOLA"}.get(drink, drink.to_upper())
-	var sw := RETRO_UI.FONT_TEXT.get_string_size(short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(floorf(disc.get_center().x - sw * 0.5), disc.end.y - 8), short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.18, 0.12, 0.1))
-	# A pencil stroke for every one they have had already.
-	var had: int = taproom.strokes(building_key, str(t["visit"]), int(t["member"])) if taproom != null else 0
-	for i in mini(had, 6):
-		c.draw_rect(Rect2(disc.position.x + 7 + i * 4, disc.position.y + 5 + (i % 2), 1, 6), Color(0.2, 0.18, 0.2, 0.85))
-	# How long they have waited: a bar under the mat, green, amber, red.
-	var left := 1.0 - clampf(float(age) / float(PUB.PATIENCE_GONE), 0.0, 1.0)
+		c.draw_texture_rect(ic, Rect2((disc.get_center() - ic.get_size() * 0.5 - Vector2(0, 3)).floor(), ic.get_size()), false, SPIRIT_TINT.get(drink, Color(1, 1, 1)))
+	var word := str(SHORT.get(drink, drink.to_upper()))
+	var w := f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	c.draw_string(f, Vector2(floorf((size.x - w) * 0.5), disc.end.y - 1), word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.18, 0.12, 0.1))
+	for i in mini(int(t.get("had", 0)), 5):
+		c.draw_rect(Rect2(3 + i * 3, 9 + (i % 2), 1, 4), Color(0.2, 0.18, 0.2, 0.85))
+	var band := int(t.get("band", 0))
 	var col: Color = [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band]
-	var bar := Rect2(r.position.x + 3, r.end.y - 4, r.size.x - 6, 3)
+	var bar := Rect2(3, size.y - 3, size.x - 6, 2)
+	c.draw_rect(bar, Color(0.1, 0.08, 0.06))
+	c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * float(t.get("left", 1.0))), bar.size.y)), col)
+	if bool(t.get("picked", false)):
+		c.draw_rect(Rect2(Vector2.ZERO, size), RETRO_UI.C_AMBER, false, 1.0)
+
+
+static func ORDERS_first(full: String) -> String:
+	var p := full.split(" ")
+	return p[0] if p.size() > 0 else full
+
+
+func big_ticket() -> Dictionary:
+	for t in tickets():
+		if str(t["id"]) == picked:
+			return t
+	return {}
+
+
+## The picked mat big: who, what, how many they have had, the wait.
+func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
+	var mat: Texture2D = _icons.get("mat")
+	var disc := Rect2(r.position + Vector2(0, 10), Vector2(r.size.x, r.size.x))
+	if mat != null:
+		c.draw_texture_rect(mat, disc, false)
+	else:
+		c.draw_rect(disc, Color(0.9, 0.87, 0.8))
+	c.draw_string(RETRO_UI.FONT_LABEL, r.position + Vector2(4, 8), ORDERS_first(str(t["name"])).to_upper().substr(0, 9), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, RETRO_UI.C_AMBER_LIGHT)
+	var drink := str(t["drink"])
+	var ic: Texture2D = _icons.get(str(DRINK_ICONS.get(drink, "mark_mug")))
+	if ic != null:
+		c.draw_texture_rect(ic, Rect2((disc.get_center() - ic.get_size() - Vector2(0, 8)).floor(), ic.get_size() * 2.0), false, SPIRIT_TINT.get(drink, Color(1, 1, 1)))
+	var word := PUB.label(drink).to_upper()
+	var w := RETRO_UI.FONT_LABEL.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	c.draw_string(RETRO_UI.FONT_LABEL, Vector2(floorf(disc.get_center().x - w * 0.5), disc.end.y - 18), word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.18, 0.12, 0.1))
+	var band := PUB.patience_band(int(t.get("age", 0)))
+	var bar := Rect2(r.position.x + 6, r.end.y - 6, r.size.x - 12, 4)
 	c.draw_rect(bar, Color(0.1, 0.08, 0.06, 0.8))
-	if band < 2 or int(_t * 4.0) % 2 == 0:
-		c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * left), bar.size.y)), col)
-	if is_picked:
-		c.draw_rect(Rect2(disc.position - Vector2(1, 1), Vector2(disc.size.x + 2, 1)), RETRO_UI.C_AMBER)
-		c.draw_rect(Rect2(Vector2(disc.position.x - 1, disc.end.y), Vector2(disc.size.x + 2, 1)), RETRO_UI.C_AMBER)
+	c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * (1.0 - clampf(float(t.get("age", 0)) / float(PUB.PATIENCE_GONE), 0.0, 1.0))), bar.size.y)), [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band])
 
 
-func _ticket_clicked(tid: String) -> void:
-	picked = "" if picked == tid else tid
-	sfx("tick", -12.0, 1.2)
-
-
-## The right end of the bar: the mugs, the keg.
-func _paint_bar(c: Control, r: Rect2) -> void:
+## The mugs and the keg on the bar.
+func bar_text() -> String:
 	if taproom == null or building_key == "":
-		return
+		return ""
 	var m: Dictionary = taproom.mugs(building_key)
 	var k: Dictionary = taproom.keg(building_key)
 	var text := "MUGS %d" % int(m["clean"])
 	if int(m["dirty"]) > 0:
 		text += "  DIRTY %d" % int(m["dirty"])
 	var trouble: String = taproom.tap_trouble(building_key)
-	text += "   KEG " + ({"dry": "DRY", "empty": "EMPTY", "off": "OFF"}.get(trouble, "%d" % int(k["line"])))
-	var alarm := int(m["clean"]) == 0 or trouble != ""
-	var w := RETRO_UI.FONT_LABEL.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-	c.draw_string(RETRO_UI.FONT_LABEL, Vector2(r.end.x - w - 2, r.position.y + 11), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, RETRO_UI.C_RED_LIGHT if alarm else RETRO_UI.C_BONE_DIM)
+	text += "   KEG " + ({"dry": "DRY", "empty": "EMPTY", "off": "OFF", "flat": "FLAT"}.get(trouble, "%d" % int(k["line"])))
+	return text
 
 
-## A sprite of the pub's drawn with its bottom middle at `foot` (things standing on the bar).
-func stand(c: Control, n: String, foot: Vector2, alpha := 1.0, tint := Color(1, 1, 1)) -> Rect2:
-	var t := tex(n)
-	if t == null:
-		return Rect2(foot, Vector2.ZERO)
-	var sz := t.get_size() * float(PIX)
-	var r := Rect2((foot - Vector2(sz.x * 0.5, sz.y)).floor(), sz)
-	if alpha > 0.0:
-		c.draw_texture_rect(t, r, false, Color(tint.r, tint.g, tint.b, alpha))
-	return r
-
-
-## A glass's contents: the full render cut off at `level` (a share of its height) from the
-## bottom, standing at `foot`.
-func fill_to(c: Control, n: String, foot: Vector2, level: float, tint := Color(1, 1, 1)) -> void:
-	var t := tex(n)
-	if t == null or level <= 0.0:
-		return
-	var sz := t.get_size() * float(PIX)
-	var h := floorf(sz.y * clampf(level, 0.0, 1.0))
-	if h < 1.0:
-		return
-	var src_h := float(t.get_height()) * h / sz.y
-	c.draw_texture_rect_region(t, Rect2((foot - Vector2(sz.x * 0.5, h)).floor(), Vector2(sz.x, h)), Rect2(0, t.get_height() - src_h, t.get_width(), src_h), tint)
+## The keg's gas and what is left in it, for the frame (from the bar's stations).
+func mirror() -> Array:
+	var out: Array = []
+	if taproom == null or building_key == "" or station == "keg":
+		return out
+	var k: Dictionary = taproom.keg(building_key)
+	var gas := float(k.get("gas", 0.5))
+	out.append({"icon": _icons.get("mark_keg"), "fill": float(int(k.get("line", 0))) / float(PUB.KEG_PINTS), "zone": Vector2(-1, -1), "col": RETRO_UI.C_AMBER if int(k.get("line", 0)) > 6 else RETRO_UI.C_RED, "blink": int(k.get("line", 0)) <= 3})
+	out.append({"icon": _icons.get("mark_foam"), "fill": gas, "zone": Vector2(PUB.GAS_LOW, PUB.GAS_HIGH), "col": RETRO_UI.C_GREEN if PUB.gas_band(gas) == "OK" else RETRO_UI.C_RED, "blink": PUB.gas_band(gas) != "OK"})
+	return out

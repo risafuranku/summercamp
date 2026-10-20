@@ -4584,6 +4584,8 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 			act.biz_fire(str(a[0]), str(a[1]) if a.size() > 1 else "")
 		"bin":
 			act.biz_bin(str(a[0]))
+		"waste":
+			act.biz_waste(str(a[0]), a[1])
 		"gear":
 			act.biz_add_gear(str(a[0]), str(a[1]))
 		"job":

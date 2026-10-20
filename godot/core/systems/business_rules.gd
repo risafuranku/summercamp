@@ -280,7 +280,7 @@ const GEAR := {
 		"clock": {"label": "Ticket clock", "price": 90, "what": "The guests see the order is up: they wait longer."},
 	},
 	"pub": {
-		"tap2": {"label": "Second tap", "price": 260, "what": "Two beers drawn at once."},
+		"tap2": {"label": "Second tap", "price": 260, "what": "A second spout on the line: the beer comes faster, a hand draws two at once."},
 		"glasswasher": {"label": "Glass washer", "price": 220, "what": "The mugs come out clean by themselves."},
 		"cooler": {"label": "Keg cooler", "price": 200, "what": "A tapped keg keeps twice as long."},
 		"coupler": {"label": "Quick coupler", "price": 90, "what": "A keg changed in a moment."},

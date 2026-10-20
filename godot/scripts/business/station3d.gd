@@ -67,6 +67,8 @@ var surf_flat := true
 ## counter), or how far out from the wall (a wall). 0: worked out from the size.
 var cam_back := 0.0
 var cam_up := 0.0
+## How far over the surface the camera looks (a tall thing on it, the tap's tower).
+var cam_aim := 0.0
 ## The business's live state (kitchen.gd, taproom.gd...), set by the room.
 var state: Node
 ## The room's camera (set while you are at it: the pointer is cast through it).
@@ -187,7 +189,7 @@ func cam_pose() -> Transform3D:
 		var back := cam_back if cam_back > 0.0 else 0.66 * k
 		var up := cam_up if cam_up > 0.0 else 1.02 * k
 		var eye := c.origin + toward_cook * back + Vector3(0, up, 0)
-		var look := c.origin - toward_cook * (0.1 * k)
+		var look := c.origin - toward_cook * (0.1 * k) + Vector3(0, cam_aim, 0)
 		return Transform3D(Basis(), eye).looking_at(look, Vector3.UP)
 	var out := cam_back if cam_back > 0.0 else surf_size.x * 0.62
 	var eye2 := c.origin + toward_cook * out + Vector3(0, 0.12, 0)

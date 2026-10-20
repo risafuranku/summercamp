@@ -25,6 +25,7 @@ const ORDERS := preload("res://scripts/food/orders.gd")
 ## The bistros' kitchens: the trays, the stove, the pot, the tickets (loaded, not
 ## preloaded: the kitchen preloads this script).
 const KITCHEN_PATH := "res://scripts/bistro/kitchen.gd"
+const TAPROOM_PATH := "res://scripts/pub/taproom.gd"
 ## The day shift's first hour.
 const OPEN_HOUR := 7
 
@@ -50,6 +51,8 @@ func _ready() -> void:
 	add_to_group("businesses")
 	_rng.randomize()
 	add_child(load(KITCHEN_PATH).new())
+	# The pubs' bars: their hands pour whether anybody is in the pub or not.
+	add_child(load(TAPROOM_PATH).new())
 
 
 func _process(delta: float) -> void:
@@ -343,8 +346,9 @@ func _watch_visits(sites: Dictionary) -> void:
 			var rec := {"key": key, "kind": kind, "v": v, "served": false}
 			_visits[str(v["visit"])] = rec
 			var s: Dictionary = CoreRoot.get_state().biz["sites"].get(key, {})
-			# The bistro's hands work its kitchen ticket by ticket (kitchen.gd).
-			if bool(s.get("staff", false)) and kind != "rest":
+			# The bistro's hands work its kitchen ticket by ticket (kitchen.gd), the pub's
+			# pour at its bar order by order (taproom.gd).
+			if bool(s.get("staff", false)) and not (kind in ["rest", "pub"]):
 				_hand_serves(rec)
 	# Gone: anybody nobody served went away hungry (or thirsty).
 	for id in _visits.keys():

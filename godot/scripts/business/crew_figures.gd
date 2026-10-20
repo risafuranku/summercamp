@@ -19,6 +19,9 @@ var key := ""
 var spots: Dictionary = {}
 ## -> [station ids a warden is at now]
 var busy_of: Callable
+## -> the station open on this machine ("" none): a hand standing between its camera and
+## its counter steps aside too (spot "clear_of": the stations whose view they would block).
+var open_of: Callable
 
 var _figs: Dictionary = {}
 var _acc := 0.0
@@ -44,6 +47,7 @@ func refresh() -> void:
 	var s := BUSINESS.site(key)
 	var want := {}
 	var busy: Array = busy_of.call() if busy_of.is_valid() else []
+	var open := str(open_of.call()) if open_of.is_valid() else ""
 	var people: Array = BUSINESS.crew_now(key)
 	# The one who has worked here before: at his place in the dark when it is shut.
 	if BUSINESS.shift_now(s) == "closed":
@@ -66,7 +70,7 @@ func refresh() -> void:
 			fig = _make(slug)
 			(spot["root"] as Node3D).add_child(fig)
 			_figs[slug] = fig
-		var aside := str(spot.get("station", "")) != "" and busy.has(str(spot["station"]))
+		var aside := (str(spot.get("station", "")) != "" and busy.has(str(spot["station"]))) or (open != "" and (spot.get("clear_of", []) as Array).has(open))
 		var t := tex(slug if aside else slug + "_work")
 		if t == null:
 			t = tex(slug)

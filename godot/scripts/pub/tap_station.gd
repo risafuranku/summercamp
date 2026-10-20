@@ -1,33 +1,41 @@
 extends "res://scripts/pub/pub_station.gd"
 
-## The tap (assets/textury/pub/st_tap.png): the beer tower in the middle, its drip tray,
-## the clean mugs on the draining board at the left, the bar top at the right.
-##   a mug   click the board: a clean mug under the spout (pulling without one puts one
-##           there too, if there is one: no clean mugs, nothing to pour into)
-##   pour    hold the left button on the handle: it is pulled, beer with a little head;
-##           hold the right one: it is pushed back, foam only. The head settles back to
-##           beer while you wait. Over the rim it runs onto the tray.
-##   knife   the foam knife off the bar: a stroke takes the top of the head off
-##   serve   click the mug: it goes to the mat you picked, or to whoever's order it
+## The tap (DESIGN.md §7b "the pub"), worked on the bar in the room: the chrome tower seen
+## from the side, its faucet's spout over the drip tray, the black handle on top of it,
+## the clean mugs on the board at the left (the washer puts them there), the foam knife
+## at the right. Things are sprites at the room's pixel (the pub's Grok sheets).
+##   a mug   click the board: a clean mug under the spout (no clean mugs, nothing to pour
+##           into: the washer)
+##   pour    take the handle and draw it towards you: beer, with a little head; push it
+##           away: foam only. Let go and it springs back. The head settles back to beer
+##           while you wait; over the rim it runs onto the tray.
+##   knife   a click takes the top off the head
+##   serve   click the mug: over the bar to the mat you picked, or to whoever's order it
 ##           matches best (pub_rules.judge_pour); the wrong pour they send back.
 ## The three pours: hladinka (beer to the line, a collar of foam to the rim), snyt (half
 ## and half), mliko (all foam, a finger of beer). The keg in the cellar decides how it
-## comes: the gas low, slow and flat; high, all foam; the keg spent, it coughs.
+## comes: the gas low, slow and flat; high, all foam; the keg spent, it coughs; flat when
+## it has been on the line too long.
 
-## The picture's things, in canvas px (two to one of the 320x180 picture).
-const SPOUT := Vector2(290, 136)
-const MUG_FOOT := Vector2(290, 274)
-const HANDLE := Rect2(272, 10, 36, 62)
-const HANDLE_PIVOT := Vector2(290, 70)
-## Where the knob is painted (picture px) and a patch of plain panelling beside it.
-const KNOB_SRC := Rect2(136, 4, 18, 32)
-const KNOB_PATCH := Rect2(110, 4, 18, 32)
-const BOARD := Rect2(14, 196, 200, 92)
-const KNIFE_AT := Vector2(470, 262)
-const TRAY := Rect2(214, 250, 190, 60)
-## The inside of the mug sprite (shares of its width and height): the glass's body
-## between the dimples, its bottom and its rim.
-const IN_X := Vector2(0.1, 0.72)
+const BUSINESS := preload("res://scripts/business/business_runtime.gd")
+## On the bar (design px across the surface, pub_layout.SURFACES: 2.5 mm a px): the
+## tower, the mug's place under its spout (the faucet reaches left of the column: the
+## tower's picture, pub/tap_tower.png, 0.38 m tall: its spout 14 of its 64 px left of
+## the middle, 35 px up; the handle's socket 6 px left, at the top), the board of clean
+## mugs (two rows of three: more than that is in the count), the knife.
+const TOWER_AT := Vector2(320, 180)
+const TOWER_M := 0.38
+const MUG_FOOT := Vector2(287, 188)
+const HANDLE_AT := Vector2(305, 184)
+const BOARD := Rect2(56, 146, 168, 92)
+const BOARD_SPOTS := [Vector2(186, 168), Vector2(136, 168), Vector2(86, 168), Vector2(176, 214), Vector2(126, 214), Vector2(76, 214)]
+const KNIFE_AT := Vector2(404, 206)
+## The spout's tip over the bar top, and the handle's pivot on the faucet (metres).
+const SPOUT_UP := 0.208
+const HANDLE_UP := 0.375
+## The mug: its height on the bar, and the inside of its picture (shares): its body between
+## the bottom and the rim.
+const MUG_M := 0.18
 const IN_BOTTOM := 0.94
 const IN_RIM := 0.08
 
@@ -36,28 +44,47 @@ var _beer := 0.0
 var _foam := 0.0
 var _spilled := 0.0
 var _puddle := 0.0
-var _pull := false
-var _push := false
-var _lever := 0.0                  # -1 pushed .. 0 .. 1 pulled (eased)
-var _slide := -1.0                 # the mug sliding off to its drinker (s), -1 = none
-var _slide_ok := true
+var _lever := 0.0
+var _grab_y := -1.0
+var _slide := -1.0
 var _knife_t := -1.0
 var _cough := 0.0
-var _drips: Array = []
-var _pour_loop: AudioStreamPlayer
 var _rng := RandomNumberGenerator.new()
+var _pour_loop: AudioStreamPlayer
+
+var _mug_spr: Sprite3D
+var _beer_spr: Sprite3D
+var _foam_spr: Sprite3D
+var _stream: Sprite3D
+var _puddle_spr: Sprite3D
+var _knife: Sprite3D
+var _board_mugs: Array = []
+var _handle: Sprite3D
+var _handle_pivot: Node3D
+var _level_meter: Sprite3D
 
 
-func _ready() -> void:
-	super._ready()
-	station = "tap"
-	room = "bar"
-	picture = tex("st_tap")
+func _build() -> void:
+	super._build()
 	_rng.randomize()
-	for n in ["mug_clean", "mug_beer", "foam", "stream_beer", "stream_foam", "drip", "puddle", "knife", "towel"]:
-		tex(n)
+	_build_tower()
+	for i in BOARD_SPOTS.size():
+		_board_mugs.append(psprite("mug_clean", MUG_M))
+	_puddle_spr = psprite("puddle", 0.22, true)
+	_puddle_spr.visible = false
+	put(_puddle_spr, MUG_FOOT, 0.005)
+	_mug_spr = psprite("mug_clean", MUG_M)
+	_beer_spr = psprite("mug_beer", MUG_M)
+	_beer_spr.region_enabled = true
+	_foam_spr = psprite("foam", 0.12)
+	_stream = psprite("stream_beer", 0.3)
+	_stream.region_enabled = true
+	_knife = psprite("knife", 0.16, true)
+	put(_knife, KNIFE_AT, 0.006)
+	_level_meter = meter(5, 18)
+	_level_meter.position = local_at(MUG_FOOT + Vector2(-46, 0), 0.1)
 	_pour_loop = AudioStreamPlayer.new()
-	var path := PUB_SFX + "tap_pour.mp3"
+	var path := "res://assets/sfx/pub/tap_pour.mp3"
 	if ResourceLoader.exists(path):
 		var st = (load(path) as AudioStream).duplicate()
 		if st is AudioStreamMP3:
@@ -67,45 +94,155 @@ func _ready() -> void:
 	add_child(_pour_loop)
 
 
-func _rail_slots() -> int:
-	# The handle stands up through the rail: the mats stop short of it.
-	return 6
+## The tower (a sprite standing on the bar, its foot at TOWER_AT), the drip tray under the
+## spout, the handle on its pivot on top of the faucet: it tips left as it is drawn
+## towards you (beer), right as it is pushed away (foam).
+func _build_tower() -> void:
+	put(psprite("tap_tower", TOWER_M), TOWER_AT, 0.0)
+	put(psprite("drip_tray", 0.22, true), MUG_FOOT, 0.003)
+	_handle_pivot = Node3D.new()
+	_handle_pivot.position = local_at(HANDLE_AT, HANDLE_UP)
+	add_child(_handle_pivot)
+	_handle = psprite("tap_handle", 0.15)
+	remove_child(_handle)
+	_handle_pivot.add_child(_handle)
+	_handle.position = Vector3.ZERO
 
 
-func _opened() -> void:
-	_pull = false
-	_push = false
-	if _tickets().is_empty():
-		say("", "Nobody at the bar. The tap drips onto the tray.")
+# ── what the state looks like ────────────────────────────────────────────────
 
-
-func _closing() -> void:
-	_pull = false
-	_push = false
-	_pour_loop.stop()
-
-
-# ── the mug ──────────────────────────────────────────────────────────────────
-
-func _mug_size() -> Vector2:
-	var t := tex("mug_clean")
-	return t.get_size() * float(PIX) if t != null else Vector2(80, 96)
-
-
-func _mug_rect() -> Rect2:
-	var sz := _mug_size()
+func _show() -> void:
+	if taproom == null or building_key == "":
+		return
+	var clean := int(taproom.mugs(building_key)["clean"]) - (1 if _mug else 0)
+	for i in _board_mugs.size():
+		var s: Sprite3D = _board_mugs[i]
+		s.visible = i < clean
+		put(s, BOARD_SPOTS[i], 0.0)
+	_puddle_spr.visible = _puddle > 0.05
+	_mug_spr.visible = _mug
+	_beer_spr.visible = _mug and _beer > 0.01
+	_foam_spr.visible = _mug and _foam > 0.01
+	# The bar's stations stand side by side: a column only at the one you are at.
+	_level_meter.visible = _mug and is_open()
 	var foot := MUG_FOOT
 	if _slide >= 0.0:
-		foot.x += _slide / 0.5 * 160.0
-	return Rect2((foot - Vector2(sz.x * 0.5, sz.y)).floor(), sz)
+		foot.y -= floorf(_slide / 0.5 * 6.0) / 6.0 * 220.0
+	if _mug:
+		put(_mug_spr, foot, 0.004)
+		var tex := _beer_spr.texture
+		if tex != null:
+			var H := float(tex.get_height())
+			var W := float(tex.get_width())
+			var inside := IN_BOTTOM - IN_RIM
+			var h := maxf(1.0, floorf(H * ((1.0 - IN_BOTTOM) + inside * clampf(_beer, 0.0, 1.0))))
+			_beer_spr.region_rect = Rect2(0, H - h, W, h)
+			_beer_spr.offset = Vector2(0, h * 0.5)
+			# Over the empty mug's picture, a hair nearer the eye (no flicker between them).
+			put(_beer_spr, foot, 0.004)
+			_beer_spr.position.z += 0.003
+			# The head on the beer, as thick as the foam is.
+			var level_m := MUG_M * ((1.0 - IN_BOTTOM) + inside * clampf(_beer, 0.0, 1.0))
+			var foam_m := MUG_M * inside * clampf(_foam, 0.0, 1.0 - _beer)
+			_foam_spr.scale = Vector3(1.0, maxf(0.15, foam_m / 0.05), 1.0)
+			_foam_spr.position = local_at(foot, 0.004) + Vector3(0, level_m, 0.005)
+		set_meter(_level_meter, _beer + _foam, Vector2(PUB.LINE - 0.04, 1.0), RETRO_UI.C_AMBER if _beer + _foam < 1.0 else RETRO_UI.C_RED)
+	# The stream from the spout down into the mug while it runs.
+	var running: bool = _mug and absf(_lever) > 0.5 and _slide < 0.0 and taproom.tap_trouble(building_key) == ""
+	_stream.visible = running
+	if running:
+		pretex(_stream, "stream_beer" if _lever > 0.0 else "stream_foam", 0.3)
+		var top := SPOUT_UP
+		var level := MUG_M * ((1.0 - IN_BOTTOM) + (IN_BOTTOM - IN_RIM) * clampf(_beer + _foam, 0.0, 1.0))
+		var len := maxf(0.02, top - level)
+		var tex2 := _stream.texture
+		if tex2 != null:
+			var px := maxf(1.0, floorf(len / _stream.pixel_size))
+			_stream.region_rect = Rect2(0, 0, tex2.get_width(), minf(px, tex2.get_height()))
+			_stream.offset = Vector2(0, minf(px, tex2.get_height()) * 0.5)
+			_stream.position = local_at(MUG_FOOT, 0.004) + Vector3(0, level, 0.002)
+	# The handle drawn towards you or pushed away, in steps.
+	_handle_pivot.rotation.z = floorf(_lever * 4.0) / 4.0 * 0.55
+	if _knife_t >= 0.0:
+		put(_knife, MUG_FOOT + Vector2(-30 + _knife_t / 0.35 * 60.0, -6), 0.16)
+	else:
+		put(_knife, KNIFE_AT, 0.006)
 
 
-## The inside of the mug (canvas px): its body between bottom and rim.
-func _inside() -> Rect2:
-	var r := _mug_rect()
-	var top := r.position.y + r.size.y * IN_RIM
-	var bottom := r.position.y + r.size.y * IN_BOTTOM
-	return Rect2(r.position.x + r.size.x * IN_X.x, top, r.size.x * (IN_X.y - IN_X.x), bottom - top)
+# ── what can be used ─────────────────────────────────────────────────────────
+
+func _spots() -> Array:
+	var out: Array = []
+	if taproom == null:
+		return out
+	var clean := int(taproom.mugs(building_key)["clean"])
+	if not _mug and _slide < 0.0 and clean > 0:
+		out.append({"id": "board", "rect": BOARD, "verb": "A clean mug under the tap (%d)" % clean})
+	out.append({"id": "handle", "node": _handle, "verb": _handle_verb()})
+	if _mug and _slide < 0.0 and _beer + _foam > 0.02:
+		out.append({"id": "mug", "node": _mug_spr, "verb": _mug_verb()})
+	if _mug and _foam > 0.04 and _slide < 0.0:
+		out.append({"id": "knife", "node": _knife, "verb": "Cut the top off the head"})
+	return out
+
+
+func _handle_verb() -> String:
+	match taproom.tap_trouble(building_key):
+		"dry":
+			return "The tap: no beer in the cellar"
+		"empty":
+			return "The tap: the keg is spent"
+		"off":
+			return "The tap: the head is off the keg"
+		"flat":
+			return "The tap: the keg has gone flat"
+	if _lever > 0.5:
+		return "Drawing beer"
+	if _lever < -0.5:
+		return "Pushed: foam"
+	return "Draw a beer: towards you for beer, away for foam"
+
+
+func _mug_verb() -> String:
+	var orders := orders_here("tap")
+	if orders.is_empty():
+		return "Nobody asked for this one"
+	return "Over the bar to %s (%s)" % [ORDERS_first(str(orders[0]["name"])), PUB.label(str(orders[0]["drink"]))]
+
+
+func _press(id: String) -> void:
+	match id:
+		"board":
+			_put_mug()
+		"handle":
+			_grab_y = _mouse_free.y
+			if not _put_mug():
+				_grab_y = -1.0
+		"mug":
+			_serve()
+		"knife":
+			_foam = maxf(0.0, _foam - 0.12)
+			_knife_t = 0.0
+			sfx("scrape", -14.0, 1.4)
+
+
+func _drag(at: Vector2) -> void:
+	if _held != "handle" or _grab_y < 0.0 or at.x < -500.0:
+		return
+	# Towards you (down the bar's picture) draws the beer, away pushes the foam.
+	var was := _lever
+	_lever = clampf((at.y - _grab_y) / 70.0, -1.0, 1.0)
+	if absf(_lever) > 0.5 and absf(was) <= 0.5:
+		_start(_lever > 0.0)
+	elif absf(_lever) <= 0.5 and absf(was) > 0.5:
+		sfx("tap_close", -8.0)
+
+
+func _release(id: String) -> void:
+	if id == "handle":
+		if absf(_lever) > 0.5:
+			sfx("tap_close", -6.0)
+		_grab_y = -1.0
 
 
 func _put_mug() -> bool:
@@ -113,7 +250,7 @@ func _put_mug() -> bool:
 		return true
 	if int(taproom.mugs(building_key)["clean"]) <= 0:
 		var dirty := int(taproom.mugs(building_key)["dirty"])
-		say("", "No clean mugs on the board. %d dirty in the washer." % dirty if dirty > 0 else "No mugs at all.")
+		say("", "No clean mugs on the board. %d in the washer." % dirty if dirty > 0 else "No mugs at all.")
 		sfx("tick", -14.0, 0.7)
 		return false
 	_mug = true
@@ -124,118 +261,32 @@ func _put_mug() -> bool:
 	return true
 
 
-# ── what can be clicked ──────────────────────────────────────────────────────
-
-func _spots() -> Array:
-	var out: Array = []
-	if taproom == null:
-		return out
-	var clean := int(taproom.mugs(building_key)["clean"])
-	if not _mug and _slide < 0.0:
-		out.append({"id": "board", "rect": BOARD, "verb": ("Put a clean mug under the tap (%d)" % clean) if clean > 0 else "No clean mugs: the washer"})
-	out.append({"id": "handle", "rect": HANDLE, "verb": _handle_verb()})
-	if _mug and _slide < 0.0 and _beer + _foam > 0.02:
-		out.append({"id": "mug", "rect": _mug_rect(), "verb": _mug_verb()})
-	if _mug and _foam > 0.04 and _slide < 0.0:
-		var kt := tex("knife")
-		var ks := kt.get_size() * float(PIX) if kt != null else Vector2(40, 12)
-		out.append({"id": "knife", "rect": Rect2(KNIFE_AT - ks * 0.5, ks).grow(4.0), "verb": "Cut the top off the head with the knife"})
-	return out
-
-
-func _handle_verb() -> String:
-	match taproom.tap_trouble(building_key):
-		"dry":
-			return "The tap: no beer in the cellar (order it in the books)"
-		"empty":
-			return "The tap: the keg is spent (change it in the cellar)"
-		"off":
-			return "The tap: the head is off the keg (the cellar)"
-	if _pull:
-		return "Pulling: beer"
-	if _push:
-		return "Pushed back: foam"
-	return "Hold to pull a beer  -  hold the right button for foam"
-
-
-func _mug_verb() -> String:
-	var orders := orders_here("tap")
-	if orders.is_empty():
-		return "Nobody asked for this one"
-	return "Give it to %s (%s)" % [ORDERS_first(str(orders[0]["name"])), PUB.label(str(orders[0]["drink"]))]
-
-
-func _input(event: InputEvent) -> void:
-	var mb := event as InputEventMouseButton
-	if visible and _closing_t < 0.0 and not get_tree().paused and mb != null and mb.button_index == MOUSE_BUTTON_RIGHT:
-		# The right button on the handle pushes it back (anywhere else it steps away).
-		if mb.pressed and _hover == "handle":
-			_start(false)
-			get_viewport().set_input_as_handled()
-			return
-		if not mb.pressed and _push:
-			_stop()
-			get_viewport().set_input_as_handled()
-			return
-	super._input(event)
-
-
-func _press(id: String) -> void:
-	match id:
-		"board":
-			_put_mug()
-		"handle":
-			_start(true)
-		"mug":
-			_serve()
-		"knife":
-			_foam = maxf(0.0, _foam - 0.12)
-			_knife_t = 0.0
-			sfx("scrape", -14.0, 1.4)
-
-
-func _release(id: String) -> void:
-	if id == "handle" and _pull:
-		_stop()
-
-
 func _start(pull: bool) -> void:
-	if _slide >= 0.0:
-		return
 	var trouble: String = taproom.tap_trouble(building_key)
-	if trouble != "":
+	if trouble != "" and trouble != "flat":
 		sfx("tap_open", -6.0, 0.8)
 		_cough = 0.5
-		say("", {"dry": "The tap coughs air. There is no beer in the cellar: order it in the books.",
-			"empty": "The tap spits foam and air. The keg is spent: change it in the cellar.",
-			"off": "Nothing comes. The head is off the keg in the cellar."}[trouble])
+		say("", {"dry": "The tap coughs air.", "empty": "The tap spits foam and air.", "off": "Nothing comes."}.get(trouble, ""))
 		return
-	if not _put_mug():
-		return
-	_pull = pull
-	_push = not pull
 	sfx("tap_open", -6.0)
 	_pour_loop.pitch_scale = 1.0 if pull else 1.3
 	if not _pour_loop.playing:
 		_pour_loop.play()
 
 
-func _stop() -> void:
-	_pull = false
-	_push = false
-	sfx("tap_close", -6.0)
-
-
 # ── time ─────────────────────────────────────────────────────────────────────
 
 func _tick(delta: float) -> void:
-	_lever = move_toward(_lever, 1.0 if _pull else (-1.0 if _push else 0.0), delta * 9.0)
-	var want := (-7.0 if _pull else -13.0) if (_pull or _push) else -60.0
-	_pour_loop.volume_db = move_toward(_pour_loop.volume_db, want, delta * 120.0)
+	if _held != "handle":
+		# Let go: it springs back up, in steps.
+		_lever = move_toward(_lever, 0.0, delta * 8.0)
+	var pouring := absf(_lever) > 0.5 and _mug and _slide < 0.0
+	var trouble: String = taproom.tap_trouble(building_key)
+	if trouble != "" and trouble != "flat":
+		pouring = false
+	_pour_loop.volume_db = move_toward(_pour_loop.volume_db, (-7.0 if _lever > 0.0 else -13.0) if pouring else -60.0, delta * 120.0)
 	if _pour_loop.volume_db <= -59.0 and _pour_loop.playing:
 		_pour_loop.stop()
-	if (_pull or _push) and taproom.tap_trouble(building_key) != "":
-		_stop()
 	_cough = maxf(0.0, _cough - delta)
 	_puddle = maxf(0.0, _puddle - delta * 0.004)
 	if _knife_t >= 0.0:
@@ -251,23 +302,23 @@ func _tick(delta: float) -> void:
 			_foam = 0.0
 			_spilled = 0.0
 	elif _mug:
-		_pour(delta)
-	for d in _drips:
-		d["v"] = minf(60.0, float(d["v"]) + delta * 90.0)
-		d["y"] = float(d["y"]) + float(d["v"]) * delta
-	_drips = _drips.filter(func(d: Dictionary) -> bool: return float(d["y"]) < MUG_FOOT.y)
+		_pour(delta, pouring, trouble == "flat")
 
 
-func _pour(delta: float) -> void:
+func _pour(delta: float, pouring: bool, flat: bool) -> void:
 	var gas: Dictionary = PUB.gas_pour(float(taproom.keg(building_key)["gas"]))
-	if _pull:
+	# The second tap (gear): the line is wider, the beer comes faster.
+	if BUSINESS.has_gear(building_key, "tap2"):
+		delta *= 1.6
+	if pouring and _lever > 0.0:
 		_beer += PUB.POUR_RATE * float(gas["rate"]) * delta
-		_foam += PUB.PULL_FOAM * float(gas["foam"]) * delta
-	elif _push:
+		# A flat keg gives no head at all.
+		_foam += PUB.PULL_FOAM * float(gas["foam"]) * delta * (0.1 if flat else 1.0)
+	elif pouring:
 		_beer += PUB.PUSH_BEER * delta
-		_foam += PUB.PUSH_FOAM * delta
+		_foam += PUB.PUSH_FOAM * delta * (0.25 if flat else 1.0)
 	if _foam > 0.0:
-		var s := minf(_foam, PUB.SETTLE * delta)
+		var s := minf(_foam, PUB.SETTLE * delta * (3.0 if flat else 1.0))
 		_foam -= s
 		_beer += s / 3.0
 	var over := _beer + _foam - 1.0
@@ -278,9 +329,6 @@ func _pour(delta: float) -> void:
 		_beer -= over - off_foam
 		_spilled += over
 		_puddle = minf(1.0, _puddle + over * 2.5)
-		if _rng.randf() < 0.25 and _drips.size() < 10:
-			var r := _inside()
-			_drips.append({"x": r.position.x - 2.0 if _rng.randf() < 0.5 else r.end.x + 2.0, "y": r.position.y, "v": 4.0})
 
 
 ## Over the bar with it: the mat it goes to, judged; sent back if it is not what they
@@ -290,10 +338,7 @@ func _serve() -> void:
 	if orders.is_empty():
 		say("", "Nobody asked for that one. You drink it yourself.")
 		_slide = 0.0
-		_slide_ok = false
 		return
-	# The mat you picked; else whoever it is closest to what they asked for (the oldest
-	# of them when it is nobody's: they send it back).
 	var best: Dictionary = orders[0]
 	var best_v: Dictionary = PUB.judge_pour(str(best["drink"]), _beer, _foam, _spilled, int(best["age"]))
 	if str(best["id"]) != picked:
@@ -307,18 +352,18 @@ func _serve() -> void:
 		say(who, ["Is that a %s? Pour it again.", "That's no %s. Again."][_rng.randi() % 2] % PUB.label(str(best["drink"])).to_lower())
 		sfx("glass_down", -12.0, 0.8)
 		_slide = 0.0
-		_slide_ok = false
 		return
+	if taproom.tap_trouble(building_key) == "flat":
+		best_v["accuracy"] = float(best_v["accuracy"]) * 0.6
 	var verdict: Dictionary = taproom.serve(building_key, best, best_v)
 	if not bool(verdict.get("ok", false)):
-		say("", "The keg ran dry under the glass. Order beer in the books.")
+		say("", "The keg ran dry under the glass.")
 		return
 	picked = ""
 	_slide = 0.0
-	_slide_ok = true
 	sfx("coins_bar", -8.0)
 	var col := RETRO_UI.C_AMBER_LIGHT if int(verdict["tip"]) > 0 else RETRO_UI.C_BONE
-	pop("+$%d" % int(verdict["amount"]), MUG_FOOT + Vector2(60, -110), col, true)
+	pop("+$%d" % int(verdict["amount"]), MUG_FOOT + Vector2(0, -120), col, true)
 	if int(verdict["stars"]) >= 3:
 		say(who, ["Now that's a beer.", "Like my grandad poured.", "Na zdravi!", "Ahh. Perfect.", "You've done this before."][_rng.randi() % 5])
 	elif float(verdict["accuracy"]) >= 0.6:
@@ -327,68 +372,38 @@ func _serve() -> void:
 		say(who, "Hm. Thanks.")
 
 
-# ── drawing ──────────────────────────────────────────────────────────────────
-
-func _paint(c: Control) -> void:
-	if taproom == null:
-		return
-	_paint_lever(c)
-	# The clean mugs on the draining board, a few in a row and the count.
-	var clean := int(taproom.mugs(building_key)["clean"])
-	var shown := mini(3, clean - (1 if _mug else 0))
-	for i in shown:
-		stand(c, "mug_clean", Vector2(BOARD.position.x + 50 + i * 46, BOARD.end.y - 4))
-	ink(c, Vector2(BOARD.position.x + 6, BOARD.end.y + 10), "MUGS %d" % clean, RETRO_UI.C_BONE if clean > 0 else RETRO_UI.C_RED_LIGHT)
-	# The puddle on the tray, the knife.
-	if _puddle > 0.02:
-		var pt := tex("puddle")
-		if pt != null:
-			var ps := pt.get_size() * float(PIX)
-			c.draw_texture_rect(pt, Rect2((MUG_FOOT - Vector2(ps.x * 0.5, ps.y * 0.6)).floor(), ps), false, Color(1, 1, 1, minf(0.9, _puddle * 1.5)))
-	var knife_at := KNIFE_AT
-	if _knife_t >= 0.0:
-		var k := _knife_t / 0.35
-		knife_at = _inside().position + Vector2(_inside().size.x * k, 0)
-	blit(c, "knife", knife_at)
-	# The mug under the spout, what is in it, the stream falling into it.
-	if _mug:
-		var r := _mug_rect()
-		var inside := _inside()
-		var beer_h := floorf(inside.size.y * clampf(_beer, 0.0, 1.0))
-		var foam_h := floorf(inside.size.y * clampf(_foam, 0.0, 1.0 - _beer))
-		var bt := tex("mug_beer")
-		if bt != null and beer_h >= 1.0:
-			# The full mug's render cut off at the beer's level.
-			var src := bt.get_size()
-			var y_cut := r.position.y + r.size.y * IN_BOTTOM - beer_h
-			var share := (r.end.y - y_cut) / r.size.y
-			c.draw_texture_rect_region(bt, Rect2(r.position.x, y_cut, r.size.x, r.end.y - y_cut), Rect2(0, src.y * (1.0 - share), src.x, src.y * share))
-		var ft := tex("foam")
-		if ft != null and foam_h >= 1.0:
-			c.draw_texture_rect(ft, Rect2(inside.position.x - 1, inside.end.y - beer_h - foam_h, inside.size.x + 2, foam_h + 2), false)
-		stand(c, "mug_clean", Vector2(r.get_center().x, r.end.y), 0.85)
-		if (_pull or _push) and _slide < 0.0:
-			var st := tex("stream_beer" if _pull and float(PUB.gas_pour(float(taproom.keg(building_key)["gas"]))["foam"]) < 3.0 else "stream_foam")
-			if st != null:
-				var top := SPOUT.y
-				var bottom := inside.end.y - beer_h - foam_h
-				var sw := st.get_width() * float(PIX)
-				c.draw_texture_rect(st, Rect2(SPOUT.x - sw * 0.5, top, sw, maxf(2.0, bottom - top)), true)
-	elif _cough > 0.0:
-		blit(c, "drip", SPOUT + Vector2(0, 10 + (0.5 - _cough) * 80.0))
-	for d in _drips:
-		blit(c, "drip", Vector2(float(d["x"]), float(d["y"])))
+func _opened() -> void:
+	_lever = 0.0
 
 
-## The handle: pulled towards you it tips one way, pushed back the other.
-func _paint_lever(c: Control) -> void:
-	if picture == null or absf(_lever) < 0.02:
-		return
-	var src := KNOB_SRC
-	var dst := Rect2(src.position * float(PIX), src.size * float(PIX))
-	# Plain panelling over the painted knob, then the knob turned about its foot.
-	c.draw_texture_rect_region(picture, dst, KNOB_PATCH)
-	var pivot := HANDLE_PIVOT
-	c.draw_set_transform(pivot, _lever * 0.45, Vector2.ONE)
-	c.draw_texture_rect_region(picture, Rect2(dst.position - pivot, dst.size), src)
-	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+func _closing() -> void:
+	_lever = 0.0
+	_grab_y = -1.0
+	_pour_loop.stop()
+	# A mug on its way over the bar is gone when you turn away (time stops here).
+	if _slide >= 0.0:
+		_slide = -1.0
+		_mug = false
+		_beer = 0.0
+		_foam = 0.0
+		_spilled = 0.0
+
+
+# ── debug (tools/pub_check.gd, tools/pub_shots.gd) ───────────────────────────
+
+## A pour as a player would: `beer` and `foam` shares, then served.
+func debug_pour(beer: float, foam: float) -> void:
+	_put_mug()
+	_beer = beer
+	_foam = foam
+
+
+## The pour the first beer ordered wants (its beer to the line, the head to the rim).
+func debug_pour_right() -> void:
+	var orders := orders_here("tap")
+	var want := 0.78 if orders.is_empty() else float(PUB.DRINKS[str(orders[0]["drink"])]["beer"])
+	debug_pour(want, 0.96 - want)
+
+
+func debug_click(id: String) -> void:
+	_press(id)

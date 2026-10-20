@@ -11,7 +11,11 @@ extends RefCounted
 ##           the cooler, the slops, and an oak barrel that is on nobody's books.
 ## Every station is a click box with meta "bistro_station" (STATIONS), the things worth a
 ## look meta "bistro_look" (the line said about them, under the room: room_sentence.gd).
-## Pictures are camp textures (assets/textury/camp/, Grok); a missing one is left out.
+## A station is worked where it stands (scripts/business/station3d.gd): SURFACES is the
+## place the camera goes over in steps and the station's things are laid on (the bar top
+## at the tap, the bottle shelf's foot, the sink at the bar's end, the cellar floor by the
+## pallet). Pictures are camp textures (assets/textury/camp/, Grok); a missing one is left
+## out.
 
 const K := preload("res://scripts/interior_kit.gd")
 const BISTRO := preload("res://scripts/bistro/bistro_layout.gd")
@@ -23,12 +27,26 @@ const CELLAR := Vector3(5.8, 2.5, 4.6)
 const TABLES := [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]
 
 ## The stations: id -> {room, at (click box centre), size, stand (where the warden stands
-## at it), pose (their picture there), mark (where its status hangs), label}.
+## at it), pose (their picture there), mark (where its status hangs), label, tab_label
+## (on the frame's bar)}.
 const STATIONS := {
-	"tap": {"room": "bar", "at": Vector3(1.275, 1.28, -1.405), "size": Vector3(0.52, 0.46, 0.34), "stand": Vector3(1.275, 0.05, -1.8), "pose": "tap", "mark": Vector3(1.275, 1.86, -1.405), "label": "the tap"},
-	"back": {"room": "bar", "at": Vector3(1.35, 1.45, -2.05), "size": Vector3(1.4, 0.8, 0.4), "stand": Vector3(1.75, 0.05, -1.85), "pose": "pour", "mark": Vector3(1.75, 2.12, -2.0), "label": "the back bar"},
-	"wash": {"room": "bar", "at": Vector3(2.35, 1.05, -1.2), "size": Vector3(0.5, 0.4, 0.5), "stand": Vector3(2.35, 0.05, -1.75), "pose": "wash", "mark": Vector3(2.35, 1.52, -1.2), "label": "the washer"},
-	"keg": {"room": "cellar", "at": Vector3(-1.0, 0.55, -1.85), "size": Vector3(1.0, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg"},
+	"tap": {"room": "bar", "at": Vector3(1.3, 1.3, -1.32), "size": Vector3(0.3, 0.42, 0.3), "stand": Vector3(1.3, 0.05, -1.99), "pose": "tap", "mark": Vector3(1.3, 1.78, -1.3), "label": "the tap", "tab_label": "TAP"},
+	"back": {"room": "bar", "at": Vector3(0.63, 1.25, -1.4), "size": Vector3(0.52, 0.32, 0.3), "stand": Vector3(0.63, 0.05, -1.99), "pose": "pour", "mark": Vector3(0.63, 1.7, -1.4), "label": "the bottles", "tab_label": "BOTTLES"},
+	"wash": {"room": "bar", "at": Vector3(2.12, 1.15, -1.3), "size": Vector3(0.45, 0.12, 0.62), "stand": Vector3(2.12, 0.05, -1.99), "pose": "wash", "mark": Vector3(2.12, 1.6, -1.4), "label": "the washer", "tab_label": "WASH"},
+	"keg": {"room": "cellar", "at": Vector3(-1.0, 0.55, -1.85), "size": Vector3(1.0, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg", "tab_label": "KEG"},
+}
+## Where each station is worked (scripts/business/station3d.gd): its centre, size in
+## metres, which way the worker faces it (yaw), flat (a top) or a wall; how far back and
+## up the camera stands and how far over the top it looks. The bar's three are along its
+## top on the barman's side (the bar top 1.10 m up, bar_counter.glb), the camera behind
+## them in the narrow way between the bar and the shelf, as the bistro's over its
+## counters: the bottles at the left end, the tap in the middle, the mugs' board by it,
+## the sink at the right end (the empties come back onto the bar in front of it).
+const SURFACES := {
+	"tap": {"at": Vector3(1.3, 1.10, -1.33), "size": Vector2(1.6, 0.9), "yaw": 180.0, "flat": true, "cam_back": 0.62, "cam_up": 0.4, "cam_aim": 0.16},
+	"back": {"at": Vector3(0.65, 1.10, -1.33), "size": Vector2(1.6, 0.9), "yaw": 180.0, "flat": true, "cam_back": 0.62, "cam_up": 0.4, "cam_aim": 0.12},
+	"wash": {"at": Vector3(2.05, 1.10, -1.33), "size": Vector2(1.6, 0.9), "yaw": 180.0, "flat": true, "cam_back": 0.62, "cam_up": 0.42, "cam_aim": 0.06},
+	"keg": {"at": Vector3(-1.0, 0.15, -1.75), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true, "cam_back": 0.85, "cam_up": 0.68, "cam_aim": 0.25},
 }
 
 
@@ -50,6 +68,59 @@ static func _pic(parent: Node3D, n: String, size: Vector2, pos: Vector3, yaw := 
 
 static func look(parent: Node3D, name: String, line: String, at: Vector3, size: Vector3) -> StaticBody3D:
 	return BISTRO.look(parent, name, line, at, size)
+
+
+static var _hidden_mat: ShaderMaterial
+
+
+## A model's surfaces by material name not drawn (the bar's own tap tower).
+static func _hide_surfaces(n: Node, names: Array) -> void:
+	if n == null:
+		return
+	if _hidden_mat == null:
+		var sh := Shader.new()
+		sh.code = "shader_type spatial;
+render_mode unshaded;
+void fragment() {
+	discard;
+}
+"
+		_hidden_mat = ShaderMaterial.new()
+		_hidden_mat.shader = sh
+	for mi in n.find_children("*", "MeshInstance3D", true, false):
+		var m := (mi as MeshInstance3D).mesh
+		if m == null:
+			continue
+		for i in m.get_surface_count():
+			var mat := m.surface_get_material(i)
+			if mat != null and names.has(mat.resource_name):
+				(mi as MeshInstance3D).set_surface_override_material(i, _hidden_mat)
+
+
+## A station's surface with a picture of its own: the quad Surface_<id> (the room puts
+## the picture on it at the room's pixel, service_interior._make_stations).
+static func surface(parent: Node3D, id: String) -> MeshInstance3D:
+	var d: Dictionary = SURFACES[id]
+	var mi := MeshInstance3D.new()
+	mi.name = "Surface_" + id
+	var q := QuadMesh.new()
+	q.size = d["size"]
+	if bool(d["flat"]):
+		q.orientation = PlaneMesh.FACE_Y
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	m.emission_enabled = true
+	m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+	m.emission = Color(0.35, 0.33, 0.3)
+	mi.material_override = m
+	mi.position = d["at"]
+	mi.rotation_degrees.y = float(d["yaw"])
+	mi.set_meta("bistro_surface", id)
+	parent.add_child(mi)
+	return mi
 
 
 ## The click box of a station (meta bistro_station = its id) in its room.
@@ -74,16 +145,23 @@ static func station_body(parent: Node3D, id: String) -> StaticBody3D:
 static func bar(parent: Node3D, si) -> void:
 	K.room(parent, SIZE, "planks_red", "pub_panel", "planks_dark", 1.4, 1.0, 0.05)
 	K.skirting(parent, SIZE, "planks_dark", 0.05)
-	# The bar on the right: the counter with its tap, the bottles behind, the crates.
-	K.prop(parent, "bar_counter", Vector3(1.35, 0.05, -1.25))
+	# The bar on the right (its own tap tower is not drawn: the tap's station has one that
+	# works), the bottles behind on their shelf, the radio on top of it, the crates.
+	var bar_model := K.prop(parent, "bar_counter", Vector3(1.35, 0.05, -1.25))
+	_hide_surfaces(bar_model, ["chrome", "tap_handle"])
 	K.prop(parent, "bottle_shelf", Vector3(1.35, 1.0, -2.16))
-	K.prop(parent, "beer_crates", Vector3(2.5, 0.05, -1.95))
-	K.prop(parent, "radio_set", Vector3(0.62, 1.13, -1.2), -15.0)
-	look(parent, "radio", "It plays the same polka at the same time every evening. It is unplugged.", Vector3(0.62, 1.25, -1.2), Vector3(0.35, 0.25, 0.25))
+	K.prop(parent, "beer_crates", Vector3(-0.85, 0.05, -2.1))
+	K.prop(parent, "radio_set", Vector3(1.85, 2.17, -2.14))
+	look(parent, "radio", "It plays the same polka at the same time every evening. It is unplugged.", Vector3(1.85, 2.3, -2.14), Vector3(0.35, 0.25, 0.25))
 	for x: float in [0.6, 1.3, 2.0]:
 		K.prop(parent, "bar_stool", Vector3(x, 0.05, -0.6))
-	_cut(parent, "pub_mats", Vector2(0.14, 0.1), Vector3(2.05, 1.1, -1.1), 0.0, true, "BeerMats")
-	look(parent, "beer mats", "Mats from a dozen breweries. Two of them are breweries nobody has heard of.", Vector3(2.05, 1.15, -1.1), Vector3(0.2, 0.12, 0.2))
+	_cut(parent, "pub_mats", Vector2(0.14, 0.1), Vector3(0.95, 1.1, -0.98), 0.0, true, "BeerMats")
+	look(parent, "beer mats", "Mats from a dozen breweries. Two of them are breweries nobody has heard of.", Vector3(0.95, 1.15, -0.98), Vector3(0.2, 0.12, 0.2))
+	# The glass washer at the end of the way behind the bar, once bought
+	# (service_interior._apply_pub_gear).
+	var gw := _cut(parent, "gear_glasswasher", Vector2(0.47, 0.65), Vector3(2.62, 0.05, -1.98), 0.0, true, "GearGlassWasher")
+	if gw != null:
+		gw.visible = false
 	_cut(parent, "pub_crate", Vector2(0.5, 0.36), Vector3(2.65, 0.05, -0.55), 0.0, true, "Empties")
 	look(parent, "crate of empties", "Empties for the brewery. Twenty bottles, twenty-one caps.", Vector3(2.65, 0.25, -0.55), Vector3(0.5, 0.4, 0.4))
 	# The tables on the left, the regulars' with its plaque; ashtrays, a lamp over each.
@@ -104,7 +182,7 @@ static func bar(parent: Node3D, si) -> void:
 	_cut(parent, "pub_pennant", Vector2(0.3, 0.36), Vector3(-2.0, 1.9, -2.28), 0.0, false, "Pennant")
 	_cut(parent, "pub_pennant", Vector2(0.28, 0.34), Vector3(-1.62, 1.95, -2.28), 0.0, false, "Pennant")
 	look(parent, "pennants", "SK Lesna. Promoted in 1983, relegated in 1984.", Vector3(-1.8, 2.0, -2.25), Vector3(0.7, 0.4, 0.1))
-	_pic(parent, "pub_calendar", Vector2(0.32, 0.46), Vector3(0.15, 1.65, -2.28), 0.0, "Calendar")
+	_cut(parent, "pub_calendar", Vector2(0.32, 0.46), Vector3(0.15, 1.65, -2.28), 0.0, false, "Calendar")
 	look(parent, "calendar", "September 1986. Nobody has turned it over.", Vector3(0.15, 1.65, -2.25), Vector3(0.32, 0.46, 0.1))
 	K.cutout(parent, "wall_clock", Vector2(0.3, 0.3), Vector3(2.4, 1.85, -2.28), 0.0, false, "Clock")
 	look(parent, "clock", "Ten to closing. It always says ten to closing.", Vector3(2.4, 2.0, -2.25), Vector3(0.32, 0.32, 0.1))
@@ -125,12 +203,12 @@ static func bar(parent: Node3D, si) -> void:
 	_cut(parent, "pub_geranium", Vector2(0.26, 0.32), Vector3(-2.78, 1.09, 0.3), 90.0, false, "Geranium")
 	look(parent, "window", "The car park, the lamp, the forest. The lamp flickers when somebody walks under it. Nobody is.", Vector3(-2.82, 1.5, 0.05), Vector3(0.1, 0.8, 0.9))
 	# The right wall: the slate of who owes, the lake poster, the print.
-	_pic(parent, "pub_board", Vector2(0.5, 0.42), Vector3(2.88, 1.55, 1.3), -90.0, "DebtSlate")
+	_cut(parent, "pub_board", Vector2(0.5, 0.42), Vector3(2.88, 1.55, 1.3), -90.0, false, "DebtSlate")
 	look(parent, "slate", "DLUZNICI, who owes for beer. The top name is rubbed out every morning and is back every night.", Vector3(2.85, 1.55, 1.3), Vector3(0.1, 0.42, 0.5))
 	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.88, 1.6, 0.55), -90.0, "PubPoster")
 	look(parent, "poster", "Lake Lesna, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, 0.55), Vector3(0.1, 0.8, 0.6))
-	_pic(parent, "pub_hockey", Vector2(0.5, 0.36), Vector3(-0.2, 1.65, 2.28), 180.0, "TeamPhoto")
-	_pic(parent, "pub_print", Vector2(0.5, 0.4), Vector3(0.6, 1.65, 2.28), 180.0, "PondPrint")
+	_cut(parent, "pub_hockey", Vector2(0.5, 0.36), Vector3(-0.2, 1.65, 2.28), 180.0, false, "TeamPhoto")
+	_cut(parent, "pub_print", Vector2(0.5, 0.4), Vector3(0.6, 1.65, 2.28), 180.0, false, "PondPrint")
 	# The front corner: the stove and its coal, the coat stand, the fly paper.
 	_cut(parent, "pub_stove", Vector2(0.55, 1.3), Vector3(-2.4, 0.05, 1.85), 0.0, true, "Stove")
 	look(parent, "stove", "The kamna. Cold since spring. There is warm ash in it.", Vector3(-2.4, 0.6, 1.85), Vector3(0.55, 1.2, 0.5))

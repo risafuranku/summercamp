@@ -37,8 +37,16 @@ NO_DEFRINGE = {"pepa", "lojza"}
 SHEETS = [
     ("bzs_off1", [("off_potatoes", 46), ("off_cheese", 16), ("off_bread", 20), ("off_milk", 24), ("off_cob", 18)]),
     ("bzs_off2", [("off_rolls", 18), ("off_salami", 24), ("off_pickles", 18), ("off_dumplings", 16), ("off_keg", 52)]),
-    ("bzs_chalk", [("chalk_strike", 10), ("chalk_x", 16), ("chalk_under", 6), ("chalk_tick", 12)]),
+    # (the longer side: a strike across a menu line is wide and thin)
+    ("bzs_chalk", [("chalk_strike", 137), ("chalk_x", 16), ("chalk_under", 30), ("chalk_tick", 12)]),
+    # The gear (business_rules.GEAR), as it stands in the rooms once bought.
+    ("bzg_bistro", [("gear_pan", 27), ("gear_pot", 32), ("gear_lamp", 46), ("gear_clock", 27)]),
+    ("bzg_pub", [("gear_tap2", 38), ("gear_coupler", 18), ("gear_glasswasher", 59), ("gear_cooler", 55)]),
+    ("bzg_corn", [("gear_cornpot", 36), ("gear_butter", 23), ("gear_husktable", 82)]),
+    ("bzg_jednota", [("gear_till", 41), ("gear_pallet", 109), ("gear_fridge", 173), ("gear_racks", 164)]),
 ]
+# Faces of gear boxes (16:9 renders, the box's front at the rooms' pixel).
+FACES = [("bzg_washer", "gear_washer", (64, 36))]
 
 
 def raw(art_id):
@@ -108,6 +116,18 @@ def sheet(art_id, names):
         print(name, small.size)
 
 
+def face(art_id, name, size):
+    src = raw(art_id)
+    if src is None:
+        print("skip (no render)", art_id)
+        return
+    img = Image.open(src).convert("RGB").resize(size, Image.Resampling.BOX)
+    out = process.snap(img, False)
+    path = os.path.join(GODOT, CAMP, name + ".png")
+    out.save(path)
+    print(name, out.size)
+
+
 def main():
     want = set(sys.argv[1:])
     for slug in PEOPLE:
@@ -119,6 +139,9 @@ def main():
     for art_id, names in SHEETS:
         if not want or art_id in want:
             sheet(art_id, names)
+    for art_id, name, size in FACES:
+        if not want or art_id in want:
+            face(art_id, name, size)
 
 
 if __name__ == "__main__":

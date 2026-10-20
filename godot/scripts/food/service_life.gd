@@ -4,7 +4,9 @@ extends Node3D
 ## scripts/service_interior.gd for those rooms). Whoever the guest simulation has visiting
 ## this building right now is here, in their own sprites:
 ##   pub      at the tables and on the bar stools, raising the mug now and then (a table
-##            drinks together: the glasses clink); the room murmurs;
+##            drinks together: the glasses clink); in front of each what was poured for
+##            them (taproom.glass_of: the mug, the kofola, the shot as sprites at the
+##            room's pixel), nothing between rounds; the room murmurs;
 ##   bistro   at the gingham tables, eating (the food on the plate goes down); cutlery
 ##            and low voices;
 ##   shop     standing at the racks, a step this way and that, one at the counter.
@@ -46,13 +48,16 @@ var _t := 0.0
 var _rng := RandomNumberGenerator.new()
 var _room_sound: AudioStreamPlayer
 var _one: AudioStreamPlayer
-var _mug_mat: StandardMaterial3D
-var _foam_mat: StandardMaterial3D
 var _plate_mat: StandardMaterial3D
 var _food_mat: StandardMaterial3D
 ## The bistro's kitchen (scripts/bistro/kitchen.gd): whose plate has come, and what is on it.
 const KITCHEN = preload("res://scripts/bistro/kitchen.gd")
 var _kitchen: KITCHEN
+## The pub's bars (scripts/pub/taproom.gd): what each has in front of them.
+const TAPROOM = preload("res://scripts/pub/taproom.gd")
+const PUB_RULES = preload("res://core/systems/pub_rules.gd")
+const STATION3D = preload("res://scripts/business/station3d.gd")
+var _taproom
 const TABLE_TEX := "res://assets/textury/bistro/table_"
 
 
@@ -76,12 +81,12 @@ func setup(p: String, building_key: String, seat_list: Array, settings: Dictiona
 	_one = AudioStreamPlayer.new()
 	_one.volume_db = -10.0
 	add_child(_one)
-	_mug_mat = _mat(Color(0.86, 0.6, 0.16, 0.86), true)
-	_foam_mat = _mat(Color(0.98, 0.96, 0.9), false)
 	_plate_mat = _mat(Color(0.95, 0.95, 0.92), false)
 	_food_mat = _mat(Color(0.5, 0.2, 0.1), false)
 	if p == "rest":
 		_kitchen = get_tree().get_first_node_in_group("kitchens") as KITCHEN
+	elif p == "pub":
+		_taproom = TAPROOM.of(get_tree())
 	# Whoever is in already when you come in is in their seat.
 	_refresh(true)
 
@@ -215,11 +220,17 @@ func _spawn(g: Dictionary, seat: int, visit: String, member: int, seated: bool) 
 		prop.name = "Setting"
 		add_child(prop)
 		prop.position = setting[seat]
-		if profile == "pub":
-			var glass := _cyl(prop, 0.045, 0.16, _mug_mat)
-			glass.position.y = 0.08
-			var foam := _cyl(prop, 0.046, 0.03, _foam_mat)
-			foam.position.y = 0.17
+		if profile == "pub" and _taproom != null:
+			# What was poured for them, standing on the table (a sprite at the room's pixel).
+			var drink := Sprite3D.new()
+			drink.name = "Drink"
+			drink.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+			drink.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			drink.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			drink.shaded = true
+			prop.add_child(drink)
+			p["drink"] = drink
+			p["served"] = _drink_of(p)
 		elif _kitchen != null:
 			# The bistro: the plate as it came out of the hatch (bistro_rules parts).
 			p["food"] = _plate_of(prop, _kitchen.plate_for(key, visit, member, figures, str(g.get("archetype", ""))))
@@ -229,7 +240,7 @@ func _spawn(g: Dictionary, seat: int, visit: String, member: int, seated: bool) 
 			var food := _cyl(prop, 0.085, 0.03, _food_mat)
 			food.position.y = 0.025
 			p["food"] = food
-		prop.visible = served
+		prop.visible = bool(p["served"])
 		p["prop"] = prop
 	if seated:
 		POSES.set_pose(sprite, base, "" if standing else "sit")
@@ -251,7 +262,7 @@ func _leave(k: String, p: Dictionary) -> void:
 	if entry == Vector3.INF:
 		_free(k)
 		return
-	if bool(p["served"]) and int(p["member"]) == 0:
+	if (bool(p["served"]) or (_taproom != null and ORDERS.served(key, str(p["visit"])))) and int(p["member"]) == 0:
 		_play(str(SFX_PAY.get(profile, "")), -12.0)
 	elif not bool(p["served"]) and profile == "rest" and int(p["member"]) == 0:
 		# Got up hungry.
@@ -327,6 +338,12 @@ func _animate() -> void:
 				node.position = (s["pos"] as Vector3) + along * _rng.randf_range(-0.3, 0.3)
 				sprite.flip_h = _rng.randf() < 0.5
 			continue
+		if _taproom != null and bool(p["served"]) and not _drink_of(p):
+			# Drunk: the empty goes back to the bar, and they wait for the next round.
+			p["served"] = false
+			var empty_prop: Node3D = p.get("prop", null)
+			if empty_prop != null:
+				empty_prop.visible = false
 		if not bool(p["served"]) and _is_served(p):
 			# Here it comes: the mug or the plate on the table.
 			p["served"] = true
@@ -403,9 +420,37 @@ func _play(path: String, db: float) -> void:
 
 
 func _is_served(p: Dictionary) -> bool:
+	if _taproom != null:
+		return _drink_of(p)
 	if _kitchen == null:
 		return ORDERS.served(key, str(p["visit"]))
 	return not _kitchen.plate_for(key, str(p["visit"]), int(p["member"]), int(p["figures"]), str(p["arch"])).is_empty()
+
+
+## The pub: what this one has in front of them now (taproom.glass_of), its sprite on
+## their place; false when nothing (between rounds).
+func _drink_of(p: Dictionary) -> bool:
+	var g: Dictionary = _taproom.glass_of(key, str(p["visit"]), int(p["member"]))
+	var spr: Sprite3D = p.get("drink", null)
+	if g.is_empty() or spr == null:
+		return false
+	var drink := str(g.get("drink", "hladinka"))
+	var pic := "mug_beer"
+	var metres := 0.18
+	if drink == "kofola":
+		pic = "glass_kofola"
+		metres = 0.17
+	elif PUB_RULES.kind(drink) == "bar":
+		pic = "shot_full"
+		metres = 0.08
+	var path := "res://assets/textury/pub/%s.png" % pic
+	if str(spr.get_meta("pic", "")) != pic and ResourceLoader.exists(path):
+		spr.texture = STATION3D.room_tex(path, metres)
+		if spr.texture != null:
+			spr.pixel_size = metres / float(maxi(1, spr.texture.get_height()))
+			spr.offset = Vector2(0, float(spr.texture.get_height()) * 0.5)
+		spr.set_meta("pic", pic)
+	return true
 
 
 ## A plate lying on the table with what was put on it at the pass (the goulash and its

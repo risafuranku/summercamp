@@ -462,6 +462,30 @@ func biz_bin(key: String) -> int:
 	return n
 
 
+## Goods thrown out whole from the shelf (a flat keg down the drain): off the stock, the
+## oldest first, the books count them as waste. Returns the units.
+func biz_waste(key: String, goods: Dictionary) -> int:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty():
+		return 0
+	_biz_upgrade(site)
+	var n := 0
+	for g in goods:
+		var k := mini(int(goods[g]), int(site["stock"].get(g, 0)))
+		if k <= 0:
+			continue
+		site["stock"][g] = int(site["stock"].get(g, 0)) - k
+		site["lots"][g] = BIZ_RULES.lots_take(site["lots"].get(g, []), k)
+		n += k
+	if n <= 0:
+		return 0
+	site["today"]["waste"] = int(site["today"].get("waste", 0)) + n
+	site["shift"]["waste"] = int(site["shift"].get("waste", 0)) + n
+	EventBus.state_changed.emit({"biz": "binned"})
+	_biz_tell("waste", [key, goods])
+	return n
+
+
 ## Gear for a place (the only progression), paid now.
 func biz_buy_gear(key: String, id: String) -> bool:
 	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})

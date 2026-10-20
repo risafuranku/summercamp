@@ -332,14 +332,15 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 
 ### 11. More interiors
 - [x] Cabins: room, bed, bathroom/WC, cleaning, prep
-- [ ] Pub / restaurant: complete interior, own interactions, more life, activities
+- [x] Pub / restaurant: complete interior, own interactions, more life, activities (the bistro 19.-20. 10., the pub 20. 10.: DESIGN §7b)
 
 ## BUSINESSES (agent C, 2026-10-20; DESIGN §7b)
 
 - [x] Phase 0: the bistro's stations in the 3D room (`scripts/business/station3d.gd`, the rail, the frame)
 - [x] Phase 1: Papa's ratings, the Z report, goods going off by lots, one order from the PC, gear, the hands (roles, shifts, away, theft, the strange two), open late with the night inside
-- [ ] Phase 1 left: the gear's own pictures (Grok rows bzg_*), the chalk strike on the menu board (bzs_chalk), a note on the door when a hand is away
-- [ ] Phase 2: the pub (stations in 3D, its hands, kegs that go flat, gear)
+- [ ] Phase 1 left: the chalk strike on the menu board (bzs_chalk), a note on the door when a hand is away; the bistro's gear in the room from its pictures (camp/gear_*.png, processed)
+- [x] Phase 2: the pub (stations along the bar in 3D, the keg in the cellar, its hands by role, kegs that go flat, gear; pub_check, pub_shots, pub_coop)
+- [ ] Phase 2 left: the gear's pictures in the pub (camp/gear_glasswasher, gear_cooler, gear_tap2), sounds for the keg (keg_roll, coupler, gas_hiss) and the order ding of its own
 - [ ] Phase 3: the corn stand (counter and husking in 3D, the live camp view above)
 - [ ] Phase 4: the Jednota (the building, store, shelves, till; dear and loved)
 - [ ] Phase 5: PROTOTYP 540 (fed at night, the goulash's meat for nothing)

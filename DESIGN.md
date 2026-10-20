@@ -530,8 +530,9 @@ the head through the end of the turn.
 - **The bistro's logistics.** The dining room (na place) is the guests' tables, the till
   and the books; the kitchen behind it and the cellar under it are the work. See "The
   bistro" below.
-- **The pub's cellar.** A door by the bar end goes down to the kegs: one for every 25
-  pints the books hold, crates of rum and kofola; click them for the books.
+- **The pub's cellar.** A door by the bar end goes down to the kegs: the keg on the line
+  on its pallet (the keg's station, below), the full ones along the rack (a keg is 50
+  pints of the books' beer), crates of rum and kofola; click the rack for the books.
 - **The corn stand** is one more of them: E behind its counter (either warden), the
   wholesaler's leaflet beside the cash box orders corn and butter (the books' ORDER
   page), Klasek 98 on the office PC runs it like the others; the other warden sees you
@@ -617,6 +618,59 @@ imperfect human Build-engine textures."*
   the trays, one at the stove turns and racks the slices and minds the basket and the pot,
   one at the pass plates whatever ticket it has everything ready for, one at the sink
   washes up. What nobody does is yours; a warden at a hand's station works beside them.
+
+### The pub (2026-10-20)
+
+*Agent C, phase 2 of the businesses (the user, 20. 10.: "the bistro and the pub: 3D
+minigames that work like Papa's Pizzeria, with sprites and textures like the Build
+engine; clear the first time without a tutorial").*
+
+- **The bar is the work.** Three stations along the bar top on the barman's side, the
+  camera behind them in the narrow way between the bar and the bottle shelf, as the
+  bistro's over its counters (Tab, 1-3 between them), and the keg in the cellar:
+  - *The tap* (the middle): the chrome tower seen from the side, its faucet over the
+    drip tray, the black handle on top (Grok sprites). A clean mug off the board at its
+    left goes under the spout (a click); take the handle and draw it towards you (down
+    the screen): beer with a little head; push it away: foam only; let go and it springs
+    back. The head settles back to beer while you wait; over the rim it runs onto the
+    tray. The knife by it takes the top off the head. The mug over the bar goes to the
+    beer mat picked on the rail, else to whoever's order it matches best: hladinka (beer
+    to the line, a collar of foam to the rim), snyt (half and half), mliko (all foam, a
+    finger of beer); the wrong pour comes back. The column by the mug is how full it is.
+  - *The bottles* (the left end): the rum, the zelena, the slivovice and the kofola in a
+    row; take one (a click) and it comes up beside its glass (a shot glass, the tall one
+    for the kofola); hold: it tips over the rim and pours, the glass fills to the line
+    (the column, its green window). Then the glass over the bar.
+  - *The sink* (the right end): the empties come back from the tables onto the bar in
+    front of it when they are drunk; one into the water, hold and rub up and down, the
+    dirt comes off stroke by stroke; clean, onto the board by the tap. No clean mugs on
+    the board, no beer.
+  - *The keg* (the cellar, by its pallet): the keg on the line with what is left in it
+    chalked on it; the head (coupler) on its hose: a click takes it off, held on a full
+    keg it screws down. A spent keg (the chalk cross) or a flat one is rolled off the
+    pallet and a full one rolled on from the rack (a keg is the books' 50 pints). The
+    gas: hold the valve and drag up for more, down for less; in the green it pours right,
+    low it comes slow and flat, high all foam, and it creeps down as the tap runs. A keg
+    on the line keeps three days (six with the keg cooler); then it is flat: no head,
+    poor beer, and the guests say so; what is left in it goes down the drain, the books'
+    waste.
+- **The orders** are beer mats on the rail over the bar: the guest's name in pencil,
+  what they want (its picture and its word), a stroke a drink they have had, the wait
+  under it; the picked one big in the corner. One at a time each, the next when the last
+  is drunk (half an hour of game time); after an hour and a half of waiting they stop
+  ordering. The money, the tip and the stars Papa's way (the shared systems below).
+- **The hands at the pub**: the tap's pours the oldest beer ordered (a fair pour, never
+  a perfect one), the bar's the shots and the kofolas, the washer's washes the mugs, the
+  cellar's changes a spent or flat keg and sets the gas right; each slips now and then (a
+  short pour, a mug dropped). They stand at their places behind the bar and by the
+  pallet; one whose station a warden takes stands aside.
+- **The gear**: the second tap (the beer comes faster; a hand draws two at once), the
+  glass washer (at the end of the way behind the bar: the empties come out clean by
+  themselves), the keg cooler (in the cellar: a tapped keg keeps six days), the quick
+  coupler (the head clicks on in a moment, a keg changed in no time).
+- **For four**: as the bistro: each station one warden's while they are at it, seen
+  there, named, refused to the others; what is poured, washed and changed is an op every
+  machine applies at once (`scripts/pub/taproom.gd`, `Coop.send_taproom`).
 
 ### The businesses' shared systems (2026-10-20)
 
