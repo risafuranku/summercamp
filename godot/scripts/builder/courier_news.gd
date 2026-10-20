@@ -10,8 +10,8 @@ extends RefCounted
 const STORIES := {
 	"caravan": ["NEW CARAVANS AT CERNE JEZERO", "The camp by the reservoir has put up its first caravan. \"A fridge and a proper bed,\" the operator told us. The district has not been asked."],
 	"slide": ["LAKE SLIDE OPENS AT THE RESERVOIR", "Children queued at Cerne jezero for the new slide into the reservoir. The Water Board reminds swimmers that the water is colder than it looks."],
-	"pub": ["A PUB AT THE CAMP AGAIN", "Cerne jezero pours beer again. The regulars from Lesna say the walk is worth it. The landlord of U Jezera did not comment."],
-	"jednota": ["THE CAMP HAS ITS OWN JEDNOTA", "A shop at Cerne jezero: bread, salami, ice cream. Jednota Lesna says it is not worried. Its shelves were empty by noon."],
+	"pub": ["A PUB AT THE CAMP AGAIN", "Cerne jezero pours beer again. The regulars from Liblice say the walk is worth it. The landlord of U Jezera did not comment."],
+	"jednota": ["THE CAMP HAS ITS OWN JEDNOTA", "A shop at Cerne jezero: bread, salami, ice cream. The Jednota u Marku in Liblice says it is not worried. Its shelves were empty by noon."],
 	"mega_gnome": ["GIANT GNOME BY THE RESERVOIR", "A garden gnome as tall as a cabin has appeared at Cerne jezero. Drivers on the dam road slow down to look. Nobody has seen it put up."],
 	"tier": ["CAMP RATED {n} ON GOGGLE", "The reservoir camp is rated {n} stars on Goggle. \"People look before they book,\" said a woman from the district's tourist office, who has not been there."],
 	"caught": ["CAMP CAUGHT TIDYING UP ITS REVIEWS", "Goggle says reviews of Cerne jezero have been taken down by a company that does such things. The camp says it knows nothing about it."],

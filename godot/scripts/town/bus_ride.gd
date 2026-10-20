@@ -161,7 +161,7 @@ var _mate_poses: Dictionary = {}
 var _mate_wait := 0.0
 var _mate_said := false
 
-## "camp": standing at the camp stop, going to Lesna; "town": in Lesna, going to the camp.
+## "camp": standing at the camp stop, going to Liblice; "town": in Liblice, going to the camp.
 var stop := "camp"
 var worldgen: Node
 var _state := CLOSED

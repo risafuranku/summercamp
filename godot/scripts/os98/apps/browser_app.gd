@@ -1521,11 +1521,11 @@ func _news_items() -> Array:
 	else:
 		items.append(["Quiet at the reservoir", "The camp at Cerne jezero had no guests last night. The district's inspection is on 19 October."])
 	var pool := [
-		["Batteries in Lesna", "A delivery of R20 batteries came to Jednota Lesna on Tuesday. They were sold out by noon."],
-		["Bridge repair put off again", "The bridge at Lesna stays closed to lorries until spring. The district has no money for it this year."],
+		["Batteries in Liblice", "A delivery of R20 batteries came to the Jednota u Marku on Tuesday. They were sold out by noon."],
+		["Bridge repair put off again", "The bridge at Liblice stays closed to lorries until spring. The district has no money for it this year."],
 		["Feed mill plan before the council", "Agrostroj Hlubocany showed the council its plan for a feed mill by the reservoir. \"Forty jobs,\" said the director."],
 		["Hockey: Hlubocany lose again", "HC Hlubocany lost 2:7 at home. The coach blamed the ice."],
-		["Fire station ball on Saturday", "The Lesna volunteer firemen invite everyone to the ball. Music: INFRAVRANY (if they come)."],
+		["Fire station ball on Saturday", "The Liblice volunteer firemen invite everyone to the ball. Music: INFRAVRANY (if they come)."],
 		["Mushroom season", "Pickers are out in the woods round the reservoir. The district reminds them that the forest is closed after ten at night."],
 		["The water is still rising", "The reservoir's level has risen again although it has not rained. The Water Board will look at the gauge."],
 		["Lost dog", "A brown dachshund answering to Bobik went missing near the dam. He was last seen walking into the water."],

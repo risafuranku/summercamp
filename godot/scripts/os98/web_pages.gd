@@ -58,7 +58,7 @@ const INDEX := {
 	"bohemia-online.cz/horoskop": "horoscope horoskop stars zodiac future",
 	"tv.bohemia-online.cz": "tv television program tonight film news ct1 ct2 nova prima",
 	"kuryr-hlubocany.cz/dnes": "news this week courier today camp reservoir hockey",
-	"obec-lesna.cz": "lesna village obec mayor fire station ball bridge church bell notices",
+	"obec-liblice.cz": "liblice village obec mayor fire station ball bridge church bell notices",
 	"agrostroj-hlubocany.cz": "agrostroj feed mill factory land camp plan director jobs",
 }
 
@@ -83,7 +83,7 @@ const PAGES := {
 [b]OUR REGION[/b]
  {okres-hlubocany.cz|District Office Hlubocany}
  {kuryr-hlubocany.cz/dnes|Hlubocany Courier} - this week
- {obec-lesna.cz|Obec Lesna} - the village
+ {obec-liblice.cz|Obec Liblice} - the village
  {agrostroj-hlubocany.cz|Agrostroj Hlubocany} - feed and machinery
  {csad-jihlava.cz/380|Bus timetables} CSAD Jihlava
  {jednota-liblice.cz|Jednota u Marku} - shop
@@ -228,8 +228,8 @@ Type the old register into the computer, card by card, in the evening and at nig
 [color=#9999cc]The programme may change. The test card is not a programme.[/color]
 {bohemia-online.cz|<< Bohemia Online}""",
 	},
-	"obec-lesna.cz": {
-		"title": "Obec Lesna - official notice board",
+	"obec-liblice.cz": {
+		"title": "Obec Liblice - official notice board",
 		"bg": "#ffffff", "fg": "#000000", "link": "#006600",
 		"body": """[bgcolor=#336600][color=#ffffff][b][font_size=18] OBEC LESNA [/font_size][/b]  the village by the reservoir, 412 inhabitants [/color][/bgcolor]
 [center]{{img:web_shop:200}}[/center]
@@ -239,13 +239,13 @@ Type the old register into the computer, card by card, in the evening and at nig
  * Waste collection: Thursday. Bins out by 6:00, not the night before (the raccoons).
  * The church bell has been heard at night. The parish says nobody rings it. Please do not go up the tower to look.
  * Lost: brown dachshund, Bobik. Last seen at the dam. Reward.
- * The 380 bus no longer waits at Lesna for the works bus.
+ * The 380 bus no longer waits at Liblice for the works bus.
 
 [b]THE VILLAGE[/b]
-Lesna has stood above the valley since 1352. When the reservoir was filled in 1962 the lower village, Zatopy, went under the water; its families moved up to Lesna. The bell of the old church at Zatopy was never brought up.
+Liblice has stood above the valley since 1352. When the reservoir was filled in 1962 the lower village, Zatopy, went under the water; its families moved up to Liblice. The bell of the old church at Zatopy was never brought up.
 
 [b]WHERE TO GO[/b]
- {jednota-lesna.cz|Jednota} - the shop  |  {hostinec-u-jezera.cz|Hostinec U Jezera} - the pub  |  {csad-jihlava.cz/380|the bus}
+ {jednota-liblice.cz|Jednota} - the shop  |  {hostinec-u-jezera.cz|Hostinec U Jezera} - the pub  |  {csad-jihlava.cz/380|the bus}
 """ + HR + """
 {bohemia-online.cz|Bohemia Online}  |  you are visitor no. {{counter}}""",
 	},

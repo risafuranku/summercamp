@@ -40,8 +40,8 @@ const PHOTO_DIR := "res://assets/textury/os98/web/photo_"
 ## People also searched for: [name, what, stars, reviews, url or ""].
 const ALSO := [
 	["Agrostroj Hlubocany", "Feed mill (planned)", 1.9, 7, "agrostroj-hlubocany.cz"],
-	["U Jezera", "Pub, Lesna", 4.1, 23, ""],
-	["Jednota Lesna", "Grocery", 3.6, 15, ""],
+	["U Jezera", "Pub, Liblice", 4.1, 23, ""],
+	["Jednota u Marku", "Grocery", 3.6, 15, ""],
 ]
 const BAR_H := 22.0
 const HEAD_H := 46.0

@@ -206,7 +206,7 @@ static func bar(parent: Node3D, si) -> void:
 	_cut(parent, "pub_board", Vector2(0.5, 0.42), Vector3(2.88, 1.55, 1.3), -90.0, false, "DebtSlate")
 	look(parent, "slate", "DLUZNICI, who owes for beer. The top name is rubbed out every morning and is back every night.", Vector3(2.85, 1.55, 1.3), Vector3(0.1, 0.42, 0.5))
 	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.88, 1.6, 0.55), -90.0, "PubPoster")
-	look(parent, "poster", "Lake Lesna, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, 0.55), Vector3(0.1, 0.8, 0.6))
+	look(parent, "poster", "Cerne jezero, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, 0.55), Vector3(0.1, 0.8, 0.6))
 	_cut(parent, "pub_hockey", Vector2(0.5, 0.36), Vector3(-0.2, 1.65, 2.28), 180.0, false, "TeamPhoto")
 	_cut(parent, "pub_print", Vector2(0.5, 0.4), Vector3(0.6, 1.65, 2.28), 180.0, false, "PondPrint")
 	# The front corner: the stove and its coal, the coat stand, the fly paper.
