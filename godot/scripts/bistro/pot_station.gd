@@ -1,44 +1,89 @@
-extends "res://scripts/bistro/station_view.gd"
+extends "res://scripts/bistro/bistro_station.gd"
 
-## The goulash pot and the dumplings (assets/textury/bistro/st_pot.png): the big pot on
-## its ring at the left, the catering tins on the shelf, the steamer at the back right,
-## the board with its cotton thread in front of it.
-##   the pot       hold the button in it and stir round: each turn scrapes the bottom.
-##                 Left alone it catches (the bar under its portions; the room shows
-##                 STIR) and when it does, the burnt layer goes in the bin. A tin from the
-##                 shelf tops it up from the books' goulash; then it has to come back to
-##                 the boil before it goes on a plate.
-##   dumplings     click the steamer: a loaf onto the board (two plates' worth off the
-##                 shelf). Then slice it with the thread, a click a slice: each slice
-##                 slides off to the heat shelf at the pass.
+## The goulash pot and the dumplings (DESIGN.md §7b): the counter's top is a Build texture
+## (st_pot: the big pot on its ring at the left, a catering tin, the steamer at the back,
+## the board with its cotton thread), the things on it sprites in the room.
+##   the pot       hold the button in it and go round: the spoon stirs, each turn scrapes
+##                 the bottom. Left alone it catches (the BOTTOM column; the room shows
+##                 STIR) and the burnt layer goes in the bin. The tin tops it up from the
+##                 cellar's goulash; then it has to come back to the boil (the HEAT column
+##                 into the green) before it goes on a plate.
+##   dumplings     the steamer: a loaf onto the board (two plates' worth off the shelf);
+##                 slice it with the thread, a click a slice, each slice off to the pass.
 
-const BUSINESS := preload("res://scripts/business/business_runtime.gd")
-const POT_C := Vector2(160, 150)
-const POT_R := Vector2(92, 90)
-const POT := Rect2(55, 50, 210, 205)
-const TINS := Rect2(322, 5, 115, 135)
-const STEAMER := Rect2(466, 8, 160, 140)
+const POT_C := Vector2(152, 140)
+const POT := Rect2(52, 50, 205, 190)
+const TINS := Rect2(318, 6, 118, 134)
+const STEAMER := Rect2(462, 8, 160, 140)
 const BOARD := Rect2(326, 160, 230, 140)
-const LOAF_AT := Vector2(440, 262)
-const LOAF_LEN := 88.0
-const SLICE_W := 21.0
+const LOAF_AT := Vector2(440, 232)
+const LOAF_LEN := 120.0
 
 var _stirring := false
 var _last_ang := 0.0
 var _turn := 0.0
-var _spoon_at := Vector2.ZERO
-var _cut_t := -1.0
-var _slide: Array = []   # slices on their way off the board: seconds
+var _spoon: Sprite3D
+var _loaf: Sprite3D
+var _slide: Array = []
+var _slide_spr: Array = []
+var _heat: Sprite3D
+var _bottom: Sprite3D
+var _empty: Sprite3D
 
 
-func _ready() -> void:
-	super._ready()
-	station = "pot"
-	how = "Hold in the pot and go round to stir. The tin tops it up. The steamer gives a loaf; click it to cut slices."
-	room = "kitchen"
-	picture = tex("st_pot")
-	for n in ["spoon", "loaf", "loaf_cut", "dumpling_slice", "tin", "steam", "smoke", "pot_empty"]:
-		tex(n)
+func _build() -> void:
+	super._build()
+	_empty = bsprite("pot_empty")
+	if _empty.texture == null:
+		_empty.queue_free()
+		_empty = null
+	else:
+		put(_empty, POT_C, 0.01)
+	_spoon = bsprite("spoon")
+	_spoon.visible = false
+	_loaf = bsprite("loaf", true, 1.4)
+	_loaf.region_enabled = true
+	for i in 3:
+		var s := bsprite("dumpling_slice", true, 1.6)
+		s.visible = false
+		_slide_spr.append(s)
+	_heat = meter(5, 18)
+	_heat.position = local_at(Vector2(POT.end.x + 10, POT.position.y + 70), 0.04)
+	_bottom = meter(5, 18)
+	_bottom.position = local_at(Vector2(POT.end.x + 24, POT.position.y + 70), 0.04)
+
+
+func _show() -> void:
+	if kitchen == null or building_key == "":
+		return
+	var s: Dictionary = kitchen.site(building_key)
+	var pot: Dictionary = s["pot"]
+	var level := int(pot["level"])
+	if _empty != null:
+		_empty.visible = level <= 0
+	var hot := float(pot["heat"]) >= 0.6
+	set_meter(_heat, float(pot["heat"]), Vector2(0.6, 1.0), RETRO_UI.C_RED if hot else RETRO_UI.C_BLUE)
+	set_meter(_bottom, float(pot["catch"]), Vector2(-1, -1), RETRO_UI.C_RED if float(pot["catch"]) > 0.6 else RETRO_UI.C_AMBER_DIM, float(pot["catch"]) > 0.75)
+	_heat.visible = level > 0
+	_bottom.visible = level > 0
+	_spoon.visible = _stirring
+	# The loaf on the board, shorter by a slice each cut (its picture cut off at the end).
+	var left := int((s["loaf"] as Dictionary).get("left", 0))
+	_loaf.visible = left > 0 and _loaf.texture != null
+	if _loaf.visible:
+		var tw := float(_loaf.texture.get_width())
+		var th := float(_loaf.texture.get_height())
+		var w := maxf(1.0, floorf(tw * float(left) / float(RULES.LOAF_SLICES)))
+		_loaf.region_rect = Rect2(0, 0, w, th)
+		var x0 := LOAF_AT.x - LOAF_LEN * 0.5
+		put(_loaf, Vector2(x0 + LOAF_LEN * (w / tw) * 0.5, LOAF_AT.y), 0.02)
+	for i in _slide_spr.size():
+		var spr: Sprite3D = _slide_spr[i]
+		spr.visible = i < _slide.size()
+		if spr.visible:
+			var k := floorf(clampf(float(_slide[i]) / 0.6, 0.0, 1.0) * 7.0) / 7.0
+			var from := Vector2(LOAF_AT.x - LOAF_LEN * 0.5 + LOAF_LEN * float(left) / float(RULES.LOAF_SLICES) + 8.0, LOAF_AT.y)
+			put(spr, from + Vector2(k * 110.0, k * 30.0), 0.03 + k * 0.05)
 
 
 func _spots() -> Array:
@@ -49,30 +94,28 @@ func _spots() -> Array:
 	var pot: Dictionary = s["pot"]
 	var level := int(pot["level"])
 	if level > 0:
-		out.append({"id": "pot", "rect": POT, "verb": "Stir the pot (hold and go round)" if float(pot["catch"]) > 0.3 else "Stir the pot"})
+		out.append({"id": "pot", "rect": POT, "verb": "Stir the pot: hold and go round" if float(pot["catch"]) > 0.3 else "Stir the pot"})
 	var stock: int = maxi(0, BUSINESS.stock_of(building_key, "goulash"))
-	var room := RULES.POT_CAP - level
-	out.append({"id": "tins", "rect": TINS, "verb": ("Top up the pot from a tin (%d portions in the cellar)" % stock) if stock > 0 and room > 0 else ("The pot is full" if room <= 0 else "No goulash in the cellar: order some in the books")})
+	var room_left := RULES.POT_CAP - level
+	if stock > 0 and room_left > 0:
+		out.append({"id": "tins", "rect": TINS, "verb": "Top the pot up from a tin (%d in the cellar)" % stock})
 	var loaf: Dictionary = s["loaf"]
 	if int(loaf.get("left", 0)) <= 0:
 		var d: int = maxi(0, BUSINESS.stock_of(building_key, "dumplings"))
-		out.append({"id": "steamer", "rect": STEAMER, "verb": ("Take a loaf of dumplings out of the steamer (%d plates' worth)" % d) if d > 0 else "No dumplings: order some in the books"})
+		if d > 0:
+			out.append({"id": "steamer", "rect": STEAMER, "verb": "A loaf of dumplings out of the steamer"})
 	else:
-		out.append({"id": "loaf", "rect": _loaf_rect(int(loaf["left"])), "verb": "Cut a slice with the thread (%d left)" % int(loaf["left"])})
+		out.append({"id": "loaf", "node": _loaf, "verb": "Cut a slice with the thread (%d left)" % int(loaf["left"])})
 	return out
-
-
-func _loaf_rect(left: int) -> Rect2:
-	var len := LOAF_LEN * float(left) / float(RULES.LOAF_SLICES)
-	return Rect2(LOAF_AT.x - LOAF_LEN * 0.5, LOAF_AT.y - 26, len + 6, 52)
 
 
 func _press(id: String) -> void:
 	match id:
 		"pot":
 			_stirring = true
-			_last_ang = (_mouse - POT_C).angle()
+			_last_ang = (_mouse_free - POT_C).angle()
 			_turn = 0.0
+			_drag(_mouse_free)
 		"tins":
 			_top_up()
 		"steamer":
@@ -84,36 +127,41 @@ func _press(id: String) -> void:
 func _release(id: String) -> void:
 	if id == "pot":
 		_stirring = false
+		_spoon.visible = false
 
 
 func _drag(at: Vector2) -> void:
-	if not _stirring or at.x < 0.0:
+	if not _stirring or at.x < -500.0:
 		return
-	_spoon_at = at
-	var a := (at - POT_C).angle()
+	# The spoon's bowl where the pointer is, kept inside the pot.
+	var rel := at - POT_C
+	if rel.length() > 80.0:
+		rel = rel.normalized() * 80.0
+	put(_spoon, POT_C + rel + Vector2(36, -6), 0.06)
+	_spoon.visible = true
+	var a := rel.angle()
 	var d := wrapf(a - _last_ang, -PI, PI)
 	_last_ang = a
 	_turn += absf(d)
-	if _turn >= TAU * 0.5:
-		_turn -= TAU * 0.5
+	if _turn >= PI:
+		_turn -= PI
 		var pot: Dictionary = (kitchen.site(building_key)["pot"] as Dictionary).duplicate()
 		var before := float(pot["catch"])
 		pot["catch"] = maxf(0.0, before - 0.22)
 		kitchen.act(building_key, "pot", [pot])
 		sfx("stir", -10.0, randf_range(0.9, 1.1))
 		if before > 0.05 and float(pot["catch"]) <= 0.0:
-			pop("STIRRED", POT_C + Vector2(0, -60), RETRO_UI.C_GREEN_LIGHT)
+			pop("STIRRED", POT_C + Vector2(0, -70), RETRO_UI.C_GREEN_LIGHT)
 
 
 func _top_up() -> void:
 	var pot: Dictionary = (kitchen.site(building_key)["pot"] as Dictionary).duplicate()
-	var room := RULES.POT_CAP - int(pot["level"])
-	if room <= 0:
+	var room_left := RULES.POT_CAP - int(pot["level"])
+	if room_left <= 0:
 		say("", "The pot is full.")
 		return
-	var n: int = mini(mini(RULES.POT_REFILL, room), maxi(0, BUSINESS.stock_of(building_key, "goulash")))
+	var n: int = mini(mini(RULES.POT_REFILL, room_left), maxi(0, BUSINESS.stock_of(building_key, "goulash")))
 	if n <= 0:
-		say("", "No goulash left in the cellar. The van brings what you order.")
 		sfx("tick", -14.0, 0.7)
 		return
 	if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"goulash": n}):
@@ -123,7 +171,7 @@ func _top_up() -> void:
 	pot["heat"] = clampf(float(pot["heat"]) * float(level) / float(level + n), 0.0, 1.0) * 0.6
 	pot["level"] = level + n
 	kitchen.act(building_key, "pot", [pot])
-	pop("+%d" % n, POT_C + Vector2(0, -50), RETRO_UI.C_GREEN_LIGHT)
+	pop("+%d" % n, POT_C + Vector2(0, -60), RETRO_UI.C_GREEN_LIGHT)
 	sfx("pour", -6.0)
 
 
@@ -131,7 +179,6 @@ func _take_loaf() -> void:
 	var have: int = maxi(0, BUSINESS.stock_of(building_key, "dumplings"))
 	var units := mini(RULES.LOAF_UNITS, have)
 	if units <= 0:
-		say("", "No dumplings in the cellar. Order some in the books.")
 		sfx("tick", -14.0, 0.7)
 		return
 	if not kitchen.room_for(building_key, "dumpling", 1):
@@ -139,8 +186,7 @@ func _take_loaf() -> void:
 		return
 	if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"dumplings": units}):
 		return
-	var slices := RULES.LOAF_SLICES * units / RULES.LOAF_UNITS
-	kitchen.act(building_key, "loaf", [{"left": slices}])
+	kitchen.act(building_key, "loaf", [{"left": RULES.LOAF_SLICES * units / RULES.LOAF_UNITS}])
 	sfx("steam_lid", -8.0)
 
 
@@ -155,97 +201,39 @@ func _cut() -> void:
 	loaf["left"] = left - 1
 	kitchen.act(building_key, "loaf", [loaf])
 	kitchen.act(building_key, "prep", ["dumpling", 1])
-	_cut_t = 0.0
 	_slide.append(0.0)
 	sfx("thread", -8.0, randf_range(0.95, 1.1))
 
 
 func _tick(delta: float) -> void:
-	if _cut_t >= 0.0:
-		_cut_t += delta
-		if _cut_t > 0.2:
-			_cut_t = -1.0
 	for i in _slide.size():
 		_slide[i] = float(_slide[i]) + delta
 	_slide = _slide.filter(func(t: float) -> bool: return t < 0.6)
 
 
-# ── drawing ──────────────────────────────────────────────────────────────────
+func _closing() -> void:
+	_stirring = false
+	_spoon.visible = false
 
-func _paint(c: Control) -> void:
+
+func bar_text() -> String:
 	if kitchen == null:
-		return
-	var s: Dictionary = kitchen.site(building_key)
-	var pot: Dictionary = s["pot"]
-	var level := int(pot["level"])
-	var st := floorf(_t * 12.0)
-	if level <= 0:
-		# Empty: the scraped steel of the inside.
-		if tex("pot_empty") != null:
-			blit(c, "pot_empty", POT_C)
-		else:
-			c.draw_set_transform(POT_C, 0.0, Vector2(1.0, POT_R.y / POT_R.x))
-			c.draw_circle(Vector2.ZERO, POT_R.x, Color(0.42, 0.42, 0.42))
-			c.draw_circle(Vector2(0, 8), POT_R.x * 0.8, Color(0.32, 0.31, 0.3))
-			c.draw_set_transform(Vector2.ZERO)
-	else:
-		# The bottom catching: black flecks come up, then smoke.
-		var catch := float(pot["catch"])
-		if catch > 0.5:
-			for i in int((catch - 0.5) * 24.0):
-				var a := float(i) * 2.399
-				var rr := sqrt(float(i) / 12.0) * 0.8
-				c.draw_rect(Rect2((POT_C + Vector2(cos(a) * POT_R.x * rr, sin(a) * POT_R.y * rr)).floor(), Vector2(2, 2)), Color(0.08, 0.04, 0.03, 0.8))
-		if catch > 0.75 or kitchen.burnt_flash.has(building_key):
-			for j in 3:
-				var age := fmod(st / 12.0 * 0.6 + j * 0.33, 1.0)
-				blit(c, "smoke", POT_C + Vector2(-30 + j * 30, -20 - age * 60.0), (1.0 - age) * 0.9, 1, false, Color(0.5, 0.48, 0.46))
-		# Steam when it is hot, a bubble or two.
-		if float(pot["heat"]) >= 0.6:
-			for j in 4:
-				var k := int(st + j * 7) % 16
-				c.draw_rect(Rect2((POT_C + Vector2(-70 + (k * 37) % 140, -20 + (k * 13) % 40)).floor(), Vector2(3, 2)), Color(0.75, 0.45, 0.3, 0.8))
-	# The level on a chalk tag, the heat and the catching under it.
-	var tag := Rect2(14, 290, 166, 40)
-	c.draw_rect(tag, Color(0.08, 0.07, 0.06, 0.85))
-	ink(c, tag.position + Vector2(6, 12), "GOULASH  %d / %d" % [level, RULES.POT_CAP], RETRO_UI.C_BONE)
-	ink(c, tag.position + Vector2(6, 24), "HEAT", RETRO_UI.C_BONE_DIM, RETRO_UI.FONT_TEXT)
-	meter(c, Rect2(tag.position.x + 36, tag.position.y + 17, 104, 5), float(pot["heat"]), Vector2(0.6, 1.0), RETRO_UI.C_RED if float(pot["heat"]) >= 0.6 else RETRO_UI.C_BLUE)
-	ink(c, tag.position + Vector2(6, 35), "BOTTOM", RETRO_UI.C_BONE_DIM, RETRO_UI.FONT_TEXT)
-	meter(c, Rect2(tag.position.x + 36, tag.position.y + 29, 104, 5), float(pot["catch"]), Vector2(-1, -1), RETRO_UI.C_RED if float(pot["catch"]) > 0.6 else RETRO_UI.C_AMBER_DIM)
-	if _stirring:
-		if tex("spoon") != null:
-			blit(c, "spoon", _spoon_at + Vector2(10, -30))
-		else:
-			c.draw_line(_spoon_at, _spoon_at + Vector2(24, -60), Color(0.55, 0.38, 0.2), 4.0)
-	# The tins on the shelf.
-	var stock: int = maxi(0, BUSINESS.stock_of(building_key, "goulash"))
-	if tex("tin") != null:
-		for i in mini(3, ceili(stock / 8.0)):
-			blit(c, "tin", TINS.get_center() + Vector2(-16 + i * 16, 8 - i * 2))
-	ink(c, TINS.position + Vector2(2, TINS.size.y + 8), "TINS %d" % stock, RETRO_UI.C_BONE)
-	# The loaf on the board, shorter by a slice each cut; the slices sliding off.
-	var loaf: Dictionary = s["loaf"]
-	var left := int(loaf.get("left", 0))
-	if left > 0:
-		var lt := tex("loaf")
-		var len := LOAF_LEN * float(left) / float(RULES.LOAF_SLICES)
-		var x0 := LOAF_AT.x - LOAF_LEN * 0.5
-		if lt != null:
-			# The loaf as long as it is still: its picture cut off at the right end.
-			var src_w := floorf(lt.get_width() * float(left) / float(RULES.LOAF_SLICES))
-			var h := lt.get_height() * PIX
-			c.draw_texture_rect_region(lt, Rect2(Vector2(x0, LOAF_AT.y - h * 0.5).floor(), Vector2(src_w * PIX, h)), Rect2(0, 0, src_w, lt.get_height()))
-		else:
-			c.draw_rect(Rect2(x0, LOAF_AT.y - 18, len, 36), Color(0.92, 0.9, 0.82))
-			c.draw_rect(Rect2(x0 + len - 3, LOAF_AT.y - 18, 3, 36), Color(0.82, 0.8, 0.7))
-		# The thread, where the next cut goes.
-		if hovered() == "loaf":
-			var tx := x0 + len - SLICE_W * LOAF_LEN / (SLICE_W * RULES.LOAF_SLICES)
-			c.draw_line(Vector2(tx, LOAF_AT.y - 34), Vector2(tx - 6, LOAF_AT.y + 32), Color(0.95, 0.95, 0.9), 1.0)
-		ink(c, Vector2(x0, LOAF_AT.y + 40), "SLICES %d" % left, RETRO_UI.C_BONE)
-	for t in _slide:
-		var k := clampf(float(t) / 0.6, 0.0, 1.0)
-		var from := Vector2(LOAF_AT.x - LOAF_LEN * 0.5 + LOAF_LEN * float(left) / float(RULES.LOAF_SLICES) + 10, LOAF_AT.y)
-		blit(c, "dumpling_slice", from + Vector2(k * 90.0, k * k * 40.0), 1.0 - k * 0.5)
-	ink(c, Vector2(332, 314), "AT THE PASS %d" % kitchen.prep(building_key, "dumpling"), RETRO_UI.C_BONE)
+		return ""
+	var pot: Dictionary = kitchen.site(building_key)["pot"]
+	return "GOULASH %d/%d  DUMPLINGS %d" % [int(pot["level"]), RULES.POT_CAP, kitchen.prep(building_key, "dumpling")]
+
+
+# ── debug (tools/bistro_shots.gd, tools/bistro_coop.gd) ──────────────────────
+
+func debug_click(id: String) -> void:
+	match id:
+		"tins":
+			_top_up()
+		"steamer":
+			_take_loaf()
+		"loaf":
+			_cut()
+		"stir":
+			var pot: Dictionary = (kitchen.site(building_key)["pot"] as Dictionary).duplicate()
+			pot["catch"] = 0.0
+			kitchen.act(building_key, "pot", [pot])

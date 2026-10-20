@@ -36,31 +36,28 @@ const STATIONS := {
 	"pass": {"room": "kitchen", "at": Vector3(-2.62, 0.6, -0.45), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(-1.9, 0.05, -0.45), "pose": "cook", "mark": Vector3(-2.62, 1.85, -0.45), "label": "the pass"},
 	"sink": {"room": "kitchen", "at": Vector3(2.62, 0.6, -0.35), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(1.9, 0.05, -0.35), "pose": "wash", "mark": Vector3(2.62, 1.75, -0.35), "label": "the sink"},
 	"potatoes": {"room": "basement", "at": Vector3(-2.85, 0.72, -0.55), "size": Vector3(0.5, 1.4, 2.4), "stand": Vector3(-2.0, 0.05, -0.55), "pose": "cook", "mark": Vector3(-2.7, 1.75, -0.55), "label": "the potatoes"},
-	"breading": {"room": "basement", "at": Vector3(2.5, 0.5, -0.55), "size": Vector3(0.95, 0.8, 1.7), "stand": Vector3(1.8, 0.05, -0.55), "pose": "cook", "mark": Vector3(2.5, 1.55, -0.55), "label": "the breading table"},
-	"machine": {"room": "basement", "at": Vector3(1.45, 0.75, -2.2), "size": Vector3(2.4, 1.4, 0.4), "stand": Vector3(1.2, 0.05, -1.2), "pose": "stand", "mark": Vector3(1.45, 1.75, -2.2), "label": "the machine"},
+	"breading": {"room": "basement", "at": Vector3(2.5, 0.5, 0.05), "size": Vector3(0.95, 0.8, 1.7), "stand": Vector3(1.8, 0.05, 0.05), "pose": "cook", "mark": Vector3(2.5, 1.55, 0.05), "label": "the breading table"},
+	"machine": {"room": "basement", "at": Vector3(1.45, 0.75, -2.2), "size": Vector3(2.4, 1.4, 0.4), "stand": Vector3(1.2, 0.05, -1.2), "pose": "stand", "mark": Vector3(1.45, 1.75, -2.2), "label": "the machine", "tab": false},
 }
-## Where each station's surface lies (its picture, live: station_view.surface_texture):
-## the centre, the size in metres (the picture's 16:9), the way the picture's top edge
-## faces (yaw: 0 the back wall, 90 the left wall, -90 the right wall), lying on a counter
-## (`flat`) or standing on a wall.
+## Where each station's work surface lies (scripts/business/station3d.gd stands on it;
+## its counter's top is its Build picture, assets/textury/bistro/st_<id>.png): the centre,
+## the size in metres (the picture's 16:9), the way its back edge faces (yaw: 0 the back
+## wall, 90 the left wall, -90 the right wall), lying on a counter (`flat`) or standing on
+## a wall; the camera over it: how far towards the cook and how high over a counter, or
+## how far out from a wall.
 const SURFACES := {
-	"stove": {"at": Vector3(-1.15, 0.952, -1.95), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true},
-	"pot": {"at": Vector3(1.2, 0.952, -1.95), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true},
-	"pass": {"at": Vector3(-2.62, 0.952, -0.45), "size": Vector2(1.6, 0.9), "yaw": 90.0, "flat": true},
-	"sink": {"at": Vector3(2.62, 0.952, -0.35), "size": Vector2(1.6, 0.9), "yaw": -90.0, "flat": true},
-	"potatoes": {"at": Vector3(-3.08, 0.72, -0.55), "size": Vector2(2.4, 1.35), "yaw": 90.0, "flat": false},
-	"breading": {"at": Vector3(2.5, 0.802, -0.55), "size": Vector2(1.6, 0.9), "yaw": -90.0, "flat": true},
-	"machine": {"at": Vector3(1.45, 0.72, -2.38), "size": Vector2(2.4, 1.35), "yaw": 0.0, "flat": false},
+	"stove": {"at": Vector3(-1.15, 0.952, -1.95), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"pot": {"at": Vector3(1.2, 0.952, -1.95), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"pass": {"at": Vector3(-2.62, 0.952, -0.45), "size": Vector2(1.6, 0.9), "yaw": 90.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"sink": {"at": Vector3(2.62, 0.952, -0.35), "size": Vector2(1.6, 0.9), "yaw": -90.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"potatoes": {"at": Vector3(-3.08, 0.72, -0.55), "size": Vector2(2.4, 1.35), "yaw": 90.0, "flat": false, "cam_back": 1.3},
+	"breading": {"at": Vector3(2.5, 0.802, 0.05), "size": Vector2(1.6, 0.9), "yaw": -90.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"machine": {"at": Vector3(1.45, 0.72, -2.38), "size": Vector2(2.4, 1.35), "yaw": 0.0, "flat": false, "cam_back": 1.25},
 }
-## The camera over a station: how far back along the way it faces, how far up the angle
-## from straight down (flat ones) or level (wall ones).
-const CAM_BACK := 0.62
-const CAM_UP := 0.98
-const CAM_WALL := 1.25
 
 
-## The station's surface: a quad named Surface_<id> its picture goes on (the room puts the
-## texture on it once the station exists).
+## The station's surface: a quad named Surface_<id> its Build picture goes on (the room
+## puts it on once the station exists).
 static func surface(parent: Node3D, id: String) -> MeshInstance3D:
 	var d: Dictionary = SURFACES[id]
 	var mi := MeshInstance3D.new()
@@ -84,53 +81,6 @@ static func surface(parent: Node3D, id: String) -> MeshInstance3D:
 	mi.set_meta("bistro_surface", id)
 	parent.add_child(mi)
 	return mi
-
-
-## Where the camera goes over station `id` (room coordinates): [position, the point it
-## looks at].
-static func pose(id: String) -> Array:
-	var d: Dictionary = SURFACES[id]
-	var c: Vector3 = d["at"]
-	var yaw := deg_to_rad(float(d["yaw"]))
-	# The picture's top edge faces `away`; the cook stands the other way.
-	var away := Vector3(-sin(yaw), 0.0, -cos(yaw))
-	if bool(d["flat"]):
-		var sz: Vector2 = d["size"]
-		var k := sz.x / 1.6
-		return [c - away * (CAM_BACK * k) + Vector3(0, CAM_UP * k, 0), c - away * 0.04]
-	return [c - away * CAM_WALL + Vector3(0, 0.1, 0), c]
-
-
-## The surface's point (its picture's pixels, 640x360) a ray hits, or (-1, -1).
-static func surface_point(mi: MeshInstance3D, from: Vector3, dir: Vector3) -> Vector2:
-	var d: Dictionary = SURFACES[str(mi.get_meta("bistro_surface"))]
-	var inv := mi.global_transform.affine_inverse()
-	var o := inv * from
-	var r := inv.basis * dir
-	var sz: Vector2 = d["size"]
-	var u := 0.0
-	var v := 0.0
-	if bool(d["flat"]):
-		if absf(r.y) < 0.0001:
-			return Vector2(-1, -1)
-		var t := -o.y / r.y
-		if t < 0.0:
-			return Vector2(-1, -1)
-		var hit := o + r * t
-		u = hit.x / sz.x + 0.5
-		v = hit.z / sz.y + 0.5
-	else:
-		if absf(r.z) < 0.0001:
-			return Vector2(-1, -1)
-		var t := -o.z / r.z
-		if t < 0.0:
-			return Vector2(-1, -1)
-		var hit := o + r * t
-		u = hit.x / sz.x + 0.5
-		v = 0.5 - hit.y / sz.y
-	if u < 0.0 or u > 1.0 or v < 0.0 or v > 1.0:
-		return Vector2(-1, -1)
-	return Vector2(u * 640.0, v * 360.0)
 
 
 ## A counter under a flat surface: a steel (or wooden) body to the floor, its top just
@@ -327,7 +277,7 @@ static func hatch(parent: Node3D, at: Vector3, yaw := 0.0) -> Node3D:
 	var m := hole.material_override as StandardMaterial3D
 	m.emission_enabled = true
 	m.emission = Color(0.85, 0.7, 0.45)
-	m.emission_energy_multiplier = 0.35
+	m.emission_energy_multiplier = 0.12
 	K.slab(h, Vector3(0.96, 0.05, 0.28), Vector3(0, -0.27, 0.1), steel, "HatchSill")
 	K.slab(h, Vector3(0.96, 0.05, 0.06), Vector3(0, 0.27, 0.03), steel, "HatchTop")
 	K.slab(h, Vector3(0.05, 0.56, 0.06), Vector3(-0.46, 0, 0.03), steel, "HatchSide")
@@ -466,8 +416,9 @@ static func cellar(parent: Node3D, si) -> Node3D:
 		var gm := mesh.duplicate() as StandardMaterial3D
 		gm.uv1_scale = Vector3(1.35, 3.2, 1.0)
 		gate.material_override = gm
-		gate.position = Vector3(2.05 + 0.32, 1.15, -0.95 + 0.3)
-		gate.rotation_degrees.y = -40.0
+		# Ajar into the machine's corner (swung out it stood over the breading table).
+		gate.position = Vector3(2.05 + 0.32, 1.15, -0.95 - 0.3)
+		gate.rotation_degrees.y = 40.0
 		parent.add_child(gate)
 	K.slab(parent, Vector3(2.5, 0.03, 0.03), Vector3(1.45, 2.25, -0.95), bars, "FenceTop")
 	K.slab(parent, Vector3(2.5, 0.03, 0.03), Vector3(1.45, 0.15, -0.95), bars, "FenceFoot")

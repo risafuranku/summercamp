@@ -526,12 +526,27 @@ imperfect human Build-engine textures."*
   tartar or not; how long they waited) into the money, a tip and one to three stars.
   The plates come back dirty when they have eaten: the sink, scrub, the rack. No clean
   plates, no plating.
-- **The stations are full screen**, each a flat Build-engine texture of its own
-  (320x180, two canvas pixels to one; Grok renders sharpened and grained into the game's
-  palette), the things on it drawn over it: the rail of tickets across the top, the
-  sentence of what a click does over the bottom bar (like an old adventure game's verb
-  line), the bar with BACK and the room's other stations. Nothing is a square in the
-  middle of the room any more.
+- **The stations are in the room, in 3D** (decided with the user on 2026-10-20: "the
+  stations in the 3D room, no flat screens"; `scripts/business/station3d.gd`, shared by all
+  four businesses). A station is its counter in the Build room: the counter's top is its
+  Build texture (the pan, the fryer, the bowls painted on it), the things on it are Duke 3D
+  sprites at the room's pixel (91 px to a metre): the slices lying in the pan, the basket
+  on its hook, the plate you build, the stacks of plates standing by. Everybody in the
+  room sees them, whoever is at the station. Click the station and the camera goes over
+  its counter in steps, twelve a second; there you point, press, hold and drag in the
+  room itself: a slice off the tray into a free place in the pan (the place lights up
+  under it), the spoon round the pot, the plate into the water. A click does the same
+  thing for whoever does not drag. Over the counter hangs the order rail (Papa's,
+  `ticket_rail.gd`): the tickets as little papers on a steel rail across the top of the
+  view, in the room's pixel, swinging on as they come; the one picked hangs lower and is
+  big in the corner, ticking off what is on the plate at the pass. Each thing that cooks
+  has its column standing over it (a pixel meter: the side in the oil, the basket, the
+  pot's heat and its bottom), and the stove's and the pot's columns are mirrored small in
+  the frame at the other stations of the room. Under the room the frame
+  (`station_hud.gd`): the sentence of what a click would do (like an old adventure
+  game's verb line), BACK (S, the right button), the room's other stations (Tab, 1-4).
+  Nothing explains anything: the glint, the lit target, the ticket, the columns and the
+  sounds do.
 - **Things go on without you.** The pan and the fryer cook and burn, the pot catches,
   whether anyone is at them: the room says so (Traveller's Rest marks over each station:
   the frying bars and "!", the pot's portions and STIR, the tickets at the pass, the

@@ -11,7 +11,7 @@ const RULES := preload("res://core/systems/bistro_rules.gd")
 const STEAM := "res://assets/textury/camp/steam_puff.png"
 const SMOKE := "res://assets/textury/bistro/smoke.png"
 const STEP := 1.0 / 12.0
-const PUFFS := 5
+const PUFFS := 3
 ## Where on each surface the air comes off (its picture's 640x360 pixels).
 const SPOTS := {"pan": ["stove", Vector2(205, 150)], "fryer": ["stove", Vector2(440, 150)], "pot": ["pot", Vector2(160, 150)]}
 
@@ -79,10 +79,10 @@ func _run(spot: String, on: bool, burning: bool) -> void:
 		if not p.visible:
 			continue
 		p.texture = tex
-		p.pixel_size = (0.26 if burning else 0.2) / float(maxi(1, tex.get_height()))
+		p.pixel_size = (0.18 if burning else 0.09) / float(maxi(1, tex.get_height()))
 		var age := fmod(_t * (0.45 if burning else 0.35) + float(i) / float(list.size()), 1.0)
 		var wob := sin(age * 6.0 + float(i) * 1.7) * 0.05
 		p.position = base + Vector3(wob + (float(i % 3) - 1.0) * 0.06, 0.08 + age * (0.9 if burning else 0.6), 0.0)
 		var col := Color(0.35, 0.33, 0.32) if burning else Color(0.95, 0.95, 0.92)
-		col.a = (1.0 - age) * (0.85 if burning else 0.45)
+		col.a = (1.0 - age) * (0.75 if burning else 0.3)
 		p.modulate = col
