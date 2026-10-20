@@ -20,13 +20,14 @@ const WEATHER_VISUALS := preload("res://scripts/weather_visuals.gd")
 const PICTURES := ["skybox/skystars.png", "skybox/skydawn.png", "skybox/skygolden.png", "skybox/skysunset.png",
 	"skybox/skybluehour.png", "skybox/moon.png", "camp/window_lit.png", "camp/window_tv.png", "camp/breath_puff.png",
 	"camp/recep_office_night.png", "camp/recep_back_night.png", "camp/lamp_beam.png", "world/grass_summer.png",
-	"world/mist_bank.png", "world/rain_ring.png"]
+	"world/mist_bank.png", "world/rain_ring.png", "camp/embers.png", "world/water_drop.png"]
 const SOUNDS := ["steps/snow_a.mp3", "steps/snow_b.mp3", "steps/snow_c.mp3", "steps/snow_d.mp3",
 	"steps/puddle_a.mp3", "steps/puddle_b.mp3", "steps/puddle_c.mp3", "steps/puddle_d.mp3",
 	"world/flag_clank_a.mp3", "world/flag_clank_b.mp3", "world/tube_buzz.mp3", "world/tap_drip.mp3",
 	"far/chatter.mp3", "far/kids.mp3", "far/dog.mp3", "far/car.mp3", "far/train.mp3", "far/bell.mp3",
 	"world/rain_tin.mp3", "world/rain_lake.mp3", "world/rain_leaves.mp3",
-	"player/jacket_a.mp3", "player/jacket_b.mp3", "player/jacket_c.mp3", "player/keys_a.mp3", "player/keys_b.mp3"]
+	"player/jacket_a.mp3", "player/jacket_b.mp3", "player/jacket_c.mp3", "player/keys_a.mp3", "player/keys_b.mp3",
+	"world/door_creak_a.mp3", "world/door_creak_b.mp3", "world/door_shut_a.mp3", "world/door_shut_b.mp3"]
 
 
 var _done: Array[String] = []

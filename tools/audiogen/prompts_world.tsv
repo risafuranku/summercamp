@@ -44,3 +44,7 @@ foley_jacket_b	0.5	assets/sfx/player/jacket_b.mp3	The soft rustle of a nylon wor
 foley_jacket_c	0.5	assets/sfx/player/jacket_c.mp3	A quick nylon jacket swish and rustle with one running stride, very close, nothing else. No music.
 foley_keys_a	0.6	assets/sfx/player/keys_a.mp3	A bunch of keys on a ring hanging from a belt jingling with one running stride, a few light metallic clinks, very close, nothing else. No music.
 foley_keys_b	0.6	assets/sfx/player/keys_b.mp3	A bunch of keys on a ring hanging from a belt jingling with one running stride, a slightly different jingle, very close, nothing else. No music.
+door_creak_a	0.8	assets/sfx/world/door_creak_a.mp3	The dry hinges of an old wooden cabin door creaking briefly as it swings open, heard from a few metres away outdoors, nothing else. No music.
+door_creak_b	0.8	assets/sfx/world/door_creak_b.mp3	A short squeak of rusty hinges as a light wooden door is pushed open, heard from a few metres away outdoors, nothing else. No music.
+door_shut_a	0.6	assets/sfx/world/door_shut_a.mp3	A wooden cabin door swinging shut against its frame: a soft hollow thud and the click of the latch, heard from a few metres away outdoors, nothing else. No music.
+door_shut_b	0.6	assets/sfx/world/door_shut_b.mp3	A light wooden door banging shut in its frame with a rattle of the latch, heard from a few metres away outdoors, nothing else. No music.

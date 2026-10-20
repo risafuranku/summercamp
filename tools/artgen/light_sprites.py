@@ -13,6 +13,11 @@ is the light in a few flat shade steps, for additive drawing (agent B, 20. 10.).
       bonfire's smoke on magenta; the logs Grok drew under it cut off (below y 745), keyed
       (process.py), scaled by area, the cut bottom rounded, snapped to the palette
       (campfire.gd through materials/fire_smoke.gdshader).
+  spr_embers -> godot/assets/textury/camp/embers.png (24 x 8): the bonfire's sparks young,
+      older and nearly out, the render's first three embers side by side, 8 x 8 each
+      (campfire.gd's three ages of spark, added to the scene).
+  spr_water_drop -> godot/assets/textury/world/water_drop.png (6 x 16): a falling drop and
+      its streak (ground_life.gd's drips after the rain); black see-through.
   spr_rain_rings -> godot/assets/textury/world/rain_ring.png (64 x 16): a raindrop's ripple
       on a puddle in four frames side by side, each cut out of the render round its own
       middle at one common size (ground_life.gd plays them).
@@ -98,6 +103,57 @@ def fire_smoke() -> None:
     print("spr_fire_smoke -> assets/textury/camp/fire_smoke.png", snapped.size)
 
 
+def _runs(lum: np.ndarray, cut: float, gap: int) -> list:
+    """Column runs of lit pixels, a gap of more than `gap` between them."""
+    cols = np.nonzero((lum > cut).any(axis=0))[0]
+    runs, start = [], cols[0]
+    for c0, c1 in zip(cols[:-1], cols[1:]):
+        if c1 - c0 > gap:
+            runs.append((start, c0 + 1))
+            start = c1
+    runs.append((start, cols[-1] + 1))
+    return runs
+
+
+def embers() -> None:
+    a = np.asarray(Image.open(os.path.join(OUT, "spr_embers", "raw.png")).convert("RGB")).astype(np.float32)
+    lum = a.mean(axis=2) / 255.0
+    # The first three (the render's last, a dying speck, is too dark to read).
+    runs = [r for r in _runs(lum, 0.06, 20) if r[1] - r[0] >= 10][:3]
+    # One common cell round each one's middle (the first is the biggest).
+    side = max(x1 - x0 for x0, x1 in runs) + 6
+    n = 8
+    out = np.zeros((n, n * len(runs), 4), np.uint8)
+    for i, (x0, x1) in enumerate(runs):
+        rows = np.nonzero((lum[:, x0:x1] > 0.06).any(axis=1))[0]
+        cx, cy = (x0 + x1) // 2, (rows[0] + rows[-1] + 1) // 2
+        crop = a[cy - side // 2: cy - side // 2 + side, cx - side // 2: cx - side // 2 + side]
+        small = np.asarray(Image.fromarray(crop.clip(0, 255).astype(np.uint8)).resize((n, n), Image.BOX)).astype(np.float32)
+        m = small.mean(axis=2) > 20.0
+        cell = out[:, i * n:(i + 1) * n]
+        cell[m, :3] = small[m].clip(0, 255)
+        cell[m, 3] = 255
+    path = os.path.join(GODOT, "assets/textury/camp/embers.png")
+    Image.fromarray(out, "RGBA").save(path)
+    print("spr_embers -> assets/textury/camp/embers.png", (n * len(runs), n), len(runs), "frames")
+
+
+def water_drop() -> None:
+    a = np.asarray(Image.open(os.path.join(OUT, "spr_water_drop", "raw.png")).convert("RGB")).astype(np.float32)
+    lum = a.mean(axis=2) / 255.0
+    ys, xs = np.nonzero(lum > 0.08)
+    crop = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    w, h = 6, 16
+    small = np.asarray(Image.fromarray(crop.clip(0, 255).astype(np.uint8)).resize((w, h), Image.BOX)).astype(np.float32)
+    out = np.zeros((h, w, 4), np.uint8)
+    m = small.mean(axis=2) > 28.0
+    out[m, :3] = small[m].clip(0, 255)
+    out[m, 3] = 255
+    path = os.path.join(GODOT, "assets/textury/world/water_drop.png")
+    Image.fromarray(out, "RGBA").save(path)
+    print("spr_water_drop -> assets/textury/world/water_drop.png", (w, h))
+
+
 def rain_rings() -> None:
     a = np.asarray(Image.open(os.path.join(OUT, "spr_rain_rings", "raw.png")).convert("RGB")).astype(np.float32)
     lum = a.mean(axis=2) / 255.0
@@ -127,8 +183,12 @@ def rain_rings() -> None:
 
 
 if __name__ == "__main__":
-    for i in sys.argv[1:] or list(ROWS) + ["spr_rain_rings", "spr_fire_smoke"]:
-        if i == "spr_rain_rings":
+    for i in sys.argv[1:] or list(ROWS) + ["spr_rain_rings", "spr_fire_smoke", "spr_embers", "spr_water_drop"]:
+        if i == "spr_embers":
+            embers()
+        elif i == "spr_water_drop":
+            water_drop()
+        elif i == "spr_rain_rings":
             rain_rings()
         elif i == "spr_fire_smoke":
             fire_smoke()
