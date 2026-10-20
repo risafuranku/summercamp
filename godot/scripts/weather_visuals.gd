@@ -38,7 +38,31 @@ const SKY_TEX_DUSK_PATHS := [
 	"res://assets/textury/skybox/skydusk.png",
 	"res://assets/textury/skybox/skyeve.png"
 ]
+## A night under cloud: rain, fog, snow, the storm.
 const SKY_TEX_NIGHT_PATHS := ["res://assets/textury/skybox/skynight.png"]
+## A clear (or windy) night: the stars and the milky way (Grok, tools/artgen/night_sky.py;
+## the inventory of 20. 10.: every night had the overcast sky, and the ten code-drawn
+## stars on it hardly showed).
+const SKY_TEX_NIGHT_CLEAR_PATHS := ["res://assets/textury/skybox/skystars.png"]
+## A clear morning before the sun (Grok `sky_dawn`): the peach and rose glow low along the
+## horizon; the clear night turns into it from 5:15 and it into the day by 7:15 (season
+## hours; the dawn was the night fading straight into noon's sky: inventory 20. 10.).
+const SKY_TEX_DAWN_PATHS := ["res://assets/textury/skybox/skydawn.png"]
+## A clear evening (Grok): gold from 16:00 (`sky_golden`), the sun gone down at 18:15
+## (`sky_sunset`), the blue hour round 19:00 (`sky_bluehour`), then the night (the brief's
+## schedule, season hours; the Redneck evening and dusk skies before them were one flat
+## red: inventory 20. 10.). The Redneck ones stay for the red anomaly, and as fallbacks.
+const SKY_TEX_GOLDEN_PATHS := ["res://assets/textury/skybox/skygolden.png"]
+const SKY_TEX_SUNSET_PATHS := ["res://assets/textury/skybox/skysunset.png", "res://assets/textury/skybox/skyeve.png"]
+const SKY_TEX_BLUE_PATHS := ["res://assets/textury/skybox/skybluehour.png", "res://assets/textury/skybox/skydusk.png"]
+const DAWN_SKY_START_HOUR: float = 5.25
+const DAWN_SKY_FULL_HOUR: float = 6.0
+const DAWN_SKY_END_HOUR: float = 7.25
+## The sun and the clouds (Grok, tools/artgen/light_sprites.py spr_sun, night_sky.py clouds).
+const SUN_TEX := "res://assets/textury/skybox/sun.png"
+const CLOUD_TEX := "res://assets/textury/skybox/cloud_%d.png"
+## The full moon (Grok, tools/artgen/night_sky.py; it was a code-drawn crescent).
+const MOON_TEX := "res://assets/textury/skybox/moon.png"
 const SKY_TEX_FALLBACK_PATHS := [
 	"res://assets/textury/skybox/sky1.png",
 	"res://assets/textury/skybox/skydusk.png",
@@ -59,7 +83,6 @@ const DUSK_SKY_FADE_START_HOUR: float = DUSK_MID_HOUR - SKY_PHASE_HALF_BLEND_HOU
 const NIGHT_SKY_FADE_START_HOUR: float = 19.5
 const DAY_SKY_FADE_END_HOUR: float = DAY_MID_HOUR + SKY_PHASE_HALF_BLEND_HOURS
 const NIGHT_SKY_FADE_END_HOUR: float = 21.25
-const STAR_FADE_IN_START_HOUR: float = 20.5
 const NIGHT_MID_HOUR: float = (NIGHT_SKY_FADE_START_HOUR + NIGHT_SKY_FADE_END_HOUR) * 0.5
 const SUNRISE_HOUR: float = 6.5
 const SUNSET_HOUR: float = 18.5
@@ -69,7 +92,6 @@ const SKY_PHASE_DAY: int = 0
 const SKY_PHASE_EVENING: int = 1
 const SKY_PHASE_DUSK: int = 2
 const SKY_PHASE_NIGHT: int = 3
-const STARFIELD_COUNT: int = 10
 const CLOUD_LAYER_COUNT: int = 8
 const CLOUD_WORLD_HALF_EXTENT: float = 170.0
 const CLOUD_ALTITUDE_MIN: float = 24.0
@@ -103,10 +125,9 @@ const CELESTIAL_SPRITE_REFERENCE_DISTANCE: float = 36.0
 const CELESTIAL_SPRITE_MIN_DISTANCE: float = 96.0
 const CELESTIAL_SPRITE_MAP_DISTANCE_FACTOR: float = 2.4
 const CELESTIAL_SPRITE_CAMERA_FAR_FACTOR: float = 0.92
-const SUN_SPRITE_BASE_SIZE: float = 4.4
+## (The sun's picture is its disc in a haze: the disc a quarter of it.)
+const SUN_SPRITE_BASE_SIZE: float = 8.0
 const MOON_SPRITE_BASE_SIZE: float = 3.8
-const SUN_GLOW_BASE_SIZE: float = 8.6
-const SUN_FLARE_BASE_SIZE: float = 5.4
 
 # ── Injected references (set via setup()) ─────────────────────────────────────
 var _world_env: WorldEnvironment
@@ -127,12 +148,8 @@ var _weather_state: int = WEATHER_CLEAR
 var _celestial_root: Node3D
 var _sun_sprite_3d: MeshInstance3D
 var _moon_sprite_3d: MeshInstance3D
-var _sun_glow_sprite_3d: MeshInstance3D
-var _sun_flare_sprite_3d: MeshInstance3D
-var _star_sprites: Array = []
-var _star_directions: Array = []
-var _star_twinkle_phases: Array = []
-var _star_alpha_variation: Array = []
+## How much of the moon the weather's cloud lets through, eased like the sky.
+var _moon_weather_vis: float = 1.0
 var _cloud_sprites: Array = []
 var _cloud_world_positions: Array = []
 var _cloud_world_drift_vectors: Array = []
@@ -200,6 +217,8 @@ const BOLT_TEX := "res://assets/textury/world/lightning_bolt.png"
 var season_day := 1
 ## Extra fog on top of the weather's (the lake at night, scripts/lake/night_row.gd).
 var fog_boost := 0.0
+## More while you are inside a bank of fog (scripts/ambient/fog_walk.gd sets it).
+var walk_fog_boost := 0.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -262,19 +281,24 @@ func setup_celestial_bodies() -> void:
 	_celestial_root.name = "CelestialBodies"
 	_world_3d.add_child(_celestial_root)
 	_sky_rng.randomize()
-	_sun_sprite_3d = _create_pixel_celestial_sprite("PixelSun", _create_pixel_sun_texture(), SUN_SPRITE_BASE_SIZE, 8)
-	_moon_sprite_3d = _create_pixel_celestial_sprite("PixelMoon", _create_pixel_moon_texture(), MOON_SPRITE_BASE_SIZE, 8)
-	_sun_glow_sprite_3d = _create_pixel_celestial_sprite("PixelSunGlow", _create_pixel_sun_glow_texture(), SUN_GLOW_BASE_SIZE, 2)
-	_sun_flare_sprite_3d = _create_pixel_celestial_sprite("PixelSunFlare", _create_pixel_sun_flare_texture(), SUN_FLARE_BASE_SIZE, 2)
+	# The sun (Grok, skybox/sun.png: its white-hot disc and its haze in steps) added to the
+	# sky like light, as the lamps' cones are; no distance shading, no fog (the weather's
+	# cloud dims it, _sun_weather_multiplier). It was a disc drawn in code with a soft glow
+	# and a cross of rays over it.
+	_sun_sprite_3d = _create_pixel_celestial_sprite("PixelSun", load(SUN_TEX) as Texture2D, SUN_SPRITE_BASE_SIZE, 8)
+	_sun_sprite_3d.set_meta("retro_skip", true)
+	var sun_mat := _sun_sprite_3d.material_override as StandardMaterial3D
+	sun_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	sun_mat.disable_fog = true
+	# The moon behind the clouds (they draw at 3), on its own material: no shading by
+	# distance, no fog (it is in the sky, not 100 m off); the weather's cloud hides it.
+	_moon_sprite_3d = _create_pixel_celestial_sprite("PixelMoon", load(MOON_TEX) as Texture2D, MOON_SPRITE_BASE_SIZE, 1)
+	_moon_sprite_3d.set_meta("retro_skip", true)
+	(_moon_sprite_3d.material_override as StandardMaterial3D).disable_fog = true
 	_celestial_root.add_child(_sun_sprite_3d)
 	_celestial_root.add_child(_moon_sprite_3d)
-	_celestial_root.add_child(_sun_glow_sprite_3d)
-	_celestial_root.add_child(_sun_flare_sprite_3d)
 	_sun_sprite_3d.visible = true
 	_moon_sprite_3d.visible = false
-	_sun_glow_sprite_3d.visible = false
-	_sun_flare_sprite_3d.visible = false
-	_setup_star_field()
 	_setup_cloud_layers()
 	set_cloud_targets_from_weather()
 	_cloud_density_current = _cloud_density_target
@@ -301,7 +325,7 @@ func _rain_streak_mesh(w: float, h: float) -> ArrayMesh:
 ## follow their velocity, so a storm's rain flies sideways. Dense round you, bigger and
 ## fainter further off, where the fog takes it into sheets. The streaks are lit by the
 ## sky, not shaded: rain catches whatever light there is.
-func _rain_layer(node_name: String, amount: int, box: Vector3, w: float, h: float, life: float) -> GPUParticles3D:
+func _rain_layer(node_name: String, amount: int, box: Vector3, w: float, h: float, life: float, fade_from := 0.6, fade_to := 2.2) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
 	p.name = node_name
 	_world_3d.add_child(p)
@@ -322,10 +346,11 @@ func _rain_layer(node_name: String, amount: int, box: Vector3, w: float, h: floa
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.albedo_color = Color(0.84, 0.88, 0.92, 0.5)
-	# Not a bar across the lens: gone within a stride of the eye.
+	# Not a bar across the lens: gone within a stride of the eye (the far layer's broad
+	# streaks within ten metres: closer they were grey slabs across the view).
 	mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
-	mat.distance_fade_min_distance = 0.6
-	mat.distance_fade_max_distance = 2.2
+	mat.distance_fade_min_distance = fade_from
+	mat.distance_fade_max_distance = fade_to
 	if ResourceLoader.exists(RAIN_TEX):
 		mat.albedo_texture = load(RAIN_TEX)
 	mesh.surface_set_material(0, mat)
@@ -346,8 +371,8 @@ func setup_weather_particles() -> void:
 		_rain_splash = _world_3d.get_node_or_null("RainSplashes")
 		_bolt = _world_3d.get_node_or_null("LightningBolt")
 		return
-	_rain_particles = _rain_layer("RainParticles", 6000, Vector3(12.0, 8.0, 12.0), 0.04, 1.0, 1.1)
-	_rain_far = _rain_layer("RainFar", 3000, Vector3(34.0, 12.0, 34.0), 0.16, 2.2, 1.5)
+	_rain_particles = _rain_layer("RainParticles", 6000, Vector3(12.0, 8.0, 12.0), 0.04, 1.0, 1.1, 1.2, 3.5)
+	_rain_far = _rain_layer("RainFar", 3000, Vector3(34.0, 12.0, 34.0), 0.16, 2.2, 1.5, 10.0, 18.0)
 	# The drops hitting the ground round you: a crown that grows and is gone.
 	_rain_splash = GPUParticles3D.new()
 	_rain_splash.name = "RainSplashes"
@@ -374,8 +399,8 @@ func setup_weather_particles() -> void:
 	spm.scale_min = 0.7
 	spm.scale_max = 1.2
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.16, 0.12)
-	quad.center_offset = Vector3(0, 0.06, 0)
+	quad.size = Vector2(0.22, 0.16)
+	quad.center_offset = Vector3(0, 0.08, 0)
 	var smat := StandardMaterial3D.new()
 	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -419,6 +444,19 @@ func setup_weather_particles() -> void:
 	var webs = load("res://scripts/ambient/spider_webs.gd").new()
 	webs.player_getter = _player_getter
 	_world_3d.add_child(webs)
+	# Fog banks you walk through (scripts/ambient/fog_walk.gd).
+	var fog_walk = load("res://scripts/ambient/fog_walk.gd").new()
+	fog_walk.player_getter = _player_getter
+	_world_3d.add_child(fog_walk)
+	# The lodgings lit at night while their guests are in (scripts/ambient/window_lights.gd).
+	var wl = load("res://scripts/ambient/window_lights.gd").new()
+	wl.player_getter = _player_getter
+	_world_3d.add_child(wl)
+	# Life far off by the hour: voices at the fire, children, a dog, a car, the village
+	# bell (scripts/ambient/far_life.gd).
+	var far = load("res://scripts/ambient/far_life.gd").new()
+	far.player_getter = _player_getter
+	_world_3d.add_child(far)
 	if _bolt.texture != null:
 		# Through the fog: the material is the sprite's own; fog off on it.
 		var bm := StandardMaterial3D.new()
@@ -505,6 +543,7 @@ func update_sky_runtime(delta: float) -> void:
 		return
 	_sky_anim_time += delta
 	_update_sky_transition(delta)
+	_moon_weather_vis = move_toward(_moon_weather_vis, _moon_weather_target(), delta / WEATHER_BLEND_SECONDS)
 	_cloud_density_current = move_toward(_cloud_density_current, _cloud_density_target, delta * 0.36)
 	_cloud_alpha_current = move_toward(_cloud_alpha_current, _cloud_alpha_target, delta * 0.42)
 	_cloud_speed_current = move_toward(_cloud_speed_current, _cloud_speed_target, delta * 0.55)
@@ -537,7 +576,7 @@ func update_celestial_bodies() -> void:
 	var sun_horizon_visibility = _sun_horizon_visibility(sun_dir.y)
 	var moon_above_horizon = moon_dir.y > -0.03
 	var sky_phase = _current_sky_phase()
-	var sun_alpha = sun_horizon_visibility
+	var sun_alpha = sun_horizon_visibility * _sun_weather_multiplier()
 	if sky_phase == SKY_PHASE_NIGHT:
 		sun_alpha = 0.0
 	_sun_sprite_3d.visible = sun_alpha > 0.01
@@ -553,11 +592,10 @@ func update_celestial_bodies() -> void:
 		moon_alpha = (h_now - NIGHT_SKY_FADE_START_HOUR) / max(NIGHT_SKY_FADE_END_HOUR - NIGHT_SKY_FADE_START_HOUR, 0.001)
 	else:
 		moon_alpha = 0.0
+	moon_alpha *= _moon_weather_vis
 	_moon_sprite_3d.visible = moon_above_horizon and (moon_alpha > 0.001)
 	if moon_above_horizon:
 		_set_sprite_tint(_moon_sprite_3d, Color(1.0, 1.0, 1.0), moon_alpha)
-	_update_sun_flare(cam, cam_pos, sun_dir, sky_distance)
-	_update_star_field(cam_pos, sky_distance * 0.98)
 	_update_cloud_layers(cam_pos)
 
 
@@ -686,7 +724,7 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	var ambient_gray = Color(ambient_luma, ambient_luma, ambient_luma, ambient_col.a)
 	env.ambient_light_color = ambient_col.lerp(ambient_gray, clampf(sky_desaturation * 0.75, 0.0, 1.0)).lerp(w["tint"], float(w["tint_mix"]) * 0.5)
 	env.fog_enabled = fog_enabled
-	env.fog_density = fog_density + fog_boost
+	env.fog_density = fog_density + fog_boost + walk_fog_boost
 	env.fog_sky_affect = fog_sky_affect
 	env.fog_light_color = fog_color.lerp(Color(0.90, 0.92, 1.0), flash * 0.85)
 	_sun.light_energy = (_base_sun_energy * sun_multiplier) + (0.9 * flash)
@@ -823,7 +861,7 @@ func apply_time_from_clock(force_sky_snap: bool = false) -> void:
 	env.ambient_light_energy = ambient_energy
 	env.fog_enabled = fog_density > 0.0001
 	env.fog_light_color = fog_color
-	env.fog_density = fog_density + fog_boost
+	env.fog_density = fog_density + fog_boost + walk_fog_boost
 	env.fog_sky_affect = fog_sky_affect
 	if _sun != null:
 		# The sun turns in steps of SUN_STEP_HOURS: turned a little every frame, every
@@ -941,15 +979,17 @@ func sample_time_profile(hour: float) -> Dictionary:
 		0.034,
 		0.054
 	)
+	# The golden hour (16:00-17:45): a lower, golden sun against the blue sky's cooler light
+	# in the shade (it was warm all over, and it hardly showed: inventory 20. 10.).
 	var late_day_profile = _make_time_profile(
 		Color(0.78, 0.70, 0.52),
-		Color(0.84, 0.72, 0.54),
-		1.55,
-		Color(0.88, 0.72, 0.56),
+		Color(0.74, 0.70, 0.62),
+		1.35,
+		Color(0.90, 0.76, 0.56),
 		0.0048,
 		0.11,
-		Color(1.0, 0.84, 0.56),
-		1.58,
+		Color(1.0, 0.80, 0.48),
+		1.72,
 		0.10,
 		Vector3(1.0, 0.93, 0.76),
 		0.06,
@@ -957,34 +997,37 @@ func sample_time_profile(hour: float) -> Dictionary:
 		0.040,
 		0.062
 	)
+	# The sunset (18:15): the sun's last light red on what it reaches, the shade lilac from
+	# the sky, the haze rose (one flat red over everything before: inventory 20. 10.).
 	var evening_profile = _make_time_profile(
 		Color(0.94, 0.44, 0.22),
-		Color(0.55, 0.35, 0.29),
-		0.80,
-		Color(0.78, 0.44, 0.30),
+		Color(0.50, 0.38, 0.46),
+		0.72,
+		Color(0.74, 0.48, 0.48),
 		0.0078,
 		0.20,
-		Color(1.0, 0.54, 0.30),
-		0.58,
+		Color(1.0, 0.50, 0.28),
+		0.76,
 		0.34,
-		Vector3(1.0, 0.82, 0.70),
-		0.12,
+		Vector3(1.0, 0.86, 0.80),
+		0.08,
 		0.0082,
 		0.048,
 		0.071
 	)
+	# The blue hour (19:00): blue, the last red only low in the west's sky.
 	var dusk_profile = _make_time_profile(
-		Color(0.58, 0.14, 0.20),
-		Color(0.28, 0.18, 0.24),
-		0.34,
-		Color(0.44, 0.16, 0.20),
+		Color(0.16, 0.18, 0.40),
+		Color(0.20, 0.22, 0.38),
+		0.38,
+		Color(0.22, 0.22, 0.36),
 		0.0116,
 		0.26,
-		Color(0.95, 0.30, 0.24),
-		0.10,
+		Color(0.90, 0.40, 0.32),
+		0.08,
 		0.72,
-		Vector3(0.96, 0.72, 0.76),
-		0.16,
+		Vector3(0.80, 0.84, 1.0),
+		0.12,
 		0.0108,
 		0.058,
 		0.078
@@ -1326,13 +1369,23 @@ func _weather_sky_path() -> String:
 ## 40 s of game hour apart, and the evening sky jumped twice: playtest 18. 10.); a
 ## weather's own sky stands all day and turns to night with the clock as well.
 func _sky_pair() -> Array:
-	var night := _sky_path(SKY_TEX_NIGHT_PATHS)
 	if _weather_state == WEATHER_EVENT:
 		var red := _sky_path(SKY_TEX_DUSK_PATHS)
 		return [red, red, 0.0]
 	var h := _season_hour(_time_of_day_hours)
 	var own := _weather_sky_path()
+	# The stars when the sky is clear; under a weather's own sky its cloud by night too.
+	var night := _sky_path(SKY_TEX_NIGHT_CLEAR_PATHS if own == "" else SKY_TEX_NIGHT_PATHS)
 	var day := own if own != "" else _sky_path(SKY_TEX_CLEAR_PATHS)
+	var dawn := _first_existing_path(SKY_TEX_DAWN_PATHS) if own == "" else ""
+	if dawn != "" and h < DAWN_SKY_END_HOUR:
+		if h < DAWN_SKY_START_HOUR:
+			return [night, night, 0.0]
+		if h < DAWN_SKY_FULL_HOUR:
+			return [night, dawn, _sky_fade_t(h, DAWN_SKY_START_HOUR, DAWN_SKY_FULL_HOUR)]
+		if h < DAY_SKY_FADE_START_HOUR:
+			return [dawn, dawn, 0.0]
+		return [dawn, day, _sky_fade_t(h, DAY_SKY_FADE_START_HOUR, DAWN_SKY_END_HOUR)]
 	if h < DAY_SKY_FADE_START_HOUR:
 		return [night, night, 0.0]
 	if h < DAY_SKY_FADE_END_HOUR:
@@ -1343,16 +1396,23 @@ func _sky_pair() -> Array:
 		if h < NIGHT_MID_HOUR:
 			return [day, night, _sky_fade_t(h, NIGHT_SKY_FADE_START_HOUR, NIGHT_MID_HOUR)]
 		return [night, night, 0.0]
-	var eve := _sky_path(SKY_TEX_EVE_PATHS)
-	var dusk := _sky_path(SKY_TEX_DUSK_PATHS)
-	if h < EVENING_SKY_FADE_START_HOUR:
+	# The clear evening: each key the sky at that hour, faded from one to the next.
+	var golden := _first_existing_path(SKY_TEX_GOLDEN_PATHS)
+	if golden == "":
+		golden = day
+	var sunset := _sky_path(SKY_TEX_SUNSET_PATHS)
+	var blue := _sky_path(SKY_TEX_BLUE_PATHS)
+	var keys: Array = [[16.0, day], [17.0, golden], [17.75, golden], [18.25, sunset], [18.6, sunset],
+		[19.1, blue], [NIGHT_SKY_FADE_START_HOUR, blue], [NIGHT_MID_HOUR, night]]
+	if h < float(keys[0][0]):
 		return [day, day, 0.0]
-	if h < DUSK_SKY_FADE_START_HOUR:
-		return [day, eve, _sky_fade_t(h, EVENING_SKY_FADE_START_HOUR, DUSK_SKY_FADE_START_HOUR)]
-	if h < NIGHT_SKY_FADE_START_HOUR:
-		return [eve, dusk, _sky_fade_t(h, DUSK_SKY_FADE_START_HOUR, NIGHT_SKY_FADE_START_HOUR)]
-	if h < NIGHT_MID_HOUR:
-		return [dusk, night, _sky_fade_t(h, NIGHT_SKY_FADE_START_HOUR, NIGHT_MID_HOUR)]
+	for i in keys.size() - 1:
+		var a: Array = keys[i]
+		var b: Array = keys[i + 1]
+		if h < float(b[0]):
+			if a[1] == b[1]:
+				return [a[1], a[1], 0.0]
+			return [a[1], b[1], _sky_fade_t(h, float(a[0]), float(b[0]))]
 	return [night, night, 0.0]
 
 
@@ -1400,6 +1460,7 @@ func _apply_weather_skybox(force: bool = false) -> void:
 	if force or _sky_now.is_empty():
 		_sky_fade = 1.0
 		_sky_from = []
+		_moon_weather_vis = _moon_weather_target()
 	elif _sky_weather != _weather_state:
 		# Changed again while still fading: carry on from whichever was more on screen.
 		if _sky_fade >= 0.5 or _sky_from.is_empty():
@@ -1496,89 +1557,6 @@ func _create_pixel_celestial_sprite(
 	return sprite
 
 
-func _create_pixel_sun_texture() -> Texture2D:
-	var image = Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	for y in range(16):
-		for x in range(16):
-			var d = Vector2(float(x) - 7.5, float(y) - 7.5).length()
-			if d > 6.2: continue
-			var col = Color(0.98, 0.66, 0.15, 1.0)
-			if d < 4.2: col = Color(1.0, 0.86, 0.28, 1.0)
-			if d < 2.2: col = Color(1.0, 0.95, 0.56, 1.0)
-			image.set_pixel(x, y, col)
-	return ImageTexture.create_from_image(image)
-
-
-func _create_pixel_moon_texture() -> Texture2D:
-	var image = Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	for y in range(16):
-		for x in range(16):
-			var d_outer = Vector2(float(x) - 7.5, float(y) - 7.5).length()
-			if d_outer > 6.1: continue
-			var d_cut = Vector2(float(x) - 10.2, float(y) - 7.5).length()
-			if d_cut < 5.4: continue
-			var col = Color(0.74, 0.82, 0.95, 1.0)
-			if d_outer < 3.4: col = Color(0.90, 0.94, 1.0, 1.0)
-			image.set_pixel(x, y, col)
-	return ImageTexture.create_from_image(image)
-
-
-func _create_pixel_sun_glow_texture() -> Texture2D:
-	var image = Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var center = Vector2(15.5, 15.5)
-	for y in range(32):
-		for x in range(32):
-			var d = Vector2(float(x), float(y)).distance_to(center)
-			if d > 15.6: continue
-			var t = clampf(1.0 - (d / 15.6), 0.0, 1.0)
-			var alpha = pow(t, 1.65) * 0.72
-			image.set_pixel(x, y, Color(1.0, 0.88 + (0.10 * t), 0.58 + (0.24 * t), alpha))
-	return ImageTexture.create_from_image(image)
-
-
-func _create_pixel_sun_flare_texture() -> Texture2D:
-	var image = Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var center = Vector2i(15, 15)
-	for y in range(32):
-		for x in range(32):
-			var dx = abs(x - center.x); var dy = abs(y - center.y)
-			var ray_strength = 0.0
-			if dy <= 1: ray_strength = max(ray_strength, 1.0 - (float(dx) / 15.0))
-			if dx <= 1: ray_strength = max(ray_strength, 1.0 - (float(dy) / 15.0))
-			if dx == dy and dx <= 10: ray_strength = max(ray_strength, 1.0 - (float(dx) / 10.0))
-			if abs(dx - (dy * 2)) <= 1 and dy <= 7: ray_strength = max(ray_strength, 1.0 - (float(dy) / 7.0))
-			var d = Vector2(float(dx), float(dy)).length()
-			var radial = (1.0 - (d / 5.0)) if d <= 5.0 else 0.0
-			var alpha = max(radial * 0.80, ray_strength * 0.36)
-			if alpha <= 0.0: continue
-			image.set_pixel(x, y, Color(1.0, 0.92, 0.74, clampf(alpha, 0.0, 0.90)))
-	return ImageTexture.create_from_image(image)
-
-
-func _setup_star_field() -> void:
-	_star_sprites.clear(); _star_directions.clear()
-	_star_twinkle_phases.clear(); _star_alpha_variation.clear()
-	if _celestial_root == null: return
-	for i in range(STARFIELD_COUNT):
-		var star = _create_pixel_celestial_sprite(
-			"PixelStar%02d" % i, _create_pixel_star_texture(i % 3),
-			_sky_rng.randf_range(0.34, 0.56), 1)
-		_celestial_root.add_child(star)
-		star.visible = false
-		_star_sprites.append(star)
-		var azimuth = deg_to_rad(_sky_rng.randf_range(-180.0, 180.0))
-		var elevation = deg_to_rad(_sky_rng.randf_range(8.0, 76.0))
-		_star_directions.append(Vector3(
-			cos(elevation) * cos(azimuth), sin(elevation), cos(elevation) * sin(azimuth)
-		).normalized())
-		_star_twinkle_phases.append(_sky_rng.randf_range(0.0, TAU))
-		_star_alpha_variation.append(_sky_rng.randf_range(0.56, 0.96))
-
-
 func _setup_cloud_layers() -> void:
 	_cloud_sprites.clear(); _cloud_world_positions.clear()
 	_cloud_world_drift_vectors.clear(); _cloud_phase_offsets.clear()
@@ -1590,9 +1568,13 @@ func _setup_cloud_layers() -> void:
 	origin.y = 0.0
 	_cloud_world_center = origin
 	for i in range(CLOUD_LAYER_COUNT):
-		var cloud = _create_pixel_celestial_sprite(
-			"PixelCloud%02d" % i, _create_pixel_cloud_texture(i % 4),
-			_sky_rng.randf_range(6.2, 10.4), 3)
+		# The clouds (Grok, skybox/cloud_0..3.png, ragged and grey like the sky's own; they
+		# were blobs drawn in code), as wide as the size, as tall as their picture says.
+		var cloud_tex := load(CLOUD_TEX % (i % 4)) as Texture2D
+		var cloud_w := _sky_rng.randf_range(6.2, 10.4)
+		var cloud = _create_pixel_celestial_sprite("PixelCloud%02d" % i, cloud_tex, cloud_w, 3)
+		if cloud_tex != null:
+			(cloud.mesh as QuadMesh).size = Vector2(cloud_w, cloud_w * float(cloud_tex.get_height()) / float(cloud_tex.get_width()))
 		_celestial_root.add_child(cloud)
 		cloud.visible = false
 		_cloud_sprites.append(cloud)
@@ -1611,92 +1593,22 @@ func _setup_cloud_layers() -> void:
 		_cloud_presence_threshold.append(_sky_rng.randf())
 
 
-func _create_pixel_star_texture(variant: int) -> Texture2D:
-	var image = Image.create(8, 8, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var center = Vector2i(3, 3)
-	for y in range(8):
-		for x in range(8):
-			var dx = abs(x - center.x); var dy = abs(y - center.y)
-			var alpha = 0.0
-			if dx == 0 and dy == 0: alpha = 1.0
-			elif dx + dy == 1: alpha = 0.86 if variant != 2 else 0.72
-			elif dx == 1 and dy == 1 and variant == 1: alpha = 0.52
-			elif (dx == 2 and dy == 0) or (dx == 0 and dy == 2): alpha = 0.36 if variant == 0 else 0.28
-			if alpha > 0.0: image.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
-	return ImageTexture.create_from_image(image)
-
-
-func _create_pixel_cloud_texture(variant: int) -> Texture2D:
-	var image = Image.create(28, 16, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var blobs: Array = []
-	match variant % 4:
-		0: blobs = [Vector3(6.0,9.0,4.8),Vector3(13.0,7.0,5.8),Vector3(20.0,9.0,4.8),Vector3(24.0,10.0,3.2)]
-		1: blobs = [Vector3(5.0,8.0,4.6),Vector3(11.0,6.4,5.0),Vector3(17.5,8.2,4.6),Vector3(23.0,9.4,4.0)]
-		2: blobs = [Vector3(6.5,9.5,4.4),Vector3(12.5,7.3,5.2),Vector3(18.0,7.6,4.4),Vector3(23.5,9.2,3.8)]
-		_: blobs = [Vector3(5.5,8.6,4.2),Vector3(10.8,6.8,4.8),Vector3(16.6,7.2,4.6),Vector3(22.8,9.0,4.2)]
-	for y in range(16):
-		for x in range(28):
-			var fill = 0.0
-			for blob in blobs:
-				var d = Vector2(float(x) - blob.x, float(y) - blob.y).length()
-				if d < blob.z: fill = max(fill, 1.0 - (d / blob.z))
-			if fill <= 0.0: continue
-			var alpha = clampf(0.40 + (fill * 0.58), 0.0, 0.96)
-			var shade = clampf((float(y) / 15.0) * 0.12, 0.0, 0.12)
-			image.set_pixel(x, y, Color(1.0-shade, 1.0-shade, 1.0-(shade*0.8), alpha))
-	return ImageTexture.create_from_image(image)
-
-
-func _update_star_field(cam_pos: Vector3, sky_distance: float) -> void:
-	if _star_sprites.is_empty(): return
-	var visibility = _star_visibility_factor()
-	for i in range(_star_sprites.size()):
-		var star = _star_sprites[i] as MeshInstance3D
-		if star == null: continue
-		var dir = (_star_directions[i] as Vector3).normalized()
-		star.global_position = cam_pos + (dir * sky_distance)
-		star.look_at(cam_pos, Vector3.UP)
-		var twinkle = 0.82 + (0.18 * sin((_sky_anim_time * 1.7) + float(_star_twinkle_phases[i])))
-		var alpha = clampf(visibility * float(_star_alpha_variation[i]) * twinkle, 0.0, 0.95)
-		if dir.y < -0.01: alpha = 0.0
-		star.visible = alpha > 0.02
-		_set_sprite_tint(star, Color(0.93, 0.95, 1.0), alpha)
-
-
-func _update_sun_flare(cam: Camera3D, cam_pos: Vector3, sun_dir: Vector3, sky_distance: float) -> void:
-	if _sun_glow_sprite_3d == null or _sun_flare_sprite_3d == null: return
-	if _sun_sprite_3d == null:
-		_sun_glow_sprite_3d.visible = false; _sun_flare_sprite_3d.visible = false; return
-	var cam_forward = -cam.global_transform.basis.z.normalized()
-	var focus = pow(clampf(cam_forward.dot(sun_dir), 0.0, 1.0), 10.0)
-	var horizon_visibility = _sun_horizon_visibility(sun_dir.y)
-	var intensity = focus * _sun_flare_weather_multiplier() * horizon_visibility
-	if intensity <= 0.008:
-		_sun_glow_sprite_3d.visible = false; _sun_flare_sprite_3d.visible = false; return
-	var sun_pos = cam_pos + (sun_dir * sky_distance)
-	var sprite_scale = sky_distance / CELESTIAL_SPRITE_REFERENCE_DISTANCE
-	var glow_offset = max(0.18, sky_distance * 0.0018)
-	var flare_offset = max(0.12, sky_distance * 0.0012)
-	_sun_glow_sprite_3d.global_position = sun_pos - (sun_dir * glow_offset)
-	_sun_flare_sprite_3d.global_position = sun_pos - (sun_dir * flare_offset)
-	_sun_glow_sprite_3d.look_at(cam_pos, Vector3.UP)
-	_sun_flare_sprite_3d.look_at(cam_pos, Vector3.UP)
-	_set_sprite_size(_sun_glow_sprite_3d, lerpf(7.4, 11.8, intensity) * sprite_scale)
-	_set_sprite_size(_sun_flare_sprite_3d, lerpf(4.8, 8.6, intensity) * sprite_scale)
-	_set_sprite_tint(_sun_glow_sprite_3d, Color(1.0, 0.86, 0.50), clampf(0.08 + (intensity * 0.58), 0.0, 0.78))
-	_set_sprite_tint(_sun_flare_sprite_3d, Color(1.0, 0.92, 0.72), clampf(intensity * 0.64, 0.0, 0.72))
-	_sun_glow_sprite_3d.visible = true; _sun_flare_sprite_3d.visible = true
-
-
-func _sun_flare_weather_multiplier() -> float:
+## The moon through the weather: a clear sky shows it, the wind's cloud mostly, the rest hide it.
+func _moon_weather_target() -> float:
 	match _weather_state:
-		WEATHER_WINDY: return 0.82
-		WEATHER_FOG: return 0.46
-		WEATHER_LIGHT_RAIN: return 0.34
-		WEATHER_RAIN: return 0.24
-		WEATHER_STORM: return 0.08
+		WEATHER_CLEAR: return 1.0
+		WEATHER_WINDY: return 0.85
+	return 0.0
+
+
+## How much of the sun the weather's cloud lets through (a pale disc in the fog, none in
+## the rain).
+func _sun_weather_multiplier() -> float:
+	match _weather_state:
+		WEATHER_WINDY: return 0.85
+		WEATHER_FOG: return 0.3
+		WEATHER_LIGHT_RAIN: return 0.1
+		WEATHER_RAIN, WEATHER_STORM, WEATHER_EVENT: return 0.0
 		_: return 1.0
 
 
@@ -1778,32 +1690,6 @@ func _cloud_daylight_profile() -> Dictionary:
 	var tint = Color(0.62, 0.70, 0.86).lerp(Color(1.0, 0.98, 0.94), daylight_factor)
 	tint = tint.lerp(Color(1.0, 0.72, 0.50), sunset_band * daylight_factor)
 	return {"tint": tint, "alpha_mul": lerpf(0.74, 1.06, daylight_factor)}
-
-
-func _star_visibility_factor() -> float:
-	var h = _season_hour(_time_of_day_hours)
-	var time_factor = 0.0
-	if h >= STAR_FADE_IN_START_HOUR and h < NIGHT_SKY_FADE_END_HOUR:
-		time_factor = lerpf(
-			0.0,
-			0.92,
-			(h - STAR_FADE_IN_START_HOUR) / max(NIGHT_SKY_FADE_END_HOUR - STAR_FADE_IN_START_HOUR, 0.001)
-		)
-	elif h >= NIGHT_SKY_FADE_END_HOUR or h < DAY_SKY_FADE_START_HOUR:
-		time_factor = 0.92
-	elif h < DAY_SKY_FADE_END_HOUR:
-		time_factor = lerpf(0.92, 0.0, (h - DAY_SKY_FADE_START_HOUR) / max(DAY_SKY_FADE_END_HOUR - DAY_SKY_FADE_START_HOUR, 0.001))
-	return clampf(time_factor * _weather_star_visibility_multiplier(), 0.0, 1.0)
-
-
-func _weather_star_visibility_multiplier() -> float:
-	match _weather_state:
-		WEATHER_WINDY: return 0.80
-		WEATHER_FOG: return 0.40
-		WEATHER_LIGHT_RAIN: return 0.30
-		WEATHER_RAIN: return 0.20
-		WEATHER_STORM: return 0.06
-		_: return 1.0
 
 
 func _cloud_tint_for_time_weather() -> Color:
@@ -1934,7 +1820,10 @@ func _update_weather_particles(_delta: float) -> void:
 	if _rain_splash != null:
 		var sm := (_rain_splash.draw_pass_1 as QuadMesh).material as StandardMaterial3D
 		if sm != null:
-			sm.albedo_color = Color(tint.r, tint.g, tint.b, minf(1.0, alpha * 1.6))
+			# Water catching the light: paler than the wet ground under it (as grey as the
+			# streaks it did not show on it).
+			var bright := tint.lightened(0.4)
+			sm.albedo_color = Color(bright.r, bright.g, bright.b, minf(1.0, alpha * 1.8))
 		_rain_splash.amount_ratio = intensity
 
 	var wind = _rain_weather_wind()

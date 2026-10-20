@@ -5,16 +5,16 @@
 [resource]
 script = ExtResource("1_script")
 id = &"vecerka"
-display_name = "Convenience Store (2x2)"
+display_name = "Jednota (3x3)"
 category = &"services"
-cost = 350
-radius = 4
+cost = 1800
+radius = 6
 power_draw = 2.0
 power_production = 0.0
 infra_load = 3.0
 hygiene_delta = 8.0
-fun_delta = 2.0
-passive_income = 75.0
+fun_delta = 4.0
+passive_income = 0.0
 karma_delta = 0.0
 capacity = 0
 power_use = 2
@@ -26,11 +26,12 @@ water_provide = 0
 sewage_provide = 0
 waste_provide = 0
 guest_services = {
-"hunger": 55.0
+"fun": 30.0,
+"hunger": 60.0
 }
-guest_capacity = 4
-use_minutes = 8
+guest_capacity = 10
+use_minutes = 10
 requires = PackedStringArray("power")
 maintenance_decay = 0.30
 tags = PackedStringArray("food", "shop")
-footprint = Vector2i(2, 2)
+footprint = Vector2i(3, 3)

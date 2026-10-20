@@ -12,6 +12,11 @@ uniform float amount = 0.0;
 uniform float dread = 0.0;
 uniform float time_s = 0.0;
 uniform float cell = 4.0;
+// Presence (the Silent Man's sixth sense): the edges of the picture close in, in a few
+// hard shades, and pulse with the heart; 0 off, 1 he is at your neck.
+uniform float squeeze = 0.0;
+uniform float beat = 0.0;
+uniform float aspect = 1.333;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -20,6 +25,16 @@ float hash(vec2 p) {
 void fragment() {
 	vec2 uv = SCREEN_UV;
 	vec2 px = SCREEN_PIXEL_SIZE * cell;
+	// Presence: the world bends. A slow wave runs through the picture in whole game
+	// pixels, and the view narrows towards the middle (tunnel vision), both with the dread
+	// that is in you, not with anything you see.
+	float pr = clamp(squeeze, 0.0, 1.0);
+	if (pr > 0.2) {
+		float w = (pr - 0.2) / 0.8;
+		float wave = sin(uv.y * 9.0 + floor(time_s * 6.0) * 0.55) * 0.5 + sin(uv.y * 23.0 - floor(time_s * 6.0) * 0.9) * 0.25;
+		uv.x += floor(wave * w * 3.0) * px.x;
+		uv = 0.5 + (uv - 0.5) * (1.0 - 0.045 * w * w - beat * 0.006 * w);
+	}
 	float a = clamp(amount, 0.0, 1.0);
 	float d = clamp(dread, 0.0, 1.0);
 	float tick = floor(time_s * 12.0);
@@ -41,5 +56,16 @@ void fragment() {
 	float drain = d * 0.35 + a * 0.6;
 	float lum = dot(c, vec3(0.3, 0.59, 0.11));
 	c = mix(c, vec3(lum * 1.25, lum * 0.42, lum * 0.36), drain);
+	// The edges close in, banded (the palette's few shades), pulsing with the heart.
+	float sq = clamp(squeeze, 0.0, 1.0);
+	if (sq > 0.001) {
+		vec2 q = (SCREEN_UV - 0.5) * vec2(aspect, 1.0);
+		float r = length(q) / (0.5 * length(vec2(aspect, 1.0)));
+		float edge = 1.0 - sq * 0.62 - beat * sq * 0.07;
+		float v = clamp((r - edge) / 0.28, 0.0, 1.0);
+		v = floor(v * 6.0) / 6.0;
+		c *= 1.0 - v * (0.55 + 0.4 * sq);
+		c = mix(c, c * vec3(1.05, 0.82, 0.8), v * sq);
+	}
 	COLOR = vec4(c, 1.0);
 }

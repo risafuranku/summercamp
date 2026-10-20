@@ -4,11 +4,14 @@ extends Control
 ## facilities). A banner with the district's crest, four counters, then three lists:
 ## who is staying (with a card for the one you pick: mood, needs, room, what they said),
 ## who is on the way or waiting at the barrier and whether their room is ready, and every
-## room with what is still to do.
+## room with what is still to do beside a plan of the camp (camp_plan.gd): every "show me"
+## in the office (CampStat's dirty rooms and upkeep, the guest card, a double-click) opens
+## the plan on that building; Builder stays for building.
 ##
 ## On some evenings the register has one row more than the camp has guests.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const PLAN = preload("res://scripts/os98/apps/camp_plan.gd")
 const NEEDS = preload("res://core/systems/guest_needs_system.gd")
 const UNBOOKED_FROM_HOUR := 18
 const UNBOOKED_TO_HOUR := 20
@@ -35,6 +38,14 @@ var _card_guest: Dictionary = {}
 var _status: Label
 var _tick := 0.0
 var _guest_rows: Dictionary = {}   # TreeItem instance id -> snapshot dict
+## The guest list's sort: the column (0 mood, 1 name, 2 kind, 3 room, 4 leaving) and the way.
+var _sort_col := 4
+var _sort_desc := false
+var _map_btn: Button
+var _empty_guests: Label
+var _empty_arrivals: Label
+var _plan: Control
+var _room_page: Control
 
 
 func setup(shell, win, _args: Dictionary) -> void:
@@ -53,27 +64,62 @@ func setup(shell, win, _args: Dictionary) -> void:
 	_tabs.add_child(guests_page)
 	_guests = _make_tree(guests_page, ["", "Name", "Kind", "Room", "Leaves in"], [22, 120, 92, 82, 64])
 	_guests.item_selected.connect(_on_guest_selected)
+	_empty_guests = _empty_label(_guests)
+	# A click on a column's head sorts by it; again, the other way.
+	_guests.column_title_clicked.connect(func(col: int, _b: int):
+		if _sort_col == col:
+			_sort_desc = not _sort_desc
+		else:
+			_sort_col = col
+			_sort_desc = col == 0
+		_shell.play("click", -14.0)
+		refresh.call_deferred())
 	_card = Control.new()
 	_card.draw.connect(_draw_card)
 	guests_page.add_child(_card)
+	_map_btn = Button.new()
+	_map_btn.text = "Show the room on the plan"
+	_map_btn.focus_mode = Control.FOCUS_NONE
+	_map_btn.visible = false
+	_map_btn.pressed.connect(func():
+		if _card_guest.get("coord", null) is Vector2i:
+			focus(_card_guest["coord"]))
+	_card.add_child(_map_btn)
+	_card.resized.connect(func(): _map_btn.position = Vector2(6, maxf(0.0, _card.size.y - 28)))
 	var arr_page := Control.new()
 	arr_page.name = "Arrivals"
 	_tabs.add_child(arr_page)
-	_arrivals = _make_tree(arr_page, ["", "Name", "Party", "Where", "Room(s)", "Ready"], [22, 120, 40, 140, 120, 56])
-	var room_page := Control.new()
-	room_page.name = "Rooms"
-	_tabs.add_child(room_page)
-	_rooms = _make_tree(room_page, ["", "Room", "State", "Guests", "Still to do"], [22, 100, 90, 60, 220])
-	# A double-click shows the room on Builder's map.
-	_rooms.item_activated.connect(func():
+	_arrivals = _make_tree(arr_page, ["", "Name", "Party", "Where", "Room(s)", "Ready", "Still to do"], [22, 110, 38, 120, 90, 44, 120])
+	_empty_arrivals = _empty_label(_arrivals)
+	_arrivals.item_activated.connect(func():
+		var it := _arrivals.get_selected()
+		if it != null and it.get_metadata(0) is Vector2i:
+			focus(it.get_metadata(0)))
+	_room_page = Control.new()
+	_room_page.name = "Rooms"
+	_tabs.add_child(_room_page)
+	_plan = PLAN.new()
+	var m = _shell.main_node() if _shell != null else null
+	_plan.grid_manager = m.get("grid_manager") if m != null else null
+	_room_page.add_child(_plan)
+	_rooms = _make_tree(_room_page, ["", "Room", "State", "Still to do"], [22, 70, 84, 120])
+	# A room picked in the list blinks on the plan; a building picked on the plan is
+	# picked in the list (a room) or told in the status line (anything else).
+	_rooms.item_selected.connect(func():
 		var it := _rooms.get_selected()
 		if it != null and it.get_metadata(0) is Vector2i:
-			_shell.show_on_map(it.get_metadata(0)))
+			_plan.focus = it.get_metadata(0)
+			_plan.queue_redraw()
+			_tell(it.get_metadata(0)))
+	_plan.picked.connect(func(c: Vector2i):
+		_shell.play("click", -14.0)
+		_select_room(c)
+		_tell(c))
 	_guests.item_activated.connect(func():
 		var it := _guests.get_selected()
 		var info: Dictionary = _guest_rows.get(it.get_instance_id(), {}) if it != null else {}
 		if info.get("coord", null) is Vector2i:
-			_shell.show_on_map(info["coord"]))
+			focus(info["coord"]))
 	var bar := Panel.new()
 	bar.add_theme_stylebox_override("panel", T.box("well", T.FACE, Vector4.ZERO))
 	bar.name = "StatusBar"
@@ -87,8 +133,73 @@ func setup(shell, win, _args: Dictionary) -> void:
 	refresh()
 
 
-func reopen(_args: Dictionary) -> void:
+func reopen(args: Dictionary) -> void:
+	if args.get("focus", null) is Vector2i:
+		focus(args["focus"])
+	else:
+		refresh()
+
+
+## The plan on one building (a room's origin or any cell of a building): the Rooms tab
+## comes forward, the building blinks, a room is picked in the list.
+func focus(coord: Vector2i) -> void:
+	if _tabs == null:
+		return
+	_tabs.current_tab = _room_page.get_index()
 	refresh()
+	var b: Dictionary = _plan.building_at(coord)
+	var og: Vector2i = b.get("origin", coord)
+	_plan.focus = og
+	_plan.rebuild()
+	_select_room(og)
+	_tell(og)
+
+
+func _select_room(c: Vector2i) -> void:
+	var root := _rooms.get_root()
+	var it := root.get_first_child() if root != null else null
+	while it != null:
+		if it.get_metadata(0) == c:
+			if _rooms.get_selected() != it:
+				it.select(0)
+			_rooms.scroll_to_item(it)
+			return
+		it = it.get_next()
+	_rooms.deselect_all()
+
+
+## The status line about the building picked on the plan.
+func _tell(c: Vector2i) -> void:
+	var b: Dictionary = _plan.building_at(c)
+	if b.is_empty():
+		return
+	var rs: Dictionary = b.get("room", {})
+	if rs.is_empty():
+		var def = CoreRoot.registry.get_def(StringName(str(b["type"]))) if CoreRoot != null and CoreRoot.registry != null else null
+		var nm := str(def.display_name).split(" (")[0] if def != null else str(b["type"]).capitalize()
+		var cond := float(b.get("condition", -1.0))
+		_status.text = "%s: BROKEN, it serves no one until it is repaired." % nm if bool(b["broken"]) else ("%s: %d%% condition." % [nm, int(round(cond * 100.0))] if cond >= 0.0 else nm + ".")
+		return
+	var names: Array = []
+	for t in rs.get("remaining", []):
+		names.append(str(t.get("label", t.get("id", ""))))
+	var st := str(rs.get("status", ""))
+	var word := "occupied" if bool(rs.get("occupied", false)) else {"ready": "ready", "dirty": "DIRTY", "unprepared": "not made up"}.get(st, st) as String
+	_status.text = "%s: %s%s" % [str(rs.get("label", "")), word, (". Still to do: " + ", ".join(names)) if not names.is_empty() else "."]
+
+
+## The grey line in the middle of an empty list.
+func _empty_label(tree: Tree) -> Label:
+	var l := Label.new()
+	l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	l.offset_top = 24
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_color_override("font_color", T.SHADOW)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.visible = false
+	tree.add_child(l)
+	return l
 
 
 func _make_tree(parent: Control, cols: Array, widths: Array) -> Tree:
@@ -104,7 +215,23 @@ func _make_tree(parent: Control, cols: Array, widths: Array) -> Tree:
 		tr.set_column_expand(c, c == cols.size() - 1)
 		tr.set_column_clip_content(c, true)
 	parent.add_child(tr)
+	# The stripes would paint over the picked row: it goes navy like any list's.
+	tr.item_selected.connect(_restripe.bind(tr))
 	return tr
+
+
+func _restripe(tr: Tree) -> void:
+	var root := tr.get_root()
+	var it := root.get_first_child() if root != null else null
+	var i := 0
+	while it != null:
+		for c in tr.columns:
+			if it.is_selected(0) or i % 2 == 0:
+				it.clear_custom_bg_color(c)
+			else:
+				it.set_custom_bg_color(c, ROW_B)
+		it = it.get_next()
+		i += 1
 
 
 func _layout() -> void:
@@ -125,8 +252,16 @@ func _layout() -> void:
 	_guests.offset_right = -card_w - 4
 	_card.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
 	_card.offset_left = -card_w
-	for tr in [_arrivals, _rooms]:
-		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_map_btn.size = Vector2(card_w - 12, 22)
+	_map_btn.position = Vector2(6, maxf(0.0, _card.size.y - 28))
+	_arrivals.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# The plan as big as the page is tall, the list beside it.
+	var page_h := maxf(80.0, _tabs.size.y - 30.0)
+	var plan_w := clampf(page_h, 120.0, size.x * 0.5)
+	_plan.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+	_plan.offset_right = plan_w
+	_rooms.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_rooms.offset_left = plan_w + 4
 
 
 func _process(delta: float) -> void:
@@ -159,6 +294,9 @@ func refresh() -> void:
 		str(to_do),
 	]
 	_counters.queue_redraw()
+	_tabs.set_tab_title(0, "Guests (%d)" % (int(ov.get("active", 0)) + int(ov.get("sleep", 0))))
+	_tabs.set_tab_title(1, "Arrivals (%d)" % arrivals.size() if not arrivals.is_empty() else "Arrivals")
+	_tabs.set_tab_title(2, "Rooms (%d to do)" % to_do if to_do > 0 else "Rooms")
 	_banner.set_meta("clock", "Day %d  %02d:%02d" % [day, hour, int(data.get("minute", 0))])
 	_banner.queue_redraw()
 	match _tabs.current_tab:
@@ -168,6 +306,7 @@ func refresh() -> void:
 			_fill_arrivals(arrivals)
 		2:
 			_fill_rooms()
+			_plan.rebuild()
 
 
 # ── lists ────────────────────────────────────────────────────────────────────
@@ -183,13 +322,40 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 	var root := _guests.create_item()
 	var shown := 0
 	var reselect: TreeItem = null
-	for g_any in guests:
+	# In the order asked for (the register comes sorted by departure).
+	var rows: Array = []
+	for i in guests.size():
+		var g_any = guests[i]
 		if not (g_any is Dictionary):
 			continue
-		var g: Dictionary = g_any
-		var st := str(g.get("status", ""))
-		if st == "expected" or st == "waiting":
+		var st0 := str((g_any as Dictionary).get("status", ""))
+		if st0 == "expected" or st0 == "waiting":
 			continue
+		rows.append([g_any, i])
+	rows.sort_custom(func(a, b) -> bool:
+		var ga: Dictionary = a[0]
+		var gb: Dictionary = b[0]
+		var ka: Variant = a[1]
+		var kb: Variant = b[1]
+		match _sort_col:
+			0:
+				ka = float(life.get(int(ga.get("id", -1)), {}).get("mood", 60.0))
+				kb = float(life.get(int(gb.get("id", -1)), {}).get("mood", 60.0))
+			1:
+				ka = str(ga.get("name", "")).to_lower()
+				kb = str(gb.get("name", "")).to_lower()
+			2:
+				ka = _kind(str(ga.get("archetype", "")))
+				kb = _kind(str(gb.get("archetype", "")))
+			3:
+				ka = str(rooms.get(int(ga.get("id", -1)), ""))
+				kb = str(rooms.get(int(gb.get("id", -1)), ""))
+		if ka == kb:
+			return int(a[1]) < int(b[1])
+		return (ka > kb) if _sort_desc else (ka < kb))
+	for row in rows:
+		var g: Dictionary = row[0]
+		var st := str(g.get("status", ""))
 		var id := int(g.get("id", -1))
 		var snap: Dictionary = life.get(id, {})
 		var it := _guests.create_item(root)
@@ -220,12 +386,17 @@ func _fill_guests(guests: Array, day: int, hour: int) -> void:
 	elif shown == 0:
 		_card_guest = {}
 	_card.queue_redraw()
-	_status.text = "%d record(s). Sorted by departure. Pick one for the card." % shown if shown > 0 else "Nobody is staying in the camp."
+	_map_btn.visible = _card_guest.get("coord", null) is Vector2i
+	_empty_guests.visible = shown == 0
+	_empty_guests.text = "Nobody is staying in the camp.\nAccept a booking in CampMail; check the guests in at the desk."
+	var by: String = ["mood", "name", "kind", "room", "departure"][clampi(_sort_col, 0, 4)]
+	_status.text = "%d record(s). Sorted by %s. Pick one for the card; double-click for the map." % [shown, by] if shown > 0 else "Nobody is staying in the camp."
 
 
 func _on_guest_selected() -> void:
 	var it := _guests.get_selected()
 	_card_guest = _guest_rows.get(it.get_instance_id(), {}) if it != null else {}
+	_map_btn.visible = _card_guest.get("coord", null) is Vector2i
 	_card.queue_redraw()
 
 
@@ -247,16 +418,31 @@ func _fill_arrivals(rows: Array) -> void:
 		else:
 			it.set_text(3, "on the road, %d:%02d" % [mins / 60, mins % 60])
 		var labels: Array = []
+		var todo: Array = []
 		var ready := true
 		for room in r.get("rooms", []):
 			labels.append(str(room.get("label", "")))
-			ready = ready and bool(room.get("ready", false))
+			var ok := bool(room.get("ready", false))
+			ready = ready and ok
+			if it.get_metadata(0) == null:
+				var kp := str(room.get("key", "")).split(":")
+				if kp.size() == 2 and kp[0].is_valid_int() and kp[1].is_valid_int():
+					it.set_metadata(0, Vector2i(int(kp[0]), int(kp[1])))
+			if not ok:
+				# What is still to do in it, as the room's own list has it.
+				for t in GuestManager.get_room_state(str(room.get("key", ""))).get("remaining", []):
+					todo.append(str(t.get("label", t.get("id", ""))))
 		it.set_text(4, ", ".join(labels))
 		it.set_text(5, "yes" if ready else "NO")
 		it.set_custom_color(5, GREEN if ready else RED)
-		_stripe(it, i, 6)
+		it.set_text(6, ", ".join(todo) if not todo.is_empty() else ("-" if ready else "make it up"))
+		if not todo.is_empty():
+			it.set_custom_color(6, AMBER)
+		_stripe(it, i, 7)
 		i += 1
-	_status.text = "Nobody is on the way." if rows.is_empty() else "Make up the room, then check them in at the desk."
+	_empty_arrivals.visible = rows.is_empty()
+	_empty_arrivals.text = "Nobody is on the way.\nAccepted bookings show here until the guests are checked in."
+	_status.text = "Nobody is on the way." if rows.is_empty() else "Make up the room, then check them in at the desk. Double-click for the map."
 
 
 func _fill_rooms() -> void:
@@ -286,14 +472,19 @@ func _fill_rooms() -> void:
 		it.set_custom_color(2, col)
 		if st != "ready":
 			to_do += 1
-		it.set_text(3, "yes" if occupied else "-")
 		var names: Array = []
 		for t in rs.get("remaining", []):
 			names.append(str(t.get("label", t.get("id", ""))))
-		it.set_text(4, ", ".join(names))
-		_stripe(it, i, 5)
+		it.set_text(3, ", ".join(names))
+		it.set_tooltip_text(3, ", ".join(names))
+		_stripe(it, i, 4)
 		i += 1
-	_status.text = "%d room(s), %d to make up. Double-click one to see it on the map." % [keys.size(), to_do]
+	var sel = _plan.focus if _plan != null else Vector2i(-1, -1)
+	_select_room(sel)
+	if sel.x >= 0 and _rooms.get_selected() == null:
+		(func(): _tell(_plan.focus)).call_deferred()
+	elif sel.x < 0:
+		_status.text = "%d room(s), %d to make up." % [keys.size(), to_do]
 
 
 func _stripe(it: TreeItem, i: int, cols: int) -> void:
@@ -341,6 +532,26 @@ func _draw_counters() -> void:
 		if i == 3 and v == "0":
 			col = GREEN
 		_counters.draw_string(T.FONT_BOLD, r.position + Vector2(6, 34), v, HORIZONTAL_ALIGNMENT_LEFT, w - 8, T.FONT_SIZE * 2, col)
+		# A little picture of what is counted, at the right of its box.
+		_pix(_counters, COUNTER_PIX[i], Vector2(r.end.x - 30, r.position.y + 12), 2)
+
+
+## The counters' pictures: a bed, people, a car, a broom (12x10, drawn at 2x).
+const COUNTER_PIX := [
+	["............", "K...........", "K.wwwKKKKKK.", "KwwwwKbbbbbK", "KKKKKKKKKKKK", "KbbbbbbbbbbK", "KKKKKKKKKKKK", "K..........K", "K..........K", "............"],
+	["...KK...KK..", "..KssK.KssK.", "..KssK.KssK.", "...KK...KK..", "..KbbK.KrrK.", ".KbbbbKrrrrK", ".KbbbbKrrrrK", ".KbbbbKrrrrK", "..K..K.K..K.", "..K..K.K..K."],
+	["............", "...KKKKK....", "..KwwKwwK...", ".KwwwKwwwK..", "KrrrrrrrrrrK", "KrrrrrrrrrrK", "KKKKKKKKKKKK", ".KK.....KK..", ".KK.....KK..", "............"],
+	["........KK..", ".......KK...", "......KK....", ".....KK.....", "....KK......", "..KyyyK.....", ".KyyyyyK....", "KyyyyyyyK...", "KyKyKyKyK...", "............"],
+]
+const PIX_COL := {"K": Color8(30, 30, 30), "w": Color8(240, 240, 240), "b": Color8(70, 110, 200), "r": Color8(200, 60, 40), "s": Color8(232, 184, 140), "y": Color8(220, 180, 60)}
+
+
+func _pix(c: Control, rows: Array, at: Vector2, k: int) -> void:
+	for y in rows.size():
+		var row: String = rows[y]
+		for x in row.length():
+			if PIX_COL.has(row[x]):
+				c.draw_rect(Rect2(at + Vector2(x * k, y * k), Vector2(k, k)), PIX_COL[row[x]])
 
 
 ## The record card of the picked guest: mood face, needs as bars, room, words.

@@ -1,0 +1,9 @@
+# The pub's cellar and bar, the corn stand (scripts/pub/, scripts/corn/): id, seconds, destination, prompt.
+pb_keg_roll	1.6	assets/sfx/pub/keg_roll.mp3	A full steel beer keg tipped and rolled a short way across a concrete cellar floor on its rim, then set upright with a heavy hollow clunk. Close up, small cellar, no music, no voices.
+pb_gas_hiss	1.2	assets/sfx/pub/gas_hiss.mp3	The valve of a small CO2 gas bottle in a beer cellar turned a little: a sharp short hiss of gas that settles. Close up, no music, no voices.
+pb_coupler	0.8	assets/sfx/pub/coupler.mp3	A brass beer keg coupler head pushed onto a keg and its lever thrown down: a metal clack and a short hiss. Close up, cellar, no music, no voices.
+pb_order_in	0.6	assets/sfx/pub/order_in.mp3	A coin rapped twice on a worn wooden bar counter to call for a beer: two sharp knocks. Small village pub, no music, no voices.
+cn_salt_shake	0.6	assets/sfx/corn/salt_shake.mp3	A small glass salt shaker shaken twice over a corn cob: a quick dry rattle of salt. Close up, outdoors, no music, no voices.
+cn_leaf_tear	0.6	assets/sfx/corn/leaf_tear.mp3	A green husk leaf torn down off a fresh corn cob: a crisp tearing rip and a soft papery rustle. Close up, outdoors, no music, no voices.
+cn_cob_in	0.9	assets/sfx/corn/cob_in.mp3	A husked corn cob dropped into a big pot of boiling water: a plop and a splash, the bubbling going on. Close up, outdoors, no music, no voices.
+cn_butter	0.8	assets/sfx/corn/butter.mp3	A pastry brush of melted butter drawn along a hot corn cob: a soft wet sweep and a faint sizzle. Close up, outdoors, no music, no voices.

@@ -1,0 +1,5 @@
+# PROTOTYP 540 in the bistro's cellar (scripts/bistro/machine_station.gd): id, seconds, destination, prompt.
+bi_proto_sack	2.0	assets/sfx/bistro/proto_sack.mp3	A heavy full jute sack dragged a short way across a wet concrete floor and heaved up over the steel lip of an old machine's hopper: coarse cloth scraping, a dull heavy slump into it. Close up, concrete cellar, no music, no voices.
+bi_proto_lid	1.5	assets/sfx/bistro/proto_lid.mp3	The heavy steel lid of an old machine's hopper dropped shut: a deep metal clang ringing in a small concrete cellar. No music, no voices.
+bi_proto_run	6.0	assets/sfx/bistro/proto_run.mp3	An old heavy industrial machine running in a concrete cellar: a deep electric hum, a slow heavy drum turning with a steady dull knock, metal grinding on metal, unchanging. No music, no voices.
+bi_proto_drop	0.8	assets/sfx/bistro/proto_drop.mp3	A heavy damp sack dropped back onto a wet concrete floor: one dull soft thud. Close up, cellar, no music, no voices.

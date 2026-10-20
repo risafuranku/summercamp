@@ -13,7 +13,6 @@ const GENERATOR_SHED = preload("res://scripts/shed/generator_shed.gd")
 const MESS_RULES = preload("res://core/systems/mess_rules.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
-const GOODS := ["goods_cans", "goods_jars", "goods_drinks", "goods_bread"]
 const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
 const SERVICE_LIFE = preload("res://scripts/food/service_life.gd")
 ## Where the work waits in here (the tap, the pass, the till...): scripts/food/work_marks.gd.
@@ -38,6 +37,15 @@ const BISTRO_STATIONS := {
 	"machine": "res://scripts/bistro/machine_station.gd",
 }
 var _stations: Dictionary = {}
+const STATION3D = preload("res://scripts/business/station3d.gd")
+const STATION_HUD = preload("res://scripts/business/station_hud.gd")
+var _station_hud: CanvasLayer
+## Going from one station straight to another: the camera does not go back first.
+var _switching := false
+## Where the camera was before it went over a station ([transform, rotation]; [] none).
+var _station_cam_from: Array = []
+var _station_tween: Tween
+const CAM_MOVE = preload("res://scripts/ui/cam_move.gd")
 var _sentence: Control
 var _bistro_marks: Control
 var _dirty_shown := -1
@@ -48,6 +56,29 @@ var _tickets_known := false
 var _bistro_sfx: AudioStreamPlayer
 var _hot_glint = HOVER_GLINT.new()
 var _hot_glint_on: Object = null
+## The pub (scripts/pub/): its bar and its cellar, its stations worked in the rooms the
+## bistro's way (pub_layout.gd STATIONS, SURFACES), the marks over its rooms; the bars'
+## state is taproom.gd (made with the businesses).
+const PUB_LAYOUT = preload("res://scripts/pub/pub_layout.gd")
+const PUB_MARKS = preload("res://scripts/pub/pub_marks.gd")
+const TAPROOM = preload("res://scripts/pub/taproom.gd")
+const PUB_STATIONS := {
+	"tap": "res://scripts/pub/tap_station.gd",
+	"back": "res://scripts/pub/back_station.gd",
+	"wash": "res://scripts/pub/wash_station.gd",
+	"keg": "res://scripts/pub/keg_station.gd",
+}
+var _pub_marks: Control
+## The Jednota (scripts/jednota/): its shop and its storeroom, its stations worked in the
+## rooms the pub's way (jednota_layout.gd STATIONS, SURFACES); the shop's state is
+## jednota.gd (made with the businesses).
+const JEDNOTA_LAYOUT = preload("res://scripts/jednota/jednota_layout.gd")
+const JEDNOTA = preload("res://scripts/jednota/jednota.gd")
+const JEDNOTA_STATIONS := {
+	"till": "res://scripts/jednota/till_station.gd",
+	"shelves": "res://scripts/jednota/shelves_station.gd",
+	"store": "res://scripts/jednota/store_station.gd",
+}
 ## The pub's rooms: the bar room and the cellar under it (its kegs).
 var _pub_cellar_root: Node3D
 var _pub_room := "main"
@@ -123,23 +154,18 @@ var _basement_machine_anim_frame: int = 0
 ## until it is serviced, so leaving halfway keeps what you did.
 var _upkeep_prep = null
 var _upkeep_key := ""
-## The counter minigames (scripts/food/*_closeup.gd): the tap in the pub, the till in the
-## Jednota. Click the thing in the room to step behind it. (The bistro's stations are
-## scripts/bistro/*_station.gd: BISTRO_STATIONS.)
-const COUNTER_GAMES := {
-	"pub": "res://scripts/food/tap_closeup.gd",
-	"vecerka": "res://scripts/food/till_closeup.gd",
-}
-## The other jobs behind the counter: id -> {script, profile, room, at, size}.
-const EXTRA_GAMES := {
-	"shots": {"script": "res://scripts/food/shots_closeup.gd", "profile": "pub", "at": Vector3(1.35, 1.45, -2.05), "size": Vector3(1.4, 0.8, 0.4)},
-	"wash": {"script": "res://scripts/food/glass_wash_closeup.gd", "profile": "pub", "at": Vector3(2.35, 1.05, -1.2), "size": Vector3(0.5, 0.4, 0.5)},
-}
+## The counter minigames (scripts/food/*_closeup.gd), clicked in the room to step behind
+## the thing: none now (the bistro's, the pub's and the Jednota's stations are worked in
+## their rooms: BISTRO_STATIONS, PUB_STATIONS, JEDNOTA_STATIONS).
+const COUNTER_GAMES := {}
+## The other jobs behind a counter: id -> {script, profile, room, at, size} (none now: the
+## pub's back bar and washer are its stations).
+const EXTRA_GAMES := {}
 var _extra_games: Dictionary = {}
 var _counter_game: CanvasLayer
 ## The business's books on the counter (scripts/business/ledger_closeup.gd).
 const LEDGER := preload("res://scripts/business/ledger_closeup.gd")
-const LEDGER_AT := {"pub": Vector3(0.42, 1.08, -1.1), "rest": Vector3(1.42, 0.98, -1.12), "vecerka": Vector3(-1.4, 0.93, 0.55)}
+const LEDGER_AT := {"pub": Vector3(0.42, 1.08, -1.1), "rest": Vector3(1.42, 0.98, -1.12), "vecerka": Vector3(3.02, 1.105, -1.05)}
 var _ledger: CanvasLayer
 ## Which stall of the toilet block you go into: the door you walked up to outside
 ## ("left" / "right"), set by InteriorManager before open_service().
@@ -217,6 +243,8 @@ func open_service(service_type: String) -> void:
 	else:
 		if _current_profile == "rest":
 			_set_restaurant_room("dining", true)
+		elif _current_profile == "pub" and not _is_open:
+			_set_pub_room("main", true)
 		elif _current_profile == "toilet" and not _is_open:
 			# The same room built as last time: in through the door you used now.
 			_set_hygiene_room(toilet_entry)
@@ -256,8 +284,16 @@ func close_service() -> void:
 		if (g as CanvasLayer).visible:
 			(g as CanvasLayer).call("_closing")
 			(g as CanvasLayer).visible = false
+	_switching = true
 	for v in _stations.values():
-		(v as CanvasLayer).call("close_now")
+		if is_instance_valid(v):
+			v.call("close_station")
+	_switching = false
+	if _station_hud != null and is_instance_valid(_station_hud):
+		_station_hud.visible = false
+	if _sentence != null:
+		_sentence.visible = true
+	_station_cam_from = []
 	if _sentence != null:
 		_sentence.clear()
 	_stop_life()
@@ -269,6 +305,8 @@ func close_service() -> void:
 func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
+	_hook_zreport()
+	_update_late_night(delta)
 	_update_basement_machine_animation(delta)
 	if _marks != null and is_instance_valid(_marks):
 		_marks.busy = [coop_job()] + coop_partner_jobs
@@ -277,14 +315,26 @@ func _process(delta: float) -> void:
 		return
 	if _ledger != null and _ledger.visible:
 		return
+	if _zreport != null and _zreport.visible:
+		return
 	if _sewer_terminal != null and _sewer_terminal.visible:
 		return
 	for g in _extra_games.values():
 		if (g as CanvasLayer).visible:
 			return
-	if _current_profile == "rest":
-		_bistro_tick(delta)
-		if _station_open() != "":
+	if _current_profile in ["rest", "pub", "vecerka"]:
+		if _current_profile == "rest":
+			_bistro_tick(delta)
+		elif _current_profile == "pub":
+			_pub_tick(delta)
+		else:
+			_jednota_tick(delta)
+		# At a station, or the camera on its way to one or back: the room holds still.
+		var open := _station_open()
+		if open != "":
+			_station_frame(open)
+			return
+		if _station_tween != null and _station_tween.is_valid() and _station_tween.is_running():
 			return
 	if _current_profile == "sewer" and _sewer_bulb != null and is_instance_valid(_sewer_bulb):
 		# The bare bulb that will not stay on.
@@ -312,7 +362,7 @@ func _process(delta: float) -> void:
 			_hover_things(collider)
 		else:
 			_hover_things(null)
-		if _sentence != null and _current_profile == "rest":
+		if _sentence != null and _current_profile in ["rest", "pub", "vecerka"]:
 			_sentence.hover(_bistro_sentence(collider, door_hover))
 	_apply_idle_mouse_look(delta)
 	_update_torch(delta)
@@ -338,6 +388,15 @@ func _input(event: InputEvent) -> void:
 		return
 	if _upkeep_prep != null and _upkeep_prep.is_scrubbing():
 		return
+	if _current_profile in ["rest", "pub", "vecerka"]:
+		var open := _station_open()
+		if open != "":
+			_station_input(event, open)
+			return
+		if _station_tween != null and _station_tween.is_valid() and _station_tween.is_running():
+			if not event.is_action_pressed("ui_cancel"):
+				get_viewport().set_input_as_handled()
+			return
 	# Esc is the pause menu's (main): S or the way out behind you leaves (but not a
 	# click on something to clean, however low on the screen it is).
 	var on_task: bool = _upkeep_prep != null and _upkeep_prep.is_busy()
@@ -560,36 +619,149 @@ func _open_ledger() -> void:
 		_ledger = LEDGER.new()
 		_ledger.name = "Ledger"
 		add_child(_ledger)
+		_ledger.connect("want_zreport", func(key: String) -> void:
+			var site: Dictionary = (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).get(key, {})
+			if not (site.get("zreport", {}) as Dictionary).is_empty():
+				_ledger.call("close_view")
+				_open_zreport(key, site["zreport"]))
 	var btype: String = {"pub": "pub", "rest": "restaurant", "vecerka": "vecerka"}.get(_current_profile, "")
 	if btype == "":
 		return
 	_ledger.open_for(_upkeep_key, btype)
 
 
-## A body over the counter thing (the tap tower on the bar, the bistro's pass, the till),
-## clicked to open its minigame; nothing to see, the model is the thing.
-func _build_counter_game(profile: String) -> void:
-	var parent: Node3D = null
-	var at := Vector3.ZERO
-	var size := Vector3.ONE
-	match profile:
+## The night inside a place open late (scripts/business/late_night.gd): made while you are
+## in one on its late shift.
+const LATE_NIGHT = preload("res://scripts/business/late_night.gd")
+var _late_night: Node
+var _late_check := 0.0
+var _late_base: Array = []
+
+
+func _update_late_night(delta: float) -> void:
+	_late_check -= delta
+	if _late_check > 0.0:
+		return
+	_late_check = 1.0
+	var late := false
+	if _current_profile in ["rest", "pub", "vecerka"]:
+		var BUSINESS := load("res://scripts/business/business_runtime.gd")
+		late = BUSINESS.shift_now(_business_site()) == "late"
+	if late and (_late_night == null or not is_instance_valid(_late_night)):
+		_late_night = LATE_NIGHT.new()
+		_late_night.name = "LateNight"
+		_late_night.tension_of = func() -> float:
+			var d = get_tree().current_scene.get("_director") if get_tree().current_scene != null else null
+			return float(d.tension) if d != null else 0.3
+		_late_night.dim = _late_dim
+		_late_night.room_of = func() -> Node3D: return _late_room()
+		_late_night.seats_of = func() -> Array: return _late_seats()
+		_late_night.camera_of = func() -> Camera3D: return _interior_camera
+		_late_night.front_room = func() -> bool: return (_current_profile == "rest" and _restaurant_room == "dining") or (_current_profile == "pub" and _pub_room == "main") or _current_profile == "vecerka"
+		add_child(_late_night)
+	elif not late and _late_night != null and is_instance_valid(_late_night):
+		_late_night.queue_free()
+		_late_night = null
+
+
+## The room you are in now (the figure sits in it).
+func _late_room() -> Node3D:
+	match _current_profile:
+		"rest":
+			return {"dining": _restaurant_dining_root, "kitchen": _restaurant_kitchen_root, "basement": _restaurant_basement_root}.get(_restaurant_room, null)
 		"pub":
-			parent = _pub_main_root
-			at = Vector3(1.275, 1.28, -1.405)
-			size = Vector3(0.52, 0.46, 0.34)
+			return _pub_main_root if _pub_room == "main" else _pub_cellar_root
 		"vecerka":
-			parent = _vecerka_shop_root
-			at = Vector3(-1.43, 1.12, -0.35)
-			size = Vector3(0.5, 0.42, 0.6)
-	if parent == null:
+			return _vecerka_shop_root
+	return null
+
+
+## Seats in the front room nobody is in, the far ones first: [[position, face], ...].
+func _late_seats() -> Array:
+	var out: Array = []
+	if _life == null or not is_instance_valid(_life):
+		return out
+	var seats: Array = _life.get("seats")
+	var cam := _interior_camera.global_position if _interior_camera != null else Vector3.ZERO
+	var root := _late_room()
+	for st in seats:
+		if bool((st as Dictionary).get("stand", false)):
+			continue
+		var p: Vector3 = st["pos"]
+		if root != null and (root.global_transform * p).distance_to(cam) < 2.0:
+			continue
+		out.append([p, Vector3.ZERO])
+	return out
+
+
+## The room's light at `level` (0 dark, 1 as it was): the main light, the ambient, the
+## tubes' glow; what it was is kept and put back at 1.
+func _late_dim(level: float) -> void:
+	if _main_light == null:
+		return
+	if _late_base.is_empty():
+		if level >= 1.0:
+			return
+		_late_base = [_main_light.light_energy, _room_env.ambient_light_energy if _room_env != null else 0.0]
+	_main_light.light_energy = float(_late_base[0]) * level
+	if _room_env != null:
+		_room_env.ambient_light_energy = float(_late_base[1]) * (0.2 + 0.8 * level)
+	var room := _late_room()
+	if room != null:
+		for t in room.find_children("Tube*", "MeshInstance3D", false, false):
+			var m := (t as MeshInstance3D).material_override as StandardMaterial3D
+			if m != null:
+				m.emission_energy_multiplier = 1.2 * level
+	if level >= 1.0:
+		_late_base = []
+
+
+## The shift's Z report off the till (scripts/business/zreport_closeup.gd): out of the
+## till when the place shuts while you are in it, or from the books.
+const ZREPORT := preload("res://scripts/business/zreport_closeup.gd")
+var _zreport: CanvasLayer
+var _zreport_hooked := false
+
+
+func _open_zreport(key: String, z: Dictionary) -> void:
+	if _zreport == null:
+		_zreport = ZREPORT.new()
+		_zreport.name = "ZReport"
+		add_child(_zreport)
+	_zreport.call("open_report", key, z)
+
+
+func _hook_zreport() -> void:
+	if _zreport_hooked:
+		return
+	var biz := get_tree().get_first_node_in_group("businesses")
+	if biz == null or not biz.has_signal("zreport"):
+		return
+	_zreport_hooked = true
+	biz.connect("zreport", func(key: String, z: Dictionary) -> void:
+		if _is_open and key == _upkeep_key and _current_profile in ["rest", "pub", "vecerka"]:
+			_open_zreport(key, z))
+
+
+## Where a counter close-up's click box stands, by profile: [centre, size] in the front
+## room (none now: every place's work is a station in its room).
+const COUNTER_GAME_SPOTS := {}
+
+
+## A body over the counter thing, clicked to open its minigame; nothing to see, the model
+## is the thing.
+func _build_counter_game(profile: String) -> void:
+	var spot: Array = COUNTER_GAME_SPOTS.get(profile, [])
+	var parent: Node3D = {"pub": _pub_main_root, "rest": _restaurant_dining_root, "vecerka": _vecerka_shop_root}.get(profile)
+	if spot.is_empty() or parent == null:
 		return
 	var body := StaticBody3D.new()
 	body.name = "CounterGameSpot"
-	body.position = at
+	body.position = spot[0]
 	body.set_meta("interior_click_type", "service_counter_game")
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = size
+	box.size = spot[1]
 	shape.shape = box
 	body.add_child(shape)
 	parent.add_child(body)
@@ -824,6 +996,8 @@ func _update_sewer_ambience_state() -> void:
 
 
 func _build_service_room(profile: String) -> void:
+	_gear_sig = ""
+	_pub_gear_sig = "-"
 	if _viewport == null:
 		return
 	_swipe_animating = false
@@ -895,11 +1069,11 @@ func _build_service_room(profile: String) -> void:
 		_pub_main_root = Node3D.new()
 		_pub_main_root.name = "PubMainRoom"
 		_room_root.add_child(_pub_main_root)
-		_build_pub_main_layout(_pub_main_root)
+		PUB_LAYOUT.bar(_pub_main_root, self)
 		_pub_cellar_root = Node3D.new()
 		_pub_cellar_root.name = "PubCellar"
 		_room_root.add_child(_pub_cellar_root)
-		_build_pub_cellar_layout(_pub_cellar_root)
+		PUB_LAYOUT.cellar(_pub_cellar_root, self)
 		_set_pub_room("main", true)
 	elif profile == "vecerka":
 		_vecerka_shop_root = Node3D.new()
@@ -909,8 +1083,8 @@ func _build_service_room(profile: String) -> void:
 		_vecerka_storage_root.name = "VecerkaStorage"
 		_room_root.add_child(_vecerka_storage_root)
 		
-		_build_vecerka_shop_layout(_vecerka_shop_root)
-		_build_vecerka_storage_layout(_vecerka_storage_root)
+		JEDNOTA_LAYOUT.shop(_vecerka_shop_root, self)
+		JEDNOTA_LAYOUT.store(_vecerka_storage_root, self)
 		_set_vecerka_room("shop", true)
 	elif profile == "generator":
 		_build_generator_layout()
@@ -945,6 +1119,9 @@ func _build_service_room(profile: String) -> void:
 	elif profile == "pub" and _pub_main_root != null and _pub_cellar_root != null:
 		_bodies_live(_pub_main_root, _pub_main_root.visible)
 		_bodies_live(_pub_cellar_root, _pub_cellar_root.visible)
+	elif profile == "vecerka" and _vecerka_shop_root != null and _vecerka_storage_root != null:
+		_bodies_live(_vecerka_shop_root, _vecerka_shop_root.visible)
+		_bodies_live(_vecerka_storage_root, _vecerka_storage_root.visible)
 
 	_cam_base_rot = _interior_camera.rotation
 	_apply_time_profile()
@@ -1035,6 +1212,8 @@ func _set_restaurant_room(room: String, update_camera: bool = true) -> void:
 		_bodies_live(r, r.visible)
 	if _restaurant_room == "basement":
 		_fill_cellar()
+	elif _restaurant_room == "dining":
+		_update_menu_board()
 	if _room_env != null:
 		# The cellar has only its bulb: the room's own light down there is low.
 		_apply_time_profile()
@@ -1051,45 +1230,7 @@ func _set_restaurant_room(room: String, update_camera: bool = true) -> void:
 	_cam_base_rot = _interior_camera.rotation
 
 
-func _build_pub_main_layout(
-	parent: Node3D,
-	title_text: String = "HOSPODA\nthe pub",
-	nav_text: String = "",
-	_seat_category: String = "service_rest_booth"
-) -> void:
-	# A village hospoda: dark panelled walls, worn plank floor, the bar on the right with
-	# its taps and a wall of bottles, crates by the cellar door, two tables with chairs on
-	# the left, a dartboard and the lake poster.
-	var K := INTERIOR_KIT
-	var size := Vector3(5.8, 2.8, 4.6)
-	K.room(parent, size, "planks_red", "pub_panel", "planks_dark", 1.4, 1.0, 0.05)
-	K.skirting(parent, size, "planks_dark", 0.05)
-	K.prop(parent, "bar_counter", Vector3(1.35, 0.05, -1.25))
-	K.prop(parent, "bottle_shelf", Vector3(1.35, 1.0, -2.16))
-	K.prop(parent, "beer_crates", Vector3(2.5, 0.05, -1.95))
-	K.prop(parent, "radio_set", Vector3(0.62, 1.13, -1.2), -15.0)
-	for x: float in [0.6, 1.3, 2.0]:
-		K.prop(parent, "bar_stool", Vector3(x, 0.05, -0.6))
-	for t: Vector3 in [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]:
-		K.prop(parent, "pub_table", t)
-		K.prop(parent, "chair_wood", t + Vector3(-0.55, 0, 0), 90.0)
-		K.prop(parent, "chair_wood", t + Vector3(0.55, 0, 0), -90.0)
-	K.prop(parent, "coat_hooks", Vector3(-1.6, 1.55, 2.27), 180.0)
-	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.85, 1.6, 1.55), -90.0, "PubPoster")
-	# The dartboard, the antlers, the brewery's enamel sign, the clock (Grok sprites, the
-	# same as Lesna's pub: scripts/town/town_room.gd).
-	K.cutout(parent, "dartboard", Vector2(0.48, 0.48), Vector3(-2.88, 1.46, -1.0), 90.0, false, "PubDartBoard")
-	K.cutout(parent, "antlers", Vector2(0.4, 0.52), Vector3(-2.88, 1.6, 0.0), 90.0, false, "Antlers")
-	K.picture(parent, "pub_sign", Vector2(0.7, 0.52), Vector3(-0.9, 1.75, -2.28), 0.0, "BrewerySign")
-	K.cutout(parent, "wall_clock", Vector2(0.3, 0.3), Vector3(2.4, 1.85, -2.28), 0.0, false, "Clock")
-	for t: Vector3 in [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]:
-		K.cutout(parent, "ashtray", Vector2(0.15, 0.13), t + Vector3(0.1, 0.74, 0.1), 0.0, true, "Ashtray")
-		_pub_lamp(parent, t + Vector3(0, 2.05, 0))
-	_pub_lamp(parent, Vector3(1.35, 2.15, -1.2))
-	_sign(parent, title_text, Vector3(0.0, 2.36, -2.24), 30, "enamel")
-
-
-## A lamp on its chain over a table, its brown glass shade a sprite, warm light.
+## Which of the pub's rooms you are in: the bar, or the cellar under it (its kegs).
 func _set_pub_room(room: String, update_camera: bool = true) -> void:
 	if _pub_main_root == null or _pub_cellar_root == null:
 		return
@@ -1111,24 +1252,6 @@ func _set_pub_room(room: String, update_camera: bool = true) -> void:
 	_cam_base_rot = _interior_camera.rotation
 
 
-## The pub's cellar: brick and a concrete floor under a bare bulb, the kegs along the
-## back wall (as many as there is beer in the books: _fill_cellar), crates of the rest.
-func _build_pub_cellar_layout(parent: Node3D) -> void:
-	var K := INTERIOR_KIT
-	var size := Vector3(5.8, 2.5, 4.6)
-	K.room(parent, size, "concrete", "brick_red", "concrete", 1.0, 1.2, 0.05)
-	K.prop(parent, "wall_shelf", Vector3(-2.75, 1.4, -0.4), 90.0, 1.4)
-	K.prop(parent, "oil_drum", Vector3(-2.4, 0.05, 1.5))
-	K.slab(parent, Vector3(2.6, 0.12, 0.6), Vector3(0.0, 0.11, -1.9), K.surface("planks_dark", 0.8), "KegRack")
-	var bulb := OmniLight3D.new()
-	bulb.position = Vector3(0.0, 2.2, -0.2)
-	bulb.light_color = Color(1.0, 0.86, 0.62)
-	bulb.light_energy = 1.1
-	bulb.omni_range = 5.5
-	parent.add_child(bulb)
-	_sign(parent, "SKLEP\ncellar", Vector3(-0.2, 2.05, -2.24), 30, "enamel")
-
-
 ## The doors between the rooms (business_doors.gd), in the walls the layouts left free.
 func _build_business_doors(profile: String) -> void:
 	match profile:
@@ -1142,10 +1265,13 @@ func _build_business_doors(profile: String) -> void:
 		"pub":
 			_doors.add("p_cellar", "main", _pub_main_root, Vector3(2.9, 0.05, 0.3), Vector3(-1, 0, 0), "cellar", "pc_main")
 			_doors.add("pc_main", "cellar", _pub_cellar_root, Vector3(2.9, 0.05, 0.9), Vector3(-1, 0, 0), "main", "p_cellar")
-			_build_stock_spot(_pub_cellar_root, Vector3(0.0, 0.6, -1.8), Vector3(3.0, 1.2, 0.9))
+			_build_stock_spot(_pub_cellar_root, Vector3(0.7, 0.6, -1.85), Vector3(2.4, 1.2, 0.8))
+			_ensure_sentence()
 		"vecerka":
-			_doors.add("s_store", "shop", _vecerka_shop_root, Vector3(-1.8, 0.05, -1.1), Vector3(1, 0, 0), "storage", "st_shop")
-			_doors.add("st_shop", "storage", _vecerka_storage_root, Vector3(1.8, 0.05, -1.1), Vector3(-1, 0, 0), "shop", "s_store")
+			_doors.add("s_store", "shop", _vecerka_shop_root, Vector3(1.9, 0.05, -2.6), Vector3(0, 0, 1), "storage", "st_shop")
+			_doors.add("st_shop", "storage", _vecerka_storage_root, Vector3(2.4, 0.05, 0.85), Vector3(-1, 0, 0), "shop", "s_store")
+			_build_stock_spot(_vecerka_storage_root, Vector3(-2.0, 0.8, 0.7), Vector3(0.6, 1.6, 1.8))
+			_ensure_sentence()
 
 
 ## Which room of this building you are in (the doors of that room are the clickable ones).
@@ -1188,7 +1314,7 @@ func _build_stock_spot(root: Node3D, at: Vector3, size: Vector3) -> void:
 
 
 ## What the books have on the shelf, stood in the cellar (each time you come down): the
-## pub's kegs (one for every 25 pints), its crates of rum and kofola; the bistro's sacks of
+## pub's full kegs (besides the one on the line), its crates of rum and kofola; the bistro's sacks of
 ## potatoes, the crates of dumplings, the boxes of cheese and goulash.
 func _fill_cellar() -> void:
 	var root: Node3D = _pub_cellar_root if _current_profile == "pub" else _restaurant_basement_root
@@ -1204,9 +1330,11 @@ func _fill_cellar() -> void:
 	var stock: Dictionary = site.get("stock", {})
 	var K := INTERIOR_KIT
 	if _current_profile == "pub":
-		var kegs := clampi(int(ceil(float(stock.get("beer", 0)) / 25.0)), 0, 6)
+		# The full kegs besides the one on the line (taproom.spares), along the rack.
+		var tr = TAPROOM.of(get_tree())
+		var kegs := clampi(int(tr.spares(_upkeep_key)) if tr != null and _upkeep_key != "" else int(ceil(float(stock.get("beer", 0)) / 50.0)), 0, 6)
 		for i in kegs:
-			_keg(stock_root, Vector3(-1.05 + float(i % 6) * 0.42, 0.17, -1.9))
+			_keg(stock_root, Vector3(-0.3 + float(i % 6) * 0.4, 0.17, -1.9))
 		var crates := clampi(int(ceil(float(int(stock.get("rum", 0)) + int(stock.get("kofola", 0))) / 12.0)), 0, 5)
 		for i in crates:
 			K.cutout(stock_root, "beer_crate_full", Vector2(0.55, 0.42), Vector3(1.9, 0.05 + float(i % 3) * 0.36, -1.0 + float(i / 3) * 0.6), -90.0, true, "Crate")
@@ -1222,6 +1350,7 @@ func _fill_cellar() -> void:
 		var boxes := clampi(int(ceil(float(int(stock.get("cheese", 0)) + int(stock.get("goulash", 0))) / 12.0)), 0, 4)
 		for i in boxes:
 			K.prop(stock_root, "cardboard_boxes", Vector3(-0.8 + float(i % 2) * 0.45, 0.05 + float(i / 2) * 0.4, -2.1), 10.0 * float(i))
+	_off_sprites(stock_root, "pub" if _current_profile == "pub" else "rest", Vector3(-2.3, 0.05, -1.55) if _current_profile != "pub" else Vector3(-1.6, 0.05, -1.4), Vector3(0.45, 0, 0))
 
 
 func _business_site() -> Dictionary:
@@ -1229,24 +1358,76 @@ func _business_site() -> Dictionary:
 	return BUSINESS.site(_upkeep_key)
 
 
-## A keg: a short cylinder in the keg's Grok face (assets/textury/town/keg.png).
+## The bistro's menu board: what the cellar cannot make today crossed out in chalk.
+func _update_menu_board() -> void:
+	if _restaurant_dining_root == null:
+		return
+	var site := _business_site()
+	if site.is_empty():
+		return
+	var can: Dictionary = load("res://core/systems/business_rules.gd").menu("rest", site.get("stock", {}))
+	for dish in can:
+		var strike := _restaurant_dining_root.get_node_or_null("MenuStrike_" + str(dish)) as Node3D
+		if strike != null:
+			strike.visible = not bool(can[dish])
+		var line := _restaurant_dining_root.get_node_or_null("MenuLine_" + str(dish)) as Label3D
+		if line != null:
+			line.modulate = Color(0.92, 0.92, 0.86, 0.95) if bool(can[dish]) else Color(0.62, 0.62, 0.58, 0.8)
+
+
+## What has gone off on the cellar's shelves, there till it is thrown out (the books'
+## THROW OUT): mouldy, sprouting, bloated (assets/textury/camp/off_*.png).
+const OFF_SPRITES := {
+	"rest": {"potatoes": ["off_potatoes", 0.62], "cheese": ["off_cheese", 0.18], "dumplings": ["off_dumplings", 0.18]},
+	"pub": {"beer": ["off_keg", 0.6], "kofola": ["off_milk", 0.26]},
+	"vecerka": {"bread": ["off_bread", 0.22], "roll": ["off_rolls", 0.2], "milk": ["off_milk", 0.26], "salami": ["off_salami", 0.28], "veg": ["off_potatoes", 0.4]},
+	"corn": {"cobs": ["off_cob", 0.2], "butter": ["off_cheese", 0.14]},
+}
+
+
+func _off_sprites(parent: Node3D, kind: String, first: Vector3, step: Vector3) -> void:
+	var site := _business_site()
+	var i := 0
+	for g in (site.get("spoiled", {}) as Dictionary):
+		if int(site["spoiled"][g]) <= 0 or not (OFF_SPRITES.get(kind, {}) as Dictionary).has(g):
+			continue
+		var d: Array = OFF_SPRITES[kind][g]
+		var path := "res://assets/textury/camp/%s.png" % str(d[0])
+		if not ResourceLoader.exists(path):
+			continue
+		var s := Sprite3D.new()
+		s.name = "Off_" + str(g)
+		s.texture = STATION3D.room_tex(path, float(d[1]))
+		s.pixel_size = 1.0 / STATION3D.PX_PER_M
+		s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		s.shaded = true
+		if s.texture != null:
+			s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
+		s.position = first + step * float(i)
+		parent.add_child(s)
+		i += 1
+
+
+## A full keg standing in the cellar: the keg's sprite (assets/textury/pub/keg.png, the
+## one on the pallet at the keg's station), at the room's pixel.
 func _keg(parent: Node3D, at: Vector3) -> void:
-	var mi := MeshInstance3D.new()
-	mi.name = "Keg"
-	var c := CylinderMesh.new()
-	c.top_radius = 0.19
-	c.bottom_radius = 0.19
-	c.height = 0.55
-	c.radial_segments = 10
-	mi.mesh = c
-	var m := StandardMaterial3D.new()
-	var path := "res://assets/textury/town/keg.png"
-	if ResourceLoader.exists(path):
-		m.albedo_texture = load(path)
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mi.material_override = m
-	mi.position = at + Vector3(0, 0.275, 0)
-	parent.add_child(mi)
+	var path := "res://assets/textury/pub/keg.png"
+	if not ResourceLoader.exists(path):
+		return
+	var s := Sprite3D.new()
+	s.name = "Keg"
+	s.texture = STATION3D.room_tex(path, 0.6)
+	s.pixel_size = 0.6 / float(maxi(1, s.texture.get_height())) if s.texture != null else 0.01
+	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	s.shaded = true
+	if s.texture != null:
+		s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
+	s.position = at
+	parent.add_child(s)
 
 
 ## A stand-up picture of a thing on the floor (a sack, a crate), facing the room.
@@ -1311,6 +1492,7 @@ func _meshes_in_box(body: StaticBody3D) -> Array:
 	return out
 
 
+## A lamp on its chain over a table, its brown glass shade a sprite, warm light.
 func _pub_lamp(parent: Node3D, at: Vector3) -> void:
 	var K := INTERIOR_KIT
 	K.slab(parent, Vector3(0.015, 2.85 - at.y, 0.015), Vector3(at.x, (2.85 + at.y) * 0.5, at.z), K.surface("galvanized", 0.3, Color(0.3, 0.3, 0.3)), "LampChain")
@@ -1330,86 +1512,22 @@ func _pub_lamp(parent: Node3D, at: Vector3) -> void:
 	parent.add_child(l)
 
 
-func _build_vecerka_shop_layout(parent: Node3D) -> void:
-	# The Jednota: oil-painted walls, brown lino, green racks of goods along the back and
-	# the right, the counter with its till and scale on the left, the hot-dog steel by the
-	# door, posters.
-	var K := INTERIOR_KIT
-	var size := Vector3(3.6, 3.2, 3.6)
-	K.room(parent, size, "lino_floor", "oil_wall", "ceiling_board", 3.2, 1.0, 0.05)
-	K.skirting(parent, size, "planks_dark", 0.05)
-	_shelf_with_goods(parent, Vector3(-0.85, 0.05, -1.52), 0.0, 0)
-	_shelf_with_goods(parent, Vector3(0.85, 0.05, -1.52), 0.0, 1)
-	_shelf_with_goods(parent, Vector3(1.52, 0.05, 0.1), -90.0, 2)
-	K.prop(parent, "shop_counter", Vector3(-1.38, 0.05, 0.05), 90.0)
-	K.prop(parent, "steel_counter", Vector3(-1.4, 0.05, 1.22), 90.0, 0.8)
-	K.slab(parent, Vector3(0.4, 0.1, 0.6), Vector3(-1.4, 0.82, 1.2), K.surface("steel_kitchen", 0.4, Color(0.6, 0.6, 0.62)), "HotdogGrill")
-	K.picture(parent, "poster_mushrooms", Vector2(0.5, 0.66), Vector3(-1.79, 2.1, 0.75), 90.0, "PosterA")
-	K.picture(parent, "shop_poster", Vector2(0.5, 0.66), Vector3(1.79, 2.25, 1.2), -90.0, "PosterB")
-	# The things of a village shop (the same Grok art as Lesna's Jednota).
-	K.cutout(parent, "shop_scales", Vector2(0.2, 0.38), Vector3(-1.45, 0.92, -0.45), 90.0, false, "Scales")
-	K.cutout(parent, "card_box", Vector2(0.17, 0.24), Vector3(-1.4, 0.92, 0.45), 90.0, false, "Cards")
-	K.cutout(parent, "beer_crate_full", Vector2(0.55, 0.42), Vector3(0.2, 0.05, 1.45), 0.0, true, "Crate")
-	K.cutout(parent, "shop_baskets", Vector2(0.5, 0.48), Vector3(1.2, 0.05, 1.5), 0.0, true, "Baskets")
-	var fridge := K.picture(parent, "shop_fridge", Vector2(0.62, 0.84), Vector3(1.79, 1.0, -0.95), -90.0, "FridgeDoor")
-	var fm := fridge.material_override as StandardMaterial3D
-	fm.emission_enabled = true
-	fm.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-	fm.emission_texture = fm.albedo_texture
-	fm.emission = Color(0.7, 0.85, 1.0)
-	fm.emission_energy_multiplier = 0.4
-	_sign(parent, "VECERKA\nopen till 22:00", Vector3(0.0, 2.65, -1.76), 34, "enamel")
-
-
-## A green rack with a row of goods on every shelf (assets/textury/camp/goods_*.png).
-func _shelf_with_goods(parent: Node3D, pos: Vector3, yaw: float, first: int) -> void:
-	var K := INTERIOR_KIT
-	var pivot := Node3D.new()
-	pivot.name = "Rack"
-	pivot.position = pos
-	pivot.rotation_degrees.y = yaw
-	parent.add_child(pivot)
-	K.prop(pivot, "shop_shelf", Vector3.ZERO)
-	var levels := [0.12, 0.5, 0.88, 1.26, 1.64]
-	for i in levels.size():
-		var tex: String = GOODS[(first + i) % GOODS.size()]
-		var goods := K.picture(pivot, tex, Vector2(1.18, 0.34), Vector3(0, float(levels[i]) + 0.185, 0.04), 0.0, "Goods")
-		# Repeat the row sideways so the goods keep their shape on a long shelf.
-		var gmat := goods.material_override as StandardMaterial3D
-		if gmat != null and gmat.albedo_texture != null:
-			var t_size := gmat.albedo_texture.get_size()
-			gmat.uv1_scale = Vector3(maxf(1.0, round((1.18 / 0.34) / (t_size.x / t_size.y))), 1.0, 1.0)
-
-
-func _build_vecerka_storage_layout(parent: Node3D) -> void:
-	# The storeroom: bare oil paint and concrete, staff lockers, a rack of tins, boxes and
-	# crates waiting to be unpacked.
-	var K := INTERIOR_KIT
-	var size := Vector3(3.6, 3.2, 3.6)
-	K.room(parent, size, "concrete", "oil_wall", "concrete", 3.2, 1.2, 0.05)
-	K.prop(parent, "locker", Vector3(-0.9, 0.05, -1.52))
-	_shelf_with_goods(parent, Vector3(0.85, 0.05, -1.52), 0.0, 3)
-	K.prop(parent, "cardboard_boxes", Vector3(-1.3, 0.05, 0.2), 90.0)
-	K.prop(parent, "beer_crates", Vector3(1.25, 0.05, 0.3), -90.0)
-	K.prop(parent, "cardboard_boxes", Vector3(1.2, 0.05, 1.1), -70.0)
-	_sign(parent, "SKLAD\nstaff only", Vector3(0.0, 2.6, -1.74), 34, "enamel")
-
-
 func _set_vecerka_room(room: String, update_camera: bool = true) -> void:
 	if _vecerka_shop_root == null or _vecerka_storage_root == null:
 		return
-	_active_subroom = room
-	_vecerka_shop_root.visible = (room == "shop")
-	_vecerka_storage_root.visible = (room == "storage")
-	
+	_active_subroom = "storage" if room == "storage" else "shop"
+	_vecerka_shop_root.visible = _active_subroom == "shop"
+	_vecerka_storage_root.visible = _active_subroom == "storage"
+	_bodies_live(_vecerka_shop_root, _vecerka_shop_root.visible)
+	_bodies_live(_vecerka_storage_root, _vecerka_storage_root.visible)
 	if update_camera and _interior_camera != null:
-		if room == "storage":
-			_interior_camera.position = Vector3(0.0, 1.5, 1.4)
-			_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
-		else:
-			# Keep camera inside room volume; z=1.8 sits in the front wall plane for 3.6 depth.
-			_interior_camera.position = Vector3(0.0, 1.5, 1.28)
+		# Just inside the door (jednota_layout: the shop 5.2 m deep, the storeroom 4).
+		if _active_subroom == "storage":
+			_interior_camera.position = Vector3(0.0, 1.5, 1.62)
 			_interior_camera.rotation_degrees = Vector3(-10.0, 0.0, 0.0)
+		else:
+			_interior_camera.position = Vector3(0.0, 1.5, 2.2)
+			_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 	_cam_base_rot = _interior_camera.rotation
 
 
@@ -1541,6 +1659,12 @@ func _set_hygiene_room(room: String) -> void:
 		return
 	_active_subroom = room
 	if _current_profile == "toilet":
+		# Only this stall is there; the other one is another room.
+		for side in _toilet_stalls:
+			var stall: Node3D = _toilet_stalls[side]
+			if is_instance_valid(stall):
+				stall.visible = str(side) == ("right" if room == "right" else "left")
+				_bodies_live(stall, stall.visible)
 		# In the doorway of the stall, looking down at the bowl.
 		var sx := TOILET_STALL_X * (1.0 if room == "right" else -1.0)
 		_interior_camera.position = Vector3(sx, 1.55, TOILET_D * 0.5 - 0.12)
@@ -1625,8 +1749,17 @@ func _build_toilet_layout() -> void:
 	wall_shape.shape = wall_box
 	wall_body.add_child(wall_shape)
 	r.add_child(wall_body)
+	# Each stall is a room of its own (playtest 20. 10.: "I can clean the other toilet
+	# through the wall"): its things and its mess under its own root, only the stall you
+	# came in by shown (_set_hygiene_room); the other one is not there to see or reach.
+	_toilet_stalls.clear()
 	for side: float in [-1.0, 1.0]:
 		var cx := side * TOILET_STALL_X
+		var stall := Node3D.new()
+		stall.name = "StallLeft" if side < 0.0 else "StallRight"
+		_room_root.add_child(stall)
+		_toilet_stalls["left" if side < 0.0 else "right"] = stall
+		r = stall
 		_build_bowl(r, Vector3(cx, 0.0, -d * 0.5 + 0.32))
 		# Paper on the partition, the newspaper on a nail on the outer wall.
 		var roll := MeshInstance3D.new()
@@ -1658,8 +1791,8 @@ func _build_toilet_layout() -> void:
 		bulb.material_override = bulb_mat
 		bulb.position = Vector3(cx, h - 0.22, 0.0)
 		r.add_child(bulb)
-	_sign(r, "ZENY", Vector3(-TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
-	_sign(r, "MUZI", Vector3(TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
+	_sign(_toilet_stalls["left"], "ZENY", Vector3(-TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
+	_sign(_toilet_stalls["right"], "MUZI", Vector3(TOILET_STALL_X, 2.0, -d * 0.5 + 0.03), 18, "enamel")
 	_interior_camera.position = Vector3(-TOILET_STALL_X, 1.55, d * 0.5 - 0.12)
 	_interior_camera.rotation_degrees = Vector3(-30.0, 0.0, 0.0)
 
@@ -1667,6 +1800,14 @@ func _build_toilet_layout() -> void:
 const TOILET_W := 2.9
 const TOILET_D := 2.1
 const TOILET_STALL_X := 0.72
+## The toilet block's stalls, each a room of its own: "left" / "right" -> its root.
+var _toilet_stalls: Dictionary = {}
+
+
+## The root of a toilet stall ("left" / "right"; the room when there is none).
+func _toilet_stall(side: String) -> Node3D:
+	var n = _toilet_stalls.get(side, null)
+	return n if n != null and is_instance_valid(n) else _room_root
 
 
 ## A proper outhouse toilet, Build style: the pedestal, the bowl, the black seat with the
@@ -2067,13 +2208,16 @@ func _build_upkeep_spots(block: String) -> void:
 	_upkeep_prep = INTERIOR_PREP.new()
 	var r := _room_root
 	if block == "toilet":
+		# Each stall's mess in its own stall (only the one you are in is there).
 		var bz := -TOILET_D * 0.5 + 0.32 + 0.06
-		_upkeep_prep.add_spot("bowl_l", r, Vector3(-TOILET_STALL_X, 0.43, bz))
-		_upkeep_prep.add_spot("bowl_r", r, Vector3(TOILET_STALL_X, 0.43, bz))
-		_upkeep_prep.add_spot("stall_l", r, Vector3(-TOILET_STALL_X - 0.3, 0.01, -0.35))
-		_upkeep_prep.add_spot("stall_r", r, Vector3(TOILET_STALL_X + 0.3, 0.01, -0.35))
-		_upkeep_prep.add_spot("wall_l", r, Vector3(-TOILET_W * 0.5 + 0.02, 1.3, -0.1), PI * 0.5, true)
-		_upkeep_prep.add_spot("wall_r", r, Vector3(TOILET_W * 0.5 - 0.02, 1.3, -0.1), -PI * 0.5, true)
+		var sl := _toilet_stall("left")
+		var sr := _toilet_stall("right")
+		_upkeep_prep.add_spot("bowl_l", sl, Vector3(-TOILET_STALL_X, 0.43, bz))
+		_upkeep_prep.add_spot("bowl_r", sr, Vector3(TOILET_STALL_X, 0.43, bz))
+		_upkeep_prep.add_spot("stall_l", sl, Vector3(-TOILET_STALL_X - 0.3, 0.01, -0.35))
+		_upkeep_prep.add_spot("stall_r", sr, Vector3(TOILET_STALL_X + 0.3, 0.01, -0.35))
+		_upkeep_prep.add_spot("wall_l", sl, Vector3(-TOILET_W * 0.5 + 0.02, 1.3, -0.1), PI * 0.5, true)
+		_upkeep_prep.add_spot("wall_r", sr, Vector3(TOILET_W * 0.5 - 0.02, 1.3, -0.1), -PI * 0.5, true)
 	else:
 		_upkeep_prep.add_spot("shower_l", r, Vector3(-1.15, 0.5, -1.54), 0.0, true)
 		_upkeep_prep.add_spot("shower_r", r, Vector3(1.15, 0.5, -1.54), 0.0, true)
@@ -2221,13 +2365,82 @@ func _stop_life() -> void:
 	if _life != null and is_instance_valid(_life):
 		_life.queue_free()
 	_life = null
+	if _crew != null and is_instance_valid(_crew):
+		_crew.clear()
+		_crew.queue_free()
+	_crew = null
 	if _bistro_marks != null and is_instance_valid(_bistro_marks):
 		_bistro_marks.queue_free()
 	_bistro_marks = null
+	if _pub_marks != null and is_instance_valid(_pub_marks):
+		_pub_marks.queue_free()
+	_pub_marks = null
 	if _marks != null and is_instance_valid(_marks):
 		_marks.clear()
 		_marks.queue_free()
 	_marks = null
+
+
+## The hands at their jobs in the rooms (scripts/business/crew_figures.gd).
+const CREW_FIGURES = preload("res://scripts/business/crew_figures.gd")
+var _crew: Node3D
+## Which station each of the bistro's jobs is worked at, and where the hand steps back to
+## when a warden takes it (behind the warden, out of the camera's way).
+const BISTRO_ROLE_AT := {"pass": "pass", "stove": "stove", "cellar": "potatoes", "sink": "sink"}
+const BISTRO_ASIDE := {"pass": Vector3(1.4, 0, 0.6), "stove": Vector3(0.3, 0, 1.4), "potatoes": Vector3(1.3, 0, 0.9), "sink": Vector3(-1.4, 0, 0.7)}
+## The pub's: behind the bar along the narrow way between the bar and the shelf (the
+## tap's hand stands in front of the bottles: out of the way when you turn to them),
+## the cellar's by the pallet.
+const PUB_ROLE_AT := {"tap": "tap", "bar": "back", "wash": "wash", "cellar": "keg"}
+const PUB_ASIDE := {"tap": Vector3(0.6, 0, 0), "back": Vector3(-0.6, 0, 0), "wash": Vector3(-0.45, 0, -0.1), "keg": Vector3(0.9, 0, 0.6)}
+const PUB_CLEAR_OF := {"tap": ["back"]}
+## The Jednota's: behind the till, in front of the rack, at the packing table; aside out
+## of the station's camera.
+const JEDNOTA_ROLE_AT := {"till": "till", "shelves": "shelves", "store": "store"}
+const JEDNOTA_ASIDE := {"till": Vector3(0.0, 0, -1.1), "shelves": Vector3(-1.5, 0, 0.6), "store": Vector3(1.2, 0, 0.5)}
+
+
+func _start_crew() -> void:
+	if _crew != null and is_instance_valid(_crew):
+		_crew.clear()
+		_crew.queue_free()
+	_crew = CREW_FIGURES.new()
+	_crew.name = "CrewFigures"
+	_crew.key = _upkeep_key
+	var spots := {}
+	match _current_profile:
+		"rest":
+			for role in BISTRO_ROLE_AT:
+				var st_id: String = BISTRO_ROLE_AT[role]
+				var st: Dictionary = BISTRO_LAYOUT.STATIONS[st_id]
+				var root: Node3D = _restaurant_kitchen_root if str(st["room"]) == "kitchen" else _restaurant_basement_root
+				if root != null:
+					spots[role] = {"root": root, "pos": st["stand"], "station": st_id, "aside": BISTRO_ASIDE.get(st_id, Vector3(0.8, 0, 0.8)), "note": (st["mark"] as Vector3) - Vector3(0, 0.45, 0)}
+			_crew.busy_of = func() -> Array: return [_station_open()] + _bistro_taken().keys()
+		"pub":
+			for role in PUB_ROLE_AT:
+				var pst_id: String = PUB_ROLE_AT[role]
+				var pst: Dictionary = PUB_LAYOUT.STATIONS[pst_id]
+				var proot: Node3D = _pub_cellar_root if str(pst["room"]) == "cellar" else _pub_main_root
+				if proot != null:
+					spots[role] = {"root": proot, "pos": pst["stand"], "station": pst_id, "aside": PUB_ASIDE.get(pst_id, Vector3(0.6, 0, 0)), "clear_of": PUB_CLEAR_OF.get(pst_id, []), "note": (pst["mark"] as Vector3) - Vector3(0, 0.45, 0)}
+			_crew.busy_of = func() -> Array: return [_station_open()] + _bistro_taken().keys()
+			_crew.open_of = func() -> String: return _station_open()
+		"vecerka":
+			for role in JEDNOTA_ROLE_AT:
+				var jst_id: String = JEDNOTA_ROLE_AT[role]
+				var jst: Dictionary = JEDNOTA_LAYOUT.STATIONS[jst_id]
+				var jroot: Node3D = _station_root(str(jst["room"]))
+				if jroot != null:
+					spots[role] = {"root": jroot, "pos": jst["stand"], "station": jst_id, "aside": JEDNOTA_ASIDE.get(jst_id, Vector3(0.6, 0, 0.6)), "note": (jst["mark"] as Vector3) - Vector3(0, 0.45, 0)}
+			# The second till's hand at their own counter by the door (gear).
+			if _vecerka_shop_root != null:
+				spots["till2"] = {"root": _vecerka_shop_root, "pos": JEDNOTA_LAYOUT.TILL2_STAND, "station": ""}
+			_crew.busy_of = func() -> Array: return [_station_open()] + _bistro_taken().keys()
+			_crew.open_of = func() -> String: return _station_open()
+	_crew.spots = spots
+	add_child(_crew)
+	_crew.refresh()
 
 
 ## The marks over the places where work waits, for this pub, bistro or Jednota.
@@ -2235,12 +2448,16 @@ func _start_marks() -> void:
 	var roots := {}
 	match _current_profile:
 		"pub":
-			roots = {"": _pub_main_root}
+			_start_pub_marks()
+			_start_crew()
+			return
 		"rest":
 			_start_bistro_marks()
+			_start_crew()
 			return
 		"vecerka":
-			roots = {"shop": _vecerka_shop_root}
+			_start_jednota()
+			roots = {"shop": _vecerka_shop_root, "store": _vecerka_storage_root}
 		_:
 			return
 	_marks = WORK_MARKS.new()
@@ -2252,6 +2469,8 @@ func _start_marks() -> void:
 	var biz := get_tree().get_first_node_in_group("businesses")
 	var key := _upkeep_key
 	_marks.waiting_count = func() -> int: return int(biz.waiting_at(key)) if biz != null and is_instance_valid(biz) else 0
+	if _current_profile == "vecerka":
+		_start_crew()
 
 
 # -- the bistro: its stations, its marks, the sentence ------------------------------
@@ -2263,56 +2482,312 @@ func _build_bistro_stations() -> void:
 		var parent: Node3D = _restaurant_kitchen_root if room == "kitchen" else _restaurant_basement_root
 		if parent != null:
 			BISTRO_LAYOUT.station_body(parent, str(id))
+	_ensure_sentence()
+
+
+## The line under the room (what the pointer is on, what was said).
+func _ensure_sentence() -> void:
 	if _sentence == null:
 		_sentence = ROOM_SENTENCE.new()
 		_sentence.name = "RoomSentence"
 		add_child(_sentence)
 
 
+## The stations of the building you are in: their layout (STATIONS, SURFACES), their
+## scripts, the room a station is in.
+func _station_layout():
+	match _current_profile:
+		"pub":
+			return PUB_LAYOUT
+		"vecerka":
+			return JEDNOTA_LAYOUT
+	return BISTRO_LAYOUT
+
+
+func _station_scripts() -> Dictionary:
+	match _current_profile:
+		"pub":
+			return PUB_STATIONS
+		"vecerka":
+			return JEDNOTA_STATIONS
+	return BISTRO_STATIONS
+
+
+func _station_root(room: String) -> Node3D:
+	if _current_profile == "pub":
+		return _pub_cellar_root if room == "cellar" else _pub_main_root
+	if _current_profile == "vecerka":
+		return _vecerka_storage_root if room == "store" else _vecerka_shop_root
+	return _restaurant_kitchen_root if room == "kitchen" else _restaurant_basement_root
+
+
 ## The station open now ("" none).
 func _station_open() -> String:
 	for id in _stations:
-		var v: CanvasLayer = _stations[id]
-		if v.visible and v.is_open():
+		var v = _stations[id]
+		if is_instance_valid(v) and bool(v.call("is_open")):
 			return str(id)
 	return ""
 
 
-## Steps up to the station `id` (unless another warden is at it): its screen full size.
+## The frame under the room at a station (scripts/business/station_hud.gd), one for the
+## building.
+func _hud() -> CanvasLayer:
+	if _station_hud == null or not is_instance_valid(_station_hud):
+		_station_hud = STATION_HUD.new()
+		_station_hud.name = "StationHud"
+		add_child(_station_hud)
+		_station_hud.mirror_of = func() -> Array:
+			var open := _station_open()
+			if open == "" or not _stations[open].has_method("mirror"):
+				return []
+			return _stations[open].call("mirror")
+	return _station_hud
+
+
+## The tabs of a room's stations on the frame's bar: [[id, LABEL], ...].
+func _room_tabs(room: String) -> Array:
+	var out: Array = []
+	var stations: Dictionary = _station_layout().STATIONS
+	for id in stations:
+		var st: Dictionary = stations[id]
+		if str(st["room"]) == room and bool(st.get("tab", true)):
+			out.append([str(id), str(st.get("tab_label", str(id).to_upper()))])
+	return out
+
+
+## Steps up to the station `id` (unless another warden is at it): the room's camera goes
+## over it in steps, the station takes the pointer.
 func _open_station(id: String) -> void:
-	var path := str(BISTRO_STATIONS.get(id, ""))
-	if path == "" or not ResourceLoader.exists(path):
+	if not _station_scripts().has(id):
 		return
 	var who := str(_bistro_taken().get(id, ""))
 	if who != "":
 		if _sentence != null:
-			_sentence.say("%s is at %s." % [who, str(BISTRO_LAYOUT.STATIONS[id]["label"])])
+			_sentence.say("%s is at %s." % [who, str(_station_layout().STATIONS[id]["label"])])
 		return
-	for k in _stations:
-		if str(k) != id:
-			(_stations[k] as CanvasLayer).call("close_now")
+	_make_stations()
 	if not _stations.has(id):
-		var v: CanvasLayer = load(path).new()
-		v.name = "Station_" + id
-		add_child(v)
-		v.connect("switch_to", _switch_station)
-		_stations[id] = v
-	var view: CanvasLayer = _stations[id]
-	view.set("building_key", _upkeep_key)
-	view.set("taken", _bistro_taken())
-	view.call("open_view")
+		return
+	var was := _station_open()
+	if was == id:
+		return
+	if was != "":
+		_switching = true
+		_stations[was].call("close_station")
+		_switching = false
+	if was == "" and _station_cam_from.is_empty():
+		_station_cam_from = [_interior_camera.transform, _interior_camera.rotation]
+	var st: Node3D = _stations[id]
+	if _station_tween != null and _station_tween.is_valid():
+		_station_tween.kill()
+	_station_tween = STATION3D.step_camera(self, _interior_camera, st.call("cam_pose"), STATION3D.CAM_SEC if was == "" else 0.34)
+	var hud := _hud()
+	st.set("hud", hud)
+	st.call("open_station", _interior_camera)
+	hud.set("station", st)
+	hud.set("tabs", _room_tabs(str(_station_layout().STATIONS[id]["room"])))
+	hud.set("taken", _bistro_taken())
+	hud.call("clear_say")
+	hud.visible = true
 	_hot_glint.clear()
 	_hot_glint_on = null
 	if _sentence != null:
 		_sentence.clear()
+		_sentence.visible = false
+	if _bistro_marks != null and is_instance_valid(_bistro_marks):
+		_bistro_marks.visible = false
+	if _pub_marks != null and is_instance_valid(_pub_marks):
+		_pub_marks.visible = false
+	if _exit_hint != null:
+		_exit_hint.modulate.a = 0.0
 
 
-## A tab on a station's bar: straight to that station of the room.
+## A tab on the frame, a number key, Tab: straight to that station of the room.
 func _switch_station(id: String) -> void:
-	var now := _station_open()
-	if now != "":
-		(_stations[now] as CanvasLayer).call("close_now")
+	if str(_bistro_taken().get(id, "")) != "":
+		var hud := _hud()
+		hud.call("say", "", "%s is at %s." % [str(_bistro_taken()[id]), str(_station_layout().STATIONS[id]["label"])])
+		return
 	_open_station(id)
+
+
+## Stepped away from a station: the camera goes back in steps to where you stood.
+func _on_station_closed() -> void:
+	if _switching or _station_open() != "" or _interior_camera == null:
+		return
+	if _station_hud != null and is_instance_valid(_station_hud):
+		_station_hud.visible = false
+	if _sentence != null:
+		_sentence.visible = true
+	if _bistro_marks != null and is_instance_valid(_bistro_marks):
+		_bistro_marks.visible = true
+	if _pub_marks != null and is_instance_valid(_pub_marks):
+		_pub_marks.visible = true
+	if _station_cam_from.is_empty():
+		return
+	var back: Transform3D = _station_cam_from[0]
+	var rot: Vector3 = _station_cam_from[1]
+	_station_cam_from = []
+	if _station_tween != null and _station_tween.is_valid():
+		_station_tween.kill()
+	var parent_t := _interior_camera.get_parent_node_3d().global_transform if _interior_camera.get_parent_node_3d() != null else Transform3D()
+	_station_tween = STATION3D.step_camera(self, _interior_camera, parent_t * back, STATION3D.CAM_SEC)
+	_station_tween.finished.connect(func():
+		_interior_camera.transform = back
+		_interior_camera.rotation = rot
+		_cam_base_rot = rot
+		_look.reset())
+
+
+## Each frame at a station: the pointer through the room's camera onto it (or the frame,
+## or a ticket on the rail), the finger or the fist.
+func _station_frame(open: String) -> void:
+	var st: Node = _stations[open]
+	var moving := _station_tween != null and _station_tween.is_valid() and _station_tween.is_running()
+	var mouse := get_viewport().get_mouse_position()
+	var hud := _hud()
+	var ui := str(hud.call("hit", mouse))
+	hud.call("set_hover", ui if ui.begins_with("#tab") or ui.begins_with("#btn") or ui == "#back" else "")
+	var vp_mouse := _room_px(mouse)
+	var rail := ""
+	if ui == "" and not moving and st.call("holding") == "":
+		rail = str(st.call("rail_ticket_at", vp_mouse))
+	if moving or ((ui != "" or rail != "") and st.call("holding") == ""):
+		st.call("point", Vector2(-1, -1))
+	else:
+		st.call("point", vp_mouse)
+	if str(st.call("holding")) != "":
+		HandCursor.want(HandCursor.GRAB)
+	elif str(st.call("hovered")) != "" or rail != "" or ui.begins_with("#tab") or ui.begins_with("#btn") or ui == "#back":
+		HandCursor.want(HandCursor.POINT)
+
+
+## A point of the screen in the room's picture (its viewport's pixels).
+func _room_px(screen: Vector2) -> Vector2:
+	var size := get_viewport().get_visible_rect().size
+	if _viewport == null or size.x <= 0.0 or size.y <= 0.0:
+		return Vector2(-1, -1)
+	return Vector2(clampf(screen.x / size.x, 0.0, 1.0) * float(_viewport.size.x), clampf(screen.y / size.y, 0.0, 1.0) * float(_viewport.size.y))
+
+
+## The keys and the mouse while you are at a station. Esc goes on to the pause menu.
+func _station_input(event: InputEvent, open: String) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		return
+	get_viewport().set_input_as_handled()
+	var st: Node = _stations[open]
+	var room := str(_station_layout().STATIONS[open]["room"])
+	if event is InputEventKey and event.pressed and not event.echo:
+		var ke := event as InputEventKey
+		if ke.physical_keycode == KEY_S:
+			st.call("close_station")
+			return
+		var tabs := _room_tabs(room)
+		if ke.physical_keycode == KEY_TAB and not tabs.is_empty():
+			var i := 0
+			for j in tabs.size():
+				if str(tabs[j][0]) == open:
+					i = j
+			_switch_station(str(tabs[(i + 1) % tabs.size()][0]))
+			return
+		var n := ke.physical_keycode - KEY_1
+		if n >= 0 and n < tabs.size():
+			if str(tabs[n][0]) != open:
+				_switch_station(str(tabs[n][0]))
+			return
+		st.call("key", ke)
+		return
+	if not (event is InputEventMouseButton):
+		return
+	var mb := event as InputEventMouseButton
+	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+		st.call("close_station")
+		return
+	if mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if not mb.pressed:
+		st.call("release")
+		return
+	if _station_tween != null and _station_tween.is_valid() and _station_tween.is_running():
+		return
+	var ui := str(_hud().call("hit", mb.position))
+	if ui == "#back":
+		st.call("close_station")
+		return
+	if ui.begins_with("#tab:"):
+		var to := ui.substr(5)
+		if to != open:
+			_switch_station(to)
+		return
+	if ui.begins_with("#btn:"):
+		st.call("bar_button", ui.substr(5))
+		return
+	if ui != "":
+		return
+	var rail := str(st.call("rail_ticket_at", _room_px(mb.position)))
+	if rail != "":
+		st.call("rail_clicked", rail)
+		return
+	st.call("press")
+
+
+## Every station of the bistro or the pub, made once the building is known: each stands
+## on its counter in its room (the layout's SURFACES), its things drawn from the kitchen
+## or the taproom.
+func _make_stations() -> void:
+	if _upkeep_key == "" or not (_current_profile in ["rest", "pub", "vecerka"]):
+		return
+	var layout = _station_layout()
+	var scripts := _station_scripts()
+	var k = get_tree().get_first_node_in_group("kitchens") if _current_profile == "rest" else (TAPROOM.of(get_tree()) if _current_profile == "pub" else JEDNOTA.of(get_tree()))
+	for id in scripts:
+		var st: Dictionary = layout.STATIONS[id]
+		var parent: Node3D = _station_root(str(st["room"]))
+		if parent == null:
+			continue
+		var have = _stations.get(id, null)
+		if have != null and is_instance_valid(have) and (have as Node).get_parent() == parent and str(have.get("building_key")) == _upkeep_key:
+			continue
+		if have != null and is_instance_valid(have):
+			(have as Node).queue_free()
+		var path := str(scripts[id])
+		if not ResourceLoader.exists(path):
+			continue
+		var surf: Dictionary = layout.SURFACES[id]
+		var made = load(path).new()
+		if not (made is Node3D):
+			(made as Node).free()
+			continue
+		var v: Node3D = made
+		v.name = "Station3D_" + str(id)
+		v.set("building_key", _upkeep_key)
+		v.set("station", str(id))
+		v.set("room", str(st["room"]))
+		v.set("label", str(st["label"]))
+		v.set("surf_at", surf["at"])
+		v.set("surf_size", surf["size"])
+		v.set("surf_yaw", float(surf["yaw"]))
+		v.set("surf_flat", bool(surf["flat"]))
+		v.set("cam_back", float(surf.get("cam_back", 0.0)))
+		v.set("cam_up", float(surf.get("cam_up", 0.0)))
+		v.set("cam_aim", float(surf.get("cam_aim", 0.0)))
+		v.set("cam_side", float(surf.get("cam_side", 0.0)))
+		v.set("state", k)
+		if "open_books" in v:
+			v.set("open_books", _open_ledger)
+		parent.add_child(v)
+		v.connect("closed", _on_station_closed)
+		v.connect("switch_to", _switch_station)
+		_stations[id] = v
+		# Its counter's top is its Build picture, at the room's pixel.
+		var quad := parent.get_node_or_null("Surface_" + str(id)) as MeshInstance3D
+		var tex_path := str(surf.get("tex", "res://assets/textury/bistro/st_%s.png" % str(id)))
+		var pic: Texture2D = STATION3D.room_tex(tex_path, (surf["size"] as Vector2).x) if quad != null else null
+		if quad != null and pic != null:
+			var m := quad.material_override as StandardMaterial3D
+			m.albedo_texture = pic
+			m.emission_texture = pic
 
 
 ## The other wardens at this bistro's stations: station -> their name.
@@ -2329,21 +2804,48 @@ func _bistro_taken() -> Dictionary:
 		if str(r.get("k", "")) != str(mine.get("k", "")) or str(r.get("t", "")) != str(mine.get("t", "")):
 			continue
 		var w := str(r.get("w", ""))
-		if BISTRO_LAYOUT.STATIONS.has(w):
+		if _station_layout().STATIONS.has(w):
 			out[w] = Coop.name_of(id)
 	return out
 
 
 ## Each frame in the bistro: the stations' tabs know who is where, the dirty plates
 ## stand by the sink as many as there are.
+## The bistro's gear in its rooms: the heat lamps over the pass lit only once bought,
+## the ticket clock on the wall over it.
+var _gear_sig := ""
+
+
+func _apply_bistro_gear() -> void:
+	var site := _business_site()
+	var gear: Array = site.get("gear", [])
+	var sig := ",".join(gear)
+	if sig == _gear_sig or _restaurant_kitchen_root == null:
+		return
+	_gear_sig = sig
+	var lamp := gear.has("lamp")
+	for n in _restaurant_kitchen_root.find_children("LampGlow*", "MeshInstance3D", false, false):
+		var m := (n as MeshInstance3D).material_override as StandardMaterial3D
+		if m != null:
+			m.emission_enabled = lamp
+			m.albedo_color = Color(0.9, 0.2, 0.1) if lamp else Color(0.22, 0.2, 0.2)
+	for n in _restaurant_kitchen_root.find_children("LampLight*", "OmniLight3D", false, false):
+		(n as OmniLight3D).visible = lamp
+	var clock := _restaurant_kitchen_root.get_node_or_null("GearClock") as Node3D
+	if clock != null:
+		clock.visible = gear.has("clock")
+
+
 func _bistro_tick(delta: float) -> void:
+	_rat_tick(delta)
 	_taken_t -= delta
 	if _taken_t <= 0.0:
 		_taken_t = 0.5
-		var taken := _bistro_taken()
-		for v in _stations.values():
-			if (v as CanvasLayer).visible:
-				(v as CanvasLayer).set("taken", taken)
+		_apply_bistro_gear()
+		if _restaurant_room == "dining":
+			_update_menu_board()
+		if _station_hud != null and is_instance_valid(_station_hud) and _station_hud.visible:
+			_station_hud.set("taken", _bistro_taken())
 	var k = get_tree().get_first_node_in_group("kitchens")
 	if k != null and _upkeep_key != "" and _taken_t == 0.5:
 		# A new ticket clips onto the rail: heard in any room of the bistro.
@@ -2363,6 +2865,189 @@ func _bistro_tick(delta: float) -> void:
 			BISTRO_LAYOUT.dirty_pile(_restaurant_kitchen_root, dirty)
 
 
+## Each frame in the pub: the stations' tabs know who is where, a new order is heard in
+## either room (at a station its rail rings it), the gear stands in the rooms once bought.
+func _pub_tick(delta: float) -> void:
+	_taken_t -= delta
+	if _taken_t > 0.0:
+		return
+	_taken_t = 0.5
+	_apply_pub_gear()
+	if _station_hud != null and is_instance_valid(_station_hud) and _station_hud.visible:
+		_station_hud.set("taken", _bistro_taken())
+	var tr = TAPROOM.of(get_tree())
+	if tr == null or _upkeep_key == "":
+		return
+	var now := {}
+	var fresh := false
+	for t in tr.tickets(_upkeep_key):
+		now[str(t["id"])] = true
+		fresh = fresh or not _tickets_seen.has(str(t["id"]))
+	if fresh and _tickets_known and _station_open() == "":
+		var ding := "res://assets/sfx/pub/order_in.mp3"
+		_bistro_play(ding if ResourceLoader.exists(ding) else "res://assets/sfx/bistro/order_in.mp3", -12.0)
+	_tickets_seen = now
+	_tickets_known = true
+
+
+## The pub's gear in its rooms once bought (business_rules.GEAR): the glass washer by the
+## sink, the keg cooler in the cellar.
+var _pub_gear_sig := "-"
+
+
+func _apply_pub_gear() -> void:
+	if _pub_main_root == null or _pub_cellar_root == null:
+		return
+	var gear: Array = _business_site().get("gear", [])
+	var sig := ",".join(gear)
+	if sig == _pub_gear_sig:
+		return
+	_pub_gear_sig = sig
+	var gw := _pub_main_root.get_node_or_null("GearGlassWasher") as Node3D
+	if gw != null:
+		gw.visible = gear.has("glasswasher")
+	var cooler := _pub_cellar_root.get_node_or_null("Cooler") as Node3D
+	if cooler != null:
+		cooler.visible = gear.has("cooler")
+	var look := _pub_cellar_root.get_node_or_null("Look_cooler")
+	if look != null:
+		for c in look.get_children():
+			if c is CollisionShape3D:
+				(c as CollisionShape3D).disabled = not gear.has("cooler")
+
+
+## The marks over the pub's rooms (scripts/pub/pub_marks.gd), its stations made.
+func _start_pub_marks() -> void:
+	var tr = TAPROOM.of(get_tree())
+	if tr == null:
+		return
+	tr.site(_upkeep_key)
+	_make_stations()
+	_pub_gear_sig = "-"
+	_apply_pub_gear()
+	_pub_marks = PUB_MARKS.new()
+	_pub_marks.name = "PubMarks"
+	_pub_marks.taproom = tr
+	_pub_marks.key = _upkeep_key
+	_pub_marks.roots = {"bar": _pub_main_root, "cellar": _pub_cellar_root}
+	_pub_marks.camera_of = func() -> Camera3D: return _interior_camera
+	_pub_marks.viewport_of = func() -> SubViewport: return _viewport
+	_pub_marks.room_of = func() -> String: return "cellar" if _pub_room == "cellar" else "bar"
+	_pub_marks.life_of = func(): return _life if _life != null and is_instance_valid(_life) else null
+	_pub_marks.taken_of = func() -> Dictionary: return _bistro_taken()
+	add_child(_pub_marks)
+	_tickets_known = false
+	if _sentence != null:
+		move_child(_sentence, get_child_count() - 1)
+
+
+## Each frame in the Jednota: the stations' tabs know who is where, somebody new in the
+## queue rings the shop's bell (at the till its rail does), the gear stands in the shop
+## once bought.
+func _jednota_tick(delta: float) -> void:
+	_taken_t -= delta
+	if _taken_t > 0.0:
+		return
+	_taken_t = 0.5
+	_apply_jednota_gear()
+	if _station_hud != null and is_instance_valid(_station_hud) and _station_hud.visible:
+		_station_hud.set("taken", _bistro_taken())
+	var shop = JEDNOTA.of(get_tree())
+	if shop == null or _upkeep_key == "":
+		return
+	var now := {}
+	var fresh := false
+	for t in shop.tickets(_upkeep_key):
+		now[str(t["id"])] = true
+		fresh = fresh or not _tickets_seen.has(str(t["id"]))
+	if fresh and _tickets_known and _station_open() == "":
+		_bistro_play("res://assets/sfx/town/shop_bell.mp3", -14.0)
+	_tickets_seen = now
+	_tickets_known = true
+
+
+## The Jednota's gear in its rooms once bought (business_rules.GEAR): the second till by the
+## door, the chiller beside the fridge, the extra shelves by the rack, the pallet truck in
+## the storeroom.
+var _jednota_gear_sig := "-"
+
+
+func _apply_jednota_gear() -> void:
+	if _vecerka_shop_root == null:
+		return
+	var gear: Array = _business_site().get("gear", [])
+	var sig := ",".join(gear)
+	if sig == _jednota_gear_sig:
+		return
+	_jednota_gear_sig = sig
+	var t2 := _vecerka_shop_root.get_node_or_null("GearTill2") as Node3D
+	if t2 != null:
+		t2.visible = gear.has("till2")
+	var ch := _vecerka_shop_root.get_node_or_null("GearChiller") as Node3D
+	if ch != null:
+		ch.visible = gear.has("fridge")
+	var rk := _vecerka_shop_root.get_node_or_null("GearRacks") as Node3D
+	if rk != null:
+		rk.visible = gear.has("racks")
+	var pt := _vecerka_storage_root.get_node_or_null("GearPallet") as Node3D if _vecerka_storage_root != null else null
+	if pt != null:
+		pt.visible = gear.has("pallet")
+
+
+## The Jednota's state for this shop, its stations made, its gear in the rooms.
+func _start_jednota() -> void:
+	var shop = JEDNOTA.of(get_tree())
+	if shop == null:
+		return
+	shop.site(_upkeep_key)
+	_make_stations()
+	_jednota_gear_sig = "-"
+	_apply_jednota_gear()
+	_tickets_known = false
+
+
+## Now and then a rat runs along the cellar's back wall, in steps, and is gone behind the
+## sacks.
+var _rat: Sprite3D
+var _rat_t := -1.0
+var _rat_wait := 20.0
+
+
+func _rat_tick(delta: float) -> void:
+	if _restaurant_basement_root == null or _restaurant_room != "basement" or _station_open() != "":
+		if _rat != null and is_instance_valid(_rat):
+			_rat.visible = false
+		_rat_t = -1.0
+		return
+	if _rat_t < 0.0:
+		_rat_wait -= delta
+		if _rat_wait > 0.0:
+			return
+		_rat_wait = randf_range(25.0, 60.0)
+		var path := "res://assets/textury/camp/bistro_rat.png"
+		if not ResourceLoader.exists(path):
+			return
+		if _rat == null or not is_instance_valid(_rat) or _rat.get_parent() != _restaurant_basement_root:
+			_rat = Sprite3D.new()
+			_rat.texture = load(path)
+			_rat.pixel_size = 0.16 / float(_rat.texture.get_height())
+			_rat.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+			_rat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			_rat.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			_rat.shaded = true
+			_restaurant_basement_root.add_child(_rat)
+		_rat_t = 0.0
+	_rat_t += delta
+	var k := clampf(_rat_t / 2.2, 0.0, 1.0)
+	# Twelve steps a second, from the peeler to behind the machine.
+	var stepped := floorf(k * 26.0) / 26.0
+	_rat.visible = k < 1.0
+	_rat.flip_h = true
+	_rat.position = Vector3(lerpf(-2.3, 0.6, stepped), 0.13, -2.05)
+	if k >= 1.0:
+		_rat_t = -1.0
+
+
 func _bistro_play(path: String, db: float) -> void:
 	if not ResourceLoader.exists(path):
 		return
@@ -2378,13 +3063,15 @@ func _bistro_play(path: String, db: float) -> void:
 func _bistro_sentence(collider: Node, door: String) -> String:
 	if door != "":
 		var to := str(_doors.doors.get(door, {}).get("to", ""))
-		return {"kitchen": "Go to the kitchen", "dining": "Go to the dining room", "basement": "Go down to the cellar"}.get(to, "Go through")
+		return {"kitchen": "Go to the kitchen", "dining": "Go to the dining room", "basement": "Go down to the cellar",
+			"cellar": "Go down to the cellar", "main": "Go up to the bar", "storage": "Go into the storeroom",
+			"shop": "Go into the shop"}.get(to, "Go through")
 	if collider == null:
 		return ""
 	var station := _meta_up(collider, "bistro_station")
-	if station != "":
+	if station != "" and _station_layout().STATIONS.has(station):
 		var who := str(_bistro_taken().get(station, ""))
-		var label := str(BISTRO_LAYOUT.STATIONS[station]["label"])
+		var label := str(_station_layout().STATIONS[station]["label"])
 		return ("%s is at %s" % [who, label]) if who != "" else ("Look at %s" % label if station == "machine" else "Use %s" % label)
 	var name := _meta_up(collider, "bistro_name")
 	if name != "":
@@ -2448,6 +3135,17 @@ func _start_bistro_marks() -> void:
 		return
 	if not k.plate_out.is_connected(_on_plate_out):
 		k.plate_out.connect(_on_plate_out)
+	_make_stations()
+	# The steam and smoke over the stove and the pot (scripts/bistro/kitchen_fx.gd).
+	if _restaurant_kitchen_root != null:
+		var old := _restaurant_kitchen_root.get_node_or_null("KitchenFx")
+		if old != null:
+			old.queue_free()
+		var fx: Node3D = load("res://scripts/bistro/kitchen_fx.gd").new()
+		fx.name = "KitchenFx"
+		fx.set("kitchen", k)
+		fx.set("key", _upkeep_key)
+		_restaurant_kitchen_root.add_child(fx)
 	k.site(_upkeep_key)
 	_bistro_marks = BISTRO_MARKS.new()
 	_bistro_marks.name = "BistroMarks"
@@ -2500,13 +3198,27 @@ func coop_part() -> String:
 ## of this room): behind the bar at the tap, at the bottles, at the washer; at the pass,
 ## at the stove; at the till; over the books.
 const COOP_JOB_SPOTS := {
-	"pub": {"tap": [Vector3(1.275, 0.05, -1.8), "tap"], "shots": [Vector3(1.75, 0.05, -1.85), "pour"], "wash": [Vector3(2.35, 0.05, -1.75), "wash"], "ledger": [Vector3(0.42, 0.05, -1.7), "write"]},
+	"pub": {"ledger": [Vector3(0.42, 0.05, -1.7), "write"]},
 	"rest": {"ledger": [Vector3(1.42, 0.05, -1.7), "write"]},
-	"vecerka": {"till": [Vector3(-1.95, 0.05, -0.35), "till"], "ledger": [Vector3(-1.9, 0.05, 0.55), "write"]},
+	"vecerka": {"ledger": [Vector3(2.7, 0.05, -1.05), "write"]},
 }
 
 
 func coop_job_spot(job: String) -> Dictionary:
+	if _current_profile == "pub" and PUB_LAYOUT.STATIONS.has(job):
+		# At a station of the pub (scripts/pub/pub_layout.gd STATIONS).
+		var pst: Dictionary = PUB_LAYOUT.STATIONS[job]
+		var proot: Node3D = _station_root(str(pst["room"]))
+		if proot == null or not proot.is_visible_in_tree():
+			return {}
+		return {"pos": proot.global_transform * (pst["stand"] as Vector3), "pose": str(pst["pose"])}
+	if _current_profile == "vecerka" and JEDNOTA_LAYOUT.STATIONS.has(job):
+		# At a station of the Jednota (scripts/jednota/jednota_layout.gd STATIONS).
+		var jst: Dictionary = JEDNOTA_LAYOUT.STATIONS[job]
+		var jroot: Node3D = _station_root(str(jst["room"]))
+		if jroot == null or not jroot.is_visible_in_tree():
+			return {}
+		return {"pos": jroot.global_transform * (jst["stand"] as Vector3), "pose": str(jst["pose"])}
 	if _current_profile == "rest" and BISTRO_LAYOUT.STATIONS.has(job):
 		# At a station of the bistro (scripts/bistro/bistro_layout.gd STATIONS).
 		var st: Dictionary = BISTRO_LAYOUT.STATIONS[job]
@@ -2576,10 +3288,11 @@ func _start_life() -> void:
 			root = _vecerka_shop_root
 			if root == null:
 				return
-			# At the back racks, the side rack and the counter, far enough from the door
-			# (where you stand) to be people in the room, not a face in the lens.
-			for spot in [[Vector3(-0.85, 0.05, -1.0), Vector3(0, 0, -1)], [Vector3(0.85, 0.05, -1.0), Vector3(0, 0, -1)], [Vector3(1.0, 0.05, -0.32), Vector3(1, 0, 0)], [Vector3(-0.95, 0.05, -0.38), Vector3(-1, 0, 0)]]:
-				seats.append({"pos": spot[0], "face": spot[1], "stand": true})
+			# Looking round at the racks (jednota_layout.BROWSE); the queue's places along
+			# the till are service_life's (it walks them there when they have their basket).
+			for b in JEDNOTA_LAYOUT.BROWSE:
+				var bd: Dictionary = b
+				seats.append({"pos": bd["pos"], "face": bd["face"], "stand": true, "clear_of": bd.get("clear_of", []), "aside": bd.get("aside", bd["pos"])})
 		_:
 			return
 	# Nobody sits in your lap: seats too near where you stand stay empty.
@@ -2600,6 +3313,10 @@ func _start_life() -> void:
 		settings = kept_settings
 	_life = SERVICE_LIFE.new()
 	_life.name = "ServiceLife"
+	if _current_profile == "vecerka":
+		_life.set("queue_spots", JEDNOTA_LAYOUT.QUEUE)
+		_life.set("queue2_spots", JEDNOTA_LAYOUT.QUEUE2)
+		_life.set("open_of", func() -> String: return _station_open())
 	root.add_child(_life)
 	_life.setup(_current_profile, _upkeep_key, seats, settings, door)
 
@@ -2711,6 +3428,17 @@ func _apply_time_profile(animated: bool = false) -> void:
 		_main_light.light_color = _main_light.light_color.lerp(sun_tint, 0.10 * daylight)
 		_main_light.light_energy = lerpf(_main_light.light_energy * 0.90, _main_light.light_energy * 1.10, daylight)
 	_apply_manual_service_light_profile(animated)
+	# The bistro's windows go dark with the evening (the view is a day picture).
+	if _restaurant_dining_root != null:
+		var view := Color(1, 1, 1)
+		if _time_state == TIME_EVENING:
+			view = Color(0.55, 0.45, 0.45)
+		elif _time_state == TIME_NIGHT:
+			view = Color(0.08, 0.09, 0.14)
+		for w in _restaurant_dining_root.find_children("*Window*", "MeshInstance3D", false, false):
+			var wm := (w as MeshInstance3D).material_override as StandardMaterial3D
+			if wm != null:
+				wm.albedo_color = view
 
 
 func _apply_manual_service_light_profile(animated: bool) -> void:

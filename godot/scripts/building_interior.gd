@@ -58,10 +58,10 @@ const RADIO_OUTDOOR_HEIGHT: float = 1.4
 ## The station that does not exist (DESIGN §2): late at night, once at most, from day 2,
 ## the radio drifts onto a frequency with a music-box phrase and a row of pips. Count
 ## them: one for each guest in the camp, and one more.
-const STATION_INTRO := "res://assets/sfx/uncanny/station_intro.wav"
-const STATION_PIP := "res://assets/sfx/uncanny/station_pip.wav"
-const STATION_PIP5 := "res://assets/sfx/uncanny/station_pip5.wav"
-const STATION_OUTRO := "res://assets/sfx/uncanny/station_outro.wav"
+const STATION_INTRO := "res://assets/sfx/uncanny/station_intro.mp3"
+const STATION_PIP := "res://assets/sfx/uncanny/station_pip.mp3"
+const STATION_PIP5 := "res://assets/sfx/uncanny/station_pip5.mp3"
+const STATION_OUTRO := "res://assets/sfx/uncanny/station_outro.mp3"
 const STATION_CHANCE_PER_TRACK: float = 0.14
 ## The radio going wrong with the night (scripts/radio/radio_dread.gd): layers on top of
 ## the songs, the song bus, and how the songs bend.
@@ -73,6 +73,12 @@ const RADIO_NIGHT_TRACK_PREFIX := "night"
 const RADIO_INFRAVRANY_FILENAME := "song_infravrany.mp3"
 const RADIO_CURSED_INFRAVRANY_FILENAME := "song_cursedinfravrany.mp3"
 const RADIO_CURSED_INFRAVRANY_CHANCE: float = 0.1
+## "Prani a pozdravy" opens with "it is just half past twelve": kept out of the shuffle, it
+## goes on air at 0:30 and only then, cutting in like the station's programme (the user
+## 20. 10.: it played at any hour of the night).
+const RADIO_GREETINGS_FILENAME := "night_pranipozdravy.mp3"
+const RADIO_GREETINGS_PATH := "res://assets/sfx/radio/night_pranipozdravy.mp3"
+var _greet_prev_h := -1.0
 const RADIO_NIGHT_TRACK_WEIGHT_AT_NIGHT: int = 2
 const RADIO_PITCH_BASE: float = 0.97
 const RADIO_WOW_RATE_HZ: float = 0.34
@@ -446,6 +452,8 @@ func close_interior() -> void:
 
 func _process(delta: float) -> void:
 	_update_radio_mix(delta)
+	_tick_radio_greetings()
+	_tick_music_duck(delta)
 	_update_crt_sharp()
 	_coop_screen_tick(delta)
 	if _extras != null:
@@ -1338,6 +1346,13 @@ func _sync_crt_viewport_to_window() -> void:
 
 ## `instant`: a new game starts already seated, the monitor filling the view from the
 ## first frame (no fly-in from the room view).
+## Sitting down at the PC and getting up (playtest 20. 10.: "the move to the computer is
+## too slow": it was 1.2 s in, then 1.1 s leaning to the screen, 0.8 s out).
+const CRT_SIT_SEC := 0.5
+const CRT_LEAN_IN_SEC := 0.4
+const CRT_STAND_SEC := 0.45
+
+
 func enter_crt_view(instant: bool = false) -> void:
 	if _crt_active: return
 	# Sitting down at it wakes the screen saver, as touching the mouse would.
@@ -1363,7 +1378,7 @@ func enter_crt_view(instant: bool = false) -> void:
 	# Screen Z global: -0.535.
 	# Target Z: 0.1
 	_crt_orbit_enabled = false
-	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_view_cam_pos, "rotation": _crt_rest_rot(_crt_view_cam_pos), "fov": CRT_ENTER_FOV}, 1.2, Tween.TRANS_CUBIC, Tween.EASE_OUT)
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_view_cam_pos, "rotation": _crt_rest_rot(_crt_view_cam_pos), "fov": CRT_ENTER_FOV}, CRT_SIT_SEC, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
@@ -1387,7 +1402,7 @@ func _exit_crt_view() -> void:
 		_crt_ui.close_panel()
 
 	if _camera_tween: _camera_tween.kill()
-	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _initial_cam_pos, "rotation": _initial_cam_rot, "fov": _initial_cam_fov}, 0.8, Tween.TRANS_CUBIC, Tween.EASE_OUT)
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _initial_cam_pos, "rotation": _initial_cam_rot, "fov": _initial_cam_fov}, CRT_STAND_SEC, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 
 
 func _input(event: InputEvent) -> void:
@@ -1755,7 +1770,7 @@ func _focus_crt_full() -> void:
 	# The desktop is up: lean in to it, slowly, to the pose the mouse orbit keeps (it used
 	# to snap there in 0.4 s to a fixed angle the orbit then pulled away from: a jerk).
 	_crt_orbit_enabled = false
-	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, 1.1, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, CRT_LEAN_IN_SEC, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
@@ -2215,7 +2230,10 @@ static func _glow_glass(g, amount: float) -> void:
 	if m == null:
 		return
 	m.emission_energy_multiplier = 1.4 * amount
-	m.albedo_color = Color(0.16, 0.2, 0.24).lerp(Color(0.5, 0.4, 0.26), clampf(amount, 0.0, 1.0))
+	# A pane with the room's picture (building_models._glass) shows the room lit; a plain
+	# one turns warm all over.
+	var pic := 0.2 if m.emission_texture != null else 1.0
+	m.albedo_color = Color(0.16, 0.2, 0.24).lerp(Color(0.5, 0.4, 0.26), clampf(amount, 0.0, 1.0) * pic)
 
 
 func set_weather_state(weather: int) -> void:
@@ -3030,6 +3048,39 @@ func _play_radio_next() -> void:
 	_radio_index = (selected_index + 1) % track_count
 
 
+## In the reception the evening's music steps back for the radio (it played over it, the
+## user 20. 10.): nearly gone with the radio on, a little lower with it off.
+func _tick_music_duck(delta: float) -> void:
+	var main := _resolve_main_runtime_host()
+	var am = main.get("_audio_manager") if main != null else null
+	if am == null or not am.has_method("set_ambient_music_duck"):
+		return
+	var target := 0.0
+	if visible:
+		target = -20.0 if _radio_power_on and _grid_power_available else -6.0
+	am.set_ambient_music_duck(target, delta)
+
+
+func _tick_radio_greetings() -> void:
+	var h := _hour_now()
+	var prev := _greet_prev_h
+	_greet_prev_h = h
+	if prev < 0.0 or not (prev < 0.5 and h >= 0.5 and h < 0.75):
+		return
+	if _radio_player == null or not _radio_power_on or Coop.is_client():
+		return
+	var s: AudioStream = _radio_stream_by_path.get(RADIO_GREETINGS_PATH, null)
+	if s == null and ResourceLoader.exists(RADIO_GREETINGS_PATH):
+		s = load(RADIO_GREETINGS_PATH)
+	if s == null:
+		return
+	_radio_current_track_is_night = true
+	_radio_player.stream = s
+	_radio_player.play()
+	_radio_last_played_path = RADIO_GREETINGS_PATH
+	_radio_on_air("song", RADIO_GREETINGS_PATH)
+
+
 func _try_play_station() -> bool:
 	if _time_state != TIME_NIGHT:
 		return false
@@ -3164,7 +3215,7 @@ func _rebuild_radio_tracks_for_time(restart_playback: bool) -> void:
 	var track_count = mini(_radio_tracks_all.size(), mini(_radio_tracks_all_is_night.size(), _radio_tracks_all_paths.size()))
 	for i in range(track_count):
 		var path = _radio_tracks_all_paths[i]
-		if _is_radio_cursed_infravrany_path(path):
+		if _is_radio_cursed_infravrany_path(path) or path.get_file().to_lower() == RADIO_GREETINGS_FILENAME:
 			continue
 		var is_night_track = _radio_tracks_all_is_night[i]
 		# Day: play only regular tracks. Night: play both, but NIGHT* tracks are weighted.
@@ -3266,7 +3317,7 @@ func _update_radio_mix(delta: float) -> void:
 			delta, _radio_dread_context(delta),
 			target_db if visible else RADIO_OUTSIDE_SILENT_DB,
 			RADIO_OUTSIDE_SILENT_DB if visible else RADIO_OUTDOOR_VOLUME_DB,
-			_radio_power_on, _resolve_main_building_node()
+			_radio_power_on and _grid_power_available, _resolve_main_building_node()
 		)
 		character_db += linear_to_db(maxf(float(_dread.music_gain), 0.0001))
 	var final_target_db = target_db + character_db + night_track_db
@@ -3279,7 +3330,8 @@ func _update_radio_mix(delta: float) -> void:
 		outdoor_db = RADIO_OUTSIDE_SILENT_DB
 	else:
 		final_target_db = RADIO_OUTSIDE_SILENT_DB
-	if not _radio_power_on:
+	# A blackout takes the radio with it (it played on through one: the user 20. 10.).
+	if not _radio_power_on or not _grid_power_available:
 		final_target_db = RADIO_POWER_OFF_VOLUME_DB
 		outdoor_db = RADIO_POWER_OFF_VOLUME_DB
 	_sync_radio_outdoor(outdoor_db, delta)

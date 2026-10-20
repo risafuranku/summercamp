@@ -199,6 +199,9 @@ var _pending_bazaar: Dictionary = {}
 var _goggle = preload("res://scripts/reviews/goggle.gd").new()
 var _pending_goggle: Dictionary = {}
 var _goggle_fresh := true
+## Builder 98's Graphs: what each day ended with (scripts/builder/day_graph.gd).
+var _day_graph = preload("res://scripts/builder/day_graph.gd").new()
+var _pending_graph: Dictionary = {}
 var _director_was_inside := false
 var _night_jobs: Node
 var _paper_map: Node
@@ -1920,9 +1923,14 @@ func _start_enemy_brain(script: Script, night_index: int, difficulty: int, night
 
 
 ## An enemy's first sign of the night, as one feed line.
+## The night things' lines (enemy_base._announce/_feed) are not shown: no text tells
+## you what is out there or what just happened (Richard, 20. 10.: it kills the vibe).
+## The sounds, the eyes and the sixth sense say it. Kept for the log only.
+var last_enemy_line := ""
+
+
 func _on_enemy_notice(text: String) -> void:
-	if _hud_manager != null:
-		_hud_manager.push_status(text, 2)
+	last_enemy_line = text
 
 
 # ── the corn (night job, scripts/corn_hunt.gd) ───────────────────────────────
@@ -3159,6 +3167,11 @@ func _setup_goggle() -> void:
 				if r is Dictionary:
 					_goggle.add_guest_review(r, _day_index)
 		_goggle.check_tier(_day_index)
+	if not _pending_graph.is_empty():
+		_day_graph.import_state(_pending_graph)
+		_pending_graph.clear()
+	elif _goggle_fresh:
+		_day_graph.reset()
 	_goggle_fresh = false
 	if not EventBus.guest_review_posted.is_connected(_on_review_for_goggle):
 		EventBus.guest_review_posted.connect(_on_review_for_goggle)
@@ -3179,6 +3192,7 @@ func _announce_goggle_tier(opened: int) -> void:
 
 ## The morning: SpotlessName's removals done (or caught), the apologies answered.
 func _settle_goggle() -> void:
+	_record_day_graph(_day_index - 1)
 	var r: Dictionary = _goggle.settle(_day_index)
 	if _hud_manager != null:
 		for e in r["removed"]:
@@ -3207,6 +3221,31 @@ func goggle_remove(id: int) -> Dictionary:
 		return {"ok": false, "reason": "no", "cost": cost}
 	CoreRoot.actions.spend_money(cost)
 	return {"ok": true, "cost": cost}
+
+
+## The day that ended, for Builder 98's Graphs: the cash, the people staying, their mood,
+## the rating it had.
+func _record_day_graph(day: int) -> void:
+	if day < 1:
+		return
+	var people := 0
+	var mood := 0.0
+	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
+		for g in GuestManager.get_guest_life_snapshot():
+			if g is Dictionary:
+				people += int(g.get("party_size", 1))
+	if GuestManager != null and GuestManager.has_method("get_camp_mood_summary"):
+		mood = float((GuestManager.get_camp_mood_summary() as Dictionary).get("avg_mood", 0.0))
+	# The businesses' takings of the day that closed (each site's "yesterday" by now).
+	var takings := {}
+	var st = CoreRoot.get_state()
+	var sites: Dictionary = st.biz.get("sites", {}) if st != null and st.biz is Dictionary else {}
+	for key in sites:
+		var site: Dictionary = sites[key] if sites[key] is Dictionary else {}
+		var kind := str(site.get("kind", ""))
+		if kind != "":
+			takings[kind] = int(takings.get(kind, 0)) + int((site.get("yesterday", {}) as Dictionary).get("takings", 0))
+	_day_graph.record(day, CoreRoot.get_money(), people, mood, _goggle.rating(day), takings)
 
 
 ## Reviews tab: answer a review as the owner ("sorry" / "weather"). The guest book's mail
@@ -4584,9 +4623,22 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 		"order":
 			act.biz_add_order(str(a[0]), a[1], int(a[2]), int(a[3]))
 		"hire":
-			act.biz_hire(str(a[0]), str(a[1]), int(a[2]))
+			if a.size() > 2 and a[1] is Dictionary:
+				act.biz_hire(str(a[0]), a[1], int(a[2]))
 		"fire":
-			act.biz_fire(str(a[0]))
+			act.biz_fire(str(a[0]), str(a[1]) if a.size() > 1 else "")
+		"bin":
+			act.biz_bin(str(a[0]))
+		"waste":
+			act.biz_waste(str(a[0]), a[1])
+		"gear":
+			act.biz_add_gear(str(a[0]), str(a[1]))
+		"job":
+			act.biz_set_job(str(a[0]), str(a[1]), str(a[2]), str(a[3]))
+		"late":
+			act.biz_set_late(str(a[0]), bool(a[1]))
+		"score":
+			act.biz_score(str(a[0]), a[1])
 
 
 ## The other machine: the other warden got you up.
@@ -4869,7 +4921,8 @@ func coop_screen_frame() -> PackedByteArray:
 	var watched := false
 	for id in Coop.others():
 		var theirs: Dictionary = Coop.state_of(id).get("room", {})
-		if str(theirs.get("t", "")) == "office" and str(theirs.get("s", "")) == "office" and str(theirs.get("w", "")) != "pc":
+		# Anywhere in the office building (from the back room's doorway too: one space).
+		if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) != "pc":
 			watched = true
 	if not watched:
 		return PackedByteArray()
@@ -4977,6 +5030,10 @@ func coop_request(kind: String, data: Array) -> void:
 		"served":
 			var visit := str(data[0])
 			ORDERS_SERVED._served[visit] = int(ORDERS_SERVED._served.get(visit, 0)) + 1
+		"meal":
+			# What the other warden served, for the guest's review (scripts/food/orders.gd).
+			if GuestManager != null and GuestManager.has_method("note_meal") and data.size() >= 3:
+				GuestManager.note_meal(int(data[0]), str(data[1]), int(data[2]))
 		"build":
 			var turned: Array = []
 			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])
@@ -5058,6 +5115,11 @@ func coop_request(kind: String, data: Array) -> void:
 			_goggle.request_removal(int(data[0]), _day_index)
 		"goggle_reply":
 			goggle_reply(int(data[0]), str(data[1]))
+		"builder98_mail":
+			# Builder 98 on the other machine: its registration key or the district's
+			# letter comes in the host's mail (the other machine gets it from there).
+			if EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
+				EmailManager.schedule_pool_mail(preload("res://scripts/builder/shareware.gd").mail_for(str(data[0]), str(data[1]), _day_index))
 
 
 ## The other warden's machine builds nothing of its own accord: what its Builder asks
@@ -5571,6 +5633,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"director": _director.export_state() if _director != null else {},
 		"bazaar": _bazaar.export_state(),
 		"goggle": _goggle.export_state(),
+		"graph": _day_graph.export_state(),
 		"ruined_cabin": _ruined_cabin_key,
 		"camp_office": camp_office.export_state() if camp_office != null else {},
 		"town_trip": _interior_manager.town_trip().export_state() if _interior_manager != null and _interior_manager.has_method("town_trip") and _interior_manager.town_trip() != null else {},
@@ -5867,6 +5930,8 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		call_deferred("_dress_ruined_cabin")
 		var gog_any = snapshot.get("goggle", {})
 		_pending_goggle = (gog_any as Dictionary).duplicate(true) if gog_any is Dictionary else {}
+		var graph_any = snapshot.get("graph", {})
+		_pending_graph = (graph_any as Dictionary).duplicate(true) if graph_any is Dictionary else {}
 		_goggle_fresh = true
 		if _gameplay_started:
 			_setup_goggle()
@@ -6119,6 +6184,7 @@ func _reset_state_for_new_game() -> void:
 	_pending_bazaar.clear()
 	_bazaar.reset()
 	_pending_goggle.clear()
+	_pending_graph.clear()
 	_goggle_fresh = true
 	if _director_fx != null:
 		_director_fx.clear()
@@ -6142,6 +6208,9 @@ func _reset_state_for_new_game() -> void:
 	state.guest_reviews.clear()
 	state.guest_transactions.clear()
 	state.next_guest_id = 1
+	# The businesses' books too (the menu's preview of the last save left them in: its
+	# places, stock, orders and licences); actions._biz starts them anew with a new stamp.
+	state.biz = {}
 	if EmailManager != null and EmailManager.has_method("reset_runtime"):
 		EmailManager.reset_runtime(true)
 	if GuestManager != null and GuestManager.has_method("reset_runtime_state"):

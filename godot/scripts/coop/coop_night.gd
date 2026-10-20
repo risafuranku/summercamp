@@ -236,7 +236,18 @@ func _heard(peer: int) -> void:
 	var fig := Coop.figure_of(peer)
 	if me != null and fig != null and me.global_position.distance_to(fig.global_position) < TOGETHER_M:
 		return
-	main._on_enemy_notice("Somewhere off in the dark, %s cries out." % Coop.name_of(peer))
+	# No line on the screen: their cry, from where they are, far off.
+	if fig == null:
+		return
+	var a := AudioStreamPlayer3D.new()
+	a.stream = load("res://assets/sfx/director/call_far.mp3")
+	a.max_distance = 120.0
+	a.unit_size = 12.0
+	a.pitch_scale = 0.9
+	main.add_child(a)
+	a.global_position = fig.global_position + Vector3(0, 1.5, 0)
+	a.finished.connect(a.queue_free)
+	a.play()
 
 
 func _feed_other(text: String, who: String) -> void:

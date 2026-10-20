@@ -72,14 +72,14 @@ func _ready() -> void:
 	picture = load(PIC) if ResourceLoader.exists(PIC) else null
 	_ensure_phone_bus()
 	_tone = _player(-11.0, "Phone")
-	_key_snd = _player(-12.0, "Phone")
+	_key_snd = _player(-6.0, "Phone")
 	_voice = _player(-2.0, "Phone")
 	_voice.finished.connect(_next_clip)
-	_hiss = _player(-22.0, "Phone")
+	_hiss = _player(-39.0, "Phone")
 	# The bell is the set's own, in the room: not down the line.
 	_bell = _player(-2.0, "Master")
 	# The tones were too quiet to read (playtest 2026-10-17: "unclear how to phone").
-	_tone.volume_db = -5.0
+	_tone.volume_db = 1.5
 
 
 func _player(db: float, bus: String) -> AudioStreamPlayer:
@@ -132,10 +132,9 @@ func _hotspots() -> Array:
 	return out
 
 
-## The real recordings where there are some, the synthesised tones otherwise.
+## A recording of the line (ElevenLabs: the exchange's tone cut to its cadences).
 static func _sfx(name: String) -> String:
-	var mp3 := SFX + name + ".mp3"
-	return mp3 if ResourceLoader.exists(mp3) else SFX + name + ".wav"
+	return SFX + name + ".mp3"
 
 
 func _clicked(id: String) -> void:
@@ -180,8 +179,8 @@ func _lift() -> void:
 	_state = DIAL_TONE
 	_number = ""
 	_since_key = 0.0
-	_loop_tone("dialtone.wav")
-	_loop(_hiss, SFX + "line_hiss.wav")
+	_loop_tone("dialtone.mp3")
+	_loop(_hiss, SFX + "line_hiss.mp3")
 	say("", "", false)
 
 
@@ -211,7 +210,7 @@ func _dial(ch: String, sound := true) -> void:
 		return
 	if sound:
 		var key_file := "star" if ch == "*" else ("hash" if ch == "#" else ch)
-		_key_snd.stream = load(SFX + "dtmf_%s.wav" % key_file)
+		_key_snd.stream = load(SFX + "dtmf_%s.mp3" % key_file)
 		_key_snd.play()
 	if _state != DIAL_TONE and _state != DIALLING:
 		return
@@ -233,10 +232,10 @@ func _connect() -> void:
 	match str(_call.get("kind", "sit")):
 		"busy":
 			_state = ENDED
-			_loop_tone("busy.wav")
+			_loop_tone("busy.mp3")
 		"sit":
 			_state = ENDED
-			_tone.stream = load(SFX + "sit.wav")
+			_tone.stream = load(SFX + "sit.mp3")
 			_tone.play()
 			_queue_clips(["sit_msg"])
 			say("", "The number you have dialled does not exist.")
@@ -251,7 +250,7 @@ func _connect() -> void:
 
 
 func _ring() -> void:
-	_tone.stream = load(SFX + "ringback.wav")
+	_tone.stream = load(SFX + "ringback.mp3")
 	_tone.play()
 
 
@@ -259,9 +258,9 @@ func _pick_up() -> void:
 	_tone.stop()
 	if str(_call.get("kind", "")) == "noanswer":
 		_state = ENDED
-		_loop_tone("dead.wav")
+		_loop_tone("dead.mp3")
 		return
-	play(SFX + "lift.wav", -14.0)
+	play(SFX + "lift.mp3", -14.0)
 	_state = TALKING
 	_line_i = -1
 	_next_line()
@@ -291,8 +290,8 @@ func _next_line() -> void:
 func _end_call() -> void:
 	_apply_effect()
 	_state = ENDED
-	play(SFX + "hangup.wav", -16.0)
-	_loop_tone("dead.wav")
+	play(SFX + "hangup.mp3", -16.0)
+	_loop_tone("dead.mp3")
 
 
 func _apply_effect() -> void:
@@ -336,12 +335,10 @@ func _loop(p: AudioStreamPlayer, path: String) -> void:
 	if not ResourceLoader.exists(path):
 		return
 	var s := load(path)
-	if s is AudioStreamWAV:
-		var w := (s as AudioStreamWAV).duplicate() as AudioStreamWAV
-		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		w.loop_begin = 0
-		w.loop_end = int(w.get_length() * w.mix_rate)
-		s = w
+	if s is AudioStreamMP3:
+		var m := (s as AudioStreamMP3).duplicate() as AudioStreamMP3
+		m.loop = true
+		s = m
 	p.stream = s
 	p.play()
 
@@ -387,7 +384,7 @@ func _answer() -> void:
 	_incoming = {}
 	_number = str(_call.get("number", ""))
 	_talk_t = 0.0
-	_loop(_hiss, SFX + "line_hiss.wav")
+	_loop(_hiss, SFX + "line_hiss.mp3")
 	_state = TALKING
 	_line_i = -1
 	if on_incoming_done.is_valid():
@@ -410,7 +407,7 @@ func _tick(delta: float) -> void:
 				_connect()
 			elif _since_key >= GIVE_UP_DIALLING:
 				_state = ENDED
-				_loop_tone("dead.wav")
+				_loop_tone("dead.mp3")
 		RINGING:
 			_ring_t += delta
 			if _ring_t >= RING_ON + RING_OFF:

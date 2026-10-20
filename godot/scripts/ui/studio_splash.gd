@@ -126,7 +126,9 @@ const PANEL_GLASS := 0.8
 ## Moths round UNDO LABS, and round POWERED BY GODOT once it is lit.
 const MOTHS := 5
 const GODOT_MOTHS := 4
-const HUM_DB := -15.0
+const HUM_DB := -12.5
+## The recorded neon (ElevenLabs, all at -23 LUFS) evened out to the old synth's balance.
+const TRIM_DB := {"neon_tick_1": 4.5, "neon_tick_2": -1.0, "neon_tick_3": 6.0, "neon_strike": 3.5, "neon_sputter": -2.0, "moth_tap": -16.0}
 const CRICKETS_DB := 2.0
 const WIND_DB := -21.0
 
@@ -571,13 +573,17 @@ func _go() -> void:
 
 func _build_audio() -> void:
 	for name in ["neon_tick_1", "neon_tick_2", "neon_tick_3", "neon_strike", "neon_sputter", "moth_tap"]:
-		_streams[name] = load(SFX_DIR + name + ".wav")
+		_streams[name] = load(SFX_DIR + name + ".mp3")
 	for i in 6:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
 		_sfx.append(p)
 	_hum = AudioStreamPlayer.new()
-	_hum.stream = load(SFX_DIR + "neon_hum.wav")
+	var hum = load(SFX_DIR + "neon_hum.mp3")
+	if hum is AudioStreamMP3:
+		hum = (hum as AudioStreamMP3).duplicate()
+		(hum as AudioStreamMP3).loop = true
+	_hum.stream = hum
 	_hum.volume_db = -80.0
 	add_child(_hum)
 	_hum.play()
@@ -609,7 +615,7 @@ func _play(sound: String, db: float, pitch: float = 1.0) -> void:
 	var p := _sfx[_sfx_next]
 	_sfx_next = (_sfx_next + 1) % _sfx.size()
 	p.stream = _streams[sound]
-	p.volume_db = db
+	p.volume_db = db + float(TRIM_DB.get(sound, 0.0))
 	p.pitch_scale = pitch
 	p.play()
 

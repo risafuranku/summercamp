@@ -4,6 +4,82 @@
 
 ---
 
+## WORLD POLISH (agent B) — 2026-10-20 (the brief: the camp world, weather, light, sound, body)
+
+The inventory: `godot/tools/_tmp_B_tour` (agent B's scratch, not in the repo) walks one
+camp (sandbox, seed 4242, built up, guests in) at 6:30, 12:00, 17:00, 18:15, 20:30 and
+2:00, in clear, rain, fog, storm and snow, from the reception, the tents, the fire, the
+jetty, the forest edge, the corn, the gate road and the cabins. What did not look like a
+finished game, by impact:
+
+- [x] Night: the cabins, caravans and tents stay dark with guests in them (only the
+  reception's windows light): the camp looks empty after 20:00 — lit since 20. 10.
+  (`window_lights.gd`: curtains, the telly, tents, candles without power, lights out
+  21:00-23:30, now and then one at three in the morning)
+- [x] The reception's lit windows are flat white quads at night — the office and the
+  back room show behind the glass (20. 10.)
+- [x] Coarse halftone dots in shade (the torch's edge, dawn, snow): it was your breath,
+  a 2 x 2 screen door lit black at night (an A/B of the post, light and distance dither
+  found it); the breath is a see-through sprite now (20. 10.)
+- [x] Lamps: standing by a lamp post its light cone is a big grey slab across the view —
+  it fades out within two metres (20. 10.)
+- [x] Lamps: the bulbs hardly read, the cone of light a grey column — the bulb lit at
+  full, the cone a stepped warm sprite added to the scene, stronger in fog and rain
+  (20. 10.)
+- [x] The bonfire's smoke a dither shader — Grok puffs at Build's translucencies (20. 10.);
+  the fire's light on the ground round it reads at night
+- [ ] The bonfire's sparks are flat-coloured quads (one or two pixels on screen)
+- [x] A clear night has the overcast sky: no stars, no moon — stars, the milky way and
+  the full moon since 20. 10. (`night_sky.py`)
+- [x] The sun, its glow and its flare are still drawn by code (`weather_visuals`
+  `_create_pixel_sun_*`), the clouds' sprites too — Grok sun and clouds, no glow or flare
+  (20. 10.; the first render was a cartoon orb and cute clouds, redone in the sky's own
+  digitized-photo look)
+- [x] Dawn (6:30) is flat and dark: no mist in the hollows and over the lake, no colour in
+  the sky — a dawn sky (rose and peach in the east, the stars going) and the morning mist
+  over the meadow and the lake, lifting by 8:30 (20. 10.)
+- [x] The meadow reads as burnt black ground by day — a generated late-summer meadow (20. 10.)
+- [x] The Builder's map still draws the old Redneck grass for the summer
+  (`crt_map_panel.GROUND_TEX_SUMMER`, agent A's): `world/grass_summer.png` now, and the
+  minimap's open ground follows the season too (20. 10.)
+- [x] Golden hour (17:00) hardly shows; the red sunset (18:15) is one flat red over
+  everything — the evening's own skies (gold, sunset, blue hour; glow in the west) and
+  light (golden sun and cool shade, red light and lilac shade, blue) (20. 10.)
+- [x] Snow falling does not show at noon; snow cover has the dot grid in the shade — the
+  flakes bigger and denser in two layers; the dot grid was the breath (20. 10.)
+- [x] Storm: a leaf blown into the lens fills a corner as a big blurred blob — no leaf
+  nearer the eye than 2.2 m (20. 10.)
+- [x] Rain: splashes and puddles hardly read from eye height; grey slabs of rain across
+  the view — paler crowns, puddles nearer and mirroring the sky, the far streaks kept off
+  (20. 10.); the water on the windows from inside (room_weather.gd) is as light as the
+  light outside (at night it was a screen of grey static)
+- [x] Rain: drips off the eaves after it stops (20. 10., world_sounds.gd)
+- [x] Rain sound by surface: tin roofs, the tents' canvas, the lake, the trees over you
+  (20. 10., world_sounds.gd)
+- [ ] Rain: drips you can see off roofs and trees
+- [x] Sound: the lake's lapping and the frogs played in the middle of the camp (the jetty's
+  body sits at the lake's origin) — fixed 20. 10.
+- [x] Sound: footsteps on snow and in puddles (the jetty's boards were there); guests and
+  the country far off by the hour (far_life.gd); the flagpole, the washrooms' tube and tap
+  (the transformer by the corn and the swings were there) — 20. 10.
+- [x] Sound: the jacket and the keys as you move (20. 10.)
+- [ ] Sound: reverb by room; the small fridge hums in a better cabin
+- [x] Body, movement: slower in snow, mud and puddles, slower out of breath, the view a
+  little wider in a run (acceleration, the stepped bob, the lean and the landing were
+  there) — 20. 10.
+- [ ] Body: hands (one glove for every tool, more frames, sway, cold and fear tremor,
+  reaching for doors and switches; another session's area since 0749f84); doors with a
+  feel; things to nudge; the menu camera
+- [x] Every sound the code synthesised is a recording now (the camera, the thump, the
+  pager, the station, the phone line, the splash's neon, the set's tone)
+- [x] Production, frame time at 1920x1080 (the tour camp, clear and rain, noon and 20:30,
+  reception, tents, cabins): before agent B's world polish (7011a1b) CPU process 28.8 ms
+  and GPU 3.0 ms on average, after it (9193f0d + the fire) 28.7 ms and 3.0 ms, fps at the
+  50 cap in both: the lit windows, the lamps' cones, the skies, far life and the rest
+  cost nothing measurable (20. 10.; single spots vary by ±8 ms with other work on the PC)
+- [ ] Production: draw distance and pop-in, the forests and the lake from far off, the
+  menu flythrough, coop4_check
+
 ## BUILDER 98, A GAME IN THE GAME — 2026-10-19 (agreed with the user; handoff)
 
 The user: the Builder should feel like a 90s tycoon of its own, and fun. Everything below
@@ -11,47 +87,58 @@ was agreed, except a star rating inside the Builder: the rating became Goggle (t
 Reviews tab, DESIGN §5i), "a parody of Google reviews; not everything unlocked from the
 start, collect good ratings; pay to delete bad reviews".
 
-- [x] Goggle Reviews: the tenth tab (key 0), the page, blueprint tiers and room upgrades
+- [x] Goggle Reviews: the fifth tab (key 5), the page, blueprint tiers and room upgrades
   locked by rating, the booking pull, SpotlessName Ltd removals (caught = flagged), the
   owner's replies tied to CampMail's guest book, saved, co-op through the host
   (`scripts/reviews/goggle.gd`, `os98/apps/goggle_app.gd`, `tools/goggle_check.gd`)
-- [ ] Goggle art still coming from Grok (rows in `tools/artgen/prompts.tsv`): `ico2_padlock`
-  and `web_spotless_banner`; then `python tools/artgen/web_review_art.py` and `--import`
-  (the page and the cards draw without them: no padlock, a plain banner box). Look at
-  the Builder catalogue with locked cards in a screenshot (dismiss the shareware nag
-  first, once there is one)
-- [ ] Building site instead of the drop-in: a scaffold with a worker hammering for a few
+- [x] Goggle's art (padlock, SpotlessName's banner, stars) processed and seen in both
+  resolutions; the Jednota at 4.0 with the slide; Photos and People also searched for;
+  how many found a review helpful; the owner's badge; long reviews cut with "..."
+- [x] Building site instead of the drop-in: a scaffold with a worker hammering for a few
   seconds (`iso_scaffold`, `iso_worker_a/b`; `assets/sfx/builder/hammer.mp3`,
   `site_done.mp3`), then the building; in `crt_map_panel._on_build_confirmed` /
   `_dropped` / `_draw_structure`. Rubble on demolition (`iso_rubble`, `rubble.mp3`) in
   `_on_demolish_confirmed`
-- [ ] Money you can see: coins flying from a paying building to the cash counter
+- [x] Money you can see: coins flying from a paying building to the cash counter
   (`spr_coin` -> `builder/coin.png`, `coins.mp3`), the toolbar's cash (`builder_module._money`)
   rolling like an odometer
-- [ ] Tool cursors (bulldozer, path, lamp, a blueprint) and drag-building rows of benches,
+- [x] Tool cursors (bulldozer, path, lamp, a blueprint) and drag-building rows of benches,
   lamps and flower beds
-- [ ] The map follows the weather and the hour: rain streaks, fog, dusk tint (the night is
+- [x] The map follows the weather and the hour: rain streaks, fog, dusk tint (the night is
   `_draw_night`)
-- [ ] Guests' thought bubbles over their heads (`think_*` -> `builder/think_*.png`) and a
+- [x] Guests' thought bubbles over their heads (`think_*` -> `builder/think_*.png`) and a
   guest card on click with their thoughts, some of them wrong ("The lake looked at me.")
-- [ ] The map lies, rarely: a tent nobody built for one frame, a tile that says "Something
+- [x] The map lies, rarely: a tent nobody built for one frame, a tile that says "Something
   is buried here"
-- [ ] A Graphs window (Transport Tycoon's): money, guests, satisfaction over 14 days (look
+- [x] A Graphs window (Transport Tycoon's): money, guests, satisfaction over 14 days (look
   for a day-by-day history first, e.g. the week ledger)
-- [ ] Builder music: a General MIDI-style loop (ElevenLabs), detuned a little at night
-- [ ] Hlubočanský zpravodaj (the district paper) now and then, and award diplomas for the
+- [x] Builder music: a General MIDI-style loop (ElevenLabs), detuned a little at night
+- [x] Hlubočanský zpravodaj (the district paper) now and then, and award diplomas for the
   camp
-- [ ] Cheats typed on the map (BOHEMIA: money, and the next day a letter from the district
+- [x] Cheats typed on the map (BOHEMIA: money, and the next day a letter from the district
   asking about it)
-- [ ] Shareware: a nag after ~10 builds, a registration-locked Mega gnome, Help > About
+- [x] Shareware: a nag after ~10 builds, a registration-locked Mega gnome, Help > About
   with credits and a Snake easter egg
-- Planned: the living map's bits in `scripts/builder/map_life.gd`, small hooks in
-  `crt_map_panel.gd`
-- Open: the smoke test prints `Parameter "material" is null` (8x) since this evening;
-  not traced yet (maybe the other session's bistro work, maybe not); find who sets a
-  null material before shipping
-- Open question to the user: replace the other code-made sounds too (`tools/gen_phone_sfx.py`,
-  `tools/gen_splash_sfx.py`)?
+- [ ] The map's trees and flags swaying in the wind, in steps (smoke and leaves go with
+  it already). The trees are baked into the static layer among the buildings in depth
+  order, so they cannot just be drawn again on top: draw them (and what stands in front
+  of them) in the dynamic layer only while it blows, or bake two or three lean frames
+- [ ] A hint of the cheats somewhere in the PC (a README.TXT in Files, Vera's note), never
+  a list
+- [ ] Hear the music once: `assets/sfx/builder/music.ogg` was cut and measured
+  (`loop_cut.py`: 16 bars, the seam cross-faded, -23 LUFS), not listened to
+- Notes for agent C: `tools/coop_check` still opens the old pub tap close-up
+  (`_service_interior._open_counter_game()`), so "the other warden does not see the host
+  behind the bar" fails since the tap went 3D (457d21b); `scripts/business/corn_closeup.gd`
+  connects its canvas to `_draw` (the Control's own: it draws on another node from it and
+  floods the log with "Drawing is only allowed inside this node's _draw()"; Goggle had the
+  same, fixed by a `_draw_page` of its own) - moot if the corn stand's 3D stations
+  replace it
+- [x] `Parameter "material" is null` (8x) in the smoke test: gone by 20. 10. morning
+- [x] Replace the other code-made sounds too? Yes, all of them (the user, 20. 10.): the
+  Photographer's camera, the thump, the pager, the station that does not exist, the phone
+  line, the splash's neon and the set's tone are recordings now (agent B; only the radio's
+  dread stays layered in code)
 
 ## CO-OP — two wardens, step by step (DESIGN.md §12; each stage gone through with the user)
 
@@ -274,9 +361,20 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 
 ### 11. More interiors
 - [x] Cabins: room, bed, bathroom/WC, cleaning, prep
-- [ ] Pub / restaurant: complete interior, own interactions, more life, activities
-- [ ] Cellar / machine room: design the dark mechanic (the meatball machine) and prepare
-      the space so it can be hooked up (design doc + interactive stub)
+- [x] Pub / restaurant: complete interior, own interactions, more life, activities (the bistro 19.-20. 10., the pub 20. 10.: DESIGN §7b)
+
+## BUSINESSES (agent C, 2026-10-20; DESIGN §7b)
+
+- [x] Phase 0: the bistro's stations in the 3D room (`scripts/business/station3d.gd`, the rail, the frame)
+- [x] Phase 1: Papa's ratings, the Z report, goods going off by lots, one order from the PC, gear, the hands (roles, shifts, away, theft, the strange two), open late with the night inside
+- [x] Phase 1 left: the chalk strike on the menu board, a note where a hand away today would stand (camp/note_away, crew_figures), the bistro's gear in the room (heat lamps, ticket clock, dishwasher)
+- [x] Phase 2: the pub (stations along the bar in 3D, the keg in the cellar, its hands by role, kegs that go flat, gear; pub_check, pub_shots, pub_coop)
+- [x] Phase 2 left: the pub's gear seen (the second tap by the tower, the quick coupler's head, the glass washer, the cooler), sounds of the keg (keg_roll, coupler, gas_hiss) and its own order (a coin on the bar)
+- [x] Phase 3: the corn stand (counter and husking in 3D on the stand's counter, the live camp beyond it; its hands, gear; stand_check, stand_shots, stand_coop)
+- [x] Phase 3 left: the gear seen at the stand (the bigger pot, the butter warmer, the husking table), sounds of its own (a leaf torn, a cob into the pot, the butter, the salt)
+- [x] Phase 4: the Jednota (three by three with its Build model and Builder pictures; the till, the shelves and the storeroom in 3D; the queue; its hands, gear; dear and it pays; jednota_check, jednota_shots, jednota_coop)
+- [x] Phase 5: PROTOTYP 540 (awake at night and on the late shift; the sack on its nights; fed, the goulash's meat for nothing by morning; proto_check, proto_shots)
+- [x] Cellar / machine room: the dark mechanic designed and hooked up (PROTOTYP 540, DESIGN §7b "The bistro")
 
 ### 12. 3D models and the camp's look
 - [x] New gatehouse (generated textures)

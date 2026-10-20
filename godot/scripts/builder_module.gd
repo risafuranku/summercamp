@@ -27,9 +27,9 @@ const OVERLAY_SHORT := {"": "Off", "condition": "Wear", "power": "Power", "rooms
 
 const CATEGORIES: Array = [
 	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/tb_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
-	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand"]},
+	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand", "vecerka"]},
 	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide", "playground", "ping_pong", "hammock"]},
-	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/tb_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole"]},
+	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/tb_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole", "mega_gnome"]},
 	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer"]},
 ]
 
@@ -51,6 +51,7 @@ const ITEM_ICONS := {
 	"picnic_table": "res://assets/textury/builder/iso_picnic.png",
 	"flower_bed": "res://assets/textury/builder/iso_flowerbed.png",
 	"gnome": "res://assets/textury/builder/iso_gnome.png",
+	"mega_gnome": "res://assets/textury/builder/iso_gnome.png",
 	"flagpole": "res://assets/textury/builder/iso_flagpole.png",
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
@@ -62,7 +63,7 @@ const ITEM_ICONS := {
 const TINY_NAMES := {
 	"sports_field": "Pitch", "lake_slide": "Slide", "playground": "Swings", "picnic_table": "Picnic",
 	"flower_bed": "Flowers", "toilet_block": "WC", "shower_block": "Showers", "restaurant": "Bistro",
-	"ping_pong": "Pingpong",
+	"ping_pong": "Pingpong", "corn_stand": "Corn",
 }
 ## Card size in the catalogue strip: as wide as this, narrower when there are more of
 ## them than fit (the strip never scrolls: every card of a catalogue is on screen).
@@ -75,7 +76,7 @@ const SHORT_NAMES := {
 	"shower_block": "Showers", "vecerka": "Jednota", "restaurant": "Bistro", "pub": "Pub",
 	"bonfire": "Bonfire", "sports_field": "Sports field", "lake_slide": "Lake slide", "sewer": "Sewage",
 	"path": "Path", "lamp_post": "Lamp", "demolish": "Bulldozer",
-	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome",
+	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome", "mega_gnome": "Mega gnome",
 	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
 	"corn_stand": "Corn stand",
 }
@@ -86,7 +87,7 @@ const BLURBS := {
 	"caravan_1": "Two cheap beds on wheels. Needs power. Kids love the bunks.",
 	"toilet_block": "Without it, guests use the bushes. Needs the sewer.",
 	"shower_block": "Guests get dirty. Needs the sewer.",
-	"vecerka": "Bread, sausages, beer. Cheap food.",
+	"vecerka": "Bread, salami, ice cream, beer. Guests love it.",
 	"restaurant": "Proper hot meals. Needs power.",
 	"pub": "Beer and noise. Guests love it, then they get loud.",
 	"bonfire": "Fun, food on sticks, and a light that feels safe at night.",
@@ -97,6 +98,7 @@ const BLURBS := {
 	"picnic_table": "Bread, salami and a beer in the open.",
 	"flower_bed": "Pretty. The cabins round it feel nicer.",
 	"gnome": "Kitsch. Guests smile at it. Mostly.",
+	"mega_gnome": "As tall as a cabin. Registered copies only.",
 	"flagpole": "The camp's flag. It looks like a real camp now.",
 	"playground": "Swings and a seesaw. Families will thank you.",
 	"ping_pong": "A table, two bats and an argument.",
@@ -126,6 +128,38 @@ var _status_msg: Label
 var _status_tile: Label
 var _status_cost: Label
 var _money: Label
+## The cash as a 1998 odometer: the shown sum rolls to the camp's money, its digits
+## turning over one into the next (green coming in, red going out).
+var _odo: Control
+var _odo_v := -1.0
+var _odo_flash := 0.0
+var _odo_dir := 0
+## Coins flying from the building that earned them to the cash (guests paying for their
+## rooms, the businesses' takings): {from, t, life} on a layer over everything.
+const COIN_TEX := "res://assets/textury/builder/coin.png"
+var _coin_tex: Texture2D = load(COIN_TEX) if ResourceLoader.exists(COIN_TEX) else null
+var _coin_layer: Control
+var _coins: Array = []
+var _coin_cd := 0.0
+var _coin_scan := 0.0
+var _takings_seen: Dictionary = {}
+var _paid: Dictionary = {}       # coord -> amount waiting to fly (batched)
+## Builder's own tune (a General MIDI loop, assets/sfx/builder/music.ogg): toward the
+## evening and on a bad night's eve it goes a little flat and slow.
+const MUSIC := "res://assets/sfx/builder/music.ogg"
+const MUSIC_DB := -19.0
+## The tool in hand on the pointer over the map (os_shell.tool_cursor).
+const TOOL_CURSORS := {
+	"demolish": "res://assets/textury/builder/tb2_bulldoze.png",
+	"path": "res://assets/textury/builder/tb2_path.png",
+	"lamp_post": "res://assets/textury/builder/tb2_lamp.png",
+	"": "",
+	"*": "res://assets/textury/builder/cur_blueprint.png",
+}
+var _cursor_tex: Dictionary = {}
+var _music: AudioStreamPlayer
+var _music_btn: Button
+var _music_t := 0.0
 var _clock: Label
 var _tool_buttons: Dictionary = {}
 var _cat_buttons: Dictionary = {}
@@ -141,6 +175,8 @@ var _cat_open := 0.0          # 0..1, the catalogue sliding open
 var _info: Control            # the card for what is selected
 var _hover_card := ""
 var _overlay_btn: Button
+## The view has been put on the camp once (it is the player's to move after that).
+var camp_focused := false
 ## The building card: what a clicked building is and what can be done about it.
 var _inspect: Control
 var _insp: Dictionary = {}     # {type, origin, footprint, root} from the map
@@ -193,9 +229,13 @@ func _build_ui() -> void:
 	_map_panel.submenu_close_requested.connect(func(): _open_category(""))
 	_map_panel.hover_info.connect(func(t: String): _status_tile.text = t)
 	_map_panel.building_clicked.connect(_on_building_clicked)
+	_map_panel.guest_clicked.connect(_on_guest_clicked)
+	if EventBus.has_signal("BuildConfirmed"):
+		EventBus.BuildConfirmed.connect(_on_build_for_nag)
 	_build_status()
 	_build_info()
 	_build_inspector()
+	_build_guest_card()
 	_build_splash()
 	resized.connect(_layout)
 	_layout()
@@ -232,6 +272,8 @@ func _layout() -> void:
 		_info.position = Vector2(well.position.x + 8, well.position.y + well.size.y - _info.size.y - 8)
 	if _inspect != null:
 		_inspect.position = Vector2(well.position.x + well.size.x - _inspect.size.x - 8, well.position.y + well.size.y - _inspect.size.y - 8)
+	if _gcard != null:
+		_gcard.position = Vector2(well.position.x + well.size.x - _gcard.size.x - 8, well.position.y + well.size.y - _gcard.size.y - 8)
 	if _splash != null:
 		_splash.size = size
 		if _splash_bar != null:
@@ -247,7 +289,7 @@ func _build_menu() -> void:
 	var menus := {
 		"File": ["Site report", "New site...", "-", "Exit"],
 		"View": ["Zoom in", "Zoom out", "Rotate building  (Q)", "-", "Overlay: off", "Overlay: wear", "Overlay: power", "Overlay: rooms", "Overlay: light at night"],
-		"Help": ["Keys", "Help topics", "-", "About Builder 98"],
+		"Help": ["Keys", "Help topics", "Register...", "-", "About Builder 98"],
 	}
 	for name in menus:
 		var b := MenuButton.new()
@@ -277,7 +319,7 @@ func _menu(item: String) -> void:
 		"Site report":
 			message_requested.emit("Site report", _site_report(), "info")
 		"New site...":
-			message_requested.emit("Builder 98", "The shareware version plans one site only.\n\nRegister Builder 98 for 990 Kc to plan more sites.", "info")
+			message_requested.emit("Builder 98", "The shareware version plans one site only.\n\nRegistered copies too: one camp, one site.", "info")
 		"Overlay: off":
 			_set_overlay("")
 		"Overlay: wear":
@@ -292,9 +334,10 @@ func _menu(item: String) -> void:
 			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 services   F3 fun   F4 decor   F5 utilities\nQ / E  turn the building     X  put the tool away\nO  overlay (wear, power, rooms, light)\nArrows  move the map     +/-  zoom     Ctrl+Z  undo today's build\n\nNo tool in hand: click a building for its card.", "info")
 		"Help topics":
 			message_requested.emit("Builder 98 Help", "Cannot open BUILDER.HLP.\n\nThe file is missing or damaged.\n\n(Help > Keys still works.)", "error")
+		"Register...":
+			_register_dialog()
 		"About Builder 98":
-			var left := maxi(0, 30 - CoreRoot.get_day())
-			message_requested.emit("About Builder 98", "Builder 98  version 1.2\n(c) 1996-98 Stavitel software, Jihlava\n\nUNREGISTERED SHAREWARE\n%d days of the trial left.\n\nLicensed for recreational facilities:\n06:30 - 20:00 only." % left, "info")
+			_about_dialog()
 
 
 func _build_toolbar() -> void:
@@ -339,9 +382,11 @@ func _build_toolbar() -> void:
 	rot.pressed.connect(func(): _map_panel.rotate_selected_building(1))
 	row.add_child(rot)
 	var undo := Button.new()
-	undo.text = "Undo"
+	undo.icon = _tool_icon("undo")
+	undo.expand_icon = true
+	undo.add_theme_constant_override("icon_max_width", 24)
 	undo.tooltip_text = "Take back the last thing you built today (Ctrl+Z), money back"
-	undo.custom_minimum_size = Vector2(46, 34)
+	undo.custom_minimum_size = Vector2(36, 34)
 	undo.focus_mode = Control.FOCUS_NONE
 	undo.add_theme_font_override("font", T.FONT_BOLD)
 	_flat_style(undo)
@@ -349,9 +394,11 @@ func _build_toolbar() -> void:
 	row.add_child(undo)
 	for z in [["-", -1, "Zoom out (-)"], ["+", 1, "Zoom in (+)"]]:
 		var zb := Button.new()
-		zb.text = z[0]
+		zb.icon = _tool_icon("zoom_out" if int(z[1]) < 0 else "zoom_in")
+		zb.expand_icon = true
+		zb.add_theme_constant_override("icon_max_width", 24)
 		zb.tooltip_text = z[2]
-		zb.custom_minimum_size = Vector2(26, 34)
+		zb.custom_minimum_size = Vector2(32, 34)
 		zb.focus_mode = Control.FOCUS_NONE
 		zb.add_theme_font_override("font", T.FONT_BOLD)
 		_flat_style(zb)
@@ -361,15 +408,49 @@ func _build_toolbar() -> void:
 	row.add_child(_gap())
 	# What the map shows over the camp: off, wear, power, rooms, light (O).
 	_overlay_btn = Button.new()
-	_overlay_btn.custom_minimum_size = Vector2(58, 34)
+	_overlay_btn.custom_minimum_size = Vector2(36, 34)
+	_overlay_btn.toggle_mode = true
+	_overlay_btn.icon = _tool_icon("map")
+	_overlay_btn.expand_icon = true
+	_overlay_btn.add_theme_constant_override("icon_max_width", 24)
 	_overlay_btn.focus_mode = Control.FOCUS_NONE
 	_overlay_btn.tooltip_text = "Show on the map: wear, power, rooms, light at night (O)"
-	_overlay_btn.text = "Map:\nOff"
+	_overlay_btn.text = ""
 	_flat_style(_overlay_btn)
 	_overlay_btn.pressed.connect(func():
 		_click()
 		_set_overlay(str(_map_panel.OVERLAYS[(_map_panel.OVERLAYS.find(_map_panel.overlay) + 1) % _map_panel.OVERLAYS.size()])))
 	row.add_child(_overlay_btn)
+	# The music on and off (remembered by the PC).
+	_music_btn = Button.new()
+	_music_btn.focus_mode = Control.FOCUS_NONE
+	_music_btn.custom_minimum_size = Vector2(36, 34)
+	_music_btn.expand_icon = true
+	_music_btn.add_theme_constant_override("icon_max_width", 26)
+	_music_btn.tooltip_text = "Music"
+	_music_btn.icon = _music_icon(bool(_shell_stored("builder_music_off", false)))
+	if _music_btn.icon == null:
+		_music_btn.text = "Music"
+	_flat_style(_music_btn)
+	_music_btn.pressed.connect(func():
+		_click()
+		_toggle_music())
+	row.add_child(_music_btn)
+	# The Graphs window (G).
+	var gb := Button.new()
+	gb.focus_mode = Control.FOCUS_NONE
+	gb.custom_minimum_size = Vector2(36, 34)
+	gb.expand_icon = true
+	gb.add_theme_constant_override("icon_max_width", 26)
+	gb.tooltip_text = "Graphs  (G)"
+	gb.icon = _texture("res://assets/textury/builder/tb2_graphs.png")
+	if gb.icon == null:
+		gb.text = "Graphs"
+	_flat_style(gb)
+	gb.pressed.connect(func():
+		_click()
+		toggle_graphs())
+	row.add_child(gb)
 	# Cash and clock, right-aligned in sunken wells.
 	var cash := Panel.new()
 	cash.name = "Cash"
@@ -379,7 +460,13 @@ func _build_toolbar() -> void:
 	_money.add_theme_font_override("font", T.FONT_BOLD)
 	_money.add_theme_color_override("font_color", Color8(80, 255, 80))
 	_money.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_money.visible = false
 	cash.add_child(_money)
+	_odo = Control.new()
+	_odo.clip_contents = true
+	_odo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_odo.draw.connect(_draw_odo)
+	cash.add_child(_odo)
 	_clock = Label.new()
 	_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_toolbar.add_child(_clock)
@@ -388,6 +475,8 @@ func _build_toolbar() -> void:
 		cash.size = Vector2(90, 18)
 		_money.position = Vector2(4, 2)
 		_money.size = Vector2(80, 14)
+		_odo.position = Vector2(3, 2)
+		_odo.size = Vector2(84, 14)
 		_clock.position = Vector2(_toolbar.size.x - 150, 23)
 		_clock.size = Vector2(146, 14)
 	)
@@ -506,6 +595,9 @@ func _click() -> void:
 ## The camp's Goggle rating has not opened this blueprint yet: the stars and reviews it
 ## needs ({} when it is open).
 func _locked(type: String) -> Dictionary:
+	if type == "mega_gnome":
+		_ensure_sw()
+		return {} if _sw != null and _sw.unlocked(type) else {"registered": true}
 	var main := get_tree().current_scene if get_tree() != null else null
 	var g = main.get("_goggle") if main != null else null
 	if g == null or type == "" or g.unlocked(type):
@@ -515,6 +607,9 @@ func _locked(type: String) -> Dictionary:
 
 func _select(tool: String) -> void:
 	var lock := _locked(tool)
+	if lock.has("registered"):
+		message_requested.emit("Builder 98", "The Mega gnome comes with registered copies of Builder 98.\n\nHelp > Register...", "info")
+		return
 	if not lock.is_empty():
 		message_requested.emit("Builder 98", "This blueprint is for Stavitel partner camps.\n\nRated %.1f on Goggle, with %d reviews or more." % [float(lock["stars"]), int(lock["reviews"])], "info")
 		return
@@ -536,17 +631,22 @@ func _select(tool: String) -> void:
 func _set_overlay(id: String) -> void:
 	_map_panel.set_overlay(id)
 	if _overlay_btn != null:
-		_overlay_btn.text = "Map:\n%s" % OVERLAY_SHORT.get(_map_panel.overlay, "Off")
 		_overlay_btn.set_pressed_no_signal(_map_panel.overlay != "")
+		_overlay_btn.tooltip_text = "Map overlay: %s  (O for the next)" % OVERLAY_SHORT.get(_map_panel.overlay, "Off")
 
 
 ## The keys, while Builder is on the screen (and not under its title picture).
 func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree() or _splash != null or not (event is InputEventKey) or not event.pressed or event.echo:
 		return
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit:
+		return
 	var k: int = event.physical_keycode if event.physical_keycode != KEY_NONE else event.keycode
 	if event.ctrl_pressed or event.alt_pressed:
 		return
+	if k >= KEY_A and k <= KEY_Z:
+		_cheat_key(char(k))
 	if CATEGORY_KEYS.has(event.keycode):
 		var cid := str(CATEGORY_KEYS[event.keycode])
 		_open_category("" if _active_cat == cid else cid)
@@ -557,6 +657,9 @@ func _input(event: InputEvent) -> void:
 	elif k == KEY_O:
 		_click()
 		_set_overlay(str(_map_panel.OVERLAYS[(_map_panel.OVERLAYS.find(_map_panel.overlay) + 1) % _map_panel.OVERLAYS.size()]))
+	elif k == KEY_G:
+		_click()
+		toggle_graphs()
 	elif k == KEY_X or k == KEY_DELETE or k == KEY_BACKSPACE:
 		if _selected != "":
 			_select("")
@@ -583,7 +686,7 @@ func _build_inspector() -> void:
 	_inspect.visible = false
 	_inspect.draw.connect(_draw_inspector)
 	add_child(_inspect)
-	var defs := [["upgrade", "Upgrade"], ["crew", "Send the crew"], ["demolish", "Demolish"], ["rack", "GuestRack"]]
+	var defs := [["upgrade", "Upgrade"], ["crew", "Send the crew"], ["demolish", "Demolish"], ["rack", "GuestRack"], ["lamp", "Put a lamp here"]]
 	for i in defs.size():
 		var b := Button.new()
 		b.text = str(defs[i][1])
@@ -604,6 +707,7 @@ func _build_inspector() -> void:
 
 
 func _on_building_clicked(info: Dictionary) -> void:
+	_close_guest_card()
 	_insp = info
 	_inspect.visible = not info.is_empty()
 	if _inspect.visible:
@@ -620,6 +724,162 @@ func _close_inspector() -> void:
 func _main() -> Node:
 	var tree := get_tree()
 	return tree.current_scene if tree != null else null
+
+
+# ── the guest card ───────────────────────────────────────────────────────────
+
+## A guest clicked on the map: their name, their party and room, how they are (six needs,
+## the mood), what they last thought (theirs; now and then one that is not quite right);
+## Follow keeps them in the middle of the map.
+const GCARD_SIZE := Vector2(282, 150)
+const NEED_SHORT := [["energy", "Sleep"], ["hunger", "Food"], ["bladder", "WC"], ["hygiene", "Wash"], ["fun", "Fun"], ["safety", "Safe"]]
+const ODD_THOUGHTS := [
+	"The lake looked at me.", "Someone sat on my bed while I was out.", "The boy in the red shoes asked for me.",
+	"There is one more tent than yesterday.", "Who whistles out there at night?", "I counted the lamps twice. Not the same.",
+	"The man at the desk wrote my name before I said it.",
+]
+var _gcard: Control
+var _gcard_id := -1
+var _gcard_odd := ""
+var _following := false
+var _follow_btn: Button
+
+
+func _build_guest_card() -> void:
+	_gcard = Control.new()
+	_gcard.size = GCARD_SIZE
+	_gcard.mouse_filter = Control.MOUSE_FILTER_STOP
+	_gcard.visible = false
+	_gcard.draw.connect(_draw_guest_card)
+	add_child(_gcard)
+	_follow_btn = Button.new()
+	_follow_btn.text = "Follow"
+	_follow_btn.toggle_mode = true
+	_follow_btn.focus_mode = Control.FOCUS_NONE
+	_follow_btn.position = Vector2(GCARD_SIZE.x - 82, GCARD_SIZE.y - 28)
+	_follow_btn.size = Vector2(76, 22)
+	_follow_btn.toggled.connect(func(on: bool):
+		_click()
+		_following = on)
+	_gcard.add_child(_follow_btn)
+	var close := Button.new()
+	close.text = "x"
+	close.focus_mode = Control.FOCUS_NONE
+	close.position = Vector2(GCARD_SIZE.x - 21, 4)
+	close.size = Vector2(16, 14)
+	close.pressed.connect(_close_guest_card)
+	_gcard.add_child(close)
+
+
+func _on_guest_clicked(id: int) -> void:
+	_close_inspector()
+	_gcard_id = id
+	_following = false
+	_follow_btn.set_pressed_no_signal(false)
+	# Now and then what they think is not quite right: more so when they are frightened.
+	_gcard_odd = ""
+	var g := _guest_row(id)
+	var safe := float((g.get("needs", {}) as Dictionary).get("safety", 100.0))
+	if randf() < (0.3 if safe < 40.0 else 0.04):
+		_gcard_odd = str(ODD_THOUGHTS[randi() % ODD_THOUGHTS.size()])
+	_gcard.visible = true
+	_gcard.queue_redraw()
+	_layout()
+
+
+func _close_guest_card() -> void:
+	_gcard_id = -1
+	_following = false
+	if _gcard != null:
+		_gcard.visible = false
+
+
+func _guest_row(id: int) -> Dictionary:
+	if GuestManager == null or not GuestManager.has_method("get_guest_life_snapshot"):
+		return {}
+	for g in GuestManager.get_guest_life_snapshot():
+		if g is Dictionary and int(g.get("id", -2)) == id:
+			return g
+	return {}
+
+
+func _tick_guest_card(delta: float) -> void:
+	if _gcard == null or not _gcard.visible:
+		return
+	if _following and not _map_panel.follow_guest(_gcard_id, delta):
+		_following = false
+		_follow_btn.set_pressed_no_signal(false)
+	_gcard_t -= delta
+	if _gcard_t <= 0.0:
+		_gcard_t = 0.5
+		if _guest_row(_gcard_id).is_empty():
+			_close_guest_card()
+		else:
+			_gcard.queue_redraw()
+
+
+var _gcard_t := 0.0
+var _gcard_face: Dictionary = {}
+
+
+func _draw_guest_card() -> void:
+	var c := _gcard
+	var s := c.size
+	var g := _guest_row(_gcard_id)
+	c.draw_style_box(T.box("window", T.FACE), Rect2(Vector2.ZERO, s))
+	var band := Rect2(3, 3, s.x - 6, 17)
+	for i in int(ceil(band.size.x / 8.0)):
+		c.draw_rect(Rect2(band.position.x + i * 8, band.position.y, minf(8.0, band.size.x - i * 8), band.size.y), T.TITLE_A.lerp(T.TITLE_B, float(i * 8) / band.size.x))
+	if g.is_empty():
+		return
+	var party := int(g.get("party_size", 1))
+	var title := str(g.get("name", "Guest")) + ("  and %d more" % (party - 1) if party > 1 else "")
+	c.draw_string(T.FONT_BOLD, band.position + Vector2(4, 13), title, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, T.FONT_SIZE, T.WHITE)
+	# Their face: the top of their figure.
+	var face := _guest_face(str(g.get("sprite_path", "")))
+	c.draw_rect(Rect2(6, 24, 50, 50), Color8(40, 56, 40))
+	if face != null:
+		c.draw_texture_rect(face, Rect2(8, 26, 46, 46), false)
+	var x := 62.0
+	var y := 36.0
+	var room := ""
+	var lodg = g.get("lodging", null)
+	if lodg is Vector2i and (lodg as Vector2i).x >= 0 and GuestManager != null:
+		room = GuestManager.room_label("%d:%d" % [lodg.x, lodg.y])
+	c.draw_string(T.FONT, Vector2(x, y), room if room != "" else "No room", HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 26, T.FONT_SIZE, Color8(60, 60, 110))
+	c.draw_string(T.FONT_BOLD, Vector2(x, y + 14), str(g.get("mood_label", "")), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 8, T.FONT_SIZE, Color8(40, 70, 170))
+	# Six needs, two columns of little bars.
+	var needs: Dictionary = g.get("needs", {})
+	for i in NEED_SHORT.size():
+		var nx := x + float(i % 2) * 106.0
+		var ny := y + 24.0 + float(i / 2) * 13.0
+		var v := clampf(float(needs.get(NEED_SHORT[i][0], 100.0)) / 100.0, 0.0, 1.0)
+		c.draw_string(T.FONT, Vector2(nx, ny + 9), str(NEED_SHORT[i][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
+		var bar := Rect2(nx + 34, ny + 1, 62, 8)
+		c.draw_rect(bar, Color8(60, 60, 60))
+		var col := Color8(40, 170, 40) if v > 0.6 else (Color8(220, 160, 0) if v > 0.3 else Color8(200, 30, 20))
+		c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * v), bar.size.y)), col)
+	# What they last thought.
+	var thought := _gcard_odd if _gcard_odd != "" else str(g.get("thought", ""))
+	if thought != "":
+		T.FONT.draw_multiline_string(c.get_canvas_item(), Vector2(8, s.y - 36), char(34) + thought + char(34), HORIZONTAL_ALIGNMENT_LEFT, s.x - 96, T.FONT_SIZE, 2, Color8(70, 50, 30))
+
+
+func _guest_face(path: String) -> Texture2D:
+	if _gcard_face.has(path):
+		return _gcard_face[path]
+	var tex: Texture2D = null
+	if path != "" and ResourceLoader.exists(path):
+		var src := (load(path) as Texture2D).get_image().duplicate() as Image
+		if src.is_compressed():
+			src.decompress()
+		var used := src.get_used_rect()
+		var side := mini(used.size.x, int(used.size.y * 0.34))
+		var crop := src.get_region(Rect2i(used.position.x + (used.size.x - side) / 2, used.position.y, side, side))
+		crop.resize(46, 46, Image.INTERPOLATE_NEAREST)
+		tex = ImageTexture.create_from_image(crop)
+	_gcard_face[path] = tex
+	return tex
 
 
 ## What the card says about the building now: worked out twice a second while it is up.
@@ -650,6 +910,13 @@ func _refresh_inspector() -> void:
 			lines.append(["Guests", "%s  (%d/%d)" % [", ".join(who.slice(0, 2)), who.size(), beds] if not who.is_empty() else "taken", Color8(40, 70, 170)])
 		else:
 			lines.append(["Room", {"ready": "ready, %d bed%s" % [beds, "" if beds == 1 else "s"], "dirty": "DIRTY: clean it", "unprepared": "not made up yet"}.get(st, st), Color8(0, 110, 0) if st == "ready" else Color8(170, 0, 0)])
+	elif t == "path":
+		# A path: whether it is lit; the lamp is put on it from here.
+		var lit := bool(_insp.get("lamp", false))
+		v["title"] = "Path with a lamp" if lit else "Path"
+		v["icon"] = _tool_art("lamp_post" if lit else "path")
+		v["sub"] = str(BLURBS["lamp_post" if lit else "path"])
+		lines.append(["Light", "lit at night" if lit else "dark at night", Color8(0, 110, 0) if lit else Color8(150, 100, 0)])
 	elif BLURBS.has(_base_type(t)):
 		v["sub"] = str(BLURBS[_base_type(t)])
 	# Wear and repairs.
@@ -703,9 +970,13 @@ func _refresh_inspector() -> void:
 	db.disabled = int(sum.get("count", 0)) <= 0 or bool(root.get_meta("permanent", false))
 	var rb: Button = _insp_btns["rack"]
 	rb.visible = lodging
+	var lb: Button = _insp_btns["lamp"]
+	lb.visible = t == "path" and not bool(_insp.get("lamp", false))
+	lb.text = "Put a lamp here  $%d" % _cost("lamp_post")
+	lb.disabled = CoreRoot.get_money() < _cost("lamp_post")
 	# The buttons that are there, two to a row from the bottom up, no gaps.
 	var shown: Array = []
-	for id in ["upgrade", "crew", "rack", "demolish"]:
+	for id in ["upgrade", "lamp", "crew", "rack", "demolish"]:
 		if (_insp_btns[id] as Button).visible:
 			shown.append(_insp_btns[id])
 	var rows := int(ceil(float(shown.size()) / 2.0))
@@ -800,6 +1071,12 @@ func _insp_action(id: String) -> void:
 				_close_inspector())
 		"rack":
 			program_requested.emit("guestrack")
+		"lamp":
+			_map_panel._send_build_request("lamp_post", o, 0)
+			# The card shows the lamp once the camp has it.
+			get_tree().create_timer(0.35).timeout.connect(func():
+				if not _insp.is_empty() and _insp.get("origin") == o:
+					_on_building_clicked(_map_panel.structure_at(o)))
 	_refresh_inspector()
 
 
@@ -831,7 +1108,9 @@ func _draw_inspector() -> void:
 
 
 const PADLOCK_TEX := "res://assets/textury/os98/icons/padlock_16.png"
+const STAR_TEX := "res://assets/textury/os98/web/star_full.png"
 var _padlock: Texture2D = load(PADLOCK_TEX) if ResourceLoader.exists(PADLOCK_TEX) else null
+var _star: Texture2D = load(STAR_TEX) if ResourceLoader.exists(STAR_TEX) else null
 
 
 func _make_card(type: String, w: int = CARD_W) -> Control:
@@ -881,7 +1160,16 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 			if _padlock != null:
 				c.draw_texture_rect(_padlock, Rect2(Vector2(4, c.size.y - 20), Vector2(16, 16)), false)
 			c.draw_string(T.FONT_BOLD, Vector2(text_x, 17), label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
-			c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), "Goggle %.1f" % float(lock["stars"]), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
+			if lock.has("registered"):
+				c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), "Registered", HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
+				c.draw_string(T.FONT, Vector2(text_x, 47), "copies only", HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
+				return
+			# The stars it waits for: Goggle's own star and the number (the word did not fit).
+			var sx := text_x
+			if _star != null:
+				c.draw_texture_rect(_star, Rect2(Vector2(sx, 22), Vector2(12, 12)), false)
+				sx += 15.0
+			c.draw_string(T.FONT_BOLD, Vector2(sx, 32), "%.1f" % float(lock["stars"]), HORIZONTAL_ALIGNMENT_LEFT, text_w - (sx - text_x), T.FONT_SIZE, Color8(150, 100, 0))
 			c.draw_string(T.FONT, Vector2(text_x, 47), "%d reviews" % int(lock["reviews"]), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
 			return
 		c.draw_string(T.FONT_BOLD, Vector2(text_x, 17) + o, label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT)
@@ -1032,6 +1320,15 @@ func _process(delta: float) -> void:
 	if _tick <= 0.0:
 		_tick = 0.5
 		_refresh_info()
+	_tick_odo(delta)
+	_tick_news(delta)
+	_tick_guest_card(delta)
+	_tick_coins(delta)
+	_tick_music(delta)
+	_tick_cursor()
+	# The first time the map has a size: the camp in the middle, near enough to read.
+	if not camp_focused and _map_panel != null and _map_panel.size.x > 0.0 and is_visible_in_tree():
+		camp_focused = _map_panel.focus_camp()
 	if _catalogue != null and _catalogue.visible and _cat_open < 1.0:
 		_cat_open = minf(1.0, _cat_open + delta * 7.0)
 		_layout()
@@ -1054,6 +1351,537 @@ func _process(delta: float) -> void:
 			_splash = null
 			_splash_bar = null
 			splash_finished.emit()
+
+
+func _tick_odo(delta: float) -> void:
+	if _odo == null:
+		return
+	var target := float(CoreRoot.get_money())
+	if _odo_v < 0.0:
+		# The first look: the sum as it is (it was drawn once before it knew it: "$0").
+		_odo_v = target
+		_odo.queue_redraw()
+	if absf(target - _odo_v) > 0.01:
+		var step := maxf(4.0, absf(target - _odo_v) * 3.5) * delta
+		_odo_dir = 1 if target > _odo_v else -1
+		_odo_v = move_toward(_odo_v, target, step)
+		_odo_flash = 0.8
+		_odo.queue_redraw()
+	elif _odo_flash > 0.0:
+		_odo_flash -= delta
+		if _odo_flash <= 0.0:
+			_odo.queue_redraw()
+
+
+func _draw_odo() -> void:
+	var v := maxf(0.0, _odo_v)
+	var whole := int(floor(v))
+	var frac := v - float(whole)
+	var col := Color8(80, 255, 80)
+	if _odo_flash > 0.0:
+		col = Color8(170, 255, 140) if _odo_dir > 0 else Color8(255, 96, 80)
+	var text := "$" + _group(whole)
+	var cw := 7.0
+	var h := _odo.size.y
+	var x := _odo.size.x
+	var place := 0
+	for i in range(text.length() - 1, -1, -1):
+		var ch := text[i]
+		x -= cw if ch.is_valid_int() else T.FONT_BOLD.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 1.0
+		if not ch.is_valid_int():
+			_odo.draw_string(T.FONT_BOLD, Vector2(x, 12), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
+			continue
+		var d := int(ch)
+		# A wheel turns while every wheel under it stands on 9 (and the last one always).
+		var p10 := int(pow(10, place))
+		var roll := frac if place == 0 or whole % p10 == p10 - 1 else 0.0
+		roll = floorf(roll * 4.0) / 4.0
+		_odo.draw_string(T.FONT_BOLD, Vector2(x, 12 - roll * h), str(d), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
+		if roll > 0.0:
+			_odo.draw_string(T.FONT_BOLD, Vector2(x, 12 + (1.0 - roll) * h), str((d + 1) % 10), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
+		place += 1
+
+
+## A guest paid for their room: coins from the room to the cash.
+func _on_guest_paid(amount: int, guest_id: int) -> void:
+	if not is_visible_in_tree() or amount <= 0:
+		return
+	var st = CoreRoot.get_state()
+	if st == null:
+		return
+	for g in st.guests:
+		if g is Dictionary and int(g.get("id", -2)) == guest_id:
+			var slots: Array = g.get("lodging_slots", []) if g.get("lodging_slots", []) is Array else []
+			if not slots.is_empty() and slots[0] is Dictionary:
+				var key := str((slots[0] as Dictionary).get("accommodation_key", ""))
+				if key.contains(":"):
+					var c := Vector2i(int(key.get_slice(":", 0)), int(key.get_slice(":", 1)))
+					_paid[c] = int(_paid.get(c, 0)) + amount
+			return
+
+
+func _tick_coins(delta: float) -> void:
+	_coin_cd -= delta
+	if _coin_layer == null:
+		_coin_layer = Control.new()
+		_coin_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_coin_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_coin_layer.z_index = 50
+		_coin_layer.draw.connect(_draw_coins)
+		add_child(_coin_layer)
+		if EventBus.has_signal("guest_payment_received"):
+			EventBus.guest_payment_received.connect(_on_guest_paid)
+	# The businesses' takings since the last look (their books in GameState.biz).
+	_coin_scan -= delta
+	if _coin_scan <= 0.0:
+		_coin_scan = 0.6
+		var st = CoreRoot.get_state()
+		var sites: Dictionary = st.biz.get("sites", {}) if st != null and st.biz is Dictionary else {}
+		for key in sites:
+			var today: Dictionary = (sites[key] as Dictionary).get("today", {}) if sites[key] is Dictionary else {}
+			var tk := int(today.get("takings", 0))
+			var seen := int(_takings_seen.get(key, -1))
+			if seen >= 0 and tk > seen and str(key).contains(":"):
+				var c := Vector2i(int(str(key).get_slice(":", 0)), int(str(key).get_slice(":", 1)))
+				_paid[c] = int(_paid.get(c, 0)) + tk - seen
+			_takings_seen[key] = tk
+		for c in _paid.keys():
+			_launch_coins(c, int(_paid[c]))
+		_paid.clear()
+	for i in range(_coins.size() - 1, -1, -1):
+		_coins[i]["t"] = float(_coins[i]["t"]) + delta
+		if float(_coins[i]["t"]) >= float(_coins[i]["life"]):
+			_coins.remove_at(i)
+			_odo_flash = 0.8
+	if not _coins.is_empty() or _coin_layer.has_meta("drawn"):
+		_coin_layer.queue_redraw()
+		if _coins.is_empty():
+			_coin_layer.remove_meta("drawn")
+
+
+func _launch_coins(coord: Vector2i, amount: int) -> void:
+	if _map_panel == null or _odo == null or not is_visible_in_tree() or amount <= 0:
+		return
+	var p: Vector2 = _map_panel.cell_screen_point(coord)
+	if not p.is_finite():
+		return
+	var to_layer := _coin_layer.get_global_transform().affine_inverse()
+	var from: Vector2 = to_layer * (_map_panel.get_global_transform() * p)
+	var n := clampi(amount / 8 + 1, 1, 6)
+	for i in n:
+		_coins.append({"from": from + Vector2(randf_range(-5, 5), randf_range(-3, 3)), "t": -0.08 * float(i), "life": randf_range(0.7, 0.9)})
+	if _coin_cd <= 0.0 and _map_panel.has_method("_play"):
+		_map_panel._play("coins", -16.0)
+		_coin_cd = 0.6
+
+
+## Each coin on an arc to the cash, turning in four steps (face, edge, back, edge).
+func _draw_coins() -> void:
+	if _coin_tex == null or _odo == null:
+		return
+	_coin_layer.set_meta("drawn", true)
+	var to_layer := _coin_layer.get_global_transform().affine_inverse()
+	var target: Vector2 = to_layer * (_odo.get_global_transform() * (_odo.size * 0.5))
+	for c in _coins:
+		var t := float(c["t"])
+		if t < 0.0:
+			continue
+		var k := t / float(c["life"])
+		var a: Vector2 = c["from"]
+		var mid := (a + target) * 0.5 + Vector2(0, -60.0)
+		var p := a.lerp(mid, k).lerp(mid.lerp(target, k), k)
+		var turn: float = [1.0, 0.55, 0.15, 0.55][int(t * 12.0) % 4]
+		var sz := _coin_tex.get_size()
+		var w := maxf(2.0, sz.x * turn)
+		_coin_layer.draw_texture_rect(_coin_tex, Rect2((p - Vector2(w, sz.y) * 0.5).floor(), Vector2(w, sz.y)), false)
+
+
+func _tick_music(delta: float) -> void:
+	if _music == null:
+		if not ResourceLoader.exists(MUSIC):
+			return
+		_music = AudioStreamPlayer.new()
+		var s = load(MUSIC)
+		if s is AudioStreamOggVorbis:
+			(s as AudioStreamOggVorbis).loop = true
+		_music.stream = s
+		_music.volume_db = MUSIC_DB
+		add_child(_music)
+	var off := bool(_shell_stored("builder_music_off", false))
+	var shell = _shell_node()
+	var dist := float(shell.call("sound_db")) if shell != null and shell.has_method("sound_db") else 0.0
+	var want := is_visible_in_tree() and not off and _splash == null and dist > -60.0
+	if want and not _music.playing:
+		_music.play()
+	elif not want and _music.playing:
+		_music.stop()
+	if not _music.playing:
+		return
+	_music_t += delta
+	# Flat and slow toward the evening (18:00 to the lock at 20:00), more on a bad night's eve.
+	var main = get_tree().current_scene if get_tree() != null else null
+	var h := float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 12.0
+	var dusk := clampf((h - 18.0) / 2.0, 0.0, 1.0)
+	var hud = main.get("_hud_manager") if main != null else null
+	var risk := int(hud.get("_risk_level_index")) if hud != null and hud.get("_risk_level_index") != null else 0
+	var flat := dusk * 0.05 + (0.02 if risk >= 3 else 0.0)
+	var wow := sin(_music_t * 0.8) * 0.004 * (1.0 + 6.0 * flat)
+	_music.pitch_scale = clampf(1.0 - flat + wow, 0.85, 1.05)
+	_music.volume_db = MUSIC_DB + dist
+
+
+var _graphs: Control
+
+
+## The Graphs window, in the middle of the map; again to put it away.
+func toggle_graphs() -> void:
+	if _graphs != null and is_instance_valid(_graphs):
+		_graphs.queue_free()
+		_graphs = null
+		return
+	_graphs = load("res://scripts/builder/graphs_window.gd").new()
+	add_child(_graphs)
+	_graphs.closed.connect(func():
+		_click()
+		toggle_graphs())
+	var well := _map_panel.get_rect()
+	_graphs.position = (well.position + (well.size - Vector2(440, 268)) * 0.5).floor()
+
+
+# ── shareware and cheats (scripts/builder/shareware.gd) ─────────────────────
+
+var _sw = null
+## The tool and the overlay before each of the last letters typed: a cheat's letters
+## are tool keys too (B the bulldozer, O the overlay...), put back once it is typed.
+var _cheat_undo: Array = []
+
+
+func _ensure_sw() -> void:
+	if _sw != null:
+		return
+	var shell := _shell_node()
+	if shell == null:
+		return
+	_sw = load("res://scripts/builder/shareware.gd").new()
+	var d = shell.call("stored", "builder98", {})
+	if d is Dictionary and not (d as Dictionary).is_empty():
+		_sw.import_state(d)
+	else:
+		var wg = _main().get("world_generator") if _main() != null else null
+		_sw.reset(int(wg.get("world_seed")) if wg != null else 0)
+
+
+func _save_sw() -> void:
+	var shell := _shell_node()
+	if shell != null and _sw != null:
+		shell.call("store", "builder98", _sw.export_state())
+
+
+## A build here: the nag now and then (unregistered copies).
+func _on_build_for_nag(_type: String, _pos: Vector2i, _rot: int) -> void:
+	if not is_visible_in_tree():
+		return
+	_ensure_sw()
+	if _sw == null:
+		return
+	var nag: bool = _sw.note_build()
+	_save_sw()
+	if nag:
+		message_requested.emit("Builder 98 - Unregistered", "You have built %d things with an unregistered copy\nof Builder 98. Thank you for trying it!\n\nRegister for $99: Help > Register...\nRegistered copies plan without this reminder\nand come with the Mega gnome." % int(_sw.builds), "info")
+
+
+func _mail_tomorrow(kind: String, extra: String) -> void:
+	if Coop.is_client():
+		Coop.send_request("builder98_mail", [kind, extra])
+	elif EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
+		EmailManager.schedule_pool_mail(load("res://scripts/builder/shareware.gd").mail_for(kind, extra, CoreRoot.get_day()))
+
+
+func _register_dialog() -> void:
+	_ensure_sw()
+	var shell := _shell_node()
+	if _sw == null or shell == null:
+		return
+	if _sw.registered:
+		message_requested.emit("Register Builder 98", "This copy of Builder 98 is registered\nto Camp Cerne Jezero.\n\nThank you!", "info")
+		return
+	if _sw.key == "":
+		confirm_requested.emit("Register Builder 98", "Register Builder 98 for $99?\n\nStavitel software mails your key the next morning.", func():
+			if not CoreRoot.actions.spend_money(load("res://scripts/builder/shareware.gd").PRICE):
+				message_requested.emit("Register Builder 98", "The camp has not got $99.", "error")
+				return
+			var key: String = _sw.order(CoreRoot.get_day())
+			_save_sw()
+			_mail_tomorrow("key", key)
+			_map_panel._emit_status("Registration ordered: the key comes by mail tomorrow.", 1))
+		return
+	# Ordered: the key typed in from the mail.
+	var win = shell.call("_make_dialog", "b98reg", "Register Builder 98", null, Rect2(Vector2(150, 160), Vector2(330, 120)))
+	win.can_minimize = false
+	var c: Control = win.content
+	var l := Label.new()
+	l.text = "Type the key from Stavitel software's mail:"
+	l.position = Vector2(12, 10)
+	c.add_child(l)
+	var edit := LineEdit.new()
+	edit.position = Vector2(12, 34)
+	edit.size = Vector2(300, 22)
+	c.add_child(edit)
+	var ok := Button.new()
+	ok.text = "OK"
+	ok.position = Vector2(126, 64)
+	ok.size = Vector2(75, 23)
+	c.add_child(ok)
+	var go := func():
+		var good: bool = _sw.register(edit.text)
+		_save_sw()
+		shell.call("_close_window", win)
+		if good:
+			message_requested.emit("Builder 98", "Thank you for registering Builder 98!\n\nRegistered to: Camp Cerne Jezero\nThe Mega gnome is in the Decor catalogue.", "info")
+			_open_category(_active_cat)
+		else:
+			message_requested.emit("Builder 98", "That key is not valid.", "error")
+	ok.pressed.connect(go)
+	edit.text_submitted.connect(func(_t): go.call())
+	edit.grab_focus.call_deferred()
+
+
+func _cheat_key(ch: String) -> void:
+	_ensure_sw()
+	if _sw == null:
+		return
+	_cheat_undo.append([_selected, _map_panel.overlay, _active_cat])
+	while _cheat_undo.size() > 12:
+		_cheat_undo.pop_front()
+	var cheat: String = _sw.type_key(ch)
+	if cheat == "":
+		return
+	# The letters did their tool jobs on the way: undo them (the state before the first).
+	var before: Array = _cheat_undo[maxi(0, _cheat_undo.size() - cheat.length())]
+	_cheat_undo.clear()
+	call_deferred("_after_cheat", before, cheat)
+
+
+func _after_cheat(before: Array, cheat: String) -> void:
+	_select(str(before[0]))
+	_set_overlay(str(before[1]))
+	_open_category(str(before[2]))
+	match cheat:
+		"BOHEMIA":
+			CoreRoot.actions.add_money(5000)
+			_map_panel._emit_status("BOHEMIA: +$5,000.", 1)
+			_map_panel._play("coins", -8.0)
+			_mail_tomorrow("bohemia", "")
+		"KAREL":
+			_map_panel.show_old_camp(5.0)
+		"MOLE":
+			_map_panel.show_buried(6.0)
+		"VERA":
+			_map_panel._emit_status("Vera: \"Stop playing with the computer and go and look at the toilets.\"")
+
+
+## About: the credits, and in the box below them a little bulldozer flattening tents
+## (it drives itself; the arrows take it).
+func _about_dialog() -> void:
+	var shell := _shell_node()
+	if shell == null:
+		return
+	_ensure_sw()
+	var win = shell.call("_make_dialog", "b98about", "About Builder 98", null, Rect2(Vector2(150, 70), Vector2(340, 330)))
+	win.can_minimize = false
+	var c: Control = win.content
+	var l := Label.new()
+	var reg := "Registered to: Camp Cerne Jezero" if _sw != null and _sw.registered else "UNREGISTERED SHAREWARE  -  %d days of the trial left" % maxi(0, 30 - CoreRoot.get_day())
+	l.text = "Builder 98  version 1.2\n(c) 1996-98 Stavitel software, Jihlava\n%s\n\nPlanning: Ing. Pavel Stavitel\nPictures: Jana Stavitelova\nMusic: the Sound Blaster\nThe game around it: UNDO LABS" % reg
+	l.position = Vector2(12, 8)
+	c.add_child(l)
+	var toy = load("res://scripts/builder/about_dozer.gd").new()
+	toy.position = Vector2(12, 144)
+	toy.size = Vector2(c.size.x - 24 if c.size.x > 100 else 300, 118)
+	c.add_child(toy)
+	var ok := Button.new()
+	ok.text = "OK"
+	ok.position = Vector2(126, 272)
+	ok.size = Vector2(75, 23)
+	ok.pressed.connect(func(): shell.call("_close_window", win))
+	c.add_child(ok)
+
+
+# ── the Courier's extra editions and the district's diplomas ─────────────────
+
+var _courier = null
+var _news_queue: Array = []
+var _news_open: Control
+var _news_t := 3.0
+## What each edition's picture is (the catalogue's own, printed as a halftone).
+const NEWS_PICTURES := {
+	"caravan": "caravan_1", "slide": "lake_slide", "pub": "pub", "jednota": "vecerka", "mega_gnome": "mega_gnome",
+	"guests": "tent_1",
+}
+
+
+func _ensure_courier() -> void:
+	if _courier != null:
+		return
+	var shell := _shell_node()
+	if shell == null or _map_panel == null:
+		return
+	_courier = load("res://scripts/builder/courier_news.gd").new()
+	var d = shell.call("stored", "courier", {})
+	if d is Dictionary and not (d as Dictionary).is_empty():
+		_courier.import_state(d)
+	else:
+		# A camp already going: what it has now is old news, not an extra edition.
+		_courier.check(_camp_facts())
+		shell.call("store", "courier", _courier.export_state())
+
+
+## What the camp has now, for the Courier (the map's last picture of it, Goggle, the
+## guests, the upkeep).
+func _camp_facts() -> Dictionary:
+	var types := {}
+	var buildings := 0
+	for o in _map_panel._known:
+		var t := str(_map_panel._known[o][0])
+		types[t] = true
+		if t != "path" and t != "lamp_post":
+			buildings += 1
+	var m := _main()
+	var day := CoreRoot.get_day() if CoreRoot != null else 1
+	var g = m.get("_goggle") if m != null else null
+	var people := 0
+	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
+		for x in GuestManager.get_guest_life_snapshot():
+			people += int((x as Dictionary).get("party_size", 1)) if x is Dictionary else 0
+	var mood := 0.0
+	if GuestManager != null and GuestManager.has_method("get_camp_mood_summary"):
+		mood = float((GuestManager.get_camp_mood_summary() as Dictionary).get("avg_mood", 0.0))
+	var repair := 0.0
+	if m != null and m.has_method("get_upkeep_snapshot"):
+		var rows: Array = (m.get_upkeep_snapshot() as Dictionary).get("rows", [])
+		var sum := 0.0
+		for r in rows:
+			sum += 0.0 if bool(r.get("broken", false)) else float(r.get("condition", 1.0))
+		repair = sum / float(rows.size()) if not rows.is_empty() else 0.0
+	var caught := false
+	var start := 5.0
+	var tier_stars := {}
+	if g != null:
+		for e in g.reviews:
+			if bool(e.get("flagged", false)):
+				caught = true
+		var olds: Array = g.OLD_REVIEWS
+		var sum2 := 0.0
+		for r in olds:
+			sum2 += float(r["stars"])
+		start = snappedf(sum2 / float(maxi(1, olds.size())), 0.1)
+		for i in g.TIERS.size():
+			tier_stars[i] = "%.1f" % float(g.TIERS[i]["stars"])
+	return {
+		"caravan": types.keys().any(func(t): return str(t).begins_with("caravan")),
+		"slide": types.has("lake_slide"), "pub": types.has("pub") or types.has("pub_2"),
+		"jednota": types.has("vecerka"), "mega_gnome": types.has("mega_gnome"),
+		"tier": int(g.tier) if g != null else 0, "tier_stars": tier_stars,
+		"rating": float(g.rating(day)) if g != null else 0.0, "start_rating": start,
+		"caught": caught, "guests": people, "mood": mood, "buildings": buildings, "repair": repair,
+	}
+
+
+func _tick_news(delta: float) -> void:
+	if not is_visible_in_tree() or _splash != null:
+		return
+	_news_t -= delta
+	if _news_t <= 0.0:
+		_news_t = 3.0
+		_ensure_courier()
+		if _courier != null:
+			var due: Array = _courier.check(_camp_facts())
+			if not due.is_empty():
+				_news_queue.append_array(due)
+				var shell := _shell_node()
+				if shell != null:
+					shell.call("store", "courier", _courier.export_state())
+	if (_news_open == null or not is_instance_valid(_news_open)) and not _news_queue.is_empty():
+		_show_news(_news_queue.pop_front())
+
+
+func _show_news(item: Dictionary) -> void:
+	var pic: Texture2D = null
+	var id := str(item.get("id", ""))
+	if id.begins_with("tier"):
+		pic = _texture("res://assets/textury/os98/icons/goggle.png")
+	elif id == "caught":
+		pic = _texture("res://assets/textury/os98/web/spotless_banner.png")
+	else:
+		var key := id.rstrip("0123456789")
+		if NEWS_PICTURES.has(key):
+			pic = _texture(str(ITEM_ICONS.get(str(NEWS_PICTURES[key]), "")))
+	_news_open = load("res://scripts/builder/news_paper.gd").new()
+	_news_open.setup(item, pic)
+	add_child(_news_open)
+	var well := _map_panel.get_rect()
+	_news_open.position = (well.position + (well.size - _news_open.size) * 0.5).floor()
+	_news_open.done.connect(func():
+		_click()
+		_news_open.queue_free()
+		_news_open = null)
+	_map_panel._play("diploma" if str(item.get("kind", "")) == "diploma" else "news", -9.0)
+
+
+func _tick_cursor() -> void:
+	var shell := _shell_node()
+	if shell == null or _map_panel == null:
+		return
+	var tex: Texture2D = null
+	# Where the shell draws its pointer (the PC's own mouse, in its screen's pixels).
+	var m = shell.get("_mouse")
+	var at: Vector2 = m if m is Vector2 else _map_panel.get_global_mouse_position()
+	if is_visible_in_tree() and _map_panel.get_global_rect().has_point(at):
+		tex = cursor_texture(_selected)
+	if shell.get("tool_cursor") != tex:
+		shell.set("tool_cursor", tex)
+
+
+## The picture beside the arrow for a tool ("" none, any building the blueprint).
+func cursor_texture(tool: String) -> Texture2D:
+	var key := tool if TOOL_CURSORS.has(tool) else "*"
+	if not _cursor_tex.has(key):
+		var p := str(TOOL_CURSORS[key])
+		_cursor_tex[key] = load(p) if p != "" and ResourceLoader.exists(p) else null
+	return _cursor_tex[key]
+
+
+func _exit_tree() -> void:
+	var shell := _shell_node()
+	if shell != null and shell.get("tool_cursor") != null:
+		shell.set("tool_cursor", null)
+
+
+func _shell_node() -> Node:
+	var n: Node = self
+	while n != null and not n.has_method("stored"):
+		n = n.get_parent()
+	return n
+
+
+func _shell_stored(key: String, default: Variant) -> Variant:
+	var s := _shell_node()
+	return s.call("stored", key, default) if s != null else default
+
+
+func _toggle_music() -> void:
+	var s := _shell_node()
+	if s == null:
+		return
+	var off := not bool(s.call("stored", "builder_music_off", false))
+	s.call("store", "builder_music_off", off)
+	if _music_btn != null:
+		_music_btn.icon = _music_icon(off)
+
+
+func _music_icon(off: bool) -> Texture2D:
+	var p := "res://assets/textury/builder/tb2_music_%s.png" % ("off" if off else "on")
+	return load(p) if ResourceLoader.exists(p) else null
 
 
 func _refresh_info() -> void:
@@ -1111,6 +1939,15 @@ func _site_report() -> String:
 					counts[k] = int(counts.get(k, 0)) + 1
 	var beds: Dictionary = GuestManager.get_bed_metrics() if GuestManager != null else {}
 	var t := "Site: Kemp Cerne jezero\nDay %d\n\nBeds: %d (%d free)\nCash: $%s" % [CoreRoot.get_day(), int(beds.get("capacity", 0)), int(beds.get("free", 0)), _group(CoreRoot.get_money())]
+	var guests := 0
+	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
+		for g in GuestManager.get_guest_life_snapshot():
+			guests += int((g as Dictionary).get("party_size", 1)) if g is Dictionary else 0
+	var m := _main()
+	var h := float(m.get("_time_of_day_hours")) if m != null and m.get("_time_of_day_hours") != null else 12.0
+	if guests > 0 and h >= 18.0 and randf() < 0.12:
+		guests += 1
+	t += "\nGuests: %d" % guests
 	if not counts.is_empty():
 		t += "\n"
 		for k in counts:
@@ -1173,7 +2010,63 @@ const TOOL_PIX := {
 		"....GGGG....",
 		"...KKKKKK..."],
 }
+const TOOL_PIX_MORE := {
+	"undo": [
+		"............",
+		"...K........",
+		"..KcK.......",
+		".KccKKKKK...",
+		"KcccccccKK..",
+		".KccKKKKcK..",
+		"..KcK...KcK.",
+		"...K....KcK.",
+		".......KcK..",
+		"....KKKcK...",
+		"....KccK....",
+		"....KKK....."],
+	"zoom_in": [
+		"..KKKK......",
+		".KwwwwK.....",
+		"KwwKKwwK....",
+		"KwKKKKwK....",
+		"KwwKKwwK....",
+		".KwwwwK.....",
+		"..KKKKMM....",
+		"......MMM...",
+		".......MMM..",
+		"........MMM.",
+		".........MM.",
+		"............"],
+	"zoom_out": [
+		"..KKKK......",
+		".KwwwwK.....",
+		"KwwwwwwK....",
+		"KwKKKKwK....",
+		"KwwwwwwK....",
+		".KwwwwK.....",
+		"..KKKKMM....",
+		"......MMM...",
+		".......MMM..",
+		"........MMM.",
+		".........MM.",
+		"............"],
+	"map": [
+		"............",
+		"KKKK.KKKK.KK",
+		"KggKKbbbbKgK",
+		"KggKbbbbKggK",
+		"KggKbbbKgggK",
+		"KgggKbbKggrK",
+		"KggggKbKgrgK",
+		"KggggKbKrggK",
+		"KgggKbbKggyK",
+		"KggKbbbKgyyK",
+		"KKK.KKKK.KKK",
+		"............"],
+}
 const PIX_COLORS := {
+	"c": Color8(60, 140, 60), "w": Color8(220, 236, 255), "M": Color8(120, 80, 40),
+	"g": Color8(110, 170, 80), "b": Color8(80, 130, 210), "r": Color8(200, 60, 40),
 	"Y": Color8(240, 200, 0), "K": Color8(20, 20, 20), "D": Color8(110, 110, 110), "B": Color8(150, 150, 160),
 	"T": Color8(110, 80, 40), "t": Color8(200, 170, 110), "d": Color8(160, 130, 80),
 	"y": Color8(255, 240, 140), "G": Color8(90, 90, 96),
@@ -1190,7 +2083,7 @@ func _tool_art(id: String) -> Texture2D:
 
 
 func _tool_icon(id: String) -> Texture2D:
-	var rows: Array = TOOL_PIX.get(id, [])
+	var rows: Array = TOOL_PIX.get(id, TOOL_PIX_MORE.get(id, []))
 	var img := Image.create(24, 24, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	for y in rows.size():

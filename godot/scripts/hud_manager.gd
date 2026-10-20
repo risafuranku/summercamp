@@ -178,7 +178,7 @@ var _risk_level_known: bool = false
 var _risk_payload: Dictionary = {}
 var _unread: int = 0
 var _pager: AudioStreamPlayer
-const PAGER_SFX := "res://assets/sfx/ui/pager.wav"
+const PAGER_SFX := "res://assets/sfx/ui/pager.mp3"
 var _objective: Dictionary = {}
 var _hint_text: String = ""
 var _feed: Array[Dictionary] = []
@@ -468,6 +468,11 @@ func get_bar_height_px() -> float:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 func _process(delta: float) -> void:
+	if _open_late != "":
+		var phase := int(Time.get_ticks_msec() / 2000) % 2 == 1
+		if phase != _late_phase:
+			_late_phase = phase
+			_refresh_risk()
 	if _root == null:
 		return
 	var vp_size := get_viewport().get_visible_rect().size
@@ -1190,6 +1195,19 @@ func _refresh_mail() -> void:
 	_mail_value.add_theme_color_override("font_color", RETRO_UI.C_AMBER if _unread > 0 else RETRO_UI.C_BONE_DIM)
 
 
+## A business open late tonight (DESIGN.md §7b, the evening shift: the night comes into
+## it, so the forecast says so): the NIGHT RISK footer shows it every other two seconds.
+var _open_late := ""
+var _late_phase := false
+
+
+func set_open_late(label: String) -> void:
+	if label == _open_late:
+		return
+	_open_late = label
+	_refresh_risk()
+
+
 func _set_risk_level(level: int, from_payload: bool) -> void:
 	var previous := _risk_level_index
 	var known := _risk_level_known
@@ -1215,6 +1233,9 @@ func _refresh_risk() -> void:
 		_risk_pips[i].color = _risk_color(i + 1) if lit else Color(0.12, 0.11, 0.10)
 	_risk_level.text = _risk_footer(level)
 	_risk_level.add_theme_color_override("font_color", _risk_color(level))
+	if _open_late != "" and _late_phase:
+		_risk_level.text = "%s LATE" % _open_late
+		_risk_level.add_theme_color_override("font_color", RETRO_UI.C_AMBER)
 
 
 ## Footer under the risk lamps: "CLEAR", or the archetype closest to tipping and its
@@ -1557,7 +1578,7 @@ func page() -> void:
 	if _pager == null:
 		_pager = AudioStreamPlayer.new()
 		_pager.stream = load(PAGER_SFX) as AudioStream
-		_pager.volume_db = -6.0
+		_pager.volume_db = -2.0
 		add_child(_pager)
 	if _pager.stream != null:
 		_pager.play()

@@ -85,6 +85,38 @@ static func mood(guest_id: int, delta: float, thought: String) -> void:
 		GuestManager.apply_guest_event(guest_id, delta, thought)
 
 
+## A meal or a drink they will remember in their review (the best and the worst are
+## kept: "The fried cheese was perfect."), its score 0..100. The host's guests: the
+## joining machine sends it there.
+static func note_meal(guest_id: int, line: String, score: int) -> void:
+	if line == "":
+		return
+	if Coop.is_client():
+		Coop.send_request("meal", [guest_id, line, score])
+		return
+	if GuestManager != null and GuestManager.has_method("note_meal"):
+		GuestManager.note_meal(guest_id, line, score)
+
+
+## Visits kept in their building past their time (guest_life.visit_holds), by who keeps
+## them: "rest" (the bistro's kitchen: waiting for the plate, eating it), "vecerka" (the
+## Jednota: looking round, in the queue for the till) -> {guest id: game minute}. The
+## simulation gets the latest of them all.
+static var _holds: Dictionary = {}
+
+
+static func set_holds(source: String, holds: Dictionary) -> void:
+	_holds[source] = holds
+	var merged := {}
+	for s in _holds:
+		var h: Dictionary = _holds[s]
+		for gid in h:
+			merged[gid] = maxi(int(merged.get(gid, -1)), int(h[gid]))
+	var life = GuestManager.get("_life") if GuestManager != null else null
+	if life != null and "visit_holds" in life:
+		life.visit_holds = merged
+
+
 static func first_name(full: String) -> String:
 	var parts := full.split(" ")
 	return parts[0] if parts.size() > 0 else full

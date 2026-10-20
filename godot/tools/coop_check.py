@@ -250,6 +250,13 @@ def main():
             failures.append("Vera's checklist runs in a sandbox camp (host %s, other %s)" % (hb["quests"], cb["quests"]))
         if hb["rev"] != cb["rev"] or hb["bills"] != cb["bills"]:
             failures.append("the reviews or bills differ (host %s, other %s)" % (hb, cb))
+        # Goggle from the other machine: the removal booked and the apology on the host's page.
+        hgo, cgo = ha.get("goggle", {}), cg.get("goggle", {})
+        if not cgo.get("removing") or not cgo.get("replies"):
+            failures.append("the other warden's Goggle removal or reply did not happen there %s" % cgo)
+        elif cgo.get("removing") != hgo.get("removing") or cgo.get("replies") != hgo.get("replies"):
+            failures.append("Goggle differs: the other machine booked %s, answered %s; the host's page %s, %s" % (
+                cgo.get("removing"), cgo.get("replies"), hgo.get("removing"), hgo.get("replies")))
     # The delivery at the host's gate: the other sees it, signs for it, and it is done in the host's camp.
     cde, cdd, hdd = load("client_day_event"), load("client_day_done"), load("host_day_done")
     if cde is None or cdd is None or hdd is None:

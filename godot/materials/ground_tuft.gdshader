@@ -12,6 +12,10 @@ uniform sampler2D tex : source_color, filter_nearest;
 uniform float sway = 0.07;         // how far the top goes in a breeze (m)
 // How much of the autumn's tint it takes (grass yes, stones no).
 uniform float seasonal = 0.5;
+// The ground's colour (scripts/ambient/ground_cover.gd): the picture times this has the
+// ground picture's average (ground_ratio), taken this far (grass most, stones not at all).
+uniform vec3 ground_ratio = vec3(1.0);
+uniform float ground_match = 0.0;
 global uniform float wind_strength;
 global uniform vec2 wind_dir;
 global uniform vec3 season_leaf_tint;
@@ -43,7 +47,8 @@ void fragment() {
 	if (c.a < 0.5) {
 		discard;
 	}
-	vec3 col = mix(c.rgb, c.rgb * season_leaf_tint, seasonal);
+	vec3 col = mix(c.rgb, c.rgb * season_leaf_tint, seasonal * (1.0 - ground_match));
+	col = mix(col, c.rgb * ground_ratio, ground_match);
 	// Snow: from the top down, and the small ones under it.
 	col = mix(col, vec3(0.88, 0.90, 0.95), clamp(season_snow * (0.4 + (1.0 - UV.y) * 0.7), 0.0, 0.9));
 	ALBEDO = col;

@@ -235,7 +235,7 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 			continue
 		# Night / day switches override whatever the guest was doing.
 		var kind := str(act.get("kind", ""))
-		if night_now and kind != "sleep" and kind != "night_out" and kind != "leave":
+		if night_now and kind != "sleep" and kind != "night_out" and kind != "leave" and not (kind == "visit" and bool(act.get("late", false)) and posmod(t, 1440) < 23 * 60):
 			_release_usage(act)
 			act = _plan_sleep(guest, t)
 			guest["activity"] = act
@@ -291,8 +291,39 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 	return true
 
 
+## Places open late tonight (business_runtime sets it, the host's): their keys. In the
+## evening some guests go out to one of them before bed (DESIGN.md §7b, the evening shift).
+var late_keys: Array = []
+const LATE_GOERS := {"drunk": 0.5, "tramp": 0.4, "cheap_chick": 0.35, "quiet_guy": 0.15, "picker": 0.06, "family": 0.08}
+
+
+func _plan_late(guest: Dictionary, t: int) -> Dictionary:
+	var mod := posmod(t, 1440)
+	if late_keys.is_empty() or mod < 20 * 60 or mod >= 22 * 60 + 30:
+		return {}
+	if bool(guest.get("went_late", false)) and int(guest.get("went_late_day", -1)) == t / 1440:
+		return {}
+	var chance := float(LATE_GOERS.get(str(guest.get("archetype", "")), 0.1))
+	guest["went_late"] = true
+	guest["went_late_day"] = t / 1440
+	if _rng.randf() > chance:
+		return {}
+	var key := str(late_keys[_rng.randi() % late_keys.size()])
+	var f: Dictionary = _facility_by_key.get(key, {})
+	if f.is_empty():
+		return {}
+	var here := _parse_key(str(guest.get("tile", "")))
+	var act := _make_activity("visit", here, _door_tile(f, here), t, int(f.get("use_minutes", 10)) + 20, "fun", f)
+	act["late"] = true
+	_claim_usage(act)
+	return act
+
+
 func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 	if night_now:
+		var late := _plan_late(guest, t)
+		if not late.is_empty():
+			return late
 		return _plan_sleep(guest, t)
 	var here := _parse_key(str(guest.get("tile", "")))
 	var archetype := str(guest.get("archetype", "quiet_guy"))

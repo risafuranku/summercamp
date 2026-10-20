@@ -9,12 +9,14 @@ extends Node3D
 ##     morning there is a grey bed of ash with a thread of smoke; the woodpile is full again.
 ## Everything is stepped (flames 12 frames a second, the light 10, sparks and smoke in
 ## steps), like a 1996 sprite fire. The flame is materials/pixel_fire.gdshader on three
-## fixed-Y quads, the bed materials/fire_embers.gdshader, the smoke dither_smoke.gdshader.
+## fixed-Y quads, the bed materials/fire_embers.gdshader, the smoke Grok puffs
+## (camp/fire_smoke.png) through materials/fire_smoke.gdshader, see-through in Build's steps.
 
 const FIRE_SHADER = preload("res://materials/pixel_fire.gdshader")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const SFX_SIZZLE := "res://assets/sfx/life/sausage_sizzle.mp3"
-const SMOKE_SHADER = preload("res://materials/dither_smoke.gdshader")
+const SMOKE_SHADER = preload("res://materials/fire_smoke.gdshader")
+const SMOKE_TEX := "res://assets/textury/camp/fire_smoke.png"
 const SFX_CRACKLE := "res://assets/sfx/life/fire_crackle.mp3"
 const SFX_LOG := "res://assets/sfx/life/fire_log.mp3"
 const SFX_POP := "res://assets/sfx/life/fire_pop.mp3"
@@ -45,6 +47,7 @@ var _crackle: AudioStreamPlayer3D
 var _pops: AudioStreamPlayer3D
 var _sparks: Array = []           # {node, v, life, max}
 var _smoke: Array = []            # {node, mat, v, life, max, grow}
+var _smoke_tex: Texture2D
 var _spark_mats: Array[StandardMaterial3D] = []
 var _flare := 0.0
 var _acc := 0.0
@@ -325,10 +328,17 @@ func _puff(n: int, size: float) -> void:
 		var m := ShaderMaterial.new()
 		m.shader = SMOKE_SHADER
 		m.set_shader_parameter("seed", _rng.randf() * 100.0)
+		if _smoke_tex == null and ResourceLoader.exists(SMOKE_TEX):
+			_smoke_tex = load(SMOKE_TEX)
+		m.set_shader_parameter("puff", _smoke_tex)
 		# Smoke is only as bright as the sky behind it: grey by day, near black at night.
 		var day := clampf(1.0 - absf(_hour - 13.0) / 6.5, 0.0, 1.0)
 		var grey := _rng.randf_range(0.42, 0.6) * lerpf(0.28, 1.0, day)
-		m.set_shader_parameter("color", Color(grey, grey * 0.98, grey * 0.95))
+		var col := Color(grey, grey * 0.98, grey * 0.95)
+		# In the dark, lit from under by the flames.
+		if is_lit():
+			col += Color(0.3, 0.14, 0.05) * (1.0 - day)
+		m.set_shader_parameter("color", col)
 		s.material_override = m
 		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(s)

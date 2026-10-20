@@ -39,7 +39,18 @@ def is_paper(c):
 
 def is_ember(c):
     r, g, b, a = c
-    return a > 0 and r > 150 and g < 150 and b < 110 and r - g > 60
+    # Hot red-orange only: a tan glove (r high, g ~120-150) is not an ember.
+    return a > 0 and r > 170 and g < 110 and b < 90 and r - g > 80
+
+
+def is_glove(c):
+    """Tan leather or skin: never part of the cigarette, never cleared."""
+    import colorsys
+    r, g, b, a = c
+    if a == 0:
+        return False
+    h, s_, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+    return 0.04 <= h <= 0.14 and s_ > 0.3 and v > 0.25
 
 
 def is_ash(c):
@@ -96,18 +107,22 @@ def main():
     # The burning end: where the ember is; else the end away from the hand's mass.
     near = [(x, y) for y in range(h) for x in range(w) if is_ember(px[x, y]) or is_ash(px[x, y])]
     near = [p for p in near if min(abs(p[0] - q[0]) + abs(p[1] - q[1]) for q in paper) <= 3]
-    if near:
-        te = sum(t(p) for p in near) / len(near)
-        tip_hi = abs(te - hi) < abs(te - lo)
-    else:
-        opaque = [(x, y) for y in range(h) for x in range(w) if px[x, y][3] > 0]
-        cx = sum(p[0] for p in opaque) / len(opaque)
-        cy = sum(p[1] for p in opaque) / len(opaque)
-        tip_hi = t((cx, cy)) < (lo + hi) / 2
+    # The burning end is the one away from the hand: of the two ends of the paper, the
+    # one further from the glove/skin pixels' middle (an ember colour is no guide: a tan
+    # glove has it too).
+    hand = [(x, y) for y in range(h) for x in range(w) if is_glove(px[x, y])]
+    if not hand:
+        hand = [(x, y) for y in range(h) for x in range(w) if px[x, y][3] > 0]
+    cx = sum(p[0] for p in hand) / len(hand)
+    cy = sum(p[1] for p in hand) / len(hand)
+    end_hi = (mx + ax[0] * hi, my + ax[1] * hi)
+    end_lo = (mx + ax[0] * lo, my + ax[1] * lo)
+    tip_hi = (end_hi[0] - cx) ** 2 + (end_hi[1] - cy) ** 2 > (end_lo[0] - cx) ** 2 + (end_lo[1] - cy) ** 2
     sign = 1.0 if tip_hi else -1.0
     # Along the cigarette from the filter (0) to the tip (1); the tip end includes its
     # ember and ash pixels.
-    cig = pset | set(near)
+    near_set = set(near)
+    cig = pset | near_set
     ends = [sign * t(p) for p in cig]
     f0, f1 = min(ends), max(ends)
     # Its dark outline too, in the half towards the tip (out in the air, clear of the
@@ -119,7 +134,9 @@ def main():
     for y in range(h):
         for x in range(w):
             p = (x, y)
-            if px[x, y][3] > 0 and p not in cig and perp(p) <= thick + 3.2 and mid <= sign * t(p) <= f1 + 8.0:
+            # A thin cigarette (Grok's newer ones, a pixel or two) gets a narrow band.
+            band = thick + (1.5 if thick < 1.6 else 3.2)
+            if px[x, y][3] > 0 and p not in cig and not is_glove(px[x, y]) and perp(p) <= band and mid <= sign * t(p) <= f1 + 8.0:
                 cig.add(p)
     ends = [sign * t(p) for p in cig]
     f1 = max(ends)
@@ -153,7 +170,7 @@ def main():
                 else:
                     # The ring: dark red outside, bright inside.
                     o[p] = EMBER[2 if width_at(p) < 0.8 else (1 if k > length - band * 0.5 else 0)] + (255,)
-            elif p not in pset and lit is not None:
+            elif p in near_set:
                 # Ember or ash of the drawing further back than the new end: paper now.
                 o[p] = (236, 232, 222, 255)
         return out

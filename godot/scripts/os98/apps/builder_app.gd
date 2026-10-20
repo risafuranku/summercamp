@@ -26,10 +26,11 @@ func setup(shell, win, _args: Dictionary) -> void:
 	_module.program_requested.connect(func(id: String): shell.open_app(id))
 	_focus.call_deferred()
 	# The shareware nag, once per sitting at the computer, after the title picture.
-	if not shell.has_meta("builder_nagged"):
+	var sw = shell.stored("builder98", {}) if shell.has_method("stored") else {}
+	if not shell.has_meta("builder_nagged") and not (sw is Dictionary and bool((sw as Dictionary).get("registered", false))):
 		shell.set_meta("builder_nagged", true)
 		var left := maxi(1, 30 - CoreRoot.get_day())
-		var nag := "Thank you for trying Builder 98!\n\nThis copy is not registered. You have %d days\nof your 30-day trial left.\n\nRegister for 990 Kc: Stavitel software, Brnenska 14, Jihlava." % left
+		var nag := "Thank you for trying Builder 98!\n\nThis copy is not registered. You have %d days\nof your 30-day trial left.\n\nRegister for $99: Help > Register..." % left
 		_module.splash_finished.connect(func(): shell.message_box("Builder 98 - Unregistered", nag, "info", ["Continue"]), CONNECT_ONE_SHOT)
 
 
@@ -47,6 +48,8 @@ func focus_building(coord: Vector2i) -> void:
 		return
 	var map = _module._map_panel
 	var info: Dictionary = map.structure_at(coord)
+	if not _module.camp_focused:
+		_module.camp_focused = map.focus_camp()
 	map.debug_center_on(coord)
 	map.inspect_origin = info.get("origin", Vector2i(-1, -1))
 	map.inspect_footprint = info.get("footprint", Vector2i.ONE)

@@ -422,7 +422,8 @@ func _setup_ambient_music() -> void:
 	_sfx_ambient_music.name = "AmbientMusicSfx"
 	_sfx_ambient_music.volume_db = AMBIENT_MUSIC_SILENT_DB
 	# Keep OST level stable indoors/outdoors; only ambience SFX should be ducked in interiors.
-	_sfx_ambient_music.bus = MASTER_BUS_NAME
+	# Its own bus, so a room can pull it down (the reception's radio: set_ambient_music_duck).
+	_sfx_ambient_music.bus = _ambient_music_bus()
 	if _sfx_bus != null:
 		_sfx_bus.add_child(_sfx_ambient_music)
 	else:
@@ -1502,6 +1503,26 @@ func _fade_crickets_to(target_db: float, stop_after: bool) -> void:
 			if _sfx_crickets.playing and _sfx_crickets.volume_db <= CRICKETS_SILENT_DB + 0.5:
 				_sfx_crickets.stop()
 		)
+
+
+## The evening's music under a room's own sound, eased there (the reception: it played
+## over the radio, the user 20. 10.). 0 is as it is.
+const AMBIENT_MUSIC_BUS_NAME := "AmbientMusic"
+
+
+func set_ambient_music_duck(target_db: float, delta: float) -> void:
+	var i := AudioServer.get_bus_index(AMBIENT_MUSIC_BUS_NAME)
+	if i >= 0:
+		AudioServer.set_bus_volume_db(i, move_toward(AudioServer.get_bus_volume_db(i), target_db, delta * 18.0))
+
+
+func _ambient_music_bus() -> String:
+	if AudioServer.get_bus_index(AMBIENT_MUSIC_BUS_NAME) < 0:
+		AudioServer.add_bus()
+		var i := AudioServer.bus_count - 1
+		AudioServer.set_bus_name(i, AMBIENT_MUSIC_BUS_NAME)
+		AudioServer.set_bus_send(i, MASTER_BUS_NAME)
+	return AMBIENT_MUSIC_BUS_NAME
 
 
 func _fade_ambient_music_to(target_db: float, stop_after: bool) -> void:

@@ -41,6 +41,8 @@ var _wet_t := 0.0
 var _t := 0.0
 var _leaves: GPUParticles3D
 var _snow: GPUParticles3D
+## The snow further off: bigger flakes, from eight metres (_snow is round you).
+var _snow_far: GPUParticles3D
 var _follow: Callable
 var _autumn_tex: Texture2D
 var _snow_tex: Texture2D
@@ -52,7 +54,11 @@ func setup(follow: Callable) -> void:
 	_autumn_tex = load(AUTUMN_TEX) if ResourceLoader.exists(AUTUMN_TEX) else null
 	_snow_tex = load(SNOW_TEX) if ResourceLoader.exists(SNOW_TEX) else null
 	_leaves = _make_particles("FallingLeaves", 360, 7.0, Vector3(16, 6, 16), _leaf_mesh())
-	_snow = _make_particles("Snowfall", 2600, 8.0, Vector3(20, 9, 20), _flake_mesh())
+	# The snow round you dense and the flakes big enough to see (2600 of 4 cm over forty
+	# metres were a pixel or less: snowfall did not show at noon, inventory 20. 10.), and
+	# beyond them bigger ones, as the rain has its far layer.
+	_snow = _make_particles("Snowfall", 4200, 7.0, Vector3(11, 7, 11), _flake_mesh(0.07, 0.0, 0.0))
+	_snow_far = _make_particles("SnowfallFar", 3200, 9.0, Vector3(30, 10, 30), _flake_mesh(0.16, 8.0, 14.0))
 	apply(true)
 
 
@@ -61,7 +67,8 @@ func _process(delta: float) -> void:
 	var c: Node3D = _follow.call() if _follow.is_valid() else null
 	if c != null:
 		_leaves.global_position = c.global_position + Vector3(0, 5.5, 0)
-		_snow.global_position = c.global_position + Vector3(0, 8.0, 0)
+		_snow.global_position = c.global_position + Vector3(0, 6.0, 0)
+		_snow_far.global_position = c.global_position + Vector3(0, 9.0, 0)
 	var soak: float = [0.0, 0.55, 0.85, 1.0][clampi(precip, 0, 3)] if not is_snowing() else 0.0
 	wet = move_toward(wet, soak, delta / (SOAK_SEC if soak > wet else DRY_SEC))
 	_wet_t -= delta
@@ -138,17 +145,19 @@ func apply(_force: bool) -> void:
 		# Their own colours, browner as the autumn goes on.
 		mat.albedo_color = Color(1, 1, 1).lerp(Color(0.78, 0.6, 0.5), clampf((turn - 0.5) * 2.0, 0.0, 1.0))
 	var snowing := is_snowing()
-	_snow.emitting = snowing
-	if snowing:
-		_snow.amount_ratio = [0.0, 0.35, 0.7, 1.0][clampi(precip, 0, 3)]
-		var pm2 := _snow.process_material as ParticleProcessMaterial
-		var blow := 0.6 + (2.5 if precip >= 3 else 0.0)
-		pm2.gravity = Vector3(wind.x * blow, -1.4, wind.y * blow)
+	for layer in [_snow, _snow_far]:
+		layer.emitting = snowing
+		if snowing:
+			layer.amount_ratio = [0.0, 0.35, 0.7, 1.0][clampi(precip, 0, 3)]
+			var pm2 := layer.process_material as ParticleProcessMaterial
+			var blow := 0.6 + (2.5 if precip >= 3 else 0.0)
+			pm2.gravity = Vector3(wind.x * blow, -1.4, wind.y * blow)
 
 
 ## The season's colour of the ground, as wet as it is now.
 func _wetted(c: Color) -> Color:
-	var k := lerpf(1.0, 0.6, wet)
+	# (To 0.6 the wet meadow went near black under the rain's dull light.)
+	var k := lerpf(1.0, 0.72, wet)
 	return Color(c.r * k * lerpf(1.0, 0.94, wet), c.g * k * lerpf(1.0, 0.97, wet), c.b * k * lerpf(1.0, 1.04, wet), c.a)
 
 
@@ -236,9 +245,10 @@ func _leaf_sheet() -> Texture2D:
 	return ImageTexture.create_from_image(sheet)
 
 
-func _flake_mesh() -> QuadMesh:
+## A flake `size` metres across; with `fade_to` > 0 seen only from `fade_from` metres on.
+func _flake_mesh(size: float, fade_from: float, fade_to: float) -> QuadMesh:
 	var q := QuadMesh.new()
-	q.size = Vector2(0.04, 0.04)
+	q.size = Vector2(size, size)
 	var m := StandardMaterial3D.new()
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
@@ -248,5 +258,9 @@ func _flake_mesh() -> QuadMesh:
 	if ResourceLoader.exists(FLAKE_TEX):
 		m.albedo_texture = load(FLAKE_TEX)
 		m.albedo_color = Color(1, 1, 1, 0.95)
+	if fade_to > 0.0:
+		m.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+		m.distance_fade_min_distance = fade_from
+		m.distance_fade_max_distance = fade_to
 	q.material = m
 	return q

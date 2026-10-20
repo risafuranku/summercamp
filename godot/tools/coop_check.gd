@@ -84,8 +84,8 @@ func _ready() -> void:
 			["coop_wait_file", "client_court_done"], ["eval", "_warden_play.leave()"], ["wait", 0.5], ["coop_place", 12, 14, 1.0],
 			# Behind the pub's bar at the tap: the other warden sees them there.
 			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('pub'))"], ["wait", 2.0],
-			["eval", "_interior_manager._service_interior._open_counter_game()"], ["wait", 1.0], ["coop_signal", "host_at_tap"],
-			["coop_wait_file", "client_saw_tap"], ["eval", "_interior_manager._service_interior._counter_game.close_view()"], ["wait", 0.5],
+			["eval", "_interior_manager._service_interior._open_station('tap')"], ["wait", 1.0], ["coop_signal", "host_at_tap"],
+			["coop_wait_file", "client_saw_tap"], ["eval", "_interior_manager._service_interior._stations['tap'].close_station()"], ["wait", 0.5],
 			["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0], ["coop_place", 12, 14, 1.0],
 			# The other warden behind the corn stand, ordering corn: seen there, the order in
 			# the host's books.
@@ -228,7 +228,7 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior.enter_crt_view()"], ["wait", 2.0],
 			["coop_build_at", "tent_1", 15, 16], ["coop_read_mail"], ["wait", 1.0],
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
-			["coop_wait_file", "host_guests"], ["wait", 3.0], ["coop_list_bazaar"], ["wait", 0.5], ["coop_fingerprint", "client_guests"], ["coop_signal", "client_guests_seen"],
+			["coop_wait_file", "host_guests"], ["wait", 3.0], ["coop_list_bazaar"], ["coop_goggle"], ["wait", 0.5], ["coop_fingerprint", "client_guests"], ["coop_signal", "client_guests_seen"],
 			# Spent here (a pint in Lesna, say): the host's till pays it.
 			["coop_spend", 40], ["wait", 3.0], ["coop_fingerprint", "client_till"], ["coop_signal", "client_spent"],
 			["coop_wait_file", "host_day_event"], ["wait", 2.5], ["coop_fingerprint", "client_day_event"],
@@ -570,6 +570,16 @@ func _run_step(step: Array) -> void:
 			var box: Array = _main.get("_bazaar").in_box()
 			if not box.is_empty():
 				_main.bazaar_list(int(box[0]["id"]))
+		"coop_goggle":
+			# Goggle from the other machine: a bad review booked with SpotlessName, an
+			# apology under another; both done on the host's page (main.coop_request).
+			var g = _main.get("_goggle")
+			if g != null:
+				var bad: Array = g.shown().filter(func(e): return int(e["stars"]) <= 2 and str(e.get("ghost_reply", "")) == "")
+				if bad.size() >= 2:
+					print("COOP CHECK goggle: remove %d, apologise to %d" % [int(bad[0]["id"]), int(bad[1]["id"])])
+					_main.goggle_remove(int(bad[0]["id"]))
+					_main.goggle_reply(int(bad[1]["id"]), "sorry")
 		_:
 			super._run_step(step)
 
@@ -887,6 +897,21 @@ func _books() -> Dictionary:
 		"bills": (_main.get("_billing").bills as Array).size()}
 
 
+## The camp's Goggle page: what is up, what is booked to go, what is answered.
+func _goggle_row() -> Dictionary:
+	var g = _main.get("_goggle")
+	if g == null:
+		return {}
+	var removing: Array = []
+	var replies: Array = []
+	for e in g.reviews:
+		if int(e["removing"]) >= 0 and not bool(e["removed"]):
+			removing.append(int(e["id"]))
+		if str(e["reply"]) != "":
+			replies.append("%d:%s" % [int(e["id"]), str(e["reply"])])
+	return {"count": int(g.count()), "removing": removing, "replies": replies}
+
+
 func _write_fingerprint(tag: String) -> void:
 	var wg = _main.get("world_generator")
 	var bm = _main.get("building_manager")
@@ -972,6 +997,7 @@ func _write_fingerprint(tag: String) -> void:
 		"town_mate": _town_mate(),
 		"pipe_net": _pipe_net(),
 		"books": _books(),
+		"goggle": _goggle_row(),
 		"wardens": Coop.others().map(func(id): return [int(Coop.look_of(id)["m"]), int(Coop.look_of(id)["c"]), Coop.name_of(id), Coop.figure_of(id) != null and Coop.figure_of(id).visible]),
 		"night_passing": _main.get("camp_office") != null and bool(_main.get("camp_office").is_fast_forwarding()),
 		"my_slot": Coop.my_slot,

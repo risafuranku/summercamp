@@ -1,151 +1,209 @@
 extends "res://scripts/pub/pub_station.gd"
 
-## The glass washer (assets/textury/pub/st_wash.png): the steel counter at the left where
-## the dirty mugs come back to, the sink in the middle with its two upright brushes, the
-## drying rack at the right.
-##   take    click the dirty mugs: one onto the brushes
-##   scrub   hold the button on it and work the mouse up and down: the foam rings and the
-##           lipstick come off stroke by stroke (pub_rules.SCRUBS), the suds rise
-##   rack    click the rack: the clean mug goes up on it (a clean mug for the tap)
-## A hand behind the bar washes up too.
+## The washer at the bar's end (DESIGN.md §7b "the pub"), worked in the room: a steel sink
+## let into the right end of the bar top, the dirty mugs come back from the tables onto the
+## bar in front of it by themselves (taproom.gd, when they are drunk), the clean ones go on
+## the board by the tap (its sprites are the tap's: tap_station.BOARD). Things are sprites
+## at the room's pixel.
+##   take a dirty mug into the water (drag it, or a click); hold the button on it and rub,
+##   up and down, the rings coming off stroke by stroke; clean, onto the rack (drag it,
+##   or a click). The glass washer (gear) washes the lot by itself.
 
-const DIRTY := Rect2(12, 150, 170, 150)
-const BRUSH_FOOT := Vector2(300, 250)
-const RACK := Rect2(420, 120, 210, 170)
+## On the bar top (design px, pub_layout.SURFACES: 2.5 mm a px): the empties on the
+## guests' side, the sink on the barman's, the tap's board of clean mugs at its right.
+const PILE := Rect2(196, 24, 168, 90)
+const PILE_SPOTS := [Vector2(226, 52), Vector2(278, 52), Vector2(330, 52), Vector2(240, 96), Vector2(292, 96), Vector2(344, 96)]
+const WATER_AT := Vector2(280, 228)
+const WATER := Rect2(200, 168, 160, 112)
+const RACK := Rect2(356, 146, 168, 92)
+const K_SURF := preload("res://scripts/interior_kit.gd")
+const STROKES := 700.0
+const MUG_M := 0.16
+const DRAG_FAR := 8.0
 
-var _holding := false
+var _in_water := false
 var _dirt := 1.0
-var _last_y := -1.0
-var _dir := 0
 var _scrubbing := false
-var _suds: Array = []
-var _rng := RandomNumberGenerator.new()
+var _last := Vector2(-1, -1)
+var _hand_what := ""
+var _press_at := Vector2(-1, -1)
+var _far := false
+var _pile: Array = []
+var _mug: Sprite3D
+var _mug_dirt: Sprite3D
+var _bubbles: Array = []
+var _bubble_spr: Array = []
+var _shine: Sprite3D
 
 
-func _ready() -> void:
-	super._ready()
-	station = "wash"
-	room = "bar"
-	picture = tex("st_wash")
-	_rng.randomize()
-	for n in ["mug_clean", "mug_dirty", "bubbles"]:
-		tex(n)
+func _build() -> void:
+	super._build()
+	_build_sink()
+	for i in PILE_SPOTS.size():
+		_pile.append(psprite("mug_dirty", MUG_M))
+	_mug = psprite("mug_clean", MUG_M)
+	_mug_dirt = psprite("mug_dirty", MUG_M)
+	for i in 8:
+		var b := sprite("res://assets/textury/bistro/bubbles.png", 0.05, true)
+		b.visible = false
+		_bubble_spr.append(b)
+	_shine = meter(5, 18)
+	_shine.position = local_at(Vector2(WATER.position.x - 16, WATER_AT.y), 0.1)
 
 
-func _opened() -> void:
+## The sink: a steel rim let into the bar top, the water in it (camp/galvanized.png,
+## camp/lake_water.png greyed), plain boxes the room's way.
+func _build_sink() -> void:
+	var c := local_at(WATER.get_center(), 0.0)
+	var w := metres_x(WATER.size.x)
+	var d := WATER.size.y / DESIGN.y * surf_size.y
+	var rim := MeshInstance3D.new()
+	rim.name = "SinkRim"
+	var b := BoxMesh.new()
+	b.size = Vector3(w + 0.04, 0.016, d + 0.04)
+	rim.mesh = b
+	rim.material_override = K_SURF.surface("galvanized", 0.3, Color(0.85, 0.87, 0.9))
+	rim.position = c + Vector3(0, 0.008, 0)
+	add_child(rim)
+	var water := MeshInstance3D.new()
+	water.name = "SinkWater"
+	var q := BoxMesh.new()
+	q.size = Vector3(w, 0.004, d)
+	water.mesh = q
+	water.material_override = K_SURF.surface("lake_water", 0.4, Color(0.55, 0.6, 0.58))
+	water.position = c + Vector3(0, 0.018, 0)
+	add_child(water)
+
+
+func _show() -> void:
+	if taproom == null or building_key == "":
+		return
 	var m: Dictionary = taproom.mugs(building_key)
-	if int(m["dirty"]) == 0 and not _holding:
-		say("", "Nothing to wash. %d clean mugs." % int(m["clean"]))
-
-
-func _closing() -> void:
-	_scrubbing = false
-
-
-func _mug_rect() -> Rect2:
-	var t := tex("mug_clean")
-	var sz := t.get_size() * float(PIX) if t != null else Vector2(80, 96)
-	var foot := BRUSH_FOOT + Vector2(0, (_last_y - 200.0) * 0.15 if _scrubbing and _last_y >= 0.0 else 0.0)
-	return Rect2((foot - Vector2(sz.x * 0.5, sz.y)).floor(), sz)
+	var dirty := int(m["dirty"]) - (1 if _in_water or _hand_what == "pile" else 0)
+	for i in _pile.size():
+		var s: Sprite3D = _pile[i]
+		s.visible = i < dirty
+		put(s, PILE_SPOTS[i], 0.0)
+	var in_hand := _hand_what != ""
+	_mug.visible = _in_water or in_hand
+	_mug_dirt.visible = (_in_water and _dirt > 0.0) or _hand_what == "pile"
+	if in_hand:
+		_mug.position = held_at(0.06)
+		_mug_dirt.position = held_at(0.06) + Vector3(0, 0, 0.003)
+	else:
+		# Pressed down in the water as you scrub: in steps, up and down.
+		var down := 0.0
+		if _scrubbing and _last.y >= 0.0:
+			down = -0.03 * (float(int(_t * 10.0) % 2))
+		put(_mug, WATER_AT, -0.05 + down)
+		put(_mug_dirt, WATER_AT, -0.05 + down)
+		_mug_dirt.position.z += 0.003
+	_mug_dirt.modulate.a = 1.0 if _hand_what == "pile" else ceilf(_dirt * 4.0) / 4.0
+	for i in _bubble_spr.size():
+		var spr: Sprite3D = _bubble_spr[i]
+		spr.visible = i < _bubbles.size()
+		if spr.visible:
+			var b: Dictionary = _bubbles[i]
+			put(spr, b["at"], 0.04 + floorf(float(b["t"]) / 0.7 * 5.0) / 5.0 * 0.08)
+	_shine.visible = _in_water and not in_hand and is_open()
+	if _shine.visible:
+		set_meter(_shine, 1.0 - _dirt, Vector2(-1, -1), RETRO_UI.C_GREEN)
 
 
 func _spots() -> Array:
 	var out: Array = []
 	if taproom == null:
 		return out
-	var dirty := int(taproom.mugs(building_key)["dirty"])
-	if not _holding:
-		out.append({"id": "dirty", "rect": DIRTY, "verb": ("Take a dirty mug (%d)" % dirty) if dirty > 0 else "No dirty mugs"})
-	elif _dirt > 0.02:
-		out.append({"id": "mug", "rect": _mug_rect().grow(10.0), "verb": "Hold and scrub it up and down on the brushes"})
-	else:
-		out.append({"id": "rack", "rect": RACK, "verb": "Put it up on the rack"})
-		out.append({"id": "mug", "rect": _mug_rect(), "verb": "Clean. Up on the rack with it"})
+	var dirty := int(taproom.mugs(building_key)["dirty"]) - (1 if _in_water else 0)
+	if not _in_water and dirty > 0:
+		out.append({"id": "pile", "rect": PILE, "verb": "A dirty mug into the water (%d)" % dirty})
+	if _in_water:
+		out.append({"id": "mug", "node": _mug, "verb": "Scrub it: hold and rub" if _dirt > 0.0 else "Clean: onto the rack"})
 	return out
 
 
 func _press(id: String) -> void:
+	_press_at = _mouse
+	_far = false
 	match id:
-		"dirty":
-			if int(taproom.mugs(building_key)["dirty"]) <= 0:
-				say("", "None dirty. Go and pour.")
-				return
-			_holding = true
-			_dirt = 1.0
-			sfx("glass_down", -12.0, 0.9)
+		"pile":
+			_hand_what = "pile"
+			sfx("glass_down", -14.0, 1.2)
 		"mug":
-			if _dirt > 0.02:
-				_scrubbing = true
-				_last_y = _mouse.y
-				_dir = 0
-			else:
-				_rack()
-		"rack":
-			_rack()
-
-
-func _release(_id: String) -> void:
-	_scrubbing = false
+			if _dirt <= 0.0:
+				_hand_what = "clean"
+				return
+			_scrubbing = true
+			_last = _mouse_free
 
 
 func _drag(at: Vector2) -> void:
-	if not _scrubbing or at.x < 0.0:
+	if at.x < -500.0:
 		return
-	var dy := at.y - _last_y
-	if absf(dy) < 6.0:
+	if _press_at.x >= 0.0 and at.distance_to(_press_at) > DRAG_FAR:
+		_far = true
+	if _hand_what == "pile":
+		mark_target(WATER if _far and WATER.grow(20.0).has_point(at) else Rect2())
+	elif _hand_what == "clean":
+		mark_target(RACK if _far and RACK.grow(30.0).has_point(at) else Rect2())
+	if not _scrubbing or _dirt <= 0.0:
 		return
-	var d := 1 if dy > 0.0 else -1
-	if d != _dir:
-		# A stroke: the brush turns in the mug, a little dirt off.
-		_dir = d
-		_dirt = maxf(0.0, _dirt - 1.0 / float(PUB.SCRUBS))
-		sfx("scrub", -12.0, randf_range(0.9, 1.15))
-		for i in 3:
-			_suds.append({"at": _mug_rect().get_center() + Vector2(_rng.randf_range(-30, 30), _rng.randf_range(-30, 20)), "t": 0.0})
-		if _dirt <= 0.02:
-			_scrubbing = false
-			say("", "Clean.")
-			sfx("glass_clink", -10.0)
-	_last_y = at.y
+	var d := (at - _last).length()
+	_last = at
+	if d <= 0.5:
+		return
+	_dirt = maxf(0.0, _dirt - d / STROKES)
+	if randf() < d / 40.0 and _bubbles.size() < _bubble_spr.size():
+		_bubbles.append({"at": at + Vector2(randf_range(-14, 14), randf_range(-8, 8)), "t": 0.0})
+	if randf() < d / 120.0:
+		sfx("scrub", -14.0, randf_range(0.9, 1.15))
+	if _dirt <= 0.0:
+		pop("CLEAN", WATER_AT + Vector2(0, -50), RETRO_UI.C_GREEN_LIGHT)
+		sfx("tick", -10.0, 1.4)
+		_scrubbing = false
 
 
-func _rack() -> void:
-	var m: Dictionary = taproom.mugs(building_key)
-	if int(m["dirty"]) > 0:
+func _release(_id: String) -> void:
+	var what := _hand_what
+	_hand_what = ""
+	_scrubbing = false
+	mark_target(Rect2())
+	var at := _mouse_free
+	if what == "pile":
+		if _far and not WATER.grow(20.0).has_point(at):
+			return
+		_in_water = true
+		_dirt = 1.0
+		sfx("splash", -8.0)
+	elif what == "clean":
+		if _far and not RACK.grow(30.0).has_point(at):
+			return
 		taproom.act(building_key, "mugs", [1, -1])
-	_holding = false
-	_dirt = 1.0
-	pop("+1", RACK.get_center(), RETRO_UI.C_GREEN_LIGHT)
-	sfx("glass_down", -10.0, 1.1)
+		_in_water = false
+		pop("+1", RACK.get_center() + Vector2(0, -60), RETRO_UI.C_GREEN_LIGHT)
+		sfx("glass_down", -8.0)
 
 
 func _tick(delta: float) -> void:
-	for s in _suds:
-		s["t"] = float(s["t"]) + delta
-	_suds = _suds.filter(func(s: Dictionary) -> bool: return float(s["t"]) < 0.8)
+	for b in _bubbles:
+		b["t"] = float(b["t"]) + delta
+	_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return float(b["t"]) < 0.7)
 
 
-# ── drawing ──────────────────────────────────────────────────────────────────
+func _closing() -> void:
+	_in_water = false
+	_scrubbing = false
+	_hand_what = ""
 
-func _paint(c: Control) -> void:
-	if taproom == null:
-		return
-	var m: Dictionary = taproom.mugs(building_key)
-	# The dirty ones back from the tables, as many as there are (a few shown).
-	var dirty := int(m["dirty"]) - (1 if _holding else 0)
-	for i in mini(4, maxi(0, dirty)):
-		stand(c, "mug_dirty", Vector2(DIRTY.position.x + 40 + (i % 2) * 70, DIRTY.end.y - 6 - (i / 2) * 40))
-	ink(c, Vector2(DIRTY.position.x + 4, DIRTY.end.y + 12), "DIRTY %d" % maxi(0, dirty), RETRO_UI.C_BONE)
-	# The clean ones up on the rack.
-	var clean := int(m["clean"])
-	for i in mini(6, clean):
-		stand(c, "mug_clean", Vector2(RACK.position.x + 34 + (i % 3) * 66, RACK.position.y + 80 + (i / 3) * 80))
-	ink(c, Vector2(RACK.position.x + 4, RACK.end.y + 12), "CLEAN %d" % clean, RETRO_UI.C_BONE)
-	# The mug on the brushes: the dirty picture fading off the clean one.
-	if _holding:
-		var r := _mug_rect()
-		stand(c, "mug_clean", Vector2(r.get_center().x, r.end.y))
-		stand(c, "mug_dirty", Vector2(r.get_center().x, r.end.y), _dirt)
-		meter(c, Rect2(r.end.x + 10, r.position.y + 10, 6, 60), 1.0 - _dirt, Vector2(-1, -1), RETRO_UI.C_GREEN, true)
-	for s in _suds:
-		blit(c, "bubbles", (s["at"] as Vector2) + Vector2(0, -float(s["t"]) * 30.0), 1.0 - float(s["t"]) / 0.8)
+
+# ── debug (tools/pub_shots.gd) ───────────────────────────────────────────────
+
+func debug_wash_one() -> void:
+	if int(taproom.mugs(building_key)["dirty"]) > 0:
+		taproom.act(building_key, "mugs", [1, -1])
+
+
+func debug_into_water() -> void:
+	if int(taproom.mugs(building_key)["dirty"]) > 0:
+		_in_water = true
+		_dirt = 0.6

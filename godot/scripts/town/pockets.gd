@@ -48,8 +48,8 @@ const ANCHOR := {
 	"hand2_v": Vector2(61, 21), "hand2_v_mouth": Vector2(83, 29),
 	"hand2_lighter": Vector2(77, 4), "hand2_pack": Vector2(40, 15),
 	# The lighter held to the tip of the cigarette in your mouth, one picture: its nozzle;
-	# the filter comes in at the bottom at x 61.
-	"hand4_lighting": Vector2(61, 6),
+	# the filter comes in at the bottom at x 65.
+	"hand4_lighting": Vector2(65, 17),
 }
 ## Where on the cigarette pictures your fingers hold it (from its bottom left corner).
 const CIG_GRIP := Vector2(11, -11)
@@ -96,6 +96,8 @@ var _lips: TextureRect
 var _flame: TextureRect
 var _right: TextureRect
 var _puff_layer: Control
+## The smoke breathed out: soft, with real see-through edges, not the hands' dither.
+var _smoke_layer: Control
 var _puffs: Array = []        # {pos, vel, life, max, delay, f0}
 var _falls: Array = []        # ash flakes falling on the screen: {pos, vel, tex, life}
 var _wobble: ColorRect
@@ -168,6 +170,12 @@ func _ready() -> void:
 	_puff_layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_puff_layer.draw.connect(_draw_puffs)
 	add_child(_puff_layer)
+	_smoke_layer = Control.new()
+	_smoke_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_smoke_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_smoke_layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_smoke_layer.draw.connect(_draw_smoke)
+	add_child(_smoke_layer)
 	# Back to front: the cigarette under the fingers that hold it, the one in your mouth
 	# under the lighter, the flame over the lighter, the bottle hand on its own side.
 	_cig_rect = _rect("Cig")
@@ -213,8 +221,9 @@ func tex(n: String) -> Texture2D:
 # ── using things ─────────────────────────────────────────────────────────────
 
 ## A cigarette ("smoke") or a bottle ("drink") out of the bag, if you can now.
-func try_use(what: String) -> bool:
-	if not _can_act():
+## `from_bag`: asked by the bag itself (open, it would otherwise count as in the way).
+func try_use(what: String, from_bag := false) -> bool:
+	if not _can_act(from_bag):
 		return false
 	if what == "smoke":
 		if cig.active():
@@ -253,8 +262,8 @@ func hands_full() -> bool:
 	return bottle.active()
 
 
-func _can_act() -> bool:
-	return allowed.is_valid() and bool(allowed.call()) and not _blocked()
+func _can_act(from_bag := false) -> bool:
+	return allowed.is_valid() and bool(allowed.call()) and not _blocked(from_bag)
 
 
 # ── the frame ────────────────────────────────────────────────────────────────
@@ -374,7 +383,7 @@ func _indoors() -> bool:
 
 
 ## Anything open over the view that wants your hands (a close-up, the PC, the boat...).
-func _blocked() -> bool:
+func _blocked(from_bag := false) -> bool:
 	if get_tree().paused:
 		return true
 	for n in get_tree().get_nodes_in_group("closeup"):
@@ -396,7 +405,7 @@ func _blocked() -> bool:
 				return true
 	if main.has_method("_in_attraction") and bool(main.call("_in_attraction")):
 		return true
-	if bag != null and bag.has_method("is_open") and bool(bag.is_open()):
+	if not from_bag and bag != null and bag.has_method("is_open") and bool(bag.is_open()):
 		return true
 	return false
 
@@ -747,9 +756,13 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		frame = "hold"
 	elif frame == "hand2_v_mouth" and tex("hand4_cig_mouth") != null:
 		frame = "hand4_cig_mouth"
-	if cig.state == CIG.THROW and frame == "hold" and tex("hand5_cig_windup") != null:
-		# Cocked back, then the flick (the butt gone from the fingers).
-		frame = "hand5_cig_windup" if cig.t < 0.17 else "hand5_cig_flick"
+	if cig.state == CIG.THROW and frame == "hold" and tex("hand5_cig_flick") != null:
+		# Held a beat (cocked back by its offset), then the flick: the butt gone from the
+		# fingers (a wind-up picture of its own when there is one).
+		if cig.t >= 0.17:
+			frame = "hand5_cig_flick"
+		elif tex("hand5_cig_windup") != null:
+			frame = "hand5_cig_windup"
 	frame = _sequence("l", frame)
 	var t := _hold_tex() if frame == "hold" else tex(frame)
 	# The in-betweens with a cigarette in them burn down with it too.
@@ -775,9 +788,9 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	var lips_tip := vp.y - bar - 28.0 * s
 	if frame == "hand4_cig_mouth":
 		# At your mouth, the palm to you: the filter at the bottom middle, in your lips.
-		# (the filter's round end measured on the sprite: 58, 59)
-		x = vp.x * 0.5 - 58.0 * s
-		y = vp.y - bar - (59.0 + 6.0) * s * up + (1.0 - up) * _left.size.y * 0.3
+		# (the filter's round end measured on the sprite: 46 across, at its bottom edge)
+		x = vp.x * 0.5 - 46.0 * s
+		y = vp.y - bar - (_left.size.y - 3.0 * s) * up + (1.0 - up) * _left.size.y * 0.3
 	elif frame == "hand2_v_mouth":
 		# Up at your mouth: the gap between the fingers just over the bottom middle, the
 		# back of the hand filling the lower view.
@@ -786,7 +799,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	elif frame == "hand4_lighting":
 		# The cigarette's filter at your lips: the picture's bottom on the bottom edge,
 		# the filter in the middle.
-		x = vp.x * 0.5 - 61.0 * s
+		x = vp.x * 0.5 - 65.0 * s
 		y = vp.y - bar - _left.size.y * up + (1.0 - up) * _left.size.y * 0.25
 	elif frame == "hand2_lighter":
 		# The nozzle just under the tip of the one in your mouth.
@@ -800,7 +813,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		x = vp.x * 0.5 - _left.size.x * 0.5
 		y = vp.y - bar - _left.size.y * 0.88 * up
 	elif frame == "hand5_lighting_strike":
-		x = vp.x * 0.5 - 61.0 * s
+		x = vp.x * 0.5 - 65.0 * s
 		y = vp.y - bar - _left.size.y * up
 	elif frame == "hand5_cig_mid":
 		# Halfway to your mouth.
@@ -830,7 +843,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 			pos.y += 4.0 * s
 		elif cig.t > 0.72:
 			pos += Vector2(vp.x * 0.12, -10.0 * s)
-	if cig.state == CIG.THROW and not frame.begins_with("hand5_cig_"):
+	if cig.state == CIG.THROW and frame != "hand5_cig_flick":
 		pos += (Vector2(-8.0, 6.0) if cig.t < 0.15 else Vector2(46.0, -34.0)) * s
 	# Drinking, the cigarette hand drops out of the way (and comes back up after).
 	if bottle.state == BOTTLE.DRINK or (bottle.state == BOTTLE.FOAM and Input.is_action_pressed("drink")):
@@ -1155,14 +1168,20 @@ func _blow(drag: float) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	var env := _env()
 	var wind := 0.0 if bool(env["indoors"]) else float(env["wind"])
-	var n := clampi(int(1.0 + drag * 1.6), 1, 5)
+	# One breath: a main puff from the middle of the mouth, a couple more behind it as
+	# the breath goes on (a long drag, more), rolling forward and up, thinning out
+	# through the eight frames of smoke2_*; with the wind it is carried off sideways,
+	# in a room it hangs and rises slowly.
+	var indoors := bool(env["indoors"])
+	var n := clampi(int(1.0 + drag * 1.2), 1, 4)
 	var side := 1.0 if _rng.randf() < 0.5 else -1.0
+	var k0 := vp.y / 720.0
 	for k in n:
 		_puffs.append({
-			"pos": Vector2(vp.x * _rng.randf_range(0.44, 0.56), vp.y * _rng.randf_range(0.66, 0.78)),
-			"vel": Vector2(_rng.randf_range(-30.0, 30.0) + side * wind * 260.0, _rng.randf_range(-70.0, -30.0) * (0.5 if bool(env["indoors"]) else 1.0)) * vp.y / 720.0,
-			"life": 0.0, "max": _rng.randf_range(1.4, 2.4) * (1.6 if bool(env["indoors"]) else 1.0 - wind * 0.4),
-			"delay": float(k) * 0.08, "f0": 0 if k < 2 else 1,
+			"pos": Vector2(vp.x * (0.5 + _rng.randf_range(-0.03, 0.03)), vp.y * (0.74 - 0.03 * k)),
+			"vel": Vector2(_rng.randf_range(-14.0, 14.0) + side * wind * 180.0, _rng.randf_range(-46.0, -26.0) * (0.55 if indoors else 1.0)) * k0,
+			"life": 0.0, "max": _rng.randf_range(2.0, 2.8) * (1.6 if indoors else 1.0 - wind * 0.35),
+			"delay": float(k) * 0.16, "f0": 0, "soft": true, "flip": _rng.randf() < 0.5,
 		})
 	world.exhale(drag)
 
@@ -1178,6 +1197,37 @@ func _ash_flake(amount: float) -> void:
 	# From the end of the cigarette in your fingers.
 	var at := tip if tip != Vector2.INF else _cig_rect.position + Vector2(_cig_rect.size.x * 0.9, _cig_rect.size.y * 0.1)
 	_falls.append({"pos": at, "vel": Vector2(_rng.randf_range(-20.0, 20.0), 40.0) * vp.y / 720.0, "tex": t, "life": 0.0})
+
+
+## The breath of smoke: the soft frames (smoke2_*, alpha from the render), growing a
+## little as it goes, fading smoothly, tinted by the place's light (grey at night).
+func _draw_smoke() -> void:
+	if tex("smoke2_0") == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var s := HANDS_KIT.px(vp.y)
+	var lit: Color = _hands.light_raw if _hands != null and is_instance_valid(_hands) else Color.WHITE
+	var tint := Color(maxf(lit.r, 0.22), maxf(lit.g, 0.22), maxf(lit.b, 0.24))
+	var nframes := 0
+	while tex("smoke2_%d" % nframes) != null and nframes < 16:
+		nframes += 1
+	for p in _puffs:
+		if float(p["delay"]) > 0.0 or not bool(p.get("soft", false)):
+			continue
+		var k := clampf(float(p["life"]) / float(p["max"]), 0.0, 0.999)
+		var t := tex("smoke2_%d" % int(k * float(nframes)))
+		if t == null:
+			continue
+		var grow := 1.0 + k * 0.6
+		var sz := t.get_size() * s * grow
+		var at := (((p["pos"] as Vector2) - sz * 0.5) / s).floor() * s
+		var a := 0.82 * pow(1.0 - k, 0.8)
+		if bool(p.get("flip", false)):
+			_smoke_layer.draw_set_transform(at + Vector2(sz.x, 0.0), 0.0, Vector2(-1.0, 1.0))
+			_smoke_layer.draw_texture_rect(t, Rect2(Vector2.ZERO, sz), false, Color(tint.r, tint.g, tint.b, a))
+			_smoke_layer.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		else:
+			_smoke_layer.draw_texture_rect(t, Rect2(at, sz), false, Color(tint.r, tint.g, tint.b, a))
 
 
 ## The cap levered off flies up past the bottle and off the screen, turning over.
@@ -1244,6 +1294,7 @@ func _update_puffs(delta: float) -> void:
 	var h := get_viewport().get_visible_rect().size.y
 	_falls = _falls.filter(func(f): return (f["pos"] as Vector2).y < h and float(f["life"]) < float(f.get("max", 99.0)))
 	_puff_layer.queue_redraw()
+	_smoke_layer.queue_redraw()
 
 
 ## A breath: dense, spreading, a wide cloud, torn apart, a few dots (smoke_*). The wisp
@@ -1256,10 +1307,14 @@ var _wisp_t := 0.0
 ## The puffs are the smoke sprites (smoke_0..5), from dense to almost gone over their
 ## life, at whole-pixel steps.
 func _draw_puffs() -> void:
+	# The smoke, the ash, the cap and the foam on the screen: the same light, shade
+	# steps and PS1 dither as the hands they come from.
+	if _hands != null and is_instance_valid(_hands) and _puff_layer.material != _hands.material:
+		_puff_layer.material = _hands.material
 	var vp := get_viewport().get_visible_rect().size
 	var s := HANDS_KIT.px(vp.y)
 	for p in _puffs:
-		if float(p["delay"]) > 0.0:
+		if float(p["delay"]) > 0.0 or (bool(p.get("soft", false)) and tex("smoke2_0") != null):
 			continue
 		var k := float(p["life"]) / float(p["max"])
 		var seq: Array = p.get("seq", PUFF_SEQ)
@@ -1269,11 +1324,10 @@ func _draw_puffs() -> void:
 			continue
 		var sz := t.get_size() * s
 		var at := (((p["pos"] as Vector2) - sz * 0.5) / s).floor() * s
-		# Thin smoke, lit like the place, thinning out in steps.
-		var lit: Color = _hands.light if _hands != null and is_instance_valid(_hands) else Color.WHITE
+		# Thin smoke thinning out in steps; lit and dithered by the hands' material.
 		var a := floorf((0.55 * (1.0 - k * 0.7)) * 8.0) / 8.0
-		_puff_layer.draw_texture_rect(t, Rect2(at, sz), false, Color(lit.r, lit.g, lit.b, a))
-	var lit2: Color = _hands.light if _hands != null and is_instance_valid(_hands) else Color.WHITE
+		_puff_layer.draw_texture_rect(t, Rect2(at, sz), false, Color(1.0, 1.0, 1.0, a))
+	var lit2 := Color.WHITE
 	for f in _falls:
 		var t2: Texture2D = f["tex"]
 		var sc := s * float(f.get("big", 1.0))

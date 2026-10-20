@@ -8,6 +8,8 @@ signal hover_info(text: String)
 ## A click on a building with no tool in hand: {type, origin, footprint, root}, or {}
 ## when the click was on open ground (the card closes).
 signal building_clicked(info: Dictionary)
+## A guest clicked with no tool in hand (builder_module opens their card).
+signal guest_clicked(guest_id: int)
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
@@ -23,7 +25,7 @@ const ICON_SPAN := {
 	"caravan_1": 1.27, "caravan_2": 1.27, "caravan_3": 1.27, "toilet_block": 0.85, "shower_block": 1.02,
 	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
 	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
-	"flower_bed": 0.42, "gnome": 0.2, "flagpole": 0.3, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.5,
+	"flower_bed": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "lamp_iso": 0.24, "lamp_post": 0.24, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
 }
 const SFX_DIR := "res://assets/sfx/builder/"
 
@@ -61,6 +63,8 @@ const MAP_ROTATION_STEPS := 1
 const ROTATION_LABELS: Array[String] = ["SOUTH", "EAST", "NORTH", "WEST"]
 
 const ICON_PATHS := {
+	"site_scaffold": "res://assets/textury/builder/site_scaffold.png",
+	"rubble": "res://assets/textury/builder/rubble.png",
 	"main_building": "res://assets/textury/builder/base.png",
 	"tent_1": "res://assets/textury/builder/stan1.png",
 	"cabin_1": "res://assets/textury/builder/chata1.PNG",
@@ -87,6 +91,7 @@ const ICON_PATHS := {
 	"picnic_table": "res://assets/textury/builder/iso_picnic.png",
 	"flower_bed": "res://assets/textury/builder/iso_flowerbed.png",
 	"gnome": "res://assets/textury/builder/iso_gnome.png",
+	"mega_gnome": "res://assets/textury/builder/iso_gnome.png",
 	"flagpole": "res://assets/textury/builder/iso_flagpole.png",
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
@@ -118,6 +123,19 @@ const ICON_BACK_PATHS := {
 	"toilet_block": "res://assets/textury/builder/back_toilets.png",
 	"shower_block": "res://assets/textury/builder/back_showers.png",
 }
+
+## The camp's models face +Z (south) at a turn of 0, their door down-left on the map.
+## Most pictures are drawn that way (the door on the left face) and are turned on by one
+## step (a turn of 0 is the picture as drawn, 1 mirrored, 2 the back, 3 the back
+## mirrored); these few are drawn with the door on the right face and keep the old turns.
+## (Every building stood a quarter turn off: the pub's door where the 3D pub had a wall.)
+const ICON_DOOR_RIGHT := {"shower_block": true, "caravan_1": true, "caravan_2": true, "caravan_3": true, "vecerka_iso": true}
+
+
+func _view_steps(icon_key: String, rotation_steps: int) -> int:
+	var rs := wrapi(rotation_steps, 0, 4)
+	return rs if ICON_DOOR_RIGHT.has(icon_key) or ICON_NO_MIRROR.has(icon_key) else wrapi(rs + 3, 0, 4)
+
 
 const ICON_NO_MIRROR := {
 	"main_building": true,
@@ -193,6 +211,17 @@ const PATH_HAVE := 1
 const PATH_BLOCKED := 2
 ## Sent on release and not answered yet (a co-op client hears back later).
 var _path_batch: Dictionary = {}
+## Small things built in a row by dragging (a line of benches, lamps, flower beds): the
+## line while the button is down, then one build each, one price.
+const ROW_TYPES := ["bench", "lamp_post", "flower_bed", "picnic_table", "gnome", "flagpole"]
+var _row_drag := false
+var _row_start := Vector2i(-1, -1)
+var _row_press := Vector2.ZERO
+var _row_line: Array = []        # [coord, ok]
+var _row_batch: Dictionary = {}
+var _row_cost := 0
+var _row_built := 0
+var _row_sending := false
 var _path_batch_sending := false
 var _batch_cells: Array = []
 var _batch_cost := 0
@@ -229,7 +258,7 @@ var _last_hover := Vector2i(-2, -2)
 var _sfx_players: Array = []
 var _night := 0.0              # 0 day .. 1 deep night, for the tint and the lamps
 
-const GROUND_TEX_SUMMER := "res://assets/textury/redneck/grass.png"
+const GROUND_TEX_SUMMER := "res://assets/textury/world/grass_summer.png"
 const GROUND_TEX_AUTUMN := "res://assets/textury/world/grass_autumn.png"
 const GROUND_TEX_SNOW := "res://assets/textury/world/snow_ground.png"
 ## The layer being drawn on (see _draw).
@@ -253,6 +282,57 @@ var _lake_lines := PackedVector2Array()
 var _lake_units: Array = []     # [unit centre, hash]
 ## The puff a building lands with (Grok, tools/artgen/os_art.py); circles without it.
 const DUST_TEX := "res://assets/textury/builder/dust.png"
+## A build is a building site on the map for a moment before the building stands (the
+## sim has it at once: this is only the picture): the scaffold, the workers hammering in
+## steps, then the building with a thump. A demolition leaves a heap of rubble a while.
+const WORKER_TEX := [
+	"res://assets/textury/builder/site_worker_a.png",
+	"res://assets/textury/builder/site_worker_a2.png",
+	"res://assets/textury/builder/site_worker_b.png",
+]
+## Small things go up in a moment; a building takes longer the bigger it is.
+const SITE_QUICK := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic_table", "hammock"]
+const HAMMER_EVERY := 0.36
+const RUBBLE_LIFE := 4.0
+var _site_len: Dictionary = {}    # origin -> seconds the site stands
+var _site_fp: Dictionary = {}     # origin -> footprint
+var _site_done: Dictionary = {}   # origin -> true once the building stood up
+var _rubble: Array = []           # {o, f, t}
+## What the static layer last drew, by origin: [type, footprint] (rubble needs to know
+## what went: the removal says only where).
+var _known: Dictionary = {}
+var _hammer_cd := 0.0
+var _rubble_cd := 0.0
+var _worker_tex: Array = WORKER_TEX.map(func(p): return load(p) if ResourceLoader.exists(p) else null)
+var _worker_minis: Dictionary = {}
+## The camp's weather and hour on the map, read each frame from the camp's own (main's
+## state, weather_visuals' wind and storm flash; never worked out here).
+const WX_RAIN_DROPS := {3: 70, 4: 140, 5: 220}
+var _wx := {}
+## What the guests think, from GuestManager's snapshot (a second old at most): the bubble
+## over each (its worst need, or a good mood now and then).
+const THINK_TEX := {
+	"hunger": "res://assets/textury/builder/think_hunger.png", "bladder": "res://assets/textury/builder/think_toilet.png",
+	"energy": "res://assets/textury/builder/think_sleepy.png", "hygiene": "res://assets/textury/builder/think_dirty.png",
+	"safety": "res://assets/textury/builder/think_scared.png", "cold": "res://assets/textury/builder/think_cold.png",
+	"happy": "res://assets/textury/builder/think_happy.png",
+}
+const THINK_NEED := 55.0
+var _think_tex: Dictionary = {}
+var _guest_minds: Dictionary = {}   # id -> {think, value}
+## The map lies, rarely and never in a log (DESIGN §5j): for a frame, a tent nobody built
+## beside the others (late in the day, at most once in a long while of the Builder open);
+## one tile of the camp says something is buried there.
+var _lie_at := 900.0               # Builder time of the next phantom
+var _lie: Dictionary = {}          # {cell, until}
+var _buried := Vector2i(-2, -2)
+## Cheats' pictures (builder_module): KAREL the uncle's old camp, MOLE the buried tile.
+var _karel_until := -1.0
+var _mole_until := -1.0
+var _mind_poll := 0.0
+var _wx_drops: Array = []
+var _dither: Array = []          # ordered-dither textures, 25/50/75 % ink
+var _fog_tex: Texture2D          # the dust puff's shape in white (fog banks)
 var _dust_tex: Texture2D = load(DUST_TEX) if ResourceLoader.exists(DUST_TEX) else null
 var _water_cells: Array = []    # [centre on the static layer, hash]
 var _smokers: Array = []        # [centre, strength, seed]
@@ -303,6 +383,7 @@ func _ready() -> void:
 	_dyn_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dyn_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_dyn_layer.draw.connect(_draw_dynamic)
+	_dyn_layer.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	add_child(_dyn_layer)
 	_zoom_target = _zoom_level
 	if EventBus.has_signal("building_placed"):
@@ -322,17 +403,106 @@ func _on_world_placed(id: String, o: Vector2i, f: Vector2i, _r: int) -> void:
 		return
 	if id != "tree" and id != "corn" and is_visible_in_tree():
 		_bfx.built(_footprint_cells(o, f))
+		if id != "path":
+			_start_site(id, o, f)
 
 
 func _on_world_removed(o: Vector2i) -> void:
 	_static_dirty = true
 	_demolish_sum = {}
 	_demolish_hatch_key = ""
+	if is_visible_in_tree() and _known.has(o):
+		_leave_rubble(o, _known[o])
 	if _pending_demolish_wait:
 		_demolish_removed.append(o)
 		return
 	if is_visible_in_tree():
 		_bfx.built([o], true)
+
+
+func _start_site(id: String, o: Vector2i, f: Vector2i) -> void:
+	var area := maxi(1, f.x * f.y)
+	_site_len[o] = 1.1 if SITE_QUICK.has(id) else clampf(1.8 + 0.45 * float(area), 2.2, 4.0)
+	_site_fp[o] = f
+	_site_done.erase(o)
+	_dropped[o] = _time
+	# An upgrade takes the old one down first: no rubble under the new site.
+	_rubble = _rubble.filter(func(r): return r["o"] != o)
+	_static_dirty = true
+	if _hammer_cd <= 0.0:
+		_play("hammer", -9.0)
+		_hammer_cd = 1.25
+
+
+func _leave_rubble(o: Vector2i, known: Array) -> void:
+	var t := str(known[0])
+	if t == "" or t == "path" or t == "lamp_post":
+		return
+	_rubble.append({"o": o, "f": known[1], "t": _time})
+	if _rubble_cd <= 0.0:
+		_play("rubble", -7.0)
+		_rubble_cd = 0.8
+
+
+## The sites going up (a blow now and then, dust; done: the thump) and the rubble going.
+func _tick_sites(delta: float, quiet := false) -> void:
+	_hammer_cd -= delta
+	_rubble_cd -= delta
+	var busy := false
+	for o in _dropped.keys():
+		var age := _time - float(_dropped[o])
+		var site := float(_site_len.get(o, 0.0))
+		var f: Vector2i = _site_fp.get(o, Vector2i.ONE)
+		var mid := Vector2(o) + Vector2(f - Vector2i.ONE) * 0.5
+		if age < site:
+			busy = true
+			if int(age / HAMMER_EVERY) != int(maxf(0.0, age - delta) / HAMMER_EVERY) and randf() < 0.4:
+				_add_fx("dust", mid + Vector2(0.3, 0.3), 0.45)
+		elif site > 0.0 and not _site_done.has(o):
+			_site_done[o] = true
+			if not quiet:
+				for k in 5:
+					_add_fx("dust", mid + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 0.7)
+				_play("site_done", -8.0)
+		if age > site + 0.5:
+			_dropped.erase(o)
+			_site_len.erase(o)
+			_site_fp.erase(o)
+			_site_done.erase(o)
+	if busy and _hammer_cd <= 0.0 and not quiet:
+		_play("hammer", -10.0)
+		_hammer_cd = 1.25
+	for i in range(_rubble.size() - 1, -1, -1):
+		if _time - float(_rubble[i]["t"]) > RUBBLE_LIFE:
+			_rubble.remove_at(i)
+
+
+## The scaffold as wide as the building will be, the workers by its front corner: one
+## hammering (the blow every HAMMER_EVERY), the other bobbing on his own beat.
+func _draw_site(center: Vector2, fp: Vector2i, age: float, tile_w: float, tile_h: float) -> void:
+	_draw_building_icon(center, fp, "site_scaffold", 0, Color.WHITE, tile_w, tile_h)
+	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
+	var wh := maxi(8, int(round(mini_h * 0.85)))
+	var down := float(fp.x + fp.y) * tile_h * 0.18
+	var blow := fmod(age, HAMMER_EVERY) < 0.12
+	var a: Texture2D = _worker_mini(1 if blow else 0, wh)
+	if a != null:
+		var at := center + Vector2(-tile_w * 0.28 * float(fp.y), down)
+		_cv.draw_texture(a, (at - Vector2(a.get_width() * 0.5, a.get_height())).floor())
+	if fp.x + fp.y > 2:
+		var b: Texture2D = _worker_mini(2, maxi(8, int(round(wh * 0.85))))
+		if b != null:
+			var bob := -1.0 if fmod(age + 0.17, HAMMER_EVERY) < 0.12 else 0.0
+			var bt := center + Vector2(tile_w * 0.28 * float(fp.x), down)
+			_cv.draw_texture(b, (bt - Vector2(b.get_width() * 0.5, b.get_height() - bob)).floor())
+
+
+func _worker_mini(i: int, h: int) -> Texture2D:
+	var key := "%d|%d" % [i, h]
+	if not _worker_minis.has(key):
+		var src: Texture2D = _worker_tex[i] if i < _worker_tex.size() else null
+		_worker_minis[key] = _mini_of(src, h) if src != null else null
+	return _worker_minis[key]
 
 
 func _footprint_cells(o: Vector2i, f: Vector2i) -> Array:
@@ -399,9 +569,14 @@ func apply_zoom_step(direction: int) -> void:
 func _process(delta: float) -> void:
 	_update_keyboard_pan(delta)
 	if not is_visible_in_tree():
+		# On another tab the sites still go up (the build was paused till you came back).
+		_time += delta
+		_tick_sites(delta, true)
 		return
 	_time += delta
 	_bfx.tick(delta)
+	_tick_sites(delta)
+	_read_weather()
 	for i in range(_fx.size() - 1, -1, -1):
 		_fx[i]["t"] = float(_fx[i]["t"]) + delta
 		if float(_fx[i]["t"]) >= float(_fx[i]["life"]):
@@ -506,6 +681,8 @@ func _gui_input(event: InputEvent) -> void:
 			_clamp_pan_offset_for_current_map()
 		if _path_drag_active:
 			_request_path_at(event.position)
+		if _row_drag:
+			_update_row(_local_to_grid(event.position))
 		if _demolish_drag_active:
 			_update_demolish_drag(event.position)
 		hover_coord = _local_to_grid(event.position)
@@ -531,15 +708,20 @@ func _gui_input(event: InputEvent) -> void:
 				# Only the line or the box being drawn goes; the tool stays in hand (the
 				# right button pans: it put the tool away on every pan). The tool goes with
 				# a second click on its button or card.
-				if _path_drag_active or _demolish_drag_active:
+				if _path_drag_active or _demolish_drag_active or _row_drag:
 					_path_drag_active = false
 					_path_line.clear()
+					_row_drag = false
+					_row_line.clear()
 					_demolish_drag_active = false
 					_emit_status("Canceled.")
 			else:
 				if not _pan_drag_moved and _rmb_pressed_without_selection and selected_building == "" and not _any_pending_interaction():
 					submenu_close_requested.emit()
 					_emit_status("Submenu closed.")
+				elif not _pan_drag_moved and not _rmb_pressed_without_selection and selected_building != "" and not _any_pending_interaction():
+					# A right click that did not drag puts the tool away (a drag pans and keeps it).
+					_cancel_tool_selection()
 				_pan_dragging = false
 				_rmb_pressed_without_selection = false
 				# Let go after a pause: no throw.
@@ -559,6 +741,8 @@ func _gui_input(event: InputEvent) -> void:
 			else:
 				if _path_drag_active:
 					_end_path_drag()
+				if _row_drag:
+					_end_row()
 				if _demolish_drag_active:
 					_finish_demolish_drag()
 			queue_redraw()
@@ -568,7 +752,12 @@ func _gui_input(event: InputEvent) -> void:
 
 func _handle_left_press(local_pos: Vector2) -> void:
 	if selected_building == "":
-		# No tool in hand: a click on a building opens its card (builder_module).
+		# No tool in hand: a click on a guest opens theirs, on a building its card.
+		var gid := guest_at(local_pos)
+		if gid >= 0:
+			guest_clicked.emit(gid)
+			_play("click", -12.0)
+			return
 		var info := structure_at(_local_to_grid(local_pos))
 		inspect_origin = info.get("origin", Vector2i(-1, -1))
 		inspect_footprint = info.get("footprint", Vector2i.ONE)
@@ -582,7 +771,76 @@ func _handle_left_press(local_pos: Vector2) -> void:
 	if selected_building == "demolish":
 		_begin_demolish_press(local_pos)
 		return
+	if ROW_TYPES.has(selected_building) and _get_footprint(selected_building) == Vector2i.ONE:
+		var c0 := _local_to_grid(local_pos)
+		if _is_valid_coord(c0):
+			_row_drag = true
+			_row_start = c0
+			_row_press = local_pos
+			_update_row(c0)
+			return
 	_handle_structure_press(local_pos)
+
+
+## The row from where the button went down to here, along the longer way; each tile
+## fits or not.
+func _update_row(coord: Vector2i) -> void:
+	if not _is_valid_coord(coord):
+		return
+	var d := coord - _row_start
+	var end := Vector2i(coord.x, _row_start.y) if absi(d.x) >= absi(d.y) else Vector2i(_row_start.x, coord.y)
+	_row_line.clear()
+	var step := (end - _row_start).sign()
+	var p := _row_start
+	while true:
+		_row_line.append([p, _can_place(p, Vector2i.ONE, selected_building)])
+		if p == end:
+			break
+		p += step
+	var n := _row_line.filter(func(e): return bool(e[1])).size()
+	if _row_line.size() > 1:
+		_emit_status("%s: %d, $%d. Let go to build." % [_display_name(selected_building), n, n * _get_cost(selected_building)])
+
+
+func _end_row() -> void:
+	_row_drag = false
+	var todo: Array = _row_line.filter(func(e): return bool(e[1])).map(func(e): return e[0])
+	var one := _row_line.size() <= 1
+	_row_line.clear()
+	if one:
+		# No drag: the one thing where it was clicked, as always.
+		_handle_structure_press(_row_press)
+		return
+	if todo.is_empty():
+		_emit_status("Nothing to build: the row is blocked.", STATUS_DENY)
+		_deny_fx(_row_start, "Blocked")
+		return
+	var cost := _get_cost(selected_building)
+	var n := todo.size() if cost <= 0 else mini(todo.size(), int(CoreRoot.get_money()) / cost)
+	if n <= 0:
+		_emit_status("Not enough money: %s costs $%d." % [_display_name(selected_building), cost], STATUS_DENY)
+		_deny_fx(todo[0], "$%d" % cost)
+		return
+	_undo_group += 1
+	_row_batch.clear()
+	_row_cost = 0
+	_row_built = 0
+	for i in n:
+		_row_batch[todo[i]] = selected_building
+	_row_sending = true
+	for i in n:
+		EventBus.RequestBuild.emit(selected_building, todo[i], _rotation_steps)
+	_row_sending = false
+	if _row_batch.is_empty():
+		_flush_row()
+
+
+func _flush_row() -> void:
+	if _row_built <= 0:
+		_emit_status("Refused: nothing built.", STATUS_DENY)
+		return
+	_emit_status("Built %d, $%d." % [_row_built, _row_cost], STATUS_GOOD)
+	_play("place", -10.0)
 
 
 func _handle_structure_press(local_pos: Vector2) -> void:
@@ -913,6 +1171,19 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 		if _path_batch.is_empty() and not _path_batch_sending:
 			_flush_path_batch()
 		return
+	if _row_batch.has(pos) and str(_row_batch[pos]) == building_type:
+		_row_batch.erase(pos)
+		var st_r = CoreRoot.get_state()
+		_undo.append({"type": building_type, "coord": pos, "cost": _get_cost(building_type), "group": _undo_group, "day": int(st_r.day) if st_r != null else 1})
+		while _undo.size() > 40:
+			_undo.remove_at(0)
+		_row_cost += _get_cost(building_type)
+		_row_built += 1
+		_add_fx("pop", Vector2(pos), 1.0, "-$%d" % _get_cost(building_type), Color8(255, 220, 80))
+		_static_dirty = true
+		if _row_batch.is_empty() and not _row_sending:
+			_flush_row()
+		return
 	var mine := _pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord
 	# A lamp on a path belongs to the path: not something undo can take off it.
 	if mine and not (building_type == "lamp_post" and _path_cell(pos)):
@@ -934,15 +1205,14 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 			_play("path", -14.0)
 	else:
 		_emit_status("Built: %s" % _display_name(building_type), STATUS_GOOD)
-		_dropped[pos] = _time
-		for k in 5:
-			_add_fx("dust", mid + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 0.7)
+		for k in 2:
+			_add_fx("dust", mid + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 0.5)
 		var snd := "place"
 		if building_type.begins_with("tent"):
 			snd = "tent"
 		elif building_type == "lamp_post":
 			snd = "lamp"
-		_play(snd, -6.0)
+		_play(snd, -10.0)
 	if cost > 0:
 		_add_fx("pop", mid, 1.3, "-$%d" % cost, Color8(255, 220, 80))
 	_static_dirty = true
@@ -955,6 +1225,11 @@ func _on_build_rejected(building_type: String, pos: Vector2i, rot: int, reason: 
 		_batch_refused += 1
 		if _path_batch.is_empty() and not _path_batch_sending:
 			_flush_path_batch()
+		return
+	if _row_batch.has(pos):
+		_row_batch.erase(pos)
+		if _row_batch.is_empty() and not _row_sending:
+			_flush_row()
 		return
 	if _pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord and wrapi(rot, 0, 4) == _pending_build_rot:
 		_pending_build_wait = false
@@ -980,10 +1255,11 @@ func _on_demolish_confirmed(area: Rect2i, removed_count: int, fee_paid: int, ref
 		if is_visible_in_tree():
 			_bfx.built(gone, true)
 	var mid := Vector2(area.position) + Vector2(area.size - Vector2i.ONE) * 0.5
+	# The refund and the bulldozer's fee side by side (one over the other they ran together).
 	if refund_total > 0:
-		_add_fx("pop", mid + Vector2(0, -0.3), 1.4, "+$%d" % refund_total, Color8(120, 255, 120))
+		_add_fx("pop", mid + Vector2(-0.45, 0.45), 1.4, "+$%d" % refund_total, Color8(120, 255, 120))
 	if fee_paid > 0:
-		_add_fx("pop", mid, 1.3, "-$%d" % fee_paid, Color8(255, 220, 80))
+		_add_fx("pop", mid + Vector2(0.45, -0.45), 1.3, "-$%d" % fee_paid, Color8(255, 220, 80))
 	_play("bulldoze", -6.0)
 	_static_dirty = true
 	queue_redraw()
@@ -1015,6 +1291,7 @@ func _draw_static() -> void:
 	_smokers.clear()
 	_lights.clear()
 	_anim_entries.clear()
+	_known.clear()
 	if grid_manager == null:
 		return
 	var grid_w: int = int(grid_manager.grid_width)
@@ -1028,7 +1305,10 @@ func _draw_static() -> void:
 	_draw_ground(gm, grid_w, grid_h, origin, tile_w)
 	for entry in _collect_structures(gm, grid_w, grid_h, origin, tile_w, tile_h):
 		var ty := str(entry.get("type", ""))
-		# Still dropping in: the dynamic layer draws it until it lands.
+		var er = entry.get("root")
+		if ty != "" and er != null and not er.is_in_group("trees") and not er.is_in_group("corn"):
+			_known[entry.get("origin", Vector2i.ZERO)] = [ty, entry.get("footprint", Vector2i.ONE)]
+		# Still a building site: the dynamic layer draws it until it stands.
 		if _dropped.has(entry.get("origin", Vector2i.ZERO)):
 			_anim_entries.append(entry)
 			continue
@@ -1163,7 +1443,7 @@ func _collect_structures(gm, grid_w: int, grid_h: int, origin: Vector2, tile_w: 
 	var dims := _display_grid_dimensions(grid_w, grid_h)
 	if _mini_img == null or _mini_img.get_width() != dims.x or _mini_img.get_height() != dims.y:
 		_mini_img = Image.create(dims.x, dims.y, false, Image.FORMAT_RGBA8)
-	_mini_img.fill(MINI_COLORS["grass"])
+	_mini_img.fill(_mini_ground())
 	for c in gm.tile_types:
 		var t := int(gm.tile_types[c])
 		if t == grid_manager.TILE_LAKE or t == grid_manager.TILE_RESERVED:
@@ -1184,11 +1464,11 @@ func _collect_structures(gm, grid_w: int, grid_h: int, origin: Vector2, tile_w: 
 		var root_id := root.get_instance_id()
 		var dcell := _rotate_coord_for_display(coord)
 		if kind_of.has(root_id):
-			_mini_img.set_pixelv(dcell, MINI_COLORS.get(kind_of[root_id], MINI_COLORS["grass"]))
+			_mini_img.set_pixelv(dcell, MINI_COLORS.get(kind_of[root_id], _mini_ground()))
 			continue
 		var mk := "corn" if root.is_in_group("corn") else ("tree" if root.is_in_group("trees") else _mini_kind(str(root.get_meta("building_type", ""))))
 		kind_of[root_id] = mk
-		_mini_img.set_pixelv(dcell, MINI_COLORS.get(mk, MINI_COLORS["grass"]))
+		_mini_img.set_pixelv(dcell, MINI_COLORS.get(mk, _mini_ground()))
 		var structure_origin: Vector2i = root.get_meta("grid_origin", coord)
 		var footprint: Vector2i = root.get_meta("grid_footprint", Vector2i.ONE)
 		var anchor := _rotate_coord_for_display(structure_origin + Vector2i(maxi(0, footprint.x - 1), maxi(0, footprint.y - 1)))
@@ -1237,6 +1517,21 @@ func _draw_dynamic() -> void:
 		var a := 0.18 + 0.14 * sin(ph)
 		var off := Vector2(sin(ph * 0.7) * tile_w * 0.12, cos(ph * 0.5) * tile_h * 0.10)
 		_cv.draw_line(c + off - Vector2(tile_w * 0.12, 0), c + off + Vector2(tile_w * 0.12, 0), Color(0.7, 0.85, 1.0, a), 1.0)
+	_tick_lie()
+	if _time < _karel_until:
+		_draw_old_camp(origin, tile_w, tile_h)
+	if _time < _mole_until and _is_valid_coord(_buried_tile()):
+		var bc := _footprint_center_iso(_buried_tile(), Vector2i.ONE, origin, tile_w, tile_h)
+		var r := tile_h * 0.35
+		_cv.draw_line(bc - Vector2(r, r * 0.5), bc + Vector2(r, r * 0.5), Color8(200, 20, 20), 2.0)
+		_cv.draw_line(bc + Vector2(-r, r * 0.5), bc + Vector2(r, -r * 0.5), Color8(200, 20, 20), 2.0)
+	if not _lie.is_empty() and _time < float(_lie["until"]):
+		var lc: Vector2i = _lie["cell"]
+		_draw_building_icon(_footprint_center_iso(lc, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, "tent_1", 0, Color(0.92, 0.92, 0.92, 0.96), tile_w, tile_h)
+	for rb in _rubble:
+		var rc := _footprint_center_iso(rb["o"], rb["f"], origin, tile_w, tile_h)
+		var fade := clampf((RUBBLE_LIFE - (_time - float(rb["t"]))) / 0.8, 0.0, 1.0)
+		_draw_building_icon(rc, rb["f"], "rubble", 0, Color(1, 1, 1, fade), tile_w, tile_h)
 	for e in _anim_entries:
 		var moved: Dictionary = (e as Dictionary).duplicate()
 		moved["center"] = _s2d(e["center"])
@@ -1254,7 +1549,9 @@ func _draw_dynamic() -> void:
 		_draw_guest(g, tile_h)
 	_draw_lodging_badges(origin, tile_w, tile_h)
 	if overlay != "light":
+		_draw_dusk()
 		_draw_night(lights, tile_w, tile_h)
+		_draw_weather(origin, tile_w, tile_h)
 	_draw_fx(origin, tile_w, tile_h)
 	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
 	var valid_c := Callable(self, "_is_valid_coord")
@@ -1300,8 +1597,21 @@ func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void
 		_cv.draw_string(T.FONT, r.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(250, 244, 226))
 
 
-## The building on a cell, as Builder's card wants it ({} for open ground, trees, corn
-## and paths).
+## Where a building on `coord` stands on the panel now (its footprint's middle, in the
+## panel's own coordinates), or Vector2.INF when it is off the map or off the screen.
+func cell_screen_point(coord: Vector2i) -> Vector2:
+	if grid_manager == null or not _is_valid_coord(coord):
+		return Vector2.INF
+	var iso = _compute_iso_layout(int(grid_manager.grid_width), int(grid_manager.grid_height))
+	var info := structure_at(coord)
+	var o: Vector2i = info.get("origin", coord)
+	var f: Vector2i = info.get("footprint", Vector2i.ONE)
+	var p := _footprint_center_iso(o, f, iso.origin, iso.tile_w, iso.tile_h) - Vector2(0, iso.tile_h * 0.6)
+	return p if Rect2(Vector2.ZERO, size).grow(-4.0).has_point(p) else Vector2.INF
+
+
+## The building on a cell, as Builder's card wants it ({} for open ground, trees and
+## corn). A path cell is "path", with `lamp` when one stands on it.
 func structure_at(coord: Vector2i) -> Dictionary:
 	if grid_manager == null or not _is_valid_coord(coord):
 		return {}
@@ -1312,9 +1622,12 @@ func structure_at(coord: Vector2i) -> Dictionary:
 	if root == null or root.is_in_group("trees") or root.is_in_group("corn"):
 		return {}
 	var t := str(root.get_meta("building_type", ""))
-	if t == "" or t == "path":
+	if t == "":
 		return {}
-	return {"type": t, "origin": root.get_meta("grid_origin", coord), "footprint": root.get_meta("grid_footprint", Vector2i.ONE), "root": root}
+	var o: Vector2i = root.get_meta("grid_origin", coord)
+	if t == "path":
+		return {"type": "path", "origin": coord, "footprint": Vector2i.ONE, "root": root, "lamp": _path_has_lamp(coord)}
+	return {"type": t, "origin": o, "footprint": root.get_meta("grid_footprint", Vector2i.ONE), "root": root}
 
 
 func set_overlay(id: String) -> void:
@@ -1579,6 +1892,17 @@ func _world_signature() -> String:
 
 ## The ground's picture: the game's own grass, autumn leaves from day 10, snow when it
 ## lies (the same pictures as the world, scripts/season_look.gd).
+## The minimap's open ground in the map's season (the late-summer meadow, the autumn's
+## leaves, the snow), as the big map's ground picture is.
+func _mini_ground() -> Color:
+	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
+	if Season.snow_cover(day, 12.0) >= 0.2:
+		return Color(0.82, 0.84, 0.86)
+	if day >= 10:
+		return Color(0.62, 0.48, 0.20)
+	return Color(0.48, 0.46, 0.20)
+
+
 func _season_ground_texture() -> Texture2D:
 	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
 	var path := GROUND_TEX_SUMMER
@@ -1653,6 +1977,65 @@ func _update_guests(delta: float) -> void:
 			_guests.erase(id)
 	_update_mate()
 	_update_extra_guest()
+	_mind_poll -= 0.1
+	if _mind_poll <= 0.0:
+		_mind_poll = 1.0
+		_update_minds()
+
+
+func _update_minds() -> void:
+	_guest_minds.clear()
+	if GuestManager == null or not GuestManager.has_method("get_guest_life_snapshot"):
+		return
+	for g in GuestManager.get_guest_life_snapshot():
+		if not (g is Dictionary):
+			continue
+		var think := ""
+		var worst: Dictionary = g.get("worst_need", {})
+		var wv := float(worst.get("value", 100.0)) if not worst.is_empty() else 100.0
+		var wk := str(worst.get("need", worst.get("key", "")))
+		var thought := str(g.get("thought", "")).to_lower()
+		if (thought.contains("cold") or thought.contains("froze") or thought.contains("ice")) and int(g.get("thought_age", 9999)) < 240:
+			think = "cold"
+		elif wv < THINK_NEED and THINK_TEX.has(wk):
+			think = wk
+		elif float(g.get("mood", 50.0)) > 78.0:
+			think = "happy"
+		_guest_minds[int(g.get("id", -1))] = {"think": think, "value": wv}
+
+
+## The guest under a point of the panel (their figure), or -1.
+func guest_at(local_pos: Vector2) -> int:
+	if grid_manager == null:
+		return -1
+	var iso = _compute_iso_layout(int(grid_manager.grid_width), int(grid_manager.grid_height))
+	var mini_h := clampi(int(round(iso.tile_h * 1.1 / 4.0)) * 4, 12, 56)
+	var best := -1
+	var best_d := 1e9
+	for id in _guests:
+		var foot := _cell_to_iso_f(_guests[id]["cell"], iso.origin, iso.tile_w, iso.tile_h)
+		var r := Rect2(foot - Vector2(mini_h * 0.35, mini_h), Vector2(mini_h * 0.7, mini_h + 2.0))
+		if r.has_point(local_pos):
+			var d := foot.distance_to(local_pos)
+			if d < best_d:
+				best_d = d
+				best = int(id)
+	return best
+
+
+## The map drifts to keep a guest in the middle (their card's Follow).
+func follow_guest(id: int, delta: float) -> bool:
+	if not _guests.has(id):
+		return false
+	var want := size * 0.5 - _cell_iso(Vector2(_guests[id]["cell"]))
+	_pan_offset += want * clampf(delta * 3.0, 0.0, 1.0)
+	_pan_vel = Vector2.ZERO
+	_clamp_pan_offset_for_current_map()
+	return true
+
+
+func guest_cell(id: int) -> Vector2:
+	return Vector2(_guests[id]["cell"]) if _guests.has(id) else Vector2.INF
 
 
 ## Co-op: the other warden on the map in their own look, where they walk; in a lodging
@@ -1738,7 +2121,7 @@ func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_
 		var g: Dictionary = _guests[id]
 		var p := _cell_to_iso_f(g["cell"], origin, tile_w, tile_h)
 		var dc := _display_cell_f(g["cell"])
-		entries.append({"guest": true, "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"], "phase": g["phase"], "facing": 0})
+		entries.append({"guest": true, "id": int(id), "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"], "phase": g["phase"], "facing": 0})
 	for id in _mates.keys():
 		var m: Dictionary = _mates[id]
 		var pm := _cell_to_iso_f(m["cell"], origin, tile_w, tile_h)
@@ -1804,6 +2187,24 @@ func _mini_of(src: Texture2D, h: int) -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
+func _draw_think(e: Dictionary, foot: Vector2, sz: Vector2) -> void:
+	var mind: Dictionary = _guest_minds.get(int(e.get("id", -1)), {})
+	var think := str(mind.get("think", ""))
+	if think == "":
+		return
+	# Up for two and a half seconds in every nine, each guest on their own beat.
+	if fmod(_guest_time + float(e["phase"]) * 3.0, 9.0) > 2.5:
+		return
+	if not _think_tex.has(think):
+		var p := str(THINK_TEX.get(think, ""))
+		_think_tex[think] = load(p) if p != "" and ResourceLoader.exists(p) else null
+	var tex: Texture2D = _think_tex[think]
+	if tex == null:
+		return
+	var bs := clampf(sz.y * 0.7, 12.0, 24.0)
+	_cv.draw_texture_rect(tex, Rect2((foot + Vector2(sz.x * 0.1, -sz.y - bs + 2.0)).floor(), Vector2(bs, bs)), false)
+
+
 func _draw_guest(e: Dictionary, tile_h: float) -> void:
 	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
 	var tex: Texture2D = null
@@ -1819,6 +2220,8 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 		var sz := tex.get_size()
 		_cv.draw_rect(Rect2(foot + Vector2(-sz.x * 0.4, -1.0), Vector2(sz.x * 0.8, 2.0)), Color(0, 0, 0, 0.35))
 		_cv.draw_texture(tex, (foot - Vector2(sz.x * 0.5, sz.y - bob)).floor())
+		if not e.has("mate"):
+			_draw_think(e, foot, sz)
 		if e.has("mate"):
 			# Their name over them, so they are not taken for a guest.
 			var who := Coop.name_of(int(e["mate"]))
@@ -1887,17 +2290,17 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 	var icon_key = _icon_key_for_type(building_type)
 	if icon_key != "":
 		var squash := 1.0
-		# Freshly built: it drops in from above and settles with a little bounce.
+		# Freshly built: a building site for a moment, then it stands up with a bounce.
 		var origin_c: Vector2i = entry.get("origin", Vector2i.ZERO)
 		if _dropped.has(origin_c):
 			var age := _time - float(_dropped[origin_c])
-			if age > 0.5:
-				_dropped.erase(origin_c)
-			else:
-				var k := clampf(age / 0.35, 0.0, 1.0)
-				center.y -= (1.0 - k) * (1.0 - k) * tile_h * 2.5
-				if k >= 1.0:
-					squash = 1.0 - 0.08 * sin((age - 0.35) / 0.15 * PI)
+			var site := float(_site_len.get(origin_c, 0.0))
+			if age < site:
+				_draw_site(center, footprint, age, tile_w, tile_h)
+				return
+			age -= site
+			var k := clampf(age / 0.3, 0.0, 1.0)
+			squash = (0.82 + 0.18 * k + 0.1 * sin(k * PI)) if k < 1.0 else 1.0
 		if _draw_building_icon(center, footprint, icon_key, rotation_steps, Color(1.0, 1.0, 1.0, 0.98), tile_w, tile_h, squash):
 			return
 
@@ -1937,8 +2340,42 @@ func _draw_placeholder(center: Vector2, tile_w: float, tile_h: float, building_t
 	_cv.draw_polyline(PackedVector2Array([top[0], top[1], top[2], top[3], top[0]]), Color(0.14, 0.14, 0.14), 1.0)
 
 
+## How far a light reaches on the ground, in tiles (the light overlay and the ghost).
+const LIGHT_REACH := {"lamp_post": 2.6, "lamp": 2.6, "bonfire": 3.4}
+
+
+## A pool of light on the ground: flat ellipses, brighter to the middle.
+func _draw_light_pool(center: Vector2, r: float, a: float) -> void:
+	_cv.draw_set_transform(center, 0.0, Vector2(1.0, 0.5))
+	for k in 4:
+		_cv.draw_circle(Vector2.ZERO, r * (1.0 - k * 0.22), Color(1.0, 0.85, 0.4, a))
+	_cv.draw_arc(Vector2.ZERO, r, 0, TAU, 48, Color(1.0, 0.9, 0.5, a * 4.0), 1.0)
+	_cv.draw_set_transform(Vector2.ZERO)
+
+
+## The camp in the middle and close enough to read (the first time Builder opens: it
+## started so far out the camp was a smudge).
+func focus_camp(zoom := 2.2) -> bool:
+	var gm = _grid_model()
+	if gm == null or size.x <= 0.0:
+		return false
+	for c in gm.cells:
+		if str((gm.cells[c] as Dictionary).get("type", "")) == "main_building":
+			_zoom_level = clampf(zoom, ZOOM_MIN, ZOOM_MAX)
+			_zoom_target = _zoom_level
+			_static_dirty = true
+			_pan_offset = Vector2.ZERO
+			debug_center_on(c)
+			return true
+	# A camp with no office (tools): nothing to look for again.
+	return not gm.cells.is_empty()
+
+
 func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	if selected_building == "" or selected_building == "path" or selected_building == "demolish":
+		return
+	if _row_drag and _row_line.size() > 1:
+		_draw_row_preview(origin, tile_w, tile_h)
 		return
 	var coord = _ghost_coord if _ghost_locked else hover_coord
 	if not _is_valid_coord(coord):
@@ -1962,6 +2399,11 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	if icon_key != "":
 		_draw_building_icon(center, footprint, icon_key, _rotation_steps, Color(0.62, 0.82, 1.0, 0.76), tile_w, tile_h)
 
+	# A light: where it will reach, and (fainter) where the others already do.
+	if LIGHT_REACH.has(selected_building):
+		for l in _lights:
+			_draw_light_pool(_s2d(l[0]), tile_w * float(LIGHT_REACH.get(str(l[1]), 2.6)), 0.05)
+		_draw_light_pool(center, tile_w * float(LIGHT_REACH[selected_building]), 0.11)
 	if _supports_rotation(selected_building):
 		var dir = _rotation_to_screen_dir(_rotation_steps, tile_w, tile_h)
 		_draw_direction_arrow(center + Vector2(0.0, -tile_h * 0.10), dir, tile_h, Color(0.66, 0.90, 1.0, 0.98))
@@ -2010,6 +2452,25 @@ func _draw_path_drag_preview(origin: Vector2, tile_w: float, tile_h: float) -> v
 
 
 ## A small priced tag (the ghost's), pale red when it is a no.
+func _draw_row_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	var icon_key := _icon_key_for_type(selected_building)
+	var iso_g := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
+	var n := 0
+	for e in _row_line:
+		var c: Vector2i = e[0]
+		var ok := bool(e[1])
+		_bfx.draw_area(_cv, iso_g, [c], tile_w, tile_h, Color(0.55, 0.85, 1.0) if ok else Color(1.0, 0.36, 0.3), _time, not ok, 0.2)
+		if ok:
+			n += 1
+			if icon_key != "":
+				_draw_building_icon(_footprint_center_iso(c, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, icon_key, _rotation_steps, Color(0.62, 0.82, 1.0, 0.7), tile_w, tile_h)
+	var cost := n * _get_cost(selected_building)
+	var afford := int(CoreRoot.get_money()) >= cost
+	var last: Vector2i = _row_line.back()[0]
+	var tag := "%d x $%d = $%d" % [n, _get_cost(selected_building), cost] if afford else "$%d - no money for all" % cost
+	_draw_tag(_footprint_center_iso(last, Vector2i.ONE, origin, tile_w, tile_h) + Vector2(tile_w * 0.45, -tile_h * 1.4), tag, not afford or n == 0)
+
+
 func _draw_tag(at: Vector2, tag: String, bad: bool) -> void:
 	var tw := T.FONT.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 	var tp := at.floor()
@@ -2187,6 +2648,7 @@ func _draw_icon(center: Vector2, draw_size: Vector2, icon_key: String, rotation_
 	var tex = _get_icon(icon_key)
 	if tex == null:
 		return false
+	rotation_steps = _view_steps(icon_key, rotation_steps)
 	var rs := wrapi(rotation_steps, 0, 4)
 	var back: Texture2D = _get_back_icon(icon_key) if (rs == 1 or rs == 2) else null
 	if back != null:
@@ -2216,6 +2678,7 @@ func _draw_building_icon(center: Vector2, footprint: Vector2i, icon_key: String,
 	var tex = _get_icon(icon_key)
 	if tex == null:
 		return false
+	rotation_steps = _view_steps(icon_key, rotation_steps)
 	var rs := wrapi(rotation_steps, 0, 4)
 	var back: Texture2D = _get_back_icon(icon_key) if (rs == 1 or rs == 2) else null
 	if back != null:
@@ -2322,7 +2785,7 @@ func _icon_key_for_type(building_type: String) -> String:
 			return "cabin_1"
 		"caravan_1", "caravan_2", "caravan_3", "bonfire", "sports_field", "lake_slide":
 			return building_type
-		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand":
+		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome":
 			return building_type
 		"toilet_block":
 			return "toilet_block"
@@ -2772,12 +3235,247 @@ func _draw_fx(origin: Vector2, tile_w: float, tile_h: float) -> void:
 				_cv.draw_string(T.FONT_BOLD, q + Vector2(-w * 0.5, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
 
 
-## Grey puffs rising from a fire or a chimney.
+## Grey puffs rising from a fire or a chimney, leaning with the wind (in a gale they
+## go almost flat), in steps.
 func _draw_smoke(center: Vector2, tile_h: float, strength: float, seed: int) -> void:
+	var wind := float(_wx.get("wind", 0.15))
+	var dir: Vector2 = _wx.get("dir", Vector2(0.94, 0.34))
+	var lean := clampf(wind, 0.1, 1.4)
+	var t := floorf(_time * 12.0) / 12.0
 	for i in 4:
-		var ph := fmod(_time * 0.35 + float(i) * 0.25 + float(seed % 17) * 0.06, 1.0)
-		var q := center + Vector2(sin(ph * 5.0 + seed) * tile_h * 0.25 + ph * tile_h * 0.4, -tile_h * (1.0 + ph * 2.4))
-		_cv.draw_circle(q, tile_h * (0.10 + ph * 0.22), Color(0.72, 0.72, 0.70, 0.42 * strength * (1.0 - ph)))
+		var ph := fmod(t * 0.35 + float(i) * 0.25 + float(seed % 17) * 0.06, 1.0)
+		var q := center + Vector2(sin(ph * 5.0 + seed) * tile_h * 0.2 + ph * tile_h * (0.4 + 2.2 * lean) * signf(dir.x + 0.001), -tile_h * (1.0 + ph * 2.4 / (1.0 + lean)))
+		var r := tile_h * (0.12 + ph * 0.26)
+		var col := Color(0.74, 0.74, 0.72, 0.5 * strength * (1.0 - ph))
+		if _dust_tex != null:
+			_cv.draw_texture_rect(_dust_tex, Rect2(q - Vector2(r, r * 0.8), Vector2(r * 2.0, r * 1.6)), false, col)
+		else:
+			_cv.draw_rect(Rect2(q - Vector2(r, r) * 0.5, Vector2(r, r)), col)
+
+
+## KAREL: how the camp stood under the uncle, over the map a few seconds (from the
+## world's seed, the same each time: tents in rows by the lake, two cabins, a fire).
+func show_old_camp(seconds: float) -> void:
+	_karel_until = _time + seconds
+
+
+func show_buried(seconds: float) -> void:
+	_mole_until = _time + seconds
+	_emit_status("Something is buried here.")
+
+
+func _draw_old_camp(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	if grid_manager == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	var wg = get_tree().current_scene.get("world_generator") if get_tree().current_scene != null else null
+	rng.seed = (int(wg.get("world_seed")) if wg != null else 0) * 13 + 5
+	var gw := int(grid_manager.grid_width)
+	var gh := int(grid_manager.grid_height)
+	var a := clampf((_karel_until - _time) / 0.8, 0.0, 1.0) * 0.45
+	var tint := Color(0.86, 0.80, 0.66, a)
+	var rows := rng.randi_range(2, 3)
+	var start := Vector2i(rng.randi_range(3, gw / 2), rng.randi_range(3, gh / 2))
+	for r in rows:
+		for i in 5:
+			var c := start + Vector2i(i * 2, r * 2)
+			if _is_valid_coord(c):
+				_draw_building_icon(_footprint_center_iso(c, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, "tent_1", 0, tint, tile_w, tile_h)
+	for k in 2:
+		var cc := start + Vector2i(11 + k * 3, 1)
+		if _is_valid_coord(cc):
+			_draw_building_icon(_footprint_center_iso(cc, Vector2i(2, 2), origin, tile_w, tile_h), Vector2i(2, 2), "cabin_1", 0, tint, tile_w, tile_h)
+	var fc := start + Vector2i(4, rows * 2 + 1)
+	if _is_valid_coord(fc):
+		_draw_building_icon(_footprint_center_iso(fc, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, "bonfire", 0, tint, tile_w, tile_h)
+
+
+func _tick_lie() -> void:
+	if _time < _lie_at:
+		return
+	_lie_at = _time + randf_range(1200.0, 2600.0)
+	var h := float(_wx.get("hour", 12.0))
+	if h < 15.0 or h > 20.0:
+		return
+	# Beside a tent that is there: on open ground next to it.
+	var tents: Array = []
+	for o in _known:
+		if str(_known[o][0]).begins_with("tent"):
+			tents.append(o)
+	if tents.size() < 2:
+		return
+	var t: Vector2i = tents[randi() % tents.size()]
+	for d in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]:
+		var c: Vector2i = t + d
+		if _is_valid_coord(c) and structure_at(c).is_empty() and _can_place(c, Vector2i.ONE, "tent_1"):
+			_lie = {"cell": c, "until": _time + 1.0 / 12.0}
+			return
+
+
+## The one tile of this camp that says something is buried there (from the world's seed:
+## the same tile every time in the same camp; open forest floor, away from the middle).
+func _buried_tile() -> Vector2i:
+	if _buried.x == -2 and grid_manager != null:
+		_buried = Vector2i(-1, -1)
+		var wg = get_tree().current_scene.get("world_generator") if get_tree() != null and get_tree().current_scene != null else null
+		var seed_v := int(wg.get("world_seed")) if wg != null and wg.get("world_seed") != null else 0
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_v * 31 + 7
+		var gw := int(grid_manager.grid_width)
+		var gh := int(grid_manager.grid_height)
+		for i in 60:
+			var c := Vector2i(rng.randi_range(1, gw - 2), rng.randi_range(1, gh - 2))
+			var tile = grid_manager.get_tile(c)
+			if tile != null and tile.tile_type != grid_manager.TILE_LAKE and tile.tile_type != grid_manager.TILE_RESERVED and (Vector2(c) - Vector2(gw, gh) * 0.5).length() > float(mini(gw, gh)) * 0.3:
+				_buried = c
+				break
+	return _buried
+
+
+func _read_weather() -> void:
+	var tree := get_tree()
+	var main = tree.current_scene if tree != null else null
+	if main == null:
+		return
+	var wx := {"state": 0, "snow": false, "wind": 0.15, "dir": Vector2(0.94, 0.34), "flash": 0.0, "hour": 12.0}
+	if main.get("_weather_state") != null:
+		wx["state"] = int(main.get("_weather_state"))
+	var ws = main.get("weather_system")
+	if ws != null and ws.has_method("is_snowing"):
+		wx["snow"] = bool(ws.is_snowing())
+	var wv = main.get("_weather_visuals")
+	if wv != null:
+		if wv.get("_wind_now") != null:
+			wx["wind"] = float(wv.get("_wind_now"))
+		if wv.get("wind_dir") != null:
+			wx["dir"] = wv.get("wind_dir")
+		if wv.get("_storm_flash_strength") != null:
+			wx["flash"] = float(wv.get("_storm_flash_strength"))
+	if main.get("_time_of_day_hours") != null:
+		wx["hour"] = float(main.get("_time_of_day_hours"))
+	_wx = wx
+
+
+## The evening's light in palette steps before the night's own dark: gold toward five, red
+## at a quarter past six, the blue hour after; a pink dawn. Four steps, never smooth.
+func _draw_dusk() -> void:
+	var h := float(_wx.get("hour", 12.0))
+	var bands := [
+		[5.4, 6.2, 7.2, Color(1.0, 0.62, 0.58), 0.12],
+		[16.2, 17.2, 17.9, Color(1.0, 0.74, 0.34), 0.12],
+		[17.7, 18.25, 18.9, Color(0.95, 0.36, 0.22), 0.18],
+		[18.6, 19.3, 20.6, Color(0.24, 0.30, 0.66), 0.22],
+	]
+	for b in bands:
+		if h <= float(b[0]) or h >= float(b[2]):
+			continue
+		var k := (h - float(b[0])) / (float(b[1]) - float(b[0])) if h < float(b[1]) else (float(b[2]) - h) / (float(b[2]) - float(b[1]))
+		k = floorf(clampf(k, 0.0, 1.0) * 4.0) / 4.0
+		if k <= 0.0:
+			continue
+		var c: Color = b[3]
+		c.a = float(b[4]) * k
+		_cv.draw_rect(Rect2(Vector2.ZERO, size), c)
+
+
+## Rain in slanting streaks (the wind's slant), splashes on the ground, snow as flakes
+## drifting down; fog in dithered bands; the storm's flash with the camp's.
+func _draw_weather(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	var state := int(_wx.get("state", 0))
+	var wind := float(_wx.get("wind", 0.15))
+	var dir: Vector2 = _wx.get("dir", Vector2(0.94, 0.34))
+	var t := floorf(_time * 12.0) / 12.0
+	var w := size.x
+	var h := size.y
+	if _wx_drops.is_empty():
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 7
+		for i in 240:
+			_wx_drops.append([rng.randf(), rng.randf(), rng.randf_range(0.8, 1.2)])
+	var n := int(WX_RAIN_DROPS.get(state, 0))
+	var snow := bool(_wx.get("snow", false))
+	if n > 0:
+		var slant := clampf(dir.x * wind * 0.7, -0.9, 0.9)
+		if snow:
+			for i in mini(int(n * 0.7), _wx_drops.size()):
+				var d: Array = _wx_drops[i]
+				var y := fmod(float(d[1]) * h + t * 24.0 * float(d[2]), h)
+				var x := fposmod(float(d[0]) * w + sin(t * 1.3 + float(i)) * 5.0 + t * slant * 18.0, w)
+				_cv.draw_rect(Rect2(Vector2(x, y).floor(), Vector2(2, 2) if i % 3 == 0 else Vector2.ONE), Color(1, 1, 1, 0.85))
+		else:
+			var col := Color(0.70, 0.78, 0.92, 0.5)
+			for i in mini(n, _wx_drops.size()):
+				var d: Array = _wx_drops[i]
+				var sp := 260.0 * float(d[2])
+				var y := fmod(float(d[1]) * (h + 12.0) + t * sp, h + 12.0) - 12.0
+				var x := fposmod(float(d[0]) * w + t * sp * slant, w)
+				var l := 7.0 * float(d[2])
+				_cv.draw_line(Vector2(x, y).floor(), (Vector2(x, y) + Vector2(slant * l, l)).floor(), col, 1.0)
+			# Splashes: a few new ones each step, where the drops land.
+			var step := int(t * 12.0)
+			for k in n / 7:
+				var hx := (k * 7919 + step * 104729) % 9973
+				var hy := (k * 15485863 + step * 32452843) % 9967
+				var p := Vector2(float(hx) / 9973.0 * w, float(hy) / 9967.0 * h).floor()
+				_cv.draw_rect(Rect2(p, Vector2(3, 1)), Color(0.80, 0.86, 0.96, 0.55))
+	# Under rain the map goes overcast (a flat shade, a step darker in a storm).
+	if n > 0 and not snow:
+		_cv.draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.06, 0.12, 0.18 if state == 5 else 0.10))
+	# Fog: a thin dithered veil, and banks of it lying on the ground (on the map's own
+	# tiles: they stay where they are when the map moves), drifting with the wind, each a
+	# long low wisp of three puffs, thin enough to see the camp through.
+	if state == 2:
+		_ensure_dither()
+		var fc := Color(0.80, 0.82, 0.84)
+		_cv.draw_texture_rect(_dither[0], Rect2(Vector2.ZERO, size), true, Color(fc, 0.16))
+		if _fog_tex != null and grid_manager != null:
+			var gw := float(grid_manager.grid_width)
+			var gh := float(grid_manager.grid_height)
+			var tb := floorf(_time * 4.0) / 4.0
+			var drift := Vector2(dir.x, dir.y) * tb * 0.04
+			for b in 12:
+				var d: Array = _wx_drops[(b * 17) % _wx_drops.size()]
+				var cell := Vector2(fposmod(float(d[0]) * gw + drift.x, gw), fposmod(float(d[1]) * gh + drift.y, gh))
+				var c := _cell_to_iso_f(cell, origin, tile_w, tile_h)
+				var bw := tile_w * (3.0 + 3.0 * float(d[2]))
+				for k in 3:
+					var off := Vector2((float(k) - 1.0) * bw * 0.32, (float(k % 2) - 0.5) * tile_h * 0.4)
+					var pw := bw * (0.55 if k != 1 else 0.7)
+					_cv.draw_texture_rect(_fog_tex, Rect2((c + off - Vector2(pw * 0.5, pw * 0.12)).floor(), Vector2(pw, pw * 0.24).floor()), false, Color(fc, 0.2))
+	# Leaves on the wind (the autumn's, before the snow).
+	if wind > 0.6 and not snow:
+		var lc := [Color8(150, 74, 30), Color8(186, 130, 44), Color8(120, 70, 36)]
+		for i in int(wind * 18.0):
+			var d: Array = _wx_drops[(i * 13) % _wx_drops.size()]
+			var x := fposmod(float(d[0]) * w + t * 90.0 * float(d[2]) * signf(dir.x + 0.001), w)
+			var y := fposmod(float(d[1]) * h + sin(t * 3.0 + float(i)) * 8.0 + t * 12.0, h)
+			_cv.draw_rect(Rect2(Vector2(x, y).floor(), Vector2(2, 1)), lc[i % 3])
+	var flash := float(_wx.get("flash", 0.0))
+	if flash > 0.05:
+		_cv.draw_rect(Rect2(Vector2.ZERO, size), Color(0.86, 0.90, 1.0, floorf(flash * 3.0) / 3.0 * 0.45))
+
+
+## Ordered-dither ink (4x4 Bayer): 25 % and 50 % of the pixels, tiled over the map.
+func _ensure_dither() -> void:
+	if not _dither.is_empty():
+		return
+	if _dust_tex != null:
+		var img := _dust_tex.get_image().duplicate() as Image
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y)
+				img.set_pixel(x, y, Color(1, 1, 1, c.a))
+		_fog_tex = ImageTexture.create_from_image(img)
+	var bayer := [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
+	for level in [4, 8]:
+		var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+		for y in 4:
+			for x in 4:
+				img.set_pixel(x, y, Color(1, 1, 1, 1.0 if int(bayer[y][x]) < level else 0.0))
+		_dither.append(ImageTexture.create_from_image(img))
 
 
 ## Dusk and night: the map darkens, lamps and fires make pools of light.
@@ -2819,6 +3517,15 @@ func _play(name: String, db := 0.0) -> void:
 	var path := SFX_DIR + name + ".mp3"
 	if not ResourceLoader.exists(path):
 		return
+	# From the PC's speaker: quieter away from it, never in the menu (it was heard all
+	# over the camp, and in the main menu, at full volume).
+	var shell: Node = self
+	while shell != null and not shell.has_method("sound_db"):
+		shell = shell.get_parent()
+	if shell != null:
+		db += float(shell.call("sound_db"))
+	if db <= -60.0:
+		return
 	var p := AudioStreamPlayer.new()
 	p.stream = load(path)
 	p.volume_db = db
@@ -2847,7 +3554,13 @@ func _describe(coord: Vector2i) -> String:
 				what = _display_name(str(root.get_meta("building_type", "")))
 				var o = root.get_meta("grid_origin", null)
 				if o is Vector2i and GuestManager != null and GuestManager.room_number("%d:%d" % [o.x, o.y]) > 0:
-					return GuestManager.room_label("%d:%d" % [o.x, o.y])
+					# The room and how it stands: ready, dirty, taken.
+					var key := "%d:%d" % [o.x, o.y]
+					var rs: Dictionary = GuestManager.get_room_state(key)
+					var st := "guests" if bool(rs.get("occupied", false)) else ({"ready": "ready", "dirty": "dirty", "unprepared": "not made up"}.get(str(rs.get("status", "")), "") as String)
+					return GuestManager.room_label(key) + (("  -  " + st) if st != "" else "")
+	if coord == _buried_tile() and (what == "Forest floor" or what == "Pine tree"):
+		return "%d:%d  %s  -  Something is buried here" % [coord.x, coord.y, what]
 	return "%d:%d  %s" % [coord.x, coord.y, what]
 
 

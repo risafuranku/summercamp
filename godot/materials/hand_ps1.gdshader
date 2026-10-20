@@ -16,7 +16,8 @@ const float BAYER[16] = float[16](
 	15.0, 7.0, 13.0, 5.0);
 
 void fragment() {
-	vec4 c = texture(TEXTURE, UV);
+	// The drawing's own tint and fade (modulate, a puff thinning out) come in as COLOR.
+	vec4 c = texture(TEXTURE, UV) * COLOR;
 	// The sprite's pixel this fragment is in (the dither moves with the sprite).
 	vec2 p = floor(UV / TEXTURE_PIXEL_SIZE);
 	int i = int(mod(p.x, 4.0)) + int(mod(p.y, 4.0)) * 4;

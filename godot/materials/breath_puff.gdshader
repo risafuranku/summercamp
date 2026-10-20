@@ -1,34 +1,25 @@
 shader_type spatial;
-// Your breath in the cold (scripts/ambient/player_breath.gd): a puff in screen-door
-// transparency, like the campfire's smoke (dither_smoke.gdshader), but lit as the world
-// is (black at night, seen only in the torch or under a lamp) and coarse: the puff is
-// 10 x 10 cells and the dither runs in 2 x 2 screen pixels, so it reads as the game's own
-// chunky pixels, never as a soft gradient. Turns to the camera. `fade` 1 fresh, 0 gone.
-render_mode cull_disabled, shadows_disabled, specular_disabled;
+// Your breath in the cold (scripts/ambient/player_breath.gd): a puff of vapour (Grok,
+// camp/breath_puff.png, its shape) drawn as a scatter of dots, Build's dithered steam
+// (the user 20. 10.: the dotted breath was better, only its dots sat in too even a grid).
+// The dots are the puff's own (cells of its picture, 32 across, each lit or not by a
+// hash of the cell and the puff's `seed`), so they ride along with it and never crawl
+// over the screen the way a screen door did, and they fall at random, thinning to the
+// edges and as it fades. As bright as the light it is in (`light`, set by the script: the
+// day, or your torch through it); in the dark without a torch it is not seen. Turns to the
+// camera, each puff its own way round. `fade` 1 fresh, 0 gone.
+render_mode blend_mix, unshaded, cull_disabled, shadows_disabled, specular_disabled, depth_draw_never;
 
-// Grey and thin: right in front of the torch it would light up white.
-uniform vec4 color : source_color = vec4(0.36, 0.37, 0.39, 1.0);
+uniform sampler2D puff : source_color, filter_nearest;
 uniform float fade : hint_range(0.0, 1.0) = 1.0;
+uniform float light : hint_range(0.0, 1.0) = 1.0;
 uniform float seed = 0.0;
+const float CELLS = 32.0;
 
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
 	p3 += dot(p3, p3.yzx + 33.33);
 	return fract((p3.x + p3.y) * p3.z);
-}
-
-float noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-
-float bayer4(vec2 p) {
-	ivec2 q = ivec2(mod(p, 4.0));
-	int i = q.x + q.y * 4;
-	float m[16] = float[](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
-	return (m[i] + 0.5) / 16.0;
 }
 
 void vertex() {
@@ -43,13 +34,22 @@ void vertex() {
 }
 
 void fragment() {
-	vec2 uv = floor(UV * 10.0) / 10.0 + 0.05;
-	float r = length(uv - 0.5) * 2.0;
-	float n = noise(uv * 4.0 + seed * 3.1);
-	float a = (1.0 - smoothstep(0.3, 1.0, r + (n - 0.5) * 0.6)) * fade * 0.5;
-	if (a < bayer4(floor(FRAGCOORD.xy / 2.0))) {
+	vec2 cell = floor(UV * CELLS);
+	vec2 uv = (cell + 0.5) / CELLS;
+	if (mod(floor(seed * 3.0), 2.0) > 0.5) {
+		uv.x = 1.0 - uv.x;
+	}
+	if (mod(floor(seed * 7.0), 2.0) > 0.5) {
+		uv.y = 1.0 - uv.y;
+	}
+	vec4 t = texture(puff, uv);
+	float k = fade * smoothstep(0.05, 0.5, light);
+	// How many of the cells are dots: the picture's own density (its alpha, thinner at the
+	// rim), at most two in five (more and they ran together in blocks), fewer as it goes.
+	float dens = t.a * smoothstep(0.0, 0.9, k) * 0.4;
+	if (hash(cell + floor(seed * 97.0) * 13.7) >= dens) {
 		discard;
 	}
-	ALBEDO = color.rgb * (0.85 + 0.2 * n);
-	ROUGHNESS = 1.0;
+	ALBEDO = mix(vec3(0.78), t.rgb, 0.5) * (0.25 + 0.55 * light);
+	ALPHA = 0.6;
 }

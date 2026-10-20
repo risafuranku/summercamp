@@ -14,7 +14,8 @@ const CAMP := "res://assets/textury/camp/"
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
-	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand"]
+	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome",
+	"vecerka"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -60,6 +61,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _flowerbed(root, w, d)
 		"gnome":
 			return _gnome(root, w, d)
+		"mega_gnome":
+			return _mega_gnome(root, w, d)
 		"flagpole":
 			return _flagpole(root, w, d)
 		"playground":
@@ -70,6 +73,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _hammock(root, w, d)
 		"corn_stand":
 			return _corn_stand(root, w, d)
+		"vecerka":
+			return _jednota(root, w, d)
 		# Built by BuildingManager's own placers; here for tools/model_viewer.
 		"cabin_1", "cabin_2", "cabin_3":
 			var lv := int(type.right(1))
@@ -863,11 +868,12 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 	# Its number on an enamel plate beside the door (scripts/lodging_signs.gd).
 	r.set_meta("number_plate", Transform3D(Basis(), Vector3(door_x + 0.56, y0 + 1.2, lz * 0.5 + 0.03)))
 	var glass := _camp_or("caravan_window.png", Color(1, 1, 1), "glass")
+	# (Lit at night while the guests are in: scripts/ambient/window_lights.gd.)
 	for wx: float in [lx * 0.14, lx * 0.37]:
-		_side_quad(r, "Window", Vector2(0.78, 0.56), Vector3(wx, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass)
-	_side_quad(r, "WindowSide", Vector2(0.62, 0.5), Vector3(-lx * 0.4, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass)
+		_side_quad(r, "Window", Vector2(0.78, 0.56), Vector3(wx, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass).set_meta("lit_window", true)
+	_side_quad(r, "WindowSide", Vector2(0.62, 0.5), Vector3(-lx * 0.4, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass).set_meta("lit_window", true)
 	for wx2: float in [-lx * 0.3, lx * 0.05, lx * 0.33]:
-		_side_quad(r, "WindowBack", Vector2(0.7, 0.5), Vector3(wx2, y0 + h * 0.66, -lz * 0.5 - 0.012), PI, glass)
+		_side_quad(r, "WindowBack", Vector2(0.7, 0.5), Vector3(wx2, y0 + h * 0.66, -lz * 0.5 - 0.012), PI, glass).set_meta("lit_window", true)
 	# Running gear: one axle (two on Lv3), the drawbar with its jockey wheel, the gas.
 	var axles: Array = [0.0] if lv < 3 else [-0.36, 0.36]
 	for ax in axles:
@@ -1061,6 +1067,17 @@ func _gnome(r: Node3D, _w: float, _d: float) -> Dictionary:
 	lamp.name = "Lantern"
 	_use_script(g, "res://scripts/attractions/gnome.gd")
 	return {"size": Vector3(0.5, 0.65, 0.5), "target": Vector3(0, 0.4, 0.3)}
+
+
+## Builder 98's registered copies' gnome: the garden gnome, four and a half times over
+## (as tall as a cabin), on its 2x2.
+func _mega_gnome(r: Node3D, w: float, d: float) -> Dictionary:
+	var info := _gnome(r, w, d)
+	var g := r.get_node_or_null("Gnome") as Node3D
+	var k := 4.5
+	if g != null:
+		g.scale = Vector3(k, k, k)
+	return {"size": (info["size"] as Vector3) * k, "target": (info["target"] as Vector3) * k}
 
 
 func _flagpole(r: Node3D, _w: float, _d: float) -> Dictionary:
@@ -1355,9 +1372,11 @@ func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0) -> void:
 	var frame := _box(r, "WindowFrame", Vector3(size.x + 0.12, size.y + 0.12, 0.05), pos, _wood())
 	frame.rotation.y = yaw
 	var glass_mat := _camp("window_curtain.png", Color(0.8, 0.84, 0.86))
-	var out := Basis(Vector3.UP, yaw) * Vector3(0, 0, 0.01)
-	var glass := _box(r, "Window", Vector3(size.x, size.y, 0.06), pos + out, glass_mat)
-	glass.rotation.y = yaw
+	# The whole picture on the pane, a quad over the frame's face (a box mapped by its
+	# metres showed a dark corner of it: inventory 20. 10.); lit at night by
+	# scripts/ambient/window_lights.gd while the guests are in.
+	var glass := _side_quad(r, "Window", size, pos + Basis(Vector3.UP, yaw) * Vector3(0, 0, 0.03), yaw, glass_mat)
+	glass.set_meta("lit_window", true)
 	var bar := _box(r, "WindowBar", Vector3(0.04, size.y, 0.07), pos, _wood())
 	bar.rotation.y = yaw
 	# Not seen by the cameras that look out through this window from inside.
@@ -1469,6 +1488,54 @@ func _corn_stand(r: Node3D, w: float, _d: float) -> Dictionary:
 	_use_script(r, "res://scripts/business/corn_stand_life.gd")
 	return {"size": Vector3(bw, 2.4, depth), "target": Vector3(0, 1.0, depth * 0.5 + 0.2)}
 
+
+# ── the Jednota (agent C, 20. 10.; iso_jednota): a 1970s village self-service grocery ───
+#    A long single-storey block under a flat concrete roof, its faces Grok pictures
+#    (camp/jednota_front: the band of shop windows, the glass door, the red board;
+#    jednota_side, jednota_back), the sheet-metal letters JEDNOTA on the board (the same as
+#    Lesna's: town/sign_jednota.png), a flat canopy over the door; out front the crates of
+#    empties, the ice-cream freezer, a bench. Inside it is scripts/jednota/jednota_layout.gd.
+
+func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var sx := 7.2
+	var sz := 6.0
+	var h := 3.4
+	var front := sz * 0.5
+	var plaster: Material = _camp_or("plaster_stone.png", Color(0.9, 0.86, 0.78), "wall", Vector3(2.0, 1.2, 1.0))
+	_plinth(r, sx + 0.3, sz + 0.3)
+	_box(r, "Shop", Vector3(sx, h, sz), Vector3(0, h * 0.5 + 0.1, 0), plaster)
+	_box(r, "Roof", Vector3(sx + 0.5, 0.25, sz + 0.5), Vector3(0, h + 0.22, 0), _camp_or("concrete.png", Color(0.62, 0.6, 0.58), "roof"))
+	if ResourceLoader.exists(CAMP + "jednota_front.png"):
+		_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _face_mat("jednota_front.png"))
+	if ResourceLoader.exists(CAMP + "jednota_side.png"):
+		_quad(r, "JednotaSideL", Vector2(sz, h), Vector3(-sx * 0.5 - 0.012, h * 0.5 + 0.1, 0), -PI * 0.5, _face_mat("jednota_side.png"))
+		_quad(r, "JednotaSideR", Vector2(sz, h), Vector3(sx * 0.5 + 0.012, h * 0.5 + 0.1, 0), PI * 0.5, _face_mat("jednota_side.png"))
+	if ResourceLoader.exists(CAMP + "jednota_back.png"):
+		_quad(r, "JednotaBack", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, -front - 0.012), PI, _face_mat("jednota_back.png"))
+	# The letters on the red board along the top of the front.
+	var letters := "res://assets/textury/town/sign_jednota.png"
+	if ResourceLoader.exists(letters):
+		var lm := _cut_face(letters)
+		_quad(r, "SignJEDNOTA", Vector2(1.6, 0.47), Vector3(0, h - 0.22, front + 0.03), 0.0, lm)
+	# The canopy over the door, on two thin posts.
+	_box(r, "Canopy", Vector3(2.0, 0.1, 1.1), Vector3(0, 2.62, front + 0.55), _camp_or("concrete.png", Color(0.7, 0.68, 0.64), "roof"))
+	for x: float in [-0.92, 0.92]:
+		_box(r, "CanopyPost", Vector3(0.07, 2.55, 0.07), Vector3(x, 1.33, front + 1.05), _metal())
+	_box(r, "Step", Vector3(2.2, 0.14, 0.8), Vector3(0, 0.07, front + 0.4), _psx_mat(Color(0.6, 0.6, 0.58), "stone"))
+	# Out front: the crates of empties by the wall, the freezer, the bench.
+	var crate := "res://assets/textury/camp/beer_crate_full.png"
+	if ResourceLoader.exists(crate):
+		for i in 5:
+			var at := Vector3(-2.6 + float(i % 3) * 0.58, 0.05 + float(i / 3) * 0.4, front + 0.35)
+			_quad(r, "Empties", Vector2(0.55, 0.42), at + Vector3(0, 0.21, 0), 0.0, _cut_face(crate))
+	var freezer := CAMP + "shop_freezer.png"
+	if ResourceLoader.exists(freezer):
+		_box(r, "Freezer", Vector3(1.1, 0.85, 0.62), Vector3(2.2, 0.48, front + 0.5), _flat(Color(0.72, 0.1, 0.08)))
+		_quad(r, "FreezerFace", Vector2(1.1, 0.84), Vector3(2.2, 0.48, front + 0.815), 0.0, _cut_face(freezer))
+	_box(r, "BenchSeat", Vector3(1.4, 0.06, 0.36), Vector3(-1.4, 0.48, front + 1.5), _wood())
+	for x: float in [-1.95, -0.85]:
+		_box(r, "BenchLeg", Vector3(0.06, 0.45, 0.32), Vector3(x, 0.24, front + 1.5), _wood())
+	return {"size": Vector3(sx + 0.6, h + 0.5, sz + 0.6), "target": Vector3(0.0, 1.2, front + 0.3)}
 
 ## A Grok sprite on a quad, its background keyed out.
 func _cut_face(path: String) -> StandardMaterial3D:
@@ -1637,12 +1704,12 @@ func reception(r: Node3D) -> Dictionary:
 	_box(r, "OfficeMullionV", Vector3(0.06, ws.y, 0.05), Vector3(wc.x, wc.y, z1 + t * 0.5), trim)
 	_box(r, "OfficeMullionH", Vector3(ws.x, 0.06, 0.05), Vector3(wc.x, wc.y, z1 + t * 0.5), trim)
 	_box(r, "OfficeSill", Vector3(wx1 - wx0 + 0.1, 0.06, 0.22), Vector3(wc.x, wy0 - 0.02, z1 + t + 0.1), trim)
-	var og := _glass(r, "OfficeGlass", Vector3(ws.x, ws.y, 0.02), Vector3(wc.x, wc.y, z1 + 0.04))
+	var og := _glass(r, "OfficeGlass", Vector3(ws.x, ws.y, 0.02), Vector3(wc.x, wc.y, z1 + 0.04), "recep_office_night.png")
 	# The back room's window, east: small, a frame, the glass.
 	_frame_z(r, "BackWindowFrame", bz0 - 0.07, bz1 + 0.07, by0 - 0.07, by1 + 0.07, x1 + t + 0.02, trim)
 	_box(r, "BackMullion", Vector3(0.05, bs.y, 0.06), Vector3(x1 + t * 0.5, bc.y, bc.z), trim)
 	_box(r, "BackSill", Vector3(0.2, 0.06, bs.x + 0.24), Vector3(x1 + t + 0.08, by0 - 0.09, bc.z), trim)
-	var bg := _glass(r, "BackGlass", Vector3(0.02, bs.y, bs.x), Vector3(x1 + 0.04, bc.y, bc.z))
+	var bg := _glass(r, "BackGlass", Vector3(0.02, bs.y, bs.x), Vector3(x1 + 0.04, bc.y, bc.z), "recep_back_night.png")
 
 	_reception_store(r, L, z0 - t, tin)
 	# Firewood against the west wall.
@@ -1732,8 +1799,10 @@ func _frame_z(r: Node3D, n: String, a: float, b: float, lo: float, hi: float, x:
 
 
 ## Glass: dark and a little glossy by day; the office lights it at night
-## (building_interior.gd: set_reception_glass). On GLASS_LAYER.
-func _glass(r: Node3D, n: String, size: Vector3, pos: Vector3) -> MeshInstance3D:
+## (building_interior.gd: set_reception_glass): the room behind it, `night` (Grok: the
+## office, the back room, seen through the glass with the lamps on; it was a flat lit
+## pane, inventory 20. 10.), glows in the lamps' colour. On GLASS_LAYER.
+func _glass(r: Node3D, n: String, size: Vector3, pos: Vector3, night := "") -> MeshInstance3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.16, 0.2, 0.24)
 	m.roughness = 0.12
@@ -1742,6 +1811,12 @@ func _glass(r: Node3D, n: String, size: Vector3, pos: Vector3) -> MeshInstance3D
 	m.emission_enabled = true
 	m.emission = Color(1.0, 0.78, 0.46)
 	m.emission_energy_multiplier = 0.0
+	if night != "" and ResourceLoader.exists(CAMP + night):
+		m.emission_texture = load(CAMP + night)
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		m.emission = Color(1.0, 0.9, 0.76)
+		# A box's face is a third by a half of the picture: the whole of it on each.
+		m.uv1_scale = Vector3(3.0, 2.0, 1.0)
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	var g := _box(r, n, size, pos, m)
 	g.layers = GLASS_LAYER

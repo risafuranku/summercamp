@@ -22,6 +22,9 @@ extends Node
 const RULES := preload("res://core/systems/pub_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
+const BIZ_RULES := preload("res://core/systems/business_rules.gd")
+## Days a keg keeps on the line before it is flat (twice as long with the keg cooler).
+const KEG_DAYS := 3
 
 ## A record changed (key, what: "served", "mugs", "keg").
 signal changed(key: String, what: String)
@@ -75,7 +78,8 @@ func _fresh(key: String) -> Dictionary:
 		"served": {},
 		"mugs": {"clean": int(saved.get("clean", old.get("clean", RULES.MUGS))), "dirty": int(saved.get("dirty", old.get("dirty", 0)))},
 		"keg": {"line": int(saved.get("line", mini(RULES.KEG_PINTS, beer))), "coupled": bool(saved.get("coupled", true)),
-			"pallet": str(saved.get("pallet", "full")), "gas": float(saved.get("gas", RULES.GAS_START))},
+			"pallet": str(saved.get("pallet", "full")), "gas": float(saved.get("gas", RULES.GAS_START)),
+			"tapped": int(saved.get("tapped", CoreRoot.get_day() if CoreRoot != null else 1))},
 		"pints": int(saved.get("pints", 0)),
 	}
 
@@ -95,7 +99,8 @@ func spares(key: String) -> int:
 	return maxi(0, ceili(float(maxi(0, BUSINESS.stock_of(key, "beer")) - on_line) / float(RULES.KEG_PINTS)))
 
 
-## Why the tap gives nothing ("" it pours): the keg spent or off the line, no beer.
+## Why the tap gives nothing ("" it pours): the keg spent or off the line, no beer; or
+## "flat": it pours, but the keg has been on the line too long (no head, poor beer).
 func tap_trouble(key: String) -> String:
 	var k := keg(key)
 	if BUSINESS.stock_of(key, "beer") == 0:
@@ -104,7 +109,26 @@ func tap_trouble(key: String) -> String:
 		return "empty"
 	if not bool(k["coupled"]):
 		return "off"
+	if is_flat(key):
+		return "flat"
 	return ""
+
+
+## The keg on the line has gone flat (KEG_DAYS since it was tapped, twice that with the
+## keg cooler).
+func is_flat(key: String) -> bool:
+	var k := keg(key)
+	if str(k["pallet"]) != "full" or not CoreRoot:
+		return false
+	var days := KEG_DAYS * (2 if BUSINESS.has_gear(key, "cooler") else 1)
+	return CoreRoot.get_day() - int(k.get("tapped", CoreRoot.get_day())) >= days
+
+
+## What is left in a flat keg goes down the drain (the books: waste).
+func waste_keg(key: String) -> void:
+	var n := mini(int(keg(key)["line"]), maxi(0, BUSINESS.stock_of(key, "beer")))
+	if n > 0 and CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_waste"):
+		CoreRoot.actions.biz_waste(key, {"beer": n})
 
 
 # ── orders ───────────────────────────────────────────────────────────────────
@@ -248,7 +272,14 @@ func set_keg(key: String, edit: Dictionary) -> void:
 func serve(key: String, t: Dictionary, verdict: Dictionary) -> Dictionary:
 	var drink := str(t["drink"])
 	var good := str(RULES.DRINKS[drink]["good"])
-	var amount := int(t["price"]) + int(verdict.get("tip", 0))
+	# Papa's: the score from the pour and the wait, the tip and the stars from it.
+	var pts := BIZ_RULES.score(float(verdict.get("speed", 1.0)), float(verdict.get("accuracy", 1.0)))
+	var r := BIZ_RULES.reward(pts, int(t["price"]))
+	verdict["score"] = pts
+	verdict["tip"] = int(r["tip"])
+	verdict["stars"] = int(r["stars"])
+	verdict["mood"] = float(r["mood"])
+	var amount := int(round((int(t["price"]) + int(verdict.get("tip", 0))) * BUSINESS.price_k(key)))
 	if not BUSINESS.sell(key, {good: 1}, amount):
 		return {"ok": false, "why": "dry"}
 	verdict["amount"] = amount
@@ -268,6 +299,9 @@ func serve(key: String, t: Dictionary, verdict: Dictionary) -> Dictionary:
 			act(key, "pints", [1])
 		act(key, "keg", [k])
 	act(key, "served", [str(t["id"]), {"drink": drink, "at": now_min(), "stars": int(verdict.get("stars", 0)), "amount": amount}])
+	ORDERS.note_meal(int(t["guest_id"]), _thought(drink, verdict), pts)
+	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
+		CoreRoot.actions.biz_score(key, {"score": pts, "tip": int(verdict["tip"]), "what": RULES.label(drink), "who": str(t.get("name", "")), "hand": bool(verdict.get("hand", false))})
 	return verdict
 
 
@@ -275,9 +309,9 @@ func _thought(drink: String, verdict: Dictionary) -> String:
 	if int(verdict.get("stars", 0)) >= 3:
 		return "The camp pub pours a proper %s." % RULES.label(drink).to_lower()
 	if float(verdict.get("speed", 1.0)) < 0.3:
-		return "Waited an age at the bar."
+		return "Waited forever for a beer."
 	if float(verdict.get("accuracy", 1.0)) < 0.6:
-		return "The beer here is poured by a child."
+		return "The beer here is poured by a child." if RULES.kind(drink) == "tap" else "They fill the shots by half at the camp pub."
 	return ""
 
 
@@ -287,7 +321,9 @@ func _process(delta: float) -> void:
 	if get_tree().paused:
 		return
 	var st = CoreRoot.get_state() if CoreRoot != null else null
-	var sid: int = st.get_instance_id() if st != null else 0
+	# The state object may stay the same from camp to camp: the books' stamp does not
+	# (actions._biz).
+	var sid: int = (st.get_instance_id() + int((st.biz as Dictionary).get("stamp", 0))) if st != null and st.biz is Dictionary else 0
 	if sid != _state_id:
 		_state_id = sid
 		_sites.clear()
@@ -327,8 +363,11 @@ func _host_second() -> void:
 		var beer := maxi(0, BUSINESS.stock_of(key, "beer"))
 		if int(k["line"]) > beer:
 			set_keg(key, {"line": beer, "pallet": "empty" if beer == 0 else str(k["pallet"])})
-		if bool(BUSINESS.site(key).get("staff", false)):
-			_hand_work(key)
+		var crew: Array = BUSINESS.crew_now(key)
+		if not crew.is_empty():
+			_crew_work(key, crew)
+		elif BUSINESS.has_gear(key, "glasswasher"):
+			_glasswasher(key)
 		if _save_due.has(key):
 			_save_due.erase(key)
 			_save(key)
@@ -352,18 +391,104 @@ func _save(key: String) -> void:
 	var s := site(key)
 	var k: Dictionary = s["keg"]
 	CoreRoot.actions.biz_tap(key, {"line": int(k["line"]), "coupled": bool(k["coupled"]), "pallet": str(k["pallet"]),
-		"gas": float(k["gas"]), "clean": int(s["mugs"]["clean"]), "dirty": int(s["mugs"]["dirty"]), "pints": int(s["pints"])})
+		"gas": float(k["gas"]), "clean": int(s["mugs"]["clean"]), "dirty": int(s["mugs"]["dirty"]), "pints": int(s["pints"]),
+		"tapped": int(k.get("tapped", 0))})
 
 
-## A hand behind the bar washes the mugs, changes a spent keg and keeps the gas right
-## (they serve the guests themselves: business_runtime._hand_serves).
-func _hand_work(key: String) -> void:
+## The hands at the pub, each at their job (DESIGN.md §7b, the hands), one piece of work
+## at a time as their speed allows; now and then one goes wrong (a pour short or over,
+## a mug dropped, the gas left wrong):
+##   tap     pours the oldest beer ordered (a fair pour, never a perfect one)
+##   bar     pours the shots and the kofola
+##   wash    washes the mugs (the glass washer, bought, does it alone)
+##   cellar  changes a spent or flat keg and sets the gas right
+var _crew_t: Dictionary = {}
+var _rng := RandomNumberGenerator.new()
+
+
+func _crew_work(key: String, crew: Array) -> void:
+	if BUSINESS.has_gear(key, "glasswasher"):
+		_glasswasher(key)
+	for p in crew:
+		var id := key + "/" + str(p.get("slug", ""))
+		var left := float(_crew_t.get(id, 0.0)) - 1.0
+		if left > 0.0:
+			_crew_t[id] = left
+			continue
+		var speed := clampi(int(p.get("speed", 1)), 0, 2)
+		var slip := _rng.randf() < float(BIZ_RULES.SPEED_SLIP[speed]) + (0.05 if str(p.get("temper", "")) == "sour" else 0.0)
+		var did := false
+		match str(p.get("role", "")):
+			"tap":
+				did = _crew_pour(key, p, "tap", slip, speed)
+			"bar":
+				did = _crew_pour(key, p, "bar", slip, speed)
+			"wash":
+				did = _crew_wash(key, slip)
+			"cellar":
+				did = _crew_cellar(key)
+		# Two taps (gear): the tap's hand draws two at once.
+		if did and str(p.get("role", "")) == "tap" and BUSINESS.has_gear(key, "tap2"):
+			_crew_pour(key, p, "tap", slip, speed)
+		var k := 0.7 if str(p.get("role", "")) in ["tap", "bar"] else 1.0
+		# The quick coupler (gear): a keg changed in a moment.
+		if str(p.get("role", "")) == "cellar" and BUSINESS.has_gear(key, "coupler"):
+			k = 0.4
+		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) * k if did else 1.0
+
+
+## The oldest order of the kind poured, judged as a fair pour by a hand.
+func _crew_pour(key: String, p: Dictionary, kind_of: String, slip: bool, speed: int) -> bool:
+	if kind_of == "tap" and (tap_trouble(key) not in ["", "flat"] or int(mugs(key)["clean"]) <= 0):
+		return false
+	for t in tickets(key):
+		var drink := str(t["drink"])
+		if RULES.kind(drink) != kind_of:
+			continue
+		var acc := 0.62 + 0.12 * float(speed) + _rng.randf_range(-0.05, 0.08)
+		if slip:
+			acc -= 0.35
+		if kind_of == "tap" and is_flat(key):
+			acc *= 0.6
+		var speed_k := 1.0 if int(t["age"]) < RULES.PATIENCE_OK * 0.6 else (0.6 if int(t["age"]) < RULES.PATIENCE_OK else (0.3 if int(t["age"]) < RULES.PATIENCE_LATE else 0.0))
+		var v := {"ok": true, "accuracy": clampf(acc, 0.1, 0.95), "speed": speed_k, "hand": true}
+		var verdict: Dictionary = serve(key, t, v)
+		return bool(verdict.get("ok", false))
+	return false
+
+
+func _crew_wash(key: String, slip: bool) -> bool:
+	var m: Dictionary = mugs(key)
+	if int(m["dirty"]) <= 0:
+		return false
+	# Now and then one slips out of their hands.
+	if slip and _rng.randf() < 0.3:
+		act(key, "mugs", [0, -1])
+	else:
+		act(key, "mugs", [1, -1])
+	return true
+
+
+func _crew_cellar(key: String) -> bool:
+	var k: Dictionary = keg(key)
+	var beer := maxi(0, BUSINESS.stock_of(key, "beer"))
+	if (str(k["pallet"]) != "full" or int(k["line"]) <= 0 or is_flat(key)) and beer > 0:
+		if is_flat(key):
+			waste_keg(key)
+			beer = maxi(0, BUSINESS.stock_of(key, "beer"))
+			if beer <= 0:
+				set_keg(key, {"pallet": "none", "line": 0})
+				return true
+		set_keg(key, {"pallet": "full", "line": mini(RULES.KEG_PINTS, beer), "coupled": true, "gas": RULES.GAS_START, "tapped": CoreRoot.get_day()})
+		return true
+	if float(k["gas"]) < RULES.GAS_LOW or float(k["gas"]) > RULES.GAS_HIGH:
+		set_keg(key, {"gas": RULES.GAS_START})
+		return true
+	return false
+
+
+## The glass washer (gear): the dirty mugs come out clean by themselves.
+func _glasswasher(key: String) -> void:
 	var m: Dictionary = mugs(key)
 	if int(m["dirty"]) > 0:
 		act(key, "mugs", [int(m["dirty"]), -int(m["dirty"])])
-	var k: Dictionary = keg(key)
-	var beer := maxi(0, BUSINESS.stock_of(key, "beer"))
-	if (str(k["pallet"]) != "full" or int(k["line"]) <= 0) and beer > 0:
-		set_keg(key, {"pallet": "full", "line": mini(RULES.KEG_PINTS, beer), "coupled": true, "gas": RULES.GAS_START})
-	elif float(k["gas"]) < RULES.GAS_LOW or float(k["gas"]) > RULES.GAS_HIGH:
-		set_keg(key, {"gas": RULES.GAS_START})

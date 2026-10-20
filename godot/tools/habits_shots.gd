@@ -27,6 +27,11 @@ func _ready() -> void:
 		["eval", INV + ".add_item('cigs')"], ["eval", INV + ".add_item('beer')"], ["eval", INV + ".add_item('beer')"],
 		["eval", INV + ".add_item('beer')"],
 		["eval", P + ".cig.set('debug_catch', true)"],
+		# The bag: the line by the cursor over the pack, and E uses it (a click moves it).
+		["eval", INV + "._open_bag()"], ["eval", INV + ".set('_sticky', true)"], ["wait", 0.6],
+		["eval", "get_viewport().warp_mouse(" + INV + "._grid_origin(" + INV + "._scale()) + Vector2(50, 10) * " + INV + "._scale())"],
+		["wait", 0.5], ["shot", "z_bag_hint"],
+		["eval", INV + ".close()"], ["wait", 0.6],
 		# The pack: two taps, up to the mouth, the lighter.
 		["key", "C"], ["wait", 0.05],
 	]

@@ -9,7 +9,7 @@ extends "res://scripts/enemies/enemy_base.gd"
 ## him lose interest. A hit from him takes nearly half your health.
 
 const SPRITE := "res://assets/textury/npc/stalker_small.png"
-const SFX_THUMP := "res://assets/sfx/npc/thump.wav"
+const SFX_THUMP := "res://assets/sfx/npc/thump.mp3"
 const WALK_SPEED := 2.0
 const NOTICE_RANGE := 14.0
 const GIVE_UP_LIGHT := 0.25
@@ -34,6 +34,8 @@ func _on_start() -> void:
 	_charge_speed = lerpf(5.2, 6.4, t)
 	_hit = int(lerpf(40.0, 55.0, t))
 	_body = _make_body(SPRITE, 2.35)
+	# In the skull's sockets.
+	_make_eyes("stalker", 1.85)
 	_build_perimeter()
 	if _perimeter.size() >= 2:
 		_seg = _rng.randi_range(0, _perimeter.size() - 1)
@@ -98,5 +100,5 @@ func _footsteps(dt: float, interval: float) -> void:
 	_step_t -= dt
 	if _step_t <= 0.0:
 		_step_t = interval
-		_sound(SFX_THUMP, _body.global_position, -2.0, _rng.randf_range(0.85, 1.0), 45.0)
+		_sound(SFX_THUMP, _body.global_position, 4.0, _rng.randf_range(0.85, 1.0), 45.0)
 

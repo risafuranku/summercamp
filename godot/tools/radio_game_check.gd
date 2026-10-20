@@ -57,14 +57,17 @@ func _ready() -> void:
 	_check(bool(ctx.get("night", false)), "night falls for the radio (%.1f h)" % float(ctx.get("hours", -1.0)))
 	# A brain that is out tonight and stands four metres from the player (the real ones
 	# hide while the headless game refuses them actions).
-	var player: Node3D = main.get("_player")
+	# Four metres from where the radio listens from (the player).
 	var fake := FakeBrain.new()
-	fake.at = player.global_position + Vector3(4.0, 0.0, 0.0)
+	fake.at = (bi.call("_resolve_radio_listener_position") as Vector3) + Vector3(4.0, 0.0, 0.0)
 	(main.get("_enemy_brains") as Array).append(fake)
 	ctx = bi.call("_radio_dread_context", 0.0)
 	_check("girl" in (ctx.get("tonight", []) as Array), "it knows who is out (%s)" % str(ctx.get("tonight", [])))
 	_check(float(ctx.get("nearest", INF)) < 12.0, "and how close (%.1f m)" % float(ctx.get("nearest", INF)))
-	await _wait(3.0)
+	# Enough for the dread to close in (near rises 1.5 a second, the song falls 2.2): the
+	# headless camp's clock can run the quiet first night out within seconds, and then
+	# the threat is gone again before a longer wait ends.
+	await _wait(1.2)
 	var dread = bi.get("_dread")
 	_check(float(dread.get_near()) > 0.55, "near (%.2f)" % float(dread.get_near()))
 	_check(float(dread.music_gain) < 0.2, "the song drops away (gain %.2f)" % float(dread.music_gain))

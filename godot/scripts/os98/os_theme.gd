@@ -52,6 +52,11 @@ static func box(kind: String, fill: Color = FACE, pad := Vector4(4, 3, 4, 3)) ->
 			rings = [[SHADOW, WHITE]]
 		"thin_raised":
 			rings = [[WHITE, SHADOW]]
+		"default":
+			# A dialog's default button: the black frame outside its bevel.
+			rings = [[DARK, DARK], [WHITE, DARK], [LIGHT, SHADOW]]
+		"default_pressed":
+			rings = [[DARK, DARK], [SHADOW, SHADOW]]
 		_:
 			rings = []
 	var border := rings.size()

@@ -54,16 +54,27 @@ func _ready() -> void:
 	var s = _start(SILENT)
 	var first_hit_at := -1.0
 	var neck_seen := false
-	for i in 30 * 60:
+	var max_press := 0.0
+	var lesson_seen := false
+	var lesson_hurt := false
+	for i in 30 * 90:
 		s.tick(1.0 / 30.0)
+		max_press = maxf(max_press, float(s._press))
 		if s._neck_until > 0.0:
 			neck_seen = true
+		if s._lesson:
+			lesson_seen = true
+			lesson_hurt = lesson_hurt or _damage > 0
 		if _damage > 0 and first_hit_at < 0.0:
 			first_hit_at = i / 30.0
 			break
 	print("ENEMY CHECK: silent man first hit at %.1f s, %s" % [first_hit_at, s.get_debug_snapshot()])
 	_expect(first_hit_at > 6.0, "silent man: the first hit comes only after an audible approach (at %.1f s)" % first_hit_at)
 	_expect(neck_seen, "silent man: a whisper at the neck precedes the hit")
+	# The first meeting in a camp teaches: he turns you round to him and does not bite.
+	_expect(lesson_seen and not lesson_hurt, "silent man: the first catch is the lesson, without a bite (seen %s, hurt %s)" % [lesson_seen, lesson_hurt])
+	# Standing in the dark while he comes, you feel it build.
+	_expect(max_press > 0.5, "silent man: the sixth sense builds in the dark (max %.2f)" % max_press)
 	s.stop_night()
 
 	# Turning round at the whisper drives him off: no damage, ever.

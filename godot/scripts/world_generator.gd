@@ -309,10 +309,11 @@ func _resolve_occupant_root(occupant: Variant) -> Node3D:
 func _generate_terrain() -> void:
 	var map_size = _grid_manager.get_map_size_world()
 	var map_center = _grid_manager.get_map_center_world()
-	# Override grass texture if needed
-	var batch2_grass_tex = _load_force_texture("res://assets/textury/redneck/grass.png")
+	# The meadow at the end of summer (Grok, world/grass_summer.png; the Redneck grass before
+	# it was near black and the meadow read as burnt ground: inventory 20. 10.).
+	# season_look.gd swaps it for the autumn's and then the snow's.
+	var batch2_grass_tex = _load_force_texture("res://assets/textury/world/grass_summer.png")
 	if batch2_grass_tex == null:
-		print("Ground: Falling back for batch2 grass...")
 		batch2_grass_tex = _load_force_texture("res://assets/textury/redneck/grass.png")
 	if batch2_grass_tex == null and _texture_style != null:
 		batch2_grass_tex = _texture_style.pick_texture("grass", Color(0.80, 1.0, 0.80, 1.0))

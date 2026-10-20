@@ -63,6 +63,7 @@ func _process(delta: float) -> void:
 	_prune_stale_lamp_runtime()
 	if _lamp_runtime.is_empty():
 		return
+	_update_lamp_air()
 
 	if _lamps_active:
 		_lamp_flicker_roll_timer -= maxf(delta, 0.0)
@@ -299,8 +300,11 @@ func get_footprint_for_building(building_type: String) -> Vector2i:
 	match building_type:
 		"tent_1", "tent_2", "tent_3", "toilet_block", "shower_block", "bonfire", "power_generator", "sewer", "water_pump", "sewage_tank", "dumpsters", "path", "lamp_post":
 			return Vector2i(1, 1)
-		"cabin", "cabin_1", "cabin_2", "cabin_3", "restaurant", "pub", "vecerka":
+		"cabin", "cabin_1", "cabin_2", "cabin_3", "restaurant", "pub":
 			return Vector2i(2, 2)
+		"vecerka":
+			# The Jednota (agent C, 20. 10.): three by three, its model building_models._jednota.
+			return Vector2i(3, 3)
 		"caravan_1", "caravan_2", "caravan_3", "sports_field", "lake_slide", "playground":
 			return Vector2i(2, 1)
 		_:
@@ -327,7 +331,7 @@ func place_building_at(origin: Vector2i, building_type: String) -> bool:
 
 	match building_type:
 		"vecerka":
-			return place_vecerka_at(origin)
+			return _place_placeholder_at(origin, "vecerka", Vector2i(3, 3), Color(0.58, 0.60, 0.62), Color(0.72, 0.2, 0.16), "services", 3.6)
 		"cabin", "cabin_1":
 			return place_cabin_at(origin, 1)
 		"cabin_2":
@@ -362,6 +366,8 @@ func place_building_at(origin: Vector2i, building_type: String) -> bool:
 			return _place_placeholder_at(origin, "dumpsters", Vector2i(1, 1), Color(0.22, 0.38, 0.28), Color(0.18, 0.30, 0.22), "utilities", 0.9)
 		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "ping_pong", "hammock":
 			return _place_placeholder_at(origin, building_type, Vector2i(1, 1), Color(0.4, 0.5, 0.3), Color(0.8, 0.7, 0.5), "attractions", 0.6)
+		"mega_gnome":
+			return _place_placeholder_at(origin, "mega_gnome", Vector2i(2, 2), Color(0.4, 0.5, 0.3), Color(0.8, 0.7, 0.5), "attractions", 2.9)
 		"playground":
 			return _place_placeholder_at(origin, "playground", Vector2i(2, 1), Color(0.6, 0.5, 0.3), Color(0.9, 0.3, 0.2), "attractions", 1.2)
 		"corn_stand":
@@ -745,6 +751,7 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	cone_in.radial_segments = 10
 	shade_in.mesh = cone_in
 	shade_in.material_override = enamel_in
+	shade_in.set_meta("retro_skip", true)
 	# Just under the shade's bottom, not in it (the two faces fought: flicker at the top).
 	shade_in.position = lamp_head_anchor + Vector3(0.0, -0.208, 0.0)
 	lamp.add_child(shade_in)
@@ -760,12 +767,15 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	var bulb_material = _make_psx_material(Color(1.0, 0.94, 0.78, 0.52), 0.004, 20.0, 6.0, 0.0, "building_window", 0.20)
 	var bulb_std = bulb_material as StandardMaterial3D
 	if bulb_std != null:
-		bulb_std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		bulb_std.emission_enabled = true
 		bulb_std.emission = bulb_light_color
-		bulb_std.emission_energy_multiplier = 0.22
-		bulb_std.albedo_color = Color(1.0, 0.94, 0.78, 0.40)
+		bulb_std.emission_energy_multiplier = 0.0
+		bulb_std.albedo_color = Color(1.0, 0.94, 0.78)
 	bulb_mesh.material_override = bulb_material
+	# The bulb and the shade's white inside are the light itself (lit with the lamp, at full
+	# brightness, by _apply_lamp_entry_base_state): their own materials, not shaded by
+	# distance like the rest (scripts/retro_materials.gd), changed at once when it flickers.
+	bulb_mesh.set_meta("retro_skip", true)
 	lamp.add_child(bulb_mesh)
 	var beam_height = maxf(2.9, ts * 0.86)
 	var beam_width = maxf(1.3, ts * 0.40)
@@ -809,13 +819,14 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	beam_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	beam_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	beam_mat.albedo_texture = _get_lamp_beam_texture()
-	beam_mat.albedo_color = Color(bulb_light_color.r, bulb_light_color.g, bulb_light_color.b, 0.14)
-	beam_mat.emission_enabled = true
-	beam_mat.emission = bulb_light_color
-	beam_mat.emission_energy_multiplier = 0.22
+	# Light adds to what is behind it: laid over it, through the distance shading, the cone
+	# was a grey column (inventory 20. 10.). Its alpha is how much it adds.
+	beam_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	beam_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.55)
 	beam_mat.set_meta("beam_base_alpha", beam_mat.albedo_color.a)
-	beam_mat.set_meta("beam_base_emission", beam_mat.emission_energy_multiplier)
 	beam_mesh.material_override = beam_mat
+	beam_mesh.set_meta("retro_skip", true)
+	beam_mesh.visible = beam_mat.albedo_texture != null
 	lamp.add_child(beam_mesh)
 
 	var dust = GPUParticles3D.new()
@@ -875,131 +886,19 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	else:
 		# Walk-through: no collider in the middle of the path's neighbours' way.
 		collider.position.x = 0.0
-	_register_lamp_runtime(lamp, lamp_spot, lamp_fill, beam_mesh, dust)
+	_register_lamp_runtime(lamp, lamp_spot, lamp_fill, beam_mesh, dust, bulb_std, enamel_in)
 	return true
+
+
+## The lamp's cone of light: Grok `spr_lamp_beam` (warm bands of light in steps, dust and
+## a moth in it); it was a smooth gradient drawn in code.
+const LAMP_BEAM_TEX := "res://assets/textury/camp/lamp_beam.png"
 
 
 func _get_lamp_beam_texture() -> Texture2D:
-	if _lamp_beam_texture != null:
-		return _lamp_beam_texture
-
-	var width := 96
-	var height := 224
-	var img := Image.create(width, height, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.0, 0.0, 0.0, 0.0))
-
-	for y in range(height):
-		var t = float(y) / float(height - 1)
-		var half_width = lerpf(0.03, 0.50, pow(t, 0.88))
-		var vertical_falloff = clampf(pow(1.0 - t, 0.42), 0.0, 1.0)
-		for x in range(width):
-			var u = float(x) / float(width - 1)
-			var dist = absf(u - 0.5)
-			if dist > half_width:
-				continue
-			var edge_soft = 1.0 - clampf(dist / maxf(half_width, 0.0001), 0.0, 1.0)
-			edge_soft = edge_soft * edge_soft
-			var alpha = edge_soft * vertical_falloff * 0.78
-			if alpha <= 0.001:
-				continue
-			img.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
-
-	_lamp_beam_texture = ImageTexture.create_from_image(img)
+	if _lamp_beam_texture == null and ResourceLoader.exists(LAMP_BEAM_TEX):
+		_lamp_beam_texture = load(LAMP_BEAM_TEX)
 	return _lamp_beam_texture
-
-
-func place_vecerka_at(origin: Vector2i) -> bool:
-	_ensure_structures_root()
-	if _grid_manager == null:
-		return false
-	var footprint = Vector2i(2, 2)
-	if not _grid_manager.can_place_footprint(origin, footprint):
-		return false
-
-	var vecerka = StaticBody3D.new()
-	vecerka.name = "Vecerka"
-	vecerka.add_to_group("services")
-	vecerka.set_meta("service_type", "vecerka")
-	vecerka.set_meta("interior_click_type", "building_door") # Allow clicking to enter
-	_tag_structure(vecerka, origin, footprint, "vecerka", true)
-	_structures_root.add_child(vecerka)
-
-	var center = _grid_manager.get_footprint_center(origin, footprint)
-	vecerka.position = center
-
-	var ts = _grid_manager.tile_size
-	var w = ts * 2.0 * 0.95
-	var d = ts * 2.0 * 0.95
-	var h = 3.6
-
-	# Main Body
-	var body_mesh = MeshInstance3D.new()
-	var body_box = BoxMesh.new()
-	body_box.size = Vector3(w, h, d)
-	body_mesh.mesh = body_box
-	body_mesh.position = Vector3(0.0, h * 0.5, 0.0)
-	var body_mat = _make_psx_material(Color(0.58, 0.60, 0.62), 0.010, 24.0, 6.0, 0.10, "service_vecerka_wall", 0.78)
-	if body_mat is StandardMaterial3D:
-		(body_mat as StandardMaterial3D).uv1_scale = Vector3(1.2, 1.2, 1.0)
-	body_mesh.material_override = body_mat
-	vecerka.add_child(body_mesh)
-
-	# Roof
-	var roof_mesh = MeshInstance3D.new()
-	var roof_box = BoxMesh.new()
-	roof_box.size = Vector3(w + 0.4, 0.2, d + 0.4)
-	roof_mesh.mesh = roof_box
-	roof_mesh.position = Vector3(0.0, h + 0.1, 0.0)
-	roof_mesh.material_override = _make_psx_material(Color(0.30, 0.28, 0.26), 0.012, 16.0, 2.0, 0.10, "roof")
-	vecerka.add_child(roof_mesh)
-
-	# Front Sign Board
-	var sign_mesh = MeshInstance3D.new()
-	var sign_box = BoxMesh.new()
-	sign_box.size = Vector3(w * 0.8, 0.8, 0.1)
-	sign_mesh.mesh = sign_box
-	sign_mesh.position = Vector3(0.0, h - 0.7, d * 0.5 + 0.06)
-	sign_mesh.material_override = _make_psx_material(Color(0.72, 0.20, 0.16), 0.005, 32.0, 4.0, 0.05, "metal")
-	vecerka.add_child(sign_mesh)
-
-	var sign_lbl = Label3D.new()
-	sign_lbl.text = "VECERKA"
-	sign_lbl.font_size = 64
-	sign_lbl.outline_size = 16
-	sign_lbl.position = Vector3(0.0, 0.0, 0.06)
-	sign_lbl.modulate = Color(1.0, 1.0, 0.9)
-	sign_mesh.add_child(sign_lbl)
-
-	# Door
-	var door_mesh = MeshInstance3D.new()
-	var door_box = BoxMesh.new()
-	door_box.size = Vector3(1.4, 2.4, 0.1)
-	door_mesh.mesh = door_box
-	door_mesh.position = Vector3(-w * 0.15, 1.2, d * 0.5 + 0.06)
-	door_mesh.material_override = _make_psx_material(Color(0.24, 0.22, 0.20), 0.008, 24.0, 6.0, 0.08, "building_door")
-	vecerka.add_child(door_mesh)
-
-	# Cola Machine (Outside Prop)
-	var cola_mesh = MeshInstance3D.new()
-	var cola_box = BoxMesh.new()
-	cola_box.size = Vector3(1.0, 2.0, 0.9)
-	cola_mesh.mesh = cola_box
-	cola_mesh.position = Vector3(w * 0.30, 1.0, d * 0.5 + 0.6)
-	cola_mesh.rotation_degrees = Vector3(0.0, -15.0, 0.0)
-	cola_mesh.material_override = _make_psx_material(Color(0.80, 0.20, 0.20), 0.006, 24.0, 6.0, 0.10, "service_vecerka_cola")
-	vecerka.add_child(cola_mesh)
-
-	# Collider
-	var collider = CollisionShape3D.new()
-	var shape = BoxShape3D.new()
-	shape.size = Vector3(w, h, d)
-	collider.shape = shape
-	collider.position = Vector3(0.0, h * 0.5, 0.0)
-	vecerka.add_child(collider)
-
-	_set_structure_condition_internal(vecerka, _default_condition_for_type("vecerka"))
-	_grid_manager.occupy_footprint(origin, footprint, vecerka)
-	return true
 
 
 func _place_caravan_at(origin: Vector2i, level: int = 1) -> bool:
@@ -1333,7 +1232,7 @@ func _add_service_pattern_panel(
 	structure.add_child(panel_mesh)
 
 
-func _register_lamp_runtime(lamp_root: Node3D, spot: SpotLight3D, fill: OmniLight3D, beam: MeshInstance3D, dust: GPUParticles3D) -> void:
+func _register_lamp_runtime(lamp_root: Node3D, spot: SpotLight3D, fill: OmniLight3D, beam: MeshInstance3D, dust: GPUParticles3D, bulb: StandardMaterial3D = null, glow: StandardMaterial3D = null) -> void:
 	if lamp_root == null:
 		return
 	var lamp_id = int(lamp_root.get_instance_id())
@@ -1343,6 +1242,8 @@ func _register_lamp_runtime(lamp_root: Node3D, spot: SpotLight3D, fill: OmniLigh
 		"fill": fill,
 		"beam": beam,
 		"dust": dust,
+		"bulb": bulb,
+		"glow": glow,
 		"base_spot_energy": spot.light_energy if spot != null else 1.0,
 		"base_fill_energy": fill.light_energy if fill != null else 0.0,
 		"flicker_remaining": 0.0,
@@ -1398,9 +1299,43 @@ func _update_lamp_beam_orientation(entry: Dictionary) -> void:
 	var target = player.global_position
 	target.y = beam.global_position.y
 	var dir = target - beam.global_position
+	# Not in your face: stood under the lamp the cone was a wall across the view; it comes
+	# in from two metres off. Stronger in mist and rain (_lamp_air).
+	entry["beam_k"] = clampf((dir.length() - 1.8) / 2.2, 0.0, 1.0) * _lamp_air
+	if float(entry.get("flicker_remaining", 0.0)) <= 0.0 and _lamps_active and not _is_lamp_entry_broken(entry):
+		_set_lamp_glow(entry, 1.0)
 	if dir.length_squared() <= 0.0001:
 		return
 	beam.look_at(beam.global_position + dir.normalized(), Vector3.UP)
+
+
+## How much the lamps' light shows in the air: a clear night a little, fog, rain and the
+## storm (light catching in the wet) fully. Set once a frame (_process).
+var _lamp_air := 0.35
+
+
+func _update_lamp_air() -> void:
+	var main := get_tree().current_scene if is_inside_tree() else null
+	var w = main.get("_weather_state") if main != null else null
+	_lamp_air = 1.0 if w != null and int(w) in [2, 3, 4, 5] else 0.35
+
+
+## The bulb, the shade's inside and the cone at `level` of the lamp's light (1 steady, less
+## in a stutter), worn bulbs dimmer.
+func _set_lamp_glow(entry: Dictionary, level: float) -> void:
+	var wear := _wear_of(entry)
+	var bulb = entry.get("bulb", null) as StandardMaterial3D
+	if bulb != null:
+		bulb.emission_energy_multiplier = 2.6 * wear * level
+	var glow = entry.get("glow", null) as StandardMaterial3D
+	if glow != null:
+		glow.emission_energy_multiplier = 1.1 * wear * level
+	var beam = entry.get("beam", null) as MeshInstance3D
+	var beam_mat = beam.material_override as StandardMaterial3D if beam != null else null
+	if beam_mat != null:
+		var a := float(beam_mat.get_meta("beam_base_alpha", 0.5)) * wear * level * float(entry.get("beam_k", 1.0))
+		beam_mat.albedo_color.a = a
+		beam.visible = a > 0.01 and beam_mat.albedo_texture != null
 
 
 func _roll_lamp_flickers() -> void:
@@ -1427,12 +1362,10 @@ func _apply_lamp_entry_base_state(entry: Dictionary, active: bool) -> void:
 	active = active and not _is_lamp_entry_broken(entry)
 	var spot = entry.get("spot", null) as SpotLight3D
 	var fill = entry.get("fill", null) as OmniLight3D
-	var beam = entry.get("beam", null) as MeshInstance3D
 	var dust = entry.get("dust", null) as GPUParticles3D
 	var wear := _wear_of(entry)
 	var base_spot = float(entry.get("base_spot_energy", 1.0)) * wear
 	var base_fill = float(entry.get("base_fill_energy", 0.0)) * wear
-	var beam_mat = beam.material_override as StandardMaterial3D if beam != null else null
 	if wear <= 0.0:
 		active = false
 	if active:
@@ -1442,13 +1375,7 @@ func _apply_lamp_entry_base_state(entry: Dictionary, active: bool) -> void:
 		if fill != null:
 			fill.visible = true
 			fill.light_energy = base_fill
-		if beam != null:
-			beam.visible = true
-		if beam_mat != null:
-			var base_alpha = float(beam_mat.get_meta("beam_base_alpha", 0.085))
-			var base_emission = float(beam_mat.get_meta("beam_base_emission", 0.30))
-			beam_mat.albedo_color = Color(beam_mat.albedo_color.r, beam_mat.albedo_color.g, beam_mat.albedo_color.b, base_alpha * wear)
-			beam_mat.emission_energy_multiplier = base_emission * wear
+		_set_lamp_glow(entry, 1.0)
 		if dust != null:
 			dust.emitting = true
 	else:
@@ -1458,11 +1385,7 @@ func _apply_lamp_entry_base_state(entry: Dictionary, active: bool) -> void:
 		if fill != null:
 			fill.visible = false
 			fill.light_energy = 0.0
-		if beam != null:
-			beam.visible = false
-		if beam_mat != null:
-			beam_mat.albedo_color = Color(beam_mat.albedo_color.r, beam_mat.albedo_color.g, beam_mat.albedo_color.b, 0.0)
-			beam_mat.emission_energy_multiplier = 0.0
+		_set_lamp_glow(entry, 0.0)
 		if dust != null:
 			dust.emitting = false
 
@@ -1479,30 +1402,25 @@ func _update_lamp_flicker(entry: Dictionary, delta: float) -> void:
 		entry["flicker_remaining"] = 0.0
 		_apply_lamp_entry_base_state(entry, _lamps_active)
 		return
-	var phase = float(entry.get("flicker_phase", 0.0))
-	phase += delta * 42.0
+	# The stutter in steps, twelve a second: full, half, a glimmer or out, as a failing
+	# bulb does (it was a smooth pulse).
+	var phase = float(entry.get("flicker_phase", 0.0)) + delta
 	entry["flicker_remaining"] = remaining
 	entry["flicker_phase"] = phase
-
-	var pulse = clampf(0.22 + absf(sin(phase)) * 0.78, 0.16, 1.0)
+	if phase >= 1.0 / 12.0 or not entry.has("pulse"):
+		entry["flicker_phase"] = 0.0
+		entry["pulse"] = [1.0, 0.55, 0.15, 0.0][_lamp_rng.randi() % 4]
+	var pulse := float(entry["pulse"])
 	var spot = entry.get("spot", null) as SpotLight3D
 	var fill = entry.get("fill", null) as OmniLight3D
-	var beam = entry.get("beam", null) as MeshInstance3D
 	var wear := _wear_of(entry)
 	var base_spot = float(entry.get("base_spot_energy", 1.0)) * wear
 	var base_fill = float(entry.get("base_fill_energy", 0.0)) * wear
 	if spot != null:
 		spot.light_energy = base_spot * pulse
 	if fill != null:
-		fill.light_energy = base_fill * (0.35 + (pulse * 0.65))
-	if beam != null:
-		var beam_mat = beam.material_override as StandardMaterial3D
-		if beam_mat != null:
-			var base_alpha = float(beam_mat.get_meta("beam_base_alpha", 0.085))
-			var base_emission = float(beam_mat.get_meta("beam_base_emission", 0.30))
-			var beam_mul = 0.30 + (pulse * 0.70)
-			beam_mat.albedo_color = Color(beam_mat.albedo_color.r, beam_mat.albedo_color.g, beam_mat.albedo_color.b, base_alpha * beam_mul)
-			beam_mat.emission_energy_multiplier = base_emission * beam_mul
+		fill.light_energy = base_fill * pulse
+	_set_lamp_glow(entry, pulse)
 
 	if remaining <= 0.0:
 		_apply_lamp_entry_base_state(entry, true)

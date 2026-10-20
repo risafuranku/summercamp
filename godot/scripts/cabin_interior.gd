@@ -272,6 +272,31 @@ func _add_portal(n: String, centre: Vector3, outward: Vector3, size: Vector2, lv
 	_portals.append({"vp": vp, "cam": cam, "quad": quad, "frame": frame, "size": size, "outward": outward.normalized(), "lv1_only": lv1_only})
 
 
+## The windows that look out now, as the camp has them: [{pos (the glass's middle,
+## outside, world), out (the way it faces, world)}]. A thing that wants to be seen
+## through one stands there (the Silent Man at the glass).
+func outside_windows() -> Array:
+	var out: Array = []
+	if _anchor == null or not is_instance_valid(_anchor) or not _anchor.is_inside_tree() or _active_room != "main":
+		return out
+	var ws: Vector3 = _anchor.get_meta("wall_size", Vector3(6.24, 2.4, 6.24))
+	for pt in _portals:
+		if bool(pt["lv1_only"]) and _cabin_level != 1:
+			continue
+		var o: Vector3 = pt["outward"]
+		var ext := Vector3(0, ws.y * 0.62, -ws.z * 0.5 - 0.02) if o.z < -0.5 else Vector3(ws.x * 0.5 + 0.02, ws.y * 0.62, 0)
+		var dir := (_anchor.global_transform.basis * (Vector3(0, 0, -1) if o.z < -0.5 else Vector3(1, 0, 0))).normalized()
+		# How squarely you look at it now (1 straight at it).
+		var facing := 0.0
+		if _interior_camera != null and is_instance_valid(_interior_camera):
+			var frame: Transform3D = pt["frame"]
+			var at := _cabin_root.global_transform * frame.origin
+			var to := (at - _interior_camera.global_position).normalized()
+			facing = (-_interior_camera.global_transform.basis.z).dot(to)
+		out.append({"pos": _anchor.global_transform * ext, "out": dir, "facing": facing})
+	return out
+
+
 ## Each frame while you are in: every window's camera where your eye is, mapped out into
 ## the camp, the window its near plane (so it moves as you turn, a real view).
 func _update_portals() -> void:

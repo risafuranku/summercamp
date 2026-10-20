@@ -600,6 +600,39 @@ func apply_guest_event(guest_id: int, mood_delta: float, thought: String) -> voi
 	_emit_guest_overview_state(true)
 
 
+## A meal or a drink at the camp's businesses the guest will write about (DESIGN.md
+## §7b: the businesses' ratings reach Goggle through the reviews): the best and the worst
+## of the stay are kept, with their scores (scripts/food/orders.gd note_meal).
+func note_meal(guest_id: int, line: String, score: int) -> void:
+	var state = CoreRoot.get_state()
+	if state == null or line == "":
+		return
+	for i in state.guests.size():
+		var g_any = state.guests[i]
+		if not (g_any is Dictionary) or int(g_any.get("id", -1)) != guest_id:
+			continue
+		var guest: Dictionary = g_any
+		var best: Dictionary = guest.get("meal_best", {}) if guest.get("meal_best", {}) is Dictionary else {}
+		var worst: Dictionary = guest.get("meal_worst", {}) if guest.get("meal_worst", {}) is Dictionary else {}
+		if best.is_empty() or score > int(best.get("score", -1)):
+			guest["meal_best"] = {"line": line, "score": score}
+		if worst.is_empty() or score < int(worst.get("score", 101)):
+			guest["meal_worst"] = {"line": line, "score": score}
+		state.guests[i] = guest
+		return
+
+
+## The meal they write about: the worst when it was bad, the best when it was good.
+func _review_meal(guest: Dictionary, rating: int) -> String:
+	var best: Dictionary = guest.get("meal_best", {}) if guest.get("meal_best", {}) is Dictionary else {}
+	var worst: Dictionary = guest.get("meal_worst", {}) if guest.get("meal_worst", {}) is Dictionary else {}
+	if rating <= 3 and not worst.is_empty() and int(worst.get("score", 100)) < 60:
+		return str(worst.get("line", ""))
+	if rating >= 3 and not best.is_empty() and int(best.get("score", 0)) >= 85:
+		return str(best.get("line", ""))
+	return ""
+
+
 ## The player at the barrier, pressing E on a waiting party. Lets them in when every
 ## room they booked is made up. {ok, reason: "not_waiting" | "room_not_ready", rooms}
 func request_check_in(guest_id: int) -> Dictionary:
@@ -2275,6 +2308,9 @@ func _build_review_for_guest(guest: Dictionary, day: int) -> Dictionary:
 	var complaint := _review_complaint(guest)
 	if not complaint.is_empty() and rating <= 3:
 		review_text = "%s %s" % [review_text, complaint]
+	var meal := _review_meal(guest, rating)
+	if meal != "":
+		review_text = "%s %s" % [review_text, meal]
 
 	return {
 		"guest_id": int(guest.get("id", -1)),

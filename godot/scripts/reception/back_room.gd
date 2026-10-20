@@ -143,7 +143,7 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	root.add_child(tv_light)
 
 	_tv_hiss = _loop3d(SFX + "tv_hiss.mp3", -22.0)
-	_tv_tone = _loop3d(SFX + "tv_tone.wav", -30.0)
+	_tv_tone = _loop3d(SFX + "tv_tone.mp3", -28.5)
 	_one = AudioStreamPlayer.new()
 	audio_parent.add_child(_one)
 	_set_tv(true, false)

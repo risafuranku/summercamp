@@ -1,9 +1,10 @@
 extends CharacterBody3D
 
 const YAW_SENSITIVITY_FACTOR := 2.0
-## Stamina: a full bar is ~6 s of sprinting; it refills in ~9 s and, once empty,
-## sprinting stays locked until it is back to STAMINA_UNLOCK.
-const STAMINA_DRAIN_PER_SEC := 1.0 / 6.0
+## Stamina: a full bar is ~7.5 s of sprinting (6 was too short: the user 20. 10., +25 %);
+## it refills in ~9 s and, once empty, sprinting stays locked until it is back to
+## STAMINA_UNLOCK.
+const STAMINA_DRAIN_PER_SEC := 1.0 / 7.5
 const STAMINA_REGEN_PER_SEC := 1.0 / 9.0
 const STAMINA_UNLOCK := 0.25
 ## Flashlight battery: ~5 real minutes of light on a charge; the night lasts ~7.
@@ -16,12 +17,17 @@ const BATTERY_LOW := 0.15
 @export var sprint_speed: float = 5.2
 ## Set by main while you push through the corn (scripts/world_generator.gd corn tiles).
 var terrain_speed_mult: float = 1.0
+## Something has hold of you (the Silent Man's hands at your shoulder): you move at this.
+var held_speed_mult: float = 1.0
 @export var jump_velocity: float = 4.4
 @export var gravity: float = 26.0
 @export var mouse_sensitivity: float = 0.0012
 @export var invert_vertical_look: bool = false
 @export var vertical_look_sensitivity_multiplier: float = 0.85
 @export var vertical_look_limit_degrees: float = 24.0
+## Down further than up: to your feet, the path, what lies on the ground (the user 20. 10.:
+## let me look further down).
+@export var look_down_limit_degrees: float = 46.0
 @export var vertical_look_snap_degrees: float = 1.4
 @export var vertical_look_smoothing: float = 14.0
 @export var pseudo_pitch_vertical_shift: float = 0.045
@@ -83,9 +89,13 @@ var terrain_speed_mult: float = 1.0
 
 ## One footstep at a time (ElevenLabs, sfx/steps/<surface>_a..d.mp3), on the step of the
 ## head bob, by what is under you: grass, the gravel of a path or the road, the planks of
-## the jetty or a porch, mud when the ground is wet through. A thud when you land.
+## the jetty or a porch, mud when the ground is wet through, a puddle you step in (the
+## rain's, scripts/ambient/ground_life.gd), snow once it lies. A thud when you land.
 const STEP_DIR := "res://assets/sfx/steps/"
-const STEP_SURFACES := ["grass", "gravel", "wood", "mud"]
+## You as you move (ElevenLabs, sfx/player/): your jacket's sleeves with every other step,
+## the keys on your belt when you run.
+const FOLEY_DIR := "res://assets/sfx/player/"
+const STEP_SURFACES := ["grass", "gravel", "wood", "mud", "snow", "puddle"]
 const FOOTSTEP_GRASS_PATH := "res://assets/sfx/grassfootsteps.mp3"
 const FOOTSTEP_GRAVEL_PATH := "res://assets/sfx/gravelfootsteps.mp3"
 const FOOTSTEP_SILENT_DB := -80.0
@@ -150,6 +160,14 @@ var _flashlight_user_chose_off: bool = false
 var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
 var _steps: Dictionary = {}          # surface -> [AudioStream]
+var _ground_life: Node               # the puddles (scripts/ambient/ground_life.gd)
+var _foley: Dictionary = {}
+var _foley_player: AudioStreamPlayer
+var _foley_step := 0
+## How much what is under you lets you go (looked at four times a second).
+const SURFACE_SPEED := {"snow": 0.86, "mud": 0.92, "puddle": 0.94}
+var _surface_speed := 1.0
+var _surface_t := 0.0
 var _step_players: Array = []
 var _step_next := 0
 var _step_last := -1
@@ -268,7 +286,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_current_tilt = lerp(_current_tilt, clamp(event.relative.x * rotation_tilt_amount, -0.1, 0.1), 0.15)
 		
 		_pitch_target += pitch_input * mouse_sensitivity * vertical_look_sensitivity_multiplier * look_scale
-		_pitch_target = clamp(_pitch_target, -deg_to_rad(vertical_look_limit_degrees), deg_to_rad(vertical_look_limit_degrees))
+		_pitch_target = clamp(_pitch_target, -deg_to_rad(look_down_limit_degrees), deg_to_rad(vertical_look_limit_degrees))
 		_mouse_impact += Vector2(0.0, -event.relative.x) * handheld_look_strength
 		_mouse_impact.y = clamp(_mouse_impact.y, -0.08, 0.08)
 
@@ -310,7 +328,13 @@ func _physics_process(delta: float) -> void:
 	var sprinting := wants_sprint and not _stamina_locked and stamina > 0.0
 	sprint_lower = move_toward(sprint_lower, 1.0 if sprinting else 0.0, delta * 3.0)
 	_update_stamina(delta, sprinting)
-	var current_speed = (sprint_speed if sprinting else move_speed) * terrain_speed_mult
+	# What you walk in slows you (snow, mud, a puddle), and so does being out of breath.
+	_surface_t -= delta
+	if _surface_t <= 0.0:
+		_surface_t = 0.25
+		_surface_speed = float(SURFACE_SPEED.get(_surface_under(), 1.0)) if is_on_floor() else _surface_speed
+	var winded := 0.9 if _stamina_locked else 1.0
+	var current_speed = (sprint_speed if sprinting else move_speed) * terrain_speed_mult * held_speed_mult * _surface_speed * winded
 	var target_x = move_dir.x * current_speed
 	var target_z = move_dir.z * current_speed
 	var accel = air_acceleration if not is_on_floor() else ground_acceleration
@@ -680,7 +704,8 @@ func _update_head_motion(delta: float) -> void:
 	_current_tilt = lerp(_current_tilt, input_tilt, delta * tilt_smoothing)
 	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y
 	if _camera != null:
-		var target_fov = camera_fov + (abs(pitch_ratio) * pseudo_pitch_fov_shift) + _damage_fov_push
+		# A little wider in a run.
+		var target_fov = camera_fov + (abs(pitch_ratio) * pseudo_pitch_fov_shift) + _damage_fov_push + sprint_lower * 2.5
 		_camera.fov = lerp(_camera.fov, target_fov, clamp(delta * 9.0, 0.0, 1.0))
 
 
@@ -938,10 +963,34 @@ func _load_steps() -> void:
 		p.name = "Step%d" % i
 		add_child(p)
 		_step_players.append(p)
+	for f in ["jacket_a", "jacket_b", "jacket_c", "keys_a", "keys_b"]:
+		var fp: String = FOLEY_DIR + str(f) + ".mp3"
+		if ResourceLoader.exists(fp):
+			_foley[f] = load(fp)
+	_foley_player = AudioStreamPlayer.new()
+	_foley_player.name = "Foley"
+	add_child(_foley_player)
 
 
-## What you are standing on.
+## What you are standing on: the boards of a porch or the jetty, else a puddle, the snow,
+## the ground under them.
 func _surface_under() -> String:
+	var ground := _ground_under()
+	if ground == "wood":
+		return ground
+	var main := get_tree().current_scene if is_inside_tree() else null
+	if main != null and (_ground_life == null or not is_instance_valid(_ground_life)):
+		_ground_life = main.find_child("GroundLife", true, false)
+	var gl := _ground_life
+	if gl != null and gl.has_method("puddle_at") and bool(gl.puddle_at(global_position)):
+		return "puddle"
+	if main != null and main.get("_day_index") != null and main.get("_time_of_day_hours") != null:
+		if Season.snow_cover(int(main.get("_day_index")), float(main.get("_time_of_day_hours"))) >= 0.2:
+			return "snow"
+	return ground
+
+
+func _ground_under() -> String:
 	if _sample_gravel_surface_mix() > 0.5:
 		return "gravel"
 	var space := get_world_3d().direct_space_state if is_inside_tree() else null
@@ -988,6 +1037,24 @@ func _play_step(motion: float) -> void:
 	p.volume_db = lerpf(-15.0, -8.0, run) + randf_range(-1.5, 1.0)
 	p.pitch_scale = lerpf(0.97, 1.06, run) * randf_range(0.93, 1.07)
 	p.play()
+	_play_foley(run)
+
+
+func _play_foley(run: float) -> void:
+	_foley_step += 1
+	if _foley_player == null or _foley.is_empty():
+		return
+	var key := ""
+	if run > 0.6 and randf() < 0.55:
+		key = "keys_a" if randf() < 0.5 else "keys_b"
+	elif _foley_step % 2 == 0:
+		key = "jacket_c" if run > 0.6 else ("jacket_a" if _foley_step % 4 == 0 else "jacket_b")
+	if key == "" or not _foley.has(key):
+		return
+	_foley_player.stream = _foley[key]
+	_foley_player.volume_db = (lerpf(-25.0, -19.0, run) if key.begins_with("jacket") else -19.0) + randf_range(-2.0, 1.0)
+	_foley_player.pitch_scale = randf_range(0.94, 1.06)
+	_foley_player.play()
 
 
 ## A thud when you come down (from a jump, a step down).

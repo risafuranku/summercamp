@@ -19,7 +19,7 @@ const TIERS := [
 	{"stars": 0.0, "reviews": 0, "items": ["tent_1", "cabin_1", "toilet_block", "shower_block", "pub", "sewer", "bonfire", "bench", "flower_bed", "picnic_table", "path", "lamp_post"]},
 	{"stars": 3.0, "reviews": 5, "items": ["caravan_1", "restaurant", "sports_field", "hammock", "gnome", "corn_stand"]},
 	{"stars": 3.5, "reviews": 12, "items": ["playground", "ping_pong", "flagpole", "upgrade:2"]},
-	{"stars": 4.0, "reviews": 22, "items": ["lake_slide"]},
+	{"stars": 4.0, "reviews": 22, "items": ["lake_slide", "vecerka"]},
 	{"stars": 4.3, "reviews": 32, "items": ["upgrade:3"]},
 ]
 ## SpotlessName Ltd's price for the first review, and what each one after adds.

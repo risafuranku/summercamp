@@ -11,6 +11,9 @@ extends Control
 ## couple of gulps, then the pictures one by one, interlaced. GIF banners rotate their
 ## frames once they are down; some pages are papered with a tile; [blink] blinks and
 ## [marquee] runs.
+##
+## Tabs (the user 20. 10.): the middle button on a link opens it in a tab behind; the
+## strip shows from the second tab, a click picks one, the middle button or its x closes it.
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const WEB = preload("res://scripts/os98/web_pages.gd")
@@ -25,6 +28,8 @@ const MENU_H := 18
 const TOOL_H := 42
 const BAND_H := 24
 const STATUS_H := 20
+const TAB_H := 20
+const MAX_TABS := 8
 const THROB_W := 50
 const BANNER_FRAME := 2.6
 const LINKS := [["Bohemia", "bohemia-online.cz"], ["Courier", "kuryr-hlubocany.cz"], ["Weather", "bohemia-online.cz/weather"], ["Camp", "cerne-jezero.cz"]]
@@ -81,6 +86,8 @@ var _dial_then := ""
 var _anim := 0.0
 var _spin := 0.0
 var _counters: Dictionary = {}
+## Pages seen (kept on the machine between sittings: the visited links are purple).
+var _visited: Dictionary = {}
 var _link_re := RegEx.new()
 var _img_re := RegEx.new()
 ## Pictures still coming down the line: [{key, src: Image, tex, pass, t, kb}]
@@ -90,6 +97,12 @@ var _pic_i := 0
 var _banners: Array = []
 var _menu: Control
 var _menu_catch: Control
+## Every tab's page and history ({url, history, hist_i, scroll}); the one shown lives in
+## _url / _history / _hist_i and is written back on a switch.
+var _tab_list: Array = []
+var _tab := 0
+var _tabbar: Control
+var _hover_meta := ""
 
 
 func setup(shell, win, args: Dictionary) -> void:
@@ -97,6 +110,8 @@ func setup(shell, win, args: Dictionary) -> void:
 	_win = win
 	_link_re.compile(LINK_RE)
 	_img_re.compile(IMG_RE)
+	var seen = shell.stored("web_visited", {}) if shell.has_method("stored") else {}
+	_visited = (seen as Dictionary).duplicate() if seen is Dictionary else {}
 	_build()
 	navigate(str(args.get("url", WEB.HOME)))
 
@@ -219,14 +234,23 @@ func _build() -> void:
 	_page.install_effect(MarqueeFx.new())
 	_page.meta_clicked.connect(func(m): _on_link(str(m)))
 	_page.meta_hover_started.connect(func(m):
+		_hover_meta = str(m)
 		_shell.pointer_hand = true
 		_status.text = "Shortcut to " + _describe(str(m))
 	)
 	_page.meta_hover_ended.connect(func(_m):
+		_hover_meta = ""
 		_shell.pointer_hand = false
 		_status.text = _status_idle
 	)
-	_page.mouse_exited.connect(func(): _shell.pointer_hand = false)
+	_page.mouse_exited.connect(func():
+		_hover_meta = ""
+		_shell.pointer_hand = false)
+	_page.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_MIDDLE and _hover_meta != "":
+			open_in_tab(_hover_meta)
+			_page.accept_event()
+	)
 	_frame.add_child(_page)
 
 	# The status bar: the text, the progress, the zone.
@@ -240,6 +264,15 @@ func _build() -> void:
 	_status.clip_text = true
 	bar.add_child(_status)
 	_progress = bar
+
+	_tabbar = Control.new()
+	_tabbar.name = "TabBar"
+	_tabbar.visible = false
+	_tabbar.mouse_filter = Control.MOUSE_FILTER_STOP
+	_tabbar.draw.connect(_draw_tabs)
+	_tabbar.gui_input.connect(_tab_input)
+	add_child(_tabbar)
+	_tab_list = [{"url": "", "history": [], "hist_i": -1, "scroll": 0}]
 
 	_build_dialer()
 	resized.connect(_layout)
@@ -264,6 +297,11 @@ func _layout() -> void:
 	links.position = Vector2(size.x - lw - 6, by + 2)
 	links.size = Vector2(lw, 20)
 	var top := by + BAND_H + 2
+	_tabbar.visible = _tab_list.size() > 1
+	if _tabbar.visible:
+		_tabbar.position = Vector2(0, top)
+		_tabbar.size = Vector2(size.x, TAB_H)
+		top += TAB_H
 	_frame.position = Vector2(0, top)
 	_frame.size = Vector2(size.x, size.y - top - STATUS_H - 1)
 	_page.size = _frame.size - Vector2(4, 4)
@@ -702,7 +740,10 @@ func _load(key: String, _fresh: bool) -> void:
 func _address_for(key: String) -> String:
 	if key.begins_with("search?"):
 		return "http://www.bohemia-online.cz/" + key
-	return "http://www." + key + ("/" if key.find("/") < 0 else "")
+	# A host with its own name in front (tv.bohemia-online.cz) has no www.
+	var host := key.split("/")[0]
+	var www := "" if host.count(".") >= 2 else "www."
+	return "http://" + www + key + ("/" if key.find("/") < 0 else "")
 
 
 func _describe(target: String) -> String:
@@ -733,6 +774,8 @@ func _process(delta: float) -> void:
 	if busy:
 		_spin += delta * 3.2
 		_throbber.queue_redraw()
+		if _shell.has_method("net_activity"):
+			_shell.net_activity()
 	if _loading > 0.0:
 		_loading -= delta
 		get_node("StatusBar").queue_redraw()
@@ -896,6 +939,8 @@ func _show(key: String) -> void:
 	_page.visible_ratio = 0.0
 	_reveal = 0.0
 	_win.title = "%s - Beeternet Explorer" % str(page.get("title", key))
+	if _tabbar != null:
+		_tabbar.queue_redraw()
 	_status_idle = "Done" if _pictures.is_empty() else "Downloading picture 1 of %d..." % _pictures.size()
 	_status.text = _status_idle
 	if _pictures.is_empty():
@@ -903,6 +948,10 @@ func _show(key: String) -> void:
 	_throbber.queue_redraw()
 	get_node("StatusBar").queue_redraw()
 	_counters[key] = int(_counters.get(key, 0)) + 1
+	if not _visited.has(key):
+		_visited[key] = true
+		if _shell.has_method("store"):
+			_shell.store("web_visited", _visited.duplicate())
 
 
 func _page_for(key: String) -> Dictionary:
@@ -966,6 +1015,141 @@ func _on_link(target: String) -> void:
 	navigate(target)
 
 
+# ── tabs ─────────────────────────────────────────────────────────────────────
+
+## A link in a tab of its own, behind the one you read (the middle button). A licence,
+## a download or a bazaar ad has no page of its own: it goes as a plain click.
+func open_in_tab(target: String) -> void:
+	if target.contains("://"):
+		_on_link(target)
+		return
+	var key := normalize(target)
+	if _tab_list.size() >= MAX_TABS:
+		_shell.play("ding", -12.0)
+		_status.text = "Too many windows open. Close one first."
+		return
+	# Online it comes down behind the one you read; offline it waits for the modem.
+	_tab_list.insert(_tab + 1, {"url": key if _shell.is_online() else "", "history": [key], "hist_i": 0, "scroll": 0})
+	_shell.play("click", -12.0)
+	_status.text = "Opened in a new tab: " + _describe(key)
+	_layout()
+	_tabbar.queue_redraw()
+
+
+func _save_tab() -> void:
+	_tab_list[_tab] = {"url": _url, "history": _history.duplicate(), "hist_i": _hist_i, "scroll": int(_page.get_v_scroll_bar().value)}
+
+
+func select_tab(i: int) -> void:
+	if i < 0 or i >= _tab_list.size() or i == _tab:
+		return
+	_save_tab()
+	_tab = i
+	var t: Dictionary = _tab_list[i]
+	_history.assign(t["history"])
+	_hist_i = int(t["hist_i"])
+	_set_tool_enabled("back", _hist_i > 0)
+	_set_tool_enabled("forward", _hist_i < _history.size() - 1)
+	_tabbar.queue_redraw()
+	if str(t["url"]) == "":
+		if _hist_i >= 0 and _hist_i < _history.size():
+			_load(_history[_hist_i], false)
+		return
+	# A tab behind came in while you read the other one: it is there at once.
+	if _loading > 0.0:
+		_loading = 0.0
+		_shell.set_busy(false)
+	_show(str(t["url"]))
+	_page.visible_ratio = 1.0
+	_reveal = -1.0
+	for pic in _pictures:
+		(pic["tex"] as ImageTexture).update(pic["src"])
+	_pic_i = _pictures.size()
+	_status_idle = "Done"
+	_status.text = _status_idle
+	_set_tool_enabled("stop", false)
+	var sc := int(t.get("scroll", 0))
+	(func(): _page.get_v_scroll_bar().value = sc).call_deferred()
+
+
+func close_tab(i: int) -> void:
+	if _tab_list.size() <= 1 or i < 0 or i >= _tab_list.size():
+		return
+	_shell.play("click", -12.0)
+	if i == _tab:
+		_tab_list.remove_at(i)
+		_tab = -1
+		select_tab(mini(i, _tab_list.size() - 1))
+	else:
+		_tab_list.remove_at(i)
+		if i < _tab:
+			_tab -= 1
+	_layout()
+	_tabbar.queue_redraw()
+
+
+func _tab_rects() -> Array:
+	var n := _tab_list.size()
+	var w := floorf(minf(150.0, (size.x - 4.0) / float(n)))
+	var out: Array = []
+	for i in n:
+		out.append(Rect2(2 + i * w, 2, w - 1, TAB_H - 2))
+	return out
+
+
+func _tab_title(i: int) -> String:
+	var t: Dictionary = _tab_list[i]
+	var key := _url if i == _tab else str(t["url"])
+	if key == "":
+		var h: Array = t["history"]
+		key = str(h[int(t["hist_i"])]) if not h.is_empty() else ""
+	return _title_of(key) if key != "" else "about:blank"
+
+
+func _draw_tabs() -> void:
+	var c := _tabbar
+	c.draw_rect(Rect2(Vector2.ZERO, c.size), T.FACE)
+	c.draw_rect(Rect2(0, c.size.y - 1, c.size.x, 1), T.WHITE)
+	var rects := _tab_rects()
+	for i in rects.size():
+		var r: Rect2 = rects[i]
+		var on := i == _tab
+		if not on:
+			r = Rect2(r.position + Vector2(0, 2), r.size - Vector2(0, 2))
+		c.draw_rect(r, T.FACE if not on else T.LIGHT)
+		c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), T.WHITE)
+		c.draw_rect(Rect2(r.position, Vector2(1, r.size.y)), T.WHITE)
+		c.draw_rect(Rect2(r.end.x - 1, r.position.y + 1, 1, r.size.y - 1), T.DARK)
+		c.draw_rect(Rect2(r.end.x - 2, r.position.y + 1, 1, r.size.y - 1), T.SHADOW)
+		if on:
+			c.draw_rect(Rect2(r.position.x + 1, c.size.y - 1, r.size.x - 2, 1), T.LIGHT)
+		c.draw_texture_rect(ICONS.get_icon("page"), Rect2(r.position.x + 3, r.position.y + 1, 16, 16), false)
+		c.draw_string(T.FONT_BOLD if on else T.FONT, Vector2(r.position.x + 21, r.position.y + 13), _tab_title(i), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 36, T.FONT_SIZE, T.TEXT)
+		# The x that closes it.
+		var x := Vector2(r.end.x - 11, r.position.y + 5)
+		for k in 5:
+			c.draw_rect(Rect2(x + Vector2(k, k), Vector2(2, 1)), T.TEXT)
+			c.draw_rect(Rect2(x + Vector2(4 - k, k), Vector2(2, 1)), T.TEXT)
+
+
+func _tab_input(e: InputEvent) -> void:
+	if not (e is InputEventMouseButton) or not e.pressed:
+		return
+	var rects := _tab_rects()
+	for i in rects.size():
+		var r: Rect2 = rects[i]
+		if not r.has_point(e.position):
+			continue
+		if e.button_index == MOUSE_BUTTON_MIDDLE or (e.button_index == MOUSE_BUTTON_LEFT and e.position.x > r.end.x - 14):
+			close_tab(i)
+		elif e.button_index == MOUSE_BUTTON_LEFT:
+			if i != _tab:
+				_shell.play("click", -14.0)
+			select_tab(i)
+		_tabbar.accept_event()
+		return
+
+
 # ── page content ─────────────────────────────────────────────────────────────
 
 func _expand(body: String, link: String, key: String) -> String:
@@ -985,8 +1169,50 @@ func _expand(body: String, link: String, key: String) -> String:
 		t = t.replace("{{chat}}", _chat())
 		t = t.replace("{{chatcount}}", "%d people here" % (9 + _day() % 5 + (1 if not _shell.is_day() else 0)))
 		t = t.replace("{{horoscope}}", _horoscope())
+		t = t.replace("{{news}}", _news())
+		t = t.replace("{{headline}}", _headline())
+		t = t.replace("{{tv}}", _tv())
+		t = t.replace("{{agro_days}}", _agro_days())
 	t = _pad_marquees(t)
-	return _link_re.sub(t, "[url=$1][color=%s]$2[/color][/url]" % link, true)
+	# Links to pages already seen in the visited colour, as every browser did.
+	var vlink := _vlink_for(link)
+	var out := ""
+	var pos := 0
+	for m in _link_re.search_all(t):
+		var target := m.get_string(1)
+		var col := vlink if _visited.has(normalize(target)) and target.find("://") < 0 else link
+		out += t.substr(pos, m.get_start() - pos) + "[url=%s][color=%s]%s[/color][/url]" % [target, col, m.get_string(2)]
+		pos = m.get_end()
+	return out + t.substr(pos)
+
+
+## The visited colour beside a page's link colour: purple on a light page, lilac on a dark one.
+static func _vlink_for(link: String) -> String:
+	var c := Color.html(link) if Color.html_is_valid(link) else Color8(0, 0, 238)
+	return "#cc99ff" if c.get_luminance() > 0.45 else "#551a8b"
+
+
+## Keys the way Beeternet had them: Backspace or Alt+Left back, Alt+Right forward, F5
+## again (not while you type into the address).
+func _input(e: InputEvent) -> void:
+	if not is_visible_in_tree() or not (e is InputEventKey) or not e.pressed or e.echo:
+		return
+	if _shell.wants_keyboard() or _shell.has_dialog():
+		return
+	var k: int = e.keycode
+	if k == KEY_BACKSPACE or (e.alt_pressed and k == KEY_LEFT):
+		_go_history(-1)
+	elif e.alt_pressed and k == KEY_RIGHT:
+		_go_history(1)
+	elif k == KEY_F5:
+		_load(_url, false)
+	elif e.ctrl_pressed and k == KEY_TAB and _tab_list.size() > 1:
+		select_tab(wrapi(_tab + (-1 if e.shift_pressed else 1), 0, _tab_list.size()))
+	elif e.ctrl_pressed and k == KEY_W and _tab_list.size() > 1:
+		close_tab(_tab)
+	else:
+		return
+	get_viewport().set_input_as_handled()
 
 
 ## A marquee's line is padded out to its width with no-break spaces, so its band of
@@ -1279,6 +1505,91 @@ func _horoscope() -> String:
 		var text: String = STARS[order[i]] if i != odd else STARS_ODD[rng.randi_range(0, STARS_ODD.size() - 1)]
 		t += "[b][color=#ffff66]%s[/color][/b]  %s\n" % [SIGNS[i].to_upper(), text]
 	return t
+
+
+## This week's Courier: the region's small news, what the camp is doing among it, by day.
+func _news_items() -> Array:
+	var day := _day()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4400 + day
+	var items: Array = []
+	var guests := _in_camp()
+	if day <= 3:
+		items.append(["Cerne jezero camp open again", "The camp by the reservoir, shut since last summer, is taking guests for the autumn. The district inspects it on 19 October; Agrostroj Hlubocany has asked for the land."])
+	elif guests > 0:
+		items.append(["Guests at the reservoir camp", "%d people stayed at Cerne jezero last night. \"More than we expected in October,\" said the district's accommodation office." % guests])
+	else:
+		items.append(["Quiet at the reservoir", "The camp at Cerne jezero had no guests last night. The district's inspection is on 19 October."])
+	var pool := [
+		["Batteries in Lesna", "A delivery of R20 batteries came to Jednota Lesna on Tuesday. They were sold out by noon."],
+		["Bridge repair put off again", "The bridge at Lesna stays closed to lorries until spring. The district has no money for it this year."],
+		["Feed mill plan before the council", "Agrostroj Hlubocany showed the council its plan for a feed mill by the reservoir. \"Forty jobs,\" said the director."],
+		["Hockey: Hlubocany lose again", "HC Hlubocany lost 2:7 at home. The coach blamed the ice."],
+		["Fire station ball on Saturday", "The Lesna volunteer firemen invite everyone to the ball. Music: INFRAVRANY (if they come)."],
+		["Mushroom season", "Pickers are out in the woods round the reservoir. The district reminds them that the forest is closed after ten at night."],
+		["The water is still rising", "The reservoir's level has risen again although it has not rained. The Water Board will look at the gauge."],
+		["Lost dog", "A brown dachshund answering to Bobik went missing near the dam. He was last seen walking into the water."],
+	]
+	var used := {}
+	for i in 3:
+		var k := (day * 3 + i * 3 + rng.randi_range(0, 2)) % pool.size()
+		while used.has(k):
+			k = (k + 1) % pool.size()
+		used[k] = true
+		items.append(pool[k])
+	var wx: String = WX_NAMES[clampi(_weather_state(), 0, 6)]
+	items.append(["Weather", "Today %s, %d degrees; tonight %d. %s" % [wx, Season.temp_high(day), Season.temp_low(day), "Frost in the valleys." if Season.hard_frost(day) else "Fog by the water after dark."]])
+	return items
+
+
+func _news() -> String:
+	var t := ""
+	for it in _news_items():
+		t += "[b][font_size=14]%s[/font_size][/b]\n%s\n\n" % [it[0], it[1]]
+	return t
+
+
+## The portal's ticker: the Courier's first story, the weather.
+func _headline() -> String:
+	var items := _news_items()
+	return "%s +++ %s" % [str(items[0][0]), str(items[items.size() - 1][1]).get_slice(";", 0)]
+
+
+## Tonight's television (four channels). After the late film the transmitters show the
+## test card. Some nights one of them shows something else at three.
+func _tv() -> String:
+	var day := _day()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9800 + day
+	var films := ["Columbo", "The Saint", "Kojak", "Derrick", "Murder, She Wrote", "Matlock"]
+	var czech := ["a Czech fairy tale", "Cottage by the Water (series)", "Hospital at the End of Town (repeat)", "the Saturday quiz", "a variety evening from Ostrava"]
+	var sport := ["Football: Sparta - Slavia", "Hockey: Vsetin - Trinec", "Motorcycles from Most"]
+	var nights := ["The Night Film", "Film Club", "The Late Western", "Horror at Midnight"]
+	var t := "[table=2]"
+	var chans := [
+		["CT1", [["18:45", "Bedtime story"], ["19:00", "The News"], ["19:30", "Weather"], ["20:00", czech[rng.randi_range(0, czech.size() - 1)]], ["21:35", films[rng.randi_range(0, films.size() - 1)]], ["23:10", "The News, last"], ["23:30", "Test card"]]],
+		["CT2", [["19:00", "Nature: the deer rut"], ["20:00", sport[rng.randi_range(0, sport.size() - 1)]], ["22:00", nights[rng.randi_range(0, nights.size() - 1)]], ["0:15", "Test card"]]],
+		["Nova", [["19:30", "Televizni noviny"], ["20:00", films[rng.randi_range(0, films.size() - 1)]], ["21:50", "Quiz: Who Wants to Win"], ["23:00", nights[rng.randi_range(0, nights.size() - 1)]], ["1:00", "Night music"]]],
+		["Prima", [["19:15", "Regional news"], ["20:00", "The Simpsons (dubbed)"], ["20:30", czech[rng.randi_range(0, czech.size() - 1)]], ["22:15", films[rng.randi_range(0, films.size() - 1)]], ["0:30", "Test card"]]],
+	]
+	if day >= 5 and rng.randf() < 0.15:
+		(chans[1][1] as Array).append(["3:00", "[color=#cc0000]Kemp Cerne jezero, live[/color]"])
+	for ch in chans:
+		t += "[cell padding=4,2,16,6][b][color=#ffff66]%s[/color][/b]\n" % ch[0]
+		for row in ch[1]:
+			t += "[color=#aaaaaa]%s[/color]  %s\n" % [row[0], row[1]]
+		t += "[/cell]"
+	return t + "[/table]"
+
+
+## Days to the district's inspection (19 October, 08:00: day 31).
+func _agro_days() -> String:
+	var left := 31 - _day()
+	if left > 1:
+		return "%d days" % left
+	if left == 1:
+		return "tomorrow"
+	return "now"
 
 
 func _search_page(q: String) -> Dictionary:

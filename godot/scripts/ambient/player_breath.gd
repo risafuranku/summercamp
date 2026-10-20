@@ -2,23 +2,35 @@ extends Node3D
 
 ## Your breath (a child of your camera, outdoors in the camp):
 ##   - in the cold (the nights, the early mornings, and all day as October gets colder) a
-##     puff of it in front of you every breath (materials/breath_puff.gdshader: a coarse
-##     dithered cloud in the game's own chunky pixels, a hand's breadth across and growing
-##     as it drifts up and off with the wind, gone in a second); lit like everything else,
-##     so at night you see it only in your torch or under a lamp, faint. Quicker breaths
-##     when you walk, a quick run of them when you are out of breath;
-##   - run yourself out (the stamina gone) and you hear yourself pant until you have it
-##     back; on a cold night now and then a long breath out (ElevenLabs, sfx/player/).
+##     puff of it in front of you every breath (materials/breath_puff.gdshader: a puff
+##     of vapour, Grok camp/breath_puff.png, see-through as Build's translucent sprites
+##     were, a hand's breadth across and growing as it drifts up and off with the wind,
+##     thinner, gone in a second); as bright as the light it is in: by day pale, at
+##     night only in your torch, not seen in the dark without one. Quicker breaths when
+##     you walk, a quick run of them when you are out of breath;
+##   - run yourself out (the stamina gone) and you hear yourself pant, quietly, for a few
+##     breaths (it eases off as the stamina comes back), and not again for a while; on a
+##     cold night now and then a long breath out (ElevenLabs, sfx/player/). (The user 20.
+##     10.: the panting was annoying, too often, too loud and too long.)
 ## Moved in steps (twelve a second) like the rest of the Build world.
 
 const PUFF_SHADER = preload("res://materials/breath_puff.gdshader")
-## How big a puff is as it leaves your mouth and when it is gone (m).
-const SIZE_FROM := 0.22
-const SIZE_TO := 0.6
+const PUFF_TEX := "res://assets/textury/camp/breath_puff.png"
+## How big a puff is as it leaves your mouth and when it is gone (m): small and low in the
+## view (drawn whole and see-through, at 0.22 to 0.6 m it covered half the screen).
+const SIZE_FROM := 0.1
+const SIZE_TO := 0.3
 const SFX_PANT := "res://assets/sfx/player/panting.mp3"
 const SFX_BREATH := "res://assets/sfx/player/breath_cold.mp3"
 const FPS := 12.0
 const LIFE := 1.3
+## The panting: how loud, at most how long (s, then it fades), and how long after one
+## before you pant again.
+const PANT_DB := -19.0
+const PANT_MAX_SEC := 2.6
+const PANT_GAP_SEC := 45.0
+## A long breath out in the cold: one breath in this many, by chance.
+const SIGH_CHANCE := 0.06
 
 ## The player (scripts/player_controller.gd): its stamina and its speed.
 var player: Node
@@ -28,6 +40,8 @@ var _next := 2.0
 var _acc := 0.0
 var _breaths := 0
 var _panting := false
+var _pant_t := 0.0
+var _since_pant := 999.0
 var _pant: AudioStreamPlayer
 var _sigh: AudioStreamPlayer
 var _rng := RandomNumberGenerator.new()
@@ -44,6 +58,7 @@ func _ready() -> void:
 		var m := ShaderMaterial.new()
 		m.shader = PUFF_SHADER
 		m.set_shader_parameter("seed", float(i) * 1.7)
+		m.set_shader_parameter("puff", load(PUFF_TEX))
 		s.material_override = m
 		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		s.visible = false
@@ -51,11 +66,11 @@ func _ready() -> void:
 		_puffs.append({"sprite": s, "mat": m, "t": -1.0, "vel": Vector3.ZERO})
 	_pant = AudioStreamPlayer.new()
 	_pant.stream = load(SFX_PANT) if ResourceLoader.exists(SFX_PANT) else null
-	_pant.volume_db = -10.0
+	_pant.volume_db = PANT_DB
 	add_child(_pant)
 	_sigh = AudioStreamPlayer.new()
 	_sigh.stream = load(SFX_BREATH) if ResourceLoader.exists(SFX_BREATH) else null
-	_sigh.volume_db = -22.0
+	_sigh.volume_db = -26.0
 	add_child(_sigh)
 
 
@@ -76,7 +91,8 @@ func _cold() -> bool:
 
 func _outdoors() -> bool:
 	var main := _main()
-	if main == null or bool(main.get("_menu_mode")):
+	# Not the game's main (a harness scene): nowhere to breathe.
+	if main == null or main.get("_menu_mode") != false:
 		return false
 	return not (main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")))
 
@@ -84,13 +100,22 @@ func _outdoors() -> bool:
 func _process(delta: float) -> void:
 	var out := _outdoors()
 	var spent: bool = player != null and bool(player.get("_stamina_locked"))
-	# Out of breath: pant until it is back.
-	if spent and not _panting and _pant.stream != null:
+	# Out of breath: a few quiet pants, eased off as it comes back; not every time.
+	_since_pant += delta
+	if spent and not _panting and _pant.stream != null and _since_pant >= PANT_GAP_SEC:
 		_panting = true
+		_pant_t = 0.0
+		_since_pant = 0.0
 		_pant.pitch_scale = _rng.randf_range(0.95, 1.05)
+		_pant.volume_db = PANT_DB
 		_pant.play()
-	elif not spent and _panting:
-		_panting = false
+	elif _panting:
+		_pant_t += delta
+		if not spent or _pant_t > PANT_MAX_SEC:
+			_pant.volume_db -= delta * 30.0
+			if _pant.volume_db < -50.0:
+				_pant.stop()
+				_panting = false
 	# The breaths: slow standing, quicker walking, quick when spent.
 	var speed := 0.0
 	if player is CharacterBody3D:
@@ -109,6 +134,7 @@ func _process(delta: float) -> void:
 		return
 	var dt := _acc
 	_acc = 0.0
+	var light := _light()
 	for p in _puffs:
 		var s: MeshInstance3D = p["sprite"]
 		if float(p["t"]) < 0.0:
@@ -123,6 +149,18 @@ func _process(delta: float) -> void:
 		var size := lerpf(SIZE_FROM, SIZE_TO, k)
 		s.scale = Vector3(size, size, size)
 		(p["mat"] as ShaderMaterial).set_shader_parameter("fade", (1.0 - k) * 0.8)
+		(p["mat"] as ShaderMaterial).set_shader_parameter("light", light)
+
+
+## The light the puff is in: the day's, or your torch's shining out through it.
+func _light() -> float:
+	var main := _main()
+	var day := 0.0
+	var wv = main.get("_weather_visuals") if main != null else null
+	if wv != null and wv.has_method("compute_daylight_factor"):
+		day = float(wv.compute_daylight_factor())
+	var torch := 0.7 if player != null and bool(player.get("_flashlight_active")) else 0.0
+	return clampf(maxf(day, torch), 0.08, 1.0)
 
 
 func _breathe(spent: bool) -> void:
@@ -132,16 +170,17 @@ func _breathe(spent: bool) -> void:
 		var s: MeshInstance3D = p["sprite"]
 		# Out from the mouth, a little below the eye and well in front (close up it filled
 		# the view), drifting up and away (the wind takes it off to one side).
-		s.position = Vector3(_rng.randf_range(-0.04, 0.04), -0.2, -0.62)
+		s.position = Vector3(_rng.randf_range(-0.04, 0.04), -0.26, -0.7)
 		var drift := _rng.randf_range(-0.14, 0.14)
 		p["vel"] = Vector3(drift, 0.16, -0.32 if not spent else -0.5)
 		p["t"] = 0.0
 		s.scale = Vector3.ONE * SIZE_FROM
 		(p["mat"] as ShaderMaterial).set_shader_parameter("fade", 0.8)
+		(p["mat"] as ShaderMaterial).set_shader_parameter("light", _light())
 		(p["mat"] as ShaderMaterial).set_shader_parameter("seed", _rng.randf() * 10.0)
 		s.visible = true
 		break
 	_breaths += 1
-	if not spent and _breaths % 4 == 0 and _sigh.stream != null and not _sigh.playing:
+	if not spent and _rng.randf() < SIGH_CHANCE and _sigh.stream != null and not _sigh.playing:
 		_sigh.pitch_scale = _rng.randf_range(0.94, 1.05)
 		_sigh.play()

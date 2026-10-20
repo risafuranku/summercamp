@@ -9,7 +9,9 @@ extends Node
 ## - an order is paid when sent, refused without the cash, refused past the shelf space;
 ## - the van unloads what is due (capped by the shelves), postponed when not signed for;
 ## - a sale takes the goods and rings up the money; short shelves sell nothing;
-## - the day's close pays the hand's wage and rolls the books, a week of history kept;
+## - the day's close pays the hands' wages and rolls the books, a week of history kept;
+## - the goods go off by their lots (the oldest first), are thrown out as waste;
+## - gear is bought once; one order for every place brings one van;
 ## - the pub, bistro, Jednota and corn stand earn no flat daily income any more;
 ## - the licence for a PC program is bought once.
 
@@ -63,15 +65,54 @@ func _ready() -> void:
 	_expect(state.money == m0 + 5, "and no money for it")
 
 	# A hand, the wage at the day's end.
-	_expect(a.biz_hire(key, "Lojza", 3), "a hand taken on")
+	var lojza := RULES.person("lojza", "pub")
+	_expect(a.biz_hire(key, lojza, 3), "a hand taken on")
+	_expect(str(site["crew"][0]["role"]) == "tap" and str(site["crew"][0]["shift"]) == "day", "at the front job, by day")
 	var m1: int = state.money
-	var wages: int = a.biz_close_day()
-	_expect(wages == int(RULES.info("pub")["wage"]) and state.money == m1 - wages, "the wage is paid (%d)" % wages)
+	var wages: int = int(a.biz_close_day(3)["wages"])
+	_expect(wages == int(lojza["wage"]) and state.money == m1 - wages, "the wage is paid (%d)" % wages)
 	_expect(int(site["yesterday"]["takings"]) == 5 and int(site["today"]["takings"]) == 0, "the books roll over")
-	a.biz_fire(key)
-	_expect(a.biz_close_day() == 0, "no wage with nobody")
+	a.biz_fire(key, "lojza")
+	_expect(int(a.biz_close_day(4)["wages"]) == 0, "no wage with nobody")
 	for i in 8:
 		a.biz_close_day()
+
+	# Going off: a lot of rolls two days old goes bad and has to be thrown out.
+	state.grid.occupy_cell(Vector2i(8, 8), "vecerka", "vecerka_8_8", Vector2i(8, 8))
+	var shop: Dictionary = a.biz_site("8:8", "vecerka")
+	shop["stock"]["roll"] = 0
+	shop["lots"]["roll"] = []
+	_expect(a.biz_order("8:8", {"roll": 1}, 10), "rolls ordered")
+	a.biz_receive(10)
+	_expect(int(shop["stock"]["roll"]) == 60 and (shop["lots"]["roll"] as Array).size() == 1, "the rolls in, one lot (%s)" % str(shop["lots"]["roll"]))
+	_expect(a.biz_take("8:8", {"roll": 10}) and int(shop["lots"]["roll"][0][0]) == 50, "the oldest lot sold first")
+	a.biz_spoil(11)
+	_expect(int(shop["stock"]["roll"]) == 50, "a day old: still good")
+	var off: Array = a.biz_spoil(12)
+	_expect(int(shop["stock"]["roll"]) == 0 and int(shop["spoiled"].get("roll", 0)) == 50, "two days old: gone off (%s)" % str(off))
+	var gone := 0
+	for g in shop["spoiled"]:
+		gone += int(shop["spoiled"][g])
+	_expect(a.biz_bin("8:8") == gone and int(shop["today"]["waste"]) == gone and (shop["spoiled"] as Dictionary).is_empty(), "thrown out, counted as waste (%d)" % gone)
+	_expect(RULES.life_of("vecerka", "milk", shop) == 3, "milk keeps three days")
+	state.money = 5000
+	_expect(a.biz_buy_gear("8:8", "fridge") and RULES.life_of("vecerka", "milk", shop) == 6, "the chiller doubles it")
+	_expect(not a.biz_buy_gear("8:8", "fridge"), "gear is bought once")
+
+	# One order for every place: one van.
+	var m2: int = state.money
+	_expect(a.biz_order_all({"8:8": {"milk": 1}, key: {"rum": 1}}, 14), "one order for two places")
+	var both := RULES.goods_cost("vecerka", {"milk": 1}) + RULES.goods_cost("pub", {"rum": 1}) + RULES.DELIVERY_FEE
+	_expect(m2 - state.money == both, "one van's fee for the lot (%d, %d)" % [m2 - state.money, both])
+
+	# A hand not paid two days leaves.
+	_expect(a.biz_hire("8:8", RULES.person("zdenka", "vecerka"), 14), "Zdenka taken on")
+	state.money = 0
+	var c1: Dictionary = a.biz_close_day(14)
+	_expect((shop["crew"] as Array).size() == 1 and int(shop["crew"][0]["unpaid"]) == 1, "a day unpaid: still there, owed")
+	var c2: Dictionary = a.biz_close_day(15)
+	_expect((shop["crew"] as Array).is_empty() and (c2["left"] as Array).has("Zdenka"), "two days unpaid: gone (%s)" % str(c2))
+	state.money = 1000
 	_expect((site.get("history", []) as Array).size() == 7, "a week of history kept for the charts (%d)" % (site.get("history", []) as Array).size())
 
 	# The baskets are sensible.

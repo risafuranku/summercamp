@@ -1,0 +1,46 @@
+npc_shutter	1.0	assets/sfx/npc/shutter.mp3	A mechanical 35 mm film camera fired close to the ear: the shutter's two crisp metallic clicks and a short rattle of the film winding on. Dry, close, outdoors at night, no music.
+npc_flash_whine	1.6	assets/sfx/npc/flash_whine.mp3	An old photographic flash unit charging up: a thin high electronic whine rising in pitch and then cutting off suddenly. Close, dry, no music.
+npc_af_beep	0.5	assets/sfx/npc/af_beep.mp3	A cheap 1990s compact camera's autofocus confirmation: two quick high electronic beeps from a tiny speaker. Close, dry, no music.
+npc_thump	1.2	assets/sfx/npc/thump.mp3	One heavy footstep landing on packed dirt outdoors at night, followed by the short creak of an old wooden board. Close, no music.
+ui_pager	0.8	assets/sfx/ui/pager.mp3	A 1990s belt pager receiving a message: two short shrill beeps from a tiny cheap speaker. Close, dry, no music.
+un_station_intro	8.0	assets/sfx/uncanny/station_intro.mp3	An old AM transistor radio being tuned late at night: hiss and whistles settling onto a hollow carrier hum, then a small tinny music box plays a slow sad five note phrase, then plays the same phrase again. Lo-fi, mono, distant, no voices.
+un_station_outro	6.0	assets/sfx/uncanny/station_outro.mp3	On an old AM transistor radio late at night a small tinny music box plays a slow sad five note phrase but stops one note short, then the station drifts away into hiss and tuning whistles. Lo-fi, mono, no voices.
+un_pip_raw	0.5	../tools/audiogen/raw/pip.mp3	One short radio time signal pip, a pure high beep a tenth of a second long, heard on an old AM transistor radio with faint hiss, then silence.
+ph_tone_raw	4.0	../tools/audiogen/raw/tone425.mp3	The steady unbroken dial tone of a 1990s Czech telephone exchange, a 425 hertz tone heard through an old telephone handset earpiece, with faint line hiss and a little hum, unchanging from start to end.
+ph_dtmf_raw	0.5	../tools/audiogen/raw/dtmf.mp3	One short telephone keypad tone: the dual-frequency beep of pressing a single key on a 1990s push-button phone, heard through the handset earpiece, then silence.
+ph_line_hiss	4.0	assets/sfx/phone/line_hiss.mp3	Quiet telephone line noise heard in an old handset during a call: soft hiss, faint crackle and a low hum, steady, seamless loop, no tones, no voices.
+ph_sit	1.5	assets/sfx/phone/sit.mp3	The 'number not in service' signal of an old telephone line heard through a handset: three short rising electronic tones, then silence. Lo-fi, no voices.
+splash_neon_hum	4.0	assets/sfx/splash/neon_hum.mp3	The steady electrical buzz of an old neon sign's transformer at night: a 100 hertz hum with a slight crackle, close, seamless loop, no music.
+splash_neon_tick_1	0.5	assets/sfx/splash/neon_tick_1.mp3	A single small electric tick and fizz from an old neon tube flickering, close, quiet.
+splash_neon_tick_2	0.5	assets/sfx/splash/neon_tick_2.mp3	One tiny dry crackle from a neon sign tube, a short electric snap, close, quiet.
+splash_neon_tick_3	0.5	assets/sfx/splash/neon_tick_3.mp3	A faint electric click and buzz blip from an old neon tube, very short, close.
+splash_neon_strike	2.5	assets/sfx/splash/neon_strike.mp3	An old neon sign tube striking on: a sharp electric pop, then a swelling crackling buzz that settles into a steady hum, close, no music.
+splash_neon_sputter	2.0	assets/sfx/splash/neon_sputter.mp3	A failing neon sign tube sputtering on and off: irregular electric crackles and fizzing pops, close, no music.
+splash_moth_tap	0.6	assets/sfx/splash/moth_tap.mp3	A moth bumping softly against a glass light tube twice: two tiny light taps and a faint flutter of wings, very close, quiet.
+room_tv_tone_raw	3.0	../tools/audiogen/raw/tv_tone.mp3	The steady 1 kHz test tone from a small old black and white television's tinny speaker after the broadcast has closed down, with faint hiss, unchanging, seamless loop.
+step_snow_a	0.5	assets/sfx/steps/snow_a.mp3	One single footstep in heavy work boots in fresh wet snow a few centimetres deep over grass, a soft squeaky crunch, outdoors, very close, nothing else. No music.
+step_snow_b	0.5	assets/sfx/steps/snow_b.mp3	One single footstep in heavy work boots in fresh wet snow a few centimetres deep over grass, a soft squeaky crunch, outdoors, very close, nothing else. A little heavier. No music.
+step_snow_c	0.5	assets/sfx/steps/snow_c.mp3	One single footstep in heavy work boots in fresh wet snow a few centimetres deep over grass, a soft squeaky crunch, outdoors, very close, nothing else. Slightly lighter, quicker. No music.
+step_snow_d	0.5	assets/sfx/steps/snow_d.mp3	One single footstep in heavy work boots in fresh wet snow a few centimetres deep over grass, a soft squeaky crunch, outdoors, very close, nothing else. The other foot, a touch different. No music.
+step_puddle_a	0.5	assets/sfx/steps/puddle_a.mp3	One single footstep in heavy work boots landing in a shallow rain puddle on a dirt path, a wet slap and a small splash, outdoors, very close, nothing else. No music.
+step_puddle_b	0.5	assets/sfx/steps/puddle_b.mp3	One single footstep in heavy work boots landing in a shallow rain puddle on a dirt path, a wet slap and a small splash, outdoors, very close, nothing else. A little heavier. No music.
+step_puddle_c	0.5	assets/sfx/steps/puddle_c.mp3	One single footstep in heavy work boots landing in a shallow rain puddle on a dirt path, a wet slap and a small splash, outdoors, very close, nothing else. Slightly lighter, quicker. No music.
+step_puddle_d	0.5	assets/sfx/steps/puddle_d.mp3	One single footstep in heavy work boots landing in a shallow rain puddle on a dirt path, a wet slap and a small splash, outdoors, very close, nothing else. The other foot, a touch different. No music.
+world_flag_clank_a	1.5	assets/sfx/world/flag_clank_a.mp3	The metal clip of a flag rope blown by the wind against a hollow aluminium flagpole: two or three irregular clinks and a soft slap of the rope, outdoors, from a few metres away, nothing else. No music.
+world_flag_clank_b	1.5	assets/sfx/world/flag_clank_b.mp3	A gust slaps a flag rope against a hollow aluminium flagpole: a quick run of hollow metallic clinks, then quiet, outdoors, from a few metres away, nothing else. No music.
+world_tube_buzz	4.0	assets/sfx/world/tube_buzz.mp3	The steady electrical buzz of an old fluorescent tube in a small concrete washroom at night, with a faint irregular flicker tick now and then, heard from just outside its door, seamless loop. No music.
+world_tap_drip	4.0	assets/sfx/world/tap_drip.mp3	A dripping tap in an empty concrete washroom at night: slow single drops falling into a metal sink, a small hollow echo, seamless loop. No music.
+far_chatter	8.0	assets/sfx/far/chatter.mp3	Distant voices of a few adults talking and laughing around a campfire on the far side of a field at night, the words not understandable, faint, outdoors, crickets. No music.
+far_kids	6.0	assets/sfx/far/kids.mp3	Distant children shouting and laughing as they play on a meadow on a late summer afternoon, far away, the words not understandable, outdoors. No music.
+far_dog	3.0	assets/sfx/far/dog.mp3	A single farm dog barking a few times far away across fields at night, echoing a little, outdoors, nothing else. No music.
+far_car	6.0	assets/sfx/far/car.mp3	An old car passing on a country road some distance away at night, coming nearer and fading away, the hiss of its tyres, outdoors. No music.
+far_train	8.0	assets/sfx/far/train.mp3	A diesel train's horn far away across the countryside at night, two long notes, then the faint rumble of the train fading into the distance, outdoors. No music.
+far_bell	6.0	assets/sfx/far/bell.mp3	A small village church bell ringing slowly far away across the fields, heard faintly in the open air, outdoors. No music.
+world_rain_tin	6.0	assets/sfx/world/rain_tin.mp3	Steady rain drumming on the corrugated tin roof of a small shed, heard from just outside it a few metres away, the metallic patter and the water running off the eaves, seamless loop. No music.
+world_rain_lake	6.0	assets/sfx/world/rain_lake.mp3	Steady rain falling on the flat water of a small lake, a soft hiss of countless drops on water and a few bigger plops, heard from the shore, seamless loop. No music.
+world_rain_leaves	6.0	assets/sfx/world/rain_leaves.mp3	Rain falling on the leaves of birch and spruce trees overhead, a soft crackling patter and heavier drops falling from the branches, outdoors, seamless loop. No music.
+foley_jacket_a	0.5	assets/sfx/player/jacket_a.mp3	The soft swish of the nylon sleeves of a work jacket brushing against the body with one walking step, very close, quiet, nothing else. No music.
+foley_jacket_b	0.5	assets/sfx/player/jacket_b.mp3	The soft rustle of a nylon work jacket with one walking step, the other arm, very close, quiet, nothing else. No music.
+foley_jacket_c	0.5	assets/sfx/player/jacket_c.mp3	A quick nylon jacket swish and rustle with one running stride, very close, nothing else. No music.
+foley_keys_a	0.6	assets/sfx/player/keys_a.mp3	A bunch of keys on a ring hanging from a belt jingling with one running stride, a few light metallic clinks, very close, nothing else. No music.
+foley_keys_b	0.6	assets/sfx/player/keys_b.mp3	A bunch of keys on a ring hanging from a belt jingling with one running stride, a slightly different jingle, very close, nothing else. No music.

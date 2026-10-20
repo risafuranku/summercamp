@@ -15,8 +15,9 @@ const POOL := 72
 const RADIUS := 15.0
 const LEAVES := ["leaf_oak", "leaf_maple", "leaf_birch"]
 const TEX_DIR := "res://assets/textury/world/"
-## Not drawn nearer the eye than this (a leaf across the lens is a blot, not a leaf).
-const NEAR := 0.9
+## Not drawn nearer the eye than this (a leaf across the lens is a blot, not a leaf; at
+## 0.9 m one in a storm still filled a corner of the 240-line screen: inventory 20. 10.).
+const NEAR := 2.2
 
 var player_getter: Callable
 var indoors: Callable

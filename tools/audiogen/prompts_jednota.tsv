@@ -1,0 +1,14 @@
+# The Jednota's stations (scripts/jednota/): id, seconds, destination, prompt.
+jd_beep	0.5	assets/sfx/jednota/beep.mp3	One key pressed hard on an old heavy mechanical cash register in a village shop: a short metal clack and a single low electronic beep. Close up, small shop, no music, no voices.
+jd_drawer	1.2	assets/sfx/jednota/drawer.mp3	An old cash register's money drawer shooting open with a bell ding, a banknote dropped into it, the drawer pushed shut with a clunk. Close up, small shop, no music, no voices.
+jd_coin	0.6	assets/sfx/jednota/coin.mp3	A few small metal coins put down on a rubber change mat on a shop counter: a soft muffled clink. Close up, no music, no voices.
+jd_note	0.6	assets/sfx/jednota/note.mp3	A paper banknote taken out of a cash drawer and laid on a shop counter: a short crisp paper rustle and a soft tap. Close up, no music, no voices.
+jd_bag	1.0	assets/sfx/jednota/bag.mp3	Groceries slid into a brown paper shopping bag on a shop counter and the bag lifted off it: paper crinkle, a bottle knocking a jar. Close up, small shop, no music, no voices.
+jd_shelve	0.5	assets/sfx/jednota/shelve.mp3	One grocery item put down on a painted steel shop shelf: a light hollow tap of glass and tin on thin metal. Close up, no music, no voices.
+jd_box_lift	0.8	assets/sfx/jednota/box_lift.mp3	A full cardboard box of groceries picked up off a cage trolley: cardboard scrape, the goods inside shifting and clinking. Close up, storeroom, no music, no voices.
+jd_box_down	0.8	assets/sfx/jednota/box_down.mp3	A full cardboard box of groceries set down on a steel roll cage trolley: a dull thud and a metal rattle of the cage. Close up, storeroom, no music, no voices.
+jd_clunk	0.6	assets/sfx/jednota/clunk.mp3	A cardboard box bumped against a full steel shop shelf that has no room: a dull knock and a rattle of bottles. Close up, no music, no voices.
+jd_tape_rip	0.7	assets/sfx/jednota/tape_rip.mp3	A box cutter slicing through brown packing tape on a cardboard box: a short tearing rip. Close up, storeroom, no music, no voices.
+jd_box_open	0.8	assets/sfx/jednota/box_open.mp3	The cardboard flaps of a box being pulled open: stiff cardboard creaks and flaps. Close up, storeroom, no music, no voices.
+jd_price_gun	0.6	assets/sfx/jednota/price_gun.mp3	One squeeze of an old hand price labelling gun: a sharp plastic clack and a click as a sticker comes off the roll. Close up, no music, no voices.
+jd_bin	1.0	assets/sfx/jednota/bin.mp3	Spoiled groceries swept off a shelf into a metal bin: a soft squelch, paper and a hollow thump in the bin. Close up, no music, no voices.

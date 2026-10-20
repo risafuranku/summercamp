@@ -25,20 +25,82 @@ const K := preload("res://scripts/interior_kit.gd")
 const TEX := "res://assets/textury/camp/"
 const SIZE := Vector3(6.2, 2.9, 4.8)
 
+## The menu board's lines: [dish ("" the heading), the chalk].
+const MENU_LINES := [
+	["", "DNES VARIME / TODAY"],
+	["goulash", "Goulash, dumplings ...... $7"],
+	["smazak", "Fried cheese, chips ..... $8"],
+	["fries", "Chips, tartar ........... $3"],
+	["kofola", "Kofola .................. $2"],
+]
+
 ## The guests' tables in the dining room (room coordinates, on the floor).
 const TABLES := [Vector3(-2.05, 0.05, -1.35), Vector3(-2.05, 0.05, 0.35), Vector3(-0.2, 0.05, -1.45), Vector3(0.2, 0.05, 0.0)]
 
 ## The stations: id -> {room, at (click box centre), size, stand (where the warden stands
 ## at it, on the floor), pose (their picture there), mark (where its status hangs), label}.
 const STATIONS := {
-	"stove": {"room": "kitchen", "at": Vector3(-1.15, 1.0, -2.0), "size": Vector3(1.5, 0.9, 0.9), "stand": Vector3(-1.15, 0.05, -1.25), "pose": "cook", "mark": Vector3(-1.15, 1.95, -1.95), "label": "the stove"},
-	"pot": {"room": "kitchen", "at": Vector3(1.25, 1.0, -2.0), "size": Vector3(1.9, 0.9, 0.9), "stand": Vector3(1.25, 0.05, -1.25), "pose": "cook", "mark": Vector3(1.0, 1.95, -1.95), "label": "the goulash pot"},
-	"pass": {"room": "kitchen", "at": Vector3(-2.72, 1.15, -0.45), "size": Vector3(0.8, 1.1, 1.9), "stand": Vector3(-2.05, 0.05, -0.45), "pose": "cook", "mark": Vector3(-2.75, 2.05, -0.45), "label": "the pass"},
-	"sink": {"room": "kitchen", "at": Vector3(2.75, 1.0, -0.35), "size": Vector3(0.8, 1.0, 1.5), "stand": Vector3(2.05, 0.05, -0.35), "pose": "wash", "mark": Vector3(2.75, 1.95, -0.35), "label": "the sink"},
-	"potatoes": {"room": "basement", "at": Vector3(-2.45, 0.85, -0.55), "size": Vector3(1.1, 1.5, 2.0), "stand": Vector3(-1.8, 0.05, -0.55), "pose": "cook", "mark": Vector3(-2.45, 1.95, -0.55), "label": "the potatoes"},
-	"breading": {"room": "basement", "at": Vector3(2.5, 0.9, -0.55), "size": Vector3(0.9, 0.8, 1.7), "stand": Vector3(1.85, 0.05, -0.55), "pose": "cook", "mark": Vector3(2.5, 1.7, -0.55), "label": "the breading table"},
-	"machine": {"room": "basement", "at": Vector3(1.35, 1.0, -1.75), "size": Vector3(1.6, 1.9, 1.0), "stand": Vector3(1.0, 0.05, -0.9), "pose": "stand", "mark": Vector3(1.35, 2.2, -1.7), "label": "the machine"},
+	"stove": {"room": "kitchen", "at": Vector3(-1.15, 0.6, -1.95), "size": Vector3(1.7, 0.9, 0.95), "stand": Vector3(-1.15, 0.05, -1.2), "pose": "cook", "mark": Vector3(-1.15, 1.75, -1.95), "label": "the stove"},
+	"pot": {"room": "kitchen", "at": Vector3(1.2, 0.6, -1.95), "size": Vector3(1.7, 0.9, 0.95), "stand": Vector3(1.2, 0.05, -1.2), "pose": "cook", "mark": Vector3(1.2, 1.75, -1.95), "label": "the goulash pot"},
+	"pass": {"room": "kitchen", "at": Vector3(-2.62, 0.6, -0.45), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(-1.9, 0.05, -0.45), "pose": "cook", "mark": Vector3(-2.62, 1.85, -0.45), "label": "the pass"},
+	"sink": {"room": "kitchen", "at": Vector3(2.62, 0.6, -0.35), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(1.9, 0.05, -0.35), "pose": "wash", "mark": Vector3(2.62, 1.75, -0.35), "label": "the sink"},
+	"potatoes": {"room": "basement", "at": Vector3(-2.85, 0.72, -0.55), "size": Vector3(0.5, 1.4, 2.4), "stand": Vector3(-2.0, 0.05, -0.55), "pose": "cook", "mark": Vector3(-2.7, 1.75, -0.55), "label": "the potatoes"},
+	"breading": {"room": "basement", "at": Vector3(2.5, 0.5, 0.05), "size": Vector3(0.95, 0.8, 1.7), "stand": Vector3(1.8, 0.05, 0.05), "pose": "cook", "mark": Vector3(2.5, 1.55, 0.05), "label": "the breading table"},
+	"machine": {"room": "basement", "at": Vector3(1.45, 0.75, -2.2), "size": Vector3(2.4, 1.4, 0.4), "stand": Vector3(1.2, 0.05, -1.2), "pose": "stand", "mark": Vector3(1.45, 1.75, -2.2), "label": "the machine", "tab": false},
 }
+## Where each station's work surface lies (scripts/business/station3d.gd stands on it;
+## its counter's top is its Build picture, assets/textury/bistro/st_<id>.png): the centre,
+## the size in metres (the picture's 16:9), the way its back edge faces (yaw: 0 the back
+## wall, 90 the left wall, -90 the right wall), lying on a counter (`flat`) or standing on
+## a wall; the camera over it: how far towards the cook and how high over a counter, or
+## how far out from a wall.
+const SURFACES := {
+	"stove": {"at": Vector3(-1.15, 0.952, -1.95), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"pot": {"at": Vector3(1.2, 0.952, -1.95), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"pass": {"at": Vector3(-2.62, 0.952, -0.45), "size": Vector2(1.6, 0.9), "yaw": 90.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"sink": {"at": Vector3(2.62, 0.952, -0.35), "size": Vector2(1.6, 0.9), "yaw": -90.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"potatoes": {"at": Vector3(-3.08, 0.72, -0.55), "size": Vector2(2.4, 1.35), "yaw": 90.0, "flat": false, "cam_back": 1.3},
+	"breading": {"at": Vector3(2.5, 0.802, 0.05), "size": Vector2(1.6, 0.9), "yaw": -90.0, "flat": true, "cam_back": 0.4, "cam_up": 0.78},
+	"machine": {"at": Vector3(1.45, 0.72, -2.38), "size": Vector2(2.4, 1.35), "yaw": 0.0, "flat": false, "cam_back": 1.25},
+}
+
+
+## The station's surface: a quad named Surface_<id> its Build picture goes on (the room
+## puts it on once the station exists).
+static func surface(parent: Node3D, id: String) -> MeshInstance3D:
+	var d: Dictionary = SURFACES[id]
+	var mi := MeshInstance3D.new()
+	mi.name = "Surface_" + id
+	var q := QuadMesh.new()
+	q.size = d["size"]
+	if bool(d["flat"]):
+		q.orientation = PlaneMesh.FACE_Y
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	# Lit by the room, a little of its own so it reads under a dim bulb.
+	m.emission_enabled = true
+	m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+	m.emission = Color(0.35, 0.33, 0.3)
+	mi.material_override = m
+	mi.position = d["at"]
+	mi.rotation_degrees.y = float(d["yaw"])
+	mi.set_meta("bistro_surface", id)
+	parent.add_child(mi)
+	return mi
+
+
+## A counter under a flat surface: a steel (or wooden) body to the floor, its top just
+## under the picture.
+static func _counter(parent: Node3D, id: String, mat: Material, top := 0.95) -> void:
+	var d: Dictionary = SURFACES[id]
+	var sz: Vector2 = d["size"]
+	var c: Vector3 = d["at"]
+	var along_x := absf(float(d["yaw"])) < 1.0
+	var size := Vector3(sz.x + 0.06, top - 0.05, sz.y + 0.06) if along_x else Vector3(sz.y + 0.06, top - 0.05, sz.x + 0.06)
+	K.slab(parent, size, Vector3(c.x, 0.05 + (top - 0.05) * 0.5 - 0.002, c.z), mat, "Counter_" + id)
 
 
 static func has_tex(n: String) -> bool:
@@ -154,14 +216,22 @@ static func dining(parent: Node3D, si) -> void:
 	var board := K.slab(parent, Vector3(1.9, 0.86, 0.04), Vector3(-1.45, 1.92, -2.36), K.surface("ceiling_board", 4.0, Color(0.32, 0.34, 0.3)), "MenuBoard")
 	board.name = "DiningMenuBoard"
 	K.slab(parent, Vector3(1.98, 0.94, 0.03), Vector3(-1.45, 1.92, -2.385), K.surface("planks_dark", 0.6), "MenuFrame")
-	var menu := Label3D.new()
-	menu.text = "DNES VARIME / TODAY\nGoulash, dumplings ...... $7\nFried cheese, chips ..... $8\nChips, tartar ........... $3\nKofola .................. $2"
-	menu.position = Vector3(-1.45, 1.92, -2.33)
-	menu.font_size = 18
-	menu.modulate = Color(0.92, 0.92, 0.86, 0.95)
-	menu.outline_size = 0
-	menu.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	parent.add_child(menu)
+	# The menu in chalk, a line a dish: what cannot be made today is crossed out
+	# (service_interior._update_menu_board, from the cellar's shelves).
+	for i in MENU_LINES.size():
+		var line := Label3D.new()
+		line.name = "MenuLine_" + str(MENU_LINES[i][0])
+		line.text = str(MENU_LINES[i][1])
+		line.position = Vector3(-2.3, 2.22 - i * 0.14, -2.33)
+		line.font_size = 18
+		line.modulate = Color(0.92, 0.92, 0.86, 0.95)
+		line.outline_size = 0
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		parent.add_child(line)
+		if str(MENU_LINES[i][0]) != "" and has_tex("chalk_strike"):
+			var strike := K.cutout(parent, "chalk_strike", Vector2(1.5, 0.1), Vector3(-1.5, 2.17 - i * 0.14, -2.325), 0.0, false, "MenuStrike_" + str(MENU_LINES[i][0]))
+			strike.visible = false
 	look(parent, "menu board", "Somebody rubbed out SVICKOVA and never wrote anything in its place.", Vector3(-1.45, 1.92, -2.3), Vector3(1.9, 0.86, 0.1))
 	si._sign(parent, "BUFET\ndiner", Vector3(-1.45, 2.6, -2.33), 30, "enamel")
 	# The hatch into the kitchen, beside its door: a steel sill, the kitchen lit behind.
@@ -224,7 +294,7 @@ static func hatch(parent: Node3D, at: Vector3, yaw := 0.0) -> Node3D:
 	var m := hole.material_override as StandardMaterial3D
 	m.emission_enabled = true
 	m.emission = Color(0.85, 0.7, 0.45)
-	m.emission_energy_multiplier = 0.35
+	m.emission_energy_multiplier = 0.12
 	K.slab(h, Vector3(0.96, 0.05, 0.28), Vector3(0, -0.27, 0.1), steel, "HatchSill")
 	K.slab(h, Vector3(0.96, 0.05, 0.06), Vector3(0, 0.27, 0.03), steel, "HatchTop")
 	K.slab(h, Vector3(0.05, 0.56, 0.06), Vector3(-0.46, 0, 0.03), steel, "HatchSide")
@@ -253,21 +323,15 @@ static func kitchen(parent: Node3D, si) -> void:
 	# Brushed stainless (Grok, camp/steel_brushed.png): the old dented sheet read as stone
 	# on anything this big.
 	var steel := K.surface("steel_brushed", 1.2, Color(0.62, 0.63, 0.64))
-	# The stove at the back left: the range, the pan on it, the fryer beside, the hood.
-	K.prop(parent, "stove", Vector3(-1.15, 0.05, -2.02))
-	_cut(parent, "bistro_pan", Vector2(0.5, 0.2), Vector3(-1.4, 0.98, -2.0), 0.0, false, "Pan")
-	K.slab(parent, Vector3(0.5, 0.9, 0.6), Vector3(-0.2, 0.5, -2.05), steel, "Fryer")
-	K.slab(parent, Vector3(0.4, 0.04, 0.45), Vector3(-0.2, 0.96, -2.02), _flat(Color(0.55, 0.42, 0.16)), "FryerOil")
-	K.slab(parent, Vector3(2.0, 0.5, 0.75), Vector3(-0.6, 2.45, -2.02), steel, "Hood")
+	# The hood over the stove.
+	K.slab(parent, Vector3(1.8, 0.5, 0.8), Vector3(-1.15, 2.45, -1.98), steel, "Hood")
+	# The stove and the pot: counters along the back, their tops the stations' live
+	# surfaces (the pan, the fryer; the pot, the board, the steamer).
+	_counter(parent, "stove", steel)
+	surface(parent, "stove")
+	_counter(parent, "pot", steel)
+	surface(parent, "pot")
 	K.prop(parent, "steel_counter", Vector3(-2.45, 0.05, -2.06), 0.0, 0.85)
-	# The goulash pot on its own ring at the back right, the steamer and the board.
-	K.slab(parent, Vector3(0.75, 0.42, 0.75), Vector3(0.75, 0.26, -1.95), K.surface("metal_green", 0.6, Color(0.4, 0.4, 0.4)), "PotRing")
-	var pot := _cyl(parent, 0.33, 0.48, Vector3(0.75, 0.72, -1.95), K.surface("galvanized", 0.5, Color(0.92, 0.92, 0.92)), "GoulashPot", 16)
-	pot.name = "GoulashPot"
-	_cyl(parent, 0.3, 0.02, Vector3(0.75, 0.95, -1.95), _flat(Color(0.42, 0.14, 0.08)), "Goulash", 16)
-	K.prop(parent, "steel_counter", Vector3(1.95, 0.05, -2.06), 0.0, 0.9)
-	_cyl(parent, 0.2, 0.32, Vector3(2.3, 1.1, -2.05), K.surface("galvanized", 0.4), "Steamer", 12)
-	K.slab(parent, Vector3(0.6, 0.04, 0.38), Vector3(1.75, 0.96, -1.95), K.surface("planks_red", 0.4, Color(1.1, 1.0, 0.85)), "DumplingBoard")
 	_cut(parent, "bistro_ladles", Vector2(1.0, 0.5), Vector3(1.4, 1.55, -2.36), 0.0, false, "Ladles")
 	_cut(parent, "bistro_knives", Vector2(0.6, 0.22), Vector3(-2.45, 1.45, -2.36), 0.0, false, "Knives")
 	look(parent, "knives", "Four knives on the magnet. There is a place for a fifth.", Vector3(-2.45, 1.45, -2.33), Vector3(0.6, 0.25, 0.1))
@@ -276,7 +340,8 @@ static func kitchen(parent: Node3D, si) -> void:
 	var wash_sign: Node3D = si._sign(parent, "MYJTE SI RUCE\nwash your hands", Vector3(2.45, 1.85, 2.37), 14, "enamel")
 	wash_sign.rotation_degrees.y = 180.0
 	# The pass along the left wall, under the hatch to the dining room: heat lamps, bell.
-	K.prop(parent, "steel_counter", Vector3(-2.72, 0.05, -0.45), 90.0)
+	_counter(parent, "pass", steel)
+	surface(parent, "pass")
 	hatch(parent, Vector3(-3.1, 1.35, -0.45), 90.0)
 	# The heat shelf over the pass: a steel shelf on brackets, two lamp hoods under it
 	# glowing red on the plates waiting.
@@ -288,6 +353,7 @@ static func kitchen(parent: Node3D, si) -> void:
 		(glow.material_override as StandardMaterial3D).emission = Color(1.0, 0.25, 0.1)
 		(glow.material_override as StandardMaterial3D).emission_energy_multiplier = 2.0
 		var l := OmniLight3D.new()
+		l.name = "LampLight"
 		l.light_color = Color(1.0, 0.35, 0.18)
 		l.light_energy = 0.5
 		l.omni_range = 1.3
@@ -295,10 +361,8 @@ static func kitchen(parent: Node3D, si) -> void:
 		parent.add_child(l)
 	_cut(parent, "bistro_bell", Vector2(0.14, 0.12), Vector3(-2.95, 1.07, -0.05), 90.0, false, "Bell")
 	# The sink and the plate rack on the right, the fridge in the corner.
-	K.slab(parent, Vector3(0.62, 0.9, 1.3), Vector3(2.79, 0.5, -0.35), steel, "SinkUnit")
-	var water := K.slab(parent, Vector3(0.46, 0.02, 0.6), Vector3(2.79, 0.92, -0.5), _flat(Color(0.5, 0.55, 0.52)), "SinkWater")
-	(water.material_override as StandardMaterial3D).roughness = 0.2
-	_cut(parent, "bistro_platerack", Vector2(0.9, 0.55), Vector3(3.06, 1.45, -0.35), -90.0, false, "PlateRack")
+	_counter(parent, "sink", steel)
+	surface(parent, "sink")
 	K.prop(parent, "fridge_tall", Vector3(2.72, 0.05, -1.75), -90.0)
 	# The island: the board, onions, eggs, the flour sacks under it.
 	K.prop(parent, "steel_counter", Vector3(0.0, 0.05, 0.25), 0.0, 0.8)
@@ -307,27 +371,17 @@ static func kitchen(parent: Node3D, si) -> void:
 	look(parent, "stock pot", "Bones for the broth. They have been simmering since before you came.", Vector3(0.3, 1.1, 0.25), Vector3(0.4, 0.36, 0.4))
 	_tube(parent, Vector3(-1.0, 2.88, 0.0))
 	_tube(parent, Vector3(1.2, 2.88, 0.0))
+	# The ticket clock (gear) over the pass, its stubs in its rim: hidden till bought.
+	var clock := _cut(parent, "gear_clock" if has_tex("gear_clock") else "wall_clock", Vector2(0.34, 0.34), Vector3(-3.07, 2.15, -1.25), 90.0, false, "GearClock")
+	if clock != null:
+		clock.visible = false
 	_pic(parent, "calendar", Vector2(0.32, 0.46), Vector3(-3.06, 1.95, 1.0), 90.0, "Calendar")
 	look(parent, "calendar", "1987. Every Thursday ringed in red.", Vector3(-3.0, 1.95, 1.0), Vector3(0.1, 0.46, 0.32))
 
 
-## The plates waiting at the sink: a pile of dirty ones as tall as the count (kitchen.gd).
-static func dirty_pile(parent: Node3D, n: int) -> void:
-	var old := parent.get_node_or_null("DirtyPile")
-	if old != null:
-		old.free()
-	if n <= 0:
-		return
-	var pile := Node3D.new()
-	pile.name = "DirtyPile"
-	parent.add_child(pile)
-	var plate := _flat(Color(0.86, 0.84, 0.78))
-	var smear := _flat(Color(0.45, 0.2, 0.12))
-	for i in mini(n, 14):
-		var at := Vector3(2.72 + (i % 2) * 0.03, 0.97 + float(i) * 0.03, 0.12 + (i % 3) * 0.02)
-		_cyl(pile, 0.13, 0.02, at, plate, "DirtyPlate", 10)
-		if i % 2 == 0:
-			_cyl(pile, 0.07, 0.005, at + Vector3(0.02, 0.012, 0.01), smear, "Smear", 8)
+## The plates waiting at the sink are on its surface now (sink_station.gd draws them).
+static func dirty_pile(_parent: Node3D, _n: int) -> void:
+	pass
 
 
 # ── the cellar ───────────────────────────────────────────────────────────────
@@ -345,21 +399,12 @@ static func cellar(parent: Node3D, si) -> Node3D:
 	look(parent, "drain", "The drain gurgles. Then, a while later, it gurgles again somewhere further off.", Vector3(0.2, 0.1, 0.6), Vector3(0.4, 0.1, 0.4))
 	# The potato corner on the left: the peeler drum, the chip cutter on its table, the
 	# sack, the bucket.
-	var enamel := K.surface("enamel_white", 0.5)
-	var peel := _cut(parent, "bistro_peeler", Vector2(0.7, 1.15), Vector3(-2.6, 0.05, -1.05), 90.0, false, "Peeler")
-	if peel == null:
-		_cyl(parent, 0.3, 0.8, Vector3(-2.6, 0.75, -1.05), enamel, "PeelerDrum", 14)
-		K.slab(parent, Vector3(0.5, 0.35, 0.5), Vector3(-2.6, 0.22, -1.05), K.surface("metal_green", 0.5), "PeelerBase")
-	K.prop(parent, "table_wood", Vector3(-2.55, 0.05, 0.1), 90.0, 0.8)
-	_cut(parent, "bistro_cutter", Vector2(0.55, 0.5), Vector3(-2.6, 0.66, 0.1), 90.0, false, "ChipCutter")
-	_cut(parent, "sack_potatoes", Vector2(0.5, 0.62), Vector3(-2.55, 0.05, -1.9), 45.0, true, "PotatoSack")
-	_cyl(parent, 0.16, 0.3, Vector3(-2.2, 0.2, -0.45), K.surface("galvanized", 0.4), "Bucket", 10)
-	# The breading table on the right by the stairs: three bowls, the cheese, the tray.
-	K.prop(parent, "table_wood", Vector3(2.55, 0.05, -0.55), -90.0, 0.85)
-	for i in 3:
-		_cyl(parent, 0.13, 0.08, Vector3(2.55, 0.74, -1.05 + i * 0.35), enamel, "Bowl", 12)
-		_cyl(parent, 0.11, 0.01, Vector3(2.55, 0.785, -1.05 + i * 0.35), _flat([Color(0.95, 0.94, 0.9), Color(0.95, 0.8, 0.3), Color(0.78, 0.58, 0.3)][i]), "BowlFill", 12)
-	K.slab(parent, Vector3(0.22, 0.12, 0.3), Vector3(2.55, 0.76, 0.0), _flat(Color(0.95, 0.82, 0.3)), "CheeseBlock")
+	# The potato corner is its surface on the left wall (the peeler, the cutter, the sack,
+	# the bucket: st_potatoes), the breading table its top by the stairs.
+	surface(parent, "potatoes")
+	var wood := K.surface("planks_dark", 0.8)
+	_counter(parent, "breading", wood, 0.8)
+	surface(parent, "breading")
 	# The shelves of stock at the back left (the books' goods stood on them each visit).
 	K.prop(parent, "wall_shelf", Vector3(-1.4, 1.4, -2.3), 0.0, 1.6)
 	_cut(parent, "bistro_jars", Vector2(0.9, 0.45), Vector3(-1.4, 1.45, -2.3), 0.0, false, "Jars")
@@ -375,7 +420,8 @@ static func cellar(parent: Node3D, si) -> Node3D:
 		mesh.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		mesh.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		mesh.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mesh.uv1_scale = Vector3(4.0, 3.6, 1.0)
+		mesh.uv1_scale = Vector3(2.4, 3.2, 1.0)
+		mesh.albedo_color = Color(0.55, 0.55, 0.52)
 		var wire := MeshInstance3D.new()
 		wire.name = "ChainLink"
 		var q := QuadMesh.new()
@@ -390,28 +436,16 @@ static func cellar(parent: Node3D, si) -> Node3D:
 		gq.size = Vector2(0.9, 2.1)
 		gate.mesh = gq
 		var gm := mesh.duplicate() as StandardMaterial3D
-		gm.uv1_scale = Vector3(2.2, 3.6, 1.0)
+		gm.uv1_scale = Vector3(1.35, 3.2, 1.0)
 		gate.material_override = gm
-		gate.position = Vector3(2.05 + 0.32, 1.15, -0.95 + 0.3)
-		gate.rotation_degrees.y = -40.0
+		# Ajar into the machine's corner (swung out it stood over the breading table).
+		gate.position = Vector3(2.05 + 0.32, 1.15, -0.95 - 0.3)
+		gate.rotation_degrees.y = 40.0
 		parent.add_child(gate)
 	K.slab(parent, Vector3(2.5, 0.03, 0.03), Vector3(1.45, 2.25, -0.95), bars, "FenceTop")
 	K.slab(parent, Vector3(2.5, 0.03, 0.03), Vector3(1.45, 0.15, -0.95), bars, "FenceFoot")
-	var green := K.surface("metal_green", 0.8)
-	var mroot := Node3D.new()
-	mroot.name = "Machine"
-	parent.add_child(mroot)
-	K.slab(mroot, Vector3(1.3, 1.2, 0.8), Vector3(1.4, 0.65, -1.85), green, "MachineBase")
-	K.slab(mroot, Vector3(1.4, 0.08, 0.9), Vector3(1.4, 1.29, -1.85), K.surface("steel_kitchen", 0.8), "MachineTop")
-	var hopper := _cyl(mroot, 0.38, 0.5, Vector3(1.25, 1.58, -1.95), green, "Hopper", 10)
-	(hopper.mesh as CylinderMesh).bottom_radius = 0.14
-	var drum := _cyl(mroot, 0.3, 0.6, Vector3(1.75, 0.95, -1.85), K.surface("galvanized", 0.5, Color(0.6, 0.62, 0.55)), "Drum", 12)
-	drum.rotation_degrees.z = 90.0
-	K.slab(mroot, Vector3(0.36, 0.1, 0.5), Vector3(1.15, 0.72, -1.35), K.surface("steel_kitchen", 0.5), "Chute")
-	var lamp := _cyl(mroot, 0.04, 0.03, Vector3(0.95, 1.1, -1.44), _flat(Color(0.4, 0.05, 0.04)), "MachineLamp", 8)
-	lamp.rotation_degrees.x = 90.0
-	si._sign(mroot, "PROTOTYP 540", Vector3(1.45, 0.45, -1.44), 14, "plate")
-	K.slab(parent, Vector3(0.9, 0.02, 0.06), Vector3(0.9, 0.06, -1.1), _flat(Color(0.05, 0.05, 0.05)), "Cable")
+	# The machine is its surface on the back wall behind the partition (st_machine).
+	surface(parent, "machine")
 	# One bare bulb on its cord in the middle.
 	K.slab(parent, Vector3(0.01, 0.5, 0.01), Vector3(0.0, 2.45, -0.3), _flat(Color(0.1, 0.1, 0.1)), "BulbCord")
 	var bulb := _cyl(parent, 0.04, 0.08, Vector3(0.0, 2.17, -0.3), _flat(Color(1.0, 0.95, 0.8)), "Bulb", 8)

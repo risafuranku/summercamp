@@ -1,41 +1,73 @@
 extends "res://scripts/pub/pub_station.gd"
 
-## The keg in the cellar (assets/textury/pub/st_keg.png): the pallet with the keg on the
-## line, the beer hose down from the ceiling to its head, the full kegs standing by (the
-## books' beer, KEG_PINTS a keg), the gas cylinder with its gauge and valve.
-##   a spent keg   the tap upstairs coughs: take the head off (click it), roll the empty
-##                 off the pallet (click it: it joins the empties, chalked), roll a full
-##                 one on (click one), and put the head on (hold the button on it until
-##                 it is screwed down)
-##   the gas       hold the button on the valve wheel and drag up for more, down for less:
-##                 the needle wants the green; low and the beer comes flat and slow, high
-##                 and it is all foam. It creeps down as the tap runs.
+## The keg in the cellar (DESIGN.md §7b "the pub"), worked on the floor by the pallet in
+## the room: the keg on the line on its pallet, the head (coupler) on its hose over it,
+## the gas regulator with its valve and its column, the full kegs along the wall (the
+## books' beer: service_interior._fill_cellar). Things are sprites at the room's pixel.
+##   the head     a click takes it off the keg; held on a full keg, it screws down and the
+##                line fills (`coupled`)
+##   the keg      spent (the chalk cross), off its head: roll it off the pallet (a click);
+##                then a full one on (the spares at the right)
+##   the gas      hold the valve and drag up for more, down for less: in the green it pours
+##                right; low it comes flat and slow, high all foam
+## A keg on the line keeps a few days (twice as long with the keg cooler) and then it is
+## flat: what is left in it is thrown out with it. What is left in it is chalked on it.
 
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
-const PALLET_FOOT := Vector2(250, 300)
-const HOSE_END := Vector2(250, 120)
-const SPARES_FOOT := Vector2(380, 300)
-const EMPTIES_FOOT := Vector2(70, 300)
-const VALVE := Rect2(520, 120, 50, 50)
-const GAUGE := Rect2(590, 90, 8, 120)
+const PALLET := Vector2(320, 150)
+const SPARES := Rect2(520, 40, 120, 220)
+const VALVE_AT := Vector2(90, 160)
 const TWIST_SEC := 0.9
+const KEG_M := 0.6
 
 var _twist := -1.0
 var _valve_from := -1.0
 var _gas_from := 0.0
 var _roll := 0.0
 var _hiss: AudioStreamPlayer
+var _keg: Sprite3D
+var _head: Sprite3D
+var _valve: Sprite3D
+var _gauge: Sprite3D
+var _left_meter: Sprite3D
+var _chalk: Label3D
+var _pipe: MeshInstance3D
 
 
-func _ready() -> void:
-	super._ready()
-	station = "keg"
-	room = "cellar"
-	picture = tex("st_keg")
-	for n in ["keg_full", "keg_empty", "coupler", "valve", "chalk"]:
-		tex(n)
+func _build() -> void:
+	super._build()
+	_keg = psprite("keg", KEG_M)
+	_head = psprite("coupler", 0.16)
+	_valve = psprite("valve", 0.14)
+	# The regulator's pipe up from the floor to the valve.
+	_pipe = MeshInstance3D.new()
+	var b := BoxMesh.new()
+	b.size = Vector3(0.04, 0.5, 0.04)
+	_pipe.mesh = b
+	var pm := StandardMaterial3D.new()
+	pm.albedo_color = Color(0.35, 0.35, 0.36)
+	pm.roughness = 0.7
+	_pipe.material_override = pm
+	_pipe.position = local_at(VALVE_AT, 0.25)
+	add_child(_pipe)
+	put(_valve, VALVE_AT, 0.5)
+	_gauge = meter(5, 20)
+	_gauge.position = local_at(VALVE_AT + Vector2(36, 0), 0.62)
+	_left_meter = meter(5, 22)
+	_left_meter.position = local_at(PALLET + Vector2(66, 0), 0.5)
+	# What is left in the keg, chalked on it.
+	_chalk = Label3D.new()
+	_chalk.font = RETRO_UI.FONT_LABEL
+	_chalk.font_size = 8
+	_chalk.pixel_size = 1.0 / PX_PER_M
+	_chalk.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	_chalk.modulate = Color(0.93, 0.93, 0.9)
+	_chalk.outline_size = 0
+	_chalk.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_chalk.position = local_at(PALLET, 0.3) + Vector3(0, 0, 0.12)
+	add_child(_chalk)
 	_hiss = AudioStreamPlayer.new()
-	var path := PUB_SFX + "gas_hiss.mp3"
+	var path := "res://assets/sfx/pub/gas_hiss.mp3"
 	if ResourceLoader.exists(path):
 		var st = (load(path) as AudioStream).duplicate()
 		if st is AudioStreamMP3:
@@ -45,41 +77,37 @@ func _ready() -> void:
 	add_child(_hiss)
 
 
-func _opened() -> void:
-	match taproom.tap_trouble(building_key):
-		"dry":
-			say("", "No full kegs down here. Order beer in the books.")
-		"empty":
-			say("", "The keg on the line is spent.")
-		"off":
-			say("", "The head is off the keg.")
-		_:
-			var k: Dictionary = taproom.keg(building_key)
-			say("", "%d pints left in the keg on the line. Gas %s." % [int(k["line"]), PUB.gas_band(float(k["gas"])).to_lower()])
-
-
-func _closing() -> void:
-	_twist = -1.0
-	_valve_from = -1.0
-	_hiss.stop()
-
-
-func _keg_rect(foot: Vector2, n := "keg_full") -> Rect2:
-	var t := tex(n)
-	var sz := t.get_size() * float(PIX) if t != null else Vector2(90, 128)
-	return Rect2((foot - Vector2(sz.x * 0.5, sz.y)).floor(), sz)
-
-
-func _coupler_rect() -> Rect2:
-	var t := tex("coupler")
-	var sz := t.get_size() * float(PIX) if t != null else Vector2(40, 44)
+func _show() -> void:
+	if taproom == null or building_key == "":
+		return
 	var k: Dictionary = taproom.keg(building_key)
-	var at := HOSE_END
-	if bool(k["coupled"]) and str(k["pallet"]) != "none":
-		at = Vector2(PALLET_FOOT.x, _keg_rect(PALLET_FOOT).position.y + 6.0)
-	elif _twist >= 0.0:
-		at = Vector2(PALLET_FOOT.x, _keg_rect(PALLET_FOOT).position.y + 6.0 - (1.0 - _twist / TWIST_SEC) * 10.0)
-	return Rect2((at - Vector2(sz.x * 0.5, sz.y)).floor(), sz)
+	var pallet := str(k["pallet"])
+	_keg.visible = pallet != "none"
+	var flat: bool = taproom.tap_trouble(building_key) == "flat"
+	pretex(_keg, "keg_empty" if pallet == "empty" or flat else "keg", KEG_M)
+	var roll := floorf(_roll / 0.5 * 4.0) / 4.0
+	put(_keg, PALLET + Vector2(roll * 140.0, 0), 0.0)
+	_chalk.visible = pallet == "full" and not flat
+	_chalk.text = "%d" % int(k["line"])
+	_left_meter.visible = pallet == "full"
+	if pallet == "full":
+		set_meter(_left_meter, float(int(k["line"])) / float(PUB.KEG_PINTS), Vector2(-1, -1), RETRO_UI.C_AMBER if int(k["line"]) > 6 else RETRO_UI.C_RED, int(k["line"]) <= 3)
+	# The head: on the keg's top when coupled, else hanging on its hose over the pallet.
+	var on := bool(k["coupled"]) and pallet != "none"
+	var up := KEG_M * 0.98 if on else KEG_M + 0.25
+	if _twist >= 0.0:
+		up = KEG_M + 0.1 - floorf(_twist / TWIST_SEC * 4.0) / 4.0 * 0.08
+	put(_head, PALLET, up)
+	# The quick coupler (gear): its own head on the hose.
+	if BUSINESS.has_gear(building_key, "coupler"):
+		retex(_head, "res://assets/textury/camp/gear_coupler.png", 0.16)
+		if _head.texture != null:
+			_head.offset = Vector2(0, float(_head.texture.get_height()) * 0.5)
+	else:
+		pretex(_head, "coupler", 0.16)
+	var gas := float(k["gas"])
+	set_meter(_gauge, gas, Vector2(PUB.GAS_LOW, PUB.GAS_HIGH), RETRO_UI.C_GREEN if PUB.gas_band(gas) == "OK" else RETRO_UI.C_RED)
+	_valve.rotation.z = floorf(gas * 6.0) / 6.0 * 2.4
 
 
 func _spots() -> Array:
@@ -89,18 +117,17 @@ func _spots() -> Array:
 	var k: Dictionary = taproom.keg(building_key)
 	var pallet := str(k["pallet"])
 	var spares: int = taproom.spares(building_key)
+	var flat: bool = taproom.tap_trouble(building_key) == "flat"
 	if pallet != "none":
 		var verb := "The keg on the line: %d pints" % int(k["line"])
-		if pallet == "empty":
-			verb = "Take the head off first" if bool(k["coupled"]) else "Roll the spent keg off the pallet"
-		out.append({"id": "line_keg", "rect": _keg_rect(PALLET_FOOT, "keg_empty" if pallet == "empty" else "keg_full"), "verb": verb})
-	if spares > 0 or pallet == "none":
-		var r := _keg_rect(SPARES_FOOT)
-		r.size.x += 30.0 * maxi(0, mini(spares, 3) - 1)
-		out.append({"id": "spare", "rect": r, "verb": ("Roll a full keg onto the pallet (%d)" % spares) if spares > 0 and pallet == "none" else ("%d full kegs" % spares if spares > 0 else "No full kegs: order beer in the books")})
+		if pallet == "empty" or flat:
+			verb = "Take the head off first" if bool(k["coupled"]) else "Roll the %s keg off the pallet" % ("flat" if flat else "spent")
+		out.append({"id": "line_keg", "node": _keg, "verb": verb})
+	if pallet == "none" and spares > 0:
+		out.append({"id": "spare", "rect": SPARES, "verb": "Roll a full keg onto the pallet (%d)" % spares})
 	var cverb := "Take the head off the keg" if bool(k["coupled"]) else ("Hold to screw the head onto the keg" if pallet == "full" else "The head, on its hose")
-	out.append({"id": "coupler", "rect": _coupler_rect().grow(6.0), "verb": cverb})
-	out.append({"id": "valve", "rect": VALVE, "verb": "The gas: %s. Hold and drag up for more, down for less" % PUB.gas_band(float(k["gas"]))})
+	out.append({"id": "coupler", "node": _head, "verb": cverb})
+	out.append({"id": "valve", "node": _valve, "verb": "The gas: %s. Hold and drag up for more, down for less" % PUB.gas_band(float(k["gas"])).to_lower()})
 	return out
 
 
@@ -115,12 +142,16 @@ func _press(id: String) -> void:
 			elif str(k["pallet"]) == "full":
 				_twist = 0.0
 			else:
-				say("", "There is no full keg on the pallet to put it on.")
+				say("", "There is no full keg on the pallet.")
 		"line_keg":
-			if str(k["pallet"]) == "empty":
+			var flat: bool = taproom.tap_trouble(building_key) == "flat"
+			if str(k["pallet"]) == "empty" or flat:
 				if bool(k["coupled"]):
-					say("", "Take the head off first.")
+					say("", "The head is still on it.")
 					return
+				if flat and int(k["line"]) > 0:
+					# The flat beer goes down the drain: off the books as waste.
+					taproom.waste_keg(building_key)
 				taproom.set_keg(building_key, {"pallet": "none", "line": 0})
 				_roll = 0.5
 				sfx("keg_roll", -6.0)
@@ -128,17 +159,15 @@ func _press(id: String) -> void:
 				say("", "%d pints left in it." % int(k["line"]))
 		"spare":
 			if str(k["pallet"]) != "none":
-				say("", "The pallet is taken." if str(k["pallet"]) == "full" else "Roll the spent one off first.")
 				return
 			var beer := maxi(0, BUSINESS.stock_of(building_key, "beer"))
 			if beer <= 0 or taproom.spares(building_key) <= 0:
-				say("", "No full kegs. Order beer in the books.")
 				return
 			taproom.set_keg(building_key, {"pallet": "full", "line": mini(PUB.KEG_PINTS, beer), "coupled": false})
 			_roll = 0.5
 			sfx("keg_roll", -6.0, 0.9)
 		"valve":
-			_valve_from = _mouse.y
+			_valve_from = _mouse_free.y
 			_gas_from = float(k["gas"])
 			if _hiss.stream != null and not _hiss.playing:
 				_hiss.play()
@@ -151,13 +180,12 @@ func _release(id: String) -> void:
 		_twist = -1.0
 	if id == "valve" and _valve_from >= 0.0:
 		_valve_from = -1.0
-		var k: Dictionary = taproom.keg(building_key)
-		say("", "Gas %s." % PUB.gas_band(float(k["gas"])).to_lower())
 
 
 func _drag(at: Vector2) -> void:
-	if _valve_from >= 0.0 and at.y >= 0.0:
-		var gas := clampf(_gas_from + (_valve_from - at.y) / 240.0, 0.0, 1.0)
+	if _valve_from >= 0.0 and at.x > -500.0:
+		# Up the floor's picture (away from you) opens it.
+		var gas := clampf(_gas_from + (_valve_from - at.y) / 200.0, 0.0, 1.0)
 		var k: Dictionary = taproom.keg(building_key)
 		if absf(gas - float(k["gas"])) >= 0.01:
 			taproom.set_keg(building_key, {"gas": gas})
@@ -166,13 +194,13 @@ func _drag(at: Vector2) -> void:
 func _tick(delta: float) -> void:
 	_roll = maxf(0.0, _roll - delta)
 	if _twist >= 0.0:
-		_twist += delta
+		# The quick coupler (gear): it clicks on in a moment.
+		_twist += delta * (3.5 if BUSINESS.has_gear(building_key, "coupler") else 1.0)
 		if _twist >= TWIST_SEC:
 			_twist = -1.0
-			taproom.set_keg(building_key, {"coupled": true})
+			taproom.set_keg(building_key, {"coupled": true, "tapped": CoreRoot.get_day() if CoreRoot != null else 0})
 			sfx("coupler", -6.0, 0.9)
 			sfx("gas_hiss", -12.0)
-			say("", "On. The line fills with beer.")
 	var want := -60.0
 	if _valve_from >= 0.0:
 		want = -10.0
@@ -181,36 +209,24 @@ func _tick(delta: float) -> void:
 		_hiss.stop()
 
 
-# ── drawing ──────────────────────────────────────────────────────────────────
+func _closing() -> void:
+	_twist = -1.0
+	_valve_from = -1.0
+	_hiss.stop()
 
-func _paint(c: Control) -> void:
-	if taproom == null:
+
+func has_rail() -> bool:
+	return false
+
+
+func big_ticket() -> Dictionary:
+	return {}
+
+
+# ── debug (tools/pub_check.gd) ───────────────────────────────────────────────
+
+func debug_click(id: String) -> void:
+	if id == "coupler_on":
+		taproom.set_keg(building_key, {"coupled": true, "tapped": CoreRoot.get_day()})
 		return
-	var k: Dictionary = taproom.keg(building_key)
-	# The empties by the wall, chalked; the full ones standing by.
-	for i in 2:
-		stand(c, "keg_empty", EMPTIES_FOOT + Vector2(i * 22, -i * 4), 0.9, Color(0.75, 0.72, 0.68))
-	var spares: int = taproom.spares(building_key)
-	for i in mini(spares, 3):
-		stand(c, "keg_full", SPARES_FOOT + Vector2(i * 30 + (12.0 * _roll if i == 0 and str(k["pallet"]) == "full" else 0.0), -i * 3))
-	if spares > 3:
-		ink(c, SPARES_FOOT + Vector2(-20, 14), "x%d" % spares, RETRO_UI.C_BONE)
-	# The keg on the pallet.
-	var pallet := str(k["pallet"])
-	if pallet != "none":
-		stand(c, "keg_empty" if pallet == "empty" else "keg_full", PALLET_FOOT + Vector2(-20.0 * _roll if pallet == "full" else 0.0, 0))
-		if pallet == "empty":
-			blit(c, "chalk", PALLET_FOOT + Vector2(0, -70))
-		var lr := _keg_rect(PALLET_FOOT)
-		ink(c, Vector2(lr.position.x, lr.end.y + 12), "%d PINTS" % int(k["line"]) if pallet == "full" else "SPENT", RETRO_UI.C_BONE if pallet == "full" else RETRO_UI.C_RED_LIGHT)
-	# The head on the end of its hose.
-	var cr := _coupler_rect()
-	stand(c, "coupler", Vector2(cr.get_center().x, cr.end.y))
-	if _twist >= 0.0:
-		meter(c, Rect2(cr.end.x + 6, cr.position.y, 30, 5), _twist / TWIST_SEC, Vector2(-1, -1), RETRO_UI.C_GREEN)
-	# The valve wheel and the gauge: the needle's place on a scale with its green.
-	blit(c, "valve", VALVE.get_center())
-	var gas := float(k["gas"])
-	var col := RETRO_UI.C_GREEN if PUB.gas_band(gas) == "OK" else RETRO_UI.C_RED
-	meter(c, GAUGE, gas, Vector2(PUB.GAS_LOW, PUB.GAS_HIGH), col, true)
-	ink(c, Vector2(GAUGE.position.x - 16, GAUGE.end.y + 12), "GAS " + PUB.gas_band(gas), col)
+	_press(id)

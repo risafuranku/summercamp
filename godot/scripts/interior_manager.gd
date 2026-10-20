@@ -44,9 +44,10 @@ const INTERIOR_MODULE_CABIN := "cabin"
 const INTERIOR_MODULE_SERVICE := "service"
 ## "trip_*" and "town_*" things outside the camp (town_trip.handles()).
 const INTERIOR_MODULE_TRIP := "trip"
-## The corn stand: behind its counter (scripts/business/corn_closeup.gd).
+## The corn stand: behind its counter (scripts/corn/stand_view.gd: its two stations in 3D,
+## the camp beyond the counter).
 const INTERIOR_MODULE_STAND := "stand"
-const CORN_CLOSEUP = preload("res://scripts/business/corn_closeup.gd")
+const STAND_VIEW = preload("res://scripts/corn/stand_view.gd")
 var _corn_stand: CanvasLayer
 const INTERIOR_ASSIGNMENTS := [
 	{
@@ -76,7 +77,7 @@ const INTERIOR_ASSIGNMENTS := [
 		"hints": {
 			"restaurant": "Enter bistro",
 			"pub": "Enter pub",
-			"vecerka": "Enter Jednota Mart",
+			"vecerka": "Go into the Jednota",
 			"toilet_block": "Enter toilets",
 			"shower_block": "Enter showers",
 			"sewer": "Open sewer hatch",
@@ -473,11 +474,11 @@ func handle_structure_interact(structure: Node3D) -> void:
 			return
 
 
-## Behind the corn stand's counter: its close-up (the pot, the butter, the salt, the
-## customers), the books a tab on it.
+## Behind the corn stand's counter: its stations (the pot, the butter, the salt, the husking)
+## with the camp beyond the counter, the books on the frame.
 func _on_corn_stand_interact(structure: Node3D) -> void:
 	if _corn_stand == null:
-		_corn_stand = CORN_CLOSEUP.new()
+		_corn_stand = STAND_VIEW.new()
 		add_child(_corn_stand)
 		_corn_stand.closed.connect(func():
 			_set_player_controls_enabled(true)
@@ -1492,6 +1493,9 @@ func _coop_push_jobs() -> void:
 ## The room you are in, for the other machine: {k: room key, t: kind, s: which part
 ## of it, w: the job your hands are on}, or {} outside the rooms.
 func coop_room() -> Dictionary:
+	# Behind the corn stand: which station (scripts/corn/stand_view.gd).
+	if _corn_stand != null and _corn_stand.is_open():
+		return _corn_stand.coop_room()
 	var it = _open_room_interior()
 	if it == null:
 		return {}
@@ -1615,16 +1619,21 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 	var mine := coop_room()
 	var same: bool = not info.is_empty() and not mine.is_empty() and str(info.get("k", "")) == str(mine["k"]) \
 		and str(info.get("t", "")) == str(mine["t"]) and str(info.get("s", "")) == str(mine["s"]) and str(mine["k"]) != ""
-	# The office's rooms are one space: on their way through a doorway they are seen from
-	# the room they leave and the one they go to.
+	# The office building is one space (the office, the back room and the store are built
+	# side by side; the walls and doors between them are real): whoever is anywhere in it
+	# stands where they are, seen from wherever the walls let you (playtest 20. 10.: "from
+	# the little room you cannot see the player in the reception, at the PC").
 	var go: Dictionary = info.get("go", {})
-	if not same and not go.is_empty() and str(info.get("k", "")) == "office" and str(mine.get("k", "")) == "office" \
-			and str(mine.get("s", "")) in [str(go.get("f", "")), str(go.get("to", ""))]:
+	if not same and not info.is_empty() and str(info.get("k", "")) == "office" and str(mine.get("k", "")) == "office":
 		same = true
 	if not same:
 		coop_drop_partner(id)
 		return
 	var it = _open_room_interior()
+	if it == null:
+		# Both behind the corn stand: they are seen there in the camp, as they are.
+		coop_drop_partner(id)
+		return
 	var e := _coop_entry(id)
 	# Their job is theirs while they are at it.
 	e["job"] = str(info.get("w", ""))
@@ -1637,7 +1646,7 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 	# they turned in in (lodge_bed.gd), nowhere else.
 	var has_bed: bool = COOP_LOOKS.has_pose(model, "bed")
 	var lodge: bool = not LODGE_BED.bed_spot(str(mine["t"])).is_empty()
-	if bool(info.get("b", false)) and not (has_bed and (lodge or (str(mine["t"]) == "office" and str(mine["s"]) == "back"))):
+	if bool(info.get("b", false)) and not (has_bed and (lodge or str(mine["t"]) == "office")):
 		coop_drop_partner(id)
 		return
 	var tent: bool = str(mine["t"]) == "tent"
@@ -1708,7 +1717,8 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 			fig.show_at(root.global_transform * at, "stand")
 			fig.set_walking(true)
 			return
-		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(mine["s"]), COOP_OFFICE_SPOTS["office"])
+		# Where they are (their part of the building, not yours).
+		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(info.get("s", "office")), COOP_OFFICE_SPOTS["office"])
 		var pose := "stand"
 		if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(model, "write"):
 			# Behind the counter, bent over the register.

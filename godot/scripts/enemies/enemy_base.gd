@@ -5,7 +5,7 @@ extends "res://scripts/enemies/i_enemy_brain.gd"
 ## extends this and implements `_on_start()` and `_on_tick(dt)`.
 ##
 ## Rules every enemy keeps (DESIGN.md "Rules of the scare"):
-## - it is forecast before it is encountered (night risk, a feed line on first sign);
+## - it is forecast before it is encountered (night risk; its sound on first sign, never a line of text);
 ## - it is avoidable by paying attention: each one has a readable tell and a counter;
 ## - bodies are lit by the scene (shaded sprites): in the dark they exist only where
 ##   the flashlight or a lamp touches them.
@@ -26,6 +26,8 @@ var _elapsed: float = 0.0
 var _difficulty: int = 1
 var _root: Node3D
 var _body: Sprite3D
+## Its eyes in the dark (enemy_eyes.gd), if it has them: `_make_eyes` in `_on_start`.
+var _eyes: Node3D
 var _announced: bool = false
 var _cue_pos: Vector3 = Vector3.INF
 ## It got you tonight: the guest it was is gone in the morning (main._claim_turned_guests).
@@ -35,6 +37,9 @@ var _cue_time: float = -999.0
 ## How long the place of a sound stays "sensed" after the sound.
 const CUE_MEMORY_SECONDS := 4.0
 const NIGHTMARE_FX = preload("res://scripts/night/nightmare_fx.gd")
+const ENEMY_EYES = preload("res://scripts/enemies/enemy_eyes.gd")
+## Lamp light round the eyes at which they no longer glow (you see it instead).
+const EYES_GONE_IN_LIGHT := 0.4
 
 
 func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
@@ -70,8 +75,11 @@ func tick(delta: float) -> void:
 	if not _is_ready():
 		if _body != null:
 			_body.visible = false
+		if _eyes != null:
+			_eyes.call("_hide")
 		return
 	_on_tick(dt)
+	_tick_eyes(dt)
 
 
 func stop_night() -> void:
@@ -81,6 +89,7 @@ func stop_night() -> void:
 		_root.queue_free()
 	_root = null
 	_body = null
+	_eyes = null
 	_cue_pos = Vector3.INF
 
 
@@ -286,6 +295,43 @@ func _make_body(texture_path: String, height_m: float, shaded: bool = true) -> S
 	s.visible = false
 	_root.add_child(s)
 	return s
+
+
+## How much your light makes its eyes flare (0..1): your torch on them. A brain whose
+## eyes catch light from farther off says so.
+func _eyes_flare(at: Vector3) -> float:
+	return 1.0 if _in_flashlight(at) else 0.0
+
+
+## Its own eyes (enemy_eyes.STYLES[`style`]) `height_m` up on `follow` (the body when
+## null); they glow while it is in the dark and the line to them is clear.
+func _make_eyes(style: String, height_m: float, follow: Node3D = null) -> Node3D:
+	var e: Node3D = ENEMY_EYES.new()
+	_root.add_child(e)
+	e.call("setup", style, height_m, follow if follow != null else _body)
+	_eyes = e
+	return e
+
+
+func _tick_eyes(dt: float) -> void:
+	if _eyes == null or not is_instance_valid(_eyes):
+		return
+	var cam := _camera()
+	var at: Vector3 = _eyes.get("point")
+	var anchor = _eyes.get("anchor")
+	if anchor != null and is_instance_valid(anchor):
+		at = (anchor as Node3D).global_position + Vector3(0, float(_eyes.get("height")), 0)
+	var s := 0.0
+	if at != Vector3.INF and cam != null:
+		var light := _lamp_light_at(at - Vector3(0, 1.0, 0))
+		s = 1.0 - smoothstep(EYES_GONE_IN_LIGHT * 0.35, EYES_GONE_IN_LIGHT, light)
+		# A wall between you and them: nothing (the window's view is its own).
+		var from: Vector3 = _eyes.get("view_from")
+		if from == Vector3.INF and s > 0.0 and _ray_blocked(cam.global_position, at):
+			s = 0.0
+		_eyes.set("flare", move_toward(float(_eyes.get("flare")), _eyes_flare(at), dt * 6.0))
+	_eyes.set("strength", s)
+	_eyes.call("update", dt, cam)
 
 
 func _place_body(p: Vector3) -> void:

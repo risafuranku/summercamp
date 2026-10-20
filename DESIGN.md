@@ -200,9 +200,33 @@ by all): grain, the colour bleeding apart and draining to rust as it comes close
 strike the frame stops, a face for a few frames, tears and split channels, red, a ring in
 the ears with the world muffled under it.
 
-All of them: forecast before encountered (night risk + one feed line on first sign);
+All of them: forecast before encountered (night risk, then its sound on first sign);
 avoidable by attention (each has a tell and a counter); bodies are lit by the scene, so
-in the dark they exist only where the flashlight or a lamp touches them.
+in the dark they exist only where the flashlight or a lamp touches them, and their
+**eyes** (below) are what you see of them in the dark.
+
+**No text at night** (Richard, 20. 10.: it kills the vibe). No line on the screen says
+what is out there or what just happened: no "somebody is whistling", no "he was right
+behind you". The sounds, the eyes, the sixth sense and the HUD face say it. (The brains
+still call `_announce`/`_feed`; main keeps the line for the log, `last_enemy_line`.) In
+co-op a warden who is hit cries out, a real call far off from where they are, not a line.
+
+**Every enemy has its own eyes** (`scripts/enemies/enemy_eyes.gd`, STYLES): two small
+glowing points in the world, in whole game pixels, the shape near and a point far off
+(never under two game pixels, two always apart), only while it is in the dark and in
+your line of sight; a torch on them makes them flare. They are in the world, so they show
+through a cabin's window and the other wardens see them. You know what it is before you
+know where it is:
+
+| Enemy | Eyes |
+| --- | --- |
+| Silent Man | his glasses: two round lenses glinting a dull yellow, nothing behind them, a little too far apart, never blinking; now and then a light runs over the glass, one lens then the other. They sit on his glasses in every piece of art (tilted with his head) and flare white in your torch before he comes apart |
+| The Photographer | one eye, the lens: a cold blue ring with a light in it; the red focus lamp blinks in its middle |
+| The Girl | her eyeshine (drawn on the screen, `nightmare_fx.set_eyes`): two pale points, each blinking on its own, only where the torch points but does not reach |
+| The Antlered Man | deer eyeshine in the skull's sockets, pale green, high, far apart; both go out together now and then |
+| The Basket Man | two wet red points deep in the hood, close together, swinging slowly over the ground |
+| The Extra Child | nothing while its back is to you; turned and running, two small white points that do not blink |
+| The Whistler | not on its body (never in sight): two pale slits up in the trees where the tune was, a little while after each one |
 
 | Enemy | From | Tell | Counter | Punishes |
 | --- | --- | --- | --- | --- |
@@ -212,6 +236,70 @@ in the dark they exist only where the flashlight or a lamp touches them.
 | The Whistler | Tramps | a campfire tune whistled out in the trees, moving | do not walk towards it; stand under a lamp until the tune breaks off | following the sound into the dark |
 | The Extra Child | Family | a child humming among the tents, back turned | torch off, walk past, never shine the light on it | looking at it with the torch |
 | The Basket Man | Mushroom Pickers | 02:30-06:00, a wicker basket creaking out of the trees, a knife scraping | stand still while it is near; it only sees movement | moving while it is close |
+
+### 5a. Outdoor hunters, indoor tormentors (the rule for every enemy)
+
+An enemy is one of two kinds, so the night never stacks two deadly things in one place:
+
+- **outdoor hunters** (the Silent Man, the Photographer, the Girl, the Whistler, the Basket
+  Man) can hurt you only outside. Indoors they cannot reach you, and they know where you
+  are: they work at getting you out (sounds at the walls, the door, the window) and, if
+  you hide long enough, they take it out on the camp instead (a guest's night goes wrong:
+  mood, the review, the camp's name). Hiding is safe and it costs.
+- **indoor tormentors** (to come: the thing in the pipes is one already, in its own place)
+  are dangerous only inside a building, and they are what makes a cabin no refuge.
+
+The night's jobs (the breaker, the sewer, a lamp) and the pager pull you out regardless.
+The director budgets the night so that at most one hunter presses on a warden at a time.
+In co-op an enemy hunts one warden; what it does to make itself felt reaches only that
+one; the other warden's light counts as light (watching each other's backs is the
+counter for two).
+
+### 5a.1 The Silent Man in full (`scripts/enemies/silent_man_brain.gd`)
+
+Often the first night's only enemy: the first meeting has to be the best scare of the
+game, every time, and never scripted to a place.
+
+- **Lurk**: you in light, he hums round a corner in the dark 7-13 m off, leaning out now
+  and then. The light is safe and you still feel watched (a little of the sixth sense).
+- **The stare** (half his lurks once you have met him): not round a corner but out in
+  the open dark 9-15 m off, facing you, his glasses on you, motionless. Look away and
+  back: he is a step nearer, his head a little further over, never into the light.
+- **The glasses go out**: step out of the light and the humming stops and the two
+  yellow lenses go dark, both at once: the only time they ever "blink". They stay dark
+  till he has taken his first step. That is how you know he is coming.
+- **The glint**: your torch beam far past where it lights anything (to ~45 m) catches
+  his lenses; they swell and flash back at you, white (a low sting the first time each
+  round). He is not lit, so he does not go: he is just standing there.
+- **His head goes over**: the nearer he is, the more his glasses tilt; within a few
+  metres it now and then cocks hard, near sideways. In the dark the eyes are all you see.
+- **Glasses that are not him**: when the sixth sense is high, a pair or two at the
+  edges of your view in the dark, 10-20 m off; look at one and it goes out. Only the
+  warden he hunts sees them.
+- **The first meeting** (once per camp, `director.ever["silent_man_met"]`): the first
+  step out of the light, the humming stops and he is there in front of you at the edge
+  of the light, caught mid-stride; look at him and he goes, look away and he is gone when
+  you look back. The first time he reaches your neck you get longer to react, and he does
+  not bite: he turns you round to him, face to face, the skin over his mouth tearing, and
+  comes apart. No text says the rule: the turn itself teaches it.
+- **The sixth sense** (`nightmare_fx.set_presence`): a pressure builds while you are out
+  in the dark and he comes on, faster the closer he is; it drains in the light. You feel
+  it as a drone in the ears that climbs (two low tones beating, a pressure whine), your
+  heart (slow, then fast), the picture's edges closing in, banded, pulsing with the heart,
+  the colour going to rust, the torch catching and stuttering in your hand. The insects
+  fall silent and the HUD face looks round, as for every enemy.
+- **At your neck**: the whisper, his breath, cloth, the frame stops for a beat, his hands
+  come over your shoulder from the side he is on, and he holds you (half speed). Turn
+  round (a light on him) or get away; else the catch (ear, above, turned round), and when
+  it would be the last, his kill (strangled, the neck turned, the mouth).
+- **Indoors** (an outdoor hunter): in order, a pause of 16-28 s between: the humming
+  through the wall; three knocks, and a fourth after you have stopped listening; the
+  handle tried; a hand brushing along the outside wall, following you; a tap at the
+  window (in the office, his figure at the window; in a cabin, he stoops to the glass of
+  the window you look at, his face in it and his glasses glowing, lit by the room's light
+  falling out, and is gone in a few seconds: the window is a view of the real camp);
+  then he goes to a guest (a Quiet Guy first): a tent zip somewhere, slowly, and that
+  guest's night is spoiled.
 
 Every hit can be explained afterwards: each enemy says where it is and when it is about
 to strike, by sound first, and the counter always works (tools/enemy_check.tscn plays
@@ -424,7 +512,7 @@ the desk fan, the wicket gate, the ripples where a fish jumps. That stutter is t
 
 ## 5i. The camp on Goggle
 
-The PC's tenth tab, Reviews (key 0), is the camp's page on Goggle, a 1998 search
+The PC's fifth tab, Reviews (key 5, after Mail), is the camp's page on Goggle, a 1998 search
 engine's places page (`scripts/reviews/goggle.gd` the logic, `os98/apps/goggle_app.gd`
 the page). Every guest's review goes up in public; the stars are the plain average of
 what is up, to one decimal. The page was there before you: seven reviews from last
@@ -434,9 +522,10 @@ shoes in. He knocks.", answered by someone who is not you).
 - The rating is the progression. Builder 98's blueprints open tier by tier (a rating and
   enough reviews to count): tents, cabins, the basics from the start; caravans, the
   restaurant, the pitch, the gnome and the corn stand at 3.0; the playground, ping-pong,
-  the flagpole and level-2 rooms at 3.5; the slide at 4.0; level-3 rooms at 4.3. A tier
-  once reached stays open. Locked cards are grey with a padlock and the stars they wait
-  for ("for Stavitel partner camps"); the room upgrades say GOGGLE 4.3.
+  the flagpole and level-2 rooms at 3.5; the slide and the Jednota at 4.0; level-3 rooms
+  at 4.3. A tier once reached stays open. Locked cards are grey with a padlock, Goggle's
+  star and the rating they wait for ("for Stavitel partner camps"); the room upgrades say
+  GOGGLE 4.3.
 - People look before they book: each star above or below three moves the booking
   chance by 0.07.
 - SpotlessName Ltd take a review down by the next morning, for $45 and $30 more for each
@@ -447,6 +536,95 @@ shoes in. He knocks.", answered by someone who is not you).
   edit by the morning (a star more), blaming the weather never does. Answering the same
   review in CampMail's guest book answers it on Goggle too.
 - The tab's badge counts new reviews, red when one of them is bad.
+- Photos (the tab after the sorts): last summer's guests' snaps of the camp, a cheap
+  compact's prints with the orange date in the corner (`tools/artgen/goggle_photos.py`,
+  made from the game's own frames), big on a click. In one of them somebody stands at the
+  edge of the trees behind the tents; nothing on the page says so. Under them "People also
+  searched for": Agrostroj Hlubocany's feed mill (planned; its site opens in the browser),
+  U Jezera, Jednota Lesna.
+
+## 5j. Builder 98, a game in the game
+
+The user: "the Builder should feel like a game of its own: an imitation of the 90s
+tycoon games, and fun." Builder 98 is Stavitel software's shareware site planner, and it
+plays like RollerCoaster Tycoon or Transport Tycoon on a cheap 1998 PC
+(`builder_module.gd` the program, `crt_map_panel.gd` the map). A star rating of its own
+was left out: the camp's rating is Goggle (§5i), and it opens the blueprints.
+
+- **A build is a building site.** For a moment the plot is a scaffold with a worker
+  kneeling at a plank, hammering (two frames, a blow every 0.36 s), and on bigger plots a
+  second one on his own beat; dust at the blows, the hammer's sound; then the building
+  stands up with a thump and a bounce. Small things go up in a second, a cabin in about
+  three, the biggest in four. The sim has the building at once: the site is only the
+  map's picture, so nothing else waits for it. A room upgrade is a site too. In co-op the
+  host's builds are sites on the other machine as well.
+- **A demolition leaves rubble.** A heap of planks, bricks and tin where it stood, a wisp
+  of smoke, the collapse's sound, gone after four seconds. The refund and the bulldozer's
+  fee pop up side by side.
+- **Money you can see.** Coins fly from the building that earned them to the cash: from a
+  room when its guests pay, from a business when its takings rise. The cash in the
+  toolbar is an odometer: the sum rolls to the camp's money, its wheels turning over one
+  into the next, green coming in, red going out.
+- **The tool on the pointer.** Over the map, the bulldozer, the path, the lamp or a
+  blueprint (any building) sits beside the arrow; the arrow's tip is still where the
+  click goes.
+- **Rows by dragging.** Benches, lamps, flower beds, picnic tables, gnomes and flagpoles
+  are dragged out in a straight row, a ghost on every tile and the price on a tag
+  ("6 x $25 = $150"), built on letting go, as many as the till pays for; undo takes the
+  row back. A click without a drag builds one, as before.
+- **Music.** A cheerful General MIDI loop (ElevenLabs, cut to sixteen bars with
+  `tools/audiogen/loop_cut.py`) plays while the Builder is open, from the PC's speaker
+  (quieter away from it). From 18:00 to the lock at 20:00 it goes a little flat and slow,
+  more so on the eve of a bad night (NIGHT RISK high); the speaker button in the toolbar
+  turns it off (remembered by the PC).
+- **The map has the camp's weather and hour** (read from the camp, never worked out on
+  the map): rain in slanting streaks with the wind's slant and splashes, the map a shade
+  darker under it (a step more in a storm); fog as a thin dithered veil with banks
+  drifting with the wind; snow as flakes over the snowy ground; the storm's flash with
+  the camp's; smoke leaning with the wind (flat in a gale); autumn leaves blowing in a
+  wind. The evening in palette steps before the night: gold toward five, red at a
+  quarter past six, the blue hour; a pink dawn.
+- **What the guests think.** A bubble over a guest a few seconds in every nine: their
+  worst need (hungry, the toilet, tired, dirty, frightened), cold after a cold night, a
+  smile when all is well. A click on a guest opens their card: name and party, room,
+  mood, six needs in bars, what they last thought (theirs, from their stay; now and then,
+  more often when they are frightened, one that is not quite right: "The lake looked at
+  me."), Follow to keep them in the middle of the map.
+- **The map lies, rarely, never in a log.** Late in the day, once in a long while, a tent
+  nobody built stands beside the others for one frame (no number over it). One tile of
+  each camp (from its seed, open forest away from the middle) says in the status line
+  that something is buried there. The site report now and then counts one guest more
+  than there are, after six.
+- **Graphs** (the toolbar's chart, or G): Transport Tycoon's window in the 98 look, one
+  page at a time: Cash, Guests (people staying), Mood, Goggle, Takings (a line per kind
+  of business, each name in the legend turning it off and on), the last two weeks with
+  today's point live. Main records each day that ended at dawn
+  (`scripts/builder/day_graph.gd`, saved as "graph").
+- **The Courier's extra editions.** The district paper the web has a page of (the
+  Hlubocany Courier) brings out an extra in the Builder when the camp does something
+  worth printing: the first caravan, the slide, a pub, its own Jednota, the Mega gnome,
+  each Goggle tier, being caught tidying up its reviews, ten, twenty, forty, eighty guests
+  at once. A newspaper window: the masthead, the date, the headline, a halftone of the
+  thing, the story; a fanfare; a click puts it away. Each runs once; a camp already
+  going when this came in has its old news counted as printed.
+- **The district's diplomas**, each once: Most Improved Camp (a star more on Goggle than
+  last summer's page), the Guests' Favourite (ten or more in good spirits), the Tidiest
+  Camp (ten buildings or more in good repair). The district's own paper (Grok, no words)
+  with the award typed on it.
+- **Shareware.** Stavitel software's nag after ten builds and every twelve after
+  ("You have built 10 things with an unregistered copy..."), and once when it starts.
+  Help > Register...: $99 of the camp's money, the key by mail the next morning
+  (Stavitel software), typed in; registered: no nag, About says so, and the Mega gnome
+  (a garden gnome four and a half times over on a 2x2, $1998) is in Decor. All of it on
+  the PC (os_shell's store "builder98", `scripts/builder/shareware.gd`).
+- **Cheats**, typed on the map, written down nowhere: BOHEMIA ($5,000, and the next
+  morning a letter from the district asking where it came from), KAREL (the uncle's old
+  camp over the map a few seconds, pale), MOLE (the buried tile marked), VERA (Vera has
+  a word). Their letters are tool keys too; once a cheat is typed the tools are put back
+  as they were.
+- **About** has the credits and, under them, a little bulldozer flattening tents in a
+  strip of grass; it drives itself until the arrow keys take it.
+- The Jednota is buildable again (the camp's own; locked at Goggle 4.0).
 
 ## 6. Upkeep
 
@@ -488,12 +666,12 @@ the head through the end of the turn.
 - **The bistro's logistics.** The dining room (na place) is the guests' tables, the till
   and the books; the kitchen behind it and the cellar under it are the work. See "The
   bistro" below.
-- **The pub's cellar.** A door by the bar end goes down to the kegs: one for every 25
-  pints the books hold, crates of rum and kofola; click them for the books.
-- **The corn stand** is one more of them: E behind its counter (either warden), the
-  wholesaler's leaflet beside the cash box orders corn and butter (the books' ORDER
-  page), Klasek 98 on the office PC runs it like the others; the other warden sees you
-  behind it at the pot.
+- **The pub's cellar.** A door by the bar end goes down to the kegs: the keg on the line
+  on its pallet (the keg's station, below), the full ones along the rack (a keg is 50
+  pints of the books' beer), crates of rum and kofola; click the rack for the books.
+- **The corn stand** is one more of them: E behind its counter (either warden), its two
+  stations on the counter with the camp beyond it (below, "The corn stand"), the books on
+  the frame (BOOKS, or the cash box), Klasek 98 on the office PC runs it like the others.
 - **For two.** The other warden is in the room with you at the job they have open,
   behind the bar pulling a beer, at the bottles, the washer, the pass, the stove, the
   till, over the books; the place they are at is theirs (no mark over it for you), and
@@ -526,12 +704,27 @@ imperfect human Build-engine textures."*
   tartar or not; how long they waited) into the money, a tip and one to three stars.
   The plates come back dirty when they have eaten: the sink, scrub, the rack. No clean
   plates, no plating.
-- **The stations are full screen**, each a flat Build-engine texture of its own
-  (320x180, two canvas pixels to one; Grok renders sharpened and grained into the game's
-  palette), the things on it drawn over it: the rail of tickets across the top, the
-  sentence of what a click does over the bottom bar (like an old adventure game's verb
-  line), the bar with BACK and the room's other stations. Nothing is a square in the
-  middle of the room any more.
+- **The stations are in the room, in 3D** (decided with the user on 2026-10-20: "the
+  stations in the 3D room, no flat screens"; `scripts/business/station3d.gd`, shared by all
+  four businesses). A station is its counter in the Build room: the counter's top is its
+  Build texture (the pan, the fryer, the bowls painted on it), the things on it are Duke 3D
+  sprites at the room's pixel (91 px to a metre): the slices lying in the pan, the basket
+  on its hook, the plate you build, the stacks of plates standing by. Everybody in the
+  room sees them, whoever is at the station. Click the station and the camera goes over
+  its counter in steps, twelve a second; there you point, press, hold and drag in the
+  room itself: a slice off the tray into a free place in the pan (the place lights up
+  under it), the spoon round the pot, the plate into the water. A click does the same
+  thing for whoever does not drag. Over the counter hangs the order rail (Papa's,
+  `ticket_rail.gd`): the tickets as little papers on a steel rail across the top of the
+  view, in the room's pixel, swinging on as they come; the one picked hangs lower and is
+  big in the corner, ticking off what is on the plate at the pass. Each thing that cooks
+  has its column standing over it (a pixel meter: the side in the oil, the basket, the
+  pot's heat and its bottom), and the stove's and the pot's columns are mirrored small in
+  the frame at the other stations of the room. Under the room the frame
+  (`station_hud.gd`): the sentence of what a click would do (like an old adventure
+  game's verb line), BACK (S, the right button), the room's other stations (Tab, 1-4).
+  Nothing explains anything: the glint, the lit target, the ticket, the columns and the
+  sounds do.
 - **Things go on without you.** The pan and the fryer cook and burn, the pot catches,
   whether anyone is at them: the room says so (Traveller's Rest marks over each station:
   the frying bars and "!", the pot's portions and STIR, the tickets at the pass, the
@@ -543,11 +736,23 @@ imperfect human Build-engine textures."*
   Mostly dry; a few are wrong in the quiet way of the rest of the game.
 - **The cellar** is the prep room: the potato peeler and the chip cutter, the breading
   table, the shelves of stock (the books), and behind a chain-link partition the
-  machine nobody ordered, PROTOTYP 540. For now it is only looked at: unplugged, dead by
-  day; at night its lamp is lit with the plug out, the gauge stands off nought, the crank
-  turns a quarter by itself. *What it is for is still to be decided with the user* (a
-  proposal: it would make the goulash meat for nothing, at night, if fed; what it is fed
-  is the dark side of the bistro).
+  machine nobody ordered, PROTOTYP 540: unplugged, dead by day; at night (and from eight
+  while the bistro is open late) its lamp is lit with the plug out, the gauge stands off
+  nought, the crank turns a quarter by itself.
+- **PROTOTYP 540** (decided 2026-10-20, agent C, on the user's brief: the goulash's meat
+  for nothing, at night, if it is fed; what it is fed is the bistro's dark side and is
+  never said). Some nights a jute sack lies against the wall beside it, tied, heavy, that
+  nobody brought down: always the night after the camp woke without somebody (a guest
+  gone at dawn, whom the night took: `main._claim_turned_guests`), else about one night
+  in five. Hold the button on it and it goes up into the hopper; the lid drops, the lamp
+  burns steady, the machine shakes in its bolts and grinds till morning, and in the
+  morning its tray is heaped with meat for twenty goulashes, in the cellar's stock as a
+  lot of that day that nobody paid for. A sack nobody lifts is gone in the morning. The
+  game never says what is in the sack, never shows it, never puts the sack and the one
+  who was gone side by side: no name, no shape, no line in the feed or a review; the only
+  word for it is the verb, "Lift it into the hopper". The hands never go near it. Rare,
+  quiet, serious (`bistro_rules.proto_*`, `kitchen.gd _proto`, `machine_station.gd`,
+  `actions.biz_gift`; `tools/proto_check.tscn`, `tools/proto_shots.tscn`).
 - **For four.** Each station is one warden's while they are at it: the others see them
   there in the room at the job (the cook's pose, the washer's), see their name over it
   instead of its mark, and get "Jana is at the stove" if they click it; the bar's tab
@@ -556,8 +761,248 @@ imperfect human Build-engine textures."*
   (`scripts/bistro/kitchen.gd`, `Coop.send_kitchen`), so the stove burns the same on all
   four; the tickets are worked out from the guests on each machine alike. Splitting the
   work is the game: one in the cellar, one at the stove, one at the pass, one washing up.
-- **A hand** (taken on in the books) serves everybody at once as before and keeps the
-  trays, the pot and the plates going.
+- **The hands** work the kitchen by job (below, "The hands"): one at the cellar fills
+  the trays, one at the stove turns and racks the slices and minds the basket and the pot,
+  one at the pass plates whatever ticket it has everything ready for, one at the sink
+  washes up. What nobody does is yours; a warden at a hand's station works beside them.
+
+### The pub (2026-10-20)
+
+*Agent C, phase 2 of the businesses (the user, 20. 10.: "the bistro and the pub: 3D
+minigames that work like Papa's Pizzeria, with sprites and textures like the Build
+engine; clear the first time without a tutorial").*
+
+- **The bar is the work.** Three stations along the bar top on the barman's side, the
+  camera behind them in the narrow way between the bar and the bottle shelf, as the
+  bistro's over its counters (Tab, 1-3 between them), and the keg in the cellar:
+  - *The tap* (the middle): the chrome tower seen from the side, its faucet over the
+    drip tray, the black handle on top (Grok sprites). A clean mug off the board at its
+    left goes under the spout (a click); take the handle and draw it towards you (down
+    the screen): beer with a little head; push it away: foam only; let go and it springs
+    back. The head settles back to beer while you wait; over the rim it runs onto the
+    tray. The knife by it takes the top off the head. The mug over the bar goes to the
+    beer mat picked on the rail, else to whoever's order it matches best: hladinka (beer
+    to the line, a collar of foam to the rim), snyt (half and half), mliko (all foam, a
+    finger of beer); the wrong pour comes back. The column by the mug is how full it is.
+  - *The bottles* (the left end): the rum, the zelena, the slivovice and the kofola in a
+    row; take one (a click) and it comes up beside its glass (a shot glass, the tall one
+    for the kofola); hold: it tips over the rim and pours, the glass fills to the line
+    (the column, its green window). Then the glass over the bar.
+  - *The sink* (the right end): the empties come back from the tables onto the bar in
+    front of it when they are drunk; one into the water, hold and rub up and down, the
+    dirt comes off stroke by stroke; clean, onto the board by the tap. No clean mugs on
+    the board, no beer.
+  - *The keg* (the cellar, by its pallet): the keg on the line with what is left in it
+    chalked on it; the head (coupler) on its hose: a click takes it off, held on a full
+    keg it screws down. A spent keg (the chalk cross) or a flat one is rolled off the
+    pallet and a full one rolled on from the rack (a keg is the books' 50 pints). The
+    gas: hold the valve and drag up for more, down for less; in the green it pours right,
+    low it comes slow and flat, high all foam, and it creeps down as the tap runs. A keg
+    on the line keeps three days (six with the keg cooler); then it is flat: no head,
+    poor beer, and the guests say so; what is left in it goes down the drain, the books'
+    waste.
+- **The orders** are beer mats on the rail over the bar: the guest's name in pencil,
+  what they want (its picture and its word), a stroke a drink they have had, the wait
+  under it; the picked one big in the corner. One at a time each, the next when the last
+  is drunk (half an hour of game time); after an hour and a half of waiting they stop
+  ordering. The money, the tip and the stars Papa's way (the shared systems below).
+- **The hands at the pub**: the tap's pours the oldest beer ordered (a fair pour, never
+  a perfect one), the bar's the shots and the kofolas, the washer's washes the mugs, the
+  cellar's changes a spent or flat keg and sets the gas right; each slips now and then (a
+  short pour, a mug dropped). They stand at their places behind the bar and by the
+  pallet; one whose station a warden takes stands aside.
+- **The gear**: the second tap (the beer comes faster; a hand draws two at once), the
+  glass washer (at the end of the way behind the bar: the empties come out clean by
+  themselves), the keg cooler (in the cellar: a tapped keg keeps six days), the quick
+  coupler (the head clicks on in a moment, a keg changed in no time).
+- **For four**: as the bistro: each station one warden's while they are at it, seen
+  there, named, refused to the others; what is poured, washed and changed is an op every
+  machine applies at once (`scripts/pub/taproom.gd`, `Coop.send_taproom`).
+
+### The corn stand (2026-10-20)
+
+*Agent C, phase 3 of the businesses. The playtest's split stays (18. 10.: "the corn stand
+is the bottom of the screen, the top is the live view into the camp"); the user, 20. 10.:
+the stations in 3D, like the bistro's and the pub's.*
+
+- **Behind the counter, out in the camp.** E at the stand and you are behind it: a camera
+  of its own in the camp's world stands behind the counter and looks out over it, so the
+  counter is the bottom of the picture and the camp the top of it (whoever comes up to the
+  stand, the paths, the weather), through the Build palette like every view. Your warden
+  stands behind the counter meanwhile (the others see you there). The frame under it as
+  at the bistro: BACK (S, the right button), the two stations (Tab, 1-2), BOOKS.
+- **Two stations on the counter**, worked where they are (the stand's own Build
+  pictures laid on its counter top; everybody going by sees the cobs in the pot):
+  - *The husking* (the left): the crate of cobs in their husks; a click puts one on the
+    table (off the books' cobs); hold the button on it and pull away: a leaf comes off and
+    flies into the bucket (four leaves; two with the husking table); then the silk at its
+    tip, a click a tuft (three); clean, a click puts it in the bowl.
+  - *The counter* (the right): the pot of boiling water, the board, the butter and its
+    brush, the salt, the napkins, the cash box. A click on the pot puts a husked cob from
+    the bowl in (three places; six with the bigger pot); it boils pale, then bright yellow
+    (done, nine seconds), then from twenty-one seconds grey and soft. A cob out onto the
+    board (a click, however done it is), brushed with butter where the brush passes (hold
+    and rub along it; the butter warmer does it in one stroke), a shake of salt a click,
+    a napkin round it, then over the counter to the slip picked on the rail (else the
+    oldest). Hard, soft, unbuttered or the salt far off and they hand it back. BIN throws
+    away what is on the board.
+- **The orders** are paper slips on the rail: the name, a cob, the salt they want (a mark a
+  shake, NO S for none), the wait; the picked one big in the corner, ticking off BUTTER,
+  the salt (green when it is right, red when too much) and NAPKIN. One cob each, all at
+  once; after an hour of waiting they go. Papa's score from the wait, the build (butter,
+  salt) and the cooking into the tip, the stars and the mood.
+- **The hands at the stand**: the husk's takes cobs from the crate and husks them into the
+  bowl (one dropped now and then), the counter's puts them in the pot as wanted, takes a
+  done one out, butters it and salts it to the order (the salt off now and then) and hands
+  it over; a soft one they throw away.
+- **For four**: one warden a station (the other gets the husking: "Jana is at the
+  counter"); the pot, the bowl and what was served are ops every machine applies
+  (`scripts/corn/cornstand.gd`, `Coop.send_place`).
+
+### The Jednota (2026-10-20)
+
+*Agent C, phase 4 of the businesses. Decided with the user on 2026-10-20: store, shelf and
+till work only; very dear; the guests love it; it needs several hands; its blueprint opens
+at Goggle 4.0; a building of three by three with a Build model and a Builder picture of
+its own.*
+
+- **The building.** Three tiles by three, $1800 and the licence (Pult 98) $100; the
+  Builder's blueprint opens at Goggle 4.0 (Stavitel partner camps). A long single-storey
+  1970s village samoobsluha under a flat concrete roof (`building_models._jednota`, Grok
+  faces): the band of shop windows with green racks behind the glass, the glass door
+  under a small canopy, the red board with the sheet-metal letters JEDNOTA (Lesna's), the
+  crates of empties, the ice-cream freezer and the bench out front, the delivery door
+  and the staff door with its bell at the back. The Builder's map has it from the front
+  and from behind.
+- **Two rooms.** The shop: tiles, oil paint, two tubes; the long green rack at the back
+  with the cage trolley beside it, the till's counter on the right by the door and the
+  queue along it, the bread rack, the fridge, the shelf of tins and the ice-cream chest
+  on the left, the baskets by the door, the books on a shelf behind the till, the
+  storeroom's door in the back wall. The storeroom: concrete under a bare bulb, the
+  packing table with the shelf of cartons behind it and the trolley beside it, the empty
+  pallet, last year's cartons (the stock: click for the books), the locker, the empties.
+- **The guests** come in and look round at the racks for a few minutes, then take what
+  they came for off the rack into a basket, each kind its own (the drinkers beer and
+  salami, the families milk, rolls and ice cream, the pickers bread and veg; one to five
+  things); what is not on the rack they go without, and say so in their review if half of
+  it was sold out. With their basket they queue along the till in the order they came,
+  kept in the shop while they wait; after an hour of it they put it all back and go.
+  The camp's own Jednota is loved: a little more on their mood every time.
+- **The till** (the counter top, from behind it): their basket's goods are clicked
+  through one by one (a beep, the display adds it up, into their bag; the cabbage over
+  the scale); then they put their money on the mat, the right money now and then, mostly
+  the smallest note it fits under (5, 10, 20, 50); a click takes it into the drawer and
+  the display shows the change. The change is counted out of the drawer's four places
+  (1, 2, 5, 10) onto the mat, a piece back with a click, CLEAR all of it; GIVE (Enter)
+  hands it over. Short and they say so and wait; too much and they keep it (the money
+  lost, the score lower). Their receipt in the corner: each thing with its price, rung
+  up in ink, the total, what they paid, the change. Papa's score from how long they
+  stood and how right the change was.
+- **The shelves** (standing at the rack): every good has its place (sweets and soap at
+  the top; pickles, beer and veg; bread, rolls and salami; milk and ice cream at the
+  bottom), a little picture of it on the shelf's edge, six a place (eight with more
+  shelves). The boxes made up in the storeroom wait on the trolley: press on one, carry
+  it to its place, let go, and its goods go up one by one as far as there is room;
+  anywhere else it goes back on the trolley. What went off lies grey at the end of its
+  place; a click throws it out.
+- **The storeroom** (at the packing table): the cartons off the van on the shelf behind
+  it (what the books have that is not on the rack, the trolley or in a basket; what the
+  rack will run out of first on the lower board): a click brings one onto the table, a
+  drag across its tape cuts it open (with the pallet truck they come open), held down
+  the price gun prices what is in it, and onto the trolley it goes, six to a box. BOOKS
+  on the frame for the order.
+- **The hands**: the till's serves the first in the queue (a coin over now and then) and
+  leaves the till to a warden who steps up to it; the second till's (gear) the second in
+  the queue at its own counter by the door; the shelves' puts a box onto the emptiest
+  place it has one for (one dropped now and then: broken); the storeroom's throws out
+  what went off and makes up a box for what will run out first (twice as quick with the
+  pallet truck).
+- **Dear, and it pays with hands and a busy camp.** The shelf prices are the dearest
+  (bread 5, salami 8, milk, beer, pickles, ice cream and veg 4, soap 5, sweets 3, rolls 2),
+  the goods cheap off the van; with three hands at forty a day, a camp that sends
+  twenty-five baskets a day, served well, pays the building and the licence back in about
+  eight days (`jednota_rules.day_model`, `tools/jednota_check.tscn`); eight baskets a day
+  lose money.
+- **For four**: a warden a station, the others refused it ("Jana is at the till"); the
+  rack, the trolley, the queue, what is rung up and the change on the mat are ops every
+  machine applies (`scripts/jednota/jednota.gd`, `Coop.send_place("vecerka", ...)`).
+
+### The businesses' shared systems (2026-10-20)
+
+*Decided with the user on 2026-10-20 (Q&A): Papa's ratings; goods that go off; one order
+for every place from the office PC once licensed; better gear as the only progression;
+hands taken on one by one, each with a job and a shift; places open late into the night.
+Built once for all four places (the bistro first); `core/systems/business_rules.gd`,
+`actions.biz_*`, `scripts/business/`.*
+
+- **How an order went down (Papa's).** Each order is scored 0-100 from its wait, its build
+  against the ticket and its cooking (the slice's two sides across the golden window, best
+  in its middle; the chips likewise; the goulash hot off the boil and not catching), and
+  the score is the tip (none under 65, a third of the price from 80, half from 95), the
+  stars (1-3) and the guest's mood. The guest remembers the best and the worst meal of
+  the stay, and their review says so: "The fried cheese was perfect.", "The goulash was
+  burnt at the bottom.", "Waited forever for my food at the bistro." (the review reaches
+  Goggle as before). Food left on the shelf goes cold (a tenth of its quality every half
+  minute, down to half) unless the heat lamp is bought.
+- **The shift's end.** At 20:00 (or 23:00 when open late) the till prints its Z report: a
+  long thermal receipt with the orders, the average score, the tips, the best and the
+  worst order and whose they were, who went away unserved, what was thrown out, the
+  takings and the wages tonight, one to three stars for the shift. It comes out of the
+  till if you are in the place; else the books keep it (BOOKS, Z REPORT). The books also
+  keep the place's running average.
+- **Goods go off.** Each delivery is a lot dated the day it came; the oldest is used
+  first. Past its days (bread and rolls 2, dumplings and milk 3, cobs and fruit 4,
+  potatoes 5, cheese 6, beer 6 a tapped keg, the tins and the spirits never) a lot goes
+  bad on the shelf: it is not sold, it is there in the cellar (sprouting, mouldy, bloated
+  sprites) and in red in the books till somebody throws it out (THROW OUT: the books
+  count it as waste). The chiller and the keg cooler double their goods' days. What the
+  shelves cannot make today is crossed off the menu board in chalk.
+- **Ordering.** In the place, on the books' ORDER page, as before (the van in the
+  morning). With a licence (softsklad.cz) the office PC's SoftSklad window runs every
+  licensed place at once: a tab per place, and one order across all of them that one van
+  brings for one fee.
+- **Gear, the only progression.** The menu is whole from the first day; what money buys
+  is better gear for a place, Papa's way: the bistro's second fryer basket (two baskets'
+  worth at once), the heavy pan (a fourth place, slower to burn), the dishwasher (the
+  dirty plates in, clean out a while later), the big pot (twenty portions, catches
+  slower), the heat lamp (fried food keeps hot), the ticket clock (the guests wait a
+  quarter longer); the pub's second tap, glass washer, keg cooler and quick coupler; the
+  corn stand's bigger pot, butter warmer and husking table; the Jednota's second till,
+  pallet truck, chiller cabinet and more shelves. Bought in the books (GEAR) or on the PC;
+  each is seen in the room once it is in (the lamps over the pass lit, the clock on the
+  wall, the dishwasher on the sink's counter, the fourth slice in the pan).
+- **The hands.** Taken on one by one from the three who ask at a place each day (the
+  same three on every machine; nobody already working in the camp). Each is a person with
+  an ID photo and the sprites of the photo (Grok), their speed (seconds a piece of work:
+  9, 6, 4), their honesty (never said: a dishonest one asks a little less, their papers
+  are thin, and now and then the books come up short, money or goods), their temper
+  (warm, flat, sour) and the wage that follows from them. Each has a job (the place's
+  front job first: the bistro's pass, the pub's tap, the stand's counter, the Jednota's
+  till; then the others) and a shift (day, or late at half as much again). They are seen
+  at their job in the room, at work; one whose station a warden takes stands back. They
+  are slower and worse than a good warden: a slice left to burn, a plate dropped, six
+  dumplings for four, a badly breaded slice. About one shift in twenty one does not come
+  in (a note on the door, a line in the feed); paid at the day's close for the shift they
+  did, and two days unpaid they leave.
+- **The two nobody quite remembers** (asking now and then among the others, every few
+  days): *Jaromir*, "has worked here before" though the camp was shut all last year:
+  quick, warm, honest, cheap; when the place is shut at night he is at his place in the
+  dark, and in the morning the plates are washed and what went off is gone, though nobody
+  had a key. *Marta*, references left blank: as good and as cheap, never away, never
+  announced in the feed, already at her place when anybody comes in, and her ID photo is
+  a little different every other day (the eyes a touch further apart, the mouth a little
+  longer). Let go, they do not argue. Neither is ever explained.
+- **Open late** (the books' BOOKS page, or the PC): the place shuts at 23:00 instead of
+  20:00. The night comes into it: some guests go out to it in the evening (the drinkers
+  most), the prices are a quarter higher, the late shift's hands cost half as much again,
+  and inside it the night's director plays it by its tension: the tubes buzz and
+  flicker, static creeps under the room, something scrapes or knocks in the cellar, the
+  breaker drops the lights for a few seconds (once a shift at most), and once a shift at
+  most there is one more at a table than came in, facing away, dark, two small pale
+  points for eyes, gone at the next flicker or when you look at it a moment. The
+  forecast says so: from the afternoon the NIGHT RISK footer alternates with "PUB LATE",
+  and the feed says the place is open late tonight. The scares are rare and fast; nothing
+  in a place hurts.
 
 ## 8. The pipe crawl (sewer repair)
 
@@ -645,6 +1090,34 @@ per day, 40 s visual crossfades. The anomaly (red haze) only at night, rarer and
 likely the stranger the camp (hrotfaktor), at most once a day. Rain closes outdoor
 attractions.
 
+## 9b. The camp world: weather, light, sound, body
+
+The camp is where the game is lived, so it has to read as a real place at every hour and
+in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD POLISH).
+
+- **The night is lived in.** A cabin, caravan or tent with its guests in is lit after
+  dark: a cabin's red curtains glow from a lamp behind them, or in one cabin in three the
+  blue of a telly flickers through them; a caravan's curtains glow orange, a tent glows
+  through its canvas, and their light lies on the grass in front. Each lodging puts its
+  light out at its own time between 21:00 and 23:30; now and then one lights again round
+  three in the morning, and before dawn some are up early. With the power off the cabins
+  have candles. The same windows light on every machine in co-op.
+- **The sky.** A clear night has its stars, the milky way and a full moon; under cloud
+  (rain, fog, snow, the storm) the night is overcast and the moon hidden. The reception's
+  lit windows show the office and the back room behind them.
+- **Your breath** shows in the cold, a puff drawn see-through as Build drew its smoke,
+  only as bright as the light it is in: at night you see it in your torch.
+- **The evening** keeps its clock: gold from four (a low golden sun, cool shade, long
+  shadows), red at a quarter past six with the sun gone (red where its last light falls,
+  lilac in the shade, the haze rose), the blue hour round seven with the lamps coming on,
+  dark from eight.
+- **The morning.** Before the sun a clear sky turns rose and peach low in the east, the
+  last stars going out over it; mist lies over the meadow and the lake at first light and
+  lifts by half past eight. The meadow is a late-summer meadow, green and straw, until
+  the autumn dries it.
+- **The lamps** are the light itself at night: the bulb bright, its cone of light a warm
+  shaft that shows faintly in clear air and fully in mist and rain.
+
 ## 10. Presentation rules
 
 - Everything 2D is pixel art on an integer scale: baked bitmap fonts (Silkscreen, Tiny5,
@@ -657,7 +1130,12 @@ attractions.
 - The terminal is a separate, period-correct Win95 aesthetic (it is a program inside the
   world), the HUD and menus are the game's own Build-engine chrome.
 - New art: generated with Grok Imagine (AGENTS.md §7), then keyed, downsampled and snapped
-  to the game palette, so it matches the existing sprites pixel for pixel.
+  to the game palette, so it matches the existing sprites pixel for pixel. Nothing seen
+  in the world is drawn by code: the stars and the moon are generated too.
+- See-through things (breath, steam, smoke) are drawn as Build drew them: the whole
+  sprite at one of a few fixed levels of see-through, never a screen door of dots.
+- Every sound effect is a recording (ElevenLabs); tones and cadences that must be exact
+  are cut from recordings by script. Only the radio's dread is layered in code.
 
 ## 11. Open questions
 
