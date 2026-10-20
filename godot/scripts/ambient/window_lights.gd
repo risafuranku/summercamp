@@ -3,10 +3,13 @@ extends Node3D
 ## The camp's lodgings lived in after dark (made by weather_visuals.gd in the camp's world,
 ## like the world sounds; the inventory of 20. 10. found the camp looking empty after
 ## 20:00, every cabin dark with its guests in it):
-##   - a cabin with its guests in and awake glows at its windows: its red curtains lit by
-##     a lamp behind them (Grok camp/window_lit.png, the day's window_curtain.png at
-##     night), or in one cabin in three the telly (window_tv.png), its blue flickering
-##     in steps; a caravan's curtains glow orange; the light lies on the grass in front;
+##   - a cabin with its guests in and awake glows at its windows, and through them you see
+##     into the room (materials/window_room.gdshader: interior mapping, the room's walls,
+##     floor and ceiling behind the glass in depth that moves as you walk by, its things
+##     half way in, the lamp in steps, the curtains drawn in at the sides and lit through;
+##     the user 20. 10.: the lit windows were a flat picture of a window); in one cabin in
+##     three the telly, its blue flickering in steps; a caravan the same, its own room;
+##     the light lies on the grass in front;
 ##   - a tent with its guests in glows through the canvas, a lantern inside;
 ##   - the guests are abed from 20:00 for the simulation, but each lodging puts its light
 ##     out at its own time between 21:00 and 23:30; now and then one lights again round
@@ -27,6 +30,16 @@ const CANDLE := Color(1.0, 0.6, 0.3)
 const TV := Color(0.55, 0.7, 1.0)
 ## How dark it must be (the day's light, weather_visuals.compute_daylight_factor()).
 const DARK_BELOW := 0.38
+const ROOM_SHADER = preload("res://materials/window_room.gdshader")
+const CAMP := "res://assets/textury/camp/"
+## The room seen through a lit window, by kind: textures, depth, width, height, and how
+## high its floor is over the ground outside.
+const ROOMS := {
+	"cabin": {"wall": "knotty_pine", "floor": "parquet", "ceil": "ceiling_pine", "curtain": "curtain_floral", "props": "window_room_cabin", "props_h": 1.85,
+		"depth": 2.6, "w": 2.8, "h": 2.35, "floor_up": 0.12},
+	"caravan": {"wall": "wallpaper_70s", "floor": "formica", "ceil": "ceiling_board", "curtain": "curtain_floral", "props": "window_room_caravan", "props_h": 1.45,
+		"depth": 1.8, "w": 2.1, "h": 1.95, "floor_up": 0.5},
+}
 
 var player_getter: Callable
 
@@ -148,6 +161,7 @@ func _own_material(mi: MeshInstance3D) -> void:
 	if src == null:
 		return
 	var m := src.duplicate() as StandardMaterial3D
+	_room_material(mi)
 	m.emission_enabled = true
 	m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 	m.emission = LAMP
@@ -156,6 +170,45 @@ func _own_material(mi: MeshInstance3D) -> void:
 		m.emission_texture = m.albedo_texture
 	mi.material_override = m
 	mi.set_meta("wl_mat", m)
+
+
+## The room behind a pane (a lodging's window): its own interior-mapping material, ready
+## for when the window is lit.
+func _room_material(mi: MeshInstance3D) -> void:
+	var root := mi.get_parent()
+	while root != null and not root.has_meta("building_type"):
+		root = root.get_parent()
+	if root == null or not (mi.mesh is QuadMesh):
+		return
+	var t := str(root.get_meta("building_type", ""))
+	var kind := "cabin" if t.begins_with("cabin") else ("caravan" if t.begins_with("caravan") else "")
+	if kind == "":
+		return
+	var spec: Dictionary = ROOMS[kind]
+	var sm := ShaderMaterial.new()
+	sm.shader = ROOM_SHADER
+	for slot in [["wall_tex", "wall"], ["floor_tex", "floor"], ["ceil_tex", "ceil"], ["curtain_tex", "curtain"]]:
+		var path: String = CAMP + str(spec[slot[1]]) + ".png"
+		if ResourceLoader.exists(path):
+			sm.set_shader_parameter(slot[0], load(path))
+	var props: String = CAMP + str(spec["props"]) + ".png"
+	sm.set_shader_parameter("has_props", ResourceLoader.exists(props))
+	if ResourceLoader.exists(props):
+		var pt: Texture2D = load(props)
+		sm.set_shader_parameter("props", pt)
+		# As tall as its tallest thing (the wardrobe, the cupboard), as wide as the picture says.
+		var tall := float(spec["props_h"])
+		sm.set_shader_parameter("props_size", Vector2(tall * float(pt.get_width()) / float(maxi(1, pt.get_height())), tall))
+	var size: Vector2 = (mi.mesh as QuadMesh).size
+	sm.set_shader_parameter("pane", size)
+	sm.set_shader_parameter("depth", float(spec["depth"]))
+	sm.set_shader_parameter("room_w", float(spec["w"]))
+	sm.set_shader_parameter("room_h", float(spec["h"]))
+	var over_ground: float = mi.global_position.y - (root as Node3D).global_position.y
+	sm.set_shader_parameter("sill", clampf(over_ground - float(spec["floor_up"]), 0.6, float(spec["h"]) - 0.4))
+	# Each window its own way into the room: the things stand a little to one side or the other.
+	sm.set_shader_parameter("props_x", float(absi(hash(mi.get_instance_id())) % 5 - 2) * 0.25)
+	mi.set_meta("wl_room", sm)
 
 
 func _drop(rec: Dictionary) -> void:
@@ -262,6 +315,17 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool) -> void:
 			continue
 		var m := mi.get_meta("wl_mat", null) as StandardMaterial3D
 		if m == null:
+			continue
+		# Lit, a cabin's or a caravan's pane shows the room behind it.
+		var room := mi.get_meta("wl_room", null) as ShaderMaterial
+		if room != null:
+			var want_mat: Material = room if on else m
+			if mi.material_override != want_mat:
+				mi.material_override = want_mat
+			if on:
+				room.set_shader_parameter("light", Vector3(col.r, col.g, col.b) if col != LIT_TINT else Vector3(LAMP.r, LAMP.g, LAMP.b))
+				room.set_shader_parameter("energy", clampf(amount * (0.62 if kind == "cabin" else 0.42), 0.0, 1.2))
+				room.set_shader_parameter("curtain", 0.32 if not tv else 0.5)
 			continue
 		var want: Texture2D = pic if pic != null else m.albedo_texture
 		if on and m.emission_texture != want:
