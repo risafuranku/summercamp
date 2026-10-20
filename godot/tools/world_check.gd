@@ -27,7 +27,7 @@ const PICTURES := ["skybox/skystars.png", "skybox/skydawn.png", "skybox/skygolde
 const SOUNDS := ["steps/snow_a.mp3", "steps/snow_b.mp3", "steps/snow_c.mp3", "steps/snow_d.mp3",
 	"steps/puddle_a.mp3", "steps/puddle_b.mp3", "steps/puddle_c.mp3", "steps/puddle_d.mp3",
 	"world/flag_clank_a.mp3", "world/flag_clank_b.mp3", "world/tube_buzz.mp3", "world/tap_drip.mp3",
-	"far/chatter.mp3", "far/kids.mp3", "far/dog.mp3", "far/car.mp3", "far/train.mp3", "far/bell.mp3",
+	"far/chatter.mp3", "far/kids.mp3", "far/dog.mp3", "far/car.mp3", "far/train.mp3", "far/bell.mp3", "far/guitar.mp3", "far/radio.mp3",
 	"world/rain_tin.mp3", "world/rain_lake.mp3", "world/rain_leaves.mp3",
 	"player/jacket_a.mp3", "player/jacket_b.mp3", "player/jacket_c.mp3", "player/keys_a.mp3", "player/keys_b.mp3",
 	"world/door_creak_a.mp3", "world/door_creak_b.mp3", "world/door_shut_a.mp3", "world/door_shut_b.mp3",

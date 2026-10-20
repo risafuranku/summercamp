@@ -5,6 +5,8 @@ extends Node3D
 ## (ElevenLabs, assets/sfx/far/):
 ##   - the evening (18:00-23:30): voices and laughter from the fire, or from the lodgings,
 ##     while there are guests about;
+##   - the evening too: a guitar by the fire (19:00-23:00, a fire built) and a little radio
+##     playing in a caravan (18:00-23:00, a caravan built), while there are guests about;
 ##   - the day (9:00-18:00): children at play somewhere across the meadow while a family
 ##     is staying;
 ##   - the night: a farm dog barking beyond the fields, now and then a car on a road, a
@@ -72,6 +74,10 @@ func _process(delta: float) -> void:
 	var guests := _guests()
 	if hour >= 18.0 and hour < 23.5 and int(guests["about"]) > 0:
 		pick.append(["chatter.mp3", 3.0])
+		if hour >= 19.0 and hour < 23.0:
+			pick.append(["guitar.mp3", 1.5])
+		if hour < 23.0:
+			pick.append(["radio.mp3", 1.2])
 	if hour >= 9.0 and hour < 18.0 and bool(guests["family"]):
 		pick.append(["kids.mp3", 2.0])
 	if night:
@@ -101,6 +107,19 @@ func _process(delta: float) -> void:
 ## Where it comes from: the camp's own sounds from the fire or a lodging well away from
 ## you, the country's from beyond the fields.
 func _where(file: String, here: Vector3, main: Node) -> Vector3:
+	if file == "guitar.mp3" or file == "radio.mp3":
+		# The guitar at a fire, the radio in a caravan, well away from you.
+		var spots2: Array = []
+		var bm2 = main.get("building_manager")
+		var st2: Node = bm2.get_node_or_null("Structures") if bm2 != null else null
+		if st2 != null:
+			for c in st2.get_children():
+				var bt2 := str(c.get_meta("building_type", ""))
+				if (file == "guitar.mp3" and bt2 == "bonfire") or (file == "radio.mp3" and bt2.begins_with("caravan")):
+					var p2 := (c as Node3D).global_position
+					if p2.distance_to(here) >= 22.0:
+						spots2.append(p2 + Vector3(0, 1.0, 0))
+		return spots2[_rng.randi() % spots2.size()] if not spots2.is_empty() else Vector3.INF
 	if file == "chatter.mp3":
 		var spots: Array = []
 		var bm = main.get("building_manager")
@@ -137,7 +156,7 @@ func _play(file: String, at: Vector3, here: Vector3) -> void:
 	# Far, but heard: the distance's fall-off a fifth of the way.
 	var dist := at.distance_to(here)
 	p.unit_size = dist / 5.0
-	p.volume_db = {"chatter.mp3": -8.0, "kids.mp3": -9.0, "dog.mp3": -10.0, "car.mp3": -12.0, "train.mp3": -9.0, "bell.mp3": -8.0}.get(file, -10.0) + _rng.randf_range(-2.0, 1.0)
+	p.volume_db = {"chatter.mp3": -8.0, "kids.mp3": -9.0, "dog.mp3": -10.0, "car.mp3": -12.0, "train.mp3": -9.0, "bell.mp3": -8.0, "guitar.mp3": -10.0, "radio.mp3": -13.0}.get(file, -10.0) + _rng.randf_range(-2.0, 1.0)
 	p.pitch_scale = _rng.randf_range(0.95, 1.04)
 	p.play()
 
