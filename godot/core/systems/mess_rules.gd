@@ -114,9 +114,11 @@ static func level_for(archetypes: Array, party_size: int, nights: int, unhappy: 
 
 
 ## The cleaning list for a room. `mess` = {seed, level, archetypes, fresh}: `fresh` is
-## a room nobody has slept in yet (the builders' leftovers). The bed task comes first
-## and is always there; the bathroom toilet whenever the room has one, and in a basic
-## cabin (no bathroom) the slop bucket once somebody has slept there.
+## a room nobody has slept in yet: only its bed to make up, no mess at all (the
+## builders' sawdust and papers were a chore before anyone had stayed: the user 20. 10.,
+## new rooms unmade but without the mess). The bed task comes first and is always there;
+## the bathroom toilet whenever the room has been used, and in a basic cabin (no
+## bathroom) the slop bucket once somebody has slept there.
 static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_task: Dictionary) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(mess.get("seed", 1))
@@ -141,7 +143,7 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 	_shuffle(spots, rng)
 	var count := clampi(1 + level + rng.randi_range(0, 1), 1, spots.size())
 	if fresh:
-		count = mini(count, 2)
+		count = 0
 	for i in count:
 		var spot := str(spots[i])
 		var kinds := pool
@@ -158,7 +160,7 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 		out.append(task_for(spot, pick))
 	if derelict and DERELICT_SPOTS.has(kind):
 		out.append(task_for(str(DERELICT_SPOTS[kind]), "cobwebs"))
-	if has_bathroom:
+	if has_bathroom and not fresh:
 		out.append(task_for("wc", "toilet_grime"))
 		if not fresh and (level >= 1 and rng.randf() < 0.35 + 0.15 * level):
 			var k: Array = BATH_KINDS["sink"]

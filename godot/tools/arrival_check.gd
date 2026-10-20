@@ -39,7 +39,9 @@ func _ready() -> void:
 	var room: Dictionary = GuestManager.get_room_state("6:6")
 	_expect(str(room.get("status", "")) == ROOM_RULES.STATUS_UNPREPARED, "a new tent starts unprepared (%s)" % room.get("status", "?"))
 	var first: Array = room.get("remaining", [])
-	_expect(first.size() >= 2 and first.size() <= 3 and str(first[0]["id"]) == "bed", "a new tent: the bed and the builders' leftovers (%d tasks)" % first.size())
+	# Unmade, but no mess (the user 20. 10.: the builders' leftovers were a chore before
+	# anyone had stayed).
+	_expect(first.size() == 1 and str(first[0]["id"]) == "bed", "a new tent: only the bed to make up (%d tasks)" % first.size())
 
 	# Booking: on the road, beds reserved, nobody in the camp yet.
 	_book("Pepa", "drunk", 1, 1, 30)
