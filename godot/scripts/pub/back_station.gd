@@ -150,7 +150,7 @@ func _orders_for(drink: String) -> Array:
 func _press(id: String) -> void:
 	if id.begins_with("bottle:"):
 		if _fill > 0.02:
-			say("", "Finish that glass first.")
+			say("", "There is a glass half poured already.")
 			return
 		_bottle = id.substr(7)
 		_fill = 0.0

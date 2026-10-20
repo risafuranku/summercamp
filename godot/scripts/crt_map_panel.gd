@@ -25,7 +25,7 @@ const ICON_SPAN := {
 	"caravan_1": 1.27, "caravan_2": 1.27, "caravan_3": 1.27, "toilet_block": 0.85, "shower_block": 1.02,
 	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
 	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
-	"flower_bed": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
+	"flower_bed": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "lamp_iso": 0.24, "lamp_post": 0.24, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
 }
 const SFX_DIR := "res://assets/sfx/builder/"
 
@@ -432,7 +432,7 @@ func _leave_rubble(o: Vector2i, known: Array) -> void:
 
 
 ## The sites going up (a blow now and then, dust; done: the thump) and the rubble going.
-func _tick_sites(delta: float) -> void:
+func _tick_sites(delta: float, quiet := false) -> void:
 	_hammer_cd -= delta
 	_rubble_cd -= delta
 	var busy := false
@@ -447,15 +447,16 @@ func _tick_sites(delta: float) -> void:
 				_add_fx("dust", mid + Vector2(0.3, 0.3), 0.45)
 		elif site > 0.0 and not _site_done.has(o):
 			_site_done[o] = true
-			for k in 5:
-				_add_fx("dust", mid + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 0.7)
-			_play("site_done", -8.0)
+			if not quiet:
+				for k in 5:
+					_add_fx("dust", mid + Vector2(randf_range(-0.4, 0.4), randf_range(-0.4, 0.4)), 0.7)
+				_play("site_done", -8.0)
 		if age > site + 0.5:
 			_dropped.erase(o)
 			_site_len.erase(o)
 			_site_fp.erase(o)
 			_site_done.erase(o)
-	if busy and _hammer_cd <= 0.0:
+	if busy and _hammer_cd <= 0.0 and not quiet:
 		_play("hammer", -10.0)
 		_hammer_cd = 1.25
 	for i in range(_rubble.size() - 1, -1, -1):
@@ -555,6 +556,9 @@ func apply_zoom_step(direction: int) -> void:
 func _process(delta: float) -> void:
 	_update_keyboard_pan(delta)
 	if not is_visible_in_tree():
+		# On another tab the sites still go up (the build was paused till you came back).
+		_time += delta
+		_tick_sites(delta, true)
 		return
 	_time += delta
 	_bfx.tick(delta)
@@ -3490,6 +3494,15 @@ func _night_amount() -> float:
 func _play(name: String, db := 0.0) -> void:
 	var path := SFX_DIR + name + ".mp3"
 	if not ResourceLoader.exists(path):
+		return
+	# From the PC's speaker: quieter away from it, never in the menu (it was heard all
+	# over the camp, and in the main menu, at full volume).
+	var shell: Node = self
+	while shell != null and not shell.has_method("sound_db"):
+		shell = shell.get_parent()
+	if shell != null:
+		db += float(shell.call("sound_db"))
+	if db <= -60.0:
 		return
 	var p := AudioStreamPlayer.new()
 	p.stream = load(path)

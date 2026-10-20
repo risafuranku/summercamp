@@ -2940,8 +2940,9 @@ func _jednota_tick(delta: float) -> void:
 	_tickets_known = true
 
 
-## The Jednota's gear in the shop once bought (business_rules.GEAR): the second till by the
-## door, the chiller beside the fridge.
+## The Jednota's gear in its rooms once bought (business_rules.GEAR): the second till by the
+## door, the chiller beside the fridge, the extra shelves by the rack, the pallet truck in
+## the storeroom.
 var _jednota_gear_sig := "-"
 
 
@@ -2959,6 +2960,12 @@ func _apply_jednota_gear() -> void:
 	var ch := _vecerka_shop_root.get_node_or_null("GearChiller") as Node3D
 	if ch != null:
 		ch.visible = gear.has("fridge")
+	var rk := _vecerka_shop_root.get_node_or_null("GearRacks") as Node3D
+	if rk != null:
+		rk.visible = gear.has("racks")
+	var pt := _vecerka_storage_root.get_node_or_null("GearPallet") as Node3D if _vecerka_storage_root != null else null
+	if pt != null:
+		pt.visible = gear.has("pallet")
 
 
 ## The Jednota's state for this shop, its stations made, its gear in the rooms.

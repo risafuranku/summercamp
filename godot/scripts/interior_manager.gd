@@ -1619,11 +1619,12 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 	var mine := coop_room()
 	var same: bool = not info.is_empty() and not mine.is_empty() and str(info.get("k", "")) == str(mine["k"]) \
 		and str(info.get("t", "")) == str(mine["t"]) and str(info.get("s", "")) == str(mine["s"]) and str(mine["k"]) != ""
-	# The office's rooms are one space: on their way through a doorway they are seen from
-	# the room they leave and the one they go to.
+	# The office building is one space (the office, the back room and the store are built
+	# side by side; the walls and doors between them are real): whoever is anywhere in it
+	# stands where they are, seen from wherever the walls let you (playtest 20. 10.: "from
+	# the little room you cannot see the player in the reception, at the PC").
 	var go: Dictionary = info.get("go", {})
-	if not same and not go.is_empty() and str(info.get("k", "")) == "office" and str(mine.get("k", "")) == "office" \
-			and str(mine.get("s", "")) in [str(go.get("f", "")), str(go.get("to", ""))]:
+	if not same and not info.is_empty() and str(info.get("k", "")) == "office" and str(mine.get("k", "")) == "office":
 		same = true
 	if not same:
 		coop_drop_partner(id)
@@ -1645,7 +1646,7 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 	# they turned in in (lodge_bed.gd), nowhere else.
 	var has_bed: bool = COOP_LOOKS.has_pose(model, "bed")
 	var lodge: bool = not LODGE_BED.bed_spot(str(mine["t"])).is_empty()
-	if bool(info.get("b", false)) and not (has_bed and (lodge or (str(mine["t"]) == "office" and str(mine["s"]) == "back"))):
+	if bool(info.get("b", false)) and not (has_bed and (lodge or str(mine["t"]) == "office")):
 		coop_drop_partner(id)
 		return
 	var tent: bool = str(mine["t"]) == "tent"
@@ -1716,7 +1717,8 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 			fig.show_at(root.global_transform * at, "stand")
 			fig.set_walking(true)
 			return
-		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(mine["s"]), COOP_OFFICE_SPOTS["office"])
+		# Where they are (their part of the building, not yours).
+		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(info.get("s", "office")), COOP_OFFICE_SPOTS["office"])
 		var pose := "stand"
 		if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(model, "write"):
 			# Behind the counter, bent over the register.

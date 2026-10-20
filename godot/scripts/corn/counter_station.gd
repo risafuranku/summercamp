@@ -196,7 +196,7 @@ func _press(id: String) -> void:
 				_butter_all()
 		"salt":
 			_board["salt"] = int(_board["salt"]) + 1
-			sfx("salt_shake" if ResourceLoader.exists(sfx_dir() + "salt_shake.mp3") else "tick", -10.0, _rng.randf_range(1.2, 1.5))
+			sfx("salt_shake", -10.0, _rng.randf_range(0.95, 1.15))
 		"napkin":
 			_board["napkin"] = true
 			sfx("plate_down", -14.0, 1.3)
@@ -215,7 +215,7 @@ func _drag(at: Vector2) -> void:
 	if not _brushing or _board.is_empty() or at.x < -500.0:
 		return
 	if BUSINESS.stock_of(building_key, "butter") == 0:
-		say("", "No butter. Order it in the books.")
+		say("", "No butter.")
 		_brushing = false
 		return
 	var d := (at - _last).length()
@@ -231,14 +231,14 @@ func _drag(at: Vector2) -> void:
 	for j in range(maxi(0, k - 1), mini(mask.size(), k + 2)):
 		mask[j] = 1
 	if _rng.randf() < d / 60.0:
-		sfx("scrub", -16.0, _rng.randf_range(1.2, 1.4))
+		sfx("butter", -14.0, _rng.randf_range(0.9, 1.1))
 
 
 func _butter_all() -> void:
 	var mask: PackedByteArray = _board["butter"]
 	for j in mask.size():
 		mask[j] = 1
-	sfx("scrub", -14.0, 1.3)
+	sfx("butter", -12.0, 1.0)
 
 
 func _put_in() -> void:
@@ -247,11 +247,11 @@ func _put_in() -> void:
 		say("", "The pot is full.")
 		return
 	if int(stand.bowl(building_key)) <= 0:
-		say("", "The bowl is empty. Husk some.")
+		say("", "The bowl is empty.")
 		sfx("tick", -14.0, 0.7)
 		return
 	stand.act(building_key, "in", [stand.new_id(), slot])
-	sfx("ladle_plate", -8.0, 0.9)
+	sfx("cob_in", -8.0, _rng.randf_range(0.95, 1.05))
 
 
 func _take_out(id: String) -> void:
@@ -279,7 +279,7 @@ func _hand_over() -> void:
 	var v: Dictionary = stand.serve(building_key, t, float(_board["cook"]), _butter_share(), int(_board["salt"]))
 	if not bool(v.get("ok", false)):
 		if str(v.get("why", "")) == "butter":
-			say("", "No butter left. Order it in the books.")
+			say("", "No butter left.")
 			return
 		say(who, " ".join(v.get("notes", [])) + " Do another one.")
 		_board = {}

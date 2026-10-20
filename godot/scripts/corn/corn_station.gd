@@ -31,7 +31,19 @@ func _build() -> void:
 
 
 func sfx_dir() -> String:
-	return "res://assets/sfx/bistro/"
+	return "res://assets/sfx/corn/"
+
+
+## A corn stand sound, else the bistro's of the same name.
+func sfx(n: String, db := -8.0, pitch := 1.0) -> void:
+	if n.begins_with("res://"):
+		super.sfx(n, db, pitch)
+		return
+	for d in [sfx_dir(), "res://assets/sfx/bistro/"]:
+		var p: String = d + n + ".mp3"
+		if ResourceLoader.exists(p):
+			super.sfx(p, db, pitch)
+			return
 
 
 ## A corn picture on the counter, its longer side `metres` long (lying flat, or standing

@@ -141,7 +141,7 @@ func _drag(at: Vector2) -> void:
 		_pull_from = Vector2(-1, -1)
 		var l := lying("husk_leaf", COB_M * 0.95, 0.4)
 		_flying.append({"sprite": l, "from": at, "t": 0.0})
-		sfx("scrub", -10.0, _rng.randf_range(0.8, 1.0))
+		sfx("leaf_tear", -10.0, _rng.randf_range(0.9, 1.1))
 
 
 func _release(_id: String) -> void:
@@ -150,7 +150,7 @@ func _release(_id: String) -> void:
 
 func _take() -> void:
 	if BUSINESS.stock_of(building_key, "cobs") == 0:
-		say("", "The crate is empty. Order corn in the books.")
+		say("", "The crate is empty.")
 		sfx("tick", -14.0, 0.7)
 		return
 	if CoreRoot != null and CoreRoot.actions != null and BUSINESS.stock_of(building_key, "cobs") > 0:

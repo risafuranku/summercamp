@@ -489,6 +489,22 @@ func play(name: String, volume_db := 0.0) -> void:
 	p.finished.connect(p.queue_free)
 
 
+## How loud the PC's sounds are where you are, its programs' own too (Builder 98's
+## hammer, coins, music): quieter across the room or outside, nothing at all from the
+## main menu (the camp runs behind it) or from a PC that is not on.
+func sound_db() -> float:
+	var m := main_node()
+	if m != null:
+		if not bool(m.get("_gameplay_started")):
+			return -80.0
+		var menu = m.get("_main_menu")
+		if menu != null and is_instance_valid(menu) and bool(menu.get("visible")):
+			return -80.0
+	if _state != Boot.DESKTOP:
+		return -80.0
+	return _distance_db()
+
+
 ## Heard from across the room or outside: the computer is a place too.
 func _distance_db() -> float:
 	if _open:

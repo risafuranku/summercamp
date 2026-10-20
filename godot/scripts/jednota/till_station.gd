@@ -385,6 +385,20 @@ func _closing() -> void:
 
 # ── debug (tools/jednota_check.gd, tools/jednota_shots.gd) ───────────────────
 
+## One more piece of the right change onto the mat (the biggest that still fits), as a
+## warden counts it out; false when it is all there (tools/movie_driver.gd).
+func debug_next_coin() -> bool:
+	var t := first()
+	if t.is_empty() or not money_taken(t):
+		return false
+	var left := int(t["due"]) - sum_of(t["mat"])
+	for v in [10, 5, 2, 1]:
+		if left >= v:
+			_press("c:%d" % v)
+			return true
+	return false
+
+
 ## The first in the queue rung up, their money taken and the right change counted out:
 ## the verdict ({} nobody in the queue).
 func debug_serve_right() -> Dictionary:

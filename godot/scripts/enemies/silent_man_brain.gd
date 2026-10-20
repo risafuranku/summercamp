@@ -31,6 +31,29 @@ class_name SilentManBrain
 ##
 ## He has a real position (the sprite stands there, lit only by your light), so the HUD
 ## face and the insects (threat_senses.gd) track the same place you hear.
+##
+## The sixth sense (playtest 20. 10.: "the longer he gets to come on in one go, the more
+## the game must tell you, by picture and by sound, that something is wrong"): a pressure
+## builds while you are out in the dark and he is coming, faster the closer he is, and
+## drains in the light. It is what you feel (nightmare_fx.set_presence): a drone in the
+## ears that climbs, your heart, slow and then fast, the picture's edges closing in, the
+## torch catching and stuttering in your hand. At your neck: his breath, cloth, the
+## frame stops for a beat, his hands coming over your shoulder from the side he is on,
+## and he holds you (you move at half speed): turn round, or get away.
+##
+## The first time (the first in this camp, never scripted to a place): when you first
+## step out of the light the humming stops and he is there in front of you, at the edge
+## of the light, caught mid-stride; look at him and he goes. The first time he reaches
+## your neck he does not bite: he turns you round to him, face to face, the skin over his
+## mouth pulling, and comes apart into the dark. "Turn round. Put a light on him."
+##
+## Indoors he does not hurt you (an indoor hunter is another kind of thing): he wants you
+## out. Through the wall, the humming; three knocks, then a fourth after you stop
+## listening; the handle tried; a hand brushing along the outside wall, following you;
+## a tap at the window. Stay in long enough and he goes to your guests instead: a tent
+## zip somewhere in the camp, slowly; the guest is not right in the morning.
+## In co-op only the warden he hunts feels any of it; the other's torch drives him off
+## too (the counter for two: watch each other's backs).
 
 const N := "res://assets/textury/npc/"
 const GUEST := N + "host1.png"
@@ -113,6 +136,22 @@ var _rustle_next := 3.0
 var _dissolve := {}                # texture -> Array of ImageTexture (more gone each frame)
 var _ash: GPUParticles3D
 var _last_kill := ""
+## The sixth sense: 0..1, built in the dark while he comes, drained in the light.
+var _press := 0.0
+var _stutter_next := 2.0
+## His hands at your shoulder, from this side (1 right, -1 left), while he holds you.
+var _hold_side := 1.0
+## The first meeting in this camp: the reveal at the edge of the light, the lesson catch.
+var _first := false
+var _revealed := false
+var _reveal_t := -1.0
+var _reveal_seen := 0.0
+var _lesson := false
+## Indoors: what he does to get you out, in order, and when the next.
+var _lure_next := -1.0
+var _lure_n := 0
+var _indoors := false
+var _sound2d: AudioStreamPlayer
 
 
 func get_enemy_id() -> String:
@@ -137,6 +176,9 @@ func _on_start() -> void:
 	_breath = _loop(SFX_BREATH, -60.0)
 	_reset_far(_rng.randf_range(3.0, 6.0))
 	_peek_until = 0.0
+	_first = not _met()
+	_sound2d = AudioStreamPlayer.new()
+	_root.add_child(_sound2d)
 
 
 ## The night is over (dawn, death, the menu): nothing of a catch stays on the screen.
@@ -147,8 +189,11 @@ func tick(delta: float) -> void:
 		var ready := _is_ready()
 		if not ready:
 			_away = true
+			_end_hold()
+			_tick_indoors(delta)
 		elif _away:
 			_away = false
+			_indoors = false
 			_on_return()
 	super(delta)
 
@@ -165,6 +210,7 @@ func _on_return() -> void:
 
 func _on_stop() -> void:
 	_end_seq()
+	_end_hold()
 	var fx := _fx()
 	if fx != null:
 		fx.close_up_off()
@@ -182,6 +228,10 @@ func _on_tick(dt: float) -> void:
 		return
 	_update_walk(dt)
 	_update_audio(dt)
+	_update_presence(dt)
+	if _reveal_t >= 0.0:
+		_update_reveal(dt)
+		return
 	if _vanish_at > 0.0:
 		_update_lit(dt)
 		return
@@ -199,6 +249,8 @@ func _on_tick(dt: float) -> void:
 	_body.visible = true
 	if _lamp_light_at(_player_pos()) >= DARK_LIGHT:
 		_update_lurk(dt)
+		return
+	if _lurking and _first and not _revealed and _start_reveal():
 		return
 	if _lurking:
 		# Out of the light: the humming stops. He is coming.
@@ -242,9 +294,11 @@ func _step() -> void:
 		_sound(SFX_CREAK, at + Vector3(0, 1.2, 0), lerpf(-14.0, -2.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.9, 1.1), 24.0)
 	_announce("Footsteps on the gravel behind you. They stop when you stop.")
 	if _dist <= NECK_DIST + 0.01:
-		_neck_until = _elapsed + _grace
+		# The first time he gives you longer: it is how the rule is learnt.
+		_neck_until = _elapsed + _grace * (1.7 if _first else 1.0)
 		_neck_from = _player_pos()
 		_sound(SFX_WHISPER, _player_pos() + Vector3(0, 1.55, 0) - _forward_flat() * 0.35, 2.0, 1.0, 8.0)
+		_start_hold()
 
 
 func get_tree_timer(seconds: float, f: Callable) -> void:
@@ -344,10 +398,20 @@ func _tick_neck() -> void:
 	var head := _body.global_position + Vector3(0, HEIGHT * 0.86, 0)
 	if _is_seen(head, 6.0) or _player_pos().distance_to(_neck_from) > 1.8:
 		_neck_until = -1.0
+		_end_hold()
+		_mark_met()
 		_driven_off()
 		return
+	_update_hold()
 	if _elapsed >= _neck_until:
 		_neck_until = -1.0
+		_end_hold()
+		if _first:
+			# The lesson: he turns you round to him and lets you see. No bite this time.
+			_lesson = true
+			_mark_met()
+			_start_catch("turn")
+			return
 		_hits += 1
 		_start_catch()
 
@@ -433,6 +497,8 @@ func _update_audio(dt: float) -> void:
 ## dark ash going up. Then a new corner.
 func _driven_off() -> void:
 	_drive_offs += 1
+	_end_hold()
+	_press = maxf(0.0, _press - 0.45)
 	_walk_t = -1.0
 	_lurking = false
 	if _tex.has(T_LIT):
@@ -559,10 +625,10 @@ func _reset_far(pause: float) -> void:
 
 # ── the catch and the kill ───────────────────────────────────────────────────
 
-func _start_catch() -> void:
-	var kill := _player_health() - _damage <= 0
+func _start_catch(forced := "") -> void:
+	var kill := forced == "" and _player_health() - _damage <= 0
 	var pool: Array = (KILLS if kill else STRIKES).filter(func(k): return k != (_last_kill if kill else _last_strike))
-	var kind: String = pool[_rng.randi() % pool.size()]
+	var kind: String = forced if forced != "" else pool[_rng.randi() % pool.size()]
 	if kill:
 		_last_kill = kind
 	else:
@@ -591,9 +657,15 @@ func _ear(file: String, db: float, pitch: float = 1.0) -> void:
 
 
 func _hit_now() -> void:
+	var fx := _fx()
+	if _lesson:
+		# He has shown you his face. That is all, this once.
+		if fx != null:
+			fx.glitch(0.8, 0.9)
+			fx.tinnitus(3.0)
+		return
 	_hurt(_damage)
 	claimed = true
-	var fx := _fx()
 	if fx != null:
 		fx.red_flash(1.0)
 		fx.glitch(1.0, 1.2)
@@ -730,6 +802,10 @@ func _fade_out(fx, t: float, from: float, to: float) -> void:
 	if t >= to:
 		var kill: bool = _seq.get("kill", false)
 		_end_seq()
+		if _lesson:
+			_lesson = false
+			_first = false
+			_feed("He was right behind you. Turn round. Put a light on him.")
 		if not kill:
 			_reset_far(_rng.randf_range(12.0, 18.0))
 
@@ -753,6 +829,251 @@ func _end_seq() -> void:
 
 func _t(path: String, fallback: String = GUEST) -> Texture2D:
 	return _tex.get(path, _tex.get(fallback, _tex.get(GUEST)))
+
+
+# ── the sixth sense ──────────────────────────────────────────────────────────
+
+## What you feel: built while you are in the dark and he is coming (faster the closer he
+## is), drained in the light. Lurking near while you stand in the light, a little of it:
+## the light is safe, and you still feel watched.
+func _update_presence(dt: float) -> void:
+	var fx := _fx()
+	var in_light := _lamp_light_at(_player_pos()) >= DARK_LIGHT
+	var hunting := not _lurking and _vanish_at < 0.0 and _elapsed >= _resume_at and not in_light
+	var close := clampf(1.0 - (_dist - NECK_DIST) / (START_DIST - NECK_DIST), 0.0, 1.0)
+	if hunting:
+		_press = minf(1.0, _press + dt * (0.025 + 0.11 * close))
+	else:
+		_press = maxf(0.0, _press - dt * (0.3 if in_light else 0.12))
+	var level := maxf(close * close * 0.85, _press * 0.9) if hunting else _press * 0.6
+	if _lurking and in_light:
+		level = maxf(level, 0.12 * clampf(1.0 - _distance_to_player(_body.global_position) / (LURK_DIST.y + 4.0), 0.0, 1.0) * 2.0)
+	if _neck_until > 0.0:
+		level = 1.0
+	if fx != null:
+		fx.set_presence("silent_man", level)
+	# The torch in your hand catches and stutters as it gets bad.
+	if level > 0.55 and _player != null:
+		_stutter_next -= dt
+		if _stutter_next <= 0.0:
+			_stutter_next = _rng.randf_range(1.2, 3.5) * (1.6 - level)
+			_player.set("flashlight_stutter", 0.5 + 0.5 * level)
+			get_tree_timer(_rng.randf_range(0.08, 0.2), func():
+				if _player != null and is_instance_valid(_player) and _vanish_at < 0.0:
+					_player.set("flashlight_stutter", 0.0))
+
+
+## His hands come over your shoulder from the side he is on; he holds you back.
+func _start_hold() -> void:
+	var cam := _camera()
+	if cam != null:
+		var right := cam.global_transform.basis.x
+		var to := _body.global_position - cam.global_position
+		_hold_side = 1.0 if right.dot(to) >= 0.0 else -1.0
+	var fx := _fx()
+	if fx != null:
+		fx.freeze(0.06)
+	_ear(SFX_BREATH, 3.0, 0.95)
+	_sound(SFX_RUSTLE, _player_pos() + Vector3(0, 1.3, 0) - _forward_flat() * 0.4, 0.0, 1.0, 6.0)
+	if "held_speed_mult" in _player:
+		_player.set("held_speed_mult", 0.5)
+
+
+func _update_hold() -> void:
+	var fx := _fx()
+	if fx == null:
+		return
+	var k := clampf(1.0 - (_neck_until - _elapsed) / maxf(0.1, _grace), 0.0, 1.0)
+	var st := floorf(k * 8.0) / 8.0
+	fx.close_up(_t(T_HANDS, T_FACE), lerpf(0.75, 1.0, st), 1.0, 0.003 + 0.006 * st, -0.35 * _hold_side, Vector2(_hold_side * lerpf(0.62, 0.34, st), lerpf(0.5, 0.28, st)))
+	fx.set_dread("silent_man", 1.0)
+
+
+func _end_hold() -> void:
+	if _player != null and is_instance_valid(_player) and "held_speed_mult" in _player:
+		_player.set("held_speed_mult", 1.0)
+	if _neck_until > 0.0 or not _seq.is_empty():
+		return
+	var fx := _fx()
+	if fx != null:
+		fx.close_up_off()
+
+
+# ── the first meeting ────────────────────────────────────────────────────────
+
+func _met() -> bool:
+	var d = _director()
+	if d == null or not (d.get("ever") is Dictionary):
+		return false
+	return bool((d.get("ever") as Dictionary).get("silent_man_met", false))
+
+
+func _mark_met() -> void:
+	var d = _director()
+	if d != null and d.get("ever") is Dictionary:
+		(d.get("ever") as Dictionary)["silent_man_met"] = true
+
+
+func _director():
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	return scene.get("_director") if scene != null else null
+
+
+## The first step out of the light: the humming stops, and he is there in front of you
+## at the edge of it, caught mid-stride. False when there is no such spot.
+func _start_reveal() -> bool:
+	var cam := _camera()
+	if cam == null:
+		return false
+	var fwd := -cam.global_transform.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	for _i in 12:
+		var ang := deg_to_rad(_rng.randf_range(-22.0, 22.0))
+		var dir := fwd.rotated(Vector3.UP, ang)
+		var p := _ground(_player_pos() + dir * _rng.randf_range(8.0, 11.0))
+		if p == Vector3.INF or _lamp_light_at(p) > DARK_LIGHT:
+			continue
+		if _ray_blocked(cam.global_position, p + Vector3(0, HEIGHT * 0.8, 0)):
+			continue
+		_revealed = true
+		_lurking = false
+		_body.global_position = p
+		_body.visible = true
+		var frames: Array = T_WALK.filter(func(q): return _tex.has(q))
+		_set_tex(frames[0] if not frames.is_empty() else _look_for(9.0))
+		_reveal_t = 0.0
+		_reveal_seen = 0.0
+		_sound(SFX_STEP, p + Vector3(0, 0.3, 0), -2.0, 0.92, 30.0)
+		_announce("Footsteps on the gravel behind you. They stop when you stop.")
+		return true
+	return false
+
+
+## Held there: look at him and he goes (the glasses, the dither); look away and he is not
+## there when you look back. Either way the hunt then starts from behind you.
+func _update_reveal(dt: float) -> void:
+	_reveal_t += dt
+	var head := _body.global_position + Vector3(0, HEIGHT * 0.86, 0)
+	var fx := _fx()
+	if fx != null:
+		fx.set_presence("silent_man", 0.45)
+	if _is_seen(head, 2.0):
+		_reveal_seen += dt
+		if _reveal_seen >= 0.55:
+			_reveal_t = -1.0
+			_sound(SFX_HUM, head, -10.0, 0.8, 20.0)
+			_driven_off()
+			_drive_offs -= 1
+			return
+	if _reveal_t >= 4.0 or (_reveal_seen > 0.0 and not _is_seen(head, 2.0)):
+		_reveal_t = -1.0
+		_body.visible = false
+		_reset_far(_rng.randf_range(2.0, 4.0))
+
+
+# ── indoors: getting you out ─────────────────────────────────────────────────
+
+## While you are inside at night he cannot reach you, and he knows where you are. In
+## order, with a pause between: the humming through the wall, the knocks, the handle,
+## the brushing along the outside wall, a tap at the window; after that he goes to a
+## guest instead.
+func _tick_indoors(delta: float) -> void:
+	if not _night_active or not _indoors_now():
+		_indoors = false
+		return
+	if not _indoors:
+		_indoors = true
+		_lure_n = 0
+		_lure_next = _wall_clock() + _rng.randf_range(10.0, 16.0)
+	if _wall_clock() < _lure_next:
+		return
+	_lure_next = _wall_clock() + _rng.randf_range(16.0, 28.0)
+	# Only the one he hunts hears it (co-op).
+	if _fx() == null:
+		return
+	_lure(_lure_n)
+	_lure_n += 1
+
+
+## Seconds while indoors (the base's _elapsed does not run while it cannot act).
+func _wall_clock() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+
+func _indoors_now() -> bool:
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	if scene == null:
+		return false
+	var night: bool = scene.has_method("_is_enemy_night_active") and bool(scene.call("_is_enemy_night_active"))
+	var inside: bool = scene.has_method("_is_any_interior_open") and bool(scene.call("_is_any_interior_open"))
+	return night and inside
+
+
+func _lure(n: int) -> void:
+	var scene := _world_root.get_tree().current_scene
+	var fxd = scene.get("_director_fx") if scene != null else null
+	var im = scene.get("_interior_manager") if scene != null else null
+	var bi = im.get("_building_interior") if im != null else null
+	var office: bool = bi != null and bool(bi.get("visible"))
+	match n % 6:
+		0:
+			_room_2d(SFX_HUM, -14.0, 0.9)
+			_feed("Humming, through the wall. It stops.")
+		1:
+			if office and fxd != null:
+				fxd.run("knock", {})
+			else:
+				_room_2d("res://assets/sfx/director/knock.mp3", -4.0)
+			# The fourth knock, after you have stopped listening.
+			get_tree_timer(_rng.randf_range(5.0, 8.0), func():
+				if _indoors and _fx() != null:
+					_room_2d("res://assets/sfx/director/knock.mp3", -9.0, 0.9))
+		2:
+			if office and fxd != null:
+				fxd.run("handle", {})
+			else:
+				_room_2d("res://assets/sfx/director/handle.mp3", -3.0)
+		3:
+			_room_2d("res://assets/sfx/director/wall_brush.mp3", -6.0)
+			get_tree_timer(2.2, func():
+				if _indoors and _fx() != null:
+					_room_2d("res://assets/sfx/director/wall_brush.mp3", -9.0, 0.95))
+		4:
+			if office and fxd != null:
+				fxd.run("figure_window", {})
+			else:
+				_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0)
+		_:
+			_visit_guest()
+
+
+func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
+	if _sound2d == null or not ResourceLoader.exists(file):
+		return
+	_sound2d.stream = load(file)
+	_sound2d.volume_db = db
+	_sound2d.pitch_scale = pitch
+	_sound2d.play()
+
+
+## Hide long enough and it is somebody else: a guest's night goes wrong.
+func _visit_guest() -> void:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or GuestManager == null:
+		return
+	var pick := {}
+	for g in state.guests:
+		if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
+			pick = g
+			if str(g.get("archetype", "")) == "quiet_guy":
+				break
+	if pick.is_empty():
+		_room_2d(SFX_HUM, -10.0, 0.75)
+		return
+	_room_2d("res://assets/sfx/director/wall_brush.mp3", -16.0, 0.8)
+	GuestManager.apply_guest_event(int(pick.get("id", -1)), -18.0, "Someone stood at my tent all night. I did not open it.")
+	_feed("Somewhere in the camp a tent zip goes, slowly. Then nothing.")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -780,4 +1101,7 @@ func get_debug_snapshot() -> Dictionary:
 		"driven_off": _drive_offs,
 		"player_speed": snappedf(_speed, 0.1),
 		"catch": str(_seq.get("kind", "")),
+		"press": snappedf(_press, 0.01),
+		"first": _first,
+		"lure": _lure_n,
 	}

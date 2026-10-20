@@ -1508,7 +1508,9 @@ func _tick_music(delta: float) -> void:
 		_music.volume_db = MUSIC_DB
 		add_child(_music)
 	var off := bool(_shell_stored("builder_music_off", false))
-	var want := is_visible_in_tree() and not off and _splash == null
+	var shell = _shell_node()
+	var dist := float(shell.call("sound_db")) if shell != null and shell.has_method("sound_db") else 0.0
+	var want := is_visible_in_tree() and not off and _splash == null and dist > -60.0
 	if want and not _music.playing:
 		_music.play()
 	elif not want and _music.playing:
@@ -1525,8 +1527,6 @@ func _tick_music(delta: float) -> void:
 	var flat := dusk * 0.05 + (0.02 if risk >= 3 else 0.0)
 	var wow := sin(_music_t * 0.8) * 0.004 * (1.0 + 6.0 * flat)
 	_music.pitch_scale = clampf(1.0 - flat + wow, 0.85, 1.05)
-	var shell = _shell_node()
-	var dist := float(shell.call("_distance_db")) if shell != null and shell.has_method("_distance_db") else 0.0
 	_music.volume_db = MUSIC_DB + dist
 
 

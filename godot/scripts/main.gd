@@ -4900,7 +4900,8 @@ func coop_screen_frame() -> PackedByteArray:
 	var watched := false
 	for id in Coop.others():
 		var theirs: Dictionary = Coop.state_of(id).get("room", {})
-		if str(theirs.get("t", "")) == "office" and str(theirs.get("s", "")) == "office" and str(theirs.get("w", "")) != "pc":
+		# Anywhere in the office building (from the back room's doorway too: one space).
+		if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) != "pc":
 			watched = true
 	if not watched:
 		return PackedByteArray()

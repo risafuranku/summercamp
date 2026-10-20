@@ -214,9 +214,14 @@ static func shop(parent: Node3D, si) -> void:
 		fm.emission = Color(0.7, 0.85, 1.0)
 		fm.emission_energy_multiplier = 0.4
 	look(parent, "fridge", "It hums a note lower at night. The milk keeps, mostly.", Vector3(-2.9, 0.6, -0.45), Vector3(0.6, 1.0, 0.75))
-	var chiller := _rack_picture(parent, "shop_fridge", Vector2(0.72, 0.96), Vector3(-2.95, 0.05, 0.35), 0.6, "GearChiller")
+	# The gear once bought (service_interior._apply_jednota_gear): the chiller cabinet by the
+	# fridge, the extra shelf unit by the rack.
+	var chiller := _cut(parent, "gear_fridge", Vector2(0.74, 1.04), Vector3(-2.8, 0.05, 0.4), 90.0, false, "GearChiller")
 	if chiller != null:
-		chiller.get_parent().visible = false
+		chiller.visible = false
+	var racks := _cut(parent, "gear_racks", Vector2(0.82, 1.0), Vector3(-2.5, 0.05, -2.45), 0.0, false, "GearRacks")
+	if racks != null:
+		racks.visible = false
 	_rack_picture(parent, "shop_shelf_goods", Vector2(1.5, 0.84), Vector3(-2.95, 0.55, 1.45), 0.36, "TinShelf")
 	look(parent, "tins", "Pork in its own juice, peas, peas with carrots, pork with peas. The labels have faded the same blue.", Vector3(-2.9, 0.95, 1.45), Vector3(0.4, 0.84, 1.5))
 	# The ice-cream chest by the door, the baskets.
@@ -304,6 +309,10 @@ static func store(parent: Node3D, si) -> void:
 	K.prop(parent, "cardboard_boxes", Vector3(-2.0, 0.85, 0.35), 90.0)
 	K.prop(parent, "cardboard_boxes", Vector3(-2.0, 0.05, 1.3), 90.0)
 	look(parent, "cartons", "Last year's cartons, flattened and kept. One has a child's name written inside.", Vector3(-2.0, 0.6, 1.3), Vector3(0.5, 0.8, 0.9))
+	# The pallet truck once bought (service_interior._apply_jednota_gear).
+	var truck := _cut(parent, "gear_pallet", Vector2(0.8, 0.8), Vector3(-1.45, 0.05, -0.35), 25.0, false, "GearPallet")
+	if truck != null:
+		truck.visible = false
 	K.prop(parent, "locker", Vector3(2.0, 0.05, -1.3), -90.0)
 	look(parent, "locker", "Mrs Novakova's coat and a pair of slippers. The slippers face the wrong way.", Vector3(1.95, 1.0, -1.3), Vector3(0.5, 1.8, 1.2))
 	K.prop(parent, "beer_crates", Vector3(1.0, 0.05, 1.5), 180.0)

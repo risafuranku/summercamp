@@ -30,6 +30,9 @@ const HANDLE_AT := Vector2(305, 184)
 const BOARD := Rect2(56, 146, 168, 92)
 const BOARD_SPOTS := [Vector2(186, 168), Vector2(136, 168), Vector2(86, 168), Vector2(176, 214), Vector2(126, 214), Vector2(76, 214)]
 const KNIFE_AT := Vector2(404, 206)
+## The second tap (gear, camp/gear_tap2.png) right of the tower, once bought.
+const TAP2_AT := Vector2(356, 182)
+const TAP2_M := 0.3
 ## The spout's tip over the bar top, and the handle's pivot on the faucet (metres).
 const SPOUT_UP := 0.208
 const HANDLE_UP := 0.375
@@ -39,6 +42,7 @@ const MUG_M := 0.18
 const IN_BOTTOM := 0.94
 const IN_RIM := 0.08
 
+var _tap2: Sprite3D
 var _mug := false
 var _beer := 0.0
 var _foam := 0.0
@@ -99,6 +103,11 @@ func _build() -> void:
 ## towards you (beer), right as it is pushed away (foam).
 func _build_tower() -> void:
 	put(psprite("tap_tower", TOWER_M), TOWER_AT, 0.0)
+	_tap2 = sprite("res://assets/textury/camp/gear_tap2.png", TAP2_M, false)
+	if _tap2.texture != null:
+		_tap2.offset = Vector2(0, float(_tap2.texture.get_height()) * 0.5)
+	put(_tap2, TAP2_AT, 0.0)
+	_tap2.visible = false
 	put(psprite("drip_tray", 0.22, true), MUG_FOOT, 0.003)
 	_handle_pivot = Node3D.new()
 	_handle_pivot.position = local_at(HANDLE_AT, HANDLE_UP)
@@ -114,6 +123,7 @@ func _build_tower() -> void:
 func _show() -> void:
 	if taproom == null or building_key == "":
 		return
+	_tap2.visible = BUSINESS.has_gear(building_key, "tap2")
 	var clean := int(taproom.mugs(building_key)["clean"]) - (1 if _mug else 0)
 	for i in _board_mugs.size():
 		var s: Sprite3D = _board_mugs[i]

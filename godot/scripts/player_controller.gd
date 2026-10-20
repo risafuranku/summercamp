@@ -16,6 +16,8 @@ const BATTERY_LOW := 0.15
 @export var sprint_speed: float = 5.2
 ## Set by main while you push through the corn (scripts/world_generator.gd corn tiles).
 var terrain_speed_mult: float = 1.0
+## Something has hold of you (the Silent Man's hands at your shoulder): you move at this.
+var held_speed_mult: float = 1.0
 @export var jump_velocity: float = 4.4
 @export var gravity: float = 26.0
 @export var mouse_sensitivity: float = 0.0012
@@ -319,7 +321,7 @@ func _physics_process(delta: float) -> void:
 		_surface_t = 0.25
 		_surface_speed = float(SURFACE_SPEED.get(_surface_under(), 1.0)) if is_on_floor() else _surface_speed
 	var winded := 0.9 if _stamina_locked else 1.0
-	var current_speed = (sprint_speed if sprinting else move_speed) * terrain_speed_mult * _surface_speed * winded
+	var current_speed = (sprint_speed if sprinting else move_speed) * terrain_speed_mult * held_speed_mult * _surface_speed * winded
 	var target_x = move_dir.x * current_speed
 	var target_z = move_dir.z * current_speed
 	var accel = air_acceleration if not is_on_floor() else ground_acceleration

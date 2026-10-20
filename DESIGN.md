@@ -213,6 +213,54 @@ in the dark they exist only where the flashlight or a lamp touches them.
 | The Extra Child | Family | a child humming among the tents, back turned | torch off, walk past, never shine the light on it | looking at it with the torch |
 | The Basket Man | Mushroom Pickers | 02:30-06:00, a wicker basket creaking out of the trees, a knife scraping | stand still while it is near; it only sees movement | moving while it is close |
 
+### 5a. Outdoor hunters, indoor tormentors (the rule for every enemy)
+
+An enemy is one of two kinds, so the night never stacks two deadly things in one place:
+
+- **outdoor hunters** (the Silent Man, the Photographer, the Girl, the Whistler, the Basket
+  Man) can hurt you only outside. Indoors they cannot reach you, and they know where you
+  are: they work at getting you out (sounds at the walls, the door, the window) and, if
+  you hide long enough, they take it out on the camp instead (a guest's night goes wrong:
+  mood, the review, the camp's name). Hiding is safe and it costs.
+- **indoor tormentors** (to come: the thing in the pipes is one already, in its own place)
+  are dangerous only inside a building, and they are what makes a cabin no refuge.
+
+The night's jobs (the breaker, the sewer, a lamp) and the pager pull you out regardless.
+The director budgets the night so that at most one hunter presses on a warden at a time.
+In co-op an enemy hunts one warden; what it does to make itself felt reaches only that
+one; the other warden's light counts as light (watching each other's backs is the
+counter for two).
+
+### 5a.1 The Silent Man in full (`scripts/enemies/silent_man_brain.gd`)
+
+Often the first night's only enemy: the first meeting has to be the best scare of the
+game, every time, and never scripted to a place.
+
+- **Lurk**: you in light, he hums round a corner in the dark 7-13 m off, leaning out now
+  and then. The light is safe and you still feel watched (a little of the sixth sense).
+- **The first meeting** (once per camp, `director.ever["silent_man_met"]`): the first
+  step out of the light, the humming stops and he is there in front of you at the edge
+  of the light, caught mid-stride; look at him and he goes, look away and he is gone when
+  you look back. The first time he reaches your neck you get longer to react, and he does
+  not bite: he turns you round to him, face to face, the skin over his mouth tearing, and
+  comes apart. The feed then says the rule: "Turn round. Put a light on him."
+- **The sixth sense** (`nightmare_fx.set_presence`): a pressure builds while you are out
+  in the dark and he comes on, faster the closer he is; it drains in the light. You feel
+  it as a drone in the ears that climbs (two low tones beating, a pressure whine), your
+  heart (slow, then fast), the picture's edges closing in, banded, pulsing with the heart,
+  the colour going to rust, the torch catching and stuttering in your hand. The insects
+  fall silent and the HUD face looks round, as for every enemy.
+- **At your neck**: the whisper, his breath, cloth, the frame stops for a beat, his hands
+  come over your shoulder from the side he is on, and he holds you (half speed). Turn
+  round (a light on him) or get away; else the catch (ear, above, turned round), and when
+  it would be the last, his kill (strangled, the neck turned, the mouth).
+- **Indoors** (an outdoor hunter): in order, a pause of 16-28 s between: the humming
+  through the wall; three knocks, and a fourth after you have stopped listening; the
+  handle tried; a hand brushing along the outside wall, following you; a tap at the
+  window (in the office, his figure at the window: the window is a view of the real camp);
+  then he goes to a guest (a Quiet Guy first): a tent zip somewhere, slowly, and that
+  guest's night is spoiled.
+
 Every hit can be explained afterwards: each enemy says where it is and when it is about
 to strike, by sound first, and the counter always works (tools/enemy_check.tscn plays
 both the careless and the careful player against the Silent Man and the Photographer).

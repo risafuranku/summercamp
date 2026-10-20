@@ -6,6 +6,8 @@ extends CanvasLayer
 ##
 ##   var fx := NIGHTMARE_FX.get_for(node)        # finds or makes the one layer
 ##   fx.set_dread("girl", 0.6)                    # each tick: how close it is (0-1)
+##   fx.set_presence("silent_man", 0.7)          # each tick: the sixth sense: a drone in the
+##                                                # ears, the heart, the edges closing in
 ##   fx.glitch(1.0, 1.2)                          # a hit: tears, split channels, roar
 ##   fx.subliminal(tex, 2)                        # a face for two frames, then gone
 ##   fx.freeze(0.15)                              # the frame stops dead for a beat
@@ -49,6 +51,18 @@ var _eyes_layer: Control
 var _eyes := {}                    # source -> {pos: Vector2 (window), spread, open, tilt, near}
 var _close: TextureRect
 var _black: ColorRect
+## The sixth sense: the largest presence any source set this frame, eased; a generated
+## drone (two low tones beating, a pressure whine over them) and the heart, faster as it
+## rises; the picture's edges close in with it.
+var _presence := 0.0
+var _presence_src := {}
+var _sense: AudioStreamPlayer
+var _sense_pb: AudioStreamGeneratorPlayback
+var _sense_ph := [0.0, 0.0, 0.0]
+var _beat_t := 0.0
+var _beat_env := 0.0
+var _beat_n := 0
+const SENSE_RATE := 22050.0
 
 
 ## The one layer under the tree's root (made the first time).
@@ -137,6 +151,15 @@ func _build() -> void:
 ## How close a thing is (0 far, 1 on you), set every tick by whatever is out there.
 func set_dread(source: String, level: float) -> void:
 	_dread_src[source] = clampf(level, 0.0, 1.0)
+
+
+## The sixth sense of something near you in the dark (0 nothing .. 1 at your neck).
+func set_presence(source: String, level: float) -> void:
+	_presence_src[source] = clampf(level, 0.0, 1.0)
+
+
+func presence() -> float:
+	return _presence
 
 
 ## Its eyes this frame at world point `head` (the middle between them) seen by `cam`:
@@ -251,12 +274,22 @@ func _process(delta: float) -> void:
 	_dread_src.clear()
 	_dread = move_toward(_dread, want, delta * (0.8 if want > _dread else 0.35))
 	_amount = maxf(0.0, _amount - delta / _amount_fall)
-	var on := _dread > 0.01 or _amount > 0.01
+	var want_p := 0.0
+	for k in _presence_src:
+		want_p = maxf(want_p, float(_presence_src[k]))
+	_presence_src.clear()
+	_presence = move_toward(_presence, want_p, delta * (0.5 if want_p > _presence else 0.3))
+	_update_sense(delta)
+	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01
 	_screen.visible = on
 	if on:
 		_mat.set_shader_parameter("amount", _amount)
 		_mat.set_shader_parameter("dread", _dread)
 		_mat.set_shader_parameter("time_s", _time)
+		_mat.set_shader_parameter("squeeze", _presence)
+		_mat.set_shader_parameter("beat", _beat_env)
+		var ws := DisplayServer.window_get_size()
+		_mat.set_shader_parameter("aspect", float(ws.x) / maxf(1.0, float(ws.y)))
 		_mat.set_shader_parameter("cell", float(maxi(2, int(round(float(DisplayServer.window_get_size().y) / 240.0)))))
 	if _sub_frames > 0:
 		_sub_frames -= 1
@@ -293,6 +326,59 @@ func _draw_eyes() -> void:
 			var p: Vector2 = (c + dir * gap * side - Vector2(cell, cell) * 0.5).snapped(Vector2(cell, cell))
 			_eyes_layer.draw_rect(Rect2(p, Vector2(cell, cell)), Color(0.86, 0.84, 0.74, 0.85 * open))
 	_eyes.clear()
+
+
+## The drone and the heart, made here (no file): two low tones a few hertz apart so they
+## beat, a thin whine over them like pressure in the ears, rising with the presence; the
+## heart a double thump, 56 a minute at first, 140 at the end.
+func _update_sense(delta: float) -> void:
+	if _presence <= 0.01:
+		if _sense != null and _sense.playing:
+			_sense.stop()
+			_sense_pb = null
+		return
+	if _sense == null:
+		_sense = AudioStreamPlayer.new()
+		var gen := AudioStreamGenerator.new()
+		gen.mix_rate = SENSE_RATE
+		gen.buffer_length = 0.25
+		_sense.stream = gen
+		_sense.volume_db = -4.0
+		add_child(_sense)
+	if not _sense.playing:
+		_sense.play()
+		_sense_pb = _sense.get_stream_playback() as AudioStreamGeneratorPlayback
+	if _sense_pb == null:
+		return
+	var p := _presence
+	var bpm := lerpf(56.0, 140.0, p * p)
+	var period := 60.0 / bpm
+	var frames := _sense_pb.get_frames_available()
+	var dt := 1.0 / SENSE_RATE
+	var f1 := lerpf(48.0, 62.0, p)
+	var f2 := f1 + lerpf(1.5, 6.0, p)
+	var fw := lerpf(2600.0, 3900.0, p)
+	var a_drone := 0.10 * clampf(p * 1.6, 0.0, 1.0)
+	var a_whine := 0.018 * clampf((p - 0.35) / 0.65, 0.0, 1.0)
+	var a_heart := 0.5 * clampf((p - 0.15) / 0.5, 0.0, 1.0)
+	for _i in frames:
+		_beat_t += dt
+		if _beat_t >= period:
+			_beat_t -= period
+		# Lub-dub: a thump, and a softer one a short way after.
+		var tb := _beat_t
+		var env := 0.0
+		if tb < 0.12:
+			env = exp(-tb * 38.0)
+		elif tb > 0.2 and tb < 0.32:
+			env = 0.6 * exp(-(tb - 0.2) * 40.0)
+		_beat_env = env
+		_sense_ph[0] = fmod(_sense_ph[0] + f1 * dt, 1.0)
+		_sense_ph[1] = fmod(_sense_ph[1] + f2 * dt, 1.0)
+		_sense_ph[2] = fmod(_sense_ph[2] + fw * dt, 1.0)
+		var heart := sin(TAU * 52.0 * tb) * env * a_heart
+		var v := (sin(TAU * _sense_ph[0]) + sin(TAU * _sense_ph[1])) * 0.5 * a_drone + sin(TAU * _sense_ph[2]) * a_whine + heart
+		_sense_pb.push_frame(Vector2(v, v))
 
 
 func _update_ring(delta: float) -> void:

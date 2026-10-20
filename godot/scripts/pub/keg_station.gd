@@ -98,6 +98,13 @@ func _show() -> void:
 	if _twist >= 0.0:
 		up = KEG_M + 0.1 - floorf(_twist / TWIST_SEC * 4.0) / 4.0 * 0.08
 	put(_head, PALLET, up)
+	# The quick coupler (gear): its own head on the hose.
+	if BUSINESS.has_gear(building_key, "coupler"):
+		retex(_head, "res://assets/textury/camp/gear_coupler.png", 0.16)
+		if _head.texture != null:
+			_head.offset = Vector2(0, float(_head.texture.get_height()) * 0.5)
+	else:
+		pretex(_head, "coupler", 0.16)
 	var gas := float(k["gas"])
 	set_meter(_gauge, gas, Vector2(PUB.GAS_LOW, PUB.GAS_HIGH), RETRO_UI.C_GREEN if PUB.gas_band(gas) == "OK" else RETRO_UI.C_RED)
 	_valve.rotation.z = floorf(gas * 6.0) / 6.0 * 2.4
@@ -140,7 +147,7 @@ func _press(id: String) -> void:
 			var flat: bool = taproom.tap_trouble(building_key) == "flat"
 			if str(k["pallet"]) == "empty" or flat:
 				if bool(k["coupled"]):
-					say("", "Take the head off first.")
+					say("", "The head is still on it.")
 					return
 				if flat and int(k["line"]) > 0:
 					# The flat beer goes down the drain: off the books as waste.
