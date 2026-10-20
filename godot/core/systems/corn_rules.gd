@@ -9,6 +9,10 @@ extends RefCounted
 ## when it is a bright yellow (DONE_AT seconds), grey and soft when left too long (from
 ## OVER_AT); out onto the board, brushed with butter all along, salted to the guest's
 ## wish, a napkin round it, over the counter.
+##
+## The small drink (the brief of 20. 10.: "a quick cheap drink"): iced tea from the
+## orange barrel into a cup, or lemonade poured into a bag and tied round a straw, filled
+## to the line (FILL_OK) and handed over on its own slip.
 
 ## Seconds in the pot: from raw to done, done to going soft, and how long it takes to go
 ## quite soft after that.
@@ -34,6 +38,15 @@ const PATIENCE_LATE := 40
 const PATIENCE_GONE := 60
 ## The order goes up this long after they come to the counter.
 const ORDER_DELAY := 2
+## The small drinks: price (dollars), what fills it a second while the tap runs or the
+## bottle tips, the good it takes off the shelf.
+const DRINKS := {
+	"tea": {"label": "Iced tea", "price": 1, "rate": 0.42, "good": "tea"},
+	"limo": {"label": "Lemonade", "price": 1, "rate": 0.5, "good": "limo"},
+}
+## A drink is right filled into this window (a share of the cup or the bag); over 1 it
+## runs over the top.
+const FILL_OK := Vector2(0.8, 0.97)
 
 
 ## How done a cob is after `t` seconds in the pot: 0 raw .. 1 done, over 1 going soft
@@ -67,17 +80,26 @@ static func salt_wish(visit: String, member: int) -> int:
 	return [0, 1, 1, 2, 3][h % 5]
 
 
-## The orders of a visit to the stand: one cob each person, all at once.
+## The drink a guest wants with the cob ("" none, "tea", "limo"): the same everywhere.
+static func drink_wish(visit: String, member: int) -> String:
+	var h := absi(hash("%s#%d:drink" % [visit, member]))
+	return ["tea", "", "limo", "tea", "", "limo", "tea", ""][h % 8]
+
+
+## The orders of a visit to the stand: one cob each person, all at once, and a drink on
+## its own slip for those who want one ("kind": cob, tea, limo).
 static func tickets_for(visit: String, figures: int, arrive: int, served: Dictionary, now: int) -> Array:
 	var out: Array = []
 	for m in maxi(1, figures):
 		var tid := "%s#%d" % [visit, m]
-		if served.has(tid):
-			continue
 		var since := arrive + ORDER_DELAY + m
 		if now < since or now - since >= PATIENCE_GONE:
 			continue
-		out.append({"id": tid, "member": m, "salt": salt_wish(visit, m), "price": PRICE, "since": since, "age": now - since})
+		if not served.has(tid):
+			out.append({"id": tid, "member": m, "kind": "cob", "salt": salt_wish(visit, m), "price": PRICE, "since": since, "age": now - since})
+		var d := drink_wish(visit, m)
+		if d != "" and not served.has(tid + ":d"):
+			out.append({"id": tid + ":d", "member": m, "kind": d, "salt": 0, "price": int(DRINKS[d]["price"]), "since": since, "age": now - since})
 	return out
 
 
@@ -121,3 +143,22 @@ static func judge(cook: float, butter: float, salt: int, wish: int, age: int) ->
 		notes.push_front("It's gone soft and grey.")
 	var ok := cq > 0.25 and build > 0.2
 	return {"ok": ok, "build": build, "cook": cq, "speed": speed_of(age), "notes": notes}
+
+
+## A drink against its slip: {ok, build (how near the line), speed, cook: -1, notes}. The
+## wrong drink, half a cup or a bag left open and they hand it back.
+static func judge_drink(made: String, fill: float, tied: bool, want: String, age: int) -> Dictionary:
+	var notes: Array = []
+	if made != want:
+		return {"ok": false, "build": 0.0, "cook": -1.0, "speed": speed_of(age), "notes": ["I asked for %s." % ("iced tea" if want == "tea" else "lemonade")]}
+	if made == "limo" and not tied:
+		return {"ok": false, "build": 0.0, "cook": -1.0, "speed": speed_of(age), "notes": ["It'll spill everywhere. Tie it up."]}
+	var build := 1.0
+	if fill < FILL_OK.x:
+		build = clampf(1.0 - (FILL_OK.x - fill) * 3.0, 0.0, 1.0)
+		notes.append("Bit of a short one.")
+	elif fill > FILL_OK.y:
+		build = clampf(1.0 - (fill - FILL_OK.y) * 4.0, 0.3, 1.0)
+		notes.append("It's all sticky.")
+	return {"ok": fill >= 0.5, "build": build, "cook": -1.0, "speed": speed_of(age), "notes": notes}
+

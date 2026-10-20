@@ -118,15 +118,19 @@ static func now_min() -> int:
 	return int(GuestManager._absolute_minutes(maxi(1, GuestManager._last_known_day), GuestManager._last_known_hour, GuestManager._last_known_minute))
 
 
-## Open orders at `key`, oldest first: [{id, visit, member, guest_id, name, arch, salt,
-## price, since, age}].
-func tickets(key: String) -> Array:
+## Open orders at `key`, oldest first: [{id, visit, member, kind (cob, tea, limo),
+## guest_id, name, arch, salt, price, since, age}]; `only` "cob" or "drink" keeps those.
+func tickets(key: String, only := "") -> Array:
 	var out: Array = []
 	var now := now_min()
 	var served: Dictionary = site(key)["served"]
 	for v in ORDERS.visitors(key):
 		var visit := str(v["visit"])
 		for t in RULES.tickets_for(visit, int(v.get("figures", 1)), int(v.get("arrive", now)), served, now):
+			if only == "cob" and str(t["kind"]) != "cob":
+				continue
+			if only == "drink" and str(t["kind"]) == "cob":
+				continue
 			t["visit"] = visit
 			t["guest_id"] = int(v["id"])
 			t["name"] = str(v["name"])
@@ -215,11 +219,38 @@ func serve(key: String, t: Dictionary, cook: float, butter: float, salt: int, by
 	v["amount"] = amount
 	ORDERS.note_served({"id": int(t["guest_id"]), "visit": str(t["visit"])})
 	var thought := _thought(v)
-	ORDERS.mood(int(t["guest_id"]), float(r["mood"]), thought)
+	ORDERS.mood(int(t["guest_id"]), float(r["mood"]) + (BUSINESS.hand_mood(key, "counter") if by_hand else 0.0), thought)
 	ORDERS.note_meal(int(t["guest_id"]), thought, pts)
 	act(key, "served", [str(t["id"]), {"at": now_min(), "stars": int(v["stars"]), "amount": amount}])
 	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
 		CoreRoot.actions.biz_score(key, {"score": pts, "tip": int(v["tip"]), "what": "Corn", "who": str(t.get("name", "")), "hand": by_hand})
+	return v
+
+
+## A drink goes over the counter for slip `t`: `made` (tea, limo), how full, the bag tied;
+## judged (corn_rules.judge_drink) and sold like a cob (its good off the shelf). The
+## verdict as serve's; {ok: false, why: "empty"} when the barrel or the bottles ran dry.
+func serve_drink(key: String, t: Dictionary, made: String, fill: float, tied: bool, by_hand := false) -> Dictionary:
+	var want := str(t.get("kind", "tea"))
+	var v: Dictionary = RULES.judge_drink(made, fill, tied, want, int(t["age"]))
+	if not bool(v["ok"]):
+		ORDERS.mood(int(t["guest_id"]), -0.5, "")
+		return v
+	var pts := BIZ_RULES.score(float(v["speed"]), float(v["build"]))
+	var r := BIZ_RULES.reward(pts, int(t["price"]))
+	var amount := int(round((int(t["price"]) + int(r["tip"])) * BUSINESS.price_k(key)))
+	var good := str(RULES.DRINKS.get(made, {}).get("good", made))
+	if not BUSINESS.sell(key, {good: 1}, amount):
+		return {"ok": false, "why": "empty", "notes": []}
+	v["score"] = pts
+	v["tip"] = int(r["tip"])
+	v["stars"] = int(r["stars"])
+	v["amount"] = amount
+	ORDERS.note_served({"id": int(t["guest_id"]), "visit": str(t["visit"])})
+	ORDERS.mood(int(t["guest_id"]), float(r["mood"]) * 0.5 + (BUSINESS.hand_mood(key, "drinks") if by_hand else 0.0), "")
+	act(key, "served", [str(t["id"]), {"at": now_min(), "stars": int(v["stars"]), "amount": amount}])
+	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
+		CoreRoot.actions.biz_score(key, {"score": pts, "tip": int(v["tip"]), "what": str(RULES.DRINKS[made]["label"]), "who": str(t.get("name", "")), "hand": by_hand})
 	return v
 
 
@@ -310,10 +341,36 @@ func _crew_work(key: String, crew: Array) -> void:
 				did = _crew_husk(key, slip)
 			"counter":
 				did = _crew_counter(key, slip)
+				# Nothing for the pot: a drink meanwhile, unless a hand is on the drinks.
+				if not did and not _has_role(crew, "drinks"):
+					did = _crew_drink(key, slip)
+			"drinks":
+				did = _crew_drink(key, slip)
 		var k := 1.0
 		if str(p.get("role", "")) == "husk" and BUSINESS.has_gear(key, "table"):
 			k = 0.6
 		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) * k if did else 1.0
+
+
+func _has_role(crew: Array, role: String) -> bool:
+	for p in crew:
+		if str(p.get("role", "")) == role:
+			return true
+	return false
+
+
+## The hand at the drinks pours the oldest drink slip (a little short or over when it
+## slips).
+func _crew_drink(key: String, slip: bool) -> bool:
+	var open := tickets(key, "drink")
+	if open.is_empty():
+		return false
+	var t: Dictionary = open[0]
+	var fill := _rng.randf_range(0.84, 0.95)
+	if slip:
+		fill = _rng.randf_range(0.6, 1.05)
+	var v := serve_drink(key, t, str(t["kind"]), fill, true, true)
+	return bool(v.get("ok", false)) or str(v.get("why", "")) != "empty"
 
 
 func _crew_husk(key: String, slip: bool) -> bool:
@@ -329,7 +386,7 @@ func _crew_husk(key: String, slip: bool) -> bool:
 
 
 func _crew_counter(key: String, slip: bool) -> bool:
-	var open := tickets(key)
+	var open := tickets(key, "cob")
 	# A done one out to whoever waits longest; a soft one thrown away.
 	for c in pot(key):
 		var stage := RULES.stage(float(c["t"]))

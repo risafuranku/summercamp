@@ -5,7 +5,8 @@ extends "res://scripts/business/station3d.gd"
 ## (cornstand.gd: the pot, the bowl, who was served), the orders on the rail as paper
 ## slips (the guest's name, a cob, the salt they want: a mark a shake, NO SALT), the
 ## picked one big in the frame, the cobs in the pot and the butter at the right end of
-## the frame, the pot's timers when you are husking. The stations: counter, husk.
+## the frame, the pot's timers when you are husking. The stations: counter, husk, drinks
+## (a drink slip has its cup or its bag on it instead of the cob).
 
 const CORN := preload("res://core/systems/corn_rules.gd")
 const CORNSTAND := preload("res://scripts/corn/cornstand.gd")
@@ -39,7 +40,7 @@ func sfx(n: String, db := -8.0, pitch := 1.0) -> void:
 	if n.begins_with("res://"):
 		super.sfx(n, db, pitch)
 		return
-	for d in [sfx_dir(), "res://assets/sfx/bistro/"]:
+	for d in [sfx_dir(), "res://assets/sfx/bistro/", "res://assets/sfx/pub/"]:
 		var p: String = d + n + ".mp3"
 		if ResourceLoader.exists(p):
 			super.sfx(p, db, pitch)
@@ -94,9 +95,14 @@ func rail_clicked(id: String) -> void:
 	sfx("tick", -12.0, 1.2)
 
 
-## The picked order, or the oldest when none is (or it went).
+## What this station hands over: "cob" (the counter, the husking) or "drink".
+func serves() -> String:
+	return "cob"
+
+
+## The picked order if it is this station's to hand over, or the oldest of those.
 func current_ticket() -> Dictionary:
-	var tix := tickets()
+	var tix: Array = stand.tickets(building_key, serves()) if stand != null and building_key != "" else []
 	for t in tix:
 		if str(t["id"]) == picked:
 			return t
@@ -123,16 +129,22 @@ func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
 		if old != null:
 			c.draw_texture_rect(old, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, 0.6))
 	var f: Font = RETRO_UI.FONT_TEXT
-	c.draw_string(f, Vector2(2, 8), first_name(str(t.get("name", ""))).to_upper().substr(0, 5), HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.55, 0.1, 0.08))
-	var ic: Texture2D = _icons.get("corn")
+	# Four letters fit the slip whole.
+	c.draw_string(f, Vector2(2, 8), first_name(str(t.get("name", ""))).to_upper().substr(0, 4), HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.55, 0.1, 0.08))
+	var kind := str(t.get("kind", "cob"))
+	var ic: Texture2D = _icons.get("corn" if kind == "cob" else kind)
 	if ic != null:
 		c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - ic.get_width()) * 0.5), 10), ic.get_size()), false)
+	elif kind != "cob":
+		c.draw_string(f, Vector2(2, 20), "TEA" if kind == "tea" else "LIMO", HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.2, 0.18, 0.2))
 	var salt := int(t.get("salt", 0))
-	if salt == 0:
-		c.draw_string(f, Vector2(2, size.y - 6), "NO S", HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.62, 0.08, 0.05))
+	if kind != "cob":
+		pass
+	elif salt == 0:
+		c.draw_string(f, Vector2(2, size.y - 5), "NO", HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.62, 0.08, 0.05))
 	else:
 		for i in salt:
-			c.draw_rect(Rect2(4 + i * 6, size.y - 11, 3, 4), Color(0.2, 0.18, 0.2))
+			c.draw_rect(Rect2(4 + i * 6, size.y - 10, 3, 4), Color(0.2, 0.18, 0.2))
 	var band := int(t.get("band", 0))
 	var col: Color = [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band]
 	var bar := Rect2(3, size.y - 4, size.x - 6, 2)

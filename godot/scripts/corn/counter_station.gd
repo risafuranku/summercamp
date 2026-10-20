@@ -38,6 +38,8 @@ var _butter_spr: Sprite3D
 var _napkin_spr: Sprite3D
 var _salt_spr: Array = []
 var _brushing := false
+## The water rolling in the pot (corn/boil_0..2: Grok frames, in steps).
+var _boil: Sprite3D
 var _last := Vector2(-1, -1)
 var _rng := RandomNumberGenerator.new()
 var _bob := 0.0
@@ -48,6 +50,8 @@ var open_books: Callable
 func _build() -> void:
 	super._build()
 	_rng.randomize()
+	_boil = sprite(CORN_TEX + "boil_0.png", 0.27, true)
+	put(_boil, POT.get_center(), 0.012)
 	_board_spr = lying("cob_boiled", COB_M)
 	_board_spr.visible = false
 	_butter_spr = lying("cob_buttered", COB_M)
@@ -68,6 +72,9 @@ func _show() -> void:
 	if stand == null or building_key == "":
 		return
 	var pot: Array = stand.pot(building_key)
+	# The water rolls, a picture after another, twelve a second in pairs.
+	if _boil != null and _boil.texture != null:
+		retex(_boil, CORN_TEX + "boil_%d.png" % (int(_t * 6.0) % 3), 0.27)
 	var live := {}
 	for c in pot:
 		var id := str(c["id"])
@@ -182,6 +189,22 @@ func _spots() -> Array:
 	return out
 
 
+## The tongs for the pot and the cobs in it, the brush on the board, the shaker over the
+## salt, the bare glove for the napkin and the counter.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	if id.begins_with("cob:") or id == "pot":
+		return "tongs"
+	match id:
+		"board":
+			return "brush"
+		"salt":
+			return "salt"
+		"cash":
+			return "press"
+	return "open"
+
+
 func _press(id: String) -> void:
 	if id.begins_with("cob:"):
 		_take_out(id.substr(4))
@@ -282,13 +305,15 @@ func _hand_over() -> void:
 			say("", "No butter left.")
 			return
 		say(who, " ".join(v.get("notes", [])) + " Do another one.")
+		score_card(v, "Corn")
 		_board = {}
 		sfx("plate_down", -12.0, 0.7)
 		return
 	picked = ""
 	_board = {}
 	sfx("till", -8.0)
-	pop("+$%d" % int(v["amount"]), CASH.get_center() + Vector2(0, -40), RETRO_UI.C_AMBER_LIGHT if int(v["tip"]) > 0 else RETRO_UI.C_BONE, true)
+	pop("+$%d" % int(v["amount"]), CASH.get_center() + Vector2(0, -40), RETRO_UI.C_AMBER_LIGHT if int(v["tip"]) > 0 else RETRO_UI.C_BONE)
+	score_card(v, "Corn")
 	if int(v["stars"]) >= 3:
 		say(who, ["Now that is a cob.", "Like at my gran's.", "Perfect. Keep the change."][_rng.randi() % 3])
 	else:
