@@ -162,6 +162,30 @@ var _sub_next := 5.0
 var _glass_until := -1.0
 ## The room's light falling out through the glass onto him.
 var _glass_light: OmniLight3D
+## The stare: while you are under a lamp he stands out in the open dark facing you, his
+## glasses on you, and every time you look away he is a step nearer the light's edge.
+var _staring := false
+var _stare_unseen := 0.0
+var _stare_moved := false
+## Out of the light: the glasses go dark, both at once (the one time they ever do), and
+## stay dark till he has taken his first step.
+var _eyes_out := false
+## His head going over as he comes: the glasses tilt more the nearer he is; close, it
+## cocks hard. This night's way (+1 or -1), the art's own tilt, and the extra now.
+var _tilt_sign := 1.0
+var _pose_tilt := 0.0
+var _tilt_extra := 0.0
+## Your torch's beam far past where it lights anything: his lenses catch it (a sting the
+## first time each round).
+var _glint_stung := false
+## Glasses that are not him: at the edges of your view in the dark, when it is worst;
+## look at one and it goes out. Only the warden he hunts sees them (not under _root).
+var _phantoms: Array = []
+var _phantom_next := 3.0
+const STARE_CHANCE := 0.5
+const STARE_DIST := Vector2(9.0, 15.0)
+const STARE_MIN := 5.0
+const GLINT_RANGE := 45.0
 
 
 func get_enemy_id() -> String:
@@ -188,6 +212,7 @@ func _on_start() -> void:
 	_reset_far(_rng.randf_range(3.0, 6.0))
 	_peek_until = 0.0
 	_first = not _met()
+	_tilt_sign = -1.0 if _rng.randf() < 0.5 else 1.0
 	_sound2d = AudioStreamPlayer.new()
 	_root.add_child(_sound2d)
 
@@ -201,6 +226,7 @@ func tick(delta: float) -> void:
 		if not ready:
 			_away = true
 			_end_hold()
+			_clear_phantoms()
 			_tick_indoors(delta)
 		elif _away:
 			_away = false
@@ -214,6 +240,8 @@ func tick(delta: float) -> void:
 
 func _on_return() -> void:
 	_glass_until = -1.0
+	_eyes_out = false
+	_staring = false
 	if _eyes != null:
 		_eyes.set("view_from", Vector3.INF)
 	if _glass_light != null:
@@ -230,6 +258,7 @@ func _on_return() -> void:
 func _on_stop() -> void:
 	_end_seq()
 	_end_hold()
+	_clear_phantoms()
 	var fx := _fx()
 	if fx != null:
 		fx.close_up_off()
@@ -243,7 +272,8 @@ func _on_stop() -> void:
 func _on_tick(dt: float) -> void:
 	_track_speed(dt)
 	if _eyes != null:
-		_eyes.set("want", 1.0)
+		_eyes.set("want", 0.0 if _eyes_out else 1.0)
+	_update_phantoms(dt)
 	if not _seq.is_empty():
 		_update_seq(dt)
 		return
@@ -274,8 +304,10 @@ func _on_tick(dt: float) -> void:
 	if _lurking and _first and not _revealed and _start_reveal():
 		return
 	if _lurking:
-		# Out of the light: the humming stops. He is coming.
+		# Out of the light: the humming stops, and the glasses go dark. He is coming.
 		_lurking = false
+		_staring = false
+		_eyes_out = true
 		_dist = minf(START_DIST, maxf(NECK_DIST + 2.0, _distance_to_player(_body.global_position)))
 		_next_step = _elapsed + _rng.randf_range(0.8, 1.6)
 	_update_footfall(dt)
@@ -305,6 +337,8 @@ func _step() -> void:
 		_dist -= _step_gain
 	_dist = maxf(NECK_DIST, _dist)
 	_place_behind(_dist)
+	_eyes_out = false
+	_tilt_head()
 	var at := _walk_to + Vector3(0, 0.3, 0)
 	if walking:
 		# Half a beat after your own steps: lost in them.
@@ -355,6 +389,11 @@ func _choose_lurk() -> void:
 	var cam := _camera()
 	if cam == null:
 		return
+	# Sometimes not round a corner at all: out in the open dark, facing you. Never at
+	# the first meeting (that one is its own).
+	if not (_first and not _revealed) and _rng.randf() < STARE_CHANCE and _choose_stare(cam):
+		return
+	_staring = false
 	var best := -1.0
 	var best_p := Vector3.INF
 	var best_peek := Vector3.INF
@@ -394,6 +433,56 @@ func _choose_lurk() -> void:
 	_set_tex(_look_for(LURK_DIST.y))
 
 
+## Out in the open where you can see him from your light, dark, 9-15 m off, facing you.
+func _choose_stare(cam: Camera3D) -> bool:
+	for _i in 24:
+		var p := _point_from_player(_rng.randf_range(STARE_DIST.x, STARE_DIST.y), _rng.randf_range(0.0, 360.0))
+		if p == Vector3.INF or _lamp_light_at(p) > LURK_DARK:
+			continue
+		if _ray_blocked(cam.global_position, p + Vector3(0, HEIGHT * 0.92, 0)):
+			continue
+		_lurking = true
+		_staring = true
+		_stare_unseen = 0.0
+		_stare_moved = false
+		_lurk_spot = p
+		_peek_spot = Vector3.INF
+		_body.global_position = p
+		_body.visible = true
+		_tilt_extra = 0.0
+		_set_tex(_look_for(_distance_to_player(p)))
+		_apply_tilt()
+		return true
+	return false
+
+
+## The stare: still, the glasses on you. Look away, look back: a step nearer, never into
+## the light. Each step his head a little further over.
+func _update_stare(dt: float) -> void:
+	var head := _body.global_position + Vector3(0, HEIGHT * 0.86, 0)
+	if _is_seen(head, 4.0):
+		_stare_unseen = 0.0
+		_stare_moved = false
+		return
+	_stare_unseen += dt
+	if _stare_moved or _stare_unseen < 1.4:
+		return
+	_stare_moved = true
+	var to := _player_pos() - _body.global_position
+	to.y = 0.0
+	if to.length() <= STARE_MIN:
+		return
+	var p := _ground(_body.global_position + to.normalized() * minf(_rng.randf_range(1.0, 1.8), to.length() - STARE_MIN))
+	if p == Vector3.INF or _lamp_light_at(p) > LURK_DARK:
+		return
+	_body.global_position = p
+	_lurk_spot = p
+	_set_tex(_look_for(_distance_to_player(p)))
+	_tilt_extra = _tilt_sign * clampf(_tilt_extra * _tilt_sign + 0.12, 0.0, 0.7)
+	_apply_tilt()
+	_sound(SFX_SOFTSTEP, p + Vector3(0, 0.3, 0), -18.0, _rng.randf_range(0.9, 1.0), 22.0)
+
+
 ## While you are in the light: he hums round his corner; now and then he leans out past
 ## it for a moment and back.
 func _update_lurk(dt: float) -> void:
@@ -401,6 +490,9 @@ func _update_lurk(dt: float) -> void:
 		_choose_lurk()
 		if not _lurking:
 			return
+	if _staring:
+		_update_stare(dt)
+		return
 	if _peek_t > 0.0:
 		_peek_t -= dt
 		if _peek_t <= 0.0:
@@ -508,7 +600,44 @@ func _pose_eyes(path: String, tex: Texture2D) -> void:
 	var px := _body.pixel_size
 	_eyes.set("height", (float(tex.get_height()) - float(at[0])) * px)
 	_eyes.set("x_off", (float(at[1]) - float(tex.get_width()) * 0.5) * px)
-	_eyes.set("tilt", float(at[2]))
+	_pose_tilt = float(at[2])
+	_apply_tilt()
+
+
+func _apply_tilt() -> void:
+	if _eyes != null:
+		_eyes.set("tilt", _pose_tilt + _tilt_extra)
+
+
+## Nearer, the head further over; within a few metres now and then it cocks hard.
+func _tilt_head() -> void:
+	var close := clampf(1.0 - _dist / START_DIST, 0.0, 1.0)
+	_tilt_extra = _tilt_sign * (0.08 + 0.5 * close * close)
+	if _dist < 4.5 and _rng.randf() < 0.45:
+		_tilt_extra = _tilt_sign * _rng.randf_range(0.9, 1.3)
+	_apply_tilt()
+
+
+## His lenses catch your torch far past where it lights anything (he stays: he is not lit).
+func _eyes_flare(at: Vector3) -> float:
+	if _in_flashlight(at):
+		return 1.0
+	if not _flashlight_on() or not _player.has_method("get_flashlight_aim"):
+		return 0.0
+	var aim: Dictionary = _player.call("get_flashlight_aim")
+	if aim.is_empty():
+		return 0.0
+	var to: Vector3 = at - (aim["origin"] as Vector3)
+	var d := to.length()
+	if d > GLINT_RANGE or d < 0.5:
+		return 0.0
+	# A little narrower than the beam: the glint is where it points.
+	var c := (aim["dir"] as Vector3).normalized().dot(to / d)
+	var k := clampf((c - cos(deg_to_rad(float(aim["half_angle"]) * 0.8))) / 0.02, 0.0, 1.0)
+	if k > 0.5 and not _glint_stung and d > 9.0 and _body.visible and _fx() != null:
+		_glint_stung = true
+		_ear(SFX_STING, -16.0, 0.8)
+	return k
 
 
 func _update_audio(dt: float) -> void:
@@ -534,6 +663,11 @@ func _update_audio(dt: float) -> void:
 func _driven_off() -> void:
 	_drive_offs += 1
 	_end_hold()
+	_staring = false
+	_eyes_out = false
+	_glint_stung = false
+	_tilt_extra = 0.0
+	_apply_tilt()
 	_press = maxf(0.0, _press - 0.45)
 	_walk_t = -1.0
 	_lurking = false
@@ -904,6 +1038,60 @@ func _update_presence(dt: float) -> void:
 					_player.set("flashlight_stutter", 0.0))
 
 
+func _clear_phantoms() -> void:
+	for ph in _phantoms:
+		var n: Node3D = ph["eyes"]
+		if n != null and is_instance_valid(n):
+			n.queue_free()
+	_phantoms.clear()
+
+
+## When it is worst (the sixth sense high, out in the dark): a pair of his glasses at
+## the edge of your view where he is not, in the dark, 10-20 m off. Look at it, or wait,
+## and it goes out. Up to two at once. Never seen by anyone but you.
+func _update_phantoms(dt: float) -> void:
+	var cam := _camera()
+	var fx := _fx()
+	var bad := _press > 0.45 and _seq.is_empty() and _neck_until < 0.0 and _vanish_at < 0.0 and fx != null and cam != null
+	for i in range(_phantoms.size() - 1, -1, -1):
+		var ph: Dictionary = _phantoms[i]
+		var e: Node3D = ph["eyes"]
+		ph["t"] = float(ph["t"]) - dt
+		var looked := false
+		if cam != null:
+			var to: Vector3 = (ph["at"] as Vector3) - cam.global_position
+			looked = (-cam.global_transform.basis.z).dot(to.normalized()) > cos(deg_to_rad(14.0))
+		if not bad or float(ph["t"]) <= 0.0 or looked or e == null or not is_instance_valid(e):
+			if e != null and is_instance_valid(e):
+				e.queue_free()
+			_phantoms.remove_at(i)
+			continue
+		e.set("strength", 1.0)
+		e.call("update", dt, cam)
+	if not bad:
+		_phantom_next = maxf(_phantom_next, 1.5)
+		return
+	_phantom_next -= dt * (0.5 + _press)
+	if _phantom_next > 0.0 or _phantoms.size() >= 2:
+		return
+	_phantom_next = _rng.randf_range(2.5, 6.0)
+	# Off to one side, well inside the frame's edge, not where you look.
+	var side := -1.0 if _rng.randf() < 0.5 else 1.0
+	var p := _point_from_player(_rng.randf_range(10.0, 20.0), side * _rng.randf_range(24.0, 40.0))
+	if p == Vector3.INF or _lamp_light_at(p) > LURK_DARK:
+		return
+	var at := p + Vector3(0, HEIGHT * 0.92, 0)
+	if _ray_blocked(cam.global_position, at):
+		return
+	var e: Node3D = ENEMY_EYES.new()
+	_world_root.add_child(e)
+	e.call("setup", "silent_man", 0.0, null)
+	e.set("anchor", null)
+	e.set("point", at)
+	e.set("tilt", _tilt_sign * _rng.randf_range(0.0, 0.5))
+	_phantoms.append({"eyes": e, "at": at, "t": _rng.randf_range(1.2, 3.0)})
+
+
 ## His hands come over your shoulder from the side he is on; he holds you back.
 func _start_hold() -> void:
 	var cam := _camera()
@@ -1226,4 +1414,7 @@ func get_debug_snapshot() -> Dictionary:
 		"press": snappedf(_press, 0.01),
 		"first": _first,
 		"lure": _lure_n,
+		"stare": _staring,
+		"eyes_out": _eyes_out,
+		"phantoms": _phantoms.size(),
 	}

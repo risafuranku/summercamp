@@ -297,6 +297,12 @@ func _make_body(texture_path: String, height_m: float, shaded: bool = true) -> S
 	return s
 
 
+## How much your light makes its eyes flare (0..1): your torch on them. A brain whose
+## eyes catch light from farther off says so.
+func _eyes_flare(at: Vector3) -> float:
+	return 1.0 if _in_flashlight(at) else 0.0
+
+
 ## Its own eyes (enemy_eyes.STYLES[`style`]) `height_m` up on `follow` (the body when
 ## null); they glow while it is in the dark and the line to them is clear.
 func _make_eyes(style: String, height_m: float, follow: Node3D = null) -> Node3D:
@@ -323,8 +329,7 @@ func _tick_eyes(dt: float) -> void:
 		var from: Vector3 = _eyes.get("view_from")
 		if from == Vector3.INF and s > 0.0 and _ray_blocked(cam.global_position, at):
 			s = 0.0
-		var f := 1.0 if _in_flashlight(at) else 0.0
-		_eyes.set("flare", move_toward(float(_eyes.get("flare")), f, dt * 6.0))
+		_eyes.set("flare", move_toward(float(_eyes.get("flare")), _eyes_flare(at), dt * 6.0))
 	_eyes.set("strength", s)
 	_eyes.call("update", dt, cam)
 

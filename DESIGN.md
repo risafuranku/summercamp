@@ -262,6 +262,20 @@ game, every time, and never scripted to a place.
 
 - **Lurk**: you in light, he hums round a corner in the dark 7-13 m off, leaning out now
   and then. The light is safe and you still feel watched (a little of the sixth sense).
+- **The stare** (half his lurks once you have met him): not round a corner but out in
+  the open dark 9-15 m off, facing you, his glasses on you, motionless. Look away and
+  back: he is a step nearer, his head a little further over, never into the light.
+- **The glasses go out**: step out of the light and the humming stops and the two
+  yellow lenses go dark, both at once: the only time they ever "blink". They stay dark
+  till he has taken his first step. That is how you know he is coming.
+- **The glint**: your torch beam far past where it lights anything (to ~45 m) catches
+  his lenses; they swell and flash back at you, white (a low sting the first time each
+  round). He is not lit, so he does not go: he is just standing there.
+- **His head goes over**: the nearer he is, the more his glasses tilt; within a few
+  metres it now and then cocks hard, near sideways. In the dark the eyes are all you see.
+- **Glasses that are not him**: when the sixth sense is high, a pair or two at the
+  edges of your view in the dark, 10-20 m off; look at one and it goes out. Only the
+  warden he hunts sees them.
 - **The first meeting** (once per camp, `director.ever["silent_man_met"]`): the first
   step out of the light, the humming stops and he is there in front of you at the edge
   of the light, caught mid-stride; look at him and he goes, look away and he is gone when

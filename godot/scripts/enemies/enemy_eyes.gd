@@ -134,6 +134,10 @@ func update(dt: float, cam: Camera3D) -> void:
 	# One game pixel, there.
 	var px := 2.0 * d * tan(deg_to_rad(cam.fov) * 0.5) / GAME_LINES
 	var key := "near" if d <= float(style["near_m"]) else ("mid" if d <= float(style["mid_m"]) else "far")
+	# Catching your light they swell, and keep their shape however far (a flash back at you).
+	var fl := clampf(flare, 0.0, 1.0)
+	if fl > 0.5 and key == "far":
+		key = "mid"
 	var tex: Texture2D = _tex.get(key, _tex.get("far"))
 	if tex == null:
 		_hide()
@@ -142,6 +146,7 @@ func update(dt: float, cam: Camera3D) -> void:
 	# A texel a little over a game pixel: the screen's pixelation samples cell middles,
 	# and a texel of exactly one cell can fall between them (a ring loses a side).
 	var pix := maxf(float(style["size"]) / tw, px * 1.3)
+	pix *= 1.0 + 0.45 * fl
 	var w := tw * pix
 	# Never closer than two dark game pixels between them, so two read as two.
 	var gap := maxf(float(style["gap"]), w * 0.5 + px)
@@ -150,7 +155,7 @@ func update(dt: float, cam: Camera3D) -> void:
 	var base := at + toward * minf(0.3, d * 0.08) + right * sway
 	_update_blinks(dt)
 	var glint := _glint(dt)
-	var col: Color = (style["color"] as Color).lerp(style["flare_color"] as Color, clampf(flare, 0.0, 1.0))
+	var col: Color = (style["color"] as Color).lerp(style["flare_color"] as Color, fl)
 	for i in _eye.size():
 		var e := _eye[i]
 		var side := 0.0 if _eye.size() == 1 else (-1.0 if i == 0 else 1.0)
