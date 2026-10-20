@@ -51,6 +51,10 @@ var _streams: Dictionary = {}
 func _ready() -> void:
 	name = "WorldSounds"
 	_rng.randomize()
+	# A broken lamp shorting: sparks, a flash, the crackle (scripts/ambient/lamp_sparks.gd).
+	var sparks = load("res://scripts/ambient/lamp_sparks.gd").new()
+	sparks.player_getter = player_getter
+	add_child(sparks)
 	for i in 3:
 		var p := AudioStreamPlayer3D.new()
 		p.bus = BUS

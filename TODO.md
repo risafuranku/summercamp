@@ -88,6 +88,7 @@ finished game, by impact:
 - [x] Sound: the jacket and the keys as you move (20. 10.)
 - [x] Snow: boot prints behind every warden, frozen puddles; snowfall no longer grew
   puddles with rain rings on them (21. 10.)
+- [x] A broken lamp shorts: sparks, a flash, the crackle (21. 10., lamp_sparks.gd)
 - [x] Sound: a guitar by the fire and a radio in a caravan in the evening, far off
   (21. 10., far_life.gd)
 - [x] Sound: the country by day — the dawn chorus, birds, grasshoppers, a woodpecker, a

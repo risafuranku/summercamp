@@ -33,6 +33,7 @@ const SOUNDS := ["steps/snow_a.mp3", "steps/snow_b.mp3", "steps/snow_c.mp3", "st
 	"world/door_creak_a.mp3", "world/door_creak_b.mp3", "world/door_shut_a.mp3", "world/door_shut_b.mp3",
 	"world/kick_bottle_a.mp3", "world/kick_bottle_b.mp3", "world/kick_can_a.mp3", "world/kick_can_b.mp3",
 	"world/kick_bucket.mp3", "world/kick_cone.mp3", "world/fridge_hum.mp3", "world/fridge_knock.mp3",
+	"world/lamp_zap_a.mp3", "world/lamp_zap_b.mp3",
 	"nature/dawn_chorus.mp3", "nature/day_birds.mp3", "nature/grasshoppers.mp3", "nature/woodpecker_a.mp3",
 	"nature/woodpecker_b.mp3", "nature/ducks_a.mp3", "nature/ducks_b.mp3", "nature/crow.mp3"]
 
