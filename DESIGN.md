@@ -756,6 +756,10 @@ in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD 
   lit windows show the office and the back room behind them.
 - **Your breath** shows in the cold, a puff drawn see-through as Build drew its smoke,
   only as bright as the light it is in: at night you see it in your torch.
+- **The evening** keeps its clock: gold from four (a low golden sun, cool shade, long
+  shadows), red at a quarter past six with the sun gone (red where its last light falls,
+  lilac in the shade, the haze rose), the blue hour round seven with the lamps coming on,
+  dark from eight.
 - **The morning.** Before the sun a clear sky turns rose and peach low in the east, the
   last stars going out over it; mist lies over the meadow and the lake at first light and
   lifts by half past eight. The meadow is a late-summer meadow, green and straw, until

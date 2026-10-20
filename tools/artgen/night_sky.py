@@ -18,6 +18,10 @@
          few faint ones are left as they are), the glow strongest in the east where the
          sun comes up (-X, a quarter turn before the panorama's middle; SKY_COORDS u 0.75)
          and the west's horizon cooler and dimmer.
+  out/sky_golden, sky_sunset, sky_bluehour/raw.png (the clear evening: gold an hour
+      before the sun goes down, just after it, the blue hour)
+      -> skybox/skygolden.png, skysunset.png, skybluehour.png, the same way with the glow
+         in the west (+X, u 0.25), where the sun goes down.
   out/spr_moon/raw.png (the full moon on magenta)
       -> godot/assets/textury/skybox/moon.png, 24 x 24 with alpha (the moon is some 20 of
          the screen's lines across at Build 240p: its pixels about the screen's).
@@ -120,7 +124,18 @@ def build_sky() -> None:
 
 
 def build_dawn() -> None:
-    raw = np.asarray(Image.open(os.path.join(OUT, "sky_dawn", "raw.png")).convert("RGB")).astype(np.float32)
+    build_glow_sky("sky_dawn", "skydawn.png", 0.75)
+
+
+# The evening skies: the glow in the west, where the sun goes down (+X, u 0.25).
+EVENING = {"golden": ("sky_golden", "skygolden.png"), "sunset": ("sky_sunset", "skysunset.png"),
+           "bluehour": ("sky_bluehour", "skybluehour.png")}
+
+
+def build_glow_sky(art_id: str, name: str, glow_u: float) -> None:
+    """A sky with a glow on one side: the render once as it is and once mirrored, the side
+    away from the glow greyed and dimmed toward the horizon."""
+    raw = np.asarray(Image.open(os.path.join(OUT, art_id, "raw.png")).convert("RGB")).astype(np.float32)
     sky = native(raw)                                # 320 x 180: the upper half
     nh, nw = sky.shape[:2]
     pano = np.zeros((nh * 2, nw * 2, 3), np.float32)
@@ -128,7 +143,7 @@ def build_dawn() -> None:
     pano[:nh, nw:] = sky[:, ::-1]
     # East glows, west is the cold side: the same sky greyed and dimmed, more so lower down.
     u = (np.arange(nw * 2) + 0.5) / (nw * 2)
-    east = 0.5 + 0.5 * np.cos(2.0 * np.pi * (u - 0.75))
+    east = 0.5 + 0.5 * np.cos(2.0 * np.pi * (u - glow_u))
     lum = pano[:nh].mean(axis=2, keepdims=True)
     cold = lum * np.array([0.78, 0.82, 0.98]) * 0.85
     low = np.linspace(0.0, 1.0, nh)[:, None, None] ** 1.5
@@ -142,7 +157,7 @@ def build_dawn() -> None:
     img = Image.fromarray(pano.clip(0, 255).astype(np.uint8))
     img = img.quantize(colors=96, method=Image.MEDIANCUT, dither=Image.NONE).convert("RGB")
     img = img.resize((nw * 2 * UP, nh * 2 * UP), Image.NEAREST)
-    dst = os.path.join(SKY, "skydawn.png")
+    dst = os.path.join(SKY, name)
     img.save(dst, optimize=True)
     print("->", dst, img.size, os.path.getsize(dst) // 1024, "KB")
 
@@ -179,10 +194,13 @@ def build_moon() -> None:
 
 
 if __name__ == "__main__":
-    what = sys.argv[1:] or ["sky", "dawn", "moon"]
+    what = sys.argv[1:] or ["sky", "dawn", "moon"] + list(EVENING)
     if "sky" in what:
         build_sky()
     if "dawn" in what:
         build_dawn()
+    for k, (art_id, name) in EVENING.items():
+        if k in what:
+            build_glow_sky(art_id, name, 0.25)
     if "moon" in what:
         build_moon()

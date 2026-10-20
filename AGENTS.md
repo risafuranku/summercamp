@@ -545,7 +545,8 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   keeps them hard) and `spr_moon` into `skybox/moon.png` (24 px).
   `python tools/artgen/light_sprites.py` turns a render of light on black (the lamp's
   cone) into a sprite of four warm shade steps for additive drawing, or of mist into four
-  steps of see-through white. `night_sky.py dawn` makes the dawn panorama.
+  steps of see-through white. `night_sky.py dawn golden sunset bluehour` makes the
+  morning's and the evening's panoramas (a glow on one side: east at dawn, west at night).
   `python tools/artgen/ground_tex.py <id> <dest> [size] [--own]` makes a ground render
   tile (Grok's "seamless" does not) and snaps it to the palette, or with `--own` to 48
   colours of its own (the palette has few mid greens). Agent B's world rows

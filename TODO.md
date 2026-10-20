@@ -38,8 +38,9 @@ finished game, by impact:
 - [x] The meadow reads as burnt black ground by day — a generated late-summer meadow (20. 10.)
 - [ ] The Builder's map still draws the old Redneck grass for the summer
   (`crt_map_panel.GROUND_TEX_SUMMER`, agent A's): `world/grass_summer.png` would match
-- [ ] Golden hour (17:00) hardly shows; the red sunset (18:15) is one flat red over
-  everything (no ramp from the horizon up, no long shadows)
+- [x] Golden hour (17:00) hardly shows; the red sunset (18:15) is one flat red over
+  everything — the evening's own skies (gold, sunset, blue hour; glow in the west) and
+  light (golden sun and cool shade, red light and lilac shade, blue) (20. 10.)
 - [ ] Snow falling does not show at noon; snow cover has the dot grid in the shade
 - [ ] Storm: a leaf blown into the lens fills a corner as a big blurred blob
 - [ ] Rain: splashes and puddles hardly read from eye height; drips from roofs and trees

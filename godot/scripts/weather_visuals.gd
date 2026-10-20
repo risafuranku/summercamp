@@ -48,6 +48,13 @@ const SKY_TEX_NIGHT_CLEAR_PATHS := ["res://assets/textury/skybox/skystars.png"]
 ## horizon; the clear night turns into it from 5:15 and it into the day by 7:15 (season
 ## hours; the dawn was the night fading straight into noon's sky: inventory 20. 10.).
 const SKY_TEX_DAWN_PATHS := ["res://assets/textury/skybox/skydawn.png"]
+## A clear evening (Grok): gold from 16:00 (`sky_golden`), the sun gone down at 18:15
+## (`sky_sunset`), the blue hour round 19:00 (`sky_bluehour`), then the night (the brief's
+## schedule, season hours; the Redneck evening and dusk skies before them were one flat
+## red: inventory 20. 10.). The Redneck ones stay for the red anomaly, and as fallbacks.
+const SKY_TEX_GOLDEN_PATHS := ["res://assets/textury/skybox/skygolden.png"]
+const SKY_TEX_SUNSET_PATHS := ["res://assets/textury/skybox/skysunset.png", "res://assets/textury/skybox/skyeve.png"]
+const SKY_TEX_BLUE_PATHS := ["res://assets/textury/skybox/skybluehour.png", "res://assets/textury/skybox/skydusk.png"]
 const DAWN_SKY_START_HOUR: float = 5.25
 const DAWN_SKY_FULL_HOUR: float = 6.0
 const DAWN_SKY_END_HOUR: float = 7.25
@@ -959,15 +966,17 @@ func sample_time_profile(hour: float) -> Dictionary:
 		0.034,
 		0.054
 	)
+	# The golden hour (16:00-17:45): a lower, golden sun against the blue sky's cooler light
+	# in the shade (it was warm all over, and it hardly showed: inventory 20. 10.).
 	var late_day_profile = _make_time_profile(
 		Color(0.78, 0.70, 0.52),
-		Color(0.84, 0.72, 0.54),
-		1.55,
-		Color(0.88, 0.72, 0.56),
+		Color(0.74, 0.70, 0.62),
+		1.35,
+		Color(0.90, 0.76, 0.56),
 		0.0048,
 		0.11,
-		Color(1.0, 0.84, 0.56),
-		1.58,
+		Color(1.0, 0.80, 0.48),
+		1.72,
 		0.10,
 		Vector3(1.0, 0.93, 0.76),
 		0.06,
@@ -975,34 +984,37 @@ func sample_time_profile(hour: float) -> Dictionary:
 		0.040,
 		0.062
 	)
+	# The sunset (18:15): the sun's last light red on what it reaches, the shade lilac from
+	# the sky, the haze rose (one flat red over everything before: inventory 20. 10.).
 	var evening_profile = _make_time_profile(
 		Color(0.94, 0.44, 0.22),
-		Color(0.55, 0.35, 0.29),
-		0.80,
-		Color(0.78, 0.44, 0.30),
+		Color(0.50, 0.38, 0.46),
+		0.72,
+		Color(0.74, 0.48, 0.48),
 		0.0078,
 		0.20,
-		Color(1.0, 0.54, 0.30),
-		0.58,
+		Color(1.0, 0.50, 0.28),
+		0.76,
 		0.34,
-		Vector3(1.0, 0.82, 0.70),
-		0.12,
+		Vector3(1.0, 0.86, 0.80),
+		0.08,
 		0.0082,
 		0.048,
 		0.071
 	)
+	# The blue hour (19:00): blue, the last red only low in the west's sky.
 	var dusk_profile = _make_time_profile(
-		Color(0.58, 0.14, 0.20),
-		Color(0.28, 0.18, 0.24),
-		0.34,
-		Color(0.44, 0.16, 0.20),
+		Color(0.16, 0.18, 0.40),
+		Color(0.20, 0.22, 0.38),
+		0.38,
+		Color(0.22, 0.22, 0.36),
 		0.0116,
 		0.26,
-		Color(0.95, 0.30, 0.24),
-		0.10,
+		Color(0.90, 0.40, 0.32),
+		0.08,
 		0.72,
-		Vector3(0.96, 0.72, 0.76),
-		0.16,
+		Vector3(0.80, 0.84, 1.0),
+		0.12,
 		0.0108,
 		0.058,
 		0.078
@@ -1371,16 +1383,23 @@ func _sky_pair() -> Array:
 		if h < NIGHT_MID_HOUR:
 			return [day, night, _sky_fade_t(h, NIGHT_SKY_FADE_START_HOUR, NIGHT_MID_HOUR)]
 		return [night, night, 0.0]
-	var eve := _sky_path(SKY_TEX_EVE_PATHS)
-	var dusk := _sky_path(SKY_TEX_DUSK_PATHS)
-	if h < EVENING_SKY_FADE_START_HOUR:
+	# The clear evening: each key the sky at that hour, faded from one to the next.
+	var golden := _first_existing_path(SKY_TEX_GOLDEN_PATHS)
+	if golden == "":
+		golden = day
+	var sunset := _sky_path(SKY_TEX_SUNSET_PATHS)
+	var blue := _sky_path(SKY_TEX_BLUE_PATHS)
+	var keys: Array = [[16.0, day], [17.0, golden], [17.75, golden], [18.25, sunset], [18.6, sunset],
+		[19.1, blue], [NIGHT_SKY_FADE_START_HOUR, blue], [NIGHT_MID_HOUR, night]]
+	if h < float(keys[0][0]):
 		return [day, day, 0.0]
-	if h < DUSK_SKY_FADE_START_HOUR:
-		return [day, eve, _sky_fade_t(h, EVENING_SKY_FADE_START_HOUR, DUSK_SKY_FADE_START_HOUR)]
-	if h < NIGHT_SKY_FADE_START_HOUR:
-		return [eve, dusk, _sky_fade_t(h, DUSK_SKY_FADE_START_HOUR, NIGHT_SKY_FADE_START_HOUR)]
-	if h < NIGHT_MID_HOUR:
-		return [dusk, night, _sky_fade_t(h, NIGHT_SKY_FADE_START_HOUR, NIGHT_MID_HOUR)]
+	for i in keys.size() - 1:
+		var a: Array = keys[i]
+		var b: Array = keys[i + 1]
+		if h < float(b[0]):
+			if a[1] == b[1]:
+				return [a[1], a[1], 0.0]
+			return [a[1], b[1], _sky_fade_t(h, float(a[0]), float(b[0]))]
 	return [night, night, 0.0]
 
 
