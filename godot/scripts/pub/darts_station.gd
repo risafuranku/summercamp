@@ -10,10 +10,10 @@ extends "res://scripts/pub/pub_station.gd"
 
 const FUN := preload("res://core/systems/pub_fun.gd")
 ## The board on the wall (design px over SURFACES["darts"]): its middle and the double
-## ring's outer edge (the board's picture, camp/dartboard.png, laid on the wall in the
-## room: its double ring is about four fifths of its half).
+## ring's outer edge (the board's picture, camp/dartboard_clean.png, laid on the wall in
+## the room: its double ring is about three quarters of its half, the numbers outside it).
 const BOARD_AT := Vector2(320, 180)
-const DOUBLE_R := 142.0
+const DOUBLE_R := 139.0
 const BOARD := Rect2(140, 0, 360, 360)
 const DART_M := 0.09
 ## How far the hand wanders (design px) as you hold: at once, and at most.
