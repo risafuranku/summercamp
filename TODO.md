@@ -4,6 +4,43 @@
 
 ---
 
+## WORLD POLISH (agent B) — 2026-10-20 (the brief: the camp world, weather, light, sound, body)
+
+The inventory: `godot/tools/_tmp_B_tour` (agent B's scratch, not in the repo) walks one
+camp (sandbox, seed 4242, built up, guests in) at 6:30, 12:00, 17:00, 18:15, 20:30 and
+2:00, in clear, rain, fog, storm and snow, from the reception, the tents, the fire, the
+jetty, the forest edge, the corn, the gate road and the cabins. What did not look like a
+finished game, by impact:
+
+- [ ] Night: the cabins, caravans and tents stay dark with guests in them (only the
+  reception's windows light): the camp looks empty after 20:00. Lit while a guest is in,
+  out when they sleep, now and then one at three in the morning
+- [ ] The reception's lit windows are flat white quads at night (no frame, no curtain)
+- [ ] Coarse halftone dots: the light steps' dither shows as a big dot grid in shade (the
+  torch's edge, dawn, buildings' shadows on snow) ("the torch dithered too harshly")
+- [ ] Lamps barely light the ground round them at night; the fire's light on its
+  surroundings; the bulbs themselves hardly read
+- [ ] A clear night has the overcast sky: no stars, no moon
+- [ ] Dawn (6:30) is flat and dark: no mist in the hollows and over the lake, no colour in
+  the sky
+- [ ] The meadow reads as burnt black ground by day (the ground under the tufts too dark)
+- [ ] Golden hour (17:00) hardly shows; the red sunset (18:15) is one flat red over
+  everything (no ramp from the horizon up, no long shadows)
+- [ ] Snow falling does not show at noon; snow cover has the dot grid in the shade
+- [ ] Storm: a leaf blown into the lens fills a corner as a big blurred blob
+- [ ] Rain: splashes and puddles hardly read from eye height; drips from roofs and trees
+  after rain; the rain on the reception's windows from inside
+- [x] Sound: the lake's lapping and the frogs played in the middle of the camp (the jetty's
+  body sits at the lake's origin) — fixed 20. 10.
+- [ ] Sound: places sound alike (layers by place and hour, occlusion indoors, reverb by
+  room); footsteps on snow, puddles and the jetty; the jacket, the keys, breath; guests
+  far off by the hour; the fridge, the transformer by the corn, the swing in the wind
+- [ ] Body: movement, landing, head bob, lean, fatigue; hands (one glove for every tool,
+  more frames, sway, cold and fear tremor, reaching for doors and switches); doors with a
+  feel; things to nudge; the menu camera
+- [x] Every sound the code synthesised is a recording now (the camera, the thump, the
+  pager, the station, the phone line, the splash's neon, the set's tone)
+
 ## BUILDER 98, A GAME IN THE GAME — 2026-10-19 (agreed with the user; handoff)
 
 The user: the Builder should feel like a 90s tycoon of its own, and fun. Everything below
@@ -50,8 +87,10 @@ start, collect good ratings; pay to delete bad reviews".
 - Open: the smoke test prints `Parameter "material" is null` (8x) since this evening;
   not traced yet (maybe the other session's bistro work, maybe not); find who sets a
   null material before shipping
-- Open question to the user: replace the other code-made sounds too (`tools/gen_phone_sfx.py`,
-  `tools/gen_splash_sfx.py`)?
+- [x] Replace the other code-made sounds too? Yes, all of them (the user, 20. 10.): the
+  Photographer's camera, the thump, the pager, the station that does not exist, the phone
+  line, the splash's neon and the set's tone are recordings now (agent B; only the radio's
+  dread stays layered in code)
 
 ## CO-OP — two wardens, step by step (DESIGN.md §12; each stage gone through with the user)
 

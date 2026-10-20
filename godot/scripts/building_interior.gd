@@ -58,10 +58,10 @@ const RADIO_OUTDOOR_HEIGHT: float = 1.4
 ## The station that does not exist (DESIGN §2): late at night, once at most, from day 2,
 ## the radio drifts onto a frequency with a music-box phrase and a row of pips. Count
 ## them: one for each guest in the camp, and one more.
-const STATION_INTRO := "res://assets/sfx/uncanny/station_intro.wav"
-const STATION_PIP := "res://assets/sfx/uncanny/station_pip.wav"
-const STATION_PIP5 := "res://assets/sfx/uncanny/station_pip5.wav"
-const STATION_OUTRO := "res://assets/sfx/uncanny/station_outro.wav"
+const STATION_INTRO := "res://assets/sfx/uncanny/station_intro.mp3"
+const STATION_PIP := "res://assets/sfx/uncanny/station_pip.mp3"
+const STATION_PIP5 := "res://assets/sfx/uncanny/station_pip5.mp3"
+const STATION_OUTRO := "res://assets/sfx/uncanny/station_outro.mp3"
 const STATION_CHANCE_PER_TRACK: float = 0.14
 ## The radio going wrong with the night (scripts/radio/radio_dread.gd): layers on top of
 ## the songs, the song bus, and how the songs bend.

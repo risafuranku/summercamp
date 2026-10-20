@@ -16,10 +16,10 @@ extends "res://scripts/enemies/enemy_base.gd"
 ## Up close (walking into him) he does not bother with the camera.
 
 const SPRITE := "res://assets/textury/npc/enemy_tourist.png"
-const SFX_WHINE := "res://assets/sfx/npc/flash_whine.wav"
-const SFX_SHUTTER := "res://assets/sfx/npc/shutter.wav"
+const SFX_WHINE := "res://assets/sfx/npc/flash_whine.mp3"
+const SFX_SHUTTER := "res://assets/sfx/npc/shutter.mp3"
 const SFX_ADVANCE := "res://assets/sfx/npc/photo_advance.mp3"
-const SFX_BEEP := "res://assets/sfx/npc/af_beep.wav"
+const SFX_BEEP := "res://assets/sfx/npc/af_beep.mp3"
 const GRAB_DISTANCE := 2.6
 
 enum Phase { MOVE, FRAME, COOLDOWN }
@@ -136,13 +136,13 @@ func _tick_frame() -> void:
 	# The beeps speed up as he settles the focus; the red lamp blinks with them.
 	if _elapsed >= _next_beep:
 		_next_beep = _elapsed + lerpf(0.6, 0.12, progress)
-		_sound(SFX_BEEP, _head(), -2.0, 1.0, 40.0)
+		_sound(SFX_BEEP, _head(), 4.0, 1.0, 40.0)
 		_set_af(true)
 	elif _elapsed > _next_beep - lerpf(0.45, 0.06, progress):
 		_set_af(false)
 	if not _whine_started and left <= 1.2:
 		_whine_started = true
-		_sound(SFX_WHINE, _head(), 2.0, 1.0, 48.0)
+		_sound(SFX_WHINE, _head(), 8.0, 1.0, 48.0)
 	if left <= 0.0:
 		_fire()
 
@@ -153,7 +153,7 @@ func _fire() -> void:
 	var head := _head()
 	_flash.global_position = head + Vector3(0, 0.3, 0)
 	_flash_t = 0.35
-	_sound(SFX_SHUTTER, head, 4.0, _rng.randf_range(0.95, 1.05), 48.0)
+	_sound(SFX_SHUTTER, head, 10.0, _rng.randf_range(0.95, 1.05), 48.0)
 	if _is_seen(head, 4.0):
 		_hits += 1
 		_hurt(_photo_damage)
@@ -167,7 +167,7 @@ func _fire() -> void:
 
 func _grab() -> void:
 	_hurt(_grab_damage)
-	_sound(SFX_SHUTTER, _player_pos() + Vector3(0, 1.6, 0), 6.0, 0.7)
+	_sound(SFX_SHUTTER, _player_pos() + Vector3(0, 1.6, 0), 10.0, 0.7)
 	_dist = 24.0
 	_enter_move(_rng.randf_range(5.0, 8.0))
 

@@ -89,7 +89,7 @@ func _ready() -> void:
 		_expect(pl.stream_count == 14, "station: %d streams, want 14" % pl.stream_count)
 		var long_pauses := 0
 		for i in range(1, pl.stream_count - 1):
-			if pl.get_list_stream(i).resource_path.ends_with("station_pip5.wav"):
+			if pl.get_list_stream(i).resource_path.ends_with("station_pip5.mp3"):
 				long_pauses += 1
 		_expect(long_pauses == 2, "station: %d long pauses in 12 pips, want 2" % long_pauses)
 		_expect(not pl.loop, "station must not loop")

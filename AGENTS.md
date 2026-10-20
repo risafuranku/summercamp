@@ -59,7 +59,7 @@ godot/
     blood_fx.gd, menu_flythrough.gd, save_codec.gd, ...
   assets/fonts/*.fnt          # baked bitmap fonts (do not edit by hand, see §7)
   tools/                      # in-engine harnesses (§3) and the screenshot driver
-tools/                        # repo-level tooling: gen_pixel_fonts.py, gen_sfx.py,
+tools/                        # repo-level tooling: gen_pixel_fonts.py, audiogen/,
                               # gen_palette_lut.py, artgen/ (Grok Imagine), godot MCP
 ```
 
@@ -139,7 +139,7 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Camera moves in rooms; things that move in steps | the camera moves in rooms (sitting down, getting up, looking back, the window, the bus seat) are smooth: `scripts/ui/cam_move.gd` `CAM_MOVE.move(host, camera, {"position": p, "rotation": r}, seconds)`; it holds the tween for a steady frame (`CAM_MOVE.hold(host, tween)` for any tween started while a room is built); the fire, the torch hand, the gate and such machinery step twelve a second through `scripts/ui/step12.gd`; the door transition into buildings `scripts/ui/door_transition.gd` (frozen frame, smooth dither dissolve), called from `interior_manager._door_transition()`; out of them no dissolve: `interior_manager._step_out_of(structure)` puts the warden at the building's door (`door_anim.entry_points`) facing out and walks him off the doorstep (`_walk_body`) |
 | Story or sandbox, the sandbox's switches | NEW CAMP page in `scripts/ui/main_menu.gd` (`_set_nc_mode`, `NC_RULE_TEXT`); in game `main.CAMP_RULES` / `camp_rule(id)` ("threats", "weather", "events", "wear", "money"), saved as the snapshot's "rules"; a new system that the sandbox should be able to switch off checks `camp_rule` |
 | The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
-| Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds `tools/gen_splash_sfx.py`; after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
+| Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds recorded (ElevenLabs, `splash_*` rows in `tools/audiogen/prompts_world.tsv`); after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The check-in desk's key board (Dymo labels, the label maker), the room across the counter by hour/weather and its night scares | `scripts/reception/checkin_desk.gd` (`_slots`, `_pick_view`, `_roll_scare`); art `tools/artgen/desk_art.py views` |
 | Out of the camp: barrier, road, bus stop, timetable | `camp_gate.gd open_for_player / close_for_player`, `scripts/town/road_south.gd` (built by world gen), `bus_timetable.gd` (the one schedule), `timetable_closeup.gd` |
 | The 380 bus (outside, inside, the ride, the ticket machine) | `scripts/town/bus_model.gd`, `bus_ride.gd`, `ride_scenery.gd`, `ticket_closeup.gd`; buses run by the clock in `town_trip.gd` (`_plan`, `_run_special`, `_run_works`); the Karosa's sounds `assets/sfx/bus/karosa_*` (rows in `tools/audiogen/prompts.tsv`; `bus_ride._sfx` falls back to the old ride.mp3 when one is missing) |
@@ -158,13 +158,13 @@ Check visual changes at 1280x720 **and** 1920x1080.
 | Bookings, arrivals, the barrier, room states | `scripts/guest_manager.gd`, rules `core/systems/room_rules.gd` |
 | The gatehouse, barrier, road | `scripts/camp_gate.gd` (built by world_generator) |
 | Room tasks in interiors (hover, hold, checklist) | `scripts/interior_tasks.gd` + `scripts/interior_prep.gd`; what the mess is: `core/systems/mess_rules.gd`; toilet/shower blocks: `service_interior.gd` `set_upkeep_target` |
-| Generated sound effects | `tools/audiogen/` (ElevenLabs; key in the gitignored `.env`); then `python tools/audiogen/normalize.py 'assets/sfx/<dir>/*.mp3'` to bring them to -23 LUFS (each comes back as loud as it likes: one clipping, the next inaudible), and set the loudness in the code |
+| Generated sound effects | `tools/audiogen/` (ElevenLabs; key in the gitignored `.env`); then `python tools/audiogen/normalize.py 'assets/sfx/<dir>/*.mp3'` to bring them to -23 LUFS (each comes back as loud as it likes: one clipping, the next inaudible), and set the loudness in the code; sounds with an exact timing (the phone's cadences and keys, the station's pips, the set's tone) are cut from recordings in `tools/audiogen/raw/` by `tools/audiogen/cuts.py` |
 | Night jobs, the distribution board | `scripts/night_jobs.gd`, `scripts/breaker_panel.gd` |
 | Day events, camp life sounds | `scripts/day_events.gd` (sounds in `assets/sfx/life/`) |
 | Head turning inside interiors | `scripts/interior_look.gd` (limits set per interior script) |
 | Insects falling silent, the HUD face's glance | `scripts/threat_senses.gd` (reads `get_presence()`) |
 | Story mails (Vera, Nela, the odd ones) | `data/pools/emails/story/week01_story.json` |
-| The radio (playlist, outdoor source, the station) | `scripts/building_interior.gd`, synth: `tools/gen_sfx.py`; songs in `assets/sfx/radio/` (8 kHz 32 kbps, a `night` prefix = night only; originals `ost/<name>_hq.mp3`) |
+| The radio (playlist, outdoor source, the station) | `scripts/building_interior.gd`; the station that does not exist is recorded (`un_*` rows in `tools/audiogen/prompts_world.tsv`, its pips cut by `tools/audiogen/cuts.py`); songs in `assets/sfx/radio/` (8 kHz 32 kbps, a `night` prefix = night only; originals `ost/<name>_hq.mp3`) |
 | The radio going wrong with the night (layers, song bus, broadcasts) | `scripts/radio/radio_dread.gd`; sounds `tools/audiogen/radio_lines.tsv` → `radio_fetch.py` → `tools/gen_radio_dread.py` → `assets/sfx/radio_dread/`; listen: `tools/radio_dread_demo.gd` with `--write-movie` |
 | The office: phone, noticeboard, back room, sleep | `scripts/reception/` (reception_extras, back_room, sleep_sequence, camp_office, electrician_visit); the back room's door by hand `reception_extras._swing_back_door`, shut over the night in `_try_sleep`'s `fast_forward`; when beds take a click `camp_office.bedtime()` |
 | 2D close-ups (phone, noticeboard, logbook) | `scripts/closeup/closeup_view.gd` + subclasses; who answers the phone: `phone_book.gd`; voices `tools/audiogen/tts.py` + `voices.tsv` (needs a key with text_to_speech) |
@@ -551,7 +551,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   colour-matched rips are left only on the cellar machine animation and a few small bits).
 - **Fonts**: `python tools/gen_pixel_fonts.py` bakes `tools/font_src/*.ttf` into
   `godot/assets/fonts/*.fnt/.png` on their native grid. Import setting `scaling_mode=1`.
-- **Synth SFX**: `python tools/gen_sfx.py` (shutter, flash whine, static/hum loops, thump).
+- **No synthesised SFX** (the user: "to nechcem", 20. 10.: replace them all): every sound is a
+  recording (ElevenLabs, `tools/audiogen/`); exact timings are cut from recordings
+  (`tools/audiogen/cuts.py`: the phone line's 425 Hz tone to its cadences, ring 1 s / 4 s,
+  engaged 0.33 / 0.33, keys 0.13 s). The one exception is the radio's dread, layered in
+  code on purpose (`tools/gen_radio_dread.py`, `scripts/radio/radio_dread.gd`).
 - **Palette LUT**: `tools/gen_palette_lut.py`.
 
 Licensing: most world textures are rips from Redneck Rampage (`assets/textury/redneck/RRTX*`).

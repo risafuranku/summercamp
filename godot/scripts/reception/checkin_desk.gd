@@ -41,7 +41,7 @@ signal stranger_refused
 
 const TEX := "res://assets/textury/desk/"
 const SEASON = preload("res://core/systems/season.gd")
-const SFX_FLICKER := "res://assets/sfx/splash/sputter.wav"
+const SFX_FLICKER := "res://assets/sfx/splash/neon_sputter.mp3"
 ## The night scares by how bad tonight is (pressure below 0.3, below 0.6, above).
 const SCARES := [["forest", "bench"], ["window", "ceiling", "bench"], ["door", "counter", "window", "ceiling"]]
 const SFX := "res://assets/sfx/desk/"

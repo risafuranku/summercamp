@@ -76,7 +76,8 @@ func _cold() -> bool:
 
 func _outdoors() -> bool:
 	var main := _main()
-	if main == null or bool(main.get("_menu_mode")):
+	# Not the game's main (a harness scene): nowhere to breathe.
+	if main == null or main.get("_menu_mode") != false:
 		return false
 	return not (main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")))
 

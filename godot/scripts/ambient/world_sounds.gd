@@ -99,10 +99,13 @@ func _scan(here: Vector3) -> void:
 				continue
 			_gens[c.get_instance_id()] = _loop_player(c as Node3D, "generator_thrum.mp3", Vector3(0, 1.0, 0), 3.0, 32.0)
 	if _lake == null or not is_instance_valid(_lake):
+		# The jetty's body sits at the lake's origin: its deck is where the jetty is.
 		var jetty := root.find_child("Jetty", true, false) as Node3D
-		if jetty != null:
-			_lake = _loop_player(jetty, "lake_lapping.mp3", Vector3(0, 0.3, 4.0), 4.0, 30.0)
-			_frogs = _loop_player(jetty, "frogs_night.mp3", Vector3(-12.0, 0.3, 2.0), 8.0, 70.0)
+		var deck: Node3D = jetty.get_node_or_null("Deck") as Node3D if jetty != null else null
+		if deck != null:
+			var at := deck.position
+			_lake = _loop_player(jetty, "lake_lapping.mp3", at + Vector3(0, -0.1, 4.0), 4.0, 30.0)
+			_frogs = _loop_player(jetty, "frogs_night.mp3", at + Vector3(-12.0, -0.1, 2.0), 8.0, 70.0)
 
 
 ## What plays now: the lit lamps nearest you, the generator if there is power, the lake,

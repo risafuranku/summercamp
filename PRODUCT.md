@@ -110,7 +110,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Camp Status > Reviews | ✅ | |
 | Corn maze behind a wicket gate; night job: a lost guest in the corn, the scarecrow moves when unseen | ✅ | maze new every game, corn_check |
 | Corn inside the camp | ✅ | the west columns are corn tiles (ragged edge), a "tree" for the Builder (Grok iso sprite, bulldoze clears it); you wade through it slower; the west fence is posts and wire |
-| The office phone | ✅ | 2D DOS-style close-up (Grok), keys, LCD, 425 Hz tones, DTMF; numbers on the noticeboard; 113 recorded lines (ElevenLabs): Novotny, Vera's machine, the district, Jednota, the pub, police, ambulance, buses, the talking clock |
+| The office phone | ✅ | 2D DOS-style close-up (Grok), keys, LCD; the line is recorded (ElevenLabs: a Czech exchange's 425 Hz tone heard through the handset, cut to its cadences: dial tone, ring 1 s / 4 s, engaged 0.33 / 0.33, the keys 0.13 s each, the line's hiss); numbers on the noticeboard; 113 recorded lines (ElevenLabs): Novotny, Vera's machine, the district, Jednota, the pub, police, ambulance, buses, the talking clock |
 | The electrician | ✅ | rung on the phone he really comes: van on the gate road, walks in with a torch, fixes the main and the dead circuit at the generator, $60 / $120 after nine; nobody comes by themselves at dawn |
 | The noticeboard | ✅ | close-up: Vera's notes held up to read (numbers, bus, Novotny), the shed key hangs on it: taken, it goes into the bag; the bare pin, clicked with the key in the bag, takes it back |
 | Visible work: a gloved hand with the tool for every held job, stepped 8-12 fps animation (guests, fire, fan, gate, ripples) | ✅ | 8 hand sprites from Grok |

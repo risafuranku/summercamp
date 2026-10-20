@@ -178,7 +178,7 @@ var _risk_level_known: bool = false
 var _risk_payload: Dictionary = {}
 var _unread: int = 0
 var _pager: AudioStreamPlayer
-const PAGER_SFX := "res://assets/sfx/ui/pager.wav"
+const PAGER_SFX := "res://assets/sfx/ui/pager.mp3"
 var _objective: Dictionary = {}
 var _hint_text: String = ""
 var _feed: Array[Dictionary] = []
@@ -1557,7 +1557,7 @@ func page() -> void:
 	if _pager == null:
 		_pager = AudioStreamPlayer.new()
 		_pager.stream = load(PAGER_SFX) as AudioStream
-		_pager.volume_db = -6.0
+		_pager.volume_db = -2.0
 		add_child(_pager)
 	if _pager.stream != null:
 		_pager.play()
