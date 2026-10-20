@@ -47,14 +47,25 @@ const SKY_TEX_NIGHT_CLEAR_PATHS := ["res://assets/textury/skybox/skystars.png"]
 ## A clear morning before the sun (Grok `sky_dawn`): the peach and rose glow low along the
 ## horizon; the clear night turns into it from 5:15 and it into the day by 7:15 (season
 ## hours; the dawn was the night fading straight into noon's sky: inventory 20. 10.).
-const SKY_TEX_DAWN_PATHS := ["res://assets/textury/skybox/skydawn.png"]
+## The finer skies first (tools/artgen/sky_fine.py: two renders round the sky, at their
+## own pixel, redder and more violet; the user 20. 10.: the Grok skies were blocky and
+## not red enough); the first Grok ones after them.
+const SKY_TEX_DAWN_PATHS := ["res://assets/textury/skybox/skyf_dawn.png", "res://assets/textury/skybox/skydawn.png"]
 ## A clear evening (Grok): gold from 16:00 (`sky_golden`), the sun gone down at 18:15
 ## (`sky_sunset`), the blue hour round 19:00 (`sky_bluehour`), then the night (the brief's
 ## schedule, season hours; the Redneck evening and dusk skies before them were one flat
 ## red: inventory 20. 10.). The Redneck ones stay for the red anomaly, and as fallbacks.
-const SKY_TEX_GOLDEN_PATHS := ["res://assets/textury/skybox/skygolden.png"]
-const SKY_TEX_SUNSET_PATHS := ["res://assets/textury/skybox/skysunset.png", "res://assets/textury/skybox/skyeve.png"]
-const SKY_TEX_BLUE_PATHS := ["res://assets/textury/skybox/skybluehour.png", "res://assets/textury/skybox/skydusk.png"]
+const SKY_TEX_GOLDEN_PATHS := ["res://assets/textury/skybox/skyf_golden.png", "res://assets/textury/skybox/skygolden.png"]
+const SKY_TEX_SUNSET_PATHS := ["res://assets/textury/skybox/skyf_sunset.png", "res://assets/textury/skybox/skysunset.png", "res://assets/textury/skybox/skyeve.png"]
+const SKY_TEX_BLUE_PATHS := ["res://assets/textury/skybox/skyf_blue.png", "res://assets/textury/skybox/skybluehour.png", "res://assets/textury/skybox/skydusk.png"]
+## The late autumn, winter coming: more and more of the days without weather of their own
+## go under a leaden lid instead of the blue (LATE_GREY_FROM .. LATE_GREY_FULL of the
+## campaign, each day rolled once), its evening a dull red slit under the cloud, its
+## night overcast; no dawn glow.
+const SKY_TEX_LATE_DAY_PATHS := ["res://assets/textury/skybox/skyf_grey.png", "res://assets/textury/skybox/sky3.png"]
+const SKY_TEX_LATE_EVE_PATHS := ["res://assets/textury/skybox/skyf_greyeve.png", "res://assets/textury/skybox/skyf_grey.png"]
+const LATE_GREY_FROM: float = 0.5
+const LATE_GREY_FULL: float = 0.8
 const DAWN_SKY_START_HOUR: float = 5.25
 const DAWN_SKY_FULL_HOUR: float = 6.0
 const DAWN_SKY_END_HOUR: float = 7.25
@@ -1374,10 +1385,12 @@ func _sky_pair() -> Array:
 		return [red, red, 0.0]
 	var h := _season_hour(_time_of_day_hours)
 	var own := _weather_sky_path()
-	# The stars when the sky is clear; under a weather's own sky its cloud by night too.
-	var night := _sky_path(SKY_TEX_NIGHT_CLEAR_PATHS if own == "" else SKY_TEX_NIGHT_PATHS)
-	var day := own if own != "" else _sky_path(SKY_TEX_CLEAR_PATHS)
-	var dawn := _first_existing_path(SKY_TEX_DAWN_PATHS) if own == "" else ""
+	var grey := own == "" and _late_grey_day()
+	# The stars when the sky is clear; under a weather's own sky (or the late grey) its
+	# cloud by night too.
+	var night := _sky_path(SKY_TEX_NIGHT_CLEAR_PATHS if own == "" and not grey else SKY_TEX_NIGHT_PATHS)
+	var day := own if own != "" else _sky_path(SKY_TEX_LATE_DAY_PATHS if grey else SKY_TEX_CLEAR_PATHS)
+	var dawn := _first_existing_path(SKY_TEX_DAWN_PATHS) if own == "" and not grey else ""
 	if dawn != "" and h < DAWN_SKY_END_HOUR:
 		if h < DAWN_SKY_START_HOUR:
 			return [night, night, 0.0]
@@ -1397,11 +1410,11 @@ func _sky_pair() -> Array:
 			return [day, night, _sky_fade_t(h, NIGHT_SKY_FADE_START_HOUR, NIGHT_MID_HOUR)]
 		return [night, night, 0.0]
 	# The clear evening: each key the sky at that hour, faded from one to the next.
-	var golden := _first_existing_path(SKY_TEX_GOLDEN_PATHS)
+	var golden := _first_existing_path(SKY_TEX_GOLDEN_PATHS) if not grey else day
 	if golden == "":
 		golden = day
-	var sunset := _sky_path(SKY_TEX_SUNSET_PATHS)
-	var blue := _sky_path(SKY_TEX_BLUE_PATHS)
+	var sunset := _sky_path(SKY_TEX_LATE_EVE_PATHS if grey else SKY_TEX_SUNSET_PATHS)
+	var blue := _sky_path(SKY_TEX_LATE_EVE_PATHS if grey else SKY_TEX_BLUE_PATHS)
 	var keys: Array = [[16.0, day], [17.0, golden], [17.75, golden], [18.25, sunset], [18.6, sunset],
 		[19.1, blue], [NIGHT_SKY_FADE_START_HOUR, blue], [NIGHT_MID_HOUR, night]]
 	if h < float(keys[0][0]):
@@ -1414,6 +1427,16 @@ func _sky_pair() -> Array:
 				return [a[1], a[1], 0.0]
 			return [a[1], b[1], _sky_fade_t(h, float(a[0]), float(b[0]))]
 	return [night, night, 0.0]
+
+
+## A late autumn day under the grey lid instead of the blue: none before LATE_GREY_FROM
+## of the campaign, all from LATE_GREY_FULL, in between each day rolled once (by its
+## number: the same all day, and for both players).
+func _late_grey_day() -> bool:
+	var odds := clampf((Season.progress(season_day) - LATE_GREY_FROM) / (LATE_GREY_FULL - LATE_GREY_FROM), 0.0, 1.0)
+	if odds <= 0.0:
+		return false
+	return float(posmod(season_day * 7919 + 13, 100)) / 100.0 < odds
 
 
 func _sky_fade_t(h: float, from_h: float, to_h: float) -> float:

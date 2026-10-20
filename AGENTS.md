@@ -611,6 +611,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   cone) into a sprite of four warm shade steps for additive drawing, or of mist into four
   steps of see-through white. `night_sky.py dawn golden sunset bluehour` makes the
   morning's and the evening's panoramas (a glow on one side: east at dawn, west at night).
+  `python tools/artgen/sky_fine.py` makes the ones the game takes first (`skyf_dawn`,
+  `skyf_golden`, `skyf_sunset`, `skyf_blue`, the late `skyf_grey` and `skyf_greyeve`;
+  rows in `prompts_sky.tsv`): two renders per sky, the glow side and the other, side by
+  side round the sky (no mirror), seams blended, Grok's fuzzy 4-wide blocks taken out
+  (down by area, up smooth, 160 colours): the 4 x 4 blow-up read as coarse blocks.
   `python tools/artgen/ground_tex.py <id> <dest> [size] [--own]` makes a ground render
   tile (Grok's "seamless" does not) and snaps it to the palette, or with `--own` to 48
   colours of its own (the palette has few mid greens). Agent B's world rows
