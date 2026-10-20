@@ -8,6 +8,8 @@ signal hover_info(text: String)
 ## A click on a building with no tool in hand: {type, origin, footprint, root}, or {}
 ## when the click was on open ground (the card closes).
 signal building_clicked(info: Dictionary)
+## A guest clicked with no tool in hand (builder_module opens their card).
+signal guest_clicked(guest_id: int)
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
@@ -289,6 +291,31 @@ var _hammer_cd := 0.0
 var _rubble_cd := 0.0
 var _worker_tex: Array = WORKER_TEX.map(func(p): return load(p) if ResourceLoader.exists(p) else null)
 var _worker_minis: Dictionary = {}
+## The camp's weather and hour on the map, read each frame from the camp's own (main's
+## state, weather_visuals' wind and storm flash; never worked out here).
+const WX_RAIN_DROPS := {3: 70, 4: 140, 5: 220}
+var _wx := {}
+## What the guests think, from GuestManager's snapshot (a second old at most): the bubble
+## over each (its worst need, or a good mood now and then).
+const THINK_TEX := {
+	"hunger": "res://assets/textury/builder/think_hunger.png", "bladder": "res://assets/textury/builder/think_toilet.png",
+	"energy": "res://assets/textury/builder/think_sleepy.png", "hygiene": "res://assets/textury/builder/think_dirty.png",
+	"safety": "res://assets/textury/builder/think_scared.png", "cold": "res://assets/textury/builder/think_cold.png",
+	"happy": "res://assets/textury/builder/think_happy.png",
+}
+const THINK_NEED := 55.0
+var _think_tex: Dictionary = {}
+var _guest_minds: Dictionary = {}   # id -> {think, value}
+## The map lies, rarely and never in a log (DESIGN §5j): for a frame, a tent nobody built
+## beside the others (late in the day, at most once in a long while of the Builder open);
+## one tile of the camp says something is buried there.
+var _lie_at := 900.0               # Builder time of the next phantom
+var _lie: Dictionary = {}          # {cell, until}
+var _buried := Vector2i(-2, -2)
+var _mind_poll := 0.0
+var _wx_drops: Array = []
+var _dither: Array = []          # ordered-dither textures, 25/50/75 % ink
+var _fog_tex: Texture2D          # the dust puff's shape in white (fog banks)
 var _dust_tex: Texture2D = load(DUST_TEX) if ResourceLoader.exists(DUST_TEX) else null
 var _water_cells: Array = []    # [centre on the static layer, hash]
 var _smokers: Array = []        # [centre, strength, seed]
@@ -339,6 +366,7 @@ func _ready() -> void:
 	_dyn_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dyn_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_dyn_layer.draw.connect(_draw_dynamic)
+	_dyn_layer.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	add_child(_dyn_layer)
 	_zoom_target = _zoom_level
 	if EventBus.has_signal("building_placed"):
@@ -527,6 +555,7 @@ func _process(delta: float) -> void:
 	_time += delta
 	_bfx.tick(delta)
 	_tick_sites(delta)
+	_read_weather()
 	for i in range(_fx.size() - 1, -1, -1):
 		_fx[i]["t"] = float(_fx[i]["t"]) + delta
 		if float(_fx[i]["t"]) >= float(_fx[i]["life"]):
@@ -702,7 +731,12 @@ func _gui_input(event: InputEvent) -> void:
 
 func _handle_left_press(local_pos: Vector2) -> void:
 	if selected_building == "":
-		# No tool in hand: a click on a building opens its card (builder_module).
+		# No tool in hand: a click on a guest opens theirs, on a building its card.
+		var gid := guest_at(local_pos)
+		if gid >= 0:
+			guest_clicked.emit(gid)
+			_play("click", -12.0)
+			return
 		var info := structure_at(_local_to_grid(local_pos))
 		inspect_origin = info.get("origin", Vector2i(-1, -1))
 		inspect_footprint = info.get("footprint", Vector2i.ONE)
@@ -1462,6 +1496,10 @@ func _draw_dynamic() -> void:
 		var a := 0.18 + 0.14 * sin(ph)
 		var off := Vector2(sin(ph * 0.7) * tile_w * 0.12, cos(ph * 0.5) * tile_h * 0.10)
 		_cv.draw_line(c + off - Vector2(tile_w * 0.12, 0), c + off + Vector2(tile_w * 0.12, 0), Color(0.7, 0.85, 1.0, a), 1.0)
+	_tick_lie()
+	if not _lie.is_empty() and _time < float(_lie["until"]):
+		var lc: Vector2i = _lie["cell"]
+		_draw_building_icon(_footprint_center_iso(lc, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, "tent_1", 0, Color(0.92, 0.92, 0.92, 0.96), tile_w, tile_h)
 	for rb in _rubble:
 		var rc := _footprint_center_iso(rb["o"], rb["f"], origin, tile_w, tile_h)
 		var fade := clampf((RUBBLE_LIFE - (_time - float(rb["t"]))) / 0.8, 0.0, 1.0)
@@ -1483,7 +1521,9 @@ func _draw_dynamic() -> void:
 		_draw_guest(g, tile_h)
 	_draw_lodging_badges(origin, tile_w, tile_h)
 	if overlay != "light":
+		_draw_dusk()
 		_draw_night(lights, tile_w, tile_h)
+		_draw_weather()
 	_draw_fx(origin, tile_w, tile_h)
 	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
 	var valid_c := Callable(self, "_is_valid_coord")
@@ -1898,6 +1938,65 @@ func _update_guests(delta: float) -> void:
 			_guests.erase(id)
 	_update_mate()
 	_update_extra_guest()
+	_mind_poll -= 0.1
+	if _mind_poll <= 0.0:
+		_mind_poll = 1.0
+		_update_minds()
+
+
+func _update_minds() -> void:
+	_guest_minds.clear()
+	if GuestManager == null or not GuestManager.has_method("get_guest_life_snapshot"):
+		return
+	for g in GuestManager.get_guest_life_snapshot():
+		if not (g is Dictionary):
+			continue
+		var think := ""
+		var worst: Dictionary = g.get("worst_need", {})
+		var wv := float(worst.get("value", 100.0)) if not worst.is_empty() else 100.0
+		var wk := str(worst.get("need", worst.get("key", "")))
+		var thought := str(g.get("thought", "")).to_lower()
+		if (thought.contains("cold") or thought.contains("froze") or thought.contains("ice")) and int(g.get("thought_age", 9999)) < 240:
+			think = "cold"
+		elif wv < THINK_NEED and THINK_TEX.has(wk):
+			think = wk
+		elif float(g.get("mood", 50.0)) > 78.0:
+			think = "happy"
+		_guest_minds[int(g.get("id", -1))] = {"think": think, "value": wv}
+
+
+## The guest under a point of the panel (their figure), or -1.
+func guest_at(local_pos: Vector2) -> int:
+	if grid_manager == null:
+		return -1
+	var iso = _compute_iso_layout(int(grid_manager.grid_width), int(grid_manager.grid_height))
+	var mini_h := clampi(int(round(iso.tile_h * 1.1 / 4.0)) * 4, 12, 56)
+	var best := -1
+	var best_d := 1e9
+	for id in _guests:
+		var foot := _cell_to_iso_f(_guests[id]["cell"], iso.origin, iso.tile_w, iso.tile_h)
+		var r := Rect2(foot - Vector2(mini_h * 0.35, mini_h), Vector2(mini_h * 0.7, mini_h + 2.0))
+		if r.has_point(local_pos):
+			var d := foot.distance_to(local_pos)
+			if d < best_d:
+				best_d = d
+				best = int(id)
+	return best
+
+
+## The map drifts to keep a guest in the middle (their card's Follow).
+func follow_guest(id: int, delta: float) -> bool:
+	if not _guests.has(id):
+		return false
+	var want := size * 0.5 - _cell_iso(Vector2(_guests[id]["cell"]))
+	_pan_offset += want * clampf(delta * 3.0, 0.0, 1.0)
+	_pan_vel = Vector2.ZERO
+	_clamp_pan_offset_for_current_map()
+	return true
+
+
+func guest_cell(id: int) -> Vector2:
+	return Vector2(_guests[id]["cell"]) if _guests.has(id) else Vector2.INF
 
 
 ## Co-op: the other warden on the map in their own look, where they walk; in a lodging
@@ -1983,7 +2082,7 @@ func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_
 		var g: Dictionary = _guests[id]
 		var p := _cell_to_iso_f(g["cell"], origin, tile_w, tile_h)
 		var dc := _display_cell_f(g["cell"])
-		entries.append({"guest": true, "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"], "phase": g["phase"], "facing": 0})
+		entries.append({"guest": true, "id": int(id), "pos": p, "order": dc.x + dc.y + 0.6, "archetype": g["archetype"], "moving": g["moving"], "phase": g["phase"], "facing": 0})
 	for id in _mates.keys():
 		var m: Dictionary = _mates[id]
 		var pm := _cell_to_iso_f(m["cell"], origin, tile_w, tile_h)
@@ -2049,6 +2148,24 @@ func _mini_of(src: Texture2D, h: int) -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
+func _draw_think(e: Dictionary, foot: Vector2, sz: Vector2) -> void:
+	var mind: Dictionary = _guest_minds.get(int(e.get("id", -1)), {})
+	var think := str(mind.get("think", ""))
+	if think == "":
+		return
+	# Up for two and a half seconds in every nine, each guest on their own beat.
+	if fmod(_guest_time + float(e["phase"]) * 3.0, 9.0) > 2.5:
+		return
+	if not _think_tex.has(think):
+		var p := str(THINK_TEX.get(think, ""))
+		_think_tex[think] = load(p) if p != "" and ResourceLoader.exists(p) else null
+	var tex: Texture2D = _think_tex[think]
+	if tex == null:
+		return
+	var bs := clampf(sz.y * 0.7, 12.0, 24.0)
+	_cv.draw_texture_rect(tex, Rect2((foot + Vector2(sz.x * 0.1, -sz.y - bs + 2.0)).floor(), Vector2(bs, bs)), false)
+
+
 func _draw_guest(e: Dictionary, tile_h: float) -> void:
 	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
 	var tex: Texture2D = null
@@ -2064,6 +2181,8 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 		var sz := tex.get_size()
 		_cv.draw_rect(Rect2(foot + Vector2(-sz.x * 0.4, -1.0), Vector2(sz.x * 0.8, 2.0)), Color(0, 0, 0, 0.35))
 		_cv.draw_texture(tex, (foot - Vector2(sz.x * 0.5, sz.y - bob)).floor())
+		if not e.has("mate"):
+			_draw_think(e, foot, sz)
 		if e.has("mate"):
 			# Their name over them, so they are not taken for a guest.
 			var who := Coop.name_of(int(e["mate"]))
@@ -3075,12 +3194,203 @@ func _draw_fx(origin: Vector2, tile_w: float, tile_h: float) -> void:
 				_cv.draw_string(T.FONT_BOLD, q + Vector2(-w * 0.5, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, col)
 
 
-## Grey puffs rising from a fire or a chimney.
+## Grey puffs rising from a fire or a chimney, leaning with the wind (in a gale they
+## go almost flat), in steps.
 func _draw_smoke(center: Vector2, tile_h: float, strength: float, seed: int) -> void:
+	var wind := float(_wx.get("wind", 0.15))
+	var dir: Vector2 = _wx.get("dir", Vector2(0.94, 0.34))
+	var lean := clampf(wind, 0.1, 1.4)
+	var t := floorf(_time * 12.0) / 12.0
 	for i in 4:
-		var ph := fmod(_time * 0.35 + float(i) * 0.25 + float(seed % 17) * 0.06, 1.0)
-		var q := center + Vector2(sin(ph * 5.0 + seed) * tile_h * 0.25 + ph * tile_h * 0.4, -tile_h * (1.0 + ph * 2.4))
-		_cv.draw_circle(q, tile_h * (0.10 + ph * 0.22), Color(0.72, 0.72, 0.70, 0.42 * strength * (1.0 - ph)))
+		var ph := fmod(t * 0.35 + float(i) * 0.25 + float(seed % 17) * 0.06, 1.0)
+		var q := center + Vector2(sin(ph * 5.0 + seed) * tile_h * 0.2 + ph * tile_h * (0.4 + 2.2 * lean) * signf(dir.x + 0.001), -tile_h * (1.0 + ph * 2.4 / (1.0 + lean)))
+		var r := tile_h * (0.12 + ph * 0.26)
+		var col := Color(0.74, 0.74, 0.72, 0.5 * strength * (1.0 - ph))
+		if _dust_tex != null:
+			_cv.draw_texture_rect(_dust_tex, Rect2(q - Vector2(r, r * 0.8), Vector2(r * 2.0, r * 1.6)), false, col)
+		else:
+			_cv.draw_rect(Rect2(q - Vector2(r, r) * 0.5, Vector2(r, r)), col)
+
+
+func _tick_lie() -> void:
+	if _time < _lie_at:
+		return
+	_lie_at = _time + randf_range(1200.0, 2600.0)
+	var h := float(_wx.get("hour", 12.0))
+	if h < 15.0 or h > 20.0:
+		return
+	# Beside a tent that is there: on open ground next to it.
+	var tents: Array = []
+	for o in _known:
+		if str(_known[o][0]).begins_with("tent"):
+			tents.append(o)
+	if tents.size() < 2:
+		return
+	var t: Vector2i = tents[randi() % tents.size()]
+	for d in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]:
+		var c: Vector2i = t + d
+		if _is_valid_coord(c) and structure_at(c).is_empty() and _can_place(c, Vector2i.ONE, "tent_1"):
+			_lie = {"cell": c, "until": _time + 1.0 / 12.0}
+			return
+
+
+## The one tile of this camp that says something is buried there (from the world's seed:
+## the same tile every time in the same camp; open forest floor, away from the middle).
+func _buried_tile() -> Vector2i:
+	if _buried.x == -2 and grid_manager != null:
+		_buried = Vector2i(-1, -1)
+		var wg = get_tree().current_scene.get("world_generator") if get_tree() != null and get_tree().current_scene != null else null
+		var seed_v := int(wg.get("world_seed")) if wg != null and wg.get("world_seed") != null else 0
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_v * 31 + 7
+		var gw := int(grid_manager.grid_width)
+		var gh := int(grid_manager.grid_height)
+		for i in 60:
+			var c := Vector2i(rng.randi_range(1, gw - 2), rng.randi_range(1, gh - 2))
+			var tile = grid_manager.get_tile(c)
+			if tile != null and tile.tile_type != grid_manager.TILE_LAKE and tile.tile_type != grid_manager.TILE_RESERVED and (Vector2(c) - Vector2(gw, gh) * 0.5).length() > float(mini(gw, gh)) * 0.3:
+				_buried = c
+				break
+	return _buried
+
+
+func _read_weather() -> void:
+	var tree := get_tree()
+	var main = tree.current_scene if tree != null else null
+	if main == null:
+		return
+	var wx := {"state": 0, "snow": false, "wind": 0.15, "dir": Vector2(0.94, 0.34), "flash": 0.0, "hour": 12.0}
+	if main.get("_weather_state") != null:
+		wx["state"] = int(main.get("_weather_state"))
+	var ws = main.get("weather_system")
+	if ws != null and ws.has_method("is_snowing"):
+		wx["snow"] = bool(ws.is_snowing())
+	var wv = main.get("_weather_visuals")
+	if wv != null:
+		if wv.get("_wind_now") != null:
+			wx["wind"] = float(wv.get("_wind_now"))
+		if wv.get("wind_dir") != null:
+			wx["dir"] = wv.get("wind_dir")
+		if wv.get("_storm_flash_strength") != null:
+			wx["flash"] = float(wv.get("_storm_flash_strength"))
+	if main.get("_time_of_day_hours") != null:
+		wx["hour"] = float(main.get("_time_of_day_hours"))
+	_wx = wx
+
+
+## The evening's light in palette steps before the night's own dark: gold toward five, red
+## at a quarter past six, the blue hour after; a pink dawn. Four steps, never smooth.
+func _draw_dusk() -> void:
+	var h := float(_wx.get("hour", 12.0))
+	var bands := [
+		[5.4, 6.2, 7.2, Color(1.0, 0.62, 0.58), 0.12],
+		[16.2, 17.2, 17.9, Color(1.0, 0.74, 0.34), 0.12],
+		[17.7, 18.25, 18.9, Color(0.95, 0.36, 0.22), 0.18],
+		[18.6, 19.3, 20.6, Color(0.24, 0.30, 0.66), 0.22],
+	]
+	for b in bands:
+		if h <= float(b[0]) or h >= float(b[2]):
+			continue
+		var k := (h - float(b[0])) / (float(b[1]) - float(b[0])) if h < float(b[1]) else (float(b[2]) - h) / (float(b[2]) - float(b[1]))
+		k = floorf(clampf(k, 0.0, 1.0) * 4.0) / 4.0
+		if k <= 0.0:
+			continue
+		var c: Color = b[3]
+		c.a = float(b[4]) * k
+		_cv.draw_rect(Rect2(Vector2.ZERO, size), c)
+
+
+## Rain in slanting streaks (the wind's slant), splashes on the ground, snow as flakes
+## drifting down; fog in dithered bands; the storm's flash with the camp's.
+func _draw_weather() -> void:
+	var state := int(_wx.get("state", 0))
+	var wind := float(_wx.get("wind", 0.15))
+	var dir: Vector2 = _wx.get("dir", Vector2(0.94, 0.34))
+	var t := floorf(_time * 12.0) / 12.0
+	var w := size.x
+	var h := size.y
+	if _wx_drops.is_empty():
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 7
+		for i in 240:
+			_wx_drops.append([rng.randf(), rng.randf(), rng.randf_range(0.8, 1.2)])
+	var n := int(WX_RAIN_DROPS.get(state, 0))
+	var snow := bool(_wx.get("snow", false))
+	if n > 0:
+		var slant := clampf(dir.x * wind * 0.7, -0.9, 0.9)
+		if snow:
+			for i in mini(int(n * 0.7), _wx_drops.size()):
+				var d: Array = _wx_drops[i]
+				var y := fmod(float(d[1]) * h + t * 24.0 * float(d[2]), h)
+				var x := fposmod(float(d[0]) * w + sin(t * 1.3 + float(i)) * 5.0 + t * slant * 18.0, w)
+				_cv.draw_rect(Rect2(Vector2(x, y).floor(), Vector2(2, 2) if i % 3 == 0 else Vector2.ONE), Color(1, 1, 1, 0.85))
+		else:
+			var col := Color(0.70, 0.78, 0.92, 0.5)
+			for i in mini(n, _wx_drops.size()):
+				var d: Array = _wx_drops[i]
+				var sp := 260.0 * float(d[2])
+				var y := fmod(float(d[1]) * (h + 12.0) + t * sp, h + 12.0) - 12.0
+				var x := fposmod(float(d[0]) * w + t * sp * slant, w)
+				var l := 7.0 * float(d[2])
+				_cv.draw_line(Vector2(x, y).floor(), (Vector2(x, y) + Vector2(slant * l, l)).floor(), col, 1.0)
+			# Splashes: a few new ones each step, where the drops land.
+			var step := int(t * 12.0)
+			for k in n / 7:
+				var hx := (k * 7919 + step * 104729) % 9973
+				var hy := (k * 15485863 + step * 32452843) % 9967
+				var p := Vector2(float(hx) / 9973.0 * w, float(hy) / 9967.0 * h).floor()
+				_cv.draw_rect(Rect2(p, Vector2(3, 1)), Color(0.80, 0.86, 0.96, 0.55))
+	# Under rain the map goes overcast (a flat shade, a step darker in a storm).
+	if n > 0 and not snow:
+		_cv.draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.06, 0.12, 0.18 if state == 5 else 0.10))
+	# Fog: the map behind a thin dithered veil, banks of it drifting with the wind (big
+	# soft puffs of the dust picture, in steps).
+	if state == 2:
+		_ensure_dither()
+		var fc := Color(0.80, 0.82, 0.84)
+		_cv.draw_texture_rect(_dither[0], Rect2(Vector2.ZERO, size), true, Color(fc, 0.30))
+		var tb := floorf(_time * 4.0) / 4.0
+		if _fog_tex != null:
+			for b in 8:
+				var d: Array = _wx_drops[(b * 17) % _wx_drops.size()]
+				var bw := w * (0.30 + 0.22 * float(d[2]))
+				var bx := fposmod(float(d[0]) * (w + bw) + tb * 5.0 * signf(dir.x + 0.001), w + bw) - bw * 0.5
+				var by := float(d[1]) * h
+				_cv.draw_texture_rect(_fog_tex, Rect2(Vector2(bx - bw * 0.5, by - bw * 0.22).floor(), Vector2(bw, bw * 0.44).floor()), false, Color(fc, 0.34))
+	# Leaves on the wind (the autumn's, before the snow).
+	if wind > 0.6 and not snow:
+		var lc := [Color8(150, 74, 30), Color8(186, 130, 44), Color8(120, 70, 36)]
+		for i in int(wind * 18.0):
+			var d: Array = _wx_drops[(i * 13) % _wx_drops.size()]
+			var x := fposmod(float(d[0]) * w + t * 90.0 * float(d[2]) * signf(dir.x + 0.001), w)
+			var y := fposmod(float(d[1]) * h + sin(t * 3.0 + float(i)) * 8.0 + t * 12.0, h)
+			_cv.draw_rect(Rect2(Vector2(x, y).floor(), Vector2(2, 1)), lc[i % 3])
+	var flash := float(_wx.get("flash", 0.0))
+	if flash > 0.05:
+		_cv.draw_rect(Rect2(Vector2.ZERO, size), Color(0.86, 0.90, 1.0, floorf(flash * 3.0) / 3.0 * 0.45))
+
+
+## Ordered-dither ink (4x4 Bayer): 25 % and 50 % of the pixels, tiled over the map.
+func _ensure_dither() -> void:
+	if not _dither.is_empty():
+		return
+	if _dust_tex != null:
+		var img := _dust_tex.get_image().duplicate() as Image
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y)
+				img.set_pixel(x, y, Color(1, 1, 1, c.a))
+		_fog_tex = ImageTexture.create_from_image(img)
+	var bayer := [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
+	for level in [4, 8]:
+		var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+		for y in 4:
+			for x in 4:
+				img.set_pixel(x, y, Color(1, 1, 1, 1.0 if int(bayer[y][x]) < level else 0.0))
+		_dither.append(ImageTexture.create_from_image(img))
 
 
 ## Dusk and night: the map darkens, lamps and fires make pools of light.
@@ -3155,6 +3465,8 @@ func _describe(coord: Vector2i) -> String:
 					var rs: Dictionary = GuestManager.get_room_state(key)
 					var st := "guests" if bool(rs.get("occupied", false)) else ({"ready": "ready", "dirty": "dirty", "unprepared": "not made up"}.get(str(rs.get("status", "")), "") as String)
 					return GuestManager.room_label(key) + (("  -  " + st) if st != "" else "")
+	if coord == _buried_tile() and (what == "Forest floor" or what == "Pine tree"):
+		return "%d:%d  %s  -  Something is buried here" % [coord.x, coord.y, what]
 	return "%d:%d  %s" % [coord.x, coord.y, what]
 
 

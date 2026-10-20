@@ -489,6 +489,24 @@ was left out: the camp's rating is Goggle (§5i), and it opens the blueprints.
   (quieter away from it). From 18:00 to the lock at 20:00 it goes a little flat and slow,
   more so on the eve of a bad night (NIGHT RISK high); the speaker button in the toolbar
   turns it off (remembered by the PC).
+- **The map has the camp's weather and hour** (read from the camp, never worked out on
+  the map): rain in slanting streaks with the wind's slant and splashes, the map a shade
+  darker under it (a step more in a storm); fog as a thin dithered veil with banks
+  drifting with the wind; snow as flakes over the snowy ground; the storm's flash with
+  the camp's; smoke leaning with the wind (flat in a gale); autumn leaves blowing in a
+  wind. The evening in palette steps before the night: gold toward five, red at a
+  quarter past six, the blue hour; a pink dawn.
+- **What the guests think.** A bubble over a guest a few seconds in every nine: their
+  worst need (hungry, the toilet, tired, dirty, frightened), cold after a cold night, a
+  smile when all is well. A click on a guest opens their card: name and party, room,
+  mood, six needs in bars, what they last thought (theirs, from their stay; now and then,
+  more often when they are frightened, one that is not quite right: "The lake looked at
+  me."), Follow to keep them in the middle of the map.
+- **The map lies, rarely, never in a log.** Late in the day, once in a long while, a tent
+  nobody built stands beside the others for one frame (no number over it). One tile of
+  each camp (from its seed, open forest away from the middle) says in the status line
+  that something is buried there. The site report now and then counts one guest more
+  than there are, after six.
 
 ## 6. Upkeep
 

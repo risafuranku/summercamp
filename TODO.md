@@ -88,11 +88,11 @@ start, collect good ratings; pay to delete bad reviews".
   rolling like an odometer
 - [x] Tool cursors (bulldozer, path, lamp, a blueprint) and drag-building rows of benches,
   lamps and flower beds
-- [ ] The map follows the weather and the hour: rain streaks, fog, dusk tint (the night is
+- [x] The map follows the weather and the hour: rain streaks, fog, dusk tint (the night is
   `_draw_night`)
-- [ ] Guests' thought bubbles over their heads (`think_*` -> `builder/think_*.png`) and a
+- [x] Guests' thought bubbles over their heads (`think_*` -> `builder/think_*.png`) and a
   guest card on click with their thoughts, some of them wrong ("The lake looked at me.")
-- [ ] The map lies, rarely: a tent nobody built for one frame, a tile that says "Something
+- [x] The map lies, rarely: a tent nobody built for one frame, a tile that says "Something
   is buried here"
 - [ ] A Graphs window (Transport Tycoon's): money, guests, satisfaction over 14 days (look
   for a day-by-day history first, e.g. the week ledger)

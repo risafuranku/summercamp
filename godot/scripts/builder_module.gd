@@ -227,9 +227,11 @@ func _build_ui() -> void:
 	_map_panel.submenu_close_requested.connect(func(): _open_category(""))
 	_map_panel.hover_info.connect(func(t: String): _status_tile.text = t)
 	_map_panel.building_clicked.connect(_on_building_clicked)
+	_map_panel.guest_clicked.connect(_on_guest_clicked)
 	_build_status()
 	_build_info()
 	_build_inspector()
+	_build_guest_card()
 	_build_splash()
 	resized.connect(_layout)
 	_layout()
@@ -266,6 +268,8 @@ func _layout() -> void:
 		_info.position = Vector2(well.position.x + 8, well.position.y + well.size.y - _info.size.y - 8)
 	if _inspect != null:
 		_inspect.position = Vector2(well.position.x + well.size.x - _inspect.size.x - 8, well.position.y + well.size.y - _inspect.size.y - 8)
+	if _gcard != null:
+		_gcard.position = Vector2(well.position.x + well.size.x - _gcard.size.x - 8, well.position.y + well.size.y - _gcard.size.y - 8)
 	if _splash != null:
 		_splash.size = size
 		if _splash_bar != null:
@@ -669,6 +673,7 @@ func _build_inspector() -> void:
 
 
 func _on_building_clicked(info: Dictionary) -> void:
+	_close_guest_card()
 	_insp = info
 	_inspect.visible = not info.is_empty()
 	if _inspect.visible:
@@ -685,6 +690,162 @@ func _close_inspector() -> void:
 func _main() -> Node:
 	var tree := get_tree()
 	return tree.current_scene if tree != null else null
+
+
+# ── the guest card ───────────────────────────────────────────────────────────
+
+## A guest clicked on the map: their name, their party and room, how they are (six needs,
+## the mood), what they last thought (theirs; now and then one that is not quite right);
+## Follow keeps them in the middle of the map.
+const GCARD_SIZE := Vector2(282, 150)
+const NEED_SHORT := [["energy", "Sleep"], ["hunger", "Food"], ["bladder", "WC"], ["hygiene", "Wash"], ["fun", "Fun"], ["safety", "Safe"]]
+const ODD_THOUGHTS := [
+	"The lake looked at me.", "Someone sat on my bed while I was out.", "The boy in the red shoes asked for me.",
+	"There is one more tent than yesterday.", "Who whistles out there at night?", "I counted the lamps twice. Not the same.",
+	"The man at the desk wrote my name before I said it.",
+]
+var _gcard: Control
+var _gcard_id := -1
+var _gcard_odd := ""
+var _following := false
+var _follow_btn: Button
+
+
+func _build_guest_card() -> void:
+	_gcard = Control.new()
+	_gcard.size = GCARD_SIZE
+	_gcard.mouse_filter = Control.MOUSE_FILTER_STOP
+	_gcard.visible = false
+	_gcard.draw.connect(_draw_guest_card)
+	add_child(_gcard)
+	_follow_btn = Button.new()
+	_follow_btn.text = "Follow"
+	_follow_btn.toggle_mode = true
+	_follow_btn.focus_mode = Control.FOCUS_NONE
+	_follow_btn.position = Vector2(GCARD_SIZE.x - 82, GCARD_SIZE.y - 28)
+	_follow_btn.size = Vector2(76, 22)
+	_follow_btn.toggled.connect(func(on: bool):
+		_click()
+		_following = on)
+	_gcard.add_child(_follow_btn)
+	var close := Button.new()
+	close.text = "x"
+	close.focus_mode = Control.FOCUS_NONE
+	close.position = Vector2(GCARD_SIZE.x - 21, 4)
+	close.size = Vector2(16, 14)
+	close.pressed.connect(_close_guest_card)
+	_gcard.add_child(close)
+
+
+func _on_guest_clicked(id: int) -> void:
+	_close_inspector()
+	_gcard_id = id
+	_following = false
+	_follow_btn.set_pressed_no_signal(false)
+	# Now and then what they think is not quite right: more so when they are frightened.
+	_gcard_odd = ""
+	var g := _guest_row(id)
+	var safe := float((g.get("needs", {}) as Dictionary).get("safety", 100.0))
+	if randf() < (0.3 if safe < 40.0 else 0.04):
+		_gcard_odd = str(ODD_THOUGHTS[randi() % ODD_THOUGHTS.size()])
+	_gcard.visible = true
+	_gcard.queue_redraw()
+	_layout()
+
+
+func _close_guest_card() -> void:
+	_gcard_id = -1
+	_following = false
+	if _gcard != null:
+		_gcard.visible = false
+
+
+func _guest_row(id: int) -> Dictionary:
+	if GuestManager == null or not GuestManager.has_method("get_guest_life_snapshot"):
+		return {}
+	for g in GuestManager.get_guest_life_snapshot():
+		if g is Dictionary and int(g.get("id", -2)) == id:
+			return g
+	return {}
+
+
+func _tick_guest_card(delta: float) -> void:
+	if _gcard == null or not _gcard.visible:
+		return
+	if _following and not _map_panel.follow_guest(_gcard_id, delta):
+		_following = false
+		_follow_btn.set_pressed_no_signal(false)
+	_gcard_t -= delta
+	if _gcard_t <= 0.0:
+		_gcard_t = 0.5
+		if _guest_row(_gcard_id).is_empty():
+			_close_guest_card()
+		else:
+			_gcard.queue_redraw()
+
+
+var _gcard_t := 0.0
+var _gcard_face: Dictionary = {}
+
+
+func _draw_guest_card() -> void:
+	var c := _gcard
+	var s := c.size
+	var g := _guest_row(_gcard_id)
+	c.draw_style_box(T.box("window", T.FACE), Rect2(Vector2.ZERO, s))
+	var band := Rect2(3, 3, s.x - 6, 17)
+	for i in int(ceil(band.size.x / 8.0)):
+		c.draw_rect(Rect2(band.position.x + i * 8, band.position.y, minf(8.0, band.size.x - i * 8), band.size.y), T.TITLE_A.lerp(T.TITLE_B, float(i * 8) / band.size.x))
+	if g.is_empty():
+		return
+	var party := int(g.get("party_size", 1))
+	var title := str(g.get("name", "Guest")) + ("  and %d more" % (party - 1) if party > 1 else "")
+	c.draw_string(T.FONT_BOLD, band.position + Vector2(4, 13), title, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, T.FONT_SIZE, T.WHITE)
+	# Their face: the top of their figure.
+	var face := _guest_face(str(g.get("sprite_path", "")))
+	c.draw_rect(Rect2(6, 24, 50, 50), Color8(40, 56, 40))
+	if face != null:
+		c.draw_texture_rect(face, Rect2(8, 26, 46, 46), false)
+	var x := 62.0
+	var y := 36.0
+	var room := ""
+	var lodg = g.get("lodging", null)
+	if lodg is Vector2i and (lodg as Vector2i).x >= 0 and GuestManager != null:
+		room = GuestManager.room_label("%d:%d" % [lodg.x, lodg.y])
+	c.draw_string(T.FONT, Vector2(x, y), room if room != "" else "No room", HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 26, T.FONT_SIZE, Color8(60, 60, 110))
+	c.draw_string(T.FONT_BOLD, Vector2(x, y + 14), str(g.get("mood_label", "")), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 8, T.FONT_SIZE, Color8(40, 70, 170))
+	# Six needs, two columns of little bars.
+	var needs: Dictionary = g.get("needs", {})
+	for i in NEED_SHORT.size():
+		var nx := x + float(i % 2) * 106.0
+		var ny := y + 24.0 + float(i / 2) * 13.0
+		var v := clampf(float(needs.get(NEED_SHORT[i][0], 100.0)) / 100.0, 0.0, 1.0)
+		c.draw_string(T.FONT, Vector2(nx, ny + 9), str(NEED_SHORT[i][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
+		var bar := Rect2(nx + 34, ny + 1, 62, 8)
+		c.draw_rect(bar, Color8(60, 60, 60))
+		var col := Color8(40, 170, 40) if v > 0.6 else (Color8(220, 160, 0) if v > 0.3 else Color8(200, 30, 20))
+		c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * v), bar.size.y)), col)
+	# What they last thought.
+	var thought := _gcard_odd if _gcard_odd != "" else str(g.get("thought", ""))
+	if thought != "":
+		T.FONT.draw_multiline_string(c.get_canvas_item(), Vector2(8, s.y - 36), char(34) + thought + char(34), HORIZONTAL_ALIGNMENT_LEFT, s.x - 96, T.FONT_SIZE, 2, Color8(70, 50, 30))
+
+
+func _guest_face(path: String) -> Texture2D:
+	if _gcard_face.has(path):
+		return _gcard_face[path]
+	var tex: Texture2D = null
+	if path != "" and ResourceLoader.exists(path):
+		var src := (load(path) as Texture2D).get_image().duplicate() as Image
+		if src.is_compressed():
+			src.decompress()
+		var used := src.get_used_rect()
+		var side := mini(used.size.x, int(used.size.y * 0.34))
+		var crop := src.get_region(Rect2i(used.position.x + (used.size.x - side) / 2, used.position.y, side, side))
+		crop.resize(46, 46, Image.INTERPOLATE_NEAREST)
+		tex = ImageTexture.create_from_image(crop)
+	_gcard_face[path] = tex
+	return tex
 
 
 ## What the card says about the building now: worked out twice a second while it is up.
@@ -1122,6 +1283,7 @@ func _process(delta: float) -> void:
 		_tick = 0.5
 		_refresh_info()
 	_tick_odo(delta)
+	_tick_guest_card(delta)
 	_tick_coins(delta)
 	_tick_music(delta)
 	_tick_cursor()
@@ -1438,6 +1600,15 @@ func _site_report() -> String:
 					counts[k] = int(counts.get(k, 0)) + 1
 	var beds: Dictionary = GuestManager.get_bed_metrics() if GuestManager != null else {}
 	var t := "Site: Kemp Cerne jezero\nDay %d\n\nBeds: %d (%d free)\nCash: $%s" % [CoreRoot.get_day(), int(beds.get("capacity", 0)), int(beds.get("free", 0)), _group(CoreRoot.get_money())]
+	var guests := 0
+	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
+		for g in GuestManager.get_guest_life_snapshot():
+			guests += int((g as Dictionary).get("party_size", 1)) if g is Dictionary else 0
+	var m := _main()
+	var h := float(m.get("_time_of_day_hours")) if m != null and m.get("_time_of_day_hours") != null else 12.0
+	if guests > 0 and h >= 18.0 and randf() < 0.12:
+		guests += 1
+	t += "\nGuests: %d" % guests
 	if not counts.is_empty():
 		t += "\n"
 		for k in counts:
