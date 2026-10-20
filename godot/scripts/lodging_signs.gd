@@ -20,8 +20,8 @@ const CAMP := "res://assets/textury/camp/"
 const TENT_STAKE := Vector3(0.62, 0.0, 1.6)
 const SIGN_CLEAN := "res://assets/textury/world/sign_clean.png"
 const SIGN_BED := "res://assets/textury/world/sign_bed.png"
-## The marker's size (20 px pictures: about 0.8 m, the upkeep triangle's) and how far over the roof.
-const SIGN_PX := 0.04
+## The marker's size (20 px pictures: about 0.7 m, near the upkeep triangle's) and how far over the roof.
+const SIGN_PX := 0.034
 const SIGN_OVER := 0.75
 
 var _acc := POLL

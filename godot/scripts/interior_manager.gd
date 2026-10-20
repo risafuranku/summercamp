@@ -761,12 +761,85 @@ func _walk_on_out_of_office() -> void:
 	_walk_body(body, way["from"], way["to"], way["dir"])
 
 
+## The last steps up to a building's door outside, the door opening as you come, before
+## its room opens (the user 20. 10.: every way in as smooth as the way out). `again` is the
+## interact once there; true while walking (the caller stops), false to open now (too far
+## or too near to walk, a hatch, already walked).
+const WALK_UP_FROM_M := 4.0
+const STEP12 = preload("res://scripts/ui/step12.gd")
+var _walked_up_to := 0
+
+
+func _walk_up_first(structure: Node3D, again: Callable) -> bool:
+	if structure == null or not is_instance_valid(structure):
+		return false
+	if _walked_up_to == structure.get_instance_id():
+		_walked_up_to = 0
+		return false
+	var body := _player as CharacterBody3D
+	if body == null or stepping_out() or str(structure.get_meta("building_type", "")) in NO_STEP_OUT:
+		return false
+	var doors: Array = DOOR_ANIM.find_doors(structure)
+	if doors.is_empty():
+		doors = structure.find_children("TentFlap", "MeshInstance3D", true, false)
+	var pick := 0
+	var best := INF
+	for i in doors.size():
+		var dd := body.global_position.distance_to((doors[i] as Node3D).global_position)
+		if dd < best:
+			best = dd
+			pick = i
+	var way: Dictionary = DOOR_ANIM.entry_points(structure, pick)
+	if way.is_empty():
+		return false
+	var into: Vector3 = way["inside"] - way["outside"]
+	into.y = 0.0
+	into = into.normalized()
+	var to: Vector3 = (way["outside"] as Vector3).lerp(way["inside"], 0.3)
+	to.y = body.global_position.y
+	var d := Vector2(body.global_position.x - to.x, body.global_position.z - to.z).length()
+	if d > WALK_UP_FROM_M or d < 0.2:
+		return false
+	if way["door"] != null:
+		DOOR_ANIM.open_now(way["door"], 2.4)
+	_set_player_controls_enabled(false)
+	var mask := body.collision_mask
+	body.collision_mask = 0
+	body.velocity = Vector3.ZERO
+	body.set("_pitch_target", 0.0)
+	var yaw := body.rotation.y + wrapf(atan2(-into.x, -into.z) - body.rotation.y, -PI, PI)
+	var dur := clampf(d / 2.4, 0.25, 0.8)
+	var tw := create_tween()
+	_stepping_out = tw
+	tw.tween_property(body, "global_position", to, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(body, "rotation:y", yaw, dur * 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	var id := structure.get_instance_id()
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(body):
+			body.collision_mask = mask
+		_walked_up_to = id
+		again.call())
+	return true
+
+
+## Inside, the room's eye takes the last step in from the doorway to where it stands.
+func _step_in(interior: Object) -> void:
+	var cam := interior.get("_interior_camera") as Camera3D if interior != null else null
+	if cam == null or not (interior is Node):
+		return
+	var at := cam.position
+	cam.position = at + cam.transform.basis.z.normalized() * 0.45 + Vector3(0, 0.04, 0)
+	STEP12.move(interior as Node, cam, {"position": at}, 0.42)
+
+
 func _on_tent_interact(tent_node: Node) -> void:
 	if _tent_interior == null:
 		return
 	if _tent_interior.is_open():
 		return
 	if _refuse_if_occupied(tent_node as Node3D, "tent"):
+		return
+	if _walk_up_first(tent_node as Node3D, _on_tent_interact.bind(tent_node)):
 		return
 	var level = 1
 	var tent_type = str(tent_node.get_meta("building_type", "tent_1"))
@@ -782,6 +855,7 @@ func _on_tent_interact(tent_node: Node) -> void:
 	_apply_time_to_interior(_tent_interior)
 	_door_transition(true)
 	_tent_interior.open_tent(level)
+	_step_in(_tent_interior)
 	_sync_tent_guest_visuals()
 	_push_room_state(_tent_interior, _active_tent_node)
 	_set_player_controls_enabled(false)
@@ -826,12 +900,15 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 		return
 	if _refuse_if_occupied(caravan_node as Node3D, "caravan"):
 		return
+	if _walk_up_first(caravan_node as Node3D, _on_caravan_interact.bind(caravan_node)):
+		return
 	var t := str(caravan_node.get_meta("building_type", "caravan_1"))
 	var level := clampi(int(t.right(1)), 1, 3)
 	_active_caravan_node = caravan_node as Node3D
 	_apply_time_to_interior(_caravan_interior)
 	_door_transition(true)
 	_caravan_interior.open_caravan(level)
+	_step_in(_caravan_interior)
 	call_deferred("_restore_curtains")
 	_push_room_state(_caravan_interior, _active_caravan_node)
 	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
@@ -898,6 +975,8 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 		return
 	if _refuse_if_occupied(cabin_node as Node3D, "cabin"):
 		return
+	if _walk_up_first(cabin_node as Node3D, _on_cabin_interact.bind(cabin_node)):
+		return
 	var level = 1
 	var cabin_type = str(cabin_node.get_meta("building_type", "cabin_1"))
 	if cabin_type == "cabin_2":
@@ -916,6 +995,7 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 		_cabin_interior.set_world_anchor(_active_cabin_node)
 	_door_transition(true)
 	_cabin_interior.open_cabin(level)
+	_step_in(_cabin_interior)
 	call_deferred("_restore_curtains")
 	_sync_cabin_guest_visuals()
 	_push_room_state(_cabin_interior, _active_cabin_node)
@@ -1011,6 +1091,8 @@ func _on_service_interact(service_node: Node) -> void:
 		return
 	var building_type = str(structure.get_meta("building_type", ""))
 	if not _is_supported_service_building_type(building_type):
+		return
+	if _walk_up_first(structure as Node3D, _on_service_interact.bind(service_node)):
 		return
 	_active_service_node = structure
 	_apply_time_to_interior(_service_interior)
@@ -1603,6 +1685,15 @@ func coop_room() -> Dictionary:
 		var part := str(extras.get("where")) if extras != null else "office"
 		var desk = it.get("_desk_room")
 		var job := "pc" if it.is_crt_view_active() else ("desk" if desk != null and desk.is_open() else "")
+		# Reading the board or on the phone: the other warden sees them at it (the user
+		# 20. 10.: "a visible action for the others").
+		if job == "" and extras != null:
+			var bv = extras.get("board_view")
+			var pv = extras.get("phone_view")
+			if bv != null and is_instance_valid(bv) and bool(bv.get("visible")):
+				job = "board"
+			elif pv != null and is_instance_valid(pv) and bool(pv.get("visible")):
+				job = "phone"
 		var info := {"k": "office", "t": "office", "s": part, "w": job}
 		# Walking between the office's rooms: where from, how far along (the other machine
 		# walks their figure through the doorway).
@@ -1621,6 +1712,10 @@ const COOP_OFFICE_SPOTS := {"office": Vector3(-0.6, 0.0, -0.9), "back": Vector3(
 ## At the desk: behind the counter to your right, by the phone (the "write" picture is
 ## the body from the hips up; the counter top hides where it ends).
 const COOP_DESK_SPOT := Vector3(1.15, 0.84, 0.74)
+## At the cork board on the right wall (reception_extras._build_board), and behind the
+## counter at the phone (_build_phone), on the floor.
+const COOP_BOARD_SPOT := Vector3(1.98, 0.0, -0.45)
+const COOP_PHONE_SPOT := Vector3(1.42, 0.0, 0.8)
 ## The back room's bed (back_room.BED), the mattress's top.
 const COOP_BED := Vector3(-5.1, 0.5, 0.85)
 ## From the office's own spot to the doorway and through it (the floor under the camera's
@@ -1823,6 +1918,16 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 			# Behind the counter, bent over the register.
 			spot = COOP_DESK_SPOT
 			pose = "write"
+		elif str(info.get("w", "")) == "board":
+			# In front of the board, reading it.
+			spot = COOP_BOARD_SPOT
+			fig.set_flip(true)
+		elif str(info.get("w", "")) == "phone":
+			# At the phone behind the counter, the handset up (bent to it, if there is a picture).
+			spot = COOP_PHONE_SPOT
+			if COOP_LOOKS.has_pose(model, "write"):
+				spot = COOP_DESK_SPOT + Vector3(0.12, 0.0, 0.1)
+				pose = "write"
 		if str(info.get("w", "")) == "pc":
 			# On the chair at the PC, their back to the room: you look over their shoulder.
 			var seat: Vector3 = it.get("_crt_full_cam_pos")
