@@ -100,8 +100,8 @@ static func note_meal(guest_id: int, line: String, score: int) -> void:
 
 ## Visits kept in their building past their time (guest_life.visit_holds), by who keeps
 ## them: "rest" (the bistro's kitchen: waiting for the plate, eating it), "vecerka" (the
-## Jednota: looking round, in the queue for the till) -> {guest id: game minute}. The
-## simulation gets the latest of them all.
+## Jednota: looking round, in the queue for the till), "pub" (waiting to pay their tab)
+## -> {guest id: game minute}. The simulation gets the latest of them all.
 static var _holds: Dictionary = {}
 
 

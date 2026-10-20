@@ -277,6 +277,12 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 			"weirdness": weirdness,
 		}
 		var needs: Dictionary = NEEDS.decay_needs(guest["needs"], archetype, minutes, context)
+		# The Jednota's bag keeps them going (a roll, a bottle, the soap) while it lasts.
+		var stash = guest.get("stash", {})
+		if stash is Dictionary and not (stash as Dictionary).is_empty() and not night_sleep:
+			var used: Array = NEEDS.use_stash(needs, stash, minutes)
+			needs = used[0]
+			guest["stash"] = used[1]
 		guest["needs"] = needs
 		var mood := float(guest.get("mood", 60.0))
 		var target_mood := NEEDS.sleep_mood_target(mood, needs, archetype, comfort, noise) if night_sleep \
@@ -341,7 +347,7 @@ func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 		return _plan_sleep(guest, t)
 	var here := _parse_key(str(guest.get("tile", "")))
 	var archetype := str(guest.get("archetype", "quiet_guy"))
-	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, _facilities, here, _usage, _rng)
+	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, _facilities, here, _usage, _rng, float(t % 1440) / 60.0)
 	var thought := str(goal.get("thought", ""))
 	match str(goal.get("kind", "wander")):
 		"visit":
@@ -491,12 +497,17 @@ func _on_complete(guest: Dictionary, act: Dictionary, t: int) -> void:
 				return
 			var services: Dictionary = f.get("services", {})
 			var visit := "%d@%d" % [int(guest.get("id", 0)), int(act.get("start", 0))]
-			var fed := not services.has("hunger") or ORDERS.served(str(act.get("target_key", "")), visit)
-			if not fed:
-				# Nobody served them: the beer with friends was something, the meal was not
-				# (business_runtime has them grumble about it).
+			var sold := not (services.has("hunger") or services.has("thirst")) or ORDERS.served(str(act.get("target_key", "")), visit)
+			var fed := sold
+			if not sold:
+				# Nobody served them: the company was something, the meal and the drink were
+				# not (business_runtime has them grumble about it).
 				services = services.duplicate()
 				services.erase("hunger")
+				services.erase("thirst")
+			elif NEEDS.STASH_FROM.has(str(f.get("type", ""))):
+				# A basket to take home: it keeps them going for days.
+				guest["stash"] = NEEDS.add_stash(guest.get("stash", {}) if guest.get("stash", {}) is Dictionary else {}, str(f.get("type", "")))
 			guest["needs"] = NEEDS.apply_facility(guest["needs"], services, str(guest.get("archetype", "")), str(f.get("type", "")))
 			guest["visits"] = int(guest.get("visits", 0)) + 1
 			# "key": GuestManager has the toilets and showers soiled by it (soil_building).

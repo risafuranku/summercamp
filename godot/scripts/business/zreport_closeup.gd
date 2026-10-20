@@ -5,7 +5,9 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## shuts (business_runtime.zreport) if you are in it, else it lies by the till / the books
 ## till you read it. What it says: the orders and their average score, the tips, the best
 ## and the worst order, what went away unserved, what was thrown out, the wages tonight,
-## the takings, and the stars for the shift.
+## the takings, the goods used and the wages, and the stars for the shift; beside it the
+## manager's note in pencil: the shift's mark (A to E, business_rules.day_grade) and the
+## one thing to mend first.
 ## The picture is the dark counter (assets/textury/closeup/ledger.png darkened) with the
 ## receipt drawn over it: thermal paper, purple-grey ink, torn at the top.
 
@@ -14,7 +16,9 @@ const SFX_PRINT := "res://assets/sfx/bistro/till.mp3"
 const PAPER := Color(0.93, 0.92, 0.86)
 const INK := Color(0.32, 0.27, 0.42)
 const FADED := Color(0.52, 0.48, 0.58)
-const RECEIPT := Rect2(108, 0, 104, 240)
+const RECEIPT := Rect2(84, 0, 104, 240)
+## The manager's note in pencil beside the receipt.
+const NOTE := Rect2(200, 26, 108, 120)
 
 var building_key := ""
 var report: Dictionary = {}
@@ -84,7 +88,8 @@ func _paint(c: Control) -> void:
 		else:
 			var w2 := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 			c.draw_string(f, Vector2(floorf(r.position.x + (r.size.x - w2) * 0.5), y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
-		y += 12.0 if big else 9.0
+		y += 12.0 if big else 8.5
+	_paint_note(c)
 
 
 func _lines() -> Array:
@@ -117,12 +122,63 @@ func _lines() -> Array:
 		out.append(["%s\t%d%%" % [str(worst.get("what", "")).substr(0, 12), int(worst.get("score", 0))]])
 		out.append([str(worst.get("who", "")).substr(0, 16), FADED])
 	out.append(["- - - - - - - - - -", FADED])
+	var cost := int(round(float(z.get("cost", 0.0))))
 	out.append(["TAKINGS\t$%d" % int(z.get("takings", 0)), INK, false])
+	out.append(["GOODS\t-$%d" % cost])
 	out.append(["WAGES\t-$%d" % int(z.get("wages", 0))])
+	var net := int(z.get("takings", 0)) - cost - int(z.get("wages", 0))
+	out.append(["NET\t%s$%d" % ["-" if net < 0 else "", absi(net)], Color(0.6, 0.15, 0.2) if net < 0 else INK])
+	# All the camp's places today, to set this one against.
+	var all := 0
+	if CoreRoot != null and CoreRoot.get_state() != null:
+		var sites: Dictionary = CoreRoot.get_state().biz.get("sites", {})
+		for k in sites:
+			all += int(((sites[k] as Dictionary).get("today", {}) as Dictionary).get("takings", 0))
+	out.append(["ALL PLACES\t$%d" % all, FADED])
 	out.append(["- - - - - - - - - -", FADED])
 	var stars := 1 + (1 if avg >= 65 else 0) + (1 if avg >= 88 else 0)
 	if n <= 0:
 		stars = 0
-	out.append(["* ".repeat(stars).strip_edges() if stars > 0 else "-", INK, true])
-	out.append(["THANK YOU", FADED])
+	out.append([("* ".repeat(stars).strip_edges() if stars > 0 else "-") + ("  %.1f" % (float(z.get("stars", 0)) / float(n)) if n > 0 and z.has("stars") else ""), INK, true])
+	return out
+
+
+## The shift's mark and the one thing to mend: the report's own, or worked out now.
+func _mark() -> Dictionary:
+	if report.has("grade"):
+		return {"grade": str(report["grade"]), "advice": str(report.get("advice", ""))}
+	return RULES.day_grade(report)
+
+
+## The manager's note beside the receipt: the mark big in pencil, the advice under it.
+func _paint_note(c: Control) -> void:
+	if _feed < 1.0:
+		return
+	var m := _mark()
+	var r := NOTE
+	c.draw_rect(Rect2(r.position + Vector2(2, 2), r.size), Color(0, 0, 0, 0.35))
+	c.draw_rect(r, Color(0.86, 0.82, 0.68))
+	var pencil := Color(0.24, 0.22, 0.26)
+	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(r.position.x + 6, r.position.y + 12), "MARK", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, FADED)
+	var g := str(m["grade"])
+	var col := Color(0.16, 0.42, 0.14) if g in ["A", "B"] else (Color(0.62, 0.12, 0.08) if g in ["D", "E"] else pencil)
+	c.draw_string(RETRO_UI.FONT_BIG, Vector2(r.position.x + 6, r.position.y + 36), g, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, col)
+	var y := r.position.y + 52
+	for l in _wrap_note(str(m["advice"]), r.size.x - 12):
+		c.draw_string(RETRO_UI.FONT_TEXT, Vector2(r.position.x + 6, y), l, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, pencil)
+		y += 10
+
+
+func _wrap_note(text: String, width: float) -> Array:
+	var out: Array = []
+	var line := ""
+	for word in text.split(" "):
+		var cand := word if line == "" else line + " " + word
+		if RETRO_UI.FONT_TEXT.get_string_size(cand, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x > width and line != "":
+			out.append(line)
+			line = word
+		else:
+			line = cand
+	if line != "":
+		out.append(line)
 	return out

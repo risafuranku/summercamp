@@ -46,6 +46,7 @@ const MARKER_HAPPY := preload("res://assets/textury/npc/mood_happy.png")
 const MARKER_NEEDS := {
 	"bladder": preload("res://assets/textury/npc/need_bladder.png"),
 	"hunger": preload("res://assets/textury/npc/need_hunger.png"),
+	"thirst": preload("res://assets/textury/npc/need_thirst.png"),
 	"hygiene": preload("res://assets/textury/npc/need_hygiene.png"),
 	"fun": preload("res://assets/textury/npc/need_fun.png"),
 	"energy": preload("res://assets/textury/npc/need_energy.png"),

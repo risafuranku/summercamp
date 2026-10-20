@@ -13,12 +13,12 @@ extends Node
 ## the window, like the rest of the 2D, and swapped into the system cursor (hardware,
 ## so it never lags behind the mouse).
 
-enum { ARROW, POINT, WALK, GRAB }
+enum { ARROW, LOOK, POINT, WALK, GRAB }
 
 const DIR := "res://assets/textury/ui/"
-const FILES := {ARROW: "cursor_arrow.png", POINT: "cursor_point.png", WALK: "cursor_walk.png", GRAB: "cursor_grab.png"}
+const FILES := {ARROW: "cursor_arrow.png", LOOK: "cursor_look.png", POINT: "cursor_point.png", WALK: "cursor_walk.png", GRAB: "cursor_grab.png"}
 ## Where the click lands, as a share of the picture (the fingertip, the arrow's tip).
-const HOT := {ARROW: Vector2(0.06, 0.04), POINT: Vector2(0.12, 0.03), WALK: Vector2(0.5, 0.3), GRAB: Vector2(0.5, 0.45)}
+const HOT := {ARROW: Vector2(0.06, 0.04), LOOK: Vector2(0.5, 0.5), POINT: Vector2(0.12, 0.03), WALK: Vector2(0.5, 0.3), GRAB: Vector2(0.5, 0.45)}
 
 static var _wanted := ARROW
 static var _shown := -1
@@ -26,7 +26,7 @@ static var _scale := 0
 static var _cache: Dictionary = {}   # kind -> Image at the current scale
 
 
-## The strongest shape asked for this frame wins (GRAB > WALK > POINT > ARROW).
+## The strongest shape asked for this frame wins (GRAB > WALK > POINT > LOOK > ARROW).
 static func want(kind: int) -> void:
 	if kind > _wanted:
 		_wanted = kind

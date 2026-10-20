@@ -262,9 +262,15 @@ func biz_take(key: String, needs: Dictionary) -> bool:
 	if site.is_empty() or not BIZ_RULES.can_take(site["stock"], needs):
 		return false
 	_biz_upgrade(site)
+	var cost := 0.0
 	for g in needs:
 		site["stock"][g] = int(site["stock"].get(g, 0)) - int(needs[g])
 		site["lots"][g] = BIZ_RULES.lots_take(site["lots"].get(g, []), int(needs[g]))
+		cost += BIZ_RULES.unit_cost(str(site["kind"]), str(g)) * int(needs[g])
+	# What the goods cost off the van, for the Z report.
+	site["today"]["cost"] = float(site["today"].get("cost", 0.0)) + cost
+	if site.get("shift", {}) is Dictionary:
+		site["shift"]["cost"] = float(site["shift"].get("cost", 0.0)) + cost
 	_biz_tell("take", [key, needs])
 	return true
 
@@ -648,6 +654,7 @@ func biz_score(key: String, rec: Dictionary) -> void:
 	sh["orders"] = int(sh.get("orders", 0)) + 1
 	sh["score"] = int(sh.get("score", 0)) + int(rec.get("score", 0))
 	sh["tips"] = int(sh.get("tips", 0)) + int(rec.get("tip", 0))
+	sh["stars"] = int(sh.get("stars", 0)) + int(BIZ_RULES.reward(int(rec.get("score", 0)), 0)["stars"])
 	if bool(rec.get("hand", false)):
 		sh["by_hands"] = int(sh.get("by_hands", 0)) + 1
 	var best: Dictionary = sh.get("best", {})
@@ -675,6 +682,9 @@ func biz_close_shift(key: String, wages: int, day: int, late: bool) -> Dictionar
 	z["late"] = late
 	z["takings"] = int(site["today"].get("takings", 0))
 	z["kind"] = str(site["kind"])
+	var grade := BIZ_RULES.day_grade(z)
+	z["grade"] = str(grade["grade"])
+	z["advice"] = str(grade["advice"])
 	site["zreport"] = z
 	site["zreport_read"] = false
 	site["shift"] = BIZ_RULES.empty_shift()

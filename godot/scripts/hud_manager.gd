@@ -80,7 +80,7 @@ const RISK_TIER_LABELS := {"none": "clear", "tiny": "tiny", "small": "small", "m
 const RISK_SHORT_NAMES := {"quiet_guy": "QUIET", "drunk": "DRUNK", "cheap_chick": "CHICK", "tramp": "TRAMP", "family": "FAMILY", "picker": "PICKER"}
 
 const NEED_ROWS := [
-	["energy", "NRG"], ["hunger", "FOOD"], ["bladder", "WC"],
+	["energy", "NRG"], ["hunger", "FOOD"], ["thirst", "DRINK"], ["bladder", "WC"],
 	["hygiene", "WASH"], ["fun", "FUN"], ["safety", "SAFE"],
 ]
 

@@ -5,7 +5,7 @@ plates over guests' heads that say what they need.
 Run from the repo root: python tools/gen_stink_sprites.py
 Writes
   godot/assets/textury/npc/stink_fumes.png   6 frames of 32x64 side by side (rising fumes)
-  godot/assets/textury/npc/need_<need>.png   16x16 plates upscaled x2 (bladder, hunger,
+  godot/assets/textury/npc/need_<need>.png   16x16 plates upscaled x2 (bladder, hunger, thirst,
                                              hygiene, fun, energy, safety, any)
 
 The need plates replaced the yellow "?" bubble (playtest 20. 10.: at night the round yellow
@@ -98,6 +98,17 @@ ICONS = {
         "..X.....X",
         "..X.....X",
         "..X.....X",
+    ],
+    "thirst": [
+        "......XX.",
+        ".....X...",
+        ".XXXXXXX.",
+        ".X..X..X.",
+        ".X.....X.",
+        ".XXXXXXX.",
+        "..XXXXX..",
+        "..XXXXX..",
+        "...XXX...",
     ],
     "hygiene": [
         "XXXX.....",

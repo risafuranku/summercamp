@@ -284,6 +284,16 @@ static func crew_now(key: String) -> Array:
 	return out
 
 
+## What the hand at `role` (on now) does to the mood of a guest they serve (the brief of
+## 20. 10.: "a sour one is cheaper and worse"): a warm one cheers them a little, a sour
+## one puts them off; nobody there, 0.
+static func hand_mood(key: String, role: String) -> float:
+	for p in crew_now(key):
+		if str(p.get("role", "")) == role:
+			return float(RULES.TEMPER_MOOD.get(str(p.get("temper", "flat")), 0.0))
+	return 0.0
+
+
 ## The front job covered now (the place serves without you): the books say so.
 func _watch_crew(sites: Dictionary) -> void:
 	for key in sites:
