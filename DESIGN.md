@@ -108,8 +108,8 @@ the flat palm at doors, the fist while you hold a job.
 
 ## 3b. Daily rhythm
 
-One in-game day = 16 real minutes (1 real second = 1.5 game minutes,
-`BalanceConfig.GAME_MINUTES_PER_SECOND`; an experiment, tune by feel). The night is ~7.
+One in-game day = about 19 real minutes (1 real second = 1.25 game minutes,
+`BalanceConfig.GAME_MINUTES_PER_SECOND`; 1.0 was too slow, 1.5 a touch quick). The night is ~8.
 
 | Time | Phase | The player |
 | --- | --- | --- |
@@ -231,7 +231,7 @@ know where it is:
 | Enemy | From | Tell | Counter | Punishes |
 | --- | --- | --- | --- | --- |
 | Silent Man | Quiet Guy | footsteps on the gravel behind you, closer each time, stopping when you stop; a whisper at your ear | turn round and put light on him; under a lamp he will not come nearer; at the whisper, turn round at once | standing still in the dark |
-| The Photographer | Drunk | the ratchet of a film advance where he settles; a red focus lamp blinking in the trees with beeps that speed up; the flash whine | turn your back or get behind something before the flash (he gives ~3 s); the flash lights the place up from his side | looking at him when it fires |
+| The Photographer | Drunk | always there: he hums wherever he is, a weak lamp on his chest strap and the camera's red standby blink; he walks from spot to spot in plain view (steps, the film wound on as he stops), raises the camera, the focus beeps speed up, the flash whines (~2-3 s); a shot every 7-10 s | turn your back or get behind something before the flash; indoors draw the curtains (every building's windows look out for real, scripts/ui/window_portal.gd) | looking at him when it fires, or an open window you can see when he fires through it: a lot of health (16-26), a white blast, ringing ears, his flash-lit picture burnt in; then he waves with the instant photo, giggling |
 | The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed: the guest -> fixed smile, white eyes -> legs too long, flushed cheeks -> neck and arms stretched -> her back to you, face turned round -> arms to the ground. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
 | The Whistler | Tramps | a campfire tune whistled out in the trees, moving | do not walk towards it; stand under a lamp until the tune breaks off | following the sound into the dark |
 | The Extra Child | Family | a child humming among the tents, back turned | torch off, walk past, never shine the light on it | looking at it with the torch |
