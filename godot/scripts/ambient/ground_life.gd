@@ -7,7 +7,7 @@ extends Node3D
 ##     thicker in the small hours, the most at first light (in the hollows, over the lake),
 ##     gone by half past eight, and in the fog all day: banks of it (Grok world/mist_bank.png,
 ##     see-through in four steps like Blood's smoke) in the fog's colour for the hour;
-## The puddle is a Grok picture (world/puddle.png); the rings are pixel art made here. Not while you are in a room. Made by
+## The puddle and the rings on it are Grok pictures (world/puddle.png, world/rain_ring.png). Not while you are in a room. Made by
 ## InteriorManager.setup() in the camp's world, like sky_life.gd and wind_life.gd.
 
 const FPS := 12.0
@@ -15,6 +15,8 @@ const PUDDLES := 26
 const MIST := 18
 const RADIUS := 22.0
 const MIST_TEX := "res://assets/textury/world/mist_bank.png"
+## A raindrop's ripple, four frames of 16 px side by side (tools/artgen/light_sprites.py).
+const RING_TEX := "res://assets/textury/world/rain_ring.png"
 
 var player_getter: Callable
 var indoors: Callable
@@ -27,7 +29,8 @@ var _puddles: Array = []         # {mesh, mat, size, rings: [Sprite3D]}
 var _wet := 0.0                  # 0 dry .. 1 soaked
 var _mist: Array = []            # {sprite, off: Vector3, drift}
 var _mist_amount := 0.0
-var _ring_frames: Array = []
+var _ring_frames: Array = []     # the ripple's frames: regions of RING_TEX
+var _ring_tex: Texture2D
 var _acc := 0.0
 var _t := 0.0
 var _anchor := Vector3.INF
@@ -38,8 +41,9 @@ func _ready() -> void:
 	name = "GroundLife"
 	_rng.randomize()
 	var puddle_tex := _puddle_texture()
+	_ring_tex = load(RING_TEX) if ResourceLoader.exists(RING_TEX) else null
 	for i in 4:
-		_ring_frames.append(_ring_texture(i))
+		_ring_frames.append(Rect2(i * 16, 0, 16, 16))
 	for i in PUDDLES:
 		var mi := MeshInstance3D.new()
 		var q := QuadMesh.new()
@@ -54,6 +58,12 @@ func _ready() -> void:
 		m.alpha_scissor_threshold = 0.5
 		m.roughness = 0.45
 		m.metallic_specular = 0.25
+		# The sky in it: the water shows the light of the sky over it (lit only by the rain's
+		# dull light it was as dark as the wet grass and did not read), set every step.
+		m.emission_enabled = true
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		m.emission_texture = puddle_tex
+		m.emission_energy_multiplier = 0.0
 		mi.material_override = m
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.rotation.y = _rng.randf() * TAU
@@ -63,7 +73,9 @@ func _ready() -> void:
 		for k in 2:
 			var r := Sprite3D.new()
 			r.axis = Vector3.AXIS_Y
-			r.texture = _ring_frames[0]
+			r.texture = _ring_tex
+			r.region_enabled = true
+			r.region_rect = _ring_frames[0]
 			r.pixel_size = 0.03
 			r.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			r.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
@@ -114,19 +126,6 @@ func _puddle_texture() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
-func _ring_texture(stage: int) -> ImageTexture:
-	var n := 16
-	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var r := 2.0 + stage * 1.8
-	for y in n:
-		for x in n:
-			var d := Vector2(x - n * 0.5 + 0.5, (y - n * 0.5 + 0.5) * 1.4).length()
-			if absf(d - r) < 0.7:
-				img.set_pixel(x, y, Color(0.62, 0.66, 0.7, 1.0))
-	return ImageTexture.create_from_image(img)
-
-
 ## A long low bank of mist (Grok `spr_mist_bank`, tools/artgen/light_sprites.py: white,
 ## see-through in four steps as Blood's translucent sprites; it was drawn here in code).
 func _mist_texture() -> Texture2D:
@@ -171,7 +170,8 @@ func _process(delta: float) -> void:
 		_anchor = centre
 		for pd in _puddles:
 			var ang := _rng.randf() * TAU
-			var d := _rng.randf_range(2.0, RADIUS)
+			# More of them near you: flat on the ground, the far ones are a line at most.
+			var d := lerpf(2.0, RADIUS, pow(_rng.randf(), 1.8))
 			pd["spot"] = Vector3(centre.x + cos(ang) * d, 0.045, centre.z + sin(ang) * d)
 	for i in _puddles.size():
 		var pd: Dictionary = _puddles[i]
@@ -194,7 +194,7 @@ func _process(delta: float) -> void:
 				var spot: Vector3 = pd["spot"]
 				var rr := float(pd["size"]) * 0.3 * k
 				r.global_position = spot + Vector3(_rng.randf_range(-rr, rr), 0.01, _rng.randf_range(-rr, rr))
-			r.texture = _ring_frames[mini(3, int(float(rg["t"]) / 0.15))]
+			r.region_rect = _ring_frames[mini(3, int(float(rg["t"]) / 0.15))]
 	# The mist drifts round you, low, dimmer the further. It is the fog's own colour for
 	# the hour (it stood out pale blue-grey in a dark red evening: playtest 18. 10.).
 	var wind := Vector3(cos(_t * 0.01), 0, sin(_t * 0.013))
@@ -202,6 +202,13 @@ func _process(delta: float) -> void:
 	var env := get_world_3d().environment if get_world_3d() != null else null
 	if env != null and env.fog_enabled:
 		tint = env.fog_light_color
+	# The puddles mirror the sky's light (the fog's colour for the hour is the sky's).
+	var sky_k := 1.3 if env != null and env.fog_enabled else 0.0
+	for pd2 in _puddles:
+		var pm := (pd2["mesh"] as MeshInstance3D).material_override as StandardMaterial3D
+		if pm != null:
+			pm.emission = tint
+			pm.emission_energy_multiplier = sky_k
 	for ms in _mist:
 		var sp: Sprite3D = ms["sprite"]
 		var off: Vector3 = ms["off"]

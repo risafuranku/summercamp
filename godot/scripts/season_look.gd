@@ -148,7 +148,8 @@ func apply(_force: bool) -> void:
 
 ## The season's colour of the ground, as wet as it is now.
 func _wetted(c: Color) -> Color:
-	var k := lerpf(1.0, 0.6, wet)
+	# (To 0.6 the wet meadow went near black under the rain's dull light.)
+	var k := lerpf(1.0, 0.72, wet)
 	return Color(c.r * k * lerpf(1.0, 0.94, wet), c.g * k * lerpf(1.0, 0.97, wet), c.b * k * lerpf(1.0, 1.04, wet), c.a)
 
 

@@ -43,8 +43,12 @@ finished game, by impact:
   light (golden sun and cool shade, red light and lilac shade, blue) (20. 10.)
 - [ ] Snow falling does not show at noon; snow cover has the dot grid in the shade
 - [ ] Storm: a leaf blown into the lens fills a corner as a big blurred blob
-- [ ] Rain: splashes and puddles hardly read from eye height; drips from roofs and trees
-  after rain; the rain on the reception's windows from inside
+- [x] Rain: splashes and puddles hardly read from eye height; grey slabs of rain across
+  the view — paler crowns, puddles nearer and mirroring the sky, the far streaks kept off
+  (20. 10.); the water on the windows from inside (room_weather.gd) is as light as the
+  light outside (at night it was a screen of grey static)
+- [ ] Rain: drips from roofs and trees after it stops; rain sound by surface (tin roof,
+  canvas, leaves, the lake)
 - [x] Sound: the lake's lapping and the frogs played in the middle of the camp (the jetty's
   body sits at the lake's origin) — fixed 20. 10.
 - [ ] Sound: places sound alike (layers by place and hour, occlusion indoors, reverb by

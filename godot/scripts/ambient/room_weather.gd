@@ -72,6 +72,8 @@ var _drop_y := -1.0
 var _rain := 0.0
 var _t := 0.0
 var _acc := 0.0
+## The day's light outside (weather_visuals.compute_daylight_factor()).
+var _day := 1.0
 var _gust_t := 8.0
 var _rng := RandomNumberGenerator.new()
 var _loop: AudioStreamPlayer
@@ -224,6 +226,7 @@ func _process(delta: float) -> void:
 	var wet: float = float(sl.get("wet")) if sl != null and sl.get("wet") != null else 0.0
 	var flash: float = float(wv.get("_storm_flash_strength")) if wv != null and wv.get("_storm_flash_strength") != null else 0.0
 	var wind: float = float({1: 0.6, 3: 0.3, 4: 0.5, 5: 1.0}.get(w, 0.08))
+	_day = float(wv.compute_daylight_factor()) if wv != null and wv.has_method("compute_daylight_factor") else 1.0
 	_t += delta
 	_acc += delta
 	if _acc >= 1.0 / FPS:
@@ -255,6 +258,9 @@ func _step(open: bool, w: int, flash: float, wet: float, wind: float) -> void:
 		mat.set_shader_parameter("runs_amount", _rain)
 		mat.set_shader_parameter("t_step", floorf(_t * 3.0) * 0.07)
 		mat.set_shader_parameter("flash", flash * flick)
+		# The water on the glass as light as the light outside it: pale by day; at night
+		# a full grey it read as a screen of static over the dark (inventory 20. 10.).
+		mat.set_shader_parameter("tint", Vector3(0.62, 0.68, 0.76) * lerpf(0.26, 1.0, clampf(_day * 1.6, 0.0, 1.0)))
 		var l: SpotLight3D = win["light"]
 		l.visible = flash > 0.03
 		l.light_energy = flash * flick * 9.0

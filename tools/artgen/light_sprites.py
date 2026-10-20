@@ -7,6 +7,9 @@ is the light in a few flat shade steps, for additive drawing (agent B, 20. 10.).
       drawn added to what is behind it (scripts/building_manager.gd, LAMP_BEAM_TEX).
   spr_mist_bank -> godot/assets/textury/world/mist_bank.png (96 wide): a bank of ground
       mist, white, see-through in four steps (scripts/ambient/ground_life.gd tints it).
+  spr_rain_rings -> godot/assets/textury/world/rain_ring.png (64 x 16): a raindrop's ripple
+      on a puddle in four frames side by side, each cut out of the render round its own
+      middle at one common size (ground_life.gd plays them).
 
 The render's brightness, from its dimmest to its brightest inside the light, becomes four
 steps: of a warm lamplight ramp (black see-through), or of see-through white (`alpha`).
@@ -59,6 +62,37 @@ def light_sprite(art_id: str) -> None:
     print(art_id, "->", dest, size)
 
 
+def rain_rings() -> None:
+    a = np.asarray(Image.open(os.path.join(OUT, "spr_rain_rings", "raw.png")).convert("RGB")).astype(np.float32)
+    lum = a.mean(axis=2) / 255.0
+    cols = np.nonzero((lum > 0.25).any(axis=0))[0]
+    # The frames: runs of lit columns with a gap between them.
+    runs, start = [], cols[0]
+    for c0, c1 in zip(cols[:-1], cols[1:]):
+        if c1 - c0 > 20:
+            runs.append((start, c0 + 1))
+            start = c1
+    runs.append((start, cols[-1] + 1))
+    boxes = []
+    for x0, x1 in runs:
+        ys = np.nonzero((lum[:, x0:x1] > 0.25).any(axis=1))[0]
+        boxes.append(((x0 + x1) // 2, (ys[0] + ys[-1] + 1) // 2))
+    side = max(max(x1 - x0 for x0, x1 in runs), 1) + 8
+    n = 16
+    out = np.zeros((n, n * len(boxes), 4), np.uint8)
+    for i, (cx, cy) in enumerate(boxes):
+        crop = lum[cy - side // 2: cy - side // 2 + side, cx - side // 2: cx - side // 2 + side]
+        small = np.asarray(Image.fromarray((crop * 255).astype(np.uint8), "L").resize((n, n), Image.BOX)) / 255.0
+        m = small > 0.12
+        out[:, i * n:(i + 1) * n][m] = (200, 212, 224, 255)
+    path = os.path.join(GODOT, "assets/textury/world/rain_ring.png")
+    Image.fromarray(out, "RGBA").save(path)
+    print("spr_rain_rings -> assets/textury/world/rain_ring.png", (n * len(boxes), n), len(boxes), "frames")
+
+
 if __name__ == "__main__":
-    for i in sys.argv[1:] or list(ROWS):
-        light_sprite(i)
+    for i in sys.argv[1:] or list(ROWS) + ["spr_rain_rings"]:
+        if i == "spr_rain_rings":
+            rain_rings()
+        else:
+            light_sprite(i)

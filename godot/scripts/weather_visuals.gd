@@ -321,7 +321,7 @@ func _rain_streak_mesh(w: float, h: float) -> ArrayMesh:
 ## follow their velocity, so a storm's rain flies sideways. Dense round you, bigger and
 ## fainter further off, where the fog takes it into sheets. The streaks are lit by the
 ## sky, not shaded: rain catches whatever light there is.
-func _rain_layer(node_name: String, amount: int, box: Vector3, w: float, h: float, life: float) -> GPUParticles3D:
+func _rain_layer(node_name: String, amount: int, box: Vector3, w: float, h: float, life: float, fade_from := 0.6, fade_to := 2.2) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
 	p.name = node_name
 	_world_3d.add_child(p)
@@ -342,10 +342,11 @@ func _rain_layer(node_name: String, amount: int, box: Vector3, w: float, h: floa
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.albedo_color = Color(0.84, 0.88, 0.92, 0.5)
-	# Not a bar across the lens: gone within a stride of the eye.
+	# Not a bar across the lens: gone within a stride of the eye (the far layer's broad
+	# streaks within ten metres: closer they were grey slabs across the view).
 	mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
-	mat.distance_fade_min_distance = 0.6
-	mat.distance_fade_max_distance = 2.2
+	mat.distance_fade_min_distance = fade_from
+	mat.distance_fade_max_distance = fade_to
 	if ResourceLoader.exists(RAIN_TEX):
 		mat.albedo_texture = load(RAIN_TEX)
 	mesh.surface_set_material(0, mat)
@@ -366,8 +367,8 @@ func setup_weather_particles() -> void:
 		_rain_splash = _world_3d.get_node_or_null("RainSplashes")
 		_bolt = _world_3d.get_node_or_null("LightningBolt")
 		return
-	_rain_particles = _rain_layer("RainParticles", 6000, Vector3(12.0, 8.0, 12.0), 0.04, 1.0, 1.1)
-	_rain_far = _rain_layer("RainFar", 3000, Vector3(34.0, 12.0, 34.0), 0.16, 2.2, 1.5)
+	_rain_particles = _rain_layer("RainParticles", 6000, Vector3(12.0, 8.0, 12.0), 0.04, 1.0, 1.1, 1.2, 3.5)
+	_rain_far = _rain_layer("RainFar", 3000, Vector3(34.0, 12.0, 34.0), 0.16, 2.2, 1.5, 10.0, 18.0)
 	# The drops hitting the ground round you: a crown that grows and is gone.
 	_rain_splash = GPUParticles3D.new()
 	_rain_splash.name = "RainSplashes"
@@ -394,8 +395,8 @@ func setup_weather_particles() -> void:
 	spm.scale_min = 0.7
 	spm.scale_max = 1.2
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.16, 0.12)
-	quad.center_offset = Vector3(0, 0.06, 0)
+	quad.size = Vector2(0.22, 0.16)
+	quad.center_offset = Vector3(0, 0.08, 0)
 	var smat := StandardMaterial3D.new()
 	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -1897,7 +1898,10 @@ func _update_weather_particles(_delta: float) -> void:
 	if _rain_splash != null:
 		var sm := (_rain_splash.draw_pass_1 as QuadMesh).material as StandardMaterial3D
 		if sm != null:
-			sm.albedo_color = Color(tint.r, tint.g, tint.b, minf(1.0, alpha * 1.6))
+			# Water catching the light: paler than the wet ground under it (as grey as the
+			# streaks it did not show on it).
+			var bright := tint.lightened(0.4)
+			sm.albedo_color = Color(bright.r, bright.g, bright.b, minf(1.0, alpha * 1.8))
 		_rain_splash.amount_ratio = intensity
 
 	var wind = _rain_weather_wind()
