@@ -139,6 +139,7 @@ var _odo: Control
 var _odo_v := -1.0
 var _odo_flash := 0.0
 var _odo_dir := 0
+var _cash_panel: Panel
 ## Coins flying from the building that earned them to the cash (guests paying for their
 ## rooms, the businesses' takings): {from, t, life} on a layer over everything.
 const COIN_TEX := "res://assets/textury/builder/coin.png"
@@ -270,6 +271,9 @@ func _build_ui() -> void:
 func _layout() -> void:
 	if _map_panel == null:
 		return
+	if _cash_panel != null:
+		_cash_panel.position = Vector2(size.x - 94, 1)
+		_clock.position = Vector2(size.x - 94 - 152, 3)
 	var y := 20.0
 	_toolbar.position = Vector2(0, y)
 	_toolbar.size = Vector2(size.x, TOOLBAR_H)
@@ -496,11 +500,13 @@ func _build_toolbar() -> void:
 		_click()
 		toggle_graphs())
 	row.add_child(gb)
-	# Cash and clock, right-aligned in sunken wells.
+	# Cash and clock, right-aligned on the menu's line (in the toolbar they covered its
+	# last buttons: the music and the graphs were under the cash).
 	var cash := Panel.new()
 	cash.name = "Cash"
 	cash.add_theme_stylebox_override("panel", T.box("field", Color8(0, 0, 0), Vector4.ZERO))
-	_toolbar.add_child(cash)
+	add_child(cash)
+	_cash_panel = cash
 	_money = Label.new()
 	_money.add_theme_font_override("font", T.FONT_BOLD)
 	_money.add_theme_color_override("font_color", Color8(80, 255, 80))
@@ -514,17 +520,13 @@ func _build_toolbar() -> void:
 	cash.add_child(_odo)
 	_clock = Label.new()
 	_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_toolbar.add_child(_clock)
-	_toolbar.resized.connect(func():
-		cash.position = Vector2(_toolbar.size.x - 94, 4)
-		cash.size = Vector2(90, 18)
-		_money.position = Vector2(4, 2)
-		_money.size = Vector2(80, 14)
-		_odo.position = Vector2(3, 2)
-		_odo.size = Vector2(84, 14)
-		_clock.position = Vector2(_toolbar.size.x - 150, 23)
-		_clock.size = Vector2(146, 14)
-	)
+	add_child(_clock)
+	cash.size = Vector2(90, 18)
+	_money.position = Vector2(4, 2)
+	_money.size = Vector2(80, 14)
+	_odo.position = Vector2(3, 2)
+	_odo.size = Vector2(84, 14)
+	_clock.size = Vector2(146, 14)
 
 
 func _gap() -> Control:
@@ -899,6 +901,33 @@ func _tick_guest_card(delta: float) -> void:
 
 var _gcard_t := 0.0
 var _gcard_face: Dictionary = {}
+## What a guest is about, for their card ("by the fire", "in the pub").
+const DOING_AT := {"bonfire": "by the fire", "sports_field": "on the pitch", "lake_slide": "on the slide", "playground": "at the swings",
+	"ping_pong": "at the ping-pong table", "hammock": "in the hammock", "bench": "on a bench", "picnic_table": "at a picnic table",
+	"corn_stand": "at the corn stand", "pub": "in the pub", "restaurant": "in the bistro", "vecerka": "in the Jednota",
+	"toilet_block": "at the toilets", "shower_block": "in the showers", "main_building": "at the office"}
+const DOING := {"sleep": "asleep", "rest": "resting in the room", "wait_gate": "at the gate", "leave": "leaving", "away": "out of the camp",
+	"arrive": "settling in"}
+
+
+func _doing(g: Dictionary) -> String:
+	var act: Dictionary = g.get("activity", {})
+	var kind := str(act.get("kind", ""))
+	if kind == "visit":
+		return str(DOING_AT.get(str(act.get("target_type", "")), "about the camp"))
+	return str(DOING.get(kind, "about the camp"))
+
+
+## Their stay from the books: nights booked, what they have paid so far.
+func _stay_line(id: int) -> String:
+	var st = CoreRoot.get_state()
+	if st == null:
+		return ""
+	for g in st.guests:
+		if g is Dictionary and int(g.get("id", -2)) == id:
+			var n := int(g.get("stay_nights", 1))
+			return "%d night%s, $%d paid" % [n, "" if n == 1 else "s", int(g.get("income_paid_total", 0))]
+	return ""
 
 
 func _draw_guest_card() -> void:
@@ -925,8 +954,9 @@ func _draw_guest_card() -> void:
 	var lodg = g.get("lodging", null)
 	if lodg is Vector2i and (lodg as Vector2i).x >= 0 and GuestManager != null:
 		room = GuestManager.room_label("%d:%d" % [lodg.x, lodg.y])
-	c.draw_string(T.FONT, Vector2(x, y), room if room != "" else "No room", HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 26, T.FONT_SIZE, Color8(60, 60, 110))
-	c.draw_string(T.FONT_BOLD, Vector2(x, y + 14), str(g.get("mood_label", "")), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 8, T.FONT_SIZE, Color8(40, 70, 170))
+	var stay := _stay_line(_gcard_id)
+	c.draw_string(T.FONT, Vector2(x, y), (room if room != "" else "No room") + ("  -  " + stay if stay != "" else ""), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 26, T.FONT_SIZE, Color8(60, 60, 110))
+	c.draw_string(T.FONT_BOLD, Vector2(x, y + 14), "%s, %s" % [str(g.get("mood_label", "")), _doing(g)], HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 8, T.FONT_SIZE, Color8(40, 70, 170))
 	# Six needs, two columns of little bars.
 	var needs: Dictionary = g.get("needs", {})
 	for i in NEED_SHORT.size():
@@ -1220,7 +1250,7 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 	c.mouse_filter = Control.MOUSE_FILTER_STOP
 	c.tooltip_text = _tooltip(type)
 	c.set_meta("hover", false)
-	var icon := _texture(str(ITEM_ICONS.get(type, "")))
+	var icon := _item_icon(type)
 	c.mouse_entered.connect(func():
 		c.set_meta("hover", true)
 		_hover_card = type
@@ -1366,7 +1396,7 @@ func _draw_info() -> void:
 		return
 	var r := Rect2(Vector2.ZERO, _info.size)
 	_info.draw_style_box(T.box("window", T.FACE, Vector4.ZERO), r)
-	var icon := _texture(str(ITEM_ICONS.get(t, "")))
+	var icon := _item_icon(t)
 	if icon == null and t in TOOLS:
 		icon = _tool_art(t)
 	if icon != null:
@@ -1959,7 +1989,7 @@ func _show_news(item: Dictionary) -> void:
 	else:
 		var key := id.rstrip("0123456789")
 		if NEWS_PICTURES.has(key):
-			pic = _texture(str(ITEM_ICONS.get(str(NEWS_PICTURES[key]), "")))
+			pic = _item_icon(str(NEWS_PICTURES[key]))
 	if _ticker != null:
 		var diploma := str(item.get("kind", "")) == "diploma"
 		_ticker.add(("Your camp won a diploma: %s." if diploma else "Hlubocany Courier: %s") % str(item.get("title", "")).rstrip("."), "medal" if diploma else "cabin")
@@ -1989,8 +2019,29 @@ func _tick_cursor() -> void:
 		shell.set("tool_cursor", tex)
 
 
+## The tools on the pointer move (Grok bld_cursors, builder/cursors/<tool>_<n>.png): the
+## bulldozer's blade up and down, the spade digging, the lamp blinking, the blueprint
+## unrolling; four frames a second.
+const CURSOR_FRAMES := {"demolish": ["dozer", 3], "path": ["path", 3], "lamp_post": ["lamp", 2], "*": ["bp", 3]}
+var _cursor_frames: Dictionary = {}
+
+
 ## The picture beside the arrow for a tool ("" none, any building the blueprint).
 func cursor_texture(tool: String) -> Texture2D:
+	var fk := tool if CURSOR_FRAMES.has(tool) else ("*" if tool != "" else "")
+	if fk != "":
+		if not _cursor_frames.has(fk):
+			var frames: Array = []
+			for i in int(CURSOR_FRAMES[fk][1]):
+				var p := "res://assets/textury/builder/cursors/%s_%d.png" % [str(CURSOR_FRAMES[fk][0]), i]
+				if not ResourceLoader.exists(p):
+					frames = []
+					break
+				frames.append(load(p))
+			_cursor_frames[fk] = frames
+		var fr: Array = _cursor_frames[fk]
+		if not fr.is_empty():
+			return fr[int(Time.get_ticks_msec() / 250) % fr.size()]
 	var key := tool if TOOL_CURSORS.has(tool) else "*"
 	if not _cursor_tex.has(key):
 		var p := str(TOOL_CURSORS[key])
@@ -2116,6 +2167,13 @@ func _site_report() -> String:
 
 
 # ── art ──────────────────────────────────────────────────────────────────────
+
+## A thing's picture in the catalogue, its card and the paper: the map's own of it (from
+## the 3D model, the side the map's view shows), else the old catalogue picture.
+func _item_icon(type: String) -> Texture2D:
+	var v: Texture2D = _map_panel.card_view(type, int(_map_panel.view_rot)) if _map_panel != null else null
+	return v if v != null else _texture(str(ITEM_ICONS.get(type, "")))
+
 
 func _texture(path: String) -> Texture2D:
 	if path.is_empty():

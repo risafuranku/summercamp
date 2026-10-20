@@ -26,7 +26,7 @@ const STEP := 1.0 / FPS
 const BUS := "OutdoorAmbience"
 ## How tall the pointer is (m) and its picture's pixels (the OS's arrow and the tool).
 const CURSOR_H := 32.0
-const CURSOR_PX := 28
+const CURSOR_PX := 48
 ## Where it rests between jobs, over the middle of the camp, and how fast it goes.
 const IDLE_H := 70.0
 const SPEED := 26.0
@@ -90,6 +90,8 @@ var grid_manager
 var from_peer := false
 ## Shot driver: stage every build, the Builder open or not.
 var debug_force := false
+## The wisps of mist round the pointer (off: only the pointer's own haze).
+var mist_on := true
 
 var _queue: Array = []
 var _job: Dictionary = {}
@@ -306,6 +308,16 @@ func _reveal(node: Node3D, keep_shadow := false) -> MeshInstance3D:
 	return null
 
 
+## A building taken away (or rebuilt) while it waited: its shadow goes with it.
+func _sweep_hidden() -> void:
+	for id in _hidden.keys():
+		var h: Dictionary = _hidden[id]
+		if not is_instance_valid(h["node"]) or (h["node"] as Node).is_queued_for_deletion():
+			if is_instance_valid(h["shadow"]):
+				(h["shadow"] as Node).queue_free()
+			_hidden.erase(id)
+
+
 ## Everything still waiting comes down at once, unseen (leaving the camp, a load).
 func finish_all() -> void:
 	for id in _hidden.keys():
@@ -380,22 +392,23 @@ func _cursor_tex(tool: String) -> Texture2D:
 		return _tex[tool]
 	var img := Image.create(CURSOR_PX, CURSOR_PX, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
+	# The arrow at two pixels a pixel and the tool at its own size beside it, so the tool
+	# reads up in the haze (at the PC's size it went to a blob).
 	var pat: Array = OS_SHELL.ARROW
 	for y in pat.size():
 		var row: String = pat[y]
 		for x in row.length():
-			if row[x] == "X":
-				img.set_pixel(x, y, Color(0.06, 0.06, 0.08))
-			elif row[x] == ".":
-				img.set_pixel(x, y, Color(0.96, 0.96, 0.94))
+			var c := Color(0.06, 0.06, 0.08) if row[x] == "X" else (Color(0.96, 0.96, 0.94) if row[x] == "." else Color(0, 0, 0, 0))
+			if c.a > 0.0:
+				img.fill_rect(Rect2i(x * 2, y * 2, 2, 2), c)
 	var path := str(TOOL_TEX.get(tool, ""))
 	if path != "" and ResourceLoader.exists(path):
 		var t := (load(path) as Texture2D).get_image().duplicate() as Image
 		if t.is_compressed():
 			t.decompress()
 		t.convert(Image.FORMAT_RGBA8)
-		t.resize(18, 18, Image.INTERPOLATE_NEAREST)
-		img.blend_rect(t, Rect2i(0, 0, 18, 18), Vector2i(9, 10))
+		t.resize(26, 26, Image.INTERPOLATE_NEAREST)
+		img.blend_rect(t, Rect2i(0, 0, 26, 26), Vector2i(20, 21))
 	var tex := ImageTexture.create_from_image(img)
 	_tex[tool] = tex
 	return tex
@@ -454,6 +467,7 @@ func _speed() -> float:
 func _step() -> void:
 	_tick_dust()
 	_tick_push()
+	_sweep_hidden()
 	if _job.is_empty():
 		if not _queue.is_empty() and not _holding():
 			_job = _queue.pop_front()
@@ -497,10 +511,11 @@ func _next(j: Dictionary, phase: String) -> void:
 
 
 func _step_build(j: Dictionary) -> void:
-	var node: Node3D = j["node"]
-	if not is_instance_valid(node):
+	# (Checked before the typed assignment: a freed node there is a script error.)
+	if not is_instance_valid(j["node"]):
 		_end_job(j)
 		return
+	var node: Node3D = j["node"]
 	var c: Vector3 = j["center"]
 	match str(j["phase"]):
 		"go":
@@ -649,7 +664,7 @@ func _end_job(j: Dictionary) -> void:
 				(sh as Node).queue_free()
 		"path":
 			for tile in j["tiles"]:
-				var n: Node3D = tile["node"]
+				var n = tile["node"]
 				if is_instance_valid(n):
 					if tile.has("orig"):
 						n.global_transform = tile["orig"]
@@ -677,7 +692,7 @@ func _step_path(j: Dictionary) -> void:
 			if float(j["t"]) >= 0.35:
 				j["h"] = _drop_h(first)
 				for tile in tiles:
-					var n: Node3D = tile["node"]
+					var n = tile["node"]
 					if is_instance_valid(n):
 						tile["orig"] = n.global_transform
 						tile["shadow"] = _reveal(n, true)
@@ -697,7 +712,7 @@ func _step_path(j: Dictionary) -> void:
 			var done := true
 			for i in tiles.size():
 				var tile: Dictionary = tiles[i]
-				var n: Node3D = tile["node"]
+				var n = tile["node"]
 				if not is_instance_valid(n) or not tile.has("orig"):
 					continue
 				var k := clampf((t - every * float(i)) / dur, 0.0, 1.0)
@@ -780,7 +795,7 @@ func _tick_look(delta: float) -> void:
 	var env := _environment()
 	var dist := _camera_pos().distance_to(_pos)
 	var density := env.fog_density if env != null and env.fog_enabled else 0.004
-	var haze := clampf(0.36 + 1.0 - exp(-density * dist * 0.35), 0.36, 0.92)
+	var haze := clampf(0.3 + 1.0 - exp(-density * dist * 0.35), 0.3, 0.62)
 	_mat.set_shader_parameter("haze", haze)
 	if env != null:
 		_mat.set_shader_parameter("haze_color", env.fog_light_color)
@@ -801,12 +816,14 @@ func _tick_look(delta: float) -> void:
 	var mist_col := Color(0.84, 0.86, 0.9).lerp(env.fog_light_color if env != null else Color(0.84, 0.86, 0.9), 0.25)
 	for i in _mist.size():
 		var mi := _mist[i] as MeshInstance3D
-		mi.visible = true
+		mi.visible = mist_on
 		var f := float(i)
 		var off := right * (sin(drift * 0.11 + f * 2.1) * 8.0 + (f - 1.0) * 5.0) + up * ((f - 1.0) * 10.0 + cos(drift * 0.15 + f) * 2.0)
 		mi.global_position = body + off + toward * (3.0 if i % 2 == 0 else -3.0)
 		var mm := mi.material_override as StandardMaterial3D
-		mm.albedo_color = Color(mist_col.r, mist_col.g, mist_col.b, (0.42 if i % 2 == 0 else 0.3) * _vis)
+		# Thin wisps on a clear day only: in the fog the camp's own fog does it (the
+		# picture went blue against the grey).
+		mm.albedo_color = Color(mist_col.r, mist_col.g, mist_col.b, (0.24 if i % 2 == 0 else 0.16) * _vis * clampf(1.0 - density * 40.0, 0.0, 1.0))
 	if not _hum.playing and _hum.stream != null:
 		_hum.play(randf() * 4.0)
 	_hum.volume_db = lerpf(-40.0, -4.0, _vis)

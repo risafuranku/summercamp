@@ -645,6 +645,23 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
   woman in heels with her cigarette and her shopping, the tramp strumming on a log or
   carrying firewood, the father hanging washing while the boy kicks a ball, the old picker
   after a mushroom): `peeps/<kind>_<0-7>.png`, the camp's pose until they are there.
+  They walk behind the buildings and trees in front of them (RCT's: what stands nearer is
+  drawn again over them), not over the roofs. Their card says what they are about ("by the
+  fire", "in the pub", "asleep"), how many nights they booked and what they have paid.
+- **The small life of the map** (Grok frames, stepped; none of it without the pictures):
+  the camp's dog trotting from lodging to lodging, sniffing, sitting, barking; ducks
+  paddling and dipping on the lake and the sun glinting on the water; moths round the lit
+  lamps after dusk; a mouse darting out by the pub, the bistro, the Jednota or the corn
+  stand; ants at the picnic tables when close enough to see; now and then a few birds
+  crossing the whole map with a flutter. The trees sway in a wind (three frames a second,
+  each a beat after its neighbour: a gust going over the map).
+- **A building site in its stages**: the foundation (formwork and fresh concrete), the walls
+  going up in a scaffold, the roof on its trusses under a tarpaulin, a third of the time
+  each, each with its sound (the concrete, the planks, the tiles); the worker hammering as
+  before. **A demolition** brings the little yellow bulldozer (Transport Tycoon's): it
+  drives in over what went, shoves, backs off in a puff of smoke, dust bursting where it
+  pushed. The tools on the pointer move (the blade, the spade, the lamp blinking, the
+  blueprint unrolling).
 - **Every click has its sound** (Builder's own, not the PC's): a toolbar button, a
   catalogue card sliding out, a window opening and closing, a tool picked up, a refusal, the
   map turning, the message line's tick.

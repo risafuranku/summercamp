@@ -106,6 +106,11 @@ const ICON_PATHS := {
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
 	"vecerka_iso": "res://assets/textury/builder/iso_jednota.png",
 	"lamp_iso": "res://assets/textury/builder/iso_lamp.png",
+	# The spruce leaning in the wind (Grok bld_tree): left, upright, right, the top bent.
+	"tree_sway_0": "res://assets/textury/builder/life/tree_0.png",
+	"tree_sway_1": "res://assets/textury/builder/life/tree_1.png",
+	"tree_sway_2": "res://assets/textury/builder/life/tree_2.png",
+	"tree_sway_3": "res://assets/textury/builder/life/tree_3.png",
 }
 
 ## The same buildings from behind (tools/artgen back_*): turned away from you (rotations
@@ -155,6 +160,29 @@ var _views: Dictionary = {}   # "<type>_<s>" -> [texture, anchor, lit windows or
 ## Lodgings whose windows can light on the map: [static-layer centre, view, origin, type].
 var _lit_spots: Array = []
 var _window_lights: Node
+## The map's small life: the dog, ducks, glints, moths, mice, ants, birds (map_life.gd).
+var _life = preload("res://scripts/builder/map_life.gd").new()
+var _lake_cells_f: Array = []
+## What stands on the map with where it covers (static-layer rect) and how far forward it
+## is: drawn again over a guest behind it, so the guests walk behind buildings and trees
+## (RCT's), not over their roofs.
+var _occ: Array = []
+## The trees sway in a wind, in steps (the static layer drawn again three times a second
+## while it blows, each tree a beat after its neighbour: a gust going across the map).
+const SWAY_WIND := 0.35
+var _sway_step := 0
+var _swaying := false
+## The building site in its stages (Grok bld_stages: the foundation, the walls going up,
+## the roof) and the little yellow bulldozer of a demolition (bld_dozer, Transport
+## Tycoon's), with its dust (bld_dust); the old scaffold and plain dust without them.
+const STAGE_TEX := "res://assets/textury/builder/site/stage_%d.png"
+const DOZER_TEX := "res://assets/textury/builder/site/dozer_%d.png"
+const DOZER_DUST := "res://assets/textury/builder/site/dust_%d.png"
+var _stage_tex: Array = []
+var _dozer_tex: Array = []
+var _dozer_dust: Array = []
+var _dozers: Array = []           # {a, b: cells, t, life}
+var _site_stage: Dictionary = {}  # origin -> stage last heard
 
 
 func _load_views() -> void:
@@ -485,6 +513,15 @@ func _ready() -> void:
 	_preload_icons()
 	_load_views()
 	_load_peeps()
+	for i in 3:
+		if ResourceLoader.exists(STAGE_TEX % i):
+			_stage_tex.append(load(STAGE_TEX % i))
+	for i in 8:
+		if ResourceLoader.exists(DOZER_TEX % i):
+			_dozer_tex.append(load(DOZER_TEX % i))
+	for i in 4:
+		if ResourceLoader.exists(DOZER_DUST % i):
+			_dozer_dust.append(load(DOZER_DUST % i))
 	_connect_event_bus()
 	_emit_status("Select a tool to begin.")
 
@@ -552,6 +589,11 @@ func _tick_sites(delta: float, quiet := false) -> void:
 			busy = true
 			if int(age / HAMMER_EVERY) != int(maxf(0.0, age - delta) / HAMMER_EVERY) and randf() < 0.4:
 				_add_fx("dust", mid + Vector2(0.3, 0.3), 0.45)
+			# Each stage of the site has its sound: the concrete, the planks, the roof.
+			var stage := clampi(int(age / maxf(site, 0.01) * 3.0), 0, 2)
+			if site > 1.5 and not quiet and int(_site_stage.get(o, -1)) != stage:
+				_site_stage[o] = stage
+				_play(["site_found", "site_walls", "site_roof"][stage], -13.0)
 		elif site > 0.0 and not _site_done.has(o):
 			_site_done[o] = true
 			if not quiet:
@@ -560,6 +602,7 @@ func _tick_sites(delta: float, quiet := false) -> void:
 				_play("site_done", -8.0)
 		if age > site + 0.5:
 			_dropped.erase(o)
+			_site_stage.erase(o)
 			_site_len.erase(o)
 			_site_fp.erase(o)
 			_site_done.erase(o)
@@ -573,8 +616,18 @@ func _tick_sites(delta: float, quiet := false) -> void:
 
 ## The scaffold as wide as the building will be, the workers by its front corner: one
 ## hammering (the blow every HAMMER_EVERY), the other bobbing on his own beat.
-func _draw_site(center: Vector2, fp: Vector2i, age: float, tile_w: float, tile_h: float) -> void:
-	_draw_building_icon(center, fp, "site_scaffold", 0, Color.WHITE, tile_w, tile_h)
+func _draw_site(center: Vector2, fp: Vector2i, age: float, tile_w: float, tile_h: float, site := 3.0) -> void:
+	if _stage_tex.size() == 3 and site > 1.5:
+		# The foundation, the walls going up, the roof: a third of the time each.
+		var tex: Texture2D = _stage_tex[clampi(int(age / maxf(site, 0.01) * 3.0), 0, 2)]
+		var used := _drawn_rect(tex)
+		var span := float(fp.x + fp.y) * 0.48
+		var k := span * tile_w / maxf(1.0, used.size.x)
+		var foot := center.y + span * tile_h * 0.5
+		var mid_x := (used.position.x + used.size.x * 0.5) * k
+		_cv.draw_texture_rect(tex, Rect2(Vector2(center.x - mid_x, foot - used.end.y * k).floor(), tex.get_size() * k), false)
+	else:
+		_draw_building_icon(center, fp, "site_scaffold", 0, Color.WHITE, tile_w, tile_h)
 	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
 	var wh := maxi(8, int(round(mini_h * 0.85)))
 	var down := float(fp.x + fp.y) * tile_h * 0.18
@@ -670,6 +723,11 @@ func _process(delta: float) -> void:
 	_time += delta
 	_bfx.tick(delta)
 	_tick_sites(delta)
+	_life.tick(delta, self)
+	for i in range(_dozers.size() - 1, -1, -1):
+		_dozers[i]["t"] = float(_dozers[i]["t"]) + delta
+		if float(_dozers[i]["t"]) >= float(_dozers[i]["life"]):
+			_dozers.remove_at(i)
 	_read_weather()
 	for i in range(_fx.size() - 1, -1, -1):
 		_fx[i]["t"] = float(_fx[i]["t"]) + delta
@@ -1354,9 +1412,60 @@ func _on_demolish_confirmed(area: Rect2i, removed_count: int, fee_paid: int, ref
 		_add_fx("pop", mid + Vector2(-0.45, 0.45), 1.4, "+$%d" % refund_total, Color8(120, 255, 120))
 	if fee_paid > 0:
 		_add_fx("pop", mid + Vector2(0.45, -0.45), 1.3, "-$%d" % fee_paid, Color8(255, 220, 80))
-	_play("bulldoze", -6.0)
+	# The little yellow bulldozer drives in over what went and backs off again.
+	if not _dozer_tex.is_empty() and not gone.is_empty() and is_visible_in_tree():
+		var a := Vector2(area.position) - Vector2(1.2, -0.3)
+		_dozers.append({"a": a, "b": mid, "t": 0.0, "life": 2.2})
+		_play("dozer", -10.0)
+	else:
+		_play("bulldoze", -6.0)
 	_static_dirty = true
 	queue_redraw()
+
+
+## The bulldozers at work: in (pushing, blade down), a shove, back out (a puff of smoke),
+## in steps; their dust in four frames.
+func _draw_dozers(origin: Vector2, tile_w: float, tile_h: float, mini_h: int) -> void:
+	for d in _dozers:
+		var t := float(d["t"])
+		var life := float(d["life"])
+		var a: Vector2 = d["a"]
+		var b: Vector2 = d["b"]
+		var k := 0.0
+		var f := 0
+		var step := int(_time * 8.0)
+		if t < life * 0.5:
+			k = t / (life * 0.5)
+			f = 4 + step % 2
+		elif t < life * 0.62:
+			k = 1.0
+			f = 4 + step % 2
+		else:
+			k = 1.0 - (t - life * 0.62) / (life * 0.38)
+			f = 6 + step % 2
+		var cell := a.lerp(b, floorf(k * 12.0) / 12.0)
+		var tex: Texture2D = _dozer_tex[mini(f, _dozer_tex.size() - 1)]
+		var h := maxi(8, int(mini_h * 0.8))
+		var key := "dozer|%d|%d" % [f, h]
+		if not _worker_minis.has(key):
+			_worker_minis[key] = _mini_of(tex, h)
+		var mt: Texture2D = _worker_minis[key]
+		var foot := _cell_to_iso_f(cell, origin, tile_w, tile_h)
+		var dd := _display_cell_f(b) - _display_cell_f(a)
+		var right := dd.x - dd.y > 0.0
+		var at := (foot - Vector2(mt.get_width() * 0.5, mt.get_height())).floor()
+		if right:
+			_cv.draw_set_transform(at + Vector2(mt.get_width(), 0), 0.0, Vector2(-1, 1))
+			_cv.draw_texture(mt, Vector2.ZERO)
+			_cv.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		else:
+			_cv.draw_texture(mt, at)
+		if not _dozer_dust.is_empty() and t > life * 0.4 and t < life * 0.8:
+			var df := clampi(int((t - life * 0.4) / (life * 0.4) * 4.0), 0, 3)
+			var dt: Texture2D = _dozer_dust[df]
+			var ds := tile_h * 1.6 / maxf(1.0, dt.get_height())
+			var dp := _cell_to_iso_f(b, origin, tile_w, tile_h)
+			_cv.draw_texture_rect(dt, Rect2((dp - Vector2(dt.get_width(), dt.get_height() * 1.4) * ds * 0.5).floor(), dt.get_size() * ds), false, Color(1, 1, 1, 0.9))
 
 
 func _on_demolish_rejected(area: Rect2i, reason: String) -> void:
@@ -1385,6 +1494,7 @@ func _draw_static() -> void:
 	_smokers.clear()
 	_lights.clear()
 	_lit_spots.clear()
+	_occ.clear()
 	_anim_entries.clear()
 	_known.clear()
 	if grid_manager == null:
@@ -1408,6 +1518,8 @@ func _draw_static() -> void:
 			_anim_entries.append(entry)
 			continue
 		_draw_structure(entry, tile_w, tile_h)
+		if ty != "path":
+			_occ.append([float(entry.get("order", 0.0)), entry, _cover_rect(entry, tile_w, tile_h)])
 		if ty.begins_with("tent") or ty.begins_with("cabin") or ty.begins_with("caravan"):
 			var lv := _view_of(_icon_key_for_type(ty), int(entry.get("rotation", 0)))
 			if not lv.is_empty():
@@ -1476,6 +1588,7 @@ func _build_ground(gm, grid_w: int, grid_h: int) -> void:
 	_ground_lines = PackedVector2Array()
 	_lake_lines = PackedVector2Array()
 	_lake_units.clear()
+	_lake_cells_f.clear()
 	var depth := 0.45
 	for y in grid_h:
 		for x in grid_w:
@@ -1494,6 +1607,7 @@ func _build_ground(gm, grid_w: int, grid_h: int) -> void:
 				_add_quad(cv, cc, quad, WATER.lightened(h * 0.05))
 				_lake_lines.append_array(edges)
 				_lake_units.append([c, h])
+				_lake_cells_f.append(Vector2(coord))
 			else:
 				if t == grid_manager.TILE_RESERVED:
 					_add_quad(cv, cc, quad, DIRT.lerp(DIRT.darkened(0.1), h))
@@ -1579,6 +1693,7 @@ func _collect_structures(gm, grid_w: int, grid_h: int, origin: Vector2, tile_w: 
 			"origin": structure_origin,
 			"footprint": footprint,
 			"center": _footprint_center_iso(structure_origin, footprint, origin, tile_w, tile_h),
+			"order": float(anchor.x + anchor.y),
 		})
 	if _mini_tex == null or _mini_tex.get_width() != dims.x:
 		_mini_tex = ImageTexture.create_from_image(_mini_img)
@@ -1646,6 +1761,10 @@ func _draw_dynamic() -> void:
 	_draw_inspected(origin, tile_w, tile_h)
 	for g in entries:
 		_draw_guest(g, tile_h)
+	_draw_occluders(entries, tile_w, tile_h)
+	var life_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
+	_life.draw(_cv, self, origin, tile_w, tile_h, life_h)
+	_draw_dozers(origin, tile_w, tile_h, life_h)
 	_draw_sleepers(origin, tile_w, tile_h)
 	_draw_lodging_badges(origin, tile_w, tile_h)
 	if overlay != "light":
@@ -1653,6 +1772,7 @@ func _draw_dynamic() -> void:
 		_draw_night(lights, tile_w, tile_h)
 		_draw_lit_windows(tile_w)
 		_draw_weather(origin, tile_w, tile_h)
+	_life.draw_sky(_cv, self, size, clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56))
 	_draw_fx(origin, tile_w, tile_h)
 	var iso_c := Callable(self, "_cell_iso_fast").bind(origin, tile_w, tile_h)
 	var valid_c := Callable(self, "_is_valid_coord")
@@ -1958,6 +2078,13 @@ func _update_static(delta: float) -> void:
 		if not _dropped.has(e.get("origin", Vector2i.ZERO)):
 			_static_dirty = true
 			break
+	var sway := float(_wx.get("wind", 0.15)) > SWAY_WIND and _get_icon("tree_sway_0") != null
+	if sway or _swaying:
+		var st := int(_time * 3.0)
+		if st != _sway_step or sway != _swaying:
+			_sway_step = st
+			_swaying = sway
+			_static_dirty = true
 	var iso = _compute_iso_layout(grid_w, grid_h)
 	var tile_w: float = iso.tile_w
 	var origin: Vector2 = iso.origin
@@ -2414,9 +2541,11 @@ func _peep_frame(e: Dictionary, h: int) -> Array:
 		mirror = bool(e.get("flip", false))
 	if i < 0:
 		return []
+	# Every frame at the walking frame's scale (one bent over or sat is lower, not squeezed).
 	var key := "peep|%s|%d|%d" % [str(e.get("archetype", "")), i, h]
 	if not _pose_minis.has(key):
-		_pose_minis[key] = _mini_of(frames[i], h)
+		var base := float((frames[0] as Texture2D).get_height())
+		_pose_minis[key] = _mini_of(frames[i], maxi(4, int(round(float((frames[i] as Texture2D).get_height()) * float(h) / maxf(1.0, base)))))
 	return [_pose_minis[key], mirror]
 
 
@@ -2487,6 +2616,46 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 		_cv.draw_rect(Rect2(p + Vector2(0.5 * u, -(h - 1.0) * u), Vector2(u * 0.5, u * 0.5)), Color(0, 0, 0))
 
 
+## Where a structure's picture covers (in the static layer), roughly for the old pictures.
+func _cover_rect(entry: Dictionary, tile_w: float, tile_h: float) -> Rect2:
+	var c: Vector2 = entry["center"]
+	var root = entry.get("root")
+	if root != null and (root.is_in_group("trees") or root.is_in_group("corn")):
+		return Rect2(c - Vector2(tile_w * 0.6, tile_h * 1.6), Vector2(tile_w * 1.2, tile_h * 1.9))
+	var view := _view_of(_icon_key_for_type(str(entry.get("type", ""))), int(entry.get("rotation", 0)))
+	if not view.is_empty():
+		var k := tile_w / VIEW_PX
+		return Rect2(c - (view[1] as Vector2) * k, (view[0] as Texture2D).get_size() * k)
+	var fp: Vector2i = entry.get("footprint", Vector2i.ONE)
+	var w := float(fp.x + fp.y) * tile_w * 0.5
+	return Rect2(c - Vector2(w * 0.5, tile_h * 2.2), Vector2(w, tile_h * 2.6))
+
+
+## The structures in front of a guest drawn again over them, where they overlap.
+func _draw_occluders(entries: Array, tile_w: float, tile_h: float) -> void:
+	if _occ.is_empty():
+		return
+	var mini_h := clampi(int(round(tile_h * 1.1 / 4.0)) * 4, 12, 56)
+	var k := _static_layer.scale.x
+	var done := {}
+	for g in entries:
+		var foot: Vector2 = g["pos"]
+		var gr := Rect2(foot - Vector2(mini_h * 0.4, mini_h + 4.0), Vector2(mini_h * 0.8, mini_h + 6.0))
+		var order := float(g.get("order", 0.0))
+		for i in _occ.size():
+			var o: Array = _occ[i]
+			if done.has(i) or float(o[0]) <= order - 0.25:
+				continue
+			var r: Rect2 = o[2]
+			var on_panel := Rect2(_s2d(r.position), r.size * k)
+			if not on_panel.intersects(gr):
+				continue
+			done[i] = true
+			var moved: Dictionary = (o[1] as Dictionary).duplicate()
+			moved["center"] = _s2d(o[1]["center"])
+			_draw_structure(moved, tile_w, tile_h)
+
+
 ## A Zzz over every lodging somebody sleeps in, rising in steps.
 func _draw_sleepers(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	var tex: Texture2D = _react_tex.get("zzz")
@@ -2518,7 +2687,11 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 		if _draw_icon(center, Vector2(tile_w * 1.02, tile_h * 2.3), "corn", 0, Color(1.0, 1.0, 1.0, 0.98)):
 			return
 	if root.is_in_group("trees"):
-		if not _draw_icon(center, Vector2(maxf(12.0, tile_w * 1.22), maxf(12.0, tile_h * 1.85)), "tree", 0, Color(1.0, 1.0, 1.0, 0.98)):
+		var tk := "tree"
+		if _swaying:
+			var dc := _rotate_coord_for_display(entry.get("origin", Vector2i.ZERO))
+			tk = "tree_sway_%d" % [1, 0, 1, 2, 1, 3][(_sway_step + dc.x / 2 + (dc.y % 3)) % 6]
+		if not _draw_icon(center, Vector2(maxf(12.0, tile_w * 1.22), maxf(12.0, tile_h * 1.85)), tk, 0, Color(1.0, 1.0, 1.0, 0.98)):
 			_draw_tree_fallback(center, tile_w, tile_h)
 		return
 
@@ -2545,7 +2718,7 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 			var age := _time - float(_dropped[origin_c])
 			var site := float(_site_len.get(origin_c, 0.0))
 			if age < site:
-				_draw_site(center, footprint, age, tile_w, tile_h)
+				_draw_site(center, footprint, age, tile_w, tile_h, site)
 				return
 			age -= site
 			var k := clampf(age / 0.3, 0.0, 1.0)

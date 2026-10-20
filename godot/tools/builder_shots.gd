@@ -52,6 +52,13 @@ func _ready() -> void:
 	for v in 4:
 		s.append_array([["eval", MAP + ".set('view_rot', %d)" % v], ["eval", MAP + ".set('_static_dirty', true)"],
 			["eval", MAP + ".debug_center_on(Vector2i(10, 9))"], ["wait", 0.8], ["crt_screen", "v%d_map" % v]])
+	# The T key turns the view; the music plays; a site going up and a demolition.
+	s.append_array([["key", "T"], ["wait", 0.6], ["eval", "[" + MAP + ".view_rot, " + MAP + ".get_parent()._music != null and " + MAP + ".get_parent()._music.playing]"],
+		["key", "T"], ["key", "T"], ["key", "T"], ["wait", 0.6], ["eval", MAP + ".view_rot"],
+		["eval", MAP + ".debug_center_on(Vector2i(10, 9))"], ["eval", MAP + ".set('_zoom_target', 2.6)"],
+		["build", "cabin_1", 11, 12, 0], ["wait", 0.8], ["crt_screen", "s0_site_found"], ["wait", 1.0], ["crt_screen", "s1_site_walls"],
+		["wait", 1.0], ["crt_screen", "s2_site_roof"], ["wait", 2.0],
+		["eval", MAP + "._send_demolish_request(Rect2i(11, 12, 2, 2))"], ["wait", 0.5], ["crt_screen", "s3_dozer"], ["wait", 0.6], ["crt_screen", "s4_dozer"]])
 	# Close to the guests, and the evening with its lit windows.
 	s.append_array([["eval", MAP + ".set('_zoom_target', 3.6)"], ["eval", MAP + ".set('_zoom_level', 3.6)"], ["eval", MAP + ".set('_static_dirty', true)"],
 		["eval", MAP + ".debug_center_on(Vector2i(9, 7))"], ["wait", 0.6], ["crt_screen", "w0_guests"], ["wait", 0.5], ["crt_screen", "w1_guests"],
