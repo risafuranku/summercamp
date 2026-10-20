@@ -13,6 +13,8 @@ const PHOTO := preload("res://scripts/enemies/tourist_brain.gd")
 const WHISTLER := preload("res://scripts/enemies/whistler_brain.gd")
 const CHILD := preload("res://scripts/enemies/child_brain.gd")
 const BASKET := preload("res://scripts/enemies/basket_brain.gd")
+const GIRL := preload("res://scripts/enemies/girl_brain.gd")
+const EYES := preload("res://scripts/enemies/enemy_eyes.gd")
 
 
 class FakePlayer:
@@ -100,6 +102,68 @@ func _ready() -> void:
 	_expect(_damage == 0 and float(s.get_debug_snapshot()["distance"]) >= 13.9, "silent man: never approaches under a lamp (dist %s, dmg %d)" % [s.get_debug_snapshot()["distance"], _damage])
 	_lamps.lit_center = Vector3.INF
 	s.stop_night()
+
+	# ── The Girl ──
+	# Keeping her in the torch: she holds, however long; now and then a decoy pair of her
+	# eyes opens to the side (looking at it is the trap; the careful player does not).
+	_damage = 0
+	(_player as FakePlayer).torch = true
+	var g = _start(GIRL)
+	var decoy_seen := false
+	for i in 30 * 90:
+		if g._body.visible:
+			_face(g._body.global_position + Vector3(0, 1.4, 0))
+		g.tick(1.0 / 30.0)
+		decoy_seen = decoy_seen or not g._decoy.is_empty()
+	print("ENEMY CHECK: girl, kept in the torch: dmg %d, phase %d, dist %.1f, decoy %s" % [_damage, g._phase, g._distance_to_player(g._body.global_position), decoy_seen])
+	_expect(_damage == 0, "girl: holding her in the torch keeps you safe (took %d)" % _damage)
+	_expect(decoy_seen, "girl: a decoy pair of eyes opens while the torch holds her")
+	g.stop_night()
+	# Back to her, torch off: she comes, strikes; after it the view is straight again,
+	# you can move, she is gone for a while.
+	_damage = 0
+	(_player as FakePlayer).torch = false
+	g = _start(GIRL)
+	var struck := false
+	var after_ok := false
+	for i in 30 * 150:
+		if g._body.visible and g._phase != 2:
+			_face(_player.global_position * 2.0 - g._body.global_position)
+		g.tick(1.0 / 30.0)
+		if g._phase == 2:
+			struck = true
+		elif struck:
+			after_ok = absf(_camera.rotation.z) < 0.01 and absf(_camera.rotation.x) < 0.01 and g._phase == 3
+			break
+	print("ENEMY CHECK: girl, back turned: dmg %d, struck %s, after %s, cam %s" % [_damage, struck, after_ok, _camera.rotation])
+	_expect(struck and _damage > 0, "girl: turning your back on her in the dark gets you caught (took %d)" % _damage)
+	_expect(after_ok, "girl: after her strike the view is level again and she is gone")
+	g.stop_night()
+	_camera.rotation = Vector3.ZERO
+	# Under a lamp: never hurt; the ring of her eyes opens round the light and goes out.
+	_damage = 0
+	_lamps.lit_center = _player.global_position
+	g = _start(GIRL)
+	var ring_max := 0
+	var ring_closed := false
+	for i in 30 * 40:
+		g.tick(1.0 / 30.0)
+		if ring_max > 0 and g._ring.is_empty():
+			ring_closed = true
+		ring_max = maxi(ring_max, g._ring.size())
+	print("ENEMY CHECK: girl, under a lamp: dmg %d, ring %d, closed %s" % [_damage, ring_max, ring_closed])
+	_expect(_damage == 0, "girl: under a lamp you are safe (took %d)" % _damage)
+	_expect(ring_max >= 4, "girl: under a lamp the ring of her eyes opens round the light (%d)" % ring_max)
+	_expect(ring_closed, "girl: and it goes out again")
+	g.stop_night()
+	_lamps.lit_center = Vector3.INF
+	# Nothing of hers stays in the world after the night.
+	await get_tree().process_frame
+	var left := 0
+	for n in find_children("*", "Node3D", true, false):
+		if n.get_script() == EYES:
+			left += 1
+	_expect(left == 0, "girl: no eyes left in the world after the night (%d)" % left)
 
 	# ── Photographer ──
 	# Turning your back on every flash: never hurt.

@@ -131,6 +131,8 @@ var _upside_tex: ImageTexture
 var _ring: Array = []
 var _ring_t := -1.0
 var _ring_done := false
+## After the ring: her eyes, the pair that stayed, glow by themselves behind you a while.
+var _ring_stay_until := -1.0
 const RING_AFTER := 6.0
 const RING_PAIRS := 9
 ## Far off, found again, she is not standing as a person stands: upside down, hanging
@@ -416,9 +418,12 @@ func _jumpscare() -> void:
 	_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), -4.0, 1.25)
 	var fx := _fx()
 	if fx != null:
-		fx.subliminal(_face(_rng.randi_range(0, 2)), 4, 1.15)
+		# Her lunge at you, claws first (or her eye, an inch off), then the faces.
+		var pic: Texture2D = _tex.get(T_EYE if _rng.randf() < 0.3 and _tex.has(T_EYE) else T_LUNGE, _face(_rng.randi_range(0, 2)))
+		fx.subliminal(pic, 4, 1.15)
 		fx.glitch(0.85, 0.9)
 		fx.red_flash(0.35)
+		fx.blood(0.15)
 
 
 ## Not looked at: she is closer, and changed; heels scurry where she went. Now and then
@@ -567,6 +572,7 @@ func _tick_ring(dt: float) -> void:
 			_body.global_position = p
 			_set_look(false, _distance_to_player(p))
 			_moved_unseen = true
+			_ring_stay_until = _elapsed + 5.0
 		_sound(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), -4.0, 0.8)
 
 
@@ -733,7 +739,7 @@ func _update_shine(d: float, lit: bool, stuttering: bool) -> void:
 	_eyes.set("size_k", 1.0 + 0.35 * near)
 	# Near, they sit wrong on her face: one higher, more and more.
 	_eyes.set("tilt", _eye_tilt0 + signf(_eye_tilt0) * 0.55 * near * near)
-	_eyes.set("want", 1.0 if _shines(d, lit) or (stuttering and d < TOO_CLOSE) else 0.0)
+	_eyes.set("want", 1.0 if _shines(d, lit) or (stuttering and d < TOO_CLOSE) or (_elapsed < _ring_stay_until and not lit) else 0.0)
 
 
 func _shines(d: float, lit: bool) -> bool:
