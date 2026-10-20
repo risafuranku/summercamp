@@ -11,6 +11,9 @@ extends "res://scripts/jednota/jednota_station.gd"
 ## too much and they keep it (jednota_rules.judge). Papa's score from how long they stood
 ## and how right the change was (jednota.serve). What is rung up and what is on the mat
 ## is the shop's state (jednota.gd ring, mat): everybody in the shop sees it.
+## The brief of 20. 10.: a parcel from the deli counter is in their basket like the rest
+## (priced by its weight); cigarettes they ask for, and you take them off the wall behind
+## you (the packs at the till's end) before they can be rung up.
 
 ## Design pixels on the counter (640 x 360 over st_till).
 ## The basket's goods lie in it (the basket is in the picture), a little askew.
@@ -27,7 +30,9 @@ const PIECE_TEX := {1: "coin1", 2: "coin2", 5: "note5", 10: "note10", 20: "note2
 const PIECE_M := {1: 0.04, 2: 0.046, 5: 0.085, 10: 0.085, 20: 0.085, 50: 0.085}
 ## The goods' size in the basket (the longer side, metres).
 const GOOD_M := {"bread": 0.19, "roll": 0.16, "salami": 0.2, "milk": 0.17, "pickles": 0.12, "beer": 0.19,
-	"icecream": 0.12, "sweets": 0.12, "veg": 0.16, "soap": 0.09}
+	"icecream": 0.12, "sweets": 0.12, "veg": 0.16, "soap": 0.09, "cards": 0.09, "magazine": 0.2, "rum": 0.22, "cigs": 0.08, "parcel": 0.16}
+## The cigarettes on the wall behind you, at the till's end: a click takes their pack.
+const CIGS := Rect2(560, 286, 76, 70)
 const LINES := {"short": "That's short.", "over": "Thank you very much!", "slow": "Finally.", "good": "Thank you.", "great": "Thank you, dear."}
 
 var _items: Array = []
@@ -40,6 +45,9 @@ var _display_box: MeshInstance3D
 var _fly: Array = []
 var _hold_t := 0.0
 var _last_first := ""
+## The packs of cigarettes taken off the wall for the one at the till (visit -> count).
+var _fetched: Dictionary = {}
+var _cig_packs: Array = []
 
 
 func _build() -> void:
@@ -50,6 +58,10 @@ func _build() -> void:
 		put(s, ITEM_SPOTS[i], 0.01 + 0.004 * float(i))
 		s.rotation_degrees.y = float(ITEM_TURN[i])
 		_items.append(s)
+	for i in 3:
+		var cp := jsprite("goods_cigs", float(GOOD_M["cigs"]), true)
+		put(cp, CIGS.get_center() + Vector2(-16 + i * 16, 0), 0.012 + i * 0.004)
+		_cig_packs.append(cp)
 	_bag = jsprite("bag", 0.24)
 	put(_bag, BAG_AT)
 	_bag.visible = false
@@ -134,8 +146,42 @@ static func running_total(t: Dictionary) -> int:
 	var items: Array = t["items"]
 	for i in (t.get("rung", []) as Array):
 		if int(i) >= 0 and int(i) < items.size():
-			n += RULES.price(str(items[int(i)]))
+			n += RULES.item_price(str(items[int(i)]))
 	return n
+
+
+## The picture of a thing in a basket (a deli parcel's is the wrapped paper).
+static func item_tex(item: String) -> String:
+	return "parcel" if RULES.is_parcel(item) else item
+
+
+## A thing's name for the line under the room.
+static func item_label(item: String) -> String:
+	if RULES.is_parcel(item):
+		var p := item.split(":")
+		return "parcel of %s (%d g)" % [str(RULES.DELI.get(p[1], {}).get("label", p[1])).to_lower(), int(p[2])] if p.size() >= 3 else "parcel"
+	return str(RULES.goods().get(item, {}).get("label", item)).to_lower()
+
+
+## Whether thing `i` of the basket is on the counter yet (cigarettes only once fetched).
+func _on_counter(t: Dictionary, i: int) -> bool:
+	var items: Array = t["items"]
+	if i >= items.size() or not (str(items[i]) in RULES.BEHIND):
+		return true
+	var n := 0
+	for j in i + 1:
+		if str(items[j]) in RULES.BEHIND:
+			n += 1
+	return n <= int(_fetched.get(str(t["visit"]), 0)) or (t.get("rung", []) as Array).has(i)
+
+
+## Packs still to fetch for the one at the till.
+func _to_fetch(t: Dictionary) -> int:
+	var n := 0
+	for g in (t.get("items", []) as Array):
+		if str(g) in RULES.BEHIND:
+			n += 1
+	return n - int(_fetched.get(str(t.get("visit", "")), 0))
 
 
 func _show() -> void:
@@ -147,10 +193,10 @@ func _show() -> void:
 	var rung: Array = t.get("rung", [])
 	for i in _items.size():
 		var s: Sprite3D = _items[i]
-		var on := i < items.size() and not rung.has(i) and not _flying(i)
+		var on := i < items.size() and not rung.has(i) and not _flying(i) and _on_counter(t, i)
 		s.visible = on
 		if i < items.size():
-			var g := str(items[i])
+			var g := item_tex(str(items[i]))
 			retex(s, JTEX + "goods_" + g + ".png", float(GOOD_M.get(g, 0.18)))
 	_bag.visible = not t.is_empty() and rung_items(t) > 0
 	# The money on the mat: theirs till it is taken, then the change counted out.
@@ -234,8 +280,9 @@ func _spots() -> Array:
 	if not all_rung(t):
 		for i in mini(items.size(), _items.size()):
 			if not rung.has(i) and (_items[i] as Sprite3D).visible:
-				var g := str(items[i])
-				out.append({"id": "item:%d" % i, "node": _items[i], "verb": "Ring up the %s" % str(RULES.goods().get(g, {}).get("label", g)).to_lower()})
+				out.append({"id": "item:%d" % i, "node": _items[i], "verb": "Ring up the %s" % item_label(str(items[i]))})
+		if _to_fetch(t) > 0:
+			out.append({"id": "cigs", "rect": CIGS, "verb": "A pack of Start off the wall for %s" % first_name(str(t["name"]))})
 		return out
 	if not money_taken(t):
 		out.append({"id": "paid", "rect": Rect2(MAT_AT - MAT_R, MAT_R * 2.0), "verb": "Take the money"})
@@ -253,6 +300,11 @@ func _press(id: String) -> void:
 	if t.is_empty():
 		return
 	var visit := str(t["visit"])
+	if id == "cigs":
+		if _to_fetch(t) > 0:
+			_fetched[visit] = int(_fetched.get(visit, 0)) + 1
+			sfx("box_down", -14.0, 1.6)
+		return
 	if id.begins_with("item:"):
 		if all_rung(t):
 			return
@@ -260,7 +312,7 @@ func _press(id: String) -> void:
 		var items: Array = t["items"]
 		if i >= items.size():
 			return
-		var g := str(items[i])
+		var g := item_tex(str(items[i]))
 		shop.act(building_key, "ring", [visit, i])
 		# The thing itself off the counter into the bag (the cabbage over the scale).
 		var s := jsprite("goods_" + g, float(GOOD_M.get(g, 0.18)), true)
@@ -322,6 +374,8 @@ func _give(t: Dictionary) -> void:
 	say(who, line)
 	pop("+$%d" % int(v.get("amount", 0)), MAT_AT + Vector2(0, -40), RETRO_UI.C_GREEN if int(v.get("stars", 0)) >= 2 else RETRO_UI.C_AMBER)
 	sfx("bag", -10.0)
+	v["build"] = float(v.get("accuracy", 1.0))
+	score_card(v, "Shopping")
 
 
 func bar_buttons() -> Array:
@@ -428,3 +482,13 @@ func _ticket_of(visit: String) -> Dictionary:
 		if str(t["visit"]) == visit:
 			return t
 	return {}
+
+
+## The money in the hand for the drawer and the mat, the bare glove for the rest.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	if id.begins_with("c:") or id.begins_with("back:") or id == "paid":
+		return "coin"
+	if id.begins_with("item:"):
+		return "press"
+	return "open"

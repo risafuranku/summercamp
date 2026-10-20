@@ -63,9 +63,13 @@ func _ready() -> void:
 		uniq[g] = true
 		var at: Array = JRULES.slot_of(str(g))
 		_expect(int(at[0]) >= 0, "%s has its place on the rack" % g)
-	_expect(all.size() == 10 and uniq.size() == 10, "ten goods on the rack, each once")
+	_expect(all.size() == 13 and uniq.size() == 13, "thirteen goods on the rack, each once")
+	# Every good is on the rack, behind the till (the cigarettes) or cut at the deli counter.
 	for g in JRULES.goods():
-		_expect(uniq.has(g), "%s is on the planogram" % g)
+		var deli := false
+		for d in JRULES.DELI:
+			deli = deli or str(JRULES.DELI[d]["good"]) == str(g)
+		_expect(uniq.has(g) or JRULES.BEHIND.has(g) or deli, "%s is on the planogram, behind the till or at the deli" % g)
 	for arch in JRULES.TASTE:
 		var b1: Array = JRULES.basket_for("77@123", str(arch))
 		var span: Array = JRULES.HOW_MANY[arch]
@@ -111,7 +115,10 @@ func _ready() -> void:
 	_expect(q.size() >= 5, "they queue with their baskets (%d)" % q.size())
 	var taken := 0
 	for t in q:
-		taken += (t["items"] as Array).size()
+		for item in (t["items"] as Array):
+			# The cigarettes come from behind the till, not off the rack.
+			if all.has(str(item)):
+				taken += 1
 	var on_rack := 0
 	var was := 0
 	for g in all:

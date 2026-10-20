@@ -12,6 +12,10 @@ extends Node
 ##   rung     what of the first one's basket has been rung up: visit -> [index, ...]
 ##   mat      the change counted out onto the mat for them: visit -> [coin or note, ...]
 ##   till_by  the wardens at the till now (its hand stands aside): who -> since (ms, here)
+##   deli     the deli counter's orders: visit -> {good, want (grams), since, done (grams
+##            wrapped and handed over, 0 not yet), gone (went on without it)}
+##   cut      what is left of the salami, the cheese and the loaf cut into (grams): a new
+##            kilo comes off the books when it runs out
 ## The books' stock is everything the shop has (the storeroom, the trolley, the rack and the
 ## baskets); a thing comes off it when it is sold at the till. What is left in the
 ## storeroom is the stock less the rest (backroom()).
@@ -88,7 +92,8 @@ func _fresh(key: String) -> Dictionary:
 		else:
 			shelf[g] = mini(RULES.slot_cap(racks), stock)
 			trolley[g] = 0
-	return {"shelf": shelf, "trolley": trolley, "picked": {}, "served": {}, "gone": {}, "rung": {}, "mat": {}, "till_by": {}}
+	return {"shelf": shelf, "trolley": trolley, "picked": {}, "served": {}, "gone": {}, "rung": {}, "mat": {}, "till_by": {},
+		"deli": {}, "cut": (saved.get("cut", {}) as Dictionary).duplicate() if saved.get("cut", {}) is Dictionary else {}}
 
 
 func shelf(key: String) -> Dictionary:
@@ -168,6 +173,9 @@ func tickets(key: String) -> Array:
 ##   ring [visit, index]            a thing of their basket rung up
 ##   mat [visit, pieces]            the change on the mat now
 ##   till [who, on]                 a warden stepped up to the till or away
+##   deli [visit, rec]              a deli order as it stands now
+##   cut [good, grams]              what is left of the piece being cut
+##   parcel [visit, item]           a parcel from the deli into a basket already picked
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
 	if Coop.is_active() and Coop.has_method("send_place"):
@@ -187,13 +195,16 @@ func _apply(key: String, op: String, args: Array) -> void:
 			var items: Array = (args[1] as Array).duplicate()
 			s["picked"][str(args[0])] = {"items": items, "at": now_min(), "short": int(args[2]), "name": str(args[3]) if args.size() > 3 else ""}
 			for g in items:
-				s["shelf"][str(g)] = maxi(0, int(s["shelf"].get(str(g), 0)) - 1)
+				# Off the rack (a parcel was cut, the cigarettes are behind the till).
+				if s["shelf"].has(str(g)):
+					s["shelf"][str(g)] = maxi(0, int(s["shelf"][str(g)]) - 1)
 			_save_due[key] = true
 		"gone":
 			var visit := str(args[0])
 			if s["picked"].has(visit) and not s["served"].has(visit) and not s["gone"].has(visit):
 				for g in (s["picked"][visit]["items"] as Array):
-					s["shelf"][str(g)] = int(s["shelf"].get(str(g), 0)) + 1
+					if s["shelf"].has(str(g)):
+						s["shelf"][str(g)] = int(s["shelf"][str(g)]) + 1
 			s["gone"][visit] = true
 			_save_due[key] = true
 		"served":
@@ -209,6 +220,15 @@ func _apply(key: String, op: String, args: Array) -> void:
 			s["rung"][str(args[0])] = rung
 		"mat":
 			s["mat"][str(args[0])] = (args[1] as Array).duplicate()
+		"deli":
+			s["deli"][str(args[0])] = (args[1] as Dictionary).duplicate(true)
+		"cut":
+			s["cut"][str(args[0])] = float(args[1])
+			_save_due[key] = true
+		"parcel":
+			var pv := str(args[0])
+			if s["picked"].has(pv) and not s["served"].has(pv):
+				(s["picked"][pv]["items"] as Array).append(str(args[1]))
 		"till":
 			if bool(args[1]):
 				s["till_by"][str(args[0])] = Time.get_ticks_msec()
@@ -216,7 +236,7 @@ func _apply(key: String, op: String, args: Array) -> void:
 				s["till_by"].erase(str(args[0]))
 		"snap":
 			var got: Dictionary = args[0]
-			for k in ["shelf", "trolley", "picked", "served", "gone", "rung", "mat"]:
+			for k in ["shelf", "trolley", "picked", "served", "gone", "rung", "mat", "deli", "cut"]:
 				if got.has(k):
 					s[k] = (got[k] as Dictionary).duplicate(true)
 	changed.emit(key, op)
@@ -234,7 +254,71 @@ func coop_place(key: String, op: String, args: Array) -> void:
 
 func _snapshot(key: String) -> Dictionary:
 	var s := site(key)
-	return {"shelf": s["shelf"], "trolley": s["trolley"], "picked": s["picked"], "served": s["served"], "gone": s["gone"], "rung": s["rung"], "mat": s["mat"]}
+	return {"shelf": s["shelf"], "trolley": s["trolley"], "picked": s["picked"], "served": s["served"], "gone": s["gone"], "rung": s["rung"], "mat": s["mat"], "deli": s["deli"], "cut": s["cut"]}
+
+
+# ── the deli counter ─────────────────────────────────────────────────────────
+
+## The deli orders waiting, the oldest first: [{id (visit), visit, guest_id, name, good,
+## want, since, age}].
+func deli_tickets(key: String) -> Array:
+	var out: Array = []
+	var s := site(key)
+	var now := now_min()
+	var names := {}
+	for v in ORDERS.visitors(key):
+		names[str(v["visit"])] = v
+	for visit in s["deli"]:
+		var d: Dictionary = s["deli"][visit]
+		if int(d.get("done", 0)) > 0 or bool(d.get("gone", false)) or not names.has(visit) or s["served"].has(visit) or s["gone"].has(visit):
+			continue
+		var v: Dictionary = names[visit]
+		out.append({"id": str(visit), "visit": str(visit), "guest_id": int(v["id"]), "name": str(v["name"]), "arch": str(v["archetype"]),
+			"good": str(d["good"]), "want": int(d["want"]), "since": int(d["since"]), "age": now - int(d["since"]), "kind": "deli"})
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["since"]) < int(b["since"]))
+	return out
+
+
+## A slice off the piece of `good` (grams): the piece cut into is less by it; a new kilo
+## off the books when it has run out. 0 when there is no more.
+func cut_slice(key: String, good: String, grams: float) -> float:
+	var left := float(site(key)["cut"].get(good, 0.0))
+	if left < grams:
+		var books := str(RULES.DELI[good]["good"])
+		if BUSINESS.stock_of(key, books) == 0:
+			return 0.0
+		if CoreRoot != null and CoreRoot.actions != null and BUSINESS.stock_of(key, books) > 0 and not CoreRoot.actions.biz_take(key, {books: 1}):
+			return 0.0
+		left += 1000.0
+	act(key, "cut", [good, left - grams])
+	return grams
+
+
+## The parcel for deli order `t` handed over: judged by its weight (jednota_rules
+## judge_deli); into their basket (the money at the till, by the weight). The verdict;
+## {ok: false, notes} when it is short or not wrapped.
+func deli_serve(key: String, t: Dictionary, grams: float, wrapped: bool, by_hand := false) -> Dictionary:
+	var v: Dictionary = RULES.judge_deli(grams, int(t["want"]), wrapped, int(t["age"]))
+	if not bool(v["ok"]):
+		return v
+	var pts := BIZ_RULES.score(float(v["speed"]), float(v["accuracy"]))
+	var r := BIZ_RULES.reward(pts, RULES.deli_price(str(t["good"]), grams))
+	v["score"] = pts
+	v["stars"] = int(r["stars"])
+	v["tip"] = 0
+	v["amount"] = RULES.deli_price(str(t["good"]), grams)
+	v["build"] = float(v["accuracy"])
+	var visit := str(t["visit"])
+	var rec: Dictionary = (site(key)["deli"].get(visit, {}) as Dictionary).duplicate()
+	rec["done"] = int(round(grams))
+	act(key, "deli", [visit, rec])
+	var item := RULES.parcel(str(t["good"]), int(round(grams)))
+	if site(key)["picked"].has(visit):
+		act(key, "parcel", [visit, item])
+	ORDERS.mood(int(t["guest_id"]), float(r["mood"]) * 0.5 + (BUSINESS.hand_mood(key, "deli") if by_hand else 0.0), "")
+	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
+		CoreRoot.actions.biz_score(key, {"score": pts, "tip": 0, "what": str(RULES.DELI[str(t["good"])]["label"]), "who": str(t.get("name", "")), "hand": by_hand})
+	return v
 
 
 ## Whether a warden is at the till now (its hand leaves the first in the queue to them).
@@ -280,6 +364,9 @@ func serve(key: String, t: Dictionary, given: int, by_hand := false) -> Dictiona
 	var amount := maxi(0, int(round((int(t["total"]) + int(r["tip"])) * BUSINESS.price_k(key))) - int(v["over"]))
 	var needs := {}
 	for g in (t["items"] as Array):
+		# A deli parcel came off the books as it was cut.
+		if RULES.is_parcel(str(g)):
+			continue
 		needs[str(g)] = int(needs.get(str(g), 0)) + 1
 	if not BUSINESS.sell(key, needs, amount):
 		# The books have it less than the basket (the rack had more than the stock):
@@ -373,6 +460,15 @@ func _host_second(key: String) -> void:
 		here[visit] = true
 		if s["picked"].has(visit) or s["gone"].has(visit) or s["served"].has(visit):
 			continue
+		# Something to be cut at the deli counter for some (asked as they come in; they shop
+		# meanwhile, and the parcel goes in their basket when it is handed over).
+		var wish: Dictionary = RULES.deli_wish(visit, str(v.get("archetype", "")))
+		if not wish.is_empty() and not s["deli"].has(visit):
+			var w := wish.duplicate()
+			w["since"] = int(v.get("arrive", now)) + 2
+			w["done"] = 0
+			act(key, "deli", [visit, w])
+		var dl: Dictionary = s["deli"].get(visit, {})
 		if now < int(v.get("arrive", now)) + RULES.BROWSE:
 			continue
 		# Off the rack into the basket: what is there of what they came for.
@@ -380,17 +476,39 @@ func _host_second(key: String) -> void:
 		var shelf_now: Dictionary = (s["shelf"] as Dictionary).duplicate()
 		var got: Array = []
 		var short := 0
+		var behind := {}
 		for g in want:
-			if int(shelf_now.get(str(g), 0)) > 0:
+			if str(g) in RULES.BEHIND:
+				# Behind the till: asked for there, while the books have it.
+				var free := BUSINESS.stock_of(key, str(g)) - in_baskets(key, str(g)) - int(behind.get(str(g), 0))
+				if free > 0:
+					behind[str(g)] = int(behind.get(str(g), 0)) + 1
+					got.append(str(g))
+				else:
+					short += 1
+			elif int(shelf_now.get(str(g), 0)) > 0:
 				shelf_now[str(g)] = int(shelf_now[str(g)]) - 1
 				got.append(str(g))
 			else:
 				short += 1
+		if int(dl.get("done", 0)) > 0:
+			got.append(RULES.parcel(str(dl["good"]), int(dl["done"])))
 		act(key, "picked", [visit, got, short, str(v.get("name", ""))])
 		if got.is_empty():
 			# Nothing they wanted on the rack: out with nothing.
 			act(key, "gone", [visit])
 			ORDERS.mood(int(v["id"]), -2.0, "The camp's Jednota had nothing on its shelves.")
+	# Deli orders nobody cut in time, or of those who have paid and gone: off the rail.
+	for visit in (s["deli"] as Dictionary).keys():
+		var d: Dictionary = s["deli"][visit]
+		if int(d.get("done", 0)) > 0 or bool(d.get("gone", false)):
+			continue
+		if now - int(d["since"]) >= RULES.DELI_WAIT or s["served"].has(visit) or s["gone"].has(visit) or not here.has(visit):
+			var gone := d.duplicate()
+			gone["gone"] = true
+			act(key, "deli", [visit, gone])
+			if here.has(visit) and not s["served"].has(visit):
+				ORDERS.mood(int(str(visit).get_slice("@", 0)), -1.0, "Nobody at the deli counter in the Jednota.")
 	for visit in (s["picked"] as Dictionary).keys():
 		if s["served"].has(visit) or s["gone"].has(visit):
 			continue
@@ -436,7 +554,7 @@ func _save(key: String) -> void:
 	if CoreRoot == null or CoreRoot.actions == null or not CoreRoot.actions.has_method("biz_keep"):
 		return
 	var s := site(key)
-	CoreRoot.actions.biz_keep(key, "jednota", {"shelf": s["shelf"], "trolley": s["trolley"]})
+	CoreRoot.actions.biz_keep(key, "jednota", {"shelf": s["shelf"], "trolley": s["trolley"], "cut": s["cut"]})
 
 
 ## The hands at the Jednota (DESIGN.md §7b, the hands), one piece of work at a time as their
@@ -447,6 +565,7 @@ func _save(key: String) -> void:
 ##                dropped now and then: broken)
 ##   store        a box made up for the place that will run out first; what went off
 ##                thrown out (the pallet truck, gear: twice as quick)
+##   deli         cuts the oldest deli order to about its weight and wraps it
 func _crew_work(key: String, crew: Array) -> void:
 	for p in crew:
 		var id := key + "/" + str(p.get("slug", ""))
@@ -468,12 +587,37 @@ func _crew_work(key: String, crew: Array) -> void:
 				did = _crew_shelves(key, slip)
 			"store":
 				did = _crew_store(key)
+			"deli":
+				did = _crew_deli(key, slip)
 		var k := 1.0
 		if role == "store" and BUSINESS.has_gear(key, "pallet"):
 			k = 0.5
 		elif role.begins_with("till"):
 			k = 0.8
 		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) * k if did else 1.0
+
+
+## The deli's hand cuts the oldest order: a little over, mostly; well off now and then.
+func _crew_deli(key: String, slip: bool) -> bool:
+	var open := deli_tickets(key)
+	if open.is_empty():
+		return false
+	var t: Dictionary = open[0]
+	var want := float(t["want"])
+	var grams := want * _rng.randf_range(1.0, 1.08)
+	if slip:
+		grams = want * _rng.randf_range(1.12, 1.3)
+	var got := 0.0
+	var slice := float(RULES.DELI[str(t["good"])]["slice"])
+	while got < grams:
+		var c := cut_slice(key, str(t["good"]), slice)
+		if c <= 0.0:
+			break
+		got += c
+	if got <= 0.0:
+		return false
+	deli_serve(key, t, got, true, true)
+	return true
 
 
 func _crew_till(key: String, place: int, slip: bool, _speed: int) -> bool:
@@ -532,7 +676,7 @@ func _crew_store(key: String) -> bool:
 	return make_box(key, best) > 0
 
 
-# ── debug (tools/jednota_check.gd, tools/jednota_shots.gd) ───────────────────
+# ── debug (tools/jednota_check.gd, tools/jednota_shots.gd, podniky_coop.gd) ──
 
 ## A good the storeroom has a box of and the rack has room for ("" none).
 func debug_good_with_room(key: String) -> String:
@@ -578,3 +722,26 @@ func debug_pick_all(key: String) -> void:
 				else:
 					short += 1
 			act(key, "picked", [visit, got, short, str(v.get("name", ""))])
+
+
+## The oldest deli order cut to its weight, wrapped and handed over: true when there was
+## one.
+func debug_deli_first(key: String) -> bool:
+	var open := deli_tickets(key)
+	if open.is_empty():
+		return false
+	var t: Dictionary = open[0]
+	return bool(deli_serve(key, t, float(t["want"]), true).get("ok", false))
+
+
+## A deli order for the first one in the shop who has none (the shot drivers): `good`,
+## `want` grams.
+func debug_deli_order(key: String, good: String, want: int) -> bool:
+	for v in ORDERS.visitors(key):
+		var visit := str(v["visit"])
+		if site(key)["deli"].has(visit) and not bool(site(key)["deli"][visit].get("gone", false)):
+			continue
+		act(key, "deli", [visit, {"good": good, "want": want, "since": now_min(), "done": 0}])
+		return true
+	return false
+

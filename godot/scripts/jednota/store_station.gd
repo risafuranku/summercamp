@@ -320,6 +320,11 @@ func bar_text() -> String:
 	return "CARTONS %d   TROLLEY %d" % [cartons, boxes]
 
 
+## The knife across a carton's tape, the bare glove for the rest.
+func hand_tool() -> String:
+	var id := _held if _held != "" else _hover
+	return "knife" if id == "box" else "open"
+
 # ── debug (tools/jednota_check.gd, tools/jednota_shots.gd) ───────────────────
 
 ## A carton of `good` worked through as a warden would: onto the table, cut, priced, onto

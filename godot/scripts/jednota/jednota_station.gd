@@ -12,7 +12,8 @@ const BIZ := preload("res://scripts/business/business_runtime.gd")
 const JTEX := "res://assets/textury/jednota/"
 ## The goods' little words on the slips and the receipt.
 const SHORT := {"bread": "BREAD", "roll": "ROLLS", "salami": "SALAMI", "milk": "MILK", "pickles": "PICKLE",
-	"beer": "BEER", "icecream": "ICE", "sweets": "CHOC", "veg": "VEG", "soap": "SOAP"}
+	"beer": "BEER", "icecream": "ICE", "sweets": "CHOC", "veg": "VEG", "soap": "SOAP", "cards": "CARDS",
+	"magazine": "MAG", "rum": "RUM", "cigs": "START"}
 
 var shop
 var _icons: Dictionary = {}
@@ -20,7 +21,7 @@ var _icons: Dictionary = {}
 
 func _build() -> void:
 	shop = state if state != null else JEDNOTA.of(get_tree())
-	for g in RULES.all_goods():
+	for g in RULES.all_goods() + RULES.BEHIND + ["parcel"]:
 		_icons[g] = _tex("goods_" + g)
 	for n in ["basket", "bag", "box_closed", "coin1", "coin2", "note5", "note10", "note20"]:
 		_icons[n] = _tex(n)
@@ -152,12 +153,16 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 			break
 		var g := str(items[i])
 		var col := ink if rung.has(i) else pale
-		var ic: Texture2D = _icons.get(g)
+		var ic: Texture2D = _icons.get("parcel" if RULES.is_parcel(g) else g)
 		if ic != null:
 			var sc := minf(8.0 / ic.get_width(), 8.0 / ic.get_height())
 			c.draw_texture_rect(ic, Rect2(Vector2(r.position.x + 3, y - 7), (ic.get_size() * sc).floor()), false, Color(1, 1, 1, 1.0 if rung.has(i) else 0.45))
-		c.draw_string(f, Vector2(r.position.x + 13, y), str(SHORT.get(g, g.to_upper())), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
-		var price := "%d" % RULES.price(g)
+		var short := str(SHORT.get(g, g.to_upper()))
+		if RULES.is_parcel(g):
+			var pp := g.split(":")
+			short = "%s %dG" % [str(pp[1]).substr(0, 5).to_upper(), int(pp[2])] if pp.size() >= 3 else "DELI"
+		c.draw_string(f, Vector2(r.position.x + 13, y), short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
+		var price := "%d" % RULES.item_price(g)
 		var pw := f.get_string_size(price, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 		c.draw_string(f, Vector2(r.end.x - 4 - pw, y), price, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
 		y += 9.0

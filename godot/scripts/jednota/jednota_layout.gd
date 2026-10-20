@@ -32,6 +32,8 @@ const STATIONS := {
 	"till": {"room": "shop", "at": Vector3(2.0, 1.0, -0.2), "size": Vector3(0.65, 0.25, 1.65), "stand": Vector3(2.75, 0.05, -0.2), "pose": "till", "mark": Vector3(2.0, 1.7, -0.2), "label": "the till", "tab_label": "TILL"},
 	"shelves": {"room": "shop", "at": Vector3(-0.75, 0.72, -2.32), "size": Vector3(2.2, 1.3, 0.36), "stand": Vector3(-0.75, 0.05, -1.75), "pose": "fix", "mark": Vector3(-0.75, 1.62, -2.25), "label": "the shelves", "tab_label": "SHELVES"},
 	"store": {"room": "store", "at": Vector3(-0.2, 0.95, -0.95), "size": Vector3(1.7, 0.2, 0.6), "stand": Vector3(-0.2, 0.05, -0.2), "pose": "bag", "mark": Vector3(-0.2, 1.75, -1.3), "label": "the packing table", "tab_label": "STOREROOM"},
+	# The deli counter at the till counter's far end (the brief of 20. 10.).
+	"deli": {"room": "shop", "at": Vector3(2.0, 1.0, -1.75), "size": Vector3(0.65, 0.25, 1.2), "stand": Vector3(2.75, 0.05, -1.75), "pose": "till", "mark": Vector3(2.0, 1.7, -1.75), "label": "the deli counter", "tab_label": "DELI"},
 }
 ## Where each is worked: the till's counter top (the cashier behind it on the right, the
 ## customers across it), the rack and the trolley (a wall), the packing table's top.
@@ -39,6 +41,7 @@ const SURFACES := {
 	"till": {"at": Vector3(2.0, 0.955, -0.2), "size": Vector2(1.6, 0.6), "yaw": 90.0, "flat": true, "cam_back": 0.7, "cam_up": 0.66, "cam_aim": 0.02, "tex": J + "st_till.png"},
 	"shelves": {"at": Vector3(-0.35, 0.89375, -2.32), "size": Vector2(3.0, 1.6875), "yaw": 0.0, "flat": false, "cam_back": 1.95, "tex": ""},
 	"store": {"at": Vector3(-0.2, 0.905, -0.95), "size": Vector2(1.6, 0.525), "yaw": 0.0, "flat": true, "cam_back": 0.9, "cam_up": 0.95, "cam_aim": 0.22, "cam_side": 0.35, "tex": J + "st_store.png"},
+	"deli": {"at": Vector3(2.0, 0.955, -1.75), "size": Vector2(1.2, 0.6), "yaw": 90.0, "flat": true, "cam_back": 0.6, "cam_up": 0.62, "cam_aim": 0.02, "tex": J + "st_deli.png"},
 }
 ## The rack's picture in the shelves' wall: its centre (room) and size; the trolley stands
 ## right of it (shelves_station.gd).
@@ -233,6 +236,7 @@ static func shop(parent: Node3D, si) -> void:
 	# till's station; the cigarettes and the price list on the wall behind the cashier;
 	# the second till further back once bought.
 	_counter(parent, Vector3(2.0, 0.05, -0.2), "TillCounter", 1.6, 0.6)
+	_counter(parent, Vector3(2.0, 0.05, -1.75), "DeliCounter", 1.2, 0.6)
 	_pic(parent, "shop_shelf_cigs", Vector2(1.5, 0.84), Vector3(3.17, 1.65, -0.2), -90.0, "Cigarettes")
 	look(parent, "cigarettes", "Petra, Sparta, Start. Start smells of the stove and Sparta of nothing.", Vector3(3.12, 1.65, -0.2), Vector3(0.1, 0.84, 1.5))
 	var t2 := Node3D.new()
@@ -255,6 +259,7 @@ static func shop(parent: Node3D, si) -> void:
 		if str(STATIONS[id]["room"]) == "shop":
 			station_body(parent, str(id))
 	surface(parent, "till")
+	surface(parent, "deli")
 
 
 ## A picture standing on the floor against a wall (a rack, a fridge), on a box as deep
