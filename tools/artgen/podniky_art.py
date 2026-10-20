@@ -88,7 +88,9 @@ SHEETS += [
     ("pk_ps_slot", [(CAMP + "pub_slot.png", 136), (P + "slot_lever.png", 30)]),
     ("pk_ps_reels", [(P + "reel_seven.png", 14), (P + "reel_cherry.png", 14), (P + "reel_bell.png", 14),
                      (P + "reel_lemon.png", 14), (P + "reel_bar.png", 14), (P + "reel_plum.png", 14)]),
-    ("pk_ps_darts", [(P + "dart_side.png", 16), (P + "dart_fly.png", 8), (P + "dart_stuck.png", 10)]),
+    # The third piece is a dart stood in a block of wood: a dart in the board is seen from the
+    # front (its flights), so dart_stuck is the flying one's picture, bigger (MARKS).
+    ("pk_ps_darts", [(P + "dart_side.png", 16), (P + "dart_fly.png", 8)]),
     ("pk_ps_cards", [(P + "card_back.png", 16), (P + "card_7.png", 16), (P + "card_8.png", 16), (P + "card_9.png", 16),
                      (P + "card_10.png", 16), (P + "card_unter.png", 16), (P + "card_ober.png", 16), (P + "card_king.png", 16),
                      (P + "card_ace.png", 16)]),
@@ -99,6 +101,7 @@ MARKS = [
     ("pk_cts_drinks", 3, UI + "mark_tea.png", 14),
     ("pk_cts_drinks", 5, UI + "mark_limo.png", 16),
     # The bistro's tickets' pictures (bistro_station ICONS), 16 px.
+    ("pk_ps_darts", 1, P + "dart_stuck.png", 10),
     ("pk_bts_grill", 2, FOOD + "icon_sausage.png", 16),
     ("pk_bts_grill", 4, FOOD + "icon_mustard.png", 10),
     ("pk_bts_grill", 5, FOOD + "icon_bread.png", 12),

@@ -162,13 +162,11 @@ func _spots() -> Array:
 
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover
+	# The cup itself stands under the tap (its picture fills): the thumb on the tap, the
+	# hand empty; the cup in the hand only as it goes over the counter (_hand_over).
 	match id:
-		"tap", "cups":
-			return "cup"
-		"drink":
-			return "cup" if str(_drink.get("kind", "")) == "tea" else "open"
-		"bottle", "bags", "straws", "hand":
-			return "open"
+		"tap":
+			return "press"
 	return "open"
 
 
@@ -220,6 +218,8 @@ func _hand_over() -> void:
 		say("", "Nobody asked for a drink.")
 		return
 	var who := first_name(str(t["name"]))
+	if str(_drink["kind"]) == "tea" and _hands_ui != null and is_instance_valid(_hands_ui):
+		_hands_ui.call("flash", "cup", 4)
 	var v: Dictionary = stand.serve_drink(building_key, t, str(_drink["kind"]), float(_drink["fill"]), bool(_drink["tied"]))
 	if not bool(v.get("ok", false)):
 		if str(v.get("why", "")) == "empty":
