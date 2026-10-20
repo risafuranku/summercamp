@@ -46,8 +46,9 @@ func setup(main_node: Node, dir) -> void:
 		layer.add_child(_debug)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _debug != null and event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).keycode == KEY_F10:
+## The director's state on screen (the debug menu's O; it was F10).
+func toggle_debug() -> void:
+	if _debug != null:
 		_debug.visible = not _debug.visible
 
 

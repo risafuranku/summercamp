@@ -303,6 +303,12 @@ func _bootstrap_runtime() -> void:
 
 	_texture_style = TEXTURE_STYLE_SCRIPT.new()
 	_ensure_input_actions()
+	# The one debug menu, on L (scripts/ui/debug_menu.gd): debug builds only.
+	if OS.is_debug_build():
+		var dm = preload("res://scripts/ui/debug_menu.gd").new()
+		dm.name = "DebugMenu"
+		dm.main = self
+		add_child(dm)
 	await _boot_step("Tuning the radio", 0.15)
 	_setup_audio()
 
@@ -1308,34 +1314,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	# Debug actions only exist in debug builds (see _ensure_input_actions).
-	# Querying an unregistered action would push an InputMap error every frame.
-	if OS.is_debug_build():
-		if event.is_action_pressed("debug_damage_player"):
-			_debug_damage_player()
-			return
-
-		if event.is_action_pressed("debug_add_money"):
-			_debug_add_money()
-			return
-
-		if event.is_action_pressed("toggle_liminal_debug"):
-			_toggle_liminal_debug_window()
-			return
+	# The debug keys are all in the one debug menu now (L, scripts/ui/debug_menu.gd).
 
 	# Block all gameplay input while any UI is open.
 	if _is_any_interior_open():
 		return
-
-	if OS.is_debug_build():
-		if event.is_action_pressed("toggle_day_night"):
-			time_system.step_time_hours(DEBUG_TIME_STEP_HOURS)
-			_sync_runtime_state_from_systems(true)
-
-		if event.is_action_pressed("toggle_weather"):
-			var next = (_weather_state + 1) % WEATHER_STATE_COUNT
-			weather_system.set_weather(next)
-			_sync_runtime_state_from_systems()
 
 	if event.is_action_pressed("interact"):
 		_try_interact()
@@ -1529,16 +1512,8 @@ func _ensure_input_actions() -> void:
 	_add_key_action("interact", KEY_E)
 	_add_mouse_button_action("interact", MOUSE_BUTTON_LEFT)
 
-	# Debug-only bindings. In a release build these must not exist: a player probing
-	# the keyboard to discover controls would otherwise skip hours (T/U), reroll the
-	# weather (Y), hand themselves money (K) or damage themselves (P).
-	if OS.is_debug_build():
-		_add_key_action("toggle_day_night", KEY_T)
-		_add_key_action("toggle_day_night", KEY_U)
-		_add_key_action("toggle_weather", KEY_Y)
-		_add_key_action("debug_damage_player", KEY_P)
-		_add_key_action("debug_add_money", KEY_K)
-		_add_key_action("toggle_liminal_debug", KEY_L)
+	# No debug bindings: the debug menu (L, debug builds only) has them all, so a key
+	# pressed by chance skips no hours and hands out no money (the user 20. 10.).
 	_add_key_action("service_room_prev", KEY_A)
 	_add_key_action("service_room_next", KEY_D)
 	# Service interiors poll these on every key; an unregistered action is an engine
@@ -4333,7 +4308,12 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if test_enemy.is_empty() and camp_name != "":
 		PROFILES.create_camp(camp_name, world_generator.world_seed, sandbox, coop)
 	_rebuild_core_cells_from_visual_structures()
-	_place_ruined_cabin()
+	# The camp's old cabin, shut since last summer: the campaign's start, not a sandbox's
+	# (there you build from a clean camp: the user 20. 10.).
+	if sandbox:
+		_ruined_cabin_key = ""
+	else:
+		_place_ruined_cabin()
 	if time_system != null and time_system.has_method("set_time_hours"):
 		time_system.set_time_hours(9.0)
 	if weather_system != null and weather_system.has_method("set_weather"):

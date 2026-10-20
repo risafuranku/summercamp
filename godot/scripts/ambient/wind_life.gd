@@ -2,7 +2,9 @@ extends Node3D
 
 ## The wind you can see, outdoors round you (the camp, the road, Lesna): autumn leaves
 ## blown along in steps (12 a second, like the rest of the Build sprites), tumbling (face
-## on, edge on, flipped), coming down, lying a moment, picked up again by the next gust.
+## on, edge on, flipped) and turning round as they go (each its own way and speed, faster
+## in a gust: they only ever flew tip up, the user 20. 10.), coming down, lying a moment,
+## picked up again by the next gust.
 ## Oak, maple and birch leaves (Grok, assets/textury/world/leaf_*.png), big leaves' size,
 ## and none right in your face (one that drifts that close is not drawn).
 ## How many and how fast goes with the weather (a breeze on a clear day, a gale in a
@@ -57,7 +59,8 @@ func _ready() -> void:
 		s.visible = false
 		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(s)
-		_leaves.append({"sprite": s, "vel": Vector3.ZERO, "rest": 0.0, "shape": i % maxi(1, _frames.size()), "spin": _rng.randf() * 4.0, "live": false})
+		_leaves.append({"sprite": s, "vel": Vector3.ZERO, "rest": 0.0, "shape": i % maxi(1, _frames.size()), "spin": _rng.randf() * 4.0, "live": false,
+			"roll": _rng.randf() * TAU, "roll_v": 0.0})
 
 
 func _player() -> Node3D:
@@ -125,8 +128,8 @@ func _process(delta: float) -> void:
 			# Tumbling: face on, turning, edge on, turning back (a step each), flipped
 			# every other turn.
 			var phase := int(lf["spin"] * 2.0) % 4
-			s.scale = Vector3([1.0, 0.6, 0.25, 0.6][phase], 1.0, 1.0)
 			s.flip_h = int(lf["spin"] * 0.5) % 2 == 0
+			lf["roll"] = float(lf["roll"]) + dt * float(lf["roll_v"]) * (0.6 + v.length() * 0.25)
 			# The camp, the road and Lesna all lie at y 0.
 			var ground := 0.04
 			if pos.y <= ground + 0.02:
@@ -140,7 +143,23 @@ func _process(delta: float) -> void:
 			_spawn(lf, centre, wind)
 			continue
 		s.global_position = pos
+		if lf["rest"] <= 0.0:
+			_face(s, eye, float(lf["roll"]), [1.0, 0.6, 0.25, 0.6][int(lf["spin"] * 2.0) % 4])
 		s.visible = pos.distance_to(eye) > NEAR
+
+
+## In the air: turned to you (by hand, so it can turn round as well), its tip wherever its
+## turn has got to, narrowed as it tumbles edge on.
+func _face(s: Sprite3D, eye: Vector3, roll: float, width: float) -> void:
+	var to_eye := eye - s.global_position
+	if to_eye.length() < 0.01:
+		return
+	to_eye = to_eye.normalized()
+	var up := Vector3.UP if absf(to_eye.y) < 0.98 else Vector3.FORWARD
+	# The sprite's face is +Z: looking away from the eye puts it towards it.
+	var b := Basis.looking_at(-to_eye, up)
+	b = b * Basis(Vector3(0, 0, 1), roll) * Basis.from_scale(Vector3(width, 1.0, 1.0))
+	s.global_transform = Transform3D(b, s.global_position)
 
 
 ## Down on the ground it lies flat, any way round; up in the air it faces you again.
@@ -150,7 +169,7 @@ func _lie(s: Sprite3D, flat: bool) -> void:
 		s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 		s.rotation = Vector3(-PI * 0.5, _rng.randf() * TAU, 0.0)
 	else:
-		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 		s.rotation = Vector3.ZERO
 
 
@@ -165,6 +184,8 @@ func _spawn(lf: Dictionary, centre: Vector3, wind: Vector3) -> void:
 	lf["vel"] = wind * _rng.randf_range(0.7, 1.1)
 	lf["rest"] = 0.0
 	lf["live"] = true
+	lf["roll"] = _rng.randf() * TAU
+	lf["roll_v"] = _rng.randf_range(1.2, 4.0) * (1.0 if _rng.randf() < 0.5 else -1.0)
 	# The leaf's own colours, a touch of the season's tint, each a little lighter or darker.
 	lf["shape"] = _rng.randi() % _frames.size()
 	var tex: Texture2D = _frames[lf["shape"]]

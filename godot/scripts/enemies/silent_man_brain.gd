@@ -1378,8 +1378,10 @@ func _lit_by_others(point: Vector3) -> bool:
 		others.append(mp)
 	var cn = scene.get("_coop_night")
 	if cn != null and cn.get("_proxies") is Dictionary:
-		for p in (cn.get("_proxies") as Dictionary).values():
-			if p != _player and is_instance_valid(p):
+		for rec in (cn.get("_proxies") as Dictionary).values():
+			# A proxy's record: {body, cam} (coop_night.gd).
+			var p = (rec as Dictionary).get("body", null) if rec is Dictionary else rec
+			if p is Node3D and is_instance_valid(p) and p != _player:
 				others.append(p)
 	for o in others:
 		if not o.has_method("get_flashlight_aim"):

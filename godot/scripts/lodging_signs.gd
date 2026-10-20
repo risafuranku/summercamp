@@ -8,21 +8,34 @@ extends Node
 ## new build, an upgrade (the structure is rebuilt) or a renumbering shows by itself.
 ## Where the sign goes is the model's: meta "number_plate" (a local Transform3D) on
 ## cabins and caravans (building_models.gd), a stake in front of tents.
+## Over an empty room that wants doing, a marker floats like the upkeep's warning
+## triangles (Grok world/sign_clean.png, a broom: to clean; world/sign_bed.png, the linen:
+## to make up), bobbing in steps, so you see from outside which ones need you without
+## the map (the user 20. 10.). None over a ready or a taken room.
 
 const FONT := preload("res://assets/fonts/silkscreen.fnt")
 const POLL := 1.0
 const CAMP := "res://assets/textury/camp/"
 ## In front of a tent, beside its door (inside the 4 m tile for every tent level).
 const TENT_STAKE := Vector3(0.62, 0.0, 1.6)
+const SIGN_CLEAN := "res://assets/textury/world/sign_clean.png"
+const SIGN_BED := "res://assets/textury/world/sign_bed.png"
+## The marker's size (20 px pictures: about 0.8 m, the upkeep triangle's) and how far over the roof.
+const SIGN_PX := 0.04
+const SIGN_OVER := 0.75
 
 var _acc := POLL
 var _wood: StandardMaterial3D
 var _board: StandardMaterial3D
 var _enamel: StandardMaterial3D
 var _rim: StandardMaterial3D
+var _sign_tex: Dictionary = {}   # "dirty" / "unprepared" -> Texture2D
+var _bob_t := 0.0
+var _markers: Array = []         # Sprite3D, for the bob
 
 
 func _process(delta: float) -> void:
+	_bob(delta)
 	_acc += delta
 	if _acc < POLL or GuestManager == null:
 		return
@@ -40,7 +53,9 @@ func _sync(s: Node3D) -> void:
 	var o = s.get_meta("grid_origin", null)
 	if kind.is_empty() or not (o is Vector2i):
 		return
-	var no: int = GuestManager.room_number("%d:%d" % [(o as Vector2i).x, (o as Vector2i).y])
+	var key := "%d:%d" % [(o as Vector2i).x, (o as Vector2i).y]
+	_sync_marker(s, key)
+	var no: int = GuestManager.room_number(key)
 	var sign := s.get_node_or_null("NumberSign") as Node3D
 	if no <= 0:
 		if sign != null:
@@ -54,6 +69,83 @@ func _sync(s: Node3D) -> void:
 		var label := sign.find_child("Number", true, false) as Label3D
 		if label != null:
 			label.text = str(no)
+
+
+## The marker over a room that wants doing (empty and dirty, or not made up).
+func _sync_marker(s: Node3D, key: String) -> void:
+	var rs: Dictionary = GuestManager.get_room_state(key)
+	var want := ""
+	if not rs.is_empty() and not bool(rs.get("occupied", false)):
+		var st := str(rs.get("status", ""))
+		if st == "dirty" or st == "unprepared":
+			want = st
+	var m := s.get_node_or_null("RoomMarker") as Sprite3D
+	if want == "":
+		if m != null:
+			m.visible = false
+		return
+	var tex := _marker_tex(want)
+	if tex == null:
+		return
+	if m == null:
+		m = Sprite3D.new()
+		m.name = "RoomMarker"
+		m.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		m.shaded = false
+		m.pixel_size = SIGN_PX
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		s.add_child(m)
+		_markers.append(m)
+	# Over the roof, in the middle of the footprint (higher if the upkeep's warning is
+	# there for the same building, so they do not cover each other).
+	var top := _top_of(s)
+	var st2 = CoreRoot.get_state() if CoreRoot != null else null
+	var warned: bool = st2 != null and st2.failures.has(key)
+	m.set_meta("base", s.to_local(Vector3(top.x, top.y + SIGN_OVER + (0.95 if warned else 0.0), top.z)))
+	m.texture = tex
+	m.visible = true
+
+
+func _marker_tex(kind: String) -> Texture2D:
+	if not _sign_tex.has(kind):
+		var path := SIGN_CLEAN if kind == "dirty" else SIGN_BED
+		_sign_tex[kind] = load(path) if ResourceLoader.exists(path) else null
+	return _sign_tex[kind]
+
+
+## The top middle of the building (its meshes' box; not the markers' own sprites).
+func _top_of(s: Node3D) -> Vector3:
+	var out := AABB()
+	var first := true
+	var stack: Array = [s]
+	while not stack.is_empty():
+		var n = stack.pop_back()
+		var vi := n as VisualInstance3D
+		if vi != null and not (vi is Sprite3D) and not (vi is Label3D):
+			var box: AABB = vi.global_transform * vi.get_aabb()
+			out = box if first else out.merge(box)
+			first = false
+		for c in n.get_children():
+			if c.name != "NumberSign":
+				stack.append(c)
+	if first:
+		return s.global_position + Vector3(0, 2.5, 0)
+	return Vector3(out.get_center().x, out.end.y, out.get_center().z)
+
+
+## Up and down a hand's breadth, in steps, like the rest of the Build sprites.
+func _bob(delta: float) -> void:
+	_bob_t += delta
+	var y := floorf(sin(_bob_t * 2.2) * 3.0) / 3.0 * 0.06
+	for i in range(_markers.size() - 1, -1, -1):
+		var m: Sprite3D = _markers[i]
+		if not is_instance_valid(m):
+			_markers.remove_at(i)
+			continue
+		if m.visible:
+			m.position = (m.get_meta("base", Vector3.ZERO) as Vector3) + Vector3(0, y, 0)
 
 
 ## A tent's: a pine board on a stake, the number in dark paint, leaning a little.

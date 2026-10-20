@@ -8,7 +8,10 @@ extends Node
 ##   breaker  the main at the generator trips: every lamp out, powered facilities shut.
 ##            Fixed at the distribution board (scripts/breaker_panel.gd); the faulty
 ##            circuit stays off for the rest of the night (half the lamps, if it was a
-##            lamp circuit).
+##            lamp circuit). Not most nights any more, seldom two nights running, and
+##            the circuit is usually back in the morning (the damp dried out of it);
+##            only now and then is it burnt and wants the electrician (it tripped every
+##            night and every time meant ringing Novotny: the user 20. 10.).
 ##   lamp     a lamp post's bulb goes: that lamp is dark until you hold R at it.
 ##   sewer    the sewer clogs: toilets and showers close until you crawl the pipes.
 ##   toilet   the toilet block blocks: go in and unblock it (service_interior).
@@ -28,6 +31,13 @@ extends Node
 signal changed
 
 const ELECTRICIAN_FEE := 60
+## How likely the main is to trip on a night (more the harder the night presses), much
+## less the night after one, and how often the faulty circuit is back on by itself at dawn.
+const BREAKER_BASE := 0.3
+const BREAKER_PER_PRESSURE := 0.08
+const BREAKER_MAX := 0.6
+const BREAKER_AFTER_ONE := 0.35
+const CIRCUIT_DRIES_BY_DAWN := 0.7
 const QUIET_NIGHTS := 1
 const CIRCUIT_NAMES := ["LAMPS NORTH", "LAMPS SOUTH", "OFFICE", "FOOD", "WASH BLOCK", "PUMP"]
 const FIRST_HOUR := 21.0
@@ -40,6 +50,7 @@ var dead_circuit := -1
 var _fault := 0
 var _jobs: Array = []
 var _planned_night := -1
+var _last_breaker_night := -99
 var _rng := RandomNumberGenerator.new()
 var _main: Node
 
@@ -54,6 +65,7 @@ func reset() -> void:
 	dead_circuit = -1
 	_jobs.clear()
 	_planned_night = -1
+	_last_breaker_night = -99
 
 
 ## Called every frame with the clock. `night_index` is the day the night started on.
@@ -85,6 +97,9 @@ func on_dawn() -> void:
 	# him: his number is on the noticeboard, scripts/reception/electrician_visit.gd).
 	if breaker_tripped:
 		_report("Morning, and the main is still off. The board at the generator, or ring Novotny (the number is on the office noticeboard).", 3)
+	elif dead_circuit >= 0 and _rng.randf() < CIRCUIT_DRIES_BY_DAWN:
+		_report("Morning: the %s circuit holds again." % CIRCUIT_NAMES[clampi(dead_circuit, 0, CIRCUIT_NAMES.size() - 1)].to_lower(), 1)
+		dead_circuit = -1
 	elif dead_circuit >= 0:
 		_report("The %s circuit is still off. Novotny can put it right: his number is on the noticeboard." % CIRCUIT_NAMES[clampi(dead_circuit, 0, CIRCUIT_NAMES.size() - 1)].to_lower(), 2)
 	for job in _jobs:
@@ -197,7 +212,8 @@ func coop_take(jobs: Array) -> void:
 
 
 func export_state() -> Dictionary:
-	return {"breaker_tripped": breaker_tripped, "dead_circuit": dead_circuit, "fault": _fault, "jobs": _jobs.duplicate(true), "planned_night": _planned_night}
+	return {"breaker_tripped": breaker_tripped, "dead_circuit": dead_circuit, "fault": _fault, "jobs": _jobs.duplicate(true), "planned_night": _planned_night,
+		"last_breaker": _last_breaker_night}
 
 
 func import_state(data: Dictionary) -> void:
@@ -206,6 +222,7 @@ func import_state(data: Dictionary) -> void:
 	dead_circuit = int(data.get("dead_circuit", -1))
 	_fault = int(data.get("fault", 0))
 	_planned_night = int(data.get("planned_night", -1))
+	_last_breaker_night = int(data.get("last_breaker", -99))
 	for j in data.get("jobs", []):
 		if j is Dictionary:
 			_jobs.append(j)
@@ -245,9 +262,10 @@ func _plan(night_index: int, abs_minute: int) -> void:
 	# harder the night presses on the camp (pipes/pipe_director.gd).
 	if pool.has("sewer") and _rng.randf() < sewer_chance(_night_pressure()):
 		kinds.append("sewer")
-	# The breaker is the signature job: most nights have one.
-	if pool.has("breaker") and _rng.randf() < 0.8:
+	# The breaker: some nights, more the harder the night presses, seldom two running.
+	if pool.has("breaker") and _rng.randf() < breaker_chance(_night_pressure(), _last_breaker_night == night_index - 1):
 		kinds.append("breaker")
+		_last_breaker_night = night_index
 	# Different kinds of trouble before any repeats; only lamps can go twice (there are
 	# several).
 	var lamp_count := _coords_of(["lamp_post"]).size()
@@ -268,6 +286,11 @@ func _plan(night_index: int, abs_minute: int) -> void:
 		var at := maxi(abs_minute + 10, night_start + int(slot))
 		_jobs.append(_make(kinds[i], at))
 	changed.emit()
+
+
+static func breaker_chance(pressure: float, tripped_last_night: bool) -> float:
+	var c := clampf(BREAKER_BASE + BREAKER_PER_PRESSURE * pressure, BREAKER_BASE, BREAKER_MAX)
+	return c * (BREAKER_AFTER_ONE if tripped_last_night else 1.0)
 
 
 ## How likely the raccoon is to be in the sewer tonight, from the night's pressure.

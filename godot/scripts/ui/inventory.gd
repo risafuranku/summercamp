@@ -9,6 +9,10 @@ extends CanvasLayer
 ## outside the bag, it is thrown on the ground in front of you, where anyone can pick it
 ## up (interact on it) - the other warden first: for two seconds the one who threw it
 ## cannot. The ground is the host's (scripts/coop/coop.gd send_inv).
+## In a room too (the user 20. 10.: TAB in the interiors shows the bag), unless what you
+## are at has TAB or the mouse for itself (the camp PC, a business's station, the
+## pipes, the corn stand, a close-up at the desk); there a thing clicked outside the bag
+## goes back in its pocket (there is no ground in front of you to throw it on).
 ## Pictures: assets/textury/items/, ui/inv_*.png (Grok, tools/artgen/office_art.py).
 ## town_trip.gd owns it, with the pockets (smoking, drinking) it feeds, and saves it.
 
@@ -320,12 +324,54 @@ func _allowed() -> bool:
 		return false
 	if bool(main.get("_coop_down")):
 		return false
-	if main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")):
+	if main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")) and not _room_ok(main):
+		return false
+	var im0 = main.get("_interior_manager")
+	var stand = im0.get("_corn_stand") if im0 != null else null
+	if stand != null and is_instance_valid(stand) and bool(stand.get("visible")):
 		return false
 	if trip != null and (trip.is_open() or bool(trip.get("_sleeping"))):
 		return false
 	var pm = main.get("_pause_menu")
 	return not (pm != null and pm.has_method("is_open") and pm.is_open())
+
+
+## A room where the bag may open: a plain room, not a station, the PC, the pipes, a menu.
+func _room_ok(main: Node) -> bool:
+	for k in ["_sewer_pipe_minigame", "_utility_repair_minigame"]:
+		var mg = main.get(k)
+		if mg != null and is_instance_valid(mg) and mg.has_method("is_open") and mg.is_open():
+			return false
+	var im = main.get("_interior_manager")
+	if im == null:
+		return false
+	if im.has_method("is_crt_desktop_active") and im.is_crt_desktop_active():
+		return false
+	for k in ["_building_upgrade_menu", "_guest_dialog"]:
+		var menu = im.get(k)
+		if menu != null and is_instance_valid(menu) and menu.has_method("is_open") and menu.is_open():
+			return false
+	if not im.has_method("_get_registered_interior_nodes"):
+		return false
+	for n in im.call("_get_registered_interior_nodes"):
+		if n == null or not is_instance_valid(n) or not n.has_method("is_open") or not n.is_open():
+			continue
+		if n.has_method("_station_open") and str(n.call("_station_open")) != "":
+			return false
+		var ex = n.get("_extras")
+		if ex != null and ex.has_method("is_modal") and ex.is_modal():
+			return false
+		var prep = n.get("_upkeep_prep")
+		if prep != null and prep.has_method("is_scrubbing") and prep.is_scrubbing():
+			return false
+		if n.get("_crt_active") == true:
+			return false
+	return true
+
+
+func _in_room() -> bool:
+	var main := _main()
+	return main != null and main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open"))
 
 
 func _input(event: InputEvent) -> void:
@@ -415,6 +461,10 @@ func _on_gui(event: InputEvent) -> void:
 	if _panel_rect(s).has_point(mb.position):
 		if cell.x >= 0:
 			_place_at(mb.position, s)
+		return
+	if _in_room():
+		_put_back()
+		_changed()
 		return
 	_throw_held()
 

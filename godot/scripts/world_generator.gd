@@ -953,10 +953,12 @@ func _tree_mesh(id: String) -> Mesh:
 			_st_blob(st, Vector3(0.45, 4.4, 0.2), Vector3(0.85, 0.95, 0.85))
 			_st_blob(st, Vector3(-0.4, 3.2, -0.3), Vector3(0.8, 0.8, 0.8))
 		"birch_cards":
-			# Round each lump of the crown: three upright cards crossed, one tilted.
+			# Round each lump of the crown: three upright cards crossed, one tilted; about
+			# the lump's own size (at 2.5 times its radius the cards stuck out of the crown
+			# as flat sheets: the user 20. 10.).
 			for blob in BIRCH_BLOBS:
 				var c: Vector3 = blob[0]
-				var size: float = float(blob[1]) * 2.5
+				var size: float = float(blob[1]) * 1.95
 				for k in 3:
 					_st_card(st, c, size, deg_to_rad(60.0 * k + float(blob[1]) * 40.0), 0.0)
 				_st_card(st, c + Vector3(0.0, float(blob[1]) * 0.35, 0.0), size * 0.9, deg_to_rad(25.0), deg_to_rad(62.0))
