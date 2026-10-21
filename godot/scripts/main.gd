@@ -4213,6 +4213,9 @@ func _on_menu_test_night(enemy_id: String) -> void:
 	if enemy_id == "bus":
 		await _start_test_bus()
 		return
+	if enemy_id == TEST_BUSINESSES:
+		await _start_test_businesses()
+		return
 	await _start_new_camp(true, enemy_id)
 	for _i in 60:
 		if not _menu_mode:
@@ -4271,6 +4274,69 @@ func _start_test_bus() -> void:
 		trip._put_player(trip._road().wait_spot())
 	if _hud_manager != null:
 		_hud_manager.push_status("Test: the 380 is coming up the road. Ticket from the yellow machine by the stop, punch it on board.", 2)
+
+
+## The businesses' test camp (the title screen's L page, "Businesses"; the user 21. 10.:
+## "every business, the corn, the pub, the bistro, the Jednota, and lots of people, to try
+## the minigames"): a fresh camp at mid-morning, the four on paths up from the gate (each
+## stocked as a new place is), tents and cabins round them full, the guests already hungry
+## and thirsty, every blueprint open. Built through the real builder; what does not fit
+## this camp's trees and lake is left out.
+const TEST_BUSINESSES := "podniky"
+
+
+func _start_test_businesses() -> void:
+	await _start_new_camp(true, TEST_BUSINESSES)
+	for _i in 60:
+		if not _menu_mode:
+			break
+		await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
+	debug_jump_to(1, 10.5)
+	CoreRoot.actions.add_money(60000)
+	var g: Vector2i = world_generator.gate_tile() if world_generator != null and world_generator.has_method("gate_tile") else Vector2i(12, 0)
+	for x0 in range(g.x - 9, g.x + 9, 5):
+		for y0 in range(4, 19, 5):
+			EventBus.RequestDemolish.emit(Rect2i(x0, y0, 5, 5))
+	for y in range(4, 18):
+		EventBus.RequestBuild.emit("path", Vector2i(g.x, y), 0)
+	for x in range(g.x - 8, g.x + 9):
+		if x != g.x:
+			EventBus.RequestBuild.emit("path", Vector2i(x, 8), 0)
+			EventBus.RequestBuild.emit("path", Vector2i(x, 13), 0)
+	var plan := [
+		["corn_stand", Vector2i(g.x + 1, 6)], ["pub", Vector2i(g.x + 1, 9)], ["restaurant", Vector2i(g.x + 4, 9)], ["vecerka", Vector2i(g.x - 4, 9)],
+		["toilet_block", Vector2i(g.x + 3, 6)], ["shower_block", Vector2i(g.x + 4, 6)], ["toilet_block", Vector2i(g.x - 1, 12)],
+		["picnic_table", Vector2i(g.x + 2, 5)], ["picnic_table", Vector2i(g.x + 7, 9)], ["picnic_table", Vector2i(g.x + 7, 10)], ["bonfire", Vector2i(g.x + 7, 6)],
+		["lamp_post", Vector2i(g.x - 1, 7)], ["lamp_post", Vector2i(g.x + 1, 12)], ["lamp_post", Vector2i(g.x - 6, 7)], ["lamp_post", Vector2i(g.x + 6, 12)],
+		["cabin_1", Vector2i(g.x - 8, 14)], ["cabin_1", Vector2i(g.x - 5, 14)], ["cabin_1", Vector2i(g.x + 2, 14)], ["cabin_1", Vector2i(g.x + 5, 14)],
+	]
+	for x in [g.x - 2, g.x - 3, g.x - 5, g.x - 6, g.x - 7]:
+		plan.append(["tent_1", Vector2i(x, 5)])
+		plan.append(["tent_1", Vector2i(x, 6)])
+	for x in [g.x - 3, g.x - 5, g.x - 7, g.x + 3, g.x + 5]:
+		plan.append(["tent_1", Vector2i(x, 12)])
+	_goggle.check_guests(99)
+	for item in plan:
+		EventBus.RequestBuild.emit(str(item[0]), item[1], 0)
+	# Lodgings go up a level only as upgrades (a couple to a tent, a family to a cabin).
+	for item in plan:
+		if str(item[0]) in ["tent_1", "cabin_1"] and _interior_manager != null:
+			_interior_manager.map_upgrade(item[1], str(item[0]))
+	var parties := [["Novak", "quiet_guy", 2], ["Pepa", "drunk", 2], ["Lojza", "drunk", 2], ["Kristyna", "cheap_chick", 2], ["Denisa", "cheap_chick", 2],
+		["Bobr", "tramp", 2], ["Svoboda family", "family", 3], ["Kral family", "family", 3], ["Mr Prochazka", "picker", 2], ["Dvorak", "quiet_guy", 2],
+		["Kecal", "tramp", 2], ["Mrs Benesova", "picker", 2], ["Horak family", "family", 3], ["Vesely", "drunk", 2], ["Marek", "drunk", 2], ["Jana", "cheap_chick", 2],
+		["Fiala family", "family", 3], ["Zeman", "quiet_guy", 2]]
+	for p in parties:
+		GuestManager.debug_check_in_party(str(p[0]), str(p[1]), int(p[2]), 3)
+	GuestManager.debug_want_food(55.0, 85.0)
+	# On the path just in from the gate, the businesses ahead.
+	if _player != null and is_instance_valid(_player) and grid_manager != null:
+		_player.global_position = grid_manager.grid_to_world(Vector2i(g.x, 5)) + Vector3(0, 0.2, 0)
+		_player.rotation.y = PI
+	if _hud_manager != null:
+		_hud_manager.push_status("Test: every business open and a full camp. The work is at their stations.", 2)
 
 
 ## Which guests bring which test night's thing (main_menu.TEST_NIGHTS ids).
