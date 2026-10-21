@@ -15,6 +15,10 @@ extends Node3D
 ## set_cloud_targets_from_weather, eased in update_sky_runtime), its light B's tint for the
 ## hour and the weather; with the sun low its belly takes the sun's colour from below
 ## (rose at dawn, red-orange at sunset), after sunset it is dark against the red.
+## A storm (the user 21. 10.: "crazy mraky pri bouri"): the deck comes down low and thick,
+## churns and wheels overhead, its belly a sick green and its top violet; lightning lights
+## it from inside, now at a bolt, now deep in the cloud with no bolt at all, flickering;
+## the scud races lower. The rain has a little of it.
 ## Made by weather_visuals.gd (setup_weather_particles), which it reads.
 
 const DECK_SHADER := preload("res://materials/cloud_deck.gdshader")
@@ -28,6 +32,18 @@ const DECK_RADIUS := 950.0
 ## The weather (weather_visuals WEATHER_*: clear, windy, fog, light rain, rain, storm, the
 ## red anomaly) -> the deck's cover: 0 scattered fair-weather clouds .. 1 torn overcast.
 const COVER_MIX := {0: 0.0, 1: 0.25, 2: 0.5, 3: 0.6, 4: 0.9, 5: 1.0, 6: 0.3}
+## How much of the storm's ways the weather has (light rain, rain, the storm).
+const STORMY := {3: 0.15, 4: 0.45, 5: 1.0}
+## The deck in a storm: lower and thicker.
+const STORM_BASE := 58.0
+const STORM_GAP := 9.0
+## The storm's colours: a sick olive belly, a bruised grey top. Kept near grey: any more
+## green or blue and the palette dithered the whole deck into teal (21. 10.).
+const STORM_BELLY := Color(0.27, 0.29, 0.24)
+const STORM_TOP := Color(0.43, 0.41, 0.44)
+## Flashes deep in the cloud: the wait between them (s) in a storm, and in the rain.
+const FLASH_WAIT_STORM := Vector2(1.2, 5.0)
+const FLASH_WAIT_RAIN := Vector2(18.0, 45.0)
 
 const LAYERS := [
 	# High: flat streaks, seen from below, foreshortened toward the horizon.
@@ -71,6 +87,17 @@ var _deck_mats: Array = []
 var _deck_scroll := Vector2.ZERO
 var _cover := 0.3
 var _cover_mix := 0.0
+var _storm := 0.0
+var _churn_time := 0.0
+## The flash in the cloud: where, how long it has been, how long it goes, how strong,
+## how many times it flickers; and the wait for the next.
+var _flash_pos := Vector3.ZERO
+var _flash_t := -1.0
+var _flash_len := 0.3
+var _flash_peak := 0.0
+var _flash_pulses := 2
+var _flash_wait := 3.0
+var _bolt_was := false
 
 
 func _ready() -> void:
@@ -217,8 +244,9 @@ func _process(delta: float) -> void:
 		var layer: Dictionary = LAYERS[li]
 		var ext := float(layer["extent"])
 		var at: Vector3 = c["at"]
-		at.x += wd.x * pace * float(layer["speed"]) * delta
-		at.z += wd.y * pace * float(layer["speed"]) * delta
+		var fast := 1.0 + (_storm if li == 1 else 0.0)
+		at.x += wd.x * pace * float(layer["speed"]) * fast * delta
+		at.z += wd.y * pace * float(layer["speed"]) * fast * delta
 		c["at"] = at
 		var amt := float(_amount[li])
 		var a := clampf((amt - float(c["r"])) / FADE + 1.0, 0.0, 1.0) if amt > 0.001 else 0.0
@@ -234,7 +262,8 @@ func _process(delta: float) -> void:
 				mi.visible = false
 				continue
 			mi.visible = true
-			mi.global_position = Vector3(x, at.y, z) + (p["off"] as Vector3)
+			var y := at.y * (1.0 - 0.3 * _storm) if li == 1 else at.y
+			mi.global_position = Vector3(x, y, z) + (p["off"] as Vector3)
 			var col := tint * float(layer["shade"]) * float(p["shade"]) * bright * (1.0 - dark * (0.5 if li == 0 else 0.75))
 			col = col.lerp(Color(0.92, 0.95, 1.0), flash * 0.35)
 			col.a = clampf(a, 0.0, 0.95)
@@ -253,6 +282,9 @@ func _update_deck(delta: float, cp: Vector3, wd: Vector2, pace: float, tint: Col
 	if ws == 6:
 		want = 0.2
 	_cover = move_toward(_cover, want, delta * AMOUNT_RATE)
+	_storm = move_toward(_storm, float(STORMY.get(ws, 0.0)), delta * AMOUNT_RATE)
+	_churn_time += delta * (1.0 + float(_v("_wind_now", 0.15)))
+	_update_flash(delta, cp, ws)
 	_cover_mix = move_toward(_cover_mix, float(COVER_MIX.get(ws, 0.0)), delta * AMOUNT_RATE)
 	# The cover moves with the wind (the picture's place goes the other way).
 	_deck_scroll -= wd * pace * delta
@@ -271,11 +303,16 @@ func _update_deck(delta: float, cp: Vector3, wd: Vector2, pace: float, tint: Col
 	# it is down.
 	var rim := (tint * bright * 1.22).lerp(Color(1.0, 0.58, 0.62) if float(_v("_time_of_day_hours", 18.0)) < 12.0 else Color(1.0, 0.5, 0.28), low)
 	rim.a = clampf((sun.y + 0.04) / 0.12, 0.0, 1.0) * (1.0 - dark * 0.8) * 0.8
+	# The storm's colours, lit as the hour is.
+	belly = belly.lerp(STORM_BELLY * lerpf(0.4, 1.0, bright), _storm * 0.65)
+	top = top.lerp(STORM_TOP * lerpf(0.35, 1.0, bright), _storm * 0.55)
 	top = top.lerp(Color(0.92, 0.95, 1.0), flash * 0.4)
 	belly = belly.lerp(Color(0.80, 0.84, 0.95), flash * 0.4)
 	for i in _deck.size():
 		var mi: MeshInstance3D = _deck[i]
-		mi.global_position = Vector3(cp.x, DECK_BASE + DECK_GAP * float(i), cp.z)
+		var base := lerpf(DECK_BASE, STORM_BASE, _storm)
+		var gap := lerpf(DECK_GAP, STORM_GAP, _storm)
+		mi.global_position = Vector3(cp.x, base + gap * float(i), cp.z)
 		var m: ShaderMaterial = _deck_mats[i]
 		m.set_shader_parameter("coverage", _cover)
 		m.set_shader_parameter("cover_mix", _cover_mix)
@@ -285,3 +322,48 @@ func _update_deck(delta: float, cp: Vector3, wd: Vector2, pace: float, tint: Col
 		m.set_shader_parameter("alpha_max", 0.92 * seen)
 		m.set_shader_parameter("sun_dir", sun.normalized() if sun.length() > 0.01 else Vector3.UP)
 		m.set_shader_parameter("rim_color", rim)
+		m.set_shader_parameter("churn", _storm)
+		m.set_shader_parameter("churn_time", _churn_time)
+		m.set_shader_parameter("flash_pos", _flash_pos)
+		m.set_shader_parameter("flash_strength", _flash_now())
+
+
+## The flash in the cloud: a bolt's (weather_visuals strikes it where you can see it), or
+## one of the storm's own deep in the cloud with no bolt, now near, now far off.
+func _update_flash(delta: float, cp: Vector3, ws: int) -> void:
+	var bolt = _v("_bolt", null)
+	var bolt_on: bool = bolt != null and is_instance_valid(bolt) and (bolt as Node3D).visible
+	if bolt_on and not _bolt_was:
+		_start_flash(Vector3((bolt as Node3D).global_position.x, 0.0, (bolt as Node3D).global_position.z), randf_range(0.85, 1.0), 2)
+	_bolt_was = bolt_on
+	if _flash_t >= 0.0:
+		_flash_t += delta
+		if _flash_t >= _flash_len:
+			_flash_t = -1.0
+	var wait := FLASH_WAIT_STORM if ws == 5 else (FLASH_WAIT_RAIN if ws == 4 else Vector2.ZERO)
+	if wait == Vector2.ZERO:
+		return
+	_flash_wait -= delta
+	if _flash_wait <= 0.0:
+		_flash_wait = randf_range(wait.x, wait.y)
+		var ang := randf() * TAU
+		var r := randf_range(60.0, 650.0)
+		_start_flash(cp + Vector3(cos(ang), 0.0, sin(ang)) * r, randf_range(0.45, 0.95), randi_range(1, 4))
+
+
+func _start_flash(at: Vector3, peak: float, pulses: int) -> void:
+	_flash_pos = at
+	_flash_t = 0.0
+	_flash_peak = peak
+	_flash_pulses = pulses
+	_flash_len = randf_range(0.18, 0.5) * float(pulses)
+
+
+## How bright the flash is now: it flickers (`pulses` times), in steps of twelve a second.
+func _flash_now() -> float:
+	if _flash_t < 0.0:
+		return 0.0
+	var t := floorf(_flash_t * 12.0) / 12.0
+	var u := t / _flash_len
+	var flick := absf(sin(u * PI * float(_flash_pulses)))
+	return _flash_peak * flick * (1.0 - u * 0.5)

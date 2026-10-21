@@ -191,6 +191,13 @@ func setup(
 			if m == null or m.get("_day_index") == null:
 				return Vector2(10, 12)
 			return Vector2(float(m.get("_day_index")), float(m.get("_time_of_day_hours")))
+		_wind_life.wind_getter = func():
+			var m := get_tree().current_scene
+			var wv: Node = m.get("_weather_visuals") if m != null else null
+			if wv == null:
+				return Vector3.ZERO
+			var d: Vector2 = wv.wind_dir
+			return Vector3(d.x, float(wv.wind_gust), d.y)
 	if _ground_life == null and _world_3d != null:
 		_ground_life = GROUND_LIFE_SCRIPT.new()
 		_world_3d.add_child(_ground_life)

@@ -11,6 +11,9 @@ render_mode unshaded, cull_disabled, depth_draw_never, fog_disabled, shadows_dis
 // The sun's side lit: where the cloud thins toward the sun its edge takes the light
 // (`rim_color`, its alpha how strong), the far side stays in shade; a finer look at the
 // same cover frays the edges and gives the inside its texture.
+// A storm churns it (`churn`): the cover pulled about by a slow-moving field and a second
+// layer of it running across the first, so the clouds boil, tear and wheel overhead;
+// lightning lights it from inside round `flash_pos` (a bolt, or a flash deep in the cloud).
 // The shade in a few steps, as Build shaded (no glow).
 
 uniform sampler2D cover_a : hint_default_black, filter_linear_mipmap, repeat_enable;
@@ -38,6 +41,13 @@ uniform float steps = 5.0;
 uniform vec3 sun_dir = vec3(0.0, 1.0, 0.0);
 uniform vec4 rim_color : source_color = vec4(1.0, 1.0, 1.0, 0.0);
 uniform float detail_scale = 3.7;
+uniform float churn : hint_range(0.0, 1.0) = 0.0;
+uniform float churn_time = 0.0;
+// The flash: where (world), how strong (0..1), how far round it (m), its colour.
+uniform vec3 flash_pos = vec3(0.0);
+uniform float flash_strength = 0.0;
+uniform float flash_radius = 260.0;
+uniform vec4 flash_color : source_color = vec4(0.86, 0.88, 1.0, 1.0);
 
 varying vec3 world;
 
@@ -46,11 +56,23 @@ void vertex() {
 }
 
 float density(vec2 p) {
+	if (churn > 0.001) {
+		// Pulled about by a slow field of its own (the storm's cover, far larger, moving).
+		// Pulled only a little (pulled far, it ran into marble).
+		vec2 wuv = p / 2600.0 + vec2(churn_time * 0.009, -churn_time * 0.006);
+		vec2 warp = vec2(texture(cover_b, wuv).r, texture(cover_b, wuv + vec2(0.31, 0.57)).r) - 0.5;
+		p += warp * churn * 95.0;
+	}
 	vec2 uv = (p + scroll) / tile_m;
 	// The fair-weather puffs at half the storm's scale (their picture is of smaller clouds).
 	float a = texture(cover_a, uv * 0.5).r;
 	float b = texture(cover_b, uv + vec2(0.37, 0.11)).r;
 	float d = mix(a, b, cover_mix);
+	if (churn > 0.001) {
+		// A second layer of it running across the first, the other way.
+		float c = texture(cover_b, (p - scroll * 1.7) / (tile_m * 0.7) + vec2(churn_time * 0.004, 0.23)).r;
+		d = mix(d, max(d, c), churn * 0.55);
+	}
 	// Over a larger stretch the clouds gather in some parts of the sky and thin in others.
 	float gather = texture(cover_b, uv * 0.19 + vec2(0.53, 0.19)).r;
 	return clamp(d + (gather - 0.5) * 0.22, 0.0, 1.0);
@@ -78,6 +100,13 @@ void fragment() {
 		col = mix(col, rim_color.rgb, rim * rim_color.a);
 	}
 	col *= 0.92 + 0.16 * floor(det * steps + 0.5) / steps;
+	// Lightning in it: the cloud round the flash lit from inside, the thin of it most.
+	if (flash_strength > 0.001) {
+		float fd = length(world.xz - flash_pos.xz) / flash_radius;
+		float lit = (1.0 - smoothstep(0.0, 1.0, fd)) * flash_strength * (1.0 - 0.45 * thick);
+		lit = floor(lit * steps + 0.5) / steps;
+		col = mix(col, flash_color.rgb, clamp(lit, 0.0, 1.0));
+	}
 	ALBEDO = col;
 	ALPHA = a * alpha_max;
 }

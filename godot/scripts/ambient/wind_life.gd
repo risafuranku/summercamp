@@ -27,6 +27,10 @@ var indoors: Callable
 var weather_getter: Callable
 ## Callable() -> Vector2: (season day, hour).
 var season_getter: Callable
+## Callable() -> Vector3: the weather's wind (x, z the way it blows, y the gust 0..1;
+## weather_visuals.gd), so the leaves go the trees' way and come in the same gusts as
+## wind_things.gd's straw and twigs. Without it the leaves have a wind of their own.
+var wind_getter: Callable
 
 var _rng := RandomNumberGenerator.new()
 var _frames: Array = []          # one texture per leaf shape
@@ -79,12 +83,17 @@ func _process(delta: float) -> void:
 		_poll = 2.0
 		_read_weather()
 	# The wind turns slowly; gusts come and go.
-	_dir += sin(_t * 0.05) * delta * 0.08
-	_gust_t -= delta
-	if _gust_t <= 0.0:
-		_gust_t = _rng.randf_range(3.0, 9.0) / maxf(0.4, _strength)
-		_gust = _rng.randf_range(0.6, 1.4)
-	_gust = move_toward(_gust, 0.0, delta * 0.35)
+	var shared: Vector3 = wind_getter.call() if wind_getter.is_valid() else Vector3.ZERO
+	if shared != Vector3.ZERO:
+		_dir = atan2(shared.z, shared.x)
+		_gust = maxf(move_toward(_gust, 0.0, delta * 0.35), shared.y * 1.4)
+	else:
+		_dir += sin(_t * 0.05) * delta * 0.08
+		_gust_t -= delta
+		if _gust_t <= 0.0:
+			_gust_t = _rng.randf_range(3.0, 9.0) / maxf(0.4, _strength)
+			_gust = _rng.randf_range(0.6, 1.4)
+		_gust = move_toward(_gust, 0.0, delta * 0.35)
 	_acc += delta
 	if _acc < 1.0 / FPS:
 		return

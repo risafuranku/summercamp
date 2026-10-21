@@ -120,6 +120,13 @@ finished game, by impact:
   snow (the wet fog's tint); falling snow did not show (self-lit, steady fall); the
   storm's rain comes in gusts; the lightning lights the world in steps (a step or two
   full, often a second flicker, dark: it faded out smoothly)
+- [x] Wind in gusts (21. 10., the user: "polishnout vitr huste"): weather_visuals'
+  `wind_gust` rises, holds and dies away on the weather's wind; its front runs over the
+  meadow (the grass laid over, paler) and through the wood; straw, dust, twigs, newspaper
+  and wrappers ride it (`wind_things.gd`, Grok sprites, the dust dotted like the breath),
+  the leaves (`wind_life.gd`) go the trees' way in the same gusts; each gust heard, the
+  trees creak; the storm's clouds come down, churn green-violet and flash inside
+  (`cloud_layers.gd`); shot scenario `wind`
 - [x] Snow: boot prints behind every warden, frozen puddles; snowfall no longer grew
   puddles with rain rings on them (21. 10.)
 - [x] A broken lamp shorts: sparks, a flash, the crackle (21. 10., lamp_sparks.gd)

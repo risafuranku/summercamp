@@ -1,7 +1,7 @@
 """The cloud layers' sprites (scripts/ambient/cloud_layers.gd), from Grok's renders of four
 clouds on magenta (prompts_sky.tsv):
 
-    python tools/artgen/cloud_sprites.py [high] [low] [cover]
+    python tools/artgen/cloud_sprites.py [high] [low] [cover] [bits] [dust]
 
   out/spr_clouds_high/raw.png (four long thin streaks, one above another)
       -> godot/assets/textury/skybox/cloud_hi_0..3.png, 256 wide
@@ -28,7 +28,14 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
 SKY = os.path.join(HERE, "..", "..", "godot", "assets", "textury", "skybox")
-SETS = {"high": ("spr_clouds_high", "cloud_hi_%d.png", 256), "low": ("spr_clouds_low", "cloud_lo_%d.png", 128)}
+WORLD = os.path.join(HERE, "..", "..", "godot", "assets", "textury", "world")
+# key -> (render, file pattern, width px, soft edge, folder)
+SETS = {"high": ("spr_clouds_high", "cloud_hi_%d.png", 256, True, SKY),
+        "low": ("spr_clouds_low", "cloud_lo_%d.png", 128, True, SKY),
+        # What the wind carries (scripts/ambient/wind_things.gd): a twig, straw, newspaper,
+        # a wrapper, hard-edged pixel sprites; the dust soft.
+        "bits": ("spr_wind_bits", "wind_bit_%d.png", 40, False, WORLD),
+        "dust": ("spr_dust_puff", "dust_puff_%d.png", 48, True, WORLD)}
 
 
 def runs_of(mask_1d: np.ndarray, gap: int, least: int) -> list:
@@ -47,7 +54,7 @@ def runs_of(mask_1d: np.ndarray, gap: int, least: int) -> list:
 def build(key: str) -> None:
     sys.path.insert(0, HERE)
     import process
-    art_id, pattern, w = SETS[key]
+    art_id, pattern, w, soft, folder = SETS[key]
     img = process.key_out(Image.open(os.path.join(OUT, art_id, "raw.png")))
     a = np.asarray(img).astype(np.float32)
     alpha = a[..., 3] / 255.0
@@ -76,10 +83,15 @@ def build(key: str) -> None:
         col = np.where(pink[..., None], lum * np.array([0.98, 1.0, 1.04]), col)
         # Soft edges (the layers draw them filtered, not as hard pixels): the cell's share
         # of cloud, its colour where there is any.
-        some = pa > 0.04
-        out[some, :3] = col[some].clip(0, 255)
-        out[..., 3] = (np.clip((pa - 0.04) / 0.7, 0.0, 1.0) * 255).astype(np.uint8)
-        dst = os.path.join(SKY, pattern % i)
+        if soft:
+            some = pa > 0.04
+            out[some, :3] = col[some].clip(0, 255)
+            out[..., 3] = (np.clip((pa - 0.04) / 0.7, 0.0, 1.0) * 255).astype(np.uint8)
+        else:
+            m = pa >= 0.5
+            out[m, :3] = col[m].clip(0, 255)
+            out[m, 3] = 255
+        dst = os.path.join(folder, pattern % i)
         Image.fromarray(out, "RGBA").save(dst)
         print("->", dst, (w, h))
     if len(pieces) < 4:

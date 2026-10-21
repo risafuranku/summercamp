@@ -28,6 +28,16 @@ global uniform float season_snow;
 varying vec3 v_wpos;
 varying float v_up;
 
+// A gust's front running over the ground with the wind (the user 21. 10.: "polishnout vitr
+// huste"): bands some forty metres apart, bent a little, going downwind faster the
+// harder it blows; 0 between them, 1 in one.
+float gust_front(vec2 p, float t) {
+	vec2 side = vec2(-wind_dir.y, wind_dir.x);
+	float s = dot(p, wind_dir) * 0.16 - t * (1.4 + wind_strength * 1.6) + sin(dot(p, side) * 0.05) * 1.5;
+	float band = 0.5 + 0.5 * sin(s);
+	return band * band * band;
+}
+
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	float h = clamp(VERTEX.y / height, 0.0, 1.6);
@@ -36,6 +46,8 @@ void vertex() {
 	float wave = sin(TIME * (1.1 + wind_strength * 0.9) + phase);
 	float lean = wind_strength * (0.55 + 0.45 * gust) * 0.45;
 	float bend = (lean + wave * wind_strength * gust * 0.22) * h * h * sway;
+	// A gust's front going through the wood: the trees it reaches bow further.
+	bend += gust_front(origin.xz, TIME) * wind_strength * 0.22 * h * h * sway;
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float f = flutter * wind_strength * sin(TIME * 8.0 + wp.x * 3.1 + wp.y * 2.3 + wp.z * 2.7) * 0.08 * h;
 	vec3 off_world = vec3(wind_dir.x * bend + f, -abs(bend) * 0.12, wind_dir.y * bend + f * 0.6);

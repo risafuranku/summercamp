@@ -21,6 +21,18 @@ global uniform vec2 wind_dir;
 global uniform vec3 season_leaf_tint;
 global uniform float season_snow;
 
+varying float v_front;
+
+// A gust's front running over the ground with the wind (the user 21. 10.: "polishnout vitr
+// huste"): bands some forty metres apart, bent a little, going downwind faster the
+// harder it blows; 0 between them, 1 in one.
+float gust_front(vec2 p, float t) {
+	vec2 side = vec2(-wind_dir.y, wind_dir.x);
+	float s = dot(p, wind_dir) * 0.16 - t * (1.4 + wind_strength * 1.6) + sin(dot(p, side) * 0.05) * 1.5;
+	float band = 0.5 + 0.5 * sin(s);
+	return band * band * band;
+}
+
 void vertex() {
 	// Turned to the camera round Y (the quad is built in its XY plane, foot at y 0).
 	vec3 origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
@@ -36,6 +48,11 @@ void vertex() {
 	float phase = origin.x * 0.37 + origin.z * 0.23;
 	float gust = sin(t * (1.6 + wind_strength * 2.4) + phase) * 0.6 + sin(t * 3.7 + phase * 1.7) * 0.25;
 	float lean = (0.25 + wind_strength * 1.2) * (0.6 + 0.4 * gust);
+	// A gust's front going over: flattened further, its pale side up (the meadow shows the
+	// gusts running across it).
+	float front = gust_front(origin.xz, t) * clamp(wind_strength, 0.0, 1.4);
+	lean *= 0.7 + 0.9 * front;
+	v_front = front;
 	float top = clamp(VERTEX.y, 0.0, 1.0);
 	world.xz += wind_dir * sway * lean * top * top;
 	VERTEX = (inverse(MODEL_MATRIX) * vec4(world, 1.0)).xyz;
@@ -49,6 +66,8 @@ void fragment() {
 	}
 	vec3 col = mix(c.rgb, c.rgb * season_leaf_tint, seasonal * (1.0 - ground_match));
 	col = mix(col, c.rgb * ground_ratio, ground_match);
+	// Paler where a gust's front lies it over, in a step or two.
+	col *= 1.0 + floor(v_front * (1.0 - UV.y) * 3.0) / 3.0 * 0.16;
 	// Snow: from the top down, and the small ones under it.
 	col = mix(col, vec3(0.88, 0.90, 0.95), clamp(season_snow * (0.4 + (1.0 - UV.y) * 0.7), 0.0, 0.9));
 	ALBEDO = col;

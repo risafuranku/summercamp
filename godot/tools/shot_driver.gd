@@ -798,6 +798,17 @@ const SCENARIOS := {
 		["clear", 10, 10, 4, 4], ["player", 12, 12, 270.0], ["wait", 1.0], ["shot", "w0_calm"],
 		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 0.7], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"],
 	],
+	# The wind's gusts (wind_things.gd, wind_life.gd): a windy day looking downwind over
+	# the meadow, then the storm; a few shots a gust apart.
+	"wind": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["player", 9, 2, 180.0], ["eval", "weather_system.set_weather(1)"], ["wait", 15.0],
+		["eval", "_weather_visuals.wind_gust"], ["shot", "wd0_windy"], ["wait", 1.5], ["eval", "_weather_visuals.wind_gust"], ["shot", "wd1_windy"],
+		["wait", 1.5], ["eval", "_weather_visuals.wind_gust"], ["shot", "wd2_windy"], ["wait", 1.5], ["shot", "wd3_windy"],
+		["eval", "weather_system.set_weather(5)"], ["wait", 15.0],
+		["eval", "_weather_visuals.wind_gust"], ["shot", "wd4_storm"], ["wait", 1.2], ["shot", "wd5_storm"], ["wait", 1.2], ["shot", "wd6_storm"],
+	],
 	"hudscale": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.5],
 		["eval", "debug_world_2d()"],

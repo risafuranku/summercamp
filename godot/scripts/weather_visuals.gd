@@ -477,6 +477,11 @@ func setup_weather_particles() -> void:
 	var cl = load("res://scripts/ambient/cloud_layers.gd").new()
 	cl.visuals = self
 	_world_3d.add_child(cl)
+	# What the wind carries in its gusts, and the gusts' sound
+	# (scripts/ambient/wind_things.gd).
+	var wt = load("res://scripts/ambient/wind_things.gd").new()
+	wt.visuals = self
+	_world_3d.add_child(wt)
 	# Things you nudge with your foot: bottles, cans, buckets, cones
 	# (scripts/ambient/nudge_props.gd).
 	var nudge = load("res://scripts/ambient/nudge_props.gd").new()
@@ -682,6 +687,25 @@ func _flash_pattern(s: float) -> Array:
 var _wind_now := 0.15
 ## The way the wind blows now (the trees' shader has it too), for whatever drifts with it.
 var wind_dir := Vector2(0.94, 0.34)
+## The gust blowing now, 0..1 (scripts/ambient/wind_things.gd: what it carries, its sound).
+var wind_gust := 0.0
+## The wind in gusts (the user 21. 10.: "polishnout vitr huste"): the weather's steady
+## wind, and every so often a gust on top of it, rising in a second, holding, dying away;
+## its direction swings a little while it blows. Per weather: [the wait between gusts
+## from, to (s), how strong from, to (0..1), how much wind a full gust adds].
+const GUSTS := {
+	WEATHER_CLEAR: [9.0, 24.0, 0.15, 0.45, 0.35],
+	WEATHER_WINDY: [2.5, 8.0, 0.5, 1.0, 0.75],
+	WEATHER_LIGHT_RAIN: [7.0, 16.0, 0.25, 0.55, 0.4],
+	WEATHER_RAIN: [4.0, 11.0, 0.35, 0.75, 0.55],
+	WEATHER_STORM: [1.2, 4.5, 0.6, 1.0, 0.9],
+}
+var _gust_t := -1.0
+var _gust_len := 4.0
+var _gust_peak := 0.0
+var _gust_twist := 0.0
+var _gust_wait := 6.0
+var _wind_base := 0.15
 
 
 ## Wind for the trees (global shader parameters, see materials/tree_wind.gdshader).
@@ -696,8 +720,30 @@ func _update_wind(delta: float) -> void:
 		WEATHER_RAIN: target = 0.5
 		WEATHER_STORM: target = 1.35
 		WEATHER_EVENT: target = 0.0
-	_wind_now = move_toward(_wind_now, target, delta * 0.25)
-	var dir := Vector2(0.94, 0.34).rotated(sin(_sky_anim_time * 0.05) * 0.35).normalized()
+	_wind_base = move_toward(_wind_base, target, delta * 0.25)
+	# The gusts.
+	var g: Array = GUSTS.get(_weather_state, [])
+	if _gust_t >= 0.0:
+		_gust_t += delta
+		if _gust_t >= _gust_len:
+			_gust_t = -1.0
+	elif not g.is_empty():
+		_gust_wait -= delta
+		if _gust_wait <= 0.0:
+			_gust_t = 0.0
+			_gust_len = randf_range(2.5, 6.0)
+			_gust_peak = randf_range(float(g[2]), float(g[3]))
+			_gust_twist = randf_range(-0.35, 0.35)
+			_gust_wait = randf_range(float(g[0]), float(g[1]))
+	var env := 0.0
+	if _gust_t >= 0.0:
+		# Up in a quarter of it, then dying away slower than it came.
+		var u := _gust_t / _gust_len
+		env = smoothstep(0.0, 0.22, u) * (1.0 - smoothstep(0.45, 1.0, u))
+	wind_gust = env * _gust_peak
+	var gain := float(g[4]) if not g.is_empty() else 0.0
+	_wind_now = _wind_base + wind_gust * gain
+	var dir := Vector2(0.94, 0.34).rotated(sin(_sky_anim_time * 0.05) * 0.35 + _gust_twist * wind_gust).normalized()
 	wind_dir = dir
 	RenderingServer.global_shader_parameter_set("wind_strength", _wind_now)
 	RenderingServer.global_shader_parameter_set("wind_dir", dir)
@@ -1874,7 +1920,9 @@ func _update_weather_particles(_delta: float) -> void:
 	if _weather_state == WEATHER_RAIN:
 		intensity = 0.7; rain_speed = 22.0; alpha = 0.44; drop = 1.0
 	elif _weather_state == WEATHER_STORM:
-		var gust := maxf(0.0, sin(_sky_anim_time * 0.7) * sin(_sky_anim_time * 0.23 + 1.0))
+		# The sheets come with the wind's gusts (_update_wind), a slow swell under them.
+		var swell := maxf(0.0, sin(_sky_anim_time * 0.7) * sin(_sky_anim_time * 0.23 + 1.0))
+		var gust := maxf(wind_gust, swell * 0.5)
 		intensity = 0.72 + 0.28 * gust; rain_speed = 28.0 + 6.0 * gust; alpha = 0.5; drop = 1.15
 
 	var daylight = clampf(compute_daylight_factor(), 0.0, 1.0)
