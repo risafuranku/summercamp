@@ -11,8 +11,10 @@ extends Node3D
 ## drawn from the business's live state (kitchen.gd, taproom.gd...) twelve times a second
 ## whoever is at the station, so everybody in the room sees the slices brown.
 ##
-## Stepping up to it (a click on it in the room) the room's camera goes in steps, twelve a
-## second, to a fixed pose over the surface (`cam_pose`). The pointer is cast through the
+## Stepping up to it (a click on it in the room, a tab, a number key) the room's camera
+## glides to a fixed pose over the surface (`cam_pose`; smooth since the brief of 21. 10.:
+## "no 12 fps steps": the camera and the things you move go at the full frame rate, only
+## your gloved hand stays Duke 3D, frame by frame). The pointer is cast through the
 ## camera onto the surface; what can be used glints under it and the gloved finger points;
 ## a press, a hold, a drag and a release go to the station. Over it hangs the order rail
 ## (ticket_rail.gd, in the room's pixel, in front of the camera), and under the room the
@@ -34,14 +36,27 @@ extends Node3D
 ##   _opened() / _closing()
 ##   big_ticket() -> Dictionary   the ticket shown big in the frame ({} none)
 ##   bar_text() -> String  the counts at the right end of the bar
-##   rail_tickets() -> Array      the tickets on the rail ([] none: no rail)
+##   rail_tickets() -> Array      the tickets on the rail ([] none: no rail): {id, name,
+##                         left (patience 0..1), band (0 green, 1 amber, 2 red), sig}
 ##   hand_tool() -> String the tool in your gloved hand now (station_hands.gd TOOLS)
+## The Papa's frame, the same in all four places (the brief of 21. 10.):
+##   ticket_items(t) -> Array     what an order is: [{icon: Texture2D, word}] (the ticket on
+##                         the rail and the big one draw it, with the guest's face)
+##   checklist(t) -> Array the big ticket's lines: [{text, state: "done"|"todo"|"bad"}]
+##   serve_ready() -> bool / serve_now()   the frame's SERVE (Space, Enter, the button)
+##   next_hint() -> Dictionary    what is best to do now: {rect: Rect2 (design px) | node:
+##                         Node3D | tab: station id | ui: "serve"|"books", gesture: "click"|
+##                         "drag"|"hold"|"rub"|"shake", to: Vector2 (a drag's end)}
+##   alert() -> int        for the tab: 0 nothing, 1 something waits here, 2 it burns
+##   guest_point(t) -> Vector3    where the guest of ticket t is (global; INF unknown): the
+##                         stars and the tip fly up over them
 
 signal closed
 ## Another station of this room was asked for (the bar's tab, a number key, Tab).
 signal switch_to(station: String)
 
 const RETRO_UI := preload("res://scripts/ui/retro_ui.gd")
+const RULES_BIZ := preload("res://core/systems/business_rules.gd")
 const HOVER_GLINT := preload("res://scripts/ui/hover_glint.gd")
 const SPRITE_GLINT := preload("res://scripts/business/sprite_glint.gdshader")
 const GLINT_TEX := "res://assets/textury/ui/hover_glint.png"
@@ -49,8 +64,9 @@ const GLINT_TEX := "res://assets/textury/ui/hover_glint.png"
 const PX_PER_M := 128.0 / 1.4
 const DESIGN := Vector2(640.0, 360.0)
 const STEP := 1.0 / 12.0
-## The camera's way to the station and back, in steps.
-const CAM_SEC := 0.5
+## The camera's way to the station and back (smooth, eased).
+const CAM_SEC := 0.34
+const FACES := preload("res://scripts/business/guest_face.gd")
 
 ## Who and where (set by the room before it is added).
 var building_key := ""
@@ -109,6 +125,9 @@ var _rail_seen: Dictionary = {}
 var _hands_ui: CanvasLayer
 
 static var _room_tex: Dictionary = {}
+## The station you were at last in each place (building key -> station id): you come back
+## to it (the brief of 21. 10.; the first time, the first station of the chain).
+static var last_station: Dictionary = {}
 ## The shot drivers' pointer (screen px; x < 0: the real one): a warped mouse does not
 ## always reach the window in a test run.
 static var debug_mouse := Vector2(-1, -1)
@@ -211,16 +230,18 @@ func cam_pose() -> Transform3D:
 	return Transform3D(Basis(), eye2).looking_at(c.origin + Vector3(0, 0.05, 0), Vector3.UP)
 
 
-## The camera from where it is to `to`, in steps twelve a second.
+## The camera from where it is to `to`: one smooth, eased glide at the full frame rate
+## (it went in steps, twelve a second, until the brief of 21. 10.: "choppy"). The name is
+## kept for its callers.
 static func step_camera(host: Node, cam: Camera3D, to: Transform3D, seconds := CAM_SEC) -> Tween:
 	var from := cam.global_transform
-	var steps := maxi(1, int(round(seconds * 12.0)))
 	var tw := host.create_tween()
 	tw.tween_method(func(k: float) -> void:
 		if not is_instance_valid(cam):
 			return
-		var e: float = Tween.interpolate_value(0.0, 1.0, floorf(k * steps) / steps, 1.0, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+		var e: float = Tween.interpolate_value(0.0, 1.0, k, 1.0, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 		cam.global_transform = from.interpolate_with(to, e), 0.0, 1.0, seconds)
+	load("res://scripts/ui/cam_move.gd").hold(host, tw)
 	return tw
 
 
@@ -307,10 +328,27 @@ func retex(s: Sprite3D, path: String, metres: float) -> void:
 	s.set_meta("tex_key", key)
 
 
-## A sprite put at a surface point.
+## A sprite put at a surface point (a thing just set down hops a little: `hop`).
 func put(s: Node3D, px: Vector2, lift := 0.0) -> void:
 	if s != null:
-		s.position = local_at(px, lift)
+		s.position = local_at(px, lift + _hop_of(s))
+
+
+## A thing set down or picked out hops once (the brief's juice: "a jump when it is put
+## down"), smooth, a few centimetres.
+func hop(s: Node3D) -> void:
+	if s != null:
+		s.set_meta("hop_t", _t)
+
+
+func _hop_of(s: Node3D) -> float:
+	if not s.has_meta("hop_t"):
+		return 0.0
+	var k := (_t - float(s.get_meta("hop_t"))) / 0.22
+	if k >= 1.0 or k < 0.0:
+		s.remove_meta("hop_t")
+		return 0.0
+	return sin(k * PI) * 0.025
 
 
 ## A meter standing over something (a pixel column: frame, a green window, the fill),
@@ -552,6 +590,8 @@ func is_open() -> bool:
 func open_station(cam: Camera3D) -> void:
 	camera = cam
 	_open = true
+	if building_key != "":
+		last_station[building_key] = station
 	_closing_now = false
 	_held = ""
 	_rail_seen.clear()
@@ -612,10 +652,30 @@ func say(who: String, text: String) -> void:
 		hud.call("say", who, text)
 
 
-## Papa's slip for an order just served, in the frame (station_hud.serve_card).
-func score_card(v: Dictionary, what := "") -> void:
+## Papa's slip for an order just served, in the frame (station_hud.serve_card), and what
+## flies up over the guest (`t`, their ticket): the stars, the score, the tip, the run of
+## good ones (Papa's combo: from three in a row a little on top of the tip, paid here).
+func score_card(v: Dictionary, what := "", t := {}) -> void:
+	var ok := bool(v.get("ok", true))
+	var stars := int(v.get("stars", 0))
+	var run: int = load("res://scripts/business/business_runtime.gd").note_order(building_key, stars, ok)
+	var v2 := v.duplicate()
+	v2["combo"] = run
+	if ok:
+		var price := maxi(1, int(v.get("amount", 0)) - int(v.get("tip", 0)))
+		var bonus := RULES_BIZ.combo_bonus(run, price)
+		if bonus > 0:
+			v2["bonus"] = bonus
+			if CoreRoot != null and CoreRoot.actions != null:
+				CoreRoot.actions.add_money(bonus)
 	if hud != null and is_instance_valid(hud) and hud.has_method("serve_card"):
-		hud.call("serve_card", v, what)
+		hud.call("serve_card", v2, what)
+	if hud != null and is_instance_valid(hud) and hud.has_method("serve_pop"):
+		var g := guest_point(t) if not t.is_empty() else Vector3.INF
+		var at := Vector2(-1, -1)
+		if g != Vector3.INF and camera != null and is_instance_valid(camera) and not camera.is_position_behind(g + Vector3(0, 0.3, 0)):
+			at = camera.unproject_position(g + Vector3(0, 0.3, 0))
+		hud.call("serve_pop", v2, at, str(t.get("id", "")))
 
 
 func sfx(path_or_name: String, db := -8.0, pitch := 1.0) -> void:
@@ -665,12 +725,21 @@ func _process(delta: float) -> void:
 			_check_rail()
 	for p in _pops:
 		p["t"] = float(p["t"]) + delta
+		var pl: Label3D = p["node"]
+		if is_instance_valid(pl):
+			var pk := float(p["t"]) / 1.3
+			pl.position = (p["from"] as Vector3) + Vector3(0, (1.0 - pow(1.0 - minf(pk, 1.0), 2.0)) * 0.22, 0)
+			pl.modulate.a = 1.0 - pk * pk
+	_tick_flights(delta)
+	# At the station: the things where the state says every frame (what you hold follows
+	# the pointer smoothly); for the others in the room twelve a second.
+	if _open and is_visible_in_tree():
+		_show()
 	_acc += delta
 	if _acc < STEP:
 		return
 	_acc = 0.0
-	# Twelve a second: the things where the state says, the pops rising.
-	if is_visible_in_tree():
+	if is_visible_in_tree() and not _open:
 		_show()
 	var keep: Array = []
 	for p in _pops:
@@ -680,8 +749,6 @@ func _process(delta: float) -> void:
 			if is_instance_valid(l):
 				l.queue_free()
 			continue
-		l.position = (p["from"] as Vector3) + Vector3(0, floorf(k * 12.0) / 12.0 * 0.22, 0)
-		l.modulate.a = 1.0 - k * k
 		keep.append(p)
 	_pops = keep
 
@@ -732,13 +799,233 @@ func rail_clicked(_id: String) -> void:
 	pass
 
 
-## Draws ticket `t` onto `c` (the ticket's own little picture, `size` px).
-func draw_ticket(_c: Control, _t: Dictionary, _size: Vector2) -> void:
+## Draws ticket `t` onto `c` (the ticket's own little picture on the rail, `size` px),
+## the same in every place: the guest's face as their patience goes (FACES), their name,
+## what they want (its picture and its word: `ticket_items`), the patience bar going from
+## green to red.
+func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
+	if t.is_empty():
+		return
+	var paper := _paper_tex()
+	if paper != null:
+		c.draw_texture_rect(paper, Rect2(Vector2.ZERO, size), false)
+	else:
+		c.draw_rect(Rect2(Vector2.ZERO, size), Color(0.92, 0.88, 0.76))
+	var left := clampf(float(t.get("left", 1.0)), 0.0, 1.0)
+	if left < 0.2:
+		c.draw_rect(Rect2(Vector2.ZERO, size), Color(0.75, 0.1, 0.05, 0.18))
+	FACES.draw(c, Vector2(2, 2), 1, left, str(t.get("name", "")), _t)
+	var f: Font = RETRO_UI.FONT_TEXT
+	var nm := first_word(str(t.get("name", ""))).to_upper()
+	c.draw_string(f, Vector2(13, 9), nm.substr(0, 4), HORIZONTAL_ALIGNMENT_LEFT, size.x - 14, 8, Color(0.55, 0.1, 0.08))
+	var items := ticket_items(t)
+	var y := 12.0
+	if items.size() == 1:
+		var ic: Texture2D = items[0].get("icon", null)
+		if ic != null:
+			var sc := minf(1.0, 18.0 / maxf(ic.get_width(), ic.get_height()))
+			var isz := (ic.get_size() * sc).floor()
+			c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - isz.x) * 0.5), y + floorf((18.0 - isz.y) * 0.5)), isz), false)
+	else:
+		for i in mini(items.size(), 2):
+			var ic2: Texture2D = items[i].get("icon", null)
+			if ic2 != null:
+				var sc2 := minf(1.0, 13.0 / maxf(ic2.get_width(), ic2.get_height()))
+				var isz2 := (ic2.get_size() * sc2).floor()
+				c.draw_texture_rect(ic2, Rect2(Vector2(2 + i * 15, y + 3), isz2), false)
+		if items.size() > 2:
+			c.draw_string(f, Vector2(size.x - 7, y + 12), "+", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.2, 0.18, 0.2))
+	if not items.is_empty():
+		var word := tr(str(items[0].get("word", ""))).to_upper()
+		var ww := f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+		c.draw_string(f, Vector2(maxf(1.0, floorf((size.x - ww) * 0.5)), 38), word, HORIZONTAL_ALIGNMENT_LEFT, size.x - 2, 8, Color(0.16, 0.12, 0.1))
+	var band := int(t.get("band", 0))
+	var col: Color = [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][clampi(band, 0, 2)]
+	var bar := Rect2(2, size.y - 5, size.x - 4, 3)
+	c.draw_rect(bar, Color(0.1, 0.08, 0.06))
+	if band < 2 or int(_t * 4.0) % 2 == 0:
+		c.draw_rect(Rect2(bar.position, Vector2(ceilf(bar.size.x * left), bar.size.y)), col)
+	if bool(t.get("picked", false)):
+		c.draw_rect(Rect2(Vector2.ZERO, size), Color(0.62, 0.42, 0.08), false, 1.0)
+
+
+## The big ticket in the frame's corner: a checklist of the order (Papa's): the guest's
+## face and name, their patience, each thing wanted with a tick when it is done, a box
+## while it is not, a cross in red when it is wrong (`checklist`).
+func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
+	var paper := _paper_tex()
+	if paper != null:
+		c.draw_texture_rect(paper, r, false)
+	else:
+		c.draw_rect(r, Color(0.92, 0.88, 0.76))
+	var left := clampf(float(t.get("left", 1.0)), 0.0, 1.0)
+	FACES.draw(c, r.position + Vector2(5, 6), 2, left, str(t.get("name", "")), _t)
+	var nm := first_word(str(t.get("name", ""))).to_upper()
+	c.draw_string(RETRO_UI.FONT_LABEL, Vector2(r.position.x + 27, r.position.y + 15), nm.substr(0, 9), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 30, 8, Color(0.55, 0.1, 0.08))
+	var items := ticket_items(t)
+	if not items.is_empty():
+		var ic: Texture2D = items[0].get("icon", null)
+		if ic != null:
+			var sc := minf(2.0, 22.0 / maxf(ic.get_width(), ic.get_height()))
+			var isz := (ic.get_size() * sc).floor()
+			c.draw_texture_rect(ic, Rect2(Vector2(r.end.x - isz.x - 4, r.position.y + 18), isz), false)
+	var band := int(t.get("band", 0))
+	var bar := Rect2(r.position.x + 27, r.position.y + 19, r.size.x - 58, 4)
+	c.draw_rect(bar.grow(1.0), Color(0.1, 0.08, 0.06, 0.9))
+	if band < 2 or int(_t * 4.0) % 2 == 0:
+		c.draw_rect(Rect2(bar.position, Vector2(ceilf(bar.size.x * left), bar.size.y)), [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][clampi(band, 0, 2)])
+	var ink := Color(0.16, 0.12, 0.1)
+	var ok := Color(0.1, 0.45, 0.12)
+	var bad := Color(0.62, 0.08, 0.05)
+	var y := r.position.y + 44
+	var f: Font = RETRO_UI.FONT_TEXT
+	for line in checklist(t):
+		if y > r.end.y - 6:
+			break
+		var st := str(line.get("state", "todo"))
+		var box := Rect2(r.position.x + 6, y - 7, 7, 7)
+		var col := ok if st == "done" else (bad if st == "bad" else ink)
+		c.draw_rect(box, Color(1, 1, 1, 0.35))
+		c.draw_rect(box, col, false, 1.0)
+		if st == "done":
+			# The tick, in pixels.
+			for pxy in [Vector2(1, 3), Vector2(2, 4), Vector2(3, 5), Vector2(4, 4), Vector2(5, 3), Vector2(5, 2), Vector2(6, 1)]:
+				c.draw_rect(Rect2(box.position + pxy, Vector2.ONE), ok)
+		elif st == "bad":
+			for i in 5:
+				c.draw_rect(Rect2(box.position + Vector2(1 + i, 1 + i), Vector2.ONE), bad)
+				c.draw_rect(Rect2(box.position + Vector2(5 - i, 1 + i), Vector2.ONE), bad)
+		c.draw_string(f, Vector2(r.position.x + 17, y), tr(str(line.get("text", ""))).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 20, 8, col)
+		y += 12
+
+
+func _paper_tex() -> Texture2D:
+	if not _room_tex.has("#paper"):
+		var p := "res://assets/textury/bistro/ticket.png"
+		_room_tex["#paper"] = load(p) if ResourceLoader.exists(p) else null
+	return _room_tex["#paper"]
+
+
+static func first_word(full: String) -> String:
+	var p := full.split(" ")
+	return p[0] if p.size() > 0 else full
+
+
+## The patience of a ticket as the frame wants it: `age` of `gone` game minutes, the
+## band's edges at `ok` and `late` -> {left, band}.
+static func patience(age: float, gone: float, ok: float, late: float) -> Dictionary:
+	var band := 0 if age < ok else (1 if age < late else 2)
+	return {"left": 1.0 - clampf(age / maxf(1.0, gone), 0.0, 1.0), "band": band}
+
+
+## What an order is, for its ticket: [{icon, word}].
+func ticket_items(_t: Dictionary) -> Array:
+	return []
+
+
+## The big ticket's lines: [{text, state}].
+func checklist(_t: Dictionary) -> Array:
+	return []
+
+
+## SERVE lit: something made and ready to hand over.
+func serve_ready() -> bool:
+	return false
+
+
+## SERVE pressed (Space, Enter, the button).
+func serve_now() -> void:
 	pass
+
+
+## What is best to do here now ({} nothing).
+func next_hint() -> Dictionary:
+	return {}
+
+
+## Something waits at this station (1) or burns (2), for its tab.
+func alert() -> int:
+	return 0
+
+
+## Where the guest of ticket `t` is (global), INF when not known.
+func guest_point(_t: Dictionary) -> Vector3:
+	return Vector3.INF
+
+
+## A hint's place on the camera's picture (the room's viewport px), Rect2() none.
+func hint_view_rect(h: Dictionary) -> Rect2:
+	if camera == null or not is_instance_valid(camera):
+		return Rect2()
+	var n = h.get("node", null)
+	if n is Node3D and is_instance_valid(n) and (n as Node3D).is_visible_in_tree():
+		return _screen_rect(n as Node3D)
+	if h.has("rect"):
+		var rr: Rect2 = h["rect"]
+		var out := Rect2()
+		var first := true
+		for corner in [rr.position, Vector2(rr.end.x, rr.position.y), rr.end, Vector2(rr.position.x, rr.end.y)]:
+			var g: Vector3 = global_transform * local_at(corner, 0.01)
+			if camera.is_position_behind(g):
+				continue
+			var sp := camera.unproject_position(g)
+			if first:
+				out = Rect2(sp, Vector2.ZERO)
+				first = false
+			else:
+				out = out.expand(sp)
+		return out
+	return Rect2()
+
+
+## A point of the surface on the camera's picture (viewport px).
+func view_point(px: Vector2, lift := 0.0) -> Vector2:
+	if camera == null or not is_instance_valid(camera):
+		return Vector2(-1, -1)
+	return camera.unproject_position(global_transform * local_at(px, lift))
+
+
+# ── things flying (a cob over the counter, a coin to the till) ──────────────
+
+var _flights: Array = []
+
+
+## A copy of `path`'s picture flies from `from` (this node's space) to `to` (global) along
+## an arc, smoothly, and is gone (the brief: "trays and coins fly in an arc").
+func fly(path: String, metres: float, from: Vector3, to: Vector3, seconds := 0.45, arc := 0.25) -> void:
+	if to == Vector3.INF:
+		return
+	var s := sprite(path, metres, false)
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.no_depth_test = true
+	s.render_priority = 6
+	s.position = from
+	_flights.append({"node": s, "from": global_transform * from, "to": to, "t": 0.0, "sec": seconds, "arc": arc})
+
+
+func _tick_flights(delta: float) -> void:
+	if _flights.is_empty():
+		return
+	var keep: Array = []
+	for f in _flights:
+		var n: Sprite3D = f["node"]
+		if not is_instance_valid(n):
+			continue
+		f["t"] = float(f["t"]) + delta
+		var k := clampf(float(f["t"]) / float(f["sec"]), 0.0, 1.0)
+		var e := 1.0 - pow(1.0 - k, 2.0)
+		var p: Vector3 = (f["from"] as Vector3).lerp(f["to"] as Vector3, e) + Vector3(0, sin(k * PI) * float(f["arc"]), 0)
+		n.global_position = p
+		if k >= 1.0:
+			n.queue_free()
+		else:
+			keep.append(f)
+	_flights = keep
 
 
 func big_ticket() -> Dictionary:
 	return {}
+
 
 
 func bar_text() -> String:

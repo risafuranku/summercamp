@@ -339,6 +339,25 @@ func _plan_late(guest: Dictionary, t: int) -> Dictionary:
 	return act
 
 
+## The places taking orders (business_runtime sets it, the host's): key -> [the minute of
+## the day it opens, the minute of last orders]. Past last orders nobody new goes there
+## (the brief of 21. 10.: "nobody orders ten minutes before closing").
+var order_hours: Dictionary = {}
+
+
+func _open_facilities(t: int) -> Array:
+	if order_hours.is_empty():
+		return _facilities
+	var mod := posmod(t, 1440)
+	var out: Array = []
+	for f in _facilities:
+		var h = order_hours.get(str((f as Dictionary).get("key", "")), null)
+		if h is Array and (mod < int(h[0]) or mod >= int(h[1])):
+			continue
+		out.append(f)
+	return out
+
+
 func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 	if night_now:
 		var late := _plan_late(guest, t)
@@ -347,7 +366,7 @@ func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 		return _plan_sleep(guest, t)
 	var here := _parse_key(str(guest.get("tile", "")))
 	var archetype := str(guest.get("archetype", "quiet_guy"))
-	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, _facilities, here, _usage, _rng, float(t % 1440) / 60.0)
+	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, _open_facilities(t), here, _usage, _rng, float(t % 1440) / 60.0)
 	var thought := str(goal.get("thought", ""))
 	match str(goal.get("kind", "wander")):
 		"visit":

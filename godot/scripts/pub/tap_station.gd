@@ -14,8 +14,10 @@ extends "res://scripts/pub/pub_station.gd"
 ##           matches best (pub_rules.judge_pour); the wrong pour they send back: a mark
 ##           in pencil on their mat, the money when they go.
 ##   the bill on the bar's right (scripts/pub/bill_spot.gd): the mat of whoever wants to
-##           pay, their note, your wallet; count the marks, take the note, the change
-##           onto the mat, hand it over.
+##           pay with their marks; a click on it (or on BILL on the rail) settles it.
+## SERVE (Space, Enter) sends the mug over; the next step is lit (`next_hint`): a mug,
+## the handle towards you to the line, SERVE; the washer when the board is bare, the
+## cellar when the keg will not pour.
 ## The three pours: hladinka (beer to the line, a collar of foam to the rim), snyt (half
 ## and half), mliko (all foam, a finger of beer). The keg in the cellar decides how it
 ## comes: the gas low, slow and flat; high, all foam; the keg spent, it coughs; flat when
@@ -131,6 +133,69 @@ func _build_tower() -> void:
 # ── what the state looks like ────────────────────────────────────────────────
 
 ## The bill being worked here: the picked one if it is a bill, else the oldest.
+func serves_kind() -> String:
+	return "tap"
+
+
+func serve_ready() -> bool:
+	return _mug and _slide < 0.0 and _beer + _foam > 0.3 and absf(_lever) <= 0.5 and not orders_here("tap").is_empty()
+
+
+func serve_now() -> void:
+	_serve()
+
+
+## A beer's checklist: a clean mug, the pour they want (beer to the line, half and half,
+## all foam), up to the rim, nothing over it.
+func checklist(t: Dictionary) -> Array:
+	if str(t.get("kind", "")) == "bill" or PUB.kind(str(t.get("drink", ""))) != "tap":
+		return super.checklist(t)
+	var drink := str(t["drink"])
+	var want := float(PUB.DRINKS[drink]["beer"])
+	var top := _beer + _foam
+	var pour_word: String = {"hladinka": "BEER TO THE LINE", "snyt": "HALF BEER, HALF FOAM", "mliko": "ALL FOAM"}.get(drink, "BEER")
+	var near := absf(_beer - want) <= 0.065
+	return [
+		{"text": "A CLEAN MUG", "state": "done" if _mug else "todo"},
+		{"text": pour_word, "state": ("done" if near else ("bad" if _beer > want + 0.065 else "todo")) if _mug and top > 0.05 else "todo"},
+		{"text": "UP TO THE RIM", "state": "done" if _mug and top >= 0.92 else "todo"},
+		{"text": "NOTHING SPILT", "state": "bad" if _spilled > 0.05 else ("done" if _mug and top >= 0.92 else "todo")},
+	]
+
+
+## What is best to do at the tap now: settle a bill (a click on its mat), a mug for the
+## beer ordered, the handle towards you to the line (away for an all-foam mliko), SERVE;
+## the washer when no clean mug is left, the cellar when the keg will not pour, the
+## bottles when only shots and kofolas wait.
+func next_hint() -> Dictionary:
+	if taproom == null or building_key == "":
+		return {}
+	var orders := orders_here("tap")
+	if not orders.is_empty():
+		var t: Dictionary = orders[0]
+		var trouble: String = taproom.tap_trouble(building_key)
+		if trouble != "" and trouble != "flat":
+			return {"tab": "keg"}
+		if not _mug:
+			if int(taproom.mugs(building_key)["clean"]) <= 0:
+				return {"tab": "wash"}
+			return {"rect": BOARD, "gesture": "click"}
+		var want := float(PUB.DRINKS[str(t["drink"])]["beer"])
+		if _beer + _foam < 0.92:
+			var foam_first := str(t["drink"]) == "mliko" and _foam < 0.6
+			return {"node": _handle, "gesture": "drag", "to": HANDLE_AT + Vector2(0, -70 if foam_first else 70)}
+		if _beer < want - 0.065:
+			return {"node": _handle, "gesture": "drag", "to": HANDLE_AT + Vector2(0, 70)}
+		return {"ui": "serve"}
+	if not current_bill().is_empty():
+		return {"rect": _bill.MAT, "gesture": "click"}
+	if not orders_here("bar").is_empty():
+		return {"tab": "back"}
+	if int(taproom.mugs(building_key)["clean"]) <= 1 and int(taproom.mugs(building_key)["dirty"]) > 0:
+		return {"tab": "wash"}
+	return {}
+
+
 func current_bill() -> Dictionary:
 	var all := bills()
 	for b in all:
@@ -158,7 +223,9 @@ func _show() -> void:
 	_level_meter.visible = _mug and is_open()
 	var foot := MUG_FOOT
 	if _slide >= 0.0:
-		foot.y -= floorf(_slide / 0.5 * 6.0) / 6.0 * 220.0
+		# Over the bar to the guest, sliding (smooth).
+		var ks := clampf(_slide / 0.5, 0.0, 1.0)
+		foot.y -= (1.0 - pow(1.0 - ks, 2.0)) * 220.0
 	if _mug:
 		put(_mug_spr, foot, 0.004)
 		var tex := _beer_spr.texture
@@ -192,8 +259,8 @@ func _show() -> void:
 			_stream.region_rect = Rect2(0, 0, tex2.get_width(), minf(px, tex2.get_height()))
 			_stream.offset = Vector2(0, minf(px, tex2.get_height()) * 0.5)
 			_stream.position = local_at(MUG_FOOT, 0.004) + Vector3(0, level, 0.002)
-	# The handle drawn towards you or pushed away, in steps.
-	_handle_pivot.rotation.z = floorf(_lever * 4.0) / 4.0 * 0.55
+	# The handle drawn towards you or pushed away (smooth).
+	_handle_pivot.rotation.z = _lever * 0.55
 	if _knife_t >= 0.0:
 		put(_knife, MUG_FOOT + Vector2(-30 + _knife_t / 0.35 * 60.0, -6), 0.16)
 	else:
@@ -308,6 +375,7 @@ func _put_mug() -> bool:
 	_foam = 0.0
 	_spilled = 0.0
 	sfx("glass_down", -10.0, randf_range(0.95, 1.05))
+	hop(_mug_spr)
 	return true
 
 
@@ -418,7 +486,7 @@ func _serve() -> void:
 	pop("|", MUG_FOOT + Vector2(0, -120), col, true)
 	if _hands_ui != null and is_instance_valid(_hands_ui):
 		_hands_ui.call("flash", "pencil", 4)
-	score_card(verdict, PUB.label(str(best["drink"])))
+	score_card(verdict, PUB.label(str(best["drink"])), _with_patience(best))
 	if int(verdict["stars"]) >= 3:
 		say(who, ["Now that's a beer.", "Like my grandad poured.", "Na zdravi!", "Ahh. Perfect.", "You've done this before."][_rng.randi() % 5])
 	elif float(verdict["accuracy"]) >= 0.6:

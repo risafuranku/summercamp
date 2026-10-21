@@ -6,12 +6,13 @@ extends Node3D
 ## left. In the room's own pixel: one pixel of a ticket is one line of the room's
 ## picture. Each ticket is a little picture of its own (a SubViewport the station draws:
 ## station3d.draw_ticket), redrawn when it changes. A new ticket swings on with its clip,
-## the picked one hangs lower, one that has gone red shakes on the rail. Stepped twelve a
-## second like the rest of the room.
+## the picked one hangs lower, one that has gone red shakes on the rail. It moves smoothly
+## (the brief of 21. 10.); each ticket carries the guest's face and their patience
+## (station3d.draw_ticket), redrawn as it changes.
 
 const DIST := 0.9
-const TW := 26
-const TH := 36
+const TW := 32
+const TH := 46
 const GAP := 3
 const SLOTS := 10
 const STEP := 1.0 / 12.0
@@ -78,10 +79,6 @@ func _layout() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	_acc += delta
-	if _acc < STEP:
-		return
-	_acc = 0.0
 	_refresh()
 
 
@@ -98,7 +95,9 @@ func _refresh() -> void:
 			card = _make_card()
 			card["born"] = _t
 			_cards[id] = card
-		var sig := "%s|%s|%s" % [str(t.get("sig", "")), int(t.get("band", 0)), id == picked]
+		# The face blinks and shakes, the red bar flashes: a ticket in the red is redrawn
+		# four times a second, the rest when they change.
+		var sig := "%s|%s|%s|%d|%d" % [str(t.get("sig", "")), int(t.get("band", 0)), id == picked, int(float(t.get("left", 1.0)) * 24.0), int(_t * 4.0) if float(t.get("left", 1.0)) < 0.4 else 0]
 		if sig != str(card.get("sig", "")):
 			card["sig"] = sig
 			card["t"] = t.duplicate()
@@ -109,15 +108,22 @@ func _refresh() -> void:
 		var x := _left + (float(TW) * 0.5 + float(i) * float(TW + GAP)) * _texel
 		var y := _top
 		if id == picked:
-			y -= _texel * 5.0
+			y -= _texel * 6.0
 		if int(t.get("band", 0)) == 2:
 			# Red: it shakes on its clip.
-			x += _texel * float([0, 1, 0, -1][int(_t * 12.0) % 4])
-		pivot.position = Vector3(x, y, -DIST)
-		# Swinging onto the rail, in steps.
+			x += _texel * sin(_t * 40.0) * 0.8
+		# Sliding along the rail to its place (the ones in front were served), and down to
+		# picked, smoothly.
+		var want := Vector3(x, y, -DIST)
+		var now: Vector3 = card.get("at", want)
+		now = now.lerp(want, 1.0 - exp(-14.0 * maxf(0.0, _t - float(card.get("seen", _t)))))
+		card["at"] = now
+		card["seen"] = _t
+		pivot.position = now
+		# Swinging onto the rail on its clip, eased.
 		var k := clampf((_t - float(card["born"])) / SWING_SEC, 0.0, 1.0)
-		k = floorf(k * 4.0) / 4.0
-		pivot.rotation.x = -(1.0 - k) * 1.1 * (1.0 if k < 1.0 else 0.0)
+		var swing := (1.0 - k) * (1.0 - k)
+		pivot.rotation.x = -swing * 1.1 + sin(k * PI * 2.0) * 0.12 * (1.0 - k)
 	for id in _cards.keys():
 		if not live.has(id):
 			(_cards[id]["pivot"] as Node).queue_free()

@@ -28,6 +28,12 @@ const QUEUE := [Vector3(-0.5, 0, 1.12), Vector3(0.35, 0, 1.18), Vector3(1.0, 0, 
 	Vector3(3.7, 0, 5.35), Vector3(4.15, 0, 5.95)]
 ## Walking up the line, metres a second.
 const STEP_UP := 1.1
+## Over their heads how their patience goes, their feet stamping (the brief of 21. 10.).
+const GUEST_MOOD := preload("res://scripts/business/guest_mood.gd")
+var _mood: Node3D
+## Those in the line now: guest_id * 10 + member -> {node, seen}.
+var _members: Dictionary = {}
+var _key := ""
 
 var guests_here := 0
 
@@ -146,10 +152,50 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 	_moved_t[key] = _t
 	_at_of[key] = at
 	member.global_position = r.global_transform * at
+	_members[key] = {"node": member, "seen": _t}
+	if _mood != null and is_instance_valid(_mood):
+		member.global_position.y += float(_mood.call("stomp", str(key)))
 	member.set_meta("marker_drop", 0.0)
 	# Standing (the eating pictures are sat at a table).
 	POSES.set_pose(sprite, str(info.get("sprite_path", "")), "")
 	return true
+
+
+## Where guest `guest_id`'s member `i` stands in the line (their head, global): the stars
+## and the tip fly up over them. INF when they are not in it.
+func member_point(guest_id: int, i: int) -> Vector3:
+	var m: Dictionary = _members.get(guest_id * 10 + i, {})
+	var n = m.get("node", null)
+	if n == null or not is_instance_valid(n) or _t - float(m.get("seen", -9.0)) > 2.0:
+		return Vector3.INF
+	return (n as Node3D).global_position + Vector3(0, 1.62, 0)
+
+
+## The bubbles over the line: each one's patience from their slip.
+func _moods() -> void:
+	if _key == "" or _members.is_empty():
+		return
+	if _mood == null or not is_instance_valid(_mood):
+		_mood = GUEST_MOOD.new()
+		_mood.name = "GuestMood"
+		add_child(_mood)
+	var left := {}
+	var names := {}
+	var stand = CORNSTAND.of(get_tree())
+	if stand != null:
+		for t in stand.tickets(_key):
+			var k := int(t["guest_id"]) * 10 + int(t["member"])
+			var l := 1.0 - clampf(float(t.get("age", 0)) / float(load("res://core/systems/corn_rules.gd").PATIENCE_GONE), 0.0, 1.0)
+			left[k] = minf(float(left.get(k, 1.0)), l)
+			names[k] = str(t.get("name", ""))
+	for k in _members.keys():
+		var m: Dictionary = _members[k]
+		var n = m.get("node", null)
+		if n == null or not is_instance_valid(n) or _t - float(m.get("seen", -9.0)) > 2.0:
+			_members.erase(k)
+			continue
+		_mood.call("show_for", str(k), (n as Node3D).global_position + Vector3(0, 1.62, 0), float(left.get(k, -1.0)), str(names.get(k, "")))
+	_mood.call("sweep")
 
 
 ## The stand's stations on its counter, made the first time (scripts/corn/stand_layout.gd):
@@ -158,6 +204,7 @@ func make_stations(key: String) -> Dictionary:
 	var r := get_parent() as Node3D
 	if r == null or key == "":
 		return stations
+	_key = key
 	var fresh := stations.is_empty() or not is_instance_valid(stations.values()[0]) or str(stations.values()[0].get("building_key")) != key
 	if not fresh:
 		return stations
@@ -233,6 +280,7 @@ func _process(delta: float) -> void:
 		return
 	_t += _acc
 	_acc = 0.0
+	_moods()
 	if _bulb != null and int(_t * FPS) % 12 == 0:
 		# From dusk to the morning the bulb is on.
 		var h := int(GuestManager._last_known_hour) if GuestManager != null else 12
