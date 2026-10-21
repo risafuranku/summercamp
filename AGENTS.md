@@ -271,6 +271,13 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   world is drawn small and scaled up by the render style, and 2D inside it scaled with it
   (huge prompts). Rooms have their own 3D viewports; the office window portal gets the
   camp's world by hand (`_bind_window_world`).
+- **A SubViewport hears no 3D sound unless `audio_listener_enable_3d` is on** (Godot's
+  default is off). The camp's (main.tscn) had it off until 21. 10.: every
+  AudioStreamPlayer3D in the camp (the enemies, world_sounds, the radio outside, the
+  co-op voices) was silent and nobody could tell from the code. A new viewport with 3D
+  sounds turns it on (the office room's only while it is open, else its sounds play
+  outdoors); a sound heard through a building's walls goes on `world_sounds.wall_bus(...)`
+  (a low-pass bus; the 3D player's own filter only works with distance).
 - **Mouse clicks never reach `_unhandled_input`** outdoors: the world's
   SubViewportContainer takes them. Read clicks in `_input`. A ray from a camera inside a
   SubViewport needs the window mouse scaled into that viewport (`lake_trip._mouse_in_cam_viewport`).

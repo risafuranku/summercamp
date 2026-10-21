@@ -15,7 +15,11 @@ extends Node3D
 ##     buildings near you, slower as it dries;
 ##   - in the rain, by what it falls on: it drums on the tin roofs of the buildings near
 ##     you and patters on the tents' canvas, hisses on the lake by the jetty, crackles in
-##     the trees over you.
+##     the trees over you;
+##   - the rooms leak out (the user 21. 10.: "the interiors heard outside by the building,
+##     muffled"): by the pub and the bistro while they are open and somebody is in, their
+##     room through the walls, fuller the more are in (the reception's radio is
+##     building_interior.gd's own, through the same walls: `wall_bus`).
 ## Made by weather_visuals.gd in the camp's world, like the rain.
 
 const SFX := "res://assets/sfx/world/"
@@ -25,6 +29,12 @@ const LAMP_HUMS := 4
 ## tent's canvas (room_weather.gd's too), from outside here.
 const DRIP := "res://assets/sfx/weather/roof_drip.mp3"
 const RAIN_CANVAS := "res://assets/sfx/weather/rain_canvas.mp3"
+## A room's sound from outside its walls, by building type.
+const ROOMS := {"pub": "res://assets/sfx/pub/pub_room.mp3", "restaurant": "res://assets/sfx/bistro/dining_room.mp3"}
+const ORDERS := preload("res://scripts/food/orders.gd")
+const BUSINESS := preload("res://scripts/business/business_runtime.gd")
+## Through a wall: the highs gone (a low-pass bus of its own, made the first time).
+const WALL_HZ := 750.0
 
 var player_getter: Callable
 
@@ -53,6 +63,7 @@ var _scan_t := 0.0
 var _poll_t := 0.0
 var _rng := RandomNumberGenerator.new()
 var _streams: Dictionary = {}
+var _rooms: Dictionary = {}        # building instance id -> {player, key}
 
 
 func _ready() -> void:
@@ -151,6 +162,11 @@ func _scan(here: Vector3) -> void:
 				fp.position = Vector3(0, 4.5, 0)
 				(c as Node3D).add_child(fp)
 				_flags[id] = {"player": fp, "t": _rng.randf_range(1.0, 4.0)}
+			elif ROOMS.has(bt) and not _rooms.has(id):
+				var leak := _loop_player(c as Node3D, "", Vector3(0, 1.4, 0), 2.5, 24.0)
+				leak.stream = _loop_stream(str(ROOMS[bt]))
+				leak.bus = wall_bus(BUS)
+				_rooms[id] = {"player": leak, "key": _site_key(c as Node3D, root)}
 			elif (bt == "toilet_block" or bt == "shower_block") and not _washrooms.has(id):
 				_washrooms[id] = {"tube": _loop_player(c as Node3D, "tube_buzz.mp3", Vector3(0, 2.0, 0), 1.0, 10.0),
 					"drip": _loop_player(c as Node3D, "tap_drip.mp3", Vector3(0, 1.0, 0), 0.8, 8.0)}
@@ -208,6 +224,7 @@ func _poll(here: Vector3) -> void:
 			continue
 		_set_loop(wr["tube"], night and powered, -18.0)
 		_set_loop(wr["drip"], true, -22.0)
+	_rooms_leak(main)
 	_rain_by_surface(here, main)
 	if _lake != null and is_instance_valid(_lake):
 		_set_loop(_lake, true, -12.0)
@@ -215,6 +232,54 @@ func _poll(here: Vector3) -> void:
 		var day := int(main.get("_day_index")) if main != null and main.get("_day_index") != null else 1
 		# Gone quiet in the last cold nights.
 		_set_loop(_frogs, night and day < 24, -13.0)
+
+
+## The pub and the bistro through their walls: while open with somebody in (from outside
+## only: inside, the room is its own), the more guests the fuller.
+func _rooms_leak(main: Node) -> void:
+	var inside: bool = main != null and main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open"))
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var sites: Dictionary = state.biz.get("sites", {}) if state != null and state.get("biz") is Dictionary else {}
+	for id in _rooms.keys():
+		var r: Dictionary = _rooms[id]
+		var p = r["player"]
+		if not is_instance_valid(p):
+			_rooms.erase(id)
+			continue
+		var key := str(r["key"])
+		var site: Dictionary = sites.get(key, {})
+		var n := ORDERS.visitors(key).size() if not site.is_empty() else 0
+		var open := not site.is_empty() and BUSINESS.shift_now(site) != "closed"
+		_set_loop(p, open and n > 0 and not inside, -16.0 + 2.5 * float(mini(n, 4)))
+
+
+## The business key ("x:y", its root cell) of the building standing at `b`.
+func _site_key(b: Node3D, root: Node) -> String:
+	var gm = root.get("grid_manager")
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if gm == null or state == null or state.grid == null:
+		return ""
+	var coord: Vector2i = gm.world_to_grid(b.global_position)
+	var data: Dictionary = state.grid.cells.get(coord, {})
+	var rc = data.get("root_coord", coord)
+	return "%d:%d" % [int(rc.x), int(rc.y)]
+
+
+## A bus for what is heard through a wall, sending on to `send_to` (one per bus it sends
+## to): its highs gone, so a room or a radio inside a building is muffled however close
+## you stand to the outside of it (the 3D player's own filter only goes with distance).
+static func wall_bus(send_to: String) -> String:
+	var bus_name := "ThroughWalls" + ("" if send_to == BUS else "_" + send_to)
+	if AudioServer.get_bus_index(bus_name) < 0:
+		var i := AudioServer.bus_count
+		AudioServer.add_bus(i)
+		AudioServer.set_bus_name(i, bus_name)
+		AudioServer.set_bus_send(i, send_to if AudioServer.get_bus_index(send_to) >= 0 else "Master")
+		var lp := AudioEffectLowPassFilter.new()
+		lp.cutoff_hz = WALL_HZ
+		lp.resonance = 0.4
+		AudioServer.add_bus_effect(i, lp)
+	return bus_name
 
 
 ## The rain by what it falls on: the tin roofs and the tents' canvas of the three buildings
