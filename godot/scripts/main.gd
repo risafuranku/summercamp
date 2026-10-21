@@ -44,6 +44,10 @@ const GUEST_AGENTS_SCRIPT = preload("res://scripts/guest_agents.gd")
 const QUEST_MANAGER_SCRIPT = preload("res://scripts/quest_manager.gd")
 const MAINTENANCE_CONTROLLER_SCRIPT = preload("res://scripts/maintenance_controller.gd")
 const BLOOD_FX_SCRIPT = preload("res://scripts/blood_fx.gd")
+## Being hurt on the screen and in the ears (the red flash, blood on the lens, your cry,
+## the heart and the breath, the limp and the blackouts when low).
+const HURT_FX_SCRIPT = preload("res://scripts/ui/hurt_fx.gd")
+var _hurt_fx: CanvasLayer
 const MENU_FLYTHROUGH_SCRIPT = preload("res://scripts/menu_flythrough.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
@@ -2947,12 +2951,19 @@ func _resolve_damage_tier(damage_amount: int, fatal_hit: bool) -> int:
 
 func _emit_player_damage_feedback(damage_amount: int, fatal_hit: bool) -> void:
 	var tier := _resolve_damage_tier(damage_amount, fatal_hit)
+	if _hurt_fx == null or not is_instance_valid(_hurt_fx):
+		_hurt_fx = HURT_FX_SCRIPT.new()
+		_hurt_fx.set("main", self)
+		add_child(_hurt_fx)
+	_hurt_fx.hit(damage_amount, tier, fatal_hit)
 	if _player != null and _player.has_method("play_damage_feedback"):
 		_player.play_damage_feedback(tier, damage_amount, fatal_hit)
 	_spawn_blood_damage_fx(tier, fatal_hit)
 
 
 func _reset_player_damage_feedback() -> void:
+	if _hurt_fx != null and is_instance_valid(_hurt_fx):
+		_hurt_fx.clear()
 	if _player != null and _player.has_method("reset_damage_feedback_state"):
 		_player.reset_damage_feedback_state()
 
