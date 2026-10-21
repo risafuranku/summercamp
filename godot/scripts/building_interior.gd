@@ -1039,6 +1039,12 @@ func _build_room() -> void:
 	_add_box(_room_root, "FrontPorchL", Vector3(1.15, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
 	_add_box(_room_root, "FrontPorchR", Vector3(2.30, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
 	_add_box(_room_root, "FrontPorchTop", Vector3(1.725, 2.4, -3.1), Vector3(1.2, 0.06, 1.1), Color(0.40, 0.32, 0.24))
+	# The camp looking in through the office window does not see these (they stand
+	# outside the room's front wall, in the way at a slant: the user 21. 10.).
+	for n in ["FrontStep", "FrontPorchL", "FrontPorchR", "FrontPorchTop"]:
+		var porch := _room_root.get_node_or_null(n)
+		if porch != null:
+			_hide_from_camp(porch)
 	_add_box(_room_root, "WallFrontBottom", Vector3(-0.4, 0.475, -2.55), Vector3(2.00, 0.95, 0.1), Color(0.66, 0.50, 0.36))
 	_add_box(_room_root, "WallFrontTop",    Vector3(-0.4, 2.575, -2.55), Vector3(2.00, 0.45, 0.1), Color(0.66, 0.50, 0.36))
 
