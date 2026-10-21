@@ -82,6 +82,7 @@ func build(p_worldgen: Node) -> void:
 		push_warning("geo: no data/geo/world.json")
 		return
 	_make_index()
+	_keep_lake_clear()
 	_hide_horizon_hills()
 	_ground()
 	_land()
@@ -403,6 +404,18 @@ func _ground() -> void:
 		body.add_child(shape)
 		body.position = Vector3(r.get_center().x, -0.5, r.get_center().y)
 		add_child(body)
+
+
+## The camp's lake reaches past its fenced map (camp_lake.gd): its water, its shore and
+## reeds and Mr Hruby's boathouse behind the far shore are the game's. No real house,
+## tree or fence in them, nor a little way round (the village's houses stood in the water
+## and through the boathouse, and the boat came alongside a gable).
+func _keep_lake_clear() -> void:
+	var lake = worldgen.get("_lake_poly") if worldgen != null else null
+	if lake is PackedVector2Array and (lake as PackedVector2Array).size() > 2:
+		var grown := Geometry2D.offset_polygon(lake, 12.0)
+		if not grown.is_empty():
+			_clear.append(grown[0])
 
 
 ## The camp generator's made-up hills on the horizon: the real land is here instead.

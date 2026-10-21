@@ -9007,7 +9007,7 @@ msgstr ""
 
 #: scripts/main.gd:6476
 msgid "Row back to camp"
-msgstr ""
+msgstr "Odveslovat zpátky do kempu"
 
 #: scripts/main.gd:6478
 msgid "Go outside"
@@ -14095,43 +14095,43 @@ msgstr "FRONTA %d"
 
 #: scripts/lake/lake_trip.gd:94
 msgid "[E] Take the boat across"
-msgstr ""
+msgstr "[E] Přeplout loďkou na druhý břeh"
 
 #: scripts/lake/lake_trip.gd:96
 msgid "[E] Get in with %s"
-msgstr ""
+msgstr "[E] Přisednout do loďky (vesluje %s)"
 
 #: scripts/lake/lake_trip.gd:378
 msgid "%s has the oars: wait for them."
-msgstr ""
+msgstr "Vesla má %s. Počkej."
 
 #: scripts/lake/lake_trip.gd:405
 msgid "Too soon. You reel in an empty hook."
-msgstr ""
+msgstr "Moc brzo. Navíjíš prázdný háček."
 
 #: scripts/lake/lake_trip.gd:454
 msgid "It took the bait and went. The float bobs back up, empty."
-msgstr ""
+msgstr "Vzala návnadu a je pryč. Splávek zase vyskočí, prázdný."
 
 #: scripts/lake/lake_trip.gd:465
 msgid "A carp, two kilos. The kitchen will have it: +$6."
-msgstr ""
+msgstr "Kapr, dvě kila. Kuchyně si ho vezme: +$6."
 
 #: scripts/lake/lake_trip.gd:467
 msgid "A pike, all teeth. The kitchen will have it: +$10."
-msgstr ""
+msgstr "Štika, samý zub. Kuchyně si ji vezme: +$10."
 
 #: scripts/lake/lake_trip.gd:469
 msgid "Weed and an old boot lace. Nothing."
-msgstr ""
+msgstr "Řasa a stará tkanička. Nic."
 
 #: scripts/lake/lake_trip.gd:471
 msgid "A red shoe, a lady's, full of mud. Like the one in the pipes. The left one."
-msgstr ""
+msgstr "Červená dámská bota, plná bahna. Jako ta v trubkách. Levá."
 
 #: scripts/lake/lake_trip.gd:752
 msgid "You climb into the bow. %s rows."
-msgstr ""
+msgstr "Lezeš na příď. Vesluje %s."
 
 #: scripts/lake/logbook_closeup.gd:15
 msgid ""
@@ -14142,6 +14142,12 @@ msgid ""
 "P. Hruby, keeper\n"
 "from 1979"
 msgstr ""
+"KNIHA JEZERA\n"
+"Černé jezero\n"
+"nádrž a stavidlo\n"
+"\n"
+"P. Hrubý, hlídač\n"
+"od 1979"
 
 #: scripts/lake/logbook_closeup.gd:15
 msgid ""
@@ -14155,6 +14161,15 @@ msgid ""
 "oiled the gate.\n"
 "boats out of the shed"
 msgstr ""
+"12.4.\n"
+"hladina 4,10\n"
+"stavidlo zavřeno.\n"
+"ze zátoky led pryč.\n"
+"\n"
+"30.4.\n"
+"hladina 4,22\n"
+"namazal stavidlo.\n"
+"lodě ven z kůlny"
 
 #: scripts/lake/logbook_closeup.gd:16
 msgid ""
@@ -14170,6 +14185,17 @@ msgid ""
 "boat in the night.\n"
 "rope cut clean."
 msgstr ""
+"19.6.\n"
+"hladina 4,30\n"
+"kemp otevřen. Karlovy\n"
+"děti zase na molu.\n"
+"řekl jsem jim to.\n"
+"\n"
+"2.7.\n"
+"hladina 4,31\n"
+"někdo v noci\n"
+"přesunul loďku.\n"
+"lano čistě uříznuté."
 
 #: scripts/lake/logbook_closeup.gd:16
 msgid ""
@@ -14184,6 +14210,16 @@ msgid ""
 "like it was holding\n"
 "its breath."
 msgstr ""
+"14.8.87\n"
+"ta holka. chodili\n"
+"jsme s lampami podél\n"
+"břehu do čtyř.\n"
+"nic.\n"
+"\n"
+"voda stála celou\n"
+"noc úplně klidná,\n"
+"jako by zadržovala\n"
+"dech."
 
 #: scripts/lake/logbook_closeup.gd:17
 msgid ""
@@ -14196,6 +14232,13 @@ msgid ""
 "full of what the\n"
 "lake gave back."
 msgstr ""
+"3.5.93\n"
+"hladina 4,05\n"
+"vodárny dávají\n"
+"pod kemp nové\n"
+"trubky. ty staré\n"
+"jsou plné toho,\n"
+"co jezero vrátilo."
 
 #: scripts/lake/logbook_closeup.gd:17
 msgid ""
@@ -14208,6 +14251,13 @@ msgid ""
 "back once. I should\n"
 "not have."
 msgstr ""
+"21.5.93\n"
+"klepe to. ve starých\n"
+"trubkách, zdaleka.\n"
+"třikrát. dělníci\n"
+"se smějou. jednou\n"
+"jsem zaklepal zpátky.\n"
+"neměl jsem."
 
 #: scripts/lake/logbook_closeup.gd:18
 msgid ""
@@ -14221,6 +14271,14 @@ msgid ""
 "it cannot see.\n"
 "I am almost sure."
 msgstr ""
+"1.6.93\n"
+"už odpovídá na\n"
+"kladivo. jde za\n"
+"hlukem. drž na něm\n"
+"lampu a odejde.\n"
+"\n"
+"nevidí.\n"
+"jsem si skoro jistý."
 
 #: scripts/lake/logbook_closeup.gd:18
 msgid ""
@@ -14235,6 +14293,16 @@ msgid ""
 "times it is not\n"
 "the water."
 msgstr ""
+"2.6.93\n"
+"zítra tahají\n"
+"poslední starou\n"
+"trubku. řekl jsem,\n"
+"že půjdu dolů\n"
+"s nimi a podívám se.\n"
+"\n"
+"když zaklepe\n"
+"třikrát, není to\n"
+"voda."
 
 #: scripts/lake/logbook_closeup.gd:19
 msgid ""
@@ -14248,14 +14316,22 @@ msgid ""
 "      are swollen\n"
 "      with damp.)"
 msgstr ""
+"\n"
+"\n"
+"\n"
+"\n"
+"     (dál už nic.\n"
+"      ostatní stránky\n"
+"      jsou nabobtnalé\n"
+"      vlhkem.)"
 
 #: scripts/lake/night_row.gd:88
 msgid "Something long passes under the boat. Then nothing."
-msgstr ""
+msgstr "Pod loďkou proplave něco dlouhého. Pak nic."
 
 #: scripts/lake/night_row.gd:160
 msgid "The edge of the boat is wet where it held on."
-msgstr ""
+msgstr "Okraj loďky je mokrý tam, kde se to drželo."
 
 #: scripts/night/director_effects.gd:75
 msgid "(Breathing. Close to the mouthpiece. Then the line goes dead.)"
@@ -24416,3 +24492,11 @@ msgstr "Otočit stavbu (Q / R)"
 #: scripts/builder_module.gd
 msgid "The camera with legs: WASD moves the map (Shift faster)"
 msgstr "Kamera s nohama: WASD posouvá mapu (Shift rychleji)"
+
+#. manual
+msgid "W row  -  A / D turn  -  S back water"
+msgstr "W veslovat  -  A / D zatáčet  -  S couvat"
+
+#. manual
+msgid "[E] Get out"
+msgstr "[E] Vystoupit"

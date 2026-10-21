@@ -179,6 +179,14 @@ finished game, by impact:
 - [x] Snow: boot prints behind every warden, frozen puddles; snowfall no longer grew
   puddles with rain rings on them (21. 10.)
 - [x] A broken lamp shorts: sparks, a flash, the crackle (21. 10., lamp_sparks.gd)
+- [x] The rowing boat, single and co-op (21. 10., the user: "totálně polishnout lodičku"):
+  into the seat and out smoothly, strokes in a rhythm, backing and turning on the spot,
+  looking round from the seat, the shore and jetties knock it back, alongside by itself
+  (and off the keeper's jetty again: it took you straight back), the hull on the swell,
+  3D oars, splashes, swirls and wake, the lantern, its sounds; in co-op the oars stroke on
+  the other machine and the passenger sits in the bow face to face (they sat in the
+  rower's face); the village's houses gone from the far shore (`boat_rig.gd`,
+  `tools/boat_shots.tscn`, `tools/boat_coop.py`)
 - [x] Sound: a guitar by the fire and a radio in a caravan in the evening, far off
   (21. 10., far_life.gd)
 - [x] Sound: the country by day — the dawn chorus, birds, grasshoppers, a woodpecker, a

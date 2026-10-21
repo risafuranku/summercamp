@@ -28,6 +28,8 @@ var boat_home := Transform3D()
 var water_poly := PackedVector2Array()
 var far_jetty_end := Vector3.ZERO
 var far_view := Vector3.ZERO
+## The two jetties' decks on the water (world x, z): the boat does not row through them.
+var jetty_rects: Array[Rect2] = []
 var hut_window: OmniLight3D
 var hut_window_mesh: MeshInstance3D
 ## Fish: now and then by day a ring spreads on the water (in steps, 10 a second) with a plop.
@@ -405,6 +407,7 @@ func _build_jetty(start: Vector3) -> void:
 	add_child(body)
 	var deck_center := start + Vector3(0, JETTY_Y, JETTY_LEN * 0.5)
 	K.slab(body, Vector3(JETTY_W, 0.08, JETTY_LEN), deck_center, planks, "Deck")
+	jetty_rects.append(Rect2(start.x - JETTY_W * 0.5 - 0.15, start.z - 0.3, JETTY_W + 0.3, JETTY_LEN + 0.45))
 	var n := int(JETTY_LEN / 1.6)
 	for i in n + 1:
 		var z := start.z + float(i) * JETTY_LEN / float(n)
@@ -455,6 +458,7 @@ func _build_far_shore(shore: Vector3) -> void:
 			K.slab(root, Vector3(0.14, 1.1, 0.14), Vector3(start.x + side * (JETTY_W * 0.5 - 0.07), JETTY_Y - 0.45, z), posts, "FarPost")
 	far_jetty_end = start + Vector3(0, JETTY_Y, -jlen)
 	far_view = start + Vector3(0, JETTY_Y + 1.45, -jlen + 1.4)
+	jetty_rects.append(Rect2(start.x - JETTY_W * 0.5 - 0.15, start.z - jlen - 0.15, JETTY_W + 0.3, jlen + 0.3))
 	# The boathouse.
 	var hut := shore + Vector3(2.6, 0.0, 5.0)
 	var w := 3.4

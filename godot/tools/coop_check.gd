@@ -636,10 +636,22 @@ func _boat_from_home() -> float:
 ## What comes and goes by itself on each machine (a fish's rings on the lake and their
 ## plop): not the camp.
 static func _passing_fx(n: Node3D) -> bool:
-	if n is AudioStreamPlayer3D:
+	# Cameras go where whoever looks is (the lake's mirror camera too).
+	if n is AudioStreamPlayer3D or n is Camera3D:
 		return true
+	# The boat's hull rocks on each machine's own swell, its oars and lantern with it
+	# (scripts/lake/boat_rig.gd): the boat is compared by where it lies (RowBoat itself).
+	var up := n
+	while up != null:
+		if str(up.name) == "Hull" and up.get_parent() != null and str(up.get_parent().name) == "RowBoat":
+			return true
+		up = up.get_parent() as Node3D
 	var mi := n as MeshInstance3D
-	return mi != null and mi.mesh is QuadMesh and ((mi.mesh as QuadMesh).size - Vector2(1.6, 1.6)).length() < 0.01 and str(mi.name).begins_with("@")
+	if mi == null or not (mi.mesh is QuadMesh) or not str(mi.name).begins_with("@"):
+		return false
+	# A fish's rings (1.6 m), the rings round the oars (a unit quad) and their drops.
+	var sz := (mi.mesh as QuadMesh).size
+	return (sz - Vector2(1.6, 1.6)).length() < 0.01 or (sz - Vector2.ONE).length() < 0.01 or sz.y < 0.1
 
 
 ## A node's name without Godot's per-process counter (@MeshInstance3D@3614).

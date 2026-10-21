@@ -1494,11 +1494,47 @@ the corner; after you have been at the board, it does not.
 
 ## 8c. The lake trip
 
-The keeper's rowing boat (`scripts/lake/lake_trip.gd`): W pulls a stroke, A/D turn, the
-gloved hands on the oars. The far shore is his boathouse: looked at like an interior (the
-camp across the water, its lamps at night), his logbook in the doorway, his jetty to fish
-from (carp and pike to the kitchen, now and then a red shoe). Sometimes at night something
-long passes under the boat. Nothing there is required.
+The keeper's rowing boat (`scripts/lake/lake_trip.gd`, the boat itself
+`scripts/lake/boat_rig.gd`). The far shore is his boathouse: looked at like an interior
+(the camp across the water, its lamps at night), his logbook in the doorway, his jetty to
+fish from (carp and pike to the kitchen, now and then a red shoe). Sometimes at night
+something long passes under the boat. Nothing there is required.
+
+Polished on 21. 10. (the user: "totálně polishnout lodičku, single i coop"):
+
+- **Into the boat.** E by it: your eyes go down from the jetty onto the aft thwart in one
+  smooth move, the boat dips and rolls under your weight, the oars come up out of the
+  boat into the rowlocks. You sit facing the bow (the game always rowed forwards, for
+  play: pushing the grips drives the boat on). Before you have pushed off, E gets you out
+  again; near either jetty the boat comes alongside by itself (eased in, turned to lie
+  along it, the rope) and you climb out onto it. Off the keeper's jetty you have to be out
+  on the water before it takes you alongside again (it took you straight back, so the
+  far shore could not be left by boat at all).
+- **Rowing.** W pushes both oars through a stroke, held stroke after stroke in a rhythm
+  (1.2 s): the boat surges on the drive and glides between; S backs water; A and D push
+  one oar and back the other and the boat turns on the spot, with W one oar rests and it
+  turns as it goes. The water holds it (along the hull, much more sideways, its turn),
+  the wind drifts it when you sit idle, the shore and the jetties knock it back. The
+  mouse looks round from the seat as it does on your feet (115° each way, up and down);
+  the hands on the oars drop out of view when you look away or down into the boat. The
+  HUD says the keys at first and when you sit idle, and the way out by the camp jetty.
+- **The boat everybody sees** (`boat_rig.gd`). Its hull rides the swell (more in the
+  wind, a lot in a storm), heels into a turn, lifts its bow on a stroke, knocked about by
+  steps and lurches. The oars (`rowboat_oar`, Blender) lie in along the thwarts while
+  nobody rows and are pulled stroke by stroke in the rowlocks: in at the catch squared,
+  through the water, out feathered flat. A splash where a blade goes in, the swirl it
+  leaves behind in the water, drips off it on the way back, rings off the stern while the
+  boat makes way. After dark its storm lantern hangs lit from the stem post (the glass
+  glows, the boat in its light; your hands catch it). Its sounds where it is: the stroke,
+  the water rushing along the hull, the drips, the creak, the step in and out, the rope
+  (ElevenLabs, `tools/audiogen/prompts_lake.tsv`).
+- **The hands on the oars** are two pictures (the left and the right glove of
+  `hands/oars.png`), each through its own stroke, twelve frames a second like every hand,
+  lit like every hand (Hands.material), the oar running on out of the picture as it
+  swings.
+- **The far shore** stands clear: the real land round the camp (geo_world.gd, OSM) kept
+  the village's houses in the water and through the boathouse; the lake and twelve metres
+  round it are the game's own now.
 
 ## 9. Weather
 
@@ -1628,4 +1664,9 @@ through for two (TODO.md, CO-OP).
   In a tent the other lies on their belly, chin in hand, boots up in the air.
   A job either does is done in the host's camp and shows in both rooms.
 - **One boat.** Whoever takes it rows it on both lakes; the other sees them in it and
-  cannot take it till it is back at the jetty.
+  cannot take it till it is back at the jetty. Its oars stroke there as the rower's do
+  (the warden state's "rp": each oar's phase, carried on by the clock), its hull rocks
+  on each machine's own swell, and the rower sits on its thwart there. The other climbs
+  into the bow (E by the boat while it is at the camp jetty) and rides facing the rower
+  (they sat in the rower's face, 0.6 m off); ashore on the keeper's jetty each stands on
+  a spot of their own, and back into the bow when the rower takes the boat home.
