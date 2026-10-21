@@ -313,7 +313,7 @@ func get_footprint_for_building(building_type: String) -> Vector2i:
 	match building_type:
 		"tent_1", "tent_2", "tent_3", "toilet_block", "shower_block", "bonfire", "power_generator", "sewer", "water_pump", "sewage_tank", "dumpsters", "path", "lamp_post":
 			return Vector2i(1, 1)
-		"cabin", "cabin_1", "cabin_2", "cabin_3", "restaurant", "pub":
+		"cabin", "cabin_1", "cabin_2", "cabin_3", "restaurant", "pub", "staffroom":
 			return Vector2i(2, 2)
 		"vecerka":
 			# The Jednota (agent C, 20. 10.): three by three, its model building_models._jednota.
@@ -390,6 +390,8 @@ func place_building_at(origin: Vector2i, building_type: String) -> bool:
 			return _place_placeholder_at(origin, "playground", Vector2i(2, 1), Color(0.6, 0.5, 0.3), Color(0.9, 0.3, 0.2), "attractions", 1.2)
 		"corn_stand":
 			return _place_placeholder_at(origin, "corn_stand", Vector2i(1, 1), Color(0.9, 0.8, 0.3), Color(0.8, 0.2, 0.15), "services", 2.4)
+		"staffroom":
+			return _place_placeholder_at(origin, "staffroom", Vector2i(2, 2), Color(0.7, 0.68, 0.6), Color(0.2, 0.2, 0.2), "services", 2.9)
 		_:
 			return false
 

@@ -970,10 +970,10 @@ func _page_for(key: String) -> Dictionary:
 ## SoftSklad's four programs: the licence to buy, or (bought) the download.
 func _softsklad() -> String:
 	var R = load("res://core/systems/business_rules.gd")
-	var files := {"pub": "HOSPOD98.EXE", "rest": "KUCHAR98.EXE", "vecerka": "PULT98.EXE", "corn": "KLASEK98.EXE"}
-	var blurbs := {"pub": "for pubs and bars: kegs, spirits, kofola, glasses", "rest": "for canteens and bistros: the kitchen's stock, portions", "vecerka": "for shops: bread, rolls, salami, milk, beer", "corn": "for stands: cobs and butter"}
+	var files := {"pub": "HOSPOD98.EXE", "rest": "KUCHAR98.EXE", "vecerka": "PULT98.EXE", "corn": "KLASEK98.EXE", "staff": "PERSON98.EXE"}
+	var blurbs := {"pub": "for pubs and bars: kegs, spirits, kofola, glasses", "rest": "for canteens and bistros: the kitchen's stock, portions", "vecerka": "for shops: bread, rolls, salami, milk, beer", "corn": "for stands: cobs and butter", "staff": "for your own staff: hiring, lockers, who sees to what"}
 	var t := ""
-	for k in ["pub", "rest", "vecerka", "corn"]:
+	for k in ["pub", "rest", "vecerka", "corn", "staff"]:
 		var info: Dictionary = R.info(k)
 		t += "[b]%s[/b] - %s\n" % [str(info["app_name"]), str(blurbs[k])]
 		if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.biz_has_licence(k):

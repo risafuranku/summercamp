@@ -30,6 +30,7 @@ const PROGRAM_DIRS := {
 	"bistro_app": ["KUCHAR98", ["KUCHAR98.EXE", "SKLAD.DBF", "RECEPTY.DBF"]],
 	"shop_app": ["PULT98", ["PULT98.EXE", "SKLAD.DBF", "CENIK.DBF"]],
 	"corn_app": ["KLASEK98", ["KLASEK98.EXE", "SKLAD.DBF"]],
+	"staff_app": ["PERSON98", ["PERSON98.EXE", "ZAMESTN.DBF", "SKRINKY.DBF"]],
 }
 
 ## Files that open a program when double-clicked.
@@ -44,6 +45,7 @@ const EXE_APPS := {
 	"KUCHAR98.EXE": "bistro_app",
 	"PULT98.EXE": "shop_app",
 	"KLASEK98.EXE": "corn_app",
+	"PERSON98.EXE": "staff_app",
 }
 
 ## In the Recycle Bin when the week starts. Restoring puts them back in C:\VERA.

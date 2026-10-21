@@ -1436,6 +1436,69 @@ disagree, this wins (the older lines say so).*
 - **By day plain play, by night the uncanny** as before (open late, PROTOTYP 540, Jaromir
   and Marta are untouched). The hands stay worse than a good warden.
 
+## 7c. The staffroom and the camp's own staff
+
+The user, 21. 10.: "a fifth tab in SoftSklad where you hire staff who clean; a staffroom
+building with the PC as an old chunky laptop, a mattress to sleep on in the boiler room,
+a sofa, a fridge, a coffee machine, a TV... no cleaning gang: picking a hand like in the
+businesses; they rest in the staffroom, or take your bed if they have none; one locker in
+the second room, more bought in the books with a picture; one locker one hand; no
+staffroom, no hiring; they go to the cleaning events, the raccoons, the deliveries, all
+the things that bother you by day; they prepare the lodgings, clean them, make the beds;
+what each of them does is set in the books or in SoftSklad with toggles; they go home at
+night", and: "curtains, for the enemies, the Photographer; it must work in co-op, I must
+see the others sitting at the laptop".
+
+- **The building**: a Utilities build in Builder 98, two by two, one for the camp ($360,
+  `data/buildings/staffroom.tres`, `builder_authority.ONE_ONLY`). A 1970s Czech village
+  prefab hut: dash plaster, a tar-paper flat roof, the boiler room as a lower annex with
+  its brick chimney, a plywood door with an enamel PERSONAL plate, the coal hatch.
+  **One plan for the inside and the outside** (`scripts/staff/staffroom_plan.gd`): the
+  building in the camp (`building_models._staffroom`) is built with its rooms in it behind
+  real glass, so from the camp you see in: the lamps (somebody in, dusk, power), the
+  curtains as they were left inside, the hands lying on the mattresses or on the sofa, the
+  laptop's glow, another warden at the laptop or the books. The room you walk into is the
+  same boxes in the service interior's own world, its windows real views of the camp
+  (`window_portal.gd`), each with a curtain to draw (the Photographer's flash, the Silent
+  Man's watching: `service_interior.photo_windows`).
+- **The rooms** (`scripts/staff/staffroom.gd`, point and click, one smooth walk through the
+  open doorway): the lounge (the sofa under the window, the formica table with the laptop
+  and the books, the counter with the coffee machine, the fridge, the TV on its cabinet
+  with three programmes and off, the safety poster, the calendar, the coats); the boiler
+  room (the coal boiler and its glow, the coal, the mattresses, the lockers with their
+  hand's name, coat and boots inside).
+- **The laptop** (`scripts/staff/laptop_view.gd`): you sit down at it and the close-up
+  comes up (Grok, the laptop on the table, a mug, the ashtray); on its screen the office
+  PC itself, the same machine (its os_shell, programs, mail, Builder), drawn sharp at the
+  window's resolution onto the screen's four measured corners, the mouse and keys mapped
+  back. S or a click below stands you up. One warden at the PC at a time, here or at the
+  office; the others in the room see them on its chair from behind and their screen on
+  the laptop.
+- **The hands** (`core/systems/staff_rules.gd`, `GameState.biz.staff` through
+  `actions.staff_*`): the same people as the businesses' (their photos, speed, honesty,
+  temper and wage), those who ask at the kind "staff"; one to a locker (one to start,
+  up to five, each dearer); a mattress each (one to start, up to three). Their day
+  (`scripts/staff/staff_runtime.gd`, run by the camp's machine, drawn on every machine from
+  `biz.staff.act`): in from the road at seven (a quarter of an hour apart), coffee on the
+  sofa, then out to the nearest thing they are set to: a bin bag, raccoons in the bins (the
+  broom), the wholesaler's van at the gate (signed for), a branch (sawn up), a lodging
+  (its tasks one after another, the bed made last); back, lying down on their mattress
+  between jobs; without a mattress of their own, in a made-up lodging nobody is in ("Hanka
+  has no mattress: she lies down in C2"), which is unmade when they get up. Home at eight.
+  The day events they take show their name on the TODAY list; you may still do it first.
+  Jaromir stays the night in the boiler room; Marta is seen only now and then.
+- **The books** (`scripts/staff/staff_ledger.gd`, on the table): STAFF (who, where now, a
+  pencilled box for each job: rubbish, raccoons, deliveries, branches, lodgings; let go),
+  HIRE (today's applicants, their photo and papers), LOCKERS (the catalogue cut-outs of a
+  locker and a mattress, the next one's price, buy), TODAY (what was done, the wages).
+  **Personal 98** (`os98/apps/staff_app.gd`): SoftSklad's fifth program, licensed at
+  softsklad.cz, the same from the PC or the laptop with 98 check boxes. Wages are paid with
+  the businesses' at the day's close; two days unpaid and they leave.
+- **The post on screen**: the second monitor's order (reception/post_delivery.gd) is a
+  plate at the right edge with the arrivals (`arrival_strip.gd`): the yellow post van
+  while it comes (the bar filling), the parcel while the postman waits at the desk (his
+  patience running down, red and blinking at the end).
+
 ## 8. The pipe crawl (sewer repair)
 
 *The chamber and two in the pipes, 2026-10-18 with the user ("let them find out it is not

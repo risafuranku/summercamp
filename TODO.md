@@ -4,6 +4,17 @@
 
 ---
 
+## STAFFROOM — 2026-10-21 (the user: "a fifth tab in SoftSklad to hire staff; a staffroom with the PC as an old chunky laptop, a mattress in the boiler room, sofa, fridge, coffee machine, TV; lockers bought in the books; they see to the day's events and the lodgings; toggles per hand; home at night; curtains; co-op; the postman as a notification on the right edge")
+- [x] Staffroom build (Utilities, one per camp), one plan inside and out, real glass, curtains, lamps (DESIGN §7c)
+- [x] Lounge + boiler room, point and click, the laptop = the office PC, books, coffee, fridge, TV, lockers, mattresses
+- [x] Hands: hire one to a locker, jobs ticked per hand, the day (coffee, jobs, rest, a guest's bed, home at eight)
+- [x] Personal 98: SoftSklad's fifth program; licence at softsklad.cz
+- [x] The post's plate at the right edge (van on the way, parcel at the desk)
+- [ ] Co-op checked in two windows (the code is in: biz.staff in the pulse, s_* ops to the host, the laptop's screen and the figures)
+- [ ] The warden may sleep on a boiler-room mattress (lodge_bed) like in a lodging
+- [ ] Sounds of their own: the boiler's roar, the fridge's hum, the coffee machine's gurgle, the locker's clang (ElevenLabs)
+- [ ] A hand asleep in a guest's bed seen in that lodging's room
+
 ## CABINS — 2026-10-21 (the user: "the curtains do not glint, the windows by the door clip the coat and have no view, rebuild the inside to match the outside and remake that a bit; every tier a visible upgrade inside and out; old curtains left under the new ones")
 
 - [x] One plan for the model and the room (`scripts/cabin_layout.gd`), every window a view out with a curtain that glints

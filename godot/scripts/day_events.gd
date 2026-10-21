@@ -17,7 +17,10 @@ extends Node
 ##   someone   a guest heard somebody else in their cabin last night: knock, look round
 ##             (E at their door). From day 3. Whether you look or not, that cabin is one
 ##             the night director remembers (`haunted`): at night, near it, it makes sounds.
-## Each one pages you, shows in the HUD's TODAY list and gets the waypoint.
+## Each one pages you, shows in the HUD's TODAY list and gets the waypoint. The
+## staffroom's hands (scripts/staff/staff_runtime.gd) take the litter, the raccoons, the
+## van and the branches off you when their jobs are ticked (staff_jobs / staff_done); one
+## on the way is shown on the list with their name, and you may still do it yourself.
 ##
 ## Life (P7): loops at the facilities while guests are about (kids at the slide,
 ## football, the guitar at the fire, the pub through its door) and far-off one-shots
@@ -151,8 +154,58 @@ func hud_rows() -> Array:
 	var rows: Array = []
 	for ev in _events:
 		if str(ev["state"]) == "open":
-			rows.append({"title": ev["title"], "where": ev["where"]})
+			var who := staff_on(int(ev["id"]))
+			rows.append({"title": ev["title"], "where": (tr("%s is on it") % who) if who != "" else ev["where"]})
 	return rows
+
+
+# ── the staffroom's hands (scripts/staff/staff_runtime.gd) ─────────────────────
+
+## The kinds a hand can see to.
+const STAFF_KINDS := ["litter", "raccoons", "delivery", "tree"]
+
+
+## The open events of `kinds` a hand could go to: [{id, kind, pos}].
+func staff_jobs(kinds: Array) -> Array:
+	var out: Array = []
+	for ev in _events:
+		if str(ev["state"]) != "open" or not kinds.has(str(ev["kind"])) or not STAFF_KINDS.has(str(ev["kind"])):
+			continue
+		var p := _event_pos(ev)
+		if p != Vector3.INF:
+			out.append({"id": int(ev["id"]), "kind": str(ev["kind"]), "pos": p})
+	return out
+
+
+func staff_open(id: int) -> bool:
+	var ev := _event_by_id(id)
+	return not ev.is_empty() and str(ev["state"]) == "open"
+
+
+## The name of the hand going to event `id` ("" nobody), from the staff's own record
+## (so the other warden's list shows it too).
+func staff_on(id: int) -> String:
+	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	if not (st is Dictionary):
+		return ""
+	var acts: Dictionary = st.get("act", {})
+	for slug in acts:
+		var a: Dictionary = acts[slug]
+		if int(a.get("ev", -1)) == id and str(a.get("do", "")) in ["walk", "work"]:
+			for p in st.get("crew", []):
+				if str(p.get("slug", "")) == str(slug):
+					return str(p.get("name", ""))
+	return ""
+
+
+## A hand has seen to event `id`: as if you had (what it pays, how the guests take it),
+## the line with their name. False when it was not open any more.
+func staff_done(id: int, who: String) -> bool:
+	var ev := _event_by_id(id)
+	if ev.is_empty() or str(ev["state"]) != "open":
+		return false
+	_resolve(ev, who)
+	return true
 
 
 func open_events() -> Array:
@@ -496,7 +549,7 @@ func coop_resolve(id: int) -> void:
 		_resolve(ev)
 
 
-func _resolve(ev: Dictionary) -> void:
+func _resolve(ev: Dictionary, by := "") -> void:
 	if coop_follow:
 		# Done in the host's camp (what it pays and how the guests take it); here, how it went.
 		Coop.send_request("day_event", [int(ev["id"])])
@@ -526,6 +579,8 @@ func _resolve(ev: Dictionary) -> void:
 			text = "You look round with the torch while they watch. Nobody. Under the bed the boards are wet."
 	if str(ev["kind"]) != "lost_kid":
 		_mood_for(float(rules.get("ok_mood", 0.0)), "", [])
+	if by != "":
+		text = "%s: %s" % [by, tr(text)]
 	_close(ev, "done", text)
 
 

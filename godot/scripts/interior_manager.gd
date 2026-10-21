@@ -23,6 +23,9 @@ const SKY_LIFE_SCRIPT = preload("res://scripts/ambient/sky_life.gd")
 ## The businesses' books, sales, wages and deliveries (scripts/business/business_runtime.gd).
 const BUSINESS_RUNTIME = preload("res://scripts/business/business_runtime.gd")
 var business: Node
+## The staffroom's hands at work (scripts/staff/staff_runtime.gd).
+const STAFF_RUNTIME = preload("res://scripts/staff/staff_runtime.gd")
+var staff: Node
 ## Autumn leaves blown about in the wind (scripts/ambient/wind_life.gd).
 const WIND_LIFE_SCRIPT = preload("res://scripts/ambient/wind_life.gd")
 var _wind_life: Node3D
@@ -73,7 +76,7 @@ const INTERIOR_ASSIGNMENTS := [
 	},
 	{
 		"module_id": INTERIOR_MODULE_SERVICE,
-		"building_types": ["restaurant", "pub", "toilet_block", "shower_block", "sewer", "power_generator", "vecerka"],
+		"building_types": ["restaurant", "pub", "toilet_block", "shower_block", "sewer", "power_generator", "vecerka", "staffroom"],
 		"hint": "Enter",
 		"hints": {
 			"restaurant": "Enter bistro",
@@ -83,6 +86,7 @@ const INTERIOR_ASSIGNMENTS := [
 			"shower_block": "Enter showers",
 			"sewer": "Open sewer hatch",
 			"power_generator": "Enter generator shed",
+			"staffroom": "Go into the staffroom",
 		},
 	},
 	{
@@ -173,6 +177,10 @@ func setup(
 	if business == null:
 		business = BUSINESS_RUNTIME.new()
 		add_child(business)
+	if staff == null:
+		staff = STAFF_RUNTIME.new()
+		staff.name = "StaffRuntime"
+		add_child(staff)
 	if lodge_bed == null:
 		lodge_bed = LODGE_BED.new()
 		lodge_bed.name = "LodgeBed"
