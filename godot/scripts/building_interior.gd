@@ -1089,6 +1089,13 @@ func _build_room() -> void:
 	sky_bg_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_window_outdoor_sky.material_override = sky_bg_mat
 	_room_root.add_child(_window_outdoor_sky)
+	# The window is a real view of the camp now (_setup_window_view): the old painted
+	# scene behind it goes. It was hidden before it was built, so it stayed, and from the
+	# camp at a slant its beige walls covered the office's window (the user 21. 10.).
+	for n in ["OutdoorGround", "OutdoorCeiling", "OutdoorWallL", "OutdoorWallR", "OutdoorBushL", "OutdoorBushR", "OutdoorBushR2", "OutdoorGravelStrip0", "OutdoorGravelStrip1", "OutdoorGravelStrip2", "OutdoorSkyBg"]:
+		var outdoor := _room_root.get_node_or_null(n)
+		if outdoor != null:
+			outdoor.visible = false
 
 	# ── THE PC CORNER: the old work desk, the computer, the fan and the radio, on the
 	# low desk at the left end of the counter (PC_OFFSET from where they were made).
