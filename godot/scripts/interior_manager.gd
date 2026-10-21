@@ -51,6 +51,9 @@ const INTERIOR_MODULE_TRIP := "trip"
 ## The corn stand: behind its counter (scripts/corn/stand_view.gd: its two stations in 3D,
 ## the camp beyond the counter).
 const INTERIOR_MODULE_STAND := "stand"
+## The bowling alley (scripts/bowling/bowling_interior.gd).
+const INTERIOR_MODULE_BOWLING := "bowling"
+const BOWLING_INTERIOR_SCRIPT = preload("res://scripts/bowling/bowling_interior.gd")
 const STAND_VIEW = preload("res://scripts/corn/stand_view.gd")
 var _corn_stand: CanvasLayer
 const INTERIOR_ASSIGNMENTS := [
@@ -94,6 +97,11 @@ const INTERIOR_ASSIGNMENTS := [
 		"building_types": ["corn_stand"],
 		"hint": "Step behind the corn stand",
 	},
+	{
+		"module_id": INTERIOR_MODULE_BOWLING,
+		"building_types": ["bowling"],
+		"hint": "Go into the bowling",
+	},
 ]
 
 var _world_3d: Node3D
@@ -109,6 +117,8 @@ var _cabin_interior
 var _tent_interior
 var _caravan_interior
 var _service_interior
+var _bowling_interior
+var _active_bowling_node: Node3D
 var _building_upgrade_menu
 var _guest_dialog
 
@@ -301,6 +311,7 @@ func setup_all() -> void:
 	_setup_tent_interior()
 	_setup_caravan_interior()
 	_setup_service_interior()
+	_setup_bowling_interior()
 	_setup_building_upgrade_menu()
 	_setup_guest_dialog()
 
@@ -370,7 +381,7 @@ func close_everything(silent := false) -> void:
 	for interior in _get_registered_interior_nodes():
 		if not (interior.has_method("is_open") and interior.is_open()):
 			continue
-		for m in ["close_interior", "close_cabin", "close_tent", "close_caravan", "close_service"]:
+		for m in ["close_interior", "close_cabin", "close_tent", "close_caravan", "close_service", "close_bowling"]:
 			if interior.has_method(m):
 				interior.call(m)
 				break
@@ -495,6 +506,8 @@ func handle_structure_interact(structure: Node3D) -> void:
 			_town_trip.interact(structure)
 		INTERIOR_MODULE_STAND:
 			_on_corn_stand_interact(structure)
+		INTERIOR_MODULE_BOWLING:
+			_on_bowling_interact(structure)
 		_:
 			return
 
@@ -977,6 +990,43 @@ func _on_caravan_upgrade_requested() -> void:
 	_pending_upgrade_context = {"mode": "replace", "origin": origin, "old_type": current_type, "new_type": next_type, "cost": cost}
 	var desc = "Upgrade %s -> %s (one more bed)." % [_economy_manager.get_label(current_type), _economy_manager.get_label(next_type)]
 	_open_upgrade_menu("Caravan: Upgrade", desc, "$%d" % cost, _economy_manager.get_money() >= cost)
+
+
+## Into the bowling alley: its hall (scripts/bowling/bowling_interior.gd) with its key.
+func _on_bowling_interact(structure: Node3D) -> void:
+	if _bowling_interior == null or _bowling_interior.is_open():
+		return
+	if _walk_up_first(structure, _on_bowling_interact.bind(structure)):
+		return
+	var origin = structure.get_meta("grid_origin", null)
+	var bkey := "%d:%d" % [origin.x, origin.y] if origin is Vector2i else ""
+	_active_bowling_node = structure
+	_apply_time_to_interior(_bowling_interior)
+	_door_transition(true)
+	_bowling_interior.open_bowling(bkey)
+	_step_in(_bowling_interior)
+	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
+		_audio_manager.play_door_open()
+	_set_player_controls_enabled(false)
+
+
+func _setup_bowling_interior() -> void:
+	if _bowling_interior != null and is_instance_valid(_bowling_interior):
+		_apply_grid_power_to_interior(_bowling_interior)
+		return
+	_bowling_interior = BOWLING_INTERIOR_SCRIPT.new()
+	_bowling_interior.name = "BowlingInterior"
+	add_child(_bowling_interior)
+	_register_interior_instance(INTERIOR_MODULE_BOWLING, _bowling_interior)
+	_bowling_interior.request_close.connect(_on_bowling_closed)
+	_apply_grid_power_to_interior(_bowling_interior)
+
+
+func _on_bowling_closed() -> void:
+	var was: Node3D = _active_bowling_node
+	_active_bowling_node = null
+	_play_door_close()
+	_step_out_of(was)
 
 
 func _on_tent_closed() -> void:
