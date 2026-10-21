@@ -258,6 +258,10 @@ const THIN := 0.06
 
 
 func _pull_of(mi: MeshInstance3D) -> float:
+	# A board with lettering on it (building_models._label): pulled, it came out in front
+	# of its own letters (the toilets' WC, the showers' plate were blank: playtest 21. 10.).
+	if mi.has_meta("retro_no_pull"):
+		return 0.0
 	var mesh := mi.mesh
 	var s := mi.global_transform.basis.get_scale()
 	if mesh is QuadMesh or mesh is PlaneMesh:

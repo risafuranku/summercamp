@@ -375,6 +375,9 @@ func coop_pc_state() -> Dictionary:
 	out.erase("monitor_powered")
 	out.erase("tab")
 	out.erase("tab2")
+	# On or off: one machine in the office (joining a running game you had to switch it
+	# on yourself: playtest 21. 10.). 1 on, 0 off, -1 starting or going down (no news).
+	out["pw"] = 1 if _state == Boot.DESKTOP else (0 if _state == Boot.OFF or _state == Boot.SAFE_OFF else -1)
 	return out
 
 
@@ -404,6 +407,22 @@ func coop_take_pc(data: Dictionary) -> void:
 		_refresh_cover(id)
 	_refresh_folders()
 	_refresh_badges()
+	_coop_take_power(int(data.get("pw", -1)))
+
+
+## The other warden's PC is on: here it is on too, at its desktop (no boot again); they
+## switched it off: off here, unless you are sitting at it.
+func _coop_take_power(pw: int) -> void:
+	if pw == 1 and (_state == Boot.OFF or _state == Boot.SAFE_OFF or _state == Boot.WARMUP) and _has_power():
+		_state = Boot.DESKTOP
+		_apply_state()
+		_refresh_badges()
+		_refresh_tray()
+		if _open:
+			_refresh_page(_tab)
+			desktop_ready.emit.call_deferred()
+	elif pw == 0 and _state == Boot.DESKTOP and not _open:
+		power_off()
 
 
 func import_persistent_state(data: Dictionary) -> void:

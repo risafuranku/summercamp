@@ -493,7 +493,7 @@ func _note_walk(to: String, seconds: float) -> void:
 
 ## Returns true when this owns the camera this frame (walking, sleeping, the back room).
 func process(delta: float, hour: float) -> bool:
-	back.update(delta, hour)
+	back.update(delta, hour, bool(host.get("_grid_power_available")))
 	store.update(delta, float(host.get("_daylight_factor")), bool(host.get("_grid_power_available")))
 	var moved := false
 	if office_curtain != null and office_curtain.update(delta):

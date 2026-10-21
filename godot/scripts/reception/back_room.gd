@@ -39,6 +39,11 @@ var hot: Dictionary = {}     # id -> {body, meshes}
 var megaphone: MeshInstance3D
 var tv_on := true
 var lamp_on := true
+## The camp's power (reception_extras passes it every frame): off, the room is dark, the
+## set dead and the clock blank.
+var powered := true
+var _clock_glow: OmniLight3D
+var _clock_face: MeshInstance3D
 var lamp: OmniLight3D
 var tv_light: OmniLight3D
 var bulb: OmniLight3D
@@ -353,10 +358,22 @@ func _build_clock() -> void:
 	glow.omni_range = 0.8
 	glow.position = face.position + fwd * 0.08
 	root.add_child(glow)
+	_clock_glow = glow
+	_clock_face = face
 
 
-## Called every frame with the camp's clock (hours, 0-24).
-func update(delta: float, hour: float) -> void:
+## Called every frame with the camp's clock (hours, 0-24) and whether there is power.
+func update(delta: float, hour: float, has_power := true) -> void:
+	if has_power != powered:
+		powered = has_power
+		_apply_lamp()
+		if _clock_face != null:
+			_clock_face.visible = powered
+		if not powered:
+			_tv_hiss.stop()
+			_tv_tone.stop()
+		elif tv_on:
+			_set_tv(true, false)
 	if curtain != null:
 		curtain.update(delta)
 	_t += delta
@@ -373,7 +390,7 @@ func update(delta: float, hour: float) -> void:
 	if late != _late:
 		_late = late
 		_apply_programme()
-	var target := 1.0 if tv_on else 0.0
+	var target := 1.0 if tv_on and powered else 0.0
 	_tv_power = move_toward(_tv_power, target, delta * (1.6 if tv_on else 3.0))
 	if _tv_mat != null:
 		_tv_mat.set_shader_parameter("power", _tv_power)
@@ -408,7 +425,7 @@ func _set_tv(on: bool, sound: bool) -> void:
 	tv_on = on
 	if sound:
 		_play("tv_on.mp3" if on else "tv_off.mp3", -8.0)
-	if on:
+	if on and powered:
 		_tv_hiss.play()
 		_apply_programme()
 	else:
@@ -418,12 +435,21 @@ func _set_tv(on: bool, sound: bool) -> void:
 
 func set_lamp(on: bool) -> void:
 	lamp_on = on
+	_apply_lamp()
+
+
+## The lamp, the bulb, the clock's glow: only with the camp's power on (in a blackout the
+## room stayed lit: playtest 21. 10.).
+func _apply_lamp() -> void:
+	var lit := lamp_on and powered
 	if lamp != null:
-		lamp.visible = on
+		lamp.visible = lit
 	if bulb != null:
-		bulb.visible = on
+		bulb.visible = lit
+	if _clock_glow != null:
+		_clock_glow.visible = powered
 	if _ceiling_lamp != null:
-		(_ceiling_lamp.material_override as StandardMaterial3D).emission_energy_multiplier = 0.7 if on else 0.0
+		(_ceiling_lamp.material_override as StandardMaterial3D).emission_energy_multiplier = 0.7 if lit else 0.0
 
 
 func toggle_lamp() -> void:

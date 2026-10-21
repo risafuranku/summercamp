@@ -208,6 +208,14 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		_try_click()
+		return
+	# E: turned to the door, it opens or closes; else round to it (and E again opens it).
+	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).physical_keycode == KEY_E:
+		if _facing_door:
+			_set_door_open(not _door_open)
+		else:
+			_look.push(1)
+		get_viewport().set_input_as_handled()
 
 
 ## The upgrade catalog on screen (normalised), wherever the head is turned.
@@ -233,7 +241,8 @@ func _try_click() -> void:
 
 	# Turned to the door: a click on it unzips it (or zips it up).
 	if _facing_door:
-		var door := _door_screen_rect()
+		# Anywhere on the door's gable (a little round it too: its seam is thin).
+		var door := _door_screen_rect().grow(0.04)
 		if door.has_point(norm):
 			_set_door_open(not _door_open)
 			get_viewport().set_input_as_handled()
@@ -616,7 +625,9 @@ const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
 const STEP12 = preload("res://scripts/ui/step12.gd")
 const SFX_ZIP := "res://assets/sfx/rooms/tent_zip.mp3"
 ## Held at the end of the turn (A/D, or the cursor in the edge band) this long: round.
-const TURN_DWELL_SEC := 0.55
+## (Shorter, and the door answers E and a click anywhere on it, from 21. 10.: the tent's
+## door was hard to open.)
+const TURN_DWELL_SEC := 0.3
 const TURN_SEC := 0.6
 var _facing_door := false
 var _door_open := false

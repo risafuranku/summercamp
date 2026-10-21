@@ -3493,7 +3493,8 @@ func _apply_time_from_clock(force_interior_sync: bool = false, force_sky_snap: b
 		_lamp_flashlight_active = lamp_and_flashlight_active
 		_lamp_grid_power_available = grid_power_available
 		if _player != null and _player.has_method("set_flashlight_allowed"):
-			_player.set_flashlight_allowed(lamp_and_flashlight_active)
+			# Not behind the title screen (it lit the menu's camp after Quit to menu: playtest 21. 10.).
+			_player.set_flashlight_allowed(lamp_and_flashlight_active and not _menu_mode)
 		if building_manager != null and building_manager.has_method("set_lamps_active"):
 			building_manager.set_lamps_active(lamp_and_flashlight_active and grid_power_available)
 	if _interior_manager != null and _interior_manager.has_method("set_grid_power_available"):
@@ -4170,6 +4171,8 @@ func _enter_main_menu() -> void:
 		_hud_manager.set_liminal_forecast_count(0)
 	_menu_mode = true
 	_gameplay_started = false
+	if _player != null and is_instance_valid(_player) and _player.has_method("set_flashlight_allowed"):
+		_player.set_flashlight_allowed(false)
 	_pending_loaded_player_state.clear()
 	_pending_loaded_crt_state.clear()
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
@@ -4875,6 +4878,8 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 			act.biz_waste(str(a[0]), a[1])
 		"gear":
 			act.biz_add_gear(str(a[0]), str(a[1]))
+		"licence":
+			act.biz_grant_licence(str(a[0]))
 		"job":
 			act.biz_set_job(str(a[0]), str(a[1]), str(a[2]), str(a[3]))
 		"late":

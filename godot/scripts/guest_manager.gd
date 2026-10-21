@@ -30,8 +30,9 @@ const ARRIVAL_DELAY_MAX := 110
 const ARRIVAL_WINDOW_FROM := 8 * 60
 const ARRIVAL_WINDOW_TO := 19 * 60 + 30
 ## How long a party waits at the barrier before it grumbles, and before it leaves.
-const GATE_COMPLAIN_MINUTES := 45
-const GATE_GIVE_UP_MINUTES := 150
+## (Raised 21. 10.: the guests had too little patience.)
+const GATE_COMPLAIN_MINUTES := 75
+const GATE_GIVE_UP_MINUTES := 240
 
 const MINUTES_PER_DAY := 1440.0
 const MAX_GUEST_REVIEW_HISTORY := 48

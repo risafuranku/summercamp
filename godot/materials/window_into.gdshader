@@ -15,6 +15,16 @@ uniform float glow = 0.0;
 uniform float bright = 1.0;
 uniform vec3 glass = vec3(0.16, 0.2, 0.24);
 uniform vec3 warm = vec3(0.62, 0.48, 0.3);
+// Pulled toward the eye by this share of its distance, as scripts/retro_materials.gd
+// pulls the thin boards round it (a cabin's frame and its bar: the pane must come out
+// between them, else the frame drawn over it hid the room; 0 for the reception's glass).
+uniform float depth_pull = 0.0;
+
+void vertex() {
+	vec4 vpos = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	vpos.xyz *= 1.0 - depth_pull;
+	POSITION = PROJECTION_MATRIX * vpos;
+}
 
 void fragment() {
 	vec3 room = texture(room_tex, SCREEN_UV).rgb * vec3(0.84, 0.9, 0.88) * bright;

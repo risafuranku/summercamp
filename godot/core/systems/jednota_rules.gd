@@ -41,9 +41,10 @@ const BOX := 6
 ## till; the queue's patience after that: green, amber, red, gone (the visit is kept that
 ## long: jednota.gd, orders.set_holds).
 const BROWSE := 8
-const PATIENCE_OK := 20
-const PATIENCE_LATE := 40
-const PATIENCE_GONE := 60
+## (Half as long again and more from 21. 10.: the guests had too little patience.)
+const PATIENCE_OK := 32
+const PATIENCE_LATE := 64
+const PATIENCE_GONE := 96
 ## The drawer: what change is counted out in.
 const CHANGE := [1, 2, 5, 10]
 ## What they pay with when it is not the right money.

@@ -175,6 +175,7 @@ func open_cabin(level: int = 1) -> void:
 	# Registered before it was in the tree (size 0, shrink 1): the low resolution now.
 	if _viewport_container != null:
 		RETRO_RENDER.apply_to(_viewport_container)
+	_release_inview()
 	_cabin_level = clampi(level, 1, 3)
 	_manual_lights_on = true
 	_apply_switch_visual()
@@ -446,7 +447,10 @@ func close_cabin() -> void:
 
 
 func _process(delta: float) -> void:
-	if not _is_open or _interior_camera == null:
+	if not _is_open:
+		_update_inview(delta)
+		return
+	if _interior_camera == null:
 		return
 	_apply_idle_mouse_look(delta)
 	_update_portals()
@@ -461,6 +465,222 @@ func _process(delta: float) -> void:
 		INTERIOR_LOOK.set_side_hints(_side_hints, "Room  [A]", "")
 	else:
 		INTERIOR_LOOK.set_side_hints(_side_hints, "", "Bathroom  [D]" if _cabin_level >= 2 else "")
+
+
+# ── the camp looking in ──────────────────────────────────────────────────────
+#
+# From the camp the nearest cabin's windows show this room (the user 21. 10.: the cabin's
+# windows had the reception's trouble, flat from outside): a camera in the room's own
+# world at the camp's eye (camp -> the cabin -> the room, CabinLayout: one plan for both),
+# the panes reading its picture at their own screen pixels (materials/window_into
+# .gdshader), as the reception's and the caravans' do. One room for every cabin: made up
+# as the one looked into is (its tier, its mess, its curtains, its guests while they are
+# up), its lamp lit when window_lights has that cabin lit. Farther than INVIEW_RANGE, or
+# with no pane turned to you, the panes are window_lights' again (its "inview_live"
+# panes only hear whether they are lit).
+
+const INVIEW_RANGE := 30.0
+## What lies over the room's windows inside (the camp in the glass, the rain on it): the
+## camera looking in from the camp skips it.
+const INVIEW_HIDE_LAYER := 1 << 17
+var _inview_vp: SubViewport
+var _inview_cam: Camera3D
+var _inview_mat: ShaderMaterial
+var _inview_cabin: Node3D
+var _inview_panes: Array = []
+var _inview_scan_t := 0.0
+var _inview_light_t := 0.0
+var _inview_cabins: Array = []
+
+
+func _camp_camera() -> Camera3D:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var w3d = scene.get("_world_3d") if scene != null else null
+	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
+		return (w3d as Node3D).get_viewport().get_camera_3d()
+	return null
+
+
+func _find_cabins() -> Array:
+	var out: Array = []
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var bm = scene.get("building_manager") if scene != null else null
+	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
+	if structures == null:
+		return out
+	for c in structures.get_children():
+		if str(c.get_meta("building_type", "")).begins_with("cabin") and c is Node3D:
+			out.append(c)
+	return out
+
+
+## The cabin's panes (building_models: its "lit_window" quads).
+static func _panes_of(cabin: Node3D) -> Array:
+	var out: Array = []
+	for m in cabin.find_children("*", "MeshInstance3D", true, false):
+		if (m as Node).has_meta("lit_window"):
+			out.append(m)
+	return out
+
+
+static func _pane_turned_to(p: MeshInstance3D, eye: Vector3) -> bool:
+	var to := eye - p.global_position
+	return to.length() > 0.05 and p.global_basis.z.normalized().dot(to.normalized()) > 0.1
+
+
+func _update_inview(delta: float) -> void:
+	var cam := _camp_camera()
+	var cabin: Node3D = null
+	if cam != null and _cabin_root != null:
+		_inview_scan_t -= delta
+		if _inview_scan_t <= 0.0:
+			_inview_scan_t = 1.0
+			_inview_cabins = _find_cabins()
+		var best := INVIEW_RANGE
+		for c in _inview_cabins:
+			if not is_instance_valid(c) or not (c as Node3D).is_inside_tree():
+				continue
+			var d := (c as Node3D).global_position.distance_to(cam.global_position)
+			if d >= best:
+				continue
+			for p in _panes_of(c):
+				if _pane_turned_to(p, cam.global_position):
+					best = d
+					cabin = c
+					break
+	if cabin != _inview_cabin:
+		_release_inview()
+		if cabin != null:
+			_take_inview(cabin)
+	if _inview_cabin == null or _inview_panes.is_empty():
+		return
+	for pt in _portals_now():
+		var cur = pt.get("curtain")
+		if cur != null:
+			cur.update(delta)
+	# The camp's eye in the room: the world -> the cabin (the room's model space) -> the room.
+	var to_room: Transform3D = _cabin_root.global_transform * (_inview_cabin.global_transform * Transform3D(Basis(), CABIN_LAYOUT.ROOM_TO_MODEL)).affine_inverse()
+	var t := to_room * cam.global_transform
+	_inview_cam.global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
+	_inview_cam.fov = cam.fov
+	_inview_cam.keep_aspect = cam.keep_aspect
+	# The camp's eye looking up or down is a shifted frustum (player_controller): the same.
+	_inview_cam.projection = cam.projection
+	var nk := _inview_cam.near / maxf(cam.near, 0.001)
+	_inview_cam.size = cam.size * nk
+	_inview_cam.frustum_offset = cam.frustum_offset * nk
+	var px := Vector2i(cam.get_viewport().get_visible_rect().size)
+	if _inview_vp.size != px and px.x > 0:
+		_inview_vp.size = px
+	_inview_light_t -= delta
+	if _inview_light_t <= 0.0:
+		_inview_light_t = 0.5
+		_inview_room_light()
+
+
+## The room made up as `cabin` is, and its panes given the room's picture.
+func _take_inview(cabin: Node3D) -> void:
+	_ensure_inview()
+	_inview_cabin = cabin
+	_inview_panes = _panes_of(cabin)
+	var t := str(cabin.get_meta("building_type", "cabin_1"))
+	_cabin_level = clampi(int(t.right(1)) if t.right(1).is_valid_int() else 1, 1, 3)
+	_apply_level_variant()
+	# The room and, from the tier up, the bathroom behind its own window.
+	if _cabin_root != null:
+		_cabin_root.visible = true
+	if _bathroom_root != null:
+		_bathroom_root.visible = _cabin_level >= 2
+	var im := get_parent()
+	if im != null and im.has_method("_push_room_state"):
+		im.call("_push_room_state", self, cabin)
+	var key: String = im.call("_room_key_for", cabin) if im != null and im.has_method("_room_key_for") else ""
+	var by_room = im.get("_curtains_by_room") if im != null else null
+	if key != "" and by_room is Dictionary and (by_room as Dictionary).has(key):
+		take_curtains((by_room as Dictionary)[key])
+	for p in _inview_panes:
+		var mi := p as MeshInstance3D
+		mi.set_meta("inview_was", mi.material_override)
+		mi.set_meta("inview_live", true)
+		mi.material_override = _inview_mat
+	_inview_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_inview_light_t = 0.0
+
+
+func _release_inview() -> void:
+	for p in _inview_panes:
+		var mi := p as MeshInstance3D
+		if mi == null or not is_instance_valid(mi):
+			continue
+		if mi.has_meta("inview_was"):
+			mi.material_override = mi.get_meta("inview_was")
+			mi.remove_meta("inview_was")
+		mi.remove_meta("inview_live")
+	_inview_panes.clear()
+	_inview_cabin = null
+	if _inview_vp != null:
+		_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+
+
+## The room's light as the camp's hour has it, its lamp as window_lights has the cabin
+## (guests in and up: lit), the guests in it while they are up.
+func _inview_room_light() -> void:
+	var scene := get_tree().current_scene
+	var hour := float(scene.get("_time_of_day_hours")) if scene != null and scene.get("_time_of_day_hours") != null else 12.0
+	var state := TIME_DAY if hour >= 6.5 and hour < 19.5 else (TIME_EVENING if hour >= 19.5 and hour < 21.0 else TIME_NIGHT)
+	var im := get_parent()
+	var ll = im.get("_last_light") if im != null else null
+	if ll is Array and (ll as Array).size() >= 4:
+		_daylight_factor = clampf(float(ll[0]), 0.0, 1.0)
+		_sunlight_color = ll[1]
+	var lit := 0.0
+	for p in _inview_panes:
+		lit = maxf(lit, float((p as Node).get_meta("wl_lit", 0.0)))
+	var up := lit > 0.05 or state == TIME_DAY
+	_manual_lights_on = up
+	var guests: Array = []
+	if up and im != null and im.has_method("_guest_visuals_for_structure"):
+		guests = im.call("_guest_visuals_for_structure", _inview_cabin)
+	if guests.size() != _guest_occupants.size():
+		set_guest_occupants(guests)
+	set_time_state(state)
+	_inview_mat.set_shader_parameter("bright", 1.0 if state == TIME_NIGHT else (0.8 if state == TIME_EVENING else 0.62))
+	_inview_mat.set_shader_parameter("glow", 0.0)
+
+
+func _ensure_inview() -> void:
+	if _inview_vp != null:
+		return
+	_inview_vp = SubViewport.new()
+	_inview_vp.name = "CabinFromCamp"
+	_inview_vp.size = Vector2i(426, 240)
+	_inview_vp.world_3d = _viewport.find_world_3d()
+	_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(_inview_vp)
+	_inview_cam = Camera3D.new()
+	_inview_cam.near = 0.05
+	_inview_cam.far = 40.0
+	_inview_cam.cull_mask = 0xFFFFF & ~INVIEW_HIDE_LAYER & ~GLASS_LAYER
+	_inview_vp.add_child(_inview_cam)
+	# The room's own views out and the rain on their glass are for the inside only.
+	for lv in _level_portals.keys():
+		for pt in _level_portals[lv]:
+			_hide_from_camp(pt["quad"])
+	if _weather != null and is_instance_valid(_weather):
+		_hide_from_camp(_weather)
+	_inview_mat = ShaderMaterial.new()
+	_inview_mat.shader = load("res://materials/window_into.gdshader")
+	_inview_mat.set_shader_parameter("room_tex", _inview_vp.get_texture())
+	_inview_mat.set_shader_parameter("live", 1.0)
+	# Between the window's frame and its bar, both pulled forward by the retro look.
+	_inview_mat.set_shader_parameter("depth_pull", 0.005)
+
+
+static func _hide_from_camp(n: Node) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).layers = INVIEW_HIDE_LAYER
+	for c in n.get_children():
+		_hide_from_camp(c)
 
 
 func _fridge_player(path: String, db: float, loop: bool) -> AudioStreamPlayer:

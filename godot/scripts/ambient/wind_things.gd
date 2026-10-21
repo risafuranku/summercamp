@@ -61,7 +61,8 @@ func _ready() -> void:
 	for i in POOL:
 		var s := Sprite3D.new()
 		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		s.shaded = false
+		# Lit, so dark at night (unlit they shone in the dark: playtest 21. 10.).
+		s.shaded = true
 		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		s.visible = false

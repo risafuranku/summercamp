@@ -127,6 +127,12 @@ func _track_push(k: float, dt: float) -> void:
 		_push_t = -100.0   # once per push: let go and push again
 
 
+## A push past the end of the turn, as if A/D had been held there (a key that turns you
+## round, the tent's E).
+func push(dir: int) -> void:
+	_pushed = dir
+
+
 ## -1 / 1 once the head has been pushed on past the end of the turn (A/D or arrows held),
 ## else 0. Reading it clears it.
 func take_push() -> int:

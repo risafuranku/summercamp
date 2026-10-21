@@ -466,7 +466,7 @@ func _touch(w: Dictionary, player: Node3D, eye: Vector3) -> void:
 		vel = (player as CharacterBody3D).velocity
 	if Vector2(vel.x, vel.z).length() < 0.25:
 		return
-	var foot := Vector3(eye.x, eye.y - 1.55, eye.z)
+	var foot := Vector3(eye.x, eye.y - 1.8, eye.z)
 	var top := Vector3(eye.x, eye.y + 0.12, eye.z)
 	var pos: PackedVector3Array = w["pos"]
 	var prev: PackedVector3Array = w["prev"]

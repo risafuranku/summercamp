@@ -17,6 +17,12 @@ extends Node3D
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const BOAT_RIG = preload("res://scripts/lake/boat_rig.gd")
 const SPRITE_HEIGHT_M := 1.74
+## On their feet they are drawn this much smaller than the poses below say, so that their
+## eyes are where yours are (1.45 m over the ground: player_controller STANCE_CAPSULE;
+## they were looked at in the belly, playtest 21. 10.). Seated and lying they fit the
+## furniture as they are.
+const FIGURE_SCALE := 0.91
+const STANDING := ["stand", "sweep", "crouch", "kick", "bat", "climb", "fix", "fish", "tap", "pour", "wash", "cook", "till", "bag"]
 ## How tall each pose is drawn (its picture is that tall from top to bottom edge).
 const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32,
 	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86,
@@ -146,7 +152,8 @@ func _apply_pose(p: String, force := false) -> void:
 		if POSE_WIDTH.has(pose):
 			_sprite.pixel_size = float(POSE_WIDTH[pose]) / float(tex.get_width())
 		else:
-			_sprite.pixel_size = float(POSE_HEIGHT.get(pose, SPRITE_HEIGHT_M)) / float(tex.get_height())
+			var k := FIGURE_SCALE if pose in STANDING else 1.0
+			_sprite.pixel_size = float(POSE_HEIGHT.get(pose, SPRITE_HEIGHT_M)) * k / float(tex.get_height())
 		_sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
 	# Seated in the boat the hull is their shadow; in bed and at the counter, the furniture.
 	_shadow.visible = not (pose in ["row", "bed", "bedfoot", "write"])

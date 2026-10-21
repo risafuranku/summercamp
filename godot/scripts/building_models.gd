@@ -111,7 +111,7 @@ func _toilets(r: Node3D, _w: float, _d: float) -> Dictionary:
 		var heart := _box(r, "Heart%d" % i, Vector3(0.14, 0.14, 0.06), Vector3(x, 1.62, sz * 0.5 + 0.035), _flat(Color(0.05, 0.04, 0.03)))
 		heart.rotation.z = PI * 0.25
 		_box(r, "Plaque%d" % i, Vector3(0.2, 0.2, 0.02), Vector3(x, 1.32, sz * 0.5 + 0.065), _flat(Color(0.86, 0.82, 0.62)))
-		_label(r, "M" if i == 0 else "Z", Vector3(x, 1.32, sz * 0.5 + 0.08), 0.2, Color(0.12, 0.1, 0.08))
+		_label(r, "M" if i == 0 else "Z", Vector3(x, 1.32, sz * 0.5 + 0.08), 0.15, Color(0.12, 0.1, 0.08))
 	# The WC board over the doors.
 	_box(r, "WCBoard", Vector3(0.9, 0.36, 0.04), Vector3(0, h - 0.05, sz * 0.5 + 0.06), _flat(Color(0.18, 0.16, 0.12)))
 	_label(r, "WC", Vector3(0, h - 0.05, sz * 0.5 + 0.09), 0.3, Color(0.95, 0.78, 0.2))
@@ -171,7 +171,7 @@ func _showers(r: Node3D, _w: float, _d: float) -> Dictionary:
 	# The enamel plate left of the door (the same plate as inside).
 	_box(r, "SignRim", Vector3(0.98, 0.36, 0.03), Vector3(-1.2, 1.78, front + 0.03), _flat(Color(0.16, 0.2, 0.36)))
 	_box(r, "SignPlate", Vector3(0.92, 0.3, 0.035), Vector3(-1.2, 1.78, front + 0.035), _flat(Color(0.92, 0.9, 0.82)))
-	_label(r, "SPRCHY", Vector3(-1.2, 1.78, front + 0.06), 0.2, Color(0.15, 0.25, 0.4))
+	_label(r, "SPRCHY", Vector3(-1.2, 1.78, front + 0.06), 0.17, Color(0.15, 0.25, 0.4))
 	# Outside on the left: a tap on its pipe, a bucket and a red basin on a duckboard.
 	var tap_z := front - 0.8
 	_box(r, "TapBoard", Vector3(0.42, 0.06, 0.9), Vector3(-sx * 0.5 - 0.23, 0.14, tap_z), _wood())
@@ -755,7 +755,7 @@ func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h 
 		for z: float in [-d * 0.5, d * 0.5]:
 			_box(r, "Corner", Vector3(0.14, wall_h, 0.14), Vector3(x, wall_h * 0.5 + 0.1, z), trim)
 	var tin := _camp("corrugated_roof.png", [Color(0.7, 0.66, 0.62), Color(0.78, 0.74, 0.7), Color(0.56, 0.6, 0.56)][lv - 1] as Color, Vector3(1.6, 1.6, 1.0))
-	_gable_roof(r, Vector3(0, top, 0), w + 0.5, d + 0.7, roof_h, tin)
+	_gable_roof(r, Vector3(0, top, 0), w + 0.5, d + 0.7, roof_h, tin, walls)
 	# Rust on the tin: the basic cabin has the most, the best none.
 	var rust := _camp("corrugated_roof.png", Color(0.62, 0.36, 0.22), Vector3(1.6, 1.6, 1.0))
 	var ang := atan2(roof_h, (d + 0.7) * 0.5)
@@ -1392,8 +1392,9 @@ func _lean_roof(r: Node3D, sx: float, sz: float, y: float, rise: float, mat: Mat
 		r.add_child(tri)
 
 
-## A gable roof, ridge along X: two slabs and the end triangles.
-func _gable_roof(r: Node3D, at: Vector3, sx: float, sz: float, rise: float, mat: Material) -> void:
+## A gable roof, ridge along X: two slabs and the end triangles (`end_mat` for those, the
+## walls' boards on a cabin; else the roof's).
+func _gable_roof(r: Node3D, at: Vector3, sx: float, sz: float, rise: float, mat: Material, end_mat: Material = null) -> void:
 	var half := sz * 0.5
 	var slope := Vector2(half, rise).length()
 	var ang := atan2(rise, half)
@@ -1401,7 +1402,8 @@ func _gable_roof(r: Node3D, at: Vector3, sx: float, sz: float, rise: float, mat:
 		var slab := _box(r, "RoofSlab", Vector3(sx, 0.08, slope + 0.05), at + Vector3(0, rise * 0.5, side * half * 0.5), mat)
 		slab.rotation.x = side * ang
 	for side: float in [-1.0, 1.0]:
-		var gable := _gable_triangle(sz - 0.5, rise - 0.05, (mat as StandardMaterial3D) if mat is StandardMaterial3D else null)
+		var em: Material = end_mat if end_mat != null else mat
+		var gable := _gable_triangle(sz - 0.5, rise - 0.05, (em as StandardMaterial3D) if em is StandardMaterial3D else null)
 		gable.position = at + Vector3(side * (sx * 0.5 - 0.28), 0, 0)
 		r.add_child(gable)
 
@@ -1425,14 +1427,17 @@ func _prism(size: Vector3, mat: Material) -> MeshInstance3D:
 	return m
 
 
-## The triangle at a gable end (in the YZ plane), filled with the wall below it.
+## The triangle at a gable end (in the YZ plane), filled with the wall below it; both
+## faces (one side was culled: the cabins showed a hole under the roof from the side,
+## playtest 21. 10.).
 func _gable_triangle(base: float, rise: float, mat: StandardMaterial3D) -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var hz := base * 0.5
-	for p in [Vector3(0, 0, -hz), Vector3(0, 0, hz), Vector3(0, rise, 0)]:
-		st.set_uv(Vector2(p.z / base + 0.5, 1.0 - p.y / rise))
-		st.add_vertex(p)
+	for tri in [[Vector3(0, 0, -hz), Vector3(0, 0, hz), Vector3(0, rise, 0)], [Vector3(0, 0, hz), Vector3(0, 0, -hz), Vector3(0, rise, 0)]]:
+		for p: Vector3 in tri:
+			st.set_uv(Vector2(p.z / base + 0.5, 1.0 - p.y / rise))
+			st.add_vertex(p)
 	st.generate_normals()
 	var m := MeshInstance3D.new()
 	m.mesh = st.commit()
@@ -1507,6 +1512,15 @@ func _label(r: Node3D, text: String, pos: Vector3, height_m: float, color: Color
 	l.position = pos
 	l.rotation.y = yaw
 	r.add_child(l)
+	# The board it is painted on stays behind it (retro_materials pulls thin boards forward).
+	var behind := pos - Basis(Vector3.UP, yaw) * Vector3(0, 0, 0.05)
+	for c in r.get_children():
+		var mi := c as MeshInstance3D
+		if mi != null and mi.mesh is BoxMesh:
+			var local: Vector3 = mi.transform.affine_inverse() * behind
+			var half: Vector3 = (mi.mesh as BoxMesh).size * 0.5 + Vector3(0.02, 0.02, 0.06)
+			if absf(local.x) <= half.x and absf(local.y) <= half.y and absf(local.z) <= half.z:
+				mi.set_meta("retro_no_pull", true)
 	return l
 
 

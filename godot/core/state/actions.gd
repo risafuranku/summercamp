@@ -902,7 +902,16 @@ func biz_buy_licence(kind: String) -> bool:
 	if not spend_money(int(BIZ_RULES.info(kind).get("licence", 0))):
 		return false
 	b["licences"].append(kind)
+	# Co-op: the books are the host's (bought on the other machine it was lost with the
+	# host's next books: playtest 21. 10.); the money goes there with the till.
+	_biz_tell("licence", [kind])
 	return true
+
+
+## The other warden bought it (their money came with their till).
+func biz_grant_licence(kind: String) -> void:
+	if not (_biz()["licences"] as Array).has(kind):
+		_biz()["licences"].append(kind)
 
 
 func biz_has_licence(kind: String) -> bool:

@@ -131,8 +131,11 @@ const DEATH_FALL_DURATION: float = 0.96
 const DEATH_FALL_HOLD_SEC: float = 1.08
 ## Per stance: the capsule's radius, height and middle (m above the body's origin), and
 ## how far the eye drops. Lying down you fit under a table or a low fence (0.6 m).
-const STANCE_CAPSULE := [[0.35, 1.2, 0.95], [0.35, 0.8, 0.75], [0.3, 0.6, 0.65]]
-const STANCE_DROP := [0.0, 0.5, 0.87]
+## Standing, the eye is 1.45 m over the ground (the body's origin is 0.35 under it): it was
+## 1.2, and the other warden, drawn as tall as a guest, was looked at in the belly
+## (playtest 21. 10.); crouched and lying it is where it was.
+const STANCE_CAPSULE := [[0.35, 1.45, 1.075], [0.35, 0.8, 0.75], [0.3, 0.6, 0.65]]
+const STANCE_DROP := [0.0, 0.75, 1.12]
 ## Ctrl pressed again within this (ms): down on your belly.
 const CROUCH_DOUBLE_MS := 320
 const FOOTSTEP_SURFACE_SAMPLE_OFFSETS: Array[Vector2] = [
@@ -147,7 +150,7 @@ var _pitch: float = 0.0
 var _pitch_target: float = 0.0
 var _head: Node3D
 var _camera: Camera3D
-var _base_head_pos: Vector3 = Vector3(0.0, 1.55, 0.0)
+var _base_head_pos: Vector3 = Vector3(0.0, 1.8, 0.0)
 ## The bob as it is drawn (head offset), and the Build shift now (radians).
 var _bob_offset: Vector3 = Vector3.ZERO
 var _shift := 0.0
@@ -287,9 +290,9 @@ func _ensure_body() -> void:
 		collider = CollisionShape3D.new()
 		var capsule = CapsuleShape3D.new()
 		capsule.radius = 0.35
-		capsule.height = 1.2
+		capsule.height = STANCE_CAPSULE[0][1]
 		collider.shape = capsule
-		collider.position = Vector3(0.0, 0.95, 0.0)
+		collider.position = Vector3(0.0, STANCE_CAPSULE[0][2], 0.0)
 		add_child(collider)
 	_collider = collider
 	if _shapes.is_empty():

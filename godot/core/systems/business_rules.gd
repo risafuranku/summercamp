@@ -466,6 +466,16 @@ static func applicants(kind: String, key: String, day: int, taken: Array, seed :
 		else:
 			pool.append(slug)
 	pool.sort()
+	# The staffroom takes anyone for the brooms and the bins: when those who ask for it are
+	# all taken by the businesses, the others not in work come too (its list was empty:
+	# playtest 21. 10.).
+	if kind == "staff" and pool.size() < 3:
+		var more: Array = []
+		for slug in PEOPLE:
+			if not taken.has(slug) and not pool.has(slug) and str(PEOPLE[slug].get("strange", "")) == "":
+				more.append(slug)
+		more.sort()
+		pool.append_array(more)
 	var out: Array = []
 	var h := absi(hash("%s|%s|%d|%d" % [kind, key, day, seed]))
 	for i in mini(3, pool.size()):

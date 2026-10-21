@@ -33,7 +33,7 @@ var _rfx_held := {}
 var _view_base := {}
 var _view_off := Vector3.ZERO
 const VIEW_HZ := 10.0
-const EYE := Vector3(0.0, 1.62, 0.0)
+const EYE := Vector3(0.0, 1.8, 0.0)
 const TOGETHER_M := 7.0
 var main: Node
 ## Every other warden's stand-in on the host's: who -> {body: CharacterBody3D, cam: Camera3D}.
