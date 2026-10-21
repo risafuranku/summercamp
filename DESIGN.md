@@ -138,7 +138,7 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
 | Drunk | 120 | the pub, the shop, fun; needs toilets often | **The Tourist** |
 | Cheap Chick | 190 | showers, the lake slide, comfort | **The Girl** |
 | Tramps | 55 | the bonfire, the pub, fun; barely wash, sleep anywhere | **The Whistler** |
-| Family | 150 | everything at once: food, toilets, the field, the slide, safety | **The Extra Child** |
+| Family | 150 | everything at once: food, toilets, the field, the slide, safety | **The Boy** (§5a.2) |
 | Mushroom Pickers | 90 | sleep, food, the shop; quiet; up at four | **The Basket Man** |
 
 - Per-archetype pressure curve: one guest of a kind is safe; tiny at 2, small from 3, medium
@@ -233,7 +233,7 @@ know where it is:
 | The Girl | her eyeshine: two pale points, each blinking on its own, one a little higher, only where the torch points but does not reach (to 45 m); nearer, bigger and wider apart (her face stretching). The terror pass (20. 10.): when your torch dies near her she takes her step in that dark and you see her eyes there, nearer; while your torch holds her, a second pair of her eyes opens off to one side with a soft giggle (look and it is gone, and she has moved); under a lamp she goes round the edge of its light towards your back; the drone and the heart as she comes; while you hold her, for two frames now and then her head is upside down on her neck; far off, her laugh slowed into something low. **Her strike** (4.5 s, nothing you can do): she lunges out of the dark, claws at the lens; her hands close round your head and pull you to the drooling grin; her head snaps all the way over; her face splits down the middle, the inside and rows of teeth between the halves; the rings of teeth come over you (the bite, red, blood running down the lens); black, your heart stops, only the ring and her chewing; you come to on the ground, the picture on its side, and she stands out there with her head upside down and red eyes, laughing slowed down; a blink and her upside-down face is in yours. The cursed pass (20. 10.): her eye an inch from yours before the lunge; after the bite she drags you along the ground by the head, in jerks; under a lamp, after a while, a ring of her eyes opens all round the edge of the light, one pair after another, giggles over each other, a flash of dozens of her standing in the trees, then all of them go out but one, behind you; far off, found again, she stands upside down (hanging from nothing) or far too tall; close and unseen, her teeth chattering; found nearer, two frames of the face she pretends with (a smile ear to ear); for forty seconds after she has had you, her face for a frame now and then, even with her gone. **Indoors** she cannot hurt you and wants you out: her humming through the wall; heels going round outside; a giggle and three slow knocks; her at the window you look at, pressed to the glass, her eyes lit, two frames of the smile; her teeth chattering behind the wall; then a guest's night instead (a Cheap Chick first). Out again, she begins far off |
 | The Antlered Man | deer eyeshine in the skull's sockets, pale green, high, far apart; both go out together now and then |
 | The Basket Man | two wet red points deep in the hood, close together, swinging slowly over the ground |
-| The Extra Child | nothing while its back is to you; turned and running, two small white points that do not blink |
+| The Boy | none: a child hiding. His voice at your ear is how you find him; his face is what you get for looking |
 | The Whistler | not on its body (never in sight): two pale slits up in the trees where the tune was, a little while after each one |
 
 | Enemy | From | Tell | Counter | Punishes |
@@ -242,7 +242,7 @@ know where it is:
 | The Photographer | Drunk | always there: he hums wherever he is, a weak lamp on his chest strap and the camera's red standby blink; he walks from spot to spot in plain view (steps, the film wound on as he stops), raises the camera, the focus beeps speed up, the flash whines (~2-3 s); a shot every 7-10 s | turn your back or get behind something before the flash; indoors draw the curtains (every building's windows look out for real, scripts/ui/window_portal.gd) | looking at him when it fires, or an open window you can see when he fires through it: a lot of health (16-26), a white blast, ringing ears, his face burnt in (lenses grown into the sockets, or peeling like a wet print); the picture is real: it slides in at the corner and develops, you from his lens (every third, him right behind you in it); two hits and his neck is snapped, the head hanging off it sideways, the mouth stuffed with photographs, and he still aims; four and it has let go (the collar an empty stump, the head upside down at his belly, screaming); three and he runs at you from behind, laughing, and fires at your ear; the last picture stops the frame, his lens-face comes at you in steps and your own face develops in the middle of the screen |
 | The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed: the guest -> fixed smile, white eyes -> legs too long, flushed cheeks -> neck and arms stretched -> her back to you, face turned round -> arms to the ground. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
 | The Whistler | Tramps | a campfire tune whistled out in the trees, moving | do not walk towards it; stand under a lamp until the tune breaks off | following the sound into the dark |
-| The Extra Child | Family | a child humming among the tents, back turned | torch off, walk past, never shine the light on it | looking at it with the torch |
+| The Boy | Family | his father in your way in the dark asking after him; a child gone missing where the night's work is | each place's game, by its rules (§5a.2) | breaking the game's rule (in the corn: looking back at him) |
 | The Basket Man | Mushroom Pickers | 02:30-06:00, a wicker basket creaking out of the trees, a knife scraping | stand still while it is near; it only sees movement | moving while it is close |
 
 ### 5a. Outdoor hunters, indoor tormentors (the rule for every enemy)
@@ -317,6 +317,49 @@ game, every time, and never scripted to a place.
   face over the ceiling, or he stoops to the glass and taps (his face in it, lit by the
   room's light falling out). The windows' `view` (the window's camera, your eye out in the
   camp: `photo_windows()`) places him.
+
+### 5a.2 The Boy (Family; `scripts/enemies/boy_brain.gd`)
+
+The user, 21. 10.: "když táta spawnul enemáka, kluk je v trubkách nebo v kukuřičným poli
+nebo v budově s pojistkama ... u nočních rutinních úkolů ti bude kurvit život". It is not
+a thing among the tents any more (that was the Extra Child, kept only for a camp with
+none of his places): the family's boy is not in their tent tonight, he is where the
+night's routine work is, and each of those places is a children's game with rules you
+learn:
+
+- **The corn: hide and seek** (done; `corn_hunt.gd` boy mode). The night's corn job is
+  him (`night_jobs.add_boy_job`). He hides at the end of a corridor, his back to you,
+  and does not call: every few seconds he whispers at your ear how close you are, by the
+  way through the maze: cold, warmer (nearer than the last time), burning (a few steps
+  off); a giggle out of the stalks where he is. Found, you take his hand ("found me"),
+  and he says not to look at him; from the first time you look away, look back at him
+  while you lead him (on your screen, near) and his head comes round: his face, the
+  shriek, the hit, and he is back in the corn hiding, to be found again. Out through the
+  gate he is back in the tent by morning. The scarecrow is in there as always.
+- **The board: "Cukr, káva, limonáda, čaj, rum ... BUM!"** (done; `breaker_panel.gd`):
+  he is in the switch room behind you, his face to the wall, saying the words; while he
+  says them you may work the board; at BUM he turns round (his face in the ammeter's
+  glass) and nothing of yours may move, the mouse or a click, till he turns back.
+  Caught: his face over the board, the hit, every switch down and the main off, "Hejbeš
+  se! Znova." Medium he says them unevenly, heavy he skips to BUM, looks longer and pulls
+  a switch down behind your back between rounds. The board on: found.
+- **The pipes: tag** (done; `pipes/pipe_boy.gd`): off the ladder, "Na honěnou! Honím
+  já!", and he comes down after you along the way you crawl. Every pipe you crawl puts
+  him a length back; lying still (a junction, the map) he comes on, his hands slapping
+  the water, his breath, "Nezastavuj"; at your ankle "Mám tě!", his face, the hit, and he
+  is back a few lengths. A hole is home (domeček): while you work at one he waits. Hold
+  S to look back and see how near he is, crawling at you. The sewer mended: found.
+- **Pressure** (the night's difficulty): light (1-2) he plays fair; medium (3) he lies
+  now and then (warmer when you go away) and asks you to turn round; heavy (4-5) more,
+  and his face hits harder. In the pipes: light the boy, medium the raccoon, heavy both
+  (`sewer_pipe_minigame.boy_tier`, `pipe_director.absent`).
+- **His father is the omen**: once the boy is out there, now and then the father stands
+  in your way in the dark 8-11 m off, his hand out holding a hand that is not there, and
+  asks after him in Czech, one line more each time ("Neviděl jste mýho kluka?" ... the
+  last asked twice); look away or come near and he is not there.
+- **Not found by dawn**: the family is gone in the morning (`claimed`). No text says
+  any of it: the voices do (`tools/audiogen/night_voices.tsv`; the boy is a young voice
+  pitched up).
 
 Every hit can be explained afterwards: each enemy says where it is and when it is about
 to strike, by sound first, and the counter always works (tools/enemy_check.tscn plays
