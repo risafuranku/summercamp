@@ -17,7 +17,7 @@ const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
 	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome",
-	"vecerka"]
+	"vecerka", "bowling"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -77,6 +77,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _corn_stand(root, w, d)
 		"vecerka":
 			return _jednota(root, w, d)
+		"bowling":
+			return _bowling(root, w, d)
 		# Built by BuildingManager's own placers; here for tools/model_viewer.
 		"cabin_1", "cabin_2", "cabin_3":
 			var lv := int(type.right(1))
@@ -1591,6 +1593,121 @@ func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
 	for x: float in [-1.95, -0.85]:
 		_box(r, "BenchLeg", Vector3(0.06, 0.45, 0.32), Vector3(x, 0.24, front + 1.5), _wood())
 	return {"size": Vector3(sx + 0.6, h + 0.5, sz + 0.6), "target": Vector3(0.0, 1.2, front + 0.3)}
+
+# ── the bowling alley (the user 21. 10.): a 1970s concrete box the camp has tried to
+#    brand as its bowling alley. Grok's painted walls (bowling_front, _side_a/_b, _back:
+#    the stripes, the mural, the plywood pin, the string of coloured bulbs, which light up
+#    at night from bowling_front_glow.png), BOWLING painted on the board over the door,
+#    KUŽELKY in red neon tubes on a steel frame on the roof (lettering.py "kuzelky"), and a
+#    three-metre fibreglass pin up there with it; scripts/bowling/bowling_sign.gd lights
+#    the neon and the bulbs with the camp's lamps.
+
+const PIN_MESH = preload("res://scripts/bowling/pin_mesh.gd")
+const BOWLING_SIGN = preload("res://scripts/bowling/bowling_sign.gd")
+const TOWN := "res://assets/textury/town/"
+## Where things are on bowling_front.png (shares of the front's width from its middle, of
+## its height from the ground): the door, and the empty board over it.
+const BOWLING_DOOR_X := -0.271
+const BOWLING_BOARD := Vector2(-0.263, 0.738)
+
+
+func _bowling(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var sx := 10.4
+	var sz := 17.6
+	var h := 5.2
+	var front := sz * 0.5
+	var y0 := 0.1
+	var concrete: Material = _camp_or("concrete.png", Color(0.6, 0.59, 0.57), "wall", Vector3(4.0, 1.6, 1.0))
+	_plinth(r, sx + 0.3, sz + 0.3)
+	_box(r, "Hall", Vector3(sx, h, sz), Vector3(0, h * 0.5 + y0, 0), concrete)
+	# The heavy slab of the roof, out over the walls all round.
+	var roof_top := y0 + h + 0.4
+	_box(r, "Roof", Vector3(sx + 0.7, 0.4, sz + 0.7), Vector3(0, roof_top - 0.2, 0), _camp_or("concrete.png", Color(0.42, 0.41, 0.4), "roof", Vector3(4.0, 1.0, 6.0)))
+	var bulbs: Array = []
+	if ResourceLoader.exists(CAMP + "bowling_front.png"):
+		var fm := _face_mat("bowling_front.png")
+		if ResourceLoader.exists(CAMP + "bowling_front_glow.png"):
+			# The glow map alone lights (emission added to a black colour, as the town's signs).
+			fm.emission_enabled = true
+			fm.emission = Color(0, 0, 0)
+			fm.emission_texture = load(CAMP + "bowling_front_glow.png")
+			fm.emission_energy_multiplier = 0.0
+			bulbs.append(fm)
+		_quad(r, "BowlingFront", Vector2(sx, h), Vector3(0, h * 0.5 + y0, front + 0.012), 0.0, fm)
+	# Each long wall in two pictures: the mural by the front, the plain rear with the
+	# cellar's window, where the camp's painted stripe runs out. The left wall has them
+	# mirrored, so on both the stripe comes from the front and stops half way.
+	for side: float in [-1.0, 1.0]:
+		for part in [["bowling_side_a.png", sz * 0.25], ["bowling_side_b.png", -sz * 0.25]]:
+			if ResourceLoader.exists(CAMP + str(part[0])):
+				var sm := _face_mat(str(part[0]))
+				if side < 0.0:
+					sm.uv1_scale = Vector3(-1.0, 1.0, 1.0)
+				_quad(r, "BowlingSide", Vector2(sz * 0.5, h), Vector3(side * (sx * 0.5 + 0.012), h * 0.5 + y0, float(part[1])), side * PI * 0.5, sm)
+	if ResourceLoader.exists(CAMP + "bowling_back.png"):
+		_quad(r, "BowlingBack", Vector2(sx, h), Vector3(0, h * 0.5 + y0, -front - 0.012), PI, _face_mat("bowling_back.png"))
+	var door_x := sx * BOWLING_DOOR_X
+	# BOWLING painted on the board over the door, and the step up to it.
+	var board := TOWN + "sign_bowling.png"
+	if ResourceLoader.exists(board):
+		var bt: Texture2D = load(board)
+		var bw := 1.6
+		_quad(r, "SignBOWLING", Vector2(bw, bw * float(bt.get_height()) / float(bt.get_width())),
+			Vector3(sx * BOWLING_BOARD.x, y0 + h * BOWLING_BOARD.y, front + 0.03), 0.0, _cut_face(board))
+	_box(r, "Step", Vector3(1.8, 0.14, 0.7), Vector3(door_x, 0.07, front + 0.35), _psx_mat(Color(0.58, 0.57, 0.55), "stone"))
+	# KUŽELKY in red neon tubes on a steel frame along the roof's front edge.
+	var neon: StandardMaterial3D = null
+	var letters := TOWN + "sign_kuzelky.png"
+	var nsz := Vector2(4.6, 1.8)
+	if ResourceLoader.exists(letters):
+		var lt: Texture2D = load(letters)
+		nsz = Vector2(4.6, 4.6 * float(lt.get_height()) / float(lt.get_width()))
+		neon = _cut_face(letters)
+		neon.cull_mode = BaseMaterial3D.CULL_BACK
+		var glow := TOWN + "sign_kuzelky_glow.png"
+		if ResourceLoader.exists(glow):
+			neon.emission_enabled = true
+			neon.emission = Color(0, 0, 0)
+			neon.emission_texture = load(glow)
+			neon.emission_energy_multiplier = 0.0
+		_quad(r, "NeonKUZELKY", nsz, Vector3(1.2, roof_top + 0.25 + nsz.y * 0.5, front - 0.1), 0.0, neon)
+	for x: float in [-1.6, 0.0, 1.6]:
+		_box(r, "NeonPost", Vector3(0.06, nsz.y + 0.3, 0.06), Vector3(1.2 + x, roof_top + (nsz.y + 0.3) * 0.5, front - 0.22), _metal())
+	_box(r, "NeonRail", Vector3(nsz.x - 0.2, 0.06, 0.06), Vector3(1.2, roof_top + 0.22, front - 0.2), _metal())
+	var light := OmniLight3D.new()
+	light.name = "NeonLight"
+	light.light_color = Color(1.0, 0.24, 0.3)
+	light.omni_range = 9.0
+	light.light_energy = 0.0
+	light.visible = false
+	light.position = Vector3(1.2, roof_top + 0.4, front + 1.6)
+	r.add_child(light)
+	# The fibreglass pin on the roof, a little out of true, on its steel stays.
+	var pin := MeshInstance3D.new()
+	pin.name = "RoofPin"
+	pin.mesh = PIN_MESH.mesh(3.0, 12)
+	pin.material_override = PIN_MESH.material()
+	var px := -sx * 0.5 + 1.4
+	pin.position = Vector3(px, roof_top, front - 1.4)
+	pin.rotation = Vector3(0.0, 0.4, 0.05)
+	r.add_child(pin)
+	for x: float in [-0.5, 0.5]:
+		_box(r, "PinStay", Vector3(0.06, 1.7, 0.06), Vector3(px + x, roof_top + 0.85, front - 2.05), _metal())
+	_box(r, "PinStayBar", Vector3(1.1, 0.06, 0.06), Vector3(px, roof_top + 1.6, front - 2.05), _metal())
+	# By the door: a bench and a bin.
+	_box(r, "BenchSeat", Vector3(1.4, 0.06, 0.36), Vector3(door_x + 2.6, 0.48, front + 0.9), _wood())
+	for x: float in [-0.55, 0.55]:
+		_box(r, "BenchLeg", Vector3(0.06, 0.45, 0.32), Vector3(door_x + 2.6 + x, 0.24, front + 0.9), _wood())
+	_box(r, "Bin", Vector3(0.4, 0.7, 0.4), Vector3(door_x + 1.3, 0.36, front + 0.5), _psx_mat(Color(0.25, 0.32, 0.26), "metal"))
+	# The neon, the bulbs and the hum come and go with the camp's lamps.
+	var sign := Node3D.new()
+	sign.name = "BowlingSign"
+	sign.set_script(BOWLING_SIGN)
+	sign.position = Vector3(1.2, roof_top + 0.6, front)
+	r.add_child(sign)
+	sign.call("setup", neon, bulbs, light)
+	return {"size": Vector3(sx + 0.7, h + 0.6, sz + 0.7), "target": Vector3(door_x, 1.2, front + 0.3)}
+
 
 ## A Grok sprite on a quad, its background keyed out.
 func _cut_face(path: String) -> StandardMaterial3D:

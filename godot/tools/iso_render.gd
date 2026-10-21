@@ -21,7 +21,7 @@ const VIEW_DIRS := [Vector2(1, 1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, -
 const TYPES := ["tent_1", "tent_2", "tent_3", "cabin_1", "cabin_2", "cabin_3", "caravan_1", "caravan_2", "caravan_3",
 	"toilet_block", "shower_block", "restaurant", "pub", "corn_stand", "vecerka", "bonfire", "sports_field", "lake_slide",
 	"playground", "ping_pong", "hammock", "bench", "picnic_table", "flower_bed", "gnome", "mega_gnome", "flagpole", "sewer",
-	"lamp_post", "power_generator", "main_building"]
+	"lamp_post", "power_generator", "main_building", "bowling"]
 const AT := Vector2i(9, 5)
 ## Things drawn again a few times, their own motion going on between (frames for the map).
 const ANIMATED := {"flagpole": 4}

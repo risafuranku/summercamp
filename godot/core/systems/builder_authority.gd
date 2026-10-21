@@ -35,6 +35,7 @@ const ALLOWED_BUILD_TYPES: Dictionary = {
 	"corn_stand": true,
 	"vecerka": true,
 	"mega_gnome": true,
+	"bowling": true,
 }
 
 var _state
