@@ -480,3 +480,60 @@ func debug_click(id: String) -> void:
 		_fill_basket()
 	elif id == "basket":
 		_basket_click()
+
+
+# ── the frame: the next step, the tab ────────────────────────────────────────
+
+## What is best to do at the stove now: a burnt slice out, a golden side turned or both
+## onto the rack, the golden chips up; a breaded slice into the pan while fried cheese is
+## wanted, the basket filled and lowered while chips are; the cellar when its trays are
+## bare; the pass when it all waits there.
+func next_hint() -> Dictionary:
+	if kitchen == null or building_key == "":
+		return {}
+	var s := _ks()
+	for i in mini(SLOTS.size(), (s["pan"] as Array).size()):
+		var slot: Dictionary = s["pan"][i]
+		if slot.is_empty():
+			continue
+		var bad := bool(slot.get("bad", false))
+		var down := RULES.cheese_side(float(slot["t"][int(slot["down"])]), bad)
+		var up := RULES.cheese_side(float(slot["t"][1 - int(slot["down"])]), bad)
+		if down >= 1 or up == 2:
+			return {"node": _slices[i], "gesture": "click"}
+	var b: Dictionary = s["basket"]
+	if str(b["st"]) == "down" and RULES.fries_state(float(b["t"])) >= 1:
+		return {"node": _basket, "gesture": "click"}
+	if str(b["st"]) == "up" and int(b["n"]) > 0:
+		return {"node": _basket, "gesture": "click"}
+	var in_pan := 0
+	var free := -1
+	for i in mini(SLOTS.size(), (s["pan"] as Array).size()):
+		if (s["pan"][i] as Dictionary).is_empty():
+			if free < 0:
+				free = i
+		else:
+			in_pan += 1
+	if wanted("cheese") > in_pan and free >= 0:
+		if kitchen.prep(building_key, "cheese_raw") + kitchen.prep(building_key, "cheese_bad") > 0:
+			return {"rect": TRAY, "gesture": "drag", "to": SLOTS[free]}
+		return {"tab": "breading"}
+	if wanted("fries") > int(b["n"]) and str(b["st"]) == "up" and int(b["n"]) == 0:
+		if kitchen.prep(building_key, "chips_raw") > 0:
+			return {"rect": BUCKET, "gesture": "click"}
+		return {"tab": "potatoes"}
+	if not kitchen.tickets(building_key, "pass").is_empty():
+		return {"tab": "pass"}
+	return {}
+
+
+## Something going black: red; something golden waiting to come out: amber.
+func alert() -> int:
+	if kitchen == null or building_key == "":
+		return 0
+	var st: Dictionary = kitchen.stove_state(building_key)
+	if bool(st["burning"]):
+		return 2
+	if bool(st["ready"]) or wanted("cheese") > 0 or wanted("fries") > 0:
+		return 1
+	return 0

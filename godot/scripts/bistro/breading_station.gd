@@ -218,3 +218,29 @@ func debug_click(id: String) -> void:
 		_dip = -1.0
 	else:
 		_press(id)
+
+
+# ── the frame: the next step, the tab ────────────────────────────────────────
+
+## What is best to do at the breading table while the breaded slices run low: a slice off
+## the block, into the flour, the egg, the crumbs in that order, onto the tray.
+func next_hint() -> Dictionary:
+	if kitchen == null or building_key == "":
+		return {}
+	if kitchen.prep(building_key, "cheese_raw") + kitchen.prep(building_key, "cheese_bad") >= 4 and not _slice:
+		return {}
+	if not _slice:
+		return spot_hint("block")
+	if _dip >= 0.0:
+		return {}
+	var next := _steps.size()
+	if next < 3:
+		return spot_hint("bowl:%d" % next)
+	return spot_hint("tray")
+
+
+func alert() -> int:
+	if kitchen == null or building_key == "":
+		return 0
+	var n := kitchen.prep(building_key, "cheese_raw") + kitchen.prep(building_key, "cheese_bad")
+	return 2 if n == 0 and wanted("cheese") > 0 else (1 if n < 2 else 0)

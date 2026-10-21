@@ -469,13 +469,15 @@ func _draw_tab(i: int, cur: String) -> void:
 	var lit := int(_alerts.get(id, 0))
 	var down := id == cur
 	var bg := RETRO_UI.C_PLATE_DARK if down else (Color(0.36, 0.31, 0.24) if _hover == "#tab:" + id else Color(0.2, 0.18, 0.15))
-	if lit > 0 and not down:
-		# Something waits there (amber) or burns (red): it blinks.
-		var on := int(_t * (5.0 if lit == 2 else 2.5)) % 2 == 0
-		if on:
-			bg = Color(0.55, 0.12, 0.06) if lit == 2 else Color(0.5, 0.34, 0.08)
+	if lit == 2 and not down and int(_t * 5.0) % 2 == 0:
+		# Something burns there: it blinks red.
+		bg = Color(0.55, 0.12, 0.06)
 	_c.draw_rect(r, bg)
 	_bevel(r, down)
+	if lit == 1 and not down:
+		# Something waits there: a steady amber light in its corner, breathing a little.
+		var a := 0.75 + 0.25 * sin(_t * 3.0)
+		_c.draw_rect(Rect2(r.end.x - 6, r.position.y + 2, 4, 4), Color(1.0, 0.7, 0.15, a))
 	var ic := _icon(str(tabs[i][2]) if (tabs[i] as Array).size() > 2 else "")
 	var x := r.position.x + 3
 	if ic != null:

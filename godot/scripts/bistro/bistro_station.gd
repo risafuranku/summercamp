@@ -5,8 +5,10 @@ extends "res://scripts/business/station3d.gd"
 ## the pot, the plates, the tickets), the tickets on the rail with the dish's picture
 ## and how long they have waited, the picked one big in the frame, the plates on the bar,
 ## the stove's and the pot's timers when you are at another station of the room.
-## The stations: stove, pot, pass, sink (the kitchen); potatoes, breading, machine (the
-## cellar).
+## The stations: floor (the dining room: the hatch's plates out to the tables, the
+## bottles); pass, stove, pot, grill, bufet (the soup of the day), sink (the kitchen);
+## potatoes, breading, machine (the cellar). The tickets drawn as in every place
+## (station3d.draw_ticket), the big one a checklist of the plate.
 
 const RULES := preload("res://core/systems/bistro_rules.gd")
 const KITCHEN := preload("res://scripts/bistro/kitchen.gd")
@@ -72,8 +74,8 @@ func bretex(s: Sprite3D, name: String, scale := 1.0) -> void:
 
 # ── tickets ──────────────────────────────────────────────────────────────────
 
-## Which tickets this station's rail has: "pass" (plates), "bufet" (the soup, the
-## bottles), "" all.
+## Which tickets this station's rail has: "pass" (plates still to make), "bufet" (the soup),
+## "floor" (the plates on the hatch, the bottles), "" all.
 func where() -> String:
 	return ""
 
@@ -87,14 +89,18 @@ func tickets() -> Array:
 func rail_tickets() -> Array:
 	var out: Array = []
 	for t in tickets():
-		var d: Dictionary = (t as Dictionary).duplicate()
-		var age := int(t.get("age", 0))
-		d["band"] = RULES.patience_band(age)
-		d["left"] = 1.0 - clampf(float(age) / float(RULES.PATIENCE_GONE), 0.0, 1.0)
-		# Redrawn as its bar shortens (a step in twelve).
-		d["sig"] = str(int(float(d["left"]) * 12.0))
-		out.append(d)
+		out.append(_with_patience(t))
 	return out
+
+
+## A ticket with its patience as the frame draws it (left 0..1, band).
+func _with_patience(t: Dictionary) -> Dictionary:
+	var d: Dictionary = t.duplicate()
+	var age := int(t.get("age", 0))
+	d["band"] = RULES.patience_band(age)
+	d["left"] = 1.0 - clampf(float(age) / float(RULES.PATIENCE_GONE), 0.0, 1.0)
+	d["sig"] = "%s|%s" % [str(t.get("dish", "")), bool(t.get("hatched", false))]
+	return d
 
 
 func picked_ticket() -> String:
@@ -115,51 +121,26 @@ func current_ticket() -> Dictionary:
 	return tix[0] if not tix.is_empty() else {}
 
 
-## A ticket on the rail (26 x 36 px): the guest's name, the dish's picture, what is
-## different about it (six dumplings, onion, no tartar), how long they have waited.
-func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
-	if t.is_empty():
-		return
-	var paper: Texture2D = _icons.get("ticket")
-	if paper != null:
-		c.draw_texture_rect(paper, Rect2(Vector2.ZERO, size), false)
-	else:
-		c.draw_rect(Rect2(Vector2.ZERO, size), Color(0.92, 0.88, 0.76))
-	if int(t.get("band", 0)) == 2:
-		var old: Texture2D = _icons.get("ticket_old")
-		if old != null:
-			c.draw_texture_rect(old, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, 0.6))
-	var f: Font = RETRO_UI.FONT_TEXT
-	var name := ORDERS_first(str(t.get("name", ""))).to_upper().substr(0, 5)
-	c.draw_string(f, Vector2(2, 8), name, HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.55, 0.1, 0.08))
-	var ic: Texture2D = _icons.get(str(t.get("dish", "")))
-	if ic != null:
-		c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - ic.get_width()) * 0.5), 10), ic.get_size()), false)
-	else:
-		# No picture for the dish yet: its name in short.
-		c.draw_string(f, Vector2(2, 20), RULES.dish_label(str(t.get("dish", ""))).to_upper().substr(0, 6), HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.16, 0.12, 0.1))
+## The dish in short, for a ticket (six letters fit).
+const SHORT := {"goulash": "GOULASH", "smazak": "CHEESE", "fries": "CHIPS", "sausage": "SAUSAGE", "soup": "SOUP", "kofola": "KOFOLA", "malinovka": "MALIN."}
+## The parts by name, for the checklist.
+const PART_WORD := {"goulash": "GOULASH", "dumpling": "DUMPLINGS", "onion": "ONION", "cheese": "FRIED CHEESE", "fries": "CHIPS", "tartar": "TARTAR",
+	"sausage": "SAUSAGE", "mustard": "MUSTARD", "bread": "BREAD", "soup": "SOUP"}
+
+
+## A ticket's dish: its picture, and the word for it or what is different about it (six
+## dumplings, onion, no tartar).
+func ticket_items(t: Dictionary) -> Array:
+	var dish := str(t.get("dish", ""))
 	var parts: Dictionary = t.get("parts", {})
-	var note := ""
-	var note_col := Color(0.16, 0.12, 0.1)
-	match str(t.get("dish", "")):
+	var word := str(SHORT.get(dish, dish.to_upper()))
+	match dish:
 		"goulash":
-			note = "x%d" % int(parts.get("dumpling", 4))
-			if parts.has("onion"):
-				note += "+O"
+			word = "x%d" % int(parts.get("dumpling", 4)) + ("+ON" if parts.has("onion") else "")
 		"smazak", "fries":
 			if not parts.has("tartar"):
-				note = "NO T"
-				note_col = Color(0.62, 0.08, 0.05)
-	if note != "":
-		var w := f.get_string_size(note, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-		c.draw_string(f, Vector2(floorf((size.x - w) * 0.5), 28), note, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, note_col)
-	var band := int(t.get("band", 0))
-	var col: Color = [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band]
-	var bar := Rect2(3, size.y - 5, size.x - 6, 2)
-	c.draw_rect(bar, Color(0.1, 0.08, 0.06))
-	c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * float(t.get("left", 1.0))), bar.size.y)), col)
-	if bool(t.get("picked", false)):
-		c.draw_rect(Rect2(Vector2.ZERO, size), RETRO_UI.C_AMBER, false, 1.0)
+				word = "NO TART"
+	return [{"icon": _icons.get(dish), "word": word}]
 
 
 static func ORDERS_first(full: String) -> String:
@@ -168,7 +149,8 @@ static func ORDERS_first(full: String) -> String:
 
 
 func big_ticket() -> Dictionary:
-	return current_ticket()
+	var t := current_ticket()
+	return _with_patience(t) if not t.is_empty() else t
 
 
 ## What the plate being built has on it (the pass), to tick the big ticket off.
@@ -180,56 +162,37 @@ func building_plate() -> bool:
 	return false
 
 
-## The ticket big in the frame (`r`, the frame's pixels): who, the dish, each thing it
-## wants with how many are on the plate (the pass), the wait.
-func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
-	var paper: Texture2D = _icons.get("ticket")
-	if paper != null:
-		c.draw_texture_rect(paper, r, false)
-	else:
-		c.draw_rect(r, Color(0.92, 0.88, 0.76))
-	var x := r.position.x + 7
-	var y := r.position.y + 18
-	c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, y), ORDERS_first(str(t["name"])).substr(0, 9).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.55, 0.1, 0.08))
-	var main_ic: Texture2D = _icons.get(str(t.get("dish", "")))
-	if main_ic != null:
-		c.draw_texture_rect(main_ic, Rect2(Vector2(r.end.x - main_ic.get_width() * 2 - 6, r.position.y + 6), main_ic.get_size() * 2.0), false)
-	y += 12
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), RULES.dish_label(str(t.get("dish", ""))).to_upper().substr(0, 14), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.16, 0.12, 0.1))
-	var want: Dictionary = t["parts"]
+## A plate's checklist: each thing it wants with how many (ticked when the plate being
+## built has it right, red when too many or wanted none); on the hatch: plated, SERVE.
+func checklist(t: Dictionary) -> Array:
+	var out: Array = []
+	if bool(t.get("hatched", false)):
+		out.append({"text": "PLATED", "state": "done"})
+		out.append({"text": "SERVE AT THE FLOOR", "state": "todo"})
+		return out
+	var want: Dictionary = t.get("parts", {})
 	var have := plate_counts()
 	var plating := building_plate()
 	for p in RULES.PARTS:
 		var w := int(want.get(p, 0))
 		var h := int(have.get(p, 0))
-		if w == 0 and h == 0:
+		if w == 0 and (h == 0 or not plating):
 			continue
-		y += 13
-		var ic: Texture2D = _icons.get(p)
-		if ic != null:
-			c.draw_texture_rect(ic, Rect2(x, y - 10, ic.get_width(), ic.get_height()), false)
-		else:
-			c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), str(p).substr(0, 2).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.4, 0.3, 0.2))
-		var col := Color(0.16, 0.12, 0.1)
-		var mark := ""
+		var state := "todo"
 		if plating:
-			if h == w:
-				col = Color(0.1, 0.45, 0.12)
-				mark = "OK"
-			elif h > w:
-				col = Color(0.65, 0.1, 0.06)
-				mark = "+%d" % (h - w) if w > 0 else "NO"
-			else:
-				col = Color(0.4, 0.3, 0.2)
-				mark = "-%d" % (w - h)
-			c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x + 15, y), "%d/%d" % [h, w], HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
-		else:
-			c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x + 15, y), "x%d" % w, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
-		c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x + 46, y), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
-	var band := RULES.patience_band(int(t.get("age", 0)))
-	var bar := Rect2(r.position.x + 6, r.end.y - 10, r.size.x - 12, 4)
-	c.draw_rect(bar, Color(0.1, 0.08, 0.06, 0.8))
-	c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * (1.0 - clampf(float(t.get("age", 0)) / float(RULES.PATIENCE_GONE), 0.0, 1.0))), bar.size.y)), [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band])
+			state = "done" if h == w else ("bad" if h > w else "todo")
+		var text := str(PART_WORD.get(p, str(p).to_upper()))
+		if w > 1 or (plating and h != w):
+			text = ("%d/%d " % [h, w] if plating else "%d " % w) + text
+		elif w == 0:
+			text = "NO " + text
+		out.append({"text": text, "state": state})
+	return out
+
+
+## Something cooking is about to burn here (2), work waits here (1).
+func alert() -> int:
+	return 0
 
 
 ## The plates on the bar.
@@ -275,3 +238,30 @@ func mirror() -> Array:
 		if int(pot["level"]) > 0 and float(pot["catch"]) > 0.35:
 			out.append({"icon": _icons.get("goulash"), "fill": float(pot["catch"]), "zone": Vector2(-1, -1), "col": RETRO_UI.C_RED if float(pot["catch"]) > 0.6 else RETRO_UI.C_AMBER_DIM, "blink": float(pot["catch"]) > 0.75})
 	return out
+
+
+## How many of `part` the plates still to be made want, beyond what is ready on the
+## shelves (the frame's hints: the stove fries for them, the grill grills).
+func wanted(part: String) -> int:
+	if kitchen == null or building_key == "":
+		return 0
+	var n := 0
+	for t in kitchen.tickets(building_key, "pass"):
+		n += int((t["parts"] as Dictionary).get(part, 0))
+	return maxi(0, n - kitchen.prep(building_key, part))
+
+
+## A spot of this station's now (`_spots`) by its id as a hint ({} when it is not there).
+func spot_hint(id: String, gesture := "click", to := Vector2(-1, -1)) -> Dictionary:
+	for s in _spots():
+		if str(s["id"]) != id:
+			continue
+		var h := {"gesture": gesture}
+		if s.has("node"):
+			h["node"] = s["node"]
+		else:
+			h["rect"] = s["rect"]
+		if to.x >= 0.0:
+			h["to"] = to
+		return h
+	return {}

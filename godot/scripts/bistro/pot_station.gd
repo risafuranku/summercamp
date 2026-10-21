@@ -242,3 +242,38 @@ func debug_click(id: String) -> void:
 			var pot: Dictionary = (kitchen.site(building_key)["pot"] as Dictionary).duplicate()
 			pot["catch"] = 0.0
 			kitchen.act(building_key, "pot", [pot])
+
+
+# ── the frame: the next step, the tab ────────────────────────────────────────
+
+## What is best to do at the pot: stir when it starts to catch, top it up when it runs
+## low, a loaf out and slices cut while dumplings are wanted.
+func next_hint() -> Dictionary:
+	if kitchen == null or building_key == "":
+		return {}
+	var s: Dictionary = kitchen.site(building_key)
+	var pot: Dictionary = s["pot"]
+	if int(pot["level"]) > 0 and float(pot["catch"]) > 0.3:
+		return spot_hint("pot", "rub")
+	var goulash := 0
+	for t in kitchen.tickets(building_key, "pass"):
+		goulash += int((t["parts"] as Dictionary).get("goulash", 0))
+	if goulash > int(pot["level"]):
+		var h := spot_hint("tins")
+		if not h.is_empty():
+			return h
+	if wanted("dumpling") > 0:
+		var cut := spot_hint("loaf")
+		if not cut.is_empty():
+			return cut
+		return spot_hint("steamer")
+	return {}
+
+
+func alert() -> int:
+	if kitchen == null or building_key == "":
+		return 0
+	var pot: Dictionary = kitchen.site(building_key)["pot"]
+	if int(pot["level"]) > 0 and float(pot["catch"]) > 0.6:
+		return 2
+	return 1 if (int(pot["level"]) > 0 and float(pot["catch"]) > 0.3) or wanted("dumpling") > 0 else 0

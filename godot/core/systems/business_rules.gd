@@ -60,6 +60,10 @@ const KINDS := {
 			"soup": {"label": "Soup tins", "unit": "bowls", "price": 3, "pack": 30, "pack_cost": 24, "cap": 90, "start": 20, "life": 0},
 			"kofola": {"label": "Kofola", "unit": "bottles", "price": 3, "pack": 20, "pack_cost": 20, "cap": 60, "start": 20, "life": 0},
 			"malinovka": {"label": "Malinovka", "unit": "bottles", "price": 3, "pack": 20, "pack_cost": 18, "cap": 60, "start": 20, "life": 0},
+			# Bought ready, half as dear again (the brief of 21. 10.: the cellar is optional):
+			# they go onto the cellar's trays by themselves (kitchen._prepared).
+			"chips_cut": {"label": "Cut chips (ready)", "unit": "portions", "price": 0, "pack": 30, "pack_cost": 45, "cap": 60, "start": 0, "life": 3},
+			"cheese_breaded": {"label": "Breaded cheese (ready)", "unit": "slices", "price": 0, "pack": 20, "pack_cost": 96, "cap": 40, "start": 0, "life": 4},
 		},
 		"wants": {"goulash": 0.3, "cheese": 0.2, "potatoes": 0.15, "sausage": 0.15, "soup": 0.1, "kofola": 0.1},
 	},
@@ -273,8 +277,9 @@ static func menu(kind: String, stock: Dictionary) -> Dictionary:
 	match kind:
 		"rest":
 			out["goulash"] = int(stock.get("goulash", 0)) > 0 and int(stock.get("dumplings", 0)) > 0
-			out["smazak"] = int(stock.get("cheese", 0)) > 0 and int(stock.get("potatoes", 0)) > 0
-			out["fries"] = int(stock.get("potatoes", 0)) > 0
+			var chips := int(stock.get("potatoes", 0)) + int(stock.get("chips_cut", 0))
+			out["smazak"] = int(stock.get("cheese", 0)) + int(stock.get("cheese_breaded", 0)) > 0 and chips > 0
+			out["fries"] = chips > 0
 			out["sausage"] = int(stock.get("sausage", 0)) > 0 and int(stock.get("bread", 0)) > 0
 			out["soup"] = int(stock.get("soup", 0)) > 0
 			out["kofola"] = int(stock.get("kofola", 0)) > 0 or int(stock.get("malinovka", 0)) > 0
@@ -357,7 +362,7 @@ static func life_of(kind: String, good: String, site: Dictionary) -> int:
 ## The jobs of each place, in the order they matter (the first is the front: with it
 ## covered the place serves without you).
 const ROLES := {
-	"rest": [["pass", "Pass"], ["stove", "Stove"], ["cellar", "Cellar"], ["sink", "Sink"], ["grill", "Grill"], ["bufet", "Bufet"]],
+	"rest": [["pass", "Pass"], ["floor", "Floor"], ["stove", "Stove"], ["cellar", "Cellar"], ["sink", "Sink"], ["grill", "Grill"], ["bufet", "Soup"]],
 	"pub": [["tap", "Tap"], ["bar", "Back bar"], ["wash", "Washer"], ["cellar", "Cellar"]],
 	"corn": [["counter", "Counter"], ["husk", "Husking"], ["drinks", "Drinks"]],
 	"vecerka": [["till", "Till"], ["shelves", "Shelves"], ["store", "Storeroom"], ["deli", "Deli counter"], ["till2", "Second till"]],

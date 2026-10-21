@@ -37,6 +37,7 @@ const BISTRO_STATIONS := {
 	"machine": "res://scripts/bistro/machine_station.gd",
 	"grill": "res://scripts/bistro/grill_station.gd",
 	"bufet": "res://scripts/bistro/bufet_station.gd",
+	"floor": "res://scripts/bistro/floor_station.gd",
 }
 var _stations: Dictionary = {}
 const STATION3D = preload("res://scripts/business/station3d.gd")
@@ -1311,6 +1312,15 @@ func _door_room() -> String:
 
 
 func _go_door(id: String) -> void:
+	# Through a door from a station (a tool's walk): the station goes, the frame with it.
+	var open := _station_open()
+	if open != "":
+		_switching = true
+		_stations[open].call("close_station")
+		_switching = false
+		_station_cam_from = []
+		if _station_hud != null and is_instance_valid(_station_hud):
+			_station_hud.visible = false
 	_doors.go(id, _interior_camera,
 		func(to: String): _apply_service_subroom(to, true),
 		func() -> Array: return [_interior_camera.position, _interior_camera.rotation],
@@ -1391,6 +1401,8 @@ func _update_menu_board() -> void:
 		return
 	var can: Dictionary = load("res://core/systems/business_rules.gd").menu("rest", site.get("stock", {}))
 	for dish in can:
+		# Off the books' menu: crossed out in chalk the same.
+		can[dish] = bool(can[dish]) and BIZ_RULES.menu_on("rest", site, str(dish))
 		var strike := _restaurant_dining_root.get_node_or_null("MenuStrike_" + str(dish)) as Node3D
 		if strike != null:
 			strike.visible = not bool(can[dish])
@@ -2411,8 +2423,8 @@ const CREW_FIGURES = preload("res://scripts/business/crew_figures.gd")
 var _crew: Node3D
 ## Which station each of the bistro's jobs is worked at, and where the hand steps back to
 ## when a warden takes it (behind the warden, out of the camera's way).
-const BISTRO_ROLE_AT := {"pass": "pass", "stove": "stove", "cellar": "potatoes", "sink": "sink", "grill": "grill", "bufet": "bufet"}
-const BISTRO_ASIDE := {"pass": Vector3(1.4, 0, 0.6), "stove": Vector3(0.3, 0, 1.4), "potatoes": Vector3(1.3, 0, 0.9), "sink": Vector3(-1.4, 0, 0.7), "grill": Vector3(1.1, 0, 0.4), "bufet": Vector3(-0.8, 0, 1.2)}
+const BISTRO_ROLE_AT := {"pass": "pass", "floor": "floor", "stove": "stove", "cellar": "potatoes", "sink": "sink", "grill": "grill", "bufet": "bufet"}
+const BISTRO_ASIDE := {"pass": Vector3(1.4, 0, 0.6), "floor": Vector3(-0.8, 0, 1.2), "stove": Vector3(0.3, 0, 1.4), "potatoes": Vector3(1.3, 0, 0.9), "sink": Vector3(-1.4, 0, 0.7), "grill": Vector3(1.1, 0, 0.4), "bufet": Vector3(-0.6, 0, 0.5)}
 ## The pub's: behind the bar along the narrow way between the bar and the shelf (the
 ## tap's hand stands in front of the bottles: out of the way when you turn to them),
 ## the cellar's by the pallet.
