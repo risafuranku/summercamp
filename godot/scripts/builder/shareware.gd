@@ -2,7 +2,7 @@ extends RefCounted
 
 ## Builder 98 is shareware (DESIGN §5j): Stavitel software's nag after about ten builds and
 ## now and then after, the registration bought with the camp's money (the key comes by
-## mail the next morning, typed into Help > Register...), the Mega gnome for registered
+## mail the next morning, filled in at Help > Register...), the Mega gnome for registered
 ## copies only; and the cheats typed on the map. Pure state, kept on the PC (os_shell's
 ## store "builder98": it goes with the PC's save and to the other wardens' PCs), checked
 ## by tools/builder98_check.gd.
@@ -62,6 +62,15 @@ func register(typed: String) -> bool:
 	return false
 
 
+## Whether the key's mail has come (08:10 the morning after the order): from then on
+## Help > Register... has it filled in, one OK (the user 21. 10.: no photographing the
+## screen and typing the key back by hand).
+func key_arrived(day: int, hour: float) -> bool:
+	if key == "" or ordered_day < 0:
+		return false
+	return day > ordered_day + 1 or (day == ordered_day + 1 and hour >= 8.0 + 10.0 / 60.0)
+
+
 func unlocked(item: String) -> bool:
 	return item != "mega_gnome" or registered
 
@@ -84,7 +93,7 @@ static func mail_for(kind: String, extra: String, day: int) -> Dictionary:
 	if kind == "key":
 		return {"day": day + 1, "time": "08:10", "from": "Stavitel software", "sender": "Stavitel software",
 			"subject": "Your Builder 98 registration", "type": "system",
-			"body": "Thank you for registering Builder 98.\n\nYour key:  %s\n\nHelp > Register... in Builder 98, and type it in.\n\nStavitel software\nBrnenska 14, Jihlava" % extra}
+			"body": "Thank you for registering Builder 98.\n\nYour key:  %s\n\nHelp > Register... in Builder 98: the key is filled in, press OK.\n\nStavitel software\nBrnenska 14, Jihlava" % extra}
 	return {"day": day + 1, "time": "08:05", "from": "District Office Pelhrimov", "sender": "District Office Pelhrimov",
 		"subject": "Irregularity in your accounts", "type": "system",
 		"body": "To the operator of the recreational facility Cerne jezero.\n\nOur records show that on day %d the facility's accounts rose by $5,000 with no receipt behind it.\n\nBring the documents to room 214 by Thursday, 8:00 - 11:30.\nDo not reply to this message.\n\nDistrict Office Pelhrimov, finance department" % day}

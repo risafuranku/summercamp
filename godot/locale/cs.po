@@ -1090,7 +1090,7 @@ msgstr ""
 msgid "HIGH"
 msgstr ""
 
-#: core/systems/pub_rules.gd:205 scripts/builder_module.gd:1805 scripts/builder_module.gd:1877 scripts/economy_manager.gd:303 (+9)
+#: core/systems/pub_rules.gd:205 scripts/builder_module.gd:1812 scripts/builder_module.gd:1884 scripts/economy_manager.gd:303 (+9)
 #. uses 13
 msgid "OK"
 msgstr ""
@@ -1104,7 +1104,7 @@ msgstr ""
 msgid "Roll out the sleeping bag"
 msgstr ""
 
-#: core/systems/room_rules.gd:29 scripts/interior_manager.gd:1967
+#: core/systems/room_rules.gd:29 scripts/interior_manager.gd:1974
 #. uses 2
 msgid "Rolling out"
 msgstr ""
@@ -1113,7 +1113,7 @@ msgstr ""
 msgid "Make the bed"
 msgstr ""
 
-#: core/systems/room_rules.gd:30 scripts/interior_manager.gd:1967
+#: core/systems/room_rules.gd:30 scripts/interior_manager.gd:1974
 #. uses 2
 msgid "Making the bed"
 msgstr ""
@@ -3627,7 +3627,7 @@ msgstr ""
 msgid "Register..."
 msgstr ""
 
-#: scripts/builder_module.gd:326 scripts/builder_module.gd:1864
+#: scripts/builder_module.gd:326 scripts/builder_module.gd:1871
 #. uses 2
 msgid "About Builder 98"
 msgstr ""
@@ -3733,7 +3733,10 @@ msgid ""
 "This blueprint is for Stavitel partner camps.\n"
 "\n"
 "It opens when your camp has %d guests at once."
-msgstr "Tenhle plán je jen pro partnerské kempy Stavitele.\n\nOtevře se, až budeš mít v kempu najednou %d {hosta|hosty|hostů}."
+msgstr ""
+"Tenhle plán je jen pro partnerské kempy Stavitele.\n"
+"\n"
+"Otevře se, až budeš mít v kempu najednou %d {hosta|hosty|hostů}."
 
 #: scripts/builder_module.gd:706
 msgid "Map overlay: %s  (O for the next)"
@@ -4107,6 +4110,10 @@ msgid ""
 "\n"
 "Thank you!"
 msgstr ""
+"Tahle kopie Builderu 98 je registrovaná\n"
+"na Kemp Černé jezero.\n"
+"\n"
+"Děkujeme!"
 
 #: scripts/builder_module.gd:1783
 msgid ""
@@ -4114,52 +4121,69 @@ msgid ""
 "\n"
 "Stavitel software mails your key the next morning."
 msgstr ""
+"Zaregistrovat Builder 98 za $99?\n"
+"\n"
+"Stavitel software ti klíč pošle mailem druhý den ráno."
 
 #: scripts/builder_module.gd:1785
 msgid "The camp has not got $99."
-msgstr ""
+msgstr "Kemp nemá $99."
 
 #: scripts/builder_module.gd:1790
 msgid "Registration ordered: the key comes by mail tomorrow."
-msgstr ""
+msgstr "Registrace objednána: klíč přijde zítra mailem."
 
-#: scripts/builder_module.gd:1793
+#: scripts/builder_module.gd:1796
+msgid ""
+"Registration ordered.\n"
+"\n"
+"Stavitel software mails your key the next morning."
+msgstr ""
+"Registrace objednána.\n"
+"\n"
+"Stavitel software ti klíč pošle mailem druhý den ráno."
+
+#: scripts/builder_module.gd:1799
 msgid "Register Builder 98"
-msgstr ""
+msgstr "Registrace Builderu 98"
 
-#: scripts/builder_module.gd:1797
-msgid "Type the key from Stavitel software's mail:"
-msgstr ""
+#: scripts/builder_module.gd:1803
+msgid "Your key from Stavitel software's mail:"
+msgstr "Tvůj klíč z mailu od Stavitel software:"
 
-#: scripts/builder_module.gd:1814
+#: scripts/builder_module.gd:1821
 msgid ""
 "Thank you for registering Builder 98!\n"
 "\n"
 "Registered to: Camp Cerne Jezero\n"
 "The Mega gnome is in the Decor catalogue."
 msgstr ""
+"Děkujeme za registraci Builderu 98!\n"
+"\n"
+"Registrováno na: Kemp Černé jezero\n"
+"Mega trpaslík je v katalogu Dekorace."
 
-#: scripts/builder_module.gd:1817
+#: scripts/builder_module.gd:1824
 msgid "That key is not valid."
-msgstr ""
+msgstr "Tenhle klíč neplatí."
 
-#: scripts/builder_module.gd:1846
+#: scripts/builder_module.gd:1853
 msgid "BOHEMIA: +$5,000."
 msgstr ""
 
-#: scripts/builder_module.gd:1854
+#: scripts/builder_module.gd:1861
 msgid "Vera: \"Stop playing with the computer and go and look at the toilets.\""
 msgstr ""
 
-#: scripts/builder_module.gd:1868
+#: scripts/builder_module.gd:1875
 msgid "Registered to: Camp Cerne Jezero"
 msgstr ""
 
-#: scripts/builder_module.gd:1868
+#: scripts/builder_module.gd:1875
 msgid "UNREGISTERED SHAREWARE  -  %d days of the trial left"
 msgstr ""
 
-#: scripts/builder_module.gd:1869
+#: scripts/builder_module.gd:1876
 msgid ""
 "Builder 98  version 1.2\n"
 "(c) 1996-98 Stavitel software, Jihlava\n"
@@ -4171,32 +4195,32 @@ msgid ""
 "The game around it: UNDO LABS"
 msgstr ""
 
-#: scripts/builder_module.gd:1995
+#: scripts/builder_module.gd:2002
 msgid "Your camp won a diploma: %s."
 msgstr ""
 
-#: scripts/builder_module.gd:1995
+#: scripts/builder_module.gd:2002
 msgid "Hlubocany Courier: %s"
 msgstr ""
 
-#: scripts/builder_module.gd:2096 scripts/hud_manager.gd:1120 scripts/hud_manager.gd:1442 scripts/os98/os_shell.gd:1543
+#: scripts/builder_module.gd:2103 scripts/hud_manager.gd:1120 scripts/hud_manager.gd:1442 scripts/os98/os_shell.gd:1543
 #. uses 4
 msgid "$%s"
 msgstr ""
 
-#: scripts/builder_module.gd:2100
+#: scripts/builder_module.gd:2107
 msgid "Day %d   %s"
 msgstr ""
 
-#: scripts/builder_module.gd:2113
+#: scripts/builder_module.gd:2120
 msgid "Trees: free"
 msgstr ""
 
-#: scripts/builder_module.gd:2115
+#: scripts/builder_module.gd:2122
 msgid "Cost: $%d"
 msgstr ""
 
-#: scripts/builder_module.gd:2151
+#: scripts/builder_module.gd:2158
 msgid ""
 "Site: Kemp Cerne jezero\n"
 "Day %d\n"
@@ -4205,200 +4229,200 @@ msgid ""
 "Cash: $%s"
 msgstr ""
 
-#: scripts/builder_module.gd:2160
+#: scripts/builder_module.gd:2167
 msgid ""
 "\n"
 "Guests: %d"
 msgstr ""
 
-#: scripts/builder_module.gd:2192
+#: scripts/builder_module.gd:2199
 msgid "....YYYY...."
 msgstr ""
 
-#: scripts/builder_module.gd:2193
+#: scripts/builder_module.gd:2200
 msgid "....Y..Y...."
 msgstr ""
 
-#: scripts/builder_module.gd:2194
+#: scripts/builder_module.gd:2201
 msgid "....Y..YYYY."
 msgstr ""
 
-#: scripts/builder_module.gd:2195
+#: scripts/builder_module.gd:2202
 msgid "B...YYYYYYY."
 msgstr ""
 
-#: scripts/builder_module.gd:2196 scripts/builder_module.gd:2198
+#: scripts/builder_module.gd:2203 scripts/builder_module.gd:2205
 #. uses 2
 msgid "BB..YYYYYYY."
 msgstr ""
 
-#: scripts/builder_module.gd:2197
+#: scripts/builder_module.gd:2204
 msgid "BBBYYYYYYYY."
 msgstr ""
 
-#: scripts/builder_module.gd:2199
+#: scripts/builder_module.gd:2206
 msgid "B..KKKKKKKK."
 msgstr ""
 
-#: scripts/builder_module.gd:2200
+#: scripts/builder_module.gd:2207
 msgid "..KDKDKDKDK."
 msgstr ""
 
-#: scripts/builder_module.gd:2201
+#: scripts/builder_module.gd:2208
 msgid "...KKKKKKK.."
 msgstr ""
 
-#: scripts/builder_module.gd:2205 scripts/builder_module.gd:2213
+#: scripts/builder_module.gd:2212 scripts/builder_module.gd:2220
 #. uses 2
 msgid ".....TT....."
 msgstr ""
 
-#: scripts/builder_module.gd:2206 scripts/builder_module.gd:2212
+#: scripts/builder_module.gd:2213 scripts/builder_module.gd:2219
 #. uses 2
 msgid "....TttT...."
 msgstr ""
 
-#: scripts/builder_module.gd:2207 scripts/builder_module.gd:2211
+#: scripts/builder_module.gd:2214 scripts/builder_module.gd:2218
 #. uses 2
 msgid "...TttdtT..."
 msgstr ""
 
-#: scripts/builder_module.gd:2208 scripts/builder_module.gd:2210
+#: scripts/builder_module.gd:2215 scripts/builder_module.gd:2217
 #. uses 2
 msgid "..TtdtttdT.."
 msgstr ""
 
-#: scripts/builder_module.gd:2209
+#: scripts/builder_module.gd:2216
 msgid ".TttttdtttT."
 msgstr ""
 
-#: scripts/builder_module.gd:2217 scripts/builder_module.gd:2220
+#: scripts/builder_module.gd:2224 scripts/builder_module.gd:2227
 #. uses 2
 msgid "....KKKK...."
 msgstr ""
 
-#: scripts/builder_module.gd:2218 scripts/builder_module.gd:2219
+#: scripts/builder_module.gd:2225 scripts/builder_module.gd:2226
 #. uses 2
 msgid "...KyyyyK..."
 msgstr ""
 
-#: scripts/builder_module.gd:2221 scripts/os98/apps/guestrack_app.gd:593
+#: scripts/builder_module.gd:2228 scripts/os98/apps/guestrack_app.gd:593
 #. uses 2
 msgid ".....KK....."
 msgstr ""
 
-#: scripts/builder_module.gd:2222 scripts/builder_module.gd:2223 scripts/builder_module.gd:2224 scripts/builder_module.gd:2225 (+1)
+#: scripts/builder_module.gd:2229 scripts/builder_module.gd:2230 scripts/builder_module.gd:2231 scripts/builder_module.gd:2232 (+1)
 #. uses 5
 msgid ".....GG....."
 msgstr ""
 
-#: scripts/builder_module.gd:2227
+#: scripts/builder_module.gd:2234
 msgid "....GGGG...."
 msgstr ""
 
-#: scripts/builder_module.gd:2228
+#: scripts/builder_module.gd:2235
 msgid "...KKKKKK..."
 msgstr ""
 
-#: scripts/builder_module.gd:2233
+#: scripts/builder_module.gd:2240
 msgid "...K........"
 msgstr ""
 
-#: scripts/builder_module.gd:2234
+#: scripts/builder_module.gd:2241
 msgid "..KcK......."
 msgstr ""
 
-#: scripts/builder_module.gd:2235
+#: scripts/builder_module.gd:2242
 msgid ".KccKKKKK..."
 msgstr ""
 
-#: scripts/builder_module.gd:2236
+#: scripts/builder_module.gd:2243
 msgid "KcccccccKK.."
 msgstr ""
 
-#: scripts/builder_module.gd:2237
+#: scripts/builder_module.gd:2244
 msgid ".KccKKKKcK.."
 msgstr ""
 
-#: scripts/builder_module.gd:2238
+#: scripts/builder_module.gd:2245
 msgid "..KcK...KcK."
 msgstr ""
 
-#: scripts/builder_module.gd:2239
+#: scripts/builder_module.gd:2246
 msgid "...K....KcK."
 msgstr ""
 
-#: scripts/builder_module.gd:2240
+#: scripts/builder_module.gd:2247
 msgid ".......KcK.."
 msgstr ""
 
-#: scripts/builder_module.gd:2241
+#: scripts/builder_module.gd:2248
 msgid "....KKKcK..."
 msgstr ""
 
-#: scripts/builder_module.gd:2242
+#: scripts/builder_module.gd:2249
 msgid "....KccK...."
 msgstr ""
 
-#: scripts/builder_module.gd:2243
+#: scripts/builder_module.gd:2250
 msgid "....KKK....."
-msgstr ""
-
-#: scripts/builder_module.gd:2245 scripts/builder_module.gd:2258
-#. uses 2
-msgid "..KKKK......"
-msgstr ""
-
-#: scripts/builder_module.gd:2246 scripts/builder_module.gd:2250 scripts/builder_module.gd:2259 scripts/builder_module.gd:2263
-#. uses 4
-msgid ".KwwwwK....."
-msgstr ""
-
-#: scripts/builder_module.gd:2247 scripts/builder_module.gd:2249
-#. uses 2
-msgid "KwwKKwwK...."
-msgstr ""
-
-#: scripts/builder_module.gd:2248 scripts/builder_module.gd:2261
-#. uses 2
-msgid "KwKKKKwK...."
-msgstr ""
-
-#: scripts/builder_module.gd:2251 scripts/builder_module.gd:2264
-#. uses 2
-msgid "..KKKKMM...."
 msgstr ""
 
 #: scripts/builder_module.gd:2252 scripts/builder_module.gd:2265
 #. uses 2
-msgid "......MMM..."
+msgid "..KKKK......"
 msgstr ""
 
-#: scripts/builder_module.gd:2253 scripts/builder_module.gd:2266
-#. uses 2
-msgid ".......MMM.."
+#: scripts/builder_module.gd:2253 scripts/builder_module.gd:2257 scripts/builder_module.gd:2266 scripts/builder_module.gd:2270
+#. uses 4
+msgid ".KwwwwK....."
 msgstr ""
 
-#: scripts/builder_module.gd:2254 scripts/builder_module.gd:2267
+#: scripts/builder_module.gd:2254 scripts/builder_module.gd:2256
 #. uses 2
-msgid "........MMM."
+msgid "KwwKKwwK...."
 msgstr ""
 
 #: scripts/builder_module.gd:2255 scripts/builder_module.gd:2268
 #. uses 2
+msgid "KwKKKKwK...."
+msgstr ""
+
+#: scripts/builder_module.gd:2258 scripts/builder_module.gd:2271
+#. uses 2
+msgid "..KKKKMM...."
+msgstr ""
+
+#: scripts/builder_module.gd:2259 scripts/builder_module.gd:2272
+#. uses 2
+msgid "......MMM..."
+msgstr ""
+
+#: scripts/builder_module.gd:2260 scripts/builder_module.gd:2273
+#. uses 2
+msgid ".......MMM.."
+msgstr ""
+
+#: scripts/builder_module.gd:2261 scripts/builder_module.gd:2274
+#. uses 2
+msgid "........MMM."
+msgstr ""
+
+#: scripts/builder_module.gd:2262 scripts/builder_module.gd:2275
+#. uses 2
 msgid ".........MM."
 msgstr ""
 
-#: scripts/builder_module.gd:2260 scripts/builder_module.gd:2262
+#: scripts/builder_module.gd:2267 scripts/builder_module.gd:2269
 #. uses 2
 msgid "KwwwwwwK...."
 msgstr ""
 
-#: scripts/builder_module.gd:2272
+#: scripts/builder_module.gd:2279
 msgid "KKKK.KKKK.KK"
 msgstr ""
 
-#: scripts/builder_module.gd:2281
+#: scripts/builder_module.gd:2288
 msgid "KKK.KKKK.KKK"
 msgstr ""
 
@@ -8129,94 +8153,94 @@ msgstr ""
 msgid "Step behind the corn stand"
 msgstr ""
 
-#: scripts/interior_manager.gd:538
+#: scripts/interior_manager.gd:545
 msgid " - filthy, clean it"
 msgstr ""
 
-#: scripts/interior_manager.gd:540
+#: scripts/interior_manager.gd:547
 msgid " - needs cleaning"
 msgstr ""
 
-#: scripts/interior_manager.gd:935
+#: scripts/interior_manager.gd:942
 msgid "Caravan: Max Level"
 msgstr ""
 
-#: scripts/interior_manager.gd:935
+#: scripts/interior_manager.gd:942
 msgid "This caravan is already Lv3."
 msgstr ""
 
-#: scripts/interior_manager.gd:935 scripts/interior_manager.gd:1305 scripts/interior_manager.gd:1347
+#: scripts/interior_manager.gd:942 scripts/interior_manager.gd:1312 scripts/interior_manager.gd:1354
 #. uses 3
 msgid "MAX"
 msgstr ""
 
-#: scripts/interior_manager.gd:939
+#: scripts/interior_manager.gd:946
 msgid "Upgrade %s -> %s (one more bed)."
 msgstr ""
 
-#: scripts/interior_manager.gd:940
+#: scripts/interior_manager.gd:947
 msgid "Caravan: Upgrade"
 msgstr ""
 
-#: scripts/interior_manager.gd:1040
+#: scripts/interior_manager.gd:1047
 msgid "\"Occupied!\""
 msgstr ""
 
-#: scripts/interior_manager.gd:1040
+#: scripts/interior_manager.gd:1047
 msgid "\"We're asleep!\""
 msgstr ""
 
-#: scripts/interior_manager.gd:1040
+#: scripts/interior_manager.gd:1047
 msgid "\"Come back later.\""
 msgstr ""
 
-#: scripts/interior_manager.gd:1040
+#: scripts/interior_manager.gd:1047
 msgid "\"Who is it?\""
 msgstr ""
 
-#: scripts/interior_manager.gd:1305
+#: scripts/interior_manager.gd:1312
 msgid "Tent: Max Level"
 msgstr ""
 
-#: scripts/interior_manager.gd:1305
+#: scripts/interior_manager.gd:1312
 msgid "This tent is already Lv3. No further upgrade available."
 msgstr ""
 
-#: scripts/interior_manager.gd:1310 scripts/interior_manager.gd:1323
+#: scripts/interior_manager.gd:1317 scripts/interior_manager.gd:1330
 #. uses 2
 msgid "Tent: Upgrade"
 msgstr ""
 
-#: scripts/interior_manager.gd:1310
+#: scripts/interior_manager.gd:1317
 msgid "Invalid tent level."
 msgstr ""
 
-#: scripts/interior_manager.gd:1322
+#: scripts/interior_manager.gd:1329
 msgid "Upgrade %s -> %s (better comfort + capacity)."
 msgstr ""
 
-#: scripts/interior_manager.gd:1347
+#: scripts/interior_manager.gd:1354
 msgid "Cabin: Max Level"
 msgstr ""
 
-#: scripts/interior_manager.gd:1347
+#: scripts/interior_manager.gd:1354
 msgid "This cabin is already Lv3. No further upgrade available."
 msgstr ""
 
-#: scripts/interior_manager.gd:1352 scripts/interior_manager.gd:1365
+#: scripts/interior_manager.gd:1359 scripts/interior_manager.gd:1372
 #. uses 2
 msgid "Cabin: Upgrade"
 msgstr ""
 
-#: scripts/interior_manager.gd:1352
+#: scripts/interior_manager.gd:1359
 msgid "Invalid cabin level."
 msgstr ""
 
-#: scripts/interior_manager.gd:1364
+#: scripts/interior_manager.gd:1371
 msgid "Upgrade %s -> %s (bigger comfort + capacity)."
 msgstr ""
 
-#: scripts/interior_manager.gd:1373
+#: scripts/interior_manager.gd:1380
 msgid "%d GUESTS"
 msgstr "%d {HOST|HOSTÉ|HOSTŮ}"
 
@@ -8848,56 +8872,56 @@ msgstr ""
 msgid "Co-op"
 msgstr "Co-op"
 
-#: scripts/main.gd:5485 scripts/main.gd:5576 scripts/main.gd:6313 scripts/main.gd:6438
+#: scripts/main.gd:5496 scripts/main.gd:5587 scripts/main.gd:6324 scripts/main.gd:6449
 #. uses 4
 msgid "Autosave"
 msgstr "Autouložení"
 
-#: scripts/main.gd:5585
+#: scripts/main.gd:5596
 msgid "Manual Save"
 msgstr ""
 
-#: scripts/main.gd:6164
+#: scripts/main.gd:6175
 msgid "structure_%d"
 msgstr ""
 
-#: scripts/main.gd:6349
+#: scripts/main.gd:6360
 msgid "Row back to camp"
 msgstr ""
 
-#: scripts/main.gd:6351
+#: scripts/main.gd:6362
 msgid "Go outside"
 msgstr ""
 
-#: scripts/main.gd:6401
+#: scripts/main.gd:6412
 msgid "DAY %d   %s"
 msgstr ""
 
-#: scripts/main.gd:6406
+#: scripts/main.gd:6417
 msgid "   SAVED JUST NOW"
 msgstr ""
 
-#: scripts/main.gd:6408
+#: scripts/main.gd:6419
 msgid "   SAVED %d MIN AGO"
 msgstr ""
 
-#: scripts/main.gd:6410
+#: scripts/main.gd:6421
 msgid "   SAVED %d H AGO"
 msgstr ""
 
-#: scripts/main.gd:6413
+#: scripts/main.gd:6424
 msgid "   WITH %s"
 msgstr ""
 
-#: scripts/main.gd:6417
+#: scripts/main.gd:6428
 msgid "   OPEN AT %s"
 msgstr ""
 
-#: scripts/main.gd:6430
+#: scripts/main.gd:6441
 msgid "SAVE FAILED"
 msgstr ""
 
-#: scripts/main.gd:6434
+#: scripts/main.gd:6445
 msgid "Game saved."
 msgstr ""
 
@@ -11539,7 +11563,7 @@ msgstr ""
 msgid "Camp Cerne Jezero"
 msgstr ""
 
-#: scripts/builder/news_paper.gd:100 scripts/builder/shareware.gd:88 scripts/builder/shareware.gd:88
+#: scripts/builder/news_paper.gd:100 scripts/builder/shareware.gd:97 scripts/builder/shareware.gd:97
 #. uses 3
 msgid "District Office Pelhrimov"
 msgstr ""
@@ -11556,32 +11580,40 @@ msgstr ""
 msgid "%d|stavitel|%d"
 msgstr ""
 
-#: scripts/builder/shareware.gd:85 scripts/builder/shareware.gd:85 scripts/os98/apps/job_adclick.gd:25
+#: scripts/builder/shareware.gd:94 scripts/builder/shareware.gd:94 scripts/os98/apps/job_adclick.gd:25
 #. uses 3
 msgid "Stavitel software"
 msgstr ""
 
-#: scripts/builder/shareware.gd:86
+#: scripts/builder/shareware.gd:95
 msgid "Your Builder 98 registration"
-msgstr ""
+msgstr "Tvoje registrace Builderu 98"
 
-#: scripts/builder/shareware.gd:87
+#: scripts/builder/shareware.gd:96
 msgid ""
 "Thank you for registering Builder 98.\n"
 "\n"
 "Your key:  %s\n"
 "\n"
-"Help > Register... in Builder 98, and type it in.\n"
+"Help > Register... in Builder 98: the key is filled in, press OK.\n"
 "\n"
 "Stavitel software\n"
 "Brnenska 14, Jihlava"
 msgstr ""
+"Děkujeme za registraci Builderu 98.\n"
+"\n"
+"Tvůj klíč:  %s\n"
+"\n"
+"V Builderu 98 Help > Register...: klíč je vyplněný, stiskni OK.\n"
+"\n"
+"Stavitel software\n"
+"Brněnská 14, Jihlava"
 
-#: scripts/builder/shareware.gd:89
+#: scripts/builder/shareware.gd:98
 msgid "Irregularity in your accounts"
 msgstr ""
 
-#: scripts/builder/shareware.gd:90
+#: scripts/builder/shareware.gd:99
 msgid ""
 "To the operator of the recreational facility Cerne jezero.\n"
 "\n"
@@ -13062,19 +13094,19 @@ msgstr ""
 msgid "Heavy footsteps along the fence. They stopped. Now they are coming."
 msgstr ""
 
-#: scripts/enemies/tourist_brain.gd:296
+#: scripts/enemies/tourist_brain.gd:289
 msgid "Humming between the trees. A red light. Beep... beep... Do not look at the flash."
 msgstr ""
 
-#: scripts/enemies/tourist_brain.gd:333
+#: scripts/enemies/tourist_brain.gd:329
 msgid "FLASH. He has you on film."
 msgstr ""
 
-#: scripts/enemies/tourist_brain.gd:480
+#: scripts/enemies/tourist_brain.gd:515
 msgid "Humming outside the window. A red light on the glass. Draw the curtains."
 msgstr ""
 
-#: scripts/enemies/tourist_brain.gd:511
+#: scripts/enemies/tourist_brain.gd:553
 msgid "FLASH through the window. Draw the curtains."
 msgstr ""
 

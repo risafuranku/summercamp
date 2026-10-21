@@ -1789,17 +1789,24 @@ func _register_dialog() -> void:
 			_mail_tomorrow("key", key)
 			_map_panel._emit_status("Registration ordered: the key comes by mail tomorrow.", 1))
 		return
-	# Ordered: the key typed in from the mail.
+	# Ordered: before its mail has come there is nothing to fill in.
+	var m := _main()
+	var hour := float(m.get("_time_of_day_hours")) if m != null and m.get("_time_of_day_hours") != null else 12.0
+	if not _sw.key_arrived(CoreRoot.get_day(), hour):
+		message_requested.emit("Register Builder 98", "Registration ordered.\n\nStavitel software mails your key the next morning.", "info")
+		return
+	# The key from the mail, filled in: one OK.
 	var win = shell.call("_make_dialog", "b98reg", "Register Builder 98", null, Rect2(Vector2(150, 160), Vector2(330, 120)))
 	win.can_minimize = false
 	var c: Control = win.content
 	var l := Label.new()
-	l.text = "Type the key from Stavitel software's mail:"
+	l.text = "Your key from Stavitel software's mail:"
 	l.position = Vector2(12, 10)
 	c.add_child(l)
 	var edit := LineEdit.new()
 	edit.position = Vector2(12, 34)
 	edit.size = Vector2(300, 22)
+	edit.text = _sw.key
 	c.add_child(edit)
 	var ok := Button.new()
 	ok.text = "OK"
@@ -1817,7 +1824,7 @@ func _register_dialog() -> void:
 			message_requested.emit("Builder 98", "That key is not valid.", "error")
 	ok.pressed.connect(go)
 	edit.text_submitted.connect(func(_t): go.call())
-	edit.grab_focus.call_deferred()
+	ok.grab_focus.call_deferred()
 
 
 func _cheat_key(ch: String) -> void:

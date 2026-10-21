@@ -352,6 +352,18 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._open_category('fun')"], ["wait", 0.3], ["crt_screen", "c3_builder_fun"],
 		["hours", 9.4], ["wait", 1.5], ["crt_screen", "c4_builder_dusk"],
 	],
+	# Help > Register... once the key's mail has come: the key filled in, one OK.
+	"b98reg": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["signal", "program_installed", "builder"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('builder') != null"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._ensure_sw()"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._sw.order(0)"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._register_dialog()"], ["wait", 0.6],
+		["crt_screen", "g0_register_filled"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._sw.registered"],
+	],
 	"pathlamp": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],

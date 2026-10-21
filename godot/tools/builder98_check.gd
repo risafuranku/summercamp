@@ -66,6 +66,8 @@ func _shareware(SW) -> void:
 	_expect(nags >= 2 and nags <= 5, "the nag comes after about ten builds, then now and then (%d in 40)" % nags)
 	var key: String = sw.order(3)
 	_expect(key != "" and sw.ordered_day == 3, "an order gives a key to come by mail (%s)" % key)
+	_expect(not sw.key_arrived(3, 20.0) and not sw.key_arrived(4, 8.0), "no key filled in before its mail comes (day 4, 08:10)")
+	_expect(sw.key_arrived(4, 8.2) and sw.key_arrived(6, 0.5), "the key filled in once its mail has come")
 	_expect(not sw.register("WRONG-KEY"), "a wrong key does not register it")
 	_expect(sw.register(key.to_lower()), "the key from the mail registers it (any case)")
 	_expect(sw.registered and sw.unlocked("mega_gnome") and not sw.note_build(), "registered: no nag, the Mega gnome open")
