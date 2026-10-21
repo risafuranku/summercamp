@@ -336,13 +336,23 @@ learn:
   while you lead him (on your screen, near) and his head comes round: his face, the
   shriek, the hit, and he is back in the corn hiding, to be found again. Out through the
   gate he is back in the tent by morning. The scarecrow is in there as always.
-- **The board: "Cukr, káva, limonáda, čaj, rum ... BUM!"** (to come): he counts facing
-  the wall of the switch room; the breakers go up only while he chants; at BUM he turns
-  and nothing of yours may move. He trips them again behind you and holds the door.
-- **The pipes: tag** (to come): he crawls behind you, and you may not stop.
+- **The board: "Cukr, káva, limonáda, čaj, rum ... BUM!"** (done; `breaker_panel.gd`):
+  he is in the switch room behind you, his face to the wall, saying the words; while he
+  says them you may work the board; at BUM he turns round (his face in the ammeter's
+  glass) and nothing of yours may move, the mouse or a click, till he turns back.
+  Caught: his face over the board, the hit, every switch down and the main off, "Hejbeš
+  se! Znova." Medium he says them unevenly, heavy he skips to BUM, looks longer and pulls
+  a switch down behind your back between rounds. The board on: found.
+- **The pipes: tag** (done; `pipes/pipe_boy.gd`): off the ladder, "Na honěnou! Honím
+  já!", and he comes down after you along the way you crawl. Every pipe you crawl puts
+  him a length back; lying still (a junction, the map) he comes on, his hands slapping
+  the water, his breath, "Nezastavuj"; at your ankle "Mám tě!", his face, the hit, and he
+  is back a few lengths. A hole is home (domeček): while you work at one he waits. Hold
+  S to look back and see how near he is, crawling at you. The sewer mended: found.
 - **Pressure** (the night's difficulty): light (1-2) he plays fair; medium (3) he lies
   now and then (warmer when you go away) and asks you to turn round; heavy (4-5) more,
-  and his face hits harder. In the pipes: light the boy, medium the raccoon, heavy both.
+  and his face hits harder. In the pipes: light the boy, medium the raccoon, heavy both
+  (`sewer_pipe_minigame.boy_tier`, `pipe_director.absent`).
 - **His father is the omen**: once the boy is out there, now and then the father stands
   in your way in the dark 8-11 m off, his hand out holding a hand that is not there, and
   asks after him in Czech, one line more each time ("Neviděl jste mýho kluka?" ... the

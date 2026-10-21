@@ -73,6 +73,12 @@ func _on_tick(dt: float) -> void:
 		return
 	if not _job_made:
 		_job_made = _make_job()
+	# His job done (the board on, the sewer mended, out of the corn): found.
+	if not found and _job_made:
+		var m := _main()
+		var nj = m.get("_night_jobs") if m != null else null
+		if nj != null and nj.has_method("boy_job_done") and bool(nj.call("boy_job_done")):
+			boy_found()
 	_tick_dad(dt)
 
 
@@ -101,8 +107,8 @@ func _main() -> Node:
 	return _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
 
 
-## The places this camp has for him, one picked: the corn, the generator's board (the
-## pipes to come).
+## The places this camp has for him, one picked: the corn, the generator's board, the
+## sewer.
 func _pick_place() -> String:
 	var m := _main()
 	var have: Array = []
@@ -111,6 +117,8 @@ func _pick_place() -> String:
 	var nj = m.get("_night_jobs") if m != null else null
 	if nj != null and not (nj.call("_coords_of", ["power_generator"]) as Array).is_empty():
 		have.append("breaker")
+	if nj != null and (nj.call("_available_kinds") as Array).has("sewer"):
+		have.append("sewer")
 	if have.is_empty():
 		return ""
 	return str(have[_rng.randi() % have.size()])

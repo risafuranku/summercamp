@@ -340,6 +340,14 @@ func boy_tier_at(kind: String) -> int:
 	return 0
 
 
+## His job sorted (the corn, the board, the sewer mended): he is found.
+func boy_job_done() -> bool:
+	for j in _jobs:
+		if j.has("boy") and str(j["state"]) == "done":
+			return true
+	return false
+
+
 ## Is the boy out there tonight (his job planned or open, not done)?
 func boy_job_open() -> bool:
 	for j in _jobs:

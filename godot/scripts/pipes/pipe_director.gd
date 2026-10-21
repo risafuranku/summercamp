@@ -53,6 +53,9 @@ const BITE := 12
 enum { BUILD, STALK, PEAK, RELAX }
 
 var host                           # the crawl
+## Not down here tonight (the family's boy's light night: only him, scripts/pipes/pipe_boy.gd):
+## no signs, no traps, no hunt; the holes are there all the same.
+var absent := false
 var visit := 1
 var night := false
 var level := 1
@@ -155,6 +158,8 @@ func start(host_node, visit_number: int, at_night: bool, seed_value: int) -> voi
 	body.visible = false
 	peek.visible = false
 	eyes.visible = false
+	if absent:
+		return
 	_lay_trails()
 	if level >= 2:
 		_lay_traps(1 if level == 2 else 2)
@@ -174,7 +179,7 @@ func is_real() -> bool:
 ## Its little wet hands on the ladder when you get back: the low nights, when it never
 ## showed itself.
 func leaves_prints() -> bool:
-	return level == 1
+	return level == 1 and not absent
 
 
 func _build_nodes() -> void:
@@ -288,6 +293,8 @@ func _lay_traps(n: int) -> void:
 
 
 func is_trap(a: Vector2i, b: Vector2i) -> bool:
+	if absent:
+		return false
 	var t = _traps.get(_key(a, b))
 	return t != null and not bool(t["done"])
 
@@ -394,6 +401,8 @@ func _burst_at(c: Vector2i) -> void:
 ## A sound you made at a junction: 1 a crawl or a turn of the head, 2 the clamp ringing
 ## or tearing at a snare.
 func heard(at: Vector2i, loud: int) -> void:
+	if absent:
+		return
 	if loud >= _noise_loud or _noise_at.x < 0:
 		_noise_at = at
 		_noise_loud = loud
@@ -423,6 +432,10 @@ func is_drip_muted() -> bool:
 # ── per frame ─────────────────────────────────────────────────────────────────
 
 func tick(delta: float) -> void:
+	if absent:
+		tension = 0.0
+		flicker = 0.0
+		return
 	_phase_t += delta
 	_drip_mute_t = maxf(0.0, _drip_mute_t - delta)
 	flicker = maxf(0.0, flicker - delta * 1.5)

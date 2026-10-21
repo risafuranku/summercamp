@@ -4268,15 +4268,21 @@ func _on_menu_test_night(enemy_id: String) -> void:
 		if _hud_manager != null:
 			_hud_manager.push_status("Test night: the sewer breaks again whenever it is mended.", 2)
 		return
-	debug_spawn_enemy(enemy_id)
+	# The boy at his worst (heavy: in the pipes both him and the raccoon).
+	debug_spawn_enemy(enemy_id, 4 if enemy_id == "child" else 3)
 	# It is one of the test camp's guests, turned (gone in the morning if it gets you).
 	if not _enemy_brains.is_empty():
 		var nb = _enemy_brains.back()
 		var ne: Dictionary = nb.get("_night_entry")
 		ne["guest"] = _pick_turned_guest(str(TEST_NIGHT_GUESTS.get(enemy_id, "")))
-		# The boy's job at once, not an hour into the night.
+		# The boy's job at once, not an hour into the night; his places in turn.
 		if nb.get("soon") != null:
 			nb.set("soon", true)
+		if nb.has_method("force_place"):
+			var where: String = TEST_BOY_PLACES[_test_boy_turn % TEST_BOY_PLACES.size()]
+			_test_boy_turn += 1
+			nb.force_place(where)
+			enemy_id = "child_" + where
 	# The spawn faces the office wall (a new camp starts at the desk): turn to the camp.
 	if _player != null and is_instance_valid(_player):
 		_player.rotate_y(PI)
@@ -4285,7 +4291,12 @@ func _on_menu_test_night(enemy_id: String) -> void:
 		if str(entry["id"]) == enemy_id:
 			label = str(entry["text"])
 	if _hud_manager != null:
-		_hud_manager.push_status("Test night: the %s is out." % label, 2)
+		if enemy_id.begins_with("child_"):
+			_hud_manager.push_status(str({"child_corn": "Test night: the boy is lost in the corn.",
+				"child_breaker": "Test night: the boy is at the generator's board.",
+				"child_sewer": "Test night: the boy is down the sewer."}.get(enemy_id, "")), 2)
+		else:
+			_hud_manager.push_status("Test night: the %s is out." % label, 2)
 
 
 ## The bus test (L, "Bus to Liblice"): a fresh sandbox camp by day, the warden at the
@@ -4374,6 +4385,9 @@ func _start_test_businesses() -> void:
 
 
 ## Which guests bring which test night's thing (main_menu.TEST_NIGHTS ids).
+## The boy's test night takes his places in turn (corn, board, pipes).
+const TEST_BOY_PLACES := ["corn", "breaker", "sewer"]
+static var _test_boy_turn := 0
 const TEST_NIGHT_GUESTS := {"silent_man": "quiet_guy", "tourist": "drunk", "girl": "cheap_chick", "whistler": "tramp", "child": "family", "basket": "picker"}
 
 
