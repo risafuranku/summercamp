@@ -1606,8 +1606,8 @@ func _tick_bios(delta: float) -> void:
 	# 20. 10.); the disk and the fan say it is starting.
 	if _boot_t > 0.95 and _boot_t - delta <= 0.95:
 		play("hdd", -6.0)
-	if _boot_t > 1.65 and _boot_t - delta <= 1.65:
-		play("floppy", -8.0)
+	# No floppy seek either: its grinding rattle was the buzz you heard as the System
+	# Configurations box came up (the user 21. 10.).
 	if _boot_t >= BIOS_END:
 		_state = Boot.SPLASH
 		_boot_t = 0.0
