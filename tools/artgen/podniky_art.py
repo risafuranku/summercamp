@@ -95,6 +95,12 @@ SHEETS += [
                      (P + "card_10.png", 16), (P + "card_unter.png", 16), (P + "card_ober.png", 16), (P + "card_king.png", 16),
                      (P + "card_ace.png", 16)]),
     ("pk_ps_wallet", [(P + "wallet.png", 34), (CAMP + "dartboard_clean.png", 56)]),
+    # Readable food and drink (the brief of 21. 10.: "chips are not fried cheese, beer is
+    # not kofola, a raw cob is not a boiled or a mushy one"): bolder outlines and colours,
+    # a little bigger on the plate.
+    ("pk2_food", [(B + "food_cheese.png", 30), (B + "food_fries.png", 30), (B + "food_goulash.png", 32),
+                  (B + "dumpling_slice.png", 11), (B + "food_tartar.png", 14), (B + "food_onion.png", 13)]),
+    ("pk2_cobs", [(C + "cob_raw.png", 36), (C + "cob_boiled.png", 36), (C + "cob_mushy.png", 36), (C + "cob_buttered.png", 36)]),
 ]
 # The marks on the slips (16 px) cut from the same sheets: (render id, index, file, px).
 MARKS = [
@@ -108,6 +114,17 @@ MARKS = [
     ("pk_bts_bufet", 1, FOOD + "icon_soup.png", 16),
     ("pk_bts_bufet", 2, FOOD + "icon_kofola.png", 16),
     ("pk_bts_bufet", 4, FOOD + "icon_malinovka.png", 16),
+    # The tickets' pictures, bigger (the brief of 21. 10.): 18 px for the dishes.
+    ("pk2_food", 0, FOOD + "icon_cheese.png", 18),
+    ("pk2_food", 1, FOOD + "icon_fries.png", 18),
+    ("pk2_food", 2, FOOD + "icon_goulash.png", 18),
+    ("pk2_food", 3, FOOD + "icon_dumpling.png", 15),
+    ("pk2_food", 4, FOOD + "icon_tartar.png", 15),
+    ("pk2_food", 3, B + "food_dumpling.png", 14),
+    ("pk2_drinks", 0, UI + "mark_mug.png", 16),
+    ("pk2_drinks", 1, UI + "mark_foam.png", 16),
+    ("pk2_drinks", 2, UI + "mark_kofola.png", 18),
+    ("pk2_drinks", 3, UI + "mark_shot.png", 12),
 ]
 # The stations' Build pictures: (render id, file, width px: the bistro's PANEL_W, the top
 # of the counter in the render when Grok drew it in perspective with its front: its four
@@ -118,6 +135,105 @@ TEXTURES = [
     ("pk_bt_bufet", B + "st_bufet.png", 0, (2, 50, 2, 585, 1276, 585, 1276, 50)),
     ("pk_jt_deli", J + "st_deli.png", 0, (0, 68, 0, 608, 1280, 608, 1280, 68)),
 ]
+# The guests' impatient pictures (<sprite>_wait.png, guest_mood.show_wait), each at its
+# standing sprite's height.
+WAITS = ["host1", "host2", "host3", "host_tramp", "host_pensioner", "host_father", "host_mother", "host_kid"]
+
+
+def waits(only):
+    for base in WAITS:
+        art_id = base + "_wait"
+        if only and art_id not in only:
+            continue
+        src = raw(art_id)
+        if src is None:
+            print("missing", art_id)
+            continue
+        stand = os.path.join(GODOT, "assets/textury/npc/%s.png" % base)
+        if not os.path.exists(stand):
+            print("no standing sprite for", base)
+            continue
+        ref = Image.open(stand).convert("RGBA")
+        img = process.sprite(src, ref.height)
+        for band in RETINT.get(base, []):
+            img = retint(img, ref, *band)
+        img = match_colours(img, ref)
+        if base in CARRY:
+            box, at = CARRY[base]
+            behind = Image.new("RGBA", img.size, (0, 0, 0, 0))
+            behind.alpha_composite(ref.crop(box), at)
+            behind.alpha_composite(img)
+            img = behind
+        if base in OVER:
+            box, at = OVER[base]
+            img.alpha_composite(ref.crop(box), at)
+        save(process.snap(img, True), "assets/textury/npc/%s_wait.png" % base)
+
+
+# What Grok left off the pose, taken from the standing sprite and put behind it: (the box
+# in the standing sprite, where its top left goes in the pose). The tramp's guitar.
+CARRY = {"host_tramp": ((38, 6, 54, 74), (46, 6))}
+# The same in front of it: the mother's bum bag.
+OVER = {"host_mother": ((15, 53, 30, 64), (21, 53))}
+
+
+# Where Grok changed a garment's colour: the band of the height (top, bottom as a share)
+# whose pixels of one kind take the standing sprite's of another kind there, light to
+# light (the kid's shorts blue to green, the mother's shoes brown to white).
+RETINT = {"host_kid": [(0.58, 0.76, "blue", "green")], "host_mother": [(0.9, 1.0, "warm", "pale")]}
+KINDS = {
+    "blue": lambda c: c[2] > c[0] + 12 and c[2] > c[1] + 4,
+    "green": lambda c: c[1] > c[2] + 8 and c[1] >= c[0] - 6,
+    "warm": lambda c: c[0] > c[2] + 15,
+    "pale": lambda c: abs(c[0] - c[2]) < 25,
+}
+
+
+def retint(img, ref, top, bottom, kind, like):
+    """The `kind` pixels in the band to the standing sprite's `like` ones of the same band
+    (as many light and dark ones as it has)."""
+    def lum(c):
+        return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+    y0, y1 = int(ref.height * top), int(ref.height * bottom)
+    want = sorted([ref.getpixel((x, y))[:3] for y in range(y0, y1) for x in range(ref.width)
+                   if ref.getpixel((x, y))[3] > 0 and KINDS[like](ref.getpixel((x, y)))], key=lum)
+    if not want:
+        return img
+    img = img.copy()
+    px = img.load()
+    got = [(x, y) for y in range(int(img.height * top), int(img.height * bottom)) for x in range(img.width)
+           if px[x, y][3] > 0 and KINDS[kind](px[x, y])]
+    if not got:
+        return img
+    ls = sorted(lum(px[x, y]) for x, y in got)
+    for x, y in got:
+        rank = ls.index(lum(px[x, y])) / max(1, len(ls) - 1)
+        px[x, y] = want[min(len(want) - 1, int(rank * len(want)))] + (px[x, y][3],)
+    return img
+    img = img.copy()
+    px = img.load()
+    blues = [(x, y) for y in range(int(img.height * top), int(img.height * bottom)) for x in range(img.width)
+             if px[x, y][3] > 0 and px[x, y][2] > px[x, y][0] + 12 and px[x, y][2] > px[x, y][1] + 4]
+    if not blues:
+        return img
+    ls = sorted(lum(px[x, y]) for x, y in blues)
+    for x, y in blues:
+        rank = ls.index(lum(px[x, y])) / max(1, len(ls) - 1)
+        g = greens[min(len(greens) - 1, int(rank * len(greens)))]
+        px[x, y] = g + (px[x, y][3],)
+    return img
+
+
+def match_colours(img, ref):
+    """The pose in the standing sprite's own colours (each pixel to the nearest colour the
+    standing one uses): the two alternate on screen, a skin a shade off would flicker."""
+    opaque = [p[:3] for p in ref.getdata() if p[3] > 0]
+    strip = Image.new("RGB", (len(opaque), 1))
+    strip.putdata(opaque)
+    pal = strip.quantize(colors=96, method=Image.Quantize.MEDIANCUT)
+    rgb = img.convert("RGB").quantize(palette=pal, dither=Image.Dither.NONE).convert("RGB").convert("RGBA")
+    rgb.putalpha(img.getchannel("A"))
+    return rgb
 
 
 def raw(art_id):
@@ -266,7 +382,7 @@ def sheets(only):
         if len(boxes) != len(outs):
             print("  %s: %d pieces for %d names (look at out/%s/_cut.png)" % (art_id, len(boxes), len(outs), art_id))
         for box, (dest, longest) in zip(boxes, outs):
-            save(shrink(img.crop(box), longest), dest)
+            save(unfringe(art_id, shrink(img.crop(box), longest), dest), dest)
     for art_id, idx, dest, longest in MARKS:
         if only and art_id not in only:
             continue
@@ -274,7 +390,22 @@ def sheets(only):
         if got is None or idx >= len(got[1]):
             continue
         img, boxes = got
-        save(shrink(img.crop(boxes[idx]), longest), dest)
+        save(unfringe(art_id, shrink(img.crop(boxes[idx]), longest), dest), dest)
+
+
+def unfringe(art_id, img, dest=""):
+    """The magenta caught at the edge of a small piece (purple pixels the key left), gone:
+    only for the readable food sheets (pk2_*), the older ones stay as they were; not the
+    onion, whose rings are purple."""
+    if not art_id.startswith("pk2_") or "onion" in dest:
+        return img
+    px = img.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            if a > 0 and r > 90 and b > 70 and g < 0.62 * min(r, b):
+                px[x, y] = (0, 0, 0, 0)
+    return img
 
 
 def textures(only):
@@ -297,6 +428,7 @@ def textures(only):
 
 def main():
     only = set(sys.argv[1:])
+    waits(only)
     hands(only)
     pairs(only)
     sheets(only)
