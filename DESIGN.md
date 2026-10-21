@@ -903,6 +903,15 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
 
 ## 7b. The businesses' rooms (point and click)
 
+**The stations' tabs and keys go in the order of the work** (the user, 21. 10.: "1 husk,
+2 serve and butter, 3 drinks: it should make sense everywhere"): the corn stand husk,
+counter, drinks; the pub keg, tap, bottles, wash; the bistro potatoes, breading, stove,
+pot, grill, soup, pass, floor, sink; the Jednota storeroom, shelves, till, deli. **And
+the head turns at a station as in a room** ("not a locked camera: from the corn stand
+round the camp"): the pointer held a moment at the screen's side, or the arrows, turns
+it up to 170 degrees either way; the work stays still under the pointer (no sway), and
+not while something is held.
+
 Decided with the user on 2026-10-18 ("interiors aim at the feel of point-and-click
 games"). The pub, the bistro and the Jednota are rooms you look round in and click:
 everything usable glints under the gloved finger, and the doors are things too (the flat

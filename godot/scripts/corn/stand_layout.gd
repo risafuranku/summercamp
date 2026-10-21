@@ -21,9 +21,12 @@ const SURFACES := {
 	"drinks": {"at": Vector3(-1.78, 0.922, -0.42), "size": Vector2(0.8, 0.45), "yaw": 180.0, "flat": true, "cam_back": 0.46, "cam_up": 0.42, "cam_aim": 0.16, "tex": "res://assets/textury/corn/st_drinks.png"},
 }
 ## id -> {label (said), tab_label (the frame's bar), script}; in the bar's order.
+## The stations go in the order of the work, as the frame's tabs and keys 1-9 number them
+## (the user, 21. 10.: "1 husk, 2 serve and butter, 3 drinks: it should make sense
+## everywhere"): what prepares first, then what makes and serves, then the side jobs.
 const STATIONS := {
-	"counter": {"label": "the counter", "tab_label": "COUNTER", "icon": "res://assets/textury/ui/mark_corn.png", "script": "res://scripts/corn/counter_station.gd"},
 	"husk": {"label": "the husking", "tab_label": "HUSK", "icon": "res://assets/textury/ui/mark_pot.png", "script": "res://scripts/corn/husk_station.gd"},
+	"counter": {"label": "the counter", "tab_label": "COUNTER", "icon": "res://assets/textury/ui/mark_corn.png", "script": "res://scripts/corn/counter_station.gd"},
 	"drinks": {"label": "the drinks", "tab_label": "DRINKS", "icon": "res://assets/textury/ui/mark_tea.png", "script": "res://scripts/corn/drinks_station.gd"},
 }
 ## The drinks' table: its top's size and height (the surface lies on it).
