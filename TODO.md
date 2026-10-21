@@ -188,6 +188,8 @@ finished game, by impact:
   rower's face); the village's houses gone from the far shore (`boat_rig.gd`,
   `tools/boat_shots.tscn`, `tools/boat_coop.py`)
 - [x] Sound: a guitar by the fire and a radio in a caravan in the evening, far off
+- [x] The camp's own music (21. 10.): seven five-minute songs (morning, tycoon, golden, rain, nightstart, night, red; the title in the menu), mapped by `tools/audiogen/music_sections.py`; a piece comes in after a while on your feet outside, out of slow into its tempo, and winds down like a carousel on a bar (idle, the hour or weather turning, a presence at night, the Whistler playing); through the walls indoors, silent asleep; co-op: the host's piece on both machines in step
+- [x] Radio: Prani a pozdravy on the clock (from 0:30 for as long as it runs, tuned into mid-way, never after the night skip or a load); Vypinac with its hook (0:44-1:12) twice and again before the outro, on the beat
   (21. 10., far_life.gd)
 - [x] Sound: the country by day — the dawn chorus, birds, grasshoppers, a woodpecker, a
   crow, ducks on the lake (21. 10., `nature_life.gd`; there were only the night's

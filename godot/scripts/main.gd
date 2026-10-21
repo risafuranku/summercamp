@@ -72,8 +72,8 @@ const BOOT_SCREEN_SCRIPT = preload("res://scripts/ui/boot_screen.gd")
 const PROFILES = preload("res://scripts/profiles.gd")
 ## The seed NEW CAMP asked for (0: a new one), used by the next generation.
 var _pending_world_seed := 0
-const MENU_THEME_PATH := "res://assets/sfx/ost/ambience3A.mp3"
-const MENU_THEME_VOLUME_DB := -5.0
+const MENU_THEME_PATH := "res://assets/music/title.mp3"
+const MENU_THEME_VOLUME_DB := -2.5
 const SAVE_VERSION := 3
 const AUTOSAVE_INTERVAL_SEC := 60.0
 const WINDOW_TITLE := "Cursed Camp Manager Simulator"
@@ -193,6 +193,8 @@ var _senses = THREAT_SENSES_SCRIPT.new()
 ## The night's director (scripts/night/night_director.gd) and its hands (director_effects.gd).
 var _director = preload("res://scripts/night/night_director.gd").new()
 var _director_fx: Node
+## The camp's own music, not the radio's (scripts/audio/music_director.gd).
+var _music_director: Node
 var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
@@ -1281,6 +1283,8 @@ func _process(delta: float) -> void:
 		_tick_active_enemy_brain(delta)
 	_update_corn_wading(delta)
 	_update_threat_senses(delta)
+	if _music_director != null:
+		_music_director.tick(delta)
 	_sync_hud_player_meters()
 	# Who is coming, at the gate, the day's and the night's jobs: on the HUD of both machines
 	# (the other's from the host's pulse).
@@ -3480,7 +3484,9 @@ func _apply_time_from_clock(force_interior_sync: bool = false, force_sky_snap: b
 	if _audio_manager != null and _audio_manager.has_method("refresh_ambient_audio"):
 		# Ambient windows (crickets, birds) depend on hour-of-day, not only day/evening/night state.
 		_audio_manager.refresh_ambient_audio(_time_of_day_hours, _gameplay_started)
-	if _audio_manager != null and _audio_manager.has_method("try_roll_evening_ambient_music") and _audio_manager.has_method("get_ambient_music_trigger_hour"):
+	# The evening's one old piece only where the camp's own music is missing.
+	var own_music: bool = _music_director != null and _music_director.has_music()
+	if not own_music and _audio_manager != null and _audio_manager.has_method("try_roll_evening_ambient_music") and _audio_manager.has_method("get_ambient_music_trigger_hour"):
 		if _time_of_day_hours >= _audio_manager.get_ambient_music_trigger_hour():
 			_audio_manager.try_roll_evening_ambient_music(_day_index, _time_of_day_string())
 	var env = world_environment.environment
@@ -3555,6 +3561,11 @@ func _setup_audio() -> void:
 	_world_3d.add_child(_audio_manager)
 	if _audio_manager.has_method("setup_audio"):
 		_audio_manager.setup_audio()
+	if _music_director == null or not is_instance_valid(_music_director):
+		_music_director = preload("res://scripts/audio/music_director.gd").new()
+		_music_director.name = "MusicDirector"
+		_music_director.main = self
+		add_child(_music_director)
 
 
 func _try_interact() -> void:
@@ -5054,6 +5065,10 @@ func _coop_sync_things() -> Dictionary:
 	var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
 	if trip != null and trip.has_method("coop_hamlet"):
 		out["hamlet"] = trip.coop_hamlet()
+	# The camp's music: the host's piece; the client's being out and about (for the host's
+	# choosing when a piece comes in).
+	if _music_director != null:
+		out["music"] = _music_director.coop_state()
 	return out
 
 
@@ -5085,6 +5100,10 @@ func coop_sync(kind: String, data: Array) -> void:
 		"radio":
 			if Coop.is_client() and bi != null and bi.has_method("coop_take_radio"):
 				bi.coop_take_radio(data[0])
+			return
+		"music":
+			if _music_director != null:
+				_music_director.coop_take(data[0])
 			return
 		"served":
 			if Coop.is_client():

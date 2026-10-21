@@ -80,11 +80,18 @@ const RADIO_INFRAVRANY_FILENAME := "song_infravrany.mp3"
 const RADIO_CURSED_INFRAVRANY_FILENAME := "song_cursedinfravrany.mp3"
 const RADIO_CURSED_INFRAVRANY_CHANCE: float = 0.1
 ## "Prani a pozdravy" opens with "it is just half past twelve": kept out of the shuffle, it
-## goes on air at 0:30 and only then, cutting in like the station's programme (the user
-## 20. 10.: it played at any hour of the night).
+## is the station's programme from 0:30, on the clock: on air only for as long as it runs
+## from 0:30 at the clock's pace, and tuned into mid-way at the point it has reached (the
+## user 21. 10.: "it played in the morning sometimes; it must never be heard at any other
+## time than it would be had it started at half past twelve"). Not after the night skip,
+## not after a load, not from the start at one o'clock.
 const RADIO_GREETINGS_FILENAME := "night_pranipozdravy.mp3"
 const RADIO_GREETINGS_PATH := "res://assets/sfx/radio/night_pranipozdravy.mp3"
-var _greet_prev_h := -1.0
+const RADIO_GREETINGS_HOUR := 0.5
+## Off the end by this much it is over (no cutting back in for its last seconds).
+const RADIO_GREETINGS_TAIL_SEC := 6.0
+## Further than this from where the clock says, it is put back there.
+const RADIO_GREETINGS_DRIFT_SEC := 3.0
 const RADIO_NIGHT_TRACK_WEIGHT_AT_NIGHT: int = 2
 const RADIO_PITCH_BASE: float = 0.97
 const RADIO_WOW_RATE_HZ: float = 0.34
@@ -3504,23 +3511,48 @@ func _tick_music_duck(delta: float) -> void:
 
 
 func _tick_radio_greetings() -> void:
-	var h := _hour_now()
-	var prev := _greet_prev_h
-	_greet_prev_h = h
-	if prev < 0.0 or not (prev < 0.5 and h >= 0.5 and h < 0.75):
+	# The host's (or a lone warden's) set: the other machine follows it (coop_take_radio).
+	if _radio_player == null or Coop.is_client():
 		return
-	if _radio_player == null or not _radio_power_on or Coop.is_client():
+	var on_air := _radio_last_played_path == RADIO_GREETINGS_PATH and _radio_player.playing
+	var at := _greetings_at(_hour_now())
+	if at < 0.0:
+		if on_air:
+			# Its time is over (the clock jumped past it: the night skip, a load).
+			_play_radio_next()
 		return
-	var s: AudioStream = _radio_stream_by_path.get(RADIO_GREETINGS_PATH, null)
-	if s == null and ResourceLoader.exists(RADIO_GREETINGS_PATH):
-		s = load(RADIO_GREETINGS_PATH)
-	if s == null:
+	if on_air:
+		if absf(_radio_player.get_playback_position() - at) > RADIO_GREETINGS_DRIFT_SEC:
+			_radio_player.seek(at)
+		return
+	var s := _greetings_stream()
+	if s == null or at > s.get_length() - RADIO_GREETINGS_TAIL_SEC:
 		return
 	_radio_current_track_is_night = true
 	_radio_player.stream = s
-	_radio_player.play()
+	_radio_player.play(at)
 	_radio_last_played_path = RADIO_GREETINGS_PATH
 	_radio_on_air("song", RADIO_GREETINGS_PATH)
+
+
+func _greetings_stream() -> AudioStream:
+	var s: AudioStream = _radio_stream_by_path.get(RADIO_GREETINGS_PATH, null)
+	if s == null and ResourceLoader.exists(RADIO_GREETINGS_PATH):
+		s = load(RADIO_GREETINGS_PATH)
+		_radio_stream_by_path[RADIO_GREETINGS_PATH] = s
+	return s
+
+
+## Seconds into the programme at `hour` had it gone on air at 0:30 (the clock's pace,
+## BalanceConfig.GAME_MINUTES_PER_SECOND); -1 outside it.
+func _greetings_at(hour: float) -> float:
+	if hour < RADIO_GREETINGS_HOUR:
+		return -1.0
+	var s := _greetings_stream()
+	if s == null:
+		return -1.0
+	var sec := (hour - RADIO_GREETINGS_HOUR) * 60.0 / BalanceConfig.GAME_MINUTES_PER_SECOND
+	return sec if sec < s.get_length() else -1.0
 
 
 func _try_play_station() -> bool:

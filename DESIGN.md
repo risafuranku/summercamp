@@ -1615,7 +1615,11 @@ in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD 
 - See-through things (breath, steam, smoke) are drawn as Build drew them: the whole
   sprite at one of a few fixed levels of see-through, never a screen door of dots.
 - Every sound effect is a recording (ElevenLabs); tones and cadences that must be exact
-  are cut from recordings by script. Only the radio's dread is layered in code.
+  are cut from recordings by script. Only the radio's dread is layered in code, and the
+  camp's own music is played by code: its songs (one waltz, made from one motif: a cheap
+  home keyboard's waltz preset and a harmonium, D Hungarian minor) come in now and then
+  while you are out and about, out of slow into their tempo like a carousel getting
+  going, and wind down the same way (`scripts/audio/music_director.gd`).
 
 ## 11. Open questions
 
