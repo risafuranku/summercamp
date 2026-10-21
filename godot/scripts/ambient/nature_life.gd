@@ -7,8 +7,8 @@ extends Node
 ##   - birds now and then in the trees by day (8:00-18:30), near the trees;
 ##   - grasshoppers in the meadow at the warm of the day (10:00-17:30), out in the open
 ##     away from the trees; fewer as the autumn goes on, none in the last third;
-##   - a woodpecker drumming in the forest 25-50 m off, a crow from a tree, ducks out on
-##     the lake when you are near the water, each now and then.
+##   - a crow from a tree, ducks out on the lake when you are near the water, each now
+##     and then (no woodpecker: the user 21. 10., "it sounds wrong").
 ## Rain and the storm drown it all and fog halves the birds. It is on the night insects'
 ## bus, so a presence hushes it like the crickets (audio_manager.set_insect_hush), and a
 ## room muffles it like the rest of the outside. Each machine hears its own.
@@ -127,8 +127,6 @@ func _one_shot(hour: float, weather: int, here: Vector3) -> void:
 	if weather >= 3 or hour < 6.0 or hour > 19.0:
 		return
 	var pick: Array = [["crow.mp3", 1.0]]
-	if hour >= 7.0 and hour < 17.0:
-		pick.append(["woodpecker_a.mp3" if _rng.randf() < 0.5 else "woodpecker_b.mp3", 1.2])
 	var near_lake := _lake_at != Vector3.INF and Vector2(_lake_at.x - here.x, _lake_at.z - here.z).length() < 60.0
 	if near_lake:
 		pick.append(["ducks_a.mp3" if _rng.randf() < 0.5 else "ducks_b.mp3", 2.0])
@@ -148,7 +146,7 @@ func _one_shot(hour: float, weather: int, here: Vector3) -> void:
 		at = _lake_at + Vector3(_rng.randf_range(-20.0, 20.0), 0.2, _rng.randf_range(10.0, 35.0))
 	else:
 		var a := _rng.randf() * TAU
-		var d := _rng.randf_range(25.0, 50.0) if file.begins_with("woodpecker") else _rng.randf_range(20.0, 40.0)
+		var d := _rng.randf_range(20.0, 40.0)
 		at = here + Vector3(cos(a), 0, sin(a)) * d + Vector3(0, 6.0, 0)
 	var s: AudioStreamPlayer3D = _shots[_next_shot]
 	_next_shot = (_next_shot + 1) % _shots.size()

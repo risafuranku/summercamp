@@ -26,7 +26,9 @@ const DUST_SHADER := preload("res://materials/breath_puff.gdshader")
 const SIZE := {"twig": 0.4, "straw": 0.34, "paper": 0.5, "wrapper": 0.17, "dust": 1.7}
 ## Which falls (heavy) and which bobs (light).
 const HEAVY := {"twig": 1.6, "paper": 0.5, "wrapper": 0.3, "straw": 0.4, "dust": 0.0}
-const GUST_SFX := ["res://assets/sfx/weather/gust_1.mp3", "res://assets/sfx/weather/gust_2.mp3", "res://assets/sfx/weather/gust_3.mp3"]
+## (gust_3, a short sharp whoosh past the ear, is gone: the user 21. 10., "now and then
+## a really bizarre sound".)
+const GUST_SFX := ["res://assets/sfx/weather/gust_1.mp3", "res://assets/sfx/weather/gust_2.mp3"]
 const STORM_GUST_SFX := "res://assets/sfx/weather/storm_gust.mp3"
 const CREAK_SFX := "res://assets/sfx/weather/tree_creak.mp3"
 ## Weather (weather_visuals WEATHER_*) where it is dry enough for dust and straw.

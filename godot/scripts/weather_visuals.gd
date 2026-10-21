@@ -487,7 +487,7 @@ func setup_weather_particles() -> void:
 	var nudge = load("res://scripts/ambient/nudge_props.gd").new()
 	nudge.player_getter = _player_getter
 	_world_3d.add_child(nudge)
-	# The country by the hour: the dawn chorus, birds, grasshoppers, a woodpecker, ducks
+	# The country by the hour: the dawn chorus, birds, grasshoppers, a crow, ducks
 	# (scripts/ambient/nature_life.gd).
 	var nature = load("res://scripts/ambient/nature_life.gd").new()
 	nature.player_getter = _player_getter
