@@ -46,10 +46,13 @@ const STYLES := {
 	"stalker": {"near": "eye_dot2", "mid": "eye_dot2", "far": "eye_dot2", "near_m": 4.0, "mid_m": 99.0,
 		"size": 0.05, "gap": 0.07, "color": Color(0.55, 0.95, 0.62), "blink": 5.0, "both": true, "blink_len": 0.5,
 		"flare_color": Color(0.85, 1.0, 0.85)},
-	# The Photographer: one eye, and it is the lens: a cold ring with a light in it.
-	"tourist": {"near": "eye_lens5", "mid": "eye_ring3", "far": "eye_dot2", "near_m": 9.0, "mid_m": 22.0,
-		"size": 0.09, "gap": 0.0, "single": true, "color": Color(0.62, 0.78, 0.95), "blink": 0.0, "glint": 6.0,
-		"flare_color": Color(0.92, 0.97, 1.0)},
+	# The Photographer: no eyes (his own lamp lights his face; the user 21. 10.: "why a
+	# ring over his face?"). The red lamp of his camera, a point where the camera is in
+	# each picture of him (his brain places it and blinks it); your torch on it, his lens
+	# throws it back white.
+	"tourist": {"near": "eye_dot2", "mid": "eye_dot2", "far": "eye_dot2", "near_m": 99.0, "mid_m": 99.0,
+		"size": 0.035, "gap": 0.0, "single": true, "color": Color(1.0, 0.14, 0.08), "blink": 0.0,
+		"flare_color": Color(0.95, 0.97, 1.0)},
 	# The Whistler: two thin pale slits under a hat brim, high in the trees where the
 	# tune was; they narrow and are gone.
 	"whistler": {"near": "eye_slit5", "mid": "eye_slit5", "far": "eye_slit", "near_m": 9.0, "mid_m": 22.0,

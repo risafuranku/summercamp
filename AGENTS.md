@@ -111,6 +111,7 @@ godot --headless --path godot res://tools/proto_check.tscn      # PROTOTYP 540: 
 godot --headless --path godot res://tools/podniky_check.tscn    # the businesses' polish: thirst, the Jednota's bag, the rush, corn drinks, the grill, the bufet, the deli, the Z mark
 python godot/tools/podniky_coop.py [OUT_DIR] # the four places for two: a drink, a bill, the slot, the grill, the bufet, the deli done on one machine and seen on the other
 python godot/tools/coop_check.py [OUT_DIR]   # co-op: two windowed copies (host + client on 127.0.0.1), camps compared; looks, a build, a room's jobs both ways, the boat
+python godot/tools/coop_photo.py [OUT_DIR]   # co-op Photographer on the joining warden: the white and their polaroid, the run at their back, at their window, the last picture: theirs alone
 ```
 
 - **Grep the smoke output for `SCRIPT ERROR` / `Parse Error`.** A tail of the log can hide
@@ -424,6 +425,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
     `flashlight_stutter`, `held_speed_mult` and `set_controls_enabled`;
   - a texture made in code that has to show on the other machine carries meta `fx_src`
     (`scripts/night/fx_tex.gd` makes and remakes it); an AtlasTexture travels as is;
+  - an enemy's own thing on their screen goes as `remote_fx.ext(what, args)` → `coop_night._on_ext`
+    (the Photographer's polaroid is taken there, of them: `polaroid.take_of`; his flash through
+    their window). Their health is their warden state `hp` (`_player_health()` reads it, so a
+    kill is played on the right one); their room's windows at night are `pw` (where, which
+    way, the curtain, how squarely they look at it), `tools/coop_photo.py` checks it;
   - `tools/coop_scare.py` checks it: a strike on either warden is on their screen and
     nowhere on the other's.
 - **Co-op till**: the other machine's money is the host's plus its own changes not yet

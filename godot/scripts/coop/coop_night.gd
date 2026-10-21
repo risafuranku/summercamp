@@ -766,9 +766,44 @@ func on_fx(method: String, args: Array) -> void:
 			_rfx_apply(method, a)
 
 
-## An enemy's own thing on this screen (the Photographer's pictures): its writer's.
-func _on_ext(_what: String, _args: Array) -> void:
-	pass
+## An enemy's own thing on this screen: the Photographer's (tourist_brain.gd) picture of
+## you, taken here of your own warden ([his lens, him in it or null, the last one, the
+## window's place or null]); his flash through one of your windows ([its place]).
+func _on_ext(what: String, args: Array) -> void:
+	match what:
+		"polaroid":
+			var pl = main.get("_player")
+			var world: Node3D = main.get("_world_3d")
+			if pl == null or world == null or args.size() < 4:
+				return
+			var w := {}
+			if args[3] != null:
+				w = _window_at(args[3])
+				if w.is_empty():
+					return
+			if _polaroid == null or not is_instance_valid(_polaroid):
+				_polaroid = POLAROID.new()
+				main.get_tree().root.add_child(_polaroid)
+			_polaroid.take_of(world.get_world_3d(), args[0], pl, args[1], w, bool(args[2]))
+		"window_flash":
+			var flash: Callable = _window_at(args[0]).get("flash", Callable())
+			if flash.is_valid():
+				flash.call()
+
+
+const POLAROID := preload("res://scripts/enemies/polaroid.gd")
+var _polaroid: CanvasLayer
+
+
+## The window of the room you are in at `at` (InteriorManager.photo_windows), {} none.
+func _window_at(at) -> Dictionary:
+	var im = main.get("_interior_manager")
+	if not (at is Vector3) or im == null or not im.has_method("photo_windows"):
+		return {}
+	for w in im.photo_windows():
+		if (w["pos"] as Vector3).distance_to(at) < 0.3:
+			return w
+	return {}
 
 
 ## remote_fx.pack backwards: a texture from fx_tex, "their camera" this warden's.

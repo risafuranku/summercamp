@@ -1,12 +1,5 @@
 extends Node
 
-## NOTE for the session writing the co-op scares (21. 10. 01:07): another session wrote
-## this file over yours by accident (it was untracked, so git has no copy). It keeps your
-## API (new(peer), view, view_off, move_to, play_2d + the nightmare_fx calls) and sends
-## each call with Coop.send_night_fx(method, args, peer) -> coop_night.on_fx(method, args)
-## on the other machine (look: unreliable). on_fx is not written; replace any of it with
-## your own design. Also added: nightmare_fx.white_blast (the Photographer's flash).
-
 ## The night's screen and ears of another warden (scripts/night/nightmare_fx.gd, on their
 ## machine), for an enemy brain on the host's that hunts their stand-in (coop_proxy.gd):
 ## every call goes over to them (Coop.send_night_fx) and is played there, on their screen

@@ -5373,6 +5373,17 @@ func coop_local_warden() -> Dictionary:
 	var room: Dictionary = _interior_manager.coop_room() if _interior_manager != null and _interior_manager.has_method("coop_room") else {}
 	if not room.is_empty():
 		s["room"] = room
+	# At night in a room: its windows (where in the camp, which way, the curtain, how
+	# squarely you look at it), for the host's Photographer to come to (tourist_brain.gd).
+	if bool(s["in"]) and _is_enemy_night_active() and _interior_manager != null and _interior_manager.has_method("photo_windows"):
+		var pw: Array = []
+		for w in _interior_manager.photo_windows():
+			pw.append([(w["pos"] as Vector3).snapped(Vector3.ONE * 0.01), (w["out"] as Vector3).snapped(Vector3.ONE * 0.01),
+				snappedf(float(w.get("open", 1.0)), 0.05), snappedf(float(w.get("facing", 0.0)), 0.05)])
+		if not pw.is_empty():
+			s["pw"] = pw
+	# Your health, for the host's enemies to know a hit will be your last (their kills).
+	s["hp"] = _player_health
 	# On a bus (one bus for both: town_trip.gd, bus_ride.gd).
 	var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
 	var bus: Dictionary = trip.coop_state() if trip != null and trip.has_method("coop_state") else {}

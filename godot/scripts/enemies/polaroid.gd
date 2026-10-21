@@ -68,6 +68,36 @@ func _ready() -> void:
 	add_child(_audio)
 
 
+## The picture of `player` (a warden: its Head/Camera3D) from his lens at `lens`, in
+## `world` (by tourist_brain.gd here; in co-op by coop_night.gd on the hunted warden's
+## own machine, of them): as he saw them, from behind or the side; through a window `w`
+## (photo_windows: its room's world, the glass, the eye in the room), them in their room
+## from the glass once the room's own flash has died down (else it is only white); `big`,
+## the last one: their face from right in front of it, looking at him.
+func take_of(world: World3D, lens: Vector3, player: Node3D, extra: Texture2D, w: Dictionary = {}, big := false) -> void:
+	var cam := player.get_node_or_null("Head/Camera3D") as Camera3D if player != null else null
+	if cam == null:
+		return
+	if w.get("room_world") != null:
+		var eye: Vector3 = w["eye"]
+		var glass: Vector3 = w["glass"]
+		var face := eye - glass
+		face.y = 0.0
+		var room_world: World3D = w["room_world"]
+		await get_tree().create_timer(0.7).timeout
+		take(room_world, glass + (eye - glass).normalized() * 0.3, eye + Vector3(0, -0.25, 0), Vector3(eye.x, eye.y - 1.55, eye.z), face.normalized(), extra)
+		return
+	if big:
+		var at := cam.global_position
+		var toward := lens - at
+		toward.y = 0.0
+		take(world, at + (lens - at).normalized() * 1.1, at + Vector3(0, -0.15, 0), player.global_position, toward.normalized(), null, true)
+		return
+	var fwd := -cam.global_transform.basis.z
+	fwd.y = 0.0
+	take(world, lens, cam.global_position + Vector3(0, -0.3, 0), player.global_position, fwd.normalized(), extra)
+
+
 ## Takes the picture: from `from` (his lens) at `target` (your head), in `world`; `you`
 ## stands your warden there for the frame (facing `face`); `extra` a Texture2D of him
 ## to stand right behind you in it (or null). `big`: the last one, full screen.

@@ -162,7 +162,11 @@ func _hurt(amount: int) -> void:
 
 ## The player's health now (main's `_player_health`; 100 where there is no main, as in
 ## the harnesses): a brain about to hit asks whether the hit kills, to play its kill.
+## Hunting another warden in co-op: theirs (their warden state "hp").
 func _player_health() -> int:
+	var peer := _quarry_peer()
+	if peer != 0:
+		return int(Coop.state_of(peer).get("hp", 100))
 	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
 	var h = scene.get("_player_health") if scene != null else null
 	return int(h) if h != null else 100
