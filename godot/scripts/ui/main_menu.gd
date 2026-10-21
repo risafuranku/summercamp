@@ -75,6 +75,9 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	{"id": "bus", "text": "Bus to Liblice", "sub": "Day, camp stop"},
 	# Not a night: every business and a full camp, to try the work (main._start_test_businesses).
 	{"id": "podniky", "text": "Businesses", "sub": "Day, a full camp"},
+	# Not a night: a day of the camp's best scenes for filming, L for the next
+	# (scripts/content_reel.gd).
+	{"id": "content", "text": "Content reel", "sub": "L: next scene"},
 ]
 
 var _scale: int = 3

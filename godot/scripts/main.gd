@@ -4273,6 +4273,9 @@ var _test_night := ""
 
 
 func _on_menu_test_night(enemy_id: String) -> void:
+	if enemy_id == "content":
+		await _start_content_reel()
+		return
 	if enemy_id == "bus":
 		await _start_test_bus()
 		return
@@ -4365,7 +4368,17 @@ func _start_test_bus() -> void:
 const TEST_BUSINESSES := "podniky"
 
 
-func _start_test_businesses() -> void:
+## The content reel (the title screen's L page): the businesses' camp, then a day of its
+## best scenes, L for the next (scripts/content_reel.gd).
+func _start_content_reel() -> void:
+	await _start_test_businesses(true)
+	var reel = load("res://scripts/content_reel.gd").new()
+	reel.name = "ContentReel"
+	get_tree().root.add_child(reel)
+	reel.start(self)
+
+
+func _start_test_businesses(quiet := false) -> void:
 	await _start_new_camp(true, TEST_BUSINESSES)
 	for _i in 60:
 		if not _menu_mode:
@@ -4415,7 +4428,7 @@ func _start_test_businesses() -> void:
 	if _player != null and is_instance_valid(_player) and grid_manager != null:
 		_player.global_position = grid_manager.grid_to_world(Vector2i(g.x, 5)) + Vector3(0, 0.2, 0)
 		_player.rotation.y = PI
-	if _hud_manager != null:
+	if _hud_manager != null and not quiet:
 		_hud_manager.push_status("Test: every business open and a full camp. The work is at their stations.", 2)
 
 
