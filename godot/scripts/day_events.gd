@@ -256,11 +256,11 @@ func import_state(data: Dictionary) -> void:
 			was_open[int(ev["id"])] = true
 	var incoming: Array = []
 	var ids := {}
-	for e in data.get("events", []):
 	# The rubbish whose sack is in your arms stays bagged here (carry.gd); any other "bagged"
 	# (a save, the host's pulse) is rubbish lying where it was.
 	var carry := get_tree().get_first_node_in_group("carry") if is_inside_tree() else null
 	var held_ev := int(carry.held.get("ev", -1)) if carry != null and str(carry.held.get("kind", "")) == "sack" else -1
+	for e in data.get("events", []):
 		if e is Dictionary:
 			var ev_in := (e as Dictionary).duplicate(true)
 			if int(ev_in["id"]) == held_ev:
@@ -595,12 +595,12 @@ func _close(ev: Dictionary, state: String, text: String) -> void:
 # ── the player at it ──────────────────────────────────────────────────────────
 
 func _update_target(delta: float, can_act: bool) -> void:
-	var cam := _camera()
 	# E let go (or nothing to work): the mouse is the eye's again.
 	if not (can_act and Input.is_action_pressed("interact")):
 		var pl2 = _main.get("_player") if _main != null else null
 		if pl2 != null and pl2.has_method("lock_look"):
 			pl2.lock_look("day_events", false)
+	var cam := _camera()
 	var best := -1
 	if can_act and cam != null:
 		var best_score := INF
@@ -651,9 +651,9 @@ func _update_target(delta: float, can_act: bool) -> void:
 		var hud = _hud()
 		if hud != null and hud.has_method("set_work_progress"):
 			hud.set_work_progress("SAWING" if str(ev["kind"]) == "tree" else "BAGGING RUBBISH", _work)
-		if _work >= 1.0:
 			if hud.has_method("set_work_gesture"):
 				hud.set_work_gesture(_gesture.offset / 3.6, _gesture.kind if _gesture.idle > 2.4 else "", strokes > 0)
+		if _work >= 1.0:
 			if not (str(ev["kind"]) == "litter" and _sack_to_carry(ev)):
 				_resolve(ev)
 	elif _work > 0.0:
@@ -661,7 +661,6 @@ func _update_target(delta: float, can_act: bool) -> void:
 		_clear_work()
 
 
-## Co-op: what your hands are on now ("saw" a branch, "bag" the rubbish, "" nothing).
 const GESTURE = preload("res://scripts/ui/gesture.gd")
 var _gesture = GESTURE.new()
 
@@ -689,6 +688,7 @@ func sack_binned(id: int) -> void:
 		_resolve(ev)
 
 
+## Co-op: what your hands are on now ("saw" a branch, "bag" the rubbish, "" nothing).
 func coop_work() -> String:
 	if _work <= 0.0:
 		return ""

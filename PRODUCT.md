@@ -184,7 +184,6 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | The torch | ✅ | a weak narrow beam with a dim halo that trails a turn a beat behind; the hand holding it low at the bottom right (Grok sprite, the torch pointing into the scene); in a dark room (lights off, no power, a tent at night) it comes on by itself and shines where the cursor points (`scripts/ui/interior_torch.gd`) |
 | Cabin windows | ✅ | the room matches the cabin outside (front door and windows, back window, the side window or the bathroom door by level); the windows look out into the real camp (off-axis cameras) |
 
-### Atmosphere and the uncanny
 ### The body in the world (2026-10-21, DESIGN §9c)
 
 | Feature | State | Notes |
@@ -199,6 +198,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Work by gesture | 🟡 | rooms' jobs (sweep, scrub, pick, bed), repairs on R (round), sawing and bagging on E; the ghost hand after 2.4 s; the toilet scrub and the pipes keep their own minigames |
 | Doors without a seam | 🟡 | the hand on the handle, the leaf swings, you step into the doorway and the room takes up from its door (no frozen frame or dither); the room is not yet seen through the open door (a portal) |
 
+### Atmosphere and the uncanny
 
 | Feature | State | Notes |
 | --- | --- | --- |
