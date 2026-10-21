@@ -599,6 +599,8 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
   a compass (click: north up) where the 2D map has the building's turn, a north-up
   minimap. Half the PC's pixels through the Build palette, the ground's fog thinned,
   below the clouds. The PC remembers which view was left.
+  The god cursor (§5k) stages nothing while it shows: what is built is there at once, and
+  what the 2D map left waiting comes down when the view opens.
 - **Paths are one surface** (the user, 21. 10.: "build paths 2x4 and it is one big path,
   in the Builder and in the camp"): a path tile is composed from its eight neighbours
   (`scripts/path_tiles.gd`), the gravel across every side and into every corner the

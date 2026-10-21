@@ -267,6 +267,12 @@ func _land() -> void:
 	_t = 0.0
 	on = true
 	panel.call("set_3d_layers", true)
+	# The god cursor (scripts/god/god_cursor.gd) keeps what the 2D map built hidden till the
+	# warden stands up and drops it in from the sky; here the camp is shown as it is.
+	var main := get_tree().current_scene if get_tree() != null else null
+	var gc = main.get("_god_cursor") if main != null else null
+	if gc != null and is_instance_valid(gc) and gc.has_method("finish_all"):
+		gc.finish_all()
 	_f = _to["f"]
 	_ft = _f
 	_yaw = float(_to["yaw"])

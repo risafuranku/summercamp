@@ -151,12 +151,26 @@ func setup(main_node: Node, grid) -> void:
 ## is the program on its screen: it runs on behind the others, visible in its own tree,
 ## so that alone is not enough), another warden's, or forced.
 func _staged() -> bool:
-	if debug_force or from_peer:
+	if debug_force:
+		return true
+	# The Builder showing the camp in 3D (scripts/builder/map3d.gd): what is built is
+	# seen there at once (the user, 21. 10.: "the 3D map does not show my changes live").
+	if live_3d():
+		return false
+	if from_peer:
 		return true
 	if main == null or not main.has_method("debug_builder_map") or not _holding():
 		return false
 	var m = main.debug_builder_map()
 	return m != null and (m as Control).is_visible_in_tree()
+
+
+func live_3d() -> bool:
+	if main == null or not main.has_method("debug_builder_map"):
+		return false
+	var m = main.debug_builder_map()
+	var v = m.get("map3d") if m != null else null
+	return v != null and bool(v.on)
 
 
 func _structure_at(at: Vector2i) -> Node3D:

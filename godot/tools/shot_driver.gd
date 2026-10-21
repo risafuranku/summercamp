@@ -352,6 +352,27 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._open_category('fun')"], ["wait", 0.3], ["crt_screen", "c3_builder_fun"],
 		["hours", 9.4], ["wait", 1.5], ["crt_screen", "c4_builder_dusk"],
 	],
+	# Builds while Builder shows the 3D view: they must be there at once.
+	"b3dlive": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 9000], ["clear", 7, 2, 8, 8],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["signal", "program_installed", "builder"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior._crt_ui.set_meta('builder_nagged', true)"],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('builder') != null"], ["wait", 3.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module.toggle_3d()"], ["wait", 2.0], ["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d.center_on(Vector2(10, 5))"], ["wait", 1.2],
+		["crt_screen", "l0_empty"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel._send_build_request('cabin_1', Vector2i(8, 3), 0)"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel._send_build_request('tent_1', Vector2i(11, 4), 0)"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel._send_build_request('path', Vector2i(10, 6), 0)"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel._send_build_request('path', Vector2i(11, 6), 0)"],
+		["wait", 0.3], ["crt_screen", "l1_just_built"], ["wait", 3.0], ["crt_screen", "l2_after_3s"],
+		["eval", "[building_manager.get_node('Structures').get_child_count(), grid_manager.get_tile(Vector2i(8, 3)).occupant, grid_manager.get_tile(Vector2i(11, 4)).occupant]"],
+		["eval", "[grid_manager.get_tile(Vector2i(8, 3)).occupant.visible, grid_manager.get_tile(Vector2i(8, 3)).occupant.is_visible_in_tree(), grid_manager.get_tile(Vector2i(8, 3)).occupant.global_position, grid_manager.get_tile(Vector2i(8, 3)).occupant.get_world_3d() == _world_3d.get_world_3d()]"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d._vp.world_3d == _world_3d.get_world_3d()"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d.toggle_3d() if false else 0"],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["topdown", 10, 4, 30, 60], ["wait", 0.6], ["shot", "l3_world_above"],
+	],
 	# Paths joined (path_tiles.gd): a 2x4 yard, a road off it with a turn, a stub, one alone;
 	# the camp from above, Builder's 2D map, its 3D view.
 	"pathyard": [
