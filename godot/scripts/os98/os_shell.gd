@@ -25,6 +25,7 @@ extends Control
 signal desktop_ready
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const BUILDER_WARMUP = preload("res://scripts/builder/warmup.gd")
 const WINDOW = preload("res://scripts/os98/os_window.gd")
 const PAGE = preload("res://scripts/os98/os_page.gd")
 const FILES = preload("res://scripts/os98/os_files.gd")
@@ -1227,7 +1228,7 @@ func _select_tab_on(id: String, scr: int) -> void:
 	pointer_hand = false
 	# The program comes up from its taskbar button (outlines over it; it never waits).
 	var buttons: Dictionary = _tab_buttons2 if scr == 1 else _tab_buttons
-	if cur != "" and _extras != null and buttons.has(id):
+	if _extras != null and buttons.has(id):
 		var b: Control = buttons[id]
 		_extras.zoom(Rect2(b.global_position - global_position, b.size), Rect2(screen_origin(scr), DESKTOP_SIZE))
 	_refresh_page(id)
@@ -1236,6 +1237,28 @@ func _select_tab_on(id: String, scr: int) -> void:
 		app.shown()
 	if swap:
 		_refresh_page(tab_on(1 - scr))
+
+
+## The program on screen `scr` goes down into its taskbar button (outlines from the
+## screen to it) and the wallpaper shows; it runs on behind, its button lifts it back.
+func _minimize_on(scr: int) -> void:
+	var cur := tab_on(scr)
+	if cur == "" or _state != Boot.DESKTOP:
+		return
+	if scr == 1:
+		_last_tab2 = cur
+		_tab2 = ""
+	else:
+		_last_tab = cur
+		_tab = ""
+	var oa = app_of(cur)
+	if oa != null and oa.has_method("page_hidden"):
+		oa.page_hidden()
+	_place_pages()
+	var buttons: Dictionary = _tab_buttons2 if scr == 1 else _tab_buttons
+	if _extras != null and buttons.has(cur):
+		var b: Control = buttons[cur]
+		_extras.zoom(Rect2(screen_origin(scr), DESKTOP_SIZE), Rect2(b.global_position - global_position, b.size))
 
 
 func _refresh_page(id: String) -> void:
@@ -1473,6 +1496,9 @@ func _flash_dialog(w: Control) -> void:
 # ── boot ─────────────────────────────────────────────────────────────────────
 
 func _start_boot() -> void:
+	# Builder's scripts and art read in the background while it boots (its first click
+	# took seconds: scripts/builder/warmup.gd).
+	BUILDER_WARMUP.start()
 	# The tube first: the thunk of the degauss coil, a line, then the picture.
 	_state = Boot.WARMUP
 	_boot_t = 0.0
@@ -1495,6 +1521,7 @@ var _blacked_out := false
 
 
 func _process(delta: float) -> void:
+	BUILDER_WARMUP.poll()
 	_power_t -= delta
 	if _power_t <= 0.0:
 		_power_t = 0.25
@@ -1908,9 +1935,13 @@ func _make_tab_button(i: int, pos: Vector2, sz: Vector2, scr := 0) -> Control:
 	c.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.pressed:
 			_close_start_menu()
-			if tab_on(scr) != id:
-				play("click", -12.0)
-			_select_tab_on(id, scr)
+			play("click", -12.0)
+			# The one on the screen: down to its button, the desktop shows (as Windows
+			# did; the user, 21. 10.). Clicked again, it comes back.
+			if tab_on(scr) == id:
+				_minimize_on(scr)
+			else:
+				_select_tab_on(id, scr)
 			c.accept_event()
 	)
 	var tex := icon(str(TABS[i][2]), false)

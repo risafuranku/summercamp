@@ -1347,6 +1347,9 @@ func _build_crt_viewport() -> void:
 	_crt_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_crt_viewport.handle_input_locally = true
 	_crt_viewport.gui_disable_input = false
+	# Menus, submenus and tooltips open inside the monitor (not embedded they went to the
+	# game's own window at the screen's coordinates: off the monitor, the user 21. 10.).
+	_crt_viewport.gui_embed_subwindows = true
 	add_child(_crt_viewport)
 
 	_crt_ui = CRT_UI_SCENE.new()

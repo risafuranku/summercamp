@@ -365,6 +365,19 @@ const SCENARIOS := {
 		["eval", "debug_camera.look_at(_god_cursor.get('_pos') + Vector3(0, -12, 0), Vector3(0, 1, 0))"], ["shot", "k3_other"],
 		["topdown", 10, 5, 75, 60], ["wait", 0.3], ["shot", "k4_above"],
 	],
+	# The PC's fixes: Builder's first open (warmed during the boot), its Help menu inside the
+	# monitor, the program down to its taskbar button and back.
+	"pcfix": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["signal", "program_installed", "builder"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior._crt_ui.set_meta('builder_nagged', true)"],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('builder') != null"], ["wait", 3.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module.find_children('*', 'MenuButton', true, false)[2].show_popup()"], ["wait", 0.4], ["crt_screen", "f0_help_menu"], ["shot", "f0b_help_menu_room"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module.find_children('*', 'MenuButton', true, false)[2].get_popup().hide()"],
+		["eval", "_interior_manager._building_interior._crt_ui._minimize_on(0)"], ["wait", 0.15], ["crt_screen", "f1_minimizing"], ["wait", 0.6], ["crt_screen", "f2_desktop"],
+		["eval", "_interior_manager._building_interior._crt_ui._select_tab_on('builder', 0)"], ["wait", 0.6], ["crt_screen", "f3_back"],
+	],
 	# The camera with legs (WASD) and E at the desk; the 3D view free over the whole map.
 	"walkcam": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
