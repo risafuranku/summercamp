@@ -581,6 +581,29 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
 - **A demolition leaves rubble.** A heap of planks, bricks and tin where it stood, a wisp
   of smoke, the collapse's sound, gone after four seconds. The refund and the bulldozer's
   fee pop up side by side.
+- **The hidden 3D view** (the user, 21. 10.: "a lightly hidden but in-sight button: the 2D
+  isometric sprites switch to a normal bird's-eye view, a strategy in 3D; the Builder keeps
+  all it does"). The status bar's corner grip is a little cube of grip dots, no tooltip;
+  a click and the map becomes the camp's own world from a strategy camera
+  (`scripts/builder/map3d.gd`). The way in starts from the 2D map's own angle and scale
+  (30 degrees down, the quarter it was turned, a long lens) and opens into the camera
+  like a dolly zoom, so the sprites become the models they were drawn from; the way out
+  lands on the nearest quarter and the 2D map picks up there. Every tool works the same
+  (the map panel keeps them; only point and cell go through the camera): the building in
+  hand is a blueprint hologram of its real model in the Build engine's two
+  translucencies, rising from the ground, plates on the ground for its footprint, the
+  tiles round the pointer, a path or a row being dragged, the bulldozer's box, the card's
+  building, the overlays; what you build rises where it lands; the tags, pops, thoughts
+  and lodging names in the PC's pixels. Right drag pans (the ground stays under the
+  pointer), middle drag turns and tilts, the wheel zooms to the pointer, T a quarter;
+  a compass (click: north up) where the 2D map has the building's turn, a north-up
+  minimap. Half the PC's pixels through the Build palette, the ground's fog thinned,
+  below the clouds. The PC remembers which view was left.
+- **Paths are one surface** (the user, 21. 10.: "build paths 2x4 and it is one big path,
+  in the Builder and in the camp"): a path tile is composed from its eight neighbours
+  (`scripts/path_tiles.gd`), the gravel across every side and into every corner the
+  path fills, rounded where it ends, a worn rim, the grass see-through to the camp's
+  ground; the camp and the 2D map draw the same tiles.
 - **Money you can see.** Coins fly from the building that earned them to the cash: from a
   room when its guests pay, from a business when its takings rise. The cash in the
   toolbar is an odometer: the sum rolls to the camp's money, its wheels turning over one

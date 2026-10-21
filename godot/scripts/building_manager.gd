@@ -5,26 +5,10 @@ extends Node3D
 @export var cabin_height: float = 2.8
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
+const PATH_TILES = preload("res://scripts/path_tiles.gd")
 const RECEPTION_LAYOUT = preload("res://scripts/reception/reception_layout.gd")
 const LAMP_SPOT = preload("res://scripts/lamp_spot.gd")
 const PSX_TEXTURE_DEFAULT_UV := Vector2(1.35, 1.35)
-const PATH_TEXTURES := {
-	"straight": "res://assets/textury/redneck/paths/gravel.png",
-	"turn": "res://assets/textury/redneck/paths/gravelturn.png",
-	"t_junction": "res://assets/textury/redneck/paths/gravelt.png",
-	"cross": "res://assets/textury/redneck/paths/gravelcross.png",
-	"dead_end": "res://assets/textury/redneck/paths/gravelend.png",
-	"solo": "res://assets/textury/redneck/paths/graveldriveway.png",
-}
-const PATH_DIR_N := 1
-const PATH_DIR_E := 2
-const PATH_DIR_S := 4
-const PATH_DIR_W := 8
-const PATH_MASK_STRAIGHT := PATH_DIR_E | PATH_DIR_W
-const PATH_MASK_TURN := PATH_DIR_W | PATH_DIR_S
-const PATH_MASK_T_JUNCTION := PATH_DIR_W | PATH_DIR_E | PATH_DIR_S
-const PATH_MASK_DEAD_END := PATH_DIR_E
-const PATH_MASK_CROSS := PATH_DIR_N | PATH_DIR_E | PATH_DIR_S | PATH_DIR_W
 const PATH_MESH_TILE_COVERAGE := 1.0
 const PATH_MESH_Y_OFFSET := 0.06
 const PATH_ALPHA_SCISSOR_THRESHOLD := 0.33
@@ -35,7 +19,6 @@ var _grid_manager
 var _structures_root: Node3D
 var _texture_style
 var _models = null
-var _path_texture_cache: Dictionary = {}
 var _lamps_active: bool = false
 var _lamp_runtime: Dictionary = {}
 var _lamp_rng := RandomNumberGenerator.new()
@@ -660,7 +643,7 @@ func place_path_at(origin: Vector2i, permanent := false) -> bool:
 	plane.size = Vector2(ts * PATH_MESH_TILE_COVERAGE, ts * PATH_MESH_TILE_COVERAGE)
 	mesh.mesh = plane
 	mesh.position = Vector3(0.0, PATH_MESH_Y_OFFSET, 0.0)
-	mesh.material_override = _make_path_surface_material(_load_path_texture(str(PATH_TEXTURES.get("straight", ""))))
+	mesh.material_override = _make_path_surface_material(PATH_TILES.texture(0))
 	path_node.add_child(mesh)
 
 	# No collider needed for flat path — walkable.
@@ -1569,7 +1552,8 @@ func remove_structure(node: Node) -> bool:
 
 func _refresh_path_neighbors(origin: Vector2i) -> void:
 	_refresh_path_visual_at(origin)
-	for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+	# All eight: a corner's tile changes with it (scripts/path_tiles.gd).
+	for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
 		_refresh_path_visual_at(origin + offset)
 
 
@@ -1580,109 +1564,11 @@ func _refresh_path_visual_at(coord: Vector2i) -> void:
 	var path_mesh = path_root.get_node_or_null("PathMesh") as MeshInstance3D
 	if path_mesh == null:
 		return
-	var style = _resolve_path_style(coord)
-	var texture_path = str(style.get("texture_path", ""))
-	var rotation_steps = int(style.get("rotation_steps", 0))
-	path_mesh.material_override = _make_path_surface_material(_load_path_texture(texture_path))
-	path_root.rotation_degrees = Vector3(0.0, float(rotation_steps) * 90.0, 0.0)
-
-
-func _resolve_path_style(coord: Vector2i) -> Dictionary:
-	var mask = 0
-	if _is_path_at(coord + Vector2i(0, -1)):
-		mask |= PATH_DIR_N
-	if _is_path_at(coord + Vector2i(1, 0)):
-		mask |= PATH_DIR_E
-	if _is_path_at(coord + Vector2i(0, 1)):
-		mask |= PATH_DIR_S
-	if _is_path_at(coord + Vector2i(-1, 0)):
-		mask |= PATH_DIR_W
-
-	var connection_count = _count_path_connections(mask)
-	var style_key = "straight"
-	var target_mask = mask
-
-	match connection_count:
-		4:
-			style_key = "cross"
-			target_mask = PATH_MASK_CROSS
-		3:
-			style_key = "t_junction"
-		2:
-			if mask == (PATH_DIR_N | PATH_DIR_S) or mask == (PATH_DIR_E | PATH_DIR_W):
-				style_key = "straight"
-			else:
-				style_key = "turn"
-		1:
-			style_key = "dead_end"
-		0:
-			style_key = "solo"
-			target_mask = PATH_MASK_DEAD_END
-		_:
-			style_key = "straight"
-
-	var base_mask = _path_base_mask(style_key)
-	var rotation_steps = _find_path_rotation_steps(base_mask, target_mask)
-	var texture_path = str(PATH_TEXTURES.get(style_key, PATH_TEXTURES["straight"]))
-	return {
-		"texture_path": texture_path,
-		"rotation_steps": rotation_steps,
-	}
-
-
-func _count_path_connections(mask: int) -> int:
-	var count = 0
-	if (mask & PATH_DIR_N) != 0:
-		count += 1
-	if (mask & PATH_DIR_E) != 0:
-		count += 1
-	if (mask & PATH_DIR_S) != 0:
-		count += 1
-	if (mask & PATH_DIR_W) != 0:
-		count += 1
-	return count
-
-
-func _path_base_mask(style_key: String) -> int:
-	match style_key:
-		"cross":
-			return PATH_MASK_CROSS
-		"t_junction":
-			return PATH_MASK_T_JUNCTION
-		"turn":
-			return PATH_MASK_TURN
-		"dead_end":
-			return PATH_MASK_DEAD_END
-		"solo":
-			return PATH_MASK_DEAD_END
-		"straight":
-			return PATH_MASK_STRAIGHT
-		_:
-			return PATH_MASK_STRAIGHT
-
-
-func _find_path_rotation_steps(base_mask: int, target_mask: int) -> int:
-	for step in range(4):
-		if _rotate_path_mask_ccw(base_mask, step) == target_mask:
-			return step
-	return 0
-
-
-func _rotate_path_mask_ccw(mask: int, steps: int) -> int:
-	var rotated = mask
-	var safe_steps = wrapi(steps, 0, 4)
-	for _i in range(safe_steps):
-		var next_mask = 0
-		if (rotated & PATH_DIR_E) != 0:
-			next_mask |= PATH_DIR_N
-		if (rotated & PATH_DIR_S) != 0:
-			next_mask |= PATH_DIR_E
-		if (rotated & PATH_DIR_W) != 0:
-			next_mask |= PATH_DIR_S
-		if (rotated & PATH_DIR_N) != 0:
-			next_mask |= PATH_DIR_W
-		rotated = next_mask
-	return rotated
+	# Composed from its eight neighbours: a block of paths is one gravel yard, the grass
+	# round it the camp's own ground.
+	var mask := PATH_TILES.mask_at(coord, Callable(self, "_is_path_at"))
+	path_mesh.material_override = _make_path_surface_material(PATH_TILES.texture(mask))
+	path_root.rotation_degrees = Vector3.ZERO
 
 
 func _is_path_at(coord: Vector2i) -> bool:
@@ -1703,21 +1589,6 @@ func _get_path_root_at(coord: Vector2i) -> Node3D:
 	if str(root.get_meta("building_type", "")) == "path":
 		return root
 	return null
-
-
-func _load_path_texture(texture_path: String) -> Texture2D:
-	if texture_path == "":
-		return null
-	if _path_texture_cache.has(texture_path):
-		return _path_texture_cache[texture_path] as Texture2D
-	var tex = load(texture_path) as Texture2D
-	if tex == null:
-		var image = Image.new()
-		var abs_path = ProjectSettings.globalize_path(texture_path)
-		if FileAccess.file_exists(abs_path) and image.load(abs_path) == OK and not image.is_empty():
-			tex = ImageTexture.create_from_image(image)
-	_path_texture_cache[texture_path] = tex
-	return tex
 
 
 func _make_path_surface_material(albedo_tex: Texture2D) -> StandardMaterial3D:

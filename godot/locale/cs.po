@@ -23941,3 +23941,19 @@ msgstr "Den, plný kemp"
 #: scripts/main.gd
 msgid "Test: every business open and a full camp. The work is at their stations."
 msgstr "Test: všechny podniky otevřené a plný kemp. Práce je u jejich stanovišť."
+
+#: scripts/builder/map3d.gd
+msgid "%dx%d  nothing to clear"
+msgstr "%dx%d  nic k odklizení"
+
+#: scripts/builder/map3d.gd
+msgid "%dx%d  clear %d  $%d"
+msgstr "%dx%d  odklidit %d  $%d"
+
+#: scripts/builder/map3d.gd
+msgid "%d tiles  $%d"
+msgstr "%d {dlaždice|dlaždice|dlaždic}  $%d"
+
+#: scripts/builder/map3d.gd
+msgid "%d tiles  $%d - money for %d"
+msgstr "%d {dlaždice|dlaždice|dlaždic}  $%d - peníze na %d"

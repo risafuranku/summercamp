@@ -539,18 +539,66 @@ func _roads() -> void:
 	var paint := _mat("", Color(0.9, 0.88, 0.8))
 	var rank := {"primary": 0.075, "secondary": 0.07, "tertiary": 0.066, "unclassified": 0.062, "residential": 0.058,
 		"living_street": 0.056, "service": 0.052, "track": 0.048, "footway": 0.044, "path": 0.042, "cycleway": 0.044, "steps": 0.044, "pedestrian": 0.05}
+	# Nothing real inside the camp's fence: a field track of the map ran straight across
+	# it, a dirt road through the tents the Builder knew nothing of (the user, 21. 10.).
+	var camp := _camp_map_rect()
 	for r in _data.get("roads", []):
-		var line := GEO.pts(r["p"])
-		if line.size() < 2:
-			continue
 		var c := str(r["c"])
 		var y := float(rank.get(c, 0.05))
 		var w := float(r["w"])
 		var dirt := int(r.get("d", 0)) == 1
-		_strip(_bag(bags, "dust" if dirt else "asphalt", dust if dirt else asphalt), line, w, y, w * 1.4)
-		if c == "primary":
-			_road_lines(_bag(bags, "paint", paint), line, w, y + 0.004)
+		for line in _outside(GEO.pts(r["p"]), camp.grow(w * 0.7)):
+			if line.size() < 2:
+				continue
+			_strip(_bag(bags, "dust" if dirt else "asphalt", dust if dirt else asphalt), line, w, y, w * 1.4)
+			if c == "primary":
+				_road_lines(_bag(bags, "paint", paint), line, w, y + 0.004)
 	_bags_to(self, bags)
+
+
+## The pieces of a line outside `rect` (each segment cut where it crosses the edge).
+func _outside(line: PackedVector2Array, rect: Rect2) -> Array:
+	var out: Array = []
+	var cur := PackedVector2Array()
+	for i in line.size() - 1:
+		var a := line[i]
+		var b := line[i + 1]
+		# Where the segment is inside: t0..t1 (Liang-Barsky), or none.
+		var t0 := 0.0
+		var t1 := 1.0
+		var d := b - a
+		var hit := true
+		for k in 4:
+			var p: float = [-d.x, d.x, -d.y, d.y][k]
+			var q: float = [a.x - rect.position.x, rect.end.x - a.x, a.y - rect.position.y, rect.end.y - a.y][k]
+			if absf(p) < 1e-6:
+				if q < 0.0:
+					hit = false
+					break
+			else:
+				var t := q / p
+				if p < 0.0:
+					t0 = maxf(t0, t)
+				else:
+					t1 = minf(t1, t)
+		if hit and t0 < t1:
+			if t0 > 0.0:
+				if cur.is_empty():
+					cur.append(a)
+				cur.append(a + d * t0)
+			if cur.size() >= 2:
+				out.append(cur)
+			cur = PackedVector2Array()
+			if t1 < 1.0:
+				cur.append(a + d * t1)
+				cur.append(b)
+		else:
+			if cur.is_empty():
+				cur.append(a)
+			cur.append(b)
+	if cur.size() >= 2:
+		out.append(cur)
+	return out
 
 
 ## Road 12's paint: a dashed line in the middle, a line along each edge.

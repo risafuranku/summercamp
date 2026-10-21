@@ -20,6 +20,7 @@ signal splash_finished
 const T = preload("res://scripts/os98/os_theme.gd")
 const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const MAP_PANEL_SCRIPT = preload("res://scripts/crt_map_panel.gd")
+const MAP3D_SCRIPT = preload("res://scripts/builder/map3d.gd")
 const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
 ## Keys (the panel's 1-9 are the computer's tabs; S stands you up, D leans you out).
 const CATEGORY_KEYS := {KEY_F1: "housing", KEY_F2: "services", KEY_F3: "fun", KEY_F4: "decor", KEY_F5: "utilities"}
@@ -127,6 +128,10 @@ const SPLASH_LINES := ["Reading the site plan...", "Counting the trees...", "Mea
 var _grid_manager
 var _building_manager
 var _map_panel: Control
+var _map3d                    # the hidden 3D view (scripts/builder/map3d.gd)
+var _grip: Control            # its button: the status bar's corner grip
+var _grip_hover := false
+var _restore_3d := true
 var _toolbar: Control
 var _catalogue: Control
 var _cards: HBoxContainer
@@ -249,6 +254,10 @@ func _build_ui() -> void:
 	_map_panel.hover_info.connect(func(t: String): _status_tile.text = t)
 	_map_panel.building_clicked.connect(_on_building_clicked)
 	_map_panel.guest_clicked.connect(_on_guest_clicked)
+	_map3d = MAP3D_SCRIPT.new()
+	_map_panel.add_child(_map3d)
+	_map_panel.map3d = _map3d
+	_map3d.left_3d.connect(func(): _grip.queue_redraw())
 	if EventBus.has_signal("BuildConfirmed"):
 		EventBus.BuildConfirmed.connect(_on_build_for_nag)
 	_build_status()
@@ -300,9 +309,10 @@ func _layout() -> void:
 	bar.position = Vector2(0, size.y - 18)
 	bar.size = Vector2(size.x, 18)
 	var w := size.x
-	_status_msg.get_parent().size = Vector2(w - 290, 18)
-	_status_tile.get_parent().position = Vector2(w - 288, 0)
-	_status_cost.get_parent().position = Vector2(w - 110, 0)
+	_status_msg.get_parent().size = Vector2(w - 306, 18)
+	_status_tile.get_parent().position = Vector2(w - 304, 0)
+	_status_cost.get_parent().position = Vector2(w - 126, 0)
+	_grip.position = Vector2(w - 17, 1)
 	if _info != null:
 		_info.position = Vector2(well.position.x + 8, well.position.y + well.size.y - _info.size.y - 8)
 	if _inspect != null:
@@ -584,6 +594,78 @@ func _build_status() -> void:
 	_status_tile = _status_cell(bar, Vector2(0, 0), 176)
 	_status_cost = _status_cell(bar, Vector2(0, 0), 108)
 	_status_msg.text = "Ready"
+	_build_grip(bar)
+
+
+## The status bar's corner grip, as every window of 1998 had one; its dots make a little
+## cube, and a click on it turns the map into the camp in 3D (and back). No tooltip.
+func _build_grip(bar: Control) -> void:
+	_grip = Control.new()
+	_grip.name = "Grip"
+	_grip.size = Vector2(16, 16)
+	_grip.mouse_filter = Control.MOUSE_FILTER_STOP
+	_grip.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_grip.draw.connect(_draw_grip)
+	_grip.mouse_entered.connect(func():
+		_grip_hover = true
+		_grip.queue_redraw())
+	_grip.mouse_exited.connect(func():
+		_grip_hover = false
+		_grip.queue_redraw())
+	_grip.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_grip.accept_event()
+			toggle_3d())
+	bar.add_child(_grip)
+
+
+func _draw_grip() -> void:
+	var lit: bool = _map3d != null and (_map3d.on or _map3d.busy())
+	if _grip_hover or lit:
+		_grip.draw_style_box(T.box("well" if lit else "thin_raised", T.FACE, Vector4.ZERO), Rect2(Vector2.ZERO, _grip.size))
+	# A cube's edges in the size grip's embossed dots (a light pixel, its shadow under
+	# it); on, its faces lit blue.
+	var o := Vector2(2, 1)
+	var top := Vector2(6, 1)
+	var ul := Vector2(1, 4)
+	var ur := Vector2(11, 4)
+	var mid := Vector2(6, 7)
+	var bl := Vector2(1, 10)
+	var br := Vector2(11, 10)
+	var bot := Vector2(6, 13)
+	if lit:
+		_grip.draw_colored_polygon(PackedVector2Array([o + top, o + ur, o + mid, o + ul]), Color8(150, 200, 255))
+		_grip.draw_colored_polygon(PackedVector2Array([o + ul, o + mid, o + bot, o + bl]), Color8(70, 120, 200))
+		_grip.draw_colored_polygon(PackedVector2Array([o + mid, o + ur, o + br, o + bot]), Color8(30, 60, 130))
+	var hi := Color8(255, 255, 255)
+	var lo := Color8(10, 25, 70) if lit else Color8(128, 128, 128)
+	for e in [[top, ul], [top, ur], [ul, mid], [ur, mid], [ul, bl], [ur, br], [mid, bot], [bl, bot], [br, bot]]:
+		var a: Vector2 = e[0]
+		var b: Vector2 = e[1]
+		var n := int(maxf(absf(b.x - a.x), absf(b.y - a.y)))
+		for k in range(0, n + 1, 2):
+			var q := (o + a.lerp(b, float(k) / float(maxi(1, n)))).round()
+			_grip.draw_rect(Rect2(q + Vector2.ONE, Vector2.ONE), lo)
+			_grip.draw_rect(Rect2(q, Vector2.ONE), hi)
+
+
+## The map between the 2D sprites and the camp's own 3D world; the PC remembers which.
+func toggle_3d() -> void:
+	if _map3d == null or _map3d.busy():
+		return
+	if _map3d.on:
+		_map3d.leave()
+		_store("builder_3d", false)
+	elif _map3d.enter():
+		_store("builder_3d", true)
+		_map_panel.call_deferred("grab_focus")
+	_grip.queue_redraw()
+
+
+func _store(key: String, value: Variant) -> void:
+	var s := _shell_node()
+	if s != null:
+		s.call("store", key, value)
 
 
 func _status_cell(bar: Control, pos: Vector2, w: float) -> Label:
@@ -1473,6 +1555,11 @@ func _process(delta: float) -> void:
 	# The first time the map has a size: the camp in the middle, near enough to read.
 	if not camp_focused and _map_panel != null and _map_panel.size.x > 0.0 and is_visible_in_tree():
 		camp_focused = _map_panel.focus_camp()
+	# Left in 3D last time: back in it (once the map has its place and the title is gone).
+	if _restore_3d and camp_focused and _splash == null and _map_panel.grid_manager != null:
+		_restore_3d = false
+		if bool(_shell_stored("builder_3d", false)) and _map3d.enter(true):
+			_grip.queue_redraw()
 	if _catalogue != null and _catalogue.visible and _cat_open < 1.0:
 		_cat_open = minf(1.0, _cat_open + delta * 7.0)
 		_layout()
@@ -2079,6 +2166,9 @@ func _shell_stored(key: String, default: Variant) -> Variant:
 
 ## The map a quarter round; the PC remembers which way it was left.
 func turn_view(step: int) -> void:
+	if _map3d != null and _map3d.on:
+		_map3d.turn(step)
+		return
 	_map_panel.rotate_view(step)
 	var s := _shell_node()
 	if s != null:

@@ -15,6 +15,7 @@ const T = preload("res://scripts/os98/os_theme.gd")
 const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
+const PATH_TILES = preload("res://scripts/path_tiles.gd")
 ## How wide a building is on the map, in tile widths: its 3D model's width plus depth over
 ## two (an isometric box is that wide on screen whichever way it is turned), measured from
 ## building_models.gd (a tile is 4 m). The drawn part of its picture (not the empty canvas
@@ -472,6 +473,9 @@ var _last_pan_motion := 0.0
 var _mini_img: Image
 ## Construction feedback: the wave, the local grid, outlines, ripples (builder_fx.gd).
 var _bfx = preload("res://scripts/builder_fx.gd").new()
+## The hidden 3D view (scripts/builder/map3d.gd, made by builder_module): while it shows
+## the map, point <-> cell, guests, centring, pan and zoom go through it.
+var map3d = null
 ## Guest miniatures: archetype -> {height px: ImageTexture}, scaled once from the sprites.
 var _guest_minis: Dictionary = {}
 var _mini_tex: ImageTexture
@@ -705,6 +709,9 @@ func rotate_selected_building(step: int) -> void:
 
 
 func apply_zoom_step(direction: int) -> void:
+	if _in_3d():
+		map3d.zoom_step(direction, get_local_mouse_position())
+		return
 	var local := get_local_mouse_position()
 	_zoom_anchor = local if Rect2(Vector2.ZERO, size).has_point(local) else size * 0.5
 	var old := _zoom_target
@@ -754,10 +761,44 @@ func _process(delta: float) -> void:
 		hover_info.emit(_describe(hover_coord))
 		if selected_building != "":
 			_bfx.point_at(hover_coord)
+	if map3d != null and map3d.covers():
+		return
 	_update_zoom(delta)
 	_update_inertia(delta)
 	_update_static(delta)
 	_dyn_layer.queue_redraw()
+
+
+func _in_3d() -> bool:
+	return map3d != null and map3d.on
+
+
+## The 3D view over the map or not: its own two layers rest under it.
+func set_3d_layers(on3d: bool) -> void:
+	_static_layer.visible = not on3d
+	_dyn_layer.visible = not on3d
+	_static_dirty = true
+	_demolish_hatch_key = ""
+
+
+## The 3D view going out (scripts/builder/map3d.gd): the map at the ground it looked at
+## (`cell`, fractional), at the scale it saw (`ext`: the metres its height covered).
+func match_view(cell: Vector2, ext: float) -> void:
+	if grid_manager == null:
+		return
+	var gw := int(grid_manager.grid_width)
+	var gh := int(grid_manager.grid_height)
+	var iso = _compute_iso_layout(gw, gh)
+	var want := size.y * float(grid_manager.tile_size) * sqrt(2.0) / maxf(1.0, ext)
+	_zoom_level = clampf(_zoom_level * want / maxf(1.0, float(iso.tile_w)), ZOOM_MIN, ZOOM_MAX)
+	_zoom_target = _zoom_level
+	iso = _compute_iso_layout(gw, gh)
+	_pan_offset += size * 0.5 - _cell_to_iso_f(cell, iso.origin, iso.tile_w, iso.tile_h)
+	_pan_vel = Vector2.ZERO
+	_clamp_pan_offset_for_current_map()
+	_static_dirty = true
+	_demolish_hatch_key = ""
+	queue_redraw()
 
 
 ## The arrow keys pan (not WASD: at the PC S stands you up and D leans you out).
@@ -781,12 +822,18 @@ func _update_keyboard_pan(delta: float) -> void:
 	var speed = KEYBOARD_PAN_SPEED
 	if Input.is_key_pressed(KEY_SHIFT):
 		speed *= KEYBOARD_PAN_SPRINT_MULT
+	if _in_3d():
+		map3d.key_pan(move, speed * delta)
+		return
 	_pan_offset -= move * speed * delta
 	_clamp_pan_offset_for_current_map()
 
 
 func _gui_input(event: InputEvent) -> void:
 	if grid_manager == null:
+		return
+	if map3d != null and map3d.take_input(event):
+		accept_event()
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -829,12 +876,15 @@ func _gui_input(event: InputEvent) -> void:
 		if _pan_dragging:
 			if event.relative.length_squared() > 0.08:
 				_pan_drag_moved = true
-			_pan_offset += event.relative
-			var now := Time.get_ticks_msec() / 1000.0
-			var dt := clampf(now - _last_pan_motion, 1.0 / 240.0, 0.1)
-			_last_pan_motion = now
-			_pan_vel = _pan_vel.lerp(event.relative / dt, 0.4)
-			_clamp_pan_offset_for_current_map()
+			if _in_3d():
+				map3d.pan_by(event.position, event.relative)
+			else:
+				_pan_offset += event.relative
+				var now := Time.get_ticks_msec() / 1000.0
+				var dt := clampf(now - _last_pan_motion, 1.0 / 240.0, 0.1)
+				_last_pan_motion = now
+				_pan_vel = _pan_vel.lerp(event.relative / dt, 0.4)
+				_clamp_pan_offset_for_current_map()
 		if _path_drag_active:
 			_request_path_at(event.position)
 		if _row_drag:
@@ -1838,6 +1888,8 @@ func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void
 func cell_screen_point(coord: Vector2i) -> Vector2:
 	if grid_manager == null or not _is_valid_coord(coord):
 		return Vector2.INF
+	if _in_3d():
+		return map3d.cell_point(coord)
 	var iso = _compute_iso_layout(int(grid_manager.grid_width), int(grid_manager.grid_height))
 	var info := structure_at(coord)
 	var o: Vector2i = info.get("origin", coord)
@@ -2031,6 +2083,9 @@ func _draw_minimap(origin: Vector2, tile_w: float, tile_h: float) -> void:
 
 ## Shot driver: put a cell in the middle of the view.
 func debug_center_on(cell: Vector2i) -> void:
+	if _in_3d():
+		map3d.center_on(Vector2(cell))
+		return
 	_pan_offset += size * 0.5 - _cell_iso(Vector2(cell))
 	_pan_vel = Vector2.ZERO
 	_clamp_pan_offset_for_current_map()
@@ -2038,6 +2093,8 @@ func debug_center_on(cell: Vector2i) -> void:
 
 ## Click on the minimap: that spot to the middle of the view.
 func _minimap_click(local: Vector2) -> bool:
+	if _in_3d():
+		return map3d.minimap_click(local)
 	if _mini_tex == null or not _mini_rect.grow(4.0).has_point(local):
 		return false
 	var cell := _mini_xform().affine_inverse() * local
@@ -2285,6 +2342,8 @@ func _update_minds() -> void:
 func guest_at(local_pos: Vector2) -> int:
 	if grid_manager == null:
 		return -1
+	if _in_3d():
+		return map3d.guest_at(local_pos)
 	var iso = _compute_iso_layout(int(grid_manager.grid_width), int(grid_manager.grid_height))
 	var mini_h := clampi(int(round(iso.tile_h * 1.1 / 4.0)) * 4, 12, 56)
 	var best := -1
@@ -2305,6 +2364,9 @@ func guest_at(local_pos: Vector2) -> int:
 func follow_guest(id: int, delta: float) -> bool:
 	if not _guests.has(id):
 		return false
+	if _in_3d():
+		map3d.follow(Vector2(_guests[id]["cell"]))
+		return true
 	var want := size * 0.5 - _cell_iso(Vector2(_guests[id]["cell"]))
 	_pan_offset += want * clampf(delta * 3.0, 0.0, 1.0)
 	_pan_vel = Vector2.ZERO
@@ -2747,16 +2809,16 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 	_draw_placeholder(center, tile_w, tile_h, building_type)
 
 
+## A path tile as the camp lays it (scripts/path_tiles.gd: composed from its eight
+## neighbours, a block of paths one gravel yard), the texture laid on the tile's diamond:
+## u along the grid's x, v along its y, however the map is turned.
 func _draw_path(center: Vector2, coord: Vector2i, tile_w: float, tile_h: float) -> void:
-	var link_w = maxf(2.2, tile_h * 0.28)
-	for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-		if not _is_path_at(coord + offset):
-			continue
-		var step = _path_screen_step(offset, tile_w, tile_h)
-		var tip = center + step * 0.56
-		_cv.draw_line(center, tip, Color(0.22, 0.16, 0.10, 0.90), link_w + 1.5)
-		_cv.draw_line(center, tip, Color(0.64, 0.52, 0.34, 0.95), link_w)
-	_draw_diamond(center, tile_w * 0.42, tile_h * 0.42, Color(0.58, 0.46, 0.30, 0.96), Color(0.24, 0.18, 0.12, 1.0), 1.1)
+	var tex := PATH_TILES.texture(PATH_TILES.mask_at(coord, Callable(self, "_is_path_at")))
+	var ax := _path_screen_step(Vector2i(1, 0), tile_w, tile_h)
+	var ay := _path_screen_step(Vector2i(0, 1), tile_w, tile_h)
+	_cv.draw_set_transform_matrix(Transform2D(ax, ay, center - (ax + ay) * 0.5))
+	_cv.draw_texture_rect(tex, Rect2(0, 0, 1, 1), false)
+	_cv.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 func _draw_tree_fallback(center: Vector2, tile_w: float, tile_h: float) -> void:
@@ -3537,6 +3599,8 @@ func _grid_to_iso(coord: Vector2i, origin: Vector2, tile_w: float, tile_h: float
 func _local_to_grid(local_pos: Vector2) -> Vector2i:
 	if grid_manager == null:
 		return Vector2i(-1, -1)
+	if _in_3d():
+		return map3d.cell_at(local_pos)
 	var grid_w: int = int(grid_manager.grid_width)
 	var grid_h: int = int(grid_manager.grid_height)
 	if grid_w <= 0 or grid_h <= 0:
