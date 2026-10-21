@@ -185,6 +185,20 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | Cabin windows | ✅ | the room matches the cabin outside (front door and windows, back window, the side window or the bathroom door by level); the windows look out into the real camp (off-axis cameras) |
 
 ### Atmosphere and the uncanny
+### The body in the world (2026-10-21, DESIGN §9c)
+
+| Feature | State | Notes |
+| --- | --- | --- |
+| Quick movement, smooth camera | ✅ | stopped in 0.12 s / 0.19 m (was 0.48 s / 0.92 m), turn back 0.17 s (0.7); the bob by footsteps with their sound, a landing spring, lean into sidesteps and quick turns, a wider view running; the head drawn between physics steps (no 50/60 judder), nothing of the camera in steps |
+| Build camera, wider | ✅ | FOV 72° (was 56), Build's shift of the picture for the first 12° of a look then the eye turns: down 80°, up to just under the zenith (55°; was 17.7 up / 33.5 down) |
+| Options: View and body | ✅ | FOV, mouse X and Y, head bob, lean, crouch held/toggled; the warden's own |
+| Crouch and crawl | ✅ | Ctrl, twice quickly on your belly; softer steps, under 0.6 m; the crawl's hands; the other wardens see the pose. Few things outdoors have room under them yet (tables are solid boxes) |
+| Your feet, your shadow | ✅ | jeans and wellies looking down (Grok), a frame per footstep, muddy and wet; a blob shadow. No reflection in the water |
+| The world answers | 🟡 | grass and ferns part round every warden, ferns rustle, a branch across your eyes, leaves and cones fall, birds and crows fly up, ducks on the shore flee, puddles and the lake's shallows splash, wet and muddy prints, guests you walk into hop aside with a word, the other wardens' doors open, a squirrel, butterflies; no dog in the camp to run off; no new sounds (no SFX key: the corn's rustle, the oar's splash, the crow reused) |
+| Pick up, carry, throw | ✅ | bottles, cans, cones, the bucket (stones and logs: hands drawn, their pictures on the ground not yet); the rubbish sack carried to the dumpsters (the job done there); co-op on every machine; the night's noise hook (`night_ears`) has no listener yet; the delivery's boxes and a ladder are not carried yet |
+| Work by gesture | 🟡 | rooms' jobs (sweep, scrub, pick, bed), repairs on R (round), sawing and bagging on E; the ghost hand after 2.4 s; the toilet scrub and the pipes keep their own minigames |
+| Doors without a seam | 🟡 | the hand on the handle, the leaf swings, you step into the doorway and the room takes up from its door (no frozen frame or dither); the room is not yet seen through the open door (a portal) |
+
 
 | Feature | State | Notes |
 | --- | --- | --- |

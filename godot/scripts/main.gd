@@ -3140,7 +3140,8 @@ func _sync_active_camera() -> void:
 		player_camera.current = true
 		player_camera.far = FIRST_PERSON_CAMERA_FAR
 		player_camera.near = 0.08
-		player_camera.fov = 56.0
+		# Its FOV is the player's own (the warden's Options, wider in a run): until 21. 10.
+		# it was set back to 56 here every frame.
 		fallback_camera.current = false
 	else:
 		fallback_camera.current = true
@@ -3849,6 +3850,12 @@ func _update_interaction_hint() -> void:
 		return
 	if _coop_partner_down_near():
 		_hud_manager.set_hint_text("[E] Get %s up" % Coop.name_of(_coop_down_near_id))
+		return
+	# Something in your hands, or a small thing under the crosshair (scripts/ambient/carry.gd:
+	# it takes its own E and click, on either machine).
+	var carry := get_tree().get_first_node_in_group("carry")
+	if carry != null and str(carry.hint()) != "":
+		_hud_manager.set_hint_text(str(carry.hint()))
 		return
 	if Coop.is_client():
 		_hud_manager.set_hint_text(_coop_client_hint())
@@ -5528,6 +5535,20 @@ func coop_local_warden() -> Dictionary:
 			s["t"] = false
 			s["v"] = 0.0
 			s["act"] = "cook"
+	# Crouched or on your belly, or something carried in your arms (player_controller
+	# stance, scripts/ambient/carry.gd): the other machine draws that pose.
+	if not s.has("act") and _player != null and not bool(s.get("in", false)):
+		var stance := int(_player.get("stance")) if _player.get("stance") != null else 0
+		var carry := get_tree().get_first_node_in_group("carry")
+		var carried: String = carry.coop_pose() if carry != null else ""
+		if carry != null and str(carry.coop_held()) != "":
+			s["cr"] = str(carry.coop_held())
+		if stance == 2:
+			s["act"] = "prone"
+		elif stance == 1:
+			s["act"] = "crouch"
+		elif carried != "":
+			s["act"] = carried
 	# At work out in the camp: holding R at something, a branch sawn, rubbish bagged.
 	if not s.has("act"):
 		var chore: String = _day_events.coop_work() if _day_events != null and _day_events.has_method("coop_work") else ""

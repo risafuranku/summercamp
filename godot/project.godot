@@ -52,6 +52,23 @@ rendering_device/driver.windows="d3d12"
 
 [shader_globals]
 
+body_0={
+"type": "vec4",
+"value": Vector4(0, 0, -999, 0)
+}
+body_1={
+"type": "vec4",
+"value": Vector4(0, 0, -999, 0)
+}
+body_2={
+"type": "vec4",
+"value": Vector4(0, 0, -999, 0)
+}
+body_3={
+"type": "vec4",
+"value": Vector4(0, 0, -999, 0)
+}
+
 wind_strength={
 "type": "float",
 "value": 0.15

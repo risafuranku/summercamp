@@ -2425,6 +2425,13 @@ func _update_inview(delta: float) -> void:
 	_inview_cam.global_transform = to_room * cam.global_transform
 	_inview_cam.fov = cam.fov
 	_inview_cam.keep_aspect = cam.keep_aspect
+	# The camp's eye looking up or down is Build's shift of the picture (a moved frustum,
+	# player_controller._apply_projection): the panes' picture must be shifted the same.
+	# (Its near plane is its own: the frustum scaled to it.)
+	_inview_cam.projection = cam.projection
+	var nk := _inview_cam.near / maxf(cam.near, 0.001)
+	_inview_cam.size = cam.size * nk
+	_inview_cam.frustum_offset = cam.frustum_offset * nk
 	var px := Vector2i(cam.get_viewport().get_visible_rect().size)
 	if _inview_vp.size != px and px.x > 0:
 		_inview_vp.size = px

@@ -134,6 +134,11 @@ func town_trip() -> Node:
 ## The camp is about to give way to a room, or a room has just closed: the frame on
 ## screen still shows what was there; it breaks up into what is there now.
 func _door_transition(going_in: bool) -> void:
+	# Walked in through a door you opened by hand (_walk_up_first): no frozen frame, no
+	# dither; the camp's last frame is the dark doorway at your eyes and the room takes up
+	# from its door (_step_in). The brief of 21. 10.: "doors without a seam".
+	if going_in and Time.get_ticks_msec() - _walked_in_ms < 1500:
+		return
 	if _door_fx != null:
 		_door_fx.play(going_in)
 
@@ -782,6 +787,8 @@ func _walk_on_out_of_office() -> void:
 const WALK_UP_FROM_M := 4.0
 const STEP12 = preload("res://scripts/ui/step12.gd")
 var _walked_up_to := 0
+## When the last walk in through a door ended (msec): the room opens with no dissolve.
+var _walked_in_ms := -100000
 
 
 func _walk_up_first(structure: Node3D, again: Callable) -> bool:
@@ -809,22 +816,27 @@ func _walk_up_first(structure: Node3D, again: Callable) -> bool:
 	var into: Vector3 = way["inside"] - way["outside"]
 	into.y = 0.0
 	into = into.normalized()
-	var to: Vector3 = (way["outside"] as Vector3).lerp(way["inside"], 0.3)
+	# Up to the door and into the doorway, the eye at the door's own plane: the hand takes
+	# the handle (reach_hand.gd), the leaf swings with its weight (door_anim.open), and
+	# the dark of the room is in front of you as it opens.
+	var to: Vector3 = (way["outside"] as Vector3).lerp(way["inside"], 0.42)
 	to.y = body.global_position.y
 	var d := Vector2(body.global_position.x - to.x, body.global_position.z - to.z).length()
 	if d > WALK_UP_FROM_M or d < 0.2:
 		return false
 	if way["door"] != null:
-		DOOR_ANIM.open_now(way["door"], 2.4)
+		DOOR_ANIM.open(way["door"], 3.0)
 	_set_player_controls_enabled(false)
 	var mask := body.collision_mask
 	body.collision_mask = 0
 	body.velocity = Vector3.ZERO
 	body.set("_pitch_target", 0.0)
 	var yaw := body.rotation.y + wrapf(atan2(-into.x, -into.z) - body.rotation.y, -PI, PI)
-	var dur := clampf(d / 2.4, 0.25, 0.8)
+	var dur := clampf(d / 2.0, 0.35, 1.0)
 	var tw := create_tween()
 	_stepping_out = tw
+	# A beat for the hand on the handle and the leaf to swing in.
+	tw.tween_interval(0.4)
 	tw.tween_property(body, "global_position", to, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.parallel().tween_property(body, "rotation:y", yaw, dur * 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	var id := structure.get_instance_id()
@@ -832,6 +844,7 @@ func _walk_up_first(structure: Node3D, again: Callable) -> bool:
 		if is_instance_valid(body):
 			body.collision_mask = mask
 		_walked_up_to = id
+		_walked_in_ms = Time.get_ticks_msec()
 		again.call())
 	return true
 

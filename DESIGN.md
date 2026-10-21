@@ -1478,6 +1478,79 @@ in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD 
 - **The lamps** are the light itself at night: the bulb bright, its cone of light a warm
   shaft that shows faintly in clear air and fully in mist and rain.
 
+## 9c. The body in the world (2026-10-21, decided with the user)
+
+The user: "it still feels a bit like I'm a spectator, a car, a tank... the trees and the
+world are static, we need to finish all of it." Bodily but quick (Firewatch, Dishonored),
+the Build look kept but wider, the camera always smooth and only the sprites and hands in
+steps. The list and the numbers before and after: TODO.md "POHYB, KAMERA, INTERAKCE".
+
+- **Quick feet.** Full speed in under a tenth of a second (ground 46 m/s², stop 34 m/s²): let
+  go of W and you stand a hand's breadth on (0.19 m walking, 0.36 m from a sprint); a turn
+  back is 0.17 s, no skid. In the air you keep what you jumped with: a little push (3 m/s²),
+  hardly any brakes.
+- **The head on the ground.** The bob goes by the ground covered (a step every 0.74 m, 1.02 m
+  running), lowest as the foot comes down, with that foot's sound; side to side over the foot
+  that bears it. A landing, a stop from a walk and going down on your knees are one spring
+  (smooth, a little give). The lean: into a sidestep and a little into a quick turn, by the
+  turn's speed (it was set per mouse event). Nothing of the camera steps: the old 12-a-second
+  bob is gone, and the head is drawn between the last two physics steps (frames are capped at
+  50, physics runs at 60: a double step every fifth frame shook every walk).
+- **Build, wider.** FOV 72° (Options 60-90; rooms are 68-70), up to 4° wider in a run. A look
+  up or down is first Build's shift of the picture (a moved frustum: the verticals stay
+  upright), eased in up to 12°, then the eye turns: down to 80° (your boots, under the
+  table), up until the picture's top edge is 2° under the zenith (55° at 72°, with room for the run's wider view). **Where the
+  shift breaks**: beyond ~15° the shifted frustum stretches the top or bottom of the picture
+  (Build's own look at full tilt) and the sky's zenith pinch comes in sooner; at the zenith
+  the sky panorama and the cloud deck pinch to a star (seen looking 68° up), so the eye stops
+  short of it. The hands, the HUD, the fog and the palette post are 2D or screen-space and do
+  not mind. Anything that copies the camp camera must copy its projection
+  (`building_interior._update_inview`); "where the warden looks" is `player.look_basis()`, not
+  the camera's -Z.
+- **The mouse** moves the eye in the same frame (no smoothing, no steps; until then 0.72 of it
+  in 1.4° steps); X and Y each their own speed.
+- **Options "View and body"** (the warden's, `profiles.gd` "body"): FOV (72), mouse X and Y
+  (100 %), head bob and lean (100 %; 0 against sickness), crouch held or toggled (held).
+- **Crouch and crawl.** Ctrl: crouched (held or toggled), twice quickly: on your belly (a place
+  you stay in until Ctrl or Space; a long hold would clash with holding it to stay crouched).
+  The eye goes down smoothly (0.5 m, 0.87 m), you go at 1.9 and 0.85 m/s, your steps 7 and
+  12 dB softer, lying down you fit under 0.6 m. Space or a sprint gets you up if there is
+  room. The other wardens see you crouched or lying (the poses crouch, prone).
+- **Your body.** Looking down your jeans and green wellies come up into the view where your
+  feet are (Grok, the hands' pixel and light, a third brighter: they are in the open), one
+  foot forward then the other with your steps, caked after mud, darker wet; on your belly
+  your gloved hands planted ahead in turn (the pipes' hands); a blob shadow under you.
+- **The world answers.** Grass, flowers, ferns, nettles and blueberries part round every
+  warden's feet and come back (shader globals `body_0..3`); ferns rustle; one tree in six
+  swishes a low branch across your eyes as you push past; by day leaves come down under the
+  birches and a cone off a spruce, birds and crows fly up out of a tree you walk up to, ducks
+  sit on the camp shore and make off when you run at them, a squirrel on a trunk runs up out of
+  sight as you come, butterflies over the meadow on warm days; a puddle and the lake's shallows splash (you can wade
+  a stride in now), wet boots leave dark prints on boards and paths, muddy ones brown; a guest
+  you walk into hops aside, looks at you and has a word. Not in the rain, not at night.
+- **Carry and throw.** E takes a small thing under the crosshair (bottles, cans, cones, the
+  bucket; stones and logs once their pictures lie by the fire) into your right hand (Grok's
+  gloved hand holding it), E sets it down where you look,
+  the left button throws it: an arc, a bounce off walls, its sound landing louder the harder,
+  a plop into the lake. Work things go in both arms (the torch in your pocket), slower: the
+  rubbish you bag is a sack you carry to the dumpsters, and only then is it done (a camp with
+  no dumpsters: done when bagged, as before). At night a thrown thing's landing calls
+  `heard(pos, loudness)` on the group "night_ears": no enemy listens yet (the hook is there).
+  Co-op: picked up, set down, thrown on every machine; the others see the small thing at your
+  hand and the sack as the "bag" pose.
+- **Work by a gesture.** No hold bar where a gesture works: to and fro (sweeping, mopping,
+  wiping, sawing), round (scrubbing, a spanner), a jerk down (a hammer), drawn towards you
+  (plunging, pulling), down and up (picking up, bagging, a bed). The hand goes where the mouse
+  takes it, each stroke moves the job on (the mess shrinks under it, bits fly, the sound
+  plays while you work); stand still and after 2.4 s a see-through hand with a dotted trail
+  shows the motion. Outdoors the mouse is the hand's while you hold R or E (the eye stays).
+  The toilet's scrub close-up and the pipes keep their own minigames.
+- **Doors.** E on a door: the hand takes the handle, the leaf swings with its weight, you
+  step up into the doorway and the room takes up from its door (no frozen frame, no dither:
+  the dissolve is left only where you did not walk in through a door: the office's PC start,
+  a room opened by a tool). Not yet: the room seen through the open door (a portal: the rooms
+  are worlds of their own built only when opened; TODO).
+
 ## 10. Presentation rules
 
 - Everything 2D is pixel art on an integer scale: baked bitmap fonts (Silkscreen, Tiny5,

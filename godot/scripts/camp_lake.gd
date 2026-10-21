@@ -33,6 +33,11 @@ var hut_window_mesh: MeshInstance3D
 ## Fish: now and then by day a ring spreads on the water (in steps, 10 a second) with a plop.
 const PLOP_SFX := "res://assets/sfx/world/fish_plop.mp3"
 var _water_poly := PackedVector2Array()
+## The water's outline as it is drawn, the camp shore's z, the jetty's x (body_world.gd:
+## your boots in the water, the ducks on the shore).
+var _poly_raw := PackedVector2Array()
+var _shore_z := 0.0
+var _jetty_x := 0.0
 var _ripple_tex: ImageTexture
 var _ripple_timer := 5.0
 var _ripples: Array = []   # {node, frame}
@@ -76,6 +81,8 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 	var rng := RandomNumberGenerator.new()
 	rng.seed = texture_seed
 	var poly := water_polygon(shore_z, north_z, west, east, rng)
+	_poly_raw = poly
+	_shore_z = shore_z
 	var far_z := north_z + 52.0
 	_water_poly = Geometry2D.offset_polygon(poly, -4.0)[0]
 	_rng_fx.randomize()
@@ -105,6 +112,7 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 
 	# Reeds along the shore (not in front of the jetty), thick at the corners.
 	var jetty_x := (west + east) * 0.5 + 9.0
+	_jetty_x = jetty_x
 	var reeds_tex: Texture2D = load(REEDS) if ResourceLoader.exists(REEDS) else null
 	if reeds_tex != null:
 		var outline := Geometry2D.offset_polygon(poly, -0.6)[0] as PackedVector2Array
@@ -131,11 +139,13 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 	var far := poly[2 + 11]
 	_build_far_shore(Vector3(far.x, 0.0, far.y))
 
-	# You cannot walk into the water: a wall along the camp shore with a gap for the jetty.
+	# You cannot walk into the lake: a wall along the camp shore with a gap for the jetty,
+	# a stride out in the shallows (the brief of 21. 10.: wade in a step and splash; it
+	# stood 0.3 m in, so you never reached the water).
 	var gap_l := jetty_x - JETTY_W * 0.5
 	var gap_r := jetty_x + JETTY_W * 0.5
-	_wall(Vector3((west + gap_l) * 0.5, 1.0, shore_z + 0.3), Vector3(gap_l - west, 2.0, 0.3))
-	_wall(Vector3((gap_r + east) * 0.5, 1.0, shore_z + 0.3), Vector3(east - gap_r, 2.0, 0.3))
+	_wall(Vector3((west + gap_l) * 0.5, 1.0, shore_z + WADE), Vector3(gap_l - west, 2.0, 0.3))
+	_wall(Vector3((gap_r + east) * 0.5, 1.0, shore_z + WADE), Vector3(east - gap_r, 2.0, 0.3))
 
 	# Morning mist: soft banks standing over the water (camera-facing puffs: flat sheets
 	# vanish edge-on at eye height), drifting slowly along the lake.
@@ -468,6 +478,27 @@ func _flat_mesh(poly: PackedVector2Array, y: float, node_name: String) -> MeshIn
 	mi.mesh = st.commit()
 	add_child(mi)
 	return mi
+
+
+## How far out into the shallows the camp shore lets you wade (m).
+const WADE := 1.3
+
+
+## Whether `p` is in the lake's water (your boots: body_world.gd).
+func in_water(p: Vector3) -> bool:
+	return not _poly_raw.is_empty() and Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), _poly_raw)
+
+
+## Where the ducks sit on the camp shore by day: two or three spots off the jetty's sides,
+## the same every time for a camp.
+func duck_spots() -> Array:
+	var out: Array = []
+	var r := RandomNumberGenerator.new()
+	r.seed = hash("ducks %d" % roundi(_jetty_x * 10.0))
+	for i in r.randi_range(2, 3):
+		var x := _jetty_x + (r.randf_range(4.0, 11.0) * (1.0 if i % 2 == 0 else -1.0))
+		out.append(Vector3(x, 0.0, _shore_z - r.randf_range(0.3, 1.0)))
+	return out
 
 
 func _wall(center: Vector3, size: Vector3) -> void:

@@ -16,12 +16,41 @@ uniform float seasonal = 0.5;
 // ground picture's average (ground_ratio), taken this far (grass most, stones not at all).
 uniform vec3 ground_ratio = vec3(1.0);
 uniform float ground_match = 0.0;
+// How far it gives way to feet walking through it (0 for stones, stumps, mushrooms).
+uniform float push = 1.0;
 global uniform float wind_strength;
 global uniform vec2 wind_dir;
 global uniform vec3 season_leaf_tint;
 global uniform float season_snow;
+// Where the wardens' feet are (scripts/ambient/body_world.gd): x, z, the ground's
+// height, how hard (0 an empty slot).
+global uniform vec4 body_0;
+global uniform vec4 body_1;
+global uniform vec4 body_2;
+global uniform vec4 body_3;
 
 varying float v_front;
+
+// Away from every foot within reach: the more, the nearer (the brief of 21. 10.: "the
+// grass parts round your legs and comes back").
+vec2 body_push(vec3 o) {
+	vec4 bodies[4] = vec4[4](body_0, body_1, body_2, body_3);
+	vec2 total = vec2(0.0);
+	for (int i = 0; i < 4; i++) {
+		vec4 b = bodies[i];
+		if (b.w <= 0.0 || abs(o.y - b.z) > 1.2) {
+			continue;
+		}
+		vec2 d = o.xz - b.xy;
+		float l = length(d);
+		float r = 0.62 + 0.25 * b.w;
+		if (l < r) {
+			float k = 1.0 - l / r;
+			total += (l > 0.001 ? d / l : vec2(1.0, 0.0)) * k * b.w;
+		}
+	}
+	return total;
+}
 
 // A gust's front running over the ground with the wind (the user 21. 10.: "polishnout vitr
 // huste"): bands some forty metres apart, bent a little, going downwind faster the
@@ -55,6 +84,11 @@ void vertex() {
 	v_front = front;
 	float top = clamp(VERTEX.y, 0.0, 1.0);
 	world.xz += wind_dir * sway * lean * top * top;
+	// Parted by the feet in it: the top pushed away and down, the foot stays.
+	vec2 pushed = body_push(origin) * push;
+	float tall = clamp(VERTEX.y * sy, 0.0, 1.2);
+	world.xz += pushed * 0.42 * tall;
+	world.y -= length(pushed) * 0.3 * tall * top;
 	VERTEX = (inverse(MODEL_MATRIX) * vec4(world, 1.0)).xyz;
 	NORMAL = (inverse(MODEL_MATRIX) * vec4(to_cam.x, 0.6, to_cam.z, 0.0)).xyz;
 }

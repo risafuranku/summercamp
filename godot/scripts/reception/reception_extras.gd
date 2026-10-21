@@ -63,9 +63,18 @@ const FRONT_FADE_Z := -2.45
 const FRONT_DOOR_OPEN_DEG := 82.0
 var _leaving := false
 const SFX_FRONT_DOOR := "res://assets/sfx/dvereotevrit.mp3"
-## player_controller.camera_fov: the camp's eye the walk out hands over to.
-const FRONT_OUT_FOV := 56.0
+## player_controller.camera_fov: the camp's eye the walk out hands over to (the warden's
+## own since 21. 10.: _out_fov; this when there is no player).
+const FRONT_OUT_FOV := 72.0
 var _fov_before_out := 0.0
+
+
+## The camp eye's FOV now (the warden's Options), for the walk out to end in.
+func _out_fov() -> float:
+	var main: Node = host.get_tree().current_scene if host is Node and (host as Node).is_inside_tree() else null
+	var p = main.get("_player") if main != null else null
+	var cam = p.get("_camera") if p != null else null
+	return float((cam as Camera3D).fov) if cam is Camera3D else FRONT_OUT_FOV
 
 var host
 var room_root: Node3D
@@ -766,7 +775,7 @@ func go_out_front() -> void:
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(dur * 0.38)
 	# Narrowed to the camp's eye on the way, so the dither shows one picture going on.
 	_fov_before_out = camera.fov
-	_walk.parallel().tween_property(camera, "fov", FRONT_OUT_FOV, dur * 0.6).set_delay(dur * 0.15)
+	_walk.parallel().tween_property(camera, "fov", _out_fov(), dur * 0.6).set_delay(dur * 0.15)
 	_leaving = true
 	# The doorway is crossed before the end (process): this only if it never is.
 	_walk.tween_callback(_leave_by_front)
@@ -788,7 +797,7 @@ func come_in_front(end_pos: Vector3, end_rot: Vector3, end_fov: float) -> void:
 	var start := Vector3(FRONT_STEP_IN.x, eye, FRONT_STEP_IN.z)
 	camera.position = start
 	camera.rotation = Vector3(0.0, PI, 0.0)
-	camera.fov = FRONT_OUT_FOV
+	camera.fov = _out_fov()
 	_walk = WALK_PATH.play(host, camera, [
 		{"pos": start, "rot": Vector3(0.0, PI, 0.0)},
 		{"pos": Vector3(1.8, lerpf(eye, 1.47, 0.6), -1.6), "rot": Vector3(-0.02, PI, 0.0)},

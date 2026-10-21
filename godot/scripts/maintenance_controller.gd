@@ -382,6 +382,7 @@ func _update_work(delta: float, can_act: bool) -> void:
 		if not held:
 			_denied_key = ""
 		_reset_work()
+		_gesture_lock(false)
 		return
 	var key := str(_target["key"])
 	if key != _work_key:
@@ -393,14 +394,20 @@ func _update_work(delta: float, can_act: bool) -> void:
 			_hud.push_status("Not enough cash: the %s needs $%d." % [str(_target["label"]).to_lower(), int(_target["cost"])], 3)
 		_reset_work()
 		return
-	_work += delta / maxf(0.1, float(_target["seconds"]))
-	_work_tick -= delta
-	if _work_tick <= 0.0:
-		_work_tick = 0.32
+	# The spanner turned by a gesture (scripts/ui/gesture.gd, the brief of 21. 10.): R held,
+	# the mouse goes round and every half turn is a stroke; the eye stays still meanwhile.
+	_gesture_lock(true)
+	var player = _player_of()
+	var motion: Vector2 = player.take_gesture_motion() if player != null and player.has_method("take_gesture_motion") else Vector2.ZERO
+	var strokes: int = _gesture.feed(motion, delta, 360.0)
+	if strokes > 0:
+		_work += float(strokes) / float(GESTURE.strokes_for(float(_target["seconds"])))
 		_play(SFX_WORK, randf_range(0.55, 0.7))
 	if _hud != null and _hud.has_method("set_work_progress"):
 		var verb := "REPAIRING" if bool(_target["broken"]) else "SERVICING"
 		_hud.set_work_progress("%s %s" % [verb, str(_target["label"]).to_upper()], _work)
+		if _hud.has_method("set_work_gesture"):
+			_hud.set_work_gesture(_gesture.offset / 3.6, _gesture.kind if _gesture.idle > 2.4 else "", strokes > 0)
 	if _work >= 1.0:
 		var target := _target.duplicate()
 		_reset_work()
@@ -410,6 +417,29 @@ func _update_work(delta: float, can_act: bool) -> void:
 			Coop.send_request("service", [target["coord"], int(target["cost"])])
 		else:
 			CoreRoot.actions.service_building(target["coord"], int(target["cost"]))
+
+
+const GESTURE = preload("res://scripts/ui/gesture.gd")
+var _gesture = _new_gesture()
+
+
+static func _new_gesture():
+	var g = GESTURE.new()
+	g.kind = "circle"
+	return g
+
+
+func _gesture_lock(on: bool) -> void:
+	var player = _player_of()
+	if player != null and player.has_method("lock_look"):
+		if on and not bool(player.get("look_locked")):
+			_gesture.reset()
+		player.lock_look("maintenance", on)
+
+
+func _player_of() -> Node:
+	var main := get_tree().current_scene if is_inside_tree() else null
+	return main.get("_player") if main != null else null
 
 
 ## Co-op: holding R at something (the other machine draws you at it with a spanner).

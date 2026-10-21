@@ -380,9 +380,15 @@ class OptionsPage:
 	const MODE_LABELS := ["WINDOWED", "FULLSCREEN", "BORDERLESS"]
 	const VOLUME_STEPS := [-40.0, -30.0, -24.0, -20.0, -16.0, -12.0, -9.0, -6.0, -4.0, -2.0, 0.0, 3.0, 6.0]
 	const MOUSE_STEPS := [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
+	## View and body (the warden's: profiles.gd profile_body): the FOV, how much the head
+	## bobs and leans (0 against sickness).
+	const FOV_STEPS := [60.0, 64.0, 68.0, 72.0, 76.0, 80.0, 84.0, 90.0]
+	const PCT_STEPS := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
 	var ui_scale: int = 3
 	var selected: int = 0
+	## "main" or "body" (the View and body rows).
+	var section := "main"
 	var _rows: Array[Dictionary] = []
 	var _row_nodes: Array[Control] = []
 	var _value_labels: Array[Label] = []
@@ -417,14 +423,24 @@ class OptionsPage:
 			{"id": "render", "name": "Render style"},
 			{"id": "palette", "name": "256-colour palette"},
 			{"id": "volume", "name": "Master volume", "bar": VOLUME_STEPS.size() - 1},
-			{"id": "mouse", "name": "Mouse speed", "bar": MOUSE_STEPS.size() - 1},
-			{"id": "invert", "name": "Invert mouse Y"},
+			{"id": "body", "name": "View and body", "action": true},
 			{"id": "hints", "name": "Work hints"},
 			{"id": "controls", "name": "Controls", "action": true},
 			{"id": "credits", "name": "Credits", "action": true},
 			{"id": "reset", "name": "Reset defaults", "action": true},
 			{"id": "back", "name": "Back", "action": true},
 		]
+		if section == "body":
+			_rows = [
+				{"id": "fov", "name": "Field of view"},
+				{"id": "mouse_x", "name": "Mouse X", "bar": MOUSE_STEPS.size() - 1},
+				{"id": "mouse_y", "name": "Mouse Y", "bar": MOUSE_STEPS.size() - 1},
+				{"id": "invert", "name": "Invert mouse Y"},
+				{"id": "bob", "name": "Head bob", "bar": PCT_STEPS.size() - 1},
+				{"id": "lean", "name": "Lean", "bar": PCT_STEPS.size() - 1},
+				{"id": "crouch", "name": "Crouch (Ctrl)"},
+				{"id": "body_back", "name": "Back", "action": true},
+			]
 		_row_nodes.clear()
 		_value_labels.clear()
 		_name_labels.clear()
@@ -530,7 +546,19 @@ class OptionsPage:
 				"hints":
 					# The businesses' next step lit (the brief of 21. 10.), the warden's.
 					text = "ON" if load("res://scripts/profiles.gd").profile_hints() else "OFF"
-				"controls", "reset", "back":
+				"fov":
+					text = "%d°" % int(round(float(_body().get("fov", 72.0))))
+				"mouse_x", "mouse_y":
+					var mb := float(_body().get(id, 1.0))
+					text = "%d%%" % int(round(mb * 100.0))
+					bar_value = float(_nearest(MOUSE_STEPS, mb) + 1) / float(MOUSE_STEPS.size())
+				"bob", "lean":
+					var pb := float(_body().get(id, 1.0))
+					text = "%d%%" % int(round(pb * 100.0))
+					bar_value = float(_nearest(PCT_STEPS, pb)) / float(PCT_STEPS.size() - 1)
+				"crouch":
+					text = "TOGGLE" if bool(_body().get("crouch_toggle", false)) else "HOLD"
+				"controls", "reset", "back", "body", "body_back":
 					text = ""
 			if str(text) != "" and not _rows[i].has("bar") and not _rows[i].has("action"):
 				text = "< %s >" % text
@@ -555,6 +583,11 @@ class OptionsPage:
 			_change(1, true)
 			return true
 		if event.is_action_pressed("ui_cancel"):
+			if section == "body":
+				section = "main"
+				selected = 5
+				build()
+				return true
 			back_requested.emit()
 			return true
 		return false
@@ -601,6 +634,24 @@ class OptionsPage:
 			"hints":
 				var prof = load("res://scripts/profiles.gd")
 				prof.set_profile_hints(prof.profile_id, not prof.profile_hints())
+			"fov":
+				var fi := clampi(_nearest(FOV_STEPS, float(_body().get("fov", 72.0))) + dir, 0, FOV_STEPS.size() - 1)
+				_set_body("fov", FOV_STEPS[fi])
+			"mouse_x", "mouse_y":
+				var mxi := clampi(_nearest(MOUSE_STEPS, float(_body().get(id, 1.0))) + dir, 0, MOUSE_STEPS.size() - 1)
+				_set_body(id, MOUSE_STEPS[mxi])
+			"bob", "lean":
+				var pi2 := clampi(_nearest(PCT_STEPS, float(_body().get(id, 1.0))) + dir, 0, PCT_STEPS.size() - 1)
+				_set_body(id, PCT_STEPS[pi2])
+			"crouch":
+				_set_body("crouch_toggle", not bool(_body().get("crouch_toggle", false)))
+			"body", "body_back":
+				if activate:
+					section = "body" if id == "body" else "main"
+					selected = 0 if id == "body" else 5
+					_play(0.85)
+					build()
+				return
 			"controls":
 				if activate:
 					controls_requested.emit()
@@ -620,6 +671,13 @@ class OptionsPage:
 				return
 		_play(0.85)
 		refresh()
+
+	func _body() -> Dictionary:
+		return load("res://scripts/profiles.gd").profile_body()
+
+	func _set_body(key: String, value) -> void:
+		var prof = load("res://scripts/profiles.gd")
+		prof.set_profile_body(prof.profile_id, key, value)
 
 	func _nearest(steps: Array, value: float) -> int:
 		var best := 0

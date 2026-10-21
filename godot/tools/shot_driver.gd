@@ -1705,6 +1705,9 @@ func _ready() -> void:
 		elif arg.begins_with("--out="):
 			_out_dir = arg.get_slice("=", 1)
 	_steps = SCENARIOS.get(scenario, SCENARIOS["boot"]).duplicate(true)
+	# Work goes by gestures of the mouse (scripts/ui/gesture.gd): the scenarios' held
+	# clicks and keys make the strokes by themselves.
+	load("res://scripts/ui/gesture.gd").auto = true
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	EventBus.BuildRejected.connect(func(t, p, _r, why): print("SHOT DRIVER build rejected %s at %s: %s" % [t, p, why]))
 	EventBus.DemolishRejected.connect(func(r, why): print("SHOT DRIVER clear rejected %s: %s" % [r, why]))

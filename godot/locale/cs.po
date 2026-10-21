@@ -47,8 +47,8 @@ msgstr "Kofola"
 msgid "Malinovka"
 msgstr "Malinovka"
 
-#: core/systems/bistro_rules.gd:125 core/systems/corn_rules.gd:94 core/systems/jednota_rules.gd:150 scripts/bistro/bistro_marks.gd:171 (+2)
-#. uses 6
+#: core/systems/bistro_rules.gd:125 core/systems/corn_rules.gd:94 core/systems/jednota_rules.gd:150 scripts/ambient/nudge_props.gd:417 (+3)
+#. uses 7
 msgid "%s#%d"
 msgstr ""
 
@@ -65,7 +65,7 @@ msgstr ""
 msgid "Pub"
 msgstr ""
 
-#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:390 scripts/main.gd:4372 scripts/main.gd:4425 (+6)
+#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:390 scripts/main.gd:4379 scripts/main.gd:4432 (+6)
 #. uses 10
 msgid "Lojza"
 msgstr ""
@@ -546,7 +546,7 @@ msgstr ""
 msgid "Not much of a smile."
 msgstr ""
 
-#: core/systems/business_rules.gd:421 scripts/crt_map_panel.gd:2598 scripts/interior_tasks.gd:156 scripts/service_interior.gd:2306 (+5)
+#: core/systems/business_rules.gd:421 scripts/crt_map_panel.gd:2598 scripts/interior_tasks.gd:165 scripts/service_interior.gd:2306 (+5)
 #. uses 9
 msgid "%s|%d"
 msgstr ""
@@ -956,7 +956,8 @@ msgstr "DOBRÉ"
 msgid "Clear away the bottles"
 msgstr ""
 
-#: core/systems/mess_rules.gd:18
+#: core/systems/mess_rules.gd:18 scripts/interior_tasks.gd:21
+#. uses 2
 msgid "Clearing up"
 msgstr ""
 
@@ -964,8 +965,8 @@ msgstr ""
 msgid "Pick up the beer cans"
 msgstr ""
 
-#: core/systems/mess_rules.gd:19 core/systems/mess_rules.gd:20 core/systems/mess_rules.gd:28 core/systems/mess_rules.gd:44
-#. uses 4
+#: core/systems/mess_rules.gd:19 core/systems/mess_rules.gd:20 core/systems/mess_rules.gd:28 core/systems/mess_rules.gd:44 (+1)
+#. uses 5
 msgid "Picking up"
 msgstr ""
 
@@ -977,8 +978,8 @@ msgstr ""
 msgid "Sweep up the cigarette ends"
 msgstr ""
 
-#: core/systems/mess_rules.gd:21 core/systems/mess_rules.gd:25 core/systems/mess_rules.gd:29 core/systems/mess_rules.gd:30 (+2)
-#. uses 6
+#: core/systems/mess_rules.gd:21 core/systems/mess_rules.gd:25 core/systems/mess_rules.gd:29 core/systems/mess_rules.gd:30 (+3)
+#. uses 7
 msgid "Sweeping"
 msgstr ""
 
@@ -986,8 +987,8 @@ msgstr ""
 msgid "Scrape off the old goulash"
 msgstr ""
 
-#: core/systems/mess_rules.gd:22 core/systems/mess_rules.gd:43
-#. uses 2
+#: core/systems/mess_rules.gd:22 core/systems/mess_rules.gd:43 scripts/interior_tasks.gd:21
+#. uses 3
 msgid "Scraping"
 msgstr ""
 
@@ -995,8 +996,8 @@ msgstr ""
 msgid "Bag the forgotten clothes"
 msgstr ""
 
-#: core/systems/mess_rules.gd:23 scripts/hud_manager.gd:421
-#. uses 2
+#: core/systems/mess_rules.gd:23 scripts/hud_manager.gd:433 scripts/interior_tasks.gd:21
+#. uses 3
 msgid "Bagging"
 msgstr ""
 
@@ -1004,8 +1005,8 @@ msgstr ""
 msgid "Mop the muddy footprints"
 msgstr ""
 
-#: core/systems/mess_rules.gd:24 core/systems/mess_rules.gd:26 core/systems/mess_rules.gd:37 core/systems/mess_rules.gd:42 (+1)
-#. uses 5
+#: core/systems/mess_rules.gd:24 core/systems/mess_rules.gd:26 core/systems/mess_rules.gd:37 core/systems/mess_rules.gd:42 (+2)
+#. uses 6
 msgid "Mopping"
 msgstr ""
 
@@ -1046,8 +1047,8 @@ msgstr ""
 msgid "Scrub the toilet"
 msgstr ""
 
-#: core/systems/mess_rules.gd:33 core/systems/mess_rules.gd:34 core/systems/mess_rules.gd:36 core/systems/mess_rules.gd:40 (+1)
-#. uses 5
+#: core/systems/mess_rules.gd:33 core/systems/mess_rules.gd:34 core/systems/mess_rules.gd:36 core/systems/mess_rules.gd:40 (+2)
+#. uses 6
 msgid "Scrubbing"
 msgstr ""
 
@@ -1055,7 +1056,8 @@ msgstr ""
 msgid "Wipe the sink"
 msgstr ""
 
-#: core/systems/mess_rules.gd:35
+#: core/systems/mess_rules.gd:35 scripts/interior_tasks.gd:21
+#. uses 2
 msgid "Wiping"
 msgstr ""
 
@@ -1111,7 +1113,7 @@ msgstr ""
 msgid "Screw the shower head back on"
 msgstr ""
 
-#: core/systems/mess_rules.gd:45 scripts/hud_manager.gd:423
+#: core/systems/mess_rules.gd:45 scripts/hud_manager.gd:435
 #. uses 2
 msgid "Fixing"
 msgstr ""
@@ -1160,7 +1162,7 @@ msgstr ""
 msgid "Roll out the sleeping bag"
 msgstr ""
 
-#: core/systems/room_rules.gd:29 scripts/interior_manager.gd:1940
+#: core/systems/room_rules.gd:29 scripts/interior_manager.gd:1953
 #. uses 2
 msgid "Rolling out"
 msgstr ""
@@ -1169,7 +1171,7 @@ msgstr ""
 msgid "Make the bed"
 msgstr ""
 
-#: core/systems/room_rules.gd:30 scripts/interior_manager.gd:1940
+#: core/systems/room_rules.gd:30 scripts/interior_manager.gd:1953
 #. uses 2
 msgid "Making the bed"
 msgstr ""
@@ -3068,8 +3070,8 @@ msgid ""
 "- Teta Vera"
 msgstr ""
 
-#: scripts/audio_manager.gd:162 scripts/building_interior.gd:3291 scripts/cabin_interior.gd:472 scripts/game_settings.gd:281 (+15)
-#. uses 19
+#: scripts/audio_manager.gd:162 scripts/building_interior.gd:3298 scripts/cabin_interior.gd:472 scripts/game_settings.gd:281 (+16)
+#. uses 20
 msgid "Master"
 msgstr ""
 
@@ -3954,8 +3956,8 @@ msgstr ""
 msgid "%d night%s, $%d paid"
 msgstr ""
 
-#: scripts/builder_module.gd:1029 scripts/builder_module.gd:1229 scripts/email_manager.gd:1048 scripts/email_manager.gd:1052 (+29)
-#. uses 33
+#: scripts/builder_module.gd:1029 scripts/builder_module.gd:1229 scripts/email_manager.gd:1048 scripts/email_manager.gd:1052 (+30)
+#. uses 34
 msgid "Guest"
 msgstr ""
 
@@ -4263,7 +4265,7 @@ msgstr ""
 msgid "Hlubocany Courier: %s"
 msgstr ""
 
-#: scripts/builder_module.gd:2196 scripts/hud_manager.gd:1120 scripts/hud_manager.gd:1442 scripts/os98/os_shell.gd:1762
+#: scripts/builder_module.gd:2196 scripts/hud_manager.gd:1132 scripts/hud_manager.gd:1454 scripts/os98/os_shell.gd:1762
 #. uses 4
 msgid "$%s"
 msgstr ""
@@ -4556,7 +4558,7 @@ msgstr ""
 msgid "Keyboard"
 msgstr ""
 
-#: scripts/building_interior.gd:1168 scripts/settings_panel.gd:17
+#: scripts/building_interior.gd:1168 scripts/settings_panel.gd:20
 #. uses 2
 msgid "Mouse"
 msgstr "Myš"
@@ -4589,35 +4591,35 @@ msgid ""
 "}\n"
 msgstr ""
 
-#: scripts/building_interior.gd:2594
+#: scripts/building_interior.gd:2601
 msgid "CRTPowerButton"
 msgstr ""
 
-#: scripts/building_interior.gd:3964
+#: scripts/building_interior.gd:3971
 msgid "Player"
 msgstr ""
 
-#: scripts/building_interior.gd:4455
+#: scripts/building_interior.gd:4462
 msgid "CRTFront"
 msgstr ""
 
-#: scripts/building_interior.gd:4458
+#: scripts/building_interior.gd:4465
 msgid "CRTBody"
 msgstr ""
 
-#: scripts/building_interior.gd:4459
+#: scripts/building_interior.gd:4466
 msgid "CRTBack"
 msgstr ""
 
-#: scripts/building_interior.gd:4460
+#: scripts/building_interior.gd:4467
 msgid "CRTNeck"
 msgstr ""
 
-#: scripts/building_interior.gd:4461
+#: scripts/building_interior.gd:4468
 msgid "CRTFoot"
 msgstr ""
 
-#: scripts/building_interior.gd:4515 scripts/world_generator.gd:1091
+#: scripts/building_interior.gd:4522 scripts/world_generator.gd:1094
 #. uses 2
 msgid "%s_%d"
 msgstr ""
@@ -4725,7 +4727,7 @@ msgstr ""
 msgid "Awning"
 msgstr ""
 
-#: scripts/building_models.gd:228 scripts/building_models.gd:1222 scripts/building_models.gd:1460 scripts/camp_lake.gd:337
+#: scripts/building_models.gd:228 scripts/building_models.gd:1222 scripts/building_models.gd:1460 scripts/camp_lake.gd:347
 #. uses 4
 msgid "Post"
 msgstr ""
@@ -4919,7 +4921,7 @@ msgstr ""
 msgid "Platform"
 msgstr ""
 
-#: scripts/building_models.gd:622 scripts/camp_lake.gd:339 scripts/cornfield.gd:385
+#: scripts/building_models.gd:622 scripts/camp_lake.gd:349 scripts/cornfield.gd:385
 #. uses 3
 msgid "Rail"
 msgstr ""
@@ -5192,8 +5194,8 @@ msgstr ""
 msgid "Freezer"
 msgstr ""
 
-#: scripts/building_models.gd:1654 scripts/os98/apps/browser_app.gd:151 scripts/os98/apps/browser_app.gd:561 scripts/ui/main_menu.gd:420 (+3)
-#. uses 7
+#: scripts/building_models.gd:1654 scripts/os98/apps/browser_app.gd:151 scripts/os98/apps/browser_app.gd:561 scripts/ui/main_menu.gd:420 (+4)
+#. uses 8
 msgid "Back"
 msgstr "Zpět"
 
@@ -5320,19 +5322,23 @@ msgid ""
 "RECEPTION - STOP"
 msgstr ""
 
-#: scripts/camp_lake.gd:332
+#: scripts/camp_lake.gd:342
 msgid "Deck"
 msgstr ""
 
-#: scripts/camp_lake.gd:411
+#: scripts/camp_lake.gd:421
 msgid "Rod"
 msgstr ""
 
-#: scripts/camp_lake.gd:414
+#: scripts/camp_lake.gd:424
 msgid ""
 "STAVIDLO\n"
 "sluice - no entry\n"
 "P. Hruby, keeper"
+msgstr ""
+
+#: scripts/camp_lake.gd:497
+msgid "ducks %d"
 msgstr ""
 
 #: scripts/caravan_interior.gd:73 scripts/caravan_interior.gd:414
@@ -5444,8 +5450,8 @@ msgstr ""
 msgid "Select a tool to begin."
 msgstr ""
 
-#: scripts/crt_map_panel.gd:656 scripts/retro_materials.gd:324 scripts/coop/warden_looks.gd:117 scripts/ui/hover_glint.gd:65
-#. uses 4
+#: scripts/crt_map_panel.gd:656 scripts/retro_materials.gd:324 scripts/ambient/body_world.gd:320 scripts/coop/warden_looks.gd:117 (+1)
+#. uses 5
 msgid "%d|%d"
 msgstr ""
 
@@ -5873,8 +5879,8 @@ msgid "You look round with the torch while they watch. Nobody. Under the bed the
 msgstr ""
 
 #: scripts/day_events.gd:186
-msgid "[HOLD E] Bag the rubbish"
-msgstr ""
+msgid "[E] Bag the rubbish"
+msgstr "[E] Sebrat odpadky do pytle"
 
 #: scripts/day_events.gd:188
 msgid "[E] Shoo the raccoons"
@@ -5889,8 +5895,8 @@ msgid "[E] \"Come on, your mum is looking for you.\""
 msgstr ""
 
 #: scripts/day_events.gd:194
-msgid "[HOLD E] Saw up the branch"
-msgstr ""
+msgid "[E] Saw up the branch"
+msgstr "[E] Rozřezat větev"
 
 #: scripts/day_events.gd:215
 msgid "%s opens the door: \"Please. Have a look.\""
@@ -6105,15 +6111,19 @@ msgstr ""
 msgid "A tree across the path all day. Is anyone running this place?"
 msgstr ""
 
-#: scripts/day_events.gd:628
+#: scripts/day_events.gd:645
 msgid "SAWING"
 msgstr ""
 
-#: scripts/day_events.gd:628
+#: scripts/day_events.gd:645
 msgid "BAGGING RUBBISH"
 msgstr ""
 
-#: scripts/day_events.gd:698 scripts/business/business_runtime.gd:586 scripts/closeup/phone_book.gd:89
+#: scripts/day_events.gd:671
+msgid "Bagged. Into the dumpsters with it."
+msgstr "V pytli. Teď s ním do kontejnerů."
+
+#: scripts/day_events.gd:745 scripts/business/business_runtime.gd:586 scripts/closeup/phone_book.gd:89
 #. uses 3
 msgid "JEDNOTA"
 msgstr ""
@@ -6702,7 +6712,7 @@ msgstr ""
 msgid "Adam"
 msgstr ""
 
-#: scripts/email_manager.gd:131 scripts/main.gd:4374
+#: scripts/email_manager.gd:131 scripts/main.gd:4381
 #. uses 2
 msgid "Marek"
 msgstr ""
@@ -6781,7 +6791,7 @@ msgstr ""
 msgid "Kojot"
 msgstr ""
 
-#: scripts/email_manager.gd:141 scripts/main.gd:4373 scripts/main.gd:4425
+#: scripts/email_manager.gd:141 scripts/main.gd:4380 scripts/main.gd:4432
 #. uses 3
 msgid "Bobr"
 msgstr ""
@@ -6818,7 +6828,7 @@ msgstr ""
 msgid "Martin"
 msgstr ""
 
-#: scripts/email_manager.gd:144 scripts/main.gd:4374 scripts/coop/warden_looks.gd:21 scripts/os98/apps/browser_app.gd:1410
+#: scripts/email_manager.gd:144 scripts/main.gd:4381 scripts/coop/warden_looks.gd:21 scripts/os98/apps/browser_app.gd:1410
 #. uses 4
 msgid "Jana"
 msgstr ""
@@ -6873,7 +6883,7 @@ msgstr ""
 msgid "Karel"
 msgstr ""
 
-#: scripts/email_manager.gd:150 scripts/main.gd:4372 scripts/main.gd:4425
+#: scripts/email_manager.gd:150 scripts/main.gd:4379 scripts/main.gd:4432
 #. uses 3
 msgid "Novak"
 msgstr ""
@@ -6894,7 +6904,7 @@ msgstr ""
 msgid "Kral"
 msgstr ""
 
-#: scripts/email_manager.gd:150 scripts/main.gd:4373 scripts/main.gd:4425
+#: scripts/email_manager.gd:150 scripts/main.gd:4380 scripts/main.gd:4432
 #. uses 3
 msgid "Dvorak"
 msgstr ""
@@ -7838,7 +7848,7 @@ msgstr ""
 msgid "%dm"
 msgstr ""
 
-#: scripts/hud_manager.gd:66 scripts/hud_manager.gd:655
+#: scripts/hud_manager.gd:66 scripts/hud_manager.gd:667
 #. uses 2
 msgid "DAY"
 msgstr ""
@@ -7851,7 +7861,7 @@ msgstr ""
 msgid "NIGHT"
 msgstr ""
 
-#: scripts/hud_manager.gd:68 scripts/hud_manager.gd:78 scripts/hud_manager.gd:652 scripts/hud_manager.gd:684 (+2)
+#: scripts/hud_manager.gd:68 scripts/hud_manager.gd:78 scripts/hud_manager.gd:664 scripts/hud_manager.gd:696 (+2)
 #. uses 6
 msgid "CLEAR"
 msgstr "VRÁTIT"
@@ -7936,7 +7946,7 @@ msgstr ""
 msgid "HAPPY"
 msgstr ""
 
-#: scripts/hud_manager.gd:92 scripts/hud_manager.gd:1192
+#: scripts/hud_manager.gd:92 scripts/hud_manager.gd:1204
 #. uses 2
 msgid "OKAY"
 msgstr ""
@@ -7953,12 +7963,12 @@ msgstr ""
 msgid "FURIOUS"
 msgstr ""
 
-#: scripts/hud_manager.gd:93 scripts/hud_manager.gd:665 scripts/hud_manager.gd:1189 scripts/bistro/bistro_marks.gd:350
+#: scripts/hud_manager.gd:93 scripts/hud_manager.gd:677 scripts/hud_manager.gd:1201 scripts/bistro/bistro_marks.gd:350
 #. uses 4
 msgid "EMPTY"
 msgstr ""
 
-#: scripts/hud_manager.gd:142 scripts/hud_manager.gd:861 scripts/os98/apps/campstat_app.gd:664 scripts/os98/apps/campstat_app.gd:666 (+2)
+#: scripts/hud_manager.gd:142 scripts/hud_manager.gd:873 scripts/os98/apps/campstat_app.gd:664 scripts/os98/apps/campstat_app.gd:666 (+2)
 #. uses 6
 msgid "TONIGHT"
 msgstr ""
@@ -7967,174 +7977,174 @@ msgstr ""
 msgid "%s%s: \"%s\""
 msgstr ""
 
-#: scripts/hud_manager.gd:417
+#: scripts/hud_manager.gd:429
 msgid "Repairing"
 msgstr ""
 
-#: scripts/hud_manager.gd:419
+#: scripts/hud_manager.gd:431
 msgid "Sawing"
 msgstr ""
 
-#: scripts/hud_manager.gd:636
+#: scripts/hud_manager.gd:648
 msgid "HEALTH"
 msgstr ""
 
-#: scripts/hud_manager.gd:640
+#: scripts/hud_manager.gd:652
 msgid "STAMINA"
 msgstr ""
 
-#: scripts/hud_manager.gd:642
+#: scripts/hud_manager.gd:654
 msgid "LIGHT"
 msgstr ""
 
-#: scripts/hud_manager.gd:645
+#: scripts/hud_manager.gd:657
 msgid "CASH"
 msgstr ""
 
-#: scripts/hud_manager.gd:649
+#: scripts/hud_manager.gd:661
 msgid "DAY 1"
 msgstr ""
 
-#: scripts/hud_manager.gd:657
+#: scripts/hud_manager.gd:669
 msgid "GUESTS"
 msgstr ""
 
-#: scripts/hud_manager.gd:668
+#: scripts/hud_manager.gd:680
 msgid "MAIL"
 msgstr ""
 
-#: scripts/hud_manager.gd:672
+#: scripts/hud_manager.gd:684
 msgid "NIGHT RISK"
 msgstr ""
 
-#: scripts/hud_manager.gd:794 scripts/hud_manager.gd:1287 scripts/quest_manager.gd:20
+#: scripts/hud_manager.gd:806 scripts/hud_manager.gd:1299 scripts/quest_manager.gd:20
 #. uses 3
 msgid "VERA'S CHECKLIST"
 msgstr ""
 
-#: scripts/hud_manager.gd:919
+#: scripts/hud_manager.gd:931
 msgid "ARRIVALS"
 msgstr ""
 
-#: scripts/hud_manager.gd:929
+#: scripts/hud_manager.gd:941
 msgid "DESK %d:%02d"
 msgstr ""
 
-#: scripts/hud_manager.gd:929
+#: scripts/hud_manager.gd:941
 msgid "IN %d:%02d"
 msgstr ""
 
-#: scripts/hud_manager.gd:946 scripts/interior_tasks.gd:399
+#: scripts/hud_manager.gd:958 scripts/interior_tasks.gd:443
 #. uses 2
 msgid "READY"
 msgstr ""
 
-#: scripts/hud_manager.gd:946
+#: scripts/hud_manager.gd:958
 msgid "NOT READY"
 msgstr ""
 
-#: scripts/hud_manager.gd:951
+#: scripts/hud_manager.gd:963
 msgid "+%d MORE"
 msgstr ""
 
-#: scripts/hud_manager.gd:1177
+#: scripts/hud_manager.gd:1189
 msgid "LT SNOW"
 msgstr ""
 
-#: scripts/hud_manager.gd:1177
+#: scripts/hud_manager.gd:1189
 msgid "SNOW"
 msgstr ""
 
-#: scripts/hud_manager.gd:1177
+#: scripts/hud_manager.gd:1189
 msgid "BLIZZARD"
 msgstr ""
 
-#: scripts/hud_manager.gd:1194
+#: scripts/hud_manager.gd:1206
 msgid "%d UPSET"
 msgstr ""
 
-#: scripts/hud_manager.gd:1198
+#: scripts/hud_manager.gd:1210
 msgid "%d WAITING"
 msgstr ""
 
-#: scripts/hud_manager.gd:1244
+#: scripts/hud_manager.gd:1256
 msgid "Night risk %s: %s"
 msgstr ""
 
-#: scripts/hud_manager.gd:1260
+#: scripts/hud_manager.gd:1272
 msgid "%s LATE"
 msgstr ""
 
-#: scripts/hud_manager.gd:1273
+#: scripts/hud_manager.gd:1285
 msgid "%s SURE"
 msgstr ""
 
-#: scripts/hud_manager.gd:1296
+#: scripts/hud_manager.gd:1308
 msgid "> %s"
 msgstr ""
 
-#: scripts/hud_manager.gd:1304
+#: scripts/hud_manager.gd:1316
 msgid "REWARD %s"
 msgstr ""
 
-#: scripts/hud_manager.gd:1325 scripts/os98/apps/guestrack_app.gd:635 scripts/reception/electrician_visit.gd:82
+#: scripts/hud_manager.gd:1337 scripts/os98/apps/guestrack_app.gd:635 scripts/reception/electrician_visit.gd:82
 #. uses 3
 msgid "\"%s\""
 msgstr ""
 
-#: scripts/hud_manager.gd:1445
+#: scripts/hud_manager.gd:1457
 msgid "%s$%s"
 msgstr ""
 
-#: scripts/hud_manager.gd:1473
+#: scripts/hud_manager.gd:1485
 msgid "Morning. The builder is unlocked again."
 msgstr ""
 
-#: scripts/hud_manager.gd:1474
+#: scripts/hud_manager.gd:1486
 msgid "DAY %d OF %d"
 msgstr ""
 
-#: scripts/hud_manager.gd:1474
+#: scripts/hud_manager.gd:1486
 msgid "The builder is unlocked. The camp is yours again."
 msgstr ""
 
-#: scripts/hud_manager.gd:1476
+#: scripts/hud_manager.gd:1488
 msgid "Evening. Guests start drifting back to their beds."
 msgstr ""
 
-#: scripts/hud_manager.gd:1478
+#: scripts/hud_manager.gd:1490
 msgid "Night. The builder is locked until 06:30."
 msgstr ""
 
-#: scripts/hud_manager.gd:1479
+#: scripts/hud_manager.gd:1491
 msgid "NIGHT %d"
 msgstr ""
 
-#: scripts/hud_manager.gd:1479
+#: scripts/hud_manager.gd:1491
 msgid "Builder locked. Survive until 06:30."
 msgstr ""
 
-#: scripts/hud_manager.gd:1537
+#: scripts/hud_manager.gd:1549
 msgid "%dM"
 msgstr ""
 
-#: scripts/hud_manager.gd:1596
+#: scripts/hud_manager.gd:1608
 msgid "Pager: new mail at the office"
 msgstr ""
 
-#: scripts/hud_manager.gd:1667
+#: scripts/hud_manager.gd:1679
 msgid "%s x%d - spawn guaranteed"
 msgstr ""
 
-#: scripts/hud_manager.gd:1674
+#: scripts/hud_manager.gd:1686
 msgid "%s risk starts at %d"
 msgstr ""
 
-#: scripts/hud_manager.gd:1675
+#: scripts/hud_manager.gd:1687
 msgid "all archetypes within safe count"
 msgstr ""
 
-#: scripts/hud_manager.gd:1677
+#: scripts/hud_manager.gd:1689
 msgid "%s x%d - %s risk %d%%"
 msgstr ""
 
@@ -8218,94 +8228,94 @@ msgstr ""
 msgid "Step behind the corn stand"
 msgstr ""
 
-#: scripts/interior_manager.gd:545
+#: scripts/interior_manager.gd:550
 msgid " - filthy, clean it"
 msgstr ""
 
-#: scripts/interior_manager.gd:547
+#: scripts/interior_manager.gd:552
 msgid " - needs cleaning"
 msgstr ""
 
-#: scripts/interior_manager.gd:949
+#: scripts/interior_manager.gd:962
 msgid "Caravan: Max Level"
 msgstr ""
 
-#: scripts/interior_manager.gd:949
+#: scripts/interior_manager.gd:962
 msgid "This caravan is already Lv3."
 msgstr ""
 
-#: scripts/interior_manager.gd:949 scripts/interior_manager.gd:1319 scripts/interior_manager.gd:1361
+#: scripts/interior_manager.gd:962 scripts/interior_manager.gd:1332 scripts/interior_manager.gd:1374
 #. uses 3
 msgid "MAX"
 msgstr ""
 
-#: scripts/interior_manager.gd:953
+#: scripts/interior_manager.gd:966
 msgid "Upgrade %s -> %s (one more bed)."
 msgstr ""
 
-#: scripts/interior_manager.gd:954
+#: scripts/interior_manager.gd:967
 msgid "Caravan: Upgrade"
 msgstr ""
 
-#: scripts/interior_manager.gd:1054
+#: scripts/interior_manager.gd:1067
 msgid "\"Occupied!\""
 msgstr ""
 
-#: scripts/interior_manager.gd:1054
+#: scripts/interior_manager.gd:1067
 msgid "\"We're asleep!\""
 msgstr ""
 
-#: scripts/interior_manager.gd:1054
+#: scripts/interior_manager.gd:1067
 msgid "\"Come back later.\""
 msgstr ""
 
-#: scripts/interior_manager.gd:1054
+#: scripts/interior_manager.gd:1067
 msgid "\"Who is it?\""
 msgstr ""
 
-#: scripts/interior_manager.gd:1319
+#: scripts/interior_manager.gd:1332
 msgid "Tent: Max Level"
 msgstr ""
 
-#: scripts/interior_manager.gd:1319
+#: scripts/interior_manager.gd:1332
 msgid "This tent is already Lv3. No further upgrade available."
 msgstr ""
 
-#: scripts/interior_manager.gd:1324 scripts/interior_manager.gd:1337
+#: scripts/interior_manager.gd:1337 scripts/interior_manager.gd:1350
 #. uses 2
 msgid "Tent: Upgrade"
 msgstr ""
 
-#: scripts/interior_manager.gd:1324
+#: scripts/interior_manager.gd:1337
 msgid "Invalid tent level."
 msgstr ""
 
-#: scripts/interior_manager.gd:1336
+#: scripts/interior_manager.gd:1349
 msgid "Upgrade %s -> %s (better comfort + capacity)."
 msgstr ""
 
-#: scripts/interior_manager.gd:1361
+#: scripts/interior_manager.gd:1374
 msgid "Cabin: Max Level"
 msgstr ""
 
-#: scripts/interior_manager.gd:1361
+#: scripts/interior_manager.gd:1374
 msgid "This cabin is already Lv3. No further upgrade available."
 msgstr ""
 
-#: scripts/interior_manager.gd:1366 scripts/interior_manager.gd:1379
+#: scripts/interior_manager.gd:1379 scripts/interior_manager.gd:1392
 #. uses 2
 msgid "Cabin: Upgrade"
 msgstr ""
 
-#: scripts/interior_manager.gd:1366
+#: scripts/interior_manager.gd:1379
 msgid "Invalid cabin level."
 msgstr ""
 
-#: scripts/interior_manager.gd:1378
+#: scripts/interior_manager.gd:1391
 msgid "Upgrade %s -> %s (bigger comfort + capacity)."
 msgstr ""
 
-#: scripts/interior_manager.gd:1387
+#: scripts/interior_manager.gd:1400
 msgid "%d GUESTS"
 msgstr "%d {HOST|HOSTÉ|HOSTŮ}"
 
@@ -8357,36 +8367,36 @@ msgstr ""
 msgid "STAND STILL WHEN IT PASSES"
 msgstr ""
 
-#: scripts/interior_tasks.gd:89
+#: scripts/interior_tasks.gd:98
 msgid "Working"
 msgstr ""
 
-#: scripts/interior_tasks.gd:198
+#: scripts/interior_tasks.gd:222
 msgid "CLICK"
 msgstr ""
 
-#: scripts/interior_tasks.gd:198
-msgid "HOLD [LMB]"
+#: scripts/interior_tasks.gd:222
+msgid "[LMB]"
 msgstr ""
 
-#: scripts/interior_tasks.gd:455
+#: scripts/interior_tasks.gd:499
 msgid "OCCUPIED"
 msgstr ""
 
-#: scripts/interior_tasks.gd:455
+#: scripts/interior_tasks.gd:499
 msgid "READY FOR GUESTS"
 msgstr ""
 
-#: scripts/interior_tasks.gd:455 scripts/service_interior.gd:2327
+#: scripts/interior_tasks.gd:499 scripts/service_interior.gd:2327
 #. uses 2
 msgid "NEEDS CLEANING"
 msgstr ""
 
-#: scripts/interior_tasks.gd:455
+#: scripts/interior_tasks.gd:499
 msgid "NOT MADE UP"
 msgstr ""
 
-#: scripts/interior_tasks.gd:465
+#: scripts/interior_tasks.gd:509
 msgid "[X]"
 msgstr ""
 
@@ -8727,321 +8737,321 @@ msgstr ""
 msgid "Survived to day %d   $%d in the till   %d guests hosted"
 msgstr ""
 
-#: scripts/main.gd:3178
+#: scripts/main.gd:3179
 msgid "Left behind%s by %s: %s."
 msgstr ""
 
-#: scripts/main.gd:3190
+#: scripts/main.gd:3191
 msgid "Bazaar: the red shoe sold for $1. The buyer left no name."
 msgstr ""
 
-#: scripts/main.gd:3192
+#: scripts/main.gd:3193
 msgid "Bazaar: the %s sold. $%d."
 msgstr ""
 
-#: scripts/main.gd:3195
+#: scripts/main.gd:3196
 msgid "The red shoe is in the lost and found again."
 msgstr ""
 
-#: scripts/main.gd:3197
+#: scripts/main.gd:3198
 msgid "In the lost and found this morning: %s. Nobody left it."
 msgstr ""
 
-#: scripts/main.gd:3236
+#: scripts/main.gd:3237
 msgid "%d guests in the camp. Builder 98 has new blueprints."
 msgstr "V kempu: %d {host|hosté|hostů}. Builder 98 má nové plány."
 
-#: scripts/main.gd:3270
+#: scripts/main.gd:3271
 msgid "SpotlessName Ltd: %s's review is gone."
 msgstr ""
 
-#: scripts/main.gd:3272
+#: scripts/main.gd:3273
 msgid "Goggle caught the removal of %s's review. It stays, and so does the fee."
 msgstr ""
 
-#: scripts/main.gd:3274
+#: scripts/main.gd:3275
 msgid "Goggle: %s added a star to their review."
 msgstr ""
 
-#: scripts/main.gd:3495
+#: scripts/main.gd:3496
 msgid "The sky clears."
 msgstr ""
 
-#: scripts/main.gd:3496
+#: scripts/main.gd:3497
 msgid "The wind picks up."
 msgstr ""
 
-#: scripts/main.gd:3497
+#: scripts/main.gd:3498
 msgid "Fog is rolling in off the lake."
 msgstr ""
 
-#: scripts/main.gd:3498
+#: scripts/main.gd:3499
 msgid "It starts to drizzle. The bonfire is out."
 msgstr ""
 
-#: scripts/main.gd:3499
+#: scripts/main.gd:3500
 msgid "Rain. Outdoor attractions are closed until it stops."
 msgstr ""
 
-#: scripts/main.gd:3500
+#: scripts/main.gd:3501
 msgid "A storm breaks over the camp."
 msgstr ""
 
-#: scripts/main.gd:3501
+#: scripts/main.gd:3502
 msgid "The air turns red. That is not weather."
 msgstr ""
 
-#: scripts/main.gd:3514
+#: scripts/main.gd:3515
 msgid "Snowflakes. The first ones settle on the path."
 msgstr ""
 
-#: scripts/main.gd:3514
+#: scripts/main.gd:3515
 msgid "It is snowing. The path is going white."
 msgstr ""
 
-#: scripts/main.gd:3514
+#: scripts/main.gd:3515
 msgid "A blizzard. You can barely see the lights."
 msgstr ""
 
-#: scripts/main.gd:3563 scripts/main.gd:5378
+#: scripts/main.gd:3564 scripts/main.gd:5385
 #. uses 2
 msgid "%s: \"We are waiting for the desk. Is anyone in there?\""
 msgstr ""
 
-#: scripts/main.gd:3851
+#: scripts/main.gd:3852
 msgid "[E] Get %s up"
 msgstr ""
 
-#: scripts/main.gd:3879 scripts/main.gd:5402
+#: scripts/main.gd:3886 scripts/main.gd:5409
 #. uses 2
 msgid "[E] Check in %s"
 msgstr ""
 
-#: scripts/main.gd:3881 scripts/main.gd:5402
+#: scripts/main.gd:3888 scripts/main.gd:5409
 #. uses 2
 msgid "[E] Talk to %s"
 msgstr ""
 
-#: scripts/main.gd:3980 scripts/night_jobs.gd:403 scripts/ui/main_menu.gd:73
+#: scripts/main.gd:3987 scripts/night_jobs.gd:403 scripts/ui/main_menu.gd:73
 #. uses 3
 msgid "Sewer"
 msgstr "Kanalizace"
 
-#: scripts/main.gd:4174
+#: scripts/main.gd:4181
 msgid "Loading save file..."
 msgstr ""
 
-#: scripts/main.gd:4199
+#: scripts/main.gd:4206
 msgid "Resuming your last save..."
 msgstr ""
 
-#: scripts/main.gd:4231 scripts/main.gd:4549 scripts/main.gd:4563
+#: scripts/main.gd:4238 scripts/main.gd:4556 scripts/main.gd:4570
 #. uses 3
 msgid "Port %d is taken."
 msgstr ""
 
-#: scripts/main.gd:4269
+#: scripts/main.gd:4276
 msgid "Test night: the sewer breaks again whenever it is mended."
 msgstr ""
 
-#: scripts/main.gd:4295
+#: scripts/main.gd:4302
 msgid "Test night: the boy is lost in the corn."
 msgstr "Testovací noc: kluk se ztratil v kukuřici."
 
-#: scripts/main.gd:4296
+#: scripts/main.gd:4303
 msgid "Test night: the boy is at the generator's board."
 msgstr "Testovací noc: kluk je u rozvaděče u generátoru."
 
-#: scripts/main.gd:4297
+#: scripts/main.gd:4304
 msgid "Test night: the boy is down the sewer."
 msgstr "Testovací noc: kluk je dole v kanálu."
 
-#: scripts/main.gd:4299
+#: scripts/main.gd:4306
 msgid "Test night: the %s is out."
 msgstr ""
 
-#: scripts/main.gd:4321
+#: scripts/main.gd:4328
 msgid "Test: the 380 is coming up the road. Ticket from the yellow machine by the stop, punch it on board."
 msgstr ""
 
-#: scripts/main.gd:4372 scripts/main.gd:4425
+#: scripts/main.gd:4379 scripts/main.gd:4432
 #. uses 2
 msgid "Kristyna"
 msgstr ""
 
-#: scripts/main.gd:4372 scripts/main.gd:4425
+#: scripts/main.gd:4379 scripts/main.gd:4432
 #. uses 2
 msgid "Denisa"
 msgstr ""
 
-#: scripts/main.gd:4373 scripts/main.gd:4425
+#: scripts/main.gd:4380 scripts/main.gd:4432
 #. uses 2
 msgid "Svoboda family"
 msgstr ""
 
-#: scripts/main.gd:4373 scripts/main.gd:4425
+#: scripts/main.gd:4380 scripts/main.gd:4432
 #. uses 2
 msgid "Kral family"
 msgstr ""
 
-#: scripts/main.gd:4373 scripts/main.gd:4425
+#: scripts/main.gd:4380 scripts/main.gd:4432
 #. uses 2
 msgid "Mr Prochazka"
 msgstr ""
 
-#: scripts/main.gd:4374 scripts/main.gd:4425
+#: scripts/main.gd:4381 scripts/main.gd:4432
 #. uses 2
 msgid "Kecal"
 msgstr ""
 
-#: scripts/main.gd:4374 scripts/main.gd:4425
+#: scripts/main.gd:4381 scripts/main.gd:4432
 #. uses 2
 msgid "Mrs Benesova"
 msgstr ""
 
-#: scripts/main.gd:4374
+#: scripts/main.gd:4381
 msgid "Horak family"
 msgstr ""
 
-#: scripts/main.gd:4374
+#: scripts/main.gd:4381
 msgid "Vesely"
 msgstr ""
 
-#: scripts/main.gd:4375
+#: scripts/main.gd:4382
 msgid "Fiala family"
 msgstr ""
 
-#: scripts/main.gd:4375
+#: scripts/main.gd:4382
 msgid "Zeman"
 msgstr ""
 
-#: scripts/main.gd:4384
+#: scripts/main.gd:4391
 msgid "Test: every business open and a full camp. The work is at their stations."
 msgstr "Test: všechny podniky otevřené a plný kemp. Práce je u jejich stanovišť."
 
-#: scripts/main.gd:4428
+#: scripts/main.gd:4435
 msgid "Mr Vesely"
 msgstr ""
 
-#: scripts/main.gd:4436
+#: scripts/main.gd:4443
 msgid "Generating a fresh camp..."
 msgstr ""
 
-#: scripts/main.gd:4559
+#: scripts/main.gd:4566
 msgid "A story camp cannot be hosted. Only sandbox camps are for two."
 msgstr ""
 
-#: scripts/main.gd:4566
+#: scripts/main.gd:4573
 msgid "Opening the camp..."
 msgstr ""
 
-#: scripts/main.gd:4571
+#: scripts/main.gd:4578
 msgid "That camp would not open."
 msgstr ""
 
-#: scripts/main.gd:4580
+#: scripts/main.gd:4587
 msgid "Calling the camp..."
 msgstr ""
 
-#: scripts/main.gd:4595
+#: scripts/main.gd:4602
 msgid "The camp came through garbled."
 msgstr ""
 
-#: scripts/main.gd:4610
+#: scripts/main.gd:4617
 msgid "You came in by the barrier. %s %s about."
 msgstr ""
 
-#: scripts/main.gd:4632
+#: scripts/main.gd:4639
 msgid "%s came in by the barrier."
 msgstr ""
 
-#: scripts/main.gd:4637
+#: scripts/main.gd:4644
 msgid "%s has gone home."
 msgstr ""
 
-#: scripts/main.gd:4663
+#: scripts/main.gd:4670
 msgid "%s has turned in."
 msgstr ""
 
-#: scripts/main.gd:4704
+#: scripts/main.gd:4711
 msgid "You go down. The grass is cold against your face."
 msgstr ""
 
-#: scripts/main.gd:4727
+#: scripts/main.gd:4734
 msgid "%s hauls you up by the jacket. \"Come on. Not here.\""
 msgstr ""
 
-#: scripts/main.gd:4729
+#: scripts/main.gd:4736
 msgid "You come to on the office step. You don't remember getting here."
 msgstr ""
 
-#: scripts/main.gd:4758
+#: scripts/main.gd:4765
 msgid "You get %s up. They are shaking."
 msgstr ""
 
-#: scripts/main.gd:5367
+#: scripts/main.gd:5374
 msgid "They grab your sleeve. \"Get me out of here.\""
 msgstr ""
 
-#: scripts/main.gd:5396
+#: scripts/main.gd:5403
 msgid "[E] Take them by the arm"
 msgstr ""
 
-#: scripts/main.gd:5443 scripts/ui/main_menu.gd:586
+#: scripts/main.gd:5450 scripts/ui/main_menu.gd:586
 #. uses 2
 msgid "Co-op"
 msgstr "Co-op"
 
-#: scripts/main.gd:5612 scripts/main.gd:5703 scripts/main.gd:6440 scripts/main.gd:6565
+#: scripts/main.gd:5633 scripts/main.gd:5724 scripts/main.gd:6461 scripts/main.gd:6586
 #. uses 4
 msgid "Autosave"
 msgstr "Autouložení"
 
-#: scripts/main.gd:5712
+#: scripts/main.gd:5733
 msgid "Manual Save"
 msgstr ""
 
-#: scripts/main.gd:6291
+#: scripts/main.gd:6312
 msgid "structure_%d"
 msgstr ""
 
-#: scripts/main.gd:6476
+#: scripts/main.gd:6497
 msgid "Row back to camp"
 msgstr ""
 
-#: scripts/main.gd:6478
+#: scripts/main.gd:6499
 msgid "Go outside"
 msgstr ""
 
-#: scripts/main.gd:6528
+#: scripts/main.gd:6549
 msgid "DAY %d   %s"
 msgstr ""
 
-#: scripts/main.gd:6533
+#: scripts/main.gd:6554
 msgid "   SAVED JUST NOW"
 msgstr ""
 
-#: scripts/main.gd:6535
+#: scripts/main.gd:6556
 msgid "   SAVED %d MIN AGO"
 msgstr ""
 
-#: scripts/main.gd:6537
+#: scripts/main.gd:6558
 msgid "   SAVED %d H AGO"
 msgstr ""
 
-#: scripts/main.gd:6540
+#: scripts/main.gd:6561
 msgid "   WITH %s"
 msgstr ""
 
-#: scripts/main.gd:6544
+#: scripts/main.gd:6565
 msgid "   OPEN AT %s"
 msgstr ""
 
-#: scripts/main.gd:6557
+#: scripts/main.gd:6578
 msgid "SAVE FAILED"
 msgstr ""
 
-#: scripts/main.gd:6561
+#: scripts/main.gd:6582
 msgid "Game saved."
 msgstr ""
 
@@ -9061,27 +9071,27 @@ msgstr ""
 msgid "[R] Service $%d"
 msgstr ""
 
-#: scripts/maintenance_controller.gd:393
+#: scripts/maintenance_controller.gd:394
 msgid "Not enough cash: the %s needs $%d."
 msgstr ""
 
-#: scripts/maintenance_controller.gd:402
+#: scripts/maintenance_controller.gd:407
 msgid "REPAIRING"
 msgstr ""
 
-#: scripts/maintenance_controller.gd:402
+#: scripts/maintenance_controller.gd:407
 msgid "SERVICING"
 msgstr ""
 
-#: scripts/maintenance_controller.gd:436
+#: scripts/maintenance_controller.gd:466
 msgid "The %s broke down."
 msgstr ""
 
-#: scripts/maintenance_controller.gd:445
+#: scripts/maintenance_controller.gd:475
 msgid "%s repaired. -$%d"
 msgstr ""
 
-#: scripts/maintenance_controller.gd:448
+#: scripts/maintenance_controller.gd:478
 msgid "%s serviced. -$%d"
 msgstr ""
 
@@ -9321,49 +9331,49 @@ msgstr ""
 msgid "guests in"
 msgstr ""
 
-#: scripts/profiles.gd:149 scripts/profiles.gd:308 scripts/os98/os_shell.gd:627 scripts/ui/main_menu.gd:587
+#: scripts/profiles.gd:149 scripts/profiles.gd:351 scripts/os98/os_shell.gd:627 scripts/ui/main_menu.gd:587
 #. uses 4
 msgid "Warden"
 msgstr "Správce"
 
-#: scripts/profiles.gd:320 scripts/os98/apps/display_app.gd:13
+#: scripts/profiles.gd:363 scripts/os98/apps/display_app.gd:13
 #. uses 2
 msgid "Black Lake"
 msgstr ""
 
-#: scripts/profiles.gd:320
+#: scripts/profiles.gd:363
 msgid "Spruce Hollow"
 msgstr ""
 
-#: scripts/profiles.gd:320
+#: scripts/profiles.gd:363
 msgid "Liblice Meadow"
 msgstr ""
 
-#: scripts/profiles.gd:320
+#: scripts/profiles.gd:363
 msgid "Kettle Pond"
 msgstr ""
 
-#: scripts/profiles.gd:320
+#: scripts/profiles.gd:363
 msgid "Birch Bend"
 msgstr ""
 
-#: scripts/profiles.gd:320
+#: scripts/profiles.gd:363
 msgid "Mill Race"
 msgstr ""
 
-#: scripts/profiles.gd:320
+#: scripts/profiles.gd:363
 msgid "Fox Hill"
 msgstr ""
 
-#: scripts/profiles.gd:320
+#: scripts/profiles.gd:363
 msgid "Reed Shore"
 msgstr ""
 
-#: scripts/profiles.gd:349
+#: scripts/profiles.gd:392
 msgid "%s (copy)"
 msgstr ""
 
-#: scripts/profiles.gd:433
+#: scripts/profiles.gd:476
 msgid "Old camp %d (%02d.%02d.)"
 msgstr ""
 
@@ -10106,141 +10116,161 @@ msgid "Space"
 msgstr "Mezerník"
 
 #: scripts/settings_panel.gd:17
+msgid "Crouch (twice: crawl)"
+msgstr "Přikrčit se (dvakrát: plazit)"
+
+#: scripts/settings_panel.gd:17
+msgid "Ctrl"
+msgstr ""
+
+#: scripts/settings_panel.gd:18
+msgid "Pick up / put down"
+msgstr "Zvednout / položit"
+
+#: scripts/settings_panel.gd:19
+msgid "Throw what you hold"
+msgstr "Hodit, co držíš"
+
+#: scripts/settings_panel.gd:19
+msgid "Left Mouse"
+msgstr "Levé tlačítko myši"
+
+#: scripts/settings_panel.gd:20
 msgid "Look"
 msgstr "Rozhlížení"
 
-#: scripts/settings_panel.gd:18
+#: scripts/settings_panel.gd:21
 msgid "Interact / use"
 msgstr "Akce / použít"
 
-#: scripts/settings_panel.gd:18
+#: scripts/settings_panel.gd:21
 msgid "E  or  Left Mouse"
 msgstr "E  nebo  levé tlačítko"
 
-#: scripts/settings_panel.gd:19
+#: scripts/settings_panel.gd:22
 msgid "Service / repair building (hold)"
 msgstr "Údržba / oprava budovy (držet)"
 
-#: scripts/settings_panel.gd:20
+#: scripts/settings_panel.gd:23
 msgid "Pause"
 msgstr "Pauza"
 
-#: scripts/settings_panel.gd:20 scripts/settings_panel.gd:21
+#: scripts/settings_panel.gd:23 scripts/settings_panel.gd:24
 #. uses 2
 msgid "Esc"
 msgstr "Esc"
 
-#: scripts/settings_panel.gd:21
+#: scripts/settings_panel.gd:24
 msgid "Back / close"
 msgstr "Zpět / zavřít"
 
-#: scripts/settings_panel.gd:22
+#: scripts/settings_panel.gd:25
 msgid "Office lights (reception)"
 msgstr "Světla v kanceláři (recepce)"
 
-#: scripts/settings_panel.gd:23
+#: scripts/settings_panel.gd:26
 msgid "Service room: previous / next"
 msgstr "Provozní místnost: předchozí / další"
 
-#: scripts/settings_panel.gd:23
+#: scripts/settings_panel.gd:26
 msgid "A / D"
 msgstr ""
 
-#: scripts/settings_panel.gd:24
+#: scripts/settings_panel.gd:27
 msgid "Builder: rotate"
 msgstr "Builder: otočit"
 
-#: scripts/settings_panel.gd:24
+#: scripts/settings_panel.gd:27
 msgid "Q / E"
 msgstr ""
 
-#: scripts/settings_panel.gd:25
+#: scripts/settings_panel.gd:28
 msgid "Builder: pan"
 msgstr "Builder: posun"
 
-#: scripts/settings_panel.gd:25
+#: scripts/settings_panel.gd:28
 msgid "W A S D  or  Right-drag"
 msgstr "W A S D  nebo  tažení pravým"
 
-#: scripts/settings_panel.gd:26
+#: scripts/settings_panel.gd:29
 msgid "Builder: zoom"
 msgstr "Builder: přiblížení"
 
-#: scripts/settings_panel.gd:26
+#: scripts/settings_panel.gd:29
 msgid "Mouse wheel  or  + / -"
 msgstr "Kolečko myši  nebo  + / -"
 
-#: scripts/settings_panel.gd:30
+#: scripts/settings_panel.gd:33
 msgid "Skip one hour"
 msgstr "Přeskočit hodinu"
 
-#: scripts/settings_panel.gd:30
+#: scripts/settings_panel.gd:33
 msgid "T / U"
 msgstr ""
 
-#: scripts/settings_panel.gd:31
+#: scripts/settings_panel.gd:34
 msgid "Cycle weather"
 msgstr "Přepnout počasí"
 
-#: scripts/settings_panel.gd:32
+#: scripts/settings_panel.gd:35
 msgid "Damage player"
 msgstr "Zranit hráče"
 
-#: scripts/settings_panel.gd:33
+#: scripts/settings_panel.gd:36
 msgid "Add money"
 msgstr "Přidat peníze"
 
-#: scripts/settings_panel.gd:34
+#: scripts/settings_panel.gd:37
 msgid "Liminal forecast window"
 msgstr "Okno liminální předpovědi"
 
-#: scripts/settings_panel.gd:60
+#: scripts/settings_panel.gd:63
 msgid "Display"
 msgstr ""
 
-#: scripts/settings_panel.gd:69
+#: scripts/settings_panel.gd:72
 msgid "Window Mode"
 msgstr ""
 
-#: scripts/settings_panel.gd:85 scripts/ui/retro_menu.gd:416
+#: scripts/settings_panel.gd:88 scripts/ui/retro_menu.gd:422
 #. uses 2
 msgid "Resolution"
 msgstr "Rozlišení"
 
-#: scripts/settings_panel.gd:99
+#: scripts/settings_panel.gd:102
 msgid "Render Style"
 msgstr ""
 
-#: scripts/settings_panel.gd:115
+#: scripts/settings_panel.gd:118
 msgid "256-Colour Palette"
 msgstr ""
 
-#: scripts/settings_panel.gd:120
+#: scripts/settings_panel.gd:123
 msgid "Build engine shade tables"
 msgstr ""
 
-#: scripts/settings_panel.gd:125
+#: scripts/settings_panel.gd:128
 msgid "Audio"
 msgstr ""
 
-#: scripts/settings_panel.gd:134
+#: scripts/settings_panel.gd:137
 msgid "Master Volume"
 msgstr ""
 
-#: scripts/settings_panel.gd:158
+#: scripts/settings_panel.gd:161
 msgid "Reset Defaults"
 msgstr ""
 
-#: scripts/settings_panel.gd:172 scripts/ui/retro_menu.gd:423
+#: scripts/settings_panel.gd:175 scripts/ui/retro_menu.gd:428
 #. uses 2
 msgid "Controls"
 msgstr "Ovládání"
 
-#: scripts/settings_panel.gd:196
+#: scripts/settings_panel.gd:199
 msgid "Debug (debug builds only)"
 msgstr ""
 
-#: scripts/settings_panel.gd:255 scripts/settings_panel.gd:292
+#: scripts/settings_panel.gd:258 scripts/settings_panel.gd:295
 #. uses 2
 msgid "%.1f dB"
 msgstr ""
@@ -10435,12 +10465,53 @@ msgstr ""
 msgid "corn%d:%d"
 msgstr ""
 
-#: scripts/world_generator.gd:1295
+#: scripts/world_generator.gd:1298
 msgid "Terrain"
 msgstr ""
 
-#: scripts/world_generator.gd:1297
+#: scripts/world_generator.gd:1300
 msgid "Nature"
+msgstr ""
+
+#: scripts/ambient/body_world.gd:332
+msgid "%s: \"Hey! Watch it.\""
+msgstr "%s: „Hej! Dávej bacha.“"
+
+#: scripts/ambient/body_world.gd:332
+msgid "%s: \"Easy there.\""
+msgstr "%s: „Pomalu, pomalu.“"
+
+#: scripts/ambient/body_world.gd:332
+msgid "%s: \"Sorry, sorry.\""
+msgstr "%s: „Pardon, pardon.“"
+
+#: scripts/ambient/body_world.gd:332
+msgid "%s: \"Do you mind?\""
+msgstr "%s: „Nevadí ti to?“"
+
+#: scripts/ambient/carry.gd:163
+msgid "[E] Into the dumpster"
+msgstr "[E] Do kontejneru"
+
+#: scripts/ambient/carry.gd:165
+msgid "[E] Put it down"
+msgstr "[E] Položit"
+
+#: scripts/ambient/carry.gd:167
+msgid "[E] Put down   [LMB] Throw"
+msgstr "[E] Položit   [LMB] Hodit"
+
+#: scripts/ambient/carry.gd:171
+msgid "[E] Pick up the %s"
+msgstr "[E] Zvednout: %s"
+
+#: scripts/ambient/carry.gd:174
+msgid "rubbish sack"
+msgstr "pytel s odpadky"
+
+#: scripts/ambient/carry.gd:293 scripts/ambient/carry.gd:295 scripts/ambient/carry.gd:304 scripts/ambient/carry.gd:330
+#. uses 4
+msgid "work#carry"
 msgstr ""
 
 #: scripts/ambient/forest_floor.gd:43
@@ -10449,6 +10520,10 @@ msgstr ""
 
 #: scripts/ambient/ground_cover.gd:190
 msgid "%d:%d:%d:cover"
+msgstr ""
+
+#: scripts/ambient/nudge_props.gd:206
+msgid "%s@%d,%d"
 msgstr ""
 
 #: scripts/ambient/room_weather.gd:30
@@ -18373,7 +18448,7 @@ msgstr ""
 msgid "GRID"
 msgstr ""
 
-#: scripts/os98/apps/campstat_app.gd:190 scripts/ui/retro_menu.gd:517 scripts/ui/retro_menu.gd:529 scripts/ui/retro_menu.gd:532
+#: scripts/os98/apps/campstat_app.gd:190 scripts/ui/retro_menu.gd:533 scripts/ui/retro_menu.gd:545 scripts/ui/retro_menu.gd:548
 #. uses 4
 msgid "ON"
 msgstr "ZAP"
@@ -18382,7 +18457,7 @@ msgstr "ZAP"
 msgid "NO LINK"
 msgstr ""
 
-#: scripts/os98/apps/campstat_app.gd:190 scripts/pub/pub_marks.gd:235 scripts/ui/retro_menu.gd:517 scripts/ui/retro_menu.gd:521 (+2)
+#: scripts/os98/apps/campstat_app.gd:190 scripts/pub/pub_marks.gd:235 scripts/ui/retro_menu.gd:533 scripts/ui/retro_menu.gd:537 (+2)
 #. uses 6
 msgid "OFF"
 msgstr "VYP"
@@ -23635,7 +23710,7 @@ msgid ""
 "}\n"
 msgstr ""
 
-#: scripts/ui/boot_screen.gd:125 scripts/ui/main_menu.gd:332 scripts/ui/retro_menu.gd:647
+#: scripts/ui/boot_screen.gd:125 scripts/ui/main_menu.gd:332 scripts/ui/retro_menu.gd:705
 #. uses 3
 msgid "CURSED CAMP"
 msgstr "PROKLETÝ KEMP"
@@ -24160,124 +24235,160 @@ msgstr "CELÁ OBRAZOVKA"
 msgid "BORDERLESS"
 msgstr "BEZ RÁMEČKU"
 
-#: scripts/ui/retro_menu.gd:415
+#: scripts/ui/retro_menu.gd:421
 msgid "Window mode"
 msgstr "Režim okna"
 
-#: scripts/ui/retro_menu.gd:417
+#: scripts/ui/retro_menu.gd:423
 msgid "Render style"
 msgstr "Styl vykreslení"
 
-#: scripts/ui/retro_menu.gd:418
+#: scripts/ui/retro_menu.gd:424
 msgid "256-colour palette"
 msgstr "Paleta 256 barev"
 
-#: scripts/ui/retro_menu.gd:419
+#: scripts/ui/retro_menu.gd:425
 msgid "Master volume"
 msgstr "Hlasitost"
 
-#: scripts/ui/retro_menu.gd:420
-msgid "Mouse speed"
-msgstr "Citlivost myši"
+#: scripts/ui/retro_menu.gd:426
+msgid "View and body"
+msgstr "Pohled a tělo"
 
-#: scripts/ui/retro_menu.gd:421
-msgid "Invert mouse Y"
-msgstr "Obrátit osu Y myši"
-
-#: scripts/ui/retro_menu.gd:422
+#: scripts/ui/retro_menu.gd:427
 msgid "Work hints"
 msgstr "Nápověda v podnicích"
 
-#: scripts/ui/retro_menu.gd:424
+#: scripts/ui/retro_menu.gd:429
 msgid "Credits"
 msgstr "Autoři"
 
-#: scripts/ui/retro_menu.gd:425
+#: scripts/ui/retro_menu.gd:430
 msgid "Reset defaults"
 msgstr "Obnovit výchozí"
 
-#: scripts/ui/retro_menu.gd:511
+#: scripts/ui/retro_menu.gd:435
+msgid "Field of view"
+msgstr "Zorné pole"
+
+#: scripts/ui/retro_menu.gd:436
+msgid "Mouse X"
+msgstr "Myš vodorovně"
+
+#: scripts/ui/retro_menu.gd:437
+msgid "Mouse Y"
+msgstr "Myš svisle"
+
+#: scripts/ui/retro_menu.gd:438
+msgid "Invert mouse Y"
+msgstr "Obrátit osu Y myši"
+
+#: scripts/ui/retro_menu.gd:439
+msgid "Head bob"
+msgstr "Pohupování hlavy"
+
+#: scripts/ui/retro_menu.gd:440
+msgid "Lean"
+msgstr "Náklon"
+
+#: scripts/ui/retro_menu.gd:441
+msgid "Crouch (Ctrl)"
+msgstr "Přikrčení (Ctrl)"
+
+#: scripts/ui/retro_menu.gd:527
 msgid "%d X %d"
 msgstr ""
 
-#: scripts/ui/retro_menu.gd:513
+#: scripts/ui/retro_menu.gd:529
 msgid "DESKTOP"
 msgstr "PLOCHA"
 
-#: scripts/ui/retro_menu.gd:521
+#: scripts/ui/retro_menu.gd:537
 msgid "%+d DB"
 msgstr ""
 
-#: scripts/ui/retro_menu.gd:536
+#: scripts/ui/retro_menu.gd:550
+msgid "%d°"
+msgstr ""
+
+#: scripts/ui/retro_menu.gd:560
+msgid "TOGGLE"
+msgstr "PŘEPNOUT"
+
+#: scripts/ui/retro_menu.gd:560
+msgid "HOLD"
+msgstr "DRŽET"
+
+#: scripts/ui/retro_menu.gd:564
 msgid "< %s >"
 msgstr ""
 
-#: scripts/ui/retro_menu.gd:649
+#: scripts/ui/retro_menu.gd:707
 msgid "Map data"
 msgstr "Mapová data"
 
-#: scripts/ui/retro_menu.gd:649
+#: scripts/ui/retro_menu.gd:707
 msgid "(c) OpenStreetMap contributors"
 msgstr "(c) přispěvatelé OpenStreetMap"
 
-#: scripts/ui/retro_menu.gd:650
+#: scripts/ui/retro_menu.gd:708
 msgid "ODbL - openstreetmap.org/copyright"
 msgstr ""
 
-#: scripts/ui/retro_menu.gd:651
+#: scripts/ui/retro_menu.gd:709
 msgid "Engine"
 msgstr "Engine"
 
-#: scripts/ui/retro_menu.gd:651
+#: scripts/ui/retro_menu.gd:709
 msgid "Godot Engine (MIT licence)"
 msgstr "Godot Engine (licence MIT)"
 
-#: scripts/ui/retro_menu.gd:652
+#: scripts/ui/retro_menu.gd:710
 msgid "(c) Juan Linietsky, Ariel Manzur & contributors"
 msgstr "(c) Juan Linietsky, Ariel Manzur a přispěvatelé"
 
-#: scripts/ui/retro_menu.gd:653
+#: scripts/ui/retro_menu.gd:711
 msgid "Fonts"
 msgstr "Písma"
 
-#: scripts/ui/retro_menu.gd:653
+#: scripts/ui/retro_menu.gd:711
 msgid "Jersey 10, Silkscreen, Tiny5, W95FA"
 msgstr ""
 
-#: scripts/ui/retro_menu.gd:654
+#: scripts/ui/retro_menu.gd:712
 msgid "SIL Open Font License 1.1"
 msgstr ""
 
-#: scripts/ui/retro_menu.gd:655
+#: scripts/ui/retro_menu.gd:713
 msgid "Pixel Operator (CC0)"
 msgstr ""
 
-#: scripts/ui/retro_menu.gd:656
+#: scripts/ui/retro_menu.gd:714
 msgid "Voices"
 msgstr "Hlasy"
 
-#: scripts/ui/retro_menu.gd:656
+#: scripts/ui/retro_menu.gd:714
 msgid "ElevenLabs text to speech"
 msgstr "ElevenLabs, převod textu na řeč"
 
-#: scripts/ui/retro_menu.gd:683 scripts/ui/retro_menu.gd:758
+#: scripts/ui/retro_menu.gd:741 scripts/ui/retro_menu.gd:816
 #. uses 2
 msgid "ESC / CLICK TO GO BACK"
 msgstr "ESC / KLIK = ZPĚT"
 
-#: scripts/ui/retro_menu.gd:722
+#: scripts/ui/retro_menu.gd:780
 msgid "PRESS A KEY..."
 msgstr "STISKNI KLÁVESU..."
 
-#: scripts/ui/retro_menu.gd:722
+#: scripts/ui/retro_menu.gd:780
 msgid "%s  [CHANGE]"
 msgstr "%s  [ZMĚNIT]"
 
-#: scripts/ui/retro_menu.gd:727
+#: scripts/ui/retro_menu.gd:785
 msgid "(debug) "
 msgstr "(ladění) "
 
-#: scripts/ui/retro_menu.gd:772
+#: scripts/ui/retro_menu.gd:830
 msgid "%s is also: %s"
 msgstr "%s je také: %s"
 
@@ -24372,10 +24483,14 @@ msgstr ""
 msgid "Stay on"
 msgstr "Zůstat"
 
-#: scripts/ui/work_hand.gd:103 scripts/ui/work_hand.gd:168 scripts/ui/work_hand.gd:264
+#: scripts/ui/work_hand.gd:112 scripts/ui/work_hand.gd:190 scripts/ui/work_hand.gd:301
 #. uses 3
 msgid "work#%d"
 msgstr ""
+
+#. gone
+msgid "Mouse speed"
+msgstr "Citlivost myši"
 
 #. gone
 msgid "Someone stood at my tent all night. I did not open it."
@@ -24388,3 +24503,31 @@ msgstr "Dítě navíc"
 #. manual
 msgid "lemonade"
 msgstr "limonádu"
+
+#. manual
+msgid "bottle"
+msgstr "láhev"
+
+#. manual
+msgid "can"
+msgstr "plechovka"
+
+#. manual
+msgid "cone"
+msgstr "šiška"
+
+#. manual
+msgid "bucket"
+msgstr "kbelík"
+
+#. manual
+msgid "stone"
+msgstr "kámen"
+
+#. manual
+msgid "log"
+msgstr "poleno"
+
+#. manual
+msgid "box"
+msgstr "krabice"

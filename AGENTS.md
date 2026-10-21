@@ -157,7 +157,7 @@ a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `pr
 | Which enemy an archetype brings | `main.ENEMY_FOR_ARCHETYPE` + `scripts/enemies/` |
 | HUD | `scripts/hud_manager.gd` (+ `scripts/ui/retro_ui.gd` kit) |
 | Menus / pause / game over | `scripts/ui/` |
-| Camera moves in rooms; things that move in steps | the camera moves in rooms (sitting down, getting up, looking back, the window, the bus seat) are smooth: `scripts/ui/cam_move.gd` `CAM_MOVE.move(host, camera, {"position": p, "rotation": r}, seconds)`; it holds the tween for a steady frame (`CAM_MOVE.hold(host, tween)` for any tween started while a room is built); the fire, the torch hand, the gate and such machinery step twelve a second through `scripts/ui/step12.gd`; the door transition into buildings `scripts/ui/door_transition.gd` (frozen frame, smooth dither dissolve), called from `interior_manager._door_transition()`; out of them no dissolve: `interior_manager._step_out_of(structure)` puts the warden at the building's door (`door_anim.entry_points`) facing out and walks him off the doorstep (`_walk_body`) |
+| Camera moves in rooms; things that move in steps | the camera moves in rooms (sitting down, getting up, looking back, the window, the bus seat) are smooth: `scripts/ui/cam_move.gd` `CAM_MOVE.move(host, camera, {"position": p, "rotation": r}, seconds)`; it holds the tween for a steady frame (`CAM_MOVE.hold(host, tween)` for any tween started while a room is built); the fire, the torch hand, the gate and such machinery step twelve a second through `scripts/ui/step12.gd`; the door transition into buildings `scripts/ui/door_transition.gd` (frozen frame, smooth dither dissolve), called from `interior_manager._door_transition()`, skipped since 21. 10. when you walked in through the door by hand (`_walk_up_first`, `_walked_in_ms`); out of them no dissolve: `interior_manager._step_out_of(structure)` puts the warden at the building's door (`door_anim.entry_points`) facing out and walks him off the doorstep (`_walk_body`) |
 | Story or sandbox, the sandbox's switches | NEW CAMP page in `scripts/ui/main_menu.gd` (`_set_nc_mode`, `NC_RULE_TEXT`); in game `main.CAMP_RULES` / `camp_rule(id)` ("threats", "weather", "events", "wear", "money"), saved as the snapshot's "rules"; a new system that the sandbox should be able to switch off checks `camp_rule` |
 | The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds recorded (ElevenLabs, `splash_*` rows in `tools/audiogen/prompts_world.tsv`); after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
@@ -231,6 +231,11 @@ a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `pr
 | The torch | outdoors `player_controller._aim_beam` + `scripts/ui/torch_hand.gd`; in rooms `scripts/ui/interior_torch.gd` (each interior's `room_is_dark()`) |
 | Your hands (who holds what, their pixel size, their light, how they sway) | `scripts/ui/hands.gd` (`Hands.of(node)`: `claim/release(hand, who)`, `torch_hand()`, `light`, `motion`, `px(h)`); the coarse hand sprites `assets/textury/hands_lo/` (`tools/artgen/hands_lo.py` halves the old ones, new ones are processed straight to it) |
 | The cigarette and the bottle | `scripts/town/pockets.gd` (keys C / B / X, drawing, drunk), the states `scripts/habits/cigarette.gd` and `bottle.gd` (pure), the world and co-op `scripts/habits/habit_world.gd` (`Coop.send_habit`, the warden state's `hb`); sprites `assets/textury/habits/` (Grok sheets cut by `tools/artgen/split_sheet.py`), sounds `assets/sfx/habits/` (`hb_*` rows in `tools/audiogen/prompts.tsv`); shots `tools/habits_shots.tscn` |
+| How you move and look (DESIGN §9c) | `scripts/player_controller.gd`: speeds and the ground's quickness (`ground_acceleration`, `ground_deceleration`, `air_*`), the bob by the ground covered (`stride_*`, `bob_*`, `_after_physics` counts the steps, `foot_fell`), the head drawn between physics steps (`_update_head_motion` in `_process`), the look's limits (`look_limits()`: up stops short of the zenith) and Build's shift (`build_shift_degrees`, `_apply_projection`: a frustum offset), where you really look `look_basis()`, crouch and crawl (`stance`, `set_stance`, `STANCE_*`, Ctrl, `move_crouch`), the warden's Options `view` (`profiles.profile_body`: fov, mouse_x, mouse_y, bob, lean, crouch_toggle; the Options page's "View and body" section in `retro_menu.OptionsPage`); measured and pictured by `tools/move_shots.tscn -- --out=<dir> --part=measure|shots|body` |
+| Your own body seen (boots looking down, the crawl's hands, your shadow) | `scripts/ui/body_view.gd` (art `hands_lo/feet_*.png`, rows `body_*` in `tools/artgen/prompts_body.tsv`) |
+| The world answering the body (grass parting, rustle, a branch, leaves, birds, ducks, splashes, wet and muddy prints, guests bumped, the other wardens' doors) | `scripts/ambient/body_world.gd` (the shader globals `body_0..3` in project.godot, read by `materials/ground_tuft.gdshader`, which the forest floor's soft plants use too: `forest_floor.SOFT`); wading at the lake `camp_lake.WADE`, `in_water`, `duck_spots` |
+| Picking up, carrying, throwing; the sack to the dumpsters | `scripts/ambient/carry.gd` (its own E and click in `_input`, the hint through `main._update_interaction_hint`), the things themselves `nudge_props.gd` (`props_near`, `take_prop`, `put_prop`, `throw_prop`, `add_loose`, `_landed`: the night hook group "night_ears"), the sack `day_events._sack_to_carry` / `sack_binned`; co-op `Coop.send_body` |
+| Work by a gesture of the mouse | `scripts/ui/gesture.gd` (`kind_for(verb)`, `feed`, `strokes_for(seconds)`, `ghost_offset`; `auto` for tools), `work_hand.gesture_offset` / `ghost_kind` / `stroke()`; used by `interior_tasks.gd` (rooms), `maintenance_controller._update_work` (R) and `day_events._update_target` (E), the look held by `player.lock_look(who, on)` |
 | Lodging numbers and their signs | `GuestManager._number_lodgings / room_short / room_number`; signs `scripts/lodging_signs.gd` (meta `number_plate` from the models) |
 | The caravan | `data/buildings/caravan_1..3.tres`, model `building_models.caravan(level)`, room `scripts/caravan_interior.gd` (module "caravan" in `interior_manager.gd`) |
 
@@ -321,8 +326,8 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   engine boot image `assets/boot/undo_labs_boot.png` is its first frame: re-bake it
   (`tools/studio_splash_bake.gd -- --boot`) after changing the sign, wall or shader.
 - **Machinery moves in steps, twelve a second; rooms move smoothly** (playtest 18. 10.:
-  the stepped room cameras were "choppy"). The fire, the torch hand, the gate, the step
-  bob go through `Step12` (scripts/ui/step12.gd); camera moves in rooms, the door
+  the stepped room cameras were "choppy"). The fire, the torch hand, the gate go through
+  `Step12` (the step bob is smooth since 21. 10.: the camera never steps) (scripts/ui/step12.gd); camera moves in rooms, the door
   transition, the A/D push and the walk through a doorway run at the full frame rate.
   Anything that starts in the frame a room is built (or a still is read back from the
   GPU) must wait for a steady frame (`CAM_MOVE.hold`), or its first part goes in one
@@ -594,6 +599,24 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   A new hand overlay must claim, draw at `Hands.px(view height)` on that pixel grid, take
   `light` as its modulate and add `motion`; never rotate a hand sprite.
 - **A close-up hides the hands**: `closeup_view.gd` (and the breaker, scrub, corn stand,
+- **Frames at 50, physics at 60** (`run/max_fps=50`): anything moved in `_physics_process`
+  judders whenever it moves (a double step every fifth frame). The player's head is drawn in
+  `_process` between the last two physics positions (`Engine.get_physics_interpolation_fraction`);
+  a new camera that follows a physics body must do the same.
+- **A body walked with its collisions off** (`collision_mask = 0`: the door walks in
+  `interior_manager`) is left alone by the player's physics: main hands the keys back every
+  frame no room is open, and with gravity on it sank through the floor while it waited.
+- **The camp camera's picture can be shifted** (Build's look up and down is a frustum offset,
+  `player_controller._apply_projection`): a camera that copies it must copy `projection`,
+  `size` and `frustum_offset` (scaled to its own near), and "where the warden looks" is
+  `player.look_basis()` (the camera's -Z is up to 12° off).
+- **A new PNG is not there until imported**: `ResourceLoader.exists` is false for a picture
+  with no `.import` in a run that is not the editor. Run `godot --headless --path godot --import`
+  after adding art, before a shot run.
+- **Work goes by gestures** (`scripts/ui/gesture.gd`): a held click or key with no mouse
+  movement does nothing. The shot driver sets `GESTURE.auto` (a held press makes strokes by
+  itself, ~the old hold's time), so scenarios with `["lmb", true], ["wait", s]` still work; a
+  harness that does not extend the shot driver must set it.
   check-in desk) are in group "closeup"; pockets.gd keeps the hands down while one is
   visible. A new full-screen overlay where your hands are busy joins that group.
 - **Builder's building pictures come from the models**: change a model in

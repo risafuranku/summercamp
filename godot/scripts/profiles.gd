@@ -217,6 +217,49 @@ static func set_profile_hints(pid: String, on: bool) -> void:
 	_write(path, p)
 
 
+## How the warden's body and eye feel (Options "View and body", the brief of 21. 10.): the
+## FOV, the mouse across and up and down, how much the head bobs and leans (0..1: against
+## sickness), Ctrl held or toggled. Kept with the warden ("body" in profile.json); read
+## every half second by the player, so kept here until it is set again.
+const BODY_DEFAULTS := {"fov": 72.0, "mouse_x": 1.0, "mouse_y": 1.0, "bob": 1.0, "lean": 1.0, "crouch_toggle": false}
+static var _body_cache := {}
+static var _body_for := "-"
+
+
+static func profile_body(pid: String = profile_id) -> Dictionary:
+	if pid == _body_for and not _body_cache.is_empty():
+		return _body_cache
+	var out := BODY_DEFAULTS.duplicate()
+	if pid != "":
+		var saved = _read(profile_dir(pid).path_join("profile.json")).get("body", {})
+		if saved is Dictionary:
+			for k in saved.keys():
+				if out.has(k):
+					out[k] = saved[k]
+	_body_for = pid
+	_body_cache = out
+	return out
+
+
+static func set_profile_body(pid: String, key: String, value) -> void:
+	if not BODY_DEFAULTS.has(key):
+		return
+	_body_for = "-"
+	_body_cache = {}
+	var path := profile_dir(pid).path_join("profile.json")
+	var p := _read(path)
+	if p.is_empty():
+		# No warden chosen (a tool, the first start): for this run only.
+		_body_cache = profile_body("").duplicate()
+		_body_cache[key] = value
+		_body_for = pid
+		return
+	var body: Dictionary = p.get("body", {}) if p.get("body") is Dictionary else {}
+	body[key] = value
+	p["body"] = body
+	_write(path, p)
+
+
 ## A new warden, chosen at once. The first one made takes in the saves from before.
 static func create_profile(name: String, look_model: int = -1, look_color: int = 0, lang: String = "") -> String:
 	var first := list_profiles().is_empty()

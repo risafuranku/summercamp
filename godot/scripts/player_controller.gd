@@ -1,5 +1,9 @@
 extends CharacterBody3D
 
+## A foot came down (the bob's step, its sound): the feet you see looking down, the prints.
+signal foot_fell(left: bool)
+
+const PROFILES = preload("res://scripts/profiles.gd")
 const YAW_SENSITIVITY_FACTOR := 2.0
 ## Stamina: a full bar is ~7.5 s of sprinting (6 was too short: the user 20. 10., +25 %);
 ## it refills in ~9 s and, once empty, sprinting stays locked until it is back to
@@ -15,6 +19,9 @@ const BATTERY_LOW := 0.15
 
 @export var move_speed: float = 3.9
 @export var sprint_speed: float = 5.2
+## Crouched and lying down (Ctrl; twice quickly: down on your belly).
+@export var crouch_speed: float = 1.9
+@export var crawl_speed: float = 0.85
 ## Set by main while you push through the corn (scripts/world_generator.gd corn tiles).
 var terrain_speed_mult: float = 1.0
 ## Something has hold of you (the Silent Man's hands at your shoulder): you move at this.
@@ -24,37 +31,43 @@ var held_speed_mult: float = 1.0
 @export var mouse_sensitivity: float = 0.0012
 @export var invert_vertical_look: bool = false
 @export var vertical_look_sensitivity_multiplier: float = 0.85
-@export var vertical_look_limit_degrees: float = 24.0
-## Down further than up: to your feet, the path, what lies on the ground (the user 20. 10.:
-## let me look further down).
-@export var look_down_limit_degrees: float = 46.0
-@export var vertical_look_snap_degrees: float = 1.4
-@export var vertical_look_smoothing: float = 14.0
-@export var pseudo_pitch_vertical_shift: float = 0.045
-@export var pseudo_pitch_forward_shift: float = 0.018
-@export var pseudo_pitch_rotation_mix: float = 0.72
-@export var pseudo_pitch_screen_shift: float = 0.085
-@export var pseudo_pitch_fov_shift: float = 1.0
-@export var ground_acceleration: float = 11.0
-@export var ground_deceleration: float = 8.0
-@export var air_acceleration: float = 2.2
-@export var camera_fov: float = 56.0
+## The eye (the user 21. 10.: "Build, but wider"): up into the crowns and the sky, down to
+## your boots and under the table. Until then 24° up and 46° down, the eye itself only
+## 0.72 of that in 1.4° steps (17.7° and 33.5°).
+@export var vertical_look_limit_degrees: float = 68.0
+@export var look_down_limit_degrees: float = 80.0
+## Only for the look set from outside (a door walk, a scare turning your head): the mouse
+## moves the eye at once.
+@export var vertical_look_smoothing: float = 16.0
+## Build's look up and down is a shift of the picture, not a turn: the verticals stay
+## upright. The first part of every look is that shift, up to this much (degrees, eased
+## in); beyond it the eye turns (to see your boots or the sky a shift would stretch the
+## picture to nothing). See DESIGN §9c for where it breaks.
+@export var build_shift_degrees: float = 12.0
+## Quick on the ground (the user 21. 10.: "a spectator, a car, a tank"): full speed in under
+## a tenth of a second, stopped in a tenth and a hand's breadth when you let go, turned
+## back without a skid. Until then 11 and 8 (half a second and nearly a metre to stop).
+@export var ground_acceleration: float = 46.0
+@export var ground_deceleration: float = 34.0
+## In the air you keep what you jumped with: a little push, hardly any brakes.
+@export var air_acceleration: float = 3.0
+@export var air_drag: float = 0.6
+## The warden's own (Options, profiles.gd "body"): wider than the old 56°, still Build.
+@export var camera_fov: float = 72.0
 @export var camera_far: float = 1000.0
 @export var camera_near: float = 0.08
-@export var bob_frequency: float = 7.8
-@export var bob_vertical: float = 0.08
-@export var bob_horizontal: float = 0.05
-@export var bob_smoothing: float = 12.0
-@export var bob_snap_step: float = 0.012
-@export var bob_snap_blend: float = 0.38
-## The step bob moves this many times a second, holding between (the hand, the fire and
-## the room moves go at twelve too); 0 = smooth. Turning and walking stay smooth.
-@export var bob_fps: float = 12.0
-@export var base_tilt_amount: float = 0.035
-@export var rotation_tilt_amount: float = 0.045
-@export var tilt_smoothing: float = 4.0
-@export var step_kick_strength: float = 0.028
-@export var step_kick_decay: float = 9.0
+## The bob goes by the ground you cover, not by the clock: a step every STRIDE metres (a
+## longer one running), the head lowest as the foot comes down, with the step's sound.
+## All of it smooth: the sprites and the hands step at twelve a second, the eye never.
+@export var stride_walk: float = 0.74
+@export var stride_run: float = 1.02
+@export var bob_vertical: float = 0.034
+@export var bob_vertical_run: float = 0.052
+@export var bob_horizontal: float = 0.022
+@export var base_tilt_amount: float = 0.032
+@export var rotation_tilt_amount: float = 0.0055
+@export var tilt_smoothing: float = 9.0
+@export var step_kick_strength: float = 0.012
 @export var handheld_look_strength: float = 0.00022
 @export var handheld_return: float = 10.0
 @export var handheld_idle_strength: float = 0.012
@@ -112,6 +125,12 @@ const DAMAGE_TIER_FOV_PUSH := [0.4, 0.9, 1.6, 2.5, 4.2]
 const DAMAGE_TIER_HIT_KICK := [0.018, 0.032, 0.050, 0.072, 0.105]
 const DEATH_FALL_DURATION: float = 0.96
 const DEATH_FALL_HOLD_SEC: float = 1.08
+## Per stance: the capsule's radius, height and middle (m above the body's origin), and
+## how far the eye drops. Lying down you fit under a table or a low fence (0.6 m).
+const STANCE_CAPSULE := [[0.35, 1.2, 0.95], [0.35, 0.8, 0.75], [0.3, 0.6, 0.65]]
+const STANCE_DROP := [0.0, 0.5, 0.87]
+## Ctrl pressed again within this (ms): down on your belly.
+const CROUCH_DOUBLE_MS := 320
 const FOOTSTEP_SURFACE_SAMPLE_OFFSETS: Array[Vector2] = [
 	Vector2.ZERO,
 	Vector2(0.24, 0.22),
@@ -125,14 +144,41 @@ var _pitch_target: float = 0.0
 var _head: Node3D
 var _camera: Camera3D
 var _base_head_pos: Vector3 = Vector3(0.0, 1.55, 0.0)
-var _bob_time: float = 0.0
+## The bob as it is drawn (head offset), and the Build shift now (radians).
 var _bob_offset: Vector3 = Vector3.ZERO
-var _bob_tick: float = 0.0
-var _prev_step_wave: float = 0.0
-var _step_kick: float = 0.0
+var _shift := 0.0
+## Steps taken (whole = a foot down), counted in physics by the ground covered; the two
+## latest physics values, so the frame between them draws the step smoothly.
+var _step_phase := 0.0
+var _step_prev := 0.0
+var _step_cur := 0.0
+## How much the body is walking (0 still .. 1 a sprint), eased: the bob's size.
+var _walk_amp := 0.0
+## The head on a spring (m, m/s): a foot coming down, a landing, stopping dead.
+var _spring_y := 0.0
+var _spring_v := 0.0
+## The body where physics last put it and the time before: the head is drawn between them
+## (frames are capped at 50, physics runs at 60: without it a double step every fifth
+## frame, a judder whenever you move).
+var _phys_prev := Vector3.INF
+var _phys_cur := Vector3.INF
+var _yaw_last := INF
+var _yaw_rate := 0.0
+var _was_moving := 0.0
 var _mouse_impact: Vector2 = Vector2.ZERO
 var _current_tilt: float = 0.0
 var _idle_noise_time: float = 0.0
+## 0 standing, 1 crouched, 2 lying on your belly (crawling).
+var stance := 0
+## The head's drop for the stance now (m), eased to it.
+var _stance_drop := 0.0
+var _crouch_tap_ms := -100000
+var _crouch_held := false
+var _shapes: Array = []          # CapsuleShape3D per stance
+var _collider: CollisionShape3D
+## The warden's own view settings (Options): fov, mouse_x, mouse_y, bob, lean, crouch_toggle.
+var view := {}
+var _view_t := 0.0
 var _flashlight: SpotLight3D
 var _flashlight_fill: OmniLight3D
 var _flashlight_halo: SpotLight3D
@@ -161,6 +207,7 @@ var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
 var _steps: Dictionary = {}          # surface -> [AudioStream]
 var _ground_life: Node               # the puddles (scripts/ambient/ground_life.gd)
+var _lake: Node                      # the camp's lake (scripts/camp_lake.gd)
 var _foley: Dictionary = {}
 var _foley_player: AudioStreamPlayer
 var _foley_step := 0
@@ -196,6 +243,20 @@ var controls_enabled: bool = true
 ## Sat on something (a bench in Lesna: town_trip.gd): the mouse still looks round, the
 ## feet stay where they are.
 var seated: bool = false
+## The mouse moves your hand, not your eye (a gesture of work: scripts/ui/gesture.gd),
+## while anyone holds it (lock_look); what it moved meanwhile is in `gesture_motion`.
+var look_locked := false
+var _look_locks := {}
+var gesture_motion := Vector2.ZERO
+## Something heavy in your arms (scripts/ambient/carry.gd): you go at this.
+var carry_speed_mult := 1.0
+## Your boots (0..1): mud caked on from the mud (it wears off on the grass, step by step),
+## wet through from a puddle, the lake's edge or the snow (dries in a minute or two). The
+## feet you see looking down show it (ui/body_view.gd), and so do the prints you leave.
+var boots_mud := 0.0
+var boots_wet := 0.0
+## The surface the last foot came down on (player_controller._surface_under).
+var last_step_surface := "grass"
 
 func _ready() -> void:
 	name = "Player"
@@ -209,6 +270,7 @@ func ensure_runtime_setup() -> void:
 	_ensure_input_actions()
 	_ensure_body()
 	_ensure_camera()
+	_ensure_body_view()
 	_ensure_damage_overlay()
 	_remove_barrel_overlay_if_present()
 	_ensure_footstep_audio()
@@ -225,6 +287,14 @@ func _ensure_body() -> void:
 		collider.shape = capsule
 		collider.position = Vector3(0.0, 0.95, 0.0)
 		add_child(collider)
+	_collider = collider
+	if _shapes.is_empty():
+		# Standing, crouched, lying: the capsule's bottom stays where it was (0.35 up).
+		for dims in STANCE_CAPSULE:
+			var cap := CapsuleShape3D.new()
+			cap.radius = dims[0]
+			cap.height = dims[1]
+			_shapes.append(cap)
 
 	_head = get_node_or_null("Head") as Node3D
 	if _head == null:
@@ -258,6 +328,15 @@ func _ensure_camera() -> void:
 		camera.add_child(breath)
 
 
+## Your legs and boots looking down, the hands when you crawl, your shadow (ui/body_view.gd).
+func _ensure_body_view() -> void:
+	if get_node_or_null("BodyView") != null:
+		return
+	var bv: Node = load("res://scripts/ui/body_view.gd").new()
+	bv.set("player", self)
+	add_child(bv)
+
+
 func _remove_barrel_overlay_if_present() -> void:
 	var layer = get_node_or_null("BarrelLayer")
 	if layer != null:
@@ -270,28 +349,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-		var look_scale := 1.0
+		if look_locked:
+			# The mouse is the hand's now (a gesture of work, ui/gesture.gd).
+			gesture_motion += event.relative
+			return
 		var invert := invert_vertical_look
 		if GameSettings != null:
-			look_scale = GameSettings.get_mouse_sensitivity()
 			invert = invert != GameSettings.get_invert_mouse_y()
 		# Yaw used to be applied twice by accident; the doubled speed is what the game
-		# was tuned with, so it is kept as an explicit factor.
-		rotate_y(-event.relative.x * mouse_sensitivity * YAW_SENSITIVITY_FACTOR * look_scale)
+		# was tuned with, so it is kept as an explicit factor. No acceleration, no easing:
+		# the eye goes where the mouse goes, this frame.
+		rotate_y(-event.relative.x * mouse_sensitivity * YAW_SENSITIVITY_FACTOR * float(view.get("mouse_x", 1.0)))
 		var pitch_input = -event.relative.y
 		if invert:
 			pitch_input = -pitch_input
-		
-		# Add rotational tilt target based on mouse input
-		_current_tilt = lerp(_current_tilt, clamp(event.relative.x * rotation_tilt_amount, -0.1, 0.1), 0.15)
-		
-		_pitch_target += pitch_input * mouse_sensitivity * vertical_look_sensitivity_multiplier * look_scale
-		_pitch_target = clamp(_pitch_target, -deg_to_rad(look_down_limit_degrees), deg_to_rad(vertical_look_limit_degrees))
+		var d: float = pitch_input * mouse_sensitivity * vertical_look_sensitivity_multiplier * float(view.get("mouse_y", 1.0))
+		var lim := look_limits()
+		_pitch_target = clampf(_pitch_target + d, -lim.x, lim.y)
+		_pitch = clampf(_pitch + d, -lim.x, lim.y)
 		_mouse_impact += Vector2(0.0, -event.relative.x) * handheld_look_strength
 		_mouse_impact.y = clamp(_mouse_impact.y, -0.08, 0.08)
 
 	if event.is_action_pressed("toggle_flashlight"):
 		toggle_flashlight()
+	if event.is_action("move_crouch") and not event.is_echo():
+		_crouch_key(event.is_pressed())
 
 	# Esc is the pause menu (main.gd), which releases and recaptures the mouse.
 	# A click recaptures it if something else (alt-tab, a closed window) let it go.
@@ -303,9 +385,17 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if seated:
 		velocity = Vector3.ZERO
-		_update_head_motion(delta)
-		_update_flashlight_effect(delta)
-		_update_damage_visuals(delta)
+		_update_flashlight_battery(delta)
+		_after_physics(delta)
+		return
+	if collision_mask == 0:
+		# Walked by a tween with collisions off (through a doorway, off a porch:
+		# interior_manager._walk_body / _walk_up_first): no gravity, no keys, or the body
+		# sinks through the floor while it waits there (a door's beat before the step;
+		# main gives the keys back every frame no room is open).
+		velocity = Vector3.ZERO
+		_update_flashlight_battery(delta)
+		_after_physics(delta)
 		return
 	if not controls_enabled:
 		velocity.x = move_toward(velocity.x, 0.0, ground_deceleration * delta)
@@ -315,17 +405,18 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity.y = 0.0
 		move_and_slide()
-		if not _death_fall_active:
-			_update_head_motion(delta)
-		_update_flashlight_effect(delta)
-		_update_damage_visuals(delta)
+		_update_flashlight_battery(delta)
+		_after_physics(delta)
 		return
 
 	var input_vec = Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
 	var local_dir = Vector3(input_vec.x, 0.0, input_vec.y)
 	var move_dir = (global_transform.basis * local_dir).normalized()
 	var wants_sprint := Input.is_action_pressed("move_sprint") and input_vec.length_squared() > 0.01
-	var sprinting := wants_sprint and not _stamina_locked and stamina > 0.0
+	# A sprint gets you up off your knees (if there is room over you).
+	if wants_sprint and stance != 0 and is_on_floor():
+		_set_stance(0)
+	var sprinting := wants_sprint and stance == 0 and not _stamina_locked and stamina > 0.0
 	sprint_lower = move_toward(sprint_lower, 1.0 if sprinting else 0.0, delta * 3.0)
 	_update_stamina(delta, sprinting)
 	# What you walk in slows you (snow, mud, a puddle), and so does being out of breath.
@@ -334,31 +425,105 @@ func _physics_process(delta: float) -> void:
 		_surface_t = 0.25
 		_surface_speed = float(SURFACE_SPEED.get(_surface_under(), 1.0)) if is_on_floor() else _surface_speed
 	var winded := 0.9 if _stamina_locked else 1.0
-	var current_speed = (sprint_speed if sprinting else move_speed) * terrain_speed_mult * held_speed_mult * _surface_speed * winded
-	var target_x = move_dir.x * current_speed
-	var target_z = move_dir.z * current_speed
-	var accel = air_acceleration if not is_on_floor() else ground_acceleration
-	var decel = max(1.0, ground_deceleration)
-
-	if move_dir.length_squared() > 0.001:
-		velocity.x = move_toward(velocity.x, target_x, accel * delta)
-		velocity.z = move_toward(velocity.z, target_z, accel * delta)
+	var base_speed: float = sprint_speed if sprinting else move_speed
+	if stance == 1:
+		base_speed = crouch_speed
+	elif stance == 2:
+		base_speed = crawl_speed
+	var current_speed: float = base_speed * terrain_speed_mult * held_speed_mult * _surface_speed * winded * carry_speed_mult
+	var target: Vector2 = Vector2(move_dir.x, move_dir.z) * current_speed
+	var hv := Vector2(velocity.x, velocity.z)
+	if is_on_floor():
+		# On your feet: at once where you mean to go (a turn back too: no skid); let go
+		# and you stand, a hand's breadth on.
+		if move_dir.length_squared() > 0.001:
+			hv = hv.move_toward(target, ground_acceleration * delta)
+		else:
+			hv = hv.move_toward(Vector2.ZERO, ground_deceleration * delta)
+	elif move_dir.length_squared() > 0.001:
+		# In the air a little push only (it never brakes you to a stop mid-jump).
+		var pushed := hv.move_toward(target, air_acceleration * delta)
+		hv = pushed if pushed.length() <= maxf(hv.length(), current_speed) else pushed.normalized() * maxf(hv.length(), current_speed)
 	else:
-		velocity.x = move_toward(velocity.x, 0.0, decel * delta)
-		velocity.z = move_toward(velocity.z, 0.0, decel * delta)
+		hv = hv.move_toward(Vector2.ZERO, air_drag * delta)
+	velocity.x = hv.x
+	velocity.z = hv.y
 
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	elif Input.is_action_just_pressed("move_jump"):
-		velocity.y = jump_velocity
+		if stance != 0:
+			# Space gets you up first.
+			_set_stance(0)
+			velocity.y = 0.0
+		else:
+			velocity.y = jump_velocity
 	else:
 		velocity.y = 0.0
 
 	move_and_slide()
+	_update_flashlight_battery(delta)
+	_after_physics(delta)
+
+
+## After every physics step: where the body is now (the head is drawn between this and
+## the last), the steps it took on the ground, the landing.
+func _after_physics(delta: float) -> void:
+	_phys_prev = _phys_cur if _phys_cur != Vector3.INF else global_position
+	_phys_cur = global_position
+	_step_prev = _step_cur
+	var moved := Vector2(_phys_cur.x - _phys_prev.x, _phys_cur.z - _phys_prev.z).length()
+	if moved > 1.5:
+		# Put somewhere (a door, a teleport): no walk, no glide.
+		_phys_prev = _phys_cur
+		moved = 0.0
+	var speed := Vector2(velocity.x, velocity.z).length()
+	if is_on_floor() and speed > FOOTSTEP_MIN_AUDIBLE_SPEED and controls_enabled and not seated:
+		var run := clampf((speed - move_speed) / maxf(0.1, sprint_speed - move_speed), 0.0, 1.0)
+		var stride := lerpf(stride_walk, stride_run, run) * (0.7 if stance != 0 else 1.0)
+		var before := floorf(_step_cur)
+		_step_cur += moved / stride
+		if floorf(_step_cur) > before:
+			_foot_down(clampf(speed / sprint_speed, 0.0, 1.2))
+	elif speed < 0.05:
+		# Standing: the stride ends on the nearest foot, so the next step starts clean.
+		var settle := roundf(_step_cur * 2.0) * 0.5
+		_step_cur = move_toward(_step_cur, settle, delta * 2.0)
+	_check_landing()
+	boots_wet = maxf(0.0, boots_wet - delta / 90.0)
+	_update_damage_visuals(delta)
+
+
+## A foot comes down: its sound (by what is under it) and the head's dip with it.
+func _foot_down(motion: float) -> void:
+	_spring_v -= step_kick_strength * (0.6 + motion) * 4.0 * float(view.get("bob", 1.0))
+	_play_step(motion)
+	match last_step_surface:
+		"mud":
+			boots_mud = minf(1.0, boots_mud + 0.1)
+			boots_wet = minf(1.0, boots_wet + 0.05)
+		"puddle":
+			boots_wet = 1.0
+		"snow":
+			boots_wet = minf(1.0, boots_wet + 0.08)
+		"wood", "gravel":
+			boots_mud = maxf(0.0, boots_mud - 0.02)
+		_:
+			boots_mud = maxf(0.0, boots_mud - 0.008)
+	foot_fell.emit(int(floorf(_step_cur)) % 2 == 0)
+
+
+## Every frame (the eye is never moved in steps): the head between the last two physics
+## positions, the bob, the lean, the stance, the look and its Build shift, the torch.
+func _process(delta: float) -> void:
+	_view_t -= delta
+	if _view_t <= 0.0:
+		_view_t = 0.5
+		view = PROFILES.profile_body()
 	if not _death_fall_active:
 		_update_head_motion(delta)
 	_update_flashlight_effect(delta)
-	_update_damage_visuals(delta)
+	_apply_projection()
 
 
 func _ensure_input_actions() -> void:
@@ -368,6 +533,10 @@ func _ensure_input_actions() -> void:
 	_add_key_action("move_right", KEY_D)
 	_add_key_action("move_jump", KEY_SPACE)
 	_add_key_action("move_sprint", KEY_SHIFT)
+	# Crouch (held or toggled: Options); twice quickly down on your belly, a place you
+	# stay in until Ctrl or Space gets you up (a long hold would clash with holding it to
+	# stay crouched).
+	_add_key_action("move_crouch", KEY_CTRL)
 	_add_key_action("toggle_flashlight", KEY_F) # comes on by itself at dusk; F saves battery
 	_add_key_action("toggle_interior_light", KEY_L)
 
@@ -391,6 +560,98 @@ func set_controls_enabled(enabled: bool) -> void:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		_force_footstep_silence(true)
+
+
+## Work by a gesture (maintenance_controller, day_events): the mouse is the hand's while
+## `who` holds it. take_gesture_motion() hands over what it moved since the last call.
+func lock_look(who: String, on: bool) -> void:
+	if on:
+		_look_locks[who] = true
+	else:
+		_look_locks.erase(who)
+	look_locked = not _look_locks.is_empty()
+	if not look_locked:
+		gesture_motion = Vector2.ZERO
+
+
+func take_gesture_motion() -> Vector2:
+	var m := gesture_motion
+	gesture_motion = Vector2.ZERO
+	return m
+
+
+## Up (y) and down (x) as far as the eye goes, in radians. Up stops while the picture's
+## top edge is still under the zenith (2° short): the sky panorama and the cloud deck
+## pinch to a star there (seen in the first shots looking 68° up). So the wider the FOV,
+## the less far up (72°: 57°, 90°: 47°); the crowns and the sky are always in it.
+func look_limits() -> Vector2:
+	var h := deg_to_rad(float(view.get("fov", camera_fov)) + 4.0) * 0.5
+	var s := deg_to_rad(build_shift_degrees)
+	var up := deg_to_rad(88.0) - atan(tan(h) + tan(s)) + s
+	return Vector2(deg_to_rad(look_down_limit_degrees), clampf(up, deg_to_rad(30.0), deg_to_rad(vertical_look_limit_degrees)))
+
+
+## Where you really look (the middle of the picture: the eye's turn and Build's shift).
+func look_basis() -> Basis:
+	if _camera == null:
+		return global_basis
+	return _camera.global_basis.orthonormalized() * Basis(Vector3.RIGHT, _shift)
+
+
+## Ctrl: down and up. Held (the default) you are crouched while it is down; toggled, a
+## press goes down and the next up. Twice quickly: on your belly, until Ctrl or Space.
+func _crouch_key(pressed: bool) -> void:
+	if not controls_enabled or seated:
+		return
+	var toggle := bool(view.get("crouch_toggle", false))
+	var now := Time.get_ticks_msec()
+	if pressed:
+		_crouch_held = true
+		if now - _crouch_tap_ms < CROUCH_DOUBLE_MS and stance != 2:
+			_set_stance(2)
+			_crouch_tap_ms = -100000
+			return
+		_crouch_tap_ms = now
+		if stance == 2:
+			_set_stance(1)
+		elif toggle and stance == 1:
+			_set_stance(0)
+		else:
+			_set_stance(1)
+	else:
+		_crouch_held = false
+		if not toggle and stance == 1:
+			_set_stance(0)
+
+
+## To a stance, if there is room for it (getting up under a table you stay down).
+func set_stance(s: int) -> void:
+	_set_stance(s)
+
+
+func _set_stance(s: int) -> void:
+	s = clampi(s, 0, 2)
+	if s == stance:
+		return
+	if s < stance and not _room_for(s):
+		return
+	stance = s
+	if _collider != null and _shapes.size() == 3:
+		_collider.shape = _shapes[s]
+		_collider.position = Vector3(0.0, float(STANCE_CAPSULE[s][2]), 0.0)
+	# Going down: a little give in the knees.
+	_spring_v -= 0.25 if s > 0 else -0.1
+
+
+func _room_for(s: int) -> bool:
+	if not is_inside_tree() or _shapes.size() < 3:
+		return true
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = _shapes[s]
+	q.transform = Transform3D(Basis(), global_position + Vector3(0.0, float(STANCE_CAPSULE[s][2]) + 0.02, 0.0))
+	q.exclude = [get_rid()]
+	q.collision_mask = collision_mask
+	return get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
 
 
 func set_grid_manager(grid_manager: Node) -> void:
@@ -515,11 +776,15 @@ func reset_damage_feedback_state(clear_overlay: bool = false) -> void:
 	_pitch = 0.0
 	_pitch_target = 0.0
 
+	_shift = 0.0
+	_spring_y = 0.0
+	_spring_v = 0.0
 	if _head != null:
 		_head.position = _base_head_pos
 		_head.rotation = Vector3.ZERO
 	if _camera != null:
 		_camera.fov = camera_fov
+		_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	rotation.z = 0.0
 
 	if clear_overlay:
@@ -631,63 +896,56 @@ func _update_head_motion(delta: float) -> void:
 		return
 	if _death_fall_active:
 		return
+	var k_look := 1.0 - exp(-vertical_look_smoothing * delta)
+	_pitch = lerpf(_pitch, _pitch_target, k_look)
 
-	var pitch_target = _snap_pitch(_pitch_target)
-	_pitch = lerp(_pitch, pitch_target, clamp(delta * vertical_look_smoothing, 0.0, 1.0))
+	# Between the last two physics steps (frames at 50, physics at 60): the body's place
+	# and the steps' count as they are at this frame's moment.
+	var frac := clampf(Engine.get_physics_interpolation_fraction(), 0.0, 1.0)
+	var interp := Vector3.ZERO
+	var phase := _step_cur
+	if _phys_cur != Vector3.INF and global_position.distance_squared_to(_phys_cur) < 0.0001:
+		interp = _phys_prev.lerp(_phys_cur, frac) - _phys_cur
+		phase = lerpf(_step_prev, _step_cur, frac)
+	else:
+		# Moved outside physics (a door walk's tween, a seat): that is where it is.
+		_phys_prev = global_position
+		_phys_cur = global_position
 
-	var horizontal_speed = Vector2(velocity.x, velocity.z).length()
-	if horizontal_speed < FOOTSTEP_MIN_AUDIBLE_SPEED:
-		horizontal_speed = 0.0
-	var target_motion_ratio = 0.0
-	if is_on_floor():
-		target_motion_ratio = clamp(horizontal_speed / max(sprint_speed, 0.001), 0.0, 1.2)
-	var motion_response = footstep_motion_attack if target_motion_ratio > _footstep_motion_ratio else footstep_motion_release
-	_footstep_motion_ratio = move_toward(
-		_footstep_motion_ratio,
-		target_motion_ratio,
-		max(0.01, motion_response) * delta
-	)
+	var speed := Vector2(velocity.x, velocity.z).length()
+	var grounded := is_on_floor()
+	var bob_k := float(view.get("bob", 1.0))
+	var target_amp := clampf(speed / maxf(sprint_speed, 0.001), 0.0, 1.2) if grounded and speed > FOOTSTEP_MIN_AUDIBLE_SPEED and controls_enabled else 0.0
+	_walk_amp = lerpf(_walk_amp, target_amp, 1.0 - exp(-(9.0 if target_amp > _walk_amp else 6.0) * delta))
+	# A run's bob is bigger; lying down there is hardly one.
+	var run := clampf((speed - move_speed) / maxf(0.1, sprint_speed - move_speed), 0.0, 1.0)
+	var amp_y := lerpf(bob_vertical, bob_vertical_run, run) * (0.55 if stance == 1 else (0.25 if stance == 2 else 1.0))
+	var walk := clampf(_walk_amp / 0.75, 0.0, 1.0) * bob_k
+	# The head is lowest as a foot comes down (a whole step), highest between them;
+	# side to side once every two steps, over the foot that bears it.
+	var fr := phase - floorf(phase)
+	var bob_y := -amp_y * (0.5 + 0.5 * cos(TAU * fr)) * walk
+	var bob_x := sin(PI * phase) * bob_horizontal * walk
 
-	var stride_ratio = clamp(_footstep_motion_ratio, 0.0, 1.0)
-	var stride_rate = lerp(footstep_stride_min, footstep_stride_max, stride_ratio)
-	if not is_on_floor():
-		stride_rate = footstep_stride_min
-	_bob_time += delta * bob_frequency * max(0.01, stride_rate)
+	# Stopping dead from a walk: the body settles (a small dip on the spring).
+	if _was_moving > 1.5 and speed < 0.3 and grounded:
+		_spring_v -= 0.12 * clampf(_was_moving / sprint_speed, 0.0, 1.0) * bob_k
+	_was_moving = lerpf(_was_moving, speed, 1.0 - exp(-12.0 * delta))
+	# The spring (a foot down, a landing, a stance): smooth, slightly under-damped.
+	var acc := -170.0 * _spring_y - 17.0 * _spring_v
+	_spring_v += acc * delta
+	_spring_y = clampf(_spring_y + _spring_v * delta, -0.22, 0.08)
 
-	var step_wave = sin(_bob_time)
-	if is_on_floor() and _footstep_motion_ratio > 0.05:
-		if (_prev_step_wave < 0.0 and step_wave >= 0.0) or (_prev_step_wave >= 0.0 and step_wave < 0.0):
-			_step_kick = min(_step_kick + 1.0, 1.0)
-			_play_step(_footstep_motion_ratio)
-	_prev_step_wave = step_wave
-	_step_kick = move_toward(_step_kick, 0.0, step_kick_decay * delta)
-
-	var bob_ratio = clamp(_footstep_motion_ratio, 0.0, 1.2)
-	var bob_x = sin(_bob_time * 0.5) * bob_horizontal * bob_ratio
-	var smooth_y = (1.0 - abs(cos(_bob_time))) * bob_vertical * bob_ratio
-	var snapped_y = floor(smooth_y / max(bob_snap_step, 0.0001)) * bob_snap_step
-	var bob_y = lerp(smooth_y, snapped_y, bob_snap_blend) - (_step_kick * step_kick_strength * bob_ratio)
-
-	_idle_noise_time += delta * (1.8 + (bob_ratio * 2.2))
+	_idle_noise_time += delta * (1.8 + (_walk_amp * 2.2))
 	var idle_roll = sin(_idle_noise_time * 1.7) * handheld_idle_strength
 	var idle_pitch = cos(_idle_noise_time * 1.3) * handheld_idle_strength * 0.65
 
-	# The steps are one at a time now (_play_step); the old loops stay silent.
+	# The steps are one at a time now (_foot_down); the old loops stay silent.
 	_force_footstep_silence(true)
-	_check_landing()
 
 	_mouse_impact = _mouse_impact.move_toward(Vector2.ZERO, handheld_return * delta)
-	var target_offset = Vector3(bob_x, bob_y, 0.0)
-	if bob_fps > 0.0:
-		_bob_tick += delta
-		if _bob_tick >= 1.0 / bob_fps:
-			_bob_tick = fmod(_bob_tick, 1.0 / bob_fps)
-			_bob_offset = target_offset
-	else:
-		_bob_offset = _bob_offset.lerp(target_offset, clamp(delta * bob_smoothing, 0.0, 1.0))
-	var pitch_limit = max(deg_to_rad(vertical_look_limit_degrees), 0.0001)
-	var pitch_ratio = clamp(_pitch / pitch_limit, -1.0, 1.0)
-	var pseudo_offset = Vector3(0.0, -pitch_ratio * pseudo_pitch_vertical_shift, abs(pitch_ratio) * pseudo_pitch_forward_shift)
+	_bob_offset = Vector3(bob_x, bob_y, 0.0)
+	_stance_drop = lerpf(_stance_drop, float(STANCE_DROP[stance]), 1.0 - exp(-7.0 * delta))
 	var damage_pos_jitter := Vector3.ZERO
 	var damage_rot_jitter := Vector2.ZERO
 	if _damage_shake_intensity > 0.0001:
@@ -700,28 +958,50 @@ func _update_head_motion(delta: float) -> void:
 			_damage_rng.randf_range(-0.9, 0.9),
 			_damage_rng.randf_range(-0.8, 0.8)
 		) * _damage_shake_intensity
-	_head.position = _base_head_pos + _bob_offset + pseudo_offset + damage_pos_jitter
-	var visual_pitch = _pitch * clamp(pseudo_pitch_rotation_mix, 0.0, 1.0)
+	# The interpolation is in the world; the head is the body's child (turned with it).
+	var interp_local := global_basis.inverse() * interp
+	_head.position = _base_head_pos + interp_local + _bob_offset + Vector3(0.0, _spring_y * bob_k - _stance_drop, 0.0) + damage_pos_jitter
+
+	# The look: Build's shift of the picture for the first part (eased in), the eye's turn
+	# for the rest; together they are exactly where the mouse put it (_apply_projection).
+	var shift_max := deg_to_rad(build_shift_degrees)
+	_shift = shift_max * tanh(_pitch / shift_max) if shift_max > 0.0001 else 0.0
+	var visual_pitch := _pitch - _shift
 	var jitter_roll = sin(_idle_noise_time * 2.4) * handheld_idle_strength * 0.4
 	var jitter_pitch = cos(_idle_noise_time * 2.1) * handheld_idle_strength * 0.4
-	
 	_head.rotation.x = visual_pitch + _mouse_impact.x + idle_pitch + jitter_pitch + damage_rot_jitter.x
-	
-	# Apply dynamic tilt
-	var input_tilt = Input.get_axis("move_right", "move_left") * base_tilt_amount * bob_ratio
-	_current_tilt = lerp(_current_tilt, input_tilt, delta * tilt_smoothing)
+
+	# The lean (Options "Lean"): into a sidestep, and a little into a quick turn.
+	var yaw := rotation.y
+	if _yaw_last != INF and delta > 0.0:
+		_yaw_rate = lerpf(_yaw_rate, wrapf(yaw - _yaw_last, -PI, PI) / delta, 1.0 - exp(-14.0 * delta))
+	_yaw_last = yaw
+	var lean_k := float(view.get("lean", 1.0))
+	var strafe := Input.get_axis("move_right", "move_left") * base_tilt_amount * clampf(_walk_amp * 1.6, 0.0, 1.0) if controls_enabled else 0.0
+	var turn := clampf(_yaw_rate * rotation_tilt_amount, -0.045, 0.045)
+	_current_tilt = lerpf(_current_tilt, (strafe + turn) * lean_k, 1.0 - exp(-tilt_smoothing * delta))
 	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y
 	if _camera != null:
 		# A little wider in a run.
-		var target_fov = camera_fov + (abs(pitch_ratio) * pseudo_pitch_fov_shift) + _damage_fov_push + sprint_lower * 2.5
-		_camera.fov = lerp(_camera.fov, target_fov, clamp(delta * 9.0, 0.0, 1.0))
+		var fov_base := float(view.get("fov", camera_fov))
+		var target_fov := fov_base + _damage_fov_push + sprint_lower * 4.0
+		_camera.fov = lerpf(_camera.fov, target_fov, 1.0 - exp(-9.0 * delta))
 
 
-func _snap_pitch(value: float) -> float:
-	if vertical_look_snap_degrees <= 0.0:
-		return value
-	var step = deg_to_rad(vertical_look_snap_degrees)
-	return round(value / step) * step
+## The camera's picture: with Build's shift a frustum moved up or down (the verticals stay
+## upright), else the plain perspective. Kept the same size as the FOV says.
+func _apply_projection() -> void:
+	if _camera == null:
+		return
+	if _death_fall_active or absf(_shift) < 0.0005:
+		if _camera.projection != Camera3D.PROJECTION_PERSPECTIVE:
+			_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		return
+	var n := _camera.near
+	_camera.projection = Camera3D.PROJECTION_FRUSTUM
+	_camera.keep_aspect = Camera3D.KEEP_HEIGHT
+	_camera.size = 2.0 * n * tan(deg_to_rad(_camera.fov) * 0.5)
+	_camera.frustum_offset = Vector2(0.0, n * tan(_shift))
 
 
 func _ensure_flashlight() -> void:
@@ -841,7 +1121,7 @@ func get_flashlight_aim() -> Dictionary:
 func get_beam_lag() -> Vector2:
 	if _camera == null or not _beam_ready:
 		return Vector2.ZERO
-	var local := (_camera.global_basis.inverse() * (Basis(_beam_q) * Vector3.FORWARD)).normalized()
+	var local := (look_basis().inverse() * (Basis(_beam_q) * Vector3.FORWARD)).normalized()
 	return Vector2(atan2(local.x, -local.z), asin(clampf(local.y, -1.0, 1.0)))
 
 
@@ -857,7 +1137,8 @@ const BEAM_RUN_DIP_DEG := -8.0
 func _aim_beam(delta: float) -> void:
 	if _camera == null or _flashlight == null:
 		return
-	var target := _camera.global_basis.orthonormalized() * Basis(Vector3.UP, deg_to_rad(BEAM_YAW_DEG)) * Basis(Vector3.RIGHT, deg_to_rad(BEAM_PITCH_DEG + BEAM_RUN_DIP_DEG * sprint_lower))
+	# Where you look: the eye's turn and Build's shift of the picture (look_basis).
+	var target := look_basis() * Basis(Vector3.UP, deg_to_rad(BEAM_YAW_DEG)) * Basis(Vector3.RIGHT, deg_to_rad(BEAM_PITCH_DEG + BEAM_RUN_DIP_DEG * sprint_lower))
 	target = target * Basis(Vector3.UP, _bob_offset.x * 1.1) * Basis(Vector3.RIGHT, -_bob_offset.y * 0.8)
 	var tq := target.orthonormalized().get_rotation_quaternion()
 	if not _beam_ready:
@@ -872,7 +1153,6 @@ func _aim_beam(delta: float) -> void:
 
 
 func _update_flashlight_effect(delta: float) -> void:
-	_update_flashlight_battery(delta)
 	_aim_beam(delta)
 	if _flashlight == null or not _flashlight_active:
 		return
@@ -992,6 +1272,11 @@ func _surface_under() -> String:
 	var gl := _ground_life
 	if gl != null and gl.has_method("puddle_at") and bool(gl.puddle_at(global_position)):
 		return "puddle"
+	# In the lake's shallows (camp_lake.gd lets you wade a stride in): the water's splash.
+	if main != null and (_lake == null or not is_instance_valid(_lake)):
+		_lake = main.find_child("CampLake", true, false)
+	if _lake != null and _lake.has_method("in_water") and bool(_lake.in_water(global_position)):
+		return "puddle"
 	if main != null and main.get("_day_index") != null and main.get("_time_of_day_hours") != null:
 		if Season.snow_cover(int(main.get("_day_index")), float(main.get("_time_of_day_hours"))) >= 0.2:
 			return "snow"
@@ -1029,7 +1314,8 @@ func _ground_under() -> String:
 
 func _play_step(motion: float) -> void:
 	_load_steps()
-	var set: Array = _steps.get(_surface_under(), [])
+	last_step_surface = _surface_under()
+	var set: Array = _steps.get(last_step_surface, [])
 	if set.is_empty():
 		set = _steps.get("grass", [])
 	if set.is_empty() or _step_players.is_empty():
@@ -1042,7 +1328,8 @@ func _play_step(motion: float) -> void:
 	_step_next = (_step_next + 1) % _step_players.size()
 	p.stream = set[k]
 	var run := clampf(motion, 0.0, 1.0)
-	p.volume_db = lerpf(-15.0, -8.0, run) + randf_range(-1.5, 1.0)
+	# Crouched you tread softly, lying down you hardly make a sound (noise_level()).
+	p.volume_db = lerpf(-15.0, -8.0, run) + randf_range(-1.5, 1.0) + [0.0, -7.0, -12.0][stance]
 	p.pitch_scale = lerpf(0.97, 1.06, run) * randf_range(0.93, 1.07)
 	p.play()
 	_play_foley(run)
@@ -1079,7 +1366,8 @@ func _check_landing() -> void:
 			p.volume_db = clampf(-14.0 + _fall_speed * 1.2, -14.0, -4.0)
 			p.pitch_scale = randf_range(0.94, 1.04)
 			p.play()
-		_step_kick = 1.0
+		# The knees take it: the head goes down and comes back, the harder the further.
+		_spring_v -= clampf(_fall_speed * 0.09, 0.15, 0.9) * float(view.get("bob", 1.0))
 	if on:
 		_fall_speed = 0.0
 	_was_on_floor = on

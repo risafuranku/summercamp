@@ -73,6 +73,15 @@ var _acc := 0.0
 var _parts: Array = []     # {p, v, life, c}
 var _rng := RandomNumberGenerator.new()
 var _cache: Dictionary = {}
+## Worked by a gesture (scripts/ui/gesture.gd): the hand goes where the mouse takes it
+## (this offset, in hundredths of the view's height) instead of its own canned motion;
+## INF: the canned motion (the hold bar's jobs left).
+var gesture_offset := Vector2.INF
+## The gesture shown by a see-through second hand and a dotted trail ("" none): for who
+## does not know the job's motion (shown after a few idle seconds).
+var ghost_kind := ""
+var _ghost_t := 0.0
+const GESTURE = preload("res://scripts/ui/gesture.gd")
 
 
 func _init() -> void:
@@ -109,6 +118,18 @@ func aim(target: Vector2) -> void:
 
 func stop() -> void:
 	_active = false
+	gesture_offset = Vector2.INF
+	ghost_kind = ""
+
+
+## A stroke of the gesture landed: what flies off it, now.
+func stroke() -> void:
+	if _particles_kind == "" or not _active:
+		return
+	var cols: Array = PARTICLE_COLORS.get(_particles_kind, [Color.WHITE])
+	for i in _rng.randi_range(2, 4):
+		var v := Vector2(_rng.randf_range(-1.2, 1.2), _rng.randf_range(-1.8, -0.3))
+		_parts.append({"p": _target + _motion_offset() + Vector2(_rng.randf_range(-10, 10), _rng.randf_range(-6, 6)), "v": v, "life": _rng.randi_range(3, 6), "c": cols[_rng.randi_range(0, cols.size() - 1)]})
 
 
 func is_showing() -> bool:
@@ -161,12 +182,13 @@ func _process(delta: float) -> void:
 ## One frame of the animation.
 func _step() -> void:
 	_frame += 1
+	_ghost_t += 1.0 / STEP_FPS
 	_raise = clampf(_raise + (0.34 if _active else -0.34), 0.0, 1.0)
 	if not _active and _raise <= 0.0:
 		var h := HANDS.of(self)
 		if h != null:
 			h.release("right", "work#%d" % get_instance_id())
-	if _active and _raise >= 1.0 and _particles_kind != "":
+	if _active and _raise >= 1.0 and _particles_kind != "" and gesture_offset == Vector2.INF:
 		var cols: Array = PARTICLE_COLORS.get(_particles_kind, [Color.WHITE])
 		for i in _rng.randi_range(1, 3):
 			var v := Vector2(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.6, -0.2))
@@ -188,6 +210,8 @@ func _px() -> float:
 
 ## Where the work happens, in frames: an offset from the target for this frame.
 func _motion_offset() -> Vector2:
+	if gesture_offset != Vector2.INF:
+		return gesture_offset * size.y / 100.0
 	var s := _px()
 	var f := float(_frame)
 	match _motion:
@@ -256,6 +280,19 @@ func _draw() -> void:
 		pos += (h.motion as Vector2) * scale * 0.5
 	pos = (pos / scale).floor() * scale
 	draw_texture_rect(_tex, Rect2(pos, tsz), false)
+	if ghost_kind != "" and _raise >= 1.0:
+		# The motion to make: the same hand see-through (one of Build's levels) going
+		# through it, and where it goes in dots.
+		var u := size.y / 100.0
+		for i in 8:
+			var gp := _target + GESTURE.ghost_offset(ghost_kind, _ghost_t - float(i) * 0.09) * u
+			gp = (gp / scale).floor() * scale
+			draw_rect(Rect2(gp, Vector2(scale, scale) * 2.0), Color(1.0, 0.86, 0.5, 0.7 - float(i) * 0.07))
+		var gpos := _target + GESTURE.ghost_offset(ghost_kind, _ghost_t) * u - tip
+		gpos.x = clampf(gpos.x, screen.x * 0.18, screen.x - tsz.x * 0.62)
+		gpos.y = maxf(gpos.y, screen.y - tsz.y)
+		gpos = (gpos / scale).floor() * scale
+		draw_texture_rect(_tex, Rect2(gpos, tsz), false, Color(1, 1, 1, 0.5))
 
 
 func _exit_tree() -> void:
