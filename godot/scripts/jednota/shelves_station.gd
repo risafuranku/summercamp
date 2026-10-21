@@ -263,3 +263,27 @@ func debug_shelve(good: String) -> int:
 	var before := int(shop.shelf(building_key).get(good, 0))
 	_release("box:" + good)
 	return int(shop.shelf(building_key).get(good, 0)) - before
+
+
+# ── the frame: the next step, the tab ────────────────────────────────────────
+
+## What is best to do at the rack: what went off out, a box from the trolley for a place
+## that is empty (carried to it); the storeroom when the trolley has none for it.
+func next_hint() -> Dictionary:
+	for o in _offs:
+		if o != null and (o as Sprite3D).visible:
+			return {"node": o, "gesture": "click"}
+	var empty := empty_places()
+	for e in _boxes:
+		var b: Sprite3D = e["box"]
+		if b.visible and str(e["good"]) in empty:
+			return {"node": b, "gesture": "click"}
+	if not empty.is_empty():
+		return {"tab": "store"}
+	return {}
+
+
+## Places empty on the rack (the guests go without): amber, red when three or more are.
+func alert() -> int:
+	var n := empty_places().size()
+	return 2 if n >= 3 else (1 if n > 0 else 0)

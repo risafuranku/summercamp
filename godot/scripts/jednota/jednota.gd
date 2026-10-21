@@ -463,6 +463,8 @@ func _host_second(key: String) -> void:
 		# Something to be cut at the deli counter for some (asked as they come in; they shop
 		# meanwhile, and the parcel goes in their basket when it is handed over).
 		var wish: Dictionary = RULES.deli_wish(visit, str(v.get("archetype", "")))
+		if not BIZ_RULES.menu_on("vecerka", BUSINESS.site(key), "deli"):
+			wish = {}
 		if not wish.is_empty() and not s["deli"].has(visit):
 			var w := wish.duplicate()
 			w["since"] = int(v.get("arrive", now)) + 2
@@ -471,8 +473,10 @@ func _host_second(key: String) -> void:
 		var dl: Dictionary = s["deli"].get(visit, {})
 		if now < int(v.get("arrive", now)) + RULES.BROWSE:
 			continue
-		# Off the rack into the basket: what is there of what they came for.
-		var want: Array = RULES.basket_for(visit, str(v.get("archetype", "")))
+		# Off the rack into the basket: what is there of what they came for (and on sale:
+		# the books' MENU is the shop's range).
+		var books := BUSINESS.site(key)
+		var want: Array = RULES.basket_for(visit, str(v.get("archetype", ""))).filter(func(g) -> bool: return BIZ_RULES.menu_on("vecerka", books, str(g)))
 		var shelf_now: Dictionary = (s["shelf"] as Dictionary).duplicate()
 		var got: Array = []
 		var short := 0
@@ -711,7 +715,8 @@ func debug_pick_all(key: String) -> void:
 	for v in ORDERS.visitors(key):
 		var visit := str(v["visit"])
 		if not (s["picked"].has(visit) or s["gone"].has(visit) or s["served"].has(visit)):
-			var want: Array = RULES.basket_for(visit, str(v.get("archetype", "")))
+			var range_of := BUSINESS.site(key)
+			var want: Array = RULES.basket_for(visit, str(v.get("archetype", ""))).filter(func(g) -> bool: return BIZ_RULES.menu_on("vecerka", range_of, str(g)))
 			var got: Array = []
 			var shelf_now: Dictionary = (s["shelf"] as Dictionary).duplicate()
 			var short := 0

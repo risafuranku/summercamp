@@ -311,3 +311,35 @@ func debug_cut_to_want() -> void:
 	while grams() < float(t["want"]) and guard < 60:
 		_cut(t)
 		guard += 1
+
+
+# ── the frame: SERVE, the next step, the tab ─────────────────────────────────
+
+func serve_ready() -> bool:
+	return not _on.is_empty() and bool(_on.get("wrapped", false)) and not current().is_empty()
+
+
+func serve_now() -> void:
+	_give(current())
+
+
+## What is best to do at the deli counter: slices onto the scale to the weight asked, one
+## back when it is over, wrapped, SERVE.
+func next_hint() -> Dictionary:
+	var t := current()
+	if t.is_empty():
+		return {}
+	if not _on.is_empty() and bool(_on.get("wrapped", false)):
+		return {"ui": "serve"}
+	var want := float(t.get("want", 0))
+	var g := grams()
+	if want > 0.0 and g > want * 1.15 and not _on.is_empty():
+		return {"rect": SCALE, "gesture": "click"}
+	if want > 0.0 and g >= want * 0.9:
+		return {"rect": PAPER, "gesture": "click"}
+	return {"rect": BOARD, "gesture": "click"}
+
+
+## Somebody waiting for a parcel: amber.
+func alert() -> int:
+	return 1 if shop != null and building_key != "" and not tickets().is_empty() else 0

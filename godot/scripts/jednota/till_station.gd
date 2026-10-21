@@ -375,17 +375,65 @@ func _give(t: Dictionary) -> void:
 	pop("+$%d" % int(v.get("amount", 0)), MAT_AT + Vector2(0, -40), RETRO_UI.C_GREEN if int(v.get("stars", 0)) >= 2 else RETRO_UI.C_AMBER)
 	sfx("bag", -10.0)
 	v["build"] = float(v.get("accuracy", 1.0))
-	score_card(v, "Shopping")
+	var age := int(t.get("age", 0))
+	score_card(v, "Shopping", {"id": str(t.get("visit", "")), "name": str(t.get("name", "")), "left": 1.0 - clampf(float(age) / float(RULES.PATIENCE_GONE), 0.0, 1.0), "band": RULES.patience_band(age)})
 
 
 func bar_buttons() -> Array:
 	var t := first()
-	if t.is_empty() or not money_taken(t):
+	if t.is_empty() or not money_taken(t) or (t["mat"] as Array).is_empty():
 		return []
-	var out: Array = [{"id": "give", "label": "GIVE"}]
-	if not (t["mat"] as Array).is_empty():
-		out.push_front({"id": "clear", "label": "CLEAR"})
-	return out
+	return [{"id": "clear", "label": "CLEAR"}]
+
+
+# ── the frame: SERVE (GIVE), the next step, the tab ─────────────────────────
+
+## SERVE hands the change over (GIVE): lit once the money is in the drawer.
+func serve_ready() -> bool:
+	var t := first()
+	return not t.is_empty() and money_taken(t)
+
+
+func serve_now() -> void:
+	_give(first())
+
+
+## What is best to do at the till now: the next thing rung up (a pack of Start off the wall
+## first when they asked for one), the money off the mat, the change counted out of the
+## drawer the biggest piece that fits first, SERVE when it is right.
+func next_hint() -> Dictionary:
+	var t := first()
+	if t.is_empty():
+		return {}
+	var items: Array = t["items"]
+	var rung: Array = t["rung"]
+	if not all_rung(t):
+		if _to_fetch(t) > 0:
+			return {"rect": CIGS, "gesture": "click"}
+		for i in mini(items.size(), _items.size()):
+			if not rung.has(i) and (_items[i] as Sprite3D).visible:
+				return {"node": _items[i], "gesture": "click"}
+		return {}
+	if not money_taken(t):
+		return {"rect": Rect2(MAT_AT - MAT_R, MAT_R * 2.0), "gesture": "click"}
+	var left := int(t["due"]) - sum_of(t["mat"])
+	if left < 0:
+		for i in mini((t["mat"] as Array).size(), _change.size()):
+			return {"node": _change[i], "gesture": "click"}
+	for d in [10, 5, 2, 1]:
+		if left >= d:
+			for dd in DRAWER:
+				if int(dd[0]) == d:
+					return {"rect": dd[1], "gesture": "click"}
+	return {"ui": "serve"}
+
+
+## Somebody in the queue: amber; the first in the red: red.
+func alert() -> int:
+	var t := first()
+	if t.is_empty():
+		return 0
+	return 2 if RULES.patience_band(int(t.get("age", 0))) == 2 else 1
 
 
 func bar_button(id: String) -> void:

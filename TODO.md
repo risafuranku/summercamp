@@ -17,11 +17,13 @@ Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back t
 - [x] The books: MENU first, the same six pages everywhere (MENU, STOCK, ORDER, STAFF, GEAR, Z REPORT); the guests order only what is on
 - [x] Patience over the guests' heads in the room (dots, the watch, a red scribble, lines, the stamp of a foot) (`guest_mood.gd`)
 - [x] Corn stand: the frame's model; the camera sees the guests over the counter; the drinks a menu switch (off: no tab, no drink slips)
-- [ ] Pub: the frame, one-click bill, the games off the tabs, the keg on the frame and its tab, the cellar's hand, the menu
-- [ ] Bistro: cellar optional (prepared goods to buy dearer, a hand), the bufet into the kitchen, the floor = drinks and serving the plates off the hatch, a hand for every room, the menu
-- [ ] Jednota: the frame on the till, the queue alive (baskets, the impatient put theirs back), the shelves and the store for the hands, what runs out on the frame, the menu = the range
-- [ ] Bigger, readable food and goods in the minigames
-- [ ] DESIGN §7b, PRODUCT, the Czech of every new text
+- [x] Pub: the frame, one-click bill, the games off the tabs, the keg on the frame and its tab, the cellar's hand, the menu
+- [x] Bistro: cellar optional (prepared goods to buy dearer, a hand), the soup (bufet) into the kitchen, the floor = bottles and serving the plates off the hatch, a floor hand, the menu
+- [x] Jednota: the frame on the till (SERVE = GIVE), the queue's patience over their heads, the shelves and the store for the hands, their tabs lit when the rack runs empty, the menu = the range
+- [ ] Bigger, readable food and goods in the minigames: done on the tickets (bigger icons and a word) and the floor's plates; the pictures re-drawn by Grok still to do (the queue is slow)
+- [ ] Each place's own ambient (the Jednota's tubes and tills, the stand's camp) and new sounds per action: no SFX key now (TTS only), existing sounds reused
+- [ ] The guests' new poses for impatience (tapping, the watch, arms up): bubbles, lines and the stand's stamping for now; a note on the door at last orders
+- [x] DESIGN §7b "Papa's frame", PRODUCT, AGENTS, the Czech of every new text (tools/i18n/batches/06_podniky_papas.json)
 
 ## RECEPTION WINDOWS — 2026-10-21 (the user: "the reception's windows have no depth from outside; curtains drawn, lights out, the players inside at the PC or going to the other room: all of it seen from outside and in step")
 

@@ -884,7 +884,7 @@ imperfect human Build-engine textures."*
   sprites at the room's pixel (91 px to a metre): the slices lying in the pan, the basket
   on its hook, the plate you build, the stacks of plates standing by. Everybody in the
   room sees them, whoever is at the station. Click the station and the camera goes over
-  its counter in steps, twelve a second; there you point, press, hold and drag in the
+  its counter (smoothly since 21. 10., "Papa's frame" below); there you point, press, hold and drag in the
   room itself: a slice off the tray into a free place in the pan (the place lights up
   under it), the spoon round the pot, the plate into the water. A click does the same
   thing for whoever does not drag. Over the counter hangs the order rail (Papa's,
@@ -896,7 +896,7 @@ imperfect human Build-engine textures."*
   the frame at the other stations of the room. Under the room the frame
   (`station_hud.gd`): the sentence of what a click would do (like an old adventure
   game's verb line), BACK (S, the right button), the room's other stations (Tab, 1-4).
-  Nothing explains anything: the glint, the lit target, the ticket, the columns and the
+  No text explains anything (since 21. 10. the next step is lit too, "Papa's frame"): the glint, the lit target, the ticket, the columns and the
   sounds do.
 - **Things go on without you.** The pan and the fryer cook and burn, the pot catches,
   whether anyone is at them: the room says so (Traveller's Rest marks over each station:
@@ -1243,7 +1243,7 @@ attention, or hands. Two wardens: one cooks, one cleans, or each holds a place.*
   (a stroke a beer, a cross a shot, a ring a kofola: `pub_rules.TAB`, the board's prices
   4, 3, 2). When they have had their last, or their time is nearly up, the mat comes back
   on the rail as BILL: at the tap's right their mat and the note they put down (often too
-  big), and your black waiter's wallet with its four places; count the marks, take the
+  big), and (until 21. 10.: since then one click settles it, "Papa's frame") your black waiter's wallet with its four places; count the marks, take the
   note, the change onto the mat, hand it over. A guest pleased with the evening says
   "make it" a round sum (their tip). Short and they wait; too much and they keep it. Nobody
   comes in a quarter of an hour: the happy ones leave the money on the bar, the cross ones
@@ -1258,7 +1258,7 @@ attention, or hands. Two wardens: one cooks, one cleans, or each holds a place.*
 - **The bistro's grill and bufet.** On the kitchen island the grill (a station): sausages
   out of the box onto the grate, turned with the tongs, brown on both sides onto the rack,
   black into the bin; at the pass a klobasa plate is a sausage, a spoon of mustard and a
-  slice of bread. In the dining room the bufet counter (a station): the soup of the day
+  slice of bread. In the dining room the bufet counter (a station; since 21. 10. the soup is on the kitchen island and the bottles are the floor's, "Papa's frame"): the soup of the day
   ladled into a bowl (two ladles; a third slops) and over the counter, quick and cheap;
   the big drinks in glass bottles, kofola and malinovka, a ticket of their own for some
   guests, opened with the opener (hold on the cap and lift: the cap flies off and lies
@@ -1276,6 +1276,71 @@ attention, or hands. Two wardens: one cooks, one cleans, or each holds a place.*
   darts in the board, a sausage on the grill, the soup pot, a deli order, a cut kilo; the
   money is wherever it was taken (the till follows the host's). Checked on two copies by
   `tools/podniky_coop.py`.
+
+### Papa's frame (2026-10-21, decided with the user)
+
+*The user after playing: "at first sight terribly complicated, I don't know where to click;
+the animations choppy; unclear how to serve; somebody orders ten minutes before closing and
+doesn't wait; I can't see their patience or how I did; I can't tell chips from fried
+cheese; the bistro all over the place; the books somewhere else in every place. I want it
+like Papa's games, the same in every place." The same depth, but clear the first time,
+quick, juicy and worked the same in all four places. Where this and older lines above
+disagree, this wins (the older lines say so).*
+
+- **One frame** (`scripts/business/station_hud.gd`) in all four places: the tickets across
+  the top (each the guest's face as their patience goes, `guest_face.gd`, what they want as
+  its picture and word, the patience bar green to red); the picked one big in the corner as
+  a checklist (ticked when done, red when wrong; the Jednota's is its receipt); under it
+  SERVE (Space, Enter), lit when something is ready to hand over; the bar: BACK (S), the
+  place's stations as tabs in the order of its chain (picture, key 1-9, name; a steady
+  amber light where something waits, blinking red where something burns), the shift's mark
+  so far (A-E, the average stars, the run), the clock to last orders, BOOKS (B) always in
+  the same place.
+- **You come in at work**: the station you were at last in the place; the first time the
+  first of its chain (the stand's counter, the pub's tap, the bistro's floor, the till),
+  never the cellar or the sink. A tab to another room's station takes you there.
+- **After a serve nothing stops the game**: the stars, the score and the tip fly up over
+  the guest (or their ticket), the guest says a line, the slip slides in at the side for a
+  moment; three good ones in a row and more is a run (x3) with a little on top of the tip
+  (`business_rules.combo_bonus`), the one new money in the brief besides the prepared goods.
+- **The next step lit** (each station's `next_hint`): a frame breathing round what to do
+  now (a spot, a tab, SERVE); standing still a while a see-through glove shows the gesture
+  (click, drag, hold, rub). No text tutorial. Options "Work hints" switches it off (the
+  warden's, `profiles.gd`).
+- **Smooth**: the camera's glide to a station, the tickets sliding on the rail, things set
+  down hop, plates, cobs and bottles fly to the guest in an arc. Only the gloved hand stays
+  Duke 3D, frame by frame (the old "camera in steps, twelve a second" is gone).
+- **Patience everywhere**: on the ticket, on the face, over the guest in the room
+  (`guest_mood.gd`: dots, the watch, a red scribble; a line and a grumble as it gets worse;
+  at the stand their feet stamp).
+- **Last orders** half an hour before a place shuts (19:30, 22:30 open late): the bell, the
+  word across the view, the feed; after it nobody new goes there (`guest_life.order_hours`)
+  and nothing new is ordered; who ordered waits to the end of their patience, past the
+  closing hour; the Z report comes when the last of them is served or gone.
+- **The books the same everywhere**: MENU, STOCK, ORDER, STAFF, GEAR, Z REPORT. MENU is
+  switches only (`business_rules.MENU`, `actions.biz_set_menu`): what is off is not
+  ordered (the pub's guests have a beer instead, the bistro's the next dish they like, the
+  Jednota's baskets leave it out); each place's own thing never goes off; a station whose
+  dishes are all off has no tab (the stand's drinks, the pub's bottles, the grill, the soup,
+  the deli).
+- **The corn stand** is the frame's model; its camera stands higher so the guests at the
+  counter are in the picture over the work.
+- **The pub**: the bill in one click (BILL on the rail or its mat on the bar: the marks'
+  money and the round sum, no change counted: change is the Jednota's); the games stay in
+  the room off the tabs; the keg that will not pour is red on the cellar's tab wherever you
+  are.
+- **The bistro rebuilt**: the cellar is optional (cut chips and breaded cheese can be
+  ordered ready, half as dear again, and go onto the trays by themselves; or a hand); the
+  kitchen cooks and plates, the soup of the day moved onto its island beside the grill;
+  the floor (the dining room's counter) opens the bottles and takes the plates the pass
+  put on the hatch out to the tables (SERVE): the wait is counted till the plate reaches
+  them. A hand for every room: the cellar's, the kitchen's jobs, the floor's (new role);
+  without a floor hand the pass's hand carries the plates out.
+- **The Jednota**: the till is the core (SERVE is GIVE); the shelves and the storeroom are
+  for the hands and the other wardens, but their tabs light when the rack has empty places
+  and the trolley nothing for them; the queue's patience over their heads.
+- **By day plain play, by night the uncanny** as before (open late, PROTOTYP 540, Jaromir
+  and Marta are untouched). The hands stay worse than a good warden.
 
 ## 8. The pipe crawl (sewer repair)
 
