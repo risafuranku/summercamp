@@ -402,6 +402,7 @@ start, collect good ratings; pay to delete bad reviews".
 - [x] B38a Director: a light in the woods, an object moved, a reported cabin that sounds at night (day event "someone", knock to look)
 - [x] B38b Builder undo (Ctrl+Z / toolbar, today's builds, full refund); director: twig, the insects' silence, a door banging, steps in the back room; sleeping guests count for the camp's character (they did not)
 - [x] B38c Director: a sleeping guest at the tree line (rare, named in the log, denies it by day)
+- [x] B40 Sleep: the radio fades out as the eyes close, silent through the night skip, a new song in the morning (back-room bed and lodging beds; co-op: each machine for its own sleeping warden, the song stays the host's)
 - [x] B39 Save round trip checked (director memory and log, reputation, reported cabins, DataPunch nights); the PC no longer stays dark after a save is loaded in-game
 - [x] B38 Bazar Hlubocany: the lost and found from checkouts, ads, morning sales, the red shoe; new game no longer shows the last game's night log
 - [ ] B23 Later: lore in the linemen's hut; more winter challenges (snowed-in paths, the lake freezing, heating cabins)

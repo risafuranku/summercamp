@@ -3746,15 +3746,40 @@ func _load_radio_stream(res_path: String) -> AudioStream:
 	return mp3
 
 
+## Asleep in the back room (the eyes shut while the night passes; co-op: on each machine
+## its own warden's): the radio goes quiet as the eyes close (the user 21. 10.: "it played
+## on right through the time skip"), and in the morning it is on another song.
+var _radio_sleep_k := 0.0
+var _radio_was_asleep := false
+const RADIO_SLEEP_FADE_SEC := 1.0
+
+
+func _eyes_shut() -> bool:
+	var seq = _extras.get("sleep") if _extras != null else null
+	if seq != null and seq.is_running() and seq.eyes_closing():
+		return true
+	# Or in a tent's, cabin's or caravan's bed (scripts/lodge_bed.gd, InteriorManager's).
+	var lb = get_parent().get("lodge_bed") if get_parent() != null else null
+	return lb != null and is_instance_valid(lb) and lb.has_method("eyes_shut") and bool(lb.eyes_shut())
+
+
 func _update_radio_mix(delta: float) -> void:
 	_ensure_radio_playback()
+	var asleep := _eyes_shut()
+	_radio_sleep_k = move_toward(_radio_sleep_k, 1.0 if asleep else 0.0, delta / RADIO_SLEEP_FADE_SEC)
+	if _radio_was_asleep and not asleep:
+		# Hours have gone by: not the same song where it was.
+		_play_radio_next()
+	_radio_was_asleep = asleep
 	var target_db = _compute_radio_target_db()
 	var character_db = _compute_radio_character_volume_offset(delta)
+	character_db += linear_to_db(maxf(1.0 - _radio_sleep_k, 0.0001))
 	var night_track_db = RADIO_NIGHT_TRACK_VOLUME_OFFSET_DB if _radio_current_track_is_night else 0.0
 	if _dread != null:
+		var sleep_db := linear_to_db(maxf(1.0 - _radio_sleep_k, 0.0001))
 		_dread.update(
 			delta, _radio_dread_context(delta),
-			target_db if visible else RADIO_OUTSIDE_SILENT_DB,
+			(target_db + sleep_db) if visible else RADIO_OUTSIDE_SILENT_DB,
 			RADIO_OUTSIDE_SILENT_DB if visible else RADIO_OUTDOOR_VOLUME_DB,
 			_radio_power_on and _grid_power_available, _resolve_main_building_node()
 		)

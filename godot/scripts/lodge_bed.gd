@@ -55,6 +55,12 @@ func is_sleeping() -> bool:
 	return _sleep != null and _sleep.is_running()
 
 
+## Lying with the eyes shut while the night goes by (the radio at the reception, heard
+## through the walls, goes quiet for it: building_interior._eyes_shut).
+func eyes_shut() -> bool:
+	return is_sleeping() and _sleep.eyes_closing()
+
+
 func _office():
 	var main := get_tree().current_scene
 	return main.get("camp_office") if main != null else null
