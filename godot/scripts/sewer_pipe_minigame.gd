@@ -68,6 +68,12 @@ const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
 const WATER_SHADER = preload("res://materials/pipe_water.gdshader")
 ## Two in the pipes (co-op): the other warden's body in them (scripts/pipes/pipe_mate.gd).
 const PIPE_MATE = preload("res://scripts/pipes/pipe_mate.gd")
+const PIPE_BOY = preload("res://scripts/pipes/pipe_boy.gd")
+## The family's boy down here tonight (scripts/pipes/pipe_boy.gd: tag), null none; his
+## tier at the sewer's job (night_jobs.boy_tier_at): light only him, medium only the
+## raccoon, heavy both (the user, 21. 10.).
+var _boy
+var boy_tier := 0
 var mate = PIPE_MATE.new()
 ## The day the sewer broke (the network's seed with its place).
 var _since_day := 1
@@ -310,7 +316,15 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	_cur_leak = -1
 	_clear_splats()
 	_director = DIRECTOR.new()
+	boy_tier = _read_boy_tier()
+	_director.absent = boy_tier == 1
 	_director.start(self, _visit, _night, _rng.randi())
+	if _boy != null:
+		_boy.stop()
+	_boy = null
+	if boy_tier == 1 or boy_tier == 3:
+		_boy = PIPE_BOY.new()
+		_boy.start(self, boy_tier)
 	_prints_placed = false
 	glancing = false
 	_glance = 0.0
@@ -331,6 +345,19 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	_play_one("ladder.mp3", -4.0)
 	_update_rig(0.0)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+## The family's boy's tier at the sewer tonight (scripts/night_jobs.gd), 0 none.
+func _read_boy_tier() -> int:
+	if debug_boy >= 0:
+		return debug_boy
+	var main = get_tree().current_scene if is_inside_tree() else null
+	var nj = main.get("_night_jobs") if main != null else null
+	return int(nj.call("boy_tier_at", "sewer")) if nj != null and nj.has_method("boy_tier_at") else 0
+
+
+## Tests: the boy's tier whatever the night (-1: the night's).
+var debug_boy := -1
 
 
 ## The night's pressure on the camp right now (DESIGN §5e), read from main's omen context.
@@ -378,6 +405,9 @@ func close_repair(cancelled: bool = true) -> void:
 			la.stop()
 	if _director != null:
 		_director.stop()
+	if _boy != null:
+		_boy.stop()
+		_boy = null
 	for d in _drips:
 		(d as AudioStreamPlayer3D).stop()
 	if _work_hand != null:
@@ -1741,6 +1771,8 @@ func _try_move(d: int) -> void:
 	# Knees and palms in the water: it hears every pipe you crawl.
 	if _director != null:
 		_director.heard(_node, 1)
+	if _boy != null:
+		_boy.moved()
 
 
 # -- two in the pipes ---------------------------------------------------------------
@@ -1771,6 +1803,8 @@ func _back_up() -> void:
 	_set_status("")
 	if _director != null:
 		_director.heard(_node, 1)
+	if _boy != null:
+		_boy.moved()
 
 
 ## One of the others is in the way: their boots or their head, and nowhere to go.
@@ -1953,6 +1987,8 @@ func _process(delta: float) -> void:
 		_work_hand.stop()
 	if _director != null:
 		_director.tick(delta)
+	if _boy != null:
+		_boy.tick(delta)
 	_vibe.tick(delta)
 	_update_torch(delta)
 	if _fixed and _director != null and _director.leaves_prints():
