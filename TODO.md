@@ -110,10 +110,11 @@ Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back t
 - [x] Bistro: cellar optional (prepared goods to buy dearer, a hand), the soup (bufet) into the kitchen, the floor = bottles and serving the plates off the hatch, a floor hand, the menu
 - [x] Jednota: the frame on the till (SERVE = GIVE), the queue's patience over their heads, the shelves and the store for the hands, their tabs lit when the rack runs empty, the menu = the range
 - [x] Bigger, readable food and goods: at the stations at their pictures' own pixel (`station3d.fine`), the pass's plate food a quarter bigger, the floor's plates, bigger icons with a word on the tickets
-- [ ] The food pictures re-drawn by Grok with stronger silhouettes (the queue is slow)
+- [x] The food and drink pictures re-drawn by Grok with stronger silhouettes and colours: the fried cheese, chips, goulash, dumpling, tartar, onion and their ticket icons, the mug and the kofola, the cobs raw, boiled, mushy and buttered (`podniky_art.py` pk2_*)
 - [x] Each place's own sound: the bistro's kitchen at work, the Jednota's tubes and now and then a till (`service_interior._tick_ambience`, recordings already there)
-- [ ] New sounds for each action and the guests' sighs: no SFX key now (TTS only)
-- [ ] The guests' new poses for impatience (tapping, the watch, arms up): bubbles, lines and the stand's stamping for now; a note on the door at last orders
+- [ ] New sounds for each action and the guests' sighs: the ElevenLabs key can only speak (TTS), a key with sound effects is wanted
+- [x] The guests' impatient pictures for those who wait on their feet (the stand's queue, the Jednota's): a hand on the hip, a look at the watch, the toes tapping, the kid's arms crossed (`<sprite>_wait.png` by Grok, `guest_mood.show_wait`); the seated ones in the pub and the bistro keep the bubbles
+- [ ] A note on the door at last orders
 - [x] DESIGN §7b "Papa's frame", PRODUCT, AGENTS, the Czech of every new text (tools/i18n/batches/06_podniky_papas.json)
 
 ## RECEPTION WINDOWS — 2026-10-21 (the user: "the reception's windows have no depth from outside; curtains drawn, lights out, the players inside at the PC or going to the other room: all of it seen from outside and in step")

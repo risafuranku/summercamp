@@ -2919,6 +2919,9 @@ const BISTRO_RULES = preload("res://core/systems/bistro_rules.gd")
 const JEDNOTA_RULES = preload("res://core/systems/jednota_rules.gd")
 var _mood: Node3D
 var _mood_t := 0.0
+## Those in their impatient picture now (put back to standing when it passes).
+var _waiting_pose: Dictionary = {}
+const POSES = preload("res://scripts/attractions/poses.gd")
 
 
 func _tick_moods(delta: float) -> void:
@@ -2951,6 +2954,15 @@ func _tick_moods(delta: float) -> void:
 			var parts := str(k).split(":")
 			var key := "%s:%s" % [parts[0], parts[1] if parts.size() > 1 else "0"]
 			_mood.call("show_for", str(k), head, float(left.get(key, left.get(parts[0] + ":*", -1.0))))
+			# In a queue on their feet (the Jednota's till): the impatient ones in their
+			# impatient picture, fidgeting; back to standing when they calm down or move on.
+			if int(p.get("queue", -1)) >= 0 and str(p.get("state", "")) == "seat":
+				var base := str(p.get("base", ""))
+				if bool(_mood.call("impatient", str(k))) and GUEST_MOOD.show_wait(s3, base):
+					_waiting_pose[str(k)] = true
+				elif _waiting_pose.has(str(k)):
+					_waiting_pose.erase(str(k))
+					POSES.set_pose(s3, base, "")
 	_mood.call("sweep")
 
 
