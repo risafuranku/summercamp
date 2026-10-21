@@ -4716,6 +4716,14 @@ func _on_coop_peer_joined(id: int) -> void:
 	await get_tree().create_timer(1.0).timeout
 	if _hud_manager != null and Coop.wardens.has(id):
 		_hud_manager.push_status("%s came in by the barrier." % Coop.name_of(id), 1)
+	# The office, the PC, the register... sent once more as they finish loading the camp:
+	# what came while they were still loading was dropped there, and it is sent again only
+	# when it changes (a PC on at the host stayed off for them: playtest 21. 10.).
+	for wait in [4.0, 8.0, 16.0]:
+		await get_tree().create_timer(wait).timeout
+		if not Coop.wardens.has(id):
+			return
+		_coop_sync_last.clear()
 
 
 func _on_coop_peer_left(id: int) -> void:

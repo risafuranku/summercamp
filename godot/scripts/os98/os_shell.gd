@@ -407,7 +407,13 @@ func coop_take_pc(data: Dictionary) -> void:
 		_refresh_cover(id)
 	_refresh_folders()
 	_refresh_badges()
-	_coop_take_power(int(data.get("pw", -1)))
+	_coop_pw = int(data.get("pw", -1))
+	_coop_take_power(_coop_pw)
+
+
+## The other machine's PC as it last said (1 on, 0 off, -1 no news): kept, because the
+## camp joining loads its own PC state after it (off) and the news did not come again.
+var _coop_pw := -1
 
 
 ## The other warden's PC is on: here it is on too, at its desktop (no boot again); they
@@ -1550,6 +1556,8 @@ func _process(delta: float) -> void:
 		if not _has_power() and _state != Boot.OFF and _state != Boot.SAFE_OFF:
 			power_off()
 			_blacked_out = true
+		elif _coop_pw == 1 and Coop.is_active() and (_state == Boot.OFF or _state == Boot.SAFE_OFF) and _has_power():
+			_coop_take_power(1)
 		elif _has_power() and _blacked_out and _open and _state == Boot.OFF:
 			_blacked_out = false
 			_start_boot()
@@ -2320,6 +2328,7 @@ func _dir_of_text(file: String) -> String:
 
 
 func _shutdown() -> void:
+	_coop_pw = -1
 	_close_dialogs()
 	_online = false
 	play("shutdown", -6.0)
