@@ -736,7 +736,11 @@ game in Czech; from now on everything we make, in English and Czech".
 - **Words** (keep them the same everywhere): warden = správce, camp = kemp, guest = host,
   booking = rezervace, sandbox = volná hra, story = příběh, the Builder stays Builder,
   CampMail/CampStat/GuestRack/Goggle and the like keep their names; the player is "ty".
-  Money stays in dollars for now (the user decides). The tone is the English one's: dry,
+  Money is crowns in Czech (the user, 21. 10.: "KORUNY"): the game counts in dollars
+  and `lang.gd` shows "$1,250" as "12 500 Kč" (`CROWNS_PER_DOLLAR` 10) in anything that
+  passes through the lookup, and "$%d" in a format string as "%d0 Kč"; drawn text that
+  skips tr() can use `LANG.money(text)`. Write money in the code as "$%d" / "$" + digits
+  and Czech follows. The tone is the English one's: dry,
   short, a 1998 Czech camp.
 - **In Czech the big menu rows are taller** (`retro_menu.MenuList._row_vp`): a capital's
   accent stands four of the big font's pixels above the letters.

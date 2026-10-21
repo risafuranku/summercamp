@@ -17,7 +17,10 @@ extends Translation
 ##     (Czech past tense talks to you as a man or a woman: Jana's and Bara's figures
 ##     are women, set_figure());
 ##   - a line wrapped in what is not a word ("<  Windbreaker  >", "- Done -"), and text of
-##     several lines line by line.
+##     several lines line by line;
+##   - money in crowns (the user, 21. 10.): the game counts in dollars, Czech shows
+##     crowns at CROWNS_PER_DOLLAR, "$1,250" -> "12 500 Kč" in whatever passes through
+##     the lookup (translated or not), "$%d" in a format string -> "%d0 Kč" (crowns()).
 ## A miss answers nothing and the engine shows the English. Results are kept (the HUD
 ## asks for the same strings every frame).
 
@@ -44,6 +47,10 @@ var _memo: Dictionary = {}
 var _re_wrap: RegEx
 var _re_spec: RegEx
 var _re_forms: RegEx
+var _re_money: RegEx
+
+## Crowns to the dollar (1998: a beer 10 Kč, a pack of Start 20 Kč, the electrician 600 Kč).
+const CROWNS_PER_DOLLAR := 10
 
 
 ## The language for this machine from now: "en" or "cs".
@@ -114,12 +121,49 @@ static func reload() -> void:
 		_ensure()
 
 
+## Dollars in `text` as crowns: "$1,250" -> "12 500 Kč", "-$5" -> "-50 Kč", "$3-5" ->
+## "30-50 Kč", "$%d" (a
+## format string still to be filled) -> "%d0 Kč". Drawn text that does not go through
+## tr() can call it (LANG.money(text) when Czech).
+func crowns(text: String) -> String:
+	text = text.replace("$%d", "%d0 Kč")
+	var out := ""
+	var last := 0
+	for m in _re_money.search_all(text):
+		var v := roundi(float(m.get_string(1).replace(",", "")) * CROWNS_PER_DOLLAR)
+		var amount := group_thousands(v)
+		# A range: "$3-5" -> "30-50 Kč".
+		if m.get_string(2) != "":
+			amount += "-" + group_thousands(roundi(float(m.get_string(2).replace(",", "")) * CROWNS_PER_DOLLAR))
+		out += text.substr(last, m.get_start() - last) + amount + " Kč"
+		last = m.get_end()
+	return out + text.substr(last)
+
+
+## 12500 -> "12 500" (Czech groups thousands with a space).
+static func group_thousands(v: int) -> String:
+	var digits := str(absi(v))
+	var out := ""
+	while digits.length() > 3:
+		out = " " + digits.substr(digits.length() - 3) + out
+		digits = digits.substr(0, digits.length() - 3)
+	return ("-" if v < 0 else "") + digits + out
+
+
+## Money for drawn text that does not go through tr(): crowns in Czech, as it is in English.
+static func money(text: String) -> String:
+	if current == "en" or _cs == null:
+		return text
+	return _cs.crowns(text)
+
+
 # ── the catalogue ──────────────────────────────────────────────────────────────
 
 func _init() -> void:
 	_re_wrap = RegEx.create_from_string("^([^\\p{L}\\p{N}%{]*)(.*?)([^\\p{L}\\p{N}%}]*)$")
 	_re_spec = RegEx.create_from_string("%(%|[-+ 0]*[0-9]*(?:\\.[0-9]+)?[dsfxXc])")
 	_re_forms = RegEx.create_from_string("\\{([^{}|]*\\|[^{}]*)\\}")
+	_re_money = RegEx.create_from_string("\\$ ?((?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.[0-9]+)?)(?:-([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+))?")
 
 
 func _read(path: String) -> void:
@@ -272,6 +316,12 @@ func _get_message(src_message: StringName, _context: StringName) -> StringName:
 	var hit = _memo.get(s)
 	if hit == null:
 		hit = _find(s, true)
+		# Dollars shown as crowns, translated or not.
+		var shown: String = hit if hit != "" else s
+		if shown.contains("$"):
+			var c := crowns(shown)
+			if c != shown:
+				hit = c
 		if _memo.size() > 20000:
 			_memo.clear()
 		_memo[s] = hit
