@@ -306,14 +306,17 @@ game, every time, and never scripted to a place.
   you) and the eyes (his thumbs over your eyes from behind, the picture dark from the
   edges in, red). Now and then only his neck comes round the corner, far too long; indoors
   he crosses the ceiling over you and stops right above. The burnt-in faces rotate.
-- **Indoors** (an outdoor hunter): in order, a pause of 16-28 s between: the humming
-  through the wall; three knocks, and a fourth after you have stopped listening; the
-  handle tried; a hand brushing along the outside wall, following you; a tap at the
-  window (in the office, his figure at the window; in a cabin, he stoops to the glass of
-  the window you look at, his face in it and his glasses glowing, lit by the room's light
-  falling out, and is gone in a few seconds: the window is a view of the real camp);
-  then he goes to a guest (a Quiet Guy first): a tent zip somewhere, slowly, and that
-  guest's night is spoiled.
+- **Indoors** (an outdoor hunter; the user 21. 10.: "only scare you audio-visually now and
+  then, watch you from afar through the window"): he does not try to get you out. Every
+  half a minute or so a moment of him: mostly he is out there in the dark beyond a window
+  of the room (curtain open), 15-24 m off on the line from your eye through the glass,
+  still, only his glasses in the black; look away and when you look back he is nearer
+  (twice at most), and after you have looked at him a while, or half a minute, he is not
+  there; a drawn curtain takes him away. Between, seldom, a sound: one slow step on the
+  gravel, his humming far off, a breath at the wall; late in his night now and then his
+  face over the ceiling, or he stoops to the glass and taps (his face in it, lit by the
+  room's light falling out). The windows' `view` (the window's camera, your eye out in the
+  camp: `photo_windows()`) places him.
 
 Every hit can be explained afterwards: each enemy says where it is and when it is about
 to strike, by sound first, and the counter always works (tools/enemy_check.tscn plays

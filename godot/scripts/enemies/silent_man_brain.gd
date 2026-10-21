@@ -47,11 +47,12 @@ class_name SilentManBrain
 ## your neck he does not bite: he turns you round to him, face to face, the skin over his
 ## mouth pulling, and comes apart into the dark. (No text says so: the turn teaches it.)
 ##
-## Indoors he does not hurt you (an indoor hunter is another kind of thing): he wants you
-## out. Through the wall, the humming; three knocks, then a fourth after you stop
-## listening; the handle tried; a hand brushing along the outside wall, following you;
-## a tap at the window. Stay in long enough and he goes to your guests instead: a tent
-## zip somewhere in the camp, slowly; the guest is not right in the morning.
+## Indoors he does not hurt you and does not try to get you out (the user, 21. 10.): now
+## and then he is out there, far off in the dark beyond a window, standing still and
+## watching you, his glasses two points in the black; look away and when you look back he
+## is nearer; after a while he is not there. Between, seldom, a sound of him: one slow step
+## on the gravel, his humming far off, a breath at the wall; late, now and then, his face
+## over the ceiling or a tap at the glass.
 ## In co-op only the warden he hunts feels any of it; the other's torch drives him off
 ## too (the counter for two: watch each other's backs).
 
@@ -164,9 +165,18 @@ var _revealed := false
 var _reveal_t := -1.0
 var _reveal_seen := 0.0
 var _lesson := false
-## Indoors: what he does to get you out, in order, and when the next.
+## Indoors: when the next moment of him, and how many there were.
 var _lure_next := -1.0
 var _lure_n := 0
+## Watching through a window: which window (its index in the room's windows), how far off
+## he stands, how many steps nearer he has come, whether you are looking at him now, and
+## how long you have.
+var _watch_win := -1
+var _watch_dist := 0.0
+var _watch_steps := 0
+var _watch_seen := false
+var _watch_looked := 0.0
+var _watch_side := 0.0
 var _indoors := false
 var _sound2d: AudioStreamPlayer
 ## A face in the corner of your eye, two frames, when it gets bad.
@@ -1307,36 +1317,47 @@ func _update_reveal(dt: float) -> void:
 		_reset_far(_rng.randf_range(2.0, 4.0))
 
 
-# ── indoors: getting you out ─────────────────────────────────────────────────
+# ── indoors: watching you ────────────────────────────────────────────────────
 
-## While you are inside at night he cannot reach you, and he knows where you are. In
-## order, with a pause between: the humming through the wall, the knocks, the handle,
-## the brushing along the outside wall, a tap at the window; after that he goes to a
-## guest instead.
+## Watching through a window: how far off he stands (m), the steps nearer (each a share of
+## the way), how long you look before he may go, how long it lasts at most.
+const WATCH_DIST := Vector2(15.0, 24.0)
+const WATCH_STEP := 0.62
+const WATCH_STEPS := 2
+const WATCH_LOOKED := 2.2
+const WATCH_MAX := 32.0
+## The wait between his moments indoors (s), and how often a moment is the window.
+const INDOOR_EVERY := Vector2(24.0, 46.0)
+const WATCH_CHANCE := 0.6
+
+
+## While you are inside at night he cannot reach you, and he knows where you are. Now and
+## then he is out there watching through a window; between, seldom, a sound of him.
 func _tick_indoors(delta: float) -> void:
 	if not _night_active or not _indoors_now():
 		_indoors = false
+		_end_watch()
 		return
 	if not _indoors:
 		_indoors = true
 		_lure_n = 0
-		_lure_next = _wall_clock() + _rng.randf_range(10.0, 16.0)
+		_lure_next = _wall_clock() + _rng.randf_range(12.0, 22.0)
+	if _watch_win >= 0:
+		_tick_watch(delta)
+		return
 	# Gone from the glass when his time there is up.
 	if _glass_until > 0.0 and _wall_clock() >= _glass_until:
-		_glass_until = -1.0
-		_body.visible = false
-		if _eyes != null:
-			_eyes.set("view_from", Vector3.INF)
-		if _glass_light != null:
-			_glass_light.visible = false
+		_end_watch()
 	if _wall_clock() < _lure_next:
 		return
-	_lure_next = _wall_clock() + _rng.randf_range(16.0, 28.0)
-	# Only the one he hunts hears it (co-op).
+	_lure_next = _wall_clock() + _rng.randf_range(INDOOR_EVERY.x, INDOOR_EVERY.y)
+	# Only the one he hunts sees or hears it (co-op).
 	if _fx() == null:
 		return
-	_lure(_lure_n)
 	_lure_n += 1
+	if _rng.randf() < WATCH_CHANCE and _start_watch():
+		return
+	_indoor_sound()
 
 
 ## Seconds while indoors (the base's _elapsed does not run while it cannot act).
@@ -1348,52 +1369,149 @@ func _indoors_now() -> bool:
 	return _quarry_indoors()
 
 
-func _lure(n: int) -> void:
-	var scene := _world_root.get_tree().current_scene
-	var fxd = scene.get("_director_fx") if scene != null else null
-	var im = scene.get("_interior_manager") if scene != null else null
-	var bi = im.get("_building_interior") if im != null else null
-	# The office's knocks and handle are the host's room (the director's): for a warden on
-	# another machine everything goes to their own room (_room_2d), never the host's.
-	var office: bool = _quarry_peer() == 0 and bi != null and bool(bi.get("visible"))
-	match n % 6:
+func _im():
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	return scene.get("_interior_manager") if scene != null else null
+
+
+## The windows of the room the warden he hunts is in (InteriorManager.photo_windows: the
+## office, a cabin, a caravan, a service block); in co-op another warden's, as their
+## machine sends them (warden state "pw").
+func _room_windows() -> Array:
+	var peer := _quarry_peer()
+	if peer == 0:
+		var im = _im()
+		return im.photo_windows() if im != null and im.has_method("photo_windows") else []
+	var out: Array = []
+	for w in Coop.state_of(peer).get("pw", []):
+		out.append({"pos": w[0], "out": w[1], "open": float(w[2]), "facing": float(w[3]), "far": true})
+	return out
+
+
+## Out in the dark beyond one of the room's windows (one with its curtain open), far off,
+## still, facing the glass. Mostly a window you are not looking at, so you find him.
+func _start_watch() -> bool:
+	var wins := _room_windows()
+	var pick := -1
+	var best := 9.0
+	for i in wins.size():
+		var w: Dictionary = wins[i]
+		if float(w.get("open", 1.0)) < 0.35:
+			continue
+		var f := float(w.get("facing", 0.0)) + _rng.randf_range(-0.3, 0.3)
+		if f < best:
+			best = f
+			pick = i
+	if pick < 0:
+		return false
+	var w: Dictionary = wins[pick]
+	_watch_side = _rng.randf_range(-0.08, 0.08)
+	for _i in 6:
+		_watch_dist = _rng.randf_range(WATCH_DIST.x, WATCH_DIST.y)
+		var p := _watch_point(w)
+		if p != Vector3.INF and _lamp_light_at(p) < DARK_LIGHT:
+			_watch_win = pick
+			_watch_steps = 0
+			_watch_seen = false
+			_watch_looked = 0.0
+			_glass_until = _wall_clock() + WATCH_MAX
+			_place_watch(w, p)
+			return true
+	return false
+
+
+## On the line from your eye through the glass (the window's camera in the camp), so the
+## window shows him however slant you look through it; straight out from it without one.
+func _watch_point(w: Dictionary) -> Vector3:
+	var pos: Vector3 = w["pos"]
+	var from: Vector3 = w.get("view", pos - (w["out"] as Vector3) * 2.0)
+	var dir := pos - from
+	dir.y = 0.0
+	if dir.length() < 0.05 or dir.normalized().dot(w["out"] as Vector3) < 0.2:
+		dir = w["out"] as Vector3
+		dir.y = 0.0
+	dir = dir.normalized().rotated(Vector3.UP, _watch_side)
+	return _ground(from + dir * _watch_dist)
+
+
+func _place_watch(w: Dictionary, p: Vector3) -> void:
+	_body.global_position = p
+	_body.visible = true
+	_set_tex(T_M1 if _watch_dist > 9.0 or not _tex.has(T_M2) else T_M2)
+	# His glasses, seen from the room (the window's own camera looks out from in there).
+	if _eyes != null:
+		_eyes.set("view_from", w.get("view", (w["pos"] as Vector3) - (w["out"] as Vector3) * 1.5))
+
+
+## While he watches: you look at the window (he is there, still); you look away (he is a
+## step nearer when you look back, twice at most); you have looked at him long enough and
+## look away, or his time is up: he is not there any more.
+func _tick_watch(delta: float) -> void:
+	var wins := _room_windows()
+	if _watch_win >= wins.size() or _wall_clock() >= _glass_until:
+		_end_watch()
+		return
+	var w: Dictionary = wins[_watch_win]
+	if float(w.get("open", 1.0)) < 0.35:
+		# The curtain drawn on him: behind it he is gone.
+		_end_watch()
+		return
+	var seen := float(w.get("facing", 0.0)) > 0.82
+	if seen:
+		_watch_looked += delta
+		if not _watch_seen and _watch_steps > 0:
+			# Nearer than he was: the sting, once.
+			_room_2d(SFX_STING, -12.0, 0.85)
+	elif _watch_seen:
+		# You looked away.
+		if _watch_looked >= WATCH_LOOKED and (_watch_steps >= WATCH_STEPS or _rng.randf() < 0.45):
+			_end_watch()
+			return
+		if _watch_steps < WATCH_STEPS:
+			_watch_steps += 1
+			_watch_dist *= WATCH_STEP
+			var p := _watch_point(w)
+			if p != Vector3.INF:
+				_place_watch(w, p)
+			if _rng.randf() < 0.5:
+				_room_2d(SFX_SOFTSTEP, -16.0, 0.9)
+	_watch_seen = seen
+	_body.visible = true
+
+
+func _end_watch() -> void:
+	_watch_win = -1
+	_glass_until = -1.0
+	if _body != null:
+		_body.visible = false
+	if _eyes != null:
+		_eyes.set("view_from", Vector3.INF)
+	if _glass_light != null:
+		_glass_light.visible = false
+
+
+## A sound of him between the windows, seldom: a slow step on the gravel, the humming far
+## off, a breath at the wall; late in his night, now and then, his face over the ceiling or
+## a tap at the glass close to you.
+func _indoor_sound() -> void:
+	var late := _lure_n >= 4
+	var r := _rng.randf()
+	if late and r < 0.18 and _tex.has(T_CEILING):
+		_room_2d(SFX_CEILING, -4.0)
+		get_tree_timer(2.4, func():
+			var f := _fx()
+			if _indoors and f != null:
+				f.subliminal(_t(T_CEILING), 3, 1.0, Color(0.5, 0.45, 0.45)))
+		return
+	if late and r < 0.32 and _at_glass(_im()):
+		return
+	match _rng.randi() % 3:
 		0:
-			_room_2d(SFX_HUM, -14.0, 0.9)
-			_feed("Humming, through the wall. It stops.")
+			_room_2d(SFX_SOFTSTEP, -15.0, 0.85)
 		1:
-			if office and fxd != null:
-				fxd.run("knock", {})
-			else:
-				_room_2d("res://assets/sfx/director/knock.mp3", -4.0)
-			# The fourth knock, after you have stopped listening.
-			get_tree_timer(_rng.randf_range(5.0, 8.0), func():
-				if _indoors and _fx() != null:
-					_room_2d("res://assets/sfx/director/knock.mp3", -9.0, 0.9))
-		2:
-			if office and fxd != null:
-				fxd.run("handle", {})
-			else:
-				_room_2d("res://assets/sfx/director/handle.mp3", -3.0)
-		3:
-			if _tex.has(T_CEILING) and _rng.randf() < 0.5:
-				# Over you, across the ceiling, and it stops right above you.
-				_room_2d(SFX_CEILING, -2.0)
-				get_tree_timer(2.4, func():
-					var f := _fx()
-					if _indoors and f != null:
-						f.subliminal(_t(T_CEILING), 3, 1.0, Color(0.5, 0.45, 0.45)))
-				return
-			_room_2d("res://assets/sfx/director/wall_brush.mp3", -6.0)
-			get_tree_timer(2.2, func():
-				if _indoors and _fx() != null:
-					_room_2d("res://assets/sfx/director/wall_brush.mp3", -9.0, 0.95))
-		4:
-			if office and fxd != null:
-				fxd.run("figure_window", {})
-			elif not _at_glass(im):
-				_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0)
+			_room_2d(SFX_HUM, -20.0, 0.8)
 		_:
-			_visit_guest()
+			_room_2d(SFX_BREATH, -18.0, 0.9)
 
 
 ## The cabin you are in: he stands outside one of its windows, close to the glass, and
@@ -1450,25 +1568,6 @@ func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
 	_sound2d.volume_db = db
 	_sound2d.pitch_scale = pitch
 	_sound2d.play()
-
-
-## Hide long enough and it is somebody else: a guest's night goes wrong.
-func _visit_guest() -> void:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	if state == null or GuestManager == null:
-		return
-	var pick := {}
-	for g in state.guests:
-		if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
-			pick = g
-			if str(g.get("archetype", "")) == "quiet_guy":
-				break
-	if pick.is_empty():
-		_room_2d(SFX_HUM, -10.0, 0.75)
-		return
-	_room_2d("res://assets/sfx/director/wall_brush.mp3", -16.0, 0.8)
-	GuestManager.apply_guest_event(int(pick.get("id", -1)), -18.0, "Someone stood at my tent all night. I did not open it.")
-	_feed("Somewhere in the camp a tent zip goes, slowly. Then nothing.")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

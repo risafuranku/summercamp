@@ -41,7 +41,9 @@ How it works: AGENTS.md §8. Left: `python tools/i18n/extract.py --stats` / `--t
   format string
 - [ ] Pictures with words (signs, posters, the web's pictures, the Builder's splash) and
   English voices (the phone, the electrician): Czech versions through locale remaps
-- [ ] Money in Czech: dollars or crowns? (ask the user)
+- [x] Money in Czech: crowns (the user, 21. 10.), $1 = 10 Kč in `lang.gd` (`crowns()`,
+  `LANG.money()`); drawn money that skips tr() (the Builder's odometer, the PC's
+  programs) still to go through it
 - [ ] Play a day and a night in Czech end to end and fix what reads wrong
 
 ## PODNIKY POLISH — 2026-10-20 (the brief: the four places to the top)
