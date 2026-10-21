@@ -100,7 +100,7 @@ The work, in the brief's order (tick as it lands):
 - [x] Personal 98: SoftSklad's fifth program; licence at softsklad.cz
 - [x] The post's plate at the right edge (van on the way, parcel at the desk)
 - [ ] Co-op checked in two windows (the code is in: biz.staff in the pulse, s_* ops to the host, the laptop's screen and the figures)
-- [ ] The warden may sleep on a boiler-room mattress (lodge_bed) like in a lodging
+- [x] The boiler room's mattress is the warden's bed (lodge_bed "staff"); the hands sit in the lounge (armchairs bought) and all go home at night (the user, the same evening)
 - [ ] Sounds of their own: the boiler's roar, the fridge's hum, the coffee machine's gurgle, the locker's clang (ElevenLabs)
 - [ ] A hand asleep in a guest's bed seen in that lodging's room
 

@@ -9,15 +9,15 @@ extends Node
 ##   home    before their hour in the morning and after eight in the evening
 ##   walk    in from the gate along the camp's paths, out to a job, back, home again
 ##   coffee  in the morning, on the sofa with a cup (the lounge)
-##   rest    lying on their mattress in the boiler room; with no mattress of their own,
+##   rest    sitting in the lounge, on the sofa or in an armchair; with nowhere to sit,
 ##           in a guest's bed (a free made-up lodging: when they get up, it wants making
 ##           again, and the line says so)
 ##   work    at a bin bag (litter), at the bins (raccoons, shooed off with the broom), at
 ##           the wholesaler's van (signing), at a branch (sawing it up), in a lodging
 ##           (cleaning it, making the bed: one task after another, GuestManager)
 ## The figures in the camp are Build sprites at the people's pixel (128 px to 1.74 m):
-## standing and bobbing as they walk, the broom at work, flat on the mattress or sat on
-## the sofa where the staffroom's windows look in (the building's own rooms,
+## standing and bobbing as they walk, the broom at work, sat on the sofa or in an
+## armchair where the staffroom's windows look in (the building's own rooms,
 ## building_models._staffroom). The room inside draws its own (inside()).
 ## The other wardens in the staffroom are drawn in its rooms here too when you are
 ## outside (at the laptop, at the books), and its lamps and curtains are as they are in.
@@ -309,7 +309,7 @@ func _arrive(slug: String, p: Dictionary, act: Dictionary, now: float) -> void:
 		"home":
 			CoreRoot.actions.staff_act(slug, {"do": "home"})
 		"coffee":
-			var seat := _free_spot("sofa", slug)
+			var seat := _free_seat(slug)
 			if seat == "":
 				_lie_down(slug, p, act, now)
 				return
@@ -330,43 +330,36 @@ func _arrive(slug: String, p: Dictionary, act: Dictionary, now: float) -> void:
 			CoreRoot.actions.staff_act(slug, next)
 
 
-## Back in the staffroom (or off to a guest's bed): a mattress of their own if there is
-## one free, else the nearest made-up lodging nobody is in.
+## Back in the staffroom (or off to a guest's bed): a seat in the lounge if there is one
+## free (the sofa, the armchairs), else the nearest made-up lodging nobody is in.
 func _lie_down(slug: String, p: Dictionary, act: Dictionary, now: float) -> void:
-	var spot := _free_spot("mat", slug)
+	var spot := _free_seat(slug)
 	if spot != "":
 		CoreRoot.actions.staff_act(slug, {"do": "rest", "spot": spot, "t0": now, "t1": now + RULES.REST_MIN})
 		return
 	var bed := _guest_bed(slug)
 	if bed.is_empty():
-		# Nowhere at all: on the sofa, or standing about in the lounge.
-		var seat := _free_spot("sofa", slug)
-		CoreRoot.actions.staff_act(slug, {"do": "rest", "spot": seat if seat != "" else "stand", "t0": now, "t1": now + RULES.REST_MIN})
+		# Nowhere at all: standing about in the lounge.
+		CoreRoot.actions.staff_act(slug, {"do": "rest", "spot": "stand", "t0": now, "t1": now + RULES.REST_MIN})
 		return
 	var from := _door()
 	_walk(slug, from, bed["pos"], {"do": "bed", "room": bed["key"]})
-	_say(tr("%s has no mattress in the staffroom. They lie down in %s.") % [str(p.get("name", "")), _room_label(str(bed["key"]))], 2)
+	_say(tr("%s has nowhere to sit in the staffroom. They lie down in %s.") % [str(p.get("name", "")), _room_label(str(bed["key"]))], 2)
 
 
-## A free place of `kind` ("mat", "sofa") in the staffroom, "" none.
-func _free_spot(kind: String, slug: String) -> String:
-	var n := RULES.gear_count(_st(), "mattress") if kind == "mat" else PLAN.SOFA_SEATS.size()
+## A free seat in the lounge ("sofa:i", "chair:i"), "" none.
+func _free_seat(slug: String) -> String:
 	var taken := {}
 	var acts := _acts()
 	for s in acts:
 		if str(s) != slug and str(acts[s].get("do", "")) in ["rest", "coffee"]:
 			taken[str(acts[s].get("spot", ""))] = true
-	# The first of them goes to the first mattress (their own), and so on.
-	var mine := -1
-	var crew := _crew()
-	for i in crew.size():
-		if str(crew[i].get("slug", "")) == slug:
-			mine = i
-	if kind == "mat" and mine >= 0 and mine < n and not taken.has("mat:%d" % mine):
-		return "mat:%d" % mine
-	for i in n:
-		if not taken.has("%s:%d" % [kind, i]):
-			return "%s:%d" % [kind, i]
+	for i in PLAN.SOFA_SEATS.size():
+		if not taken.has("sofa:%d" % i):
+			return "sofa:%d" % i
+	for i in mini(RULES.gear_count(_st(), "armchair"), PLAN.ARMCHAIRS.size()):
+		if not taken.has("chair:%d" % i):
+			return "chair:%d" % i
 	return ""
 
 
@@ -623,13 +616,12 @@ func inside() -> Array:
 		if not (str(act.get("do", "")) in ["rest", "coffee"]):
 			continue
 		var f := {"slug": slug, "name": str(p.get("name", "")), "spot": spot, "head": Vector3.ZERO}
-		if spot.begins_with("mat:"):
-			var i := int(spot.substr(4))
-			if i >= PLAN.MATTRESSES.size():
+		if spot.begins_with("chair:"):
+			var i := int(spot.substr(6))
+			if i >= PLAN.ARMCHAIRS.size():
 				continue
-			f["pose"] = "lie"
-			f["at"] = PLAN.MATTRESSES[i][0]
-			f["head"] = PLAN.MATTRESSES[i][1]
+			f["pose"] = "sit"
+			f["at"] = PLAN.ARMCHAIRS[i][0] + Vector3(0, 0.05, 0)
 		elif spot.begins_with("sofa:"):
 			var j := int(spot.substr(5))
 			f["pose"] = "sit"
@@ -678,7 +670,7 @@ func _draw() -> void:
 					pose = "sweep" if int(now / 6.0) % 2 == 0 else ""
 			"rest", "coffee":
 				var spot := str(act.get("spot", ""))
-				if room != null and (spot.begins_with("mat:") or spot.begins_with("sofa:") or spot == "stand"):
+				if room != null and (spot.begins_with("chair:") or spot.begins_with("sofa:") or spot == "stand"):
 					for f in inside():
 						if str(f["slug"]) == slug:
 							pose = str(f["pose"])
@@ -783,11 +775,11 @@ func _update_camp_side() -> void:
 		if mat != null:
 			mat.albedo_texture = (vp as SubViewport).get_texture() if vp is SubViewport and power else null
 			mat.albedo_color = Color(0.6, 0.65, 0.68) if power else Color(0.05, 0.06, 0.07)
-	# Mattresses and lockers as bought.
-	var nm := RULES.gear_count(_st(), "mattress")
-	var mats: Array = refs.get("mattresses", [])
-	for i in mats.size():
-		(mats[i] as Node3D).visible = i < nm
+	# Armchairs and lockers as bought.
+	var na := RULES.gear_count(_st(), "armchair")
+	var chairs: Array = refs.get("armchairs", [])
+	for i in chairs.size():
+		(chairs[i] as Node3D).visible = i < na
 	var nl := RULES.gear_count(_st(), "locker")
 	var lks: Array = refs.get("lockers", [])
 	for i in lks.size():

@@ -139,6 +139,12 @@ ROWS = [
      "windows dark.")),
     ("spr_hud_parcel", "1:1", "-", SPRITE.format(what="A small brown paper parcel tied with string, a white label "
      "on it (no letters), seen from the front at a slight angle.")),
+    # The hands' armchairs in the lounge (instead of a bed: the mattress is the warden's).
+    ("card_armchair", "4:3", "-", SPRITE.format(what="A small picture cut out of a 1980s Czechoslovak furniture "
+     "catalogue: a boxy 1970s armchair with wooden armrests and mustard-green woven upholstery, printed in faded "
+     "colours on yellowed paper with cut edges and a little glue at the corners.")),
+    ("tex_armchair", "1:1", "-", TEX.format(what="worn mustard-green woven upholstery fabric of a 1970s Czech "
+     "armchair, a small check pattern, bobbles, a dark greasy patch.")),
     # Personal 98's icon (SoftSklad's fifth program), beside the others'.
     ("spr_icon_staff", "1:1", "-", SPRITE.format(what="A tiny 32x32 Windows 95 style desktop icon: a grey steel "
      "locker with a broom leaning on it and a little white name badge in front.")),

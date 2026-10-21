@@ -16,6 +16,8 @@ const STAFF_PLAN = preload("res://scripts/staff/staffroom_plan.gd")
 const LAPTOP_VIEW = preload("res://scripts/staff/laptop_view.gd")
 const STAFF_LEDGER = preload("res://scripts/staff/staff_ledger.gd")
 var _staff_room
+## Lying on the staffroom's mattress (scripts/lodge_bed.gd has the camera).
+var lodge_sleeping := false
 var _laptop_view: CanvasLayer
 var _staff_ledger: CanvasLayer
 const MESS_RULES = preload("res://core/systems/mess_rules.gd")
@@ -329,6 +331,9 @@ func close_service() -> void:
 func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
+	if lodge_sleeping:
+		_tick_windows(delta)
+		return
 	_tick_windows(delta)
 	_hook_zreport()
 	_update_late_night(delta)
@@ -429,7 +434,7 @@ func _apply_idle_mouse_look(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not _is_open:
+	if not _is_open or lodge_sleeping:
 		return
 	if (_laptop_view != null and _laptop_view.visible) or (_staff_ledger != null and _staff_ledger.visible):
 		return

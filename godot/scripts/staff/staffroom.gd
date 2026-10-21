@@ -9,9 +9,10 @@ extends RefCounted
 ##                scripts/staff/staff_ledger.gd), the coffee machine (a cup), the fridge,
 ##                the TV (its programmes, round and off), the windows and their curtains;
 ##   the boiler   the lockers (one to a hand: their name on the tape, their coat inside),
-##                the mattresses (the hands lying on them between jobs), the boiler.
+##                the mattress (yours: from the evening a click lies you down to sleep,
+##                scripts/lodge_bed.gd's "staff" bed), the boiler.
 ## The hands resting in here are the runtime's (scripts/staff/staff_runtime.gd): on the
-## mattresses, on the sofa with a coffee in the morning. Another warden at the laptop
+## sofa and in the armchairs. Another warden at the laptop
 ## sits on its chair with their back to you (service_interior.coop_job_spot).
 
 const PLAN = preload("res://scripts/staff/staffroom_plan.gd")
@@ -62,9 +63,6 @@ func build(host_node, parent: Node3D) -> void:
 	# The doorway through to the boiler room, and back.
 	_body("to_boiler", Vector3(PLAN.L_MAX.x - 0.05, PLAN.FLOOR + 1.0, PLAN.INNER_Z), Vector3(0.3, 2.0, PLAN.INNER_W))
 	_body("to_lounge", Vector3(PLAN.B_MIN.x + 0.05, PLAN.FLOOR + 1.0, PLAN.INNER_Z), Vector3(0.3, 2.0, PLAN.INNER_W))
-	for i in PLAN.MATTRESSES.size():
-		var m: Array = PLAN.MATTRESSES[i]
-		_body("mattress%d" % i, (m[0] as Vector3) + Vector3(0, 0.1, 0), Vector3(PLAN.MATTRESS_SIZE.x, 0.24, PLAN.MATTRESS_SIZE.z))
 	for s in SHOWS:
 		var t := str(PLAN.tex(s, str(SHOW_FALLBACK[s])))
 		_tv_tex.append(load(PLAN.CAMP + t + ".png") if ResourceLoader.exists(PLAN.CAMP + t + ".png") else null)
@@ -155,10 +153,12 @@ func update_hover(mouse: Vector2) -> String:
 		if n.has_meta("staff_hot"):
 			id = str(n.get_meta("staff_hot"))
 			break
+		# Your mattress (lodge_bed's click box, there only when it is time to sleep).
+		if str(n.get_meta("interior_click_type", "")) == "lodge_bed":
+			id = "bed"
+			break
 		n = n.get_parent()
 	if id.begins_with("locker") and int(id.substr(6)) >= _lockers():
-		id = ""
-	if id.begins_with("mattress") and int(id.substr(8)) >= _mattresses():
 		id = ""
 	if id == "to_boiler" and room != "lounge" or id == "to_lounge" and room != "boiler":
 		id = ""
@@ -195,8 +195,8 @@ func hover_line(id: String) -> String:
 	if id.begins_with("locker"):
 		var who := _locker_name(int(id.substr(6)))
 		return tr("%s's locker") % who if who != "" else tr("An empty locker")
-	if id.begins_with("mattress"):
-		return "A mattress"
+	if id == "bed":
+		return "The mattress: lie down"
 	return ""
 
 
@@ -217,16 +217,16 @@ func _meshes_of(id: String) -> Array:
 	if id.begins_with("locker"):
 		var i := int(id.substr(6))
 		return [refs["lockers"][i]] if i < (refs["lockers"] as Array).size() else []
-	if id.begins_with("mattress"):
-		var j := int(id.substr(8))
-		return [refs["mattresses"][j]] if j < (refs["mattresses"] as Array).size() else []
+	if id == "bed":
+		return [refs["mattress"]]
 	return []
 
 
 ## A click on what is hovered: true when it was something here.
 func click() -> bool:
 	var id := _hover
-	if id == "":
+	# The mattress is lodge_bed's to answer (it lies you down).
+	if id == "" or id == "bed":
 		return false
 	match id:
 		"to_boiler":
@@ -251,8 +251,6 @@ func click() -> bool:
 		_:
 			if id.begins_with("locker"):
 				_locker_click(int(id.substr(6)))
-			elif id.begins_with("mattress"):
-				_say(_mattress_line(int(id.substr(8))))
 	return true
 
 
@@ -261,13 +259,6 @@ func _fridge_line() -> String:
 		"Milk past its date. A paper bag of something soft. A note on the shelf: DO NOT TOUCH.",
 		"Cold air and the smell of salami. The light inside flickers when you shut it."]
 	return str(lines[(CoreRoot.get_day() if CoreRoot != null else 0) % lines.size()])
-
-
-func _mattress_line(i: int) -> String:
-	for f in _figs:
-		if str((_figs[f] as Sprite3D).get_meta("spot", "")) == "mat:%d" % i and (_figs[f] as Sprite3D).visible:
-			return tr("%s is asleep on it. Breathing slow.") % str((_figs[f] as Sprite3D).get_meta("name", ""))
-	return "Still warm. Whoever lay here has gone out to a job."
 
 
 func _locker_click(i: int) -> void:
@@ -305,11 +296,11 @@ func _lockers() -> int:
 	return STAFF_RULES.gear_count(_staff(), "locker")
 
 
-func _mattresses() -> int:
-	return STAFF_RULES.gear_count(_staff(), "mattress")
+func _armchairs() -> int:
+	return STAFF_RULES.gear_count(_staff(), "armchair")
 
 
-## As many lockers and mattresses as the books have bought.
+## As many lockers and armchairs as the books have bought.
 func apply_gear() -> void:
 	var nl := _lockers()
 	for i in (refs["lockers"] as Array).size():
@@ -317,9 +308,9 @@ func apply_gear() -> void:
 		var b: StaticBody3D = _bodies.get("locker%d" % i)
 		if b != null:
 			b.process_mode = Node.PROCESS_MODE_INHERIT if i < nl else Node.PROCESS_MODE_DISABLED
-	var nm := _mattresses()
-	for i in (refs["mattresses"] as Array).size():
-		(refs["mattresses"][i] as Node3D).visible = i < nm
+	var na := _armchairs()
+	for i in (refs["armchairs"] as Array).size():
+		(refs["armchairs"][i] as Node3D).visible = i < na
 
 
 # ── the TV ───────────────────────────────────────────────────────────────────
@@ -381,7 +372,7 @@ func _update_laptop() -> void:
 		_laptop_mat.albedo_color = Color(0.1, 0.13, 0.16)
 
 
-## The hands resting in here (staff_runtime.inside()): on the mattresses, on the sofa.
+## The hands resting in here (staff_runtime.inside()): on the sofa, in the armchairs.
 func _update_figures() -> void:
 	var rt = _runtime()
 	var want: Array = rt.inside() if rt != null else []

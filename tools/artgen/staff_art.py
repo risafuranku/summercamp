@@ -59,6 +59,8 @@ ROWS = [
     ("card_mattress", "sprite", 40, "assets/textury/closeup/parts/card_mattress.png"),
     ("spr_hud_post", "sprite", 7, "assets/textury/ui/post_van.png"),
     ("spr_hud_parcel", "sprite", 9, "assets/textury/ui/post_parcel.png"),
+    ("card_armchair", "sprite", 44, "assets/textury/closeup/parts/card_armchair.png"),
+    ("tex_armchair", "texture", 96, "assets/textury/camp/armchair_fabric.png"),
     ("spr_icon_staff", "sprite", 32, "assets/textury/os98/icons/staff_app.png"),
     ("spr_icon_staff", "sprite", 16, "assets/textury/os98/icons/staff_app_16.png"),
 ]

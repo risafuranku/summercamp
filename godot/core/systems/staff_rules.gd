@@ -9,8 +9,10 @@ extends RefCounted
 ## dumped by a path, raccoons in the bins, the wholesaler's van at the gate, a branch
 ## across a path, and the lodgings to clean and make up for the next guests. What each
 ## of them does is ticked in the staffroom's books or in SoftSklad's Personal 98. Between
-## jobs they lie down on a mattress in the boiler room; one without a mattress of their
-## own takes a guest's bed. At eight in the evening they go home.
+## jobs they sit in the lounge, on the sofa or in an armchair (bought in the books); one
+## with nowhere to sit takes a guest's bed. At eight in the evening they all go home (the
+## user 21. 10.: "the hands go home for the night; the mattress is for the player": the
+## boiler room's mattress is the warden's to sleep on, scripts/lodge_bed.gd).
 ##
 ## Pure data and arithmetic. The state is GameState.biz["staff"] (actions.gd staff_*),
 ## the running side scripts/staff/staff_runtime.gd, the room scripts/staff/staffroom.gd,
@@ -18,7 +20,7 @@ extends RefCounted
 ##
 ##   biz.staff = {
 ##     "crew": [person + {"since", "jobs": {job: bool}, "owed", "absent"}],
-##     "gear": {"locker": n, "mattress": n},
+##     "gear": {"locker": n, "armchair": n},
 ##     "act": {slug: {do, a, b, t0, t1, what, ev, room, spot}},   (where each one is)
 ##     "log": [{"day", "t", "text"}],                               (the day's work)
 ##     "done": {"day": n, "jobs": n},
@@ -40,8 +42,8 @@ const JOBS := [
 const GEAR := {
 	"locker": {"label": "Locker", "start": 1, "max": 5, "price": 80, "step": 30,
 		"what": "A steel locker in the boiler room. One locker, one hand: no locker, nobody new."},
-	"mattress": {"label": "Mattress", "start": 1, "max": 3, "price": 35, "step": 15,
-		"what": "A mattress on the boiler room floor. A hand without one lies down in a guest's bed."},
+	"armchair": {"label": "Armchair", "start": 0, "max": 3, "price": 30, "step": 15,
+		"what": "An old armchair in the lounge for a break between jobs. A hand with nowhere to sit lies down in a guest's bed."},
 }
 
 ## Their day: in from the gate from 7:00 (each a little later than the last), home at
@@ -50,7 +52,7 @@ const START_HOUR := 7.0
 const HOME_HOUR := 20.0
 ## A walk, in metres a game minute (a little quicker than the guests' stroll).
 const WALK_M_PER_MIN := 1.6 / 0.8
-## Between two jobs, at least this long lying down (game minutes).
+## Between two jobs, at least this long sitting down (game minutes).
 const REST_MIN := 18.0
 ## In the morning, the coffee on the sofa before the first job.
 const COFFEE_MIN := 25.0
@@ -112,10 +114,8 @@ static func start_hour(index: int) -> float:
 	return START_HOUR + 0.25 * float(index)
 
 
-## Whether a hand is on at `hour` (the night one stays: business_rules "night").
-static func on_duty(p: Dictionary, hour: float, index: int) -> bool:
-	if str(p.get("strange", "")) == "night":
-		return hour >= start_hour(index)
+## Whether a hand is on at `hour` (everybody goes home for the night).
+static func on_duty(_p: Dictionary, hour: float, index: int) -> bool:
 	return hour >= start_hour(index) and hour < HOME_HOUR
 
 

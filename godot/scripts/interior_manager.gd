@@ -1874,7 +1874,9 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 	# In bed: seen lying on it from the back room, or in the tent, cabin or caravan
 	# they turned in in (lodge_bed.gd), nowhere else.
 	var has_bed: bool = COOP_LOOKS.has_pose(model, "bed")
-	var lodge: bool = not LODGE_BED.bed_spot(str(mine["t"])).is_empty()
+	# The staffroom's boiler room has a bed too (lodge_bed "staff").
+	var bed_kind := "staff" if str(mine["t"]) == "service" and str(mine.get("s", "")).begins_with("staff/") else str(mine["t"])
+	var lodge: bool = not LODGE_BED.bed_spot(bed_kind).is_empty()
 	if bool(info.get("b", false)) and not (has_bed and (lodge or str(mine["t"]) == "office")):
 		coop_drop_partner(id)
 		return
@@ -1912,7 +1914,7 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 		_coop_hide_sleeper(id)
 	if bool(info.get("b", false)) and lodge and root != null:
 		# On their back on the bed, the head on the pillow end.
-		var spot: Dictionary = LODGE_BED.bed_spot(str(mine["t"]))
+		var spot: Dictionary = LODGE_BED.bed_spot(bed_kind)
 		var head: Vector3 = root.global_transform * (spot["head"] as Vector3)
 		var mid: Vector3 = root.global_transform * (spot["centre"] as Vector3)
 		fig.set_walking(false)

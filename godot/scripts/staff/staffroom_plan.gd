@@ -18,9 +18,11 @@ extends RefCounted
 ##                   laptop (the office PC's functions) and the staffroom's books, two
 ##                   chairs, the kitchen counter with the coffee machine, the fridge, the
 ##                   TV on its cabinet, a safety poster, a calendar, the coats by the door;
+##                   and the armchairs the books have bought (the hands' breaks);
 ##   the boiler room through the doorway in the right wall: the coal boiler and its flue,
-##                   the coal, the mattresses on the floor, the lockers along the front
-##                   wall, a small high window, a bare bulb.
+##                   the coal, the mattress on the floor (the warden's, to sleep on:
+##                   scripts/lodge_bed.gd), the lockers along the front wall, a small
+##                   high window, a bare bulb.
 
 const K = preload("res://scripts/interior_kit.gd")
 const CAMP := "res://assets/textury/camp/"
@@ -67,11 +69,15 @@ const SOFA_SEATS := [Vector3(-2.98, FLOOR, -1.05), Vector3(-2.98, FLOOR, -0.25)]
 const COFFEE := Vector3(-1.15, FLOOR + 0.92, -1.74)
 const FRIDGE := Vector3(-0.02, FLOOR, -1.69)
 const TV := Vector3(0.62, FLOOR + 0.62, 0.62)
-## The mattresses: [centre on the floor, head end] (head toward the back wall).
-const MATTRESSES := [
-	[Vector3(3.39, FLOOR, -0.1), Vector3(3.39, FLOOR, -0.95)],
-	[Vector3(2.5, FLOOR, -0.1), Vector3(2.5, FLOOR, -0.95)],
-	[Vector3(1.68, FLOOR, 0.5), Vector3(1.68, FLOOR, -0.35)],
+## The warden's mattress along the boiler room's right wall: its centre on the floor, its
+## head end (toward the back wall).
+const MATTRESS := Vector3(3.39, FLOOR, -0.1)
+const MATTRESS_HEAD := Vector3(3.39, FLOOR, -0.95)
+## The armchairs in the lounge, in the order they are bought: [where, the way it faces].
+const ARMCHAIRS := [
+	[Vector3(-2.85, FLOOR, 1.3), Vector3(1.0, 0.0, -0.25)],
+	[Vector3(-2.05, FLOOR, 1.45), Vector3(0.95, 0.0, -0.35)],
+	[Vector3(0.45, FLOOR, -0.2), Vector3(-1.0, 0.0, 0.0)],
 ]
 const MATTRESS_SIZE := Vector3(0.78, 0.14, 1.9)
 ## The lockers along the boiler room's front wall, left to right seen from inside.
@@ -190,7 +196,7 @@ static func _holes(which: String) -> Array:
 ## {id: [shut, open_l, open_r]}, lamp_meshes: [MeshInstance3D], door: Node3D, hot: {id:
 ## [centre, size]}}.
 static func build(root: Node3D, camp: bool) -> Dictionary:
-	var out := {"lockers": [], "lockers_open": [], "mattresses": [], "glass": {}, "curtains": {}, "lamp_meshes": [], "hot": {}}
+	var out := {"lockers": [], "lockers_open": [], "armchairs": [], "glass": {}, "curtains": {}, "lamp_meshes": [], "hot": {}}
 	var wall_in := K.surface(tex("staff_wall_in", "oil_wall"), L_H)
 	var boiler_wall := K.surface(tex("kotelna_wall", "brick_red"), B_H)
 	var plaster := K.surface(tex("staff_plaster", "roughcast_wall"), 1.6)
@@ -388,6 +394,21 @@ static func _lounge(root: Node3D, out: Dictionary, camp: bool) -> void:
 	K.picture(root, "calendar", Vector2(0.3, 0.42), Vector3(0.62, FLOOR + 1.55, L_MIN.y + 0.01), 0.0, "Calendar")
 	K.cutout(root, "coat_hook", Vector2(0.42, 1.0), Vector3(-0.52, FLOOR + 0.85, L_MAX.y - 0.03), 180.0, false, "Coats")
 	K.slab(root, Vector3(0.8, 0.5, 0.08), Vector3(-2.75, FLOOR + 0.45, L_MAX.y - 0.08), K.surface("enamel_white", 0.3, Color(0.85, 0.84, 0.78)), "Radiator")
+	# The armchairs (staffroom.gd shows as many as the books have bought).
+	var fabric := K.surface(tex("armchair_fabric", "velvet"), 0.6)
+	for i in ARMCHAIRS.size():
+		var a := Node3D.new()
+		a.name = "Armchair%d" % i
+		a.position = ARMCHAIRS[i][0]
+		var f: Vector3 = ARMCHAIRS[i][1]
+		a.rotation.y = atan2(f.x, f.z)
+		root.add_child(a)
+		K.slab(a, Vector3(0.62, 0.2, 0.6), Vector3(0, 0.3, 0.02), fabric, "ChairSeat")
+		K.slab(a, Vector3(0.56, 0.16, 0.56), Vector3(0, 0.1, 0.0), wood, "ChairBase")
+		K.slab(a, Vector3(0.62, 0.5, 0.16), Vector3(0, 0.6, -0.24), fabric, "ChairBack")
+		for side: float in [-1.0, 1.0]:
+			K.slab(a, Vector3(0.09, 0.2, 0.6), Vector3(side * 0.33, 0.47, 0.0), wood, "ChairArm")
+		out["armchairs"].append(a)
 	# The tube light on the ceiling.
 	var tube := K.slab(root, Vector3(1.2, 0.06, 0.14), Vector3(-1.2, FLOOR + L_H - 0.05, 0.0), K.surface("enamel_white", 0.4), "TubeLight")
 	out["lamp_meshes"].append(tube)
@@ -461,19 +482,16 @@ static func _boiler(root: Node3D, out: Dictionary, _camp: bool) -> void:
 	glow.position = Vector3(bx - 0.6, FLOOR + 0.35, bz)
 	root.add_child(glow)
 	K.cutout(root, tex("coal_pile", "pub_coal"), Vector2(0.7, 0.45), Vector3(B_MIN.x + 0.85, FLOOR, B_MIN.y + 0.35), 0.0, false, "Coal")
-	# The mattresses on the floor (staffroom.gd shows as many as the books have bought).
+	# The warden's mattress on the floor, a pillow and a grey blanket.
 	var mat_tex := K.surface(tex("mattress_stain", "mattress"), 0.9)
-	for i in MATTRESSES.size():
-		var m: Array = MATTRESSES[i]
-		var c: Vector3 = m[0]
-		var node := Node3D.new()
-		node.name = "Mattress%d" % i
-		node.position = c
-		root.add_child(node)
-		K.slab(node, MATTRESS_SIZE, Vector3(0, MATTRESS_SIZE.y * 0.5, 0), mat_tex, "MattressBody")
-		K.slab(node, Vector3(0.44, 0.08, 0.3), Vector3(0, MATTRESS_SIZE.y + 0.04, -0.72), K.surface("blanket_grey", 0.5, Color(0.92, 0.9, 0.86)), "Pillow")
-		K.slab(node, Vector3(0.74, 0.03, 0.8), Vector3(0, MATTRESS_SIZE.y + 0.015, 0.45), K.surface("blanket_grey", 0.6), "Blanket")
-		out["mattresses"].append(node)
+	var node := Node3D.new()
+	node.name = "Mattress"
+	node.position = MATTRESS
+	root.add_child(node)
+	K.slab(node, MATTRESS_SIZE, Vector3(0, MATTRESS_SIZE.y * 0.5, 0), mat_tex, "MattressBody")
+	K.slab(node, Vector3(0.44, 0.08, 0.3), Vector3(0, MATTRESS_SIZE.y + 0.04, -0.72), K.surface("blanket_grey", 0.5, Color(0.92, 0.9, 0.86)), "Pillow")
+	K.slab(node, Vector3(0.74, 0.03, 0.8), Vector3(0, MATTRESS_SIZE.y + 0.015, 0.45), K.surface("blanket_grey", 0.6), "Blanket")
+	out["mattress"] = node
 	# The lockers along the front wall, their doors to the room.
 	for i in MAX_LOCKERS:
 		var x := LOCKERS_X0 + LOCKER_W * (float(i) + 0.5)

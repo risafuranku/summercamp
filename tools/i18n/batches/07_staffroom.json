@@ -122,5 +122,13 @@
 	"%s's work coat, rubber boots, a thermos.": "Pracovní plášť, holínky a termoska: %s.",
 	"Empty. A coat hanger and the smell of somebody else's boots.": "Prázdná. Ramínko a pach cizích bot.",
 	"%s: %s": "%s: %s",
-	"Order no. %d": "Objednávka č. %d"
+	"Order no. %d": "Objednávka č. %d",
+	"Armchair": "Křeslo",
+	"An old armchair in the lounge for a break between jobs. A hand with nowhere to sit lies down in a guest's bed.": "Staré křeslo ve světnici na pauzu mezi pracemi. Kdo si nemá kam sednout, lehne si hostovi do postele.",
+	"%s has nowhere to sit in the staffroom. They lie down in %s.": "%s si nemá kde ve služebně sednout. Lehá si v: %s.",
+	"For the staffroom": "Do služebny",
+	"%s. It is in.": "%s. Už tam je.",
+	"%s bought: it is in the staffroom.": "Koupeno (%s): už je ve služebně.",
+	"In the staffroom: %d of %d": "Ve služebně: %d z %d",
+	"The mattress: lie down": "Matrace: lehnout si"
 }

@@ -1457,7 +1457,11 @@ see the others sitting at the laptop".
   building in the camp (`building_models._staffroom`) is built with its rooms in it behind
   real glass, so from the camp you see in: the lamps (somebody in, dusk, power), the
   curtains as they were left inside, the hands lying on the mattresses or on the sofa, the
-  laptop's glow, another warden at the laptop or the books. The room you walk into is the
+  laptop's glow, another warden at the laptop or the books.
+  The user, the same evening: "the hands go home for the night; the mattress to sleep on
+  is the player's" — the boiler room's mattress is the warden's bed (from the evening a
+  click lies you down, the night passes as in the office's back room: `lodge_bed.gd`'s
+  "staff" bed), the hands rest sitting in the lounge, and everybody goes home at eight. The room you walk into is the
   same boxes in the service interior's own world, its windows real views of the camp
   (`window_portal.gd`), each with a curtain to draw (the Photographer's flash, the Silent
   Man's watching: `service_interior.photo_windows`).
@@ -1465,8 +1469,8 @@ see the others sitting at the laptop".
   open doorway): the lounge (the sofa under the window, the formica table with the laptop
   and the books, the counter with the coffee machine, the fridge, the TV on its cabinet
   with three programmes and off, the safety poster, the calendar, the coats); the boiler
-  room (the coal boiler and its glow, the coal, the mattresses, the lockers with their
-  hand's name, coat and boots inside).
+  room (the coal boiler and its glow, the coal, your mattress, the lockers with their
+  hand's name, coat and boots inside); the armchairs bought for the lounge.
 - **The laptop** (`scripts/staff/laptop_view.gd`): you sit down at it and the close-up
   comes up (Grok, the laptop on the table, a mug, the ashtray); on its screen the office
   PC itself, the same machine (its os_shell, programs, mail, Builder), drawn sharp at the
@@ -1477,20 +1481,21 @@ see the others sitting at the laptop".
 - **The hands** (`core/systems/staff_rules.gd`, `GameState.biz.staff` through
   `actions.staff_*`): the same people as the businesses' (their photos, speed, honesty,
   temper and wage), those who ask at the kind "staff"; one to a locker (one to start,
-  up to five, each dearer); a mattress each (one to start, up to three). Their day
+  up to five, each dearer); a seat each in the lounge (the sofa's two, armchairs bought
+  up to three). Their day
   (`scripts/staff/staff_runtime.gd`, run by the camp's machine, drawn on every machine from
   `biz.staff.act`): in from the road at seven (a quarter of an hour apart), coffee on the
   sofa, then out to the nearest thing they are set to: a bin bag, raccoons in the bins (the
   broom), the wholesaler's van at the gate (signed for), a branch (sawn up), a lodging
-  (its tasks one after another, the bed made last); back, lying down on their mattress
-  between jobs; without a mattress of their own, in a made-up lodging nobody is in ("Hanka
-  has no mattress: she lies down in C2"), which is unmade when they get up. Home at eight.
+  (its tasks one after another, the bed made last); back, sitting in the lounge between
+  jobs; with nowhere to sit, in a made-up lodging nobody is in ("Hanka has nowhere to sit:
+  she lies down in C2"), which is unmade when they get up. Home at eight, all of them.
   The day events they take show their name on the TODAY list; you may still do it first.
-  Jaromir stays the night in the boiler room; Marta is seen only now and then.
+  Marta is seen only now and then.
 - **The books** (`scripts/staff/staff_ledger.gd`, on the table): STAFF (who, where now, a
   pencilled box for each job: rubbish, raccoons, deliveries, branches, lodgings; let go),
   HIRE (today's applicants, their photo and papers), LOCKERS (the catalogue cut-outs of a
-  locker and a mattress, the next one's price, buy), TODAY (what was done, the wages).
+  locker and an armchair, the next one's price, buy), TODAY (what was done, the wages).
   **Personal 98** (`os98/apps/staff_app.gd`): SoftSklad's fifth program, licensed at
   softsklad.cz, the same from the PC or the laptop with 98 check boxes. Wages are paid with
   the businesses' at the day's close; two days unpaid and they leave.

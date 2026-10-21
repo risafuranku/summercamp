@@ -8,7 +8,7 @@ extends Control
 ##             what their papers say, and a tick box for each job they see to; Let go
 ##   Hire      who is asking today (ID photo, wage, papers), Take on: one to a locker,
 ##             only with a staffroom standing
-##   Lockers   one more locker, one more mattress for the boiler room, Buy
+##   Lockers   one more locker for the boiler room, one more armchair for the lounge, Buy
 ##   Today     what the hands did today, the wages tonight
 ## Drawn in the 98 look like its siblings (business_app.gd); nothing scrolls.
 
@@ -151,7 +151,7 @@ func _click(id: String) -> void:
 			if b != tr("Yes"):
 				return
 			if CoreRoot.actions.staff_buy_gear(gid):
-				_say(tr("%s bought: it is in the boiler room.") % label, GREEN)
+				_say(tr("%s bought: it is in the staffroom.") % label, GREEN)
 				_shell.play("ding", -10.0)
 			else:
 				_shell.message_box(tr("Personal 98"), tr("The purchase of $%d could not be made.\n\nThe camp has $%d.") % [price, CoreRoot.get_money()], "error")
@@ -406,7 +406,7 @@ func _draw_hire(m: Rect2) -> void:
 func _draw_lockers(m: Rect2) -> void:
 	var st := _st()
 	var i := 0
-	for id in ["locker", "mattress"]:
+	for id in ["locker", "armchair"]:
 		var d: Dictionary = RULES.GEAR[id]
 		var r := Rect2(m.position.x, m.position.y + 8 + i * ((m.size.y - 8) * 0.5), m.size.x, (m.size.y - 8) * 0.5 - 8)
 		_group(r, tr(str(d["label"])))
@@ -419,7 +419,7 @@ func _draw_lockers(m: Rect2) -> void:
 			draw_texture_rect(t, Rect2(pic.position + (pic.size - sz * k) * 0.5, sz * k), false)
 		var tx := pic.end.x + 14
 		_t(Vector2(tx, r.position.y + 30), tr(str(d["what"])), T.TEXT)
-		_t(Vector2(tx, r.position.y + 52), tr("In the boiler room: %d of %d") % [RULES.gear_count(st, id), int(d["max"])], T.TEXT, true)
+		_t(Vector2(tx, r.position.y + 52), tr("In the staffroom: %d of %d") % [RULES.gear_count(st, id), int(d["max"])], T.TEXT, true)
 		var price := RULES.gear_price(st, id)
 		if price > 0:
 			_t(Vector2(tx, r.position.y + 72), tr("$%d") % price, T.TEXT)

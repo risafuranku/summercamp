@@ -9,7 +9,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ##   HIRE    who is asking today (their ID photo, what they ask a day, what their papers
 ##           say), TAKE ON: only with a locker free
 ##   ROOM    the cards glued in (a catalogue cut-out each): one more locker, one more
-##           mattress, what the next one costs, BUY
+##           armchair for the lounge, what the next one costs, BUY
 ##   DAY     what the hands did today, their wages tonight
 ## The same is on the office PC in SoftSklad's Personal 98 (os98/apps/staff_app.gd).
 
@@ -152,7 +152,7 @@ func _hotspots() -> Array:
 				out.append({"id": "next", "rect": _rbutton(1)})
 				out.append({"id": "hire", "rect": _rbutton(0)})
 		"room":
-			for id in ["locker", "mattress"]:
+			for id in ["locker", "armchair"]:
 				out.append({"id": "card:" + id, "rect": _card_rect(id)})
 			if RULES.gear_price(_st(), _gear_pick) > 0:
 				out.append({"id": "buy", "rect": _rbutton(0)})
@@ -219,7 +219,7 @@ func _clicked(id: String) -> void:
 			var g: Dictionary = RULES.GEAR.get(_gear_pick, {})
 			if CoreRoot.actions.staff_buy_gear(_gear_pick):
 				_stamp(tr("BOUGHT"))
-				say("", tr("%s. It is in the boiler room.") % tr(str(g.get("label", ""))))
+				say("", tr("%s. It is in.") % tr(str(g.get("label", ""))))
 			else:
 				say("", tr("That is $%d. The camp has not got it.") % RULES.gear_price(_st(), _gear_pick))
 
@@ -414,9 +414,9 @@ func _paint_hire(c: Control) -> void:
 
 
 func _paint_room(c: Control) -> void:
-	_text(c, LEFT.position + Vector2(0, 21), tr("For the boiler room"), PENCIL)
+	_text(c, LEFT.position + Vector2(0, 21), tr("For the staffroom"), PENCIL)
 	var st := _st()
-	for id in ["locker", "mattress"]:
+	for id in ["locker", "armchair"]:
 		var r := _card_rect(id)
 		var t := _part("card_" + id)
 		if id == _gear_pick:
