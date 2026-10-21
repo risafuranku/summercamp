@@ -11,9 +11,12 @@ extends "res://scripts/bistro/bistro_station.gd"
 ##                dumpling a click, the cheese, the chips, the tartar, the onion; the
 ##                grill's sausage off its shelf, a spoon of mustard, a slice of bread); a
 ##                click on the plate takes the last thing off again; SCRAPE bins it;
-##   the bell     out through the hatch to whoever the ticket is: judged (the right dish,
-##                the right counts, how long they waited), the money, the tip, the stars.
-##                Somebody else's dish comes back.
+##   the bell     (or SERVE: Space, Enter) up through the hatch onto the floor's counter
+##                for whoever the ticket is (the brief of 21. 10.: the kitchen plates, the
+##                floor serves): the dish and its counts checked now (somebody else's dish
+##                comes back), the wait and the money when the floor takes it out.
+## The next step is lit (`next_hint`): a plate, then each thing the ticket still wants (or
+## the station that makes it), then the bell; the floor when plates wait on the hatch.
 
 const SHELF_CHEESE := Rect2(236, 70, 64, 50)
 const SHELF_FRIES := Rect2(304, 70, 64, 50)
@@ -121,7 +124,68 @@ func building_plate() -> bool:
 
 
 func big_ticket() -> Dictionary:
-	return _picked_ticket()
+	var t := _picked_ticket()
+	return _with_patience(t) if not t.is_empty() else t
+
+
+func serve_ready() -> bool:
+	return _has_plate and not _plate.is_empty() and _out_t < 0.0 and not _picked_ticket().is_empty()
+
+
+func serve_now() -> void:
+	_press("bell")
+
+
+## What is best to do at the pass now: a plate; each thing the ticket still wants, in
+## order, from its shelf (or the station that makes it when the shelf is bare); a thing
+## too many off again; the bell. The floor when plates wait on the hatch and nothing is
+## to be plated.
+func next_hint() -> Dictionary:
+	if kitchen == null or building_key == "" or _out_t >= 0.0:
+		return {}
+	var t := _picked_ticket()
+	if t.is_empty():
+		if not kitchen.hatch(building_key).is_empty() or not kitchen.tickets(building_key, "floor").is_empty():
+			return {"tab": "floor"}
+		if not kitchen.tickets(building_key, "bufet").is_empty():
+			return {"tab": "bufet"}
+		return {}
+	if not _has_plate:
+		if int(kitchen.plates(building_key)["clean"]) <= 0:
+			return {"tab": "sink"}
+		return {"rect": STACK, "gesture": "click"}
+	var want: Dictionary = t["parts"]
+	var have := _counts()
+	for p in have:
+		if int(have[p]) > int(want.get(p, 0)):
+			return {"node": _plate_spr, "gesture": "click"}
+	for p in RULES.PARTS:
+		if int(have.get(p, 0)) >= int(want.get(p, 0)):
+			continue
+		match str(p):
+			"goulash":
+				var pot: Dictionary = kitchen.site(building_key)["pot"]
+				return {"rect": POT, "gesture": "click"} if int(pot["level"]) > 0 and float(pot["heat"]) >= 0.6 else {"tab": "pot"}
+			"cheese", "fries":
+				return {"rect": SHELF_CHEESE if p == "cheese" else SHELF_FRIES, "gesture": "click"} if kitchen.prep(building_key, str(p)) > 0 else {"tab": "stove"}
+			"dumpling":
+				return {"rect": SHELF_DUMPLING, "gesture": "click"} if kitchen.prep(building_key, "dumpling") > 0 else {"tab": "pot"}
+			"sausage":
+				return {"rect": SHELF_SAUSAGE, "gesture": "click"} if kitchen.prep(building_key, "sausage") > 0 else {"tab": "grill"}
+			"tartar":
+				return {"rect": TARTAR, "gesture": "click"}
+			"onion":
+				return {"rect": ONION, "gesture": "click"}
+			"mustard":
+				return {"rect": MUSTARD, "gesture": "click"}
+			"bread":
+				return {"rect": BREAD, "gesture": "click"}
+	return {"ui": "serve"}
+
+
+## Plates to make: amber.
+func alert() -> int:
+	return 1 if kitchen != null and building_key != "" and not tickets().is_empty() else 0
 
 
 # ── what the state looks like ────────────────────────────────────────────────
@@ -157,8 +221,8 @@ func _show() -> void:
 	if _has_plate:
 		var base := local_at(PLATE_AT, PLATE_LIFT)
 		if _out_t >= 0.0:
-			var k := floorf(clampf(_out_t / 0.5, 0.0, 1.0) * 6.0) / 6.0
-			base = base.lerp(_out_from, k)
+			var k := clampf(_out_t / 0.5, 0.0, 1.0)
+			base = base.lerp(_out_from, 1.0 - pow(1.0 - k, 2.0))
 		_plate_spr.position = base
 		var placed := {}
 		for i in mini(_plate.size(), _food.size()):
@@ -260,6 +324,7 @@ func _press(id: String) -> void:
 			_drop.clear()
 			_auto_pick()
 			sfx("plate_down", -8.0)
+			hop(_plate_spr)
 		"bell":
 			sfx("bell_ding", -4.0)
 			if _has_plate and not _plate.is_empty():
@@ -346,27 +411,17 @@ func _ring() -> void:
 	if t.is_empty():
 		say("", "Nobody ordered that.")
 		return
-	var verdict: Dictionary = kitchen.serve(building_key, t, _counts(), _cook_q())
+	var verdict: Dictionary = kitchen.to_hatch(building_key, t, _counts(), _cook_q())
 	var who := ORDERS_first(str(t["name"]))
 	if not bool(verdict.get("ok", false)):
 		say(who, ["That's not what I ordered.", "Whose is this?", "No. Look at the ticket."][randi() % 3])
 		sfx("tick", -10.0, 0.6)
 		return
-	# Up and out through the hatch over the pass.
+	# Up and out through the hatch onto the floor's counter.
 	_out_t = 0.0
 	_out_from = local_at(PLATE_AT, PLATE_LIFT) + Vector3(0, 0.16, -0.66)
-	_star_n = int(verdict["stars"])
-	_stars_t = 0.0
-	pop("+$%d" % int(verdict["amount"]), PLATE_AT + Vector2(0, -30), RETRO_UI.C_AMBER_LIGHT if int(verdict["tip"]) > 0 else RETRO_UI.C_BONE, true)
-	sfx("till", -8.0)
-	var lines: Array
-	if _star_n >= 3:
-		lines = ["Now that's food.", "Like at my mother's.", "Quick! Thank you.", "Dobrou chut, eh?"]
-	elif float(verdict["accuracy"]) < 0.85:
-		lines = ["Hm. Not quite what I asked for.", "Where's the rest of it?", "Close enough."]
-	else:
-		lines = ["Finally.", "Thought you'd gone fishing.", "Cheers."]
-	say(who, str(lines[randi() % lines.size()]))
+	sfx("plate_rack", -8.0)
+	say("", "On the hatch: out to %s at the floor." % who)
 	picked = ""
 
 

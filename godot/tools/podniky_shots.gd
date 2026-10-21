@@ -83,13 +83,15 @@ func _ready() -> void:
 			_steps = _camp("restaurant", 6, 6) + [
 				["shot", "b01_dining"],
 				["eval", SI + "._look.set('yaw_deg', 50.0)"], ["wait", 0.6], ["shot", "b02_bufet_side"], ["eval", SI + "._look.set('yaw_deg', 0.0)"],
-				# The bufet: a bowl of soup, a bottle opened (the cap flying, lying).
-				["eval", SI + "._open_station('bufet')"], ["wait", 1.2], _to("bufet", 82, 141), ["wait", 0.3], ["shot", "b03_bufet"],
+				# The soup of the day on the kitchen island (a tab away), a bottle opened on the
+				# floor (the cap flying, lying).
+				["eval", SI + "._open_station('bufet')"], ["wait", 1.2], _to("bufet", 109, 129), ["wait", 0.3], ["shot", "b03_bufet"],
 				["eval", _st("bufet") + ".debug_click('stack')"], ["eval", _st("bufet") + ".debug_click('pot')"], ["eval", _st("bufet") + ".debug_click('pot')"], ["wait", 0.3], ["shot", "b04_soup"],
 				["eval", _st("bufet") + ".debug_click('bowl')"], ["wait", 0.5], ["shot", "b05_soup_card"],
-				["eval", _st("bufet") + ".debug_click('crate_kofola')"], _to("bufet", 430, 250, 0.2), ["wait", 0.3], ["shot", "b06_bottle"],
-				["eval", _st("bufet") + ".debug_pop()"], ["wait", F * 2], ["shot", "b07a_cap"], ["wait", F * 2], ["shot", "b07b_cap"], ["wait", 0.5], ["shot", "b07c_cap_down"],
-				["eval", _st("bufet") + ".close_station()"], ["wait", 0.6],
+				["eval", SI + "._open_station('floor')"], ["wait", 1.2],
+				["eval", _st("floor") + ".debug_click('crate_kofola')"], _to("floor", 430, 250, 0.2), ["wait", 0.3], ["shot", "b06_bottle"],
+				["eval", _st("floor") + ".debug_pop()"], ["wait", F * 2], ["shot", "b07a_cap"], ["wait", F * 2], ["shot", "b07b_cap"], ["wait", 0.5], ["shot", "b07c_cap_down"],
+				["eval", _st("floor") + ".close_station()"], ["wait", 0.6],
 				# The kitchen: the grill, a klobasa at the pass.
 				["eval", SI + "._go_door('d_kitchen')"], ["wait", 3.0], ["shot", "b08_kitchen"],
 				["eval", SI + "._open_station('grill')"], ["wait", 1.2], _to("grill", 82, 200), ["wait", 0.3], ["shot", "b09_grill"],

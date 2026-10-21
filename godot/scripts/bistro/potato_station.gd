@@ -228,3 +228,27 @@ func debug_click(id: String) -> void:
 		_chop()
 	else:
 		_press(id)
+
+
+# ── the frame: the next step, the tab ────────────────────────────────────────
+
+## What is best to do at the potatoes while the raw chips run low: potatoes into the
+## peeler, start it, a peeled one into the cutter, pull the lever.
+func next_hint() -> Dictionary:
+	if kitchen == null or building_key == "" or kitchen.prep(building_key, "chips_raw") >= 6:
+		return {}
+	for id in ["lever", "peeled", "switch", "sack"]:
+		var h := spot_hint(id, "drag" if id == "lever" else "click", LEVER.get_center() + Vector2(0, 60) if id == "lever" else Vector2(-1, -1))
+		if not h.is_empty():
+			if id == "switch" and _run >= 0.0:
+				continue
+			return h
+	return {}
+
+
+## The raw chips run out: amber, red when there are none.
+func alert() -> int:
+	if kitchen == null or building_key == "":
+		return 0
+	var n := kitchen.prep(building_key, "chips_raw")
+	return 2 if n == 0 and wanted("fries") > 0 else (1 if n < 2 else 0)

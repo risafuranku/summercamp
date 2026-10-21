@@ -117,7 +117,7 @@ func _draw() -> void:
 			var at = _project(hatch_root.global_transform * Vector3(0.45, 1.75, -2.35))
 			if at != null:
 				_badge(at, "mark_ticket", str(plates_tix.size()), _oldest_band(plates_tix) == 2)
-		_draw_stations(room, kitchen.tickets(key, "bufet"))
+		_draw_stations(room, kitchen.tickets(key, "floor"))
 	elif room == "kitchen" or room == "basement":
 		_draw_stations(room, tix)
 
@@ -264,10 +264,19 @@ func _draw_stations(room: String, tix: Array) -> void:
 					if want > kitchen.prep(key, "sausage"):
 						_badge(at, "mark_pan", str(want - kitchen.prep(key, "sausage")), false)
 			"bufet":
-				if not tix.is_empty():
-					_badge(at, "mark_ticket", str(tix.size()), _oldest_band(tix) == 2)
+				var soups: Array = kitchen.tickets(key, "bufet")
+				if not soups.is_empty():
+					_badge(at, "mark_ticket", str(soups.size()), _oldest_band(soups) == 2)
 				elif int(s["soup"]["level"]) <= 2:
 					_badge(at, "mark_pot", "SOUP", true)
+			"floor":
+				# The plates waiting on the hatch, and the bottles wanted.
+				var out: Array = kitchen.tickets(key, "floor")
+				var plates_n := kitchen.hatch(key).size()
+				if plates_n > 0:
+					_badge(at, "mark_plate", str(plates_n), _oldest_band(out) == 2)
+				elif not out.is_empty():
+					_badge(at, "mark_kofola", str(out.size()), _oldest_band(out) == 2)
 			"sink":
 				var pl: Dictionary = s["plates"]
 				if int(pl["dirty"]) > 0 or int(pl["clean"]) == 0:

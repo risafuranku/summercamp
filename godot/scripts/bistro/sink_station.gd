@@ -250,3 +250,28 @@ func debug_into_water() -> void:
 	if int(kitchen.plates(building_key)["dirty"]) > 0:
 		_in_water = true
 		_dirt = 0.6
+
+
+# ── the frame: the next step, the tab ────────────────────────────────────────
+
+## What is best to do at the sink: a dirty plate into the water, rub it clean, onto the
+## others (the dishwasher when it is bought).
+func next_hint() -> Dictionary:
+	if kitchen == null or building_key == "":
+		return {}
+	if _in_water:
+		return spot_hint("plate", "rub" if _dirt > 0.0 else "click")
+	var washer := spot_hint("washer")
+	if not washer.is_empty():
+		return washer
+	return spot_hint("pile")
+
+
+## No clean plates left: red; dirty ones waiting: amber.
+func alert() -> int:
+	if kitchen == null or building_key == "":
+		return 0
+	var pl: Dictionary = kitchen.plates(building_key)
+	if int(pl["clean"]) <= 0 and int(pl["dirty"]) > 0:
+		return 2
+	return 1 if int(pl["dirty"]) >= 3 else 0

@@ -2,8 +2,9 @@ extends "res://scripts/business/station3d.gd"
 
 ## A station of the Jednota, worked in the shop or the storeroom (scripts/business/station3d.gd;
 ## DESIGN.md §7b "The Jednota"): the shop's state (jednota.gd: the rack, the trolley, the
-## queue at the till), the queue on the rail as till slips (who, their basket, how long
-## they have stood there), the one at the till big in the frame as their receipt (the till's).
+## queue at the till), the queue on the rail drawn as in every place (the guest's face,
+## their basket, their patience), the one at the till big in the frame as their receipt
+## (the till's checklist).
 ## The stations: till and shelves in the shop, store in the storeroom.
 
 const RULES := preload("res://core/systems/jednota_rules.gd")
@@ -83,7 +84,7 @@ func rail_tickets() -> Array:
 		d["band"] = RULES.patience_band(age)
 		d["left"] = 1.0 - clampf(float(age) / float(RULES.PATIENCE_GONE), 0.0, 1.0)
 		d["picked"] = i == 0 and station == "till"
-		d["sig"] = "%d|%d" % [int(float(d["left"]) * 12.0), (t["rung"] as Array).size()]
+		d["sig"] = "%d" % (t["rung"] as Array).size()
 		out.append(d)
 	return out
 
@@ -94,32 +95,10 @@ func first() -> Dictionary:
 	return q[0] if not q.is_empty() else {}
 
 
-## A guest's till slip on the rail (26 x 36 px): their name, their basket and how many
-## things are in it, how long they have stood in the queue.
-func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
-	if t.is_empty():
-		return
-	var f: Font = RETRO_UI.FONT_TEXT
-	c.draw_rect(Rect2(Vector2(1, 0), size - Vector2(2, 0)), Color(0.9, 0.88, 0.8))
-	c.draw_rect(Rect2(Vector2(1, 0), Vector2(size.x - 2, 8)), Color(0.72, 0.16, 0.12))
-	var who := first_name(str(t.get("name", ""))).to_upper().substr(0, 5)
-	c.draw_string(f, Vector2(2, 7), who, HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.98, 0.92, 0.8))
-	var bk: Texture2D = _icons.get("basket")
-	if bk != null:
-		var sc := minf(14.0 / bk.get_width(), 11.0 / bk.get_height())
-		var bs := (bk.get_size() * sc).floor()
-		c.draw_texture_rect(bk, Rect2(Vector2(floorf((size.x - bs.x) * 0.5), 10), bs), false)
-	var n := (t.get("items", []) as Array).size()
-	var word := "x%d" % n
-	var w := f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-	c.draw_string(f, Vector2(floorf((size.x - w) * 0.5), 29), word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.18, 0.12, 0.1))
-	var band := int(t.get("band", 0))
-	var col: Color = [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band]
-	var bar := Rect2(3, size.y - 3, size.x - 6, 2)
-	c.draw_rect(bar, Color(0.1, 0.08, 0.06))
-	c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * float(t.get("left", 1.0))), bar.size.y)), col)
-	if bool(t.get("picked", false)):
-		c.draw_rect(Rect2(Vector2.ZERO, size), RETRO_UI.C_AMBER, false, 1.0)
+## A guest's till slip: their face as their patience goes, their basket and how many
+## things are in it (station3d.draw_ticket, the same in every place).
+func ticket_items(t: Dictionary) -> Array:
+	return [{"icon": _icons.get("basket"), "word": "x%d" % (t.get("items", []) as Array).size()}]
 
 
 static func first_name(full: String) -> String:
@@ -135,16 +114,19 @@ static func sum_of(pieces: Array) -> int:
 	return n
 
 
-## The receipt of the one at the till, big: who; every thing with its price (rung up in
-## ink, the rest pale); the total, what they paid, the change due and what is on the mat.
+## The receipt of the one at the till, big (the till's checklist): their face and name;
+## every thing with its price, ticked and in ink when rung up (the rest pale); the total,
+## what they paid, the change due.
 func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 	var f: Font = RETRO_UI.FONT_TEXT
 	c.draw_rect(r, Color(0.92, 0.9, 0.82))
-	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 11)), Color(0.72, 0.16, 0.12))
-	c.draw_string(RETRO_UI.FONT_LABEL, r.position + Vector2(4, 9), first_name(str(t["name"])).to_upper().substr(0, 9), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.98, 0.92, 0.8))
+	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 13)), Color(0.72, 0.16, 0.12))
+	var age0 := int(t.get("age", 0))
+	FACES.draw(c, r.position + Vector2(2, 2), 1, 1.0 - clampf(float(age0) / float(RULES.PATIENCE_GONE), 0.0, 1.0), str(t.get("name", "")), _t)
+	c.draw_string(RETRO_UI.FONT_LABEL, r.position + Vector2(14, 10), first_name(str(t["name"])).to_upper().substr(0, 9), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.98, 0.92, 0.8))
 	var items: Array = t["items"]
 	var rung: Array = t.get("rung", [])
-	var y := r.position.y + 21.0
+	var y := r.position.y + 23.0
 	var ink := Color(0.16, 0.12, 0.1)
 	var pale := Color(0.6, 0.57, 0.5)
 	for i in items.size():
@@ -153,6 +135,9 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 			break
 		var g := str(items[i])
 		var col := ink if rung.has(i) else pale
+		if rung.has(i):
+			for pxy in [Vector2(1, 3), Vector2(2, 4), Vector2(3, 5), Vector2(4, 4), Vector2(5, 3), Vector2(6, 2)]:
+				c.draw_rect(Rect2(Vector2(r.end.x - 26, y - 7) + pxy, Vector2.ONE), Color(0.1, 0.45, 0.12))
 		var ic: Texture2D = _icons.get("parcel" if RULES.is_parcel(g) else g)
 		if ic != null:
 			var sc := minf(8.0 / ic.get_width(), 8.0 / ic.get_height())
@@ -214,3 +199,23 @@ func mirror() -> Array:
 ## A click on `id` as if the pointer pressed it.
 func debug_click(id: String) -> void:
 	_press(id)
+
+
+## Something waits here: the queue at the till (red when the first is in the red), places
+## empty on the rack (the shelves), the store with nothing ready on the trolley.
+func alert() -> int:
+	return 0
+
+
+## The rack's places that are empty while the books still have their goods.
+func empty_places() -> Array:
+	var out: Array = []
+	if shop == null or building_key == "":
+		return out
+	var site := BIZ.site(building_key)
+	for g in RULES.all_goods():
+		if not RULES_BIZ.menu_on("vecerka", site, str(g)):
+			continue
+		if int(shop.shelf(building_key).get(g, 0)) == 0 and BIZ.stock_of(building_key, str(g)) > 0:
+			out.append(str(g))
+	return out

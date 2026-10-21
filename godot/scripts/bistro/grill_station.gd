@@ -218,3 +218,39 @@ func debug_cook(t: float) -> void:
 		var s2 := slot.duplicate(true)
 		s2["t"][int(s2["down"])] = t
 		kitchen.act(building_key, "grill", [i, s2])
+
+
+# ── the frame: the next step, the tab ────────────────────────────────────────
+
+## What is best to do at the grill: a black one out, a brown side turned or onto the
+## rack, a sausage on while they are wanted.
+func next_hint() -> Dictionary:
+	if kitchen == null or building_key == "":
+		return {}
+	var g: Array = kitchen.site(building_key)["grill"]
+	var on := 0
+	for i in g.size():
+		var slot: Dictionary = g[i]
+		if slot.is_empty():
+			continue
+		on += 1
+		var d := RULES.sausage_side(float(slot["t"][int(slot["down"])]))
+		var u := RULES.sausage_side(float(slot["t"][1 - int(slot["down"])]))
+		if d >= 1 or u == 2:
+			return {"node": _sausages[i], "gesture": "click"}
+	if wanted("sausage") > on:
+		var h := spot_hint("tray")
+		if not h.is_empty():
+			return h
+	if not kitchen.tickets(building_key, "pass").is_empty() and wanted("sausage") == 0:
+		return {"tab": "pass"}
+	return {}
+
+
+func alert() -> int:
+	if kitchen == null or building_key == "":
+		return 0
+	var st: Dictionary = kitchen.grill_state(building_key)
+	if bool(st["burning"]):
+		return 2
+	return 1 if bool(st["ready"]) or wanted("sausage") > 0 else 0

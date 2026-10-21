@@ -45,7 +45,9 @@ func _ready() -> void:
 			["eval", SI + "._open_station('pass')"], ["wait", 1.0],
 			["eval", "['BISTRO host tickets', " + KS + ".tickets(" + SI + "._upkeep_key).size()]"],
 			["eval", SI + "._stations['pass'].debug_build_picked()"], ["wait", 0.3],
-			["eval", SI + "._stations['pass'].debug_click('bell')"], ["wait", 2.0], ["shot", "bh1_pass_served"],
+			["eval", SI + "._stations['pass'].debug_click('bell')"], ["wait", 1.0],
+			# The bell puts it on the hatch; the floor takes it to the table (the brief of 21. 10.).
+			["eval", SI + "._stations['floor'].debug_serve_first()"], ["wait", 2.0], ["shot", "bh1_pass_served"],
 			["eval", "['BISTRO host served', " + KS + ".site(" + SI + "._upkeep_key)['served'].size(), " + KS + ".tickets(" + SI + "._upkeep_key).size()]"],
 			["coop_signal", "host_served"], ["coop_wait_file", "client_done"], ["wait", 1.0],
 			["eval", SI + "._stations['pass'].close_station()"], ["wait", 0.5], ["shot", "bh2_kitchen"],

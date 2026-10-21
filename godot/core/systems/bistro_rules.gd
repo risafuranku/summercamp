@@ -149,6 +149,20 @@ static func tickets_for(visit: String, archetype: String, figures: int) -> Array
 	return out
 
 
+## Ticket `t` with its dish off the menu (the books' MENU): the next dish they would like
+## that is on (`on`: dish -> bool), its plate as the dish's own and its price; the same
+## ticket id, so every machine agrees. The fried cheese is never off.
+static func instead(t: Dictionary, on: Callable) -> Dictionary:
+	var out := t.duplicate()
+	for d in ["smazak", "goulash", "fries", "sausage", "soup"]:
+		if d != str(t["dish"]) and bool(on.call(d)):
+			out["dish"] = d
+			out["parts"] = (DISHES[d]["parts"] as Dictionary).duplicate()
+			out["price"] = int(DISHES[d]["price"])
+			return out
+	return out
+
+
 static func pick_dish(archetype: String, roll: int) -> String:
 	var w: Dictionary = TASTE.get(archetype, {"goulash": 1, "smazak": 1})
 	var total := 0
