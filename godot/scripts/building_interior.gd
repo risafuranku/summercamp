@@ -501,6 +501,7 @@ func close_interior() -> void:
 
 
 func _process(delta: float) -> void:
+	_update_inview(delta)
 	_update_radio_mix(delta)
 	_tick_radio_greetings()
 	_tick_music_duck(delta)
@@ -2355,6 +2356,140 @@ func _update_window_texture() -> void:
 var _glass_cache: Dictionary = {}
 
 
+# ── the office from the camp, through its windows ────────────────────────────
+
+## The reception's windows seen from outside (the user 21. 10.: "they have no depth, they
+## are not 3D"): the office itself, the same room you sit in, drawn from where you stand
+## in the camp by a camera in the room's own world (the camp's eye carried through
+## ReceptionLayout's room-to-building mapping), and the panes show it at their own screen
+## pixels (materials/window_into.gdshader). Its lamps, the curtains, the glow of the PC
+## and whoever is at it are the room's. Only near and with a pane turned to you; farther
+## off the panes are dark glass that warms with the lamps at night (_glow_glass).
+const INVIEW_RANGE := 42.0
+## What lies over the room's own windows from inside (the camp's view, the rain on the
+## glass, the doorway's view): the camera from outside does not see it.
+const INVIEW_HIDE_LAYER := 1 << 17
+var _inview_vp: SubViewport
+var _inview_cam: Camera3D
+var _inview_light_t := 0.0
+var _inview_live := false
+var _inview_reception: Node3D
+
+
+func _update_inview(delta: float) -> void:
+	var cam: Camera3D = null
+	var on := false
+	if not visible and _room_root != null:
+		if _glass_cache.is_empty() or not is_instance_valid(_glass_cache.get("office_glass")):
+			_sync_reception_glass()
+		var main := _resolve_main_runtime_host()
+		var w3d = main.get("_world_3d") if main != null else null
+		if w3d is Node3D and (w3d as Node3D).is_inside_tree():
+			cam = (w3d as Node3D).get_viewport().get_camera_3d()
+		if _inview_reception == null or not is_instance_valid(_inview_reception):
+			var scene := get_tree().current_scene
+			_inview_reception = scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
+		if cam != null and _inview_reception != null and not _glass_cache.is_empty():
+			for k in ["office_glass", "back_glass"]:
+				var g = _glass_cache.get(k)
+				if g is MeshInstance3D and is_instance_valid(g):
+					var to_eye: Vector3 = cam.global_position - (g as MeshInstance3D).global_position
+					if to_eye.length() < INVIEW_RANGE and _pane_faces(g, to_eye):
+						on = true
+	if on != _inview_live:
+		_inview_live = on
+		_ensure_inview()
+		for k in ["office_glass", "back_glass"]:
+			var g = _glass_cache.get(k)
+			if g is MeshInstance3D and is_instance_valid(g):
+				var sm := (g as MeshInstance3D).material_override as ShaderMaterial
+				if sm != null:
+					sm.set_shader_parameter("live", 1.0 if on else 0.0)
+	# The other wardens in the office, seen from the camp (interior_manager).
+	var im = get_parent()
+	if im != null and im.has_method("_coop_office_from_camp"):
+		im._coop_office_from_camp(delta)
+	if _inview_vp == null:
+		return
+	_inview_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+	if not on:
+		return
+	# The room goes on while you are not in it: a curtain drawn (here or by the other
+	# warden), the back room's set and lamp.
+	if _extras != null and _extras.tick_unseen(delta, _hour_now()):
+		_apply_room_time_profile()
+	# The camp's eye in the room: camp -> the building's local space -> the room's.
+	# (The model's own node, the panes' parent: the structure's origin is off the ground.)
+	var shell := (_glass_cache.get("office_glass") as Node3D).get_parent() as Node3D
+	var to_room: Transform3D = _room_root.global_transform * RL.room_to_local().affine_inverse() * shell.global_transform.affine_inverse()
+	_inview_cam.global_transform = to_room * cam.global_transform
+	_inview_cam.fov = cam.fov
+	_inview_cam.keep_aspect = cam.keep_aspect
+	var px := Vector2i(cam.get_viewport().get_visible_rect().size)
+	if _inview_vp.size != px and px.x > 0:
+		_inview_vp.size = px
+	# The room's light while it is shut follows the camp's hour (it is kept up only while
+	# you are in it).
+	_inview_light_t -= delta
+	if _inview_light_t <= 0.0:
+		_inview_light_t = 0.5
+		var ll: Array = im.get("_last_light") if im != null and im.get("_last_light") != null else []
+		if ll.size() >= 4:
+			set_daylight_profile(ll[0], ll[1], ll[2], ll[3])
+		var bright := 1.0 if _time_state == TIME_NIGHT else (0.8 if _time_state == TIME_EVENING else 0.6)
+		for k in ["office_glass", "back_glass"]:
+			var g = _glass_cache.get(k)
+			if g is MeshInstance3D and is_instance_valid(g) and (g as MeshInstance3D).material_override is ShaderMaterial:
+				((g as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("bright", bright)
+
+
+static func _pane_faces(g: MeshInstance3D, to_eye: Vector3) -> bool:
+	# The glass is a thin box: its thinnest axis is the way it faces.
+	var bm := g.mesh as BoxMesh
+	var axis := Vector3.FORWARD
+	if bm != null:
+		var s := bm.size
+		axis = Vector3.RIGHT if s.x < s.y and s.x < s.z else (Vector3.UP if s.y < s.z else Vector3.BACK)
+	var n := (g.global_basis * axis).normalized()
+	return absf(n.dot(to_eye.normalized())) > 0.12
+
+
+func _ensure_inview() -> void:
+	if _inview_vp != null or _viewport == null:
+		return
+	_inview_vp = SubViewport.new()
+	_inview_vp.name = "OfficeFromCamp"
+	_inview_vp.size = Vector2i(426, 240)
+	_inview_vp.world_3d = _viewport.find_world_3d()
+	_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(_inview_vp)
+	_inview_cam = Camera3D.new()
+	_inview_cam.near = 0.05
+	_inview_cam.far = 80.0
+	_inview_cam.cull_mask = 0xFFFFF & ~INVIEW_HIDE_LAYER
+	_inview_vp.add_child(_inview_cam)
+	# The room's own window views and their rain are for the inside only.
+	for n in [_window_quad, _window_outdoor_sky, _door_quad, (_extras.back.window_quad if _extras != null and _extras.back != null else null)]:
+		if n is Node3D:
+			_hide_from_camp(n)
+	var shader: Shader = load("res://materials/window_into.gdshader")
+	for k in ["office_glass", "back_glass"]:
+		var g = _glass_cache.get(k)
+		if g is MeshInstance3D and is_instance_valid(g):
+			var sm := ShaderMaterial.new()
+			sm.shader = shader
+			sm.set_shader_parameter("room_tex", _inview_vp.get_texture())
+			(g as MeshInstance3D).material_override = sm
+	_sync_reception_glass()
+
+
+static func _hide_from_camp(n: Node) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).layers = INVIEW_HIDE_LAYER
+	for c in n.get_children():
+		_hide_from_camp(c)
+
+
 ## The office window and the back room's, seen from the camp: dark glass by day, the
 ## lamp-light at night when someone has the lights on, dimmer behind drawn curtains.
 func _sync_reception_glass() -> void:
@@ -2380,6 +2515,10 @@ func _sync_reception_glass() -> void:
 
 static func _glow_glass(g, amount: float) -> void:
 	if g == null or not is_instance_valid(g):
+		return
+	var sm := (g as MeshInstance3D).material_override as ShaderMaterial
+	if sm != null:
+		sm.set_shader_parameter("glow", clampf(amount, 0.0, 1.0))
 		return
 	var m := (g as MeshInstance3D).material_override as StandardMaterial3D
 	if m == null:

@@ -521,6 +521,20 @@ func process(delta: float, hour: float) -> bool:
 	return false
 
 
+## While you are not in the office and it is seen from the camp (building_interior
+## _update_inview): the curtains go on moving to where they were drawn (here, or by the
+## other warden). True when one moved (the room's light changes with it). The back room's
+## set is left as it is (its sounds are the room's, not for the camp).
+func tick_unseen(delta: float, _hour: float) -> bool:
+	var moved := false
+	if office_curtain != null and office_curtain.update(delta):
+		moved = true
+	if back.curtain != null and not is_equal_approx(back.curtain.open, back.curtain.target):
+		back.curtain.update(delta)
+		moved = true
+	return moved
+
+
 func hovered() -> String:
 	return _hover
 

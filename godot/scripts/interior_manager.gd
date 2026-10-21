@@ -1832,7 +1832,6 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 	# side by side; the walls and doors between them are real): whoever is anywhere in it
 	# stands where they are, seen from wherever the walls let you (playtest 20. 10.: "from
 	# the little room you cannot see the player in the reception, at the PC").
-	var go: Dictionary = info.get("go", {})
 	if not same and not info.is_empty() and str(info.get("k", "")) == "office" and str(mine.get("k", "")) == "office":
 		same = true
 	if not same:
@@ -1910,48 +1909,7 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 		fig.set_flip((head - mid).dot(cam.global_basis.x) > 0.0)
 		return
 	if str(mine["t"]) == "office" and root != null:
-		fig.set_walking(false)
-		fig.set_flip(false)
-		if bool(info.get("b", false)):
-			# On their back on the bed, the head on the pillow (back_room.lie_pose's end).
-			var head: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, -0.75))
-			var feet: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, 0.75))
-			fig.show_at(root.global_transform * COOP_BED, "bed")
-			fig.set_flip((head - feet).dot(cam.global_basis.x) > 0.0)
-			return
-		if not go.is_empty():
-			# Through the doorway, as their camera goes (reception_extras.go_*).
-			var path := _coop_office_path(str(go.get("f", "")), str(go.get("to", "")))
-			var at := _coop_along(path, clampf(float(go.get("k", 0.0)), 0.0, 1.0))
-			fig.show_at(root.global_transform * at, "stand")
-			fig.set_walking(true)
-			return
-		# Where they are (their part of the building, not yours).
-		var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(info.get("s", "office")), COOP_OFFICE_SPOTS["office"])
-		var pose := "stand"
-		if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(model, "write"):
-			# Behind the counter, bent over the register.
-			spot = COOP_DESK_SPOT
-			pose = "write"
-		elif str(info.get("w", "")) == "board":
-			# In front of the board, reading it.
-			spot = COOP_BOARD_SPOT
-			fig.set_flip(true)
-		elif str(info.get("w", "")) == "phone":
-			# At the phone behind the counter, the handset up (bent to it, if there is a picture).
-			spot = COOP_PHONE_SPOT
-			if COOP_LOOKS.has_pose(model, "write"):
-				spot = COOP_DESK_SPOT + Vector3(0.12, 0.0, 0.1)
-				pose = "write"
-		if str(info.get("w", "")) == "pc":
-			# On the chair at the PC, their back to the room: you look over their shoulder.
-			var seat: Vector3 = it.get("_crt_full_cam_pos")
-			# The eyes' seat is a little back from the keyboard: the body sits in nearer.
-			var screen: Vector3 = it.PC_OFFSET + it.CRT_PIVOT
-			var at_desk := seat.lerp(screen, 0.38)
-			spot = Vector3(at_desk.x, 0.0, at_desk.z)
-			pose = "desk"
-		fig.show_at(root.global_transform * spot, pose)
+		_place_office_fig(fig, info, model, root, cam.global_basis.x)
 		return
 	var job := str(info.get("w", ""))
 	if it == _service_interior and it.has_method("coop_job_spot"):
@@ -1983,6 +1941,108 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 			fig.show_at(at, "prone" if tent else pose)
 			return
 	fig.show_at(e["spot"], "prone" if tent else "stand")
+
+
+## A warden in the office building where their state says they are (their part of it,
+## their job, the bed, the walk through a doorway), in the office's own world: for whoever
+## is in it with them, and seen from the camp through its windows (_coop_office_from_camp).
+## `right`: the eye's right, for which way a sleeper is drawn.
+func _place_office_fig(fig: Node3D, info: Dictionary, model: int, root: Node3D, right: Vector3) -> void:
+	var it = _building_interior
+	fig.set_walking(false)
+	fig.set_flip(false)
+	if bool(info.get("b", false)):
+		# On their back on the bed, the head on the pillow (back_room.lie_pose's end).
+		var head: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, -0.75))
+		var feet: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, 0.75))
+		fig.show_at(root.global_transform * COOP_BED, "bed")
+		fig.set_flip((head - feet).dot(right) > 0.0)
+		return
+	var go: Dictionary = info.get("go", {})
+	if not go.is_empty():
+		# Through the doorway, as their camera goes (reception_extras.go_*).
+		var path := _coop_office_path(str(go.get("f", "")), str(go.get("to", "")))
+		var at := _coop_along(path, clampf(float(go.get("k", 0.0)), 0.0, 1.0))
+		fig.show_at(root.global_transform * at, "stand")
+		fig.set_walking(true)
+		return
+	# Where they are (their part of the building, not yours).
+	var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(info.get("s", "office")), COOP_OFFICE_SPOTS["office"])
+	var pose := "stand"
+	if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(model, "write"):
+		# Behind the counter, bent over the register.
+		spot = COOP_DESK_SPOT
+		pose = "write"
+	elif str(info.get("w", "")) == "board":
+		# In front of the board, reading it.
+		spot = COOP_BOARD_SPOT
+		fig.set_flip(true)
+	elif str(info.get("w", "")) == "phone":
+		# At the phone behind the counter, the handset up (bent to it, if there is a picture).
+		spot = COOP_PHONE_SPOT
+		if COOP_LOOKS.has_pose(model, "write"):
+			spot = COOP_DESK_SPOT + Vector3(0.12, 0.0, 0.1)
+			pose = "write"
+	if str(info.get("w", "")) == "pc":
+		# On the chair at the PC, their back to the room: you look over their shoulder.
+		var seat: Vector3 = it.get("_crt_full_cam_pos")
+		# The eyes' seat is a little back from the keyboard: the body sits in nearer.
+		var screen: Vector3 = it.PC_OFFSET + it.CRT_PIVOT
+		var at_desk := seat.lerp(screen, 0.38)
+		spot = Vector3(at_desk.x, 0.0, at_desk.z)
+		pose = "desk"
+	fig.show_at(root.global_transform * spot, pose)
+
+
+## The other wardens in the office building seen from the camp through its windows (the
+## user 21. 10.: "players walking about inside, at the PC, going into the other room: all
+## of it seen from outside and in step"): while the office is not open here and its
+## windows look into it (building_interior._inview_live), each warden whose room is the
+## office gets a figure in the office's world, placed as inside (_place_office_fig).
+var _office_figs: Dictionary = {}
+var _office_figs_t := 0.0
+
+
+func _coop_office_from_camp(delta: float) -> void:
+	var bi = _building_interior
+	var live: bool = bi != null and Coop.is_active() and not bi.is_open() and bool(bi.get("_inview_live"))
+	if not live:
+		if not _office_figs.is_empty():
+			for id in _office_figs.keys():
+				var f = _office_figs[id]
+				if f != null and is_instance_valid(f):
+					f.queue_free()
+			_office_figs.clear()
+		return
+	_office_figs_t -= delta
+	if _office_figs_t > 0.0:
+		return
+	_office_figs_t = 0.1
+	var vp: Node = bi.get("_viewport")
+	var root: Node3D = bi.get("_room_root")
+	if vp == null or root == null:
+		return
+	var seen: Array = []
+	for id in Coop.others():
+		var info: Dictionary = Coop.state_of(id).get("room", {})
+		if str(info.get("k", "")) != "office":
+			continue
+		seen.append(id)
+		var look: Dictionary = Coop.look_of(id)
+		var model := int(look.get("m", 1))
+		var fig = _office_figs.get(id)
+		if fig == null or not is_instance_valid(fig):
+			fig = COOP_FIGURE.new()
+			fig.setup(model, int(look.get("c", 0)), true)
+			vp.add_child(fig)
+			_office_figs[id] = fig
+		_place_office_fig(fig, info, model, root, Vector3.RIGHT)
+	for id in _office_figs.keys():
+		if not id in seen:
+			var f = _office_figs[id]
+			if f != null and is_instance_valid(f):
+				f.queue_free()
+			_office_figs.erase(id)
 
 
 ## A place in a tent for the other warden: down its middle (the walls slope in to the

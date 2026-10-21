@@ -4,6 +4,13 @@
 
 ---
 
+## RECEPTION WINDOWS — 2026-10-21 (the user: "the reception's windows have no depth from outside; curtains drawn, lights out, the players inside at the PC or going to the other room: all of it seen from outside and in step")
+
+- [x] The real office behind the panes (a camera in its world), by day darker than the day outside
+- [x] Curtains, lights and the back room from outside, the other wardens inside (`tools/window_coop.py` PASS)
+- [ ] The PC's screen seen from outside is the last frame drawn on this machine (the other warden's screen comes only while you are in the office)
+- [ ] The same for the cabins', caravans' and businesses' windows (they have interior mapping, not their room)
+
 ## THE SECOND MONITOR — 2026-10-21 (the user: "D once to look right, A back; a lowkey page to buy a second monitor; the post brings it, sign with the mouse, click the parcel; Builder on the left all day; everything in co-op")
 
 - [x] A/D at the PC: one press turns you (right: the second monitor, or the window before it)

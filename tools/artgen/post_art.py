@@ -4,7 +4,7 @@ into the game. Rows in tools/artgen/prompts_post.tsv.
 
     python tools/artgen/post_art.py [id ...]
 
-- post_van_side/front/back: the Czech post's van. Grok puts it on a plain grey ground
+- post_van_side: the side of the Czech post's van. Grok puts it on a plain grey ground
   with a shadow; the ground is flooded away from the picture's edges (a low-saturation
   colour close to the edge's), the van cropped and shrunk to the faces' pixels
   (-> textury/post/van_*.png, keyed, on the palette).
@@ -107,10 +107,12 @@ def main():
         return (not want or i in want) and os.path.exists(raw(i))
     if go("post_van_side"):
         vehicle_face("post_van_side", 224, "post/van_side.png", SIDE_FLOOR, SIDE_WHEELS)
-    if go("post_van_front"):
-        vehicle_face("post_van_front", 96, "post/van_front.png")
-    if go("post_van_back"):
-        vehicle_face("post_van_back", 96, "post/van_back.png")
+    # The front and the back fill their canvas edge to edge: nothing to key.
+    for i in ("post_van_front", "post_van_back"):
+        if go(i):
+            out = process.panel(raw(i), 96)
+            out.save(os.path.join(TEX, "post", i.replace("post_", "") + ".png"))
+            print(i, "->", out.size)
     if go("npc_postman"):
         out = process.sprite(raw("npc_postman"), 128)
         dest = os.path.join(TEX, "npc", "npc_postman.png")
