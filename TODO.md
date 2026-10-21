@@ -209,6 +209,9 @@ start, collect good ratings; pay to delete bad reviews".
   asking about it)
 - [x] Shareware: a nag after ~10 builds, a registration-locked Mega gnome, Help > About
   with credits and a Snake easter egg
+- [x] Registration in a couple of clicks (the user 21. 10.: not photographing the key off
+  the screen and typing it back): Help > Register... > Yes, and once the key's mail has
+  come (08:10 the next morning) Help > Register... has it filled in, OK
 - [x] Builder polish (20. 10. evening, the brief "Builder 98 jako samostatna tycoon hra"):
   every building's four pictures from its 3D model (`tools/iso_render.tscn` ->
   `tools/artgen/iso_views.py` -> Grok -> fitted back), checked against the camp from the
