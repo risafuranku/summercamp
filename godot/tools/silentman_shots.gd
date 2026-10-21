@@ -24,16 +24,19 @@ func _ready() -> void:
 		["player", 12, 12, 0.0], ["hours", 14.5], ["wait", 2.0],
 		["call", "debug_spawn_enemy", ["silent_man", 3]], ["wait", 2.0],
 	]
-	# The neck round a corner (in front of you, 7 m) and the ceiling over you.
+	# The neck round a corner (in front of you, 6 m) and the ceiling over you; in a clearing
+	# cut for it (each new game grows its trees elsewhere: a trunk was in the way).
 	s.append_array([
-		["player", 4, 20, 90.0], ["eval", "_player.get_node('Head').set('rotation', Vector3.ZERO)"], ["wait", 0.2],
+		["money", 99999], ["clear", 9, 5, 8, 11], ["wait", 1.0],
+		["player", 12, 15, 0.0], ["eval", "_player.get_node('Head').set('rotation', Vector3.ZERO)"], ["wait", 0.2],
 		["eval", B + ".set('_lurking', true)"],
 		["eval", B + "._show_neck(_player.global_position - _player.global_transform.basis.z * 6.0, _player.global_position - _player.global_transform.basis.z * 6.0 + _player.global_transform.basis.x * 1.5)"],
 		["wait", 0.1], ["shot", "neck_0"],
 		["eval", B + "._show_neck(_player.global_position - _player.global_transform.basis.z * 6.0, _player.global_position - _player.global_transform.basis.z * 6.0 - _player.global_transform.basis.x * 1.5)"],
 		["wait", 0.1], ["shot", "neck_1"], ["eval", B + ".set('_lurking', false)"],
-		["eval", B + "._fx().subliminal(" + B + "._t('res://assets/textury/npc/sm_ceiling.png'), 3, 1.0, Color(0.5, 0.45, 0.45))"],
-		["wait", 0.03], ["shot", "ceil_0"], ["wait", 0.03], ["shot", "ceil_1"], ["wait", 0.03], ["shot", "ceil_2"], ["wait", 2.0]])
+		# (In the game three frames; held here long enough for a picture.)
+		["eval", B + "._fx().subliminal(" + B + "._t('res://assets/textury/npc/sm_ceiling.png'), 40, 1.0, Color(0.5, 0.45, 0.45))"],
+		["wait", 0.1], ["shot", "ceil_0"], ["wait", 2.0]])
 	s.append_array(_catch("cross", 9))
 	s.append_array(_catch("inside", 12))
 	s.append_array(_catch("eyes", 11))

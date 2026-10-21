@@ -33,10 +33,14 @@ extends "res://scripts/enemies/enemy_base.gd"
 ##                 the glass.
 ##   burnt in      his face, close, two camera lenses grown into the sockets, or the face
 ##                 peeling off like a wet print, for a few frames after the flash.
-##   as it goes    two hits and his neck has gone: the head hangs at a broken angle and
-##                 still he raises the camera (the crack of it as he stops). Three hits and
-##                 he runs: out of the dark behind you in a lurch, boots on the gravel and
-##                 the laugh, and the flash right at your ear. Do not turn round to it.
+##   as it goes    two hits and his neck has gone: stretched, snapped, the head hanging off
+##                 it sideways, one eye bulging behind the cracked glasses, the mouth stuffed
+##                 with photographs, and still he raises the camera (the crack of it as he
+##                 stops). Four and it has let go: the collar an empty stump, the head hangs
+##                 upside down at his belly on the limp neck, screaming photographs.
+##                 Three hits and he runs: out of the dark behind you in a lurch, boots on
+##                 the gravel and the laugh, and the flash right at your ear. Do not turn
+##                 round to it.
 ##   the last one  when a picture would be your last: the frame stops, his lens-face comes
 ##                 at you in steps, the word whispered wet in your ear, the flash, and the
 ##                 photo of your own face develops in the middle of the screen.
@@ -58,6 +62,7 @@ const POSES := {
 	"glass": "res://assets/textury/npc/tourist_glass.png",
 	"back": "res://assets/textury/npc/tourist_back.png",
 	"neck": "res://assets/textury/npc/ph_neck.png",
+	"neck2": "res://assets/textury/npc/ph_neck2.png",
 	"run": "res://assets/textury/npc/ph_run.png",
 	"face_lens": "res://assets/textury/npc/ph_face_lens.png",
 	"face_peel": "res://assets/textury/npc/ph_face_peel.png",
@@ -67,7 +72,8 @@ const POSES := {
 const CAMERA_AT := {
 	"idle": Vector2(0.0, 1.18), "walk_a": Vector2(-0.05, 1.15), "walk_b": Vector2(-0.03, 1.15),
 	"aim": Vector2(0.0, 1.63), "flash": Vector2(0.0, 1.55), "wave": Vector2(0.0, 1.09),
-	"glass": Vector2(-0.06, 1.46), "neck": Vector2(0.0, 1.18), "run": Vector2(-0.26, 1.45),
+	"glass": Vector2(-0.06, 1.46), "neck": Vector2(-0.03, 1.09), "neck2": Vector2(-0.06, 1.38),
+	"run": Vector2(-0.26, 1.45),
 }
 const POLAROID = preload("res://scripts/enemies/polaroid.gd")
 const SFX_WHISPER := "res://assets/sfx/npc/ph_whisper_smile.mp3"
@@ -271,8 +277,8 @@ func _tick_walk(dt: float) -> void:
 		_phase = Phase.SETTLE
 		_phase_end = _elapsed + _rng.randf_range(0.5, 0.9)
 		# Two pictures of you and his neck has gone: the head hangs, it cracks as he stops.
-		if _hits >= 2 and _tex.has("neck"):
-			_set_pose("neck")
+		if _broken() != "":
+			_set_pose(_broken())
 			_sound(SFX_CRACK, _head(), 4.0, _rng.randf_range(0.9, 1.05), 25.0)
 		else:
 			_set_pose("idle")
@@ -284,7 +290,7 @@ func _enter_frame() -> void:
 	_phase_end = _elapsed + _frame_seconds
 	_next_beep = _elapsed
 	_whine_started = false
-	_set_pose("neck" if _hits >= 2 and _tex.has("neck") else "aim")
+	_set_pose(_broken() if _broken() != "" else "aim")
 	_sound(SFX_ZOOM, _head(), 0.0, 1.0, 30.0)
 	_announce("Humming between the trees. A red light. Beep... beep... Do not look at the flash.")
 
@@ -618,12 +624,10 @@ func _set_pose(p: String) -> void:
 	if t == null:
 		return
 	_body.texture = t
-	# At the glass he is the upper half of him, pressed to it (a picture of the waist up).
-	var h := 1.05 if p == "glass" else 1.9
-	if p == "neck":
-		h = 2.5  # the neck stretched: he stands that much taller
+	# Every picture of him at one density (140 pixels are 1.9 m): the broken neck as tall
+	# as it is drawn, at the glass the upper half of him pressed to it (lifted).
 	var lift := 0.75 if p == "glass" else 0.0
-	_body.pixel_size = h / float(t.get_height())
+	_body.pixel_size = 1.9 / 140.0
 	_body.offset = Vector2(0, t.get_height() * 0.5 + lift / _body.pixel_size)
 	# His camera's lamp where the camera is in this one.
 	if _eyes != null and CAMERA_AT.has(p):
@@ -778,6 +782,17 @@ func _set_af_at(at: Vector3, on: bool) -> void:
 		var seen := CAMERA_AT.has(_pose if _pose != "" else "idle")
 		_eyes.set("want", 1.0 if seen and (on or float(_eyes.get("flare")) > 0.3) else 0.0)
 		_eyes.set("tint", Color(1.0, 0.14, 0.08) if on else Color(0, 0, 0, 0))
+
+
+## What the pictures of you have done to him: two and his neck has broken (the head hangs
+## off it sideways, the mouth stuffed with photographs); four and it has let go (the
+## collar an empty stump, the head hanging upside down at his belly, screaming). "" whole.
+func _broken() -> String:
+	if _hits >= 4 and _tex.has("neck2"):
+		return "neck2"
+	if _hits >= 2 and _tex.has("neck"):
+		return "neck"
+	return ""
 
 
 ## His camera, where it is in this picture of him, a little out in front of him (seen

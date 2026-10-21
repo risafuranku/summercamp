@@ -132,6 +132,11 @@ func take(world: World3D, from: Vector3, target: Vector3, you: Vector3, face: Ve
 	# whatever is between (a tree, a wall): he got the shot, so the picture has it clear.
 	if from.distance_to(target) > 3.0:
 		from += (target - from).normalized() * 0.8
+	# Never from farther than a few metres (the long lens frames you the same): the trees
+	# have no collision for the ray below, and from across a field one was in the picture.
+	var far := from.distance_to(target) > 6.0
+	if not big and from.distance_to(target) > 5.5:
+		from = target + (from - target).normalized() * 5.5
 	var space := world.direct_space_state
 	if space != null:
 		# From you out towards him: the first thing in the way (the ray starts inside you).
@@ -143,7 +148,7 @@ func take(world: World3D, from: Vector3, target: Vector3, you: Vector3, face: Ve
 	flash.light_color = Color(0.95, 0.97, 1.0)
 	# A room is small: the same flash would only be white.
 	var reach := from.distance_to(target)
-	flash.light_energy = 6.0 if reach > 6.0 else 1.2
+	flash.light_energy = 6.0 if far else 1.2
 	flash.omni_range = clampf(reach * 2.5, 4.0, 18.0)
 	holder.add_child(flash)
 	flash.global_position = from
@@ -152,7 +157,7 @@ func take(world: World3D, from: Vector3, target: Vector3, you: Vector3, face: Ve
 	var land := OmniLight3D.new()
 	land.light_color = Color(0.95, 0.97, 1.0)
 	land.light_volumetric_fog_energy = 0.0
-	land.light_energy = 2.4 if reach > 6.0 else 0.6
+	land.light_energy = 2.4 if far else 0.6
 	land.omni_range = 4.5
 	holder.add_child(land)
 	land.global_position = target + (from - target).normalized() * 1.4
