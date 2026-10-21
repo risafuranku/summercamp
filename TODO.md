@@ -118,7 +118,8 @@ finished game, by impact:
 - [x] Weather pass (21. 10.): the drizzle's slow full-length streaks stood in the grass
   like sticks (fine short drops now); the far forest went bright blue in rain, storm and
   snow (the wet fog's tint); falling snow did not show (self-lit, steady fall); the
-  storm's rain comes in gusts
+  storm's rain comes in gusts; the lightning lights the world in steps (a step or two
+  full, often a second flicker, dark: it faded out smoothly)
 - [x] Snow: boot prints behind every warden, frozen puddles; snowfall no longer grew
   puddles with rain rings on them (21. 10.)
 - [x] A broken lamp shorts: sparks, a flash, the crackle (21. 10., lamp_sparks.gd)

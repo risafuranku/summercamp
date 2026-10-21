@@ -632,6 +632,7 @@ func update_celestial_bodies() -> void:
 ## Storm flash efekt. Volat z main _process.
 func update_weather_runtime(delta: float) -> void:
 	if _weather_state != WEATHER_STORM:
+		_flash_seq.clear()
 		if _storm_flash_strength > 0.0 or _storm_flash_cooldown > 0.0:
 			_storm_flash_strength = 0.0
 			_storm_flash_cooldown = 0.0
@@ -645,23 +646,36 @@ func update_weather_runtime(delta: float) -> void:
 		synced_flash = float(_audio_mgr.consume_storm_flash_strength())
 	if synced_flash > 0.0:
 		_strike_bolt(synced_flash)
-		var boosted = max(_storm_flash_strength, synced_flash)
-		if not is_equal_approx(boosted, _storm_flash_strength):
-			_storm_flash_strength = boosted
-			should_refresh = true
-	if _storm_flash_strength > 0.0:
-		var next_strength = max(_storm_flash_strength - (delta * 3.2), 0.0)
-		if not is_equal_approx(next_strength, _storm_flash_strength):
-			_storm_flash_strength = next_strength
-			should_refresh = true
+		_flash_seq = _flash_pattern(synced_flash)
+		_flash_acc = 1.0 / 12.0
 	if not has_audio_flash_sync:
 		_storm_flash_cooldown -= delta
 		if _storm_flash_cooldown <= 0.0:
-			_storm_flash_strength = randf_range(0.40, 0.85)
+			_flash_seq = _flash_pattern(randf_range(0.40, 0.85))
+			_flash_acc = 1.0 / 12.0
 			_storm_flash_cooldown = randf_range(2.4, 5.0)
+	# The flash in steps, twelve a second: the world lit up whole for a step or two, often
+	# a second flicker, then dark again (it faded out smoothly like a lamp dimming).
+	if not _flash_seq.is_empty():
+		_flash_acc += delta
+		while _flash_acc >= 1.0 / 12.0 and not _flash_seq.is_empty():
+			_flash_acc -= 1.0 / 12.0
+			_storm_flash_strength = float(_flash_seq.pop_front())
 			should_refresh = true
 	if should_refresh:
 		apply_weather_profile()
+
+
+var _flash_seq: Array = []
+var _flash_acc := 0.0
+
+
+## A lightning flash as its steps: full, full, a flicker down and up again (more often
+## than not), out.
+func _flash_pattern(s: float) -> Array:
+	if randf() < 0.6:
+		return [s, s, s * 0.3, s * 0.85, s * 0.2, 0.0]
+	return [s, s * 0.45, 0.0]
 
 
 ## Kombinovaný per-frame visual update. Volat z main._process() po update_state().
