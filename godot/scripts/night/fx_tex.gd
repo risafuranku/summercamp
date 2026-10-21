@@ -48,6 +48,8 @@ static func decode(v: Variant) -> Texture2D:
 			out = at
 		"flip_head":
 			out = flip_head(src, float(d.get("frac", 0.17)))
+		"dissolve":
+			out = dissolve(src, int(d.get("f", 0)), int(d.get("n", 6)))
 	if out != null:
 		_made[key] = out
 	return out
@@ -84,4 +86,32 @@ static func flip_head(src: Texture2D, frac: float = 0.17) -> ImageTexture:
 	t.set_meta("fx_src", {"proc": "flip_head", "src": src.resource_path, "frac": frac})
 	t.set_meta("flip_top", top)
 	t.set_meta("flip_h", hh)
+	return t
+
+
+## `src` going to nothing in an ordered dither, step `f` of `n` (whole pixels gone, the
+## rest darker as it goes): the Silent Man taken by the light. Its "fx_src" says so.
+static func dissolve(src: Texture2D, f: int, n: int) -> ImageTexture:
+	var img := src.get_image()
+	if img == null:
+		return null
+	img = img.duplicate()
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	var bayer := [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+	var cut := float(f + 1) / float(n + 1)
+	var dark := 1.0 - cut * 0.6
+	for y in img.get_height():
+		for x in img.get_width():
+			var c: Color = img.get_pixel(x, y)
+			if c.a <= 0.0:
+				continue
+			if (float(bayer[(x & 3) + (y & 3) * 4]) + 0.5) / 16.0 < cut:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+			else:
+				img.set_pixel(x, y, Color(c.r * dark, c.g * dark, c.b * dark, c.a))
+	var t := ImageTexture.create_from_image(img)
+	if src.resource_path != "":
+		t.set_meta("fx_src", {"proc": "dissolve", "src": src.resource_path, "f": f, "n": n})
 	return t

@@ -55,6 +55,7 @@ class_name SilentManBrain
 ## In co-op only the warden he hunts feels any of it; the other's torch drives him off
 ## too (the counter for two: watch each other's backs).
 
+const FX_TEX := preload("res://scripts/night/fx_tex.gd")
 const N := "res://assets/textury/npc/"
 const GUEST := N + "host1.png"
 const T_M1 := N + "sm_m1.png"
@@ -205,9 +206,10 @@ func get_enemy_id() -> String:
 
 
 ## Co-op: only the one he hunts sees him while he scares them (a catch, at their neck,
-## the first meeting, his flare, at their window, close behind them).
+## the first meeting, his flare, at their window, close behind them, his neck round the
+## corner: it comes round the corner only from where they stand).
 func is_private_now() -> bool:
-	return not _seq.is_empty() or _neck_until > 0.0 or _reveal_t >= 0.0 or _vanish_at > 0.0 or _glass_until > 0.0 or (not _lurking and _dist < 5.0)
+	return not _seq.is_empty() or _neck_until > 0.0 or _reveal_t >= 0.0 or _vanish_at > 0.0 or _glass_until > 0.0 or (not _lurking and _dist < 5.0) 		or (_peek_t > 0.0 and _tex.has(T_NECK) and _body != null and _body.texture == _tex[T_NECK])
 
 
 func _on_start() -> void:
@@ -761,31 +763,17 @@ func _update_lit(_dt: float) -> void:
 
 
 ## The art going to nothing in an ordered dither (whole pixels, darker as it goes), made
-## once per picture.
+## once per picture (scripts/night/fx_tex.gd, so the warden he hunts on another machine
+## sees him come apart too, not just gone).
 func _dissolve_frames(tex: Texture2D) -> Array:
 	if _dissolve.has(tex):
 		return _dissolve[tex]
 	var out: Array = []
-	var img := tex.get_image()
-	if img != null:
-		img = img.duplicate()
-		if img.is_compressed():
-			img.decompress()
-		img.convert(Image.FORMAT_RGBA8)
-		var bayer := [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
-		for f in DISSOLVE_FRAMES:
-			var cut := float(f + 1) / float(DISSOLVE_FRAMES + 1)
-			var im: Image = img.duplicate()
-			for y in im.get_height():
-				for x in im.get_width():
-					var c: Color = im.get_pixel(x, y)
-					if c.a <= 0.0:
-						continue
-					if (float(bayer[(x & 3) + (y & 3) * 4]) + 0.5) / 16.0 < cut:
-						im.set_pixel(x, y, Color(0, 0, 0, 0))
-					else:
-						im.set_pixel(x, y, Color(c.r * (1.0 - cut * 0.6), c.g * (1.0 - cut * 0.6), c.b * (1.0 - cut * 0.6), c.a))
-			out.append(ImageTexture.create_from_image(im))
+	for f in DISSOLVE_FRAMES:
+		var im := FX_TEX.dissolve(tex, f, DISSOLVE_FRAMES)
+		if im == null:
+			break
+		out.append(im)
 	_dissolve[tex] = out
 	return out
 
@@ -1365,7 +1353,9 @@ func _lure(n: int) -> void:
 	var fxd = scene.get("_director_fx") if scene != null else null
 	var im = scene.get("_interior_manager") if scene != null else null
 	var bi = im.get("_building_interior") if im != null else null
-	var office: bool = bi != null and bool(bi.get("visible"))
+	# The office's knocks and handle are the host's room (the director's): for a warden on
+	# another machine everything goes to their own room (_room_2d), never the host's.
+	var office: bool = _quarry_peer() == 0 and bi != null and bool(bi.get("visible"))
 	match n % 6:
 		0:
 			_room_2d(SFX_HUM, -14.0, 0.9)

@@ -424,14 +424,19 @@ every night's sewer, toilets and frozen pipes the moment they broke).
     their room), `_quarry_indoors` (their room, not the host's). The stand-in forwards
     `flashlight_stutter`, `held_speed_mult` and `set_controls_enabled`;
   - a texture made in code that has to show on the other machine carries meta `fx_src`
-    (`scripts/night/fx_tex.gd` makes and remakes it); an AtlasTexture travels as is;
+    (`scripts/night/fx_tex.gd` makes and remakes it: `flip_head`, the Silent Man's
+    `dissolve`); an AtlasTexture travels as is (one that cannot go is left out of the
+    picture: on the other machine the sprite is simply gone);
   - an enemy's own thing on their screen goes as `remote_fx.ext(what, args)` → `coop_night._on_ext`
     (the Photographer's polaroid is taken there, of them: `polaroid.take_of`; his flash through
     their window). Their health is their warden state `hp` (`_player_health()` reads it, so a
     kill is played on the right one); their room's windows at night are `pw` (where, which
     way, the curtain, how squarely they look at it), `tools/coop_photo.py` checks it;
   - `tools/coop_scare.py` checks it: a strike on either warden is on their screen and
-    nowhere on the other's.
+    nowhere on the other's; `tools/coop_quiet.py` the Silent Man (his catch, the hold at
+    the neck, coming apart in their light, his neck round a corner: theirs alone; his
+    catch on the host not on the other's). A scare made for where the quarry stands (the
+    neck round a corner) is private too: from anywhere else it reads as a prop.
 - **Co-op till**: the other machine's money is the host's plus its own changes not yet
   counted there (`main._coop_follow_till`: any change of `state.money` on that machine goes
   over as a numbered "till" delta, the host's clock says up to which it counted). So
