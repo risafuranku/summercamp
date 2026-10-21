@@ -16,6 +16,7 @@ extends Control
 ## strip shows from the second tab, a click picks one, the middle button or its x closes it.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const WEB = preload("res://scripts/os98/web_pages.gd")
 const ICONS = preload("res://scripts/os98/apps/browser_icons.gd")
 const NBSP := " "
@@ -982,7 +983,37 @@ func _softsklad() -> String:
 	return t
 
 
+## PC Servis's order line: the button, or where the order is.
+func _pcservis() -> String:
+	var post = _shell.post_delivery() if _shell.has_method("post_delivery") else null
+	if post == null:
+		return ""
+	match post.stage():
+		"":
+			return "[center]{order://monitor2|[b]>> ORDER THE SET <<[/b]}[/center]"
+		"delivered":
+			return "[color=#006600][b]Order no. %d: delivered. Thank you for your custom.[/b][/color]" % post.order_no()
+	return "[color=#006600][b]Order no. %d: sent. The post brings it.[/b][/color]" % post.order_no()
+
+
 func _on_link(target: String) -> void:
+	# PC Servis's set (scripts/reception/post_delivery.gd): paid now, the post brings it.
+	if target == "order://monitor2":
+		var post = _shell.post_delivery() if _shell.has_method("post_delivery") else null
+		if post == null or post.stage() != "":
+			_load(_url, false)
+			return
+		_shell.message_box("PC Servis Hlubocany", tr("Order the monitor and the second card for $%d?\n\nThe money is taken from the camp's account.") % post.PRICE, "question", ["Order", "Cancel"], func(b: String):
+			if b != "Order":
+				return
+			if post.order():
+				_shell.play("click", -8.0)
+				_load(_url, false)
+				_shell.message_box("PC Servis Hlubocany", tr("Thank you. Order no. %d.\n\nThe post brings it in a few hours.") % post.order_no(), "info")
+			else:
+				_shell.message_box("PC Servis Hlubocany", tr("The payment was refused.\n\nThe camp has $%d.") % CoreRoot.get_money(), "error")
+		)
+		return
 	# A SoftSklad licence: paid from the camp's money, the download appears.
 	if target.begins_with("licence://"):
 		var kind := target.trim_prefix("licence://")
@@ -1166,6 +1197,7 @@ func _expand(body: String, link: String, key: String) -> String:
 		t = t.replace("{{bazaar}}", _bazaar())
 		t = t.replace("{{level}}", _level())
 		t = t.replace("{{softsklad}}", _softsklad())
+		t = t.replace("{{pcservis}}", _pcservis())
 		t = t.replace("{{chat}}", _chat())
 		t = t.replace("{{chatcount}}", "%d people here" % (9 + _day() % 5 + (1 if not _shell.is_day() else 0)))
 		t = t.replace("{{horoscope}}", _horoscope())
@@ -1195,7 +1227,7 @@ static func _vlink_for(link: String) -> String:
 ## Keys the way Beeternet had them: Backspace or Alt+Left back, Alt+Right forward, F5
 ## again (not while you type into the address).
 func _input(e: InputEvent) -> void:
-	if not is_visible_in_tree() or not (e is InputEventKey) or not e.pressed or e.echo:
+	if not is_visible_in_tree() or not (e is InputEventKey) or not e.pressed or e.echo or not OS_KEYS.here(self):
 		return
 	if _shell.wants_keyboard() or _shell.has_dialog():
 		return

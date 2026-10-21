@@ -218,6 +218,21 @@ var _start_logo_tex: Texture2D
 ## The screen saver (scripts/os98/os_extras.gd).
 var _extras
 
+## The second monitor (bought on the web, brought by the post: scripts/reception/
+## post_delivery.gd). Its screen is drawn beside the first in the same picture (the CRT
+## viewport is two screens wide, building_interior.gd), with a taskbar of the same tabs
+## and the tray, no Start. One program on each screen; picking on one screen the program
+## the other shows swaps them. The keys, the tab keys and new message boxes go to the
+## screen the warden looks at (`_screen`, set by building_interior on A and D).
+var _dual := false
+var _screen := 0
+var _tab2 := ""
+var _last_tab2 := "guestrack"
+var _screen2: Control
+var _tab_buttons2: Dictionary = {}
+var _clock2: Label
+var _money2: Label
+
 
 func _ready() -> void:
 	theme = T.get_theme()
@@ -228,6 +243,8 @@ func _ready() -> void:
 	for id in PROGRAMS:
 		_unlocked[id] = bool(PROGRAMS[id].get("base", false))
 	_start_logo_tex = _start_logo()
+	# Under the pages: the second screen's wallpaper and taskbar (its page lies over it).
+	_build_screen2()
 	_build_pages()
 	_build_taskbar()
 	_build_dialogs()
@@ -341,6 +358,7 @@ func export_persistent_state() -> Dictionary:
 		"display": _extras.export_state() if _extras != null else {},
 		"datapunch_nights": get_meta("datapunch_nights", {}),
 		"tab": _tab if _tab != "" else _last_tab,
+		"tab2": _tab2 if _tab2 != "" else _last_tab2,
 		"store": _store.duplicate(true),
 	}
 
@@ -352,6 +370,7 @@ func coop_pc_state() -> Dictionary:
 	var out := export_persistent_state()
 	out.erase("monitor_powered")
 	out.erase("tab")
+	out.erase("tab2")
 	return out
 
 
@@ -415,11 +434,14 @@ func import_persistent_state(data: Dictionary) -> void:
 				_store = (data.get("store", {}) as Dictionary).duplicate(true)
 			if _tab_index(str(data.get("tab", ""))) >= 0:
 				_last_tab = str(data["tab"])
+			if _tab_index(str(data.get("tab2", ""))) >= 0:
+				_last_tab2 = str(data["tab2"])
 	# Another camp: every program starts again from its first screen.
 	_close_dialogs()
 	for id in _pages.keys():
 		_free_page(id)
 	_tab = ""
+	_tab2 = ""
 	_state = Boot.OFF
 	_apply_state()
 	# A save loaded while the screen is in front of you (game over -> Load): open_panel
@@ -913,17 +935,181 @@ func close_app_window(win: Control) -> void:
 		return
 	if win.get_parent() == _pages_layer:
 		var id := str(win.app_id)
-		var back := _last_tab if _last_tab != id else "camp_status"
+		var back := _last_tab if _last_tab != id and _last_tab != _tab2 else "camp_status"
 		_free_page(id)
 		if _tab == id:
 			_tab = ""
-			_select_tab(back)
+			_select_tab_on(back if back != _tab2 else _spare_tab(_tab2), 0)
+		elif _dual and _tab2 == id:
+			_tab2 = ""
+			_select_tab_on(_spare_tab(_tab), 1)
 		return
 	_close_window(win)
 
 
 func current_tab() -> String:
 	return _tab
+
+
+## The office's post (scripts/reception/post_delivery.gd), for the web shop's order.
+func post_delivery():
+	return _host.get("_post") if _host != null else null
+
+
+# ── the second monitor ───────────────────────────────────────────────────────
+
+## On (the parcel signed for) or off (a camp without it): the second screen comes up
+## beside the first with a program the first is not showing.
+func set_dual(on: bool) -> void:
+	if on == _dual:
+		return
+	_dual = on
+	# The second screen lies beside the first: nothing of the panel is clipped at 640
+	# (a window dragged off the right edge goes on over to it, as it did then).
+	clip_contents = not on
+	_dialogs.size = Vector2(SCREEN.x * (2.0 if on else 1.0), SCREEN.y)
+	_dialog_catch.size = _dialogs.size
+	if not on:
+		_screen = 0
+		var was := _tab2
+		_tab2 = ""
+		_place_pages()
+		var a = app_of(was) if was != "" else null
+		if a != null and a.has_method("page_hidden"):
+			a.page_hidden()
+	elif _state == Boot.DESKTOP:
+		_select_tab_on(_last_tab2 if _last_tab2 != _tab else _spare_tab(_tab), 1)
+	_apply_state()
+
+
+func is_dual() -> bool:
+	return _dual
+
+
+## The screen the warden looks at: 0 the first, 1 the second.
+func set_screen(i: int) -> void:
+	_screen = clampi(i, 0, 1) if _dual else 0
+	_close_start_menu()
+
+
+func screen() -> int:
+	return _screen
+
+
+func tab_on(scr: int) -> String:
+	return _tab2 if scr == 1 else _tab
+
+
+## Where a screen's top left corner is in the panel's (and the CRT picture's) pixels.
+func screen_origin(scr: int) -> Vector2:
+	return Vector2(SCREEN.x, 0.0) if scr == 1 and _dual else Vector2.ZERO
+
+
+## Is the keyboard this node's? With two screens only the program on the screen the
+## warden looks at takes keys (Builder's arrows panned the map on the other monitor);
+## scripts/os98/os_keys.gd asks this for the programs.
+func keys_for(node: Node) -> bool:
+	if not _dual:
+		return true
+	var n := node
+	while n != null and n.get_parent() != _pages_layer:
+		n = n.get_parent()
+	if n == null:
+		return true
+	if n == _pages.get(_tab2):
+		return _screen == 1
+	if n == _pages.get(_tab):
+		return _screen == 0
+	return false
+
+
+## A program for a screen that is not on the other one.
+func _spare_tab(other: String) -> String:
+	for id in ["camp_status", "guestrack", "mail", "builder", "browser"]:
+		if id != other:
+			return id
+	return "files"
+
+
+func _place_pages() -> void:
+	for k in _pages:
+		var p: Control = _pages[k]
+		if not is_instance_valid(p):
+			continue
+		var second: bool = _dual and k == _tab2
+		p.visible = k == _tab or second
+		p.position.x = SCREEN.x if second else 0.0
+	_redraw_tabs()
+
+
+func _redraw_tabs() -> void:
+	for k in _tab_buttons:
+		(_tab_buttons[k] as Control).queue_redraw()
+	for k in _tab_buttons2:
+		(_tab_buttons2[k] as Control).queue_redraw()
+	if _screen2 != null:
+		_screen2.queue_redraw()
+
+
+## The second screen: its wallpaper (black till the desktop is up, as a second card's
+## monitor stayed then) and its taskbar: the same tabs and tray, no Start.
+func _build_screen2() -> void:
+	_screen2 = Control.new()
+	_screen2.name = "Screen2"
+	_screen2.position = Vector2(SCREEN.x, 0.0)
+	_screen2.size = SCREEN
+	_screen2.mouse_filter = Control.MOUSE_FILTER_STOP
+	_screen2.visible = false
+	_screen2.draw.connect(func():
+		var desk: bool = _state == Boot.DESKTOP and not (_extras != null and _extras.is_saving())
+		_screen2.draw_rect(Rect2(Vector2.ZERO, SCREEN), T.DESKTOP if desk else Color.BLACK)
+		if desk and _wallpaper_tex != null:
+			var s := _wallpaper_tex.get_size()
+			var k := maxf(SCREEN.x / s.x, DESKTOP_SIZE.y / s.y)
+			_screen2.draw_texture_rect(_wallpaper_tex, Rect2((DESKTOP_SIZE - s * k) * 0.5, s * k), false, Color(0.8, 0.8, 0.8))
+	)
+	add_child(_screen2)
+	var bar := Panel.new()
+	bar.name = "Taskbar2"
+	bar.position = Vector2(0, SCREEN.y - TASKBAR_H)
+	bar.size = Vector2(SCREEN.x, TASKBAR_H)
+	bar.add_theme_stylebox_override("panel", T.box("thin_raised", T.FACE, Vector4.ZERO))
+	_screen2.add_child(bar)
+	var x := 3.0
+	var seps: Array = []
+	for i in TABS.size():
+		var w := WIDE_W if bool(TABS[i][3]) else NARROW_W
+		var b := _make_tab_button(i, Vector2(x, 3), Vector2(w, TAB_H), 1)
+		bar.add_child(b)
+		_tab_buttons2[str(TABS[i][0])] = b
+		x += w + TAB_GAP
+		if i in TAB_GROUP_ENDS:
+			seps.append(x + floorf(TAB_GROUP_GAP * 0.5) - 1.0)
+			x += TAB_GROUP_GAP
+	bar.draw.connect(func():
+		for sx in seps:
+			bar.draw_rect(Rect2(sx, 6, 1, TAB_H - 6), T.SHADOW)
+			bar.draw_rect(Rect2(sx + 1, 6, 1, TAB_H - 6), T.WHITE)
+	)
+	var tray := Panel.new()
+	tray.add_theme_stylebox_override("panel", T.box("well", T.FACE, Vector4.ZERO))
+	tray.position = Vector2(SCREEN.x - TRAY_W - 3, 3)
+	tray.size = Vector2(TRAY_W, TAB_H)
+	bar.add_child(tray)
+	_money2 = Label.new()
+	_money2.position = Vector2(20, 4)
+	_money2.size = Vector2(88, 14)
+	_money2.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_money2.add_theme_color_override("font_color", Color8(0, 100, 0))
+	_money2.add_theme_font_override("font", T.FONT_BOLD)
+	_money2.mouse_filter = Control.MOUSE_FILTER_PASS
+	tray.add_child(_money2)
+	_clock2 = Label.new()
+	_clock2.position = Vector2(20, 21)
+	_clock2.size = Vector2(88, 14)
+	_clock2.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_clock2.mouse_filter = Control.MOUSE_FILTER_PASS
+	tray.add_child(_clock2)
 
 
 func _build_pages() -> void:
@@ -1003,32 +1189,53 @@ func _free_page(id: String) -> void:
 	page.queue_free()
 
 
+## A program to the front of the screen the warden looks at.
 func _select_tab(id: String) -> void:
+	_select_tab_on(id, _screen if _dual else 0)
+
+
+func _select_tab_on(id: String, scr: int) -> void:
 	if _state != Boot.DESKTOP or not TAB_SCRIPTS.has(id):
 		return
+	if not _dual:
+		scr = 0
 	var page := _page(id)
-	if _tab == id and page.visible:
+	var cur := tab_on(scr)
+	if cur == id and page.visible:
 		return
-	if _tab != "" and _tab != id and _pages.has(_tab):
-		var oa = app_of(_tab)
-		if oa != null and oa.has_method("page_hidden"):
-			oa.page_hidden()
-		_last_tab = _tab
-	var was := _tab
-	_tab = id
-	for k in _pages:
-		(_pages[k] as Control).visible = k == id
+	var other := tab_on(1 - scr) if _dual else ""
+	# On the other screen already: the two programs change places.
+	var swap := other == id
+	if cur != "" and cur != id:
+		if scr == 0:
+			_last_tab = cur
+		else:
+			_last_tab2 = cur
+		if not swap:
+			var oa = app_of(cur)
+			if oa != null and oa.has_method("page_hidden"):
+				oa.page_hidden()
+	if scr == 1:
+		_tab2 = id
+		if swap:
+			_tab = cur if cur != "" else _spare_tab(id)
+	else:
+		_tab = id
+		if swap:
+			_tab2 = cur if cur != "" else _spare_tab(id)
+	_place_pages()
 	pointer_hand = false
 	# The program comes up from its taskbar button (outlines over it; it never waits).
-	if was != "" and _extras != null and _tab_buttons.has(id):
-		var b: Control = _tab_buttons[id]
-		_extras.zoom(Rect2(b.global_position - global_position, b.size), Rect2(Vector2.ZERO, DESKTOP_SIZE))
+	var buttons: Dictionary = _tab_buttons2 if scr == 1 else _tab_buttons
+	if cur != "" and _extras != null and buttons.has(id):
+		var b: Control = buttons[id]
+		_extras.zoom(Rect2(b.global_position - global_position, b.size), Rect2(screen_origin(scr), DESKTOP_SIZE))
 	_refresh_page(id)
 	var app = app_of(id)
 	if app != null and app.has_method("shown"):
 		app.shown()
-	for k in _tab_buttons:
-		(_tab_buttons[k] as Control).queue_redraw()
+	if swap:
+		_refresh_page(tab_on(1 - scr))
 
 
 func _refresh_page(id: String) -> void:
@@ -1175,7 +1382,9 @@ func _build_dialogs() -> void:
 func _make_dialog(app_id: String, p_title: String, p_icon: Texture2D, rect: Rect2) -> Control:
 	var win = WINDOW.new()
 	_dialogs.add_child(win)
-	win.setup(app_id, p_title, p_icon, rect, SCREEN)
+	# On the screen the warden looks at; dragged, it may go over to the other one.
+	rect.position += screen_origin(_screen)
+	win.setup(app_id, p_title, p_icon, rect, Vector2(SCREEN.x * (2.0 if _dual else 1.0), SCREEN.y))
 	win.close_requested.connect(func(): _close_window(win))
 	win.activated.connect(func(): win.move_to_front())
 	_refresh_dialog_catch()
@@ -1329,6 +1538,8 @@ func _process(delta: float) -> void:
 		Boot.DESKTOP:
 			_tick_desktop(delta)
 	_cursor.queue_redraw()
+	if _dual:
+		_screen2.queue_redraw()
 
 
 const BIOS_END := 3.1
@@ -1386,7 +1597,10 @@ func _enter_desktop() -> void:
 	if EmailManager != null and EmailManager.get_unread_count() > 0:
 		first = "mail"
 	_tab = ""
-	_select_tab(first)
+	_tab2 = ""
+	_select_tab_on(first, 0)
+	if _dual:
+		_select_tab_on(_last_tab2 if _last_tab2 != _tab else _spare_tab(_tab), 1)
 	# The panel fills in as the disk catches up: the wallpaper, the taskbar, the buttons
 	# one by one, then the program (it all takes clicks at once).
 	_reveal_t = 0.0
@@ -1408,9 +1622,10 @@ func _tick_reveal(delta: float) -> void:
 	for id in _tab_buttons:
 		(_tab_buttons[id] as Control).visible = _reveal_t >= REVEAL_BAR + 0.06 + REVEAL_TAB * i
 		i += 1
-	var p: Control = _pages.get(_tab)
-	if p != null:
-		p.visible = _reveal_t >= REVEAL_PAGE
+	for t in [_tab, _tab2]:
+		var p: Control = _pages.get(t)
+		if p != null:
+			p.visible = _reveal_t >= REVEAL_PAGE
 	if _reveal_t >= REVEAL_PAGE:
 		_reveal_t = -1.0
 		for id in _tab_buttons:
@@ -1425,6 +1640,10 @@ func _apply_state() -> void:
 	_taskbar.visible = desk
 	_boot.visible = not desk
 	_boot.queue_redraw()
+	if _screen2 != null:
+		_screen2.visible = _dual
+		_screen2.get_node("Taskbar2").visible = desk
+		_screen2.queue_redraw()
 
 
 func _draw_boot() -> void:
@@ -1541,21 +1760,25 @@ func _tick_desktop(delta: float) -> void:
 		_clock.text = _clock_text()
 		_clock.tooltip_text = "%s 1998" % Season.date_long(CoreRoot.get_day()) if CoreRoot != null else ""
 		_money.text = "$%s" % _group(CoreRoot.get_money() if CoreRoot != null else 0)
+		_clock2.text = _clock.text
+		_money2.text = _money.text
 		_refresh_ups(m)
 		_refresh_badges()
-		var p: Control = _pages.get(_tab)
-		if p != null and p.cover != null and is_instance_valid(p.cover):
-			_update_cover(p.cover)
+		for t in [_tab, _tab2]:
+			var p: Control = _pages.get(t)
+			if p != null and p.cover != null and is_instance_valid(p.cover):
+				_update_cover(p.cover)
 	# Tabs that want you flash, as the taskbar did: half a second on, half off.
 	for id in _flash.keys():
 		var before := float(_flash[id])
 		var now := before - delta
-		if now <= 0.0 or id == _tab:
+		if now <= 0.0 or id == _tab or id == _tab2:
 			_flash.erase(id)
 		else:
 			_flash[id] = now
 		if _tab_buttons.has(id) and (now <= 0.0 or int(before * 2.0) != int(now * 2.0)):
 			(_tab_buttons[id] as Control).queue_redraw()
+			(_tab_buttons2[id] as Control).queue_redraw()
 	_tick_reveal(delta)
 	_tick_menu_slide(delta)
 	if _net_t > 0.0:
@@ -1665,9 +1888,10 @@ func _build_taskbar() -> void:
 	tray.add_child(_clock)
 
 
-func _make_tab_button(i: int, pos: Vector2, sz: Vector2) -> Control:
+func _make_tab_button(i: int, pos: Vector2, sz: Vector2, scr := 0) -> Control:
 	var id := str(TABS[i][0])
 	var c := Control.new()
+	c.set_meta("screen", scr)
 	c.position = pos
 	c.size = sz
 	c.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -1684,9 +1908,9 @@ func _make_tab_button(i: int, pos: Vector2, sz: Vector2) -> Control:
 	c.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.pressed:
 			_close_start_menu()
-			if _tab != id:
+			if tab_on(scr) != id:
 				play("click", -12.0)
-			_select_tab(id)
+			_select_tab_on(id, scr)
 			c.accept_event()
 	)
 	var tex := icon(str(TABS[i][2]), false)
@@ -1713,7 +1937,10 @@ func _tab_available(id: String) -> bool:
 
 func _draw_tab(c: Control, i: int, tex: Texture2D) -> void:
 	var id := str(TABS[i][0])
-	var on := id == _tab
+	var scr := int(c.get_meta("screen", 0))
+	var on := id == tab_on(scr)
+	# Open on the other monitor: a little bar under its icon (a click brings it over).
+	var elsewhere := _dual and id == tab_on(1 - scr)
 	var hov := bool(c.get_meta("hover"))
 	var r := Rect2(Vector2.ZERO, c.size)
 	# Plain: raised, lit when the mouse is on it, pressed in when it is the one open.
@@ -1733,6 +1960,8 @@ func _draw_tab(c: Control, i: int, tex: Texture2D) -> void:
 	var avail := _tab_available(id)
 	var ix := floorf((r.size.x - 32) * 0.5)
 	c.draw_texture_rect(tex, Rect2(Vector2(ix, 3) + o, Vector2(32, 32)), false, Color.WHITE if avail else Color(1, 1, 1, 0.4))
+	if elsewhere:
+		c.draw_rect(Rect2(ix + 6, r.size.y - 4, 20, 2), T.NAVY)
 	# The key on a little keycap in the corner: a raised grey key with its digit.
 	var cap := Rect2(Vector2(r.size.x - 10, r.size.y - 11) + o, Vector2(8, 9))
 	c.draw_rect(cap, T.DARK)
@@ -1812,7 +2041,7 @@ func _refresh_badges() -> void:
 		var newest := 0
 		for e in g.reviews:
 			newest = maxi(newest, int(e["id"]))
-		if _tab == "reviews":
+		if _tab == "reviews" or _tab2 == "reviews":
 			_reviews_seen = newest
 		elif _reviews_seen >= 0 and newest > _reviews_seen:
 			var fresh := 0
@@ -1835,11 +2064,10 @@ func _refresh_badges() -> void:
 			var was: Array = _badges.get(id, [])
 			var now_n := int(str(b[id][0])) if str(b[id][0]).is_valid_int() else 0
 			var was_n := int(str(was[0])) if not was.is_empty() and str(was[0]).is_valid_int() else 0
-			if now_n > was_n and id != _tab and _state == Boot.DESKTOP and _reveal_t < 0.0:
+			if now_n > was_n and id != _tab and id != _tab2 and _state == Boot.DESKTOP and _reveal_t < 0.0:
 				_flash[id] = FLASH_SEC
 		_badges = b
-		for k in _tab_buttons:
-			(_tab_buttons[k] as Control).queue_redraw()
+		_redraw_tabs()
 
 
 func _refresh_tray() -> void:
@@ -1849,7 +2077,7 @@ func _refresh_tray() -> void:
 
 func _on_email_received(_mail: Dictionary) -> void:
 	_refresh_badges()
-	if _tab != "mail":
+	if _tab != "mail" and _tab2 != "mail":
 		_flash["mail"] = FLASH_SEC
 	play("mail", -6.0)
 	_refresh_mail_windows()
@@ -2108,6 +2336,8 @@ func set_wallpaper(path: String) -> void:
 	_wallpaper_tex = load(path) if path != "" and ResourceLoader.exists(path) else null
 	if _pages_layer != null:
 		_pages_layer.queue_redraw()
+	if _screen2 != null:
+		_screen2.queue_redraw()
 
 
 # ── UPS monitor (unpaid power bill) ──────────────────────────────────────────
@@ -2180,7 +2410,7 @@ func _input(event: InputEvent) -> void:
 			n = event.keycode - KEY_KP_1
 		if n >= 0 and n < TABS.size():
 			_close_start_menu()
-			if _tab != str(TABS[n][0]):
+			if tab_on(_screen) != str(TABS[n][0]):
 				play("click", -12.0)
 			_select_tab(str(TABS[n][0]))
 			get_viewport().set_input_as_handled()

@@ -14,6 +14,8 @@ uniform float scanline_period = 3.0;      // screen pixels per scanline
 uniform float vignette_strength : hint_range(0.0, 1.0) = 0.38;
 uniform float glow : hint_range(0.0, 0.3) = 0.06;
 uniform float fade : hint_range(0.0, 1.0) = 1.0;
+// The part of the picture this screen shows (crt_glass.gdshader uv_rect).
+uniform vec4 uv_rect = vec4(0.0, 0.0, 1.0, 1.0);
 
 vec2 barrel(vec2 uv) {
 	vec2 c = uv - 0.5;
@@ -27,7 +29,7 @@ void fragment() {
 	float sd = length(max(e, vec2(0.0))) - corner_radius;
 	float mask = 1.0 - smoothstep(-0.004, 0.001, sd);
 	float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
-	vec4 c = texture(TEXTURE, clamp(uv, 0.0, 1.0));
+	vec4 c = texture(TEXTURE, uv_rect.xy + clamp(uv, 0.0, 1.0) * uv_rect.zw);
 	c.rgb *= inside;
 	float line = 0.5 + 0.5 * cos(FRAGCOORD.y * 6.2831853 / scanline_period);
 	c.rgb *= 1.0 - scanline_strength * line;

@@ -60,6 +60,7 @@ const INDEX := {
 	"kuryr-hlubocany.cz/dnes": "news this week courier today camp reservoir hockey",
 	"obec-liblice.cz": "liblice village obec mayor fire station ball bridge church bell notices",
 	"agrostroj-hlubocany.cz": "agrostroj feed mill factory land camp plan director jobs",
+	"pc-servis-hlubocany.cz": "computer pc monitor monitors screen second two display repair service graphics card mouse used okna",
 }
 
 const PAGES := {
@@ -472,7 +473,37 @@ Batteries R20, any amount.
 
 A child's rubber boot, red, left foot, on the reservoir shore below the dam. The owner can collect it at the Water Board. Mr Hruby.
 """ + HR + """
-{bohemia-online.cz|Bohemia Online}""",
+{bohemia-online.cz|Bohemia Online}
+
+[font_size=10][color=#a09880]PC Servis Hlubocany - used monitors, cards, mice: {pc-servis-hlubocany.cz|pc-servis-hlubocany.cz}[/color][/font_size]""",
+	},
+	# The second monitor (scripts/reception/post_delivery.gd): found only from the foot
+	# of the bazaar's page or by searching for it (the user 21. 10.: "lowkey, the curious
+	# find it and the hasty do not").
+	"pc-servis-hlubocany.cz": {
+		"title": "PC Servis Hlubocany",
+		"bg": "#c0c0c0", "fg": "#000000", "link": "#000080",
+		"body": """[center][font_size=20][b]PC SERVIS HLUBOCANY[/b][/font_size]
+[color=#404040]computers - repairs - used parts - Nadrazni 6[/color]
+{{counter}}[/center]
+""" + HR + """
+[b]NEW IN OKNA 98: TWO MONITORS ON ONE COMPUTER![/b]
+Okna 98 shows the desktop on two monitors at once, one program on each.
+The accounts on the left, the letters on the right. Every office in Jihlava has it.
+
+[center]{{img:web_monitor2:256}}[/center]
+
+[b]THE SET:[/b] a 15" monitor (used, tested 48 hours) and a second graphics card,
+S3 Trio64 with its cable. The card goes into the free slot, the monitor beside the old one.
+Ten minutes with a screwdriver, Okna 98 finds it by itself.
+
+[b][font_size=18]$149[/font_size][/b]  with the post. Sent the same day, it comes in a few hours.
+
+{{pcservis}}
+
+[color=#606060]We do not take back monitors for "seeing things" at night. The tube is fine.  J. Benes[/color]
+""" + HR + """
+{bazar-hlubocany.cz|Bazar Hlubocany}   {bohemia-online.cz|Bohemia Online}""",
 	},
 	"hostinec-u-jezera.cz": {
 		"title": "Hostinec U Jezera",

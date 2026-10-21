@@ -16665,6 +16665,9 @@ msgid ""
 "\n"
 "The camp has $%d."
 msgstr ""
+"Platba byla odmítnuta.\n"
+"\n"
+"Kemp má $%d."
 
 #: scripts/os98/apps/browser_app.gd:1010
 msgid ""
@@ -17517,7 +17520,7 @@ msgstr ""
 
 #: scripts/os98/apps/business_app.gd:24
 msgid "Order"
-msgstr ""
+msgstr "Objednat"
 
 #: scripts/os98/apps/business_app.gd:24
 msgid "Staff"
@@ -23866,6 +23869,66 @@ msgstr "Zůstat"
 #. uses 3
 msgid "work#%d"
 msgstr ""
+
+#. manual
+msgid "SETUP UPGRADED"
+msgstr "VYLEPŠENÉ PRACOVIŠTĚ"
+
+#. manual
+msgid "A second monitor on the PC desk."
+msgstr "Na stole u počítače stojí druhý monitor."
+
+#. manual
+msgid "A post van pulls up outside the barrier."
+msgstr "Před závorou zastavila dodávka pošty."
+
+#. manual
+msgid "The postman is waiting at the reception."
+msgstr "Pošťák čeká na recepci."
+
+#. manual
+msgid "The postman did not wait. He will come again tomorrow."
+msgstr "Pošťák nepočkal. Přijde zase zítra."
+
+#. manual
+msgid "The parcel was signed for. A second monitor on the PC desk."
+msgstr "Balík je převzatý. Na stole u počítače stojí druhý monitor."
+
+#. manual
+msgid "Postman"
+msgstr "Pošťák"
+
+#. manual
+msgid "Parcel for the camp, order %d. Sign here, please."
+msgstr "Balík pro kemp, objednávka %d. Tady podepište, prosím."
+
+#. manual
+msgid "Right. Thank you."
+msgstr "Tak. Děkuju."
+
+#. manual
+msgid "Heavy one. Mind your back."
+msgstr "Je těžkej. Bacha na záda."
+
+#. manual
+msgid ""
+"Order the monitor and the second card for $%d?\n"
+"\n"
+"The money is taken from the camp's account."
+msgstr ""
+"Objednat monitor a druhou kartu za $%d?\n"
+"\n"
+"Peníze se stáhnou z účtu kempu."
+
+#. manual
+msgid ""
+"Thank you. Order no. %d.\n"
+"\n"
+"The post brings it in a few hours."
+msgstr ""
+"Děkujeme. Objednávka č. %d.\n"
+"\n"
+"Pošta ji přiveze za pár hodin."
 
 #: scripts/ui/main_menu.gd:77
 msgid "Businesses"

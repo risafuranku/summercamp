@@ -107,6 +107,13 @@ const CURTAIN = preload("res://scripts/reception/curtain.gd")
 const CRT_YAW_DEG := 18.0
 const CRT_PIVOT := Vector3(0.24, 1.35, -1.53)
 const CRT_SEAT_ROT := Vector3(0.0, 0.3141593, 0.0)   # CRT_YAW_DEG in radians
+## The second monitor (bought on the web, brought by the post: scripts/reception/
+## post_delivery.gd): a used 15-inch on a stack of phone books right of the first, turned
+## to the chair; the radio moves up on top of it. PC-corner space like CRT_PIVOT.
+const MON2_PIVOT := Vector3(1.02, 1.335, -1.42)
+const MON2_YAW_DEG := -17.0
+const MON2_SCALE := 0.84
+const POST_DELIVERY = preload("res://scripts/reception/post_delivery.gd")
 const DESK_ROOM = preload("res://scripts/reception/desk_room.gd")
 ## The radio stands on the right end of the desk, clear of the monitor (its click box once
 ## lay over the monitor's left side: a click on the monitor switched the radio off).
@@ -222,6 +229,17 @@ var _crt_look_back_active: bool = false
 
 var _crt_view_cam_pos: Vector3 = Vector3(0.24, 1.37, -0.24) + PC_OFFSET
 var _crt_full_cam_pos: Vector3 = Vector3(0.28, 1.35, -0.34) + PC_OFFSET
+## At the PC, where you look (the user 21. 10.: D once looks right, A back): 0 the
+## first monitor, 1 the second one, or without it out of the office window.
+var _crt_look := 0
+var _dual := false
+var _post
+var _crt2_root: Node3D
+var _crt2_screen: MeshInstance3D
+var _crt2_full_cam_pos := Vector3.ZERO
+var _crt2_view_cam_pos := Vector3.ZERO
+var _radio_set: Node3D
+var _radio_click_center: Vector3 = RADIO_CLICK_CENTER_LOCAL
 var _grid_manager
 var _building_manager
 var _legacy_ui_adapter
@@ -287,6 +305,10 @@ func _ready() -> void:
 	_build_crt_viewport() # Build CRT internal UI
 	_build_room()
 	_configure_crt_ui()
+	_post = POST_DELIVERY.new()
+	_post.name = "PostDelivery"
+	add_child(_post)
+	_post.setup(self)
 	_setup_radio_character()
 	_setup_radio()
 	call_deferred("_collect_radio_tracks")
@@ -577,7 +599,7 @@ func _update_office_hover() -> void:
 			meshes.append(_office_light_switch_mesh)
 		elif collider != null and _node_has_click_type(collider, "crt_power"):
 			HandCursor.want(HandCursor.POINT)
-		elif _crt_screen != null and _map_mouse_to_crt(m, false) != Vector2.INF:
+		elif _crt_screen != null and (_map_mouse_to_screen(m, _crt_screen, false) != Vector2.INF or (_dual and _map_mouse_to_screen(m, _crt2_screen, false) != Vector2.INF)):
 			HandCursor.want(HandCursor.POINT)
 	if not meshes.is_empty():
 		HandCursor.want(HandCursor.POINT)
@@ -678,7 +700,7 @@ func _exit_crt_look_back() -> void:
 	_crt_orbit_enabled = false
 	if _camera_tween != null:
 		_camera_tween.kill()
-	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, CRT_LOOK_BACK_TRANSITION_SEC, Tween.TRANS_SINE, Tween.EASE_OUT)
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_seat_pos(), "rotation": _crt_rest_rot(_crt_seat_pos()), "fov": CRT_READY_FOV}, CRT_LOOK_BACK_TRANSITION_SEC, Tween.TRANS_SINE, Tween.EASE_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
@@ -729,8 +751,9 @@ func _capture_crt_orbit_anchor() -> void:
 
 
 func _get_crt_orbit_pivot() -> Vector3:
-	if _crt_screen != null and is_instance_valid(_crt_screen):
-		return _crt_screen.global_transform.origin
+	var scr := _look_screen()
+	if scr != null and is_instance_valid(scr):
+		return scr.global_transform.origin
 	if _crt_body != null and is_instance_valid(_crt_body):
 		return _crt_body.global_transform.origin
 	return _crt_orbit_anchor_pos + Vector3(0.0, 0.0, -0.4)
@@ -758,7 +781,8 @@ func coop_screen_frame() -> PackedByteArray:
 	var img := _crt_viewport.get_texture().get_image()
 	if img == null or img.is_empty():
 		return PackedByteArray()
-	img.resize(COOP_SCREEN_SIZE.x, COOP_SCREEN_SIZE.y, Image.INTERPOLATE_BILINEAR)
+	# Two monitors: both screens, side by side, each at the half size.
+	img.resize(COOP_SCREEN_SIZE.x * (2 if _dual else 1), COOP_SCREEN_SIZE.y, Image.INTERPOLATE_BILINEAR)
 	return img.save_jpg_to_buffer(COOP_SCREEN_QUALITY)
 
 
@@ -773,9 +797,13 @@ func coop_show_screen(frame: PackedByteArray) -> void:
 		_coop_screen_tex = ImageTexture.create_from_image(img)
 	else:
 		_coop_screen_tex.update(img)
-	var mat := _crt_screen.material_override as ShaderMaterial
-	if mat != null:
-		mat.set_shader_parameter("screen_tex", _coop_screen_tex)
+	var two := img.get_width() >= img.get_height() * 2
+	for k in 2:
+		var scr: MeshInstance3D = _crt_screen if k == 0 else _crt2_screen
+		var mat := scr.material_override as ShaderMaterial if scr != null else null
+		if mat != null:
+			mat.set_shader_parameter("screen_tex", _coop_screen_tex)
+			mat.set_shader_parameter("uv_rect", Vector4(0.5 * k, 0.0, 0.5, 1.0) if two else Vector4(0.0, 0.0, 1.0, 1.0))
 	_coop_screen_left = COOP_SCREEN_HOLD
 
 
@@ -790,16 +818,21 @@ func _coop_screen_tick(delta: float) -> void:
 ## Your own PC's picture back on its screen.
 func coop_end_screen() -> void:
 	_coop_screen_left = 0.0
-	var mat := _crt_screen.material_override as ShaderMaterial if _crt_screen != null else null
-	if mat != null and _crt_viewport != null:
-		mat.set_shader_parameter("screen_tex", _crt_viewport.get_texture())
+	for k in 2:
+		var scr: MeshInstance3D = _crt_screen if k == 0 else _crt2_screen
+		var mat := scr.material_override as ShaderMaterial if scr != null else null
+		if mat != null and _crt_viewport != null:
+			mat.set_shader_parameter("screen_tex", _crt_viewport.get_texture())
+			mat.set_shader_parameter("uv_rect", _screen_uv_rect(k == 1))
 
 
 func _try_click_crt(event: InputEventMouseButton) -> void:
 	if _interior_camera == null or _crt_screen == null or _crt_viewport == null:
 		return
-	# Strict hit test: only the real CRT screen quad is clickable.
-	var vp_pos = _map_mouse_to_crt(event.position, false)
+	# Strict hit test: only the real CRT screen quads are clickable; the second monitor's
+	# sits you down turned to it.
+	var look := 1 if _dual and _map_mouse_to_screen(event.position, _crt2_screen, false) != Vector2.INF else 0
+	var vp_pos = _map_mouse_to_screen(event.position, _crt_screen, false) if look == 0 else Vector2.ZERO
 	if vp_pos != Vector2.INF:
 		# Co-op: one at the PC at a time (the others look over their shoulder).
 		for id in Coop.others():
@@ -808,7 +841,7 @@ func _try_click_crt(event: InputEventMouseButton) -> void:
 				if _extras != null:
 					_extras.coop_refuse("pc")
 				return
-		enter_crt_view()
+		enter_crt_view(false, look)
 
 
 func _build_viewport() -> void:
@@ -1308,11 +1341,8 @@ func _build_crt_viewport() -> void:
 
 	_crt_ui = CRT_UI_SCENE.new()
 	_crt_ui.name = "CRTScannerUI"
-	_crt_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_crt_ui.offset_left = 0.0
-	_crt_ui.offset_top = 0.0
-	_crt_ui.offset_right = 0.0
-	_crt_ui.offset_bottom = 0.0
+	_crt_ui.position = Vector2.ZERO
+	_crt_ui.size = Vector2(CRT_RESOLUTION)
 	_crt_viewport.add_child(_crt_ui)
 	_configure_crt_ui()
 
@@ -1345,13 +1375,12 @@ func _sync_interior_viewport_to_window() -> void:
 func _sync_crt_viewport_to_window() -> void:
 	if _crt_viewport == null:
 		return
-	_crt_viewport.size = CRT_RESOLUTION
+	# With the second monitor its screen is drawn beside the first (os_shell.gd).
+	_crt_viewport.size = Vector2i(CRT_RESOLUTION.x * (2 if _dual else 1), CRT_RESOLUTION.y)
 	if _crt_ui != null:
-		_crt_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_crt_ui.offset_left = 0.0
-		_crt_ui.offset_top = 0.0
-		_crt_ui.offset_right = 0.0
-		_crt_ui.offset_bottom = 0.0
+		_crt_ui.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_crt_ui.position = Vector2.ZERO
+		_crt_ui.size = Vector2(CRT_RESOLUTION)
 
 
 ## `instant`: a new game starts already seated, the monitor filling the view from the
@@ -1363,8 +1392,11 @@ const CRT_LEAN_IN_SEC := 0.4
 const CRT_STAND_SEC := 0.45
 
 
-func enter_crt_view(instant: bool = false) -> void:
+func enter_crt_view(instant: bool = false, look := 0) -> void:
 	if _crt_active: return
+	_crt_look = look if _dual else 0
+	if _crt_ui != null and _crt_ui.has_method("set_screen"):
+		_crt_ui.set_screen(_crt_look)
 	if not _monitor_on:
 		_toggle_monitor()
 	# Sitting down at it wakes the screen saver, as touching the mouse would.
@@ -1379,8 +1411,8 @@ func enter_crt_view(instant: bool = false) -> void:
 
 	if _camera_tween: _camera_tween.kill()
 	if instant:
-		_interior_camera.position = _crt_full_cam_pos
-		_interior_camera.rotation = _crt_rest_rot(_crt_full_cam_pos)
+		_interior_camera.position = _crt_seat_pos()
+		_interior_camera.rotation = _crt_rest_rot(_crt_seat_pos())
 		_interior_camera.fov = CRT_READY_FOV
 		_capture_crt_orbit_anchor()
 		if _crt_ui:
@@ -1390,7 +1422,8 @@ func enter_crt_view(instant: bool = false) -> void:
 	# Screen Z global: -0.535.
 	# Target Z: 0.1
 	_crt_orbit_enabled = false
-	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_view_cam_pos, "rotation": _crt_rest_rot(_crt_view_cam_pos), "fov": CRT_ENTER_FOV}, CRT_SIT_SEC, Tween.TRANS_CUBIC, Tween.EASE_OUT)
+	var approach := _crt_seat_pos(false)
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": approach, "rotation": _crt_rest_rot(approach), "fov": CRT_ENTER_FOV}, CRT_SIT_SEC, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
@@ -1404,7 +1437,9 @@ func enter_crt_view(instant: bool = false) -> void:
 
 func _exit_crt_view() -> void:
 	if not _crt_active: return
-	_crt_leaning = false
+	_crt_look = 0
+	if _crt_ui != null and _crt_ui.has_method("set_screen"):
+		_crt_ui.set_screen(0)
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
@@ -1456,17 +1491,16 @@ func _input(event: InputEvent) -> void:
 			if _handle_crt_look_back_key(key_event):
 				get_viewport().set_input_as_handled()
 				return
-			# Not typing into the machine: S stands you up, D (held) leans you out to
-			# look through the office window.
+			# Not typing into the machine: S stands you up, D turns you right (to the
+			# second monitor, or out of the office window), A back to the first one.
 			if not _crt_typing():
 				if key_event.physical_keycode == KEY_S and key_event.pressed and not key_event.echo:
-					_crt_lean(false, true)
 					_exit_crt_view()
 					get_viewport().set_input_as_handled()
 					return
-				if key_event.physical_keycode == KEY_D:
-					if not key_event.echo:
-						_crt_lean(key_event.pressed)
+				if key_event.physical_keycode == KEY_D or key_event.physical_keycode == KEY_A:
+					if key_event.pressed and not key_event.echo:
+						_crt_turn(1 if key_event.physical_keycode == KEY_D else 0)
 					get_viewport().set_input_as_handled()
 					return
 			# The keyboard under your fingers: a clack per key (the shell's own sound).
@@ -1522,32 +1556,58 @@ func _crt_rest_rot(pos: Vector3) -> Vector3:
 	return Transform3D(Basis(), pos).looking_at(pivot, Vector3.UP).basis.get_euler()
 
 
-var _crt_leaning := false
-
-
-## D at the PC: lean out to the right, past the monitor, and look out of the office
-## window; let go and you are back at the screen.
-func _crt_lean(on: bool, instant := false) -> void:
-	if on == _crt_leaning or not _crt_active or _interior_camera == null:
+## A or D at the PC: one press turns you (it was D held to lean out, playtest 21. 10.).
+## Right is the second monitor once it is on the desk, the office window before that.
+func _crt_turn(to: int) -> void:
+	if to == _crt_look or not _crt_active or _interior_camera == null:
 		return
-	_crt_leaning = on
+	_crt_look = to
 	_crt_orbit_enabled = false
+	if _crt_ui != null and _crt_ui.has_method("set_screen"):
+		_crt_ui.set_screen(to if _dual else 0)
 	if _camera_tween != null:
 		_camera_tween.kill()
-	if instant:
-		return
-	if on:
+	if to == 1 and not _dual:
 		var pos := _crt_full_cam_pos + Vector3(0.46, 0.08, -0.12)
 		var rot := Transform3D(Basis(), pos).looking_at(WINDOW_CENTER + Vector3(0, -0.12, 0), Vector3.UP).basis.get_euler()
 		_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": pos, "rotation": rot, "fov": 44.0}, 0.55, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
-	else:
-		_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, 0.45, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
-		_camera_tween.finished.connect(func():
-			if not _crt_active or _crt_leaning:
-				return
-			_capture_crt_orbit_anchor()
-			_crt_orbit_enabled = true
-		)
+		return
+	var seat := _crt_seat_pos()
+	# The chair rolls the half metre along the desk and the head turns with it.
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": seat, "rotation": _crt_rest_rot(seat), "fov": CRT_READY_FOV}, 0.42, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+	_camera_tween.finished.connect(func():
+		if not _crt_active or _crt_look != to:
+			return
+		_capture_crt_orbit_anchor()
+		_crt_orbit_enabled = true
+	)
+
+
+## Where the eye is, sat at the monitor you look at (`full`: leant in to it; else where
+## you first sit down).
+func _crt_seat_pos(full := true) -> Vector3:
+	if _crt_look == 1 and _dual:
+		return _crt2_full_cam_pos if full else _crt2_view_cam_pos
+	return _crt_full_cam_pos if full else _crt_view_cam_pos
+
+
+## The glass you look at: the second monitor's, the first's, or none (out of the window).
+func _look_screen() -> MeshInstance3D:
+	if _crt_look == 1:
+		return _crt2_screen if _dual else null
+	return _crt_screen
+
+
+## Where the screen you look at is in the CRT picture (the second is drawn right of it).
+func _look_origin() -> Vector2:
+	return Vector2(CRT_RESOLUTION.x, 0) if _crt_look == 1 and _dual else Vector2.ZERO
+
+
+## The part of the CRT picture a monitor shows (the shaders' uv_rect).
+func _screen_uv_rect(second: bool) -> Vector4:
+	if not _dual:
+		return Vector4(0.0, 0.0, 1.0, 1.0)
+	return Vector4(0.5 if second else 0.0, 0.0, 0.5, 1.0)
 
 
 ## At the PC: the pointer below the monitor, in the bottom band (the OS cursor stops at
@@ -1568,7 +1628,7 @@ func _crt_stand_zone() -> bool:
 
 
 func _forward_input_to_crt(event: InputEventMouse) -> void:
-	if _interior_camera == null or _crt_screen == null or _crt_viewport == null:
+	if _interior_camera == null or _look_screen() == null or _crt_viewport == null:
 		return
 	var vp_pos = _map_mouse_to_crt(event.position, false)
 	if vp_pos == Vector2.INF:
@@ -1622,7 +1682,8 @@ func _ensure_crt_sharp() -> void:
 
 
 func _update_crt_sharp() -> void:
-	var show := visible and is_inside_tree() and _crt_active and _crt_screen != null and _crt_viewport != null and _interior_camera != null and _viewport != null
+	var screen_mesh := _look_screen()
+	var show := visible and is_inside_tree() and _crt_active and screen_mesh != null and _crt_viewport != null and _interior_camera != null and _viewport != null
 	if not show:
 		if _crt_sharp != null and is_instance_valid(_crt_sharp):
 			_crt_sharp.visible = false
@@ -1633,10 +1694,10 @@ func _update_crt_sharp() -> void:
 	# scaled from the small render to the window. A rectangle round the corners did not
 	# follow the perspective and the desktop spilled past the glass at the sides
 	# (playtest 2026-10-17: "the start menu and taskbar are all scattered").
-	var quad := _crt_screen.mesh as QuadMesh
+	var quad := screen_mesh.mesh as QuadMesh
 	var window := get_tree().root.get_visible_rect().size
 	var render := _interior_camera.get_viewport().get_visible_rect().size
-	var xf := _crt_screen.global_transform
+	var xf := screen_mesh.global_transform
 	var gx := CRT_SHARP_GRID.x
 	var lo_y := INF
 	var hi_y := -INF
@@ -1655,6 +1716,7 @@ func _update_crt_sharp() -> void:
 	# Fade in as the monitor fills the view (sharp when you are at it).
 	var fill := (hi_y - lo_y) / maxf(1.0, window.y)
 	(_crt_sharp.material as ShaderMaterial).set_shader_parameter("fade", clampf((fill - 0.18) / 0.22, 0.0, 1.0))
+	(_crt_sharp.material as ShaderMaterial).set_shader_parameter("uv_rect", _screen_uv_rect(_crt_look == 1))
 	_crt_sharp.visible = true
 	_crt_sharp.queue_redraw()
 
@@ -1675,7 +1737,7 @@ func _exit_tree() -> void:
 func debug_crt_to_window(p: Vector2) -> Vector2:
 	if _crt_sharp == null or _crt_sharp_pts.is_empty():
 		return Vector2(-1, -1)
-	var target := p / Vector2(CRT_RESOLUTION)
+	var target := (p - _look_origin()) / Vector2(CRT_RESOLUTION)
 	var g := target
 	for i in 8:
 		g += target - _crt_barrel(g)
@@ -1702,21 +1764,31 @@ static func _crt_barrel(uv: Vector2) -> Vector2:
 	return Vector2(0.5, 0.5) + c * (1.0 + CRT_CURVE * d) / (1.0 + CRT_CURVE * 0.25)
 
 
+## The mouse on the screen you look at, in CRT picture pixels (the second monitor's are
+## right of the first's); INF off it.
 func _map_mouse_to_crt(mouse_pos: Vector2, allow_fallback: bool = true) -> Vector2:
-	var vp_size = _crt_viewport.size
-	if vp_size.x <= 0 or vp_size.y <= 0:
+	var scr := _look_screen()
+	if scr == null:
+		return Vector2.INF
+	var p := _map_mouse_to_screen(mouse_pos, scr, allow_fallback)
+	return p if p == Vector2.INF else p + _look_origin()
+
+
+func _map_mouse_to_screen(mouse_pos: Vector2, screen_mesh: MeshInstance3D, allow_fallback: bool = true) -> Vector2:
+	var vp_size := Vector2(CRT_RESOLUTION)
+	if _crt_viewport == null or screen_mesh == null:
 		return Vector2.INF
 	# Primary mapping: actual raycast against the CRT mesh in 3D.
 	var local_mouse = _to_interior_viewport_pos(mouse_pos)
 	var ray_origin = _interior_camera.project_ray_origin(local_mouse)
 	var ray_dir = _interior_camera.project_ray_normal(local_mouse)
-	var screen_transform = _crt_screen.global_transform
+	var screen_transform = screen_mesh.global_transform
 	var plane_normal = screen_transform.basis.z.normalized()
 	var plane = Plane(plane_normal, plane_normal.dot(screen_transform.origin))
 	var intersect = plane.intersects_ray(ray_origin, ray_dir)
 	if intersect != null:
-		var local_hit = _crt_screen.to_local(intersect)
-		var quad = _crt_screen.mesh as QuadMesh
+		var local_hit = screen_mesh.to_local(intersect)
+		var quad = screen_mesh.mesh as QuadMesh
 		if quad != null and quad.size.x > 0.0 and quad.size.y > 0.0:
 			var half_w = quad.size.x * 0.5
 			var half_h = quad.size.y * 0.5
@@ -1753,7 +1825,7 @@ func _get_main_to_crt_scale() -> Vector2:
 	var screen_size = get_viewport().get_visible_rect().size
 	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
 		return Vector2.ONE
-	return Vector2(float(_crt_viewport.size.x) / screen_size.x, float(_crt_viewport.size.y) / screen_size.y)
+	return Vector2(float(CRT_RESOLUTION.x) / screen_size.x, float(CRT_RESOLUTION.y) / screen_size.y)
 
 
 func _configure_crt_ui() -> void:
@@ -1769,7 +1841,8 @@ func _configure_crt_ui() -> void:
 
 
 func _on_crt_desktop_ready() -> void:
-	if not _crt_active:
+	# (Turned to the office window: you stay looking out.)
+	if not _crt_active or _look_screen() == null:
 		return
 	_focus_crt_full()
 
@@ -1782,7 +1855,7 @@ func _focus_crt_full() -> void:
 	# The desktop is up: lean in to it, slowly, to the pose the mouse orbit keeps (it used
 	# to snap there in 0.4 s to a fixed angle the orbit then pulled away from: a jerk).
 	_crt_orbit_enabled = false
-	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_full_cam_pos, "rotation": _crt_rest_rot(_crt_full_cam_pos), "fov": CRT_READY_FOV}, CRT_LEAN_IN_SEC, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _crt_seat_pos(), "rotation": _crt_rest_rot(_crt_seat_pos()), "fov": CRT_READY_FOV}, CRT_LEAN_IN_SEC, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
 	_camera_tween.finished.connect(func():
 		if not _crt_active:
 			return
@@ -2342,6 +2415,7 @@ func _build_radio(pc_root: Node3D) -> void:
 	var set_root := Node3D.new()
 	set_root.name = "RadioSet"
 	set_root.position = pc_root.position + RADIO_AT
+	_radio_set = set_root
 	# Turned between the counter and the chair: its front seen from both.
 	set_root.rotation_degrees.y = 8.0
 	_room_root.add_child(set_root)
@@ -2405,6 +2479,9 @@ func _toggle_monitor() -> void:
 	var mat := _crt_screen.material_override as ShaderMaterial if _crt_screen != null else null
 	if mat != null:
 		mat.set_shader_parameter("powered", 1.0 if _monitor_on else 0.0)
+	var mat2 := _crt2_screen.material_override as ShaderMaterial if _crt2_screen != null else null
+	if mat2 != null:
+		mat2.set_shader_parameter("powered", 1.0 if _monitor_on else 0.0)
 	if _monitor_led_mat != null:
 		_monitor_led_mat.albedo_color = Color(0.3, 1.0, 0.35) if _monitor_on else Color(0.16, 0.2, 0.16)
 	_play_click_sfx("res://assets/sfx/desk/crt_power_on.mp3" if _monitor_on else "res://assets/sfx/desk/crt_power_off.mp3")
@@ -3921,7 +3998,7 @@ func _is_mouse_over_radio(mouse_pos: Vector2) -> bool:
 	var local_mouse = _to_interior_viewport_pos(mouse_pos)
 	var ray_origin = _interior_camera.project_ray_origin(local_mouse)
 	var ray_dir = _interior_camera.project_ray_normal(local_mouse)
-	var center_global = _room_root.to_global(RADIO_CLICK_CENTER_LOCAL)
+	var center_global = _room_root.to_global(_radio_click_center)
 	var half_extents = RADIO_CLICK_SIZE * 0.5
 	return _ray_intersects_aabb(ray_origin, ray_dir, center_global, half_extents)
 
@@ -4117,17 +4194,132 @@ func _add_box(parent: Node, name_str: String, pos: Vector3, size: Vector3, color
 ## The monitor, Build-engine style: a front slab carrying the painted bezel (buttons,
 ## lamp, the maker's plate), the body with its vents, the tube's back, the foot. The
 ## screen quad sits 5 mm in front of the bezel's black glass.
-func _build_monitor_boxes() -> void:
+## The second monitor on the desk or not (scripts/reception/post_delivery.gd asks every
+## half second from the PC's own record, so a load, a new camp and the other warden's
+## signature all come through here).
+func set_second_monitor(on: bool) -> void:
+	if on == _dual or _room_root == null:
+		return
+	_dual = on
+	if on:
+		_build_second_monitor()
+	elif _crt2_root != null:
+		_crt2_root.queue_free()
+		_crt2_root = null
+		_crt2_screen = null
+		if _crt_look == 1:
+			_crt_turn(0)
+	_sync_crt_viewport_to_window()
+	var mat := _crt_screen.material_override as ShaderMaterial if _crt_screen != null else null
+	if mat != null:
+		mat.set_shader_parameter("uv_rect", _screen_uv_rect(false))
+	_place_radio()
+	if _crt_ui != null and _crt_ui.has_method("set_dual"):
+		_crt_ui.set_dual(on)
+
+
+func has_second_monitor() -> bool:
+	return _dual
+
+
+## A used 15-inch in the same yellowed plastic, a shade greyer, on three phone books so
+## its picture comes up level with the first's; the same tube glass, showing the right
+## half of the CRT picture.
+func _build_second_monitor() -> void:
+	var pc_root := _room_root.get_node_or_null("PCCorner") as Node3D
+	if pc_root == null:
+		return
+	var yaw := deg_to_rad(MON2_YAW_DEG)
+	_crt2_root = Node3D.new()
+	_crt2_root.name = "SecondMonitor"
+	pc_root.add_child(_crt2_root)
+	var mon := Node3D.new()
+	mon.name = "CRTMonitor2"
+	mon.position = MON2_PIVOT
+	mon.rotation.y = yaw
+	mon.scale = Vector3.ONE * MON2_SCALE
+	_crt2_root.add_child(mon)
+	_build_monitor_boxes(mon, Color(0.9, 0.9, 0.94))
+	var body := StaticBody3D.new()
+	body.name = "CRTMonitor2Body"
+	body.position = MON2_PIVOT
+	body.rotation.y = yaw
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.86, 0.64, 0.66) * MON2_SCALE
+	cs.shape = bs
+	body.add_child(cs)
+	_crt2_root.add_child(body)
+	_crt2_screen = MeshInstance3D.new()
+	_crt2_screen.name = "CRTScreen2"
+	var scr_mesh := QuadMesh.new()
+	scr_mesh.size = CRT_SCREEN_QUAD_SIZE
+	scr_mesh.subdivide_width = 16
+	scr_mesh.subdivide_depth = 12
+	_crt2_screen.mesh = scr_mesh
+	_crt2_screen.position = CRT_SCREEN_LOCAL_POS
+	var scr_mat := ShaderMaterial.new()
+	scr_mat.shader = load("res://materials/crt_glass.gdshader")
+	scr_mat.set_shader_parameter("curve", CRT_CURVE)
+	scr_mat.set_shader_parameter("bulge", CRT_BULGE)
+	scr_mat.set_shader_parameter("screen_tex", _crt_viewport.get_texture())
+	scr_mat.set_shader_parameter("uv_rect", Vector4(0.5, 0.0, 0.5, 1.0))
+	scr_mat.set_shader_parameter("powered", 1.0 if _monitor_on else 0.0)
+	_crt2_screen.material_override = scr_mat
+	mon.add_child(_crt2_screen)
+	# The phone books under its foot (the foot's underside is 0.40 below the pivot).
+	var desk_top := 0.82
+	var foot_y := MON2_PIVOT.y - 0.40 * MON2_SCALE
+	var h := foot_y - desk_top
+	var books := Node3D.new()
+	books.name = "PhoneBooks"
+	books.position = MON2_PIVOT + Vector3(0.0, 0.0, 0.06 * MON2_SCALE).rotated(Vector3.UP, yaw)
+	books.position.y = desk_top
+	books.rotation.y = yaw
+	_crt2_root.add_child(books)
 	var K := INTERIOR_KIT
-	var plastic := K.surface("plastic", 0.35)
-	var vents := K.surface("monitor_side", 0.4) if ResourceLoader.exists("res://assets/textury/camp/monitor_side.png") else K.surface("monitor_back", 0.4)
-	K.slab(_crt_body, Vector3(0.80, 0.60, 0.06), Vector3(0.0, 0.02, 0.32), plastic, "CRTFront")
-	_face(_crt_body, "monitor_front", Vector2(0.80, 0.60), Vector3(0.0, 0.02, 0.351), 0.0)
-	K.slab(_crt_body, Vector3(0.72, 0.52, 0.34), Vector3(0.0, 0.02, 0.12), vents, "CRTBody")
-	K.slab(_crt_body, Vector3(0.46, 0.36, 0.26), Vector3(0.0, 0.02, -0.18), vents, "CRTBack")
-	K.slab(_crt_body, Vector3(0.18, 0.08, 0.20), Vector3(0.0, -0.32, 0.06), plastic, "CRTNeck")
-	K.slab(_crt_body, Vector3(0.40, 0.04, 0.32), Vector3(0.0, -0.38, 0.06), plastic, "CRTFoot")
-	_add_monitor_badge()
+	K.slab(books, Vector3(0.46, h, 0.34), Vector3(0.0, h * 0.5, 0.0), K.surface("cardboard", 0.4, Color(0.92, 0.84, 0.5)), "PhoneBookStack")
+	_face(books, "phonebooks", Vector2(0.46, h), Vector3(0.0, h * 0.5, 0.171), 0.0)
+	_face(books, "phonebooks", Vector2(0.34, h), Vector3(0.231, h * 0.5, 0.0), 90.0)
+	# The seat in front of it: as far from its glass as from the first's (it is smaller,
+	# so a little nearer), sat as at the first.
+	var to_seat := Vector3(0.03, 0.0, 1.19 * MON2_SCALE + 0.05).rotated(Vector3.UP, yaw)
+	_crt2_full_cam_pos = PC_OFFSET + MON2_PIVOT + to_seat + Vector3(0.0, 0.02, 0.0)
+	_crt2_view_cam_pos = _crt2_full_cam_pos + to_seat.normalized() * 0.1 + Vector3(0.0, 0.02, 0.0)
+
+
+## The radio on the desk's right end, or up on the second monitor once that stands there.
+func _place_radio() -> void:
+	if _radio_set == null:
+		return
+	if _dual:
+		var yaw := deg_to_rad(MON2_YAW_DEG)
+		_radio_set.position = PC_OFFSET + MON2_PIVOT + (Vector3(0.0, 0.28, 0.06) * MON2_SCALE).rotated(Vector3.UP, yaw)
+		_radio_set.rotation_degrees.y = MON2_YAW_DEG
+	else:
+		_radio_set.position = PC_OFFSET + RADIO_AT
+		_radio_set.rotation_degrees.y = 8.0
+	_radio_click_center = _radio_set.position + Vector3(0.0, 0.11, 0.0)
+	if _radio_power_click_body != null and is_instance_valid(_radio_power_click_body):
+		_radio_power_click_body.position = _radio_click_center
+
+
+func _build_monitor_boxes(body: Node3D = null, tint := Color.WHITE) -> void:
+	var first := body == null
+	if first:
+		body = _crt_body
+	var K := INTERIOR_KIT
+	var plastic := K.surface("plastic", 0.35, tint)
+	var vents := K.surface("monitor_side", 0.4, tint) if ResourceLoader.exists("res://assets/textury/camp/monitor_side.png") else K.surface("monitor_back", 0.4, tint)
+	K.slab(body, Vector3(0.80, 0.60, 0.06), Vector3(0.0, 0.02, 0.32), plastic, "CRTFront")
+	var front := _face(body, "monitor_front", Vector2(0.80, 0.60), Vector3(0.0, 0.02, 0.351), 0.0)
+	(front.material_override as StandardMaterial3D).albedo_color = tint
+	K.slab(body, Vector3(0.72, 0.52, 0.34), Vector3(0.0, 0.02, 0.12), vents, "CRTBody")
+	K.slab(body, Vector3(0.46, 0.36, 0.26), Vector3(0.0, 0.02, -0.18), vents, "CRTBack")
+	K.slab(body, Vector3(0.18, 0.08, 0.20), Vector3(0.0, -0.32, 0.06), plastic, "CRTNeck")
+	K.slab(body, Vector3(0.40, 0.04, 0.32), Vector3(0.0, -0.38, 0.06), plastic, "CRTFoot")
+	if first:
+		_add_monitor_badge()
 
 
 ## A textured face (assets/textury/camp/<tex>.png) on a box: the Build way of detail.
@@ -4276,4 +4468,7 @@ func room_is_dark() -> bool:
 
 ## The stove and whatever else office_dressing.gd makes clickable (reception_extras asks).
 func dressing_click(id: String) -> bool:
+	# The postman across the counter with the second monitor (post_delivery.gd).
+	if id == "postman":
+		return _post != null and _post.click_postman()
 	return _dressing != null and _dressing.click(id)

@@ -10,6 +10,7 @@ extends Control
 ## After dark the count at the top is one more than the line.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const BOARD = preload("res://scripts/os98/apps/score_board.gd")
 const HEAD_H := 40
 const CELL := 20
@@ -123,7 +124,7 @@ func _place_kid() -> void:
 
 
 func _input(e: InputEvent) -> void:
-	if not is_visible_in_tree() or not (e is InputEventKey) or not e.pressed:
+	if not is_visible_in_tree() or not (e is InputEventKey) or not e.pressed or not OS_KEYS.here(self):
 		return
 	var d := Vector2i.ZERO
 	match e.keycode:

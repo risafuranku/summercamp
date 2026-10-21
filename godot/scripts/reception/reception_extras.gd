@@ -449,7 +449,8 @@ func _incoming_done(answered: bool) -> void:
 func is_modal() -> bool:
 	return (phone_view != null and phone_view.visible) or (board_view != null and board_view.visible) \
 		or (sleep != null and sleep.is_running()) or _walking() \
-		or (host != null and host.has_method("is_desk_open") and host.is_desk_open())
+		or (host != null and host.has_method("is_desk_open") and host.is_desk_open()) \
+		or (host != null and host.get("_post") != null and host.get("_post").is_closeup_open())
 
 
 func in_back_room() -> bool:

@@ -18,6 +18,7 @@ signal program_requested(app_id: String)
 signal splash_finished
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const MAP_PANEL_SCRIPT = preload("res://scripts/crt_map_panel.gd")
 const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
 ## Keys (the panel's 1-9 are the computer's tabs; S stands you up, D leans you out).
@@ -709,6 +710,8 @@ func _set_overlay(id: String) -> void:
 ## The keys, while Builder is on the screen (and not under its title picture).
 func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree() or _splash != null or not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if not OS_KEYS.here(self):
 		return
 	var focus := get_viewport().gui_get_focus_owner()
 	if focus is LineEdit or focus is TextEdit:

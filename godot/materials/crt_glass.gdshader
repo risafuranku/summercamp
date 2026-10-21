@@ -17,6 +17,9 @@ uniform float lines = 480.0;
 uniform float brightness = 0.95;
 uniform float powered = 1.0;
 uniform vec3 glass = vec3(0.02, 0.026, 0.03);
+// The part of screen_tex this tube shows (x, y, w, h): with the second monitor the
+// office PC draws both screens side by side in one picture (building_interior.gd).
+uniform vec4 uv_rect = vec4(0.0, 0.0, 1.0, 1.0);
 
 varying vec2 v_c;
 
@@ -40,7 +43,7 @@ void fragment() {
 	float sd = length(max(e, vec2(0.0))) - corner_radius;
 	float mask = 1.0 - smoothstep(-0.006, 0.002, sd);
 	float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
-	vec3 pic = texture(screen_tex, clamp(uv, 0.0, 1.0)).rgb * brightness * powered;
+	vec3 pic = texture(screen_tex, uv_rect.xy + clamp(uv, 0.0, 1.0) * uv_rect.zw).rgb * brightness * powered;
 	pic *= 1.0 - scan * (0.5 + 0.5 * cos(uv.y * lines * 6.2831853));
 	float vig = dot(uv - 0.5, uv - 0.5);
 	pic *= 1.0 - 0.38 * smoothstep(0.08, 0.5, vig * 2.0);

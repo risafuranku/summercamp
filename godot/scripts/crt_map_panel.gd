@@ -12,6 +12,7 @@ signal building_clicked(info: Dictionary)
 signal guest_clicked(guest_id: int)
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## How wide a building is on the map, in tile widths: its 3D model's width plus depth over
@@ -761,7 +762,7 @@ func _process(delta: float) -> void:
 
 ## The arrow keys pan (not WASD: at the PC S stands you up and D leans you out).
 func _update_keyboard_pan(delta: float) -> void:
-	if delta <= 0.0 or not is_visible_in_tree():
+	if delta <= 0.0 or not is_visible_in_tree() or not OS_KEYS.here(self):
 		return
 	if not has_focus() and not _mouse_inside():
 		return

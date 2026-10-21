@@ -6,6 +6,7 @@ extends Control
 ## The pictures are Builder's own (its toolbar bulldozer, the map's tent).
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const CELL := 14.0
 const DOZER := "res://assets/textury/builder/tb2_bulldoze.png"
 const TENT := "res://assets/textury/builder/stan1.png"
@@ -45,7 +46,7 @@ func _add_tent() -> void:
 
 
 func _unhandled_key_input(e: InputEvent) -> void:
-	if not (e is InputEventKey) or not e.pressed or not is_visible_in_tree():
+	if not (e is InputEventKey) or not e.pressed or not is_visible_in_tree() or not OS_KEYS.here(self):
 		return
 	var d := {KEY_LEFT: Vector2i(-1, 0), KEY_RIGHT: Vector2i(1, 0), KEY_UP: Vector2i(0, -1), KEY_DOWN: Vector2i(0, 1)}.get(e.keycode, Vector2i.ZERO) as Vector2i
 	if d != Vector2i.ZERO:

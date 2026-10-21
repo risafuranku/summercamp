@@ -112,6 +112,8 @@ godot --headless --path godot res://tools/podniky_check.tscn    # the businesses
 python godot/tools/podniky_coop.py [OUT_DIR] # the four places for two: a drink, a bill, the slot, the grill, the bufet, the deli done on one machine and seen on the other
 python godot/tools/coop_check.py [OUT_DIR]   # co-op: two windowed copies (host + client on 127.0.0.1), camps compared; looks, a build, a room's jobs both ways, the boat
 python godot/tools/coop_photo.py [OUT_DIR]   # co-op Photographer on the joining warden: the white and their polaroid, the run at their back, at their window, the last picture: theirs alone
+godot --headless --path godot res://tools/post_check.tscn      # the second monitor: the order paid, the van on the clock, the postman at the counter, the slip, two screens and the swap, the keys, the save, the postman who gives up
+python godot/tools/post_coop.py [OUT_DIR]   # the second monitor for two: ordered on the joining machine (paid once), the host's van and postman on both, signed for there, the monitor on both
 ```
 
 - **Grep the smoke output for `SCRIPT ERROR` / `Parse Error`.** A tail of the log can hide
@@ -172,6 +174,7 @@ a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `pr
 | Testing the town and the bus | the title screen's secret page (L) "Bus to Liblice" (`main._start_test_bus`: a fresh camp, the camp stop as the 13:50 comes); played through for screenshots by `res://tools/bus_tour.tscn -- --out=<dir>`; Liblice alone `res://tools/lesna_tour.tscn` |
 | Testing the businesses' work | the title screen's secret page (L) "Businesses" (`main._start_test_businesses`: a fresh camp at 10:30 with the corn stand, the pub, the bistro and the Jednota on paths up from the gate, tents and cabins full of guests made hungry and thirsty by `GuestManager.debug_want_food`, every blueprint open) |
 | The camp computer (the panel: tabs and their keys, badges, boot, covers, one-click installs) | `scripts/os98/os_shell.gd` (`TABS`, `PROGRAMS`, `HOST`), a program's place `os_page.gd`, look: `os_theme.gd` |
+| The second monitor (PC Servis's page, the post van, the postman, the slip; the two screens) | the order and its stages `scripts/reception/post_delivery.gd` (kept in the PC's store "post", so saved and sent with the PC both ways; only `Coop.sim_here()` moves it on by the clock; the van and the man drawn on every machine from the stage and its `t0`; the man across the counter is its `_desk_man` + the extras' hot "postman" -> `building_interior.dressing_click`), the slip `scripts/closeup/post_closeup.gd` (SIGN_BOX, PARCEL_BOX in picture px), the page `pc-servis-hlubocany.cz` in `web_pages.gd` (found only from the bazaar's foot or the search) with `{{pcservis}}` and `order://monitor2` in `browser_app.gd`; the monitor itself `building_interior.set_second_monitor` / `_build_second_monitor` (MON2_PIVOT, the radio moved on top `_place_radio`), A/D at the PC `_crt_turn` / `_look_screen()`; the second screen in `os_shell.gd` (`set_dual`, `_select_tab_on`, `screen_origin`, `keys_for`; `scripts/os98/os_keys.gd` for the programs); art `tools/artgen/prompts_post.tsv` -> `post_art.py`, sounds `tools/audiogen/prompts_post.tsv` |
 | Its programs (CampMail, Beeternet, CampStat, GuestRack, Files, Shops…) | `scripts/os98/apps/*_app.gd`; Builder map: `builder_module.gd` (toolbar, keys, the building card) + `crt_map_panel.gd` (overlays `set_overlay`, `structure_at`, `building_clicked`); upgrades from the map `interior_manager.map_upgrade`, the crew to one building `main.request_maintenance_crew_at` |
 | Jobs and Games (the program folders) | `scripts/os98/apps/program_shelf.gd` (Web View folder pane) with `jobs_app.gd` (`datapunch_app`, `job_adclick`, `job_census`; pay through `shell.earn`, day limits `shell.job_done`) and `games_app.gd` (`mines_app`, `game_mosquito`, `game_hike`, `game_pexeso`; tables `shell.scores`, seeds `SCORE_SEEDS`, drawn by `score_board.gd`); icons `tools/artgen/panel_icons.py` |
 | Web pages, the files on its disk | `scripts/os98/web_pages.gd`, `scripts/os98/os_files.gd` |
@@ -278,7 +281,7 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **The camp computer is a panel, not a desktop** (playtest 19. 10.): one program on the
   screen at a time, all kept running; tabs by keys 1-9 (read by `physical_keycode`, a
   Czech keyboard types +ěšč on that row). A program's own keys must not use the digits,
-  S (stands you up) or D (leans you out): Builder pans with the arrows, its tools are B/P/L,
+  S (stands you up), A or D (they turn you between the monitors): Builder pans with the arrows, its tools are B/P/L,
   its catalogues F1-F5, O the overlay. A method called `hidden()` clashes with
   CanvasItem's signal: the panel calls `page_hidden()` / `shown()`.
 - **The OS's own words are a real 1998 system's**: it never addresses the player, jokes
@@ -606,6 +609,15 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   bash sees it, so an escaped backslash at the end of a line in a heredoc reaches Python as
   a line continuation (the replacement silently changes nothing); write such scripts with
   the Write tool to a .py file instead.
+- **Two monitors, one picture** (21. 10.): with the second monitor the CRT viewport is two
+  screens wide (1280 x 480); the shell stays a 640 x 480 Control at the left (no
+  FULL_RECT: it would stretch) with `clip_contents` off, the second screen's pages sit at
+  x 640, and each tube's glass shows its half through the shaders' `uv_rect`. Mouse
+  positions on the second monitor come in at x 640+ (`_map_mouse_to_crt` adds
+  `_look_origin()`); anything that measured the PC by `_crt_viewport.size` must use
+  `CRT_RESOLUTION`. Both programs on screen are visible and running: a program that reads
+  keys in `_input` must also ask `OS_KEYS.here(self)` (only the screen looked at takes
+  keys), message boxes open on the screen looked at (`_make_dialog` adds `screen_origin`).
 
 ---
 

@@ -100,6 +100,14 @@ the flat palm at doors, the fist while you hold a job.
   Other numbers are the world: the district, Jednota, the pub, the police who say lock
   the door, the talking clock, Vera's answering machine (it changes after three bad
   nights), and the lake keeper's crossed-out number, which after 23:00 is picked up once.
+- **The second monitor** (the user 21. 10.): bought from a small page the curious find and
+  the hasty do not (a grey line at the foot of the bazaar's page, or a search), brought by
+  the post a few hours later, signed for by hand (the signature is drawn, not clicked) and
+  the parcel taken with one click. Its point is play, not a number: Builder's map left on
+  one screen all day while the mail, the reviews or a job run on the other. One program
+  per screen, a program never on both (picking it on the other swaps them); the keys are
+  the screen's you look at; A and D turn you, one press each (D held was tiring). The
+  dealer's line about monitors "seeing things" at night is all the uncanny there is to it.
 - **The back room** through the door in the office's left wall: your bed, the little
   set (the programme, the test card and its tone after midnight), the VFD alarm clock.
   Sleep is only at night and only while nothing is out there (`camp_office.sleep_refusal`):

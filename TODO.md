@@ -4,6 +4,17 @@
 
 ---
 
+## THE SECOND MONITOR — 2026-10-21 (the user: "D once to look right, A back; a lowkey page to buy a second monitor; the post brings it, sign with the mouse, click the parcel; Builder on the left all day; everything in co-op")
+
+- [x] A/D at the PC: one press turns you (right: the second monitor, or the window before it)
+- [x] PC Servis's page (the bazaar's foot, the search), the order paid, the PC's record
+- [x] The post van and the postman on the clock (office hours, gives up at 19:00, back next morning), at the counter
+- [x] The slip signed by hand, the stamp, the parcel, the banner
+- [x] The second monitor on phone books, the radio on top; two screens, the swap, the keys, dialogs on the screen looked at
+- [x] Co-op: ordered and signed on either machine, the van and man on both, both screens over the shoulder (`tools/post_coop.py` PASS)
+- [ ] The van's front and back faces and PC Servis's photo (Grok queue), then a look at the van turning round to leave
+- [ ] Czech: the PC Servis page's own text (the web pages are not translated yet)
+
 ## CZECH VERSION — 2026-10-21 (the user: "the language is the warden's, flags when a warden is made; the whole game in Czech; from now on everything in English and Czech")
 
 How it works: AGENTS.md §8. Left: `python tools/i18n/extract.py --stats` / `--todo`.
