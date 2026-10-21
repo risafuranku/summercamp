@@ -234,6 +234,7 @@ a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `pr
 | The businesses' shared systems (ratings, lots and going off, gear, the hands, open late) | numbers and people `core/systems/business_rules.gd` (KINDS goods with `life`, GEAR, ROLES, PEOPLE, `applicants`, `score`/`reward`); the books' writes `actions.biz_*` (`biz_spoil`, `biz_bin`, `biz_buy_gear`, `biz_hire(key, person, day)`, `biz_set_job`, `biz_set_late`, `biz_score`, `biz_close_shift`, `biz_order_all`); the running side `scripts/business/business_runtime.gd` (`shift_now`, `crew_now`, attendance, theft, the strange ones, the Z report signal, `price_k`, `debug_hire`); the hands in the rooms `crew_figures.gd`; the night inside a place open late `late_night.gd`; the books on the counter `ledger_closeup.gd` (STOCK, ORDER, STAFF, GEAR, BOOKS), the receipt `zreport_closeup.gd`, the PC's SoftSklad `scripts/os98/apps/business_app.gd`; art `tools/artgen/biz_prompts.py` -> `prompts_biz.tsv` -> `biz_art.py` |
 | Doors opening for guests | `scripts/attractions/door_anim.gd` (finds Door/DoorLeaf boxes, hinges them) |
 | Windows that look out (a real view of the camp from where the building stands, curtains to draw), the flash through them | `scripts/ui/window_portal.gd` (`make`, `room_to_world`: the room laid over the building's box); used by `service_interior._make_windows` (a layout's painted `window_view` picture becomes a real window), `caravan_interior`, the cabins' own portals (curtains added) and the reception's; every room answers `photo_windows()` (InteriorManager collects it), curtains go to the other wardens with `Coop.send_curtains` |
+| People seen from eight sides (guests, the other wardens, the hands, the electrician) | `scripts/figures/doom_figure.gd` (`set_of(name)`: `assets/textury/npc/sets/<name>.png/.json`; `sector_for`, `face`, `turn_toward`, `set_anim`, `advance(metres)`, `show(eye)`; `restore`/`release` when a pose draws its own picture); used by `guest_agents._drive_figure`, `remote_player._walk_doom/_room_doom`, `crew_figures`, `electrician_visit`; poses through `poses.set_pose` (a pose the set has stays in it); the family's people `poses.FAMILY`; the jacket `warden_looks.atlas(model, colour)` (the mask `sets/warden_<x>_mask.png`); art and checks: §7 "People from eight sides"; shots `tools/figure_shots.tscn` |
 | The Photographer | `scripts/enemies/tourist_brain.gd` (poses `npc/tourist_*.png` from `tools/artgen/photographer_prompts.py`, made from `npc/host2.png`; sounds `ph_*` in `tools/audiogen/prompts_photographer.tsv`); shots `tools/photographer_shots.tscn` |
 | The torch | outdoors `player_controller._aim_beam` + `scripts/ui/torch_hand.gd`; in rooms `scripts/ui/interior_torch.gd` (each interior's `room_is_dark()`) |
 | Your hands (who holds what, their pixel size, their light, how they sway) | `scripts/ui/hands.gd` (`Hands.of(node)`: `claim/release(hand, who)`, `torch_hand()`, `light`, `motion`, `px(h)`); the coarse hand sprites `assets/textury/hands_lo/` (`tools/artgen/hands_lo.py` halves the old ones, new ones are processed straight to it) |
@@ -695,6 +696,25 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 
 ## 7. Art, fonts and sound pipelines
 
+- **People from eight sides** (DESIGN.md §10b): `tools/artgen/figure_prompts.py` writes
+  `prompts_figures.tsv` (who everyone is, piece by piece: FIGURES; the idles; the poses
+  from five sides; the family's new people BASES), `tools/artgen/figures.py batch <fig> turn
+  walk1..5 run1..5 idle1 pose_<p>` runs Grok sheet after sheet (a variant more when one
+  does not cut into the right number of figures), `figures.py all <fig>` stages, checks,
+  draws the contact sheet (`out/fig_<fig>/_contact.png`, `_walk.gif`, `_run.gif`) and packs
+  the atlas. What was learnt on the pilot (Pepa): one picture per view (a row of four
+  frames), never one per frame; the reference is the front sprite x4 on magenta beside the
+  picked turnaround (`figures.py ref`); ask for "a walk cycle" and Grok draws one stride
+  four times: name each frame by its shape (STRIDE, PASSING standing on one leg with the
+  other knee lifted, "this frame is narrower than frame 1", "each frame a clearly
+  DIFFERENT pose"); the five views as "turned toward the right edge of the image" (2, 3,
+  4) so 6-8 are mirrors; the frames are snapped to the colours of the person's own front
+  sprite (nothing can drift) and scaled per sheet (the turnaround by its front figure, a
+  walk by its tallest frame x0.985, a run x0.95); the magenta rim is taken off at Grok's
+  size before shrinking (it came out as red flecks on the nose). Picks by eye go in
+  `tools/artgen/figure_picks.json` (`mirror`, `order`, `k` per sheet). Never run two
+  queues with the same ids, and never kill a `gen.sh` without its agent: a second agent
+  at once swaps outputs, and a waiting copy of an id deletes the finished picture.
 - **Generated art** — Grok Imagine through the Cursor agent CLI (`cursor-agent`, logged in
   with `cursor-agent login`; `gen.sh` finds it under `%LOCALAPPDATA%\cursor-agent` or takes
   `CURSOR_AGENT`; the bare `agent` command may be the Grok CLI on some PCs):

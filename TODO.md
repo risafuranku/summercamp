@@ -93,6 +93,28 @@ The work, in the brief's order (tick as it lands):
   shots / body looked at; coop_check: 3 failures, all the trip to town and the bus (in_town,
   bus fingerprints: as before this work, Cod3x's); coop4_check not run
 
+## PEOPLE AS IN DOOM — 2026-10-21 (the user: "the sprite changes with where you look from, like in Doom; the wardens first, then the guests; a few walking frames; the night's enemies left out; always the same person, no artefacts")
+
+How it works: DESIGN.md "People as in Doom", AGENTS.md §7 "People from eight sides".
+
+- [x] One base for everyone: `scripts/figures/doom_figure.gd` (8 sectors, hysteresis, frames by the ground covered, atlas + index), `tools/artgen/figures.py` (cut, scale, the person's own palette, defringe, checks, contact sheets, atlas, jacket mask), `figure_prompts.py` -> `prompts_figures.tsv`
+- [x] The other warden in co-op from eight sides (the state's yaw), walking and running in frames, in rooms facing their job; the old flip and sway gone, a little lift between steps
+- [x] The jacket's colour by a mask made with the atlas (`warden_looks.atlas`), not bands per pose
+- [x] Guests: facing their way (smoothed), standing facing the queue, the attraction or their party, idles after a while; poses keep their old picture till drawn from the sides
+- [x] The family as its people (father, boy, mother, second child; `poses.FAMILY`), a child as small as it is
+- [x] Pepa (pilot): turnaround, walk, run, idle, sweep / fix / bag / sit from five sides
+- [x] Ondra, Jana, Bara: the same; all nine jacket colours on every frame (Jana's side run failed: she walks there)
+- [x] Guests: the quiet guy, the drunk, the girl, the tramp, the picker, the boy: stand, walk, run, idle (the drunk's 3/4-back run and the girl's side run failed: walking there)
+- [x] The father and the mother (new sprites from the family's), their sets and their seats (sit, eat, drink, kick, bat for father, mother and boy)
+- [x] Guests' seats from five sides (sit, eat, drink; the drunk's sit failed: his old picture)
+- [x] The hands in the businesses (`crew_figures`, all fourteen: stand + work from five sides) and the electrician (stand + walk); the postman has no sprite of his own yet (`npc_postman.png` in the post session's queue)
+- [x] FPS of a full camp, uncapped (36 guests out, `figure_shots --part=guests`, Grok running beside it both times): before 62 at noon / 75 in the evening, after 80 / 80
+- [x] Shots: `tools/figure_shots.tscn` (eight sides, walk, run, colours walking, the camp at noon and evening); `tools/figure_check.gd` PASS (27 sets)
+- [ ] Regenerate what failed (warden_c run3, host2 run4 and pose_sit, host3 run3): `figures.py batch <fig> <key>` makes the next variant
+- [ ] Views 6-8 are mirrors: the torch and the shoulder bags change hands as in Doom; draw them apart only if it bites in play
+- [ ] Guests in poses at attractions face the attraction's tile centre; benches and the slide may want their own facing
+- [ ] Pipe crawl (`pipe_mate.gd`), the bus riders and the night's enemies stay as they are (out of scope)
+
 ## STAFFROOM — 2026-10-21 (the user: "a fifth tab in SoftSklad to hire staff; a staffroom with the PC as an old chunky laptop, a mattress in the boiler room, sofa, fridge, coffee machine, TV; lockers bought in the books; they see to the day's events and the lodgings; toggles per hand; home at night; curtains; co-op; the postman as a notification on the right edge")
 - [x] Staffroom build (Utilities, one per camp), one plan inside and out, real glass, curtains, lamps (DESIGN §7c)
 - [x] Lounge + boiler room, point and click, the laptop = the office PC, books, coffee, fridge, TV, lockers, mattresses

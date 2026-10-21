@@ -1,0 +1,791 @@
+{
+ "dvorakova": {
+  "poses": {
+   "work": {
+    "id": "fig_dvorakova_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_dvorakova_turn_1"
+  }
+ },
+ "franta": {
+  "poses": {
+   "work": {
+    "id": "fig_franta_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_franta_turn_1"
+  }
+ },
+ "hanka": {
+  "poses": {
+   "work": {
+    "id": "fig_hanka_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_hanka_turn_1"
+  }
+ },
+ "host1": {
+  "idle": {
+   "1": {
+    "id": "fig_host1_idle1_1"
+   }
+  },
+  "poses": {
+   "drink": {
+    "id": "fig_host1_pose_drink_1"
+   },
+   "eat": {
+    "id": "fig_host1_pose_eat_2"
+   },
+   "sit": {
+    "id": "fig_host1_pose_sit_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_host1_run1_1"
+   },
+   "2": {
+    "id": "fig_host1_run2_1"
+   },
+   "3": {
+    "id": "fig_host1_run3_2"
+   },
+   "4": {
+    "id": "fig_host1_run4_1"
+   },
+   "5": {
+    "id": "fig_host1_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_host1_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_host1_walk1_1"
+   },
+   "2": {
+    "id": "fig_host1_walk2_1"
+   },
+   "3": {
+    "id": "fig_host1_walk3_1"
+   },
+   "4": {
+    "id": "fig_host1_walk4_1"
+   },
+   "5": {
+    "id": "fig_host1_walk5_1"
+   }
+  }
+ },
+ "host2": {
+  "idle": {
+   "1": {
+    "id": "fig_host2_idle1_1"
+   }
+  },
+  "poses": {
+   "drink": {
+    "id": "fig_host2_pose_drink_1"
+   },
+   "eat": {
+    "id": "fig_host2_pose_eat_2"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_host2_run1_1"
+   },
+   "2": {
+    "id": "fig_host2_run2_1"
+   },
+   "3": {
+    "id": "fig_host2_run3_3"
+   },
+   "5": {
+    "id": "fig_host2_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_host2_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_host2_walk1_1"
+   },
+   "2": {
+    "id": "fig_host2_walk2_1"
+   },
+   "3": {
+    "id": "fig_host2_walk3_1"
+   },
+   "4": {
+    "id": "fig_host2_walk4_1"
+   },
+   "5": {
+    "id": "fig_host2_walk5_1"
+   }
+  }
+ },
+ "host3": {
+  "idle": {
+   "1": {
+    "id": "fig_host3_idle1_1"
+   }
+  },
+  "poses": {
+   "drink": {
+    "id": "fig_host3_pose_drink_1"
+   },
+   "eat": {
+    "id": "fig_host3_pose_eat_1"
+   },
+   "sit": {
+    "id": "fig_host3_pose_sit_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_host3_run1_1"
+   },
+   "2": {
+    "id": "fig_host3_run2_2"
+   },
+   "4": {
+    "id": "fig_host3_run4_2"
+   },
+   "5": {
+    "id": "fig_host3_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_host3_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_host3_walk1_1"
+   },
+   "2": {
+    "id": "fig_host3_walk2_1"
+   },
+   "3": {
+    "id": "fig_host3_walk3_1"
+   },
+   "4": {
+    "id": "fig_host3_walk4_1"
+   },
+   "5": {
+    "id": "fig_host3_walk5_1"
+   }
+  }
+ },
+ "host_father": {
+  "idle": {
+   "1": {
+    "id": "fig_host_father_idle1_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_host_father_run1_1"
+   },
+   "2": {
+    "id": "fig_host_father_run2_3"
+   },
+   "3": {
+    "id": "fig_host_father_run3_3"
+   },
+   "4": {
+    "id": "fig_host_father_run4_1"
+   },
+   "5": {
+    "id": "fig_host_father_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_host_father_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_host_father_walk1_1"
+   },
+   "2": {
+    "id": "fig_host_father_walk2_1"
+   },
+   "3": {
+    "id": "fig_host_father_walk3_1"
+   },
+   "4": {
+    "id": "fig_host_father_walk4_1"
+   },
+   "5": {
+    "id": "fig_host_father_walk5_1"
+   }
+  }
+ },
+ "host_kid": {
+  "idle": {
+   "1": {
+    "id": "fig_host_kid_idle1_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_host_kid_run1_1"
+   },
+   "2": {
+    "id": "fig_host_kid_run2_1"
+   },
+   "3": {
+    "id": "fig_host_kid_run3_1"
+   },
+   "4": {
+    "id": "fig_host_kid_run4_1"
+   },
+   "5": {
+    "id": "fig_host_kid_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_host_kid_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_host_kid_walk1_1"
+   },
+   "2": {
+    "id": "fig_host_kid_walk2_1"
+   },
+   "3": {
+    "id": "fig_host_kid_walk3_1"
+   },
+   "4": {
+    "id": "fig_host_kid_walk4_1"
+   },
+   "5": {
+    "id": "fig_host_kid_walk5_1"
+   }
+  }
+ },
+ "host_mother": {
+  "idle": {
+   "1": {
+    "id": "fig_host_mother_idle1_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_host_mother_run1_1"
+   },
+   "2": {
+    "id": "fig_host_mother_run2_2"
+   },
+   "3": {
+    "id": "fig_host_mother_run3_2"
+   },
+   "4": {
+    "id": "fig_host_mother_run4_1"
+   },
+   "5": {
+    "id": "fig_host_mother_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_host_mother_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_host_mother_walk1_1"
+   },
+   "2": {
+    "id": "fig_host_mother_walk2_1"
+   },
+   "3": {
+    "id": "fig_host_mother_walk3_1"
+   },
+   "4": {
+    "id": "fig_host_mother_walk4_1"
+   },
+   "5": {
+    "id": "fig_host_mother_walk5_1"
+   }
+  }
+ },
+ "host_pensioner": {
+  "idle": {
+   "1": {
+    "id": "fig_host_pensioner_idle1_1"
+   }
+  },
+  "poses": {
+   "drink": {
+    "id": "fig_host_pensioner_pose_drink_1"
+   },
+   "eat": {
+    "id": "fig_host_pensioner_pose_eat_1"
+   },
+   "sit": {
+    "id": "fig_host_pensioner_pose_sit_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_host_pensioner_run1_1"
+   },
+   "2": {
+    "id": "fig_host_pensioner_run2_1"
+   },
+   "3": {
+    "id": "fig_host_pensioner_run3_1"
+   },
+   "4": {
+    "id": "fig_host_pensioner_run4_1"
+   },
+   "5": {
+    "id": "fig_host_pensioner_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_host_pensioner_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_host_pensioner_walk1_1"
+   },
+   "2": {
+    "id": "fig_host_pensioner_walk2_1"
+   },
+   "3": {
+    "id": "fig_host_pensioner_walk3_1"
+   },
+   "4": {
+    "id": "fig_host_pensioner_walk4_1"
+   },
+   "5": {
+    "id": "fig_host_pensioner_walk5_1"
+   }
+  }
+ },
+ "host_tramp": {
+  "idle": {
+   "1": {
+    "id": "fig_host_tramp_idle1_1"
+   }
+  },
+  "poses": {
+   "drink": {
+    "id": "fig_host_tramp_pose_drink_1"
+   },
+   "eat": {
+    "id": "fig_host_tramp_pose_eat_1"
+   },
+   "sit": {
+    "id": "fig_host_tramp_pose_sit_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_host_tramp_run1_1"
+   },
+   "2": {
+    "id": "fig_host_tramp_run2_1"
+   },
+   "3": {
+    "id": "fig_host_tramp_run3_1"
+   },
+   "4": {
+    "id": "fig_host_tramp_run4_1"
+   },
+   "5": {
+    "id": "fig_host_tramp_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_host_tramp_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_host_tramp_walk1_1"
+   },
+   "2": {
+    "id": "fig_host_tramp_walk2_1"
+   },
+   "3": {
+    "id": "fig_host_tramp_walk3_1"
+   },
+   "4": {
+    "id": "fig_host_tramp_walk4_1"
+   },
+   "5": {
+    "id": "fig_host_tramp_walk5_1"
+   }
+  }
+ },
+ "ivan": {
+  "poses": {
+   "work": {
+    "id": "fig_ivan_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_ivan_turn_1"
+  }
+ },
+ "jaromir": {
+  "poses": {
+   "work": {
+    "id": "fig_jaromir_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_jaromir_turn_1"
+  }
+ },
+ "klara": {
+  "poses": {
+   "work": {
+    "id": "fig_klara_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_klara_turn_1"
+  }
+ },
+ "lojza": {
+  "poses": {
+   "work": {
+    "id": "fig_lojza_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_lojza_turn_1"
+  }
+ },
+ "marta": {
+  "poses": {
+   "work": {
+    "id": "fig_marta_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_marta_turn_1"
+  }
+ },
+ "mirek": {
+  "poses": {
+   "work": {
+    "id": "fig_mirek_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_mirek_turn_1"
+  }
+ },
+ "novak_boy": {
+  "poses": {
+   "work": {
+    "id": "fig_novak_boy_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_novak_boy_turn_1"
+  }
+ },
+ "novakova": {
+  "poses": {
+   "work": {
+    "id": "fig_novakova_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_novakova_turn_1"
+  }
+ },
+ "npc_electrician": {
+  "turn": {
+   "id": "fig_npc_electrician_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_npc_electrician_walk1_1"
+   },
+   "2": {
+    "id": "fig_npc_electrician_walk2_1"
+   },
+   "3": {
+    "id": "fig_npc_electrician_walk3_1"
+   },
+   "4": {
+    "id": "fig_npc_electrician_walk4_1"
+   },
+   "5": {
+    "id": "fig_npc_electrician_walk5_1"
+   }
+  }
+ },
+ "pepa": {
+  "poses": {
+   "work": {
+    "id": "fig_pepa_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_pepa_turn_1"
+  }
+ },
+ "pepicek": {
+  "poses": {
+   "work": {
+    "id": "fig_pepicek_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_pepicek_turn_1"
+  }
+ },
+ "warden_a": {
+  "idle": {
+   "1": {
+    "id": "fig_warden_a_idle1_1"
+   }
+  },
+  "poses": {
+   "bag": {
+    "id": "fig_warden_a_pose_bag_1"
+   },
+   "fix": {
+    "id": "fig_warden_a_pose_fix_1"
+   },
+   "sit": {
+    "id": "fig_warden_a_pose_sit_2"
+   },
+   "sweep": {
+    "id": "fig_warden_a_pose_sweep_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_warden_a_run1_2"
+   },
+   "2": {
+    "id": "fig_warden_a_run2_2"
+   },
+   "3": {
+    "id": "fig_warden_a_run3_2"
+   },
+   "4": {
+    "id": "fig_warden_a_run4_2"
+   },
+   "5": {
+    "id": "fig_warden_a_run5_2"
+   }
+  },
+  "turn": {
+   "id": "fig_warden_a_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_warden_a_walk1_3"
+   },
+   "2": {
+    "id": "fig_warden_a_walk2_2"
+   },
+   "3": {
+    "id": "fig_warden_a_walk3_2"
+   },
+   "4": {
+    "id": "fig_warden_a_walk4_2"
+   },
+   "5": {
+    "id": "fig_warden_a_walk5_3"
+   }
+  }
+ },
+ "warden_b": {
+  "idle": {
+   "1": {
+    "id": "fig_warden_b_idle1_1"
+   }
+  },
+  "poses": {
+   "bag": {
+    "id": "fig_warden_b_pose_bag_1"
+   },
+   "fix": {
+    "id": "fig_warden_b_pose_fix_1"
+   },
+   "sit": {
+    "id": "fig_warden_b_pose_sit_1"
+   },
+   "sweep": {
+    "id": "fig_warden_b_pose_sweep_2"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_warden_b_run1_1"
+   },
+   "2": {
+    "id": "fig_warden_b_run2_2"
+   },
+   "3": {
+    "id": "fig_warden_b_run3_1"
+   },
+   "4": {
+    "id": "fig_warden_b_run4_2"
+   },
+   "5": {
+    "id": "fig_warden_b_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_warden_b_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_warden_b_walk1_1"
+   },
+   "2": {
+    "id": "fig_warden_b_walk2_1"
+   },
+   "3": {
+    "id": "fig_warden_b_walk3_1"
+   },
+   "4": {
+    "id": "fig_warden_b_walk4_1"
+   },
+   "5": {
+    "id": "fig_warden_b_walk5_1"
+   }
+  }
+ },
+ "warden_c": {
+  "idle": {
+   "1": {
+    "id": "fig_warden_c_idle1_1"
+   }
+  },
+  "poses": {
+   "bag": {
+    "id": "fig_warden_c_pose_bag_1"
+   },
+   "fix": {
+    "id": "fig_warden_c_pose_fix_1"
+   },
+   "sit": {
+    "id": "fig_warden_c_pose_sit_1"
+   },
+   "sweep": {
+    "id": "fig_warden_c_pose_sweep_3"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_warden_c_run1_1"
+   },
+   "2": {
+    "id": "fig_warden_c_run2_1"
+   },
+   "4": {
+    "id": "fig_warden_c_run4_1"
+   },
+   "5": {
+    "id": "fig_warden_c_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_warden_c_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_warden_c_walk1_1"
+   },
+   "2": {
+    "id": "fig_warden_c_walk2_1"
+   },
+   "3": {
+    "id": "fig_warden_c_walk3_1"
+   },
+   "4": {
+    "id": "fig_warden_c_walk4_1"
+   },
+   "5": {
+    "id": "fig_warden_c_walk5_1"
+   }
+  }
+ },
+ "warden_d": {
+  "idle": {
+   "1": {
+    "id": "fig_warden_d_idle1_1"
+   }
+  },
+  "poses": {
+   "bag": {
+    "id": "fig_warden_d_pose_bag_1"
+   },
+   "fix": {
+    "id": "fig_warden_d_pose_fix_1"
+   },
+   "sit": {
+    "id": "fig_warden_d_pose_sit_1"
+   },
+   "sweep": {
+    "id": "fig_warden_d_pose_sweep_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_warden_d_run1_1"
+   },
+   "2": {
+    "id": "fig_warden_d_run2_1"
+   },
+   "3": {
+    "id": "fig_warden_d_run3_1"
+   },
+   "4": {
+    "id": "fig_warden_d_run4_1"
+   },
+   "5": {
+    "id": "fig_warden_d_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_warden_d_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_warden_d_walk1_1"
+   },
+   "2": {
+    "id": "fig_warden_d_walk2_1"
+   },
+   "3": {
+    "id": "fig_warden_d_walk3_1"
+   },
+   "4": {
+    "id": "fig_warden_d_walk4_1"
+   },
+   "5": {
+    "id": "fig_warden_d_walk5_1"
+   }
+  }
+ },
+ "zdenka": {
+  "poses": {
+   "work": {
+    "id": "fig_zdenka_pose_work_1"
+   }
+  },
+  "turn": {
+   "id": "fig_zdenka_turn_1"
+  }
+ }
+}

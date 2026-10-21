@@ -2020,7 +2020,8 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 			at.y = floor_y
 			var verb := str(t.get("verb", ""))
 			var pose := "sweep" if verb in ["Sweeping", "Mopping"] else ("stand" if verb in ["Making the bed", "Rolling out"] else "crouch")
-			fig.show_at(at, "prone" if tent else pose)
+			# Facing the job (seen from eight sides they turn to it).
+			fig.show_at(at, "prone" if tent else pose, false, (t["pos"] as Vector3) - at)
 			return
 	fig.show_at(e["spot"], "prone" if tent else "stand")
 
