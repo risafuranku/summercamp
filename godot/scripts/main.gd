@@ -1876,6 +1876,7 @@ func _pick_turned_guest(archetype: String) -> Dictionary:
 ## Dawn: every guest whose turned self got you in the night is gone (their things go to
 ## the lost and found, their bed was not slept in).
 func _claim_turned_guests() -> void:
+	_claim_rings()
 	for brain in _enemy_brains:
 		if brain == null or brain.get("claimed") != true:
 			continue
@@ -1886,6 +1887,29 @@ func _claim_turned_guests() -> void:
 			continue
 		if GuestManager.vanish_guest(id) and _hud_manager != null:
 			_hud_manager.push_status("Morning: %s is gone. The bed was not slept in." % str(guest.get("name", "a guest")), 2)
+
+
+## Dawn: the mushroom granny's rings closed round a lodging (basket_brain.gd): its
+## guests wake sick, and on a heavy night one of them is gone.
+func _claim_rings() -> void:
+	for brain in _enemy_brains:
+		if brain == null or not brain.has_method("closed_ring_lodgings"):
+			continue
+		var keys: Array = brain.closed_ring_lodgings()
+		if keys.is_empty():
+			continue
+		var taken := false
+		for g in GuestManager.get_guest_life_snapshot():
+			var c = g.get("lodging", Vector2i(-1, -1))
+			if not (c is Vector2i) or not keys.has("%d:%d" % [c.x, c.y]):
+				continue
+			var id := int(g.get("id", -1))
+			if int(brain.get("_difficulty")) >= 4 and not taken and GuestManager.vanish_guest(id):
+				taken = true
+				if _hud_manager != null:
+					_hud_manager.push_status("Morning: %s is gone. A ring of mushrooms round the door." % str(g.get("name", "a guest")), 2)
+				continue
+			GuestManager.apply_guest_event(id, -22.0, "I dreamt something was growing out of my mouth. There are mushrooms round the door.")
 
 
 ## What has come before comes back harder: every third night something came for the
@@ -3862,6 +3886,11 @@ func _update_interaction_hint() -> void:
 	if _corn_hunt != null and is_instance_valid(_corn_hunt) and str(_corn_hunt.hint()) != "":
 		_hud_manager.set_hint_text(str(_corn_hunt.hint()))
 		return
+	# A night thing's own line (the granny's basket within reach).
+	for b in _enemy_brains:
+		if b != null and b.has_method("hint") and str(b.hint()) != "":
+			_hud_manager.set_hint_text(str(b.hint()))
+			return
 	var lake_hint: String = _lake_trip.hint() if _lake_trip != null else ""
 	if _lake_trip != null and _lake_trip.is_active():
 		_hud_manager.set_hint_text("")
@@ -4280,6 +4309,9 @@ func _on_menu_test_night(enemy_id: String) -> void:
 		ne["guest"] = _pick_turned_guest(str(TEST_NIGHT_GUESTS.get(enemy_id, "")))
 		# The boy's job at once, not an hour into the night; his places in turn.
 		if nb.get("soon") != null:
+			nb.set("soon", true)
+		# The granny is out whatever the hour (she keeps to the small hours).
+		if nb.get("soon") != null and enemy_id == "basket":
 			nb.set("soon", true)
 		if nb.has_method("force_place"):
 			var where: String = TEST_BOY_PLACES[_test_boy_turn % TEST_BOY_PLACES.size()]

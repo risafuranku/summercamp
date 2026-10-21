@@ -24388,3 +24388,11 @@ msgstr "Dítě navíc"
 #. manual
 msgid "lemonade"
 msgstr "limonádu"
+
+#: scripts/enemies/basket_brain.gd
+msgid "The Granny"
+msgstr "Babička"
+
+#: scripts/enemies/basket_brain.gd
+msgid "[E] Take the bulbs from her basket"
+msgstr "[E] Vezmi jí žárovky z košíku"

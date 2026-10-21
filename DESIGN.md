@@ -232,7 +232,7 @@ know where it is:
 | The Photographer | no eyes (his own chest lamp lights his face; 21. 10.: no ring over it): the red lamp of his camera, a point where the camera is in each pose, blinking; your torch on it, the lens throws it back white |
 | The Girl | her eyeshine: two pale points, each blinking on its own, one a little higher, only where the torch points but does not reach (to 45 m); nearer, bigger and wider apart (her face stretching). The terror pass (20. 10.): when your torch dies near her she takes her step in that dark and you see her eyes there, nearer; while your torch holds her, a second pair of her eyes opens off to one side with a soft giggle (look and it is gone, and she has moved); under a lamp she goes round the edge of its light towards your back; the drone and the heart as she comes; while you hold her, for two frames now and then her head is upside down on her neck; far off, her laugh slowed into something low. **Her strike** (4.5 s, nothing you can do): she lunges out of the dark, claws at the lens; her hands close round your head and pull you to the drooling grin; her head snaps all the way over; her face splits down the middle, the inside and rows of teeth between the halves; the rings of teeth come over you (the bite, red, blood running down the lens); black, your heart stops, only the ring and her chewing; you come to on the ground, the picture on its side, and she stands out there with her head upside down and red eyes, laughing slowed down; a blink and her upside-down face is in yours. The cursed pass (20. 10.): her eye an inch from yours before the lunge; after the bite she drags you along the ground by the head, in jerks; under a lamp, after a while, a ring of her eyes opens all round the edge of the light, one pair after another, giggles over each other, a flash of dozens of her standing in the trees, then all of them go out but one, behind you; far off, found again, she stands upside down (hanging from nothing) or far too tall; close and unseen, her teeth chattering; found nearer, two frames of the face she pretends with (a smile ear to ear); for forty seconds after she has had you, her face for a frame now and then, even with her gone. **Indoors** she cannot hurt you and wants you out: her humming through the wall; heels going round outside; a giggle and three slow knocks; her at the window you look at, pressed to the glass, her eyes lit, two frames of the smile; her teeth chattering behind the wall; then a guest's night instead (a Cheap Chick first). Out again, she begins far off |
 | The Antlered Man | deer eyeshine in the skull's sockets, pale green, high, far apart; both go out together now and then |
-| The Basket Man | two wet red points deep in the hood, close together, swinging slowly over the ground |
+| The Granny | two points low in her bent face while she picks, nothing; when she straightens up, high and still, looking at you |
 | The Boy | none: a child hiding. His voice at your ear is how you find him; his face is what you get for looking |
 | The Whistler | not on his body while the music plays (it is thrown, from somewhere else): two pale slits where he really stands, a little while after the music stops |
 
@@ -243,7 +243,7 @@ know where it is:
 | The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed: the guest -> fixed smile, white eyes -> legs too long, flushed cheeks -> neck and arms stretched -> her back to you, face turned round -> arms to the ground. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
 | The Whistler | Tramps | his guitar and his whistle out in the dark, a song at a time, nearer; the music stops dead in the middle of a bar | while he plays, move; when the music stops, be still (on grass a walk is not heard, a run is; on gravel, boards, puddles even a walk; near him anything); a lamp's light | making a noise while he listens: he comes at a run to where you were (§5a.3) |
 | The Boy | Family | his father in your way in the dark asking after him; a child gone missing where the night's work is | each place's game, by its rules (§5a.2) | breaking the game's rule (in the corn: looking back at him) |
-| The Basket Man | Mushroom Pickers | 02:30-06:00, a wicker basket creaking out of the trees, a knife scraping | stand still while it is near; it only sees movement | moving while it is close |
+| The Granny | Mushroom Pickers | 02:30-06:00: a basket creaking, a knife scraping, humming; lamps going dark one by one; mushrooms coming up round the tents | Grandmother's footsteps: move while she is bent over her work, freeze when her back cracks and she straightens up; take the bulbs back out of her basket from behind; walk through her rings | moving while she looks (§5a.4) |
 
 ### 5a. Outdoor hunters, indoor tormentors (the rule for every enemy)
 
@@ -342,6 +342,30 @@ does not see, and a night with him is musical chairs:
   behind you.
 - **Indoors**: his song under the window now and then, quiet, stopped in the middle of
   a bar.
+
+### 5a.4 The Granny (Mushroom Pickers; `scripts/enemies/basket_brain.gd`)
+
+The old picker turned (the user, 21. 10.: "babičku musíme vymyslet"): her cardigan, the
+flowered dress, the green boots, bent at the waist like a hook, the basket on her arm,
+the little knife (Grok `granny_pick`, `granny_up`, `granny_face`). She comes in the
+small hours (02:30-06:00), as pickers do, and harvests the camp. Grandmother's
+footsteps: she sees only what moves, and only when she straightens up.
+
+- **Bent over her work**: the knife scraping, humming an old lullaby: she sees nothing.
+  Move.
+- **Up**: her back cracks, the humming stops, she straightens far too tall and looks.
+  Move in her sight (22 m; 9 m while she walks) and she comes, quick through the grass,
+  the knife low ("Nehýbej se, broučku", "Kdo se hejbe, jde do košíku"). Freeze before she
+  is on you and she stands over you a while, looking, and goes back to her work (heavy:
+  not always). At you: low, the knife at your ankles, "To je ale pěkný kozák...".
+- **The bulbs**: she goes from lamp to lamp; at each, when she is done, the bulb is in
+  her basket and the lamp is dark for the night (the other things have more dark).
+  Creep up behind her while she is bent and take them back (E): every lamp lit again,
+  and she straightens up at once.
+- **The rings**: at a lodging with guests in it mushrooms come up round it, more each
+  time she is there; closed by dawn (three visits) its guests wake sick, heavy one is
+  gone. Walk through a ring and you kick it open.
+- **Indoors**: her knife along the outside wall now and then.
 
 ### 5a.2 The Boy (Family; `scripts/enemies/boy_brain.gd`)
 

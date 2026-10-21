@@ -67,7 +67,7 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	{"id": "whistler", "text": "Whistler", "sub": "Tramp"},
 	# His places in turn, one each time: the corn, the board, the pipes (main).
 	{"id": "child", "text": "The Boy", "sub": "Family: corn, board, pipes"},
-	{"id": "basket", "text": "Basket Man", "sub": "Mushroom Picker"},
+	{"id": "basket", "text": "The Granny", "sub": "Mushroom Picker"},
 	{"id": "stalker", "text": "Antlered Man", "sub": "Mixed camp"},
 	# Not a thing: the sewer breaks again as soon as it is mended (main.TEST_SEWER).
 	{"id": "sewer", "text": "Sewer", "sub": "Pipes minigame"},
