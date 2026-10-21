@@ -3,6 +3,7 @@ extends Node3D
 @export var placement_range: float = 24.0
 @export var tent_height: float = 1.8
 @export var cabin_height: float = 2.8
+const CABIN_LAYOUT = preload("res://scripts/cabin_layout.gd")
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const PATH_TILES = preload("res://scripts/path_tiles.gd")
@@ -180,6 +181,35 @@ func darken_lamp_near(pos: Vector3, radius: float, seconds: float) -> Vector3:
 	return (best["root"] as Node3D).global_position
 
 
+## Where the lamps lit now stand (the mushroom granny goes for them,
+## scripts/enemies/basket_brain.gd).
+func lit_lamp_positions() -> Array:
+	var out: Array = []
+	if not _lamps_active:
+		return out
+	for lamp_id in _lamp_runtime.keys():
+		var e: Dictionary = _lamp_runtime[lamp_id]
+		var root = e.get("root", null) as Node3D
+		if root != null and is_instance_valid(root) and not _is_lamp_entry_broken(e):
+			out.append(root.global_position)
+	return out
+
+
+## The lamp nearest `pos` within `radius` darkened by darken_lamp_near is lit again now
+## (its bulb back in). Whether there was one.
+func relight_lamp_near(pos: Vector3, radius: float) -> bool:
+	for lamp_id in _lamp_runtime.keys():
+		var e: Dictionary = _lamp_runtime[lamp_id]
+		var root = e.get("root", null) as Node3D
+		if root == null or not is_instance_valid(root) or float(e.get("dark_until", 0.0)) <= 0.0:
+			continue
+		if root.global_position.distance_to(pos) <= radius:
+			e["dark_until"] = 0.0
+			_apply_lamp_entry_base_state(e, _lamps_active)
+			return true
+	return false
+
+
 func _is_lamp_entry_broken(entry: Dictionary) -> bool:
 	if float(entry.get("dark_until", 0.0)) > Time.get_ticks_msec() / 1000.0:
 		return true
@@ -288,6 +318,9 @@ func get_footprint_for_building(building_type: String) -> Vector2i:
 		"vecerka":
 			# The Jednota (agent C, 20. 10.): three by three, its model building_models._jednota.
 			return Vector2i(3, 3)
+		"bowling":
+			# The bowling alley (21. 10.): three by five, its model building_models._bowling.
+			return Vector2i(3, 5)
 		"caravan_1", "caravan_2", "caravan_3", "sports_field", "lake_slide", "playground":
 			return Vector2i(2, 1)
 		_:
@@ -315,6 +348,8 @@ func place_building_at(origin: Vector2i, building_type: String) -> bool:
 	match building_type:
 		"vecerka":
 			return _place_placeholder_at(origin, "vecerka", Vector2i(3, 3), Color(0.58, 0.60, 0.62), Color(0.72, 0.2, 0.16), "services", 3.6)
+		"bowling":
+			return _place_placeholder_at(origin, "bowling", Vector2i(3, 5), Color(0.58, 0.58, 0.56), Color(0.78, 0.16, 0.18), "services", 4.6)
 		"cabin", "cabin_1":
 			return place_cabin_at(origin, 1)
 		"cabin_2":
@@ -592,13 +627,15 @@ func place_cabin_at(origin: Vector2i, level: int = 1) -> bool:
 	var center = _grid_manager.get_footprint_center(origin, footprint)
 	cabin.position = center + Vector3(0.0, -0.06, 0.0)
 
-	var wall_w = ts * (1.56 + float(cabin_level - 1) * 0.06)
-	var wall_d = ts * (1.56 + float(cabin_level - 1) * 0.06)
-	var wall_h = cabin_height * (0.86 + float(cabin_level - 1) * 0.04)
+	# The cabin's plan (scripts/cabin_layout.gd): the room inside is this box.
+	var plan: Vector2 = CABIN_LAYOUT.size(cabin_level)
+	var wall_w: float = plan.x
+	var wall_d: float = plan.y
+	var wall_h: float = CABIN_LAYOUT.wall_h(cabin_level)
 	if _models == null:
 		_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
 	# Modelled after the Builder's chata1/2/3 (scripts/building_models.gd).
-	var cabin_box: Vector3 = _models.cabin(cabin, cabin_level, wall_w, wall_d, wall_h, cabin_height * 0.45)
+	var cabin_box: Vector3 = _models.cabin(cabin, cabin_level)
 	# The room inside looks out of its windows (cabin_interior.gd): where they are.
 	cabin.set_meta("wall_size", Vector3(wall_w, wall_h, wall_d))
 

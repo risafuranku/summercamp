@@ -45,6 +45,8 @@ const STORM_TOP := Color(0.43, 0.41, 0.44)
 const FLASH_WAIT_STORM := Vector2(1.2, 5.0)
 const FLASH_WAIT_RAIN := Vector2(18.0, 45.0)
 
+## The sprite layers below are not made any more (the deck is the sky's clouds).
+const SPRITE_LAYERS_OFF := true
 const LAYERS := [
 	# High: flat streaks, seen from below, foreshortened toward the horizon.
 	{"tex": "res://assets/textury/skybox/cloud_hi_%d.png", "n": 16, "alt": Vector2(160.0, 220.0),
@@ -115,6 +117,10 @@ func _ready() -> void:
 	for k in 4:
 		if ResourceLoader.exists(TOP_PUFF_TEX % k):
 			tops.append(load(TOP_PUFF_TEX % k))
+	# The deck only: the sprite layers (high streaks, low scud) clashed with its thick,
+	# warped clouds in three dimensions (the user 21. 10.: "odstraň sprite mraky").
+	if SPRITE_LAYERS_OFF:
+		return
 	for li in LAYERS.size():
 		var layer: Dictionary = LAYERS[li]
 		var texs: Array = []

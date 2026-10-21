@@ -1684,6 +1684,9 @@ func _setup_cloud_layers() -> void:
 	_cloud_sprites.clear(); _cloud_world_positions.clear()
 	_cloud_world_drift_vectors.clear(); _cloud_phase_offsets.clear()
 	_cloud_speed_jitter.clear(); _cloud_alpha_jitter.clear(); _cloud_presence_threshold.clear()
+	# No sprite clouds: the sky's clouds are cloud_layers.gd's deck, thick, warped and in
+	# three dimensions; flat sprites over it clashed (the user 21. 10.).
+	if true: return
 	if _celestial_root == null: return
 	var origin = Vector3.ZERO
 	var cam = _get_active_world_camera()

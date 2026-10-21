@@ -694,6 +694,8 @@ func _build_shell() -> void:
 	_viewport.own_world_3d = true
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport.handle_input_locally = false
+	# Its 3D sounds (the leaks down the pipes) heard from its camera.
+	_viewport.audio_listener_enable_3d = true
 	_container.add_child(_viewport)
 	_world = Node3D.new()
 	_viewport.add_child(_world)

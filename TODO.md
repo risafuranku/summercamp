@@ -93,6 +93,14 @@ The work, in the brief's order (tick as it lands):
   shots / body looked at; coop_check: 3 failures, all the trip to town and the bus (in_town,
   bus fingerprints: as before this work, Cod3x's); coop4_check not run
 
+## CABINS — 2026-10-21 (the user: "the curtains do not glint, the windows by the door clip the coat and have no view, rebuild the inside to match the outside and remake that a bit; every tier a visible upgrade inside and out; old curtains left under the new ones")
+
+- [x] One plan for the model and the room (`scripts/cabin_layout.gd`), every window a view out with a curtain that glints
+- [x] The tiers inside and out (boards, porch, annex, shutters, chimney/stove, aerial/TV, furniture)
+- [x] The jacket clear of the windows, no painted curtains under the drapes
+- [x] Builder's pictures of the new cabins (renders repainted by Grok, Lv1 kept bare)
+- [ ] The bathroom is cramped from its doorway: a better view or a bigger annex
+
 ## PODNIKY PAPA'S — 2026-10-21 (the user: "at first sight terribly complicated, I don't know where to click; choppy; how do I serve? I want it like Papa's games; the same in every place")
 
 Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back to the station you were at (the first time the first of the chain); the camera and the things you move smooth, the glove frame by frame; patience seen everywhere; after a serve nothing that stops you; last orders half an hour before closing, who ordered waits; SERVE and a checklist; the next step lit (switch in Options); menu switches only; short orders, many guests; mouse, keys and tabs; by day play, by night the uncanny; a hand for every room.
@@ -262,6 +270,14 @@ finished game, by impact:
 - [x] Snow: boot prints behind every warden, frozen puddles; snowfall no longer grew
   puddles with rain rings on them (21. 10.)
 - [x] A broken lamp shorts: sparks, a flash, the crackle (21. 10., lamp_sparks.gd)
+- [x] The rowing boat, single and co-op (21. 10., the user: "totálně polishnout lodičku"):
+  into the seat and out smoothly, strokes in a rhythm, backing and turning on the spot,
+  looking round from the seat, the shore and jetties knock it back, alongside by itself
+  (and off the keeper's jetty again: it took you straight back), the hull on the swell,
+  3D oars, splashes, swirls and wake, the lantern, its sounds; in co-op the oars stroke on
+  the other machine and the passenger sits in the bow face to face (they sat in the
+  rower's face); the village's houses gone from the far shore (`boat_rig.gd`,
+  `tools/boat_shots.tscn`, `tools/boat_coop.py`)
 - [x] Sound: a guitar by the fire and a radio in a caravan in the evening, far off
   (21. 10., far_life.gd)
 - [x] Sound: the country by day — the dawn chorus, birds, grasshoppers, a woodpecker, a
@@ -485,6 +501,7 @@ start, collect good ratings; pay to delete bad reviews".
 - [x] B38a Director: a light in the woods, an object moved, a reported cabin that sounds at night (day event "someone", knock to look)
 - [x] B38b Builder undo (Ctrl+Z / toolbar, today's builds, full refund); director: twig, the insects' silence, a door banging, steps in the back room; sleeping guests count for the camp's character (they did not)
 - [x] B38c Director: a sleeping guest at the tree line (rare, named in the log, denies it by day)
+- [x] B40 Sleep: the radio fades out as the eyes close, silent through the night skip, a new song in the morning (back-room bed and lodging beds; co-op: each machine for its own sleeping warden, the song stays the host's)
 - [x] B39 Save round trip checked (director memory and log, reputation, reported cabins, DataPunch nights); the PC no longer stays dark after a save is loaded in-game
 - [x] B38 Bazar Hlubocany: the lost and found from checkouts, ads, morning sales, the red shoe; new game no longer shows the last game's night log
 - [ ] B23 Later: lore in the linemen's hut; more winter challenges (snowed-in paths, the lake freezing, heating cabins)
@@ -637,7 +654,11 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [x] Guests stay in lodgings, leave the camp by exits for hours, stand at the lake (64% -> ~35% outdoors)
 
 ### 14. The lake
-- [ ] Remodel: a real forest lake (water surface, reflections, shore, reeds, surrounding forest)
+- [x] Reflections (21. 10., the user: "jezero jen polish, remodel asi uplne ne"): the water
+  gives back the far shore's forest, the houses, the boat and the jetty, lit windows, the
+  stars and the sunset for real (`camp_lake.gd` mirror camera at half the game's pixels,
+  near the water only; everything under the water clipped for it in the surface shaders)
+- [ ] Remodel: shore, reeds, surrounding forest (not wanted for now)
 - [ ] Morning mist, darker night, deep-forest, slightly eerie; a place guests walk to
 
 ### 15. Night gameplay loop

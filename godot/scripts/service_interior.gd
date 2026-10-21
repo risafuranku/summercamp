@@ -2633,9 +2633,9 @@ func _subroom_of(station_room: String) -> String:
 
 
 ## In through the door, straight to work (the brief of 21. 10.: "I come in and know at once
-## where I am"): the station you were at last in this place, else the first of its chain
-## (where an order starts: the tap, the bistro's floor, the till); never the cellar or
-## the sink. BACK leaves the station for the room; S there leaves the place.
+## where I am"): the station you were at last in this place, else its ENTRY (where an
+## order starts: the tap, the bistro's floor, the till; the tabs go in the order of the
+## work, the cellar first); never the cellar or the sink. BACK leaves the station for the room; S there leaves the place.
 func _enter_business() -> void:
 	if not (_current_profile in ["rest", "pub", "vecerka"]) or _upkeep_key == "" or not _is_open:
 		return

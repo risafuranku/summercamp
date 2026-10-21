@@ -71,6 +71,8 @@ func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
 	_elapsed = 0.0
 	_announced = false
 	_on_start()
+	# The night's screen and ears there from the start (the ears go when you are hurt too).
+	NIGHTMARE_FX.get_for(_world_root)
 
 
 func tick(delta: float) -> void:

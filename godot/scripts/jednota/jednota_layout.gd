@@ -28,12 +28,15 @@ const STORE := Vector3(4.8, 2.8, 4.0)
 
 ## The stations: id -> {room, at (click box centre), size, stand (where the warden stands
 ## at it), pose (their picture there), mark (where its status hangs), label, tab_label}.
-## The first of the chain: you come in at the till (where an order starts), the first time.
+## They go in the order of the work, as the frame's tabs and keys 1-9 number them
+## (the user, 21. 10.: "1 husk, 2 serve and butter, 3 drinks: it should make sense
+## everywhere"): what prepares first, then what makes and serves, then the side jobs.
+## You come in at the till (where an order starts), the first time.
 const ENTRY := "till"
 const STATIONS := {
-	"till": {"room": "shop", "at": Vector3(2.0, 1.0, -0.2), "size": Vector3(0.65, 0.25, 1.65), "stand": Vector3(2.75, 0.05, -0.2), "pose": "till", "mark": Vector3(2.0, 1.7, -0.2), "label": "the till", "tab_label": "TILL", "icon": "res://assets/textury/ui/mark_till.png"},
-	"shelves": {"room": "shop", "at": Vector3(-0.75, 0.72, -2.32), "size": Vector3(2.2, 1.3, 0.36), "stand": Vector3(-0.75, 0.05, -1.75), "pose": "fix", "mark": Vector3(-0.75, 1.62, -2.25), "label": "the shelves", "tab_label": "SHELVES", "icon": "res://assets/textury/jednota/goods_bread.png"},
 	"store": {"room": "store", "at": Vector3(-0.2, 0.95, -0.95), "size": Vector3(1.7, 0.2, 0.6), "stand": Vector3(-0.2, 0.05, -0.2), "pose": "bag", "mark": Vector3(-0.2, 1.75, -1.3), "label": "the packing table", "tab_label": "STOREROOM", "icon": "res://assets/textury/jednota/box_closed.png"},
+	"shelves": {"room": "shop", "at": Vector3(-0.75, 0.72, -2.32), "size": Vector3(2.2, 1.3, 0.36), "stand": Vector3(-0.75, 0.05, -1.75), "pose": "fix", "mark": Vector3(-0.75, 1.62, -2.25), "label": "the shelves", "tab_label": "SHELVES", "icon": "res://assets/textury/jednota/goods_bread.png"},
+	"till": {"room": "shop", "at": Vector3(2.0, 1.0, -0.2), "size": Vector3(0.65, 0.25, 1.65), "stand": Vector3(2.75, 0.05, -0.2), "pose": "till", "mark": Vector3(2.0, 1.7, -0.2), "label": "the till", "tab_label": "TILL", "icon": "res://assets/textury/ui/mark_till.png"},
 	# The deli counter at the till counter's far end (the brief of 20. 10.).
 	"deli": {"room": "shop", "at": Vector3(2.0, 1.0, -1.75), "size": Vector3(0.65, 0.25, 1.2), "stand": Vector3(2.75, 0.05, -1.75), "pose": "till", "mark": Vector3(2.0, 1.7, -1.75), "label": "the deli counter", "tab_label": "DELI", "icon": "res://assets/textury/jednota/goods_salami.png", "menu": ["deli"]},
 }

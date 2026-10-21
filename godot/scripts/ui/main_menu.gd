@@ -67,7 +67,7 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	{"id": "whistler", "text": "Whistler", "sub": "Tramp"},
 	# His places in turn, one each time: the corn, the board, the pipes (main).
 	{"id": "child", "text": "The Boy", "sub": "Family: corn, board, pipes"},
-	{"id": "basket", "text": "Basket Man", "sub": "Mushroom Picker"},
+	{"id": "basket", "text": "The Granny", "sub": "Mushroom Picker"},
 	{"id": "stalker", "text": "Antlered Man", "sub": "Mixed camp"},
 	# Not a thing: the sewer breaks again as soon as it is mended (main.TEST_SEWER).
 	{"id": "sewer", "text": "Sewer", "sub": "Pipes minigame"},
@@ -75,6 +75,9 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	{"id": "bus", "text": "Bus to Liblice", "sub": "Day, camp stop"},
 	# Not a night: every business and a full camp, to try the work (main._start_test_businesses).
 	{"id": "podniky", "text": "Businesses", "sub": "Day, a full camp"},
+	# Not a night: a day of the camp's best scenes for filming, L for the next
+	# (scripts/content_reel.gd).
+	{"id": "content", "text": "Content reel", "sub": "L: next scene"},
 ]
 
 var _scale: int = 3

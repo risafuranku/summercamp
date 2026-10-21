@@ -596,10 +596,14 @@ func _process(delta: float) -> void:
 	_update_ride_clock()
 	var me := _player()
 	if _geo != null and is_instance_valid(_geo) and me != null:
-		_geo.update(_eye_for_geo(me))
-		if _town == null and me.global_position.distance_to(TOWN.ORIGIN) < TOWN_NEAR:
+		var eye := _eye_for_geo(me)
+		_geo.update(eye)
+		# The village and the hamlet come when you get near, or when Builder's 3D view
+		# goes to look at them.
+		var near_eye := me.global_position if _builder_eye() == Vector3.INF else eye
+		if _town == null and near_eye.distance_to(TOWN.ORIGIN) < TOWN_NEAR:
 			_ensure_town()
-		if me.global_position.distance_to(HAMLET_PLACE.HAMLET_ORIGIN) < HAMLET_NEAR:
+		if near_eye.distance_to(HAMLET_PLACE.HAMLET_ORIGIN) < HAMLET_NEAR:
 			_hamlet.ensure()
 	if _masts != null and is_instance_valid(_masts):
 		# The world's camera is in main's SubViewport, not ours: the player's eye.
@@ -1386,14 +1390,23 @@ func _update_ride_clock() -> void:
 	main.set("clock_scale", scale)
 
 
-## Where the land is built round: you, or the bus you ride.
+## Where the land is built round: you, the bus you ride, or what Builder's 3D view looks
+## at (scripts/builder/map3d.gd: free to roam the whole map from the PC).
 func _eye_for_geo(me: Node3D) -> Vector3:
+	var b := _builder_eye()
+	if b != Vector3.INF:
+		return b
 	if _riding_now():
 		return _ride_bus.global_position
 	# In old Vondra's Skoda (hamlet_trip.gd, skoda_ride.gd).
 	if _hamlet != null and _hamlet.driving():
 		return _hamlet.drive_eye()
 	return me.global_position
+
+
+func _builder_eye() -> Vector3:
+	var v := get_tree().get_first_node_in_group("builder_3d") if get_tree() != null else null
+	return v.call("geo_eye") if v != null else Vector3.INF
 
 
 func _riding_now() -> bool:

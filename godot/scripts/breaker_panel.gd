@@ -412,15 +412,31 @@ func _draw_boy_reflection(o: Vector2, s: float) -> void:
 	_board.draw_texture_rect(_boy_front, Rect2(at, Vector2(w, h) * s), false, Color(0.5, 0.55, 0.6, 0.62))
 
 
-## His face, all of the screen, shaking, in steps.
+## His face, all of the screen, shaking, in the world's game pixels and palette.
+var _face_rect: TextureRect
+
+
 func _draw_boy_face(screen: Vector2) -> void:
 	if _boy_face_t <= 0.0 or _boy_face == null:
+		if _face_rect != null:
+			_face_rect.visible = false
 		return
+	if _face_rect == null:
+		_face_rect = TextureRect.new()
+		_face_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_face_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_face_rect.stretch_mode = TextureRect.STRETCH_SCALE
+		_face_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_face_rect.material = NIGHTMARE_FX.retro_material()
+		add_child(_face_rect)
+	NIGHTMARE_FX.update_retro(screen.y)
 	var side := minf(screen.x, screen.y) * (1.05 + 0.25 * (1.0 - _boy_face_t / 0.85))
 	var shake := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * screen.y * 0.012
-	var at := ((screen - Vector2(side, side)) * 0.5 + shake).floor()
 	_board.draw_rect(Rect2(Vector2.ZERO, screen), Color(0, 0, 0, 0.85))
-	_board.draw_texture_rect(_boy_face, Rect2(at, Vector2(side, side)), false)
+	_face_rect.texture = _boy_face
+	_face_rect.position = ((screen - Vector2(side, side)) * 0.5 + shake).floor()
+	_face_rect.size = Vector2(side, side)
+	_face_rect.visible = true
 
 
 # ── drawing: the Grok picture of the board, the states painted onto it ───────

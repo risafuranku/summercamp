@@ -333,11 +333,12 @@ func _sync_outdoor(l: Layer, db: float) -> void:
 	if l.p3 == null or not is_instance_valid(l.p3):
 		l.p3 = AudioStreamPlayer3D.new()
 		l.p3.name = l.p2.name + "_Outdoor"
-		l.p3.bus = l.bus
-		l.p3.unit_size = 4.0
-		l.p3.max_distance = 75.0
-		l.p3.attenuation_filter_cutoff_hz = 2600.0
-		l.p3.attenuation_filter_db = -14.0
+		l.p3.bus = load("res://scripts/ambient/world_sounds.gd").wall_bus(l.bus)
+		# As the radio's own outdoor copy (building_interior RADIO_OUTDOOR_*): through the walls.
+		l.p3.unit_size = 3.0
+		l.p3.max_distance = 40.0
+		l.p3.attenuation_filter_cutoff_hz = 1200.0
+		l.p3.attenuation_filter_db = -24.0
 		l.p3.volume_db = -80.0
 		_building.add_child(l.p3)
 	elif l.p3.get_parent() != _building:

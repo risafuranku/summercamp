@@ -31,6 +31,8 @@ extends Control
 signal left_3d
 
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
+const GOD = preload("res://scripts/god/god_cursor.gd")
+const RETRO = preload("res://scripts/retro_materials.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const VIEW_SHADER := preload("res://materials/builder3d_view.gdshader")
 const PLATE_SHADER := preload("res://materials/builder3d_plate.gdshader")
@@ -44,8 +46,12 @@ const PITCH_MAX := deg_to_rad(74.0)
 const PITCH_DEF := deg_to_rad(47.0)
 const FOV := 42.0
 const DIST_MIN := 7.0
-const DIST_MAX := 115.0
-const CEILING := 54.0
+## Free to roam (the user, 21. 10.: "let me drive the camera wherever I want, to the map's
+## edges, to the Liblice masts: we can look the map over like that"): the whole land of
+## data/geo/world.json (x east, z south, metres from the camp), far out and high up.
+const DIST_MAX := 1600.0
+const CEILING := 1400.0
+const ROAM := Rect2(-2150.0, -2450.0, 6600.0, 4500.0)
 ## The 2D map's camera, matched: 30 degrees down; through a long lens from where the
 ## clouds do not get in the way.
 const ISO_PITCH := deg_to_rad(30.0)
@@ -56,8 +62,6 @@ const LEAVE_SEC := 0.8
 const DITHER_SEC := 0.4
 ## The view at half the PC's pixels (about the world view's 240 lines on the monitor).
 const PX := 2
-## How far past the map the camera may look.
-const EDGE_TILES := 3.0
 const PLATE_Y := 0.1
 const MAX_PLATES := 900
 const BLUE := Color(0.55, 0.85, 1.0)
@@ -131,6 +135,7 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	panel = get_parent() as Control
+	add_to_group("builder_3d")
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	visible = false
@@ -143,8 +148,12 @@ func _ready() -> void:
 	_vp.size = Vector2i(64, 64)
 	add_child(_vp)
 	_cam = Camera3D.new()
-	_cam.near = 0.25
-	_cam.far = 1200.0
+	# The Builder's eye: the camp as the PC has it, without the god cursor's theatre
+	# (its copies falling; the buildings it has not dropped yet are on this eye only).
+	_cam.set_meta("builder_eye", true)
+	_cam.cull_mask = 0xFFFFF & ~GOD.THEATRE
+	_cam.near = 0.4
+	_cam.far = 7000.0
 	_cam.fov = FOV
 	_vp.add_child(_cam)
 	_view = TextureRect.new()
@@ -285,6 +294,7 @@ func _off() -> void:
 	visible = false
 	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_view_mat.set_shader_parameter("reveal", 0.0)
+	RETRO.vis_far = 0.0
 	_hide_ghosts()
 	for r in _rising:
 		if is_instance_valid(r["node"]):
@@ -324,6 +334,7 @@ func _process(delta: float) -> void:
 	var live := is_visible_in_tree() and _screen_live()
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if live else SubViewport.UPDATE_DISABLED
 	if not live:
+		RETRO.vis_far = 0.0
 		return
 	_clock += delta
 	_t += delta
@@ -347,6 +358,7 @@ func _process(delta: float) -> void:
 	if _env_t <= 0.0:
 		_env_t = 0.5
 		_sync_env()
+	RETRO.vis_far = _dist * 3.0 if _mode == 2 else 0.0
 	_scan_t -= delta
 	if _scan_t <= 0.0:
 		_scan_t = 0.5
@@ -396,12 +408,13 @@ func _dist_cap(pitch: float) -> float:
 
 
 func _clamp_focus(p: Vector3) -> Vector3:
-	var mc := _mc()
-	var ts := _ts()
-	var w := float(panel.grid_manager.grid_width) * ts
-	var h := float(panel.grid_manager.grid_height) * ts
-	var e := EDGE_TILES * ts
-	return Vector3(clampf(p.x, mc.x - e, mc.x + w + e), 0.0, clampf(p.z, mc.z - e, mc.z + h + e))
+	return Vector3(clampf(p.x, ROAM.position.x, ROAM.end.x), 0.0, clampf(p.z, ROAM.position.y, ROAM.end.y))
+
+
+## Where the land round the camp is built (town_trip._eye_for_geo asks): the ground this
+## view looks at while it shows and the PC's screen is drawn; INF otherwise.
+func geo_eye() -> Vector3:
+	return _f if on and is_visible_in_tree() and _screen_live() else Vector3.INF
 
 
 func _fit() -> void:
@@ -423,7 +436,8 @@ func _sync_env() -> void:
 	if src == null:
 		return
 	var env: Environment = src.duplicate()
-	env.fog_density = src.fog_density * fog_k
+	# Thinner the higher it is: from a kilometre up the whole land, not a grey sheet.
+	env.fog_density = src.fog_density * fog_k * clampf(80.0 / maxf(1.0, _dist), 0.04, 1.0)
 	env.fog_enabled = src.fog_enabled and fog_k > 0.0
 	env.volumetric_fog_enabled = false
 	_cam.environment = env
@@ -491,7 +505,9 @@ func turn(step: int) -> void:
 
 func zoom_step(direction: int, local: Vector2) -> void:
 	var old := _dist_t
-	_dist_t = clampf(_dist_t * (1.0 / 1.2 if direction > 0 else 1.2), DIST_MIN, _dist_cap(_pitch_t))
+	# Bigger steps far out (seven metres to a kilometre and a half).
+	var k := 1.2 if _dist_t < 150.0 else 1.35
+	_dist_t = clampf(_dist_t * (1.0 / k if direction > 0 else k), DIST_MIN, _dist_cap(_pitch_t))
 	var g := _ground(local) if Rect2(Vector2.ZERO, size).has_point(local) else Vector3.INF
 	if g != Vector3.INF and old > 0.0:
 		_ft = _clamp_focus(_ft + (g - _ft) * (1.0 - _dist_t / old))

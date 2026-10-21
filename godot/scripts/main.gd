@@ -44,6 +44,10 @@ const GUEST_AGENTS_SCRIPT = preload("res://scripts/guest_agents.gd")
 const QUEST_MANAGER_SCRIPT = preload("res://scripts/quest_manager.gd")
 const MAINTENANCE_CONTROLLER_SCRIPT = preload("res://scripts/maintenance_controller.gd")
 const BLOOD_FX_SCRIPT = preload("res://scripts/blood_fx.gd")
+## Being hurt on the screen and in the ears (the red flash, blood on the lens, your cry,
+## the heart and the breath, the limp and the blackouts when low).
+const HURT_FX_SCRIPT = preload("res://scripts/ui/hurt_fx.gd")
+var _hurt_fx: CanvasLayer
 const MENU_FLYTHROUGH_SCRIPT = preload("res://scripts/menu_flythrough.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
@@ -1876,6 +1880,7 @@ func _pick_turned_guest(archetype: String) -> Dictionary:
 ## Dawn: every guest whose turned self got you in the night is gone (their things go to
 ## the lost and found, their bed was not slept in).
 func _claim_turned_guests() -> void:
+	_claim_rings()
 	for brain in _enemy_brains:
 		if brain == null or brain.get("claimed") != true:
 			continue
@@ -1886,6 +1891,29 @@ func _claim_turned_guests() -> void:
 			continue
 		if GuestManager.vanish_guest(id) and _hud_manager != null:
 			_hud_manager.push_status("Morning: %s is gone. The bed was not slept in." % str(guest.get("name", "a guest")), 2)
+
+
+## Dawn: the mushroom granny's rings closed round a lodging (basket_brain.gd): its
+## guests wake sick, and on a heavy night one of them is gone.
+func _claim_rings() -> void:
+	for brain in _enemy_brains:
+		if brain == null or not brain.has_method("closed_ring_lodgings"):
+			continue
+		var keys: Array = brain.closed_ring_lodgings()
+		if keys.is_empty():
+			continue
+		var taken := false
+		for g in GuestManager.get_guest_life_snapshot():
+			var c = g.get("lodging", Vector2i(-1, -1))
+			if not (c is Vector2i) or not keys.has("%d:%d" % [c.x, c.y]):
+				continue
+			var id := int(g.get("id", -1))
+			if int(brain.get("_difficulty")) >= 4 and not taken and GuestManager.vanish_guest(id):
+				taken = true
+				if _hud_manager != null:
+					_hud_manager.push_status("Morning: %s is gone. A ring of mushrooms round the door." % str(g.get("name", "a guest")), 2)
+				continue
+			GuestManager.apply_guest_event(id, -22.0, "I dreamt something was growing out of my mouth. There are mushrooms round the door.")
 
 
 ## What has come before comes back harder: every third night something came for the
@@ -2923,12 +2951,19 @@ func _resolve_damage_tier(damage_amount: int, fatal_hit: bool) -> int:
 
 func _emit_player_damage_feedback(damage_amount: int, fatal_hit: bool) -> void:
 	var tier := _resolve_damage_tier(damage_amount, fatal_hit)
+	if _hurt_fx == null or not is_instance_valid(_hurt_fx):
+		_hurt_fx = HURT_FX_SCRIPT.new()
+		_hurt_fx.set("main", self)
+		add_child(_hurt_fx)
+	_hurt_fx.hit(damage_amount, tier, fatal_hit)
 	if _player != null and _player.has_method("play_damage_feedback"):
 		_player.play_damage_feedback(tier, damage_amount, fatal_hit)
 	_spawn_blood_damage_fx(tier, fatal_hit)
 
 
 func _reset_player_damage_feedback() -> void:
+	if _hurt_fx != null and is_instance_valid(_hurt_fx):
+		_hurt_fx.clear()
 	if _player != null and _player.has_method("reset_damage_feedback_state"):
 		_player.reset_damage_feedback_state()
 
@@ -3739,9 +3774,12 @@ func _dress_ruined_cabin() -> void:
 	sheet.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sheet.uv1_triplanar = true
 	var boards: Array = []
-	for x: float in [-ws.x * 0.3, ws.x * 0.3]:
-		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, ws.y * 0.62 + 0.1, front + 0.07), 0.32])
-		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, ws.y * 0.62 - 0.12, front + 0.08), -0.28])
+	# Over the front windows where the cabin's plan has them (scripts/cabin_layout.gd).
+	var CL = load("res://scripts/cabin_layout.gd")
+	var win_y: float = CL.MODEL_FLOOR + CL.SILL_MID
+	for x: float in [-CL.FRONT_WIN_X, CL.FRONT_WIN_X]:
+		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, win_y + 0.1, front + 0.07), 0.32])
+		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, win_y - 0.12, front + 0.08), -0.28])
 	boards.append([Vector3(1.15, 0.15, 0.05), Vector3(0, 1.25, front + 0.09), 0.18])
 	boards.append([Vector3(1.15, 0.15, 0.05), Vector3(0, 0.7, front + 0.1), -0.22])
 	for b in boards:
@@ -3866,9 +3904,15 @@ func _update_interaction_hint() -> void:
 	if _corn_hunt != null and is_instance_valid(_corn_hunt) and str(_corn_hunt.hint()) != "":
 		_hud_manager.set_hint_text(str(_corn_hunt.hint()))
 		return
+	# A night thing's own line (the granny's basket within reach).
+	for b in _enemy_brains:
+		if b != null and b.has_method("hint") and str(b.hint()) != "":
+			_hud_manager.set_hint_text(str(b.hint()))
+			return
 	var lake_hint: String = _lake_trip.hint() if _lake_trip != null else ""
 	if _lake_trip != null and _lake_trip.is_active():
-		_hud_manager.set_hint_text("")
+		# In the boat: the oars at first, the way out by the jetty (lake_trip.active_hint).
+		_hud_manager.set_hint_text(str(_lake_trip.active_hint()) if _lake_trip.has_method("active_hint") else "")
 		return
 	if not lake_hint.is_empty():
 		_hud_manager.set_hint_text(lake_hint)
@@ -4248,6 +4292,9 @@ var _test_night := ""
 
 
 func _on_menu_test_night(enemy_id: String) -> void:
+	if enemy_id == "content":
+		await _start_content_reel()
+		return
 	if enemy_id == "bus":
 		await _start_test_bus()
 		return
@@ -4284,6 +4331,9 @@ func _on_menu_test_night(enemy_id: String) -> void:
 		ne["guest"] = _pick_turned_guest(str(TEST_NIGHT_GUESTS.get(enemy_id, "")))
 		# The boy's job at once, not an hour into the night; his places in turn.
 		if nb.get("soon") != null:
+			nb.set("soon", true)
+		# The granny is out whatever the hour (she keeps to the small hours).
+		if nb.get("soon") != null and enemy_id == "basket":
 			nb.set("soon", true)
 		if nb.has_method("force_place"):
 			var where: String = TEST_BOY_PLACES[_test_boy_turn % TEST_BOY_PLACES.size()]
@@ -4337,7 +4387,17 @@ func _start_test_bus() -> void:
 const TEST_BUSINESSES := "podniky"
 
 
-func _start_test_businesses() -> void:
+## The content reel (the title screen's L page): the businesses' camp, then a day of its
+## best scenes, L for the next (scripts/content_reel.gd).
+func _start_content_reel() -> void:
+	await _start_test_businesses(true)
+	var reel = load("res://scripts/content_reel.gd").new()
+	reel.name = "ContentReel"
+	get_tree().root.add_child(reel)
+	reel.start(self)
+
+
+func _start_test_businesses(quiet := false) -> void:
 	await _start_new_camp(true, TEST_BUSINESSES)
 	for _i in 60:
 		if not _menu_mode:
@@ -4387,7 +4447,7 @@ func _start_test_businesses() -> void:
 	if _player != null and is_instance_valid(_player) and grid_manager != null:
 		_player.global_position = grid_manager.grid_to_world(Vector2i(g.x, 5)) + Vector3(0, 0.2, 0)
 		_player.rotation.y = PI
-	if _hud_manager != null:
+	if _hud_manager != null and not quiet:
 		_hud_manager.push_status("Test: every business open and a full camp. The work is at their stations.", 2)
 
 
@@ -4677,7 +4737,7 @@ func _on_coop_partner_moved(id: int, s: Dictionary) -> void:
 			if os.has("boat") or os.has("boat_at"):
 				rower = int(oid)
 		var rs: Dictionary = Coop.state_of(rower) if rower != 0 else {}
-		_lake_trip.coop_mirror_boat(rs.get("boat", rs.get("boat_at", null)), rs.has("boat_at"), rower)
+		_lake_trip.coop_mirror_boat(rs.get("boat", rs.get("boat_at", null)), rs.has("boat_at"), rower, rs.get("rp", []))
 	if _interior_manager != null and _interior_manager.has_method("coop_partner"):
 		var room: Dictionary = s.get("room", {})
 		if bool(s.get("z", false)) and not room.is_empty():
@@ -5480,6 +5540,9 @@ func coop_local_warden() -> Dictionary:
 	if lake.has("boat") or lake.has("ride"):
 		var key := "boat" if lake.has("boat") else "ride"
 		s[key] = lake[key]
+		# Your oars' strokes: their boat strokes as yours does (boat_rig.gd).
+		if lake.has("rp"):
+			s["rp"] = lake["rp"]
 		s["p"] = (lake[key] as Transform3D).origin
 		s["in"] = false
 		s["t"] = false

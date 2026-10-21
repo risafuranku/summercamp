@@ -40,25 +40,26 @@ const TABLES := [Vector3(-2.05, 0.05, -1.35), Vector3(-2.05, 0.05, 0.35), Vector
 ## The stations: id -> {room, at (click box centre), size, stand (where the warden stands
 ## at it, on the floor), pose (their picture there), mark (where its status hangs), label,
 ## tab_label, icon (the frame's tab), menu (the dishes it makes: no tab when all are off)}.
-## In the order of the chain (the frame's tabs and keys): the floor where an order starts
-## and ends, the kitchen, the cellar (the brief of 21. 10.: "the cellar prepares, the
-## kitchen cooks and plates, the floor pours and serves; a hand for every room").
+## In the order of the work (the frame's tabs and keys 1-9; the user, 21. 10.: "1 husk,
+## 2 serve and butter, 3 drinks: it should make sense everywhere"): the cellar prepares,
+## the kitchen cooks, the pass plates, the floor pours and serves, the sink last (the
+## brief of 21. 10.: "a hand for every room"). You come in at the floor (ENTRY).
 const ENTRY := "floor"
 const STATIONS := {
-	# The floor (na place): the counter along the dining room's right wall: the hatch the
-	# plates come out of from the pass, the crate of bottles and the opener.
-	"floor": {"room": "dining", "at": Vector3(2.62, 0.6, 0.75), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(1.9, 0.05, 0.75), "pose": "cook", "mark": Vector3(2.62, 1.7, 0.75), "label": "the floor", "tab_label": "FLOOR", "icon": "res://assets/textury/ui/mark_bell.png"},
-	"pass": {"room": "kitchen", "at": Vector3(-2.62, 0.6, -0.45), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(-1.9, 0.05, -0.45), "pose": "cook", "mark": Vector3(-2.62, 1.85, -0.45), "label": "the pass", "tab_label": "PASS", "icon": "res://assets/textury/ui/mark_plate.png"},
+	"potatoes": {"room": "basement", "at": Vector3(-2.85, 0.72, -0.55), "size": Vector3(0.5, 1.4, 2.4), "stand": Vector3(-2.0, 0.05, -0.55), "pose": "cook", "mark": Vector3(-2.7, 1.75, -0.55), "label": "the potatoes", "tab_label": "POTATOES", "icon": "res://assets/textury/ui/mark_potato.png"},
+	"breading": {"room": "basement", "at": Vector3(2.5, 0.5, 0.05), "size": Vector3(0.95, 0.8, 1.7), "stand": Vector3(1.8, 0.05, 0.05), "pose": "cook", "mark": Vector3(2.5, 1.55, 0.05), "label": "the breading table", "tab_label": "BREADING", "icon": "res://assets/textury/ui/mark_slice.png"},
+	"machine": {"room": "basement", "at": Vector3(1.45, 0.75, -2.2), "size": Vector3(2.4, 1.4, 0.4), "stand": Vector3(1.2, 0.05, -1.2), "pose": "stand", "mark": Vector3(1.45, 1.75, -2.2), "label": "the machine", "tab": false},
 	"stove": {"room": "kitchen", "at": Vector3(-1.15, 0.6, -1.95), "size": Vector3(1.7, 0.9, 0.95), "stand": Vector3(-1.15, 0.05, -1.2), "pose": "cook", "mark": Vector3(-1.15, 1.75, -1.95), "label": "the stove", "tab_label": "STOVE", "icon": "res://assets/textury/ui/mark_pan.png"},
 	"pot": {"room": "kitchen", "at": Vector3(1.2, 0.6, -1.95), "size": Vector3(1.7, 0.9, 0.95), "stand": Vector3(1.2, 0.05, -1.2), "pose": "cook", "mark": Vector3(1.2, 1.75, -1.95), "label": "the goulash pot", "tab_label": "POT", "icon": "res://assets/textury/ui/mark_pot.png", "menu": ["goulash"]},
 	# The grill and the bufet (the soup of the day) on the kitchen island (the brief of
 	# 21. 10.: the bufet moved into the kitchen).
 	"grill": {"room": "kitchen", "at": Vector3(0.0, 0.6, 0.3), "size": Vector3(1.06, 0.9, 0.64), "stand": Vector3(0.0, 0.05, 1.0), "pose": "cook", "mark": Vector3(0.0, 1.6, 0.3), "label": "the grill", "tab_label": "GRILL", "icon": "res://assets/textury/closeup/food/icon_sausage.png", "menu": ["sausage"]},
 	"bufet": {"room": "kitchen", "at": Vector3(-1.3, 0.6, 0.3), "size": Vector3(1.06, 0.9, 0.64), "stand": Vector3(-1.3, 0.05, 1.0), "pose": "cook", "mark": Vector3(-1.3, 1.6, 0.3), "label": "the soup", "tab_label": "SOUP", "icon": "res://assets/textury/closeup/food/icon_soup.png", "menu": ["soup"]},
+	"pass": {"room": "kitchen", "at": Vector3(-2.62, 0.6, -0.45), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(-1.9, 0.05, -0.45), "pose": "cook", "mark": Vector3(-2.62, 1.85, -0.45), "label": "the pass", "tab_label": "PASS", "icon": "res://assets/textury/ui/mark_plate.png"},
+	# The floor (na place): the counter along the dining room's right wall: the hatch the
+	# plates come out of from the pass, the crate of bottles and the opener.
+	"floor": {"room": "dining", "at": Vector3(2.62, 0.6, 0.75), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(1.9, 0.05, 0.75), "pose": "cook", "mark": Vector3(2.62, 1.7, 0.75), "label": "the floor", "tab_label": "FLOOR", "icon": "res://assets/textury/ui/mark_bell.png"},
 	"sink": {"room": "kitchen", "at": Vector3(2.62, 0.6, -0.35), "size": Vector3(0.95, 0.9, 1.7), "stand": Vector3(1.9, 0.05, -0.35), "pose": "wash", "mark": Vector3(2.62, 1.75, -0.35), "label": "the sink", "tab_label": "SINK", "icon": "res://assets/textury/ui/mark_wash.png"},
-	"potatoes": {"room": "basement", "at": Vector3(-2.85, 0.72, -0.55), "size": Vector3(0.5, 1.4, 2.4), "stand": Vector3(-2.0, 0.05, -0.55), "pose": "cook", "mark": Vector3(-2.7, 1.75, -0.55), "label": "the potatoes", "tab_label": "POTATOES", "icon": "res://assets/textury/ui/mark_potato.png"},
-	"breading": {"room": "basement", "at": Vector3(2.5, 0.5, 0.05), "size": Vector3(0.95, 0.8, 1.7), "stand": Vector3(1.8, 0.05, 0.05), "pose": "cook", "mark": Vector3(2.5, 1.55, 0.05), "label": "the breading table", "tab_label": "BREADING", "icon": "res://assets/textury/ui/mark_slice.png"},
-	"machine": {"room": "basement", "at": Vector3(1.45, 0.75, -2.2), "size": Vector3(2.4, 1.4, 0.4), "stand": Vector3(1.2, 0.05, -1.2), "pose": "stand", "mark": Vector3(1.45, 1.75, -2.2), "label": "the machine", "tab": false},
 }
 ## Where each station's work surface lies (scripts/business/station3d.gd stands on it;
 ## its counter's top is its Build picture, assets/textury/bistro/st_<id>.png): the centre,

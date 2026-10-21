@@ -368,9 +368,13 @@ def oil_drum(m):
 
 def rowboat(m):
     """A small wooden rowing boat: planked sides that taper to a pointed bow, a flat
-    stern, two thwarts, a pair of oars laid inside. 2.6 m long, bow towards -Y."""
+    stern, two thwarts and a little seat in the bow, an iron rowlock on each side by the
+    aft thwart (the rower's). 2.6 m long, bow towards -Y. The oars are their own prop
+    (rowboat_oar), laid in or shipped in the rowlocks by scripts/lake/boat_rig.gd."""
     hull = K.mat("hull", "planks_red.png", (0.8, 0.85, 0.9), texel=0.8)
     inside = K.mat("hull_in", "planks_grey.png", (0.9, 0.85, 0.75), texel=0.8)
+    # The seats and boards: bare wood gone grey and brown in the weather.
+    seat = K.mat("boat_seat", "planks_grey.png", (0.86, 0.72, 0.54), texel=0.6)
     parts = [K.box((0.9, 1.7, 0.05), (0, 0.25, 0.06), inside)]
     for s in (-1, 1):
         # Midship side plank, then the two bow planks closing on the stem.
@@ -379,10 +383,33 @@ def rowboat(m):
     parts.append(K.box((0.86, 0.04, 0.42), (0, 1.1, 0.24), hull))
     parts.append(K.box((0.06, 0.06, 0.5), (0, -1.38, 0.3), hull, rot=(0.35, 0, 0)))
     for y in (-0.2, 0.6):
-        parts.append(K.box((0.88, 0.2, 0.03), (0, y, 0.33), m["pine"]))
+        parts.append(K.box((0.88, 0.2, 0.03), (0, y, 0.33), seat))
+    # The bow seat, where a second one sits facing the rower.
+    parts.append(K.box((0.42, 0.26, 0.03), (0, -0.9, 0.31), seat))
+    # Bottom boards along the floor, and the rowlocks: a pin with its iron crutch on the
+    # gunwale a hand's breadth ahead of the rower's thwart.
+    for x in (-0.24, 0.0, 0.24):
+        parts.append(K.box((0.1, 1.5, 0.015), (x, 0.3, 0.092), seat))
     for s in (-1, 1):
-        parts.append(K.box((0.05, 1.9, 0.03), (s * 0.18, 0.15, 0.37), m["pine"], rot=(0, 0, s * 0.08)))
-        parts.append(K.box((0.12, 0.4, 0.015), (s * 0.18, 1.0, 0.38), m["pine"]))
+        parts.append(K.box((0.06, 0.12, 0.05), (s * 0.475, 0.36, 0.47), seat))
+        parts.append(K.cyl(0.012, 0.07, (s * 0.475, 0.36, 0.53), m["galv"], 6))
+        for d in (-1, 1):
+            parts.append(K.box((0.012, 0.012, 0.06), (s * 0.475, 0.36 + d * 0.035, 0.57), m["galv"]))
+    return parts
+
+
+def rowboat_oar(m):
+    """One oar of the rowing boat: the grip, the round loom, the flat blade with a red
+    tip. 2.0 m along X, the grip at -X, the blade at +X (scripts/lake/boat_rig.gd hangs
+    it in a rowlock by its loom)."""
+    # Oiled ash gone dark with years, as the gloved hands hold them (hands/oars.png).
+    wood = K.mat("oar_wood", "planks_grey.png", (0.62, 0.46, 0.32), texel=0.5)
+    tip = K.mat("oar_tip", "planks_red.png", (0.7, 0.45, 0.4), texel=0.4)
+    parts = [K.cyl(0.017, 0.2, (-0.9, 0, 0.03), wood, 8, rot=(0, math.pi * 0.5, 0))]
+    parts.append(K.cyl(0.024, 1.25, (-0.18, 0, 0.03), wood, 8, rot=(0, math.pi * 0.5, 0)))
+    parts.append(K.box((0.16, 0.05, 0.016), (0.5, 0, 0.03), wood))
+    parts.append(K.box((0.36, 0.13, 0.016), (0.76, 0, 0.03), wood))
+    parts.append(K.box((0.1, 0.132, 0.018), (0.9, 0, 0.03), tip))
     return parts
 
 
@@ -416,4 +443,5 @@ PROPS = {
     "generator": generator,
     "oil_drum": oil_drum,
     "rowboat": rowboat,
+    "rowboat_oar": rowboat_oar,
 }

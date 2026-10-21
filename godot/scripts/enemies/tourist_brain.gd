@@ -95,6 +95,36 @@ const SFX_ZOOM := "res://assets/sfx/npc/ph_zoom.mp3"
 const SFX_TAP := "res://assets/sfx/npc/ph_glass_tap.mp3"
 const SFX_BREATH := "res://assets/sfx/npc/ph_glass_breath.mp3"
 const SFX_FLASH_ROOM := "res://assets/sfx/npc/ph_flash_room.mp3"
+const SFX_HUM_GARGLE := "res://assets/sfx/npc/ph_hum_gargle.mp3"
+const SFX_HUM_MUFFLED := "res://assets/sfx/npc/ph_hum_muffled.mp3"
+const SFX_NECK_CREAK := "res://assets/sfx/npc/ph_neck_creak.mp3"
+const SFX_TWITCH := "res://assets/sfx/npc/ph_neck_twitch.mp3"
+const SFX_HEAD_SWING := "res://assets/sfx/npc/ph_head_swing.mp3"
+const SFX_SCREAM := "res://assets/sfx/npc/ph_scream_paper.mp3"
+const SFX_RUSTLE := "res://assets/sfx/npc/ph_photos_rustle.mp3"
+const SFX_DRIP := "res://assets/sfx/npc/ph_drip.mp3"
+const SFX_STEP_DRAG := "res://assets/sfx/npc/ph_step_drag.mp3"
+const SFX_SHUTTER_FAR := "res://assets/sfx/npc/ph_shutter_far.mp3"
+const SFX_CHUCKLE_WET := "res://assets/sfx/npc/ph_chuckle_wet.mp3"
+const SFX_BREATH_BROKEN := "res://assets/sfx/npc/ph_breath_broken.mp3"
+const SFX_RATTLE := "res://assets/sfx/npc/ph_camera_rattle.mp3"
+const SFX_SPIT := "res://assets/sfx/npc/ph_spit_photo.mp3"
+const SFX_JAW := "res://assets/sfx/npc/ph_jaw_click.mp3"
+const SFX_FLICKER := "res://assets/sfx/npc/ph_flash_flicker.mp3"
+## His poses alive (tools/artgen/photographer_frames.py: ph_anim/<pose>_<n>.png, each cut
+## and moved from the pose itself): frames, how many a second, the order where it is not
+## straight through; "spasm" the frame of the broken neck's jerk, played by itself now
+## and then (_tick_grim).
+const ANIM_DIR := "res://assets/textury/npc/ph_anim/"
+const ANIM := {
+	"idle": {"n": 2, "fps": 1.6}, "back": {"n": 2, "fps": 1.6}, "glass": {"n": 2, "fps": 2.2},
+	"aim": {"n": 4, "fps": 12.0, "seq": [0, 1, 0, 0, 2, 0, 3, 0]},
+	"wave": {"n": 6, "fps": 9.0},
+	"flash": {"n": 3, "fps": 12.0, "seq": [1, 1, 0, 1, 2, 2, 0, 2]},
+	"run": {"n": 2, "fps": 7.0},
+	"neck": {"n": 10, "fps": 7.0, "spasm": 10},
+	"neck2": {"n": 12, "fps": 9.0, "spasm": 12},
+}
 const GRAB_DISTANCE := 2.6
 const WALK_SPEED := 3.2
 const STEP := 1.0 / 12.0
@@ -138,6 +168,18 @@ var _self_light: OmniLight3D
 var _polaroid: CanvasLayer
 var _killing := false
 var _rush_from := Vector3.ZERO
+var _frames := {}
+var _anim_t := 0.0
+var _anim_i := -1
+var _spasm_left := 0.0
+var _spasm_wait := 3.0
+## The hum as he is now ("" whole, "neck", "neck2"), louder for the new ones (their files
+## are quieter), and the broken breathing once he is broken.
+var _hum_stage := ""
+var _hum_gain := 0.0
+var _breath3d: AudioStreamPlayer3D
+var _grim := {"rustle": 4.0, "drip": 3.0, "scream": 8.0, "far": 14.0}
+var _flicker_at := -1.0
 
 
 func get_enemy_id() -> String:
@@ -162,6 +204,14 @@ func _on_start() -> void:
 		if ResourceLoader.exists(POSES[k]):
 			_tex[k] = load(POSES[k])
 	_tex["idle"] = _body.texture
+	for pose in ANIM:
+		var fr: Array = []
+		for i in int(ANIM[pose]["n"]) + (1 if ANIM[pose].has("spasm") else 0):
+			var path := ANIM_DIR + "%s_%d.png" % [pose, i]
+			if ResourceLoader.exists(path):
+				fr.append(load(path))
+		if not fr.is_empty():
+			_frames[pose] = fr
 	# The red lamp on the camera, a point where the camera is (enemy_eyes "tourist": a
 	# sprite, so the other wardens see it blink too); the one thing of him in the dark.
 	_make_eyes("tourist", 1.18)
@@ -205,6 +255,7 @@ func tick(delta: float) -> void:
 		_elapsed += delta
 		_tick_flash(delta)
 		_tick_indoors(delta)
+		_tick_anim(delta)
 		_follow_hum()
 		_tick_eyes(delta)
 		return
@@ -220,6 +271,8 @@ func _on_tick(dt: float) -> void:
 	_tick_flash(dt)
 	_body.visible = true
 	_follow_hum()
+	_tick_anim(dt)
+	_tick_grim(dt)
 	# The last picture: he stands where he took it while it develops.
 	if _killing:
 		return
@@ -256,7 +309,11 @@ func _enter_walk() -> void:
 	_walk_c = _player_pos()
 	_walk_t = 0.0
 	_walk_dur = maxf(0.8, minf(_arc_length(), 24.0) / WALK_SPEED)
-	_sound(SFX_STEPS, _head(), -2.0, _rng.randf_range(0.95, 1.05), 30.0)
+	# Broken, one foot drags.
+	if _broken() != "":
+		_sound(SFX_STEP_DRAG, _head(), 0.0, _rng.randf_range(0.92, 1.05), 30.0)
+	else:
+		_sound(SFX_STEPS, _head(), -2.0, _rng.randf_range(0.95, 1.05), 30.0)
 
 
 func _tick_walk(dt: float) -> void:
@@ -292,6 +349,10 @@ func _enter_frame() -> void:
 	_whine_started = false
 	_set_pose(_broken() if _broken() != "" else "aim")
 	_sound(SFX_ZOOM, _head(), 0.0, 1.0, 30.0)
+	if _rng.randf() < 0.45:
+		_sound(SFX_RATTLE, _lens(), 0.0, _rng.randf_range(0.9, 1.1), 22.0)
+	# Broken, his flash is too: it stutters once before it fires (not a shot).
+	_flicker_at = _phase_end - _rng.randf_range(1.3, 1.8) if _broken() != "" and _rng.randf() < 0.5 else -1.0
 	_announce("Humming between the trees. A red light. Beep... beep... Do not look at the flash.")
 
 
@@ -308,6 +369,9 @@ func _tick_frame() -> void:
 	if not _whine_started and left <= 1.1:
 		_whine_started = true
 		_sound(SFX_WHINE, _head(), 8.0, 1.0, 48.0)
+	if _flicker_at > 0.0 and _elapsed >= _flicker_at:
+		_flicker_at = -1.0
+		_sputter()
 	if left <= 0.0:
 		_fire()
 
@@ -343,7 +407,13 @@ func _fire() -> void:
 			_set_pose("wave" if _hit_last else "idle")
 			if _hit_last:
 				_sound(SFX_POLAROID, _head(), 0.0, 1.0, 30.0)
-				_sound(SFX_GIGGLE, _head(), 4.0, _rng.randf_range(0.95, 1.1), 35.0))
+				if _broken() != "":
+					# Through the photographs in his mouth; now and then he coughs one out.
+					_sound(SFX_CHUCKLE_WET, _mouth(), 4.0, _rng.randf_range(0.9, 1.05), 35.0)
+					if _rng.randf() < 0.45:
+						get_tree_timer(1.1, func(): _sound(SFX_SPIT, _mouth(), 2.0, _rng.randf_range(0.9, 1.1), 25.0))
+				else:
+					_sound(SFX_GIGGLE, _head(), 4.0, _rng.randf_range(0.95, 1.1), 35.0))
 
 
 func _grab() -> void:
@@ -477,7 +547,10 @@ func _tick_indoors(_dt: float) -> void:
 			_in_step = 2
 			_in_next = _elapsed + _rng.randf_range(1.2, 2.0)
 		2:
-			if _rng.randf() < 0.5:
+			if _broken() != "" and _rng.randf() < 0.5:
+				# Wet paper and a jaw that clicks, against the glass.
+				_room(SFX_RUSTLE if _rng.randf() < 0.6 else SFX_JAW, -4.0)
+			elif _rng.randf() < 0.5:
 				_room(SFX_BREATH, -6.0)
 			else:
 				_room(SFX_ZOOM, -8.0)
@@ -589,9 +662,12 @@ func _follow_hum() -> void:
 		var toward := (cam.global_position - _head()).normalized() if cam != null else Vector3.ZERO
 		_self_light.global_position = _head() + Vector3(0, -0.5, 0) + toward * 0.6
 	if _hum != null and is_instance_valid(_hum):
-		_hum.global_position = _head()
+		_hum_for(_broken())
+		_hum.global_position = _mouth()
+		if _breath3d != null and is_instance_valid(_breath3d):
+			_breath3d.global_position = _mouth()
 		# Quieter through a wall, still there.
-		var db := -14.0 if not _win.is_empty() or not _is_ready() else -6.0
+		var db := (-14.0 if not _win.is_empty() or not _is_ready() else -6.0) + _hum_gain
 		# Muted on this machine for co-op privacy (coop_night._hide_private): kept for later.
 		if _hum.has_meta("coop_db"):
 			_hum.set_meta("coop_db", db)
@@ -624,6 +700,10 @@ func _set_pose(p: String) -> void:
 	if t == null:
 		return
 	_body.texture = t
+	if _frames.has(p):
+		_body.texture = _frames[p][0]
+	_anim_t = 0.0
+	_anim_i = -1
 	# Every picture of him at one density (140 pixels are 1.9 m): the broken neck as tall
 	# as it is drawn, at the glass the upper half of him pressed to it (lifted).
 	var lift := 0.75 if p == "glass" else 0.0
@@ -764,7 +844,10 @@ func _tick_rush(dt: float) -> void:
 	_body.global_position = g if g != Vector3.INF else p
 
 
+## (Nowhere once the night is over: a timer of his may still go off after it.)
 func _head() -> Vector3:
+	if _body == null or not is_instance_valid(_body):
+		return Vector3.ZERO
 	return _body.global_position + Vector3(0, 1.6, 0)
 
 
@@ -782,6 +865,108 @@ func _set_af_at(at: Vector3, on: bool) -> void:
 		var seen := CAMERA_AT.has(_pose if _pose != "" else "idle")
 		_eyes.set("want", 1.0 if seen and (on or float(_eyes.get("flare")) > 0.3) else 0.0)
 		_eyes.set("tint", Color(1.0, 0.14, 0.08) if on else Color(0, 0, 0, 0))
+
+
+## His pose's frame now (ANIM), and what goes with the frames of a broken neck (the creak
+## at the end of each sway, the wet swing of the head at his belly).
+func _tick_anim(dt: float) -> void:
+	var a: Dictionary = ANIM.get(_pose, {})
+	var fr: Array = _frames.get(_pose, [])
+	if a.is_empty() or fr.is_empty():
+		return
+	_anim_t += dt
+	var i := 0
+	if _spasm_left > 0.0 and a.has("spasm"):
+		_spasm_left -= dt
+		i = int(a["spasm"])
+	else:
+		var seq: Array = a.get("seq", [])
+		var k := int(_anim_t * float(a["fps"]))
+		i = int(seq[k % seq.size()]) if not seq.is_empty() else k % int(a["n"])
+	if i != _anim_i:
+		_anim_i = i
+		if _pose == "neck" and (i == 3 or i == 8) and _rng.randf() < 0.3:
+			_sound(SFX_NECK_CREAK, _mouth(), -2.0, _rng.randf_range(0.85, 1.1), 18.0)
+		elif _pose == "neck2" and (i == 3 or i == 9) and _rng.randf() < 0.35:
+			_sound(SFX_HEAD_SWING, _mouth(), 0.0, _rng.randf_range(0.9, 1.1), 18.0)
+	if i < fr.size() and _body.texture != fr[i]:
+		_body.texture = fr[i]
+
+
+## Broken, he is never still: the neck jerks (the spasm frame, the snap, the jaw), the
+## wet photographs in his mouth, the drip at his feet, and from the head at his belly a
+## scream through the paper. Whole or not, out of your sight a shutter goes now and then
+## far off in the dark.
+func _tick_grim(dt: float) -> void:
+	for k in _grim:
+		_grim[k] = float(_grim[k]) - dt
+	var b := _broken()
+	if b != "":
+		_spasm_wait -= dt
+		if _spasm_wait <= 0.0:
+			_spasm_wait = _rng.randf_range(2.5, 6.0)
+			_spasm_left = 0.17
+			_sound(SFX_TWITCH, _mouth(), 2.0, _rng.randf_range(0.9, 1.1), 22.0)
+			if _rng.randf() < 0.4:
+				_sound(SFX_JAW, _mouth(), 0.0, _rng.randf_range(0.9, 1.1), 16.0)
+		if float(_grim["rustle"]) <= 0.0:
+			_grim["rustle"] = _rng.randf_range(4.0, 8.0)
+			_sound(SFX_RUSTLE, _mouth(), -2.0, _rng.randf_range(0.9, 1.1), 14.0)
+		if float(_grim["drip"]) <= 0.0:
+			_grim["drip"] = _rng.randf_range(2.5, 5.0)
+			_sound(SFX_DRIP, _body.global_position + Vector3(0, 0.2, 0), -6.0, _rng.randf_range(0.9, 1.1), 10.0)
+		if b == "neck2" and float(_grim["scream"]) <= 0.0:
+			_grim["scream"] = _rng.randf_range(7.0, 14.0)
+			_sound(SFX_SCREAM, _mouth(), 2.0, _rng.randf_range(0.9, 1.05), 35.0)
+	if _phase == Phase.WALK and float(_grim["far"]) <= 0.0:
+		_grim["far"] = _rng.randf_range(12.0, 22.0)
+		if _distance_to_player(_body.global_position) > 14.0 and not _is_seen(_head(), 0.0):
+			_sound(SFX_SHUTTER_FAR, _head(), 2.0, _rng.randf_range(0.9, 1.05), 70.0)
+
+
+## The broken flash stutters: three weak pops of his light and the crackle (no shot).
+func _sputter() -> void:
+	_sound(SFX_FLICKER, _head(), 2.0, _rng.randf_range(0.95, 1.05), 35.0)
+	for at in [0.0, 0.14, 0.33]:
+		get_tree_timer(at + 0.01, func():
+			if _flash != null and is_instance_valid(_flash):
+				_flash.global_position = _head() + Vector3(0, 0.3, 0)
+				_flash_t = maxf(_flash_t, 0.09))
+
+
+## Where his mouth is now: up on the head, or (the neck let go) at his belly.
+func _mouth() -> Vector3:
+	if _body == null or not is_instance_valid(_body):
+		return Vector3.ZERO
+	return _body.global_position + Vector3(0, 0.9 if _pose == "neck2" else 1.75, 0)
+
+
+## The hum for what he is now: whole, gargled through the broken throat, or muffled by
+## the paper from the head at his belly; broken, his wet breathing with it.
+func _hum_for(stage: String) -> void:
+	if stage == _hum_stage:
+		return
+	_hum_stage = stage
+	var path := SFX_HUM if stage == "" else (SFX_HUM_GARGLE if stage == "neck" else SFX_HUM_MUFFLED)
+	var st := _looped(path)
+	if st != null:
+		_hum.stream = st
+		_hum.play()
+	_hum_gain = 0.0 if stage == "" else 6.0
+	if stage != "" and _breath3d == null:
+		_breath3d = _loop(SFX_BREATH_BROKEN, -6.0)
+		if _breath3d != null:
+			_breath3d.max_distance = 14.0
+
+
+static func _looped(path: String) -> AudioStream:
+	if not ResourceLoader.exists(path):
+		return null
+	var st := load(path) as AudioStream
+	if st is AudioStreamMP3:
+		st = (st as AudioStreamMP3).duplicate()
+		(st as AudioStreamMP3).loop = true
+	return st
 
 
 ## What the pictures of you have done to him: two and his neck has broken (the head hangs

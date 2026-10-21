@@ -2,8 +2,11 @@ extends Node3D
 
 ## The god cursor (DESIGN §5k): what is built in Builder 98 comes down into the camp you
 ## stand in from a giant computer pointer high in the haze, as if somebody up there were
-## putting the camp together with a mouse. The Builder's own tool, the size of a house,
-## flat pixels half lost in the mist; a deep hum, slowed-down Okna clicks and dings, and
+## putting the camp together with a mouse. The OS's own arrow built in three dimensions
+## out of its pixels, a hundred metres of it, hanging a hundred and fifty up in the haze
+## with its tip down at the camp, the Builder's tool beside it (the user, 21. 10.: "godly
+## v nebesích ... mohutnej cursor, fobie z velkejch věcí"); a deep hum, slowed-down Okna
+## clicks and dings, and
 ## heavy landings: path tiles one after another like dominoes, buildings in their parts
 ## (the foundations, the walls, the roof), each settling in a puff of dust; a bulldozing
 ## pressed flat by the pointer's click.
@@ -16,27 +19,52 @@ extends Node3D
 ##
 ## Who builds: the warden at the PC (Builder 98 on the screen) and, in co-op, the other
 ## wardens (main sets `from_peer` around their builds); a camp built any other way (the
-## world, a save, the tools) is just there. While this machine's warden sits at the PC
-## the queue waits: the cursor finishes what was ordered when they stand up (seen through
-## the office window, from its door, or outside). Each machine plays its own theatre.
+## world, a save, the tools) is just there. It builds as the PC orders, one to one (the
+## user, 21. 10.): alone at the PC you mostly miss it (a glimpse through the office
+## window); the other wardens see it. Each machine plays its own theatre.
+##
+## Two eyes on one world: Builder's 3D view (scripts/builder/map3d.gd) shows the camp as
+## the PC has it, everything else shows the theatre. So the theatre works on copies on its
+## own render layer (THEATRE, which the Builder's eye leaves out), and a building still to
+## come stays where it is on a layer only the Builder's eye draws (BUILDER_EYE, taken out
+## of every other camera), its shadow and lights off till it lands.
 
 const SFX := "res://assets/sfx/god/"
+const BUILDER_EYE := 1 << 15
+const THEATRE := 1 << 16
 const FPS := 12.0
 const STEP := 1.0 / FPS
 const BUS := "OutdoorAmbience"
-## How tall the pointer's picture is (m) and its pixels (the OS's arrow and the tool, both
-## at two pixels a pixel: the arrow fills the top left 48, the tool hangs below right of it).
-const CURSOR_H := 48.0
-const CURSOR_PX := 72
+## The pointer, a solid (the user, 21. 10.: "level with the ground like a flat aeroplane,
+## a little isometric tilt, as you see it from above on the PC; not 2D, with height, not
+## pixel-jagged: designed so it fits"): the OS's arrow as clean straight edges (units, x
+## right, y down from the tip), pressed out to a slab with bevelled edges (a white face,
+## light bevels, a charcoal rim, a slate-blue underside: the PC's outline as the camp sees
+## it), the tool on a bevelled badge under its tail. It lies nearly flat, its picture's up
+## the way Builder's map looks, its tip TILT down at the work, its tail up in the haze.
+const ARROW := [Vector2(0, 0), Vector2(0, 17), Vector2(4.0, 13.4), Vector2(7.0, 20.0), Vector2(9.6, 18.8), Vector2(6.7, 12.4), Vector2(12.0, 12.4)]
+const BADGE := [Vector2(9, 13), Vector2(19, 13), Vector2(21, 15), Vector2(21, 25), Vector2(19, 27), Vector2(9, 27), Vector2(7, 25), Vector2(7, 15)]
+const UNIT := 4.0
+const THICK := 6.4
+const BEVEL := 1.5
+const TILT := deg_to_rad(22.0)
+const FACE_TIP := Color(1.0, 1.0, 1.0)
+const FACE_TAIL := Color(0.82, 0.84, 0.88)
+const SLOPE := Color(0.7, 0.72, 0.76)
+const RIM := Color(0.1, 0.11, 0.14)
+const UNDER := Color(0.27, 0.3, 0.4)
+const UNDER_TAIL := Color(0.2, 0.22, 0.3)
+const SLOPE_UNDER := Color(0.55, 0.6, 0.7)
+const PLATE := Color(0.93, 0.9, 0.82)
 ## Where it rests between jobs, over the middle of the camp, and how fast it goes.
-const IDLE_H := 70.0
-const SPEED := 26.0
+const IDLE_H := 210.0
+const SPEED := 40.0
 ## A part falls this far (more when the warden watches from further off, so it is seen).
 const DROP_MIN := 22.0
 const DROP_MAX := 36.0
-## The pointer's tip this far above where the pieces start falling: high enough that
-## the whole arrow hangs in the sky over the trees, not standing on the horizon.
-const TIP_OVER := 10.0
+## The pointer's tip this far above where the pieces start falling: just under the cloud
+## deck (cloud_layers.gd, from 95 m), the rest of it going up into the clouds.
+const TIP_OVER := 30.0
 ## The shadow waiting on the ground for a building still to come.
 const WAIT_SHADOW := 0.3
 ## What is pressed flat at once at most (a bulldozed wood stays a moment, the rest goes).
@@ -63,32 +91,28 @@ const SMALL := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic
 
 const CURSOR_SHADER := """
 shader_type spatial;
-render_mode unshaded, fog_disabled, cull_disabled, depth_draw_opaque;
-uniform sampler2D tex : source_color, filter_nearest;
+render_mode unshaded, fog_disabled, cull_disabled, blend_mix, depth_draw_always, shadows_disabled;
+uniform sampler2D tex : source_color, filter_linear;
+uniform bool textured = false;
 uniform vec4 haze_color : source_color = vec4(0.74, 0.78, 0.82, 1.0);
 uniform float haze = 0.3;
 uniform float fade = 1.0;
-uniform float drift = 0.0;
+uniform float light = 1.0;
+varying vec3 wp;
 void vertex() {
-	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
-	MODELVIEW_MATRIX = MODELVIEW_MATRIX * mat4(vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0), vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0), vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0), vec4(0.0, 0.0, 0.0, 1.0));
+	wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 void fragment() {
-	vec4 c = texture(tex, UV);
-	if (c.a < 0.5) {
-		discard;
+	vec3 c = COLOR.rgb;
+	// The badge's top carries the tool (UV below zero: a bevel, a rim, the underside).
+	if (textured && UV.x >= 0.0) {
+		vec4 t = texture(tex, UV);
+		c = mix(c, t.rgb, t.a);
 	}
-	// In and out of the mist: dithered away in Build's way, never smoothly.
-	const float BV[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
-	vec2 bm = mod(floor(FRAGCOORD.xy), 4.0);
-	// Banks of mist drifting across it: bands where it thins to nothing and comes back.
-	// (Per the arrow's 48 px: the picture is 72 since the tool is doubled.)
-	float band = 0.5 + 0.5 * sin(UV.y * 10.5 + UV.x * 3.0 - drift);
-	float f = fade * (0.45 + 0.55 * floor(band * 4.0 + 0.5) / 4.0);
-	if ((BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 > f) {
-		discard;
-	}
-	ALBEDO = mix(c.rgb, haze_color.rgb, haze);
+	// Higher up it goes further into the haze (its tail is lost in the sky).
+	float up = clamp((wp.y - 70.0) / 120.0, 0.0, 1.0);
+	ALBEDO = mix(c * light, haze_color.rgb, clamp(haze + up * 0.35, 0.0, 0.85));
+	ALPHA = fade;
 }
 """
 
@@ -106,8 +130,15 @@ var _job: Dictionary = {}
 var _acc := 0.0
 var _t := 0.0
 var _idle_t := 0.0
-var _cursor: MeshInstance3D
+## The pointer: the root at its tip (where it points), the arrow's blocks, the tool.
+var _cursor: Node3D
+var _arrow: MeshInstance3D
+var _plate: MeshInstance3D
 var _mat: ShaderMaterial
+var _plate_mat: ShaderMaterial
+var _yaw := 0.0
+var _yaw_t := 0.0
+var _yaw_poll := 0.0
 var _tex: Dictionary = {}
 var _tool := ""
 var _tool_frame := 0
@@ -121,7 +152,8 @@ var _dust_tex: Texture2D
 var _dust_frames: Array = []
 var _shadow_mat: StandardMaterial3D
 var _dust: Array = []     # {sprite, t, life, v}
-var _hidden: Dictionary = {}  # node id -> {node, shadow, layer}
+var _hidden: Dictionary = {}  # node id -> {node, shadow, layer, veil}
+var _mask_t := 0.0
 var _push: Dictionary = {}
 
 
@@ -140,6 +172,8 @@ func setup(main_node: Node, grid) -> void:
 	_shadow_mat.albedo_texture = _dust_tex
 	_shadow_mat.albedo_color = Color(0, 0, 0, 1)
 	_shadow_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	get_tree().node_added.connect(_on_node_added)
+	_mask_cameras()
 	_build_cursor()
 	EventBus.BuildConfirmed.connect(_on_build)
 	EventBus.DemolishConfirmed.connect(_on_demolish)
@@ -295,8 +329,8 @@ func _hide(node: Node3D, center: Vector3, fp: Vector2i) -> void:
 		# Not a wall you bump into while it is not there.
 		layer = (node as CollisionObject3D).collision_layer
 		(node as CollisionObject3D).collision_layer = 0
-	node.visible = false
-	_hidden[node.get_instance_id()] = {"node": node, "shadow": sh, "layer": layer}
+	_hidden[node.get_instance_id()] = {"node": node, "shadow": sh, "layer": layer, "veil": _veil(node)}
+	_mask_cameras()
 
 
 ## Shown again; its waiting shadow is handed back (to darken as it falls) or freed.
@@ -305,9 +339,9 @@ func _reveal(node: Node3D, keep_shadow := false) -> MeshInstance3D:
 		return null
 	var h: Dictionary = _hidden.get(node.get_instance_id(), {})
 	_hidden.erase(node.get_instance_id())
-	node.visible = true
 	if h.is_empty():
 		return null
+	_unveil(h["veil"])
 	if int(h["layer"]) >= 0 and node is CollisionObject3D:
 		(node as CollisionObject3D).collision_layer = int(h["layer"])
 	if not is_instance_valid(h["shadow"]):
@@ -316,6 +350,85 @@ func _reveal(node: Node3D, keep_shadow := false) -> MeshInstance3D:
 		return h["shadow"]
 	(h["shadow"] as Node).queue_free()
 	return null
+
+
+## Its shadow, the building left waiting (the parts fall as a copy).
+func _take_shadow(node: Node3D) -> MeshInstance3D:
+	var h: Dictionary = _hidden.get(node.get_instance_id(), {})
+	var sh = h.get("shadow")
+	if sh != null and is_instance_valid(sh):
+		h["shadow"] = null
+		return sh
+	return null
+
+
+## A building on the Builder's eye only: its drawn parts there, its shadow and lights off.
+func _veil(node: Node3D) -> Array:
+	var out: Array = []
+	for n in node.find_children("*", "", true, false) + [node]:
+		_veil_one(n, out)
+	return out
+
+
+func _veil_one(n: Node, out: Array) -> void:
+	if n is Light3D or n is GPUParticles3D or n is CPUParticles3D:
+		if (n as Node3D).visible:
+			out.append([n, -1, 0])
+			(n as Node3D).visible = false
+	elif n is VisualInstance3D:
+		var gi := n as GeometryInstance3D
+		out.append([n, (n as VisualInstance3D).layers, gi.cast_shadow if gi != null else 0])
+		(n as VisualInstance3D).layers = BUILDER_EYE
+		if gi != null:
+			gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _unveil(veil: Array) -> void:
+	for e in veil:
+		var n = e[0]
+		if not is_instance_valid(n):
+			continue
+		if int(e[1]) < 0:
+			(n as Node3D).visible = true
+		else:
+			(n as VisualInstance3D).layers = int(e[1])
+			if n is GeometryInstance3D:
+				(n as GeometryInstance3D).cast_shadow = int(e[2])
+
+
+## The theatre's own things never in the Builder's eye; what a waiting building grows
+## meanwhile (a sign, a lit window) waits with it; every camera but the Builder's eye
+## leaves the waiting buildings out.
+func _on_node_added(n: Node) -> void:
+	if n is Camera3D:
+		if not n.has_meta("builder_eye"):
+			(n as Camera3D).cull_mask &= ~BUILDER_EYE
+		return
+	if not (n is VisualInstance3D):
+		return
+	if is_ancestor_of(n):
+		if not (n is Light3D):
+			(n as VisualInstance3D).layers = THEATRE
+		return
+	if _hidden.is_empty():
+		return
+	var p := n.get_parent()
+	for i in 10:
+		if p == null:
+			return
+		var h: Dictionary = _hidden.get(p.get_instance_id(), {})
+		if not h.is_empty():
+			_veil_one(n, h["veil"])
+			return
+		p = p.get_parent()
+
+
+func _mask_cameras() -> void:
+	if get_tree() == null:
+		return
+	for c in get_tree().root.find_children("*", "Camera3D", true, false):
+		if not c.has_meta("builder_eye"):
+			(c as Camera3D).cull_mask &= ~BUILDER_EYE
 
 
 ## A building taken away (or rebuilt) while it waited: its shadow goes with it.
@@ -348,22 +461,32 @@ func busy() -> bool:
 # ── the pointer ──────────────────────────────────────────────────────────────
 
 func _build_cursor() -> void:
-	_cursor = MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(CURSOR_H, CURSOR_H)
-	# The arrow's tip (the picture's top left corner) is the node: where it points.
-	q.center_offset = Vector3(CURSOR_H * 0.5, -CURSOR_H * 0.5, 0)
-	_cursor.mesh = q
+	_cursor = Node3D.new()
+	_cursor.visible = false
+	add_child(_cursor)
 	var sh := Shader.new()
 	sh.code = CURSOR_SHADER
 	_mat = ShaderMaterial.new()
 	_mat.shader = sh
-	_cursor.material_override = _mat
-	_cursor.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_cursor.extra_cull_margin = 60.0
-	_cursor.set_meta("retro_skip", true)
-	_cursor.visible = false
-	add_child(_cursor)
+	_arrow = MeshInstance3D.new()
+	_arrow.mesh = _slab(ARROW, THICK, FACE_TIP, FACE_TAIL, false)
+	_arrow.material_override = _mat
+	_arrow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_arrow.extra_cull_margin = 200.0
+	_arrow.set_meta("retro_skip", true)
+	_cursor.add_child(_arrow)
+	# The tool on a badge under the arrow's tail, as on the PC.
+	_plate_mat = ShaderMaterial.new()
+	_plate_mat.shader = sh
+	_plate_mat.set_shader_parameter("textured", true)
+	_plate = MeshInstance3D.new()
+	_plate.mesh = _slab(BADGE, THICK * 0.6, PLATE, PLATE, true)
+	_plate.material_override = _plate_mat
+	_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_plate.extra_cull_margin = 120.0
+	_plate.set_meta("retro_skip", true)
+	_plate.position = Vector3(0, 0, -THICK * 0.45)
+	_cursor.add_child(_plate)
 	var mist: Texture2D = load(MIST_TEX) if ResourceLoader.exists(MIST_TEX) else null
 	for i in 3:
 		# The fog's own colour, not fogged again by the world (it went green and blocky).
@@ -392,39 +515,81 @@ func _build_cursor() -> void:
 	_hum.volume_db = -60.0
 	_hum.attenuation_filter_cutoff_hz = 20500.0
 	_cursor.add_child(_hum)
+	_hum.position = Vector3(6.0, -11.0, 0.0) * UNIT
 	if _hum.stream is AudioStreamMP3:
 		(_hum.stream as AudioStreamMP3).loop = true
 
 
-## The pointer's picture: the OS's arrow with the tool beside it, as on the PC.
+## A polygon (units, y down) pressed out to a slab `thick` metres through: its faces
+## inset by the bevel, sloped bevels to the rim, the rim round it. The top face goes from
+## `near` at the polygon's top to `far` at its bottom (the underside slate); `uv` maps the
+## top face's outline to 0..1 (the badge's picture), the rest gets -1 (no picture).
+func _slab(poly: Array, thick: float, near: Color, far: Color, uv: bool) -> ArrayMesh:
+	var outer: Array = []
+	for v in poly:
+		outer.append(Vector2(v.x, -v.y) * UNIT)
+	var n := outer.size()
+	var area := 0.0
+	for k in n:
+		area += (outer[k] as Vector2).cross(outer[(k + 1) % n])
+	var turn := 1.0 if area > 0.0 else -1.0
+	# The faces' outline: each corner moved in along its bisector, mitred.
+	var bevel := BEVEL * thick / THICK
+	var inner: Array = []
+	for k in n:
+		var a: Vector2 = outer[(k - 1 + n) % n]
+		var b: Vector2 = outer[k]
+		var c: Vector2 = outer[(k + 1) % n]
+		var n1 := (b - a).normalized().orthogonal() * -turn
+		var n2 := (c - b).normalized().orthogonal() * -turn
+		var m := (n1 + n2).normalized()
+		inner.append(b + m * bevel / maxf(0.35, m.dot(n1)))
+	var lo := 1e9
+	var hi := -1e9
+	var box := Rect2(outer[0], Vector2.ZERO)
+	for v in outer:
+		lo = minf(lo, v.y)
+		hi = maxf(hi, v.y)
+		box = box.expand(v)
+	var h := thick * 0.5
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var tris := Geometry2D.triangulate_polygon(PackedVector2Array(inner))
+	for z in [h, -h]:
+		for t in tris:
+			var p: Vector2 = inner[t]
+			var k := (p.y - lo) / maxf(0.01, hi - lo)
+			st.set_color(far.lerp(near, k) if z > 0.0 else UNDER_TAIL.lerp(UNDER, k))
+			st.set_uv(Vector2((p.x - box.position.x) / box.size.x, (box.end.y - p.y) / box.size.y) if uv and z > 0.0 else Vector2(-1, -1))
+			st.add_vertex(Vector3(p.x, p.y, z))
+	for k in n:
+		var o0: Vector2 = outer[k]
+		var o1: Vector2 = outer[(k + 1) % n]
+		var i0: Vector2 = inner[k]
+		var i1: Vector2 = inner[(k + 1) % n]
+		var e := h - bevel * 0.8
+		for side in [1.0, -1.0]:
+			_quad(st, Vector3(i0.x, i0.y, h * side), Vector3(i1.x, i1.y, h * side), Vector3(o1.x, o1.y, e * side), Vector3(o0.x, o0.y, e * side), SLOPE if side > 0.0 else SLOPE_UNDER)
+		_quad(st, Vector3(o0.x, o0.y, e), Vector3(o1.x, o1.y, e), Vector3(o1.x, o1.y, -e), Vector3(o0.x, o0.y, -e), RIM)
+	return st.commit()
+
+
+func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, col: Color) -> void:
+	for v in [a, b, c, a, c, d]:
+		st.set_color(col)
+		st.set_uv(Vector2(-1, -1))
+		st.add_vertex(v)
+
+
+## The tool's picture (the Builder's frame, or its icon).
 func _cursor_tex(tool: String, frame := 0) -> Texture2D:
 	var key := "%s|%d" % [tool, frame]
 	if _tex.has(key):
 		return _tex[key]
-	var img := Image.create(CURSOR_PX, CURSOR_PX, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	# The arrow at two pixels a pixel and the tool too, where the PC has it (os_shell: 8, 9
-	# from the tip), so it reads up in the haze (at one pixel a pixel the spade and the lamp
-	# went thin and grey into it; at the PC's size it went to a blob).
-	var pat: Array = OS_SHELL.ARROW
-	for y in pat.size():
-		var row: String = pat[y]
-		for x in row.length():
-			var c := Color(0.06, 0.06, 0.08) if row[x] == "X" else (Color(0.96, 0.96, 0.94) if row[x] == "." else Color(0, 0, 0, 0))
-			if c.a > 0.0:
-				img.fill_rect(Rect2i(x * 2, y * 2, 2, 2), c)
 	var path := str(TOOL_TEX.get(tool, ""))
 	if _tool_frames(tool) > 0:
-		# The frames are drawn on a 24 px square: doubled, every pixel two.
 		path = TOOL_FRAME % [str(TOOL_FRAMES[tool][0]), frame]
-	if path != "" and ResourceLoader.exists(path):
-		var t := (load(path) as Texture2D).get_image().duplicate() as Image
-		if t.is_compressed():
-			t.decompress()
-		t.convert(Image.FORMAT_RGBA8)
-		t.resize(48, 48, Image.INTERPOLATE_NEAREST)
-		img.blend_rect(t, Rect2i(0, 0, 48, 48), Vector2i(16, 18))
-	var tex := ImageTexture.create_from_image(img)
+	var tex: Texture2D = load(path) if path != "" and ResourceLoader.exists(path) else null
 	_tex[key] = tex
 	return tex
 
@@ -448,7 +613,8 @@ func _set_tool(tool: String) -> void:
 		return
 	_tool = tool
 	_tool_frame = 0
-	_mat.set_shader_parameter("tex", _cursor_tex(tool))
+	_plate_mat.set_shader_parameter("tex", _cursor_tex(tool))
+	_plate.visible = _cursor_tex(tool) != null
 
 
 ## The tool's frame by the clock (in the stepped tick, so it moves in steps with the rest).
@@ -459,7 +625,7 @@ func _tick_tool() -> void:
 	var f := int(_t * TOOL_FPS) % n
 	if f != _tool_frame:
 		_tool_frame = f
-		_mat.set_shader_parameter("tex", _cursor_tex(_tool, f))
+		_plate_mat.set_shader_parameter("tex", _cursor_tex(_tool, f))
 
 
 ## How far off the warden watches from: the pieces fall from higher the further off, so
@@ -510,8 +676,13 @@ func _step() -> void:
 	_tick_tool()
 	_tick_push()
 	_sweep_hidden()
+	if not _hidden.is_empty():
+		_mask_t -= STEP
+		if _mask_t <= 0.0:
+			_mask_t = 2.0
+			_mask_cameras()
 	if _job.is_empty():
-		if not _queue.is_empty() and not _holding():
+		if not _queue.is_empty():
 			_job = _queue.pop_front()
 			_job["phase"] = "go"
 			_job["t"] = 0.0
@@ -567,7 +738,7 @@ func _step_build(j: Dictionary) -> void:
 		"click":
 			# The click: the pointer jabs down and back.
 			var k := float(j["t"])
-			_pos = _work_spot(c) - Vector3(0, 2.5 if k < 0.25 else 0.0, 0)
+			_pos = _work_spot(c) - Vector3(0, 9.0 if k < 0.25 else 0.0, 0)
 			if k >= 0.45:
 				_play("ding", c, -4.0)
 				_begin_parts(j)
@@ -585,14 +756,18 @@ func _step_build(j: Dictionary) -> void:
 func _begin_parts(j: Dictionary) -> void:
 	var node: Node3D = j["node"]
 	var c: Vector3 = j["center"]
-	var shadow := _reveal(node, true)
+	var shadow := _take_shadow(node)
 	if shadow == null:
 		shadow = _make_shadow(c, j["fp"])
 	j["shadow"] = shadow
+	# The theatre's copy falls; the building waits on the Builder's eye till it lands.
+	var copy := _copy_of(node)
+	j["copy"] = copy
 	var vis: Array = []
-	for n in node.find_children("*", "", true, false) + [node]:
-		if n is VisualInstance3D or n is Light3D:
-			vis.append(n)
+	if copy != null:
+		for n in copy.find_children("*", "", true, false):
+			if n is VisualInstance3D:
+				vis.append(n)
 	var top := 0.4
 	var info: Array = []
 	for v in vis:
@@ -694,11 +869,9 @@ func _make_shadow(c: Vector3, fp: Vector2i) -> MeshInstance3D:
 func _end_job(j: Dictionary) -> void:
 	match str(j.get("kind", "")):
 		"build":
-			for p in j.get("parts", []):
-				var nodes: Array = p["nodes"]
-				for i in nodes.size():
-					if is_instance_valid(nodes[i]):
-						(nodes[i] as Node3D).global_transform = p["orig"][i]
+			var cp = j.get("copy")
+			if cp != null and is_instance_valid(cp):
+				(cp as Node).queue_free()
 			if is_instance_valid(j.get("node")):
 				_reveal(j["node"])
 			var sh = j.get("shadow")
@@ -706,10 +879,11 @@ func _end_job(j: Dictionary) -> void:
 				(sh as Node).queue_free()
 		"path":
 			for tile in j["tiles"]:
+				var cp = tile.get("copy")
+				if cp != null and is_instance_valid(cp):
+					(cp as Node).queue_free()
 				var n = tile["node"]
 				if is_instance_valid(n):
-					if tile.has("orig"):
-						n.global_transform = tile["orig"]
 					_reveal(n)
 		"wreck":
 			for c in j["copies"]:
@@ -736,13 +910,18 @@ func _step_path(j: Dictionary) -> void:
 				for tile in tiles:
 					var n = tile["node"]
 					if is_instance_valid(n):
-						tile["orig"] = n.global_transform
-						tile["shadow"] = _reveal(n, true)
+						# The tile's copy falls; the tile waits on the Builder's eye.
+						var cp := _copy_of(n)
+						if cp == null:
+							continue
+						tile["copy"] = cp
+						tile["orig"] = cp.global_transform
+						tile["shadow"] = _take_shadow(n)
 						if tile["shadow"] == null:
 							tile["shadow"] = _make_shadow(tile["center"], Vector2i.ONE)
 						var tr: Transform3D = tile["orig"]
 						tr.origin.y += float(j["h"])
-						n.global_transform = tr
+						cp.global_transform = tr
 				_next(j, "fall")
 		"fall":
 			# One after another down the line, the pointer drawing it along over them.
@@ -754,13 +933,18 @@ func _step_path(j: Dictionary) -> void:
 			var done := true
 			for i in tiles.size():
 				var tile: Dictionary = tiles[i]
-				var n = tile["node"]
-				if not is_instance_valid(n) or not tile.has("orig"):
+				var n = tile.get("copy")
+				if n == null or not is_instance_valid(n) or not tile.has("orig"):
 					continue
 				var k := clampf((t - every * float(i)) / dur, 0.0, 1.0)
 				var tr: Transform3D = tile["orig"]
 				tr.origin.y += float(j["h"]) * (1.0 - k * k)
 				n.global_transform = tr
+				if k >= 1.0 and is_instance_valid(tile["node"]):
+					# Down: the tile itself, the copy gone.
+					(n as Node).queue_free()
+					tile.erase("copy")
+					_reveal(tile["node"])
 				var sh = tile.get("shadow")
 				if sh != null and is_instance_valid(sh):
 					((sh as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.a = lerpf(WAIT_SHADOW, 0.6, k)
@@ -832,30 +1016,44 @@ func _tick_look(delta: float) -> void:
 		if _hum.playing:
 			_hum.stop()
 		return
-	# Its place in steps (as all machinery); the haze by the camp's own fog.
-	_cursor.global_position = (_pos * 2.0).round() * 0.5
+	# Its place in steps (as all machinery); flat, turned the way Builder's map looks, the
+	# tip a little down at the work.
+	_yaw_poll -= delta
+	if _yaw_poll <= 0.0:
+		_yaw_poll = 0.5
+		_yaw_t = _map_yaw()
+	_yaw = lerp_angle(_yaw, _yaw_t, clampf(delta * 3.0, 0.0, 1.0))
+	var fwd := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
+	var side := Vector3(cos(_yaw), 0.0, -sin(_yaw))
+	_cursor.global_transform = Transform3D(Basis(side, -TILT) * Basis(side, fwd, Vector3.UP), (_pos * 2.0).round() * 0.5)
+	# The haze by the camp's own fog; lit by the sky's hour (dark at night, a shape on the
+	# stars).
 	var env := _environment()
 	var dist := _camera_pos().distance_to(_pos)
 	var density := env.fog_density if env != null and env.fog_enabled else 0.004
-	var haze := clampf(0.3 + 1.0 - exp(-density * dist * 0.35), 0.3, 0.62)
+	var haze := clampf(0.08 + 1.0 - exp(-density * dist * 0.2), 0.08, 0.45)
 	_mat.set_shader_parameter("haze", haze)
+	_plate_mat.set_shader_parameter("haze", haze)
 	if env != null:
 		_mat.set_shader_parameter("haze_color", env.fog_light_color)
-	# In and out of the mist: thinner while it moves, a slow breathing besides.
-	var moving := not _job.is_empty() and str(_job.get("phase", "")) == "go"
-	var breath := 0.82 + 0.18 * sin(floorf(_t * FPS) / FPS * 0.9)
-	_mat.set_shader_parameter("fade", clampf(_vis * breath * (0.72 if moving else 1.0) * (1.0 - haze * 0.35), 0.0, 1.0))
+		_plate_mat.set_shader_parameter("haze_color", env.fog_light_color)
+		var amb := env.ambient_light_color
+		var lit := clampf((amb.r + amb.g + amb.b) / 3.0 * 2.2, 0.25, 1.0)
+		_mat.set_shader_parameter("light", lit)
+		_plate_mat.set_shader_parameter("light", lit)
+	# Solid while it is there (the clouds showed through it); it fades only coming and going.
+	var fade := clampf(_vis, 0.0, 1.0)
+	_mat.set_shader_parameter("fade", fade)
+	_plate_mat.set_shader_parameter("fade", fade)
 	# Banks of mist across its body (the body hangs right and down from the tip, as the
 	# eye sees it), drifting a little, in steps.
 	var cam := get_viewport().get_camera_3d()
 	var right := cam.global_transform.basis.x if cam != null else Vector3.RIGHT
 	var up := cam.global_transform.basis.y if cam != null else Vector3.UP
 	var toward := (cam.global_position - _pos).normalized() if cam != null else Vector3.BACK
-	# The arrow's middle (in its picture's pixels, right and down from the tip).
-	var px_m := CURSOR_H / float(CURSOR_PX)
-	var body := _pos + right * 10.5 * px_m - up * 18.2 * px_m
+	# The arrow's middle (in its pixels from the tip, turned as the pointer is).
+	var body := _cursor.global_transform * (Vector3(6.0, -11.0, 0.0) * UNIT)
 	var drift := floorf(_t * 4.0) / 4.0
-	_mat.set_shader_parameter("drift", drift * 0.35)
 	# A pale grey-blue haze (the fog's light colour went green on the mist's picture).
 	var mist_col := Color(0.84, 0.86, 0.9).lerp(env.fog_light_color if env != null else Color(0.84, 0.86, 0.9), 0.25)
 	for i in _mist.size():
@@ -871,6 +1069,22 @@ func _tick_look(delta: float) -> void:
 	if not _hum.playing and _hum.stream != null:
 		_hum.play(randf() * 4.0)
 	_hum.volume_db = lerpf(-40.0, -4.0, _vis)
+
+
+## Which way Builder's map looks (its 3D view's camera, or the quarter the 2D map is
+## turned); with no Builder open, the way the warden looks.
+func _map_yaw() -> float:
+	var m = main.debug_builder_map() if main != null and main.has_method("debug_builder_map") else null
+	if m != null:
+		var v = m.get("map3d")
+		if v != null and bool(v.on):
+			return float(v.get("_yaw"))
+		return deg_to_rad(45.0 - 90.0 * float(m.get("view_rot")))
+	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	if cam == null:
+		return _yaw_t
+	var f := -cam.global_transform.basis.z
+	return atan2(-f.x, -f.z)
 
 
 func _environment() -> Environment:
