@@ -35,14 +35,27 @@ const THEATRE := 1 << 16
 const FPS := 12.0
 const STEP := 1.0 / FPS
 const BUS := "OutdoorAmbience"
-## The pointer: the OS's arrow (os_shell.ARROW) built of blocks, one per pixel, PX_M a
-## side and DEPTH_PX of them deep; the tool beside it as on the PC (TOOL_PX pixels, at
-## TOOL_AT from the tip, in the arrow's pixels). LEAN tilts it off pointing straight down.
-const PX_M := 6.0
-const DEPTH_PX := 1.6
-const TOOL_PX := 15.0
-const TOOL_AT := Vector2(7.0, 10.0)
-const LEAN := 0.2
+## The pointer, a solid (the user, 21. 10.: "level with the ground like a flat aeroplane,
+## a little isometric tilt, as you see it from above on the PC; not 2D, with height, not
+## pixel-jagged: designed so it fits"): the OS's arrow as clean straight edges (units, x
+## right, y down from the tip), pressed out to a slab with bevelled edges (a white face,
+## light bevels, a charcoal rim, a slate-blue underside: the PC's outline as the camp sees
+## it), the tool on a bevelled badge under its tail. It lies nearly flat, its picture's up
+## the way Builder's map looks, its tip TILT down at the work, its tail up in the haze.
+const ARROW := [Vector2(0, 0), Vector2(0, 17), Vector2(4.0, 13.4), Vector2(7.0, 20.0), Vector2(9.6, 18.8), Vector2(6.7, 12.4), Vector2(12.0, 12.4)]
+const BADGE := [Vector2(9, 13), Vector2(19, 13), Vector2(21, 15), Vector2(21, 25), Vector2(19, 27), Vector2(9, 27), Vector2(7, 25), Vector2(7, 15)]
+const UNIT := 4.0
+const THICK := 6.4
+const BEVEL := 1.5
+const TILT := deg_to_rad(22.0)
+const FACE_TIP := Color(1.0, 1.0, 1.0)
+const FACE_TAIL := Color(0.82, 0.84, 0.88)
+const SLOPE := Color(0.7, 0.72, 0.76)
+const RIM := Color(0.1, 0.11, 0.14)
+const UNDER := Color(0.27, 0.3, 0.4)
+const UNDER_TAIL := Color(0.2, 0.22, 0.3)
+const SLOPE_UNDER := Color(0.55, 0.6, 0.7)
+const PLATE := Color(0.93, 0.9, 0.82)
 ## Where it rests between jobs, over the middle of the camp, and how fast it goes.
 const IDLE_H := 210.0
 const SPEED := 40.0
@@ -78,52 +91,28 @@ const SMALL := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic
 
 const CURSOR_SHADER := """
 shader_type spatial;
-render_mode unshaded, fog_disabled, cull_back, depth_draw_opaque;
+render_mode unshaded, fog_disabled, cull_disabled, blend_mix, depth_draw_always, shadows_disabled;
+uniform sampler2D tex : source_color, filter_linear;
+uniform bool textured = false;
 uniform vec4 haze_color : source_color = vec4(0.74, 0.78, 0.82, 1.0);
 uniform float haze = 0.3;
 uniform float fade = 1.0;
-uniform float drift = 0.0;
 uniform float light = 1.0;
-varying vec3 wn;
 varying vec3 wp;
 void vertex() {
-	wn = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 void fragment() {
-	// Shaded in steps as Build shaded a sector: the top lit, the faces, the sides darker,
-	// the underside (what you see of it from the camp) darkest.
-	float shade = wn.y > 0.6 ? 1.0 : (wn.y < -0.6 ? 0.42 : (abs(wn.z) > abs(wn.x) ? 0.78 : 0.6));
-	vec3 c = COLOR.rgb * shade * light;
-	const float BV[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
-	vec2 bm = mod(floor(FRAGCOORD.xy), 4.0);
-	// Banks of mist drifting across it, along its height: thinning in bands, in steps.
-	float band = 0.5 + 0.5 * sin(wp.y * 0.07 + wp.x * 0.02 - drift);
-	float f = fade * (0.8 + 0.2 * floor(band * 4.0 + 0.5) / 4.0);
-	if ((BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 > f) {
-		discard;
+	vec3 c = COLOR.rgb;
+	// The badge's top carries the tool (UV below zero: a bevel, a rim, the underside).
+	if (textured && UV.x >= 0.0) {
+		vec4 t = texture(tex, UV);
+		c = mix(c, t.rgb, t.a);
 	}
-	// Higher up it goes further into the haze (its top is lost in the sky).
+	// Higher up it goes further into the haze (its tail is lost in the sky).
 	float up = clamp((wp.y - 70.0) / 120.0, 0.0, 1.0);
-	ALBEDO = mix(c, haze_color.rgb, clamp(haze + up * 0.35, 0.0, 0.85));
-}
-"""
-
-const TOOL_SHADER := """
-shader_type spatial;
-render_mode unshaded, fog_disabled, cull_disabled, depth_draw_opaque;
-uniform sampler2D tex : source_color, filter_nearest;
-uniform vec4 haze_color : source_color = vec4(0.74, 0.78, 0.82, 1.0);
-uniform float haze = 0.3;
-uniform float fade = 1.0;
-void fragment() {
-	vec4 c = texture(tex, UV);
-	const float BV[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
-	vec2 bm = mod(floor(FRAGCOORD.xy), 4.0);
-	if (c.a < 0.5 || (BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 > fade) {
-		discard;
-	}
-	ALBEDO = mix(c.rgb, haze_color.rgb, haze);
+	ALBEDO = mix(c * light, haze_color.rgb, clamp(haze + up * 0.35, 0.0, 0.85));
+	ALPHA = fade;
 }
 """
 
@@ -147,6 +136,9 @@ var _arrow: MeshInstance3D
 var _plate: MeshInstance3D
 var _mat: ShaderMaterial
 var _plate_mat: ShaderMaterial
+var _yaw := 0.0
+var _yaw_t := 0.0
+var _yaw_poll := 0.0
 var _tex: Dictionary = {}
 var _tool := ""
 var _tool_frame := 0
@@ -477,26 +469,23 @@ func _build_cursor() -> void:
 	_mat = ShaderMaterial.new()
 	_mat.shader = sh
 	_arrow = MeshInstance3D.new()
-	_arrow.mesh = _arrow_mesh()
+	_arrow.mesh = _slab(ARROW, THICK, FACE_TIP, FACE_TAIL, false)
 	_arrow.material_override = _mat
 	_arrow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_arrow.extra_cull_margin = 200.0
 	_arrow.set_meta("retro_skip", true)
 	_cursor.add_child(_arrow)
-	# The tool beside it, a plate just in front of the arrow's face.
-	var ts := Shader.new()
-	ts.code = TOOL_SHADER
+	# The tool on a badge under the arrow's tail, as on the PC.
 	_plate_mat = ShaderMaterial.new()
-	_plate_mat.shader = ts
+	_plate_mat.shader = sh
+	_plate_mat.set_shader_parameter("textured", true)
 	_plate = MeshInstance3D.new()
-	var pq := QuadMesh.new()
-	pq.size = Vector2(TOOL_PX * PX_M, TOOL_PX * PX_M)
-	_plate.mesh = pq
+	_plate.mesh = _slab(BADGE, THICK * 0.6, PLATE, PLATE, true)
 	_plate.material_override = _plate_mat
 	_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_plate.extra_cull_margin = 120.0
 	_plate.set_meta("retro_skip", true)
-	_plate.position = Vector3((TOOL_AT.x + TOOL_PX * 0.5) * PX_M, (TOOL_AT.y + TOOL_PX * 0.5) * PX_M, DEPTH_PX * PX_M * 0.5 + 0.6)
+	_plate.position = Vector3(0, 0, -THICK * 0.45)
 	_cursor.add_child(_plate)
 	var mist: Texture2D = load(MIST_TEX) if ResourceLoader.exists(MIST_TEX) else null
 	for i in 3:
@@ -526,53 +515,70 @@ func _build_cursor() -> void:
 	_hum.volume_db = -60.0
 	_hum.attenuation_filter_cutoff_hz = 20500.0
 	_cursor.add_child(_hum)
-	_hum.position = Vector3(6.0, 8.5, 0.0) * PX_M
+	_hum.position = Vector3(6.0, -11.0, 0.0) * UNIT
 	if _hum.stream is AudioStreamMP3:
 		(_hum.stream as AudioStreamMP3).loop = true
 
 
-## The OS's arrow (os_shell.ARROW) in blocks: a block per pixel, the outline black and the
-## inside white, only the faces that show. The tip is the origin; the picture's rows go
-## up (+Y) and its columns right (+X), so the arrow hangs from the sky tip down.
-func _arrow_mesh() -> ArrayMesh:
-	var pat: Array = OS_SHELL.ARROW
-	var cells := {}
-	for y in pat.size():
-		var row: String = pat[y]
-		for x in row.length():
-			if row[x] == "X" or row[x] == ".":
-				cells[Vector2i(x, y)] = row[x] == "X"
+## A polygon (units, y down) pressed out to a slab `thick` metres through: its faces
+## inset by the bevel, sloped bevels to the rim, the rim round it. The top face goes from
+## `near` at the polygon's top to `far` at its bottom (the underside slate); `uv` maps the
+## top face's outline to 0..1 (the badge's picture), the rest gets -1 (no picture).
+func _slab(poly: Array, thick: float, near: Color, far: Color, uv: bool) -> ArrayMesh:
+	var outer: Array = []
+	for v in poly:
+		outer.append(Vector2(v.x, -v.y) * UNIT)
+	var n := outer.size()
+	var area := 0.0
+	for k in n:
+		area += (outer[k] as Vector2).cross(outer[(k + 1) % n])
+	var turn := 1.0 if area > 0.0 else -1.0
+	# The faces' outline: each corner moved in along its bisector, mitred.
+	var bevel := BEVEL * thick / THICK
+	var inner: Array = []
+	for k in n:
+		var a: Vector2 = outer[(k - 1 + n) % n]
+		var b: Vector2 = outer[k]
+		var c: Vector2 = outer[(k + 1) % n]
+		var n1 := (b - a).normalized().orthogonal() * -turn
+		var n2 := (c - b).normalized().orthogonal() * -turn
+		var m := (n1 + n2).normalized()
+		inner.append(b + m * bevel / maxf(0.35, m.dot(n1)))
+	var lo := 1e9
+	var hi := -1e9
+	var box := Rect2(outer[0], Vector2.ZERO)
+	for v in outer:
+		lo = minf(lo, v.y)
+		hi = maxf(hi, v.y)
+		box = box.expand(v)
+	var h := thick * 0.5
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var d := DEPTH_PX * PX_M * 0.5
-	for c in cells:
-		var black: bool = cells[c]
-		var col := Color(0.07, 0.07, 0.09) if black else Color(0.93, 0.93, 0.9)
-		var x0 := float(c.x) * PX_M
-		var x1 := x0 + PX_M
-		# Picture row y (down) -> up from the tip.
-		var y0 := float(c.y) * PX_M
-		var y1 := y0 + PX_M
-		var faces := [
-			[Vector3(0, 0, 1), [Vector3(x0, y0, d), Vector3(x1, y0, d), Vector3(x1, y1, d), Vector3(x0, y1, d)]],
-			[Vector3(0, 0, -1), [Vector3(x1, y0, -d), Vector3(x0, y0, -d), Vector3(x0, y1, -d), Vector3(x1, y1, -d)]],
-		]
-		if not cells.has(c + Vector2i(-1, 0)):
-			faces.append([Vector3(-1, 0, 0), [Vector3(x0, y0, -d), Vector3(x0, y0, d), Vector3(x0, y1, d), Vector3(x0, y1, -d)]])
-		if not cells.has(c + Vector2i(1, 0)):
-			faces.append([Vector3(1, 0, 0), [Vector3(x1, y0, d), Vector3(x1, y0, -d), Vector3(x1, y1, -d), Vector3(x1, y1, d)]])
-		if not cells.has(c + Vector2i(0, -1)):
-			faces.append([Vector3(0, -1, 0), [Vector3(x0, y0, -d), Vector3(x1, y0, -d), Vector3(x1, y0, d), Vector3(x0, y0, d)]])
-		if not cells.has(c + Vector2i(0, 1)):
-			faces.append([Vector3(0, 1, 0), [Vector3(x0, y1, d), Vector3(x1, y1, d), Vector3(x1, y1, -d), Vector3(x0, y1, -d)]])
-		for f in faces:
-			var n: Vector3 = f[0]
-			var q: Array = f[1]
-			for i in [0, 1, 2, 0, 2, 3]:
-				st.set_normal(n)
-				st.set_color(col)
-				st.add_vertex(q[i])
+	var tris := Geometry2D.triangulate_polygon(PackedVector2Array(inner))
+	for z in [h, -h]:
+		for t in tris:
+			var p: Vector2 = inner[t]
+			var k := (p.y - lo) / maxf(0.01, hi - lo)
+			st.set_color(far.lerp(near, k) if z > 0.0 else UNDER_TAIL.lerp(UNDER, k))
+			st.set_uv(Vector2((p.x - box.position.x) / box.size.x, (box.end.y - p.y) / box.size.y) if uv and z > 0.0 else Vector2(-1, -1))
+			st.add_vertex(Vector3(p.x, p.y, z))
+	for k in n:
+		var o0: Vector2 = outer[k]
+		var o1: Vector2 = outer[(k + 1) % n]
+		var i0: Vector2 = inner[k]
+		var i1: Vector2 = inner[(k + 1) % n]
+		var e := h - bevel * 0.8
+		for side in [1.0, -1.0]:
+			_quad(st, Vector3(i0.x, i0.y, h * side), Vector3(i1.x, i1.y, h * side), Vector3(o1.x, o1.y, e * side), Vector3(o0.x, o0.y, e * side), SLOPE if side > 0.0 else SLOPE_UNDER)
+		_quad(st, Vector3(o0.x, o0.y, e), Vector3(o1.x, o1.y, e), Vector3(o1.x, o1.y, -e), Vector3(o0.x, o0.y, -e), RIM)
 	return st.commit()
+
+
+func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, col: Color) -> void:
+	for v in [a, b, c, a, c, d]:
+		st.set_color(col)
+		st.set_uv(Vector2(-1, -1))
+		st.add_vertex(v)
 
 
 ## The tool's picture (the Builder's frame, or its icon).
@@ -1010,15 +1016,16 @@ func _tick_look(delta: float) -> void:
 		if _hum.playing:
 			_hum.stop()
 		return
-	# Its place in steps (as all machinery), its face turned to whoever looks, a step at a
-	# time, the tip down at the camp.
-	_cursor.global_position = (_pos * 2.0).round() * 0.5
-	var cam0 := get_viewport().get_camera_3d()
-	if cam0 != null:
-		var to := cam0.global_position - _pos
-		var yaw := atan2(to.x, to.z)
-		yaw = roundf(yaw / 0.05) * 0.05
-		_cursor.basis = Basis(Vector3.UP, yaw) * Basis(Vector3.BACK, LEAN)
+	# Its place in steps (as all machinery); flat, turned the way Builder's map looks, the
+	# tip a little down at the work.
+	_yaw_poll -= delta
+	if _yaw_poll <= 0.0:
+		_yaw_poll = 0.5
+		_yaw_t = _map_yaw()
+	_yaw = lerp_angle(_yaw, _yaw_t, clampf(delta * 3.0, 0.0, 1.0))
+	var fwd := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
+	var side := Vector3(cos(_yaw), 0.0, -sin(_yaw))
+	_cursor.global_transform = Transform3D(Basis(side, -TILT) * Basis(side, fwd, Vector3.UP), (_pos * 2.0).round() * 0.5)
 	# The haze by the camp's own fog; lit by the sky's hour (dark at night, a shape on the
 	# stars).
 	var env := _environment()
@@ -1031,11 +1038,11 @@ func _tick_look(delta: float) -> void:
 		_mat.set_shader_parameter("haze_color", env.fog_light_color)
 		_plate_mat.set_shader_parameter("haze_color", env.fog_light_color)
 		var amb := env.ambient_light_color
-		_mat.set_shader_parameter("light", clampf((amb.r + amb.g + amb.b) / 3.0 * 2.2, 0.25, 1.0))
-	# In and out of the mist: thinner while it moves, a slow breathing besides.
-	var moving := not _job.is_empty() and str(_job.get("phase", "")) == "go"
-	var breath := 0.82 + 0.18 * sin(floorf(_t * FPS) / FPS * 0.9)
-	var fade := clampf(_vis * (0.9 + 0.1 * breath) * (0.9 if moving else 1.0), 0.0, 1.0)
+		var lit := clampf((amb.r + amb.g + amb.b) / 3.0 * 2.2, 0.25, 1.0)
+		_mat.set_shader_parameter("light", lit)
+		_plate_mat.set_shader_parameter("light", lit)
+	# Solid while it is there (the clouds showed through it); it fades only coming and going.
+	var fade := clampf(_vis, 0.0, 1.0)
 	_mat.set_shader_parameter("fade", fade)
 	_plate_mat.set_shader_parameter("fade", fade)
 	# Banks of mist across its body (the body hangs right and down from the tip, as the
@@ -1045,9 +1052,8 @@ func _tick_look(delta: float) -> void:
 	var up := cam.global_transform.basis.y if cam != null else Vector3.UP
 	var toward := (cam.global_position - _pos).normalized() if cam != null else Vector3.BACK
 	# The arrow's middle (in its pixels from the tip, turned as the pointer is).
-	var body := _cursor.global_transform * (Vector3(5.0, 8.5, 0.0) * PX_M)
+	var body := _cursor.global_transform * (Vector3(6.0, -11.0, 0.0) * UNIT)
 	var drift := floorf(_t * 4.0) / 4.0
-	_mat.set_shader_parameter("drift", drift * 0.35)
 	# A pale grey-blue haze (the fog's light colour went green on the mist's picture).
 	var mist_col := Color(0.84, 0.86, 0.9).lerp(env.fog_light_color if env != null else Color(0.84, 0.86, 0.9), 0.25)
 	for i in _mist.size():
@@ -1063,6 +1069,22 @@ func _tick_look(delta: float) -> void:
 	if not _hum.playing and _hum.stream != null:
 		_hum.play(randf() * 4.0)
 	_hum.volume_db = lerpf(-40.0, -4.0, _vis)
+
+
+## Which way Builder's map looks (its 3D view's camera, or the quarter the 2D map is
+## turned); with no Builder open, the way the warden looks.
+func _map_yaw() -> float:
+	var m = main.debug_builder_map() if main != null and main.has_method("debug_builder_map") else null
+	if m != null:
+		var v = m.get("map3d")
+		if v != null and bool(v.on):
+			return float(v.get("_yaw"))
+		return deg_to_rad(45.0 - 90.0 * float(m.get("view_rot")))
+	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	if cam == null:
+		return _yaw_t
+	var f := -cam.global_transform.basis.z
+	return atan2(-f.x, -f.z)
 
 
 func _environment() -> Environment:

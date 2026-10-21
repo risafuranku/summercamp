@@ -832,13 +832,17 @@ somebody assembles with a mouse. **Only theatre**: the Builder builds at once as
 the camp's sim has the building at once (guests, books, everything), and nothing waits for
 the show, hinders or hurts (`scripts/god/god_cursor.gd`).
 
-- **What it is**: the Builder's own pointer, the OS's arrow built in three dimensions out
-  of its pixels (a block of six metres a pixel, ten deep: some seventy metres wide and a
-  hundred tall), its tip down at the camp just under the cloud deck and the rest going up
-  into the clouds and the haze, shaded in Build's steps (the underside you see from the
-  camp darkest); its face turns to whoever looks, a step at a time. The tool hangs beside
-  it as on the PC (the blueprint unrolling, the spade digging, the lamp blinking, the
-  bulldozer's blade). Banks of mist drift through it, dithered in Build's way; it glides
+- **What it is**: the Builder's own pointer as a solid (the user, 21. 10.: "level with the
+  ground like a flat aeroplane, a little isometric tilt, as you see it from above on the
+  PC; not 2D, with height, not pixel-jagged: designed so it fits"): the OS's arrow as
+  clean straight edges pressed out to a bevelled slab some eighty metres long (a white
+  face, light bevels, a charcoal rim, a slate-blue underside: the PC's outline as the camp
+  sees it), lying nearly flat, its picture's up the way Builder's map looks (its 3D view's
+  camera or the 2D map's quarter), its tip 22 degrees down at the work just under the
+  cloud deck and its tail up into the clouds and the haze. The tool rides on a bevelled
+  badge under its tail as on the PC (the blueprint unrolling, the spade digging, the lamp
+  blinking, the bulldozer's blade). Solid while it is there, it fades only coming and
+  going; wisps of mist drift by it; it glides
   slowly to the work and rises back into the sky after (the user, 21. 10.: "musí bejt
   fakt godly v nebesích ... fakt 3D vymodelovanej mohutnej cursor ... fobie z velkejch
   věcí"; it was thirty metres of flat pixels just over the trees).

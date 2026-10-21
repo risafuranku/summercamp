@@ -352,6 +352,19 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._open_category('fun')"], ["wait", 0.3], ["crt_screen", "c3_builder_fun"],
 		["hours", 9.4], ["wait", 1.5], ["crt_screen", "c4_builder_dusk"],
 	],
+	# The god cursor as a solid, seen from off in the camp (its build staged by force).
+	"godlook": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+		["money", 9000], ["clear", 9, 4, 6, 6], ["wait", 1.0],
+		["eval", "_god_cursor.set('debug_force', true)"],
+		["build", "cabin_1", 11, 6, 0], ["wait", 1.6],
+		["topdown", 4, 16, 12, 18], ["eval", "debug_camera.look_at(_god_cursor.get('_pos') + Vector3(0, -12, 0), Vector3(0, 1, 0))"], ["wait", 0.2], ["shot", "k0_side"], ["wait", 0.5],
+		["eval", "debug_camera.look_at(_god_cursor.get('_pos') + Vector3(0, -12, 0), Vector3(0, 1, 0))"], ["shot", "k1_side"],
+		["build", "pub", 9, 4, 0], ["wait", 1.4], ["topdown", 22, 18, 10, 22], ["eval", "debug_camera.look_at(_god_cursor.get('_pos') + Vector3(0, -12, 0), Vector3(0, 1, 0))"], ["wait", 0.2], ["shot", "k2_other"], ["wait", 0.6],
+		["eval", "debug_camera.look_at(_god_cursor.get('_pos') + Vector3(0, -12, 0), Vector3(0, 1, 0))"], ["shot", "k3_other"],
+		["topdown", 10, 5, 75, 60], ["wait", 0.3], ["shot", "k4_above"],
+	],
 	# Builds while Builder shows the 3D view: they must be there at once.
 	"b3dlive": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
