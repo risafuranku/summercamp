@@ -823,11 +823,16 @@ somebody assembles with a mouse. **Only theatre**: the Builder builds at once as
 the camp's sim has the building at once (guests, books, everything), and nothing waits for
 the show, hinders or hurts (`scripts/god/god_cursor.gd`).
 
-- **What it is**: the Builder's own pointer (the OS's arrow with the tool beside it: the
-  blueprint unrolling, the spade digging, the lamp blinking, the bulldozer's blade going
-  up and down, the same frames as on the PC), thirty metres of flat pixels in the sky,
-  the haze of the camp's fog over it and banks of mist drifting through it, dithered away
-  and back in Build's way; it glides slowly to the work and rises back into the haze after.
+- **What it is**: the Builder's own pointer, the OS's arrow built in three dimensions out
+  of its pixels (a block of six metres a pixel, ten deep: some seventy metres wide and a
+  hundred tall), its tip down at the camp just under the cloud deck and the rest going up
+  into the clouds and the haze, shaded in Build's steps (the underside you see from the
+  camp darkest); its face turns to whoever looks, a step at a time. The tool hangs beside
+  it as on the PC (the blueprint unrolling, the spade digging, the lamp blinking, the
+  bulldozer's blade). Banks of mist drift through it, dithered in Build's way; it glides
+  slowly to the work and rises back into the sky after (the user, 21. 10.: "musí bejt
+  fakt godly v nebesích ... fakt 3D vymodelovanej mohutnej cursor ... fobie z velkejch
+  věcí"; it was thirty metres of flat pixels just over the trees).
   A deep hum like thunder and organ pipes from far off; the slowed, giant Okna click and
   ding; heavy landings with an echo from the woods (ElevenLabs, `assets/sfx/god/`).
 - **Paths like dominoes**: the pointer clicks, the line's tiles come down one after
