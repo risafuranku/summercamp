@@ -32,6 +32,7 @@ const LAST_HOUR := 18.5
 const REACH := 3.4
 const SFX := "res://assets/sfx/life/"
 const KID_SPRITE := "res://assets/textury/npc/host_kid.png"
+const DOOM = preload("res://scripts/figures/doom_figure.gd")
 const RACCOON_SPRITE := "res://assets/textury/npc/raccoon.png"
 
 ## kind -> how long it may wait (minutes), what it costs left alone, what fixing it pays.
@@ -762,6 +763,12 @@ func _spawn_props(ev: Dictionary) -> void:
 		"lost_kid":
 			var kid := _sprite(root, KID_SPRITE, 1.2, Vector3.ZERO)
 			kid.set_meta("sway", 1.0)
+			# Seen from eight sides when the boy has a set (scripts/figures/doom_figure.gd),
+			# turned away into the trees, looking for his way.
+			var kset := DOOM.set_for(KID_SPRITE)
+			if not kset.is_empty():
+				var kfig := DOOM.new(kid, kset, 1.2)
+				kfig.yaw = float(int(ev.get("id", 0)) * 131 % 360) * PI / 180.0
 		"tree":
 			# A birch from the camp's own woods (its bark and leaf textures), lying across
 			# the path: trunk, a crown of leaf clumps, a few snapped twigs.
@@ -817,6 +824,10 @@ func _animate_props() -> void:
 				var ph := float(c.get_meta("hop"))
 				(c as Sprite3D).position.y = absf(sin(_anim_t * 5.0 + ph)) * 0.12
 				(c as Sprite3D).flip_h = sin(_anim_t * 0.7 + ph) > 0.0
+			elif c is Sprite3D and c.has_meta("doom"):
+				var cam := (c as Sprite3D).get_viewport().get_camera_3d()
+				if cam != null:
+					(c.get_meta("doom") as DOOM).show(cam.global_position)
 			elif c is Sprite3D and c.has_meta("sway"):
 				(c as Sprite3D).rotation.z = sin(_anim_t * 1.3) * 0.03
 

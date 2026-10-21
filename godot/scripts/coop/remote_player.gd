@@ -1,9 +1,11 @@
 extends Node3D
 
 ## The other warden as you see them (co-op, scripts/coop/coop.gd): a sprite like the
-## guests' in the look they chose (scripts/coop/warden_looks.gd: who, the jacket), with
-## the guests' stepped walk (bob, sway, the flip of a step), a blob shadow, the torch in
-## their hand lighting where they look, and their steps on the grass.
+## guests' in the look they chose (scripts/coop/warden_looks.gd: who, the jacket), seen
+## from eight sides as in Doom (scripts/figures/doom_figure.gd: they face where they look,
+## the state's yaw), walking and running in frames by the ground they cover, a blob
+## shadow, the torch in their hand lighting where they look, and their steps on the grass.
+## A pose without pictures from the sides (at work, sat) is the old one from the front.
 ##
 ## Two ways to be fed:
 ##   - in the camp, the states the other machine sends about fifteen times a second
@@ -15,6 +17,7 @@ extends Node3D
 ##     in a tent lying on their belly (prone).
 
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
+const DOOM = preload("res://scripts/figures/doom_figure.gd")
 const SPRITE_HEIGHT_M := 1.74
 ## How tall each pose is drawn (its picture is that tall from top to bottom edge).
 const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32,
@@ -27,6 +30,10 @@ const POSE_WIDTH := {"bed": 1.85}
 ## The guests' walk cycle (scripts/guest_agents.gd), so the two look alike.
 const ANIM_FPS := 8.0
 const WALK_BOB_HZ := 2.6
+## Faster than this (m/s) they run: a walk is 3.9, a sprint 5.2 (player_controller.gd).
+const RUN_SPEED := 4.6
+## The picture changes this many times a second, like the guests' moves (MOVE_FPS).
+const VIEW_FPS := 12.0
 ## Drawn this far behind the newest state (seconds).
 const DELAY := 0.1
 ## Further than this between two states is a jump (a door, the bus): no sliding.
@@ -53,6 +60,17 @@ var _time := 0.0
 var _speed := 0.0
 var _ready_once := false
 var _work_phase := 0.0
+## Seen from eight sides (null while the warden has no set: the old sprite from the front).
+var _doom: DOOM = null
+var _view_acc := 0.0
+var _last_pos := Vector3.INF
+var _walked := 0.0
+## Where a room's copy faces (show_at), zero: toward the one looking.
+var _face := Vector3.ZERO
+## Standing still this long (seconds), and when the idle is next due.
+var _still := 0.0
+var _idle_from := 0.0
+const IDLE_EVERY := 9.0
 
 
 func setup(p_model: int, p_color: int, p_manual := false) -> void:
@@ -132,6 +150,16 @@ func setup(p_model: int, p_color: int, p_manual := false) -> void:
 func set_look(p_model: int, p_color: int) -> void:
 	model = p_model
 	color = p_color
+	var set := LOOKS.figure_set(model)
+	if set.is_empty():
+		if _doom != null:
+			_doom.release()
+			_sprite.remove_meta("doom")
+		_doom = null
+	elif _doom == null or _doom.data != set:
+		_doom = DOOM.new(_sprite, set, SPRITE_HEIGHT_M, LOOKS.atlas(model, color))
+	else:
+		_doom.set_texture(LOOKS.atlas(model, color))
 	_apply_pose(pose, true)
 
 
@@ -139,6 +167,18 @@ func _apply_pose(p: String, force := false) -> void:
 	if p == pose and not force and _sprite.texture != null:
 		return
 	pose = p
+	if _doom != null:
+		# Standing, or a pose drawn from every side (sweeping, at the spanner, sat): the
+		# figure's own; another pose its old picture from the front.
+		if pose == "stand" or _doom.has_anim(pose):
+			if not _doom.held():
+				_doom.restore()
+			_doom.set_anim(pose)
+			_sprite.rotation.z = 0.0
+			_sprite.position = Vector3.ZERO
+			_shadow.visible = not (pose in ["row", "bed", "bedfoot", "write"])
+			return
+		_doom.release()
 	var tex := LOOKS.texture(model, color, pose)
 	_sprite.texture = tex
 	if tex != null:
@@ -172,17 +212,19 @@ func push_state(s: Dictionary) -> void:
 		_buf.pop_front()
 
 
-## A room's copy: stand at `pos` (the room's own world), in `p_pose`, facing `face`
-## (the sprite always turns to you; `face` only aims their torch).
-func show_at(pos: Vector3, p_pose: String, torch_on := false, face := Vector3.FORWARD) -> void:
+## A room's copy: stand at `pos` (the room's own world), in `p_pose`, facing `face` (their
+## torch aims there, and seen from eight sides they turn that way; none given: toward you).
+func show_at(pos: Vector3, p_pose: String, torch_on := false, face := Vector3.ZERO) -> void:
 	visible = true
 	global_position = pos
 	_apply_pose(p_pose)
+	_face = face
 	_beam.visible = torch_on
 	_halo.visible = torch_on
 	if torch_on:
-		var up := Vector3.UP if absf(face.normalized().dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
-		var xf := Transform3D(Basis.looking_at(face.normalized(), up), Vector3(0.0, 1.2, 0.0))
+		var aim := face if face.length_squared() > 0.0001 else Vector3.FORWARD
+		var up := Vector3.UP if absf(aim.normalized().dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
+		var xf := Transform3D(Basis.looking_at(aim.normalized(), up), Vector3(0.0, 1.2, 0.0))
 		_beam.transform = xf
 		_halo.transform = xf
 
@@ -259,6 +301,10 @@ func _process(delta: float) -> void:
 			_sprite.flip_h = bool(place["flip"])
 			_sprite.rotation.z = float(place["rz"])
 			_sprite.position = Vector3.ZERO
+			var cam := get_viewport().get_camera_3d()
+			if _doom != null and _doom.held() and cam != null:
+				_doom.set_anim(pose)
+				_doom.show(cam.global_position)
 			_shadow.visible = bool(place["ground"]) and pose in ["stand", "kick", "bat"]
 			_beam.visible = false
 			_halo.visible = false
@@ -279,7 +325,10 @@ func _process(delta: float) -> void:
 	global_position = pa.lerp(pb, f) if _ready_once else pb
 	_ready_once = true
 	_speed = lerpf(_speed, float(sb.get("v", 0.0)), clampf(delta * 10.0, 0.0, 1.0))
-	if act != "":
+	if _doom != null and _doom.held():
+		_doom.yaw = lerp_angle(float(sa.get("y", 0.0)), float(sb.get("y", 0.0)), f)
+		_walk_doom(delta, pa.distance_to(pb) > SNAP_DIST)
+	elif act != "":
 		_animate_act(act)
 	else:
 		_animate()
@@ -306,6 +355,49 @@ func _animate_act(act: String) -> void:
 		_:
 			_sprite.position = Vector3.ZERO
 			_sprite.rotation.z = 0.01 if int(step / 23.0) % 7 == 0 else 0.0
+
+
+## Seen from eight sides: walking or running in the frames of the ground they covered
+## (a jump through a door covers none), the picture for where you look from, in steps.
+func _walk_doom(delta: float, jumped: bool) -> void:
+	var here := global_position
+	var step := Vector2(here.x - _last_pos.x, here.z - _last_pos.z).length() if _last_pos != Vector3.INF else 0.0
+	if not jumped and step < 2.0:
+		_walked += step
+	_last_pos = here
+	_view_acc += delta
+	if _view_acc < 1.0 / VIEW_FPS:
+		return
+	_view_acc = 0.0
+	if pose != "stand" and _doom.has_anim(pose):
+		_doom.set_anim(pose)
+		_still = 0.0
+	elif _speed > 0.4:
+		_doom.set_anim("run" if _speed > RUN_SPEED else "walk")
+		_still = 0.0
+	else:
+		# Standing a while: a glance at the watch now and then (the idle, once through).
+		_still += 1.0 / VIEW_FPS
+		if _doom.anim == "idle":
+			if not _doom.idle_at(_still - _idle_from):
+				_doom.set_anim("stand")
+				_idle_from = _still + IDLE_EVERY
+		else:
+			_doom.set_anim("stand")
+			if _idle_from <= 0.0 or _still < 0.2:
+				_idle_from = IDLE_EVERY
+			if _doom.has_anim("idle") and _still >= _idle_from:
+				_doom.set_anim("idle")
+				_idle_from = _still
+				_doom.idle_at(0.0)
+	_doom.advance(_walked)
+	_walked = 0.0
+	# A little lift on the frames between the steps (the legs together), no sway, no flip.
+	_sprite.rotation.z = 0.0
+	_sprite.position = Vector3(0.0, 0.015 if _doom.anim in ["walk", "run"] and _doom.frame % 2 == 1 else 0.0, 0.0)
+	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	if cam != null:
+		_doom.show(cam.global_position)
 
 
 ## The guests' walk: steps at ANIM_FPS, a bob, a sway, the flip on each step.
@@ -342,6 +434,8 @@ func set_walking(on: bool) -> void:
 
 
 func set_flip(on: bool) -> void:
+	if _doom != null and _doom.held():
+		return
 	if _sprite != null:
 		_sprite.flip_h = on
 
@@ -349,6 +443,9 @@ func set_flip(on: bool) -> void:
 ## At a job: the broom or the brush going, in steps (a push and back, the flip).
 func _animate_work(_delta: float) -> void:
 	if _sprite == null:
+		return
+	if _doom != null and _doom.held():
+		_room_doom(_delta)
 		return
 	if _manual_walk:
 		_speed = 2.2
@@ -376,6 +473,39 @@ func _animate_work(_delta: float) -> void:
 	else:
 		_sprite.position.x = 0.0
 		_sprite.rotation.z = sin(floorf(_time * ANIM_FPS) / ANIM_FPS * 0.8) * 0.01
+
+
+## A room's copy seen from eight sides: walking (through the office's doorways) the way
+## they go, else facing the job they are at (show_at's face) or you.
+func _room_doom(delta: float) -> void:
+	var here := global_position
+	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	var moved := Vector3.ZERO
+	if _last_pos != Vector3.INF:
+		moved = here - _last_pos
+		moved.y = 0.0
+	_last_pos = here
+	if moved.length() > 1.0:
+		moved = Vector3.ZERO
+	_walked += moved.length()
+	if _manual_walk and moved.length() > 0.0005:
+		_doom.turn_toward(moved, PI)
+	elif not _manual_walk:
+		if _face.length_squared() > 0.0001:
+			_doom.face(_face)
+		elif cam != null:
+			_doom.face(cam.global_position - here)
+	_view_acc += delta
+	if _view_acc < 1.0 / VIEW_FPS:
+		return
+	_view_acc = 0.0
+	_doom.set_anim("walk" if _manual_walk else (pose if _doom.has_anim(pose) else "stand"))
+	_doom.advance(_walked)
+	_walked = 0.0
+	_sprite.rotation.z = 0.0
+	_sprite.position = Vector3.ZERO
+	if cam != null:
+		_doom.show(cam.global_position)
 
 
 func _aim_torch(s: Dictionary, inside: bool) -> void:

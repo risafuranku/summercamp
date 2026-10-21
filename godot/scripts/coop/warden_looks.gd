@@ -14,6 +14,7 @@ extends RefCounted
 ## in); the original jacket is one of the colours. Textures are made once and kept.
 
 const DIR := "res://assets/textury/npc/"
+const DOOM = preload("res://scripts/figures/doom_figure.gd")
 const LETTERS := ["a", "b", "c", "d"]
 ## The figures' own names: what the other warden is called when their machine sends no
 ## warden's name (the warden's name is the player's, scripts/profiles.gd).
@@ -51,6 +52,7 @@ const COLORS := [
 ]
 
 static var _cache: Dictionary = {}
+static var _atlas_cache: Dictionary = {}
 
 
 static func count() -> int:
@@ -96,6 +98,75 @@ static func texture(model: int, color: int, pose: String = "stand") -> Texture2D
 			tex = ImageTexture.create_from_image(img)
 	_cache[key] = tex
 	return tex
+
+
+## Warden `model` seen from eight sides (scripts/figures/doom_figure.gd), {} until drawn.
+static func figure_set(model: int) -> Dictionary:
+	return DOOM.set_of("warden_" + str(LETTERS[posmod(model, LETTERS.size())]))
+
+
+## That set's atlas with the jacket in `color`: the jacket is where the mask beside the
+## atlas says (sets/warden_<x>_mask.png, made with it by tools/artgen/figures.py from the
+## jacket's hue in its rows, the folds closed in), the same on every frame and side.
+static func atlas(model: int, color: int) -> Texture2D:
+	model = posmod(model, LETTERS.size())
+	color = posmod(color, COLORS.size())
+	var set := figure_set(model)
+	if set.is_empty():
+		return null
+	var key := "%d|%d" % [model, color]
+	if _atlas_cache.has(key):
+		return _atlas_cache[key]
+	var base: Texture2D = set["tex"]
+	var tex: Texture2D = base
+	var mpath := DOOM.SETS_DIR + "warden_%s_mask.png" % LETTERS[model]
+	if float(COLORS[color][1]) >= 0.0 and ResourceLoader.exists(mpath):
+		var src := base.get_image()
+		var msrc := (load(mpath) as Texture2D).get_image()
+		if src != null and msrc != null:
+			var img := src.duplicate() as Image
+			if img.is_compressed():
+				img.decompress()
+			img.convert(Image.FORMAT_RGBA8)
+			var m := msrc.duplicate() as Image
+			if m.is_compressed():
+				m.decompress()
+			m.convert(Image.FORMAT_L8)
+			if m.get_size() == img.get_size():
+				_recolor_masked(img, m.get_data(), COLORS[color])
+			tex = ImageTexture.create_from_image(img)
+	_atlas_cache[key] = tex
+	return tex
+
+
+## The masked pixels to the colour, as _recolor does it (mean tone to the colour's, each
+## pixel keeping how much lighter or darker it was).
+static func _recolor_masked(img: Image, mask: PackedByteArray, color: Array) -> void:
+	var w := img.get_width()
+	var at := PackedInt32Array()
+	for i in mask.size():
+		if mask[i] > 127:
+			at.append(i)
+	if at.is_empty():
+		return
+	var s_sum := 0.0
+	var v_sum := 0.0
+	for i in at:
+		var c := img.get_pixel(i % w, floori(float(i) / float(w)))
+		s_sum += c.s
+		v_sum += c.v
+	var s_mean := s_sum / float(at.size())
+	var v_mean := v_sum / float(at.size())
+	var th := float(color[1]) / 360.0
+	var ts := float(color[2])
+	var tv := float(color[3])
+	for i in at:
+		var x := i % w
+		var y := floori(float(i) / float(w))
+		var c4 := img.get_pixel(x, y)
+		var ns := clampf(ts * clampf(c4.s / maxf(s_mean, 0.01), 0.65, 1.3), 0.0, 1.0)
+		var nv := clampf(tv * pow(clampf(c4.v / maxf(v_mean, 0.01), 0.42, 1.8), 0.8), 0.0, 1.0)
+		img.set_pixel(x, y, Color.from_hsv(th, ns, nv, c4.a))
 
 
 static func _in_boxes(boxes: Array, x: int, y: int, w: int, h: int) -> bool:

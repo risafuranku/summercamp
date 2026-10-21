@@ -16,6 +16,16 @@ extends Node3D
 const GUEST_NEEDS = preload("res://core/systems/guest_needs_system.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
+## Guests seen from eight sides as in Doom, walking in frames (a set per archetype; one
+## without a set yet is the old sprite from the front, bobbing and flipping).
+const DOOM = preload("res://scripts/figures/doom_figure.gd")
+## Faster than this (m/s) a guest with a set runs (jumping aside, fleeing).
+const RUN_SPEED := 2.4
+## How far a walking guest turns in one move step (twelve a second): round a path's corners,
+## not snapping on A*'s zigzag.
+const TURN_STEP := 0.45
+## Standing still this long (seconds), a guest may do their idle (stretch, look about...).
+const IDLE_AFTER := Vector2(5.0, 14.0)
 ## Going in through a door (game minutes): from a step outside to a step inside.
 const ENTER_MIN := 2.0
 ## The part of going in spent at the door before stepping through.
@@ -158,6 +168,13 @@ func find_guest_in_view(camera: Camera3D, max_distance: float = INTERACT_MAX_DIS
 				var info: Dictionary = (party.get("info", {}) as Dictionary).duplicate()
 				info["distance"] = dist
 				best = info
+				best["_party"] = party
+	# The one you look at up close (to talk, to check in) turns to you, standing.
+	if not best.is_empty():
+		var pd: Dictionary = best["_party"]
+		pd["heed_at"] = origin
+		pd["heed_ms"] = Time.get_ticks_msec() + 2500
+		best.erase("_party")
 	return best
 
 
@@ -175,12 +192,20 @@ func get_visible_guest_positions() -> Array:
 			# picture (the attraction's pose: sat at the fire, eating, a kick), turned which
 			# way, and what they are about.
 			var each: Array = []
-			for m in members:
-				var mn := m as Node3D
-				if mn == null or not mn.visible:
+			# The map's family picture is two people (a parent and the boy by the hand): of the
+			# family's people it draws the father's and the mother's places.
+			var pairs := str((party.get("info", {}) as Dictionary).get("archetype", "")) == "family" and POSES.family_split()
+			for mi in members.size():
+				var mn := members[mi] as Node3D
+				if mn == null or not mn.visible or (pairs and mi % 2 == 1):
 					continue
 				var sp := mn.get_node_or_null("Sprite") as Sprite3D
-				each.append({"position": mn.global_position, "pose": sp.texture.resource_path if sp != null and sp.texture != null else "",
+				var pose_p := ""
+				if sp != null and sp.has_meta("doom") and (sp.get_meta("doom") as DOOM).held():
+					pose_p = str(sp.get_meta("own_path", (party.get("info", {}) as Dictionary).get("sprite_path", "")))
+				elif sp != null and sp.texture != null:
+					pose_p = sp.texture.resource_path
+				each.append({"position": mn.global_position, "pose": pose_p,
 					"flip": sp.flip_h if sp != null else false})
 			var info: Dictionary = party.get("info", {})
 			var act: Dictionary = info.get("activity", {})
@@ -221,12 +246,18 @@ func _create_party(entry: Dictionary) -> Dictionary:
 	root.name = "GuestParty_%d" % int(entry.get("id", 0))
 	add_child(root)
 	var members: Array = []
-	var count: int = POSES.figure_count(str(entry.get("archetype", "")), int(entry.get("party_size", 1)), MAX_MEMBERS_PER_PARTY)
-	var tex := _texture_for(str(entry.get("sprite_path", "")))
+	var archetype := str(entry.get("archetype", ""))
+	var count: int = POSES.figure_count(archetype, int(entry.get("party_size", 1)), MAX_MEMBERS_PER_PARTY)
+	var party_path := str(entry.get("sprite_path", ""))
 	for i in count:
 		var member := Node3D.new()
 		member.name = "Member%d" % i
 		root.add_child(member)
+		# The family's people each in their own sprite (poses.gd FAMILY), everyone else the
+		# party's; a child's sprite is drawn shorter than a grown-up's 128 px, and is as tall
+		# as that against them.
+		var own := POSES.member_path(archetype, party_path, i)
+		var tex := _texture_for(own)
 		var sprite := Sprite3D.new()
 		sprite.name = "Sprite"
 		sprite.texture = tex
@@ -235,12 +266,26 @@ func _create_party(entry: Dictionary) -> Dictionary:
 		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		sprite.shaded = true
 		sprite.double_sided = true
+		var vary := 0.92 + 0.08 * float(i % 3) if own == party_path else 1.0
+		var child_k := 1.0
 		if tex != null:
-			sprite.pixel_size = SPRITE_HEIGHT_M / float(tex.get_height()) * (0.92 + 0.08 * float(i % 3))
+			# The family's people are drawn to the 128 px of a grown man (the mother 122,
+			# the boy 83); the party sprites of old are all 1.72 m whatever their pixels.
+			child_k = minf(1.0, float(tex.get_height()) / 128.0) if own != party_path or tex.get_height() < 110 else 1.0
+			sprite.pixel_size = SPRITE_HEIGHT_M * child_k / float(tex.get_height()) * vary
 			sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
-		# Slight tint per member so a family is not four clones.
-		var tints := [Color(1, 1, 1), Color(0.86, 0.92, 1.0), Color(1.0, 0.9, 0.84), Color(0.9, 1.0, 0.88)]
-		sprite.modulate = tints[i % tints.size()]
+		if own != party_path:
+			sprite.set_meta("own_path", own)
+		sprite.set_meta("scale_k", child_k)
+		var set := DOOM.set_for(own)
+		if not set.is_empty():
+			var tall := SPRITE_HEIGHT_M * minf(1.0, float(set.get("h", 128)) / 128.0) * vary
+			var fig := DOOM.new(sprite, set, tall)
+			fig.yaw = float(int(entry.get("id", 0)) * 53 % 360) * PI / 180.0
+		# Slight tint per member so a party of one sprite is not four clones.
+		if own == party_path:
+			var tints := [Color(1, 1, 1), Color(0.86, 0.92, 1.0), Color(1.0, 0.9, 0.84), Color(0.9, 1.0, 0.88)]
+			sprite.modulate = tints[i % tints.size()]
 		member.add_child(sprite)
 		member.add_child(_make_shadow())
 		members.append(member)
@@ -402,21 +447,28 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 
 	party["last_pos"] = lead_pos
 	var side := Vector3.RIGHT
+	var heading := Vector3.ZERO
 	if walking and kind == "wait_gate":
 		var wdir: Vector3 = party.get("wg_dir", Vector3.FORWARD)
 		side = wdir.cross(Vector3.UP)
+		heading = wdir
 	elif walking:
-		var ahead := _sample_path(points, lengths, minf(total, clampf((now - start) / maxf(arrive - start, 0.01), 0.0, 1.0) * total + 0.5))
+		var along := clampf((now - start) / maxf(arrive - start, 0.01), 0.0, 1.0) * total
+		var ahead := _sample_path(points, lengths, minf(total, along + 0.5))
 		var dir := ahead - lead_pos
 		dir.y = 0.0
 		if dir.length_squared() > 0.0001:
 			side = dir.normalized().cross(Vector3.UP)
+		# Facing: further along the way (a tile's zigzag is not a turn).
+		heading = _sample_path(points, lengths, minf(total, along + 1.4)) - lead_pos
+		heading.y = 0.0
 	# At the fire, on the slide, on the pitch: the attraction places and poses them
 	# (scripts/attractions/: campfire.gd, slide_ride.gd, pitch_play.gd).
 	var posed: Node = null
 	if dwell_phase and kind == "visit" and not bool(act.get("queued", false)) and OPEN_AIR_TYPES.has(str(act.get("target_type", ""))):
 		posed = _attraction_at(party.get("target_tile", Vector2i(-1, -1)))
 	var marker_pos := lead_pos
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	for i in members.size():
 		var member := members[i] as Node3D
 		if member == null:
@@ -428,6 +480,12 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		if posed != null and posed.pose_member(int(info.get("id", 0)), i, members.size(), member, msprite, info, _time):
 			if i == 0:
 				marker_pos = member.position + Vector3(0, float(member.get_meta("marker_drop", 0.0)), 0)
+			# A pose drawn from every side: facing what they are at (the fire, the table).
+			var pf := _figure(msprite)
+			if pf != null and cam != null:
+				var at_att := _tile_center(party.get("target_tile", Vector2i.ZERO))
+				pf.face(at_att - member.global_position)
+				pf.show(cam.global_position)
 			continue
 		POSES.set_pose(msprite, str(info.get("sprite_path", "")), "")
 		# Back on the ground after an attraction that lifted them off it (the slide).
@@ -455,10 +513,18 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			var k := clampf((ei - ENTER_REACH) / (1.0 - ENTER_REACH), 0.0, 1.0)
 			k = k * k * (3.0 - 2.0 * k)
 			pos = (en["outside"] as Vector3).lerp(en["inside"], k) + (en["outside"] - en["inside"]).normalized() * 0.45 * maxf(0.0, -ei) * 2.0
+			var fig_in := _figure(sprite)
+			if fig_in != null:
+				fig_in.face((en["inside"] as Vector3) - (en["outside"] as Vector3))
+				fig_in.set_anim("walk")
+				fig_in.advance(Vector2(pos.x - member.position.x, pos.z - member.position.z).length())
 			member.position = pos
 			POSES.set_pose(sprite, str(info.get("sprite_path", "")), "")
-			if sprite != null:
+			if fig_in != null and cam != null:
+				fig_in.show(cam.global_position)
+			if sprite != null and fig_in == null:
 				sprite.flip_h = false
+			if sprite != null:
 				sprite.rotation.z = 0.0
 				# No door leaf: a tent; they stoop and duck in under the flap (the cloth
 				# takes them as they go behind its front).
@@ -466,6 +532,17 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			continue
 		if sprite != null:
 			_duck(sprite, _exit_duck(party, now, start, arrive, total, lengths))
+		var fig := _figure(sprite)
+		if fig != null:
+			var to := pos + _dodge_offset(party)
+			var look := heading
+			if not walking:
+				# Jumping aside: the way they jump (away from it), not at it.
+				look = Vector3.ZERO if party.has("dodge") else _standing_look(party, act, lead_pos, pos, members.size())
+			_drive_figure(fig, member, to, walking or party.has("dodge"), look, _delta)
+			if cam != null:
+				fig.show(cam.global_position)
+			continue
 		if walking:
 			var phase := floorf(_time * ANIM_FPS) / ANIM_FPS * WALK_BOB_HZ * TAU + float(i) * 1.7
 			pos.y = absf(sin(phase)) * 0.06
@@ -481,6 +558,68 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 	_update_alert(party, visible_now)
 
 
+## The member's figure seen from eight sides, when it has one and draws its own picture
+## now (not sat at the fire in a pose of its own).
+func _figure(sprite: Sprite3D) -> DOOM:
+	if sprite == null or not sprite.has_meta("doom"):
+		return null
+	var fig: DOOM = sprite.get_meta("doom")
+	return fig if fig.held() else null
+
+
+## Moves a member with a figure to `to`: facing `look` (turning a little a step while they
+## walk), walking or running in frames by the ground covered, a little lift between the
+## steps; standing a while, their idle now and then.
+func _drive_figure(fig: DOOM, member: Node3D, to: Vector3, moving: bool, look: Vector3, step: float) -> void:
+	var moved := Vector2(to.x - member.position.x, to.z - member.position.z).length()
+	if moved > 3.0:
+		moved = 0.0
+	var speed := moved / maxf(step, 0.001)
+	if moving and moved > 0.0005:
+		var way := look if look.length_squared() > 0.0001 else Vector3(to.x - member.position.x, 0.0, to.z - member.position.z)
+		fig.turn_toward(way, TURN_STEP)
+		fig.set_anim("run" if speed > RUN_SPEED else "walk")
+		fig.advance(moved)
+		member.set_meta("still", 0.0)
+	else:
+		if look.length_squared() > 0.0001:
+			fig.turn_toward(look, TURN_STEP * 0.5)
+		var still := float(member.get_meta("still", 0.0)) + step
+		member.set_meta("still", still)
+		if fig.anim == "idle":
+			if not fig.idle_at(still - float(member.get_meta("idle_from", 0.0))):
+				fig.set_anim("stand")
+				member.set_meta("idle_next", still + randf_range(IDLE_AFTER.x, IDLE_AFTER.y))
+		else:
+			fig.set_anim("stand")
+			if still < 0.2 or not member.has_meta("idle_next"):
+				member.set_meta("idle_next", randf_range(IDLE_AFTER.x, IDLE_AFTER.y))
+			if fig.has_anim("idle") and still >= float(member.get_meta("idle_next")):
+				fig.set_anim("idle")
+				member.set_meta("idle_from", still)
+				fig.idle_at(0.0)
+	to.y = 0.012 if fig.anim in ["walk", "run"] and fig.frame % 2 == 1 else 0.0
+	member.position = to
+	fig.sprite.rotation.z = 0.0
+
+
+## Where a standing guest looks: at a warden who looks at them up close or calls on the
+## megaphone; in a queue at the door they wait at, round an attraction at it, in a party at
+## the others; alone, the way they were going.
+func _standing_look(party: Dictionary, act: Dictionary, lead_pos: Vector3, pos: Vector3, count: int) -> Vector3:
+	# A warden looking at them up close, or on the megaphone: at them.
+	if Time.get_ticks_msec() < int(party.get("heed_ms", 0)):
+		return (party["heed_at"] as Vector3) - pos
+	if bool(act.get("queued", false)):
+		return lead_pos - pos
+	var tt: Vector2i = party.get("target_tile", Vector2i(-1, -1))
+	if tt.x >= 0 and OPEN_AIR_TYPES.has(str(act.get("target_type", ""))):
+		return _tile_center(tt) - pos
+	if count > 1:
+		return lead_pos - pos
+	return Vector3.ZERO
+
+
 ## Somebody on the megaphone (scripts/coop/voice.gd): the guests within `radius` of
 ## `at` look up, a "!" over them for `secs`.
 func alert(at: Vector3, radius: float, secs: float) -> void:
@@ -491,6 +630,8 @@ func alert(at: Vector3, radius: float, secs: float) -> void:
 		if p == Vector3.INF or Vector2(p.x - at.x, p.z - at.z).length() > radius:
 			continue
 		pd["alert_ms"] = maxi(int(pd.get("alert_ms", 0)), until)
+		pd["heed_at"] = at
+		pd["heed_ms"] = until
 
 
 ## Something heavy coming down (the god cursor, scripts/god/god_cursor.gd): the guests

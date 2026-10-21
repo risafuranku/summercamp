@@ -22,6 +22,9 @@ extends Node3D
 ## Stepped like the rest of the game (8 frames a second).
 
 const POSES = preload("res://scripts/attractions/poses.gd")
+## Guests with a set seen from eight sides (scripts/figures/doom_figure.gd): walking in
+## frames to their seat, facing their table, the till, the rack.
+const DOOM = preload("res://scripts/figures/doom_figure.gd")
 const ORDERS = preload("res://scripts/food/orders.gd")
 const STEP := 0.125
 const WALK_SPEED := 1.1
@@ -216,7 +219,8 @@ func _spawn(g: Dictionary, seat: int, visit: String, member: int, seated: bool) 
 	node.position = s["pos"]
 	var sprite := Sprite3D.new()
 	sprite.name = "Sprite"
-	var base := str(g.get("sprite_path", ""))
+	# The family's people each in their own sprite (poses.gd FAMILY); a child as small as it is.
+	var base := POSES.member_path(str(g.get("archetype", "")), str(g.get("sprite_path", "")), member)
 	if ResourceLoader.exists(base):
 		sprite.texture = load(base)
 	sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
@@ -225,9 +229,14 @@ func _spawn(g: Dictionary, seat: int, visit: String, member: int, seated: bool) 
 	sprite.shaded = true
 	sprite.double_sided = true
 	if sprite.texture != null:
-		sprite.pixel_size = 1.72 / float(sprite.texture.get_height())
+		var child_k := float(sprite.texture.get_height()) / 128.0 if sprite.texture.get_height() < 110 else 1.0
+		sprite.set_meta("scale_k", child_k)
+		sprite.pixel_size = 1.72 * child_k / float(sprite.texture.get_height())
 		sprite.offset = Vector2(0, sprite.texture.get_height() * 0.5)
 	node.add_child(sprite)
+	var dset := DOOM.set_for(base)
+	if not dset.is_empty():
+		DOOM.new(sprite, dset, 1.72 * minf(1.0, float(dset.get("h", 128)) / 128.0))
 	var standing := bool(s.get("stand", false))
 	var figures := POSES.figure_count(str(g.get("archetype", "")), int(g.get("party_size", 1)))
 	var served := ORDERS.served(key, visit) if _kitchen == null else not _kitchen.plate_for(key, visit, member, figures, str(g.get("archetype", ""))).is_empty()
@@ -322,7 +331,34 @@ func _cyl(parent: Node3D, r: float, h: float, m: Material) -> MeshInstance3D:
 	return mi
 
 
+## The figure of a sprite with a set that draws its own picture now, or null.
+func _fig(sprite: Sprite3D) -> DOOM:
+	if sprite == null or not sprite.has_meta("doom"):
+		return null
+	var f: DOOM = sprite.get_meta("doom")
+	return f if f.held() else null
+
+
+## Each figure's picture for where the room's camera is; seated or standing, facing their
+## seat's way (its table, the till, the rack).
+func _show_figures() -> void:
+	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	if cam == null:
+		return
+	for k in _people:
+		var p: Dictionary = _people[k]
+		var fig := _fig(p["sprite"])
+		if fig == null:
+			continue
+		if str(p["state"]) == "seat":
+			var s: Dictionary = seats[int(p["seat"])]
+			if s.has("face"):
+				fig.face(s["face"])
+		fig.show(cam.global_position)
+
+
 func _animate() -> void:
+	_show_figures.call_deferred()
 	var tables_drinking := {}
 	if _shop != null and is_instance_valid(_shop):
 		_queue_tick()
@@ -335,9 +371,17 @@ func _animate() -> void:
 			var f := clampf((_t - float(p["walk_t0"])) / float(p["walk_dur"]), 0.0, 1.0)
 			var from: Vector3 = p["from"]
 			var to: Vector3 = p["to"]
+			var was := node.position
 			node.position = from.lerp(Vector3(to.x, from.y, to.z), f)
-			sprite.position.y = 0.03 if int(_t / STEP) % 2 == 0 else 0.0
-			sprite.flip_h = to.x < from.x
+			var fig := _fig(sprite)
+			if fig != null:
+				fig.face(to - from)
+				fig.set_anim("walk")
+				fig.advance(Vector2(node.position.x - was.x, node.position.z - was.z).length())
+				sprite.position.y = 0.01 if fig.frame % 2 == 1 else 0.0
+			else:
+				sprite.position.y = 0.03 if int(_t / STEP) % 2 == 0 else 0.0
+				sprite.flip_h = to.x < from.x
 			if f < 1.0:
 				continue
 			sprite.position.y = 0.0

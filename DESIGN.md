@@ -1574,6 +1574,44 @@ steps. The list and the numbers before and after: TODO.md "POHYB, KAMERA, INTERA
 - Every sound effect is a recording (ElevenLabs); tones and cadences that must be exact
   are cut from recordings by script. Only the radio's dread is layered in code.
 
+## 10b. People as in Doom (2026-10-21)
+
+The user: "the sprite changes with where you look from, like in Doom... a few walking
+frames, really like Doom... the people must look the same all the time, no artefacts."
+
+- **Eight sides, five drawn.** A person faces a way (their yaw); where you stand round
+  them picks one of eight views, 45° each: 1 front, 2 three-quarter front, 3 side,
+  4 three-quarter back, 5 back, and 6-8 are 4-2 mirrored. A view holds 7° past its edge
+  before it changes, so walking along an edge, or a guest on A*'s zigzag, does not flick.
+  The billboard still turns to you (FIXED_Y); only the picture changes, in the camp's
+  twelve-a-second steps (`scripts/figures/doom_figure.gd`).
+- **The sprite from the front is the law.** It is never redrawn; the other views, the
+  walk, the run and the poses are drawn to it (Grok with it as the reference, then
+  snapped to its own colours, scaled to its height, the feet on its line). A person
+  without a set yet stays the old sprite from the front, so they go over one at a time.
+- **Walking is frames, not bobbing.** Four frames (stride, passing, stride, passing) a
+  view, counted by the ground covered, not by the clock: a frame every 0.34 m walking
+  (two steps of 0.68 m a cycle), 0.62 m running. So the feet do not slide at any speed:
+  a guest strolling at ~0.8 m/s changes frame a little over twice a second, the other
+  warden at a walk (3.9 m/s) eleven times, sprinting (5.2 m/s, run from 4.6) eight.
+  The flip and the sway of the old walk are gone; a centimetre's lift on the passing
+  frames stays (the bob).
+- **Facing.** The other warden faces where they look (the yaw they send already; nothing
+  new goes over the network); in a room, the job they are at. A guest faces along the
+  way they walk (1.4 m ahead, turning at most ~25° a step), standing: the door they queue
+  at, the attraction they stand round, or their party; at the fire or the table, the
+  fire or the table. A hand in a business faces their station.
+- **Standing about.** After 5-14 s still, a guest does their idle once (the drunk sways
+  and swigs, the girl smokes, the tramp lights up, the picker looks for mushrooms, the
+  wardens glance at a watch), then stands again.
+- **The family is its people.** Father, the boy by him, mother, a second child: each a
+  figure of their own walking with the party; a child as tall as their sprite against a
+  grown-up's.
+- **The jacket's colour** is a mask made with the atlas (the jacket's hue in its rows,
+  folds closed in), the same on every frame and side; no hand-tuned bands per pose.
+- **Left out:** the night's enemies and their looks, the people in the villages and the
+  bus, your own hands.
+
 ## 11. Open questions
 
 1. ~~Win condition~~: answered in §5d (the books on day 8). Still open: should a poor

@@ -9,6 +9,10 @@ extends Node3D
 ## they would stand (a click reads it). Made by scripts/service_interior.gd for a room.
 
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
+## Seen from eight sides as in Doom (scripts/figures/doom_figure.gd): a hand with a set
+## faces their station (its mark over it) at work, in their work pose from every side, and
+## standing aside faces the same way; without a set, the old sprite from the front.
+const DOOM = preload("res://scripts/figures/doom_figure.gd")
 const STAFF_DIR := "res://assets/textury/npc/staff/"
 ## People are 128 px to 1.74 m (AGENTS.md "One pixel throughout").
 const PERSON_M := 1.74
@@ -30,6 +34,7 @@ var _figs: Dictionary = {}
 var _notes: Dictionary = {}
 const NOTE_TEX := "res://assets/textury/camp/note_away.png"
 var _acc := 0.0
+var _view_acc := 0.0
 static var _tex: Dictionary = {}
 
 
@@ -41,6 +46,16 @@ static func tex(name: String) -> Texture2D:
 
 
 func _process(delta: float) -> void:
+	# The picture for where you look from, twelve times a second (the room's camera moves).
+	_view_acc += delta
+	if _view_acc >= 1.0 / 12.0:
+		_view_acc = 0.0
+		var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+		if cam != null:
+			for slug in _figs:
+				var f = _figs[slug]
+				if is_instance_valid(f) and f.has_meta("doom") and f.visible:
+					(f.get_meta("doom") as DOOM).show(cam.global_position)
 	_acc += delta
 	if _acc < STEP:
 		return
@@ -76,16 +91,25 @@ func refresh() -> void:
 			(spot["root"] as Node3D).add_child(fig)
 			_figs[slug] = fig
 		var aside := (str(spot.get("station", "")) != "" and busy.has(str(spot["station"]))) or (open != "" and (spot.get("clear_of", []) as Array).has(open))
+		var pos: Vector3 = spot["pos"]
+		if aside:
+			pos += (spot.get("aside", Vector3(0.7, 0, 0.4)) as Vector3)
+		fig.position = pos
+		if fig.has_meta("doom"):
+			var d: DOOM = fig.get_meta("doom")
+			d.set_anim("stand" if aside or not d.has_anim("work") else "work")
+			# Toward their station: the mark (the note's place) over it, else as they were.
+			var to: Vector3 = (spot.get("note", pos) as Vector3) - pos
+			if Vector2(to.x, to.z).length() > 0.05:
+				d.face(to)
+			fig.visible = true
+			continue
 		var t := tex(slug if aside else slug + "_work")
 		if t == null:
 			t = tex(slug)
 		fig.texture = t
 		fig.visible = t != null
 		fig.offset = Vector2(0, float(t.get_height()) * 0.5) if t != null else Vector2.ZERO
-		var pos: Vector3 = spot["pos"]
-		if aside:
-			pos += (spot.get("aside", Vector3(0.7, 0, 0.4)) as Vector3)
-		fig.position = pos
 	_show_notes(s, want)
 	for slug in _figs.keys():
 		var keep := false
@@ -107,6 +131,9 @@ func _make(slug: String) -> Sprite3D:
 	s.shaded = true
 	s.double_sided = true
 	s.pixel_size = PERSON_M / 128.0
+	var set := DOOM.set_of(slug)
+	if not set.is_empty():
+		DOOM.new(s, set, PERSON_M * float(set.get("h", 128)) / 128.0)
 	return s
 
 

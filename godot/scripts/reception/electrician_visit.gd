@@ -11,6 +11,8 @@ extends Node
 signal finished
 
 const BOOK = preload("res://scripts/closeup/phone_book.gd")
+## Seen from eight sides as in Doom (scripts/figures/doom_figure.gd) when he has a set.
+const DOOM = preload("res://scripts/figures/doom_figure.gd")
 const SPRITE := "res://assets/textury/npc/npc_electrician.png"
 const SPRITE_FALLBACK := "res://assets/textury/npc/host_pensioner.png"
 const SFX_CAR := "res://assets/sfx/gate/car_arrive.mp3"
@@ -35,6 +37,8 @@ var _body: Node3D
 var _sprite: Sprite3D
 var _torch: SpotLight3D
 var _anim_t := 0.0
+var _doom: DOOM = null
+var _walked := 0.0
 var _work_sfx_t := 0.0
 
 
@@ -203,8 +207,12 @@ func _walk(delta: float) -> bool:
 		var seg := _path[i - 1].distance_to(_path[i])
 		if d <= seg or i == _path.size() - 1:
 			var t := 0.0 if seg < 0.001 else clampf(d / seg, 0.0, 1.0)
+			var was := _body.global_position
 			_body.global_position = _path[i - 1].lerp(_path[i], t)
+			_walked += Vector2(_body.global_position.x - was.x, _body.global_position.z - was.z).length()
 			var dir := (_path[i] - _path[i - 1])
+			if _doom != null:
+				_doom.turn_toward(dir, 0.3)
 			if dir.length() > 0.01 and _torch != null:
 				_torch.look_at(_body.global_position + Vector3(dir.x, -0.35, dir.z).normalized() * 3.0 + Vector3(0, 1.2, 0), Vector3.UP)
 			break
@@ -234,6 +242,9 @@ func _make_body() -> void:
 		_sprite.pixel_size = SPRITE_HEIGHT_M / float(tex.get_height())
 		_sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
 	_body.add_child(_sprite)
+	var set := DOOM.set_for(path)
+	if not set.is_empty():
+		_doom = DOOM.new(_sprite, set, SPRITE_HEIGHT_M)
 	if night:
 		_torch = SpotLight3D.new()
 		_torch.light_color = Color(1.0, 0.92, 0.72)
@@ -250,6 +261,19 @@ func _animate(delta: float) -> void:
 		return
 	_anim_t += delta
 	var walking := _state == "walking_in" or _state == "walking_out"
+	if _doom != null:
+		# In frames by the ground he covers, the picture for where you look from (in steps).
+		var step := floorf(_anim_t * 12.0)
+		if step == floorf((_anim_t - delta) * 12.0):
+			return
+		_doom.set_anim("walk" if walking else "stand")
+		_doom.advance(_walked)
+		_walked = 0.0
+		_sprite.position.y = 0.012 if walking and _doom.frame % 2 == 1 else 0.0
+		var cam := _sprite.get_viewport().get_camera_3d() if _sprite.is_inside_tree() else null
+		if cam != null:
+			_doom.show(cam.global_position)
+		return
 	var f := floorf(_anim_t * 8.0)
 	_sprite.position.y = (absf(sin(f * 0.8)) * 0.05) if walking else 0.0
 	_sprite.rotation.z = (sin(f * 0.8) * 0.03) if walking else (sin(f * 0.3) * 0.02 if _state == "working" else 0.0)

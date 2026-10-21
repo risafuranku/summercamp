@@ -10,17 +10,34 @@ extends RefCounted
 const SEATED_HEIGHT_M := 1.3
 const POSES := ["sit", "drink", "eat", "guitar", "kick", "bat"]
 const STANDING := ["kick", "bat"]
+## The family as its people (their own sprites, each walking on their own): the father,
+## the boy by him, the mother, a second child; a smaller party is the first of them.
+const FAMILY := ["res://assets/textury/npc/host_father.png", "res://assets/textury/npc/host_kid.png",
+	"res://assets/textury/npc/host_mother.png", "res://assets/textury/npc/host_kid.png"]
 
 static var _tex: Dictionary = {}
 
 
-## How many figures a party is on screen: the family sprite is two people (a father and
-## his boy), so a family of four is two of them; everyone else is one each.
+## How many figures a party is on screen: one each; the old family sprite was two people
+## (a father and his boy), so while the family's own people are missing a family of four
+## is two of those.
 static func figure_count(archetype: String, party_size: int, most := 4) -> int:
 	var n := maxi(1, party_size)
-	if archetype == "family":
+	if archetype == "family" and not family_split():
 		n = int(ceil(float(n) / 2.0))
 	return clampi(n, 1, most)
+
+
+static func family_split() -> bool:
+	return ResourceLoader.exists(FAMILY[0]) and ResourceLoader.exists(FAMILY[2])
+
+
+## Member `i`'s own sprite: the family's people by their place in it, anyone else the
+## party's sprite.
+static func member_path(archetype: String, base_path: String, i: int) -> String:
+	if archetype == "family" and family_split():
+		return FAMILY[i % FAMILY.size()]
+	return base_path
 
 
 static func path_for(base_path: String, pose: String) -> String:
@@ -38,6 +55,9 @@ static func has_pose(base_path: String, pose: String) -> bool:
 static func set_pose(sprite: Sprite3D, base_path: String, pose: String) -> void:
 	if sprite == null:
 		return
+	# A member with a sprite of their own (the family's people) is posed in theirs.
+	if sprite.has_meta("own_path"):
+		base_path = str(sprite.get_meta("own_path"))
 	if base_path == "":
 		base_path = str(sprite.get_meta("base_path", ""))
 	if pose != "" and not has_pose(base_path, pose):
@@ -45,6 +65,20 @@ static func set_pose(sprite: Sprite3D, base_path: String, pose: String) -> void:
 	var want := path_for(base_path, pose)
 	if str(sprite.get_meta("pose_path", "")) == want:
 		return
+	# Seen from eight sides (scripts/figures/doom_figure.gd): standing is its pictures,
+	# a pose its own picture from the front till it is drawn from the sides too.
+	var fig = sprite.get_meta("doom") if sprite.has_meta("doom") else null
+	if fig != null:
+		if pose == "" or fig.has_anim(pose):
+			if not fig.held():
+				fig.restore()
+			fig.set_anim("stand" if pose == "" else pose)
+			sprite.set_meta("pose_path", want)
+			return
+		if not sprite.has_meta("stand_px"):
+			sprite.set_meta("stand_px", sprite.pixel_size)
+		fig.release()
+		sprite.flip_h = false
 	if not sprite.has_meta("stand_px"):
 		sprite.set_meta("stand_px", sprite.pixel_size)
 		sprite.set_meta("stand_tex", sprite.texture)
@@ -58,6 +92,7 @@ static func set_pose(sprite: Sprite3D, base_path: String, pose: String) -> void:
 	if tex == null:
 		return
 	sprite.texture = tex
-	sprite.pixel_size = float(sprite.get_meta("stand_px")) if pose == "" or pose in STANDING else SEATED_HEIGHT_M / float(tex.get_height())
+	# A child sits as small as it stands (scale_k: its height against a grown-up's).
+	sprite.pixel_size = float(sprite.get_meta("stand_px")) if pose == "" or pose in STANDING else SEATED_HEIGHT_M * float(sprite.get_meta("scale_k", 1.0)) / float(tex.get_height())
 	sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
 	sprite.set_meta("pose_path", want)
