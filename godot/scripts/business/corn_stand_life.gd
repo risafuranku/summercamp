@@ -156,8 +156,11 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 	if _mood != null and is_instance_valid(_mood):
 		member.global_position.y += float(_mood.call("stomp", str(key)))
 	member.set_meta("marker_drop", 0.0)
-	# Standing (the eating pictures are sat at a table).
-	POSES.set_pose(sprite, str(info.get("sprite_path", "")), "")
+	# Standing (the eating pictures are sat at a table); the impatient ones in their
+	# impatient picture, fidgeting (guest_mood.gd).
+	var base := str(sprite.get_meta("own_path", info.get("sprite_path", "")))
+	if not (_mood != null and is_instance_valid(_mood) and bool(_mood.call("impatient", str(key))) and GUEST_MOOD.show_wait(sprite, base)):
+		POSES.set_pose(sprite, str(info.get("sprite_path", "")), "")
 	return true
 
 
