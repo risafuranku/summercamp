@@ -23957,3 +23957,31 @@ msgstr "%d {dlaždice|dlaždice|dlaždic}  $%d"
 #: scripts/builder/map3d.gd
 msgid "%d tiles  $%d - money for %d"
 msgstr "%d {dlaždice|dlaždice|dlaždic}  $%d - peníze na %d"
+
+#: scripts/ui/main_menu.gd
+msgid "The Boy"
+msgstr "Kluk"
+
+#: scripts/corn_hunt.gd
+msgid "[E] Take his hand"
+msgstr "[E] Vezmi ho za ruku"
+
+#: scripts/main.gd
+msgid "A child is lost in the corn"
+msgstr "V kukuřici se ztratilo dítě"
+
+#: scripts/main.gd
+msgid "Family: corn, board, pipes"
+msgstr "Rodina: kukuřice, rozvodna, trubky"
+
+#: scripts/main.gd
+msgid "Test night: the boy is lost in the corn."
+msgstr "Testovací noc: kluk se ztratil v kukuřici."
+
+#: scripts/main.gd
+msgid "Test night: the boy is at the generator's board."
+msgstr "Testovací noc: kluk je u rozvaděče u generátoru."
+
+#: scripts/main.gd
+msgid "Test night: the boy is down the sewer."
+msgstr "Testovací noc: kluk je dole v kanálu."

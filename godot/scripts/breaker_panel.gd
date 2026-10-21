@@ -11,11 +11,15 @@ extends CanvasLayer
 ##
 ## Drawn in virtual pixels on an integer scale like the HUD; mouse to flip, Esc to
 ## leave (the job stays open).
+##
+## Some nights the family's boy is in here with you, and the board is his game (below,
+## "the boy"; DESIGN §5a.2).
 
 signal fixed(fault_index: int)
 signal closed
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const NIGHTMARE_FX = preload("res://scripts/night/nightmare_fx.gd")
 const SFX := "res://assets/sfx/power/"
 const CIRCUITS := ["LAMPS N", "LAMPS S", "OFFICE", "FOOD", "WASH", "PUMP"]
 ## Two-line labels under the switches (the one-line ones ran into each other).
@@ -78,7 +82,8 @@ func is_open() -> bool:
 	return visible
 
 
-func open(fault_index: int) -> void:
+func open(fault_index: int, boy_tier := 0) -> void:
+	_boy_start(boy_tier)
 	_fault = clampi(fault_index, 0, CIRCUITS.size() - 1)
 	_main_on = false
 	for i in _up.size():
@@ -112,6 +117,7 @@ func _process(delta: float) -> void:
 		_flash = maxf(0.0, _flash - delta * 4.0)
 	if _done:
 		_done_t += delta
+	_boy_tick(delta)
 	_lever = move_toward(_lever, 1.0 if _main_on else 0.0, delta * 7.0)
 	# The ammeter: load from the circuits that are up; the bad one pins it before it throws.
 	var load := float(_count_up()) / float(CIRCUITS.size()) * 0.55 if _main_on else 0.0
@@ -151,6 +157,10 @@ func _input(event: InputEvent) -> void:
 			or (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_S):
 		get_viewport().set_input_as_handled()
 		close()
+		return
+	if _boy_sees(event):
+		get_viewport().set_input_as_handled()
+		_boy_catch()
 		return
 	if event is InputEventMouseMotion:
 		_mouse = event.position
@@ -224,6 +234,193 @@ func _play(file: String, db := 0.0, pitch := 1.0) -> void:
 ## Done, and closed: whether the job was finished (main tells the HUD).
 func was_fixed() -> bool:
 	return _done
+
+
+
+# ── the boy: "Cukr, kava, limonada, caj, rum ... BUM!" ────────────────────────
+#
+# The family's boy (scripts/enemies/boy_brain.gd) is in the switch room with you, behind
+# you, his face to the wall, and it is the Czech red light, green light: while he says
+# the words you may work the board; at BUM he turns round and looks, and nothing of yours
+# may move (the mouse, a click) till he turns back. Caught: his face, the hit, and every
+# switch thrown down again; he says so, and it starts over. His face is in the ammeter's
+# glass while he looks. Medium he says them faster and unevenly, heavy he skips to BUM
+# now and then and looks longer, and pulls a switch down behind your back between rounds.
+
+const BOY_DIR := "res://assets/sfx/npc/boy/"
+const BOY_FACE := "res://assets/textury/npc/boy_face.png"
+const BOY_FRONT := "res://assets/textury/npc/boy_t1.png"
+const BOY_PITCH := 1.22
+## By his tier (1 light .. 3 heavy): the gap between words (s, from, to), the chance he
+## skips to BUM after the second or third word, how long he looks, how hard he hits, the
+## chance he pulls a switch down between rounds.
+const BOY_WORD_GAP := [Vector2.ZERO, Vector2(0.75, 0.8), Vector2(0.45, 0.9), Vector2(0.3, 0.85)]
+const BOY_SKIP := [0.0, 0.0, 0.1, 0.25]
+const BOY_STARE := [0.0, 1.8, 2.3, 2.9]
+const BOY_HIT := [0, 14, 22, 32]
+const BOY_PULL := [0.0, 0.0, 0.3, 0.55]
+## How far the pointer may drift while he looks (virtual px: a hand is never quite still).
+const BOY_STILL_PX := 2.5
+
+## His tier tonight at this board (0: nobody here).
+var boy := 0
+## How many times he caught you (for the checks), and what he is doing now: "wait",
+## "say" (a word), "look" (after BUM).
+var boy_caught := 0
+var boy_phase := "wait"
+var _boy_t := 0.0
+var _boy_word := 0
+var _boy_ear: AudioStreamPlayer
+var _boy_face: Texture2D
+var _boy_front: Texture2D
+var _boy_still_from := Vector2.INF
+## His face over the board when he catches you (the night's own screen is under this one).
+var _boy_face_t := 0.0
+
+
+func _boy_start(tier: int) -> void:
+	boy = tier
+	boy_caught = 0
+	boy_phase = "wait"
+	_boy_t = 2.0
+	_boy_word = 0
+	if tier <= 0:
+		return
+	if _boy_ear == null:
+		_boy_ear = AudioStreamPlayer.new()
+		add_child(_boy_ear)
+	if _boy_face == null and ResourceLoader.exists(BOY_FACE):
+		_boy_face = load(BOY_FACE)
+	if _boy_front == null and ResourceLoader.exists(BOY_FRONT):
+		_boy_front = load(BOY_FRONT)
+	# The night's screen made now (made at the catch, its ringing would come a frame late).
+	_night_fx()
+
+
+func _boy_tick(delta: float) -> void:
+	_boy_face_t = maxf(0.0, _boy_face_t - delta)
+	if boy <= 0 or _done:
+		return
+	_boy_t -= delta
+	match boy_phase:
+		"wait":
+			if _boy_t <= 0.0:
+				boy_phase = "say"
+				_boy_word = 0
+				_boy_t = 0.0
+		"say":
+			if _boy_t > 0.0:
+				return
+			_boy_word += 1
+			var skip: bool = _boy_word >= 3 and randf() < float(BOY_SKIP[boy])
+			if _boy_word > 5 or skip:
+				_boy_say("bum", -2.0)
+				boy_phase = "look"
+				_boy_t = BOY_STARE[boy]
+				_boy_still_from = _mouse
+				return
+			_boy_say("chant_%d" % _boy_word, -5.0)
+			var gap: Vector2 = BOY_WORD_GAP[boy]
+			_boy_t = randf_range(gap.x, gap.y)
+		"look":
+			if _boy_t <= 0.0:
+				boy_phase = "wait"
+				_boy_t = randf_range(1.0, 2.2)
+				# Behind your back between rounds: a switch of yours down again.
+				if randf() < BOY_PULL[boy]:
+					var ups: Array = []
+					for i in _up.size():
+						if _up[i] and i != _fault:
+							ups.append(i)
+					if not ups.is_empty():
+						_up[ups[randi() % ups.size()]] = false
+						_play("board_toggle.mp3", -9.0, 0.85)
+						_boy_sfx(BOY_DIR + "giggle_2.mp3", -12.0, 1.1)
+
+
+## While he looks: the board's input is his to see.
+func _boy_sees(event: InputEvent) -> bool:
+	if boy <= 0 or boy_phase != "look" or _done:
+		return false
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		return true
+	if event is InputEventMouseMotion and _boy_still_from != Vector2.INF:
+		return (event as InputEventMouseMotion).position.distance_to(_boy_still_from) > BOY_STILL_PX * float(_scale)
+	return false
+
+
+## Caught moving: his face over the board, the shriek, the hit; every switch down, the
+## main off; "you moved", and again.
+func _boy_catch() -> void:
+	boy_caught += 1
+	boy_phase = "wait"
+	_boy_t = 3.2
+	_main_on = false
+	_hum.stop()
+	for i in _up.size():
+		_up[i] = false
+	_flash = 1.0
+	_boy_face_t = 0.85
+	var fx = _night_fx()
+	_boy_sfx(BOY_DIR + "shriek.mp3", 2.0, 1.0)
+	if fx != null:
+		fx.glitch(0.9, 0.6)
+		fx.red_flash(0.5)
+		fx.tinnitus(2.0)
+	var main := get_parent()
+	if main != null and main.has_method("damage_player"):
+		main.damage_player(BOY_HIT[boy])
+	get_tree().create_timer(1.6).timeout.connect(func():
+		if visible and boy > 0:
+			_boy_say("moved_1", -4.0))
+	get_tree().create_timer(2.8).timeout.connect(func():
+		if visible and boy > 0:
+			_boy_say("again", -6.0))
+
+
+func _night_fx():
+	var main := get_parent()
+	var world = main.get("_world_3d") if main != null else null
+	return NIGHTMARE_FX.get_for(world) if world != null else null
+
+
+func _boy_say(id: String, db: float) -> void:
+	_boy_sfx(BOY_DIR + id + ".mp3", db, BOY_PITCH)
+
+
+func _boy_sfx(path: String, db: float, pitch: float) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var p := _boy_ear
+	if p == null or p.playing:
+		p = AudioStreamPlayer.new()
+		add_child(p)
+		p.finished.connect(p.queue_free)
+	p.stream = load(path)
+	p.volume_db = db
+	p.pitch_scale = pitch
+	p.play()
+
+
+## His face in the ammeter's glass while he looks (you see him behind you in it).
+func _draw_boy_reflection(o: Vector2, s: float) -> void:
+	if boy <= 0 or boy_phase != "look" or _boy_front == null:
+		return
+	var h := 26.0
+	var w := h * float(_boy_front.get_width()) / float(_boy_front.get_height())
+	var at := o + (DIAL + Vector2(-w * 0.5 + 4.0, -h * 0.45)) * s
+	_board.draw_texture_rect(_boy_front, Rect2(at, Vector2(w, h) * s), false, Color(0.5, 0.55, 0.6, 0.62))
+
+
+## His face, all of the screen, shaking, in steps.
+func _draw_boy_face(screen: Vector2) -> void:
+	if _boy_face_t <= 0.0 or _boy_face == null:
+		return
+	var side := minf(screen.x, screen.y) * (1.05 + 0.25 * (1.0 - _boy_face_t / 0.85))
+	var shake := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * screen.y * 0.012
+	var at := ((screen - Vector2(side, side)) * 0.5 + shake).floor()
+	_board.draw_rect(Rect2(Vector2.ZERO, screen), Color(0, 0, 0, 0.85))
+	_board.draw_texture_rect(_boy_face, Rect2(at, Vector2(side, side)), false)
 
 
 # ── drawing: the Grok picture of the board, the states painted onto it ───────
@@ -338,8 +535,10 @@ func _draw_board() -> void:
 		_board.draw_rect(Rect2(0, rect.position.y, rect.position.x, rect.size.y), dark)
 		_board.draw_rect(Rect2(rect.end.x, rect.position.y, screen.x - rect.end.x, rect.size.y), dark)
 		_board.draw_texture_rect(_torch, rect, false, Color(1, 1, 1, 0.7))
+	_draw_boy_reflection(origin, k)
 	if _flash > 0.0:
 		_board.draw_rect(Rect2(Vector2.ZERO, screen), Color(1, 1, 0.9, _flash * 0.75))
+	_draw_boy_face(screen)
 	# Done: stamped across the board, so there is no doubt that is all there is to do.
 	if _done:
 		var a := clampf(_done_t / 0.25, 0.0, 1.0)
