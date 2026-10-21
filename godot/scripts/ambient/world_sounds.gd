@@ -359,7 +359,7 @@ func _set_loop(p: AudioStreamPlayer3D, on: bool, db: float) -> void:
 		p.stop()
 
 
-## The trees round you in the wind: a rustle, a creak, a gust sweeping across.
+## The trees round you in the wind: a rustle, a creak.
 func _trees(delta: float, here: Vector3) -> void:
 	var main := get_tree().current_scene
 	var w := int(main.get("_weather_state")) if main != null and main.get("_weather_state") != null else 0
@@ -375,10 +375,10 @@ func _trees(delta: float, here: Vector3) -> void:
 		return
 	var roll := _rng.randf()
 	var file := "trees_rustle.mp3"
+	# (No gust swooshing past of its own: the wind is the weather's loop, swelling with
+	# the gusts: the user 21. 10.)
 	if wind >= 0.75 and roll < 0.35:
 		file = "tree_creak.mp3"
-	elif wind >= 0.5 and roll > 0.8:
-		file = "wind_gust.mp3"
 	var p: AudioStreamPlayer3D = _wind[_wind_next]
 	_wind_next = (_wind_next + 1) % _wind.size()
 	p.stream = _stream(file, false)
