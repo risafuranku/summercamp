@@ -26,6 +26,7 @@ var _icons: Dictionary = {}
 
 
 func _build() -> void:
+	fine = 2.0
 	taproom = state if state != null else TAPROOM.of(get_tree())
 	for n in ["mark_mug", "mark_foam", "mark_shot", "mark_kofola", "mark_keg", "mark_dirty"]:
 		_icons[n] = load(MARKS + n + ".png") if ResourceLoader.exists(MARKS + n + ".png") else null
@@ -200,11 +201,12 @@ func bar_text() -> String:
 		return ""
 	var m: Dictionary = taproom.mugs(building_key)
 	var k: Dictionary = taproom.keg(building_key)
-	var text := "MUGS %d" % int(m["clean"])
+	# Each piece through the lookup (a line put together is never found whole).
+	var text := tr("MUGS %d") % int(m["clean"])
 	if int(m["dirty"]) > 0:
-		text += "  DIRTY %d" % int(m["dirty"])
+		text += "  " + tr("DIRTY %d") % int(m["dirty"])
 	var trouble: String = taproom.tap_trouble(building_key)
-	text += "   KEG " + ({"dry": "DRY", "empty": "EMPTY", "off": "OFF", "flat": "FLAT"}.get(trouble, "%d" % int(k["line"])))
+	text += "   " + tr("KEG %s") % tr(str({"dry": "NO BEER", "empty": "SPENT", "off": "HEAD OFF", "flat": "FLAT"}.get(trouble, "%d" % int(k["line"]))))
 	return text
 
 

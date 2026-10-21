@@ -1412,6 +1412,11 @@ disagree, this wins (the older lines say so).*
   Jednota's baskets leave it out); each place's own thing never goes off; a station whose
   dishes are all off has no tab (the stand's drinks, the pub's bottles, the grill, the soup,
   the deli).
+- **Food and goods readable**: at the stations they keep their pictures' own pixel (the
+  91 px a metre rule does not hold for them, `station3d.fine`), the plate's food is a
+  quarter bigger, and the tickets carry a bigger picture with its word.
+- **Each place's own sound**: the pub and the dining room murmur from their guests, the
+  bistro's kitchen works, the Jednota's tubes buzz and a till beeps while somebody queues.
 - **The corn stand** is the frame's model; its camera stands higher so the guests at the
   counter are in the picture over the work.
 - **The pub**: the bill in one click (BILL on the rail or its mat on the bar: the marks'

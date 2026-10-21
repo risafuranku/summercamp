@@ -89,6 +89,10 @@ var surf_at := Vector3.ZERO
 var surf_size := Vector2(1.6, 0.9)
 var surf_yaw := 0.0
 var surf_flat := true
+## How much finer than the room's pixel this station's things are drawn (the brief of
+## 21. 10.: "the 91 px a metre rule does not hold for food and goods: I cannot tell chips
+## from fried cheese"): their size stays, their pictures keep more of their own pixels.
+var fine := 1.0
 ## The camera over it: how far back towards the cook and how high over the surface (a
 ## counter), or how far out from the wall (a wall). 0: worked out from the size.
 var cam_back := 0.0
@@ -317,7 +321,7 @@ func sprite(path: String, metres: float, flat := true, parent: Node3D = null) ->
 	s.pixel_size = 1.0 / PX_PER_M
 	if flat and surf_flat:
 		s.axis = Vector3.AXIS_Y
-	var tex := room_tex(path, metres)
+	var tex := room_tex(path, metres * fine)
 	s.texture = tex
 	if tex != null:
 		# Coarser than the room's pixel: keep its pixels at the size asked for.
@@ -332,7 +336,7 @@ func retex(s: Sprite3D, path: String, metres: float) -> void:
 	var key := "%s|%s" % [path, metres]
 	if s == null or str(s.get_meta("tex_key", "")) == key:
 		return
-	var tex := room_tex(path, metres)
+	var tex := room_tex(path, metres * fine)
 	if tex == null:
 		return
 	s.texture = tex

@@ -28,8 +28,10 @@ Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back t
 - [x] Pub: the frame, one-click bill, the games off the tabs, the keg on the frame and its tab, the cellar's hand, the menu
 - [x] Bistro: cellar optional (prepared goods to buy dearer, a hand), the soup (bufet) into the kitchen, the floor = bottles and serving the plates off the hatch, a floor hand, the menu
 - [x] Jednota: the frame on the till (SERVE = GIVE), the queue's patience over their heads, the shelves and the store for the hands, their tabs lit when the rack runs empty, the menu = the range
-- [ ] Bigger, readable food and goods in the minigames: done on the tickets (bigger icons and a word) and the floor's plates; the pictures re-drawn by Grok still to do (the queue is slow)
-- [ ] Each place's own ambient (the Jednota's tubes and tills, the stand's camp) and new sounds per action: no SFX key now (TTS only), existing sounds reused
+- [x] Bigger, readable food and goods: at the stations at their pictures' own pixel (`station3d.fine`), the pass's plate food a quarter bigger, the floor's plates, bigger icons with a word on the tickets
+- [ ] The food pictures re-drawn by Grok with stronger silhouettes (the queue is slow)
+- [x] Each place's own sound: the bistro's kitchen at work, the Jednota's tubes and now and then a till (`service_interior._tick_ambience`, recordings already there)
+- [ ] New sounds for each action and the guests' sighs: no SFX key now (TTS only)
 - [ ] The guests' new poses for impatience (tapping, the watch, arms up): bubbles, lines and the stand's stamping for now; a note on the door at last orders
 - [x] DESIGN §7b "Papa's frame", PRODUCT, AGENTS, the Czech of every new text (tools/i18n/batches/06_podniky_papas.json)
 
