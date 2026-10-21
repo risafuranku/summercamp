@@ -115,8 +115,10 @@ const WEATHER_WIND_ACTIVE_DB: float = -17.0
 ## The wind is always there outdoors, a bed under everything: quiet on a still day, up in
 ## the wind and the rain; the gusts swell it (wind_things.gd sets wind_gust, 0..1), never a
 ## whoosh of their own (the user 21. 10.).
-const WEATHER_WIND_STILL_DB: float = -29.0
-const WEATHER_WIND_GUST_DB: float = 7.0
+const WEATHER_WIND_STILL_DB: float = -36.0
+const WEATHER_WIND_GUST_DB: float = 5.0
+## (The loop under everything, quieter than the weather's own wind was: "moc nahlas".)
+const WEATHER_WIND_BED_DB: float = -22.0
 var wind_gust := 0.0
 const WEATHER_CALM_RAIN_ACTIVE_DB: float = -18.5
 const WEATHER_RAIN_ACTIVE_DB: float = -12.5
@@ -1331,9 +1333,9 @@ func _update_weather_layers(
 	var windy_active = true
 	var wind_db := WEATHER_WIND_STILL_DB
 	if weather_state == WEATHER_WINDY or weather_state == WEATHER_RAIN:
-		wind_db = WEATHER_WIND_ACTIVE_DB
+		wind_db = WEATHER_WIND_BED_DB
 	elif weather_state == WEATHER_STORM or weather_state == WEATHER_LIGHT_RAIN:
-		wind_db = lerpf(WEATHER_WIND_STILL_DB, WEATHER_WIND_ACTIVE_DB, 0.6)
+		wind_db = lerpf(WEATHER_WIND_STILL_DB, WEATHER_WIND_BED_DB, 0.6)
 	wind_db += WEATHER_WIND_GUST_DB * clampf(wind_gust, 0.0, 1.0)
 	var calm_rain_active = (weather_state == WEATHER_LIGHT_RAIN)
 	var rain_active = (weather_state == WEATHER_RAIN)

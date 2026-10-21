@@ -39,7 +39,14 @@ var _rain_trees: AudioStreamPlayer3D
 var _eaves_t := 2.0
 var _lake: AudioStreamPlayer3D
 var _frogs: AudioStreamPlayer3D
-var _wind: Array = []              # one-shot players for the trees and the gusts
+var _wind: Array = []              # one-shot players for the trees' creaks
+## The leaves in the wind (the user 21. 10.: "všechno plynulý ambience kontinuelní", and
+## in 3D, not loud): one loop in the nearest tree each way round you (north, east, south,
+## west, within LEAVES_RANGE; the corn rustles too), each from its own place in the loop,
+## louder in a wind and swelling with the gusts. It was rustles one at a time.
+const LEAVES_RANGE := 30.0
+var _leaves: Array = []           # AudioStreamPlayer3D, one per quarter
+var _leaves_scan := 0.0
 var _wind_next := 0
 var _gust_t := 6.0
 var _scan_t := 0.0
@@ -62,6 +69,19 @@ func _ready() -> void:
 		p.max_distance = 70.0
 		add_child(p)
 		_wind.append(p)
+	var lst = load(SFX + "trees_loop.ogg") if ResourceLoader.exists(SFX + "trees_loop.ogg") else null
+	if lst is AudioStreamOggVorbis:
+		(lst as AudioStreamOggVorbis).loop = true
+	for i in 4:
+		var p := AudioStreamPlayer3D.new()
+		p.bus = BUS
+		p.unit_size = 5.0
+		p.max_distance = 40.0
+		p.volume_db = -60.0
+		p.stream = lst
+		p.set_meta("at", Vector3.INF)
+		add_child(p)
+		_leaves.append(p)
 
 
 func _stream(file: String, loop: bool) -> AudioStream:
@@ -265,6 +285,46 @@ func _rain_by_surface(here: Vector3, main: Node) -> void:
 	_set_loop(_rain_trees, tree_at != Vector3.INF, db - 2.0)
 
 
+## The leaves: the nearest tree each way round you (looked for every couple of seconds),
+## a loop in its crown, as loud as the wind and its gust.
+func _tick_leaves(delta: float, here: Vector3, wind: float, main: Node) -> void:
+	if _leaves.is_empty() or (_leaves[0] as AudioStreamPlayer3D).stream == null:
+		return
+	_leaves_scan -= delta
+	if _leaves_scan <= 0.0:
+		_leaves_scan = 2.0
+		var best := [LEAVES_RANGE, LEAVES_RANGE, LEAVES_RANGE, LEAVES_RANGE]
+		var at := [Vector3.INF, Vector3.INF, Vector3.INF, Vector3.INF]
+		for t in get_tree().get_nodes_in_group("trees"):
+			if not (t is Node3D):
+				continue
+			var tp := (t as Node3D).global_position
+			var d := Vector2(tp.x - here.x, tp.z - here.z)
+			var dist := d.length()
+			if dist < 1.0 or dist >= LEAVES_RANGE:
+				continue
+			var q := 0 if absf(d.y) > absf(d.x) and d.y < 0.0 else (1 if absf(d.x) >= absf(d.y) and d.x > 0.0 else (2 if absf(d.y) > absf(d.x) else 3))
+			if dist < float(best[q]):
+				best[q] = dist
+				at[q] = tp
+		for i in 4:
+			var p: AudioStreamPlayer3D = _leaves[i]
+			if at[i] != Vector3.INF:
+				p.global_position = (at[i] as Vector3) + Vector3(0, 5.0, 0)
+			p.set_meta("at", at[i])
+	var vis = main.get("_weather_visuals") if main != null else null
+	var gust := float(vis.get("wind_gust")) if vis != null and vis.get("wind_gust") != null else 0.0
+	var want := lerpf(-30.0, -15.0, clampf(wind, 0.0, 1.0)) + 4.0 * clampf(gust, 0.0, 1.0)
+	for i in 4:
+		var p: AudioStreamPlayer3D = _leaves[i]
+		var has: bool = p.get_meta("at") != Vector3.INF
+		if has and not p.playing:
+			p.play(float(i) * 4.7 + _rng.randf() * 2.0)
+		p.volume_db = move_toward(p.volume_db, want if has else -60.0, delta * 12.0)
+		if not has and p.playing and p.volume_db <= -59.0:
+			p.stop()
+
+
 func _loop_stream(path: String) -> AudioStream:
 	if not _streams.has(path):
 		var st = load(path) if ResourceLoader.exists(path) else null
@@ -359,26 +419,22 @@ func _set_loop(p: AudioStreamPlayer3D, on: bool, db: float) -> void:
 		p.stop()
 
 
-## The trees round you in the wind: a rustle, a creak.
+## The trees round you in the wind: the leaves' loops, and now and then a creak.
 func _trees(delta: float, here: Vector3) -> void:
 	var main := get_tree().current_scene
 	var w := int(main.get("_weather_state")) if main != null and main.get("_weather_state") != null else 0
 	var wind: float = float({1: 0.8, 3: 0.35, 4: 0.55, 5: 1.0}.get(w, 0.12))
-	# A wind that picks up does not wait out the calm's long pause.
 	_flagpoles(delta, wind)
 	_after_rain(delta, here, w)
+	_tick_leaves(delta, here, wind, main)
+	# A creak in a strong wind, now and then (a creak may come once; the wind may not).
 	_gust_t = minf(_gust_t - delta, 14.0 / maxf(0.25, wind))
 	if _gust_t > 0.0:
 		return
 	_gust_t = _rng.randf_range(5.0, 14.0) / maxf(0.25, wind)
-	if wind < 0.3 and _rng.randf() < 0.6:
+	if wind < 0.75 or _rng.randf() > 0.35:
 		return
-	var roll := _rng.randf()
-	var file := "trees_rustle.mp3"
-	# (No gust swooshing past of its own: the wind is the weather's loop, swelling with
-	# the gusts: the user 21. 10.)
-	if wind >= 0.75 and roll < 0.35:
-		file = "tree_creak.mp3"
+	var file := "tree_creak.mp3"
 	var p: AudioStreamPlayer3D = _wind[_wind_next]
 	_wind_next = (_wind_next + 1) % _wind.size()
 	p.stream = _stream(file, false)
