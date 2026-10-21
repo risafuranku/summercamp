@@ -318,6 +318,9 @@ func get_footprint_for_building(building_type: String) -> Vector2i:
 		"vecerka":
 			# The Jednota (agent C, 20. 10.): three by three, its model building_models._jednota.
 			return Vector2i(3, 3)
+		"bowling":
+			# The bowling alley (21. 10.): three by five, its model building_models._bowling.
+			return Vector2i(3, 5)
 		"caravan_1", "caravan_2", "caravan_3", "sports_field", "lake_slide", "playground":
 			return Vector2i(2, 1)
 		_:
@@ -345,6 +348,8 @@ func place_building_at(origin: Vector2i, building_type: String) -> bool:
 	match building_type:
 		"vecerka":
 			return _place_placeholder_at(origin, "vecerka", Vector2i(3, 3), Color(0.58, 0.60, 0.62), Color(0.72, 0.2, 0.16), "services", 3.6)
+		"bowling":
+			return _place_placeholder_at(origin, "bowling", Vector2i(3, 5), Color(0.58, 0.58, 0.56), Color(0.78, 0.16, 0.18), "services", 4.6)
 		"cabin", "cabin_1":
 			return place_cabin_at(origin, 1)
 		"cabin_2":

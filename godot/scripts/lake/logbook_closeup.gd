@@ -61,7 +61,8 @@ func _paint(c: Control) -> void:
 	var spread: Array = PAGES[_spread]
 	for side in 2:
 		var r: Rect2 = LEFT_PAGE if side == 0 else RIGHT_PAGE
-		var lines := str(spread[side]).split("\n")
+		# The page whole through the language (cs.po), then its lines.
+		var lines := tr(str(spread[side])).split("\n")
 		for i in lines.size():
 			c.draw_string(font, Vector2(r.position.x + 4, r.position.y + 10 + i * 9), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
 	if hovered() == "right" and _spread < PAGES.size() - 1:

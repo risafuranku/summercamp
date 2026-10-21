@@ -23,7 +23,7 @@ const TIERS := [
 	{"guests": 10, "items": ["pub", "caravan_1", "hammock", "gnome", "sports_field"]},
 	{"guests": 20, "items": ["restaurant", "playground", "ping_pong", "flagpole", "upgrade:2"]},
 	{"guests": 30, "items": ["vecerka", "lake_slide"]},
-	{"guests": 40, "items": ["upgrade:3"]},
+	{"guests": 40, "items": ["upgrade:3", "bowling"]},
 ]
 ## SpotlessName Ltd's price for the first review, and what each one after adds.
 const REMOVE_BASE := 45

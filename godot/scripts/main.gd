@@ -3904,7 +3904,8 @@ func _update_interaction_hint() -> void:
 			return
 	var lake_hint: String = _lake_trip.hint() if _lake_trip != null else ""
 	if _lake_trip != null and _lake_trip.is_active():
-		_hud_manager.set_hint_text("")
+		# In the boat: the oars at first, the way out by the jetty (lake_trip.active_hint).
+		_hud_manager.set_hint_text(str(_lake_trip.active_hint()) if _lake_trip.has_method("active_hint") else "")
 		return
 	if not lake_hint.is_empty():
 		_hud_manager.set_hint_text(lake_hint)
@@ -4729,7 +4730,7 @@ func _on_coop_partner_moved(id: int, s: Dictionary) -> void:
 			if os.has("boat") or os.has("boat_at"):
 				rower = int(oid)
 		var rs: Dictionary = Coop.state_of(rower) if rower != 0 else {}
-		_lake_trip.coop_mirror_boat(rs.get("boat", rs.get("boat_at", null)), rs.has("boat_at"), rower)
+		_lake_trip.coop_mirror_boat(rs.get("boat", rs.get("boat_at", null)), rs.has("boat_at"), rower, rs.get("rp", []))
 	if _interior_manager != null and _interior_manager.has_method("coop_partner"):
 		var room: Dictionary = s.get("room", {})
 		if bool(s.get("z", false)) and not room.is_empty():
@@ -5532,6 +5533,9 @@ func coop_local_warden() -> Dictionary:
 	if lake.has("boat") or lake.has("ride"):
 		var key := "boat" if lake.has("boat") else "ride"
 		s[key] = lake[key]
+		# Your oars' strokes: their boat strokes as yours does (boat_rig.gd).
+		if lake.has("rp"):
+			s["rp"] = lake["rp"]
 		s["p"] = (lake[key] as Transform3D).origin
 		s["in"] = false
 		s["t"] = false

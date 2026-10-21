@@ -79,6 +79,7 @@ const ICON_PATHS := {
 	"pub": "res://assets/textury/builder/hospoda1.PNG",
 	"restaurant": "res://assets/textury/builder/restaurace.PNG",
 	"vecerka": "res://assets/textury/builder/vecerka.jpg",
+	"bowling": "res://assets/textury/builder/iso_bowling.png",
 	"sewer": "res://assets/textury/builder/sewer.PNG",
 	"power_generator": "res://assets/textury/builder/gen.PNG",
 	"path": "res://assets/textury/builder/parking.PNG",
@@ -2042,7 +2043,7 @@ func _mini_kind(t: String) -> String:
 		return "office"
 	if t.begins_with("tent") or t.begins_with("cabin") or t.begins_with("caravan"):
 		return "housing"
-	if t in ["toilet_block", "shower_block", "vecerka", "restaurant", "pub", "pub_2"]:
+	if t in ["toilet_block", "shower_block", "vecerka", "restaurant", "pub", "pub_2", "bowling"]:
 		return "services"
 	if t in ["bonfire", "sports_field", "lake_slide"]:
 		return "fun"
@@ -3307,6 +3308,8 @@ func _icon_key_for_type(building_type: String) -> String:
 			return "restaurant"
 		"vecerka":
 			return "vecerka_iso" if _get_icon("vecerka_iso") != null else "vecerka"
+		"bowling":
+			return "bowling"
 		"sewer", "water_pump", "sewage_tank":
 			return "sewer"
 		"power_generator":
@@ -4100,7 +4103,7 @@ func sound_under_pointer() -> String:
 					var t := str(root.get_meta("building_type", ""))
 					if t in ["playground", "sports_field", "lake_slide", "ping_pong", "bonfire"]:
 						k = "play"
-					elif t in ["pub", "restaurant", "vecerka", "corn_stand"]:
+					elif t in ["pub", "restaurant", "vecerka", "corn_stand", "bowling"]:
 						k = "pub"
 			count[k] = int(count[k]) + (2 if dx == 0 and dy == 0 else 1)
 	var best := "camp"

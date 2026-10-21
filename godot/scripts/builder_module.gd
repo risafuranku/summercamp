@@ -29,7 +29,7 @@ const OVERLAY_SHORT := {"": "Off", "condition": "Wear", "power": "Power", "rooms
 
 const CATEGORIES: Array = [
 	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/tb_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
-	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand", "vecerka"]},
+	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand", "vecerka", "bowling"]},
 	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide", "playground", "ping_pong", "hammock"]},
 	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/tb_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole", "mega_gnome"]},
 	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer"]},
@@ -43,6 +43,7 @@ const ITEM_ICONS := {
 	"toilet_block": "res://assets/textury/builder/hajzly.PNG",
 	"shower_block": "res://assets/textury/builder/sprchy.PNG",
 	"vecerka": "res://assets/textury/builder/iso_jednota.png",
+	"bowling": "res://assets/textury/builder/iso_bowling.png",
 	"restaurant": "res://assets/textury/builder/restaurace.PNG",
 	"pub": "res://assets/textury/builder/hospoda1.PNG",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
@@ -80,7 +81,7 @@ const SHORT_NAMES := {
 	"path": "Path", "lamp_post": "Lamp", "demolish": "Bulldozer",
 	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome", "mega_gnome": "Mega gnome",
 	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
-	"corn_stand": "Corn stand",
+	"corn_stand": "Corn stand", "bowling": "Bowling",
 }
 
 const BLURBS := {
@@ -90,6 +91,7 @@ const BLURBS := {
 	"toilet_block": "Without it, guests use the bushes. Needs the sewer.",
 	"shower_block": "Guests get dirty. Needs the sewer.",
 	"vecerka": "Bread, salami, ice cream, beer. Guests love it.",
+	"bowling": "Lanes, a snack bar and noise till late. Needs power.",
 	"restaurant": "Proper hot meals. Needs power.",
 	"pub": "Beer and noise. Guests love it, then they get loud.",
 	"bonfire": "Fun, food on sticks, and a light that feels safe at night.",
@@ -1070,7 +1072,7 @@ var _gcard_face: Dictionary = {}
 ## What a guest is about, for their card ("by the fire", "in the pub").
 const DOING_AT := {"bonfire": "by the fire", "sports_field": "on the pitch", "lake_slide": "on the slide", "playground": "at the swings",
 	"ping_pong": "at the ping-pong table", "hammock": "in the hammock", "bench": "on a bench", "picnic_table": "at a picnic table",
-	"corn_stand": "at the corn stand", "pub": "in the pub", "restaurant": "in the bistro", "vecerka": "in the Jednota",
+	"corn_stand": "at the corn stand", "pub": "in the pub", "restaurant": "in the bistro", "vecerka": "in the Jednota", "bowling": "at the bowling",
 	"toilet_block": "at the toilets", "shower_block": "in the showers", "main_building": "at the office"}
 const DOING := {"sleep": "asleep", "rest": "resting in the room", "wait_gate": "at the gate", "leave": "leaving", "away": "out of the camp",
 	"arrive": "settling in"}
