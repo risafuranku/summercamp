@@ -554,7 +554,11 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [x] Guests stay in lodgings, leave the camp by exits for hours, stand at the lake (64% -> ~35% outdoors)
 
 ### 14. The lake
-- [ ] Remodel: a real forest lake (water surface, reflections, shore, reeds, surrounding forest)
+- [x] Reflections (21. 10., the user: "jezero jen polish, remodel asi uplne ne"): the water
+  gives back the far shore's forest, the houses, the boat and the jetty, lit windows, the
+  stars and the sunset for real (`camp_lake.gd` mirror camera at half the game's pixels,
+  near the water only; everything under the water clipped for it in the surface shaders)
+- [ ] Remodel: shore, reeds, surrounding forest (not wanted for now)
 - [ ] Morning mist, darker night, deep-forest, slightly eerie; a place guests walk to
 
 ### 15. Night gameplay loop

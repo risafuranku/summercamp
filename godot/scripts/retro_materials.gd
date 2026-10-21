@@ -509,6 +509,11 @@ void vertex() {
 }
 
 void fragment() {
+	// The lake's mirror (camp_lake.gd) looks from under the water: nothing below the water
+	// is drawn for it (the ground's underside was a ceiling over everything it saw).
+	if (CAMERA_POSITION_WORLD.y < -0.4 && (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).y < 0.1) {
+		discard;
+	}
 	// Affine: interpolated across the screen, not in depth (the stretch and the swim).
 	// Not right in your face: a wall a step away would swirl into arcs (the PS1 cut its
 	// big polygons up for that); the swim is for what is a few metres off.

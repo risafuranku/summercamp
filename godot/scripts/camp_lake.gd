@@ -42,6 +42,16 @@ var _mist: Array[MeshInstance3D] = []  # mist puffs over the water
 var _mist_t := 0.0
 ## The water's material, and how often it is told the world's light and weather.
 var _water_mat: ShaderMaterial
+## The mirror: the world drawn from under the water (the camera's mirror image) into a
+## small view the water reads (lake_water.gdshader refl_tex); only while a camera is near.
+## The water itself is on its own layer, which the mirror's camera does not see.
+const REFL_LAYER := 1 << 18
+const REFL_NEAR := 95.0
+var _refl_vp: SubViewport
+var _refl_cam: Camera3D
+var _water_node: MeshInstance3D
+## The mirror on or off (the settings, tests).
+var mirror := true
 var _look_t := 0.0
 
 
@@ -101,6 +111,9 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 	wmat.set_shader_parameter("shore_z", Vector2(shore_z, far_z))
 	water.material_override = wmat
 	_water_mat = wmat
+	water.layers = REFL_LAYER
+	_water_node = water
+	call_deferred("_build_reflection")
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# Reeds along the shore (not in front of the jetty), thick at the corners.
@@ -260,7 +273,69 @@ func _mist_texture(rng: RandomNumberGenerator) -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
+func _build_reflection() -> void:
+	if not is_inside_tree() or get_viewport() == null:
+		return
+	_refl_vp = SubViewport.new()
+	_refl_vp.name = "LakeMirror"
+	_refl_vp.size = Vector2i(160, 90)
+	_refl_vp.world_3d = get_viewport().find_world_3d()
+	_refl_vp.msaa_3d = Viewport.MSAA_DISABLED
+	_refl_vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	_refl_vp.positional_shadow_atlas_size = 0
+	_refl_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(_refl_vp)
+	_refl_cam = Camera3D.new()
+	_refl_cam.cull_mask = 0xFFFFF & ~REFL_LAYER
+	_refl_cam.near = 0.3
+	_refl_cam.far = 350.0
+	_refl_vp.add_child(_refl_cam)
+	_water_mat.set_shader_parameter("refl_tex", _refl_vp.get_texture())
+
+
+## The mirror camera: the looking camera reflected in the water, at half its pixels; off
+## when no camera is near the water (and in rooms: the world's own camera is elsewhere).
+func _update_reflection() -> void:
+	if _refl_vp == null or _water_node == null:
+		return
+	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	var on := mirror and cam != null and cam.is_inside_tree() and _near_water(cam.global_position)
+	_refl_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+	_water_mat.set_shader_parameter("refl_on", 1.0 if on else 0.0)
+	if not on:
+		return
+	var vs := get_viewport().get_visible_rect().size
+	var want := Vector2i(maxi(80, int(vs.x * 0.5)), maxi(45, int(vs.y * 0.5)))
+	if _refl_vp.size != want:
+		_refl_vp.size = want
+	_refl_cam.fov = cam.fov
+	_refl_cam.keep_aspect = cam.keep_aspect
+	var p := cam.global_position
+	var f := -cam.global_transform.basis.z
+	var mp := Vector3(p.x, 2.0 * WATER_Y - p.y, p.z)
+	var mf := Vector3(f.x, -f.y, f.z)
+	if absf(mf.normalized().dot(Vector3.UP)) > 0.999:
+		mf += Vector3(0.001, 0, 0.001)
+	_refl_cam.global_position = mp
+	_refl_cam.look_at(mp + mf, Vector3.UP)
+
+
+func _near_water(at: Vector3) -> bool:
+	if _water_poly.is_empty():
+		return false
+	var p := Vector2(at.x, at.z)
+	if Geometry2D.is_point_in_polygon(p, _water_poly):
+		return true
+	for i in _water_poly.size():
+		var a: Vector2 = _water_poly[i]
+		var b: Vector2 = _water_poly[(i + 1) % _water_poly.size()]
+		if Geometry2D.get_closest_point_to_segment(p, a, b).distance_to(p) < REFL_NEAR:
+			return true
+	return false
+
+
 func _process(delta: float) -> void:
+	_update_reflection()
 	_look_t -= delta
 	if _look_t <= 0.0:
 		_look_t = 0.25
