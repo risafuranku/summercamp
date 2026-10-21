@@ -1401,7 +1401,9 @@ disagree, this wins (the older lines say so).*
   Duke 3D, frame by frame (the old "camera in steps, twelve a second" is gone).
 - **Patience everywhere**: on the ticket, on the face, over the guest in the room
   (`guest_mood.gd`: dots, the watch, a red scribble; a line and a grumble as it gets worse;
-  at the stand their feet stamp).
+  at the stand their feet stamp). Who waits on their feet (the stand's queue, the
+  Jednota's) fidgets in their impatient picture as it runs low: a hand on the hip, a look
+  at the watch (`<sprite>_wait.png`, `guest_mood.show_wait`).
 - **Last orders** half an hour before a place shuts (19:30, 22:30 open late): the bell, the
   word across the view, the feed; after it nobody new goes there (`guest_life.order_hours`)
   and nothing new is ordered; who ordered waits to the end of their patience, past the
@@ -1414,7 +1416,9 @@ disagree, this wins (the older lines say so).*
   the deli).
 - **Food and goods readable**: at the stations they keep their pictures' own pixel (the
   91 px a metre rule does not hold for them, `station3d.fine`), the plate's food is a
-  quarter bigger, and the tickets carry a bigger picture with its word.
+  quarter bigger, and the tickets carry a bigger picture with its word. The pictures are
+  drawn with bold outlines and colours of their own: chips are not fried cheese, beer is
+  not kofola, a raw cob is not a boiled or a mushy one.
 - **Each place's own sound**: the pub and the dining room murmur from their guests, the
   bistro's kitchen works, the Jednota's tubes buzz and a till beeps while somebody queues.
 - **The corn stand** is the frame's model; its camera stands higher so the guests at the
