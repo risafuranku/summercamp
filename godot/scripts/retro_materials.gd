@@ -208,15 +208,39 @@ func _multi_bucket(mmi: MultiMeshInstance3D) -> int:
 	return 1
 
 
+## How much a mesh is pulled in front of what it lies on (the shader's depth_pull, a share
+## of its distance): a quad (a face on a wall, a sign, a window, a poster) and a thin
+## board (a door, a shutter, a plank on a box); smaller ones more, so a sign wins over
+## the face under it. Everything else 0.
+const PULL_BIG := 0.005
+const PULL_SMALL := 0.009
+const THIN := 0.06
+
+
+func _pull_of(mi: MeshInstance3D) -> float:
+	var mesh := mi.mesh
+	var s := mi.global_transform.basis.get_scale()
+	if mesh is QuadMesh or mesh is PlaneMesh:
+		var sz: Vector2 = (mesh as QuadMesh).size if mesh is QuadMesh else (mesh as PlaneMesh).size
+		var area := sz.x * sz.y * maxf(s.x, 0.01) * maxf(s.y, 0.01)
+		return PULL_BIG if area >= 3.0 else PULL_SMALL
+	if mesh is BoxMesh:
+		var b := (mesh as BoxMesh).size * s
+		if minf(b.x, minf(b.y, b.z)) < THIN and maxf(b.x, maxf(b.y, b.z)) > 0.25:
+			return PULL_BIG
+	return 0.0
+
+
 func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 	var rid := mi.get_instance()
 	if not rid.is_valid():
 		return
 	var big := _bucket(mi)
+	var pull := _pull_of(mi) if big != B_FLAT else 0.0
 	var over := mi.material_override
 	rec["over"] = over
 	if over != null:
-		var m := _converted(over, big)
+		var m := _converted(over, big, pull)
 		RenderingServer.instance_geometry_set_material_override(rid, m.get_rid() if m != null else (over as Material).get_rid())
 		return
 	RenderingServer.instance_geometry_set_material_override(rid, RID())
@@ -226,7 +250,7 @@ func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 		if src == null:
 			src = mi.mesh.surface_get_material(i)
 		slots.append(src)
-		var m := _converted(src, big)
+		var m := _converted(src, big, pull)
 		if m != null:
 			RenderingServer.instance_set_surface_override_material(rid, i, m.get_rid())
 		elif src != null:
@@ -323,17 +347,17 @@ func _sprite_variant(s: Sprite3D) -> Dictionary:
 
 ## The ShaderMaterial for a StandardMaterial3D (made once, kept), or null when it is not
 ## one we can stand in for.
-func _converted(src, big: int) -> ShaderMaterial:
+func _converted(src, big: int, pull := 0.0) -> ShaderMaterial:
 	var std := src as StandardMaterial3D
 	if std == null or not _supported(std):
 		return null
-	var key := "%d|%d" % [std.get_instance_id(), big]
+	var key := "%d|%d|%d" % [std.get_instance_id(), big, roundi(pull * 10000.0)]
 	if _conv.has(key):
 		return _conv[key]["mat"]
 	var m := ShaderMaterial.new()
 	m.shader = _shader(_variant(std))
 	m.render_priority = std.render_priority
-	var c := {"std": std, "mat": m, "sig": "", "hot": 0.0, "big": big}
+	var c := {"std": std, "mat": m, "sig": "", "hot": 0.0, "big": big, "pull": pull}
 	_conv[key] = c
 	if not _by_std.has(std.get_instance_id()):
 		_by_std[std.get_instance_id()] = []
@@ -411,6 +435,7 @@ func _sync(c: Dictionary, force := false) -> void:
 	m.set_shader_parameter("emission_tex", std.emission_texture)
 	m.set_shader_parameter("has_emission_tex", std.emission_texture != null)
 	var big: int = c["big"]
+	m.set_shader_parameter("depth_pull", float(c.get("pull", 0.0)))
 	m.set_shader_parameter("snap_lines", SNAP_LINES if big < 2 else 0.0)
 	m.set_shader_parameter("affine", AFFINE_BY_BUCKET[big] if not std.uv1_triplanar else AFFINE_TRIPLANAR[big])
 
@@ -454,6 +479,13 @@ uniform float emission_energy = 0.0;
 uniform sampler2D emission_tex : source_color, filter_nearest, repeat_enable;
 uniform bool has_emission_tex = false;
 uniform float snap_lines = 150.0;
+// Pulled towards the eye along its own ray (a face or a sign on a wall, a thin board on a
+// box: their own material, retro_materials _pull_of): on the screen exactly where it was,
+// in depth a little in front of what it lies on. The snap moves corners a different way
+// for a face and the wall under it, and a centimetre between them was not enough: they
+// fought. (A plain uniform: an instance uniform took a slot for every instance drawn with
+// this shader, ran out of them and crashed the game on quitting.)
+uniform float depth_pull = 0.0;
 uniform float affine = 0.8;
 // The light as the hands have it (materials/hand_ps1.gdshader): each lamp's, the torch's
 // and the sun's light in steps, the steps dithered with a 4x4 Bayer matrix on the game's
@@ -500,9 +532,16 @@ void vertex() {
 #else
 	uv = UV * uv_scale.xy + uv_offset.xy;
 #endif
-	vec4 clip = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(VERTEX, 1.0));
+	vec4 vpos = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	// The sun's shadow pass (an orthographic view): no snap and no pull there. Snapped to
+	// the shadow map's grid every shadow jumped as the sun moved (it flickered).
+	bool ortho = PROJECTION_MATRIX[3][3] > 0.5;
+	if (!ortho) {
+		vpos.xyz *= 1.0 - depth_pull;
+	}
+	vec4 clip = PROJECTION_MATRIX * vpos;
 	// The PlayStation's whole-pixel vertices, on a coarse grid: edges shiver as you move.
-	if (snap_lines > 0.0 && clip.w > 0.05) {
+	if (snap_lines > 0.0 && clip.w > 0.05 && !ortho) {
 		vec2 grid = vec2(snap_lines * VIEWPORT_SIZE.x / max(VIEWPORT_SIZE.y, 1.0), snap_lines) * 0.5;
 		vec2 ndc = clip.xy / clip.w;
 		ndc = floor(ndc * grid + 0.5) / grid;
@@ -520,6 +559,25 @@ void fragment() {
 	if (CAMERA_POSITION_WORLD.y < -0.4 && (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).y < 0.1) {
 		discard;
 	}
+#ifdef LIT
+#ifndef SPRITE_LIGHT
+	// The light and the sun's shadow at the true point under this pixel: on the face's own
+	// plane, along this pixel's ray. VERTEX here is where the snap moved the face to, and
+	// the shadows warped and flickered with it as you moved (the user 21. 10.: "na stíny
+	// warpování nesmí být"). The face still warps; its shadows stay put on the world.
+	if (snap_lines > 0.0) {
+		vec4 rv = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, 0.5, 1.0);
+		vec3 ray = normalize(rv.xyz / rv.w);
+		float den = dot(ray, NORMAL);
+		if (abs(den) > 0.08) {
+			float t = dot(VERTEX, NORMAL) / den;
+			if (t > 0.0) {
+				LIGHT_VERTEX = ray * t;
+			}
+		}
+	}
+#endif
+#endif
 	// Affine: interpolated across the screen, not in depth (the stretch and the swim).
 	// Not right in your face: a wall a step away would swirl into arcs (the PS1 cut its
 	// big polygons up for that); the swim is for what is a few metres off.
