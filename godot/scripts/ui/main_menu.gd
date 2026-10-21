@@ -65,7 +65,7 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	{"id": "tourist", "text": "Photographer", "sub": "Drunk"},
 	{"id": "girl", "text": "Girl", "sub": "Cheap Chick"},
 	{"id": "whistler", "text": "Whistler", "sub": "Tramp"},
-	{"id": "child", "text": "Extra Child", "sub": "Family"},
+	{"id": "child", "text": "The Boy", "sub": "Family"},
 	{"id": "basket", "text": "Basket Man", "sub": "Mushroom Picker"},
 	{"id": "stalker", "text": "Antlered Man", "sub": "Mixed camp"},
 	# Not a thing: the sewer breaks again as soon as it is mended (main.TEST_SEWER).

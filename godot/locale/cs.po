@@ -23941,3 +23941,15 @@ msgstr "Den, plný kemp"
 #: scripts/main.gd
 msgid "Test: every business open and a full camp. The work is at their stations."
 msgstr "Test: všechny podniky otevřené a plný kemp. Práce je u jejich stanovišť."
+
+#: scripts/ui/main_menu.gd
+msgid "The Boy"
+msgstr "Kluk"
+
+#: scripts/corn_hunt.gd
+msgid "[E] Take his hand"
+msgstr "[E] Vezmi ho za ruku"
+
+#: scripts/main.gd
+msgid "A child is lost in the corn"
+msgstr "V kukuřici se ztratilo dítě"

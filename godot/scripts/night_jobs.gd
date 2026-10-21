@@ -18,6 +18,9 @@ extends Node
 ##   corn     a guest has wandered into the corn maze past the west fence: find them and
 ##            bring them back (scripts/corn_hunt.gd). Only with wanderers in camp
 ##            (drunks, families, tramps, mushroom pickers).
+##            The family's boy (scripts/enemies/boy_brain.gd) puts himself in a job of
+##            his place (add_boy_job: the job gets "boy", his tier): in the corn it is
+##            him, not a guest, and the hunt is his game (corn_hunt.gd boy mode).
 ##   frozen   on a hard frost (the last third of the autumn, core/systems/season.gd) the
 ##            pipes freeze: the water pump, the showers or the toilets are out until you
 ##            thaw them (the ordinary repair). On the coldest nights, twice.
@@ -50,6 +53,8 @@ var dead_circuit := -1
 var _fault := 0
 var _jobs: Array = []
 var _planned_night := -1
+## The game minute of the last tick (add_boy_job plans from it), -1 before the first.
+var _last_minute := -1
 var _last_breaker_night := -99
 var _rng := RandomNumberGenerator.new()
 var _main: Node
@@ -70,6 +75,7 @@ func reset() -> void:
 
 ## Called every frame with the clock. `night_index` is the day the night started on.
 func tick(abs_minute: int, is_night: bool, night_index: int) -> void:
+	_last_minute = abs_minute
 	if is_night and _planned_night != night_index:
 		_plan(night_index, abs_minute)
 	for job in _jobs:
@@ -242,7 +248,8 @@ func _resume_corn() -> void:
 
 func _plan(night_index: int, abs_minute: int) -> void:
 	_planned_night = night_index
-	_jobs = _jobs.filter(func(j): return str(j["state"]) == "open")
+	# The boy's job (add_boy_job) may come before the plan: it stays.
+	_jobs = _jobs.filter(func(j): return str(j["state"]) == "open" or j.has("boy"))
 	# The first night is quiet (main.QUIET_NIGHTS): no jobs either.
 	if night_index <= QUIET_NIGHTS:
 		changed.emit()
@@ -260,10 +267,10 @@ func _plan(night_index: int, abs_minute: int) -> void:
 			kinds.append("frozen")
 	# The sewer only breaks because the raccoon chewed through it, and it is out more the
 	# harder the night presses on the camp (pipes/pipe_director.gd).
-	if pool.has("sewer") and _rng.randf() < sewer_chance(_night_pressure()):
+	if pool.has("sewer") and _boy_job("sewer").is_empty() and _rng.randf() < sewer_chance(_night_pressure()):
 		kinds.append("sewer")
 	# The breaker: some nights, more the harder the night presses, seldom two running.
-	if pool.has("breaker") and _rng.randf() < breaker_chance(_night_pressure(), _last_breaker_night == night_index - 1):
+	if pool.has("breaker") and _boy_job("breaker").is_empty() and _rng.randf() < breaker_chance(_night_pressure(), _last_breaker_night == night_index - 1):
 		kinds.append("breaker")
 		_last_breaker_night = night_index
 	# Different kinds of trouble before any repeats; only lamps can go twice (there are
@@ -274,6 +281,8 @@ func _plan(night_index: int, abs_minute: int) -> void:
 			break
 		var k: String = pool[_rng.randi_range(0, pool.size() - 1)]
 		if k == "breaker" or k == "frozen" or k == "sewer" or (kinds.has(k) and not (k == "lamp" and kinds.count("lamp") < lamp_count)):
+			continue
+		if not _boy_job(k).is_empty():
 			continue
 		kinds.append(k)
 	kinds.shuffle()
@@ -286,6 +295,57 @@ func _plan(night_index: int, abs_minute: int) -> void:
 		var at := maxi(abs_minute + 10, night_start + int(slot))
 		_jobs.append(_make(kinds[i], at))
 	changed.emit()
+
+
+## The family's boy is out tonight at `kind`'s place (scripts/enemies/boy_brain.gd): a job
+## of that kind with him in it ("boy": his tier, "boy_of": the turned guest {id, name}),
+## half an hour to an hour on, or the one already planned taken over. False when it
+## cannot be (no such place; the job there already under way with a guest).
+func add_boy_job(kind: String, tier: int, who: Dictionary, soon := false) -> bool:
+	var have := _boy_job(kind, true)
+	if not have.is_empty():
+		have["boy"] = tier
+		have["boy_of"] = who
+		if soon:
+			have["at"] = mini(int(have["at"]), _last_minute + 2)
+		changed.emit()
+		return true
+	if _last_minute < 0:
+		return false
+	if kind == "corn" and (_main == null or not _main.has_method("corn_field_ready") or not _main.corn_field_ready()):
+		return false
+	var job := _make(kind, _last_minute + (_rng.randi_range(1, 2) if soon else _rng.randi_range(25, 70)))
+	job["boy"] = tier
+	job["boy_of"] = who
+	_jobs.append(job)
+	changed.emit()
+	return true
+
+
+## The job of `kind` not yet under way (with `pending_only`), or the boy's one open, {} none.
+func _boy_job(kind: String, pending_only := false) -> Dictionary:
+	for j in _jobs:
+		if str(j["kind"]) != kind:
+			continue
+		if str(j["state"]) == "pending" or (not pending_only and str(j["state"]) == "open" and j.has("boy")):
+			return j
+	return {}
+
+
+## The boy's tier at `kind`'s place while his job there is open (0: not him).
+func boy_tier_at(kind: String) -> int:
+	for j in _jobs:
+		if j.has("boy") and str(j["kind"]) == kind and str(j["state"]) == "open":
+			return int(j["boy"])
+	return 0
+
+
+## Is the boy out there tonight (his job planned or open, not done)?
+func boy_job_open() -> bool:
+	for j in _jobs:
+		if j.has("boy") and str(j["state"]) in ["pending", "open"]:
+			return true
+	return false
 
 
 static func breaker_chance(pressure: float, tripped_last_night: bool) -> float:

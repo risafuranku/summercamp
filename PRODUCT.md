@@ -148,7 +148,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | The Photographer (Drunk) | ✅ | film advance, red focus lamp and beeps, whine, flash; never look at him when it fires |
 | The Girl (Cheap Chick) | ✅ | advances when unwatched; eats the battery; cannot enter lamp light |
 | The Whistler (Tramps) | ✅ | a tune in the trees; following it gets you hit from behind; lamp light makes it give up |
-| The Extra Child (Family) | ✅ | hums among the tents; a torch on it makes it run at you |
+| The Boy (Family) | 🔨 | DESIGN §5a.2, `scripts/enemies/boy_brain.gd`: the family's boy is lost where the night's work is; the corn is hide and seek (his whispers cold / warmer / burning at your ear, found you lead him out by the hand and must not look back: his face, the hit, he hides again; lies with the pressure), his father asks after him in your way in the dark; not found, the family is gone by morning. The board (cukr káva limonáda) and the pipes (tag) to come; without corn the old Extra Child among the tents |
 | The Basket Man (Mushroom Pickers) | ✅ | 02:30-06:00; sees only movement; stand still |
 | The Antlered Man (two or more archetypes) | ✅ | fence-line charger |
 | Flashlight battery, stamina | ✅ | |
