@@ -574,7 +574,7 @@ func _draw_serve() -> void:
 func _draw_counts() -> void:
 	if station == null:
 		return
-	var counts := str(station.call("bar_text"))
+	var counts := tr(str(station.call("bar_text")))
 	if counts == "":
 		return
 	var f: Font = RETRO_UI.FONT_TEXT

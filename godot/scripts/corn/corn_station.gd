@@ -25,6 +25,7 @@ var _icons: Dictionary = {}
 
 
 func _build() -> void:
+	fine = 2.0
 	stand = state if state != null else CORNSTAND.of(get_tree())
 	for n in ["ticket", "ticket_old"]:
 		_icons[n] = load(PAPER + n + ".png") if ResourceLoader.exists(PAPER + n + ".png") else null
@@ -98,7 +99,8 @@ func ticket_items(t: Dictionary) -> Array:
 	var kind := str(t.get("kind", "cob"))
 	if kind == "cob":
 		var salt := int(t.get("salt", 0))
-		return [{"icon": _icons.get("corn"), "word": "NO SALT" if salt == 0 else "SALT %d" % salt}]
+		# "SALT 0" fits the slip in both languages (the big ticket says NO SALT).
+		return [{"icon": _icons.get("corn"), "word": "SALT %d" % salt}]
 	return [{"icon": _mark(kind), "word": "TEA" if kind == "tea" else "LIMO"}]
 
 

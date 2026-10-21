@@ -306,6 +306,8 @@ func close_service() -> void:
 	if _sentence != null:
 		_sentence.clear()
 	_stop_life()
+	if _amb != null:
+		_amb.stop()
 	_update_sewer_ambience_state()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
@@ -340,6 +342,7 @@ func _process(delta: float) -> void:
 		else:
 			_jednota_tick(delta)
 		_tick_moods(delta)
+		_tick_ambience(delta)
 		# At a station, or the camera on its way to one or back: the room holds still.
 		var open := _station_open()
 		if open != "":
@@ -2954,6 +2957,49 @@ func _tick_moods(delta: float) -> void:
 ## The room the Jednota's people stand in (the shop).
 func _jednota_room_of_life() -> String:
 	return "shop"
+
+
+## Each place's own sound under its room (the brief of 21. 10.: "the bistro's kitchen, the
+## Jednota's tubes and tills"): the kitchen at work while you are in it, the shop's tubes
+## buzzing low and now and then a till while somebody queues. The dining room and the pub
+## murmur from their guests (service_life).
+const AMB_KITCHEN := "res://assets/sfx/bistro/kitchen_room.mp3"
+const AMB_TUBES := "res://assets/sfx/power/board_hum.mp3"
+const AMB_TILL := "res://assets/sfx/jednota/beep.mp3"
+var _amb: AudioStreamPlayer
+var _amb_till := 6.0
+
+
+func _tick_ambience(delta: float) -> void:
+	if _amb == null:
+		_amb = AudioStreamPlayer.new()
+		_amb.name = "PlaceAmbience"
+		add_child(_amb)
+	var want := ""
+	var db := -18.0
+	if _current_profile == "rest" and _restaurant_room == "kitchen":
+		want = AMB_KITCHEN
+		db = -15.0
+	elif _current_profile == "vecerka" and _active_subroom == "shop":
+		want = AMB_TUBES
+		db = -30.0
+	if want == "" or not ResourceLoader.exists(want):
+		if _amb.playing:
+			_amb.stop()
+	elif _amb.stream == null or _amb.stream.resource_path != want or not _amb.playing:
+		var st: AudioStream = load(want)
+		if st is AudioStreamMP3:
+			(st as AudioStreamMP3).loop = true
+		_amb.stream = st
+		_amb.volume_db = db
+		_amb.play()
+	if _current_profile == "vecerka" and _station_open() != "till":
+		_amb_till -= delta
+		if _amb_till <= 0.0:
+			_amb_till = randf_range(7.0, 15.0)
+			var j = JEDNOTA.of(get_tree())
+			if j != null and not (j.tickets(_upkeep_key) as Array).is_empty():
+				_bistro_play(AMB_TILL, -24.0)
 
 
 ## How much patience each waiting guest has left (0..1): "guest id:member" (the Jednota's

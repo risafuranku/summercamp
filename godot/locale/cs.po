@@ -546,7 +546,7 @@ msgstr ""
 msgid "Not much of a smile."
 msgstr ""
 
-#: core/systems/business_rules.gd:421 scripts/crt_map_panel.gd:2598 scripts/interior_tasks.gd:156 scripts/service_interior.gd:2303 (+5)
+#: core/systems/business_rules.gd:421 scripts/crt_map_panel.gd:2598 scripts/interior_tasks.gd:156 scripts/service_interior.gd:2306 (+5)
 #. uses 9
 msgid "%s|%d"
 msgstr ""
@@ -3401,7 +3401,7 @@ msgstr ""
 msgid "WC"
 msgstr ""
 
-#: scripts/builder_module.gd:67 scripts/builder_module.gd:78 scripts/service_interior.gd:2319 scripts/os98/apps/goggle_app.gd:27
+#: scripts/builder_module.gd:67 scripts/builder_module.gd:78 scripts/service_interior.gd:2322 scripts/os98/apps/goggle_app.gd:27
 #. uses 4
 msgid "Showers"
 msgstr ""
@@ -3430,7 +3430,7 @@ msgstr ""
 msgid "Caravan"
 msgstr ""
 
-#: scripts/builder_module.gd:77 scripts/night_jobs.gd:424 scripts/service_interior.gd:2319 scripts/os98/apps/goggle_app.gd:27
+#: scripts/builder_module.gd:77 scripts/night_jobs.gd:424 scripts/service_interior.gd:2322 scripts/os98/apps/goggle_app.gd:27
 #. uses 4
 msgid "Toilets"
 msgstr ""
@@ -4738,7 +4738,7 @@ msgstr ""
 msgid "Barrel%d"
 msgstr ""
 
-#: scripts/building_models.gd:237 scripts/building_models.gd:510 scripts/service_interior.gd:1374
+#: scripts/building_models.gd:237 scripts/building_models.gd:510 scripts/service_interior.gd:1377
 #. uses 3
 msgid "Crate"
 msgstr ""
@@ -4941,7 +4941,7 @@ msgstr ""
 msgid "PoolRim%d"
 msgstr ""
 
-#: scripts/building_models.gd:697 scripts/service_interior.gd:1953
+#: scripts/building_models.gd:697 scripts/service_interior.gd:1956
 #. uses 2
 msgid "Towel"
 msgstr ""
@@ -5054,7 +5054,7 @@ msgstr ""
 msgid "Bulb%d"
 msgstr ""
 
-#: scripts/building_models.gd:981 scripts/cabin_interior.gd:1139 scripts/service_interior.gd:1811
+#: scripts/building_models.gd:981 scripts/cabin_interior.gd:1139 scripts/service_interior.gd:1814
 #. uses 3
 msgid "Newspaper"
 msgstr ""
@@ -5121,7 +5121,7 @@ msgstr ""
 msgid "Rope"
 msgstr ""
 
-#: scripts/building_models.gd:1160 scripts/service_interior.gd:1909 scripts/town/town_room.gd:1014
+#: scripts/building_models.gd:1160 scripts/service_interior.gd:1912 scripts/town/town_room.gd:1014
 #. uses 3
 msgid "Chain"
 msgstr ""
@@ -7797,7 +7797,7 @@ msgstr ""
 msgid "#%d %s | %s | beds:%d | income/day:$%d | left:%s"
 msgstr ""
 
-#: scripts/guest_manager.gd:2253 scripts/interior_prep.gd:398 scripts/ambient/ground_cover.gd:116 scripts/bistro/bistro_station.gd:102 (+4)
+#: scripts/guest_manager.gd:2253 scripts/interior_prep.gd:398 scripts/ambient/ground_cover.gd:116 scripts/bistro/bistro_station.gd:104 (+4)
 #. uses 8
 msgid "%s|%s"
 msgstr ""
@@ -7953,8 +7953,8 @@ msgstr ""
 msgid "FURIOUS"
 msgstr ""
 
-#: scripts/hud_manager.gd:93 scripts/hud_manager.gd:665 scripts/hud_manager.gd:1189 scripts/bistro/bistro_marks.gd:350 (+1)
-#. uses 5
+#: scripts/hud_manager.gd:93 scripts/hud_manager.gd:665 scripts/hud_manager.gd:1189 scripts/bistro/bistro_marks.gd:350
+#. uses 4
 msgid "EMPTY"
 msgstr ""
 
@@ -8377,7 +8377,7 @@ msgstr ""
 msgid "READY FOR GUESTS"
 msgstr ""
 
-#: scripts/interior_tasks.gd:455 scripts/service_interior.gd:2324
+#: scripts/interior_tasks.gd:455 scripts/service_interior.gd:2327
 #. uses 2
 msgid "NEEDS CLEANING"
 msgstr ""
@@ -9876,195 +9876,195 @@ msgstr ""
 msgid "Snowfall"
 msgstr ""
 
-#: scripts/service_interior.gd:1579
+#: scripts/service_interior.gd:1582
 msgid "Kitchen  [D]"
 msgstr ""
 
-#: scripts/service_interior.gd:1581
+#: scripts/service_interior.gd:1584
 msgid "Dining room  [A]"
 msgstr ""
 
-#: scripts/service_interior.gd:1581
+#: scripts/service_interior.gd:1584
 msgid "Cellar  [D]"
 msgstr ""
 
-#: scripts/service_interior.gd:1583
+#: scripts/service_interior.gd:1586
 msgid "Kitchen  [A]"
 msgstr ""
 
-#: scripts/service_interior.gd:1585
+#: scripts/service_interior.gd:1588
 msgid "Storeroom  [D]"
 msgstr ""
 
-#: scripts/service_interior.gd:1585
+#: scripts/service_interior.gd:1588
 msgid "Shop  [A]"
 msgstr ""
 
-#: scripts/service_interior.gd:1591
+#: scripts/service_interior.gd:1594
 msgid "Back  [A]"
 msgstr ""
 
-#: scripts/service_interior.gd:1593
+#: scripts/service_interior.gd:1596
 msgid "Repair the set  [R]"
 msgstr ""
 
-#: scripts/service_interior.gd:1594
+#: scripts/service_interior.gd:1597
 msgid "Switch room  [D]"
 msgstr ""
 
-#: scripts/service_interior.gd:1830
+#: scripts/service_interior.gd:1833
 msgid "ZENY"
 msgstr ""
 
-#: scripts/service_interior.gd:1831
+#: scripts/service_interior.gd:1834
 msgid "MUZI"
 msgstr ""
 
-#: scripts/service_interior.gd:1897
+#: scripts/service_interior.gd:1900
 msgid "Lid"
 msgstr ""
 
-#: scripts/service_interior.gd:1899
+#: scripts/service_interior.gd:1902
 msgid "Cistern"
 msgstr ""
 
-#: scripts/service_interior.gd:1930
+#: scripts/service_interior.gd:1933
 msgid "Partition"
 msgstr ""
 
-#: scripts/service_interior.gd:1945
+#: scripts/service_interior.gd:1948
 msgid "Curtain"
 msgstr ""
 
-#: scripts/service_interior.gd:1992
+#: scripts/service_interior.gd:1995
 msgid ""
 "SPRCHY\n"
 "showers"
 msgstr ""
 
-#: scripts/service_interior.gd:1992
+#: scripts/service_interior.gd:1995
 msgid ""
 "UMYVARNA\n"
 "washroom"
 msgstr ""
 
-#: scripts/service_interior.gd:2089
+#: scripts/service_interior.gd:2092
 msgid "Terminal"
 msgstr ""
 
-#: scripts/service_interior.gd:2225
+#: scripts/service_interior.gd:2228
 msgid ""
 "TRAFOSTANICE\n"
 "DANGER - high voltage"
 msgstr ""
 
-#: scripts/service_interior.gd:2323 scripts/bistro/sink_station.gd:209 scripts/pub/wash_station.gd:161
+#: scripts/service_interior.gd:2326 scripts/bistro/sink_station.gd:209 scripts/pub/wash_station.gd:161
 #. uses 3
 msgid "CLEAN"
 msgstr ""
 
-#: scripts/service_interior.gd:2324
+#: scripts/service_interior.gd:2327
 msgid "BROKEN DOWN"
 msgstr ""
 
-#: scripts/service_interior.gd:2375
+#: scripts/service_interior.gd:2378
 msgid "NO CASH FOR THE %s ($%d)"
 msgstr ""
 
-#: scripts/service_interior.gd:2375
+#: scripts/service_interior.gd:2378
 msgid "SPARE PART"
 msgstr ""
 
-#: scripts/service_interior.gd:2375
+#: scripts/service_interior.gd:2378
 msgid "SUPPLIES"
 msgstr ""
 
-#: scripts/service_interior.gd:2658 scripts/service_interior.gd:2712 scripts/corn/stand_view.gd:218 scripts/corn/stand_view.gd:249
+#: scripts/service_interior.gd:2661 scripts/service_interior.gd:2715 scripts/corn/stand_view.gd:218 scripts/corn/stand_view.gd:249
 #. uses 4
 msgid "%s is at %s."
 msgstr ""
 
-#: scripts/service_interior.gd:2759 scripts/service_interior.gd:2770 scripts/business/station_hud.gd:327 scripts/corn/stand_view.gd:285 (+1)
+#: scripts/service_interior.gd:2762 scripts/service_interior.gd:2773 scripts/business/station_hud.gd:327 scripts/corn/stand_view.gd:285 (+1)
 #. uses 5
 msgid "#back"
 msgstr ""
 
-#: scripts/service_interior.gd:2759 scripts/service_interior.gd:2770 scripts/business/station_hud.gd:340 scripts/corn/stand_view.gd:285 (+1)
+#: scripts/service_interior.gd:2762 scripts/service_interior.gd:2773 scripts/business/station_hud.gd:340 scripts/corn/stand_view.gd:285 (+1)
 #. uses 5
 msgid "#serve"
 msgstr ""
 
-#: scripts/service_interior.gd:2759 scripts/service_interior.gd:2770 scripts/business/station_hud.gd:329 scripts/corn/stand_view.gd:285 (+1)
+#: scripts/service_interior.gd:2762 scripts/service_interior.gd:2773 scripts/business/station_hud.gd:329 scripts/corn/stand_view.gd:285 (+1)
 #. uses 5
 msgid "#books"
 msgstr ""
 
-#: scripts/service_interior.gd:3263
+#: scripts/service_interior.gd:3309
 msgid "Go to the kitchen"
 msgstr ""
 
-#: scripts/service_interior.gd:3263
+#: scripts/service_interior.gd:3309
 msgid "Go to the dining room"
 msgstr ""
 
-#: scripts/service_interior.gd:3263 scripts/service_interior.gd:3264
+#: scripts/service_interior.gd:3309 scripts/service_interior.gd:3310
 #. uses 2
 msgid "Go down to the cellar"
 msgstr ""
 
-#: scripts/service_interior.gd:3264
+#: scripts/service_interior.gd:3310
 msgid "Go up to the bar"
 msgstr ""
 
-#: scripts/service_interior.gd:3264
+#: scripts/service_interior.gd:3310
 msgid "Go into the storeroom"
 msgstr ""
 
-#: scripts/service_interior.gd:3265
+#: scripts/service_interior.gd:3311
 msgid "Go into the shop"
 msgstr ""
 
-#: scripts/service_interior.gd:3265
+#: scripts/service_interior.gd:3311
 msgid "Go through"
 msgstr ""
 
-#: scripts/service_interior.gd:3272
+#: scripts/service_interior.gd:3318
 msgid "%s is at %s"
 msgstr ""
 
-#: scripts/service_interior.gd:3272
+#: scripts/service_interior.gd:3318
 msgid "Look at %s"
 msgstr ""
 
-#: scripts/service_interior.gd:3272
+#: scripts/service_interior.gd:3318
 msgid "Use %s"
 msgstr ""
 
-#: scripts/service_interior.gd:3275
+#: scripts/service_interior.gd:3321
 msgid "Look at the "
 msgstr ""
 
-#: scripts/service_interior.gd:3277
+#: scripts/service_interior.gd:3323
 msgid "Open the books"
 msgstr ""
 
-#: scripts/service_interior.gd:3279
+#: scripts/service_interior.gd:3325
 msgid "The stock: open the books"
 msgstr ""
 
-#: scripts/service_interior.gd:3281
+#: scripts/service_interior.gd:3327
 msgid "The light switch"
 msgstr ""
 
-#: scripts/service_interior.gd:3704
+#: scripts/service_interior.gd:3750
 msgid "FAULT REPORTED"
 msgstr ""
 
-#: scripts/service_interior.gd:3707
+#: scripts/service_interior.gd:3753
 msgid "LEAK REPORTED"
 msgstr ""
 
-#: scripts/service_interior.gd:3710
+#: scripts/service_interior.gd:3756
 msgid "NO FAULTS"
 msgstr ""
 
@@ -10658,7 +10658,7 @@ msgstr "GRIL"
 msgid "the soup"
 msgstr ""
 
-#: scripts/bistro/bistro_layout.gd:57 scripts/bistro/bistro_marks.gd:271 scripts/bistro/bistro_station.gd:125 scripts/bistro/bistro_station.gd:128
+#: scripts/bistro/bistro_layout.gd:57 scripts/bistro/bistro_marks.gd:271 scripts/bistro/bistro_station.gd:127 scripts/bistro/bistro_station.gd:130
 #. uses 4
 msgid "SOUP"
 msgstr "POLÉVKA"
@@ -10928,87 +10928,87 @@ msgstr ""
 msgid "STIR"
 msgstr ""
 
-#: scripts/bistro/bistro_station.gd:125 scripts/bistro/bistro_station.gd:127
+#: scripts/bistro/bistro_station.gd:127 scripts/bistro/bistro_station.gd:129
 #. uses 2
 msgid "GOULASH"
 msgstr "GULÁŠ"
 
-#: scripts/bistro/bistro_station.gd:125
+#: scripts/bistro/bistro_station.gd:127
 msgid "CHEESE"
 msgstr "SMAŽÁK"
 
-#: scripts/bistro/bistro_station.gd:125 scripts/bistro/bistro_station.gd:127
+#: scripts/bistro/bistro_station.gd:127 scripts/bistro/bistro_station.gd:129
 #. uses 2
 msgid "CHIPS"
 msgstr "HRANOLKY"
 
-#: scripts/bistro/bistro_station.gd:125 scripts/bistro/bistro_station.gd:128
+#: scripts/bistro/bistro_station.gd:127 scripts/bistro/bistro_station.gd:130
 #. uses 2
 msgid "SAUSAGE"
 msgstr "KLOBÁSA"
 
-#: scripts/bistro/bistro_station.gd:125 scripts/os98/apps/job_adclick.gd:23
+#: scripts/bistro/bistro_station.gd:127 scripts/os98/apps/job_adclick.gd:23
 #. uses 2
 msgid "KOFOLA"
 msgstr "KOFOLA"
 
-#: scripts/bistro/bistro_station.gd:125
+#: scripts/bistro/bistro_station.gd:127
 msgid "MALIN."
 msgstr "MALIN."
 
-#: scripts/bistro/bistro_station.gd:127
+#: scripts/bistro/bistro_station.gd:129
 msgid "DUMPLINGS"
 msgstr "KNEDLÍKY"
 
-#: scripts/bistro/bistro_station.gd:127
+#: scripts/bistro/bistro_station.gd:129
 msgid "ONION"
 msgstr "CIBULE"
 
-#: scripts/bistro/bistro_station.gd:127
+#: scripts/bistro/bistro_station.gd:129
 msgid "FRIED CHEESE"
 msgstr "SMAŽÁK"
 
-#: scripts/bistro/bistro_station.gd:127
+#: scripts/bistro/bistro_station.gd:129
 msgid "TARTAR"
 msgstr "TATARKA"
 
-#: scripts/bistro/bistro_station.gd:128
+#: scripts/bistro/bistro_station.gd:130
 msgid "MUSTARD"
 msgstr "HOŘČICE"
 
-#: scripts/bistro/bistro_station.gd:128 scripts/jednota/jednota_station.gd:15
+#: scripts/bistro/bistro_station.gd:130 scripts/jednota/jednota_station.gd:15
 #. uses 2
 msgid "BREAD"
 msgstr "CHLEBA"
 
-#: scripts/bistro/bistro_station.gd:139
+#: scripts/bistro/bistro_station.gd:141
 msgid "+ON"
 msgstr ""
 
-#: scripts/bistro/bistro_station.gd:142
+#: scripts/bistro/bistro_station.gd:144
 msgid "NO TART"
 msgstr "BEZ TAT."
 
-#: scripts/bistro/bistro_station.gd:170
+#: scripts/bistro/bistro_station.gd:172
 msgid "PLATED"
 msgstr "NANDÁNO"
 
-#: scripts/bistro/bistro_station.gd:171
+#: scripts/bistro/bistro_station.gd:173
 msgid "SERVE AT THE FLOOR"
 msgstr "VYDAT NA PLACU"
 
-#: scripts/bistro/bistro_station.gd:188
+#: scripts/bistro/bistro_station.gd:190
 msgid "NO "
 msgstr ""
 
-#: scripts/bistro/bistro_station.gd:203
+#: scripts/bistro/bistro_station.gd:205
 msgid "PLATES %d"
 msgstr "TALÍŘE %d"
 
-#: scripts/bistro/bistro_station.gd:205 scripts/pub/pub_station.gd:205
+#: scripts/bistro/bistro_station.gd:207 scripts/pub/pub_station.gd:207
 #. uses 2
-msgid "  DIRTY %d"
-msgstr ""
+msgid "DIRTY %d"
+msgstr "ŠPINAVÉ %d"
 
 #: scripts/bistro/breading_station.gd:91
 msgid "Cut a slice of cheese (%d in the cellar)"
@@ -11240,7 +11240,7 @@ msgstr ""
 msgid "The grill is full."
 msgstr ""
 
-#: scripts/bistro/grill_station.gd:179 scripts/bistro/pass_station.gd:406
+#: scripts/bistro/grill_station.gd:179 scripts/bistro/pass_station.gd:408
 #. uses 2
 msgid "In the bin."
 msgstr "Do koše."
@@ -11410,91 +11410,91 @@ msgstr ""
 msgid "PROTOTYP 540. JZD LIBLICE. The rest is scratched off with something sharp."
 msgstr ""
 
-#: scripts/bistro/pass_station.gd:262
+#: scripts/bistro/pass_station.gd:264
 msgid "Take a clean plate (%d)"
 msgstr "Vzít čistý talíř (%d)"
 
-#: scripts/bistro/pass_station.gd:266
+#: scripts/bistro/pass_station.gd:268
 msgid "Ladle goulash onto the plate"
 msgstr "Nabrat guláš na talíř"
 
-#: scripts/bistro/pass_station.gd:266
+#: scripts/bistro/pass_station.gd:268
 msgid "The goulash is not hot yet"
 msgstr "Guláš ještě není horký"
 
-#: scripts/bistro/pass_station.gd:271
+#: scripts/bistro/pass_station.gd:273
 msgid "Put %s on the plate (%d)"
 msgstr "Dát na talíř: %s (%d)"
 
-#: scripts/bistro/pass_station.gd:272
+#: scripts/bistro/pass_station.gd:274
 msgid "Put tartar on the plate"
 msgstr "Dát na talíř tatarku"
 
-#: scripts/bistro/pass_station.gd:273
+#: scripts/bistro/pass_station.gd:275
 msgid "Put onion on the plate"
 msgstr "Dát na talíř cibuli"
 
-#: scripts/bistro/pass_station.gd:274
+#: scripts/bistro/pass_station.gd:276
 msgid "A spoon of mustard on the plate"
 msgstr "Lžíci hořčice na talíř"
 
-#: scripts/bistro/pass_station.gd:276
+#: scripts/bistro/pass_station.gd:278
 msgid "A slice of bread on the plate"
 msgstr "Krajíc chleba na talíř"
 
-#: scripts/bistro/pass_station.gd:278
+#: scripts/bistro/pass_station.gd:280
 msgid "Take the %s off again"
 msgstr "Sundat zpátky: %s"
 
-#: scripts/bistro/pass_station.gd:281
+#: scripts/bistro/pass_station.gd:283
 msgid "Ring: out to %s"
 msgstr "Zazvonit: ven pro %s"
 
-#: scripts/bistro/pass_station.gd:299
+#: scripts/bistro/pass_station.gd:301
 msgid "a slice of dumpling"
 msgstr ""
 
-#: scripts/bistro/pass_station.gd:299
+#: scripts/bistro/pass_station.gd:301
 msgid "the fried cheese"
 msgstr ""
 
-#: scripts/bistro/pass_station.gd:300
+#: scripts/bistro/pass_station.gd:302
 msgid "the sausage"
 msgstr ""
 
-#: scripts/bistro/pass_station.gd:300
+#: scripts/bistro/pass_station.gd:302
 msgid "a slice of bread"
 msgstr ""
 
-#: scripts/bistro/pass_station.gd:304
+#: scripts/bistro/pass_station.gd:306
 msgid "SCRAPE"
-msgstr ""
+msgstr "SHRNOUT"
 
-#: scripts/bistro/pass_station.gd:354
+#: scripts/bistro/pass_station.gd:356
 msgid "Not hot yet."
 msgstr "Ještě to není teplé."
 
-#: scripts/bistro/pass_station.gd:412
+#: scripts/bistro/pass_station.gd:414
 msgid "Nobody ordered that."
 msgstr "To nikdo neobjednal."
 
-#: scripts/bistro/pass_station.gd:417
+#: scripts/bistro/pass_station.gd:419
 msgid "That's not what I ordered."
 msgstr "Tohle jsem neobjednal."
 
-#: scripts/bistro/pass_station.gd:417
+#: scripts/bistro/pass_station.gd:419
 msgid "Whose is this?"
 msgstr "Čí je tohle?"
 
-#: scripts/bistro/pass_station.gd:417
+#: scripts/bistro/pass_station.gd:419
 msgid "No. Look at the ticket."
 msgstr "Ne. Podívej se na lístek."
 
-#: scripts/bistro/pass_station.gd:424
+#: scripts/bistro/pass_station.gd:426
 msgid "On the hatch: out to %s at the floor."
 msgstr "Na okénku: vydat na placu (%s)."
 
-#: scripts/bistro/pass_station.gd:473
+#: scripts/bistro/pass_station.gd:475
 msgid "TODAY %d *%.1f $%d   "
 msgstr ""
 
@@ -12460,7 +12460,7 @@ msgstr ""
 msgid "8 in the evening"
 msgstr ""
 
-#: scripts/business/station3d.gd:382
+#: scripts/business/station3d.gd:386
 msgid "%d|%.2f|%.2f|%s|%s"
 msgstr ""
 
@@ -13167,40 +13167,39 @@ msgstr "Nebeská"
 msgid "%d|%d|%s"
 msgstr ""
 
-#: scripts/corn/corn_station.gd:101 scripts/corn/corn_station.gd:190
-#. uses 2
-msgid "NO SALT"
-msgstr "BEZ SOLI"
-
-#: scripts/corn/corn_station.gd:101
+#: scripts/corn/corn_station.gd:103
 msgid "SALT %d"
 msgstr "SŮL %d"
 
-#: scripts/corn/corn_station.gd:102
+#: scripts/corn/corn_station.gd:104
 msgid "TEA"
 msgstr "ČAJ"
 
-#: scripts/corn/corn_station.gd:102
+#: scripts/corn/corn_station.gd:104
 msgid "LIMO"
 msgstr "LIMO"
 
-#: scripts/corn/corn_station.gd:182
+#: scripts/corn/corn_station.gd:184
 msgid "COOKED"
 msgstr "UVAŘENÁ"
 
-#: scripts/corn/corn_station.gd:184
+#: scripts/corn/corn_station.gd:186
 msgid "BUTTER"
 msgstr "MÁSLO"
 
-#: scripts/corn/corn_station.gd:190
+#: scripts/corn/corn_station.gd:192
+msgid "NO SALT"
+msgstr "BEZ SOLI"
+
+#: scripts/corn/corn_station.gd:192
 msgid "SALT x%d"
 msgstr "SŮL x%d"
 
-#: scripts/corn/corn_station.gd:191
+#: scripts/corn/corn_station.gd:193
 msgid "NAPKIN"
 msgstr "UBROUSEK"
 
-#: scripts/corn/corn_station.gd:201
+#: scripts/corn/corn_station.gd:203
 msgid "CRATE %d  BOWL %d  BUTTER %d"
 msgstr "BEDNA %d  MÍSA %d  MÁSLO %d"
 
@@ -13842,7 +13841,7 @@ msgstr "SKLAD"
 msgid "the deli counter"
 msgstr ""
 
-#: scripts/jednota/jednota_layout.gd:38 scripts/jednota/jednota_station.gd:148
+#: scripts/jednota/jednota_layout.gd:38 scripts/jednota/jednota_station.gd:149
 #. uses 2
 msgid "DELI"
 msgstr "LAHŮDKY"
@@ -13935,49 +13934,49 @@ msgstr ""
 
 #: scripts/jednota/jednota_station.gd:15
 msgid "ROLLS"
-msgstr ""
+msgstr "ROHLÍKY"
 
 #: scripts/jednota/jednota_station.gd:15
 msgid "SALAMI"
-msgstr ""
+msgstr "SALÁM"
 
 #: scripts/jednota/jednota_station.gd:15
 msgid "MILK"
-msgstr ""
+msgstr "MLÉKO"
 
 #: scripts/jednota/jednota_station.gd:15
 msgid "PICKLE"
-msgstr ""
+msgstr "OKURKY"
 
 #: scripts/jednota/jednota_station.gd:16 scripts/pub/tap_station.gd:156
 #. uses 2
 msgid "BEER"
-msgstr ""
+msgstr "PIVO"
 
 #: scripts/jednota/jednota_station.gd:16
 msgid "ICE"
-msgstr ""
+msgstr "NANUK"
 
 #: scripts/jednota/jednota_station.gd:16
 msgid "CHOC"
-msgstr ""
+msgstr "ČOKO"
 
 #: scripts/jednota/jednota_station.gd:16
 msgid "VEG"
-msgstr ""
+msgstr "ZELEN."
 
 #: scripts/jednota/jednota_station.gd:16
 msgid "SOAP"
-msgstr ""
+msgstr "MÝDLO"
 
 #: scripts/jednota/jednota_station.gd:16 scripts/pub/pub_layout.gd:44
 #. uses 2
 msgid "CARDS"
-msgstr ""
+msgstr "KARTY"
 
 #: scripts/jednota/jednota_station.gd:17
 msgid "MAG"
-msgstr ""
+msgstr "ČASOP."
 
 #: scripts/jednota/jednota_station.gd:17 scripts/pub/pub_station.gd:19
 #. uses 2
@@ -13986,24 +13985,24 @@ msgstr "RUM"
 
 #: scripts/jednota/jednota_station.gd:17
 msgid "START"
-msgstr ""
+msgstr "START"
 
-#: scripts/jednota/jednota_station.gd:148
+#: scripts/jednota/jednota_station.gd:149
 msgid "%s %dG"
 msgstr ""
 
-#: scripts/jednota/jednota_station.gd:157
+#: scripts/jednota/jednota_station.gd:158
 msgid "TOTAL"
-msgstr ""
+msgstr "CELKEM"
 
-#: scripts/jednota/jednota_station.gd:158 scripts/os98/apps/campstat_app.gd:610 scripts/os98/apps/campstat_app.gd:747
+#: scripts/jednota/jednota_station.gd:159 scripts/os98/apps/campstat_app.gd:610 scripts/os98/apps/campstat_app.gd:747
 #. uses 3
 msgid "PAID"
-msgstr ""
+msgstr "ZAPLACENO"
 
-#: scripts/jednota/jednota_station.gd:159
+#: scripts/jednota/jednota_station.gd:160
 msgid "CHANGE"
-msgstr ""
+msgstr "VRÁTIT"
 
 #: scripts/jednota/shelves_station.gd:189
 msgid "Take the box of %s"
@@ -18383,8 +18382,8 @@ msgstr "ZAP"
 msgid "NO LINK"
 msgstr ""
 
-#: scripts/os98/apps/campstat_app.gd:190 scripts/pub/pub_marks.gd:235 scripts/pub/pub_station.gd:207 scripts/ui/retro_menu.gd:517 (+3)
-#. uses 7
+#: scripts/os98/apps/campstat_app.gd:190 scripts/pub/pub_marks.gd:235 scripts/ui/retro_menu.gd:517 scripts/ui/retro_menu.gd:521 (+2)
+#. uses 6
 msgid "OFF"
 msgstr "VYP"
 
@@ -20942,22 +20941,22 @@ msgstr "Zaplatit účet: %s, $%d"
 msgid "That's short. %d more."
 msgstr ""
 
-#: scripts/pub/bill_spot.gd:173 scripts/pub/pub_station.gd:130 scripts/pub/taproom.gd:232
+#: scripts/pub/bill_spot.gd:173 scripts/pub/pub_station.gd:131 scripts/pub/taproom.gd:232
 #. uses 3
 msgid "The bill"
 msgstr "Účet"
 
-#: scripts/pub/bill_spot.gd:177 scripts/pub/pub_station.gd:132
+#: scripts/pub/bill_spot.gd:177 scripts/pub/pub_station.gd:133
 #. uses 2
 msgid "Keep the change."
 msgstr "To je dobrý."
 
-#: scripts/pub/bill_spot.gd:177 scripts/pub/bill_spot.gd:179 scripts/pub/pub_station.gd:132 scripts/pub/pub_station.gd:134
+#: scripts/pub/bill_spot.gd:177 scripts/pub/bill_spot.gd:179 scripts/pub/pub_station.gd:133 scripts/pub/pub_station.gd:135
 #. uses 4
 msgid "Na shledanou."
 msgstr "Na shledanou."
 
-#: scripts/pub/bill_spot.gd:177 scripts/pub/pub_station.gd:132
+#: scripts/pub/bill_spot.gd:177 scripts/pub/pub_station.gd:133
 #. uses 2
 msgid "Good beer tonight."
 msgstr "Dneska dobré pivo."
@@ -21312,10 +21311,10 @@ msgstr ""
 msgid "Sprung, and empty. Something took the bait and the spring with it."
 msgstr ""
 
-#: scripts/pub/pub_marks.gd:218 scripts/pub/pub_marks.gd:237
-#. uses 2
+#: scripts/pub/pub_marks.gd:218 scripts/pub/pub_marks.gd:237 scripts/pub/pub_station.gd:209
+#. uses 3
 msgid "NO BEER"
-msgstr ""
+msgstr "BEZ PIVA"
 
 #: scripts/pub/pub_marks.gd:220
 msgid "NO MUGS"
@@ -21329,9 +21328,10 @@ msgstr ""
 msgid "BILL %d"
 msgstr ""
 
-#: scripts/pub/pub_marks.gd:233
+#: scripts/pub/pub_marks.gd:233 scripts/pub/pub_station.gd:209
+#. uses 2
 msgid "SPENT"
-msgstr ""
+msgstr "DOPITÝ"
 
 #: scripts/pub/pub_marks.gd:239
 msgid "GAS "
@@ -21361,33 +21361,33 @@ msgstr "SLIV"
 msgid "KOF"
 msgstr "KOF"
 
-#: scripts/pub/pub_station.gd:152
+#: scripts/pub/pub_station.gd:153
 msgid "BILL"
 msgstr "ÚČET"
 
-#: scripts/pub/pub_station.gd:160
+#: scripts/pub/pub_station.gd:161
 msgid "TAB $%d"
 msgstr "ÚČET $%d"
 
-#: scripts/pub/pub_station.gd:160
+#: scripts/pub/pub_station.gd:161
 msgid "CLICK THE BILL"
 msgstr "KLIKNI NA ÚČET"
 
-#: scripts/pub/pub_station.gd:203
+#: scripts/pub/pub_station.gd:205
 msgid "MUGS %d"
-msgstr ""
+msgstr "PŮLLITRY %d"
 
-#: scripts/pub/pub_station.gd:207
-msgid "   KEG "
-msgstr ""
+#: scripts/pub/pub_station.gd:209
+msgid "KEG %s"
+msgstr "SUD %s"
 
-#: scripts/pub/pub_station.gd:207
-msgid "DRY"
-msgstr ""
+#: scripts/pub/pub_station.gd:209
+msgid "HEAD OFF"
+msgstr "BEZ NARAŽEČE"
 
-#: scripts/pub/pub_station.gd:207
+#: scripts/pub/pub_station.gd:209
 msgid "FLAT"
-msgstr ""
+msgstr "ZVĚTRALÝ"
 
 #: scripts/pub/slot_station.gd:117
 msgid "The reels are going"
