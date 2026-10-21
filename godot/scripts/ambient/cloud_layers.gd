@@ -89,6 +89,13 @@ var _cover := 0.3
 var _cover_mix := 0.0
 var _storm := 0.0
 var _churn_time := 0.0
+## The deck's middle grey now (between its belly and its top, _update_deck): the scud
+## under it takes it.
+var _deck_mid := Color(0.5, 0.5, 0.5)
+## How bright the scud's pictures are on average (cloud_lo_*, agent B's cloud_* tops):
+## the colour is divided by it to come out at the deck's grey.
+const LO_TEX_MEAN := 0.39
+const TOP_TEX_MEAN := 0.53
 ## The flash in the cloud: where, how long it has been, how long it goes, how strong,
 ## how many times it flickers; and the wait for the next.
 var _flash_pos := Vector3.ZERO
@@ -153,6 +160,7 @@ func _ready() -> void:
 				add_child(mi)
 				var spread := float(p[3]) * w
 				puffs.append({"node": mi, "mat": m, "shade": float(p[1]),
+					"tex_mean": TOP_TEX_MEAN if (pi == 2 and not tops.is_empty()) else LO_TEX_MEAN,
 					"off": Vector3(rng.randf_range(-spread, spread), float(p[2]) * w, rng.randf_range(-spread, spread))})
 			var ext := float(layer["extent"])
 			_clouds.append({"puffs": puffs, "layer": li,
@@ -265,6 +273,13 @@ func _process(delta: float) -> void:
 			var y := at.y * (1.0 - 0.3 * _storm) if li == 1 else at.y
 			mi.global_position = Vector3(x, y, z) + (p["off"] as Vector3)
 			var col := tint * float(layer["shade"]) * float(p["shade"]) * bright * (1.0 - dark * (0.5 if li == 0 else 0.75))
+			if li == 1:
+				# Under the overcast the scud is the deck's own grey, a shade lighter (the
+				# rain's darkening alone took it to black blots under the storm; 21. 10.).
+				var under := clampf(maxf(dark / 0.55, _storm), 0.0, 1.0)
+				var lift := 0.92 + 0.45 * (float(p["shade"]) - 0.82)
+				var want := _deck_mid * lift / float(p["tex_mean"])
+				col = col.lerp(Color(want.r, want.g, want.b), under)
 			col = col.lerp(Color(0.92, 0.95, 1.0), flash * 0.35)
 			col.a = clampf(a, 0.0, 0.95)
 			(p["mat"] as StandardMaterial3D).albedo_color = col
@@ -306,6 +321,7 @@ func _update_deck(delta: float, cp: Vector3, wd: Vector2, pace: float, tint: Col
 	# The storm's colours, lit as the hour is.
 	belly = belly.lerp(STORM_BELLY * lerpf(0.4, 1.0, bright), _storm * 0.65)
 	top = top.lerp(STORM_TOP * lerpf(0.35, 1.0, bright), _storm * 0.55)
+	_deck_mid = belly.lerp(top, 0.55)
 	top = top.lerp(Color(0.92, 0.95, 1.0), flash * 0.4)
 	belly = belly.lerp(Color(0.80, 0.84, 0.95), flash * 0.4)
 	for i in _deck.size():
