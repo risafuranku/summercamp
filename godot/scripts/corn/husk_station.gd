@@ -94,10 +94,10 @@ func _show() -> void:
 			(l as Sprite3D).visible = false
 		for s in _silk_spr:
 			(s as Sprite3D).visible = false
-	# The leaves torn off, flying into the bucket in steps.
+	# The leaves torn off, flying into the bucket (smooth).
 	for f in _flying:
 		var k := clampf(float(f["t"]) / 0.4, 0.0, 1.0)
-		k = floorf(k * 5.0) / 5.0
+		k = 1.0 - pow(1.0 - k, 2.0)
 		var to := BUCKET.get_center()
 		var at: Vector2 = (f["from"] as Vector2).lerp(to, k)
 		put(f["sprite"], at, 0.04 + sin(k * PI) * 0.14)
@@ -174,12 +174,16 @@ func _take() -> void:
 			return
 	_cob = {"leaves": int(stand.leaves(building_key)), "silk": CORN.SILK}
 	sfx("plate_down", -12.0, 0.8)
+	hop(_cob_spr)
 
 
 func _into_bowl() -> void:
 	_cob = {}
 	stand.act(building_key, "husked", [1])
 	sfx("plate_down", -10.0, 1.1)
+	var n := int(stand.bowl(building_key))
+	if n > 0 and n <= _bowl_spr.size():
+		hop(_bowl_spr[n - 1])
 
 
 func _tick(delta: float) -> void:
@@ -199,12 +203,43 @@ func _closing() -> void:
 
 
 func bar_buttons() -> Array:
-	return [{"id": "books", "label": "BOOKS"}]
+	return []
 
 
 func bar_button(id: String) -> void:
 	if id == "books" and open_books.is_valid():
 		open_books.call()
+
+
+# ── the frame: the next step, the tab ────────────────────────────────────────
+
+## What is best to do here now: pull the leaves (a drag up off the cob), pick the silk,
+## into the bowl; a cob from the crate while the bowl and the pot have fewer than are
+## wanted; the counter when there is enough.
+func next_hint() -> Dictionary:
+	if stand == null or building_key == "":
+		return {}
+	if not _cob.is_empty():
+		if int(_cob["leaves"]) > 0:
+			return {"node": _cob_spr, "gesture": "drag", "to": TABLE_AT + Vector2(0, -90)}
+		if int(_cob["silk"]) > 0:
+			return {"node": _cob_spr, "gesture": "click"}
+		return {"rect": BOWL, "gesture": "click"}
+	var wanted := cob_tickets().size()
+	var ready := int(stand.bowl(building_key)) + (stand.pot(building_key) as Array).size()
+	if wanted > ready and BUSINESS.stock_of(building_key, "cobs") != 0:
+		return {"rect": CRATE, "gesture": "click"}
+	if wanted > 0:
+		return {"tab": "counter"}
+	return {}
+
+
+## The bowl empty and somebody waiting for a cob: amber.
+func alert() -> int:
+	if stand == null or building_key == "":
+		return 0
+	var wanted := cob_tickets().size()
+	return 1 if wanted > int(stand.bowl(building_key)) + (stand.pot(building_key) as Array).size() else 0
 
 
 # ── debug (tools/stand_check.gd, tools/stand_shots.gd) ───────────────────────

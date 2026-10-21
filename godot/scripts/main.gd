@@ -4796,6 +4796,8 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 			act.biz_set_job(str(a[0]), str(a[1]), str(a[2]), str(a[3]))
 		"late":
 			act.biz_set_late(str(a[0]), bool(a[1]))
+		"menu":
+			act.biz_set_menu(str(a[0]), str(a[1]), bool(a[2]))
 		"score":
 			act.biz_score(str(a[0]), a[1])
 

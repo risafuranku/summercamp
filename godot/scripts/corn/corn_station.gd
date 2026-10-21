@@ -3,10 +3,12 @@ extends "res://scripts/business/station3d.gd"
 ## A station of the corn stand, worked on its counter out in the camp
 ## (scripts/business/station3d.gd; DESIGN.md §7b "The corn stand"): the stand's state
 ## (cornstand.gd: the pot, the bowl, who was served), the orders on the rail as paper
-## slips (the guest's name, a cob, the salt they want: a mark a shake, NO SALT), the
-## picked one big in the frame, the cobs in the pot and the butter at the right end of
-## the frame, the pot's timers when you are husking. The stations: counter, husk, drinks
-## (a drink slip has its cup or its bag on it instead of the cob).
+## slips drawn the same as in every place (station3d.draw_ticket: the guest's face, a cob
+## and the salt they want, NO SALT, or the cup or the bag of a drink; their patience), the
+## picked one big in the frame as a checklist (cooked, butter, the salt, the napkin), the
+## crate, the bowl and the butter under SERVE, the pot's timers when you are husking. The
+## stations: counter, husk, drinks. Each says what is best to do next (`next_hint`), the
+## stand being the frame's model for the other three places (the brief of 21. 10.).
 
 const CORN := preload("res://core/systems/corn_rules.gd")
 const CORNSTAND := preload("res://scripts/corn/cornstand.gd")
@@ -77,13 +79,57 @@ func tickets() -> Array:
 func rail_tickets() -> Array:
 	var out: Array = []
 	for t in tickets():
-		var d: Dictionary = (t as Dictionary).duplicate()
-		var age := int(t.get("age", 0))
-		d["band"] = CORN.patience_band(age)
-		d["left"] = 1.0 - clampf(float(age) / float(CORN.PATIENCE_GONE), 0.0, 1.0)
-		d["sig"] = str(int(float(d["left"]) * 12.0))
-		out.append(d)
+		out.append(_with_patience(t))
 	return out
+
+
+## A ticket with its patience as the frame draws it (left 0..1, band).
+static func _with_patience(t: Dictionary) -> Dictionary:
+	var d: Dictionary = t.duplicate()
+	var age := int(t.get("age", 0))
+	d["band"] = CORN.patience_band(age)
+	d["left"] = 1.0 - clampf(float(age) / float(CORN.PATIENCE_GONE), 0.0, 1.0)
+	d["sig"] = "%s|%d" % [str(t.get("kind", "")), int(t.get("salt", 0))]
+	return d
+
+
+## A cob slip: the cob and the salt they want; a drink slip: its cup or its bag.
+func ticket_items(t: Dictionary) -> Array:
+	var kind := str(t.get("kind", "cob"))
+	if kind == "cob":
+		var salt := int(t.get("salt", 0))
+		return [{"icon": _icons.get("corn"), "word": "NO SALT" if salt == 0 else "SALT %d" % salt}]
+	return [{"icon": _mark(kind), "word": "TEA" if kind == "tea" else "LIMO"}]
+
+
+func _mark(kind: String) -> Texture2D:
+	if not _icons.has(kind):
+		var p := MARKS + "mark_%s.png" % kind
+		_icons[kind] = load(p) if ResourceLoader.exists(p) else null
+	return _icons[kind]
+
+
+## The cob orders waiting, the cobs in the pot (cooking for them) and in the bowl.
+func cob_tickets() -> Array:
+	return stand.tickets(building_key, "cob") if stand != null and building_key != "" else []
+
+
+func drink_tickets() -> Array:
+	return stand.tickets(building_key, "drink") if stand != null and building_key != "" else []
+
+
+## Whether the drinks are sold (the books' MENU) and so have a station.
+func drinks_on() -> bool:
+	var site := BUSINESS.site(building_key)
+	return RULES_BIZ.menu_on("corn", site, "tea") or RULES_BIZ.menu_on("corn", site, "limo")
+
+
+## Where the guest of ticket `t` stands in front of the counter (their head).
+func guest_point(t: Dictionary) -> Vector3:
+	var life := get_parent().get_node_or_null("Use") if get_parent() != null else null
+	if life == null or not life.has_method("member_point"):
+		return Vector3.INF
+	return life.call("member_point", int(t.get("guest_id", -1)), int(t.get("member", 0)))
 
 
 func picked_ticket() -> String:
@@ -114,46 +160,9 @@ static func first_name(full: String) -> String:
 	return p[0] if p.size() > 0 else full
 
 
-## A slip on the rail (26 x 36 px): the name, a cob, the salt (a mark a shake, or NO
-## SALT in red), how long they have waited.
-func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
-	if t.is_empty():
-		return
-	var paper: Texture2D = _icons.get("ticket")
-	if paper != null:
-		c.draw_texture_rect(paper, Rect2(Vector2.ZERO, size), false)
-	else:
-		c.draw_rect(Rect2(Vector2.ZERO, size), Color(0.92, 0.88, 0.76))
-	if int(t.get("band", 0)) == 2:
-		var old: Texture2D = _icons.get("ticket_old")
-		if old != null:
-			c.draw_texture_rect(old, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, 0.6))
-	var f: Font = RETRO_UI.FONT_TEXT
-	# Four letters fit the slip whole.
-	c.draw_string(f, Vector2(2, 8), first_name(str(t.get("name", ""))).to_upper().substr(0, 4), HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.55, 0.1, 0.08))
-	var kind := str(t.get("kind", "cob"))
-	var ic: Texture2D = _icons.get("corn" if kind == "cob" else kind)
-	if ic != null:
-		c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - ic.get_width()) * 0.5), 10), ic.get_size()), false)
-	elif kind != "cob":
-		c.draw_string(f, Vector2(2, 20), "TEA" if kind == "tea" else "LIMO", HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.2, 0.18, 0.2))
-	var salt := int(t.get("salt", 0))
-	if kind != "cob":
-		pass
-	elif salt == 0:
-		c.draw_string(f, Vector2(2, size.y - 5), "NO", HORIZONTAL_ALIGNMENT_LEFT, size.x - 3, 8, Color(0.62, 0.08, 0.05))
-	else:
-		for i in salt:
-			c.draw_rect(Rect2(4 + i * 6, size.y - 10, 3, 4), Color(0.2, 0.18, 0.2))
-	var band := int(t.get("band", 0))
-	var col: Color = [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band]
-	var bar := Rect2(3, size.y - 4, size.x - 6, 2)
-	c.draw_rect(bar, Color(0.1, 0.08, 0.06))
-	c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * float(t.get("left", 1.0))), bar.size.y)), col)
-
-
 func big_ticket() -> Dictionary:
-	return current_ticket()
+	var t := current_ticket()
+	return _with_patience(t) if not t.is_empty() else t
 
 
 ## What the cob being dressed has on it (the counter), to tick the big slip off:
@@ -162,43 +171,25 @@ func cob_counts() -> Dictionary:
 	return {}
 
 
-## The slip big in the frame: who, the cob, BUTTER, the salt they want against what is on
-## it, the napkin, the wait.
-func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
-	var paper: Texture2D = _icons.get("ticket")
-	if paper != null:
-		c.draw_texture_rect(paper, r, false)
-	else:
-		c.draw_rect(r, Color(0.92, 0.88, 0.76))
-	var x := r.position.x + 7
-	var y := r.position.y + 18
-	c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, y), first_name(str(t["name"])).substr(0, 9).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.55, 0.1, 0.08))
-	var ic: Texture2D = _icons.get("corn")
-	if ic != null:
-		c.draw_texture_rect(ic, Rect2(Vector2(r.end.x - ic.get_width() * 2 - 6, r.position.y + 6), ic.get_size() * 2.0), false)
+## The cob order's checklist (Papa's): cooked (red when hard or gone soft), the butter
+## all along, the salt they want (red when too much), the napkin.
+func checklist(t: Dictionary) -> Array:
+	if str(t.get("kind", "cob")) != "cob":
+		return []
 	var have := cob_counts()
-	var ink := Color(0.16, 0.12, 0.1)
-	var ok := Color(0.1, 0.45, 0.12)
-	var bad := Color(0.62, 0.08, 0.05)
-	y += 26
+	var out: Array = []
+	var cook := float(have.get("cook", -1.0))
+	out.append({"text": "COOKED", "state": "todo" if cook < 0.0 else ("done" if cook >= 1.0 and cook <= 1.25 else ("bad" if cook > 1.25 or cook < 0.75 else "todo"))})
 	var butter := float(have.get("butter", -1.0))
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), "BUTTER", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ok if butter >= 0.85 else ink)
-	y += 13
+	out.append({"text": "BUTTER", "state": "done" if butter >= 0.85 else "todo"})
 	var want := int(t.get("salt", 0))
-	var salt_text := "NO SALT" if want == 0 else "SALT x%d" % want
 	var got := int(have.get("salt", -1))
-	var scol := ink
+	var sstate := "todo"
 	if got >= 0:
-		scol = ok if got == want else (bad if got > want else ink)
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), salt_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, scol)
-	if got > 0:
-		c.draw_string(RETRO_UI.FONT_TEXT, Vector2(r.end.x - 22, y), "%d" % got, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, scol)
-	y += 13
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), "NAPKIN", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ok if bool(have.get("napkin", false)) else ink)
-	var band := CORN.patience_band(int(t.get("age", 0)))
-	var bar := Rect2(r.position.x + 6, r.end.y - 8, r.size.x - 12, 4)
-	c.draw_rect(bar, Color(0.1, 0.08, 0.06, 0.8))
-	c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * (1.0 - clampf(float(t.get("age", 0)) / float(CORN.PATIENCE_GONE), 0.0, 1.0))), bar.size.y)), [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band])
+		sstate = "done" if got == want else ("bad" if got > want else "todo")
+	out.append({"text": "NO SALT" if want == 0 else "SALT x%d" % want, "state": sstate})
+	out.append({"text": "NAPKIN", "state": "done" if bool(have.get("napkin", false)) else "todo"})
+	return out
 
 
 ## The crate, the bowl and the butter, for the frame's bar.

@@ -120,16 +120,22 @@ static func now_min() -> int:
 
 ## Open orders at `key`, oldest first: [{id, visit, member, kind (cob, tea, limo),
 ## guest_id, name, arch, salt, price, since, age}]; `only` "cob" or "drink" keeps those.
+## What is off the books' menu is not ordered (the drinks), nor anything after last orders.
 func tickets(key: String, only := "") -> Array:
 	var out: Array = []
 	var now := now_min()
 	var served: Dictionary = site(key)["served"]
+	var books := BUSINESS.site(key)
 	for v in ORDERS.visitors(key):
 		var visit := str(v["visit"])
 		for t in RULES.tickets_for(visit, int(v.get("figures", 1)), int(v.get("arrive", now)), served, now):
 			if only == "cob" and str(t["kind"]) != "cob":
 				continue
 			if only == "drink" and str(t["kind"]) == "cob":
+				continue
+			if str(t["kind"]) != "cob" and not BIZ_RULES.menu_on("corn", books, str(t["kind"])):
+				continue
+			if not BUSINESS.takes_orders_at(key, int(t["since"])):
 				continue
 			t["visit"] = visit
 			t["guest_id"] = int(v["id"])
@@ -291,6 +297,7 @@ func _process(delta: float) -> void:
 		Coop.send_place("corn", "", "hello", [])
 	if not Coop.sim_here():
 		return
+	var holds := {}
 	for key in _stand_sites():
 		var crew: Array = BUSINESS.crew_now(key)
 		if not crew.is_empty():
@@ -298,6 +305,13 @@ func _process(delta: float) -> void:
 		if _save_due.has(key):
 			_save_due.erase(key)
 			_save(key)
+		# Who has ordered waits for it to the end of their patience, past their visit's
+		# time and past the closing hour (the brief of 21. 10.: "they do not walk off
+		# under your hands").
+		for t in tickets(key):
+			var gid := int(t["guest_id"])
+			holds[gid] = maxi(int(holds.get(gid, -1)), int(t["since"]) + RULES.PATIENCE_GONE)
+	ORDERS.set_holds("corn", holds)
 
 
 func _stand_sites() -> Array:

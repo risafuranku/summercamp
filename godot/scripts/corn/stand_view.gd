@@ -7,9 +7,12 @@ extends CanvasLayer
 ## corn_stand_life.gd): a camera of its own in the camp's world, through the Build palette
 ## like every view, stands behind the counter and looks out over it, the counter at the
 ## bottom of the picture and the camp above it (the guests coming up to the stand, the
-## paths, the weather). The frame under it (scripts/business/station_hud.gd): BACK (S, the
-## right button), the stand's two stations (Tab, 1-2), BOOKS. Your warden stands behind
-## the counter meanwhile (the others see you there). Made by scripts/interior_manager.gd.
+## paths, the weather). The frame round it (scripts/business/station_hud.gd), the same as in
+## the other places: the tickets, SERVE (Space, Enter), BACK (S, the right button), the
+## stand's stations (Tab, 1-3; the drinks only while they are on the menu), BOOKS (B).
+## You come back to the station you were at; the first time, the counter (where an order
+## starts). Your warden stands behind the counter meanwhile (the others see you there).
+## Made by scripts/interior_manager.gd.
 
 signal closed
 
@@ -18,6 +21,8 @@ const STATION3D = preload("res://scripts/business/station3d.gd")
 const STATION_HUD = preload("res://scripts/business/station_hud.gd")
 const LAYOUT = preload("res://scripts/corn/stand_layout.gd")
 const LEDGER = preload("res://scripts/business/ledger_closeup.gd")
+const BUSINESS = preload("res://scripts/business/business_runtime.gd")
+const RULES = preload("res://core/systems/business_rules.gd")
 
 var building_key := ""
 var _open := false
@@ -65,6 +70,9 @@ func _ready() -> void:
 		if open == "" or not _stations[open].has_method("mirror"):
 			return []
 		return _stations[open].call("mirror")
+	_hud.alert_of = func(id: String) -> int:
+		var st = _stations.get(id, null)
+		return int(st.call("alert")) if st != null and is_instance_valid(st) else 0
 	get_tree().root.size_changed.connect(_layout)
 
 
@@ -106,7 +114,8 @@ func open_for(key: String, structure: Node3D) -> void:
 	# From where you stood out front, round behind the counter, in steps.
 	var front := structure.global_transform * Vector3(0, 1.6, 2.2)
 	_cam.global_transform = Transform3D(Basis(), front).looking_at(structure.global_transform * Vector3(0, 1.1, 0), Vector3.UP)
-	_open_station("counter")
+	var last := str(STATION3D.last_station.get(key, "counter"))
+	_open_station(last if _tabs_ids().has(last) else "counter")
 
 
 func close_view() -> void:
@@ -158,7 +167,7 @@ func _open_books() -> void:
 		_ledger = LEDGER.new()
 		add_child(_ledger)
 	_ledger.layer = 98
-	_ledger.open_for(building_key, "corn_stand", "stock")
+	_ledger.open_for(building_key, "corn_stand")
 
 
 # ── the stations ─────────────────────────────────────────────────────────────
@@ -173,8 +182,19 @@ func _station_open() -> String:
 
 func _tabs() -> Array:
 	var out: Array = []
+	for id in _tabs_ids():
+		out.append([str(id), str(LAYOUT.STATIONS[id]["tab_label"]), str(LAYOUT.STATIONS[id].get("icon", ""))])
+	return out
+
+
+## The stations with a tab now: the drinks only while one of them is on the menu.
+func _tabs_ids() -> Array:
+	var out: Array = []
+	var site := BUSINESS.site(building_key)
 	for id in LAYOUT.STATIONS:
-		out.append([str(id), str(LAYOUT.STATIONS[id]["tab_label"])])
+		if str(id) == "drinks" and not (RULES.menu_on("corn", site, "tea") or RULES.menu_on("corn", site, "limo")):
+			continue
+		out.append(str(id))
 	return out
 
 
@@ -219,6 +239,7 @@ func _open_station(id: String) -> void:
 	_hud.set("station", st)
 	_hud.set("tabs", _tabs())
 	_hud.set("taken", _taken())
+	_hud.set("view_size", Vector2(_view.size))
 	_hud.call("clear_say")
 	_hud.visible = true
 
@@ -246,6 +267,12 @@ func _process(delta: float) -> void:
 	if _taken_t <= 0.0:
 		_taken_t = 0.5
 		_hud.set("taken", _taken())
+		_hud.set("tabs", _tabs())
+		_hud.set("view_size", Vector2(_view.size))
+		# The drinks went off the menu while you were at them.
+		var at := _station_open()
+		if at != "" and not _tabs_ids().has(at):
+			_switch("counter")
 	if _ledger != null and _ledger.visible:
 		return
 	var open := _station_open()
@@ -255,7 +282,7 @@ func _process(delta: float) -> void:
 	var moving := _tween != null and _tween.is_valid() and _tween.is_running()
 	var mouse: Vector2 = STATION3D.mouse_of(get_viewport())
 	var ui := str(_hud.call("hit", mouse))
-	_hud.call("set_hover", ui if ui.begins_with("#tab") or ui.begins_with("#btn") or ui == "#back" else "")
+	_hud.call("set_hover", ui if ui.begins_with("#tab") or ui.begins_with("#btn") or ui in ["#back", "#serve", "#books"] else "")
 	var vp_mouse := _view_px(mouse)
 	var rail := ""
 	if ui == "" and not moving and st.call("holding") == "":
@@ -266,7 +293,7 @@ func _process(delta: float) -> void:
 		st.call("point", vp_mouse)
 	if str(st.call("holding")) != "":
 		HandCursor.want(HandCursor.GRAB)
-	elif str(st.call("hovered")) != "" or rail != "" or ui.begins_with("#tab") or ui.begins_with("#btn") or ui == "#back":
+	elif str(st.call("hovered")) != "" or rail != "" or ui.begins_with("#tab") or ui.begins_with("#btn") or ui in ["#back", "#serve", "#books"]:
 		HandCursor.want(HandCursor.POINT)
 
 
@@ -293,23 +320,22 @@ func _input(event: InputEvent) -> void:
 	var st: Node = _stations[open]
 	if event is InputEventKey and event.pressed and not event.echo:
 		var ke := event as InputEventKey
-		if ke.physical_keycode == KEY_S:
-			close_view()
-			return
-		var tabs := _tabs()
-		if ke.physical_keycode == KEY_TAB:
-			var i := 0
-			for j in tabs.size():
-				if str(tabs[j][0]) == open:
-					i = j
-			_switch(str(tabs[(i + 1) % tabs.size()][0]))
-			return
-		var n := ke.physical_keycode - KEY_1
-		if n >= 0 and n < tabs.size():
-			if str(tabs[n][0]) != open:
-				_switch(str(tabs[n][0]))
-			return
-		st.call("key", ke)
+		var act := str(_hud.call("key_action", ke))
+		match act:
+			"back":
+				close_view()
+			"serve":
+				if bool(st.call("serve_ready")):
+					st.call("serve_now")
+			"books":
+				_open_books()
+			"next":
+				_switch(str(_hud.call("next_tab")))
+			"":
+				st.call("key", ke)
+			_:
+				if act.begins_with("tab:") and act.substr(4) != open:
+					_switch(act.substr(4))
 		return
 	if not (event is InputEventMouseButton):
 		return
@@ -322,11 +348,19 @@ func _input(event: InputEvent) -> void:
 	if not mb.pressed:
 		st.call("release")
 		return
+	_hud.call("poke")
 	if _tween != null and _tween.is_valid() and _tween.is_running():
 		return
 	var ui := str(_hud.call("hit", mb.position))
 	if ui == "#back":
 		close_view()
+		return
+	if ui == "#serve":
+		if bool(st.call("serve_ready")):
+			st.call("serve_now")
+		return
+	if ui == "#books":
+		_open_books()
 		return
 	if ui.begins_with("#tab:"):
 		var to := ui.substr(5)

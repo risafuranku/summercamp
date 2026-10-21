@@ -571,3 +571,73 @@ static func day_grade(z: Dictionary) -> Dictionary:
 	elif grade == "A":
 		advice = "The best in the district. Keep it so."
 	return {"grade": grade, "advice": advice}
+
+
+# ── Papa's frame (the brief of 21. 10.) ──────────────────────────────────────
+
+## The menu of each place (the books' MENU page): what can be switched off so the guests
+## do not order it ([id, label, the place's own: never off]). Nothing to unlock: only
+## switches. The tickets of each place leave out what is off.
+const MENU := {
+	"corn": [["cob", "Corn on the cob", true], ["tea", "Iced tea", false], ["limo", "Lemonade in a bag", false]],
+	"pub": [["beer", "Draught beer", true], ["rum", "Rum", false], ["zelena", "Zelena", false], ["slivovice", "Slivovice", false], ["kofola", "Kofola", false]],
+	"rest": [["smazak", "Fried cheese", true], ["fries", "Chips", false], ["goulash", "Goulash and dumplings", false], ["sausage", "Grilled sausage", false], ["soup", "Soup of the day", false], ["drinks", "Bottled drinks", false]],
+	"vecerka": [["bread", "Bread and rolls", true], ["salami", "Salami", false], ["milk", "Milk", false], ["pickles", "Pickles", false], ["beer", "Beer", false], ["icecream", "Ice cream", false],
+		["sweets", "Sweets", false], ["veg", "Fruit and veg", false], ["soap", "Soap and paper", false], ["cards", "Playing cards", false], ["magazine", "Magazines", false],
+		["rum", "Tuzemak", false], ["cigs", "Cigarettes", false], ["deli", "The deli counter", false]],
+}
+## What a menu switch covers when it is not the item's own name (the Jednota's bread is the
+## rolls too, its deli all three cuts; the pub's beer is all three pours).
+const MENU_COVERS := {
+	"vecerka": {"roll": "bread", "deli_salami": "deli", "deli_cheese": "deli", "deli_bread": "deli"},
+	"pub": {"hladinka": "beer", "snyt": "beer", "mliko": "beer"},
+	"rest": {"kofola": "drinks", "malinovka": "drinks"},
+}
+
+
+## Whether `item` (a dish, a drink, a good) is on the menu of a place (`site`: its books).
+static func menu_on(kind: String, site: Dictionary, item: String) -> bool:
+	var sw := str((MENU_COVERS.get(kind, {}) as Dictionary).get(item, item))
+	for row in MENU.get(kind, []):
+		if str(row[0]) == sw and bool(row[2]):
+			return true
+	return not (site.get("menu_off", []) as Array).has(sw)
+
+
+## Last orders this long (game minutes) before a place shuts: the bell, and nobody new
+## orders; who already ordered waits to the end of their patience, past the closing hour.
+const LAST_ORDERS_MIN := 30
+
+
+## The minute of the day of last orders: the day shift's, or the late shift's.
+static func last_orders_at(late: bool) -> int:
+	return (LATE_CLOSE if late else DAY_CLOSE) * 60 - LAST_ORDERS_MIN
+
+
+## A run of good orders (Papa's combo): from three in a row, a little on top of the tip,
+## more the longer the run (the money the stand gets for a cob is two dollars: a dollar).
+const COMBO_FROM := 3
+
+
+static func combo_bonus(combo: int, price: int) -> int:
+	if combo < COMBO_FROM:
+		return 0
+	return maxi(1, int(round(float(price) * 0.1 * float(mini(combo - COMBO_FROM + 1, 5)))))
+
+
+## The shift's mark so far (the frame shows it all the time): A to E from the orders served
+## and who went away unserved, and the average stars. {grade, stars (0..3), orders}.
+static func shift_mark(shift: Dictionary) -> Dictionary:
+	var n := int(shift.get("orders", 0))
+	var lost := int(shift.get("lost", 0))
+	if n <= 0 and lost <= 0:
+		return {"grade": "-", "stars": 0.0, "orders": 0}
+	var avg := float(shift.get("score", 0)) / float(maxi(1, n))
+	var served := float(n) / float(maxi(1, n + lost))
+	var pts := avg * 0.55 + served * 45.0
+	var grade := "E"
+	for g in [["A", 86.0], ["B", 74.0], ["C", 62.0], ["D", 50.0]]:
+		if pts >= float(g[1]):
+			grade = str(g[0])
+			break
+	return {"grade": grade, "stars": float(shift.get("stars", 0)) / float(maxi(1, n)), "orders": n}

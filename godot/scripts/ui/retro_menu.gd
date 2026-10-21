@@ -419,6 +419,7 @@ class OptionsPage:
 			{"id": "volume", "name": "Master volume", "bar": VOLUME_STEPS.size() - 1},
 			{"id": "mouse", "name": "Mouse speed", "bar": MOUSE_STEPS.size() - 1},
 			{"id": "invert", "name": "Invert mouse Y"},
+			{"id": "hints", "name": "Work hints"},
 			{"id": "controls", "name": "Controls", "action": true},
 			{"id": "credits", "name": "Credits", "action": true},
 			{"id": "reset", "name": "Reset defaults", "action": true},
@@ -526,6 +527,9 @@ class OptionsPage:
 					bar_value = float(mi + 1) / float(MOUSE_STEPS.size())
 				"invert":
 					text = "ON" if GameSettings.get_invert_mouse_y() else "OFF"
+				"hints":
+					# The businesses' next step lit (the brief of 21. 10.), the warden's.
+					text = "ON" if load("res://scripts/profiles.gd").profile_hints() else "OFF"
 				"controls", "reset", "back":
 					text = ""
 			if str(text) != "" and not _rows[i].has("bar") and not _rows[i].has("action"):
@@ -594,6 +598,9 @@ class OptionsPage:
 				GameSettings.set_mouse_sensitivity(MOUSE_STEPS[mi2], true)
 			"invert":
 				GameSettings.set_invert_mouse_y(not GameSettings.get_invert_mouse_y(), true)
+			"hints":
+				var prof = load("res://scripts/profiles.gd")
+				prof.set_profile_hints(prof.profile_id, not prof.profile_hints())
 			"controls":
 				if activate:
 					controls_requested.emit()

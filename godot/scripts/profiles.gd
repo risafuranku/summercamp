@@ -200,6 +200,23 @@ static func set_profile_lang(pid: String, lang: String) -> void:
 		LANG.apply(lang)
 
 
+## The businesses' work hints (the next step lit, the ghost hand: Options "Work hints"),
+## kept with the warden; on unless they switched them off.
+static func profile_hints(pid: String = profile_id) -> bool:
+	if pid == "":
+		return true
+	return bool(_read(profile_dir(pid).path_join("profile.json")).get("hints", true))
+
+
+static func set_profile_hints(pid: String, on: bool) -> void:
+	var path := profile_dir(pid).path_join("profile.json")
+	var p := _read(path)
+	if p.is_empty():
+		return
+	p["hints"] = on
+	_write(path, p)
+
+
 ## A new warden, chosen at once. The first one made takes in the saves from before.
 static func create_profile(name: String, look_model: int = -1, look_color: int = 0, lang: String = "") -> String:
 	var first := list_profiles().is_empty()

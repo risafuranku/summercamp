@@ -196,6 +196,33 @@ func _closing() -> void:
 	_hand_what = ""
 
 
+## What is best to do at the washer now: a dirty mug into the water, rub it clean (hold
+## and rub), onto the rack; the tap when the board has mugs and beer waits.
+func next_hint() -> Dictionary:
+	if taproom == null or building_key == "":
+		return {}
+	if _in_water:
+		if _dirt > 0.0:
+			return {"node": _mug, "gesture": "rub"}
+		return {"node": _mug, "gesture": "drag", "to": RACK.get_center()}
+	var m: Dictionary = taproom.mugs(building_key)
+	if int(m["dirty"]) > 0 and (int(m["clean"]) < 3 or orders_here("tap").is_empty()):
+		return {"rect": PILE, "gesture": "drag", "to": WATER.get_center()}
+	if not orders_here("tap").is_empty() and int(m["clean"]) > 0:
+		return {"tab": "tap"}
+	return {}
+
+
+## No clean mugs left with beer ordered: red; dirty ones piling up: amber.
+func alert() -> int:
+	if taproom == null or building_key == "":
+		return 0
+	var m: Dictionary = taproom.mugs(building_key)
+	if int(m["clean"]) <= 0 and int(m["dirty"]) > 0:
+		return 2 if not orders_here("tap").is_empty() else 1
+	return 1 if int(m["dirty"]) >= 4 else 0
+
+
 ## A mug in the hand at the brushes, the bare glove for the pile.
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover

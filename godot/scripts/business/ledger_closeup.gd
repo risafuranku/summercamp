@@ -1,7 +1,11 @@
 extends "res://scripts/closeup/closeup_view.gd"
 
 ## The business's books on the counter, close up (playtest 18. 10.; widened 20. 10.,
-## DESIGN.md §7b): an accounts book open on the counter, five pages with tabs in pencil:
+## DESIGN.md §7b): an accounts book open on the counter, six pages with tabs in pencil,
+## the same pages in the same order in every place (the brief of 21. 10.; opened from the
+## frame's BOOKS, B, as well as from the book in the room):
+##   MENU    what is sold: a pencilled box ticked for each dish, drink or good on the
+##           menu; untick it and the guests do not order it (the place's own is always on)
 ##   STOCK   what is on the shelves, a bar each, red when it is running low; what has
 ##           gone off in red, THROW OUT; the days before the oldest lot goes
 ##   ORDER   packs to order (- / +), what is already on order, the cost; the stamp sends
@@ -21,8 +25,10 @@ const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const PIC := "res://assets/textury/closeup/ledger.png"
 const SFX_STAMP := "res://assets/sfx/desk/stamp.mp3"
 const SFX_PAGE := "res://assets/sfx/desk/paper_slide.mp3"
-const PAGES := ["stock", "order", "staff", "gear", "books"]
-const PAGE_LABEL := {"stock": "STOCK", "order": "ORDER", "staff": "STAFF", "gear": "GEAR", "books": "BOOKS"}
+const PAGES := ["menu", "stock", "order", "staff", "gear", "books"]
+const PAGE_LABEL := {"menu": "MENU", "stock": "STOCK", "order": "ORDER", "staff": "STAFF", "gear": "GEAR", "books": "Z REPORT"}
+## The page last open (it opens there again).
+static var _last_page := "menu"
 ## The two pages of the open book (picture px, measured on the painting): the pencil lies
 ## in the gutter between them, the rubber stamp on the right page's bottom corner (it
 ## sends the order too).
@@ -59,10 +65,10 @@ func _ready() -> void:
 
 
 ## `page`: the one it opens on (the corn stand's leaflet opens it on "order").
-func open_for(key: String, btype: String, page := "stock") -> void:
+func open_for(key: String, btype: String, page := "") -> void:
 	building_key = key
 	building_type = btype
-	_start_page = page if page in PAGES else "stock"
+	_start_page = page if page in PAGES else _last_page
 	_order = {}
 	_picked = ""
 	_gear_pick = ""
@@ -106,8 +112,17 @@ func _opened() -> void:
 
 # ── hotspots ─────────────────────────────────────────────────────────────────
 
+## The tabs along the top edge, each as wide as its word.
 func _tab_rect(i: int) -> Rect2:
-	return Rect2(40 + i * 43, 24, 41, 13)
+	var x := 38.0
+	for j in i:
+		x += _tab_w(j) + 2.0
+	return Rect2(x, 24, _tab_w(i), 13)
+
+
+func _tab_w(i: int) -> float:
+	var w := RETRO_UI.FONT_LABEL.get_string_size(tr(str(PAGE_LABEL[PAGES[i]])), HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	return maxf(30.0, w + 8.0)
 
 
 func _goods_keys() -> Array:
@@ -135,6 +150,11 @@ func _hotspots() -> Array:
 	if site.is_empty():
 		return out
 	match _page:
+		"menu":
+			var rows: Array = RULES.MENU.get(_kind(), [])
+			for i in rows.size():
+				if not bool(rows[i][2]):
+					out.append({"id": "menu:" + str(rows[i][0]), "rect": _menu_rect(i, rows.size())})
 		"stock":
 			if _spoiled_n(site) > 0:
 				out.append({"id": "bin", "rect": _rbutton(0)})
@@ -168,6 +188,15 @@ func _hotspots() -> Array:
 			if not (site.get("zreport", {}) as Dictionary).is_empty():
 				out.append({"id": "zreport", "rect": _rbutton(0)})
 	return out
+
+
+## A row of the menu: down the left page, then the right.
+func _menu_rect(i: int, n: int) -> Rect2:
+	var per := 7 if n > 7 else n
+	var col := i / per
+	var row := i % per
+	var page := LEFT if col == 0 else RIGHT
+	return Rect2(page.position.x, TOP + row * 13 - 9, page.size.x, 12)
 
 
 func _minus_rect(y: float) -> Rect2:
@@ -209,6 +238,7 @@ func _spoiled_n(site: Dictionary) -> int:
 func _clicked(id: String) -> void:
 	if id.begins_with("tab:"):
 		_page = id.substr(4)
+		_last_page = _page
 		play(SFX_PAGE, -10.0)
 		say("", "")
 		return
@@ -216,6 +246,14 @@ func _clicked(id: String) -> void:
 	if site.is_empty():
 		return
 	var kind := _kind()
+	if id.begins_with("menu:"):
+		var item := id.substr(5)
+		var on := not RULES.menu_on(kind, site, item)
+		if CoreRoot != null and CoreRoot.actions != null:
+			CoreRoot.actions.biz_set_menu(building_key, item, on)
+		play(SFX_PAGE, -14.0)
+		say("", "On the menu." if on else "Off the menu: nobody orders it.")
+		return
 	if id.begins_with("plus:") or id.begins_with("minus:"):
 		var g := id.get_slice(":", 1)
 		var n: int = int(_order.get(g, 0)) + (1 if id.begins_with("plus:") else -1)
@@ -426,7 +464,7 @@ func _paint(c: Control) -> void:
 		var tab := _part("paper_tab")
 		if tab != null:
 			c.draw_texture_rect(tab, rr, false, Color(1, 1, 1) if on else Color(0.82, 0.78, 0.7))
-		_centre(c, rr, PAGE_LABEL[PAGES[i]], INK if on else PENCIL, RETRO_UI.FONT_LABEL)
+		_centre(c, rr, tr(str(PAGE_LABEL[PAGES[i]])), INK if on else PENCIL, RETRO_UI.FONT_LABEL)
 		if hovered() == "tab:" + PAGES[i]:
 			c.draw_rect(rr, Color(1, 0.9, 0.5, 0.18))
 	if site.is_empty():
@@ -435,6 +473,8 @@ func _paint(c: Control) -> void:
 	_text(c, LEFT.position + Vector2(0, 8), str(info.get("name", "")).to_upper(), INK, 10, RETRO_UI.FONT_BIG)
 	_right(c, LEFT.end.x, LEFT.position.y + 8, "Day %d" % CoreRoot.get_day(), PENCIL)
 	match _page:
+		"menu":
+			_paint_menu(c, site, kind)
 		"stock":
 			_paint_stock(c, site, kind)
 		"order":
@@ -456,6 +496,28 @@ func _paint(c: Control) -> void:
 		if frame != null:
 			c.draw_texture_rect(frame, Rect2(at - Vector2(8, 15 * sz), Vector2(w + 16, 20 * sz)), false, Color(1, 1, 1, col.a))
 		c.draw_string(font, at, _stamp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(12 * sz), col)
+
+
+## The menu: a pencilled box for each thing the place sells, ticked while it is on; the
+## place's own is inked in for good.
+func _paint_menu(c: Control, site: Dictionary, kind: String) -> void:
+	var rows: Array = RULES.MENU.get(kind, [])
+	_text(c, LEFT.position + Vector2(0, 21), tr("What we sell"), PENCIL)
+	for i in rows.size():
+		var r := _menu_rect(i, rows.size())
+		var id := str(rows[i][0])
+		var locked := bool(rows[i][2])
+		var on := RULES.menu_on(kind, site, id)
+		var box := Rect2(r.position + Vector2(0, 2), Vector2(9, 9))
+		if hovered() == "menu:" + id:
+			c.draw_rect(r, Color(1, 0.9, 0.5, 0.18))
+		_pencil_box(c, box, INK if locked else PENCIL)
+		if on:
+			var col := INK if locked else GREEN
+			for p in [Vector2(2, 4), Vector2(3, 5), Vector2(4, 6), Vector2(5, 5), Vector2(6, 4), Vector2(7, 3), Vector2(7, 2)]:
+				c.draw_rect(Rect2(box.position + p, Vector2(1, 1)), col)
+		_text(c, Vector2(r.position.x + 12, r.position.y + 9), tr(str(rows[i][1])), INK if on else PENCIL)
+	_wrap_at(c, Vector2(RIGHT.position.x, 150 if rows.size() <= 7 else 172), tr("Tick off what you have no time for: nobody will order it."), RIGHT.size.x, PENCIL)
 
 
 func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:

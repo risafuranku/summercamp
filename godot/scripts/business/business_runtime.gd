@@ -34,6 +34,8 @@ const OPEN_HOUR := 7
 signal changed
 ## A place shut for the day: its Z report (actions.biz_close_shift).
 signal zreport(key: String, report: Dictionary)
+## Last orders at a place (half an hour before it shuts).
+signal last_call(key: String)
 
 var _t := 0.0
 var _day := -1
@@ -222,7 +224,19 @@ func _watch_shifts(sites: Dictionary) -> void:
 		var now := shift_now(s)
 		var was := str(_shift_was.get(key, now))
 		_shift_was[key] = now
-		if now == was or now != "closed":
+		_watch_last_call(key, s)
+		if now == "closed" and _closing.has(key):
+			# Shut, but who ordered before last orders is still waiting: the Z report when
+			# the last of them is served or gone (an hour and a half at most).
+			var c: Dictionary = _closing[key]
+			if open_orders(key) > 0 and _abs_now() - int(c["at"]) < 90:
+				continue
+			_closing.erase(key)
+			was = str(c["was"])
+		elif now == was or now != "closed":
+			continue
+		elif open_orders(key) > 0:
+			_closing[key] = {"was": was, "at": _abs_now()}
 			continue
 		var wages := 0
 		for p in s.get("crew", []):
@@ -232,6 +246,85 @@ func _watch_shifts(sites: Dictionary) -> void:
 		if int(z.get("orders", 0)) > 0 or int(z.get("takings", 0)) > 0:
 			_say("%s shut for the day. The Z report is in the books." % _place_name(str(s.get("kind", ""))), 0, "biz_z:" + str(key))
 			zreport.emit(key, z)
+
+
+## Places shut whose last orders are still being served: key -> {was (the shift that
+## ended), at (the game minute it shut)}; places whose last orders were called today.
+var _closing: Dictionary = {}
+var _called: Dictionary = {}
+
+
+## Last orders (the brief of 21. 10.): the bell and a line in the feed when the time comes;
+## the frame at a station rings its own bell (station_hud).
+func _watch_last_call(key: String, s: Dictionary) -> void:
+	var day := CoreRoot.get_day()
+	var left := to_last_orders(key)
+	if left > 0 or left < -30 or int(_called.get(key, -1)) == day or shift_now(s) == "closed":
+		return
+	_called[key] = day
+	last_call.emit(key)
+	_say("%s: last orders. Who has ordered still gets served." % _place_name(str(s.get("kind", ""))), 0, "biz_last:" + str(key))
+
+
+static func _abs_now() -> int:
+	if GuestManager == null:
+		return 0
+	return int(GuestManager._absolute_minutes(maxi(1, GuestManager._last_known_day), GuestManager._last_known_hour, GuestManager._last_known_minute))
+
+
+## The minute of the day now (the game's clock).
+static func minute_now() -> int:
+	if GuestManager == null:
+		return 12 * 60
+	return int(GuestManager._last_known_hour) * 60 + int(GuestManager._last_known_minute)
+
+
+## Whether a place takes an order put up at absolute game minute `abs_min`: from the
+## day's opening to last orders (the late shift's when it is open late).
+static func takes_orders_at(key: String, abs_min: int) -> bool:
+	var s := site(key)
+	if s.is_empty():
+		return true
+	var mod := posmod(abs_min, 1440)
+	return mod >= OPEN_HOUR * 60 and mod < RULES.last_orders_at(bool(s.get("late", false)))
+
+
+## Game minutes to last orders now (0 or less: past them).
+static func to_last_orders(key: String) -> int:
+	return RULES.last_orders_at(bool(site(key).get("late", false))) - minute_now()
+
+
+## The orders open at a place now (its tickets on the rail), whoever's they are.
+func open_orders(key: String) -> int:
+	var node: Node = null
+	match str(site(key).get("kind", "")):
+		"rest":
+			node = get_tree().get_first_node_in_group("kitchens")
+		"pub":
+			node = get_tree().get_first_node_in_group("taprooms")
+		"corn":
+			node = get_tree().get_first_node_in_group("cornstands")
+		"vecerka":
+			node = get_tree().get_first_node_in_group("jednotas")
+	if node == null or not node.has_method("tickets"):
+		return 0
+	return (node.call("tickets", key) as Array).size()
+
+
+## A run of good orders at a place (Papa's combo, this machine's): key -> how many in a
+## row went out with three stars. A poor one or one sent back ends it.
+static var _combo: Dictionary = {}
+
+
+static func note_order(key: String, stars: int, ok: bool) -> int:
+	var c := int(_combo.get(key, 0))
+	c = c + 1 if ok and stars >= 3 else 0
+	_combo[key] = c
+	return c
+
+
+static func combo(key: String) -> int:
+	return int(_combo.get(key, 0))
 
 
 ## The places open late tonight: the guests may go out to them in the evening
@@ -253,6 +346,11 @@ func _watch_late(sites: Dictionary) -> void:
 	var life = GuestManager.get("_life") if GuestManager != null else null
 	if life != null and "late_keys" in life:
 		life.late_keys = keys
+	if life != null and "order_hours" in life:
+		var hours := {}
+		for key in sites:
+			hours[str(key)] = [OPEN_HOUR * 60, RULES.last_orders_at(bool(site(key).get("late", false)))]
+		life.order_hours = hours
 	var main := get_tree().current_scene
 	var hud = main.get("_hud_manager") if main != null else null
 	var h := int(GuestManager._last_known_hour) if GuestManager != null else 12

@@ -74,6 +74,11 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if _rows.is_empty():
 		return
+	# At a business's station its own frame says what waits (the plates sat over its
+	# ticket and SERVE).
+	for frame in get_tree().get_nodes_in_group("station_frame"):
+		if (frame as CanvasLayer).visible:
+			return
 	var u := float(maxi(1, ui_scale))
 	var n := mini(_rows.size(), MAX_ROWS)
 	var step := (PLATE.y + GAP) * u

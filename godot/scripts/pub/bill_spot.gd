@@ -6,13 +6,11 @@ extends Node3D
 ## the tower the board of mugs would hide it): the mat of the one
 ## who asked for the bill (the picked bill on the rail, else the oldest) with its marks in
 ## pencil, a stroke a beer, a cross a shot, a ring a kofola (pub_rules.TAB), the note
-## they put down on it; the waiter's black wallet at your edge of the bar, in front of
-## the bottles, with its four places (1, 2, 5, 10).
-##   the note    a click: into the wallet (the right money: that is it, settled)
-##   the wallet  a click on a place: that piece of change onto the mat
-##   the mat     a click with the change on it: handed over (taproom.settle): short and
-##               they say so, too much and they keep it; CLEAR (the frame) takes it back
-## The marks are counted by you: the frame's big mat has them and the board's prices.
+## they put down on it.
+##   the mat     a click: settled (the brief of 21. 10.: "the bill in one click; giving
+##               change back is the Jednota's"): the marks' money and the round sum they
+##               asked for fly up, the change is right without counting
+## The waiter's wallet is gone from the bar; BILL on the rail settles it the same.
 
 const PUB := preload("res://core/systems/pub_rules.gd")
 const J_TEX := "res://assets/textury/jednota/"
@@ -62,19 +60,6 @@ func setup(station) -> void:
 		var c: Sprite3D = st.sprite(J_TEX + "coin1.png", 0.035, true, self)
 		c.visible = false
 		_change.append(c)
-	# The waiter's wallet (pub/wallet.png, Grok) open on the bar; without it the change
-	# lies in four little piles.
-	_wallet = st.sprite("res://assets/textury/pub/wallet.png", 0.3, true, self)
-	st.put(_wallet, WALLET_AT, 0.003)
-	for d in WALLET:
-		var v := int(d[0])
-		var r: Rect2 = d[1]
-		for k in 2:
-			var p: Sprite3D = st.sprite(J_TEX + str(PIECE_TEX[v]) + ".png", float(PIECE_M[v]), true, self)
-			if v >= 5:
-				p.rotation_degrees.y = 90.0
-			st.put(p, r.get_center() + Vector2(0, -8 + k * 16), 0.006 + 0.002 * k)
-			_piles.append(p)
 
 
 ## The bill to work: the picked one if it is a bill, else the oldest; a new one clears
@@ -154,14 +139,7 @@ func spots() -> Array:
 	if bill.is_empty():
 		return out
 	var who := str(bill.get("name", "")).split(" ")[0]
-	if not taken:
-		var note := int(bill.get("note", 0))
-		var verb := "Take %s's $%d" % [who, note] if note > 0 else "Take %s's money: the right amount" % who
-		out.append({"id": "bill:mat", "rect": MAT, "verb": verb})
-		return out
-	for d in WALLET:
-		out.append({"id": "bill:%d" % int(d[0]), "rect": d[1], "verb": "$%d of change onto the mat (%d on it)" % [int(d[0]), given_sum()]})
-	out.append({"id": "bill:mat", "rect": MAT, "verb": "Hand %s the change: $%d" % [who, given_sum()]})
+	out.append({"id": "bill:mat", "rect": MAT, "verb": "Settle %s's tab: $%d" % [who, PUB.to_pay(bill)]})
 	return out
 
 
@@ -169,20 +147,12 @@ func spots() -> Array:
 func press(id: String) -> bool:
 	if not id.begins_with("bill:") or bill.is_empty():
 		return false
-	var what := id.substr(5)
-	if what == "mat":
-		if not taken:
-			taken = true
-			st.sfx("res://assets/sfx/jednota/note.mp3", -10.0)
-			if int(bill.get("note", 0)) == 0:
-				_settle()
-			return true
-		_settle()
-		return true
-	var v := int(what)
-	if given.size() < _change.size():
-		given.append(v)
-		st.sfx("res://assets/sfx/jednota/coin.mp3", -10.0, randf_range(0.95, 1.1))
+	if id.substr(5) == "mat":
+		st.sfx("res://assets/sfx/jednota/note.mp3", -10.0)
+		st.call("settle_bill", bill)
+		bill = {}
+		taken = false
+		given = []
 	return true
 
 
