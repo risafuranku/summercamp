@@ -125,8 +125,8 @@ finished game, by impact:
   meadow (the grass laid over, paler) and through the wood; straw, dust, twigs, newspaper
   and wrappers ride it (`wind_things.gd`, Grok sprites, the dust dotted like the breath),
   the leaves (`wind_life.gd`) go the trees' way in the same gusts; each gust heard, the
-  trees creak; the storm's clouds come down, churn green-violet and flash inside
-  (`cloud_layers.gd`); shot scenario `wind`
+  trees creak; the storm's clouds come down, churn olive-grey and flash inside, the scud under
+  them in the deck's grey (it went black) (`cloud_layers.gd`); shot scenario `wind`
 - [x] Snow: boot prints behind every warden, frozen puddles; snowfall no longer grew
   puddles with rain rings on them (21. 10.)
 - [x] A broken lamp shorts: sparks, a flash, the crackle (21. 10., lamp_sparks.gd)
