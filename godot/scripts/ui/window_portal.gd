@@ -180,6 +180,7 @@ func update(room: Node3D, eye: Camera3D, xform: Transform3D, live: bool, world: 
 		else:
 			cam.global_transform = Transform3D(xform.basis * frame.basis, xform * e_room)
 			cam.set_frustum(size.y, Vector2(-e.x, -e.y), e.z + 0.06, e.z + 240.0)
+			_fit_pixels(room, eye)
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
 	_live = on
 	# The flash: the glass white, a cold light in the room (behind a curtain: the cloth
@@ -202,6 +203,26 @@ func update(room: Node3D, eye: Camera3D, xform: Transform3D, live: bool, world: 
 			if cm.has_meta("flash_own"):
 				cm.emission_enabled = f > 0.0
 				cm.emission = Color(0.9, 0.92, 1.0) * f * 1.5
+
+
+## The view drawn at the room's own pixel size: one of its pixels is one pixel of the room
+## round it, however big the glass is on the screen (the user 21. 10.: a tent's doorway,
+## a fixed 192 px picture stretched over most of the screen, read as a blurry flat screen,
+## not the camp out there). Resized only when it is off by a fifth (a resize costs a frame).
+func _fit_pixels(room: Node3D, eye: Camera3D) -> void:
+	var rect := Rect2()
+	for i in 4:
+		var c := Vector3((float(i % 2) - 0.5) * size.x, (float(i / 2) - 0.5) * size.y, 0.0)
+		var p := room.global_transform * (frame * c)
+		if eye.is_position_behind(p):
+			return
+		var sp := eye.unproject_position(p)
+		rect = Rect2(sp, Vector2.ZERO) if i == 0 else rect.expand(sp)
+	var room_px := eye.get_viewport().get_visible_rect().size
+	var w := clampf(maxf(rect.size.x, rect.size.y * size.x / size.y), 48.0, room_px.x * 1.5)
+	if absf(w - float(vp.size.x)) < float(vp.size.x) * 0.2:
+		return
+	vp.size = Vector2i(int(w), maxi(8, int(w * size.y / size.x)))
 
 
 func toggle_curtain() -> void:

@@ -592,15 +592,18 @@ func _on_crt_interact() -> void:
 		return
 	if _building_interior.is_open() or stepping_out():
 		return
-	# Near the front door: the warden walks the last steps up into the doorway, the door
-	# opening, and the room takes the walk on from there (the user 20. 10.: coming in as
-	# smooth as going out). From further off the room opens as it did.
+	# Near the front door: the warden walks the last steps up to the door, it opens, and
+	# the room takes the walk on from its doorway (the user 20. 10.: coming in as smooth as
+	# going out). The camp's office is a shell with nothing in it: the walk stops short of
+	# its door (the user 21. 10.: "for a moment you see the empty inside" when the eye went
+	# through the shut door into it), and the frame the door transition freezes is the door.
+	# From further off the room opens as it did.
 	var body := _player as CharacterBody3D
 	var way: Dictionary = _building_interior.walk_in_handoff() if body != null and _building_interior.has_method("walk_in_handoff") else {}
 	if not way.is_empty() and Vector2(body.global_position.x - way["to"].x, body.global_position.z - way["to"].z).length() < WALK_IN_FROM_M:
-		var dist := body.global_position.distance_to(way["to"])
+		var stop: Vector3 = (way["to"] as Vector3) - (way["dir"] as Vector3) * WALK_IN_SHORT_M
+		var dist := body.global_position.distance_to(stop)
 		_set_player_controls_enabled(false)
-		_play_office_door(OFFICE_DOOR_OPEN)
 		var mask := body.collision_mask
 		body.collision_mask = 0
 		body.velocity = Vector3.ZERO
@@ -610,10 +613,11 @@ func _on_crt_interact() -> void:
 		body.set("_pitch_target", 0.0)
 		var tw := create_tween()
 		_stepping_out = tw
-		tw.tween_property(body, "global_position", way["to"], clampf(dist / 2.4, 0.25, 0.9)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_property(body, "global_position", stop, clampf(dist / 2.4, 0.25, 0.9)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		tw.tween_callback(func() -> void:
 			if is_instance_valid(body):
 				body.collision_mask = mask
+			_play_office_door(OFFICE_DOOR_OPEN)
 			_enter_office(true))
 		return
 	_enter_office(false)
@@ -621,6 +625,9 @@ func _on_crt_interact() -> void:
 
 ## How near the front door (m) the warden must be for the walk up to it.
 const WALK_IN_FROM_M := 4.5
+## How far short of the room's doorway eye (reception_extras.FRONT_STEP_IN) the camp's
+## walk stops: outside the shut door, its frame still in view.
+const WALK_IN_SHORT_M := 1.1
 
 
 func _enter_office(walked_in: bool) -> void:
