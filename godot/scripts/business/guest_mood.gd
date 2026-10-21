@@ -9,7 +9,10 @@ extends Node3D
 ## scripts/food/service_life.gd): it tells this each tick where the head is and how much
 ## patience is left (`show_for`), then `sweep()` takes away the bubbles of those it did not
 ## mention. `stomp(key)` is how far their feet are off the ground now (the impatient ones
-## stamp, in steps like the rest of a figure).
+## stamp, in steps like the rest of a figure). `impatient(key)` says when they stand in their
+## impatient pose (<sprite>_wait.png: a hand on the hip, a look at the watch; Grok, from
+## each guest's own sprite), `show_wait` puts it on: the cross ones fidget between it and
+## standing, the furious hold it.
 
 const PX_PER_M := 128.0 / 1.4
 const FACES := preload("res://scripts/business/guest_face.gd")
@@ -105,6 +108,40 @@ func stomp(key: String) -> float:
 	if mood == 3:
 		return 0.05 if int(_t * 6.0) % 2 == 0 else 0.0
 	return 0.0
+
+
+## Whether guest `key` stands in the impatient pose now.
+func impatient(key: String) -> bool:
+	var mood := int((_b.get(key, {}) as Dictionary).get("mood", -1))
+	if mood == 3:
+		return true
+	return mood == 2 and int(_t * 1.5) % 3 != 0
+
+
+## `sprite` (a guest standing, its standing picture `base`) in their impatient picture,
+## at the standing one's height; false when they have none. Standing again is
+## poses.set_pose(sprite, base, "") (the pose's path differs, so it is put back).
+static func show_wait(sprite: Sprite3D, base: String) -> bool:
+	if sprite == null or base == "":
+		return false
+	var path := base.replace(".png", "_wait.png")
+	if not ResourceLoader.exists(path) or not ResourceLoader.exists(base):
+		return false
+	if str(sprite.get_meta("pose_path", "")) == path:
+		return true
+	# A figure seen from eight sides draws its own pictures: it lets go while this one is up.
+	var fig = sprite.get_meta("doom") if sprite.has_meta("doom") else null
+	if fig != null and fig.has_method("release"):
+		fig.release()
+		sprite.flip_h = false
+	if not sprite.has_meta("stand_px"):
+		sprite.set_meta("stand_px", sprite.pixel_size)
+	var tex: Texture2D = load(path)
+	var stand: Texture2D = load(base)
+	sprite.texture = tex
+	sprite.pixel_size = float(sprite.get_meta("stand_px")) * float(stand.get_height()) / float(maxi(1, tex.get_height()))
+	sprite.set_meta("pose_path", path)
+	return true
 
 
 ## The bubbles of those not mentioned since the last sweep go.
