@@ -23866,3 +23866,15 @@ msgstr "Zůstat"
 #. uses 3
 msgid "work#%d"
 msgstr ""
+
+#: scripts/ui/main_menu.gd:77
+msgid "Businesses"
+msgstr "Podniky"
+
+#: scripts/ui/main_menu.gd:77
+msgid "Day, a full camp"
+msgstr "Den, plný kemp"
+
+#: scripts/main.gd
+msgid "Test: every business open and a full camp. The work is at their stations."
+msgstr "Test: všechny podniky otevřené a plný kemp. Práce je u jejich stanovišť."

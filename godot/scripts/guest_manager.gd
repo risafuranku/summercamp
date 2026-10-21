@@ -1191,6 +1191,25 @@ func debug_check_in_party(guest_name: String, archetype: String, count: int, nig
 	return before
 
 
+## Test camps (main._start_test_businesses): every guest in the camp hungry and thirsty
+## somewhere between `lo` and `hi` (SEEK_THRESHOLD is 62), so the businesses fill up.
+func debug_want_food(lo: float, hi: float) -> void:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2110
+	for i in state.guests.size():
+		var g = state.guests[i]
+		if not (g is Dictionary) or str((g as Dictionary).get("status", "")) != "active":
+			continue
+		var needs: Dictionary = ((g as Dictionary).get("needs", {}) as Dictionary).duplicate() if (g as Dictionary).get("needs", {}) is Dictionary else {}
+		needs["hunger"] = rng.randf_range(lo, hi)
+		needs["thirst"] = rng.randf_range(lo, hi)
+		g["needs"] = needs
+		state.guests[i] = g
+
+
 ## A guest the night took (main._claim_turned_guests): gone by morning, without paying,
 ## without a word in the guest book. Announced as a departure first, so their things go to
 ## the lost and found like anyone's. True if they were here.
