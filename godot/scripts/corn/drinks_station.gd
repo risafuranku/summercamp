@@ -84,6 +84,69 @@ func serves() -> String:
 	return "drink"
 
 
+# ── the frame: SERVE, the checklist, the next step, the tab ─────────────────
+
+func _drink_done() -> bool:
+	if _drink.is_empty():
+		return false
+	if str(_drink["kind"]) == "limo":
+		return bool(_drink["tied"])
+	return float(_drink["fill"]) >= 0.5 and not _pouring
+
+
+func serve_ready() -> bool:
+	return _drink_done() and not current_ticket().is_empty()
+
+
+func serve_now() -> void:
+	_hand_over()
+
+
+## A drink slip's checklist: the drink they want (red when it is the other one), to the
+## line (red when over the top), the bag tied round a straw.
+func checklist(t: Dictionary) -> Array:
+	var kind := str(t.get("kind", "tea"))
+	var on := not _drink.is_empty()
+	var mine := on and str(_drink["kind"]) == kind
+	var out: Array = [{"text": "ICED TEA" if kind == "tea" else "LEMONADE", "state": "done" if mine else ("bad" if on else "todo")}]
+	var fill := float(_drink.get("fill", 0.0)) if mine else 0.0
+	out.append({"text": "TO THE LINE", "state": "done" if mine and fill >= CORN.FILL_OK.x and fill <= CORN.FILL_OK.y else ("bad" if mine and fill > CORN.FILL_OK.y else "todo")})
+	if kind == "limo":
+		out.append({"text": "STRAW, TIED", "state": "done" if mine and bool(_drink["tied"]) else "todo"})
+	return out
+
+
+## What is best to do here now: the cup or the bag for the drink slip picked (or the
+## oldest), hold to fill it to the line, tie the bag, SERVE; the counter when only cobs
+## wait.
+func next_hint() -> Dictionary:
+	var t := current_ticket()
+	if not _drink.is_empty():
+		var kind := str(_drink["kind"])
+		var fill := float(_drink["fill"])
+		if not t.is_empty() and kind != str(t.get("kind", "")):
+			# The other drink on the table: it waits for whoever wants it (or BIN).
+			return {}
+		if kind == "tea":
+			if fill < CORN.FILL_OK.x:
+				return {"node": _barrel, "gesture": "hold"}
+		elif not bool(_drink["tied"]):
+			if fill < CORN.FILL_OK.x:
+				return {"node": _bottle, "gesture": "hold"}
+			return {"rect": STRAWS, "gesture": "click"}
+		return {"ui": "serve"} if not t.is_empty() else {}
+	if not t.is_empty():
+		return {"rect": CUPS if str(t.get("kind", "")) == "tea" else BAGS, "gesture": "click"}
+	if not cob_tickets().is_empty():
+		return {"tab": "counter"}
+	return {}
+
+
+## A drink slip waiting: amber.
+func alert() -> int:
+	return 1 if not drink_tickets().is_empty() else 0
+
+
 # ── what the state looks like ────────────────────────────────────────────────
 
 func _show() -> void:
@@ -183,6 +246,7 @@ func _press(id: String) -> void:
 			if not _drink.is_empty() and float(_drink["fill"]) >= 0.5:
 				_drink["tied"] = true
 				sfx("bag_tie", -8.0)
+				hop(_bag_full)
 		"drink", "hand":
 			_hand_over()
 
@@ -198,6 +262,7 @@ func _new(kind: String) -> void:
 		return
 	_drink = {"kind": kind, "fill": 0.0, "tied": false}
 	sfx("plate_down", -14.0, 1.5)
+	hop(_cup_empty if kind == "tea" else _bag_empty)
 
 
 func _tick(delta: float) -> void:
@@ -218,6 +283,7 @@ func _hand_over() -> void:
 		say("", "Nobody asked for a drink.")
 		return
 	var who := first_name(str(t["name"]))
+	t = _with_patience(t)
 	if str(_drink["kind"]) == "tea" and _hands_ui != null and is_instance_valid(_hands_ui):
 		_hands_ui.call("flash", "cup", 4)
 	var v: Dictionary = stand.serve_drink(building_key, t, str(_drink["kind"]), float(_drink["fill"]), bool(_drink["tied"]))
@@ -225,27 +291,26 @@ func _hand_over() -> void:
 		if str(v.get("why", "")) == "empty":
 			say("", "Nothing left to pour.")
 			return
-		say(who, " ".join(v.get("notes", [])))
-		score_card(v, str(CORN.DRINKS[str(_drink["kind"])]["label"]))
+		say(who, " ".join((v.get("notes", []) as Array).map(func(n) -> String: return tr(str(n)))))
+		score_card(v, str(CORN.DRINKS[str(_drink["kind"])]["label"]), t)
 		# A wrong drink stays on the table for whoever wanted it; an open bag or a short
 		# cup the guest hands back as it is.
 		return
 	picked = ""
+	var made := str(_drink["kind"])
 	_drink = {}
 	sfx("till", -10.0, 1.2)
+	fly(DRINK_TEX + ("cup_tea" if made == "tea" else "bag_limo") + ".png", CUP_M if made == "tea" else BAG_M, local_at(GRATE_AT if made == "tea" else BAG_AT, 0.06), guest_point(t), 0.42, 0.2)
 	pop("+$%d" % int(v["amount"]), HAND.get_center() + Vector2(0, 40), RETRO_UI.C_AMBER_LIGHT if int(v["tip"]) > 0 else RETRO_UI.C_BONE)
-	score_card(v, str(CORN.DRINKS[str(t["kind"])]["label"]))
+	score_card(v, str(CORN.DRINKS[str(t["kind"])]["label"]), t)
 	if not (v.get("notes", []) as Array).is_empty():
-		say(who, " ".join(v["notes"]))
+		say(who, " ".join((v["notes"] as Array).map(func(n) -> String: return tr(str(n)))))
 	else:
 		say(who, ["Lovely and cold.", "Cheers.", "That hits the spot."][_rng.randi() % 3])
 
 
 func bar_buttons() -> Array:
-	var out: Array = [{"id": "books", "label": "BOOKS"}]
-	if not _drink.is_empty():
-		out.push_front({"id": "bin", "label": "BIN"})
-	return out
+	return [{"id": "bin", "label": "BIN"}] if not _drink.is_empty() else []
 
 
 func bar_button(id: String) -> void:
@@ -261,41 +326,6 @@ func bar_button(id: String) -> void:
 
 func _closing() -> void:
 	_pouring = false
-
-
-## A drink slip: the cup or the bag it wants, TIE for the bag; the fill against the line.
-func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
-	var paper: Texture2D = _icons.get("ticket")
-	if paper != null:
-		c.draw_texture_rect(paper, r, false)
-	else:
-		c.draw_rect(r, Color(0.92, 0.88, 0.76))
-	var x := r.position.x + 7
-	var y := r.position.y + 18
-	c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, y), first_name(str(t["name"])).substr(0, 9).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.55, 0.1, 0.08))
-	var kind := str(t.get("kind", "tea"))
-	var ic: Texture2D = _icons.get(kind)
-	if ic != null:
-		c.draw_texture_rect(ic, Rect2(Vector2(r.end.x - ic.get_width() * 2 - 6, r.position.y + 6), ic.get_size() * 2.0), false)
-	var ink := Color(0.16, 0.12, 0.1)
-	var ok := Color(0.1, 0.45, 0.12)
-	var bad := Color(0.62, 0.08, 0.05)
-	y += 26
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), "ICED TEA" if kind == "tea" else "LEMONADE", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
-	var on := not _drink.is_empty() and str(_drink["kind"]) == kind
-	var fill := float(_drink.get("fill", 0.0)) if on else 0.0
-	y += 13
-	var fcol := ink
-	if on:
-		fcol = ok if fill >= CORN.FILL_OK.x and fill <= CORN.FILL_OK.y else (bad if fill > CORN.FILL_OK.y else ink)
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), "TO THE LINE", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, fcol)
-	if kind == "limo":
-		y += 13
-		c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), "STRAW, TIED", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ok if on and bool(_drink["tied"]) else ink)
-	var band := CORN.patience_band(int(t.get("age", 0)))
-	var bar := Rect2(r.position.x + 6, r.end.y - 8, r.size.x - 12, 4)
-	c.draw_rect(bar, Color(0.1, 0.08, 0.06, 0.8))
-	c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * (1.0 - clampf(float(t.get("age", 0)) / float(CORN.PATIENCE_GONE), 0.0, 1.0))), bar.size.y)), [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][band])
 
 
 ## The barrel and the lemonade, for the frame's bar.

@@ -37,10 +37,13 @@ const BISTRO_STATIONS := {
 	"machine": "res://scripts/bistro/machine_station.gd",
 	"grill": "res://scripts/bistro/grill_station.gd",
 	"bufet": "res://scripts/bistro/bufet_station.gd",
+	"floor": "res://scripts/bistro/floor_station.gd",
 }
 var _stations: Dictionary = {}
 const STATION3D = preload("res://scripts/business/station3d.gd")
 const STATION_HUD = preload("res://scripts/business/station_hud.gd")
+const BIZ_RULES = preload("res://core/systems/business_rules.gd")
+var _tabs_t := 0.0
 var _station_hud: CanvasLayer
 ## Going from one station straight to another: the camera does not go back first.
 var _switching := false
@@ -336,6 +339,7 @@ func _process(delta: float) -> void:
 			_pub_tick(delta)
 		else:
 			_jednota_tick(delta)
+		_tick_moods(delta)
 		# At a station, or the camera on its way to one or back: the room holds still.
 		var open := _station_open()
 		if open != "":
@@ -1308,6 +1312,15 @@ func _door_room() -> String:
 
 
 func _go_door(id: String) -> void:
+	# Through a door from a station (a tool's walk): the station goes, the frame with it.
+	var open := _station_open()
+	if open != "":
+		_switching = true
+		_stations[open].call("close_station")
+		_switching = false
+		_station_cam_from = []
+		if _station_hud != null and is_instance_valid(_station_hud):
+			_station_hud.visible = false
 	_doors.go(id, _interior_camera,
 		func(to: String): _apply_service_subroom(to, true),
 		func() -> Array: return [_interior_camera.position, _interior_camera.rotation],
@@ -1388,6 +1401,8 @@ func _update_menu_board() -> void:
 		return
 	var can: Dictionary = load("res://core/systems/business_rules.gd").menu("rest", site.get("stock", {}))
 	for dish in can:
+		# Off the books' menu: crossed out in chalk the same.
+		can[dish] = bool(can[dish]) and BIZ_RULES.menu_on("rest", site, str(dish))
 		var strike := _restaurant_dining_root.get_node_or_null("MenuStrike_" + str(dish)) as Node3D
 		if strike != null:
 			strike.visible = not bool(can[dish])
@@ -2262,6 +2277,7 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 	_upkeep_key = "%d:%d" % [coord.x, coord.y]
 	_start_life()
 	_start_marks()
+	_enter_business()
 	var block := "toilet" if building_type == "toilet_block" else ("wash" if building_type == "shower_block" else "")
 	if block.is_empty() or _room_root == null:
 		_free_upkeep_prep()
@@ -2407,8 +2423,8 @@ const CREW_FIGURES = preload("res://scripts/business/crew_figures.gd")
 var _crew: Node3D
 ## Which station each of the bistro's jobs is worked at, and where the hand steps back to
 ## when a warden takes it (behind the warden, out of the camera's way).
-const BISTRO_ROLE_AT := {"pass": "pass", "stove": "stove", "cellar": "potatoes", "sink": "sink", "grill": "grill", "bufet": "bufet"}
-const BISTRO_ASIDE := {"pass": Vector3(1.4, 0, 0.6), "stove": Vector3(0.3, 0, 1.4), "potatoes": Vector3(1.3, 0, 0.9), "sink": Vector3(-1.4, 0, 0.7), "grill": Vector3(1.1, 0, 0.4), "bufet": Vector3(-0.8, 0, 1.2)}
+const BISTRO_ROLE_AT := {"pass": "pass", "floor": "floor", "stove": "stove", "cellar": "potatoes", "sink": "sink", "grill": "grill", "bufet": "bufet"}
+const BISTRO_ASIDE := {"pass": Vector3(1.4, 0, 0.6), "floor": Vector3(-0.8, 0, 1.2), "stove": Vector3(0.3, 0, 1.4), "potatoes": Vector3(1.3, 0, 0.9), "sink": Vector3(-1.4, 0, 0.7), "grill": Vector3(1.1, 0, 0.4), "bufet": Vector3(-0.6, 0, 0.5)}
 ## The pub's: behind the bar along the narrow way between the bar and the shelf (the
 ## tap's hand stands in front of the bottles: out of the way when you turn to them),
 ## the cellar's by the pallet.
@@ -2573,18 +2589,62 @@ func _hud() -> CanvasLayer:
 			if open == "" or not _stations[open].has_method("mirror"):
 				return []
 			return _stations[open].call("mirror")
+		_station_hud.alert_of = func(id: String) -> int:
+			var st = _stations.get(id, null)
+			return int(st.call("alert")) if st != null and is_instance_valid(st) else 0
 	return _station_hud
 
 
-## The tabs of a room's stations on the frame's bar: [[id, LABEL], ...].
-func _room_tabs(room: String) -> Array:
+## The tabs of the place's stations on the frame's bar, every room's (the brief of 21. 10.:
+## the stations as tabs always in sight, a tab to another room takes you there):
+## [[id, LABEL, icon], ...] in the order of the chain; what is off the books' menu has no
+## tab (a station whose `menu` items are all off). `_room` is kept for the old callers.
+func _room_tabs(_room: String = "") -> Array:
 	var out: Array = []
 	var stations: Dictionary = _station_layout().STATIONS
+	var site := _business_site()
+	var kind := str(site.get("kind", ""))
 	for id in stations:
 		var st: Dictionary = stations[id]
-		if str(st["room"]) == room and bool(st.get("tab", true)):
-			out.append([str(id), str(st.get("tab_label", str(id).to_upper()))])
+		if not bool(st.get("tab", true)) or not _station_scripts().has(id):
+			continue
+		var items: Array = st.get("menu", [])
+		if not items.is_empty() and kind != "":
+			var any := false
+			for it in items:
+				any = any or BIZ_RULES.menu_on(kind, site, str(it))
+			if not any:
+				continue
+		out.append([str(id), str(st.get("tab_label", str(id).to_upper())), str(st.get("icon", ""))])
 	return out
+
+
+## The room a station stands in, as the room switches name it.
+func _subroom_of(station_room: String) -> String:
+	match _current_profile:
+		"rest":
+			return "basement" if station_room == "cellar" else station_room
+		"vecerka":
+			return "storage" if station_room == "store" else station_room
+	return station_room
+
+
+## In through the door, straight to work (the brief of 21. 10.: "I come in and know at once
+## where I am"): the station you were at last in this place, else the first of its chain
+## (where an order starts: the tap, the bistro's floor, the till); never the cellar or
+## the sink. BACK leaves the station for the room; S there leaves the place.
+func _enter_business() -> void:
+	if not (_current_profile in ["rest", "pub", "vecerka"]) or _upkeep_key == "" or not _is_open:
+		return
+	var tabs := _room_tabs()
+	if tabs.is_empty():
+		return
+	var ids: Array = tabs.map(func(t) -> String: return str(t[0]))
+	var consts: Dictionary = (_station_layout() as Script).get_script_constant_map()
+	var first := str(consts.get("ENTRY", ids[0]))
+	var last := str(STATION3D.last_station.get(_upkeep_key, first))
+	var to: String = last if ids.has(last) else (first if ids.has(first) else str(ids[0]))
+	_open_station(to)
 
 
 ## Steps up to the station `id` (unless another warden is at it): the room's camera goes
@@ -2607,6 +2667,16 @@ func _open_station(id: String) -> void:
 		_switching = true
 		_stations[was].call("close_station")
 		_switching = false
+	# A tab to a station in another room of the place: the room changes under a dissolve,
+	# the camera starts from where you would stand in it.
+	var sub := _subroom_of(str(_station_layout().STATIONS[id]["room"]))
+	if sub != _door_room():
+		var im := get_parent()
+		if im != null and im.has_method("_door_transition"):
+			im._door_transition(true)
+		_apply_service_subroom(sub, true)
+		_station_cam_from = [_interior_camera.transform, _interior_camera.rotation]
+		was = ""
 	if was == "" and _station_cam_from.is_empty():
 		_station_cam_from = [_interior_camera.transform, _interior_camera.rotation]
 	var st: Node3D = _stations[id]
@@ -2617,8 +2687,9 @@ func _open_station(id: String) -> void:
 	st.set("hud", hud)
 	st.call("open_station", _interior_camera)
 	hud.set("station", st)
-	hud.set("tabs", _room_tabs(str(_station_layout().STATIONS[id]["room"])))
+	hud.set("tabs", _room_tabs())
 	hud.set("taken", _bistro_taken())
+	hud.set("view_size", Vector2(_viewport.size))
 	hud.call("clear_say")
 	hud.visible = true
 	_hot_glint.clear()
@@ -2678,8 +2749,14 @@ func _station_frame(open: String) -> void:
 	var moving := _station_tween != null and _station_tween.is_valid() and _station_tween.is_running()
 	var mouse: Vector2 = STATION3D.mouse_of(get_viewport())
 	var hud := _hud()
+	_tabs_t -= get_process_delta_time()
+	if _tabs_t <= 0.0:
+		# The menu may have changed in the books: the tabs follow it.
+		_tabs_t = 0.5
+		hud.set("tabs", _room_tabs())
+		hud.set("view_size", Vector2(_viewport.size))
 	var ui := str(hud.call("hit", mouse))
-	hud.call("set_hover", ui if ui.begins_with("#tab") or ui.begins_with("#btn") or ui == "#back" else "")
+	hud.call("set_hover", ui if ui.begins_with("#tab") or ui.begins_with("#btn") or ui in ["#back", "#serve", "#books"] else "")
 	var vp_mouse := _room_px(mouse)
 	var rail := ""
 	if ui == "" and not moving and st.call("holding") == "":
@@ -2690,7 +2767,7 @@ func _station_frame(open: String) -> void:
 		st.call("point", vp_mouse)
 	if str(st.call("holding")) != "":
 		HandCursor.want(HandCursor.GRAB)
-	elif str(st.call("hovered")) != "" or rail != "" or ui.begins_with("#tab") or ui.begins_with("#btn") or ui == "#back":
+	elif str(st.call("hovered")) != "" or rail != "" or ui.begins_with("#tab") or ui.begins_with("#btn") or ui in ["#back", "#serve", "#books"]:
 		HandCursor.want(HandCursor.POINT)
 
 
@@ -2708,26 +2785,27 @@ func _station_input(event: InputEvent, open: String) -> void:
 		return
 	get_viewport().set_input_as_handled()
 	var st: Node = _stations[open]
-	var room := str(_station_layout().STATIONS[open]["room"])
+	var hud := _hud()
 	if event is InputEventKey and event.pressed and not event.echo:
 		var ke := event as InputEventKey
-		if ke.physical_keycode == KEY_S:
-			st.call("close_station")
-			return
-		var tabs := _room_tabs(room)
-		if ke.physical_keycode == KEY_TAB and not tabs.is_empty():
-			var i := 0
-			for j in tabs.size():
-				if str(tabs[j][0]) == open:
-					i = j
-			_switch_station(str(tabs[(i + 1) % tabs.size()][0]))
-			return
-		var n := ke.physical_keycode - KEY_1
-		if n >= 0 and n < tabs.size():
-			if str(tabs[n][0]) != open:
-				_switch_station(str(tabs[n][0]))
-			return
-		st.call("key", ke)
+		var act := str(hud.call("key_action", ke))
+		match act:
+			"back":
+				st.call("close_station")
+			"serve":
+				if bool(st.call("serve_ready")):
+					st.call("serve_now")
+			"books":
+				_open_ledger()
+			"next":
+				var nx := str(hud.call("next_tab"))
+				if nx != "" and nx != open:
+					_switch_station(nx)
+			"":
+				st.call("key", ke)
+			_:
+				if act.begins_with("tab:") and act.substr(4) != open:
+					_switch_station(act.substr(4))
 		return
 	if not (event is InputEventMouseButton):
 		return
@@ -2740,11 +2818,19 @@ func _station_input(event: InputEvent, open: String) -> void:
 	if not mb.pressed:
 		st.call("release")
 		return
+	hud.call("poke")
 	if _station_tween != null and _station_tween.is_valid() and _station_tween.is_running():
 		return
-	var ui := str(_hud().call("hit", mb.position))
+	var ui := str(hud.call("hit", mb.position))
 	if ui == "#back":
 		st.call("close_station")
+		return
+	if ui == "#serve":
+		if bool(st.call("serve_ready")):
+			st.call("serve_now")
+		return
+	if ui == "#books":
+		_open_ledger()
 		return
 	if ui.begins_with("#tab:"):
 		var to := ui.substr(5)
@@ -2819,6 +2905,86 @@ func _make_stations() -> void:
 			var m := quad.material_override as StandardMaterial3D
 			m.albedo_texture = pic
 			m.emission_texture = pic
+
+
+## Over the waiting guests' heads how their patience goes (scripts/business/guest_mood.gd:
+## dots, the watch, a red scribble, a line and a grumble; the brief of 21. 10.), from the
+## place's tickets, eight times a second, in the room and at a station alike.
+const GUEST_MOOD = preload("res://scripts/business/guest_mood.gd")
+const PUB_RULES = preload("res://core/systems/pub_rules.gd")
+const BISTRO_RULES = preload("res://core/systems/bistro_rules.gd")
+const JEDNOTA_RULES = preload("res://core/systems/jednota_rules.gd")
+var _mood: Node3D
+var _mood_t := 0.0
+
+
+func _tick_moods(delta: float) -> void:
+	_mood_t -= delta
+	if _mood_t > 0.0:
+		return
+	_mood_t = 0.125
+	if _life == null or not is_instance_valid(_life) or _upkeep_key == "":
+		return
+	var room := _station_root(_jednota_room_of_life() if _current_profile == "vecerka" else ("dining" if _current_profile == "rest" else "main"))
+	if room == null:
+		return
+	if _mood == null or not is_instance_valid(_mood) or _mood.get_parent() != room:
+		if _mood != null and is_instance_valid(_mood):
+			_mood.queue_free()
+		_mood = GUEST_MOOD.new()
+		_mood.name = "GuestMood"
+		room.add_child(_mood)
+	var left := _patience_map()
+	var people = _life.get("_people")
+	if people is Dictionary:
+		for k in people:
+			var p: Dictionary = people[k]
+			var spr = p.get("sprite", null)
+			if not (spr is Sprite3D) or not is_instance_valid(spr) or not (spr as Sprite3D).is_visible_in_tree():
+				continue
+			var s3 := spr as Sprite3D
+			var box := s3.get_aabb()
+			var head: Vector3 = s3.global_transform * Vector3(box.get_center().x, box.end.y, box.get_center().z)
+			var parts := str(k).split(":")
+			var key := "%s:%s" % [parts[0], parts[1] if parts.size() > 1 else "0"]
+			_mood.call("show_for", str(k), head, float(left.get(key, left.get(parts[0] + ":*", -1.0))))
+	_mood.call("sweep")
+
+
+## The room the Jednota's people stand in (the shop).
+func _jednota_room_of_life() -> String:
+	return "shop"
+
+
+## How much patience each waiting guest has left (0..1): "guest id:member" (the Jednota's
+## queue by the guest alone, "id:*").
+func _patience_map() -> Dictionary:
+	var out := {}
+	var tix: Array = []
+	var gone := 60.0
+	match _current_profile:
+		"pub":
+			var tr = TAPROOM.of(get_tree())
+			if tr != null:
+				tix = tr.tickets(_upkeep_key)
+				gone = float(PUB_RULES.PATIENCE_GONE)
+				for b in tr.bills(_upkeep_key):
+					out["%d:*" % int(b["guest_id"])] = 1.0 - clampf(float(b.get("age", 0)) / float(PUB_RULES.BILL_WAIT), 0.0, 1.0)
+		"rest":
+			var k = get_tree().get_first_node_in_group("kitchens")
+			if k != null:
+				tix = k.tickets(_upkeep_key)
+				gone = float(BISTRO_RULES.PATIENCE_GONE)
+		"vecerka":
+			var j = JEDNOTA.of(get_tree())
+			if j != null:
+				for t in j.tickets(_upkeep_key):
+					out["%d:*" % int(t["guest_id"])] = 1.0 - clampf(float(t.get("age", 0)) / float(JEDNOTA_RULES.PATIENCE_GONE), 0.0, 1.0)
+	for t in tix:
+		var key := "%d:%d" % [int(t.get("guest_id", -1)), int(t.get("member", 0))]
+		var l := 1.0 - clampf(float(t.get("age", 0)) / gone, 0.0, 1.0)
+		out[key] = minf(float(out.get(key, 1.0)), l)
+	return out
 
 
 ## The other wardens at this bistro's stations: station -> their name.

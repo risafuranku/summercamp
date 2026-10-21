@@ -2,8 +2,11 @@ extends Node3D
 
 ## The god cursor (DESIGN §5k): what is built in Builder 98 comes down into the camp you
 ## stand in from a giant computer pointer high in the haze, as if somebody up there were
-## putting the camp together with a mouse. The Builder's own tool, the size of a house,
-## flat pixels half lost in the mist; a deep hum, slowed-down Okna clicks and dings, and
+## putting the camp together with a mouse. The OS's own arrow built in three dimensions
+## out of its pixels, a hundred metres of it, hanging a hundred and fifty up in the haze
+## with its tip down at the camp, the Builder's tool beside it (the user, 21. 10.: "godly
+## v nebesích ... mohutnej cursor, fobie z velkejch věcí"); a deep hum, slowed-down Okna
+## clicks and dings, and
 ## heavy landings: path tiles one after another like dominoes, buildings in their parts
 ## (the foundations, the walls, the roof), each settling in a puff of dust; a bulldozing
 ## pressed flat by the pointer's click.
@@ -24,19 +27,23 @@ const SFX := "res://assets/sfx/god/"
 const FPS := 12.0
 const STEP := 1.0 / FPS
 const BUS := "OutdoorAmbience"
-## How tall the pointer's picture is (m) and its pixels (the OS's arrow and the tool, both
-## at two pixels a pixel: the arrow fills the top left 48, the tool hangs below right of it).
-const CURSOR_H := 48.0
-const CURSOR_PX := 72
+## The pointer: the OS's arrow (os_shell.ARROW) built of blocks, one per pixel, PX_M a
+## side and DEPTH_PX of them deep; the tool beside it as on the PC (TOOL_PX pixels, at
+## TOOL_AT from the tip, in the arrow's pixels). LEAN tilts it off pointing straight down.
+const PX_M := 6.0
+const DEPTH_PX := 1.6
+const TOOL_PX := 15.0
+const TOOL_AT := Vector2(7.0, 10.0)
+const LEAN := 0.2
 ## Where it rests between jobs, over the middle of the camp, and how fast it goes.
-const IDLE_H := 70.0
-const SPEED := 26.0
+const IDLE_H := 210.0
+const SPEED := 40.0
 ## A part falls this far (more when the warden watches from further off, so it is seen).
 const DROP_MIN := 22.0
 const DROP_MAX := 36.0
-## The pointer's tip this far above where the pieces start falling: high enough that
-## the whole arrow hangs in the sky over the trees, not standing on the horizon.
-const TIP_OVER := 10.0
+## The pointer's tip this far above where the pieces start falling: just under the cloud
+## deck (cloud_layers.gd, from 95 m), the rest of it going up into the clouds.
+const TIP_OVER := 30.0
 ## The shadow waiting on the ground for a building still to come.
 const WAIT_SHADOW := 0.3
 ## What is pressed flat at once at most (a bulldozed wood stays a moment, the rest goes).
@@ -63,29 +70,49 @@ const SMALL := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic
 
 const CURSOR_SHADER := """
 shader_type spatial;
+render_mode unshaded, fog_disabled, cull_back, depth_draw_opaque;
+uniform vec4 haze_color : source_color = vec4(0.74, 0.78, 0.82, 1.0);
+uniform float haze = 0.3;
+uniform float fade = 1.0;
+uniform float drift = 0.0;
+uniform float light = 1.0;
+varying vec3 wn;
+varying vec3 wp;
+void vertex() {
+	wn = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	// Shaded in steps as Build shaded a sector: the top lit, the faces, the sides darker,
+	// the underside (what you see of it from the camp) darkest.
+	float shade = wn.y > 0.6 ? 1.0 : (wn.y < -0.6 ? 0.42 : (abs(wn.z) > abs(wn.x) ? 0.78 : 0.6));
+	vec3 c = COLOR.rgb * shade * light;
+	const float BV[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+	vec2 bm = mod(floor(FRAGCOORD.xy), 4.0);
+	// Banks of mist drifting across it, along its height: thinning in bands, in steps.
+	float band = 0.5 + 0.5 * sin(wp.y * 0.07 + wp.x * 0.02 - drift);
+	float f = fade * (0.8 + 0.2 * floor(band * 4.0 + 0.5) / 4.0);
+	if ((BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 > f) {
+		discard;
+	}
+	// Higher up it goes further into the haze (its top is lost in the sky).
+	float up = clamp((wp.y - 70.0) / 120.0, 0.0, 1.0);
+	ALBEDO = mix(c, haze_color.rgb, clamp(haze + up * 0.35, 0.0, 0.85));
+}
+"""
+
+const TOOL_SHADER := """
+shader_type spatial;
 render_mode unshaded, fog_disabled, cull_disabled, depth_draw_opaque;
 uniform sampler2D tex : source_color, filter_nearest;
 uniform vec4 haze_color : source_color = vec4(0.74, 0.78, 0.82, 1.0);
 uniform float haze = 0.3;
 uniform float fade = 1.0;
-uniform float drift = 0.0;
-void vertex() {
-	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
-	MODELVIEW_MATRIX = MODELVIEW_MATRIX * mat4(vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0), vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0), vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0), vec4(0.0, 0.0, 0.0, 1.0));
-}
 void fragment() {
 	vec4 c = texture(tex, UV);
-	if (c.a < 0.5) {
-		discard;
-	}
-	// In and out of the mist: dithered away in Build's way, never smoothly.
 	const float BV[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
 	vec2 bm = mod(floor(FRAGCOORD.xy), 4.0);
-	// Banks of mist drifting across it: bands where it thins to nothing and comes back.
-	// (Per the arrow's 48 px: the picture is 72 since the tool is doubled.)
-	float band = 0.5 + 0.5 * sin(UV.y * 10.5 + UV.x * 3.0 - drift);
-	float f = fade * (0.45 + 0.55 * floor(band * 4.0 + 0.5) / 4.0);
-	if ((BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 > f) {
+	if (c.a < 0.5 || (BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 > fade) {
 		discard;
 	}
 	ALBEDO = mix(c.rgb, haze_color.rgb, haze);
@@ -106,8 +133,12 @@ var _job: Dictionary = {}
 var _acc := 0.0
 var _t := 0.0
 var _idle_t := 0.0
-var _cursor: MeshInstance3D
+## The pointer: the root at its tip (where it points), the arrow's blocks, the tool.
+var _cursor: Node3D
+var _arrow: MeshInstance3D
+var _plate: MeshInstance3D
 var _mat: ShaderMaterial
+var _plate_mat: ShaderMaterial
 var _tex: Dictionary = {}
 var _tool := ""
 var _tool_frame := 0
@@ -362,22 +393,35 @@ func busy() -> bool:
 # ── the pointer ──────────────────────────────────────────────────────────────
 
 func _build_cursor() -> void:
-	_cursor = MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(CURSOR_H, CURSOR_H)
-	# The arrow's tip (the picture's top left corner) is the node: where it points.
-	q.center_offset = Vector3(CURSOR_H * 0.5, -CURSOR_H * 0.5, 0)
-	_cursor.mesh = q
+	_cursor = Node3D.new()
+	_cursor.visible = false
+	add_child(_cursor)
 	var sh := Shader.new()
 	sh.code = CURSOR_SHADER
 	_mat = ShaderMaterial.new()
 	_mat.shader = sh
-	_cursor.material_override = _mat
-	_cursor.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_cursor.extra_cull_margin = 60.0
-	_cursor.set_meta("retro_skip", true)
-	_cursor.visible = false
-	add_child(_cursor)
+	_arrow = MeshInstance3D.new()
+	_arrow.mesh = _arrow_mesh()
+	_arrow.material_override = _mat
+	_arrow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_arrow.extra_cull_margin = 200.0
+	_arrow.set_meta("retro_skip", true)
+	_cursor.add_child(_arrow)
+	# The tool beside it, a plate just in front of the arrow's face.
+	var ts := Shader.new()
+	ts.code = TOOL_SHADER
+	_plate_mat = ShaderMaterial.new()
+	_plate_mat.shader = ts
+	_plate = MeshInstance3D.new()
+	var pq := QuadMesh.new()
+	pq.size = Vector2(TOOL_PX * PX_M, TOOL_PX * PX_M)
+	_plate.mesh = pq
+	_plate.material_override = _plate_mat
+	_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_plate.extra_cull_margin = 120.0
+	_plate.set_meta("retro_skip", true)
+	_plate.position = Vector3((TOOL_AT.x + TOOL_PX * 0.5) * PX_M, (TOOL_AT.y + TOOL_PX * 0.5) * PX_M, DEPTH_PX * PX_M * 0.5 + 0.6)
+	_cursor.add_child(_plate)
 	var mist: Texture2D = load(MIST_TEX) if ResourceLoader.exists(MIST_TEX) else null
 	for i in 3:
 		# The fog's own colour, not fogged again by the world (it went green and blocky).
@@ -406,39 +450,64 @@ func _build_cursor() -> void:
 	_hum.volume_db = -60.0
 	_hum.attenuation_filter_cutoff_hz = 20500.0
 	_cursor.add_child(_hum)
+	_hum.position = Vector3(6.0, 8.5, 0.0) * PX_M
 	if _hum.stream is AudioStreamMP3:
 		(_hum.stream as AudioStreamMP3).loop = true
 
 
-## The pointer's picture: the OS's arrow with the tool beside it, as on the PC.
+## The OS's arrow (os_shell.ARROW) in blocks: a block per pixel, the outline black and the
+## inside white, only the faces that show. The tip is the origin; the picture's rows go
+## up (+Y) and its columns right (+X), so the arrow hangs from the sky tip down.
+func _arrow_mesh() -> ArrayMesh:
+	var pat: Array = OS_SHELL.ARROW
+	var cells := {}
+	for y in pat.size():
+		var row: String = pat[y]
+		for x in row.length():
+			if row[x] == "X" or row[x] == ".":
+				cells[Vector2i(x, y)] = row[x] == "X"
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var d := DEPTH_PX * PX_M * 0.5
+	for c in cells:
+		var black: bool = cells[c]
+		var col := Color(0.07, 0.07, 0.09) if black else Color(0.93, 0.93, 0.9)
+		var x0 := float(c.x) * PX_M
+		var x1 := x0 + PX_M
+		# Picture row y (down) -> up from the tip.
+		var y0 := float(c.y) * PX_M
+		var y1 := y0 + PX_M
+		var faces := [
+			[Vector3(0, 0, 1), [Vector3(x0, y0, d), Vector3(x1, y0, d), Vector3(x1, y1, d), Vector3(x0, y1, d)]],
+			[Vector3(0, 0, -1), [Vector3(x1, y0, -d), Vector3(x0, y0, -d), Vector3(x0, y1, -d), Vector3(x1, y1, -d)]],
+		]
+		if not cells.has(c + Vector2i(-1, 0)):
+			faces.append([Vector3(-1, 0, 0), [Vector3(x0, y0, -d), Vector3(x0, y0, d), Vector3(x0, y1, d), Vector3(x0, y1, -d)]])
+		if not cells.has(c + Vector2i(1, 0)):
+			faces.append([Vector3(1, 0, 0), [Vector3(x1, y0, d), Vector3(x1, y0, -d), Vector3(x1, y1, -d), Vector3(x1, y1, d)]])
+		if not cells.has(c + Vector2i(0, -1)):
+			faces.append([Vector3(0, -1, 0), [Vector3(x0, y0, -d), Vector3(x1, y0, -d), Vector3(x1, y0, d), Vector3(x0, y0, d)]])
+		if not cells.has(c + Vector2i(0, 1)):
+			faces.append([Vector3(0, 1, 0), [Vector3(x0, y1, d), Vector3(x1, y1, d), Vector3(x1, y1, -d), Vector3(x0, y1, -d)]])
+		for f in faces:
+			var n: Vector3 = f[0]
+			var q: Array = f[1]
+			for i in [0, 1, 2, 0, 2, 3]:
+				st.set_normal(n)
+				st.set_color(col)
+				st.add_vertex(q[i])
+	return st.commit()
+
+
+## The tool's picture (the Builder's frame, or its icon).
 func _cursor_tex(tool: String, frame := 0) -> Texture2D:
 	var key := "%s|%d" % [tool, frame]
 	if _tex.has(key):
 		return _tex[key]
-	var img := Image.create(CURSOR_PX, CURSOR_PX, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	# The arrow at two pixels a pixel and the tool too, where the PC has it (os_shell: 8, 9
-	# from the tip), so it reads up in the haze (at one pixel a pixel the spade and the lamp
-	# went thin and grey into it; at the PC's size it went to a blob).
-	var pat: Array = OS_SHELL.ARROW
-	for y in pat.size():
-		var row: String = pat[y]
-		for x in row.length():
-			var c := Color(0.06, 0.06, 0.08) if row[x] == "X" else (Color(0.96, 0.96, 0.94) if row[x] == "." else Color(0, 0, 0, 0))
-			if c.a > 0.0:
-				img.fill_rect(Rect2i(x * 2, y * 2, 2, 2), c)
 	var path := str(TOOL_TEX.get(tool, ""))
 	if _tool_frames(tool) > 0:
-		# The frames are drawn on a 24 px square: doubled, every pixel two.
 		path = TOOL_FRAME % [str(TOOL_FRAMES[tool][0]), frame]
-	if path != "" and ResourceLoader.exists(path):
-		var t := (load(path) as Texture2D).get_image().duplicate() as Image
-		if t.is_compressed():
-			t.decompress()
-		t.convert(Image.FORMAT_RGBA8)
-		t.resize(48, 48, Image.INTERPOLATE_NEAREST)
-		img.blend_rect(t, Rect2i(0, 0, 48, 48), Vector2i(16, 18))
-	var tex := ImageTexture.create_from_image(img)
+	var tex: Texture2D = load(path) if path != "" and ResourceLoader.exists(path) else null
 	_tex[key] = tex
 	return tex
 
@@ -462,7 +531,8 @@ func _set_tool(tool: String) -> void:
 		return
 	_tool = tool
 	_tool_frame = 0
-	_mat.set_shader_parameter("tex", _cursor_tex(tool))
+	_plate_mat.set_shader_parameter("tex", _cursor_tex(tool))
+	_plate.visible = _cursor_tex(tool) != null
 
 
 ## The tool's frame by the clock (in the stepped tick, so it moves in steps with the rest).
@@ -473,7 +543,7 @@ func _tick_tool() -> void:
 	var f := int(_t * TOOL_FPS) % n
 	if f != _tool_frame:
 		_tool_frame = f
-		_mat.set_shader_parameter("tex", _cursor_tex(_tool, f))
+		_plate_mat.set_shader_parameter("tex", _cursor_tex(_tool, f))
 
 
 ## How far off the warden watches from: the pieces fall from higher the further off, so
@@ -581,7 +651,7 @@ func _step_build(j: Dictionary) -> void:
 		"click":
 			# The click: the pointer jabs down and back.
 			var k := float(j["t"])
-			_pos = _work_spot(c) - Vector3(0, 2.5 if k < 0.25 else 0.0, 0)
+			_pos = _work_spot(c) - Vector3(0, 9.0 if k < 0.25 else 0.0, 0)
 			if k >= 0.45:
 				_play("ding", c, -4.0)
 				_begin_parts(j)
@@ -846,28 +916,42 @@ func _tick_look(delta: float) -> void:
 		if _hum.playing:
 			_hum.stop()
 		return
-	# Its place in steps (as all machinery); the haze by the camp's own fog.
+	# Its place in steps (as all machinery), its face turned to whoever looks, a step at a
+	# time, the tip down at the camp.
 	_cursor.global_position = (_pos * 2.0).round() * 0.5
+	var cam0 := get_viewport().get_camera_3d()
+	if cam0 != null:
+		var to := cam0.global_position - _pos
+		var yaw := atan2(to.x, to.z)
+		yaw = roundf(yaw / 0.05) * 0.05
+		_cursor.basis = Basis(Vector3.UP, yaw) * Basis(Vector3.BACK, LEAN)
+	# The haze by the camp's own fog; lit by the sky's hour (dark at night, a shape on the
+	# stars).
 	var env := _environment()
 	var dist := _camera_pos().distance_to(_pos)
 	var density := env.fog_density if env != null and env.fog_enabled else 0.004
-	var haze := clampf(0.3 + 1.0 - exp(-density * dist * 0.35), 0.3, 0.62)
+	var haze := clampf(0.08 + 1.0 - exp(-density * dist * 0.2), 0.08, 0.45)
 	_mat.set_shader_parameter("haze", haze)
+	_plate_mat.set_shader_parameter("haze", haze)
 	if env != null:
 		_mat.set_shader_parameter("haze_color", env.fog_light_color)
+		_plate_mat.set_shader_parameter("haze_color", env.fog_light_color)
+		var amb := env.ambient_light_color
+		_mat.set_shader_parameter("light", clampf((amb.r + amb.g + amb.b) / 3.0 * 2.2, 0.25, 1.0))
 	# In and out of the mist: thinner while it moves, a slow breathing besides.
 	var moving := not _job.is_empty() and str(_job.get("phase", "")) == "go"
 	var breath := 0.82 + 0.18 * sin(floorf(_t * FPS) / FPS * 0.9)
-	_mat.set_shader_parameter("fade", clampf(_vis * breath * (0.72 if moving else 1.0) * (1.0 - haze * 0.35), 0.0, 1.0))
+	var fade := clampf(_vis * (0.9 + 0.1 * breath) * (0.9 if moving else 1.0), 0.0, 1.0)
+	_mat.set_shader_parameter("fade", fade)
+	_plate_mat.set_shader_parameter("fade", fade)
 	# Banks of mist across its body (the body hangs right and down from the tip, as the
 	# eye sees it), drifting a little, in steps.
 	var cam := get_viewport().get_camera_3d()
 	var right := cam.global_transform.basis.x if cam != null else Vector3.RIGHT
 	var up := cam.global_transform.basis.y if cam != null else Vector3.UP
 	var toward := (cam.global_position - _pos).normalized() if cam != null else Vector3.BACK
-	# The arrow's middle (in its picture's pixels, right and down from the tip).
-	var px_m := CURSOR_H / float(CURSOR_PX)
-	var body := _pos + right * 10.5 * px_m - up * 18.2 * px_m
+	# The arrow's middle (in its pixels from the tip, turned as the pointer is).
+	var body := _cursor.global_transform * (Vector3(5.0, 8.5, 0.0) * PX_M)
 	var drift := floorf(_t * 4.0) / 4.0
 	_mat.set_shader_parameter("drift", drift * 0.35)
 	# A pale grey-blue haze (the fog's light colour went green on the mist's picture).

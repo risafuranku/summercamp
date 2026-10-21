@@ -138,7 +138,7 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
 | Drunk | 120 | the pub, the shop, fun; needs toilets often | **The Tourist** |
 | Cheap Chick | 190 | showers, the lake slide, comfort | **The Girl** |
 | Tramps | 55 | the bonfire, the pub, fun; barely wash, sleep anywhere | **The Whistler** |
-| Family | 150 | everything at once: food, toilets, the field, the slide, safety | **The Extra Child** |
+| Family | 150 | everything at once: food, toilets, the field, the slide, safety | **The Boy** (§5a.2) |
 | Mushroom Pickers | 90 | sleep, food, the shop; quiet; up at four | **The Basket Man** |
 
 - Per-archetype pressure curve: one guest of a kind is safe; tiny at 2, small from 3, medium
@@ -232,18 +232,18 @@ know where it is:
 | The Photographer | no eyes (his own chest lamp lights his face; 21. 10.: no ring over it): the red lamp of his camera, a point where the camera is in each pose, blinking; your torch on it, the lens throws it back white |
 | The Girl | her eyeshine: two pale points, each blinking on its own, one a little higher, only where the torch points but does not reach (to 45 m); nearer, bigger and wider apart (her face stretching). The terror pass (20. 10.): when your torch dies near her she takes her step in that dark and you see her eyes there, nearer; while your torch holds her, a second pair of her eyes opens off to one side with a soft giggle (look and it is gone, and she has moved); under a lamp she goes round the edge of its light towards your back; the drone and the heart as she comes; while you hold her, for two frames now and then her head is upside down on her neck; far off, her laugh slowed into something low. **Her strike** (4.5 s, nothing you can do): she lunges out of the dark, claws at the lens; her hands close round your head and pull you to the drooling grin; her head snaps all the way over; her face splits down the middle, the inside and rows of teeth between the halves; the rings of teeth come over you (the bite, red, blood running down the lens); black, your heart stops, only the ring and her chewing; you come to on the ground, the picture on its side, and she stands out there with her head upside down and red eyes, laughing slowed down; a blink and her upside-down face is in yours. The cursed pass (20. 10.): her eye an inch from yours before the lunge; after the bite she drags you along the ground by the head, in jerks; under a lamp, after a while, a ring of her eyes opens all round the edge of the light, one pair after another, giggles over each other, a flash of dozens of her standing in the trees, then all of them go out but one, behind you; far off, found again, she stands upside down (hanging from nothing) or far too tall; close and unseen, her teeth chattering; found nearer, two frames of the face she pretends with (a smile ear to ear); for forty seconds after she has had you, her face for a frame now and then, even with her gone. **Indoors** she cannot hurt you and wants you out: her humming through the wall; heels going round outside; a giggle and three slow knocks; her at the window you look at, pressed to the glass, her eyes lit, two frames of the smile; her teeth chattering behind the wall; then a guest's night instead (a Cheap Chick first). Out again, she begins far off |
 | The Antlered Man | deer eyeshine in the skull's sockets, pale green, high, far apart; both go out together now and then |
-| The Basket Man | two wet red points deep in the hood, close together, swinging slowly over the ground |
-| The Extra Child | nothing while its back is to you; turned and running, two small white points that do not blink |
-| The Whistler | not on its body (never in sight): two pale slits up in the trees where the tune was, a little while after each one |
+| The Granny | two points low in her bent face while she picks, nothing; when she straightens up, high and still, looking at you |
+| The Boy | none: a child hiding. His voice at your ear is how you find him; his face is what you get for looking |
+| The Whistler | not on his body while the music plays (it is thrown, from somewhere else): two pale slits where he really stands, a little while after the music stops |
 
 | Enemy | From | Tell | Counter | Punishes |
 | --- | --- | --- | --- | --- |
 | Silent Man | Quiet Guy | footsteps on the gravel behind you, closer each time, stopping when you stop; a whisper at your ear | turn round and put light on him; under a lamp he will not come nearer; at the whisper, turn round at once | standing still in the dark |
 | The Photographer | Drunk | always there: he hums wherever he is, a weak lamp on his chest strap and the camera's red standby blink; he walks from spot to spot in plain view (steps, the film wound on as he stops), raises the camera, the focus beeps speed up, the flash whines (~2-3 s); a shot every 7-10 s | turn your back or get behind something before the flash; indoors draw the curtains (every building's windows look out for real, scripts/ui/window_portal.gd) | looking at him when it fires, or an open window you can see when he fires through it: a lot of health (16-26), a white blast, ringing ears, his face burnt in (lenses grown into the sockets, or peeling like a wet print); the picture is real: it slides in at the corner and develops, you from his lens (every third, him right behind you in it); two hits and his neck is snapped, the head hanging off it sideways, the mouth stuffed with photographs, and he still aims; four and it has let go (the collar an empty stump, the head upside down at his belly, screaming); three and he runs at you from behind, laughing, and fires at your ear; the last picture stops the frame, his lens-face comes at you in steps and your own face develops in the middle of the screen |
 | The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed: the guest -> fixed smile, white eyes -> legs too long, flushed cheeks -> neck and arms stretched -> her back to you, face turned round -> arms to the ground. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
-| The Whistler | Tramps | a campfire tune whistled out in the trees, moving | do not walk towards it; stand under a lamp until the tune breaks off | following the sound into the dark |
-| The Extra Child | Family | a child humming among the tents, back turned | torch off, walk past, never shine the light on it | looking at it with the torch |
-| The Basket Man | Mushroom Pickers | 02:30-06:00, a wicker basket creaking out of the trees, a knife scraping | stand still while it is near; it only sees movement | moving while it is close |
+| The Whistler | Tramps | his guitar and his whistle out in the dark, a song at a time, nearer; the music stops dead in the middle of a bar | while he plays, move; when the music stops, be still (on grass a walk is not heard, a run is; on gravel, boards, puddles even a walk; near him anything); a lamp's light | making a noise while he listens: he comes at a run to where you were (§5a.3) |
+| The Boy | Family | his father in your way in the dark asking after him; a child gone missing where the night's work is | each place's game, by its rules (§5a.2) | breaking the game's rule (in the corn: looking back at him) |
+| The Granny | Mushroom Pickers | 02:30-06:00: a basket creaking, a knife scraping, humming; lamps going dark one by one; mushrooms coming up round the tents | Grandmother's footsteps: move while she is bent over her work, freeze when her back cracks and she straightens up; take the bulbs back out of her basket from behind; walk through her rings | moving while she looks (§5a.4) |
 
 ### 5a. Outdoor hunters, indoor tormentors (the rule for every enemy)
 
@@ -317,6 +317,98 @@ game, every time, and never scripted to a place.
   face over the ceiling, or he stoops to the glass and taps (his face in it, lit by the
   room's light falling out). The windows' `view` (the window's camera, your eye out in the
   camp: `photo_windows()`) places him.
+
+### 5a.3 The Whistler (Tramps; `scripts/enemies/whistler_brain.gd`)
+
+The tramp turned (the user, 21. 10.: "staring into the soul, huba jak megafon"): his hat,
+his flannel, the guitar on his back, a grey face with black eyes and the mouth gone into
+a black horn like a megaphone's bell (Grok `whistler_t1`, `_sit`, `_face`). He hears and
+does not see, and a night with him is musical chairs:
+
+- **He plays**: the campfire song on his guitar, whistled through the horn
+  (`assets/sfx/npc/whistler/play_*`), out in the dark, a song at a time a little nearer
+  (never nearer than 9 m while he plays). While he plays he does not listen: move. From
+  medium on the music is thrown, it comes from where he is not; what is him is a string
+  creaking, a twig, and when the music stops his eyes, two pale slits where he stands.
+- **He listens**: the music stops dead (a hand flat on the strings). Running anywhere,
+  walking on gravel, boards or in a puddle, anything within 10 m of him gives you away;
+  a walk on grass does not. Heavy, a guest's voice calls for help out of the dark to make
+  you move ("Správce! Pomoc! Tady!", "Pojď k ohni. Je tu teplo.").
+- **He comes**: at a run to where he heard you, the guitar jangling; there he listens
+  again. At your back: the string round your neck, his horn at your ear (the close-up
+  grows as the string tightens), the hit. A lamp's light: he stops at its edge and goes.
+- **The fire nobody lit** (medium on): a campfire out by the trees, him on a log by it
+  playing in its light. Its light is not safe: go near and the fire dies and he is
+  behind you.
+- **Indoors**: his song under the window now and then, quiet, stopped in the middle of
+  a bar.
+
+### 5a.4 The Granny (Mushroom Pickers; `scripts/enemies/basket_brain.gd`)
+
+The old picker turned (the user, 21. 10.: "babičku musíme vymyslet"): her cardigan, the
+flowered dress, the green boots, bent at the waist like a hook, the basket on her arm,
+the little knife (Grok `granny_pick`, `granny_up`, `granny_face`). She comes in the
+small hours (02:30-06:00), as pickers do, and harvests the camp. Grandmother's
+footsteps: she sees only what moves, and only when she straightens up.
+
+- **Bent over her work**: the knife scraping, humming an old lullaby: she sees nothing.
+  Move.
+- **Up**: her back cracks, the humming stops, she straightens far too tall and looks.
+  Move in her sight (22 m; 9 m while she walks) and she comes, quick through the grass,
+  the knife low ("Nehýbej se, broučku", "Kdo se hejbe, jde do košíku"). Freeze before she
+  is on you and she stands over you a while, looking, and goes back to her work (heavy:
+  not always). At you: low, the knife at your ankles, "To je ale pěkný kozák...".
+- **The bulbs**: she goes from lamp to lamp; at each, when she is done, the bulb is in
+  her basket and the lamp is dark for the night (the other things have more dark).
+  Creep up behind her while she is bent and take them back (E): every lamp lit again,
+  and she straightens up at once.
+- **The rings**: at a lodging with guests in it mushrooms come up round it, more each
+  time she is there; closed by dawn (three visits) its guests wake sick, heavy one is
+  gone. Walk through a ring and you kick it open.
+- **Indoors**: her knife along the outside wall now and then.
+
+### 5a.2 The Boy (Family; `scripts/enemies/boy_brain.gd`)
+
+The user, 21. 10.: "když táta spawnul enemáka, kluk je v trubkách nebo v kukuřičným poli
+nebo v budově s pojistkama ... u nočních rutinních úkolů ti bude kurvit život". It is not
+a thing among the tents any more (that was the Extra Child, kept only for a camp with
+none of his places): the family's boy is not in their tent tonight, he is where the
+night's routine work is, and each of those places is a children's game with rules you
+learn:
+
+- **The corn: hide and seek** (done; `corn_hunt.gd` boy mode). The night's corn job is
+  him (`night_jobs.add_boy_job`). He hides at the end of a corridor, his back to you,
+  and does not call: every few seconds he whispers at your ear how close you are, by the
+  way through the maze: cold, warmer (nearer than the last time), burning (a few steps
+  off); a giggle out of the stalks where he is. Found, you take his hand ("found me"),
+  and he says not to look at him; from the first time you look away, look back at him
+  while you lead him (on your screen, near) and his head comes round: his face, the
+  shriek, the hit, and he is back in the corn hiding, to be found again. Out through the
+  gate he is back in the tent by morning. The scarecrow is in there as always.
+- **The board: "Cukr, káva, limonáda, čaj, rum ... BUM!"** (done; `breaker_panel.gd`):
+  he is in the switch room behind you, his face to the wall, saying the words; while he
+  says them you may work the board; at BUM he turns round (his face in the ammeter's
+  glass) and nothing of yours may move, the mouse or a click, till he turns back.
+  Caught: his face over the board, the hit, every switch down and the main off, "Hejbeš
+  se! Znova." Medium he says them unevenly, heavy he skips to BUM, looks longer and pulls
+  a switch down behind your back between rounds. The board on: found.
+- **The pipes: tag** (done; `pipes/pipe_boy.gd`): off the ladder, "Na honěnou! Honím
+  já!", and he comes down after you along the way you crawl. Every pipe you crawl puts
+  him a length back; lying still (a junction, the map) he comes on, his hands slapping
+  the water, his breath, "Nezastavuj"; at your ankle "Mám tě!", his face, the hit, and he
+  is back a few lengths. A hole is home (domeček): while you work at one he waits. Hold
+  S to look back and see how near he is, crawling at you. The sewer mended: found.
+- **Pressure** (the night's difficulty): light (1-2) he plays fair; medium (3) he lies
+  now and then (warmer when you go away) and asks you to turn round; heavy (4-5) more,
+  and his face hits harder. In the pipes: light the boy, medium the raccoon, heavy both
+  (`sewer_pipe_minigame.boy_tier`, `pipe_director.absent`).
+- **His father is the omen**: once the boy is out there, now and then the father stands
+  in your way in the dark 8-11 m off, his hand out holding a hand that is not there, and
+  asks after him in Czech, one line more each time ("Neviděl jste mýho kluka?" ... the
+  last asked twice); look away or come near and he is not there.
+- **Not found by dawn**: the family is gone in the morning (`claimed`). No text says
+  any of it: the voices do (`tools/audiogen/night_voices.tsv`; the boy is a young voice
+  pitched up).
 
 Every hit can be explained afterwards: each enemy says where it is and when it is about
 to strike, by sound first, and the counter always works (tools/enemy_check.tscn plays
@@ -733,11 +825,16 @@ somebody assembles with a mouse. **Only theatre**: the Builder builds at once as
 the camp's sim has the building at once (guests, books, everything), and nothing waits for
 the show, hinders or hurts (`scripts/god/god_cursor.gd`).
 
-- **What it is**: the Builder's own pointer (the OS's arrow with the tool beside it: the
-  blueprint unrolling, the spade digging, the lamp blinking, the bulldozer's blade going
-  up and down, the same frames as on the PC), thirty metres of flat pixels in the sky,
-  the haze of the camp's fog over it and banks of mist drifting through it, dithered away
-  and back in Build's way; it glides slowly to the work and rises back into the haze after.
+- **What it is**: the Builder's own pointer, the OS's arrow built in three dimensions out
+  of its pixels (a block of six metres a pixel, ten deep: some seventy metres wide and a
+  hundred tall), its tip down at the camp just under the cloud deck and the rest going up
+  into the clouds and the haze, shaded in Build's steps (the underside you see from the
+  camp darkest); its face turns to whoever looks, a step at a time. The tool hangs beside
+  it as on the PC (the blueprint unrolling, the spade digging, the lamp blinking, the
+  bulldozer's blade). Banks of mist drift through it, dithered in Build's way; it glides
+  slowly to the work and rises back into the sky after (the user, 21. 10.: "musí bejt
+  fakt godly v nebesích ... fakt 3D vymodelovanej mohutnej cursor ... fobie z velkejch
+  věcí"; it was thirty metres of flat pixels just over the trees).
   A deep hum like thunder and organ pipes from far off; the slowed, giant Okna click and
   ding; heavy landings with an echo from the woods (ElevenLabs, `assets/sfx/god/`).
 - **Paths like dominoes**: the pointer clicks, the line's tiles come down one after
@@ -843,7 +940,7 @@ imperfect human Build-engine textures."*
   sprites at the room's pixel (91 px to a metre): the slices lying in the pan, the basket
   on its hook, the plate you build, the stacks of plates standing by. Everybody in the
   room sees them, whoever is at the station. Click the station and the camera goes over
-  its counter in steps, twelve a second; there you point, press, hold and drag in the
+  its counter (smoothly since 21. 10., "Papa's frame" below); there you point, press, hold and drag in the
   room itself: a slice off the tray into a free place in the pan (the place lights up
   under it), the spoon round the pot, the plate into the water. A click does the same
   thing for whoever does not drag. Over the counter hangs the order rail (Papa's,
@@ -855,7 +952,7 @@ imperfect human Build-engine textures."*
   the frame at the other stations of the room. Under the room the frame
   (`station_hud.gd`): the sentence of what a click would do (like an old adventure
   game's verb line), BACK (S, the right button), the room's other stations (Tab, 1-4).
-  Nothing explains anything: the glint, the lit target, the ticket, the columns and the
+  No text explains anything (since 21. 10. the next step is lit too, "Papa's frame"): the glint, the lit target, the ticket, the columns and the
   sounds do.
 - **Things go on without you.** The pan and the fryer cook and burn, the pot catches,
   whether anyone is at them: the room says so (Traveller's Rest marks over each station:
@@ -1202,7 +1299,7 @@ attention, or hands. Two wardens: one cooks, one cleans, or each holds a place.*
   (a stroke a beer, a cross a shot, a ring a kofola: `pub_rules.TAB`, the board's prices
   4, 3, 2). When they have had their last, or their time is nearly up, the mat comes back
   on the rail as BILL: at the tap's right their mat and the note they put down (often too
-  big), and your black waiter's wallet with its four places; count the marks, take the
+  big), and (until 21. 10.: since then one click settles it, "Papa's frame") your black waiter's wallet with its four places; count the marks, take the
   note, the change onto the mat, hand it over. A guest pleased with the evening says
   "make it" a round sum (their tip). Short and they wait; too much and they keep it. Nobody
   comes in a quarter of an hour: the happy ones leave the money on the bar, the cross ones
@@ -1217,7 +1314,7 @@ attention, or hands. Two wardens: one cooks, one cleans, or each holds a place.*
 - **The bistro's grill and bufet.** On the kitchen island the grill (a station): sausages
   out of the box onto the grate, turned with the tongs, brown on both sides onto the rack,
   black into the bin; at the pass a klobasa plate is a sausage, a spoon of mustard and a
-  slice of bread. In the dining room the bufet counter (a station): the soup of the day
+  slice of bread. In the dining room the bufet counter (a station; since 21. 10. the soup is on the kitchen island and the bottles are the floor's, "Papa's frame"): the soup of the day
   ladled into a bowl (two ladles; a third slops) and over the counter, quick and cheap;
   the big drinks in glass bottles, kofola and malinovka, a ticket of their own for some
   guests, opened with the opener (hold on the cap and lift: the cap flies off and lies
@@ -1235,6 +1332,71 @@ attention, or hands. Two wardens: one cooks, one cleans, or each holds a place.*
   darts in the board, a sausage on the grill, the soup pot, a deli order, a cut kilo; the
   money is wherever it was taken (the till follows the host's). Checked on two copies by
   `tools/podniky_coop.py`.
+
+### Papa's frame (2026-10-21, decided with the user)
+
+*The user after playing: "at first sight terribly complicated, I don't know where to click;
+the animations choppy; unclear how to serve; somebody orders ten minutes before closing and
+doesn't wait; I can't see their patience or how I did; I can't tell chips from fried
+cheese; the bistro all over the place; the books somewhere else in every place. I want it
+like Papa's games, the same in every place." The same depth, but clear the first time,
+quick, juicy and worked the same in all four places. Where this and older lines above
+disagree, this wins (the older lines say so).*
+
+- **One frame** (`scripts/business/station_hud.gd`) in all four places: the tickets across
+  the top (each the guest's face as their patience goes, `guest_face.gd`, what they want as
+  its picture and word, the patience bar green to red); the picked one big in the corner as
+  a checklist (ticked when done, red when wrong; the Jednota's is its receipt); under it
+  SERVE (Space, Enter), lit when something is ready to hand over; the bar: BACK (S), the
+  place's stations as tabs in the order of its chain (picture, key 1-9, name; a steady
+  amber light where something waits, blinking red where something burns), the shift's mark
+  so far (A-E, the average stars, the run), the clock to last orders, BOOKS (B) always in
+  the same place.
+- **You come in at work**: the station you were at last in the place; the first time the
+  first of its chain (the stand's counter, the pub's tap, the bistro's floor, the till),
+  never the cellar or the sink. A tab to another room's station takes you there.
+- **After a serve nothing stops the game**: the stars, the score and the tip fly up over
+  the guest (or their ticket), the guest says a line, the slip slides in at the side for a
+  moment; three good ones in a row and more is a run (x3) with a little on top of the tip
+  (`business_rules.combo_bonus`), the one new money in the brief besides the prepared goods.
+- **The next step lit** (each station's `next_hint`): a frame breathing round what to do
+  now (a spot, a tab, SERVE); standing still a while a see-through glove shows the gesture
+  (click, drag, hold, rub). No text tutorial. Options "Work hints" switches it off (the
+  warden's, `profiles.gd`).
+- **Smooth**: the camera's glide to a station, the tickets sliding on the rail, things set
+  down hop, plates, cobs and bottles fly to the guest in an arc. Only the gloved hand stays
+  Duke 3D, frame by frame (the old "camera in steps, twelve a second" is gone).
+- **Patience everywhere**: on the ticket, on the face, over the guest in the room
+  (`guest_mood.gd`: dots, the watch, a red scribble; a line and a grumble as it gets worse;
+  at the stand their feet stamp).
+- **Last orders** half an hour before a place shuts (19:30, 22:30 open late): the bell, the
+  word across the view, the feed; after it nobody new goes there (`guest_life.order_hours`)
+  and nothing new is ordered; who ordered waits to the end of their patience, past the
+  closing hour; the Z report comes when the last of them is served or gone.
+- **The books the same everywhere**: MENU, STOCK, ORDER, STAFF, GEAR, Z REPORT. MENU is
+  switches only (`business_rules.MENU`, `actions.biz_set_menu`): what is off is not
+  ordered (the pub's guests have a beer instead, the bistro's the next dish they like, the
+  Jednota's baskets leave it out); each place's own thing never goes off; a station whose
+  dishes are all off has no tab (the stand's drinks, the pub's bottles, the grill, the soup,
+  the deli).
+- **The corn stand** is the frame's model; its camera stands higher so the guests at the
+  counter are in the picture over the work.
+- **The pub**: the bill in one click (BILL on the rail or its mat on the bar: the marks'
+  money and the round sum, no change counted: change is the Jednota's); the games stay in
+  the room off the tabs; the keg that will not pour is red on the cellar's tab wherever you
+  are.
+- **The bistro rebuilt**: the cellar is optional (cut chips and breaded cheese can be
+  ordered ready, half as dear again, and go onto the trays by themselves; or a hand); the
+  kitchen cooks and plates, the soup of the day moved onto its island beside the grill;
+  the floor (the dining room's counter) opens the bottles and takes the plates the pass
+  put on the hatch out to the tables (SERVE): the wait is counted till the plate reaches
+  them. A hand for every room: the cellar's, the kitchen's jobs, the floor's (new role);
+  without a floor hand the pass's hand carries the plates out.
+- **The Jednota**: the till is the core (SERVE is GIVE); the shelves and the storeroom are
+  for the hands and the other wardens, but their tabs light when the rack has empty places
+  and the trolley nothing for them; the queue's patience over their heads.
+- **By day plain play, by night the uncanny** as before (open late, PROTOTYP 540, Jaromir
+  and Marta are untouched). The hands stay worse than a good warden.
 
 ## 8. The pipe crawl (sewer repair)
 

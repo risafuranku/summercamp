@@ -29,7 +29,8 @@ const ENEMY_FOR_ARCHETYPE := {
 	"drunk": TOURIST_BRAIN_SCRIPT,
 	"cheap_chick": GIRL_BRAIN_SCRIPT,
 	"tramp": preload("res://scripts/enemies/whistler_brain.gd"),
-	"family": preload("res://scripts/enemies/child_brain.gd"),
+	# The family's boy, out where the night's work is (corn, the board, the pipes).
+	"family": preload("res://scripts/enemies/boy_brain.gd"),
 	"picker": preload("res://scripts/enemies/basket_brain.gd"),
 }
 const VISUAL_MODULE_SCRIPT = preload("res://modules/visual/visual_module.gd")
@@ -454,6 +455,11 @@ func _setup_night_jobs() -> void:
 		_breaker_panel.name = "BreakerPanel"
 		add_child(_breaker_panel)
 		_breaker_panel.fixed.connect(func(fault: int):
+			# The boy's board done: he is back in the tent by morning.
+			if _night_jobs.boy_tier_at("breaker") > 0:
+				for b in _enemy_brains:
+					if b != null and b.has_method("boy_found"):
+						b.boy_found()
 			_night_jobs.on_breaker_fixed(fault)
 			if Coop.is_client():
 				Coop.send_request("breaker", [fault])
@@ -890,7 +896,8 @@ func open_breaker_board() -> void:
 			_hud_manager.push_status("Every breaker is up and the main holds." if dead < 0 else "The main holds. One circuit stays down until Novotny has looked at it.", 1)
 		return
 	_breaker_from_shed = true
-	_breaker_panel.open(_night_jobs.breaker_fault())
+	# The family's boy in the switch room tonight: the board is his game.
+	_breaker_panel.open(_night_jobs.breaker_fault(), _night_jobs.boy_tier_at("breaker"))
 
 
 var _corn_rustle: AudioStreamPlayer
@@ -1869,6 +1876,7 @@ func _pick_turned_guest(archetype: String) -> Dictionary:
 ## Dawn: every guest whose turned self got you in the night is gone (their things go to
 ## the lost and found, their bed was not slept in).
 func _claim_turned_guests() -> void:
+	_claim_rings()
 	for brain in _enemy_brains:
 		if brain == null or brain.get("claimed") != true:
 			continue
@@ -1879,6 +1887,29 @@ func _claim_turned_guests() -> void:
 			continue
 		if GuestManager.vanish_guest(id) and _hud_manager != null:
 			_hud_manager.push_status("Morning: %s is gone. The bed was not slept in." % str(guest.get("name", "a guest")), 2)
+
+
+## Dawn: the mushroom granny's rings closed round a lodging (basket_brain.gd): its
+## guests wake sick, and on a heavy night one of them is gone.
+func _claim_rings() -> void:
+	for brain in _enemy_brains:
+		if brain == null or not brain.has_method("closed_ring_lodgings"):
+			continue
+		var keys: Array = brain.closed_ring_lodgings()
+		if keys.is_empty():
+			continue
+		var taken := false
+		for g in GuestManager.get_guest_life_snapshot():
+			var c = g.get("lodging", Vector2i(-1, -1))
+			if not (c is Vector2i) or not keys.has("%d:%d" % [c.x, c.y]):
+				continue
+			var id := int(g.get("id", -1))
+			if int(brain.get("_difficulty")) >= 4 and not taken and GuestManager.vanish_guest(id):
+				taken = true
+				if _hud_manager != null:
+					_hud_manager.push_status("Morning: %s is gone. A ring of mushrooms round the door." % str(g.get("name", "a guest")), 2)
+				continue
+			GuestManager.apply_guest_event(id, -22.0, "I dreamt something was growing out of my mouth. There are mushrooms round the door.")
 
 
 ## What has come before comes back harder: every third night something came for the
@@ -1967,6 +1998,11 @@ func _corn_wanderers() -> Array:
 	return out
 
 
+## The corn is there for the boy to be lost in (scripts/enemies/boy_brain.gd).
+func corn_field_ready() -> bool:
+	return _corn_field() != null
+
+
 func corn_hunt_possible() -> bool:
 	return _corn_field() != null and not _corn_wanderers().is_empty()
 
@@ -1976,9 +2012,18 @@ func corn_gate_world() -> Vector3:
 	return Vector3(corn.fence_x, 0.0, corn.gate_z) if corn != null else Vector3.INF
 
 
+## The boy in the corn from behind (his back to you, hiding).
+const CORN_BOY_SPRITE := "res://assets/textury/npc/boy_back.png"
+
+
 func start_corn_hunt(job: Dictionary) -> bool:
 	var corn := _corn_field()
 	var guests := _corn_wanderers()
+	# The family's boy (boy_brain.gd): it is him in there, not a guest.
+	if job.has("boy") and corn != null:
+		var of: Dictionary = job.get("boy_of", {})
+		guests = [{"id": int(of.get("id", -1)), "name": "The boy", "boy": int(job["boy"]),
+			"sprite_path": CORN_BOY_SPRITE if ResourceLoader.exists(CORN_BOY_SPRITE) else "res://assets/textury/npc/enemy_child.png"}]
 	if corn == null or guests.is_empty():
 		return false
 	end_corn_hunt()
@@ -1992,7 +2037,7 @@ func start_corn_hunt(job: Dictionary) -> bool:
 	_corn_hunt = hunt
 	_corn_job = job
 	job["guest_id"] = int(guest.get("id", -1))
-	job["title"] = "%s is lost in the corn" % str(guest.get("name", "Someone"))
+	job["title"] = "A child is lost in the corn" if job.has("boy") else "%s is lost in the corn" % str(guest.get("name", "Someone"))
 	hunt.finished.connect(_on_corn_hunt_finished)
 	return true
 
@@ -2008,6 +2053,16 @@ func _on_corn_hunt_finished(rescued: bool) -> void:
 	if hunt == null:
 		return
 	var who := str(hunt.guest_name)
+	if int(hunt.get("boy")) > 0:
+		# The boy: out, he is back in the tent by morning; not, the family is gone at dawn
+		# (boy_brain claimed).
+		if rescued:
+			_corn_job["rescued"] = true
+			for b in _enemy_brains:
+				if b != null and b.has_method("boy_found"):
+					b.boy_found()
+		hunt.queue_free()
+		return
 	if rescued:
 		_corn_job["rescued"] = true
 		GuestManager.apply_guest_event(int(hunt.guest_id), 15.0, "You came for me. In the dark. Thank you.")
@@ -3831,6 +3886,11 @@ func _update_interaction_hint() -> void:
 	if _corn_hunt != null and is_instance_valid(_corn_hunt) and str(_corn_hunt.hint()) != "":
 		_hud_manager.set_hint_text(str(_corn_hunt.hint()))
 		return
+	# A night thing's own line (the granny's basket within reach).
+	for b in _enemy_brains:
+		if b != null and b.has_method("hint") and str(b.hint()) != "":
+			_hud_manager.set_hint_text(str(b.hint()))
+			return
 	var lake_hint: String = _lake_trip.hint() if _lake_trip != null else ""
 	if _lake_trip != null and _lake_trip.is_active():
 		_hud_manager.set_hint_text("")
@@ -4240,12 +4300,24 @@ func _on_menu_test_night(enemy_id: String) -> void:
 		if _hud_manager != null:
 			_hud_manager.push_status("Test night: the sewer breaks again whenever it is mended.", 2)
 		return
-	debug_spawn_enemy(enemy_id)
+	# The boy at his worst (heavy: in the pipes both him and the raccoon).
+	debug_spawn_enemy(enemy_id, 4 if enemy_id == "child" else 3)
 	# It is one of the test camp's guests, turned (gone in the morning if it gets you).
 	if not _enemy_brains.is_empty():
 		var nb = _enemy_brains.back()
 		var ne: Dictionary = nb.get("_night_entry")
 		ne["guest"] = _pick_turned_guest(str(TEST_NIGHT_GUESTS.get(enemy_id, "")))
+		# The boy's job at once, not an hour into the night; his places in turn.
+		if nb.get("soon") != null:
+			nb.set("soon", true)
+		# The granny is out whatever the hour (she keeps to the small hours).
+		if nb.get("soon") != null and enemy_id == "basket":
+			nb.set("soon", true)
+		if nb.has_method("force_place"):
+			var where: String = TEST_BOY_PLACES[_test_boy_turn % TEST_BOY_PLACES.size()]
+			_test_boy_turn += 1
+			nb.force_place(where)
+			enemy_id = "child_" + where
 	# The spawn faces the office wall (a new camp starts at the desk): turn to the camp.
 	if _player != null and is_instance_valid(_player):
 		_player.rotate_y(PI)
@@ -4254,7 +4326,12 @@ func _on_menu_test_night(enemy_id: String) -> void:
 		if str(entry["id"]) == enemy_id:
 			label = str(entry["text"])
 	if _hud_manager != null:
-		_hud_manager.push_status("Test night: the %s is out." % label, 2)
+		if enemy_id.begins_with("child_"):
+			_hud_manager.push_status(str({"child_corn": "Test night: the boy is lost in the corn.",
+				"child_breaker": "Test night: the boy is at the generator's board.",
+				"child_sewer": "Test night: the boy is down the sewer."}.get(enemy_id, "")), 2)
+		else:
+			_hud_manager.push_status("Test night: the %s is out." % label, 2)
 
 
 ## The bus test (L, "Bus to Liblice"): a fresh sandbox camp by day, the warden at the
@@ -4343,6 +4420,9 @@ func _start_test_businesses() -> void:
 
 
 ## Which guests bring which test night's thing (main_menu.TEST_NIGHTS ids).
+## The boy's test night takes his places in turn (corn, board, pipes).
+const TEST_BOY_PLACES := ["corn", "breaker", "sewer"]
+static var _test_boy_turn := 0
 const TEST_NIGHT_GUESTS := {"silent_man": "quiet_guy", "tourist": "drunk", "girl": "cheap_chick", "whistler": "tramp", "child": "family", "basket": "picker"}
 
 
@@ -4751,6 +4831,8 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 			act.biz_set_job(str(a[0]), str(a[1]), str(a[2]), str(a[3]))
 		"late":
 			act.biz_set_late(str(a[0]), bool(a[1]))
+		"menu":
+			act.biz_set_menu(str(a[0]), str(a[1]), bool(a[2]))
 		"score":
 			act.biz_score(str(a[0]), a[1])
 

@@ -11,11 +11,13 @@ extends "res://scripts/corn/corn_station.gd"
 ##               the brush passes (the butter warmer, gear: all of it in one stroke)
 ##   the salt    a shake a click, as many as they asked (none for NO SALT)
 ##   napkins     a click wraps it
-##   over the counter (the front of it): to the picked slip, else the oldest; they judge
-##               it (corn_rules.judge): hard, soft, no butter, the salt off and they hand
-##               it back
+##   over the counter (the front of it, or SERVE: Space, Enter): to the picked slip, else
+##               the oldest; the cob flies over to them; they judge it (corn_rules.judge):
+##               hard, soft, no butter, the salt off and they hand it back
 ##   BIN         (the frame's button) the cob on the board in the bin
-## The cash box opens the books (the stock, the order).
+## The cash box opens the books (the stock, the order). The next step is lit (`next_hint`):
+## the husking when the bowl is empty, a cob in, a done one out, the butter, the salt,
+## the napkin, SERVE.
 
 ## On the counter (design px, stand_layout.SURFACES: 2 mm a px).
 const POT := Rect2(25, 108, 140, 128)
@@ -159,7 +161,63 @@ func _butter_span() -> Vector2:
 func cob_counts() -> Dictionary:
 	if _board.is_empty():
 		return {}
-	return {"butter": _butter_share(), "salt": int(_board["salt"]), "napkin": bool(_board["napkin"])}
+	return {"cook": float(_board["cook"]), "butter": _butter_share(), "salt": int(_board["salt"]), "napkin": bool(_board["napkin"])}
+
+
+# ── the frame: SERVE, the next step, the tab ─────────────────────────────────
+
+func serve_ready() -> bool:
+	return not _board.is_empty() and bool(_board["napkin"]) and not current_ticket().is_empty()
+
+
+func serve_now() -> void:
+	_hand_over()
+
+
+## What is best to do here now: dress the cob on the board in order, then SERVE; a done
+## cob out; a cob in for whoever has none cooking; the husking when the bowl is empty;
+## the drinks when only drinks wait.
+func next_hint() -> Dictionary:
+	if stand == null or building_key == "":
+		return {}
+	var t := current_ticket()
+	if not _board.is_empty():
+		if _butter_share() < 0.85:
+			return {"node": _board_spr, "gesture": "rub"}
+		if not t.is_empty() and int(_board["salt"]) < int(t.get("salt", 0)):
+			return {"rect": SALT, "gesture": "click"}
+		if not bool(_board["napkin"]):
+			return {"rect": NAPKINS, "gesture": "click"}
+		return {"ui": "serve"} if not t.is_empty() else {}
+	var wanted := cob_tickets().size()
+	var pot: Array = stand.pot(building_key)
+	for c in pot:
+		if CORN.stage(float(c["t"])) >= 1 and wanted > 0:
+			var s: Sprite3D = _cobs.get(str(c["id"]), null)
+			if s != null:
+				return {"node": s, "gesture": "click"}
+	if wanted > pot.size():
+		if int(stand.bowl(building_key)) > 0 and stand.free_slot(building_key) >= 0:
+			return {"rect": POT, "gesture": "click"}
+		if int(stand.bowl(building_key)) <= 0:
+			return {"tab": "husk"}
+	if wanted == 0 and not drink_tickets().is_empty() and drinks_on():
+		return {"tab": "drinks"}
+	return {}
+
+
+## A cob going soft in the pot burns the tab red; a done one waiting, amber.
+func alert() -> int:
+	if stand == null or building_key == "":
+		return 0
+	var lit := 0
+	for c in stand.pot(building_key):
+		var cook := CORN.cook_of(float(c["t"]))
+		if cook >= 1.12:
+			return 2
+		if cook >= 1.0:
+			lit = 1
+	return lit
 
 
 # ── what can be used ─────────────────────────────────────────────────────────
@@ -220,9 +278,14 @@ func _press(id: String) -> void:
 		"salt":
 			_board["salt"] = int(_board["salt"]) + 1
 			sfx("salt_shake", -10.0, _rng.randf_range(0.95, 1.15))
+			var want := int(current_ticket().get("salt", -1))
+			if int(_board["salt"]) == want:
+				sfx("tick", -12.0, 1.5)
 		"napkin":
 			_board["napkin"] = true
 			sfx("plate_down", -14.0, 1.3)
+			sfx("tick", -12.0, 1.5)
+			hop(_napkin_spr)
 		"hand":
 			_hand_over()
 		"cash":
@@ -251,10 +314,14 @@ func _drag(at: Vector2) -> void:
 	var len_px := COB_M / half
 	var u := clampf((at.x - (BOARD_AT.x - len_px * 0.5)) / len_px, 0.0, 0.999)
 	var k := int(u * mask.size())
+	var was := _butter_share()
 	for j in range(maxi(0, k - 1), mini(mask.size(), k + 2)):
 		mask[j] = 1
 	if _rng.randf() < d / 60.0:
 		sfx("butter", -14.0, _rng.randf_range(0.9, 1.1))
+	if was < 0.85 and _butter_share() >= 0.85:
+		# The line ticked off on the big slip.
+		sfx("tick", -12.0, 1.5)
 
 
 func _butter_all() -> void:
@@ -275,6 +342,7 @@ func _put_in() -> void:
 		return
 	stand.act(building_key, "in", [stand.new_id(), slot])
 	sfx("cob_in", -8.0, _rng.randf_range(0.95, 1.05))
+	sfx("splash", -16.0, _rng.randf_range(1.1, 1.3))
 
 
 func _take_out(id: String) -> void:
@@ -288,6 +356,7 @@ func _take_out(id: String) -> void:
 			_board = {"cook": CORN.cook_of(float(c["t"])), "butter": mask, "salt": 0, "napkin": false}
 			stand.act(building_key, "out", [id])
 			sfx("plate_down", -8.0)
+			hop(_board_spr)
 			return
 
 
@@ -299,33 +368,33 @@ func _hand_over() -> void:
 	if not bool(_board["napkin"]):
 		say(who, "In my hand? It's boiling. A napkin, please.")
 		return
+	t = _with_patience(t)
 	var v: Dictionary = stand.serve(building_key, t, float(_board["cook"]), _butter_share(), int(_board["salt"]))
 	if not bool(v.get("ok", false)):
 		if str(v.get("why", "")) == "butter":
 			say("", "No butter left.")
 			return
-		say(who, " ".join(v.get("notes", [])) + " Do another one.")
-		score_card(v, "Corn")
+		say(who, tr("%s Do another one.") % " ".join((v.get("notes", []) as Array).map(func(n) -> String: return tr(str(n)))))
+		score_card(v, "Corn", t)
 		_board = {}
 		sfx("plate_down", -12.0, 0.7)
 		return
 	picked = ""
 	_board = {}
 	sfx("till", -8.0)
+	# The cob flies over the counter into their hand.
+	fly(CORN_TEX + "cob_napkin.png", COB_M + 0.02, local_at(BOARD_AT, 0.05), guest_point(t), 0.42, 0.22)
 	pop("+$%d" % int(v["amount"]), CASH.get_center() + Vector2(0, -40), RETRO_UI.C_AMBER_LIGHT if int(v["tip"]) > 0 else RETRO_UI.C_BONE)
-	score_card(v, "Corn")
+	score_card(v, "Corn", t)
 	if int(v["stars"]) >= 3:
 		say(who, ["Now that is a cob.", "Like at my gran's.", "Perfect. Keep the change."][_rng.randi() % 3])
 	else:
 		var notes: Array = v.get("notes", [])
-		say(who, " ".join(notes) if not notes.is_empty() else "Cheers.")
+		say(who, " ".join(notes.map(func(n) -> String: return tr(str(n)))) if not notes.is_empty() else "Cheers.")
 
 
 func bar_buttons() -> Array:
-	var out: Array = [{"id": "books", "label": "BOOKS"}]
-	if not _board.is_empty():
-		out.push_front({"id": "bin", "label": "BIN"})
-	return out
+	return [{"id": "bin", "label": "BIN"}] if not _board.is_empty() else []
 
 
 func bar_button(id: String) -> void:

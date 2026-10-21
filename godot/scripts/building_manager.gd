@@ -181,6 +181,35 @@ func darken_lamp_near(pos: Vector3, radius: float, seconds: float) -> Vector3:
 	return (best["root"] as Node3D).global_position
 
 
+## Where the lamps lit now stand (the mushroom granny goes for them,
+## scripts/enemies/basket_brain.gd).
+func lit_lamp_positions() -> Array:
+	var out: Array = []
+	if not _lamps_active:
+		return out
+	for lamp_id in _lamp_runtime.keys():
+		var e: Dictionary = _lamp_runtime[lamp_id]
+		var root = e.get("root", null) as Node3D
+		if root != null and is_instance_valid(root) and not _is_lamp_entry_broken(e):
+			out.append(root.global_position)
+	return out
+
+
+## The lamp nearest `pos` within `radius` darkened by darken_lamp_near is lit again now
+## (its bulb back in). Whether there was one.
+func relight_lamp_near(pos: Vector3, radius: float) -> bool:
+	for lamp_id in _lamp_runtime.keys():
+		var e: Dictionary = _lamp_runtime[lamp_id]
+		var root = e.get("root", null) as Node3D
+		if root == null or not is_instance_valid(root) or float(e.get("dark_until", 0.0)) <= 0.0:
+			continue
+		if root.global_position.distance_to(pos) <= radius:
+			e["dark_until"] = 0.0
+			_apply_lamp_entry_base_state(e, _lamps_active)
+			return true
+	return false
+
+
 func _is_lamp_entry_broken(entry: Dictionary) -> bool:
 	if float(entry.get("dark_until", 0.0)) > Time.get_ticks_msec() / 1000.0:
 		return true

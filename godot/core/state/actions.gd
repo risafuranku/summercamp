@@ -633,6 +633,21 @@ func biz_set_late(key: String, on: bool) -> void:
 	_biz_tell("late", [key, on])
 
 
+## The books' MENU page: `item` on or off the menu (business_rules.MENU; the place's own
+## item never goes off). The guests order only what is on.
+func biz_set_menu(key: String, item: String, on: bool) -> void:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty():
+		return
+	var off: Array = (site.get("menu_off", []) as Array).duplicate()
+	off.erase(item)
+	if not on:
+		off.append(item)
+	site["menu_off"] = off
+	EventBus.state_changed.emit({"biz": "menu"})
+	_biz_tell("menu", [key, item, on])
+
+
 ## Who covers the front job now (business_runtime works it out each second): `staff`
 ## true when somebody does (the place serves without you), and their name.
 func biz_staffed(key: String, on: bool, name: String) -> void:

@@ -194,7 +194,8 @@ func _bistro(state, a) -> void:
 	var all: Array = k.tickets(REST_KEY)
 	var pass_t: Array = k.tickets(REST_KEY, "pass")
 	var bufet: Array = k.tickets(REST_KEY, "bufet")
-	_expect(pass_t.size() + bufet.size() == all.size() and not bufet.is_empty(), "the tickets split between the pass and the bufet (%d, %d)" % [pass_t.size(), bufet.size()])
+	var floor_t: Array = k.tickets(REST_KEY, "floor")
+	_expect(pass_t.size() + bufet.size() + floor_t.size() == all.size() and not (bufet + floor_t).is_empty(), "the tickets split between the pass, the soup and the floor's bottles (%d, %d, %d)" % [pass_t.size(), bufet.size(), floor_t.size()])
 	# The grill: on, cooked, turned, cooked, onto the rack.
 	var stock0 := BUSINESS.stock_of(REST_KEY, "sausage")
 	_expect(stock0 > 0, "sausages in the books (%d)" % stock0)
@@ -216,14 +217,21 @@ func _bistro(state, a) -> void:
 			sausage_t = t
 			break
 	if not sausage_t.is_empty():
-		var v: Dictionary = k.serve(REST_KEY, sausage_t, {"sausage": 1, "mustard": 1, "bread": 1}, 0.9)
-		_expect(bool(v["ok"]) and int(v["stars"]) >= 2, "a sausage with mustard and bread out of the hatch (%s)" % str(v))
-	# The bufet: the soup of the day, a bottle.
+		# Plated at the pass onto the hatch, served from the floor (the brief of 21. 10.).
+		var hv: Dictionary = k.to_hatch(REST_KEY, sausage_t, {"sausage": 1, "mustard": 1, "bread": 1}, 0.9)
+		_expect(bool(hv["ok"]) and k.hatch(REST_KEY).size() == 1, "a sausage plate on the hatch")
+		_expect(not k.tickets(REST_KEY, "pass").any(func(x) -> bool: return str(x["id"]) == str(sausage_t["id"])), "off the pass's rail once on the hatch")
+		var fst: Node3D = _station("floor", k)
+		await get_tree().process_frame
+		_expect(bool(fst.call("debug_serve_first")), "the floor takes it out")
+		_expect(k.site(REST_KEY)["served"].has(str(sausage_t["id"])) and k.hatch(REST_KEY).is_empty(), "a sausage with mustard and bread out of the hatch to its table")
+		fst.queue_free()
+	# The bufet: the soup of the day; the floor: a bottle.
 	var bst: Node3D = _station("bufet", k)
 	await get_tree().process_frame
 	var soup_t := {}
 	var drink_t := {}
-	for t in k.tickets(REST_KEY, "bufet"):
+	for t in k.tickets(REST_KEY, "bufet") + k.tickets(REST_KEY, "floor"):
 		if str(t["dish"]) == "soup" and soup_t.is_empty():
 			soup_t = t
 		elif BISTRO.DRINKS.has(str(t["dish"])) and drink_t.is_empty():
@@ -236,16 +244,19 @@ func _bistro(state, a) -> void:
 		bst.call("debug_click", "pot")
 		bst.call("debug_click", "bowl")
 		_expect(k.tickets(REST_KEY, "bufet").size() <= n0 - 1 and int(k.site(REST_KEY)["soup"]["level"]) == level0 - 1, "a bowl of the soup of the day over the counter")
+	bst.queue_free()
 	if not drink_t.is_empty():
+		var dst: Node3D = _station("floor", k)
+		await get_tree().process_frame
 		var kind := str(drink_t["dish"])
 		var b0 := BUSINESS.stock_of(REST_KEY, kind)
-		bst.set("picked", str(drink_t["id"]))
-		bst.call("debug_click", "crate_" + kind)
-		bst.call("debug_pop")
-		_expect(bool(bst.get("_bottle").get("open", false)), "the cap off the bottle")
-		bst.call("debug_click", "bottle")
+		dst.set("picked", str(drink_t["id"]))
+		dst.call("debug_click", "crate_" + kind)
+		dst.call("debug_pop")
+		_expect(bool(dst.get("_bottle").get("open", false)), "the cap off the bottle")
+		dst.call("debug_click", "bottle")
 		_expect(BUSINESS.stock_of(REST_KEY, kind) == b0 - 1 and k.site(REST_KEY)["served"].has(str(drink_t["id"])), "a %s opened and served" % kind)
-	bst.queue_free()
+		dst.queue_free()
 	# The hands at the grill and the bufet.
 	for role_slug in [["grill", "pepa"], ["bufet", "hanka"]]:
 		var p := RULES.person(str(role_slug[1]), "rest")
@@ -253,9 +264,9 @@ func _bistro(state, a) -> void:
 		p["shift"] = "day"
 		a.biz_hire(REST_KEY, p, 1)
 	_expect(k._crew_grill(REST_KEY, false), "the grill's hand puts a sausage on")
-	var left: int = k.tickets(REST_KEY, "bufet").size()
+	var left: int = k.tickets(REST_KEY, "bufet").size() + k.tickets(REST_KEY, "floor").size()
 	if left > 0:
-		_expect(k._crew_bufet(REST_KEY, {"name": "Hanka"}, false), "the bufet's hand serves a soup or a bottle")
+		_expect(k._crew_bufet(REST_KEY, {"name": "Hanka"}, false), "the bufet's hand serves a soup, or a bottle with nobody on the floor")
 	BUSINESS.site(REST_KEY)["crew"] = []
 	state.guests.clear()
 

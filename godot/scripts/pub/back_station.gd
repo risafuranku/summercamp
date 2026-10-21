@@ -49,6 +49,54 @@ func _build() -> void:
 	_line.position = local_at(GLASS_AT + Vector2(-34, 0), 0.1)
 
 
+func serves_kind() -> String:
+	return "bar"
+
+
+func serve_ready() -> bool:
+	return _bottle != "" and _fill >= 0.5 and _slide < 0.0 and not _pouring and not _orders_for(_bottle).is_empty()
+
+
+func serve_now() -> void:
+	_serve()
+
+
+func _line_of(drink: String) -> float:
+	return PUB.LINE_TALL if bool(PUB.DRINKS.get(drink, {}).get("tall", false)) else PUB.LINE_SHOT
+
+
+## A shot's or a kofola's checklist: the right bottle, poured to the line, nothing over.
+func checklist(t: Dictionary) -> Array:
+	if str(t.get("kind", "")) == "bill" or PUB.kind(str(t.get("drink", ""))) != "bar":
+		return super.checklist(t)
+	var drink := str(t["drink"])
+	var line := _line_of(drink)
+	var mine := _bottle == drink
+	return [
+		{"text": PUB.label(drink), "state": "done" if mine else ("bad" if _bottle != "" else "todo")},
+		{"text": "TO THE LINE", "state": "done" if mine and _fill >= line - 0.08 else "todo"},
+		{"text": "NOTHING SPILT", "state": "bad" if _spill > 0.03 else ("done" if mine and _fill >= line - 0.08 else "todo")},
+	]
+
+
+## What is best to do at the bottles now: the bottle the order wants, hold it over the
+## glass to the line, SERVE; the tap when only beer waits.
+func next_hint() -> Dictionary:
+	var orders := orders_here("bar")
+	if orders.is_empty():
+		return {"tab": "tap"} if not orders_here("tap").is_empty() or not bills().is_empty() else {}
+	var t: Dictionary = orders[0]
+	var drink := str(t["drink"])
+	if _bottle == "":
+		var b = _bottles.get(drink, null)
+		return {"node": b, "gesture": "click"} if b != null else {}
+	if _bottle != drink:
+		return {}
+	if _fill < _line_of(drink) - 0.05:
+		return {"node": _bottles[drink], "gesture": "hold"}
+	return {"ui": "serve"}
+
+
 func _tall() -> bool:
 	return _bottle != "" and bool(PUB.DRINKS[_bottle].get("tall", false))
 
@@ -156,6 +204,7 @@ func _press(id: String) -> void:
 		_fill = 0.0
 		_spill = 0.0
 		sfx("glass_down", -12.0, 1.2)
+		hop(_glass)
 		return
 	match id:
 		"pour":
@@ -211,6 +260,7 @@ func _serve() -> void:
 	_slide = 0.0
 	sfx("coins_bar", -8.0)
 	pop("+$%d" % int(verdict["amount"]), GLASS_AT + Vector2(0, -120), RETRO_UI.C_AMBER_LIGHT if int(verdict["tip"]) > 0 else RETRO_UI.C_BONE, true)
+	score_card(verdict, PUB.label(_bottle), _with_patience(t))
 	say(who, ["Na zdravi.", "Cheers.", "Another in a bit."][_rng.randi() % 3] if int(verdict["stars"]) >= 2 else "Hm.")
 
 

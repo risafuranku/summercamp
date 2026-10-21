@@ -94,6 +94,37 @@ static func get_for(node: Node) -> Node:
 	return fx
 
 
+## The close-ups in the world's game pixels and palette (materials/closeup_retro.gdshader):
+## one material for every picture laid over the screen at night (here, the boy's face over
+## the board and in the pipes), its game pixel the world's (RetroRender.internal_scale).
+const CLOSEUP_SHADER = preload("res://materials/closeup_retro.gdshader")
+const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+static var _retro_mat: ShaderMaterial
+const CLOSEUP_LINES := 100.0
+
+
+static func retro_material() -> ShaderMaterial:
+	if _retro_mat == null:
+		_retro_mat = ShaderMaterial.new()
+		_retro_mat.shader = CLOSEUP_SHADER
+		_retro_mat.set_shader_parameter("palette_lut", RETRO_RENDER.LUT)
+	return _retro_mat
+
+
+## The game pixel for a screen this high, and the palette as the settings have it.
+static func update_retro(screen_height: float) -> void:
+	var m := retro_material()
+	# About CLOSEUP_LINES of them down the screen, a whole number of the world's pixels: a
+	# sprite this near the eye has its texels blown up, as Build drew a face in yours (at
+	# the world's own pixel it read as a painting).
+	var world_px := float(RETRO_RENDER.internal_scale(screen_height))
+	var px := maxf(world_px * 2.0, roundf(screen_height / CLOSEUP_LINES / world_px) * world_px)
+	m.set_shader_parameter("px_size", px)
+	var lines := int(RETRO_RENDER.PRESET_LINES.get(RETRO_RENDER.current_preset(), 240))
+	m.set_shader_parameter("dither_strength", float(RETRO_RENDER.DITHER_BY_LINES.get(lines, 0.3)))
+	m.set_shader_parameter("palette_mix", 1.0 if RETRO_RENDER.palette_enabled() else 0.0)
+
+
 func _init() -> void:
 	name = NODE_NAME
 	layer = 104
@@ -160,6 +191,9 @@ func _build() -> void:
 		_halves.append(h)
 	# The hands go over the split face.
 	move_child(_over, get_child_count() - 1)
+	# Every picture in the world's pixels and palette.
+	for n in [_sub, _close, _over] + _halves:
+		(n as CanvasItem).material = retro_material()
 	_eyes_layer = Control.new()
 	_eyes_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_eyes_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -507,6 +541,8 @@ func tinnitus(seconds: float) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if is_inside_tree():
+		update_retro(get_viewport().get_visible_rect().size.y)
 	# Dread: the largest source, eased; sources forget themselves each frame.
 	var want := 0.0
 	for k in _dread_src:

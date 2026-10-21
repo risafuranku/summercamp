@@ -341,3 +341,38 @@ func debug_box(good: String) -> int:
 	_pricing = true
 	_tick(PRICE_SEC + 0.1)
 	return int(shop.trolley(building_key).get(good, 0)) - before
+
+
+# ── the frame: the next step, the tab ────────────────────────────────────────
+
+## What is best to do in the storeroom: a carton for an empty place, its tape cut (a drag
+## across it), its goods priced (hold the gun), onto the trolley; the rack after.
+func next_hint() -> Dictionary:
+	for o in _offs:
+		if o != null and (o as Sprite3D).visible:
+			return {"node": o, "gesture": "click"}
+	if not _work.is_empty():
+		if _box.visible:
+			return {"node": _box, "gesture": "click" if bool(_work["open"]) else "drag", "to": Vector2(420, 180)}
+		return {}
+	var empty := empty_places()
+	var on_trolley: Dictionary = shop.trolley(building_key) if shop != null else {}
+	for e in _cartons:
+		var g := str(e["good"])
+		if (e["box"] as Sprite3D).visible and g in empty and int(on_trolley.get(g, 0)) <= 0:
+			return {"node": e["box"], "gesture": "click"}
+	for g in empty:
+		if int(on_trolley.get(g, 0)) > 0:
+			return {"tab": "shelves"}
+	return {}
+
+
+## The rack has empty places and the trolley nothing for them: amber.
+func alert() -> int:
+	if shop == null or building_key == "":
+		return 0
+	var on_trolley: Dictionary = shop.trolley(building_key)
+	for g in empty_places():
+		if int(on_trolley.get(g, 0)) <= 0:
+			return 1
+	return 0

@@ -13,6 +13,16 @@ extends Node
 ##
 ## Everything moves in steps, 10 a second at most: the guest's walk, the scarecrow's
 ## lurch, the way the old film the camp is shot on would show it.
+##
+## The boy (`boy` > 0: the family's boy, scripts/enemies/boy_brain.gd; DESIGN §5 "The
+## boy"): it is him in there, hiding, his back to you, and it is hide and seek. He does
+## not call: every few seconds he whispers at your ear how close you are, cold, warmer
+## (nearer than the last time), burning (a few steps off); a giggle out of the stalks
+## where he is. Found, you take his hand and he says not to look at him, and he follows.
+## Look back at him while you lead him (on your screen, near) and his head comes round:
+## the face, the shriek, the hit, and he is gone back into the corn to be found again.
+## Medium he lies now and then (warmer when you go away), heavy more, and he asks you to
+## turn round. No line of text tells any of it: his voice does.
 
 signal finished(rescued: bool)
 
@@ -22,6 +32,43 @@ const RUSH_SFX := "res://assets/sfx/world/corn_rush.mp3"
 const STEP_FPS := 10.0
 const HIT_DAMAGE := 22
 const LIT_RANGE := 13.0
+const NIGHTMARE_FX = preload("res://scripts/night/nightmare_fx.gd")
+const BOY_DIR := "res://assets/sfx/npc/boy/"
+const BOY_FACE := "res://assets/textury/npc/boy_face.png"
+## Him facing you as he follows (what you see if you look back), and hiding (his back).
+const BOY_FRONT := "res://assets/textury/npc/boy_t1.png"
+## His voice is a young woman's pitched up (no child voices to be had).
+const BOY_PITCH := 1.22
+const BOY_SAYS := {
+	"cold": ["cold_1", "cold_2", "cold_3"], "warm": ["warm_1", "warm_2", "warm_3"], "hot": ["hot_1", "hot_2"],
+	"follow": ["follow_1", "follow_2", "follow_3", "follow_4"], "bait": ["bait_1", "bait_2", "bait_3"],
+}
+## By his tier (1 light .. 3 heavy): how often a hint lies, how often a line while he
+## follows is a bait to look, how long a look back he lets go, how hard his face hits.
+const BOY_LIES := [0.0, 0.0, 0.2, 0.35]
+const BOY_BAITS := [0.0, 0.0, 0.3, 0.55]
+const BOY_LOOK := [0.0, 0.4, 0.3, 0.2]
+const BOY_HIT := [0, 16, 24, 34]
+
+## The family's boy instead of a guest: his tier 1-3 (0: a guest).
+var boy := 0
+## The last hint he gave ("cold", "warm", "hot") and how many times his face came round
+## (for the checks).
+var last_hint := ""
+var strikes := 0
+var _whisper_t := 2.5
+var _last_dist := -1
+var _giggle_t := 7.0
+var _look_t := 0.0
+var _grace := 0.0
+var _grace_clear := false
+var _unseen_t := 0.0
+var _line_t := 7.0
+var _steps_t := 0.0
+var _ear: AudioStreamPlayer
+var _giggle_player: AudioStreamPlayer3D
+var _boy_back: Texture2D
+var _boy_front: Texture2D
 
 var guest_id := -1
 var guest_name := ""
@@ -64,6 +111,7 @@ func setup(main_node: Node, corn: Node, guest: Dictionary) -> bool:
 	_corn = corn
 	guest_id = int(guest.get("id", -1))
 	guest_name = str(guest.get("name", "A guest"))
+	boy = int(guest.get("boy", 0))
 	var ends: Array = corn.dead_ends()
 	if ends.is_empty():
 		return false
@@ -84,11 +132,23 @@ func setup(main_node: Node, corn: Node, guest: Dictionary) -> bool:
 	_guest.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	_guest.shaded = true
 	if _guest.texture != null:
-		_guest.pixel_size = 1.7 / float(_guest.texture.get_height())
+		_guest.pixel_size = (1.25 if boy > 0 else 1.7) / float(_guest.texture.get_height())
 		_guest.offset = Vector2(0, _guest.texture.get_height() * 0.5)
 	corn.add_child(_guest)
 	_guest.global_position = corn.tile_world(pick)
-	_call_player = _sound(CALL_SFX, _guest, 7.0, -3.0)
+	_call_player = _sound(CALL_SFX if boy == 0 else "", _guest, 7.0, -3.0)
+	if boy > 0:
+		_boy_back = _guest.texture
+		_boy_front = load(BOY_FRONT) if ResourceLoader.exists(BOY_FRONT) else _boy_back
+		_giggle_player = _sound(BOY_DIR + "giggle_1.mp3", _guest, 4.0, -6.0)
+		_giggle_player.pitch_scale = 1.1
+		_ear = AudioStreamPlayer.new()
+		add_child(_ear)
+		# The night's screen made now: made at his strike it is not up till the frame after
+		# and his face would not show.
+		var world: Node = _main.get("_world_3d")
+		if world != null:
+			NIGHTMARE_FX.get_for(world)
 	_rush_player = _sound(RUSH_SFX, corn.scarecrow, 4.0, 0.0)
 	# What they dropped on the way in: a trail every few tiles from the gate to them.
 	var path: Array = corn.path_between(corn.entrance, pick)
@@ -101,7 +161,12 @@ func setup(main_node: Node, corn: Node, guest: Dictionary) -> bool:
 		(built["body"] as Node).queue_free()
 		_trail.append(built["root"])
 		k += rng.randi_range(4, 7)
-	# A lighter they keep clicking: a small warm light you can see over the stalks.
+	# A lighter they keep clicking: a small warm light you can see over the stalks (not
+	# the boy: he hides in the dark).
+	if boy > 0:
+		_scare_tile = _far_tile([pick, corn.entrance])
+		_place_scarecrow()
+		return true
 	_lighter = OmniLight3D.new()
 	_lighter.light_color = Color(1.0, 0.72, 0.36)
 	_lighter.omni_range = 5.0
@@ -153,8 +218,10 @@ func _process(delta: float) -> void:
 	var ppos: Vector3 = player.global_position
 	var in_corn: bool = _corn.in_maze(ppos) or (ppos.x < _corn.fence_x and absf(ppos.z - _corn.gate_z) < 2.0)
 
+	if boy > 0:
+		_boy_process(delta, player, ppos, in_corn)
 	# The guest calls out until found.
-	if not _following:
+	elif not _following:
 		_call_timer -= delta
 		if _call_timer <= 0.0:
 			_call_timer = randf_range(5.0, 9.0)
@@ -191,7 +258,7 @@ func _process(delta: float) -> void:
 
 	_update_lighter(delta)
 	_update_leaves(delta)
-	if _following:
+	if _following and boy == 0:
 		_quote_timer -= delta
 		if _quote_timer <= 0.0:
 			_quote_timer = randf_range(9.0, 16.0)
@@ -305,7 +372,8 @@ func _hit(player: Node3D) -> void:
 		Coop.send_night_event("hurt", [HIT_DAMAGE])
 	elif _main.has_method("damage_player"):
 		_main.damage_player(HIT_DAMAGE)
-	_notice("Something in the corn. %s screams and runs." % guest_name, 2)
+	if boy == 0:
+		_notice("Something in the corn. %s screams and runs." % guest_name, 2)
 	if _following:
 		_following = false
 		var ends: Array = _corn.dead_ends()
@@ -314,6 +382,200 @@ func _hit(player: Node3D) -> void:
 	_scare_tile = _far_tile([_corn.world_tile(player.global_position)])
 	_place_scarecrow()
 	_scare_timer = 6.0
+
+
+# ── the boy ──────────────────────────────────────────────────────────────────
+
+func _boy_process(delta: float, player: Node3D, ppos: Vector3, in_corn: bool) -> void:
+	if not _following:
+		if in_corn:
+			_boy_hints(delta, ppos)
+		if Vector2(ppos.x - _guest.global_position.x, ppos.z - _guest.global_position.z).length() < 1.6:
+			_set_hint("[E] Take his hand")
+			if Input.is_action_just_pressed("interact"):
+				_take_hand()
+		else:
+			_set_hint("")
+		return
+	# Following, a few steps behind you: his breadcrumbs.
+	if _crumbs.is_empty() or _crumbs.back().distance_to(ppos) > 0.35:
+		_crumbs.append(ppos)
+		if _crumbs.size() > 40:
+			_crumbs.pop_front()
+	_step_acc += delta
+	if _step_acc >= 1.0 / STEP_FPS:
+		_step_acc = 0.0
+		var target: Vector3 = _crumbs[maxi(0, _crumbs.size() - 5)]
+		var gp := _guest.global_position
+		var to := Vector3(target.x - gp.x, 0, target.z - gp.z)
+		if to.length() > 0.9:
+			_guest.global_position = gp + to.normalized() * minf(to.length() - 0.9, 0.55)
+			_guest.flip_h = not _guest.flip_h
+			_steps_t -= 1.0 / STEP_FPS
+			if _steps_t <= 0.0:
+				_steps_t = randf_range(2.2, 3.4)
+				_sound_at(BOY_DIR + "steps_corn.mp3", _guest.global_position, -10.0)
+	if _guest.global_position.x > _corn.fence_x + 0.8 and ppos.x > _corn.fence_x + 0.8:
+		_finish(true)
+		return
+	# His lines behind you; the worse he is, the more of them ask you to turn round.
+	_line_t -= delta
+	if _line_t <= 0.0:
+		_line_t = randf_range(8.0, 14.0)
+		_boy_say_kind("bait" if randf() < BOY_BAITS[boy] else "follow", -8.0)
+	# Do not look at him.
+	var in_sight := _boy_in_sight()
+	if not _grace_clear:
+		_grace -= delta
+		_unseen_t = 0.0 if in_sight else _unseen_t + delta
+		_grace_clear = _unseen_t >= 0.4 or _grace <= 0.0
+		return
+	if in_sight:
+		_look_t += delta
+		if _look_t >= BOY_LOOK[boy]:
+			_boy_strike(player)
+	else:
+		_look_t = maxf(0.0, _look_t - delta * 2.0)
+
+
+## Found: his cold hand in yours, "found me", and then not to look at him.
+func _take_hand() -> void:
+	_following = true
+	_crumbs.clear()
+	_set_hint("")
+	# You face him as you take his hand: it counts from the first time you look away (or
+	# a few seconds).
+	_grace = 6.0
+	_grace_clear = false
+	_unseen_t = 0.0
+	_look_t = 0.0
+	_line_t = randf_range(7.0, 11.0)
+	_boy_say("found", -6.0)
+	_sfx_2d(BOY_DIR + "hand.mp3", -4.0, 1.0)
+	_boy_look(_boy_front)
+	get_tree().create_timer(1.6).timeout.connect(_say_rule)
+
+
+func _say_rule() -> void:
+	if _following and not _done:
+		_boy_say("rule_1" if randf() < 0.6 else "rule_2", -5.0)
+
+
+## Cold, warmer, burning: by the way through the maze from you to him, against the last.
+func _boy_hints(delta: float, ppos: Vector3) -> void:
+	_giggle_t -= delta
+	if _giggle_t <= 0.0:
+		_giggle_t = randf_range(9.0, 16.0)
+		if _giggle_player != null:
+			_giggle_player.stream = load(BOY_DIR + ("giggle_1.mp3" if randf() < 0.5 else "giggle_2.mp3"))
+			_giggle_player.play()
+	_whisper_t -= delta
+	if _whisper_t > 0.0:
+		return
+	_whisper_t = randf_range(3.5, 6.0)
+	var me: Vector2i = _corn.world_tile(ppos)
+	if not _corn.maze_open.has(me):
+		me = _corn.entrance
+	var d: int = (_corn.path_between(me, _corn.world_tile(_guest.global_position)) as Array).size()
+	var kind := "hot" if d <= 3 else ("warm" if (_last_dist >= 0 and d < _last_dist) or d <= 7 else "cold")
+	if kind != "hot" and randf() < BOY_LIES[boy]:
+		kind = "cold" if kind == "warm" else "warm"
+	_last_dist = d
+	last_hint = kind
+	_boy_say_kind(kind, -7.0)
+
+
+## Him on your screen, near, nothing between: you looked back.
+func _boy_in_sight() -> bool:
+	var at := _guest.global_position + Vector3(0, 0.8, 0)
+	var cam: Camera3D = _main.call("_get_player_camera") if _main.has_method("_get_player_camera") else null
+	if cam == null or cam.global_position.distance_to(at) > 9.0:
+		return false
+	return _in_view(at)
+
+
+## His head comes round: the face in yours, the shriek, the hit; he is gone back into the
+## corn, and it is to do again.
+func _boy_strike(player: Node3D) -> void:
+	_following = false
+	_look_t = 0.0
+	_last_dist = -1
+	strikes += 1
+	var world: Node = _main.get("_world_3d")
+	var fx = NIGHTMARE_FX.get_for(world) if world != null else null
+	_sfx_2d(BOY_DIR + "turn.mp3", 0.0, 1.0)
+	_sfx_2d(BOY_DIR + "shriek.mp3", 2.0, 1.0)
+	if fx != null:
+		var face: Texture2D = load(BOY_FACE if ResourceLoader.exists(BOY_FACE) else "res://assets/textury/npc/host_kid.png")
+		fx.freeze(0.12)
+		fx.close_up(face, 1.0, 1.0, 0.015)
+		fx.glitch(0.9, 0.7)
+		fx.tinnitus(2.5)
+		# Red once his face is gone (over it, it hid him).
+		get_tree().create_timer(0.9).timeout.connect(func():
+			fx.close_up_off()
+			fx.red_flash(0.55))
+	if leader != null and is_instance_valid(leader) and player == leader:
+		Coop.send_night_event("hurt", [BOY_HIT[boy]])
+	elif _main.has_method("damage_player"):
+		_main.damage_player(BOY_HIT[boy])
+	get_tree().create_timer(2.2).timeout.connect(_say_looked)
+	# Back in the corn, far from you, hiding again.
+	_boy_look(_boy_back)
+	_guest.global_position = _corn.tile_world(_far_tile([_corn.world_tile(player.global_position)]))
+	_whisper_t = 4.0
+
+
+## His picture (front or back), kept to his height.
+func _boy_look(tex: Texture2D) -> void:
+	if tex == null:
+		return
+	_guest.texture = tex
+	_guest.pixel_size = 1.25 / float(tex.get_height())
+	_guest.offset = Vector2(0, tex.get_height() * 0.5)
+
+
+func _say_looked() -> void:
+	if not _done:
+		_boy_say("looked", -6.0)
+
+
+func _boy_say_kind(kind: String, db: float) -> void:
+	var ids: Array = BOY_SAYS[kind]
+	_boy_say(str(ids[randi_range(0, ids.size() - 1)]), db)
+
+
+## At your ear, wherever he is.
+func _boy_say(id: String, db: float) -> void:
+	_sfx_2d(BOY_DIR + id + ".mp3", db, BOY_PITCH)
+
+
+func _sfx_2d(path: String, db: float, pitch: float) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var p := _ear
+	if p == null or p.playing:
+		p = AudioStreamPlayer.new()
+		add_child(p)
+		p.finished.connect(p.queue_free)
+	p.stream = load(path)
+	p.volume_db = db
+	p.pitch_scale = pitch
+	p.play()
+
+
+func _sound_at(path: String, at: Vector3, db: float) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var p := AudioStreamPlayer3D.new()
+	p.stream = load(path)
+	p.volume_db = db
+	p.unit_size = 4.0
+	p.max_distance = 30.0
+	_corn.add_child(p)
+	p.global_position = at
+	p.finished.connect(p.queue_free)
+	p.play()
 
 
 func _place_scarecrow() -> void:

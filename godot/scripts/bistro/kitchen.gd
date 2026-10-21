@@ -12,7 +12,12 @@ extends Node
 ##   plates  {clean, dirty}
 ##   grill   the grill's places on the kitchen island: a sausage each {down, t: [a, b]}
 ##   soup    the soup of the day's pot at the bufet {level}
+##   hatch   plates rung out at the pass, waiting on the floor's counter to be taken to
+##           their table (the brief of 21. 10.: "the kitchen cooks and plates, the floor
+##           serves"): [{tid, parts, cook}]
 ##   served  tickets served: id -> {dish, at (game minute), parts}
+## The prepared goods bought dearer in the books (cut chips, breaded cheese) go onto the
+## trays by themselves, as if the cellar had done them (the cellar is optional).
 ## The stove and the pot go on cooking whether anybody is at them or not: a slice left in
 ## the pan burns, the pot left unstirred catches on the bottom (the room's marks say so).
 ##
@@ -96,6 +101,7 @@ func _fresh(key: String) -> Dictionary:
 		"plates": {"clean": int(saved.get("clean", RULES.PLATES)), "dirty": int(saved.get("dirty", 0))},
 		"grill": grill,
 		"soup": {"level": int(saved.get("soup", 8))},
+		"hatch": [],
 		# The dishwasher (gear): plates in it and the seconds left.
 		"washer": {"n": int(saved.get("washer_n", 0)), "t": float(saved.get("washer_t", 0.0))},
 		"served": {},
@@ -166,10 +172,16 @@ static func patience_k(key: String) -> float:
 ## parts, price, since, age}]. Nobody served by a hand; not served yet; up once they
 ## have read the menu. `where`: "pass" (the plates), "bufet" (the soup, the bottles),
 ## "" all of them.
+## Open tickets at `key`, oldest first; `where`: "pass" (the plates still to be made),
+## "bufet" (the soup of the day), "floor" (the plates on the hatch and the bottles),
+## "" all. What is off the books' menu is never ordered: they pick the next dish they like
+## that is on (the bottles: no bottle). Nothing after last orders.
 func tickets(key: String, where := "") -> Array:
 	var out: Array = []
 	var now := now_min()
 	var served: Dictionary = site(key)["served"]
+	var books := BUSINESS.site(key)
+	var hatched := hatched_ids(key)
 	for v in ORDERS.visitors(key):
 		var visit := str(v["visit"])
 		var figures := int(v.get("figures", 1))
@@ -182,8 +194,25 @@ func tickets(key: String, where := "") -> Array:
 		for t in RULES.tickets_for(visit, str(v["archetype"]), figures):
 			if served.has(str(t["id"])):
 				continue
-			if where != "" and RULES.at_bufet(str(t["dish"])) != (where == "bufet"):
+			if not BIZ_RULES.menu_on("rest", books, str(t["dish"])):
+				if RULES.DRINKS.has(str(t["dish"])):
+					continue
+				t = RULES.instead(t, func(d: String) -> bool: return BIZ_RULES.menu_on("rest", books, d))
+			if not BUSINESS.takes_orders_at(key, since + int(t["member"])):
 				continue
+			var dish := str(t["dish"])
+			var on_hatch := hatched.has(str(t["id"]))
+			match where:
+				"pass":
+					if RULES.at_bufet(dish) or on_hatch:
+						continue
+				"bufet":
+					if dish != "soup":
+						continue
+				"floor":
+					if not (RULES.DRINKS.has(dish) or on_hatch):
+						continue
+			t["hatched"] = on_hatch
 			t["visit"] = visit
 			t["guest_id"] = int(v["id"])
 			t["name"] = str(v["name"])
@@ -300,16 +329,66 @@ func _apply(key: String, op: String, args: Array) -> void:
 		"served":
 			var rec: Dictionary = (args[1] as Dictionary).duplicate(true)
 			s["served"][str(args[0])] = rec
+			_unhatch(s, str(args[0]))
 			# Out of the hatch, on whichever machine served it.
 			plate_out.emit(key, str(args[0]), rec)
+		"hatch":
+			# A plate rung out at the pass onto the floor's counter.
+			_unhatch(s, str(args[0]))
+			(s["hatch"] as Array).append({"tid": str(args[0]), "parts": (args[1] as Dictionary).duplicate(), "cook": float(args[2])})
+		"unhatch":
+			_unhatch(s, str(args[0]))
 		"snap":
 			var got: Dictionary = args[0]
-			for k in ["prep", "q", "pan", "basket", "pot", "loaf", "plates", "washer", "proto", "grill", "soup"]:
+			for k in ["prep", "q", "pan", "basket", "pot", "loaf", "plates", "washer", "proto", "grill", "soup", "hatch"]:
 				if got.has(k):
 					s[k] = (got[k] as Dictionary).duplicate(true) if got[k] is Dictionary else (got[k] as Array).duplicate(true)
 			for tid in (got.get("served", {}) as Dictionary):
 				s["served"][tid] = got["served"][tid]
 	changed.emit(key, op)
+
+
+static func _unhatch(s: Dictionary, tid: String) -> void:
+	var keep: Array = []
+	for h in s.get("hatch", []):
+		if str(h["tid"]) != tid:
+			keep.append(h)
+	s["hatch"] = keep
+
+
+## The plates waiting on the hatch: [{tid, parts, cook}], oldest first.
+func hatch(key: String) -> Array:
+	return site(key).get("hatch", [])
+
+
+func hatched_ids(key: String) -> Dictionary:
+	var out := {}
+	for h in hatch(key):
+		out[str(h["tid"])] = h
+	return out
+
+
+## A plate off the pass onto the hatch: right for the ticket (the dish and its counts
+## judged now, the wait when it reaches the table) or sent back to the cook.
+## Returns the judgement ({ok: false, notes} when it is not what they ordered).
+func to_hatch(key: String, t: Dictionary, parts: Dictionary, cook := -1.0) -> Dictionary:
+	var verdict: Dictionary = RULES.judge(parts, t["parts"], int(t.get("age", 0)))
+	if not bool(verdict["ok"]):
+		return verdict
+	act(key, "hatch", [str(t["id"]), parts, cook])
+	return verdict
+
+
+## The plate of ticket `t` off the hatch to its table: judged (the build, the cooking, the
+## wait till now) into the money, the tip, the stars (serve).
+func serve_hatch(key: String, t: Dictionary, hand := "") -> Dictionary:
+	var h: Dictionary = hatched_ids(key).get(str(t["id"]), {})
+	if h.is_empty():
+		return {"ok": false, "why": "none"}
+	var v := serve(key, t, h["parts"], float(h["cook"]), hand)
+	if bool(v.get("ok", false)):
+		act(key, "unhatch", [str(t["id"])])
+	return v
 
 
 ## From another machine (Coop.send_kitchen).
@@ -325,7 +404,7 @@ func coop_kitchen(key: String, op: String, args: Array) -> void:
 
 func _snapshot(key: String) -> Dictionary:
 	var s := site(key)
-	return {"prep": s["prep"], "q": s["q"], "pan": s["pan"], "basket": s["basket"], "pot": s["pot"], "loaf": s["loaf"], "plates": s["plates"], "washer": s["washer"], "served": s["served"], "proto": s["proto"], "grill": s["grill"], "soup": s["soup"]}
+	return {"prep": s["prep"], "q": s["q"], "pan": s["pan"], "basket": s["basket"], "pot": s["pot"], "loaf": s["loaf"], "plates": s["plates"], "washer": s["washer"], "served": s["served"], "proto": s["proto"], "grill": s["grill"], "soup": s["soup"], "hatch": s.get("hatch", [])}
 
 
 ## Takes `n` of `item` off a tray; false when there is not that much.
@@ -559,6 +638,7 @@ func _host_second() -> void:
 		var crew: Array = BUSINESS.crew_now(key)
 		if not crew.is_empty():
 			_crew_work(key, crew)
+		_prepared(key)
 		_proto(key)
 		for v in ORDERS.visitors(key):
 			var visit := str(v["visit"])
@@ -576,7 +656,7 @@ func _host_second() -> void:
 						# A plate or a bowl back to the sink (a bottle goes in the crate).
 						if not RULES.DRINKS.has(str(served[tid].get("dish", ""))):
 							act(key, "plates", [0, 1])
-				elif int(ORDERS._served.get(visit, 0)) < figures:
+				elif int(ORDERS._served.get(visit, 0)) < figures and BUSINESS.takes_orders_at(key, since + int(t["member"])):
 					hold = maxi(hold, since + int(t["member"]) + int(RULES.PATIENCE_GONE / patience_k(key)))
 			if hold > now:
 				holds[gid] = hold
@@ -599,6 +679,17 @@ func _host_second() -> void:
 			_save(key)
 	# The Jednota keeps its own (orders.set_holds merges them).
 	ORDERS.set_holds("rest", holds)
+
+
+## The prepared goods bought in the books (the cellar skipped): cut chips and breaded
+## cheese go onto the cellar's trays as they are wanted, as the cellar's hand would.
+func _prepared(key: String) -> void:
+	for pair in [["chips_cut", "chips_raw", 6], ["cheese_breaded", "cheese_raw", 4]]:
+		var good := str(pair[0])
+		var tray := str(pair[1])
+		if prep(key, tray) < int(pair[2]) and room_for(key, tray) and BUSINESS.stock_of(key, good) > 0:
+			if CoreRoot.actions.biz_take(key, {good: 1}):
+				act(key, "prep", [tray, 1])
 
 
 func _rest_sites() -> Array:
@@ -728,8 +819,35 @@ func _crew_work(key: String, crew: Array) -> void:
 			"grill":
 				did = _crew_grill(key, slip)
 			"bufet":
-				did = _crew_bufet(key, p, slip)
+				did = _crew_bufet(key, p, slip, _has_role(crew, "floor"))
+			"floor":
+				did = _crew_floor(key, p, slip)
 		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) if did else 1.0
+
+
+func _has_role(crew: Array, role: String) -> bool:
+	for p in crew:
+		if str(p.get("role", "")) == role:
+			return true
+	return false
+
+
+## The floor (the brief of 21. 10.: a hand for every room): the oldest plate on the hatch
+## to its table, else the oldest bottle wanted opened and served.
+func _crew_floor(key: String, p: Dictionary, _slip: bool) -> bool:
+	for t in tickets(key, "floor"):
+		if bool(t.get("hatched", false)):
+			serve_hatch(key, t, str(p.get("name", "")))
+			return true
+	for t in tickets(key, "floor"):
+		var dish := str(t["dish"])
+		if not RULES.DRINKS.has(dish):
+			continue
+		if BUSINESS.stock_of(key, str(RULES.DRINKS[dish]["good"])) <= 0:
+			continue
+		serve(key, t, {dish: 1}, -1.0, str(p.get("name", "")))
+		return true
+	return false
 
 
 ## The grill: the black ones off into the bin, the brown ones turned or onto the rack, a
@@ -768,16 +886,16 @@ func _crew_grill(key: String, slip: bool) -> bool:
 	return false
 
 
-## The bufet: the oldest soup or bottle wanted, over the counter (the soup pot topped up
-## from the tins when it runs low).
-func _crew_bufet(key: String, p: Dictionary, slip: bool) -> bool:
+## The bufet: the oldest soup wanted, over the counter (the soup pot topped up from the
+## tins when it runs low); the bottles too while nobody minds the floor.
+func _crew_bufet(key: String, p: Dictionary, slip: bool, floor_hand := false) -> bool:
 	var soup: Dictionary = site(key)["soup"]
 	if int(soup["level"]) < 3 and BUSINESS.stock_of(key, "soup") > 0:
 		var n := mini(RULES.SOUP_REFILL, BUSINESS.stock_of(key, "soup"))
 		if CoreRoot.actions.biz_take(key, {"soup": n}):
 			act(key, "soup", [{"level": int(soup["level"]) + n}])
 			return true
-	for t in tickets(key, "bufet"):
+	for t in tickets(key, "bufet") + ([] if floor_hand else tickets(key, "floor").filter(func(x) -> bool: return RULES.DRINKS.has(str(x["dish"])))):
 		var dish := str(t["dish"])
 		if dish == "soup":
 			if int(soup["level"]) <= 0 or int(plates(key)["clean"]) <= 0:
@@ -885,6 +1003,12 @@ func _crew_stove(key: String, slip: bool) -> bool:
 
 ## The oldest ticket it has everything ready for, plated and sent out.
 func _crew_pass(key: String, p: Dictionary, slip: bool) -> bool:
+	# Nobody on the floor: what waits on the hatch goes out first (the pass's hand carries).
+	if not _has_role(BUSINESS.crew_now(key), "floor"):
+		for t in tickets(key, "floor"):
+			if bool(t.get("hatched", false)):
+				serve_hatch(key, t, str(p.get("name", "")))
+				return true
 	if int(plates(key)["clean"]) <= 0:
 		return false
 	var pot: Dictionary = site(key)["pot"]
@@ -933,7 +1057,12 @@ func _crew_pass(key: String, p: Dictionary, slip: bool) -> bool:
 			for q in qs:
 				cook += float(q)
 			cook /= float(qs.size())
-		serve(key, t, parts, cook, str(p.get("name", "")))
+		# A hand on the floor takes it out from the hatch; without one the pass's hand
+		# carries it out as before.
+		if _has_role(BUSINESS.crew_now(key), "floor"):
+			to_hatch(key, t, parts, cook)
+		else:
+			serve(key, t, parts, cook, str(p.get("name", "")))
 		return true
 	return false
 
@@ -1028,7 +1157,7 @@ func stove_state(key: String) -> Dictionary:
 ## The oldest bufet ticket served as it should be (a bowl of soup, a bottle): true when
 ## there was one.
 func debug_serve_first_bufet(key: String) -> bool:
-	for t in tickets(key, "bufet"):
+	for t in tickets(key, "bufet") + tickets(key, "floor").filter(func(x) -> bool: return RULES.DRINKS.has(str(x["dish"]))):
 		var dish := str(t["dish"])
 		if dish == "soup":
 			act(key, "plates", [-1, 0])

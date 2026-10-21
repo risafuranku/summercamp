@@ -60,6 +60,11 @@ void vertex() {
 }
 
 void fragment() {
+	// The lake's mirror (camp_lake.gd) looks from under the water: nothing below the water
+	// is drawn for it (the ground's underside was a ceiling over everything it saw).
+	if (CAMERA_POSITION_WORLD.y < -0.4 && (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).y < 0.1) {
+		discard;
+	}
 	vec4 c = texture(tex, UV);
 	if (c.a < 0.5) {
 		discard;

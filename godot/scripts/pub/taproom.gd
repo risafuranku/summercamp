@@ -154,6 +154,7 @@ func tickets(key: String) -> Array:
 	var out: Array = []
 	var now := now_min()
 	var served: Dictionary = site(key)["served"]
+	var books := BUSINESS.site(key)
 	for v in ORDERS.visitors(key):
 		var visit := str(v["visit"])
 		# A hand behind the bar served the lot (business_runtime._hand_serves).
@@ -163,6 +164,13 @@ func tickets(key: String) -> Array:
 		if served.has(visit + "#bill") or now >= int(v.get("arrive", now)) + RULES.stay(str(v["archetype"])) - RULES.BILL_LEAD:
 			continue
 		for t in RULES.tickets_for(visit, str(v["archetype"]), int(v.get("figures", 1)), int(v.get("arrive", now)), served, now):
+			# Nothing new after last orders (the brief of 21. 10.).
+			if not BUSINESS.takes_orders_at(key, int(t["since"])):
+				continue
+			# Off the books' menu: they have a beer instead (the beer is never off).
+			if not BIZ_RULES.menu_on("pub", books, str(t["drink"])):
+				t["drink"] = "hladinka"
+				t["price"] = int(RULES.DRINKS["hladinka"]["price"])
 			t["visit"] = visit
 			t["guest_id"] = int(v["id"])
 			t["name"] = str(v["name"])
@@ -569,6 +577,9 @@ func _bills_waiting(key: String, now: int) -> void:
 		if int(tab["n"]) <= 0:
 			continue
 		holds[int(v["id"])] = int(v.get("arrive", now)) + RULES.stay(str(v["archetype"])) + RULES.BILL_WAIT + 2
+	# Who has ordered waits for it to the end of their patience, past closing.
+	for t in tickets(key):
+		holds[int(t["guest_id"])] = maxi(int(holds.get(int(t["guest_id"]), -1)), int(t["since"]) + RULES.PATIENCE_GONE)
 	for b in bills(key):
 		holds[int(b["guest_id"])] = int(b["since"]) + RULES.BILL_WAIT + 2
 		if int(b["age"]) < RULES.BILL_WAIT:

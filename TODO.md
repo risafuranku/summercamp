@@ -12,6 +12,27 @@
 - [x] Builder's pictures of the new cabins (renders repainted by Grok, Lv1 kept bare)
 - [ ] The bathroom is cramped from its doorway: a better view or a bigger annex
 
+## PODNIKY PAPA'S — 2026-10-21 (the user: "at first sight terribly complicated, I don't know where to click; choppy; how do I serve? I want it like Papa's games; the same in every place")
+
+Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back to the station you were at (the first time the first of the chain); the camera and the things you move smooth, the glove frame by frame; patience seen everywhere; after a serve nothing that stops you; last orders half an hour before closing, who ordered waits; SERVE and a checklist; the next step lit (switch in Options); menu switches only; short orders, many guests; mouse, keys and tabs; by day play, by night the uncanny; a hand for every room.
+
+- [x] The frame, the same in all four places (`station_hud.gd`): tabs with picture, key and name (blinking where something waits or burns), BOOKS (B) always in the same place, BACK (S), SERVE (Space, Enter), the shift's mark A-E and the average stars, the run (x3), the clock to last orders
+- [x] Tickets with the guest's face as their patience goes, what they want (picture and word), the patience bar (`station3d.draw_ticket`, `guest_face.gd`); the big ticket as a checklist (`checklist`)
+- [x] After a serve: the stars, the score and the tip fly up over the guest, the run of good ones with a little on top of the tip, the slip at the side
+- [x] The next step lit and the ghost glove when you stand still (`next_hint`), Options "Work hints" (the warden's)
+- [x] Smooth camera, sliding tickets, things hop when set down and fly to the guest in an arc; the glove stays at 12 fps
+- [x] Last orders 30 min before closing (the bell, the word, the feed); nobody new goes there; who ordered waits past closing; the Z report when the last is served or gone
+- [x] The books: MENU first, the same six pages everywhere (MENU, STOCK, ORDER, STAFF, GEAR, Z REPORT); the guests order only what is on
+- [x] Patience over the guests' heads in the room (dots, the watch, a red scribble, lines, the stamp of a foot) (`guest_mood.gd`)
+- [x] Corn stand: the frame's model; the camera sees the guests over the counter; the drinks a menu switch (off: no tab, no drink slips)
+- [x] Pub: the frame, one-click bill, the games off the tabs, the keg on the frame and its tab, the cellar's hand, the menu
+- [x] Bistro: cellar optional (prepared goods to buy dearer, a hand), the soup (bufet) into the kitchen, the floor = bottles and serving the plates off the hatch, a floor hand, the menu
+- [x] Jednota: the frame on the till (SERVE = GIVE), the queue's patience over their heads, the shelves and the store for the hands, their tabs lit when the rack runs empty, the menu = the range
+- [ ] Bigger, readable food and goods in the minigames: done on the tickets (bigger icons and a word) and the floor's plates; the pictures re-drawn by Grok still to do (the queue is slow)
+- [ ] Each place's own ambient (the Jednota's tubes and tills, the stand's camp) and new sounds per action: no SFX key now (TTS only), existing sounds reused
+- [ ] The guests' new poses for impatience (tapping, the watch, arms up): bubbles, lines and the stand's stamping for now; a note on the door at last orders
+- [x] DESIGN §7b "Papa's frame", PRODUCT, AGENTS, the Czech of every new text (tools/i18n/batches/06_podniky_papas.json)
+
 ## RECEPTION WINDOWS — 2026-10-21 (the user: "the reception's windows have no depth from outside; curtains drawn, lights out, the players inside at the PC or going to the other room: all of it seen from outside and in step")
 
 - [x] The real office behind the panes (a camera in its world), by day darker than the day outside
@@ -533,7 +554,11 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [x] Guests stay in lodgings, leave the camp by exits for hours, stand at the lake (64% -> ~35% outdoors)
 
 ### 14. The lake
-- [ ] Remodel: a real forest lake (water surface, reflections, shore, reeds, surrounding forest)
+- [x] Reflections (21. 10., the user: "jezero jen polish, remodel asi uplne ne"): the water
+  gives back the far shore's forest, the houses, the boat and the jetty, lit windows, the
+  stars and the sunset for real (`camp_lake.gd` mirror camera at half the game's pixels,
+  near the water only; everything under the water clipped for it in the surface shaders)
+- [ ] Remodel: shore, reeds, surrounding forest (not wanted for now)
 - [ ] Morning mist, darker night, deep-forest, slightly eerie; a place guests walk to
 
 ### 15. Night gameplay loop

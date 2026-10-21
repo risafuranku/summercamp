@@ -283,7 +283,8 @@ func _ready() -> void:
 		var ok: Dictionary = tr.settle(KEY, b, due)
 		_expect(bool(ok["ok"]) and state.money == m0 + PUB.to_pay(b), "the right change: the bill's money in the till (%d)" % (state.money - m0))
 		_expect(tr.bill_of(KEY, str(b["visit"])).is_empty(), "that bill settled")
-	# The bill at the tap, as a player counts it: the note taken, the change, handed over.
+	# The bill at the tap: one click on its mat settles it (the brief of 21. 10.: no change
+	# to count in the pub), the money and the round sum in the till.
 	var at_tap: Array = tr.bills(KEY)
 	if not at_tap.is_empty():
 		var b2: Dictionary = at_tap[0]
@@ -291,13 +292,14 @@ func _ready() -> void:
 		spot.call("pick", b2)
 		var m1: int = state.money
 		spot.call("press", "bill:mat")
-		var due2 := PUB.change_due(b2)
-		for coin in [10, 5, 2, 1]:
-			while int(spot.call("given_sum")) + coin <= due2:
-				spot.call("press", "bill:%d" % coin)
-		if int(b2["note"]) > 0:
-			spot.call("press", "bill:mat")
-		_expect(tr.bill_of(KEY, str(b2["visit"])).is_empty() and state.money == m1 + PUB.to_pay(b2), "the bill counted at the tap (%d)" % (state.money - m1))
+		_expect(tr.bill_of(KEY, str(b2["visit"])).is_empty() and state.money == m1 + PUB.to_pay(b2), "the bill settled in one click at the tap (%d)" % (state.money - m1))
+	# And BILL on the rail: a click on it settles it the same.
+	var on_rail: Array = tr.bills(KEY)
+	if on_rail.size() > 1:
+		var b4: Dictionary = on_rail[0]
+		var m4: int = state.money
+		st["tap"].call("rail_clicked", str(b4["id"]))
+		_expect(tr.bill_of(KEY, str(b4["visit"])).is_empty() and state.money == m4 + PUB.to_pay(b4), "BILL clicked on the rail is settled (%d)" % (state.money - m4))
 	# One nobody comes for: left on the bar by a guest who liked it.
 	var left: Array = tr.bills(KEY)
 	if not left.is_empty():

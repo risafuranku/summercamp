@@ -221,6 +221,42 @@ func _closing() -> void:
 	_hiss.stop()
 
 
+## What is best to do at the keg now, step by step: the head off a spent or flat keg, the
+## keg rolled off, a full one rolled on, the head screwed on (hold), the gas into the
+## green (drag the valve).
+func next_hint() -> Dictionary:
+	if taproom == null or building_key == "":
+		return {}
+	var k: Dictionary = taproom.keg(building_key)
+	var pallet := str(k["pallet"])
+	var flat: bool = taproom.tap_trouble(building_key) == "flat"
+	if pallet == "empty" or flat:
+		return {"node": _head, "gesture": "click"} if bool(k["coupled"]) else {"node": _keg, "gesture": "click"}
+	if pallet == "none":
+		return {"rect": SPARES, "gesture": "click"} if taproom.spares(building_key) > 0 else {"ui": "books"}
+	if not bool(k["coupled"]):
+		return {"node": _head, "gesture": "hold"}
+	var band := PUB.gas_band(float(k["gas"]))
+	if band != "OK":
+		return {"node": _valve, "gesture": "drag", "to": VALVE_AT + Vector2(0, -40 if float(k["gas"]) < PUB.GAS_LOW else 40)}
+	return {"tab": "tap"} if not orders_here("tap").is_empty() else {}
+
+
+## The keg will not pour (spent, flat, the head off, no beer): red, on the cellar's tab
+## wherever you are (the brief: "when the keg wants changing is seen on the frame");
+## the gas off the green or the keg nearly spent: amber.
+func alert() -> int:
+	if taproom == null or building_key == "":
+		return 0
+	var trouble: String = taproom.tap_trouble(building_key)
+	if trouble != "":
+		return 2
+	var k: Dictionary = taproom.keg(building_key)
+	if PUB.gas_band(float(k["gas"])) != "OK" or int(k.get("line", 0)) <= 6:
+		return 1
+	return 0
+
+
 func has_rail() -> bool:
 	return false
 
