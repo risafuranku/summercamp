@@ -22,10 +22,15 @@ const KINDS := {
 	"can": {"tex": "kick_can.png", "r": 0.09, "push": 0.7, "hop": 1.1, "drag": 3.0, "roll": true, "sfx": ["kick_can_a", "kick_can_b"], "db": -8.0},
 	"bucket": {"tex": "kick_bucket.png", "r": 0.17, "push": 0.3, "hop": 0.0, "drag": 6.0, "roll": false, "sfx": ["kick_bucket"], "db": -6.0},
 	"cone": {"tex": "kick_cone.png", "r": 0.06, "push": 0.55, "hop": 0.9, "drag": 3.5, "roll": true, "sfx": ["kick_cone"], "db": -14.0},
+	# Since 21. 10. (scripts/ambient/carry.gd): a stone and a log to pick up and throw, the
+	# rubbish sack you bagged and set down (the day's litter, mess/litter_binbag.png).
+	"stone": {"tex": "kick_stone.png", "r": 0.07, "push": 0.25, "hop": 0.3, "drag": 5.0, "roll": false, "sfx": ["kick_cone"], "db": -9.0, "pitch": 0.7},
+	"log": {"tex": "kick_log.png", "r": 0.12, "push": 0.2, "hop": 0.2, "drag": 5.5, "roll": true, "sfx": ["kick_cone"], "db": -7.0, "pitch": 0.55},
+	"sack": {"tex": "res://assets/textury/mess/litter_binbag.png", "r": 0.26, "push": 0.12, "hop": 0.0, "drag": 7.0, "roll": false, "sfx": ["kick_cone"], "db": -16.0, "pitch": 0.45, "px": 0.0117},
 }
 ## What lies by a building, by the start of its type: [kind, chance] each.
 const BY_TYPE := [
-	["bonfire", [["bottle", 1.0], ["bottle", 0.7], ["can", 0.6]]],
+	["bonfire", [["bottle", 1.0], ["bottle", 0.7], ["can", 0.6], ["log", 0.9], ["log", 0.6], ["stone", 0.8]]],
 	["bench", [["bottle", 0.4]]],
 	["picnic_table", [["bottle", 0.5], ["can", 0.4]]],
 	["pub", [["bottle", 0.9], ["bottle", 0.6], ["can", 0.5]]],
@@ -187,7 +192,7 @@ func _add(kind: String, at: Vector3, by: int, rng: RandomNumberGenerator) -> voi
 		return
 	var sp := Sprite3D.new()
 	sp.texture = tex
-	sp.pixel_size = 0.01
+	sp.pixel_size = float(k.get("px", 0.01))
 	sp.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
@@ -197,12 +202,15 @@ func _add(kind: String, at: Vector3, by: int, rng: RandomNumberGenerator) -> voi
 	sp.flip_h = rng.randf() < 0.5
 	add_child(sp)
 	sp.global_position = at + Vector3(0, 0.01, 0)
-	_props.append({"node": sp, "kind": kind, "pos": at, "vel": Vector3.ZERO, "cool": 0.0, "by": by, "kicked": false, "ground": at.y})
+	# Its name on every machine alike: what it is and where it was laid.
+	var id := "%s@%d,%d" % [kind, roundi(at.x * 10.0), roundi(at.z * 10.0)]
+	_props.append({"node": sp, "kind": kind, "pos": at, "vel": Vector3.ZERO, "cool": 0.0, "by": by, "kicked": false, "ground": at.y, "id": id, "held": false})
 
 
 func _texture(file: String) -> Texture2D:
 	if not _tex.has(file):
-		_tex[file] = load(TEX + file) if ResourceLoader.exists(TEX + file) else null
+		var path := file if file.begins_with("res://") else TEX + file
+		_tex[file] = load(path) if ResourceLoader.exists(path) else null
 	return _tex[file]
 
 
@@ -272,7 +280,7 @@ func _kicks(dt: float) -> void:
 		if speed < 0.35:
 			continue
 		for p in _props:
-			if float(p["cool"]) > 0.0:
+			if float(p["cool"]) > 0.0 or bool(p.get("held", false)):
 				continue
 			var k: Dictionary = KINDS[p["kind"]]
 			var pos: Vector3 = p["pos"]
@@ -291,8 +299,10 @@ func _kicks(dt: float) -> void:
 			_sound(pos, k)
 
 
-func _sound(at: Vector3, k: Dictionary) -> void:
+func _sound(at: Vector3, k: Dictionary, db_add := 0.0) -> void:
 	var names: Array = k["sfx"]
+	if names.is_empty():
+		return
 	var path := SFX + str(names[randi() % names.size()]) + ".mp3"
 	if not ResourceLoader.exists(path):
 		return
@@ -300,9 +310,147 @@ func _sound(at: Vector3, k: Dictionary) -> void:
 	_snd_i = (_snd_i + 1) % _snd.size()
 	pl.stream = load(path)
 	pl.global_position = at
-	pl.volume_db = float(k["db"]) + randf_range(-2.0, 1.0)
-	pl.pitch_scale = randf_range(0.92, 1.08)
+	pl.volume_db = float(k["db"]) + db_add + randf_range(-2.0, 1.0)
+	pl.pitch_scale = float(k.get("pitch", 1.0)) * randf_range(0.92, 1.08)
 	pl.play()
+
+
+# -- taken, set down, thrown (scripts/ambient/carry.gd) ---------------------------
+
+## Down from a throw (or a fall): its sound, louder the harder; into the lake it sinks with
+## a plop; at night the noise of it goes to whatever listens (group "night_ears").
+func _landed(p: Dictionary, at: Vector3, speed: float) -> void:
+	var k: Dictionary = KINDS[p["kind"]]
+	var main := get_tree().current_scene
+	var lake := main.find_child("CampLake", true, false) if main != null else null
+	if lake != null and lake.has_method("in_water") and bool(lake.in_water(at)):
+		var plop := SFX + "fish_plop.mp3"
+		if ResourceLoader.exists(plop):
+			var pl: AudioStreamPlayer3D = _snd[_snd_i]
+			_snd_i = (_snd_i + 1) % _snd.size()
+			pl.stream = load(plop)
+			pl.global_position = at
+			pl.volume_db = -4.0
+			pl.pitch_scale = 1.0
+			pl.play()
+		p["held"] = true
+		(p["node"] as Node3D).visible = false
+	else:
+		_sound(at, k, clampf((speed - 2.0) * 1.5, 0.0, 8.0))
+	var loud := float(p.get("loud", 0.0))
+	if loud > 0.0:
+		p["loud"] = 0.0
+		var h = main.get("_time_of_day_hours") if main != null else null
+		if h != null and (float(h) >= 20.0 or float(h) < 6.0):
+			get_tree().call_group("night_ears", "heard", at, loud)
+
+
+func _prop(id: String) -> Dictionary:
+	for p in _props:
+		if str(p.get("id", "")) == id:
+			return p
+	return {}
+
+
+func has_prop(id: String) -> bool:
+	return not _prop(id).is_empty()
+
+
+## What lies within `r` of `o` and can be picked up: [{id, kind, pos}].
+func props_near(o: Vector3, r: float) -> Array:
+	var out: Array = []
+	for p in _props:
+		if bool(p.get("held", false)) or not (p["vel"] as Vector3).is_zero_approx():
+			continue
+		if (p["pos"] as Vector3).distance_to(o) <= r:
+			out.append({"id": p["id"], "kind": p["kind"], "pos": p["pos"], "ev": int(p.get("ev", -1))})
+	return out
+
+
+func take_prop(id: String) -> void:
+	var p := _prop(id)
+	if p.is_empty():
+		return
+	p["held"] = true
+	p["vel"] = Vector3.ZERO
+	p["kicked"] = true
+	(p["node"] as Node3D).visible = false
+
+
+func put_prop(id: String, at: Vector3) -> void:
+	var p := _prop(id)
+	if p.is_empty():
+		return
+	p["held"] = false
+	p["pos"] = at
+	p["ground"] = at.y
+	p["vel"] = Vector3.ZERO
+	var n := p["node"] as Node3D
+	n.global_position = at + Vector3(0, 0.01, 0)
+	n.visible = true
+
+
+func throw_prop(id: String, from: Vector3, vel: Vector3, loud: float) -> void:
+	var p := _prop(id)
+	if p.is_empty():
+		return
+	p["held"] = false
+	p["pos"] = from
+	p["vel"] = vel
+	p["loud"] = loud
+	p["cool"] = 0.6
+	p["ground"] = _ground_under(from)
+	var n := p["node"] as Node3D
+	n.global_position = from
+	n.visible = true
+
+
+## A thing that was not laid (the sack set down): made where it is put, named alike on
+## every machine (the putter's id, or a new one).
+func add_loose(kind: String, at: Vector3, meta: Dictionary = {}, id: String = "") -> String:
+	if not KINDS.has(kind) or texture_of(kind) == null:
+		return ""
+	var r := RandomNumberGenerator.new()
+	r.seed = hash(id)
+	_add(kind, at, -1, r)
+	var p: Dictionary = _props.back()
+	p["id"] = id if id != "" else "%s#%d" % [kind, Time.get_ticks_msec()]
+	p["kicked"] = true
+	p.merge(meta)
+	return str(p["id"])
+
+
+## Gone for good (the sack in the dumpster).
+func drop_prop(id: String) -> void:
+	var p := _prop(id)
+	if p.is_empty():
+		return
+	(p["node"] as Node).queue_free()
+	_props.erase(p)
+
+
+func texture_of(kind: String) -> Texture2D:
+	if not KINDS.has(kind):
+		return null
+	return _texture(str((KINDS[kind] as Dictionary)["tex"]))
+
+
+func play_kind(kind: String, at: Vector3, db: float) -> void:
+	if KINDS.has(kind):
+		_sound(at, KINDS[kind], db - float(KINDS[kind]["db"]))
+
+
+func _ground_under(from: Vector3) -> float:
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	if space == null:
+		return 0.0
+	var q := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 8.0)
+	q.collision_mask = 1
+	var me = player_getter.call() if player_getter.is_valid() else null
+	if me is CollisionObject3D:
+		q.exclude = [(me as CollisionObject3D).get_rid()]
+	var hit := space.intersect_ray(q)
+	return float((hit["position"] as Vector3).y) if not hit.is_empty() else 0.0
 
 
 ## Off it goes: it flies, lands, bounces a little, slides and stops; off a wall it comes
@@ -311,6 +459,8 @@ func _sound(at: Vector3, k: Dictionary) -> void:
 func _move(dt: float) -> void:
 	var h_dt := dt / 5.0
 	for p in _props:
+		if bool(p.get("held", false)):
+			continue
 		var v: Vector3 = p["vel"]
 		var pos: Vector3 = p["pos"]
 		var ground := float(p["ground"])
@@ -327,6 +477,8 @@ func _move(dt: float) -> void:
 				nxt = Vector3(np.x, nxt.y, np.z)
 			if nxt.y <= ground:
 				nxt.y = ground
+				if v.y < -2.0:
+					_landed(p, nxt, -v.y)
 				v.y = -v.y * 0.3 if v.y < -1.2 else 0.0
 				var h := Vector2(v.x, v.z)
 				var s := maxf(0.0, h.length() - float(k["drag"]) * h_dt)

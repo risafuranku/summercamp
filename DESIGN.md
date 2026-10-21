@@ -1412,6 +1412,11 @@ disagree, this wins (the older lines say so).*
   Jednota's baskets leave it out); each place's own thing never goes off; a station whose
   dishes are all off has no tab (the stand's drinks, the pub's bottles, the grill, the soup,
   the deli).
+- **Food and goods readable**: at the stations they keep their pictures' own pixel (the
+  91 px a metre rule does not hold for them, `station3d.fine`), the plate's food is a
+  quarter bigger, and the tickets carry a bigger picture with its word.
+- **Each place's own sound**: the pub and the dining room murmur from their guests, the
+  bistro's kitchen works, the Jednota's tubes buzz and a till beeps while somebody queues.
 - **The corn stand** is the frame's model; its camera stands higher so the guests at the
   counter are in the picture over the work.
 - **The pub**: the bill in one click (BILL on the rail or its mat on the bar: the marks'
@@ -1430,6 +1435,74 @@ disagree, this wins (the older lines say so).*
   and the trolley nothing for them; the queue's patience over their heads.
 - **By day plain play, by night the uncanny** as before (open late, PROTOTYP 540, Jaromir
   and Marta are untouched). The hands stay worse than a good warden.
+
+## 7c. The staffroom and the camp's own staff
+
+The user, 21. 10.: "a fifth tab in SoftSklad where you hire staff who clean; a staffroom
+building with the PC as an old chunky laptop, a mattress to sleep on in the boiler room,
+a sofa, a fridge, a coffee machine, a TV... no cleaning gang: picking a hand like in the
+businesses; they rest in the staffroom, or take your bed if they have none; one locker in
+the second room, more bought in the books with a picture; one locker one hand; no
+staffroom, no hiring; they go to the cleaning events, the raccoons, the deliveries, all
+the things that bother you by day; they prepare the lodgings, clean them, make the beds;
+what each of them does is set in the books or in SoftSklad with toggles; they go home at
+night", and: "curtains, for the enemies, the Photographer; it must work in co-op, I must
+see the others sitting at the laptop".
+
+- **The building**: a Utilities build in Builder 98, two by two, one for the camp ($360,
+  `data/buildings/staffroom.tres`, `builder_authority.ONE_ONLY`). A 1970s Czech village
+  prefab hut: dash plaster, a tar-paper flat roof, the boiler room as a lower annex with
+  its brick chimney, a plywood door with an enamel PERSONAL plate, the coal hatch.
+  **One plan for the inside and the outside** (`scripts/staff/staffroom_plan.gd`): the
+  building in the camp (`building_models._staffroom`) is built with its rooms in it behind
+  real glass, so from the camp you see in: the lamps (somebody in, dusk, power), the
+  curtains as they were left inside, the hands lying on the mattresses or on the sofa, the
+  laptop's glow, another warden at the laptop or the books.
+  The user, the same evening: "the hands go home for the night; the mattress to sleep on
+  is the player's" — the boiler room's mattress is the warden's bed (from the evening a
+  click lies you down, the night passes as in the office's back room: `lodge_bed.gd`'s
+  "staff" bed), the hands rest sitting in the lounge, and everybody goes home at eight. The room you walk into is the
+  same boxes in the service interior's own world, its windows real views of the camp
+  (`window_portal.gd`), each with a curtain to draw (the Photographer's flash, the Silent
+  Man's watching: `service_interior.photo_windows`).
+- **The rooms** (`scripts/staff/staffroom.gd`, point and click, one smooth walk through the
+  open doorway): the lounge (the sofa under the window, the formica table with the laptop
+  and the books, the counter with the coffee machine, the fridge, the TV on its cabinet
+  with three programmes and off, the safety poster, the calendar, the coats); the boiler
+  room (the coal boiler and its glow, the coal, your mattress, the lockers with their
+  hand's name, coat and boots inside); the armchairs bought for the lounge.
+- **The laptop** (`scripts/staff/laptop_view.gd`): you sit down at it and the close-up
+  comes up (Grok, the laptop on the table, a mug, the ashtray); on its screen the office
+  PC itself, the same machine (its os_shell, programs, mail, Builder), drawn sharp at the
+  window's resolution onto the screen's four measured corners, the mouse and keys mapped
+  back. S or a click below stands you up. One warden at the PC at a time, here or at the
+  office; the others in the room see them on its chair from behind and their screen on
+  the laptop.
+- **The hands** (`core/systems/staff_rules.gd`, `GameState.biz.staff` through
+  `actions.staff_*`): the same people as the businesses' (their photos, speed, honesty,
+  temper and wage), those who ask at the kind "staff"; one to a locker (one to start,
+  up to five, each dearer); a seat each in the lounge (the sofa's two, armchairs bought
+  up to three). Their day
+  (`scripts/staff/staff_runtime.gd`, run by the camp's machine, drawn on every machine from
+  `biz.staff.act`): in from the road at seven (a quarter of an hour apart), coffee on the
+  sofa, then out to the nearest thing they are set to: a bin bag, raccoons in the bins (the
+  broom), the wholesaler's van at the gate (signed for), a branch (sawn up), a lodging
+  (its tasks one after another, the bed made last); back, sitting in the lounge between
+  jobs; with nowhere to sit, in a made-up lodging nobody is in ("Hanka has nowhere to sit:
+  she lies down in C2"), which is unmade when they get up. Home at eight, all of them.
+  The day events they take show their name on the TODAY list; you may still do it first.
+  Marta is seen only now and then.
+- **The books** (`scripts/staff/staff_ledger.gd`, on the table): STAFF (who, where now, a
+  pencilled box for each job: rubbish, raccoons, deliveries, branches, lodgings; let go),
+  HIRE (today's applicants, their photo and papers), LOCKERS (the catalogue cut-outs of a
+  locker and an armchair, the next one's price, buy), TODAY (what was done, the wages).
+  **Personal 98** (`os98/apps/staff_app.gd`): SoftSklad's fifth program, licensed at
+  softsklad.cz, the same from the PC or the laptop with 98 check boxes. Wages are paid with
+  the businesses' at the day's close; two days unpaid and they leave.
+- **The post on screen**: the second monitor's order (reception/post_delivery.gd) is a
+  plate at the right edge with the arrivals (`arrival_strip.gd`): the yellow post van
+  while it comes (the bar filling), the parcel while the postman waits at the desk (his
+  patience running down, red and blinking at the end).
 
 ## 8. The pipe crawl (sewer repair)
 
@@ -1597,6 +1670,79 @@ in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD 
   with whoever is looking, on the bus too: they never sink into the ground behind you.
 - **The lamps** are the light itself at night: the bulb bright, its cone of light a warm
   shaft that shows faintly in clear air and fully in mist and rain.
+
+## 9c. The body in the world (2026-10-21, decided with the user)
+
+The user: "it still feels a bit like I'm a spectator, a car, a tank... the trees and the
+world are static, we need to finish all of it." Bodily but quick (Firewatch, Dishonored),
+the Build look kept but wider, the camera always smooth and only the sprites and hands in
+steps. The list and the numbers before and after: TODO.md "POHYB, KAMERA, INTERAKCE".
+
+- **Quick feet.** Full speed in under a tenth of a second (ground 46 m/s², stop 34 m/s²): let
+  go of W and you stand a hand's breadth on (0.19 m walking, 0.36 m from a sprint); a turn
+  back is 0.17 s, no skid. In the air you keep what you jumped with: a little push (3 m/s²),
+  hardly any brakes.
+- **The head on the ground.** The bob goes by the ground covered (a step every 0.74 m, 1.02 m
+  running), lowest as the foot comes down, with that foot's sound; side to side over the foot
+  that bears it. A landing, a stop from a walk and going down on your knees are one spring
+  (smooth, a little give). The lean: into a sidestep and a little into a quick turn, by the
+  turn's speed (it was set per mouse event). Nothing of the camera steps: the old 12-a-second
+  bob is gone, and the head is drawn between the last two physics steps (frames are capped at
+  50, physics runs at 60: a double step every fifth frame shook every walk).
+- **Build, wider.** FOV 72° (Options 60-90; rooms are 68-70), up to 4° wider in a run. A look
+  up or down is first Build's shift of the picture (a moved frustum: the verticals stay
+  upright), eased in up to 12°, then the eye turns: down to 80° (your boots, under the
+  table), up until the picture's top edge is 2° under the zenith (55° at 72°, with room for the run's wider view). **Where the
+  shift breaks**: beyond ~15° the shifted frustum stretches the top or bottom of the picture
+  (Build's own look at full tilt) and the sky's zenith pinch comes in sooner; at the zenith
+  the sky panorama and the cloud deck pinch to a star (seen looking 68° up), so the eye stops
+  short of it. The hands, the HUD, the fog and the palette post are 2D or screen-space and do
+  not mind. Anything that copies the camp camera must copy its projection
+  (`building_interior._update_inview`); "where the warden looks" is `player.look_basis()`, not
+  the camera's -Z.
+- **The mouse** moves the eye in the same frame (no smoothing, no steps; until then 0.72 of it
+  in 1.4° steps); X and Y each their own speed.
+- **Options "View and body"** (the warden's, `profiles.gd` "body"): FOV (72), mouse X and Y
+  (100 %), head bob and lean (100 %; 0 against sickness), crouch held or toggled (held).
+- **Crouch and crawl.** Ctrl: crouched (held or toggled), twice quickly: on your belly (a place
+  you stay in until Ctrl or Space; a long hold would clash with holding it to stay crouched).
+  The eye goes down smoothly (0.5 m, 0.87 m), you go at 1.9 and 0.85 m/s, your steps 7 and
+  12 dB softer, lying down you fit under 0.6 m. Space or a sprint gets you up if there is
+  room. The other wardens see you crouched or lying (the poses crouch, prone).
+- **Your body.** Looking down your jeans and green wellies come up into the view where your
+  feet are (Grok, the hands' pixel and light, a third brighter: they are in the open), one
+  foot forward then the other with your steps, caked after mud, darker wet; on your belly
+  your gloved hands planted ahead in turn (the pipes' hands); a blob shadow under you.
+- **The world answers.** Grass, flowers, ferns, nettles and blueberries part round every
+  warden's feet and come back (shader globals `body_0..3`); ferns rustle; one tree in six
+  swishes a low branch across your eyes as you push past; by day leaves come down under the
+  birches and a cone off a spruce, birds and crows fly up out of a tree you walk up to, ducks
+  sit on the camp shore and make off when you run at them, a squirrel on a trunk runs up out of
+  sight as you come, butterflies over the meadow on warm days; a puddle and the lake's shallows splash (you can wade
+  a stride in now), wet boots leave dark prints on boards and paths, muddy ones brown; a guest
+  you walk into hops aside, looks at you and has a word. Not in the rain, not at night.
+- **Carry and throw.** E takes a small thing under the crosshair (bottles, cans, cones, the
+  bucket; stones and logs once their pictures lie by the fire) into your right hand (Grok's
+  gloved hand holding it), E sets it down where you look,
+  the left button throws it: an arc, a bounce off walls, its sound landing louder the harder,
+  a plop into the lake. Work things go in both arms (the torch in your pocket), slower: the
+  rubbish you bag is a sack you carry to the dumpsters, and only then is it done (a camp with
+  no dumpsters: done when bagged, as before). At night a thrown thing's landing calls
+  `heard(pos, loudness)` on the group "night_ears": no enemy listens yet (the hook is there).
+  Co-op: picked up, set down, thrown on every machine; the others see the small thing at your
+  hand and the sack as the "bag" pose.
+- **Work by a gesture.** No hold bar where a gesture works: to and fro (sweeping, mopping,
+  wiping, sawing), round (scrubbing, a spanner), a jerk down (a hammer), drawn towards you
+  (plunging, pulling), down and up (picking up, bagging, a bed). The hand goes where the mouse
+  takes it, each stroke moves the job on (the mess shrinks under it, bits fly, the sound
+  plays while you work); stand still and after 2.4 s a see-through hand with a dotted trail
+  shows the motion. Outdoors the mouse is the hand's while you hold R or E (the eye stays).
+  The toilet's scrub close-up and the pipes keep their own minigames.
+- **Doors.** E on a door: the hand takes the handle, the leaf swings with its weight, you
+  step up into the doorway and the room takes up from its door (no frozen frame, no dither:
+  the dissolve is left only where you did not walk in through a door: the office's PC start,
+  a room opened by a tool). Not yet: the room seen through the open door (a portal: the rooms
+  are worlds of their own built only when opened; TODO).
 
 ## 10. Presentation rules
 

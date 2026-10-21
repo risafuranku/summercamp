@@ -795,6 +795,25 @@ func _play(kind: String, data: Array) -> void:
 		sender = 0
 
 
+## The body in the world (scripts/ambient/carry.gd), everyone's to everyone: a small thing
+## picked up, set down, thrown, a sack into the dumpster.
+func send_body(kind: String, data: Array) -> void:
+	if role != Role.NONE and not wardens.is_empty():
+		_body.rpc(kind, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _body(kind: String, data: Array) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not wardens.has(id):
+		return
+	var carry := get_tree().get_first_node_in_group("carry")
+	if carry != null:
+		sender = id
+		carry.coop_body(kind, data)
+		sender = 0
+
+
 ## The cigarette and the bottle (scripts/habits/habit_world.gd), everyone's to everyone:
 ## a flick of the lighter, a breath of smoke, a gulp, a light given, bottles clinked, a
 ## butt thrown.

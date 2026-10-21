@@ -88,9 +88,23 @@ static func _mesh(name: String, h: float) -> Mesh:
 	return q
 
 
-static func _mat(name: String) -> StandardMaterial3D:
+## What gives way to your feet and leans in the wind (ground_tuft.gdshader, the meadow's
+## shader: the brief of 21. 10., "the ferns part as you go through"): [push, sway].
+const SOFT := {"fern": [1.0, 0.06], "nettles": [0.8, 0.05], "blueberry": [0.7, 0.02], "thistle": [0.6, 0.04]}
+
+
+static func _mat(name: String) -> Material:
 	if _mats.has(name):
 		return _mats[name]
+	if SOFT.has(name):
+		var sm := ShaderMaterial.new()
+		sm.shader = load("res://materials/ground_tuft.gdshader")
+		sm.set_shader_parameter("tex", load(DIR + name + ".png"))
+		sm.set_shader_parameter("push", float(SOFT[name][0]))
+		sm.set_shader_parameter("sway", float(SOFT[name][1]))
+		sm.set_shader_parameter("seasonal", 0.5)
+		_mats[name] = sm
+		return sm
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = load(DIR + name + ".png")
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST

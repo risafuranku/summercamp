@@ -31,6 +31,12 @@ const KIND := {
 ## 12 x 9 pixels left of the bar.
 const CAR_TEX := "res://assets/textury/ui/arrive_car.png"
 const BELL_TEX := "res://assets/textury/ui/arrive_bell.png"
+## The post's plate (scripts/reception/post_delivery.gd hud_row): the yellow post van on
+## the way, the parcel when the postman waits at the desk; the post's yellow stripe.
+const POST_VAN_TEX := "res://assets/textury/ui/post_van.png"
+const POST_PARCEL_TEX := "res://assets/textury/ui/post_parcel.png"
+const POST_YELLOW := Color(0.98, 0.78, 0.12)
+var post: Dictionary = {}
 const ICON_BOX := Vector2(13, 9)
 
 var font: Font
@@ -65,22 +71,33 @@ func set_rows(rows: Array) -> void:
 	queue_redraw()
 
 
+func set_post(row: Dictionary) -> void:
+	if row == post:
+		return
+	post = row.duplicate()
+	queue_redraw()
+
+
 func _process(delta: float) -> void:
 	_t += delta
-	if not _rows.is_empty():
+	if not _rows.is_empty() or not post.is_empty():
 		queue_redraw()
 
 
 func _draw() -> void:
-	if _rows.is_empty():
+	if _rows.is_empty() and post.is_empty():
 		return
 	var u := float(maxi(1, ui_scale))
-	var n := mini(_rows.size(), MAX_ROWS)
+	var extra := 0 if post.is_empty() else 1
+	var n := mini(_rows.size(), MAX_ROWS - extra)
 	var step := (PLATE.y + GAP) * u
 	var x := floorf(size.x - (PLATE.x + 4.0) * u)
-	var y0 := floorf(size.y * 0.42 - step * float(n) * 0.5)
+	var y0 := floorf(size.y * 0.42 - step * float(n + extra) * 0.5)
 	var f: Font = font if font != null else get_theme_default_font()
 	var fs := int(8.0 * u)
+	if extra > 0:
+		_post_plate(Vector2(x, y0), u)
+		y0 += step
 	for i in n:
 		_plate(_rows[i], Vector2(x, y0 + step * float(i)), u, f, fs)
 	if _rows.size() > n:
@@ -129,6 +146,41 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 	var txt := str(int(row.get("party_size", 1)))
 	var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	_text(f, txt, at + Vector2((PLATE.x - 2.0) * u - tw, 10.0 * u), fs, u, BONE)
+
+
+## The post's plate: the van (driving) or the parcel (shaking a pixel now and then while
+## the postman waits), the bar filling as he comes, then running down, red and blinking at
+## the end.
+func _post_plate(at: Vector2, u: float) -> void:
+	var box := Rect2(at, PLATE * u)
+	draw_rect(box, FILL)
+	draw_rect(Rect2(box.position, Vector2(box.size.x, u)), LIGHT)
+	draw_rect(Rect2(box.position, Vector2(u, box.size.y)), LIGHT)
+	draw_rect(Rect2(box.position + Vector2(0, box.size.y - u), Vector2(box.size.x, u)), DARK)
+	draw_rect(Rect2(box.position + Vector2(box.size.x - u, 0), Vector2(u, box.size.y)), DARK)
+	draw_rect(Rect2(box.position + Vector2(u, u), Vector2(u, box.size.y - 2.0 * u)), POST_YELLOW)
+	var waiting := str(post.get("icon", "")) == "parcel"
+	var left := clampf(float(post.get("left", 0.0)), 0.0, 1.0)
+	var col := AMBER
+	var wiggle := 0.0
+	if waiting:
+		col = GREEN if left > 0.5 else (AMBER if left > 0.25 else RED)
+		wiggle = (1.0 if int(_t * 4.0) % 2 == 0 else -1.0) if int(_t * 0.5) % 3 == 0 else 0.0
+	else:
+		wiggle = 0.0 if int(_t * 3.0) % 2 == 0 else -1.0
+	_icon(POST_PARCEL_TEX if waiting else POST_VAN_TEX, at + (ICON_AT + Vector2(wiggle if waiting else 0.0, wiggle if not waiting else 0.0)) * u, u)
+	var bar := Rect2(at + BAR.position * u, BAR.size * u)
+	draw_rect(bar.grow(u), SLOT)
+	var seg_w := floorf((BAR.size.x + 1.0) / float(SEGMENTS)) - 1.0
+	var lit := int(ceil(left * float(SEGMENTS))) if waiting else int(floor(left * float(SEGMENTS)))
+	var blink := waiting and left <= 0.15 and int(_t * 3.0) % 2 == 1
+	for k in SEGMENTS:
+		var r := Rect2(bar.position + Vector2(float(k) * (seg_w + 1.0) * u, 0), Vector2(seg_w * u, bar.size.y))
+		if k < lit and not blink:
+			draw_rect(r, col)
+			draw_rect(Rect2(r.position, Vector2(r.size.x, u)), col.lightened(0.35))
+		else:
+			draw_rect(r, Color(col, 0.16))
 
 
 var _icons: Dictionary = {}

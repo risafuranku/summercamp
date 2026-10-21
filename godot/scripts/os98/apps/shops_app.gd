@@ -1,8 +1,9 @@
 extends Control
 
-## Shops: SoftSklad's four programs for the camp's businesses on one tab (Hostinsky 98
-## for the pubs, Kuchar 98 for the bistros, Pult 98 for the Jednota, Klasek 98 for the
-## corn stands; scripts/os98/apps/business_app.gd). A strip of the four along the top;
+## Shops: SoftSklad's five programs on one tab: four for the camp's businesses
+## (Hostinsky 98 for the pubs, Kuchar 98 for the bistros, Pult 98 for the Jednota, Klasek
+## 98 for the corn stands; scripts/os98/apps/business_app.gd) and Personal 98 for the
+## staffroom's hands (scripts/os98/apps/staff_app.gd). A strip of the five along the top;
 ## one without a licence sends you to softsklad.cz, one licensed but not on the disk
 ## installs with a click, the rest run below and keep their place when you switch.
 
@@ -10,7 +11,7 @@ const T = preload("res://scripts/os98/os_theme.gd")
 const PAGE = preload("res://scripts/os98/os_page.gd")
 const PROGRESS = preload("res://scripts/os98/os_progress.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
-const APPS := [["pub_app", "pub"], ["bistro_app", "rest"], ["shop_app", "vecerka"], ["corn_app", "corn"]]
+const APPS := [["pub_app", "pub"], ["bistro_app", "rest"], ["shop_app", "vecerka"], ["corn_app", "corn"], ["staff_app", "staff"]]
 const STRIP_H := 28
 
 var _shell
@@ -123,7 +124,7 @@ func _switch(app_id: String) -> void:
 		var page = PAGE.new()
 		_body.add_child(page)
 		page.setup(app_id, str(_shell.PROGRAMS[app_id]["title"]), _shell.icon(str(_shell.PROGRAMS[app_id]["icon"]), true), Rect2(Vector2.ZERO, _body.size))
-		var app = load("res://scripts/os98/apps/business_app.gd").new()
+		var app = load("res://scripts/os98/apps/staff_app.gd" if app_id == "staff_app" else "res://scripts/os98/apps/business_app.gd").new()
 		page.content.add_child(app)
 		app.size = page.client_size()
 		page.resized.connect(func(): app.size = page.client_size())
@@ -174,7 +175,8 @@ func _on_do() -> void:
 # ── drawing ──────────────────────────────────────────────────────────────────
 
 func _btn_rect(i: int) -> Rect2:
-	var w := floorf((size.x - 8 - 3 * 3) / 4.0)
+	var n := float(APPS.size())
+	var w := floorf((size.x - 8 - 3 * (n - 1.0)) / n)
 	return Rect2(4 + i * (w + 3), 3, w, STRIP_H - 6)
 
 
@@ -222,13 +224,17 @@ func _draw_empty() -> void:
 	c.draw_rect(Rect2(Vector2.ZERO, s), Color8(255, 251, 232))
 	var kind := _kind(_cur)
 	var info: Dictionary = RULES.info(kind)
-	var col := {"pub": Color8(110, 28, 16), "rest": Color8(22, 82, 40), "vecerka": Color8(150, 20, 20), "corn": Color8(150, 110, 0)}.get(kind, T.NAVY) as Color
+	var col := {"pub": Color8(110, 28, 16), "rest": Color8(22, 82, 40), "vecerka": Color8(150, 20, 20), "corn": Color8(150, 110, 0), "staff": Color8(70, 54, 30)}.get(kind, T.NAVY) as Color
 	c.draw_rect(Rect2(0, 0, s.x, 34), col)
 	c.draw_string(T.FONT_BOLD, Vector2(12, 22), "%s  -  %s" % [str(_shell.PROGRAMS[_cur]["title"]), str(info.get("name", ""))], HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
 	c.draw_texture(_shell.icon(str(_shell.PROGRAMS[_cur]["icon"])), Vector2(floorf(s.x * 0.5 - 16), 60))
 	var lines: Array = []
 	if _licensed(kind):
 		lines = ["The licence is paid. The program is not on this computer yet.", "One click: it comes down the modem and installs itself."]
+	elif kind == "staff":
+		lines = ["Your own staff from this desk: who you take on, what each of them",
+			"sees to, their lockers and their day.",
+			"A licence costs $%d, paid once at www.softsklad.cz." % int(info.get("licence", 0))]
 	else:
 		lines = ["Run the %s from this desk: stock, orders to the wholesaler," % str(info.get("name", "business")).to_lower(),
 			"staff and the takings, on one screen.",

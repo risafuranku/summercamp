@@ -21,6 +21,7 @@ var _icons: Dictionary = {}
 
 
 func _build() -> void:
+	fine = 2.0
 	shop = state if state != null else JEDNOTA.of(get_tree())
 	for g in RULES.all_goods() + RULES.BEHIND + ["parcel"]:
 		_icons[g] = _tex("goods_" + g)
@@ -146,7 +147,7 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 		if RULES.is_parcel(g):
 			var pp := g.split(":")
 			short = "%s %dG" % [str(pp[1]).substr(0, 5).to_upper(), int(pp[2])] if pp.size() >= 3 else "DELI"
-		c.draw_string(f, Vector2(r.position.x + 13, y), short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
+		c.draw_string(f, Vector2(r.position.x + 13, y), tr(short), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
 		var price := "%d" % RULES.item_price(g)
 		var pw := f.get_string_size(price, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 		c.draw_string(f, Vector2(r.end.x - 4 - pw, y), price, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
@@ -160,7 +161,7 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 	var yy := r.end.y - 34.0
 	c.draw_rect(Rect2(r.position.x + 3, yy - 9, r.size.x - 6, 1), ink)
 	for l in lines:
-		c.draw_string(f, Vector2(r.position.x + 4, yy), str(l[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
+		c.draw_string(f, Vector2(r.position.x + 4, yy), tr(str(l[0])), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
 		var vw := f.get_string_size(str(l[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 		c.draw_string(f, Vector2(r.end.x - 4 - vw, yy), str(l[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
 		yy += 9.0

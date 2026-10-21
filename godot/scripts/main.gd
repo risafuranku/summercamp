@@ -44,6 +44,10 @@ const GUEST_AGENTS_SCRIPT = preload("res://scripts/guest_agents.gd")
 const QUEST_MANAGER_SCRIPT = preload("res://scripts/quest_manager.gd")
 const MAINTENANCE_CONTROLLER_SCRIPT = preload("res://scripts/maintenance_controller.gd")
 const BLOOD_FX_SCRIPT = preload("res://scripts/blood_fx.gd")
+## Being hurt on the screen and in the ears (the red flash, blood on the lens, your cry,
+## the heart and the breath, the limp and the blackouts when low).
+const HURT_FX_SCRIPT = preload("res://scripts/ui/hurt_fx.gd")
+var _hurt_fx: CanvasLayer
 const MENU_FLYTHROUGH_SCRIPT = preload("res://scripts/menu_flythrough.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
@@ -1624,6 +1628,11 @@ func _poll_arrivals(delta: float) -> void:
 		# The host's guests by the host's clock (GuestManager keeps no time of its own here).
 		GuestManager._on_time_tick(int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
 	_hud_manager.set_arrivals(GuestManager.get_arrivals())
+	# The post on its way with what you ordered (reception/post_delivery.gd).
+	var bi_p = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	var post_p = bi_p.get("_post") if bi_p != null else null
+	if _hud_manager.has_method("set_post"):
+		_hud_manager.set_post(post_p.hud_row() if post_p != null and post_p.has_method("hud_row") else {})
 	var day_rows: Array = _day_events.hud_rows() if _day_events != null else []
 	var biz = _interior_manager.get("business") if _interior_manager != null else null
 	var serve_rows: Array = []
@@ -2951,12 +2960,19 @@ func _resolve_damage_tier(damage_amount: int, fatal_hit: bool) -> int:
 
 func _emit_player_damage_feedback(damage_amount: int, fatal_hit: bool) -> void:
 	var tier := _resolve_damage_tier(damage_amount, fatal_hit)
+	if _hurt_fx == null or not is_instance_valid(_hurt_fx):
+		_hurt_fx = HURT_FX_SCRIPT.new()
+		_hurt_fx.set("main", self)
+		add_child(_hurt_fx)
+	_hurt_fx.hit(damage_amount, tier, fatal_hit)
 	if _player != null and _player.has_method("play_damage_feedback"):
 		_player.play_damage_feedback(tier, damage_amount, fatal_hit)
 	_spawn_blood_damage_fx(tier, fatal_hit)
 
 
 func _reset_player_damage_feedback() -> void:
+	if _hurt_fx != null and is_instance_valid(_hurt_fx):
+		_hurt_fx.clear()
 	if _player != null and _player.has_method("reset_damage_feedback_state"):
 		_player.reset_damage_feedback_state()
 
@@ -3168,7 +3184,8 @@ func _sync_active_camera() -> void:
 		player_camera.current = true
 		player_camera.far = FIRST_PERSON_CAMERA_FAR
 		player_camera.near = 0.08
-		player_camera.fov = 56.0
+		# Its FOV is the player's own (the warden's Options, wider in a run): until 21. 10.
+		# it was set back to 56 here every frame.
 		fallback_camera.current = false
 	else:
 		fallback_camera.current = true
@@ -3887,6 +3904,12 @@ func _update_interaction_hint() -> void:
 		return
 	if _coop_partner_down_near():
 		_hud_manager.set_hint_text("[E] Get %s up" % Coop.name_of(_coop_down_near_id))
+		return
+	# Something in your hands, or a small thing under the crosshair (scripts/ambient/carry.gd:
+	# it takes its own E and click, on either machine).
+	var carry := get_tree().get_first_node_in_group("carry")
+	if carry != null and str(carry.hint()) != "":
+		_hud_manager.set_hint_text(str(carry.hint()))
 		return
 	if Coop.is_client():
 		_hud_manager.set_hint_text(_coop_client_hint())
@@ -4860,6 +4883,17 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 			act.biz_set_menu(str(a[0]), str(a[1]), bool(a[2]))
 		"score":
 			act.biz_score(str(a[0]), a[1])
+		# The staffroom's hands (actions.staff_*).
+		"s_hire":
+			if a[0] is Dictionary:
+				act.staff_hire(a[0], int(a[1]) if a.size() > 1 else CoreRoot.get_day())
+		"s_fire":
+			act.staff_fire(str(a[0]))
+		"s_job":
+			if a.size() > 2:
+				act.staff_set_job(str(a[0]), str(a[1]), bool(a[2]))
+		"s_gear":
+			act.staff_add_gear(str(a[0]))
 
 
 ## The other machine: the other warden got you up.
@@ -5144,6 +5178,15 @@ func coop_screen_frame() -> PackedByteArray:
 	if _interior_manager == null or not _interior_manager.has_method("coop_room"):
 		return PackedByteArray()
 	var mine: Dictionary = _interior_manager.coop_room()
+	if str(mine.get("w", "")) == "laptop":
+		# At the staffroom's laptop (scripts/staff/laptop_view.gd): for whoever is in its
+		# room with you.
+		for id in Coop.others():
+			var th: Dictionary = Coop.state_of(id).get("room", {})
+			if str(th.get("k", "")) == str(mine.get("k", "")) and str(th.get("s", "")) == str(mine.get("s", "")) and str(th.get("w", "")) != "laptop":
+				var bi_l = _interior_manager.get("_building_interior")
+				return bi_l.coop_screen_frame_any() if bi_l != null else PackedByteArray()
+		return PackedByteArray()
 	if str(mine.get("t", "")) != "office" or str(mine.get("w", "")) != "pc":
 		return PackedByteArray()
 	# Someone in the office to look over your shoulder.
@@ -5161,6 +5204,11 @@ func coop_screen_frame() -> PackedByteArray:
 
 ## The other warden's screen, on your office's PC.
 func coop_show_screen(frame: PackedByteArray) -> void:
+	# In the staffroom: the frame is from its laptop.
+	var si = _interior_manager.get("_service_interior") if _interior_manager != null else null
+	if si != null and si.has_method("coop_show_laptop") and si.is_open():
+		si.coop_show_laptop(frame)
+		return
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	if bi != null and bi.has_method("coop_show_screen") and bi.is_open():
 		bi.coop_show_screen(frame)
@@ -5599,6 +5647,20 @@ func coop_local_warden() -> Dictionary:
 			s["t"] = false
 			s["v"] = 0.0
 			s["act"] = "cook"
+	# Crouched or on your belly, or something carried in your arms (player_controller
+	# stance, scripts/ambient/carry.gd): the other machine draws that pose.
+	if not s.has("act") and _player != null and not bool(s.get("in", false)):
+		var stance := int(_player.get("stance")) if _player.get("stance") != null else 0
+		var carry := get_tree().get_first_node_in_group("carry")
+		var carried: String = carry.coop_pose() if carry != null else ""
+		if carry != null and str(carry.coop_held()) != "":
+			s["cr"] = str(carry.coop_held())
+		if stance == 2:
+			s["act"] = "prone"
+		elif stance == 1:
+			s["act"] = "crouch"
+		elif carried != "":
+			s["act"] = carried
 	# At work out in the camp: holding R at something, a branch sawn, rubbish bagged.
 	if not s.has("act"):
 		var chore: String = _day_events.coop_work() if _day_events != null and _day_events.has_method("coop_work") else ""

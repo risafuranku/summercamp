@@ -898,6 +898,9 @@ func _create_tree(pos: Vector3, dice: RandomNumberGenerator = null) -> StaticBod
 		kind = TREE_KIND_BIRCH
 	var s := r.randf_range(0.82, 1.32)
 	tree.scale = Vector3(s, s * r.randf_range(0.92, 1.12), s)
+	# Which tree it is, for what lives in it (scripts/ambient/body_world.gd: leaves off a
+	# birch, a cone off a spruce, no birds in a dead one).
+	tree.set_meta("tree_kind", kind)
 
 	var trunk_collider = CollisionShape3D.new()
 	var trunk_shape = CylinderShape3D.new()

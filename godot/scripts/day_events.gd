@@ -17,7 +17,10 @@ extends Node
 ##   someone   a guest heard somebody else in their cabin last night: knock, look round
 ##             (E at their door). From day 3. Whether you look or not, that cabin is one
 ##             the night director remembers (`haunted`): at night, near it, it makes sounds.
-## Each one pages you, shows in the HUD's TODAY list and gets the waypoint.
+## Each one pages you, shows in the HUD's TODAY list and gets the waypoint. The
+## staffroom's hands (scripts/staff/staff_runtime.gd) take the litter, the raccoons, the
+## van and the branches off you when their jobs are ticked (staff_jobs / staff_done); one
+## on the way is shown on the list with their name, and you may still do it yourself.
 ##
 ## Life (P7): loops at the facilities while guests are about (kids at the slide,
 ## football, the guitar at the fire, the pub through its door) and far-off one-shots
@@ -151,8 +154,58 @@ func hud_rows() -> Array:
 	var rows: Array = []
 	for ev in _events:
 		if str(ev["state"]) == "open":
-			rows.append({"title": ev["title"], "where": ev["where"]})
+			var who := staff_on(int(ev["id"]))
+			rows.append({"title": ev["title"], "where": (tr("%s is on it") % who) if who != "" else ev["where"]})
 	return rows
+
+
+# ── the staffroom's hands (scripts/staff/staff_runtime.gd) ─────────────────────
+
+## The kinds a hand can see to.
+const STAFF_KINDS := ["litter", "raccoons", "delivery", "tree"]
+
+
+## The open events of `kinds` a hand could go to: [{id, kind, pos}].
+func staff_jobs(kinds: Array) -> Array:
+	var out: Array = []
+	for ev in _events:
+		if str(ev["state"]) != "open" or not kinds.has(str(ev["kind"])) or not STAFF_KINDS.has(str(ev["kind"])):
+			continue
+		var p := _event_pos(ev)
+		if p != Vector3.INF:
+			out.append({"id": int(ev["id"]), "kind": str(ev["kind"]), "pos": p})
+	return out
+
+
+func staff_open(id: int) -> bool:
+	var ev := _event_by_id(id)
+	return not ev.is_empty() and str(ev["state"]) == "open"
+
+
+## The name of the hand going to event `id` ("" nobody), from the staff's own record
+## (so the other warden's list shows it too).
+func staff_on(id: int) -> String:
+	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	if not (st is Dictionary):
+		return ""
+	var acts: Dictionary = st.get("act", {})
+	for slug in acts:
+		var a: Dictionary = acts[slug]
+		if int(a.get("ev", -1)) == id and str(a.get("do", "")) in ["walk", "work"]:
+			for p in st.get("crew", []):
+				if str(p.get("slug", "")) == str(slug):
+					return str(p.get("name", ""))
+	return ""
+
+
+## A hand has seen to event `id`: as if you had (what it pays, how the guests take it),
+## the line with their name. False when it was not open any more.
+func staff_done(id: int, who: String) -> bool:
+	var ev := _event_by_id(id)
+	if ev.is_empty() or str(ev["state"]) != "open":
+		return false
+	_resolve(ev, who)
+	return true
 
 
 func open_events() -> Array:
@@ -182,7 +235,7 @@ func hint() -> String:
 		return ""
 	match str(ev["kind"]):
 		"litter":
-			return "[HOLD E] Bag the rubbish"
+			return "[E] Bag the rubbish"
 		"raccoons":
 			return "[E] Shoo the raccoons"
 		"delivery":
@@ -190,7 +243,7 @@ func hint() -> String:
 		"lost_kid":
 			return "[E] \"Come on, your mum is looking for you.\""
 		"tree":
-			return "[HOLD E] Saw up the branch"
+			return "[E] Saw up the branch"
 	return ""
 
 
@@ -256,9 +309,18 @@ func import_state(data: Dictionary) -> void:
 			was_open[int(ev["id"])] = true
 	var incoming: Array = []
 	var ids := {}
+	# The rubbish whose sack is in your arms stays bagged here (carry.gd); any other "bagged"
+	# (a save, the host's pulse) is rubbish lying where it was.
+	var carry := get_tree().get_first_node_in_group("carry") if is_inside_tree() else null
+	var held_ev := int(carry.held.get("ev", -1)) if carry != null and str(carry.held.get("kind", "")) == "sack" else -1
 	for e in data.get("events", []):
 		if e is Dictionary:
-			incoming.append((e as Dictionary).duplicate(true))
+			var ev_in := (e as Dictionary).duplicate(true)
+			if int(ev_in["id"]) == held_ev:
+				ev_in["bagged"] = true
+			else:
+				ev_in.erase("bagged")
+			incoming.append(ev_in)
 			ids[int(e["id"])] = true
 	for id in _props.keys():
 		if not ids.has(int(id)) or not was_open.has(int(id)):
@@ -496,7 +558,7 @@ func coop_resolve(id: int) -> void:
 		_resolve(ev)
 
 
-func _resolve(ev: Dictionary) -> void:
+func _resolve(ev: Dictionary, by := "") -> void:
 	if coop_follow:
 		# Done in the host's camp (what it pays and how the guests take it); here, how it went.
 		Coop.send_request("day_event", [int(ev["id"])])
@@ -526,6 +588,8 @@ func _resolve(ev: Dictionary) -> void:
 			text = "You look round with the torch while they watch. Nobody. Under the bed the boards are wet."
 	if str(ev["kind"]) != "lost_kid":
 		_mood_for(float(rules.get("ok_mood", 0.0)), "", [])
+	if by != "":
+		text = "%s: %s" % [by, tr(text)]
 	_close(ev, "done", text)
 
 
@@ -586,14 +650,20 @@ func _close(ev: Dictionary, state: String, text: String) -> void:
 # ── the player at it ──────────────────────────────────────────────────────────
 
 func _update_target(delta: float, can_act: bool) -> void:
+	# E let go (or nothing to work): the mouse is the eye's again.
+	if not (can_act and Input.is_action_pressed("interact")):
+		var pl2 = _main.get("_player") if _main != null else null
+		if pl2 != null and pl2.has_method("lock_look"):
+			pl2.lock_look("day_events", false)
 	var cam := _camera()
 	var best := -1
 	if can_act and cam != null:
 		var best_score := INF
 		var fwd := -cam.global_transform.basis.z
 		for ev in _events:
-			# Talked out (noise) or knocked for at the lodging (someone): not an E spot.
-			if str(ev["state"]) != "open" or str(ev["kind"]) == "noise" or str(ev["kind"]) == "someone":
+			# Talked out (noise) or knocked for at the lodging (someone): not an E spot; the
+			# rubbish bagged is in your arms (or set down), not where it lay.
+			if str(ev["state"]) != "open" or str(ev["kind"]) == "noise" or str(ev["kind"]) == "someone" or bool(ev.get("bagged", false)):
 				continue
 			var p := _event_pos(ev) + Vector3(0, 0.5, 0)
 			var to := p - cam.global_position
@@ -619,17 +689,58 @@ func _update_target(delta: float, can_act: bool) -> void:
 	if hold <= 0.0:
 		return
 	if can_act and InputMap.has_action("interact") and Input.is_action_pressed("interact"):
-		if _work <= 0.0:
-			_sfx_at("saw_log.mp3" if str(ev["kind"]) == "tree" else "", _event_pos(ev), -2.0)
-		_work += delta / hold
+		# Worked by a gesture (scripts/ui/gesture.gd, the brief of 21. 10.): E held, the saw
+		# to and fro, the rubbish picked up and bagged down and up; the eye stays still.
+		var pl = _main.get("_player") if _main != null else null
+		if pl != null and pl.has_method("lock_look") and not bool(pl.get("look_locked")):
+			_gesture.reset()
+			_gesture.kind = "sweep" if str(ev["kind"]) == "tree" else "pick"
+		if pl != null and pl.has_method("lock_look"):
+			pl.lock_look("day_events", true)
+		var motion: Vector2 = pl.take_gesture_motion() if pl != null and pl.has_method("take_gesture_motion") else Vector2.ZERO
+		var strokes: int = _gesture.feed(motion, delta, 360.0)
+		if strokes > 0:
+			if str(ev["kind"]) == "tree" or _work <= 0.0:
+				_sfx_at("saw_log.mp3" if str(ev["kind"]) == "tree" else "", _event_pos(ev), -2.0)
+			_work += float(strokes) / float(GESTURE.strokes_for(hold))
 		var hud = _hud()
 		if hud != null and hud.has_method("set_work_progress"):
 			hud.set_work_progress("SAWING" if str(ev["kind"]) == "tree" else "BAGGING RUBBISH", _work)
+			if hud.has_method("set_work_gesture"):
+				hud.set_work_gesture(_gesture.offset / 3.6, _gesture.kind if _gesture.idle > 2.4 else "", strokes > 0)
 		if _work >= 1.0:
-			_resolve(ev)
+			if not (str(ev["kind"]) == "litter" and _sack_to_carry(ev)):
+				_resolve(ev)
 	elif _work > 0.0:
 		_work = 0.0
 		_clear_work()
+
+
+const GESTURE = preload("res://scripts/ui/gesture.gd")
+var _gesture = GESTURE.new()
+
+
+## Bagged: the sack in your arms (scripts/ambient/carry.gd), and the rubbish is done when
+## it goes in the dumpsters (sack_binned), not before (the brief of 21. 10.: carry it where
+## it belongs). A camp without dumpsters: done as it was, the moment it is bagged.
+func _sack_to_carry(ev: Dictionary) -> bool:
+	var carry := get_tree().get_first_node_in_group("carry")
+	if carry == null or not carry.any_dumpsters() or not carry.take_work("sack", int(ev["id"])):
+		return false
+	ev["bagged"] = true
+	_free_props(int(ev["id"]))
+	_work = 0.0
+	_clear_work()
+	_report("Bagged. Into the dumpsters with it.", 0)
+	changed.emit()
+	return true
+
+
+## The sack went in the dumpsters (carry.gd): that rubbish is done.
+func sack_binned(id: int) -> void:
+	var ev := _event_by_id(id)
+	if not ev.is_empty() and str(ev["state"]) == "open":
+		_resolve(ev)
 
 
 ## Co-op: what your hands are on now ("saw" a branch, "bag" the rubbish, "" nothing).

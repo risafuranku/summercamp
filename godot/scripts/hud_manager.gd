@@ -381,7 +381,19 @@ func clear_objective() -> void:
 	_refresh_objective()
 
 
-## Hold-to-work bar under the crosshair (servicing / repairing a building).
+## Work by a gesture (scripts/ui/gesture.gd): where the mouse has the hand (hundredths of
+## the view), the ghost's motion when idle ("" none), a stroke just landed.
+func set_work_gesture(offset: Vector2, ghost: String, stroke: bool) -> void:
+	if _work_hand == null or not is_instance_valid(_work_hand):
+		return
+	_work_hand.gesture_offset = offset
+	_work_hand.ghost_kind = ghost
+	if stroke:
+		_work_hand.stroke()
+
+
+## The work's line under the crosshair (servicing / repairing a building) and how far it
+## has got (since 21. 10. moved on by the gesture's strokes, not by holding).
 func set_work_progress(text: String, ratio: float) -> void:
 	_work_text = text
 	_work_ratio = clampf(ratio, 0.0, 1.0)
@@ -892,6 +904,12 @@ func set_troubles(rows: Array) -> void:
 	_troubles = rows.duplicate(true)
 	if _trouble_strip != null and is_instance_valid(_trouble_strip):
 		_trouble_strip.set_rows(_troubles)
+
+
+## The post's plate on the right edge (post_delivery.hud_row(); {} none).
+func set_post(row: Dictionary) -> void:
+	if _arrival_rings != null and is_instance_valid(_arrival_rings) and _arrival_rings.has_method("set_post"):
+		_arrival_rings.set_post(row)
 
 
 ## Rows from GuestManager.get_arrivals(): who is coming, when, to which room, ready?

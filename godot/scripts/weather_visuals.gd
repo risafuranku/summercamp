@@ -487,6 +487,17 @@ func setup_weather_particles() -> void:
 	var nudge = load("res://scripts/ambient/nudge_props.gd").new()
 	nudge.player_getter = _player_getter
 	_world_3d.add_child(nudge)
+	# The world answering your body: grass and ferns parting round every warden's feet,
+	# bushes shaking, a low branch, leaves coming down, birds going up, splashes, wet and
+	# muddy prints (scripts/ambient/body_world.gd); and what you pick up, carry and throw
+	# (scripts/ambient/carry.gd).
+	var bw = load("res://scripts/ambient/body_world.gd").new()
+	bw.player_getter = _player_getter
+	_world_3d.add_child(bw)
+	var carry = load("res://scripts/ambient/carry.gd").new()
+	carry.player_getter = _player_getter
+	carry.nudge = nudge
+	_world_3d.add_child(carry)
 	# The country by the hour: the dawn chorus, birds, grasshoppers, a crow, ducks
 	# (scripts/ambient/nature_life.gd).
 	var nature = load("res://scripts/ambient/nature_life.gd").new()
@@ -1673,6 +1684,9 @@ func _setup_cloud_layers() -> void:
 	_cloud_sprites.clear(); _cloud_world_positions.clear()
 	_cloud_world_drift_vectors.clear(); _cloud_phase_offsets.clear()
 	_cloud_speed_jitter.clear(); _cloud_alpha_jitter.clear(); _cloud_presence_threshold.clear()
+	# No sprite clouds: the sky's clouds are cloud_layers.gd's deck, thick, warped and in
+	# three dimensions; flat sprites over it clashed (the user 21. 10.).
+	if true: return
 	if _celestial_root == null: return
 	var origin = Vector3.ZERO
 	var cam = _get_active_world_camera()

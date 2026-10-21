@@ -795,6 +795,14 @@ var _coop_screen_left := 0.0
 func coop_screen_frame() -> PackedByteArray:
 	if not _crt_active or _crt_viewport == null:
 		return PackedByteArray()
+	return coop_screen_frame_any()
+
+
+## The PC's picture as a JPEG, whoever sits at it (here, or at the staffroom's laptop:
+## scripts/staff/laptop_view.gd).
+func coop_screen_frame_any() -> PackedByteArray:
+	if _crt_viewport == null:
+		return PackedByteArray()
 	var img := _crt_viewport.get_texture().get_image()
 	if img == null or img.is_empty():
 		return PackedByteArray()
@@ -1088,6 +1096,13 @@ func _build_room() -> void:
 	sky_bg_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_window_outdoor_sky.material_override = sky_bg_mat
 	_room_root.add_child(_window_outdoor_sky)
+	# The window is a real view of the camp now (_setup_window_view): the old painted
+	# scene behind it goes. It was hidden before it was built, so it stayed, and from the
+	# camp at a slant its beige walls covered the office's window (the user 21. 10.).
+	for n in ["OutdoorGround", "OutdoorCeiling", "OutdoorWallL", "OutdoorWallR", "OutdoorBushL", "OutdoorBushR", "OutdoorBushR2", "OutdoorGravelStrip0", "OutdoorGravelStrip1", "OutdoorGravelStrip2", "OutdoorSkyBg"]:
+		var outdoor := _room_root.get_node_or_null(n)
+		if outdoor != null:
+			outdoor.visible = false
 
 	# ── THE PC CORNER: the old work desk, the computer, the fan and the radio, on the
 	# low desk at the left end of the counter (PC_OFFSET from where they were made).
@@ -2463,6 +2478,13 @@ func _update_inview(delta: float) -> void:
 	_inview_cam.global_transform = to_room * cam.global_transform
 	_inview_cam.fov = cam.fov
 	_inview_cam.keep_aspect = cam.keep_aspect
+	# The camp's eye looking up or down is Build's shift of the picture (a moved frustum,
+	# player_controller._apply_projection): the panes' picture must be shifted the same.
+	# (Its near plane is its own: the frustum scaled to it.)
+	_inview_cam.projection = cam.projection
+	var nk := _inview_cam.near / maxf(cam.near, 0.001)
+	_inview_cam.size = cam.size * nk
+	_inview_cam.frustum_offset = cam.frustum_offset * nk
 	var px := Vector2i(cam.get_viewport().get_visible_rect().size)
 	if _inview_vp.size != px and px.x > 0:
 		_inview_vp.size = px

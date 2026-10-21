@@ -31,6 +31,8 @@ var _icons: Dictionary = {}
 
 
 func _build() -> void:
+	# The food at the pictures' own pixel (they were drawn two to a design pixel).
+	fine = 2.2
 	kitchen = state as KITCHEN
 	for k in ICONS:
 		var p := FOOD_ICONS + str(ICONS[k]) + ".png"
@@ -200,9 +202,9 @@ func bar_text() -> String:
 	if kitchen == null:
 		return ""
 	var pl: Dictionary = kitchen.plates(building_key)
-	var text := "PLATES %d" % int(pl["clean"])
+	var text := tr("PLATES %d") % int(pl["clean"])
 	if int(pl["dirty"]) > 0:
-		text += "  DIRTY %d" % int(pl["dirty"])
+		text += "  " + tr("DIRTY %d") % int(pl["dirty"])
 	return text
 
 

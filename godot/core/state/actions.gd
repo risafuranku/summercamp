@@ -754,9 +754,144 @@ func biz_close_day(day := -1) -> Dictionary:
 		site["history"] = history
 		site["yesterday"] = site["today"]
 		site["today"] = BIZ_RULES.empty_day()
+	# The staffroom's hands (staff_rules.gd): paid the same way, the day they came in.
+	var st := _staff()
+	var screw: Array = st["crew"]
+	for i in range(screw.size() - 1, -1, -1):
+		var p: Dictionary = screw[i]
+		if day >= 0 and int(p.get("absent", -1)) == day:
+			continue
+		var due := STAFF_RULES.wage_of(p) + int(p.get("owed", 0))
+		if _state.money >= due:
+			_state.money -= due
+			wages += due
+			p["owed"] = 0
+			p["unpaid"] = 0
+		else:
+			p["owed"] = due
+			p["unpaid"] = int(p.get("unpaid", 0)) + 1
+			if int(p["unpaid"]) >= 2:
+				left.append(str(p.get("name", "A hand")))
+				(st["act"] as Dictionary).erase(str(p.get("slug", "")))
+				screw.remove_at(i)
+	st["done_y"] = int(st.get("done_n", 0))
+	st["done_n"] = 0
 	if wages > 0:
 		EventBus.money_changed.emit(_state.money)
 	return {"wages": wages, "left": left}
+
+
+# ── the staffroom's hands (core/systems/staff_rules.gd) ─────────────────────────
+
+const STAFF_RULES = preload("res://core/systems/staff_rules.gd")
+
+
+## biz.staff, made the first time it is asked for.
+func _staff() -> Dictionary:
+	var b := _biz()
+	if not (b.get("staff") is Dictionary):
+		b["staff"] = {}
+	var st: Dictionary = b["staff"]
+	for k in ["crew", "log"]:
+		if not (st.get(k) is Array):
+			st[k] = []
+	for k in ["gear", "act"]:
+		if not (st.get(k) is Dictionary):
+			st[k] = {}
+	return st
+
+
+func staff_state() -> Dictionary:
+	return _staff()
+
+
+## Takes a person on at the staffroom (one of today's applicants): not without a free
+## locker. All jobs ticked on.
+func staff_hire(person: Dictionary, day: int) -> bool:
+	var st := _staff()
+	if person.is_empty() or not STAFF_RULES.can_hire(st):
+		return false
+	for p in st["crew"]:
+		if str(p.get("slug", "")) == str(person.get("slug", "")):
+			return false
+	var p2 := person.duplicate(true)
+	p2["since"] = day
+	if not (p2.get("jobs") is Dictionary):
+		p2["jobs"] = STAFF_RULES.default_jobs()
+	st["crew"].append(p2)
+	EventBus.state_changed.emit({"biz": "staff_hired"})
+	_biz_tell("s_hire", [p2, day])
+	return true
+
+
+func staff_fire(slug: String) -> void:
+	var st := _staff()
+	var crew: Array = st["crew"]
+	for i in range(crew.size() - 1, -1, -1):
+		if str(crew[i].get("slug", "")) == slug:
+			crew.remove_at(i)
+	(st["act"] as Dictionary).erase(slug)
+	EventBus.state_changed.emit({"biz": "staff_fired"})
+	_biz_tell("s_fire", [slug])
+
+
+## A job of one hand ticked on or off.
+func staff_set_job(slug: String, job: String, on: bool) -> void:
+	for p in _staff()["crew"]:
+		if str(p.get("slug", "")) == slug:
+			if not (p.get("jobs") is Dictionary):
+				p["jobs"] = STAFF_RULES.default_jobs()
+			p["jobs"][job] = on
+	EventBus.state_changed.emit({"biz": "staff_job"})
+	_biz_tell("s_job", [slug, job, on])
+
+
+## One more locker or mattress for the boiler room, paid now.
+func staff_buy_gear(id: String) -> bool:
+	var st := _staff()
+	var price := STAFF_RULES.gear_price(st, id)
+	if price <= 0 or not spend_money(price):
+		return false
+	st["gear"][id] = STAFF_RULES.gear_count(st, id) + 1
+	EventBus.state_changed.emit({"biz": "staff_gear"})
+	_biz_tell("s_gear", [id])
+	return true
+
+
+## Co-op, the host: what the other warden bought at their end (paid there).
+func staff_add_gear(id: String) -> void:
+	var st := _staff()
+	if STAFF_RULES.gear_price(st, id) > 0:
+		st["gear"][id] = STAFF_RULES.gear_count(st, id) + 1
+		EventBus.state_changed.emit({"biz": "staff_gear"})
+
+
+## Where a hand is and what they are at (the running side, on the machine that runs the
+## camp; the other one draws it from the pulse).
+func staff_act(slug: String, act: Dictionary) -> void:
+	var st := _staff()
+	if act.is_empty():
+		(st["act"] as Dictionary).erase(slug)
+	else:
+		st["act"][slug] = act
+
+
+## A line in the staffroom's day book (what was done, by whom, when).
+func staff_log(text: String, minute: int) -> void:
+	var st := _staff()
+	var log: Array = st["log"]
+	log.append({"day": int(_state.day), "t": minute, "text": text})
+	while log.size() > 24:
+		log.pop_front()
+	st["done_n"] = int(st.get("done_n", 0)) + 1
+
+
+## A hand's record changed by the running side (absent today, the bed they took).
+func staff_note(slug: String, fields: Dictionary) -> void:
+	for p in _staff()["crew"]:
+		if str(p.get("slug", "")) == slug:
+			for f in fields:
+				p[f] = fields[f]
 
 
 ## A program for the office PC, bought on the web.

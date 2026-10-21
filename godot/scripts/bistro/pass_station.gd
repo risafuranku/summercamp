@@ -38,6 +38,8 @@ const ON_PLATE := {
 	"sausage": Vector2(-6, -2), "mustard": Vector2(14, -12), "bread": Vector2(20, 14),
 }
 const PLATE_LIFT := 0.016
+## The food on the plate a quarter bigger than drawn (to be told apart at a glance).
+const FOOD_K := 1.25
 
 var _plate: Array = []
 ## How good each thing on the plate was (the stove's slice, the chips, the goulash).
@@ -229,16 +231,16 @@ func _show() -> void:
 			var part := str(_plate[i])
 			var n := int(placed.get(part, 0))
 			placed[part] = n + 1
-			var off: Vector2 = ON_PLATE.get(part, Vector2.ZERO)
+			var off: Vector2 = ON_PLATE.get(part, Vector2.ZERO) * FOOD_K
 			if part == "dumpling":
-				off += Vector2((n % 3) * 9 - 9, (n / 3) * 8 - 4)
+				off += Vector2((n % 3) * 11 - 11, (n / 3) * 10 - 5)
 			elif n > 0:
-				off += Vector2(n * 6, n * 4)
+				off += Vector2(n * 7, n * 5)
 			var spr: Sprite3D = _food[i]
 			var key := "food_" + part
 			if part == "dumpling":
 				key = "dumpling_slice"
-			bretex(spr, key, 1.4 if part == "dumpling" else 1.0)
+			bretex(spr, key, (1.4 if part == "dumpling" else 1.0) * FOOD_K)
 			spr.visible = true
 			var dk := clampf(float(_drop.get(i, 1.0)) / 0.12, 0.0, 1.0)
 			var lift := 0.006 + i * 0.002 + (1.0 - floorf(dk * 3.0) / 3.0) * 0.06

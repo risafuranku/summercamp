@@ -4,6 +4,106 @@
 
 ---
 
+## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
+
+Decided with the user (Q&A 21. 10.): bodily but quick (Firewatch, Dishonored), no sliding; the
+Build look kept but wider; the camera always smooth, only sprites and hands in steps; crouch and
+crawl; your own feet and shadow; the world answers you; doors without a seam; carry and throw;
+work by a gesture of the mouse; Options. How it works: DESIGN.md §9c.
+
+**Measured before** (`tools/move_shots.tscn -- --part=measure`, 1280x720, the businesses' test
+camp, 40 guests; HEAD 2c2914f):
+
+| | before | after |
+|---|---|---|
+| walk 0 -> 95 % (3.9 m/s) | 0.35 s, 0.71 m | 0.08 s, 0.19 m |
+| walk: key let go -> stopped | 0.48 s, 0.92 m | 0.12 s, 0.19 m |
+| sprint 0 -> 95 % (5.2 m/s) | 0.45 s, 1.16 m | 0.12 s, 0.35 m |
+| sprint: key let go -> stopped | 0.65 s, 1.65 m | 0.17 s, 0.36 m |
+| W -> S, at speed the other way | 0.70 s | 0.17 s |
+| look up (limit / the eye itself) | 24° / 17.7° | 55° / 55° (12° Build shift + 43° turn; stops under the zenith) |
+| look down (limit / the eye itself) | 46° / 33.5° | 80° / 80° (12° shift + 68° turn) |
+| FOV | 56° | 72° (Options 60-90, +4° running) |
+| FPS camp 19:36, 40 guests (worst frame) | 50 cap (31 ms) | 50 cap (31.5 ms) |
+| FPS forest (worst frame) | 50 cap (39.6 ms) | 50 cap (39.4 ms; with the new sounds and sprites loaded at the start: a first load mid-walk was a 50 ms frame) |
+
+What makes the tank (from the numbers and the shots `move_shots --part=shots`):
+- the stop: half a second and nearly a metre of slide after the key goes (sprint 1.65 m), a turn
+  back takes 0.7 s: "a car";
+- the air keeps full braking (8 m/s²) but little push: you stop dead in a jump, odd both ways;
+- the eye moves 0.72 of the mouse up and down (`pseudo_pitch_rotation_mix`) in 1.4° steps
+  (`vertical_look_snap_degrees`): up 17.7°, down 33.5°: no boots, no crowns, no sky; FOV 56°
+  (rooms are 68-70°): a narrow tube;
+- the bob is stepped (12 a second, `bob_fps`, `bob_snap_*`) and counted by the clock, not the
+  ground; the head moves in physics (60 Hz) while frames are capped at 50: a double step every
+  fifth frame, a 10 Hz judder whenever you move;
+- main forces the FOV back to 56° every frame (`_sync_active_camera`): the run's wider view hardly
+  shows;
+- the lean on a turn is set per mouse event (frame-rate dependent);
+- the world does not answer: grass, ferns and bushes stand still as you walk through; nothing to
+  pick up or throw (only kicks); doors: a frozen frame and a dither at every building.
+
+The work, in the brief's order (tick as it lands):
+- [x] 1. Quick to start and stop, no slide, turning without a skid, less control in the air;
+  the bob by steps on the ground, in time with the footstep, the landing springs, the run's
+  longer step and wider view, a settle when you stop; all smooth (no steps, no physics judder)
+- [x] 2. Wider Build camera (FOV, up and down) and its limit written down (DESIGN §9c: the shift
+  eased in to 12°, then the eye turns; up stops 2° under the zenith, where the sky pinches);
+  mouse without lag or steps; Options: FOV, mouse X and Y, bob, lean, crouch hold/toggle
+- [x] 3. Crouch and crawl (smooth height, slower, quieter, under 0.6 m), the crawl's hands; your
+  feet and boots looking down (Grok, the hands' pixel and light), a shadow; co-op poses
+- [ ] 3b. Room under things outdoors: the picnic tables, fences and cabins are solid boxes to
+  the ground (their colliders), so there is little to crawl under yet; no reflection in water
+- [x] 4. Grass and ferns part round every warden's feet (shader), ferns rustle, a low branch
+  across the view, leaves fall under the birches and cones off the spruces, birds and crows fly up
+- [x] 4a. A squirrel on a trunk (runs up as you come) and butterflies over the meadow (Grok
+  `body_squirrel`, `body_butterflies`)
+- [ ] 4b. The crowns' calm-day motion left as it was; needles (too small to read at 240 lines);
+  bushes (the camp has none: ferns, nettles, blueberries take their place); new sounds for
+  wings and bushes need an SFX key (the current key speaks only: the corn's rustle, the
+  oar's splash and the crow reused)
+- [x] 5. Puddles splash (rings, drops), the lake's edge splashes (you can wade a stride in), wet
+  prints on boards and paths, mud slows and muddies the boots (seen on your feet, brown prints);
+  the other wardens' wet and muddy prints are not drawn (their boots are not sent)
+- [x] 6. Pick up, carry, set down, throw small things (bottles, cans, cones, the bucket, stones,
+  logs); the rubbish sack carried in both arms to the dumpsters (the litter is done there); a
+  throw at night calls `heard()` on the group "night_ears"
+- [ ] 6b. No enemy listens to "night_ears" yet (none has ears: it is the night's code); the
+  delivery's boxes (the `carry_box` hands are drawn) and a ladder are not carried yet; the
+  stones' and logs' world pictures (`kick_stone`, `kick_log`) are not drawn yet, so none lie
+  by the fire (their held hands `hold_stone`, `hold_log` are)
+- [x] 7. Doors: the hand on the handle, the leaf swings, you step into the doorway and the room
+  takes up from its door with no frozen frame and no dither (every lodging and service room)
+- [ ] 7b. The room seen through the open door (a portal: a camera in the room's own world on a
+  quad in the doorway, as the office's windows do): the rooms are worlds of their own built
+  only when they open, so it needs a hidden build before the door opens; the dissolve is
+  left where you did not walk in (the PC's start, rooms opened by tools)
+- [x] 8. Work by a gesture of the mouse instead of the hold bar (sweep, round, a jerk down, pull,
+  pick), the ghost hand and its trail after 2.4 s; rooms, repairs (R), sawing and bagging (E);
+  the toilet's scrub close-up and the pipes keep their minigames; the HUD's line still shows
+  how far (no hammer job exists yet)
+- [x] 9. Guests you walk into hop aside and look at you with a word; ducks on the camp shore run
+  and fly off (there is no dog in the camp: only a far bark)
+- [x] 10. Co-op: carried things (at their hand, the sack as "bag"), crouch and crawl, open doors,
+  thrown things on every machine (`Coop.send_body`); Czech for every new text
+  (`tools/i18n/batches/07_body.json`)
+- [x] 11. DESIGN §9c, PRODUCT, AGENTS (§4 rows, §5 gotchas); the numbers after
+- [x] Checked: smoke (no SCRIPT ERROR), upkeep_check, hud_layout_check, lang_check, the shot
+  driver's prepcabin (the rooms' jobs by the tools' auto gesture), `move_shots` measure /
+  shots / body looked at; coop_check: 3 failures, all the trip to town and the bus (in_town,
+  bus fingerprints: as before this work, Cod3x's); coop4_check not run
+
+## STAFFROOM — 2026-10-21 (the user: "a fifth tab in SoftSklad to hire staff; a staffroom with the PC as an old chunky laptop, a mattress in the boiler room, sofa, fridge, coffee machine, TV; lockers bought in the books; they see to the day's events and the lodgings; toggles per hand; home at night; curtains; co-op; the postman as a notification on the right edge")
+- [x] Staffroom build (Utilities, one per camp), one plan inside and out, real glass, curtains, lamps (DESIGN §7c)
+- [x] Lounge + boiler room, point and click, the laptop = the office PC, books, coffee, fridge, TV, lockers, mattresses
+- [x] Hands: hire one to a locker, jobs ticked per hand, the day (coffee, jobs, rest, a guest's bed, home at eight)
+- [x] Personal 98: SoftSklad's fifth program; licence at softsklad.cz
+- [x] The post's plate at the right edge (van on the way, parcel at the desk)
+- [ ] Co-op checked in two windows (the code is in: biz.staff in the pulse, s_* ops to the host, the laptop's screen and the figures)
+- [x] The boiler room's mattress is the warden's bed (lodge_bed "staff"); the hands sit in the lounge (armchairs bought) and all go home at night (the user, the same evening)
+- [ ] Sounds of their own: the boiler's roar, the fridge's hum, the coffee machine's gurgle, the locker's clang (ElevenLabs)
+- [ ] A hand asleep in a guest's bed seen in that lodging's room
+
 ## CABINS — 2026-10-21 (the user: "the curtains do not glint, the windows by the door clip the coat and have no view, rebuild the inside to match the outside and remake that a bit; every tier a visible upgrade inside and out; old curtains left under the new ones")
 
 - [x] One plan for the model and the room (`scripts/cabin_layout.gd`), every window a view out with a curtain that glints
@@ -28,8 +128,10 @@ Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back t
 - [x] Pub: the frame, one-click bill, the games off the tabs, the keg on the frame and its tab, the cellar's hand, the menu
 - [x] Bistro: cellar optional (prepared goods to buy dearer, a hand), the soup (bufet) into the kitchen, the floor = bottles and serving the plates off the hatch, a floor hand, the menu
 - [x] Jednota: the frame on the till (SERVE = GIVE), the queue's patience over their heads, the shelves and the store for the hands, their tabs lit when the rack runs empty, the menu = the range
-- [ ] Bigger, readable food and goods in the minigames: done on the tickets (bigger icons and a word) and the floor's plates; the pictures re-drawn by Grok still to do (the queue is slow)
-- [ ] Each place's own ambient (the Jednota's tubes and tills, the stand's camp) and new sounds per action: no SFX key now (TTS only), existing sounds reused
+- [x] Bigger, readable food and goods: at the stations at their pictures' own pixel (`station3d.fine`), the pass's plate food a quarter bigger, the floor's plates, bigger icons with a word on the tickets
+- [ ] The food pictures re-drawn by Grok with stronger silhouettes (the queue is slow)
+- [x] Each place's own sound: the bistro's kitchen at work, the Jednota's tubes and now and then a till (`service_interior._tick_ambience`, recordings already there)
+- [ ] New sounds for each action and the guests' sighs: no SFX key now (TTS only)
 - [ ] The guests' new poses for impatience (tapping, the watch, arms up): bubbles, lines and the stand's stamping for now; a note on the door at last orders
 - [x] DESIGN §7b "Papa's frame", PRODUCT, AGENTS, the Czech of every new text (tools/i18n/batches/06_podniky_papas.json)
 

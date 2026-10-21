@@ -1,9 +1,12 @@
 extends Control
 
 ## Room preparation inside an interior (tent, cabin): the things that need doing glow
-## faintly under the cursor; hold the left mouse button on one and a pixel ring fills
-## around the cursor while the sound of the work plays; when it closes, the thing is
-## done (the interior swaps its look) and the room's checklist ticks.
+## faintly under the cursor; hold the left mouse button on one and work it with the job's
+## gesture (scripts/ui/gesture.gd: the broom to and fro, the brush round, the bed picked
+## up and patted; the brief of 21. 10.): every stroke the hand makes the mess smaller and
+## a pixel ring round the cursor fills a dot further, the sound of the work plays while
+## you work; stand still and after a few seconds a see-through hand shows the motion. When
+## the ring closes the thing is done (the interior swaps its look) and the checklist ticks.
 ##
 ## The interior owns the 3D: it registers each target with a collision body and the
 ## meshes to highlight, and listens to `task_completed`. Rules (what tasks exist, how
@@ -13,6 +16,9 @@ signal task_completed(task_id: String)
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
+const GESTURE = preload("res://scripts/ui/gesture.gd")
+## Mess that gets smaller stroke by stroke (a made bed does not).
+const SHRINKS := ["Scrubbing", "Sweeping", "Mopping", "Wiping", "Scraping", "Clearing up", "Picking up", "Bagging"]
 const SCRUB = preload("res://scripts/scrub_minigame.gd")
 ## The thing being worked on shakes in steps, this many a second (see work_hand.gd).
 const SHAKE_FPS := 10.0
@@ -44,6 +50,9 @@ var _shaken: Dictionary = {}   # MeshInstance3D -> its rest position
 var _scrub
 var _lmb_was := false
 var _scrub_seed := 0
+var _gesture = GESTURE.new()
+var _mouse_last := Vector2.INF
+var _scaled: Dictionary = {}    # MeshInstance3D -> its scale before the work
 
 
 func _init() -> void:
@@ -182,9 +191,24 @@ func _process(delta: float) -> void:
 		if hit != _holding:
 			_cancel_hold()
 		else:
-			_progress += delta / maxf(0.2, float(_targets[_holding]["seconds"]))
-			_hand.aim(get_viewport().get_mouse_position())
-			_shake(_targets[_holding], delta)
+			var m := get_viewport().get_mouse_position()
+			var motion := m - _mouse_last if _mouse_last != Vector2.INF else Vector2.ZERO
+			_mouse_last = m
+			var t: Dictionary = _targets[_holding]
+			var strokes: int = _gesture.feed(motion, delta, get_viewport().get_visible_rect().size.y)
+			if strokes > 0:
+				_progress += float(strokes) / float(GESTURE.strokes_for(float(t["seconds"])))
+				_hand.stroke()
+				_shrink(t)
+				if not _work_player.playing and _work_player.stream != null:
+					_work_player.play()
+			elif _gesture.idle > 0.9 and _work_player.playing:
+				_work_player.stop()
+			_hand.aim(m)
+			_hand.gesture_offset = Vector2.ZERO
+			_hand.ghost_kind = _gesture.kind if _gesture.idle > 2.4 else ""
+			if _gesture.idle < 0.4:
+				_shake(t, delta)
 			if _progress >= 1.0:
 				_finish(_holding)
 	elif not lmb and not _holding.is_empty():
@@ -195,7 +219,7 @@ func _process(delta: float) -> void:
 	_prompt.visible = not _hover.is_empty()
 	if _prompt.visible:
 		var target: Dictionary = _targets[_hover]
-		var how := "CLICK" if bool(target.get("scrub", false)) else "HOLD [LMB]"
+		var how := "CLICK" if bool(target.get("scrub", false)) else "[LMB]"
 		_prompt.text = ("%s..." % str(target["verb"]).to_upper()) if not _holding.is_empty() else ("%s  %s" % [how, str(target["label"]).to_upper()])
 		var m := get_viewport().get_mouse_position()
 		_prompt.position = (m + Vector2(-_prompt.size.x * 0.5, 16.0 * _scale)).floor()
@@ -358,16 +382,36 @@ func _unshake() -> void:
 		if is_instance_valid(n):
 			(n as Node3D).position = _shaken[n]
 	_shaken.clear()
+	for n in _scaled.keys():
+		if is_instance_valid(n):
+			(n as Node3D).scale = _scaled[n]
+	_scaled.clear()
+
+
+## The mess under the hand goes stroke by stroke (it is swapped for its done look at the
+## end): smaller each time.
+func _shrink(target: Dictionary) -> void:
+	if not str(target.get("verb", "")) in SHRINKS:
+		return
+	for m in target["meshes"]:
+		if not (m is Node3D) or not is_instance_valid(m):
+			continue
+		var n := m as Node3D
+		if not _scaled.has(n):
+			_scaled[n] = n.scale
+		n.scale = (_scaled[n] as Vector3) * clampf(1.0 - _progress * 0.55, 0.4, 1.0)
 
 
 func _start_hold(id: String) -> void:
 	_holding = id
 	_progress = 0.0
+	_gesture.reset()
+	_gesture.kind = GESTURE.kind_for(str(_targets[id].get("verb", "")))
+	_mouse_last = get_viewport().get_mouse_position()
 	_hand.start(str(_targets[id].get("verb", "")), get_viewport().get_mouse_position())
 	var path := SFX_DIR + str(_targets[id].get("sfx", "task_litter.mp3"))
 	if ResourceLoader.exists(path):
 		_work_player.stream = load(path)
-		_work_player.play()
 
 
 func _cancel_hold() -> void:

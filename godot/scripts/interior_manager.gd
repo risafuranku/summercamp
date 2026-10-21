@@ -23,6 +23,9 @@ const SKY_LIFE_SCRIPT = preload("res://scripts/ambient/sky_life.gd")
 ## The businesses' books, sales, wages and deliveries (scripts/business/business_runtime.gd).
 const BUSINESS_RUNTIME = preload("res://scripts/business/business_runtime.gd")
 var business: Node
+## The staffroom's hands at work (scripts/staff/staff_runtime.gd).
+const STAFF_RUNTIME = preload("res://scripts/staff/staff_runtime.gd")
+var staff: Node
 ## Autumn leaves blown about in the wind (scripts/ambient/wind_life.gd).
 const WIND_LIFE_SCRIPT = preload("res://scripts/ambient/wind_life.gd")
 var _wind_life: Node3D
@@ -73,7 +76,7 @@ const INTERIOR_ASSIGNMENTS := [
 	},
 	{
 		"module_id": INTERIOR_MODULE_SERVICE,
-		"building_types": ["restaurant", "pub", "toilet_block", "shower_block", "sewer", "power_generator", "vecerka"],
+		"building_types": ["restaurant", "pub", "toilet_block", "shower_block", "sewer", "power_generator", "vecerka", "staffroom"],
 		"hint": "Enter",
 		"hints": {
 			"restaurant": "Enter bistro",
@@ -83,6 +86,7 @@ const INTERIOR_ASSIGNMENTS := [
 			"shower_block": "Enter showers",
 			"sewer": "Open sewer hatch",
 			"power_generator": "Enter generator shed",
+			"staffroom": "Go into the staffroom",
 		},
 	},
 	{
@@ -134,6 +138,11 @@ func town_trip() -> Node:
 ## The camp is about to give way to a room, or a room has just closed: the frame on
 ## screen still shows what was there; it breaks up into what is there now.
 func _door_transition(going_in: bool) -> void:
+	# Walked in through a door you opened by hand (_walk_up_first): no frozen frame, no
+	# dither; the camp's last frame is the dark doorway at your eyes and the room takes up
+	# from its door (_step_in). The brief of 21. 10.: "doors without a seam".
+	if going_in and Time.get_ticks_msec() - _walked_in_ms < 1500:
+		return
 	if _door_fx != null:
 		_door_fx.play(going_in)
 
@@ -173,6 +182,10 @@ func setup(
 	if business == null:
 		business = BUSINESS_RUNTIME.new()
 		add_child(business)
+	if staff == null:
+		staff = STAFF_RUNTIME.new()
+		staff.name = "StaffRuntime"
+		add_child(staff)
 	if lodge_bed == null:
 		lodge_bed = LODGE_BED.new()
 		lodge_bed.name = "LodgeBed"
@@ -782,6 +795,8 @@ func _walk_on_out_of_office() -> void:
 const WALK_UP_FROM_M := 4.0
 const STEP12 = preload("res://scripts/ui/step12.gd")
 var _walked_up_to := 0
+## When the last walk in through a door ended (msec): the room opens with no dissolve.
+var _walked_in_ms := -100000
 
 
 func _walk_up_first(structure: Node3D, again: Callable) -> bool:
@@ -809,22 +824,27 @@ func _walk_up_first(structure: Node3D, again: Callable) -> bool:
 	var into: Vector3 = way["inside"] - way["outside"]
 	into.y = 0.0
 	into = into.normalized()
-	var to: Vector3 = (way["outside"] as Vector3).lerp(way["inside"], 0.3)
+	# Up to the door and into the doorway, the eye at the door's own plane: the hand takes
+	# the handle (reach_hand.gd), the leaf swings with its weight (door_anim.open), and
+	# the dark of the room is in front of you as it opens.
+	var to: Vector3 = (way["outside"] as Vector3).lerp(way["inside"], 0.42)
 	to.y = body.global_position.y
 	var d := Vector2(body.global_position.x - to.x, body.global_position.z - to.z).length()
 	if d > WALK_UP_FROM_M or d < 0.2:
 		return false
 	if way["door"] != null:
-		DOOR_ANIM.open_now(way["door"], 2.4)
+		DOOR_ANIM.open(way["door"], 3.0)
 	_set_player_controls_enabled(false)
 	var mask := body.collision_mask
 	body.collision_mask = 0
 	body.velocity = Vector3.ZERO
 	body.set("_pitch_target", 0.0)
 	var yaw := body.rotation.y + wrapf(atan2(-into.x, -into.z) - body.rotation.y, -PI, PI)
-	var dur := clampf(d / 2.4, 0.25, 0.8)
+	var dur := clampf(d / 2.0, 0.35, 1.0)
 	var tw := create_tween()
 	_stepping_out = tw
+	# A beat for the hand on the handle and the leaf to swing in.
+	tw.tween_interval(0.4)
 	tw.tween_property(body, "global_position", to, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.parallel().tween_property(body, "rotation:y", yaw, dur * 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	var id := structure.get_instance_id()
@@ -832,6 +852,7 @@ func _walk_up_first(structure: Node3D, again: Callable) -> bool:
 		if is_instance_valid(body):
 			body.collision_mask = mask
 		_walked_up_to = id
+		_walked_in_ms = Time.get_ticks_msec()
 		again.call())
 	return true
 
@@ -1853,7 +1874,9 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 	# In bed: seen lying on it from the back room, or in the tent, cabin or caravan
 	# they turned in in (lodge_bed.gd), nowhere else.
 	var has_bed: bool = COOP_LOOKS.has_pose(model, "bed")
-	var lodge: bool = not LODGE_BED.bed_spot(str(mine["t"])).is_empty()
+	# The staffroom's boiler room has a bed too (lodge_bed "staff").
+	var bed_kind := "staff" if str(mine["t"]) == "service" and str(mine.get("s", "")).begins_with("staff/") else str(mine["t"])
+	var lodge: bool = not LODGE_BED.bed_spot(bed_kind).is_empty()
 	if bool(info.get("b", false)) and not (has_bed and (lodge or str(mine["t"]) == "office")):
 		coop_drop_partner(id)
 		return
@@ -1891,7 +1914,7 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 		_coop_hide_sleeper(id)
 	if bool(info.get("b", false)) and lodge and root != null:
 		# On their back on the bed, the head on the pillow end.
-		var spot: Dictionary = LODGE_BED.bed_spot(str(mine["t"]))
+		var spot: Dictionary = LODGE_BED.bed_spot(bed_kind)
 		var head: Vector3 = root.global_transform * (spot["head"] as Vector3)
 		var mid: Vector3 = root.global_transform * (spot["centre"] as Vector3)
 		fig.set_walking(false)
