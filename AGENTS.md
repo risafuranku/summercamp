@@ -638,6 +638,13 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   rain on the glass) is on `INVIEW_HIDE_LAYER` (bit 17) so the camera from outside skips
   it: a new such quad must go there too (`_hide_from_camp`). Office state that should
   show from outside must live in the room while it is shut (it is not `visible` then).
+- **Faces, signs and boards on walls fight them** under the PS1 vertex snap (the snap moves
+  the corners of a quad and the wall under it a different way; a centimetre between them
+  is not enough). `retro_materials.gd` pulls every QuadMesh / PlaneMesh and every thin
+  BoxMesh (under 6 cm) towards the eye along its own ray (`depth_pull`, an instance
+  uniform: smaller quads more, so a sign wins over the face under it); keep new ones as
+  such meshes and they are handled. The sun's shadow pass (an orthographic projection)
+  gets neither the snap nor the pull: snapped there, every shadow jumped as the sun moved.
 
 ---
 
