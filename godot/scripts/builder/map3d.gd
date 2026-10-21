@@ -31,6 +31,7 @@ extends Control
 signal left_3d
 
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
+const GOD = preload("res://scripts/god/god_cursor.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const VIEW_SHADER := preload("res://materials/builder3d_view.gdshader")
 const PLATE_SHADER := preload("res://materials/builder3d_plate.gdshader")
@@ -143,6 +144,10 @@ func _ready() -> void:
 	_vp.size = Vector2i(64, 64)
 	add_child(_vp)
 	_cam = Camera3D.new()
+	# The Builder's eye: the camp as the PC has it, without the god cursor's theatre
+	# (its copies falling; the buildings it has not dropped yet are on this eye only).
+	_cam.set_meta("builder_eye", true)
+	_cam.cull_mask = 0xFFFFF & ~GOD.THEATRE
 	_cam.near = 0.25
 	_cam.far = 1200.0
 	_cam.fov = FOV
@@ -267,12 +272,6 @@ func _land() -> void:
 	_t = 0.0
 	on = true
 	panel.call("set_3d_layers", true)
-	# The god cursor (scripts/god/god_cursor.gd) keeps what the 2D map built hidden till the
-	# warden stands up and drops it in from the sky; here the camp is shown as it is.
-	var main := get_tree().current_scene if get_tree() != null else null
-	var gc = main.get("_god_cursor") if main != null else null
-	if gc != null and is_instance_valid(gc) and gc.has_method("finish_all"):
-		gc.finish_all()
 	_f = _to["f"]
 	_ft = _f
 	_yaw = float(_to["yaw"])

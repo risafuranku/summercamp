@@ -698,8 +698,8 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
   a compass (click: north up) where the 2D map has the building's turn, a north-up
   minimap. Half the PC's pixels through the Build palette, the ground's fog thinned,
   below the clouds. The PC remembers which view was left.
-  The god cursor (§5k) stages nothing while it shows: what is built is there at once, and
-  what the 2D map left waiting comes down when the view opens.
+  What is built is there at once; outside the god cursor (§5k) drops it in all the same
+  (its copies on a layer this eye leaves out, the building on one only this eye draws).
 - **Paths are one surface** (the user, 21. 10.: "build paths 2x4 and it is one big path,
   in the Builder and in the camp"): a path tile is composed from its eight neighbours
   (`scripts/path_tiles.gd`), the gravel across every side and into every corner the
@@ -854,8 +854,9 @@ the show, hinders or hurts (`scripts/god/god_cursor.gd`).
   and sinks into the ground in a burst of dust and a crunch.
 - **The queue**: what the Builder ordered waits as a shadow on the ground (the building
   hidden, not a wall to walk into) and comes down in turn, quicker the longer the queue.
-  While the warden sits at the PC it waits; it comes down when they stand up, seen through
-  the office window (a portal into the camp), from its door or outside. In co-op each
+  It builds as the PC orders, one to one (the user, 21. 10.): alone at the PC you mostly
+  miss it, a glimpse through the office window (a portal into the camp). Builder's 3D view
+  shows the camp as the PC has it meanwhile (its eye leaves the theatre out). In co-op each
   machine plays its own theatre of the builds it hears of: the other warden outside sees
   the host's Builder come down (who builds is told by what happens where).
 - **Under it**: the shadow grows as it falls; guests round it jump out of the way and look

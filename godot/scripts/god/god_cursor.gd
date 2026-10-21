@@ -19,11 +19,19 @@ extends Node3D
 ##
 ## Who builds: the warden at the PC (Builder 98 on the screen) and, in co-op, the other
 ## wardens (main sets `from_peer` around their builds); a camp built any other way (the
-## world, a save, the tools) is just there. While this machine's warden sits at the PC
-## the queue waits: the cursor finishes what was ordered when they stand up (seen through
-## the office window, from its door, or outside). Each machine plays its own theatre.
+## world, a save, the tools) is just there. It builds as the PC orders, one to one (the
+## user, 21. 10.): alone at the PC you mostly miss it (a glimpse through the office
+## window); the other wardens see it. Each machine plays its own theatre.
+##
+## Two eyes on one world: Builder's 3D view (scripts/builder/map3d.gd) shows the camp as
+## the PC has it, everything else shows the theatre. So the theatre works on copies on its
+## own render layer (THEATRE, which the Builder's eye leaves out), and a building still to
+## come stays where it is on a layer only the Builder's eye draws (BUILDER_EYE, taken out
+## of every other camera), its shadow and lights off till it lands.
 
 const SFX := "res://assets/sfx/god/"
+const BUILDER_EYE := 1 << 15
+const THEATRE := 1 << 16
 const FPS := 12.0
 const STEP := 1.0 / FPS
 const BUS := "OutdoorAmbience"
@@ -152,7 +160,8 @@ var _dust_tex: Texture2D
 var _dust_frames: Array = []
 var _shadow_mat: StandardMaterial3D
 var _dust: Array = []     # {sprite, t, life, v}
-var _hidden: Dictionary = {}  # node id -> {node, shadow, layer}
+var _hidden: Dictionary = {}  # node id -> {node, shadow, layer, veil}
+var _mask_t := 0.0
 var _push: Dictionary = {}
 
 
@@ -171,6 +180,8 @@ func setup(main_node: Node, grid) -> void:
 	_shadow_mat.albedo_texture = _dust_tex
 	_shadow_mat.albedo_color = Color(0, 0, 0, 1)
 	_shadow_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	get_tree().node_added.connect(_on_node_added)
+	_mask_cameras()
 	_build_cursor()
 	EventBus.BuildConfirmed.connect(_on_build)
 	EventBus.DemolishConfirmed.connect(_on_demolish)
@@ -182,26 +193,12 @@ func setup(main_node: Node, grid) -> void:
 ## is the program on its screen: it runs on behind the others, visible in its own tree,
 ## so that alone is not enough), another warden's, or forced.
 func _staged() -> bool:
-	if debug_force:
-		return true
-	# The Builder showing the camp in 3D (scripts/builder/map3d.gd): what is built is
-	# seen there at once (the user, 21. 10.: "the 3D map does not show my changes live").
-	if live_3d():
-		return false
-	if from_peer:
+	if debug_force or from_peer:
 		return true
 	if main == null or not main.has_method("debug_builder_map") or not _holding():
 		return false
 	var m = main.debug_builder_map()
 	return m != null and (m as Control).is_visible_in_tree()
-
-
-func live_3d() -> bool:
-	if main == null or not main.has_method("debug_builder_map"):
-		return false
-	var m = main.debug_builder_map()
-	var v = m.get("map3d") if m != null else null
-	return v != null and bool(v.on)
 
 
 func _structure_at(at: Vector2i) -> Node3D:
@@ -340,8 +337,8 @@ func _hide(node: Node3D, center: Vector3, fp: Vector2i) -> void:
 		# Not a wall you bump into while it is not there.
 		layer = (node as CollisionObject3D).collision_layer
 		(node as CollisionObject3D).collision_layer = 0
-	node.visible = false
-	_hidden[node.get_instance_id()] = {"node": node, "shadow": sh, "layer": layer}
+	_hidden[node.get_instance_id()] = {"node": node, "shadow": sh, "layer": layer, "veil": _veil(node)}
+	_mask_cameras()
 
 
 ## Shown again; its waiting shadow is handed back (to darken as it falls) or freed.
@@ -350,9 +347,9 @@ func _reveal(node: Node3D, keep_shadow := false) -> MeshInstance3D:
 		return null
 	var h: Dictionary = _hidden.get(node.get_instance_id(), {})
 	_hidden.erase(node.get_instance_id())
-	node.visible = true
 	if h.is_empty():
 		return null
+	_unveil(h["veil"])
 	if int(h["layer"]) >= 0 and node is CollisionObject3D:
 		(node as CollisionObject3D).collision_layer = int(h["layer"])
 	if not is_instance_valid(h["shadow"]):
@@ -361,6 +358,85 @@ func _reveal(node: Node3D, keep_shadow := false) -> MeshInstance3D:
 		return h["shadow"]
 	(h["shadow"] as Node).queue_free()
 	return null
+
+
+## Its shadow, the building left waiting (the parts fall as a copy).
+func _take_shadow(node: Node3D) -> MeshInstance3D:
+	var h: Dictionary = _hidden.get(node.get_instance_id(), {})
+	var sh = h.get("shadow")
+	if sh != null and is_instance_valid(sh):
+		h["shadow"] = null
+		return sh
+	return null
+
+
+## A building on the Builder's eye only: its drawn parts there, its shadow and lights off.
+func _veil(node: Node3D) -> Array:
+	var out: Array = []
+	for n in node.find_children("*", "", true, false) + [node]:
+		_veil_one(n, out)
+	return out
+
+
+func _veil_one(n: Node, out: Array) -> void:
+	if n is Light3D or n is GPUParticles3D or n is CPUParticles3D:
+		if (n as Node3D).visible:
+			out.append([n, -1, 0])
+			(n as Node3D).visible = false
+	elif n is VisualInstance3D:
+		var gi := n as GeometryInstance3D
+		out.append([n, (n as VisualInstance3D).layers, gi.cast_shadow if gi != null else 0])
+		(n as VisualInstance3D).layers = BUILDER_EYE
+		if gi != null:
+			gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _unveil(veil: Array) -> void:
+	for e in veil:
+		var n = e[0]
+		if not is_instance_valid(n):
+			continue
+		if int(e[1]) < 0:
+			(n as Node3D).visible = true
+		else:
+			(n as VisualInstance3D).layers = int(e[1])
+			if n is GeometryInstance3D:
+				(n as GeometryInstance3D).cast_shadow = int(e[2])
+
+
+## The theatre's own things never in the Builder's eye; what a waiting building grows
+## meanwhile (a sign, a lit window) waits with it; every camera but the Builder's eye
+## leaves the waiting buildings out.
+func _on_node_added(n: Node) -> void:
+	if n is Camera3D:
+		if not n.has_meta("builder_eye"):
+			(n as Camera3D).cull_mask &= ~BUILDER_EYE
+		return
+	if not (n is VisualInstance3D):
+		return
+	if is_ancestor_of(n):
+		if not (n is Light3D):
+			(n as VisualInstance3D).layers = THEATRE
+		return
+	if _hidden.is_empty():
+		return
+	var p := n.get_parent()
+	for i in 10:
+		if p == null:
+			return
+		var h: Dictionary = _hidden.get(p.get_instance_id(), {})
+		if not h.is_empty():
+			_veil_one(n, h["veil"])
+			return
+		p = p.get_parent()
+
+
+func _mask_cameras() -> void:
+	if get_tree() == null:
+		return
+	for c in get_tree().root.find_children("*", "Camera3D", true, false):
+		if not c.has_meta("builder_eye"):
+			(c as Camera3D).cull_mask &= ~BUILDER_EYE
 
 
 ## A building taken away (or rebuilt) while it waited: its shadow goes with it.
@@ -594,8 +670,13 @@ func _step() -> void:
 	_tick_tool()
 	_tick_push()
 	_sweep_hidden()
+	if not _hidden.is_empty():
+		_mask_t -= STEP
+		if _mask_t <= 0.0:
+			_mask_t = 2.0
+			_mask_cameras()
 	if _job.is_empty():
-		if not _queue.is_empty() and not _holding():
+		if not _queue.is_empty():
 			_job = _queue.pop_front()
 			_job["phase"] = "go"
 			_job["t"] = 0.0
@@ -669,14 +750,18 @@ func _step_build(j: Dictionary) -> void:
 func _begin_parts(j: Dictionary) -> void:
 	var node: Node3D = j["node"]
 	var c: Vector3 = j["center"]
-	var shadow := _reveal(node, true)
+	var shadow := _take_shadow(node)
 	if shadow == null:
 		shadow = _make_shadow(c, j["fp"])
 	j["shadow"] = shadow
+	# The theatre's copy falls; the building waits on the Builder's eye till it lands.
+	var copy := _copy_of(node)
+	j["copy"] = copy
 	var vis: Array = []
-	for n in node.find_children("*", "", true, false) + [node]:
-		if n is VisualInstance3D or n is Light3D:
-			vis.append(n)
+	if copy != null:
+		for n in copy.find_children("*", "", true, false):
+			if n is VisualInstance3D:
+				vis.append(n)
 	var top := 0.4
 	var info: Array = []
 	for v in vis:
@@ -778,11 +863,9 @@ func _make_shadow(c: Vector3, fp: Vector2i) -> MeshInstance3D:
 func _end_job(j: Dictionary) -> void:
 	match str(j.get("kind", "")):
 		"build":
-			for p in j.get("parts", []):
-				var nodes: Array = p["nodes"]
-				for i in nodes.size():
-					if is_instance_valid(nodes[i]):
-						(nodes[i] as Node3D).global_transform = p["orig"][i]
+			var cp = j.get("copy")
+			if cp != null and is_instance_valid(cp):
+				(cp as Node).queue_free()
 			if is_instance_valid(j.get("node")):
 				_reveal(j["node"])
 			var sh = j.get("shadow")
@@ -790,10 +873,11 @@ func _end_job(j: Dictionary) -> void:
 				(sh as Node).queue_free()
 		"path":
 			for tile in j["tiles"]:
+				var cp = tile.get("copy")
+				if cp != null and is_instance_valid(cp):
+					(cp as Node).queue_free()
 				var n = tile["node"]
 				if is_instance_valid(n):
-					if tile.has("orig"):
-						n.global_transform = tile["orig"]
 					_reveal(n)
 		"wreck":
 			for c in j["copies"]:
@@ -820,13 +904,18 @@ func _step_path(j: Dictionary) -> void:
 				for tile in tiles:
 					var n = tile["node"]
 					if is_instance_valid(n):
-						tile["orig"] = n.global_transform
-						tile["shadow"] = _reveal(n, true)
+						# The tile's copy falls; the tile waits on the Builder's eye.
+						var cp := _copy_of(n)
+						if cp == null:
+							continue
+						tile["copy"] = cp
+						tile["orig"] = cp.global_transform
+						tile["shadow"] = _take_shadow(n)
 						if tile["shadow"] == null:
 							tile["shadow"] = _make_shadow(tile["center"], Vector2i.ONE)
 						var tr: Transform3D = tile["orig"]
 						tr.origin.y += float(j["h"])
-						n.global_transform = tr
+						cp.global_transform = tr
 				_next(j, "fall")
 		"fall":
 			# One after another down the line, the pointer drawing it along over them.
@@ -838,13 +927,18 @@ func _step_path(j: Dictionary) -> void:
 			var done := true
 			for i in tiles.size():
 				var tile: Dictionary = tiles[i]
-				var n = tile["node"]
-				if not is_instance_valid(n) or not tile.has("orig"):
+				var n = tile.get("copy")
+				if n == null or not is_instance_valid(n) or not tile.has("orig"):
 					continue
 				var k := clampf((t - every * float(i)) / dur, 0.0, 1.0)
 				var tr: Transform3D = tile["orig"]
 				tr.origin.y += float(j["h"]) * (1.0 - k * k)
 				n.global_transform = tr
+				if k >= 1.0 and is_instance_valid(tile["node"]):
+					# Down: the tile itself, the copy gone.
+					(n as Node).queue_free()
+					tile.erase("copy")
+					_reveal(tile["node"])
 				var sh = tile.get("shadow")
 				if sh != null and is_instance_valid(sh):
 					((sh as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.a = lerpf(WAIT_SHADOW, 0.6, k)
