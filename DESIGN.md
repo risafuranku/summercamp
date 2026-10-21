@@ -234,14 +234,14 @@ know where it is:
 | The Antlered Man | deer eyeshine in the skull's sockets, pale green, high, far apart; both go out together now and then |
 | The Basket Man | two wet red points deep in the hood, close together, swinging slowly over the ground |
 | The Boy | none: a child hiding. His voice at your ear is how you find him; his face is what you get for looking |
-| The Whistler | not on its body (never in sight): two pale slits up in the trees where the tune was, a little while after each one |
+| The Whistler | not on his body while the music plays (it is thrown, from somewhere else): two pale slits where he really stands, a little while after the music stops |
 
 | Enemy | From | Tell | Counter | Punishes |
 | --- | --- | --- | --- | --- |
 | Silent Man | Quiet Guy | footsteps on the gravel behind you, closer each time, stopping when you stop; a whisper at your ear | turn round and put light on him; under a lamp he will not come nearer; at the whisper, turn round at once | standing still in the dark |
 | The Photographer | Drunk | always there: he hums wherever he is, a weak lamp on his chest strap and the camera's red standby blink; he walks from spot to spot in plain view (steps, the film wound on as he stops), raises the camera, the focus beeps speed up, the flash whines (~2-3 s); a shot every 7-10 s | turn your back or get behind something before the flash; indoors draw the curtains (every building's windows look out for real, scripts/ui/window_portal.gd) | looking at him when it fires, or an open window you can see when he fires through it: a lot of health (16-26), a white blast, ringing ears, his face burnt in (lenses grown into the sockets, or peeling like a wet print); the picture is real: it slides in at the corner and develops, you from his lens (every third, him right behind you in it); two hits and his neck is snapped, the head hanging off it sideways, the mouth stuffed with photographs, and he still aims; four and it has let go (the collar an empty stump, the head upside down at his belly, screaming); three and he runs at you from behind, laughing, and fires at your ear; the last picture stops the frame, his lens-face comes at you in steps and your own face develops in the middle of the screen |
 | The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed: the guest -> fixed smile, white eyes -> legs too long, flushed cheeks -> neck and arms stretched -> her back to you, face turned round -> arms to the ground. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
-| The Whistler | Tramps | a campfire tune whistled out in the trees, moving | do not walk towards it; stand under a lamp until the tune breaks off | following the sound into the dark |
+| The Whistler | Tramps | his guitar and his whistle out in the dark, a song at a time, nearer; the music stops dead in the middle of a bar | while he plays, move; when the music stops, be still (on grass a walk is not heard, a run is; on gravel, boards, puddles even a walk; near him anything); a lamp's light | making a noise while he listens: he comes at a run to where you were (§5a.3) |
 | The Boy | Family | his father in your way in the dark asking after him; a child gone missing where the night's work is | each place's game, by its rules (§5a.2) | breaking the game's rule (in the corn: looking back at him) |
 | The Basket Man | Mushroom Pickers | 02:30-06:00, a wicker basket creaking out of the trees, a knife scraping | stand still while it is near; it only sees movement | moving while it is close |
 
@@ -317,6 +317,31 @@ game, every time, and never scripted to a place.
   face over the ceiling, or he stoops to the glass and taps (his face in it, lit by the
   room's light falling out). The windows' `view` (the window's camera, your eye out in the
   camp: `photo_windows()`) places him.
+
+### 5a.3 The Whistler (Tramps; `scripts/enemies/whistler_brain.gd`)
+
+The tramp turned (the user, 21. 10.: "staring into the soul, huba jak megafon"): his hat,
+his flannel, the guitar on his back, a grey face with black eyes and the mouth gone into
+a black horn like a megaphone's bell (Grok `whistler_t1`, `_sit`, `_face`). He hears and
+does not see, and a night with him is musical chairs:
+
+- **He plays**: the campfire song on his guitar, whistled through the horn
+  (`assets/sfx/npc/whistler/play_*`), out in the dark, a song at a time a little nearer
+  (never nearer than 9 m while he plays). While he plays he does not listen: move. From
+  medium on the music is thrown, it comes from where he is not; what is him is a string
+  creaking, a twig, and when the music stops his eyes, two pale slits where he stands.
+- **He listens**: the music stops dead (a hand flat on the strings). Running anywhere,
+  walking on gravel, boards or in a puddle, anything within 10 m of him gives you away;
+  a walk on grass does not. Heavy, a guest's voice calls for help out of the dark to make
+  you move ("Správce! Pomoc! Tady!", "Pojď k ohni. Je tu teplo.").
+- **He comes**: at a run to where he heard you, the guitar jangling; there he listens
+  again. At your back: the string round your neck, his horn at your ear (the close-up
+  grows as the string tightens), the hit. A lamp's light: he stops at its edge and goes.
+- **The fire nobody lit** (medium on): a campfire out by the trees, him on a log by it
+  playing in its light. Its light is not safe: go near and the fire dies and he is
+  behind you.
+- **Indoors**: his song under the window now and then, quiet, stopped in the middle of
+  a bar.
 
 ### 5a.2 The Boy (Family; `scripts/enemies/boy_brain.gd`)
 

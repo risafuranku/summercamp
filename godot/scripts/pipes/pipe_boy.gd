@@ -11,6 +11,7 @@ extends RefCounted
 ## Light he is slow and lets you be at junctions a while, heavy he is quick.
 
 const DIR := "res://assets/sfx/npc/boy/"
+const NIGHTMARE_FX = preload("res://scripts/night/nightmare_fx.gd")
 const FACE := "res://assets/textury/npc/boy_face.png"
 const CRAWL := "res://assets/textury/npc/boy_crawl.png"
 const CRAWL_FALLBACK := "res://assets/textury/npc/boy_t1.png"
@@ -79,6 +80,8 @@ func start(host_node, boy_tier: int) -> void:
 	_face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_face.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_face.texture = load(FACE) if ResourceLoader.exists(FACE) else null
+	# In the world's game pixels and palette (materials/closeup_retro.gdshader).
+	_face.material = NIGHTMARE_FX.retro_material()
 	_face.visible = false
 	host.add_child(_face)
 
@@ -109,6 +112,7 @@ func tick(delta: float) -> void:
 	if _face_t > 0.0:
 		_face_t -= delta
 		_face.position = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * 10.0
+		NIGHTMARE_FX.update_retro(_face.get_viewport_rect().size.y)
 		if _face_t <= 0.0:
 			_face.visible = false
 	if host._intro_t >= 0.0 or host._caught_t >= 0.0 or not _started:

@@ -22,6 +22,8 @@ MODEL = "eleven_multilingual_v2"
 VOICES = {
     "boy": ["cgSgspJ2msm6clMCkdW9", "pFZP5JQG7iQjIQuC4Bku", {"stability": 0.35, "similarity_boost": 0.7, "style": 0.35}],
     "dad": ["iP95p4xoKVk53GoZ742B", "nPczCjzI2devNBz1zQrb", {"stability": 0.75, "similarity_boost": 0.75, "style": 0.0}],
+    # The Whistler's calls in a guest's voice out of the dark.
+    "mimic": ["nPczCjzI2devNBz1zQrb", "iP95p4xoKVk53GoZ742B", {"stability": 0.55, "similarity_boost": 0.7, "style": 0.2}],
 }
 
 
