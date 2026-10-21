@@ -76,8 +76,8 @@ def main():
         for k in ("seed", "money", "day", "weather", "beds", "derelict"):
             if h[k] != c[k]:
                 failures.append("%s differs (host %s, client %s)" % (k, h[k], c[k]))
-        if not h["derelict"]:
-            failures.append("the host's new camp has no derelict cabin")
+        if "failure 10:2" not in h["derelict"]:
+            failures.append("the old cabin the host puts in is not at the room the test opens, 10:2 (%s)" % h["derelict"])
         diff_list("buildings", h["structures"], c["structures"], failures)
         diff_list("nature tiles", h["nature"], c["nature"], failures)
         diff_list("trees", h["trees"], c["trees"], failures)

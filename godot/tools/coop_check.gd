@@ -9,7 +9,9 @@ extends "res://tools/shot_driver.gd"
 ##     the host's barrier goes up and down with it;
 ##   - each sees the other in a clearing by day, and by their torch at night;
 ##   - a tent the host builds after the join stands in the other camp too;
-##   - both go into the old cabin: each sees the other in it; the joining warden's job
+##   - both go into the old cabin (a sandbox has none since 20. 10.: the host puts the
+##     campaign's one by the office before the other joins, "coop_old_cabin"): each
+##     sees the other in it; the joining warden's job
 ##     (held, a figure at it in the host's room) is done in the host's camp, the host's
 ##     (the other sees them at it) comes back to the other room;
 ##   - both go into the new tent: each sees the other lying on their belly in it;
@@ -61,7 +63,7 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			# A clearing in the middle of the camp, cut before the other copy joins (so
 			# its camp has it too), where the two can see each other.
-			["money", 9000], ["clear", 11, 12, 5, 5], ["wait", 1.0],
+			["money", 9000], ["clear", 11, 12, 5, 5], ["coop_old_cabin"], ["wait", 1.0],
 			["coop_place", 12, 14, 1.0], ["coop_signal", "host_up"],
 			["coop_wait", "partner_seen"],
 			["coop_wait_file", "client_gate"], ["wait", 0.6], ["coop_fingerprint", "host_gate"], ["coop_signal", "host_gate"],
@@ -445,6 +447,13 @@ func _run_step(step: Array) -> void:
 				to.y = 0.0
 			me.rotation.y = atan2(-to.x, -to.z)
 			print("COOP CHECK %s faces the other warden at %s (%.1f m)" % [_role, other.global_position, to.length()])
+		"coop_old_cabin":
+			# A sandbox starts without the old cabin (main._start_new_camp, the user 20. 10.:
+			# you build from a clean camp) and a new room is only unmade, but the room's
+			# jobs both ways want a room with a mess in it: the host puts the campaign's old
+			# cabin by the office (at ROOM) before anyone joins, so it comes over with the camp.
+			_main.call("_place_ruined_cabin")
+			print("COOP CHECK %s old cabin at %s (the rooms open %d:%d)" % [_role, _main.call("ruined_cabin_key"), ROOM.x, ROOM.y])
 		"coop_pick_task":
 			# A job in the open cabin: `step[1]` if given, else the longest mess job not
 			# done yet (here or by the other warden); made slow (6 s) so the other copy

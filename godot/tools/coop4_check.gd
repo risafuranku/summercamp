@@ -41,7 +41,7 @@ func _ready() -> void:
 			["wait_menu"], ["coop_port"], ["coop_look", 0, 0], ["call", "_on_menu_coop_host", []], ["wait_gameplay"], ["wait", 2.0],
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0],
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
-			["money", 9000], ["clear", 11, 12, 5, 5], ["wait", 1.0],
+			["money", 9000], ["clear", 11, 12, 5, 5], ["coop_old_cabin"], ["wait", 1.0],
 			["coop_place", spot[0], spot[1], 1.0], ["coop_signal", "host_up"],
 			["coop_wait", "all_seen"], ["wait", 2.0], ["shot", "q1_host_sees_three"], ["coop_fingerprint", "host_seen"], ["coop_signal", "host_seen"],
 			["coop_wait_file", "c1_spent"], ["coop_wait_file", "c2_spent"], ["coop_wait_file", "c4_done"], ["wait", 3.0], ["coop_fingerprint", "host_till"], ["coop_signal", "host_till"],
