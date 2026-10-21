@@ -1,0 +1,11 @@
+hurt_hit_1	0.8	assets/sfx/player/hurt/hit_1.mp3	A hard heavy blow landing on a human body, a dull flesh and bone thud, very close, dry, no voice
+hurt_hit_2	0.8	assets/sfx/player/hurt/hit_2.mp3	A sharp wet impact of something striking a person's shoulder, cloth and flesh, very close, no voice
+hurt_hit_3	1.0	assets/sfx/player/hurt/hit_3.mp3	A brutal crunching hit to a body, a deep thump with a wet crack, very close, no voice
+hurt_heart	8.0	assets/sfx/player/hurt/heart.mp3	A heavy slow human heartbeat heard from inside your own head, deep muffled thumps, steady, no music
+hurt_drip	2.0	assets/sfx/player/hurt/drip.mp3	A few heavy drops of blood dripping onto dry leaves, very close, quiet
+hurt_rip_1	1.2	assets/sfx/player/hurt/rip_1.mp3	Wet raw flesh tearing open, skin and muscle ripping with a sticky squelch, very close, horror, no voice
+hurt_rip_2	1.2	assets/sfx/player/hurt/rip_2.mp3	A wet meaty slice and tear, flesh pulled apart, blood spattering, very close, horror, no voice
+hurt_bone	0.8	assets/sfx/player/hurt/bone.mp3	A bone cracking and snapping inside a body, a sharp dry crunch muffled by flesh, very close, horror, no voice
+hurt_splat	1.0	assets/sfx/player/hurt/splat.mp3	A thick splash of blood and gore slapping onto glass, wet and heavy, very close, no voice
+hurt_squelch	4.0	assets/sfx/player/hurt/squelch.mp3	Slow footsteps in boots soaked through with blood, each step a wet squelch, close, no voice
+hurt_flies	8.0	assets/sfx/player/hurt/flies.mp3	A swarm of fat flies buzzing close around the listener's head, now near the ear, now away, no other sounds

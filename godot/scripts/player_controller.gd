@@ -19,6 +19,9 @@ const BATTERY_LOW := 0.15
 var terrain_speed_mult: float = 1.0
 ## Something has hold of you (the Silent Man's hands at your shoulder): you move at this.
 var held_speed_mult: float = 1.0
+## How badly hurt (0..1, scripts/ui/hurt_fx.gd): you limp and the view sways.
+var hurt: float = 0.0
+var _hurt_t := 0.0
 @export var jump_velocity: float = 4.4
 @export var gravity: float = 26.0
 @export var mouse_sensitivity: float = 0.0012
@@ -106,7 +109,8 @@ const DAMAGE_TIER_MEDIUM: int = 1
 const DAMAGE_TIER_LARGE: int = 2
 const DAMAGE_TIER_MEGA: int = 3
 const DAMAGE_TIER_LETHAL: int = 4
-const DAMAGE_TIER_ALPHA := [0.12, 0.22, 0.34, 0.50, 0.72]
+## (The hit's red is mostly hurt_fx.gd's stepped flash now; this tint is a breath of it.)
+const DAMAGE_TIER_ALPHA := [0.06, 0.11, 0.17, 0.25, 0.5]
 const DAMAGE_TIER_SHAKE := [0.010, 0.020, 0.032, 0.048, 0.070]
 const DAMAGE_TIER_FOV_PUSH := [0.4, 0.9, 1.6, 2.5, 4.2]
 const DAMAGE_TIER_HIT_KICK := [0.018, 0.032, 0.050, 0.072, 0.105]
@@ -334,6 +338,10 @@ func _physics_process(delta: float) -> void:
 		_surface_t = 0.25
 		_surface_speed = float(SURFACE_SPEED.get(_surface_under(), 1.0)) if is_on_floor() else _surface_speed
 	var winded := 0.9 if _stamina_locked else 1.0
+	# Hurt: slower, and on the worst of it no running.
+	winded *= lerpf(1.0, 0.78, hurt)
+	if hurt > 0.85:
+		sprinting = false
 	var current_speed = (sprint_speed if sprinting else move_speed) * terrain_speed_mult * held_speed_mult * _surface_speed * winded
 	var target_x = move_dir.x * current_speed
 	var target_z = move_dir.z * current_speed
@@ -710,7 +718,11 @@ func _update_head_motion(delta: float) -> void:
 	# Apply dynamic tilt
 	var input_tilt = Input.get_axis("move_right", "move_left") * base_tilt_amount * bob_ratio
 	_current_tilt = lerp(_current_tilt, input_tilt, delta * tilt_smoothing)
-	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y
+	# Hurt: the view sways and droops, and limps with the steps.
+	_hurt_t += delta
+	var hurt_roll := (sin(_hurt_t * 0.9) * 0.035 + sin(_hurt_t * 2.3) * 0.01) * hurt
+	_head.rotation.x += (-0.035 - 0.02 * sin(_hurt_t * 0.6) - 0.025 * absf(_bob_offset.y) * 10.0) * hurt
+	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y + hurt_roll
 	if _camera != null:
 		# A little wider in a run.
 		var target_fov = camera_fov + (abs(pitch_ratio) * pseudo_pitch_fov_shift) + _damage_fov_push + sprint_lower * 2.5
