@@ -17,7 +17,7 @@ WHAT = {
 	"tent_1": "a small yellow A-frame camping tent with guy ropes and pegs",
 	"tent_2": "a bigger two-person ridge tent with a porch flap, guy ropes and pegs",
 	"tent_3": "a large family frame tent with a sewn-in porch and a little awning, guy ropes",
-	"cabin_1": "a small bare cabin of weathered grey planks under a rusty corrugated tin roof, a door between two small windows, a concrete block for a step, firewood stacked at the side",
+	"cabin_1": "a small bare cabin of weathered grey planks under a rusty corrugated tin roof, a door between two small windows, a concrete block for a step, firewood stacked at the side; bare and poor: no flower boxes, no plants, no curtains, no fence, nothing on the ground round it",
 	"cabin_2": "a small cabin of red-painted planks with white trim under a tin roof, a little porch with two posts and its own tin roof over the door, a flower box, a lower bathroom built on at one side with a small window",
 	"cabin_3": "a well kept cabin of dark stained planks with green shutters, a brick chimney, a TV aerial on the ridge, gutters, a deep porch with a bench and a lantern, a lower bathroom built on at one side",
 	"caravan_1": "an old Czech touring caravan, cream with a brown stripe, a striped awning, a tow bar",
