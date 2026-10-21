@@ -2160,7 +2160,9 @@ func photo_windows() -> Array:
 			"open": float(cur.open) if cur != null else 1.0,
 			"flash": _photo_flash.bind(c, o, cur),
 			"room_world": _viewport.find_world_3d() if _viewport != null else null,
-			"glass": at, "eye": _interior_camera.global_position})
+			"glass": at, "eye": _interior_camera.global_position,
+			# Your eye out in the camp (where the window's camera stands).
+			"view": _portal_xform * (_room_root.global_transform.affine_inverse() * _interior_camera.global_position)})
 	return out
 
 

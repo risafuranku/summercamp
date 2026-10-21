@@ -347,6 +347,9 @@ func photo_windows() -> Array:
 		w["room_world"] = _viewport.find_world_3d() if _viewport != null else null
 		w["glass"] = _cabin_root.global_transform * (pt["frame"] as Transform3D).origin
 		w["eye"] = _interior_camera.global_position
+		# Your eye out in the camp (the window's camera): what is out there stands on the
+		# line from it through the glass.
+		w["view"] = (pt["cam"] as Camera3D).global_position
 		out.append(w)
 	return out
 

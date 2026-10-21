@@ -1608,9 +1608,10 @@ func _is_supported_service_building_type(building_type: String) -> bool:
 # ── windows: what is outside sees in (scripts/ui/window_portal.gd) ────────────
 
 ## The windows of the room you are in, for whatever is outside at night (the
-## Photographer, scripts/enemies/tourist_brain.gd): [{pos, out (world), facing (how
-## squarely you look at it), open (its curtain 0..1), flash: Callable}]; [] outdoors or
-## in a room with none.
+## Photographer, scripts/enemies/tourist_brain.gd; the Silent Man watching): [{pos, out
+## (world), facing (how squarely you look at it), open (its curtain 0..1), flash: Callable,
+## view (your eye out in the camp: the window's camera)}]; [] outdoors or in a room with
+## none.
 func photo_windows() -> Array:
 	var it = _open_room_interior()
 	if it != null and it.has_method("photo_windows"):
