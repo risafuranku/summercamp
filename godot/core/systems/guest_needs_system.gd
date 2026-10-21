@@ -117,6 +117,31 @@ const LIGHT_SLEEPERS := {"picker": 1.0, "quiet_guy": 0.8, "family": 0.5, "cheap_
 ## Within this many tiles of a noisy party's lodging (lodgings are 1-2 tiles wide).
 const NOISE_RANGE_TILES := 3
 const NOISE_COMFORT := 24.0
+## How much of the noise next door comes through the walls, by lodging kind (21. 10.,
+## the caravan's balance): canvas and a caravan's thin shell let it all in and more, a
+## cabin's four walls keep some of it out.
+const WALLS_LET_IN := {"tent": 1.2, "caravan": 1.35, "cabin": 0.75}
+## A caravan with the camp's power gone: the fridge warm, the lamp dead, the pump dry.
+const CARAVAN_NO_POWER := 14.0
+
+
+## How much of the noise outside reaches a guest lodged in `building_type`.
+static func walls_let_in(building_type: String) -> float:
+	return float(WALLS_LET_IN.get(building_type.to_lower().get_slice("_", 0), 1.0))
+
+
+## Comfort a lodging loses to the state of the camp now (`powered`: the grid is up).
+static func lodging_upset(building_type: String, powered: bool) -> float:
+	if not powered and building_type.to_lower().begins_with("caravan"):
+		return CARAVAN_NO_POWER
+	return 0.0
+
+
+## Warm on a frost night: a caravan done up with its gas heater (Lv3); tents and the
+## other caravans freeze (GuestManager.apply_cold_night).
+static func frost_proof(building_type: String) -> bool:
+	var bt := building_type.to_lower()
+	return not (bt.begins_with("tent") or bt.begins_with("caravan")) or bt == "caravan_3"
 
 ## A need below this is something the guest goes and deals with.
 const SEEK_THRESHOLD := 62.0

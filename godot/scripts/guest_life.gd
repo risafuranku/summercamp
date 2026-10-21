@@ -666,8 +666,15 @@ func lodging_comfort(guest: Dictionary) -> float:
 			if CoreRoot != null and CoreRoot.registry != null:
 				var def = CoreRoot.registry.get_def(StringName(type))
 				if def != null:
-					return clampf(float(def.comfort) + NEEDS.lodging_taste(archetype, type), 0.0, 100.0)
+					return clampf(float(def.comfort) + NEEDS.lodging_taste(archetype, type) - NEEDS.lodging_upset(type, _camp_powered()), 0.0, 100.0)
 	return 40.0
+
+
+## The camp's grid up (main's `_is_grid_powered`; up where there is no main).
+func _camp_powered() -> bool:
+	var tree := Engine.get_main_loop() as SceneTree
+	var main := tree.current_scene if tree != null else null
+	return main == null or not main.has_method("_is_grid_powered") or bool(main.call("_is_grid_powered"))
 
 
 func lodging_type(guest: Dictionary) -> String:
@@ -715,7 +722,7 @@ func _noise_for(guest: Dictionary, t: int) -> float:
 			continue
 		if maxi(absi(c.x - mine.x), absi(c.y - mine.y)) <= NEEDS.NOISE_RANGE_TILES:
 			guest["noisy_night"] = true
-			return NEEDS.NOISE_COMFORT * sens * float(src["loud"])
+			return NEEDS.NOISE_COMFORT * sens * float(src["loud"]) * NEEDS.walls_let_in(lodging_type(guest))
 	return 0.0
 
 

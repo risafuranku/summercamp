@@ -1,0 +1,25 @@
+# The caravan (scripts/caravan_interior.gd): its door and step, the things in it to play with. id, seconds, destination, prompt.
+cv_door_open	1.2	assets/sfx/caravan/door_open.mp3	A camping caravan's thin aluminium door unlatched and swung open: a cheap chrome latch clicks, the light door rattles on its hinges, close, no music.
+cv_door_shut	1.0	assets/sfx/caravan/door_shut.mp3	A camping caravan's thin door pulled shut: a hollow tinny slam, the latch snapping home, the whole van shudders a little, close, no music.
+cv_step_creak	1.2	assets/sfx/caravan/step_creak.mp3	Stepping up onto a caravan's folding metal step: a squeak and a clank, the van's springs creaking under the weight, close, no music.
+cv_fridge_open	1.2	assets/sfx/caravan/fridge_open.mp3	A small caravan fridge door pulled open: the rubber seal unsticking with a soft suck, bottles clinking inside, close, no music.
+cv_fridge_shut	0.8	assets/sfx/caravan/fridge_shut.mp3	A small fridge door pushed shut: a dull padded thud, bottles clinking inside, close, no music.
+cv_fridge_hum	6.0	assets/sfx/caravan/fridge_hum.mp3	The steady low hum and quiet gurgle of an old gas absorption fridge in a small quiet caravan, close, loopable, no music.
+cv_gas_click	1.5	assets/sfx/caravan/gas_click.mp3	The igniter of a little gas cooker clicking three times, then a gas ring catching with a soft whump, close, no music.
+cv_gas_burn	4.0	assets/sfx/caravan/gas_burn.mp3	A gas ring burning on a small camping stove, a steady soft hiss and quiet roar, close, loopable, no music.
+cv_kettle	6.0	assets/sfx/caravan/kettle_whistle.mp3	A small stovetop kettle coming to the boil: rumbling and ticking water, then a rising shrill whistle that keeps going, close, no music.
+cv_tap	2.5	assets/sfx/caravan/tap.mp3	A caravan's little tap turned on: the electric water pump buzzing and water splashing into a small steel sink, then turned off, close, no music.
+cv_tv_on	3.0	assets/sfx/caravan/tv_on.mp3	An old black-and-white portable television switched on: a high whine, crackling static hiss, then a steady test-card tone, close, no music.
+cv_tv_off	1.0	assets/sfx/caravan/tv_off.mp3	An old portable television switched off: a click and a short fading electric whine, close, no music.
+cv_heater_on	3.0	assets/sfx/caravan/heater_on.mp3	A small gas heater being lit: the igniter clicking, a soft pop, then the hiss of the burner catching, close, no music.
+cv_heater_loop	5.0	assets/sfx/caravan/heater_loop.mp3	A small gas heater burning steadily, a soft hiss with now and then the tick of warming metal, close, loopable, no music.
+cv_cat_meow	1.5	assets/sfx/caravan/cat_meow.mp3	A sleepy fat ginger cat woken up, one short grumpy meow, close, indoors, no music.
+cv_cat_purr	4.0	assets/sfx/caravan/cat_purr.mp3	A cat purring loudly and contentedly, very close, loopable, no music.
+cv_cat_jump	1.5	assets/sfx/caravan/cat_jump.mp3	A heavy cat jumping down from a cushioned seat onto a vinyl floor with a soft thump, then trotting away, close, no music.
+cv_teddy	0.8	assets/sfx/caravan/teddy_squeak.mp3	An old teddy bear's squeaker squeezed, a tired wheezy squeak, close, no music.
+cv_locker_open	2.0	assets/sfx/caravan/locker_open.mp3	A plastic overhead locker in a caravan flipped open with a clack, then a box of playing cards and a small tin fall out onto a table with a clatter, close, no music.
+cv_locker_shut	0.8	assets/sfx/caravan/locker_shut.mp3	A caravan's plastic overhead locker pushed shut with a clack and a rattle, close, no music.
+cv_bed_make	3.0	assets/sfx/caravan/bed_make.mp3	Making up a caravan dinette into a bed: a table lowered with a metal clunk, cushions shuffled and slapped into place, a blanket shaken out with a whump, close, no music.
+cv_lamp_click	0.8	assets/sfx/caravan/lamp_click.mp3	A plastic rocker light switch clicked and a small dome lamp buzzing on, close, no music.
+cv_vent	2.5	assets/sfx/caravan/vent.mp3	A plastic roof vent hatch in a caravan cranked open: a squeaky winding handle, the hatch lifting, the birds and the wind outside suddenly clearer, close, no music.
+cv_radio_on	2.0	assets/sfx/caravan/radio_on.mp3	An old transistor radio switched on: a click, crackling static and a tuning whistle sweeping across stations, close, no music.

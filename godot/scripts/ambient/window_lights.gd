@@ -155,7 +155,8 @@ func _make(root: Node3D, kind: String) -> Dictionary:
 func _own_material(mi: MeshInstance3D) -> void:
 	if mi.has_meta("wl_mat"):
 		return
-	var src := mi.material_override as StandardMaterial3D
+	# Looked into right now (caravan_interior): its own glass is the one it gives back.
+	var src := (mi.get_meta("inview_was") if mi.has_meta("inview_was") else mi.material_override) as StandardMaterial3D
 	if src == null:
 		src = mi.get_active_material(0) as StandardMaterial3D
 	if src == null:
@@ -168,7 +169,10 @@ func _own_material(mi: MeshInstance3D) -> void:
 	m.emission_energy_multiplier = 0.0
 	if m.emission_texture == null:
 		m.emission_texture = m.albedo_texture
-	mi.material_override = m
+	if mi.has_meta("inview_was"):
+		mi.set_meta("inview_was", m)
+	else:
+		mi.material_override = m
 	mi.set_meta("wl_mat", m)
 
 
@@ -312,6 +316,13 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool) -> void:
 	for w in rec["windows"]:
 		var mi := w as MeshInstance3D
 		if mi == null or not is_instance_valid(mi):
+			continue
+		# Looked into from the camp (caravan_interior._update_inview: the real room in the
+		# glass): its pane is the room's now; it only hears whether it is lit, and how.
+		if mi.has_meta("inview_live"):
+			mi.set_meta("wl_lit", amount)
+			mi.set_meta("wl_candle", candle)
+			mi.set_meta("wl_tv", tv)
 			continue
 		var m := mi.get_meta("wl_mat", null) as StandardMaterial3D
 		if m == null:

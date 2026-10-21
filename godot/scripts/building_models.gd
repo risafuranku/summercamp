@@ -930,6 +930,43 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 	_side_quad(r, "WindowSide", Vector2(0.62, 0.5), Vector3(-lx * 0.4, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass).set_meta("lit_window", true)
 	for wx2: float in [-lx * 0.3, lx * 0.05, lx * 0.33]:
 		_side_quad(r, "WindowBack", Vector2(0.7, 0.5), Vector3(wx2, y0 + h * 0.66, -lz * 0.5 - 0.012), PI, glass).set_meta("lit_window", true)
+	# The big window over the dinette at the towing end, the little one at the back: on
+	# the round ends' noses (the room has them too: caravan_interior.WINDOWS; from the
+	# camp they show the room behind them, its _update_inview).
+	var nose := lx * 0.5 + lz * 0.5 * 0.45 + 0.015
+	_side_quad(r, "WindowFront", Vector2(0.9, 0.5), Vector3(nose, y0 + h * 0.66, 0.0), PI * 0.5, glass).set_meta("lit_window", true)
+	_side_quad(r, "WindowRear", Vector2(0.62, 0.44), Vector3(-nose, y0 + h * 0.66, 0.0), -PI * 0.5, glass).set_meta("lit_window", true)
+	# The step to the door: a folding steel one (Lv3 has wooden steps instead).
+	if lv < 3:
+		_box(r, "DoorStep", Vector3(0.5, 0.04, 0.26), Vector3(door_x, 0.2, lz * 0.5 + 0.16), _metal())
+		for sx: float in [-0.22, 0.22]:
+			_box(r, "DoorStepLeg", Vector3(0.03, 0.2, 0.03), Vector3(door_x + sx, 0.1, lz * 0.5 + 0.26), _metal())
+	# The lamp over the door (from Lv2): a little bulkhead light.
+	if lv >= 2:
+		_box(r, "DoorLampBase", Vector3(0.14, 0.12, 0.05), Vector3(door_x, y0 + 1.72, lz * 0.5 + 0.03), _flat(Color(0.2, 0.2, 0.22)))
+		_box(r, "DoorLampGlass", Vector3(0.1, 0.07, 0.03), Vector3(door_x, y0 + 1.72, lz * 0.5 + 0.06), _flat(Color(0.95, 0.88, 0.66)))
+	# Lv1: an old patch on the roof, a brick chocking a wheel, a washing line with a towel.
+	if lv == 1:
+		_box(r, "RoofPatch", Vector3(0.7, 0.012, 0.5), Vector3(lx * 0.2, y0 + h + 0.066, -lz * 0.15), _flat(Color(0.42, 0.36, 0.3)))
+		_box(r, "WheelChock", Vector3(0.2, 0.1, 0.1), Vector3(0.42, 0.05, lz * 0.5 + 0.06), _flat(Color(0.62, 0.3, 0.22)))
+		var line_from := Vector3(-lx * 0.5 + 0.1, y0 + h - 0.1, lz * 0.5 + 0.02)
+		var line_to := Vector3(-lx * 0.5 - 1.1, 1.6, lz * 0.5 + 0.9)
+		var along := (line_to - line_from).normalized()
+		var up := (Vector3.UP - along * along.dot(Vector3.UP)).normalized()
+		var line := _box(r, "WashingLine", Vector3(line_from.distance_to(line_to), 0.012, 0.012), (line_from + line_to) * 0.5, _flat(Color(0.86, 0.86, 0.82)))
+		line.basis = Basis(along, up, along.cross(up))
+		_box(r, "LinePole", Vector3(0.05, 1.62, 0.05), Vector3(line_to.x, 0.81, line_to.z), _metal())
+		var flat := Vector3(along.x, 0.0, along.z).normalized()
+		var towel := _box(r, "Towel", Vector3(0.36, 0.5, 0.01), (line_from + line_to) * 0.5 + Vector3(0, -0.27, 0), _flat(Color(0.3, 0.52, 0.72)))
+		towel.basis = Basis(flat, Vector3.UP, flat.cross(Vector3.UP))
+	# Lv3: the gas heater's flue cowl on the roof (warm on a frost night), window boxes.
+	if lv >= 3:
+		_cyl(r, "HeaterFlue", 0.07, 0.22, Vector3(lx * 0.28, y0 + h + 0.16, lz * 0.3), _metal())
+		_cyl(r, "HeaterCowl", 0.11, 0.05, Vector3(lx * 0.28, y0 + h + 0.29, lz * 0.3), _flat(Color(0.9, 0.9, 0.88)))
+		for wx3: float in [lx * 0.14, lx * 0.37]:
+			_box(r, "WindowBox", Vector3(0.7, 0.14, 0.16), Vector3(wx3, y0 + h * 0.66 - 0.36, lz * 0.5 + 0.09), _flat(Color(0.5, 0.32, 0.2)))
+			for i in 5:
+				_box(r, "WindowFlower", Vector3(0.08, 0.08, 0.08), Vector3(wx3 - 0.24 + i * 0.12, y0 + h * 0.66 - 0.26 + float(i % 2) * 0.03, lz * 0.5 + 0.1), _flat(Color(0.86, 0.12, 0.16) if i % 2 == 0 else Color(0.96, 0.94, 0.9)))
 	# Running gear: one axle (two on Lv3), the drawbar with its jockey wheel, the gas.
 	var axles: Array = [0.0] if lv < 3 else [-0.36, 0.36]
 	for ax in axles:

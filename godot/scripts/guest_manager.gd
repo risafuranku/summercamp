@@ -793,16 +793,22 @@ func apply_cold_night(low: int) -> int:
 			continue
 		var guest: Dictionary = g_any
 		var cold := false
+		var in_caravan := false
 		for slot_any in (guest.get("lodging_slots", []) if guest.get("lodging_slots", []) is Array else []):
 			var key := str((slot_any as Dictionary).get("accommodation_key", "")) if slot_any is Dictionary else ""
 			var acc: Dictionary = state.accommodation_states.get(key, {})
 			var bt := str(acc.get("building_type", ""))
-			if bt.begins_with("tent") or bt.begins_with("caravan"):
+			# The Lv3 caravan has its gas heater (GuestNeedsSystem.frost_proof).
+			if not GUEST_NEEDS.frost_proof(bt):
 				cold = true
+				in_caravan = bt.begins_with("caravan")
 		if not cold:
 			continue
 		guest["mood"] = clampf(float(guest.get("mood", 60.0)) - (8.0 + 2.0 * float(maxi(0, -low))), 0.0, 100.0)
-		guest["thought"] = "We froze in that tent all night. There was ice on the zip." if low < -2 else "It was cold in the tent last night. Really cold."
+		if in_caravan:
+			guest["thought"] = "The caravan was an icebox. The water in the kettle froze." if low < -2 else "Cold in that caravan last night. The walls are paper."
+		else:
+			guest["thought"] = "We froze in that tent all night. There was ice on the zip." if low < -2 else "It was cold in the tent last night. Really cold."
 		guest["thought_abs"] = now_abs
 		state.guests[i] = guest
 		hit += 1

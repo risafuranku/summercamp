@@ -32,6 +32,9 @@ var light: OmniLight3D
 var _flash := 0.0
 var _mat: StandardMaterial3D
 var _live := false
+## Its picture kept at the size it was made (a doorway walked up to: refitting it each
+## frame it grew blinked black; caravan_interior's door).
+var fixed_px := false
 
 
 ## A window in `room` (a Node3D of the room, room space) at `centre`, facing `outward`
@@ -180,7 +183,8 @@ func update(room: Node3D, eye: Camera3D, xform: Transform3D, live: bool, world: 
 		else:
 			cam.global_transform = Transform3D(xform.basis * frame.basis, xform * e_room)
 			cam.set_frustum(size.y, Vector2(-e.x, -e.y), e.z + 0.06, e.z + 240.0)
-			_fit_pixels(room, eye)
+			if not fixed_px:
+				_fit_pixels(room, eye)
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
 	_live = on
 	# The flash: the glass white, a cold light in the room (behind a curtain: the cloth

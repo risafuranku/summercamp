@@ -25292,3 +25292,19 @@ msgstr "%s: %s"
 #. manual
 msgid "Order no. %d"
 msgstr "Objednávka č. %d"
+
+#: scripts/interior_manager.gd (the caravan's upgrade)
+msgid "The bunk at the end: a third bed. The big striped awning with a table and two chairs out front. Families love a bunk."
+msgstr "Palanda vzadu: třetí postel. Velká pruhovaná markýza a před ní stolek se dvěma židlemi. Rodiny palandy milujou."
+
+#: scripts/interior_manager.gd (the caravan's upgrade)
+msgid "The top bunk: a fourth bed. A gas heater: warm on frost nights. The telly, flowers and fairy lights."
+msgstr "Horní palanda: čtvrtá postel. Plynová kamínka: teplo i v mrazivé noci. Televizor, kytky a světýlka."
+
+#: scripts/guest_manager.gd (a frost night in a caravan)
+msgid "The caravan was an icebox. The water in the kettle froze."
+msgstr "V karavanu byla psí zima. Voda v konvici zamrzla."
+
+#: scripts/guest_manager.gd (a frost night in a caravan)
+msgid "Cold in that caravan last night. The walls are paper."
+msgstr "V tom karavanu byla v noci zima. Stěny jak z papíru."

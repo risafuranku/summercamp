@@ -959,8 +959,9 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 	_active_caravan_node = caravan_node as Node3D
 	_apply_time_to_interior(_caravan_interior)
 	_door_transition(true)
-	_caravan_interior.open_caravan(level)
-	_step_in(_caravan_interior)
+	# The room takes the walk on from the doorstep: up the step, down the van (the camp
+	# walked you up to the door and opened it).
+	_caravan_interior.open_caravan(level, true)
 	call_deferred("_restore_curtains")
 	_push_room_state(_caravan_interior, _active_caravan_node)
 	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
@@ -988,7 +989,11 @@ func _on_caravan_upgrade_requested() -> void:
 		return
 	var cost = max(30, _economy_manager.get_cost(next_type) - _economy_manager.get_cost(current_type))
 	_pending_upgrade_context = {"mode": "replace", "origin": origin, "old_type": current_type, "new_type": next_type, "cost": cost}
-	var desc = "Upgrade %s -> %s (one more bed)." % [_economy_manager.get_label(current_type), _economy_manager.get_label(next_type)]
+	# What the next one brings (the balance of 21. 10.: the families' lodging; warm
+	# on a frost night only with the heater of Lv3).
+	var desc := "The bunk at the end: a third bed. The big striped awning with a table and two chairs out front. Families love a bunk."
+	if next_type == "caravan_3":
+		desc = "The top bunk: a fourth bed. A gas heater: warm on frost nights. The telly, flowers and fairy lights."
 	_open_upgrade_menu("Caravan: Upgrade", desc, "$%d" % cost, _economy_manager.get_money() >= cost)
 
 

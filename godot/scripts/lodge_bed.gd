@@ -20,7 +20,7 @@ const SLEEP = preload("res://scripts/reception/sleep_sequence.gd")
 const BEDS := {
 	"cabin": {"centre": Vector3(-1.46, 0.59, -0.66), "eyes": Vector3(-1.46, 0.82, -1.18), "look": Vector3(14.0, 180.0, 0.0), "box": Vector3(1.0, 0.5, 1.9)},
 	"tent": {"centre": Vector3(-0.2, 0.1, -0.02), "eyes": Vector3(-0.2, 0.26, -0.52), "look": Vector3(16.0, 180.0, 0.0), "box": Vector3(0.7, 0.3, 1.3)},
-	"caravan": {"centre": Vector3(1.78, 0.66, 0.0), "eyes": Vector3(1.78, 0.9, -0.72), "look": Vector3(10.0, 180.0, 0.0), "box": Vector3(0.96, 0.4, 1.8)},
+	"caravan": {"centre": Vector3(1.96, 0.66, 0.0), "eyes": Vector3(1.96, 0.9, -0.72), "look": Vector3(10.0, 180.0, 0.0), "box": Vector3(0.96, 0.4, 1.8)},
 	# The staffroom's boiler room (scripts/staff/staffroom_plan.gd MATTRESS): the mattress
 	# on the floor is the warden's (the user 21. 10.: "the mattress is for the player").
 	"staff": {"centre": Vector3(3.39, 0.44, -0.1), "eyes": Vector3(3.39, 0.64, -0.82), "look": Vector3(16.0, 180.0, 0.0), "box": Vector3(0.8, 0.3, 1.9)},
