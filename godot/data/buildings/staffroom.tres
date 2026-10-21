@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="BuildingDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/data/building_def.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+id = &"staffroom"
+display_name = "Staffroom (2x2)"
+category = &"services"
+cost = 360
+radius = 0
+power_draw = 1.0
+power_production = 0.0
+infra_load = 2.0
+hygiene_delta = 0.0
+fun_delta = 0.0
+passive_income = 0.0
+karma_delta = 0.0
+capacity = 0
+power_use = 1
+water_use = 1
+sewage_use = 0
+waste_use = 1
+power_provide = 0
+water_provide = 0
+sewage_provide = 0
+waste_provide = 0
+guest_capacity = 0
+use_minutes = 0
+requires = PackedStringArray("power")
+maintenance_decay = 0.10
+tags = PackedStringArray("staff")
+footprint = Vector2i(2, 2)

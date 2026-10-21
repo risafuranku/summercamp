@@ -28,6 +28,7 @@ const ICON_SPAN := {
 	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
 	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
 	"flower_bed": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "lamp_iso": 0.24, "lamp_post": 0.24, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
+	"staffroom": 1.6,
 }
 const SFX_DIR := "res://assets/sfx/builder/"
 
@@ -104,6 +105,7 @@ const ICON_PATHS := {
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
 	"corn_stand": "res://assets/textury/builder/iso_corn_stand.png",
+	"staffroom": "res://assets/textury/builder/iso_staffroom.png",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
 	"sports_field": "res://assets/textury/builder/iso_sports.png",
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
@@ -3306,6 +3308,8 @@ func _icon_key_for_type(building_type: String) -> String:
 			return "pub_2"
 		"restaurant":
 			return "restaurant"
+		"staffroom":
+			return "staffroom"
 		"vecerka":
 			return "vecerka_iso" if _get_icon("vecerka_iso") != null else "vecerka"
 		"bowling":
@@ -3473,6 +3477,8 @@ func _reason_text(reason: String) -> String:
 			return "blocked or out of bounds"
 		"not_buildable":
 			return "tool is not buildable"
+		"only_one":
+			return "the camp has one already"
 		"area_too_large":
 			return "area too large"
 		"protected_structure":

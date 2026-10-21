@@ -10,6 +10,14 @@ const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 var _torch: Node
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const GENERATOR_SHED = preload("res://scripts/shed/generator_shed.gd")
+## The staffroom's two rooms (scripts/staff/staffroom.gd), its laptop and its books.
+const STAFFROOM = preload("res://scripts/staff/staffroom.gd")
+const STAFF_PLAN = preload("res://scripts/staff/staffroom_plan.gd")
+const LAPTOP_VIEW = preload("res://scripts/staff/laptop_view.gd")
+const STAFF_LEDGER = preload("res://scripts/staff/staff_ledger.gd")
+var _staff_room
+var _laptop_view: CanvasLayer
+var _staff_ledger: CanvasLayer
 const MESS_RULES = preload("res://core/systems/mess_rules.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
@@ -271,6 +279,8 @@ func open_service(service_type: String) -> void:
 	if _current_profile == "generator" and _shed != null:
 		_active_subroom = "set"
 		_shed.on_open(_time_state == TIME_NIGHT, _nights_visited())
+	if _current_profile == "staff" and _staff_room != null:
+		_staff_room.on_open()
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -289,6 +299,9 @@ func close_service() -> void:
 		_counter_game.visible = false
 	if _ledger != null and _ledger.visible:
 		_ledger.visible = false
+	for v in [_laptop_view, _staff_ledger]:
+		if v != null and v.visible:
+			v.call("close_now")
 	for g in _extra_games.values():
 		if (g as CanvasLayer).visible:
 			(g as CanvasLayer).call("_closing")
@@ -327,6 +340,15 @@ func _process(delta: float) -> void:
 		return
 	if _ledger != null and _ledger.visible:
 		return
+	if _current_profile == "staff" and _staff_room != null:
+		_staff_room.tick(delta)
+		if (_laptop_view != null and _laptop_view.visible) or (_staff_ledger != null and _staff_ledger.visible):
+			return
+		if _staff_room.walking():
+			_hot_glint.clear()
+			_hot_glint_on = null
+			_update_torch(delta)
+			return
 	if _zreport != null and _zreport.visible:
 		return
 	if _sewer_terminal != null and _sewer_terminal.visible:
@@ -361,6 +383,9 @@ func _process(delta: float) -> void:
 		return
 	if _current_profile == "generator" and _shed != null:
 		_shed.update_hover(get_viewport().get_mouse_position())
+	elif _current_profile == "staff" and _staff_room != null and not INTERIOR_LOOK.in_exit_zone(get_viewport()) \
+			and _staff_room.update_hover(get_viewport().get_mouse_position()) != "":
+		_hover_things(null)
 	elif INTERIOR_LOOK.in_exit_zone(get_viewport()):
 		HandCursor.want(HandCursor.WALK)
 		_hover_things(null)
@@ -399,12 +424,16 @@ func _apply_idle_mouse_look(delta: float) -> void:
 	_interior_camera.rotation = _cam_base_rot + offset
 	# A/D turn the head; held on at the end of the turn, through the door that way.
 	var push: int = _look.take_push()
-	if push != 0 and not (_current_profile in ["rest", "vecerka", "pub"]):
+	if push != 0 and not (_current_profile in ["rest", "vecerka", "pub", "staff"]):
 		_switch_service_room(push)
 
 
 func _input(event: InputEvent) -> void:
 	if not _is_open:
+		return
+	if (_laptop_view != null and _laptop_view.visible) or (_staff_ledger != null and _staff_ledger.visible):
+		return
+	if _staff_room != null and _current_profile == "staff" and _staff_room.walking():
 		return
 	if _upkeep_prep != null and _upkeep_prep.is_scrubbing():
 		return
@@ -478,6 +507,8 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 	if collider == null:
 		return false
 	if _current_profile == "generator" and _shed != null and _shed.click():
+		return true
+	if _current_profile == "staff" and _staff_room != null and _staff_room.click():
 		return true
 	var door_id := _doors.hover(collider, _door_room())
 	if door_id != "":
@@ -835,6 +866,8 @@ func _build_service_light_switch(profile: String) -> void:
 		switch_pos = Vector3(1.92, 1.24, 1.32)
 	elif profile == "toilet":
 		switch_pos = Vector3(2.00, 1.24, 1.20)
+	elif profile == "staff":
+		switch_pos = Vector3(STAFF_PLAN.DOOR_X - 0.68, STAFF_PLAN.FLOOR + 1.25, STAFF_PLAN.L_MAX.y - 0.04)
 	var switch_body = StaticBody3D.new()
 	switch_body.name = "ServiceLightSwitch"
 	switch_body.position = switch_pos
@@ -1113,6 +1146,20 @@ func _build_service_room(profile: String) -> void:
 		JEDNOTA_LAYOUT.shop(_vecerka_shop_root, self)
 		JEDNOTA_LAYOUT.store(_vecerka_storage_root, self)
 		_set_vecerka_room("shop", true)
+	elif profile == "staff":
+		_staff_room = STAFFROOM.new()
+		_staff_room.build(self, _room_root)
+		_staff_room.set_room("lounge", _interior_camera)
+		_active_subroom = "lounge"
+		_main_light.position = Vector3(-1.2, STAFF_PLAN.FLOOR + STAFF_PLAN.L_H - 0.3, 0.0)
+		var bl := OmniLight3D.new()
+		bl.name = "BoilerBulb"
+		bl.light_color = Color(1.0, 0.84, 0.62)
+		bl.light_energy = 0.9
+		bl.omni_range = 4.0
+		bl.shadow_enabled = true
+		bl.position = Vector3(2.5, STAFF_PLAN.FLOOR + STAFF_PLAN.B_H - 0.45, 0.0)
+		_room_root.add_child(bl)
 	elif profile == "generator":
 		_build_generator_layout()
 		_active_subroom = "set"
@@ -1601,6 +1648,9 @@ func _side_hint_texts() -> Array:
 			return ["", ""]
 		"wash":
 			# One room for all the showers: A/D only turn the head.
+			return ["", ""]
+		"staff":
+			# The doorway is clicked (point and click), no tabs.
 			return ["", ""]
 	return ["", ""]
 
@@ -3348,6 +3398,10 @@ func _make_windows(profile: String) -> void:
 			roots = [_pub_main_root]
 		"vecerka":
 			roots = [_vecerka_shop_root]
+		"staff":
+			if _staff_room != null:
+				_windows = _staff_room.make_windows(WINDOW_PORTAL)
+			return
 	for root in roots:
 		if root == null:
 			continue
@@ -3390,6 +3444,11 @@ func _tick_windows(delta: float) -> void:
 		var root: Node3D = e["root"]
 		var live: bool = anchor != null and root.is_visible_in_tree()
 		var xf: Transform3D = WINDOW_PORTAL.room_to_world(anchor, e["w"], 0.0) if anchor != null else Transform3D()
+		if e.has("room") and anchor != null:
+			# The staffroom: its room space is the building's own (staffroom_plan.gd);
+			# only the windows of the room you are in are drawn.
+			xf = anchor.global_transform
+			live = live and _staff_room != null and str(e["room"]) == str(_staff_room.room) and not _staff_room.walking()
 		e["w"].update(root, _interior_camera, xf, live, world, delta)
 
 
@@ -3412,7 +3471,7 @@ func photo_windows() -> Array:
 		if not root.is_visible_in_tree():
 			continue
 		var w = e["w"]
-		var o: Dictionary = w.outside(WINDOW_PORTAL.room_to_world(anchor, w, 0.0))
+		var o: Dictionary = w.outside(anchor.global_transform if e.has("room") else WINDOW_PORTAL.room_to_world(anchor, w, 0.0))
 		o["facing"] = w.facing(root, _interior_camera)
 		o["open"] = w.curtain_open()
 		o["flash"] = w.flash
@@ -3548,6 +3607,10 @@ func coop_job() -> String:
 			return str(id)
 	if _ledger != null and _ledger.visible:
 		return "ledger"
+	if _laptop_view != null and _laptop_view.visible:
+		return "laptop"
+	if _staff_ledger != null and _staff_ledger.visible:
+		return "ledger"
 	return ""
 
 
@@ -3560,6 +3623,8 @@ func coop_part() -> String:
 			return "%s/%s/%s" % [_current_profile, _active_subroom, toilet_entry]
 	if _current_profile == "pub":
 		return "pub/" + _pub_room
+	if _current_profile == "staff" and _staff_room != null:
+		return "staff/" + str(_staff_room.room)
 	return _current_profile + "/main"
 
 
@@ -3574,6 +3639,15 @@ const COOP_JOB_SPOTS := {
 
 
 func coop_job_spot(job: String) -> Dictionary:
+	if _current_profile == "staff" and _staff_room != null:
+		# At the laptop: on its chair, the back to the room (you look over the shoulder);
+		# at the books: standing at the table's end, bent over them.
+		match job:
+			"laptop":
+				return {"pos": _room_root.global_transform * STAFF_PLAN.LAPTOP_CHAIR, "pose": "desk"}
+			"ledger":
+				return {"pos": _room_root.global_transform * Vector3(STAFF_PLAN.LEDGER.x - 0.1, STAFF_PLAN.FLOOR, STAFF_PLAN.LEDGER.z + 0.5), "pose": "write"}
+		return {}
 	if _current_profile == "pub" and PUB_LAYOUT.STATIONS.has(job):
 		# At a station of the pub (scripts/pub/pub_layout.gd STATIONS).
 		var pst: Dictionary = PUB_LAYOUT.STATIONS[job]
@@ -3711,6 +3785,65 @@ func _top_near(root: Node3D, n: String, at: Vector3, fallback: float) -> float:
 	return top - root.global_position.y
 
 
+# -- the staffroom: its laptop, its books (scripts/staff/) --------------------------
+
+## The office PC (building_interior.gd): its desktop is the laptop's.
+func _office_pc():
+	var im := get_parent()
+	return im.get("_building_interior") if im != null else null
+
+
+## The picture on the laptop's screen: another warden's at it (co-op), the office PC's.
+func _staff_pc_texture() -> Texture2D:
+	if _laptop_view != null and is_instance_valid(_laptop_view) and _laptop_view.call("partner_texture") != null:
+		return _laptop_view.call("partner_texture")
+	var bi = _office_pc()
+	var vp = bi.get("_crt_viewport") if bi != null else null
+	return (vp as SubViewport).get_texture() if vp is SubViewport else null
+
+
+func _staff_laptop_live() -> bool:
+	return _laptop_view != null and (_laptop_view.visible or _laptop_view.call("partner_texture") != null)
+
+
+func _staff_open_laptop() -> void:
+	# Co-op: one at the PC at a time, here or at the office (the others look on).
+	for id in Coop.others():
+		var theirs: Dictionary = Coop.state_of(id).get("room", {})
+		if str(theirs.get("w", "")) in ["pc", "laptop"]:
+			var hud = get_tree().current_scene.get("_hud_manager") if get_tree().current_scene != null else null
+			if hud != null:
+				hud.push_status(tr("%s is on the PC. You look over their shoulder.") % Coop.name_of(id), 1)
+			return
+	_ensure_laptop_view()
+	_hot_glint.clear()
+	_laptop_view.call("open_for", _office_pc(), _interior_camera)
+
+
+func _ensure_laptop_view() -> void:
+	if _laptop_view == null:
+		_laptop_view = LAPTOP_VIEW.new()
+		_laptop_view.name = "LaptopView"
+		add_child(_laptop_view)
+
+
+func _staff_open_ledger() -> void:
+	if _staff_ledger == null:
+		_staff_ledger = STAFF_LEDGER.new()
+		_staff_ledger.name = "StaffLedger"
+		add_child(_staff_ledger)
+	_hot_glint.clear()
+	_staff_ledger.call("open_view")
+
+
+## Co-op: the other warden's laptop screen (main.coop_show_screen), on its glass here.
+func coop_show_laptop(frame: PackedByteArray) -> void:
+	if _current_profile != "staff":
+		return
+	_ensure_laptop_view()
+	_laptop_view.call("partner_frame", frame)
+
+
 func _profile_for_service(service_type: String) -> String:
 	if service_type == "restaurant":
 		return "rest"
@@ -3726,6 +3859,8 @@ func _profile_for_service(service_type: String) -> String:
 		return "vecerka"
 	if service_type == "power_generator":
 		return "generator"
+	if service_type == "staffroom":
+		return "staff"
 	return "rest"
 
 

@@ -906,6 +906,12 @@ func set_troubles(rows: Array) -> void:
 		_trouble_strip.set_rows(_troubles)
 
 
+## The post's plate on the right edge (post_delivery.hud_row(); {} none).
+func set_post(row: Dictionary) -> void:
+	if _arrival_rings != null and is_instance_valid(_arrival_rings) and _arrival_rings.has_method("set_post"):
+		_arrival_rings.set_post(row)
+
+
 ## Rows from GuestManager.get_arrivals(): who is coming, when, to which room, ready?
 func set_arrivals(rows: Array) -> void:
 	if rows == _arrivals:

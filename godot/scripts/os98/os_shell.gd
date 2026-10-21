@@ -82,6 +82,8 @@ const PROGRAMS := {
 	"bistro_app": {"title": "Kuchar 98", "icon": "bistro_app", "file": "KUCHAR98.EXE", "kb": 64, "site": "softsklad.cz", "base": false},
 	"shop_app": {"title": "Pult 98", "icon": "shop_app", "file": "PULT98.EXE", "kb": 56, "site": "softsklad.cz", "base": false},
 	"corn_app": {"title": "Klasek 98", "icon": "corn_app", "file": "KLASEK98.EXE", "kb": 32, "site": "softsklad.cz", "base": false},
+	# The staffroom's hands (scripts/os98/apps/staff_app.gd).
+	"staff_app": {"title": "Personal 98", "icon": "staff_app", "file": "PERSON98.EXE", "kb": 40, "site": "softsklad.cz", "base": false},
 	# The games are on the machine already: the evenings at the office before this one.
 	"mines": {"title": "Mines", "icon": "mines", "file": "", "kb": 24, "site": "", "base": true},
 	"mosquito": {"title": "Komar 98", "icon": "komar", "file": "KOMAR98.EXE", "kb": 28, "site": "bohemia-online.cz/hry", "base": true},
@@ -98,6 +100,7 @@ const PROGRAM_INFO := {
 	"bistro_app": ["SoftSklad s.r.o.", "3.1", "20.4.1998"],
 	"shop_app": ["SoftSklad s.r.o.", "2.0", "11.3.1998"],
 	"corn_app": ["SoftSklad s.r.o.", "1.0", "2.7.1998"],
+	"staff_app": ["SoftSklad s.r.o.", "1.1", "14.8.1998"],
 	"mines": ["Okna 98 accessory", "4.10", "11.5.1998"],
 	"mosquito": ["Bohemia Soft, shareware", "1.0", "3.8.1998"],
 	"hike": ["Bohemia Soft, shareware", "1.1", "17.7.1998"],
@@ -117,7 +120,7 @@ const SCORE_ROWS := 5
 const HOST := {
 	"builder": "builder", "camp_status": "camp_status", "guestrack": "guestrack",
 	"datapunch": "jobs", "adclick": "jobs", "census": "jobs",
-	"pub_app": "shops", "bistro_app": "shops", "shop_app": "shops", "corn_app": "shops",
+	"pub_app": "shops", "bistro_app": "shops", "shop_app": "shops", "corn_app": "shops", "staff_app": "shops",
 	"mines": "games", "mosquito": "games", "hike": "games", "pexeso": "games",
 }
 ## The tabs that are a program of their own and must be installed first.

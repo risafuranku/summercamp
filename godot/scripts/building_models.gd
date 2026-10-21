@@ -17,7 +17,7 @@ const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
 	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome",
-	"vecerka", "bowling"]
+	"vecerka", "bowling", "staffroom"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -79,6 +79,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _jednota(root, w, d)
 		"bowling":
 			return _bowling(root, w, d)
+		"staffroom":
+			return _staffroom(root, w, d)
 		# Built by BuildingManager's own placers; here for tools/model_viewer.
 		"cabin_1", "cabin_2", "cabin_3":
 			var lv := int(type.right(1))
@@ -1303,6 +1305,40 @@ func _hammock(r: Node3D, _w: float, _d: float) -> Dictionary:
 
 
 ## A behaviour node on a model (the guests' use of it, a flag in the wind, a gnome).
+# ── the staffroom (scripts/staff/staffroom_plan.gd): its rooms behind real glass ──
+
+## The hut and its rooms as one (the same plan the room inside is built from), so from
+## the camp you see into it; what the camp's side drives (curtains, lamps, the hands on
+## the mattresses, the laptop's glow) is kept on the root (meta "staffroom") for
+## scripts/staff/staff_runtime.gd. Lamps: the tube in the lounge, the bulb in the boiler
+## room, the one over the door (off until the runtime puts them on).
+func _staffroom(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var plan = load("res://scripts/staff/staffroom_plan.gd")
+	var rooms := Node3D.new()
+	rooms.name = "StaffRooms"
+	r.add_child(rooms)
+	var refs: Dictionary = plan.build(rooms, true)
+	var lights := {}
+	for k in [["lounge", Vector3(-1.2, plan.FLOOR + plan.L_H - 0.3, 0.0), 6.0, Color(0.92, 0.96, 1.0)],
+			["boiler", Vector3(2.5, plan.FLOOR + plan.B_H - 0.45, 0.0), 4.0, Color(1.0, 0.82, 0.6)],
+			["door", Vector3(plan.DOOR_X, plan.FLOOR + plan.DOOR_H + 0.1, plan.L_MAX.y + plan.WALL + 0.35), 5.0, Color(1.0, 0.86, 0.6)]]:
+		var l := OmniLight3D.new()
+		l.name = "Lamp_" + str(k[0])
+		l.position = k[1]
+		l.omni_range = float(k[2])
+		l.light_color = k[3]
+		l.light_energy = 0.0
+		l.shadow_enabled = str(k[0]) != "door"
+		rooms.add_child(l)
+		lights[k[0]] = l
+	refs["lights"] = lights
+	r.set_meta("staffroom", refs)
+	r.add_to_group("staffroom")
+	var sx: float = plan.B_MAX.x + plan.WALL - (plan.L_MIN.x - plan.WALL)
+	var sz: float = plan.L_MAX.y - plan.L_MIN.y + 2.0 * plan.WALL
+	return {"size": Vector3(sx, plan.FLOOR + plan.L_H + 0.3, sz), "target": Vector3(plan.DOOR_X, 1.2, plan.L_MAX.y + plan.WALL + 0.1)}
+
+
 func _use_script(r: Node3D, path: String) -> void:
 	var n := Node3D.new()
 	n.name = "Use"

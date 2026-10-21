@@ -1624,6 +1624,11 @@ func _poll_arrivals(delta: float) -> void:
 		# The host's guests by the host's clock (GuestManager keeps no time of its own here).
 		GuestManager._on_time_tick(int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
 	_hud_manager.set_arrivals(GuestManager.get_arrivals())
+	# The post on its way with what you ordered (reception/post_delivery.gd).
+	var bi_p = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	var post_p = bi_p.get("_post") if bi_p != null else null
+	if _hud_manager.has_method("set_post"):
+		_hud_manager.set_post(post_p.hud_row() if post_p != null and post_p.has_method("hud_row") else {})
 	var day_rows: Array = _day_events.hud_rows() if _day_events != null else []
 	var biz = _interior_manager.get("business") if _interior_manager != null else null
 	var serve_rows: Array = []
@@ -4867,6 +4872,17 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 			act.biz_set_menu(str(a[0]), str(a[1]), bool(a[2]))
 		"score":
 			act.biz_score(str(a[0]), a[1])
+		# The staffroom's hands (actions.staff_*).
+		"s_hire":
+			if a[0] is Dictionary:
+				act.staff_hire(a[0], int(a[1]) if a.size() > 1 else CoreRoot.get_day())
+		"s_fire":
+			act.staff_fire(str(a[0]))
+		"s_job":
+			if a.size() > 2:
+				act.staff_set_job(str(a[0]), str(a[1]), bool(a[2]))
+		"s_gear":
+			act.staff_add_gear(str(a[0]))
 
 
 ## The other machine: the other warden got you up.
@@ -5143,6 +5159,15 @@ func coop_screen_frame() -> PackedByteArray:
 	if _interior_manager == null or not _interior_manager.has_method("coop_room"):
 		return PackedByteArray()
 	var mine: Dictionary = _interior_manager.coop_room()
+	if str(mine.get("w", "")) == "laptop":
+		# At the staffroom's laptop (scripts/staff/laptop_view.gd): for whoever is in its
+		# room with you.
+		for id in Coop.others():
+			var th: Dictionary = Coop.state_of(id).get("room", {})
+			if str(th.get("k", "")) == str(mine.get("k", "")) and str(th.get("s", "")) == str(mine.get("s", "")) and str(th.get("w", "")) != "laptop":
+				var bi_l = _interior_manager.get("_building_interior")
+				return bi_l.coop_screen_frame_any() if bi_l != null else PackedByteArray()
+		return PackedByteArray()
 	if str(mine.get("t", "")) != "office" or str(mine.get("w", "")) != "pc":
 		return PackedByteArray()
 	# Someone in the office to look over your shoulder.
@@ -5160,6 +5185,11 @@ func coop_screen_frame() -> PackedByteArray:
 
 ## The other warden's screen, on your office's PC.
 func coop_show_screen(frame: PackedByteArray) -> void:
+	# In the staffroom: the frame is from its laptop.
+	var si = _interior_manager.get("_service_interior") if _interior_manager != null else null
+	if si != null and si.has_method("coop_show_laptop") and si.is_open():
+		si.coop_show_laptop(frame)
+		return
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	if bi != null and bi.has_method("coop_show_screen") and bi.is_open():
 		bi.coop_show_screen(frame)

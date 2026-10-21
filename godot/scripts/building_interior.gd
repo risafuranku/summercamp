@@ -788,6 +788,14 @@ var _coop_screen_left := 0.0
 func coop_screen_frame() -> PackedByteArray:
 	if not _crt_active or _crt_viewport == null:
 		return PackedByteArray()
+	return coop_screen_frame_any()
+
+
+## The PC's picture as a JPEG, whoever sits at it (here, or at the staffroom's laptop:
+## scripts/staff/laptop_view.gd).
+func coop_screen_frame_any() -> PackedByteArray:
+	if _crt_viewport == null:
+		return PackedByteArray()
 	var img := _crt_viewport.get_texture().get_image()
 	if img == null or img.is_empty():
 		return PackedByteArray()

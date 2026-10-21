@@ -32,7 +32,7 @@ const CATEGORIES: Array = [
 	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand", "vecerka", "bowling"]},
 	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide", "playground", "ping_pong", "hammock"]},
 	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/tb_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole", "mega_gnome"]},
-	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer"]},
+	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer", "staffroom"]},
 ]
 
 ## Catalogue pictures (the map has its own, isometric).
@@ -60,6 +60,7 @@ const ITEM_ICONS := {
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
 	"corn_stand": "res://assets/textury/builder/iso_corn_stand.png",
+	"staffroom": "res://assets/textury/builder/iso_staffroom.png",
 }
 
 ## Even shorter, for when a catalogue has so many cards that they get narrow.
@@ -82,6 +83,7 @@ const SHORT_NAMES := {
 	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome", "mega_gnome": "Mega gnome",
 	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
 	"corn_stand": "Corn stand", "bowling": "Bowling",
+	"staffroom": "Staffroom",
 }
 
 const BLURBS := {
@@ -108,6 +110,7 @@ const BLURBS := {
 	"ping_pong": "A table, two bats and an argument.",
 	"hammock": "One guest, one book, one hour of peace.",
 	"corn_stand": "Boiled corn with butter and salt, and a cup of kofola. Cheap, quick, everybody wants one.",
+	"staffroom": "Your own staff: they bag rubbish, chase raccoons, sign for vans and make up the rooms. One locker, one hand.",
 	"path": "Drag to lay a path. Guests walk on paths.",
 	"lamp_post": "Light at night. A lit path is a safe path.",
 	"demolish": "Drag over trees or buildings, then click inside to clear them.",
