@@ -700,6 +700,18 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
   below the clouds. The PC remembers which view was left.
   What is built is there at once; outside the god cursor (§5k) drops it in all the same
   (its copies on a layer this eye leaves out, the building on one only this eye draws).
+- **Free over the whole map** (the user, 21. 10.: "let me drive the camera wherever I
+  want, to the map's edges, to the Liblice masts: we can look the map over like that"):
+  the 3D view roams the whole land round the camp and up to a kilometre and a half out;
+  the land, the village and the hamlet are built round what it looks at, the fog and the
+  far darkness thin the higher it goes.
+- **The camera with legs** (the user, 21. 10.: "for longer Builder sittings: WASD moves
+  the camera, the left hand on the keyboard, and I am not getting up"): a toggle in the
+  toolbar (a camcorder on two legs, it walks while the map moves). On, WASD pans the map
+  in 2D and 3D (Shift faster) and S no longer stands you up; it holds only while Builder
+  is the screen you look at (E to the second monitor or the window: S stands you up
+  there; back on Builder, WASD is the map's again); standing up puts it away. At the
+  desk E turns the head and back (A and D did); the building turns on Q / R.
 - **Paths are one surface** (the user, 21. 10.: "build paths 2x4 and it is one big path,
   in the Builder and in the camp"): a path tile is composed from its eight neighbours
   (`scripts/path_tiles.gd`), the gravel across every side and into every corner the

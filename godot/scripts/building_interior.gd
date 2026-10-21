@@ -1450,6 +1450,12 @@ func _exit_crt_view() -> void:
 	_crt_look = 0
 	if _crt_ui != null and _crt_ui.has_method("set_screen"):
 		_crt_ui.set_screen(0)
+	if _crt_ui != null:
+		_crt_ui.set_meta("look_away", false)
+		# Up from the desk, the camera's legs go back in (the next sitting starts with S).
+		var b = _crt_ui.get_meta("builder_walk", null)
+		if b != null and is_instance_valid(b):
+			b.call("end_walk")
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
@@ -1501,16 +1507,18 @@ func _input(event: InputEvent) -> void:
 			if _handle_crt_look_back_key(key_event):
 				get_viewport().set_input_as_handled()
 				return
-			# Not typing into the machine: S stands you up, D turns you right (to the
-			# second monitor, or out of the office window), A back to the first one.
+			# Not typing into the machine: E turns your head (to the second monitor, or out
+			# of the office window) and back again (the user, 21. 10.: "E right, E left";
+			# A and D were it). S stands you up, unless Builder has the camera on WASD and
+			# it is the screen you look at (builder_module.walk_keys).
 			if not _crt_typing():
-				if key_event.physical_keycode == KEY_S and key_event.pressed and not key_event.echo:
-					_exit_crt_view()
+				if key_event.physical_keycode == KEY_E:
+					if key_event.pressed and not key_event.echo:
+						_crt_turn(1 - _crt_look)
 					get_viewport().set_input_as_handled()
 					return
-				if key_event.physical_keycode == KEY_D or key_event.physical_keycode == KEY_A:
-					if key_event.pressed and not key_event.echo:
-						_crt_turn(1 if key_event.physical_keycode == KEY_D else 0)
+				if key_event.physical_keycode == KEY_S and key_event.pressed and not key_event.echo and not _crt_keys_taken():
+					_exit_crt_view()
 					get_viewport().set_input_as_handled()
 					return
 			# The keyboard under your fingers: a clack per key (the shell's own sound).
@@ -1566,12 +1574,23 @@ func _crt_rest_rot(pos: Vector3) -> Vector3:
 	return Transform3D(Basis(), pos).looking_at(pivot, Vector3.UP).basis.get_euler()
 
 
-## A or D at the PC: one press turns you (it was D held to lean out, playtest 21. 10.).
-## Right is the second monitor once it is on the desk, the office window before that.
+## Builder's camera on WASD (its legged camera button), on the screen you look at: the
+## left hand is on the map, S does not stand you up.
+func _crt_keys_taken() -> bool:
+	var b = _crt_ui.get_meta("builder_walk", null) if _crt_ui != null else null
+	return b != null and is_instance_valid(b) and bool(b.call("walk_keys"))
+
+
+## E at the PC: one press turns you, the next back (it was D held to lean out, then A/D,
+## playtest 21. 10.). Right is the second monitor once it is on the desk, the office
+## window before that.
 func _crt_turn(to: int) -> void:
 	if to == _crt_look or not _crt_active or _interior_camera == null:
 		return
 	_crt_look = to
+	# Out of the window no program has the keys (Builder's WASD camera neither).
+	if _crt_ui != null:
+		_crt_ui.set_meta("look_away", to == 1 and not _dual)
 	_crt_orbit_enabled = false
 	if _crt_ui != null and _crt_ui.has_method("set_screen"):
 		_crt_ui.set_screen(to if _dual else 0)

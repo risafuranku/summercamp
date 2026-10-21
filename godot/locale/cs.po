@@ -24396,3 +24396,23 @@ msgstr "Babička"
 #: scripts/enemies/basket_brain.gd
 msgid "[E] Take the bulbs from her basket"
 msgstr "[E] Vezmi jí žárovky z košíku"
+
+#: scripts/builder_module.gd
+msgid "Camera on WASD"
+msgstr "Kamera na WASD"
+
+#: scripts/builder_module.gd
+msgid "Camera on WASD."
+msgstr "Kamera na WASD."
+
+#: scripts/builder_module.gd
+msgid "Camera off WASD."
+msgstr "Kamera z WASD."
+
+#: scripts/builder_module.gd
+msgid "Turn the building (Q / R)"
+msgstr "Otočit stavbu (Q / R)"
+
+#: scripts/builder_module.gd
+msgid "The camera with legs: WASD moves the map (Shift faster)"
+msgstr "Kamera s nohama: WASD posouvá mapu (Shift rychleji)"

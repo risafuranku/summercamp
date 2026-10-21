@@ -476,6 +476,8 @@ var _bfx = preload("res://scripts/builder_fx.gd").new()
 ## The hidden 3D view (scripts/builder/map3d.gd, made by builder_module): while it shows
 ## the map, point <-> cell, guests, centring, pan and zoom go through it.
 var map3d = null
+## Builder's camera with legs: WASD pans as the arrows do (builder_module sets it each frame).
+var wasd := false
 ## Guest miniatures: archetype -> {height px: ImageTexture}, scaled once from the sprites.
 var _guest_minis: Dictionary = {}
 var _mini_tex: ImageTexture
@@ -805,16 +807,17 @@ func match_view(cell: Vector2, ext: float) -> void:
 func _update_keyboard_pan(delta: float) -> void:
 	if delta <= 0.0 or not is_visible_in_tree() or not OS_KEYS.here(self):
 		return
-	if not has_focus() and not _mouse_inside():
+	# The camera with legs pans wherever the pointer is (on the toolbar, a card).
+	if not wasd and not has_focus() and not _mouse_inside():
 		return
 	var move := Vector2.ZERO
-	if Input.is_key_pressed(KEY_LEFT):
+	if Input.is_key_pressed(KEY_LEFT) or (wasd and Input.is_physical_key_pressed(KEY_A)):
 		move.x -= 1.0
-	if Input.is_key_pressed(KEY_RIGHT):
+	if Input.is_key_pressed(KEY_RIGHT) or (wasd and Input.is_physical_key_pressed(KEY_D)):
 		move.x += 1.0
-	if Input.is_key_pressed(KEY_UP):
+	if Input.is_key_pressed(KEY_UP) or (wasd and Input.is_physical_key_pressed(KEY_W)):
 		move.y -= 1.0
-	if Input.is_key_pressed(KEY_DOWN):
+	if Input.is_key_pressed(KEY_DOWN) or (wasd and Input.is_physical_key_pressed(KEY_S)):
 		move.y += 1.0
 	if move.length_squared() <= 0.0001:
 		return
@@ -842,7 +845,7 @@ func _gui_input(event: InputEvent) -> void:
 				_rotate_building(1)
 				get_viewport().set_input_as_handled()
 				return
-			KEY_E:
+			KEY_R:
 				_rotate_building(-1)
 				get_viewport().set_input_as_handled()
 				return

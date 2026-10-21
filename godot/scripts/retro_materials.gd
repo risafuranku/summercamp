@@ -89,6 +89,10 @@ static func _ensure_globals() -> void:
 		RenderingServer.global_shader_parameter_add(p[0], RenderingServer.GLOBAL_VAR_TYPE_FLOAT, p[1])
 
 
+## Set by Builder's 3D view while it shows (0: not).
+static var vis_far := 0.0
+
+
 func _visibility() -> void:
 	_ensure_globals()
 	var main := get_tree().current_scene
@@ -102,7 +106,9 @@ func _visibility() -> void:
 			night = (hr - 18.0) / 3.0
 		elif hr < 8.0:
 			night = (8.0 - hr) / 3.0
-	RenderingServer.global_shader_parameter_set("build_vis_dist", lerpf(90.0, 34.0, night))
+	# Builder's 3D view (scripts/builder/map3d.gd) far up over the map wants to see it: the
+	# dark pushed out to its own distance while it shows (the player sits at the PC then).
+	RenderingServer.global_shader_parameter_set("build_vis_dist", maxf(lerpf(90.0, 34.0, night), vis_far))
 	RenderingServer.global_shader_parameter_set("build_vis_dark", lerpf(0.22, 0.55, night))
 
 

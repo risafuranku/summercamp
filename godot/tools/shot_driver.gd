@@ -365,6 +365,25 @@ const SCENARIOS := {
 		["eval", "debug_camera.look_at(_god_cursor.get('_pos') + Vector3(0, -12, 0), Vector3(0, 1, 0))"], ["shot", "k3_other"],
 		["topdown", 10, 5, 75, 60], ["wait", 0.3], ["shot", "k4_above"],
 	],
+	# The camera with legs (WASD) and E at the desk; the 3D view free over the whole map.
+	"walkcam": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["signal", "program_installed", "builder"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior._crt_ui.set_meta('builder_nagged', true)"],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('builder') != null"], ["wait", 3.0],
+		["eval", "[_interior_manager._building_interior._crt_ui.app_of('builder')._module.walk_keys(), _interior_manager._building_interior._crt_keys_taken()]"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._walk_btn.set_pressed(true)"], ["wait", 0.3], ["crt_screen", "w0_walk_on"],
+		["eval", "[_interior_manager._building_interior._crt_ui.app_of('builder')._module.walk_on, _interior_manager._building_interior._crt_ui.app_of('builder')._module.walk_keys(), _interior_manager._building_interior._crt_keys_taken(), _interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.wasd]"],
+		["eval", "_interior_manager._building_interior._crt_turn(1)"], ["wait", 0.8], ["eval", "[_interior_manager._building_interior._crt_ui.app_of('builder')._module.walk_keys(), _interior_manager._building_interior._crt_keys_taken(), _interior_manager._building_interior._crt_look]"],
+		["eval", "_interior_manager._building_interior._crt_turn(0)"], ["wait", 0.8], ["eval", "[_interior_manager._building_interior._crt_ui.app_of('builder')._module.walk_keys(), _interior_manager._building_interior._crt_keys_taken(), _interior_manager._building_interior._crt_look]"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module.toggle_3d()"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d.set('_ft', Vector3(2600, 0, -120))"], ["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d.set('_dist_t', 420.0)"], ["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d.set('_pitch_t', 0.45)"], ["wait", 6.0],
+		["crt_screen", "w1_masts"], ["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d.get('_f')"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d.set('_dist_t', 1500.0)"], ["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d.set('_pitch_t', 0.9)"], ["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.map3d.set('_ft', Vector3(900, 0, 0))"], ["wait", 6.0], ["crt_screen", "w2_whole_map"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._walk_btn.set_pressed(false)"], ["eval", "[_interior_manager._building_interior._crt_ui.app_of('builder')._module.walk_on, _interior_manager._building_interior._crt_keys_taken()]"],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.5], ["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module.walk_on"],
+	],
 	# Builds while Builder shows the 3D view: they must be there at once.
 	"b3dlive": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
