@@ -110,6 +110,10 @@ var _ghost_h := 3.0
 var _ghost_rise := 1.0
 var _ghost_seen := false
 var _row_ghosts: Array = []
+## Which way the building in hand faces: an arrow on the ground off its front, turned with
+## it by R (its blueprint alone did not say where its door was: playtest 21. 10.).
+var _front_arrow: MeshInstance3D
+var _front_mat: StandardMaterial3D
 var _rising: Array = []     # {node, mat, t}
 var _models: Dictionary = {} # type -> [clean model, height] (kept to copy)
 var _clock := 0.0
@@ -850,6 +854,7 @@ func _update_ghost(delta: float) -> void:
 		_ghost_mat.set_shader_parameter("height", _ghost_h)
 		_ghost_mat.set_shader_parameter("rise", floorf(_ghost_rise * 6.0) / 6.0)
 		_ghost_mat.set_shader_parameter("t", floorf(_clock * 12.0) / 12.0)
+	_show_front(sel, coord, fp, show and panel._supports_rotation(sel), BLUE if not show else (BLUE if panel._can_place(coord, fp, sel) and panel._has_money(sel) else (AMBER if panel._can_place(coord, fp, sel) else RED)))
 	# A row: a copy on each tile that fits.
 	var cells: Array = []
 	if row:
@@ -871,6 +876,46 @@ func _update_ghost(delta: float) -> void:
 		_ghost_mat.set_shader_parameter("t", floorf(_clock * 12.0) / 12.0)
 
 
+func _show_front(sel: String, coord: Vector2i, fp: Vector2i, on: bool, tint: Color) -> void:
+	if not on:
+		if _front_arrow != null:
+			_front_arrow.visible = false
+		return
+	if _front_arrow == null or not is_instance_valid(_front_arrow):
+		_front_arrow = MeshInstance3D.new()
+		_front_arrow.name = "GhostFront"
+		_front_arrow.mesh = _arrow_mesh()
+		_front_mat = StandardMaterial3D.new()
+		_front_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_front_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_front_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_front_arrow.material_override = _front_mat
+		_front_arrow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_vp.add_child(_front_arrow)
+	var b := Basis(Vector3.UP, _turn_of(sel))
+	var half := float(fp.y) * _ts() * 0.5
+	_front_arrow.transform = Transform3D(b, _foot_world(coord, fp) + b * Vector3(0.0, 0.08, half + 0.3))
+	_front_mat.albedo_color = Color(tint.r, tint.g, tint.b, 0.55 + 0.25 * float(int(_clock * 4.0) % 2))
+	_front_arrow.visible = true
+
+
+## A flat arrow on the ground pointing +Z (a head and a stem), about a metre long.
+static func _arrow_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pts := [
+		# The stem.
+		Vector3(-0.16, 0, 0.0), Vector3(0.16, 0, 0.0), Vector3(0.16, 0, 0.55),
+		Vector3(-0.16, 0, 0.0), Vector3(0.16, 0, 0.55), Vector3(-0.16, 0, 0.55),
+		# The head.
+		Vector3(-0.45, 0, 0.55), Vector3(0.45, 0, 0.55), Vector3(0.0, 0, 1.1),
+	]
+	for v in pts:
+		st.set_normal(Vector3.UP)
+		st.add_vertex(v)
+	return st.commit()
+
+
 func _turn_of(type: String) -> float:
 	if not panel._supports_rotation(type):
 		return 0.0
@@ -883,6 +928,8 @@ func _turn_of(type: String) -> float:
 func _hide_ghosts() -> void:
 	if _ghost != null:
 		_ghost.visible = false
+	if _front_arrow != null and is_instance_valid(_front_arrow):
+		_front_arrow.visible = false
 	for g in _row_ghosts:
 		if is_instance_valid(g):
 			(g as Node).queue_free()

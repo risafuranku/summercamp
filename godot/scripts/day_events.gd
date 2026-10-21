@@ -114,6 +114,7 @@ func reset() -> void:
 func tick(delta: float, abs_minute: int, is_day: bool, day_index: int, can_act: bool) -> void:
 	_anim_t += delta
 	_last_abs = abs_minute
+	_flag_guests()
 	var hour := float(posmod(abs_minute, 1440)) / 60.0
 	if not coop_follow and is_day and hour >= 7.0 and _planned_day != day_index:
 		_plan(day_index, abs_minute)
@@ -1100,7 +1101,15 @@ func _event_pos(ev: Dictionary) -> Vector3:
 			return Vector3.INF
 		return _ground(Vector3(float(gate.get("gap_center_x")) + 4.2, 0.0, float(gate.get("fence_z")) + 5.0))
 	if str(ev["kind"]) == "noise":
-		return _guest_pos(int(ev.get("guest_id", -1)))
+		# The loud one where they are; indoors, at their lodging (no mark at all while they
+		# were out of sight: playtest 21. 10.).
+		var gp := _guest_pos(int(ev.get("guest_id", -1)))
+		if gp != Vector3.INF:
+			return gp
+		var gid := int(ev.get("guest_id", -1))
+		var found: Array = _active_guests().filter(func(g): return int(g.get("id", -2)) == gid)
+		var lc := _lodging_of(found[0]) if not found.is_empty() else Vector2i(-1, -1)
+		return _ground(_grid_world(lc)) if lc.x >= 0 else Vector3.INF
 	var c := _coord(ev)
 	if c.x < 0:
 		return Vector3.INF
@@ -1267,6 +1276,27 @@ func _guests_in_camp() -> int:
 
 func _guest_exists(id: int) -> bool:
 	return _active_guests().any(func(g): return int(g.get("id", -2)) == id)
+
+
+## The loud party of an open noise complaint gets the complaint's picture over their heads
+## (guest_agents.flagged), on both machines (the events are the host's, followed here).
+const FLAG_NOISE := "res://assets/textury/ui/trouble_noise.png"
+var _flag_tex: Texture2D
+
+
+func _flag_guests() -> void:
+	var agents = _main.get("_guest_agents") if _main != null else null
+	if agents == null or not ("flagged" in agents):
+		return
+	var out := {}
+	for ev in _events:
+		if str(ev["state"]) == "open" and str(ev["kind"]) == "noise":
+			if _flag_tex == null and ResourceLoader.exists(FLAG_NOISE):
+				_flag_tex = load(FLAG_NOISE)
+			if _flag_tex != null:
+				out[int(ev.get("guest_id", -1))] = _flag_tex
+	if out != agents.flagged:
+		agents.flagged = out
 
 
 func _guest_pos(id: int) -> Vector3:

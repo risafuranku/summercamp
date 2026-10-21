@@ -59,6 +59,8 @@ func _build() -> void:
 	_barrel = _stand("drink_barrel", 0.26)
 	put(_barrel, BARREL_AT, 0.0)
 	_bottle = _stand("drink_bottle", 0.26)
+	# Its own material, so it can be drawn over the table while it pours (below).
+	_bottle.set_meta("retro_skip", true)
 	put(_bottle, BOTTLE_AT, 0.0)
 	_cup_empty = _stand("cup_empty", CUP_M)
 	_cup_full = _stand("cup_tea", CUP_M)
@@ -172,7 +174,12 @@ func _show() -> void:
 		_stream.position.z -= 0.004
 	# The bottle tips over the bag while it pours (its picture lies over, never turned:
 	# it moves to the bag's mouth).
-	put(_bottle, BOTTLE_AT if not (_pouring and limo) else BAG_AT + Vector2(-20, -30), 0.0 if not (_pouring and limo) else 0.12)
+	put(_bottle, BOTTLE_AT if not (_pouring and limo) else BAG_AT + Vector2(-64, -30), 0.0 if not (_pouring and limo) else 0.12)
+	# Lifted over the bag it is drawn over the table it stood on (it cut into the table's
+	# edge as it poured: playtest 21. 10.), tipped a little toward the bag's mouth.
+	_bottle.no_depth_test = _pouring and limo
+	_bottle.render_priority = 2 if _pouring and limo else 0
+	_bottle.rotation.z = deg_to_rad(-40.0) if _pouring and limo else 0.0
 	_fill.visible = on and not bool(_drink.get("tied", false))
 	if _fill.visible:
 		var at := (GRATE_AT if tea else BAG_AT) + Vector2(46, 0)

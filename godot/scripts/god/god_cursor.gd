@@ -58,6 +58,17 @@ const SLOPE_UNDER := Color(0.55, 0.6, 0.7)
 const PLATE := Color(0.93, 0.9, 0.82)
 ## Where it rests between jobs, over the middle of the camp, and how fast it goes.
 const IDLE_H := 210.0
+## Where it hangs (the user 21. 10.: "as if over the lake, building it all from there, its
+## tip toward us"; it spun round with every turn of your head): high over the camp's
+## lake, its tip turned slowly at the work, between jobs at the camp. It builds from
+## there: a click is a jab of the tip toward the work, the pieces fall at the work.
+const HOME_H := 90.0
+const TURN_DEG_SEC := 14.0
+const JAB := 9.0
+const BANK_DEG := 8.0
+const PITCH_MIN := deg_to_rad(25.0)
+const PITCH_MAX := deg_to_rad(80.0)
+const PITCH_OVER_DEG := 28.0
 const SPEED := 40.0
 ## A part falls this far (more when the warden watches from further off, so it is seen).
 const DROP_MIN := 22.0
@@ -177,6 +188,8 @@ func setup(main_node: Node, grid) -> void:
 	_build_cursor()
 	EventBus.BuildConfirmed.connect(_on_build)
 	EventBus.DemolishConfirmed.connect(_on_demolish)
+	# Its place over the lake from the start (the lake is made with the world).
+	(func(): _pos = _home()).call_deferred()
 
 
 # ── what to stage ────────────────────────────────────────────────────────────
@@ -641,9 +654,44 @@ func _camera_pos() -> Vector3:
 	return cam.global_position if cam != null else Vector3.ZERO
 
 
-## The pointer over `at`, its tip a few metres above where the pieces start.
+## Where it works from: its place over the lake (`at` is where its tip aims meanwhile).
 func _work_spot(at: Vector3) -> Vector3:
-	return at + Vector3(0, _drop_h(at) + TIP_OVER, 0)
+	_aim = at
+	return _home()
+
+
+var _aim := Vector3.INF
+var _lake: Node3D
+var _pitch := deg_to_rad(22.0)
+
+
+## High over the middle of the camp's lake (over the camp's middle without one).
+func _home() -> Vector3:
+	if _lake == null or not is_instance_valid(_lake):
+		_lake = get_tree().root.find_child("CampLake", true, false) as Node3D if is_inside_tree() else null
+	if _lake != null:
+		var poly = _lake.get("water_poly")
+		if poly is PackedVector2Array and (poly as PackedVector2Array).size() > 2:
+			var c := Vector2.ZERO
+			for v in poly:
+				c += v
+			c /= float((poly as PackedVector2Array).size())
+			var w := _lake.global_transform * Vector3(c.x, 0.0, c.y)
+			return Vector3(w.x, HOME_H, w.z)
+		return Vector3(_lake.global_position.x, HOME_H, _lake.global_position.z)
+	return _camp_centre() + Vector3(0, IDLE_H, 0)
+
+
+func _camp_centre() -> Vector3:
+	if grid_manager != null and grid_manager.has_method("grid_to_world"):
+		return grid_manager.grid_to_world(Vector2i(int(grid_manager.grid_width) / 2, int(grid_manager.grid_height) / 2))
+	return Vector3.ZERO
+
+
+## The tip `d` metres out of its place toward the work (its click).
+func _jab(at: Vector3, d: float) -> Vector3:
+	var h := _home()
+	return h + (at - h).normalized() * d
 
 
 func _holding() -> bool:
@@ -694,8 +742,9 @@ func _step() -> void:
 			_idle_t += STEP
 			if _idle_t > 2.5:
 				_vis_want = 0.0
-			# Rising back into the haze, slowly.
-			_pos = _pos.move_toward(Vector3(_pos.x, IDLE_H, _pos.z), STEP * 6.0)
+			# Back to its place over the lake, slowly; the tip at the camp.
+			_aim = _camp_centre()
+			_pos = _pos.move_toward(_home(), STEP * 6.0)
 			return
 	var j := _job
 	j["t"] = float(j["t"]) + STEP * _speed()
@@ -736,9 +785,9 @@ func _step_build(j: Dictionary) -> void:
 				_next(j, "click")
 				_play("click", c, 0.0)
 		"click":
-			# The click: the pointer jabs down and back.
+			# The click: the pointer jabs at it and back.
 			var k := float(j["t"])
-			_pos = _work_spot(c) - Vector3(0, 9.0 if k < 0.25 else 0.0, 0)
+			_pos = _jab(c, JAB if k < 0.25 else 0.0)
 			if k >= 0.45:
 				_play("ding", c, -4.0)
 				_begin_parts(j)
@@ -978,9 +1027,10 @@ func _step_wreck(j: Dictionary) -> void:
 			if _glide(j, _work_spot(c)):
 				_next(j, "dive")
 		"dive":
-			# Down at it, fast, the bulldozer on the pointer.
+			# A hard jab at it, the bulldozer on the pointer.
 			var k := clampf(float(j["t"]) / 0.33, 0.0, 1.0)
-			_pos = _work_spot(c).lerp(c + Vector3(0, 7.0, 0), k * k)
+			_work_spot(c)
+			_pos = _jab(c, JAB * 2.0 * k * k)
 			if k >= 1.0:
 				_play("click", c, 0.0)
 				_play("dozer", c, 0.0)
@@ -1016,16 +1066,24 @@ func _tick_look(delta: float) -> void:
 		if _hum.playing:
 			_hum.stop()
 		return
-	# Its place in steps (as all machinery); flat, turned the way Builder's map looks, the
-	# tip a little down at the work.
-	_yaw_poll -= delta
-	if _yaw_poll <= 0.0:
-		_yaw_poll = 0.5
-		_yaw_t = _map_yaw()
-	_yaw = lerp_angle(_yaw, _yaw_t, clampf(delta * 3.0, 0.0, 1.0))
-	var fwd := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
-	var side := Vector3(cos(_yaw), 0.0, -sin(_yaw))
-	_cursor.global_transform = Transform3D(Basis(side, -TILT) * Basis(side, fwd, Vector3.UP), (_pos * 2.0).round() * 0.5)
+	# Its place in steps (as all machinery); nearly flat, its tip turned slowly at the work
+	# (else the camp) and down at it.
+	var aim := _aim if _aim != Vector3.INF else _camp_centre()
+	var flat := Vector2(aim.x - _pos.x, aim.z - _pos.z)
+	if flat.length() > 1.0:
+		_yaw_t = atan2(-flat.x, -flat.y)
+	var turn := deg_to_rad(TURN_DEG_SEC) * delta
+	_yaw = _yaw + clampf(wrapf(_yaw_t - _yaw, -PI, PI), -turn, turn)
+	# Steeper than the line down to the work, so the people there see its white face, the
+	# tip toward them (pointed straight at them it is only an edge).
+	var want_pitch := clampf(atan2(_pos.y - aim.y, maxf(flat.length(), 1.0)) + deg_to_rad(PITCH_OVER_DEG), PITCH_MIN, PITCH_MAX)
+	_pitch = move_toward(_pitch, want_pitch, turn * 0.5)
+	var shown_yaw := floorf(_yaw / deg_to_rad(1.5)) * deg_to_rad(1.5)
+	var fwd := Vector3(-sin(shown_yaw), 0.0, -cos(shown_yaw))
+	var side := Vector3(cos(shown_yaw), 0.0, -sin(shown_yaw))
+	# Banked a little on its long axis, like an aeroplane turning, so the camp it points
+	# at sees its face and not only its edge.
+	_cursor.global_transform = Transform3D(Basis(side, -_pitch) * Basis(side, fwd, Vector3.UP) * Basis(Vector3(0, 1, 0), deg_to_rad(BANK_DEG)), (_pos * 2.0).round() * 0.5)
 	# The haze by the camp's own fog; lit by the sky's hour (dark at night, a shape on the
 	# stars).
 	var env := _environment()

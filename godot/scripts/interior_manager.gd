@@ -374,6 +374,10 @@ func close_everything(silent := false) -> void:
 			if interior.has_method(m):
 				interior.call(m)
 				break
+	# Behind the corn stand (not one of the rooms): its stations and their hand go too (the
+	# gloved hand stayed over the title screen: playtest 21. 10.).
+	if _corn_stand != null and is_instance_valid(_corn_stand) and _corn_stand.has_method("close_view") and _corn_stand.is_open():
+		_corn_stand.close_view()
 	_no_step_out = false
 	_silent_close = false
 	if silent and stepping_out():

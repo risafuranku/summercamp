@@ -813,6 +813,14 @@ func _look_round(rel: Vector2) -> void:
 	if GameSettings != null:
 		scale *= GameSettings.get_mouse_sensitivity()
 		invert = GameSettings.get_invert_mouse_y()
+	# On your feet the mouse moves in the game view's own pixels (426 x 240, inside its
+	# container); here it came in the window's, three or four times as many: the head
+	# flew round in the boat (playtest 21. 10.). The same pixels as on your feet.
+	if p != null and p.is_inside_tree():
+		var game_h := float(p.get_viewport().get_visible_rect().size.y)
+		var here_h := float(get_viewport().get_visible_rect().size.y)
+		if game_h > 0.0 and here_h > 0.0:
+			rel *= game_h / here_h
 	var lim := deg_to_rad(LOOK_YAW_BOW if _state == PASSENGER else LOOK_YAW)
 	_head_yaw = clampf(_head_yaw - rel.x * sens * scale, -lim, lim)
 	var dy := rel.y * (-1.0 if invert else 1.0)

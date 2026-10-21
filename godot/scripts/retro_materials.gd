@@ -127,7 +127,8 @@ func _process(delta: float) -> void:
 	_queue = []
 	for wr in q:
 		var n = wr.get_ref()
-		if n != null and is_instance_valid(n) and (n as Node).is_inside_tree():
+		# (Its meta may come just after it went in: still left as it is.)
+		if n != null and is_instance_valid(n) and (n as Node).is_inside_tree() and not (n as Node).has_meta("retro_skip"):
 			_track(n)
 	# The rolling check: material swaps on the nodes, changes on the originals.
 	var count := mini(CHECK_PER_FRAME, _nodes.size())
