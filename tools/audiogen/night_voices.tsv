@@ -1,0 +1,33 @@
+# Voices of the night things (scripts/enemies/boy_*.gd ...): said by night_voices.py.
+# id <TAB> voice <TAB> file (relative to godot/assets/sfx/npc/) <TAB> Czech (spoken)
+boy_cold_1	boy	boy/cold_1.mp3	Zima.
+boy_cold_2	boy	boy/cold_2.mp3	Zima... zima.
+boy_cold_3	boy	boy/cold_3.mp3	Mrzne.
+boy_warm_1	boy	boy/warm_1.mp3	Přihořívá.
+boy_warm_2	boy	boy/warm_2.mp3	Teplo... teplejc.
+boy_warm_3	boy	boy/warm_3.mp3	Přihořívá... přihořívá.
+boy_hot_1	boy	boy/hot_1.mp3	Hoří!
+boy_hot_2	boy	boy/hot_2.mp3	Hoří... hoří.
+boy_found	boy	boy/found.mp3	Našel jsi mě.
+boy_rule_1	boy	boy/rule_1.mp3	Nekoukej na mě. Jo? Nekoukej.
+boy_rule_2	boy	boy/rule_2.mp3	Nedívej se na mě.
+boy_follow_1	boy	boy/follow_1.mp3	Tati?
+boy_follow_2	boy	boy/follow_2.mp3	Kde je táta?
+boy_follow_3	boy	boy/follow_3.mp3	Jsem pořád za tebou.
+boy_follow_4	boy	boy/follow_4.mp3	Drž mě pevně.
+boy_bait_1	boy	boy/bait_1.mp3	Otoč se.
+boy_bait_2	boy	boy/bait_2.mp3	Podívej se na mě.
+boy_bait_3	boy	boy/bait_3.mp3	Mám něco na obličeji.
+boy_looked	boy	boy/looked.mp3	Říkal jsem, ať se nekoukáš.
+dad_1	dad	boy/dad_1.mp3	Neviděl jste mýho kluka?
+dad_2	dad	boy/dad_2.mp3	Má červenou kšiltovku.
+dad_3	dad	boy/dad_3.mp3	Byl tady. Před chvilkou tady byl.
+dad_4	dad	boy/dad_4.mp3	Neviděl jste mýho kluka? Neviděl jste... mýho kluka?
+boy_chant_1	boy	boy/chant_1.mp3	Cukr,
+boy_chant_2	boy	boy/chant_2.mp3	káva,
+boy_chant_3	boy	boy/chant_3.mp3	limonáda,
+boy_chant_4	boy	boy/chant_4.mp3	čaj,
+boy_chant_5	boy	boy/chant_5.mp3	rum...
+boy_bum	boy	boy/bum.mp3	BUM!
+boy_moved_1	boy	boy/moved_1.mp3	Hejbeš se!
+boy_again	boy	boy/again.mp3	Znova.
