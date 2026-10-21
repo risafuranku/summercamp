@@ -3707,9 +3707,12 @@ func _dress_ruined_cabin() -> void:
 	sheet.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sheet.uv1_triplanar = true
 	var boards: Array = []
-	for x: float in [-ws.x * 0.3, ws.x * 0.3]:
-		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, ws.y * 0.62 + 0.1, front + 0.07), 0.32])
-		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, ws.y * 0.62 - 0.12, front + 0.08), -0.28])
+	# Over the front windows where the cabin's plan has them (scripts/cabin_layout.gd).
+	var CL = load("res://scripts/cabin_layout.gd")
+	var win_y: float = CL.MODEL_FLOOR + CL.SILL_MID
+	for x: float in [-CL.FRONT_WIN_X, CL.FRONT_WIN_X]:
+		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, win_y + 0.1, front + 0.07), 0.32])
+		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, win_y - 0.12, front + 0.08), -0.28])
 	boards.append([Vector3(1.15, 0.15, 0.05), Vector3(0, 1.25, front + 0.09), 0.18])
 	boards.append([Vector3(1.15, 0.15, 0.05), Vector3(0, 0.7, front + 0.1), -0.22])
 	for b in boards:

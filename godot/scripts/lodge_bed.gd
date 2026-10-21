@@ -18,7 +18,7 @@ const SLEEP = preload("res://scripts/reception/sleep_sequence.gd")
 ## top centre, the head's end (the camera lies with its eyes there, looking down the
 ## bed and up a little), the click box over the bed.
 const BEDS := {
-	"cabin": {"centre": Vector3(-1.0, 0.59, -0.6), "eyes": Vector3(-1.0, 0.82, -1.12), "look": Vector3(14.0, 180.0, 0.0), "box": Vector3(1.0, 0.5, 1.9)},
+	"cabin": {"centre": Vector3(-1.46, 0.59, -0.66), "eyes": Vector3(-1.46, 0.82, -1.18), "look": Vector3(14.0, 180.0, 0.0), "box": Vector3(1.0, 0.5, 1.9)},
 	"tent": {"centre": Vector3(-0.2, 0.1, -0.02), "eyes": Vector3(-0.2, 0.26, -0.52), "look": Vector3(16.0, 180.0, 0.0), "box": Vector3(0.7, 0.3, 1.3)},
 	"caravan": {"centre": Vector3(1.78, 0.66, 0.0), "eyes": Vector3(1.78, 0.9, -0.72), "look": Vector3(10.0, 180.0, 0.0), "box": Vector3(0.96, 0.4, 1.8)},
 }

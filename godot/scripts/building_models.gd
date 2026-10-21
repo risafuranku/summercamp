@@ -11,6 +11,8 @@ extends RefCounted
 ## {size: Vector3 (the collision box), target: Vector3 (where E aims, local)}.
 
 const CAMP := "res://assets/textury/camp/"
+## The cabin's plan, shared with the room inside (cabin_interior.gd).
+const CL = preload("res://scripts/cabin_layout.gd")
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
@@ -724,58 +726,108 @@ func _dumpsters(r: Node3D, _w: float, _d: float) -> Dictionary:
 
 ## Lv1 sun-bleached grey planks, Lv2 oxblood red, Lv3 dark creosote; the same tin roof
 ## patched with rust. Front +Z: the door between two windows. Returns the wall box.
-func cabin(r: Node3D, level: int, w: float, d: float, wall_h: float, roof_h: float) -> Vector3:
+func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h := 0.0) -> Vector3:
+	# One plan for the model and the room inside it (scripts/cabin_layout.gd): the windows
+	# are where the room has them, each tier a visible step up from the last.
+	#   Lv1  weathered grey boards, rust on the tin, a concrete block for a step, firewood
+	#   Lv2  boards painted red, white trim, a porch with a little roof over the door, a
+	#        flower box, the bathroom built on at the right
+	#   Lv3  stained dark boards, green shutters, the chimney of the stove inside, the TV
+	#        aerial, gutters, a deep porch with its bench and a lantern by the door
 	var lv := clampi(level, 1, 3)
+	var s: Vector2 = CL.size(lv)
+	var w := s.x
+	var d := s.y
+	var wall_h: float = CL.wall_h(lv)
+	var roof_h: float = CL.roof_rise(lv)
+	var top := wall_h + 0.1
 	var plank_file := ["planks_grey.png", "planks_red.png", "planks_dark.png"][lv - 1] as String
-	var tint := [Color(0.92, 0.9, 0.86), Color(0.95, 0.85, 0.82), Color(0.9, 0.86, 0.82)][lv - 1] as Color
+	var tint := [Color(0.86, 0.84, 0.8), Color(0.95, 0.85, 0.82), Color(0.92, 0.86, 0.8)][lv - 1] as Color
 	var walls := _camp(plank_file, tint, Vector3(1.4, 1.4, 1.0))
+	var trim: Material = _wood() if lv == 1 else _camp("planks_grey.png", Color(0.96, 0.95, 0.9) if lv == 2 else Color(0.86, 0.84, 0.76))
 	_plinth(r, w + 0.2, d + 0.2)
 	_box(r, "Walls", Vector3(w, wall_h, d), Vector3(0, wall_h * 0.5 + 0.1, 0), walls)
-	# Corner posts.
 	for x: float in [-w * 0.5, w * 0.5]:
 		for z: float in [-d * 0.5, d * 0.5]:
-			_box(r, "Corner", Vector3(0.14, wall_h, 0.14), Vector3(x, wall_h * 0.5 + 0.1, z), _wood())
-	var tin := _camp("corrugated_roof.png", Color(0.78, 0.74, 0.7), Vector3(1.6, 1.6, 1.0))
-	_gable_roof(r, Vector3(0, wall_h + 0.1, 0), w + 0.5, d + 0.7, roof_h, tin)
-	# Rust patches on the tin: Lv1 has the most.
+			_box(r, "Corner", Vector3(0.14, wall_h, 0.14), Vector3(x, wall_h * 0.5 + 0.1, z), trim)
+	var tin := _camp("corrugated_roof.png", [Color(0.7, 0.66, 0.62), Color(0.78, 0.74, 0.7), Color(0.56, 0.6, 0.56)][lv - 1] as Color, Vector3(1.6, 1.6, 1.0))
+	_gable_roof(r, Vector3(0, top, 0), w + 0.5, d + 0.7, roof_h, tin)
+	# Rust on the tin: the basic cabin has the most, the best none.
 	var rust := _camp("corrugated_roof.png", Color(0.62, 0.36, 0.22), Vector3(1.6, 1.6, 1.0))
 	var ang := atan2(roof_h, (d + 0.7) * 0.5)
-	for i in 4 - lv:
+	for i in [3, 1, 0][lv - 1]:
 		var side := 1.0 if i % 2 == 0 else -1.0
-		var p := _box(r, "Rust%d" % i, Vector3(0.9 + 0.3 * i, 0.03, 0.7), Vector3(-w * 0.25 + i * w * 0.22, wall_h + 0.1 + roof_h * 0.56 + 0.06, side * (d + 0.7) * 0.22), rust)
+		var p := _box(r, "Rust%d" % i, Vector3(0.8 + 0.3 * i, 0.03, 0.6), Vector3(-w * 0.25 + i * w * 0.24, top + roof_h * 0.56 + 0.06, side * (d + 0.7) * 0.22), rust)
 		p.rotation.x = side * ang
 	var front := d * 0.5
-	_box(r, "Door", Vector3(0.82, 1.9, 0.06), Vector3(0, 1.05, front + 0.03), _camp("door_wood.png", Color(0.8, 0.72, 0.6)))
-	_box(r, "DoorFrame", Vector3(1.0, 2.05, 0.04), Vector3(0, 1.1, front + 0.01), _wood())
-	_box(r, "Step", Vector3(1.1, 0.16, 0.45), Vector3(0, 0.12, front + 0.3), _wood())
+	# The door in the middle of the front.
+	_box(r, "Door", Vector3(CL.DOOR_W, CL.DOOR_H, 0.06), Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5, front + 0.03), _camp("door_wood.png", [Color(0.74, 0.68, 0.6), Color(0.62, 0.78, 0.66), Color(0.82, 0.66, 0.54)][lv - 1] as Color))
+	_box(r, "DoorFrame", Vector3(CL.DOOR_W + 0.16, CL.DOOR_H + 0.12, 0.04), Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5 + 0.03, front + 0.01), trim)
 	# The cabin's number on an enamel plate right of the door (scripts/lodging_signs.gd).
-	r.set_meta("number_plate", Transform3D(Basis(), Vector3(0.8, 1.62, front + 0.04)))
-	# Windows where the room inside has them (cabin_interior.gd): two at the front either
-	# side of the door, one in the back wall over the table; on the right the basic cabin
-	# has a window, the better ones the bathroom built on there.
-	_window(r, Vector3(-w * 0.3, wall_h * 0.62, front + 0.02), Vector2(0.62, 0.56))
-	_window(r, Vector3(w * 0.3, wall_h * 0.62, front + 0.02), Vector2(0.62, 0.56))
-	_window(r, Vector3(0, wall_h * 0.62, -front - 0.02), Vector2(0.62, 0.56), PI)
-	if lv == 1:
-		_window(r, Vector3(w * 0.5 + 0.02, wall_h * 0.62, 0), Vector2(0.62, 0.56), PI * 0.5)
-	else:
-		_bathroom_annex(r, w, d, wall_h, walls, lv)
+	r.set_meta("number_plate", Transform3D(Basis(), Vector3(0.66, 1.72, front + 0.04)))
+	# The windows, as the room has them.
+	for win in CL.windows(lv):
+		var c: Vector3 = win["centre"]
+		var o: Vector3 = win["out"]
+		var yaw := atan2(o.x, o.z)
+		_window(r, c + o * 0.02, win["size"], yaw, trim)
+		if lv == 3 and str(win["wall"]) == "front":
+			# Green shutters folded back either side of it.
+			var sw: Vector2 = win["size"]
+			for sx: float in [-1.0, 1.0]:
+				_box(r, "Shutter", Vector3(sw.x * 0.5, sw.y + 0.1, 0.04), c + Vector3(sx * (sw.x * 0.75 + 0.1), 0, 0.05), _camp("planks_grey.png", Color(0.44, 0.62, 0.42)))
+	if CL.has_bath(lv):
+		_bathroom_annex(r, w, wall_h, walls, trim, tin, lv)
 	match lv:
 		1:
-			# A stack of firewood and an old bucket.
-			for i in 3:
-				_cyl(r, "Firewood", 0.1, 0.8, Vector3(-w * 0.5 - 0.3, 0.12 + i * 0.18, -0.4 + (i % 2) * 0.1), _psx_mat(Color(0.5, 0.36, 0.24), "tree_bark"), Vector3(PI * 0.5, 0, 0))
-		2:
-			# A porch board and a flower box under a window.
-			_box(r, "Porch", Vector3(w * 0.7, 0.1, 0.8), Vector3(0, 0.15, front + 0.45), _wood())
-			_box(r, "FlowerBox", Vector3(0.7, 0.16, 0.2), Vector3(w * 0.3, wall_h * 0.62 - 0.38, front + 0.12), _wood())
+			# A concrete block for a step, firewood stacked at the side, a bucket.
+			_box(r, "Step", Vector3(0.6, 0.2, 0.4), Vector3(0, 0.1, front + 0.3), _camp_or("concrete.png", Color(0.6, 0.6, 0.56), "stone"))
 			for i in 4:
-				_box(r, "Flower", Vector3(0.08, 0.12, 0.08), Vector3(w * 0.3 - 0.24 + i * 0.16, wall_h * 0.62 - 0.24, front + 0.12), _flat([Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.2)][i % 2]))
+				_cyl(r, "Firewood", 0.1, 0.8, Vector3(-w * 0.5 - 0.3, 0.12 + i * 0.18, -0.6 + (i % 2) * 0.1), _psx_mat(Color(0.5, 0.36, 0.24), "tree_bark"), Vector3(PI * 0.5, 0, 0))
+			_cyl(r, "Bucket", 0.16, 0.3, Vector3(w * 0.5 + 0.35, 0.15, front - 0.3), _metal())
+		2:
+			# A porch board with two posts and a little tin roof over the door, the flower box.
+			_porch(r, w * 0.62, 0.95, front, trim, tin, false)
+			_box(r, "FlowerBox", Vector3(CL.FRONT_WIN.x + 0.1, 0.16, 0.2), Vector3(CL.FRONT_WIN_X, CL.MODEL_FLOOR + CL.SILL_MID - CL.FRONT_WIN.y * 0.5 - 0.12, front + 0.13), _wood())
+			for i in 4:
+				_box(r, "Flower", Vector3(0.08, 0.12, 0.08), Vector3(CL.FRONT_WIN_X - 0.24 + i * 0.16, CL.MODEL_FLOOR + CL.SILL_MID - CL.FRONT_WIN.y * 0.5, front + 0.13), _flat([Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.2)][i % 2]))
 		3:
-			_box(r, "Chimney", Vector3(0.4, 1.2, 0.4), Vector3(w * 0.28, wall_h + roof_h * 0.6, -d * 0.18), _camp_or("brick_red.png", Color(0.6, 0.42, 0.36), "brick"))
-			_box(r, "Porch", Vector3(w * 0.8, 0.1, 0.9), Vector3(0, 0.15, front + 0.5), _wood())
-			_box(r, "Bench", Vector3(1.1, 0.06, 0.3), Vector3(-w * 0.28, 0.5, front + 0.55), _wood())
+			_porch(r, w * 0.9, 1.25, front, trim, tin, true)
+			# The stove's chimney over the front left corner, where the stove stands inside.
+			var cx := -w * 0.5 + 0.44
+			var cz := front - CL.STOVE_FROM_FRONT
+			var roof_at := top + roof_h * (1.0 - absf(cz) / ((d + 0.7) * 0.5))
+			_box(r, "Chimney", Vector3(0.42, 1.0, 0.42), Vector3(cx, roof_at + 0.32, cz), _camp_or("brick_red.png", Color(0.62, 0.44, 0.38), "brick"))
+			_box(r, "ChimneyCap", Vector3(0.52, 0.06, 0.52), Vector3(cx, roof_at + 0.85, cz), _metal())
+			# The TV's aerial on the ridge.
+			_cyl(r, "AerialMast", 0.02, 1.0, Vector3(w * 0.25, top + roof_h + 0.5, 0), _metal())
+			for i in 3:
+				_box(r, "AerialBar", Vector3(0.7 - i * 0.14, 0.02, 0.02), Vector3(w * 0.25, top + roof_h + 0.62 + i * 0.16, 0), _metal())
+			# Gutters along the eaves, a downpipe at the front corner.
+			for gz: float in [-1.0, 1.0]:
+				_box(r, "Gutter", Vector3(w + 0.5, 0.07, 0.1), Vector3(0, top - 0.02, gz * (d * 0.5 + 0.37)), _metal())
+			_box(r, "Downpipe", Vector3(0.07, top, 0.07), Vector3(w * 0.5 + 0.2, top * 0.5, front + 0.37), _metal())
 	return Vector3(w + 0.4, wall_h + roof_h + 0.3, d + 0.4)
+
+
+## The porch in front of the door: boards on the ground, two posts and a tin roof over the
+## door; `bench` the better one's bench under the right window and the lantern by the door.
+func _porch(r: Node3D, pw: float, pd: float, front: float, trim: Material, tin: Material, bench: bool) -> void:
+	_box(r, "Porch", Vector3(pw, 0.12, pd), Vector3(0, 0.12, front + pd * 0.5), _wood())
+	_box(r, "PorchStep", Vector3(1.0, 0.08, 0.3), Vector3(0, 0.05, front + pd + 0.15), _wood())
+	var post_h := CL.MODEL_FLOOR + CL.DOOR_H + 0.3
+	for px: float in [-pw * 0.5 + 0.08, pw * 0.5 - 0.08]:
+		_box(r, "PorchPost", Vector3(0.1, post_h, 0.1), Vector3(px, post_h * 0.5 + 0.1, front + pd - 0.08), trim)
+	var roof := _box(r, "PorchRoof", Vector3(pw + 0.2, 0.06, pd + 0.2), Vector3(0, post_h + 0.22, front + pd * 0.5), tin)
+	roof.rotation.x = 0.2
+	if bench:
+		_box(r, "Bench", Vector3(1.0, 0.06, 0.32), Vector3(CL.FRONT_WIN_X, 0.55, front + 0.3), _wood())
+		for bx: float in [-0.42, 0.42]:
+			_box(r, "BenchLeg", Vector3(0.06, 0.4, 0.28), Vector3(CL.FRONT_WIN_X + bx, 0.33, front + 0.3), _wood())
+		for rx: float in [-pw * 0.5 + 0.08, pw * 0.5 - 0.08]:
+			_box(r, "PorchRail", Vector3(0.06, 0.06, pd - 0.1), Vector3(rx, 0.95, front + pd * 0.5), trim)
+		var lamp := _box(r, "Lantern", Vector3(0.14, 0.2, 0.12), Vector3(-CL.DOOR_W * 0.5 - 0.22, CL.MODEL_FLOOR + 1.9, front + 0.08), _flat(Color(0.95, 0.86, 0.6)))
+		lamp.set_meta("porch_lantern", true)
 
 
 # ── tents (stan1/2/3.png): pegs, guy ropes, the door flap ─────────────────────
@@ -1368,8 +1420,8 @@ func _triangle(r: Node3D, pos: Vector3, size: float, color: Color) -> void:
 		r.add_child(m)
 
 
-func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0) -> void:
-	var frame := _box(r, "WindowFrame", Vector3(size.x + 0.12, size.y + 0.12, 0.05), pos, _wood())
+func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0, frame_mat: Material = null) -> void:
+	var frame := _box(r, "WindowFrame", Vector3(size.x + 0.12, size.y + 0.12, 0.05), pos, frame_mat if frame_mat != null else _wood())
 	frame.rotation.y = yaw
 	var glass_mat := _camp("window_curtain.png", Color(0.8, 0.84, 0.86))
 	# The whole picture on the pane, a quad over the frame's face (a box mapped by its
@@ -1384,20 +1436,23 @@ func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0) -> void:
 		(m as MeshInstance3D).layers = GLASS_LAYER
 
 
-## The bathroom of a better cabin, built on at the right: a lower plank box with a lean
-## tin roof and a small frosted window (its door is inside, cabin_interior.gd).
-func _bathroom_annex(r: Node3D, w: float, d: float, wall_h: float, walls: Material, lv: int) -> void:
-	var ax := 1.5
-	var az := d * 0.42
-	var ah := wall_h * 0.8
-	_box(r, "BathAnnex", Vector3(ax, ah, az), Vector3(w * 0.5 + ax * 0.5, ah * 0.5 + 0.1, 0), walls)
-	for z: float in [-az * 0.5, az * 0.5]:
-		_box(r, "BathCorner", Vector3(0.12, ah, 0.12), Vector3(w * 0.5 + ax, ah * 0.5 + 0.1, z), _wood())
-	var tin := _camp("corrugated_roof.png", Color(0.7, 0.66, 0.62) if lv == 2 else Color(0.62, 0.6, 0.58), Vector3(1.0, 1.0, 1.0))
-	var roof := _box(r, "BathRoof", Vector3(ax + 0.35, 0.06, az + 0.4), Vector3(w * 0.5 + ax * 0.5 + 0.1, ah + 0.22, 0), tin)
+## The bathroom of a better cabin, built on at the right where the room has its door
+## (scripts/cabin_layout.gd ANNEX): a lower box of the same boards under a lean tin roof,
+## a small frosted window, the vent pipe.
+func _bathroom_annex(r: Node3D, w: float, _wall_h: float, walls: Material, trim: Material, tin: Material, lv: int) -> void:
+	var box: AABB = CL.annex_box(lv)
+	var ax := box.size.x
+	var az := box.size.z
+	var ah := box.size.y
+	var cx := box.position.x + ax * 0.5
+	var cz := box.position.z + az * 0.5
+	_box(r, "BathAnnex", Vector3(ax, ah, az), Vector3(cx, ah * 0.5 + 0.1, cz), walls)
+	for z: float in [cz - az * 0.5, cz + az * 0.5]:
+		_box(r, "BathCorner", Vector3(0.12, ah, 0.12), Vector3(w * 0.5 + ax, ah * 0.5 + 0.1, z), trim)
+	var roof := _box(r, "BathRoof", Vector3(ax + 0.35, 0.06, az + 0.4), Vector3(cx + 0.1, ah + 0.22, cz), tin)
 	roof.rotation.z = -0.22
-	_window(r, Vector3(w * 0.5 + ax + 0.02, ah * 0.72, 0), Vector2(0.36, 0.3), PI * 0.5)
-	_cyl(r, "BathPipe", 0.04, ah * 0.9, Vector3(w * 0.5 + ax + 0.06, ah * 0.45 + 0.1, az * 0.38), _metal())
+	_window(r, Vector3(w * 0.5 + ax + 0.02, CL.MODEL_FLOOR + 1.62, cz), CL.BATH_WIN, PI * 0.5, trim)
+	_cyl(r, "BathPipe", 0.04, ah * 0.9, Vector3(w * 0.5 + ax + 0.06, ah * 0.45 + 0.1, cz + az * 0.38), _metal())
 
 
 func _label(r: Node3D, text: String, pos: Vector3, height_m: float, color: Color, yaw := 0.0) -> Label3D:

@@ -3,6 +3,7 @@ extends Node3D
 @export var placement_range: float = 24.0
 @export var tent_height: float = 1.8
 @export var cabin_height: float = 2.8
+const CABIN_LAYOUT = preload("res://scripts/cabin_layout.gd")
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const PATH_TILES = preload("res://scripts/path_tiles.gd")
@@ -592,13 +593,15 @@ func place_cabin_at(origin: Vector2i, level: int = 1) -> bool:
 	var center = _grid_manager.get_footprint_center(origin, footprint)
 	cabin.position = center + Vector3(0.0, -0.06, 0.0)
 
-	var wall_w = ts * (1.56 + float(cabin_level - 1) * 0.06)
-	var wall_d = ts * (1.56 + float(cabin_level - 1) * 0.06)
-	var wall_h = cabin_height * (0.86 + float(cabin_level - 1) * 0.04)
+	# The cabin's plan (scripts/cabin_layout.gd): the room inside is this box.
+	var plan: Vector2 = CABIN_LAYOUT.size(cabin_level)
+	var wall_w: float = plan.x
+	var wall_d: float = plan.y
+	var wall_h: float = CABIN_LAYOUT.wall_h(cabin_level)
 	if _models == null:
 		_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
 	# Modelled after the Builder's chata1/2/3 (scripts/building_models.gd).
-	var cabin_box: Vector3 = _models.cabin(cabin, cabin_level, wall_w, wall_d, wall_h, cabin_height * 0.45)
+	var cabin_box: Vector3 = _models.cabin(cabin, cabin_level)
 	# The room inside looks out of its windows (cabin_interior.gd): where they are.
 	cabin.set_meta("wall_size", Vector3(wall_w, wall_h, wall_d))
 

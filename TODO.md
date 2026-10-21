@@ -4,6 +4,14 @@
 
 ---
 
+## CABINS — 2026-10-21 (the user: "the curtains do not glint, the windows by the door clip the coat and have no view, rebuild the inside to match the outside and remake that a bit; every tier a visible upgrade inside and out; old curtains left under the new ones")
+
+- [x] One plan for the model and the room (`scripts/cabin_layout.gd`), every window a view out with a curtain that glints
+- [x] The tiers inside and out (boards, porch, annex, shutters, chimney/stove, aerial/TV, furniture)
+- [x] The jacket clear of the windows, no painted curtains under the drapes
+- [ ] Builder's pictures of the new cabins (Grok repaint `iso4_cabin_<n>_b` in the queue)
+- [ ] The bathroom is cramped from its doorway: a better view or a bigger annex
+
 ## RECEPTION WINDOWS — 2026-10-21 (the user: "the reception's windows have no depth from outside; curtains drawn, lights out, the players inside at the PC or going to the other room: all of it seen from outside and in step")
 
 - [x] The real office behind the panes (a camera in its world), by day darker than the day outside
