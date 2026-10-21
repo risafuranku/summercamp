@@ -39,7 +39,7 @@ const AFFINE_TRIPLANAR := [AFFINE * 0.7, AFFINE * 0.2, 0.0, 0.0, 0.0]
 
 var enabled := true
 var _shaders: Dictionary = {}       # variant key -> Shader
-var _conv: Dictionary = {}          # "std id|size bucket" -> {std, mat, sig, hot, big}
+var _conv: Dictionary = {}          # "std id|size bucket" -> {std (weak), mat, sig, hot, big}
 var _by_std: Dictionary = {}        # std id -> [conv records]
 var _hot: Array = []                # conv records being watched every frame
 var _nodes: Array = []              # {node (weakref), std: [per slot], kind}
@@ -47,6 +47,12 @@ var _queue: Array = []
 var _cursor := 0
 var _sprites: Array = []            # {node wr, mat, tex}
 var _multis: Array = []             # {node wr, over}
+## Forgetting the stand-ins of originals nobody holds any more (a room's materials, made
+## anew each time it is built: kept, they piled up visit after visit, hundreds of
+## materials and their pictures each time, until the graphics memory ran out and rooms,
+## windows and Builder's 3D went black; playtest 21. 10.).
+const PRUNE_EVERY_SEC := 3.0
+var _prune_t := 0.0
 
 
 static func ensure(tree: SceneTree) -> void:
@@ -138,10 +144,12 @@ func _process(delta: float) -> void:
 			still.append(c)
 	_hot = still
 	# Multimeshes: their material swapped, their tint changed (the corn drying).
+	var multis_left: Array = []
 	for mr in _multis:
 		var mmi = mr["node"].get_ref()
 		if mmi == null or not is_instance_valid(mmi):
 			continue
+		multis_left.append(mr)
 		var cur = (mmi as MultiMeshInstance3D).material_override
 		if cur != mr["over"]:
 			mr["over"] = cur
@@ -150,6 +158,11 @@ func _process(delta: float) -> void:
 		elif cur is StandardMaterial3D:
 			for c in _by_std.get((cur as Object).get_instance_id(), []):
 				_sync(c)
+	_multis = multis_left
+	_prune_t -= delta
+	if _prune_t <= 0.0:
+		_prune_t = PRUNE_EVERY_SEC
+		_prune()
 	# Sprites change pictures every few frames (birds, leaves, hens).
 	var keep: Array = []
 	for sp in _sprites:
@@ -163,6 +176,33 @@ func _process(delta: float) -> void:
 			(sp["mat"] as ShaderMaterial).set_shader_parameter("albedo_tex", t)
 			(sp["mat"] as ShaderMaterial).set_shader_parameter("has_tex", t != null)
 	_sprites = keep
+
+
+## Drops the stand-ins whose original is gone (nothing draws with it any more: a node
+## that swaps it out is re-pointed by the rolling check while its record still holds it).
+func _prune() -> void:
+	var dead: Array = []
+	for key in _conv:
+		if (_conv[key]["std"] as WeakRef).get_ref() == null:
+			dead.append(key)
+	if dead.is_empty():
+		return
+	for key in dead:
+		_conv.erase(key)
+	for id in _by_std.keys():
+		var live: Array = []
+		for c in _by_std[id]:
+			if (c["std"] as WeakRef).get_ref() != null:
+				live.append(c)
+		if live.is_empty():
+			_by_std.erase(id)
+		else:
+			_by_std[id] = live
+	var hot: Array = []
+	for c in _hot:
+		if (c["std"] as WeakRef).get_ref() != null:
+			hot.append(c)
+	_hot = hot
 
 
 # ── nodes ────────────────────────────────────────────────────────────────────
@@ -357,7 +397,7 @@ func _converted(src, big: int, pull := 0.0) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = _shader(_variant(std))
 	m.render_priority = std.render_priority
-	var c := {"std": std, "mat": m, "sig": "", "hot": 0.0, "big": big, "pull": pull}
+	var c := {"std": weakref(std), "mat": m, "sig": "", "hot": 0.0, "big": big, "pull": pull}
 	_conv[key] = c
 	if not _by_std.has(std.get_instance_id()):
 		_by_std[std.get_instance_id()] = []
@@ -407,8 +447,8 @@ func _variant(std: StandardMaterial3D) -> Dictionary:
 
 ## Copies what the game changes on the original (colour, picture, glow, tiling).
 func _sync(c: Dictionary, force := false) -> void:
-	var std: StandardMaterial3D = c["std"]
-	if std == null or not is_instance_valid(std):
+	var std := (c["std"] as WeakRef).get_ref() as StandardMaterial3D
+	if std == null:
 		return
 	var sig := "%s|%s|%s|%s|%s|%s|%s|%s" % [std.albedo_color, std.albedo_texture, std.emission_enabled, std.emission, std.emission_energy_multiplier, std.emission_texture, std.uv1_scale, std.uv1_offset]
 	if sig == c["sig"] and not force:
