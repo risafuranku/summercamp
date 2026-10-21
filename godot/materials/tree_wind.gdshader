@@ -43,13 +43,15 @@ void vertex() {
 	float h = clamp(VERTEX.y / height, 0.0, 1.6);
 	float phase = origin.x * 0.37 + origin.z * 0.29;
 	float gust = 0.55 + 0.45 * sin(TIME * 0.6 + phase * 0.5);
-	float wave = sin(TIME * (1.1 + wind_strength * 0.9) + phase);
-	float lean = wind_strength * (0.55 + 0.45 * gust) * 0.45;
-	float bend = (lean + wave * wind_strength * gust * 0.22) * h * h * sway;
+	// (Calmer from 21. 10.: the trees' play in the wind was too much; a little over half
+	// the bend, slower to and fro, the crowns' flutter smaller.)
+	float wave = sin(TIME * (0.8 + wind_strength * 0.5) + phase);
+	float lean = wind_strength * (0.55 + 0.45 * gust) * 0.28;
+	float bend = (lean + wave * wind_strength * gust * 0.12) * h * h * sway;
 	// A gust's front going through the wood: the trees it reaches bow further.
-	bend += gust_front(origin.xz, TIME) * wind_strength * 0.22 * h * h * sway;
+	bend += gust_front(origin.xz, TIME) * wind_strength * 0.12 * h * h * sway;
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float f = flutter * wind_strength * sin(TIME * 8.0 + wp.x * 3.1 + wp.y * 2.3 + wp.z * 2.7) * 0.08 * h;
+	float f = flutter * wind_strength * sin(TIME * 6.0 + wp.x * 3.1 + wp.y * 2.3 + wp.z * 2.7) * 0.05 * h;
 	vec3 off_world = vec3(wind_dir.x * bend + f, -abs(bend) * 0.12, wind_dir.y * bend + f * 0.6);
 	v_wpos = wp;
 	v_up = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz).y;
@@ -65,6 +67,11 @@ void vertex() {
 }
 
 void fragment() {
+	// The lake's mirror (camp_lake.gd) looks from under the water: nothing below the water
+	// is drawn for it (the ground's underside was a ceiling over everything it saw).
+	if (CAMERA_POSITION_WORLD.y < -0.4 && (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).y < 0.1) {
+		discard;
+	}
 	vec4 t = texture(albedo_tex, UV * uv_scale);
 	if (alpha_cut && t.a < 0.5) {
 		discard;

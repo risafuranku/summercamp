@@ -232,18 +232,18 @@ know where it is:
 | The Photographer | no eyes (his own chest lamp lights his face; 21. 10.: no ring over it): the red lamp of his camera, a point where the camera is in each pose, blinking; your torch on it, the lens throws it back white |
 | The Girl | her eyeshine: two pale points, each blinking on its own, one a little higher, only where the torch points but does not reach (to 45 m); nearer, bigger and wider apart (her face stretching). The terror pass (20. 10.): when your torch dies near her she takes her step in that dark and you see her eyes there, nearer; while your torch holds her, a second pair of her eyes opens off to one side with a soft giggle (look and it is gone, and she has moved); under a lamp she goes round the edge of its light towards your back; the drone and the heart as she comes; while you hold her, for two frames now and then her head is upside down on her neck; far off, her laugh slowed into something low. **Her strike** (4.5 s, nothing you can do): she lunges out of the dark, claws at the lens; her hands close round your head and pull you to the drooling grin; her head snaps all the way over; her face splits down the middle, the inside and rows of teeth between the halves; the rings of teeth come over you (the bite, red, blood running down the lens); black, your heart stops, only the ring and her chewing; you come to on the ground, the picture on its side, and she stands out there with her head upside down and red eyes, laughing slowed down; a blink and her upside-down face is in yours. The cursed pass (20. 10.): her eye an inch from yours before the lunge; after the bite she drags you along the ground by the head, in jerks; under a lamp, after a while, a ring of her eyes opens all round the edge of the light, one pair after another, giggles over each other, a flash of dozens of her standing in the trees, then all of them go out but one, behind you; far off, found again, she stands upside down (hanging from nothing) or far too tall; close and unseen, her teeth chattering; found nearer, two frames of the face she pretends with (a smile ear to ear); for forty seconds after she has had you, her face for a frame now and then, even with her gone. **Indoors** she cannot hurt you and wants you out: her humming through the wall; heels going round outside; a giggle and three slow knocks; her at the window you look at, pressed to the glass, her eyes lit, two frames of the smile; her teeth chattering behind the wall; then a guest's night instead (a Cheap Chick first). Out again, she begins far off |
 | The Antlered Man | deer eyeshine in the skull's sockets, pale green, high, far apart; both go out together now and then |
-| The Basket Man | two wet red points deep in the hood, close together, swinging slowly over the ground |
+| The Granny | two points low in her bent face while she picks, nothing; when she straightens up, high and still, looking at you |
 | The Boy | none: a child hiding. His voice at your ear is how you find him; his face is what you get for looking |
-| The Whistler | not on its body (never in sight): two pale slits up in the trees where the tune was, a little while after each one |
+| The Whistler | not on his body while the music plays (it is thrown, from somewhere else): two pale slits where he really stands, a little while after the music stops |
 
 | Enemy | From | Tell | Counter | Punishes |
 | --- | --- | --- | --- | --- |
 | Silent Man | Quiet Guy | footsteps on the gravel behind you, closer each time, stopping when you stop; a whisper at your ear | turn round and put light on him; under a lamp he will not come nearer; at the whisper, turn round at once | standing still in the dark |
-| The Photographer | Drunk | always there: he hums wherever he is, a weak lamp on his chest strap and the camera's red standby blink; he walks from spot to spot in plain view (steps, the film wound on as he stops), raises the camera, the focus beeps speed up, the flash whines (~2-3 s); a shot every 7-10 s | turn your back or get behind something before the flash; indoors draw the curtains (every building's windows look out for real, scripts/ui/window_portal.gd) | looking at him when it fires, or an open window you can see when he fires through it: a lot of health (16-26), a white blast, ringing ears, his face burnt in (lenses grown into the sockets, or peeling like a wet print); the picture is real: it slides in at the corner and develops, you from his lens (every third, him right behind you in it); two hits and his neck is snapped, the head hanging off it sideways, the mouth stuffed with photographs, and he still aims; four and it has let go (the collar an empty stump, the head upside down at his belly, screaming); three and he runs at you from behind, laughing, and fires at your ear; the last picture stops the frame, his lens-face comes at you in steps and your own face develops in the middle of the screen |
+| The Photographer | Drunk | always there: he hums wherever he is, a weak lamp on his chest strap and the camera's red standby blink; he walks from spot to spot in plain view (steps, the film wound on as he stops), raises the camera, the focus beeps speed up, the flash whines (~2-3 s); a shot every 7-10 s | turn your back or get behind something before the flash; indoors draw the curtains (every building's windows look out for real, scripts/ui/window_portal.gd) | looking at him when it fires, or an open window you can see when he fires through it: a lot of health (16-26), a white blast, ringing ears, his face burnt in (lenses grown into the sockets, or peeling like a wet print); the picture is real: it slides in at the corner and develops, you from his lens (every third, him right behind you in it); two hits and his neck is snapped, the head hanging off it sideways, the mouth stuffed with photographs, and he still aims; four and it has let go (the collar an empty stump, the head upside down at his belly, screaming); never still (frames cut from each pose: he breathes, his camera hands tremble, the broken neck sways and jerks with a snap, the head at his belly swings); broken, his tune gargles or comes muffled through paper, his breath rattles, the photographs rustle in his mouth, blood drips at his feet, he drags a foot, his flash sputters before it fires, he chuckles wet and spits a photo out; whole or not, out of your sight a shutter goes far off in the dark; three and he runs at you from behind, laughing, and fires at your ear; the last picture stops the frame, his lens-face comes at you in steps and your own face develops in the middle of the screen |
 | The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed: the guest -> fixed smile, white eyes -> legs too long, flushed cheeks -> neck and arms stretched -> her back to you, face turned round -> arms to the ground. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
-| The Whistler | Tramps | a campfire tune whistled out in the trees, moving | do not walk towards it; stand under a lamp until the tune breaks off | following the sound into the dark |
+| The Whistler | Tramps | his guitar and his whistle out in the dark, a song at a time, nearer; the music stops dead in the middle of a bar | while he plays, move; when the music stops, be still (on grass a walk is not heard, a run is; on gravel, boards, puddles even a walk; near him anything); a lamp's light | making a noise while he listens: he comes at a run to where you were (§5a.3) |
 | The Boy | Family | his father in your way in the dark asking after him; a child gone missing where the night's work is | each place's game, by its rules (§5a.2) | breaking the game's rule (in the corn: looking back at him) |
-| The Basket Man | Mushroom Pickers | 02:30-06:00, a wicker basket creaking out of the trees, a knife scraping | stand still while it is near; it only sees movement | moving while it is close |
+| The Granny | Mushroom Pickers | 02:30-06:00: a basket creaking, a knife scraping, humming; lamps going dark one by one; mushrooms coming up round the tents | Grandmother's footsteps: move while she is bent over her work, freeze when her back cracks and she straightens up; take the bulbs back out of her basket from behind; walk through her rings | moving while she looks (§5a.4) |
 
 ### 5a. Outdoor hunters, indoor tormentors (the rule for every enemy)
 
@@ -295,7 +295,14 @@ game, every time, and never scripted to a place.
   it as a drone in the ears that climbs (two low tones beating, a pressure whine), your
   heart (slow, then fast), the picture's edges closing in, banded, pulsing with the heart,
   the colour going to rust, the torch catching and stuttering in your hand. The insects
-  fall silent and the HUD face looks round, as for every enemy.
+  fall silent and the HUD face looks round, as for every enemy. **The ears** (21. 10.,
+  the user: "the whistling and hissing in a tight spot is good, work it out more"; the
+  sixth sense, or your own wounds under about half health): the whine wanders in pitch
+  and beats against a second tone, one ear louder, a sour third at the worst; the blood
+  whooshes in your ears a moment after each heartbeat; a hiss under it; your own breath,
+  faster, and a dry swallow; at the worst the ears give out for a moment (all sound
+  gone) and pop back. The Photographer's ring after a flash beats and trembles too, the
+  blast's crackle and hiss under it, one ear first.
 - **At your neck**: the whisper, his breath, cloth, the frame stops for a beat, his hands
   come over your shoulder from the side he is on, and he holds you (half speed). Turn
   round (a light on him) or get away; else the catch (ear, above, turned round), and when
@@ -317,6 +324,55 @@ game, every time, and never scripted to a place.
   face over the ceiling, or he stoops to the glass and taps (his face in it, lit by the
   room's light falling out). The windows' `view` (the window's camera, your eye out in the
   camp: `photo_windows()`) places him.
+
+### 5a.3 The Whistler (Tramps; `scripts/enemies/whistler_brain.gd`)
+
+The tramp turned (the user, 21. 10.: "staring into the soul, huba jak megafon"): his hat,
+his flannel, the guitar on his back, a grey face with black eyes and the mouth gone into
+a black horn like a megaphone's bell (Grok `whistler_t1`, `_sit`, `_face`). He hears and
+does not see, and a night with him is musical chairs:
+
+- **He plays**: the campfire song on his guitar, whistled through the horn
+  (`assets/sfx/npc/whistler/play_*`), out in the dark, a song at a time a little nearer
+  (never nearer than 9 m while he plays). While he plays he does not listen: move. From
+  medium on the music is thrown, it comes from where he is not; what is him is a string
+  creaking, a twig, and when the music stops his eyes, two pale slits where he stands.
+- **He listens**: the music stops dead (a hand flat on the strings). Running anywhere,
+  walking on gravel, boards or in a puddle, anything within 10 m of him gives you away;
+  a walk on grass does not. Heavy, a guest's voice calls for help out of the dark to make
+  you move ("Správce! Pomoc! Tady!", "Pojď k ohni. Je tu teplo.").
+- **He comes**: at a run to where he heard you, the guitar jangling; there he listens
+  again. At your back: the string round your neck, his horn at your ear (the close-up
+  grows as the string tightens), the hit. A lamp's light: he stops at its edge and goes.
+- **The fire nobody lit** (medium on): a campfire out by the trees, him on a log by it
+  playing in its light. Its light is not safe: go near and the fire dies and he is
+  behind you.
+- **Indoors**: his song under the window now and then, quiet, stopped in the middle of
+  a bar.
+
+### 5a.4 The Granny (Mushroom Pickers; `scripts/enemies/basket_brain.gd`)
+
+The old picker turned (the user, 21. 10.: "babičku musíme vymyslet"): her cardigan, the
+flowered dress, the green boots, bent at the waist like a hook, the basket on her arm,
+the little knife (Grok `granny_pick`, `granny_up`, `granny_face`). She comes in the
+small hours (02:30-06:00), as pickers do, and harvests the camp. Grandmother's
+footsteps: she sees only what moves, and only when she straightens up.
+
+- **Bent over her work**: the knife scraping, humming an old lullaby: she sees nothing.
+  Move.
+- **Up**: her back cracks, the humming stops, she straightens far too tall and looks.
+  Move in her sight (22 m; 9 m while she walks) and she comes, quick through the grass,
+  the knife low ("Nehýbej se, broučku", "Kdo se hejbe, jde do košíku"). Freeze before she
+  is on you and she stands over you a while, looking, and goes back to her work (heavy:
+  not always). At you: low, the knife at your ankles, "To je ale pěkný kozák...".
+- **The bulbs**: she goes from lamp to lamp; at each, when she is done, the bulb is in
+  her basket and the lamp is dark for the night (the other things have more dark).
+  Creep up behind her while she is bent and take them back (E): every lamp lit again,
+  and she straightens up at once.
+- **The rings**: at a lodging with guests in it mushrooms come up round it, more each
+  time she is there; closed by dawn (three visits) its guests wake sick, heavy one is
+  gone. Walk through a ring and you kick it open.
+- **Indoors**: her knife along the outside wall now and then.
 
 ### 5a.2 The Boy (Family; `scripts/enemies/boy_brain.gd`)
 
@@ -642,6 +698,20 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
   a compass (click: north up) where the 2D map has the building's turn, a north-up
   minimap. Half the PC's pixels through the Build palette, the ground's fog thinned,
   below the clouds. The PC remembers which view was left.
+  What is built is there at once; outside the god cursor (§5k) drops it in all the same
+  (its copies on a layer this eye leaves out, the building on one only this eye draws).
+- **Free over the whole map** (the user, 21. 10.: "let me drive the camera wherever I
+  want, to the map's edges, to the Liblice masts: we can look the map over like that"):
+  the 3D view roams the whole land round the camp and up to a kilometre and a half out;
+  the land, the village and the hamlet are built round what it looks at, the fog and the
+  far darkness thin the higher it goes.
+- **The camera with legs** (the user, 21. 10.: "for longer Builder sittings: WASD moves
+  the camera, the left hand on the keyboard, and I am not getting up"): a toggle in the
+  toolbar (a camcorder on two legs, it walks while the map moves). On, WASD pans the map
+  in 2D and 3D (Shift faster) and S no longer stands you up; it holds only while Builder
+  is the screen you look at (E to the second monitor or the window: S stands you up
+  there; back on Builder, WASD is the map's again); standing up puts it away. At the
+  desk E turns the head and back (A and D did); the building turns on Q / R.
 - **Paths are one surface** (the user, 21. 10.: "build paths 2x4 and it is one big path,
   in the Builder and in the camp"): a path tile is composed from its eight neighbours
   (`scripts/path_tiles.gd`), the gravel across every side and into every corner the
@@ -774,11 +844,20 @@ somebody assembles with a mouse. **Only theatre**: the Builder builds at once as
 the camp's sim has the building at once (guests, books, everything), and nothing waits for
 the show, hinders or hurts (`scripts/god/god_cursor.gd`).
 
-- **What it is**: the Builder's own pointer (the OS's arrow with the tool beside it: the
-  blueprint unrolling, the spade digging, the lamp blinking, the bulldozer's blade going
-  up and down, the same frames as on the PC), thirty metres of flat pixels in the sky,
-  the haze of the camp's fog over it and banks of mist drifting through it, dithered away
-  and back in Build's way; it glides slowly to the work and rises back into the haze after.
+- **What it is**: the Builder's own pointer as a solid (the user, 21. 10.: "level with the
+  ground like a flat aeroplane, a little isometric tilt, as you see it from above on the
+  PC; not 2D, with height, not pixel-jagged: designed so it fits"): the OS's arrow as
+  clean straight edges pressed out to a bevelled slab some eighty metres long (a white
+  face, light bevels, a charcoal rim, a slate-blue underside: the PC's outline as the camp
+  sees it), lying nearly flat, its picture's up the way Builder's map looks (its 3D view's
+  camera or the 2D map's quarter), its tip 22 degrees down at the work just under the
+  cloud deck and its tail up into the clouds and the haze. The tool rides on a bevelled
+  badge under its tail as on the PC (the blueprint unrolling, the spade digging, the lamp
+  blinking, the bulldozer's blade). Solid while it is there, it fades only coming and
+  going; wisps of mist drift by it; it glides
+  slowly to the work and rises back into the sky after (the user, 21. 10.: "musí bejt
+  fakt godly v nebesích ... fakt 3D vymodelovanej mohutnej cursor ... fobie z velkejch
+  věcí"; it was thirty metres of flat pixels just over the trees).
   A deep hum like thunder and organ pipes from far off; the slowed, giant Okna click and
   ding; heavy landings with an echo from the woods (ElevenLabs, `assets/sfx/god/`).
 - **Paths like dominoes**: the pointer clicks, the line's tiles come down one after
@@ -791,8 +870,9 @@ the show, hinders or hurts (`scripts/god/god_cursor.gd`).
   and sinks into the ground in a burst of dust and a crunch.
 - **The queue**: what the Builder ordered waits as a shadow on the ground (the building
   hidden, not a wall to walk into) and comes down in turn, quicker the longer the queue.
-  While the warden sits at the PC it waits; it comes down when they stand up, seen through
-  the office window (a portal into the camp), from its door or outside. In co-op each
+  It builds as the PC orders, one to one (the user, 21. 10.): alone at the PC you mostly
+  miss it, a glimpse through the office window (a portal into the camp). Builder's 3D view
+  shows the camp as the PC has it meanwhile (its eye leaves the theatre out). In co-op each
   machine plays its own theatre of the builds it hears of: the other warden outside sees
   the host's Builder come down (who builds is told by what happens where).
 - **Under it**: the shadow grows as it falls; guests round it jump out of the way and look
@@ -822,6 +902,15 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
   facilities closed, and a 6-minute UPS countdown to game over. Paying restores the grid.
 
 ## 7b. The businesses' rooms (point and click)
+
+**The stations' tabs and keys go in the order of the work** (the user, 21. 10.: "1 husk,
+2 serve and butter, 3 drinks: it should make sense everywhere"): the corn stand husk,
+counter, drinks; the pub keg, tap, bottles, wash; the bistro potatoes, breading, stove,
+pot, grill, soup, pass, floor, sink; the Jednota storeroom, shelves, till, deli. **And
+the head turns at a station as in a room** ("not a locked camera: from the corn stand
+round the camp"): the pointer held a moment at the screen's side, or the arrows, turns
+it up to 170 degrees either way; the work stays still under the pointer (no sway), and
+not while something is held.
 
 Decided with the user on 2026-10-18 ("interiors aim at the feel of point-and-click
 games"). The pub, the bistro and the Jednota are rooms you look round in and click:
@@ -1351,6 +1440,74 @@ disagree, this wins (the older lines say so).*
 - **By day plain play, by night the uncanny** as before (open late, PROTOTYP 540, Jaromir
   and Marta are untouched). The hands stay worse than a good warden.
 
+## 7c. The staffroom and the camp's own staff
+
+The user, 21. 10.: "a fifth tab in SoftSklad where you hire staff who clean; a staffroom
+building with the PC as an old chunky laptop, a mattress to sleep on in the boiler room,
+a sofa, a fridge, a coffee machine, a TV... no cleaning gang: picking a hand like in the
+businesses; they rest in the staffroom, or take your bed if they have none; one locker in
+the second room, more bought in the books with a picture; one locker one hand; no
+staffroom, no hiring; they go to the cleaning events, the raccoons, the deliveries, all
+the things that bother you by day; they prepare the lodgings, clean them, make the beds;
+what each of them does is set in the books or in SoftSklad with toggles; they go home at
+night", and: "curtains, for the enemies, the Photographer; it must work in co-op, I must
+see the others sitting at the laptop".
+
+- **The building**: a Utilities build in Builder 98, two by two, one for the camp ($360,
+  `data/buildings/staffroom.tres`, `builder_authority.ONE_ONLY`). A 1970s Czech village
+  prefab hut: dash plaster, a tar-paper flat roof, the boiler room as a lower annex with
+  its brick chimney, a plywood door with an enamel PERSONAL plate, the coal hatch.
+  **One plan for the inside and the outside** (`scripts/staff/staffroom_plan.gd`): the
+  building in the camp (`building_models._staffroom`) is built with its rooms in it behind
+  real glass, so from the camp you see in: the lamps (somebody in, dusk, power), the
+  curtains as they were left inside, the hands lying on the mattresses or on the sofa, the
+  laptop's glow, another warden at the laptop or the books.
+  The user, the same evening: "the hands go home for the night; the mattress to sleep on
+  is the player's" — the boiler room's mattress is the warden's bed (from the evening a
+  click lies you down, the night passes as in the office's back room: `lodge_bed.gd`'s
+  "staff" bed), the hands rest sitting in the lounge, and everybody goes home at eight. The room you walk into is the
+  same boxes in the service interior's own world, its windows real views of the camp
+  (`window_portal.gd`), each with a curtain to draw (the Photographer's flash, the Silent
+  Man's watching: `service_interior.photo_windows`).
+- **The rooms** (`scripts/staff/staffroom.gd`, point and click, one smooth walk through the
+  open doorway): the lounge (the sofa under the window, the formica table with the laptop
+  and the books, the counter with the coffee machine, the fridge, the TV on its cabinet
+  with three programmes and off, the safety poster, the calendar, the coats); the boiler
+  room (the coal boiler and its glow, the coal, your mattress, the lockers with their
+  hand's name, coat and boots inside); the armchairs bought for the lounge.
+- **The laptop** (`scripts/staff/laptop_view.gd`): you sit down at it and the close-up
+  comes up (Grok, the laptop on the table, a mug, the ashtray); on its screen the office
+  PC itself, the same machine (its os_shell, programs, mail, Builder), drawn sharp at the
+  window's resolution onto the screen's four measured corners, the mouse and keys mapped
+  back. S or a click below stands you up. One warden at the PC at a time, here or at the
+  office; the others in the room see them on its chair from behind and their screen on
+  the laptop.
+- **The hands** (`core/systems/staff_rules.gd`, `GameState.biz.staff` through
+  `actions.staff_*`): the same people as the businesses' (their photos, speed, honesty,
+  temper and wage), those who ask at the kind "staff"; one to a locker (one to start,
+  up to five, each dearer); a seat each in the lounge (the sofa's two, armchairs bought
+  up to three). Their day
+  (`scripts/staff/staff_runtime.gd`, run by the camp's machine, drawn on every machine from
+  `biz.staff.act`): in from the road at seven (a quarter of an hour apart), coffee on the
+  sofa, then out to the nearest thing they are set to: a bin bag, raccoons in the bins (the
+  broom), the wholesaler's van at the gate (signed for), a branch (sawn up), a lodging
+  (its tasks one after another, the bed made last); back, sitting in the lounge between
+  jobs; with nowhere to sit, in a made-up lodging nobody is in ("Hanka has nowhere to sit:
+  she lies down in C2"), which is unmade when they get up. Home at eight, all of them.
+  The day events they take show their name on the TODAY list; you may still do it first.
+  Marta is seen only now and then.
+- **The books** (`scripts/staff/staff_ledger.gd`, on the table): STAFF (who, where now, a
+  pencilled box for each job: rubbish, raccoons, deliveries, branches, lodgings; let go),
+  HIRE (today's applicants, their photo and papers), LOCKERS (the catalogue cut-outs of a
+  locker and an armchair, the next one's price, buy), TODAY (what was done, the wages).
+  **Personal 98** (`os98/apps/staff_app.gd`): SoftSklad's fifth program, licensed at
+  softsklad.cz, the same from the PC or the laptop with 98 check boxes. Wages are paid with
+  the businesses' at the day's close; two days unpaid and they leave.
+- **The post on screen**: the second monitor's order (reception/post_delivery.gd) is a
+  plate at the right edge with the arrivals (`arrival_strip.gd`): the yellow post van
+  while it comes (the bar filling), the parcel while the postman waits at the desk (his
+  patience running down, red and blinking at the end).
+
 ## 8. The pipe crawl (sewer repair)
 
 *The chamber and two in the pipes, 2026-10-18 with the user ("let them find out it is not
@@ -1423,11 +1580,47 @@ the corner; after you have been at the board, it does not.
 
 ## 8c. The lake trip
 
-The keeper's rowing boat (`scripts/lake/lake_trip.gd`): W pulls a stroke, A/D turn, the
-gloved hands on the oars. The far shore is his boathouse: looked at like an interior (the
-camp across the water, its lamps at night), his logbook in the doorway, his jetty to fish
-from (carp and pike to the kitchen, now and then a red shoe). Sometimes at night something
-long passes under the boat. Nothing there is required.
+The keeper's rowing boat (`scripts/lake/lake_trip.gd`, the boat itself
+`scripts/lake/boat_rig.gd`). The far shore is his boathouse: looked at like an interior
+(the camp across the water, its lamps at night), his logbook in the doorway, his jetty to
+fish from (carp and pike to the kitchen, now and then a red shoe). Sometimes at night
+something long passes under the boat. Nothing there is required.
+
+Polished on 21. 10. (the user: "totálně polishnout lodičku, single i coop"):
+
+- **Into the boat.** E by it: your eyes go down from the jetty onto the aft thwart in one
+  smooth move, the boat dips and rolls under your weight, the oars come up out of the
+  boat into the rowlocks. You sit facing the bow (the game always rowed forwards, for
+  play: pushing the grips drives the boat on). Before you have pushed off, E gets you out
+  again; near either jetty the boat comes alongside by itself (eased in, turned to lie
+  along it, the rope) and you climb out onto it. Off the keeper's jetty you have to be out
+  on the water before it takes you alongside again (it took you straight back, so the
+  far shore could not be left by boat at all).
+- **Rowing.** W pushes both oars through a stroke, held stroke after stroke in a rhythm
+  (1.2 s): the boat surges on the drive and glides between; S backs water; A and D push
+  one oar and back the other and the boat turns on the spot, with W one oar rests and it
+  turns as it goes. The water holds it (along the hull, much more sideways, its turn),
+  the wind drifts it when you sit idle, the shore and the jetties knock it back. The
+  mouse looks round from the seat as it does on your feet (115° each way, up and down);
+  the hands on the oars drop out of view when you look away or down into the boat. The
+  HUD says the keys at first and when you sit idle, and the way out by the camp jetty.
+- **The boat everybody sees** (`boat_rig.gd`). Its hull rides the swell (more in the
+  wind, a lot in a storm), heels into a turn, lifts its bow on a stroke, knocked about by
+  steps and lurches. The oars (`rowboat_oar`, Blender) lie in along the thwarts while
+  nobody rows and are pulled stroke by stroke in the rowlocks: in at the catch squared,
+  through the water, out feathered flat. A splash where a blade goes in, the swirl it
+  leaves behind in the water, drips off it on the way back, rings off the stern while the
+  boat makes way. After dark its storm lantern hangs lit from the stem post (the glass
+  glows, the boat in its light; your hands catch it). Its sounds where it is: the stroke,
+  the water rushing along the hull, the drips, the creak, the step in and out, the rope
+  (ElevenLabs, `tools/audiogen/prompts_lake.tsv`).
+- **The hands on the oars** are two pictures (the left and the right glove of
+  `hands/oars.png`), each through its own stroke, twelve frames a second like every hand,
+  lit like every hand (Hands.material), the oar running on out of the picture as it
+  swings.
+- **The far shore** stands clear: the real land round the camp (geo_world.gd, OSM) kept
+  the village's houses in the water and through the boathouse; the lake and twelve metres
+  round it are the game's own now.
 
 ## 9. Weather
 
@@ -1572,7 +1765,11 @@ steps. The list and the numbers before and after: TODO.md "POHYB, KAMERA, INTERA
 - See-through things (breath, steam, smoke) are drawn as Build drew them: the whole
   sprite at one of a few fixed levels of see-through, never a screen door of dots.
 - Every sound effect is a recording (ElevenLabs); tones and cadences that must be exact
-  are cut from recordings by script. Only the radio's dread is layered in code.
+  are cut from recordings by script. Only the radio's dread is layered in code, and the
+  camp's own music is played by code: its songs (one waltz, made from one motif: a cheap
+  home keyboard's waltz preset and a harmonium, D Hungarian minor) come in now and then
+  while you are out and about, out of slow into their tempo like a carousel getting
+  going, and wind down the same way (`scripts/audio/music_director.gd`).
 
 ## 10b. People as in Doom (2026-10-21)
 
@@ -1668,4 +1865,9 @@ through for two (TODO.md, CO-OP).
   In a tent the other lies on their belly, chin in hand, boots up in the air.
   A job either does is done in the host's camp and shows in both rooms.
 - **One boat.** Whoever takes it rows it on both lakes; the other sees them in it and
-  cannot take it till it is back at the jetty.
+  cannot take it till it is back at the jetty. Its oars stroke there as the rower's do
+  (the warden state's "rp": each oar's phase, carried on by the clock), its hull rocks
+  on each machine's own swell, and the rower sits on its thwart there. The other climbs
+  into the bow (E by the boat while it is at the camp jetty) and rides facing the rower
+  (they sat in the rower's face, 0.6 m off); ashore on the keeper's jetty each stands on
+  a spot of their own, and back into the bow when the rower takes the boat home.

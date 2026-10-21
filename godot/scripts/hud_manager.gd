@@ -906,6 +906,12 @@ func set_troubles(rows: Array) -> void:
 		_trouble_strip.set_rows(_troubles)
 
 
+## The post's plate on the right edge (post_delivery.hud_row(); {} none).
+func set_post(row: Dictionary) -> void:
+	if _arrival_rings != null and is_instance_valid(_arrival_rings) and _arrival_rings.has_method("set_post"):
+		_arrival_rings.set_post(row)
+
+
 ## Rows from GuestManager.get_arrivals(): who is coming, when, to which room, ready?
 func set_arrivals(rows: Array) -> void:
 	if rows == _arrivals:
@@ -1249,14 +1255,8 @@ func _set_risk_level(level: int, from_payload: bool) -> void:
 	_risk_level_index = level
 	_risk_level_known = true
 	_refresh_risk()
-	if known and from_payload and level != previous:
-		var detail := _compose_risk_detail(_risk_payload)
-		var verb := "raised" if level > previous else "eased"
-		var kind := STATUS_WARN if level > previous else STATUS_GOOD
-		var line := "Night risk %s: %s" % [verb, RISK_LEVEL_LABELS[level].to_lower()]
-		if not detail.is_empty():
-			line += " (%s)" % detail
-		push_status(line, kind, "risk")
+	# No line at the top of the screen when it changes (playtest 21. 10.: remove them);
+	# the NIGHT RISK footer says it.
 
 
 func _refresh_risk() -> void:

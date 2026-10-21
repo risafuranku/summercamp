@@ -66,9 +66,10 @@ const ROUNDS := {"drunk": 4, "tramp": 3, "quiet_guy": 2, "cheap_chick": 2, "pick
 ## they give up on it and order nothing more.
 const ORDER_DELAY := 4
 const DRINK_MINUTES := 30
-const PATIENCE_OK := 30
-const PATIENCE_LATE := 60
-const PATIENCE_GONE := 90
+## (Half as long again and more from 21. 10.: the guests had too little patience.)
+const PATIENCE_OK := 48
+const PATIENCE_LATE := 96
+const PATIENCE_GONE := 144
 
 ## The mug, in shares of its height: the line (the half litre) and the rate the beer and
 ## the foam come at, pulled and pushed, and how fast the head settles back to beer.

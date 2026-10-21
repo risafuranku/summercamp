@@ -28,6 +28,7 @@ const ICON_SPAN := {
 	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
 	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
 	"flower_bed": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "lamp_iso": 0.24, "lamp_post": 0.24, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
+	"staffroom": 1.6,
 }
 const SFX_DIR := "res://assets/sfx/builder/"
 
@@ -79,6 +80,7 @@ const ICON_PATHS := {
 	"pub": "res://assets/textury/builder/hospoda1.PNG",
 	"restaurant": "res://assets/textury/builder/restaurace.PNG",
 	"vecerka": "res://assets/textury/builder/vecerka.jpg",
+	"bowling": "res://assets/textury/builder/iso_bowling.png",
 	"sewer": "res://assets/textury/builder/sewer.PNG",
 	"power_generator": "res://assets/textury/builder/gen.PNG",
 	"path": "res://assets/textury/builder/parking.PNG",
@@ -103,6 +105,7 @@ const ICON_PATHS := {
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
 	"corn_stand": "res://assets/textury/builder/iso_corn_stand.png",
+	"staffroom": "res://assets/textury/builder/iso_staffroom.png",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
 	"sports_field": "res://assets/textury/builder/iso_sports.png",
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
@@ -476,6 +479,8 @@ var _bfx = preload("res://scripts/builder_fx.gd").new()
 ## The hidden 3D view (scripts/builder/map3d.gd, made by builder_module): while it shows
 ## the map, point <-> cell, guests, centring, pan and zoom go through it.
 var map3d = null
+## Builder's camera with legs: WASD pans as the arrows do (builder_module sets it each frame).
+var wasd := false
 ## Guest miniatures: archetype -> {height px: ImageTexture}, scaled once from the sprites.
 var _guest_minis: Dictionary = {}
 var _mini_tex: ImageTexture
@@ -805,16 +810,17 @@ func match_view(cell: Vector2, ext: float) -> void:
 func _update_keyboard_pan(delta: float) -> void:
 	if delta <= 0.0 or not is_visible_in_tree() or not OS_KEYS.here(self):
 		return
-	if not has_focus() and not _mouse_inside():
+	# The camera with legs pans wherever the pointer is (on the toolbar, a card).
+	if not wasd and not has_focus() and not _mouse_inside():
 		return
 	var move := Vector2.ZERO
-	if Input.is_key_pressed(KEY_LEFT):
+	if Input.is_key_pressed(KEY_LEFT) or (wasd and Input.is_physical_key_pressed(KEY_A)):
 		move.x -= 1.0
-	if Input.is_key_pressed(KEY_RIGHT):
+	if Input.is_key_pressed(KEY_RIGHT) or (wasd and Input.is_physical_key_pressed(KEY_D)):
 		move.x += 1.0
-	if Input.is_key_pressed(KEY_UP):
+	if Input.is_key_pressed(KEY_UP) or (wasd and Input.is_physical_key_pressed(KEY_W)):
 		move.y -= 1.0
-	if Input.is_key_pressed(KEY_DOWN):
+	if Input.is_key_pressed(KEY_DOWN) or (wasd and Input.is_physical_key_pressed(KEY_S)):
 		move.y += 1.0
 	if move.length_squared() <= 0.0001:
 		return
@@ -838,12 +844,9 @@ func _gui_input(event: InputEvent) -> void:
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
-			KEY_Q:
+			# R turns the building (Q and E are the PC's: the user 21. 10.).
+			KEY_R:
 				_rotate_building(1)
-				get_viewport().set_input_as_handled()
-				return
-			KEY_E:
-				_rotate_building(-1)
 				get_viewport().set_input_as_handled()
 				return
 			KEY_EQUAL, KEY_KP_ADD:
@@ -2039,7 +2042,7 @@ func _mini_kind(t: String) -> String:
 		return "office"
 	if t.begins_with("tent") or t.begins_with("cabin") or t.begins_with("caravan"):
 		return "housing"
-	if t in ["toilet_block", "shower_block", "vecerka", "restaurant", "pub", "pub_2"]:
+	if t in ["toilet_block", "shower_block", "vecerka", "restaurant", "pub", "pub_2", "bowling"]:
 		return "services"
 	if t in ["bonfire", "sports_field", "lake_slide"]:
 		return "fun"
@@ -3302,8 +3305,12 @@ func _icon_key_for_type(building_type: String) -> String:
 			return "pub_2"
 		"restaurant":
 			return "restaurant"
+		"staffroom":
+			return "staffroom"
 		"vecerka":
 			return "vecerka_iso" if _get_icon("vecerka_iso") != null else "vecerka"
+		"bowling":
+			return "bowling"
 		"sewer", "water_pump", "sewage_tank":
 			return "sewer"
 		"power_generator":
@@ -3467,6 +3474,8 @@ func _reason_text(reason: String) -> String:
 			return "blocked or out of bounds"
 		"not_buildable":
 			return "tool is not buildable"
+		"only_one":
+			return "the camp has one already"
 		"area_too_large":
 			return "area too large"
 		"protected_structure":
@@ -4097,7 +4106,7 @@ func sound_under_pointer() -> String:
 					var t := str(root.get_meta("building_type", ""))
 					if t in ["playground", "sports_field", "lake_slide", "ping_pong", "bonfire"]:
 						k = "play"
-					elif t in ["pub", "restaurant", "vecerka", "corn_stand"]:
+					elif t in ["pub", "restaurant", "vecerka", "corn_stand", "bowling"]:
 						k = "pub"
 			count[k] = int(count[k]) + (2 if dx == 0 and dy == 0 else 1)
 	var best := "camp"

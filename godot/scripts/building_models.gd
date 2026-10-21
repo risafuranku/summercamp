@@ -11,11 +11,13 @@ extends RefCounted
 ## {size: Vector3 (the collision box), target: Vector3 (where E aims, local)}.
 
 const CAMP := "res://assets/textury/camp/"
+## The cabin's plan, shared with the room inside (cabin_interior.gd).
+const CL = preload("res://scripts/cabin_layout.gd")
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
 	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome",
-	"vecerka"]
+	"vecerka", "bowling", "staffroom"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -75,6 +77,10 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _corn_stand(root, w, d)
 		"vecerka":
 			return _jednota(root, w, d)
+		"bowling":
+			return _bowling(root, w, d)
+		"staffroom":
+			return _staffroom(root, w, d)
 		# Built by BuildingManager's own placers; here for tools/model_viewer.
 		"cabin_1", "cabin_2", "cabin_3":
 			var lv := int(type.right(1))
@@ -105,7 +111,7 @@ func _toilets(r: Node3D, _w: float, _d: float) -> Dictionary:
 		var heart := _box(r, "Heart%d" % i, Vector3(0.14, 0.14, 0.06), Vector3(x, 1.62, sz * 0.5 + 0.035), _flat(Color(0.05, 0.04, 0.03)))
 		heart.rotation.z = PI * 0.25
 		_box(r, "Plaque%d" % i, Vector3(0.2, 0.2, 0.02), Vector3(x, 1.32, sz * 0.5 + 0.065), _flat(Color(0.86, 0.82, 0.62)))
-		_label(r, "M" if i == 0 else "Z", Vector3(x, 1.32, sz * 0.5 + 0.08), 0.2, Color(0.12, 0.1, 0.08))
+		_label(r, "M" if i == 0 else "Z", Vector3(x, 1.32, sz * 0.5 + 0.08), 0.15, Color(0.12, 0.1, 0.08))
 	# The WC board over the doors.
 	_box(r, "WCBoard", Vector3(0.9, 0.36, 0.04), Vector3(0, h - 0.05, sz * 0.5 + 0.06), _flat(Color(0.18, 0.16, 0.12)))
 	_label(r, "WC", Vector3(0, h - 0.05, sz * 0.5 + 0.09), 0.3, Color(0.95, 0.78, 0.2))
@@ -165,7 +171,7 @@ func _showers(r: Node3D, _w: float, _d: float) -> Dictionary:
 	# The enamel plate left of the door (the same plate as inside).
 	_box(r, "SignRim", Vector3(0.98, 0.36, 0.03), Vector3(-1.2, 1.78, front + 0.03), _flat(Color(0.16, 0.2, 0.36)))
 	_box(r, "SignPlate", Vector3(0.92, 0.3, 0.035), Vector3(-1.2, 1.78, front + 0.035), _flat(Color(0.92, 0.9, 0.82)))
-	_label(r, "SPRCHY", Vector3(-1.2, 1.78, front + 0.06), 0.2, Color(0.15, 0.25, 0.4))
+	_label(r, "SPRCHY", Vector3(-1.2, 1.78, front + 0.06), 0.17, Color(0.15, 0.25, 0.4))
 	# Outside on the left: a tap on its pipe, a bucket and a red basin on a duckboard.
 	var tap_z := front - 0.8
 	_box(r, "TapBoard", Vector3(0.42, 0.06, 0.9), Vector3(-sx * 0.5 - 0.23, 0.14, tap_z), _wood())
@@ -724,58 +730,108 @@ func _dumpsters(r: Node3D, _w: float, _d: float) -> Dictionary:
 
 ## Lv1 sun-bleached grey planks, Lv2 oxblood red, Lv3 dark creosote; the same tin roof
 ## patched with rust. Front +Z: the door between two windows. Returns the wall box.
-func cabin(r: Node3D, level: int, w: float, d: float, wall_h: float, roof_h: float) -> Vector3:
+func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h := 0.0) -> Vector3:
+	# One plan for the model and the room inside it (scripts/cabin_layout.gd): the windows
+	# are where the room has them, each tier a visible step up from the last.
+	#   Lv1  weathered grey boards, rust on the tin, a concrete block for a step, firewood
+	#   Lv2  boards painted red, white trim, a porch with a little roof over the door, a
+	#        flower box, the bathroom built on at the right
+	#   Lv3  stained dark boards, green shutters, the chimney of the stove inside, the TV
+	#        aerial, gutters, a deep porch with its bench and a lantern by the door
 	var lv := clampi(level, 1, 3)
+	var s: Vector2 = CL.size(lv)
+	var w := s.x
+	var d := s.y
+	var wall_h: float = CL.wall_h(lv)
+	var roof_h: float = CL.roof_rise(lv)
+	var top := wall_h + 0.1
 	var plank_file := ["planks_grey.png", "planks_red.png", "planks_dark.png"][lv - 1] as String
-	var tint := [Color(0.92, 0.9, 0.86), Color(0.95, 0.85, 0.82), Color(0.9, 0.86, 0.82)][lv - 1] as Color
+	var tint := [Color(0.86, 0.84, 0.8), Color(0.95, 0.85, 0.82), Color(0.92, 0.86, 0.8)][lv - 1] as Color
 	var walls := _camp(plank_file, tint, Vector3(1.4, 1.4, 1.0))
+	var trim: Material = _wood() if lv == 1 else _camp("planks_grey.png", Color(0.96, 0.95, 0.9) if lv == 2 else Color(0.86, 0.84, 0.76))
 	_plinth(r, w + 0.2, d + 0.2)
 	_box(r, "Walls", Vector3(w, wall_h, d), Vector3(0, wall_h * 0.5 + 0.1, 0), walls)
-	# Corner posts.
 	for x: float in [-w * 0.5, w * 0.5]:
 		for z: float in [-d * 0.5, d * 0.5]:
-			_box(r, "Corner", Vector3(0.14, wall_h, 0.14), Vector3(x, wall_h * 0.5 + 0.1, z), _wood())
-	var tin := _camp("corrugated_roof.png", Color(0.78, 0.74, 0.7), Vector3(1.6, 1.6, 1.0))
-	_gable_roof(r, Vector3(0, wall_h + 0.1, 0), w + 0.5, d + 0.7, roof_h, tin)
-	# Rust patches on the tin: Lv1 has the most.
+			_box(r, "Corner", Vector3(0.14, wall_h, 0.14), Vector3(x, wall_h * 0.5 + 0.1, z), trim)
+	var tin := _camp("corrugated_roof.png", [Color(0.7, 0.66, 0.62), Color(0.78, 0.74, 0.7), Color(0.56, 0.6, 0.56)][lv - 1] as Color, Vector3(1.6, 1.6, 1.0))
+	_gable_roof(r, Vector3(0, top, 0), w + 0.5, d + 0.7, roof_h, tin, walls)
+	# Rust on the tin: the basic cabin has the most, the best none.
 	var rust := _camp("corrugated_roof.png", Color(0.62, 0.36, 0.22), Vector3(1.6, 1.6, 1.0))
 	var ang := atan2(roof_h, (d + 0.7) * 0.5)
-	for i in 4 - lv:
+	for i in [3, 1, 0][lv - 1]:
 		var side := 1.0 if i % 2 == 0 else -1.0
-		var p := _box(r, "Rust%d" % i, Vector3(0.9 + 0.3 * i, 0.03, 0.7), Vector3(-w * 0.25 + i * w * 0.22, wall_h + 0.1 + roof_h * 0.56 + 0.06, side * (d + 0.7) * 0.22), rust)
+		var p := _box(r, "Rust%d" % i, Vector3(0.8 + 0.3 * i, 0.03, 0.6), Vector3(-w * 0.25 + i * w * 0.24, top + roof_h * 0.56 + 0.06, side * (d + 0.7) * 0.22), rust)
 		p.rotation.x = side * ang
 	var front := d * 0.5
-	_box(r, "Door", Vector3(0.82, 1.9, 0.06), Vector3(0, 1.05, front + 0.03), _camp("door_wood.png", Color(0.8, 0.72, 0.6)))
-	_box(r, "DoorFrame", Vector3(1.0, 2.05, 0.04), Vector3(0, 1.1, front + 0.01), _wood())
-	_box(r, "Step", Vector3(1.1, 0.16, 0.45), Vector3(0, 0.12, front + 0.3), _wood())
+	# The door in the middle of the front.
+	_box(r, "Door", Vector3(CL.DOOR_W, CL.DOOR_H, 0.06), Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5, front + 0.03), _camp("door_wood.png", [Color(0.74, 0.68, 0.6), Color(0.62, 0.78, 0.66), Color(0.82, 0.66, 0.54)][lv - 1] as Color))
+	_box(r, "DoorFrame", Vector3(CL.DOOR_W + 0.16, CL.DOOR_H + 0.12, 0.04), Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5 + 0.03, front + 0.01), trim)
 	# The cabin's number on an enamel plate right of the door (scripts/lodging_signs.gd).
-	r.set_meta("number_plate", Transform3D(Basis(), Vector3(0.8, 1.62, front + 0.04)))
-	# Windows where the room inside has them (cabin_interior.gd): two at the front either
-	# side of the door, one in the back wall over the table; on the right the basic cabin
-	# has a window, the better ones the bathroom built on there.
-	_window(r, Vector3(-w * 0.3, wall_h * 0.62, front + 0.02), Vector2(0.62, 0.56))
-	_window(r, Vector3(w * 0.3, wall_h * 0.62, front + 0.02), Vector2(0.62, 0.56))
-	_window(r, Vector3(0, wall_h * 0.62, -front - 0.02), Vector2(0.62, 0.56), PI)
-	if lv == 1:
-		_window(r, Vector3(w * 0.5 + 0.02, wall_h * 0.62, 0), Vector2(0.62, 0.56), PI * 0.5)
-	else:
-		_bathroom_annex(r, w, d, wall_h, walls, lv)
+	r.set_meta("number_plate", Transform3D(Basis(), Vector3(0.66, 1.72, front + 0.04)))
+	# The windows, as the room has them.
+	for win in CL.windows(lv):
+		var c: Vector3 = win["centre"]
+		var o: Vector3 = win["out"]
+		var yaw := atan2(o.x, o.z)
+		_window(r, c + o * 0.02, win["size"], yaw, trim)
+		if lv == 3 and str(win["wall"]) == "front":
+			# Green shutters folded back either side of it.
+			var sw: Vector2 = win["size"]
+			for sx: float in [-1.0, 1.0]:
+				_box(r, "Shutter", Vector3(sw.x * 0.5, sw.y + 0.1, 0.04), c + Vector3(sx * (sw.x * 0.75 + 0.1), 0, 0.05), _camp("planks_grey.png", Color(0.44, 0.62, 0.42)))
+	if CL.has_bath(lv):
+		_bathroom_annex(r, w, wall_h, walls, trim, tin, lv)
 	match lv:
 		1:
-			# A stack of firewood and an old bucket.
-			for i in 3:
-				_cyl(r, "Firewood", 0.1, 0.8, Vector3(-w * 0.5 - 0.3, 0.12 + i * 0.18, -0.4 + (i % 2) * 0.1), _psx_mat(Color(0.5, 0.36, 0.24), "tree_bark"), Vector3(PI * 0.5, 0, 0))
-		2:
-			# A porch board and a flower box under a window.
-			_box(r, "Porch", Vector3(w * 0.7, 0.1, 0.8), Vector3(0, 0.15, front + 0.45), _wood())
-			_box(r, "FlowerBox", Vector3(0.7, 0.16, 0.2), Vector3(w * 0.3, wall_h * 0.62 - 0.38, front + 0.12), _wood())
+			# A concrete block for a step, firewood stacked at the side, a bucket.
+			_box(r, "Step", Vector3(0.6, 0.2, 0.4), Vector3(0, 0.1, front + 0.3), _camp_or("concrete.png", Color(0.6, 0.6, 0.56), "stone"))
 			for i in 4:
-				_box(r, "Flower", Vector3(0.08, 0.12, 0.08), Vector3(w * 0.3 - 0.24 + i * 0.16, wall_h * 0.62 - 0.24, front + 0.12), _flat([Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.2)][i % 2]))
+				_cyl(r, "Firewood", 0.1, 0.8, Vector3(-w * 0.5 - 0.3, 0.12 + i * 0.18, -0.6 + (i % 2) * 0.1), _psx_mat(Color(0.5, 0.36, 0.24), "tree_bark"), Vector3(PI * 0.5, 0, 0))
+			_cyl(r, "Bucket", 0.16, 0.3, Vector3(w * 0.5 + 0.35, 0.15, front - 0.3), _metal())
+		2:
+			# A porch board with two posts and a little tin roof over the door, the flower box.
+			_porch(r, w * 0.62, 0.95, front, trim, tin, false)
+			_box(r, "FlowerBox", Vector3(CL.FRONT_WIN.x + 0.1, 0.16, 0.2), Vector3(CL.FRONT_WIN_X, CL.MODEL_FLOOR + CL.SILL_MID - CL.FRONT_WIN.y * 0.5 - 0.12, front + 0.13), _wood())
+			for i in 4:
+				_box(r, "Flower", Vector3(0.08, 0.12, 0.08), Vector3(CL.FRONT_WIN_X - 0.24 + i * 0.16, CL.MODEL_FLOOR + CL.SILL_MID - CL.FRONT_WIN.y * 0.5, front + 0.13), _flat([Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.2)][i % 2]))
 		3:
-			_box(r, "Chimney", Vector3(0.4, 1.2, 0.4), Vector3(w * 0.28, wall_h + roof_h * 0.6, -d * 0.18), _camp_or("brick_red.png", Color(0.6, 0.42, 0.36), "brick"))
-			_box(r, "Porch", Vector3(w * 0.8, 0.1, 0.9), Vector3(0, 0.15, front + 0.5), _wood())
-			_box(r, "Bench", Vector3(1.1, 0.06, 0.3), Vector3(-w * 0.28, 0.5, front + 0.55), _wood())
+			_porch(r, w * 0.9, 1.25, front, trim, tin, true)
+			# The stove's chimney over the front left corner, where the stove stands inside.
+			var cx := -w * 0.5 + 0.44
+			var cz := front - CL.STOVE_FROM_FRONT
+			var roof_at := top + roof_h * (1.0 - absf(cz) / ((d + 0.7) * 0.5))
+			_box(r, "Chimney", Vector3(0.42, 1.0, 0.42), Vector3(cx, roof_at + 0.32, cz), _camp_or("brick_red.png", Color(0.62, 0.44, 0.38), "brick"))
+			_box(r, "ChimneyCap", Vector3(0.52, 0.06, 0.52), Vector3(cx, roof_at + 0.85, cz), _metal())
+			# The TV's aerial on the ridge.
+			_cyl(r, "AerialMast", 0.02, 1.0, Vector3(w * 0.25, top + roof_h + 0.5, 0), _metal())
+			for i in 3:
+				_box(r, "AerialBar", Vector3(0.7 - i * 0.14, 0.02, 0.02), Vector3(w * 0.25, top + roof_h + 0.62 + i * 0.16, 0), _metal())
+			# Gutters along the eaves, a downpipe at the front corner.
+			for gz: float in [-1.0, 1.0]:
+				_box(r, "Gutter", Vector3(w + 0.5, 0.07, 0.1), Vector3(0, top - 0.02, gz * (d * 0.5 + 0.37)), _metal())
+			_box(r, "Downpipe", Vector3(0.07, top, 0.07), Vector3(w * 0.5 + 0.2, top * 0.5, front + 0.37), _metal())
 	return Vector3(w + 0.4, wall_h + roof_h + 0.3, d + 0.4)
+
+
+## The porch in front of the door: boards on the ground, two posts and a tin roof over the
+## door; `bench` the better one's bench under the right window and the lantern by the door.
+func _porch(r: Node3D, pw: float, pd: float, front: float, trim: Material, tin: Material, bench: bool) -> void:
+	_box(r, "Porch", Vector3(pw, 0.12, pd), Vector3(0, 0.12, front + pd * 0.5), _wood())
+	_box(r, "PorchStep", Vector3(1.0, 0.08, 0.3), Vector3(0, 0.05, front + pd + 0.15), _wood())
+	var post_h := CL.MODEL_FLOOR + CL.DOOR_H + 0.3
+	for px: float in [-pw * 0.5 + 0.08, pw * 0.5 - 0.08]:
+		_box(r, "PorchPost", Vector3(0.1, post_h, 0.1), Vector3(px, post_h * 0.5 + 0.1, front + pd - 0.08), trim)
+	var roof := _box(r, "PorchRoof", Vector3(pw + 0.2, 0.06, pd + 0.2), Vector3(0, post_h + 0.22, front + pd * 0.5), tin)
+	roof.rotation.x = 0.2
+	if bench:
+		_box(r, "Bench", Vector3(1.0, 0.06, 0.32), Vector3(CL.FRONT_WIN_X, 0.55, front + 0.3), _wood())
+		for bx: float in [-0.42, 0.42]:
+			_box(r, "BenchLeg", Vector3(0.06, 0.4, 0.28), Vector3(CL.FRONT_WIN_X + bx, 0.33, front + 0.3), _wood())
+		for rx: float in [-pw * 0.5 + 0.08, pw * 0.5 - 0.08]:
+			_box(r, "PorchRail", Vector3(0.06, 0.06, pd - 0.1), Vector3(rx, 0.95, front + pd * 0.5), trim)
+		var lamp := _box(r, "Lantern", Vector3(0.14, 0.2, 0.12), Vector3(-CL.DOOR_W * 0.5 - 0.22, CL.MODEL_FLOOR + 1.9, front + 0.08), _flat(Color(0.95, 0.86, 0.6)))
+		lamp.set_meta("porch_lantern", true)
 
 
 # ── tents (stan1/2/3.png): pegs, guy ropes, the door flap ─────────────────────
@@ -1249,6 +1305,40 @@ func _hammock(r: Node3D, _w: float, _d: float) -> Dictionary:
 
 
 ## A behaviour node on a model (the guests' use of it, a flag in the wind, a gnome).
+# ── the staffroom (scripts/staff/staffroom_plan.gd): its rooms behind real glass ──
+
+## The hut and its rooms as one (the same plan the room inside is built from), so from
+## the camp you see into it; what the camp's side drives (curtains, lamps, the hands on
+## the mattresses, the laptop's glow) is kept on the root (meta "staffroom") for
+## scripts/staff/staff_runtime.gd. Lamps: the tube in the lounge, the bulb in the boiler
+## room, the one over the door (off until the runtime puts them on).
+func _staffroom(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var plan = load("res://scripts/staff/staffroom_plan.gd")
+	var rooms := Node3D.new()
+	rooms.name = "StaffRooms"
+	r.add_child(rooms)
+	var refs: Dictionary = plan.build(rooms, true)
+	var lights := {}
+	for k in [["lounge", Vector3(-1.2, plan.FLOOR + plan.L_H - 0.3, 0.0), 6.0, Color(0.92, 0.96, 1.0)],
+			["boiler", Vector3(2.5, plan.FLOOR + plan.B_H - 0.45, 0.0), 4.0, Color(1.0, 0.82, 0.6)],
+			["door", Vector3(plan.DOOR_X, plan.FLOOR + plan.DOOR_H + 0.1, plan.L_MAX.y + plan.WALL + 0.35), 5.0, Color(1.0, 0.86, 0.6)]]:
+		var l := OmniLight3D.new()
+		l.name = "Lamp_" + str(k[0])
+		l.position = k[1]
+		l.omni_range = float(k[2])
+		l.light_color = k[3]
+		l.light_energy = 0.0
+		l.shadow_enabled = str(k[0]) != "door"
+		rooms.add_child(l)
+		lights[k[0]] = l
+	refs["lights"] = lights
+	r.set_meta("staffroom", refs)
+	r.add_to_group("staffroom")
+	var sx: float = plan.B_MAX.x + plan.WALL - (plan.L_MIN.x - plan.WALL)
+	var sz: float = plan.L_MAX.y - plan.L_MIN.y + 2.0 * plan.WALL
+	return {"size": Vector3(sx, plan.FLOOR + plan.L_H + 0.3, sz), "target": Vector3(plan.DOOR_X, 1.2, plan.L_MAX.y + plan.WALL + 0.1)}
+
+
 func _use_script(r: Node3D, path: String) -> void:
 	var n := Node3D.new()
 	n.name = "Use"
@@ -1302,8 +1392,9 @@ func _lean_roof(r: Node3D, sx: float, sz: float, y: float, rise: float, mat: Mat
 		r.add_child(tri)
 
 
-## A gable roof, ridge along X: two slabs and the end triangles.
-func _gable_roof(r: Node3D, at: Vector3, sx: float, sz: float, rise: float, mat: Material) -> void:
+## A gable roof, ridge along X: two slabs and the end triangles (`end_mat` for those, the
+## walls' boards on a cabin; else the roof's).
+func _gable_roof(r: Node3D, at: Vector3, sx: float, sz: float, rise: float, mat: Material, end_mat: Material = null) -> void:
 	var half := sz * 0.5
 	var slope := Vector2(half, rise).length()
 	var ang := atan2(rise, half)
@@ -1311,7 +1402,8 @@ func _gable_roof(r: Node3D, at: Vector3, sx: float, sz: float, rise: float, mat:
 		var slab := _box(r, "RoofSlab", Vector3(sx, 0.08, slope + 0.05), at + Vector3(0, rise * 0.5, side * half * 0.5), mat)
 		slab.rotation.x = side * ang
 	for side: float in [-1.0, 1.0]:
-		var gable := _gable_triangle(sz - 0.5, rise - 0.05, (mat as StandardMaterial3D) if mat is StandardMaterial3D else null)
+		var em: Material = end_mat if end_mat != null else mat
+		var gable := _gable_triangle(sz - 0.5, rise - 0.05, (em as StandardMaterial3D) if em is StandardMaterial3D else null)
 		gable.position = at + Vector3(side * (sx * 0.5 - 0.28), 0, 0)
 		r.add_child(gable)
 
@@ -1335,14 +1427,17 @@ func _prism(size: Vector3, mat: Material) -> MeshInstance3D:
 	return m
 
 
-## The triangle at a gable end (in the YZ plane), filled with the wall below it.
+## The triangle at a gable end (in the YZ plane), filled with the wall below it; both
+## faces (one side was culled: the cabins showed a hole under the roof from the side,
+## playtest 21. 10.).
 func _gable_triangle(base: float, rise: float, mat: StandardMaterial3D) -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var hz := base * 0.5
-	for p in [Vector3(0, 0, -hz), Vector3(0, 0, hz), Vector3(0, rise, 0)]:
-		st.set_uv(Vector2(p.z / base + 0.5, 1.0 - p.y / rise))
-		st.add_vertex(p)
+	for tri in [[Vector3(0, 0, -hz), Vector3(0, 0, hz), Vector3(0, rise, 0)], [Vector3(0, 0, hz), Vector3(0, 0, -hz), Vector3(0, rise, 0)]]:
+		for p: Vector3 in tri:
+			st.set_uv(Vector2(p.z / base + 0.5, 1.0 - p.y / rise))
+			st.add_vertex(p)
 	st.generate_normals()
 	var m := MeshInstance3D.new()
 	m.mesh = st.commit()
@@ -1368,8 +1463,8 @@ func _triangle(r: Node3D, pos: Vector3, size: float, color: Color) -> void:
 		r.add_child(m)
 
 
-func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0) -> void:
-	var frame := _box(r, "WindowFrame", Vector3(size.x + 0.12, size.y + 0.12, 0.05), pos, _wood())
+func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0, frame_mat: Material = null) -> void:
+	var frame := _box(r, "WindowFrame", Vector3(size.x + 0.12, size.y + 0.12, 0.05), pos, frame_mat if frame_mat != null else _wood())
 	frame.rotation.y = yaw
 	var glass_mat := _camp("window_curtain.png", Color(0.8, 0.84, 0.86))
 	# The whole picture on the pane, a quad over the frame's face (a box mapped by its
@@ -1384,20 +1479,23 @@ func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0) -> void:
 		(m as MeshInstance3D).layers = GLASS_LAYER
 
 
-## The bathroom of a better cabin, built on at the right: a lower plank box with a lean
-## tin roof and a small frosted window (its door is inside, cabin_interior.gd).
-func _bathroom_annex(r: Node3D, w: float, d: float, wall_h: float, walls: Material, lv: int) -> void:
-	var ax := 1.5
-	var az := d * 0.42
-	var ah := wall_h * 0.8
-	_box(r, "BathAnnex", Vector3(ax, ah, az), Vector3(w * 0.5 + ax * 0.5, ah * 0.5 + 0.1, 0), walls)
-	for z: float in [-az * 0.5, az * 0.5]:
-		_box(r, "BathCorner", Vector3(0.12, ah, 0.12), Vector3(w * 0.5 + ax, ah * 0.5 + 0.1, z), _wood())
-	var tin := _camp("corrugated_roof.png", Color(0.7, 0.66, 0.62) if lv == 2 else Color(0.62, 0.6, 0.58), Vector3(1.0, 1.0, 1.0))
-	var roof := _box(r, "BathRoof", Vector3(ax + 0.35, 0.06, az + 0.4), Vector3(w * 0.5 + ax * 0.5 + 0.1, ah + 0.22, 0), tin)
+## The bathroom of a better cabin, built on at the right where the room has its door
+## (scripts/cabin_layout.gd ANNEX): a lower box of the same boards under a lean tin roof,
+## a small frosted window, the vent pipe.
+func _bathroom_annex(r: Node3D, w: float, _wall_h: float, walls: Material, trim: Material, tin: Material, lv: int) -> void:
+	var box: AABB = CL.annex_box(lv)
+	var ax := box.size.x
+	var az := box.size.z
+	var ah := box.size.y
+	var cx := box.position.x + ax * 0.5
+	var cz := box.position.z + az * 0.5
+	_box(r, "BathAnnex", Vector3(ax, ah, az), Vector3(cx, ah * 0.5 + 0.1, cz), walls)
+	for z: float in [cz - az * 0.5, cz + az * 0.5]:
+		_box(r, "BathCorner", Vector3(0.12, ah, 0.12), Vector3(w * 0.5 + ax, ah * 0.5 + 0.1, z), trim)
+	var roof := _box(r, "BathRoof", Vector3(ax + 0.35, 0.06, az + 0.4), Vector3(cx + 0.1, ah + 0.22, cz), tin)
 	roof.rotation.z = -0.22
-	_window(r, Vector3(w * 0.5 + ax + 0.02, ah * 0.72, 0), Vector2(0.36, 0.3), PI * 0.5)
-	_cyl(r, "BathPipe", 0.04, ah * 0.9, Vector3(w * 0.5 + ax + 0.06, ah * 0.45 + 0.1, az * 0.38), _metal())
+	_window(r, Vector3(w * 0.5 + ax + 0.02, CL.MODEL_FLOOR + 1.62, cz), CL.BATH_WIN, PI * 0.5, trim)
+	_cyl(r, "BathPipe", 0.04, ah * 0.9, Vector3(w * 0.5 + ax + 0.06, ah * 0.45 + 0.1, cz + az * 0.38), _metal())
 
 
 func _label(r: Node3D, text: String, pos: Vector3, height_m: float, color: Color, yaw := 0.0) -> Label3D:
@@ -1414,6 +1512,15 @@ func _label(r: Node3D, text: String, pos: Vector3, height_m: float, color: Color
 	l.position = pos
 	l.rotation.y = yaw
 	r.add_child(l)
+	# The board it is painted on stays behind it (retro_materials pulls thin boards forward).
+	var behind := pos - Basis(Vector3.UP, yaw) * Vector3(0, 0, 0.05)
+	for c in r.get_children():
+		var mi := c as MeshInstance3D
+		if mi != null and mi.mesh is BoxMesh:
+			var local: Vector3 = mi.transform.affine_inverse() * behind
+			var half: Vector3 = (mi.mesh as BoxMesh).size * 0.5 + Vector3(0.02, 0.02, 0.06)
+			if absf(local.x) <= half.x and absf(local.y) <= half.y and absf(local.z) <= half.z:
+				mi.set_meta("retro_no_pull", true)
 	return l
 
 
@@ -1536,6 +1643,121 @@ func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
 	for x: float in [-1.95, -0.85]:
 		_box(r, "BenchLeg", Vector3(0.06, 0.45, 0.32), Vector3(x, 0.24, front + 1.5), _wood())
 	return {"size": Vector3(sx + 0.6, h + 0.5, sz + 0.6), "target": Vector3(0.0, 1.2, front + 0.3)}
+
+# ── the bowling alley (the user 21. 10.): a 1970s concrete box the camp has tried to
+#    brand as its bowling alley. Grok's painted walls (bowling_front, _side_a/_b, _back:
+#    the stripes, the mural, the plywood pin, the string of coloured bulbs, which light up
+#    at night from bowling_front_glow.png), BOWLING painted on the board over the door,
+#    KUŽELKY in red neon tubes on a steel frame on the roof (lettering.py "kuzelky"), and a
+#    three-metre fibreglass pin up there with it; scripts/bowling/bowling_sign.gd lights
+#    the neon and the bulbs with the camp's lamps.
+
+const PIN_MESH = preload("res://scripts/bowling/pin_mesh.gd")
+const BOWLING_SIGN = preload("res://scripts/bowling/bowling_sign.gd")
+const TOWN := "res://assets/textury/town/"
+## Where things are on bowling_front.png (shares of the front's width from its middle, of
+## its height from the ground): the door, and the empty board over it.
+const BOWLING_DOOR_X := -0.271
+const BOWLING_BOARD := Vector2(-0.263, 0.738)
+
+
+func _bowling(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var sx := 10.4
+	var sz := 17.6
+	var h := 5.2
+	var front := sz * 0.5
+	var y0 := 0.1
+	var concrete: Material = _camp_or("concrete.png", Color(0.6, 0.59, 0.57), "wall", Vector3(4.0, 1.6, 1.0))
+	_plinth(r, sx + 0.3, sz + 0.3)
+	_box(r, "Hall", Vector3(sx, h, sz), Vector3(0, h * 0.5 + y0, 0), concrete)
+	# The heavy slab of the roof, out over the walls all round.
+	var roof_top := y0 + h + 0.4
+	_box(r, "Roof", Vector3(sx + 0.7, 0.4, sz + 0.7), Vector3(0, roof_top - 0.2, 0), _camp_or("concrete.png", Color(0.42, 0.41, 0.4), "roof", Vector3(4.0, 1.0, 6.0)))
+	var bulbs: Array = []
+	if ResourceLoader.exists(CAMP + "bowling_front.png"):
+		var fm := _face_mat("bowling_front.png")
+		if ResourceLoader.exists(CAMP + "bowling_front_glow.png"):
+			# The glow map alone lights (emission added to a black colour, as the town's signs).
+			fm.emission_enabled = true
+			fm.emission = Color(0, 0, 0)
+			fm.emission_texture = load(CAMP + "bowling_front_glow.png")
+			fm.emission_energy_multiplier = 0.0
+			bulbs.append(fm)
+		_quad(r, "BowlingFront", Vector2(sx, h), Vector3(0, h * 0.5 + y0, front + 0.012), 0.0, fm)
+	# Each long wall in two pictures: the mural by the front, the plain rear with the
+	# cellar's window, where the camp's painted stripe runs out. The left wall has them
+	# mirrored, so on both the stripe comes from the front and stops half way.
+	for side: float in [-1.0, 1.0]:
+		for part in [["bowling_side_a.png", sz * 0.25], ["bowling_side_b.png", -sz * 0.25]]:
+			if ResourceLoader.exists(CAMP + str(part[0])):
+				var sm := _face_mat(str(part[0]))
+				if side < 0.0:
+					sm.uv1_scale = Vector3(-1.0, 1.0, 1.0)
+				_quad(r, "BowlingSide", Vector2(sz * 0.5, h), Vector3(side * (sx * 0.5 + 0.012), h * 0.5 + y0, float(part[1])), side * PI * 0.5, sm)
+	if ResourceLoader.exists(CAMP + "bowling_back.png"):
+		_quad(r, "BowlingBack", Vector2(sx, h), Vector3(0, h * 0.5 + y0, -front - 0.012), PI, _face_mat("bowling_back.png"))
+	var door_x := sx * BOWLING_DOOR_X
+	# BOWLING painted on the board over the door, and the step up to it.
+	var board := TOWN + "sign_bowling.png"
+	if ResourceLoader.exists(board):
+		var bt: Texture2D = load(board)
+		var bw := 1.6
+		_quad(r, "SignBOWLING", Vector2(bw, bw * float(bt.get_height()) / float(bt.get_width())),
+			Vector3(sx * BOWLING_BOARD.x, y0 + h * BOWLING_BOARD.y, front + 0.03), 0.0, _cut_face(board))
+	_box(r, "Step", Vector3(1.8, 0.14, 0.7), Vector3(door_x, 0.07, front + 0.35), _psx_mat(Color(0.58, 0.57, 0.55), "stone"))
+	# KUŽELKY in red neon tubes on a steel frame along the roof's front edge.
+	var neon: StandardMaterial3D = null
+	var letters := TOWN + "sign_kuzelky.png"
+	var nsz := Vector2(4.6, 1.8)
+	if ResourceLoader.exists(letters):
+		var lt: Texture2D = load(letters)
+		nsz = Vector2(4.6, 4.6 * float(lt.get_height()) / float(lt.get_width()))
+		neon = _cut_face(letters)
+		neon.cull_mode = BaseMaterial3D.CULL_BACK
+		var glow := TOWN + "sign_kuzelky_glow.png"
+		if ResourceLoader.exists(glow):
+			neon.emission_enabled = true
+			neon.emission = Color(0, 0, 0)
+			neon.emission_texture = load(glow)
+			neon.emission_energy_multiplier = 0.0
+		_quad(r, "NeonKUZELKY", nsz, Vector3(1.2, roof_top + 0.25 + nsz.y * 0.5, front - 0.1), 0.0, neon)
+	for x: float in [-1.6, 0.0, 1.6]:
+		_box(r, "NeonPost", Vector3(0.06, nsz.y + 0.3, 0.06), Vector3(1.2 + x, roof_top + (nsz.y + 0.3) * 0.5, front - 0.22), _metal())
+	_box(r, "NeonRail", Vector3(nsz.x - 0.2, 0.06, 0.06), Vector3(1.2, roof_top + 0.22, front - 0.2), _metal())
+	var light := OmniLight3D.new()
+	light.name = "NeonLight"
+	light.light_color = Color(1.0, 0.24, 0.3)
+	light.omni_range = 9.0
+	light.light_energy = 0.0
+	light.visible = false
+	light.position = Vector3(1.2, roof_top + 0.4, front + 1.6)
+	r.add_child(light)
+	# The fibreglass pin on the roof, a little out of true, on its steel stays.
+	var pin := MeshInstance3D.new()
+	pin.name = "RoofPin"
+	pin.mesh = PIN_MESH.mesh(3.0, 12)
+	pin.material_override = PIN_MESH.material()
+	var px := -sx * 0.5 + 1.4
+	pin.position = Vector3(px, roof_top, front - 1.4)
+	pin.rotation = Vector3(0.0, 0.4, 0.05)
+	r.add_child(pin)
+	for x: float in [-0.5, 0.5]:
+		_box(r, "PinStay", Vector3(0.06, 1.7, 0.06), Vector3(px + x, roof_top + 0.85, front - 2.05), _metal())
+	_box(r, "PinStayBar", Vector3(1.1, 0.06, 0.06), Vector3(px, roof_top + 1.6, front - 2.05), _metal())
+	# By the door: a bench and a bin.
+	_box(r, "BenchSeat", Vector3(1.4, 0.06, 0.36), Vector3(door_x + 2.6, 0.48, front + 0.9), _wood())
+	for x: float in [-0.55, 0.55]:
+		_box(r, "BenchLeg", Vector3(0.06, 0.45, 0.32), Vector3(door_x + 2.6 + x, 0.24, front + 0.9), _wood())
+	_box(r, "Bin", Vector3(0.4, 0.7, 0.4), Vector3(door_x + 1.3, 0.36, front + 0.5), _psx_mat(Color(0.25, 0.32, 0.26), "metal"))
+	# The neon, the bulbs and the hum come and go with the camp's lamps.
+	var sign := Node3D.new()
+	sign.name = "BowlingSign"
+	sign.set_script(BOWLING_SIGN)
+	sign.position = Vector3(1.2, roof_top + 0.6, front)
+	r.add_child(sign)
+	sign.call("setup", neon, bulbs, light)
+	return {"size": Vector3(sx + 0.7, h + 0.6, sz + 0.7), "target": Vector3(door_x, 1.2, front + 0.3)}
+
 
 ## A Grok sprite on a quad, its background keyed out.
 func _cut_face(path: String) -> StandardMaterial3D:

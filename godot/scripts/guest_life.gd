@@ -26,7 +26,8 @@ const MAINT_RULES := preload("res://core/systems/maintenance_rules.gd")
 const FILTHY_MOOD := 5.0
 
 const MAX_CHUNK_MINUTES := 20
-const QUEUE_GIVE_UP_MINUTES := 16
+## Raised 21. 10. (playtest: "the guests have too little patience, it is hard").
+const QUEUE_GIVE_UP_MINUTES := 30
 const MAX_THOUGHT_LOG := 24
 const LAMP_LIGHT_RADIUS := 3
 
@@ -36,6 +37,10 @@ var _facility_by_key: Dictionary = {}
 var _usage: Dictionary = {}
 var _lamp_tiles: Array[Vector2i] = []
 var _path_tiles: Array[Vector2i] = []
+## Ground a guest has no business on, even strolling (playtest 21. 10.: guests went into
+## the staffroom, which is the hands' own).
+const STAFF_ONLY := ["staffroom", "power_generator", "sewer"]
+var _staff_only_tiles: Dictionary = {}
 var _gate: Vector2i = Vector2i(10, 2)
 ## Ways out of the camp: the gate road, the forest edges and the lake shore. Idle guests
 ## leave by them for hours ("Twenty guests, so where is everybody?").
@@ -105,9 +110,12 @@ func refresh_world(state, registry) -> void:
 		_facility_by_key[str(f["key"])] = f
 	_lamp_tiles.clear()
 	_path_tiles.clear()
+	_staff_only_tiles.clear()
 	for coord_any in grid.cells.keys():
 		var cell: Dictionary = grid.cells[coord_any]
 		var type := str(cell.get("type", ""))
+		if type in STAFF_ONLY:
+			_staff_only_tiles[coord_any] = true
 		if type == "lamp_post":
 			_lamp_tiles.append(coord_any)
 		elif type == "path":
@@ -725,6 +733,8 @@ func _wander_target(here: Vector2i, guest: Dictionary) -> Vector2i:
 	var target := anchor + Vector2i(_rng.randi_range(-4, 4), _rng.randi_range(-4, 4))
 	target.x = clampi(target.x, 1, _grid_size.x - 2)
 	target.y = clampi(target.y, 1, _grid_size.y - 3)
+	if _staff_only_tiles.has(target):
+		return _path_tiles[_rng.randi_range(0, _path_tiles.size() - 1)] if not _path_tiles.is_empty() else here
 	return target
 
 

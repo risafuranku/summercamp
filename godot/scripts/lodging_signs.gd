@@ -22,7 +22,8 @@ const SIGN_CLEAN := "res://assets/textury/world/sign_clean.png"
 const SIGN_BED := "res://assets/textury/world/sign_bed.png"
 ## The marker's size (20 px pictures: about 0.7 m, near the upkeep triangle's) and how far over the roof.
 const SIGN_PX := 0.034
-const SIGN_OVER := 0.75
+## (Lower from 21. 10.: they floated too high over the roofs.)
+const SIGN_OVER := 0.4
 
 var _acc := POLL
 var _wood: StandardMaterial3D
@@ -115,7 +116,8 @@ func _marker_tex(kind: String) -> Texture2D:
 	return _sign_tex[kind]
 
 
-## The top middle of the building (its meshes' box; not the markers' own sprites).
+## The top middle of the building (its meshes' box; not the markers' own sprites, nor
+## the thin things over the roof, an aerial or a chimney, which lifted the marker high).
 func _top_of(s: Node3D) -> Vector3:
 	var out := AABB()
 	var first := true
@@ -125,8 +127,9 @@ func _top_of(s: Node3D) -> Vector3:
 		var vi := n as VisualInstance3D
 		if vi != null and not (vi is Sprite3D) and not (vi is Label3D):
 			var box: AABB = vi.global_transform * vi.get_aabb()
-			out = box if first else out.merge(box)
-			first = false
+			if box.size.x > 0.6 or box.size.z > 0.6:
+				out = box if first else out.merge(box)
+				first = false
 		for c in n.get_children():
 			if c.name != "NumberSign":
 				stack.append(c)

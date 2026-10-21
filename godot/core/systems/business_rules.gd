@@ -109,6 +109,14 @@ const KINDS := {
 		},
 		"wants": {"cobs": 0.7, "tea": 0.15, "limo": 0.15},
 	},
+	# The staffroom's hands (core/systems/staff_rules.gd): no shelves, no building of this
+	# kind (not in KIND_OF); here for the wage, the program and its licence.
+	"staff": {
+		"name": "Staffroom", "wage": 28, "hand": [],
+		"app": "staff_app", "app_name": "Personal 98", "licence": 90,
+		"goods": {},
+		"wants": {},
+	},
 }
 ## What a dish or a drink takes off the shelf (the counter games' names).
 const RECIPES := {
@@ -384,20 +392,20 @@ static func role_label(kind: String, role: String) -> String:
 ## The people who come asking for work: slug (their ID photo, their sprites) -> {name,
 ## asks (the places they ask at), sex}. The last two nobody quite remembers.
 const PEOPLE := {
-	"dvorakova": {"name": "Mrs Dvorakova", "asks": ["rest", "vecerka"]},
+	"dvorakova": {"name": "Mrs Dvorakova", "asks": ["rest", "vecerka", "staff"]},
 	"pepa": {"name": "Pepa", "asks": ["rest", "pub"]},
-	"hanka": {"name": "Hanka", "asks": ["rest", "pub", "vecerka"]},
+	"hanka": {"name": "Hanka", "asks": ["rest", "pub", "vecerka", "staff"]},
 	"lojza": {"name": "Lojza", "asks": ["pub"]},
 	"franta": {"name": "Franta", "asks": ["pub", "corn"]},
-	"mirek": {"name": "Mirek", "asks": ["pub", "rest", "vecerka"]},
+	"mirek": {"name": "Mirek", "asks": ["pub", "rest", "vecerka", "staff"]},
 	"novakova": {"name": "Mrs Novakova", "asks": ["vecerka"]},
-	"zdenka": {"name": "Zdenka", "asks": ["vecerka", "rest"]},
-	"ivan": {"name": "Ivan", "asks": ["vecerka", "pub"]},
+	"zdenka": {"name": "Zdenka", "asks": ["vecerka", "rest", "staff"]},
+	"ivan": {"name": "Ivan", "asks": ["vecerka", "pub", "staff"]},
 	"pepicek": {"name": "Pepicek", "asks": ["corn", "vecerka"]},
 	"klara": {"name": "Klara", "asks": ["corn", "rest"]},
 	"novak_boy": {"name": "the Novak boy", "asks": ["corn"]},
-	"jaromir": {"name": "Jaromir", "asks": ["rest", "pub", "vecerka"], "strange": "night"},
-	"marta": {"name": "Marta", "asks": ["vecerka", "rest", "corn"], "strange": "unseen"},
+	"jaromir": {"name": "Jaromir", "asks": ["rest", "pub", "vecerka", "staff"], "strange": "night"},
+	"marta": {"name": "Marta", "asks": ["vecerka", "rest", "corn", "staff"], "strange": "unseen"},
 }
 ## The speeds: seconds a hand takes over one piece of work, and how often it goes wrong.
 const SPEED_SEC := [9.0, 6.0, 4.0]
@@ -458,6 +466,16 @@ static func applicants(kind: String, key: String, day: int, taken: Array, seed :
 		else:
 			pool.append(slug)
 	pool.sort()
+	# The staffroom takes anyone for the brooms and the bins: when those who ask for it are
+	# all taken by the businesses, the others not in work come too (its list was empty:
+	# playtest 21. 10.).
+	if kind == "staff" and pool.size() < 3:
+		var more: Array = []
+		for slug in PEOPLE:
+			if not taken.has(slug) and not pool.has(slug) and str(PEOPLE[slug].get("strange", "")) == "":
+				more.append(slug)
+		more.sort()
+		pool.append_array(more)
 	var out: Array = []
 	var h := absi(hash("%s|%s|%d|%d" % [kind, key, day, seed]))
 	for i in mini(3, pool.size()):

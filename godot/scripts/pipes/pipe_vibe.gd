@@ -31,7 +31,12 @@ const GRATE := "res://assets/textury/pipes/sewer_grate.png"
 var host
 var rng := RandomNumberGenerator.new()
 var _level := 1
-var _breath_fx: GPUParticles3D
+## Your breath: the same puffs as in the camp (scripts/ambient/player_breath.gd's shader,
+## picture, size and life, stepped twelve a second), in the torch's light; soft round
+## blobs here were another breath than the one outside (playtest 21. 10.).
+const BREATH = preload("res://scripts/ambient/player_breath.gd")
+var _puffs: Array = []              # {mesh, mat, t, vel}
+var _puff_acc := 0.0
 var _motes: GPUParticles3D
 var _splash_fx: GPUParticles3D
 var _breath_t := 0.0
@@ -112,13 +117,22 @@ func on_pull(idx: int) -> void:
 # ── breath and dust ───────────────────────────────────────────────────────────
 
 func _build_fx() -> void:
-	if _breath_fx == null:
-		_breath_fx = _particles(14, 1.7, Vector3(0.0, 0.25, -1.0), 22.0, Vector2(0.14, 0.28), Vector3(0, 0.05, 0), 0.09, Color(0.7, 0.72, 0.7, 0.035), true)
-		_breath_fx.one_shot = true
-		_breath_fx.explosiveness = 0.55
-		_breath_fx.local_coords = false
-		host._camera.add_child(_breath_fx)
-		_breath_fx.position = Vector3(0.0, -0.09, -0.34)
+	if _puffs.is_empty() or not is_instance_valid(_puffs[0]["mesh"]):
+		_puffs.clear()
+		for i in 3:
+			var mi := MeshInstance3D.new()
+			var q := QuadMesh.new()
+			q.size = Vector2(1.0, 1.0)
+			mi.mesh = q
+			var m := ShaderMaterial.new()
+			m.shader = BREATH.PUFF_SHADER
+			m.set_shader_parameter("seed", float(i) * 1.7)
+			m.set_shader_parameter("puff", load(BREATH.PUFF_TEX))
+			mi.material_override = m
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.visible = false
+			host._camera.add_child(mi)
+			_puffs.append({"mesh": mi, "mat": m, "t": -1.0, "vel": Vector3.ZERO})
 	if _motes == null:
 		_motes = _particles(70, 7.0, Vector3(0, 0, 0), 180.0, Vector2(0.0, 0.03), Vector3(0, -0.005, 0), 0.01, Color(0.95, 0.92, 0.8, 0.5), true)
 		var pm: ParticleProcessMaterial = _motes.process_material
@@ -195,15 +209,52 @@ func _soft_dot() -> GradientTexture2D:
 
 ## Your breath in the cold, in front of your face: faster and harder as it winds you up.
 func _update_breath(dt: float) -> void:
-	if _breath_fx == null:
+	if _puffs.is_empty():
 		return
 	var tension: float = host._director.tension if host._director != null else 0.0
 	_breath_t -= dt
 	if _breath_t <= 0.0:
 		_breath_t = lerpf(3.4, 1.3, tension) * rng.randf_range(0.85, 1.15)
-		_breath_fx.amount = int(lerpf(10.0, 22.0, tension))
-		_breath_fx.restart()
-		_breath_fx.emitting = true
+		_puff(tension > 0.6)
+	_puff_acc += dt
+	if _puff_acc < 1.0 / BREATH.FPS:
+		return
+	var step := _puff_acc
+	_puff_acc = 0.0
+	# As bright as the light it is in: the torch's, else hardly there.
+	var torch_on: bool = host._flashlight != null and host._flashlight.visible
+	var light := 0.7 if torch_on else 0.08
+	for p in _puffs:
+		if float(p["t"]) < 0.0:
+			continue
+		p["t"] = float(p["t"]) + step
+		var k := float(p["t"]) / BREATH.LIFE
+		var mi: MeshInstance3D = p["mesh"]
+		if k >= 1.0:
+			p["t"] = -1.0
+			mi.visible = false
+			continue
+		mi.position += (p["vel"] as Vector3) * step
+		var size := lerpf(BREATH.SIZE_FROM, BREATH.SIZE_TO, k)
+		mi.scale = Vector3(size, size, size)
+		(p["mat"] as ShaderMaterial).set_shader_parameter("fade", (1.0 - k) * 0.8)
+		(p["mat"] as ShaderMaterial).set_shader_parameter("light", light)
+
+
+func _puff(hard: bool) -> void:
+	for p in _puffs:
+		if float(p["t"]) >= 0.0:
+			continue
+		var mi: MeshInstance3D = p["mesh"]
+		mi.position = Vector3(rng.randf_range(-0.04, 0.04), -0.22, -0.6)
+		# No wind down here: up into the crown, slowly, a little forward.
+		p["vel"] = Vector3(rng.randf_range(-0.05, 0.05), 0.14, -0.3 if not hard else -0.45)
+		p["t"] = 0.0
+		mi.scale = Vector3.ONE * BREATH.SIZE_FROM
+		(p["mat"] as ShaderMaterial).set_shader_parameter("seed", rng.randf() * 10.0)
+		(p["mat"] as ShaderMaterial).set_shader_parameter("fade", 0.8)
+		mi.visible = true
+		return
 
 
 # ── places and sound ─────────────────────────────────────────────────────────
@@ -244,6 +295,9 @@ func _crown_y() -> float:
 	return host.ARM_R * 0.9 + host.ARM_R * 0.97
 
 
+const RAIN_STREAK := "res://assets/textury/world/rain_streak.png"
+
+
 ## A street grate in the junction's crown: moonlight in stripes, drops, the street above.
 func _grate(c: Vector2i, r: RandomNumberGenerator) -> void:
 	var p: Vector3 = host._world_pos(c)
@@ -281,6 +335,23 @@ func _grate(c: Vector2i, r: RandomNumberGenerator) -> void:
 	var pm: ParticleProcessMaterial = drops.process_material
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	pm.emission_box_extents = Vector3(0.22, 0.01, 0.22)
+	# Falling streaks of water as the rain's are drawn (they were little blue squares on
+	# the crown: playtest 21. 10.), grey, seen only in the light.
+	pm.particle_flag_align_y = true
+	pm.scale_min = 1.0
+	pm.scale_max = 1.0
+	var streak := QuadMesh.new()
+	streak.size = Vector2(0.012, 0.11)
+	var sm := StandardMaterial3D.new()
+	if ResourceLoader.exists(RAIN_STREAK):
+		sm.albedo_texture = load(RAIN_STREAK)
+	sm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	sm.vertex_color_use_as_albedo = true
+	sm.albedo_color = Color(0.62, 0.64, 0.66, 0.55)
+	streak.material = sm
+	drops.draw_pass_1 = streak
 	host._geo.add_child(drops)
 	drops.position = Vector3(p.x, top - 0.05, p.z)
 	drops.emitting = true

@@ -18,7 +18,14 @@ extends Node3D
 
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const DOOM = preload("res://scripts/figures/doom_figure.gd")
+const BOAT_RIG = preload("res://scripts/lake/boat_rig.gd")
 const SPRITE_HEIGHT_M := 1.74
+## On their feet they are drawn this much smaller than the poses below say, so that their
+## eyes are where yours are (1.45 m over the ground: player_controller STANCE_CAPSULE;
+## they were looked at in the belly, playtest 21. 10.). Seated and lying they fit the
+## furniture as they are.
+const FIGURE_SCALE := 0.91
+const STANDING := ["stand", "sweep", "crouch", "kick", "bat", "climb", "fix", "fish", "tap", "pour", "wash", "cook", "till", "bag"]
 ## How tall each pose is drawn (its picture is that tall from top to bottom edge).
 const POSE_HEIGHT := {"stand": 1.74, "row": 1.3, "sweep": 1.6, "crouch": 1.2, "prone": 0.62, "desk": 1.32,
 	"sit": 1.3, "guitar": 1.3, "eat": 1.3, "swing": 1.36, "kick": 1.7, "bat": 1.6, "climb": 1.86,
@@ -157,7 +164,11 @@ func set_look(p_model: int, p_color: int) -> void:
 			_sprite.remove_meta("doom")
 		_doom = null
 	elif _doom == null or _doom.data != set:
-		_doom = DOOM.new(_sprite, set, SPRITE_HEIGHT_M, LOOKS.atlas(model, color))
+		_doom = DOOM.new(_sprite, set, SPRITE_HEIGHT_M * FIGURE_SCALE, LOOKS.atlas(model, color))
+		# Seated (not on their feet) at full size, as their old pictures are.
+		for a in (set.get("anims", {}) as Dictionary):
+			if not (str(a) in STANDING or str(a) in ["walk", "run", "idle"]):
+				_doom.anim_k[a] = 1.0 / FIGURE_SCALE
 	else:
 		_doom.set_texture(LOOKS.atlas(model, color))
 	_apply_pose(pose, true)
@@ -185,7 +196,8 @@ func _apply_pose(p: String, force := false) -> void:
 		if POSE_WIDTH.has(pose):
 			_sprite.pixel_size = float(POSE_WIDTH[pose]) / float(tex.get_width())
 		else:
-			_sprite.pixel_size = float(POSE_HEIGHT.get(pose, SPRITE_HEIGHT_M)) / float(tex.get_height())
+			var k := FIGURE_SCALE if pose in STANDING else 1.0
+			_sprite.pixel_size = float(POSE_HEIGHT.get(pose, SPRITE_HEIGHT_M)) * k / float(tex.get_height())
 		_sprite.offset = Vector2(0.0, tex.get_height() * 0.5)
 	# Seated in the boat the hull is their shadow; in bed and at the counter, the furniture.
 	_shadow.visible = not (pose in ["row", "bed", "bedfoot", "write"])
@@ -257,19 +269,22 @@ func _process(delta: float) -> void:
 		var going := was.origin.distance_to(boat.origin) / maxf(span, 0.05) > 0.3
 		visible = true
 		_apply_pose("row")
-		# Boots on the bottom boards: the hull hides their shins.
-		global_transform = Transform3D(Basis(), boat * Vector3(0.0, 0.06, -0.1))
-		_animate_row(going)
+		# On the aft thwart of this machine's boat (it goes where theirs does and rides the
+		# swell: scripts/lake/boat_rig.gd), boots on the bottom boards.
+		global_transform = Transform3D(Basis(), _seat_in_boat(boat, BOAT_RIG.ROWER_FEET))
+		var rp = sb.get("rp", [])
+		_animate_row(going, float(rp[0]) if rp is Array and (rp as Array).size() >= 4 else -2.0,
+			int(rp[2]) if rp is Array and (rp as Array).size() >= 4 else 1)
 		_beam.visible = false
 		_halo.visible = false
 		_lens.visible = false
 		_update_steps(true)
 		return
 	if sb.get("ride") is Transform3D:
-		# A passenger in the bow of your boat, facing you.
+		# A passenger on the bow seat of your boat, facing you.
 		visible = true
 		_apply_pose("sit")
-		global_transform = Transform3D(Basis(), (sb["ride"] as Transform3D) * Vector3(0.0, 0.0, 0.95))
+		global_transform = Transform3D(Basis(), _seat_in_boat(sb["ride"] as Transform3D, BOAT_RIG.BOW_FEET))
 		_sprite.position = Vector3.ZERO
 		_sprite.rotation.z = 0.0
 		_shadow.visible = false
@@ -414,15 +429,37 @@ func _animate() -> void:
 		_sprite.rotation.z = sin(floorf(_time * ANIM_FPS) / ANIM_FPS * 0.8) * 0.01
 
 
-## In the boat: a stroke, in steps (down into the pull and up again), while it goes.
-func _animate_row(going: bool) -> void:
+## In the boat: leaning into each stroke as their oars go (`u` the stroke's phase they
+## sent, boat_rig.gd; -2 when they sent none: in steps while the boat goes), in steps.
+func _animate_row(going: bool, u := -2.0, dir := 1) -> void:
 	_sprite.rotation.z = 0.0
 	_sprite.flip_h = false
+	if u > -1.5:
+		var lean := 0.0
+		if u >= 0.0 and u < BOAT_RIG.RELEASE:
+			lean = sin(PI * u / BOAT_RIG.RELEASE) * float(dir)
+		_sprite.position.y = -0.04 * floorf(absf(lean) * 4.0) / 4.0
+		return
 	if not going:
 		_sprite.position.y = 0.0
 		return
 	var ph := floorf(_time * ANIM_FPS) / ANIM_FPS * 0.8 * TAU
 	_sprite.position.y = -0.05 * (0.5 + 0.5 * sin(ph))
+
+
+var _lake_cache: Node
+
+
+## A seat of the boat as this machine has it (its hull rocking under them), or of the boat
+## as their state put it when there is none here.
+func _seat_in_boat(state_xf: Transform3D, seat: Vector3) -> Vector3:
+	if _lake_cache == null or not is_instance_valid(_lake_cache):
+		_lake_cache = get_tree().root.find_child("CampLake", true, false)
+	var boat = _lake_cache.get("boat") if _lake_cache != null else null
+	var rig = (boat as Node).get_node_or_null("BoatRig") if boat != null and is_instance_valid(boat) else null
+	if rig != null and rig.get("hull") != null:
+		return (rig.hull as Node3D).global_transform * seat
+	return state_xf * seat
 
 
 ## A room's copy walking (through the office's doorways): the stepped walk.

@@ -3,10 +3,13 @@ extends CanvasLayer
 ## The room swipe is a smooth push (scripts/ui/room_push.gd).
 const ROOM_PUSH = preload("res://scripts/ui/room_push.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
-const SLOP_BUCKET_POS := Vector3(1.12, 0.05, 0.62)
+## The cabin's plan, the same for the room and the model outside (scripts/cabin_layout.gd).
+const CABIN_LAYOUT = preload("res://scripts/cabin_layout.gd")
+const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
+const SLOP_BUCKET_POS := Vector3(1.32, 0.05, 1.05)
 ## The bed: frame centre on the floor, and the top of its mattress.
-const BED_POS := Vector3(-1.0, 0.05, -0.6)
-const BED_TOP := 0.59
+const BED_POS := CABIN_LAYOUT.BED
+const BED_TOP := CABIN_LAYOUT.BED_TOP
 ## Surfaces per cabin level: walls, floor, ceiling (assets/textury/camp).
 const LEVEL_SURFACES := {
 	1: ["planks_grey", "planks_red", "planks_grey"],
@@ -69,11 +72,17 @@ var _window_view_sky: MeshInstance3D
 ## (off-axis cameras through each window, like the reception's), not at a picture.
 const GLASS_LAYER := 1 << 19
 var _anchor: Node3D
-var _portals: Array = []          # {vp, cam, quad, frame: Transform3D (room), size: Vector2, ext: Vector3 (model), lv1_only}
+## Each tier's windows: level -> [{vp, cam, quad, frame: Transform3D (room), size, outward, curtain, cbody}].
+var _level_portals: Dictionary = {}
+## Each tier's room (walls, windows, furniture): level -> Node3D; the table's place in it.
+var _level_shells: Dictionary = {}
+var _level_tables: Dictionary = {}
+var _catalog: Node3D
+## The glint on a curtain under the cursor.
+var _glint = HOVER_GLINT.new()
 var _window_view_ground: MeshInstance3D
 ## Shown only in the basic cabin (the right wall's window, where better cabins have the
 ## bathroom door).
-var _level1_nodes: Array[String] = []
 var _window_view_trees: MeshInstance3D
 var _light_switch_body: StaticBody3D
 var _light_switch_mesh: MeshInstance3D
@@ -94,9 +103,6 @@ var _look = INTERIOR_LOOK.new(72.0, 28.0, 38.0)
 ## no leaving, no clicks till you are up.
 var lodge_sleeping := false
 var _exit_hint: Control
-var _level2_nodes: Array[String] = ["WallLamp", "Wardrobe", "FridgeSmall"]
-var _level2_only: Array[String] = ["PosterLake"]
-var _level3_nodes: Array[String] = ["Rug", "WallShelf", "TvOld", "Chair2", "PictureDeer"]
 ## The room's surfaces, re-skinned per level: {walls: [...], floor, ceiling}.
 var _shell: Dictionary = {}
 var _bath_shell: Dictionary = {}
@@ -169,6 +175,7 @@ func open_cabin(level: int = 1) -> void:
 	# Registered before it was in the tree (size 0, shrink 1): the low resolution now.
 	if _viewport_container != null:
 		RETRO_RENDER.apply_to(_viewport_container)
+	_release_inview()
 	_cabin_level = clampi(level, 1, 3)
 	_manual_lights_on = true
 	_apply_switch_visual()
@@ -209,39 +216,6 @@ func door_surface() -> StandardMaterial3D:
 	return m
 
 
-## A pine window frame with a cross bar on a wall (`yaw` turns it to that wall); the glass
-## behind is a portal (_add_portal) or, for the front windows you never look out of, dim.
-func _frame_window(c: Vector3, size: Vector2, yaw: float, tag: String) -> void:
-	var K := INTERIOR_KIT
-	var frame := K.surface("knotty_pine", 0.6)
-	var holder := Node3D.new()
-	holder.name = tag + "Window"
-	holder.position = c
-	holder.rotation_degrees.y = yaw
-	_cabin_root.add_child(holder)
-	K.slab(holder, Vector3(size.x + 0.1, 0.07, 0.1), Vector3(0, -size.y * 0.5 - 0.03, 0.02), frame, "Sill")
-	K.slab(holder, Vector3(size.x + 0.1, 0.06, 0.08), Vector3(0, size.y * 0.5 + 0.03, 0.0), frame, "Top")
-	for x: float in [-size.x * 0.5 - 0.03, size.x * 0.5 + 0.03]:
-		K.slab(holder, Vector3(0.06, size.y + 0.1, 0.08), Vector3(x, 0, 0), frame, "Side")
-	K.slab(holder, Vector3(0.04, size.y, 0.05), Vector3(0, 0, -0.01), frame, "Mullion")
-	K.slab(holder, Vector3(size.x, 0.04, 0.05), Vector3(0, 0.02, -0.01), frame, "Transom")
-	if tag == "Front":
-		var g := MeshInstance3D.new()
-		var q := QuadMesh.new()
-		q.size = size
-		g.mesh = q
-		var gm := StandardMaterial3D.new()
-		gm.albedo_texture = load("res://assets/textury/camp/window_curtain.png")
-		gm.albedo_color = Color(0.7, 0.72, 0.74)
-		gm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		g.material_override = gm
-		g.position = Vector3(0, 0, -0.03)
-		holder.add_child(g)
-		_room_weather().add_window(g)
-	if tag == "Side":
-		_level1_nodes.append(holder.name)
-
-
 var _weather
 
 
@@ -257,10 +231,12 @@ func _room_weather():
 
 
 ## A window looking out: a quad in the opening shows what a camera sees through the same
-## window of the cabin outside (the room maps onto the model by lining the two windows up).
-func _add_portal(n: String, centre: Vector3, outward: Vector3, size: Vector2, lv1_only: bool) -> void:
+## window of the cabin outside (the room is the model's own space, CabinLayout), with a
+## curtain to draw over it (the Photographer takes pictures through the glass) that
+## glints under the cursor like everything else you can use.
+func _add_portal(shell: Node3D, lv: int, n: String, centre: Vector3, outward: Vector3, size: Vector2, curtain_tex: String) -> void:
 	var vp := SubViewport.new()
-	vp.name = n
+	vp.name = n + str(lv)
 	vp.size = Vector2i(224, int(224.0 * size.y / size.x))
 	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	add_child(vp)
@@ -284,23 +260,33 @@ func _add_portal(n: String, centre: Vector3, outward: Vector3, size: Vector2, lv
 	var frame := Transform3D(Basis(x, Vector3.UP, z), centre)
 	quad.transform = frame
 	quad.visible = false
-	_cabin_root.add_child(quad)
+	shell.add_child(quad)
 	_room_weather().add_window(quad)
-	# A curtain to draw over it (the Photographer takes pictures through the glass).
 	var cur = CURTAIN.new()
-	cur.build(_cabin_root, centre - outward.normalized() * 0.09, size.x + 0.1, size.y + 0.3, rad_to_deg(atan2(-outward.x, -outward.z)), "curtain_floral", 0.7, self, true)
+	var hang := centre - outward.normalized() * (CABIN_LAYOUT.WALL_T + 0.08)
+	cur.build(shell, hang, size.x + 0.1, size.y + 0.3, rad_to_deg(atan2(-outward.x, -outward.z)), curtain_tex, 0.7, self, true)
 	var cbody := StaticBody3D.new()
 	cbody.name = n + "CurtainBody"
 	cbody.set_meta("interior_click_type", "cabin_curtain")
-	cbody.set_meta("portal_index", _portals.size())
+	cbody.set_meta("portal_index", (_level_portals[lv] as Array).size())
 	var cshape := CollisionShape3D.new()
 	var cbox := BoxShape3D.new()
 	cbox.size = Vector3(size.x + 0.5, size.y + 0.4, 0.14)
 	cshape.shape = cbox
 	cbody.add_child(cshape)
-	cbody.transform = Transform3D(frame.basis, centre - outward.normalized() * 0.1)
-	_cabin_root.add_child(cbody)
-	_portals.append({"vp": vp, "cam": cam, "quad": quad, "frame": frame, "size": size, "outward": outward.normalized(), "lv1_only": lv1_only, "curtain": cur, "cbody": cbody})
+	cbody.transform = Transform3D(frame.basis, hang)
+	shell.add_child(cbody)
+	(_level_portals[lv] as Array).append({"vp": vp, "cam": cam, "quad": quad, "frame": frame, "size": size, "outward": outward.normalized(), "curtain": cur, "cbody": cbody})
+
+
+## This tier's windows (the room's level).
+func _portals_now() -> Array:
+	return _level_portals.get(_cabin_level, [])
+
+
+## Room space -> the camp (the model's own space under the cabin outside).
+func _room_to_world() -> Transform3D:
+	return _anchor.global_transform * Transform3D(Basis(), CABIN_LAYOUT.ROOM_TO_MODEL)
 
 
 ## The windows that look out now, as the camp has them: [{pos (the glass's middle,
@@ -310,21 +296,18 @@ func outside_windows() -> Array:
 	var out: Array = []
 	if _anchor == null or not is_instance_valid(_anchor) or not _anchor.is_inside_tree() or _active_room != "main":
 		return out
-	var ws: Vector3 = _anchor.get_meta("wall_size", Vector3(6.24, 2.4, 6.24))
-	for pt in _portals:
-		if bool(pt["lv1_only"]) and _cabin_level != 1:
-			continue
+	var to_world := _room_to_world()
+	for pt in _portals_now():
+		var frame: Transform3D = pt["frame"]
 		var o: Vector3 = pt["outward"]
-		var ext := Vector3(0, ws.y * 0.62, -ws.z * 0.5 - 0.02) if o.z < -0.5 else Vector3(ws.x * 0.5 + 0.02, ws.y * 0.62, 0)
-		var dir := (_anchor.global_transform.basis * (Vector3(0, 0, -1) if o.z < -0.5 else Vector3(1, 0, 0))).normalized()
+		var dir := (to_world.basis * o).normalized()
 		# How squarely you look at it now (1 straight at it).
 		var facing := 0.0
 		if _interior_camera != null and is_instance_valid(_interior_camera):
-			var frame: Transform3D = pt["frame"]
 			var at := _cabin_root.global_transform * frame.origin
 			var to := (at - _interior_camera.global_position).normalized()
 			facing = (-_interior_camera.global_transform.basis.z).dot(to)
-		out.append({"pos": _anchor.global_transform * ext, "out": dir, "facing": facing})
+		out.append({"pos": to_world * (frame.origin + o * 0.03), "out": dir, "facing": facing})
 	return out
 
 
@@ -334,9 +317,7 @@ func photo_windows() -> Array:
 	var out: Array = []
 	var i := 0
 	var wins := outside_windows()
-	for pt in _portals:
-		if bool(pt["lv1_only"]) and _cabin_level != 1:
-			continue
+	for pt in _portals_now():
 		if i >= wins.size():
 			break
 		var w: Dictionary = wins[i]
@@ -382,15 +363,16 @@ func _tick_photo_flash(delta: float) -> void:
 
 func curtains_state() -> Array:
 	var out: Array = []
-	for pt in _portals:
+	for pt in _portals_now():
 		var cur = pt.get("curtain")
 		out.append(cur == null or cur.is_open())
 	return out
 
 
 func take_curtains(state: Array) -> void:
-	for i in mini(state.size(), _portals.size()):
-		var cur = _portals[i].get("curtain")
+	var portals := _portals_now()
+	for i in mini(state.size(), portals.size()):
+		var cur = portals[i].get("curtain")
 		if cur != null and cur.is_open() != bool(state[i]):
 			cur.set_open(bool(state[i]))
 
@@ -399,37 +381,49 @@ func take_curtains(state: Array) -> void:
 ## the camp, the window its near plane (so it moves as you turn, a real view).
 func _update_portals() -> void:
 	var live := _anchor != null and is_instance_valid(_anchor) and _anchor.is_inside_tree()
-	var ws: Vector3 = _anchor.get_meta("wall_size", Vector3(6.24, 2.4, 6.24)) if live else Vector3.ZERO
-	_tick_photo_flash(get_process_delta_time())
-	for pt in _portals:
-		var cur = pt.get("curtain")
-		var shown: bool = _active_room == "main" and (not bool(pt["lv1_only"]) or _cabin_level == 1)
-		if cur != null:
-			cur.update(get_process_delta_time())
-			(cur.root as Node3D).visible = shown
+	var dt := get_process_delta_time()
+	_tick_photo_flash(dt)
+	var to_world := _room_to_world() if live else Transform3D()
+	for lv in _level_portals.keys():
+		for pt in _level_portals[lv]:
+			var cur = pt.get("curtain")
+			var shown: bool = _active_room == "main" and int(lv) == _cabin_level
+			if cur != null:
+				cur.update(dt)
 			(pt["cbody"] as StaticBody3D).collision_layer = 1 if shown else 0
-		var on: bool = live and shown and (cur == null or cur.open > 0.03)
-		(pt["quad"] as MeshInstance3D).visible = on
-		var vp: SubViewport = pt["vp"]
-		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
-		if not on:
-			continue
-		if vp.world_3d != _anchor.get_world_3d():
-			vp.world_3d = _anchor.get_world_3d()
-		var frame: Transform3D = pt["frame"]
-		var out: Vector3 = pt["outward"]
-		# The same window outside, in the model's space (building_models.cabin()).
-		var ext := Vector3(0, ws.y * 0.62, -ws.z * 0.5 - 0.02) if out.z < -0.5 else Vector3(ws.x * 0.5 + 0.02, ws.y * 0.62, 0)
-		var room_to_world: Transform3D = _anchor.global_transform * Transform3D(Basis(), ext - frame.origin)
-		var eye := _cabin_root.global_transform.affine_inverse() * _interior_camera.global_position
-		var e := frame.affine_inverse() * eye
-		if e.z < 0.05:
-			continue
-		var cam: Camera3D = pt["cam"]
-		cam.global_transform = Transform3D(room_to_world.basis * frame.basis, room_to_world * eye)
-		cam.set_frustum((pt["size"] as Vector2).y, Vector2(-e.x, -e.y), e.z + 0.06, e.z + 220.0)
-	if _window_view_sky != null:
-		_window_view_sky.visible = not live
+			var on: bool = live and shown and (cur == null or cur.open > 0.03)
+			(pt["quad"] as MeshInstance3D).visible = on
+			var vp: SubViewport = pt["vp"]
+			vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+			if not on:
+				continue
+			if vp.world_3d != _anchor.get_world_3d():
+				vp.world_3d = _anchor.get_world_3d()
+			var frame: Transform3D = pt["frame"]
+			var eye := _cabin_root.global_transform.affine_inverse() * _interior_camera.global_position
+			var e := frame.affine_inverse() * eye
+			if e.z < 0.05:
+				continue
+			var cam: Camera3D = pt["cam"]
+			cam.global_transform = Transform3D(to_world.basis * frame.basis, to_world * eye)
+			cam.set_frustum((pt["size"] as Vector2).y, Vector2(-e.x, -e.y), e.z + 0.06, e.z + 220.0)
+
+
+## The curtain under the cursor glints; the finger over it.
+func _update_hover() -> void:
+	var meshes: Array = []
+	if not _prep.is_busy() and _active_room == "main":
+		var hit := _raycast_world(get_viewport().get_mouse_position())
+		var n = hit.get("collider", null) as Node
+		while n != null and not n.has_meta("portal_index"):
+			n = n.get_parent()
+		if n != null:
+			var portals := _portals_now()
+			var i := int(n.get_meta("portal_index"))
+			if i < portals.size() and portals[i].get("curtain") != null:
+				meshes = portals[i]["curtain"].meshes
+				HandCursor.want(HandCursor.POINT)
+	_glint.show_on(meshes)
 
 
 func close_cabin() -> void:
@@ -443,18 +437,24 @@ func close_cabin() -> void:
 		_swipe_tween.kill()
 	ROOM_PUSH.cancel(_viewport_container)
 	_swipe_animating = false
-	for pt in _portals:
-		(pt["vp"] as SubViewport).render_target_update_mode = SubViewport.UPDATE_DISABLED
+	for lv in _level_portals.keys():
+		for pt in _level_portals[lv]:
+			(pt["vp"] as SubViewport).render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_glint.clear()
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
 
 func _process(delta: float) -> void:
-	if not _is_open or _interior_camera == null:
+	if not _is_open:
+		_update_inview(delta)
+		return
+	if _interior_camera == null:
 		return
 	_apply_idle_mouse_look(delta)
 	_update_portals()
+	_update_hover()
 	_update_torch(delta)
 	_update_fridge(delta)
 	if _exit_hint == null:
@@ -465,6 +465,222 @@ func _process(delta: float) -> void:
 		INTERIOR_LOOK.set_side_hints(_side_hints, "Room  [A]", "")
 	else:
 		INTERIOR_LOOK.set_side_hints(_side_hints, "", "Bathroom  [D]" if _cabin_level >= 2 else "")
+
+
+# ── the camp looking in ──────────────────────────────────────────────────────
+#
+# From the camp the nearest cabin's windows show this room (the user 21. 10.: the cabin's
+# windows had the reception's trouble, flat from outside): a camera in the room's own
+# world at the camp's eye (camp -> the cabin -> the room, CabinLayout: one plan for both),
+# the panes reading its picture at their own screen pixels (materials/window_into
+# .gdshader), as the reception's and the caravans' do. One room for every cabin: made up
+# as the one looked into is (its tier, its mess, its curtains, its guests while they are
+# up), its lamp lit when window_lights has that cabin lit. Farther than INVIEW_RANGE, or
+# with no pane turned to you, the panes are window_lights' again (its "inview_live"
+# panes only hear whether they are lit).
+
+const INVIEW_RANGE := 30.0
+## What lies over the room's windows inside (the camp in the glass, the rain on it): the
+## camera looking in from the camp skips it.
+const INVIEW_HIDE_LAYER := 1 << 17
+var _inview_vp: SubViewport
+var _inview_cam: Camera3D
+var _inview_mat: ShaderMaterial
+var _inview_cabin: Node3D
+var _inview_panes: Array = []
+var _inview_scan_t := 0.0
+var _inview_light_t := 0.0
+var _inview_cabins: Array = []
+
+
+func _camp_camera() -> Camera3D:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var w3d = scene.get("_world_3d") if scene != null else null
+	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
+		return (w3d as Node3D).get_viewport().get_camera_3d()
+	return null
+
+
+func _find_cabins() -> Array:
+	var out: Array = []
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var bm = scene.get("building_manager") if scene != null else null
+	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
+	if structures == null:
+		return out
+	for c in structures.get_children():
+		if str(c.get_meta("building_type", "")).begins_with("cabin") and c is Node3D:
+			out.append(c)
+	return out
+
+
+## The cabin's panes (building_models: its "lit_window" quads).
+static func _panes_of(cabin: Node3D) -> Array:
+	var out: Array = []
+	for m in cabin.find_children("*", "MeshInstance3D", true, false):
+		if (m as Node).has_meta("lit_window"):
+			out.append(m)
+	return out
+
+
+static func _pane_turned_to(p: MeshInstance3D, eye: Vector3) -> bool:
+	var to := eye - p.global_position
+	return to.length() > 0.05 and p.global_basis.z.normalized().dot(to.normalized()) > 0.1
+
+
+func _update_inview(delta: float) -> void:
+	var cam := _camp_camera()
+	var cabin: Node3D = null
+	if cam != null and _cabin_root != null:
+		_inview_scan_t -= delta
+		if _inview_scan_t <= 0.0:
+			_inview_scan_t = 1.0
+			_inview_cabins = _find_cabins()
+		var best := INVIEW_RANGE
+		for c in _inview_cabins:
+			if not is_instance_valid(c) or not (c as Node3D).is_inside_tree():
+				continue
+			var d := (c as Node3D).global_position.distance_to(cam.global_position)
+			if d >= best:
+				continue
+			for p in _panes_of(c):
+				if _pane_turned_to(p, cam.global_position):
+					best = d
+					cabin = c
+					break
+	if cabin != _inview_cabin:
+		_release_inview()
+		if cabin != null:
+			_take_inview(cabin)
+	if _inview_cabin == null or _inview_panes.is_empty():
+		return
+	for pt in _portals_now():
+		var cur = pt.get("curtain")
+		if cur != null:
+			cur.update(delta)
+	# The camp's eye in the room: the world -> the cabin (the room's model space) -> the room.
+	var to_room: Transform3D = _cabin_root.global_transform * (_inview_cabin.global_transform * Transform3D(Basis(), CABIN_LAYOUT.ROOM_TO_MODEL)).affine_inverse()
+	var t := to_room * cam.global_transform
+	_inview_cam.global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
+	_inview_cam.fov = cam.fov
+	_inview_cam.keep_aspect = cam.keep_aspect
+	# The camp's eye looking up or down is a shifted frustum (player_controller): the same.
+	_inview_cam.projection = cam.projection
+	var nk := _inview_cam.near / maxf(cam.near, 0.001)
+	_inview_cam.size = cam.size * nk
+	_inview_cam.frustum_offset = cam.frustum_offset * nk
+	var px := Vector2i(cam.get_viewport().get_visible_rect().size)
+	if _inview_vp.size != px and px.x > 0:
+		_inview_vp.size = px
+	_inview_light_t -= delta
+	if _inview_light_t <= 0.0:
+		_inview_light_t = 0.5
+		_inview_room_light()
+
+
+## The room made up as `cabin` is, and its panes given the room's picture.
+func _take_inview(cabin: Node3D) -> void:
+	_ensure_inview()
+	_inview_cabin = cabin
+	_inview_panes = _panes_of(cabin)
+	var t := str(cabin.get_meta("building_type", "cabin_1"))
+	_cabin_level = clampi(int(t.right(1)) if t.right(1).is_valid_int() else 1, 1, 3)
+	_apply_level_variant()
+	# The room and, from the tier up, the bathroom behind its own window.
+	if _cabin_root != null:
+		_cabin_root.visible = true
+	if _bathroom_root != null:
+		_bathroom_root.visible = _cabin_level >= 2
+	var im := get_parent()
+	if im != null and im.has_method("_push_room_state"):
+		im.call("_push_room_state", self, cabin)
+	var key: String = im.call("_room_key_for", cabin) if im != null and im.has_method("_room_key_for") else ""
+	var by_room = im.get("_curtains_by_room") if im != null else null
+	if key != "" and by_room is Dictionary and (by_room as Dictionary).has(key):
+		take_curtains((by_room as Dictionary)[key])
+	for p in _inview_panes:
+		var mi := p as MeshInstance3D
+		mi.set_meta("inview_was", mi.material_override)
+		mi.set_meta("inview_live", true)
+		mi.material_override = _inview_mat
+	_inview_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_inview_light_t = 0.0
+
+
+func _release_inview() -> void:
+	for p in _inview_panes:
+		var mi := p as MeshInstance3D
+		if mi == null or not is_instance_valid(mi):
+			continue
+		if mi.has_meta("inview_was"):
+			mi.material_override = mi.get_meta("inview_was")
+			mi.remove_meta("inview_was")
+		mi.remove_meta("inview_live")
+	_inview_panes.clear()
+	_inview_cabin = null
+	if _inview_vp != null:
+		_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+
+
+## The room's light as the camp's hour has it, its lamp as window_lights has the cabin
+## (guests in and up: lit), the guests in it while they are up.
+func _inview_room_light() -> void:
+	var scene := get_tree().current_scene
+	var hour := float(scene.get("_time_of_day_hours")) if scene != null and scene.get("_time_of_day_hours") != null else 12.0
+	var state := TIME_DAY if hour >= 6.5 and hour < 19.5 else (TIME_EVENING if hour >= 19.5 and hour < 21.0 else TIME_NIGHT)
+	var im := get_parent()
+	var ll = im.get("_last_light") if im != null else null
+	if ll is Array and (ll as Array).size() >= 4:
+		_daylight_factor = clampf(float(ll[0]), 0.0, 1.0)
+		_sunlight_color = ll[1]
+	var lit := 0.0
+	for p in _inview_panes:
+		lit = maxf(lit, float((p as Node).get_meta("wl_lit", 0.0)))
+	var up := lit > 0.05 or state == TIME_DAY
+	_manual_lights_on = up
+	var guests: Array = []
+	if up and im != null and im.has_method("_guest_visuals_for_structure"):
+		guests = im.call("_guest_visuals_for_structure", _inview_cabin)
+	if guests.size() != _guest_occupants.size():
+		set_guest_occupants(guests)
+	set_time_state(state)
+	_inview_mat.set_shader_parameter("bright", 1.0 if state == TIME_NIGHT else (0.8 if state == TIME_EVENING else 0.62))
+	_inview_mat.set_shader_parameter("glow", 0.0)
+
+
+func _ensure_inview() -> void:
+	if _inview_vp != null:
+		return
+	_inview_vp = SubViewport.new()
+	_inview_vp.name = "CabinFromCamp"
+	_inview_vp.size = Vector2i(426, 240)
+	_inview_vp.world_3d = _viewport.find_world_3d()
+	_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(_inview_vp)
+	_inview_cam = Camera3D.new()
+	_inview_cam.near = 0.05
+	_inview_cam.far = 40.0
+	_inview_cam.cull_mask = 0xFFFFF & ~INVIEW_HIDE_LAYER & ~GLASS_LAYER
+	_inview_vp.add_child(_inview_cam)
+	# The room's own views out and the rain on their glass are for the inside only.
+	for lv in _level_portals.keys():
+		for pt in _level_portals[lv]:
+			_hide_from_camp(pt["quad"])
+	if _weather != null and is_instance_valid(_weather):
+		_hide_from_camp(_weather)
+	_inview_mat = ShaderMaterial.new()
+	_inview_mat.shader = load("res://materials/window_into.gdshader")
+	_inview_mat.set_shader_parameter("room_tex", _inview_vp.get_texture())
+	_inview_mat.set_shader_parameter("live", 1.0)
+	# Between the window's frame and its bar, both pulled forward by the retro look.
+	_inview_mat.set_shader_parameter("depth_pull", 0.005)
+
+
+static func _hide_from_camp(n: Node) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).layers = INVIEW_HIDE_LAYER
+	for c in n.get_children():
+		_hide_from_camp(c)
 
 
 func _fridge_player(path: String, db: float, loop: bool) -> AudioStreamPlayer:
@@ -601,7 +817,7 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 		while n != null and not n.has_meta("portal_index"):
 			n = n.get_parent()
 		if n != null:
-			var pt: Dictionary = _portals[int(n.get_meta("portal_index"))]
+			var pt: Dictionary = _portals_now()[int(n.get_meta("portal_index"))]
 			pt["curtain"].toggle()
 			var im := get_parent()
 			if im != null and im.has_method("coop_send_curtains"):
@@ -835,206 +1051,275 @@ func _build_cabin_room() -> void:
 	_main_light.shadow_enabled = true
 	_cabin_root.add_child(_main_light)
 
-	# The room: 3 x 3 m, 2.6 m high, floor top at 0.05. Surfaces are skinned per level
-	# in _apply_level_variant (LEVEL_SURFACES); the door is on the right wall, the window
-	# is a real opening in the back wall.
+	# The room of each tier, built from the cabin's plan (scripts/cabin_layout.gd) the way
+	# the model outside is: its walls with the real openings, every window a view out with
+	# a curtain, its own furniture. The three stand ready; the cabin's level shows one.
+	for lv in [1, 2, 3]:
+		_build_level_shell(lv)
+
+	# Shared by every tier, at the same place in all of them: the bed (lodge_bed.gd lies in
+	# it) and its pillow that room prep moves, the upgrade catalogue on the table.
 	var K := INTERIOR_KIT
-	var w = 3.0
-	var d = 3.0
-	var h = 2.6
-	var wall_mat := K.surface("planks_grey", 1.2)
-	var walls: Array = []
-	_shell["floor"] = K.slab(_cabin_root, Vector3(w, 0.1, d), Vector3(0, 0, 0), K.surface("planks_dark", 1.0), "Floor")
-	_shell["ceiling"] = K.slab(_cabin_root, Vector3(w, 0.1, d), Vector3(0, h, 0), K.surface("planks_grey", 1.0), "Ceiling")
-	# Back wall round the window (1.0 x 0.62 opening centred at y 1.6).
-	walls.append(K.slab(_cabin_root, Vector3(1.0, h, 0.1), Vector3(-1.0, h * 0.5, -d * 0.5), wall_mat, "BackWallL"))
-	walls.append(K.slab(_cabin_root, Vector3(1.0, h, 0.1), Vector3(1.0, h * 0.5, -d * 0.5), wall_mat, "BackWallR"))
-	walls.append(K.slab(_cabin_root, Vector3(1.0, 1.29, 0.1), Vector3(0, 0.645, -d * 0.5), wall_mat, "BackWallLow"))
-	walls.append(K.slab(_cabin_root, Vector3(1.0, h - 1.91, 0.1), Vector3(0, (h + 1.91) * 0.5, -d * 0.5), wall_mat, "BackWallHigh"))
-	walls.append(K.slab(_cabin_root, Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5), wall_mat, "FrontWall"))
-	walls.append(K.slab(_cabin_root, Vector3(0.1, h, d), Vector3(-w * 0.5, h * 0.5, 0), wall_mat, "LeftWall"))
-	walls.append(K.slab(_cabin_root, Vector3(0.1, h, d * 0.3), Vector3(w * 0.5, h * 0.5, -d * 0.35), wall_mat, "RightWallBack"))
-	walls.append(K.slab(_cabin_root, Vector3(0.1, h, d * 0.3), Vector3(w * 0.5, h * 0.5, d * 0.35), wall_mat, "RightWallFront"))
-	walls.append(K.slab(_cabin_root, Vector3(0.1, h * 0.3, d * 0.4), Vector3(w * 0.5, h * 0.85, 0), wall_mat, "RightWallTop"))
-	_shell["walls"] = walls
-	# Skirting and a ceiling cornice in dark wood, Build-style trim.
-	var trim := K.surface("planks_dark", 0.6)
-	for z: float in [-d * 0.5 + 0.06, d * 0.5 - 0.06]:
-		K.slab(_cabin_root, Vector3(w, 0.1, 0.03), Vector3(0, 0.1, z), trim, "Skirting")
-		K.slab(_cabin_root, Vector3(w, 0.06, 0.04), Vector3(0, h - 0.06, z), trim, "Cornice")
-	K.slab(_cabin_root, Vector3(0.03, 0.1, d), Vector3(-w * 0.5 + 0.06, 0.1, 0), trim, "Skirting")
-
-	# The front wall as the cabin has it outside: the door you came in by in the middle,
-	# a window either side of it.
-	var fz: float = d * 0.5 - 0.055
-	K.slab(_cabin_root, Vector3(1.0, 2.02, 0.04), Vector3(0, 1.06, fz + 0.02), trim, "FrontDoorFrame")
-	var fdoor := MeshInstance3D.new()
-	fdoor.name = "FrontDoor"
-	var fdq := QuadMesh.new()
-	fdq.size = Vector2(0.86, 1.92)
-	fdoor.mesh = fdq
-	fdoor.material_override = door_surface()
-	fdoor.position = Vector3(0, 1.01, fz - 0.002)
-	fdoor.rotation_degrees.y = 180.0
-	_cabin_root.add_child(fdoor)
-	K.slab(_cabin_root, Vector3(0.05, 0.05, 0.06), Vector3(-0.32, 1.0, fz - 0.03), K.surface("galvanized", 0.4), "FrontDoorHandle")
-	for x: float in [-0.92, 0.92]:
-		_frame_window(Vector3(x, 1.55, fz - 0.002), Vector2(0.62, 0.56), 180.0, "Front")
-	# The right wall: the basic cabin has a window there (as outside); the better ones
-	# the door to the bathroom built on at that side.
-	for piece in [[Vector3(0.1, 1.22, 1.2), Vector3(w * 0.5, 0.61, 0), "RightFillLow"],
-			[Vector3(0.1, 0.5, 0.2), Vector3(w * 0.5, 1.47, -0.5), "RightFillL"],
-			[Vector3(0.1, 0.5, 0.2), Vector3(w * 0.5, 1.47, 0.5), "RightFillR"],
-			[Vector3(0.1, 0.1, 1.2), Vector3(w * 0.5, 1.77, 0), "RightFillHigh"]]:
-		var fill := K.slab(_cabin_root, piece[0], piece[1], wall_mat, str(piece[2]))
-		walls.append(fill)
-		_level1_nodes.append(str(piece[2]))
-	_frame_window(Vector3(w * 0.5 - 0.04, 1.47, 0), Vector2(0.8, 0.5), -90.0, "Side")
-	_add_portal("SideView", Vector3(w * 0.5 - 0.02, 1.47, 0), Vector3(1, 0, 0), Vector2(0.8, 0.5), true)
-
-	# The door on the right wall: a textured panel in a dark frame, closing the opening.
-	K.slab(_cabin_root, Vector3(0.12, h * 0.7, d * 0.4 + 0.02), Vector3(w * 0.5 + 0.02, h * 0.35, 0), trim, "DoorFrame")
-	var door := MeshInstance3D.new()
-	door.name = "Door"
-	var door_q := QuadMesh.new()
-	door_q.size = Vector2(d * 0.4 - 0.12, h * 0.7 - 0.06)
-	door.mesh = door_q
-	var door_mat := StandardMaterial3D.new()
-	door_mat.albedo_texture = load("res://assets/textury/camp/door_wood.png")
-	door_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	door_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	door.material_override = door_mat
-	door.position = Vector3(w * 0.5 - 0.045, h * 0.35, 0)
-	door.rotation_degrees.y = -90
-	_cabin_root.add_child(door)
-
-
-	# The bed (left), a pillow that room prep moves, a table with the catalogue (back right).
 	K.prop(_cabin_root, "bed_wood", BED_POS)
 	var pillow := K.slab(_cabin_root, Vector3(0.6, 0.12, 0.32), Vector3(BED_POS.x, BED_TOP + 0.06, BED_POS.z - 0.68), K.surface("mattress", 0.5, Color(1.0, 0.98, 0.94)), "Pillow")
 	pillow.rotation.x = -0.12
-	K.prop(_cabin_root, "table_wood", Vector3(0.75, 0.05, -1.0))
-	K.prop(_cabin_root, "chair_wood", Vector3(0.75, 0.05, -0.42), 180.0)
-	var chair2 := K.prop(_cabin_root, "chair_wood", Vector3(0.18, 0.05, -1.05), 95.0)
-	chair2.name = "Chair2"
-	_catalog_mesh = _add_box(_cabin_root, "UpgradeCatalog", Vector3(0.82, 0.815, -1.02), Vector3(0.26, 0.02, 0.20), Color(0.84, 0.78, 0.68))
-	_add_box(_cabin_root, "UpgradeCatalogInk1", Vector3(0.82, 0.827, -1.08), Vector3(0.18, 0.004, 0.02), Color(0.18, 0.16, 0.14))
-	_add_box(_cabin_root, "UpgradeCatalogInk2", Vector3(0.82, 0.827, -1.02), Vector3(0.16, 0.004, 0.02), Color(0.18, 0.16, 0.14))
-	_add_box(_cabin_root, "UpgradeCatalogInk3", Vector3(0.82, 0.827, -0.96), Vector3(0.14, 0.004, 0.02), Color(0.18, 0.16, 0.14))
+	_catalog = Node3D.new()
+	_catalog.name = "Catalogue"
+	_cabin_root.add_child(_catalog)
+	_catalog_mesh = _add_box(_catalog, "UpgradeCatalog", Vector3(0, 0.765, 0), Vector3(0.26, 0.02, 0.20), Color(0.84, 0.78, 0.68))
+	for i in 3:
+		_add_box(_catalog, "UpgradeCatalogInk%d" % (i + 1), Vector3(0, 0.777, -0.06 + i * 0.06), Vector3(0.18 - i * 0.02, 0.004, 0.02), Color(0.18, 0.16, 0.14))
 	var up_lbl = Label3D.new()
 	up_lbl.text = "CATALOGUE"
-	up_lbl.position = Vector3(0.82, 0.845, -1.18)
+	up_lbl.position = Vector3(0, 0.795, -0.16)
 	up_lbl.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
 	up_lbl.font_size = 12
 	up_lbl.modulate = Color(0.34, 0.28, 0.20, 0.8)
-	_cabin_root.add_child(up_lbl)
-
-	# Level props: the slop bucket (1); wardrobe, wall lamp, a small fridge (2+); a rug,
-	# a shelf, the TV and a second chair (3).
+	_catalog.add_child(up_lbl)
 	var bucket := K.prop(_cabin_root, "slop_bucket", SLOP_BUCKET_POS)
 	bucket.name = "SlopBucket"
-	K.prop(_cabin_root, "wardrobe", Vector3(-1.2, 0.05, 1.0), 90.0)
-	K.prop(_cabin_root, "wall_lamp", Vector3(-1.45, 1.5, -1.25), 90.0)
-	K.prop(_cabin_root, "fridge_small", Vector3(1.2, 0.05, 1.18), -90.0)
-	_flat_sprite(_cabin_root, "rug_rag", Vector2(1.25, 1.0), Vector3(0.05, 0.057, -0.15), false, "Rug")
-	K.prop(_cabin_root, "wall_shelf", Vector3(1.05, 1.45, -1.4))
-	K.prop(_cabin_root, "tv_old", Vector3(1.15, 0.05, 0.55), -90.0)
-	K.picture(_cabin_root, "poster_lake", Vector2(0.48, 0.64), Vector3(-1.44, 1.55, -0.1), 90.0, "PosterLake")
-	K.picture(_cabin_root, "picture_deer", Vector2(0.5, 0.66), Vector3(-1.44, 1.55, -0.1), 90.0, "PictureDeer")
-	for n in ["WallLamp", "Wardrobe", "FridgeSmall", "Rug", "WallShelf", "TvOld", "Chair2", "PosterLake", "PictureDeer"]:
-		_set_node_visible(n, false)
-
-	# Lived in, at every level: the warden's jacket by the door you came in by, the
-	# year's calendar by the window, floral curtains either side of it, the milk-glass
-	# light on the ceiling (Grok art, assets/textury/camp).
-	K.cutout(_cabin_root, "coat_hook", Vector2(0.4, 0.6), Vector3(-0.75, 1.0, 1.44), 180.0, false, "Jacket")
-	K.picture(_cabin_root, "calendar", Vector2(0.32, 0.43), Vector3(-0.95, 1.72, -1.445), 0.0, "Calendar")
-	for cx in [-0.7, 0.7]:
-		K.picture(_cabin_root, "curtain_floral", Vector2(0.26, 0.8), Vector3(cx, 1.58, -1.435), 0.0, "WindowCurtain")
-	_flat_sprite(_cabin_root, "ceiling_lamp", Vector2(0.34, 0.34), Vector3(0.0, h - 0.055, 0.0), true, "CeilingLamp")
-
-	# The window in the back wall: a pine frame with a cross bar.
-	var frame := K.surface("knotty_pine", 0.6)
-	var wz: float = -d * 0.5 + 0.03
-	K.slab(_cabin_root, Vector3(1.1, 0.07, 0.1), Vector3(0, 1.255, wz), frame, "WindowSill")
-	K.slab(_cabin_root, Vector3(1.1, 0.06, 0.08), Vector3(0, 1.94, wz), frame, "WindowTop")
-	K.slab(_cabin_root, Vector3(0.06, 0.72, 0.08), Vector3(-0.53, 1.6, wz), frame, "WindowFrameL")
-	K.slab(_cabin_root, Vector3(0.06, 0.72, 0.08), Vector3(0.53, 1.6, wz), frame, "WindowFrameR")
-	K.slab(_cabin_root, Vector3(0.04, 0.62, 0.05), Vector3(0, 1.6, wz - 0.01), frame, "WindowMullion")
-	K.slab(_cabin_root, Vector3(1.0, 0.04, 0.05), Vector3(0, 1.62, wz - 0.01), frame, "WindowTransom")
-
-	_add_portal("BackView", Vector3(0, 1.6, -d * 0.5 - 0.02), Vector3(0, 0, -1), Vector2(1.0, 0.62), false)
-
-	# Placeholder view outside the window (no cabin outside to look out of: tools).
-	_window_view_sky = MeshInstance3D.new()
-	var sky_box = QuadMesh.new()
-	sky_box.size = Vector2(1.7, 1.06)
-	_window_view_sky.mesh = sky_box
-	_window_view_sky.position = Vector3(0.0, 1.6, -d * 0.58)
-	var sky_mat = StandardMaterial3D.new()
-	sky_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	sky_mat.albedo_color = Color(0.56, 0.74, 0.90)
-	if _texture_style != null:
-		var sky_tex = _texture_style.pick_texture("sky", sky_mat.albedo_color)
-		if sky_tex != null:
-			sky_mat.albedo_texture = sky_tex
-			sky_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	# The camp seen through the glass (assets/textury/camp/window_view.png), tinted by the hour.
-	sky_mat.albedo_texture = load("res://assets/textury/camp/window_view.png")
-	sky_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_window_view_sky.material_override = sky_mat
-	_cabin_root.add_child(_window_view_sky)
-
-	_window_view_ground = MeshInstance3D.new()
-	var ground_box = BoxMesh.new()
-	ground_box.size = Vector3(1.04, 0.22, 0.03)
-	_window_view_ground.mesh = ground_box
-	_window_view_ground.position = Vector3(0.0, 1.30, -d * 0.615)
-	var ground_mat = StandardMaterial3D.new()
-	ground_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	ground_mat.albedo_color = Color(0.28, 0.46, 0.26)
-	if _texture_style != null:
-		var ground_tex = _texture_style.pick_texture("grass", ground_mat.albedo_color)
-		if ground_tex != null:
-			ground_mat.albedo_texture = ground_tex
-			ground_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_window_view_ground.material_override = ground_mat
-	_cabin_root.add_child(_window_view_ground)
-	_window_view_ground.visible = false
-
-	_window_view_trees = MeshInstance3D.new()
-	var trees_box = BoxMesh.new()
-	trees_box.size = Vector3(0.90, 0.16, 0.02)
-	_window_view_trees.mesh = trees_box
-	_window_view_trees.position = Vector3(0.02, 1.44, -d * 0.617)
-	var trees_mat = StandardMaterial3D.new()
-	trees_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	trees_mat.albedo_color = Color(0.16, 0.30, 0.16)
-	if _texture_style != null:
-		var trees_tex = _texture_style.pick_texture("foliage", trees_mat.albedo_color)
-		if trees_tex != null:
-			trees_mat.albedo_texture = trees_tex
-			trees_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_window_view_trees.material_override = trees_mat
-	_cabin_root.add_child(_window_view_trees)
-	_window_view_trees.visible = false
-
-	# Window glass (semi transparent overlay).
-	var glass = MeshInstance3D.new()
-	var g_box = BoxMesh.new()
-	g_box.size = Vector3(1.0, 0.6, 0.04)
-	glass.mesh = g_box
-	glass.position = Vector3(0.0, 1.6, -d*0.48 + 0.01)
-	var g_mat = StandardMaterial3D.new()
-	g_mat.albedo_color = Color(0.4, 0.6, 0.8, 0.26)
-	g_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glass.material_override = g_mat
-	_cabin_root.add_child(glass)
 	_build_light_switch()
 	_build_bathroom_room()
 	_build_prep_props()
 	_apply_level_variant()
 	_apply_time_profile()
+
+
+## One tier's room: the walls round the openings the plan has (the door you came in by
+## in the front between two windows, the window over the table at the back, on the right
+## the basic cabin's window or the better ones' bathroom door), the floor and the ceiling
+## in this tier's surfaces, the windows, their curtains, the furniture.
+func _build_level_shell(lv: int) -> void:
+	var K := INTERIOR_KIT
+	var CL := CABIN_LAYOUT
+	var shell := Node3D.new()
+	shell.name = "Level%d" % lv
+	shell.visible = false
+	_cabin_root.add_child(shell)
+	_level_shells[lv] = shell
+	_level_portals[lv] = []
+	var inner: Vector2 = CL.inner(lv)
+	var iw := inner.x
+	var id := inner.y
+	var t: float = CL.WALL_T
+	var h: float = CL.wall_h(lv) - 0.12
+	var f: float = CL.ROOM_FLOOR
+	var surf: Array = LEVEL_SURFACES.get(lv, LEVEL_SURFACES[1])
+	var wall := K.surface(str(surf[0]), 1.2)
+	K.slab(shell, Vector3(iw, 0.1, id), Vector3(0, f - 0.05, 0), K.surface(str(surf[1]), 1.0), "Floor")
+	K.slab(shell, Vector3(iw, 0.1, id), Vector3(0, f + h + 0.05, 0), K.surface(str(surf[2]), 1.0, Color(0.7, 0.66, 0.6) if lv == 1 else Color(1, 1, 1)), "Ceiling")
+	# The openings in each wall: [along the wall from its left as you face it from inside,
+	# bottom, width, height].
+	var holes := {"front": [], "back": [], "right": [], "left": []}
+	for win in CL.windows(lv):
+		var c := CL.to_room(win["centre"])
+		var sz: Vector2 = win["size"]
+		var along := _along_wall(str(win["wall"]), c, iw, id)
+		(holes[str(win["wall"])] as Array).append([along - sz.x * 0.5, c.y - sz.y * 0.5, sz.x, sz.y])
+	(holes["front"] as Array).append([-CL.DOOR_W * 0.5, f, CL.DOOR_W, CL.DOOR_H])
+	if CL.has_bath(lv):
+		var bz: float = CL.bath_door_z(lv)
+		(holes["right"] as Array).append([_along_wall("right", Vector3(0, 0, bz), iw, id) - CL.BATH_DOOR_W * 0.5, f, CL.BATH_DOOR_W, CL.BATH_DOOR_H])
+	_wall_with_holes(shell, "front", iw, id, h, f, t, holes["front"], wall)
+	_wall_with_holes(shell, "back", iw, id, h, f, t, holes["back"], wall)
+	_wall_with_holes(shell, "right", iw, id, h, f, t, holes["right"], wall)
+	_wall_with_holes(shell, "left", iw, id, h, f, t, holes["left"], wall)
+	# Skirting and a cornice in dark wood, Build-style trim.
+	var trim := K.surface("planks_dark", 0.6)
+	for z: float in [-id * 0.5 + 0.015, id * 0.5 - 0.015]:
+		K.slab(shell, Vector3(iw, 0.1, 0.03), Vector3(0, f + 0.05, z), trim, "Skirting")
+		K.slab(shell, Vector3(iw, 0.06, 0.04), Vector3(0, f + h - 0.03, z), trim, "Cornice")
+	for x: float in [-iw * 0.5 + 0.015, iw * 0.5 - 0.015]:
+		K.slab(shell, Vector3(0.03, 0.1, id), Vector3(x, f + 0.05, 0), trim, "Skirting")
+	# The door you came in by, shut behind you, its handle.
+	var fz := id * 0.5
+	K.slab(shell, Vector3(CL.DOOR_W + 0.14, CL.DOOR_H + 0.08, 0.05), Vector3(0, f + (CL.DOOR_H + 0.08) * 0.5, fz + 0.01), trim, "FrontDoorFrame")
+	var fdoor := MeshInstance3D.new()
+	fdoor.name = "FrontDoor"
+	var fdq := QuadMesh.new()
+	fdq.size = Vector2(CL.DOOR_W, CL.DOOR_H)
+	fdoor.mesh = fdq
+	fdoor.material_override = door_surface()
+	fdoor.position = Vector3(0, f + CL.DOOR_H * 0.5, fz + t * 0.5)
+	fdoor.rotation_degrees.y = 180.0
+	shell.add_child(fdoor)
+	K.slab(shell, Vector3(0.05, 0.05, 0.06), Vector3(-0.3, f + 0.95, fz + t * 0.5 - 0.03), K.surface("galvanized", 0.4), "FrontDoorHandle")
+	# The windows: frames, the view out, a curtain each.
+	for win in CL.windows(lv):
+		_room_window(shell, lv, win)
+	# The bathroom's door (closed; through it with D).
+	if CL.has_bath(lv):
+		var bz2: float = CL.bath_door_z(lv)
+		var rx := iw * 0.5
+		K.slab(shell, Vector3(0.05, CL.BATH_DOOR_H + 0.08, CL.BATH_DOOR_W + 0.14), Vector3(rx - 0.01, f + (CL.BATH_DOOR_H + 0.08) * 0.5, bz2), trim, "BathDoorFrame")
+		var bdoor := MeshInstance3D.new()
+		bdoor.name = "BathDoor"
+		var bq := QuadMesh.new()
+		bq.size = Vector2(CL.BATH_DOOR_W, CL.BATH_DOOR_H)
+		bdoor.mesh = bq
+		bdoor.material_override = door_surface()
+		bdoor.position = Vector3(rx + t * 0.5, f + CL.BATH_DOOR_H * 0.5, bz2)
+		bdoor.rotation_degrees.y = -90.0
+		shell.add_child(bdoor)
+	# Lived in at every tier: the warden's jacket on a hook by the door (between it and the
+	# left window, clear of both), the calendar by the back window, the light.
+	K.cutout(shell, "coat_hook", Vector2(0.38, 0.58), Vector3(-0.71, f + 1.0, fz - 0.03), 180.0, false, "Jacket")
+	K.picture(shell, "calendar", Vector2(0.32, 0.43), Vector3(-0.92, f + 1.7, -id * 0.5 + 0.005), 0.0, "Calendar")
+	if lv == 1:
+		K.cutout(shell, "bulb_cord", Vector2(0.18, 0.5), Vector3(0.0, f + h - 0.25, 0.0), 0.0, true, "CeilingLamp")
+	else:
+		_flat_sprite(shell, "ceiling_lamp", Vector2(0.34, 0.34), Vector3(0.0, f + h - 0.005, 0.0), true, "CeilingLamp")
+	_level_furniture(shell, lv, iw, id, f)
+
+
+## Where a point is along a wall from inside, from its left end as you face it.
+func _along_wall(which: String, p: Vector3, _iw: float, _id: float) -> float:
+	match which:
+		"front":
+			return -p.x
+		"back":
+			return p.x
+		"right":
+			return p.z
+		_:
+			return -p.z
+
+
+## A wall of the room with its openings: slabs round each hole (beside, under, over).
+func _wall_with_holes(parent: Node3D, which: String, iw: float, id: float, h: float, f: float, t: float, holes: Array, mat: Material) -> void:
+	var length := iw + 2.0 * t if which in ["front", "back"] else id
+	var pieces: Array = []      # [u0, u1, y0, y1]
+	var sorted := holes.duplicate()
+	sorted.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	var u := -length * 0.5
+	for hole in sorted:
+		var u0: float = hole[0]
+		var u1: float = u0 + float(hole[2])
+		var y0: float = hole[1]
+		var y1: float = y0 + float(hole[3])
+		if u0 > u + 0.001:
+			pieces.append([u, u0, f, f + h])
+		if y0 > f + 0.001:
+			pieces.append([u0, u1, f, y0])
+		if y1 < f + h - 0.001:
+			pieces.append([u0, u1, y1, f + h])
+		u = u1
+	if u < length * 0.5 - 0.001:
+		pieces.append([u, length * 0.5, f, f + h])
+	var i := 0
+	for pc in pieces:
+		var u_mid: float = (float(pc[0]) + float(pc[1])) * 0.5
+		var w: float = float(pc[1]) - float(pc[0])
+		var y_mid: float = (float(pc[2]) + float(pc[3])) * 0.5
+		var hh: float = float(pc[3]) - float(pc[2])
+		var pos: Vector3
+		var size: Vector3
+		match which:
+			"front":
+				pos = Vector3(-u_mid, y_mid, id * 0.5 + t * 0.5)
+				size = Vector3(w, hh, t)
+			"back":
+				pos = Vector3(u_mid, y_mid, -id * 0.5 - t * 0.5)
+				size = Vector3(w, hh, t)
+			"right":
+				pos = Vector3(iw * 0.5 + t * 0.5, y_mid, u_mid)
+				size = Vector3(t, hh, w)
+			_:
+				pos = Vector3(-iw * 0.5 - t * 0.5, y_mid, -u_mid)
+				size = Vector3(t, hh, w)
+		INTERIOR_KIT.slab(parent, size, pos, mat, "Wall%s%d" % [which.capitalize(), i])
+		i += 1
+
+
+## A window of the room: its pine frame in the opening, the view out (a camera through
+## the same window of the cabin outside, _update_portals), a curtain to draw.
+func _room_window(shell: Node3D, lv: int, win: Dictionary) -> void:
+	var K := INTERIOR_KIT
+	var CL := CABIN_LAYOUT
+	var c := CL.to_room(win["centre"])
+	var sz: Vector2 = win["size"]
+	var out: Vector3 = win["out"]
+	var yaw_out := rad_to_deg(atan2(out.x, out.z))
+	var frame_mat := K.surface("knotty_pine", 0.6) if lv >= 2 else K.surface("planks_grey", 0.6, Color(0.82, 0.78, 0.7))
+	var holder := Node3D.new()
+	holder.name = "Window_" + str(win["id"])
+	holder.position = c - out * (CL.WALL_T * 0.5)
+	holder.rotation_degrees.y = yaw_out + 180.0
+	shell.add_child(holder)
+	# (Faces the room: +Z of the holder is into the room.)
+	K.slab(holder, Vector3(sz.x + 0.12, 0.06, 0.16), Vector3(0, -sz.y * 0.5 - 0.03, 0.02), frame_mat, "Sill")
+	K.slab(holder, Vector3(sz.x + 0.12, 0.06, CL.WALL_T + 0.02), Vector3(0, sz.y * 0.5 + 0.03, 0.0), frame_mat, "Top")
+	for x: float in [-sz.x * 0.5 - 0.03, sz.x * 0.5 + 0.03]:
+		K.slab(holder, Vector3(0.06, sz.y + 0.12, CL.WALL_T + 0.02), Vector3(x, 0, 0), frame_mat, "Side")
+	K.slab(holder, Vector3(0.035, sz.y, 0.04), Vector3(0, 0, -CL.WALL_T * 0.5 + 0.03), frame_mat, "Mullion")
+	K.slab(holder, Vector3(sz.x, 0.035, 0.04), Vector3(0, sz.y * 0.12, -CL.WALL_T * 0.5 + 0.03), frame_mat, "Transom")
+	# The view: in the opening at the wall's outer face, where the glass is outside.
+	var glass_at := c + out * (CL.WALL_T * 0.5 - 0.005)
+	var curtain_tex := ["curtain_floral", "curtain_floral", "velvet"][lv - 1] as String
+	_add_portal(shell, lv, "View_" + str(win["id"]), glass_at, out, sz, curtain_tex)
+
+
+## The furniture that makes each tier's step up seen at once: bare boards and a bucket;
+## then a wardrobe, a lamp over the bed, a fridge and a poster; then a rug, a stove under
+## the chimney outside, the TV on a chest under the aerial, a shelf, a second chair, a
+## picture and a bedside table.
+func _level_furniture(shell: Node3D, lv: int, iw: float, id: float, f: float) -> void:
+	var K := INTERIOR_KIT
+	var back := -id * 0.5
+	var front := id * 0.5
+	var left := -iw * 0.5
+	var right := iw * 0.5
+	var table := Vector3(right - 0.62, f, back + 0.5)
+	K.prop(shell, "table_wood", table)
+	K.prop(shell, "chair_wood", table + Vector3(0, 0, 0.56), 180.0)
+	_level_tables[lv] = table
+	if lv >= 2:
+		# By the door on the left; in the best cabin the stove has that corner and the
+		# wardrobe stands along the wall past the bed's foot.
+		var wz := (front - 0.62) if lv == 2 else (BED_POS.z + 1.4)
+		K.prop(shell, "wardrobe", Vector3(left + 0.3, f, wz), 90.0)
+		K.prop(shell, "wall_lamp", Vector3(left + 0.02, f + 1.45, BED_POS.z - 0.45), 90.0)
+		var fridge := K.prop(shell, "fridge_small", Vector3(right - 0.3, f, front - 0.42), -90.0)
+		fridge.name = "FridgeSmall"
+	if lv == 2:
+		K.picture(shell, "poster_lake", Vector2(0.48, 0.64), Vector3(right - 0.005, f + 1.5, back + 0.42), -90.0, "PosterLake")
+	if lv == 3:
+		_flat_sprite(shell, "rug_rag", Vector2(1.4, 1.05), Vector3(0.15, f + 0.007, 0.05), false, "Rug")
+		K.prop(shell, "wall_shelf", Vector3(table.x, f + 1.42, back + 0.1))
+		K.prop(shell, "chair_wood", table + Vector3(-0.56, 0, 0.05), 95.0)
+		K.prop(shell, "nightstand", Vector3(left + 0.25, f, back + 0.2), 90.0)
+		K.picture(shell, "picture_deer", Vector2(0.5, 0.66), Vector3(left + 0.005, f + 1.55, BED_POS.z + 0.15), 90.0, "PictureDeer")
+		var chest := K.prop(shell, "dresser", Vector3(right - 0.24, f, 0.55), -90.0)
+		chest.name = "TvChest"
+		K.prop(shell, "tv_small", Vector3(right - 0.24, f + 0.77, 0.55), -90.0)
+		_level_stove(shell, Vector3(left + 0.32, f, CABIN_LAYOUT.size(3).y * 0.5 - CABIN_LAYOUT.STOVE_FROM_FRONT), f + CABIN_LAYOUT.wall_h(3) - 0.12)
+
+
+## The cast-iron stove of the best cabin under its chimney outside (building_models.cabin
+## Lv3), its pipe up into the ceiling, a tin sheet under it.
+func _level_stove(shell: Node3D, at: Vector3, ceiling: float) -> void:
+	var K := INTERIOR_KIT
+	var st := Node3D.new()
+	st.name = "Stove"
+	st.position = at
+	st.rotation_degrees.y = 90.0
+	shell.add_child(st)
+	var iron := K.surface("planks_dark", 0.4, Color(0.34, 0.24, 0.18))
+	K.slab(st, Vector3(0.44, 0.86, 0.4), Vector3(0, 0.43, 0), iron, "StoveBody")
+	K.slab(st, Vector3(0.48, 0.035, 0.44), Vector3(0, 0.875, 0), K.surface("galvanized", 0.3, Color(0.22, 0.2, 0.2)), "StoveTop")
+	K.picture(st, "stove", Vector2(0.44, 0.86), Vector3(0, 0.43, 0.202), 0.0, "StoveFace")
+	var pipe := MeshInstance3D.new()
+	pipe.name = "StovePipe"
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.06
+	cm.bottom_radius = 0.06
+	cm.height = ceiling - at.y - 0.89
+	cm.radial_segments = 8
+	pipe.mesh = cm
+	pipe.material_override = K.surface("galvanized", 0.3, Color(0.18, 0.17, 0.17))
+	pipe.position = Vector3(0, 0.89 + cm.height * 0.5, -0.06)
+	st.add_child(pipe)
+	K.slab(st, Vector3(0.66, 0.008, 0.68), Vector3(0, 0.004, 0.12), K.surface("galvanized", 0.5, Color(0.55, 0.52, 0.48)), "StoveSheet")
 
 
 ## The cabin as the last guests left it: the blanket kicked into a heap with the pillow
@@ -1058,12 +1343,13 @@ func _build_prep_props() -> void:
 			["f4", Vector3(-0.42, 0.04, 0.05)], ["f5", Vector3(0.75, 0.04, -0.3)], ["f6", Vector3(0.9, 0.04, 0.12)]]:
 		_prep.add_spot(spot[0], _cabin_root, spot[1])
 	# The toilet seat top, the basin, the floor in front of them.
-	_prep.add_spot("wc", _bathroom_root, Vector3(0.6, 0.5, -0.88))
-	_prep.add_spot("sink", _bathroom_root, Vector3(-0.6, 0.97, -1.0))
-	_prep.add_spot("bfloor", _bathroom_root, Vector3(0.05, 0.04, -0.7))
+	_prep.add_spot("wc", _bathroom_root, BATH_WC + Vector3(-0.06, 0.45, 0))
+	_prep.add_spot("sink", _bathroom_root, BATH_SINK + Vector3(0, 0.92, -0.04))
+	_prep.add_spot("bfloor", _bathroom_root, Vector3(0.05, 0.04, 0.1))
 	_prep.add_spot("pail", _cabin_root, SLOP_BUCKET_POS + Vector3(0, 0.31, 0))
 	# The back-left corner over the bed, across it at 45 degrees (the old cabin's cobwebs).
-	_prep.add_spot("w1", _cabin_root, Vector3(-1.45 + 0.354, 2.07, -1.45 + 0.354), deg_to_rad(45.0), true)
+	var corner: Vector2 = CABIN_LAYOUT.inner(1) * 0.5
+	_prep.add_spot("w1", _cabin_root, Vector3(-corner.x + 0.354, 2.07, -corner.y + 0.354), deg_to_rad(45.0), true)
 	_prep.setup_tasks(self, _interior_camera, _viewport, "cabin")
 	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 
@@ -1096,9 +1382,11 @@ func _set_derelict(on: bool) -> void:
 		boards.name = "RuinBoards"
 		_cabin_root.add_child(boards)
 		var plank := INTERIOR_KIT.surface("planks_grey", 0.5, Color(0.9, 0.8, 0.66))
-		for b in [[Vector3(1.24, 0.13, 0.03), Vector3(0.0, 1.8, -1.39), 0.2],
-				[Vector3(1.2, 0.12, 0.03), Vector3(0.03, 1.44, -1.38), -0.16],
-				[Vector3(1.16, 0.12, 0.03), Vector3(-0.02, 1.62, -1.37), 0.05]]:
+		var bw: Vector3 = CABIN_LAYOUT.to_room((CABIN_LAYOUT.windows(1)[2] as Dictionary)["centre"])
+		bw.z = -CABIN_LAYOUT.inner(1).y * 0.5 + 0.1
+		for b in [[Vector3(1.24, 0.13, 0.03), bw + Vector3(0.0, 0.2, 0.0), 0.2],
+				[Vector3(1.2, 0.12, 0.03), bw + Vector3(0.03, -0.16, 0.01), -0.16],
+				[Vector3(1.16, 0.12, 0.03), bw + Vector3(-0.02, 0.02, 0.02), 0.05]]:
 			var s := INTERIOR_KIT.slab(boards, b[0], b[1], plank, "Board")
 			s.rotation.z = float(b[2])
 	elif not on and boards != null:
@@ -1113,71 +1401,68 @@ func play_room_ready() -> void:
 	_prep.play_room_ready()
 
 
+## The bathroom built on at the right (Lv2+), inside the annex outside (CabinLayout
+## ANNEX): its own room, through the door in the cabin's right wall (D). Its middle is
+## its origin; it is moved to where the annex is for the cabin's width.
+const BATH_WC := Vector3(0.48, 0.05, -0.5)
+const BATH_SINK := Vector3(0.0, 0.05, 0.7)
+
+
 func _build_bathroom_room() -> void:
 	if _bathroom_root == null:
 		return
 	var K := INTERIOR_KIT
-	var w = 2.4
-	var d = 2.4
-	var h = 2.6
+	var CL := CABIN_LAYOUT
+	var box: AABB = CL.annex_box(2)
+	var w: float = box.size.x - CL.WALL_T
+	var d: float = box.size.z - CL.WALL_T * 2.0
+	var h := 2.0
 	var shell := K.room(_bathroom_root, Vector3(w, h, d), "tiles_green", "oil_wall", "ceiling_board", h, 0.8)
 	for key in shell.keys():
-		(shell[key] as Node3D).position.y += 0.05
+		(shell[key] as Node3D).position.y += CL.ROOM_FLOOR
 	_bath_shell = shell
-
-
-	# Level 2+: the toilet, the basin and its mirror; level 3: a shower corner.
-	var wc := K.prop(_bathroom_root, "toilet", Vector3(0.6, 0.05, -0.95))
+	# The toilet against the outer wall, the basin on the back wall with its mirror, the
+	# shower corner of the best cabin, the frosted window high in the outer wall.
+	var wc := K.prop(_bathroom_root, "toilet", BATH_WC, -90.0)
 	wc.name = "ToiletLv2"
-	var sink := K.prop(_bathroom_root, "sink_pedestal", Vector3(-0.6, 0.05, -1.03))
+	var sink := K.prop(_bathroom_root, "sink_pedestal", BATH_SINK, 180.0)
 	sink.name = "SinkLv2"
-	var mirror := K.prop(_bathroom_root, "mirror_frame", Vector3(-0.6, 1.3, -1.12))
+	var mirror := K.prop(_bathroom_root, "mirror_frame", BATH_SINK + Vector3(0, 1.25, 0.1), 180.0)
 	mirror.name = "SinkMirror"
-	var shower := K.prop(_bathroom_root, "shower_corner", Vector3(-0.78, 0.05, -0.2), 90.0)
+	var shower := K.prop(_bathroom_root, "shower_corner", Vector3(-w * 0.5 + 0.42, CL.ROOM_FLOOR, -d * 0.5 + 0.42), 0.0)
 	shower.name = "ShowerCorner"
+	K.picture(_bathroom_root, "glass_blocks", CL.BATH_WIN, Vector3(w * 0.5 - 0.005, CL.ROOM_FLOOR + 1.62, 0.0), -90.0, "BathWindow")
 	# Newspaper squares on a nail by the toilet.
-	K.slab(_bathroom_root, Vector3(0.14, 0.18, 0.015), Vector3(0.18, 0.85, -1.18), INTERIOR_PREP.flat(Color(0.82, 0.8, 0.72)), "Newspaper")
+	K.slab(_bathroom_root, Vector3(0.015, 0.18, 0.14), Vector3(w * 0.5 - 0.01, CL.ROOM_FLOOR + 0.85, -0.05), INTERIOR_PREP.flat(Color(0.82, 0.8, 0.72)), "Newspaper")
+
+
+## The bathroom's middle for this tier (the annex is beside the cabin's right wall).
+func _bath_origin() -> Vector3:
+	var CL := CABIN_LAYOUT
+	var box: AABB = CL.annex_box(maxi(2, _cabin_level))
+	var inner_x := CL.size(_cabin_level).x * 0.5
+	return Vector3(inner_x + (box.size.x - CL.WALL_T) * 0.5, 0.0, box.position.z + box.size.z * 0.5)
 
 
 func _apply_level_variant() -> void:
-	var wall_col = Color(0.60, 0.46, 0.32)
-	var floor_col = Color(0.52, 0.40, 0.28)
-	var bed_col = Color(0.46, 0.62, 0.84)
-	match _cabin_level:
-		2:
-			wall_col = Color(0.54, 0.40, 0.30)
-			floor_col = Color(0.42, 0.34, 0.26)
-			bed_col = Color(0.62, 0.48, 0.36)
-		3:
-			wall_col = Color(0.46, 0.54, 0.66)
-			floor_col = Color(0.34, 0.38, 0.46)
-			bed_col = Color(0.64, 0.76, 0.92)
-
-	var K := INTERIOR_KIT
-	var surf: Array = LEVEL_SURFACES.get(_cabin_level, LEVEL_SURFACES[1])
-	for wall in _shell.get("walls", []):
-		(wall as MeshInstance3D).material_override = K.surface(str(surf[0]), 1.2)
-	if _shell.has("floor"):
-		(_shell["floor"] as MeshInstance3D).material_override = K.surface(str(surf[1]), 1.0)
-	if _shell.has("ceiling"):
-		(_shell["ceiling"] as MeshInstance3D).material_override = K.surface(str(surf[2]), 1.0, Color(0.7, 0.66, 0.6) if _cabin_level == 1 else Color(1, 1, 1))
-	if not _bath_shell.is_empty():
-		var bath_wall := K.surface("tiles_bathroom", 0.9) if _cabin_level >= 3 else K.surface("oil_wall", 2.6)
-		for key in ["back", "front", "left", "right"]:
-			(_bath_shell[key] as MeshInstance3D).material_override = bath_wall
-
+	var CL := CABIN_LAYOUT
+	for lv in _level_shells.keys():
+		(_level_shells[lv] as Node3D).visible = int(lv) == _cabin_level
+	var inner: Vector2 = CL.inner(_cabin_level)
+	var h: float = CL.wall_h(_cabin_level) - 0.12
+	if _main_light != null:
+		_main_light.position = Vector3(0.0, CL.ROOM_FLOOR + h - 0.3, 0.0)
+	if _catalog != null and _level_tables.has(_cabin_level):
+		_catalog.position = (_level_tables[_cabin_level] as Vector3) + Vector3(0.05, 0.0, 0.0)
+	if _light_switch_body != null:
+		_light_switch_body.position = Vector3(0.62, CL.ROOM_FLOOR + 1.2, inner.y * 0.5 - 0.02)
 	_set_node_visible("SlopBucket", _cabin_level == 1)
-	for node_name in _level1_nodes:
-		_set_node_visible(node_name, _cabin_level == 1)
-	_set_node_visible("Door", _cabin_level >= 2)
-	_set_node_visible("DoorFrame", _cabin_level >= 2)
-	for node_name in _level2_nodes:
-		_set_node_visible(node_name, _cabin_level >= 2)
-	for node_name in _level3_nodes:
-		_set_node_visible(node_name, _cabin_level >= 3)
-	for node_name in _level2_only:
-		_set_node_visible(node_name, _cabin_level == 2)
-	
+	if _bathroom_root != null:
+		_bathroom_root.position = _bath_origin()
+		if not _bath_shell.is_empty():
+			var bath_wall := INTERIOR_KIT.surface("tiles_bathroom", 0.9) if _cabin_level >= 3 else INTERIOR_KIT.surface("oil_wall", 2.0)
+			for key in ["back", "front", "left", "right"]:
+				(_bath_shell[key] as MeshInstance3D).material_override = bath_wall
 	_set_bathroom_variant()
 
 
@@ -1294,10 +1579,15 @@ func _set_cabin_room(room: String, update_camera: bool = true) -> void:
 	
 	if update_camera and _interior_camera != null:
 		if room == "bathroom":
-			_interior_camera.position = Vector3(0.0, 1.45, 1.1)
-			_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
+			# In from the cabin's door, facing the outer wall (the toilet, the window).
+			var bo := _bath_origin()
+			var bw: float = CABIN_LAYOUT.annex_box(2).size.x - CABIN_LAYOUT.WALL_T
+			# (From the doorway itself: the room is a metre and a half across.)
+			_interior_camera.position = Vector3(bo.x - bw * 0.5 - 0.06, CABIN_LAYOUT.ROOM_FLOOR + 1.5, CABIN_LAYOUT.bath_door_z(_cabin_level))
+			_interior_camera.rotation_degrees = Vector3(-9.0, -90.0, 0.0)
 		else:
-			_interior_camera.position = Vector3(0.0, 1.5, 1.0)
+			# Just in by the front door, looking in at the back window.
+			_interior_camera.position = Vector3(0.0, CABIN_LAYOUT.ROOM_FLOOR + 1.47, CABIN_LAYOUT.inner(_cabin_level).y * 0.5 - 0.42)
 			_interior_camera.rotation_degrees = Vector3(MAIN_PITCH_DEG, 0.0, 0.0)
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()

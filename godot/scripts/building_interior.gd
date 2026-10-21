@@ -49,12 +49,18 @@ const RADIO_OUTSIDE_NEAR_DISTANCE: float = 2.70
 const RADIO_OUTSIDE_FAR_DISTANCE: float = 16.70
 const RADIO_VOLUME_LERP_SPEED: float = 1.15
 const RADIO_BUS_NAME := "Radio"
-## Outside, the radio is a positional source in the reception: across the field it is a
-## faint, muffled tune you can walk toward in the dark.
-const RADIO_OUTDOOR_VOLUME_DB: float = -3.0
-const RADIO_OUTDOOR_UNIT_SIZE: float = 4.0
-const RADIO_OUTDOOR_MAX_DISTANCE: float = 75.0
+## Outside, the radio is a positional source in the reception, heard through its walls:
+## by the building a muffled tune (quieter than in the room, its highs gone), across the
+## nearer field a faint one you can walk toward in the dark (the user 21. 10.: "by the
+## reception you hear the radio from inside a little"). Muffled by the distance filter
+## below and the radio's own bus (radio_dread: its night low-pass).
+const RADIO_OUTDOOR_VOLUME_DB: float = -14.0
+const RADIO_OUTDOOR_UNIT_SIZE: float = 3.0
+const RADIO_OUTDOOR_MAX_DISTANCE: float = 40.0
 const RADIO_OUTDOOR_HEIGHT: float = 1.4
+const RADIO_OUTDOOR_FILTER_HZ: float = 1200.0
+const RADIO_OUTDOOR_FILTER_DB: float = -24.0
+const WORLD_SOUNDS := preload("res://scripts/ambient/world_sounds.gd")
 ## The station that does not exist (DESIGN §2): late at night, once at most, from day 2,
 ## the radio drifts onto a frequency with a music-box phrase and a row of pips. Count
 ## them: one for each guest in the camp, and one more.
@@ -74,11 +80,18 @@ const RADIO_INFRAVRANY_FILENAME := "song_infravrany.mp3"
 const RADIO_CURSED_INFRAVRANY_FILENAME := "song_cursedinfravrany.mp3"
 const RADIO_CURSED_INFRAVRANY_CHANCE: float = 0.1
 ## "Prani a pozdravy" opens with "it is just half past twelve": kept out of the shuffle, it
-## goes on air at 0:30 and only then, cutting in like the station's programme (the user
-## 20. 10.: it played at any hour of the night).
+## is the station's programme from 0:30, on the clock: on air only for as long as it runs
+## from 0:30 at the clock's pace, and tuned into mid-way at the point it has reached (the
+## user 21. 10.: "it played in the morning sometimes; it must never be heard at any other
+## time than it would be had it started at half past twelve"). Not after the night skip,
+## not after a load, not from the start at one o'clock.
 const RADIO_GREETINGS_FILENAME := "night_pranipozdravy.mp3"
 const RADIO_GREETINGS_PATH := "res://assets/sfx/radio/night_pranipozdravy.mp3"
-var _greet_prev_h := -1.0
+const RADIO_GREETINGS_HOUR := 0.5
+## Off the end by this much it is over (no cutting back in for its last seconds).
+const RADIO_GREETINGS_TAIL_SEC := 6.0
+## Further than this from where the clock says, it is put back there.
+const RADIO_GREETINGS_DRIFT_SEC := 3.0
 const RADIO_NIGHT_TRACK_WEIGHT_AT_NIGHT: int = 2
 const RADIO_PITCH_BASE: float = 0.97
 const RADIO_WOW_RATE_HZ: float = 0.34
@@ -429,6 +442,8 @@ func open_interior() -> void:
 
 	if _viewport != null:
 		_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		# Its own 3D sounds (the tube's buzz, the TV, the night's knocks) only while you are in.
+		_viewport.audio_listener_enable_3d = true
 	_set_window_view_live(true)
 	_update_window_texture()
 	visible = true
@@ -495,6 +510,7 @@ func close_interior() -> void:
 	_set_crt_viewport_live(false)
 	if _viewport != null:
 		_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_viewport.audio_listener_enable_3d = false
 	_set_window_view_live(false)
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -779,6 +795,14 @@ var _coop_screen_left := 0.0
 func coop_screen_frame() -> PackedByteArray:
 	if not _crt_active or _crt_viewport == null:
 		return PackedByteArray()
+	return coop_screen_frame_any()
+
+
+## The PC's picture as a JPEG, whoever sits at it (here, or at the staffroom's laptop:
+## scripts/staff/laptop_view.gd).
+func coop_screen_frame_any() -> PackedByteArray:
+	if _crt_viewport == null:
+		return PackedByteArray()
 	var img := _crt_viewport.get_texture().get_image()
 	if img == null or img.is_empty():
 		return PackedByteArray()
@@ -1015,6 +1039,12 @@ func _build_room() -> void:
 	_add_box(_room_root, "FrontPorchL", Vector3(1.15, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
 	_add_box(_room_root, "FrontPorchR", Vector3(2.30, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
 	_add_box(_room_root, "FrontPorchTop", Vector3(1.725, 2.4, -3.1), Vector3(1.2, 0.06, 1.1), Color(0.40, 0.32, 0.24))
+	# The camp looking in through the office window does not see these (they stand
+	# outside the room's front wall, in the way at a slant: the user 21. 10.).
+	for n in ["FrontStep", "FrontPorchL", "FrontPorchR", "FrontPorchTop"]:
+		var porch := _room_root.get_node_or_null(n)
+		if porch != null:
+			_hide_from_camp(porch)
 	_add_box(_room_root, "WallFrontBottom", Vector3(-0.4, 0.475, -2.55), Vector3(2.00, 0.95, 0.1), Color(0.66, 0.50, 0.36))
 	_add_box(_room_root, "WallFrontTop",    Vector3(-0.4, 2.575, -2.55), Vector3(2.00, 0.45, 0.1), Color(0.66, 0.50, 0.36))
 
@@ -1072,6 +1102,13 @@ func _build_room() -> void:
 	sky_bg_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_window_outdoor_sky.material_override = sky_bg_mat
 	_room_root.add_child(_window_outdoor_sky)
+	# The window is a real view of the camp now (_setup_window_view): the old painted
+	# scene behind it goes. It was hidden before it was built, so it stayed, and from the
+	# camp at a slant its beige walls covered the office's window (the user 21. 10.).
+	for n in ["OutdoorGround", "OutdoorCeiling", "OutdoorWallL", "OutdoorWallR", "OutdoorBushL", "OutdoorBushR", "OutdoorBushR2", "OutdoorGravelStrip0", "OutdoorGravelStrip1", "OutdoorGravelStrip2", "OutdoorSkyBg"]:
+		var outdoor := _room_root.get_node_or_null(n)
+		if outdoor != null:
+			outdoor.visible = false
 
 	# ── THE PC CORNER: the old work desk, the computer, the fan and the radio, on the
 	# low desk at the left end of the counter (PC_OFFSET from where they were made).
@@ -1338,6 +1375,9 @@ func _build_crt_viewport() -> void:
 	_crt_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_crt_viewport.handle_input_locally = true
 	_crt_viewport.gui_disable_input = false
+	# Menus, submenus and tooltips open inside the monitor (not embedded they went to the
+	# game's own window at the screen's coordinates: off the monitor, the user 21. 10.).
+	_crt_viewport.gui_embed_subwindows = true
 	add_child(_crt_viewport)
 
 	_crt_ui = CRT_UI_SCENE.new()
@@ -1441,6 +1481,12 @@ func _exit_crt_view() -> void:
 	_crt_look = 0
 	if _crt_ui != null and _crt_ui.has_method("set_screen"):
 		_crt_ui.set_screen(0)
+	if _crt_ui != null:
+		_crt_ui.set_meta("look_away", false)
+		# Up from the desk, the camera's legs go back in (the next sitting starts with S).
+		var b = _crt_ui.get_meta("builder_walk", null)
+		if b != null and is_instance_valid(b):
+			b.call("end_walk")
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
@@ -1492,16 +1538,18 @@ func _input(event: InputEvent) -> void:
 			if _handle_crt_look_back_key(key_event):
 				get_viewport().set_input_as_handled()
 				return
-			# Not typing into the machine: S stands you up, D turns you right (to the
-			# second monitor, or out of the office window), A back to the first one.
+			# Not typing into the machine: E turns your head (to the second monitor, or out
+			# of the office window) and back again (the user, 21. 10.: "E right, E left";
+			# A and D were it). S stands you up, unless Builder has the camera on WASD and
+			# it is the screen you look at (builder_module.walk_keys).
 			if not _crt_typing():
-				if key_event.physical_keycode == KEY_S and key_event.pressed and not key_event.echo:
-					_exit_crt_view()
+				if key_event.physical_keycode == KEY_E:
+					if key_event.pressed and not key_event.echo:
+						_crt_turn(1 - _crt_look)
 					get_viewport().set_input_as_handled()
 					return
-				if key_event.physical_keycode == KEY_D or key_event.physical_keycode == KEY_A:
-					if key_event.pressed and not key_event.echo:
-						_crt_turn(1 if key_event.physical_keycode == KEY_D else 0)
+				if key_event.physical_keycode == KEY_S and key_event.pressed and not key_event.echo and not _crt_keys_taken():
+					_exit_crt_view()
 					get_viewport().set_input_as_handled()
 					return
 			# The keyboard under your fingers: a clack per key (the shell's own sound).
@@ -1557,12 +1605,23 @@ func _crt_rest_rot(pos: Vector3) -> Vector3:
 	return Transform3D(Basis(), pos).looking_at(pivot, Vector3.UP).basis.get_euler()
 
 
-## A or D at the PC: one press turns you (it was D held to lean out, playtest 21. 10.).
-## Right is the second monitor once it is on the desk, the office window before that.
+## Builder's camera on WASD (its legged camera button), on the screen you look at: the
+## left hand is on the map, S does not stand you up.
+func _crt_keys_taken() -> bool:
+	var b = _crt_ui.get_meta("builder_walk", null) if _crt_ui != null else null
+	return b != null and is_instance_valid(b) and bool(b.call("walk_keys"))
+
+
+## E at the PC: one press turns you, the next back (it was D held to lean out, then A/D,
+## playtest 21. 10.). Right is the second monitor once it is on the desk, the office
+## window before that.
 func _crt_turn(to: int) -> void:
 	if to == _crt_look or not _crt_active or _interior_camera == null:
 		return
 	_crt_look = to
+	# Out of the window no program has the keys (Builder's WASD camera neither).
+	if _crt_ui != null:
+		_crt_ui.set_meta("look_away", to == 1 and not _dual)
 	_crt_orbit_enabled = false
 	if _crt_ui != null and _crt_ui.has_method("set_screen"):
 		_crt_ui.set_screen(to if _dual else 0)
@@ -3480,23 +3539,48 @@ func _tick_music_duck(delta: float) -> void:
 
 
 func _tick_radio_greetings() -> void:
-	var h := _hour_now()
-	var prev := _greet_prev_h
-	_greet_prev_h = h
-	if prev < 0.0 or not (prev < 0.5 and h >= 0.5 and h < 0.75):
+	# The host's (or a lone warden's) set: the other machine follows it (coop_take_radio).
+	if _radio_player == null or Coop.is_client():
 		return
-	if _radio_player == null or not _radio_power_on or Coop.is_client():
+	var on_air := _radio_last_played_path == RADIO_GREETINGS_PATH and _radio_player.playing
+	var at := _greetings_at(_hour_now())
+	if at < 0.0:
+		if on_air:
+			# Its time is over (the clock jumped past it: the night skip, a load).
+			_play_radio_next()
 		return
-	var s: AudioStream = _radio_stream_by_path.get(RADIO_GREETINGS_PATH, null)
-	if s == null and ResourceLoader.exists(RADIO_GREETINGS_PATH):
-		s = load(RADIO_GREETINGS_PATH)
-	if s == null:
+	if on_air:
+		if absf(_radio_player.get_playback_position() - at) > RADIO_GREETINGS_DRIFT_SEC:
+			_radio_player.seek(at)
+		return
+	var s := _greetings_stream()
+	if s == null or at > s.get_length() - RADIO_GREETINGS_TAIL_SEC:
 		return
 	_radio_current_track_is_night = true
 	_radio_player.stream = s
-	_radio_player.play()
+	_radio_player.play(at)
 	_radio_last_played_path = RADIO_GREETINGS_PATH
 	_radio_on_air("song", RADIO_GREETINGS_PATH)
+
+
+func _greetings_stream() -> AudioStream:
+	var s: AudioStream = _radio_stream_by_path.get(RADIO_GREETINGS_PATH, null)
+	if s == null and ResourceLoader.exists(RADIO_GREETINGS_PATH):
+		s = load(RADIO_GREETINGS_PATH)
+		_radio_stream_by_path[RADIO_GREETINGS_PATH] = s
+	return s
+
+
+## Seconds into the programme at `hour` had it gone on air at 0:30 (the clock's pace,
+## BalanceConfig.GAME_MINUTES_PER_SECOND); -1 outside it.
+func _greetings_at(hour: float) -> float:
+	if hour < RADIO_GREETINGS_HOUR:
+		return -1.0
+	var s := _greetings_stream()
+	if s == null:
+		return -1.0
+	var sec := (hour - RADIO_GREETINGS_HOUR) * 60.0 / BalanceConfig.GAME_MINUTES_PER_SECOND
+	return sec if sec < s.get_length() else -1.0
 
 
 func _try_play_station() -> bool:
@@ -3725,15 +3809,40 @@ func _load_radio_stream(res_path: String) -> AudioStream:
 	return mp3
 
 
+## Asleep in the back room (the eyes shut while the night passes; co-op: on each machine
+## its own warden's): the radio goes quiet as the eyes close (the user 21. 10.: "it played
+## on right through the time skip"), and in the morning it is on another song.
+var _radio_sleep_k := 0.0
+var _radio_was_asleep := false
+const RADIO_SLEEP_FADE_SEC := 1.0
+
+
+func _eyes_shut() -> bool:
+	var seq = _extras.get("sleep") if _extras != null else null
+	if seq != null and seq.is_running() and seq.eyes_closing():
+		return true
+	# Or in a tent's, cabin's or caravan's bed (scripts/lodge_bed.gd, InteriorManager's).
+	var lb = get_parent().get("lodge_bed") if get_parent() != null else null
+	return lb != null and is_instance_valid(lb) and lb.has_method("eyes_shut") and bool(lb.eyes_shut())
+
+
 func _update_radio_mix(delta: float) -> void:
 	_ensure_radio_playback()
+	var asleep := _eyes_shut()
+	_radio_sleep_k = move_toward(_radio_sleep_k, 1.0 if asleep else 0.0, delta / RADIO_SLEEP_FADE_SEC)
+	if _radio_was_asleep and not asleep:
+		# Hours have gone by: not the same song where it was.
+		_play_radio_next()
+	_radio_was_asleep = asleep
 	var target_db = _compute_radio_target_db()
 	var character_db = _compute_radio_character_volume_offset(delta)
+	character_db += linear_to_db(maxf(1.0 - _radio_sleep_k, 0.0001))
 	var night_track_db = RADIO_NIGHT_TRACK_VOLUME_OFFSET_DB if _radio_current_track_is_night else 0.0
 	if _dread != null:
+		var sleep_db := linear_to_db(maxf(1.0 - _radio_sleep_k, 0.0001))
 		_dread.update(
 			delta, _radio_dread_context(delta),
-			target_db if visible else RADIO_OUTSIDE_SILENT_DB,
+			(target_db + sleep_db) if visible else RADIO_OUTSIDE_SILENT_DB,
 			RADIO_OUTSIDE_SILENT_DB if visible else RADIO_OUTDOOR_VOLUME_DB,
 			_radio_power_on and _grid_power_available, _resolve_main_building_node()
 		)
@@ -3771,11 +3880,12 @@ func _sync_radio_outdoor(target_db: float, delta: float) -> void:
 	if _radio_outdoor == null or not is_instance_valid(_radio_outdoor):
 		_radio_outdoor = AudioStreamPlayer3D.new()
 		_radio_outdoor.name = "RadioOutdoor"
-		_radio_outdoor.bus = RADIO_DREAD_SCRIPT.MUSIC_BUS
+		# Through the reception's walls, then the radio's own bus (its night's moods).
+		_radio_outdoor.bus = WORLD_SOUNDS.wall_bus(RADIO_DREAD_SCRIPT.MUSIC_BUS)
 		_radio_outdoor.unit_size = RADIO_OUTDOOR_UNIT_SIZE
 		_radio_outdoor.max_distance = RADIO_OUTDOOR_MAX_DISTANCE
-		_radio_outdoor.attenuation_filter_cutoff_hz = 2600.0
-		_radio_outdoor.attenuation_filter_db = -14.0
+		_radio_outdoor.attenuation_filter_cutoff_hz = RADIO_OUTDOOR_FILTER_HZ
+		_radio_outdoor.attenuation_filter_db = RADIO_OUTDOOR_FILTER_DB
 		_radio_outdoor.volume_db = RADIO_OUTSIDE_SILENT_DB
 		building.add_child(_radio_outdoor)
 	elif _radio_outdoor.get_parent() != building:

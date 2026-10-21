@@ -18,9 +18,12 @@ const SLEEP = preload("res://scripts/reception/sleep_sequence.gd")
 ## top centre, the head's end (the camera lies with its eyes there, looking down the
 ## bed and up a little), the click box over the bed.
 const BEDS := {
-	"cabin": {"centre": Vector3(-1.0, 0.59, -0.6), "eyes": Vector3(-1.0, 0.82, -1.12), "look": Vector3(14.0, 180.0, 0.0), "box": Vector3(1.0, 0.5, 1.9)},
+	"cabin": {"centre": Vector3(-1.46, 0.59, -0.66), "eyes": Vector3(-1.46, 0.82, -1.18), "look": Vector3(14.0, 180.0, 0.0), "box": Vector3(1.0, 0.5, 1.9)},
 	"tent": {"centre": Vector3(-0.2, 0.1, -0.02), "eyes": Vector3(-0.2, 0.26, -0.52), "look": Vector3(16.0, 180.0, 0.0), "box": Vector3(0.7, 0.3, 1.3)},
 	"caravan": {"centre": Vector3(1.78, 0.66, 0.0), "eyes": Vector3(1.78, 0.9, -0.72), "look": Vector3(10.0, 180.0, 0.0), "box": Vector3(0.96, 0.4, 1.8)},
+	# The staffroom's boiler room (scripts/staff/staffroom_plan.gd MATTRESS): the mattress
+	# on the floor is the warden's (the user 21. 10.: "the mattress is for the player").
+	"staff": {"centre": Vector3(3.39, 0.44, -0.1), "eyes": Vector3(3.39, 0.64, -0.82), "look": Vector3(16.0, 180.0, 0.0), "box": Vector3(0.8, 0.3, 1.9)},
 }
 
 var im: Node                      # InteriorManager
@@ -55,6 +58,12 @@ func is_sleeping() -> bool:
 	return _sleep != null and _sleep.is_running()
 
 
+## Lying with the eyes shut while the night goes by (the radio at the reception, heard
+## through the walls, goes quiet for it: building_interior._eyes_shut).
+func eyes_shut() -> bool:
+	return is_sleeping() and _sleep.eyes_closing()
+
+
 func _office():
 	var main := get_tree().current_scene
 	return main.get("camp_office") if main != null else null
@@ -74,6 +83,9 @@ func _process(_delta: float) -> void:
 	var kind := ""
 	if it != null:
 		kind = str(im.call("_room_kind", it))
+		# The staffroom is a service building with a bed of its own.
+		if kind == "service" and str(it.get("_current_profile")) == "staff":
+			kind = "staff"
 	if not BEDS.has(kind):
 		it = null
 		kind = ""
@@ -214,6 +226,8 @@ func _lamp(on: bool) -> void:
 	elif _kind == "caravan" and _it.has_method("_apply_light"):
 		_it.set("_lights_on", on)
 		_it.call("_apply_light")
+	elif _kind == "staff" and _it.has_method("_toggle_manual_service_lights") and bool(_it.get("_manual_lights_on")) != on:
+		_it.call("_toggle_manual_service_lights")
 
 
 func _on_woke() -> void:

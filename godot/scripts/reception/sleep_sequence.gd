@@ -101,6 +101,12 @@ func eyes_shut() -> bool:
 	return _phase == DARK
 
 
+## From the heavy blinks to the alarm: the lids closing or shut (the radio goes quiet
+## over it: building_interior._eyes_shut).
+func eyes_closing() -> bool:
+	return _phase == LIDS or _phase == DARK
+
+
 func start() -> void:
 	if camera == null:
 		return

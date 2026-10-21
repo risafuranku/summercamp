@@ -50,7 +50,7 @@ const INDEX := {
 	"volny.cz/~infravrany": "band music infravrany rock metal gig disco demo tape concert lukas",
 	"povodi-hlubocany.cz": "reservoir lake water board dam keeper hruby boat boathouse sluice level fishing shore",
 	"cerne-jezero.cz/team": "karel vera team leaders staff camp photos",
-	"softsklad.cz": "software pub bistro shop corn stand stock order staff licence hostinsky kuchar pult klasek business wholesaler",
+	"softsklad.cz": "software pub bistro shop corn stand stock order staff licence hostinsky kuchar pult klasek personal staffroom cleaning business wholesaler",
 	"bohemia-online.cz/weather": "weather forecast rain storm fog sun",
 	"bohemia-online.cz/hry": "games hry shareware download komar mosquito vylet hike snake pexeso memory mines fun",
 	"bohemia-online.cz/prace": "work job jobs prace money earn home klikbanka sectito datapunch adverts count",

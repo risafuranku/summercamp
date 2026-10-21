@@ -6,9 +6,10 @@ extends Node3D
 ## and fast (the leaves are wind_life.gd's, on the same gusts). They come in from upwind,
 ## tumble (turned over in steps, as Build turned its sprites), the light ones bob, the
 ## heavy ones drop; the dust puffs grow and thin out as they go; none drawn right in your
-## face, no dust or straw off the snow. Each gust is heard coming (Grok sprites in world/,
-## ElevenLabs sounds in sfx/weather/), the trees creak in the strong wind. Outdoors only,
-## and not out of a moving bus.
+## face, no dust or straw off the snow (Grok sprites in world/). The gusts are heard as the
+## wind's own loop swelling (audio_manager.wind_gust), never a whoosh of their own (the
+## user 21. 10.: "vítr by měl být kontinuální ambience na pozadí, ne jednorázový swoosh");
+## the trees creak in the strong wind. Outdoors only, and not out of a moving bus.
 ## Made by weather_visuals.gd (setup_weather_particles), which it reads.
 
 const FPS := 12.0
@@ -26,10 +27,6 @@ const DUST_SHADER := preload("res://materials/breath_puff.gdshader")
 const SIZE := {"twig": 0.4, "straw": 0.34, "paper": 0.5, "wrapper": 0.17, "dust": 1.7}
 ## Which falls (heavy) and which bobs (light).
 const HEAVY := {"twig": 1.6, "paper": 0.5, "wrapper": 0.3, "straw": 0.4, "dust": 0.0}
-## (gust_3, a short sharp whoosh past the ear, is gone: the user 21. 10., "now and then
-## a really bizarre sound".)
-const GUST_SFX := ["res://assets/sfx/weather/gust_1.mp3", "res://assets/sfx/weather/gust_2.mp3"]
-const STORM_GUST_SFX := "res://assets/sfx/weather/storm_gust.mp3"
 const CREAK_SFX := "res://assets/sfx/weather/tree_creak.mp3"
 ## Weather (weather_visuals WEATHER_*) where it is dry enough for dust and straw.
 const DRY := [0, 1]
@@ -42,7 +39,6 @@ var _items: Array = []       # {sprite, kind, vel: Vector3, age, life, spin, siz
 var _tex := {}               # kind -> [Texture2D]
 var _acc := 0.0
 var _spawn := 0.0
-var _gust_was := 0.0
 var _creak_wait := 8.0
 var _players: Array = []
 var _next_player := 0
@@ -65,7 +61,8 @@ func _ready() -> void:
 	for i in POOL:
 		var s := Sprite3D.new()
 		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		s.shaded = false
+		# Lit, so dark at night (unlit they shone in the dark: playtest 21. 10.).
+		s.shaded = true
 		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		s.visible = false
@@ -256,12 +253,10 @@ func _step(dt: float, cp: Vector3, w3: Vector3, carry: float, fade_all: bool) ->
 
 
 func _sounds(delta: float, ws: int, wind: float, gust: float, indoors: bool) -> void:
-	# A gust coming: heard once as it rises (in a room room_weather.gd has its own).
-	if _gust_was < 0.22 and gust >= 0.22 and not indoors:
-		var peak := float(_v("_gust_peak", gust))
-		var path: String = STORM_GUST_SFX if ws == 5 and _rng.randf() < 0.6 else GUST_SFX[_rng.randi() % GUST_SFX.size()]
-		_play(path, linear_to_db(0.25 + 0.65 * peak), _rng.randf_range(0.9, 1.08))
-	_gust_was = gust
+	# A gust: the wind's loop swells with it (audio_manager.wind_gust).
+	var am = visuals.get("_audio_mgr") if visuals != null else null
+	if am != null:
+		am.set("wind_gust", 0.0 if indoors else gust)
 	# The trees creak in a strong wind.
 	if wind > 0.7 and not indoors:
 		_creak_wait -= delta

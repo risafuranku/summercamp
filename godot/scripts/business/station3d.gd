@@ -67,6 +67,15 @@ const STEP := 1.0 / 12.0
 ## The camera's way to the station and back (smooth, eased).
 const CAM_SEC := 0.34
 const FACES := preload("res://scripts/business/guest_face.gd")
+const LOOK := preload("res://scripts/interior_look.gd")
+## Looking about from the station (the user, 21. 10.: "look round with the mouse as in the
+## rooms, not a locked camera: from the corn stand round the camp, say"): the pointer held
+## in a side band of the screen (narrower than a room's, and only after a moment: the work
+## reaches the edges) or the arrow keys turn the head, up to LOOK_YAW either way; not while
+## something is held. No sway and no breath here: the work stays still under the pointer.
+const LOOK_BAND := 0.07
+const LOOK_DWELL := 0.18
+const LOOK_YAW := 170.0
 
 ## Who and where (set by the room before it is added).
 var building_key := ""
@@ -109,6 +118,9 @@ var _acc := 0.0
 var _mouse := Vector2(-1, -1)
 var _mouse_free := Vector2(-1, -1)
 var _vp_mouse := Vector2(-1, -1)
+var _look = LOOK.new(LOOK_YAW, 20.0, 30.0)
+var _open_t := 0.0
+var _band_t := 0.0
 ## The pointer's ray in this node's space (for things held up off the surface).
 var _ray_o := Vector3.ZERO
 var _ray_d := Vector3.ZERO
@@ -594,6 +606,9 @@ func is_open() -> bool:
 func open_station(cam: Camera3D) -> void:
 	camera = cam
 	_open = true
+	_look.reset()
+	_open_t = 0.0
+	_band_t = 0.0
 	if building_key != "":
 		last_station[building_key] = station
 	_closing_now = false
@@ -607,6 +622,36 @@ func open_station(cam: Camera3D) -> void:
 		_hands_ui.name = "StationHand"
 		get_tree().root.add_child(_hands_ui)
 	_opened()
+
+
+func _tick_look(delta: float) -> void:
+	if camera == null or not is_instance_valid(camera):
+		return
+	var vs := camera.get_viewport().get_visible_rect().size
+	var cur := Vector2(-1, -1)
+	if _vp_mouse.x >= 0.0 and vs.x > 0.0 and vs.y > 0.0:
+		var c := _vp_mouse / vs
+		var in_band := c.x < LOOK_BAND or c.x > 1.0 - LOOK_BAND
+		_band_t = _band_t + delta if in_band and holding() == "" else 0.0
+		var x := c.x if _band_t >= LOOK_DWELL else clampf(c.x, LOOK_BAND, 1.0 - LOOK_BAND)
+		# The narrow band stretched onto the look's own (its outer fifth turns the head);
+		# the height never pushes (the rail is at the top, the bar at the bottom).
+		if x < LOOK_BAND:
+			x = x / LOOK_BAND * LOOK.EDGE_BAND
+		elif x > 1.0 - LOOK_BAND:
+			x = 1.0 - LOOK.EDGE_BAND + (x - (1.0 - LOOK_BAND)) / LOOK_BAND * LOOK.EDGE_BAND
+		else:
+			x = LOOK.EDGE_BAND + (x - LOOK_BAND) / (1.0 - 2.0 * LOOK_BAND) * (1.0 - 2.0 * LOOK.EDGE_BAND)
+		cur = Vector2(x, 0.5)
+	_look.update(delta, cur, LOOK.key_axis())
+	var base := cam_pose()
+	# Turned away from the work the eyes come up off the counter to the horizon (a little
+	# under it), so the camp is what you see, not the grass at your feet.
+	var down := asin(clampf(-base.basis.z.normalized().y, -1.0, 1.0))
+	var away := smoothstep(15.0, 70.0, absf(_look.yaw_deg))
+	var pitch := deg_to_rad(_look.pitch_deg) - (down + deg_to_rad(6.0)) * away
+	var b := base.basis.rotated(base.basis.x.normalized(), pitch).rotated(Vector3.UP, deg_to_rad(_look.yaw_deg))
+	camera.global_transform = Transform3D(b, base.origin)
 
 
 ## You stepped away (or the room closed under you).
@@ -725,6 +770,10 @@ func _process(delta: float) -> void:
 	_t += delta
 	if _open and not get_tree().paused:
 		_tick(delta)
+		_open_t += delta
+		# Once the room's camera has come over the station.
+		if _open_t > CAM_SEC + 0.05:
+			_tick_look(delta)
 		if int(_t * 2.0) != int((_t - delta) * 2.0):
 			_check_rail()
 	for p in _pops:

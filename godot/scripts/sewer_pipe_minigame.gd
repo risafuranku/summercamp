@@ -694,6 +694,8 @@ func _build_shell() -> void:
 	_viewport.own_world_3d = true
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport.handle_input_locally = false
+	# Its 3D sounds (the leaks down the pipes) heard from its camera.
+	_viewport.audio_listener_enable_3d = true
 	_container.add_child(_viewport)
 	_world = Node3D.new()
 	_viewport.add_child(_world)
@@ -705,7 +707,8 @@ func _build_shell() -> void:
 	env.ambient_light_energy = 0.035
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.0, 0.0, 0.0)
-	env.fog_density = 0.17
+	# (Thicker from 21. 10.: the pipes read too far.)
+	env.fog_density = 0.26
 	var we := WorldEnvironment.new()
 	we.environment = env
 	_world.add_child(we)
@@ -1142,15 +1145,19 @@ func _stencil(c: Vector2i) -> void:
 
 func _build_ladder() -> void:
 	var p := _world_pos(_entry)
+	# The manhole's shaft over the junction, round and bricked: you climb down inside it
+	# (the way down passed through the crown from above, the whole network in view from
+	# outside: playtest 21. 10.); the cover's ring of daylight far above.
+	_build_shaft(p)
 	for x in [-0.22, 0.22]:
 		var rail := MeshInstance3D.new()
 		var m := BoxMesh.new()
-		m.size = Vector3(0.05, 3.0, 0.05)
+		m.size = Vector3(0.05, 3.6, 0.05)
 		rail.mesh = m
-		rail.position = p + Vector3(x * 0.8, 0.4, ARM_R * 0.85)
+		rail.position = p + Vector3(x * 0.8, 1.2, ARM_R * 0.85)
 		rail.material_override = _flat_mat(Color(0.35, 0.22, 0.14))
 		_geo.add_child(rail)
-	for i in 6:
+	for i in 10:
 		var rung := MeshInstance3D.new()
 		var m2 := BoxMesh.new()
 		m2.size = Vector3(0.48, 0.04, 0.04)
@@ -1164,6 +1171,56 @@ func _build_ladder() -> void:
 	light.omni_range = 3.5
 	light.position = p + Vector3(0, 1.4, ARM_R * 0.7)
 	_geo.add_child(light)
+
+
+const SHAFT_TOP := 3.0
+
+
+func _build_shaft(p: Vector3) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var r := ARM_R
+	var y0 := ARM_R * 0.6
+	var segs := 12
+	for i in segs:
+		var a0 := TAU * float(i) / float(segs)
+		var a1 := TAU * float(i + 1) / float(segs)
+		var c0 := Vector3(cos(a0) * r, 0, sin(a0) * r)
+		var c1 := Vector3(cos(a1) * r, 0, sin(a1) * r)
+		var u0 := float(i) / float(segs) * 3.0
+		var u1 := float(i + 1) / float(segs) * 3.0
+		# The inside faces (wound to face the middle).
+		for v in [[c0, y0, u0, 1.0], [c1, SHAFT_TOP, u1, 0.0], [c1, y0, u1, 1.0], [c0, y0, u0, 1.0], [c0, SHAFT_TOP, u0, 0.0], [c1, SHAFT_TOP, u1, 0.0]]:
+			var c: Vector3 = v[0]
+			st.set_uv(Vector2(float(v[2]), float(v[3]) * (SHAFT_TOP - y0) / 1.2))
+			st.add_vertex(p + c + Vector3(0, float(v[1]), 0))
+	st.generate_normals()
+	var shaft := MeshInstance3D.new()
+	shaft.name = "Shaft"
+	shaft.mesh = st.commit()
+	var m := StandardMaterial3D.new()
+	var tex := BRICK_TEXTURE if ResourceLoader.exists(BRICK_TEXTURE) else PIPE_TEXTURE
+	if ResourceLoader.exists(tex):
+		m.albedo_texture = load(tex)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.roughness = 1.0
+	shaft.material_override = m
+	_geo.add_child(shaft)
+	# The cover's holes: daylight (or the night) far up.
+	var lid := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = r
+	disc.bottom_radius = r
+	disc.height = 0.04
+	disc.radial_segments = segs
+	lid.mesh = disc
+	var lm := StandardMaterial3D.new()
+	lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	lm.albedo_color = Color(0.1, 0.1, 0.09) if _night else Color(0.55, 0.56, 0.5)
+	lid.material_override = lm
+	lid.position = p + Vector3(0, SHAFT_TOP, 0)
+	_geo.add_child(lid)
 
 
 func _flat_mat(c: Color) -> StandardMaterial3D:

@@ -35,7 +35,12 @@ const ALLOWED_BUILD_TYPES: Dictionary = {
 	"corn_stand": true,
 	"vecerka": true,
 	"mega_gnome": true,
+	"bowling": true,
+	# The staffroom (core/systems/staff_rules.gd): one for the camp.
+	"staffroom": true,
 }
+## Only one of these in the camp.
+const ONE_ONLY := ["staffroom"]
 
 var _state
 var _actions
@@ -94,6 +99,11 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 		EventBus.BuildConfirmed.emit(normalized_type, pos, normalized_rot)
 		return
 
+	if ONE_ONLY.has(normalized_type):
+		for c in _state.grid.cells:
+			if str((_state.grid.cells[c] as Dictionary).get("type", "")) == normalized_type:
+				EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "only_one")
+				return
 	var footprint = _resolve_footprint(normalized_type)
 	if not _state.grid.can_place_footprint(pos, footprint):
 		EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "blocked_or_out_of_bounds")

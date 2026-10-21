@@ -33,9 +33,10 @@ const BUTTER_SLOTS := 20
 const PRICE := 2
 ## Game minutes (1.5 a second): an order is green while younger than PATIENCE_OK, amber to
 ## PATIENCE_LATE, red to PATIENCE_GONE, when they give up and go.
-const PATIENCE_OK := 20
-const PATIENCE_LATE := 40
-const PATIENCE_GONE := 60
+## (Half as long again and more from 21. 10.: the guests had too little patience.)
+const PATIENCE_OK := 32
+const PATIENCE_LATE := 64
+const PATIENCE_GONE := 96
 ## The order goes up this long after they come to the counter.
 const ORDER_DELAY := 2
 ## The small drinks: price (dollars), what fills it a second while the tap runs or the

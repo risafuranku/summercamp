@@ -10,7 +10,11 @@ render_mode cull_disabled, specular_disabled, unshaded;
 //   - where a ripple faces the sun (or the moon) a few texels flash, in steps;
 //   - the wind pushes the ripples faster and rougher, a storm chops it up;
 //   - in rain, rings open on it here and there, in steps of eight a second;
-//   - by the camp shore a pale lip of lapping water.
+//   - by the camp shore a pale lip of lapping water;
+//   - what stands over it (the far shore's forest, the boat, the jetty, a lit window, the
+//     moon, the sunset) given back for real: camp_lake.gd renders the world from under the
+//     water into `refl_tex` (half the game's pixels), read here upside down and broken by
+//     the ripples (the user, 21. 10.: the lake "jen polish").
 // camp_lake.gd sets the light, the sky and the weather every quarter second.
 
 uniform sampler2D water_tex : filter_nearest, repeat_enable;  // raw sRGB values: the mean below is measured in them
@@ -28,6 +32,9 @@ uniform float wind = 0.2;                        // 0 still .. 1 a gale
 uniform float rain = 0.0;                        // 0 dry .. 1 a downpour
 // How many shades each channel comes out in (the palette's steps).
 uniform float steps = 22.0;
+// The world seen from under the water (camp_lake.gd), and whether it is being drawn.
+uniform sampler2D refl_tex : filter_nearest, repeat_disable;
+uniform float refl_on = 0.0;
 
 varying vec3 wpos;
 
@@ -90,6 +97,14 @@ void fragment() {
 	vec3 refl = sky_col * (0.75 + ripple * 0.5);
 	float trees = 1.0 - smoothstep(0.015, 0.075, r.y + ripple * 0.02);
 	refl = mix(refl, refl * 0.22 + own * 0.3, trees);
+	if (refl_on > 0.5) {
+		// The real thing, upside down, broken up by the ripples (more in a wind), a little
+		// darker than what it gives back and tinted by the water.
+		vec2 wob = vec2(la, lb) * (0.0035 + wind * 0.006);
+		vec3 world = texture(refl_tex, vec2(SCREEN_UV.x, 1.0 - SCREEN_UV.y) + wob).rgb;
+		refl = mix(world * 0.82, world * tint * 1.6, 0.25) * (0.9 + ripple * 0.35);
+		fres = fres * 0.85 + 0.12;
+	}
 	vec3 c = mix(own, refl, clamp(fres, 0.0, 0.92));
 	// The sun (or the moon) in the ripples: a few texels that line up flash.
 	float g = pow(max(dot(r, normalize(sun_dir)), 0.0), 60.0);

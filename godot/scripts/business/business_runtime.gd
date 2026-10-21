@@ -435,6 +435,11 @@ static func applicants(key: String) -> Array:
 		for k in CoreRoot.get_state().biz.get("sites", {}):
 			for p in CoreRoot.get_state().biz["sites"][k].get("crew", []):
 				taken.append(str(p.get("slug", "")))
+		# The staffroom's hands too (core/systems/staff_rules.gd).
+		var st = CoreRoot.get_state().biz.get("staff", {})
+		if st is Dictionary:
+			for p in st.get("crew", []):
+				taken.append(str(p.get("slug", "")))
 	return RULES.applicants(str(s["kind"]), key, CoreRoot.get_day(), taken, camp_seed())
 
 

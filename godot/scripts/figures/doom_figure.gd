@@ -42,6 +42,10 @@ var _sector := 0
 var _dist := 0.0
 var _shown := ""
 var _held := true
+## An animation drawn at another size than standing (anim -> factor on the pixel size):
+## the other warden stands a little small for their eyes to be at yours, but sits at full
+## size to fit the furniture (remote_player.FIGURE_SCALE).
+var anim_k: Dictionary = {}
 
 
 ## The set of the person whose sprite is `name` (host1, warden_a...), or {} without one.
@@ -197,10 +201,11 @@ func _apply() -> void:
 		fr = _frame_of(anims, "stand", 0, 0)
 	if fr == null:
 		return
-	var key := "%d|%d|%d|%d|%s" % [fr[0], fr[1], fr[2], fr[3], flip]
+	var key := "%d|%d|%d|%d|%s|%s" % [fr[0], fr[1], fr[2], fr[3], flip, anim_k.get(anim, 1.0)]
 	if key == _shown:
 		return
 	_shown = key
+	sprite.pixel_size = height_m / float(data.get("h", 128)) * float(anim_k.get(anim, 1.0))
 	var w := float(fr[2])
 	var h := float(fr[3])
 	sprite.region_rect = Rect2(float(fr[0]), float(fr[1]), w, h)

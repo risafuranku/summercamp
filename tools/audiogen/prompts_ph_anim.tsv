@@ -1,0 +1,20 @@
+# The Photographer alive in every pose (scripts/enemies/tourist_brain.gd), and the ears in a tight spot (scripts/night/nightmare_fx.gd): id, seconds, destination, prompt.
+ph_hum_gargle	8.0	assets/sfx/npc/ph_hum_gargle.mp3	A man trying to hum a cheerful old holiday tune through a broken crushed throat: wet gargling and bubbling, the tune breaking up, choking pauses, then humming on as if nothing were wrong, about eight metres away in a forest at night, loopable, disgusting, no music.
+ph_hum_muffled	8.0	assets/sfx/npc/ph_hum_muffled.mp3	A man humming a cheerful tune with his mouth stuffed full of crumpled wet paper, muffled and gurgling, coming from low down near the ground, now and then breaking into a muffled whimper, outdoors at night, loopable, no music.
+ph_neck_creak	2.0	assets/sfx/npc/ph_neck_creak.mp3	A broken twisted neck slowly creaking as the head sways on it: wet gristle stretching, cartilage clicking, loose vertebrae grinding, close, disgusting, no music.
+ph_neck_twitch	1.0	assets/sfx/npc/ph_neck_twitch.mp3	A sudden violent spasm of a broken neck: a sharp bone pop, a wet snap and a short gristly crunch, close, no music.
+ph_head_swing	3.0	assets/sfx/npc/ph_head_swing.mp3	A heavy head dangling and swinging on a long limp torn neck: slow wet creaking like a stretched rope, dripping, a soft slap of wet skin, close, disgusting, no music.
+ph_scream_paper	3.0	assets/sfx/npc/ph_scream_paper.mp3	A man screaming with his mouth crammed full of crumpled wet photographs: a muffled choking paper-rustling scream that cuts off into a gurgle, close, horrifying, no music.
+ph_photos_rustle	2.0	assets/sfx/npc/ph_photos_rustle.mp3	Wet crumpled instant photographs rustling and crackling inside a mouth, a jaw slowly chewing on paper, saliva, close, disgusting, no music.
+ph_drip	3.0	assets/sfx/npc/ph_drip.mp3	Thick blood dripping steadily onto gravel and dry pine needles, slow heavy drops, close, at night, no music.
+ph_step_drag	3.0	assets/sfx/npc/ph_step_drag.mp3	One heavy hiking boot stepping on gravel and the other foot dragging behind it, uneven limping steps, a wet squelch in the boot, outdoors at night, about six metres away, no music.
+ph_shutter_far	2.0	assets/sfx/npc/ph_shutter_far.mp3	A single camera shutter click and the whirr of film advancing, far away in a dark pine forest at night, faint, a little echo off the trees, no music.
+ph_chuckle_wet	2.0	assets/sfx/npc/ph_chuckle_wet.mp3	A middle-aged man chuckling softly through a mouthful of wet paper and blood, bubbling, very pleased with himself, close, no music.
+ph_breath_broken	4.0	assets/sfx/npc/ph_breath_broken.mp3	Wet rattling breathing through a crushed windpipe, each breath whistling and bubbling, slow, close, loopable, disgusting, no music.
+ph_camera_rattle	1.5	assets/sfx/npc/ph_camera_rattle.mp3	A camera on a strap knocking and rattling against a body, plastic clacks, clumsy fingers fumbling on its buttons, close, no music.
+ph_spit_photo	1.5	assets/sfx/npc/ph_spit_photo.mp3	A man coughing out a crumpled wet photograph from his mouth, a wet hack and the paper slapping onto gravel, close, disgusting, no music.
+ph_jaw_click	1.5	assets/sfx/npc/ph_jaw_click.mp3	A dislocated jaw clicking and grinding as it opens and shuts by itself, wet bone on bone, close, disgusting, no music.
+ph_flash_flicker	1.5	assets/sfx/npc/ph_flash_flicker.mp3	A broken camera flash stuttering: three fast irregular electric pops with a crackling high whine between them, close, no music.
+ears_breath	6.0	assets/sfx/night/ears_breath.mp3	A frightened person's own breathing heard from inside their head: fast shallow breaths through the nose and mouth, trying to stay quiet, trembling, very close, loopable, no music.
+ears_swallow	1.5	assets/sfx/night/ears_swallow.mp3	A dry nervous swallow heard from inside the head, the click of the throat, very close, no music.
+ears_pop	1.0	assets/sfx/night/ears_pop.mp3	An ear popping from pressure inside the head: a muffled thump and a soft crackle, no music.

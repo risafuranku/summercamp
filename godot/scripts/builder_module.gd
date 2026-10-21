@@ -29,10 +29,10 @@ const OVERLAY_SHORT := {"": "Off", "condition": "Wear", "power": "Power", "rooms
 
 const CATEGORIES: Array = [
 	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/tb_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
-	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand", "vecerka"]},
+	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand", "vecerka", "bowling"]},
 	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide", "playground", "ping_pong", "hammock"]},
 	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/tb_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole", "mega_gnome"]},
-	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer"]},
+	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer", "staffroom"]},
 ]
 
 ## Catalogue pictures (the map has its own, isometric).
@@ -43,6 +43,7 @@ const ITEM_ICONS := {
 	"toilet_block": "res://assets/textury/builder/hajzly.PNG",
 	"shower_block": "res://assets/textury/builder/sprchy.PNG",
 	"vecerka": "res://assets/textury/builder/iso_jednota.png",
+	"bowling": "res://assets/textury/builder/iso_bowling.png",
 	"restaurant": "res://assets/textury/builder/restaurace.PNG",
 	"pub": "res://assets/textury/builder/hospoda1.PNG",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
@@ -59,6 +60,7 @@ const ITEM_ICONS := {
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
 	"corn_stand": "res://assets/textury/builder/iso_corn_stand.png",
+	"staffroom": "res://assets/textury/builder/iso_staffroom.png",
 }
 
 ## Even shorter, for when a catalogue has so many cards that they get narrow.
@@ -80,7 +82,8 @@ const SHORT_NAMES := {
 	"path": "Path", "lamp_post": "Lamp", "demolish": "Bulldozer",
 	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome", "mega_gnome": "Mega gnome",
 	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
-	"corn_stand": "Corn stand",
+	"corn_stand": "Corn stand", "bowling": "Bowling",
+	"staffroom": "Staffroom",
 }
 
 const BLURBS := {
@@ -90,6 +93,7 @@ const BLURBS := {
 	"toilet_block": "Without it, guests use the bushes. Needs the sewer.",
 	"shower_block": "Guests get dirty. Needs the sewer.",
 	"vecerka": "Bread, salami, ice cream, beer. Guests love it.",
+	"bowling": "Lanes, a snack bar and noise till late. Needs power.",
 	"restaurant": "Proper hot meals. Needs power.",
 	"pub": "Beer and noise. Guests love it, then they get loud.",
 	"bonfire": "Fun, food on sticks, and a light that feels safe at night.",
@@ -106,6 +110,7 @@ const BLURBS := {
 	"ping_pong": "A table, two bats and an argument.",
 	"hammock": "One guest, one book, one hour of peace.",
 	"corn_stand": "Boiled corn with butter and salt, and a cup of kofola. Cheap, quick, everybody wants one.",
+	"staffroom": "Your own staff: they bag rubbish, chase raccoons, sign for vans and make up the rooms. One locker, one hand.",
 	"path": "Drag to lay a path. Guests walk on paths.",
 	"lamp_post": "Light at night. A lit path is a safe path.",
 	"demolish": "Drag over trees or buildings, then click inside to clear them.",
@@ -131,6 +136,12 @@ var _map_panel: Control
 var _map3d                    # the hidden 3D view (scripts/builder/map3d.gd)
 var _grip: Control            # its button: the status bar's corner grip
 var _grip_hover := false
+## The camera with legs (WASD moves the map, S stays a letter); its button, its two frames
+## (standing, a step: it walks while the map moves).
+var walk_on := false
+var _walk_btn: Button
+var _walk_icons: Array = []
+var _walk_t := 0.0
 var _restore_3d := true
 var _toolbar: Control
 var _catalogue: Control
@@ -378,7 +389,7 @@ func _menu(item: String) -> void:
 		"Overlay: light at night":
 			_set_overlay("light")
 		"Keys":
-			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 services   F3 fun   F4 decor   F5 utilities\nQ / E  turn the building     T  turn the view     X  put the tool away\nO  overlay (wear, power, rooms, light)\nArrows  move the map     +/-  zoom     Ctrl+Z  undo today's build\n\nNo tool in hand: click a building for its card.", "info")
+			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 services   F3 fun   F4 decor   F5 utilities\nR  turn the building     T  turn the view     X  put the tool away\nO  overlay (wear, power, rooms, light)\nArrows  move the map     +/-  zoom     Ctrl+Z  undo today's build\nThe camera with legs: WASD moves the map (Shift faster)\n\nNo tool in hand: click a building for its card.", "info")
 		"Help topics":
 			message_requested.emit("Builder 98 Help", "Cannot open BUILDER.HLP.\n\nThe file is missing or damaged.\n\n(Help > Keys still works.)", "error")
 		"Register...":
@@ -417,8 +428,8 @@ func _build_toolbar() -> void:
 		row.add_child(b)
 	row.add_child(_gap())
 	var rot := Button.new()
-	rot.tooltip_text = "Turn the building (Q / E)"
-	rot.custom_minimum_size = Vector2(36, 34)
+	rot.tooltip_text = "Turn the building (R)"
+	rot.custom_minimum_size = Vector2(34, 34)
 	rot.focus_mode = Control.FOCUS_NONE
 	rot.icon = _texture("res://assets/textury/builder/tb2_rotate.png")
 	if rot.icon == null:
@@ -431,7 +442,7 @@ func _build_toolbar() -> void:
 	# The whole map a quarter round (T, Shift+T back), as RCT turned its park.
 	var turn := Button.new()
 	turn.tooltip_text = "Turn the view (T)"
-	turn.custom_minimum_size = Vector2(36, 34)
+	turn.custom_minimum_size = Vector2(34, 34)
 	turn.focus_mode = Control.FOCUS_NONE
 	turn.icon = _texture("res://assets/textury/builder/tb2_view.png")
 	if turn.icon == null:
@@ -446,7 +457,7 @@ func _build_toolbar() -> void:
 	undo.expand_icon = true
 	undo.add_theme_constant_override("icon_max_width", 24)
 	undo.tooltip_text = "Take back the last thing you built today (Ctrl+Z), money back"
-	undo.custom_minimum_size = Vector2(36, 34)
+	undo.custom_minimum_size = Vector2(34, 34)
 	undo.focus_mode = Control.FOCUS_NONE
 	undo.add_theme_font_override("font", T.FONT_BOLD)
 	_flat_style(undo)
@@ -458,17 +469,33 @@ func _build_toolbar() -> void:
 		zb.expand_icon = true
 		zb.add_theme_constant_override("icon_max_width", 24)
 		zb.tooltip_text = z[2]
-		zb.custom_minimum_size = Vector2(32, 34)
+		zb.custom_minimum_size = Vector2(30, 34)
 		zb.focus_mode = Control.FOCUS_NONE
 		zb.add_theme_font_override("font", T.FONT_BOLD)
 		_flat_style(zb)
 		var step: int = z[1]
 		zb.pressed.connect(func(): _map_panel.apply_zoom_step(step))
 		row.add_child(zb)
+	# The camera with legs: WASD moves the map (for a long sitting, the left hand on the
+	# keys); S no longer stands you up while it is in. Click it again to get up.
+	_walk_btn = Button.new()
+	_walk_btn.toggle_mode = true
+	_walk_btn.focus_mode = Control.FOCUS_NONE
+	_walk_btn.custom_minimum_size = Vector2(34, 34)
+	_walk_btn.expand_icon = true
+	_walk_btn.add_theme_constant_override("icon_max_width", 28)
+	_walk_btn.tooltip_text = "Camera on WASD"
+	_walk_icons = _walk_frames()
+	_walk_btn.icon = _walk_icons[0] if not _walk_icons.is_empty() else null
+	if _walk_btn.icon == null:
+		_walk_btn.text = "WASD"
+	_flat_style(_walk_btn)
+	_walk_btn.toggled.connect(func(on: bool): _set_walk(on))
+	row.add_child(_walk_btn)
 	row.add_child(_gap())
 	# What the map shows over the camp: off, wear, power, rooms, light (O).
 	_overlay_btn = Button.new()
-	_overlay_btn.custom_minimum_size = Vector2(36, 34)
+	_overlay_btn.custom_minimum_size = Vector2(34, 34)
 	_overlay_btn.toggle_mode = true
 	_overlay_btn.icon = _tool_icon("map")
 	_overlay_btn.expand_icon = true
@@ -484,7 +511,7 @@ func _build_toolbar() -> void:
 	# The music on and off (remembered by the PC).
 	_music_btn = Button.new()
 	_music_btn.focus_mode = Control.FOCUS_NONE
-	_music_btn.custom_minimum_size = Vector2(36, 34)
+	_music_btn.custom_minimum_size = Vector2(34, 34)
 	_music_btn.expand_icon = true
 	_music_btn.add_theme_constant_override("icon_max_width", 26)
 	_music_btn.tooltip_text = "Music"
@@ -499,7 +526,7 @@ func _build_toolbar() -> void:
 	# The Graphs window (G).
 	var gb := Button.new()
 	gb.focus_mode = Control.FOCUS_NONE
-	gb.custom_minimum_size = Vector2(36, 34)
+	gb.custom_minimum_size = Vector2(34, 34)
 	gb.expand_icon = true
 	gb.add_theme_constant_override("icon_max_width", 26)
 	gb.tooltip_text = "Graphs  (G)"
@@ -550,7 +577,7 @@ func _tool_button(icon: Texture2D, tip: String) -> Button:
 	var b := Button.new()
 	b.toggle_mode = true
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(36, 34)
+	b.custom_minimum_size = Vector2(34, 34)
 	b.icon = icon
 	b.expand_icon = true
 	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -647,6 +674,65 @@ func _draw_grip() -> void:
 			var q := (o + a.lerp(b, float(k) / float(maxi(1, n)))).round()
 			_grip.draw_rect(Rect2(q + Vector2.ONE, Vector2.ONE), lo)
 			_grip.draw_rect(Rect2(q, Vector2.ONE), hi)
+
+
+## The camera on WASD or not. The desk (building_interior) asks `walk_keys` before S
+## stands you up; the map pans by WASD while it is true.
+func _set_walk(on: bool) -> void:
+	if on == walk_on:
+		return
+	walk_on = on
+	_walk_btn.set_pressed_no_signal(on)
+	_ui("tool" if on else "button")
+	_status_msg.text = tr("Camera on WASD.") if on else tr("Camera off WASD.")
+	var s := _shell_node()
+	if s != null:
+		s.set_meta("builder_walk", self)
+	if on:
+		_map_panel.call_deferred("grab_focus")
+
+
+## Up from the desk: the legs go back in.
+func end_walk() -> void:
+	_set_walk(false)
+	if _walk_btn != null and not _walk_icons.is_empty():
+		_walk_btn.icon = _walk_icons[0]
+
+
+## WASD is the map's now: the camera is on WASD and Builder is the screen you look at (on
+## the other monitor or out of the office window the keys are the desk's again: S there
+## stands you up; back on Builder they are the map's).
+func walk_keys() -> bool:
+	if not walk_on or not is_visible_in_tree() or not OS_KEYS.here(self):
+		return false
+	var s := _shell_node()
+	return s == null or not bool(s.get_meta("look_away", false))
+
+
+## The button's two pictures: the camera, and the camera a pixel up mid-step.
+func _walk_frames() -> Array:
+	var t := _texture("res://assets/textury/builder/tb2_walkcam.png")
+	if t == null:
+		return []
+	var img := t.get_image()
+	if img.is_compressed():
+		img.decompress()
+	var up := Image.create(img.get_width(), img.get_height(), false, img.get_format())
+	up.blit_rect(img, Rect2i(0, 1, img.get_width(), img.get_height() - 1), Vector2i.ZERO)
+	return [t, ImageTexture.create_from_image(up)]
+
+
+func _tick_walk(delta: float) -> void:
+	if _walk_btn == null:
+		return
+	var keys := walk_keys()
+	_map_panel.set("wasd", keys)
+	if _walk_icons.size() < 2:
+		return
+	var moving := keys and (Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_A) \
+		or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_D))
+	_walk_t = _walk_t + delta if moving else 0.0
+	_walk_btn.icon = _walk_icons[int(_walk_t * 6.0) % 2]
 
 
 ## The map between the 2D sprites and the camp's own 3D world; the PC remembers which.
@@ -989,7 +1075,7 @@ var _gcard_face: Dictionary = {}
 ## What a guest is about, for their card ("by the fire", "in the pub").
 const DOING_AT := {"bonfire": "by the fire", "sports_field": "on the pitch", "lake_slide": "on the slide", "playground": "at the swings",
 	"ping_pong": "at the ping-pong table", "hammock": "in the hammock", "bench": "on a bench", "picnic_table": "at a picnic table",
-	"corn_stand": "at the corn stand", "pub": "in the pub", "restaurant": "in the bistro", "vecerka": "in the Jednota",
+	"corn_stand": "at the corn stand", "pub": "in the pub", "restaurant": "in the bistro", "vecerka": "in the Jednota", "bowling": "at the bowling",
 	"toilet_block": "at the toilets", "shower_block": "in the showers", "main_building": "at the office"}
 const DOING := {"sleep": "asleep", "rest": "resting in the room", "wait_gate": "at the gate", "leave": "leaving", "away": "out of the camp",
 	"arrive": "settling in"}
@@ -1552,6 +1638,7 @@ func _process(delta: float) -> void:
 	_tick_music(delta)
 	_tick_ambience(delta)
 	_tick_cursor()
+	_tick_walk(delta)
 	# The first time the map has a size: the camp in the middle, near enough to read.
 	if not camp_focused and _map_panel != null and _map_panel.size.x > 0.0 and is_visible_in_tree():
 		camp_focused = _map_panel.focus_camp()

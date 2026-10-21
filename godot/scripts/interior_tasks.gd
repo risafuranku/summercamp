@@ -27,6 +27,12 @@ const SFX_BY_TASK := {"bed": "task_bed.mp3", "floor": "task_litter.mp3", "bathro
 const SFX_DONE := "task_done.mp3"
 const SFX_READY := "room_ready.mp3"
 const RING_DOTS := 16
+## Picked up with one click, no gesture (playtest 21. 10.: "picking up the mess just a
+## click; I can't move the mouse enough to clear the cans").
+const CLICK_VERBS := ["Picking up", "Clearing up", "Bagging", "Throwing out"]
+## Missed by the ray, a thing of the mess this close on the screen (a share of the view's
+## height) is still taken: cans far off are a few pixels.
+const MAGNET := 0.07
 
 var _camera: Camera3D
 var _viewport: SubViewport
@@ -185,6 +191,9 @@ func _process(delta: float) -> void:
 	if pressed_now and not _hover.is_empty() and _holding.is_empty() and bool(_targets[_hover].get("scrub", false)):
 		_open_scrub(_hover)
 		return
+	if pressed_now and not _hover.is_empty() and _holding.is_empty() and str(_targets[_hover].get("verb", "")) in CLICK_VERBS:
+		_pick_up(_hover)
+		return
 	if lmb and not _hover.is_empty() and not bool(_targets[_hover].get("scrub", false)) and (_holding.is_empty() or _holding == _hover):
 		if _holding.is_empty():
 			_start_hold(_hover)
@@ -219,7 +228,7 @@ func _process(delta: float) -> void:
 	_prompt.visible = not _hover.is_empty()
 	if _prompt.visible:
 		var target: Dictionary = _targets[_hover]
-		var how := "CLICK" if bool(target.get("scrub", false)) else "[LMB]"
+		var how := "CLICK" if bool(target.get("scrub", false)) or str(target.get("verb", "")) in CLICK_VERBS else "[LMB]"
 		_prompt.text = ("%s..." % str(target["verb"]).to_upper()) if not _holding.is_empty() else ("%s  %s" % [how, str(target["label"]).to_upper()])
 		var m := get_viewport().get_mouse_position()
 		_prompt.position = (m + Vector2(-_prompt.size.x * 0.5, 16.0 * _scale)).floor()
@@ -313,6 +322,22 @@ func _pick(local: Vector2) -> Array:
 				best = id
 				best_size = size
 		skip.append(hit.get("rid"))
+	if best != "":
+		return [best, str((_targets[best]["body"] as Node).name)]
+	# Nothing on the ray: the nearest of the mess on the screen, if it is close enough.
+	var reach := MAGNET * float(_viewport.size.y)
+	for id in _targets.keys():
+		var t: Dictionary = _targets[id]
+		var b = t["body"]
+		if t["done"] or bool(t.get("scrub", false)) or coop_taken.has(id) or b == null or not is_instance_valid(b) or not (b as Node3D).is_visible_in_tree():
+			continue
+		var at: Vector3 = (b as Node3D).global_position
+		if _camera.is_position_behind(at) or at.distance_to(_camera.global_position) > 6.0:
+			continue
+		var d := _camera.unproject_position(at).distance_to(local)
+		if d < reach:
+			reach = d
+			best = id
 	if best != "":
 		return [best, str((_targets[best]["body"] as Node).name)]
 	return ["", first_name]
@@ -422,6 +447,20 @@ func _cancel_hold() -> void:
 	_unshake()
 	if _work_player != null and _work_player.playing:
 		_work_player.stop()
+
+
+## One click: the hand takes it with the work's sound, and it is done.
+func _pick_up(id: String) -> void:
+	var t: Dictionary = _targets[id]
+	_targets[id]["done"] = true
+	_set_hover("")
+	_play(str(t.get("sfx", "task_litter.mp3")))
+	task_completed.emit(id)
+	_hand.start(str(t.get("verb", "")), get_viewport().get_mouse_position())
+	_hand.stroke()
+	get_tree().create_timer(0.35).timeout.connect(func():
+		if _holding.is_empty() and _hand != null and is_instance_valid(_hand):
+			_hand.stop())
 
 
 func _finish(id: String) -> void:

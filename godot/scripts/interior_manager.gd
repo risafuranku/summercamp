@@ -23,6 +23,9 @@ const SKY_LIFE_SCRIPT = preload("res://scripts/ambient/sky_life.gd")
 ## The businesses' books, sales, wages and deliveries (scripts/business/business_runtime.gd).
 const BUSINESS_RUNTIME = preload("res://scripts/business/business_runtime.gd")
 var business: Node
+## The staffroom's hands at work (scripts/staff/staff_runtime.gd).
+const STAFF_RUNTIME = preload("res://scripts/staff/staff_runtime.gd")
+var staff: Node
 ## Autumn leaves blown about in the wind (scripts/ambient/wind_life.gd).
 const WIND_LIFE_SCRIPT = preload("res://scripts/ambient/wind_life.gd")
 var _wind_life: Node3D
@@ -48,6 +51,9 @@ const INTERIOR_MODULE_TRIP := "trip"
 ## The corn stand: behind its counter (scripts/corn/stand_view.gd: its two stations in 3D,
 ## the camp beyond the counter).
 const INTERIOR_MODULE_STAND := "stand"
+## The bowling alley (scripts/bowling/bowling_interior.gd).
+const INTERIOR_MODULE_BOWLING := "bowling"
+const BOWLING_INTERIOR_SCRIPT = preload("res://scripts/bowling/bowling_interior.gd")
 const STAND_VIEW = preload("res://scripts/corn/stand_view.gd")
 var _corn_stand: CanvasLayer
 const INTERIOR_ASSIGNMENTS := [
@@ -73,7 +79,7 @@ const INTERIOR_ASSIGNMENTS := [
 	},
 	{
 		"module_id": INTERIOR_MODULE_SERVICE,
-		"building_types": ["restaurant", "pub", "toilet_block", "shower_block", "sewer", "power_generator", "vecerka"],
+		"building_types": ["restaurant", "pub", "toilet_block", "shower_block", "sewer", "power_generator", "vecerka", "staffroom"],
 		"hint": "Enter",
 		"hints": {
 			"restaurant": "Enter bistro",
@@ -83,12 +89,18 @@ const INTERIOR_ASSIGNMENTS := [
 			"shower_block": "Enter showers",
 			"sewer": "Open sewer hatch",
 			"power_generator": "Enter generator shed",
+			"staffroom": "Go into the staffroom",
 		},
 	},
 	{
 		"module_id": INTERIOR_MODULE_STAND,
 		"building_types": ["corn_stand"],
 		"hint": "Step behind the corn stand",
+	},
+	{
+		"module_id": INTERIOR_MODULE_BOWLING,
+		"building_types": ["bowling"],
+		"hint": "Go into the bowling",
 	},
 ]
 
@@ -105,6 +117,8 @@ var _cabin_interior
 var _tent_interior
 var _caravan_interior
 var _service_interior
+var _bowling_interior
+var _active_bowling_node: Node3D
 var _building_upgrade_menu
 var _guest_dialog
 
@@ -178,6 +192,10 @@ func setup(
 	if business == null:
 		business = BUSINESS_RUNTIME.new()
 		add_child(business)
+	if staff == null:
+		staff = STAFF_RUNTIME.new()
+		staff.name = "StaffRuntime"
+		add_child(staff)
 	if lodge_bed == null:
 		lodge_bed = LODGE_BED.new()
 		lodge_bed.name = "LodgeBed"
@@ -293,6 +311,7 @@ func setup_all() -> void:
 	_setup_tent_interior()
 	_setup_caravan_interior()
 	_setup_service_interior()
+	_setup_bowling_interior()
 	_setup_building_upgrade_menu()
 	_setup_guest_dialog()
 
@@ -362,10 +381,14 @@ func close_everything(silent := false) -> void:
 	for interior in _get_registered_interior_nodes():
 		if not (interior.has_method("is_open") and interior.is_open()):
 			continue
-		for m in ["close_interior", "close_cabin", "close_tent", "close_caravan", "close_service"]:
+		for m in ["close_interior", "close_cabin", "close_tent", "close_caravan", "close_service", "close_bowling"]:
 			if interior.has_method(m):
 				interior.call(m)
 				break
+	# Behind the corn stand (not one of the rooms): its stations and their hand go too (the
+	# gloved hand stayed over the title screen: playtest 21. 10.).
+	if _corn_stand != null and is_instance_valid(_corn_stand) and _corn_stand.has_method("close_view") and _corn_stand.is_open():
+		_corn_stand.close_view()
 	_no_step_out = false
 	_silent_close = false
 	if silent and stepping_out():
@@ -483,6 +506,8 @@ func handle_structure_interact(structure: Node3D) -> void:
 			_town_trip.interact(structure)
 		INTERIOR_MODULE_STAND:
 			_on_corn_stand_interact(structure)
+		INTERIOR_MODULE_BOWLING:
+			_on_bowling_interact(structure)
 		_:
 			return
 
@@ -965,6 +990,43 @@ func _on_caravan_upgrade_requested() -> void:
 	_pending_upgrade_context = {"mode": "replace", "origin": origin, "old_type": current_type, "new_type": next_type, "cost": cost}
 	var desc = "Upgrade %s -> %s (one more bed)." % [_economy_manager.get_label(current_type), _economy_manager.get_label(next_type)]
 	_open_upgrade_menu("Caravan: Upgrade", desc, "$%d" % cost, _economy_manager.get_money() >= cost)
+
+
+## Into the bowling alley: its hall (scripts/bowling/bowling_interior.gd) with its key.
+func _on_bowling_interact(structure: Node3D) -> void:
+	if _bowling_interior == null or _bowling_interior.is_open():
+		return
+	if _walk_up_first(structure, _on_bowling_interact.bind(structure)):
+		return
+	var origin = structure.get_meta("grid_origin", null)
+	var bkey := "%d:%d" % [origin.x, origin.y] if origin is Vector2i else ""
+	_active_bowling_node = structure
+	_apply_time_to_interior(_bowling_interior)
+	_door_transition(true)
+	_bowling_interior.open_bowling(bkey)
+	_step_in(_bowling_interior)
+	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
+		_audio_manager.play_door_open()
+	_set_player_controls_enabled(false)
+
+
+func _setup_bowling_interior() -> void:
+	if _bowling_interior != null and is_instance_valid(_bowling_interior):
+		_apply_grid_power_to_interior(_bowling_interior)
+		return
+	_bowling_interior = BOWLING_INTERIOR_SCRIPT.new()
+	_bowling_interior.name = "BowlingInterior"
+	add_child(_bowling_interior)
+	_register_interior_instance(INTERIOR_MODULE_BOWLING, _bowling_interior)
+	_bowling_interior.request_close.connect(_on_bowling_closed)
+	_apply_grid_power_to_interior(_bowling_interior)
+
+
+func _on_bowling_closed() -> void:
+	var was: Node3D = _active_bowling_node
+	_active_bowling_node = null
+	_play_door_close()
+	_step_out_of(was)
 
 
 func _on_tent_closed() -> void:
@@ -1866,7 +1928,9 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 	# In bed: seen lying on it from the back room, or in the tent, cabin or caravan
 	# they turned in in (lodge_bed.gd), nowhere else.
 	var has_bed: bool = COOP_LOOKS.has_pose(model, "bed")
-	var lodge: bool = not LODGE_BED.bed_spot(str(mine["t"])).is_empty()
+	# The staffroom's boiler room has a bed too (lodge_bed "staff").
+	var bed_kind := "staff" if str(mine["t"]) == "service" and str(mine.get("s", "")).begins_with("staff/") else str(mine["t"])
+	var lodge: bool = not LODGE_BED.bed_spot(bed_kind).is_empty()
 	if bool(info.get("b", false)) and not (has_bed and (lodge or str(mine["t"]) == "office")):
 		coop_drop_partner(id)
 		return
@@ -1904,7 +1968,7 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 		_coop_hide_sleeper(id)
 	if bool(info.get("b", false)) and lodge and root != null:
 		# On their back on the bed, the head on the pillow end.
-		var spot: Dictionary = LODGE_BED.bed_spot(str(mine["t"]))
+		var spot: Dictionary = LODGE_BED.bed_spot(bed_kind)
 		var head: Vector3 = root.global_transform * (spot["head"] as Vector3)
 		var mid: Vector3 = root.global_transform * (spot["centre"] as Vector3)
 		fig.set_walking(false)

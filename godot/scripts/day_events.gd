@@ -17,7 +17,10 @@ extends Node
 ##   someone   a guest heard somebody else in their cabin last night: knock, look round
 ##             (E at their door). From day 3. Whether you look or not, that cabin is one
 ##             the night director remembers (`haunted`): at night, near it, it makes sounds.
-## Each one pages you, shows in the HUD's TODAY list and gets the waypoint.
+## Each one pages you, shows in the HUD's TODAY list and gets the waypoint. The
+## staffroom's hands (scripts/staff/staff_runtime.gd) take the litter, the raccoons, the
+## van and the branches off you when their jobs are ticked (staff_jobs / staff_done); one
+## on the way is shown on the list with their name, and you may still do it yourself.
 ##
 ## Life (P7): loops at the facilities while guests are about (kids at the slide,
 ## football, the guitar at the fire, the pub through its door) and far-off one-shots
@@ -112,6 +115,7 @@ func reset() -> void:
 func tick(delta: float, abs_minute: int, is_day: bool, day_index: int, can_act: bool) -> void:
 	_anim_t += delta
 	_last_abs = abs_minute
+	_flag_guests()
 	var hour := float(posmod(abs_minute, 1440)) / 60.0
 	if not coop_follow and is_day and hour >= 7.0 and _planned_day != day_index:
 		_plan(day_index, abs_minute)
@@ -152,8 +156,58 @@ func hud_rows() -> Array:
 	var rows: Array = []
 	for ev in _events:
 		if str(ev["state"]) == "open":
-			rows.append({"title": ev["title"], "where": ev["where"]})
+			var who := staff_on(int(ev["id"]))
+			rows.append({"title": ev["title"], "where": (tr("%s is on it") % who) if who != "" else ev["where"]})
 	return rows
+
+
+# ── the staffroom's hands (scripts/staff/staff_runtime.gd) ─────────────────────
+
+## The kinds a hand can see to.
+const STAFF_KINDS := ["litter", "raccoons", "delivery", "tree"]
+
+
+## The open events of `kinds` a hand could go to: [{id, kind, pos}].
+func staff_jobs(kinds: Array) -> Array:
+	var out: Array = []
+	for ev in _events:
+		if str(ev["state"]) != "open" or not kinds.has(str(ev["kind"])) or not STAFF_KINDS.has(str(ev["kind"])):
+			continue
+		var p := _event_pos(ev)
+		if p != Vector3.INF:
+			out.append({"id": int(ev["id"]), "kind": str(ev["kind"]), "pos": p})
+	return out
+
+
+func staff_open(id: int) -> bool:
+	var ev := _event_by_id(id)
+	return not ev.is_empty() and str(ev["state"]) == "open"
+
+
+## The name of the hand going to event `id` ("" nobody), from the staff's own record
+## (so the other warden's list shows it too).
+func staff_on(id: int) -> String:
+	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	if not (st is Dictionary):
+		return ""
+	var acts: Dictionary = st.get("act", {})
+	for slug in acts:
+		var a: Dictionary = acts[slug]
+		if int(a.get("ev", -1)) == id and str(a.get("do", "")) in ["walk", "work"]:
+			for p in st.get("crew", []):
+				if str(p.get("slug", "")) == str(slug):
+					return str(p.get("name", ""))
+	return ""
+
+
+## A hand has seen to event `id`: as if you had (what it pays, how the guests take it),
+## the line with their name. False when it was not open any more.
+func staff_done(id: int, who: String) -> bool:
+	var ev := _event_by_id(id)
+	if ev.is_empty() or str(ev["state"]) != "open":
+		return false
+	_resolve(ev, who)
+	return true
 
 
 func open_events() -> Array:
@@ -506,7 +560,7 @@ func coop_resolve(id: int) -> void:
 		_resolve(ev)
 
 
-func _resolve(ev: Dictionary) -> void:
+func _resolve(ev: Dictionary, by := "") -> void:
 	if coop_follow:
 		# Done in the host's camp (what it pays and how the guests take it); here, how it went.
 		Coop.send_request("day_event", [int(ev["id"])])
@@ -536,6 +590,8 @@ func _resolve(ev: Dictionary) -> void:
 			text = "You look round with the torch while they watch. Nobody. Under the bed the boards are wet."
 	if str(ev["kind"]) != "lost_kid":
 		_mood_for(float(rules.get("ok_mood", 0.0)), "", [])
+	if by != "":
+		text = "%s: %s" % [by, tr(text)]
 	_close(ev, "done", text)
 
 
@@ -1056,7 +1112,15 @@ func _event_pos(ev: Dictionary) -> Vector3:
 			return Vector3.INF
 		return _ground(Vector3(float(gate.get("gap_center_x")) + 4.2, 0.0, float(gate.get("fence_z")) + 5.0))
 	if str(ev["kind"]) == "noise":
-		return _guest_pos(int(ev.get("guest_id", -1)))
+		# The loud one where they are; indoors, at their lodging (no mark at all while they
+		# were out of sight: playtest 21. 10.).
+		var gp := _guest_pos(int(ev.get("guest_id", -1)))
+		if gp != Vector3.INF:
+			return gp
+		var gid := int(ev.get("guest_id", -1))
+		var found: Array = _active_guests().filter(func(g): return int(g.get("id", -2)) == gid)
+		var lc := _lodging_of(found[0]) if not found.is_empty() else Vector2i(-1, -1)
+		return _ground(_grid_world(lc)) if lc.x >= 0 else Vector3.INF
 	var c := _coord(ev)
 	if c.x < 0:
 		return Vector3.INF
@@ -1223,6 +1287,27 @@ func _guests_in_camp() -> int:
 
 func _guest_exists(id: int) -> bool:
 	return _active_guests().any(func(g): return int(g.get("id", -2)) == id)
+
+
+## The loud party of an open noise complaint gets the complaint's picture over their heads
+## (guest_agents.flagged), on both machines (the events are the host's, followed here).
+const FLAG_NOISE := "res://assets/textury/ui/trouble_noise.png"
+var _flag_tex: Texture2D
+
+
+func _flag_guests() -> void:
+	var agents = _main.get("_guest_agents") if _main != null else null
+	if agents == null or not ("flagged" in agents):
+		return
+	var out := {}
+	for ev in _events:
+		if str(ev["state"]) == "open" and str(ev["kind"]) == "noise":
+			if _flag_tex == null and ResourceLoader.exists(FLAG_NOISE):
+				_flag_tex = load(FLAG_NOISE)
+			if _flag_tex != null:
+				out[int(ev.get("guest_id", -1))] = _flag_tex
+	if out != agents.flagged:
+		agents.flagged = out
 
 
 func _guest_pos(id: int) -> Vector3:

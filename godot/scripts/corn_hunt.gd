@@ -115,9 +115,10 @@ func setup(main_node: Node, corn: Node, guest: Dictionary) -> bool:
 	var ends: Array = corn.dead_ends()
 	if ends.is_empty():
 		return false
-	# The farthest dead end from the way in, give or take.
+	# A dead end well in, but not the very farthest (it took all night: playtest 21. 10.).
 	ends.sort_custom(func(a, b): return a.distance_squared_to(corn.entrance) > b.distance_squared_to(corn.entrance))
-	var pick: Vector2i = ends[randi_range(0, mini(3, ends.size() - 1))]
+	var lo := mini(ends.size() / 4, ends.size() - 1)
+	var pick: Vector2i = ends[randi_range(lo, mini(lo + maxi(2, ends.size() / 4), ends.size() - 1))]
 	_guest = Sprite3D.new()
 	_guest.name = "LostGuest"
 	# Co-op: the other warden sees them in the corn too (scripts/coop/coop_night.gd), and
@@ -224,7 +225,7 @@ func _process(delta: float) -> void:
 	elif not _following:
 		_call_timer -= delta
 		if _call_timer <= 0.0:
-			_call_timer = randf_range(5.0, 9.0)
+			_call_timer = randf_range(3.0, 5.5)
 			if _call_player != null and _call_player.stream != null:
 				_call_player.play()
 		if Vector2(ppos.x - _guest.global_position.x, ppos.z - _guest.global_position.z).length() < 1.8:
@@ -347,8 +348,8 @@ func _update_scarecrow(delta: float, player: Node3D) -> void:
 	_scare_timer -= delta
 	if _scare_timer > 0.0:
 		return
-	# Faster the longer you are in there: from every 4 s down to every 1.6 s.
-	_scare_timer = clampf(4.0 - _elapsed * 0.02, 1.6, 4.0)
+	# Faster the longer you are in there: from every 5 s down to every 2.6 s.
+	_scare_timer = clampf(5.0 - _elapsed * 0.015, 2.6, 5.0)
 	var me: Vector2i = _corn.world_tile(player.global_position)
 	if not _corn.maze_open.has(me):
 		me = _corn.entrance

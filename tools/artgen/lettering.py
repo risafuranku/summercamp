@@ -70,6 +70,12 @@ SIGNS = {
                         face=(48, 46, 42), shadow=(196, 192, 182), track=0.02, wear=0.0, seed=17),
     "stojime": dict(text="STOJÍME", font=(BAHN[0], b"Bold Condensed"), cap=0.3, style="neon",
                     face=(120, 30, 26), glow=(255, 60, 40), track=0.06, seed=14),
+    # The camp's bowling alley (building_models._bowling): the red tubes across the top,
+    # and BOWLING painted on the board over the door.
+    "kuzelky": dict(text="KUŽELKY", font=(BAHN[0], b"Bold Condensed"), cap=0.72, style="neon",
+                    face=(140, 36, 44), glow=(255, 56, 86), track=0.1, seed=30),
+    "bowling": dict(text="BOWLING", font=(BAHN[0], b"Bold"), cap=0.32, style="painted",
+                    face=(190, 36, 30), shadow=(236, 230, 214), track=0.08, wear=0.14, seed=31),
 }
 # Numbers painted by the doors.
 for n in ["12", "27", "31", "44", "58", "63", "71", "89", "95", "103", "116", "128"]:

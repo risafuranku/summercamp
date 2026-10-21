@@ -55,10 +55,15 @@ func _ready() -> void:
 			_frames.append(load(path))
 	for i in POOL:
 		var s := Sprite3D.new()
-		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		# Turned by hand (_face), lit as the night is: the retro look's stand-in material
+		# billboarded them upright whatever their turn (they flew tip up) and lit them in
+		# the dark (playtest 21. 10.), so they keep the engine's own.
+		s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		s.set_meta("retro_skip", true)
 		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		s.shaded = true
+		s.double_sided = true
 		s.pixel_size = 0.04
 		s.visible = false
 		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -194,7 +199,7 @@ func _spawn(lf: Dictionary, centre: Vector3, wind: Vector3) -> void:
 	lf["rest"] = 0.0
 	lf["live"] = true
 	lf["roll"] = _rng.randf() * TAU
-	lf["roll_v"] = _rng.randf_range(1.2, 4.0) * (1.0 if _rng.randf() < 0.5 else -1.0)
+	lf["roll_v"] = _rng.randf_range(0.5, 1.8) * (1.0 if _rng.randf() < 0.5 else -1.0)
 	# The leaf's own colours, a touch of the season's tint, each a little lighter or darker.
 	lf["shape"] = _rng.randi() % _frames.size()
 	var tex: Texture2D = _frames[lf["shape"]]

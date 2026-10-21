@@ -115,6 +115,25 @@ How it works: DESIGN.md "People as in Doom", AGENTS.md §7 "People from eight si
 - [ ] Guests in poses at attractions face the attraction's tile centre; benches and the slide may want their own facing
 - [ ] Pipe crawl (`pipe_mate.gd`), the bus riders and the night's enemies stay as they are (out of scope)
 
+## STAFFROOM — 2026-10-21 (the user: "a fifth tab in SoftSklad to hire staff; a staffroom with the PC as an old chunky laptop, a mattress in the boiler room, sofa, fridge, coffee machine, TV; lockers bought in the books; they see to the day's events and the lodgings; toggles per hand; home at night; curtains; co-op; the postman as a notification on the right edge")
+- [x] Staffroom build (Utilities, one per camp), one plan inside and out, real glass, curtains, lamps (DESIGN §7c)
+- [x] Lounge + boiler room, point and click, the laptop = the office PC, books, coffee, fridge, TV, lockers, mattresses
+- [x] Hands: hire one to a locker, jobs ticked per hand, the day (coffee, jobs, rest, a guest's bed, home at eight)
+- [x] Personal 98: SoftSklad's fifth program; licence at softsklad.cz
+- [x] The post's plate at the right edge (van on the way, parcel at the desk)
+- [ ] Co-op checked in two windows (the code is in: biz.staff in the pulse, s_* ops to the host, the laptop's screen and the figures)
+- [x] The boiler room's mattress is the warden's bed (lodge_bed "staff"); the hands sit in the lounge (armchairs bought) and all go home at night (the user, the same evening)
+- [ ] Sounds of their own: the boiler's roar, the fridge's hum, the coffee machine's gurgle, the locker's clang (ElevenLabs)
+- [ ] A hand asleep in a guest's bed seen in that lodging's room
+
+## CABINS — 2026-10-21 (the user: "the curtains do not glint, the windows by the door clip the coat and have no view, rebuild the inside to match the outside and remake that a bit; every tier a visible upgrade inside and out; old curtains left under the new ones")
+
+- [x] One plan for the model and the room (`scripts/cabin_layout.gd`), every window a view out with a curtain that glints
+- [x] The tiers inside and out (boards, porch, annex, shutters, chimney/stove, aerial/TV, furniture)
+- [x] The jacket clear of the windows, no painted curtains under the drapes
+- [x] Builder's pictures of the new cabins (renders repainted by Grok, Lv1 kept bare)
+- [ ] The bathroom is cramped from its doorway: a better view or a bigger annex
+
 ## PODNIKY PAPA'S — 2026-10-21 (the user: "at first sight terribly complicated, I don't know where to click; choppy; how do I serve? I want it like Papa's games; the same in every place")
 
 Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back to the station you were at (the first time the first of the chain); the camera and the things you move smooth, the glove frame by frame; patience seen everywhere; after a serve nothing that stops you; last orders half an hour before closing, who ordered waits; SERVE and a checklist; the next step lit (switch in Options); menu switches only; short orders, many guests; mouse, keys and tabs; by day play, by night the uncanny; a hand for every room.
@@ -285,7 +304,17 @@ finished game, by impact:
 - [x] Snow: boot prints behind every warden, frozen puddles; snowfall no longer grew
   puddles with rain rings on them (21. 10.)
 - [x] A broken lamp shorts: sparks, a flash, the crackle (21. 10., lamp_sparks.gd)
+- [x] The rowing boat, single and co-op (21. 10., the user: "totálně polishnout lodičku"):
+  into the seat and out smoothly, strokes in a rhythm, backing and turning on the spot,
+  looking round from the seat, the shore and jetties knock it back, alongside by itself
+  (and off the keeper's jetty again: it took you straight back), the hull on the swell,
+  3D oars, splashes, swirls and wake, the lantern, its sounds; in co-op the oars stroke on
+  the other machine and the passenger sits in the bow face to face (they sat in the
+  rower's face); the village's houses gone from the far shore (`boat_rig.gd`,
+  `tools/boat_shots.tscn`, `tools/boat_coop.py`)
 - [x] Sound: a guitar by the fire and a radio in a caravan in the evening, far off
+- [x] The camp's own music (21. 10.): seven five-minute songs (morning, tycoon, golden, rain, nightstart, night, red; the title in the menu), mapped by `tools/audiogen/music_sections.py`; a piece comes in after a while on your feet outside, out of slow into its tempo, and winds down like a carousel on a bar (idle, the hour or weather turning, a presence at night, the Whistler playing); through the walls indoors, silent asleep; co-op: the host's piece on both machines in step
+- [x] Radio: Prani a pozdravy on the clock (from 0:30 for as long as it runs, tuned into mid-way, never after the night skip or a load); Vypinac with its hook (0:44-1:12) twice and again before the outro, on the beat
   (21. 10., far_life.gd)
 - [x] Sound: the country by day — the dawn chorus, birds, grasshoppers, a woodpecker, a
   crow, ducks on the lake (21. 10., `nature_life.gd`; there were only the night's
@@ -508,6 +537,7 @@ start, collect good ratings; pay to delete bad reviews".
 - [x] B38a Director: a light in the woods, an object moved, a reported cabin that sounds at night (day event "someone", knock to look)
 - [x] B38b Builder undo (Ctrl+Z / toolbar, today's builds, full refund); director: twig, the insects' silence, a door banging, steps in the back room; sleeping guests count for the camp's character (they did not)
 - [x] B38c Director: a sleeping guest at the tree line (rare, named in the log, denies it by day)
+- [x] B40 Sleep: the radio fades out as the eyes close, silent through the night skip, a new song in the morning (back-room bed and lodging beds; co-op: each machine for its own sleeping warden, the song stays the host's)
 - [x] B39 Save round trip checked (director memory and log, reputation, reported cabins, DataPunch nights); the PC no longer stays dark after a save is loaded in-game
 - [x] B38 Bazar Hlubocany: the lost and found from checkouts, ads, morning sales, the red shoe; new game no longer shows the last game's night log
 - [ ] B23 Later: lore in the linemen's hut; more winter challenges (snowed-in paths, the lake freezing, heating cabins)
@@ -660,7 +690,11 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [x] Guests stay in lodgings, leave the camp by exits for hours, stand at the lake (64% -> ~35% outdoors)
 
 ### 14. The lake
-- [ ] Remodel: a real forest lake (water surface, reflections, shore, reeds, surrounding forest)
+- [x] Reflections (21. 10., the user: "jezero jen polish, remodel asi uplne ne"): the water
+  gives back the far shore's forest, the houses, the boat and the jetty, lit windows, the
+  stars and the sunset for real (`camp_lake.gd` mirror camera at half the game's pixels,
+  near the water only; everything under the water clipped for it in the surface shaders)
+- [ ] Remodel: shore, reeds, surrounding forest (not wanted for now)
 - [ ] Morning mist, darker night, deep-forest, slightly eerie; a place guests walk to
 
 ### 15. Night gameplay loop

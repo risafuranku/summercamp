@@ -31,13 +31,16 @@ const ASHTRAY_CARDS := Vector3(0.3, 0.74, -0.28)
 ## The stations: id -> {room, at (click box centre), size, stand (where the warden stands
 ## at it), pose (their picture there), mark (where its status hangs), label, tab_label
 ## (on the frame's bar)}.
-## The first of the chain: you come in at the tap (where an order starts), the first time.
+## They go in the order of the work, as the frame's tabs and keys 1-9 number them
+## (the user, 21. 10.: "1 husk, 2 serve and butter, 3 drinks: it should make sense
+## everywhere"): what prepares first, then what makes and serves, then the side jobs.
+## You come in at the tap (where an order starts), the first time.
 const ENTRY := "tap"
 const STATIONS := {
+	"keg": {"room": "cellar", "at": Vector3(-1.0, 0.55, -1.85), "size": Vector3(1.0, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg", "tab_label": "KEG", "icon": "res://assets/textury/ui/mark_keg.png"},
 	"tap": {"room": "bar", "at": Vector3(1.3, 1.3, -1.32), "size": Vector3(0.3, 0.42, 0.3), "stand": Vector3(1.3, 0.05, -1.99), "pose": "tap", "mark": Vector3(1.3, 1.78, -1.3), "label": "the tap", "tab_label": "TAP", "icon": "res://assets/textury/ui/mark_tap.png"},
 	"back": {"room": "bar", "at": Vector3(0.63, 1.25, -1.4), "size": Vector3(0.52, 0.32, 0.3), "stand": Vector3(0.63, 0.05, -1.99), "pose": "pour", "mark": Vector3(0.63, 1.7, -1.4), "label": "the bottles", "tab_label": "BOTTLES", "icon": "res://assets/textury/ui/mark_shot.png", "menu": ["rum", "zelena", "slivovice", "kofola"]},
 	"wash": {"room": "bar", "at": Vector3(2.12, 1.15, -1.3), "size": Vector3(0.45, 0.12, 0.62), "stand": Vector3(2.12, 0.05, -1.99), "pose": "wash", "mark": Vector3(2.12, 1.6, -1.4), "label": "the washer", "tab_label": "WASH", "icon": "res://assets/textury/ui/mark_wash.png"},
-	"keg": {"room": "cellar", "at": Vector3(-1.0, 0.55, -1.85), "size": Vector3(1.0, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg", "tab_label": "KEG", "icon": "res://assets/textury/ui/mark_keg.png"},
 	# The fun (pub_fun.gd): clicked in the room, not on the frame's bar ("tab": false).
 	"slot": {"room": "bar", "at": Vector3(-2.35, 0.8, -1.9), "size": Vector3(0.7, 1.55, 0.5), "stand": Vector3(-2.35, 0.05, -1.2), "pose": "stand", "mark": Vector3(-2.35, 1.85, -1.85), "label": "the LUCKY 7", "tab_label": "LUCKY 7", "tab": false},
 	"darts": {"room": "bar", "at": Vector3(-2.82, 1.70, -1.0), "size": Vector3(0.15, 0.55, 0.55), "stand": Vector3(-0.6, 0.05, -1.0), "pose": "stand", "mark": Vector3(-2.75, 2.08, -1.0), "label": "the darts", "tab_label": "DARTS", "tab": false},

@@ -295,7 +295,7 @@ func _step(open: bool, w: int, flash: float, wet: float, wind: float) -> void:
 		mat.set_shader_parameter("flash", flash * flick)
 		# The water on the glass as light as the light outside it: pale by day; at night
 		# a full grey it read as a screen of static over the dark (inventory 20. 10.).
-		mat.set_shader_parameter("tint", Vector3(0.62, 0.68, 0.76) * lerpf(0.26, 1.0, clampf(_day * 1.6, 0.0, 1.0)))
+		mat.set_shader_parameter("tint", Vector3(0.62, 0.68, 0.76) * lerpf(0.12, 1.0, clampf(_day * 1.6, 0.0, 1.0)))
 		var l: SpotLight3D = win["light"]
 		l.visible = flash > 0.03
 		l.light_energy = flash * flick * 9.0

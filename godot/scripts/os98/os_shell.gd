@@ -25,6 +25,7 @@ extends Control
 signal desktop_ready
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const BUILDER_WARMUP = preload("res://scripts/builder/warmup.gd")
 const WINDOW = preload("res://scripts/os98/os_window.gd")
 const PAGE = preload("res://scripts/os98/os_page.gd")
 const FILES = preload("res://scripts/os98/os_files.gd")
@@ -81,6 +82,8 @@ const PROGRAMS := {
 	"bistro_app": {"title": "Kuchar 98", "icon": "bistro_app", "file": "KUCHAR98.EXE", "kb": 64, "site": "softsklad.cz", "base": false},
 	"shop_app": {"title": "Pult 98", "icon": "shop_app", "file": "PULT98.EXE", "kb": 56, "site": "softsklad.cz", "base": false},
 	"corn_app": {"title": "Klasek 98", "icon": "corn_app", "file": "KLASEK98.EXE", "kb": 32, "site": "softsklad.cz", "base": false},
+	# The staffroom's hands (scripts/os98/apps/staff_app.gd).
+	"staff_app": {"title": "Personal 98", "icon": "staff_app", "file": "PERSON98.EXE", "kb": 40, "site": "softsklad.cz", "base": false},
 	# The games are on the machine already: the evenings at the office before this one.
 	"mines": {"title": "Mines", "icon": "mines", "file": "", "kb": 24, "site": "", "base": true},
 	"mosquito": {"title": "Komar 98", "icon": "komar", "file": "KOMAR98.EXE", "kb": 28, "site": "bohemia-online.cz/hry", "base": true},
@@ -97,6 +100,7 @@ const PROGRAM_INFO := {
 	"bistro_app": ["SoftSklad s.r.o.", "3.1", "20.4.1998"],
 	"shop_app": ["SoftSklad s.r.o.", "2.0", "11.3.1998"],
 	"corn_app": ["SoftSklad s.r.o.", "1.0", "2.7.1998"],
+	"staff_app": ["SoftSklad s.r.o.", "1.1", "14.8.1998"],
 	"mines": ["Okna 98 accessory", "4.10", "11.5.1998"],
 	"mosquito": ["Bohemia Soft, shareware", "1.0", "3.8.1998"],
 	"hike": ["Bohemia Soft, shareware", "1.1", "17.7.1998"],
@@ -116,7 +120,7 @@ const SCORE_ROWS := 5
 const HOST := {
 	"builder": "builder", "camp_status": "camp_status", "guestrack": "guestrack",
 	"datapunch": "jobs", "adclick": "jobs", "census": "jobs",
-	"pub_app": "shops", "bistro_app": "shops", "shop_app": "shops", "corn_app": "shops",
+	"pub_app": "shops", "bistro_app": "shops", "shop_app": "shops", "corn_app": "shops", "staff_app": "shops",
 	"mines": "games", "mosquito": "games", "hike": "games", "pexeso": "games",
 }
 ## The tabs that are a program of their own and must be installed first.
@@ -371,6 +375,9 @@ func coop_pc_state() -> Dictionary:
 	out.erase("monitor_powered")
 	out.erase("tab")
 	out.erase("tab2")
+	# On or off: one machine in the office (joining a running game you had to switch it
+	# on yourself: playtest 21. 10.). 1 on, 0 off, -1 starting or going down (no news).
+	out["pw"] = 1 if _state == Boot.DESKTOP else (0 if _state == Boot.OFF or _state == Boot.SAFE_OFF else -1)
 	return out
 
 
@@ -400,6 +407,22 @@ func coop_take_pc(data: Dictionary) -> void:
 		_refresh_cover(id)
 	_refresh_folders()
 	_refresh_badges()
+	_coop_take_power(int(data.get("pw", -1)))
+
+
+## The other warden's PC is on: here it is on too, at its desktop (no boot again); they
+## switched it off: off here, unless you are sitting at it.
+func _coop_take_power(pw: int) -> void:
+	if pw == 1 and (_state == Boot.OFF or _state == Boot.SAFE_OFF or _state == Boot.WARMUP) and _has_power():
+		_state = Boot.DESKTOP
+		_apply_state()
+		_refresh_badges()
+		_refresh_tray()
+		if _open:
+			_refresh_page(_tab)
+			desktop_ready.emit.call_deferred()
+	elif pw == 0 and _state == Boot.DESKTOP and not _open:
+		power_off()
 
 
 func import_persistent_state(data: Dictionary) -> void:
@@ -1227,7 +1250,7 @@ func _select_tab_on(id: String, scr: int) -> void:
 	pointer_hand = false
 	# The program comes up from its taskbar button (outlines over it; it never waits).
 	var buttons: Dictionary = _tab_buttons2 if scr == 1 else _tab_buttons
-	if cur != "" and _extras != null and buttons.has(id):
+	if _extras != null and buttons.has(id):
 		var b: Control = buttons[id]
 		_extras.zoom(Rect2(b.global_position - global_position, b.size), Rect2(screen_origin(scr), DESKTOP_SIZE))
 	_refresh_page(id)
@@ -1236,6 +1259,28 @@ func _select_tab_on(id: String, scr: int) -> void:
 		app.shown()
 	if swap:
 		_refresh_page(tab_on(1 - scr))
+
+
+## The program on screen `scr` goes down into its taskbar button (outlines from the
+## screen to it) and the wallpaper shows; it runs on behind, its button lifts it back.
+func _minimize_on(scr: int) -> void:
+	var cur := tab_on(scr)
+	if cur == "" or _state != Boot.DESKTOP:
+		return
+	if scr == 1:
+		_last_tab2 = cur
+		_tab2 = ""
+	else:
+		_last_tab = cur
+		_tab = ""
+	var oa = app_of(cur)
+	if oa != null and oa.has_method("page_hidden"):
+		oa.page_hidden()
+	_place_pages()
+	var buttons: Dictionary = _tab_buttons2 if scr == 1 else _tab_buttons
+	if _extras != null and buttons.has(cur):
+		var b: Control = buttons[cur]
+		_extras.zoom(Rect2(screen_origin(scr), DESKTOP_SIZE), Rect2(b.global_position - global_position, b.size))
 
 
 func _refresh_page(id: String) -> void:
@@ -1473,6 +1518,9 @@ func _flash_dialog(w: Control) -> void:
 # ── boot ─────────────────────────────────────────────────────────────────────
 
 func _start_boot() -> void:
+	# Builder's scripts and art read in the background while it boots (its first click
+	# took seconds: scripts/builder/warmup.gd).
+	BUILDER_WARMUP.start()
 	# The tube first: the thunk of the degauss coil, a line, then the picture.
 	_state = Boot.WARMUP
 	_boot_t = 0.0
@@ -1495,6 +1543,7 @@ var _blacked_out := false
 
 
 func _process(delta: float) -> void:
+	BUILDER_WARMUP.poll()
 	_power_t -= delta
 	if _power_t <= 0.0:
 		_power_t = 0.25
@@ -1576,8 +1625,8 @@ func _tick_bios(delta: float) -> void:
 	# 20. 10.); the disk and the fan say it is starting.
 	if _boot_t > 0.95 and _boot_t - delta <= 0.95:
 		play("hdd", -6.0)
-	if _boot_t > 1.65 and _boot_t - delta <= 1.65:
-		play("floppy", -8.0)
+	# No floppy seek either: its grinding rattle was the buzz you heard as the System
+	# Configurations box came up (the user 21. 10.).
 	if _boot_t >= BIOS_END:
 		_state = Boot.SPLASH
 		_boot_t = 0.0
@@ -1908,9 +1957,13 @@ func _make_tab_button(i: int, pos: Vector2, sz: Vector2, scr := 0) -> Control:
 	c.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.pressed:
 			_close_start_menu()
-			if tab_on(scr) != id:
-				play("click", -12.0)
-			_select_tab_on(id, scr)
+			play("click", -12.0)
+			# The one on the screen: down to its button, the desktop shows (as Windows
+			# did; the user, 21. 10.). Clicked again, it comes back.
+			if tab_on(scr) == id:
+				_minimize_on(scr)
+			else:
+				_select_tab_on(id, scr)
 			c.accept_event()
 	)
 	var tex := icon(str(TABS[i][2]), false)

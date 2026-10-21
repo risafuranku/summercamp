@@ -1684,6 +1684,9 @@ func _setup_cloud_layers() -> void:
 	_cloud_sprites.clear(); _cloud_world_positions.clear()
 	_cloud_world_drift_vectors.clear(); _cloud_phase_offsets.clear()
 	_cloud_speed_jitter.clear(); _cloud_alpha_jitter.clear(); _cloud_presence_threshold.clear()
+	# No sprite clouds: the sky's clouds are cloud_layers.gd's deck, thick, warped and in
+	# three dimensions; flat sprites over it clashed (the user 21. 10.).
+	if true: return
 	if _celestial_root == null: return
 	var origin = Vector3.ZERO
 	var cam = _get_active_world_camera()
@@ -1937,8 +1940,10 @@ func _update_weather_particles(_delta: float) -> void:
 		intensity = 0.72 + 0.28 * gust; rain_speed = 28.0 + 6.0 * gust; alpha = 0.5; drop = 1.15
 
 	var daylight = clampf(compute_daylight_factor(), 0.0, 1.0)
-	# Grey water, as grey as the wet fog (both a little blue, the palette made it blue).
-	var tint = Color(0.35, 0.36, 0.39).lerp(Color(0.85, 0.86, 0.88), daylight)
+	# Grey water, as grey as the wet fog (both a little blue, the palette made it blue); in
+	# the dark as dark as the night round it (the drops are drawn unlit: at 0.35 grey they
+	# shone out of the black, playtest 21. 10.).
+	var tint = Color(0.085, 0.09, 0.11).lerp(Color(0.85, 0.86, 0.88), smoothstep(0.0, 0.7, daylight))
 	if _world_env != null and _world_env.environment != null:
 		tint = tint.lerp(_world_env.environment.ambient_light_color, 0.25)
 	for pair in [[_rain_particles, 1.0], [_rain_far, 0.55]]:
@@ -1954,7 +1959,7 @@ func _update_weather_particles(_delta: float) -> void:
 		if sm != null:
 			# Water catching the light: paler than the wet ground under it (as grey as the
 			# streaks it did not show on it).
-			var bright := tint.lightened(0.4)
+			var bright: Color = tint * 1.35
 			sm.albedo_color = Color(bright.r, bright.g, bright.b, minf(1.0, alpha * 1.8))
 		_rain_splash.amount_ratio = intensity
 

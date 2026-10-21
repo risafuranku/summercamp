@@ -80,6 +80,31 @@ var _beat_n := 0
 ## The world muffled under the presence (a low-pass on Master, its own, found by itself).
 var _muffle: AudioEffectLowPassFilter
 const SENSE_RATE := 22050.0
+## The ears in a tight spot (the user 21. 10.: "the whistling and hissing when you are in
+## trouble is a good one, work it out more"): what the presence, or your own wounds, do to
+## your hearing. `_ears` is the larger of the presence and the strain (low health, from
+## main's `_player_health`). A ringing that will not hold still (two high tones beating,
+## wandering in pitch, one ear louder than the other, a third, sour one at the worst),
+## the blood whooshing in your ears a moment after each beat of the heart, a hiss under
+## it all; your own breathing, faster; a dry swallow now and then; and at the worst the
+## ears give out for a moment (the world gone, then the pop).
+var _strain := 0.0
+var _ears := 0.0
+var _noise_lp := 0.0
+var _noise_hp := 0.0
+var _ear_ph := [0.0, 0.0]
+var _ear_t := 0.0
+var _breath: AudioStreamPlayer
+var _swallow_wait := 9.0
+var _drop_left := 0.0
+var _drop_wait := 4.0
+var _deaf: AudioEffectAmplify
+var _ring_t2 := 0.0
+var _ring_ph2 := 0.0
+var _ring_lp := 0.0
+const SFX_BREATH := "res://assets/sfx/night/ears_breath.mp3"
+const SFX_SWALLOW := "res://assets/sfx/night/ears_swallow.mp3"
+const SFX_POP := "res://assets/sfx/night/ears_pop.mp3"
 
 
 ## The one layer under the tree's root (made the first time).
@@ -92,6 +117,37 @@ static func get_for(node: Node) -> Node:
 		fx = (load("res://scripts/night/nightmare_fx.gd") as GDScript).new()
 		root.add_child.call_deferred(fx)
 	return fx
+
+
+## The close-ups in the world's game pixels and palette (materials/closeup_retro.gdshader):
+## one material for every picture laid over the screen at night (here, the boy's face over
+## the board and in the pipes), its game pixel the world's (RetroRender.internal_scale).
+const CLOSEUP_SHADER = preload("res://materials/closeup_retro.gdshader")
+const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+static var _retro_mat: ShaderMaterial
+const CLOSEUP_LINES := 100.0
+
+
+static func retro_material() -> ShaderMaterial:
+	if _retro_mat == null:
+		_retro_mat = ShaderMaterial.new()
+		_retro_mat.shader = CLOSEUP_SHADER
+		_retro_mat.set_shader_parameter("palette_lut", RETRO_RENDER.LUT)
+	return _retro_mat
+
+
+## The game pixel for a screen this high, and the palette as the settings have it.
+static func update_retro(screen_height: float) -> void:
+	var m := retro_material()
+	# About CLOSEUP_LINES of them down the screen, a whole number of the world's pixels: a
+	# sprite this near the eye has its texels blown up, as Build drew a face in yours (at
+	# the world's own pixel it read as a painting).
+	var world_px := float(RETRO_RENDER.internal_scale(screen_height))
+	var px := maxf(world_px * 2.0, roundf(screen_height / CLOSEUP_LINES / world_px) * world_px)
+	m.set_shader_parameter("px_size", px)
+	var lines := int(RETRO_RENDER.PRESET_LINES.get(RETRO_RENDER.current_preset(), 240))
+	m.set_shader_parameter("dither_strength", float(RETRO_RENDER.DITHER_BY_LINES.get(lines, 0.3)))
+	m.set_shader_parameter("palette_mix", 1.0 if RETRO_RENDER.palette_enabled() else 0.0)
 
 
 func _init() -> void:
@@ -160,6 +216,9 @@ func _build() -> void:
 		_halves.append(h)
 	# The hands go over the split face.
 	move_child(_over, get_child_count() - 1)
+	# Every picture in the world's pixels and palette.
+	for n in [_sub, _close, _over] + _halves:
+		(n as CanvasItem).material = retro_material()
 	_eyes_layer = Control.new()
 	_eyes_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_eyes_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -494,6 +553,7 @@ func tinnitus(seconds: float) -> void:
 		return
 	_ring_len = maxf(0.5, seconds)
 	_ring_t = 0.0
+	_ring_t2 = 0.0
 	if not _ring.playing:
 		_ring.play()
 		_ring_pb = _ring.get_stream_playback() as AudioStreamGeneratorPlayback
@@ -507,6 +567,8 @@ func tinnitus(seconds: float) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if is_inside_tree():
+		update_retro(get_viewport().get_visible_rect().size.y)
 	# Dread: the largest source, eased; sources forget themselves each frame.
 	var want := 0.0
 	for k in _dread_src:
@@ -519,15 +581,19 @@ func _process(delta: float) -> void:
 		want_p = maxf(want_p, float(_presence_src[k]))
 	_presence_src.clear()
 	_presence = move_toward(_presence, want_p, delta * (0.5 if want_p > _presence else 0.3))
+	_strain = move_toward(_strain, _strain_target(), delta * 0.25)
+	_ears = maxf(_presence, _strain * 0.65)
 	_update_sense(delta)
+	_update_ears(delta)
 	_update_muffle()
-	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01
+	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01 or _strain > 0.05
 	_screen.visible = on
 	if on:
 		_mat.set_shader_parameter("amount", _amount)
 		_mat.set_shader_parameter("dread", _dread)
 		_mat.set_shader_parameter("time_s", _time)
-		_mat.set_shader_parameter("squeeze", _presence)
+		# Hurt, the edges close in a little too.
+		_mat.set_shader_parameter("squeeze", maxf(_presence, _strain * 0.35))
 		_mat.set_shader_parameter("beat", _beat_env)
 		var ws := DisplayServer.window_get_size()
 		_mat.set_shader_parameter("aspect", float(ws.x) / maxf(1.0, float(ws.y)))
@@ -578,7 +644,7 @@ func _draw_eyes() -> void:
 ## beat, a thin whine over them like pressure in the ears, rising with the presence; the
 ## heart a double thump, 56 a minute at first, 140 at the end.
 func _update_sense(delta: float) -> void:
-	if _presence <= 0.01:
+	if _ears <= 0.01:
 		if _sense != null and _sense.playing:
 			_sense.stop()
 			_sense_pb = null
@@ -597,20 +663,32 @@ func _update_sense(delta: float) -> void:
 	if _sense_pb == null:
 		return
 	var p := _presence
-	var bpm := lerpf(56.0, 140.0, p * p)
+	var e := _ears
+	var bpm := lerpf(56.0, 140.0, e * e)
 	var period := 60.0 / bpm
 	var frames := _sense_pb.get_frames_available()
+	if frames <= 0:
+		return
 	var dt := 1.0 / SENSE_RATE
 	var f1 := lerpf(48.0, 62.0, p)
 	var f2 := f1 + lerpf(1.5, 6.0, p)
-	var fw := lerpf(2600.0, 3900.0, p)
+	var fw0 := lerpf(2900.0, 4300.0, e)
+	var beat_hz := lerpf(0.8, 3.5, e)
 	var a_drone := 0.10 * clampf(p * 1.6, 0.0, 1.0)
-	var a_whine := 0.018 * clampf((p - 0.35) / 0.65, 0.0, 1.0)
-	var a_heart := 0.5 * clampf((p - 0.15) / 0.5, 0.0, 1.0)
-	for _i in frames:
+	var a_heart := 0.5 * clampf((e - 0.15) / 0.5, 0.0, 1.0)
+	var a_whine := 0.034 * clampf((e - 0.25) / 0.6, 0.0, 1.0)
+	var a_sour := 0.014 * clampf((e - 0.7) / 0.3, 0.0, 1.0)
+	var a_whoosh := 0.5 * clampf((e - 0.2) / 0.6, 0.0, 1.0)
+	var a_hiss := 0.012 * clampf((e - 0.1) / 0.7, 0.0, 1.0)
+	# The ears gone for a moment (_update_ears): nothing from here either.
+	var gone := 0.0 if _drop_left > 0.0 else 1.0
+	var buf := PackedVector2Array()
+	buf.resize(frames)
+	for i in frames:
 		_beat_t += dt
 		if _beat_t >= period:
 			_beat_t -= period
+		_ear_t += dt
 		# Lub-dub: a thump, and a softer one a short way after.
 		var tb := _beat_t
 		var env := 0.0
@@ -619,12 +697,119 @@ func _update_sense(delta: float) -> void:
 		elif tb > 0.2 and tb < 0.32:
 			env = 0.6 * exp(-(tb - 0.2) * 40.0)
 		_beat_env = env
+		# The blood in your ears: a dull whoosh swelling a moment after each beat.
+		var tw := tb - 0.04
+		var whoosh_env := (1.0 - exp(-tw * 30.0)) * exp(-tw * 6.0) if tw > 0.0 else 0.0
+		var n := randf() * 2.0 - 1.0
+		_noise_lp += (n - _noise_lp) * 0.12
+		_noise_hp += (n - _noise_hp) * 0.55
+		# The ring: wandering, two tones beating, the sour third at the worst.
+		var drift := 1.0 + 0.012 * sin(TAU * 0.13 * _ear_t) + 0.005 * sin(TAU * 0.71 * _ear_t)
+		var fw := fw0 * drift
 		_sense_ph[0] = fmod(_sense_ph[0] + f1 * dt, 1.0)
 		_sense_ph[1] = fmod(_sense_ph[1] + f2 * dt, 1.0)
 		_sense_ph[2] = fmod(_sense_ph[2] + fw * dt, 1.0)
+		_ear_ph[0] = fmod(_ear_ph[0] + (fw + beat_hz) * dt, 1.0)
+		_ear_ph[1] = fmod(_ear_ph[1] + fw * 1.414 * dt, 1.0)
+		var ring := (sin(TAU * _sense_ph[2]) + sin(TAU * _ear_ph[0])) * 0.5 * a_whine + sin(TAU * _ear_ph[1]) * a_sour
+		# Which ear rings louder, slowly changing.
+		var pan := 0.5 + 0.5 * sin(TAU * 0.045 * _ear_t)
 		var heart := sin(TAU * 52.0 * tb) * env * a_heart
-		var v := (sin(TAU * _sense_ph[0]) + sin(TAU * _sense_ph[1])) * 0.5 * a_drone + sin(TAU * _sense_ph[2]) * a_whine + heart
-		_sense_pb.push_frame(Vector2(v, v))
+		var mid := (sin(TAU * _sense_ph[0]) + sin(TAU * _sense_ph[1])) * 0.5 * a_drone + heart + _noise_lp * whoosh_env * a_whoosh + (n - _noise_hp) * a_hiss
+		buf[i] = Vector2(mid + ring * lerpf(1.0, 0.4, pan), mid + ring * lerpf(0.4, 1.0, pan)) * gone
+	_sense_pb.push_buffer(buf)
+
+
+## Your own wounds: low on health the ears go too (from under about half, all of it near
+## none). Main's `_player_health` on this machine; nothing in the menu.
+func _strain_target() -> float:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	if scene == null:
+		return 0.0
+	var started = scene.get("_gameplay_started")
+	var menu = scene.get("_menu_mode")
+	var hp = scene.get("_player_health")
+	if started == null or not bool(started) or (menu != null and bool(menu)) or hp == null or int(hp) <= 0:
+		return 0.0
+	return clampf((48.0 - float(hp)) / 38.0, 0.0, 1.0)
+
+
+## The ears' recorded part: your breathing (faster and nearer the worse it is), a dry
+## swallow while it builds; at the worst a moment with nothing at all (the Master bus
+## down with the generator), and the pop as it comes back.
+func _update_ears(delta: float) -> void:
+	var e := _ears
+	if e > 0.3:
+		if _breath == null and ResourceLoader.exists(SFX_BREATH):
+			_breath = AudioStreamPlayer.new()
+			var st := load(SFX_BREATH) as AudioStream
+			if st is AudioStreamMP3:
+				st = (st as AudioStreamMP3).duplicate()
+				(st as AudioStreamMP3).loop = true
+			_breath.stream = st
+			add_child(_breath)
+		if _breath != null:
+			if not _breath.playing:
+				_breath.play()
+			_breath.volume_db = lerpf(-30.0, -9.0, clampf((e - 0.3) / 0.6, 0.0, 1.0))
+			_breath.pitch_scale = lerpf(0.94, 1.12, e)
+	elif _breath != null and _breath.playing:
+		_breath.stop()
+	if e > 0.3 and e < 0.8:
+		_swallow_wait -= delta
+		if _swallow_wait <= 0.0:
+			_swallow_wait = randf_range(8.0, 16.0)
+			_one_shot(SFX_SWALLOW, -10.0)
+	if _drop_left > 0.0:
+		_drop_left -= delta
+		if _drop_left <= 0.0:
+			_set_deaf(false)
+			_one_shot(SFX_POP, -6.0)
+	elif e > 0.78:
+		_drop_wait -= delta
+		if _drop_wait <= 0.0:
+			_drop_wait = randf_range(3.0, 8.0)
+			_drop_left = randf_range(0.09, 0.18)
+			_set_deaf(true)
+	else:
+		_drop_wait = maxf(_drop_wait, 2.0)
+		if _deaf != null:
+			_set_deaf(false)
+
+
+## The world gone (an Amplify on Master far down) or back (taken off again).
+func _set_deaf(on: bool) -> void:
+	var master := AudioServer.get_bus_index("Master")
+	if on:
+		if _deaf == null:
+			_deaf = AudioEffectAmplify.new()
+			_deaf.volume_db = -40.0
+			AudioServer.add_bus_effect(master, _deaf)
+		return
+	if _deaf == null:
+		return
+	for i in AudioServer.get_bus_effect_count(master):
+		if AudioServer.get_bus_effect(master, i) == _deaf:
+			AudioServer.remove_bus_effect(master, i)
+			break
+	_deaf = null
+	_drop_left = 0.0
+
+
+func _one_shot(path: String, db: float) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var a := AudioStreamPlayer.new()
+	a.stream = load(path)
+	a.volume_db = db
+	add_child(a)
+	a.finished.connect(a.queue_free)
+	a.play()
+
+
+## Never leave the camp's sound down or muffled behind (the menu, a new scene).
+func _exit_tree() -> void:
+	_set_deaf(false)
 
 
 ## Your ears close over: the camp's sounds go far away as the presence rises, till
@@ -656,13 +841,27 @@ func _update_ring(delta: float) -> void:
 	if _lowpass != null:
 		_lowpass.cutoff_hz = lerpf(500.0, 20000.0, k * k)
 	if _ring_pb != null:
-		var amp := 0.22 * (1.0 - k)
+		# The ring after a blast: two tones a hair apart (it beats), a slight tremble
+		# in it, the hiss of the blast under it going first, a crackle at the start;
+		# louder in one ear, both by the end. It hangs on and fades slowly.
+		var amp := 0.22 * pow(1.0 - k, 1.4)
+		var hiss_amp := 0.05 * pow(1.0 - k, 3.0)
 		var frames := _ring_pb.get_frames_available()
-		var step := TINNITUS_HZ / 22050.0
-		for _i in frames:
-			var v := sin(_ring_phase * TAU) * amp
-			_ring_pb.push_frame(Vector2(v, v))
-			_ring_phase = fmod(_ring_phase + step, 1.0)
+		var dt := 1.0 / 22050.0
+		var buf := PackedVector2Array()
+		buf.resize(frames)
+		var right := lerpf(0.55, 1.0, k)
+		for i in frames:
+			_ring_t2 += dt
+			var vib := 1.0 + 0.003 * sin(TAU * 5.5 * _ring_t2)
+			_ring_phase = fmod(_ring_phase + TINNITUS_HZ * vib * dt, 1.0)
+			_ring_ph2 = fmod(_ring_ph2 + TINNITUS_HZ * 1.0021 * dt, 1.0)
+			var tone := (sin(_ring_phase * TAU) * 0.7 + sin(_ring_ph2 * TAU) * 0.3) * amp
+			var n := randf() * 2.0 - 1.0
+			_ring_lp += (n - _ring_lp) * 0.6
+			var rest := (n - _ring_lp) * hiss_amp + n * 0.25 * exp(-_ring_t2 * 25.0)
+			buf[i] = Vector2(tone + rest, tone * right + rest)
+		_ring_pb.push_buffer(buf)
 	if k >= 1.0:
 		_ring_len = 0.0
 		_ring.stop()

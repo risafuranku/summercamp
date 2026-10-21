@@ -8,8 +8,9 @@ extends RefCounted
 ## at the net, the bat at the table) are drawn at the standing sprite's own scale.
 
 const SEATED_HEIGHT_M := 1.3
-const POSES := ["sit", "drink", "eat", "guitar", "kick", "bat"]
-const STANDING := ["kick", "bat"]
+const POSES := ["sit", "drink", "eat", "guitar", "kick", "bat", "ball", "bowl"]
+## On their feet (the bowling alley's two from behind: holding the ball, the follow-through).
+const STANDING := ["kick", "bat", "ball", "bowl"]
 ## The family as its people (their own sprites, each walking on their own): the father,
 ## the boy by him, the mother, a second child; a smaller party is the first of them.
 const FAMILY := ["res://assets/textury/npc/host_father.png", "res://assets/textury/npc/host_kid.png",

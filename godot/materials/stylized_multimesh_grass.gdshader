@@ -20,6 +20,11 @@ void vertex() {
 }
 
 void fragment() {
+	// The lake's mirror (camp_lake.gd) looks from under the water: nothing below the water
+	// is drawn for it (the ground's underside was a ceiling over everything it saw).
+	if (CAMERA_POSITION_WORLD.y < -0.4 && (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).y < 0.1) {
+		discard;
+	}
 	vec3 col = mix(bottom_color, top_color, clamp(pow(UV.y, 1.12), 0.0, 1.0));
 	float hue_shift = (INSTANCE_CUSTOM.g - 0.5) * 0.14;
 	col += vec3(-hue_shift * 0.2, hue_shift, -hue_shift * 0.25);

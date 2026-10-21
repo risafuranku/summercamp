@@ -61,9 +61,10 @@ const SOUP_LADLES := 2
 ## (reading the menu); green while it is younger than PATIENCE_OK, amber to PATIENCE_LATE,
 ## red to PATIENCE_GONE, when they get up and go hungry.
 const ORDER_DELAY := 5
-const PATIENCE_OK := 60
-const PATIENCE_LATE := 120
-const PATIENCE_GONE := 180
+## (Half as long again and more from 21. 10.: the guests had too little patience.)
+const PATIENCE_OK := 95
+const PATIENCE_LATE := 190
+const PATIENCE_GONE := 285
 ## A plate takes this long to eat; then it goes back to the kitchen dirty.
 const EAT_MINUTES := 45
 

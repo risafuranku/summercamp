@@ -97,7 +97,9 @@ func _process(delta: float) -> void:
 
 func _build_maze(rng: RandomNumberGenerator) -> void:
 	var width := field_rect.size.x - 2.0
-	var depth := minf(field_rect.size.y - 6.0, 40.0)
+	# (No deeper than 30 m, from 21. 10.: "the maze is terribly hard, all night I could
+	# not get to him".)
+	var depth := minf(field_rect.size.y - 6.0, 30.0)
 	maze_cols = int(width / TILE)
 	maze_rows = int(depth / TILE)
 	if maze_cols % 2 == 0:
@@ -129,7 +131,8 @@ func _build_maze(rng: RandomNumberGenerator) -> void:
 			break
 		if not moved:
 			stack.pop_back()
-	for i in int(maze_cols * maze_rows * 0.025):
+	# Walls knocked through: loops, more than one way round (was 2.5 %: one way only).
+	for i in int(maze_cols * maze_rows * 0.09):
 		var wall := Vector2i(rng.randi_range(1, maze_cols - 2), rng.randi_range(1, maze_rows - 2))
 		if (wall.x + wall.y) % 2 == 1:
 			maze_open[wall] = true
@@ -427,16 +430,19 @@ func _build_corn(rng: RandomNumberGenerator) -> void:
 				xforms.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.9, 1.15), s)), p))
 			z += rng.randf_range(0.55, 0.8)
 		row += 1.0
-	# The maze walls: every wall tile a thicket of stalks.
+	# The maze walls: every wall tile a thicket of stalks, three by three to its edges, so
+	# the corn stands where you cannot go and nowhere else (four scattered stalks a tile
+	# looked open where it was solid: playtest 21. 10.).
 	for r in maze_rows:
 		for c in maze_cols:
 			if maze_open.has(Vector2i(c, r)):
 				continue
 			var centre := tile_world(Vector2i(c, r))
-			for k in 4:
-				var p := centre + Vector3(rng.randf_range(-0.7, 0.7), 0.0, rng.randf_range(-0.7, 0.7))
-				var s := rng.randf_range(0.85, 1.15)
-				xforms.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.95, 1.2), s)), p))
+			for gx in 3:
+				for gz in 3:
+					var p := centre + Vector3((float(gx) - 1.0) * 0.55 + rng.randf_range(-0.08, 0.08), 0.0, (float(gz) - 1.0) * 0.55 + rng.randf_range(-0.08, 0.08))
+					var s := rng.randf_range(0.95, 1.15)
+					xforms.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.95, 1.2), s)), p))
 	mm.instance_count = xforms.size()
 	for i in xforms.size():
 		mm.set_instance_transform(i, xforms[i])
@@ -467,6 +473,26 @@ func _build_corn(rng: RandomNumberGenerator) -> void:
 	sm.albedo_color = Color(0.24, 0.19, 0.13)
 	soil.material_override = sm
 	add_child(soil)
+	# The maze's ways trodden pale (straw and dust on them): where you can go reads as a
+	# path between the walls of corn, by day and in the torch.
+	var trod := MultiMesh.new()
+	trod.transform_format = MultiMesh.TRANSFORM_3D
+	var tile := PlaneMesh.new()
+	tile.size = Vector2(TILE, TILE)
+	trod.mesh = tile
+	var open_tiles: Array = maze_open.keys()
+	trod.instance_count = open_tiles.size()
+	for i in open_tiles.size():
+		trod.set_instance_transform(i, Transform3D(Basis(), tile_world(open_tiles[i]) + Vector3(0, 0.025, 0)))
+	var trod_mi := MultiMeshInstance3D.new()
+	trod_mi.name = "MazeWays"
+	trod_mi.multimesh = trod
+	var tm := StandardMaterial3D.new()
+	tm.albedo_color = Color(0.44, 0.37, 0.24)
+	tm.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	trod_mi.material_override = tm
+	trod_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(trod_mi)
 
 
 func _cross_quad(size: Vector2) -> ArrayMesh:

@@ -26,6 +26,9 @@ const BATTERY_LOW := 0.15
 var terrain_speed_mult: float = 1.0
 ## Something has hold of you (the Silent Man's hands at your shoulder): you move at this.
 var held_speed_mult: float = 1.0
+## How badly hurt (0..1, scripts/ui/hurt_fx.gd): you limp and the view sways.
+var hurt: float = 0.0
+var _hurt_t := 0.0
 @export var jump_velocity: float = 4.4
 @export var gravity: float = 26.0
 @export var mouse_sensitivity: float = 0.0012
@@ -119,7 +122,8 @@ const DAMAGE_TIER_MEDIUM: int = 1
 const DAMAGE_TIER_LARGE: int = 2
 const DAMAGE_TIER_MEGA: int = 3
 const DAMAGE_TIER_LETHAL: int = 4
-const DAMAGE_TIER_ALPHA := [0.12, 0.22, 0.34, 0.50, 0.72]
+## (The hit's red is mostly hurt_fx.gd's stepped flash now; this tint is a breath of it.)
+const DAMAGE_TIER_ALPHA := [0.06, 0.11, 0.17, 0.25, 0.5]
 const DAMAGE_TIER_SHAKE := [0.010, 0.020, 0.032, 0.048, 0.070]
 const DAMAGE_TIER_FOV_PUSH := [0.4, 0.9, 1.6, 2.5, 4.2]
 const DAMAGE_TIER_HIT_KICK := [0.018, 0.032, 0.050, 0.072, 0.105]
@@ -127,8 +131,11 @@ const DEATH_FALL_DURATION: float = 0.96
 const DEATH_FALL_HOLD_SEC: float = 1.08
 ## Per stance: the capsule's radius, height and middle (m above the body's origin), and
 ## how far the eye drops. Lying down you fit under a table or a low fence (0.6 m).
-const STANCE_CAPSULE := [[0.35, 1.2, 0.95], [0.35, 0.8, 0.75], [0.3, 0.6, 0.65]]
-const STANCE_DROP := [0.0, 0.5, 0.87]
+## Standing, the eye is 1.45 m over the ground (the body's origin is 0.35 under it): it was
+## 1.2, and the other warden, drawn as tall as a guest, was looked at in the belly
+## (playtest 21. 10.); crouched and lying it is where it was.
+const STANCE_CAPSULE := [[0.35, 1.45, 1.075], [0.35, 0.8, 0.75], [0.3, 0.6, 0.65]]
+const STANCE_DROP := [0.0, 0.75, 1.12]
 ## Ctrl pressed again within this (ms): down on your belly.
 const CROUCH_DOUBLE_MS := 320
 const FOOTSTEP_SURFACE_SAMPLE_OFFSETS: Array[Vector2] = [
@@ -143,7 +150,7 @@ var _pitch: float = 0.0
 var _pitch_target: float = 0.0
 var _head: Node3D
 var _camera: Camera3D
-var _base_head_pos: Vector3 = Vector3(0.0, 1.55, 0.0)
+var _base_head_pos: Vector3 = Vector3(0.0, 1.8, 0.0)
 ## The bob as it is drawn (head offset), and the Build shift now (radians).
 var _bob_offset: Vector3 = Vector3.ZERO
 var _shift := 0.0
@@ -283,9 +290,9 @@ func _ensure_body() -> void:
 		collider = CollisionShape3D.new()
 		var capsule = CapsuleShape3D.new()
 		capsule.radius = 0.35
-		capsule.height = 1.2
+		capsule.height = STANCE_CAPSULE[0][1]
 		collider.shape = capsule
-		collider.position = Vector3(0.0, 0.95, 0.0)
+		collider.position = Vector3(0.0, STANCE_CAPSULE[0][2], 0.0)
 		add_child(collider)
 	_collider = collider
 	if _shapes.is_empty():
@@ -425,6 +432,10 @@ func _physics_process(delta: float) -> void:
 		_surface_t = 0.25
 		_surface_speed = float(SURFACE_SPEED.get(_surface_under(), 1.0)) if is_on_floor() else _surface_speed
 	var winded := 0.9 if _stamina_locked else 1.0
+	# Hurt: slower, and on the worst of it no running.
+	winded *= lerpf(1.0, 0.78, hurt)
+	if hurt > 0.85:
+		sprinting = false
 	var base_speed: float = sprint_speed if sprinting else move_speed
 	if stance == 1:
 		base_speed = crouch_speed
@@ -980,7 +991,11 @@ func _update_head_motion(delta: float) -> void:
 	var strafe := Input.get_axis("move_right", "move_left") * base_tilt_amount * clampf(_walk_amp * 1.6, 0.0, 1.0) if controls_enabled else 0.0
 	var turn := clampf(_yaw_rate * rotation_tilt_amount, -0.045, 0.045)
 	_current_tilt = lerpf(_current_tilt, (strafe + turn) * lean_k, 1.0 - exp(-tilt_smoothing * delta))
-	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y
+	# Hurt: the view sways and droops, and limps with the steps.
+	_hurt_t += delta
+	var hurt_roll := (sin(_hurt_t * 0.9) * 0.035 + sin(_hurt_t * 2.3) * 0.01) * hurt
+	_head.rotation.x += (-0.035 - 0.02 * sin(_hurt_t * 0.6) - 0.025 * absf(_bob_offset.y) * 10.0) * hurt
+	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y + hurt_roll
 	if _camera != null:
 		# A little wider in a run.
 		var fov_base := float(view.get("fov", camera_fov))

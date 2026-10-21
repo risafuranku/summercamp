@@ -117,6 +117,32 @@ func order() -> bool:
 	return true
 
 
+## The plate down the right edge of the screen (the user 21. 10.: "the postman shows as a
+## notification with an icon on the right edge when you order the monitor";
+## ui/arrival_strip.gd): {} when there is nothing coming. {stage, icon ("van" on the way,
+## "parcel" waiting at the desk), left (0..1: on the way it fills as he comes nearer, at
+## the desk his patience running down)}.
+func hud_row() -> Dictionary:
+	var d := state()
+	var st := str(d.get("stage", ""))
+	var now := _now()
+	match st:
+		"ordered":
+			var t0 := float(d.get("t0", now))
+			var due := float(d.get("due", now))
+			# A later day's visit counts from that morning.
+			var from := maxf(t0, floorf(due / 1440.0) * 1440.0 + HOURS_FROM * 60.0 - DELAY_MIN) if int(d.get("tries", 0)) > 0 else t0
+			var k := clampf((now - from) / maxf(1.0, due - from), 0.0, 1.0)
+			return {"stage": st, "icon": "van", "left": k}
+		"arriving":
+			return {"stage": st, "icon": "van", "left": 1.0}
+		"at_desk":
+			var waited := now - float(d.get("t0", now))
+			var until := minf(WAIT_MIN, maxf(1.0, GIVE_UP_HOUR * 60.0 - fmod(float(d.get("t0", now)), 1440.0)))
+			return {"stage": st, "icon": "parcel", "left": clampf(1.0 - waited / until, 0.0, 1.0)}
+	return {}
+
+
 ## The order's number on the page and the slip.
 func order_no() -> int:
 	return int(state().get("no", 417))

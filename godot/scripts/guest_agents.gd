@@ -556,6 +556,40 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		member.position = pos + _dodge_offset(party)
 	_update_marker(party, info, marker_pos, visible_now)
 	_update_alert(party, visible_now)
+	_update_flag(party, int(info.get("id", -1)), visible_now)
+
+
+## Guests a job of the day is about (day_events.gd: the loud party of a noise complaint),
+## guest id -> the job's picture: it hops over the one to go and talk to, so you know
+## them among thirty (playtest 21. 10.).
+var flagged: Dictionary = {}
+
+
+func _update_flag(party: Dictionary, guest_id: int, visible_now: bool) -> void:
+	var tex = flagged.get(guest_id, null)
+	var flag = party.get("flag_mark")
+	if tex == null or not visible_now:
+		if flag != null and is_instance_valid(flag):
+			(flag as Sprite3D).visible = false
+		return
+	var members: Array = party.get("members", [])
+	if members.is_empty() or not (members[0] is Node3D):
+		return
+	if flag == null or not is_instance_valid(flag):
+		var sp := Sprite3D.new()
+		sp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		sp.shaded = false
+		sp.pixel_size = 0.5 / maxf(1.0, float((tex as Texture2D).get_height()))
+		(members[0] as Node3D).add_child(sp)
+		party["flag_mark"] = sp
+		flag = sp
+	var f := flag as Sprite3D
+	f.texture = tex
+	f.visible = true
+	# A hop, in steps; over the mood marker.
+	f.position = Vector3(0, SPRITE_HEIGHT_M + 0.85 + (0.06 if int(_time * 4.0) % 2 == 0 else 0.0), 0)
 
 
 ## The member's figure seen from eight sides, when it has one and draws its own picture
