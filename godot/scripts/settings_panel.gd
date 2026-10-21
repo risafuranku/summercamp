@@ -24,7 +24,7 @@ const CONTROL_REFERENCE := [
 	["Back / close", "Esc"],
 	["Office lights (reception)", "L"],
 	["Service room: previous / next", "A / D"],
-	["Builder: rotate", "Q / E"],
+	["Builder: rotate", "R"],
 	["Builder: pan", "W A S D  or  Right-drag"],
 	["Builder: zoom", "Mouse wheel  or  + / -"],
 ]

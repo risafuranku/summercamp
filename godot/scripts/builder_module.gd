@@ -389,7 +389,7 @@ func _menu(item: String) -> void:
 		"Overlay: light at night":
 			_set_overlay("light")
 		"Keys":
-			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 services   F3 fun   F4 decor   F5 utilities\nQ / R  turn the building     T  turn the view     X  put the tool away\nO  overlay (wear, power, rooms, light)\nArrows  move the map     +/-  zoom     Ctrl+Z  undo today's build\nThe camera with legs: WASD moves the map (Shift faster)\n\nNo tool in hand: click a building for its card.", "info")
+			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 services   F3 fun   F4 decor   F5 utilities\nR  turn the building     T  turn the view     X  put the tool away\nO  overlay (wear, power, rooms, light)\nArrows  move the map     +/-  zoom     Ctrl+Z  undo today's build\nThe camera with legs: WASD moves the map (Shift faster)\n\nNo tool in hand: click a building for its card.", "info")
 		"Help topics":
 			message_requested.emit("Builder 98 Help", "Cannot open BUILDER.HLP.\n\nThe file is missing or damaged.\n\n(Help > Keys still works.)", "error")
 		"Register...":
@@ -428,7 +428,7 @@ func _build_toolbar() -> void:
 		row.add_child(b)
 	row.add_child(_gap())
 	var rot := Button.new()
-	rot.tooltip_text = "Turn the building (Q / R)"
+	rot.tooltip_text = "Turn the building (R)"
 	rot.custom_minimum_size = Vector2(34, 34)
 	rot.focus_mode = Control.FOCUS_NONE
 	rot.icon = _texture("res://assets/textury/builder/tb2_rotate.png")

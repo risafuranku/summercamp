@@ -844,12 +844,9 @@ func _gui_input(event: InputEvent) -> void:
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
-			KEY_Q:
-				_rotate_building(1)
-				get_viewport().set_input_as_handled()
-				return
+			# R turns the building (Q and E are the PC's: the user 21. 10.).
 			KEY_R:
-				_rotate_building(-1)
+				_rotate_building(1)
 				get_viewport().set_input_as_handled()
 				return
 			KEY_EQUAL, KEY_KP_ADD:
