@@ -273,6 +273,15 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 
 ## 5. Gotchas
 
+- **A Label3D leaves out the pixel fonts' one-stroke glyphs** (the I, the dash, the bar: in
+  Jersey and Silkscreen alike they are solid rectangles in the font's page and come out
+  blank in 3D; 2D text draws them). Words on a 3D surface go through
+  `scripts/bowling/board_text.gd` (a 2D Label in a small SubViewport, drawn again only when
+  the words change, shown on a quad: the bowling's boards and the cellar machine's plate).
+- **Nothing under the ground is drawn for a camera under the ground** (`retro_materials`'
+  fragment: the lake mirror's cut, camera y < -0.4 and the pixel's y < 0.1 are discarded).
+  A room of its own world goes over the ground, never under it (the bowling's cellar sits at
+  `CELLAR_AT` y 60 over its hall: built at y -40 it came out black).
 - **Esc is always the pause menu** (main `_unhandled_input`), in rooms, at the PC, in
  close-ups and jobs: nothing else may consume it. Its CanvasLayer is 150, above every
  full-screen overlay (the check-in desk is 140); a new overlay stays below it. Leaving is S, the bottom band or a
