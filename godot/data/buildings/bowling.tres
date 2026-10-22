@@ -31,7 +31,7 @@ guest_services = {
 "thirst": 35.0
 }
 guest_capacity = 16
-use_minutes = 60
+use_minutes = 180
 requires = PackedStringArray("power")
 maintenance_decay = 0.30
 tags = PackedStringArray("social", "noisy")

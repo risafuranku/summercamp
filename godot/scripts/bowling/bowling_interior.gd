@@ -2,19 +2,18 @@ extends CanvasLayer
 
 ## Inside the camp's bowling alley (InteriorManager module "bowling"; the hall in
 ## scripts/bowling/bowling_layout.gd, the lanes scripts/bowling/lane.gd): you come in by
-## the door on the left and look down the hall to the lanes; a click takes you to the shoe
-## counter, the snack bar, a lane (to watch from behind its bowler) or round the side into
-## the pit behind the pins; S or the band at the bottom takes you back to the hall, and
-## from the hall out of the door.
+## the door on the left, straight to work like in the camp's other places: the station you
+## were at last, the first time the shoe counter (desk_station.gd); the pit behind each pair
+## of lanes is the other (pit_station.gd). BACK (S, the right button) leaves the station for
+## the hall: a click there takes you to a station again, to the snack bar or behind a
+## lane's bowler to watch; S in the hall goes out of the door.
 ##
-## Whoever the guest simulation has visiting the building is here: a party gets a lane
-## and bowls, each in turn, real ten-pin (core/systems/bowling_rules.gd); with all four
-## lanes taken they wait at a table. When their visit is over they go, and the lane
-## stands empty.
-##
-## The pins after each ball: set up again by AUTO_SET seconds later for now (the boy in
-## the pit you do not see); by hand in the pit, the hired pinsetter and the machine from
-## the books come next.
+## What goes on is scripts/bowling/bowling.gd's (it goes on while nobody is inside); the
+## hall shows it: the parties come in through the door and queue at the counter, wait for a
+## lane at a table, bowl on theirs (the lane draws it), go when their visit is over.
+## The stations are worked on the business frame of the camp's other places (station3d.gd
+## in the room, station_hud.gd round it): the rail of orders, the big ticket, SERVE, the
+## tabs, the books.
 
 signal request_close
 
@@ -23,14 +22,22 @@ const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const CAM_MOVE = preload("res://scripts/ui/cam_move.gd")
 const LAYOUT = preload("res://scripts/bowling/bowling_layout.gd")
 const LANE = preload("res://scripts/bowling/lane.gd")
+const BOWLING = preload("res://scripts/bowling/bowling.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
+const STATION3D = preload("res://scripts/business/station3d.gd")
+const STATION_HUD = preload("res://scripts/business/station_hud.gd")
+const LEDGER = preload("res://scripts/business/ledger_closeup.gd")
 const SFX := "res://assets/sfx/bowling/"
 const TIME_DAY: int = 0
 const TIME_NIGHT: int = 2
 const INTERIOR_RENDER_MIN_SIZE := Vector2i(960, 540)
-const AUTO_SET := 2.4
 const MOVE_SEC := 0.55
 const GUEST_H := 1.72
+const STATION_SCRIPTS := {
+	"desk": "res://scripts/bowling/desk_station.gd",
+	"pit_a": "res://scripts/bowling/pit_station.gd",
+	"pit_b": "res://scripts/bowling/pit_station.gd",
+}
 
 var key := ""
 var _is_open := false
@@ -49,13 +56,22 @@ var _exit_hint: Control
 var _time_state := TIME_DAY
 var _daylight := 1.0
 var _power := true
-## visit -> party {visit, name, members: [...], lane (-1 waiting), table}
+var _bowling: Node
+## visit -> {visit, members: [{node, sprite, base}], at ("door", "queue", "table", "lane",
+## "out"), slot (the queue's place, the table, the lane), tween}
 var _parties: Dictionary = {}
 var _poll := 0.0
-var _set_wait: Dictionary = {}      # lane index -> seconds until its pins are set
 var _hall: AudioStreamPlayer
 var _hum: AudioStreamPlayer
 var _rng := RandomNumberGenerator.new()
+## The stations (id -> station3d), the frame round them, the camera's way there and back.
+var _stations: Dictionary = {}
+var _station_hud: CanvasLayer
+var _station_tween: Tween
+var _station_cam_from: Array = []
+var _switching := false
+var _tabs_t := 0.0
+var _ledger: Node
 
 
 func _ready() -> void:
@@ -77,11 +93,6 @@ func _ready() -> void:
 	_root.add_child(_interior_camera)
 	_hall = _loop("hall_loop.mp3", -16.0)
 	_hum = _loop("fluoro.mp3", -26.0)
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_SIZE_CHANGED:
-		_sync_viewport()
 
 
 func _build_viewport() -> void:
@@ -109,11 +120,6 @@ func _build_viewport() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = _env
 	_viewport.add_child(we)
-
-
-func _sync_viewport() -> void:
-	if _viewport_container != null and _viewport_container.stretch:
-		return
 
 
 func _loop(file: String, db: float) -> AudioStreamPlayer:
@@ -162,7 +168,7 @@ func _apply_light() -> void:
 		_env.ambient_light_energy = (0.55 if _power else 0.08) + 0.15 * _daylight
 
 
-## In by the door of the bowling alley at `p_key` ("x:y").
+## In by the door of the bowling alley at `p_key` ("x:y"), straight to work.
 func open_bowling(p_key: String) -> void:
 	if _viewport_container != null:
 		RETRO_RENDER.apply_to(_viewport_container)
@@ -171,27 +177,46 @@ func open_bowling(p_key: String) -> void:
 		return
 	_is_open = true
 	visible = true
+	_bowling = BOWLING.of(get_tree())
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_go("hall", true)
 	_apply_light()
-	_sync_guests(true)
+	if CoreRoot != null and CoreRoot.actions != null:
+		CoreRoot.actions.biz_site(key, "bowling")
+	_sync_guests()
+	_sync_lanes()
 	if _hall.stream != null:
 		_hall.play(_rng.randf() * 4.0)
 	if _hum.stream != null and _power:
 		_hum.play()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_make_stations()
+	var first := str(LAYOUT.ENTRY_STATION)
+	var last := str(STATION3D.last_station.get(key, first))
+	_open_station(last if _stations.has(last) else first)
 
 
 func close_bowling() -> void:
 	if not _is_open:
 		return
+	var open := _station_open()
+	if open != "":
+		_switching = true
+		_stations[open].call("close_station")
+		_switching = false
+	if _station_hud != null and is_instance_valid(_station_hud):
+		_station_hud.visible = false
+	_station_cam_from = []
 	_is_open = false
 	visible = false
 	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_hall.stop()
 	_hum.stop()
 	for v in _parties.keys():
-		_drop_party(v)
+		_free_party(v)
+	_parties.clear()
+	for lane in _lanes:
+		lane.reset_view()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
@@ -199,21 +224,38 @@ func close_bowling() -> void:
 func _process(delta: float) -> void:
 	if not _is_open:
 		return
-	if _move == null or not _move.is_running():
+	_poll -= delta
+	if _poll <= 0.0:
+		_poll = 0.25
+		_sync_guests()
+	_sync_lanes()
+	var open := _station_open()
+	if open != "":
+		_station_frame(open)
+		if _exit_hint != null:
+			_exit_hint.modulate.a = 0.0
+		return
+	var moving := _station_tween != null and _station_tween.is_valid() and _station_tween.is_running()
+	if not moving and (_move == null or not _move.is_running()):
 		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 		_interior_camera.rotation = _cam_base_rot + offset
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Leave   [S]" if _spot == "hall" else "Back   [S]")
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
-	_poll -= delta
-	if _poll <= 0.0:
-		_poll = 1.0
-		_sync_guests(false)
-	_tick_pinsetting(delta)
+	if not moving and _clicked() != "":
+		HandCursor.want(HandCursor.POINT)
 
 
 func _input(event: InputEvent) -> void:
 	if not _is_open:
+		return
+	var open := _station_open()
+	if open != "":
+		_station_input(event, open)
+		return
+	if _station_tween != null and _station_tween.is_valid() and _station_tween.is_running():
+		if not event.is_action_pressed("ui_cancel"):
+			get_viewport().set_input_as_handled()
 		return
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
 		get_viewport().set_input_as_handled()
@@ -224,12 +266,15 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var what := _clicked()
-		if what != "":
-			get_viewport().set_input_as_handled()
-			if what.begins_with("lane"):
-				_go(what)
-			elif what in ["desk", "bufet", "pit"]:
-				_go(what)
+		if what == "":
+			return
+		get_viewport().set_input_as_handled()
+		if STATION_SCRIPTS.has(what):
+			_open_station(what)
+		elif what == "pit":
+			_open_station("pit_a")
+		elif what.begins_with("lane") or what == "bufet":
+			_go(what)
 
 
 ## What the cursor is on in the hall: the click box's name ("desk", "lane2"...), or "".
@@ -251,7 +296,7 @@ func _clicked() -> String:
 	return str((col as Node).get_meta("bowling_click", "")) if col is Node else ""
 
 
-## The camera to `spot` ("hall", "desk", "bufet", "pit", "lane<i>").
+## The camera to `spot` ("hall", "bufet", "lane<i>").
 func _go(spot: String, at_once := false) -> void:
 	var s: Array = LAYOUT.lane_spot(int(spot.substr(4))) if spot.begins_with("lane") else LAYOUT.SPOTS.get(spot, LAYOUT.SPOTS["hall"])
 	_spot = spot
@@ -288,7 +333,12 @@ func _visitors() -> Array:
 	return out
 
 
-func _sync_guests(_first: bool) -> void:
+## Everyone where the alley's record has them: in the queue at the counter, at a table
+## waiting for a lane, on their lane (the lane moves them there), out of the door.
+func _sync_guests() -> void:
+	if _bowling == null or key == "":
+		return
+	var s: Dictionary = _bowling.site(key)
 	var seen := {}
 	for g in _visitors():
 		var act: Dictionary = g.get("activity", {})
@@ -296,37 +346,57 @@ func _sync_guests(_first: bool) -> void:
 		seen[visit] = true
 		if not _parties.has(visit):
 			_parties[visit] = _make_party(g, visit)
-	for v in _parties.keys():
-		if not seen.has(v):
-			_drop_party(v)
-	# Free lanes to whoever waits longest.
+	var queue: Array = (s["desk"] as Array).map(func(d) -> String: return str(d["visit"]))
+	var tables := 0
 	for v in _parties.keys():
 		var p: Dictionary = _parties[v]
-		if int(p["lane"]) >= 0:
-			continue
-		for lane in _lanes:
-			if not lane.busy():
-				p["lane"] = lane.index
-				lane.take(p)
-				break
+		var at := "out"
+		var slot := 0
+		if seen.has(v) and not s["gone"].has(v):
+			if s["checked"].has(v):
+				var li := int(s["checked"][v].get("lane", -1))
+				if li >= 0:
+					at = "lane"
+					slot = li
+				else:
+					at = "table"
+					slot = tables
+					tables += 1
+			else:
+				at = "queue"
+				var q := queue.find(v)
+				slot = q if q >= 0 else queue.size()
+		if at != str(p["at"]) or (at != "lane" and slot != int(p["slot"])):
+			_move_party(p, at, slot)
+	for v in _parties.keys():
+		if str(_parties[v]["at"]) == "gone":
+			_parties.erase(v)
+
+
+## The lanes drawn from their records, each with its party's figures.
+func _sync_lanes() -> void:
+	if _bowling == null or key == "":
+		return
+	for i in _lanes.size():
+		var rec: Dictionary = _bowling.lane(key, i)
+		var p: Dictionary = _parties.get(str(rec.get("visit", "")), {})
+		_lanes[i].sync(rec, p.get("members", []) if str(p.get("at", "")) == "lane" else [])
 
 
 func _make_party(g: Dictionary, visit: String) -> Dictionary:
 	var arch := str(g.get("archetype", ""))
 	var n: int = POSES.figure_count(arch, int(g.get("party_size", 1)))
 	var base := str(g.get("sprite_path", ""))
-	var full := str(g.get("name", "Guest"))
 	var members: Array = []
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(visit)
 	for k in n:
 		var node := Node3D.new()
 		node.name = "Bowler"
 		_root.add_child(node)
+		var own := POSES.member_path(arch, base, k)
 		var sprite := Sprite3D.new()
 		sprite.name = "Sprite"
-		if ResourceLoader.exists(base):
-			sprite.texture = load(base)
+		if ResourceLoader.exists(own):
+			sprite.texture = load(own)
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
@@ -336,65 +406,333 @@ func _make_party(g: Dictionary, visit: String) -> Dictionary:
 			sprite.pixel_size = GUEST_H / float(sprite.texture.get_height())
 			sprite.offset = Vector2(0, sprite.texture.get_height() * 0.5)
 		node.add_child(sprite)
-		var nm := full.split(" ")[0] if k == 0 else "%s %d" % [full.split(" ")[0], k + 1]
-		members.append({"id": int(g.get("id", 0)), "name": nm, "base": base, "node": node, "sprite": sprite,
-			"skill": clampf(float(LANE.SKILL.get(arch, 0.4)) + rng.randf_range(-0.15, 0.15), 0.05, 0.95), "balls": []})
-	var p := {"visit": visit, "name": full, "members": members, "lane": -1}
-	# In through the door, over to a table to wait for a lane.
-	var t: Vector3 = LAYOUT.TABLES[_parties.size() % LAYOUT.TABLES.size()]
+		node.position = Vector3(LAYOUT.DOOR_X + (float(k) - 0.5) * 0.4, 0.0, LAYOUT.FRONT_Z - 0.4)
+		POSES.set_pose(sprite, own, "")
+		members.append({"node": node, "sprite": sprite, "base": own})
+	return {"visit": visit, "members": members, "at": "door", "slot": -1, "tween": null}
+
+
+## The party to its new place: walking there (in through the door, along the counter, to
+## a table and sitting down, out of the door); on a lane the lane takes them over.
+func _move_party(p: Dictionary, at: String, slot: int) -> void:
+	p["at"] = at
+	p["slot"] = slot
+	var old: Tween = p.get("tween")
+	if old != null and old.is_valid():
+		old.kill()
+	p["tween"] = null
+	if at == "lane":
+		return
+	var members: Array = p["members"]
+	if members.is_empty():
+		return
+	var tw := create_tween().set_parallel(true)
+	p["tween"] = tw
 	for k in members.size():
 		var m: Dictionary = members[k]
 		var node: Node3D = m["node"]
-		node.position = Vector3(LAYOUT.DOOR_X + (float(k) - 0.5) * 0.4, 0.0, LAYOUT.FRONT_Z - 0.4)
-		POSES.set_pose(m["sprite"], base, "")
-		var seat := t + Vector3((float(k) - 0.5) * 0.9, 0, 0.55 if k % 2 == 0 else -0.55)
-		var tw := create_tween()
-		tw.tween_interval(0.25 * k)
-		tw.tween_property(node, "position", seat, node.position.distance_to(seat) / 1.1)
-		tw.tween_callback(func() -> void:
-			if is_instance_valid(node) and int(p.get("lane", -1)) < 0:
-				POSES.set_pose(m["sprite"], base, "sit"))
-	return p
+		if not is_instance_valid(node):
+			continue
+		var to := node.position
+		var sit := false
+		match at:
+			"queue":
+				var q: Array = LAYOUT.DESK_QUEUE[mini(slot, LAYOUT.DESK_QUEUE.size() - 1)]
+				var face: Vector3 = q[1]
+				# The party bunched behind its first, away from the counter.
+				to = (q[0] as Vector3) - face.normalized() * 0.35 * float(k) + Vector3(0.18 * float(k % 2), 0, 0)
+				if slot >= LAYOUT.DESK_QUEUE.size():
+					to += Vector3(0.45 * float(slot - LAYOUT.DESK_QUEUE.size() + 1), 0, 0)
+			"table":
+				var t: Vector3 = LAYOUT.TABLES[slot % LAYOUT.TABLES.size()]
+				to = t + Vector3((float(k) - 0.5) * 0.9, 0, 0.55 if k % 2 == 0 else -0.55)
+				sit = true
+			"out":
+				to = Vector3(LAYOUT.DOOR_X + (float(k) - 0.5) * 0.4, 0.0, LAYOUT.FRONT_Z - 0.2)
+		POSES.set_pose(m["sprite"], str(m["base"]), "")
+		var dur := maxf(0.3, node.position.distance_to(to) / 1.15)
+		var step := tw.tween_property(node, "position", to, dur).set_delay(0.2 * k)
+		if sit:
+			step.finished.connect(func() -> void:
+				if is_instance_valid(node) and str(p.get("at", "")) == "table":
+					POSES.set_pose(m["sprite"], str(m["base"]), "sit"))
+	if at == "out":
+		tw.chain().tween_callback(func() -> void:
+			_free_party(str(p["visit"]))
+			p["at"] = "gone")
 
 
-func _drop_party(v: String) -> void:
+func _free_party(v: String) -> void:
 	var p: Dictionary = _parties.get(v, {})
-	_parties.erase(v)
-	if p.is_empty():
-		return
-	var li := int(p.get("lane", -1))
-	if li >= 0 and li < _lanes.size():
-		_lanes[li].release()
-		_set_wait.erase(li)
-	# Out of the door they came in by.
-	for k in (p.get("members", []) as Array).size():
-		var m: Dictionary = p["members"][k]
+	var old = p.get("tween")
+	if old is Tween and (old as Tween).is_valid():
+		(old as Tween).kill()
+	for m in p.get("members", []):
 		var node: Node3D = m.get("node")
-		if node == null or not is_instance_valid(node):
-			continue
-		if not _is_open:
+		if node != null and is_instance_valid(node):
 			node.queue_free()
+
+
+# ── the stations (the business frame, as in the camp's other places) ─────────
+
+## The station open now ("" none).
+func _station_open() -> String:
+	for id in _stations:
+		var v = _stations[id]
+		if is_instance_valid(v) and bool(v.call("is_open")):
+			return str(id)
+	return ""
+
+
+func _hud() -> CanvasLayer:
+	if _station_hud == null or not is_instance_valid(_station_hud):
+		_station_hud = STATION_HUD.new()
+		_station_hud.name = "StationHud"
+		add_child(_station_hud)
+		_station_hud.mirror_of = func() -> Array:
+			var open := _station_open()
+			if open == "" or not _stations[open].has_method("mirror"):
+				return []
+			return _stations[open].call("mirror")
+		_station_hud.alert_of = func(id: String) -> int:
+			var st = _stations.get(id, null)
+			return int(st.call("alert")) if st != null and is_instance_valid(st) else 0
+	return _station_hud
+
+
+## The tabs of the stations on the frame's bar: [[id, LABEL, icon], ...].
+func _room_tabs() -> Array:
+	var out: Array = []
+	for id in LAYOUT.STATIONS:
+		var st: Dictionary = LAYOUT.STATIONS[id]
+		out.append([str(id), str(st.get("tab_label", str(id).to_upper())), str(st.get("icon", ""))])
+	return out
+
+
+## Every station of the hall, made once the building is known, standing where it is worked
+## (the layout's SURFACES), the alley's record as its state.
+func _make_stations() -> void:
+	if key == "":
+		return
+	for id in STATION_SCRIPTS:
+		var have = _stations.get(id, null)
+		if have != null and is_instance_valid(have) and str(have.get("building_key")) == key:
 			continue
-		POSES.set_pose(m["sprite"], str(m.get("base", "")), "")
-		var door := Vector3(LAYOUT.DOOR_X + (float(k) - 0.5) * 0.4, 0.0, LAYOUT.FRONT_Z - 0.2)
-		var tw := create_tween()
-		tw.tween_interval(0.3 * k)
-		tw.tween_property(node, "position", door, node.position.distance_to(door) / 1.2)
-		tw.tween_callback(node.queue_free)
-
-
-# ── the pins between balls ───────────────────────────────────────────────────
-
-## A lane whose pins wait is set up again AUTO_SET seconds after the ball (for now: by
-## hand in the pit and the machine are to come).
-func _tick_pinsetting(delta: float) -> void:
-	for lane in _lanes:
-		if lane.needs_set == "":
-			_set_wait.erase(lane.index)
+		if have != null and is_instance_valid(have):
+			(have as Node).queue_free()
+		var path := str(STATION_SCRIPTS[id])
+		if not ResourceLoader.exists(path):
 			continue
-		if not _set_wait.has(lane.index):
-			_set_wait[lane.index] = AUTO_SET
-		_set_wait[lane.index] = float(_set_wait[lane.index]) - delta
-		if float(_set_wait[lane.index]) <= 0.0:
-			_set_wait.erase(lane.index)
-			lane.set_pins()
+		var st: Dictionary = LAYOUT.STATIONS[id]
+		var surf: Dictionary = LAYOUT.SURFACES[id]
+		var v: Node3D = load(path).new()
+		v.name = "Station3D_" + str(id)
+		v.set("building_key", key)
+		v.set("station", str(id))
+		v.set("room", str(st["room"]))
+		v.set("label", str(st["label"]))
+		v.set("surf_at", surf["at"])
+		v.set("surf_size", surf["size"])
+		v.set("surf_yaw", float(surf["yaw"]))
+		v.set("surf_flat", bool(surf["flat"]))
+		v.set("cam_back", float(surf.get("cam_back", 0.0)))
+		v.set("cam_up", float(surf.get("cam_up", 0.0)))
+		v.set("cam_aim", float(surf.get("cam_aim", 0.0)))
+		v.set("cam_side", float(surf.get("cam_side", 0.0)))
+		v.set("state", _bowling)
+		if "lanes" in v:
+			var views: Array = []
+			for i in st.get("lanes", []):
+				views.append(_lanes[int(i)])
+			v.set("lanes", views)
+		if "open_books" in v:
+			v.set("open_books", _open_ledger)
+		_root.add_child(v)
+		v.connect("closed", _on_station_closed)
+		v.connect("switch_to", _switch_station)
+		_stations[id] = v
+
+
+## Steps up to the station `id`: the hall's camera glides over it, the station takes the
+## pointer, the frame comes up round the room.
+func _open_station(id: String) -> void:
+	_make_stations()
+	if not _stations.has(id):
+		return
+	var was := _station_open()
+	if was == id:
+		return
+	if was != "":
+		_switching = true
+		_stations[was].call("close_station")
+		_switching = false
+	if was == "" and _station_cam_from.is_empty():
+		_station_cam_from = [_interior_camera.transform, _interior_camera.rotation]
+	if _move != null and _move.is_valid():
+		_move.kill()
+	var st: Node3D = _stations[id]
+	if _station_tween != null and _station_tween.is_valid():
+		_station_tween.kill()
+	_station_tween = STATION3D.step_camera(self, _interior_camera, st.call("cam_pose"), STATION3D.CAM_SEC if was == "" else 0.34)
+	var hud := _hud()
+	st.set("hud", hud)
+	st.call("open_station", _interior_camera)
+	hud.set("station", st)
+	hud.set("tabs", _room_tabs())
+	hud.set("taken", {})
+	hud.set("view_size", Vector2(_viewport.size))
+	hud.call("clear_say")
+	hud.visible = true
+	if _exit_hint != null:
+		_exit_hint.modulate.a = 0.0
+
+
+func _switch_station(id: String) -> void:
+	_open_station(id)
+
+
+## Stepped away from a station: the camera goes back to where you stood in the hall.
+func _on_station_closed() -> void:
+	if _switching or _station_open() != "" or _interior_camera == null:
+		return
+	if _station_hud != null and is_instance_valid(_station_hud):
+		_station_hud.visible = false
+	if _station_cam_from.is_empty():
+		return
+	var back: Transform3D = _station_cam_from[0]
+	var rot: Vector3 = _station_cam_from[1]
+	_station_cam_from = []
+	if _station_tween != null and _station_tween.is_valid():
+		_station_tween.kill()
+	_station_tween = STATION3D.step_camera(self, _interior_camera, _root.global_transform * back, STATION3D.CAM_SEC)
+	_station_tween.finished.connect(func():
+		_interior_camera.transform = back
+		_interior_camera.rotation = rot
+		_cam_base_rot = rot
+		_look.reset())
+
+
+## Each frame at a station: the pointer through the hall's camera onto it (or the frame, or
+## a ticket on the rail), the finger or the fist.
+func _station_frame(open: String) -> void:
+	var st: Node = _stations[open]
+	var moving := _station_tween != null and _station_tween.is_valid() and _station_tween.is_running()
+	var mouse: Vector2 = STATION3D.mouse_of(get_viewport())
+	var hud := _hud()
+	_tabs_t -= get_process_delta_time()
+	if _tabs_t <= 0.0:
+		_tabs_t = 0.5
+		hud.set("tabs", _room_tabs())
+		hud.set("view_size", Vector2(_viewport.size))
+	var ui := str(hud.call("hit", mouse))
+	hud.call("set_hover", ui if ui.begins_with("#tab") or ui.begins_with("#btn") or ui in ["#back", "#serve", "#books"] else "")
+	var vp_mouse := _room_px(mouse)
+	var rail := ""
+	if ui == "" and not moving and st.call("holding") == "":
+		rail = str(st.call("rail_ticket_at", vp_mouse))
+	if moving or ((ui != "" or rail != "") and st.call("holding") == ""):
+		st.call("point", Vector2(-1, -1))
+	else:
+		st.call("point", vp_mouse)
+	if str(st.call("holding")) != "":
+		HandCursor.want(HandCursor.GRAB)
+	elif str(st.call("hovered")) != "" or rail != "" or ui.begins_with("#tab") or ui.begins_with("#btn") or ui in ["#back", "#serve", "#books"]:
+		HandCursor.want(HandCursor.POINT)
+
+
+## A point of the screen in the hall's picture (its viewport's pixels).
+func _room_px(screen: Vector2) -> Vector2:
+	var size := get_viewport().get_visible_rect().size
+	if _viewport == null or size.x <= 0.0 or size.y <= 0.0:
+		return Vector2(-1, -1)
+	return Vector2(clampf(screen.x / size.x, 0.0, 1.0) * float(_viewport.size.x), clampf(screen.y / size.y, 0.0, 1.0) * float(_viewport.size.y))
+
+
+## The keys and the mouse while you are at a station. Esc goes on to the pause menu.
+func _station_input(event: InputEvent, open: String) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		return
+	get_viewport().set_input_as_handled()
+	var st: Node = _stations[open]
+	var hud := _hud()
+	if event is InputEventKey and event.pressed and not event.echo:
+		var ke := event as InputEventKey
+		var act := str(hud.call("key_action", ke))
+		match act:
+			"back":
+				st.call("close_station")
+			"serve":
+				if bool(st.call("serve_ready")):
+					st.call("serve_now")
+			"books":
+				_open_ledger()
+			"next":
+				var nx := str(hud.call("next_tab"))
+				if nx != "" and nx != open:
+					_switch_station(nx)
+			"":
+				st.call("key", ke)
+			_:
+				if act.begins_with("tab:") and act.substr(4) != open:
+					_switch_station(act.substr(4))
+		return
+	if not (event is InputEventMouseButton):
+		return
+	var mb := event as InputEventMouseButton
+	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+		st.call("close_station")
+		return
+	if mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if not mb.pressed:
+		st.call("release")
+		return
+	hud.call("poke")
+	if _station_tween != null and _station_tween.is_valid() and _station_tween.is_running():
+		return
+	var ui := str(hud.call("hit", mb.position))
+	if ui == "#back":
+		st.call("close_station")
+		return
+	if ui == "#serve":
+		if bool(st.call("serve_ready")):
+			st.call("serve_now")
+		return
+	if ui == "#books":
+		_open_ledger()
+		return
+	if ui.begins_with("#tab:"):
+		var to := ui.substr(5)
+		if to != open:
+			_switch_station(to)
+		return
+	if ui.begins_with("#btn:"):
+		st.call("bar_button", ui.substr(5))
+		return
+	if ui != "":
+		return
+	var rail := str(st.call("rail_ticket_at", _room_px(mb.position)))
+	if rail != "":
+		st.call("rail_clicked", rail)
+		return
+	st.call("press")
+
+
+## The alley's books (scripts/business/ledger_closeup.gd): the menu, the goods, the hands,
+## the gear.
+func _open_ledger() -> void:
+	if _ledger == null or not is_instance_valid(_ledger):
+		_ledger = LEDGER.new()
+		_ledger.name = "Ledger"
+		add_child(_ledger)
+	_ledger.call("open_for", key, "bowling")
+
+
+# ── debug (the shot drivers) ─────────────────────────────────────────────────
+
+func debug_station(id: String) -> Node:
+	return _stations.get(id, null)
+
+
+func debug_open_station(id: String) -> void:
+	_open_station(id)

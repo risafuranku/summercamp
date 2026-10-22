@@ -27,7 +27,7 @@ extends RefCounted
 ##   }
 
 ## Building type -> business kind.
-const KIND_OF := {"pub": "pub", "restaurant": "rest", "vecerka": "vecerka", "corn_stand": "corn"}
+const KIND_OF := {"pub": "pub", "restaurant": "rest", "vecerka": "vecerka", "corn_stand": "corn", "bowling": "bowl"}
 
 ## Per kind: its name, the hand's base wage a day, the PC program, and its goods:
 ##   good -> {label, unit, price (what a guest pays), pack (units per delivery pack),
@@ -109,6 +109,24 @@ const KINDS := {
 		},
 		"wants": {"cobs": 0.7, "tea": 0.15, "limo": 0.15},
 	},
+	# The bowling alley (scripts/bowling/): the lanes and the shoes are no goods (a game and
+	# a pair are paid at the counter, bowling.gd); the snack bar's are, and the spray the
+	# shoes get before they go back on the shelf.
+	"bowl": {
+		"name": "Bowling", "wage": 32, "hand": ["the Novak boy", "Franta", "Ivan"],
+		"app": "bowl_app", "app_name": "Bowling 98", "licence": 160,
+		"goods": {
+			"sausage": {"label": "Sausages", "unit": "sausages", "price": 5, "pack": 20, "pack_cost": 40, "cap": 60, "start": 20, "life": 5},
+			"roll": {"label": "Rolls", "unit": "rolls", "price": 0, "pack": 40, "pack_cost": 14, "cap": 80, "start": 30, "life": 2},
+			"pickled": {"label": "Utopenci", "unit": "jars", "price": 4, "pack": 12, "pack_cost": 22, "cap": 36, "start": 8, "life": 0},
+			"crisps": {"label": "Crisps", "unit": "bags", "price": 2, "pack": 30, "pack_cost": 24, "cap": 60, "start": 20, "life": 0},
+			"tatranka": {"label": "Tatranka", "unit": "bars", "price": 1, "pack": 40, "pack_cost": 16, "cap": 80, "start": 30, "life": 0},
+			"kofola": {"label": "Kofola", "unit": "bottles", "price": 2, "pack": 20, "pack_cost": 18, "cap": 60, "start": 20, "life": 0},
+			"beer": {"label": "Beer", "unit": "pints", "price": 3, "pack": 50, "pack_cost": 60, "cap": 100, "start": 40, "life": 6},
+			"spray": {"label": "Shoe spray", "unit": "sprays", "price": 0, "pack": 40, "pack_cost": 12, "cap": 80, "start": 30, "life": 0},
+		},
+		"wants": {"beer": 0.35, "kofola": 0.2, "sausage": 0.2, "crisps": 0.15, "pickled": 0.05, "tatranka": 0.05},
+	},
 	# The staffroom's hands (core/systems/staff_rules.gd): no shelves, no building of this
 	# kind (not in KIND_OF); here for the wage, the program and its licence.
 	"staff": {
@@ -123,6 +141,8 @@ const RECIPES := {
 	"rest": {"goulash": {"goulash": 1, "dumplings": 1}, "smazak": {"cheese": 1, "potatoes": 1}, "fries": {"potatoes": 1},
 		"sausage": {"sausage": 1, "bread": 1}, "soup": {"soup": 1}, "kofola": {"kofola": 1}, "malinovka": {"malinovka": 1}},
 	"corn": {"cob": {"cobs": 1, "butter": 1}, "tea": {"tea": 1}, "limo": {"limo": 1}},
+	"bowl": {"hotdog": {"sausage": 1, "roll": 1}, "pickled": {"pickled": 1}, "crisps": {"crisps": 1}, "tatranka": {"tatranka": 1},
+		"kofola": {"kofola": 1}, "beer": {"beer": 1}},
 }
 ## The van: what one delivery costs on top of the goods, the day after you order.
 const DELIVERY_FEE := 10
@@ -217,6 +237,8 @@ static func needs_for(kind: String, b: Dictionary) -> Dictionary:
 		out["dumplings"] = int(out.get("dumplings", 0)) + int(out["goulash"])
 	if kind == "corn" and out.has("cobs"):
 		out["butter"] = int(out.get("butter", 0)) + int(out["cobs"])
+	if kind == "bowl" and out.has("sausage"):
+		out["roll"] = int(out.get("roll", 0)) + int(out["sausage"])
 	return out
 
 
@@ -302,6 +324,10 @@ static func menu(kind: String, stock: Dictionary) -> Dictionary:
 		"vecerka":
 			for g in goods(kind):
 				out[g] = int(stock.get(g, 0)) > 0
+		"bowl":
+			out["hotdog"] = int(stock.get("sausage", 0)) > 0 and int(stock.get("roll", 0)) > 0
+			for g in ["pickled", "crisps", "tatranka", "kofola", "beer"]:
+				out[g] = int(stock.get(g, 0)) > 0
 	return out
 
 
@@ -335,6 +361,10 @@ const GEAR := {
 		"pallet": {"label": "Pallet truck", "price": 260, "what": "A delivery unloaded in half the time."},
 		"fridge": {"label": "Chiller cabinet", "price": 380, "what": "Milk and salami keep twice as long."},
 		"racks": {"label": "More shelves", "price": 300, "what": "A third more on every shelf."},
+	},
+	"bowl": {
+		"scoreboard": {"label": "Score screens", "price": 380, "what": "The scores up on screens over the lanes: the guests like it."},
+		"dryer": {"label": "Shoe dryer", "price": 160, "what": "The shoes come back dry and fresh: no spraying at the counter."},
 	},
 }
 
@@ -374,6 +404,7 @@ const ROLES := {
 	"pub": [["tap", "Tap"], ["bar", "Back bar"], ["wash", "Washer"], ["cellar", "Cellar"]],
 	"corn": [["counter", "Counter"], ["husk", "Husking"], ["drinks", "Drinks"]],
 	"vecerka": [["till", "Till"], ["shelves", "Shelves"], ["store", "Storeroom"], ["deli", "Deli counter"], ["till2", "Second till"]],
+	"bowl": [["desk", "Counter"], ["pins", "Pinsetter"], ["bufet", "Snack bar"]],
 }
 
 
@@ -394,17 +425,17 @@ static func role_label(kind: String, role: String) -> String:
 const PEOPLE := {
 	"dvorakova": {"name": "Mrs Dvorakova", "asks": ["rest", "vecerka", "staff"]},
 	"pepa": {"name": "Pepa", "asks": ["rest", "pub"]},
-	"hanka": {"name": "Hanka", "asks": ["rest", "pub", "vecerka", "staff"]},
+	"hanka": {"name": "Hanka", "asks": ["rest", "pub", "vecerka", "staff", "bowl"]},
 	"lojza": {"name": "Lojza", "asks": ["pub"]},
-	"franta": {"name": "Franta", "asks": ["pub", "corn"]},
+	"franta": {"name": "Franta", "asks": ["pub", "corn", "bowl"]},
 	"mirek": {"name": "Mirek", "asks": ["pub", "rest", "vecerka", "staff"]},
 	"novakova": {"name": "Mrs Novakova", "asks": ["vecerka"]},
 	"zdenka": {"name": "Zdenka", "asks": ["vecerka", "rest", "staff"]},
-	"ivan": {"name": "Ivan", "asks": ["vecerka", "pub", "staff"]},
+	"ivan": {"name": "Ivan", "asks": ["vecerka", "pub", "staff", "bowl"]},
 	"pepicek": {"name": "Pepicek", "asks": ["corn", "vecerka"]},
 	"klara": {"name": "Klara", "asks": ["corn", "rest"]},
-	"novak_boy": {"name": "the Novak boy", "asks": ["corn"]},
-	"jaromir": {"name": "Jaromir", "asks": ["rest", "pub", "vecerka", "staff"], "strange": "night"},
+	"novak_boy": {"name": "the Novak boy", "asks": ["corn", "bowl"]},
+	"jaromir": {"name": "Jaromir", "asks": ["rest", "pub", "vecerka", "staff", "bowl"], "strange": "night"},
 	"marta": {"name": "Marta", "asks": ["vecerka", "rest", "corn", "staff"], "strange": "unseen"},
 }
 ## The speeds: seconds a hand takes over one piece of work, and how often it goes wrong.
@@ -608,6 +639,8 @@ const MENU := {
 	"vecerka": [["bread", "Bread and rolls", true], ["salami", "Salami", false], ["milk", "Milk", false], ["pickles", "Pickles", false], ["beer", "Beer", false], ["icecream", "Ice cream", false],
 		["sweets", "Sweets", false], ["veg", "Fruit and veg", false], ["soap", "Soap and paper", false], ["cards", "Playing cards", false], ["magazine", "Magazines", false],
 		["rum", "Tuzemak", false], ["cigs", "Cigarettes", false], ["deli", "The deli counter", false]],
+	"bowl": [["games", "Lanes and shoes", true], ["hotdog", "Hot dog", false], ["pickled", "Utopenec", false], ["crisps", "Crisps", false],
+		["tatranka", "Tatranka", false], ["kofola", "Kofola", false], ["beer", "Draught beer", false]],
 }
 ## What a menu switch covers when it is not the item's own name (the Jednota's bread is the
 ## rolls too, its deli all three cuts; the pub's beer is all three pours).
@@ -615,6 +648,7 @@ const MENU_COVERS := {
 	"vecerka": {"roll": "bread", "deli_salami": "deli", "deli_cheese": "deli", "deli_bread": "deli"},
 	"pub": {"hladinka": "beer", "snyt": "beer", "mliko": "beer"},
 	"rest": {"kofola": "drinks", "malinovka": "drinks"},
+	"bowl": {"sausage": "hotdog", "roll": "hotdog"},
 }
 
 

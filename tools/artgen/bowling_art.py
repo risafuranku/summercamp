@@ -9,17 +9,29 @@ into the game's files.
   metre like the Jednota's, snapped to the game palette;
 - the front's painted string of coloured bulbs also as a glow map (bowling_front_glow.png:
   the bulbs' own colours on black), so they light up at night with the neon
-  (scripts/bowling/bowling_sign.gd).
+  (scripts/bowling/bowling_sign.gd);
+- bows_desk, bows_bufet, bows_pit: the stations' sprite sheets cut into their things
+  (assets/textury/bowling/: the rental shoes in two colours, the shoe spray standing and
+  lying; the snack bar's hot dog, pickled sausages, crisps, wafer, cola and beer; the pit's
+  pin, ball, bell and gloves);
+- tex_bowl_stripes: the band painted round the hall's walls (camp/bowl_stripes.png, a
+  repeat of 1.7 m by 0.48 m at the room's pixel, its ends blended so it runs on);
+  tex_bowl_shoeshelf: the pigeonholes behind the counter (camp/bowl_shoeshelf.png).
+  The chalkboard (tex_bowl_slate) and the hall's other surfaces are tileables:
+  python tools/artgen/ground_tex.py tex_bowl_slate assets/textury/camp/bowl_slate.png 128 --own
 A missing render is skipped with a note.
 """
 import colorsys
 import os
 import sys
 
+import numpy as np
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import process  # noqa: E402
+import pub_art  # noqa: E402
+import split_sheet  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
@@ -33,6 +45,14 @@ FACES = [
     ("bow_side_a", CAMP + "bowling_side_a.png", 317, (0.0, 0.955)),
     ("bow_side_b", CAMP + "bowling_side_b.png", 317, (0.0, 0.955)),
     ("bow_back", CAMP + "bowling_back.png", 374, (0.0, 0.955)),
+]
+B = "assets/textury/bowling/"
+# The stations' sheets: (render id, [(file under godot/, longest side px), ...] left to right).
+SHEETS = [
+    ("bows_desk", [(B + "shoes_red.png", 56), (B + "shoes_blue.png", 56), (B + "spray.png", 40), (B + "spray_lying.png", 40)]),
+    ("bows_bufet", [(B + "hotdog.png", 44), (B + "pickled.png", 40), (B + "crisps.png", 40), (B + "wafer.png", 40),
+                    (B + "kofola.png", 36), (B + "beer.png", 40)]),
+    ("bows_pit", [(B + "pin.png", 40), (B + "ball.png", 30), (B + "bell.png", 32), (B + "gloves.png", 44)]),
 ]
 # The band of the front where the bulbs hang (shares of the face's height, from the top).
 BULB_BAND = 0.2
@@ -99,8 +119,54 @@ def bulbs_glow(art_id, small, rows, dest):
     print("  bulb pixels", n)
 
 
+def sheet(art_id, items, gap=5):
+    """jednota_art.sheet: the things cut apart on the key and shrunk, each to its own size."""
+    src = os.path.join(OUT, art_id, "raw.png")
+    if not os.path.exists(src):
+        print("skip (no render)", art_id)
+        return
+    img = process.key_out(pub_art.despilled(src))
+    boxes, labels, w = split_sheet.items(img, gap)
+    parts = [split_sheet.own(img, b, labels[b], w) for b in boxes]
+    if len(parts) != len(items):
+        print("WARN", art_id, "found", len(parts), "items for", len(items))
+    for (dest, longest), part in zip(items, parts):
+        small = split_sheet.shrink(part, longest / float(max(part.width, part.height)))
+        save(small, dest)
+
+
+def stripes(art_id, dest):
+    """All three bands kept, the room's pixel, the left and right ends blended into each
+    other (a copy moved half its width shows at the ends) so the band runs on."""
+    img = raw(art_id)
+    if img is None:
+        return
+    w, h = img.size
+    img = img.crop((0, int(h * 0.1), w, int(h * 0.92)))
+    a = np.asarray(img.resize((320, 88), Image.Resampling.BOX)).astype(np.float32)
+    moved = np.roll(a, a.shape[1] // 2, axis=1)
+    x = np.linspace(0.0, 1.0, a.shape[1])
+    k = np.clip((1.0 - np.abs(x - 0.5) * 2.0) * 2.5, 0.0, 1.0)[None, :, None]
+    band = Image.fromarray((a * k + moved * (1.0 - k)).clip(0, 255).astype(np.uint8))
+    save(process.snap(band.resize((156, 44), Image.Resampling.BOX), False), dest)
+
+
+def picture(art_id, dest, size):
+    img = raw(art_id)
+    if img is not None:
+        save(process.snap(img.resize(size, Image.Resampling.BOX), False), dest)
+
+
 def main():
     want = set(sys.argv[1:])
+    if not want or "tex_bowl_stripes" in want:
+        stripes("tex_bowl_stripes", CAMP + "bowl_stripes.png")
+    if not want or "tex_bowl_shoeshelf" in want:
+        picture("tex_bowl_shoeshelf", CAMP + "bowl_shoeshelf.png", (282, 173))
+    for art_id, items in SHEETS:
+        if not want or art_id in want:
+            # The two shoes of a pair stand close: one thing.
+            sheet(art_id, items, {"bows_desk": 41, "bows_pit": 31}.get(art_id, 5))
     for art_id, dest, width, rows in FACES:
         if want and art_id not in want:
             continue

@@ -28,6 +28,7 @@ const KITCHEN_PATH := "res://scripts/bistro/kitchen.gd"
 const TAPROOM_PATH := "res://scripts/pub/taproom.gd"
 const CORNSTAND_PATH := "res://scripts/corn/cornstand.gd"
 const JEDNOTA_PATH := "res://scripts/jednota/jednota.gd"
+const BOWLING_PATH := "res://scripts/bowling/bowling.gd"
 ## The day shift's first hour.
 const OPEN_HOUR := 7
 
@@ -63,6 +64,9 @@ func _ready() -> void:
 	# The Jednotas: their guests take their baskets, their hands work, nobody watching.
 	if get_tree().get_first_node_in_group("jednotas") == null:
 		add_child(load(JEDNOTA_PATH).new())
+	# The bowling alleys: their counter and their lanes go on, nobody watching.
+	if get_tree().get_first_node_in_group("bowlings") == null:
+		add_child(load(BOWLING_PATH).new())
 
 
 func _process(delta: float) -> void:
@@ -306,6 +310,8 @@ func open_orders(key: String) -> int:
 			node = get_tree().get_first_node_in_group("cornstands")
 		"vecerka":
 			node = get_tree().get_first_node_in_group("jednotas")
+		"bowl":
+			node = get_tree().get_first_node_in_group("bowlings")
 	if node == null or not node.has_method("tickets"):
 		return 0
 	return (node.call("tickets", key) as Array).size()
@@ -470,7 +476,7 @@ func _watch_visits(sites: Dictionary) -> void:
 			# The bistro's hands work its kitchen ticket by ticket (kitchen.gd), the pub's
 			# pour at its bar order by order (taproom.gd), the stand's husk and boil
 			# (cornstand.gd), the Jednota's stock its rack and ring its till (jednota.gd).
-			if bool(s.get("staff", false)) and not (kind in ["rest", "pub", "corn", "vecerka"]):
+			if bool(s.get("staff", false)) and not (kind in ["rest", "pub", "corn", "vecerka", "bowl"]):
 				_hand_serves(rec)
 	# Gone: anybody nobody served went away hungry (or thirsty).
 	for id in _visits.keys():
@@ -526,6 +532,8 @@ func _waiting_line(kind: String, waiting: Array) -> String:
 			return "%s %s at the Jednota till. Nobody there." % [who, verb]
 		"corn":
 			return "%s %s waiting at the corn stand." % [who, verb]
+		"bowl":
+			return "%s %s at the bowling counter. Nobody there." % [who, verb]
 	return "%s %s waiting to be served." % [who, verb]
 
 
@@ -588,7 +596,7 @@ func waypoint(from: Vector3, grid_manager) -> Dictionary:
 		if d < best_d:
 			best_d = d
 			var kind := str(site(key).get("kind", ""))
-			best = {"position": p + Vector3(0, 3.0, 0), "label": {"pub": "PUB", "rest": "BISTRO", "vecerka": "JEDNOTA", "corn": "CORN"}.get(kind, "SERVE")}
+			best = {"position": p + Vector3(0, 3.0, 0), "label": {"pub": "PUB", "rest": "BISTRO", "vecerka": "JEDNOTA", "corn": "CORN", "bowl": "BOWLING"}.get(kind, "SERVE")}
 	return best
 
 
@@ -644,6 +652,8 @@ func _complaint(kind: String) -> String:
 			return "The shop was open and nobody at the till."
 		"corn":
 			return "The corn stand. Nobody there."
+		"bowl":
+			return "Came to bowl. Nobody at the counter."
 	return "Nobody served us."
 
 

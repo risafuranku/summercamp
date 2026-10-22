@@ -1,59 +1,72 @@
 extends Node3D
 
-## One lane of the camp's bowling alley (scripts/bowling/bowling_interior.gd keeps four):
-## its ten pins, the ball, the chalkboard over it and the party bowling on it.
+## One lane of the camp's bowling alley in the hall (scripts/bowling/bowling_interior.gd
+## keeps four): its ten pins, the ball, the chalkboard over the approach and its party,
+## all drawn from the lane's record in scripts/bowling/bowling.gd (sync(), every frame
+## while the hall is open). The record bowls; this only shows it.
 ##
-## A ball: the bowler gets up from the bench and steps up to the line holding the ball
-## (pose "ball"), swings it (pose "bowl"), it rolls its way down (BowlingRules.roll, the
-## lane squeezed to the room's), into the pins (BowlingRules.strike: which go, which way,
-## which only rock), and the card counts. Then the pins wait to be set (`needs_set`: the
-## deadwood swept after a frame's first ball, all ten racked after its last); who sets
-## them, by hand in the pit, a hired boy or the machine, is the hall's business:
-## set_pins() puts them back. Stepped twelve a second like the camp's machinery, the ball
-## and the falling pins smooth.
-
-signal ball_done(lane_index: int, down: int, strike: bool, spare: bool)
+## A new ball in the record (its `seq`) is played: the bowler gets up from the bench and
+## steps up to the line holding the ball (pose "ball"), swings it (pose "bowl"), it rolls
+## the record's way down (BowlingRules.roll, the lane squeezed to the room's) into the
+## pins; those the record took down go over the way they were knocked and lie where they
+## ended, on the deck or back in the pit, those that rocked rock, and the board counts.
+## Then they lie there until the record says the pins are up again (who did it is the
+## record's business: the hand, the machine, you in the pit). In the pit you work the pins
+## here yourself (scripts/bowling/pit_station.gd): take one, stand it on a spot, clear the
+## deadwood into the pit, send the ball back. Stepped smooth, at the full frame rate.
 
 const RULES = preload("res://core/systems/bowling_rules.gd")
 const LAYOUT = preload("res://scripts/bowling/bowling_layout.gd")
 const PIN_MESH = preload("res://scripts/bowling/pin_mesh.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
-const FONT := "res://assets/fonts/pomono.fnt"
+const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const KIT = preload("res://scripts/interior_kit.gd")
 const SFX := "res://assets/sfx/bowling/"
-## The ball takes this share of its real time on the room's shorter lane.
+## The ball takes this share of its real time on the room's shorter lane
+## (bowling.gd ROLL_SHARE).
 const VIS_TIME := 0.62
 const PIN_H := 0.381
-## How the guests bowl, by the kind of guest (0 never held a ball, 1 league).
-const SKILL := {"drunk": 0.25, "tramp": 0.35, "quiet_guy": 0.6, "cheap_chick": 0.4, "picker": 0.5, "family": 0.3}
+## The bowler's way up: to the line, holding the ball there, the swing; the pins falling.
+const STEP_SEC := 0.9
+const HOLD_SEC := 0.7
+const FALL_SEC := 1.5
+## Where the lying pins and the ball are in the pit behind the deck (the lane's metres
+## from the head pin), and how high a lying pin's middle is off the floor.
+const PIT_NEAR := -1.18
+const PIT_FAR := -1.5
+const LYING_Y := 0.05
 
 var index := 0
-## {visit, name, members: [{id, name, base, skill, node, sprite, balls: []}], turn}
-var party: Dictionary = {}
-var standing: Array = []
-## The pins wait for the pinsetter: "" (no), "sweep" (the deadwood off, the rest stay),
-## "rack" (all ten again).
-var needs_set := ""
+var _visit := ""
+var _seq := -1
+var _rec: Dictionary = {}
+## The party's figures, in the record's member order: [{node, sprite, base}].
+var _figs: Array = []
+## Each pin: {spot (the spot it stands on, -1 down), where ("up", "deck", "pit", "hand")}.
+var _pin_state: Array = []
 var _pins: Array = []
 var _ball: MeshInstance3D
+var _rack_ball: MeshInstance3D
+## Where the ball is: "rack" (back at the front), "rolling", "pit" (lying behind the pins).
+var _ball_at := "rack"
 var _board: Label3D
 var _phase := "idle"
 var _t := 0.0
 var _throw := {}
 var _anims: Array = []
 var _rng := RandomNumberGenerator.new()
-var _seed := 0
 var _sound: AudioStreamPlayer3D
 var _roll_sound: AudioStreamPlayer3D
+## Pins down from the last ball until the record has them up again.
+var _await_set := false
 
 
 func setup(i: int) -> void:
 	index = i
 	name = "Lane%d" % i
 	_rng.seed = 7919 * (i + 1)
-	standing = RULES._all_up()
 	var mat := PIN_MESH.material()
 	var mesh := PIN_MESH.mesh(PIN_H, 10)
-	var spots := RULES.pin_spots()
 	for k in 10:
 		var p := MeshInstance3D.new()
 		p.name = "Pin%d" % (k + 1)
@@ -61,45 +74,45 @@ func setup(i: int) -> void:
 		p.material_override = mat
 		add_child(p)
 		_pins.append(p)
+		_pin_state.append({"spot": k, "where": "up"})
 		_place_pin(k)
-	_ball = MeshInstance3D.new()
-	_ball.name = "Ball"
-	var sm := SphereMesh.new()
-	sm.radius = RULES.BALL_R
-	sm.height = RULES.BALL_R * 2.0
-	sm.radial_segments = 10
-	sm.rings = 6
-	_ball.mesh = sm
 	var bm := StandardMaterial3D.new()
 	bm.albedo_color = [Color(0.08, 0.08, 0.1), Color(0.35, 0.08, 0.1), Color(0.1, 0.16, 0.34), Color(0.18, 0.2, 0.12)][i % 4]
 	bm.roughness = 0.35
-	_ball.material_override = bm
+	_ball = _ball_mesh(bm, "Ball")
 	_ball.visible = false
-	add_child(_ball)
+	_rack_ball = _ball_mesh(bm, "RackBall")
+	# On the rack of the return between the pair, this lane's side of it.
+	var rx: float = LAYOUT.RETURNS[0 if i < 2 else 1]
+	_rack_ball.position = Vector3(rx, 0.61 + RULES.BALL_R, LAYOUT.FOUL_Z + 0.9 + (0.2 if i % 2 == 0 else -0.2))
+	_rack_ball.visible = false
 	# The chalkboard over the approach, facing the benches.
 	var slate := MeshInstance3D.new()
 	slate.name = "Slate"
 	var q := QuadMesh.new()
 	q.size = Vector2(1.3, 0.62)
 	slate.mesh = q
-	var slm := StandardMaterial3D.new()
-	slm.albedo_color = Color(0.12, 0.15, 0.13)
-	slm.roughness = 1.0
-	slate.material_override = slm
+	slate.material_override = KIT.surface(LAYOUT._tex_or("bowl_slate", "veneer_dark"), 0.7, Color(1, 1, 1) if ResourceLoader.exists(KIT.TEX + "bowl_slate.png") else Color(0.3, 0.42, 0.34))
 	slate.position = Vector3(float(LAYOUT.LANES[i]), 2.45, LAYOUT.FOUL_Z + 0.3)
+	# Not pulled out in front of its own chalk (retro_materials._pull_of).
+	slate.set_meta("retro_no_pull", true)
 	add_child(slate)
+	# The chalk on it: the party's names, their last frames and the running total.
 	_board = Label3D.new()
 	_board.name = "Board"
-	if ResourceLoader.exists(FONT):
-		_board.font = load(FONT)
-	_board.font_size = 24
-	_board.pixel_size = 0.0042
+	_board.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_board.font = RETRO_UI.FONT_BIG
+	_board.font_size = 10
+	_board.pixel_size = 0.0085
+	_board.line_spacing = -1.0
+	_board.shaded = false
+	_board.double_sided = false
 	_board.modulate = Color(0.9, 0.9, 0.84)
 	_board.outline_size = 0
 	_board.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_board.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_board.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_board.position = slate.position + Vector3(-0.6, 0.28, 0.01)
+	_board.position = slate.position + Vector3(-0.6, 0.27, 0.012)
 	_board.text = ""
 	add_child(_board)
 	_sound = AudioStreamPlayer3D.new()
@@ -111,115 +124,217 @@ func setup(i: int) -> void:
 	add_child(_roll_sound)
 
 
+func _ball_mesh(m: Material, n: String) -> MeshInstance3D:
+	var b := MeshInstance3D.new()
+	b.name = n
+	var sm := SphereMesh.new()
+	sm.radius = RULES.BALL_R
+	sm.height = RULES.BALL_R * 2.0
+	sm.radial_segments = 10
+	sm.rings = 6
+	b.mesh = sm
+	b.material_override = m
+	add_child(b)
+	return b
+
+
 func busy() -> bool:
-	return not party.is_empty()
+	return _visit != ""
 
 
-## A party takes the lane: its people on the bench, the first one up after a moment.
-func take(p: Dictionary) -> void:
-	party = p
-	party["turn"] = 0
-	for k in (party["members"] as Array).size():
-		var m: Dictionary = party["members"][k]
-		m["balls"] = []
-		# Over from the table (or the door) to the bench behind the lane.
-		POSES.set_pose(m["sprite"], str(m["base"]), "")
-		var node: Node3D = m["node"]
-		var to := LAYOUT.bench_spot(index, k)
-		_anims.append({"node": node, "from": node.position, "to": to, "t": -0.2 * k, "dur": maxf(0.4, node.position.distance_to(to) / 1.1), "sit": m})
-	standing = RULES._all_up()
-	needs_set = ""
-	_seed = hash(str(party.get("visit", ""))) & 0xFFFFFF
-	for k in 10:
-		_place_pin(k)
-	_phase = "wait"
-	_t = _rng.randf_range(1.5, 3.5)
-	_draw_board()
-
-
-## The party goes (their visit is over): the lane stands empty, its pins up.
-func release() -> Dictionary:
-	var p := party
-	party = {}
+## The hall closed: nothing shown is kept (its figures are gone); the next sync shows the
+## record afresh.
+func reset_view() -> void:
+	_visit = ""
+	_figs = []
+	_rec = {}
+	_anims.clear()
 	_phase = "idle"
-	_ball.visible = false
+	_throw = {}
+	_await_set = false
 	_roll_sound.stop()
-	standing = RULES._all_up()
-	needs_set = ""
-	for k in 10:
-		_place_pin(k)
+	_ball.visible = false
+	_rack_ball.visible = false
+	_ball_at = "rack"
 	_board.text = ""
-	return p
-
-
-## The pinsetter has done it: the deadwood gone, the standing ones straight, or all ten.
-func set_pins() -> void:
-	if needs_set == "rack":
-		standing = RULES._all_up()
 	for k in 10:
+		_pin_state[k]["spot"] = k
+		_pin_state[k]["where"] = "up"
 		_place_pin(k)
-	needs_set = ""
-	if _phase == "set":
-		_phase = "wait"
-		_t = _rng.randf_range(0.8, 1.8)
+
+
+## The lane as its record has it now (`rec`: bowling.gd's lane), its party's figures with
+## it. A new party takes the bench; a new ball is played; the pins put up by whoever set
+## them stand again.
+func sync(rec: Dictionary, figs: Array) -> void:
+	_rec = rec
+	var visit := str(rec.get("visit", ""))
+	if visit != _visit:
+		_visit = visit
+		# The last party's figures are the hall's again.
+		_anims = _anims.filter(func(a) -> bool: return a["node"] is MeshInstance3D)
+		_figs = figs
+		_seq = int(rec.get("seq", 0))
+		_phase = "idle"
+		_throw = {}
+		_roll_sound.stop()
+		_settle()
+		_seat_all()
+		_draw_board()
+		return
+	if figs.size() != _figs.size():
+		_figs = figs
+		_seat_all()
+	var seq := int(rec.get("seq", 0))
+	if _phase == "idle" and seq != _seq:
+		if seq == _seq + 1 and not (rec.get("last", {}) as Dictionary).is_empty():
+			_seq = seq
+			_start_ball(rec["last"])
+		else:
+			_seq = seq
+			_settle()
+			_draw_board()
+		return
+	if _phase == "idle" and _await_set and str(rec.get("set", "")) == "":
+		_await_set = false
+		_reconcile(rec.get("standing", RULES._all_up()))
+
+
+## Shown straight as the record has it (the hall just opened, balls were bowled while
+## nobody looked): the pins up stand, the last ball's deadwood lies where it went while
+## the pins wait, the rest are in the pit.
+func _settle() -> void:
+	_anims = _anims.filter(func(a) -> bool: return not (a["node"] is MeshInstance3D))
+	var standing: Array = _rec.get("standing", RULES._all_up())
+	var waiting := _visit != "" and str(_rec.get("set", "")) != ""
+	var falls: Dictionary = ((_rec.get("last", {}) as Dictionary).get("res", {}) as Dictionary).get("falls", {}) if waiting else {}
+	var pit_n := 0
+	for k in 10:
+		var st: Dictionary = _pin_state[k]
+		var pin: Node3D = _pins[k]
+		pin.basis = Basis.IDENTITY
+		if bool(standing[k]):
+			st["spot"] = k
+			st["where"] = "up"
+			_place_pin(k)
+		elif falls.has(k + 1) or falls.has(str(k + 1)):
+			var f: Dictionary = falls.get(k + 1, falls.get(str(k + 1), {}))
+			_lie(k, f.get("to", RULES.pin_spots()[k]), f.get("dir", Vector2(0, -1)), false)
+		else:
+			_to_pit_now(k, pit_n)
+			pit_n += 1
+	_await_set = waiting
+	_ball_at = "pit" if waiting else "rack"
+	_ball.visible = waiting
+	if waiting:
+		_ball.position = _pit_ball_spot()
+	_rack_ball.visible = _visit != "" and not waiting
+	_phase = "idle"
+
+
+## The pins as the record wants them now that they are set (`standing`): a pin on each
+## spot that should have one, the rest and the deadwood back in the pit; the ball back.
+func _reconcile(standing: Array) -> void:
+	var moved := false
+	for k in 10:
+		var st: Dictionary = _pin_state[k]
+		if str(st["where"]) == "up" and not bool(standing[int(st["spot"])]):
+			_to_pit_now(k, k)
+			moved = true
+		elif str(st["where"]) in ["deck", "hand"]:
+			_to_pit_now(k, k)
+			moved = true
+	for s in 10:
+		if not bool(standing[s]) or spot_taken(s) >= 0:
+			continue
+		for k in 10:
+			if str(_pin_state[k]["where"]) == "pit":
+				_stand_now(k, s)
+				moved = true
+				break
+	if _ball_at == "pit":
+		send_ball()
+	if moved:
+		_play(_sound, "pin_set.mp3", -8.0, _rng.randf_range(0.95, 1.05))
+	_rack_ball.visible = _visit != ""
+
+
+# ── the party ────────────────────────────────────────────────────────────────
+
+## Everyone of the party to their place on the bench (from wherever they are), sitting
+## when they get there; the bowler is the lane's to move.
+func _seat_all() -> void:
+	for k in _figs.size():
+		var f: Dictionary = _figs[k]
+		var node: Node3D = f.get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		var to := LAYOUT.bench_spot(index, k)
+		_anims = _anims.filter(func(a) -> bool: return a["node"] != node)
+		POSES.set_pose(f["sprite"], str(f["base"]), "")
+		_anims.append({"node": node, "from": node.position, "to": to, "t": -0.2 * k, "dur": maxf(0.4, node.position.distance_to(to) / 1.1), "sit": f})
+
+
+func _bowler() -> Dictionary:
+	var mi := int((_rec.get("last", {}) as Dictionary).get("member", 0))
+	return _figs[mi] if mi < _figs.size() else {}
+
+
+# ── a ball ───────────────────────────────────────────────────────────────────
+
+func _start_ball(last: Dictionary) -> void:
+	_throw = {"last": last, "entry": last.get("entry", {}), "path": (last.get("entry", {}) as Dictionary).get("path", []), "t": 0.0}
+	var entry: Dictionary = _throw["entry"]
+	_throw["dur"] = float(entry.get("t", 1.0)) * VIS_TIME
+	_throw["gutter"] = bool(entry.get("gutter", false))
+	_phase = "step"
+	_t = STEP_SEC
+	_rack_ball.visible = false
+	var m := _bowler()
+	if not m.is_empty() and is_instance_valid(m["node"]):
+		var node: Node3D = m["node"]
+		_anims = _anims.filter(func(a) -> bool: return a["node"] != node)
+		POSES.set_pose(m["sprite"], str(m["base"]), "ball")
+		_anims.append({"node": node, "from": node.position, "to": LAYOUT.lane_point(index, 0.0, RULES.LANE_LEN + 1.0), "t": 0.0, "dur": STEP_SEC})
 
 
 func _process(delta: float) -> void:
 	_tick_anims(delta)
-	if party.is_empty():
+	if _phase == "idle":
 		return
 	_t -= delta
 	match _phase:
-		"wait":
-			if _t <= 0.0:
-				_phase = "step"
-				_t = 0.9
-				var m := _bowler()
-				POSES.set_pose(m["sprite"], str(m["base"]), "ball")
-				_walk(m["node"], (m["node"] as Node3D).position, LAYOUT.lane_point(index, 0.0, RULES.LANE_LEN + 1.0) + Vector3(0, 0, 0.0), 0.9)
 		"step":
 			if _t <= 0.0:
 				_phase = "hold"
-				_t = 0.7
+				_t = HOLD_SEC
 		"hold":
 			if _t <= 0.0:
 				_swing()
 		"roll":
-			_tick_roll()
+			_tick_roll(delta)
 		"fall":
 			if _t <= 0.0:
 				_count()
 
 
-func _bowler() -> Dictionary:
-	return party["members"][int(party.get("turn", 0)) % (party["members"] as Array).size()]
-
-
 ## The swing: the ball leaves the hand and goes its way.
 func _swing() -> void:
 	var m := _bowler()
-	POSES.set_pose(m["sprite"], str(m["base"]), "bowl")
-	var b := RULES.guest_ball(float(m.get("skill", 0.4)), standing, _rng)
-	var path: Array
-	var entry: Dictionary
-	if bool(b["gutter"]):
-		var side := 1.0 if _rng.randf() < 0.5 else -1.0
-		entry = RULES.roll(side * 0.12, side * 0.035, float(b["speed"]), 0.0)
-		if not bool(entry["gutter"]):
-			entry = RULES.roll(side * 0.3, side * 0.06, float(b["speed"]), 0.0)
-	else:
-		var back := RULES.to_entry(float(b["x"]), float(b["angle"]), float(b["speed"]), float(b["hook"]))
-		entry = RULES.roll(float(back["x0"]), float(back["aim"]), float(back["speed0"]), float(b["hook"]))
-	path = entry["path"]
-	_throw = {"entry": entry, "path": path, "t": 0.0, "dur": float(entry["t"]) * VIS_TIME, "gutter": bool(entry["gutter"])}
+	if not m.is_empty():
+		POSES.set_pose(m["sprite"], str(m["base"]), "bowl")
 	_ball.visible = true
+	_ball.basis = Basis.IDENTITY
 	_ball.position = _path_at(0.0)
+	_ball_at = "rolling"
 	_phase = "roll"
 	_play(_roll_sound, "roll.mp3", -6.0, _rng.randf_range(0.95, 1.05))
 
 
 func _path_at(k: float) -> Vector3:
-	var path: Array = _throw["path"]
+	var path: Array = _throw.get("path", [])
+	if path.is_empty():
+		return LAYOUT.lane_point(index, 0.0, RULES.LANE_LEN, RULES.BALL_R + 0.06)
 	var tt := clampf(k, 0.0, 1.0) * float((path.back() as Vector3).z)
 	var prev: Vector3 = path[0]
 	for p in path:
@@ -238,52 +353,111 @@ func _path_at(k: float) -> Vector3:
 	return LAYOUT.lane_point(index, last.x, last.y, RULES.BALL_R + 0.06)
 
 
-func _tick_roll() -> void:
-	_throw["t"] = float(_throw["t"]) + get_process_delta_time()
+func _tick_roll(delta: float) -> void:
+	_throw["t"] = float(_throw["t"]) + delta
 	var dur := maxf(0.2, float(_throw["dur"]))
 	var k := float(_throw["t"]) / dur
 	_ball.position = _path_at(k)
 	_roll_sound.position = _ball.position
-	_ball.rotate_x(-get_process_delta_time() * 14.0)
+	_ball.rotate_x(-delta * 14.0)
 	if k < 1.0:
 		return
 	_roll_sound.stop()
 	var entry: Dictionary = _throw["entry"]
+	var res: Dictionary = (_throw["last"] as Dictionary).get("res", {})
+	# Down the gutter or through the pins, into the pit where it lies till it is sent back.
+	_anims.append({"node": _ball, "from": _ball.position, "to": _pit_ball_spot(), "t": 0.0, "dur": 0.32})
+	_ball_at = "pit"
 	if bool(_throw["gutter"]):
-		# Down the gutter and into the pit: nothing.
-		_anims.append({"node": _ball, "from": _ball.position, "to": LAYOUT.lane_point(index, signf(float(entry["x"])) * (RULES.LANE_W + RULES.GUTTER_W) * 0.5, -1.0, -0.2), "t": 0.0, "dur": 0.35, "hide": true})
 		_play(_sound, "gutter.mp3", -8.0, 1.0)
-		_throw["result"] = {"down": [], "falls": {}, "wobbled": []}
 	else:
-		_seed += 1
-		var res := RULES.strike(entry, standing, _seed)
-		_throw["result"] = res
-		var through := LAYOUT.lane_point(index, float(entry["x"]) + sin(float(entry["angle"])) * 0.9, -1.4, -0.2)
-		_anims.append({"node": _ball, "from": _ball.position, "to": through, "t": 0.0, "dur": 0.32, "hide": true})
-		for n in res["falls"]:
-			_fall_pin(int(n) - 1, res["falls"][n])
-		for n in res["wobbled"]:
-			_anims.append({"node": _pins[int(n) - 1], "wobble": true, "t": 0.0, "dur": 0.9, "base": (_pins[int(n) - 1] as Node3D).rotation})
-		var downs: Array = res["down"]
+		var falls: Dictionary = res.get("falls", {})
+		for n in falls:
+			_fall_pin(int(n) - 1, falls[n])
+		for n in res.get("wobbled", []):
+			var pin: Node3D = _pins[int(n) - 1]
+			_anims.append({"node": pin, "wobble": true, "t": 0.0, "dur": 0.9, "base": pin.rotation})
+		var downs: Array = res.get("down", [])
 		if downs.size() >= 7:
 			_play(_sound, "strike.mp3", -2.0, _rng.randf_range(0.95, 1.05))
 		elif downs.size() > 0:
 			_play(_sound, "pins_few.mp3", -4.0, _rng.randf_range(0.95, 1.05))
 	_phase = "fall"
-	_t = 1.5
+	_t = FALL_SEC
+	_throw["entry_x"] = float(entry.get("x", 0.0))
+
+
+## Where the ball lies in the pit (room space): behind its lane, a little to the side it
+## went.
+func _pit_ball_spot() -> Vector3:
+	var x := 0.0
+	if not _throw.is_empty():
+		var e: Dictionary = _throw.get("entry", {})
+		x = clampf(float(e.get("x", 0.0)) + sin(float(e.get("angle", 0.0))) * 0.6, -0.45, 0.45)
+	return LAYOUT.lane_point(index, x, -1.32, RULES.BALL_R)
 
 
 ## A pin goes over the way it was knocked, sliding on to where it ends (into the pit past
 ## the deck's end).
 func _fall_pin(k: int, f: Dictionary) -> void:
-	var pin: Node3D = _pins[k]
 	var dir: Vector2 = f.get("dir", Vector2(0, -1))
 	var to: Vector2 = f.get("to", RULES.pin_spots()[k])
 	var into_pit := to.y < RULES.PIT_Z
-	var end := LAYOUT.lane_point(index, clampf(to.x, -RULES.KICKBACK_X, RULES.KICKBACK_X), to.y, 0.06 + (-0.35 if into_pit else 0.02))
+	var st: Dictionary = _pin_state[k]
+	st["spot"] = -1
+	st["where"] = "pit" if into_pit else "deck"
+	var end := _lie_point(to, into_pit)
+	var pin: Node3D = _pins[k]
+	_anims.append({"node": pin, "from": pin.position, "to": end, "t": -float(f.get("t", 0.0)), "dur": 0.55, "axis": _axis_of(dir), "tilt": PI * 0.5})
+
+
+func _axis_of(dir: Vector2) -> Vector3:
 	# Over about the axis across the way it went (room: x across, -z down the lane).
-	var axis := Vector3(dir.y, 0.0, -dir.x).normalized() if dir.length() > 0.001 else Vector3.RIGHT
-	_anims.append({"node": pin, "from": pin.position, "to": end, "t": -float(f.get("t", 0.0)), "dur": 0.55, "axis": axis, "tilt": PI * 0.5, "hide": into_pit})
+	return Vector3(dir.y, 0.0, -dir.x).normalized() if dir.length() > 0.001 else Vector3.RIGHT
+
+
+func _lie_point(to: Vector2, into_pit: bool) -> Vector3:
+	var x := clampf(to.x, -RULES.KICKBACK_X + 0.06, RULES.KICKBACK_X - 0.06)
+	var z := clampf(to.y, PIT_FAR, PIT_NEAR) if into_pit else to.y
+	return LAYOUT.lane_point(index, x, z, LYING_Y if into_pit else 0.06 + LYING_Y)
+
+
+## A pin lying where it went (at once).
+func _lie(k: int, to: Vector2, dir: Vector2, _anim: bool) -> void:
+	var into_pit := to.y < RULES.PIT_Z
+	var st: Dictionary = _pin_state[k]
+	st["spot"] = -1
+	st["where"] = "pit" if into_pit else "deck"
+	var pin: Node3D = _pins[k]
+	pin.visible = true
+	pin.position = _lie_point(to, into_pit)
+	pin.basis = Basis(_axis_of(dir), PI * 0.5)
+
+
+## The ball has gone through and the pins have fallen: the bowler back to the bench, the
+## board counts it.
+func _count() -> void:
+	var m := _bowler()
+	if not m.is_empty() and is_instance_valid(m["node"]):
+		var at := _figs.find(m)
+		var node: Node3D = m["node"]
+		POSES.set_pose(m["sprite"], str(m["base"]), "")
+		_anims.append({"node": node, "from": node.position, "to": LAYOUT.bench_spot(index, maxi(0, at)), "t": -0.6, "dur": 0.9, "sit": m})
+	var last: Dictionary = _throw.get("last", {})
+	var res: Dictionary = last.get("res", {})
+	var down := (res.get("down", []) as Array).size()
+	var before := int(last.get("before", 10))
+	if down == 10 and before == 10:
+		_play(_sound, "cheer.mp3", -10.0, 1.0)
+	elif down == 0 and before == 10:
+		_play(_sound, "groan.mp3", -12.0, 1.0)
+	_phase = "idle"
+	_await_set = true
+	_draw_board()
+	# The record may have the pins up already (a hand quicker than the pins fell).
+	if str(_rec.get("set", "")) == "":
+		_await_set = false
+		_reconcile(_rec.get("standing", RULES._all_up()))
 
 
 func _tick_anims(delta: float) -> void:
@@ -294,6 +468,9 @@ func _tick_anims(delta: float) -> void:
 		if t < 0.0:
 			continue
 		var node: Node3D = a["node"]
+		if not is_instance_valid(node):
+			_anims.remove_at(i)
+			continue
 		var k := clampf(t / float(a["dur"]), 0.0, 1.0)
 		if bool(a.get("wobble", false)):
 			node.rotation = (a["base"] as Vector3) + Vector3(sin(t * 22.0) * 0.12 * (1.0 - k), 0, cos(t * 19.0) * 0.08 * (1.0 - k))
@@ -306,90 +483,157 @@ func _tick_anims(delta: float) -> void:
 		if k >= 1.0:
 			if bool(a.get("wobble", false)):
 				node.rotation = a["base"]
-			if a.has("sit") and not party.is_empty() and _bowler() != a["sit"]:
+			if a.has("sit") and (_phase == "idle" or _bowler() != a["sit"]):
 				POSES.set_pose((a["sit"] as Dictionary)["sprite"], str((a["sit"] as Dictionary)["base"]), "sit")
 			_anims.remove_at(i)
 
 
-## The ball is counted: the card, the board, whose turn, and what the pinsetter must do.
-func _count() -> void:
-	var m := _bowler()
-	var res: Dictionary = _throw.get("result", {"down": []})
-	var down: Array = res["down"]
-	var before := 0
-	for s in standing:
-		if s:
-			before += 1
-	for n in down:
-		standing[int(n) - 1] = false
-	var balls: Array = m["balls"]
-	balls.append(down.size())
-	var card := RULES.card(balls)
-	var strike := down.size() == 10 and before == 10
-	var spare := down.size() == before and before < 10
-	ball_done.emit(index, down.size(), strike, spare)
-	# The bowler back to the bench.
-	var at := _members().find(m)
-	_anims.append({"node": m["node"], "from": (m["node"] as Node3D).position, "to": LAYOUT.bench_spot(index, maxi(0, at)), "t": -0.6, "dur": 0.9, "sit": m})
-	POSES.set_pose(m["sprite"], str(m["base"]), "")
-	var frame_over := int(card["ball"]) == 0 or bool(card["done"])
-	if frame_over:
-		party["turn"] = int(party.get("turn", 0)) + 1
-		needs_set = "rack"
-		# A whole round done (everyone's tenth): another game.
-		var all_done := true
-		for mm in _members():
-			if not bool(RULES.card(mm["balls"])["done"]):
-				all_done = false
-		if all_done:
-			for mm in _members():
-				mm["games"] = int(mm.get("games", 0)) + 1
-				mm["last"] = int(RULES.card(mm["balls"])["total"])
-				mm["balls"] = []
-	else:
-		# The tenth frame racks again after a strike or a spare.
-		var fresh := true
-		for s in card["standing"]:
-			if not s:
-				fresh = false
-		needs_set = "rack" if fresh else "sweep"
-	_phase = "set"
-	_draw_board()
-
-
-func _members() -> Array:
-	return party.get("members", [])
-
-
 func _draw_board() -> void:
-	if party.is_empty():
+	var members: Array = _rec.get("members", [])
+	if _visit == "" or members.is_empty():
 		_board.text = ""
 		return
 	var lines: Array = []
-	for m in _members():
-		var card := RULES.card(m["balls"])
-		var marks := ""
+	for m in members:
+		var card := RULES.card(m.get("balls", []))
+		# The last three frames as a score sheet has them, a ball a box: "3 6|X  |9 /".
+		var boxes: Array = []
 		var fr: Array = card["frames"]
-		var from := maxi(0, int(card["frame"]) - 3)
-		for f in range(from, mini(10, from + 4)):
-			marks += "".join((fr[f]["marks"] as Array)).rpad(3) + " "
-		var nm := str(m.get("name", "?")).split(" ")[0].substr(0, 8)
-		lines.append("%s %s%3d" % [nm.rpad(8), marks, int(card["total"])])
+		var from := clampi(int(card["frame"]) - 2, 0, 7)
+		for f in range(from, from + 3):
+			boxes.append(" ".join(fr[f]["marks"] as Array).rpad(3))
+		var nm := tr(str(m.get("name", "?"))).substr(0, 6).to_upper()
+		lines.append("%s %s %3d" % [nm.rpad(6), "|".join(boxes), int(card["total"])])
 	_board.text = "\n".join(lines)
+
+
+# ── the pins, for the pit ────────────────────────────────────────────────────
+
+func pin_node(k: int) -> MeshInstance3D:
+	return _pins[k]
+
+
+## Where pin `k` is: "up", "deck", "pit", "hand".
+func pin_where(k: int) -> String:
+	return str(_pin_state[k]["where"])
+
+
+## The pin standing on spot `s` (-1 none).
+func spot_taken(s: int) -> int:
+	for k in 10:
+		if str(_pin_state[k]["where"]) == "up" and int(_pin_state[k]["spot"]) == s:
+			return k
+	return -1
+
+
+## Pins lying on the deck (the deadwood).
+func deadwood() -> Array:
+	var out: Array = []
+	for k in 10:
+		if str(_pin_state[k]["where"]) == "deck":
+			out.append(k)
+	return out
+
+
+func standing_count() -> int:
+	var n := 0
+	for k in 10:
+		if str(_pin_state[k]["where"]) == "up":
+			n += 1
+	return n
+
+
+## The ball lies in the pit (to be sent back).
+func ball_in_pit() -> bool:
+	return _ball_at == "pit" and _phase == "idle"
+
+
+func ball_node() -> MeshInstance3D:
+	return _ball
+
+
+## The ball onto the return: it rolls up under the capping and comes out on the rack.
+func send_ball() -> void:
+	if _ball_at != "pit":
+		return
+	_ball_at = "rack"
+	var to := _ball.position + Vector3(float(LAYOUT.RETURNS[0 if index < 2 else 1]) - _ball.position.x, -0.2, 0.0)
+	_anims.append({"node": _ball, "from": _ball.position, "to": to, "t": 0.0, "dur": 0.4, "hide": true})
+	_play(_sound, "ball_return.mp3", -9.0, _rng.randf_range(0.95, 1.05))
+	var tw := create_tween()
+	tw.tween_interval(1.6)
+	tw.tween_callback(func() -> void:
+		if _ball_at == "rack" and _visit != "" and _phase == "idle":
+			_rack_ball.visible = true)
+
+
+## Pin `k` taken up into the pinsetter's hand (off the deck or out of the pit).
+func take_pin(k: int) -> bool:
+	if not (pin_where(k) in ["deck", "pit"]):
+		return false
+	_anims = _anims.filter(func(a) -> bool: return a["node"] != _pins[k])
+	_pin_state[k]["where"] = "hand"
+	_pin_state[k]["spot"] = -1
+	(_pins[k] as Node3D).basis = Basis.IDENTITY
+	return true
+
+
+## Pin `k` (in the hand) stood on spot `s`.
+func stand_pin(k: int, s: int) -> bool:
+	if spot_taken(s) >= 0:
+		return false
+	_stand_now(k, s)
+	_play(_sound, "pin_set.mp3", -14.0, _rng.randf_range(1.05, 1.2))
+	return true
+
+
+## Pin `k` back into the pit (the deadwood cleared, or dropped from the hand).
+func pit_pin(k: int) -> void:
+	_anims = _anims.filter(func(a) -> bool: return a["node"] != _pins[k])
+	var pin: Node3D = _pins[k]
+	var to := _pit_slot(k)
+	_pin_state[k]["where"] = "pit"
+	_pin_state[k]["spot"] = -1
+	_anims.append({"node": pin, "from": pin.position, "to": to, "t": 0.0, "dur": 0.22, "axis": Vector3(1, 0, 0.3).normalized(), "tilt": PI * 0.5})
+
+
+func _stand_now(k: int, s: int) -> void:
+	_anims = _anims.filter(func(a) -> bool: return a["node"] != _pins[k])
+	_pin_state[k]["where"] = "up"
+	_pin_state[k]["spot"] = s
+	_place_pin(k)
+
+
+func _to_pit_now(k: int, slot: int) -> void:
+	_anims = _anims.filter(func(a) -> bool: return a["node"] != _pins[k])
+	_pin_state[k]["where"] = "pit"
+	_pin_state[k]["spot"] = -1
+	var pin: Node3D = _pins[k]
+	pin.visible = true
+	pin.position = _pit_slot(slot)
+	pin.basis = Basis(Vector3(1, 0, 0.25 * float(slot % 3 - 1)).normalized(), PI * 0.5)
+
+
+## A place in the pit for the `n`th pin lying there (the lane's own trough).
+func _pit_slot(n: int) -> Vector3:
+	var x := -0.5 + float(n % 5) * 0.25 + (0.06 if n >= 5 else 0.0)
+	var z := PIT_NEAR - 0.08 - (0.16 if n >= 5 else 0.0)
+	return LAYOUT.lane_point(index, x, z, LYING_Y)
+
+
+## The spot `s`'s place on the deck (room space, the deck's top).
+func spot_point(s: int) -> Vector3:
+	var spot: Vector2 = RULES.pin_spots()[s]
+	return LAYOUT.lane_point(index, spot.x, spot.y, 0.06)
 
 
 func _place_pin(k: int) -> void:
 	if k >= _pins.size():
 		return
 	var pin: MeshInstance3D = _pins[k]
-	var spot: Vector2 = RULES.pin_spots()[k]
 	pin.basis = Basis.IDENTITY
-	pin.position = LAYOUT.lane_point(index, spot.x, spot.y, 0.06)
-	pin.visible = k < standing.size() and bool(standing[k])
-
-
-func _walk(node: Node3D, from: Vector3, to: Vector3, dur: float) -> void:
-	_anims.append({"node": node, "from": from, "to": to, "t": 0.0, "dur": dur})
+	pin.position = spot_point(int(_pin_state[k]["spot"]))
+	pin.visible = true
 
 
 func _play(p: AudioStreamPlayer3D, file: String, db: float, pitch: float) -> void:

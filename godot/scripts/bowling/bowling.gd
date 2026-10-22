@@ -1,0 +1,620 @@
+extends Node
+
+## The camp's bowling alleys while the game runs (the user 21. 10.: real ten-pin in the
+## concrete hall with KUŽELKY on the roof): one node for the game (of()), a record per
+## alley ("x:y" key) of what goes on in it, so it goes on whether you are inside or not;
+## the hall (scripts/bowling/bowling_interior.gd, its lanes scripts/bowling/lane.gd, its
+## stations desk_station.gd and pit_station.gd) only shows it and works it:
+##   desk     the parties at the counter waiting for their shoes and a lane, in the order
+##            they came in: [{visit, at (seconds on this node's clock), sizes: [shoe
+##            sizes, one a head]}]; who gave up waiting and left: `gone`
+##   checked  visit -> {lane (-1: waiting at a table for one), sizes (the pairs they got)}
+##   lanes    four: {visit, name, members: [{name, skill, balls: [], last}], turn,
+##            standing (ten bools), set ("" the pins are up, "sweep" the deadwood off,
+##            "rack" all ten: waiting for the pinsetter), ready (when the next ball can go
+##            once the pins are up), wait (seconds the pins have waited; minus while the
+##            ball is still on its way and the pins falling), seq (balls bowled: the hall
+##            plays each new one), last {member, entry, res, seed, before}}
+##   shoes    the shelf: {size: pairs}; `back`: the pairs handed back, waiting to be
+##            sprayed and shelved ([size])
+## Money: a game and a pair of shoes a head, paid at the counter (actions.biz_sale). Who
+## sets the pins: the pinsetter (a hand with the job "pins" on shift), else you in the pit
+## (pit_station.gd: the deadwood off, the pins on their spots, the ball back); nobody, the
+## lane waits and its party grumbles. Stepped on its own clock in seconds, like the hall's
+## animations it schedules for.
+## Co-op: the host simulates (the balls, the hands, who gives up); what a warden does at a
+## station is an op (`act`: checkin, set, shelve) applied at once and sent to everyone
+## (Coop.send_place "bowl"); after a change the host sends the alley as it stands ("snap").
+
+const RULES := preload("res://core/systems/bowling_rules.gd")
+const BIZ_RULES := preload("res://core/systems/business_rules.gd")
+const BUSINESS := preload("res://scripts/business/business_runtime.gd")
+const ORDERS := preload("res://scripts/food/orders.gd")
+const LANES := 4
+## What the counter takes: a game on a lane a head, the shoes a pair.
+const GAME_PRICE := 3
+const SHOES_PRICE := 1
+## Seconds: a ball from the bench to the pins falling (the hall's walk, hold and fall; the
+## roll is the ball's own share), and between a party's balls once the pins are up.
+const BALL_SEC := 3.2
+const ROLL_SHARE := 0.62
+const PAUSE_SEC := Vector2(1.0, 2.2)
+## The counter's patience (seconds waiting): calm, getting cross, gone.
+const DESK_OK := 25.0
+const DESK_LATE := 45.0
+const DESK_GONE := 75.0
+## The pins' patience (seconds a lane has waited for them).
+const PINS_OK := 8.0
+const PINS_LATE := 16.0
+const PINS_GONE := 28.0
+## The shoe shelf: the sizes and how many pairs of each a new alley has.
+const SIZES := [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+const PAIRS_EACH := 2
+## A hand on the counter sprays and shelves a pair handed back in this many seconds.
+const SHELVE_SEC := 4.0
+const SKILL := {"drunk": 0.25, "tramp": 0.35, "quiet_guy": 0.6, "cheap_chick": 0.4, "picker": 0.5, "family": 0.3}
+## The others of a party on the board (the first is the guest's own name): a family's by
+## their place in it (the father, the boy, the mother, a girl), anyone else's friends.
+const FAMILY_NAMES := [["Dad", "Kuba", "Mum", "Terka"], ["Dad", "Péťa", "Mum", "Áďa"]]
+const FRIENDS := ["Franta", "Jarda", "Mirek", "Honza", "Věra", "Hanka", "Lenka", "Zdeněk", "Karel", "Míla"]
+
+## A record changed (key, what: "desk", "shoes", "lane<i>", "snap").
+signal changed(key: String, what: String)
+
+var _sites: Dictionary = {}
+var _clock := 0.0
+var _acc := 0.0
+var _hand_busy: Dictionary = {}     # key -> {role: seconds left on the current job}
+var _dirty: Dictionary = {}
+var _asked_snap := false
+var _state_id := 0
+var _rng := RandomNumberGenerator.new()
+
+
+func _ready() -> void:
+	name = "Bowlings"
+	add_to_group("bowlings")
+	# Coop.send_place("bowl", ...) finds it here.
+	add_to_group("places_bowl")
+	_rng.randomize()
+
+
+## The game's bowling node, made under the businesses (or the root) when first asked for.
+static func of(tree: SceneTree) -> Node:
+	if tree == null:
+		return null
+	var b := tree.get_first_node_in_group("bowlings")
+	if b != null:
+		return b
+	var n: Node = load("res://scripts/bowling/bowling.gd").new()
+	var biz := tree.get_first_node_in_group("businesses")
+	(biz if biz != null else tree.root).add_child(n)
+	return n
+
+
+func site(key: String) -> Dictionary:
+	if not _sites.has(key):
+		_sites[key] = _fresh()
+	return _sites[key]
+
+
+func _fresh() -> Dictionary:
+	var lanes: Array = []
+	for i in LANES:
+		lanes.append(_empty_lane())
+	var shelf := {}
+	for s in SIZES:
+		shelf[s] = PAIRS_EACH
+	return {"desk": [], "gone": {}, "checked": {}, "lanes": lanes, "grumbled": {}, "shoes": shelf, "back": []}
+
+
+func _empty_lane() -> Dictionary:
+	return {"visit": "", "name": "", "members": [], "turn": 0, "standing": RULES._all_up(), "set": "", "ready": 0.0,
+		"wait": 0.0, "seq": 0, "last": {}}
+
+
+func now() -> float:
+	return _clock
+
+
+func _touch(key: String, what: String) -> void:
+	_dirty[key] = true
+	changed.emit(key, what)
+
+
+func _process(delta: float) -> void:
+	_clock += delta
+	_acc += delta
+	if _acc < 0.25:
+		return
+	var dt := _acc
+	_acc = 0.0
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	# A new camp (the books' stamp changes with it): the alleys start afresh.
+	var sid: int = (st.get_instance_id() + int((st.biz as Dictionary).get("stamp", 0))) if st != null and st.biz is Dictionary else 0
+	if sid != _state_id:
+		_state_id = sid
+		_sites.clear()
+		_hand_busy.clear()
+		_asked_snap = false
+	if Coop.is_client():
+		if not _asked_snap and Coop.has_method("send_place"):
+			_asked_snap = true
+			Coop.send_place("bowl", "", "hello", [])
+		# The pins' wait goes on here too (the host's snap puts it right).
+		for key in _sites:
+			for lane in site(str(key))["lanes"]:
+				if str(lane["set"]) != "":
+					lane["wait"] = float(lane["wait"]) + dt
+		return
+	for key in _bowling_keys():
+		_tick(key, dt)
+	if Coop.is_active() and Coop.has_method("send_place"):
+		for key in _dirty:
+			Coop.send_place("bowl", str(key), "snap", [_snapshot(str(key))])
+	_dirty.clear()
+
+
+## The camp's bowling alleys (their keys).
+func _bowling_keys() -> Array:
+	var out: Array = []
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or state.grid == null:
+		return out
+	for c in state.grid.cells.keys():
+		var cell: Dictionary = state.grid.cells[c]
+		if str(cell.get("type", "")) == "bowling" and cell.get("root_coord", c) == c:
+			out.append("%d:%d" % [c.x, c.y])
+	return out
+
+
+func _tick(key: String, dt: float) -> void:
+	var s := site(key)
+	_watch_visitors(key, s)
+	_hands(key, s, dt)
+	for i in LANES:
+		_tick_lane(key, s, i, dt)
+
+
+# ── the ops (every machine) ──────────────────────────────────────────────────
+
+## A change made here, applied at once and sent to the other machines:
+##   checkin [visit, lane, pairs, name, archetype, figures]   the party has its shoes
+##   set [lane]                     the pins of the lane are up again
+##   shelve [index]                 a pair handed back went back on its shelf
+func act(key: String, op: String, args: Array) -> void:
+	_apply(key, op, args)
+	if Coop.is_active() and Coop.has_method("send_place"):
+		Coop.send_place("bowl", key, op, args)
+
+
+func _apply(key: String, op: String, args: Array) -> void:
+	var s := site(key)
+	match op:
+		"checkin":
+			var visit := str(args[0])
+			var at := _in_desk(s, visit)
+			if at >= 0:
+				(s["desk"] as Array).remove_at(at)
+			var pairs: Array = (args[2] as Array).duplicate()
+			if not s["checked"].has(visit):
+				for p in pairs:
+					s["shoes"][int(p)] = maxi(0, int(s["shoes"].get(int(p), 0)) - 1)
+			s["checked"][visit] = {"lane": -1, "sizes": pairs}
+			var li := int(args[1])
+			if li < 0 or li >= LANES or str(s["lanes"][li]["visit"]) != "":
+				li = free_lane(key)
+			if li >= 0:
+				_seat_party(key, s, visit, {"name": str(args[3]), "archetype": str(args[4]), "figures": int(args[5])}, li)
+			_touch(key, "desk")
+		"set":
+			_put_up(key, s, int(args[0]))
+		"shelve":
+			var back: Array = s["back"]
+			if not back.is_empty():
+				var idx := clampi(int(args[0]), 0, back.size() - 1)
+				var size := int(back[idx])
+				back.remove_at(idx)
+				s["shoes"][size] = int(s["shoes"].get(size, 0)) + 1
+				_touch(key, "shoes")
+		"snap":
+			var got: Dictionary = args[0]
+			_clock = maxf(_clock, float(got.get("now", _clock)))
+			for k in ["desk", "gone", "checked", "lanes", "shoes", "back"]:
+				if got.has(k):
+					s[k] = got[k].duplicate(true)
+			changed.emit(key, "snap")
+
+
+## From another machine (Coop.send_place "bowl").
+func coop_place(key: String, op: String, args: Array) -> void:
+	if op == "hello":
+		if Coop.is_host():
+			for k in _sites:
+				Coop.send_place("bowl", str(k), "snap", [_snapshot(str(k))])
+		return
+	_apply(key, op, args)
+
+
+func _snapshot(key: String) -> Dictionary:
+	var s := site(key)
+	return {"now": _clock, "desk": s["desk"], "gone": s["gone"], "checked": s["checked"], "lanes": s["lanes"], "shoes": s["shoes"], "back": s["back"]}
+
+
+# ── the counter ──────────────────────────────────────────────────────────────
+
+## New visitors queue at the counter; one whose patience ran out goes; those whose visit
+## is over leave their lane and hand their shoes back.
+func _watch_visitors(key: String, s: Dictionary) -> void:
+	var here := {}
+	for v in ORDERS.visitors(key):
+		var visit := str(v["visit"])
+		here[visit] = v
+		if s["checked"].has(visit) or s["gone"].has(visit) or _in_desk(s, visit) >= 0:
+			continue
+		(s["desk"] as Array).append({"visit": visit, "at": _clock, "sizes": _sizes_for(v)})
+		_touch(key, "desk")
+	for i in range((s["desk"] as Array).size() - 1, -1, -1):
+		var d: Dictionary = s["desk"][i]
+		var visit := str(d["visit"])
+		if not here.has(visit):
+			(s["desk"] as Array).remove_at(i)
+			_touch(key, "desk")
+		elif _clock - float(d["at"]) > DESK_GONE:
+			(s["desk"] as Array).remove_at(i)
+			s["gone"][visit] = true
+			ORDERS.mood(int((here[visit] as Dictionary).get("id", 0)), -6.0, "Stood at the bowling counter. Nobody came.")
+			_touch(key, "desk")
+	for visit in s["gone"].keys():
+		if not here.has(visit):
+			s["gone"].erase(visit)
+	for visit in s["checked"].keys():
+		if here.has(visit):
+			continue
+		var c: Dictionary = s["checked"][visit]
+		s["checked"].erase(visit)
+		# The shoes come back over the counter.
+		for size in c.get("sizes", []):
+			(s["back"] as Array).append(int(size))
+		var li := int(c.get("lane", -1))
+		if li >= 0 and str(s["lanes"][li]["visit"]) == visit:
+			s["lanes"][li] = _empty_lane()
+			_touch(key, "lane%d" % li)
+		_touch(key, "shoes")
+	# Lanes free: to whoever has waited longest after checking in.
+	for visit in s["checked"].keys():
+		if int(s["checked"][visit].get("lane", -1)) >= 0:
+			continue
+		var li := free_lane(key)
+		if li < 0:
+			break
+		_seat_party(key, s, visit, here.get(visit, {}), li)
+
+
+func _in_desk(s: Dictionary, visit: String) -> int:
+	for i in (s["desk"] as Array).size():
+		if str(s["desk"][i]["visit"]) == visit:
+			return i
+	return -1
+
+
+## A shoe size a head of a party (the same for the same visit on every machine): a family
+## figure is a father and his boy.
+func _sizes_for(v: Dictionary) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(str(v.get("visit", ""))) ^ 0x5F3
+	var out: Array = []
+	var arch := str(v.get("archetype", ""))
+	var n := maxi(1, int(v.get("figures", 1)))
+	for k in n:
+		match arch:
+			"family":
+				out.append(rng.randi_range(41, 46) if k % 2 == 0 else rng.randi_range(34, 37))
+			"cheap_chick":
+				out.append(rng.randi_range(37, 40))
+			"picker":
+				out.append(rng.randi_range(37, 43))
+			_:
+				out.append(rng.randi_range(40, 46))
+	return out
+
+
+func free_lane(key: String) -> int:
+	var s := site(key)
+	for i in LANES:
+		if str(s["lanes"][i]["visit"]) == "":
+			return i
+	return -1
+
+
+## The counter's orders, oldest first: {id (the visit), name, archetype, figures, sizes,
+## age (seconds), left, band, guest} for the frame's rail.
+func desk_tickets(key: String) -> Array:
+	var s := site(key)
+	var by := {}
+	for v in ORDERS.visitors(key):
+		by[str(v["visit"])] = v
+	var out: Array = []
+	for d in s["desk"]:
+		var v: Dictionary = by.get(str(d["visit"]), {})
+		if v.is_empty():
+			continue
+		var age := _clock - float(d["at"])
+		var band := 0 if age < DESK_OK else (1 if age < DESK_LATE else 2)
+		out.append({"id": str(d["visit"]), "visit": str(d["visit"]), "name": str(v.get("name", "Guest")), "archetype": str(v.get("archetype", "")),
+			"figures": int(v.get("figures", 1)), "sizes": (d["sizes"] as Array).duplicate(), "age": age,
+			"left": 1.0 - clampf(age / DESK_GONE, 0.0, 1.0), "band": band, "guest": int(v.get("id", 0))})
+	return out
+
+
+## The party is given its shoes (`pairs`: the sizes handed over, one a head; none: a hand
+## takes the nearest off the shelf) and lane `li` (-1: the first free), and pays: by you
+## at the counter, or by the hand on it. Returns {amount, heads, wrong (pairs not their
+## size), lane, guest} or {} when it could not be done.
+func check_in(key: String, visit: String, by_hand: bool, li := -1, pairs: Array = []) -> Dictionary:
+	var s := site(key)
+	var at := _in_desk(s, visit)
+	if at < 0:
+		return {}
+	var v: Dictionary = {}
+	for x in ORDERS.visitors(key):
+		if str(x["visit"]) == visit:
+			v = x
+	if v.is_empty():
+		return {}
+	var sizes: Array = s["desk"][at]["sizes"]
+	if pairs.is_empty():
+		pairs = _pairs_from_shelf(s, sizes)
+	var wrong := 0
+	for k in sizes.size():
+		if k >= pairs.size() or int(pairs[k]) != int(sizes[k]):
+			wrong += 1
+	var heads := sizes.size()
+	var amount := int(round(float(heads * (GAME_PRICE + SHOES_PRICE)) * BUSINESS.price_k(key)))
+	if CoreRoot != null and CoreRoot.actions != null:
+		CoreRoot.actions.biz_site(key, "bowling")
+		CoreRoot.actions.biz_sale(key, amount, heads, by_hand)
+	ORDERS.note_served(v)
+	if li < 0 or li >= LANES or str(s["lanes"][li]["visit"]) != "":
+		li = free_lane(key)
+	act(key, "checkin", [visit, li, pairs, str(v.get("name", "Guest")), str(v.get("archetype", "")), int(v.get("figures", 1))])
+	return {"amount": amount, "heads": heads, "wrong": wrong, "lane": li, "guest": int(v.get("id", 0)), "name": str(v.get("name", ""))}
+
+
+## The nearest size there is on the shelf for each head (the hand's pick; the shelf
+## itself loses them when the check-in is applied).
+func _pairs_from_shelf(s: Dictionary, sizes: Array) -> Array:
+	var left: Dictionary = (s["shoes"] as Dictionary).duplicate()
+	var out: Array = []
+	for want in sizes:
+		var best := int(want)
+		for d in [0, 1, -1, 2, -2, 3, -3]:
+			var size: int = int(want) + int(d)
+			if int(left.get(size, 0)) > 0:
+				best = size
+				break
+		left[best] = maxi(0, int(left.get(best, 0)) - 1)
+		out.append(best)
+	return out
+
+
+## The shelf (size -> pairs) and the pairs handed back waiting.
+func shelf(key: String) -> Dictionary:
+	return site(key)["shoes"]
+
+
+func returned(key: String) -> Array:
+	return site(key)["back"]
+
+
+## A pair handed back is sprayed (dried, with the shoe dryer) and goes back on its shelf.
+## Returns its size (-1 nothing there).
+func shelve_returned(key: String, idx := 0) -> int:
+	var back: Array = site(key)["back"]
+	if back.is_empty():
+		return -1
+	idx = clampi(idx, 0, back.size() - 1)
+	var size := int(back[idx])
+	if CoreRoot != null and CoreRoot.actions != null and not BUSINESS.has_gear(key, "dryer"):
+		CoreRoot.actions.biz_take(key, {"spray": 1})
+	act(key, "shelve", [idx])
+	return size
+
+
+func _seat_party(key: String, s: Dictionary, visit: String, v: Dictionary, li: int) -> void:
+	if not s["checked"].has(visit):
+		return
+	s["checked"][visit]["lane"] = li
+	var arch := str(v.get("archetype", ""))
+	var full := str(v.get("name", "Guest"))
+	var n: int = maxi(1, int(v.get("figures", 1)))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(visit)
+	var members: Array = []
+	var first := full.split(" ")[0]
+	var names: Array = FAMILY_NAMES[absi(hash(visit)) % FAMILY_NAMES.size()] if arch == "family" else []
+	for k in n:
+		var nm := first
+		if arch == "family":
+			nm = str(names[k % names.size()])
+		elif k > 0:
+			nm = str(FRIENDS[(absi(hash(visit)) + k * 3) % FRIENDS.size()])
+		members.append({"name": nm, "skill": clampf(float(SKILL.get(arch, 0.4)) + rng.randf_range(-0.15, 0.15), 0.05, 0.95), "balls": [], "last": -1})
+	var lane := _empty_lane()
+	lane["visit"] = visit
+	lane["name"] = full
+	lane["members"] = members
+	lane["ready"] = _clock + 5.0
+	s["lanes"][li] = lane
+	_touch(key, "lane%d" % li)
+
+
+# ── the lanes ────────────────────────────────────────────────────────────────
+
+func _tick_lane(key: String, s: Dictionary, i: int, dt: float) -> void:
+	var lane: Dictionary = s["lanes"][i]
+	if str(lane["visit"]) == "":
+		return
+	if str(lane["set"]) != "":
+		lane["wait"] = float(lane["wait"]) + dt
+		if float(lane["wait"]) > PINS_GONE and not s["grumbled"].has(str(lane["visit"])):
+			s["grumbled"][str(lane["visit"])] = true
+			_grumble(key, lane)
+		return
+	if _clock < float(lane["ready"]):
+		return
+	_bowl(key, s, i)
+
+
+## The next ball on lane `i`: who bowls, where it goes, what it takes.
+func _bowl(key: String, s: Dictionary, i: int) -> void:
+	var lane: Dictionary = s["lanes"][i]
+	var members: Array = lane["members"]
+	var mi := int(lane["turn"]) % members.size()
+	var m: Dictionary = members[mi]
+	var seed := hash("%s/%d" % [str(lane["visit"]), int(lane["seq"])])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
+	var b := RULES.guest_ball(float(m["skill"]), lane["standing"], rng)
+	var entry: Dictionary
+	if bool(b["gutter"]):
+		var side := 1.0 if rng.randf() < 0.5 else -1.0
+		entry = RULES.roll(side * 0.12, side * 0.035, float(b["speed"]), 0.0)
+		if not bool(entry["gutter"]):
+			entry = RULES.roll(side * 0.3, side * 0.06, float(b["speed"]), 0.0)
+	else:
+		var back := RULES.to_entry(float(b["x"]), float(b["angle"]), float(b["speed"]), float(b["hook"]))
+		entry = RULES.roll(float(back["x0"]), float(back["aim"]), float(back["speed0"]), float(b["hook"]))
+	var res: Dictionary = {"down": [], "falls": {}, "wobbled": []}
+	if not bool(entry["gutter"]):
+		res = RULES.strike(entry, lane["standing"], seed)
+	var before := 0
+	for up in lane["standing"]:
+		if up:
+			before += 1
+	for n in res["down"]:
+		lane["standing"][int(n) - 1] = false
+	(m["balls"] as Array).append((res["down"] as Array).size())
+	var card := RULES.card(m["balls"])
+	lane["seq"] = int(lane["seq"]) + 1
+	lane["last"] = {"member": mi, "entry": entry, "res": res, "seed": seed, "before": before}
+	var frame_over := int(card["ball"]) == 0 or bool(card["done"])
+	if frame_over:
+		lane["turn"] = int(lane["turn"]) + 1
+		lane["set"] = "rack"
+		var all_done := true
+		for mm in members:
+			if not bool(RULES.card(mm["balls"])["done"]):
+				all_done = false
+		if all_done:
+			# A whole game done: its score on the board, a new card.
+			for mm in members:
+				mm["last"] = int(RULES.card(mm["balls"])["total"])
+				mm["balls"] = []
+	else:
+		# The tenth frame racks again after a strike or a spare.
+		var fresh := true
+		for up in card["standing"]:
+			if not up:
+				fresh = false
+		lane["set"] = "rack" if fresh else "sweep"
+	lane["wait"] = -(float(entry["t"]) * ROLL_SHARE + BALL_SEC)
+	_touch(key, "lane%d" % i)
+
+
+## The pins on lane `i` are set again (by you in the pit, by the hand).
+func set_pins(key: String, i: int) -> void:
+	if str(site(key)["lanes"][i]["set"]) != "":
+		act(key, "set", [i])
+
+
+func _put_up(key: String, s: Dictionary, i: int) -> void:
+	var lane: Dictionary = s["lanes"][clampi(i, 0, LANES - 1)]
+	if str(lane["set"]) == "":
+		return
+	if str(lane["set"]) == "rack":
+		lane["standing"] = RULES._all_up()
+	lane["set"] = ""
+	lane["wait"] = 0.0
+	lane["ready"] = _clock + _rng.randf_range(PAUSE_SEC.x, PAUSE_SEC.y)
+	s["grumbled"].erase(str(lane["visit"]))
+	_touch(key, "lane%d" % i)
+
+
+## The pins of lane `i` wait for the pinsetter (the ball is down and they lie still).
+func pins_waiting(key: String, i: int) -> bool:
+	var lane: Dictionary = site(key)["lanes"][i]
+	return str(lane["visit"]) != "" and str(lane["set"]) != "" and float(lane["wait"]) >= 0.0
+
+
+## The pit's orders: the lanes whose pins wait, longest first: {id ("lane<i>"), lane,
+## name (the party's), set, age, left, band}.
+func pit_tickets(key: String, lanes: Array = [0, 1, 2, 3]) -> Array:
+	var s := site(key)
+	var out: Array = []
+	for i in lanes:
+		if not pins_waiting(key, int(i)):
+			continue
+		var lane: Dictionary = s["lanes"][int(i)]
+		var age := float(lane["wait"])
+		out.append({"id": "lane%d" % int(i), "lane": int(i), "name": str(lane["name"]), "set": str(lane["set"]), "age": age,
+			"left": 1.0 - clampf(age / PINS_GONE, 0.0, 1.0), "band": 0 if age < PINS_OK else (1 if age < PINS_LATE else 2)})
+	out.sort_custom(func(a, b): return float(a["age"]) > float(b["age"]))
+	return out
+
+
+func lane(key: String, i: int) -> Dictionary:
+	return site(key)["lanes"][clampi(i, 0, LANES - 1)]
+
+
+## Whoever is on shift at `role` (a crew record), {} nobody.
+func hand_at(key: String, role: String) -> Dictionary:
+	for p in BUSINESS.crew_now(key):
+		if str(p.get("role", "")) == role:
+			return p
+	return {}
+
+
+## The hands on shift: the counter's checks the parties in and shelves the shoes handed
+## back, the pinsetter sets the pins one lane after another, each at their own speed.
+func _hands(key: String, s: Dictionary, dt: float) -> void:
+	var crew: Array = BUSINESS.crew_now(key)
+	var busy: Dictionary = _hand_busy.get(key, {})
+	for p in crew:
+		var role := str(p.get("role", ""))
+		var speed := clampi(int(p.get("speed", 1)), 0, 2)
+		var left := float(busy.get(role, 0.0)) - dt
+		if left > 0.0:
+			busy[role] = left
+			continue
+		busy[role] = 0.0
+		match role:
+			"desk":
+				if not (s["desk"] as Array).is_empty():
+					if not check_in(key, str(s["desk"][0]["visit"]), false).is_empty():
+						busy[role] = float(BIZ_RULES.SPEED_SEC[speed])
+				elif not (s["back"] as Array).is_empty():
+					shelve_returned(key)
+					busy[role] = SHELVE_SEC * (1.5 - 0.25 * float(speed))
+			"pins":
+				for i in LANES:
+					if pins_waiting(key, i):
+						set_pins(key, i)
+						busy[role] = float(BIZ_RULES.SPEED_SEC[speed]) * 0.6
+						break
+	_hand_busy[key] = busy
+
+
+func _grumble(key: String, lane: Dictionary) -> void:
+	var who := str(lane.get("name", "A guest")).split(" ")[0]
+	_feed("%s at the bowling: the pins are not being set. Nobody in the pit." % who)
+	for v in ORDERS.visitors(key):
+		if str(v["visit"]) == str(lane["visit"]):
+			ORDERS.mood(int(v["id"]), -4.0, "Stood at the lane. Nobody set up the pins.")
+
+
+func _feed(text: String) -> void:
+	var main := get_tree().current_scene
+	var hud = main.get("_hud_manager") if main != null else null
+	if hud != null and hud.has_method("push_status"):
+		hud.push_status(text, 1, "bowling_feed")

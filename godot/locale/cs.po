@@ -135,7 +135,7 @@ msgstr ""
 
 #: core/systems/business_rules.gd:58
 msgid "Sausages"
-msgstr ""
+msgstr "Párky"
 
 #: core/systems/business_rules.gd:59
 msgid "Rye bread"
@@ -185,7 +185,7 @@ msgstr ""
 
 #: core/systems/business_rules.gd:78
 msgid "Rolls"
-msgstr ""
+msgstr "Rohlíky"
 
 #: core/systems/business_rules.gd:79 core/systems/business_rules.gd:598 core/systems/jednota_rules.gd:29
 #. uses 3
@@ -276,7 +276,7 @@ msgstr ""
 #: core/systems/business_rules.gd:100 core/systems/business_rules.gd:406
 #. uses 2
 msgid "the Novak boy"
-msgstr ""
+msgstr "Novákův kluk"
 
 #: core/systems/business_rules.gd:101 scripts/os98/os_shell.gd:84
 #. uses 2
@@ -448,6 +448,22 @@ msgstr ""
 msgid "A third more on every shelf."
 msgstr ""
 
+#: core/systems/business_rules.gd:366
+msgid "Score screens"
+msgstr "Obrazovky se skóre"
+
+#: core/systems/business_rules.gd:366
+msgid "The scores up on screens over the lanes: the guests like it."
+msgstr "Skóre na obrazovkách nad drahami. Hosté to mají rádi."
+
+#: core/systems/business_rules.gd:367
+msgid "Shoe dryer"
+msgstr "Sušička bot"
+
+#: core/systems/business_rules.gd:367
+msgid "The shoes come back dry and fresh: no spraying at the counter."
+msgstr "Boty se vracejí suché a svěží. U pultu se nestříká."
+
 #: core/systems/business_rules.gd:373
 msgid "Pass"
 msgstr ""
@@ -496,7 +512,7 @@ msgstr ""
 #: core/systems/business_rules.gd:375 scripts/building_interior.gd:1310 scripts/building_models.gd:1546 scripts/staff/staffroom_plan.gd:359 (+2)
 #. uses 6
 msgid "Counter"
-msgstr ""
+msgstr "Pult"
 
 #: core/systems/business_rules.gd:375
 msgid "Husking"
@@ -523,6 +539,14 @@ msgstr ""
 #: core/systems/business_rules.gd:376
 msgid "Deli counter"
 msgstr ""
+
+#: core/systems/business_rules.gd:407
+msgid "Pinsetter"
+msgstr "Stavěč kuželek"
+
+#: core/systems/business_rules.gd:407
+msgid "Snack bar"
+msgstr "Bufet"
 
 #: core/systems/business_rules.gd:407
 msgid "Jaromir"
@@ -666,6 +690,18 @@ msgstr "Chléb a rohlíky"
 #: core/systems/business_rules.gd:600
 msgid "The deli counter"
 msgstr "Lahůdky"
+
+#: core/systems/business_rules.gd:642
+msgid "Lanes and shoes"
+msgstr "Dráhy a boty"
+
+#: core/systems/business_rules.gd:642
+msgid "Hot dog"
+msgstr "Párek v rohlíku"
+
+#: core/systems/business_rules.gd:642
+msgid "Utopenec"
+msgstr "Utopenec"
 
 #: core/systems/corn_rules.gd:79
 msgid "%s#%d:salt"
@@ -1368,7 +1404,7 @@ msgstr ""
 
 #: data/buildings/bowling.tres:8
 msgid "Bowling (3x5)"
-msgstr ""
+msgstr "Kuželky (3x5)"
 
 #: data/buildings/cabin.tres:8 data/buildings/cabin_1.tres:8
 #. uses 2
@@ -3570,7 +3606,29 @@ msgstr ""
 
 #: scripts/builder_module.gd:85
 msgid "Bowling"
-msgstr ""
+msgstr "Kuželky"
+
+#: core/systems/business_rules.gd:117
+msgid "Bowling 98"
+msgstr "Kuželky 98"
+
+#: core/systems/business_rules.gd:121
+msgid "Utopenci"
+msgstr "Utopenci"
+
+#: core/systems/business_rules.gd:122 core/systems/business_rules.gd:642
+#. uses 2
+msgid "Crisps"
+msgstr "Brambůrky"
+
+#: core/systems/business_rules.gd:123 core/systems/business_rules.gd:643
+#. uses 2
+msgid "Tatranka"
+msgstr "Tatranka"
+
+#: core/systems/business_rules.gd:126
+msgid "Shoe spray"
+msgstr "Sprej na boty"
 
 #: scripts/builder_module.gd:90
 msgid "Cheap. One guest sleeps here, not very well."
@@ -3598,7 +3656,7 @@ msgstr ""
 
 #: scripts/builder_module.gd:96
 msgid "Lanes, a snack bar and noise till late. Needs power."
-msgstr ""
+msgstr "Dráhy, bufet a hluk do noci. Potřebuje proud."
 
 #: scripts/builder_module.gd:97
 msgid "Proper hot meals. Needs power."
@@ -4006,7 +4064,7 @@ msgstr ""
 
 #: scripts/builder_module.gd:1078
 msgid "at the bowling"
-msgstr ""
+msgstr "na kuželkách"
 
 #: scripts/builder_module.gd:1079
 msgid "at the toilets"
@@ -8334,6 +8392,10 @@ msgstr "Vejít do služebny"
 msgid "Step behind the corn stand"
 msgstr ""
 
+#: scripts/interior_manager.gd:103
+msgid "Go into the bowling"
+msgstr "Jít do kuželny"
+
 #: scripts/interior_manager.gd:558
 msgid " - filthy, clean it"
 msgstr ""
@@ -11885,6 +11947,18 @@ msgstr ""
 msgid "Pale and limp. Back in with them."
 msgstr ""
 
+#. manual
+#: scripts/bowling/bowling.gd:58 scripts/bowling/bowling.gd:58
+#. uses 2
+msgid "Dad"
+msgstr "Táta"
+
+#. manual
+#: scripts/bowling/bowling.gd:58 scripts/bowling/bowling.gd:58
+#. uses 2
+msgid "Mum"
+msgstr "Máma"
+
 #: scripts/builder/about_dozer.gd:103
 msgid "Tents flattened: %d"
 msgstr ""
@@ -12242,6 +12316,10 @@ msgstr ""
 msgid "%s %s waiting at the corn stand."
 msgstr ""
 
+#: scripts/business/business_runtime.gd:536
+msgid "%s %s at the bowling counter. Nobody there."
+msgstr "%s %s u pultu na kuželkách. Nikdo tam není."
+
 #: scripts/business/business_runtime.gd:529
 msgid "%s %s waiting to be served."
 msgstr ""
@@ -12266,6 +12344,10 @@ msgstr ""
 msgid "cook for them in the kitchen"
 msgstr ""
 
+#: scripts/business/business_runtime.gd:599
+msgid "BOWLING"
+msgstr "KUŽELKY"
+
 #: scripts/business/business_runtime.gd:591 scripts/business/station_hud.gd:568
 #. uses 2
 msgid "SERVE"
@@ -12286,6 +12368,10 @@ msgstr ""
 #: scripts/business/business_runtime.gd:646
 msgid "The corn stand. Nobody there."
 msgstr ""
+
+#: scripts/business/business_runtime.gd:656
+msgid "Came to bowl. Nobody at the counter."
+msgstr "Kuželky? U pultu nikdo nebyl."
 
 #: scripts/business/business_runtime.gd:647
 msgid "Nobody served us."
@@ -13675,6 +13761,67 @@ msgstr ""
 msgid "COUNTER"
 msgstr "PULT"
 
+#: scripts/bowling/bowling_layout.gd:69
+msgid "the pit of lanes 1 and 2"
+msgstr "jáma drah 1 a 2"
+
+#: scripts/bowling/bowling_layout.gd:69
+msgid "PIT 1-2"
+msgstr "JÁMA 1-2"
+
+#: scripts/bowling/bowling_layout.gd:70
+msgid "the pit of lanes 3 and 4"
+msgstr "jáma drah 3 a 4"
+
+#: scripts/bowling/bowling_layout.gd:70
+msgid "PIT 3-4"
+msgstr "JÁMA 3-4"
+
+#: scripts/bowling/desk_station.gd:44
+msgid "Thanks."
+msgstr "Díky."
+
+#: scripts/bowling/desk_station.gd:44
+msgid "Lovely, thank you."
+msgstr "Nádhera, děkujeme."
+
+#: scripts/bowling/desk_station.gd:44
+msgid "These pinch."
+msgstr "Tyhle tlačí."
+
+#: scripts/bowling/desk_station.gd:45
+msgid "I'm swimming in these."
+msgstr "V těch plavu."
+
+#: scripts/bowling/desk_station.gd:45
+msgid "We'll wait for a lane, then."
+msgstr "Tak počkáme na dráhu."
+
+#: scripts/bowling/desk_station.gd:45
+msgid "That's not all of us."
+msgstr "To nejsme všichni."
+
+#: scripts/bowling/desk_station.gd:256
+msgid "Shoes %d"
+msgstr "Boty %d"
+
+#: scripts/bowling/desk_station.gd:258 scripts/bowling/pit_station.gd:107
+#. uses 2
+msgid "Lane %d"
+msgstr "Dráha %d"
+
+#: scripts/bowling/desk_station.gd:258
+msgid "Wait for a lane"
+msgstr "Počkat na dráhu"
+
+#: scripts/bowling/desk_station.gd:309
+msgid "Spray a pair handed back and shelve it (size %d)"
+msgstr "Vystříkat vrácené boty a dát je do přihrádky (číslo %d)"
+
+#: scripts/bowling/desk_station.gd:318
+msgid "A pair of %d for %s"
+msgstr "Boty číslo %d (%s)"
+
 #: scripts/corn/stand_layout.gd:30
 msgid "the drinks"
 msgstr ""
@@ -14342,9 +14489,75 @@ msgstr ""
 msgid "Take the %d back"
 msgstr "Vzít zpět %d"
 
+#: scripts/bowling/desk_station.gd:324
+msgid "Give them lane %d"
+msgstr "Dát jim dráhu %d"
+
+#: scripts/bowling/desk_station.gd:430
+msgid "The camp has its own bowling alley. Real lanes!"
+msgstr "Kemp má vlastní kuželnu. Opravdové dráhy!"
+
+#: scripts/bowling/desk_station.gd:432
+msgid "The bowling shoes didn't fit."
+msgstr "Boty na kuželky nesedly."
+
+#: scripts/bowling/desk_station.gd:434
+msgid "Queued forever for bowling shoes."
+msgstr "Ve frontě na boty se stálo věčnost."
+
+#: scripts/bowling/desk_station.gd:438 scripts/bowling/desk_station.gd:440
+#. uses 2
+msgid "Lane and shoes"
+msgstr "Dráha a boty"
+
 #: scripts/jednota/till_station.gd:457
 msgid "QUEUE %d"
 msgstr "FRONTA %d"
+
+#: scripts/bowling/desk_station.gd:490
+msgid "SHOES BACK %d"
+msgstr "VRÁCENÉ BOTY %d"
+
+#: scripts/bowling/pit_station.gd:117
+msgid "Deadwood off (%d)"
+msgstr "Spadlé pryč (%d)"
+
+#: scripts/bowling/pit_station.gd:120
+msgid "Pins up %d/10"
+msgstr "Postaveno %d/10"
+
+#: scripts/bowling/pit_station.gd:121
+msgid "Ball back"
+msgstr "Koule zpátky"
+
+#: scripts/bowling/pit_station.gd:174
+msgid "Send the ball back up lane %d"
+msgstr "Poslat kouli zpátky na dráhu %d"
+
+#: scripts/bowling/pit_station.gd:179
+msgid "Stand the pin on its spot"
+msgstr "Postavit kuželku na její místo"
+
+#: scripts/bowling/pit_station.gd:184
+msgid "Clear the pin off the deck"
+msgstr "Shodit kuželku z plochy do jámy"
+
+#: scripts/bowling/pit_station.gd:184
+msgid "Pick up the pin"
+msgstr "Vzít kuželku"
+
+#: scripts/bowling/pit_station.gd:186
+msgid "A pin out of the pit"
+msgstr "Kuželka z jámy"
+
+#: scripts/bowling/pit_station.gd:264 scripts/bowling/pit_station.gd:270
+#. uses 2
+msgid "Pins"
+msgstr "Kuželky"
+
+#: scripts/bowling/pit_station.gd:316
+msgid "LANES WAITING %d"
+msgstr "ČEKAJÍCÍ DRÁHY %d"
 
 #: scripts/lake/lake_trip.gd:172
 msgid "[E] Take the boat across"
@@ -17655,6 +17868,30 @@ msgstr ""
 #: scripts/os98/apps/browser_app.gd:1400
 msgid "Honza"
 msgstr ""
+
+#: scripts/bowling/bowling.gd:266
+msgid "Stood at the bowling counter. Nobody came."
+msgstr "U pultu na kuželkách nikdo nebyl."
+
+#: scripts/bowling/bowling.gd:610
+msgid "%s at the bowling: the pins are not being set. Nobody in the pit."
+msgstr "%s na kuželkách: nikdo nestaví kuželky. V jámě nikdo není."
+
+#: scripts/bowling/bowling.gd:613
+msgid "Stood at the lane. Nobody set up the pins."
+msgstr "Na dráze se čekalo. Kuželky nikdo nepostavil."
+
+#: scripts/bowling/bowling_interior.gd:243
+msgid "Leave   [S]"
+msgstr "Odejít   [S]"
+
+#: scripts/bowling/bowling_interior.gd:243
+msgid "Back   [S]"
+msgstr "Zpět   [S]"
+
+#: scripts/bowling/bowling_layout.gd:68
+msgid "the shoe counter"
+msgstr "pult s botami"
 
 #: scripts/os98/apps/browser_app.gd:1400
 msgid "the photos from the night game came out all black except one. who is that by the fence"
@@ -25292,6 +25529,14 @@ msgstr "%s: %s"
 #. manual
 msgid "Order no. %d"
 msgstr "Objednávka č. %d"
+
+#. manual
+msgid "is"
+msgstr "je"
+
+#. manual
+msgid "are"
+msgstr "jsou"
 
 #: scripts/interior_manager.gd (the caravan's upgrade)
 msgid "The bunk at the end: a third bed. The big striped awning with a table and two chairs out front. Families love a bunk."
