@@ -62,5 +62,20 @@
 	"A pin out of the pit": "Kuželka z jámy",
 	"LANES WAITING %d": "ČEKAJÍCÍ DRÁHY %d",
 	"Dad": "Táta",
-	"Mum": "Máma"
+	"Mum": "Máma",
+	"Needs: %s": "Nejdřív: %s",
+	"%s freed the pinsetter in the cellar.": "%s: stavěč ve sklepě zase jede.",
+	"The pinsetter has jammed. Every lane is standing.": "Stavěč se zasekl. Všechny dráhy stojí.",
+	"The scores up on screens over the lanes, like abroad.": "Skóre na obrazovkách nad drahami, jako v cizině.",
+	"the pinsetter in the cellar": "stavěč ve sklepě",
+	"CELLAR": "SKLEP",
+	"Jammed": "Zaseknutý",
+	"Pull it out %d/%d": "Vytáhnout %d/%d",
+	"Crank it back %d/%d": "Protočit zpět %d/%d",
+	"Pull the lever": "Stáhnout páku",
+	"Pull out what is caught in the gears": "Vytáhnout, co se zaseklo v kolech",
+	"Turn the crank back": "Protočit klikou zpátky",
+	"LANES STOPPED": "DRÁHY STOJÍ",
+	"A pinsetting machine: sets the pins on all four lanes by itself. Now and then something gets caught in its gears down in the cellar, and everything stops.": "Stroj na stavění kuželek: staví je na všech čtyřech drahách sám. Občas se mu dole ve sklepě něco zasekne v kolech a všechno stojí.",
+	"A pinsetting machine like the American ones. Quicker than the Stavomat, and it never jams.": "Stroj na stavění kuželek jako ty americké. Rychlejší než Stavomat a nikdy se nezasekne."
 }

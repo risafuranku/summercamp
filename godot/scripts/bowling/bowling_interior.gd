@@ -14,6 +14,11 @@ extends CanvasLayer
 ## The stations are worked on the business frame of the camp's other places (station3d.gd
 ## in the room, station_hud.gd round it): the rail of orders, the big ticket, SERVE, the
 ## tabs, the books.
+## With a pinsetting machine from the books the pits are its (no tabs for them): the
+## Stavomat's gear train is in the cellar under the hall (its own room, cellar_station.gd,
+## the tab CELLAR; down the stairs behind the pit door), the lamp in the masking panel's
+## corner goes red when it jams. A tab between the hall and the cellar goes through a
+## dissolve (the rooms are far apart).
 
 signal request_close
 
@@ -27,6 +32,8 @@ const POSES = preload("res://scripts/attractions/poses.gd")
 const STATION3D = preload("res://scripts/business/station3d.gd")
 const STATION_HUD = preload("res://scripts/business/station_hud.gd")
 const LEDGER = preload("res://scripts/business/ledger_closeup.gd")
+const KIT = preload("res://scripts/interior_kit.gd")
+const BUSINESS_RT = preload("res://scripts/business/business_runtime.gd")
 const SFX := "res://assets/sfx/bowling/"
 const TIME_DAY: int = 0
 const TIME_NIGHT: int = 2
@@ -37,6 +44,7 @@ const STATION_SCRIPTS := {
 	"desk": "res://scripts/bowling/desk_station.gd",
 	"pit_a": "res://scripts/bowling/pit_station.gd",
 	"pit_b": "res://scripts/bowling/pit_station.gd",
+	"cellar": "res://scripts/bowling/cellar_station.gd",
 }
 
 var key := ""
@@ -72,6 +80,18 @@ var _station_cam_from: Array = []
 var _switching := false
 var _tabs_t := 0.0
 var _ledger: Node
+## The cellar under the hall (its own room, far off in the hall's world), the room the camera is in now, the
+## machine and its jam as last seen (for the sound when it jams, the frame's paint).
+var _cellar_root: Node3D
+var _cellar := {}
+var _room := "hall"
+var _cellar_loop: AudioStreamPlayer
+var _gears_loop: AudioStreamPlayer
+var _brn_loop: AudioStreamPlayer
+var _jam_sound: AudioStreamPlayer
+var _machine_was := "?"
+var _jam_was := ""
+var _flicker_t := 0.0
 
 
 func _ready() -> void:
@@ -87,12 +107,23 @@ func _ready() -> void:
 		_root.add_child(lane)
 		lane.setup(i)
 		_lanes.append(lane)
+	_cellar_root = Node3D.new()
+	_cellar_root.name = "BowlingCellar"
+	_cellar_root.position = LAYOUT.CELLAR_AT
+	_root.add_child(_cellar_root)
+	_cellar = LAYOUT.cellar(_cellar_root)
 	_interior_camera = Camera3D.new()
 	_interior_camera.fov = 62.0
 	_interior_camera.near = 0.05
 	_root.add_child(_interior_camera)
 	_hall = _loop("hall_loop.mp3", -16.0)
 	_hum = _loop("fluoro.mp3", -26.0)
+	_cellar_loop = _loop("cellar_loop.ogg", -15.0)
+	_gears_loop = _loop("gears_loop.ogg", -13.0)
+	_brn_loop = _loop("brnoswick_loop.ogg", -15.0)
+	_jam_sound = AudioStreamPlayer.new()
+	_jam_sound.volume_db = -9.0
+	add_child(_jam_sound)
 
 
 func _build_viewport() -> void:
@@ -130,6 +161,9 @@ func _loop(file: String, db: float) -> AudioStreamPlayer:
 		if s is AudioStreamMP3:
 			s = (s as AudioStreamMP3).duplicate()
 			(s as AudioStreamMP3).loop = true
+		elif s is AudioStreamOggVorbis:
+			s = (s as AudioStreamOggVorbis).duplicate()
+			(s as AudioStreamOggVorbis).loop = true
 		p.stream = s
 	p.volume_db = db
 	add_child(p)
@@ -166,6 +200,12 @@ func _apply_light() -> void:
 		glass.emission_energy_multiplier = 0.15 + 0.75 * _daylight
 	if _env != null:
 		_env.ambient_light_energy = (0.55 if _power else 0.08) + 0.15 * _daylight
+		# The cellar has no daylight and one bulb.
+		if _room == "cellar":
+			_env.ambient_light_energy = 0.16 if _power else 0.03
+	var bulb: OmniLight3D = _cellar.get("bulb")
+	if bulb != null:
+		bulb.visible = _power
 
 
 ## In by the door of the bowling alley at `p_key` ("x:y"), straight to work.
@@ -191,9 +231,13 @@ func open_bowling(p_key: String) -> void:
 		_hum.play()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_make_stations()
+	_machine_was = "?"
+	_jam_was = str(_bowling.jam_of(key).get("jam", "")) if _bowling.jammed(key) else ""
+	_dress_machine()
 	var first := str(LAYOUT.ENTRY_STATION)
 	var last := str(STATION3D.last_station.get(key, first))
-	_open_station(last if _stations.has(last) else first)
+	var tabs: Array = _room_tabs().map(func(t) -> String: return str(t[0]))
+	_open_station(last if tabs.has(last) else first)
 
 
 func close_bowling() -> void:
@@ -210,8 +254,12 @@ func close_bowling() -> void:
 	_is_open = false
 	visible = false
 	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_room = "hall"
 	_hall.stop()
 	_hum.stop()
+	_cellar_loop.stop()
+	_gears_loop.stop()
+	_brn_loop.stop()
 	for v in _parties.keys():
 		_free_party(v)
 	_parties.clear()
@@ -228,7 +276,9 @@ func _process(delta: float) -> void:
 	if _poll <= 0.0:
 		_poll = 0.25
 		_sync_guests()
+		_dress_machine()
 	_sync_lanes()
+	_tick_machine(delta)
 	var open := _station_open()
 	if open != "":
 		_station_frame(open)
@@ -269,10 +319,13 @@ func _input(event: InputEvent) -> void:
 		if what == "":
 			return
 		get_viewport().set_input_as_handled()
+		if what in ["pit_a", "pit_b"] and _bowling.machine_of(key) != "":
+			return
 		if STATION_SCRIPTS.has(what):
 			_open_station(what)
 		elif what == "pit":
-			_open_station("pit_a")
+			# Behind the pit door: the walkway, or with a machine the stairs down to its cellar.
+			_open_station("cellar" if _bowling.machine_of(key) != "" else "pit_a")
 		elif what.begins_with("lane") or what == "bufet":
 			_go(what)
 
@@ -373,11 +426,16 @@ func _sync_guests() -> void:
 			_parties.erase(v)
 
 
-## The lanes drawn from their records, each with its party's figures.
+## The lanes drawn from their records, each with its party's figures (and the machine over
+## their decks, the score screens over their approaches, from the books).
 func _sync_lanes() -> void:
 	if _bowling == null or key == "":
 		return
+	var mach: String = _bowling.machine_of(key)
+	var screens := BUSINESS_RT.has_gear(key, "scoreboard")
 	for i in _lanes.size():
+		_lanes[i].set("machine", mach)
+		_lanes[i].set("screens", screens)
 		var rec: Dictionary = _bowling.lane(key, i)
 		var p: Dictionary = _parties.get(str(rec.get("visit", "")), {})
 		_lanes[i].sync(rec, p.get("members", []) if str(p.get("at", "")) == "lane" else [])
@@ -500,13 +558,104 @@ func _hud() -> CanvasLayer:
 	return _station_hud
 
 
-## The tabs of the stations on the frame's bar: [[id, LABEL, icon], ...].
+## The tabs of the stations on the frame's bar: [[id, LABEL, icon], ...]: the pits while
+## the pins are set by hand, the cellar while the Stavomat sets them (the Brnoswick needs
+## nobody).
 func _room_tabs() -> Array:
 	var out: Array = []
+	var mach: String = _bowling.machine_of(key) if _bowling != null and key != "" else ""
 	for id in LAYOUT.STATIONS:
+		if str(id) in ["pit_a", "pit_b"] and mach != "":
+			continue
+		if str(id) == "cellar" and mach != "machine":
+			continue
 		var st: Dictionary = LAYOUT.STATIONS[id]
 		out.append([str(id), str(st.get("tab_label", str(id).to_upper())), str(st.get("icon", ""))])
 	return out
+
+
+## The machine as the books have it: the cellar's frame in the Stavomat's grey-green or the
+## Brnoswick's enamel; the room's sounds.
+func _dress_machine() -> void:
+	if _bowling == null or key == "":
+		return
+	var mach: String = _bowling.machine_of(key)
+	if mach == _machine_was:
+		return
+	_machine_was = mach
+	var frame: MeshInstance3D = _cellar.get("frame")
+	if frame != null:
+		frame.material_override = KIT.surface(LAYOUT._tex_or("bowl_brnoswick" if mach == "brnoswick" else "bowl_machine", "steel_brushed"), 0.9)
+	_room_audio()
+
+
+## The jam lamp over the lanes, the sound when it jams, the cellar's bulb now and then
+## catching.
+func _tick_machine(delta: float) -> void:
+	if _bowling == null or key == "":
+		return
+	var jam: String = str(_bowling.jam_of(key).get("jam", "")) if _bowling.jammed(key) else ""
+	var lamp: StandardMaterial3D = _built.get("jam_lamp")
+	var on := jam != "" and fposmod(float(Time.get_ticks_msec()) * 0.0025, 2.0) < 1.0
+	if lamp != null:
+		lamp.emission_energy_multiplier = (2.4 if on else 0.15) if jam != "" else 0.0
+	var glow: OmniLight3D = _built.get("jam_glow")
+	if glow != null:
+		glow.light_energy = 1.6 if on and _power else 0.0
+	if jam != _jam_was:
+		if jam != "" and ResourceLoader.exists(SFX + "machine_jam.mp3"):
+			_jam_sound.stream = load(SFX + "machine_jam.mp3")
+			_jam_sound.volume_db = -6.0 if _room == "cellar" else -14.0
+			_jam_sound.play()
+		_jam_was = jam
+		_room_audio()
+	if _room == "cellar":
+		_flicker_t -= delta
+		var bulb: OmniLight3D = _cellar.get("bulb")
+		var bm: StandardMaterial3D = _cellar.get("bulb_mat")
+		if bulb != null and _power:
+			if _flicker_t <= 0.0:
+				_flicker_t = _rng.randf_range(2.5, 9.0)
+			var dim := _flicker_t < 0.18 and int(_flicker_t * 40.0) % 2 == 0
+			bulb.light_energy = 0.35 if dim else 1.1
+			if bm != null:
+				bm.emission_energy_multiplier = 0.4 if dim else 1.4
+
+
+## The sounds of the room the camera is in: the hall's, or the cellar's drip and the
+## machine turning (the Stavomat's iron when it runs, the Brnoswick's purr).
+func _room_audio() -> void:
+	if not _is_open:
+		return
+	var in_cellar := _room == "cellar"
+	var mach: String = _bowling.machine_of(key) if _bowling != null else ""
+	var running: bool = mach == "machine" and not bool(_bowling.jammed(key))
+	_set_loop(_cellar_loop, in_cellar)
+	_set_loop(_gears_loop, in_cellar and running)
+	_set_loop(_brn_loop, in_cellar and mach == "brnoswick")
+	_hall.volume_db = -30.0 if in_cellar else -16.0
+	_hum.volume_db = -40.0 if in_cellar else -26.0
+
+
+func _set_loop(p: AudioStreamPlayer, on: bool) -> void:
+	if p == null or p.stream == null:
+		return
+	if on and not p.playing:
+		p.play(_rng.randf() * 3.0)
+	elif not on and p.playing:
+		p.stop()
+
+
+## The camera from the hall into the cellar or back: through a dissolve, all at once.
+func _cross_to(room: String) -> void:
+	if room == _room:
+		return
+	var im := get_parent()
+	if im != null and im.has_method("_door_transition"):
+		im.call("_door_transition", room == "cellar")
+	_room = room
+	_apply_light()
+	_room_audio()
 
 
 ## Every station of the hall, made once the building is known, standing where it is worked
@@ -527,6 +676,7 @@ func _make_stations() -> void:
 		var surf: Dictionary = LAYOUT.SURFACES[id]
 		var v: Node3D = load(path).new()
 		v.name = "Station3D_" + str(id)
+		var parent: Node3D = _cellar_root if str(st.get("room", "hall")) == "cellar" else _root
 		v.set("building_key", key)
 		v.set("station", str(id))
 		v.set("room", str(st["room"]))
@@ -547,7 +697,7 @@ func _make_stations() -> void:
 			v.set("lanes", views)
 		if "open_books" in v:
 			v.set("open_books", _open_ledger)
-		_root.add_child(v)
+		parent.add_child(v)
 		v.connect("closed", _on_station_closed)
 		v.connect("switch_to", _switch_station)
 		_stations[id] = v
@@ -573,7 +723,15 @@ func _open_station(id: String) -> void:
 	var st: Node3D = _stations[id]
 	if _station_tween != null and _station_tween.is_valid():
 		_station_tween.kill()
-	_station_tween = STATION3D.step_camera(self, _interior_camera, st.call("cam_pose"), STATION3D.CAM_SEC if was == "" else 0.34)
+	var room := str(LAYOUT.STATIONS[id].get("room", "hall"))
+	if room != _room:
+		# Down the stairs or up them: the camera is there at once, behind a dissolve.
+		_cross_to(room)
+		_interior_camera.global_transform = st.call("cam_pose")
+		_station_tween = create_tween()
+		_station_tween.tween_interval(0.01)
+	else:
+		_station_tween = STATION3D.step_camera(self, _interior_camera, st.call("cam_pose"), STATION3D.CAM_SEC if was == "" else 0.34)
 	var hud := _hud()
 	st.set("hud", hud)
 	st.call("open_station", _interior_camera)
@@ -604,6 +762,14 @@ func _on_station_closed() -> void:
 	_station_cam_from = []
 	if _station_tween != null and _station_tween.is_valid():
 		_station_tween.kill()
+	if _room != "hall":
+		# Up the stairs: back where you stood in the hall.
+		_cross_to("hall")
+		_interior_camera.transform = back
+		_interior_camera.rotation = rot
+		_cam_base_rot = rot
+		_look.reset()
+		return
 	_station_tween = STATION3D.step_camera(self, _interior_camera, _root.global_transform * back, STATION3D.CAM_SEC)
 	_station_tween.finished.connect(func():
 		_interior_camera.transform = back

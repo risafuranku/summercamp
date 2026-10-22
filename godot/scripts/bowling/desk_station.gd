@@ -368,9 +368,13 @@ func _shelve_one() -> void:
 	var size: int = state.shelve_returned(building_key, idx)
 	if size < 0:
 		return
-	_spray.visible = true
-	_spray_t = _t
-	sfx("spray", -10.0, randf_range(0.95, 1.05))
+	# With the shoe dryer from the books they come back dry: no spray.
+	if BUSINESS.has_gear(building_key, "dryer"):
+		sfx("shoes", -12.0, 0.9)
+	else:
+		_spray.visible = true
+		_spray_t = _t
+		sfx("spray", -10.0, randf_range(0.95, 1.05))
 	var j := SIZES.find(size)
 	if j >= 0:
 		fly(BTEX + ("shoes_red.png" if j % 2 == 0 else "shoes_blue.png"), PAIR_M, local_at(BACK_AT, 0.02), global_transform * local_at(_cubby_center(j), 0.012), 0.35, 0.15)

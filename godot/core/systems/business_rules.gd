@@ -363,6 +363,8 @@ const GEAR := {
 		"racks": {"label": "More shelves", "price": 300, "what": "A third more on every shelf."},
 	},
 	"bowl": {
+		"machine": {"label": "Stavomat S-12", "price": 900, "what": "A pinsetting machine: sets the pins on all four lanes by itself. Now and then something gets caught in its gears down in the cellar, and everything stops."},
+		"brnoswick": {"label": "Brnoswick A-2", "price": 2400, "what": "A pinsetting machine like the American ones. Quicker than the Stavomat, and it never jams.", "needs": "machine"},
 		"scoreboard": {"label": "Score screens", "price": 380, "what": "The scores up on screens over the lanes: the guests like it."},
 		"dryer": {"label": "Shoe dryer", "price": 160, "what": "The shoes come back dry and fresh: no spraying at the counter."},
 	},
@@ -375,6 +377,11 @@ static func gear_list(kind: String) -> Dictionary:
 
 static func has_gear(site: Dictionary, id: String) -> bool:
 	return (site.get("gear", []) as Array).has(id)
+
+
+## The gear a piece needs in first ("" none: the Brnoswick replaces the Stavomat).
+static func gear_needs(kind: String, id: String) -> String:
+	return str((gear_list(kind).get(id, {}) as Dictionary).get("needs", ""))
 
 
 ## Shelf space with the gear in (the Jednota's extra shelves).

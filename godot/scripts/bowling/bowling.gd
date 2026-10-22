@@ -17,14 +17,22 @@ extends Node
 ##            plays each new one), last {member, entry, res, seed, before}}
 ##   shoes    the shelf: {size: pairs}; `back`: the pairs handed back, waiting to be
 ##            sprayed and shelved ([size])
+##   machine  the pinsetting machine's jam: {jam ("" running, else what is caught in its
+##            gears), since, lane}
 ## Money: a game and a pair of shoes a head, paid at the counter (actions.biz_sale). Who
-## sets the pins: the pinsetter (a hand with the job "pins" on shift), else you in the pit
-## (pit_station.gd: the deadwood off, the pins on their spots, the ball back); nobody, the
-## lane waits and its party grumbles. Stepped on its own clock in seconds, like the hall's
-## animations it schedules for.
-## Co-op: the host simulates (the balls, the hands, who gives up); what a warden does at a
-## station is an op (`act`: checkin, set, shelve) applied at once and sent to everyone
-## (Coop.send_place "bowl"); after a change the host sends the alley as it stands ("snap").
+## sets the pins: by hand, the pinsetter (a hand with the job "pins" on shift), else you in
+## the pit (pit_station.gd: the deadwood off, the pins on their spots, the ball back);
+## nobody, the lane waits and its party grumbles. With the machine from the books (the user,
+## 21. 10.: "a machine you buy in the books that now and then needs mending: gears in the
+## cellar, eerie and morbidly creepy; then a fake Brunswick that runs like clockwork"): the
+## Stavomat S-12 sets every lane by itself and now and then something gets caught in its
+## gears and every lane stands until it is freed in the cellar (cellar_station.gd; a hand
+## on "pins" goes down and does it slowly); the Brnoswick A-2 is quicker and never jams.
+## Stepped on its own clock in seconds, like the hall's animations it schedules for.
+## Co-op: the host simulates (the balls, the hands, the machine, who gives up); what a
+## warden does at a station is an op (`act`: checkin, set, shelve, unjam) applied at once and
+## sent to everyone (Coop.send_place "bowl"); after a change the host sends the alley as it
+## stands ("snap").
 
 const RULES := preload("res://core/systems/bowling_rules.gd")
 const BIZ_RULES := preload("res://core/systems/business_rules.gd")
@@ -53,6 +61,16 @@ const PAIRS_EACH := 2
 ## A hand on the counter sprays and shelves a pair handed back in this many seconds.
 const SHELVE_SEC := 4.0
 const SKILL := {"drunk": 0.25, "tramp": 0.35, "quiet_guy": 0.6, "cheap_chick": 0.4, "picker": 0.5, "family": 0.3}
+## The machines: how long after the pins are down a lane's are set again, how long its own
+## cycle takes in the hall (the next ball waits for it), the Stavomat's chance of jamming
+## on a set and what gets caught in its gears (by how often).
+const MACHINE_SEC := 3.0
+const BRNOSWICK_SEC := 1.6
+const CYCLE_SEC := {"machine": 2.1, "brnoswick": 1.4}
+const MACHINE_JAM := 0.035
+const JAMS := {"pin": 30, "rag": 25, "shoe": 20, "hair": 15, "rat": 10}
+## A hand on "pins" frees a jam in this many seconds, by their speed.
+const FIX_SEC := [42.0, 30.0, 20.0]
 ## The others of a party on the board (the first is the guest's own name): a family's by
 ## their place in it (the father, the boy, the mother, a girl), anyone else's friends.
 const FAMILY_NAMES := [["Dad", "Kuba", "Mum", "Terka"], ["Dad", "Péťa", "Mum", "Áďa"]]
@@ -105,7 +123,8 @@ func _fresh() -> Dictionary:
 	var shelf := {}
 	for s in SIZES:
 		shelf[s] = PAIRS_EACH
-	return {"desk": [], "gone": {}, "checked": {}, "lanes": lanes, "grumbled": {}, "shoes": shelf, "back": []}
+	return {"desk": [], "gone": {}, "checked": {}, "lanes": lanes, "grumbled": {}, "shoes": shelf, "back": [],
+		"machine": {"jam": "", "since": 0.0, "lane": -1}}
 
 
 func _empty_lane() -> Dictionary:
@@ -172,6 +191,7 @@ func _tick(key: String, dt: float) -> void:
 	var s := site(key)
 	_watch_visitors(key, s)
 	_hands(key, s, dt)
+	_machine(key, s)
 	for i in LANES:
 		_tick_lane(key, s, i, dt)
 
@@ -180,8 +200,11 @@ func _tick(key: String, dt: float) -> void:
 
 ## A change made here, applied at once and sent to the other machines:
 ##   checkin [visit, lane, pairs, name, archetype, figures]   the party has its shoes
-##   set [lane]                     the pins of the lane are up again
+##   set [lane, machine]            the pins of the lane are up again (by the machine:
+##                                  its cycle in the hall before the next ball)
 ##   shelve [index]                 a pair handed back went back on its shelf
+##   unjam []                       the machine was freed in the cellar
+##   jam [what, lane]               the machine jammed (the host's)
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
 	if Coop.is_active() and Coop.has_method("send_place"):
@@ -208,7 +231,14 @@ func _apply(key: String, op: String, args: Array) -> void:
 				_seat_party(key, s, visit, {"name": str(args[3]), "archetype": str(args[4]), "figures": int(args[5])}, li)
 			_touch(key, "desk")
 		"set":
-			_put_up(key, s, int(args[0]))
+			_put_up(key, s, int(args[0]), str(args[1]) if args.size() > 1 else "")
+		"jam":
+			s["machine"] = {"jam": str(args[0]), "since": _clock, "lane": int(args[1])}
+			_touch(key, "machine")
+		"unjam":
+			if str(s["machine"].get("jam", "")) != "":
+				s["machine"] = {"jam": "", "since": _clock, "lane": -1}
+				_touch(key, "machine")
 		"shelve":
 			var back: Array = s["back"]
 			if not back.is_empty():
@@ -220,7 +250,7 @@ func _apply(key: String, op: String, args: Array) -> void:
 		"snap":
 			var got: Dictionary = args[0]
 			_clock = maxf(_clock, float(got.get("now", _clock)))
-			for k in ["desk", "gone", "checked", "lanes", "shoes", "back"]:
+			for k in ["desk", "gone", "checked", "lanes", "shoes", "back", "machine"]:
 				if got.has(k):
 					s[k] = got[k].duplicate(true)
 			changed.emit(key, "snap")
@@ -238,7 +268,8 @@ func coop_place(key: String, op: String, args: Array) -> void:
 
 func _snapshot(key: String) -> Dictionary:
 	var s := site(key)
-	return {"now": _clock, "desk": s["desk"], "gone": s["gone"], "checked": s["checked"], "lanes": s["lanes"], "shoes": s["shoes"], "back": s["back"]}
+	return {"now": _clock, "desk": s["desk"], "gone": s["gone"], "checked": s["checked"], "lanes": s["lanes"], "shoes": s["shoes"], "back": s["back"],
+		"machine": s["machine"]}
 
 
 # ── the counter ──────────────────────────────────────────────────────────────
@@ -375,6 +406,8 @@ func check_in(key: String, visit: String, by_hand: bool, li := -1, pairs: Array 
 		CoreRoot.actions.biz_site(key, "bowling")
 		CoreRoot.actions.biz_sale(key, amount, heads, by_hand)
 	ORDERS.note_served(v)
+	if BUSINESS.has_gear(key, "scoreboard"):
+		ORDERS.mood(int(v.get("id", 0)), 2.0, "The scores up on screens over the lanes, like abroad.")
 	if li < 0 or li >= LANES or str(s["lanes"][li]["visit"]) != "":
 		li = free_lane(key)
 	act(key, "checkin", [visit, li, pairs, str(v.get("name", "Guest")), str(v.get("archetype", "")), int(v.get("figures", 1))])
@@ -522,13 +555,13 @@ func _bowl(key: String, s: Dictionary, i: int) -> void:
 	_touch(key, "lane%d" % i)
 
 
-## The pins on lane `i` are set again (by you in the pit, by the hand).
-func set_pins(key: String, i: int) -> void:
+## The pins on lane `i` are set again (by you in the pit, by the hand, by `machine`).
+func set_pins(key: String, i: int, machine := "") -> void:
 	if str(site(key)["lanes"][i]["set"]) != "":
-		act(key, "set", [i])
+		act(key, "set", [i, machine])
 
 
-func _put_up(key: String, s: Dictionary, i: int) -> void:
+func _put_up(key: String, s: Dictionary, i: int, machine := "") -> void:
 	var lane: Dictionary = s["lanes"][clampi(i, 0, LANES - 1)]
 	if str(lane["set"]) == "":
 		return
@@ -536,7 +569,7 @@ func _put_up(key: String, s: Dictionary, i: int) -> void:
 		lane["standing"] = RULES._all_up()
 	lane["set"] = ""
 	lane["wait"] = 0.0
-	lane["ready"] = _clock + _rng.randf_range(PAUSE_SEC.x, PAUSE_SEC.y)
+	lane["ready"] = _clock + _rng.randf_range(PAUSE_SEC.x, PAUSE_SEC.y) + float(CYCLE_SEC.get(machine, 0.0))
 	s["grumbled"].erase(str(lane["visit"]))
 	_touch(key, "lane%d" % i)
 
@@ -597,12 +630,86 @@ func _hands(key: String, s: Dictionary, dt: float) -> void:
 					shelve_returned(key)
 					busy[role] = SHELVE_SEC * (1.5 - 0.25 * float(speed))
 			"pins":
-				for i in LANES:
-					if pins_waiting(key, i):
-						set_pins(key, i)
-						busy[role] = float(BIZ_RULES.SPEED_SEC[speed]) * 0.6
-						break
+				var mach := machine_of(key)
+				if mach == "":
+					for i in LANES:
+						if pins_waiting(key, i):
+							set_pins(key, i)
+							busy[role] = float(BIZ_RULES.SPEED_SEC[speed]) * 0.6
+							break
+				elif jammed(key):
+					# Down to the cellar: freed when the time is up (it starts counting now).
+					if not busy.has("fixing"):
+						busy["fixing"] = float(FIX_SEC[speed])
+					busy["fixing"] = float(busy["fixing"]) - dt
+					if float(busy["fixing"]) <= 0.0:
+						busy.erase("fixing")
+						act(key, "unjam", [])
+						_feed("%s freed the pinsetter in the cellar." % first_name(str(p.get("name", ""))))
+	if not jammed(key):
+		busy.erase("fixing")
 	_hand_busy[key] = busy
+
+
+static func first_name(full: String) -> String:
+	var parts := full.split(" ")
+	return parts[0] if parts.size() > 0 else full
+
+
+# ── the machine ──────────────────────────────────────────────────────────────
+
+## The pinsetter from the books: "brnoswick", "machine" (the Stavomat) or "" (by hand).
+func machine_of(key: String) -> String:
+	if BUSINESS.has_gear(key, "brnoswick"):
+		return "brnoswick"
+	if BUSINESS.has_gear(key, "machine"):
+		return "machine"
+	return ""
+
+
+## The Stavomat stands with something in its gears.
+func jammed(key: String) -> bool:
+	return str(site(key)["machine"].get("jam", "")) != "" and machine_of(key) == "machine"
+
+
+## What is caught and since when: {jam, since, lane}.
+func jam_of(key: String) -> Dictionary:
+	return site(key)["machine"]
+
+
+## Freed in the cellar (the station's lever).
+func unjam(key: String) -> void:
+	if str(site(key)["machine"].get("jam", "")) != "":
+		act(key, "unjam", [])
+
+
+## The machine sets each lane whose pins have lain long enough; the Stavomat now and then
+## catches something in its gears instead, and then every lane waits.
+func _machine(key: String, s: Dictionary) -> void:
+	var mach := machine_of(key)
+	if mach == "" or jammed(key):
+		return
+	var need := BRNOSWICK_SEC if mach == "brnoswick" else MACHINE_SEC
+	for i in LANES:
+		if not pins_waiting(key, i) or float(s["lanes"][i]["wait"]) < need:
+			continue
+		if mach == "machine" and _rng.randf() < MACHINE_JAM:
+			act(key, "jam", [_pick_jam(), i])
+			_feed("The pinsetter has jammed. Every lane is standing.")
+			return
+		set_pins(key, i, mach)
+
+
+func _pick_jam() -> String:
+	var total := 0
+	for k in JAMS:
+		total += int(JAMS[k])
+	var r := _rng.randi_range(1, total)
+	for k in JAMS:
+		r -= int(JAMS[k])
+		if r <= 0:
+			return str(k)
+	return "rag"
 
 
 func _grumble(key: String, lane: Dictionary) -> void:

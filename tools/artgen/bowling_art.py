@@ -10,14 +10,18 @@ into the game's files.
 - the front's painted string of coloured bulbs also as a glow map (bowling_front_glow.png:
   the bulbs' own colours on black), so they light up at night with the neon
   (scripts/bowling/bowling_sign.gd);
-- bows_desk, bows_bufet, bows_pit: the stations' sprite sheets cut into their things
+- bows_desk, bows_bufet, bows_pit, bows_cellar, bows_jams, bows_brnoswick: the stations'
+  sprite sheets cut into their things
   (assets/textury/bowling/: the rental shoes in two colours, the shoe spray standing and
   lying; the snack bar's hot dog, pickled sausages, crisps, wafer, cola and beer; the pit's
   pin, ball, bell and gloves);
 - tex_bowl_stripes: the band painted round the hall's walls (camp/bowl_stripes.png, a
   repeat of 1.7 m by 0.48 m at the room's pixel, its ends blended so it runs on);
-  tex_bowl_shoeshelf: the pigeonholes behind the counter (camp/bowl_shoeshelf.png).
-  The chalkboard (tex_bowl_slate) and the hall's other surfaces are tileables:
+  tex_bowl_shoeshelf: the pigeonholes behind the counter (camp/bowl_shoeshelf.png);
+  tex_bowl_screen: the score monitors' glass (camp/bowl_screen.png).
+  The chalkboard (tex_bowl_slate), the cellar's walls and floor, the machines' panels
+  (tex_bowl_cellar_wall, tex_bowl_cellar_floor, tex_bowl_machine, tex_bowl_brnoswick) are
+  tileables, each:
   python tools/artgen/ground_tex.py tex_bowl_slate assets/textury/camp/bowl_slate.png 128 --own
 A missing render is skipped with a note.
 """
@@ -53,6 +57,15 @@ SHEETS = [
     ("bows_bufet", [(B + "hotdog.png", 44), (B + "pickled.png", 40), (B + "crisps.png", 40), (B + "wafer.png", 40),
                     (B + "kofola.png", 36), (B + "beer.png", 40)]),
     ("bows_pit", [(B + "pin.png", 40), (B + "ball.png", 30), (B + "bell.png", 32), (B + "gloves.png", 44)]),
+    # The cellar's machine (cellar_station.gd): its gears turn, the crank and the lever move.
+    ("bows_cellar", [(B + "gear_big.png", 160), (B + "gear_small.png", 72), (B + "sprocket.png", 64), (B + "crank.png", 80),
+                     (B + "lever.png", 90), (B + "motor.png", 110)]),
+    # What gets caught in its gears.
+    ("bows_jams", [(B + "jam_pin.png", 48), (B + "jam_shoe.png", 48), (B + "jam_rag.png", 48), (B + "jam_hair.png", 56),
+                   (B + "jam_rat.png", 52)]),
+    # The Brnoswick's parts in place of the Stavomat's.
+    ("bows_brnoswick", [(B + "brn_gear_big.png", 160), (B + "brn_gear_small.png", 72), (B + "brn_motor.png", 110),
+                        (B + "brn_lever.png", 90)]),
 ]
 # The band of the front where the bulbs hang (shares of the face's height, from the top).
 BULB_BAND = 0.2
@@ -157,8 +170,35 @@ def picture(art_id, dest, size):
         save(process.snap(img.resize(size, Image.Resampling.BOX), False), dest)
 
 
+def squared(dests):
+    """The cellar's wheels turn about their middle: each on a square canvas, centred."""
+    for dest in dests:
+        path = os.path.join(GODOT, dest)
+        if not os.path.exists(path):
+            continue
+        im = Image.open(path).convert("RGBA")
+        side = max(im.size)
+        sq = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+        sq.alpha_composite(im, ((side - im.width) // 2, (side - im.height) // 2))
+        sq.save(path)
+
+
+def screen(art_id, dest):
+    """The score monitor's glass (the slate's 1.3 m by 0.62 m at the room's pixel), its own
+    greens (the game palette has few: snapped they came out brown)."""
+    img = raw(art_id)
+    if img is None:
+        return
+    w, h = img.size
+    ch = round(w * 0.62 / 1.3)
+    img = img.crop((0, (h - ch) // 2, w, (h - ch) // 2 + ch)).resize((128, 61), Image.Resampling.BOX)
+    save(img.quantize(colors=32, dither=Image.Dither.NONE).convert("RGB"), dest)
+
+
 def main():
     want = set(sys.argv[1:])
+    if not want or "tex_bowl_screen" in want:
+        screen("tex_bowl_screen", CAMP + "bowl_screen.png")
     if not want or "tex_bowl_stripes" in want:
         stripes("tex_bowl_stripes", CAMP + "bowl_stripes.png")
     if not want or "tex_bowl_shoeshelf" in want:
@@ -166,7 +206,11 @@ def main():
     for art_id, items in SHEETS:
         if not want or art_id in want:
             # The two shoes of a pair stand close: one thing.
-            sheet(art_id, items, {"bows_desk": 41, "bows_pit": 31}.get(art_id, 5))
+            sheet(art_id, items, {"bows_desk": 41, "bows_pit": 31, "bows_jams": 11}.get(art_id, 5))
+            if art_id == "bows_cellar":
+                squared([B + "gear_big.png", B + "gear_small.png", B + "sprocket.png"])
+            if art_id == "bows_brnoswick":
+                squared([B + "brn_gear_big.png", B + "brn_gear_small.png"])
     for art_id, dest, width, rows in FACES:
         if want and art_id not in want:
             continue

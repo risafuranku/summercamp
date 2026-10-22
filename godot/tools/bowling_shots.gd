@@ -1,7 +1,9 @@
 extends "res://tools/shot_driver.gd"
 
 ## The bowling alley (scripts/bowling/): the hall with guests in, the shoe counter and the
-## pit worked where they stand, the lanes bowling. Debug tooling only.
+## pit worked where they stand, the lanes bowling; then the books' machines: the Stavomat
+## setting the pins, jammed, freed in the cellar; the Brnoswick; the score screens. Debug
+## tooling only.
 ##   godot --path godot res://tools/bowling_shots.tscn -- --out=<dir> [--size=1280x720]
 
 const BI := "_interior_manager._bowling_interior"
@@ -50,6 +52,33 @@ func _ready() -> void:
 		["eval", BI + "._interior_camera.set('position', Vector3(-1.71, 2.25, 3.2))"], ["wait", 0.3], ["shot", "b11b_boards"],
 		["eval", BI + "._go('hall')"], ["wait", 1.0],
 		["eval", BI + "._open_station('pit_b')"], ["wait", 6.0], ["shot", "b12_pit_b"], ["n_state"],
+		# The Stavomat from the books: it sets the pins; watched from beside the decks.
+		["eval", BI + "._open_ledger()"], ["wait", 0.5],
+		["eval", BI + "._ledger.set('_page', 'gear')"], ["wait", 0.4],
+		["eval", BI + "._ledger.set('_gear_pick', 'brnoswick')"], ["wait", 0.5], ["shot", "b12b_books_gear"],
+		["eval", BI + "._ledger.call('close_view')"], ["wait", 0.6],
+		["gear", "machine"], ["eval", _st("pit_b") + ".close_station()"], ["wait", 1.0],
+		["eval", BI + "._interior_camera.set('position', Vector3(-1.71, 1.25, -3.2))"],
+		["eval", BI + "._interior_camera.set('rotation', Vector3(-0.32, 0.0, 0.0))"],
+		["eval", BI + "._cam_base_rot = Vector3(-0.32, 0.0, 0.0)"],
+		["until", BI + "._lanes[0]._cyc.size() > 0 or " + BI + "._lanes[1]._cyc.size() > 0", 40.0], ["wait", 0.45], ["shot", "b13_machine_lift"],
+		["wait", 0.5], ["shot", "b14_machine_sweep"], ["wait", 0.55], ["shot", "b15_machine_set"],
+		# Jammed: the lamp in the hall, the cellar, the repair.
+		["jam", "hair"], ["eval", BI + "._go('hall')"], ["wait", 1.25], ["shot", "b16_jam_hall"],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.5, 0.5))"],
+		["eval", BI + "._open_station('cellar')"], ["wait", 1.5], ["n_state"], ["shot", "b17_cellar_jam"],
+		["eval", _st("cellar") + ".debug_tug()"], ["wait", 0.4], ["shot", "b18_cellar_tug"],
+		["eval", _st("cellar") + ".debug_repair()"], ["wait", 0.8], ["shot", "b19_cellar_fixed"],
+		["wait", 2.0], ["jam", "rat"], ["wait", 1.2], ["shot", "b20_cellar_rat"],
+		["eval", _st("cellar") + ".debug_repair()"], ["wait", 0.5],
+		["eval", _st("cellar") + ".close_station()"], ["wait", 1.5], ["shot", "b21_back_in_hall"],
+		# The Brnoswick and the score screens.
+		["gear", "brnoswick"], ["gear", "scoreboard"], ["wait", 1.0],
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.5, 0.5))"],
+		["eval", BI + "._open_station('cellar')"], ["wait", 2.0], ["shot", "b22_cellar_brnoswick"],
+		["eval", _st("cellar") + ".close_station()"], ["wait", 1.5],
+		["eval", BI + "._go('lane1')"], ["wait", 2.0],
+		["eval", BI + "._interior_camera.set('position', Vector3(-1.71, 2.25, 3.2))"], ["wait", 0.4], ["shot", "b23_screens"], ["n_state"],
 	]
 
 
@@ -72,7 +101,7 @@ func _bi() -> Node:
 
 
 func _run_step(step: Array) -> void:
-	if not (str(step[0]) in ["n_state", "desk_all", "pit_step", "pit_finish"]):
+	if not (str(step[0]) in ["n_state", "desk_all", "pit_step", "pit_finish", "gear", "jam"]):
 		super._run_step(step)
 		return
 	var bi = _bi()
@@ -80,6 +109,13 @@ func _run_step(step: Array) -> void:
 		print("BOWL SHOTS: no hall")
 		return
 	match str(step[0]):
+		"gear":
+			# Bought in the books: the alley's money first.
+			CoreRoot.apply_changes({"money": 40000})
+			print("BOWL SHOTS: gear %s -> %s" % [step[1], CoreRoot.actions.biz_buy_gear(str(bi.key), str(step[1]))])
+		"jam":
+			get_tree().get_first_node_in_group("bowlings").act(str(bi.key), "jam", [str(step[1]), 0])
+			print("BOWL SHOTS: jammed with %s" % step[1])
 		"n_state":
 			var bw := get_tree().get_first_node_in_group("bowlings")
 			if bw == null or bi == null:
@@ -88,11 +124,12 @@ func _run_step(step: Array) -> void:
 			var s: Dictionary = bw.site(str(bi.key))
 			print("BOWL SHOTS: desk %s" % [(s["desk"] as Array).map(func(d): return "%s %s" % [d["visit"], d["sizes"]])])
 			print("BOWL SHOTS: checked %s back %s" % [s["checked"].keys(), s["back"]])
+			print("BOWL SHOTS: machine %s %s" % [bw.machine_of(str(bi.key)), s["machine"]])
 			for i in 4:
 				var l: Dictionary = s["lanes"][i]
 				print("BOWL SHOTS: lane%d %s set=%s wait=%.1f seq=%d up=%d" % [i, l["name"], l["set"], float(l["wait"]), int(l["seq"]), (l["standing"] as Array).count(true)])
-				var board: Label3D = bi._lanes[i].get("_board")
-				print("BOWL SHOTS:   board %s at %s vis %s" % [JSON.stringify(board.text), board.global_position, board.is_visible_in_tree()])
+				var board = bi._lanes[i].get("_board")
+				print("BOWL SHOTS:   board %s" % JSON.stringify(str(board.get("_label").text)))
 		"desk_all":
 			var desk = bi._stations["desk"]
 			var n := 0

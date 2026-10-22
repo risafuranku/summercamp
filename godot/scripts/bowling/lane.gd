@@ -13,7 +13,12 @@ extends Node3D
 ## Then they lie there until the record says the pins are up again (who did it is the
 ## record's business: the hand, the machine, you in the pit). In the pit you work the pins
 ## here yourself (scripts/bowling/pit_station.gd): take one, stand it on a spot, clear the
-## deadwood into the pit, send the ball back. Stepped smooth, at the full frame rate.
+## deadwood into the pit, send the ball back. With a machine from the books (`machine`,
+## set by the hall) its setting table comes down out from behind the masking panel, takes
+## up the pins still standing, the sweep bar drops and clears the deadwood back into the
+## pit, the table sets them down again (all ten after a frame) and goes back up, the ball
+## back on the return; the Brnoswick does it quicker. With the score screens (`screens`)
+## the chalkboard is a monitor. Stepped smooth, at the full frame rate.
 
 const RULES = preload("res://core/systems/bowling_rules.gd")
 const LAYOUT = preload("res://scripts/bowling/bowling_layout.gd")
@@ -21,6 +26,10 @@ const PIN_MESH = preload("res://scripts/bowling/pin_mesh.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const KIT = preload("res://scripts/interior_kit.gd")
+const BOARD_TEXT = preload("res://scripts/bowling/board_text.gd")
+## The chalk's colour, and the screens' phosphor.
+const CHALK := Color(0.9, 0.9, 0.84)
+const PHOSPHOR := Color(0.55, 1.0, 0.5)
 const SFX := "res://assets/sfx/bowling/"
 ## The ball takes this share of its real time on the room's shorter lane
 ## (bowling.gd ROLL_SHARE).
@@ -49,7 +58,7 @@ var _ball: MeshInstance3D
 var _rack_ball: MeshInstance3D
 ## Where the ball is: "rack" (back at the front), "rolling", "pit" (lying behind the pins).
 var _ball_at := "rack"
-var _board: Label3D
+var _board: SubViewport
 var _phase := "idle"
 var _t := 0.0
 var _throw := {}
@@ -59,6 +68,24 @@ var _sound: AudioStreamPlayer3D
 var _roll_sound: AudioStreamPlayer3D
 ## Pins down from the last ball until the record has them up again.
 var _await_set := false
+## The pinsetting machine over the deck: "", "machine" (the Stavomat), "brnoswick".
+var machine := ""
+## The score screens from the books: the chalkboard turns into a monitor.
+var screens := false
+var _table: MeshInstance3D
+var _sweep: MeshInstance3D
+## The machine's cycle playing ({} none): {t, k (its slowness), standing, lifted, fresh,
+## done: {step: true}}.
+var _cyc: Dictionary = {}
+var _slate: MeshInstance3D
+var _screens_were := false
+## The table and the sweep bar: hidden at rest behind the masking panel (its lower edge),
+## the table over the pin tops when it takes them, held up, set down on the deck.
+const MASK_EDGE := 1.0
+const TABLE_GRAB := 0.06 + PIN_H + 0.03
+const TABLE_HOLD := 0.86
+const TABLE_SET := 0.06 + PIN_H + 0.012
+const SWEEP_LOW := 0.13
 
 
 func setup(i: int) -> void:
@@ -97,24 +124,14 @@ func setup(i: int) -> void:
 	# Not pulled out in front of its own chalk (retro_materials._pull_of).
 	slate.set_meta("retro_no_pull", true)
 	add_child(slate)
-	# The chalk on it: the party's names, their last frames and the running total.
-	_board = Label3D.new()
-	_board.name = "Board"
-	_board.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_board.font = RETRO_UI.FONT_BIG
-	_board.font_size = 10
-	_board.pixel_size = 0.0085
-	_board.line_spacing = -1.0
-	_board.shaded = false
-	_board.double_sided = false
-	_board.modulate = Color(0.9, 0.9, 0.84)
-	_board.outline_size = 0
-	_board.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_board.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_board.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_board.position = slate.position + Vector3(-0.6, 0.27, 0.012)
-	_board.text = ""
+	_slate = slate
+	# The chalk on it: the party's names, their last frames and the running total, written
+	# by the 2D renderer onto a picture over the slate (board_text.gd).
+	_board = BOARD_TEXT.new()
+	_board.name = "BoardWords"
 	add_child(_board)
+	_board.setup(Vector2i(128, 61), RETRO_UI.FONT_LABEL, 8, CHALK)
+	BOARD_TEXT.quad(self, _board, Vector2(1.3, 0.62), slate.position + Vector3(0, 0, 0.012), false)
 	_sound = AudioStreamPlayer3D.new()
 	_sound.unit_size = 4.0
 	_sound.position = LAYOUT.lane_point(i, 0.0, -0.3, 0.3)
@@ -149,6 +166,10 @@ func reset_view() -> void:
 	_figs = []
 	_rec = {}
 	_anims.clear()
+	_cyc = {}
+	if _table != null:
+		_table.visible = false
+		_sweep.visible = false
 	_phase = "idle"
 	_throw = {}
 	_await_set = false
@@ -156,7 +177,7 @@ func reset_view() -> void:
 	_ball.visible = false
 	_rack_ball.visible = false
 	_ball_at = "rack"
-	_board.text = ""
+	_board.show_text("")
 	for k in 10:
 		_pin_state[k]["spot"] = k
 		_pin_state[k]["where"] = "up"
@@ -168,6 +189,9 @@ func reset_view() -> void:
 ## them stand again.
 func sync(rec: Dictionary, figs: Array) -> void:
 	_rec = rec
+	if screens != _screens_were:
+		_screens_were = screens
+		_dress_board()
 	var visit := str(rec.get("visit", ""))
 	if visit != _visit:
 		_visit = visit
@@ -177,6 +201,10 @@ func sync(rec: Dictionary, figs: Array) -> void:
 		_seq = int(rec.get("seq", 0))
 		_phase = "idle"
 		_throw = {}
+		_cyc = {}
+		if _table != null:
+			_table.visible = false
+			_sweep.visible = false
 		_roll_sound.stop()
 		_settle()
 		_seat_all()
@@ -234,7 +262,11 @@ func _settle() -> void:
 
 ## The pins as the record wants them now that they are set (`standing`): a pin on each
 ## spot that should have one, the rest and the deadwood back in the pit; the ball back.
+## A machine does it in front of you (its cycle).
 func _reconcile(standing: Array) -> void:
+	if machine != "" and _visit != "":
+		_start_cycle(standing)
+		return
 	var moved := false
 	for k in 10:
 		var st: Dictionary = _pin_state[k]
@@ -300,6 +332,9 @@ func _start_ball(last: Dictionary) -> void:
 
 func _process(delta: float) -> void:
 	_tick_anims(delta)
+	if not _cyc.is_empty():
+		_tick_cycle(delta)
+		return
 	if _phase == "idle":
 		return
 	_t -= delta
@@ -491,7 +526,7 @@ func _tick_anims(delta: float) -> void:
 func _draw_board() -> void:
 	var members: Array = _rec.get("members", [])
 	if _visit == "" or members.is_empty():
-		_board.text = ""
+		_board.show_text("")
 		return
 	var lines: Array = []
 	for m in members:
@@ -504,7 +539,190 @@ func _draw_board() -> void:
 			boxes.append(" ".join(fr[f]["marks"] as Array).rpad(3))
 		var nm := tr(str(m.get("name", "?"))).substr(0, 6).to_upper()
 		lines.append("%s %s %3d" % [nm.rpad(6), "|".join(boxes), int(card["total"])])
-	_board.text = "\n".join(lines)
+	_board.show_text("\n".join(lines))
+
+
+# ── the machine ──────────────────────────────────────────────────────────────
+
+func _make_machine() -> void:
+	if _table != null:
+		return
+	var steel := KIT.surface(LAYOUT._tex_or("bowl_machine", "steel_brushed"), 0.5, Color(0.8, 0.82, 0.8))
+	_table = KIT.slab(self, Vector3(RULES.LANE_W + 0.1, 0.05, 1.0), LAYOUT.lane_point(index, 0.0, -0.4, MASK_EDGE), steel, "SettingTable")
+	_table.visible = false
+	_sweep = KIT.slab(self, Vector3(RULES.LANE_W + RULES.GUTTER_W * 2.0, 0.12, 0.04), LAYOUT.lane_point(index, 0.0, 0.25, MASK_EDGE), steel, "SweepBar")
+	_sweep.visible = false
+
+
+## The machine sets the pins: the standing ones taken up, the deadwood swept back into the
+## pit, the pins set down where the record has them, the ball sent back.
+func _start_cycle(standing: Array) -> void:
+	_make_machine()
+	# The Stavomat's grey-green iron or the Brnoswick's enamel.
+	var paint := KIT.surface(LAYOUT._tex_or("bowl_brnoswick" if machine == "brnoswick" else "bowl_machine", "steel_brushed"), 0.5, Color(0.8, 0.82, 0.8))
+	_table.material_override = paint
+	_sweep.material_override = paint
+	var lifted: Array = []
+	for k in 10:
+		var st: Dictionary = _pin_state[k]
+		if str(st["where"]) == "up":
+			if bool(standing[int(st["spot"])]):
+				lifted.append(k)
+			else:
+				st["where"] = "deck"
+				st["spot"] = -1
+		elif str(st["where"]) == "hand":
+			_to_pit_now(k, k)
+	_anims = _anims.filter(func(a) -> bool: return not (a["node"] in _pins))
+	_cyc = {"t": 0.0, "k": 0.67 if machine == "brnoswick" else 1.0, "standing": standing.duplicate(), "lifted": lifted, "fresh": [], "done": {}}
+	_phase = "cycle"
+	if _ball_at == "pit":
+		send_ball()
+	_play(_sound, "machine_cycle.mp3", -5.0, 1.25 if machine == "brnoswick" else _rng.randf_range(0.95, 1.03))
+
+
+func _tick_cycle(delta: float) -> void:
+	var c := _cyc
+	c["t"] = float(c["t"]) + delta / float(c["k"])
+	var t := float(c["t"])
+	var done: Dictionary = c["done"]
+	# The table: down to the pin tops, up with the standing ones, down to set, back up.
+	var ty := MASK_EDGE
+	if t < 0.3:
+		ty = lerpf(MASK_EDGE, TABLE_GRAB, _ease(t / 0.3))
+	elif t < 0.5:
+		ty = lerpf(TABLE_GRAB, TABLE_HOLD, _ease((t - 0.3) / 0.2))
+	elif t < 1.3:
+		ty = TABLE_HOLD
+	elif t < 1.65:
+		ty = lerpf(TABLE_HOLD, TABLE_SET, _ease((t - 1.3) / 0.35))
+	elif t < 2.0:
+		ty = lerpf(TABLE_SET, MASK_EDGE, _ease((t - 1.65) / 0.35))
+	_table.position.y = ty
+	_table.visible = t < 2.0
+	# The sweep bar: drops in front of the deck, sweeps back over it into the pit, goes up.
+	var sy := MASK_EDGE
+	var sz := 0.25
+	if t >= 0.5 and t < 0.7:
+		sy = lerpf(MASK_EDGE, SWEEP_LOW, _ease((t - 0.5) / 0.2))
+	elif t >= 0.7 and t < 1.15:
+		sy = SWEEP_LOW
+		sz = lerpf(0.25, -1.3, (t - 0.7) / 0.45)
+	elif t >= 1.15 and t < 1.3:
+		sy = lerpf(SWEEP_LOW, MASK_EDGE, (t - 1.15) / 0.15)
+		sz = -1.3
+	_sweep.position = LAYOUT.lane_point(index, 0.0, sz, sy)
+	_sweep.visible = sy < MASK_EDGE - 0.001
+	# The deadwood in front of the bar goes before it, over the deck's end into the pit.
+	if t >= 0.7 and t < 1.15:
+		for k in 10:
+			if str(_pin_state[k]["where"]) != "deck":
+				continue
+			var pin: Node3D = _pins[k]
+			var lz := pin.position.z - LAYOUT.HEAD_Z
+			if lz > sz - 0.09:
+				pin.position.z = LAYOUT.HEAD_Z + sz - 0.09
+				if sz - 0.09 < RULES.PIT_Z:
+					pit_pin(k)
+	if t >= 1.15 and not done.has("swept"):
+		done["swept"] = true
+		for k in 10:
+			if str(_pin_state[k]["where"]) == "deck":
+				pit_pin(k)
+	# A fresh pin for every spot that has to stand and nothing in the table for it.
+	if t >= 1.3 and not done.has("fresh"):
+		done["fresh"] = true
+		var held := {}
+		for k in c["lifted"]:
+			held[int(_pin_state[k]["spot"])] = true
+		var standing: Array = c["standing"]
+		for s in 10:
+			if not bool(standing[s]) or held.has(s):
+				continue
+			for k in 10:
+				if str(_pin_state[k]["where"]) == "pit":
+					_anims = _anims.filter(func(a) -> bool: return a["node"] != _pins[k])
+					_pin_state[k]["where"] = "table"
+					_pin_state[k]["spot"] = s
+					(_pins[k] as Node3D).basis = Basis.IDENTITY
+					(c["fresh"] as Array).append(k)
+					break
+	# What hangs in the table moves with it.
+	if t >= 0.3 and t < 1.65:
+		for k in c["lifted"]:
+			_hang(k, ty)
+		for k in c["fresh"]:
+			_hang(k, ty)
+	if t >= 1.65 and not done.has("set"):
+		done["set"] = true
+		for k in (c["lifted"] as Array) + (c["fresh"] as Array):
+			_stand_now(k, int(_pin_state[k]["spot"]))
+		_play(_sound, "pin_set.mp3", -12.0, 1.1 if machine == "brnoswick" else 0.95)
+	if t >= 2.0:
+		_table.visible = false
+		_sweep.visible = false
+		_cyc = {}
+		_phase = "idle"
+		if _visit != "":
+			_rack_ball.visible = _ball_at == "rack"
+
+
+## A pin held in the setting table at its spot, its foot under the table at `ty`.
+func _hang(k: int, ty: float) -> void:
+	var pin: Node3D = _pins[k]
+	var p := spot_point(int(_pin_state[k]["spot"]))
+	pin.position = Vector3(p.x, ty - PIN_H - 0.012, p.z)
+	pin.visible = true
+
+
+static func _ease(k: float) -> float:
+	var x := clampf(k, 0.0, 1.0)
+	return x * x * (3.0 - 2.0 * x)
+
+
+## The chalkboard, or with the score screens a monitor in a steel case: dark glass, the
+## figures in phosphor green.
+func _dress_board() -> void:
+	if _slate == null:
+		return
+	var case_node := get_node_or_null("ScreenCase")
+	if screens:
+		_slate.material_override = _screen_glass()
+		_board.set_colour(PHOSPHOR)
+		if case_node == null:
+			var cs := KIT.slab(self, Vector3(1.42, 0.74, 0.32), _slate.position + Vector3(0, 0, -0.17), KIT.surface(LAYOUT._tex_or("bowl_machine", "steel_brushed"), 0.6, Color(0.35, 0.36, 0.35)), "ScreenCase")
+			cs.name = "ScreenCase"
+	else:
+		_slate.material_override = KIT.surface(LAYOUT._tex_or("bowl_slate", "veneer_dark"), 0.7, Color(1, 1, 1) if ResourceLoader.exists(KIT.TEX + "bowl_slate.png") else Color(0.3, 0.42, 0.34))
+		_board.set_colour(CHALK)
+		if case_node != null:
+			case_node.queue_free()
+
+
+## The monitor's glass: its picture once over the slate, glowing a little of itself (the
+## emission's colour black: the picture alone glows, retro_materials adds the two).
+static var _glass: StandardMaterial3D
+
+
+static func _screen_glass() -> StandardMaterial3D:
+	if _glass != null:
+		return _glass
+	var path := KIT.TEX + "bowl_screen.png"
+	var m := StandardMaterial3D.new()
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.roughness = 1.0
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	if ResourceLoader.exists(path):
+		var t: Texture2D = load(path)
+		m.albedo_texture = t
+		m.emission_enabled = true
+		m.emission = Color(0, 0, 0)
+		m.emission_texture = t
+		m.emission_energy_multiplier = 0.7
+	else:
+		m.albedo_color = Color(0.05, 0.08, 0.06)
+	_glass = m
+	return m
 
 
 # ── the pins, for the pit ────────────────────────────────────────────────────

@@ -530,6 +530,10 @@ func biz_buy_gear(key: String, id: String) -> bool:
 	var g: Dictionary = BIZ_RULES.gear_list(str(site["kind"])).get(id, {})
 	if g.is_empty() or (site["gear"] as Array).has(id):
 		return false
+	# Some come only after another (the bowling's Brnoswick after its Stavomat).
+	var needs := str(g.get("needs", ""))
+	if needs != "" and not (site["gear"] as Array).has(needs):
+		return false
 	if not spend_money(int(g["price"])):
 		return false
 	site["gear"].append(id)

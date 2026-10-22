@@ -349,6 +349,10 @@ func _clicked(id: String) -> void:
 			var gd2: Dictionary = RULES.gear_list(kind).get(_gear_pick, {})
 			if gd2.is_empty():
 				return
+			var needs := RULES.gear_needs(kind, _gear_pick)
+			if needs != "" and not RULES.has_gear(site, needs):
+				say("", tr("Needs: %s") % tr(str(RULES.gear_list(kind)[needs]["label"])))
+				return
 			if CoreRoot.actions.biz_buy_gear(building_key, _gear_pick):
 				_stamp("BOUGHT")
 				say("", "%s. It is in." % str(gd2["label"]))
@@ -666,8 +670,12 @@ func _paint_gear(c: Control, site: Dictionary, kind: String) -> void:
 	var gd: Dictionary = gear[_gear_pick]
 	_text(c, RIGHT.position + Vector2(0, 21), str(gd["label"]), INK)
 	_wrap_at(c, RIGHT.position + Vector2(0, 34), str(gd["what"]), RIGHT.size.x, PENCIL)
+	var needs := RULES.gear_needs(kind, _gear_pick)
 	if RULES.has_gear(site, _gear_pick):
 		_text(c, RIGHT.position + Vector2(0, 100), "In the place.", GREEN)
+	elif needs != "" and not RULES.has_gear(site, needs):
+		_text(c, RIGHT.position + Vector2(0, 100), "$%d" % int(gd["price"]), PENCIL, 10, RETRO_UI.FONT_BIG)
+		_wrap_at(c, RIGHT.position + Vector2(0, 116), tr("Needs: %s") % tr(str(gear[needs]["label"])), RIGHT.size.x, RED)
 	else:
 		_text(c, RIGHT.position + Vector2(0, 100), "$%d" % int(gd["price"]), INK, 10, RETRO_UI.FONT_BIG)
 		_pencil_button(c, _rbutton(0), "BUY", GREEN, "buy")

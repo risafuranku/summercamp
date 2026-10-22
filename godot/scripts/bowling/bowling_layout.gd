@@ -13,6 +13,10 @@ extends RefCounted
 ##                scale): BowlingRules' lane metres go through lane_point()
 ##   the back     the masking panel over the pin decks, painted by the camp; behind it
 ##                the pit and the walkway where the pins are set up by hand
+##   the cellar   under it all (cellar(): its own room, far off in the hall's world so
+##                neither's lights reach the other): damp concrete, one bulb, oil drums, and on its
+##                back wall the pinsetting machine's gear train from the books (the
+##                Stavomat's iron or the Brnoswick's enamel), worked by cellar_station.gd
 ##
 ## Pure layout: sizes, spots, the static build. Nothing in it changes while you play.
 
@@ -59,6 +63,12 @@ const DESK_QUEUE := [[Vector3(-2.85, 0, 6.35), Vector3(-1, 0, 0)], [Vector3(-2.6
 	[Vector3(-2.2, 0, 7.55), Vector3(-0.6, 0, -1)], [Vector3(-1.6, 0, 7.85), Vector3(-0.4, 0, -1)],
 	[Vector3(-1.0, 0, 8.05), Vector3(-0.2, 0, -1)], [Vector3(-0.4, 0, 8.1), Vector3(-0.1, 0, -1)]]
 
+## The cellar: where its room is in the hall's own world (far over it: neither's lights reach
+## the other, and the retro shader cuts away whatever is under the ground for a camera under
+## it, the lake mirror's way), its size.
+const CELLAR_AT := Vector3(0.0, 60.0, 0.0)
+const CELLAR_SIZE := Vector3(7.0, 2.5, 5.0)
+
 ## The stations (scripts/business/station3d.gd, hosted by bowling_interior.gd): id -> {room,
 ## label, tab_label, icon}, in the order of the work: the counter (shoes and lanes) where an
 ## order starts, then the pit behind each pair of lanes. You come in at the counter the
@@ -68,6 +78,7 @@ const STATIONS := {
 	"desk": {"room": "hall", "label": "the shoe counter", "tab_label": "COUNTER", "icon": "res://assets/textury/bowling/shoes_red.png"},
 	"pit_a": {"room": "hall", "label": "the pit of lanes 1 and 2", "tab_label": "PIT 1-2", "icon": "res://assets/textury/bowling/pin.png", "lanes": [0, 1]},
 	"pit_b": {"room": "hall", "label": "the pit of lanes 3 and 4", "tab_label": "PIT 3-4", "icon": "res://assets/textury/bowling/pin.png", "lanes": [2, 3]},
+	"cellar": {"room": "cellar", "label": "the pinsetter in the cellar", "tab_label": "CELLAR", "icon": "res://assets/textury/bowling/gear_small.png"},
 }
 ## Where each is worked: the counter's top from behind it (the hall on the far side), the
 ## two pin decks of a pair and the pit behind them from the walkway (looking up the lanes).
@@ -75,6 +86,8 @@ const SURFACES := {
 	"desk": {"at": Vector3(-3.55, 1.102, 6.2), "size": Vector2(2.6, 0.72), "yaw": -90.0, "flat": true, "cam_back": 0.95, "cam_up": 1.3, "cam_aim": 0.05, "tex": ""},
 	"pit_a": {"at": Vector3(-1.71, 0.062, -6.3), "size": Vector2(3.4, 1.7), "yaw": 180.0, "flat": true, "cam_back": 1.45, "cam_up": 1.55, "cam_aim": 0.0, "tex": ""},
 	"pit_b": {"at": Vector3(1.71, 0.062, -6.3), "size": Vector2(3.4, 1.7), "yaw": 180.0, "flat": true, "cam_back": 1.45, "cam_up": 1.55, "cam_aim": 0.0, "tex": ""},
+	# In the cellar's own space (its floor's middle): the machine's front on its back wall.
+	"cellar": {"at": Vector3(0.0, 1.12, -CELLAR_SIZE.z * 0.5 + 0.47), "size": Vector2(3.2, 1.8), "yaw": 0.0, "flat": false, "cam_back": 2.05, "tex": ""},
 }
 
 
@@ -225,6 +238,25 @@ static func _back(root: Node3D, out: Dictionary) -> void:
 	var walk_from := DECK_END - PIT_DEPTH - 0.06
 	KIT.slab(root, Vector3(W, 0.3, walk_from - BACK_Z), Vector3(0, 0.15, (walk_from + BACK_Z) * 0.5), KIT.surface("planks_dark", 0.6), "Walkway")
 	KIT.slab(root, Vector3(1.6, 2.2, 0.06), Vector3(-4.2, 1.1, MASK_Z), KIT.surface("door_wood", 1.0), "PitDoor")
+	# The pinsetter's beacon on the ceiling over the lanes (seen from the whole hall, over the
+	# boards): red, a red glow round it, while it stands jammed.
+	var lamp := StandardMaterial3D.new()
+	lamp.albedo_color = Color(0.25, 0.04, 0.03)
+	lamp.emission_enabled = true
+	lamp.emission = Color(1.0, 0.12, 0.06)
+	lamp.emission_energy_multiplier = 0.0
+	var lm := KIT.slab(root, Vector3(0.2, 0.16, 0.2), Vector3(0.0, H - 0.42, -1.0), lamp, "JamBeacon")
+	lm.set_meta("retro_skip", true)
+	KIT.slab(root, Vector3(0.03, 0.34, 0.03), Vector3(0.0, H - 0.17, -1.0), KIT.surface("steel_brushed", 0.3), "BeaconRod")
+	out["jam_lamp"] = lamp
+	var glow := OmniLight3D.new()
+	glow.name = "JamGlow"
+	glow.light_color = Color(1.0, 0.15, 0.08)
+	glow.omni_range = 5.5
+	glow.light_energy = 0.0
+	glow.position = Vector3(0.0, H - 0.6, -1.0)
+	root.add_child(glow)
+	out["jam_glow"] = glow
 	out["clicks"]["pit"] = _click_box(root, "pit", Vector3(1.4, 2.0, 0.4), Vector3(-4.2, 1.0, MASK_Z + 0.2))
 	# The pin decks of each pair: a click goes round into the pit behind them.
 	out["clicks"]["pit_a"] = _click_box(root, "pit_a", Vector3(3.3, 0.7, 1.3), Vector3(-1.71, 0.35, HEAD_Z - 0.45))
@@ -276,6 +308,70 @@ static func _click_box(root: Node3D, what: String, size: Vector3, pos: Vector3) 
 	b.position = pos
 	root.add_child(b)
 	return b
+
+
+## Builds the cellar into `root` (placed at CELLAR_AT): the room, the bulb, the drums and
+## the junk, the machine's frame on the back wall (the gears on it are the station's).
+## Returns {bulb: OmniLight3D, bulb_mat: StandardMaterial3D, frame: MeshInstance3D}.
+static func cellar(root: Node3D) -> Dictionary:
+	var out := {}
+	var s := CELLAR_SIZE
+	var wall := _tex_or("bowl_cellar_wall", "concrete")
+	KIT.room(root, s, _tex_or("bowl_cellar_floor", "concrete"), wall, _tex_or("bowl_cellar_wall", "concrete"), 1.6, 1.4)
+	var back_z := -s.z * 0.5
+	# The machine's frame against the back wall: the drive the chains run up from.
+	var steel := KIT.surface(_tex_or("bowl_machine", "steel_brushed"), 0.9)
+	out["frame"] = KIT.slab(root, Vector3(3.5, 2.05, 0.42), Vector3(0, 1.1, back_z + 0.23), steel, "MachineFrame")
+	KIT.slab(root, Vector3(3.7, 0.12, 0.6), Vector3(0, 0.06, back_z + 0.32), steel, "MachineFoot")
+	# Four chains up through the ceiling to the lanes over it, the main shaft along the top.
+	var chain := KIT.surface("steel_brushed", 0.3, Color(0.35, 0.3, 0.27))
+	for k in 4:
+		KIT.slab(root, Vector3(0.05, s.y - 2.1, 0.03), Vector3(-1.2 + k * 0.8, 2.1 + (s.y - 2.1) * 0.5, back_z + 0.3), chain, "Chain")
+	KIT.slab(root, Vector3(s.x - 0.4, 0.12, 0.12), Vector3(0, s.y - 0.25, back_z + 0.55), chain, "Shaft")
+	# The wooden grating under the machine, the oil soaked into it; drums, crates of broken
+	# pins, a bucket under the drip.
+	KIT.prop(root, "duckboard", Vector3(0, 0.0, back_z + 1.2), 0.0, 1.6)
+	KIT.prop(root, "oil_drum", Vector3(-2.9, 0.0, back_z + 0.6), 10.0)
+	KIT.prop(root, "oil_drum", Vector3(-2.35, 0.0, back_z + 0.75), -25.0)
+	KIT.prop(root, "beer_crates", Vector3(2.8, 0.0, back_z + 0.7), 85.0)
+	KIT.prop(root, "slop_bucket", Vector3(1.75, 0.0, back_z + 0.95), 0.0)
+	KIT.prop(root, "cardboard_boxes", Vector3(-2.8, 0.0, 1.5), 30.0)
+	KIT.prop(root, "locker", Vector3(3.1, 0.0, 1.4), -90.0)
+	# The stairs down from the hall in the front corner.
+	var wood := KIT.surface("planks_dark", 0.6)
+	for k in 8:
+		KIT.slab(root, Vector3(0.9, 0.05, 0.28), Vector3(-2.9, 0.28 + k * 0.29, s.z * 0.5 - 0.3 - k * 0.24), wood, "Step")
+	KIT.slab(root, Vector3(0.05, 2.5, 2.2), Vector3(-2.42, 1.2, s.z * 0.5 - 1.1), wood, "Stringer")
+	# One bare bulb on its flex over the machine.
+	var bm := StandardMaterial3D.new()
+	bm.albedo_color = Color(1.0, 0.9, 0.7)
+	bm.emission_enabled = true
+	bm.emission = Color(1.0, 0.82, 0.55)
+	bm.emission_energy_multiplier = 1.4
+	var bulb := MeshInstance3D.new()
+	bulb.name = "Bulb"
+	var sm := SphereMesh.new()
+	sm.radius = 0.05
+	sm.height = 0.1
+	bulb.mesh = sm
+	bulb.material_override = bm
+	bulb.set_meta("retro_skip", true)
+	bulb.position = Vector3(0.3, s.y - 0.55, back_z + 1.35)
+	root.add_child(bulb)
+	KIT.slab(root, Vector3(0.01, 0.5, 0.01), bulb.position + Vector3(0, 0.3, 0), chain, "Flex")
+	var light := OmniLight3D.new()
+	light.name = "BulbLight"
+	light.light_color = Color(1.0, 0.82, 0.58)
+	light.omni_range = 6.5
+	light.light_energy = 1.1
+	light.shadow_enabled = false
+	light.position = bulb.position
+	root.add_child(light)
+	out["bulb"] = light
+	out["bulb_mat"] = bm
+	# The red lamp on the frame and the hall's door down here: clicks.
+	out["clicks"] = {"stairs": _click_box(root, "stairs", Vector3(1.0, 2.4, 2.2), Vector3(-2.9, 1.2, s.z * 0.5 - 1.1))}
+	return out
 
 
 ## A camp texture of the alley's own if it is there yet, else the stand-in.

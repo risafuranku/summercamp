@@ -449,6 +449,14 @@ msgid "A third more on every shelf."
 msgstr ""
 
 #: core/systems/business_rules.gd:366
+msgid "A pinsetting machine: sets the pins on all four lanes by itself. Now and then something gets caught in its gears down in the cellar, and everything stops."
+msgstr "Stroj na stavění kuželek: staví je na všech čtyřech drahách sám. Občas se mu dole ve sklepě něco zasekne v kolech a všechno stojí."
+
+#: core/systems/business_rules.gd:367
+msgid "A pinsetting machine like the American ones. Quicker than the Stavomat, and it never jams."
+msgstr "Stroj na stavění kuželek jako ty americké. Rychlejší než Stavomat a nikdy se nezasekne."
+
+#: core/systems/business_rules.gd:366
 msgid "Score screens"
 msgstr "Obrazovky se skóre"
 
@@ -11217,7 +11225,7 @@ msgstr ""
 #: scripts/bistro/bistro_marks.gd:296 scripts/pub/pub_marks.gd:243
 #. uses 2
 msgid "CELLAR"
-msgstr ""
+msgstr "SKLEP"
 
 #: scripts/bistro/bistro_marks.gd:352
 msgid "STIR"
@@ -12569,6 +12577,11 @@ msgstr ""
 msgid "And my money?"
 msgstr ""
 
+#: scripts/business/ledger_closeup.gd:354 scripts/business/ledger_closeup.gd:678
+#. uses 2
+msgid "Needs: %s"
+msgstr "Nejdřív: %s"
+
 #: scripts/business/ledger_closeup.gd:353 scripts/staff/staff_ledger.gd:221
 #. uses 2
 msgid "BOUGHT"
@@ -13776,6 +13789,40 @@ msgstr "jáma drah 3 a 4"
 #: scripts/bowling/bowling_layout.gd:70
 msgid "PIT 3-4"
 msgstr "JÁMA 3-4"
+
+#: scripts/bowling/bowling_layout.gd:81
+msgid "the pinsetter in the cellar"
+msgstr "stavěč ve sklepě"
+
+#: scripts/bowling/cellar_station.gd:205 scripts/bowling/cellar_station.gd:231
+#. uses 2
+msgid "Jammed"
+msgstr "Zaseknutý"
+
+#: scripts/bowling/cellar_station.gd:211
+msgid "Pull it out %d/%d"
+msgstr "Vytáhnout %d/%d"
+
+#: scripts/bowling/cellar_station.gd:212
+msgid "Crank it back %d/%d"
+msgstr "Protočit zpět %d/%d"
+
+#: scripts/bowling/cellar_station.gd:213 scripts/bowling/cellar_station.gd:355
+#. uses 2
+msgid "Pull the lever"
+msgstr "Stáhnout páku"
+
+#: scripts/bowling/cellar_station.gd:351
+msgid "Pull out what is caught in the gears"
+msgstr "Vytáhnout, co se zaseklo v kolech"
+
+#: scripts/bowling/cellar_station.gd:353
+msgid "Turn the crank back"
+msgstr "Protočit klikou zpátky"
+
+#: scripts/bowling/cellar_station.gd:442
+msgid "LANES STOPPED"
+msgstr "DRÁHY STOJÍ"
 
 #: scripts/bowling/desk_station.gd:44
 msgid "Thanks."
@@ -17872,6 +17919,18 @@ msgstr ""
 #: scripts/bowling/bowling.gd:266
 msgid "Stood at the bowling counter. Nobody came."
 msgstr "U pultu na kuželkách nikdo nebyl."
+
+#: scripts/bowling/bowling.gd:410
+msgid "The scores up on screens over the lanes, like abroad."
+msgstr "Skóre na obrazovkách nad drahami, jako v cizině."
+
+#: scripts/bowling/bowling.gd:648
+msgid "%s freed the pinsetter in the cellar."
+msgstr "%s: stavěč ve sklepě zase jede."
+
+#: scripts/bowling/bowling.gd:698
+msgid "The pinsetter has jammed. Every lane is standing."
+msgstr "Stavěč se zasekl. Všechny dráhy stojí."
 
 #: scripts/bowling/bowling.gd:610
 msgid "%s at the bowling: the pins are not being set. Nobody in the pit."
