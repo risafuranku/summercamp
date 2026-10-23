@@ -694,8 +694,8 @@ class OptionsPage:
 
 ## Read-only controls reference (bindings are registered at runtime, so this is the
 ## only place a player can find them).
-## What the game is made with and owes a line to: the map's data (OpenStreetMap, ODbL:
-## the credit is required), the fonts, the engine, the voices.
+## What the game is made with and owes a line to: the engine, the fonts, the voices
+## (the land round the camp is the game's own, tools/geo/design_world.py).
 class CreditsPage:
 	extends Control
 
@@ -704,8 +704,6 @@ class CreditsPage:
 	const LINES := [
 		["CURSED CAMP", ""],
 		["", ""],
-		["Map data", "(c) OpenStreetMap contributors"],
-		["", "ODbL - openstreetmap.org/copyright"],
 		["Engine", "Godot Engine (MIT licence)"],
 		["", "(c) Juan Linietsky, Ariel Manzur & contributors"],
 		["Fonts", "Jersey 10, Silkscreen, Tiny5, W95FA"],

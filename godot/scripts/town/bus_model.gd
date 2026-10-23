@@ -507,14 +507,14 @@ func _build_inside() -> void:
 	var pole := _paint(Color(0.82, 0.64, 0.16))
 	var pole_at := Vector3(STEP_2.y - 0.08, 0, DOOR_Z.y + 0.1)
 	_box(_body, Vector3(pole_at.x, (FLOOR_Y + CEIL_Y) * 0.5, pole_at.z), Vector3(0.04, CEIL_Y - FLOOR_Y, 0.04), pole)
-	_box(_body, Vector3(pole_at.x, 1.55, pole_at.z - 0.04), Vector3(0.12, 0.3, 0.1), _paint(Color(0.86, 0.44, 0.1)))
+	_box(_body, Vector3(pole_at.x, FLOOR_Y + 1.45, pole_at.z - 0.04), Vector3(0.12, 0.3, 0.1), _paint(Color(0.86, 0.44, 0.1)))
 	var punch_tex: Texture2D = load(TEX + "validator.png") if ResourceLoader.exists(TEX + "validator.png") else null
 	if punch_tex != null:
 		var pm := _paint(Color.WHITE)
 		pm.albedo_texture = punch_tex
 		pm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		_quad(_body, Vector3(pole_at.x + 0.065, 1.55, pole_at.z - 0.04), Vector2(0.14, 0.3), Vector3(0, PI * 0.5, 0), pm)
+		_quad(_body, Vector3(pole_at.x + 0.065, FLOOR_Y + 1.45, pole_at.z - 0.04), Vector2(0.14, 0.3), Vector3(0, PI * 0.5, 0), pm)
 	_driver_inside()
 	# The strip light over the steps at night.
 	_lamp_in = OmniLight3D.new()

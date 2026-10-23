@@ -1,4 +1,7 @@
-"""Top-down picture of godot/data/geo/world.json, to check it against the real map."""
+"""Top-down picture of godot/data/geo/world.json (tools/geo/design_world.py makes it).
+
+    python tools/geo/preview.py <out.png> [px per metre]
+"""
 import json
 import os
 import sys

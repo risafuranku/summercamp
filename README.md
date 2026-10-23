@@ -45,8 +45,8 @@ mementowiki/    superseded, kept only as historical changelog
 ost/            music and radio source files (not imported into the project)
 ```
 
-## Third-party data
+## The land round the camp
 
-The land round the camp (roads, fields, buildings, the villages along the bus route) is
-built from OpenStreetMap data, (c) OpenStreetMap contributors, available under the Open
-Database License (https://www.openstreetmap.org/copyright). See `tools/geo/build_world.py`.
+The land along the bus route (road 12, the fields, the woods, the ponds, the masts of
+Liblice B) is designed by hand in `tools/geo/design_world.py`, through the points of the
+real stops; no third-party map data is used.

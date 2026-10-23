@@ -1,11 +1,12 @@
 extends "res://scripts/closeup/closeup_view.gd"
 
 ## The yellow ticket machine on the stop's pole, close up (ticket_machine.gd in the
-## world): its black panel with the grey LCD, six fares on white labels with a button
-## each side, the coin slot, the slot the ticket comes out of
+## world): its black panel with the grey LCD, six white labels with a button each side
+## (the line's other stops, and STORNO at the bottom: tickets to the stops and nothing
+## else, the user, 23. 10.), the coin slot, the slot the ticket comes out of
 ## (closeup_stop_machine.png: Grok's face_ticket_machine on the stop).
 ##
-## Press a fare (either button by its label), the LCD says what it costs; click the coin
+## Press a stop (either button by its label), the LCD says what it costs; click the coin
 ## slot to pay; the ticket prints and creeps out of its slot in steps; click it to take
 ## it (into the bag, to be punched on the bus). Now and then it keeps the money and
 ## thinks about it: thump it. The LCD speaks Czech; the strip under says it in English.
@@ -28,18 +29,19 @@ const SLOT := Rect2(129, 207, 63, 9)
 const BODY := Rect2(66, 0, 188, 240)
 const INK_LCD := Color(0.1, 0.13, 0.09)
 const PANEL := Color(0.12, 0.13, 0.15)
-## The rows by the stop: [label, the destination (as on the ticket), price $, English].
+## The rows by the stop: [label, the destination (as on the ticket), price $, English]:
+## the stops the bus goes on to from this one, in the order it gets there.
 const FARES := {
-	"camp": [["LIBL.", "LIBLICE", 2, "Liblice"], ["LSTIB.", "LSTIBOR", 3, "Lstibor"], ["PŘIST.", "PRISTOUPIM", 1, "Pristoupim"]],
-	"town": [["KEMP", "KEMP", 2, "the camp"], ["PŘIST.", "PRISTOUPIM", 1, "Pristoupim"], ["LSTIB.", "LSTIBOR", 1, "Lstibor"]],
+	"camp": [["PŘIST.", "PRISTOUPIM", 1, "Pristoupim"], ["LIBL.", "LIBLICE", 2, "Liblice"]],
+	"town": [["PŘIST.", "PRISTOUPIM", 1, "Pristoupim"], ["KEMP", "KEMP", 2, "the camp"]],
 }
-const EXTRAS := [["1/2", "half"], ["PES", "dog"], ["STORNO", "cancel"]]
+## The bottom row.
+const STORNO := ["STORNO", "cancel", 0, ""]
 
 ## "camp" or "town": whose machine (what the labels offer).
 var stop := "camp"
 
 var _choice: Array = []            # the fare chosen, or []
-var _half := false
 var _state := ""                   # "", "printing", "out", "stuck"
 var _print_t := 0.0
 var _blink := 0.0
@@ -58,10 +60,12 @@ func _opened() -> void:
 	say("", "The 380's ticket machine. Pick a fare, then coins in the slot.", false)
 
 
+## Six rows: the stops, blank labels, STORNO at the bottom.
 func _rows() -> Array:
 	var out: Array = (FARES.get(stop, FARES["camp"]) as Array).duplicate()
-	for e in EXTRAS:
-		out.append([e[0], e[1], 0, ""])
+	while out.size() < 5:
+		out.append(["", "", 0, ""])
+	out.append(STORNO)
 	return out
 
 
@@ -90,19 +94,11 @@ func _clicked(id: String) -> void:
 		match str(row[1]):
 			"cancel":
 				_choice = []
-				_half = false
 				say("", "Storno: cancelled.", false)
-			"half":
-				if not _choice.is_empty():
-					_half = true
-					say("", "%s, half fare: $%d." % [_choice[3], _price()], false)
-			"dog":
-				_choice = ["PES", "DOG", 1, "a dog"]
-				_half = false
-				say("", "A ticket for a dog: $1. You have not got a dog.", false)
+			"":
+				say("", "A blank label. The button does nothing.", false)
 			_:
 				_choice = row
-				_half = false
 				say("", "%s: $%d. Coins in the slot." % [row[3], _price()], false)
 		return
 	match id:
@@ -121,8 +117,7 @@ func _clicked(id: String) -> void:
 func _price() -> int:
 	if _choice.is_empty():
 		return 0
-	var p := int(_choice[2])
-	return maxi(1, p / 2) if _half else p
+	return int(_choice[2])
 
 
 func _pay() -> void:
@@ -165,7 +160,6 @@ func _take() -> void:
 	say("", "A ticket to %s, $%d. Punch it in the orange box on the bus." % [_choice[3], _price()], false)
 	ticket_taken.emit(str(_choice[1]))
 	_choice = []
-	_half = false
 	_state = ""
 
 
@@ -202,7 +196,7 @@ func _paint(c: Control) -> void:
 	match _state:
 		"":
 			if not _choice.is_empty():
-				line1 = "%s%s" % [str(_choice[0]), "  1/2" if _half else ""]
+				line1 = str(_choice[0])
 				line2 = "$%d  MINCE" % _price()
 			elif int(_blink * 2.0) % 2 == 1:
 				line1 = ""

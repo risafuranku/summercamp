@@ -1,0 +1,20 @@
+{
+ "[b]CSAD Jihlava a.s. - TIMETABLE[/b]\n[b]Line 380   Lstibor - Liblice - Pristoupim - Cerne jezero, camp[/b]   valid from 31.5.1998\n[center]{{img:web_bus:224}}[/center]\n\n[code]                       daily  daily  daily  daily    +\nLstibor, na navsi       5:09   9:14  12:44  18:09  23:35\nLiblice                 5:30   9:35  13:05  18:30  23:46\nPristoupim, rozc. x     5:32   9:37  13:07  18:32    |\nCerne jezero, camp      5:37   9:42  13:12  18:37    |\n\nCerne jezero, camp      6:10  10:15  13:45  19:10\nPristoupim, rozc. x     6:15  10:20  13:50  19:15\nLiblice                 6:17  10:22  13:52  19:17\nLstibor, na navsi       6:28  10:33  14:03  19:28[/code]\nx  stops on request\n\n[b]+[/b] works bus. It does not stop at Cerne jezero, camp. Please do not wave at it.\n\nThe last bus from the camp to Liblice leaves at 19:10.\n": "[b]ČSAD Jihlava a.s. - JÍZDNÍ ŘÁD[/b]\n[b]Linka 380   Lstiboř - Liblice - Přistoupim - Černé jezero, kemp[/b]   platí od 31.5.1998\n[center]{{img:web_bus:224}}[/center]\n\n[code]                       denně  denně  denně  denně    +\nLstiboř, na návsi       5:09   9:14  12:44  18:09  23:35\nLiblice                 5:30   9:35  13:05  18:30  23:46\nPřistoupim, rozc. x     5:32   9:37  13:07  18:32    |\nČerné jezero, kemp      5:37   9:42  13:12  18:37    |\n\nČerné jezero, kemp      6:10  10:15  13:45  19:10\nPřistoupim, rozc. x     6:15  10:20  13:50  19:15\nLiblice                 6:17  10:22  13:52  19:17\nLstiboř, na návsi       6:28  10:33  14:03  19:28[/code]\nx  zastavuje na znamení\n\n[b]+[/b] služební spoj. Na zastávce Černé jezero, kemp nestaví. Nemávejte na něj, prosím.\n\nPoslední autobus z kempu do Liblic jede v 19:10.\n",
+ "BUS  380\nLiblice - camp\n 5:30   9:35\n 13:05  18:30\nback to Liblice:\n 6:10  10:15\n 13:45, last 19:10.\nthe 23:46 does not\nstop. do not wave.\n\nJednota van:\nTue + Fri, at the gate.": "BUS  380\nLiblice - kemp\n 5:30   9:35\n 13:05  18:30\nzpátky do Liblic:\n 6:10  10:15\n 13:45, poslední 19:10.\nten ve 23:46\nnestaví. nemávat.\n\nauto z Jednoty:\nút + pá, u brány.",
+ "The 380's ticket machine. Pick a fare, then coins in the slot.": "Automat linky 380. Vyber si zastávku, pak mince do otvoru.",
+ "Storno: cancelled.": "Storno: zrušeno.",
+ "A blank label. The button does nothing.": "Prázdný štítek. Tlačítko nic nedělá.",
+ "%s: $%d. Coins in the slot.": "%s: $%d. Mince do otvoru.",
+ "It rattles. PORUCHA: out of order. Hit it again.": "Zachrastí to. PORUCHA. Bouchni do něj znovu.",
+ "The coin rattles straight down into the return cup. Pick a fare first.": "Mince propadne rovnou do vratné misky. Nejdřív vyber zastávku.",
+ "No room in your bag for a ticket.": "Na jízdenku nemáš v tašce místo.",
+ "Not enough in your pockets.": "Tolik v kapsách nemáš.",
+ "It takes the coins. Then nothing. The LCD says PORUCHA.": "Mince spolkne. Pak nic. Na displeji svítí PORUCHA.",
+ "It whirrs and clicks. TISKNU: printing.": "Zabzučí a cvakne. TISKNU.",
+ "No room in your bag for it.": "Nemáš ji kam dát, taška je plná.",
+ "A ticket to %s, $%d. Punch it in the orange box on the bus.": "Jízdenka: %s, $%d. V autobuse ji označ v oranžovém štípači.",
+ "VEZMĚTE SI JÍZDENKU: take your ticket.": "VEZMĚTE SI JÍZDENKU.",
+ "the camp": "kemp",
+ "Pristoupim": "Přistoupim",
+ "Liblice": "Liblice"
+}

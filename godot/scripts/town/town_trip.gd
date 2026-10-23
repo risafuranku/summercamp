@@ -31,9 +31,9 @@ const GEO = preload("res://scripts/geo/geo_data.gd")
 const BALANCE = preload("res://core/balance/balance_config.gd")
 const GEO_WORLD = preload("res://scripts/geo/geo_world.gd")
 ## The game's Liblice (town_lesna.gd: the Jednota, the pub, the green, the motel, the
-## station) stands with its centre this far up Bylanska past the stop, its street along
-## the real one.
-const LIBLICE_PAST_STOP := 213.0
+## station) stands with its centre this far up the road past the stop, its street along
+## the route's (tools/geo/design_world.py keeps the road straight there).
+const LIBLICE_PAST_STOP := 110.0
 ## The real land is built round you (geo_world.gd); the village and the farm when you
 ## come this near them.
 const TOWN_NEAR := 1200.0
@@ -809,7 +809,7 @@ func _run_works(h: float, delta: float) -> void:
 		_works_camp.destination = "SLUZEBNI"
 		_works_camp.set_running(false)
 	# Along road 12 past the camp's turn, eastwards (scripts/geo/).
-	var r12a := GEO.s_near(Vector3(26.0, 0, -335.0))
+	var r12a := GEO.mark_s("main_from")
 	_pass(_works_camp, GEO.line_path(r12a - 160.0, r12a + 700.0, 1.6, 10.0), fposmod(h - (TIMES.WORKS_CAMP - WORKS_HOURS * 0.5), 24.0) / WORKS_HOURS, delta)
 	if _town != null:
 		if _works_town == null or not is_instance_valid(_works_town):
@@ -1103,7 +1103,7 @@ func _board(stop_id: String) -> void:
 ## The road this ride takes (scripts/geo/): from the bus where it stands to where you
 ## will get off, in its lane, the speed the road allows at each point; the ride bus
 ## put where the stop's bus stood, which steps out of the way.
-const RIDE_SPEED := {"road12": 19.5, "village": 12.0, "open": 15.5, "camp": 8.5}
+const RIDE_SPEED := {"road12": 24.0, "village": 13.5, "open": 19.0, "camp": 10.0}
 
 
 func _ride_road(stop_id: String, bus: Node3D) -> void:
@@ -1180,8 +1180,8 @@ func _append(pts: PackedVector3Array, lim: PackedFloat32Array, more: PackedVecto
 ## allows: road 12 between the camp's junction and Pristoupim's, the villages, the open
 ## road between.
 func _append_line(pts: PackedVector3Array, lim: PackedFloat32Array, s0: float, s1: float) -> void:
-	var r12a := GEO.s_near(Vector3(26.0, 0, -335.0))
-	var r12b := GEO.s_near(Vector3(2228.0, 0, 17.0))
+	var r12a := GEO.mark_s("main_from")
+	var r12b := GEO.mark_s("main_to")
 	var s_p := GEO.stop_s("pristoupim")
 	var s_l := GEO.stop_s("liblice")
 	var line := GEO.line_path(s0, s1, 1.6)
@@ -1190,7 +1190,7 @@ func _append_line(pts: PackedVector3Array, lim: PackedFloat32Array, s0: float, s
 		var v: float = RIDE_SPEED["open"]
 		if s > r12a + 15.0 and s < r12b - 25.0:
 			v = RIDE_SPEED["road12"]
-		elif absf(s - s_p) < 160.0 or s > s_l - 260.0:
+		elif absf(s - s_p) < 140.0 or s > s_l - 120.0:
 			v = RIDE_SPEED["village"]
 		if pts.size() > 0 and pts[pts.size() - 1].distance_to(line[k]) < 0.5:
 			continue
@@ -1367,7 +1367,7 @@ func _ensure_country() -> void:
 
 
 ## While you (or the other warden) ride, the clock runs so the ride takes the
-## timetable's minutes: thirteen of them for the real road's five or so.
+## timetable's minutes: seven of them for the two or so the road takes.
 func _update_ride_clock() -> void:
 	var main := _main()
 	if main == null:

@@ -1,11 +1,10 @@
 extends RefCounted
 
-## The real land round the camp (tools/geo/build_world.py -> data/geo/world.json), read
-## once: metres from the camp's centre, x east, z south (-z north: the camp's gate and its
-## road face north, to road 12). The bus route of line 380 with its stops, and the
-## places' names (real ones; change them here).
-##
-## Data (c) OpenStreetMap contributors, ODbL.
+## The land round the camp (tools/geo/design_world.py -> data/geo/world.json, designed by
+## hand through the user's own points, no map data), read once: metres from the camp's
+## centre, x east, z south (-z north: the camp's gate and its road face north, to road
+## 12). The bus route of line 380 with its stops, and the places' names (real ones;
+## change them here).
 
 const DATA := "res://data/geo/world.json"
 
@@ -65,6 +64,12 @@ static func route_length() -> float:
 ## Where along the route (from its start) a stop is: "pristoupim" or "liblice".
 static func stop_s(stop: String) -> float:
 	return float(data().get("stops", {}).get(stop, {}).get("s", -1.0))
+
+
+## Where along the route a mark is: "main_from" and "main_to" (road 12, from the camp's
+## turn to Pristoupim's), "sign_pristoupim", "sign_liblice" (the village signs).
+static func mark_s(mark: String) -> float:
+	return float(data().get("marks", {}).get(mark, 0.0))
 
 
 ## The route's point `s` metres along, `lane` metres to the right of its middle

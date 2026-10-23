@@ -1,10 +1,11 @@
 extends Node3D
 
-## The real land round the camp, 1:1 (geo_data.gd, from OpenStreetMap): the fields, the
-## meadows and woods, the ponds and brooks, every road with its asphalt or dust, every
-## building of Pristoupim, Liblice and the southern edge of Cesky Brod built from its
-## footprint, the trees, the power lines on their poles, the posts along the roads.
-## The camp itself is the game's own: nothing real is laid inside its square.
+## The land round the camp (geo_data.gd, designed by hand in tools/geo/design_world.py):
+## the fields, the meadows and woods, the ponds and the brook, every road with its asphalt
+## or dust, the few buildings out in the fields (the masts' station) built from their
+## footprints, the trees, the power lines on their poles, the posts along the roads. The
+## camp itself is the game's own: nothing of the land is laid inside its square, nor in
+## the villages the game builds (town_lesna.gd, hamlet_podlesi.gd).
 ##
 ## Built by town_trip.gd once (the flat things all at once) and then round your eye in
 ## chunks (CHUNK m squares): the buildings, trees, poles and fences of the chunks within
@@ -656,12 +657,12 @@ func _flat_quad(bag: Bag, a: Vector2, b: Vector2, side: Vector2, off: float, wid
 func _benzina() -> void:
 	var at := Vector3.INF
 	for f in _data.get("fuel", []):
-		if str(f.get("n", "")).begins_with("Orlen"):
+		if str(f.get("k", "")) == "benzina":
 			at = Vector3(float(f["p"][0]), 0, float(f["p"][1]))
 	if at == Vector3.INF:
 		return
 	# It faces road 12 (the canopy's front, -z, towards it), its pumps along the road,
-	# the kiosk behind; a little nearer the road than OSM's point (that is the kiosk).
+	# the kiosk behind; a little nearer the road than the point in the data (that is the kiosk).
 	var road_at: Vector3 = GEO.at(float(GEO.nearest(at)["s"]))["p"]
 	var face := (road_at - at) * Vector3(1, 0, 1)
 	face = face.normalized() if face.length() > 0.1 else Vector3.FORWARD
@@ -823,8 +824,7 @@ func _picture(parent: Node3D, path: String, pos: Vector3, size: Vector2, facing:
 ## The villages' white name plates where the 380 comes in: Pristoupim off road 12,
 ## Liblice at the top of Pristoupimska.
 func _village_signs() -> void:
-	var r12b := GEO.s_near(Vector3(2228.0, 0, 17.0))
-	for s in [[r12b + 45.0, "obec_pristoupim"], [GEO.stop_s("liblice") - 235.0, "obec"]]:
+	for s in [[GEO.mark_s("sign_pristoupim"), "obec_pristoupim"], [GEO.mark_s("sign_liblice"), "obec"]]:
 		var a := GEO.at(float(s[0]), 5.2)
 		var p: Vector3 = a["p"]
 		var dir: Vector3 = a["dir"]
