@@ -37,8 +37,8 @@ msgstr "Klobása z grilu"
 msgid "Soup of the day"
 msgstr "Polévka dne"
 
-#: core/systems/bistro_rules.gd:36 core/systems/business_rules.gd:43 core/systems/business_rules.gd:61 core/systems/business_rules.gd:124 (+4)
-#. uses 8
+#: core/systems/bistro_rules.gd:36 core/systems/business_rules.gd:43 core/systems/business_rules.gd:61 core/systems/business_rules.gd:124 (+5)
+#. uses 9
 msgid "Kofola"
 msgstr "Kofola"
 
@@ -70,12 +70,12 @@ msgstr ""
 msgid "Lojza"
 msgstr ""
 
-#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:116 core/systems/business_rules.gd:437 scripts/bowling/bowling.gd:77 (+1)
+#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:116 core/systems/business_rules.gd:437 scripts/bowling/bowling.gd:94 (+1)
 #. uses 5
 msgid "Franta"
 msgstr ""
 
-#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:438 scripts/bowling/bowling.gd:77
+#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:438 scripts/bowling/bowling.gd:94
 #. uses 3
 msgid "Mirek"
 msgstr ""
@@ -85,8 +85,8 @@ msgstr ""
 msgid "Hostinsky 98"
 msgstr ""
 
-#: core/systems/business_rules.gd:41 core/systems/business_rules.gd:125 core/systems/business_rules.gd:646
-#. uses 3
+#: core/systems/business_rules.gd:41 core/systems/business_rules.gd:125 core/systems/business_rules.gd:646 scripts/bowling/bufet_station.gd:37
+#. uses 4
 msgid "Beer"
 msgstr "Pivo"
 
@@ -110,7 +110,7 @@ msgstr ""
 msgid "Pepa"
 msgstr ""
 
-#: core/systems/business_rules.gd:49 core/systems/business_rules.gd:435 scripts/bowling/bowling.gd:77
+#: core/systems/business_rules.gd:49 core/systems/business_rules.gd:435 scripts/bowling/bowling.gd:94
 #. uses 3
 msgid "Hanka"
 msgstr ""
@@ -316,13 +316,13 @@ msgstr "Kuželky 98"
 msgid "Utopenci"
 msgstr "Utopenci"
 
-#: core/systems/business_rules.gd:122 core/systems/business_rules.gd:649
-#. uses 2
+#: core/systems/business_rules.gd:122 core/systems/business_rules.gd:649 scripts/bowling/bufet_station.gd:37
+#. uses 3
 msgid "Crisps"
 msgstr "Brambůrky"
 
-#: core/systems/business_rules.gd:123 core/systems/business_rules.gd:650
-#. uses 2
+#: core/systems/business_rules.gd:123 core/systems/business_rules.gd:650 scripts/bowling/bufet_station.gd:37
+#. uses 3
 msgid "Tatranka"
 msgstr "Tatranka"
 
@@ -589,7 +589,8 @@ msgstr ""
 msgid "Pinsetter"
 msgstr "Stavěč kuželek"
 
-#: core/systems/business_rules.gd:414
+#: core/systems/business_rules.gd:414 scripts/bowling/bowling.gd:844 scripts/bowling/bufet_station.gd:349
+#. uses 3
 msgid "Snack bar"
 msgstr "Bufet"
 
@@ -741,11 +742,13 @@ msgstr "Lahůdky"
 msgid "Lanes and shoes"
 msgstr "Dráhy a boty"
 
-#: core/systems/business_rules.gd:649
+#: core/systems/business_rules.gd:649 scripts/bowling/bufet_station.gd:37
+#. uses 2
 msgid "Hot dog"
 msgstr "Párek v rohlíku"
 
-#: core/systems/business_rules.gd:649
+#: core/systems/business_rules.gd:649 scripts/bowling/bufet_station.gd:37
+#. uses 2
 msgid "Utopenec"
 msgstr "Utopenec"
 
@@ -5162,7 +5165,7 @@ msgstr ""
 msgid "Flower"
 msgstr ""
 
-#: scripts/building_models.gd:812 scripts/bowling/bowling_layout.gd:173
+#: scripts/building_models.gd:812 scripts/bowling/bowling_layout.gd:180
 #. uses 2
 msgid "Gutter"
 msgstr ""
@@ -5304,7 +5307,7 @@ msgstr ""
 msgid "Rope"
 msgstr ""
 
-#: scripts/building_models.gd:1253 scripts/service_interior.gd:1967 scripts/bowling/bowling_layout.gd:329 scripts/town/town_room.gd:1014
+#: scripts/building_models.gd:1253 scripts/service_interior.gd:1967 scripts/bowling/bowling_layout.gd:339 scripts/town/town_room.gd:1014
 #. uses 4
 msgid "Chain"
 msgstr ""
@@ -5505,7 +5508,7 @@ msgid ""
 "RECEPTION - STOP"
 msgstr ""
 
-#: scripts/camp_lake.gd:419 scripts/bowling/bowling_layout.gd:179
+#: scripts/camp_lake.gd:419 scripts/bowling/bowling_layout.gd:186
 #. uses 2
 msgid "Deck"
 msgstr ""
@@ -5809,8 +5812,8 @@ msgstr "Ne"
 msgid "Cleared %d. Refund +$%d, bulldozer -$%d."
 msgstr ""
 
-#: scripts/crt_map_panel.gd:1469 scripts/quest_manager.gd:291 scripts/bistro/bistro_marks.gd:177 scripts/bistro/bufet_station.gd:155 (+13)
-#. uses 17
+#: scripts/crt_map_panel.gd:1469 scripts/quest_manager.gd:291 scripts/bistro/bistro_marks.gd:177 scripts/bistro/bufet_station.gd:155 (+14)
+#. uses 18
 msgid "+$%d"
 msgstr ""
 
@@ -6906,12 +6909,12 @@ msgstr ""
 msgid "Radek"
 msgstr ""
 
-#: scripts/email_manager.gd:134 scripts/bowling/bowling.gd:76 scripts/os98/apps/game_hike.gd:20
+#: scripts/email_manager.gd:134 scripts/bowling/bowling.gd:93 scripts/os98/apps/game_hike.gd:20
 #. uses 3
 msgid "Kuba"
 msgstr ""
 
-#: scripts/email_manager.gd:134 scripts/bowling/bowling.gd:77 scripts/os98/apps/browser_app.gd:1432 scripts/os98/apps/browser_app.gd:1438 (+1)
+#: scripts/email_manager.gd:134 scripts/bowling/bowling.gd:94 scripts/os98/apps/browser_app.gd:1432 scripts/os98/apps/browser_app.gd:1438 (+1)
 #. uses 5
 msgid "Jarda"
 msgstr ""
@@ -6941,7 +6944,7 @@ msgstr ""
 msgid "Sarka"
 msgstr ""
 
-#: scripts/email_manager.gd:137 scripts/bowling/bowling.gd:77 scripts/os98/apps/goggle_app.gd:38 scripts/reviews/goggle.gd:49
+#: scripts/email_manager.gd:137 scripts/bowling/bowling.gd:94 scripts/os98/apps/goggle_app.gd:38 scripts/reviews/goggle.gd:49
 #. uses 4
 msgid "Lenka"
 msgstr ""
@@ -7063,7 +7066,7 @@ msgstr ""
 msgid "Bozena"
 msgstr ""
 
-#: scripts/email_manager.gd:147 scripts/bowling/bowling.gd:77 scripts/os98/os_shell.gd:112 scripts/os98/os_shell.gd:113 (+2)
+#: scripts/email_manager.gd:147 scripts/bowling/bowling.gd:94 scripts/os98/os_shell.gd:112 scripts/os98/os_shell.gd:113 (+2)
 #. uses 6
 msgid "Karel"
 msgstr ""
@@ -7534,7 +7537,7 @@ msgstr ""
 msgid "Forget this queue. This camp needs a second %s."
 msgstr ""
 
-#: scripts/guest_life.gd:526 scripts/bowling/bowling_interior.gd:398 scripts/food/orders.gd:43 scripts/food/service_life.gd:172
+#: scripts/guest_life.gd:526 scripts/bowling/bowling_interior.gd:399 scripts/food/orders.gd:43 scripts/food/service_life.gd:172
 #. uses 4
 msgid "%d@%d"
 msgstr ""
@@ -10246,17 +10249,17 @@ msgstr ""
 msgid "%s is at %s."
 msgstr ""
 
-#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:794 scripts/bowling/bowling_interior.gd:805 (+3)
+#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:795 scripts/bowling/bowling_interior.gd:806 (+3)
 #. uses 7
 msgid "#back"
 msgstr ""
 
-#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:794 scripts/bowling/bowling_interior.gd:805 (+3)
+#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:795 scripts/bowling/bowling_interior.gd:806 (+3)
 #. uses 7
 msgid "#serve"
 msgstr ""
 
-#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:794 scripts/bowling/bowling_interior.gd:805 (+3)
+#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:795 scripts/bowling/bowling_interior.gd:806 (+3)
 #. uses 7
 msgid "#books"
 msgstr ""
@@ -11026,7 +11029,7 @@ msgstr ""
 msgid "Cyl"
 msgstr ""
 
-#: scripts/bistro/bistro_layout.gd:209 scripts/bowling/bowling_layout.gd:276 scripts/jednota/jednota_layout.gd:187 scripts/town/town_room.gd:690
+#: scripts/bistro/bistro_layout.gd:209 scripts/bowling/bowling_layout.gd:286 scripts/jednota/jednota_layout.gd:187 scripts/town/town_room.gd:690
 #. uses 4
 msgid "Tube"
 msgstr ""
@@ -11251,7 +11254,7 @@ msgstr ""
 msgid "TURN"
 msgstr ""
 
-#: scripts/bistro/bistro_marks.gd:296 scripts/bowling/bowling_layout.gd:81 scripts/pub/pub_marks.gd:243
+#: scripts/bistro/bistro_marks.gd:296 scripts/bowling/bowling_layout.gd:82 scripts/pub/pub_marks.gd:243
 #. uses 3
 msgid "CELLAR"
 msgstr "SKLEP"
@@ -11985,80 +11988,96 @@ msgid "Pale and limp. Back in with them."
 msgstr ""
 
 #. manual
-#: scripts/bowling/bowling.gd:76 scripts/bowling/bowling.gd:76
+#: scripts/bowling/bowling.gd:93 scripts/bowling/bowling.gd:93
 #. uses 2
 msgid "Dad"
 msgstr "Táta"
 
 #. manual
-#: scripts/bowling/bowling.gd:76 scripts/bowling/bowling.gd:76
+#: scripts/bowling/bowling.gd:93 scripts/bowling/bowling.gd:93
 #. uses 2
 msgid "Mum"
 msgstr "Máma"
 
-#: scripts/bowling/bowling.gd:76
+#: scripts/bowling/bowling.gd:93
 msgid "Terka"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:76
+#: scripts/bowling/bowling.gd:93
 msgid "Péťa"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:76
+#: scripts/bowling/bowling.gd:93
 msgid "Áďa"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:77 scripts/os98/apps/browser_app.gd:1400
+#: scripts/bowling/bowling.gd:94 scripts/os98/apps/browser_app.gd:1400
 #. uses 2
 msgid "Honza"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:77
+#: scripts/bowling/bowling.gd:94
 msgid "Věra"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:77
+#: scripts/bowling/bowling.gd:94
 msgid "Zdeněk"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:77
+#: scripts/bowling/bowling.gd:94
 msgid "Míla"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:297
-msgid "Stood at the bowling counter. Nobody came."
-msgstr "U pultu na kuželkách nikdo nebyl."
-
-#: scripts/bowling/bowling.gd:313 scripts/bowling/bowling.gd:482 scripts/bowling/bowling.gd:555 scripts/bowling/bowling.gd:574 (+4)
-#. uses 8
+#: scripts/bowling/bowling.gd:268 scripts/bowling/bowling.gd:345 scripts/bowling/bowling.gd:514 scripts/bowling/bowling.gd:587 (+5)
+#. uses 9
 msgid "lane%d"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:410
+#: scripts/bowling/bowling.gd:329
+msgid "Stood at the bowling counter. Nobody came."
+msgstr "U pultu na kuželkách nikdo nebyl."
+
+#: scripts/bowling/bowling.gd:442
 msgid "The scores up on screens over the lanes, like abroad."
 msgstr "Skóre na obrazovkách nad drahami, jako v cizině."
 
-#: scripts/bowling/bowling.gd:648
+#: scripts/bowling/bowling.gd:680
 msgid "%s freed the pinsetter in the cellar."
 msgstr "%s: stavěč ve sklepě zase jede."
 
-#: scripts/bowling/bowling.gd:698
+#: scripts/bowling/bowling.gd:751
+msgid "Waited at the lane for something from the snack bar. It never came."
+msgstr "Na dráze se čekalo na něco z bufetu. Nepřišlo to."
+
+#: scripts/bowling/bowling.gd:780
+msgid "b%d"
+msgstr ""
+
+#: scripts/bowling/bowling.gd:842
+msgid "A cold beer brought over to the lane. That's a bowling alley."
+msgstr "Studené pivo až na dráhu. To je kuželna."
+
+#: scripts/bowling/bowling.gd:842
+msgid "The snack bar got the order wrong."
+msgstr "Bufet spletl objednávku."
+
+#: scripts/bowling/bowling.gd:887
 msgid "The pinsetter has jammed. Every lane is standing."
 msgstr "Stavěč se zasekl. Všechny dráhy stojí."
 
-#: scripts/bowling/bowling.gd:717
+#: scripts/bowling/bowling.gd:906
 msgid "%s at the bowling: the pins are not being set. Nobody in the pit."
 msgstr "%s na kuželkách: nikdo nestaví kuželky. V jámě nikdo není."
 
-#: scripts/bowling/bowling.gd:720
+#: scripts/bowling/bowling.gd:909
 msgid "Stood at the lane. Nobody set up the pins."
 msgstr "Na dráze se čekalo. Kuželky nikdo nepostavil."
 
-#: scripts/bowling/bowling_interior.gd:293
+#: scripts/bowling/bowling_interior.gd:294
 msgid "Leave   [S]"
 msgstr "Odejít   [S]"
 
-#: scripts/bowling/bowling_interior.gd:293
+#: scripts/bowling/bowling_interior.gd:294
 msgid "Back   [S]"
 msgstr "Zpět   [S]"
 
@@ -12072,89 +12091,159 @@ msgid "COUNTER"
 msgstr "PULT"
 
 #: scripts/bowling/bowling_layout.gd:79
+msgid "the snack bar"
+msgstr "bufet"
+
+#: scripts/bowling/bowling_layout.gd:79
+msgid "SNACK BAR"
+msgstr "BUFET"
+
+#: scripts/bowling/bowling_layout.gd:80
 msgid "the pit of lanes 1 and 2"
 msgstr "jáma drah 1 a 2"
 
-#: scripts/bowling/bowling_layout.gd:79
+#: scripts/bowling/bowling_layout.gd:80
 msgid "PIT 1-2"
 msgstr "JÁMA 1-2"
 
-#: scripts/bowling/bowling_layout.gd:80
+#: scripts/bowling/bowling_layout.gd:81
 msgid "the pit of lanes 3 and 4"
 msgstr "jáma drah 3 a 4"
 
-#: scripts/bowling/bowling_layout.gd:80
+#: scripts/bowling/bowling_layout.gd:81
 msgid "PIT 3-4"
 msgstr "JÁMA 3-4"
 
-#: scripts/bowling/bowling_layout.gd:81
+#: scripts/bowling/bowling_layout.gd:82
 msgid "the pinsetter in the cellar"
 msgstr "stavěč ve sklepě"
 
-#: scripts/bowling/bowling_layout.gd:131 scripts/bowling/bowling_layout.gd:133
+#: scripts/bowling/bowling_layout.gd:138 scripts/bowling/bowling_layout.gd:140
 #. uses 2
 msgid "Stripe"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:166
+#: scripts/bowling/bowling_layout.gd:173
 msgid "Lane"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:171
+#: scripts/bowling/bowling_layout.gd:178
 msgid "Arrow"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:175
+#: scripts/bowling/bowling_layout.gd:182
 msgid "Approach"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:180
+#: scripts/bowling/bowling_layout.gd:187
 msgid "Pit"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:181
+#: scripts/bowling/bowling_layout.gd:188
 msgid "Cushion"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:183
+#: scripts/bowling/bowling_layout.gd:190
 msgid "Kickback"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:187
+#: scripts/bowling/bowling_layout.gd:194
 msgid "Capping"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:207
+#: scripts/bowling/bowling_layout.gd:214
 msgid "Shoes"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:212
-msgid "Steamer"
-msgstr ""
-
-#: scripts/bowling/bowling_layout.gd:230
+#: scripts/bowling/bowling_layout.gd:240
 msgid "Masking"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:239
+#: scripts/bowling/bowling_layout.gd:249
 msgid "Walkway"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:330
+#: scripts/bowling/bowling_layout.gd:340
 msgid "Shaft"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:344
+#: scripts/bowling/bowling_layout.gd:354
 msgid "Stringer"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:361
+#: scripts/bowling/bowling_layout.gd:371
 msgid "Flex"
 msgstr ""
 
-#: scripts/bowling/bowling_layout.gd:385
+#: scripts/bowling/bowling_layout.gd:395
 msgid "Stripes"
 msgstr ""
+
+#: scripts/bowling/bufet_station.gd:42
+msgid "Thanks, mate."
+msgstr "Díky, šéfe."
+
+#: scripts/bowling/bufet_station.gd:42 scripts/pub/tap_station.gd:491
+#. uses 2
+msgid "Now that's a beer."
+msgstr "Tak tohle je pivo."
+
+#: scripts/bowling/bufet_station.gd:42
+msgid "About time."
+msgstr "No konečně."
+
+#: scripts/bowling/bufet_station.gd:42
+msgid "That's not what we asked for."
+msgstr "To jsme nechtěli."
+
+#: scripts/bowling/bufet_station.gd:42
+msgid "Half of it is foam."
+msgstr "Půlka je pěna."
+
+#: scripts/bowling/bufet_station.gd:172 scripts/bowling/desk_station.gd:260 scripts/bowling/pit_station.gd:107
+#. uses 3
+msgid "Lane %d"
+msgstr "Dráha %d"
+
+#: scripts/bowling/bufet_station.gd:211
+msgid "A hot dog onto the tray"
+msgstr "Párek v rohlíku na tác"
+
+#: scripts/bowling/bufet_station.gd:213
+msgid "An utopenec out of the jar"
+msgstr "Utopence ze sklenice"
+
+#: scripts/bowling/bufet_station.gd:215
+msgid "A bag of crisps"
+msgstr "Sáček brambůrek"
+
+#: scripts/bowling/bufet_station.gd:217
+msgid "A Tatranka"
+msgstr "Jednu Tatranku"
+
+#: scripts/bowling/bufet_station.gd:221
+msgid "Hold to pour a beer"
+msgstr "Podržet a natočit pivo"
+
+#: scripts/bowling/bufet_station.gd:221
+msgid "Hold to pour a Kofola"
+msgstr "Podržet a natočit Kofolu"
+
+#: scripts/bowling/bufet_station.gd:223
+msgid "off:%d"
+msgstr ""
+
+#: scripts/bowling/bufet_station.gd:223
+msgid "Take it off the tray"
+msgstr "Sundat z tácu"
+
+#: scripts/bowling/bufet_station.gd:321
+msgid "The shelf has run out of it. Order more in the books."
+msgstr "Došlo to. Objednej víc v knížce."
+
+#: scripts/bowling/bufet_station.gd:394
+msgid "ORDERS %d"
+msgstr "OBJEDNÁVKY %d"
 
 #: scripts/bowling/cellar_station.gd:190 scripts/bowling/cellar_station.gd:420
 #. uses 2
@@ -12235,11 +12324,6 @@ msgstr "To nejsme všichni."
 msgid "Shoes %d"
 msgstr "Boty %d"
 
-#: scripts/bowling/desk_station.gd:260 scripts/bowling/pit_station.gd:107
-#. uses 2
-msgid "Lane %d"
-msgstr "Dráha %d"
-
 #: scripts/bowling/desk_station.gd:260
 msgid "Wait for a lane"
 msgstr "Počkat na dráhu"
@@ -12296,7 +12380,7 @@ msgstr "FRONTA %d"
 msgid "SHOES BACK %d"
 msgstr "VRÁCENÉ BOTY %d"
 
-#: scripts/bowling/lane.gd:109
+#: scripts/bowling/lane.gd:112
 msgid "Ball"
 msgstr ""
 
@@ -13440,7 +13524,6 @@ msgid ""
 "enough to dent it.)"
 msgstr ""
 
-#. manual
 #: scripts/closeup/board_closeup.gd:22
 msgid ""
 "BUS  380\n"
@@ -17291,7 +17374,6 @@ msgstr ""
 msgid "CSAD Jihlava - line 380"
 msgstr ""
 
-#. manual
 #: scripts/os98/web_pages.gd:536
 msgid ""
 "[b]CSAD Jihlava a.s. - TIMETABLE[/b]\n"
@@ -22505,10 +22587,6 @@ msgid "The keg ran dry under the glass."
 msgstr "Sud došel pod sklenicí."
 
 #: scripts/pub/tap_station.gd:491
-msgid "Now that's a beer."
-msgstr "Tak tohle je pivo."
-
-#: scripts/pub/tap_station.gd:491
 msgid "Like my grandad poured."
 msgstr "Jako točil děda."
 
@@ -23426,7 +23504,7 @@ msgstr ""
 msgid "seat:%d"
 msgstr ""
 
-#: scripts/town/bus_ride.gd:2154
+#: scripts/town/bus_ride.gd:2156
 msgid "stop:%d"
 msgstr ""
 
@@ -24161,7 +24239,6 @@ msgstr ""
 msgid "Storno: cancelled."
 msgstr "Storno: zrušeno."
 
-#. manual
 #: scripts/town/ticket_machine_closeup.gd:99
 msgid "A blank label. The button does nothing."
 msgstr "Prázdný štítek. Tlačítko nic nedělá."
