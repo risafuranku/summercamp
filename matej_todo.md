@@ -1,6 +1,6 @@
 # Matějův TODO: Liblice, cesta busem, Přistoupim
 
-Moje část hry: skutečná mapa okolo kempu (1:1 z OpenStreetMap), cesta autobusem 380
+Moje část hry: mapa okolo kempu (ručně navržená podle mých GPS bodů), cesta autobusem 380
 z kempu po dvanáctce přes Přistoupim do Liblic, Liblice a Přistoupim (Vondrův statek). Poznámky z testů piš do sekce **Poznámky z testů**, úkoly do **Úkoly**.
 
 ## Jak testovat
@@ -29,11 +29,11 @@ z kempu po dvanáctce přes Přistoupim do Liblic, Liblice a Přistoupim (Vondr�
 
 ## Nástroje
 
-- **Mapa (OpenStreetMap)**: `python -I tools/geo/build_world.py` udělá z
-  `tools/geo/osm/area.json` (stažení z Overpass je v hlavičce skriptu, do gitu nejde)
-  soubor `godot/data/geo/world.json`. Stavění ve hře: `godot/scripts/geo/geo_world.gd`,
-  trasa a jména míst: `godot/scripts/geo/geo_data.gd` (všechna jména na jednom místě).
-  Náhled shora: `python tools/geo/preview.py`.
+- **Mapa**: `python -I tools/geo/design_world.py` (ručně navržená trasa, pole, lesy,
+  rybníky, vysílač; žádná data z OpenStreetMap) udělá `godot/data/geo/world.json`.
+  Stavění ve hře: `godot/scripts/geo/geo_world.gd`, trasa a jména míst:
+  `godot/scripts/geo/geo_data.gd` (všechna jména na jednom místě). Náhled shora:
+  `python tools/geo/preview.py obrazek.png`.
 
 - **Grafika (Grok přes Cursor CLI)**: příkaz je `cursor-agent` (ne `agent`, to je u mě
   Grok CLI). Řádek do `tools/artgen/prompts.tsv`, pak `bash tools/artgen/gen.sh <id>`
@@ -82,10 +82,9 @@ z kempu po dvanáctce přes Přistoupim do Liblic, Liblice a Přistoupim (Vondr�
       jízdní řád `bus_timetable.gd` / `timetable_closeup.gd`, cedule
       `tools/artgen/lettering.py`. Skripty se pořád jmenují `town_lesna.gd` a
       `hamlet_podlesi.gd` (jen soubory, ve hře to nevidíš)
-- [ ] Domy v okolí jsou postavené automaticky z půdorysů OSM (štít/valba/plochá
-      střecha, okna podle délky zdi); konkrétní domy podle panoramat (Mapy.cz /
-      Google) jsou zatím jen v centru Liblic a na statku v Přistoupimi. Řekni, které
-      další chceš udělat ručně
+- [ ] Podél silnic teď nejsou žádné domy (jen pole, remízky, aleje, vysílač);
+      domy jsou jen v Liblicích a na statku v Přistoupimi. Jestli chceš někde u cesty
+      ještě něco (JZD kravín, hájovnu, boží muka), napiš kde
 - [ ] **Vysílačka v co-opu**: vyzkoušet ve dvou na dvou počítačích (V, jde
       přenastavit v Ovládání); bez vysílačky zatím hlas zblízka není
 - [ ] **Rozhlas v kempu**: megafon už je (pokojík za recepcí, G) a hosté na něj
@@ -93,6 +92,17 @@ z kempu po dvanáctce přes Přistoupim do Liblic, Liblice a Přistoupim (Vondr�
       Tycoonu
 
 ## Hotovo
+
+- **Kratší cesta bez OpenStreetMap (23. 10.)**: mapa je ručně navržená přes moje GPS
+  body (kemp, Přistoupim, Liblice) a moji červenou trasu, hlavní silnice je zhruba
+  poloviční (z kempu do Liblic asi 2,2 km místo 4,5); podél dvanáctky jen pole,
+  remízky, potok s olšemi, rybníky, vysílač za plotem a stožáry vedení, žádné domy;
+  Liblice začínají hned za zastávkou. OSM už není ani v titulcích. Autobus jede
+  rychleji (na dvanáctce kolem 85 km/h), jezdí 4x denně (z Liblic 5:30, 9:35, 13:05,
+  18:30; z kempu 6:10, 10:15, 13:45, 19:10), jízda trvá 7 minut. Patníky jsou české
+  všude (i na lesní silničce od kempu, ten divný kilometrovník zmizel), automat na
+  zastávce prodává jen jízdenky na zastávky linky (+ STORNO) a štípač v autobuse je ve
+  výšce očí u dveří
 
 - **Ze seznamu (20. 10.)**: označovač konečně cvakne (zvuk vyrobený skriptem
   `tools/audiogen/synth_sfx.py`); v Konfiguraci jsou Titulky (credits) s „© OpenStreetMap

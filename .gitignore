@@ -27,5 +27,3 @@ tools/audiogen/.env
 __pycache__/
 tools/audiogen/raw_radio/
 
-# OpenStreetMap downloads (tools/geo/fetch: raw, rebuilt into godot/data/geo)
-tools/geo/osm/

@@ -76,7 +76,7 @@ func _sheet() -> Dictionary:
 					{"head": ["Sobota,", "neděle"], "en": "", "times": TIMES.TOWN_LEAVE}],
 				"stops": [[-1, "Lstiboř", false], [0, "Liblice", false], [down_prist, "Přistoupim,rozc.", true],
 					[ride, "Černé jezero,kemp", false]],
-				"notes": small + ["Směr Lstiboř:", " ".join(TIMES.TOWN_THROUGH.map(func(t): return TIMES.hm(float(t))))],
+				"notes": small + ["Směr Lstiboř:"] + _pairs(TIMES.TOWN_THROUGH),
 				"also": "to Lstibor %s" % ", ".join(TIMES.TOWN_THROUGH.map(func(t): return TIMES.hm(float(t))))}
 	return {"name": "Černé jezero, kemp", "towards": "Přistoupim, Liblice",
 		"cols": [{"head": ["Pracovní", "dny"], "en": "to Liblice", "times": TIMES.CAMP_LEAVE},
@@ -85,6 +85,17 @@ func _sheet() -> Dictionary:
 			[ride + on, "Lstiboř", false]],
 		"notes": small + ["Spoj %s zde nestaví." % TIMES.hm(TIMES.WORKS_TOWN)],
 		"scrawl": "NEMÁVAT!"}
+
+
+## Times two to a line ("6:17  10:22"), for the narrow small print.
+func _pairs(times: Array) -> Array:
+	var out: Array = []
+	for i in range(0, times.size(), 2):
+		var line := TIMES.hm(float(times[i]))
+		if i + 1 < times.size():
+			line += "  " + TIMES.hm(float(times[i + 1]))
+		out.append(line)
+	return out
 
 
 func _paint(c: Control) -> void:

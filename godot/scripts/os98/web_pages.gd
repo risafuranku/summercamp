@@ -537,21 +537,21 @@ The cellar is not open to guests.
 [b]Line 380   Lstibor - Liblice - Pristoupim - Cerne jezero, camp[/b]   valid from 31.5.1998
 [center]{{img:web_bus:224}}[/center]
 
-[code]                       daily  daily  daily    +
-Lstibor, na navsi       5:09  12:49  18:09  23:35
-Liblice                 5:30  13:05  18:30  23:46
-Pristoupim, rozc. x     5:34  13:09  18:34    |
-Cerne jezero, camp      5:43  13:18  18:43    |
+[code]                       daily  daily  daily  daily    +
+Lstibor, na navsi       5:09   9:14  12:44  18:09  23:35
+Liblice                 5:30   9:35  13:05  18:30  23:46
+Pristoupim, rozc. x     5:32   9:37  13:07  18:32    |
+Cerne jezero, camp      5:37   9:42  13:12  18:37    |
 
-Cerne jezero, camp      6:15  13:50  19:15
-Pristoupim, rozc. x     6:24  13:59  19:24
-Liblice                 6:28  14:03  19:28
-Lstibor, na navsi       6:39  14:14  19:39[/code]
+Cerne jezero, camp      6:10  10:15  13:45  19:10
+Pristoupim, rozc. x     6:15  10:20  13:50  19:15
+Liblice                 6:17  10:22  13:52  19:17
+Lstibor, na navsi       6:28  10:33  14:03  19:28[/code]
 x  stops on request
 
 [b]+[/b] works bus. It does not stop at Cerne jezero, camp. Please do not wave at it.
 
-The last bus from the camp to Liblice leaves at 19:15.
+The last bus from the camp to Liblice leaves at 19:10.
 """ + HR + """
 {bohemia-online.cz|Bohemia Online}""",
 	},

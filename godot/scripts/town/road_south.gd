@@ -20,12 +20,13 @@ extends Node3D
 const TEX_DIR := "res://assets/textury/camp/"
 const TOWN_TEX := "res://assets/textury/town/"
 const GEO = preload("res://scripts/geo/geo_data.gd")
+const ROAD_POST = preload("res://scripts/town/road_post.gd")
 const ROAD_WIDTH := 4.4
 ## The verge walls stand this far from the middle of the road.
 const WALL_OFF := 5.0
 ## Gate, bend, end of camp_gate's road, then this one: the stop is ROAD[STOP].
-## The last point is where the real road 1133 takes over (geo_data: the route's start,
-## OSM node 334442674, world (-13, -273) with the gate at (6, -55)).
+## The last point is where the land's road up to road 12 takes over (geo_data: the
+## route's start, world (-13, -273) with the gate at (6, -55)).
 const ROAD := [Vector2(0, 1), Vector2(2, -45), Vector2(14, -120), Vector2(14, -152), Vector2(6, -182), Vector2(-10, -205), Vector2(-19, -218)]
 const STOP := 3
 ## The camp's spruce goes this far along the road (the fields after).
@@ -68,6 +69,7 @@ func build(gate_x: float, fence_z: float, worldgen: Node, texture_style) -> void
 	_build_stop()
 	_build_loop(gravel)
 	_build_forest_things()
+	_build_posts()
 
 
 # ── where things are ─────────────────────────────────────────────────────────
@@ -463,14 +465,13 @@ func _flat_decal(root: Node3D, path: String, size: Vector2, pos: Vector3) -> voi
 
 
 ## What a Czech forest road has along it (playtest 17. 10.: "details, bring the world to
-## life"): the deer warning sign past the barrier, a kilometre stone, a stack of felled
+## life"): the deer warning sign past the barrier, a stack of felled
 ## spruce waiting for the lorry, the hunters' high seat back in the trees, a deer feeder
 ## in a clearing, the red-and-white trail marks on two dead snags by the verge. Grok
 ## sprites (assets/textury/world).
 func _build_forest_things() -> void:
 	var W := "res://assets/textury/world/"
 	_flat_sprite(self, W + "deer_sign.png", 1.9, _along(OWN_FROM, 0.12, 3.0), true)
-	_flat_sprite(self, W + "km_stone.png", 0.55, _along(3, 0.5, -2.8), true)
 	_flat_sprite(self, W + "timber_stack.png", 1.5, _along(3, 0.85, 7.0), true)
 	_flat_sprite(self, W + "hunters_seat.png", 6.5, _along(4, 0.4, -13.0), true)
 	_flat_sprite(self, W + "deer_feeder.png", 2.4, _along(5, 0.35, 11.0), true)
@@ -503,6 +504,36 @@ func _build_forest_things() -> void:
 		mark.position = at + Vector3(0, 1.6, 0) + to_road * 0.19
 		mark.rotation.y = atan2(to_road.x, to_road.z)
 		add_child(mark)
+
+
+## The Czech road posts (road_post.gd), opposite each other, from past the stop's pad to
+## where the land's road takes over (geo_world.gd's posts go on from there): closer
+## together than on the straight, the road bends (the user, 23. 10.: "Czech posts
+## everywhere", a red-and-white stone of no country stood here).
+func _build_posts() -> void:
+	var half := ROAD_WIDTH * 0.5 + 0.6
+	var line: Array = []
+	for i in range(STOP, ROAD.size()):
+		line.append(point(i))
+	var total := 0.0
+	for i in line.size() - 1:
+		total += (line[i] as Vector3).distance_to(line[i + 1])
+	var d := PAD_SOUTH + 6.0
+	while d < total - 12.0:
+		var acc := 0.0
+		for i in line.size() - 1:
+			var a: Vector3 = line[i]
+			var b: Vector3 = line[i + 1]
+			var seg := a.distance_to(b)
+			if acc + seg >= d:
+				var e := (b - a) / seg
+				var p := a + e * (d - acc)
+				var side := Vector3(-e.z, 0.0, e.x)
+				for sgn in [-1.0, 1.0]:
+					ROAD_POST.place(self, p + side * half * sgn, -side * sgn)
+				break
+			acc += seg
+		d += 25.0
 
 
 ## A point `t` of the way along road segment i, `across` metres east of its middle.

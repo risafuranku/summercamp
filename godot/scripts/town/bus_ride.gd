@@ -64,7 +64,7 @@ const ACCEL := 2.4
 const BRAKE := 2.2
 const HALF_W := 1.22
 const FLOOR_Z := Vector2(-5.34, 5.34)
-const STAND_POS := Vector3(0.62, 1.62, -3.45)
+const STAND_POS := Vector3(0.38, 1.62, -4.42)
 const STAND_LOOK := Vector3(-0.2, 1.1, -0.6)
 ## Seats (x, z): the right row skips the doors; the player's seat is one of these.
 const SEATS := [Vector2(-0.68, -2.5), Vector2(-0.68, -1.6), Vector2(-0.68, -0.7), Vector2(-0.68, 0.2), Vector2(-0.68, 1.1), Vector2(-0.68, 2.0), Vector2(-0.68, 2.9), Vector2(-0.68, 3.8),
@@ -2048,10 +2048,14 @@ func _build_cabin() -> void:
 		pole.material_override = _mat("pole_yellow", "", Color(0.82, 0.64, 0.16)) if pv == POLES[0] else chrome
 		pole.position = Vector3(pv.x, 1.05, pv.y)
 		cabin.add_child(pole)
-	# The orange punch box (označovač) clamped to the first pole, its slot to the door.
+	# The orange punch box (označovač) clamped to the first pole, at the height of your
+	# eyes and turned to you as you come up the steps (STAND_POS: the user, 23. 10.: it
+	# was down by your knees and behind you).
 	var pp: Vector2 = POLES[0]
+	var to_you := (Vector2(STAND_POS.x, STAND_POS.z) - pp).normalized()
 	var punch := Node3D.new()
-	punch.position = Vector3(pp.x, 0.77, pp.y - 0.04)
+	punch.position = Vector3(pp.x + to_you.x * 0.05, 1.45, pp.y + to_you.y * 0.05)
+	punch.rotation.y = atan2(-to_you.y, to_you.x)
 	cabin.add_child(punch)
 	var shell := _box(punch, Vector3(0.0, 0, 0), Vector3(0.1, 0.3, 0.13), _mat("punch_body", "", Color(0.86, 0.44, 0.1)))
 	var face_tex := _town_tex("validator")

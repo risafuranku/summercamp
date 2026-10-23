@@ -1618,7 +1618,7 @@ Polished on 21. 10. (the user: "totálně polishnout lodičku, single i coop"):
   `hands/oars.png`), each through its own stroke, twelve frames a second like every hand,
   lit like every hand (Hands.material), the oar running on out of the picture as it
   swings.
-- **The far shore** stands clear: the real land round the camp (geo_world.gd, OSM) kept
+- **The far shore** stands clear: the land round the camp (geo_world.gd) kept
   the village's houses in the water and through the boathouse; the lake and twelve metres
   round it are the game's own now.
 
