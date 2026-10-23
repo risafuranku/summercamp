@@ -58,6 +58,18 @@ func _ready() -> void:
 		["eval", BI + "._go('lane0')"], ["wait", 3.0], ["shot", "b10_lane0"],
 		["wait", 2.5], ["shot", "b11_lane0_later"],
 		["eval", BI + "._interior_camera.set('position', Vector3(-1.71, 2.25, 3.2))"], ["wait", 0.3], ["shot", "b11b_boards"],
+		# Bowling yourself on the free lane 4: the approach, the aim, a ball with a hook, the card.
+		["eval", BI + "._go('hall')"], ["wait", 0.8], ["eval", BI + "._lane_play.start(3)"], ["wait", 1.0], ["shot", "b11c_play_stand"],
+		["eval", BI + "._lane_play.set('phase', 'aim')"], ["eval", BI + "._lane_play.set('x0', 0.18)"], ["eval", BI + "._lane_play.set('aim', -0.012)"],
+		["wait", 0.4], ["shot", "b11d_play_aim"],
+		["eval", BI + "._lane_play.debug_throw(0.18, -0.012, 8.6, -0.7)"], ["wait", 0.7], ["shot", "b11e_play_roll"],
+		["wait", 1.3], ["shot", "b11f_play_hit"], ["wait", 3.5], ["shot", "b11g_play_card"],
+		# The second ball by the mouse itself: stand, aim, hold, pull down, flick up and right, let go.
+		["lp", "move", 560, 400], ["lp", "press", 560, 400], ["lp", "release", 560, 400], ["lp", "move", 600, 400],
+		["lp", "press", 600, 420], ["wait", 0.05], ["lp", "move", 600, 470], ["wait", 0.08], ["lp", "move", 602, 520],
+		["wait", 0.06], ["lp", "move", 610, 430], ["wait", 0.04], ["lp", "move", 620, 340], ["wait", 0.03], ["lp", "move", 626, 280],
+		["lp", "release", 626, 280], ["n_state"], ["wait", 6.0], ["shot", "b11h_play_second"], ["n_state"],
+		["eval", BI + "._lane_play.stop()"], ["wait", 1.0],
 		["eval", BI + "._go('hall')"], ["wait", 1.0],
 		["eval", BI + "._open_station('pit_b')"], ["wait", 6.0], ["shot", "b12_pit_b"], ["n_state"],
 		# The Stavomat from the books: it sets the pins; watched from beside the decks.
@@ -109,7 +121,7 @@ func _bi() -> Node:
 
 
 func _run_step(step: Array) -> void:
-	if not (str(step[0]) in ["n_state", "desk_all", "pit_step", "pit_finish", "gear", "jam", "order_now"]):
+	if not (str(step[0]) in ["n_state", "desk_all", "pit_step", "pit_finish", "gear", "jam", "order_now", "lp"]):
 		super._run_step(step)
 		return
 	var bi = _bi()
@@ -124,6 +136,22 @@ func _run_step(step: Array) -> void:
 		"jam":
 			get_tree().get_first_node_in_group("bowlings").act(str(bi.key), "jam", [str(step[1]), 0])
 			print("BOWL SHOTS: jammed with %s" % step[1])
+		"lp":
+			# A mouse event straight to the lane you bowl on.
+			var ev: InputEvent
+			var at := Vector2(float(step[2]), float(step[3]))
+			if str(step[1]) == "move":
+				var mm := InputEventMouseMotion.new()
+				mm.position = at
+				ev = mm
+			else:
+				var mb := InputEventMouseButton.new()
+				mb.button_index = MOUSE_BUTTON_LEFT
+				mb.pressed = str(step[1]) == "press"
+				mb.position = at
+				ev = mb
+			bi._lane_play.call("handle", ev)
+			print("BOWL SHOTS: lane play %s at %s -> %s" % [step[1], at, bi._lane_play.get("phase")])
 		"order_now":
 			# Every party on a lane wants something now.
 			var nxt: Dictionary = get_tree().get_first_node_in_group("bowlings").site(str(bi.key))["next_order"]

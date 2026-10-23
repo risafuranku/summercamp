@@ -328,9 +328,13 @@ func _start_ball(last: Dictionary) -> void:
 	var entry: Dictionary = _throw["entry"]
 	_throw["dur"] = float(entry.get("t", 1.0)) * VIS_TIME
 	_throw["gutter"] = bool(entry.get("gutter", false))
+	_rack_ball.visible = false
+	# A warden's ball leaves their hand at the line: no walk up, no swing to see.
+	if bool(last.get("quick", false)):
+		_swing()
+		return
 	_phase = "step"
 	_t = STEP_SEC
-	_rack_ball.visible = false
 	var m := _bowler()
 	if not m.is_empty() and is_instance_valid(m["node"]):
 		var node: Node3D = m["node"]

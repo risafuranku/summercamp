@@ -14613,6 +14613,10 @@ msgstr "FRONTA %d"
 msgid "SHOES BACK %d"
 msgstr "VRÁCENÉ BOTY %d"
 
+#: scripts/bowling/lane_play.gd:336
+msgid "Game: %d"
+msgstr "Hra: %d"
+
 #: scripts/bowling/pit_station.gd:117
 msgid "Deadwood off (%d)"
 msgstr "Spadlé pryč (%d)"

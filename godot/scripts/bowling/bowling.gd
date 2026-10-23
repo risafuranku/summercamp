@@ -31,6 +31,10 @@ extends Node
 ## Stavomat S-12 sets every lane by itself and now and then something gets caught in its
 ## gears and every lane stands until it is freed in the cellar (cellar_station.gd; a hand
 ## on "pins" goes down and does it slowly); the Brnoswick A-2 is quicker and never jams.
+## A warden can bowl too (the user, 21. 10.: "the player plays a game of bowling"): a free
+## lane taken (`take_lane`: its visit "w:<who>"), nobody bowls it for them; their balls come
+## from bowling_interior.gd's swing, worked out where they were thrown and sent as an op
+## (`warden_ball`), the pins set by themselves after a moment (or by the machine).
 ## The snack bar: now and then a party on its lane wants something (KINDS["bowl"] wants:
 ## a beer, a Kofola, a hot dog...), of what is on the menu and on the shelf; made up at the
 ## bar and taken over, paid with the goods off the books (BUSINESS.sell); left too long they
@@ -76,6 +80,10 @@ const BRNOSWICK_SEC := 1.6
 const CYCLE_SEC := {"machine": 2.1, "brnoswick": 1.4}
 const MACHINE_JAM := 0.035
 const JAMS := {"pin": 30, "rag": 25, "shoe": 20, "hair": 15, "rat": 10}
+## A warden's lane: its pins set by themselves this long after they fell (no machine).
+const WARDEN_SET_SEC := 2.0
+## A ball thrown by a warden: the pins are down this long after the roll (no walk up).
+const QUICK_SEC := 1.6
 ## A hand on "pins" frees a jam in this many seconds, by their speed.
 const FIX_SEC := [42.0, 30.0, 20.0]
 ## The snack bar: how long a party on its lane goes between orders (seconds, about), the
@@ -224,6 +232,9 @@ func _tick(key: String, dt: float) -> void:
 ##   unjam []                       the machine was freed in the cellar
 ##   jam [what, lane]               the machine jammed (the host's)
 ##   bufet_done [id, items]         a snack bar order taken over (what was on the tray)
+##   wtake [lane, who, name]        a warden took a free lane to bowl
+##   wleave [lane, who]             and left it
+##   wball [lane, entry, res, seed] their ball (worked out where it was thrown)
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
 	if Coop.is_active() and Coop.has_method("send_place"):
@@ -254,6 +265,25 @@ func _apply(key: String, op: String, args: Array) -> void:
 		"jam":
 			s["machine"] = {"jam": str(args[0]), "since": _clock, "lane": int(args[1])}
 			_touch(key, "machine")
+		"wtake":
+			var li := int(args[0])
+			if li >= 0 and li < LANES and str(s["lanes"][li]["visit"]) == "":
+				var lane := _empty_lane()
+				lane["visit"] = "w:" + str(args[1])
+				lane["name"] = str(args[2])
+				lane["members"] = [{"name": str(args[2]), "skill": 0.0, "balls": [], "last": -1}]
+				lane["ready"] = _clock
+				s["lanes"][li] = lane
+				_touch(key, "lane%d" % li)
+		"wleave":
+			var li2 := int(args[0])
+			if li2 >= 0 and li2 < LANES and str(s["lanes"][li2]["visit"]) == "w:" + str(args[1]):
+				s["lanes"][li2] = _empty_lane()
+				_touch(key, "lane%d" % li2)
+		"wball":
+			var li3 := int(args[0])
+			if li3 >= 0 and li3 < LANES and is_warden_lane(s["lanes"][li3]) and str(s["lanes"][li3]["set"]) == "":
+				_record_ball(key, s, li3, 0, args[1], args[2], int(args[3]), true)
 		"bufet_done":
 			var orders: Array = s["bufet"]
 			for i in range(orders.size() - 1, -1, -1):
@@ -520,6 +550,13 @@ func _tick_lane(key: String, s: Dictionary, i: int, dt: float) -> void:
 	var lane: Dictionary = s["lanes"][i]
 	if str(lane["visit"]) == "":
 		return
+	if is_warden_lane(lane):
+		# Nobody bowls it for them; its pins stand again by themselves (or by the machine).
+		if str(lane["set"]) != "":
+			lane["wait"] = float(lane["wait"]) + dt
+			if machine_of(key) == "" and float(lane["wait"]) >= WARDEN_SET_SEC:
+				set_pins(key, i)
+		return
 	if str(lane["set"]) != "":
 		lane["wait"] = float(lane["wait"]) + dt
 		if float(lane["wait"]) > PINS_GONE and not s["grumbled"].has(str(lane["visit"])):
@@ -553,6 +590,16 @@ func _bowl(key: String, s: Dictionary, i: int) -> void:
 	var res: Dictionary = {"down": [], "falls": {}, "wobbled": []}
 	if not bool(entry["gutter"]):
 		res = RULES.strike(entry, lane["standing"], seed)
+	_record_ball(key, s, i, mi, entry, res, seed, false)
+
+
+## A ball on lane `i` by member `mi` counted: the pins it took, the card, whose turn, what
+## the pinsetter must do, when the pins lie still (`quick`: a warden's, thrown from the line
+## without the walk up).
+func _record_ball(key: String, s: Dictionary, i: int, mi: int, entry: Dictionary, res: Dictionary, seed: int, quick: bool) -> void:
+	var lane: Dictionary = s["lanes"][i]
+	var members: Array = lane["members"]
+	var m: Dictionary = members[mi]
 	var before := 0
 	for up in lane["standing"]:
 		if up:
@@ -562,7 +609,7 @@ func _bowl(key: String, s: Dictionary, i: int) -> void:
 	(m["balls"] as Array).append((res["down"] as Array).size())
 	var card := RULES.card(m["balls"])
 	lane["seq"] = int(lane["seq"]) + 1
-	lane["last"] = {"member": mi, "entry": entry, "res": res, "seed": seed, "before": before}
+	lane["last"] = {"member": mi, "entry": entry, "res": res, "seed": seed, "before": before, "quick": quick}
 	var frame_over := int(card["ball"]) == 0 or bool(card["done"])
 	if frame_over:
 		lane["turn"] = int(lane["turn"]) + 1
@@ -583,8 +630,42 @@ func _bowl(key: String, s: Dictionary, i: int) -> void:
 			if not up:
 				fresh = false
 		lane["set"] = "rack" if fresh else "sweep"
-	lane["wait"] = -(float(entry["t"]) * ROLL_SHARE + BALL_SEC)
+	lane["wait"] = -(float(entry["t"]) * ROLL_SHARE + (QUICK_SEC if quick else BALL_SEC))
 	_touch(key, "lane%d" % i)
+
+
+# ── a warden on a lane ───────────────────────────────────────────────────────
+
+static func is_warden_lane(lane: Dictionary) -> bool:
+	return str(lane.get("visit", "")).begins_with("w:")
+
+
+## Free lane `li` taken by warden `who` ("me" alone, the peer's id in co-op).
+func take_lane(key: String, li: int, who: String, name: String) -> bool:
+	if li < 0 or li >= LANES or str(site(key)["lanes"][li]["visit"]) != "":
+		return false
+	act(key, "wtake", [li, who, name])
+	return true
+
+
+func leave_lane(key: String, li: int, who: String) -> void:
+	act(key, "wleave", [li, who])
+
+
+## The warden's ball on lane `li`: let go at `x0` on the foul line, at `aim`, `speed`, with
+## `hook` (BowlingRules.roll), what it takes worked out here and sent. Returns the ball's
+## {entry, res} ({} when the pins are not up yet).
+func warden_ball(key: String, li: int, x0: float, aim: float, speed: float, hook: float) -> Dictionary:
+	var lane: Dictionary = site(key)["lanes"][li]
+	if not is_warden_lane(lane) or str(lane["set"]) != "":
+		return {}
+	var seed := hash("%s/%d" % [str(lane["visit"]), int(lane["seq"])])
+	var entry := RULES.roll(x0, aim, speed, hook)
+	var res: Dictionary = {"down": [], "falls": {}, "wobbled": []}
+	if not bool(entry["gutter"]):
+		res = RULES.strike(entry, lane["standing"], seed)
+	act(key, "wball", [li, entry, res, seed])
+	return {"entry": entry, "res": res}
 
 
 ## The pins on lane `i` are set again (by you in the pit, by the hand, by `machine`).
@@ -757,7 +838,7 @@ func _bufet(key: String, s: Dictionary) -> void:
 	for li in LANES:
 		var lane: Dictionary = s["lanes"][li]
 		var visit := str(lane["visit"])
-		if visit == "":
+		if visit == "" or is_warden_lane(lane):
 			continue
 		if not next.has(visit):
 			next[visit] = _clock + _rng.randf_range(BUFET_EVERY.x * 0.3, BUFET_EVERY.x)

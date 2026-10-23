@@ -16,9 +16,11 @@ extends CanvasLayer
 ## tabs, the books.
 ## With a pinsetting machine from the books the pits are its (no tabs for them): the
 ## Stavomat's gear train is in the cellar under the hall (its own room, cellar_station.gd,
-## the tab CELLAR; down the stairs behind the pit door), the lamp in the masking panel's
-## corner goes red when it jams. A tab between the hall and the cellar goes through a
+## the tab CELLAR; down the stairs behind the pit door), the beacon on the ceiling over
+## the lanes goes red when it jams. A tab between the hall and the cellar goes through a
 ## dissolve (the rooms are far apart).
+## A click on a lane nobody is on puts you on its approach with a ball (lane_play.gd: you
+## bowl yourself); on a lane being bowled, behind its bowler to watch.
 
 signal request_close
 
@@ -34,6 +36,7 @@ const STATION_HUD = preload("res://scripts/business/station_hud.gd")
 const LEDGER = preload("res://scripts/business/ledger_closeup.gd")
 const KIT = preload("res://scripts/interior_kit.gd")
 const BUSINESS_RT = preload("res://scripts/business/business_runtime.gd")
+const LANE_PLAY = preload("res://scripts/bowling/lane_play.gd")
 const SFX := "res://assets/sfx/bowling/"
 const TIME_DAY: int = 0
 const TIME_NIGHT: int = 2
@@ -93,6 +96,8 @@ var _jam_sound: AudioStreamPlayer
 var _machine_was := "?"
 var _jam_was := ""
 var _flicker_t := 0.0
+## Bowling yourself on a lane (lane_play.gd).
+var _lane_play: CanvasLayer
 
 
 func _ready() -> void:
@@ -125,6 +130,11 @@ func _ready() -> void:
 	_jam_sound = AudioStreamPlayer.new()
 	_jam_sound.volume_db = -9.0
 	add_child(_jam_sound)
+	_lane_play = LANE_PLAY.new()
+	_lane_play.name = "LanePlay"
+	_lane_play.set("host", self)
+	add_child(_lane_play)
+	_lane_play.connect("finished", func() -> void: _go("hall"))
 
 
 func _build_viewport() -> void:
@@ -244,6 +254,7 @@ func open_bowling(p_key: String) -> void:
 func close_bowling() -> void:
 	if not _is_open:
 		return
+	_lane_play.call("stop")
 	var open := _station_open()
 	if open != "":
 		_switching = true
@@ -280,6 +291,10 @@ func _process(delta: float) -> void:
 		_dress_machine()
 	_sync_lanes()
 	_tick_machine(delta)
+	if bool(_lane_play.call("active")):
+		if _exit_hint != null:
+			_exit_hint.modulate.a = 0.0
+		return
 	var open := _station_open()
 	if open != "":
 		_station_frame(open)
@@ -299,6 +314,10 @@ func _process(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if not _is_open:
+		return
+	if bool(_lane_play.call("active")):
+		if bool(_lane_play.call("handle", event)):
+			get_viewport().set_input_as_handled()
 		return
 	var open := _station_open()
 	if open != "":
@@ -328,6 +347,14 @@ func _input(event: InputEvent) -> void:
 			# Behind the pit door: the walkway, or with a machine the stairs down to its cellar.
 			_open_station("cellar" if _bowling.machine_of(key) != "" else "pit_a")
 		elif what.begins_with("lane"):
+			# Nobody on it: yours to bowl; somebody on it: watch them.
+			var li := int(what.substr(4))
+			if str(_bowling.lane(key, li).get("visit", "")) == "" and bool(_lane_play.call("start", li)):
+				_spot = what
+				if _exit_hint != null:
+					_exit_hint.queue_free()
+					_exit_hint = null
+				return
 			_go(what)
 
 
