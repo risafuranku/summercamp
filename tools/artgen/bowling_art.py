@@ -10,8 +10,8 @@ into the game's files.
 - the front's painted string of coloured bulbs also as a glow map (bowling_front_glow.png:
   the bulbs' own colours on black), so they light up at night with the neon
   (scripts/bowling/bowling_sign.gd);
-- bows_desk, bows_bufet, bows_pit, bows_cellar, bows_jams, bows_brnoswick: the stations'
-  sprite sheets cut into their things
+- bows_desk, bows_bufet, bows_bufet2, bows_pit, bows_cellar, bows_jams, bows_brnoswick: the
+  stations' sprite sheets cut into their things
   (assets/textury/bowling/: the rental shoes in two colours, the shoe spray standing and
   lying; the snack bar's hot dog, pickled sausages, crisps, wafer, cola and beer; the pit's
   pin, ball, bell and gloves);
@@ -66,6 +66,9 @@ SHEETS = [
     # The Brnoswick's parts in place of the Stavomat's.
     ("bows_brnoswick", [(B + "brn_gear_big.png", 160), (B + "brn_gear_small.png", 72), (B + "brn_motor.png", 110),
                         (B + "brn_lever.png", 90)]),
+    # The snack bar's counter (bufet_station.gd).
+    ("bows_bufet2", [(B + "steamer.png", 100), (B + "rolls.png", 84), (B + "tap_beer.png", 90), (B + "tap_kofola.png", 84),
+                     (B + "glass_beer.png", 40), (B + "glass_tall.png", 38), (B + "tray.png", 96)]),
 ]
 # The band of the front where the bulbs hang (shares of the face's height, from the top).
 BULB_BAND = 0.2

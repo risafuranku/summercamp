@@ -13774,6 +13774,14 @@ msgstr ""
 msgid "COUNTER"
 msgstr "PULT"
 
+#: scripts/bowling/bowling_layout.gd:79
+msgid "the snack bar"
+msgstr "bufet"
+
+#: scripts/bowling/bowling_layout.gd:79
+msgid "SNACK BAR"
+msgstr "BUFET"
+
 #: scripts/bowling/bowling_layout.gd:69
 msgid "the pit of lanes 1 and 2"
 msgstr "jáma drah 1 a 2"
@@ -13793,6 +13801,10 @@ msgstr "JÁMA 3-4"
 #: scripts/bowling/bowling_layout.gd:81
 msgid "the pinsetter in the cellar"
 msgstr "stavěč ve sklepě"
+
+#: scripts/bowling/bufet_station.gd:42
+msgid "Thanks, mate."
+msgstr "Díky, šéfe."
 
 #: scripts/bowling/cellar_station.gd:205 scripts/bowling/cellar_station.gd:231
 #. uses 2
@@ -13856,6 +13868,42 @@ msgstr "Boty %d"
 #. uses 2
 msgid "Lane %d"
 msgstr "Dráha %d"
+
+#: scripts/bowling/bufet_station.gd:211
+msgid "A hot dog onto the tray"
+msgstr "Párek v rohlíku na tác"
+
+#: scripts/bowling/bufet_station.gd:213
+msgid "An utopenec out of the jar"
+msgstr "Utopence ze sklenice"
+
+#: scripts/bowling/bufet_station.gd:215
+msgid "A bag of crisps"
+msgstr "Sáček brambůrek"
+
+#: scripts/bowling/bufet_station.gd:217
+msgid "A Tatranka"
+msgstr "Jednu Tatranku"
+
+#: scripts/bowling/bufet_station.gd:221
+msgid "Hold to pour a beer"
+msgstr "Podržet a natočit pivo"
+
+#: scripts/bowling/bufet_station.gd:221
+msgid "Hold to pour a Kofola"
+msgstr "Podržet a natočit Kofolu"
+
+#: scripts/bowling/bufet_station.gd:223
+msgid "Take it off the tray"
+msgstr "Sundat z tácu"
+
+#: scripts/bowling/bufet_station.gd:321
+msgid "The shelf has run out of it. Order more in the books."
+msgstr "Došlo to. Objednej víc v knížce."
+
+#: scripts/bowling/bufet_station.gd:394
+msgid "ORDERS %d"
+msgstr "OBJEDNÁVKY %d"
 
 #: scripts/bowling/desk_station.gd:258
 msgid "Wait for a lane"
@@ -17927,6 +17975,18 @@ msgstr "Skóre na obrazovkách nad drahami, jako v cizině."
 #: scripts/bowling/bowling.gd:648
 msgid "%s freed the pinsetter in the cellar."
 msgstr "%s: stavěč ve sklepě zase jede."
+
+#: scripts/bowling/bowling.gd:751
+msgid "Waited at the lane for something from the snack bar. It never came."
+msgstr "Na dráze se čekalo na něco z bufetu. Nepřišlo to."
+
+#: scripts/bowling/bowling.gd:842
+msgid "A cold beer brought over to the lane. That's a bowling alley."
+msgstr "Studené pivo až na dráhu. To je kuželna."
+
+#: scripts/bowling/bowling.gd:842
+msgid "The snack bar got the order wrong."
+msgstr "Bufet spletl objednávku."
 
 #: scripts/bowling/bowling.gd:698
 msgid "The pinsetter has jammed. Every lane is standing."
@@ -22285,6 +22345,18 @@ msgstr "Sud došel pod sklenicí."
 #: scripts/pub/tap_station.gd:491
 msgid "Now that's a beer."
 msgstr "Tak tohle je pivo."
+
+#: scripts/bowling/bufet_station.gd:42
+msgid "About time."
+msgstr "No konečně."
+
+#: scripts/bowling/bufet_station.gd:42
+msgid "That's not what we asked for."
+msgstr "To jsme nechtěli."
+
+#: scripts/bowling/bufet_station.gd:42
+msgid "Half of it is foam."
+msgstr "Půlka je pěna."
 
 #: scripts/pub/tap_station.gd:491
 msgid "Like my grandad poured."

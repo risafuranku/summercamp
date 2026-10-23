@@ -76,6 +76,7 @@ const CELLAR_SIZE := Vector3(7.0, 2.5, 5.0)
 const ENTRY_STATION := "desk"
 const STATIONS := {
 	"desk": {"room": "hall", "label": "the shoe counter", "tab_label": "COUNTER", "icon": "res://assets/textury/bowling/shoes_red.png"},
+	"bufet": {"room": "hall", "label": "the snack bar", "tab_label": "SNACK BAR", "icon": "res://assets/textury/bowling/hotdog.png", "lanes": [0, 1, 2, 3]},
 	"pit_a": {"room": "hall", "label": "the pit of lanes 1 and 2", "tab_label": "PIT 1-2", "icon": "res://assets/textury/bowling/pin.png", "lanes": [0, 1]},
 	"pit_b": {"room": "hall", "label": "the pit of lanes 3 and 4", "tab_label": "PIT 3-4", "icon": "res://assets/textury/bowling/pin.png", "lanes": [2, 3]},
 	"cellar": {"room": "cellar", "label": "the pinsetter in the cellar", "tab_label": "CELLAR", "icon": "res://assets/textury/bowling/gear_small.png"},
@@ -84,6 +85,7 @@ const STATIONS := {
 ## two pin decks of a pair and the pit behind them from the walkway (looking up the lanes).
 const SURFACES := {
 	"desk": {"at": Vector3(-3.55, 1.102, 6.2), "size": Vector2(2.6, 0.72), "yaw": -90.0, "flat": true, "cam_back": 0.95, "cam_up": 1.3, "cam_aim": 0.05, "tex": ""},
+	"bufet": {"at": Vector3(3.6, 1.102, 6.9), "size": Vector2(2.4, 0.72), "yaw": 90.0, "flat": true, "cam_back": 0.9, "cam_up": 1.2, "cam_aim": 0.05, "tex": ""},
 	"pit_a": {"at": Vector3(-1.71, 0.062, -6.3), "size": Vector2(3.4, 1.7), "yaw": 180.0, "flat": true, "cam_back": 1.45, "cam_up": 1.55, "cam_aim": 0.0, "tex": ""},
 	"pit_b": {"at": Vector3(1.71, 0.062, -6.3), "size": Vector2(3.4, 1.7), "yaw": 180.0, "flat": true, "cam_back": 1.45, "cam_up": 1.55, "cam_aim": 0.0, "tex": ""},
 	# In the cellar's own space (its floor's middle): the machine's front on its back wall.
@@ -102,6 +104,11 @@ static func lane_point(i: int, x: float, z: float, y: float = 0.0) -> Vector3:
 ## The bench spot of party member `k` (0-3) behind lane `i`.
 static func bench_spot(i: int, k: int) -> Vector3:
 	return Vector3(float(LANES[i]) + (float(k) - 1.5) * 0.36, 0.0, BENCH_Z + 0.25 + (0.3 if k % 2 == 1 else 0.0))
+
+
+## The top of the little table behind lane `i`'s bench, on the hall's side (its middle).
+static func snack_table(i: int) -> Vector3:
+	return Vector3(float(LANES[i]) + 0.55, 0.58, BENCH_Z + 0.95)
 
 
 ## The spot to watch lane `i` from, behind its bowler.
@@ -209,7 +216,6 @@ static func _front(root: Node3D, out: Dictionary) -> void:
 	# The snack bar on the right: its counter, the steamer and the jars on it, the fridge.
 	KIT.slab(root, Vector3(0.6, 1.05, 2.4), Vector3(3.6, 0.525, 6.9), KIT.surface("counter_steel", 0.8), "BufetFront")
 	KIT.slab(root, Vector3(0.75, 0.05, 2.5), Vector3(3.6, 1.075, 6.9), formica, "BufetTop")
-	KIT.slab(root, Vector3(0.36, 0.3, 0.3), Vector3(3.6, 1.25, 6.2), KIT.surface("steel_brushed", 0.4), "Steamer")
 	KIT.prop(root, "fridge_tall", Vector3(4.6, 0.0, 8.2), -90.0)
 	KIT.prop(root, "bottle_shelf", Vector3(4.85, 0.0, 6.9), -90.0)
 	out["clicks"]["bufet"] = _click_box(root, "bufet", Vector3(1.0, 1.2, 2.6), Vector3(3.6, 0.8, 6.9))
@@ -220,6 +226,10 @@ static func _front(root: Node3D, out: Dictionary) -> void:
 			KIT.prop(root, "chair_wood", t + Vector3(-0.6 if k == 0 else 0.6, 0, 0), 90.0 if k == 0 else -90.0)
 	for i in LANES.size():
 		KIT.prop(root, "bench_slatted", Vector3(float(LANES[i]), 0.0, BENCH_Z + 0.3), 180.0)
+		# A little table behind each bench for what the snack bar brings (lane.gd).
+		var t := snack_table(i)
+		KIT.slab(root, Vector3(0.42, 0.03, 0.42), t - Vector3(0, 0.015, 0), veneer, "SnackTable")
+		KIT.slab(root, Vector3(0.05, t.y - 0.03, 0.05), Vector3(t.x, (t.y - 0.03) * 0.5, t.z), KIT.surface("steel_brushed", 0.4), "SnackTableLeg")
 		out["clicks"]["lane%d" % i] = _click_box(root, "lane%d" % i, Vector3(LANE_W, 0.4, 2.0), Vector3(float(LANES[i]), 0.2, FOUL_Z + 1.0))
 
 

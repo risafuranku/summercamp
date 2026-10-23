@@ -79,6 +79,9 @@ var _sweep: MeshInstance3D
 var _cyc: Dictionary = {}
 var _slate: MeshInstance3D
 var _screens_were := false
+## What the snack bar brought them, standing on the end of their bench.
+var _snacks: Array = []
+var _snacks_were: Array = []
 ## The table and the sweep bar: hidden at rest behind the masking panel (its lower edge),
 ## the table over the pin tops when it takes them, held up, set down on the deck.
 const MASK_EDGE := 1.0
@@ -178,6 +181,8 @@ func reset_view() -> void:
 	_rack_ball.visible = false
 	_ball_at = "rack"
 	_board.show_text("")
+	_snacks_were = []
+	_show_snacks([])
 	for k in 10:
 		_pin_state[k]["spot"] = k
 		_pin_state[k]["where"] = "up"
@@ -192,6 +197,10 @@ func sync(rec: Dictionary, figs: Array) -> void:
 	if screens != _screens_were:
 		_screens_were = screens
 		_dress_board()
+	var sn: Array = rec.get("snacks", [])
+	if sn != _snacks_were:
+		_snacks_were = sn.duplicate()
+		_show_snacks(sn)
 	var visit := str(rec.get("visit", ""))
 	if visit != _visit:
 		_visit = visit
@@ -723,6 +732,32 @@ static func _screen_glass() -> StandardMaterial3D:
 		m.albedo_color = Color(0.05, 0.08, 0.06)
 	_glass = m
 	return m
+
+
+## The beer, the Kofola, the hot dog the snack bar brought, on the little table by the bench.
+func _show_snacks(items: Array) -> void:
+	for s in _snacks:
+		if is_instance_valid(s):
+			(s as Node).queue_free()
+	_snacks.clear()
+	var tex := {"beer": "beer", "kofola": "kofola", "hotdog": "hotdog", "pickled": "pickled", "crisps": "crisps", "tatranka": "wafer"}
+	for k in items.size():
+		var path := "res://assets/textury/bowling/%s.png" % str(tex.get(str(items[k]), items[k]))
+		if not ResourceLoader.exists(path):
+			continue
+		var t: Texture2D = load(path)
+		var s := Sprite3D.new()
+		s.name = "Snack"
+		s.texture = t
+		s.pixel_size = 0.16 / float(maxi(t.get_width(), t.get_height()))
+		s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		s.shaded = true
+		s.offset = Vector2(0, float(t.get_height()) * 0.5)
+		s.position = LAYOUT.snack_table(index) + Vector3(-0.12 + 0.12 * float(k % 3), 0.0, -0.08 + 0.14 * floorf(float(k) / 3.0))
+		add_child(s)
+		_snacks.append(s)
 
 
 # ── the pins, for the pit ────────────────────────────────────────────────────

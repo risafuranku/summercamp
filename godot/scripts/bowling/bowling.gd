@@ -19,6 +19,9 @@ extends Node
 ##            sprayed and shelved ([size])
 ##   machine  the pinsetting machine's jam: {jam ("" running, else what is caught in its
 ##            gears), since, lane}
+##   bufet    the snack bar's orders from the lanes, oldest first: [{id, visit, lane, name,
+##            guest, items: ["beer", "hotdog"...], at}] (bufet_station.gd makes them up; a
+##            lane's record keeps what it was brought, `snacks`, for the bench)
 ## Money: a game and a pair of shoes a head, paid at the counter (actions.biz_sale). Who
 ## sets the pins: by hand, the pinsetter (a hand with the job "pins" on shift), else you in
 ## the pit (pit_station.gd: the deadwood off, the pins on their spots, the ball back);
@@ -28,6 +31,10 @@ extends Node
 ## Stavomat S-12 sets every lane by itself and now and then something gets caught in its
 ## gears and every lane stands until it is freed in the cellar (cellar_station.gd; a hand
 ## on "pins" goes down and does it slowly); the Brnoswick A-2 is quicker and never jams.
+## The snack bar: now and then a party on its lane wants something (KINDS["bowl"] wants:
+## a beer, a Kofola, a hot dog...), of what is on the menu and on the shelf; made up at the
+## bar and taken over, paid with the goods off the books (BUSINESS.sell); left too long they
+## give up on it and grumble. A hand on "bufet" does it for you.
 ## Stepped on its own clock in seconds, like the hall's animations it schedules for.
 ## Co-op: the host simulates (the balls, the hands, the machine, who gives up); what a
 ## warden does at a station is an op (`act`: checkin, set, shelve, unjam) applied at once and
@@ -71,6 +78,16 @@ const MACHINE_JAM := 0.035
 const JAMS := {"pin": 30, "rag": 25, "shoe": 20, "hair": 15, "rat": 10}
 ## A hand on "pins" frees a jam in this many seconds, by their speed.
 const FIX_SEC := [42.0, 30.0, 20.0]
+## The snack bar: how long a party on its lane goes between orders (seconds, about), the
+## bar's patience, what an order can have (the menu's items) and which good each is sold by.
+const BUFET_EVERY := Vector2(50.0, 120.0)
+const BUFET_OK := 20.0
+const BUFET_LATE := 40.0
+const BUFET_GONE := 70.0
+const BUFET_ITEMS := ["beer", "kofola", "hotdog", "crisps", "pickled", "tatranka"]
+const BUFET_GOOD := {"hotdog": "sausage"}
+## The goods' wants (KINDS) as the menu's items.
+const WANT_ITEM := {"sausage": "hotdog"}
 ## The others of a party on the board (the first is the guest's own name): a family's by
 ## their place in it (the father, the boy, the mother, a girl), anyone else's friends.
 const FAMILY_NAMES := [["Dad", "Kuba", "Mum", "Terka"], ["Dad", "Péťa", "Mum", "Áďa"]]
@@ -124,12 +141,12 @@ func _fresh() -> Dictionary:
 	for s in SIZES:
 		shelf[s] = PAIRS_EACH
 	return {"desk": [], "gone": {}, "checked": {}, "lanes": lanes, "grumbled": {}, "shoes": shelf, "back": [],
-		"machine": {"jam": "", "since": 0.0, "lane": -1}}
+		"machine": {"jam": "", "since": 0.0, "lane": -1}, "bufet": [], "next_order": {}, "order_n": 0}
 
 
 func _empty_lane() -> Dictionary:
 	return {"visit": "", "name": "", "members": [], "turn": 0, "standing": RULES._all_up(), "set": "", "ready": 0.0,
-		"wait": 0.0, "seq": 0, "last": {}}
+		"wait": 0.0, "seq": 0, "last": {}, "snacks": []}
 
 
 func now() -> float:
@@ -192,6 +209,7 @@ func _tick(key: String, dt: float) -> void:
 	_watch_visitors(key, s)
 	_hands(key, s, dt)
 	_machine(key, s)
+	_bufet(key, s)
 	for i in LANES:
 		_tick_lane(key, s, i, dt)
 
@@ -205,6 +223,7 @@ func _tick(key: String, dt: float) -> void:
 ##   shelve [index]                 a pair handed back went back on its shelf
 ##   unjam []                       the machine was freed in the cellar
 ##   jam [what, lane]               the machine jammed (the host's)
+##   bufet_done [id, items]         a snack bar order taken over (what was on the tray)
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
 	if Coop.is_active() and Coop.has_method("send_place"):
@@ -235,6 +254,19 @@ func _apply(key: String, op: String, args: Array) -> void:
 		"jam":
 			s["machine"] = {"jam": str(args[0]), "since": _clock, "lane": int(args[1])}
 			_touch(key, "machine")
+		"bufet_done":
+			var orders: Array = s["bufet"]
+			for i in range(orders.size() - 1, -1, -1):
+				var o: Dictionary = orders[i]
+				if str(o["id"]) != str(args[0]):
+					continue
+				orders.remove_at(i)
+				var li := int(o.get("lane", -1))
+				if li >= 0 and li < LANES and str(s["lanes"][li]["visit"]) == str(o["visit"]):
+					var sn: Array = (s["lanes"][li].get("snacks", []) as Array) + (args[1] as Array)
+					s["lanes"][li]["snacks"] = sn.slice(maxi(0, sn.size() - 4))
+					_touch(key, "lane%d" % li)
+			_touch(key, "bufet")
 		"unjam":
 			if str(s["machine"].get("jam", "")) != "":
 				s["machine"] = {"jam": "", "since": _clock, "lane": -1}
@@ -250,7 +282,7 @@ func _apply(key: String, op: String, args: Array) -> void:
 		"snap":
 			var got: Dictionary = args[0]
 			_clock = maxf(_clock, float(got.get("now", _clock)))
-			for k in ["desk", "gone", "checked", "lanes", "shoes", "back", "machine"]:
+			for k in ["desk", "gone", "checked", "lanes", "shoes", "back", "machine", "bufet"]:
 				if got.has(k):
 					s[k] = got[k].duplicate(true)
 			changed.emit(key, "snap")
@@ -269,7 +301,7 @@ func coop_place(key: String, op: String, args: Array) -> void:
 func _snapshot(key: String) -> Dictionary:
 	var s := site(key)
 	return {"now": _clock, "desk": s["desk"], "gone": s["gone"], "checked": s["checked"], "lanes": s["lanes"], "shoes": s["shoes"], "back": s["back"],
-		"machine": s["machine"]}
+		"machine": s["machine"], "bufet": s["bufet"]}
 
 
 # ── the counter ──────────────────────────────────────────────────────────────
@@ -646,6 +678,13 @@ func _hands(key: String, s: Dictionary, dt: float) -> void:
 						busy.erase("fixing")
 						act(key, "unjam", [])
 						_feed("%s freed the pinsetter in the cellar." % first_name(str(p.get("name", ""))))
+			"bufet":
+				# The oldest order made up and taken over, at their own speed.
+				var orders: Array = s["bufet"]
+				if not orders.is_empty():
+					var o: Dictionary = orders[0]
+					serve_bufet(key, str(o["id"]), (o["items"] as Array).duplicate(), 0.75, false)
+					busy[role] = float(BIZ_RULES.SPEED_SEC[speed]) * (0.7 + 0.3 * float((o["items"] as Array).size()))
 	if not jammed(key):
 		busy.erase("fixing")
 	_hand_busy[key] = busy
@@ -654,6 +693,156 @@ func _hands(key: String, s: Dictionary, dt: float) -> void:
 static func first_name(full: String) -> String:
 	var parts := full.split(" ")
 	return parts[0] if parts.size() > 0 else full
+
+
+# ── the snack bar ────────────────────────────────────────────────────────────
+
+## What the bar can make now: on the menu and on the shelf (BIZ_RULES.menu, menu_on).
+func bufet_menu(key: String) -> Array:
+	var out: Array = []
+	var site_rec: Dictionary = BUSINESS.site(key)
+	if site_rec.is_empty():
+		return out
+	var can: Dictionary = BIZ_RULES.menu("bowl", site_rec.get("stock", {}))
+	for item in BUFET_ITEMS:
+		if bool(can.get(item, false)) and BIZ_RULES.menu_on("bowl", site_rec, str(item)):
+			out.append(item)
+	return out
+
+
+## What one of `item` costs (its good's price).
+static func bufet_price(item: String) -> int:
+	var good := str(BUFET_GOOD.get(item, item))
+	return int((BIZ_RULES.goods("bowl").get(good, {}) as Dictionary).get("price", 0))
+
+
+## The goods `items` take off the shelf (RECIPES["bowl"]).
+static func bufet_needs(items: Array) -> Dictionary:
+	var needs := {}
+	var rec: Dictionary = BIZ_RULES.RECIPES.get("bowl", {})
+	for item in items:
+		var r: Dictionary = rec.get(str(item), {str(item): 1})
+		for g in r:
+			needs[g] = int(needs.get(g, 0)) + int(r[g])
+	return needs
+
+
+## The bar's orders, oldest first: {id, visit, lane, name, guest, items, age, left, band}.
+func bufet_tickets(key: String) -> Array:
+	var out: Array = []
+	for o in site(key)["bufet"]:
+		var d: Dictionary = (o as Dictionary).duplicate()
+		var age := _clock - float(o["at"])
+		d["age"] = age
+		d["left"] = 1.0 - clampf(age / BUFET_GONE, 0.0, 1.0)
+		d["band"] = 0 if age < BUFET_OK else (1 if age < BUFET_LATE else 2)
+		out.append(d)
+	return out
+
+
+## The parties on their lanes order now and then; who waited too long gives up on it.
+func _bufet(key: String, s: Dictionary) -> void:
+	var orders: Array = s["bufet"]
+	var next: Dictionary = s["next_order"]
+	for i in range(orders.size() - 1, -1, -1):
+		var o: Dictionary = orders[i]
+		if _clock - float(o["at"]) > BUFET_GONE:
+			orders.remove_at(i)
+			ORDERS.mood(int(o.get("guest", 0)), -3.0, "Waited at the lane for something from the snack bar. It never came.")
+			_touch(key, "bufet")
+	var menu := bufet_menu(key)
+	var by := {}
+	for v in ORDERS.visitors(key):
+		by[str(v["visit"])] = v
+	for li in LANES:
+		var lane: Dictionary = s["lanes"][li]
+		var visit := str(lane["visit"])
+		if visit == "":
+			continue
+		if not next.has(visit):
+			next[visit] = _clock + _rng.randf_range(BUFET_EVERY.x * 0.3, BUFET_EVERY.x)
+			continue
+		if _clock < float(next[visit]):
+			continue
+		next[visit] = _clock + _rng.randf_range(BUFET_EVERY.x, BUFET_EVERY.y)
+		if menu.is_empty():
+			continue
+		var open := false
+		for o in orders:
+			open = open or str(o["visit"]) == visit
+		if open:
+			continue
+		var n := mini(_rng.randi_range(1, 3), maxi(1, (lane["members"] as Array).size()))
+		var items: Array = []
+		for k in n:
+			items.append(_want_of(menu))
+		s["order_n"] = int(s["order_n"]) + 1
+		orders.append({"id": "b%d" % int(s["order_n"]), "visit": visit, "lane": li, "name": str(lane["name"]),
+			"guest": int((by.get(visit, {}) as Dictionary).get("id", 0)), "items": items, "at": _clock})
+		_touch(key, "bufet")
+	for visit in next.keys():
+		var here := false
+		for lane in s["lanes"]:
+			here = here or str(lane["visit"]) == str(visit)
+		if not here:
+			next.erase(visit)
+
+
+## One thing a guest wants of what the bar has (by the place's wants).
+func _want_of(menu: Array) -> String:
+	var wants: Dictionary = BIZ_RULES.info("bowl").get("wants", {})
+	var total := 0.0
+	for g in wants:
+		if menu.has(str(WANT_ITEM.get(g, g))):
+			total += float(wants[g])
+	if total <= 0.0:
+		return str(menu[_rng.randi() % menu.size()])
+	var r := _rng.randf() * total
+	for g in wants:
+		var item := str(WANT_ITEM.get(g, g))
+		if not menu.has(item):
+			continue
+		r -= float(wants[g])
+		if r <= 0.0:
+			return item
+	return str(menu[0])
+
+
+## Order `id` taken over with `built` on the tray (the drinks poured `quality` 0..1): they
+## pay for what they wanted and got, the goods come off the books. Returns {ok, amount,
+## fit, speed, order} or {ok: false, short} when the shelf has not got it.
+func serve_bufet(key: String, id: String, built: Array, quality: float, by_hand: bool) -> Dictionary:
+	var order: Dictionary = {}
+	for o in site(key)["bufet"]:
+		if str(o["id"]) == id:
+			order = o
+	if order.is_empty():
+		return {}
+	var want: Array = (order["items"] as Array).duplicate()
+	var got: Array = []
+	var extra := 0
+	for item in built:
+		var at := want.find(item)
+		if at >= 0:
+			want.remove_at(at)
+			got.append(item)
+		else:
+			extra += 1
+	var fit := clampf((float(got.size()) - 0.5 * float(extra)) / float(maxi(1, (order["items"] as Array).size())), 0.0, 1.0)
+	var price := 0
+	for item in got:
+		price += bufet_price(str(item))
+	var amount := int(round(float(price) * BUSINESS.price_k(key)))
+	if not BUSINESS.sell(key, bufet_needs(built), amount):
+		return {"ok": false, "short": true}
+	var age := _clock - float(order["at"])
+	act(key, "bufet_done", [id, got])
+	var speed := 1.0 - clampf((age - 5.0) / (BUFET_GONE - 5.0), 0.0, 1.0)
+	var pts := BIZ_RULES.score(speed, fit * clampf(quality, 0.0, 1.0))
+	ORDERS.mood(int(order.get("guest", 0)), -2.0 + float(pts) / 100.0 * 5.0, "A cold beer brought over to the lane. That's a bowling alley." if pts >= 70 else "The snack bar got the order wrong.")
+	if CoreRoot != null and CoreRoot.actions != null:
+		CoreRoot.actions.biz_score(key, {"score": pts, "tip": 0, "what": "Snack bar", "who": str(order.get("name", "")), "hand": not by_hand})
+	return {"ok": true, "amount": amount, "fit": fit, "speed": speed, "score": pts, "order": order}
 
 
 # ── the machine ──────────────────────────────────────────────────────────────

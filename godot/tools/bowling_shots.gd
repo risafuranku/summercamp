@@ -37,6 +37,14 @@ func _ready() -> void:
 		["eval", _st("desk") + ".debug_click('cubby:47')"], ["wait", 0.5], ["shot", "b03_desk_wrong"],
 		["eval", _st("desk") + ".debug_click('slot:0')"], ["wait", 0.3],
 		["desk_all"], ["wait", 1.0], ["shot", "b04_desk_empty"], ["n_state"],
+		# The snack bar: an order from a lane, a beer poured to the line, the tray, SERVE.
+		["order_now"], ["wait", 1.0], ["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.5, 0.5))"],
+		["eval", BI + "._switch_station('bufet')"], ["wait", 1.5], ["shot", "b04a_bufet"],
+		["eval", _st("bufet") + ".debug_pour('beer', 0.62)"], ["wait", 0.3], ["shot", "b04b_bufet_pour"],
+		["eval", _st("bufet") + "._finish_pour()"], ["eval", _st("bufet") + "._tray.clear()"],
+		["eval", _st("bufet") + ".debug_make()"], ["wait", 0.4], ["shot", "b04c_bufet_tray"],
+		["eval", _st("bufet") + ".serve_now()"], ["wait", 0.5], ["shot", "b04d_bufet_served"], ["n_state"],
+		["eval", _st("bufet") + ".close_station()"], ["wait", 1.2], ["shot", "b04e_hall_snacks"],
 		["eval", BI + "._switch_station('pit_a')"], ["wait", 1.5], ["shot", "b05_pit"],
 		["until", BW + ".pins_waiting(" + BI + ".key, 0) or " + BW + ".pins_waiting(" + BI + ".key, 1)", 40.0], ["wait", 0.4],
 		["n_state"], ["shot", "b06_pit_waiting"],
@@ -101,7 +109,7 @@ func _bi() -> Node:
 
 
 func _run_step(step: Array) -> void:
-	if not (str(step[0]) in ["n_state", "desk_all", "pit_step", "pit_finish", "gear", "jam"]):
+	if not (str(step[0]) in ["n_state", "desk_all", "pit_step", "pit_finish", "gear", "jam", "order_now"]):
 		super._run_step(step)
 		return
 	var bi = _bi()
@@ -116,6 +124,12 @@ func _run_step(step: Array) -> void:
 		"jam":
 			get_tree().get_first_node_in_group("bowlings").act(str(bi.key), "jam", [str(step[1]), 0])
 			print("BOWL SHOTS: jammed with %s" % step[1])
+		"order_now":
+			# Every party on a lane wants something now.
+			var nxt: Dictionary = get_tree().get_first_node_in_group("bowlings").site(str(bi.key))["next_order"]
+			for lane in get_tree().get_first_node_in_group("bowlings").site(str(bi.key))["lanes"]:
+				if str(lane["visit"]) != "":
+					nxt[str(lane["visit"])] = 0.0
 		"n_state":
 			var bw := get_tree().get_first_node_in_group("bowlings")
 			if bw == null or bi == null:
@@ -125,6 +139,7 @@ func _run_step(step: Array) -> void:
 			print("BOWL SHOTS: desk %s" % [(s["desk"] as Array).map(func(d): return "%s %s" % [d["visit"], d["sizes"]])])
 			print("BOWL SHOTS: checked %s back %s" % [s["checked"].keys(), s["back"]])
 			print("BOWL SHOTS: machine %s %s" % [bw.machine_of(str(bi.key)), s["machine"]])
+			print("BOWL SHOTS: bufet %s" % [(s["bufet"] as Array).map(func(o): return "%s lane%d %s" % [o["id"], int(o["lane"]), o["items"]])])
 			for i in 4:
 				var l: Dictionary = s["lanes"][i]
 				print("BOWL SHOTS: lane%d %s set=%s wait=%.1f seq=%d up=%d" % [i, l["name"], l["set"], float(l["wait"]), int(l["seq"]), (l["standing"] as Array).count(true)])

@@ -42,6 +42,7 @@ const MOVE_SEC := 0.55
 const GUEST_H := 1.72
 const STATION_SCRIPTS := {
 	"desk": "res://scripts/bowling/desk_station.gd",
+	"bufet": "res://scripts/bowling/bufet_station.gd",
 	"pit_a": "res://scripts/bowling/pit_station.gd",
 	"pit_b": "res://scripts/bowling/pit_station.gd",
 	"cellar": "res://scripts/bowling/cellar_station.gd",
@@ -326,7 +327,7 @@ func _input(event: InputEvent) -> void:
 		elif what == "pit":
 			# Behind the pit door: the walkway, or with a machine the stairs down to its cellar.
 			_open_station("cellar" if _bowling.machine_of(key) != "" else "pit_a")
-		elif what.begins_with("lane") or what == "bufet":
+		elif what.begins_with("lane"):
 			_go(what)
 
 
