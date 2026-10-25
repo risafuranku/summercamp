@@ -79,7 +79,7 @@
 - [x] R71 „posuň pozici, kde stojíš v interiéru karavanu, blíž k lednici, ať do ní víc vidíš při otevření“
 - [ ] R72 „při odchodu z karavanu neodcházím do 3D venku, ale do 2D screenu“
 - [x] R73 „vstup do hospody absolutní zásek: nevidím interiér, když vejdu do dveří; nejsem v interiéru hospody, ale rovnou za barem“
-- [ ] R74 „v hospodě je jeden úchylný až sexuální smích, co hraje furt dokola. prosím pryč“
+- [x] R74 „v hospodě je jeden úchylný až sexuální smích, co hraje furt dokola. prosím pryč“
 - [x] R75 „při A a D v hospodě to má být rychlý přesun (stanoviště jsou hned vedle sebe), místo toho dither tranzice a totální otočka“
 - [ ] R76 „účty mají být obdélníkové papírky s čárkami, ne… hermelíny?“
 - [x] R77 „můžu se rozhlížet nahoru, ale už ne dolů“ (pub stations)
