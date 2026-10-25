@@ -222,6 +222,13 @@ var flashlight_drain_boost: float = 0.0
 ## Set by a night thing that makes the torch die in your hand for a moment (girl_brain.gd);
 ## held till it sets it back to 0.
 var flashlight_stutter: float = 0.0
+## The torch dead in your hand till `_torch_dark_until` (game clock, s), then catching
+## again, flickering, till `_torch_back_until` (torch_blackout(): the Silent Man's glasses
+## throw your light back and the bulb goes, playtest 25. 10.). No beam while dark: nothing
+## is lit by it.
+var _torch_dark_until := -1.0
+var _torch_back_until := -1.0
+const TORCH_CLICK := "res://assets/sfx/backroom/lamp_click.mp3"
 var _flashlight_user_chose_off: bool = false
 var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
@@ -704,6 +711,29 @@ func is_flashlight_active() -> bool:
 	return _flashlight_active
 
 
+## The torch goes dead for `seconds`, then catches again over `back` seconds, flickering.
+func torch_blackout(seconds: float, back := 1.1) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now < _torch_back_until:
+		return
+	_torch_dark_until = now + seconds
+	_torch_back_until = _torch_dark_until + back
+	if ResourceLoader.exists(TORCH_CLICK):
+		var p := AudioStreamPlayer.new()
+		p.stream = load(TORCH_CLICK)
+		p.volume_db = -8.0
+		p.pitch_scale = 0.8
+		add_child(p)
+		p.play()
+		p.finished.connect(p.queue_free)
+
+
+## The torch dead in your hand now, or still catching (torch_blackout): it lights nothing
+## for the night's things till it is steady again.
+func torch_dark() -> bool:
+	return Time.get_ticks_msec() / 1000.0 < _torch_back_until
+
+
 ## In a dark room the torch is on whenever you have not switched it off and the cell is
 ## not flat, whatever the hour outside (it is only allowed outdoors from 19:30; a tent
 ## is dark from 18:00).
@@ -1151,7 +1181,7 @@ func _update_flashlight_battery(delta: float) -> void:
 ## Where the beam really points (enemies test against it, not against the eyes):
 ## {origin, dir, range, half_angle} or {} when it is off.
 func get_flashlight_aim() -> Dictionary:
-	if _flashlight == null or not _flashlight_active:
+	if _flashlight == null or not _flashlight_active or torch_dark():
 		return {}
 	return {"origin": _flashlight.global_position, "dir": -_flashlight.global_basis.z, "range": flashlight_range + 2.0, "half_angle": flashlight_angle + 4.0}
 
@@ -1211,6 +1241,15 @@ func _update_flashlight_effect(delta: float) -> void:
 
 	if flashlight_stutter > 0.0:
 		flicker *= 0.04 if fmod(_flashlight_flicker_time * 9.0, 1.0) < 0.85 else 0.4
+	var now := Time.get_ticks_msec() / 1000.0
+	if now < _torch_dark_until:
+		flicker = 0.0
+	elif now < _torch_back_until:
+		# Catching again: off, a stab of light, off, longer on, in steps twelve a second.
+		var k := (now - _torch_dark_until) / maxf(0.01, _torch_back_until - _torch_dark_until)
+		var step := int(now * 12.0)
+		var on := ((step * 7 + 3) % 10) < int(2.0 + k * 8.0)
+		flicker *= (0.3 + 0.7 * k) if on else 0.0
 	_flashlight.light_energy = flashlight_energy * flicker
 	if _flashlight_halo != null:
 		_flashlight_halo.light_energy = flashlight_halo_energy * flicker

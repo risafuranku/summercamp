@@ -26,7 +26,7 @@
 - [x] R18 „pamatuj si přes noc světla, závěsy atd v recepci, i coop. rozsvěcí se furt světla v pokojíku“
 - [x] R19 „když vypadne proud, zpomalit lehce animaci toho jak jde hráč ven z recepce“
 - [x] R20 „při sprintu více camera shake“
-- [ ] R21 „zmenšit Silent Guyovo oči ve tmě. když na něj posvítíš, na 3 s ti vypadne baterka, pak se rozbliká a zapne. víc silent guyů = musíš si vybrat, na koho posvítit; lehce hustý efekt“
+- [x] R21 „zmenšit Silent Guyovo oči ve tmě. když na něj posvítíš, na 3 s ti vypadne baterka, pak se rozbliká a zapne. víc silent guyů = musíš si vybrat, na koho posvítit; lehce hustý efekt“
 - [x] R22 „odstraň stahování/připojování přes beeternet při koupi licence do SoftSkladu, ať to celé probíhá v okně SoftSkladu“
 - [ ] R23 „radio blbne, probliknul ksicht silent guye, a do toho vypadly pojistky. takových ‚náhodných‘ momentů víc, víc šancí na takové sekvence“ (the director: more chances for stacked omens)
 - [x] R24 „z brigády opisování odstraň čísla, nech jen písmena“

@@ -55,6 +55,12 @@ class_name SilentManBrain
 ## over the ceiling or a tap at the glass.
 ## In co-op only the warden he hunts feels any of it; the other's torch drives him off
 ## too (the counter for two: watch each other's backs).
+##
+## Your own torch on him has its price (playtest 25. 10.): his glasses throw the light back
+## and the bulb goes dead in your hand for three seconds, then catches again, flickering
+## (player_controller.torch_blackout). More Quiet Guys turned, more of him (main starts
+## one brain each, up to three): light one and the others come on in the dark while you
+## have none, so you choose whom. Only one of them at your neck at a time.
 
 const FX_TEX := preload("res://scripts/night/fx_tex.gd")
 const N := "res://assets/textury/npc/"
@@ -206,6 +212,13 @@ var _glint_stung := false
 var _phantoms: Array = []
 var _phantom_next := 3.0
 const STARE_CHANCE := 0.5
+## Your torch dead after it drives him off (s), and its flicker back on.
+const TORCH_DARK_SEC := 3.0
+const TORCH_BACK_SEC := 1.1
+## The one of them at your neck now (only one at a time).
+static var _striker: Object = null
+## This one's own name for the night's picture and sound (several of him at once).
+var _fx_key := "silent_man"
 const STARE_DIST := Vector2(9.0, 15.0)
 const STARE_MIN := 5.0
 const GLINT_RANGE := 45.0
@@ -237,6 +250,9 @@ func _on_start() -> void:
 				break
 	_body = _make_body(GUEST, HEIGHT)
 	_make_eyes("silent_man", HEIGHT * 0.92)
+	var nth := int(_night_entry.get("nth", 0)) if _night_entry is Dictionary else 0
+	if nth > 0:
+		_fx_key = "silent_man#%d" % nth
 	_hum = _loop(SFX_HUM, -60.0)
 	_breath = _loop(SFX_BREATH, -60.0)
 	_reset_far(_rng.randf_range(3.0, 6.0))
@@ -581,6 +597,10 @@ func _tick_neck() -> void:
 			_start_catch("turn")
 			return
 		_hits += 1
+		# Another of him has you already: this one goes back into the dark.
+		if _striker != null and _striker != self and is_instance_valid(_striker):
+			_reset_far(_rng.randf_range(3.0, 6.0))
+			return
 		_start_catch()
 
 
@@ -708,7 +728,7 @@ func _update_audio(dt: float) -> void:
 		_breath.volume_db = -60.0 if (d > 4.5 or _elapsed < _resume_at) else lerpf(-2.0, -22.0, d / 4.5)
 	var fx := _fx()
 	if fx != null and _elapsed >= _resume_at:
-		fx.set_dread("silent_man", clampf(1.0 - _dist / START_DIST, 0.0, 1.0) * 0.8)
+		fx.set_dread(_fx_key, clampf(1.0 - _dist / START_DIST, 0.0, 1.0) * 0.8)
 
 
 # ── the light ────────────────────────────────────────────────────────────────
@@ -737,6 +757,10 @@ func _driven_off() -> void:
 	_walk_from = _body.global_position
 	_vanish_at = _elapsed + LIT_SECONDS
 	_player.set("flashlight_stutter", 1.0)
+	# Your own torch did it: his glasses throw it back and the bulb goes (not a lamp's
+	# light, not the other warden's torch).
+	if _in_flashlight(head) and _player.has_method("torch_blackout"):
+		_player.call("torch_blackout", TORCH_DARK_SEC, TORCH_BACK_SEC)
 	_neck_until = -1.0
 	_dissolve_base = _body.texture
 	_puff_ash()
@@ -847,6 +871,7 @@ func _start_catch(forced := "") -> void:
 	else:
 		_last_strike = kind
 	var cam := _camera()
+	_striker = self
 	_seq = {"kind": kind, "t": 0.0, "cues": {}, "kill": kill, "yaw0": _player.rotation.y, "roll0": cam.rotation.z if cam != null else 0.0, "pitch0": cam.rotation.x if cam != null else 0.0}
 	_view_begin()
 	if _player.has_method("set_controls_enabled"):
@@ -950,7 +975,7 @@ func _update_seq(dt: float) -> void:
 			if fx != null:
 				if st < 1.5:
 					fx.close_up(_t(T_HANDS, T_FACE), lerpf(1.9, 1.0, st / 1.5), 1.0, 0.004 + 0.02 * st / 1.5)
-					fx.set_dread("silent_man", 1.0)
+					fx.set_dread(_fx_key, 1.0)
 				elif st < 3.0:
 					fx.close_up(_t(T_FACE), lerpf(1.3, 2.4, (st - 1.5) / 1.5), 1.0, 0.02 * (1.0 - (st - 1.5) / 1.5))
 					fx.set_black(clampf((st - 1.5) / 1.5, 0.0, 0.85))
@@ -1100,6 +1125,8 @@ func _end_seq() -> void:
 	_view_end()
 	var kill: bool = _seq.get("kill", false)
 	_seq = {}
+	if _striker == self:
+		_striker = null
 	var fx := _fx()
 	if fx != null:
 		fx.close_up_off()
@@ -1132,7 +1159,7 @@ func _update_presence(dt: float) -> void:
 	if _neck_until > 0.0:
 		level = 1.0
 	if fx != null:
-		fx.set_presence("silent_man", level)
+		fx.set_presence(_fx_key, level)
 		if level > 0.7 and _neck_until < 0.0:
 			_sub_next -= dt
 			if _sub_next <= 0.0:
@@ -1231,7 +1258,7 @@ func _update_hold() -> void:
 	var k := clampf(1.0 - (_neck_until - _elapsed) / maxf(0.1, _grace), 0.0, 1.0)
 	var st := floorf(k * 8.0) / 8.0
 	fx.close_up(_t(T_HANDS, T_FACE), lerpf(0.75, 1.0, st), 1.0, 0.003 + 0.006 * st, -0.35 * _hold_side, Vector2(_hold_side * lerpf(0.62, 0.34, st), lerpf(0.5, 0.28, st)))
-	fx.set_dread("silent_man", 1.0)
+	fx.set_dread(_fx_key, 1.0)
 
 
 func _end_hold() -> void:
@@ -1302,7 +1329,7 @@ func _update_reveal(dt: float) -> void:
 	var head := _body.global_position + Vector3(0, HEIGHT * 0.86, 0)
 	var fx := _fx()
 	if fx != null:
-		fx.set_presence("silent_man", 0.45)
+		fx.set_presence(_fx_key, 0.45)
 	if _is_seen(head, 2.0):
 		_reveal_seen += dt
 		if _reveal_seen >= 0.55:

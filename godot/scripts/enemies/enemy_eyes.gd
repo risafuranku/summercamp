@@ -28,8 +28,9 @@ const STYLES := {
 	"girl": {"near": "eye_dot", "mid": "eye_dot", "far": "eye_dot", "near_m": 99.0, "mid_m": 99.0,
 		"size": 0.025, "gap": 0.035, "color": Color(0.88, 0.87, 0.8), "blink": 5.0, "blink_len": 0.22,
 		"flare_color": Color(1.0, 1.0, 0.96)},
+	# (Smaller from 25. 10.: "make the Silent Guy's eyes in the dark smaller".)
 	"silent_man": {"near": "eye_ring5", "mid": "eye_ring3", "far": "eye_dot2", "near_m": 9.0, "mid_m": 22.0,
-		"size": 0.075, "gap": 0.072, "color": Color(0.96, 0.76, 0.22), "blink": 0.0, "glint": 4.0,
+		"size": 0.045, "gap": 0.052, "color": Color(0.96, 0.76, 0.22), "blink": 0.0, "glint": 4.0,
 		"flare_color": Color(1.0, 0.97, 0.82)},
 	# The Basket Man: two wet red points deep in the hood, close together, swinging slowly
 	# side to side over the ground; it is looking for something that moves.

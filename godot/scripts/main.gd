@@ -1899,6 +1899,16 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		var turned := entry.duplicate()
 		turned["guest"] = _pick_turned_guest(str(entry.get("archetype", "")))
 		_start_enemy_brain(script, night_index, difficulty, turned)
+		# More Quiet Guys turned, more Silent Men (playtest 25. 10.: "more of them = you have
+		# to choose whom to light"), each one of them, up to three.
+		if script == SILENT_MAN_BRAIN_SCRIPT and spawned >= 2:
+			var taken: Array = [int((turned["guest"] as Dictionary).get("id", -1))]
+			for nth in range(1, mini(spawned, SILENT_MEN_MAX)):
+				var more := entry.duplicate()
+				more["nth"] = nth
+				more["guest"] = _pick_turned_guest(str(entry.get("archetype", "")), taken)
+				taken.append(int((more["guest"] as Dictionary).get("id", -1)))
+				_start_enemy_brain(script, night_index, difficulty, more)
 		total_spawned += spawned
 		kinds += 1
 	if _antlered_comes(kinds):
@@ -1910,6 +1920,8 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 
 ## The boss night: three kinds turned at once, or a camp this full.
 const ANTLERED_GUESTS := 16
+## Silent Men at once at most (one for each Quiet Guy turned).
+const SILENT_MEN_MAX := 3
 
 
 func _antlered_comes(kinds_turned: int) -> bool:
@@ -1924,10 +1936,12 @@ func _antlered_comes(kinds_turned: int) -> bool:
 
 ## The guest of `archetype` who turns tonight: one of them in the camp, by chance
 ## ({id, name}; empty when none is there, as in a debug spawn).
-func _pick_turned_guest(archetype: String) -> Dictionary:
+func _pick_turned_guest(archetype: String, not_these: Array = []) -> Dictionary:
 	var pool: Array = []
 	for g in CoreRoot.get_state().guests:
-		if g is Dictionary and str((g as Dictionary).get("archetype", "")) == archetype and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
+		if not (g is Dictionary) or not_these.has(int((g as Dictionary).get("id", -1))):
+			continue
+		if str((g as Dictionary).get("archetype", "")) == archetype and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
 			pool.append(g)
 	if pool.is_empty():
 		return {}
@@ -2697,7 +2711,12 @@ func debug_spawn_enemy(enemy_id: String, difficulty: int = 3) -> void:
 	var scripts := {"silent_man": SILENT_MAN_BRAIN_SCRIPT, "tourist": TOURIST_BRAIN_SCRIPT, "girl": GIRL_BRAIN_SCRIPT, "stalker": STALKER_BRAIN_SCRIPT,
 		"whistler": ENEMY_FOR_ARCHETYPE["tramp"], "child": ENEMY_FOR_ARCHETYPE["family"], "basket": ENEMY_FOR_ARCHETYPE["picker"]}
 	if scripts.has(enemy_id):
-		_start_enemy_brain(scripts[enemy_id], _day_index, difficulty, {})
+		# A second of the same (the Silent Men): its own name for the night's picture.
+		var nth := 0
+		for b in _enemy_brains:
+			if b != null and b.has_method("get_enemy_id") and str(b.get_enemy_id()) == enemy_id:
+				nth += 1
+		_start_enemy_brain(scripts[enemy_id], _day_index, difficulty, {"nth": nth} if nth > 0 else {})
 
 
 func _tick_active_enemy_brain(delta: float) -> void:

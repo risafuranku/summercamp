@@ -351,6 +351,8 @@ func _lamp_light_at(p: Vector3) -> float:
 
 
 func _flashlight_on() -> bool:
+	if _player != null and _player.has_method("torch_dark") and bool(_player.call("torch_dark")):
+		return false
 	return _player != null and _player.has_method("is_flashlight_active") and bool(_player.call("is_flashlight_active"))
 
 
