@@ -1439,7 +1439,7 @@ func _draw_minimap(cv: Control) -> void:
 		return
 	var dims := Vector2(_mini_tex.get_width(), _mini_tex.get_height())
 	var sz := dims * MINI_CELL
-	_mini_rect = Rect2(Vector2(size.x - sz.x - 12.0, 12.0).floor(), sz)
+	_mini_rect = Rect2(Vector2(size.x - sz.x - 12.0, 12.0 + panel.top_cover).floor(), sz)
 	var frame := _mini_rect.grow(5.0)
 	cv.draw_style_box(T.box("window", T.FACE, Vector4.ZERO), frame)
 	cv.draw_style_box(T.box("well", Color(0, 0, 0), Vector4.ZERO), _mini_rect.grow(1.0))

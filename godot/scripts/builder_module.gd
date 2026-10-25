@@ -267,6 +267,8 @@ func _build_ui() -> void:
 	_map_panel.guest_clicked.connect(_on_guest_clicked)
 	_map3d = MAP3D_SCRIPT.new()
 	_map_panel.add_child(_map3d)
+	# The catalogue lies over the map (after it, so it is drawn and clicked on top).
+	move_child(_catalogue, _map_panel.get_index())
 	_map_panel.map3d = _map3d
 	_map3d.left_3d.connect(func(): _grip.queue_redraw())
 	if EventBus.has_signal("BuildConfirmed"):
@@ -301,13 +303,17 @@ func _layout() -> void:
 	y += TOOLBAR_H
 	_catalogue.visible = not _active_cat.is_empty()
 	if _catalogue.visible:
-		# It slides open in a few steps (the map moves down with it).
+		# It slides open in a few steps down over the map's top, the map staying where it
+		# is (playtest 25. 10.: the map jumped down and back with every catalogue).
 		var hh := floorf(CATALOGUE_H * (ceilf(_cat_open * 4.0) / 4.0))
 		_catalogue.position = Vector2(0, y)
 		_catalogue.size = Vector2(size.x, hh)
 		_catalogue.clip_contents = true
-		y += hh
 	var well: Control = get_node("MapWell")
+	var cover := _catalogue.size.y if _catalogue.visible else 0.0
+	if _map_panel.top_cover != cover:
+		_map_panel.top_cover = cover
+		_map_panel.queue_redraw()
 	well.position = Vector2(0, y)
 	well.size = Vector2(size.x, size.y - y - 20 - TICKER_H)
 	if _ticker != null:

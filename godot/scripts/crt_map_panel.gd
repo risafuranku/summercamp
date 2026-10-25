@@ -485,6 +485,9 @@ var wasd := false
 var _guest_minis: Dictionary = {}
 var _mini_tex: ImageTexture
 var _mini_rect := Rect2()
+## How much of the panel's top the Builder's open catalogue lies over (the minimap goes
+## down under it).
+var top_cover := 0.0
 const MINI_PX := 3.0
 const MINI_COLORS := {
 	"grass": Color(0.30, 0.42, 0.20), "lake": Color(0.16, 0.34, 0.52), "reserved": Color(0.55, 0.46, 0.30),
@@ -2054,8 +2057,8 @@ func _mini_xform() -> Transform2D:
 	var dims := Vector2(_mini_img.get_width(), _mini_img.get_height()) if _mini_img != null else Vector2(28, 28)
 	var w := (dims.x + dims.y) * MINI_PX
 	var h := w * 0.5
-	var top := Vector2(size.x - w - 10.0 + dims.y * MINI_PX, 10.0)
-	_mini_rect = Rect2(Vector2(size.x - w - 10.0, 10.0), Vector2(w, h))
+	var top := Vector2(size.x - w - 10.0 + dims.y * MINI_PX, 10.0 + top_cover)
+	_mini_rect = Rect2(Vector2(size.x - w - 10.0, 10.0 + top_cover), Vector2(w, h))
 	return Transform2D(Vector2(MINI_PX, MINI_PX * 0.5), Vector2(-MINI_PX, MINI_PX * 0.5), top)
 
 

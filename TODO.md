@@ -43,7 +43,7 @@
 - [ ] R35 „otexturovat závoru, možnost změnit název kempu klávesou E na ceduli před kempem“
 - [x] R36 „na recepci mezi telefonem a deskami leží bílý čtverec, vždy na něj kliknu omylem“
 - [x] R37 „na stanici 2 counter u kukuřice zmizí HUD uvařenosti kukuřic, na trojce taky“
-- [ ] R38 „velký cumulative layout shift při otevírání stavebních toolbarů v Builderu“
+- [x] R38 „velký cumulative layout shift při otevírání stavebních toolbarů v Builderu“
 - [x] R39 „neuklizený nebo neustlaný stan, chatku atd. ukazuj jako notifikaci s ikonou vpravo“
 - [ ] R40 „animace odemknutí nových věcí v Builderu a pár náhledů těch nejlepších, ať hráč ví, že dosáhl achievementu“
 - [ ] R41 „recepce nedává smysl perspektivně: okno pokojíčku a pokojíček nesedí s interiérem, je to malé, vzniká phantom prostor“
