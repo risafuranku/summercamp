@@ -36,13 +36,19 @@ const STATE_MINUTES := {
 ## Base weights of the next state. Staying put is handled by the duration roll.
 const TRANSITIONS := {
 	WEATHER_CLEAR: {WEATHER_WINDY: 42.0, WEATHER_FOG: 16.0, WEATHER_LIGHT_RAIN: 24.0},
-	WEATHER_WINDY: {WEATHER_CLEAR: 45.0, WEATHER_LIGHT_RAIN: 35.0, WEATHER_RAIN: 10.0, WEATHER_FOG: 10.0},
+	WEATHER_WINDY: {WEATHER_CLEAR: 45.0, WEATHER_LIGHT_RAIN: 35.0, WEATHER_RAIN: 10.0, WEATHER_FOG: 10.0, WEATHER_STORM: 8.0},
 	WEATHER_FOG: {WEATHER_CLEAR: 60.0, WEATHER_LIGHT_RAIN: 25.0, WEATHER_WINDY: 15.0},
 	WEATHER_LIGHT_RAIN: {WEATHER_CLEAR: 35.0, WEATHER_RAIN: 40.0, WEATHER_WINDY: 15.0, WEATHER_FOG: 10.0},
 	WEATHER_RAIN: {WEATHER_LIGHT_RAIN: 55.0, WEATHER_STORM: 30.0, WEATHER_CLEAR: 15.0},
 	WEATHER_STORM: {WEATHER_RAIN: 75.0, WEATHER_LIGHT_RAIN: 25.0},
 	WEATHER_EVENT: {WEATHER_FOG: 60.0, WEATHER_CLEAR: 40.0},
 }
+
+## The storm coming (playtest 25. 10.: "before the storm the weather, the light, the
+## sound and the feel: a dark cloud, the damp, the wind rising, a little dark"): the next
+## state is rolled this many minutes before the current one ends, and when it is the storm
+## storm_build() rises 0..1 over them for the sky, the wind and the far thunder.
+const PRE_STORM_MINUTES := 80.0
 
 const ANOMALY_NIGHT_START := 21.0
 const ANOMALY_NIGHT_END := 4.5
@@ -54,6 +60,8 @@ const ANOMALY_COOLDOWN_MINUTES := 1440.0
 ## The campaign day (core/systems/season.gd): the autumn leans the odds.
 var season_day: int = 1
 var current_weather: int = WEATHER_CLEAR
+## The state after this one once it is rolled (PRE_STORM_MINUTES before the end), else -1.
+var upcoming: int = -1
 var auto_cycle_enabled: bool = false
 var _state_minutes: float = 0.0
 var _target_minutes: float = 300.0
@@ -78,6 +86,8 @@ func process(delta: float, hour: float = -1.0) -> void:
 		return
 	_anomaly_cooldown = maxf(0.0, _anomaly_cooldown - delta)
 	_state_minutes += delta
+	if upcoming < 0 and _target_minutes - _state_minutes <= PRE_STORM_MINUTES:
+		upcoming = _pick_ordinary(current_weather)
 	if _state_minutes >= _target_minutes:
 		_transition_weather()
 
@@ -92,15 +102,19 @@ func set_seed(value: int) -> void:
 
 
 func _transition_weather() -> void:
-	var next := _pick_next(current_weather)
+	# The anomaly is rolled at the change itself (its hours are the night's).
+	var next := WEATHER_EVENT if _anomaly_now(current_weather) else (upcoming if upcoming >= 0 else _pick_ordinary(current_weather))
 	_enter(next)
 
 
-func _pick_next(from_state: int) -> int:
+func _anomaly_now(from_state: int) -> bool:
 	if from_state != WEATHER_EVENT and _is_anomaly_hour() and _anomaly_cooldown <= 0.0:
 		var chance := minf(ANOMALY_MAX_CHANCE, ANOMALY_BASE_CHANCE + _anomaly_pressure * ANOMALY_PRESSURE_CHANCE)
-		if _rng.randf() < chance:
-			return WEATHER_EVENT
+		return _rng.randf() < chance
+	return false
+
+
+func _pick_ordinary(from_state: int) -> int:
 	var weights: Dictionary = (TRANSITIONS.get(from_state, {WEATHER_CLEAR: 1.0}) as Dictionary).duplicate()
 	if weights.has(WEATHER_FOG) and _is_hour_between(3.0, 8.5):
 		weights[WEATHER_FOG] = float(weights[WEATHER_FOG]) * 3.0
@@ -123,6 +137,7 @@ func _pick_next(from_state: int) -> int:
 
 
 func _enter(state: int) -> void:
+	upcoming = -1
 	current_weather = clampi(state, 0, WEATHER_STATE_COUNT - 1)
 	_state_minutes = 0.0
 	_target_minutes = _roll_minutes(current_weather)
@@ -150,6 +165,21 @@ func set_weather(weather_type: int) -> void:
 
 func set_auto_cycle_enabled(enabled: bool) -> void:
 	auto_cycle_enabled = enabled
+
+
+## 0..1, the storm on its way (the last PRE_STORM_MINUTES before it breaks), else 0.
+func storm_build() -> float:
+	if upcoming != WEATHER_STORM or current_weather == WEATHER_STORM:
+		return 0.0
+	var span := minf(PRE_STORM_MINUTES, _target_minutes)
+	return clampf(1.0 - (_target_minutes - _state_minutes) / maxf(1.0, span), 0.0, 1.0)
+
+
+## Shot driver: the storm `minutes` away (it breaks then, unless forced otherwise).
+func debug_storm_in(minutes: float) -> void:
+	upcoming = WEATHER_STORM
+	_state_minutes = maxf(_state_minutes, PRE_STORM_MINUTES)
+	_target_minutes = _state_minutes + minutes
 
 
 ## Minutes left in the current state (for the forecast line in Camp Status).

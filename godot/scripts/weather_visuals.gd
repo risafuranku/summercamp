@@ -230,6 +230,26 @@ const SPLASH_TEX := "res://assets/textury/world/rain_splash.png"
 const BOLT_TEX := "res://assets/textury/world/lightning_bolt.png"
 ## The campaign day (core/systems/season.gd): the autumn shifts the light.
 var season_day := 1
+## The storm on its way, 0..1 (main: weather_system.storm_build(), the host's in co-op):
+## the light goes heavy and a little yellow, a damp haze, the storm's sky and its cloud
+## come over, the wind rises, far thunder (audio_manager) before it breaks.
+var storm_build := 0.0
+## How dark the storm's sky has come in, eased (the pre-storm sky shows from 0.35).
+const PRE_STORM_SKY_FROM := 0.35
+var _cloud_deck: Node
+
+
+## Shot driver: the weather's look at once (its blend, sky, clouds), not over a minute.
+func debug_settle() -> void:
+	set_cloud_targets_from_weather()
+	_cloud_density_current = _cloud_density_target
+	_cloud_alpha_current = _cloud_alpha_target
+	_cloud_speed_current = _cloud_speed_target
+	_wind_base = 1.6 if _weather_state == WEATHER_STORM else _wind_base
+	_weather_blend_t = 1.0
+	apply_weather_profile(true)
+	if _cloud_deck != null and is_instance_valid(_cloud_deck):
+		_cloud_deck.call("settle")
 ## Extra fog on top of the weather's (the lake at night, scripts/lake/night_row.gd).
 var fog_boost := 0.0
 ## More while you are inside a bank of fog (scripts/ambient/fog_walk.gd sets it).
@@ -386,8 +406,9 @@ func setup_weather_particles() -> void:
 		_rain_splash = _world_3d.get_node_or_null("RainSplashes")
 		_bolt = _world_3d.get_node_or_null("LightningBolt")
 		return
-	_rain_particles = _rain_layer("RainParticles", 6000, Vector3(12.0, 8.0, 12.0), 0.04, 1.0, 1.1, 1.2, 3.5)
-	_rain_far = _rain_layer("RainFar", 3000, Vector3(34.0, 12.0, 34.0), 0.16, 2.2, 1.5, 10.0, 18.0)
+	# (More of it from 25. 10.: the rain was thin; each weather takes its share.)
+	_rain_particles = _rain_layer("RainParticles", 10000, Vector3(12.0, 8.0, 12.0), 0.04, 1.0, 1.1, 1.2, 3.5)
+	_rain_far = _rain_layer("RainFar", 5000, Vector3(34.0, 12.0, 34.0), 0.16, 2.2, 1.5, 10.0, 18.0)
 	# The drops hitting the ground round you: a crown that grows and is gone.
 	_rain_splash = GPUParticles3D.new()
 	_rain_splash.name = "RainSplashes"
@@ -477,6 +498,7 @@ func setup_weather_particles() -> void:
 	var cl = load("res://scripts/ambient/cloud_layers.gd").new()
 	cl.visuals = self
 	_world_3d.add_child(cl)
+	_cloud_deck = cl
 	# What the wind carries in its gusts, and the gusts' sound
 	# (scripts/ambient/wind_things.gd).
 	var wt = load("res://scripts/ambient/wind_things.gd").new()
@@ -712,7 +734,7 @@ const GUSTS := {
 	WEATHER_WINDY: [2.5, 8.0, 0.5, 1.0, 0.75],
 	WEATHER_LIGHT_RAIN: [7.0, 16.0, 0.25, 0.55, 0.4],
 	WEATHER_RAIN: [4.0, 11.0, 0.35, 0.75, 0.55],
-	WEATHER_STORM: [1.2, 4.5, 0.6, 1.0, 0.9],
+	WEATHER_STORM: [0.8, 3.5, 0.7, 1.0, 1.1],
 }
 var _gust_t := -1.0
 var _gust_len := 4.0
@@ -732,11 +754,21 @@ func _update_wind(delta: float) -> void:
 		WEATHER_FOG: target = 0.04
 		WEATHER_LIGHT_RAIN: target = 0.3
 		WEATHER_RAIN: target = 0.5
-		WEATHER_STORM: target = 1.35
+		WEATHER_STORM: target = 1.6
 		WEATHER_EVENT: target = 0.0
+	# The wind rising before the storm: still at first (the calm before it), then in gusts.
+	var b := storm_build if _weather_state != WEATHER_STORM and _weather_state != WEATHER_EVENT else 0.0
+	if b > 0.0:
+		target = lerpf(minf(target, 0.08), 1.05, smoothstep(0.3, 1.0, b))
 	_wind_base = move_toward(_wind_base, target, delta * 0.25)
 	# The gusts.
 	var g: Array = GUSTS.get(_weather_state, [])
+	if b > 0.3:
+		var gs: Array = GUSTS[WEATHER_STORM]
+		var k := smoothstep(0.3, 1.0, b)
+		g = [lerpf(float(g[0]) if not g.is_empty() else 12.0, float(gs[0]), k), lerpf(float(g[1]) if not g.is_empty() else 24.0, float(gs[1]), k),
+			lerpf(float(g[2]) if not g.is_empty() else 0.2, float(gs[2]), k), lerpf(float(g[3]) if not g.is_empty() else 0.4, float(gs[3]), k),
+			lerpf(float(g[4]) if not g.is_empty() else 0.3, float(gs[4]), k)]
 	if _gust_t >= 0.0:
 		_gust_t += delta
 		if _gust_t >= _gust_len:
@@ -792,6 +824,8 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	var w := target
 	if _weather_blend_t < 1.0:
 		w = _lerp_weather_params(_weather_blend_from, target, smoothstep(0.0, 1.0, _weather_blend_t))
+	if storm_build > 0.0 and _weather_state != WEATHER_STORM and _weather_state != WEATHER_EVENT:
+		w = _lerp_weather_params(w, _pre_storm_params(w, night), smoothstep(0.0, 1.0, storm_build))
 	_weather_blend_now = w
 
 	var fog_enabled: bool = _base_fog_enabled or float(w["fog_mix"]) > 0.001
@@ -892,6 +926,25 @@ func _weather_params(state: int, night: bool) -> Dictionary:
 	return p
 
 
+## The hour before the storm, from what the weather is now: the light heavy and dull with
+## a sick yellow in it, a damp haze over the land, the sky darker than the rain's.
+func _pre_storm_params(w: Dictionary, night: bool) -> Dictionary:
+	var p := w.duplicate()
+	p["fog_mix"] = 1.0
+	p["fog_density"] = maxf(float(w["fog_density"]), 0.014)
+	p["fog_sky_affect"] = maxf(float(w["fog_sky_affect"]), 0.26)
+	p["fog_color"] = (w["fog_color"] as Color).lerp(Color(0.40, 0.39, 0.33), 0.6)
+	p["sun"] = minf(float(w["sun"]), 0.40 * (0.6 if night else 1.0))
+	p["ambient"] = minf(float(w["ambient"]), 0.58 * (0.6 if night else 1.0))
+	p["desat"] = maxf(float(w["desat"]), 0.42)
+	p["dark"] = maxf(float(w["dark"]), 0.62 if not night else 0.85)
+	p["grain"] = maxf(float(w["grain"]), 0.004)
+	p["vignette"] = maxf(float(w["vignette"]), 0.03)
+	p["tint"] = Color(0.36, 0.35, 0.18, 1.0)
+	p["tint_mix"] = maxf(float(w["tint_mix"]), 0.0 if night else 0.14)
+	return p
+
+
 func _lerp_weather_params(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
 	var out := {}
 	for key in b.keys():
@@ -918,6 +971,12 @@ func set_cloud_targets_from_weather() -> void:
 			_cloud_density_target = 1.00; _cloud_alpha_target = 0.86; _cloud_speed_target = 0.82
 		_:
 			_cloud_density_target = 0.20; _cloud_alpha_target = 0.22; _cloud_speed_target = 0.22
+	# The storm's cloud coming over before it breaks.
+	if storm_build > 0.0 and _weather_state != WEATHER_STORM:
+		var b := smoothstep(0.0, 0.85, storm_build)
+		_cloud_density_target = lerpf(_cloud_density_target, 1.0, b)
+		_cloud_alpha_target = lerpf(_cloud_alpha_target, 0.86, b)
+		_cloud_speed_target = lerpf(_cloud_speed_target, 0.82, b)
 
 
 ## Vrací faktor 0..1 jak moc je vidět denní světlo (pro interiory).
@@ -1461,11 +1520,17 @@ func _weather_sky_path() -> String:
 	# Snow comes out of a flat white sky.
 	if _weather_state == WEATHER_FOG or (wet and Season.precip_is_snow(season_day, _time_of_day_hours)):
 		return _sky_path(SKY_TEX_FOG_PATHS)
+	if _storm_sky():
+		return _sky_path(SKY_TEX_STORM_PATHS)
 	match _weather_state:
 		WEATHER_LIGHT_RAIN: return _sky_path(SKY_TEX_LIGHT_RAIN_PATHS)
 		WEATHER_RAIN: return _sky_path(SKY_TEX_RAIN_PATHS)
-		WEATHER_STORM: return _sky_path(SKY_TEX_STORM_PATHS)
 	return ""
+
+
+## The storm's sky: in it, and over the last of the hour before it.
+func _storm_sky() -> bool:
+	return _weather_state == WEATHER_STORM or (storm_build >= PRE_STORM_SKY_FROM and _weather_state != WEATHER_EVENT)
 
 
 ## The sky for this hour and weather: two panoramas and how far from the first to the
@@ -1579,12 +1644,12 @@ func _apply_weather_skybox(force: bool = false) -> void:
 		_sky_fade = 1.0
 		_sky_from = []
 		_moon_weather_vis = _moon_weather_target()
-	elif _sky_weather != _weather_state:
+	elif _sky_weather != _weather_state * 10 + int(_storm_sky()):
 		# Changed again while still fading: carry on from whichever was more on screen.
 		if _sky_fade >= 0.5 or _sky_from.is_empty():
 			_sky_from = _sky_now.duplicate()
 		_sky_fade = 0.0
-	_sky_weather = _weather_state
+	_sky_weather = _weather_state * 10 + int(_storm_sky())
 	_sky_now = pair
 	_push_sky()
 
@@ -1842,8 +1907,10 @@ func _cloud_tint_for_time_weather() -> Color:
 		WEATHER_WINDY: dark_mix = 0.10
 		WEATHER_FOG: dark_mix = 0.16
 		WEATHER_LIGHT_RAIN: dark_mix = 0.26
-		WEATHER_RAIN: dark_mix = 0.48
-		WEATHER_STORM: dark_mix = 0.58
+		WEATHER_RAIN: dark_mix = 0.50
+		WEATHER_STORM: dark_mix = 0.68
+	if _weather_state != WEATHER_EVENT:
+		dark_mix = maxf(dark_mix, 0.68 * smoothstep(0.1, 0.9, storm_build))
 	return time_tint.lerp(Color(0.24, 0.27, 0.32), dark_mix)
 
 
@@ -1937,17 +2004,18 @@ func _update_weather_particles(_delta: float) -> void:
 	# How much of it, how fast, how long the drops, how clear: a drizzle (fine short drops
 	# drifting down slowly: at full length and slow they stood in the grass like sticks),
 	# rain, a storm that comes in gusts (sheets of it, then less).
-	var intensity := 0.55
+	var intensity := 0.4
 	var rain_speed := 7.0
 	var alpha := 0.26
 	var drop := 0.38
+	# (Playtest 25. 10.: "the rain more intense; the storm really intense".)
 	if _weather_state == WEATHER_RAIN:
-		intensity = 0.7; rain_speed = 22.0; alpha = 0.44; drop = 1.0
+		intensity = 0.75; rain_speed = 24.0; alpha = 0.52; drop = 1.1
 	elif _weather_state == WEATHER_STORM:
 		# The sheets come with the wind's gusts (_update_wind), a slow swell under them.
 		var swell := maxf(0.0, sin(_sky_anim_time * 0.7) * sin(_sky_anim_time * 0.23 + 1.0))
-		var gust := maxf(wind_gust, swell * 0.5)
-		intensity = 0.72 + 0.28 * gust; rain_speed = 28.0 + 6.0 * gust; alpha = 0.5; drop = 1.15
+		var gust := maxf(wind_gust, swell * 0.6)
+		intensity = 0.8 + 0.2 * gust; rain_speed = 30.0 + 8.0 * gust; alpha = 0.6; drop = 1.3
 
 	var daylight = clampf(compute_daylight_factor(), 0.0, 1.0)
 	# Grey water, as grey as the wet fog (both a little blue, the palette made it blue); in

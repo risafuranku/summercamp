@@ -1254,7 +1254,12 @@ func _process(delta: float) -> void:
 	_sync_season()
 	if sim:
 		_tick_blueprint_guests(delta)
+	# The storm on its way (the host's, in co-op): the sky, the wind and the far thunder.
+	var build: float = (weather_system.storm_build() if weather_system != null and camp_rule("weather") else 0.0) if sim else _coop_storm_build
+	if _audio_manager != null:
+		_audio_manager.set("storm_build", 0.0 if is_snowing() else build)
 	if _weather_visuals != null:
+		_weather_visuals.storm_build = build
 		_weather_visuals.update_state(_time_state, _time_of_day_hours, _weather_state)
 		_weather_visuals.update_frame(delta)
 
@@ -4643,6 +4648,8 @@ func camp_rule(id: String) -> bool:
 	return bool(_camp_rules.get(id, true))
 ## The other warden's machine: whether the host's camp has power (its lamps follow).
 var _coop_powered := true
+## The host's storm on its way (coop_clock "sb"), 0..1.
+var _coop_storm_build := 0.0
 var _coop_wired := false
 
 
@@ -5752,6 +5759,9 @@ func coop_clock() -> Dictionary:
 	var state = CoreRoot.get_state()
 	var night_passing: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.is_fast_forwarding()
 	var c := {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing, "mq": _coop_till_acked}
+	var build: float = weather_system.storm_build() if weather_system != null else 0.0
+	if build > 0.0:
+		c["sb"] = snappedf(build, 0.01)
 	if _coop_night != null:
 		c["sn"] = _coop_night.sanity_by_peer()
 	return c
@@ -5775,6 +5785,7 @@ func coop_apply_clock(c: Dictionary) -> void:
 	var w := int(c.get("w", _weather_state))
 	if weather_system != null and w != _weather_state:
 		weather_system.set_weather(w)
+	_coop_storm_build = float(c.get("sb", 0.0))
 	var pw := bool(c.get("pw", true))
 	if pw != _coop_powered:
 		_coop_powered = pw

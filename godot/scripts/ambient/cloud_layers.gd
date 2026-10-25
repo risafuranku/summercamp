@@ -20,6 +20,8 @@ extends Node3D
 ## it from inside, now at a bolt, now deep in the cloud with no bolt at all, flickering;
 ## the scud races lower. The rain has a little of it.
 ## Made by weather_visuals.gd (setup_weather_particles), which it reads.
+##
+## Shot driver: settle() puts the deck where the weather has it now, at once.
 
 const DECK_SHADER := preload("res://materials/cloud_deck.gdshader")
 const COVER_A := "res://assets/textury/skybox/cloud_cover_a.png"
@@ -67,7 +69,7 @@ const AMOUNT := {
 ## In fog the clouds are hardly there (the fog is the sky).
 const SEEN := {2: 0.35}
 ## How much darker the weather makes them (their bellies in the rain), 0..1.
-const DARK := {1: 0.10, 2: 0.20, 3: 0.35, 4: 0.55, 5: 0.68}
+const DARK := {1: 0.10, 2: 0.20, 3: 0.35, 4: 0.58, 5: 0.80}
 ## A late autumn day under the grey lid (weather_visuals._late_grey_day): the deck's cover
 ## at least this, no high streaks, a little scud.
 const GREY_DAY_COVER := 0.72
@@ -204,6 +206,14 @@ func _build_deck() -> void:
 		_deck_mats.append(m)
 
 
+func settle() -> void:
+	var ws := int(_v("_weather_state", 0))
+	var build := float(_v("storm_build", 0.0)) if ws != 6 else 0.0
+	_cover = lerpf(0.04, 0.97, clampf(float(_v("_cloud_density_target", 0.2)), 0.0, 1.0))
+	_storm = maxf(float(STORMY.get(ws, 0.0)), build * 0.85)
+	_cover_mix = maxf(float(COVER_MIX.get(ws, 0.0)), build)
+
+
 func _target() -> Array:
 	var ws := int(_v("_weather_state", 0))
 	var out: Array = (AMOUNT.get(ws, AMOUNT[0]) as Array).duplicate()
@@ -235,6 +245,8 @@ func _process(delta: float) -> void:
 		_amount[i] = move_toward(float(_amount[i]), float(target[i]), delta * AMOUNT_RATE)
 	var seen := float(SEEN.get(ws, 1.0))
 	var dark := float(DARK.get(ws, 0.0))
+	if ws != 6:
+		dark = maxf(dark, float(DARK[5]) * smoothstep(0.1, 0.9, float(_v("storm_build", 0.0))))
 	var wind := float(_v("_wind_now", 0.15))
 	var wd: Vector2 = _v("wind_dir", Vector2(0.94, 0.34))
 	if wd.length() < 0.01:
@@ -303,10 +315,12 @@ func _update_deck(delta: float, cp: Vector3, wd: Vector2, pace: float, tint: Col
 	if ws == 6:
 		want = 0.2
 	_cover = move_toward(_cover, want, delta * AMOUNT_RATE)
-	_storm = move_toward(_storm, float(STORMY.get(ws, 0.0)), delta * AMOUNT_RATE)
+	# The storm's deck comes over before it breaks (weather_visuals.storm_build).
+	var build := float(_v("storm_build", 0.0)) if ws != 6 else 0.0
+	_storm = move_toward(_storm, maxf(float(STORMY.get(ws, 0.0)), build * 0.85), delta * AMOUNT_RATE)
 	_churn_time += delta * (1.0 + float(_v("_wind_now", 0.15)))
 	_update_flash(delta, cp, ws)
-	_cover_mix = move_toward(_cover_mix, float(COVER_MIX.get(ws, 0.0)), delta * AMOUNT_RATE)
+	_cover_mix = move_toward(_cover_mix, maxf(float(COVER_MIX.get(ws, 0.0)), build), delta * AMOUNT_RATE)
 	# The cover moves with the wind (the picture's place goes the other way).
 	_deck_scroll -= wd * pace * delta
 	_deck_scroll = Vector2(fposmod(_deck_scroll.x, 11000.0), fposmod(_deck_scroll.y, 11000.0))

@@ -120,22 +120,30 @@ const WEATHER_WIND_GUST_DB: float = 5.0
 ## (The loop under everything, quieter than the weather's own wind was: "moc nahlas".)
 const WEATHER_WIND_BED_DB: float = -22.0
 var wind_gust := 0.0
+## The storm on its way, 0..1 (main sets it from weather_system.storm_build()): the wind
+## bed rises and the storm's wind comes in under it at the end, far thunder rolls more and
+## more often (no flash: the storm is still beyond the trees).
+var storm_build := 0.0
+const PRE_STORM_THUNDER_WAIT := Vector2(45.0, 12.0)
+const PRE_STORM_THUNDER_RADIUS := Vector2(105.0, 140.0)
+var _pre_storm_thunder_wait := 20.0
 const WEATHER_CALM_RAIN_ACTIVE_DB: float = -18.5
 const WEATHER_RAIN_ACTIVE_DB: float = -12.5
 const WEATHER_RAIN_INSIDE_ACTIVE_DB: float = -22.0
-const WEATHER_RAIN_STORM_ACTIVE_DB: float = -14.0
-const WEATHER_WIND_STORM_ACTIVE_DB: float = -15.0
+## (The storm louder from 25. 10.: "the storm really intense".)
+const WEATHER_RAIN_STORM_ACTIVE_DB: float = -12.0
+const WEATHER_WIND_STORM_ACTIVE_DB: float = -13.0
 const WEATHER_INTERIOR_DUCK_DB: float = -6.0
 const WEATHER_RAIN_INSIDE_INTERIOR_BOOST_DB: float = 1.5
 const WEATHER_THUNDER_NEAR_VOLUME_DB: float = -9.0
 const WEATHER_THUNDER_FAR_VOLUME_DB: float = -13.0
-const WEATHER_THUNDER_MIN_INTERVAL_SECONDS: float = 6.5
-const WEATHER_THUNDER_MAX_INTERVAL_SECONDS: float = 14.0
+const WEATHER_THUNDER_MIN_INTERVAL_SECONDS: float = 4.5
+const WEATHER_THUNDER_MAX_INTERVAL_SECONDS: float = 11.0
 const WEATHER_THUNDER_INITIAL_MIN_INTERVAL_SECONDS: float = 1.3
 const WEATHER_THUNDER_INITIAL_MAX_INTERVAL_SECONDS: float = 4.2
 const WEATHER_THUNDER_MIN_RADIUS: float = 14.0
 const WEATHER_THUNDER_MAX_RADIUS: float = 130.0
-const WEATHER_THUNDER_NEAR_RADIUS_THRESHOLD: float = 58.0
+const WEATHER_THUNDER_NEAR_RADIUS_THRESHOLD: float = 68.0
 const WEATHER_THUNDER_MIN_HEIGHT: float = 3.0
 const WEATHER_THUNDER_MAX_HEIGHT: float = 14.0
 const WEATHER_THUNDER_PITCH_MIN: float = 0.97
@@ -1342,6 +1350,9 @@ func _update_weather_layers(
 	elif weather_state == WEATHER_STORM or weather_state == WEATHER_LIGHT_RAIN:
 		wind_db = lerpf(WEATHER_WIND_STILL_DB, WEATHER_WIND_BED_DB, 0.6)
 	wind_db += WEATHER_WIND_GUST_DB * clampf(wind_gust, 0.0, 1.0)
+	var build := storm_build if weather_state != WEATHER_STORM else 0.0
+	if build > 0.0:
+		wind_db = lerpf(wind_db, WEATHER_WIND_BED_DB + WEATHER_WIND_GUST_DB * clampf(wind_gust, 0.0, 1.0), smoothstep(0.3, 1.0, build))
 	var calm_rain_active = (weather_state == WEATHER_LIGHT_RAIN)
 	var rain_active = (weather_state == WEATHER_RAIN)
 	var rain_inside_active = (
@@ -1349,7 +1360,8 @@ func _update_weather_layers(
 		and (weather_state == WEATHER_LIGHT_RAIN or weather_state == WEATHER_RAIN or weather_state == WEATHER_STORM)
 	)
 	var storm_rain_active = (weather_state == WEATHER_STORM)
-	var storm_wind_active = (weather_state == WEATHER_STORM)
+	var storm_wind_active = (weather_state == WEATHER_STORM) or build > 0.6
+	var storm_wind_db := WEATHER_WIND_STORM_ACTIVE_DB if weather_state == WEATHER_STORM else lerpf(-30.0, WEATHER_WIND_STORM_ACTIVE_DB - 5.0, smoothstep(0.6, 1.0, build))
 	var interior_weather_duck_db = WEATHER_INTERIOR_DUCK_DB if should_duck_for_interior else 0.0
 	var rain_inside_target_db = WEATHER_RAIN_INSIDE_ACTIVE_DB
 	if rain_inside_active:
@@ -1360,7 +1372,7 @@ func _update_weather_layers(
 	_update_weather_loop(_sfx_weather_rain, rain_active, WEATHER_RAIN_ACTIVE_DB + interior_weather_duck_db, delta)
 	_update_weather_loop(_sfx_weather_rain_inside, rain_inside_active, rain_inside_target_db, delta)
 	_update_weather_loop(_sfx_weather_rain_storm, storm_rain_active, WEATHER_RAIN_STORM_ACTIVE_DB + interior_weather_duck_db, delta)
-	_update_weather_loop(_sfx_weather_wind_storm, storm_wind_active, WEATHER_WIND_STORM_ACTIVE_DB + interior_weather_duck_db, delta)
+	_update_weather_loop(_sfx_weather_wind_storm, storm_wind_active, storm_wind_db + interior_weather_duck_db, delta)
 
 
 func _update_weather_loop(player: AudioStreamPlayer, should_be_active: bool, target_db: float, delta: float) -> void:
@@ -1389,6 +1401,8 @@ func _weather_loop_fade_db_per_second() -> float:
 
 func _update_storm_thunder(delta: float, weather_state: int) -> void:
 	var storm_active = (weather_state == WEATHER_STORM)
+	if not storm_active and storm_build > 0.2:
+		_pre_storm_thunder(delta)
 	if not storm_active:
 		_storm_thunder_active = false
 		_storm_thunder_cooldown_seconds = 0.0
@@ -1405,6 +1419,25 @@ func _update_storm_thunder(delta: float, weather_state: int) -> void:
 
 	_play_random_thunder_strike()
 	_schedule_next_thunder_strike(false)
+
+
+## The storm still off beyond the trees: thunder far away, rolling in more and more often.
+func _pre_storm_thunder(delta: float) -> void:
+	_pre_storm_thunder_wait -= delta
+	if _pre_storm_thunder_wait > 0.0:
+		return
+	var k := smoothstep(0.2, 1.0, storm_build)
+	_pre_storm_thunder_wait = _ambient_music_rng.randf_range(0.7, 1.3) * lerpf(PRE_STORM_THUNDER_WAIT.x, PRE_STORM_THUNDER_WAIT.y, k)
+	var player := _sfx_thunder_far
+	if player == null or player.stream == null:
+		return
+	var angle := _ambient_music_rng.randf_range(0.0, TAU)
+	var radius := _ambient_music_rng.randf_range(PRE_STORM_THUNDER_RADIUS.x, PRE_STORM_THUNDER_RADIUS.y)
+	player.global_position = _resolve_listener_origin() + Vector3(cos(angle) * radius, 10.0, sin(angle) * radius)
+	player.pitch_scale = _ambient_music_rng.randf_range(0.86, 0.96)
+	if player.playing:
+		player.stop()
+	player.play()
 
 
 func _schedule_next_thunder_strike(initial: bool) -> void:

@@ -59,7 +59,7 @@
 - [x] R51 „cestu zlevnit na 5“
 - [x] R52 „světlo na recepci neodpovídá venkovnímu počasí“
 - [x] R53 „task list na hajzlech rozdělit pro každou kabinku zvlášť“
-- [ ] R54 „déšť intenzivnější; počasí, osvětlení, zvuk a vibe před bouřkou (temný mrak, vlhko, vítr se zvedá, lehké temno); bouřku fakt intense“
+- [x] R54 „déšť intenzivnější; počasí, osvětlení, zvuk a vibe před bouřkou (temný mrak, vlhko, vítr se zvedá, lehké temno); bouřku fakt intense“
 - [x] R55 „mail na PC dát na dvojku a zbytek posunout doprava“
 - [x] R56 „v Builderu nevidím pokojské (workery)“
 - [ ] R57 „v 3D Builderu mě nech clippovat do interiérů“
