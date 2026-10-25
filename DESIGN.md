@@ -1527,8 +1527,10 @@ body fills the pipe: you cannot get past, head to head one of you backs up, feet
 its catches `scripts/pipes/pipe_catch.gd`, the crawl `scripts/sewer_pipe_minigame.gd`.*
 
 **The hole is the raccoon.** A sewer only breaks because it chewed through the pipes,
-so whenever you climb down, it is there; the night sewer job comes the more often the
-harder the night presses on the camp (`night_jobs.sewer_chance`). How far it goes is that
+so whenever you climb down, it is there. The night sewer job is the family's (the user,
+25. 10.: "the whole sewer incident was to be one of the father and the boy's attacks"): it
+comes only on a night the boy has gone to the pipes (§5a.2, `night_jobs.add_boy_job`;
+`sewer_chance` is 0), and the raccoon is in with him on a hard night. How far it goes is that
 pressure (omens.pressure) as a level, and as many holes to clamp:
 1 (one hole): chittering far off, claws over the crown, its eyes at the end of the beam,
 trails of its guts along the floors; it never comes near; its little wet hand prints on

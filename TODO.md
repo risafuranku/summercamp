@@ -64,10 +64,10 @@
 - [ ] R56 „v Builderu nevidím pokojské (workery)“
 - [ ] R57 „v 3D Builderu mě nech clippovat do interiérů“
 - [ ] R58 „sprite lampičky v recepci není ve tmě tmavý“
-- [ ] R59 „sewer se děje moc často, breaker taky“
+- [x] R59 „sewer se děje moc často, breaker taky“
 - [x] R60 „neukládá se inventář, ze savu zmizel klíč od power breakeru“
 - [ ] R61 „krev z očí zmizí a stéká pořád dokola: nech ji stéct a zůstat až do healu, pak fade out; PC display je přes tuto krev“
-- [ ] R62 „sewers incident (celá minihra) měl být jeden z nočních útoků táty s klukem“ (check the earlier decision: TODO/DESIGN/memory)
+- [x] R62 „sewers incident (celá minihra) měl být jeden z nočních útoků táty s klukem“ (check the earlier decision: TODO/DESIGN/memory)
 
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 

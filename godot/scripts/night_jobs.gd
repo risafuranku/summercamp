@@ -36,10 +36,12 @@ signal changed
 const ELECTRICIAN_FEE := 60
 ## How likely the main is to trip on a night (more the harder the night presses), much
 ## less the night after one, and how often the faulty circuit is back on by itself at dawn.
-const BREAKER_BASE := 0.3
-const BREAKER_PER_PRESSURE := 0.08
-const BREAKER_MAX := 0.6
-const BREAKER_AFTER_ONE := 0.35
+## (A third of that from 25. 10.: "the breaker happens too often"; the boy's board game,
+## add_boy_job, comes on top on the family's nights.)
+const BREAKER_BASE := 0.1
+const BREAKER_PER_PRESSURE := 0.035
+const BREAKER_MAX := 0.25
+const BREAKER_AFTER_ONE := 0.25
 const CIRCUIT_DRIES_BY_DAWN := 0.7
 const QUIET_NIGHTS := 1
 const CIRCUIT_NAMES := ["LAMPS NORTH", "LAMPS SOUTH", "OFFICE", "FOOD", "WASH BLOCK", "PUMP"]
@@ -265,8 +267,10 @@ func _plan(night_index: int, abs_minute: int) -> void:
 		kinds.append("frozen")
 		if Season.temp_low(night_index) <= -5 and frozen.size() > 1:
 			kinds.append("frozen")
-	# The sewer only breaks because the raccoon chewed through it, and it is out more the
-	# harder the night presses on the camp (pipes/pipe_director.gd).
+	# The sewer is the family's: down in the pipes it is the boy's game of tag (with the
+	# raccoon on a hard night), one of the father's nights (add_boy_job), never a night's
+	# chance of its own (the user, 25. 10.: "the sewer happens too often; the whole sewer
+	# incident was to be one of the father and the boy's attacks"; DESIGN §5a.2).
 	if pool.has("sewer") and _boy_job("sewer").is_empty() and _rng.randf() < sewer_chance(_night_pressure()):
 		kinds.append("sewer")
 	# The breaker: some nights, more the harder the night presses, seldom two running.
@@ -361,9 +365,9 @@ static func breaker_chance(pressure: float, tripped_last_night: bool) -> float:
 	return c * (BREAKER_AFTER_ONE if tripped_last_night else 1.0)
 
 
-## How likely the raccoon is to be in the sewer tonight, from the night's pressure.
-static func sewer_chance(pressure: float) -> float:
-	return clampf(0.1 + 0.14 * pressure, 0.1, 0.85)
+## How likely the sewer is out tonight on its own: never (it is the boy's, add_boy_job).
+static func sewer_chance(_pressure: float) -> float:
+	return 0.0
 
 
 func _night_pressure() -> float:
