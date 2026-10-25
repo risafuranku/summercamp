@@ -81,11 +81,12 @@
 - [x] R73 „vstup do hospody absolutní zásek: nevidím interiér, když vejdu do dveří; nejsem v interiéru hospody, ale rovnou za barem“
 - [x] R74 „v hospodě je jeden úchylný až sexuální smích, co hraje furt dokola. prosím pryč“
 - [x] R75 „při A a D v hospodě to má být rychlý přesun (stanoviště jsou hned vedle sebe), místo toho dither tranzice a totální otočka“
-- [ ] R76 „účty mají být obdélníkové papírky s čárkami, ne… hermelíny?“
+- [x] R76 „účty mají být obdélníkové papírky s čárkami, ne… hermelíny?“
 - [x] R77 „můžu se rozhlížet nahoru, ale už ne dolů“ (pub stations)
-- [ ] R78 „odstraň sprites s flaškou v ruce. flaška zůstává vždy na pultu, do ruky ji nedávej. nikdy nikde“
+- [x] R78 „odstraň sprites s flaškou v ruce. flaška zůstává vždy na pultu, do ruky ji nedávej. nikdy nikde“
 - [ ] R79 „pro všechny minihry/obsluhování hezčí hover UI než ty hnusné rámečky, i progress bary; ať to sedí k main HUD“
 - [x] R80 „posunem doprava se ze 4 na 1 dostat NESMÍM“ (station tabs: no wrap-around)
+- [ ] R81 „přepnutí z baru na sklep při obsluze přehraje animaci, jak jdeš od pultu až do sklepa, ať to trvá; a zpátky taktéž“
 
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 

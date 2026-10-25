@@ -507,7 +507,8 @@ func _key(e: InputEventKey) -> void:
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover
 	if id == "back":
-		return "bottle"
+		# (Never the hand with a bottle, playtest 25. 10.: the finger on the spray's nozzle.)
+		return "press"
 	if id.begins_with("lamp:"):
 		return "press"
 	return "open"

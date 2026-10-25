@@ -22,6 +22,7 @@ const WALLET := [[1, Rect2(452, 200, 30, 50)], [2, Rect2(484, 200, 30, 50)], [5,
 const PIECE_TEX := {1: "coin1", 2: "coin2", 5: "note5", 10: "note10", 20: "note20", 50: "note50"}
 const PIECE_M := {1: 0.035, 2: 0.04, 5: 0.075, 10: 0.075, 20: 0.075, 50: 0.075}
 const MAT_M := 0.13
+const SLIP_TEX := "res://assets/textury/bistro/ticket.png"
 
 ## The station (tap_station.gd) this lies on.
 var st
@@ -40,7 +41,9 @@ var _piles: Array = []
 
 func setup(station) -> void:
 	st = station
-	_mat = st.sprite(st.PUB_TEX + "mat.png", MAT_M, true, self)
+	# A slip off the order pad, not a beer mat (playtest 25. 10.: "bills are oblong slips
+	# of paper with strokes, not camemberts").
+	_mat = st.sprite(SLIP_TEX, MAT_M, true, self)
 	_marks = Label3D.new()
 	_marks.font = load("res://scripts/ui/retro_ui.gd").FONT_LABEL
 	_marks.font_size = 8

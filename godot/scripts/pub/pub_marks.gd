@@ -44,9 +44,9 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for m in ["mark_mug", "mark_foam", "mark_shot", "mark_kofola", "mark_keg", "mark_dirty", "mark_tap", "mark_wash"]:
 		_tex[m] = load(MARK_DIR + m + ".png") if ResourceLoader.exists(MARK_DIR + m + ".png") else null
-	for n in ["mat"]:
-		var p := "res://assets/textury/pub/%s.png" % n
-		_tex[n] = load(p) if ResourceLoader.exists(p) else null
+	# The orders on slips off the pad (oblong paper, playtest 25. 10.; they were beer mats).
+	var slip := "res://assets/textury/bistro/ticket.png"
+	_tex["mat"] = load(slip) if ResourceLoader.exists(slip) else null
 	if taproom != null:
 		taproom.poured.connect(_on_poured)
 
@@ -108,7 +108,7 @@ func _draw_strip(tix: Array) -> void:
 	var shown := mini(tix.size(), 10)
 	for i in shown:
 		var t: Dictionary = tix[i]
-		var r := Rect2(x, 4, 22, 22)
+		var r := Rect2(x + 3, 2, 16, 26)
 		var mt: Texture2D = _tex.get("mat")
 		if mt != null:
 			draw_texture_rect(mt, r, false)

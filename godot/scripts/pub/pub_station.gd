@@ -150,9 +150,73 @@ func orders_here(kind_of: String) -> Array:
 ## What a mat asks for: the drink's picture and its word; a bill: BILL.
 func ticket_items(t: Dictionary) -> Array:
 	if str(t.get("kind", "")) == "bill":
-		return [{"icon": _icons.get("mat"), "word": "BILL"}]
+		return [{"icon": bill_slip(_bill_marks(t)), "word": "BILL"}]
 	var drink := str(t.get("drink", ""))
 	return [{"icon": _icons.get(str(DRINK_ICONS.get(drink, "mark_mug"))), "word": str(SHORT.get(drink, drink.to_upper()))}]
+
+
+## How many drinks a bill has on it (its marks).
+static func _bill_marks(t: Dictionary) -> int:
+	var n := 0
+	var counts = t.get("counts", {})
+	if counts is Dictionary:
+		for v in (counts as Dictionary).values():
+			n += int(v)
+	return maxi(1, n)
+
+
+static var _slips: Dictionary = {}
+
+
+## A bill as the pub writes it (playtest 25. 10.: "bills are oblong slips of paper with
+## strokes on them, not ... camemberts?"; it was the round beer mat): a strip torn off
+## the order pad (the bistro's ticket paper) with a pencil stroke for each drink, the
+## fifth across the four. Made once for each count.
+static func bill_slip(marks: int) -> Texture2D:
+	marks = clampi(marks, 1, 15)
+	if _slips.has(marks):
+		return _slips[marks]
+	var w := 12
+	var h := 18
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var paper_path := "res://assets/textury/bistro/ticket.png"
+	if ResourceLoader.exists(paper_path):
+		var src: Image = (load(paper_path) as Texture2D).get_image()
+		if src.is_compressed():
+			src.decompress()
+		src.convert(Image.FORMAT_RGBA8)
+		src.resize(w, h, Image.INTERPOLATE_NEAREST)
+		img.blit_rect(src, Rect2i(0, 0, w, h), Vector2i.ZERO)
+	else:
+		img.fill(Color(0.9, 0.87, 0.76))
+	# A darker edge so it reads as a slip on the rail's paper.
+	for x in w:
+		img.set_pixel(x, h - 1, Color(0.55, 0.5, 0.42))
+	for y in h:
+		img.set_pixel(w - 1, y, Color(0.6, 0.55, 0.46))
+	var pencil := Color(0.2, 0.19, 0.22)
+	var row_h := 7
+	for i in marks:
+		var group := i / 5
+		var k := i % 5
+		var gx := 1
+		var gy := 2 + (group) * (row_h - 1)
+		if gy + row_h > h - 1:
+			break
+		if k < 4:
+			var x := gx + 1 + k * 2
+			for y in range(gy, gy + row_h - 2):
+				img.set_pixel(x, y, pencil)
+		else:
+			# The fifth across the four, a slant.
+			for j in 9:
+				var x2 := gx + j
+				var y2 := gy + row_h - 3 - int(float(j) * 0.55)
+				if x2 < w - 1 and y2 >= 0:
+					img.set_pixel(x2, y2, pencil)
+	var tex := ImageTexture.create_from_image(img)
+	_slips[marks] = tex
+	return tex
 
 
 ## A bill's checklist: what it comes to, and the click that settles it.
