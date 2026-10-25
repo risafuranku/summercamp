@@ -14,6 +14,8 @@ uniform float contrast : hint_range(0.5, 1.5) = 1.06;
 uniform float reveal : hint_range(0.0, 1.0) = 1.0;
 // PC pixels per view pixel (the dither's cell).
 uniform float cell = 2.0;
+// After dusk the darks are lifted (a gamma, so the lamps stay where they are).
+uniform float lift : hint_range(0.0, 1.0) = 0.0;
 
 const float BAYER4[16] = float[](
 	0.0, 8.0, 2.0, 10.0,
@@ -36,7 +38,8 @@ void fragment() {
 		discard;
 	}
 	vec4 raw = texture(TEXTURE, UV);
-	vec3 c = (raw.rgb - 0.5) * contrast + 0.5;
+	vec3 c = pow(max(raw.rgb, vec3(0.0)), vec3(1.0 / (1.0 + lift * 1.5)));
+	c = (c - 0.5) * contrast + 0.5;
 	ivec2 px = ivec2(floor(UV / TEXTURE_PIXEL_SIZE));
 	float bayer = BAYER4[(px.x & 3) + (px.y & 3) * 4] / 16.0 - 0.47;
 	vec3 dithered = sqrt(clamp(c, 0.0, 1.0)) + vec3(bayer * dither_strength / (lut_size - 1.0));

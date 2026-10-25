@@ -165,7 +165,7 @@ var _views: Dictionary = {}   # "<type>_<s>" -> [texture, anchor, lit windows or
 ## Lodgings whose windows can light on the map: [static-layer centre, view, origin, type].
 var _lit_spots: Array = []
 var _window_lights: Node
-## The map's small life: the dog, ducks, glints, moths, mice, ants, birds (map_life.gd).
+## The map's small life: ducks, glints, moths, mice, ants, birds (map_life.gd).
 var _life = preload("res://scripts/builder/map_life.gd").new()
 var _lake_cells_f: Array = []
 ## What stands on the map with where it covers (static-layer rect) and how far forward it

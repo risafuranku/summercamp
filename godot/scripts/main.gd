@@ -2372,12 +2372,15 @@ func debug_mark_saved_bits() -> void:
 	var os = _interior_manager._building_interior.get("_crt_ui")
 	if os != null:
 		os.set_meta("datapunch_nights", {"3": 12})
+	# The office's lights off, the back room's lamp off (kept with the save).
+	_interior_manager._building_interior.coop_take_office_state({"lights": false, "lamp": false})
 
 
 func debug_saved_bits() -> Array:
 	var os = _interior_manager._building_interior.get("_crt_ui")
+	var office: Dictionary = _interior_manager._building_interior.coop_office_state()
 	return [int(_director.ever.get("knock", 0)), _director.last_log.duplicate(true), snappedf(EmailManager.reputation, 0.01), _day_events.haunted.duplicate(),
-		os.get_meta("datapunch_nights", {}) if os != null else "no os"]
+		os.get_meta("datapunch_nights", {}) if os != null else "no os", {"lights": office.get("lights"), "lamp": office.get("lamp")}]
 
 
 func debug_save_and_reload() -> String:
@@ -2389,6 +2392,7 @@ func debug_save_and_reload() -> String:
 	var os = _interior_manager._building_interior.get("_crt_ui")
 	if os != null:
 		os.set_meta("datapunch_nights", {})
+	_interior_manager._building_interior.coop_take_office_state({"lights": true, "lamp": true})
 	_enter_main_menu()
 	_on_menu_load_requested(path)
 	return path

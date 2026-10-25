@@ -41,7 +41,10 @@ const LUT := preload("res://assets/textury/palette/build_palette_lut.png")
 
 ## The strategy camera: its tilt, its lens, how near and far (metres to the point it looks
 ## at), and the ceiling (the cloud deck is at 95 m, in a storm 58 m).
-const PITCH_MIN := deg_to_rad(26.0)
+## Down to the horizon (playtest 25. 10.: "a bigger tilt, I want to look level"): the eye
+## then stays EYE_MIN over whatever ground is under it (_apply_cam).
+const PITCH_MIN := deg_to_rad(0.5)
+const EYE_MIN := 1.8
 const PITCH_MAX := deg_to_rad(74.0)
 const PITCH_DEF := deg_to_rad(47.0)
 const FOV := 42.0
@@ -72,6 +75,10 @@ const LAMP := Color(1.0, 0.82, 0.42)
 ## A lamp's and a fire's light, in tiles (the 2D map's LIGHT_REACH, as plates).
 const REACH := {"lamp_post": 2.6, "bonfire": 3.4}
 const MINI_CELL := 3.0
+## The night wash the view adds after dusk (_sync_env) and the lift of its darks.
+const NIGHT_WASH := Color(0.62, 0.7, 0.9)
+const NIGHT_WASH_ENERGY := 1.4
+const NIGHT_LIFT := 0.6
 
 var panel: Control          # crt_map_panel.gd, the parent
 var on := false             # the 3D view is the map (landed: it takes the map's input)
@@ -404,7 +411,15 @@ func _steer(delta: float) -> void:
 func _apply_cam() -> void:
 	var back := Vector3(sin(_yaw) * cos(_pitch), sin(_pitch), cos(_yaw) * cos(_pitch))
 	_cam.fov = _fov
-	_cam.transform = Transform3D(Basis.from_euler(Vector3(-_pitch, _yaw, 0.0)), _f + back * _dist)
+	var eye := _f + back * _dist
+	# Low down the ground (a hill, a roof) can rise over the eye: kept above it.
+	if _pitch < deg_to_rad(20.0) and _cam.is_inside_tree():
+		var space := _cam.get_world_3d().direct_space_state if _cam.get_world_3d() != null else null
+		if space != null:
+			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye + Vector3.UP * 300.0, eye + Vector3.DOWN * 300.0))
+			var floor_y := float((hit["position"] as Vector3).y) if not hit.is_empty() else 0.0
+			eye.y = maxf(eye.y, floor_y + EYE_MIN)
+	_cam.transform = Transform3D(Basis.from_euler(Vector3(-_pitch, _yaw, 0.0)), eye)
 
 
 func _dist_cap(pitch: float) -> float:
@@ -431,6 +446,21 @@ func _fit() -> void:
 
 ## The world's own sky and light (the hour, the weather), its fog thinned: from up here
 ## the whole camp is in the view, and the fog of the ground would have it all grey.
+## How far into the night it is (0 by day, 1 from 21:00 to 05:00), as retro_materials has it.
+func _night_k(main: Node) -> float:
+	var h = main.get("_time_of_day_hours") if main != null else null
+	if h == null:
+		return 0.0
+	var hr := float(h)
+	if hr >= 21.0 or hr < 5.0:
+		return 1.0
+	if hr >= 18.0:
+		return (hr - 18.0) / 3.0
+	if hr < 8.0:
+		return (8.0 - hr) / 3.0
+	return 0.0
+
+
 func _sync_env() -> void:
 	var main := get_tree().current_scene if get_tree() != null else null
 	var we = main.get("world_environment") if main != null else null
@@ -444,6 +474,15 @@ func _sync_env() -> void:
 	env.fog_density = src.fog_density * fog_k * clampf(80.0 / maxf(1.0, _dist), 0.04, 1.0)
 	env.fog_enabled = src.fog_enabled and fog_k > 0.0
 	env.volumetric_fog_enabled = false
+	# After dusk the PC's view lights the camp itself, a cold moonlit wash (playtest 25. 10.:
+	# "at night you cannot see anything in the 3D Builder"); the lamps still glow warm in it.
+	var nk := _night_k(main)
+	if nk > 0.0:
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = src.ambient_light_color.lerp(NIGHT_WASH, nk)
+		env.ambient_light_energy = lerpf(src.ambient_light_energy, NIGHT_WASH_ENERGY, nk)
+		env.ambient_light_sky_contribution = lerpf(src.ambient_light_sky_contribution, 0.0, nk)
+	_view_mat.set_shader_parameter("lift", nk * NIGHT_LIFT)
 	_cam.environment = env
 	var lines := int(size.y) / PX
 	_view_mat.set_shader_parameter("dither_strength", 0.3 if lines <= 240 else 0.45)

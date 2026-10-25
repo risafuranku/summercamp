@@ -354,6 +354,11 @@ func export_crt_desktop_state() -> Dictionary:
 	var out: Dictionary = (state_any as Dictionary).duplicate(true) if state_any is Dictionary else _pending_crt_desktop_state.duplicate(true)
 	if _desk_room != null:
 		out["checkin_desk"] = _desk_room.export_state()
+	# The lights, the lamps and the curtains as you left them, kept with the save (a load
+	# switched everything back on: playtest 25. 10., "remember the lights, the curtains").
+	var office := coop_office_state()
+	if not office.is_empty():
+		out["office"] = office
 	return out
 
 
@@ -379,8 +384,11 @@ func coop_take_pc_state(state: Dictionary) -> void:
 
 func import_crt_desktop_state(state: Dictionary) -> void:
 	_pending_crt_desktop_state = state.duplicate(true)
+	_pending_crt_desktop_state.erase("office")
 	if _desk_room != null and state.get("checkin_desk", null) is Dictionary:
 		_desk_room.import_state(state["checkin_desk"])
+	if state.get("office", null) is Dictionary:
+		coop_take_office_state(state["office"])
 	_apply_pending_crt_desktop_state()
 
 
@@ -426,7 +434,12 @@ func set_daylight_profile(daylight_factor: float, sun_color: Color, _ambient_col
 	_apply_room_time_profile()
 
 
+## Main pushes the power with every sync of the clock: only a change fades the room. (Each
+## push set the lamps up to full and faded them down again, so with the power out the office
+## kept lighting up, seen through its windows from the camp: playtest 25. 10.)
 func set_grid_power_available(power_available: bool) -> void:
+	if power_available == _grid_power_available:
+		return
 	_grid_power_available = power_available
 	_apply_room_time_profile(true)
 

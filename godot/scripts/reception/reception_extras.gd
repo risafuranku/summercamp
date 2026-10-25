@@ -936,6 +936,7 @@ func _try_sleep() -> void:
 	sleep.stand_pos = BACK_ROOM.STAND + Vector3(-0.9, 0.0, -0.2)
 	var to_door: Vector3 = BACK_DOORWAY - sleep.stand_pos
 	sleep.stand_rot = Vector3(deg_to_rad(-4.0), atan2(-to_door.x, -to_door.z), 0.0)
+	_lamp_before_sleep = bool(back.lamp_on)
 	sleep.lamp = func(on: bool): back.set_lamp(on)
 	sleep.tv_focus = func(_on: bool): pass
 	sleep.fast_forward = func():
@@ -952,8 +953,13 @@ func _try_sleep() -> void:
 	sleep.start()
 
 
+## The lamp as it was when you lay down (it goes off for the night).
+var _lamp_before_sleep := true
+
+
 func _on_woke() -> void:
-	back.set_lamp(true)
+	# Up again, the lamp as you had it before (it came on every morning: playtest 25. 10.).
+	back.set_lamp(_lamp_before_sleep)
 	look_back.reset()
 	# The head stays turned the way you got up (to the door), not back to the bed.
 	look_back.yaw_deg = rad_to_deg(wrapf(camera.rotation.y - back_base_rot.y, -PI, PI))

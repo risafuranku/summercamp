@@ -1,8 +1,7 @@
 extends RefCounted
 
 ## The small life of Builder 98's map, between the guests (crt_map_panel.gd draws it on
-## its dynamic layer): the camp's dog trotting between the lodgings, sniffing, sitting,
-## barking; ducks paddling on the lake and the sun glinting on the water; moths round the
+## its dynamic layer): ducks paddling on the lake and the sun glinting on the water; moths round the
 ## lit lamps at dusk; a mouse darting out by the pub and the bistro; ants trailing to a
 ## picnic table; now and then a few birds crossing the whole map. All of it Grok's frames
 ## (tools/artgen: builder/life/<thing>_<n>.png), stepped (four to twelve frames a
@@ -10,13 +9,13 @@ extends RefCounted
 
 const DIR := "res://assets/textury/builder/life/"
 const SFX := "res://assets/sfx/builder/"
-const SHEETS := {"dog": 8, "lake": 8, "bugs": 8, "birds": 8}
+const SHEETS := {"lake": 8, "bugs": 8, "birds": 8}
+## No dog on the map (playtest 25. 10.: "remove the dog in the Builder").
 
-var _tex: Dictionary = {}       # "dog_3" -> texture
-var _minis: Dictionary = {}     # "dog_3|h" -> texture brought down
+var _tex: Dictionary = {}       # "lake_3" -> texture
+var _minis: Dictionary = {}     # "lake_3|h" -> texture brought down
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
-var _dog: Dictionary = {}
 var _ducks: Array = []
 var _glints: Array = []
 var _mice: Array = []
@@ -38,8 +37,8 @@ func has(kind: String) -> bool:
 
 
 ## `h` is the first frame's height (of the sheet, or of `first_key`'s run: the glints on
-## the lake's row): the others keep their size to it (the dog sitting up taller, sniffing
-## lower, a glint growing), as the frames were cut at one scale (cut_frames.py).
+## the lake's row): the others keep their size to it (a duck dipping, a glint growing), as
+## the frames were cut at one scale (cut_frames.py).
 func _frame(map, key: String, h: int, first_key := "") -> Texture2D:
 	var mk := "%s|%d" % [key, h]
 	if not _minis.has(mk):
@@ -66,46 +65,9 @@ func tick(delta: float, map) -> void:
 	_t += delta
 	var hour := float(map._wx.get("hour", 12.0))
 	var day := hour >= 6.5 and hour <= 19.5
-	_tick_dog(delta, map, day)
 	_tick_lake(delta, map, day)
 	_tick_mice(delta, map, day)
 	_tick_birds(delta, map, day)
-
-
-func _tick_dog(delta: float, map, day: bool) -> void:
-	if not has("dog") or not day or map._known.is_empty():
-		_dog = {}
-		return
-	if _dog.is_empty():
-		var homes: Array = map._known.keys()
-		var o: Vector2i = homes[_rng.randi() % homes.size()]
-		_dog = {"cell": Vector2(o) + Vector2(1.2, 0.4), "to": Vector2(o), "state": "run", "t": 0.0, "mirror": false}
-	_dog["t"] = float(_dog["t"]) - delta
-	match str(_dog["state"]):
-		"run":
-			var c: Vector2 = _dog["cell"]
-			var to: Vector2 = _dog["to"]
-			var step := c.move_toward(to, delta * 1.6)
-			var dd: Vector2 = map._display_cell_f(step) - map._display_cell_f(c)
-			if dd.length_squared() > 0.0:
-				_dog["mirror"] = dd.x - dd.y > 0.0
-			_dog["cell"] = step
-			if step.distance_to(to) < 0.05:
-				var r := _rng.randf()
-				_dog["state"] = "sniff" if r < 0.5 else ("sit" if r < 0.8 else "bark")
-				_dog["t"] = _rng.randf_range(1.5, 4.0)
-				if str(_dog["state"]) == "bark":
-					map._play("dog", -16.0)
-		_:
-			if float(_dog["t"]) <= 0.0:
-				# Off to another lodging, a tile beside it on open ground.
-				var homes: Array = map._known.keys()
-				var o: Vector2i = homes[_rng.randi() % homes.size()]
-				for d in [Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(0, 1)]:
-					if _open(map, o + d):
-						_dog["to"] = Vector2(o + d)
-						break
-				_dog["state"] = "run"
 
 
 func _tick_lake(delta: float, map, day: bool) -> void:
@@ -187,18 +149,6 @@ func draw(cv: CanvasItem, map, origin: Vector2, tile_w: float, tile_h: float, mi
 		var dip := float(d["dip"]) > 0.0
 		var f := 3 if dip else int(step / 4.0) % 3
 		_put(cv, map, "lake_%d" % f, d["cell"], origin, tile_w, tile_h, maxi(4, int(mini_h * 0.35)), bool(d.get("mirror", false)))
-	if not _dog.is_empty():
-		var f := 0
-		match str(_dog["state"]):
-			"run":
-				f = int(step / 2.0) % 4
-			"sniff":
-				f = 4 + int(step / 4.0) % 2
-			"sit":
-				f = 6
-			"bark":
-				f = 7 if int(step / 3.0) % 2 == 0 else 6
-		_put(cv, map, "dog_%d" % f, _dog["cell"], origin, tile_w, tile_h, maxi(5, int(mini_h * 0.45)), bool(_dog["mirror"]))
 	for m in _mice:
 		var k := clampf(float(m["t"]) / 1.2, 0.0, 2.0)
 		var at: Vector2 = (m["from"] as Vector2).lerp(m["to"], k if k <= 1.0 else 2.0 - k)

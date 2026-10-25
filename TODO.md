@@ -10,8 +10,8 @@
 - [ ] R2  „na 60fps/hz mi stíny pořád hodně clippují/glitchují“ (shadow flicker/acne at 60 Hz)
 - [ ] R3  „z dálky jsou číslka chatek na cedulkách utopené pod modrou texturou, u stanů a karavanů a obecně nápisů tatáž chyba“ (signs/labels sink under the surface at distance: depth/retro pull)
 - [ ] R4  „při úklidových aktivitách kde je třeba pohyb kurzoru, změň kurzor na šipky které naznačují jaký pohyb hra očekává“ (gesture work: the cursor shows the expected motion)
-- [ ] R5  „odstranit psa v builderu“
-- [x] R6  „SectiTo98 - umožni ENTEREM odklikávat na další fotku a rovnou označ textové pole“ (Enter = next photo, focus the field)
+- [x] R5  „odstranit psa v builderu“
+- [x] R6  (cbd11c28) „SectiTo98 - umožni ENTEREM odklikávat na další fotku a rovnou označ textové pole“ (Enter = next photo, focus the field)
 - [ ] R7  „za dveřmi recepce je jiný interiér než za oknem? proč?“ (the reception's door vs window view mismatch)
 - [ ] R8  „nespamovat přes sebe zvuky (např řezání větve přes cestu)“ (one-shot sounds must not stack)
 - [ ] R9  „opravit směry spritů. viděl jsem quiet guye běžet pozadu“ (8-direction sprites: facing of the night's Silent/Quiet man and others)
@@ -21,9 +21,9 @@
 - [ ] R13 „přidej na nástěnku nakreslenou mapu bludiště v kukuřici“
 - [ ] R14 „přidej ven ke vstupu kontejner/popelnici kam musíš odnášet smetí z eventů“ (event litter is carried to a bin, not vanishing)
 - [x] R15 „po smazání mailu hned označ další“
-- [ ] R16 „v noci nejde v 3D verzi builderu nic vidět. umělé noční přisvícení? povol větší úhel naklopení, chci koukat vodorovně“
+- [x] R16 „v noci nejde v 3D verzi builderu nic vidět. umělé noční přisvícení? povol větší úhel naklopení, chci koukat vodorovně“
 - [ ] R17 „slunce a měsíc musí obíhat kolem celé mapy, ne kolem kempu“
-- [ ] R18 „pamatuj si přes noc světla, závěsy atd v recepci, i coop. rozsvěcí se furt světla v pokojíku“
+- [x] R18 „pamatuj si přes noc světla, závěsy atd v recepci, i coop. rozsvěcí se furt světla v pokojíku“
 - [ ] R19 „když vypadne proud, zpomalit lehce animaci toho jak jde hráč ven z recepce“
 - [ ] R20 „při sprintu více camera shake“
 - [ ] R21 „zmenšit Silent Guyovo oči ve tmě. když na něj posvítíš, na 3 s ti vypadne baterka, pak se rozbliká a zapne. víc silent guyů = musíš si vybrat, na koho posvítit; lehce hustý efekt“
@@ -31,7 +31,7 @@
 - [ ] R23 „radio blbne, probliknul ksicht silent guye, a do toho vypadly pojistky. takových ‚náhodných‘ momentů víc, víc šancí na takové sekvence“ (the director: more chances for stacked omens)
 - [x] R24 „z brigády opisování odstraň čísla, nech jen písmena“
 - [x] R25 „brigády se zasekly na ‚done for today‘. ať jsou přístupné nonstop, bez limitu“
-- [ ] R26 „recepce uvnitř zvenku svítí, i když jsou shozené pojistky“
+- [x] R26 „recepce uvnitř zvenku svítí, i když jsou shozené pojistky“
 - [ ] R27 „v kukuřičném podniku sprity ke kameře (jen jedna osa), rozhlížení jako v interiérech, kamera níž, bez fáze trhání silku (jen listy), A/D mezi stanicemi“
 - [ ] R28 „zákazníci chodí do fronty několikrát po sobě (3× porce): cooldown, výjimečně přidat; wait time hrozně krátký: než dojdu, ubývá pomaleji, a celkově navýšit“
 - [ ] R29 „stánek s kukuřicí má zepředu neprůhlednou texturu?“

@@ -9,7 +9,8 @@ extends Node
 ##   xvfb-run -a -s "-screen 0 1280x720x24" godot --path godot --rendering-driver opengl3 \
 ##       res://tools/shot_driver.tscn -- --scenario=tour --out=/tmp/shots
 ##
-## Scenarios are plain step lists (see SCENARIOS). Steps:
+## Scenarios are plain step lists (see SCENARIOS); `-- --steps=<file.json>` runs a list of
+## one's own instead (a JSON array of the same steps). Steps:
 ##   ["wait", seconds]          real-time wait
 ##   ["shot", "name"]           save <out>/<name>.png
 ##   ["call", "method", args]   call a method on Main
@@ -22,6 +23,7 @@ extends Node
 ##   ["book", name, archetype, party, nights, arrival_min?]  confirm a booking (GuestManager path)
 ##   ["prep_all"]                                    make every room up (as if done in the interiors)
 ##   ["player", x, y, yaw_deg]  put the player on a grid tile facing yaw
+##   ["glass", pane, dist_m]    the player outside the reception looking in at a pane
 ##   ["timescale", k]           Engine.time_scale
 ##
 ## Debug tooling only; never referenced by the game itself.
@@ -1768,12 +1770,23 @@ var _waiting_for := ""
 
 func _ready() -> void:
 	var scenario := "boot"
+	var steps_file := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--scenario="):
 			scenario = arg.get_slice("=", 1)
 		elif arg.begins_with("--out="):
 			_out_dir = arg.get_slice("=", 1)
+		elif arg.begins_with("--steps="):
+			steps_file = arg.substr(8)
 	_steps = SCENARIOS.get(scenario, SCENARIOS["boot"]).duplicate(true)
+	# A scenario of one's own from a JSON file (an array of the steps above), so a session
+	# can look at a moment without adding it here.
+	if steps_file != "":
+		var parsed = JSON.parse_string(FileAccess.get_file_as_string(steps_file))
+		if parsed is Array:
+			_steps = parsed
+		else:
+			push_error("SHOT DRIVER: --steps=%s is not a JSON array" % steps_file)
 	# Work goes by gestures of the mouse (scripts/ui/gesture.gd): the scenarios' held
 	# clicks and keys make the strokes by themselves.
 	load("res://scripts/ui/gesture.gd").auto = true
@@ -1911,6 +1924,25 @@ func _run_step(step: Array) -> void:
 			if player != null and gm != null:
 				player.global_position = gm.grid_to_world(Vector2i(int(step[1]), int(step[2]))) + Vector3(0, 0.2, 0)
 				player.rotation.y = deg_to_rad(float(step[3]))
+		"glass":
+			# ["glass", "office_glass"|"back_glass", dist_m]: the player outside the
+			# reception, `dist_m` off that pane, looking in (as tools/window_coop.gd does).
+			var bi = _main._interior_manager._building_interior
+			bi._sync_reception_glass()
+			var g: MeshInstance3D = bi._glass_cache.get(str(step[1]))
+			if g != null:
+				var s := (g.mesh as BoxMesh).size
+				var n := (g.global_basis * (Vector3.RIGHT if s.x < s.y and s.x < s.z else Vector3.BACK)).normalized()
+				var shell := g.get_parent() as Node3D
+				if (g.global_position + n - shell.global_position).length() < (g.global_position - n - shell.global_position).length():
+					n = -n
+				_main.set("debug_camera", null)
+				var p: Node3D = _main._player
+				p.global_position = g.global_position + n * float(step[2]) - Vector3(0, 1.6, 0)
+				p.look_at(Vector3(g.global_position.x, p.global_position.y, g.global_position.z), Vector3.UP)
+				var head := p.get_node_or_null("Head") as Node3D
+				if head != null:
+					head.rotation.x = 0.0
 		"view":
 			# ["view", x, y, w, h, dist_m, angle_deg]: a camera `dist_m` from the footprint's
 			# centre on the side `angle_deg` (0 = its front, +Z), a little above eye height,
