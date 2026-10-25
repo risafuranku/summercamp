@@ -76,7 +76,7 @@
 - [ ] R68 „přes den pomalá regenerace HP“
 - [ ] R69 „karavan má nefunkční okna zvenčí, nemá otexturovanou stěnu, kde se připojuje k vozidlu“
 - [ ] R70 „opět se děje bug, že interiér mi totálně jančí s myší a lítá mi pohled všude možně. děje se nyní v karavanu. hodně oken v karavanu je dost náročných na HW, nejde to udělat šikovněji?“
-- [ ] R71 „posuň pozici, kde stojíš v interiéru karavanu, blíž k lednici, ať do ní víc vidíš při otevření“
+- [x] R71 „posuň pozici, kde stojíš v interiéru karavanu, blíž k lednici, ať do ní víc vidíš při otevření“
 - [ ] R72 „při odchodu z karavanu neodcházím do 3D venku, ale do 2D screenu“
 - [x] R73 „vstup do hospody absolutní zásek: nevidím interiér, když vejdu do dveří; nejsem v interiéru hospody, ale rovnou za barem“
 - [ ] R74 „v hospodě je jeden úchylný až sexuální smích, co hraje furt dokola. prosím pryč“

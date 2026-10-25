@@ -36,7 +36,9 @@ const L := 4.96
 const W := 2.0
 const H := 1.95
 const DOOR_X := -1.24
-const EYE := Vector3(DOOR_X + 0.1, 1.52, 0.22)
+## Where you stand: in the aisle a step in from the door, near the kitchen, so the fridge
+## opened is seen into (playtest 25. 10.: "stand nearer the fridge").
+const EYE := Vector3(0.25, 1.52, 0.42)
 ## The van's windows where the model has them: the big one over the dinette at the
 ## towing end, the little one at the back end, three on the door side, three on the
 ## kitchen side, all at its window height. [glass size, centre, yaw].

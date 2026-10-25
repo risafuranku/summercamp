@@ -204,13 +204,18 @@ func _build_fridge() -> void:
 	im.emission_texture = im.albedo_texture
 	im.emission = Color(0.85, 0.92, 1.0)
 	im.emission_energy_multiplier = 0.0
+	# Hinged on the right (the far side from where you stand): open, the door swings away
+	# and you see in (playtest 25. 10.); its picture mirrored, the handle on the left.
 	var pivot := Node3D.new()
 	pivot.name = "FridgeHinge"
-	pivot.position = Vector3(at.x - size.x * 0.5, at.y, front_z + 0.012)
+	pivot.position = Vector3(at.x + size.x * 0.5, at.y, front_z + 0.012)
 	room.add_child(pivot)
-	var door := K.picture(pivot, "cv_fridge", Vector2(size.x, size.y), Vector3(size.x * 0.5, 0, 0.01), 0.0, "FridgeDoor")
-	(door.material_override as StandardMaterial3D).texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	K.slab(pivot, Vector3(size.x, size.y, 0.02), Vector3(size.x * 0.5, 0, 0.0), K.surface("formica", 0.6, Color(0.95, 0.94, 0.9)), "FridgeDoorBack")
+	var door := K.picture(pivot, "cv_fridge", Vector2(size.x, size.y), Vector3(-size.x * 0.5, 0, 0.01), 0.0, "FridgeDoor")
+	var dm := door.material_override as StandardMaterial3D
+	dm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	dm.uv1_scale = Vector3(-1, 1, 1)
+	dm.uv1_offset = Vector3(1, 0, 0)
+	K.slab(pivot, Vector3(size.x, size.y, 0.02), Vector3(-size.x * 0.5, 0, 0.0), K.surface("formica", 0.6, Color(0.95, 0.94, 0.9)), "FridgeDoorBack")
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.86, 0.93, 1.0)
 	light.omni_range = 1.4
@@ -461,7 +466,7 @@ func _toggle(kind: String) -> void:
 			f["on"] = open
 			_play("fridge_open.mp3" if open else "fridge_shut.mp3", -6.0)
 			var tw := create_tween()
-			tw.tween_property(f["pivot"], "rotation_degrees:y", -112.0 if open else 0.0, 0.42 if open else 0.3) \
+			tw.tween_property(f["pivot"], "rotation_degrees:y", 112.0 if open else 0.0, 0.42 if open else 0.3) \
 				.set_trans(Tween.TRANS_BACK if open else Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT if open else Tween.EASE_IN)
 			tw.parallel().tween_method(func(k: float) -> void:
 				f["open_k"] = k
