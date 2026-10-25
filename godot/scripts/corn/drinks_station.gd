@@ -79,6 +79,8 @@ func _stand(name: String, metres: float) -> Sprite3D:
 	var s := sprite(DRINK_TEX + name + ".png", metres, false)
 	if s.texture != null:
 		s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
+	# Turned to your eye round its upright (corn_station.csprite).
+	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	return s
 
 
@@ -180,6 +182,8 @@ func _show() -> void:
 	_bottle.no_depth_test = _pouring and limo
 	_bottle.render_priority = 2 if _pouring and limo else 0
 	_bottle.rotation.z = deg_to_rad(-40.0) if _pouring and limo else 0.0
+	# Tipped to pour it is held as it is (a billboard would stand it upright).
+	_bottle.billboard = BaseMaterial3D.BILLBOARD_DISABLED if _pouring and limo else BaseMaterial3D.BILLBOARD_FIXED_Y
 	_fill.visible = on and not bool(_drink.get("tied", false))
 	if _fill.visible:
 		var at := (GRATE_AT if tea else BAG_AT) + Vector2(46, 0)

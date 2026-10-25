@@ -32,7 +32,7 @@
 - [x] R24 „z brigády opisování odstraň čísla, nech jen písmena“
 - [x] R25 „brigády se zasekly na ‚done for today‘. ať jsou přístupné nonstop, bez limitu“
 - [x] R26 „recepce uvnitř zvenku svítí, i když jsou shozené pojistky“
-- [ ] R27 „v kukuřičném podniku sprity ke kameře (jen jedna osa), rozhlížení jako v interiérech, kamera níž, bez fáze trhání silku (jen listy), A/D mezi stanicemi“
+- [x] R27 „v kukuřičném podniku sprity ke kameře (jen jedna osa), rozhlížení jako v interiérech, kamera níž, bez fáze trhání silku (jen listy), A/D mezi stanicemi“
 - [x] R28 „zákazníci chodí do fronty několikrát po sobě (3× porce): cooldown, výjimečně přidat; wait time hrozně krátký: než dojdu, ubývá pomaleji, a celkově navýšit“
 - [x] R29 „stánek s kukuřicí má zepředu neprůhlednou texturu?“
 - [x] R30 „mám JENOM DVA HOSTY a celý den je obsluhuju u kukuřice, furt se tam točí. big rework“
@@ -41,8 +41,8 @@
 - [ ] R33 „kaluže na zemi clippují s texturou země a vypadají spíš jako olej“
 - [ ] R34 „když je brigádník u minihry, nech mě pracovat společně s ním jako jiný hráč: obsazuje stanice, já můžu kamkoliv a mám přednost, on je vždy tam, kde je potřeba a kde nejsem já“
 - [ ] R35 „otexturovat závoru, možnost změnit název kempu klávesou E na ceduli před kempem“
-- [ ] R36 „na recepci mezi telefonem a deskami leží bílý čtverec, vždy na něj kliknu omylem“
-- [ ] R37 „na stanici 2 counter u kukuřice zmizí HUD uvařenosti kukuřic, na trojce taky“
+- [x] R36 „na recepci mezi telefonem a deskami leží bílý čtverec, vždy na něj kliknu omylem“
+- [x] R37 „na stanici 2 counter u kukuřice zmizí HUD uvařenosti kukuřic, na trojce taky“
 - [ ] R38 „velký cumulative layout shift při otevírání stavebních toolbarů v Builderu“
 - [ ] R39 „neuklizený nebo neustlaný stan, chatku atd. ukazuj jako notifikaci s ikonou vpravo“
 - [ ] R40 „animace odemknutí nových věcí v Builderu a pár náhledů těch nejlepších, ať hráč ví, že dosáhl achievementu“
@@ -52,6 +52,22 @@
 - [ ] R44 „v sewers jde slyšet ambience zvenčí“
 - [ ] R45 „showers chybí notifikace, že se mají uklidit“
 - [ ] R46 „podpis zboží udělej podobnou interakcí jako u pošťáka, ale ne stejný obrázek: jsou to desky na stole uvnitř recepce“
+- [x] R47 „nové klepání kamery při sprintu je sračka, lineární nahoru a dolů šíleně rychlé“ (f8b0f9d1: 23-37 Hz sines out, a runner's cadence, a sprung nod)
+- [x] R48 „v kukuřici se chci moct rozhlédnout i nahoru a dolů“
+- [ ] R49 „víc kukuřic na pultu: vždy jedna na servírování a zbytek bokem, třeba tři; koupit odkládací tácek na další 3“
+- [ ] R50 „staffroom kotelna: clippuje výhled z okna a S mě nevrátí do staffroomu, ale vykopne ven“
+- [ ] R51 „cestu zlevnit na 5“
+- [ ] R52 „světlo na recepci neodpovídá venkovnímu počasí“
+- [ ] R53 „task list na hajzlech rozdělit pro každou kabinku zvlášť“
+- [ ] R54 „déšť intenzivnější; počasí, osvětlení, zvuk a vibe před bouřkou (temný mrak, vlhko, vítr se zvedá, lehké temno); bouřku fakt intense“
+- [ ] R55 „mail na PC dát na dvojku a zbytek posunout doprava“
+- [ ] R56 „v Builderu nevidím pokojské (workery)“
+- [ ] R57 „v 3D Builderu mě nech clippovat do interiérů“
+- [ ] R58 „sprite lampičky v recepci není ve tmě tmavý“
+- [ ] R59 „sewer se děje moc často, breaker taky“
+- [ ] R60 „neukládá se inventář, ze savu zmizel klíč od power breakeru“
+- [ ] R61 „krev z očí zmizí a stéká pořád dokola: nech ji stéct a zůstat až do healu, pak fade out; PC display je přes tuto krev“
+- [ ] R62 „sewers incident (celá minihra) měl být jeden z nočních útoků táty s klukem“ (check the earlier decision: TODO/DESIGN/memory)
 
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 

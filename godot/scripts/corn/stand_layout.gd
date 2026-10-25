@@ -16,8 +16,9 @@ extends RefCounted
 ## The drinks are on a little table of their own at the stand's end, on the counter's side
 ## (built by `dress`).
 const SURFACES := {
-	"counter": {"at": Vector3(-0.65, 1.112, -0.28), "size": Vector2(1.3, 0.73125), "yaw": 180.0, "flat": true, "cam_back": 0.5, "cam_up": 0.92, "cam_aim": 0.42, "tex": "res://assets/textury/corn/st_counter.png"},
-	"husk": {"at": Vector3(0.65, 1.112, -0.28), "size": Vector2(1.3, 0.73125), "yaw": 180.0, "flat": true, "cam_back": 0.5, "cam_up": 0.92, "cam_aim": 0.42, "tex": "res://assets/textury/corn/st_husk.png"},
+	# (Lower from 25. 10.: "set the camera a little lower", the eye at a man's height.)
+	"counter": {"at": Vector3(-0.65, 1.112, -0.28), "size": Vector2(1.3, 0.73125), "yaw": 180.0, "flat": true, "cam_back": 0.52, "cam_up": 0.76, "cam_aim": 0.36, "tex": "res://assets/textury/corn/st_counter.png"},
+	"husk": {"at": Vector3(0.65, 1.112, -0.28), "size": Vector2(1.3, 0.73125), "yaw": 180.0, "flat": true, "cam_back": 0.52, "cam_up": 0.76, "cam_aim": 0.36, "tex": "res://assets/textury/corn/st_husk.png"},
 	"drinks": {"at": Vector3(-1.78, 0.922, -0.42), "size": Vector2(0.8, 0.45), "yaw": 180.0, "flat": true, "cam_back": 0.46, "cam_up": 0.42, "cam_aim": 0.16, "tex": "res://assets/textury/corn/st_drinks.png"},
 }
 ## id -> {label (said), tab_label (the frame's bar), script}; in the bar's order.

@@ -22,10 +22,11 @@ const MUSH_SPAN := 15.0
 ## Places in the pot; with the bigger pot (gear).
 const POT_PLACES := 3
 const POT_PLACES_BIG := 6
-## Husk leaves on a cob, and with the husking table (gear); the silk to pick.
+## Husk leaves on a cob, and with the husking table (gear); the silk to pick: none since
+## the playtest of 25. 10. ("leave out tearing the silk off the husk, only the leaves").
 const LEAVES := 4
 const LEAVES_TABLE := 2
-const SILK := 3
+const SILK := 0
 ## Brush strokes' worth of butter along a cob: shares of it buttered (the butter warmer
 ## does it in one stroke).
 const BUTTER_SLOTS := 20

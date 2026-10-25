@@ -295,6 +295,12 @@ func key_action(e: InputEventKey) -> String:
 			return "back"
 		KEY_TAB:
 			return "next"
+		# The station on the left, the station on the right, as A and D go between a
+		# place's rooms (playtest 25. 10.: "let me move between the corn's stations by A and D").
+		KEY_A:
+			return "tab:" + _tab_by(-1) if tabs.size() > 1 else ""
+		KEY_D:
+			return "tab:" + _tab_by(1) if tabs.size() > 1 else ""
 	var n := -1
 	if e.physical_keycode >= KEY_1 and e.physical_keycode <= KEY_9:
 		n = e.physical_keycode - KEY_1
@@ -307,6 +313,11 @@ func key_action(e: InputEventKey) -> String:
 
 ## The tab after the open one (Tab).
 func next_tab() -> String:
+	return _tab_by(1)
+
+
+## The tab `step` along from the open one, round the ends.
+func _tab_by(step: int) -> String:
 	if tabs.is_empty():
 		return ""
 	var cur := str(station.get("station")) if station != null else ""
@@ -314,7 +325,7 @@ func next_tab() -> String:
 	for j in tabs.size():
 		if str(tabs[j][0]) == cur:
 			i = j
-	return str(tabs[(i + 1) % tabs.size()][0])
+	return str(tabs[posmod(i + step, tabs.size())][0])
 
 
 ## What of the frame is under the screen point ("" none): "#back", "#tab:<id>",

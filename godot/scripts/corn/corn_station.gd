@@ -6,7 +6,7 @@ extends "res://scripts/business/station3d.gd"
 ## slips drawn the same as in every place (station3d.draw_ticket: the guest's face, a cob
 ## and the salt they want, NO SALT, or the cup or the bag of a drink; their patience), the
 ## picked one big in the frame as a checklist (cooked, butter, the salt, the napkin), the
-## crate, the bowl and the butter under SERVE, the pot's timers when you are husking. The
+## crate, the bowl and the butter under SERVE, the pot's timers at every station. The
 ## stations: counter, husk, drinks. Each says what is best to do next (`next_hint`), the
 ## stand being the frame's model for the other three places (the brief of 21. 10.).
 
@@ -56,6 +56,10 @@ func csprite(name: String, metres: float, flat := true) -> Sprite3D:
 	var s := sprite(CORN_TEX + name + ".png", metres, flat)
 	if not flat and s.texture != null:
 		s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
+	if not flat:
+		# Standing things turn to your eye round their upright as you look about (playtest
+		# 25. 10.); what lies on the board (lying) stays as it lies.
+		s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	return s
 
 
@@ -203,10 +207,11 @@ func bar_text() -> String:
 	return "CRATE %d  BOWL %d  BUTTER %d" % [cobs, int(stand.bowl(building_key)), butter]
 
 
-## The pot's cobs for the frame while you husk: how done each is, green when it is.
+## The pot's cobs for the frame at every station: how done each is, green when it is
+## (playtest 25. 10.: at the counter and the drinks they were gone, and the cobs went soft).
 func mirror() -> Array:
 	var out: Array = []
-	if stand == null or building_key == "" or station == "counter":
+	if stand == null or building_key == "":
 		return out
 	for c in stand.pot(building_key):
 		var cook := CORN.cook_of(float(c["t"]))

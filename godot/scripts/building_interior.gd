@@ -1323,7 +1323,6 @@ func _build_room() -> void:
 	_add_box(_room_root, "Counter",    Vector3(0.56, 0.45, 0.20), Vector3(2.08, 0.90, 0.60), Color(0.40, 0.28, 0.16))
 	_add_box(_room_root, "CounterTop", Vector3(0.56, 0.93, 0.18), Vector3(2.20, 0.06, 0.74), Color(0.56, 0.42, 0.28), true)
 	_add_box(_room_root, "CounterKick", Vector3(0.56, 0.06, -0.12), Vector3(2.08, 0.12, 0.04), Color(0.22, 0.14, 0.08))
-	_add_box(_room_root, "CounterPaper1", Vector3(0.40, 0.965, 0.40), Vector3(0.24, 0.008, 0.18), Color(0.86, 0.84, 0.76))
 	# The bench by the window for whoever waits second.
 	_add_box(_room_root, "WaitBench", Vector3(-1.05, 0.44, -2.18), Vector3(1.3, 0.06, 0.36), Color(0.44, 0.30, 0.18))
 	_add_box(_room_root, "WaitBenchLegL", Vector3(-1.6, 0.21, -2.18), Vector3(0.06, 0.42, 0.30), Color(0.30, 0.20, 0.12))
