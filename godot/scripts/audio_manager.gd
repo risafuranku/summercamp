@@ -158,6 +158,9 @@ const LAKE_INSECTS_TILE_RADIUS: int = 2
 const LAKE_INSECTS_CHECK_INTERVAL_SECONDS: float = 0.35
 const GRID_TILE_TYPE_LAKE: int = 1
 const INTERIOR_AUDIO_DUCK_DB: float = -10.0
+## Down the sewer: the camp's sounds all but gone, a dull rumble of what is loudest.
+const UNDERGROUND_AUDIO_DUCK_DB: float = -40.0
+const OUTDOOR_LOWPASS_UNDERGROUND_HZ: float = 260.0
 const INTERIOR_AUDIO_DUCK_FADE_SECONDS: float = 0.35
 ## The outside through the walls: low-passed to this indoors (open, it is all there).
 const OUTDOOR_LOWPASS_INDOORS_HZ: float = 1200.0
@@ -211,6 +214,8 @@ var _crickets_fade_tween: Tween
 var _ambient_music_fade_tween: Tween
 var _interior_audio_duck_tween: Tween
 var _interior_audio_is_ducked: bool = false
+## 0 out in the camp, 1 in a room, 2 under the ground.
+var _interior_audio_level := 0
 var _outdoor_ambience_bus_index: int = -1
 var _insects_bus_index: int = -1
 var _insect_hush: float = 0.0
@@ -328,7 +333,7 @@ func process_runtime(
 	_update_night_wildlife(delta)
 	_update_random_bird_calls(delta, weather_state, should_duck_outdoor_ambience)
 	_update_random_cricket_variants(delta)
-	_update_interior_audio_ducking(should_duck_outdoor_ambience)
+	_update_interior_audio_ducking(should_duck_outdoor_ambience, is_service_sewer_active)
 
 
 func consume_storm_flash_strength() -> float:
@@ -1562,10 +1567,15 @@ func _fade_ambient_music_to(target_db: float, stop_after: bool) -> void:
 		)
 
 
-func _update_interior_audio_ducking(should_duck: bool) -> void:
-	if should_duck == _interior_audio_is_ducked:
+## `underground`: down the sewer's shaft the camp is hardly there at all (playtest 25. 10.:
+## "in the sewers you can hear the ambience from outside"), not a room's walls away.
+func _update_interior_audio_ducking(should_duck: bool, underground := false) -> void:
+	var level := (2 if underground else 1) if should_duck else 0
+	if level == _interior_audio_level:
 		return
-	_interior_audio_is_ducked = should_duck
+	var was := _interior_audio_level
+	_interior_audio_level = level
+	_interior_audio_is_ducked = level > 0
 	_ensure_outdoor_ambience_bus()
 	if _outdoor_ambience_bus_index < 0 or _outdoor_ambience_bus_index >= AudioServer.get_bus_count():
 		return
@@ -1574,12 +1584,9 @@ func _update_interior_audio_ducking(should_duck: bool) -> void:
 		_interior_audio_duck_tween.kill()
 
 	var current_db = AudioServer.get_bus_volume_db(_outdoor_ambience_bus_index)
-	var target_db = current_db
-	if should_duck:
+	if was == 0:
 		_interior_audio_base_db = current_db
-		target_db = _interior_audio_base_db + INTERIOR_AUDIO_DUCK_DB
-	else:
-		target_db = _interior_audio_base_db
+	var target_db: float = _interior_audio_base_db + [0.0, INTERIOR_AUDIO_DUCK_DB, UNDERGROUND_AUDIO_DUCK_DB][level]
 
 	_interior_audio_duck_tween = create_tween()
 	_interior_audio_duck_tween.set_trans(Tween.TRANS_SINE)
@@ -1596,7 +1603,7 @@ func _update_interior_audio_ducking(should_duck: bool) -> void:
 		_interior_audio_duck_tween.parallel().tween_method(
 			Callable(self, "_set_outdoor_lowpass_hz"),
 			lp.cutoff_hz,
-			OUTDOOR_LOWPASS_INDOORS_HZ if should_duck else OUTDOOR_LOWPASS_OPEN_HZ,
+			[OUTDOOR_LOWPASS_OPEN_HZ, OUTDOOR_LOWPASS_INDOORS_HZ, OUTDOOR_LOWPASS_UNDERGROUND_HZ][level],
 			INTERIOR_AUDIO_DUCK_FADE_SECONDS
 		)
 

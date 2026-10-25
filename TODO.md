@@ -48,8 +48,8 @@
 - [ ] R40 „animace odemknutí nových věcí v Builderu a pár náhledů těch nejlepších, ať hráč ví, že dosáhl achievementu“
 - [ ] R41 „recepce nedává smysl perspektivně: okno pokojíčku a pokojíček nesedí s interiérem, je to malé, vzniká phantom prostor“
 - [x] R42 „i když zhasnu všechna světla, pořád je světelný kruh kolem zářivky na stropě a není tma; přes den je tam málo světla. Pořádně oprav světlo na recepci“ (repeated: verify with measured pixel values, lights off / on, day / night)
-- [ ] R43 „v sewers se lze v zatáčce otočit za sebe, to je špatně“
-- [ ] R44 „v sewers jde slyšet ambience zvenčí“
+- [x] R43 „v sewers se lze v zatáčce otočit za sebe, to je špatně“
+- [x] R44 „v sewers jde slyšet ambience zvenčí“
 - [ ] R45 „showers chybí notifikace, že se mají uklidit“
 - [ ] R46 „podpis zboží udělej podobnou interakcí jako u pošťáka, ale ne stejný obrázek: jsou to desky na stole uvnitř recepce“
 - [x] R47 „nové klepání kamery při sprintu je sračka, lineární nahoru a dolů šíleně rychlé“ (f8b0f9d1: 23-37 Hz sines out, a runner's cadence, a sprung nod)

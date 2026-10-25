@@ -180,6 +180,8 @@ var _move_secs: float = 1.65
 var _move_target_node: Vector2i
 var _pull_idx := -1
 var _turning := false
+## The way back to the junction you crawled in from (-1 at the ladder or after backing).
+var _came_from := -1
 var _turn_t := 0.0
 var _turn_from := 0.0
 var _turn_to := 0.0
@@ -296,6 +298,7 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 		_fixed = _all_fixed()
 	_node = _entry
 	_facing = 0
+	_came_from = -1
 	_moving = false
 	_turning = false
 	_look_side = 0
@@ -1756,8 +1759,10 @@ func _side_dir(side: int) -> int:
 	return (_facing + (1 if side > 0 else 3)) % 4
 
 
+## Not the pipe you came in by: round a bend it is at your side, and taking it turned you
+## round in a pipe you cannot turn round in (playtest 25. 10.). Back you go feet first (S).
 func _has_side(side: int) -> bool:
-	return side != 0 and _links[_node].has(_side_dir(side))
+	return side != 0 and _links[_node].has(_side_dir(side)) and _side_dir(side) != _came_from
 
 
 ## Where the torch points, as a pipe direction: back over the shoulder, into the side
@@ -1809,7 +1814,7 @@ func _begin_turn(to_facing: int, sign: float) -> void:
 func _try_move(d: int) -> void:
 	if _moving or _at_leak or _turning:
 		return
-	if not _links[_node].has(d):
+	if not _links[_node].has(d) or d == _came_from:
 		return
 	var nxt: Vector2i = _node + DIRS[d]
 	if mate.blocks(_node, nxt):
@@ -2084,10 +2089,13 @@ func _arrive() -> void:
 	_pull_idx = -1
 	_node = _move_target_node
 	if _backing:
-		# Backed out feet first: still facing the way you were.
+		# Backed out feet first: still facing the way you were (the pipe you came by is
+		# ahead of you, nothing at the sides was it).
 		_backing = false
+		_came_from = -1
 		_set_status("")
 		return
+	_came_from = (_facing + 2) % 4
 	# A bend takes you round it (the pipe gives you no choice); a junction leaves you
 	# facing on, to look and turn as you like.
 	if not _links[_node].has(_facing):
