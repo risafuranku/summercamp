@@ -455,6 +455,12 @@ func _input(event: InputEvent) -> void:
 	# click on something to clean, however low on the screen it is).
 	var on_task: bool = _upkeep_prep != null and _upkeep_prep.is_busy()
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()) and not (on_task and event is InputEventMouseButton):
+		# In the staffroom's boiler room S takes you back through to the lounge, not out of
+		# the building (playtest 25. 10.); out is from the lounge.
+		if _staff_room != null and _current_profile == "staff" and str(_staff_room.get("room")) == "boiler":
+			_staff_room.walk_to("lounge")
+			get_viewport().set_input_as_handled()
+			return
 		close_service()
 		get_viewport().set_input_as_handled()
 		return

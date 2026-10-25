@@ -55,7 +55,7 @@
 - [x] R47 „nové klepání kamery při sprintu je sračka, lineární nahoru a dolů šíleně rychlé“ (f8b0f9d1: 23-37 Hz sines out, a runner's cadence, a sprung nod)
 - [x] R48 „v kukuřici se chci moct rozhlédnout i nahoru a dolů“
 - [ ] R49 „víc kukuřic na pultu: vždy jedna na servírování a zbytek bokem, třeba tři; koupit odkládací tácek na další 3“
-- [ ] R50 „staffroom kotelna: clippuje výhled z okna a S mě nevrátí do staffroomu, ale vykopne ven“
+- [ ] R50 „staffroom kotelna: clippuje výhled z okna a S mě nevrátí do staffroomu, ale vykopne ven“ (S fixed; the window not reproduced yet: ask when)
 - [x] R51 „cestu zlevnit na 5“
 - [x] R52 „světlo na recepci neodpovídá venkovnímu počasí“
 - [ ] R53 „task list na hajzlech rozdělit pro každou kabinku zvlášť“
