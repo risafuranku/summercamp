@@ -1284,6 +1284,7 @@ func _process(delta: float) -> void:
 		_sync_active_camera()
 	_update_interaction_hint()
 	_update_torch_hand()
+	_tick_day_regen(delta)
 	if _audio_manager != null and _audio_manager.has_method("process_runtime"):
 		_audio_manager.process_runtime(
 			delta,
@@ -3016,11 +3017,38 @@ func _set_player_health(value: int, allow_game_over: bool = true) -> void:
 	_player_health = clampi(value, 0, PLAYER_MAX_HEALTH)
 	_sync_hud_health()
 	var damage_amount: int = maxi(0, previous_health - _player_health)
+	if damage_amount > 0:
+		_regen_wait = DAY_REGEN_WAIT
 	if damage_amount > 0 and _gameplay_started and not _menu_mode:
 		var fatal_hit := _player_health <= 0
 		_emit_player_damage_feedback(damage_amount, fatal_hit)
 	if allow_game_over and _player_health <= 0:
 		_trigger_game_over(GAME_OVER_REASON_DEATH)
+
+
+## By day the wounds mend slowly (playtest 25. 10.: "a slow regeneration of HP by day"):
+## DAY_REGEN_PER_SEC health a second, once DAY_REGEN_WAIT seconds have gone by without a
+## hurt; at night only the morning mends them (the first-aid box at dawn).
+const DAY_REGEN_PER_SEC := 0.12
+const DAY_REGEN_WAIT := 25.0
+var _regen_wait := 0.0
+var _regen_acc := 0.0
+
+
+func _tick_day_regen(delta: float) -> void:
+	if _game_over_active or _menu_mode or not _gameplay_started or _player_health >= PLAYER_MAX_HEALTH or _player_health <= 0:
+		_regen_acc = 0.0
+		return
+	if _time_state != TIME_DAY:
+		return
+	_regen_wait = maxf(0.0, _regen_wait - delta)
+	if _regen_wait > 0.0:
+		return
+	_regen_acc += delta * DAY_REGEN_PER_SEC
+	if _regen_acc >= 1.0:
+		var n := int(_regen_acc)
+		_regen_acc -= float(n)
+		_set_player_health(_player_health + n, false)
 
 
 func damage_player(amount: int) -> void:

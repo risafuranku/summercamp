@@ -82,6 +82,13 @@ var _scare_timer := 4.0
 var _lit_time := 0.0
 var _flee_pending := false
 var _call_timer := 2.0
+## The call's beat: the voice ("hellooo") every CALL_EVERY-th, between them only their
+## steps in the stalks to go by (playtest 25. 10.: "let the lost ones call only every
+## fourth hello").
+const CALL_EVERY := 4
+var _call_n := 0
+var _rustle_player: AudioStreamPlayer3D
+const RUSTLE_SFX := "res://assets/sfx/world/corn_rustle.mp3"
 var _call_player: AudioStreamPlayer3D
 var _rush_player: AudioStreamPlayer3D
 var _step_acc := 0.0
@@ -138,6 +145,7 @@ func setup(main_node: Node, corn: Node, guest: Dictionary) -> bool:
 	corn.add_child(_guest)
 	_guest.global_position = corn.tile_world(pick)
 	_call_player = _sound(CALL_SFX if boy == 0 else "", _guest, 7.0, -3.0)
+	_rustle_player = _sound(RUSTLE_SFX if boy == 0 else "", _guest, 4.0, -10.0)
 	if boy > 0:
 		_boy_back = _guest.texture
 		_boy_front = load(BOY_FRONT) if ResourceLoader.exists(BOY_FRONT) else _boy_back
@@ -226,8 +234,13 @@ func _process(delta: float) -> void:
 		_call_timer -= delta
 		if _call_timer <= 0.0:
 			_call_timer = randf_range(3.0, 5.5)
-			if _call_player != null and _call_player.stream != null:
-				_call_player.play()
+			_call_n += 1
+			if _call_n % CALL_EVERY == 1:
+				if _call_player != null and _call_player.stream != null:
+					_call_player.play()
+			elif _rustle_player != null and _rustle_player.stream != null:
+				_rustle_player.pitch_scale = randf_range(0.9, 1.1)
+				_rustle_player.play()
 		if Vector2(ppos.x - _guest.global_position.x, ppos.z - _guest.global_position.z).length() < 1.8:
 			_set_hint("[E] Take %s by the arm" % guest_name)
 			if Input.is_action_just_pressed("interact"):

@@ -68,12 +68,12 @@
 - [x] R60 „neukládá se inventář, ze savu zmizel klíč od power breakeru“
 - [x] R61 „krev z očí zmizí a stéká pořád dokola: nech ji stéct a zůstat až do healu, pak fade out; PC display je přes tuto krev“
 - [x] R62 „sewers incident (celá minihra) měl být jeden z nočních útoků táty s klukem“ (check the earlier decision: TODO/DESIGN/memory)
-- [ ] R63 „u ztracených týpků v kukuřici nech třeba tak každé čtvrté ‚heloooo‘“ (lost guests in the corn: the call far rarer)
+- [x] R63 „u ztracených týpků v kukuřici nech třeba tak každé čtvrté ‚heloooo‘“ (lost guests in the corn: the call far rarer)
 - [ ] R64 „v sewers jsou pořád špatně odhlučněné zvuky zvenčí“
 - [ ] R65 „na nějakých stropech křižovatek v sewers jsou furt modré obdélníky“
 - [ ] R66 „savegame si nepamatuje zapnutý počítač. zkontroluj i coop“
 - [ ] R67 „karavan nejde otočit o 90 stupňů, pouze 180“
-- [ ] R68 „přes den pomalá regenerace HP“
+- [x] R68 „přes den pomalá regenerace HP“
 - [ ] R69 „karavan má nefunkční okna zvenčí, nemá otexturovanou stěnu, kde se připojuje k vozidlu“
 - [ ] R70 „opět se děje bug, že interiér mi totálně jančí s myší a lítá mi pohled všude možně. děje se nyní v karavanu. hodně oken v karavanu je dost náročných na HW, nejde to udělat šikovněji?“
 - [x] R71 „posuň pozici, kde stojíš v interiéru karavanu, blíž k lednici, ať do ní víc vidíš při otevření“
