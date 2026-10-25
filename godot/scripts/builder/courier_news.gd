@@ -28,6 +28,8 @@ const DIPLOMAS := {
 
 var fired: Array = []
 var diplomas: Array = []
+## The day each diploma came (its date on the paper on the office wall).
+var diploma_days: Dictionary = {}
 
 
 ## What the camp has now: {caravan: bool, slide, pub, jednota, mega_gnome, tier: int,
@@ -69,13 +71,15 @@ func _diploma(out: Array, id: String) -> void:
 	if diplomas.has(id):
 		return
 	diplomas.append(id)
+	diploma_days[id] = CoreRoot.get_day() if CoreRoot != null else 1
 	out.append({"kind": "diploma", "id": id, "title": str(DIPLOMAS[id][0]), "text": str(DIPLOMAS[id][1])})
 
 
 func export_state() -> Dictionary:
-	return {"fired": fired.duplicate(), "diplomas": diplomas.duplicate()}
+	return {"fired": fired.duplicate(), "diplomas": diplomas.duplicate(), "days": diploma_days.duplicate()}
 
 
 func import_state(d: Dictionary) -> void:
 	fired = (d.get("fired", []) as Array).map(func(x): return str(x)) if d.get("fired", []) is Array else []
 	diplomas = (d.get("diplomas", []) as Array).map(func(x): return str(x)) if d.get("diplomas", []) is Array else []
+	diploma_days = (d.get("days", {}) as Dictionary).duplicate() if d.get("days", {}) is Dictionary else {}

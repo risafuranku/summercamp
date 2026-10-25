@@ -38,7 +38,13 @@ var _flick := 1.0
 var _flick_t := 0.0
 var _shown_minute := -1
 ## The district's diplomas for the camp (Builder 98's Courier, DESIGN §5j: the PC's store
-## "courier"), framed in a row under the key board as they come.
+## "courier"), framed in a row under the key board as they come; each one held up to read
+## with a click (reception/diploma_view.gd; the eye over it, reception_extras.gd).
+const DIPLOMA_VIEW = preload("res://scripts/reception/diploma_view.gd")
+const COURIER = preload("res://scripts/builder/courier_news.gd")
+## New things to click came up (a diploma hung): building_interior hands them on.
+var hot_changed := false
+var _diploma_view: CanvasLayer
 const DIPLOMA_AT := [Vector3(2.488, 1.1, 0.3), Vector3(2.488, 1.1, 0.7), Vector3(2.488, 1.1, 1.1)]
 var _diplomas_hung := 0
 var _diploma_t := 0.0
@@ -254,9 +260,44 @@ func _hang_diplomas() -> void:
 	var n := mini(DIPLOMA_AT.size(), ((c as Dictionary).get("diplomas", []) as Array).size() if c is Dictionary else 0)
 	while _diplomas_hung < n:
 		var at: Vector3 = DIPLOMA_AT[_diplomas_hung]
-		K.slab(root, Vector3(0.02, 0.44, 0.34), at + Vector3(0.012, 0, 0), K.surface("galvanized", 0.2, Color(0.22, 0.15, 0.09)), "DiplomaFrame%d" % _diplomas_hung)
-		K.picture(root, "diploma_frame", Vector2(0.3, 0.4), at - Vector3(0.002, 0, 0), -90.0, "Diploma%d" % _diplomas_hung)
+		var frame := K.slab(root, Vector3(0.02, 0.44, 0.34), at + Vector3(0.012, 0, 0), K.surface("galvanized", 0.2, Color(0.22, 0.15, 0.09)), "DiplomaFrame%d" % _diplomas_hung)
+		var pic := K.picture(root, "diploma_frame", Vector2(0.3, 0.4), at - Vector3(0.002, 0, 0), -90.0, "Diploma%d" % _diplomas_hung)
+		var id := "diploma%d" % _diplomas_hung
+		var body := StaticBody3D.new()
+		body.name = "Hot_" + id
+		body.set_meta("extra_hot", id)
+		var cs := CollisionShape3D.new()
+		var bx := BoxShape3D.new()
+		bx.size = Vector3(0.08, 0.46, 0.36)
+		cs.shape = bx
+		body.add_child(cs)
+		body.position = at
+		root.add_child(body)
+		hot[id] = {"body": body, "meshes": [frame, pic]}
+		hot_changed = true
 		_diplomas_hung += 1
+
+
+## The diploma `i` on the wall as the Courier brought it: its award, the camp, its day.
+func _diploma_item(i: int) -> Dictionary:
+	var main = root.get_tree().current_scene if root != null and root.is_inside_tree() else null
+	var im = main.get("_interior_manager") if main != null else null
+	var bi = im.get("_building_interior") if im != null else null
+	var pc = bi.get("_crt_ui") if bi != null else null
+	var c = pc.stored("courier", {}) if pc != null and pc.has_method("stored") else {}
+	var ids: Array = (c as Dictionary).get("diplomas", []) if c is Dictionary else []
+	if i >= ids.size() or not COURIER.DIPLOMAS.has(str(ids[i])):
+		return {}
+	var d: Array = COURIER.DIPLOMAS[str(ids[i])]
+	var item := {"kind": "diploma", "id": str(ids[i]), "title": str(d[0]), "text": str(d[1])}
+	var days = (c as Dictionary).get("days", {})
+	if days is Dictionary and (days as Dictionary).has(str(ids[i])):
+		item["day"] = int(days[str(ids[i])])
+	return item
+
+
+func diploma_open() -> bool:
+	return _diploma_view != null and is_instance_valid(_diploma_view)
 
 
 func update(delta: float, hour: float, lights_on: bool) -> void:
@@ -300,6 +341,14 @@ func update(delta: float, hour: float, lights_on: bool) -> void:
 
 ## Clicked: open the little door, stoke it (the fire flares), shut it.
 func click(id: String) -> bool:
+	if id.begins_with("diploma"):
+		var item := _diploma_item(int(id.substr(7)))
+		if item.is_empty() or diploma_open():
+			return true
+		_diploma_view = DIPLOMA_VIEW.new()
+		root.get_tree().root.add_child(_diploma_view)
+		_diploma_view.open(item)
+		return true
 	if id != "stove":
 		return false
 	if _one != null and ResourceLoader.exists(SFX_STOVE):

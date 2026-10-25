@@ -554,6 +554,10 @@ func _process(delta: float) -> void:
 	_update_crt_monitor_light(delta)
 	if _dressing != null:
 		_dressing.update(delta, _hour_now(), _office_lights_on and _grid_power_available)
+		if _dressing.hot_changed and _extras != null:
+			_dressing.hot_changed = false
+			for id in _dressing.hot.keys():
+				_extras.hot[id] = _dressing.hot[id]
 	# Spin fan blades
 	if _fan_pivot != null:
 		_fan_spin += delta * 380.0

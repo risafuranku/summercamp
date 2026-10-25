@@ -17,7 +17,7 @@
 - [x] R9  „opravit směry spritů. viděl jsem quiet guye běžet pozadu“ (8-direction sprites: facing of the night's Silent/Quiet man and others)
 - [x] R10 „z dálky clippujou okna u chatek? clippuje přes ně dřevěná textura a pak není vidět dovnitř“
 - [x] R11 „klikbanka98 - OK okna na které mám klikat spawnuj always on top“
-- [ ] R12 „přidej možnost prohlédnout si klikem diplom na zdi (očíčko jak kurzor)“
+- [x] R12 „přidej možnost prohlédnout si klikem diplom na zdi (očíčko jak kurzor)“
 - [ ] R13 „přidej na nástěnku nakreslenou mapu bludiště v kukuřici“
 - [ ] R14 „přidej ven ke vstupu kontejner/popelnici kam musíš odnášet smetí z eventů“ (event litter is carried to a bin, not vanishing)
 - [x] R15 „po smazání mailu hned označ další“

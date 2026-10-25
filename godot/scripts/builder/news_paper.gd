@@ -92,13 +92,20 @@ func _draw_diploma() -> void:
 	y += 10.0
 	_center(T.FONT, "awarded to", 12, y)
 	y += 18.0
-	_center(T.FONT_BOLD, "Camp Cerne Jezero", 14, y)
+	_center(T.FONT_BOLD, _camp_title(), 14, y)
 	y += 22.0
 	for l in _wrap(str(item.get("text", "")), T.FONT, 12, s.x - 70):
 		_center(T.FONT, l, 12, y)
 		y += 14.0
 	_center(T.FONT, "District Office Pelhrimov", 10, s.y - 64)
-	_center(T.FONT, Season.date_long(_day()), 10, s.y - 52)
+	_center(T.FONT, Season.date_long(int(item.get("day", _day()))), 10, s.y - 52)
+
+
+## The camp's name as painted on its board by the gate (main.camp_name()).
+func _camp_title() -> String:
+	var main := get_tree().current_scene if is_inside_tree() else null
+	var n := str(main.call("camp_name")) if main != null and main.has_method("camp_name") else ""
+	return n if n != "" else "Camp Cerne Jezero"
 
 
 func _center(f: Font, text: String, fs: int, y: float) -> void:

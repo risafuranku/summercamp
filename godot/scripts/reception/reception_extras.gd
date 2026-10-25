@@ -461,7 +461,8 @@ func is_modal() -> bool:
 	return (phone_view != null and phone_view.visible) or (board_view != null and board_view.visible) \
 		or (sleep != null and sleep.is_running()) or _walking() \
 		or (host != null and host.has_method("is_desk_open") and host.is_desk_open()) \
-		or (host != null and host.get("_post") != null and host.get("_post").is_closeup_open())
+		or (host != null and host.get("_post") != null and host.get("_post").is_closeup_open()) \
+		or (host != null and host.get("_dressing") != null and host.get("_dressing").diploma_open())
 
 
 func in_back_room() -> bool:
@@ -514,7 +515,8 @@ func process(delta: float, hour: float) -> bool:
 	_hover = _hover_under_mouse()
 	if _hover != "":
 		var walks := _hover in ["door", "doorway", "front_door", "store_door", "store_doorway"] and not (_hover == "door" and where == "back")
-		HandCursor.want(HandCursor.WALK if walks else HandCursor.POINT)
+		# A diploma is looked at: the eye.
+		HandCursor.want(HandCursor.WALK if walks else (HandCursor.LOOK if _hover.begins_with("diploma") else HandCursor.POINT))
 		glint.show_on(hot[_hover]["meshes"])
 	else:
 		glint.clear()
