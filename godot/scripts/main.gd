@@ -2680,6 +2680,11 @@ func debug_demolish_rect(rect: Rect2i) -> void:
 	EventBus.RequestDemolish.emit(rect)
 
 
+## Tools: the frames a second now (the shot driver's eval cannot reach Engine).
+func debug_fps() -> float:
+	return Engine.get_frames_per_second()
+
+
 ## Tools: today's first applicant taken on at the staffroom (its slug, "" none).
 func debug_hire_hand() -> String:
 	var app: Array = load("res://core/systems/staff_rules.gd").applicants(_day_index, [], 7)

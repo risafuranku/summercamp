@@ -230,30 +230,21 @@ func _room_weather():
 	return _weather
 
 
-## A window looking out: a quad in the opening shows what a camera sees through the same
-## window of the cabin outside (the room is the model's own space, CabinLayout), with a
+## A window looking out: a quad in the opening shows the cabin's one view of the camp
+## (scripts/ui/window_shared_view.gd: your eye mapped out into the cabin outside, the
+## room being the model's own space, CabinLayout; one render for all the windows), with a
 ## curtain to draw over it (the Photographer takes pictures through the glass) that
 ## glints under the cursor like everything else you can use.
 func _add_portal(shell: Node3D, lv: int, n: String, centre: Vector3, outward: Vector3, size: Vector2, curtain_tex: String) -> void:
-	var vp := SubViewport.new()
-	vp.name = n + str(lv)
-	vp.size = Vector2i(224, int(224.0 * size.y / size.x))
-	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	add_child(vp)
-	var cam := Camera3D.new()
-	cam.projection = Camera3D.PROJECTION_FRUSTUM
-	cam.keep_aspect = Camera3D.KEEP_HEIGHT
-	cam.cull_mask = 0xFFFFF & ~GLASS_LAYER
-	vp.add_child(cam)
+	var view = load("res://scripts/ui/window_shared_view.gd").for_host(self)
+	var cam: Camera3D = view.cam
 	var quad := MeshInstance3D.new()
 	quad.name = n + "Glass"
 	var q := QuadMesh.new()
 	q.size = size
 	quad.mesh = q
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.albedo_texture = vp.get_texture()
+	var m: ShaderMaterial = view.pane_material(true)
+	m.set_shader_parameter("live", 1.0)
 	quad.material_override = m
 	var z := -outward.normalized()
 	var x := Vector3.UP.cross(z).normalized()
@@ -276,7 +267,7 @@ func _add_portal(shell: Node3D, lv: int, n: String, centre: Vector3, outward: Ve
 	cbody.add_child(cshape)
 	cbody.transform = Transform3D(frame.basis, hang)
 	shell.add_child(cbody)
-	(_level_portals[lv] as Array).append({"vp": vp, "cam": cam, "quad": quad, "frame": frame, "size": size, "outward": outward.normalized(), "curtain": cur, "cbody": cbody})
+	(_level_portals[lv] as Array).append({"view": view, "cam": cam, "quad": quad, "frame": frame, "size": size, "outward": outward.normalized(), "curtain": cur, "cbody": cbody})
 
 
 ## This tier's windows (the room's level).
@@ -377,8 +368,8 @@ func take_curtains(state: Array) -> void:
 			cur.set_open(bool(state[i]))
 
 
-## Each frame while you are in: every window's camera where your eye is, mapped out into
-## the camp, the window its near plane (so it moves as you turn, a real view).
+## Each frame while you are in: the windows of the room you are in offer your eye to the
+## cabin's one view of the camp (window_shared_view.gd), mapped out into the cabin there.
 func _update_portals() -> void:
 	var live := _anchor != null and is_instance_valid(_anchor) and _anchor.is_inside_tree()
 	var dt := get_process_delta_time()
@@ -393,20 +384,8 @@ func _update_portals() -> void:
 			(pt["cbody"] as StaticBody3D).collision_layer = 1 if shown else 0
 			var on: bool = live and shown and (cur == null or cur.open > 0.03)
 			(pt["quad"] as MeshInstance3D).visible = on
-			var vp: SubViewport = pt["vp"]
-			vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
-			if not on:
-				continue
-			if vp.world_3d != _anchor.get_world_3d():
-				vp.world_3d = _anchor.get_world_3d()
-			var frame: Transform3D = pt["frame"]
-			var eye := _cabin_root.global_transform.affine_inverse() * _interior_camera.global_position
-			var e := frame.affine_inverse() * eye
-			if e.z < 0.05:
-				continue
-			var cam: Camera3D = pt["cam"]
-			cam.global_transform = Transform3D(to_world.basis * frame.basis, to_world * eye)
-			cam.set_frustum((pt["size"] as Vector2).y, Vector2(-e.x, -e.y), e.z + 0.06, e.z + 220.0)
+			if on:
+				pt["view"].offer(_interior_camera, _cabin_root, to_world, _anchor.get_world_3d(), _anchor)
 
 
 ## The curtain under the cursor glints; the finger over it.
@@ -437,9 +416,6 @@ func close_cabin() -> void:
 		_swipe_tween.kill()
 	ROOM_PUSH.cancel(_viewport_container)
 	_swipe_animating = false
-	for lv in _level_portals.keys():
-		for pt in _level_portals[lv]:
-			(pt["vp"] as SubViewport).render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_glint.clear()
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)

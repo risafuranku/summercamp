@@ -233,7 +233,7 @@ a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `pr
 | Stations: the tabs' order, looking about | the tabs and keys 1-9 go in the order of the `STATIONS` dict of each layout (`stand_layout`, `pub_layout`, `bistro_layout`, `jednota_layout`): the order of the work, prep first, serving, side jobs last (corn: husk, counter, drinks); where you come in is `ENTRY`. Looking about from any station: `station3d._tick_look` (`LOOK_BAND`, `LOOK_DWELL`, `LOOK_YAW`, on `interior_look.gd`; the room's camera turned about `cam_pose()`, never while something is held). Shots: `tools/station_look_shots.tscn` |
 | The businesses' shared systems (ratings, lots and going off, gear, the hands, open late) | numbers and people `core/systems/business_rules.gd` (KINDS goods with `life`, GEAR, ROLES, PEOPLE, `applicants`, `score`/`reward`); the books' writes `actions.biz_*` (`biz_spoil`, `biz_bin`, `biz_buy_gear`, `biz_hire(key, person, day)`, `biz_set_job`, `biz_set_late`, `biz_score`, `biz_close_shift`, `biz_order_all`); the running side `scripts/business/business_runtime.gd` (`shift_now`, `crew_now`, attendance, theft, the strange ones, the Z report signal, `price_k`, `debug_hire`); the hands in the rooms `crew_figures.gd`; the night inside a place open late `late_night.gd`; the books on the counter `ledger_closeup.gd` (STOCK, ORDER, STAFF, GEAR, BOOKS), the receipt `zreport_closeup.gd`, the PC's SoftSklad `scripts/os98/apps/business_app.gd`; art `tools/artgen/biz_prompts.py` -> `prompts_biz.tsv` -> `biz_art.py` |
 | Doors opening for guests | `scripts/attractions/door_anim.gd` (finds Door/DoorLeaf boxes, hinges them) |
-| Windows that look out (a real view of the camp from where the building stands, curtains to draw), the flash through them | `scripts/ui/window_portal.gd` (`make`, `room_to_world`: the room laid over the building's box); used by `service_interior._make_windows` (a layout's painted `window_view` picture becomes a real window), `caravan_interior`, the cabins' own portals (curtains added) and the reception's; every room answers `photo_windows()` (InteriorManager collects it), curtains go to the other wardens with `Coop.send_curtains` |
+| Windows that look out (a real view of the camp from where the building stands, curtains to draw), the flash through them | `scripts/ui/window_portal.gd` (`make`, `room_to_world`: the room laid over the building's box), all of a room's windows reading its one `scripts/ui/window_shared_view.gd`; used by `service_interior._make_windows` (a layout's painted `window_view` picture becomes a real window), `caravan_interior`, the cabins' own portals (curtains added) and the reception's; every room answers `photo_windows()` (InteriorManager collects it), curtains go to the other wardens with `Coop.send_curtains` |
 | People seen from eight sides (guests, the other wardens, the hands, the electrician) | `scripts/figures/doom_figure.gd` (`set_of(name)`: `assets/textury/npc/sets/<name>.png/.json`; `sector_for`, `face`, `turn_toward`, `set_anim`, `advance(metres)`, `show(eye)`; `restore`/`release` when a pose draws its own picture); used by `guest_agents._drive_figure`, `remote_player._walk_doom/_room_doom`, `crew_figures`, `electrician_visit`; poses through `poses.set_pose` (a pose the set has stays in it); the family's people `poses.FAMILY`; the jacket `warden_looks.atlas(model, colour)` (the mask `sets/warden_<x>_mask.png`); art and checks: §7 "People from eight sides"; shots `tools/figure_shots.tscn` |
 | The Photographer | `scripts/enemies/tourist_brain.gd` (poses `npc/tourist_*.png` from `tools/artgen/photographer_prompts.py`, made from `npc/host2.png`; sounds `ph_*` in `tools/audiogen/prompts_photographer.tsv`); shots `tools/photographer_shots.tscn` |
 | The torch | outdoors `player_controller._aim_beam` + `scripts/ui/torch_hand.gd`; in rooms `scripts/ui/interior_torch.gd` (each interior's `room_is_dark()`) |
@@ -377,8 +377,16 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  cut into the camp; the camp building's DoorLeaf is on GLASS_LAYER, which portal cameras cull.
  Walking out sets `walked_out` and the player is put where the room's eye was
  (`walk_out_handoff`), collisions off for the last step.
-- **The reception window is a portal**, not a picture: `building_interior._update_window_portal`
-  moves a camera in the camp every frame; the room's fake Outdoor* boxes stay hidden.
+- **A room's windows share ONE view of the camp** (`scripts/ui/window_shared_view.gd`, the
+  user 25. 10.: "shared like this in all interiors, and in every future one"): one camera
+  at the room's eye mapped into the camp, the room camera's lens, the room's pixel size;
+  every pane, doorway and window reads it at SCREEN_UV (`window_into.gdshader`). Never give
+  a window a camera of its own: make windows with `window_portal.make` (shared by default;
+  pass the building to `update` so it is hidden from the view while you are inside) or
+  call `WINDOW_SHARED_VIEW.for_host(room).offer(eye, room, room_to_world, world, building)`
+  each frame a window is in sight. The caravan went from 23-28 to 44-51 FPS. The reception
+  (its building over the room exactly: not hidden) and the cabins do the same; the room's
+  fake Outdoor* boxes stay hidden.
 - **The monitor glass bends the picture**: `CRT_CURVE` in `building_interior.gd` must match
   `curve` in `crt_glass.gdshader` and `crt_sharp.gdshader`; `_map_mouse_to_crt` runs the
   same barrel, so clicks land where the OS draws.

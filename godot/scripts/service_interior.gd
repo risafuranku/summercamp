@@ -3520,7 +3520,7 @@ func _tick_windows(delta: float) -> void:
 			# only the windows of the room you are in are drawn.
 			xf = anchor.global_transform
 			live = live and _staff_room != null and str(e["room"]) == str(_staff_room.room) and not _staff_room.walking()
-		e["w"].update(root, _interior_camera, xf, live, world, delta)
+		e["w"].update(root, _interior_camera, xf, live, world, delta, anchor)
 
 
 ## The building outside (InteriorManager's open structure).

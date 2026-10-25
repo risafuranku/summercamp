@@ -671,7 +671,7 @@ func _tick_door(delta: float) -> void:
 	var a = im.get("_active_tent_node") if im != null else null
 	var anchor := a as Node3D if a != null and is_instance_valid(a) and (a as Node3D).is_inside_tree() else null
 	var world: World3D = anchor.get_world_3d() if anchor != null else null
-	_door_portal.update(_tent_root, _interior_camera, WINDOW_PORTAL.room_to_world(anchor, _door_portal) if anchor != null else Transform3D(), _door_open and anchor != null, world, delta)
+	_door_portal.update(_tent_root, _interior_camera, WINDOW_PORTAL.room_to_world(anchor, _door_portal) if anchor != null else Transform3D(), _door_open and anchor != null, world, delta, anchor)
 
 
 func _set_door_open(open: bool) -> void:

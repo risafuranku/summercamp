@@ -290,12 +290,13 @@ func _anchor() -> Node3D:
 func _tick_windows(delta: float) -> void:
 	var a := _anchor()
 	var world: World3D = a.get_world_3d() if a != null else null
-	# Each a whole view of the camp: drawn only while it is in sight (eight of them).
+	# One view of the camp for all of them (window_shared_view.gd), drawn while one of
+	# them is in sight and open.
 	for w in _windows:
-		w.update(_root, _interior_camera, WINDOW_PORTAL.room_to_world(a, w, FLOOR_UP) if a != null else Transform3D(), a != null and _in_sight(w), world, delta)
+		w.update(_root, _interior_camera, WINDOW_PORTAL.room_to_world(a, w, FLOOR_UP) if a != null else Transform3D(), a != null and _in_sight(w), world, delta, a)
 	if _door_view != null:
 		# (Drawn from the start of the walk out: it is ready when the door swings open.)
-		_door_view.update(_root, _interior_camera, WINDOW_PORTAL.room_to_world(a, _door_view, FLOOR_UP) if a != null else Transform3D(), a != null and (_door_open() > 0.02 or _leaving), world, delta)
+		_door_view.update(_root, _interior_camera, WINDOW_PORTAL.room_to_world(a, _door_view, FLOOR_UP) if a != null else Transform3D(), a != null and (_door_open() > 0.02 or _leaving), world, delta, a)
 
 
 ## Is the window's glass on the screen (any corner in front of the eye and inside it)?

@@ -540,12 +540,7 @@ func _process(delta: float) -> void:
 	if _extras != null:
 		_extras.tick_ring(delta)
 	if not visible:
-		# Shut, the window still looks out now and then, so coming back in it does not
-		# show the weather and the hour of when you left (it did for a moment).
-		_window_refresh_t -= delta
-		if _window_refresh_t <= 0.0 and _window_vp != null and _place_window_camera():
-			_window_refresh_t = 1.0
-			_window_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		# (Shut, nothing is drawn: the shared view draws the camp the frame you are back.)
 		return
 	_tick_photo_flash(get_process_delta_time())
 	_update_window_portal()
@@ -1367,14 +1362,10 @@ func _build_room() -> void:
 	_office_curtain = _extras.office_curtain
 	# The back room's window view, now that the back room is there.
 	if _extras.back != null and _extras.back.window_quad != null:
-		var bm := _make_portal("BackWindowView", BACK_VIEW_SIZE)
-		_back_vp = bm[0]
-		_back_cam = bm[1]
-		var qm := StandardMaterial3D.new()
-		qm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		qm.albedo_texture = _back_vp.get_texture()
-		qm.albedo_color = Color(0.95, 0.96, 0.95)
-		_extras.back.window_quad.material_override = qm
+		_setup_window_view()
+		_back_cam = _view.cam
+		_back_pane = _view.pane_material(true)
+		_extras.back.window_quad.material_override = _back_pane
 	_desk_room = DESK_ROOM.new()
 	_desk_room.build(self, _extras, _room_root)
 	_setup_door_view()
@@ -2042,6 +2033,14 @@ const WINDOW_CENTER := Vector3(-0.4, 1.68, -2.51)
 const ROOM_DOOR_X := 1.72
 const WINDOW_SIZE := Vector2(1.86, 1.38)
 const WINDOW_VIEW_SIZE := Vector2i(496, 368)
+## The office's one view of the camp for the window, the back room's window and the
+## front doorway (scripts/ui/window_shared_view.gd: one render for all three, the user
+## 25. 10.): your eye mapped out into the reception building, which lies over the room
+## exactly (so it is not hidden: its openings are the room's).
+const WINDOW_SHARED_VIEW = preload("res://scripts/ui/window_shared_view.gd")
+var _view: Node
+var _window_pane: ShaderMaterial
+var _back_pane: ShaderMaterial
 var _window_vp: SubViewport
 var _window_cam: Camera3D
 ## Room space -> camp space: basis (the room's axes in the camp) and origin.
@@ -2051,11 +2050,13 @@ var _portal_ok := false
 
 
 func _setup_window_view() -> void:
-	if _window_vp != null:
+	if _view != null:
 		return
-	var made := _make_portal("WindowView", WINDOW_VIEW_SIZE)
-	_window_vp = made[0]
-	_window_cam = made[1]
+	_view = WINDOW_SHARED_VIEW.for_host(self)
+	_window_cam = _view.cam
+	_window_pane = _view.pane_material(true)
+	if _window_quad != null:
+		_window_quad.material_override = _window_pane
 	for n in ["OutdoorGround", "OutdoorCeiling", "OutdoorWallL", "OutdoorWallR", "OutdoorBushL", "OutdoorBushR", "OutdoorBushR2", "OutdoorGravelStrip0", "OutdoorGravelStrip1", "OutdoorGravelStrip2", "OutdoorSkyBg"]:
 		var node := _room_root.get_node_or_null(n)
 		if node != null:
@@ -2081,13 +2082,17 @@ func _make_portal(n: String, px: Vector2i) -> Array:
 
 
 func _bind_window_world(vp: SubViewport = null) -> void:
-	for v in ([vp] if vp != null else [_window_vp, _back_vp, _door_vp]):
-		if v == null:
-			continue
-		var main := _resolve_main_runtime_host()
-		var w3d = main.get("_world_3d") if main != null else null
-		if w3d is Node3D and (w3d as Node3D).is_inside_tree():
-			(v as SubViewport).world_3d = (w3d as Node3D).get_world_3d()
+	if vp != null and _camp_world() != null:
+		vp.world_3d = _camp_world()
+
+
+## The camp's world (the windows look out into it).
+func _camp_world() -> World3D:
+	var main := _resolve_main_runtime_host()
+	var w3d = main.get("_world_3d") if main != null else null
+	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
+		return (w3d as Node3D).get_world_3d()
+	return null
 
 
 ## The back room's window (ReceptionLayout.BACK_WINDOW_*): out over the gate lane.
@@ -2116,10 +2121,8 @@ var _door_quad: MeshInstance3D
 
 
 func _setup_door_view() -> void:
-	var made := _make_portal("FrontDoorView", Vector2i(320, 240))
-	_door_vp = made[0]
-	_door_cam = made[1]
-	_door_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+	_setup_window_view()
+	_door_cam = _view.cam
 	_door_quad = MeshInstance3D.new()
 	_door_quad.name = "FrontDoorView"
 	var q := QuadMesh.new()
@@ -2129,7 +2132,7 @@ func _setup_door_view() -> void:
 	sh.code = DOOR_VIEW_SHADER
 	var m := ShaderMaterial.new()
 	m.shader = sh
-	m.set_shader_parameter("view", _door_vp.get_texture())
+	m.set_shader_parameter("view", _view.texture())
 	_door_quad.material_override = m
 	_door_quad.position = DOOR_VIEW_CENTER
 	_door_quad.visible = false
@@ -2141,17 +2144,7 @@ func _aim_door_view(eye_room: Vector3) -> bool:
 	if _viewport == null or _room_root == null:
 		return false
 	# Only from in front of the doorway (the walk out hands over to the camp before it).
-	if eye_room.z < DOOR_VIEW_CENTER.z + 0.02:
-		return false
-	if _door_vp.size != _viewport.size:
-		_door_vp.size = _viewport.size
-	var local := _room_root.global_transform.affine_inverse() * _interior_camera.global_transform
-	_door_cam.global_transform = Transform3D(_portal_xform.basis * local.basis, _portal_xform * local.origin)
-	_door_cam.fov = _interior_camera.fov
-	_door_cam.keep_aspect = _interior_camera.keep_aspect
-	_door_cam.near = _interior_camera.near
-	_door_cam.far = 260.0
-	return true
+	return eye_room.z >= DOOR_VIEW_CENTER.z + 0.02
 
 
 ## Walked out by the front door: where the warden is in the camp (a room point on the
@@ -2219,13 +2212,9 @@ static func _portal_frame(center: Vector3, outward: Vector3) -> Transform3D:
 
 
 ## Puts a window's camera where the eye is, mapped into the camp, the window its near plane.
-func _aim_portal(cam: Camera3D, frame: Transform3D, size: Vector2, eye_room: Vector3) -> bool:
-	var e := frame.affine_inverse() * eye_room
-	if e.z < 0.05:
-		return false
-	cam.global_transform = Transform3D(_portal_xform.basis * frame.basis, _portal_xform * eye_room)
-	cam.set_frustum(size.y, Vector2(-e.x, -e.y), e.z, e.z + 260.0)
-	return true
+## Whether the eye is on the room's side of a window (its glass in front of it).
+func _aim_portal(_cam: Camera3D, frame: Transform3D, _size: Vector2, eye_room: Vector3) -> bool:
+	return (frame.affine_inverse() * eye_room).z >= 0.05
 
 
 ## Where the room lies in the camp: over the reception building, its window wall on the
@@ -2233,8 +2222,6 @@ func _aim_portal(cam: Camera3D, frame: Transform3D, size: Vector2, eye_room: Vec
 func _place_window_camera() -> bool:
 	if _window_cam == null:
 		return false
-	if _window_vp != null and _window_vp.world_3d == null:
-		_bind_window_world()
 	var scene := get_tree().current_scene if get_tree() != null else null
 	var reception: Node3D = scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
 	if reception == null:
@@ -2290,19 +2277,25 @@ func _update_window_portal() -> void:
 	if _office_curtain != null and _office_curtain.open < 0.02:
 		office_on = false
 	office_on = office_on and _aim_portal(_window_cam, _portal_frame(WINDOW_CENTER, Vector3(0, 0, -1)), WINDOW_SIZE, eye_room)
-	_window_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if office_on else SubViewport.UPDATE_DISABLED
-	if _back_cam != null:
+	var any := office_on
+	if _window_pane != null:
+		_window_pane.set_shader_parameter("live", 1.0 if office_on else 0.0)
+	if _back_pane != null:
 		var back_on: bool = in_back
 		var bc = _extras.back.curtain if _extras != null else null
 		if bc != null and bc.open < 0.02:
 			back_on = false
 		back_on = back_on and _aim_portal(_back_cam, _portal_frame(RL.BACK_WINDOW_CENTER, Vector3(-1, 0, 0)), RL.BACK_WINDOW_SIZE, eye_room)
-		_back_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if back_on else SubViewport.UPDATE_DISABLED
-	if _door_cam != null:
+		_back_pane.set_shader_parameter("live", 1.0 if back_on else 0.0)
+		any = any or back_on
+	if _door_quad != null:
 		var door_on: bool = not (_extras != null and _extras.in_back_room()) and _front_door_open()
 		door_on = door_on and _aim_door_view(eye_room)
-		_door_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if door_on else SubViewport.UPDATE_DISABLED
 		_door_quad.visible = door_on
+		any = any or door_on
+	# One render for all three (the camp's building over the room exactly: not hidden).
+	if any and _view != null:
+		_view.offer(_interior_camera, _room_root, _portal_xform, _camp_world(), null)
 
 
 ## The office building's windows for whatever is outside at night (the Photographer,
@@ -2369,20 +2362,17 @@ func _tick_photo_flash(delta: float) -> void:
 
 
 func _set_window_view_live(on: bool) -> void:
-	if _window_vp == null:
+	if _view == null:
 		return
 	if on and not _place_window_camera():
 		on = false
-	_window_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
-	if not on and _back_vp != null:
-		_back_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	if not on and _door_vp != null:
-		_door_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-		_door_quad.visible = false
-	if _window_quad != null:
-		var mat := _window_quad.material_override as StandardMaterial3D
-		if mat != null:
-			mat.albedo_texture = _window_vp.get_texture() if on else null
+	if not on:
+		if _window_pane != null:
+			_window_pane.set_shader_parameter("live", 0.0)
+		if _back_pane != null:
+			_back_pane.set_shader_parameter("live", 0.0)
+		if _door_quad != null:
+			_door_quad.visible = false
 
 
 func _update_window_texture() -> void:
@@ -2423,22 +2413,13 @@ func _update_window_texture() -> void:
 			sky_color = sky_color.lerp(Color(0.28, 0.30, 0.36), 0.70)
 			sky_emission = sky_emission.lerp(Color(0.28, 0.30, 0.36), 0.70)
 			sky_energy *= 0.40
-	if _window_quad != null:
-		var mat = _window_quad.material_override as StandardMaterial3D
-		if mat == null:
-			mat = StandardMaterial3D.new()
-			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-			_window_quad.material_override = mat
-		if mat.albedo_texture != null:
-			# The real view: old glass, a touch of the room's colour.
-			mat.albedo_color = Color(0.96, 0.97, 0.96).lerp(glass_color, 0.08)
-			mat.emission_enabled = false
-		else:
-			mat.albedo_color = glass_color
-			mat.emission_enabled = true
-			mat.emission = glass_color
-			mat.emission_energy_multiplier = sky_energy * 0.30
+	if _window_pane != null:
+		# The real view through old glass, a touch of the room's colour; the glass's own
+		# colour while there is none.
+		var t := Color(0.96, 0.97, 0.96).lerp(glass_color, 0.08)
+		_window_pane.set_shader_parameter("tint", Vector3(t.r, t.g, t.b))
+		var g := glass_color * (0.7 + sky_energy * 0.3)
+		_window_pane.set_shader_parameter("glass", Vector3(g.r, g.g, g.b))
 	if _window_outdoor_sky != null:
 		var sky_mat = _window_outdoor_sky.material_override as StandardMaterial3D
 		if sky_mat == null:

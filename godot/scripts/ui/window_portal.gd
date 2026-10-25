@@ -15,6 +15,11 @@ extends RefCounted
 ## The room gives `room_to_world`: room space -> the camp (window_portal.room_to_world()
 ## builds it for a building: the room lies in the building's footprint, its front on the
 ## building's front).
+## All of a room's windows share one view of the camp (scripts/ui/window_shared_view.gd,
+## the user 25. 10.: "shared like this in all interiors, and in every future one"): the
+## pane reads it at its screen pixels and draws no view of its own; `update` offers the
+## room's eye to it while the window is in sight and open. (`own_view` true in make(): the
+## old way, a camera of its own off-axis at the glass; nothing uses it now.)
 
 const CURTAIN = preload("res://scripts/reception/curtain.gd")
 const GLASS_LAYER := 1 << 19
@@ -32,6 +37,10 @@ var light: OmniLight3D
 var _flash := 0.0
 var _mat: StandardMaterial3D
 var _live := false
+## The room's shared view (window_shared_view.gd) and this pane's material reading it;
+## null: this window's own view.
+var _view: Node
+var _shared: ShaderMaterial
 ## Its picture kept at the size it was made (a doorway walked up to: refitting it each
 ## frame it grew blinked black; caravan_interior's door).
 var fixed_px := false
@@ -40,40 +49,47 @@ var fixed_px := false
 ## A window in `room` (a Node3D of the room, room space) at `centre`, facing `outward`
 ## (room space, horizontal), `size` metres; viewport nodes under `host`. `curtain_tex` ""
 ## for none.
-static func make(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: Vector2, curtain_tex := "curtain_floral", px := 224, wood_frame := true):
+static func make(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: Vector2, curtain_tex := "curtain_floral", px := 224, wood_frame := true, own_view := false):
 	var w = load("res://scripts/ui/window_portal.gd").new()
-	w._build(host, room, centre, out_dir, glass, curtain_tex, px, wood_frame)
+	w._build(host, room, centre, out_dir, glass, curtain_tex, px, wood_frame, own_view)
 	return w
 
 
 ## `wood_frame` false: no sill and frame (a tent's doorway: the canvas is its frame).
-func _build(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: Vector2, curtain_tex: String, px: int, wood_frame := true) -> void:
+func _build(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: Vector2, curtain_tex: String, px: int, wood_frame := true, own_view := false) -> void:
 	size = glass
 	outward = Vector3(out_dir.x, 0.0, out_dir.z).normalized()
 	var z := -outward
 	var x := Vector3.UP.cross(z).normalized()
 	frame = Transform3D(Basis(x, Vector3.UP, z), centre)
-	vp = SubViewport.new()
-	vp.name = "WindowView"
-	vp.size = Vector2i(px, maxi(8, int(float(px) * glass.y / glass.x)))
-	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	host.add_child(vp)
-	cam = Camera3D.new()
-	cam.projection = Camera3D.PROJECTION_FRUSTUM
-	cam.keep_aspect = Camera3D.KEEP_HEIGHT
-	cam.cull_mask = 0xFFFFF & ~GLASS_LAYER
-	vp.add_child(cam)
 	quad = MeshInstance3D.new()
 	quad.name = "WindowGlass"
 	var q := QuadMesh.new()
 	q.size = glass
 	quad.mesh = q
-	_mat = StandardMaterial3D.new()
-	_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_mat.albedo_texture = vp.get_texture()
-	quad.material_override = _mat
 	quad.transform = frame
+	if own_view:
+		vp = SubViewport.new()
+		vp.name = "WindowView"
+		vp.size = Vector2i(px, maxi(8, int(float(px) * glass.y / glass.x)))
+		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		host.add_child(vp)
+		cam = Camera3D.new()
+		cam.projection = Camera3D.PROJECTION_FRUSTUM
+		cam.keep_aspect = Camera3D.KEEP_HEIGHT
+		cam.cull_mask = 0xFFFFF & ~GLASS_LAYER
+		vp.add_child(cam)
+		_mat = StandardMaterial3D.new()
+		_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_mat.albedo_texture = vp.get_texture()
+		quad.material_override = _mat
+	else:
+		# A doorway (no frame, no curtain: a tent's, the caravan's door) is open air.
+		_view = load("res://scripts/ui/window_shared_view.gd").for_host(host)
+		cam = _view.cam
+		_shared = _view.pane_material(wood_frame or curtain_tex != "")
+		quad.material_override = _shared
 	room.add_child(quad)
 	# A sill and a frame round it (pine), so it reads as a window from across the room.
 	var K = load("res://scripts/interior_kit.gd")
@@ -167,12 +183,17 @@ static func building_box(anchor: Node3D) -> AABB:
 ## Each frame while the room is open. `room`: the room's node (room space), `eye`: the
 ## room's camera, `xform`: room_to_world, `live`: whether this window is to be drawn
 ## (its part of the building is the one you are in).
-func update(room: Node3D, eye: Camera3D, xform: Transform3D, live: bool, world: World3D, delta: float) -> void:
+func update(room: Node3D, eye: Camera3D, xform: Transform3D, live: bool, world: World3D, delta: float, building: Node3D = null) -> void:
 	if curtain != null:
 		curtain.update(delta)
 	_flash = maxf(0.0, _flash - delta)
 	var shut: bool = curtain != null and float(curtain.open) < 0.03
 	var on: bool = live and not shut and world != null and eye != null
+	if _shared != null:
+		_update_shared(on)
+		if on:
+			_view.offer(eye, room, xform, world, building)
+		return
 	if on:
 		if vp.world_3d != world:
 			vp.world_3d = world
@@ -229,6 +250,21 @@ func _fit_pixels(room: Node3D, eye: Camera3D) -> void:
 	vp.size = Vector2i(int(w), maxi(8, int(w * size.y / size.x)))
 
 
+## Whether this window wants the camp drawn (in sight and its curtain open).
+func wants_view() -> bool:
+	return _live
+
+
+func _update_shared(on: bool) -> void:
+	_live = on
+	var f := pow(_flash / FLASH_SEC, 1.6) if _flash > 0.0 else 0.0
+	var through := 1.0 if curtain == null else lerpf(0.18, 1.0, curtain.open)
+	light.light_energy = 9.0 * f * through
+	_shared.set_shader_parameter("live", 1.0 if on else 0.0)
+	_shared.set_shader_parameter("bright", 1.0 + 3.0 * f)
+	_shared.set_shader_parameter("glass", Vector3(0.05, 0.06, 0.08).lerp(Vector3(3, 3, 3), f))
+
+
 func toggle_curtain() -> void:
 	if curtain != null:
 		curtain.toggle()
@@ -262,5 +298,6 @@ func facing(room: Node3D, eye: Camera3D) -> float:
 
 
 func free_all() -> void:
+	# (The shared view stays with its room for the next windows.)
 	if vp != null and is_instance_valid(vp):
 		vp.queue_free()
