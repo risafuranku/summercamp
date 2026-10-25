@@ -2341,7 +2341,9 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 	_upkeep_key = "%d:%d" % [coord.x, coord.y]
 	_start_life()
 	_start_marks()
-	_enter_business()
+	# In through the door you are in the room, the place round you; a click on the bar (a
+	# station) steps up to it (playtest 25. 10.: "entering the pub I do not see the room,
+	# I am straight behind the bar"; it was straight to work, the brief of 21. 10.).
 	var block := "toilet" if building_type == "toilet_block" else ("wash" if building_type == "shower_block" else "")
 	if block.is_empty() or _room_root == null:
 		_free_upkeep_prep()
@@ -2677,7 +2679,32 @@ func _hud() -> CanvasLayer:
 		_station_hud.alert_of = func(id: String) -> int:
 			var st = _stations.get(id, null)
 			return int(st.call("alert")) if st != null and is_instance_valid(st) else 0
+		_station_hud.side_of = func(dir: int) -> String: return _station_beside(dir)
 	return _station_hud
+
+
+## A and D at a station: the next one beside it in the same room on that side, as it is
+## seen from here ("" none: the bar's end; the cellar is not beside the bar).
+func _station_beside(dir: int) -> String:
+	var open := _station_open()
+	if open == "" or _interior_camera == null or not _stations.has(open):
+		return ""
+	var room := str(_station_layout().STATIONS[open]["room"])
+	var right := _interior_camera.global_basis.x
+	right.y = 0.0
+	right = right.normalized()
+	var here := (_stations[open] as Node3D).global_position
+	var best := ""
+	var best_d := INF
+	for t in _room_tabs():
+		var id := str(t[0])
+		if id == open or not _stations.has(id) or str(_station_layout().STATIONS[id]["room"]) != room:
+			continue
+		var d := ((_stations[id] as Node3D).global_position - here).dot(right) * float(dir)
+		if d > 0.05 and d < best_d:
+			best_d = d
+			best = id
+	return best
 
 
 ## The tabs of the place's stations on the frame's bar, every room's (the brief of 21. 10.:
@@ -2714,10 +2741,10 @@ func _subroom_of(station_room: String) -> String:
 	return station_room
 
 
-## In through the door, straight to work (the brief of 21. 10.: "I come in and know at once
-## where I am"): the station you were at last in this place, else its ENTRY (where an
-## order starts: the tap, the bistro's floor, the till; the tabs go in the order of the
-## work, the cellar first); never the cellar or the sink. BACK leaves the station for the room; S there leaves the place.
+## Straight to work (the brief of 21. 10.; no longer on the way in, playtest 25. 10.):
+## the station you were at last in this place, else its ENTRY (where an order starts: the
+## tap, the bistro's floor, the till); never the cellar or the sink. BACK leaves the
+## station for the room; S there leaves the place.
 func _enter_business() -> void:
 	if not (_current_profile in ["rest", "pub", "vecerka"]) or _upkeep_key == "" or not _is_open:
 		return

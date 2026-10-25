@@ -55,6 +55,9 @@ var taken: Dictionary = {}
 var mirror_of: Callable
 ## (station id) -> 0, 1 (something waits there), 2 (it burns): the tabs blink.
 var alert_of: Callable
+## Callable(dir: int) -> String: the station beside the open one on that side (A, D), by
+## the host; without it the next tab that way.
+var side_of: Callable
 ## The room's picture's size (its viewport px): the station's points are in it.
 var view_size := Vector2(640, 360)
 ## The work hints on (Options, the warden's).
@@ -296,11 +299,12 @@ func key_action(e: InputEventKey) -> String:
 		KEY_TAB:
 			return "next"
 		# The station on the left, the station on the right, as A and D go between a
-		# place's rooms (playtest 25. 10.: "let me move between the corn's stations by A and D").
-		KEY_A:
-			return "tab:" + _tab_by(-1) if tabs.size() > 1 else ""
-		KEY_D:
-			return "tab:" + _tab_by(1) if tabs.size() > 1 else ""
+		# place's rooms (playtest 25. 10.: "let me move between the corn's stations by A and
+		# D"): the one beside it in the room, a quick step; nothing past the last (not round
+		# from the fourth to the first, nor down to the cellar).
+		KEY_A, KEY_D:
+			var to := _side(-1 if e.physical_keycode == KEY_A else 1)
+			return "tab:" + to if to != "" else "none"
 	var n := -1
 	if e.physical_keycode >= KEY_1 and e.physical_keycode <= KEY_9:
 		n = e.physical_keycode - KEY_1
@@ -314,6 +318,21 @@ func key_action(e: InputEventKey) -> String:
 ## The tab after the open one (Tab).
 func next_tab() -> String:
 	return _tab_by(1)
+
+
+## The station beside the open one on that side (-1 left, 1 right): the host's say
+## (`side_of`, by where they stand in the room), else the next tab that way, not round.
+func _side(dir: int) -> String:
+	if side_of.is_valid():
+		return str(side_of.call(dir))
+	if tabs.size() < 2:
+		return ""
+	var cur := str(station.get("station")) if station != null else ""
+	for j in tabs.size():
+		if str(tabs[j][0]) == cur:
+			var k := j + dir
+			return str(tabs[k][0]) if k >= 0 and k < tabs.size() else ""
+	return ""
 
 
 ## The tab `step` along from the open one, round the ends.

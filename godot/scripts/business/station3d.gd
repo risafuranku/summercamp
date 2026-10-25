@@ -78,6 +78,8 @@ const LOOK_BAND := 0.11
 const LOOK_VBAND := 0.06
 const LOOK_DWELL := 0.08
 const LOOK_YAW := 170.0
+## How much of the screen's height the frame's bar takes (station_hud BAR_H of its H).
+const BAR_SHARE := 24.0 / 360.0
 
 ## Who and where (set by the room before it is added).
 var building_key := ""
@@ -635,6 +637,10 @@ func _tick_look(delta: float) -> void:
 	var cur := Vector2(-1, -1)
 	if _vp_mouse.x >= 0.0 and vs.x > 0.0 and vs.y > 0.0:
 		var c := _vp_mouse / vs
+		# The frame's bar lies over the room's bottom (the pointer there is the bar's): the
+		# room's own bottom is the bar's top (playtest 25. 10.: "I can look up but not down").
+		if hud != null:
+			c.y = minf(1.0, c.y / (1.0 - BAR_SHARE))
 		var in_band := c.x < LOOK_BAND or c.x > 1.0 - LOOK_BAND
 		_band_t = _band_t + delta if in_band and holding() == "" else 0.0
 		var x := c.x if _band_t >= LOOK_DWELL else clampf(c.x, LOOK_BAND, 1.0 - LOOK_BAND)

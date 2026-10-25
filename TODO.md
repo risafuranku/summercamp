@@ -68,6 +68,24 @@
 - [x] R60 „neukládá se inventář, ze savu zmizel klíč od power breakeru“
 - [x] R61 „krev z očí zmizí a stéká pořád dokola: nech ji stéct a zůstat až do healu, pak fade out; PC display je přes tuto krev“
 - [x] R62 „sewers incident (celá minihra) měl být jeden z nočních útoků táty s klukem“ (check the earlier decision: TODO/DESIGN/memory)
+- [ ] R63 „u ztracených týpků v kukuřici nech třeba tak každé čtvrté ‚heloooo‘“ (lost guests in the corn: the call far rarer)
+- [ ] R64 „v sewers jsou pořád špatně odhlučněné zvuky zvenčí“
+- [ ] R65 „na nějakých stropech křižovatek v sewers jsou furt modré obdélníky“
+- [ ] R66 „savegame si nepamatuje zapnutý počítač. zkontroluj i coop“
+- [ ] R67 „karavan nejde otočit o 90 stupňů, pouze 180“
+- [ ] R68 „přes den pomalá regenerace HP“
+- [ ] R69 „karavan má nefunkční okna zvenčí, nemá otexturovanou stěnu, kde se připojuje k vozidlu“
+- [ ] R70 „opět se děje bug, že interiér mi totálně jančí s myší a lítá mi pohled všude možně. děje se nyní v karavanu. hodně oken v karavanu je dost náročných na HW, nejde to udělat šikovněji?“
+- [ ] R71 „posuň pozici, kde stojíš v interiéru karavanu, blíž k lednici, ať do ní víc vidíš při otevření“
+- [ ] R72 „při odchodu z karavanu neodcházím do 3D venku, ale do 2D screenu“
+- [x] R73 „vstup do hospody absolutní zásek: nevidím interiér, když vejdu do dveří; nejsem v interiéru hospody, ale rovnou za barem“
+- [ ] R74 „v hospodě je jeden úchylný až sexuální smích, co hraje furt dokola. prosím pryč“
+- [x] R75 „při A a D v hospodě to má být rychlý přesun (stanoviště jsou hned vedle sebe), místo toho dither tranzice a totální otočka“
+- [ ] R76 „účty mají být obdélníkové papírky s čárkami, ne… hermelíny?“
+- [x] R77 „můžu se rozhlížet nahoru, ale už ne dolů“ (pub stations)
+- [ ] R78 „odstraň sprites s flaškou v ruce. flaška zůstává vždy na pultu, do ruky ji nedávej. nikdy nikde“
+- [ ] R79 „pro všechny minihry/obsluhování hezčí hover UI než ty hnusné rámečky, i progress bary; ať to sedí k main HUD“
+- [x] R80 „posunem doprava se ze 4 na 1 dostat NESMÍM“ (station tabs: no wrap-around)
 
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 
