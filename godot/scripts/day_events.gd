@@ -702,9 +702,13 @@ func _update_target(delta: float, can_act: bool) -> void:
 		var motion: Vector2 = pl.take_gesture_motion() if pl != null and pl.has_method("take_gesture_motion") else Vector2.ZERO
 		var strokes: int = _gesture.feed(motion, delta, 360.0)
 		if strokes > 0:
-			if str(ev["kind"]) == "tree" or _work <= 0.0:
-				_sfx_at("saw_log.mp3" if str(ev["kind"]) == "tree" else "", _event_pos(ev), -2.0)
+			# One saw at a time: every stroke started the whole sawing clip again, a dozen of
+			# them over each other (playtest 25. 10.: "do not spam sounds over each other").
+			if str(ev["kind"]) == "tree":
+				_work_sound("saw_log.mp3", _event_pos(ev), -2.0)
 			_work += float(strokes) / float(GESTURE.strokes_for(hold))
+		elif _gesture.idle > 0.9:
+			_stop_work_sound()
 		var hud = _hud()
 		if hud != null and hud.has_method("set_work_progress"):
 			hud.set_work_progress("SAWING" if str(ev["kind"]) == "tree" else "BAGGING RUBBISH", _work)
@@ -753,7 +757,24 @@ func coop_work() -> String:
 	return "" if ev.is_empty() else ("saw" if str(ev["kind"]) == "tree" else "bag")
 
 
+## The work's sound (the saw) from one player: it goes on while the strokes do, and is
+## not started again over itself.
+func _work_sound(file: String, pos: Vector3, db: float) -> void:
+	if _work_player != null and is_instance_valid(_work_player):
+		if _work_player.playing:
+			return
+		_work_player.queue_free()
+	_work_player = _sfx_at(file, pos, db, 30.0, true)
+
+
+func _stop_work_sound() -> void:
+	if _work_player != null and is_instance_valid(_work_player):
+		_work_player.queue_free()
+	_work_player = null
+
+
 func _clear_work() -> void:
+	_stop_work_sound()
 	var hud = _hud()
 	if hud != null and hud.has_method("clear_work_progress"):
 		hud.clear_work_progress()

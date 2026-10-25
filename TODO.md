@@ -13,8 +13,8 @@
 - [x] R5  (38f6fc96) „odstranit psa v builderu“
 - [x] R6  (cbd11c28) „SectiTo98 - umožni ENTEREM odklikávat na další fotku a rovnou označ textové pole“ (Enter = next photo, focus the field)
 - [x] R7  „za dveřmi recepce je jiný interiér než za oknem? proč?“ (the reception's door vs window view mismatch)
-- [ ] R8  „nespamovat přes sebe zvuky (např řezání větve přes cestu)“ (one-shot sounds must not stack)
-- [ ] R9  „opravit směry spritů. viděl jsem quiet guye běžet pozadu“ (8-direction sprites: facing of the night's Silent/Quiet man and others)
+- [x] R8  „nespamovat přes sebe zvuky (např řezání větve přes cestu)“ (one-shot sounds must not stack)
+- [x] R9  „opravit směry spritů. viděl jsem quiet guye běžet pozadu“ (8-direction sprites: facing of the night's Silent/Quiet man and others)
 - [x] R10 „z dálky clippujou okna u chatek? clippuje přes ně dřevěná textura a pak není vidět dovnitř“
 - [x] R11 „klikbanka98 - OK okna na které mám klikat spawnuj always on top“
 - [ ] R12 „přidej možnost prohlédnout si klikem diplom na zdi (očíčko jak kurzor)“
