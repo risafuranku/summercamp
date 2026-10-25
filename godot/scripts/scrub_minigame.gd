@@ -228,6 +228,9 @@ func _process(delta: float) -> void:
 	var scrubbing := held and _done_t < 0.0 and _over_dirt(m)
 	if scrubbing:
 		_wear(m, delta)
+	# Over the filth the pointer is the double arrow: to and fro is what it wants.
+	if _done_t < 0.0 and _over_dirt(m):
+		HandCursor.want(HandCursor.RUB)
 	# The rasp of the bristles follows the brush: loud when it goes, gone when it stops.
 	var want_db := -6.0 + clampf(_speed / 900.0, 0.0, 1.0) * 6.0 if scrubbing and _speed > 40.0 else -60.0
 	_scrub.volume_db = move_toward(_scrub.volume_db, want_db, delta * 120.0)

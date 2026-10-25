@@ -5,7 +5,9 @@ extends Node
 ## the player's own gloved hand, drawn like the work-hand sprites (Grok, tools/artgen,
 ## cursor.py adds the outline). A carved camp-sign arrow when there is nothing to do,
 ## the pointing finger over anything you can use, the fist while you hold a job, the
-## flat palm where you can walk through (a door, the way out).
+## flat palm where you can walk through (a door, the way out), the carved double arrow
+## where the work wants the mouse moved to and fro (scrubbing the bowl: playtest 25. 10.
+## "where the cleaning wants the cursor moved, show arrows of the motion expected").
 ##
 ## Anything may ask for a shape every frame with `HandCursor.want(kind)`; the strongest
 ## request of the frame wins, and this node (added once by main, processed last)
@@ -13,12 +15,12 @@ extends Node
 ## the window, like the rest of the 2D, and swapped into the system cursor (hardware,
 ## so it never lags behind the mouse).
 
-enum { ARROW, LOOK, POINT, WALK, GRAB }
+enum { ARROW, LOOK, POINT, WALK, GRAB, RUB }
 
 const DIR := "res://assets/textury/ui/"
-const FILES := {ARROW: "cursor_arrow.png", LOOK: "cursor_look.png", POINT: "cursor_point.png", WALK: "cursor_walk.png", GRAB: "cursor_grab.png"}
+const FILES := {ARROW: "cursor_arrow.png", LOOK: "cursor_look.png", POINT: "cursor_point.png", WALK: "cursor_walk.png", GRAB: "cursor_grab.png", RUB: "cursor_rub.png"}
 ## Where the click lands, as a share of the picture (the fingertip, the arrow's tip).
-const HOT := {ARROW: Vector2(0.06, 0.04), LOOK: Vector2(0.5, 0.5), POINT: Vector2(0.12, 0.03), WALK: Vector2(0.5, 0.3), GRAB: Vector2(0.5, 0.45)}
+const HOT := {ARROW: Vector2(0.06, 0.04), LOOK: Vector2(0.5, 0.5), POINT: Vector2(0.12, 0.03), WALK: Vector2(0.5, 0.3), GRAB: Vector2(0.5, 0.45), RUB: Vector2(0.5, 0.5)}
 
 static var _wanted := ARROW
 static var _shown := -1
@@ -26,7 +28,7 @@ static var _scale := 0
 static var _cache: Dictionary = {}   # kind -> Image at the current scale
 
 
-## The strongest shape asked for this frame wins (GRAB > WALK > POINT > LOOK > ARROW).
+## The strongest shape asked for this frame wins (RUB > GRAB > WALK > POINT > LOOK > ARROW).
 static func want(kind: int) -> void:
 	if kind > _wanted:
 		_wanted = kind
