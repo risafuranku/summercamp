@@ -10,7 +10,11 @@ extends Node3D
 ##     thicker in the small hours, the most at first light (in the hollows, over the lake),
 ##     gone by half past eight, and in the fog all day: banks of it (Grok world/mist_bank.png,
 ##     see-through in four steps like Blood's smoke) in the fog's colour for the hour;
-## The puddle and the rings on it are Grok pictures (world/puddle.png, world/rain_ring.png). Not while you are in a room. Made by
+## The puddle and the rings on it are Grok pictures (world/puddle_still.png: the Grok
+## puddle calmed, tools/artgen/puddle_still.py; world/rain_ring.png). Each lies on the
+## ground under it, found by a ray at its middle and round its rim (on a path, on the
+## path's top), tipped with it, never on a slope (playtest 25. 10.: they cut into the
+## ground and the paths and looked like oil). Not while you are in a room. Made by
 ## InteriorManager.setup() in the camp's world, like sky_life.gd and wind_life.gd.
 
 const FPS := 12.0
@@ -23,6 +27,16 @@ const RING_TEX := "res://assets/textury/world/rain_ring.png"
 const DROP_TEX := "res://assets/textury/world/water_drop.png"
 const SPLASH_TEX := "res://assets/textury/world/rain_splash.png"
 const DRIPS := 24
+## Above the highest ground under a puddle (m), and pulled toward the eye a little more
+## (retro_materials: a share of its distance) for the bumps between the rays.
+const PUDDLE_LIFT := 0.018
+const PUDDLE_PULL := 0.006
+## Steeper than this between its rim's rays (m) and no puddle forms there.
+const PUDDLE_SLOPE := 0.16
+## The path's top over its cell (building_manager.PATH_MESH_Y_OFFSET), the grass's over
+## the ground's collision (world_generator: the grass overlay).
+const PATH_TOP := 0.06
+const GRASS_TOP := 0.032
 
 var player_getter: Callable
 var indoors: Callable
@@ -80,7 +94,7 @@ func _ready() -> void:
 		m.emission_energy_multiplier = 0.0
 		mi.material_override = m
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.rotation.y = _rng.randf() * TAU
+		mi.set_meta("retro_pull", PUDDLE_PULL)
 		mi.visible = false
 		add_child(mi)
 		var rings: Array = []
@@ -97,7 +111,7 @@ func _ready() -> void:
 			r.visible = false
 			add_child(r)
 			rings.append({"sprite": r, "t": _rng.randf() * 0.6})
-		_puddles.append({"mesh": mi, "size": s, "rings": rings, "spot": Vector3.ZERO})
+		_puddles.append({"mesh": mi, "size": s, "rings": rings, "spot": Vector3.ZERO, "yaw": _rng.randf() * TAU, "basis": Basis(), "ok": false})
 	var drop_tex: Texture2D = load(DROP_TEX) if ResourceLoader.exists(DROP_TEX) else null
 	var crown_tex: Texture2D = load(SPLASH_TEX) if ResourceLoader.exists(SPLASH_TEX) else null
 	for i in DRIPS:
@@ -147,8 +161,9 @@ func _ready() -> void:
 
 ## The puddle (Grok, assets/textury/world/puddle.png); the old pixel one if it is missing.
 func _puddle_texture() -> Texture2D:
-	if ResourceLoader.exists("res://assets/textury/world/puddle.png"):
-		return load("res://assets/textury/world/puddle.png")
+	for path in ["res://assets/textury/world/puddle_still.png", "res://assets/textury/world/puddle.png"]:
+		if ResourceLoader.exists(path):
+			return load(path)
 	var w := 32
 	var h := 24
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
@@ -171,6 +186,85 @@ func _puddle_texture() -> Texture2D:
 ## see-through in four steps as Blood's translucent sprites; it was drawn here in code).
 func _mist_texture() -> Texture2D:
 	return load(MIST_TEX) if ResourceLoader.exists(MIST_TEX) else null
+
+
+## A puddle a new place round `centre` (more of them near you), lying on the ground there:
+## a few tries for a place flat enough, else none this time.
+func _lay_puddle(pd: Dictionary, centre: Vector3) -> void:
+	pd["ok"] = false
+	var space := get_world_3d().direct_space_state if is_inside_tree() and get_world_3d() != null else null
+	var me: Node3D = player_getter.call() if player_getter.is_valid() else null
+	var r := float(pd["size"]) * 0.45
+	var yaw := float(pd["yaw"])
+	for attempt in 4:
+		var ang := _rng.randf() * TAU
+		var d := lerpf(2.0, RADIUS, pow(_rng.randf(), 1.8))
+		var at := Vector3(centre.x + cos(ang) * d, centre.y, centre.z + sin(ang) * d)
+		if space == null:
+			pd["spot"] = Vector3(at.x, 0.045, at.z)
+			pd["basis"] = Basis(Vector3.UP, yaw)
+			pd["ok"] = true
+			return
+		var pts: Array = [Vector3.ZERO]
+		for k in 4:
+			var a := yaw + float(k) * PI * 0.5
+			pts.append(Vector3(cos(a), 0.0, sin(a)) * r * (1.0 if k % 2 == 0 else 0.65))
+		var ys: Array = []
+		var top := -INF
+		for o in pts:
+			var y := _ground_y(space, at + (o as Vector3), me)
+			if is_nan(y):
+				break
+			ys.append(y)
+			top = maxf(top, y)
+		if ys.size() < pts.size():
+			continue
+		var low: float = ys.min()
+		if top - low > PUDDLE_SLOPE:
+			continue
+		# Tipped with the ground: its slope along the two rays across it.
+		var dx := (float(ys[1]) - float(ys[3])) / (2.0 * r)
+		var dz := (float(ys[2]) - float(ys[4])) / (2.0 * r * 0.65)
+		var ax := Vector3(cos(yaw), 0.0, sin(yaw))
+		var az := Vector3(cos(yaw + PI * 0.5), 0.0, sin(yaw + PI * 0.5))
+		var up := (Vector3.UP - ax * dx - az * dz).normalized()
+		var b := Basis(Vector3.UP, yaw)
+		var tilt := Vector3.UP.cross(up)
+		if tilt.length() > 0.0001:
+			b = Basis(tilt.normalized(), Vector3.UP.angle_to(up)) * b
+		pd["basis"] = b
+		pd["spot"] = Vector3(at.x, float(ys[0]) + (top - float(ys[0])) * 0.5 + PUDDLE_LIFT, at.z)
+		pd["ok"] = true
+		return
+
+
+## The ground's height under `p` (NAN if there is none): the ray's hit, or a path's top
+## (the path is a flat board over its cell, with nothing to hit).
+func _ground_y(space: PhysicsDirectSpaceState3D, p: Vector3, me: Node3D) -> float:
+	var q := PhysicsRayQueryParameters3D.create(p + Vector3.UP * 3.0, p + Vector3.DOWN * 6.0)
+	q.collision_mask = 1
+	if me is CollisionObject3D:
+		q.exclude = [(me as CollisionObject3D).get_rid()]
+	var hit := space.intersect_ray(q)
+	if hit.is_empty():
+		return NAN
+	var y := float((hit["position"] as Vector3).y) + GRASS_TOP
+	var main_n := get_tree().current_scene
+	var gm = main_n.get("grid_manager") if main_n != null else null
+	if gm != null and gm.has_method("get_tile"):
+		var tile = gm.get_tile(gm.world_to_grid(p))
+		var occ = tile.occupant if tile != null else null
+		if occ != null and is_instance_valid(occ) and (occ as Node).is_in_group("paths"):
+			y = maxf(y, (occ as Node3D).global_position.y + PATH_TOP)
+	return y
+
+
+## Shot driver: how many of the puddles found a place.
+func debug_puddles() -> String:
+	var n := 0
+	for pd in _puddles:
+		n += 1 if bool(pd["ok"]) else 0
+	return "%d/%d" % [n, _puddles.size()]
 
 
 ## Whether one of the puddles lies at `p` (your feet: player_controller.gd's footsteps).
@@ -227,20 +321,16 @@ func _process(delta: float) -> void:
 	if _anchor == Vector3.INF or Vector2(_anchor.x - centre.x, _anchor.z - centre.z).length() > RADIUS * 0.7:
 		_anchor = centre
 		for pd in _puddles:
-			var ang := _rng.randf() * TAU
-			# More of them near you: flat on the ground, the far ones are a line at most.
-			var d := lerpf(2.0, RADIUS, pow(_rng.randf(), 1.8))
-			pd["spot"] = Vector3(centre.x + cos(ang) * d, 0.045, centre.z + sin(ang) * d)
+			_lay_puddle(pd, centre)
 	for i in _puddles.size():
 		var pd: Dictionary = _puddles[i]
 		var mi: MeshInstance3D = pd["mesh"]
 		# The wetter it is the more there are, the bigger.
 		var share := float(i) / float(_puddles.size())
-		var on := _wet > share * 0.9 + 0.05
+		var on := _wet > share * 0.9 + 0.05 and bool(pd["ok"])
 		mi.visible = on
 		var k := clampf((_wet - share * 0.9) * 3.0, 0.3, 1.0)
-		mi.scale = Vector3(k, 1.0, k)
-		mi.global_position = pd["spot"]
+		mi.global_transform = Transform3D((pd["basis"] as Basis).scaled(Vector3(k, 1.0, k)), pd["spot"])
 		for rg in pd["rings"]:
 			var r: Sprite3D = rg["sprite"]
 			r.visible = on and _rain > 0.0

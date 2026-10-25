@@ -327,7 +327,8 @@ func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 	if not rid.is_valid():
 		return
 	var big := _bucket(mi)
-	var pull := _pull_of(mi) if big != B_FLAT else 0.0
+	# (A flat thing's own say counts too: the rain's puddles over the bumps of the ground.)
+	var pull := _pull_of(mi) if big != B_FLAT or mi.has_meta("retro_pull") else 0.0
 	var over := mi.material_override
 	rec["over"] = over
 	if over != null:
