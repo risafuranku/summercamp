@@ -773,7 +773,9 @@ func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3)
 	body.collision_mask = 0
 	var tw := create_tween()
 	_stepping_out = tw
-	tw.tween_property(body, "global_position", to, WALK_OUT_SEC).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# In a power cut as slow as the room's part of it was (reception_extras.DARK_WALK_K).
+	var sec := WALK_OUT_SEC * (1.0 if _grid_power_available else 1.35)
+	tw.tween_property(body, "global_position", to, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func() -> void:
 		if is_instance_valid(body):
 			body.collision_mask = mask

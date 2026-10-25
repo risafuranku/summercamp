@@ -65,7 +65,7 @@ var _hurt_t := 0.0
 @export var stride_walk: float = 0.74
 @export var stride_run: float = 1.02
 @export var bob_vertical: float = 0.034
-@export var bob_vertical_run: float = 0.052
+@export var bob_vertical_run: float = 0.072
 @export var bob_horizontal: float = 0.022
 @export var base_tilt_amount: float = 0.032
 @export var rotation_tilt_amount: float = 0.0055
@@ -153,6 +153,12 @@ var _camera: Camera3D
 var _base_head_pos: Vector3 = Vector3(0.0, 1.8, 0.0)
 ## The bob as it is drawn (head offset), and the Build shift now (radians).
 var _bob_offset: Vector3 = Vector3.ZERO
+## The sprint's shake (radians): a nod at each step, a roll over the foot, small jolts.
+const RUN_NOD := 0.016
+const RUN_ROLL := 0.014
+const RUN_JOLT := 0.0035
+var _run_nod := 0.0
+var _run_roll := 0.0
 var _shift := 0.0
 ## Steps taken (whole = a foot down), counted in physics by the ground covered; the two
 ## latest physics values, so the frame between them draws the step smoothly.
@@ -936,7 +942,16 @@ func _update_head_motion(delta: float) -> void:
 	# side to side once every two steps, over the foot that bears it.
 	var fr := phase - floorf(phase)
 	var bob_y := -amp_y * (0.5 + 0.5 * cos(TAU * fr)) * walk
-	var bob_x := sin(PI * phase) * bob_horizontal * walk
+	var bob_x := sin(PI * phase) * bob_horizontal * lerpf(1.0, 1.7, run) * walk
+	# A sprint shakes the view (playtest 25. 10.: "more camera shake when sprinting"): the
+	# head nods down with every foot that lands and rolls over the one that bears it, in
+	# time with the steps, and the run's jolts on top; all of it under Options' bob.
+	var run_k := run * walk
+	_run_nod = -RUN_NOD * (0.5 + 0.5 * cos(TAU * fr)) * run_k
+	_run_roll = sin(PI * phase) * RUN_ROLL * run_k
+	if run_k > 0.01:
+		_run_nod += (sin(_idle_noise_time * 23.0) * 0.6 + sin(_idle_noise_time * 37.0) * 0.4) * RUN_JOLT * run_k
+		_run_roll += sin(_idle_noise_time * 29.0) * RUN_JOLT * run_k
 
 	# Stopping dead from a walk: the body settles (a small dip on the spring).
 	if _was_moving > 1.5 and speed < 0.3 and grounded:
@@ -980,7 +995,7 @@ func _update_head_motion(delta: float) -> void:
 	var visual_pitch := _pitch - _shift
 	var jitter_roll = sin(_idle_noise_time * 2.4) * handheld_idle_strength * 0.4
 	var jitter_pitch = cos(_idle_noise_time * 2.1) * handheld_idle_strength * 0.4
-	_head.rotation.x = visual_pitch + _mouse_impact.x + idle_pitch + jitter_pitch + damage_rot_jitter.x
+	_head.rotation.x = visual_pitch + _mouse_impact.x + idle_pitch + jitter_pitch + damage_rot_jitter.x + _run_nod
 
 	# The lean (Options "Lean"): into a sidestep, and a little into a quick turn.
 	var yaw := rotation.y
@@ -995,7 +1010,7 @@ func _update_head_motion(delta: float) -> void:
 	_hurt_t += delta
 	var hurt_roll := (sin(_hurt_t * 0.9) * 0.035 + sin(_hurt_t * 2.3) * 0.01) * hurt
 	_head.rotation.x += (-0.035 - 0.02 * sin(_hurt_t * 0.6) - 0.025 * absf(_bob_offset.y) * 10.0) * hurt
-	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y + hurt_roll
+	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y + hurt_roll + _run_roll
 	if _camera != null:
 		# A little wider in a run.
 		var fov_base := float(view.get("fov", camera_fov))

@@ -53,6 +53,8 @@ const STORE_DOOR_OPEN_DEG := 100.0
 ## (out on the porch), the line in the doorway where the camp takes it over (before
 ## the doorway's view, building_interior DOOR_VIEW_CENTER, would be behind the eye).
 const FRONT_WALK_SEC := 2.3
+## In the dark of a power cut the way out is slower, felt for (playtest 25. 10.).
+const DARK_WALK_K := 1.35
 ## In by it (come_in_front): from the doorway, where the camp's walk up hands over, round
 ## the end of the counter and in behind it (the user 20. 10.: coming in as smooth as going
 ## out); the door shuts behind you.
@@ -757,7 +759,7 @@ func go_out_front() -> void:
 	_play_steps()
 	var desk = host.get("_desk_room")
 	var door: Node3D = desk.front_door() if desk != null else null
-	var dur := FRONT_WALK_SEC
+	var dur := FRONT_WALK_SEC * (1.0 if bool(host.get("_grid_power_available")) else DARK_WALK_K)
 	# Down to the camp's eye height on the way (it is lower than the office's): the
 	# camp goes on from the same height.
 	var eye: float = host.walk_out_eye_y(FRONT_STEP_OUT, FRONT_STEP_OUT.y) if host.has_method("walk_out_eye_y") else FRONT_STEP_OUT.y
