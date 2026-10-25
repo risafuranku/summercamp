@@ -418,14 +418,30 @@ func _apply_cam() -> void:
 	var back := Vector3(sin(_yaw) * cos(_pitch), sin(_pitch), cos(_yaw) * cos(_pitch))
 	_cam.fov = _fov
 	var eye := _f + back * _dist
-	# Low down the ground (a hill, a roof) can rise over the eye: kept above it.
+	# Low down the ground (a hill) can rise over the eye: kept above it. Not over the
+	# buildings: the eye goes into them (playtest 25. 10.: "let me clip into the interiors").
 	if _pitch < deg_to_rad(20.0) and _cam.is_inside_tree():
 		var space := _cam.get_world_3d().direct_space_state if _cam.get_world_3d() != null else null
 		if space != null:
-			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye + Vector3.UP * 300.0, eye + Vector3.DOWN * 300.0))
+			var q := PhysicsRayQueryParameters3D.create(eye + Vector3.UP * 300.0, eye + Vector3.DOWN * 300.0)
+			var skip: Array[RID] = []
+			var hit := space.intersect_ray(q)
+			while not hit.is_empty() and skip.size() < 6 and _in_building(hit.get("collider") as Node):
+				skip.append(hit["rid"])
+				q.exclude = skip
+				hit = space.intersect_ray(q)
 			var floor_y := float((hit["position"] as Vector3).y) if not hit.is_empty() else 0.0
 			eye.y = maxf(eye.y, floor_y + EYE_MIN)
 	_cam.transform = Transform3D(Basis.from_euler(Vector3(-_pitch, _yaw, 0.0)), eye)
+
+
+## A building's (or anything built's) body: the eye may go through it.
+func _in_building(n: Node) -> bool:
+	while n != null:
+		if n.has_meta("building_type") or n.has_meta("grid_origin"):
+			return true
+		n = n.get_parent()
+	return false
 
 
 func _dist_cap(pitch: float) -> float:

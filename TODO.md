@@ -62,7 +62,7 @@
 - [x] R54 „déšť intenzivnější; počasí, osvětlení, zvuk a vibe před bouřkou (temný mrak, vlhko, vítr se zvedá, lehké temno); bouřku fakt intense“
 - [x] R55 „mail na PC dát na dvojku a zbytek posunout doprava“
 - [x] R56 „v Builderu nevidím pokojské (workery)“
-- [ ] R57 „v 3D Builderu mě nech clippovat do interiérů“
+- [x] R57 „v 3D Builderu mě nech clippovat do interiérů“
 - [x] R58 „sprite lampičky v recepci není ve tmě tmavý“
 - [x] R59 „sewer se děje moc často, breaker taky“
 - [x] R60 „neukládá se inventář, ze savu zmizel klíč od power breakeru“
