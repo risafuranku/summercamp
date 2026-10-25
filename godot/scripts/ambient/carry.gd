@@ -131,7 +131,10 @@ func _dumpsters_near() -> Node3D:
 	var root: Node = bm.get_node_or_null("Structures") if bm != null else null
 	if root == null or p == null:
 		return null
-	for c in root.get_children():
+	# The camp's own by the gate (camp_gate.gd) and any built ones.
+	var all: Array = get_tree().get_nodes_in_group("camp_bins")
+	all.append_array(root.get_children())
+	for c in all:
 		if c is Node3D and str(c.get_meta("building_type", "")) == "dumpsters":
 			var d := Vector2((c as Node3D).global_position.x - p.global_position.x, (c as Node3D).global_position.z - p.global_position.z).length()
 			if d < 3.2:
@@ -140,6 +143,8 @@ func _dumpsters_near() -> Node3D:
 
 
 func any_dumpsters() -> bool:
+	if get_tree().get_first_node_in_group("camp_bins") != null:
+		return true
 	var m := _main()
 	var bm = m.get("building_manager") if m != null else null
 	var root: Node = bm.get_node_or_null("Structures") if bm != null else null

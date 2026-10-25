@@ -11,6 +11,10 @@ extends Node3D
 ## takes it on to the bus stop), or back in; click it again and it comes down at once.
 ## It does not come down on you, the other warden, or a party walking in.
 ##
+## Against the fence outside, west of the barrier, the camp's own dumpsters (the two
+## bins of building_models, group "camp_bins"): the rubbish bagged at a day's event goes
+## in them (carry.gd), over the fence from inside or from the road (playtest 25. 10.: "a
+## bin outside by the entrance where you must take the events' rubbish").
 ## By the road a board on two posts: the camp's name painted on it over RECEPTION - STOP;
 ## E on it and you paint it a new one (building_type "camp_sign": interior_manager ->
 ## main.open_camp_sign(); the camp's name in the profile, the other warden's board too).
@@ -65,6 +69,7 @@ func build(gate_world: Vector3, fence_z_world: float, texture_style) -> void:
 	_build_barrier()
 	_build_booth()
 	_build_sign()
+	_build_bins()
 	_build_player_block()
 	# The barrier goes up for a party when it arrives (they walk in to the reception).
 	if EventBus.has_signal("guest_at_gate"):
@@ -430,6 +435,43 @@ func set_camp_name(n: String) -> void:
 		for line in lines:
 			w = maxf(w, f.get_string_size(str(line), HORIZONTAL_ALIGNMENT_LEFT, -1, _sign_label.font_size).x)
 	_sign_label.pixel_size = minf(0.0027, SIGN_TEXT_W / maxf(1.0, w))
+
+
+func _build_bins() -> void:
+	var bins := Node3D.new()
+	bins.name = "GateBins"
+	bins.set_meta("building_type", "dumpsters")
+	bins.add_to_group("camp_bins")
+	# Their backs to the fence, the lids to the road.
+	bins.position = Vector3(gap_center_x - 5.8, 0.0, fence_z - 0.8)
+	bins.rotation.y = PI
+	add_child(bins)
+	load("res://scripts/building_models.gd").new(Callable(self, "_psx")).build("dumpsters", bins, 4.0, Vector2i(1, 1))
+	var body := StaticBody3D.new()
+	body.name = "GateBinsBody"
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(2.9, 1.3, 1.0)
+	shape.shape = box
+	body.add_child(shape)
+	body.position = Vector3(0, 0.65, 0)
+	bins.add_child(body)
+
+
+## The camp's materials as building_manager makes them (building_models asks): the colour
+## over the texture the style picks for the category.
+func _psx(color: Color, _w: float, _s: float, _st: float, _corr: float = 0.0, category: String = "", _infl: float = 0.62) -> Material:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.roughness = 0.96
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if _texture_style != null and category != "":
+		var tex = _texture_style.pick_texture(category, color)
+		if tex != null:
+			m.albedo_texture = tex
+	return m
 
 
 func _click_box(parent: Node3D, pos: Vector3, size: Vector3) -> void:
