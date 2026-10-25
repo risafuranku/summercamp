@@ -43,12 +43,13 @@ const WALLPAPER := "res://assets/textury/os98/wall_autumn.png"
 const OEM_SPLASH := "res://assets/textury/crt/UI/bios/ChatGPT Image 15. 2. 2026 14_22_04.png"
 const BIOS_FONT: FontFile = preload("res://assets/fonts/pomono.fnt")
 
-## The tabs, in key order: id, label, icon, wide (a label beside the icon).
+## The tabs, in key order: id, label, icon, wide (a label beside the icon). The mail on 2,
+## the rest one to the right (playtest 25. 10.).
 const TABS := [
 	["builder", "Builder", "builder", true],
+	["mail", "Mail", "mail", true],
 	["guestrack", "GuestRack", "guestrack", true],
 	["camp_status", "CampStat", "campstat", true],
-	["mail", "Mail", "mail", true],
 	["reviews", "Reviews", "goggle", true],
 	["browser", "Web", "browser", false],
 	["shops", "Shops", "shop_app", false],

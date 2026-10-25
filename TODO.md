@@ -56,16 +56,16 @@
 - [x] R48 „v kukuřici se chci moct rozhlédnout i nahoru a dolů“
 - [ ] R49 „víc kukuřic na pultu: vždy jedna na servírování a zbytek bokem, třeba tři; koupit odkládací tácek na další 3“
 - [ ] R50 „staffroom kotelna: clippuje výhled z okna a S mě nevrátí do staffroomu, ale vykopne ven“
-- [ ] R51 „cestu zlevnit na 5“
+- [x] R51 „cestu zlevnit na 5“
 - [ ] R52 „světlo na recepci neodpovídá venkovnímu počasí“
 - [ ] R53 „task list na hajzlech rozdělit pro každou kabinku zvlášť“
 - [ ] R54 „déšť intenzivnější; počasí, osvětlení, zvuk a vibe před bouřkou (temný mrak, vlhko, vítr se zvedá, lehké temno); bouřku fakt intense“
-- [ ] R55 „mail na PC dát na dvojku a zbytek posunout doprava“
+- [x] R55 „mail na PC dát na dvojku a zbytek posunout doprava“
 - [ ] R56 „v Builderu nevidím pokojské (workery)“
 - [ ] R57 „v 3D Builderu mě nech clippovat do interiérů“
 - [ ] R58 „sprite lampičky v recepci není ve tmě tmavý“
 - [ ] R59 „sewer se děje moc často, breaker taky“
-- [ ] R60 „neukládá se inventář, ze savu zmizel klíč od power breakeru“
+- [x] R60 „neukládá se inventář, ze savu zmizel klíč od power breakeru“
 - [ ] R61 „krev z očí zmizí a stéká pořád dokola: nech ji stéct a zůstat až do healu, pak fade out; PC display je přes tuto krev“
 - [ ] R62 „sewers incident (celá minihra) měl být jeden z nočních útoků táty s klukem“ (check the earlier decision: TODO/DESIGN/memory)
 

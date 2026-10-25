@@ -233,6 +233,10 @@ var camp_office: Node
 ## Across the lake in the keeper's boat (scripts/lake/lake_trip.gd).
 var _lake_trip: Node
 var _pending_camp_office: Dictionary = {}
+## The bag and the trip from a save loaded before the trip is made (a load from the title
+## screen right after starting the game: it was skipped, and the bag came up with only the
+## torch, the shed key gone; playtest 25. 10.).
+var _pending_town_trip: Dictionary = {}
 var _still_seconds: float = 0.0
 var _still_last_pos: Vector3 = Vector3.INF
 var _active_enemy_spawned_this_night: int = 0
@@ -1438,6 +1442,9 @@ func _spawn_player() -> void:
 			_audio_manager,
 			economy_manager
 		)
+		if not _pending_town_trip.is_empty() and _interior_manager.town_trip() != null:
+			_interior_manager.town_trip().import_state(_pending_town_trip)
+			_pending_town_trip.clear()
 	if _interaction_controller != null and _interaction_controller.has_method("setup"):
 		_interaction_controller.setup(
 			_world_3d,
@@ -6240,6 +6247,8 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		var trip_any = snapshot.get("town_trip", {})
 		if trip_any is Dictionary and _interior_manager != null and _interior_manager.has_method("town_trip") and _interior_manager.town_trip() != null:
 			_interior_manager.town_trip().import_state(trip_any)
+		elif trip_any is Dictionary:
+			_pending_town_trip = (trip_any as Dictionary).duplicate(true)
 		var office_any = snapshot.get("camp_office", {})
 		_pending_camp_office = (office_any as Dictionary).duplicate(true) if office_any is Dictionary else {}
 		if camp_office != null and _gameplay_started:
@@ -6489,6 +6498,7 @@ func _reset_state_for_new_game() -> void:
 	if _night_jobs != null:
 		_night_jobs.reset()
 	_pending_camp_office.clear()
+	_pending_town_trip.clear()
 	if camp_office != null:
 		camp_office.reset()
 	_pending_day_events.clear()

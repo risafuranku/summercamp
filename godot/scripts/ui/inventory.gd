@@ -49,8 +49,8 @@ signal changed
 
 var pockets
 var trip
-## In the pockets: {"id", "x", "y", "r" (turned a quarter), "n"}.
-var items: Array = []
+## In the pockets: {"id", "x", "y", "r" (turned a quarter), "n"}. The torch to begin with.
+var items: Array = [{"id": "torch", "x": 0, "y": 0, "r": false, "n": 1}]
 var _held: Dictionary = {}
 var _held_ms := 0
 var _open := false
@@ -96,7 +96,10 @@ func _ready() -> void:
 	add_child(_audio)
 	if Coop != null and not Coop.peer_left.is_connected(_on_peer_left):
 		Coop.peer_left.connect(_on_peer_left)
-	reset()
+	# Not reset here: a save loaded straight from the title screen fills the bag before it is
+	# in the tree, and a reset on coming in emptied it again (playtest 25. 10.: the shed key
+	# gone from the save). A new camp resets it (new_camp).
+	_changed()
 
 
 ## A new camp: nothing on the ground, the torch in the bag.
