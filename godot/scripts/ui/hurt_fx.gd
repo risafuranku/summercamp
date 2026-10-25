@@ -69,6 +69,9 @@ var _veins: TextureRect
 var _streams_clip: Control
 var _streams: TextureRect
 var _stream_t := 0.0
+## The run-down blood's strength: 1 while you are hurt, falling to 0 once healed.
+var _stream_fade := 0.0
+const STREAM_FADE_SEC := 2.5
 var _flies: Array = []    # {node, vel, wait}
 var _fly_tex: Texture2D
 var _wound_tex: Texture2D
@@ -79,7 +82,9 @@ var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
-	layer = 63
+	# Over the PC's crisp screen too (building_interior's _crt_sharp_layer, 64): the blood is
+	# on your eyes, not behind the monitor's glass (playtest 25. 10.).
+	layer = 65
 	name = "HurtFx"
 	_rng.randomize()
 	_screen = ColorRect.new()
@@ -272,25 +277,34 @@ func _tick_veins() -> void:
 	_veins.modulate.a = a
 
 
-## Blood running down over your eyes from your head: it runs from the top in steps over
-## a few seconds, holds, dries off, and runs again.
+## Blood running down over your eyes from your head: it runs from the top in steps once,
+## and there it stays, run down, till you are healed; then it fades off (it ran, dried off
+## and ran again on a loop: playtest 25. 10.).
 func _tick_streams(step: float) -> void:
 	var vs := get_viewport().get_visible_rect().size
-	if _streams.texture == null or _hurt < 0.4:
+	if _streams.texture == null:
 		_streams.visible = false
-		_stream_t = 0.0
 		return
-	_stream_t += step
-	var cycle := lerpf(9.0, 5.0, (_hurt - 0.4) / 0.6)
-	var k := fmod(_stream_t, cycle) / cycle
-	if k < step / cycle:
-		_streams.flip_h = _rng.randf() < 0.5
-	var run := clampf(k / 0.45, 0.0, 1.0)
+	if _hurt >= 0.4:
+		if _stream_fade <= 0.0:
+			# A fresh run.
+			_stream_t = 0.0
+			_streams.flip_h = _rng.randf() < 0.5
+		_stream_fade = 1.0
+		_stream_t += step
+	elif _stream_fade > 0.0:
+		_stream_fade = maxf(0.0, _stream_fade - step / STREAM_FADE_SEC)
+	if _stream_fade <= 0.0:
+		_streams.visible = false
+		return
+	var run_sec := lerpf(6.0, 3.5, clampf((_hurt - 0.4) / 0.6, 0.0, 1.0))
+	var run := clampf(_stream_t / run_sec, 0.0, 1.0)
 	_streams_clip.position = Vector2.ZERO
 	_streams_clip.size = Vector2(vs.x, vs.y * floorf(run * 12.0) / 12.0)
 	_streams.size = vs
 	_streams.visible = true
-	_streams.modulate.a = 1.0 if k < 0.75 else (0.66 if k < 0.88 else 0.33)
+	# Fading in steps, as the rest of it moves.
+	_streams.modulate.a = ceilf(_stream_fade * 4.0) / 4.0
 
 
 ## The flies: on the lens when it is bad, crawling in jerks, stopping, flying off.
