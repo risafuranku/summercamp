@@ -441,6 +441,7 @@ func set_grid_power_available(power_available: bool) -> void:
 	if power_available == _grid_power_available:
 		return
 	_grid_power_available = power_available
+	_sync_desk_lamp_look()
 	_apply_room_time_profile(true)
 
 
@@ -1950,6 +1951,11 @@ func _tri(d: float, night, evening, day):
 const OFFICE_DAY_AT := 0.58
 
 
+## The day through the window by the weather (main's states: 1 windy, 2 fog, 3 light
+## rain, 4 rain, 5 storm): how much of it comes in.
+const WEATHER_DAY_K := {1: 0.94, 2: 0.76, 3: 0.68, 4: 0.54, 5: 0.36}
+
+
 func _apply_room_time_profile(animated: bool = false) -> void:
 	var d := clampf(_daylight_factor / OFFICE_DAY_AT, 0.0, 1.0)
 	if _room_environment != null:
@@ -1987,6 +1993,23 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		var open: float = _office_curtain.open if _office_curtain != null else 1.0
 		_sun_beam.light_color = _sunlight_color.lerp(Color(1.0, 0.97, 0.9), 0.4)
 		_sun_beam.light_energy = 3.2 * daylight * daylight * lerpf(0.06, 1.0, open)
+	# The weather outside is the room's too (playtest 25. 10.: "the reception's light does
+	# not match the weather"): the camp's daylight tops out at noon well before the room's
+	# full day, so a rain hardly showed; an overcast, rainy or stormy day comes in grey and
+	# dim through the window, the sun's beam all but gone in a storm.
+	var wk: float = WEATHER_DAY_K.get(_weather_state, 1.0)
+	if wk < 1.0 and daylight > 0.0:
+		var grey: float = (1.0 - wk) * daylight
+		var cloud := Color(0.6, 0.64, 0.7)
+		if _room_environment != null:
+			_room_environment.ambient_light_energy *= lerpf(1.0, wk, daylight)
+			_room_environment.ambient_light_color = _room_environment.ambient_light_color.lerp(cloud, grey)
+			_room_environment.background_color = _room_environment.background_color.lerp(cloud * 0.6, grey)
+		if _window_light != null:
+			_window_light.light_energy *= wk
+			_window_light.light_color = _window_light.light_color.lerp(cloud, grey * 1.4)
+		if _sun_beam != null:
+			_sun_beam.light_energy *= wk * wk * wk
 	if _room_environment != null and _office_curtain != null:
 		_room_environment.ambient_light_energy *= lerpf(0.55, 1.0, _office_curtain.open) if daylight > 0.3 else 1.0
 	# The tubes on: their cold light is everywhere in a small room (the walls, the
@@ -1998,6 +2021,7 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		_room_environment.ambient_light_energy = maxf(_room_environment.ambient_light_energy, fill)
 	_sync_reception_glass()
 	_apply_manual_office_light_profile(animated)
+	_sync_desk_lamp_look()
 	_update_window_texture()
 
 
@@ -2622,8 +2646,11 @@ static func _glow_glass(g, amount: float) -> void:
 
 
 func set_weather_state(weather: int) -> void:
+	var was := _weather_state
 	_weather_state = weather
 	_update_window_texture()
+	if was != weather:
+		_apply_room_time_profile(true)
 
 
 func _setup_office_light_system() -> void:
@@ -2955,17 +2982,32 @@ func toggle_desk_lamp(sound := true) -> void:
 		add_child(p)
 		p.finished.connect(p.queue_free)
 		p.play()
-	if _desk_lamp_shade != null:
-		var m := _desk_lamp_shade.material_override as StandardMaterial3D
-		if m != null:
-			if _desk_lamp_shade.name == "DeskLampSprite":
-				# Lit, it is as it is; off, a shade darker.
-				m.albedo_color = Color(0.92, 0.92, 0.88) if _desk_lamp_on else Color(0.5, 0.5, 0.52)
-			else:
-				m.emission_enabled = _desk_lamp_on
-				m.emission = Color(0.25, 0.7, 0.35)
-				m.emission_energy_multiplier = 0.35
+	_sync_desk_lamp_look()
 	_apply_room_time_profile(true)
+
+
+## The lamp's picture: lit, as bright as it is (its own bulb a hand away burnt it white);
+## off or with the power gone, as dark as the room round it (it was a dimmer picture
+## glowing on its own in the dark: playtest 25. 10.). Kept up by _apply_room_time_profile.
+func _sync_desk_lamp_look() -> void:
+	if _desk_lamp_shade == null:
+		return
+	var m := _desk_lamp_shade.material_override as StandardMaterial3D
+	if m == null:
+		return
+	var lit := _desk_lamp_on and _grid_power_available
+	if _desk_lamp_shade.name == "DeskLampSprite":
+		var room := 0.0
+		if _room_environment != null:
+			room = _room_environment.ambient_light_energy * 0.42
+		if _office_lights_on and _grid_power_available:
+			room += 0.4
+		var v := clampf(0.06 + room, 0.06, 0.9)
+		m.albedo_color = Color(0.92, 0.92, 0.88) if lit else Color(v, v, v * 1.02)
+	else:
+		m.emission_enabled = lit
+		m.emission = Color(0.25, 0.7, 0.35)
+		m.emission_energy_multiplier = 0.35
 
 
 ## Co-op: the office's lights, curtains and set, the same on both machines (main polls
