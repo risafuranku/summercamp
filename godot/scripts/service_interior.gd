@@ -2738,6 +2738,10 @@ func _subroom_of(station_room: String) -> String:
 			return "basement" if station_room == "cellar" else station_room
 		"vecerka":
 			return "storage" if station_room == "store" else station_room
+		"pub":
+			# (The bar's stations stand in the room the doors call "main": told apart, every
+			# step between two of them went through a dissolve, playtest 25. 10.)
+			return "main" if station_room == "bar" else station_room
 	return station_room
 
 
@@ -2779,9 +2783,26 @@ func _open_station(id: String) -> void:
 		_switching = true
 		_stations[was].call("close_station")
 		_switching = false
-	# A tab to a station in another room of the place: the room changes under a dissolve,
-	# the camera starts from where you would stand in it.
+	# A tab to a station in another room of the place: you walk there, from the station to
+	# the door, through it (down to the cellar, up to the bar) and in to the station
+	# (playtest 25. 10.: "bar to cellar plays you going from the counter down to the
+	# cellar, let it take its time; and back"); without a door, the room changes under a
+	# dissolve, the camera starting from where you would stand in it.
 	var sub := _subroom_of(str(_station_layout().STATIONS[id]["room"]))
+	if sub != _door_room() and _doors != null and _doors.door_to(_door_room(), sub) != "":
+		var door := _doors.door_to(_door_room(), sub)
+		if _station_hud != null and is_instance_valid(_station_hud):
+			_station_hud.visible = false
+		_station_cam_from = []
+		_doors.go(door, _interior_camera,
+			func(to: String): _apply_service_subroom(to, true),
+			func() -> Array: return [_interior_camera.position, _interior_camera.rotation],
+			func():
+				var im2 := get_parent()
+				if im2 != null and im2.has_method("_door_transition"):
+					im2._door_transition(true),
+			func(): _open_station(id))
+		return
 	if sub != _door_room():
 		var im := get_parent()
 		if im != null and im.has_method("_door_transition"):

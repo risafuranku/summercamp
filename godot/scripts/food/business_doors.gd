@@ -125,7 +125,8 @@ func hover(collider: Node, room: String) -> String:
 ## Through door `id`: to it, open, the next room, in through its door. `switch` puts the
 ## next room up (service_interior._apply_service_subroom); `stand` is where you stand
 ## in it and how you look [position, rotation] (the room's own camera).
-func go(id: String, camera: Camera3D, switch: Callable, stand_of: Callable, door_fx: Callable) -> void:
+## (`done`: called when you stand in the other room.)
+func go(id: String, camera: Camera3D, switch: Callable, stand_of: Callable, door_fx: Callable, done := Callable()) -> void:
 	if walking() or not doors.has(id):
 		return
 	var d: Dictionary = doors[id]
@@ -147,16 +148,26 @@ func go(id: String, camera: Camera3D, switch: Callable, stand_of: Callable, door
 		var leaf: Node3D = d["pivot"]
 		leaf.rotation.y += deg_to_rad(OPEN_DEG)
 		switch.call(str(d["to"]))
-		_come_in(str(d["arrive"]), camera, stand_of)
+		_come_in(str(d["arrive"]), camera, stand_of, done)
 	)
 
 
+## The door in room `room` that leads to room `to` ("" none).
+func door_to(room: String, to: String) -> String:
+	for id in doors:
+		if str(doors[id]["room"]) == room and str(doors[id]["to"]) == to:
+			return str(id)
+	return ""
+
+
 ## In through door `arrive` of the room just put up: a step in from it to where you stand.
-func _come_in(arrive: String, camera: Camera3D, stand_of: Callable) -> void:
+func _come_in(arrive: String, camera: Camera3D, stand_of: Callable, done := Callable()) -> void:
 	var stand: Array = stand_of.call()
 	if not doors.has(arrive):
 		camera.position = stand[0]
 		camera.rotation = stand[1]
+		if done.is_valid():
+			done.call()
 		return
 	var d: Dictionary = doors[arrive]
 	var inward: Vector3 = d["inward"]
@@ -172,6 +183,8 @@ func _come_in(arrive: String, camera: Camera3D, stand_of: Callable) -> void:
 	], 1.0)
 	_walk.parallel().tween_property(pivot, "rotation:y", shut, 0.7).set_delay(0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_walk.parallel().tween_callback(_play.bind("res://assets/sfx/dverezavrit.mp3", -12.0)).set_delay(0.95)
+	if done.is_valid():
+		_walk.tween_callback(done)
 
 
 func _play(path: String, db: float) -> void:
