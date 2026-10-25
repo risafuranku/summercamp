@@ -127,25 +127,31 @@ static func _hang(door: MeshInstance3D) -> bool:
 	pivot.name = door.name + "Hinge"
 	pivot.transform = Transform3D(door.basis, door.position - door.basis.x * box.size.x * 0.5)
 	parent.add_child(pivot)
-	var hole := MeshInstance3D.new()
-	hole.name = door.name + "Way"
-	var q := QuadMesh.new()
-	q.size = Vector2(box.size.x * 0.96, box.size.y * 0.98)
-	hole.mesh = q
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = Color(0.035, 0.03, 0.025)
-	hole.material_override = m
-	# In the leaf's plane, a hair out: in front of the frame the models put behind it.
-	hole.transform = Transform3D(door.basis, door.position + door.basis.z * 0.004)
-	hole.visible = false
-	parent.add_child(hole)
+	# A model may have its own doorway (<leaf>Way: the reception's shows the office); else
+	# a dark one.
+	var hole := parent.get_node_or_null(NodePath(str(door.name) + "Way")) as MeshInstance3D
+	if hole == null:
+		hole = MeshInstance3D.new()
+		hole.name = door.name + "Way"
+		var q := QuadMesh.new()
+		q.size = Vector2(box.size.x * 0.96, box.size.y * 0.98)
+		hole.mesh = q
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = Color(0.035, 0.03, 0.025)
+		hole.material_override = m
+		# In the leaf's plane, a hair out: in front of the frame the models put behind it.
+		hole.transform = Transform3D(door.basis, door.position + door.basis.z * 0.004)
+		hole.visible = false
+		parent.add_child(hole)
 	# What is fixed on the leaf (the handle, the wired glass, the heart, the M / Z plaque)
 	# goes round with it, or it stays hanging in the air when the door opens.
 	var fittings: Array = []
 	var to_leaf := door.transform.affine_inverse()
 	for c in parent.get_children():
-		if c == door or not (c is MeshInstance3D or c is Label3D):
+		# (Not the doorway's own dark: taken for a fitting, it swung out with the leaf and
+		# the bare wall stood in the doorway, walked through: playtest 25. 10.)
+		if c == door or c == hole or not (c is MeshInstance3D or c is Label3D):
 			continue
 		var at: Vector3 = to_leaf * (c as Node3D).position
 		if absf(at.x) > box.size.x * 0.5 or absf(at.y) > box.size.y * 0.5 or absf(at.z) > 0.12:

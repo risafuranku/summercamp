@@ -24,6 +24,8 @@ extends Node
 ##   ["prep_all"]                                    make every room up (as if done in the interiors)
 ##   ["player", x, y, yaw_deg]  put the player on a grid tile facing yaw
 ##   ["glass", pane, dist_m]    the player outside the reception looking in at a pane
+##   ["door_front", type, dist_m]  the player in front of that building's door, facing it
+##   ["open_door", type, seconds]  that building's door stands open
 ##   ["timescale", k]           Engine.time_scale
 ##
 ## Debug tooling only; never referenced by the game itself.
@@ -1924,6 +1926,24 @@ func _run_step(step: Array) -> void:
 			if player != null and gm != null:
 				player.global_position = gm.grid_to_world(Vector2i(int(step[1]), int(step[2]))) + Vector3(0, 0.2, 0)
 				player.rotation.y = deg_to_rad(float(step[3]))
+		"door_front":
+			# ["door_front", building_type, dist_m]: the player `dist_m` in front of the first
+			# such building's door, looking at it (then "eval" handle_structure_interact).
+			var st: Node3D = _main.debug_structure_of_type(str(step[1]))
+			var way: Dictionary = load("res://scripts/attractions/door_anim.gd").entry_points(st, 0) if st != null else {}
+			if not way.is_empty():
+				var out_dir: Vector3 = (way["outside"] as Vector3) - (way["inside"] as Vector3)
+				out_dir.y = 0.0
+				_main.set("debug_camera", null)
+				var pl: Node3D = _main._player
+				pl.global_position = (way["outside"] as Vector3) + out_dir.normalized() * float(step[2])
+				pl.look_at(Vector3(way["inside"].x, pl.global_position.y, way["inside"].z), Vector3.UP)
+		"open_door":
+			# ["open_door", building_type, seconds]: that building's door leaf stands open.
+			var sd: Node3D = _main.debug_structure_of_type(str(step[1]))
+			var da = load("res://scripts/attractions/door_anim.gd")
+			if sd != null and da.find_door(sd) != null:
+				da.open_now(da.find_door(sd), float(step[2]))
 		"glass":
 			# ["glass", "office_glass"|"back_glass", dist_m]: the player outside the
 			# reception, `dist_m` off that pane, looking in (as tools/window_coop.gd does).

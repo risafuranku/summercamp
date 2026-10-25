@@ -1586,6 +1586,8 @@ func _camp(file: String, tint: Color, uv := Vector3.ONE) -> StandardMaterial3D:
 
 ## Repeats of camp/awning_stripes.png per two metres (its stripes about a sixth of the stand).
 const AWNING_UV := 1.2
+## Where camp/corn_stand.png's counter front starts (under the painted counter top).
+const STAND_FRONT_V := 0.52
 
 
 func _corn_stand(r: Node3D, w: float, _d: float) -> Dictionary:
@@ -1596,7 +1598,13 @@ func _corn_stand(r: Node3D, w: float, _d: float) -> Dictionary:
 	# The counter, its painted front (Grok) to the camp.
 	_box(r, "Counter", Vector3(bw, h, depth), Vector3(0, h * 0.5, 0), planks)
 	if ResourceLoader.exists(CAMP + "corn_stand.png"):
-		_quad(r, "StandFront", Vector2(bw, h + 1.0), Vector3(0, (h + 1.0) * 0.5, depth * 0.5 + 0.012), 0.0, _face_mat("corn_stand.png"))
+		# Only the picture's painted counter front (the cob on the boards, its lower half):
+		# the whole picture stood two metres tall at the front, an opaque board with a painted
+		# pot over the real one and the seller (playtest 25. 10.).
+		var fm := _face_mat("corn_stand.png")
+		fm.uv1_offset = Vector3(0.0, STAND_FRONT_V, 0.0)
+		fm.uv1_scale = Vector3(1.0, 1.0 - STAND_FRONT_V, 1.0)
+		_quad(r, "StandFront", Vector2(bw, h), Vector3(0, h * 0.5, depth * 0.5 + 0.012), 0.0, fm)
 	_box(r, "CounterTop", Vector3(bw + 0.1, 0.06, depth + 0.1), Vector3(0, h + 0.03, 0), _wood())
 	# Four posts and the awning in red and white stripes.
 	for x: float in [-bw * 0.5 + 0.05, bw * 0.5 - 0.05]:
@@ -1941,6 +1949,14 @@ func reception(r: Node3D) -> Dictionary:
 	# Like the glass: the office's own door stands in it, and the doorway's view out
 	# (building_interior._setup_door_view) must not see this one shut across it.
 	leaf.layers = GLASS_LAYER
+	# The doorway while the leaf stands open: the office itself, as through its window
+	# (building_interior._update_inview gives it the room's picture; door_anim shows it
+	# with the leaf open). The bare shell of the model stood there, no desk, no wall
+	# paper (playtest 25. 10.: "through the door the interior has no furniture").
+	var way := _box(r, "DoorLeafWay", Vector3((dx1 - dx0 - 0.08) * 0.96, (L.DOOR_H - 0.04) * 0.98, 0.004), Vector3(dcx, L.DOOR_H * 0.5, z1 + t + 0.034), _flat(Color(0.035, 0.03, 0.025)))
+	way.layers = GLASS_LAYER
+	way.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	way.visible = false
 	_frame(r, "DoorFrame", dx0, dx1, 0.0, L.DOOR_H, z1 + t + 0.02, trim, false)
 	var porch_x0 := x0 - 0.1
 	var porch_x1 := wx0 - 0.25
@@ -1974,7 +1990,7 @@ func reception(r: Node3D) -> Dictionary:
 	# Firewood against the west wall.
 	for i in 4:
 		_cyl(r, "Firewood%d" % i, 0.11, 1.1, Vector3(x0 - t - 0.25, 0.18 + i * 0.2, z0 + 1.0 + (i % 2) * 0.12), _psx_mat(Color(0.52, 0.38, 0.24), "tree_bark"), Vector3(PI * 0.5, 0, 0))
-	return {"office_glass": og, "back_glass": bg}
+	return {"office_glass": og, "back_glass": bg, "door_way": way}
 
 
 ## The lean-to store on the back of the reception (ReceptionLayout.STORE_*): grey boards

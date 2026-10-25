@@ -15,6 +15,9 @@ uniform float glow = 0.0;
 uniform float bright = 1.0;
 uniform vec3 glass = vec3(0.16, 0.2, 0.24);
 uniform vec3 warm = vec3(0.62, 0.48, 0.3);
+// The old glass's cold tint and its sheen at a slant (an open doorway has neither).
+uniform vec3 tint = vec3(0.84, 0.9, 0.88);
+uniform float sheen = 1.0;
 // Pulled toward the eye by this share of its distance, as scripts/retro_materials.gd
 // pulls the thin boards round it (a cabin's frame and its bar: the pane must come out
 // between them, else the frame drawn over it hid the room; 0 for the reception's glass).
@@ -27,8 +30,8 @@ void vertex() {
 }
 
 void fragment() {
-	vec3 room = texture(room_tex, SCREEN_UV).rgb * vec3(0.84, 0.9, 0.88) * bright;
+	vec3 room = texture(room_tex, SCREEN_UV).rgb * tint * bright;
 	vec3 off = mix(glass, warm, clamp(glow, 0.0, 1.0));
 	float slant = pow(1.0 - clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 3.0);
-	ALBEDO = mix(off, room, live) + vec3(0.55, 0.6, 0.66) * slant * 0.22;
+	ALBEDO = mix(off, room, live) + vec3(0.55, 0.6, 0.66) * slant * 0.22 * sheen;
 }

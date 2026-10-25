@@ -491,8 +491,11 @@ func _take_inview(van: Node3D) -> void:
 
 func _release_inview() -> void:
 	for p in _inview_panes:
+		# (A caravan bulldozed while looked into: its panes are gone, a cast of them errs.)
+		if not is_instance_valid(p):
+			continue
 		var mi := p as MeshInstance3D
-		if mi == null or not is_instance_valid(mi):
+		if mi == null:
 			continue
 		if mi.has_meta("inview_was"):
 			mi.material_override = mi.get_meta("inview_was")

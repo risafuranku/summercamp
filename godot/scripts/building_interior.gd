@@ -2438,6 +2438,9 @@ var _glass_cache: Dictionary = {}
 ## and whoever is at it are the room's. Only near and with a pane turned to you; farther
 ## off the panes are dark glass that warms with the lamps at night (_glow_glass).
 const INVIEW_RANGE := 42.0
+## What shows the office from the camp: its window, the back room's, and the front doorway
+## while the door stands open (building_models.reception: door_way).
+const PANES := ["office_glass", "back_glass", "door_way"]
 ## What lies over the room's own windows from inside (the camp's view, the rain on the
 ## glass, the doorway's view): the camera from outside does not see it.
 const INVIEW_HIDE_LAYER := 1 << 17
@@ -2462,16 +2465,16 @@ func _update_inview(delta: float) -> void:
 			var scene := get_tree().current_scene
 			_inview_reception = scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
 		if cam != null and _inview_reception != null and not _glass_cache.is_empty():
-			for k in ["office_glass", "back_glass"]:
+			for k in PANES:
 				var g = _glass_cache.get(k)
-				if g is MeshInstance3D and is_instance_valid(g):
+				if g is MeshInstance3D and is_instance_valid(g) and (g as MeshInstance3D).is_visible_in_tree():
 					var to_eye: Vector3 = cam.global_position - (g as MeshInstance3D).global_position
 					if to_eye.length() < INVIEW_RANGE and _pane_faces(g, to_eye):
 						on = true
 	if on != _inview_live:
 		_inview_live = on
 		_ensure_inview()
-		for k in ["office_glass", "back_glass"]:
+		for k in PANES:
 			var g = _glass_cache.get(k)
 			if g is MeshInstance3D and is_instance_valid(g):
 				var sm := (g as MeshInstance3D).material_override as ShaderMaterial
@@ -2516,7 +2519,7 @@ func _update_inview(delta: float) -> void:
 		if ll.size() >= 4:
 			set_daylight_profile(ll[0], ll[1], ll[2], ll[3])
 		var bright := 1.0 if _time_state == TIME_NIGHT else (0.8 if _time_state == TIME_EVENING else 0.6)
-		for k in ["office_glass", "back_glass"]:
+		for k in PANES:
 			var g = _glass_cache.get(k)
 			if g is MeshInstance3D and is_instance_valid(g) and (g as MeshInstance3D).material_override is ShaderMaterial:
 				((g as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("bright", bright)
@@ -2548,16 +2551,23 @@ func _ensure_inview() -> void:
 	_inview_cam.cull_mask = 0xFFFFF & ~INVIEW_HIDE_LAYER
 	_inview_vp.add_child(_inview_cam)
 	# The room's own window views and their rain are for the inside only.
-	for n in [_window_quad, _window_outdoor_sky, _door_quad, (_extras.back.window_quad if _extras != null and _extras.back != null else null)]:
+	# So is the room's own front door: from the camp the camp building's leaf is the door,
+	# and open it shows the room through the doorway, not this one shut across it.
+	for n in [_window_quad, _window_outdoor_sky, _door_quad, (_extras.back.window_quad if _extras != null and _extras.back != null else null), (_desk_room.front_door() if _desk_room != null else null)]:
 		if n is Node3D:
 			_hide_from_camp(n)
 	var shader: Shader = load("res://materials/window_into.gdshader")
-	for k in ["office_glass", "back_glass"]:
+	for k in PANES:
 		var g = _glass_cache.get(k)
 		if g is MeshInstance3D and is_instance_valid(g):
 			var sm := ShaderMaterial.new()
 			sm.shader = shader
 			sm.set_shader_parameter("room_tex", _inview_vp.get_texture())
+			if k == "door_way":
+				# No glass in a doorway: the room as it is, and dark far off.
+				sm.set_shader_parameter("tint", Vector3.ONE)
+				sm.set_shader_parameter("sheen", 0.0)
+				sm.set_shader_parameter("glass", Vector3(0.035, 0.03, 0.025))
 			(g as MeshInstance3D).material_override = sm
 	_sync_reception_glass()
 
@@ -2584,6 +2594,9 @@ func _sync_reception_glass() -> void:
 	var office_lit := (0.8 if _office_lights_on else 0.0) + (0.35 if _desk_lamp_on else 0.0)
 	var office_open: float = _office_curtain.open if _office_curtain != null else 1.0
 	_glow_glass(_glass_cache.get("office_glass"), night * power * office_lit * lerpf(0.45, 1.0, office_open))
+	var way = _glass_cache.get("door_way")
+	if way is MeshInstance3D and is_instance_valid(way) and (way as MeshInstance3D).material_override is ShaderMaterial:
+		_glow_glass(way, night * power * office_lit * 0.6)
 	var back_lit := 0.0
 	var back_open := 0.0
 	if _extras != null and _extras.back != null:
