@@ -80,6 +80,48 @@ func _on_node_added(n: Node) -> void:
 		return
 	if n is MeshInstance3D or n is Sprite3D or n is MultiMeshInstance3D:
 		_queue.append(weakref(n))
+	elif n is Label3D:
+		_labels_new.append(weakref(n))
+
+
+## Lettering (Label3D: a sign's name, a lodging's number) is not this look's to redraw,
+## so it was not pulled: the board it is painted on was, and from some metres off the
+## board came out over its own letters (playtest 25. 10.: "the cabins' numbers drowned
+## under the blue, the same with the tents, the caravans and signs in general"). Every
+## frame each one is put a share of its distance nearer its eye, along the line to it (so
+## it stays where it is on the screen), more than any board or quad (PULL_SMALL).
+const LABEL_PULL := 0.011
+var _labels_new: Array = []
+var _labels: Array = []          # {ref, base: its own position, last: as set here}
+
+
+func _pull_labels() -> void:
+	for wr in _labels_new:
+		var l = wr.get_ref()
+		if l != null and is_instance_valid(l) and not (l as Label3D).no_depth_test and not (l as Node).has_meta("retro_skip"):
+			_labels.append({"ref": wr, "base": (l as Label3D).position, "last": (l as Label3D).position})
+	_labels_new.clear()
+	var keep: Array = []
+	for rec in _labels:
+		var l = (rec["ref"] as WeakRef).get_ref()
+		if l == null or not is_instance_valid(l):
+			continue
+		keep.append(rec)
+		var lb := l as Label3D
+		if not lb.is_inside_tree() or not lb.is_visible_in_tree():
+			continue
+		# Moved by its own code since: that is where it is now.
+		if lb.position != rec["last"]:
+			rec["base"] = lb.position
+		var cam := lb.get_viewport().get_camera_3d()
+		if cam == null:
+			continue
+		var p := lb.get_parent() as Node3D
+		var at: Vector3 = (p.global_transform if p != null else Transform3D.IDENTITY) * (rec["base"] as Vector3)
+		var eye := cam.global_position
+		lb.global_position = eye + (at - eye) * (1.0 - LABEL_PULL)
+		rec["last"] = lb.position
+	_labels = keep
 
 
 ## Build's visibility for the shaders (build_vis_dist, build_vis_dark): by day things
@@ -122,6 +164,7 @@ func _process(delta: float) -> void:
 	if not enabled:
 		return
 	_visibility()
+	_pull_labels()
 	# New nodes, once they are in their world.
 	var q := _queue
 	_queue = []

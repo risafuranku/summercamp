@@ -8,7 +8,7 @@
 
 - [x] R1  (2db3947d) „po otevření dveře chatky při animaci je tam zeď a projdu zdí. budova s elektřinou totéž“ (the door's walk-in: a wall drawn in the doorway during the swing, then you pass through it; cabin + the generator shed)
 - [ ] R2  „na 60fps/hz mi stíny pořád hodně clippují/glitchují“ (shadow flicker/acne at 60 Hz)
-- [ ] R3  „z dálky jsou číslka chatek na cedulkách utopené pod modrou texturou, u stanů a karavanů a obecně nápisů tatáž chyba“ (signs/labels sink under the surface at distance: depth/retro pull)
+- [x] R3  „z dálky jsou číslka chatek na cedulkách utopené pod modrou texturou, u stanů a karavanů a obecně nápisů tatáž chyba“ (signs/labels sink under the surface at distance: depth/retro pull)
 - [ ] R4  „při úklidových aktivitách kde je třeba pohyb kurzoru, změň kurzor na šipky které naznačují jaký pohyb hra očekává“ (gesture work: the cursor shows the expected motion)
 - [x] R5  (38f6fc96) „odstranit psa v builderu“
 - [x] R6  (cbd11c28) „SectiTo98 - umožni ENTEREM odklikávat na další fotku a rovnou označ textové pole“ (Enter = next photo, focus the field)
