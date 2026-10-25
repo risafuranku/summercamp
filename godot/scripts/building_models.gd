@@ -1511,6 +1511,9 @@ func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0, frame_mat: Mate
 	glass.set_meta("lit_window", true)
 	var bar := _box(r, "WindowBar", Vector3(0.04, size.y, 0.07), pos, _wood())
 	bar.rotation.y = yaw
+	# Over the pane (a quad, pulled further than the frame's board by the retro look): with
+	# the frame's pull it went under the pane from a few metres off.
+	bar.set_meta("retro_pull", WINDOW_BAR_PULL)
 	# Not seen by the cameras that look out through this window from inside.
 	for m in [frame, glass, bar]:
 		(m as MeshInstance3D).layers = GLASS_LAYER
@@ -1874,6 +1877,9 @@ func _metal() -> Material:
 ## The render layer of window glass: seen by the player, not by the window views
 ## (the cameras behind the glass, building_interior.gd), which look through it.
 const GLASS_LAYER := 1 << 19
+## The retro look's pull (retro_materials._pull_of) for a window's bar: more than its pane's
+## (a small quad, 0.009), which is more than the frame's (a thin board, 0.005).
+const WINDOW_BAR_PULL := 0.012
 
 ## `r`: origin on the ground at the footprint's middle, front +Z. Returns the glass
 ## panes so the office can light them at night and show the curtains:

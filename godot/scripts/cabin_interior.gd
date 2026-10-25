@@ -675,8 +675,10 @@ func _ensure_inview() -> void:
 	_inview_mat.shader = load("res://materials/window_into.gdshader")
 	_inview_mat.set_shader_parameter("room_tex", _inview_vp.get_texture())
 	_inview_mat.set_shader_parameter("live", 1.0)
-	# Between the window's frame and its bar, both pulled forward by the retro look.
-	_inview_mat.set_shader_parameter("depth_pull", 0.005)
+	# Between the window's frame and its bar, as the retro look pulls them (the frame 0.005,
+	# the bar 0.012: building_models.WINDOW_BAR_PULL). With the frame's own pull the frame's
+	# boards came over the room from ten metres off (playtest 25. 10.: "wood over the windows").
+	_inview_mat.set_shader_parameter("depth_pull", 0.009)
 
 
 static func _hide_from_camp(n: Node) -> void:

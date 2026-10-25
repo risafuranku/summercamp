@@ -26,6 +26,7 @@ extends Node
 ##   ["glass", pane, dist_m]    the player outside the reception looking in at a pane
 ##   ["door_front", type, dist_m]  the player in front of that building's door, facing it
 ##   ["open_door", type, seconds]  that building's door stands open
+##   ["monitor"]                objects, resources, video memory, draw calls (a long run's growth)
 ##   ["timescale", k]           Engine.time_scale
 ##
 ## Debug tooling only; never referenced by the game itself.
@@ -1938,6 +1939,11 @@ func _run_step(step: Array) -> void:
 				var pl: Node3D = _main._player
 				pl.global_position = (way["outside"] as Vector3) + out_dir.normalized() * float(step[2])
 				pl.look_at(Vector3(way["inside"].x, pl.global_position.y, way["inside"].z), Vector3.UP)
+		"monitor":
+			# ["monitor"]: objects, resources, video memory (MB), draw calls, the clock (a
+			# long run's growth: Expression cannot reach Performance).
+			print("SHOT DRIVER monitor: ", [Performance.get_monitor(Performance.OBJECT_COUNT), Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT),
+				snappedf(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, 0.1), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), _main._time_of_day_string()])
 		"open_door":
 			# ["open_door", building_type, seconds]: that building's door leaf stands open.
 			var sd: Node3D = _main.debug_structure_of_type(str(step[1]))

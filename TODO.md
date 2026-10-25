@@ -6,7 +6,7 @@
 
 ## PLAYTEST 2026-10-25 — the user's notes (verbatim, then the note in brackets; tick with the commit)
 
-- [x] R1  „po otevření dveře chatky při animaci je tam zeď a projdu zdí. budova s elektřinou totéž“ (the door's walk-in: a wall drawn in the doorway during the swing, then you pass through it; cabin + the generator shed)
+- [x] R1  (2db3947d) „po otevření dveře chatky při animaci je tam zeď a projdu zdí. budova s elektřinou totéž“ (the door's walk-in: a wall drawn in the doorway during the swing, then you pass through it; cabin + the generator shed)
 - [ ] R2  „na 60fps/hz mi stíny pořád hodně clippují/glitchují“ (shadow flicker/acne at 60 Hz)
 - [ ] R3  „z dálky jsou číslka chatek na cedulkách utopené pod modrou texturou, u stanů a karavanů a obecně nápisů tatáž chyba“ (signs/labels sink under the surface at distance: depth/retro pull)
 - [ ] R4  „při úklidových aktivitách kde je třeba pohyb kurzoru, změň kurzor na šipky které naznačují jaký pohyb hra očekává“ (gesture work: the cursor shows the expected motion)
@@ -15,7 +15,7 @@
 - [x] R7  „za dveřmi recepce je jiný interiér než za oknem? proč?“ (the reception's door vs window view mismatch)
 - [ ] R8  „nespamovat přes sebe zvuky (např řezání větve přes cestu)“ (one-shot sounds must not stack)
 - [ ] R9  „opravit směry spritů. viděl jsem quiet guye běžet pozadu“ (8-direction sprites: facing of the night's Silent/Quiet man and others)
-- [ ] R10 „z dálky clippujou okna u chatek? clippuje přes ně dřevěná textura a pak není vidět dovnitř“
+- [x] R10 „z dálky clippujou okna u chatek? clippuje přes ně dřevěná textura a pak není vidět dovnitř“
 - [x] R11 „klikbanka98 - OK okna na které mám klikat spawnuj always on top“
 - [ ] R12 „přidej možnost prohlédnout si klikem diplom na zdi (očíčko jak kurzor)“
 - [ ] R13 „přidej na nástěnku nakreslenou mapu bludiště v kukuřici“
@@ -37,6 +37,7 @@
 - [x] R29 „stánek s kukuřicí má zepředu neprůhlednou texturu?“
 - [ ] R30 „mám JENOM DVA HOSTY a celý den je obsluhuju u kukuřice, furt se tam točí. big rework“
 - [ ] R31 „staff u kukuřice stojí špatně otočený, potřebuje animace obsluhování; večer odchází přes vrátnici na bus, ranním busem přijedou na otevření kempu“
+- [x] R32 „venku světelný bug: určitým směrem totálně pure black a hrozně se to seká, pootočím se a zase vidím“ (D3D12 ran out of its resource descriptor heap after a long session: draws failed, the console spammed errors every frame; max_resource_descriptors 65536 -> 524288)
 
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 
