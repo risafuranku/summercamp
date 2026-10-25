@@ -1,8 +1,42 @@
 # TODO — Cursed Camp Manager Simulator
 
-*Updated: 2026-10-19. Vision: DESIGN.md. What exists: PRODUCT.md.*
+*Updated: 2026-10-25. Vision: DESIGN.md. What exists: PRODUCT.md.*
 
 ---
+
+## PLAYTEST 2026-10-25 — the user's notes (verbatim, then the note in brackets; tick with the commit)
+
+- [ ] R1  „po otevření dveře chatky při animaci je tam zeď a projdu zdí. budova s elektřinou totéž“ (the door's walk-in: a wall drawn in the doorway during the swing, then you pass through it; cabin + the generator shed)
+- [ ] R2  „na 60fps/hz mi stíny pořád hodně clippují/glitchují“ (shadow flicker/acne at 60 Hz)
+- [ ] R3  „z dálky jsou číslka chatek na cedulkách utopené pod modrou texturou, u stanů a karavanů a obecně nápisů tatáž chyba“ (signs/labels sink under the surface at distance: depth/retro pull)
+- [ ] R4  „při úklidových aktivitách kde je třeba pohyb kurzoru, změň kurzor na šipky které naznačují jaký pohyb hra očekává“ (gesture work: the cursor shows the expected motion)
+- [ ] R5  „odstranit psa v builderu“
+- [x] R6  „SectiTo98 - umožni ENTEREM odklikávat na další fotku a rovnou označ textové pole“ (Enter = next photo, focus the field)
+- [ ] R7  „za dveřmi recepce je jiný interiér než za oknem? proč?“ (the reception's door vs window view mismatch)
+- [ ] R8  „nespamovat přes sebe zvuky (např řezání větve přes cestu)“ (one-shot sounds must not stack)
+- [ ] R9  „opravit směry spritů. viděl jsem quiet guye běžet pozadu“ (8-direction sprites: facing of the night's Silent/Quiet man and others)
+- [ ] R10 „z dálky clippujou okna u chatek? clippuje přes ně dřevěná textura a pak není vidět dovnitř“
+- [x] R11 „klikbanka98 - OK okna na které mám klikat spawnuj always on top“
+- [ ] R12 „přidej možnost prohlédnout si klikem diplom na zdi (očíčko jak kurzor)“
+- [ ] R13 „přidej na nástěnku nakreslenou mapu bludiště v kukuřici“
+- [ ] R14 „přidej ven ke vstupu kontejner/popelnici kam musíš odnášet smetí z eventů“ (event litter is carried to a bin, not vanishing)
+- [x] R15 „po smazání mailu hned označ další“
+- [ ] R16 „v noci nejde v 3D verzi builderu nic vidět. umělé noční přisvícení? povol větší úhel naklopení, chci koukat vodorovně“
+- [ ] R17 „slunce a měsíc musí obíhat kolem celé mapy, ne kolem kempu“
+- [ ] R18 „pamatuj si přes noc světla, závěsy atd v recepci, i coop. rozsvěcí se furt světla v pokojíku“
+- [ ] R19 „když vypadne proud, zpomalit lehce animaci toho jak jde hráč ven z recepce“
+- [ ] R20 „při sprintu více camera shake“
+- [ ] R21 „zmenšit Silent Guyovo oči ve tmě. když na něj posvítíš, na 3 s ti vypadne baterka, pak se rozbliká a zapne. víc silent guyů = musíš si vybrat, na koho posvítit; lehce hustý efekt“
+- [x] R22 „odstraň stahování/připojování přes beeternet při koupi licence do SoftSkladu, ať to celé probíhá v okně SoftSkladu“
+- [ ] R23 „radio blbne, probliknul ksicht silent guye, a do toho vypadly pojistky. takových ‚náhodných‘ momentů víc, víc šancí na takové sekvence“ (the director: more chances for stacked omens)
+- [x] R24 „z brigády opisování odstraň čísla, nech jen písmena“
+- [x] R25 „brigády se zasekly na ‚done for today‘. ať jsou přístupné nonstop, bez limitu“
+- [ ] R26 „recepce uvnitř zvenku svítí, i když jsou shozené pojistky“
+- [ ] R27 „v kukuřičném podniku sprity ke kameře (jen jedna osa), rozhlížení jako v interiérech, kamera níž, bez fáze trhání silku (jen listy), A/D mezi stanicemi“
+- [ ] R28 „zákazníci chodí do fronty několikrát po sobě (3× porce): cooldown, výjimečně přidat; wait time hrozně krátký: než dojdu, ubývá pomaleji, a celkově navýšit“
+- [ ] R29 „stánek s kukuřicí má zepředu neprůhlednou texturu?“
+- [ ] R30 „mám JENOM DVA HOSTY a celý den je obsluhuju u kukuřice, furt se tam točí. big rework“
+- [ ] R31 „staff u kukuřice stojí špatně otočený, potřebuje animace obsluhování; večer odchází přes vrátnici na bus, ranním busem přijedou na otevření kempu“
 
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 

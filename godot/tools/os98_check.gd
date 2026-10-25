@@ -324,13 +324,19 @@ func _run() -> void:
 		_expect(CoreRoot.get_state().money == money1, "a card full of mistakes was paid")
 		await _frames(2)
 		await _shot("datapunch")
-		while dp._done_tonight() < dp.NIGHT_LIMIT:
+		# No limit (playtest 25. 10.): the thirtieth card of the night pays like the first.
+		while dp._done_tonight() < 30:
 			dp._add_done(1)
 		var money2: int = CoreRoot.get_state().money
 		for i in dp.FIELDS.size():
 			(dp._inputs[i] as LineEdit).text = str(dp._cur[dp.FIELDS[i]])
 		dp._file()
-		_expect(CoreRoot.get_state().money == money2, "the office paid past its nightly limit")
+		_expect(CoreRoot.get_state().money == money2 + dp.RATE, "the office stopped paying after a batch")
+		var digits := false
+		for k in dp.FIELDS:
+			for ch in str(dp._cur[k]):
+				digits = digits or ch.is_valid_int()
+		_expect(not digits, "a card asks for digits: %s" % str(dp._cur))
 	# KlikBanka: a shift, an advert confirmed, a scam clicked.
 	await _install("adclick")
 	_shell.open_app("adclick")
@@ -354,6 +360,18 @@ func _run() -> void:
 		ad._pops.append({"t": 0.0, "rect": r, "shake": 0.0, "kind": "scam", "title": "X", "head": "WON", "body": "x", "btn": "CLAIM!", "life": 9.0})
 		ad._area_input(click)
 		_expect(ad._bad == 1 and ad._pops.size() >= 2, "clicking a prize was not a mistake (or brought no more of them)")
+		# The adverts stay on top: an advert under new prizes, a prize brought to the front.
+		ad._pops.clear()
+		ad._pops.append({"t": 0.0, "rect": r, "shake": 0.0, "kind": "ad", "title": "Kofola", "head": "KOFOLA", "body": "x", "btn": "OK", "life": 9.0})
+		ad._pops.append({"t": 0.0, "rect": r.grow(-10), "shake": 0.0, "kind": "scam", "title": "X", "head": "WON", "body": "x", "btn": "CLAIM!", "life": 9.0})
+		ad._restack()
+		var body := InputEventMouseButton.new()
+		body.button_index = MOUSE_BUTTON_LEFT
+		body.pressed = true
+		body.position = r.position + Vector2(30, 40)
+		ad._area_input(body)
+		_expect(str(ad._pops[ad._pops.size() - 1]["kind"]) == "ad", "a prize came over the advert to click")
+		ad._pops.clear()
 		var money3: int = CoreRoot.get_state().money
 		ad._ok = 5
 		ad._end()
@@ -376,6 +394,40 @@ func _run() -> void:
 		_expect(CoreRoot.get_state().money == money4 + ce.PAY, "the right count was not paid")
 		await _frames(2)
 		await _shot("census_shown")
+		# Enter goes on to the next photograph and the field is ready for the number.
+		var no0: int = ce._photo_no
+		ce._input.grab_focus()
+		await _frames(2)
+		for pressed in [true, false]:
+			var enter := InputEventKey.new()
+			enter.keycode = KEY_ENTER
+			enter.physical_keycode = KEY_ENTER
+			enter.pressed = pressed
+			ce._input.get_viewport().push_input(enter)
+			await _frames(2)
+		_expect(ce._state == "ask" and ce._photo_no != no0, "Enter did not bring the next photograph (state %s)" % ce._state)
+		_expect(ce._input.has_focus() and ce._input.is_editing(), "the count's field is not ready after Enter")
+		ce._shell.store("job_census_%d" % ce._shell.work_day(), 40)
+		ce._input.text = str(ce._answer)
+		ce._submit()
+		_expect(ce._next.text == "Next photograph" and not ce._next.disabled, "SectiTo stops after a batch")
+
+	# SoftSklad: the licence is bought in its own window and the program is there at once.
+	_shell.open_app("corn_app")
+	await _frames(3)
+	var shops = _shell.app_of("shops")
+	_expect(shops != null and shops._cur == "corn_app", "SoftSklad did not open on Klasek 98")
+	if shops != null and not _shell._is_program_unlocked("corn_app"):
+		await _shot("shops_buy")
+		CoreRoot.actions.add_money(5000)
+		CoreRoot.actions.biz_buy_licence("corn")
+		shops._update_empty()
+		_expect(shops._do.text == "Install", "a paid licence does not offer to install (%s)" % shops._do.text)
+		shops._on_do()
+		await _frames(2)
+		_expect(_shell._is_program_unlocked("corn_app"), "a licensed program did not install at once")
+		_expect(_shell.install_progress("corn_app") < 0.0, "the program went down the modem")
+		await _shot("shops_installed")
 
 	# Games: on the machine already (they were Vera's), with the old names on the tables.
 	_shell.open_app("mines")
@@ -471,6 +523,7 @@ func _run() -> void:
 		await _shot("mail_spam")
 		mail._delete_current()
 		_expect(str(probe.get("_folder", "")) == "deleted", "Delete does not move to Deleted Items")
+		_expect(mail._rows.size() == 0 or (not mail._current.is_empty() and mail._current != probe), "after Delete the next message is not selected")
 		EmailManager.delete_mail(probe)
 		_expect(not EmailManager.inbox.has(probe), "a deleted message cannot be deleted for good")
 		var sent_before: int = EmailManager.sent.size()

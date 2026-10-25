@@ -4,13 +4,15 @@ extends Control
 ## A shift is forty seconds of pop-up windows on a little desktop. A real advert you
 ## confirm with its OK ($1); what is not an advert (the prize, the virus, the chain
 ## letter) you close with its x; clicking its big button is a mistake and costs $2 of the
-## shift's pay. Adverts left alone go away unpaid. Paid at the end of the shift, up to
-## DAY_LIMIT a day (os_shell.job_done / job_add).
+## shift's pay. Adverts left alone go away unpaid. Paid at the end of the shift, as many
+## shifts as you like (playtest 25. 10.: "nonstop, no limit"; os_shell.job_done counts the
+## day's pay). The adverts you confirm are always on top of the rest (the same playtest:
+## "the OK windows I am to click, always on top"): a prize can cover the desktop, never an
+## advert.
 ##
 ## Now and then a notice comes up that is neither, and will not close.
 
 const T = preload("res://scripts/os98/os_theme.gd")
-const DAY_LIMIT := 30
 const SHIFT_SEC := 40.0
 const HEAD_H := 46
 const POP := Vector2(214, 96)
@@ -90,14 +92,7 @@ func _layout() -> void:
 	_start.position = Vector2(floorf((_area.size.x - 160) * 0.5), floorf(_area.size.y * 0.5 + 34))
 
 
-func _left_today() -> int:
-	return maxi(0, DAY_LIMIT - _shell.job_done("adclick"))
-
-
 func _begin() -> void:
-	if _left_today() <= 0:
-		_shell.message_box("KlikBanka 98", "Bohemia Online has no more adverts for you today.\n\nCome back tomorrow.", "info")
-		return
 	_shell.play("click", -8.0)
 	_pops.clear()
 	_state = "shift"
@@ -114,15 +109,14 @@ func _begin() -> void:
 func _end() -> void:
 	_state = "done"
 	_pops.clear()
-	var pay := clampi(_ok - 2 * _bad, 0, _left_today())
+	var pay := maxi(0, _ok - 2 * _bad)
 	_paid = pay
 	if pay > 0:
 		_shell.earn(pay)
 		_shell.job_add("adclick", pay)
 	_shell.play("ding", -8.0)
 	_start.visible = true
-	_start.text = "Another shift" if _left_today() > 0 else "Done for today"
-	_start.disabled = _left_today() <= 0
+	_start.text = "Another shift"
 	_area.queue_redraw()
 	queue_redraw()
 
@@ -169,7 +163,18 @@ func _add_pop() -> void:
 		var a: Array = ADS[i]
 		p.merge({"kind": "ad", "title": a[0], "head": a[1], "body": a[2], "btn": "OK", "life": 4.6})
 	_pops.append(p)
+	_restack()
 	_shell.play("ding", -22.0)
+
+
+## The adverts over everything else, each kind keeping its own order (the last is on top:
+## drawn last, clicked first).
+func _restack() -> void:
+	var under: Array = []
+	var over: Array = []
+	for p in _pops:
+		(over if str(p["kind"]) == "ad" else under).append(p)
+	_pops = under + over
 
 
 func _close_rect(r: Rect2) -> Rect2:
@@ -213,6 +218,7 @@ func _area_input(e: InputEvent) -> void:
 							var s: Array = SCAMS[_rng.randi_range(0, SCAMS.size() - 1)]
 							var pos := (r.position + Vector2(18 + k * 18, 16 + k * 16)).clamp(Vector2(4, 4), _area.size - POP - Vector2(4, 4))
 							_pops.append({"t": 0.0, "rect": Rect2(pos, POP), "shake": 0.0, "kind": "scam", "title": s[0], "head": s[1], "body": s[2], "btn": s[3], "life": 5.0})
+						_restack()
 				_:
 					_shell.play("click", -14.0)
 			_pops.remove_at(i)
@@ -220,6 +226,7 @@ func _area_input(e: InputEvent) -> void:
 			# Brought to the front.
 			_pops.remove_at(i)
 			_pops.append(p)
+			_restack()
 		_area.queue_redraw()
 		queue_redraw()
 		return
@@ -234,7 +241,7 @@ func _draw() -> void:
 	draw_string(T.FONT_BOLD, Vector2(10, 20), "KlikBanka 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(150, 0, 0))
 	draw_string(T.FONT, Vector2(12, 38), "Bohemia Online pays you to look at adverts.", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(80, 40, 0))
 	var cells := [
-		["TODAY", "$%d / $%d" % [_shell.job_done("adclick"), DAY_LIMIT]],
+		["TODAY", "$%d" % _shell.job_done("adclick")],
 		["SHIFT", ("0:%02d" % int(ceil(SHIFT_SEC - _t))) if _state == "shift" else "-"],
 		["PAY", "$%d" % maxi(0, _ok - 2 * _bad)],
 	]

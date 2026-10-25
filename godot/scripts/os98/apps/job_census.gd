@@ -4,13 +4,14 @@ extends Control
 ## photograph comes up (drawn here, seeded, so the same number is always the same
 ## picture) with a question: how many tents, how many cows, how many boats. Things that
 ## are nearly the thing are in the picture too (caravans, sheep, logs). Type the number,
-## Enter. The right count pays $3, one out pays $1. The answer shows where they all were.
-## DAY_LIMIT photographs a day.
+## Enter. The right count pays $3, one out pays $1. The answer shows where they all were;
+## Enter again brings the next photograph, the field keeps the cursor (playtest 25. 10.:
+## "Enter to the next photo, the field ready, so the hand stays on the touchpad"). As
+## many photographs as you like (the same playtest: "nonstop, no limit").
 ##
 ## Some photographs the district counted one more on than there is.
 
 const T = preload("res://scripts/os98/os_theme.gd")
-const DAY_LIMIT := 12
 const PAY := 3
 const HEAD_H := 46
 const PHOTO := Vector2(420, 262)
@@ -60,6 +61,7 @@ func setup(shell, win, _args: Dictionary) -> void:
 	_input = LineEdit.new()
 	_input.custom_minimum_size = Vector2(56, 22)
 	_input.max_length = 3
+	_input.keep_editing_on_text_submit = true
 	_input.text_submitted.connect(func(_t): _submit())
 	row.add_child(_input)
 	_go = Button.new()
@@ -96,13 +98,14 @@ func _layout() -> void:
 	_msg.size = Vector2(PHOTO.x, 48)
 
 
-func _left_today() -> int:
-	return maxi(0, DAY_LIMIT - _shell.job_done("census"))
+## The field takes the keys whenever the program is up (Enter starts, answers, goes on).
+func shown() -> void:
+	if _input != null:
+		_input.grab_focus.call_deferred()
 
 
 func _set_state(s: String) -> void:
 	_state = s
-	_input.editable = s == "ask"
 	_go.disabled = s != "ask"
 	_next.visible = s != "ask"
 	(get_node("Row/Ask") as Label).text = "How many %s?" % SUBJECTS[_subject]["ask"] if s != "idle" else "How many?"
@@ -111,9 +114,6 @@ func _set_state(s: String) -> void:
 
 
 func _new_photo() -> void:
-	if _left_today() <= 0:
-		_shell.message_box("SectiTo 98", "The district has no more photographs for you today.\n\nThe next batch comes in the morning.", "info")
-		return
 	_shell.play("hdd", -14.0)
 	_photo_no = 400 + _shell.job_done("census") * 7 + (CoreRoot.get_day() if CoreRoot != null else 1) * 31
 	_rng.seed = hash("census%d" % _photo_no)
@@ -130,6 +130,7 @@ func _new_photo() -> void:
 
 func _submit() -> void:
 	if _state != "ask":
+		_new_photo()
 		return
 	_said = int(_input.text) if _input.text.strip_edges().is_valid_int() else -1
 	_finish()
@@ -142,12 +143,11 @@ func _finish() -> void:
 	if pay > 0:
 		_shell.earn(pay)
 	_shell.play("click" if pay > 0 else "ding", -8.0)
-	_input.release_focus()
+	_input.text = ""
 	_set_state("shown")
 	var said_txt := ("you said %d" % _said) if _said >= 0 else "no answer"
 	_msg.text = "The district counted %d (%s). %s" % [_answer, said_txt, ("Paid $%d." % pay) if pay > 0 else "Not paid."]
-	_next.text = "Next photograph" if _left_today() > 0 else "Done for today"
-	_next.disabled = _left_today() <= 0
+	_next.text = "Next photograph"
 
 
 func _process(delta: float) -> void:
@@ -223,7 +223,7 @@ func _draw() -> void:
 	draw_rect(Rect2(0, HEAD_H - 2, w, 2), Color8(30, 40, 20))
 	draw_string(T.FONT_BOLD, Vector2(10, 20), "SectiTo 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(240, 230, 170))
 	draw_string(T.FONT, Vector2(12, 38), "District Office Hlubocany - survey of property from the air", HORIZONTAL_ALIGNMENT_LEFT, w - 170, T.FONT_SIZE, Color8(210, 220, 190))
-	var cells := [["TODAY", "%d / %d" % [_shell.job_done("census"), DAY_LIMIT]], ["TIME", ("%d s" % int(ceil(_limit - _time))) if _state == "ask" else "-"]]
+	var cells := [["TODAY", "%d" % _shell.job_done("census")], ["TIME", ("%d s" % int(ceil(_limit - _time))) if _state == "ask" else "-"]]
 	var x := w - 4.0
 	for i in range(cells.size() - 1, -1, -1):
 		x -= 70.0

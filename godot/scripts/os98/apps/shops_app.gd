@@ -4,12 +4,13 @@ extends Control
 ## (Hostinsky 98 for the pubs, Kuchar 98 for the bistros, Pult 98 for the Jednota, Klasek
 ## 98 for the corn stands; scripts/os98/apps/business_app.gd) and Personal 98 for the
 ## staffroom's hands (scripts/os98/apps/staff_app.gd). A strip of the five along the top;
-## one without a licence sends you to softsklad.cz, one licensed but not on the disk
-## installs with a click, the rest run below and keep their place when you switch.
+## one without a licence is bought here, in this window, and is on the disk at once (playtest
+## 25. 10.: "no downloading, no connecting through Beeternet, all of it in SoftSklad's
+## window"); one licensed but not on the disk (bought on softsklad.cz, or by the other
+## warden) installs with a click; the rest run below and keep their place when you switch.
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const PAGE = preload("res://scripts/os98/os_page.gd")
-const PROGRESS = preload("res://scripts/os98/os_progress.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const APPS := [["pub_app", "pub"], ["bistro_app", "rest"], ["shop_app", "vecerka"], ["corn_app", "corn"], ["staff_app", "staff"]]
 const STRIP_H := 28
@@ -22,7 +23,6 @@ var _body: Control
 var _subs: Dictionary = {}        # app id -> page holding its business_app
 var _empty: Control
 var _do: Button
-var _bar
 var _hover := -1
 
 
@@ -48,9 +48,6 @@ func setup(shell, win, args: Dictionary) -> void:
 	_do.focus_mode = Control.FOCUS_NONE
 	_do.pressed.connect(_on_do)
 	_empty.add_child(_do)
-	_bar = PROGRESS.new("install")
-	_bar.show_percent = true
-	_empty.add_child(_bar)
 	resized.connect(_layout)
 	_cur = str(args.get("program", _first_ready()))
 	_layout()
@@ -111,8 +108,6 @@ func _layout() -> void:
 	_empty.size = _body.size
 	_do.size = Vector2(240, 26)
 	_do.position = Vector2(floorf((_body.size.x - 240) * 0.5), 214)
-	_bar.position = Vector2(floorf((_body.size.x - 320) * 0.5), 186)
-	_bar.size = Vector2(320, 18)
 	for k in _subs:
 		(_subs[k] as Control).size = _body.size
 
@@ -145,31 +140,32 @@ func _switch(app_id: String) -> void:
 func _update_empty() -> void:
 	if not _empty.visible:
 		return
-	var p: float = _shell.install_progress(_cur)
-	_bar.visible = p >= 0.0
-	if p >= 0.0:
-		_bar.value = p
-	_do.disabled = p >= 0.0
-	if p >= 0.0:
-		_do.text = _shell.install_status(_cur)
-	elif _licensed(_kind(_cur)):
-		_do.text = "Download and install  (%d KB)" % int(_shell.PROGRAMS[_cur]["kb"])
+	if _licensed(_kind(_cur)):
+		_do.text = "Install"
 	else:
-		_do.text = "Buy a licence at softsklad.cz"
+		_do.text = "Buy the licence  ($%d)" % int(RULES.info(_kind(_cur)).get("licence", 0))
 	_empty.queue_redraw()
 
 
 func _on_do() -> void:
 	_shell.play("click", -10.0)
-	if _licensed(_kind(_cur)):
-		_shell.begin_install(_cur)
-		_update_empty()
-	else:
-		var w = _shell.open_app("browser")
-		if w != null:
-			var b = _shell.app_of("browser")
-			if b != null:
-				b.navigate("softsklad.cz")
+	var kind := _kind(_cur)
+	if _licensed(kind):
+		_shell.install_program(_cur, false)
+		_switch(_cur)
+		return
+	var info: Dictionary = RULES.info(kind)
+	var app_id := _cur
+	_shell.message_box("SoftSklad", tr("Buy a licence for %s for $%d?\n\nThe money is taken from the camp's account.") % [str(info.get("app_name", "")), int(info.get("licence", 0))], "question", ["Buy", "Cancel"], func(b: String):
+		if b != "Buy" or not is_instance_valid(self):
+			return
+		if CoreRoot.actions.biz_buy_licence(kind):
+			_shell.play("ding", -8.0)
+			_shell.install_program(app_id, false)
+			_switch(app_id)
+		else:
+			_shell.message_box("SoftSklad", tr("The payment was refused.\n\nThe camp has $%d.") % CoreRoot.get_money(), "error")
+	)
 
 
 # ── drawing ──────────────────────────────────────────────────────────────────
@@ -230,15 +226,15 @@ func _draw_empty() -> void:
 	c.draw_texture(_shell.icon(str(_shell.PROGRAMS[_cur]["icon"])), Vector2(floorf(s.x * 0.5 - 16), 60))
 	var lines: Array = []
 	if _licensed(kind):
-		lines = ["The licence is paid. The program is not on this computer yet.", "One click: it comes down the modem and installs itself."]
+		lines = ["The licence is paid. The program is not on this computer yet."]
 	elif kind == "staff":
 		lines = ["Your own staff from this desk: who you take on, what each of them",
 			"sees to, their lockers and their day.",
-			"A licence costs $%d, paid once at www.softsklad.cz." % int(info.get("licence", 0))]
+			"A licence costs $%d, paid once." % int(info.get("licence", 0))]
 	else:
 		lines = ["Run the %s from this desk: stock, orders to the wholesaler," % str(info.get("name", "business")).to_lower(),
 			"staff and the takings, on one screen.",
-			"A licence costs $%d, paid once at www.softsklad.cz." % int(info.get("licence", 0))]
+			"A licence costs $%d, paid once." % int(info.get("licence", 0))]
 	var y := 118.0
 	for l in lines:
 		var tw := T.FONT.get_string_size(str(l), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x

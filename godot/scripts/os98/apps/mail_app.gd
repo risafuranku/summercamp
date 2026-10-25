@@ -532,11 +532,22 @@ func _get_mail() -> void:
 func _delete_current() -> void:
 	if _current.is_empty() or _folder == "sent":
 		return
+	# The next message down the list takes its place, as in Outlook Express (playtest 25. 10.:
+	# "after deleting a mail select the next one, so they are quick to clear").
+	var at := _rows.find(_current)
 	EmailManager.delete_mail(_current)
 	_shell.play("click", -12.0)
 	_current = {}
 	refresh()
 	_show_message({})
+	var root := _list.get_root()
+	if root == null or root.get_child_count() == 0 or at < 0:
+		return
+	var it := root.get_child(mini(at, root.get_child_count() - 1))
+	it.select(0)
+	_list.scroll_to_item(it)
+	_on_selected()
+	_list.grab_focus()
 
 
 func _reply() -> void:

@@ -70,12 +70,12 @@ msgstr ""
 msgid "Lojza"
 msgstr ""
 
-#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:116 core/systems/business_rules.gd:437 scripts/bowling/bowling.gd:94 (+1)
+#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:116 core/systems/business_rules.gd:437 scripts/bowling/bowling.gd:102 (+1)
 #. uses 5
 msgid "Franta"
 msgstr ""
 
-#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:438 scripts/bowling/bowling.gd:94
+#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:438 scripts/bowling/bowling.gd:102
 #. uses 3
 msgid "Mirek"
 msgstr ""
@@ -110,7 +110,7 @@ msgstr ""
 msgid "Pepa"
 msgstr ""
 
-#: core/systems/business_rules.gd:49 core/systems/business_rules.gd:435 scripts/bowling/bowling.gd:94
+#: core/systems/business_rules.gd:49 core/systems/business_rules.gd:435 scripts/bowling/bowling.gd:102
 #. uses 3
 msgid "Hanka"
 msgstr ""
@@ -589,7 +589,7 @@ msgstr ""
 msgid "Pinsetter"
 msgstr "Stavěč kuželek"
 
-#: core/systems/business_rules.gd:414 scripts/bowling/bowling.gd:844 scripts/bowling/bufet_station.gd:349
+#: core/systems/business_rules.gd:414 scripts/bowling/bowling.gd:925 scripts/bowling/bufet_station.gd:349
 #. uses 3
 msgid "Snack bar"
 msgstr "Bufet"
@@ -4294,8 +4294,8 @@ msgstr "%d {host|hosté|hostů}"
 msgid "in the camp"
 msgstr "v kempu"
 
-#: scripts/builder_module.gd:1467 scripts/builder_module.gd:1584 scripts/crt_map_panel.gd:1031 scripts/crt_map_panel.gd:1076 (+38)
-#. uses 42
+#: scripts/builder_module.gd:1467 scripts/builder_module.gd:1584 scripts/crt_map_panel.gd:1031 scripts/crt_map_panel.gd:1076 (+39)
+#. uses 43
 msgid "$%d"
 msgstr ""
 
@@ -6909,12 +6909,12 @@ msgstr ""
 msgid "Radek"
 msgstr ""
 
-#: scripts/email_manager.gd:134 scripts/bowling/bowling.gd:93 scripts/os98/apps/game_hike.gd:20
+#: scripts/email_manager.gd:134 scripts/bowling/bowling.gd:101 scripts/os98/apps/game_hike.gd:20
 #. uses 3
 msgid "Kuba"
 msgstr ""
 
-#: scripts/email_manager.gd:134 scripts/bowling/bowling.gd:94 scripts/os98/apps/browser_app.gd:1432 scripts/os98/apps/browser_app.gd:1438 (+1)
+#: scripts/email_manager.gd:134 scripts/bowling/bowling.gd:102 scripts/os98/apps/browser_app.gd:1432 scripts/os98/apps/browser_app.gd:1438 (+1)
 #. uses 5
 msgid "Jarda"
 msgstr ""
@@ -6944,7 +6944,7 @@ msgstr ""
 msgid "Sarka"
 msgstr ""
 
-#: scripts/email_manager.gd:137 scripts/bowling/bowling.gd:94 scripts/os98/apps/goggle_app.gd:38 scripts/reviews/goggle.gd:49
+#: scripts/email_manager.gd:137 scripts/bowling/bowling.gd:102 scripts/os98/apps/goggle_app.gd:38 scripts/reviews/goggle.gd:49
 #. uses 4
 msgid "Lenka"
 msgstr ""
@@ -7066,7 +7066,7 @@ msgstr ""
 msgid "Bozena"
 msgstr ""
 
-#: scripts/email_manager.gd:147 scripts/bowling/bowling.gd:94 scripts/os98/os_shell.gd:112 scripts/os98/os_shell.gd:113 (+2)
+#: scripts/email_manager.gd:147 scripts/bowling/bowling.gd:102 scripts/os98/os_shell.gd:112 scripts/os98/os_shell.gd:113 (+2)
 #. uses 6
 msgid "Karel"
 msgstr ""
@@ -7461,7 +7461,7 @@ msgstr ""
 msgid "guestbook@cerne-jezero.cz"
 msgstr ""
 
-#: scripts/email_manager.gd:1187 scripts/os98/apps/mail_app.gd:548
+#: scripts/email_manager.gd:1187 scripts/os98/apps/mail_app.gd:559
 #. uses 2
 msgid "Re: "
 msgstr ""
@@ -7537,7 +7537,7 @@ msgstr ""
 msgid "Forget this queue. This camp needs a second %s."
 msgstr ""
 
-#: scripts/guest_life.gd:526 scripts/bowling/bowling_interior.gd:399 scripts/food/orders.gd:43 scripts/food/service_life.gd:172
+#: scripts/guest_life.gd:526 scripts/bowling/bowling_interior.gd:426 scripts/food/orders.gd:43 scripts/food/service_life.gd:172
 #. uses 4
 msgid "%d@%d"
 msgstr ""
@@ -7814,11 +7814,13 @@ msgstr ""
 msgid "DOLEZAL"
 msgstr ""
 
-#: scripts/guest_manager.gd:731
+#: scripts/guest_manager.gd:731 scripts/os98/apps/datapunch_app.gd:23
+#. uses 2
 msgid "JIHLAVA"
 msgstr ""
 
-#: scripts/guest_manager.gd:731
+#: scripts/guest_manager.gd:731 scripts/os98/apps/datapunch_app.gd:23
+#. uses 2
 msgid "TABOR"
 msgstr ""
 
@@ -7826,15 +7828,18 @@ msgstr ""
 msgid "PRAHA 4"
 msgstr ""
 
-#: scripts/guest_manager.gd:731
+#: scripts/guest_manager.gd:731 scripts/os98/apps/datapunch_app.gd:23
+#. uses 2
 msgid "BRNO"
 msgstr ""
 
-#: scripts/guest_manager.gd:731
+#: scripts/guest_manager.gd:731 scripts/os98/apps/datapunch_app.gd:23
+#. uses 2
 msgid "PISEK"
 msgstr ""
 
-#: scripts/guest_manager.gd:731
+#: scripts/guest_manager.gd:731 scripts/os98/apps/datapunch_app.gd:23
+#. uses 2
 msgid "HLUBOCANY"
 msgstr ""
 
@@ -7854,11 +7859,13 @@ msgstr ""
 msgid "PELHRIMOV"
 msgstr ""
 
-#: scripts/guest_manager.gd:731
+#: scripts/guest_manager.gd:731 scripts/os98/apps/datapunch_app.gd:23
+#. uses 2
 msgid "KOLIN"
 msgstr ""
 
-#: scripts/guest_manager.gd:731
+#: scripts/guest_manager.gd:731 scripts/os98/apps/datapunch_app.gd:23
+#. uses 2
 msgid "PLZEN"
 msgstr ""
 
@@ -8167,7 +8174,7 @@ msgstr ""
 #: scripts/hud_manager.gd:142 scripts/hud_manager.gd:873 scripts/os98/apps/campstat_app.gd:664 scripts/os98/apps/campstat_app.gd:666 (+2)
 #. uses 6
 msgid "TONIGHT"
-msgstr ""
+msgstr "DNES V NOCI"
 
 #: scripts/hud_manager.gd:362
 msgid "%s%s: \"%s\""
@@ -8722,7 +8729,7 @@ msgstr ""
 msgid "THE CAMP"
 msgstr ""
 
-#: scripts/main.gd:1645 scripts/os98/apps/campstat_app.gd:592 scripts/os98/apps/job_adclick.gd:237 scripts/os98/apps/job_census.gd:226 (+1)
+#: scripts/main.gd:1645 scripts/os98/apps/campstat_app.gd:592 scripts/os98/apps/job_adclick.gd:244 scripts/os98/apps/job_census.gd:226 (+1)
 #. uses 5
 msgid "TODAY"
 msgstr "DNES"
@@ -9522,7 +9529,7 @@ msgstr ""
 msgid "site plan - V. 1996"
 msgstr ""
 
-#: scripts/paper_map.gd:244 scripts/paper_map.gd:246 scripts/paper_map.gd:254 scripts/os98/apps/datapunch_app.gd:23 (+2)
+#: scripts/paper_map.gd:244 scripts/paper_map.gd:246 scripts/paper_map.gd:254 scripts/os98/apps/datapunch_app.gd:24 (+2)
 #. uses 6
 msgid "KEMP CERNE JEZERO"
 msgstr ""
@@ -9543,8 +9550,8 @@ msgstr ""
 msgid "guests in"
 msgstr ""
 
-#: scripts/profiles.gd:149 scripts/profiles.gd:351 scripts/os98/os_shell.gd:656 scripts/ui/main_menu.gd:590
-#. uses 4
+#: scripts/profiles.gd:149 scripts/profiles.gd:351 scripts/bowling/lane_play.gd:96 scripts/os98/os_shell.gd:656 (+1)
+#. uses 5
 msgid "Warden"
 msgstr "Správce"
 
@@ -10249,17 +10256,17 @@ msgstr ""
 msgid "%s is at %s."
 msgstr ""
 
-#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:795 scripts/bowling/bowling_interior.gd:806 (+3)
+#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:822 scripts/bowling/bowling_interior.gd:833 (+3)
 #. uses 7
 msgid "#back"
 msgstr ""
 
-#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:795 scripts/bowling/bowling_interior.gd:806 (+3)
+#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:822 scripts/bowling/bowling_interior.gd:833 (+3)
 #. uses 7
 msgid "#serve"
 msgstr ""
 
-#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:795 scripts/bowling/bowling_interior.gd:806 (+3)
+#: scripts/service_interior.gd:2817 scripts/service_interior.gd:2828 scripts/bowling/bowling_interior.gd:822 scripts/bowling/bowling_interior.gd:833 (+3)
 #. uses 7
 msgid "#books"
 msgstr ""
@@ -11282,7 +11289,7 @@ msgstr "HRANOLKY"
 msgid "SAUSAGE"
 msgstr "KLOBÁSA"
 
-#: scripts/bistro/bistro_station.gd:127 scripts/os98/apps/job_adclick.gd:23
+#: scripts/bistro/bistro_station.gd:127 scripts/os98/apps/job_adclick.gd:25
 #. uses 2
 msgid "KOFOLA"
 msgstr "KOFOLA"
@@ -11988,96 +11995,96 @@ msgid "Pale and limp. Back in with them."
 msgstr ""
 
 #. manual
-#: scripts/bowling/bowling.gd:93 scripts/bowling/bowling.gd:93
+#: scripts/bowling/bowling.gd:101 scripts/bowling/bowling.gd:101
 #. uses 2
 msgid "Dad"
 msgstr "Táta"
 
 #. manual
-#: scripts/bowling/bowling.gd:93 scripts/bowling/bowling.gd:93
+#: scripts/bowling/bowling.gd:101 scripts/bowling/bowling.gd:101
 #. uses 2
 msgid "Mum"
 msgstr "Máma"
 
-#: scripts/bowling/bowling.gd:93
+#: scripts/bowling/bowling.gd:101
 msgid "Terka"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:93
+#: scripts/bowling/bowling.gd:101
 msgid "Péťa"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:93
+#: scripts/bowling/bowling.gd:101
 msgid "Áďa"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:94 scripts/os98/apps/browser_app.gd:1400
+#: scripts/bowling/bowling.gd:102 scripts/os98/apps/browser_app.gd:1400
 #. uses 2
 msgid "Honza"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:94
+#: scripts/bowling/bowling.gd:102
 msgid "Věra"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:94
+#: scripts/bowling/bowling.gd:102
 msgid "Zdeněk"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:94
+#: scripts/bowling/bowling.gd:102
 msgid "Míla"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:268 scripts/bowling/bowling.gd:345 scripts/bowling/bowling.gd:514 scripts/bowling/bowling.gd:587 (+5)
-#. uses 9
+#: scripts/bowling/bowling.gd:277 scripts/bowling/bowling.gd:282 scripts/bowling/bowling.gd:298 scripts/bowling/bowling.gd:375 (+7)
+#. uses 11
 msgid "lane%d"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:329
+#: scripts/bowling/bowling.gd:359
 msgid "Stood at the bowling counter. Nobody came."
 msgstr "U pultu na kuželkách nikdo nebyl."
 
-#: scripts/bowling/bowling.gd:442
+#: scripts/bowling/bowling.gd:472
 msgid "The scores up on screens over the lanes, like abroad."
 msgstr "Skóre na obrazovkách nad drahami, jako v cizině."
 
-#: scripts/bowling/bowling.gd:680
+#: scripts/bowling/bowling.gd:761
 msgid "%s freed the pinsetter in the cellar."
 msgstr "%s: stavěč ve sklepě zase jede."
 
-#: scripts/bowling/bowling.gd:751
+#: scripts/bowling/bowling.gd:832
 msgid "Waited at the lane for something from the snack bar. It never came."
 msgstr "Na dráze se čekalo na něco z bufetu. Nepřišlo to."
 
-#: scripts/bowling/bowling.gd:780
+#: scripts/bowling/bowling.gd:861
 msgid "b%d"
 msgstr ""
 
-#: scripts/bowling/bowling.gd:842
+#: scripts/bowling/bowling.gd:923
 msgid "A cold beer brought over to the lane. That's a bowling alley."
 msgstr "Studené pivo až na dráhu. To je kuželna."
 
-#: scripts/bowling/bowling.gd:842
+#: scripts/bowling/bowling.gd:923
 msgid "The snack bar got the order wrong."
 msgstr "Bufet spletl objednávku."
 
-#: scripts/bowling/bowling.gd:887
+#: scripts/bowling/bowling.gd:968
 msgid "The pinsetter has jammed. Every lane is standing."
 msgstr "Stavěč se zasekl. Všechny dráhy stojí."
 
-#: scripts/bowling/bowling.gd:906
+#: scripts/bowling/bowling.gd:987
 msgid "%s at the bowling: the pins are not being set. Nobody in the pit."
 msgstr "%s na kuželkách: nikdo nestaví kuželky. V jámě nikdo není."
 
-#: scripts/bowling/bowling.gd:909
+#: scripts/bowling/bowling.gd:990
 msgid "Stood at the lane. Nobody set up the pins."
 msgstr "Na dráze se čekalo. Kuželky nikdo nepostavil."
 
-#: scripts/bowling/bowling_interior.gd:294
+#: scripts/bowling/bowling_interior.gd:309
 msgid "Leave   [S]"
 msgstr "Odejít   [S]"
 
-#: scripts/bowling/bowling_interior.gd:294
+#: scripts/bowling/bowling_interior.gd:309
 msgid "Back   [S]"
 msgstr "Zpět   [S]"
 
@@ -12384,7 +12391,7 @@ msgstr "VRÁCENÉ BOTY %d"
 msgid "Ball"
 msgstr ""
 
-#: scripts/bowling/lane_play.gd:336
+#: scripts/bowling/lane_play.gd:342
 msgid "Game: %d"
 msgstr "Hra: %d"
 
@@ -12647,7 +12654,7 @@ msgstr ""
 msgid "%d|stavitel|%d"
 msgstr ""
 
-#: scripts/builder/shareware.gd:94 scripts/builder/shareware.gd:94 scripts/os98/apps/job_adclick.gd:25
+#: scripts/builder/shareware.gd:94 scripts/builder/shareware.gd:94 scripts/os98/apps/job_adclick.gd:27
 #. uses 3
 msgid "Stavitel software"
 msgstr ""
@@ -13173,7 +13180,7 @@ msgstr ""
 msgid "JOB"
 msgstr ""
 
-#: scripts/business/ledger_closeup.gd:628 scripts/os98/apps/job_adclick.gd:238
+#: scripts/business/ledger_closeup.gd:628 scripts/os98/apps/job_adclick.gd:245
 #. uses 2
 msgid "SHIFT"
 msgstr ""
@@ -13393,8 +13400,8 @@ msgstr ""
 msgid "The till prints slowly, as if it did not want to."
 msgstr ""
 
-#: scripts/business/zreport_closeup.gd:102 scripts/reception/desk_room.gd:297
-#. uses 2
+#: scripts/business/zreport_closeup.gd:102 scripts/os98/apps/datapunch_app.gd:164 scripts/reception/desk_room.gd:297
+#. uses 3
 msgid "CERNE JEZERO"
 msgstr ""
 
@@ -13707,7 +13714,7 @@ msgstr ""
 msgid "Bread comes with the van. And tell Vera the crates are hers to bring back."
 msgstr ""
 
-#: scripts/closeup/phone_book.gd:96 scripts/os98/apps/job_adclick.gd:24
+#: scripts/closeup/phone_book.gd:96 scripts/os98/apps/job_adclick.gd:26
 #. uses 2
 msgid "U JEZERA"
 msgstr ""
@@ -15384,7 +15391,7 @@ msgstr ""
 msgid "(None)"
 msgstr ""
 
-#: scripts/os98/os_files.gd:11 scripts/os98/apps/job_adclick.gd:33
+#: scripts/os98/os_files.gd:11 scripts/os98/apps/job_adclick.gd:35
 #. uses 2
 msgid "DOWNLOAD"
 msgstr ""
@@ -15794,12 +15801,12 @@ msgstr ""
 msgid "Web"
 msgstr ""
 
-#: scripts/os98/os_shell.gd:54 scripts/os98/apps/shops_app.gd:140
+#: scripts/os98/os_shell.gd:54 scripts/os98/apps/shops_app.gd:135
 #. uses 2
 msgid "Shops"
 msgstr ""
 
-#: scripts/os98/os_shell.gd:55 scripts/os98/apps/jobs_app.gd:26
+#: scripts/os98/os_shell.gd:55 scripts/os98/apps/jobs_app.gd:22
 #. uses 2
 msgid "Jobs"
 msgstr ""
@@ -15859,13 +15866,13 @@ msgid ""
 "the way, which rooms are still to make up. Free of charge."
 msgstr ""
 
-#: scripts/os98/os_shell.gd:78 scripts/os98/apps/datapunch_app.gd:99
+#: scripts/os98/os_shell.gd:78 scripts/os98/apps/datapunch_app.gd:100
 #. uses 2
 msgid "DataPunch 98"
 msgstr ""
 
-#: scripts/os98/os_shell.gd:79 scripts/os98/apps/job_adclick.gd:99 scripts/os98/apps/job_adclick.gd:234
-#. uses 3
+#: scripts/os98/os_shell.gd:79 scripts/os98/apps/job_adclick.gd:241
+#. uses 2
 msgid "KlikBanka 98"
 msgstr ""
 
@@ -15873,8 +15880,8 @@ msgstr ""
 msgid "KLIKBANK.EXE"
 msgstr ""
 
-#: scripts/os98/os_shell.gd:80 scripts/os98/apps/job_census.gd:115 scripts/os98/apps/job_census.gd:224
-#. uses 3
+#: scripts/os98/os_shell.gd:80 scripts/os98/apps/job_census.gd:224
+#. uses 2
 msgid "SectiTo 98"
 msgstr ""
 
@@ -15966,8 +15973,8 @@ msgstr ""
 msgid "Retry"
 msgstr ""
 
-#: scripts/os98/os_shell.gd:720 scripts/os98/apps/browser_app.gd:1006 scripts/os98/apps/browser_app.gd:1021 scripts/os98/apps/browser_app.gd:1041 (+6)
-#. uses 10
+#: scripts/os98/os_shell.gd:720 scripts/os98/apps/browser_app.gd:1006 scripts/os98/apps/browser_app.gd:1021 scripts/os98/apps/browser_app.gd:1041 (+7)
+#. uses 11
 msgid "Cancel"
 msgstr "Zrušit"
 
@@ -16050,8 +16057,8 @@ msgstr ""
 msgid "My Computer"
 msgstr ""
 
-#: scripts/os98/os_shell.gd:1323 scripts/os98/os_shell.gd:1354 scripts/os98/apps/shops_app.gd:156
-#. uses 3
+#: scripts/os98/os_shell.gd:1323 scripts/os98/os_shell.gd:1354
+#. uses 2
 msgid "Download and install  (%d KB)"
 msgstr ""
 
@@ -17337,7 +17344,7 @@ msgid ""
 "{bazar-hlubocany.cz|Bazar Hlubocany}   {bohemia-online.cz|Bohemia Online}"
 msgstr ""
 
-#: scripts/os98/web_pages.gd:509 scripts/os98/apps/job_adclick.gd:24
+#: scripts/os98/web_pages.gd:509 scripts/os98/apps/job_adclick.gd:26
 #. uses 2
 msgid "Hostinec U Jezera"
 msgstr ""
@@ -18081,8 +18088,8 @@ msgstr ""
 "\n"
 "Pošta ji přiveze za pár hodin."
 
-#: scripts/os98/apps/browser_app.gd:1014 scripts/os98/apps/browser_app.gd:1028
-#. uses 2
+#: scripts/os98/apps/browser_app.gd:1014 scripts/os98/apps/browser_app.gd:1028 scripts/os98/apps/shops_app.gd:167
+#. uses 3
 msgid ""
 "The payment was refused.\n"
 "\n"
@@ -18092,15 +18099,19 @@ msgstr ""
 "\n"
 "Kemp má $%d."
 
-#: scripts/os98/apps/browser_app.gd:1021
+#: scripts/os98/apps/browser_app.gd:1021 scripts/os98/apps/shops_app.gd:159
+#. uses 2
 msgid ""
 "Buy a licence for %s for $%d?\n"
 "\n"
 "The money is taken from the camp's account."
 msgstr ""
+"Koupit licenci na %s za $%d?\n"
+"\n"
+"Peníze se stáhnou z účtu kempu."
 
-#: scripts/os98/apps/browser_app.gd:1021 scripts/os98/apps/business_app.gd:649 scripts/os98/apps/staff_app.gd:426
-#. uses 3
+#: scripts/os98/apps/browser_app.gd:1021 scripts/os98/apps/business_app.gd:649 scripts/os98/apps/shops_app.gd:159 scripts/os98/apps/staff_app.gd:426
+#. uses 4
 msgid "Buy"
 msgstr "Koupit"
 
@@ -19874,8 +19885,8 @@ msgid "First name"
 msgstr ""
 
 #: scripts/os98/apps/datapunch_app.gd:20
-msgid "Born"
-msgstr ""
+msgid "Born in"
+msgstr "Rodiště"
 
 #: scripts/os98/apps/datapunch_app.gd:20
 msgid "Stayed at"
@@ -19974,104 +19985,133 @@ msgid "IVANA"
 msgstr ""
 
 #: scripts/os98/apps/datapunch_app.gd:23
+msgid "PRAHA"
+msgstr ""
+
+#: scripts/os98/apps/datapunch_app.gd:23
+msgid "KLADNO"
+msgstr ""
+
+#: scripts/os98/apps/datapunch_app.gd:23
+msgid "OLOMOUC"
+msgstr ""
+
+#: scripts/os98/apps/datapunch_app.gd:23
+msgid "PARDUBICE"
+msgstr ""
+
+#: scripts/os98/apps/datapunch_app.gd:23 scripts/town/bus_ride.gd:827 scripts/town/bus_ride.gd:847 scripts/town/hamlet_trip.gd:182 (+6)
+#. uses 10
+msgid "LIBLICE"
+msgstr ""
+
+#: scripts/os98/apps/datapunch_app.gd:23
+msgid "STRAKONICE"
+msgstr ""
+
+#: scripts/os98/apps/datapunch_app.gd:23
+msgid "BENESOV"
+msgstr ""
+
+#: scripts/os98/apps/datapunch_app.gd:23
+msgid "PRIBRAM"
+msgstr ""
+
+#: scripts/os98/apps/datapunch_app.gd:23
+msgid "ZNOJMO"
+msgstr ""
+
+#: scripts/os98/apps/datapunch_app.gd:24
 msgid "KEMP LIBLICE"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:23
+#: scripts/os98/apps/datapunch_app.gd:24
 msgid "RZ HLUBOCANY"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:23
+#: scripts/os98/apps/datapunch_app.gd:24
 msgid "KEMP U HRAZE"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:23
+#: scripts/os98/apps/datapunch_app.gd:24
 msgid "PIONYRSKY TABOR"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:23
+#: scripts/os98/apps/datapunch_app.gd:24
 msgid "CHATY POD LESEM"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:66
+#: scripts/os98/apps/datapunch_app.gd:67
 msgid "File card  (Enter)"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:81
+#: scripts/os98/apps/datapunch_app.gd:82
 msgid ""
 "Copy each field of the card exactly as it is written. A card with every field\n"
 "right is paid in full, one or two slips are paid half, more are not paid."
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:100
+#: scripts/os98/apps/datapunch_app.gd:101
 msgid "Okresni urad Hlubocany - register transcription 1961-1989"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:101
+#: scripts/os98/apps/datapunch_app.gd:102
 msgid "A CARD"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:132
+#: scripts/os98/apps/datapunch_app.gd:133
 msgid "Card %d of tonight's batch."
-msgstr ""
+msgstr "Karta %d dnešní noční dávky."
 
-#: scripts/os98/apps/datapunch_app.gd:132
-msgid "Tonight's batch is closed."
-msgstr ""
-
-#: scripts/os98/apps/datapunch_app.gd:157
+#: scripts/os98/apps/datapunch_app.gd:158
 msgid "DID NOT LEAVE"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:159
+#: scripts/os98/apps/datapunch_app.gd:160
 msgid "HRUBY"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:161
+#: scripts/os98/apps/datapunch_app.gd:162
 msgid "SEE CARD 0"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:164
+#: scripts/os98/apps/datapunch_app.gd:165
 msgid "STILL HERE"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:181
-msgid "The office takes no more cards tonight. Batch closed."
-msgstr ""
-
-#: scripts/os98/apps/datapunch_app.gd:194
+#: scripts/os98/apps/datapunch_app.gd:191
 msgid "FILED"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:194
+#: scripts/os98/apps/datapunch_app.gd:191
 msgid "FILED -%d"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:194
+#: scripts/os98/apps/datapunch_app.gd:191
 msgid "REJECTED"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:196
+#: scripts/os98/apps/datapunch_app.gd:193
 msgid "Filed. $%d."
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:196
+#: scripts/os98/apps/datapunch_app.gd:193
 msgid "%d slip%s. $%d."
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:196
+#: scripts/os98/apps/datapunch_app.gd:193
 msgid "Too many mistakes. The office will not pay for this one."
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:198
+#: scripts/os98/apps/datapunch_app.gd:195
 msgid " The card is not in the batch list."
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:244
+#: scripts/os98/apps/datapunch_app.gd:241
 msgid "EVIDENCE UBYTOVANYCH  %d"
 msgstr ""
 
-#: scripts/os98/apps/datapunch_app.gd:245
+#: scripts/os98/apps/datapunch_app.gd:242
 msgid "c. %04d"
 msgstr ""
 
@@ -20547,7 +20587,7 @@ msgstr ""
 msgid "Jirka Holub"
 msgstr ""
 
-#: scripts/os98/apps/goggle_app.gd:42 scripts/os98/apps/job_adclick.gd:26
+#: scripts/os98/apps/goggle_app.gd:42 scripts/os98/apps/job_adclick.gd:28
 #. uses 2
 msgid "Agrostroj Hlubocany"
 msgstr ""
@@ -20560,7 +20600,7 @@ msgstr ""
 msgid "Pub, Liblice"
 msgstr ""
 
-#: scripts/os98/apps/goggle_app.gd:44 scripts/os98/apps/job_adclick.gd:20
+#: scripts/os98/apps/goggle_app.gd:44 scripts/os98/apps/job_adclick.gd:22
 #. uses 2
 msgid "Jednota u Marku"
 msgstr ""
@@ -21020,372 +21060,349 @@ msgstr ""
 msgid "face%d_%d"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:19
+#: scripts/os98/apps/job_adclick.gd:21
 msgid "Budvar"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:19
+#: scripts/os98/apps/job_adclick.gd:21
 msgid "BUDVAR 12"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:19
+#: scripts/os98/apps/job_adclick.gd:21
 msgid ""
 "Beer from Budweis.\n"
 "On tap at Hostinec U Jezera."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:20
+#: scripts/os98/apps/job_adclick.gd:22
 msgid "JEDNOTA U MARKU"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:20
+#: scripts/os98/apps/job_adclick.gd:22
 msgid ""
 "Rolls 1.20 Kc!\n"
 "Batteries: still sold out."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:21
+#: scripts/os98/apps/job_adclick.gd:23
 msgid "CSAD Jihlava"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:21
+#: scripts/os98/apps/job_adclick.gd:23
 msgid "LINE 380"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:21
+#: scripts/os98/apps/job_adclick.gd:23
 msgid ""
 "The bus to the reservoir.\n"
 "It stops where it stops."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:22
+#: scripts/os98/apps/job_adclick.gd:24
 msgid "Bohemia Online"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:22
+#: scripts/os98/apps/job_adclick.gd:24
 msgid "BOHEMIA ONLINE"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:22
+#: scripts/os98/apps/job_adclick.gd:24
 msgid ""
 "The Internet for 1.20 Kc\n"
 "a minute. Since 1996."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:23
+#: scripts/os98/apps/job_adclick.gd:25
 msgid ""
 "If you love it,\n"
 "there is nothing to discuss."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:24
+#: scripts/os98/apps/job_adclick.gd:26
 msgid ""
 "Karbanatky to our own recipe.\n"
 "Open till ten. Do not knock."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:25
+#: scripts/os98/apps/job_adclick.gd:27
 msgid "BUILDER 98"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:25
+#: scripts/os98/apps/job_adclick.gd:27
 msgid ""
 "Register now! 990 Kc.\n"
 "Plan more than one site."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:26
+#: scripts/os98/apps/job_adclick.gd:28
 msgid "AGROSTROJ"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:26
+#: scripts/os98/apps/job_adclick.gd:28
 msgid ""
 "Feed for the nation.\n"
 "Soon by the reservoir."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:27
+#: scripts/os98/apps/job_adclick.gd:29
 msgid "Okna 98"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:27
+#: scripts/os98/apps/job_adclick.gd:29
 msgid "OKNA 98"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:27
+#: scripts/os98/apps/job_adclick.gd:29
 msgid ""
 "Now with Beeternet\n"
 "Explorer 4.01 inside."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:28
+#: scripts/os98/apps/job_adclick.gd:30
 msgid "Bazar Hlubocany"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:28
+#: scripts/os98/apps/job_adclick.gd:30
 msgid "BAZAR"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:28
+#: scripts/os98/apps/job_adclick.gd:30
 msgid ""
 "Buy and sell in the district.\n"
 "Ads free."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:31
+#: scripts/os98/apps/job_adclick.gd:33
 msgid "CONGRATULATIONS!!!"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:31
+#: scripts/os98/apps/job_adclick.gd:33
 msgid "YOU HAVE WON!"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:31
+#: scripts/os98/apps/job_adclick.gd:33
 msgid ""
 "You are the 1,000,000th visitor!\n"
 "Claim your Skoda Felicia now!"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:31
+#: scripts/os98/apps/job_adclick.gd:33
 msgid "CLAIM!"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:32
+#: scripts/os98/apps/job_adclick.gd:34
 msgid "WARNING - VIRUS"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:32
+#: scripts/os98/apps/job_adclick.gd:34
 msgid "1998 VIRUSES FOUND"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:32
+#: scripts/os98/apps/job_adclick.gd:34
 msgid ""
 "Your computer is infected.\n"
 "Click to remove them all."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:32
+#: scripts/os98/apps/job_adclick.gd:34
 msgid "REMOVE"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:33
+#: scripts/os98/apps/job_adclick.gd:35
 msgid "FREE RAM"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:33
+#: scripts/os98/apps/job_adclick.gd:35
 msgid "MORE MEMORY FREE"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:33
+#: scripts/os98/apps/job_adclick.gd:35
 msgid ""
 "Download MORERAM.EXE and\n"
 "your PC runs twice as fast!"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:34
+#: scripts/os98/apps/job_adclick.gd:36
 msgid "Chain letter"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:34
+#: scripts/os98/apps/job_adclick.gd:36
 msgid "SEND TO 10 FRIENDS"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:34
+#: scripts/os98/apps/job_adclick.gd:36
 msgid ""
 "or the man in the hat will\n"
 "stand behind you tonight."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:34
+#: scripts/os98/apps/job_adclick.gd:36
 msgid "SEND"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:35
+#: scripts/os98/apps/job_adclick.gd:37
 msgid "SPORTKA"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:35
+#: scripts/os98/apps/job_adclick.gd:37
 msgid "YOU WON 2,000,000 KC"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:35
+#: scripts/os98/apps/job_adclick.gd:37
 msgid ""
 "Send us your bank details\n"
 "to collect your prize."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:35
+#: scripts/os98/apps/job_adclick.gd:37
 msgid "COLLECT"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:36
+#: scripts/os98/apps/job_adclick.gd:38
 msgid "Lonely?"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:36
+#: scripts/os98/apps/job_adclick.gd:38
 msgid "SINGLE TRACTORS"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:36
+#: scripts/os98/apps/job_adclick.gd:38
 msgid ""
 "in your district want\n"
 "to meet you. Click now!"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:36
+#: scripts/os98/apps/job_adclick.gd:38
 msgid "MEET"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:37
+#: scripts/os98/apps/job_adclick.gd:39
 msgid "Free screensaver"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:37
+#: scripts/os98/apps/job_adclick.gd:39
 msgid "DANCING HAMSTER 3D"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:37
+#: scripts/os98/apps/job_adclick.gd:39
 msgid ""
 "The funniest screensaver of\n"
 "1998! Install it now!"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:37
+#: scripts/os98/apps/job_adclick.gd:39
 msgid "INSTALL"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:69
+#: scripts/os98/apps/job_adclick.gd:71
 msgid "Start a shift"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:99
-msgid ""
-"Bohemia Online has no more adverts for you today.\n"
-"\n"
-"Come back tomorrow."
-msgstr ""
-
-#: scripts/os98/apps/job_adclick.gd:124
+#: scripts/os98/apps/job_adclick.gd:119
 msgid "Another shift"
-msgstr ""
+msgstr "Další směna"
 
-#: scripts/os98/apps/job_adclick.gd:124 scripts/os98/apps/job_census.gd:149
-#. uses 2
-msgid "Done for today"
-msgstr ""
-
-#: scripts/os98/apps/job_adclick.gd:160
+#: scripts/os98/apps/job_adclick.gd:154
 msgid "Notice"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:160
+#: scripts/os98/apps/job_adclick.gd:154
 msgid "MISSING"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:160
+#: scripts/os98/apps/job_adclick.gd:154
 msgid ""
 "Jana K. (11). Last seen at the\n"
 "Cerne jezero camp, August 1987."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:235
+#: scripts/os98/apps/job_adclick.gd:242
 msgid "Bohemia Online pays you to look at adverts."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:237
-msgid "$%d / $%d"
-msgstr ""
-
-#: scripts/os98/apps/job_adclick.gd:239
+#: scripts/os98/apps/job_adclick.gd:246
 msgid "PAY"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:270
+#: scripts/os98/apps/job_adclick.gd:277
 msgid "SHIFT OVER"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:270
+#: scripts/os98/apps/job_adclick.gd:277
 msgid "Confirmed %d adverts, missed %d."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:270
+#: scripts/os98/apps/job_adclick.gd:277
 msgid "Mistakes: %d  (-$%d)"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:270
+#: scripts/os98/apps/job_adclick.gd:277
 msgid "Paid into the camp's account: $%d"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:272
+#: scripts/os98/apps/job_adclick.gd:279
 msgid "HOW IT WORKS"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:272
+#: scripts/os98/apps/job_adclick.gd:279
 msgid "Adverts pop up for 40 seconds."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:272
+#: scripts/os98/apps/job_adclick.gd:279
 msgid "A real advert: click its OK.  ($1)"
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:272
+#: scripts/os98/apps/job_adclick.gd:279
 msgid "A prize, a virus, a chain letter: close it (x)."
 msgstr ""
 
-#: scripts/os98/apps/job_adclick.gd:272
+#: scripts/os98/apps/job_adclick.gd:279
 msgid "Click their button and it costs you $2."
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:18
+#: scripts/os98/apps/job_census.gd:19
 msgid "TENTS"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:18
+#: scripts/os98/apps/job_census.gd:19
 msgid "camp field, Cerne jezero"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:19
+#: scripts/os98/apps/job_census.gd:20
 msgid "COWS"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:19
+#: scripts/os98/apps/job_census.gd:20
 msgid "pasture, Agrostroj Hlubocany"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:20
+#: scripts/os98/apps/job_census.gd:21
 msgid "BOATS"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:20
+#: scripts/os98/apps/job_census.gd:21
 msgid "reservoir, west shore"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:57 scripts/os98/apps/job_census.gd:108
+#: scripts/os98/apps/job_census.gd:58 scripts/os98/apps/job_census.gd:111
 #. uses 2
 msgid "How many?"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:66
+#: scripts/os98/apps/job_census.gd:68
 msgid "Submit"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:72
+#: scripts/os98/apps/job_census.gd:74
 msgid "First photograph"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:84
+#: scripts/os98/apps/job_census.gd:86
 msgid "Count what the photograph asks for. Type the number and press Enter."
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:108
+#: scripts/os98/apps/job_census.gd:111
 msgid "How many %s?"
-msgstr ""
-
-#: scripts/os98/apps/job_census.gd:115
-msgid ""
-"The district has no more photographs for you today.\n"
-"\n"
-"The next batch comes in the morning."
 msgstr ""
 
 #: scripts/os98/apps/job_census.gd:119
@@ -21396,29 +21413,29 @@ msgstr ""
 msgid "Photograph %04d, %s."
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:147
+#: scripts/os98/apps/job_census.gd:148
 msgid "you said %d"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:147
+#: scripts/os98/apps/job_census.gd:148
 msgid "no answer"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:148
+#: scripts/os98/apps/job_census.gd:149
 msgid "The district counted %d (%s). %s"
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:148
+#: scripts/os98/apps/job_census.gd:149
 msgid "Paid $%d."
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:148
+#: scripts/os98/apps/job_census.gd:149
 msgid "Not paid."
 msgstr ""
 
-#: scripts/os98/apps/job_census.gd:149
+#: scripts/os98/apps/job_census.gd:150
 msgid "Next photograph"
-msgstr ""
+msgstr "Další snímek"
 
 #: scripts/os98/apps/job_census.gd:160
 msgid "Time is up. "
@@ -21436,79 +21453,76 @@ msgstr ""
 msgid "No. %04d   %s   scale 1:2000"
 msgstr ""
 
+#: scripts/os98/apps/jobs_app.gd:29
+msgid "Tonight: %d cards"
+msgstr "Dnes v noci: %d {karta|karty|karet}"
+
+#: scripts/os98/apps/jobs_app.gd:31
+msgid "Today: $%d"
+msgstr "Dnes: $%d"
+
 #: scripts/os98/apps/jobs_app.gd:33
-msgid "Batch: %d of 24 cards"
-msgstr ""
+msgid "Today: %d photos"
+msgstr "Dnes: %d {fotka|fotky|fotek}"
 
-#: scripts/os98/apps/jobs_app.gd:35
-msgid "Today: $%d of $%d"
-msgstr ""
-
-#: scripts/os98/apps/jobs_app.gd:37
-msgid "Today: %d of %d photos"
-msgstr ""
-
-#: scripts/os98/apps/jobs_app.gd:52
+#: scripts/os98/apps/jobs_app.gd:48
 msgid "WORK AT HOME ON YOUR COMPUTER."
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:52
+#: scripts/os98/apps/jobs_app.gd:48
 msgid "The District Office pays $4 for every register card"
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:52
-msgid "you type in, up to 24 a night. The old register of"
-msgstr ""
+#: scripts/os98/apps/jobs_app.gd:48
+msgid "you type in. The old register of everyone who"
+msgstr "kterou přepíšeš. Starou evidenci všech, kdo"
 
-#: scripts/os98/apps/jobs_app.gd:53
-msgid "everyone who stayed by the reservoir, 1961-1989."
-msgstr ""
+#: scripts/os98/apps/jobs_app.gd:49
+msgid "stayed by the reservoir, 1961-1989."
+msgstr "bydleli u přehrady v letech 1961-1989."
 
-#: scripts/os98/apps/jobs_app.gd:53
+#: scripts/os98/apps/jobs_app.gd:49
 msgid "Okresni urad Hlubocany, room 12."
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:55
+#: scripts/os98/apps/jobs_app.gd:51
 msgid "EARN MONEY WITH YOUR MOUSE!"
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:55
+#: scripts/os98/apps/jobs_app.gd:51
 msgid "Bohemia Online pays $1 for every advert you confirm."
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:55
+#: scripts/os98/apps/jobs_app.gd:51
 msgid "Click OK on a real advert. Close (x) what is not one:"
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:56
+#: scripts/os98/apps/jobs_app.gd:52
 msgid "prizes, viruses, chain letters. A wrong click costs."
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:56
-msgid "Up to $30 a day. Paid at once."
-msgstr ""
+#: scripts/os98/apps/jobs_app.gd:52 scripts/os98/apps/jobs_app.gd:55
+#. uses 2
+msgid "Paid at once."
+msgstr "Proplácí se hned."
 
-#: scripts/os98/apps/jobs_app.gd:58
+#: scripts/os98/apps/jobs_app.gd:54
 msgid "THE DISTRICT COUNTS ITS PROPERTY."
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:58
+#: scripts/os98/apps/jobs_app.gd:54
 msgid "Count what the aerial photograph asks for: tents,"
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:58
+#: scripts/os98/apps/jobs_app.gd:54
 msgid "cows, boats. Type the number. $3 for the right count,"
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:59
+#: scripts/os98/apps/jobs_app.gd:55
 msgid "$1 if you are one out."
 msgstr ""
 
-#: scripts/os98/apps/jobs_app.gd:59
-msgid "Up to 12 photographs a day."
-msgstr ""
-
-#: scripts/os98/apps/jobs_app.gd:64
+#: scripts/os98/apps/jobs_app.gd:60
 msgid "Sign up and download  (%d KB)"
 msgstr ""
 
@@ -21584,7 +21598,7 @@ msgstr ""
 msgid "From:"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:444 scripts/os98/apps/mail_app.gd:631
+#: scripts/os98/apps/mail_app.gd:444 scripts/os98/apps/mail_app.gd:642
 #. uses 2
 msgid "To:"
 msgstr ""
@@ -21593,7 +21607,7 @@ msgstr ""
 msgid "Date:"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:446 scripts/os98/apps/mail_app.gd:631
+#: scripts/os98/apps/mail_app.gd:446 scripts/os98/apps/mail_app.gd:642
 #. uses 2
 msgid "Subject:"
 msgstr ""
@@ -21622,11 +21636,11 @@ msgstr ""
 msgid "Checking for new messages on mail.bohemia-online.cz..."
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:556
+#: scripts/os98/apps/mail_app.gd:567
 msgid "Fw: "
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:556
+#: scripts/os98/apps/mail_app.gd:567
 msgid ""
 "\n"
 "\n"
@@ -21638,14 +21652,14 @@ msgid ""
 "%s"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:560
+#: scripts/os98/apps/mail_app.gd:571
 msgid ""
 "\n"
 "\n"
 "%s wrote:\n"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:569
+#: scripts/os98/apps/mail_app.gd:580
 msgid ""
 "[b]Guest book[/b]\n"
 "%s\n"
@@ -21653,112 +21667,112 @@ msgid ""
 "\n"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:569
+#: scripts/os98/apps/mail_app.gd:580
 msgid "[color=#c08000]"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:573
+#: scripts/os98/apps/mail_app.gd:584
 msgid ""
 "[color=#606060]You answered:[/color]\n"
 "[i]%s[/i]"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:575
+#: scripts/os98/apps/mail_app.gd:586
 msgid "[color=#606060]People read the answers before they book.[/color]"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:584
+#: scripts/os98/apps/mail_app.gd:595
 msgid "Reply posted to the guest book."
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:584
+#: scripts/os98/apps/mail_app.gd:595
 msgid " It goes down well."
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:584
+#: scripts/os98/apps/mail_app.gd:595
 msgid " It will not win anyone over."
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:594
+#: scripts/os98/apps/mail_app.gd:605
 msgid ""
 "The booking could not be accepted.\n"
 "There are not enough free beds."
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:601
+#: scripts/os98/apps/mail_app.gd:612
 msgid "Accepted. %s arrives in about %d:%02d - make up the room."
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:622
+#: scripts/os98/apps/mail_app.gd:633
 msgid "Title"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:645
+#: scripts/os98/apps/mail_app.gd:656
 msgid "Send"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:677
+#: scripts/os98/apps/mail_app.gd:688
 msgid "New Message"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:694
+#: scripts/os98/apps/mail_app.gd:705
 msgid "There must be at least one name in the To box."
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:702
+#: scripts/os98/apps/mail_app.gd:713
 msgid "Message sent."
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:714
+#: scripts/os98/apps/mail_app.gd:725
 msgid ""
 "[b]BOOKING REQUEST[/b]\n"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:715
+#: scripts/os98/apps/mail_app.gd:726
 msgid ""
 "%s, party of %d\n"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:717
+#: scripts/os98/apps/mail_app.gd:728
 msgid ""
 "%d night(s), $%d a day ([b]$%d[/b])\n"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:718
+#: scripts/os98/apps/mail_app.gd:729
 msgid ""
 "Arrives about 1-2 hours after you accept.\n"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:719
+#: scripts/os98/apps/mail_app.gd:730
 msgid ""
 "Free beds: %d of %d (needs %d)\n"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:721
+#: scripts/os98/apps/mail_app.gd:732
 msgid ""
 "\n"
 "[b]Already answered.[/b]\n"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:732
+#: scripts/os98/apps/mail_app.gd:743
 msgid ""
 "[b]NIGHT RISK[/b]\n"
 "%s in camp: %d -> %d (safe up to %d)\n"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:735
+#: scripts/os98/apps/mail_app.gd:746
 msgid "[color=#a00000][b]Something comes tonight. Certainly.[/b][/color]"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:738
+#: scripts/os98/apps/mail_app.gd:749
 msgid "[color=#006000]Still a quiet night.[/color]"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:740
+#: scripts/os98/apps/mail_app.gd:751
 msgid "[color=#a00000]%s chance of trouble tonight (~%d%%).[/color]"
 msgstr ""
 
-#: scripts/os98/apps/mail_app.gd:813
+#: scripts/os98/apps/mail_app.gd:824
 msgid "[lb]"
 msgstr ""
 
@@ -21790,36 +21804,36 @@ msgstr ""
 msgid "From: http://www.%s/  (%s)"
 msgstr ""
 
-#: scripts/os98/apps/shops_app.gd:158
-msgid "Buy a licence at softsklad.cz"
-msgstr ""
+#: scripts/os98/apps/shops_app.gd:144
+msgid "Install"
+msgstr "Instalovat"
 
-#: scripts/os98/apps/shops_app.gd:233
+#: scripts/os98/apps/shops_app.gd:146
+msgid "Buy the licence  ($%d)"
+msgstr "Koupit licenci  ($%d)"
+
+#: scripts/os98/apps/shops_app.gd:229
 msgid "The licence is paid. The program is not on this computer yet."
 msgstr ""
 
-#: scripts/os98/apps/shops_app.gd:233
-msgid "One click: it comes down the modem and installs itself."
-msgstr ""
-
-#: scripts/os98/apps/shops_app.gd:235
+#: scripts/os98/apps/shops_app.gd:231
 msgid "Your own staff from this desk: who you take on, what each of them"
 msgstr ""
 
-#: scripts/os98/apps/shops_app.gd:236
+#: scripts/os98/apps/shops_app.gd:232
 msgid "sees to, their lockers and their day."
 msgstr ""
 
-#: scripts/os98/apps/shops_app.gd:237 scripts/os98/apps/shops_app.gd:241
+#: scripts/os98/apps/shops_app.gd:233 scripts/os98/apps/shops_app.gd:237
 #. uses 2
-msgid "A licence costs $%d, paid once at www.softsklad.cz."
-msgstr ""
+msgid "A licence costs $%d, paid once."
+msgstr "Licence stojí $%d, platí se jen jednou."
 
-#: scripts/os98/apps/shops_app.gd:239
+#: scripts/os98/apps/shops_app.gd:235
 msgid "Run the %s from this desk: stock, orders to the wholesaler,"
 msgstr ""
 
-#: scripts/os98/apps/shops_app.gd:240
+#: scripts/os98/apps/shops_app.gd:236
 msgid "staff and the takings, on one screen."
 msgstr ""
 
@@ -23447,11 +23461,6 @@ msgstr ""
 
 #: scripts/town/bus_ride.gd:811
 msgid "Nothing to punch. A ticket from the machine at the stop, or from the driver."
-msgstr ""
-
-#: scripts/town/bus_ride.gd:827 scripts/town/bus_ride.gd:847 scripts/town/hamlet_trip.gd:182 scripts/town/ticket_machine_closeup.gd:35 (+5)
-#. uses 9
-msgid "LIBLICE"
 msgstr ""
 
 #: scripts/town/bus_ride.gd:827 scripts/town/bus_ride.gd:847 scripts/town/hamlet_trip.gd:182 scripts/town/ticket_machine_closeup.gd:36 (+2)

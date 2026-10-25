@@ -5,9 +5,10 @@ extends Control
 ## put on computer; anyone with a PC can type cards in at home and is paid per card.
 ## A card comes up (a scan: a filing card, typed and handwritten), you type its four
 ## fields into the form, Enter files it. Paid by how well you copy it: every field right
-## pays the full rate, a slip or two less, more and nothing. The office takes so many
-## cards a night (NIGHT_LIMIT), so it is pocket money, not a living (a guest pays more
-## for one night). While you type you are not watching the camp.
+## pays the full rate, a slip or two less, more and nothing. The office takes every card
+## you send (playtest 25. 10.: "no limit"); it stays pocket money (a guest pays more for
+## one night). While you type you are not watching the camp. The fields are letters only
+## (the same playtest: "no numbers, so the hands stay on the letters").
 ##
 ## Some of the old cards are not old.
 ##
@@ -16,10 +17,10 @@ extends Control
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const RATE := 4                 # $ for a perfect card
-const NIGHT_LIMIT := 24         # cards the office takes a night
-const FIELDS := ["Surname", "First name", "Born", "Stayed at"]
+const FIELDS := ["Surname", "First name", "Born in", "Stayed at"]
 const SURNAMES := ["NOVAK", "DVORAK", "SVOBODA", "CERNY", "PROCHAZKA", "KUCERA", "VESELY", "HORAK", "NEMEC", "POKORNY", "MAREK", "POSPISIL", "HAJEK", "KRAL", "JELINEK", "RUZICKA", "BENES", "FIALA", "SEDLACEK", "DOLEZAL", "ZEMAN", "KOLAR", "NAVRATIL", "CERMAK", "VANEK", "URBAN", "BLAZEK", "KRIZ", "KOVAR", "BARTOS"]
 const NAMES := ["JAN", "PETR", "JOSEF", "PAVEL", "JIRI", "MARIE", "JANA", "EVA", "HANA", "ANNA", "KAREL", "ZDENEK", "MILOS", "VLASTA", "LUDMILA", "JAROSLAV", "BOHUMIL", "VERA", "DANA", "IVANA"]
+const TOWNS := ["PRAHA", "BRNO", "PLZEN", "KOLIN", "TABOR", "PISEK", "JIHLAVA", "KLADNO", "OLOMOUC", "PARDUBICE", "HLUBOCANY", "LIBLICE", "STRAKONICE", "BENESOV", "PRIBRAM", "ZNOJMO"]
 const PLACES := ["KEMP CERNE JEZERO", "KEMP LIBLICE", "RZ HLUBOCANY", "KEMP U HRAZE", "PIONYRSKY TABOR", "CHATY POD LESEM"]
 
 var _shell
@@ -98,7 +99,7 @@ func _draw() -> void:
 	draw_rect(Rect2(0, HEAD_H - 2, w, 2), Color8(190, 60, 50))
 	draw_string(T.FONT_BOLD, Vector2(10, 20), "DataPunch 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(236, 226, 196))
 	draw_string(T.FONT, Vector2(12, 38), "Okresni urad Hlubocany - register transcription 1961-1989", HORIZONTAL_ALIGNMENT_LEFT, w - 170, T.FONT_SIZE, Color8(210, 190, 160))
-	var cells := [["TONIGHT", "%d / %d" % [_done_tonight(), NIGHT_LIMIT]], ["A CARD", "$%d" % RATE]]
+	var cells := [["TONIGHT", "%d" % _done_tonight()], ["A CARD", "$%d" % RATE]]
 	var x := w - 4.0
 	for i in range(cells.size() - 1, -1, -1):
 		x -= 70.0
@@ -129,7 +130,7 @@ func _add_done(n: int) -> void:
 
 
 func _refresh_pay() -> void:
-	_pay.text = "Card %d of tonight's batch." % mini(_done_tonight() + 1, NIGHT_LIMIT) if _done_tonight() < NIGHT_LIMIT else "Tonight's batch is closed."
+	_pay.text = "Card %d of tonight's batch." % (_done_tonight() + 1)
 	queue_redraw()
 
 
@@ -140,7 +141,7 @@ func _new_card() -> void:
 	_cur = {
 		"Surname": SURNAMES[_rng.randi_range(0, SURNAMES.size() - 1)],
 		"First name": NAMES[_rng.randi_range(0, NAMES.size() - 1)],
-		"Born": "%d.%d.%d" % [_rng.randi_range(1, 28), _rng.randi_range(1, 12), _rng.randi_range(1910, 1972)],
+		"Born in": TOWNS[_rng.randi_range(0, TOWNS.size() - 1)],
 		"Stayed at": PLACES[_rng.randi_range(0, PLACES.size() - 1)],
 		"year": year,
 		"note": "",
@@ -160,7 +161,7 @@ func _new_card() -> void:
 				_cur["First name"] = "?"
 				_cur["note"] = "SEE CARD 0"
 			_:
-				_cur["Born"] = "%d.10.1998" % _rng.randi_range(1, 19)
+				_cur["Born in"] = "CERNE JEZERO"
 				_cur["note"] = "STILL HERE"
 	for e in _inputs:
 		(e as LineEdit).text = ""
@@ -177,10 +178,6 @@ func _next_field(i: int) -> void:
 
 
 func _file() -> void:
-	if _done_tonight() >= NIGHT_LIMIT:
-		_status.text = "The office takes no more cards tonight. Batch closed."
-		_shell.play("error", -10.0)
-		return
 	var slips := 0
 	for i in FIELDS.size():
 		slips += _distance(str((_inputs[i] as LineEdit).text).strip_edges().to_upper(), str(_cur[FIELDS[i]]))
