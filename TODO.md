@@ -22,7 +22,7 @@
 - [ ] R14 „přidej ven ke vstupu kontejner/popelnici kam musíš odnášet smetí z eventů“ (event litter is carried to a bin, not vanishing)
 - [x] R15 „po smazání mailu hned označ další“
 - [x] R16 „v noci nejde v 3D verzi builderu nic vidět. umělé noční přisvícení? povol větší úhel naklopení, chci koukat vodorovně“
-- [ ] R17 „slunce a měsíc musí obíhat kolem celé mapy, ne kolem kempu“
+- [x] R17 „slunce a měsíc musí obíhat kolem celé mapy, ne kolem kempu“
 - [x] R18 „pamatuj si přes noc světla, závěsy atd v recepci, i coop. rozsvěcí se furt světla v pokojíku“
 - [ ] R19 „když vypadne proud, zpomalit lehce animaci toho jak jde hráč ven z recepce“
 - [ ] R20 „při sprintu více camera shake“

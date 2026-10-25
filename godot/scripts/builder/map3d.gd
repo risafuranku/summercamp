@@ -220,6 +220,12 @@ func covers() -> bool:
 	return _mode == 2
 
 
+## The eye the sky is placed round while the 3D view shows (weather_visuals: the sun and
+## the moon), else null.
+func sky_camera() -> Camera3D:
+	return _cam if _mode == 2 and is_visible_in_tree() else null
+
+
 ## Coming in or going out: the map takes no clicks till it is there.
 func busy() -> bool:
 	return _mode == 1 or _mode == 3

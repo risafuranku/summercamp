@@ -612,6 +612,9 @@ func update_celestial_bodies() -> void:
 	if moon_dir.length_squared() < 0.001:
 		moon_dir = direction_to_source_from_hour(_time_of_day_hours - 12.0)
 	var sky_distance = _resolve_celestial_sprite_distance(cam.far)
+	if cam.has_meta("builder_eye"):
+		# Past the whole land under that eye (it sees kilometres).
+		sky_distance = cam.far * 0.8
 	var sprite_scale = sky_distance / CELESTIAL_SPRITE_REFERENCE_DISTANCE
 	_sun_sprite_3d.global_position = cam_pos + sun_dir * sky_distance
 	_moon_sprite_3d.global_position = cam_pos + moon_dir * sky_distance
@@ -1632,6 +1635,13 @@ func _get_active_world_camera() -> Camera3D:
 	# with it. With the player's own they stayed round the camp while the bus drove off,
 	# and the moon sank into the ground behind it (the user 20. 10.).
 	# (The world's own viewport: the game draws it in a SubViewport.)
+	# Builder 98's 3D view over the land has an eye of its own: the sun and the moon go
+	# round the whole map from it (playtest 25. 10.: from up there they circled the camp,
+	# a sprite a hundred metres from the warden at the PC).
+	for b in get_tree().get_nodes_in_group("builder_3d"):
+		var bc: Camera3D = b.sky_camera() if b.has_method("sky_camera") else null
+		if bc != null:
+			return bc
 	var vp := _world_3d.get_viewport() if _world_3d != null and _world_3d.is_inside_tree() else get_viewport()
 	var live := vp.get_camera_3d() if vp != null else null
 	if live != null and is_instance_valid(live) and live.is_inside_tree():
