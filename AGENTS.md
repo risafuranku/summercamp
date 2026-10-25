@@ -699,6 +699,13 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   through the window or the ambient (off by day took the daylight to a fifth). Check a light
   change by the picture's mean brightness: the office, lights on / off, day / night
   (12:00: 134 / 121, 22:30: 81 / 21 on 25. 10.), not by eye.
+- **The eye's motion is the body's, never a wobble** (the user, 25. 10., furious at a sprint
+  "shake" of 23-37 Hz sines: "like being shaken, linear up and down, mad fast"): a camera
+  movement comes from a cause (a foot landing kicks a spring, a landing, a stop) and settles
+  on a spring; nothing faster than the steps, no noise on top. Measure it before handing it
+  over (the head's y, pitch and roll sampled while sprinting: reversals a second, the biggest
+  second difference): the sprint is 3.6 steps a second, 4 cm, the nod a soft spring kicked
+  per foot (player_controller RUN_NOD_*).
 - **D3D12 resource descriptors** (`rendering_device/d3d12/max_resource_descriptors`, raised
   to 524288 on 25. 10.): the default 65536 ran out after a long session; every draw past it
   failed (black screen in the busy directions) and the log took hundreds of errors a frame.

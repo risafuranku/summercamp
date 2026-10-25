@@ -63,9 +63,11 @@ var _hurt_t := 0.0
 ## longer one running), the head lowest as the foot comes down, with the step's sound.
 ## All of it smooth: the sprites and the hands step at twelve a second, the eye never.
 @export var stride_walk: float = 0.74
-@export var stride_run: float = 1.02
+## A sprint's step is long and its cadence a runner's, about 3.6 a second (it was 1.02 m:
+## five a second, the head going up and down "linear and mad fast", playtest 25. 10.).
+@export var stride_run: float = 1.45
 @export var bob_vertical: float = 0.034
-@export var bob_vertical_run: float = 0.072
+@export var bob_vertical_run: float = 0.04
 @export var bob_horizontal: float = 0.022
 @export var base_tilt_amount: float = 0.032
 @export var rotation_tilt_amount: float = 0.0055
@@ -153,11 +155,16 @@ var _camera: Camera3D
 var _base_head_pos: Vector3 = Vector3(0.0, 1.8, 0.0)
 ## The bob as it is drawn (head offset), and the Build shift now (radians).
 var _bob_offset: Vector3 = Vector3.ZERO
-## The sprint's shake (radians): a nod at each step, a roll over the foot, small jolts.
-const RUN_NOD := 0.016
-const RUN_ROLL := 0.014
-const RUN_JOLT := 0.0035
+## The sprint's weight in the view: a foot's kick to the nod spring (radians a second),
+## the spring's stiffness and damping (soft, a little under critical: it settles, it does
+## not ring), the roll over the bearing foot (radians).
+const RUN_NOD_KICK := 0.075
+const RUN_NOD_K := 70.0
+const RUN_NOD_DAMP := 13.0
+const RUN_ROLL := 0.009
+var _run_k := 0.0
 var _run_nod := 0.0
+var _run_nod_v := 0.0
 var _run_roll := 0.0
 var _shift := 0.0
 ## Steps taken (whole = a foot down), counted in physics by the ground covered; the two
@@ -514,6 +521,8 @@ func _after_physics(delta: float) -> void:
 ## A foot comes down: its sound (by what is under it) and the head's dip with it.
 func _foot_down(motion: float) -> void:
 	_spring_v -= step_kick_strength * (0.6 + motion) * 4.0 * float(view.get("bob", 1.0))
+	# Running, the head dips with the landing foot (the nod spring, _update_head).
+	_run_nod_v -= RUN_NOD_KICK * _run_k
 	_play_step(motion)
 	match last_step_surface:
 		"mud":
@@ -942,16 +951,17 @@ func _update_head_motion(delta: float) -> void:
 	# side to side once every two steps, over the foot that bears it.
 	var fr := phase - floorf(phase)
 	var bob_y := -amp_y * (0.5 + 0.5 * cos(TAU * fr)) * walk
-	var bob_x := sin(PI * phase) * bob_horizontal * lerpf(1.0, 1.7, run) * walk
-	# A sprint shakes the view (playtest 25. 10.: "more camera shake when sprinting"): the
-	# head nods down with every foot that lands and rolls over the one that bears it, in
-	# time with the steps, and the run's jolts on top; all of it under Options' bob.
-	var run_k := run * walk
-	_run_nod = -RUN_NOD * (0.5 + 0.5 * cos(TAU * fr)) * run_k
-	_run_roll = sin(PI * phase) * RUN_ROLL * run_k
-	if run_k > 0.01:
-		_run_nod += (sin(_idle_noise_time * 23.0) * 0.6 + sin(_idle_noise_time * 37.0) * 0.4) * RUN_JOLT * run_k
-		_run_roll += sin(_idle_noise_time * 29.0) * RUN_JOLT * run_k
+	var bob_x := sin(PI * phase) * bob_horizontal * lerpf(1.0, 1.25, run) * walk
+	# A sprint carries the body's weight into the view (playtest 25. 10.): every foot that
+	# lands kicks the head's nod spring (_foot_down), soft and heavy, so it dips and comes
+	# back up on its own instead of jerking; the head rolls over the foot that bears it,
+	# once every two steps. (Not a fast wobble on top: "like being shaken, up and down,
+	# linear and mad fast" was the first try of it.) All of it under Options' bob.
+	_run_k = run * walk
+	_run_roll = sin(PI * phase) * RUN_ROLL * _run_k
+	var nod_acc := -RUN_NOD_K * _run_nod - RUN_NOD_DAMP * _run_nod_v
+	_run_nod_v += nod_acc * delta
+	_run_nod = clampf(_run_nod + _run_nod_v * delta, -0.06, 0.03)
 
 	# Stopping dead from a walk: the body settles (a small dip on the spring).
 	if _was_moving > 1.5 and speed < 0.3 and grounded:
