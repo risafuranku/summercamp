@@ -355,6 +355,7 @@ const GEAR := {
 		"pot": {"label": "Bigger pot", "price": 80, "what": "Six cobs boil at once."},
 		"butter": {"label": "Butter warmer", "price": 60, "what": "Soft butter: a cob buttered in one stroke."},
 		"table": {"label": "Husking table", "price": 70, "what": "The husks come off in fewer pulls."},
+		"tray": {"label": "Cob tray", "price": 50, "what": "Three more cobs wait beside the board."},
 	},
 	"vecerka": {
 		"till2": {"label": "Second till", "price": 420, "what": "Two queues at once (it needs a second hand)."},

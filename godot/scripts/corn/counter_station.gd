@@ -15,6 +15,10 @@ extends "res://scripts/corn/corn_station.gd"
 ##               the oldest; the cob flies over to them; they judge it (corn_rules.judge):
 ##               hard, soft, no butter, the salt off and they hand it back
 ##   BIN         (the frame's button) the cob on the board in the bin
+##   aside       (playtest 25. 10.: "more cobs on the counter, always one on the board
+##               and the rest aside; buy a tray for three more") a cob taken out while
+##               the board is busy lies aside on the counter's far edge (two, five with
+##               the tray), as done as it came out; the board free, the oldest goes on it
 ## The cash box opens the books (the stock, the order). The next step is lit (`next_hint`):
 ## the husking when the bowl is empty, a cob in, a done one out, the butter, the salt,
 ## the napkin, SERVE.
@@ -30,6 +34,11 @@ const SALT := Rect2(456, 124, 34, 56)
 const NAPKINS := Rect2(448, 178, 72, 72)
 const CASH := Rect2(522, 118, 96, 124)
 const HAND := Rect2(170, 0, 300, 96)
+## The cobs aside: on the counter's far edge over the board, then on the tray over the
+## butter and the salt.
+const SIDE_AT := [Vector2(244, 104), Vector2(348, 104), Vector2(472, 85), Vector2(472, 100), Vector2(472, 115)]
+const SIDE_BASE := 2
+const TRAY_AT := Vector2(472, 100)
 const COB_M := 0.2
 const DRAG_FAR := 6.0
 
@@ -39,6 +48,9 @@ var _board_spr: Sprite3D
 var _butter_spr: Sprite3D
 var _napkin_spr: Sprite3D
 var _salt_spr: Array = []
+var _side: Array = []               # [{cook}], the oldest first
+var _side_spr: Array = []
+var _tray_spr: Sprite3D
 var _brushing := false
 ## The water rolling in the pot (corn/boil_0..2: Grok frames, in steps).
 var _boil: Sprite3D
@@ -61,6 +73,12 @@ func _build() -> void:
 	_butter_spr.visible = false
 	_napkin_spr = lying("cob_napkin", COB_M + 0.02)
 	_napkin_spr.visible = false
+	_tray_spr = csprite("tray", 0.34)
+	_tray_spr.visible = false
+	for i in SIDE_AT.size():
+		var c := lying("cob_boiled", COB_M, 0.05 * float(i % 2 * 2 - 1))
+		c.visible = false
+		_side_spr.append(c)
 	var salt := "res://assets/textury/closeup/parts/salt.png"
 	for i in 6:
 		var s := sprite(salt, 0.014, false)
@@ -97,13 +115,24 @@ func _show() -> void:
 			if is_instance_valid(_cobs[id]):
 				(_cobs[id] as Node).queue_free()
 			_cobs.erase(id)
+	if _board.is_empty() and not _side.is_empty():
+		_board_from_side()
+	_tray_spr.visible = _tray_spr.texture != null and BUSINESS.has_gear(building_key, "tray")
+	if _tray_spr.visible:
+		put(_tray_spr, TRAY_AT, 0.012)
+	for i in _side_spr.size():
+		var sp: Sprite3D = _side_spr[i]
+		sp.visible = i < _side.size()
+		if sp.visible:
+			var ck := float(_side[i]["cook"])
+			cretex(sp, _cook_tex(ck), COB_M)
+			put(sp, SIDE_AT[i], 0.03 + 0.004 * float(i))
 	var on := not _board.is_empty()
 	_board_spr.visible = on and not bool(_board.get("napkin", false))
 	_napkin_spr.visible = on and bool(_board.get("napkin", false))
 	_butter_spr.visible = _board_spr.visible and _butter_share() > 0.0
 	if on:
-		var stage := 0 if float(_board["cook"]) < 1.0 else (1 if float(_board["cook"]) < 1.25 else 2)
-		cretex(_board_spr, ["cob_raw", "cob_boiled", "cob_mushy"][stage] if float(_board["cook"]) >= 0.4 else "cob_raw", COB_M)
+		cretex(_board_spr, _cook_tex(float(_board["cook"])), COB_M)
 		put(_board_spr, BOARD_AT, 0.035)
 		put(_napkin_spr, BOARD_AT, 0.038)
 		# The butter shines over the stretch the brush has passed (the cob's length is the
@@ -129,6 +158,32 @@ func _show() -> void:
 	else:
 		for sp in _salt_spr:
 			(sp as Sprite3D).visible = false
+
+
+## A cob's picture by how done it came out.
+func _cook_tex(cook: float) -> String:
+	if cook < 0.4:
+		return "cob_raw"
+	return ["cob_raw", "cob_boiled", "cob_mushy"][0 if cook < 1.0 else (1 if cook < 1.25 else 2)]
+
+
+## How many lie aside (more on the tray).
+func _side_room() -> int:
+	return SIDE_BASE + (3 if BUSINESS.has_gear(building_key, "tray") else 0)
+
+
+## The board free: the oldest aside onto it.
+func _board_from_side() -> void:
+	var c: Dictionary = _side.pop_front()
+	_board = _fresh_board(float(c["cook"]))
+	sfx("plate_down", -12.0, 1.1)
+	hop(_board_spr)
+
+
+func _fresh_board(cook: float) -> Dictionary:
+	var mask := PackedByteArray()
+	mask.resize(CORN.BUTTER_SLOTS)
+	return {"cook": cook, "butter": mask, "salt": 0, "napkin": false}
 
 
 func _butter_share() -> float:
@@ -181,6 +236,13 @@ func next_hint() -> Dictionary:
 	if stand == null or building_key == "":
 		return {}
 	var t := current_ticket()
+	if not _board.is_empty() and _side.size() < _side_room():
+		# A done one going soft in the pot: out aside before the board's dressing.
+		for c in stand.pot(building_key):
+			if CORN.cook_of(float(c["t"])) >= 1.05 and cob_tickets().size() > 1 + _side.size():
+				var sp: Sprite3D = _cobs.get(str(c["id"]), null)
+				if sp != null:
+					return {"node": sp, "gesture": "click"}
 	if not _board.is_empty():
 		if _butter_share() < 0.85:
 			return {"node": _board_spr, "gesture": "rub"}
@@ -346,17 +408,20 @@ func _put_in() -> void:
 
 
 func _take_out(id: String) -> void:
-	if not _board.is_empty():
-		say("", "There is one on the board already.")
+	if not _board.is_empty() and _side.size() >= _side_room():
+		say("", "No room on the counter.")
 		return
 	for c in stand.pot(building_key):
 		if str(c["id"]) == id:
-			var mask := PackedByteArray()
-			mask.resize(CORN.BUTTER_SLOTS)
-			_board = {"cook": CORN.cook_of(float(c["t"])), "butter": mask, "salt": 0, "napkin": false}
+			var cook := CORN.cook_of(float(c["t"]))
 			stand.act(building_key, "out", [id])
 			sfx("plate_down", -8.0)
-			hop(_board_spr)
+			if _board.is_empty():
+				_board = _fresh_board(cook)
+				hop(_board_spr)
+			else:
+				_side.append({"cook": cook})
+				hop(_side_spr[_side.size() - 1])
 			return
 
 
@@ -431,6 +496,17 @@ func debug_dress_right() -> void:
 	_board["napkin"] = true
 
 
+## A piece of gear bought for the stand.
+func debug_buy(id: String) -> bool:
+	return CoreRoot.actions.biz_buy_gear(building_key, id)
+
+
+## Every cob in the pot out (the board, then aside).
+func debug_take_all() -> void:
+	for c in stand.pot(building_key).duplicate():
+		_take_out(str(c["id"]))
+
+
 ## The first cob in the pot onto the board.
 func debug_take_first() -> void:
 	var pot: Array = stand.pot(building_key)
@@ -440,6 +516,4 @@ func debug_take_first() -> void:
 
 ## A cob straight onto the board, `cook` done.
 func debug_board(cook: float) -> void:
-	var mask := PackedByteArray()
-	mask.resize(CORN.BUTTER_SLOTS)
-	_board = {"cook": cook, "butter": mask, "salt": 0, "napkin": false}
+	_board = _fresh_board(cook)

@@ -47,6 +47,8 @@ SHEETS = [
                  (P + "chalk_tally.png", 14)]),
     ("cts_corn", [(C + "cob_husk.png", 40), (C + "husk_leaf.png", 36), (C + "silk.png", 16), (C + "cob_raw.png", 36),
                   (C + "cob_boiled.png", 36), (C + "cob_mushy.png", 36), (C + "cob_buttered.png", 36), (C + "cob_napkin.png", 38)]),
+    # The cob tray (the gear: three more cobs aside, playtest 25. 10.).
+    ("cts_tray", [(C + "tray.png", 60)]),
     ("psh_marks", [(UI + "mark_mug.png", 16), (UI + "mark_foam.png", 16), (UI + "mark_shot.png", 14), (UI + "mark_kofola.png", 16),
                    (UI + "mark_keg.png", 16), (UI + "mark_dirty.png", 16), (UI + "mark_corn.png", 16)]),
     ("psh_room", [(CAMP + "pub_boar.png", 50), (CAMP + "pub_pennant.png", 33), (CAMP + "pub_hockey.png", 46),

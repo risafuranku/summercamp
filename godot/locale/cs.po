@@ -342,140 +342,140 @@ msgstr "Personal 98"
 
 #: core/systems/business_rules.gd:341
 msgid "Second fryer basket"
-msgstr ""
+msgstr "Druhý fritovací koš"
 
 #: core/systems/business_rules.gd:341
 msgid "Two baskets of chips in the oil at once."
-msgstr ""
+msgstr "Dva koše hranolek v oleji naráz."
 
 #: core/systems/business_rules.gd:342
 msgid "Heavy pan"
-msgstr ""
+msgstr "Těžká pánev"
 
 #: core/systems/business_rules.gd:342
 msgid "A fourth place in the pan; slices burn later."
-msgstr ""
+msgstr "Čtvrté místo na pánvi, plátky se připalují později."
 
 #: core/systems/business_rules.gd:343
 msgid "Dishwasher"
-msgstr ""
+msgstr "Myčka nádobí"
 
 #: core/systems/business_rules.gd:343
 msgid "The dirty plates in, clean ones out a while later."
-msgstr ""
+msgstr "Špinavé talíře dovnitř, za chvíli ven čisté."
 
 #: core/systems/business_rules.gd:344
 msgid "Big pot"
-msgstr ""
+msgstr "Velký hrnec"
 
 #: core/systems/business_rules.gd:344
 msgid "Holds twenty portions and catches slower."
-msgstr ""
+msgstr "Pojme dvacet porcí a pomaleji se připaluje."
 
 #: core/systems/business_rules.gd:345
 msgid "Heat lamp"
-msgstr ""
+msgstr "Ohřívací lampa"
 
 #: core/systems/business_rules.gd:345
 msgid "Fried food on the shelf keeps hot: no stars lost."
-msgstr ""
+msgstr "Smažené jídlo na poličce zůstane teplé, žádné hvězdy dolů."
 
 #: core/systems/business_rules.gd:346
 msgid "Ticket clock"
-msgstr ""
+msgstr "Hodiny na objednávky"
 
 #: core/systems/business_rules.gd:346
 msgid "The guests see the order is up: they wait longer."
-msgstr ""
+msgstr "Hosté vidí, že se na objednávce dělá, a počkají déle."
 
 #: core/systems/business_rules.gd:349
 msgid "Second tap"
-msgstr ""
+msgstr "Druhá pípa"
 
 #: core/systems/business_rules.gd:349
 msgid "A second spout on the line: the beer comes faster, a hand draws two at once."
-msgstr ""
+msgstr "Druhý kohout na lince: pivo teče rychleji, výpomoc točí dvě naráz."
 
 #: core/systems/business_rules.gd:350
 msgid "Glass washer"
-msgstr ""
+msgstr "Myčka sklenic"
 
 #: core/systems/business_rules.gd:350
 msgid "The mugs come out clean by themselves."
-msgstr ""
+msgstr "Půllitry se umyjí samy."
 
 #: core/systems/business_rules.gd:351
 msgid "Keg cooler"
-msgstr ""
+msgstr "Chlazení sudů"
 
 #: core/systems/business_rules.gd:351
 msgid "A tapped keg keeps twice as long."
-msgstr ""
+msgstr "Naražený sud vydrží dvakrát déle."
 
 #: core/systems/business_rules.gd:352
 msgid "Quick coupler"
-msgstr ""
+msgstr "Rychlospojka"
 
 #: core/systems/business_rules.gd:352
 msgid "A keg changed in a moment."
-msgstr ""
+msgstr "Sud vyměněný raz dva."
 
 #: core/systems/business_rules.gd:355
 msgid "Bigger pot"
-msgstr ""
+msgstr "Větší hrnec"
 
 #: core/systems/business_rules.gd:355
 msgid "Six cobs boil at once."
-msgstr ""
+msgstr "Vaří se šest klasů naráz."
 
 #: core/systems/business_rules.gd:356
 msgid "Butter warmer"
-msgstr ""
+msgstr "Ohřívač másla"
 
 #: core/systems/business_rules.gd:356
 msgid "Soft butter: a cob buttered in one stroke."
-msgstr ""
+msgstr "Měkké máslo: klas namazaný jedním tahem."
 
 #: core/systems/business_rules.gd:357
 msgid "Husking table"
-msgstr ""
+msgstr "Loupací stůl"
 
 #: core/systems/business_rules.gd:357
 msgid "The husks come off in fewer pulls."
-msgstr ""
+msgstr "Listy jdou dolů na míň tahů."
 
 #: core/systems/business_rules.gd:360 core/systems/business_rules.gd:413
 #. uses 2
 msgid "Second till"
-msgstr ""
+msgstr "Druhá pokladna"
 
 #: core/systems/business_rules.gd:360
 msgid "Two queues at once (it needs a second hand)."
-msgstr ""
+msgstr "Dvě fronty naráz (chce to druhou výpomoc)."
 
 #: core/systems/business_rules.gd:361
 msgid "Pallet truck"
-msgstr ""
+msgstr "Paletový vozík"
 
 #: core/systems/business_rules.gd:361
 msgid "A delivery unloaded in half the time."
-msgstr ""
+msgstr "Dodávka vyložená za polovic času."
 
 #: core/systems/business_rules.gd:362
 msgid "Chiller cabinet"
-msgstr ""
+msgstr "Chladicí vitrína"
 
 #: core/systems/business_rules.gd:362
 msgid "Milk and salami keep twice as long."
-msgstr ""
+msgstr "Mléko a salám vydrží dvakrát déle."
 
 #: core/systems/business_rules.gd:363
 msgid "More shelves"
-msgstr ""
+msgstr "Víc regálů"
 
 #: core/systems/business_rules.gd:363
 msgid "A third more on every shelf."
-msgstr ""
+msgstr "Na každou polici se vejde o třetinu víc."
 
 #: core/systems/business_rules.gd:366
 msgid "Stavomat S-12"
@@ -25885,3 +25885,12 @@ msgstr "SPRCHA %d"
 
 msgid "THE REST"
 msgstr "OSTATNÍ"
+
+msgid "No room on the counter."
+msgstr "Na pultu už není místo."
+
+msgid "Cob tray"
+msgstr "Tácek na klasy"
+
+msgid "Three more cobs wait beside the board."
+msgstr "Další tři klasy počkají vedle prkénka."
