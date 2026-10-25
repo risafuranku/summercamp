@@ -2378,7 +2378,7 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 
 func _upkeep_room_dict() -> Dictionary:
 	var entry: Dictionary = _upkeep_cache.get(_upkeep_key, {})
-	var tasks: Array = entry.get("tasks", [])
+	var tasks: Array = _grouped_block_tasks(entry.get("tasks", []))
 	var clean := tasks.is_empty() or bool(entry.get("spent", false))
 	var label := "Toilets" if _upkeep_type == "toilet_block" else "Showers"
 	return {
@@ -2391,6 +2391,27 @@ func _upkeep_room_dict() -> Dictionary:
 		"occupied": false,
 		"note": "" if bool(entry.get("spent", false)) else str(entry.get("note", "")),
 	}
+
+
+## A block's tasks by the part they are in (MESS_RULES.BLOCK_SPOTS: _l the left one, _r
+## the right one), each with its heading, in that order: the checklist puts them under it.
+func _grouped_block_tasks(tasks: Array) -> Array:
+	var out: Array = []
+	var order := ["_l", "_r", ""]
+	for side in order:
+		for t in tasks:
+			var spot := str((t as Dictionary).get("spot", ""))
+			var s := "_l" if spot.ends_with("_l") else ("_r" if spot.ends_with("_r") else "")
+			if s != side:
+				continue
+			var d: Dictionary = (t as Dictionary).duplicate()
+			var n := 1 if s == "_l" else 2
+			if _upkeep_type == "toilet_block":
+				d["group"] = tr("CUBICLE %d") % n if s != "" else tr("THE REST")
+			else:
+				d["group"] = tr("SHOWER %d") % n if s != "" else tr("THE REST")
+			out.append(d)
+	return out
 
 
 func _refresh_upkeep_room() -> void:

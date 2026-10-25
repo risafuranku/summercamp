@@ -543,7 +543,14 @@ func _refresh_checklist(room: Dictionary) -> void:
 	if ready or occupied:
 		return
 	var done: Array = room.get("done", [])
+	# A block's list by its parts, each under its own heading (the toilets' cubicles, the
+	# showers: playtest 25. 10., "split the toilets' list for each cubicle").
+	var group := ""
 	for t in room.get("tasks", []):
+		var g := str((t as Dictionary).get("group", ""))
+		if g != "" and g != group:
+			group = g
+			_checklist.add_child(RETRO_UI.label(g, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_TEXT, RETRO_UI.C_AMBER_LIGHT, _scale))
 		var is_done := done.has(str(t["id"]))
 		var text := "%s %s" % ["[X]" if is_done else "[ ]", str(t["label"])]
 		_checklist.add_child(RETRO_UI.label(text, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_BONE_DIM if is_done else RETRO_UI.C_BONE, _scale))

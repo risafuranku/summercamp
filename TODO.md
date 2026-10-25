@@ -44,13 +44,13 @@
 - [x] R36 „na recepci mezi telefonem a deskami leží bílý čtverec, vždy na něj kliknu omylem“
 - [x] R37 „na stanici 2 counter u kukuřice zmizí HUD uvařenosti kukuřic, na trojce taky“
 - [ ] R38 „velký cumulative layout shift při otevírání stavebních toolbarů v Builderu“
-- [ ] R39 „neuklizený nebo neustlaný stan, chatku atd. ukazuj jako notifikaci s ikonou vpravo“
+- [x] R39 „neuklizený nebo neustlaný stan, chatku atd. ukazuj jako notifikaci s ikonou vpravo“
 - [ ] R40 „animace odemknutí nových věcí v Builderu a pár náhledů těch nejlepších, ať hráč ví, že dosáhl achievementu“
 - [ ] R41 „recepce nedává smysl perspektivně: okno pokojíčku a pokojíček nesedí s interiérem, je to malé, vzniká phantom prostor“
 - [x] R42 „i když zhasnu všechna světla, pořád je světelný kruh kolem zářivky na stropě a není tma; přes den je tam málo světla. Pořádně oprav světlo na recepci“ (repeated: verify with measured pixel values, lights off / on, day / night)
 - [x] R43 „v sewers se lze v zatáčce otočit za sebe, to je špatně“
 - [x] R44 „v sewers jde slyšet ambience zvenčí“
-- [ ] R45 „showers chybí notifikace, že se mají uklidit“
+- [x] R45 „showers chybí notifikace, že se mají uklidit“
 - [ ] R46 „podpis zboží udělej podobnou interakcí jako u pošťáka, ale ne stejný obrázek: jsou to desky na stole uvnitř recepce“
 - [x] R47 „nové klepání kamery při sprintu je sračka, lineární nahoru a dolů šíleně rychlé“ (f8b0f9d1: 23-37 Hz sines out, a runner's cadence, a sprung nod)
 - [x] R48 „v kukuřici se chci moct rozhlédnout i nahoru a dolů“
@@ -58,10 +58,10 @@
 - [ ] R50 „staffroom kotelna: clippuje výhled z okna a S mě nevrátí do staffroomu, ale vykopne ven“ (S fixed; the window not reproduced yet: ask when)
 - [x] R51 „cestu zlevnit na 5“
 - [x] R52 „světlo na recepci neodpovídá venkovnímu počasí“
-- [ ] R53 „task list na hajzlech rozdělit pro každou kabinku zvlášť“
+- [x] R53 „task list na hajzlech rozdělit pro každou kabinku zvlášť“
 - [ ] R54 „déšť intenzivnější; počasí, osvětlení, zvuk a vibe před bouřkou (temný mrak, vlhko, vítr se zvedá, lehké temno); bouřku fakt intense“
 - [x] R55 „mail na PC dát na dvojku a zbytek posunout doprava“
-- [ ] R56 „v Builderu nevidím pokojské (workery)“
+- [x] R56 „v Builderu nevidím pokojské (workery)“
 - [ ] R57 „v 3D Builderu mě nech clippovat do interiérů“
 - [x] R58 „sprite lampičky v recepci není ve tmě tmavý“
 - [x] R59 „sewer se děje moc často, breaker taky“

@@ -1678,6 +1678,43 @@ func _trouble_rows(biz) -> Array:
 		for site in biz.waiting_sites():
 			var kind := str(biz.site(str(site["key"])).get("kind", ""))
 			rows.append({"id": "b%s" % str(site["key"]), "kind": str(TROUBLE_KIND.get(kind, "pub")), "word": str(TROUBLE_WORD.get(kind, "Guests")), "cat": "biz", "left": -1.0, "n": int(site["n"])})
+	rows.append_array(_work_rows())
+	return rows
+
+
+## The camp's housework as plates too (playtest 25. 10.: "an unswept or unmade tent, cabin
+## and so on as a notification with an icon on the right; the showers have no notice they
+## want cleaning"): each empty lodging that is dirty (the broom) or not made up (the
+## linen), each toilet and shower block worn into wanting a clean (as its own room's list
+## has it: mess_rules.block_tasks) or broken.
+const WORK_BLOCK_DIRTY := 0.7
+
+
+func _work_rows() -> Array:
+	var rows: Array = []
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or GuestManager == null:
+		return rows
+	for key in state.accommodation_states.keys():
+		var rs: Dictionary = GuestManager.get_room_state(str(key))
+		if rs.is_empty() or bool(rs.get("occupied", false)):
+			continue
+		var st := str(rs.get("status", ""))
+		if st != "dirty" and st != "unprepared":
+			continue
+		var kind := GuestManager.lodging_kind(str(rs.get("building_type", "")))
+		var no: int = GuestManager.room_number(str(key))
+		var word := tr(kind.capitalize()) + (" %d" % no if no > 0 else "")
+		rows.append({"id": "w%s" % str(key), "kind": "clean" if st == "dirty" else "bed", "word": word, "cat": "work", "left": -1.0})
+	for coord in state.grid.cells.keys():
+		var cell: Dictionary = state.grid.cells[coord]
+		var t := str(cell.get("type", ""))
+		if (t != "toilet_block" and t != "shower_block") or cell.get("root_coord", coord) != coord:
+			continue
+		var bkey := "%d:%d" % [coord.x, coord.y]
+		if float(cell.get("maintenance", 1.0)) >= WORK_BLOCK_DIRTY and not state.failures.has(bkey):
+			continue
+		rows.append({"id": "w%s" % bkey, "kind": "toilet" if t == "toilet_block" else "shower", "word": tr("Toilets") if t == "toilet_block" else tr("Showers"), "cat": "work", "left": -1.0})
 	return rows
 
 
@@ -2622,6 +2659,14 @@ func debug_cells(coords: Array) -> Array:
 ## The bulldozer over a rect, as the Builder would (shot driver, harnesses).
 func debug_demolish_rect(rect: Rect2i) -> void:
 	EventBus.RequestDemolish.emit(rect)
+
+
+## Tools: today's first applicant taken on at the staffroom (its slug, "" none).
+func debug_hire_hand() -> String:
+	var app: Array = load("res://core/systems/staff_rules.gd").applicants(_day_index, [], 7)
+	if app.is_empty() or CoreRoot.actions == null or not CoreRoot.actions.staff_hire(app[0], _day_index):
+		return ""
+	return str(app[0].get("slug", ""))
 
 
 func debug_structure_of_type(building_type: String) -> Node3D:

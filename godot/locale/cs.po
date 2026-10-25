@@ -3548,7 +3548,7 @@ msgstr ""
 #: scripts/builder_module.gd:69 scripts/builder_module.gd:80 scripts/service_interior.gd:2377 scripts/os98/apps/goggle_app.gd:27
 #. uses 4
 msgid "Showers"
-msgstr ""
+msgstr "Sprchy"
 
 #: scripts/builder_module.gd:70
 msgid "Pingpong"
@@ -3562,22 +3562,22 @@ msgstr "Kukuřice"
 #: scripts/builder_module.gd:79 scripts/os98/apps/goggle_app.gd:27
 #. uses 2
 msgid "Tent"
-msgstr ""
+msgstr "Stan"
 
 #: scripts/builder_module.gd:79 scripts/day_events.gd:511 scripts/os98/apps/goggle_app.gd:27
 #. uses 3
 msgid "Cabin"
-msgstr ""
+msgstr "Chatka"
 
 #: scripts/builder_module.gd:79 scripts/os98/apps/goggle_app.gd:27
 #. uses 2
 msgid "Caravan"
-msgstr ""
+msgstr "Karavan"
 
 #: scripts/builder_module.gd:79 scripts/night_jobs.gd:424 scripts/service_interior.gd:2377 scripts/os98/apps/goggle_app.gd:27
 #. uses 4
 msgid "Toilets"
-msgstr ""
+msgstr "Záchody"
 
 #: scripts/builder_module.gd:81
 msgid "Bonfire"
@@ -25876,3 +25876,12 @@ msgstr "je"
 #. manual
 msgid "are"
 msgstr "jsou"
+
+msgid "CUBICLE %d"
+msgstr "KABINKA %d"
+
+msgid "SHOWER %d"
+msgstr "SPRCHA %d"
+
+msgid "THE REST"
+msgstr "OSTATNÍ"

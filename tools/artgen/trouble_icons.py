@@ -18,7 +18,9 @@ import process  # noqa: E402
 
 BOX = (12, 10)
 KINDS = ["litter", "raccoons", "delivery", "lost_kid", "noise", "tree", "someone", "breaker", "lamp",
-         "sewer", "toilet", "corn", "frozen", "pub", "rest", "vecerka", "stand"]
+         "sewer", "toilet", "corn", "frozen", "pub", "rest", "vecerka", "stand",
+         # The housework (playtest 25. 10.): the showers, a lodging to clean, one to make up.
+         "shower", "clean", "bed"]
 DEST = os.path.join(process.GODOT, "assets", "textury", "ui")
 
 

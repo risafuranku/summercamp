@@ -681,6 +681,7 @@ func _draw() -> void:
 		if str(p.get("strange", "")) == "unseen" and doing != "rest":
 			continue
 		seen[slug] = true
+		_out_in_camp[slug] = {"walking": walking, "out": doing in ["walk", "work"]}
 		var spr: Sprite3D = _figs.get(slug)
 		if spr == null or not is_instance_valid(spr):
 			spr = Sprite3D.new()
@@ -707,6 +708,30 @@ func _draw() -> void:
 		if not seen.has(slug):
 			(_figs[slug] as Node).queue_free()
 			_figs.erase(slug)
+			_out_in_camp.erase(slug)
+
+
+## The hands out in the camp now (walking or at work, not resting in the staffroom), for
+## Builder 98's map as its people (playtest 25. 10.: "in the Builder I do not see the
+## maids"): [{slug, position, moving, texture (their picture now), flip}].
+var _out_in_camp: Dictionary = {}
+
+
+func map_hands() -> Array:
+	var out: Array = []
+	for slug in _figs.keys():
+		var spr: Sprite3D = _figs[slug]
+		var st: Dictionary = _out_in_camp.get(slug, {})
+		if spr == null or not is_instance_valid(spr) or not spr.is_inside_tree() or not bool(st.get("out", false)):
+			continue
+		var tex: Texture2D = spr.texture
+		if tex != null and spr.region_enabled:
+			var a := AtlasTexture.new()
+			a.atlas = tex
+			a.region = spr.region_rect
+			tex = a
+		out.append({"slug": str(slug), "position": spr.global_position, "moving": bool(st.get("walking", false)), "texture": tex, "flip": spr.flip_h})
+	return out
 
 
 ## The staffroom as it is inside, seen from the camp: the lamps (somebody in, dusk or

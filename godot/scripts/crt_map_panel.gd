@@ -2292,6 +2292,13 @@ func _update_guests(delta: float) -> void:
 	for id in _guests.keys():
 		if not seen.has(id):
 			_guests.erase(id)
+	# The staffroom's hands out at work in the camp, as they look there now.
+	_hands.clear()
+	var rt := get_tree().get_first_node_in_group("staff_runtime") if get_tree() != null else null
+	if rt != null and rt.has_method("map_hands"):
+		for h in rt.map_hands():
+			_hands.append({"cell": _world_to_cell_f((h as Dictionary).get("position", Vector3.ZERO)), "moving": bool(h.get("moving", false)),
+				"texture": h.get("texture"), "flip": bool(h.get("flip", false)), "slug": str(h.get("slug", ""))})
 	_update_mate()
 	_update_extra_guest()
 	_mind_poll -= 0.1
@@ -2384,6 +2391,8 @@ func guest_cell(id: int) -> Vector2:
 ## Co-op: the other warden on the map in their own look, where they walk; in a lodging
 ## or a block, at its door (a room key is its cell).
 var _mates: Dictionary = {}   # peer id -> {cell, moving}
+## The staffroom's hands at work in the camp: [{cell, moving, texture, flip, slug}].
+var _hands: Array = []
 
 
 func _update_mate() -> void:
@@ -2475,6 +2484,10 @@ func _append_guest_entries(entries: Array, origin: Vector2, tile_w: float, tile_
 		var pm := _cell_to_iso_f(m["cell"], origin, tile_w, tile_h)
 		var dm := _display_cell_f(m["cell"])
 		entries.append({"guest": true, "mate": int(id), "pos": pm, "order": dm.x + dm.y + 0.6, "archetype": "", "moving": m["moving"], "phase": float(id % 7)})
+	for h in _hands:
+		var ph := _cell_to_iso_f(h["cell"], origin, tile_w, tile_h)
+		var dh := _display_cell_f(h["cell"])
+		entries.append({"guest": true, "hand": h, "pos": ph, "order": dh.x + dh.y + 0.6, "archetype": "", "moving": h["moving"], "phase": float(hash(str(h["slug"])) % 7)})
 	if _guest_time < _extra_guest_until:
 		var p2 := _cell_to_iso_f(_extra_guest_cell, origin, tile_w, tile_h)
 		var dc2 := _display_cell_f(_extra_guest_cell)
@@ -2638,6 +2651,15 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 	var mirror := false
 	if e.has("mate"):
 		tex = _mate_mini(mini_h, int(e["mate"]))
+	elif e.has("hand"):
+		var hand: Dictionary = e["hand"]
+		var ht = hand.get("texture")
+		if ht is Texture2D:
+			var hk := "hand|%s|%s|%d" % [str(hand["slug"]), str((ht as AtlasTexture).region) if ht is AtlasTexture else str(ht.get_rid()), mini_h]
+			if not _pose_minis.has(hk):
+				_pose_minis[hk] = _mini_of(ht, mini_h)
+			tex = _pose_minis[hk]
+			mirror = bool(hand.get("flip", false))
 	elif not e.has("extra"):
 		var pf := _peep_frame(e, mini_h)
 		if not pf.is_empty():

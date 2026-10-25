@@ -30,7 +30,9 @@ const AMBER := Color(1.0, 0.72, 0.22)
 const GREEN := Color(0.46, 0.86, 0.36)
 const RED := Color(1.0, 0.42, 0.34)
 const BONE := Color(0.93, 0.89, 0.78)
-const CAT := {"day": AMBER, "night": RED, "biz": GREEN}
+## The housework's stripe (an empty lodging to clean or make up, a block to clean): blue.
+const WORK := Color(0.5, 0.72, 0.96)
+const CAT := {"day": AMBER, "night": RED, "biz": GREEN, "work": WORK}
 const TEX := "res://assets/textury/ui/trouble_%s.png"
 const NEW_SEC := 3.0
 
@@ -50,7 +52,7 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
-## [{id, kind, word, cat: day|night|biz, left: 0..1 or -1, n}]
+## [{id, kind, word, cat: day|night|biz|work, left: 0..1 or -1, n}]
 func set_rows(rows: Array) -> void:
 	_rows = rows.duplicate(true)
 	var now := {}
