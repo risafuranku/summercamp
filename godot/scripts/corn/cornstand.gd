@@ -310,7 +310,7 @@ func _process(delta: float) -> void:
 		# under your hands").
 		for t in tickets(key):
 			var gid := int(t["guest_id"])
-			holds[gid] = maxi(int(holds.get(gid, -1)), int(t["since"]) + RULES.PATIENCE_GONE)
+			holds[gid] = maxi(int(holds.get(gid, -1)), int(t["since"]) + RULES.raw_gone())
 	ORDERS.set_holds("corn", holds)
 
 

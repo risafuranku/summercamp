@@ -33,11 +33,25 @@
 - [x] R25 „brigády se zasekly na ‚done for today‘. ať jsou přístupné nonstop, bez limitu“
 - [x] R26 „recepce uvnitř zvenku svítí, i když jsou shozené pojistky“
 - [ ] R27 „v kukuřičném podniku sprity ke kameře (jen jedna osa), rozhlížení jako v interiérech, kamera níž, bez fáze trhání silku (jen listy), A/D mezi stanicemi“
-- [ ] R28 „zákazníci chodí do fronty několikrát po sobě (3× porce): cooldown, výjimečně přidat; wait time hrozně krátký: než dojdu, ubývá pomaleji, a celkově navýšit“
+- [x] R28 „zákazníci chodí do fronty několikrát po sobě (3× porce): cooldown, výjimečně přidat; wait time hrozně krátký: než dojdu, ubývá pomaleji, a celkově navýšit“
 - [x] R29 „stánek s kukuřicí má zepředu neprůhlednou texturu?“
-- [ ] R30 „mám JENOM DVA HOSTY a celý den je obsluhuju u kukuřice, furt se tam točí. big rework“
+- [x] R30 „mám JENOM DVA HOSTY a celý den je obsluhuju u kukuřice, furt se tam točí. big rework“
 - [ ] R31 „staff u kukuřice stojí špatně otočený, potřebuje animace obsluhování; večer odchází přes vrátnici na bus, ranním busem přijedou na otevření kempu“
 - [x] R32 „venku světelný bug: určitým směrem totálně pure black a hrozně se to seká, pootočím se a zase vidím“ (D3D12 ran out of its resource descriptor heap after a long session: draws failed, the console spammed errors every frame; max_resource_descriptors 65536 -> 524288)
+- [ ] R33 „kaluže na zemi clippují s texturou země a vypadají spíš jako olej“
+- [ ] R34 „když je brigádník u minihry, nech mě pracovat společně s ním jako jiný hráč: obsazuje stanice, já můžu kamkoliv a mám přednost, on je vždy tam, kde je potřeba a kde nejsem já“
+- [ ] R35 „otexturovat závoru, možnost změnit název kempu klávesou E na ceduli před kempem“
+- [ ] R36 „na recepci mezi telefonem a deskami leží bílý čtverec, vždy na něj kliknu omylem“
+- [ ] R37 „na stanici 2 counter u kukuřice zmizí HUD uvařenosti kukuřic, na trojce taky“
+- [ ] R38 „velký cumulative layout shift při otevírání stavebních toolbarů v Builderu“
+- [ ] R39 „neuklizený nebo neustlaný stan, chatku atd. ukazuj jako notifikaci s ikonou vpravo“
+- [ ] R40 „animace odemknutí nových věcí v Builderu a pár náhledů těch nejlepších, ať hráč ví, že dosáhl achievementu“
+- [ ] R41 „recepce nedává smysl perspektivně: okno pokojíčku a pokojíček nesedí s interiérem, je to malé, vzniká phantom prostor“
+- [ ] R42 „i když zhasnu všechna světla, pořád je světelný kruh kolem zářivky na stropě a není tma; přes den je tam málo světla. Pořádně oprav světlo na recepci“ (repeated: verify with measured pixel values, lights off / on, day / night)
+- [ ] R43 „v sewers se lze v zatáčce otočit za sebe, to je špatně“
+- [ ] R44 „v sewers jde slyšet ambience zvenčí“
+- [ ] R45 „showers chybí notifikace, že se mají uklidit“
+- [ ] R46 „podpis zboží udělej podobnou interakcí jako u pošťáka, ale ne stejný obrázek: jsou to desky na stole uvnitř recepce“
 
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 

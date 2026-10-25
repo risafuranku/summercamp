@@ -31,12 +31,15 @@ const SILK := 3
 const BUTTER_SLOTS := 20
 ## A cob's price (dollars), as the books have it (business_rules KINDS corn).
 const PRICE := 2
-## Game minutes (1.5 a second): an order is green while younger than PATIENCE_OK, amber to
-## PATIENCE_LATE, red to PATIENCE_GONE, when they give up and go.
-## (Half as long again and more from 21. 10.: the guests had too little patience.)
-const PATIENCE_OK := 32
-const PATIENCE_LATE := 64
-const PATIENCE_GONE := 96
+## Game minutes (1.5 a second) of patience (age_of: the wait as they feel it): an order is
+## green while younger than PATIENCE_OK, amber to PATIENCE_LATE, red to PATIENCE_GONE,
+## when they give up and go. (Half as long again and more from 21. 10.; again from
+## 25. 10.: "by the time I run there half the wait is gone, even with a full bar I hardly
+## make it": longer, and the first SLOW_FIRST minutes count half, the time to get there.)
+const PATIENCE_OK := 40
+const PATIENCE_LATE := 80
+const PATIENCE_GONE := 120
+const SLOW_FIRST := 60
 ## The order goes up this long after they come to the counter.
 const ORDER_DELAY := 2
 ## The small drinks: price (dollars), what fills it a second while the tap runs or the
@@ -94,14 +97,27 @@ static func tickets_for(visit: String, figures: int, arrive: int, served: Dictio
 	for m in maxi(1, figures):
 		var tid := "%s#%d" % [visit, m]
 		var since := arrive + ORDER_DELAY + m
-		if now < since or now - since >= PATIENCE_GONE:
+		if now < since or age_of(now - since) >= PATIENCE_GONE:
 			continue
+		var age := age_of(now - since)
 		if not served.has(tid):
-			out.append({"id": tid, "member": m, "kind": "cob", "salt": salt_wish(visit, m), "price": PRICE, "since": since, "age": now - since})
+			out.append({"id": tid, "member": m, "kind": "cob", "salt": salt_wish(visit, m), "price": PRICE, "since": since, "age": age})
 		var d := drink_wish(visit, m)
 		if d != "" and not served.has(tid + ":d"):
-			out.append({"id": tid + ":d", "member": m, "kind": d, "salt": 0, "price": int(DRINKS[d]["price"]), "since": since, "age": now - since})
+			out.append({"id": tid + ":d", "member": m, "kind": d, "salt": 0, "price": int(DRINKS[d]["price"]), "since": since, "age": age})
 	return out
+
+
+## The wait as the guest feels it after `raw` game minutes at the counter.
+static func age_of(raw: int) -> int:
+	if raw <= SLOW_FIRST:
+		return int(raw / 2)
+	return int(SLOW_FIRST / 2) + raw - SLOW_FIRST
+
+
+## Game minutes at the counter till they give up (PATIENCE_GONE felt).
+static func raw_gone() -> int:
+	return SLOW_FIRST + PATIENCE_GONE - int(SLOW_FIRST / 2)
 
 
 static func patience_band(age: int) -> int:

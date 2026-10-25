@@ -40,6 +40,12 @@ var _path_tiles: Array[Vector2i] = []
 ## Ground a guest has no business on, even strolling (playtest 21. 10.: guests went into
 ## the staffroom, which is the hands' own).
 const STAFF_ONLY := ["staffroom", "power_generator", "sewer"]
+## Back at the same counter for food no sooner than this (game minutes) after the last time
+## (playtest 25. 10.: "they queue at the corn stand again and again, three portions in a
+## row; two guests and the whole day at the corn"); now and then (AGAIN_CHANCE) one comes
+## back for another all the same.
+const FOOD_COOLDOWN := {"corn_stand": 300, "restaurant": 300, "vecerka": 360, "pub": 120}
+const AGAIN_CHANCE := 0.06
 var _staff_only_tiles: Dictionary = {}
 var _gate: Vector2i = Vector2i(10, 2)
 ## Ways out of the camp: the gate road, the forest edges and the lake shore. Idle guests
@@ -366,6 +372,28 @@ func _open_facilities(t: int) -> Array:
 	return out
 
 
+func _served_by(facilities: Array, need: String) -> bool:
+	for f in facilities:
+		var services: Dictionary = (f as Dictionary).get("services", {})
+		if float(services.get(need, 0.0)) > 0.0:
+			return true
+	return false
+
+
+## The places `guest` may go to now: those they had their food at lately left out.
+func _fed_filter(guest: Dictionary, facilities: Array, t: int) -> Array:
+	var ate: Dictionary = guest.get("ate_at", {}) if guest.get("ate_at", {}) is Dictionary else {}
+	if ate.is_empty():
+		return facilities
+	var out: Array = []
+	for f in facilities:
+		var type := str((f as Dictionary).get("type", ""))
+		if ate.has(type) and t - int(ate[type]) < int(FOOD_COOLDOWN.get(type, 0)) and _rng.randf() >= AGAIN_CHANCE:
+			continue
+		out.append(f)
+	return out
+
+
 func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 	if night_now:
 		var late := _plan_late(guest, t)
@@ -374,14 +402,23 @@ func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 		return _plan_sleep(guest, t)
 	var here := _parse_key(str(guest.get("tile", "")))
 	var archetype := str(guest.get("archetype", "quiet_guy"))
-	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, _open_facilities(t), here, _usage, _rng, float(t % 1440) / 60.0)
+	var open := _open_facilities(t)
+	var allowed := _fed_filter(guest, open, t)
+	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, allowed, here, _usage, _rng, float(t % 1440) / 60.0)
 	var thought := str(goal.get("thought", ""))
+	# Nowhere else for it but where they had theirs a while ago: they wait, no complaint.
+	if str(goal.get("kind", "")) == "wander" and allowed.size() < open.size() and _served_by(open, str(goal.get("need", ""))):
+		return _plan_idle(guest, here, t)
 	match str(goal.get("kind", "wander")):
 		"visit":
 			var f: Dictionary = goal["facility"]
 			var door := _door_tile(f, here)
 			var act := _make_activity("visit", here, door, t, int(f.get("use_minutes", 10)), str(goal.get("need", "")), f)
 			_claim_usage(act)
+			if FOOD_COOLDOWN.has(str(f.get("type", ""))):
+				var ate: Dictionary = guest.get("ate_at", {}) if guest.get("ate_at", {}) is Dictionary else {}
+				ate[str(f.get("type", ""))] = t
+				guest["ate_at"] = ate
 			if not thought.is_empty() and _rng.randf() < 0.55:
 				_say(guest, thought, t)
 			return act
