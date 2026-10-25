@@ -1956,7 +1956,7 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 	if _room_environment != null:
 		_room_environment.background_color = _tri(d, Color(0.08, 0.10, 0.14), Color(0.24, 0.20, 0.22), Color(0.66, 0.70, 0.74))
 		_room_environment.ambient_light_color = _tri(d, Color(0.22, 0.26, 0.34), Color(0.48, 0.40, 0.42), Color(0.82, 0.84, 0.80))
-		_room_environment.ambient_light_energy = _tri(d, 0.12, 0.86, 1.42)
+		_room_environment.ambient_light_energy = _tri(d, 0.12, 0.86, 1.8)
 		_room_environment.fog_light_color = _tri(d, Color(0.14, 0.18, 0.24), Color(0.34, 0.28, 0.30), Color(0.78, 0.82, 0.84))
 		_room_environment.fog_density = _tri(d, 0.014, 0.010, 0.004)
 	if _ceiling_light != null:
@@ -1969,7 +1969,7 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		_desk_lamp.omni_range = 2.8
 	if _window_light != null:
 		_window_light.light_color = _tri(d, Color(0.54, 0.60, 0.84), Color(0.84, 0.66, 0.54), Color(0.98, 0.98, 0.92))
-		_window_light.light_energy = _tri(d, 0.01, 0.34, 1.1)
+		_window_light.light_energy = _tri(d, 0.01, 0.34, 1.6)
 
 	var daylight = d
 	var sun_tint = _sunlight_color.lerp(Color(1.0, 0.96, 0.90), 0.25)
@@ -3203,16 +3203,16 @@ func _apply_manual_office_light_profile(animated: bool) -> void:
 	if not _desk_lamp_on:
 		desk_target = 0.0
 	var window_target = _window_light.light_energy if _window_light != null else 0.0
+	# The switch by the door is the tube's alone: off is off, and the day through the
+	# window and the desk lamp on its own switch are as they were (playtest 25. 10.: off at
+	# night a ring of light stayed round the tube, 14 % of it; by day it took the daylight
+	# down to a fifth). The tube's fill of the room is _apply_room_time_profile's, only
+	# while it is on. With the power gone the lamps go too, the day does not.
 	if not _office_lights_on:
-		ambient_target *= 0.62
-		ceiling_target *= 0.14
-		desk_target *= 0.12
-		window_target *= 0.18
+		ceiling_target = 0.0
 	if not _grid_power_available:
-		ambient_target *= 0.34
 		ceiling_target = 0.0
 		desk_target = 0.0
-		window_target *= 0.28
 	var tubes_on := _office_lights_on and _grid_power_available
 	if animated and tubes_on and not _fluoro_lit:
 		# A tube comes on as tubes do: a blink, dark, two blinks, then on.

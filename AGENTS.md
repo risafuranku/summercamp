@@ -689,6 +689,19 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   The sun's shadow pass (an orthographic projection) gets neither the snap nor the pull,
   and the light and shadows are worked out at the true point under each pixel
   (`LIGHT_VERTEX` on the face's plane), so the faces warp and their shadows do not.
+  Lettering (Label3D) is not redrawn by it: `retro_materials._pull_labels` puts every
+  Label3D 1.1 % of its distance nearer its eye each frame (the board under it is pulled, the
+  number was under its enamel). A thing that must stay over a pulled quad takes the meta
+  `retro_pull` (a window's bar: building_models.WINDOW_BAR_PULL).
+- **A room's light switch is its lamp's, nothing else** (the user, 25. 10., the third time:
+  "fix the reception's light properly"): off is 0 for that lamp, never a share of it (14 %
+  left a ring round the tube at night), and a switch or a power cut never scales the day
+  through the window or the ambient (off by day took the daylight to a fifth). Check a light
+  change by the picture's mean brightness: the office, lights on / off, day / night
+  (12:00: 134 / 121, 22:30: 81 / 21 on 25. 10.), not by eye.
+- **D3D12 resource descriptors** (`rendering_device/d3d12/max_resource_descriptors`, raised
+  to 524288 on 25. 10.): the default 65536 ran out after a long session; every draw past it
+  failed (black screen in the busy directions) and the log took hundreds of errors a frame.
 
 ---
 

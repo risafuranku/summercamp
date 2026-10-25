@@ -47,7 +47,7 @@
 - [ ] R39 „neuklizený nebo neustlaný stan, chatku atd. ukazuj jako notifikaci s ikonou vpravo“
 - [ ] R40 „animace odemknutí nových věcí v Builderu a pár náhledů těch nejlepších, ať hráč ví, že dosáhl achievementu“
 - [ ] R41 „recepce nedává smysl perspektivně: okno pokojíčku a pokojíček nesedí s interiérem, je to malé, vzniká phantom prostor“
-- [ ] R42 „i když zhasnu všechna světla, pořád je světelný kruh kolem zářivky na stropě a není tma; přes den je tam málo světla. Pořádně oprav světlo na recepci“ (repeated: verify with measured pixel values, lights off / on, day / night)
+- [x] R42 „i když zhasnu všechna světla, pořád je světelný kruh kolem zářivky na stropě a není tma; přes den je tam málo světla. Pořádně oprav světlo na recepci“ (repeated: verify with measured pixel values, lights off / on, day / night)
 - [ ] R43 „v sewers se lze v zatáčce otočit za sebe, to je špatně“
 - [ ] R44 „v sewers jde slyšet ambience zvenčí“
 - [ ] R45 „showers chybí notifikace, že se mají uklidit“
