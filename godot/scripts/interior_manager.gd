@@ -53,6 +53,8 @@ const INTERIOR_MODULE_TRIP := "trip"
 const INTERIOR_MODULE_STAND := "stand"
 ## The bowling alley (scripts/bowling/bowling_interior.gd).
 const INTERIOR_MODULE_BOWLING := "bowling"
+## The board by the gate: its name painted anew (main.open_camp_sign).
+const INTERIOR_MODULE_SIGN := "sign"
 const BOWLING_INTERIOR_SCRIPT = preload("res://scripts/bowling/bowling_interior.gd")
 const STAND_VIEW = preload("res://scripts/corn/stand_view.gd")
 var _corn_stand: CanvasLayer
@@ -101,6 +103,11 @@ const INTERIOR_ASSIGNMENTS := [
 		"module_id": INTERIOR_MODULE_BOWLING,
 		"building_types": ["bowling"],
 		"hint": "Go into the bowling",
+	},
+	{
+		"module_id": INTERIOR_MODULE_SIGN,
+		"building_types": ["camp_sign"],
+		"hint": "Paint a new name",
 	},
 ]
 
@@ -508,6 +515,10 @@ func handle_structure_interact(structure: Node3D) -> void:
 			_on_corn_stand_interact(structure)
 		INTERIOR_MODULE_BOWLING:
 			_on_bowling_interact(structure)
+		INTERIOR_MODULE_SIGN:
+			var main_n := get_tree().current_scene
+			if main_n != null and main_n.has_method("open_camp_sign"):
+				main_n.call("open_camp_sign")
 		_:
 			return
 

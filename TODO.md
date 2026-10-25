@@ -40,7 +40,7 @@
 - [x] R32 „venku světelný bug: určitým směrem totálně pure black a hrozně se to seká, pootočím se a zase vidím“ (D3D12 ran out of its resource descriptor heap after a long session: draws failed, the console spammed errors every frame; max_resource_descriptors 65536 -> 524288)
 - [x] R33 „kaluže na zemi clippují s texturou země a vypadají spíš jako olej“
 - [ ] R34 „když je brigádník u minihry, nech mě pracovat společně s ním jako jiný hráč: obsazuje stanice, já můžu kamkoliv a mám přednost, on je vždy tam, kde je potřeba a kde nejsem já“
-- [ ] R35 „otexturovat závoru, možnost změnit název kempu klávesou E na ceduli před kempem“
+- [x] R35 „otexturovat závoru, možnost změnit název kempu klávesou E na ceduli před kempem“
 - [x] R36 „na recepci mezi telefonem a deskami leží bílý čtverec, vždy na něj kliknu omylem“
 - [x] R37 „na stanici 2 counter u kukuřice zmizí HUD uvařenosti kukuřic, na trojce taky“
 - [x] R38 „velký cumulative layout shift při otevírání stavebních toolbarů v Builderu“

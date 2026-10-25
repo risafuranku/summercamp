@@ -11,8 +11,14 @@ extends Node3D
 ## takes it on to the bus stop), or back in; click it again and it comes down at once.
 ## It does not come down on you, the other warden, or a party walking in.
 ##
+## By the road a board on two posts: the camp's name painted on it over RECEPTION - STOP;
+## E on it and you paint it a new one (building_type "camp_sign": interior_manager ->
+## main.open_camp_sign(); the camp's name in the profile, the other warden's board too).
+##
 ## Built by world_generator.gd. Everything here is generated geometry with the
-## camp textures (assets/textury/camp/), falling back to the old texture set.
+## camp textures (assets/textury/camp/: the barrier's red and white steel, Grok; its post
+## and counterweight; playtest 25. 10. "texture the barrier"), falling back to the old
+## texture set.
 
 const TEX_DIR := "res://assets/textury/camp/"
 const SFX_LIFT := "res://assets/sfx/gate/barrier_lift.mp3"
@@ -42,6 +48,9 @@ var _texture_style
 var _is_open := false
 var _block_shape: CollisionShape3D
 var _hold_until := 0.0
+var _sign_label: Label3D
+## The board's width the name may take (m).
+const SIGN_TEXT_W := 1.5
 ## Up for a party: not to be lowered by hand till they are through.
 var _party_until := 0.0
 
@@ -261,10 +270,10 @@ func _road_segment(from: Vector3, to: Vector3, mat: Material) -> void:
 
 func _build_barrier() -> void:
 	var post_x := gap_center_x - 2.25
-	var post_mat := _paint(Color(0.18, 0.2, 0.18))
+	var post_mat := _material("metal_green.png", "metal", Color(0.18, 0.2, 0.18))
 	_box(Vector3(post_x, 0.55, fence_z), Vector3(0.28, 1.1, 0.28), post_mat)
-	# Counterweight box behind the pivot, like the real ones.
-	_box(Vector3(post_x - 0.45, ARM_HEIGHT, fence_z), Vector3(0.55, 0.32, 0.3), _paint(Color(0.3, 0.3, 0.28)))
+	# Counterweight behind the pivot, like the real ones: a block of cast concrete.
+	_box(Vector3(post_x - 0.45, ARM_HEIGHT, fence_z), Vector3(0.55, 0.32, 0.3), _material("concrete.png", "concrete", Color(0.3, 0.3, 0.28)))
 	_box(Vector3(gap_center_x + 2.3, 0.4, fence_z), Vector3(0.18, 0.8, 0.18), post_mat)
 	_box(Vector3(gap_center_x + 2.3, 0.82, fence_z), Vector3(0.3, 0.06, 0.24), post_mat)
 	_arm_pivot = Node3D.new()
@@ -276,11 +285,15 @@ func _build_barrier() -> void:
 	box.size = Vector3(ARM_LENGTH, 0.12, 0.1)
 	arm.mesh = box
 	arm.position = Vector3(ARM_LENGTH * 0.5, 0.0, 0.0)
-	var stripes := StandardMaterial3D.new()
-	stripes.albedo_texture = _stripe_texture()
-	stripes.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	stripes.uv1_scale = Vector3(1.0, 1.0, 1.0)
-	stripes.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	# Red and white steel, chipped and rusting (camp/barrier_arm.png, two bands of each):
+	# a box face takes a third by a half of the picture, so 7.5 x 2 gives each long face
+	# ten bands of 43 cm, as on the road's barriers.
+	var stripes := _material("barrier_arm.png", "metal", Color(0.78, 0.12, 0.1))
+	if stripes.albedo_texture == null:
+		stripes.albedo_texture = _stripe_texture()
+		stripes.albedo_color = Color(1, 1, 1)
+	else:
+		stripes.uv1_scale = Vector3(7.5, 2.0, 1.0)
 	arm.material_override = stripes
 	_arm_pivot.add_child(arm)
 	# The handle you click: round the arm and round the post with its counterweight (on
@@ -368,14 +381,12 @@ func _build_booth() -> void:
 func _build_sign() -> void:
 	var x := gap_center_x - 3.6
 	var z := fence_z - 2.6
-	var post := _paint(Color(0.3, 0.24, 0.18))
+	var post := _material("planks_dark.png", "wood", Color(0.3, 0.24, 0.18))
 	_box(Vector3(x - 0.7, 1.0, z), Vector3(0.09, 2.0, 0.09), post)
 	_box(Vector3(x + 0.7, 1.0, z), Vector3(0.09, 2.0, 0.09), post)
 	_box(Vector3(x, 1.7, z), Vector3(1.7, 0.6, 0.05), _material("planks_grey.png", "wood", Color(0.55, 0.52, 0.46)))
 	var label := Label3D.new()
-	label.text = "CAMP\nRECEPTION - STOP"
 	label.font = load("res://assets/fonts/jersey10.fnt")
-	# pixel_size keeps "RECEPTION - STOP" between the posts of the 1.7 m board.
 	label.font_size = 40
 	label.pixel_size = 0.0027
 	label.modulate = Color(0.1, 0.08, 0.06)
@@ -383,7 +394,42 @@ func _build_sign() -> void:
 	label.position = Vector3(x, 1.72, z - 0.035)
 	label.rotation.y = PI
 	label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	add_child(label)
+	_sign_label = label
+	var main_n := get_tree().current_scene if is_inside_tree() else null
+	set_camp_name(str(main_n.call("camp_name")) if main_n != null and main_n.has_method("camp_name") else "")
+	# E on the board (on the interaction ray's layer, as the barrier's handle).
+	var body := StaticBody3D.new()
+	body.name = "CampSign"
+	body.collision_layer = CLICK_LAYER
+	body.collision_mask = 0
+	body.set_meta("building_type", "camp_sign")
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(1.8, 0.8, 0.4)
+	shape.shape = box
+	body.add_child(shape)
+	body.position = Vector3(x, 1.7, z)
+	add_child(body)
+
+
+## The camp's name on the board (in capitals) over RECEPTION - STOP, smaller when it is
+## long, to stay between the posts.
+func set_camp_name(n: String) -> void:
+	if _sign_label == null:
+		return
+	var name_line := n.strip_edges().to_upper()
+	if name_line == "":
+		name_line = tr("CAMP")
+	var lines := [name_line, tr("RECEPTION - STOP")]
+	_sign_label.text = "\n".join(lines)
+	var w := 0.0
+	var f: Font = _sign_label.font
+	if f != null:
+		for line in lines:
+			w = maxf(w, f.get_string_size(str(line), HORIZONTAL_ALIGNMENT_LEFT, -1, _sign_label.font_size).x)
+	_sign_label.pixel_size = minf(0.0027, SIGN_TEXT_W / maxf(1.0, w))
 
 
 func _click_box(parent: Node3D, pos: Vector3, size: Vector3) -> void:

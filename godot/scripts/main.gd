@@ -4595,6 +4595,7 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	# camp and the tools' are nobody's).
 	if test_enemy.is_empty() and camp_name != "":
 		PROFILES.create_camp(camp_name, world_generator.world_seed, sandbox, coop)
+	_refresh_camp_sign()
 	_rebuild_core_cells_from_visual_structures()
 	# The camp's old cabin, shut since last summer: the campaign's start, not a sandbox's
 	# (there you build from a clean camp: the user 20. 10.).
@@ -4650,6 +4651,57 @@ func camp_rule(id: String) -> bool:
 var _coop_powered := true
 ## The host's storm on its way (coop_clock "sb"), 0..1.
 var _coop_storm_build := 0.0
+## The host's camp's name (its board by the gate) on the other warden's machine; a camp
+## that is nobody's (the tools') keeps its own here.
+var _coop_camp_name := ""
+const CAMP_NAME_MAX := 24
+const SIGN_PAINT := preload("res://scripts/ui/sign_paint.gd")
+var _sign_paint: CanvasLayer
+
+
+## The camp's name, painted on the board by the gate (playtest 25. 10.: "change the camp's
+## name with E on the sign before the camp"): the profile's camp's; the host's in co-op.
+func camp_name() -> String:
+	if Coop.is_client() and _coop_camp_name != "":
+		return _coop_camp_name
+	if PROFILES.camp_id == "":
+		return _coop_camp_name
+	return str(PROFILES.camp_info(PROFILES.camp_id).get("name", ""))
+
+
+## A new name for the camp: the profile's (the host's), the board, the other machine's.
+func set_camp_name(n: String, from_peer := false) -> void:
+	n = n.strip_edges().left(CAMP_NAME_MAX)
+	if n == "":
+		return
+	if Coop.is_client() or PROFILES.camp_id == "":
+		_coop_camp_name = n
+	else:
+		PROFILES.rename_camp(PROFILES.camp_id, n)
+	_refresh_camp_sign()
+	if not from_peer and Coop.is_active():
+		Coop.send_sync("camp_name", [n])
+
+
+func _refresh_camp_sign() -> void:
+	var gate := get_tree().get_first_node_in_group("camp_gate")
+	if gate != null and gate.has_method("set_camp_name"):
+		gate.set_camp_name(camp_name())
+
+
+## E on the board by the gate: the board up close, its name painted anew.
+func open_camp_sign() -> void:
+	if _sign_paint != null and is_instance_valid(_sign_paint):
+		return
+	_sign_paint = SIGN_PAINT.new()
+	get_tree().root.add_child(_sign_paint)
+	_sign_paint.open(camp_name())
+	if _player != null and _player.has_method("set_controls_enabled"):
+		_player.set_controls_enabled(false)
+	_sign_paint.painted.connect(func(n: String): set_camp_name(n))
+	_sign_paint.closed.connect(func():
+		if _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
+			_player.set_controls_enabled(true))
 var _coop_wired := false
 
 
@@ -5230,6 +5282,10 @@ func coop_sync(kind: String, data: Array) -> void:
 			if trip != null and trip.has_method("coop_take_hamlet") and data.size() > 0 and data[0] is Dictionary:
 				trip.coop_take_hamlet(data[0])
 				_coop_sync_last["hamlet"] = hash(var_to_bytes(trip.coop_hamlet()))
+			return
+		"camp_name":
+			if not data.is_empty():
+				set_camp_name(str(data[0]), true)
 			return
 		"gate":
 			var gate = get_tree().get_first_node_in_group("camp_gate")
@@ -5984,7 +6040,8 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"meta": {
 			"slot_name": slot_name,
 			"kind": kind,
-			"created_unix": int(Time.get_unix_time_from_system())
+			"created_unix": int(Time.get_unix_time_from_system()),
+			"camp_name": camp_name(),
 		},
 		"state": {
 			"money": int(state.money),
@@ -6257,6 +6314,10 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		else:
 			_pending_loaded_crt_state.clear()
 
+	# The host's camp's name for the board by the gate (co-op).
+	var meta_any = snapshot.get("meta", {})
+	if not preview_only and meta_any is Dictionary and Coop.is_client():
+		_coop_camp_name = str((meta_any as Dictionary).get("camp_name", ""))
 	var state_data_any = snapshot.get("state", {})
 	if state_data_any is Dictionary:
 		var state_data := state_data_any as Dictionary
@@ -6369,6 +6430,8 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			GuestManager.import_runtime_state({})
 	_sync_guest_accommodation_state()
 	_sync_runtime_state_from_systems(true)
+	if not preview_only:
+		_refresh_camp_sign()
 	return true
 
 

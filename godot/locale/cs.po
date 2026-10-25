@@ -25894,3 +25894,9 @@ msgstr "Tácek na klasy"
 
 msgid "Three more cobs wait beside the board."
 msgstr "Další tři klasy počkají vedle prkénka."
+
+msgid "Paint a new name"
+msgstr "Přemalovat název"
+
+msgid "RECEPTION - STOP"
+msgstr "RECEPCE - STOP"
