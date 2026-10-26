@@ -71,13 +71,13 @@
 - [x] R63 „u ztracených týpků v kukuřici nech třeba tak každé čtvrté ‚heloooo‘“ (lost guests in the corn: the call far rarer)
 - [ ] R64 „v sewers jsou pořád špatně odhlučněné zvuky zvenčí“
 - [ ] R65 „na nějakých stropech křižovatek v sewers jsou furt modré obdélníky“
-- [ ] R66 „savegame si nepamatuje zapnutý počítač. zkontroluj i coop“
+- [x] R66 „savegame si nepamatuje zapnutý počítač. zkontroluj i coop“ (the save had it, the load never read it: now on at its desktop with its programs, no boot; the monitor's own switch is kept too; joining a camp whose PC is on came up on an empty desktop, now its programs)
 - [ ] R67 „karavan nejde otočit o 90 stupňů, pouze 180“
 - [x] R68 „přes den pomalá regenerace HP“
-- [ ] R69 „karavan má nefunkční okna zvenčí, nemá otexturovanou stěnu, kde se připojuje k vozidlu“
-- [ ] R70 „opět se děje bug, že interiér mi totálně jančí s myší a lítá mi pohled všude možně. děje se nyní v karavanu. hodně oken v karavanu je dost náročných na HW, nejde to udělat šikovněji?“
+- [x] R69 „karavan má nefunkční okna zvenčí, nemá otexturovanou stěnu, kde se připojuje k vozidlu“ (the room's walls were solid, so from outside every window showed the wall's boards: openings cut, the windows across the van show the camp beyond it; the round ends in the sides' skin, done up with a red band all round as in the Builder)
+- [x] R70 „opět se děje bug, že interiér mi totálně jančí s myší a lítá mi pohled všude možně. děje se nyní v karavanu. hodně oken v karavanu je dost náročných na HW, nejde to udělat šikovněji?“ (the rooms' sway after the cursor was an Euler spring that blew up under ~19 fps: stepped exactly now; the windows share one view since ec04c923: Lv3 caravan at 1920x1080 holds 50 fps, worst frame 23 ms)
 - [x] R71 „posuň pozici, kde stojíš v interiéru karavanu, blíž k lednici, ať do ní víc vidíš při otevření“
-- [ ] R72 „při odchodu z karavanu neodcházím do 3D venku, ale do 2D screenu“
+- [x] R72 „při odchodu z karavanu neodcházím do 3D venku, ale do 2D screenu“ (the doorway's picture ended at a 56° lens and half a metre off where the camp took over: the warden's own FOV and the camp starts at the doorway's eye)
 - [x] R73 „vstup do hospody absolutní zásek: nevidím interiér, když vejdu do dveří; nejsem v interiéru hospody, ale rovnou za barem“
 - [x] R74 „v hospodě je jeden úchylný až sexuální smích, co hraje furt dokola. prosím pryč“
 - [x] R75 „při A a D v hospodě to má být rychlý přesun (stanoviště jsou hned vedle sebe), místo toho dither tranzice a totální otočka“

@@ -89,6 +89,13 @@ func offer(eye: Camera3D, room: Node3D, xform: Transform3D, world: World3D, buil
 			vp.size = px
 	cam.fov = eye.fov
 	cam.keep_aspect = eye.keep_aspect
+	# A shifted frustum (the camp's eye looking up or down, when the eye is the camp's own
+	# looking in through a caravan: caravan_interior._update_inview) the same.
+	cam.projection = eye.projection
+	if eye.projection == Camera3D.PROJECTION_FRUSTUM:
+		var nk := cam.near / maxf(eye.near, 0.001)
+		cam.size = eye.size * nk
+		cam.frustum_offset = eye.frustum_offset * nk
 	cam.global_transform = xform * (room.global_transform.affine_inverse() * eye.global_transform)
 	_hide_building(building)
 

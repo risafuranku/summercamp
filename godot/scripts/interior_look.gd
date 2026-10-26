@@ -93,11 +93,16 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 	var sway_target := Vector2.ZERO
 	if steer:
 		sway_target = Vector2((cursor.x - 0.5) * 2.0, (cursor.y - 0.5) * 2.0)
-	# Critically damped spring: arrives without overshoot, does not drift.
+	# Critically damped spring: arrives without overshoot, does not drift. Stepped by its
+	# exact solution, so it holds at any frame time: the Euler step blew up under ~19 fps
+	# (frames over 52 ms), and in the caravan with its many windows the view flew round
+	# with the mouse (playtest 25. 10.).
 	var w := SWAY_FOLLOW
-	var acc := (sway_target - _sway) * w * w - _sway_v * 2.0 * w
-	_sway_v += acc * dt
-	_sway += _sway_v * dt
+	var off := _sway - sway_target
+	var e := exp(-w * dt)
+	var lead := _sway_v + off * w
+	_sway = sway_target + (off + lead * dt) * e
+	_sway_v = (_sway_v - lead * w * dt) * e
 	var breath := sin(_t * TAU * BREATH_HZ) * BREATH_DEG
 	return Vector3(
 		deg_to_rad(pitch_deg - _sway.y * SWAY_PITCH_DEG + breath),

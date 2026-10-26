@@ -714,6 +714,15 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   over (the head's y, pitch and roll sampled while sprinting: reversals a second, the biggest
   second difference): the sprint is 3.6 steps a second, 4 cm, the nod a soft spring kicked
   per foot (player_controller RUN_NOD_*).
+- **A spring stepped by the frame must hold at any frame time** (playtest 25. 10.: in the
+  caravan "the view flies everywhere with the mouse"): `interior_look`'s sway was a stiff
+  spring (w 16) stepped by Euler, unstable over 52 ms a frame, and the caravan's windows
+  took the frame there. Step a stiff spring by its exact solution (interior_look) or clamp
+  what it moves; check `4 - k dt^2 - 2 c dt > 0` at 0.1 s for a semi-implicit one.
+- **A room's windows from the camp look through openings in its walls**: a window's glass
+  (its portal) on a solid wall showed the wall's own boards from outside (the caravan,
+  `caravan_interior._cut_walls`: the doorway and every window cut out; the windows across
+  the room show the camp beyond it through the shared view, put back at the camp's eye).
 - **D3D12 resource descriptors** (`rendering_device/d3d12/max_resource_descriptors`, raised
   to 524288 on 25. 10.): the default 65536 ran out after a long session; every draw past it
   failed (black screen in the busy directions) and the log took hundreds of errors a frame.

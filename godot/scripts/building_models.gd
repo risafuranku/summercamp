@@ -901,21 +901,33 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 	var lv := clampi(level, 1, 3)
 	var worn := Color(0.86, 0.82, 0.74) if lv == 1 else Color(1, 1, 1)
 	var cream := _flat(Color(0.9, 0.86, 0.74) * worn)
-	var band_col := Color(0.5, 0.34, 0.22) if lv == 1 else Color(0.66, 0.2, 0.16)
-	var band := _flat(band_col)
 	var skin := _camp_or("caravan_body.png", worn, "metal", Vector3(1.0, 1.0, 1.0))
-	# The box of it: the textured sides (the ribs and the band are in the texture),
-	# a plain roof, the lower skirt in the band colour.
+	# Done up, its band is red (the Builder's iso_caravan2 / 3): the skin's own band
+	# recoloured, so the sides and the round ends carry it alike.
+	if lv >= 2 and skin is StandardMaterial3D and (skin as StandardMaterial3D).albedo_texture != null:
+		(skin as StandardMaterial3D).albedo_texture = _red_band((skin as StandardMaterial3D).albedo_texture)
+	# The box of it under the textured sides (the ribs and the band are in the texture),
+	# a plain roof. In the skin's cream below the band: where the PS1 snap parts the skin
+	# from the box at a corner, the box under it does not show through as a wedge of colour.
 	_box(r, "Body", Vector3(lx, h * 0.62, lz), Vector3(0, y0 + h * 0.31 + h * 0.38, 0), cream)
-	_box(r, "Lower", Vector3(lx, h * 0.38, lz), Vector3(0, y0 + h * 0.19, 0), band)
+	_box(r, "Lower", Vector3(lx, h * 0.38, lz), Vector3(0, y0 + h * 0.19, 0), cream)
 	for side: float in [-1.0, 1.0]:
 		_side_quad(r, "Skin", Vector2(lx, h), Vector3(0, y0 + h * 0.5, side * (lz * 0.5 + 0.004)), 0.0 if side > 0.0 else PI, skin, Vector3(lx / 1.9, 1.0, 1.0))
-	# Rounded ends: half cylinders, cream over the band.
+	# Rounded ends: half cylinders in the sides' own ribbed skin, its band and all, round
+	# from one side to the other (plain cream over plain brown read as a bare wall, the
+	# towing end most: playtest 25. 10.). The cylinder's side is the top half of its UVs:
+	# twice over in height is the skin once, top to bottom as on the sides; round it as
+	# often as its length (the ends squashed to 0.45) holds the sides' 1.9 m repeat.
+	var round_m := TAU * lz * 0.5 * sqrt((0.45 * 0.45 + 1.0) * 0.5)
+	var end_skin := skin
+	if skin is StandardMaterial3D:
+		end_skin = (skin as StandardMaterial3D).duplicate()
+		(end_skin as StandardMaterial3D).uv1_triplanar = false
+		(end_skin as StandardMaterial3D).uv1_scale = Vector3(maxf(1.0, round(round_m / 1.9)), 2.0, 1.0)
 	for side: float in [-1.0, 1.0]:
-		var cap := _cyl(r, "End", lz * 0.5, h * 0.62, Vector3(side * lx * 0.5, y0 + h * 0.69, 0), cream)
+		var cap := _cyl(r, "End", lz * 0.5, h, Vector3(side * lx * 0.5, y0 + h * 0.5, 0), end_skin if skin is StandardMaterial3D else cream)
 		cap.scale = Vector3(0.45, 1.0, 1.0)
-		var capl := _cyl(r, "EndLow", lz * 0.5 + 0.005, h * 0.38, Vector3(side * lx * 0.5, y0 + h * 0.19, 0), band)
-		capl.scale = Vector3(0.45, 1.0, 1.0)
+		(cap.mesh as CylinderMesh).radial_segments = 16
 	_box(r, "Roof", Vector3(lx + 0.02, 0.06, lz + 0.02), Vector3(0, y0 + h + 0.03, 0), cream)
 	_box(r, "RoofVent", Vector3(0.5, 0.12, 0.4), Vector3(-lx * 0.15, y0 + h + 0.09, 0), _flat(Color(0.95, 0.94, 0.9)))
 	# The door and the windows on the camp side; windows on the back too.
@@ -1038,6 +1050,36 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 
 ## A flat face on a side of a model (a door, a window, a skin), `yaw` turning it to
 ## face out; `uv` repeats the texture across it.
+## The caravan's skin with its band red (done up): the band's brown pixels turned to the
+## red of the Builder's pictures, value kept. Only the band's own rows (those brown right
+## across): the rust streaks under it came out as blood. Made once.
+static var _red_band_tex: Texture2D
+
+
+static func _red_band(tex: Texture2D) -> Texture2D:
+	if _red_band_tex != null:
+		return _red_band_tex
+	var img := tex.get_image()
+	if img == null:
+		return tex
+	img = img.duplicate()
+	if img.is_compressed():
+		img.decompress()
+	var w := img.get_width()
+	for y in img.get_height():
+		var sat := 0.0
+		for x in w:
+			sat += img.get_pixel(x, y).s
+		if sat / float(w) < 0.35:
+			continue
+		for x in w:
+			var c := img.get_pixel(x, y)
+			if c.s > 0.25 and c.h > 0.03 and c.h < 0.14:
+				img.set_pixel(x, y, Color.from_hsv(0.005, clampf(c.s * 1.25, 0.0, 0.82), clampf(c.v * 1.08, 0.0, 1.0), c.a))
+	_red_band_tex = ImageTexture.create_from_image(img)
+	return _red_band_tex
+
+
 func _side_quad(parent: Node3D, n: String, size: Vector2, pos: Vector3, yaw: float, mat: Material, uv := Vector3.ONE) -> MeshInstance3D:
 	var m := _quad(parent, n, size, pos, yaw, mat)
 	if uv != Vector3.ONE and mat is StandardMaterial3D:

@@ -737,7 +737,9 @@ func stepping_out() -> bool:
 	return _stepping_out != null and _stepping_out.is_valid() and _stepping_out.is_running()
 
 
-func _step_out_of(structure: Node3D) -> void:
+## `from_eye`: where the room's own walk out left the eye in the camp (the caravan's
+## doorway): the body starts under it, so the camp's view goes on from the same point.
+func _step_out_of(structure: Node3D, from_eye := Vector3.INF) -> void:
 	var body := _player as CharacterBody3D
 	if _no_step_out or body == null or structure == null or not is_instance_valid(structure) \
 			or str(structure.get_meta("building_type", "")) in NO_STEP_OUT:
@@ -764,7 +766,11 @@ func _step_out_of(structure: Node3D) -> void:
 	sill.y = body.global_position.y
 	if way["door"] != null:
 		DOOR_ANIM.open_now(way["door"], WALK_OUT_SEC + 0.6)
-	_walk_body(body, sill + out * STEP_OUT_FROM, sill + out * STEP_OUT_TO, out)
+	var from: Vector3 = sill + out * STEP_OUT_FROM
+	var head := body.get_node_or_null("Head") as Node3D
+	if from_eye.is_finite() and head != null:
+		from = from_eye - Vector3(0.0, head.position.y, 0.0)
+	_walk_body(body, from, sill + out * STEP_OUT_TO, out)
 
 
 ## The warden's body from `from` to `to` facing `dir`, no collisions on the way (through
@@ -986,7 +992,9 @@ func _on_caravan_closed() -> void:
 	var was: Node3D = _active_caravan_node
 	_active_caravan_node = null
 	_play_door_close()
-	_step_out_of(was)
+	var eye: Vector3 = _caravan_interior.handoff_eye
+	_caravan_interior.handoff_eye = Vector3.INF
+	_step_out_of(was, eye)
 
 
 func _on_caravan_upgrade_requested() -> void:

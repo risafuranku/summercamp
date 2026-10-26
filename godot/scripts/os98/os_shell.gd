@@ -421,15 +421,28 @@ var _coop_pw := -1
 ## switched it off: off here, unless you are sitting at it.
 func _coop_take_power(pw: int) -> void:
 	if pw == 1 and (_state == Boot.OFF or _state == Boot.SAFE_OFF or _state == Boot.WARMUP) and _has_power():
-		_state = Boot.DESKTOP
-		_apply_state()
-		_refresh_badges()
-		_refresh_tray()
-		if _open:
-			_refresh_page(_tab)
-			desktop_ready.emit.call_deferred()
+		_resume_desktop()
 	elif pw == 0 and _state == Boot.DESKTOP and not _open:
 		power_off()
+
+
+## On at its desktop at once, no boot and no startup sound: a save that had it on, the
+## other warden's machine that is on. The programs on the screens are the ones left there
+## (it had none: an empty desktop came up after joining, and every load had it off,
+## playtest 25. 10.: "the save does not remember the PC switched on").
+func _resume_desktop() -> void:
+	_state = Boot.DESKTOP
+	_blacked_out = false
+	_apply_state()
+	_refresh_badges()
+	_refresh_tray()
+	if _tab == "":
+		_select_tab_on(_last_tab, 0)
+	if _dual and _tab2 == "":
+		_select_tab_on(_last_tab2 if _last_tab2 != _tab else _spare_tab(_tab), 1)
+	if _open:
+		_refresh_page(_tab)
+		desktop_ready.emit.call_deferred()
 
 
 func import_persistent_state(data: Dictionary) -> void:
@@ -474,6 +487,13 @@ func import_persistent_state(data: Dictionary) -> void:
 	_tab2 = ""
 	_state = Boot.OFF
 	_apply_state()
+	# Left on, it is on: at its desktop, as you left it (with no power it went off with
+	# the power, and comes back on with it).
+	if bool(data.get("monitor_powered", false)):
+		if _has_power():
+			_resume_desktop()
+			return
+		_blacked_out = true
 	# A save loaded while the screen is in front of you (game over -> Load): open_panel
 	# will not come again, so the machine starts here.
 	if _open:

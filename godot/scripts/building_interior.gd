@@ -2719,7 +2719,11 @@ func _build_monitor_switch() -> void:
 
 
 func _toggle_monitor() -> void:
-	_monitor_on = not _monitor_on
+	_set_monitor(not _monitor_on, true)
+
+
+func _set_monitor(on: bool, sound: bool) -> void:
+	_monitor_on = on
 	var mat := _crt_screen.material_override as ShaderMaterial if _crt_screen != null else null
 	if mat != null:
 		mat.set_shader_parameter("powered", 1.0 if _monitor_on else 0.0)
@@ -2728,7 +2732,8 @@ func _toggle_monitor() -> void:
 		mat2.set_shader_parameter("powered", 1.0 if _monitor_on else 0.0)
 	if _monitor_led_mat != null:
 		_monitor_led_mat.albedo_color = Color(0.3, 1.0, 0.35) if _monitor_on else Color(0.16, 0.2, 0.16)
-	_play_click_sfx("res://assets/sfx/desk/crt_power_on.mp3" if _monitor_on else "res://assets/sfx/desk/crt_power_off.mp3")
+	if sound:
+		_play_click_sfx("res://assets/sfx/desk/crt_power_on.mp3" if _monitor_on else "res://assets/sfx/desk/crt_power_off.mp3")
 
 
 var _click_sfx: AudioStreamPlayer
@@ -3008,6 +3013,7 @@ func coop_office_state() -> Dictionary:
 		"lamp": bool(back.lamp_on) if back != null else true,
 		"tv": bool(back.tv_on) if back != null else true,
 		"bulb": bool(_extras.store.bulb_on) if _extras.store != null else false,
+		"mon": _monitor_on,
 	}
 
 
@@ -3035,6 +3041,8 @@ func coop_take_office_state(d: Dictionary) -> void:
 			back._set_tv(bool(d["tv"]), here)
 	if d.has("bulb") and _extras.store != null and bool(d["bulb"]) != bool(_extras.store.bulb_on):
 		_extras.store.set_bulb(bool(d["bulb"]), here)
+	if d.has("mon") and bool(d["mon"]) != _monitor_on:
+		_set_monitor(bool(d["mon"]), here)
 
 
 ## The night director (scripts/night/director_effects.gd): a sound somewhere in the

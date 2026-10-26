@@ -63,8 +63,10 @@ const DOOR_OPEN_DEG := -104.0
 ## looking out through the doorway's view of the camp.
 const STEP_EYE := Vector3(DOOR_X + 0.04, 1.18, W * 0.5 + 0.06)
 const WALL_T := 0.1
-## The camp's own camera (main FIRST_PERSON fov): the walk out narrows to it.
-const CAMP_FOV := 56.0
+## The camp's eye when there is no warden: the walk in starts from it, the walk out ends in
+## it (_camp_fov: the warden's Options since 21. 10.; a fixed 56 here jumped wider as the
+## camp took over at the doorstep, playtest 25. 10.).
+const CAMP_FOV := 72.0
 const ROOM_FOV := 70.0
 const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
 const SFX_DOOR_OPEN := "res://assets/sfx/caravan/door_open.mp3"
@@ -301,15 +303,19 @@ func _tick_windows(delta: float) -> void:
 		_door_view.update(_root, _interior_camera, WINDOW_PORTAL.room_to_world(a, _door_view, FLOOR_UP) if a != null else Transform3D(), a != null and (_door_open() > 0.02 or _leaving), world, delta, a)
 
 
-## Is the window's glass on the screen (any corner in front of the eye and inside it)?
-func _in_sight(w) -> bool:
+## Is the window's glass on the screen of `eye` (the room's camera unless given; any
+## corner in front of the eye and inside its picture of `px`, or `margin` of its width
+## past the edges)?
+func _in_sight(w, eye: Camera3D = null, px := Vector2.ZERO, margin := 0.35) -> bool:
+	if eye == null:
+		eye = _interior_camera
+		px = Vector2(_viewport.size)
 	# (A good way past the edges: it is drawn before it turns into view, not a frame late.)
-	var vp_rect := Rect2(Vector2.ZERO, Vector2(_viewport.size))
-	var margin := float(_viewport.size.x) * 0.35
+	var vp_rect := Rect2(Vector2.ZERO, px).grow(px.x * margin)
 	for i in 4:
 		var c := Vector3((float(i % 2) - 0.5) * w.size.x, (float(i / 2) - 0.5) * w.size.y, 0.0)
 		var p: Vector3 = _root.global_transform * (w.frame * c)
-		if not _interior_camera.is_position_behind(p) and vp_rect.grow(margin).has_point(_interior_camera.unproject_position(p)):
+		if not eye.is_position_behind(p) and vp_rect.has_point(eye.unproject_position(p)):
 			return true
 	return false
 
@@ -380,6 +386,9 @@ func take_curtains(state: Array) -> void:
 # no pane turned to you, the panes are window_lights' again.
 
 const INVIEW_RANGE := 30.0
+## Nearer than this the windows across the van show the camp beyond it (farther they are a
+## few pixels: dark glass).
+const INVIEW_THROUGH_M := 10.0
 var _inview_vp: SubViewport
 var _inview_cam: Camera3D
 var _inview_mat: ShaderMaterial
@@ -454,14 +463,33 @@ func _update_inview(delta: float) -> void:
 	# The camp's eye in the room: the world -> the van's model (the panes' parent) -> the
 	# room, whose floor lies VAN_FLOOR up in it.
 	var model := (_inview_panes[0] as Node3D).get_parent() as Node3D
-	var to_room: Transform3D = _root.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0)).affine_inverse() * model.global_transform.affine_inverse()
+	var room_in_camp: Transform3D = model.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0))
+	var to_room: Transform3D = _root.global_transform * room_in_camp.affine_inverse()
 	var t := to_room * cam.global_transform
 	_inview_cam.global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
 	_inview_cam.fov = cam.fov
 	_inview_cam.keep_aspect = cam.keep_aspect
+	# The camp's eye looking up or down is a shifted frustum (player_controller): the same.
+	_inview_cam.projection = cam.projection
+	var nk := _inview_cam.near / maxf(cam.near, 0.001)
+	_inview_cam.size = cam.size * nk
+	_inview_cam.frustum_offset = cam.frustum_offset * nk
 	var px := Vector2i(cam.get_viewport().get_visible_rect().size)
 	if _inview_vp.size != px and px.x > 0:
 		_inview_vp.size = px
+	# Looking in through a window on this side: the ones across the van (their glass turned
+	# to the eye) show the camp beyond it, the room's shared view put back at the camp's
+	# own eye with the van left out of it; the ones on this side are looked through, their
+	# glass hidden (the openings in the walls, _cut_walls).
+	# (Near enough to see through, and only while one of them is in sight: it draws the
+	# camp a second time.)
+	var world := _inview_van.get_world_3d()
+	var near := _inview_van.global_position.distance_to(cam.global_position) < INVIEW_THROUGH_M
+	for w in _windows:
+		var q: MeshInstance3D = w.quad
+		var across: bool = q.global_basis.z.dot(_inview_cam.global_position - q.global_position) > 0.0
+		q.layers = 1 if across else INVIEW_HIDE_LAYER
+		w.update(_root, _inview_cam, room_in_camp, across and near and _in_sight(w, _inview_cam, Vector2(_inview_vp.size), 0.0), world, delta, _inview_van)
 	_inview_light_t -= delta
 	if _inview_light_t <= 0.0:
 		_inview_light_t = 0.5
@@ -508,6 +536,8 @@ func _release_inview() -> void:
 	_inview_van = null
 	if _inview_vp != null:
 		_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	for w in _windows:
+		(w.quad as MeshInstance3D).layers = INVIEW_HIDE_LAYER
 
 
 ## The room's light as the camp's hour has it, its lamp as window_lights has the van
@@ -598,6 +628,15 @@ func _build_door() -> void:
 	INTERIOR_KIT.slab(_door_pivot, Vector3(DOOR_W, DOOR_H, 0.018), Vector3(DOOR_W * 0.5, DOOR_H * 0.5, 0.0), INTERIOR_KIT.surface("veneer_dark", 0.6), "DoorEdge")
 
 
+## The camp eye's FOV now (the warden's Options), for the walk in to start in and the walk
+## out to end in.
+func _camp_fov() -> float:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var p = scene.get("_player") if scene != null else null
+	var cam = p.get("_camera") if p != null else null
+	return float((cam as Camera3D).fov) if cam is Camera3D else CAMP_FOV
+
+
 ## How far the door stands open, 0 shut .. 1 wide.
 func _door_open() -> float:
 	return clampf(_door_pivot.rotation_degrees.y / DOOR_OPEN_DEG, 0.0, 1.0) if _door_pivot != null else 0.0
@@ -608,7 +647,7 @@ func _walk_in() -> void:
 	_kill_walk()
 	_walking = true
 	_door_pivot.rotation_degrees.y = DOOR_OPEN_DEG
-	_interior_camera.fov = CAMP_FOV
+	_interior_camera.fov = _camp_fov()
 	_interior_camera.position = STEP_EYE
 	_interior_camera.rotation = Vector3(-0.04, 0.0, 0.0)
 	_walk = WALK_PATH.play(self, _interior_camera, [
@@ -643,10 +682,26 @@ func walk_out() -> void:
 	_walk.parallel().tween_property(_door_pivot, "rotation_degrees:y", DOOR_OPEN_DEG, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(0.34)
 	_walk.parallel().tween_callback(_play.bind(SFX_STEP, -8.0)).set_delay(0.95)
 	_walk.parallel().tween_callback(_rock.bind(-0.5)).set_delay(1.0)
-	_walk.parallel().tween_property(_interior_camera, "fov", CAMP_FOV, 0.7).set_delay(0.55)
+	_walk.parallel().tween_property(_interior_camera, "fov", _camp_fov(), 0.7).set_delay(0.55)
 	_walk.tween_callback(func() -> void:
 		_walking = false
+		handoff_eye = _doorway_eye()
 		close_caravan())
+
+
+## Where the camp's eye was in the walk out's last frame (the doorway's view drew the camp
+## from there): the camp takes the walk on from that very point (interior_manager.
+## _on_caravan_closed); INF when it could not tell. (The camp started half a metre off
+## it: the near grass jumped as the doorway's picture gave way, playtest 25. 10.)
+var handoff_eye := Vector3.INF
+
+
+func _doorway_eye() -> Vector3:
+	var a := _anchor()
+	if a == null or _door_view == null or _root == null:
+		return Vector3.INF
+	var xf: Transform3D = WINDOW_PORTAL.room_to_world(a, _door_view, FLOOR_UP)
+	return xf * (_root.global_transform.affine_inverse() * _interior_camera.global_position)
 
 
 ## The things as you find them coming in (after the room's state is in: the bed made?).
@@ -766,16 +821,8 @@ func _build_room() -> void:
 	_root.add_child(_cam_rig)
 	_cam_rig.add_child(_interior_camera)
 	var shell: Dictionary = K.room(_root, Vector3(L, H, W), "caravan_floor", "caravan_veneer", "caravan_ceiling", 1.1, 0.7)
-	# The door wall with its doorway cut out (you walk in and out through it).
-	var front_mat: Material = (shell["front"] as MeshInstance3D).material_override
-	(shell["front"] as Node).free()
-	var dl := DOOR_X - DOOR_W * 0.5
-	var dr := DOOR_X + DOOR_W * 0.5
-	var dtop := 0.04 + DOOR_H
-	var fz := W * 0.5 + WALL_T * 0.5
-	K.slab(_root, Vector3(dl + L * 0.5, H, WALL_T), Vector3((-L * 0.5 + dl) * 0.5, H * 0.5, fz), front_mat, "WallFront")
-	K.slab(_root, Vector3(L * 0.5 - dr, H, WALL_T), Vector3((dr + L * 0.5) * 0.5, H * 0.5, fz), front_mat, "WallFrontB")
-	K.slab(_root, Vector3(DOOR_W, H - dtop, WALL_T), Vector3(DOOR_X, (dtop + H) * 0.5, fz), front_mat, "WallFrontC")
+	# The walls with the doorway (you walk in and out through it) and the windows cut out.
+	_cut_walls(shell)
 	K.skirting(_root, Vector3(L, H, W), "veneer_dark")
 	var veneer := K.surface("caravan_veneer", 1.1)
 	var veneer_dark := K.surface("veneer_dark", 0.8)
@@ -973,14 +1020,81 @@ func _apply_level() -> void:
 	var floor_mi := _root.get_node_or_null("Floor") as MeshInstance3D
 	if floor_mi != null:
 		floor_mi.material_override = INTERIOR_KIT.surface("cv_lino_worn" if _level == 1 else "caravan_floor", 0.7)
-	for wall in ["WallBack", "WallFront", "WallFrontB", "WallFrontC", "WallLeft", "WallRight"]:
-		var mi := _root.get_node_or_null(wall) as MeshInstance3D
-		if mi != null:
-			var mm := INTERIOR_KIT.surface("cv_wallpaper" if _level >= 3 else "caravan_veneer", 1.1).duplicate() as StandardMaterial3D
-			mm.albedo_color = tint
-			mi.material_override = mm
+	var mm := INTERIOR_KIT.surface("cv_wallpaper" if _level >= 3 else "caravan_veneer", 1.1).duplicate() as StandardMaterial3D
+	mm.albedo_color = tint
+	for wall in _walls:
+		if is_instance_valid(wall):
+			(wall as MeshInstance3D).material_override = mm
 	if _life != null:
 		_life.apply_level(_level)
+
+
+## The van's walls (_cut_walls), the pieces round its openings.
+var _walls: Array = []
+
+
+## The four walls with their openings cut out: the doorway and every window (its glass,
+## the window's portal, sits just inside). From the camp the windows look into the room
+## through them (_update_inview); solid, every window showed the boards of the wall
+## from outside (playtest 25. 10.: "the caravan's windows do not work from outside").
+func _cut_walls(shell: Dictionary) -> void:
+	var holes := {"front": [], "back": [], "left": [], "right": []}
+	(holes["front"] as Array).append([DOOR_X - DOOR_W * 0.5, DOOR_X + DOOR_W * 0.5, 0.0, 0.04 + DOOR_H])
+	for wspec in WINDOWS:
+		var g: Vector2 = wspec[0]
+		var c: Vector3 = wspec[1]
+		var side := ("right" if c.x > 0.0 else "left") if absf(c.x) > L * 0.5 - 0.05 else ("front" if c.z > 0.0 else "back")
+		var along := c.z if side == "right" or side == "left" else c.x
+		(holes[side] as Array).append([along - g.x * 0.5, along + g.x * 0.5, c.y - g.y * 0.5, c.y + g.y * 0.5])
+	var t := WALL_T
+	for side: String in holes:
+		var mat: Material = (shell[side] as MeshInstance3D).material_override
+		(shell[side] as Node).free()
+		var ends := side == "right" or side == "left"
+		var i := 0
+		for r in _wall_pieces((W if ends else L) * 0.5, H, holes[side]):
+			var a := (float(r[0]) + float(r[1])) * 0.5
+			var y := (float(r[2]) + float(r[3])) * 0.5
+			var la := float(r[1]) - float(r[0])
+			var ly := float(r[3]) - float(r[2])
+			var pos := Vector3(a, y, (W + t) * 0.5 * (1.0 if side == "front" else -1.0))
+			var sz := Vector3(la, ly, t)
+			if ends:
+				pos = Vector3((L + t) * 0.5 * (1.0 if side == "right" else -1.0), y, a)
+				sz = Vector3(t, ly, la)
+			_walls.append(INTERIOR_KIT.slab(_root, sz, pos, mat, "Wall%s%d" % [side.capitalize(), i]))
+			i += 1
+
+
+## A wall `half` each way along it and `h` high, less its openings ([from, to, bottom, top]
+## along it): the pieces left, [from, to, bottom, top] each (strips between the openings'
+## edges, the parts over and under an opening in its strip).
+static func _wall_pieces(half: float, h: float, holes: Array) -> Array:
+	var cuts: Array = [-half, half]
+	for hl in holes:
+		cuts.append(clampf(float(hl[0]), -half, half))
+		cuts.append(clampf(float(hl[1]), -half, half))
+	cuts.sort()
+	var out: Array = []
+	for i in cuts.size() - 1:
+		var a0: float = cuts[i]
+		var a1: float = cuts[i + 1]
+		if a1 - a0 < 0.002:
+			continue
+		var mid := (a0 + a1) * 0.5
+		var lo := 0.0
+		var spans: Array = []
+		for hl in holes:
+			if mid > float(hl[0]) and mid < float(hl[1]):
+				spans.append([float(hl[2]), float(hl[3])])
+		spans.sort_custom(func(p, q) -> bool: return float(p[0]) < float(q[0]))
+		for sp in spans:
+			if float(sp[0]) - lo > 0.002:
+				out.append([a0, a1, lo, float(sp[0])])
+			lo = maxf(lo, float(sp[1]))
+		if h - lo > 0.002:
+			out.append([a0, a1, lo, h])
+	return out
 
 
 func _set_visible(n: String, on: bool) -> void:
