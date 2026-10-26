@@ -32,10 +32,10 @@ func _process(delta: float) -> void:
 		return
 	_on = on
 	if main != null and is_instance_valid(main):
-		main.light_energy = 1.0 if on == 1 else 0.0
+		main.light_energy = 6.0 if on == 1 else 0.0
 	for l in lamps:
 		if is_instance_valid(l):
-			(l as OmniLight3D).light_energy = 0.55 if on == 1 else 0.0
+			(l as OmniLight3D).light_energy = 2.5 if on == 1 else 0.0
 	for sh in shades:
 		if is_instance_valid(sh):
 			var m := (sh as MeshInstance3D).material_override as StandardMaterial3D

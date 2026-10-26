@@ -285,7 +285,7 @@ func _room_inside(r: Node3D, at: Vector3, room_name: String, build: Callable) ->
 	main.name = "RoomLight"
 	main.position = Vector3(0.0, 2.3, 0.0)
 	main.light_color = Color(0.96, 0.94, 0.88)
-	main.omni_range = 7.0
+	main.omni_range = 8.0
 	main.light_energy = 0.0
 	room.add_child(main)
 	var all: Array = [main]
@@ -320,7 +320,7 @@ func _glass_face(file: String, fallback: String) -> StandardMaterial3D:
 func _pane_into(r: Node3D, size: Vector2, pos: Vector3, yaw: float) -> MeshInstance3D:
 	var m := StandardMaterial3D.new()
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.albedo_color = Color(0.3, 0.34, 0.37, 0.16)
+	m.albedo_color = Color(0.3, 0.34, 0.37, 0.1)
 	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	m.roughness = 1.0
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
