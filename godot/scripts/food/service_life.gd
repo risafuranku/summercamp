@@ -26,6 +26,8 @@ const POSES = preload("res://scripts/attractions/poses.gd")
 ## frames to their seat, facing their table, the till, the rack.
 const DOOM = preload("res://scripts/figures/doom_figure.gd")
 const ORDERS = preload("res://scripts/food/orders.gd")
+const BISTRO_LAYOUT = preload("res://scripts/bistro/bistro_layout.gd")
+const JEDNOTA_LAYOUT = preload("res://scripts/jednota/jednota_layout.gd")
 const STEP := 0.125
 const WALK_SPEED := 1.1
 const SFX := {"pub": "res://assets/sfx/pub/pub_room.mp3", "rest": "res://assets/sfx/bistro/dining_room.mp3"}
@@ -37,6 +39,9 @@ const SFX_DOOR := "res://assets/sfx/town/shop_bell.mp3"
 
 var profile := ""
 var key := ""
+## Seen from the camp through the business's windows (room_lights.gd): no sounds, already
+## in their seats, gone when they go, the simulation asked less often.
+var quiet := false
 ## [{pos: Vector3 (room), face: Vector3, table: int (-1 none), stand: bool}]
 var seats: Array = []
 ## Where a mug or plate goes for a seat: seat index -> Vector3 (room).
@@ -84,7 +89,7 @@ func setup(p: String, building_key: String, seat_list: Array, settings: Dictiona
 	_room_sound = AudioStreamPlayer.new()
 	_room_sound.volume_db = -60.0
 	add_child(_room_sound)
-	var path := str(SFX.get(p, ""))
+	var path := "" if quiet else str(SFX.get(p, ""))
 	if path != "" and ResourceLoader.exists(path):
 		var st = load(path)
 		if st is AudioStreamMP3:
@@ -115,6 +120,67 @@ func _mat(c: Color, glassy: bool) -> StandardMaterial3D:
 	return m
 
 
+## The places in a pub / bistro / shop room built by its layout (`root`: the room's root,
+## its own space): {seats, settings} for setup(). The service interior's and the room seen
+## through the windows (room_lights.gd) the same.
+static func seats_of(p: String, root: Node3D) -> Dictionary:
+	var seats: Array = []
+	var settings: Dictionary = {}
+	match p:
+		"pub":
+			var ti := 0
+			for t: Vector3 in [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]:
+				var top := _top_near(root, "PubTable", t, 0.78)
+				for side: float in [-1.0, 1.0]:
+					settings[seats.size()] = t + Vector3(side * 0.2, top, 0)
+					seats.append({"pos": t + Vector3(side * 0.45, 0, 0), "table": ti})
+				ti += 1
+			# The counter top of the model (bar_counter.glb: 1.05 m; the tap tower stands on it).
+			var bar_top := 0.05 + 1.05
+			for x: float in [0.6, 1.3, 2.0]:
+				settings[seats.size()] = Vector3(x, bar_top, -1.08)
+				# Up on a bar stool: the figure's seat (0.45 m up the sprite) on the stool
+				# top, just in front of it so the seat does not cut through the legs.
+				var stool_top := _top_near(root, "BarStool", Vector3(x, 0.05, -0.6), 0.78)
+				seats.append({"pos": Vector3(x, stool_top - 0.45, -0.36), "table": -1})
+		"rest":
+			var tj := 0
+			for t: Vector3 in BISTRO_LAYOUT.TABLES:
+				var top2 := _top_near(root, "GinghamTable", t, 0.78)
+				for side: float in [-1.0, 1.0]:
+					settings[seats.size()] = t + Vector3(side * 0.2, top2, 0)
+					seats.append({"pos": t + Vector3(side * 0.45, 0, 0), "table": tj})
+				tj += 1
+		"vecerka":
+			# Looking round at the racks (jednota_layout.BROWSE); the queue's places along
+			# the till are service_life's (it walks them there when they have their basket).
+			for b in JEDNOTA_LAYOUT.BROWSE:
+				var bd: Dictionary = b
+				seats.append({"pos": bd["pos"], "face": bd["face"], "stand": true, "clear_of": bd.get("clear_of", []), "aside": bd.get("aside", bd["pos"])})
+	return {"seats": seats, "settings": settings}
+
+
+## The top of the prop called `n` nearest `at` under `root` (room y), or `fallback`.
+static func _top_near(root: Node3D, n: String, at: Vector3, fallback: float) -> float:
+	var best: Node3D = null
+	var best_d := INF
+	for c in root.find_children(n + "*", "Node3D", false, false):
+		var d := (c as Node3D).position.distance_to(at)
+		if d < best_d:
+			best_d = d
+			best = c
+	if best == null or best_d > 0.6:
+		return fallback
+	var top := -INF
+	for m in best.find_children("*", "MeshInstance3D", true, false):
+		var bb := (m as MeshInstance3D).global_transform * (m as MeshInstance3D).get_aabb()
+		top = maxf(top, bb.end.y)
+	if top == -INF:
+		return fallback
+	# Only a plain offset in y between the room and the world (a building turns about y).
+	return top - root.global_position.y
+
+
 func headcount() -> int:
 	var n := 0
 	for p in _people.values():
@@ -136,7 +202,7 @@ func _process(delta: float) -> void:
 	_t += delta
 	_poll -= delta
 	if _poll <= 0.0:
-		_poll = 0.5
+		_poll = 2.0 if quiet else 0.5
 		_refresh()
 	_acc += delta
 	if _acc < STEP:
@@ -523,7 +589,7 @@ func _cheers(table: int) -> void:
 
 
 func _play(path: String, db: float) -> void:
-	if path != "" and ResourceLoader.exists(path):
+	if not quiet and path != "" and ResourceLoader.exists(path):
 		_one.stream = load(path)
 		_one.volume_db = db
 		_one.play()

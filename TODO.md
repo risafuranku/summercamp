@@ -103,6 +103,7 @@ out from where it stands.
 - [x] The Jednota: the shop behind its windows (the painted goods give way to the real racks; the back rack's goods are the station's, so from outside it stands empty)
 - [x] The hands seen at their stations from outside (crew_figures in the room, not checked by a shot yet); the lamps by the hours; co-op the same (the clock and the books)
 - [x] The Builder's pictures of the three rendered again (Grok iso4_*_b)
+- [x] The guests seen at their tables and racks from outside (26. 10.): the service interior's own guests (`service_life.gd`, quiet: no sounds, already seated, seats from `seats_of`) in the room behind the glass; the pub's windows are high and the bistro's lace hides the seated, so from the path you mostly see the bar's and the shop's
 
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 
@@ -255,7 +256,7 @@ Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back t
 - [x] Each place's own sound: the bistro's kitchen at work, the Jednota's tubes and now and then a till (`service_interior._tick_ambience`, recordings already there)
 - [ ] New sounds for each action and the guests' sighs: the ElevenLabs key can only speak (TTS), a key with sound effects is wanted
 - [x] The guests' impatient pictures for those who wait on their feet (the stand's queue, the Jednota's): a hand on the hip, a look at the watch, the toes tapping, the kid's arms crossed (`<sprite>_wait.png` by Grok, `guest_mood.show_wait`); the seated ones in the pub and the bistro keep the bubbles
-- [ ] A note on the door at last orders
+- [x] A note on the door at last orders: the white plastic OTEVŘENO / ZAVŘENO card on the pub's, the bistro's and the Jednota's door, turned at last orders (`building_models._door_sign`, `room_lights.gd`; Grok's blank card lettered by `tools/artgen/door_sign.py`)
 - [x] DESIGN §7b "Papa's frame", PRODUCT, AGENTS, the Czech of every new text (tools/i18n/batches/06_podniky_papas.json)
 
 ## RECEPTION WINDOWS — 2026-10-21 (the user: "the reception's windows have no depth from outside; curtains drawn, lights out, the players inside at the PC or going to the other room: all of it seen from outside and in step")

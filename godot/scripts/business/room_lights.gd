@@ -6,6 +6,9 @@ extends Node
 
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const CREW_FIGURES := preload("res://scripts/business/crew_figures.gd")
+const SERVICE_LIFE := preload("res://scripts/food/service_life.gd")
+## The place's records group -> its guests' profile (service_life.gd).
+const PROFILE := {"taprooms": "pub", "kitchens": "rest", "jednotas": "vecerka"}
 
 ## The room's own light (as the service interior's room has), and its lamps.
 var main: OmniLight3D
@@ -21,11 +24,15 @@ var room: Node3D
 var layout = null
 var roles: Dictionary = {}
 var records_group := ""
+## The OTEVŘENO / ZAVŘENO card on the door (building_models._door_sign).
+var door_sign: Sprite3D = null
 
 var _key := ""
 var _t := 0.0
 var _on := -1
 var _crew: Node3D = null
+var _life: Node3D = null
+var _sign := ""
 
 
 func _process(delta: float) -> void:
@@ -37,6 +44,14 @@ func _process(delta: float) -> void:
 		_key = _site_key()
 	if _crew == null and _key != "" and room != null and layout != null and not roles.is_empty():
 		_start_crew()
+	# The guests at the tables and the racks, as inside (service_life.gd), quiet.
+	if _life == null and _key != "" and room != null and room.is_inside_tree() and PROFILE.has(records_group):
+		_life = SERVICE_LIFE.new()
+		_life.name = "Patrons"
+		_life.set("quiet", true)
+		room.add_child(_life)
+		var placed: Dictionary = SERVICE_LIFE.seats_of(str(PROFILE[records_group]), room)
+		_life.setup(str(PROFILE[records_group]), _key, placed["seats"], placed["settings"])
 	# The Jednota's rack as stocked as its records say (jednota_layout.shop_outside).
 	if room != null and records_group == "jednotas" and _key != "":
 		var shop := get_tree().get_first_node_in_group("jednotas")
@@ -48,13 +63,17 @@ func _process(delta: float) -> void:
 			goods.visible = units > 0
 	# The hands' figures on the room's layer, lit by its lights (building_models.ROOM_LAYER).
 	if room != null:
-		for c in room.get_children():
-			if c is Sprite3D:
-				(c as Sprite3D).layers |= 1 << 13
+		for c in room.find_children("*", "GeometryInstance3D", true, false):
+			(c as GeometryInstance3D).layers |= 1 << 13
 	var on := 0
 	if _key != "":
 		var s := BUSINESS.site(_key)
 		on = 1 if not s.is_empty() and BUSINESS.shift_now(s) != "closed" else 0
+	# The card turned at last orders already: nobody new goes in (who ordered still eats).
+	var sign := "open" if on == 1 and BUSINESS.to_last_orders(_key) > 0 else "closed"
+	if sign != _sign and door_sign != null and is_instance_valid(door_sign):
+		_sign = sign
+		door_sign.texture = load("res://assets/textury/camp/door_sign_%s.png" % sign)
 	if on == _on:
 		return
 	_on = on

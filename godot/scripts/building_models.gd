@@ -230,6 +230,7 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var front := cz + sz * 0.5
 	var door_x := cx + (65.0 / 271.0 - 0.5) * sx
 	_quad(r, "PubFront", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_face("camp_pub_front_glass.png", "camp_pub_front.png"))
+	_door_sign(r, Vector3(door_x, 1.45, front + 0.03))
 	_quad(r, "PubSide", Vector2(sz, h), Vector3(cx - sx * 0.5 - 0.012, h * 0.5 + 0.1, cz), -PI * 0.5, _glass_face("camp_pub_side_glass.png", "camp_pub_side.png"))
 	_side_quad(r, "PubBack", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, cz - sz * 0.5 - 0.012), PI, plaster)
 	_side_quad(r, "PubRight", Vector2(sz, h), Vector3(cx + sx * 0.5 + 0.012, h * 0.5 + 0.1, cz), PI * 0.5, plaster)
@@ -268,6 +269,24 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 ## A business's room in its building (one plan: its layout builds it here as in the service
 ## interior; business/room_outside.gd): at `at` in the building, its lamps lit by the place's
 ## hours (business/room_lights.gd). `build` (room, host) is the layout's outside builder.
+## The plastic OTEVŘENO / ZAVŘENO card hanging on a business's door (26. 10.),
+## turned by the room's lights (room_lights.gd) with the place's hours.
+func _door_sign(r: Node3D, at: Vector3) -> void:
+	var lights := r.get_node_or_null("RoomLights")
+	if lights == null or not ResourceLoader.exists(CAMP + "door_sign_closed.png"):
+		return
+	var s := Sprite3D.new()
+	s.name = "DoorSign"
+	s.texture = load(CAMP + "door_sign_closed.png")
+	s.pixel_size = 0.4 / float(s.texture.get_width())
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	s.shaded = true
+	s.position = at
+	r.add_child(s)
+	lights.set("door_sign", s)
+
+
 func _room_inside(r: Node3D, at: Vector3, room_name: String, build: Callable, layout = null, roles := {}, records_group := "") -> Node3D:
 	var room := Node3D.new()
 	room.name = room_name
@@ -369,6 +388,7 @@ func _restaurant(r: Node3D, _w: float, _d: float) -> Dictionary:
 		var wa: Vector3 = at + (wd["at"] as Vector3)
 		_pane_into(r, wd["size"], Vector3(wa.x, wa.y, front - 0.004), 0.0)
 	var door: Vector3 = at + (lay.DOOR as Vector3)
+	_door_sign(r, Vector3(door.x, 1.45, front + 0.03))
 	var awn := _box(r, "Awning", Vector3(1.4, 0.07, 0.8), Vector3(door.x, 2.55, front + 0.4), _flat(Color(0.86, 0.66, 0.16)))
 	awn.rotation.x = 0.25
 	# The big red sign on the roof edge.
@@ -1814,6 +1834,7 @@ func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
 	_room_inside(r, lay.AT, "JednotaRoom", func(room: Node3D, host) -> void: lay.shop_outside(room, host), lay, {"till": "till", "shelves": "shelves", "deli": "deli"}, "jednotas")
 	_box(r, "Roof", Vector3(sx + 0.5, 0.25, sz + 0.5), Vector3(0, h + 0.22, 0), _camp_or("concrete.png", Color(0.62, 0.6, 0.58), "roof"))
 	_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_face("jednota_front_glass.png", "jednota_front.png"))
+	_door_sign(r, Vector3((lay.AT as Vector3).x + (lay.DOOR as Vector3).x, 1.75, front + 0.03))
 	for wd in lay.WINDOWS:
 		var wa: Vector3 = (lay.AT as Vector3) + (wd["at"] as Vector3)
 		_pane_into(r, wd["size"], Vector3(wa.x, wa.y, front - 0.004), 0.0)

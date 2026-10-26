@@ -3806,45 +3806,15 @@ func _start_life() -> void:
 	match _current_profile:
 		"pub":
 			root = _pub_main_root
-			if root == null:
-				return
-			var ti := 0
-			for t: Vector3 in [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]:
-				var top := _top_near(root, "PubTable", t, 0.78)
-				for side: float in [-1.0, 1.0]:
-					settings[seats.size()] = t + Vector3(side * 0.2, top, 0)
-					seats.append({"pos": t + Vector3(side * 0.45, 0, 0), "table": ti})
-				ti += 1
-			# The counter top of the model (bar_counter.glb: 1.05 m; the tap tower stands on it).
-			var bar_top := 0.05 + 1.05
-			for x: float in [0.6, 1.3, 2.0]:
-				settings[seats.size()] = Vector3(x, bar_top, -1.08)
-				# Up on a bar stool: the figure's seat (0.45 m up the sprite) on the stool
-				# top, just in front of it so the seat does not cut through the legs.
-				var stool_top := _top_near(root, "BarStool", Vector3(x, 0.05, -0.6), 0.78)
-				seats.append({"pos": Vector3(x, stool_top - 0.45, -0.36), "table": -1})
 		"rest":
 			root = _restaurant_dining_root
-			if root == null:
-				return
-			var tj := 0
-			for t: Vector3 in BISTRO_LAYOUT.TABLES:
-				var top2 := _top_near(root, "GinghamTable", t, 0.78)
-				for side: float in [-1.0, 1.0]:
-					settings[seats.size()] = t + Vector3(side * 0.2, top2, 0)
-					seats.append({"pos": t + Vector3(side * 0.45, 0, 0), "table": tj})
-				tj += 1
 		"vecerka":
 			root = _vecerka_shop_root
-			if root == null:
-				return
-			# Looking round at the racks (jednota_layout.BROWSE); the queue's places along
-			# the till are service_life's (it walks them there when they have their basket).
-			for b in JEDNOTA_LAYOUT.BROWSE:
-				var bd: Dictionary = b
-				seats.append({"pos": bd["pos"], "face": bd["face"], "stand": true, "clear_of": bd.get("clear_of", []), "aside": bd.get("aside", bd["pos"])})
-		_:
-			return
+	if root == null:
+		return
+	var placed: Dictionary = SERVICE_LIFE.seats_of(_current_profile, root)
+	seats = placed["seats"]
+	settings = placed["settings"]
 	# Nobody sits in your lap: seats too near where you stand stay empty.
 	var door := Vector3.INF
 	if _interior_camera != null:
@@ -3869,27 +3839,6 @@ func _start_life() -> void:
 		_life.set("open_of", func() -> String: return _station_open())
 	root.add_child(_life)
 	_life.setup(_current_profile, _upkeep_key, seats, settings, door)
-
-
-## The top of the prop called `n` nearest `at` under `root` (room y), or `fallback`.
-func _top_near(root: Node3D, n: String, at: Vector3, fallback: float) -> float:
-	var best: Node3D = null
-	var best_d := INF
-	for c in root.find_children(n + "*", "Node3D", false, false):
-		var d := (c as Node3D).position.distance_to(at)
-		if d < best_d:
-			best_d = d
-			best = c
-	if best == null or best_d > 0.6:
-		return fallback
-	var top := -INF
-	for m in best.find_children("*", "MeshInstance3D", true, false):
-		var bb := (m as MeshInstance3D).global_transform * (m as MeshInstance3D).get_aabb()
-		top = maxf(top, bb.end.y)
-	if top == -INF:
-		return fallback
-	# The room root is never rotated or scaled: its y is a plain offset.
-	return top - root.global_position.y
 
 
 # -- the staffroom: its laptop, its books (scripts/staff/) --------------------------
