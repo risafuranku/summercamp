@@ -217,7 +217,7 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var cz := at.z
 	var plaster: Material = _town_or("village_plaster.png", Color(0.96, 0.92, 0.82), "plaster_stone.png", Vector3(2.0, 1.2, 1.0))
 	_plinth(r, sx + 0.3, sz + 0.3, Vector3(cx, 0, cz))
-	_room_inside(r, at, "PubRoom", func(room: Node3D, host) -> void: lay.bar_outside(room, host))
+	_room_inside(r, at, "PubRoom", func(room: Node3D, host) -> void: lay.bar_outside(room, host), lay, {"tap": "tap", "bar": "back", "wash": "wash"}, "taprooms")
 	_gable_roof(r, Vector3(cx, h + 0.1, cz), sx + 0.5, sz + 0.6, 1.5, _camp("corrugated_roof.png", Color(0.62, 0.6, 0.56), Vector3(3.0, 2.0, 1.0)))
 	_box(r, "Chimney", Vector3(0.45, 1.4, 0.45), Vector3(sx * 0.25 + cx, h + 1.2, -0.7), _camp_or("brick_red.png", Color(0.7, 0.42, 0.34), "brick"))
 	# The lower annex on the right with a lean-to roof.
@@ -268,7 +268,7 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 ## A business's room in its building (one plan: its layout builds it here as in the service
 ## interior; business/room_outside.gd): at `at` in the building, its lamps lit by the place's
 ## hours (business/room_lights.gd). `build` (room, host) is the layout's outside builder.
-func _room_inside(r: Node3D, at: Vector3, room_name: String, build: Callable) -> Node3D:
+func _room_inside(r: Node3D, at: Vector3, room_name: String, build: Callable, layout = null, roles := {}, records_group := "") -> Node3D:
 	var room := Node3D.new()
 	room.name = room_name
 	room.position = at
@@ -297,6 +297,11 @@ func _room_inside(r: Node3D, at: Vector3, room_name: String, build: Callable) ->
 	lights.set_script(load("res://scripts/business/room_lights.gd"))
 	lights.set("main", main)
 	lights.set("lamps", host.lamps)
+	# The hands at the stations in this room (role -> station), seen through the glass.
+	lights.set("room", room)
+	lights.set("layout", layout)
+	lights.set("roles", roles)
+	lights.set("records_group", records_group)
 	var shades: Array = []
 	for m in room.find_children("PubLamp*", "MeshInstance3D", true, false):
 		shades.append(m)
@@ -347,7 +352,7 @@ func _restaurant(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var h := 2.9
 	var front := at.z + sz * 0.5
 	_plinth(r, sx + 0.3, sz + 0.3, Vector3(at.x, 0, at.z))
-	_room_inside(r, at, "BistroRoom", func(room: Node3D, host) -> void: lay.dining_outside(room, host))
+	_room_inside(r, at, "BistroRoom", func(room: Node3D, host) -> void: lay.dining_outside(room, host), lay, {"floor": "floor"}, "kitchens")
 	# The faces on the room's walls: the front's picture with its glass cut out; concrete
 	# over the green tiled band round the other three.
 	_quad(r, "BistroFront", Vector2(sx, h), Vector3(at.x, h * 0.5 + 0.1, front + 0.015), 0.0, _glass_face("camp_bistro_front_glass.png", "camp_bistro_front.png"))
@@ -1806,7 +1811,7 @@ func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var h := 3.4
 	var front := sz * 0.5
 	_plinth(r, sx + 0.3, sz + 0.3)
-	_room_inside(r, lay.AT, "JednotaRoom", func(room: Node3D, host) -> void: lay.shop_outside(room, host))
+	_room_inside(r, lay.AT, "JednotaRoom", func(room: Node3D, host) -> void: lay.shop_outside(room, host), lay, {"till": "till", "shelves": "shelves", "deli": "deli"}, "jednotas")
 	_box(r, "Roof", Vector3(sx + 0.5, 0.25, sz + 0.5), Vector3(0, h + 0.22, 0), _camp_or("concrete.png", Color(0.62, 0.6, 0.58), "roof"))
 	_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_face("jednota_front_glass.png", "jednota_front.png"))
 	for wd in lay.WINDOWS:
