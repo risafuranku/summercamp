@@ -772,7 +772,17 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
   each Goggle tier, being caught tidying up its reviews, ten, twenty, forty, eighty guests
   at once. A newspaper window: the masthead, the date, the headline, a halftone of the
   thing, the story; a fanfare; a click puts it away. Each runs once; a camp already
-  going when this came in has its old news counted as printed.
+  going when this came in has its old news counted as printed. A tier's paper shows the
+  best building it opened.
+- **New blueprints** (playtest 25. 10.: "an animation of unlocking new things in the
+  Builder and a few previews of the best, so the player knows they made it"): when a tier
+  opens, Builder 98's own window, NEW BLUEPRINTS and the guests at once that opened them,
+  the three dearest of what opened coming up out of the dark one after another with the
+  card's sound, their names and prices, "and N more in the catalogue", the diploma's
+  chord, OK (`scripts/builder/blueprint_news.gd`). Then on their cards in the catalogue
+  the padlock springs and drops off, the grey goes, in steps; NEW stays on them as a
+  sticker on the picture till each is first picked (the PC's store "blueprints": {seen,
+  fresh}, with the camp's save and in co-op).
 - **The district's diplomas**, each once: Most Improved Camp (a star more on Goggle than
   last summer's page), the Guests' Favourite (ten or more in good spirits), the Tidiest
   Camp (ten buildings or more in good repair). The district's own paper (Grok, no words)

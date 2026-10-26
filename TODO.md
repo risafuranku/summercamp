@@ -45,7 +45,7 @@
 - [x] R37 „na stanici 2 counter u kukuřice zmizí HUD uvařenosti kukuřic, na trojce taky“
 - [x] R38 „velký cumulative layout shift při otevírání stavebních toolbarů v Builderu“
 - [x] R39 „neuklizený nebo neustlaný stan, chatku atd. ukazuj jako notifikaci s ikonou vpravo“
-- [ ] R40 „animace odemknutí nových věcí v Builderu a pár náhledů těch nejlepších, ať hráč ví, že dosáhl achievementu“
+- [x] R40 „animace odemknutí nových věcí v Builderu a pár náhledů těch nejlepších, ať hráč ví, že dosáhl achievementu“ (NEW BLUEPRINTS window with the three best of the tier coming up one after another; padlocks drop off their cards, NEW sticker till first picked; the tier's paper shows its best building)
 - [ ] R41 „recepce nedává smysl perspektivně: okno pokojíčku a pokojíček nesedí s interiérem, je to malé, vzniká phantom prostor“
 - [x] R42 „i když zhasnu všechna světla, pořád je světelný kruh kolem zářivky na stropě a není tma; přes den je tam málo světla. Pořádně oprav světlo na recepci“ (repeated: verify with measured pixel values, lights off / on, day / night)
 - [x] R43 „v sewers se lze v zatáčce otočit za sebe, to je špatně“

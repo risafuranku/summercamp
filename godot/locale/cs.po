@@ -25921,3 +25921,15 @@ msgstr "zářivka v kanceláři zablikala"
 
 msgid "the main breaker went, right after"
 msgstr "hned potom vypadl hlavní jistič"
+
+msgid "NEW BLUEPRINTS"
+msgstr "NOVÉ PLÁNY"
+
+msgid "%d guests in the camp at once"
+msgstr "%d {host|hosté|hostů} v kempu najednou"
+
+msgid "and %d more in the catalogue"
+msgstr "a %d {další|další|dalších} v katalogu"
+
+msgid "NEW"
+msgstr "NOVÉ"

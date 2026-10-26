@@ -853,6 +853,10 @@ func _locked(type: String) -> Dictionary:
 
 func _select(tool: String) -> void:
 	var lock := _locked(tool)
+	if lock.is_empty() and _fresh_has(tool):
+		# Picked once: it is not new any more.
+		(_blueprints_state()["fresh"] as Array).erase(tool)
+		_save_blueprints()
 	if lock.has("registered"):
 		message_requested.emit("Builder 98", "The Mega gnome comes with registered copies of Builder 98.\n\nHelp > Register...", "info")
 		return
@@ -1455,6 +1459,9 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 			c.draw_texture_rect(icon, Rect2(Vector2(5, 6 + (46.0 - box_side) * 0.5) + o + ((box - d) * 0.5).floor(), d), false)
 		var afford := CoreRoot.get_money() >= _cost(type)
 		var lock := _locked(type)
+		if lock.is_empty() and _fresh_has(type):
+			_draw_unlock(c, type, text_x, text_w, label, o, afford)
+			return
 		if not lock.is_empty():
 			# Greyed, a padlock on the picture, the rating it waits for.
 			c.draw_rect(Rect2(Vector2(3, 3), c.size - Vector2(6, 6)), Color(0.75, 0.75, 0.75, 0.55))
@@ -1656,6 +1663,9 @@ func _process(delta: float) -> void:
 	if _catalogue != null and _catalogue.visible and _cat_open < 1.0:
 		_cat_open = minf(1.0, _cat_open + delta * 7.0)
 		_layout()
+	if not _unlock_from.is_empty() and _cards != null and _catalogue != null and _catalogue.visible:
+		for c in _cards.get_children():
+			c.queue_redraw()
 	if _cards != null and _catalogue != null and _catalogue.visible:
 		for c in _cards.get_children():
 			if c.has_meta("appear"):
@@ -2165,15 +2175,21 @@ func _tick_news(delta: float) -> void:
 				var shell := _shell_node()
 				if shell != null:
 					shell.call("store", "courier", _courier.export_state())
+		_check_blueprints()
 	if (_news_open == null or not is_instance_valid(_news_open)) and not _news_queue.is_empty():
 		_show_news(_news_queue.pop_front())
 
 
 func _show_news(item: Dictionary) -> void:
+	if str(item.get("kind", "")) == "blueprints":
+		_show_blueprints(item)
+		return
 	var pic: Texture2D = null
 	var id := str(item.get("id", ""))
 	if id.begins_with("tier"):
-		pic = _texture("res://assets/textury/os98/icons/goggle.png")
+		# The paper's picture: the best of what that tier opened.
+		var best := _best_of_tier(int(id.substr(4)))
+		pic = _item_icon(best) if best != "" else _texture("res://assets/textury/os98/icons/goggle.png")
 	elif id == "caught":
 		pic = _texture("res://assets/textury/os98/web/spotless_banner.png")
 	else:
@@ -2250,6 +2266,136 @@ func _shell_node() -> Node:
 	while n != null and not n.has_method("stored"):
 		n = n.get_parent()
 	return n
+
+
+# -- new blueprints (scripts/builder/blueprint_news.gd) ---------------------------
+# The tiers opened since Builder 98 last showed them (the PC's store "blueprints": {seen,
+# fresh}: with the camp's save and the other wardens' PCs): the best three in their window,
+# then on their cards in the catalogue the padlock drops off, the grey goes, and NEW
+# stays on them till they are first picked.
+var _bp: Dictionary = {}
+var _unlock_from: Dictionary = {}     # type -> when its padlock starts to drop (ms), or -1 pending
+const UNLOCK_SEC := 0.9
+
+
+func _goggle_now():
+	var m := _main()
+	return m.get("_goggle") if m != null else null
+
+
+func _blueprints_state() -> Dictionary:
+	if _bp.is_empty():
+		var d = _shell_stored("blueprints", {})
+		_bp = (d as Dictionary).duplicate(true) if d is Dictionary and not (d as Dictionary).is_empty() else {"seen": 0, "fresh": []}
+	return _bp
+
+
+func _save_blueprints() -> void:
+	var sh := _shell_node()
+	if sh != null:
+		sh.call("store", "blueprints", _bp.duplicate(true))
+
+
+func _fresh_has(type: String) -> bool:
+	return (_blueprints_state().get("fresh", []) as Array).has(type)
+
+
+func _tier_items(t: int) -> Array:
+	var g = _goggle_now()
+	var out: Array = []
+	if g == null or t < 0 or t >= g.TIERS.size():
+		return out
+	for it in g.TIERS[t]["items"]:
+		if not str(it).begins_with("upgrade:"):
+			out.append(str(it))
+	return out
+
+
+func _best_of_tier(t: int) -> String:
+	var items := _tier_items(t)
+	items.sort_custom(func(a, b): return _cost(a) > _cost(b))
+	return str(items[0]) if not items.is_empty() else ""
+
+
+func _check_blueprints() -> void:
+	var g = _goggle_now()
+	if g == null:
+		return
+	var st := _blueprints_state()
+	var seen := int(st.get("seen", 0))
+	var tier := int(g.tier)
+	if tier <= seen:
+		return
+	var opened: Array = []
+	for t in range(seen + 1, tier + 1):
+		opened.append_array(_tier_items(t))
+	st["seen"] = tier
+	var fresh: Array = st.get("fresh", [])
+	for it in opened:
+		if not fresh.has(it):
+			fresh.append(it)
+	st["fresh"] = fresh
+	_save_blueprints()
+	opened.sort_custom(func(a, b): return _cost(a) > _cost(b))
+	var best: Array = opened.slice(0, 3)
+	_news_queue.append({"kind": "blueprints", "items": best, "more": opened.size() - best.size(), "guests": int(g.TIERS[tier]["guests"]), "all": opened})
+
+
+func _show_blueprints(item: Dictionary) -> void:
+	var rows: Array = []
+	for type in item.get("items", []):
+		rows.append({"type": type, "name": str(SHORT_NAMES.get(type, type)), "price": _cost(str(type)), "icon": _item_icon(str(type))})
+	_news_open = load("res://scripts/builder/blueprint_news.gd").new()
+	_news_open.play = func(id: String) -> void:
+		if id == "diploma":
+			_map_panel._play("diploma", -9.0)
+		else:
+			_ui(id)
+	_news_open.setup(rows, int(item.get("guests", 0)), int(item.get("more", 0)))
+	add_child(_news_open)
+	var well := _map_panel.get_rect()
+	_news_open.position = (well.position + (well.size - _news_open.size) * 0.5).floor()
+	_news_open.done.connect(func():
+		_click()
+		for t in item.get("all", []):
+			_unlock_from[str(t)] = -1
+		_news_open.queue_free()
+		_news_open = null)
+
+
+## A card just opened: the padlock drops off it, the grey goes in steps; then NEW on it.
+func _draw_unlock(c: Control, type: String, text_x: float, text_w: float, label: String, o: Vector2, afford: bool) -> void:
+	var now := Time.get_ticks_msec()
+	if int(_unlock_from.get(type, 0)) == -1:
+		_unlock_from[type] = now
+	var k := 1.0
+	if _unlock_from.has(type):
+		k = clampf(float(now - int(_unlock_from[type])) / (UNLOCK_SEC * 1000.0), 0.0, 1.0)
+		if k >= 1.0:
+			_unlock_from.erase(type)
+		else:
+			k = floorf(k * UNLOCK_SEC * 12.0) / (UNLOCK_SEC * 12.0)
+	c.draw_string(T.FONT_BOLD, Vector2(text_x, 17) + o, label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT)
+	c.draw_string(T.FONT, Vector2(text_x, 32) + o, "$%d" % _cost(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
+	c.draw_string(T.FONT, Vector2(text_x, 47) + o, _stat_line(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(70, 70, 90))
+	if k < 1.0:
+		# The grey off in steps; the padlock springs and drops out of the card.
+		c.draw_rect(Rect2(Vector2(3, 3), c.size - Vector2(6, 6)), Color(0.75, 0.75, 0.75, 0.55 * (1.0 - k)))
+		if _padlock != null:
+			var drop := 0.0 if k < 0.25 else pow((k - 0.25) / 0.75, 2.0) * 60.0
+			var hop := -4.0 * sin(clampf(k / 0.25, 0.0, 1.0) * PI)
+			c.draw_set_transform(Vector2(12, c.size.y - 12 + hop + drop), (k - 0.25) * 2.2 if k > 0.25 else 0.0, Vector2.ONE)
+			c.draw_texture_rect(_padlock, Rect2(Vector2(-8, -8), Vector2(16, 16)), false, Color(1, 1, 1, 1.0 - maxf(0.0, k - 0.7) / 0.3))
+			c.draw_set_transform(Vector2.ZERO)
+		return
+	# NEW, as the tycoons of the time put it on a new ride's button, till it is picked: a
+	# sticker on the picture's corner (over the name it hid the end of it).
+	var tag := tr("NEW")
+	var tw := T.FONT_BOLD.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+	var r := Rect2(3, c.size.y - 16, tw + 6, 13)
+	c.draw_rect(r, Color8(200, 24, 24))
+	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), Color8(255, 120, 110))
+	c.draw_string(T.FONT_BOLD, Vector2(r.position.x + 3, r.position.y + 11), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
 
 
 func _shell_stored(key: String, default: Variant) -> Variant:
