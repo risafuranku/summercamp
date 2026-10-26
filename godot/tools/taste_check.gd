@@ -27,7 +27,7 @@ func _ready() -> void:
 	var babi := {"id": 2, "archetype": "picker", "lodging_slots": [{"coord": Vector2i(12, 10), "building_type": "cabin_1"}]}
 	var late := 23 * 60
 	var day := 10 * 60
-	_ok(life.call("_noise_for", babi, late) > 20.0, "Babi hears the lads at 23:00")
+	_ok(life.call("_noise_for", babi, late) >= NEEDS.NOISE_COMFORT * NEEDS.walls_let_in("cabin_1") - 0.01, "Babi hears the lads at 23:00 (through a cabin's walls)")
 	_ok(bool(babi.get("noisy_night", false)), "and remembers it in the morning")
 	_eq(life.call("_noise_for", babi, day), 0.0, "quiet by day")
 	_eq(life.call("_noise_for", babi, 4 * 60), 0.0, "quiet after three")

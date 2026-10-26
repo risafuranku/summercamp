@@ -205,7 +205,7 @@ How it works: DESIGN.md "People as in Doom", AGENTS.md §7 "People from eight si
 - [x] Hands: hire one to a locker, jobs ticked per hand, the day (coffee, jobs, rest, a guest's bed, home at eight)
 - [x] Personal 98: SoftSklad's fifth program; licence at softsklad.cz
 - [x] The post's plate at the right edge (van on the way, parcel at the desk)
-- [ ] Co-op checked in two windows (the code is in: biz.staff in the pulse, s_* ops to the host, the laptop's screen and the figures)
+- [x] Co-op checked in two windows (`tools/staff_coop.py` PASS 26. 10.: the figures outside and in, the crew and the laptop on the joining machine)
 - [x] The boiler room's mattress is the warden's bed (lodge_bed "staff"); the hands sit in the lounge (armchairs bought) and all go home at night (the user, the same evening)
 - [ ] Sounds of their own: the boiler's roar, the fridge's hum, the coffee machine's gurgle, the locker's clang (ElevenLabs)
 - [ ] A hand asleep in a guest's bed seen in that lodging's room
@@ -273,23 +273,28 @@ How it works: AGENTS.md §8. Left: `python tools/i18n/extract.py --stats` / `--t
   taller big menu rows in Czech (capitals' accents)
 - [x] `tools/i18n/extract.py` (5,125 strings found) and `fill.py`; the title screen, its
   pages, the options and controls translated (~200)
-- [ ] The HUD, the pause menu, prompts and the feed
-- [ ] Drawn text through `tr()`: ~350 `draw_string` calls (the PC's programs, the Builder,
-  the stations, the close-ups, the paper map)
-- [ ] The PC: Okna 98, CampMail and the mails (`data/pools/emails`), CampStat, GuestRack,
+- [x] The HUD, the pause menu, prompts and the feed (26. 10.: the catalogue 18% -> 100%, 5,612 of 5,614; words that mean two things by context: `tr("CLEAR", "weather")`, catalogue "weather|CLEAR")
+- [x] Drawn text through `tr()`: ~700 sites (the PC's programs, the Builder, the stations, the
+  close-ups, the paper map, the HUD); format strings by `LANG.f` (26. 10.)
+- [x] The PC: Okna 98, CampMail and the mails (`data/pools/emails`), CampStat, GuestRack,
   Goggle, SoftSklad, the web pages, Files, the games and jobs
-- [ ] The camp: buildings (`data/buildings` display names), guests and their lines, day
+- [x] The camp: buildings (`data/buildings` display names), guests and their lines, day
   events, night jobs, the director's log, Vera's checklist, the businesses and their
   stations, Papa's slip, the Z report
-- [ ] Liblice, the bus (the driver is already Czech), Pristoupim, the phone book
+- [x] Liblice, the bus (the driver is already Czech), Pristoupim, the phone book
 - [ ] Text put together from pieces in code: find them in Czech shots, make them one
-  format string
+  format string (left 26. 10.: service_interior's room sentence "Look at the " + name and
+  "Use %s"; games_app/jobs_app card status; courier_news fills {n} before the paper; the
+  clock's "precisely"; town_trip's "to Liblice 5:30"; Goggle's " EDIT:" appended; the
+  DataPunch/register hand font has no Czech accents)
 - [ ] Pictures with words (signs, posters, the web's pictures, the Builder's splash) and
   English voices (the phone, the electrician): Czech versions through locale remaps
 - [x] Money in Czech: crowns (the user, 21. 10.), $1 = 10 Kč in `lang.gd` (`crowns()`,
   `LANG.money()`); drawn money that skips tr() (the Builder's odometer, the PC's
   programs) still to go through it
-- [ ] Play a day and a night in Czech end to end and fix what reads wrong
+- [ ] Play a day and a night in Czech end to end and fix what reads wrong (26. 10.: shots
+  in Czech of the menus, HUD, PC, Builder, GuestRack, check-in, pause, the pub, bistro and
+  Jednota looked at and fixed; the night, the town and the mails not yet)
 
 ## PODNIKY POLISH — 2026-10-20 (the brief: the four places to the top)
 
