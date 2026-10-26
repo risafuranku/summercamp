@@ -3524,10 +3524,14 @@ func _make_windows(profile: String) -> void:
 			# own place, moved by where the room stands in it.
 			if profile == "pub":
 				entry["at"] = PUB_LAYOUT.AT
+			elif profile == "rest":
+				entry["at"] = BISTRO_LAYOUT.AT
+			elif profile == "vecerka":
+				entry["at"] = JEDNOTA_LAYOUT.AT
 			_windows.append(entry)
 	if profile == "vecerka" and _vecerka_shop_root != null:
 		var w2 = WINDOW_PORTAL.make(self, _vecerka_shop_root, Vector3(3.17, 1.55, 1.55), Vector3(1, 0, 0), Vector2(1.0, 0.8), "curtain_floral")
-		_windows.append({"w": w2, "root": _vecerka_shop_root})
+		_windows.append({"w": w2, "root": _vecerka_shop_root, "at": JEDNOTA_LAYOUT.AT})
 
 
 func _free_windows() -> void:

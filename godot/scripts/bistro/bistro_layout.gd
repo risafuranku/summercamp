@@ -25,6 +25,24 @@ const K := preload("res://scripts/interior_kit.gd")
 const TEX := "res://assets/textury/camp/"
 const SIZE := Vector3(6.2, 2.9, 4.8)
 
+## The building round the dining room (building_models._restaurant), one plan with it as
+## the pub's (pub_layout.gd): the room's space is the building's moved by AT, its walls
+## WALL thick with the faces outside on them; the front's four windows and its door where
+## the front's picture has them (camp_bistro_front_glass.png: tools/artgen/glass_fronts.py
+## bistro), in the room's front wall. The kitchen and the cellar are not in the building
+## (behind the hatch; under the floor).
+const AT := Vector3(0.0, 0.1, 0.0)
+const WALL := 0.1
+const WINDOWS := [
+	{"wall": "front", "at": Vector3(-2.443, 1.508, 2.4), "size": Vector2(1.229, 1.45)},
+	{"wall": "front", "at": Vector3(-1.114, 1.508, 2.4), "size": Vector2(1.143, 1.45)},
+	{"wall": "front", "at": Vector3(1.114, 1.508, 2.4), "size": Vector2(1.143, 1.45)},
+	{"wall": "front", "at": Vector3(2.443, 1.508, 2.4), "size": Vector2(1.229, 1.45)},
+]
+## The front door between them (its middle on the floor, its size).
+const DOOR := Vector3(0.0, 0.0, 2.4)
+const DOOR_SIZE := Vector2(0.8, 1.95)
+
 ## The menu board's lines: [dish ("" the heading), the chalk].
 const MENU_LINES := [
 	["", "DNES VARIME / TODAY"],
@@ -257,17 +275,20 @@ static func dining(parent: Node3D, si) -> void:
 	# The hatch into the kitchen, beside its door: a steel sill, the kitchen lit behind.
 	hatch(parent, Vector3(0.45, 1.3, -2.4))
 	look(parent, "hatch", "The hatch to the kitchen. Plates come out of it by themselves when the kitchen is busy.", Vector3(0.45, 1.35, -2.33), Vector3(0.9, 0.55, 0.1))
-	# Windows on the left with net curtains and geraniums, the radiator under them.
-	# The weather at them (scripts/ambient/room_weather.gd): rain on the glass, lightning.
+	# The front's windows, where the building's face has them (WINDOWS), a radiator under
+	# each; the door between them. The weather at them (scripts/ambient/room_weather.gd):
+	# rain on the glass, lightning.
 	var rw = load("res://scripts/ambient/room_weather.gd").new()
 	parent.add_child(rw)
-	for z: float in [-1.35, 0.55]:
-		rw.add_window(_pic(parent, "window_view", Vector2(0.9, 0.8), Vector3(-3.08, 1.55, z), 90.0, "Window"))
-		_pic(parent, "window_curtain", Vector2(0.96, 0.86), Vector3(-3.06, 1.55, z), 90.0, "NetCurtain")
-		K.slab(parent, Vector3(0.18, 0.04, 1.0), Vector3(-3.02, 1.12, z), K.surface("planks_dark", 0.5), "Sill")
-		_cut(parent, "plant_dry", Vector2(0.24, 0.3), Vector3(-2.98, 1.14, z + 0.25), 90.0, false, "Geranium")
-		K.slab(parent, Vector3(0.08, 0.5, 0.9), Vector3(-3.04, 0.45, z), K.surface("galvanized", 0.3, Color(0.85, 0.82, 0.76)), "Radiator")
-	look(parent, "window", "The car park, the bins, the forest. A man stood by the bins yesterday for an hour.", Vector3(-3.0, 1.55, -1.35), Vector3(0.1, 0.8, 0.9))
+	for wd in WINDOWS:
+		var wat: Vector3 = wd["at"]
+		var wsize: Vector2 = wd["size"]
+		rw.add_window(_pic(parent, "window_view", wsize, wat + Vector3(0, 0, -0.02), 180.0, "Window"))
+		K.slab(parent, Vector3(wsize.x + 0.1, 0.04, 0.18), wat + Vector3(0, -wsize.y * 0.5 - 0.02, -0.08), K.surface("planks_dark", 0.5), "Sill")
+		K.slab(parent, Vector3(minf(0.9, wsize.x - 0.2), 0.5, 0.08), Vector3(wat.x, 0.45, wat.z - 0.04), K.surface("galvanized", 0.3, Color(0.85, 0.82, 0.76)), "Radiator")
+	K.picture(parent, "door_interior", DOOR_SIZE, DOOR + Vector3(0, DOOR_SIZE.y * 0.5, -0.01), 180.0, "FrontDoor")
+	var first: Vector3 = WINDOWS[0]["at"]
+	look(parent, "window", "The car park, the bins, the forest. A man stood by the bins yesterday for an hour.", first + Vector3(0, 0, -0.05), Vector3(1.2, 1.4, 0.1))
 	_pic(parent, "picture_deer", Vector2(0.5, 0.66), Vector3(-3.06, 1.75, -0.4), 90.0, "Deer")
 	look(parent, "deer", "A stag in a clearing. Its eyes were painted in later, by somebody else.", Vector3(-3.0, 1.75, -0.4), Vector3(0.1, 0.66, 0.5))
 	_pic(parent, "poster_mushrooms", Vector2(0.5, 0.66), Vector3(3.06, 1.65, 0.6), -90.0, "Mushrooms")
@@ -299,6 +320,14 @@ static func dining(parent: Node3D, si) -> void:
 		_cut(parent, "ashtray", Vector2(0.15, 0.13), t + Vector3(0.14, 0.76, -0.14), 0.0, true, "Ashtray")
 		_cut(parent, "bistro_vase", Vector2(0.1, 0.28), t + Vector3(-0.05, 0.76, -0.18), 0.0, true, "Vase")
 		_cut(parent, "bistro_cruet", Vector2(0.16, 0.14), t + Vector3(-0.18, 0.76, -0.12), 0.0, true, "Cruet")
+
+
+## The dining room built again in its building in the camp (building_models._restaurant):
+## the same room by the same code, open at its windows, nothing in it to click.
+static func dining_outside(parent: Node3D, host) -> void:
+	dining(parent, host)
+	K.strip_for_outside(parent)
+	K.open_windows(parent, WINDOWS)
 
 
 ## The hatch through a wall (its sill at `at.y - 0.3`): a dark opening, the light of

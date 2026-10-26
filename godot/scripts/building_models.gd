@@ -333,37 +333,52 @@ func _pane_into(r: Node3D, size: Vector2, pos: Vector3, yaw: float) -> MeshInsta
 
 
 # ── the restaurant (restaurace.PNG): flat roof, tiled band, the red sign ──────
+#    One plan with the dining room inside (bistro_layout.gd: AT, SIZE, WALL, WINDOWS; the
+#    user 26. 10.: the windows real): the house is the room's size, the room built in it
+#    by the layout's own code and seen through the front's four windows; its lamps lit by
+#    the bistro's hours.
 
-func _restaurant(r: Node3D, w: float, d: float) -> Dictionary:
-	var sx := w * 0.72
-	var sz := d * 0.52
+func _restaurant(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var lay = load("res://scripts/bistro/bistro_layout.gd")
+	var at: Vector3 = lay.AT
+	var room_size: Vector3 = lay.SIZE
+	var sx: float = room_size.x + 2.0 * float(lay.WALL)
+	var sz: float = room_size.z + 2.0 * float(lay.WALL)
 	var h := 2.9
-	var front := sz * 0.5
-	_plinth(r, sx + 0.3, sz + 0.3)
-	_box(r, "Upper", Vector3(sx, h - 1.0, sz), Vector3(0, 1.0 + (h - 1.0) * 0.5 + 0.1, 0), _camp_or("concrete.png", Color(1.0, 0.98, 0.9), "wall"))
-	_box(r, "Tiles", Vector3(sx + 0.02, 1.0, sz + 0.02), Vector3(0, 0.6, 0), _camp_or("tiles_green.png", Color(0.62, 0.8, 0.66), "wall", Vector3(4.0, 1.0, 1.0)))
-	_box(r, "Roof", Vector3(sx + 0.3, 0.2, sz + 0.3), Vector3(0, h + 0.2, 0), _camp_or("concrete.png", Color(0.6, 0.6, 0.58), "roof"))
-	if ResourceLoader.exists(CAMP + "camp_bistro_front.png"):
-		_quad(r, "BistroFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.015), 0.0, _face_mat("camp_bistro_front.png"))
-	else:
-		_box(r, "Door", Vector3(0.9, 2.0, 0.06), Vector3(-0.4, 1.1, front + 0.03), _camp("door_wood.png", Color(0.6, 0.66, 0.6)))
-		for x: float in [-2.2, 1.0, 2.0]:
-			_window(r, Vector3(x, 1.75, front + 0.02), Vector2(0.85, 0.8))
-	var awn := _box(r, "Awning", Vector3(1.4, 0.07, 0.8), Vector3(0.0, 2.55, front + 0.4), _flat(Color(0.86, 0.66, 0.16)))
+	var front := at.z + sz * 0.5
+	_plinth(r, sx + 0.3, sz + 0.3, Vector3(at.x, 0, at.z))
+	_room_inside(r, at, "BistroRoom", func(room: Node3D, host) -> void: lay.dining_outside(room, host))
+	# The faces on the room's walls: the front's picture with its glass cut out; concrete
+	# over the green tiled band round the other three.
+	_quad(r, "BistroFront", Vector2(sx, h), Vector3(at.x, h * 0.5 + 0.1, front + 0.015), 0.0, _glass_face("camp_bistro_front_glass.png", "camp_bistro_front.png"))
+	var concrete: Material = _camp_or("concrete.png", Color(1.0, 0.98, 0.9), "wall")
+	var tiles: Material = _camp_or("tiles_green.png", Color(0.62, 0.8, 0.66), "wall", Vector3(4.0, 1.0, 1.0))
+	for side in [[Vector2(sz, 0.0), Vector3(-sx * 0.5 - 0.012, 0, 0), -PI * 0.5], [Vector2(sz, 0.0), Vector3(sx * 0.5 + 0.012, 0, 0), PI * 0.5], [Vector2(sx, 0.0), Vector3(0, 0, -sz * 0.5 - 0.012), PI]]:
+		var width: float = (side[0] as Vector2).x
+		var off: Vector3 = at + (side[1] as Vector3)
+		_side_quad(r, "Upper", Vector2(width, h - 1.0), Vector3(off.x, 1.1 + (h - 1.0) * 0.5, off.z), float(side[2]), concrete)
+		_side_quad(r, "Tiles", Vector2(width, 1.0), Vector3(off.x, 0.6, off.z), float(side[2]), tiles)
+	# The flat roof over the room's ceiling.
+	_box(r, "Roof", Vector3(sx + 0.3, 0.2, sz + 0.3), Vector3(at.x, h + 0.31, at.z), _camp_or("concrete.png", Color(0.6, 0.6, 0.58), "roof"))
+	for wd in lay.WINDOWS:
+		var wa: Vector3 = at + (wd["at"] as Vector3)
+		_pane_into(r, wd["size"], Vector3(wa.x, wa.y, front - 0.004), 0.0)
+	var door: Vector3 = at + (lay.DOOR as Vector3)
+	var awn := _box(r, "Awning", Vector3(1.4, 0.07, 0.8), Vector3(door.x, 2.55, front + 0.4), _flat(Color(0.86, 0.66, 0.16)))
 	awn.rotation.x = 0.25
 	# The big red sign on the roof edge.
-	_box(r, "Sign", Vector3(sx * 0.62, 0.62, 0.12), Vector3(0, h + 0.62, front - 0.1), _flat(Color(0.74, 0.08, 0.06)))
-	_label(r, "RESTAURACE", Vector3(0, h + 0.62, front - 0.03), 0.34, Color(0.98, 0.95, 0.88))
+	_box(r, "Sign", Vector3(sx * 0.62, 0.62, 0.12), Vector3(0, h + 0.73, front - 0.1), _flat(Color(0.74, 0.08, 0.06)))
+	_label(r, "RESTAURACE", Vector3(0, h + 0.73, front - 0.03), 0.34, Color(0.98, 0.95, 0.88))
 	# A drinks machine, the blue bin, the dish, an AC box, a gas bottle.
-	_box(r, "Vending", Vector3(0.8, 1.8, 0.7), Vector3(-sx * 0.5 - 0.2, 1.0, front - 0.6), _flat(Color(0.78, 0.08, 0.06)))
-	_box(r, "VendingStripe", Vector3(0.82, 0.25, 0.72), Vector3(-sx * 0.5 - 0.2, 1.3, front - 0.6), _flat(Color(0.95, 0.95, 0.92)))
-	_box(r, "Bin", Vector3(1.2, 1.0, 0.8), Vector3(sx * 0.5 + 0.4, 0.6, front - 0.4), _flat(Color(0.16, 0.3, 0.62)))
-	var lid := _box(r, "BinLid", Vector3(1.24, 0.06, 0.84), Vector3(sx * 0.5 + 0.4, 1.14, front - 0.42), _flat(Color(0.1, 0.18, 0.4)))
+	_box(r, "Vending", Vector3(0.8, 1.8, 0.7), Vector3(-sx * 0.5 - 0.5, 1.0, front - 0.6), _flat(Color(0.78, 0.08, 0.06)))
+	_box(r, "VendingStripe", Vector3(0.82, 0.25, 0.72), Vector3(-sx * 0.5 - 0.5, 1.3, front - 0.6), _flat(Color(0.95, 0.95, 0.92)))
+	_box(r, "Bin", Vector3(1.2, 1.0, 0.8), Vector3(sx * 0.5 + 0.55, 0.6, front - 0.6), _flat(Color(0.16, 0.3, 0.62)))
+	var lid := _box(r, "BinLid", Vector3(1.24, 0.06, 0.84), Vector3(sx * 0.5 + 0.55, 1.14, front - 0.62), _flat(Color(0.1, 0.18, 0.4)))
 	lid.rotation.x = -0.12
-	_cyl(r, "Dish", 0.36, 0.06, Vector3(sx * 0.3, h + 0.8, -0.6), _flat(Color(0.84, 0.84, 0.82)), Vector3(0.6, 0, 0))
-	_box(r, "ACUnit", Vector3(0.7, 0.45, 0.5), Vector3(-sx * 0.25, h + 0.52, -0.8), _metal())
-	_cyl(r, "Gas", 0.16, 0.6, Vector3(sx * 0.5 + 0.2, 0.4, -0.6), _flat(Color(0.7, 0.24, 0.12)))
-	return {"size": Vector3(sx + 1.6, h + 0.9, sz + 0.6), "target": Vector3(0.0, 1.2, front + 0.2)}
+	_cyl(r, "Dish", 0.36, 0.06, Vector3(sx * 0.3, h + 0.91, -0.6), _flat(Color(0.84, 0.84, 0.82)), Vector3(0.6, 0, 0))
+	_box(r, "ACUnit", Vector3(0.7, 0.45, 0.5), Vector3(-sx * 0.25, h + 0.63, -0.8), _metal())
+	_cyl(r, "Gas", 0.16, 0.6, Vector3(sx * 0.5 + 0.25, 0.4, -0.9), _flat(Color(0.7, 0.24, 0.12)))
+	return {"size": Vector3(sx + 1.6, h + 0.9, sz + 0.6), "target": Vector3(door.x, 1.2, front + 0.2)}
 
 
 # ── the substation (gen.PNG): brick block, steel doors, a transformer on top ──
@@ -1781,16 +1796,26 @@ func _corn_stand(r: Node3D, w: float, _d: float) -> Dictionary:
 #    empties, the ice-cream freezer, a bench. Inside it is scripts/jednota/jednota_layout.gd.
 
 func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
-	var sx := 7.2
-	var sz := 6.0
+	# One plan with the shop inside (jednota_layout.gd: AT, SIZE, WALL, WINDOWS; the user
+	# 26. 10.: the windows real): the house is the shop's size, the shop built in it by the
+	# layout's own code and seen through the front's four windows.
+	var lay = load("res://scripts/jednota/jednota_layout.gd")
+	var room_size: Vector3 = lay.SIZE
+	var sx: float = room_size.x + 2.0 * float(lay.WALL)
+	var sz: float = room_size.z + 2.0 * float(lay.WALL)
 	var h := 3.4
 	var front := sz * 0.5
-	var plaster: Material = _camp_or("plaster_stone.png", Color(0.9, 0.86, 0.78), "wall", Vector3(2.0, 1.2, 1.0))
 	_plinth(r, sx + 0.3, sz + 0.3)
-	_box(r, "Shop", Vector3(sx, h, sz), Vector3(0, h * 0.5 + 0.1, 0), plaster)
+	_room_inside(r, lay.AT, "JednotaRoom", func(room: Node3D, host) -> void: lay.shop_outside(room, host))
 	_box(r, "Roof", Vector3(sx + 0.5, 0.25, sz + 0.5), Vector3(0, h + 0.22, 0), _camp_or("concrete.png", Color(0.62, 0.6, 0.58), "roof"))
-	if ResourceLoader.exists(CAMP + "jednota_front.png"):
-		_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _face_mat("jednota_front.png"))
+	_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_face("jednota_front_glass.png", "jednota_front.png"))
+	for wd in lay.WINDOWS:
+		var wa: Vector3 = (lay.AT as Vector3) + (wd["at"] as Vector3)
+		_pane_into(r, wd["size"], Vector3(wa.x, wa.y, front - 0.004), 0.0)
+	if not ResourceLoader.exists(CAMP + "jednota_side.png"):
+		var plaster: Material = _camp_or("plaster_stone.png", Color(0.9, 0.86, 0.78), "wall", Vector3(2.0, 1.2, 1.0))
+		for side in [[-1.0, -PI * 0.5], [1.0, PI * 0.5]]:
+			_side_quad(r, "JednotaSide", Vector2(sz, h), Vector3(float(side[0]) * (sx * 0.5 + 0.012), h * 0.5 + 0.1, 0), float(side[1]), plaster)
 	if ResourceLoader.exists(CAMP + "jednota_side.png"):
 		_quad(r, "JednotaSideL", Vector2(sz, h), Vector3(-sx * 0.5 - 0.012, h * 0.5 + 0.1, 0), -PI * 0.5, _face_mat("jednota_side.png"))
 		_quad(r, "JednotaSideR", Vector2(sz, h), Vector3(sx * 0.5 + 0.012, h * 0.5 + 0.1, 0), PI * 0.5, _face_mat("jednota_side.png"))

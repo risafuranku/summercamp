@@ -325,6 +325,35 @@ static func cut_wall(wall: MeshInstance3D, holes: Array) -> void:
 	wall.free()
 
 
+## A room built again in its building (one plan) opened at its windows: [{wall ("front",
+## "back", "left", "right"), at (the glass's middle, room space), size}]: its walls cut
+## round them, the painted views and net curtains in them gone (the camp is behind the
+## glass; inside, the windows' own curtains are drawn: window_portal.gd).
+static func open_windows(parent: Node3D, windows: Array) -> void:
+	var holes := {"front": [], "back": [], "left": [], "right": []}
+	for wd in windows:
+		var at: Vector3 = wd["at"]
+		var size: Vector2 = wd["size"]
+		var w := str(wd["wall"])
+		var across := at.x if w == "front" or w == "back" else at.z
+		(holes[w] as Array).append([across - size.x * 0.5, across + size.x * 0.5, at.y - size.y * 0.5, at.y + size.y * 0.5])
+	var walls := {"WallFront": "front", "WallBack": "back", "WallLeft": "left", "WallRight": "right"}
+	for n in parent.get_children():
+		if not (n is MeshInstance3D):
+			continue
+		var mi := n as MeshInstance3D
+		var wn := String(mi.name)
+		if walls.has(wn):
+			if not (holes[walls[wn]] as Array).is_empty():
+				cut_wall(mi, holes[walls[wn]])
+			continue
+		var pm := mi.material_override as StandardMaterial3D
+		var tex := str(pm.albedo_texture.resource_path) if pm != null and pm.albedo_texture != null else ""
+		if tex.ends_with("window_view.png") or tex.ends_with("window_curtain.png"):
+			parent.remove_child(mi)
+			mi.free()
+
+
 ## What only the room inside wants, out of a room built again in its building in the camp:
 ## the click boxes (the looks, the stations), the rain on the glass.
 static func strip_for_outside(root: Node) -> void:

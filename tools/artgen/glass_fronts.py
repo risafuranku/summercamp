@@ -111,5 +111,35 @@ def pub():
         "front_px": front.size, "side_px": side.size}, indent=1))
 
 
+def bistro():
+    # The house: the dining room (BISTRO_LAYOUT.SIZE 6.2 x 4.8 and 0.1 walls) 6.4 m wide,
+    # the face 2.9 m from 0.1 up: the picture (224 px for the old 5.76 m) laid over it as it
+    # is, a little wider. Its four panes, the transom bar, the cafe lace across them and the
+    # menu card in the second kept.
+    front = Image.open(os.path.join(CAMP, "camp_bistro_front.png")).convert("RGBA")
+    panes = [(5, 29, 47, 91), (53, 29, 92, 91), (131, 29, 170, 91), (176, 29, 218, 91)]
+    for x0, y0, x1, y1 in panes:
+        for band in ((y0, 40), (44, 63), (84, y1)):
+            cut(front, (x0, band[0], x1, band[1]))
+    # The menu card in the second pane back as it was.
+    card = Image.open(os.path.join(CAMP, "camp_bistro_front.png")).convert("RGBA").crop((59, 45, 84, 61))
+    front.paste(card, (59, 45))
+    front.save(os.path.join(CAMP, "camp_bistro_front_glass.png"))
+    print(json.dumps({"front": panes_in_metres(panes, front.size, (6.4, 2.9), 0.1)}, indent=1))
+
+
+def jednota():
+    # The house: the shop (JEDNOTA_LAYOUT.SIZE 6.4 x 5.2 and 0.1 walls) 6.6 m wide, the face
+    # 3.4 m from 0.1 up: the picture (256 px for the old 7.2 m) laid over it as it is. Its
+    # four shop windows cut (the goods painted in them give way to the shop's own racks);
+    # the door stays.
+    front = Image.open(os.path.join(CAMP, "jednota_front.png")).convert("RGBA")
+    panes = [(19, 40, 59, 103), (63, 40, 102, 103), (154, 40, 193, 103), (199, 40, 237, 103)]
+    for r in panes:
+        cut(front, r)
+    front.save(os.path.join(CAMP, "jednota_front_glass.png"))
+    print(json.dumps({"front": panes_in_metres(panes, front.size, (6.6, 3.4), 0.1)}, indent=1))
+
+
 if __name__ == "__main__":
-    {"pub": pub}[sys.argv[1]]()
+    {"pub": pub, "bistro": bistro, "jednota": jednota}[sys.argv[1]]()

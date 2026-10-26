@@ -24,6 +24,22 @@ const STATION3D := preload("res://scripts/business/station3d.gd")
 const TEX := "res://assets/textury/camp/"
 const J := "res://assets/textury/jednota/"
 const SIZE := Vector3(6.4, 3.0, 5.2)
+
+## The building round the shop (building_models._jednota), one plan with it as the pub's
+## (pub_layout.gd): the room's space is the building's moved by AT, its walls WALL thick
+## with the faces outside on them; the front's four shop windows where its picture has
+## them (jednota_front_glass.png: tools/artgen/glass_fronts.py jednota), in the room's
+## front wall, the door between them. The store room is not in the building.
+const AT := Vector3(0.0, 0.1, 0.0)
+const WALL := 0.1
+const WINDOWS := [
+	{"wall": "front", "at": Vector3(-2.282, 1.613, 2.6), "size": Vector2(1.057, 1.588)},
+	{"wall": "front", "at": Vector3(-1.16, 1.613, 2.6), "size": Vector2(1.031, 1.588)},
+	{"wall": "front", "at": Vector3(1.186, 1.613, 2.6), "size": Vector2(1.031, 1.588)},
+	{"wall": "front", "at": Vector3(2.333, 1.613, 2.6), "size": Vector2(1.005, 1.588)},
+]
+const DOOR := Vector3(0.0, 0.0, 2.6)
+const DOOR_SIZE := Vector2(0.95, 2.1)
 const STORE := Vector3(4.8, 2.8, 4.0)
 
 ## The stations: id -> {room, at (click box centre), size, stand (where the warden stands
@@ -232,6 +248,14 @@ static func shop(parent: Node3D, si) -> void:
 		racks.visible = false
 	_rack_picture(parent, "shop_shelf_goods", Vector2(1.5, 0.84), Vector3(-2.95, 0.55, 1.45), 0.36, "TinShelf")
 	look(parent, "tins", "Pork in its own juice, peas, peas with carrots, pork with peas. The labels have faded the same blue.", Vector3(-2.9, 0.95, 1.45), Vector3(0.4, 0.84, 1.5))
+	# The shop windows in the front, where the building's face has them (WINDOWS), and the
+	# door between them.
+	for wd in WINDOWS:
+		var wat: Vector3 = wd["at"]
+		var wsize: Vector2 = wd["size"]
+		_pic(parent, "window_view", wsize, wat + Vector3(0, 0, -0.02), 180.0, "Window")
+		K.slab(parent, Vector3(wsize.x + 0.1, 0.04, 0.2), wat + Vector3(0, -wsize.y * 0.5 - 0.02, -0.09), K.surface("planks_dark", 0.5), "Sill")
+	K.picture(parent, "door_interior", DOOR_SIZE, DOOR + Vector3(0, DOOR_SIZE.y * 0.5, -0.01), 180.0, "FrontDoor")
 	# The ice-cream chest by the door, the baskets.
 	_cut(parent, "shop_freezer", Vector2(0.9, 0.69), Vector3(-2.2, 0.05, 2.15), 0.0, true, "Freezer")
 	look(parent, "freezer", "Ice cream on a stick, 3 crowns. Something under the ice at the bottom has been there since spring.", Vector3(-2.2, 0.35, 2.15), Vector3(0.9, 0.7, 0.6))
@@ -265,6 +289,14 @@ static func shop(parent: Node3D, si) -> void:
 			station_body(parent, str(id))
 	surface(parent, "till")
 	surface(parent, "deli")
+
+
+## The shop built again in its building in the camp (building_models._jednota): the same
+## room by the same code, open at its windows, nothing in it to click.
+static func shop_outside(parent: Node3D, host) -> void:
+	shop(parent, host)
+	K.strip_for_outside(parent)
+	K.open_windows(parent, WINDOWS)
 
 
 ## A picture standing on the floor against a wall (a rack, a fridge), on a box as deep

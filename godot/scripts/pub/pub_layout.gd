@@ -287,28 +287,7 @@ static func _window(parent: Node3D, wd: Dictionary, rw) -> void:
 static func bar_outside(parent: Node3D, host) -> void:
 	bar(parent, host)
 	K.strip_for_outside(parent)
-	var holes := {"front": [], "left": []}
-	for wd in WINDOWS:
-		var at: Vector3 = wd["at"]
-		var size: Vector2 = wd["size"]
-		var across := at.x if str(wd["wall"]) == "front" else at.z
-		(holes[str(wd["wall"])] as Array).append([across - size.x * 0.5, across + size.x * 0.5, at.y - size.y * 0.5, at.y + size.y * 0.5])
-	for n in parent.get_children():
-		if not (n is MeshInstance3D):
-			continue
-		var mi := n as MeshInstance3D
-		if String(mi.name) == "WallFront":
-			K.cut_wall(mi, holes["front"])
-		elif String(mi.name) == "WallLeft":
-			K.cut_wall(mi, holes["left"])
-		else:
-			var pm := mi.material_override as StandardMaterial3D
-			var tex := str(pm.albedo_texture.resource_path) if pm != null and pm.albedo_texture != null else ""
-			# The painted views go (the camp is behind the glass), and the painted net
-			# curtains (inside, the windows' own curtains are drawn: window_portal.gd).
-			if tex.ends_with("window_view.png") or tex.ends_with("window_curtain.png"):
-				parent.remove_child(mi)
-				mi.free()
+	K.open_windows(parent, WINDOWS)
 
 
 # ── the cellar ───────────────────────────────────────────────────────────────
