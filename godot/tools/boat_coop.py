@@ -23,7 +23,7 @@ ROWING, FAR_SHORE, PASSENGER = "1", "2", "3"
 
 def run(role):
     log = open(os.path.join(OUT, "%s.log" % role), "w", encoding="utf-8")
-    return subprocess.Popen([GODOT, "--path", PROJECT, "--resolution", "1280x720", "res://tools/boat_coop.tscn", "--",
+    return subprocess.Popen([GODOT, "--audio-driver", "Dummy", "--path", PROJECT, "--resolution", "1280x720", "res://tools/boat_coop.tscn", "--",
                              "--role=%s" % role, "--out=%s" % OUT], stdout=log, stderr=subprocess.STDOUT)
 
 

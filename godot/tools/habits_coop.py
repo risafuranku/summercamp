@@ -22,7 +22,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.environ.get("TEMP", 
 
 def run(role):
     log = open(os.path.join(OUT, "%s.log" % role), "w", encoding="utf-8")
-    return subprocess.Popen([GODOT, "--path", PROJECT, "res://tools/habits_coop.tscn", "--", "--role=%s" % role, "--out=%s" % OUT],
+    return subprocess.Popen([GODOT, "--audio-driver", "Dummy", "--path", PROJECT, "res://tools/habits_coop.tscn", "--", "--role=%s" % role, "--out=%s" % OUT],
                             stdout=log, stderr=subprocess.STDOUT)
 
 

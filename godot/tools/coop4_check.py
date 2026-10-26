@@ -21,7 +21,7 @@ ROLES = ["host", "c1", "c2", "c3"]
 
 def run(role):
     log = open(os.path.join(OUT, "%s.log" % role), "w", encoding="utf-8")
-    return subprocess.Popen([GODOT, "--path", PROJECT, "res://tools/coop4_check.tscn", "--resolution", "640x360",
+    return subprocess.Popen([GODOT, "--audio-driver", "Dummy", "--path", PROJECT, "res://tools/coop4_check.tscn", "--resolution", "640x360",
                              "--", "--role=%s" % role, "--out=%s" % OUT], stdout=log, stderr=subprocess.STDOUT)
 
 
