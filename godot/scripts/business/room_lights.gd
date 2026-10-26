@@ -7,6 +7,7 @@ extends Node
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const CREW_FIGURES := preload("res://scripts/business/crew_figures.gd")
 const SERVICE_LIFE := preload("res://scripts/food/service_life.gd")
+const CURTAIN := preload("res://scripts/reception/curtain.gd")
 ## The place's records group -> its guests' profile (service_life.gd).
 const PROFILE := {"taprooms": "pub", "kitchens": "rest", "jednotas": "vecerka"}
 
@@ -33,6 +34,10 @@ var _on := -1
 var _crew: Node3D = null
 var _life: Node3D = null
 var _sign := ""
+## The room's curtains (curtain.gd, as the service interior hangs them at its windows) and
+## the state they were last given (interior_manager's curtains drawn in that room).
+var _curtains: Array = []
+var _drawn: Array = []
 
 
 func _process(delta: float) -> void:
@@ -44,6 +49,9 @@ func _process(delta: float) -> void:
 		_key = _site_key()
 	if _crew == null and _key != "" and room != null and layout != null and not roles.is_empty():
 		_start_crew()
+	if _curtains.is_empty() and room != null and room.has_meta("window_views"):
+		_hang_curtains()
+	_sync_curtains()
 	# The guests at the tables and the racks, as inside (service_life.gd), quiet.
 	if _life == null and _key != "" and room != null and room.is_inside_tree() and PROFILE.has(records_group):
 		_life = SERVICE_LIFE.new()
@@ -87,6 +95,33 @@ func _process(delta: float) -> void:
 			var m := (sh as MeshInstance3D).material_override as StandardMaterial3D
 			if m != null:
 				m.emission_energy_multiplier = 0.7 if on == 1 else 0.0
+
+
+## The curtains at the windows, as window_portal.gd hangs them inside (open).
+func _hang_curtains() -> void:
+	for v in room.get_meta("window_views"):
+		var into: Vector3 = v["into"]
+		var size: Vector2 = v["size"]
+		var c = CURTAIN.new()
+		c.build(room, (v["at"] as Vector3) + into * 0.1, size.x + 0.1, size.y + 0.3, rad_to_deg(atan2(into.x, into.z)), "curtain_floral", 0.7, self, true)
+		_curtains.append(c)
+
+
+## Drawn as they were left inside (by you or the other warden).
+func _sync_curtains() -> void:
+	if _curtains.is_empty() or _key == "":
+		return
+	var scene := get_tree().current_scene
+	var im := scene.get_node_or_null("InteriorManager") if scene != null else null
+	var by_room = im.get("_curtains_by_room") if im != null else null
+	if not (by_room is Dictionary) or not (by_room as Dictionary).has(_key):
+		return
+	var state: Array = by_room[_key]
+	if state == _drawn:
+		return
+	_drawn = state.duplicate()
+	for i in mini(state.size(), _curtains.size()):
+		_curtains[i].set_open(bool(state[i]), true)
 
 
 func _start_crew() -> void:

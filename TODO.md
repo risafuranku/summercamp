@@ -104,6 +104,7 @@ out from where it stands.
 - [x] The hands seen at their stations from outside (crew_figures in the room, not checked by a shot yet); the lamps by the hours; co-op the same (the clock and the books)
 - [x] The Builder's pictures of the three rendered again (Grok iso4_*_b)
 - [x] The guests seen at their tables and racks from outside (26. 10.): the service interior's own guests (`service_life.gd`, quiet: no sounds, already seated, seats from `seats_of`) in the room behind the glass; the pub's windows are high and the bistro's lace hides the seated, so from the path you mostly see the bar's and the shop's
+- [x] The curtains as they were drawn inside (by you or the other warden) drawn behind the glass outside too (`interior_kit.open_windows` keeps where the windows are, `room_lights` hangs `curtain.gd` there)
 
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 

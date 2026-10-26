@@ -349,6 +349,12 @@ static func open_windows(parent: Node3D, windows: Array) -> void:
 			continue
 		var pm := mi.material_override as StandardMaterial3D
 		var tex := str(pm.albedo_texture.resource_path) if pm != null and pm.albedo_texture != null else ""
+		if tex.ends_with("window_view.png") and mi.mesh is QuadMesh:
+			# Where the room's windows are, in the order the service interior makes them
+			# (its curtains' state by index): the room's curtains hung there (room_lights.gd).
+			var views: Array = parent.get_meta("window_views", [])
+			views.append({"at": mi.position, "into": mi.transform.basis.z, "size": (mi.mesh as QuadMesh).size})
+			parent.set_meta("window_views", views)
 		if tex.ends_with("window_view.png") or tex.ends_with("window_curtain.png"):
 			parent.remove_child(mi)
 			mi.free()
