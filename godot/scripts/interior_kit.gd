@@ -205,3 +205,134 @@ static func _prop_material(mat_name: String) -> StandardMaterial3D:
 		m.emission_energy_multiplier = 1.5
 	_prop_mats[mat_name] = m
 	return m
+
+
+# ── shared by the rooms and their buildings in the camp (one plan) ─────────────
+
+## An enamel plate with its words on a wall at `pos` (its face toward +Z): "enamel", the
+## yellow "danger" or a grey "plate".
+static func wall_sign(parent: Node3D, text: String, pos: Vector3, font_size: int, style: String = "enamel") -> Node3D:
+	var root := Node3D.new()
+	root.name = "Sign"
+	root.position = pos
+	parent.add_child(root)
+	var lines := text.split("\n")
+	var longest := 0
+	for line in lines:
+		longest = maxi(longest, line.length())
+	var char_h := float(font_size) * 0.005
+	var size := Vector2(longest * char_h * 0.62 + 0.16, lines.size() * char_h * 1.15 + 0.1)
+	var plate := Color(0.92, 0.9, 0.82)
+	var ink := Color(0.12, 0.12, 0.16)
+	var rim := Color(0.16, 0.2, 0.36)
+	if style == "danger":
+		plate = Color(0.95, 0.8, 0.2)
+		ink = Color(0.6, 0.06, 0.04)
+		rim = Color(0.1, 0.08, 0.06)
+	elif style == "plate":
+		plate = Color(0.62, 0.64, 0.66)
+		ink = Color(0.06, 0.06, 0.06)
+		rim = Color(0.3, 0.3, 0.32)
+	slab(root, Vector3(size.x + 0.05, size.y + 0.05, 0.015), Vector3(0, 0, -0.012), _flat(rim), "SignRim")
+	slab(root, Vector3(size.x, size.y, 0.02), Vector3(0, 0, -0.004), _flat(plate), "SignPlate")
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = font_size
+	label.outline_size = 0
+	label.modulate = ink
+	label.position = Vector3(0, 0, 0.008)
+	label.shaded = true
+	root.add_child(label)
+	return root
+
+
+## A pub's lamp hung over `at` from the ceiling at 2.85: its chain, the shade glowing, its
+## light (returned).
+static func pub_lamp(parent: Node3D, at: Vector3) -> OmniLight3D:
+	slab(parent, Vector3(0.015, 2.85 - at.y, 0.015), Vector3(at.x, (2.85 + at.y) * 0.5, at.z), surface("galvanized", 0.3, Color(0.3, 0.3, 0.3)), "LampChain")
+	var shade := cutout(parent, "pub_lamp", Vector2(0.24, 0.42), at - Vector3(0, 0.42, 0), 0.0, true, "PubLamp")
+	shade.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var m := shade.material_override as StandardMaterial3D
+	m.emission_enabled = true
+	m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+	m.emission_texture = m.albedo_texture
+	m.emission = Color(1.0, 0.8, 0.5)
+	m.emission_energy_multiplier = 0.7
+	var l := OmniLight3D.new()
+	l.name = "PubLampLight"
+	l.light_color = Color(1.0, 0.76, 0.45)
+	l.light_energy = 0.55
+	l.omni_range = 2.8
+	l.position = at - Vector3(0, 0.45, 0)
+	parent.add_child(l)
+	return l
+
+
+static func _flat(c: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = c
+	mat.roughness = 0.9
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	return mat
+
+
+## The pieces of a wall round its openings: [[a0, a1, y0, y1]] across (from its middle,
+## -half..half) and up (0..h), round `holes` given the same way.
+static func wall_pieces(half: float, h: float, holes: Array) -> Array:
+	var cuts: Array = [-half, half]
+	for hl in holes:
+		cuts.append(clampf(float(hl[0]), -half, half))
+		cuts.append(clampf(float(hl[1]), -half, half))
+	cuts.sort()
+	var out: Array = []
+	for i in cuts.size() - 1:
+		var a0: float = cuts[i]
+		var a1: float = cuts[i + 1]
+		if a1 - a0 < 0.002:
+			continue
+		var mid := (a0 + a1) * 0.5
+		var lo := 0.0
+		var spans: Array = []
+		for hl in holes:
+			if mid > float(hl[0]) and mid < float(hl[1]):
+				spans.append([float(hl[2]), float(hl[3])])
+		spans.sort_custom(func(p, q) -> bool: return float(p[0]) < float(q[0]))
+		for sp in spans:
+			if float(sp[0]) - lo > 0.002:
+				out.append([a0, a1, lo, float(sp[0])])
+			lo = maxf(lo, float(sp[1]))
+		if h - lo > 0.002:
+			out.append([a0, a1, lo, h])
+	return out
+
+
+## A wall `room()` made (a slab along X: the back and the front; along Z: the sides) cut
+## round `holes` ([[a0, a1, y0, y1]]: across in the room's own X or Z, up from the wall's
+## foot): the slab gives way to its pieces.
+static func cut_wall(wall: MeshInstance3D, holes: Array) -> void:
+	var s: Vector3 = (wall.mesh as BoxMesh).size
+	var along_x := s.x >= s.z
+	var half := (s.x if along_x else s.z) * 0.5
+	var foot := wall.position - Vector3(0, s.y * 0.5, 0)
+	var parent := wall.get_parent()
+	for p in wall_pieces(half, s.y, holes):
+		var mid := (float(p[0]) + float(p[1])) * 0.5
+		var y := (float(p[2]) + float(p[3])) * 0.5
+		var size := Vector3(float(p[1]) - float(p[0]), float(p[3]) - float(p[2]), s.z) if along_x else Vector3(s.x, float(p[3]) - float(p[2]), float(p[1]) - float(p[0]))
+		var at := foot + (Vector3(mid, y, 0) if along_x else Vector3(0, y, mid))
+		slab(parent, size, at, wall.material_override, String(wall.name))
+	parent.remove_child(wall)
+	wall.free()
+
+
+## What only the room inside wants, out of a room built again in its building in the camp:
+## the click boxes (the looks, the stations), the rain on the glass.
+static func strip_for_outside(root: Node) -> void:
+	for n in root.find_children("*", "CollisionObject3D", true, false):
+		if is_instance_valid(n):
+			n.get_parent().remove_child(n)
+			n.free()
+	for n in root.find_children("*", "Node", true, false):
+		if is_instance_valid(n) and n.has_method("add_window"):
+			n.get_parent().remove_child(n)
+			n.free()

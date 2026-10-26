@@ -23,6 +23,23 @@ const TEX := "res://assets/textury/camp/"
 const SIZE := Vector3(5.8, 2.8, 4.6)
 const CELLAR := Vector3(5.8, 2.5, 4.6)
 
+## The building round the bar (building_models._pub), one plan with the room as the
+## staffroom's is (scripts/staff/staffroom_plan.gd; the user 26. 10.: the businesses'
+## windows real, seen into from the camp): the room's space is the building's own moved by
+## AT (the house's middle, on the room's floor), its walls are the room's (K.room's, WALL
+## thick) with the faces outside on them. The windows are where the faces' pictures have
+## them (camp_pub_front_glass.png, camp_pub_side_glass.png: tools/artgen/glass_fronts.py
+## pub): their glass in the room's space, the wall they are in, their size; the side's
+## bars across it (z, and the cross bar's height).
+const AT := Vector3(-0.6, 0.15, -0.4)
+const WALL := 0.1
+const WINDOWS := [
+	{"wall": "front", "at": Vector3(0.321, 1.918, 2.3), "size": Vector2(0.664, 0.935)},
+	{"wall": "front", "at": Vector3(1.694, 1.918, 2.3), "size": Vector2(0.664, 0.935)},
+	{"wall": "left", "at": Vector3(-2.9, 1.787, 0.052), "size": Vector2(0.563, 0.861),
+		"bars": [-0.136, -0.031, 0.073, 0.177, 0.282], "bar_y": 1.974},
+]
+
 ## The guests' tables (room coordinates, on the floor): the regulars' first.
 const TABLES := [Vector3(-1.6, 0.05, -1.0), Vector3(-1.6, 0.05, 0.9)]
 ## The ashtray on the second table, where the cards (the station "cards") are played.
@@ -215,22 +232,24 @@ static func bar(parent: Node3D, si) -> void:
 	look(parent, "antlers", "A six-pointer. Shot by the landlord's father, or bought at the market in Pisek: it depends who tells it.", Vector3(-2.85, 1.85, -1.75), Vector3(0.1, 0.5, 0.45))
 	_cut(parent, "pub_boar", Vector2(0.55, 0.55), Vector3(-2.88, 1.55, 1.75), 90.0, false, "Boar")
 	look(parent, "boar", "Somebody has dusted the boar lately. Round the eyes.", Vector3(-2.85, 1.8, 1.75), Vector3(0.1, 0.55, 0.55))
+	# The windows, where the building's faces have them (WINDOWS).
 	var rw = load("res://scripts/ambient/room_weather.gd").new()
 	parent.add_child(rw)
-	var win := _pic(parent, "window_view", Vector2(0.9, 0.8), Vector3(-2.88, 1.5, 0.05), 90.0, "Window")
-	if win != null:
-		rw.add_window(win)
-	_pic(parent, "window_curtain", Vector2(0.96, 0.86), Vector3(-2.86, 1.5, 0.05), 90.0, "NetCurtain")
-	K.slab(parent, Vector3(0.18, 0.04, 1.0), Vector3(-2.82, 1.07, 0.05), K.surface("planks_dark", 0.5), "Sill")
-	_cut(parent, "pub_geranium", Vector2(0.26, 0.32), Vector3(-2.78, 1.09, 0.3), 90.0, false, "Geranium")
-	look(parent, "window", "The car park, the lamp, the forest. The lamp flickers when somebody walks under it. Nobody is.", Vector3(-2.82, 1.5, 0.05), Vector3(0.1, 0.8, 0.9))
+	for wd in WINDOWS:
+		_window(parent, wd, rw)
+	var side: Dictionary = WINDOWS[2]
+	var side_at: Vector3 = side["at"]
+	var sill_y: float = side_at.y - (side["size"] as Vector2).y * 0.5
+	_cut(parent, "pub_geranium", Vector2(0.26, 0.32), Vector3(-2.78, sill_y + 0.02, side_at.z + 0.18), 90.0, false, "Geranium")
+	look(parent, "window", "The car park, the lamp, the forest. The lamp flickers when somebody walks under it. Nobody is.", Vector3(-2.82, side_at.y, side_at.z), Vector3(0.1, 0.8, 0.6))
 	# The right wall: the slate of who owes, the lake poster, the print.
 	_cut(parent, "pub_board", Vector2(0.5, 0.42), Vector3(2.88, 1.55, 1.3), -90.0, false, "DebtSlate")
 	look(parent, "slate", "DLUZNICI, who owes for beer. The top name is rubbed out every morning and is back every night.", Vector3(2.85, 1.55, 1.3), Vector3(0.1, 0.42, 0.5))
 	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.88, 1.6, 0.55), -90.0, "PubPoster")
 	look(parent, "poster", "Cerne jezero, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, 0.55), Vector3(0.1, 0.8, 0.6))
-	_cut(parent, "pub_hockey", Vector2(0.5, 0.36), Vector3(-0.2, 1.65, 2.28), 180.0, false, "TeamPhoto")
-	_cut(parent, "pub_print", Vector2(0.5, 0.4), Vector3(0.6, 1.65, 2.28), 180.0, false, "PondPrint")
+	# The front wall's pictures beside its windows and between them.
+	_cut(parent, "pub_hockey", Vector2(0.5, 0.36), Vector3(-0.75, 1.65, 2.28), 180.0, false, "TeamPhoto")
+	_cut(parent, "pub_print", Vector2(0.5, 0.4), Vector3(1.008, 1.65, 2.28), 180.0, false, "PondPrint")
 	# The front corner: the stove and its coal, the coat stand, the fly paper.
 	_cut(parent, "pub_stove", Vector2(0.55, 1.3), Vector3(-2.4, 0.05, 1.85), 0.0, true, "Stove")
 	look(parent, "stove", "The kamna. Cold since spring. There is warm ash in it.", Vector3(-2.4, 0.6, 1.85), Vector3(0.55, 1.2, 0.5))
@@ -244,6 +263,52 @@ static func bar(parent: Node3D, si) -> void:
 	for id in STATIONS:
 		if str(STATIONS[id]["room"]) == "bar":
 			station_body(parent, str(id))
+
+
+## A window of WINDOWS: its view (a picture the service interior makes a real one of:
+## _make_windows), the net curtain over it, the sill under it.
+static func _window(parent: Node3D, wd: Dictionary, rw) -> void:
+	var at: Vector3 = wd["at"]
+	var size: Vector2 = wd["size"]
+	var front := str(wd["wall"]) == "front"
+	var yaw := 180.0 if front else 90.0
+	var into := Vector3(0, 0, -1) if front else Vector3(1, 0, 0)
+	var win := _pic(parent, "window_view", size, at + into * 0.02, yaw, "Window")
+	if win != null:
+		rw.add_window(win)
+	_pic(parent, "window_curtain", size + Vector2(0.06, 0.06), at + into * 0.04, yaw, "NetCurtain")
+	var sill := Vector3(size.x + 0.1, 0.04, 0.18) if front else Vector3(0.18, 0.04, size.x + 0.1)
+	K.slab(parent, sill, at + into * 0.08 - Vector3(0, size.y * 0.5 + 0.02, 0), K.surface("planks_dark", 0.5), "Sill")
+
+
+## The bar built again in its building in the camp (building_models._pub): the same room
+## by the same code, its walls open where the windows are, nothing in it to click; `host`
+## stands in for the service interior (its signs and lamps: business/room_outside.gd).
+static func bar_outside(parent: Node3D, host) -> void:
+	bar(parent, host)
+	K.strip_for_outside(parent)
+	var holes := {"front": [], "left": []}
+	for wd in WINDOWS:
+		var at: Vector3 = wd["at"]
+		var size: Vector2 = wd["size"]
+		var across := at.x if str(wd["wall"]) == "front" else at.z
+		(holes[str(wd["wall"])] as Array).append([across - size.x * 0.5, across + size.x * 0.5, at.y - size.y * 0.5, at.y + size.y * 0.5])
+	for n in parent.get_children():
+		if not (n is MeshInstance3D):
+			continue
+		var mi := n as MeshInstance3D
+		if String(mi.name) == "WallFront":
+			K.cut_wall(mi, holes["front"])
+		elif String(mi.name) == "WallLeft":
+			K.cut_wall(mi, holes["left"])
+		else:
+			var pm := mi.material_override as StandardMaterial3D
+			var tex := str(pm.albedo_texture.resource_path) if pm != null and pm.albedo_texture != null else ""
+			# The painted views go (the camp is behind the glass), and the painted net
+			# curtains (inside, the windows' own curtains are drawn: window_portal.gd).
+			if tex.ends_with("window_view.png") or tex.ends_with("window_curtain.png"):
+				parent.remove_child(mi)
+				mi.free()
 
 
 # ── the cellar ───────────────────────────────────────────────────────────────

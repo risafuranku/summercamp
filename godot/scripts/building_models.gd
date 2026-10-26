@@ -201,50 +201,135 @@ func _showers(r: Node3D, _w: float, _d: float) -> Dictionary:
 
 
 # ── the pub (hospoda1.PNG): a plastered village house, porch, barrels ─────────
+#    One plan with the bar inside (pub_layout.gd: AT, SIZE, WALL, WINDOWS; the user 26.
+#    10.: the windows real, seen into from the camp): the house is the room's size, the
+#    room is built in it by the layout's own code and seen through the glass of the
+#    windows the faces' pictures have; its lamps lit by the pub's hours.
 
-func _pub(r: Node3D, w: float, d: float) -> Dictionary:
-	var sx := w * 0.62
-	var sz := d * 0.5
+func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var lay = load("res://scripts/pub/pub_layout.gd")
+	var at: Vector3 = lay.AT
+	var room_size: Vector3 = lay.SIZE
+	var sx: float = room_size.x + 2.0 * float(lay.WALL)
+	var sz: float = room_size.z + 2.0 * float(lay.WALL)
 	var h := 3.1
+	var cx := at.x
+	var cz := at.z
 	var plaster: Material = _town_or("village_plaster.png", Color(0.96, 0.92, 0.82), "plaster_stone.png", Vector3(2.0, 1.2, 1.0))
-	_plinth(r, sx + 0.3, sz + 0.3, Vector3(-0.6, 0, -0.4))
-	_box(r, "House", Vector3(sx, h, sz), Vector3(-0.6, h * 0.5 + 0.1, -0.4), plaster)
-	_gable_roof(r, Vector3(-0.6, h + 0.1, -0.4), sx + 0.5, sz + 0.6, 1.5, _camp("corrugated_roof.png", Color(0.62, 0.6, 0.56), Vector3(3.0, 2.0, 1.0)))
-	_box(r, "Chimney", Vector3(0.45, 1.4, 0.45), Vector3(sx * 0.25 - 0.6, h + 1.2, -0.7), _camp_or("brick_red.png", Color(0.7, 0.42, 0.34), "brick"))
+	_plinth(r, sx + 0.3, sz + 0.3, Vector3(cx, 0, cz))
+	_room_inside(r, at, "PubRoom", func(room: Node3D, host) -> void: lay.bar_outside(room, host))
+	_gable_roof(r, Vector3(cx, h + 0.1, cz), sx + 0.5, sz + 0.6, 1.5, _camp("corrugated_roof.png", Color(0.62, 0.6, 0.56), Vector3(3.0, 2.0, 1.0)))
+	_box(r, "Chimney", Vector3(0.45, 1.4, 0.45), Vector3(sx * 0.25 + cx, h + 1.2, -0.7), _camp_or("brick_red.png", Color(0.7, 0.42, 0.34), "brick"))
 	# The lower annex on the right with a lean-to roof.
-	var ax := sx * 0.5 - 0.6 + 1.4
-	_box(r, "Annex", Vector3(2.6, 2.3, sz * 0.8), Vector3(ax, 1.25, -0.6), plaster)
-	_lean_roof(r, 2.9, sz * 0.8 + 0.5, 2.4, 0.35, _camp("corrugated_roof.png", Color(0.5, 0.48, 0.44), Vector3(2.0, 2.0, 1.0)), Vector3(ax, 0, -0.6))
-	# The front: the pub's face (door on the left third, two windows with geraniums, the
-	# lamp and the enamel plate) over the whole wall; the porch over its door.
-	var front := -0.4 + sz * 0.5
-	var face_w := sx
-	var door_x := -0.6 - sx * 0.5 + sx * 0.21
-	if ResourceLoader.exists(CAMP + "camp_pub_front.png"):
-		_quad(r, "PubFront", Vector2(face_w, h), Vector3(-0.6, h * 0.5 + 0.1, front + 0.012), 0.0, _face_mat("camp_pub_front.png"))
-	else:
-		_box(r, "Door", Vector3(0.95, 2.0, 0.06), Vector3(door_x, 1.1, front + 0.03), _camp("door_wood.png", Color(0.7, 0.62, 0.5)))
-		_window(r, Vector3(0.6, 1.7, front + 0.02), Vector2(1.0, 0.8))
-		_window(r, Vector3(1.9, 1.7, front + 0.02), Vector2(1.0, 0.8))
-	if ResourceLoader.exists(CAMP + "camp_pub_side.png"):
-		_quad(r, "PubSide", Vector2(sz, h), Vector3(-0.6 - sx * 0.5 - 0.012, h * 0.5 + 0.1, -0.4), -PI * 0.5, _face_mat("camp_pub_side.png"))
+	var ax := cx + sx * 0.5 + 0.75
+	_box(r, "Annex", Vector3(1.5, 2.3, sz * 0.8), Vector3(ax, 1.25, cz - 0.2), plaster)
+	_lean_roof(r, 1.8, sz * 0.8 + 0.5, 2.4, 0.35, _camp("corrugated_roof.png", Color(0.5, 0.48, 0.44), Vector3(2.0, 2.0, 1.0)), Vector3(ax, 0, cz - 0.2))
+	# The faces on the room's walls: the front (the door on its left third, the two windows
+	# with geraniums, the lamp and the plate) and the left side with their glass cut out;
+	# plaster at the back and the right.
+	var front := cz + sz * 0.5
+	var door_x := cx + (65.0 / 271.0 - 0.5) * sx
+	_quad(r, "PubFront", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_face("camp_pub_front_glass.png", "camp_pub_front.png"))
+	_quad(r, "PubSide", Vector2(sz, h), Vector3(cx - sx * 0.5 - 0.012, h * 0.5 + 0.1, cz), -PI * 0.5, _glass_face("camp_pub_side_glass.png", "camp_pub_side.png"))
+	_side_quad(r, "PubBack", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, cz - sz * 0.5 - 0.012), PI, plaster)
+	_side_quad(r, "PubRight", Vector2(sz, h), Vector3(cx + sx * 0.5 + 0.012, h * 0.5 + 0.1, cz), PI * 0.5, plaster)
+	# The glass in the windows, on the walls' outside; the side window's bars in front.
+	var iron := _flat(Color(0.12, 0.11, 0.1))
+	for wd in lay.WINDOWS:
+		var wa: Vector3 = at + (wd["at"] as Vector3)
+		var size: Vector2 = wd["size"]
+		if str(wd["wall"]) == "front":
+			_pane_into(r, size, Vector3(wa.x, wa.y, front - 0.004), 0.0)
+			continue
+		var x_out := cx - sx * 0.5
+		_pane_into(r, size, Vector3(x_out + 0.004, wa.y, wa.z), -PI * 0.5)
+		for bz in wd.get("bars", []):
+			_box(r, "WindowBar", Vector3(0.025, size.y, 0.025), Vector3(x_out - 0.03, wa.y, cz + float(bz)), iron)
+		if wd.has("bar_y"):
+			_box(r, "WindowBar", Vector3(0.025, 0.025, size.x), Vector3(x_out - 0.03, at.y + float(wd["bar_y"]), wa.z), iron)
 	var awning := _box(r, "Awning", Vector3(1.7, 0.08, 1.1), Vector3(door_x, 2.55, front + 0.55), _flat(Color(0.28, 0.42, 0.26)))
 	awning.rotation.x = 0.18
 	for x: float in [door_x - 0.78, door_x + 0.78]:
 		_box(r, "Post", Vector3(0.1, 2.45, 0.1), Vector3(x, 1.32, front + 1.02), _wood())
 	_box(r, "Step", Vector3(1.4, 0.16, 0.5), Vector3(door_x, 0.08, front + 0.3), _psx_mat(Color(0.6, 0.6, 0.58), "stone"))
-	_window(r, Vector3(-0.6, 1.9, -0.4 - sz * 0.5 - 0.02), Vector2(0.9, 0.7), PI)
-	# The sign, barrels, a crate of empties, a satellite dish and the aerial.
-	_box(r, "SignBoard", Vector3(1.6, 0.42, 0.05), Vector3(0.9, 2.65, front + 0.05), _flat(Color(0.2, 0.14, 0.1)))
-	_label(r, "HOSPODA", Vector3(0.9, 2.65, front + 0.085), 0.24, Color(0.96, 0.84, 0.5))
+	# The sign over the windows, barrels, a crate of empties, a satellite dish and the aerial.
+	_box(r, "SignBoard", Vector3(1.6, 0.42, 0.05), Vector3(0.9, 2.85, front + 0.05), _flat(Color(0.2, 0.14, 0.1)))
+	_label(r, "HOSPODA", Vector3(0.9, 2.85, front + 0.085), 0.24, Color(0.96, 0.84, 0.5))
 	# The barrels and the empties out by the annex, clear of the door.
 	for i in 3:
 		_cyl(r, "Barrel%d" % i, 0.28, 0.75, Vector3(2.3 + i * 0.62, 0.48, front + 0.5 + (i % 2) * 0.2), _psx_mat(Color(0.5, 0.36, 0.22), "decor_wood"))
-	_box(r, "Crate", Vector3(0.5, 0.3, 0.36), Vector3(4.3, 0.25, front + 0.3), _camp_or("beer_crate.png", Color(0.7, 0.5, 0.2), "plastic"))
-	_cyl(r, "Dish", 0.32, 0.06, Vector3(sx * 0.5 - 0.6 + 0.05, 2.6, front - 0.6), _flat(Color(0.82, 0.82, 0.8)), Vector3(0.4, 0.0, PI * 0.5))
-	_cyl(r, "Aerial", 0.02, 1.6, Vector3(-1.6, h + 1.8, -0.4), _metal())
-	_box(r, "AerialBar", Vector3(0.9, 0.03, 0.03), Vector3(-1.6, h + 2.3, -0.4), _metal())
-	return {"size": Vector3(sx + 2.4, h + 1.0, sz + 0.6), "target": Vector3(door_x, 1.2, front + 0.2)}
+	_box(r, "Crate", Vector3(0.5, 0.3, 0.36), Vector3(3.7, 0.25, front + 0.3), _camp_or("beer_crate.png", Color(0.7, 0.5, 0.2), "plastic"))
+	_cyl(r, "Dish", 0.32, 0.06, Vector3(cx + sx * 0.5 + 0.05, 2.6, front - 0.6), _flat(Color(0.82, 0.82, 0.8)), Vector3(0.4, 0.0, PI * 0.5))
+	_cyl(r, "Aerial", 0.02, 1.6, Vector3(-1.6, h + 1.8, cz), _metal())
+	_box(r, "AerialBar", Vector3(0.9, 0.03, 0.03), Vector3(-1.6, h + 2.3, cz), _metal())
+	return {"size": Vector3(sx + 1.6, h + 1.0, sz + 0.6), "target": Vector3(door_x, 1.2, front + 0.2)}
+
+
+## A business's room in its building (one plan: its layout builds it here as in the service
+## interior; business/room_outside.gd): at `at` in the building, its lamps lit by the place's
+## hours (business/room_lights.gd). `build` (room, host) is the layout's outside builder.
+func _room_inside(r: Node3D, at: Vector3, room_name: String, build: Callable) -> Node3D:
+	var room := Node3D.new()
+	room.name = room_name
+	room.position = at
+	room.set_meta("no_wear", true)
+	r.add_child(room)
+	var host = load("res://scripts/business/room_outside.gd").new()
+	build.call(room, host)
+	# Its own light, as the service interior's room has (its middle under the ceiling),
+	# and its lamps: on the room's own layer, so they light the room and nothing outside
+	# its walls.
+	for g in room.find_children("*", "GeometryInstance3D", true, false):
+		(g as GeometryInstance3D).layers |= ROOM_LAYER
+	var main := OmniLight3D.new()
+	main.name = "RoomLight"
+	main.position = Vector3(0.0, 2.3, 0.0)
+	main.light_color = Color(0.96, 0.94, 0.88)
+	main.omni_range = 7.0
+	main.light_energy = 0.0
+	room.add_child(main)
+	var all: Array = [main]
+	all.append_array(host.lamps)
+	for l in all:
+		(l as Light3D).light_cull_mask = ROOM_LAYER
+	var lights := Node.new()
+	lights.name = "RoomLights"
+	lights.set_script(load("res://scripts/business/room_lights.gd"))
+	lights.set("main", main)
+	lights.set("lamps", host.lamps)
+	var shades: Array = []
+	for m in room.find_children("PubLamp*", "MeshInstance3D", true, false):
+		shades.append(m)
+	lights.set("shades", shades)
+	r.add_child(lights)
+	return room
+
+
+## A face picture whose windows' panes are cut out (tools/artgen/glass_fronts.py): its
+## glass is clear, the room behind it seen; without the cut picture, the old one.
+func _glass_face(file: String, fallback: String) -> StandardMaterial3D:
+	if not ResourceLoader.exists(CAMP + file):
+		return _face_mat(fallback)
+	var m := _face_mat(file)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	return m
+
+
+## A pane of a window looked into (the room behind it real): a little grey and shine.
+func _pane_into(r: Node3D, size: Vector2, pos: Vector3, yaw: float) -> MeshInstance3D:
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.3, 0.34, 0.37, 0.16)
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var g := _quad(r, "WindowGlass", size, pos, yaw, m)
+	g.layers = GLASS_LAYER
+	# Its own see-through material (the retro look's drew it solid; the wear made it white).
+	g.set_meta("retro_skip", true)
+	g.set_meta("no_wear", true)
+	return g
 
 
 # ── the restaurant (restaurace.PNG): flat roof, tiled band, the red sign ──────
@@ -1395,6 +1480,8 @@ func _staffroom(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var plan = load("res://scripts/staff/staffroom_plan.gd")
 	var rooms := Node3D.new()
 	rooms.name = "StaffRooms"
+	# The rooms' materials are the service interior's own (shared): not worn with the building.
+	rooms.set_meta("no_wear", true)
 	r.add_child(rooms)
 	var refs: Dictionary = plan.build(rooms, true)
 	var lights := {}
@@ -1919,6 +2006,9 @@ func _metal() -> Material:
 ## The render layer of window glass: seen by the player, not by the window views
 ## (the cameras behind the glass, building_interior.gd), which look through it.
 const GLASS_LAYER := 1 << 19
+## The render layer of a business's room in its building (_room_inside): its own lights
+## light that and nothing outside its walls.
+const ROOM_LAYER := 1 << 13
 ## The retro look's pull (retro_materials._pull_of) for a window's bar: more than its pane's
 ## (a small quad, 0.009), which is more than the frame's (a thin board, 0.005).
 const WINDOW_BAR_PULL := 0.012

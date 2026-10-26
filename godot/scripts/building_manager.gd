@@ -2016,6 +2016,10 @@ func _set_structure_condition_internal(structure: Node3D, condition: float) -> v
 
 
 func _apply_corrosion_recursive(node: Node, corrosion_amount: float) -> void:
+	# A business's room inside it and its glass (building_models._room_inside): their own
+	# materials, shared with the room in the service interior; the wear is the outside's.
+	if node.has_meta("no_wear"):
+		return
 	if node is MeshInstance3D:
 		var mesh = node as MeshInstance3D
 		var std_mat = mesh.material_override as StandardMaterial3D

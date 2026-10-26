@@ -88,6 +88,22 @@
 - [x] R80 „posunem doprava se ze 4 na 1 dostat NESMÍM“ (station tabs: no wrap-around)
 - [x] R81 „přepnutí z baru na sklep při obsluze přehraje animaci, jak jdeš od pultu až do sklepa, ať to trvá; a zpátky taktéž“
 
+## BUSINESS WINDOWS — 2026-10-26 (the user: "yes" to: the pub's, the bistro's and the Jednota's windows real, seen into from the camp as the cabins' are; the showers' German second line stays)
+
+One plan for the building and the room (as the staffroom: `staffroom_plan.gd`): the house is
+the room's size, the windows are where the front's picture has them, in both; the picture
+keeps its painted frames and loses its panes; the same room is built inside the building
+in the camp (the layout's own code, without its click boxes) behind real glass, lit as the
+place is (open, the hour), its hands at their stations; inside, every window is a real view
+out from where it stands.
+- [ ] The pub: the house 6.0 x 4.8 m from PUB_LAYOUT.SIZE, the front padded with its plaster
+  and its two windows cut, the side's barred window moved to the middle of the left wall
+  (where the room's window is), the front's two windows in the room (the photos moved)
+- [ ] The bistro: the dining room behind the front's long windows (the kitchen beside it)
+- [ ] The Jednota: the shop behind its windows (the painted goods give way to the real racks)
+- [ ] The hands seen at their stations from outside; the lamps by the hours; co-op the same
+- [ ] The Builder's pictures of the three rendered again (Grok, a sample first)
+
 ## POHYB, KAMERA, INTERAKCE — 2026-10-21 (the user: "it still feels a bit like I'm a spectator, a car, a tank"; "the trees and the world are static, we need to finish all of it")
 
 Decided with the user (Q&A 21. 10.): bodily but quick (Firewatch, Dishonored), no sliding; the

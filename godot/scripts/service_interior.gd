@@ -1591,22 +1591,7 @@ func _meshes_in_box(body: StaticBody3D) -> Array:
 
 ## A lamp on its chain over a table, its brown glass shade a sprite, warm light.
 func _pub_lamp(parent: Node3D, at: Vector3) -> void:
-	var K := INTERIOR_KIT
-	K.slab(parent, Vector3(0.015, 2.85 - at.y, 0.015), Vector3(at.x, (2.85 + at.y) * 0.5, at.z), K.surface("galvanized", 0.3, Color(0.3, 0.3, 0.3)), "LampChain")
-	var shade := K.cutout(parent, "pub_lamp", Vector2(0.24, 0.42), at - Vector3(0, 0.42, 0), 0.0, true, "PubLamp")
-	shade.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var m := shade.material_override as StandardMaterial3D
-	m.emission_enabled = true
-	m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-	m.emission_texture = m.albedo_texture
-	m.emission = Color(1.0, 0.8, 0.5)
-	m.emission_energy_multiplier = 0.7
-	var l := OmniLight3D.new()
-	l.light_color = Color(1.0, 0.76, 0.45)
-	l.light_energy = 0.55
-	l.omni_range = 2.8
-	l.position = at - Vector3(0, 0.45, 0)
-	parent.add_child(l)
+	INTERIOR_KIT.pub_lamp(parent, at)
 
 
 func _set_vecerka_room(room: String, update_camera: bool = true) -> void:
@@ -2064,39 +2049,7 @@ func _build_wash_layout(shower_mode: bool, title_override: String = "") -> void:
 ## an enamel plate sized to the text, a dark rim and the lettering. Styles: "enamel"
 ## (cream, dark ink), "danger" (yellow, red ink), "plate" (steel, black ink).
 func _sign(parent: Node3D, text: String, pos: Vector3, font_size: int, style: String = "enamel") -> Node3D:
-	var K := INTERIOR_KIT
-	var root := Node3D.new()
-	root.name = "Sign"
-	root.position = pos
-	parent.add_child(root)
-	var lines := text.split("\n")
-	var longest := 0
-	for line in lines:
-		longest = maxi(longest, line.length())
-	var char_h := float(font_size) * 0.005
-	var size := Vector2(longest * char_h * 0.62 + 0.16, lines.size() * char_h * 1.15 + 0.1)
-	var plate := Color(0.92, 0.9, 0.82)
-	var ink := Color(0.12, 0.12, 0.16)
-	var rim := Color(0.16, 0.2, 0.36)
-	if style == "danger":
-		plate = Color(0.95, 0.8, 0.2)
-		ink = Color(0.6, 0.06, 0.04)
-		rim = Color(0.1, 0.08, 0.06)
-	elif style == "plate":
-		plate = Color(0.62, 0.64, 0.66)
-		ink = Color(0.06, 0.06, 0.06)
-		rim = Color(0.3, 0.3, 0.32)
-	K.slab(root, Vector3(size.x + 0.05, size.y + 0.05, 0.015), Vector3(0, 0, -0.012), INTERIOR_PREP.flat(rim), "SignRim")
-	K.slab(root, Vector3(size.x, size.y, 0.02), Vector3(0, 0, -0.004), INTERIOR_PREP.flat(plate), "SignPlate")
-	var label := Label3D.new()
-	label.text = text
-	label.font_size = font_size
-	label.outline_size = 0
-	label.modulate = ink
-	label.position = Vector3(0, 0, 0.008)
-	label.shaded = true
-	root.add_child(label)
-	return root
+	return INTERIOR_KIT.wall_sign(parent, text, pos, font_size, style)
 
 
 ## The sewer's pumping chamber, down the ladder from the hatch (Grok faces and textures,
@@ -3566,7 +3519,12 @@ func _make_windows(profile: String) -> void:
 				var cm = (c as MeshInstance3D).material_override as StandardMaterial3D if c is MeshInstance3D else null
 				if cm != null and cm.albedo_texture != null and str(cm.albedo_texture.resource_path).ends_with("window_curtain.png") and (c as Node3D).position.distance_to(pic.position) < 0.3:
 					(c as Node3D).visible = false
-			_windows.append({"w": w, "root": root})
+			var entry := {"w": w, "root": root}
+			# One plan with its building (pub_layout AT): the view out is the building's
+			# own place, moved by where the room stands in it.
+			if profile == "pub":
+				entry["at"] = PUB_LAYOUT.AT
+			_windows.append(entry)
 	if profile == "vecerka" and _vecerka_shop_root != null:
 		var w2 = WINDOW_PORTAL.make(self, _vecerka_shop_root, Vector3(3.17, 1.55, 1.55), Vector3(1, 0, 0), Vector2(1.0, 0.8), "curtain_floral")
 		_windows.append({"w": w2, "root": _vecerka_shop_root})
@@ -3587,6 +3545,8 @@ func _tick_windows(delta: float) -> void:
 		var root: Node3D = e["root"]
 		var live: bool = anchor != null and root.is_visible_in_tree()
 		var xf: Transform3D = WINDOW_PORTAL.room_to_world(anchor, e["w"], 0.0) if anchor != null else Transform3D()
+		if e.has("at") and anchor != null:
+			xf = anchor.global_transform * Transform3D(Basis(), e["at"])
 		if e.has("room") and anchor != null:
 			# The staffroom: its room space is the building's own (staffroom_plan.gd);
 			# only the windows of the room you are in are drawn.
