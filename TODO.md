@@ -51,7 +51,7 @@
 - [x] R43 „v sewers se lze v zatáčce otočit za sebe, to je špatně“
 - [x] R44 „v sewers jde slyšet ambience zvenčí“
 - [x] R45 „showers chybí notifikace, že se mají uklidit“
-- [ ] R46 „podpis zboží udělej podobnou interakcí jako u pošťáka, ale ne stejný obrázek: jsou to desky na stole uvnitř recepce“
+- [x] R46 „podpis zboží udělej podobnou interakcí jako u pošťáka, ale ne stejný obrázek: jsou to desky na stole uvnitř recepce“ (while the van waits the driver's blue folder lies on the reception desk beside the register; clicked, the note is signed with the mouse, stamped, unloaded; no E at the van; Grok `cu_delivery_sign`)
 - [x] R47 „nové klepání kamery při sprintu je sračka, lineární nahoru a dolů šíleně rychlé“ (f8b0f9d1: 23-37 Hz sines out, a runner's cadence, a sprung nod)
 - [x] R48 „v kukuřici se chci moct rozhlédnout i nahoru a dolů“
 - [x] R49 „víc kukuřic na pultu: vždy jedna na servírování a zbytek bokem, třeba tři; koupit odkládací tácek na další 3“

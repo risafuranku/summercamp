@@ -9,8 +9,9 @@ extends Node
 ##   litter    rubbish dumped by a facility: hold E to bag it
 ##   raccoons  raccoons in the bins behind the bistro / shop / pub: E to shoo them
 ##   delivery  the wholesaler's van at the gate with what you ordered at the businesses'
-##             desks (scripts/business/): E to sign for it and it goes on the shelves;
-##             missed, it comes again the next morning
+##             desks (scripts/business/): its note lies in the folder on the reception
+##             desk, signed there with the mouse (scripts/closeup/delivery_closeup.gd), and
+##             it goes on the shelves; missed, it comes again the next morning
 ##   lost_kid  a family's boy has wandered off (families only): find him, E
 ##   noise     tramps or lads keeping the quiet ones awake: talk to the loud party
 ##   tree      a branch down across a path after the wind: hold E to saw it up
@@ -214,13 +215,48 @@ func open_events() -> Array:
 	return _events.filter(func(e): return str(e["state"]) == "open").map(func(e): return e.duplicate())
 
 
+## The van waiting at the gate: its note is in the folder on the reception desk (the user
+## 25. 10.: signed there, as the postman's slip is). The open delivery's id, or -1.
+func delivery_waiting() -> int:
+	for ev in _events:
+		if str(ev["state"]) == "open" and str(ev["kind"]) == "delivery":
+			return int(ev["id"])
+	return -1
+
+
+## How many orders the van has brought (due today or before), for the driver's word.
+func delivery_orders() -> int:
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var biz: Dictionary = st.biz if st != null and st.get("biz") is Dictionary else {}
+	var n := 0
+	for o in biz.get("orders", []):
+		if int((o as Dictionary).get("due_day", 0)) <= CoreRoot.get_day():
+			n += 1
+	return n
+
+
+## The note signed in the folder: the van unloads (as the hands' or the gate's sign did).
+func sign_delivery() -> bool:
+	var ev := _event_by_id(delivery_waiting())
+	if ev.is_empty():
+		return false
+	_resolve(ev)
+	return true
+
+
+func _office_pos() -> Vector3:
+	var office := _main.find_child("MainBuilding", true, false) as Node3D if _main != null else null
+	return office.global_position if office != null else Vector3.INF
+
+
 func waypoint(from: Vector3) -> Dictionary:
 	var best := {}
 	var best_d := INF
 	for ev in _events:
 		if str(ev["state"]) != "open":
 			continue
-		var p := _event_pos(ev)
+		# The van's note waits at the reception: the mark is there, not at the van.
+		var p := _office_pos() if str(ev["kind"]) == "delivery" else _event_pos(ev)
 		if p == Vector3.INF:
 			continue
 		var d := from.distance_to(p)
@@ -240,8 +276,6 @@ func hint() -> String:
 			return "[E] Bag the rubbish"
 		"raccoons":
 			return "[E] Shoo the raccoons"
-		"delivery":
-			return "[E] Sign for the Jednota delivery"
 		"lost_kid":
 			return "[E] \"Come on, your mum is looking for you.\""
 		"tree":
@@ -475,7 +509,7 @@ func _make(kind: String, at: int, guests: Array) -> Dictionary:
 				return {}
 			ev.merge({"title": "Raccoons in the bins", "short": "Raccoons", "where": "Behind the %s" % _label_at(r), "coord": [r.x, r.y]}, true)
 		"delivery":
-			ev.merge({"title": "The wholesaler's van", "short": "Van", "where": "At the gate: sign for the order", "gate": true}, true)
+			ev.merge({"title": "The wholesaler's van", "short": "Van", "where": "Delivery note at the reception", "gate": true}, true)
 		"lost_kid":
 			var fam: Array = guests.filter(func(g): return str(g.get("archetype", "")) == "family")
 			if fam.is_empty():
@@ -665,12 +699,13 @@ func _update_target(delta: float, can_act: bool) -> void:
 		for ev in _events:
 			# Talked out (noise) or knocked for at the lodging (someone): not an E spot; the
 			# rubbish bagged is in your arms (or set down), not where it lay.
-			if str(ev["state"]) != "open" or str(ev["kind"]) == "noise" or str(ev["kind"]) == "someone" or bool(ev.get("bagged", false)):
+			# (The van's note is signed at the reception, not at the van: delivery_waiting.)
+			if str(ev["state"]) != "open" or str(ev["kind"]) in ["noise", "someone", "delivery"] or bool(ev.get("bagged", false)):
 				continue
 			var p := _event_pos(ev) + Vector3(0, 0.5, 0)
 			var to := p - cam.global_position
 			var d := to.length()
-			var reach := REACH + (2.5 if str(ev["kind"]) == "delivery" else 0.0)
+			var reach := REACH
 			if d > reach or d < 0.01:
 				continue
 			var dot := (to / d).dot(fwd)

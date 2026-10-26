@@ -25,6 +25,7 @@ const RECEPTION_PREFIX := {
 }
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+const DELIVERY_CLOSEUP = preload("res://scripts/closeup/delivery_closeup.gd")
 ## Camera moves in steps, twelve a second (sitting down, standing up, looking round).
 const CAM_MOVE = preload("res://scripts/ui/cam_move.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
@@ -542,6 +543,7 @@ func _process(delta: float) -> void:
 	if not visible:
 		# (Shut, nothing is drawn: the shared view draws the camp the frame you are back.)
 		return
+	_tick_delivery_note(delta)
 	_tick_photo_flash(get_process_delta_time())
 	_update_window_portal()
 	if _interior_camera != null:
@@ -627,6 +629,10 @@ func _update_office_hover() -> void:
 		var collider = hit.get("collider", null) as Node
 		if collider != null and _node_has_click_type(collider, "office_light_switch") and _office_light_switch_mesh != null:
 			meshes.append(_office_light_switch_mesh)
+		elif collider != null and _node_has_click_type(collider, "delivery_folder") and _delivery_note != null:
+			for n in _delivery_note.get_children():
+				if n is MeshInstance3D:
+					meshes.append(n)
 		elif collider != null and _node_has_click_type(collider, "crt_power"):
 			HandCursor.want(HandCursor.POINT)
 		elif _crt_screen != null and (_map_mouse_to_screen(m, _crt_screen, false) != Vector2.INF or (_dual and _map_mouse_to_screen(m, _crt2_screen, false) != Vector2.INF)):
@@ -2809,6 +2815,9 @@ func _create_reception_notebook() -> void:
 	spine.material_override = _make_psx_material(Color(0.14, 0.18, 0.22), 16.0, 4.0, 0.01, "decor_wood")
 	notebook_root.add_child(spine)
 
+	# The van's folder beside the register while it waits at the gate.
+	_build_delivery_folder()
+
 	var click_body = StaticBody3D.new()
 	click_body.name = "ReceptionNotebookClickBody"
 	click_body.position = NOTEBOOK_CLICK_CENTER_LOCAL
@@ -4257,7 +4266,106 @@ func _try_click_room(event: InputEventMouseButton) -> bool:
 	if _node_has_click_type(collider, "reception_notebook"):
 		open_checkin_desk()
 		return true
+	if _node_has_click_type(collider, "delivery_folder"):
+		open_delivery_note()
+		return true
 	return false
+
+
+# ── the wholesaler's note in the folder (scripts/closeup/delivery_closeup.gd) ──────
+# While the van waits at the gate (day_events.delivery_waiting) the driver's folder lies
+# on the desk beside the register, his note on it; clicked, the note is signed with the
+# mouse and the van unloads.
+
+var _delivery_closeup
+var _delivery_note: Node3D
+var _delivery_click: StaticBody3D
+var _delivery_poll := 0.0
+const DELIVERY_FOLDER_TEX := "res://assets/textury/desk/delivery_folder.png"
+const DELIVERY_NOTE_TEX := "res://assets/textury/desk/delivery_note.png"
+
+
+func _day_events() -> Node:
+	var main := _resolve_main_runtime_host()
+	var de = main.get("_day_events") if main != null else null
+	return de as Node if de is Node and is_instance_valid(de) else null
+
+
+## The van's note to sign; false when none is waiting.
+func open_delivery_note() -> bool:
+	var de := _day_events()
+	if de == null or int(de.delivery_waiting()) < 0:
+		return false
+	if _delivery_closeup == null or not is_instance_valid(_delivery_closeup):
+		_delivery_closeup = DELIVERY_CLOSEUP.new()
+		get_tree().root.add_child(_delivery_closeup)
+	_delivery_closeup.orders = int(de.delivery_orders())
+	_delivery_closeup.on_signed = func() -> void:
+		var d := _day_events()
+		if d != null:
+			d.sign_delivery()
+		_tick_delivery_note(1.0)
+	_delivery_closeup.open_view()
+	return true
+
+
+func _tick_delivery_note(delta: float) -> void:
+	_delivery_poll -= delta
+	if _delivery_poll > 0.0 or _delivery_note == null or not is_instance_valid(_delivery_note):
+		return
+	_delivery_poll = 0.5
+	var de := _day_events()
+	var on := de != null and int(de.delivery_waiting()) >= 0
+	_delivery_note.visible = on
+	# (Physics ignores visibility: no folder, nothing to click.)
+	if _delivery_click != null and is_instance_valid(_delivery_click):
+		_delivery_click.collision_layer = 1 if on else 0
+
+
+## The folder: a thin board in the close-up's own blue cardboard, the note on it.
+func _build_delivery_folder() -> void:
+	_delivery_note = Node3D.new()
+	_delivery_note.name = "DeliveryFolder"
+	_delivery_note.position = Vector3(0.25, 0.962, 0.41)
+	_delivery_note.rotation = Vector3(0.0, deg_to_rad(-14.0), 0.0)
+	_delivery_note.visible = false
+	_room_root.add_child(_delivery_note)
+	var board := MeshInstance3D.new()
+	board.name = "FolderBoard"
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.22, 0.012, 0.32)
+	board.mesh = bm
+	board.material_override = _make_psx_material(Color(0.13, 0.17, 0.3), 8.0, 2.0, 0.01, "decor_paper")
+	_delivery_note.add_child(board)
+	for part in [[DELIVERY_FOLDER_TEX, Vector2(0.22, 0.32), Vector3(0.0, 0.0065, 0.0), 0.0, "FolderTop"],
+			[DELIVERY_NOTE_TEX, Vector2(0.19, 0.27), Vector3(0.035, 0.008, -0.03), 7.0, "FolderNote"]]:
+		if not ResourceLoader.exists(str(part[0])):
+			continue
+		var q := MeshInstance3D.new()
+		q.name = str(part[4])
+		var qm := QuadMesh.new()
+		qm.size = part[1]
+		qm.orientation = PlaneMesh.FACE_Y
+		q.mesh = qm
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = load(str(part[0]))
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		m.roughness = 1.0
+		q.material_override = m
+		q.position = part[2]
+		q.rotation.y = deg_to_rad(float(part[3]))
+		_delivery_note.add_child(q)
+	_delivery_click = StaticBody3D.new()
+	_delivery_click.name = "DeliveryFolderClickBody"
+	_delivery_click.set_meta("interior_click_type", "delivery_folder")
+	_delivery_click.collision_layer = 0
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.28, 0.08, 0.38)
+	cs.shape = bs
+	_delivery_click.add_child(cs)
+	_delivery_note.add_child(_delivery_click)
 
 
 ## The desk close-up: the register, the keys, whoever is at the counter.

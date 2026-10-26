@@ -23488,7 +23488,7 @@ msgstr ""
 #: scripts/town/bus_ride.gd:1148 scripts/town/bus_ride.gd:1627 scripts/town/pump_closeup.gd:58 scripts/town/pump_closeup.gd:164 (+1)
 #. uses 5
 msgid "Driver"
-msgstr ""
+msgstr "Řidič"
 
 #: scripts/town/bus_ride.gd:1148 scripts/town/bus_ride.gd:1175
 #. uses 2
@@ -25900,3 +25900,15 @@ msgstr "Přemalovat název"
 
 msgid "RECEPTION - STOP"
 msgstr "RECEPCE - STOP"
+
+msgid "Delivery note at the reception"
+msgstr "Dodací list na recepci"
+
+msgid "Wholesale for the camp, %d order(s). Sign it and I'll unload."
+msgstr "Velkoobchod pro kemp, %d {objednávka|objednávky|objednávek}. Podepište a vyložím to."
+
+msgid "Wholesale for the camp. Sign it and I'll unload."
+msgstr "Velkoobchod pro kemp. Podepište a vyložím to."
+
+msgid "Right. It's going on the shelves."
+msgstr "Dobře. Jde to do regálů."

@@ -10,6 +10,8 @@ into the game. Rows in tools/artgen/prompts_post.tsv.
   (-> textury/post/van_*.png, keyed, on the palette).
 - npc_postman: the man, 128 px to 1.74 m like every person (then defringe.py --figure).
 - cu_post_sign, cu_post_parcel: the close-ups, 320x240.
+- cu_delivery_sign: the wholesaler's delivery note in the folder on the reception desk
+  (scripts/closeup/delivery_closeup.gd), 320x240.
 - web_monitor2: PC Servis's photo, a JPEG of 1998 (web_image.py).
 - tex_phonebooks: the phone books under the second monitor.
 """
@@ -123,6 +125,8 @@ def main():
         close("cu_post_sign", "closeup/post_sign.png")
     if go("cu_post_parcel"):
         close("cu_post_parcel", "closeup/post_parcel.png")
+    if go("cu_delivery_sign"):
+        close("cu_delivery_sign", "closeup/delivery_sign.png")
     if go("web_monitor2"):
         subprocess.run([sys.executable, os.path.join(HERE, "web_image.py"), "web_monitor2", "photo", "256"], check=True)
     if go("tex_phonebooks"):
