@@ -12,6 +12,8 @@ extends "res://scripts/jednota/jednota_station.gd"
 ##   the parcel  a click: over the counter; short and they want more, over and they take
 ##               it but it counts against you. It goes in their basket, paid at the till.
 
+const LANG := preload("res://scripts/lang.gd")
+
 ## Where the Build picture (jednota/st_deli.png) has them: the board, the scale with its
 ## plate at the back and its dial in front, the roll of paper. The grams lie at the plate's
 ## back edge: the hand at the plate hangs below the pointer and would hide the dial.
@@ -126,7 +128,7 @@ func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
 	if ic != null:
 		var sc := minf(1.0, 14.0 / maxf(ic.get_width(), ic.get_height()))
 		c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - ic.get_width() * sc) * 0.5), 10), (ic.get_size() * sc).floor()), false)
-	var w := "%dDK" % int(int(t.get("want", 0)) / 10)
+	var w := LANG.f("%dDK", int(int(t.get("want", 0)) / 10))
 	var ww := f.get_string_size(w, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 	c.draw_string(f, Vector2(floorf((size.x - ww) * 0.5), size.y - 6), w, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.16, 0.12, 0.1))
 	var band := int(t.get("band", 0))
@@ -148,17 +150,17 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 	c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, y), first_name(str(t["name"])).substr(0, 9).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.55, 0.1, 0.08))
 	y += 24
 	var good := str(t["good"])
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), str(RULES.DELI[good]["label"]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
+	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), tr(str(RULES.DELI[good]["label"])).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
 	y += 13
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), "%d DEKA" % int(int(t["want"]) / 10), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
+	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), LANG.f("%d DEKA", int(int(t["want"]) / 10)), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
 	y += 13
 	if not _on.is_empty() and str(_on["good"]) == good:
 		var g := grams()
 		var d := (g - float(t["want"])) / float(t["want"])
 		var col := Color(0.1, 0.45, 0.12) if absf(d) <= 0.05 else (Color(0.62, 0.08, 0.05) if d < -0.1 else ink)
-		c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), "SCALE %d G" % int(round(g)), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
+		c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), LANG.f("SCALE %d G", int(round(g))), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
 		y += 13
-		c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), "WRAPPED" if bool(_on["wrapped"]) else "WRAP IT", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.1, 0.45, 0.12) if bool(_on["wrapped"]) else ink)
+		c.draw_string(RETRO_UI.FONT_TEXT, Vector2(x, y), tr("WRAPPED") if bool(_on["wrapped"]) else tr("WRAP IT"), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.1, 0.45, 0.12) if bool(_on["wrapped"]) else ink)
 	var band := 0 if int(t.get("age", 0)) < RULES.DELI_WAIT / 2 else (1 if int(t.get("age", 0)) < RULES.DELI_WAIT - 5 else 2)
 	var bar := Rect2(r.position.x + 6, r.end.y - 8, r.size.x - 12, 4)
 	c.draw_rect(bar, Color(0.1, 0.08, 0.06, 0.8))
@@ -197,13 +199,13 @@ func _spots() -> Array:
 	var good := str(_on.get("good", t.get("good", "salami")))
 	var wrapped := bool(_on.get("wrapped", false))
 	if not wrapped:
-		out.append({"id": "cut", "rect": BOARD, "verb": "Cut a slice of the %s onto the scale" % str(RULES.DELI[good]["label"]).to_lower()})
+		out.append({"id": "cut", "rect": BOARD, "verb": LANG.f("Cut a slice of the %s onto the scale", tr(str(RULES.DELI[good]["label"])).to_lower())})
 		if not _on.is_empty():
-			out.append({"id": "off", "rect": SCALE, "verb": "A slice back off the scale (%d g)" % int(round(grams()))})
+			out.append({"id": "off", "rect": SCALE, "verb": LANG.f("A slice back off the scale (%d g)", int(round(grams())))})
 			out.append({"id": "wrap", "rect": PAPER, "verb": "Wrap it in paper"})
 	else:
 		var who := first_name(str(t.get("name", ""))) if not t.is_empty() else ""
-		out.append({"id": "give", "node": _parcel, "verb": "Over the counter to %s (%d g)" % [who, int(round(grams()))] if who != "" else "Nobody asked for it"})
+		out.append({"id": "give", "node": _parcel, "verb": LANG.f("Over the counter to %s (%d g)", [who, int(round(grams()))]) if who != "" else "Nobody asked for it"})
 	return out
 
 
@@ -258,11 +260,11 @@ func _give(t: Dictionary) -> void:
 		return
 	var who := first_name(str(t["name"]))
 	if str(_on["good"]) != str(t["good"]):
-		say(who, "I asked for %s." % str(RULES.DELI[str(t["good"])]["label"]).to_lower())
+		say(who, LANG.f("I asked for %s.", tr(str(RULES.DELI[str(t["good"])]["label"])).to_lower()))
 		return
 	var v: Dictionary = shop.deli_serve(building_key, t, grams(), bool(_on["wrapped"]))
 	if not bool(v.get("ok", false)):
-		say(who, " ".join(v.get("notes", [])))
+		say(who, " ".join((v.get("notes", []) as Array).map(func(n): return tr(str(n)))))
 		score_card(v, str(RULES.DELI[str(t["good"])]["label"]))
 		return
 	_on = {}
@@ -270,7 +272,7 @@ func _give(t: Dictionary) -> void:
 	sfx("bag", -10.0)
 	score_card(v, str(RULES.DELI[str(t["good"])]["label"]))
 	var notes: Array = v.get("notes", [])
-	say(who, " ".join(notes) if not notes.is_empty() else ["Lovely. Thank you.", "Just right.", "And some for tomorrow, then."][_rng.randi() % 3])
+	say(who, " ".join(notes.map(func(n): return tr(str(n)))) if not notes.is_empty() else ["Lovely. Thank you.", "Just right.", "And some for tomorrow, then."][_rng.randi() % 3])
 
 
 func bar_buttons() -> Array:
@@ -288,7 +290,7 @@ func bar_text() -> String:
 		return ""
 	var parts: Array = []
 	for g in RULES.DELI:
-		parts.append("%s %d" % [str(RULES.DELI[g]["label"]).to_upper(), maxi(0, BIZ.stock_of(building_key, str(RULES.DELI[g]["good"])))])
+		parts.append("%s %d" % [tr(str(RULES.DELI[g]["label"])).to_upper(), maxi(0, BIZ.stock_of(building_key, str(RULES.DELI[g]["good"])))])
 	return "  ".join(parts)
 
 

@@ -10,6 +10,7 @@ extends Control
 ## takes the padlocks off their cards in the catalogue.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const PIC := Vector2(96, 72)
 const GAP := 10.0
 const STEP := 1.0 / 12.0
@@ -87,7 +88,7 @@ func _draw() -> void:
 	var head := tr("NEW BLUEPRINTS")
 	var hw := T.FONT_BOLD.get_string_size(head, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	draw_string(T.FONT_BOLD, Vector2(floorf((s.x - hw) * 0.5), 42), head, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, T.NAVY)
-	var sub := tr("%d guests in the camp at once") % guests
+	var sub := LANG.f("%d guests in the camp at once", guests)
 	var sw := T.FONT.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 	draw_string(T.FONT, Vector2(floorf((s.x - sw) * 0.5), 57), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	var n := items.size()
@@ -109,14 +110,14 @@ func _draw() -> void:
 			var shown_h := floorf(d.y * minf(1.0, k))
 			draw_texture_rect_region(ic, Rect2(at + Vector2(0, d.y - shown_h), Vector2(d.x, shown_h)), Rect2(Vector2(0, isz.y * (1.0 - shown_h / d.y)), Vector2(isz.x, isz.y * shown_h / d.y)))
 		if k >= 1.0:
-			var nm := str(it.get("name", ""))
+			var nm := tr(str(it.get("name", "")))
 			var nw := T.FONT_BOLD.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 			draw_string(T.FONT_BOLD, Vector2(floorf(r.position.x + (r.size.x - nw) * 0.5), r.end.y + 13), nm, HORIZONTAL_ALIGNMENT_LEFT, r.size.x + GAP, T.FONT_SIZE, T.TEXT)
-			var pr := "$%d" % int(it.get("price", 0))
+			var pr := LANG.money("$%d" % int(it.get("price", 0)))
 			var pw := T.FONT.get_string_size(pr, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 			draw_string(T.FONT, Vector2(floorf(r.position.x + (r.size.x - pw) * 0.5), r.end.y + 25), pr, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(70, 70, 90))
 	if more > 0 and _shown >= n:
-		var m := tr("and %d more in the catalogue") % more
+		var m := LANG.f("and %d more in the catalogue", more)
 		var mw := T.FONT.get_string_size(m, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		draw_string(T.FONT, Vector2(floorf((s.x - mw) * 0.5), 66.0 + PIC.y + 41.0), m, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
 	if _shown >= n:

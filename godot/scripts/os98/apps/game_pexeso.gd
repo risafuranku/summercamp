@@ -6,6 +6,7 @@ extends Control
 ## Fewest turns wins; the best five are kept with their names (os_shell.scores("pexeso")).
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const BOARD = preload("res://scripts/os98/apps/score_board.gd")
 const BUILDER = preload("res://scripts/builder_module.gd")
 const HEAD_H := 40
@@ -77,7 +78,7 @@ func _deal() -> void:
 	_turns = 0
 	_pairs = 0
 	_rank = -1
-	_line = "Turn two cards. Find the pairs."
+	_line = tr("Turn two cards. Find the pairs.")
 	queue_redraw()
 
 
@@ -122,7 +123,7 @@ func _gui_input(e: InputEvent) -> void:
 			_cards[_second]["done"] = true
 			_pairs += 1
 			var id := str(_cards[i]["pic"])
-			_line = "%s!  %s" % [str(BUILDER.SHORT_NAMES.get(id, id)), str(BUILDER.BLURBS.get(id, ""))]
+			_line = "%s!  %s" % [tr(str(BUILDER.SHORT_NAMES.get(id, id))), tr(str(BUILDER.BLURBS.get(id, "")))]
 			_first = -1
 			_second = -1
 			if _pairs * 2 >= _cards.size():
@@ -143,7 +144,7 @@ func _turn_back() -> void:
 
 func _won() -> void:
 	_rank = _shell.add_score("pexeso", _turns)
-	_line = "All %d pairs in %d turns.%s  Click for a new game." % [_pairs, _turns, "  On the Best Games table!" if _rank >= 0 else ""]
+	_line = LANG.f("All %d pairs in %d turns.%s  Click for a new game.", [_pairs, _turns, tr("  On the Best Games table!") if _rank >= 0 else ""])
 	_shell.play("ding", -8.0)
 
 
@@ -169,7 +170,7 @@ func _draw() -> void:
 				var k := minf((CARD.x - 10) / ts.x, (CARD.y - 22) / ts.y)
 				var d := (ts * k).floor()
 				draw_texture_rect(tex, Rect2(r.position + Vector2(floorf((CARD.x - d.x) * 0.5), 5 + floorf((CARD.y - 22 - d.y) * 0.5)), d), false)
-			draw_string(T.FONT, r.position + Vector2(0, CARD.y - 6), str(BUILDER.TINY_NAMES.get(str(c["pic"]), BUILDER.SHORT_NAMES.get(str(c["pic"]), ""))), HORIZONTAL_ALIGNMENT_CENTER, CARD.x, T.FONT_SIZE, T.TEXT)
+			draw_string(T.FONT, r.position + Vector2(0, CARD.y - 6), tr(str(BUILDER.TINY_NAMES.get(str(c["pic"]), BUILDER.SHORT_NAMES.get(str(c["pic"]), "")))), HORIZONTAL_ALIGNMENT_CENTER, CARD.x, T.FONT_SIZE, T.TEXT)
 			if bool(c["done"]):
 				draw_rect(r.grow(-2), Color8(0, 140, 0), false, 2.0)
 		else:
@@ -191,4 +192,4 @@ func _draw() -> void:
 	draw_string(T.FONT_BOLD, Vector2(10, 26), "PEXESO 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(250, 220, 90))
 	var top: Array = _shell.scores("pexeso")
 	var tx := 26.0 + T.FONT_BOLD.get_string_size("PEXESO 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2).x
-	draw_string(T.FONT, Vector2(tx, 25), "PAIRS %d / %d     TURNS %d     BEST %s" % [_pairs, _cards.size() / 2, _turns, str(top[0][1]) if not top.is_empty() else "-"], HORIZONTAL_ALIGNMENT_LEFT, w - tx - 6, T.FONT_SIZE, Color8(210, 240, 220))
+	draw_string(T.FONT, Vector2(tx, 25), LANG.f("PAIRS %d / %d     TURNS %d     BEST %s", [_pairs, _cards.size() / 2, _turns, str(top[0][1]) if not top.is_empty() else "-"]), HORIZONTAL_ALIGNMENT_LEFT, w - tx - 6, T.FONT_SIZE, Color8(210, 240, 220))

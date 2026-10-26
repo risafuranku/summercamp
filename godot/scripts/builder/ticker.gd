@@ -12,6 +12,7 @@ signal go_to(coord: Vector2i)
 signal follow(guest_id: int)
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const ICON_DIR := "res://assets/textury/builder/news/"
 ## The icons by kind (Grok bld_icons, cut by tools/artgen: guest, toilet, medal, coins,
 ## rain, cabin, warning, tree); the line works without them.
@@ -52,19 +53,19 @@ func _ready() -> void:
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			_jump(_pop)
 			popup.visible = false)
-	EventBus.guest_at_gate.connect(func(g: Dictionary): add("%s %s at the gate." % [_first(g), "is" if int(g.get("party_size", 1)) <= 1 else "and party are"], "guest"))
-	EventBus.guest_checked_in.connect(func(g: Dictionary): add("%s moved into %s." % [_first(g), _room_of(g)], "cabin", _lodging(g)))
-	EventBus.guest_gave_up.connect(func(g: Dictionary): add("%s gave up waiting and drove off." % _first(g), "warning", Vector2i(-1, -1), -1, true, true))
+	EventBus.guest_at_gate.connect(func(g: Dictionary): add(LANG.f("%s is at the gate." if int(g.get("party_size", 1)) <= 1 else "%s and party are at the gate.", _first(g)), "guest"))
+	EventBus.guest_checked_in.connect(func(g: Dictionary): add(LANG.f("%s moved into %s.", [_first(g), _room_of(g)]), "cabin", _lodging(g)))
+	EventBus.guest_gave_up.connect(func(g: Dictionary): add(LANG.f("%s gave up waiting and drove off.", _first(g)), "warning", Vector2i(-1, -1), -1, true, true))
 	EventBus.guest_review_posted.connect(func(r: Dictionary):
 		var stars := int(r.get("stars", r.get("rating", 0)))
-		add("%s wrote a review: %d out of 5." % [str(r.get("name", r.get("author", "A guest"))).split(" ")[0], stars], "guest", Vector2i(-1, -1), -1, stars <= 2, stars <= 1 or stars >= 5))
+		add(LANG.f("%s wrote a review: %d out of 5.", [str(r.get("name", r.get("author", "A guest"))).split(" ")[0], stars]), "guest", Vector2i(-1, -1), -1, stars <= 2, stars <= 1 or stars >= 5))
 	EventBus.accommodation_state_changed.connect(func(key: String, status: String, _n: int):
 		if status == "dirty" and key.contains(":"):
-			add("%s needs cleaning." % _room_label(key), "cabin", _coord(key)))
-	EventBus.building_failed.connect(func(c: Vector2i, t: String): add("The %s has broken down." % _name(t), "warning", c, -1, true, true))
+			add(LANG.f("%s needs cleaning.", _room_label(key)), "cabin", _coord(key)))
+	EventBus.building_failed.connect(func(c: Vector2i, t: String): add(LANG.f("The %s has broken down.", tr(_name(t))), "warning", c, -1, true, true))
 	EventBus.building_serviced.connect(func(c: Vector2i, t: String, was_broken: bool, _cost: int):
 		if was_broken:
-			add("The %s works again." % _name(t), "warning", c))
+			add(LANG.f("The %s works again.", tr(_name(t))), "warning", c))
 	_snd = AudioStreamPlayer.new()
 	_snd.stream = load(SFX) if ResourceLoader.exists(SFX) else null
 	add_child(_snd)
@@ -132,7 +133,7 @@ func _poll_camp() -> void:
 			if was == null or th == "" or th == str(was) or int(g.get("thought_age", 9999)) > 30:
 				continue
 			var mood := float(g.get("mood", 50.0))
-			add("%s: %s" % [str(g.get("name", "Guest")).split(" ")[0], th], "guest", Vector2i(-1, -1), id, mood < 35.0)
+			add("%s: %s" % [str(g.get("name", "Guest")).split(" ")[0], tr(th)], "guest", Vector2i(-1, -1), id, mood < 35.0)
 	var st = CoreRoot.get_state() if CoreRoot != null else null
 	if st == null:
 		return
@@ -143,7 +144,7 @@ func _poll_camp() -> void:
 			continue
 		var filthy := float(d.get("maintenance", 1.0)) < 0.35
 		if filthy and not bool(_dirt.get(c, true)):
-			add("The %s are filthy." % ("toilets" if t == "toilet_block" else "showers"), "toilet", c, -1, true)
+			add(tr("The toilets are filthy.") if t == "toilet_block" else tr("The showers are filthy."), "toilet", c, -1, true)
 		_dirt[c] = filthy
 
 
@@ -208,15 +209,15 @@ func _lodging(g: Dictionary) -> Vector2i:
 
 func _room_of(g: Dictionary) -> String:
 	var c := _lodging(g)
-	return _room_label("%d:%d" % [c.x, c.y]) if c.x >= 0 else "the camp"
+	return _room_label("%d:%d" % [c.x, c.y]) if c.x >= 0 else tr("the camp")
 
 
 func _room_label(key: String) -> String:
 	if GuestManager != null and GuestManager.has_method("room_label"):
 		var l := str(GuestManager.room_label(key))
 		if l != "":
-			return l
-	return "a room"
+			return tr(l)
+	return tr("a room")
 
 
 func _coord(key: String) -> Vector2i:

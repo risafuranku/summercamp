@@ -22,6 +22,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 
 const RULES := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
+const LANG := preload("res://scripts/lang.gd")
 const PIC := "res://assets/textury/closeup/ledger.png"
 const SFX_STAMP := "res://assets/sfx/desk/stamp.mp3"
 const SFX_PAGE := "res://assets/sfx/desk/paper_slide.mp3"
@@ -101,13 +102,13 @@ func _opened() -> void:
 	var lows: Array = []
 	for g in site["stock"]:
 		if RULES.is_low(_kind(), g, int(site["stock"][g])):
-			lows.append(str(RULES.goods(_kind())[g]["label"]).to_lower())
+			lows.append(tr(str(RULES.goods(_kind())[g]["label"])).to_lower())
 	if not lows.is_empty():
-		say("", "Running low: %s." % ", ".join(lows))
+		say("", LANG.f("Running low: %s.", ", ".join(lows)))
 	elif not bool(site.get("staff", false)):
 		say("", "Nobody behind the counter.")
 	else:
-		say("", "%s is behind the counter." % str(site.get("staff_name", "")))
+		say("", LANG.f("%s is behind the counter.", str(site.get("staff_name", ""))))
 
 
 # ── hotspots ─────────────────────────────────────────────────────────────────
@@ -259,7 +260,7 @@ func _clicked(id: String) -> void:
 		var n: int = int(_order.get(g, 0)) + (1 if id.begins_with("plus:") else -1)
 		var room: int = maxi(0, (RULES.cap_of(kind, g, site) - int(site["stock"].get(g, 0)) - BUSINESS.on_order(building_key, g)) / maxi(1, int(RULES.goods(kind)[g]["pack"])))
 		if n > room:
-			say("", "No room on the shelves for more %s." % str(RULES.goods(kind)[g]["label"]).to_lower())
+			say("", LANG.f("No room on the shelves for more %s.", tr(str(RULES.goods(kind)[g]["label"])).to_lower()))
 			return
 		_order[g] = clampi(n, 0, room)
 		play(SFX_PAGE, -18.0)
@@ -281,7 +282,7 @@ func _clicked(id: String) -> void:
 				say("", "Nothing written on the order.")
 				return
 			if not CoreRoot.actions.biz_order(building_key, _order, CoreRoot.get_day() + 1):
-				say("", "That is $%d. The camp has not got it." % cost)
+				say("", LANG.f("That is $%d. The camp has not got it.", cost))
 				return
 			_order = {}
 			_stamp("ORDERED")
@@ -290,7 +291,7 @@ func _clicked(id: String) -> void:
 			var n2: int = CoreRoot.actions.biz_bin(building_key)
 			if n2 > 0:
 				_stamp("THROWN OUT")
-				say("", "%d in the bin." % n2)
+				say("", LANG.f("%d in the bin.", n2))
 		"next":
 			_candidate += 1
 			play(SFX_PAGE, -12.0)
@@ -351,13 +352,13 @@ func _clicked(id: String) -> void:
 				return
 			var needs := RULES.gear_needs(kind, _gear_pick)
 			if needs != "" and not RULES.has_gear(site, needs):
-				say("", tr("Needs: %s") % tr(str(RULES.gear_list(kind)[needs]["label"])))
+				say("", LANG.f("Needs: %s", tr(str(RULES.gear_list(kind)[needs]["label"]))))
 				return
 			if CoreRoot.actions.biz_buy_gear(building_key, _gear_pick):
 				_stamp("BOUGHT")
-				say("", "%s. It is in." % str(gd2["label"]))
+				say("", LANG.f("%s. It is in.", tr(str(gd2["label"]))))
 			else:
-				say("", "That is $%d. The camp has not got it." % int(gd2["price"]))
+				say("", LANG.f("That is $%d. The camp has not got it.", int(gd2["price"])))
 		"late":
 			CoreRoot.actions.biz_set_late(building_key, not bool(site.get("late", false)))
 			_stamp("OPEN LATE" if bool(site.get("late", false)) else "SHUT AT 8")
@@ -367,7 +368,7 @@ func _clicked(id: String) -> void:
 
 func _stamp(text: String) -> void:
 	_stamp_t = 0.0
-	_stamp_text = text
+	_stamp_text = tr(text)
 	play(SFX_STAMP, -4.0)
 
 
@@ -453,7 +454,7 @@ func _pencil_button(c: Control, r: Rect2, label: String, col: Color, id: String)
 	if hovered() == id:
 		c.draw_rect(r, Color(col.r, col.g, col.b, 0.22))
 	_pencil_box(c, r, col)
-	_centre(c, r, label, col, RETRO_UI.FONT_LABEL)
+	_centre(c, r, tr(label), col, RETRO_UI.FONT_LABEL)
 
 
 func _paint(c: Control) -> void:
@@ -474,8 +475,8 @@ func _paint(c: Control) -> void:
 	if site.is_empty():
 		return
 	# The left page's head: the place and the day, always.
-	_text(c, LEFT.position + Vector2(0, 8), str(info.get("name", "")).to_upper(), INK, 10, RETRO_UI.FONT_BIG)
-	_right(c, LEFT.end.x, LEFT.position.y + 8, "Day %d" % CoreRoot.get_day(), PENCIL)
+	_text(c, LEFT.position + Vector2(0, 8), tr(str(info.get("name", ""))).to_upper(), INK, 10, RETRO_UI.FONT_BIG)
+	_right(c, LEFT.end.x, LEFT.position.y + 8, LANG.f("Day %d", CoreRoot.get_day()), PENCIL)
 	match _page:
 		"menu":
 			_paint_menu(c, site, kind)
@@ -527,8 +528,8 @@ func _paint_menu(c: Control, site: Dictionary, kind: String) -> void:
 func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:
 	var gd: Dictionary = RULES.goods(kind)
 	var keys: Array = _goods_keys()
-	_text(c, LEFT.position + Vector2(0, 21), "On the shelves", PENCIL)
-	_text(c, RIGHT.position + Vector2(0, 21), "Shelf      keeps", PENCIL)
+	_text(c, LEFT.position + Vector2(0, 21), tr("On the shelves"), PENCIL)
+	_text(c, RIGHT.position + Vector2(0, 21), tr("Shelf      keeps"), PENCIL)
 	var day := CoreRoot.get_day()
 	for i in keys.size():
 		var g: String = keys[i]
@@ -537,7 +538,7 @@ func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:
 		var y := _row_y(i)
 		var low: bool = RULES.is_low(kind, g, n)
 		var off := int((site.get("spoiled", {}) as Dictionary).get(g, 0))
-		_text(c, Vector2(LEFT.position.x, y), str(d["label"]), RED if low else INK)
+		_text(c, Vector2(LEFT.position.x, y), tr(str(d["label"])), RED if low else INK)
 		_right(c, LEFT.end.x - (16 if off > 0 else 0), y, "%d" % n, RED if low else INK)
 		if off > 0:
 			_right(c, LEFT.end.x, y, "-%d" % off, RED)
@@ -555,13 +556,13 @@ func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:
 		var life := RULES.life_of(kind, g, site)
 		if left >= 0 and life > 0:
 			left = maxi(0, life - (day - int(site["lots"][g][0][1])))
-			_right(c, RIGHT.end.x, y, "%dd" % left, RED if left <= 1 else PENCIL)
+			_right(c, RIGHT.end.x, y, LANG.f("%dd", left), RED if left <= 1 else PENCIL)
 	var due := 0
 	for o in CoreRoot.get_state().biz.get("orders", []):
 		if str(o.get("key", "")) == building_key:
 			due += 1
 	if due > 0:
-		_text(c, Vector2(RIGHT.position.x, 140), "Van due: %d" % due, INK)
+		_text(c, Vector2(RIGHT.position.x, 140), LANG.f("Van due: %d", due), INK)
 	if _spoiled_n(site) > 0:
 		_pencil_button(c, _rbutton(0), "THROW OUT", RED, "bin")
 
@@ -569,14 +570,14 @@ func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:
 func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
 	var gd: Dictionary = RULES.goods(kind)
 	var keys: Array = _goods_keys()
-	_text(c, LEFT.position + Vector2(0, 21), "Wholesaler", PENCIL)
-	_right(c, LEFT.end.x, LEFT.position.y + 21, "van $%d" % RULES.DELIVERY_FEE, PENCIL)
+	_text(c, LEFT.position + Vector2(0, 21), tr("Wholesaler"), PENCIL)
+	_right(c, LEFT.end.x, LEFT.position.y + 21, LANG.f("van $%d", RULES.DELIVERY_FEE), PENCIL)
 	for i in keys.size():
 		var g: String = keys[i]
 		var d: Dictionary = gd[g]
 		var y := _row_y(i)
-		_text(c, Vector2(LEFT.position.x, y), str(d["label"]), INK)
-		_right(c, LEFT.end.x, y, "$%d/%d" % [int(d["pack_cost"]), int(d["pack"])], PENCIL)
+		_text(c, Vector2(LEFT.position.x, y), tr(str(d["label"])), INK)
+		_right(c, LEFT.end.x, y, LANG.money("$%d/%d" % [int(d["pack_cost"]), int(d["pack"])]), PENCIL)
 		var mr := _minus_rect(y)
 		var pr := _plus_rect(y)
 		for b in [["minus:", mr, "-"], ["plus:", pr, "+"]]:
@@ -589,8 +590,8 @@ func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
 		if on_units > 0:
 			_text(c, Vector2(pr.end.x + 3, y), "+%d" % on_units, PENCIL)
 	var cost: int = RULES.order_cost(kind, _order)
-	_text(c, RIGHT.position + Vector2(0, 10), "Total $%d" % cost, INK, 10, RETRO_UI.FONT_BIG)
-	_text(c, RIGHT.position + Vector2(0, 21), "Cash $%d" % CoreRoot.get_money(), PENCIL)
+	_text(c, RIGHT.position + Vector2(0, 10), LANG.f("Total $%d", cost), INK, 10, RETRO_UI.FONT_BIG)
+	_text(c, RIGHT.position + Vector2(0, 21), LANG.f("Cash $%d", CoreRoot.get_money()), PENCIL)
 	_pencil_button(c, _rbutton(0), "SEND ORDER", RED, "send")
 	if hovered() == "stamp":
 		c.draw_rect(STAMP, Color(1, 0.9, 0.5, 0.12))
@@ -598,11 +599,11 @@ func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
 
 func _paint_staff(c: Control, site: Dictionary, kind: String) -> void:
 	var crew: Array = site.get("crew", [])
-	_text(c, LEFT.position + Vector2(0, 21), "Working here", PENCIL)
+	_text(c, LEFT.position + Vector2(0, 21), tr("Working here"), PENCIL)
 	var day := CoreRoot.get_day()
 	if crew.is_empty():
-		_text(c, Vector2(LEFT.position.x, TOP + 4), "Nobody.", RED, 10, RETRO_UI.FONT_BIG)
-		_text(c, Vector2(LEFT.position.x, TOP + 14), "You serve.", RED)
+		_text(c, Vector2(LEFT.position.x, TOP + 4), tr("Nobody."), RED, 10, RETRO_UI.FONT_BIG)
+		_text(c, Vector2(LEFT.position.x, TOP + 14), tr("You serve."), RED)
 	for i in crew.size():
 		var p: Dictionary = crew[i]
 		var y := TOP + i * 11.0
@@ -613,25 +614,25 @@ func _paint_staff(c: Control, site: Dictionary, kind: String) -> void:
 			c.draw_rect(Rect2(LEFT.position.x - 1, y - 8, LEFT.size.x + 2, 10), Color(1, 0.9, 0.5, 0.15))
 		var away := int(p.get("absent", -1)) == day
 		_text(c, Vector2(LEFT.position.x, y), str(p.get("name", "")).replace("Mrs ", "Mrs."), RED if away else INK)
-		var tag := RULES.role_label(kind, str(p.get("role", ""))).substr(0, 5)
+		var tag := tr(RULES.role_label(kind, str(p.get("role", "")))).substr(0, 5)
 		tag += " L" if str(p.get("shift", "day")) == "late" else ""
 		if away:
-			tag = "AWAY"
+			tag = tr("AWAY")
 		elif int(p.get("owed", 0)) > 0:
-			tag = "OWED"
+			tag = tr("OWED")
 		_right(c, LEFT.end.x, y, tag, RED if away or int(p.get("owed", 0)) > 0 else PENCIL)
 	if _picked != "":
 		var who := _crew_of(_picked)
 		if not who.is_empty():
-			_text(c, Vector2(LEFT.position.x, 150), "$%d a %s" % [RULES.shift_pay(who), "late shift" if str(who.get("shift", "day")) == "late" else "day"], INK)
+			_text(c, Vector2(LEFT.position.x, 150), LANG.f("$%d a late shift" if str(who.get("shift", "day")) == "late" else "$%d a day", RULES.shift_pay(who)), INK)
 			_pencil_button(c, _lbutton(0), "JOB", INK, "job")
 			_pencil_button(c, _lbutton(1), "SHIFT", INK, "shift")
 			_pencil_button(c, _lbutton(2), "GO", RED, "fire")
 	# The right page: who is asking today.
 	var ap := _applicants()
-	_text(c, RIGHT.position + Vector2(0, 8), "Asking today", PENCIL)
+	_text(c, RIGHT.position + Vector2(0, 8), tr("Asking today"), PENCIL)
 	if ap.is_empty():
-		_text(c, RIGHT.position + Vector2(0, 30), "Nobody.", PENCIL)
+		_text(c, RIGHT.position + Vector2(0, 30), tr("Nobody."), PENCIL)
 		return
 	var p2: Dictionary = ap[_candidate % ap.size()]
 	var ph := _photo(str(p2["slug"]))
@@ -640,18 +641,18 @@ func _paint_staff(c: Control, site: Dictionary, kind: String) -> void:
 		c.draw_texture_rect(ph, pr, false)
 	c.draw_rect(pr.grow(1.0), PENCIL, false, 1.0)
 	_text(c, Vector2(pr.end.x + 4, 58), str(p2["name"]).replace("Mrs ", "Mrs."), INK)
-	_text(c, Vector2(pr.end.x + 4, 68), "$%d a day" % int(p2["wage"]), INK)
-	_text(c, Vector2(pr.end.x + 4, 78), "%d of %d" % [_candidate % ap.size() + 1, ap.size()], PENCIL)
+	_text(c, Vector2(pr.end.x + 4, 68), LANG.f("$%d a day", int(p2["wage"])), INK)
+	_text(c, Vector2(pr.end.x + 4, 78), LANG.f("%d of %d", [_candidate % ap.size() + 1, ap.size()]), PENCIL)
 	var y2 := 102.0
 	for line in p2.get("refs", []):
-		y2 = _wrap_at(c, Vector2(RIGHT.position.x, y2), str(line), RIGHT.size.x, INK, 8.0)
+		y2 = _wrap_at(c, Vector2(RIGHT.position.x, y2), tr(str(line)), RIGHT.size.x, INK, 8.0)
 	_pencil_button(c, _rbutton(1), "NEXT", PENCIL, "next")
 	_pencil_button(c, _rbutton(0), "TAKE ON", GREEN, "hire")
 
 
 func _paint_gear(c: Control, site: Dictionary, kind: String) -> void:
 	var gear: Dictionary = RULES.gear_list(kind)
-	_text(c, LEFT.position + Vector2(0, 21), "For the place", PENCIL)
+	_text(c, LEFT.position + Vector2(0, 21), tr("For the place"), PENCIL)
 	var i := 0
 	for id in gear:
 		var y := TOP + i * 15.0
@@ -661,50 +662,50 @@ func _paint_gear(c: Control, site: Dictionary, kind: String) -> void:
 			c.draw_rect(Rect2(LEFT.position.x - 1, y - 9, LEFT.size.x + 2, 14), Color(1, 0.9, 0.5, 0.35))
 		elif hovered() == "gearrow:" + str(id):
 			c.draw_rect(Rect2(LEFT.position.x - 1, y - 9, LEFT.size.x + 2, 14), Color(1, 0.9, 0.5, 0.15))
-		_text(c, Vector2(LEFT.position.x, y), str(g["label"]), PENCIL if owned else INK)
-		_right(c, LEFT.end.x, y, "IN" if owned else "$%d" % int(g["price"]), GREEN if owned else PENCIL)
+		_text(c, Vector2(LEFT.position.x, y), tr(str(g["label"])), PENCIL if owned else INK)
+		_right(c, LEFT.end.x, y, tr("IN") if owned else LANG.money("$%d" % int(g["price"])), GREEN if owned else PENCIL)
 		i += 1
 	if _gear_pick == "" or not gear.has(_gear_pick):
-		_text(c, RIGHT.position + Vector2(0, 21), "Pick one.", PENCIL)
+		_text(c, RIGHT.position + Vector2(0, 21), tr("Pick one."), PENCIL)
 		return
 	var gd: Dictionary = gear[_gear_pick]
-	_text(c, RIGHT.position + Vector2(0, 21), str(gd["label"]), INK)
-	_wrap_at(c, RIGHT.position + Vector2(0, 34), str(gd["what"]), RIGHT.size.x, PENCIL)
+	_text(c, RIGHT.position + Vector2(0, 21), tr(str(gd["label"])), INK)
+	_wrap_at(c, RIGHT.position + Vector2(0, 34), tr(str(gd["what"])), RIGHT.size.x, PENCIL)
 	var needs := RULES.gear_needs(kind, _gear_pick)
 	if RULES.has_gear(site, _gear_pick):
-		_text(c, RIGHT.position + Vector2(0, 100), "In the place.", GREEN)
+		_text(c, RIGHT.position + Vector2(0, 100), tr("In the place."), GREEN)
 	elif needs != "" and not RULES.has_gear(site, needs):
-		_text(c, RIGHT.position + Vector2(0, 100), "$%d" % int(gd["price"]), PENCIL, 10, RETRO_UI.FONT_BIG)
-		_wrap_at(c, RIGHT.position + Vector2(0, 116), tr("Needs: %s") % tr(str(gear[needs]["label"])), RIGHT.size.x, RED)
+		_text(c, RIGHT.position + Vector2(0, 100), LANG.money("$%d" % int(gd["price"])), PENCIL, 10, RETRO_UI.FONT_BIG)
+		_wrap_at(c, RIGHT.position + Vector2(0, 116), LANG.f("Needs: %s", tr(str(gear[needs]["label"]))), RIGHT.size.x, RED)
 	else:
-		_text(c, RIGHT.position + Vector2(0, 100), "$%d" % int(gd["price"]), INK, 10, RETRO_UI.FONT_BIG)
+		_text(c, RIGHT.position + Vector2(0, 100), LANG.money("$%d" % int(gd["price"])), INK, 10, RETRO_UI.FONT_BIG)
 		_pencil_button(c, _rbutton(0), "BUY", GREEN, "buy")
 
 
 func _paint_books(c: Control, site: Dictionary, kind: String) -> void:
 	var rows := [["Sold", "sold"], ["Takings $", "takings"], ["By you", "by_hand"], ["Went away", "lost"], ["Thrown out", "waste"], ["Short", "short"]]
-	_text(c, LEFT.position + Vector2(0, 21), "Today   Yesterday", PENCIL)
+	_text(c, LEFT.position + Vector2(0, 21), tr("Today   Yesterday"), PENCIL)
 	for i in rows.size():
 		var y := TOP + i * 11.0
 		var key: String = rows[i][1]
 		var t := int((site["today"] as Dictionary).get(key, 0))
 		var yd := int((site["yesterday"] as Dictionary).get(key, 0))
 		var bad := key in ["lost", "waste", "short"]
-		_text(c, Vector2(LEFT.position.x, y), str(rows[i][0]), PENCIL)
+		_text(c, Vector2(LEFT.position.x, y), tr(str(rows[i][0])), PENCIL)
 		_right(c, LEFT.end.x - 30, y, str(t), RED if bad and t > 0 else INK)
 		_right(c, LEFT.end.x, y, str(yd), RED if bad and yd > 0 else INK)
 	var n := int(site.get("all_orders", 0))
 	if n > 0:
-		_text(c, Vector2(LEFT.position.x, 146), "Orders rated %d" % n, PENCIL)
-		_text(c, Vector2(LEFT.position.x, 157), "Average %d%%" % int(round(float(site.get("all_score", 0)) / float(n))), INK, 10, RETRO_UI.FONT_BIG)
+		_text(c, Vector2(LEFT.position.x, 146), LANG.f("Orders rated %d", n), PENCIL)
+		_text(c, Vector2(LEFT.position.x, 157), LANG.f("Average %d%%", int(round(float(site.get("all_score", 0)) / float(n)))), INK, 10, RETRO_UI.FONT_BIG)
 	var wages := 0
 	for p in site.get("crew", []):
 		wages += RULES.shift_pay(p)
 	if wages > 0:
-		_text(c, Vector2(LEFT.position.x, 170), "Wages tonight $%d" % wages, INK)
+		_text(c, Vector2(LEFT.position.x, 170), LANG.f("Wages tonight $%d", wages), INK)
 	var late := bool(site.get("late", false))
-	_text(c, RIGHT.position + Vector2(0, 21), "Open till", PENCIL)
-	_text(c, RIGHT.position + Vector2(0, 34), "11 at night" if late else "8 in the evening", INK, 10, RETRO_UI.FONT_BIG)
+	_text(c, RIGHT.position + Vector2(0, 21), tr("Open till"), PENCIL)
+	_text(c, RIGHT.position + Vector2(0, 34), tr("11 at night") if late else tr("8 in the evening"), INK, 10, RETRO_UI.FONT_BIG)
 	_pencil_button(c, _rbutton(1), "SHUT AT 8" if late else "OPEN LATE", RED if late else INK, "late")
 	if not (site.get("zreport", {}) as Dictionary).is_empty():
 		_pencil_button(c, _rbutton(0), "Z REPORT", INK, "zreport")

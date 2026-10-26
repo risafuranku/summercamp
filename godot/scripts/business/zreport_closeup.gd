@@ -12,6 +12,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## receipt drawn over it: thermal paper, purple-grey ink, torn at the top.
 
 const RULES := preload("res://core/systems/business_rules.gd")
+const LANG := preload("res://scripts/lang.gd")
 const SFX_PRINT := "res://assets/sfx/bistro/till.mp3"
 const PAPER := Color(0.93, 0.92, 0.86)
 const INK := Color(0.32, 0.27, 0.42)
@@ -95,46 +96,46 @@ func _paint(c: Control) -> void:
 func _lines() -> Array:
 	var z := report
 	var kind := str(z.get("kind", ""))
-	var name := str((RULES.KINDS.get(kind, {}) as Dictionary).get("name", "")).to_upper()
+	var name := tr(str((RULES.KINDS.get(kind, {}) as Dictionary).get("name", ""))).to_upper()
 	var n := int(z.get("orders", 0))
 	var avg := int(round(float(z.get("score", 0)) / float(maxi(1, n))))
 	var out: Array = [
-		["CERNE JEZERO", INK, true],
-		[name + (" - LATE" if bool(z.get("late", false)) else ""), INK],
-		["Z REPORT  DAY %d" % int(z.get("day", 0)), FADED],
+		[tr("CERNE JEZERO"), INK, true],
+		[(LANG.f("%s - LATE", name)) if bool(z.get("late", false)) else name, INK],
+		[LANG.f("Z REPORT  DAY %d", int(z.get("day", 0))), FADED],
 		["- - - - - - - - - -", FADED],
-		["ORDERS\t%d" % n],
-		["BY HANDS\t%d" % int(z.get("by_hands", 0))],
-		["AVERAGE\t%d%%" % avg],
-		["TIPS\t$%d" % int(z.get("tips", 0))],
-		["WENT AWAY\t%d" % int(z.get("lost", 0)), Color(0.6, 0.15, 0.2) if int(z.get("lost", 0)) > 0 else INK],
-		["THROWN OUT\t%d" % int(z.get("waste", 0)), Color(0.6, 0.15, 0.2) if int(z.get("waste", 0)) > 0 else INK],
+		[LANG.f("ORDERS\t%d", n)],
+		[LANG.f("BY HANDS\t%d", int(z.get("by_hands", 0)))],
+		[LANG.f("AVERAGE\t%d%%", avg)],
+		[LANG.f("TIPS\t$%d", int(z.get("tips", 0)))],
+		[LANG.f("WENT AWAY\t%d", int(z.get("lost", 0))), Color(0.6, 0.15, 0.2) if int(z.get("lost", 0)) > 0 else INK],
+		[LANG.f("THROWN OUT\t%d", int(z.get("waste", 0))), Color(0.6, 0.15, 0.2) if int(z.get("waste", 0)) > 0 else INK],
 		["- - - - - - - - - -", FADED],
 	]
 	var best: Dictionary = z.get("best", {})
 	var worst: Dictionary = z.get("worst", {})
 	if not best.is_empty():
-		out.append(["BEST", FADED])
-		out.append(["%s\t%d%%" % [str(best.get("what", "")).substr(0, 12), int(best.get("score", 0))]])
+		out.append([tr("BEST"), FADED])
+		out.append(["%s\t%d%%" % [tr(str(best.get("what", ""))).substr(0, 12), int(best.get("score", 0))]])
 		out.append([str(best.get("who", "")).substr(0, 16), FADED])
 	if not worst.is_empty() and n > 1:
-		out.append(["WORST", FADED])
-		out.append(["%s\t%d%%" % [str(worst.get("what", "")).substr(0, 12), int(worst.get("score", 0))]])
+		out.append([tr("WORST"), FADED])
+		out.append(["%s\t%d%%" % [tr(str(worst.get("what", ""))).substr(0, 12), int(worst.get("score", 0))]])
 		out.append([str(worst.get("who", "")).substr(0, 16), FADED])
 	out.append(["- - - - - - - - - -", FADED])
 	var cost := int(round(float(z.get("cost", 0.0))))
-	out.append(["TAKINGS\t$%d" % int(z.get("takings", 0)), INK, false])
-	out.append(["GOODS\t-$%d" % cost])
-	out.append(["WAGES\t-$%d" % int(z.get("wages", 0))])
+	out.append([LANG.f("TAKINGS\t$%d", int(z.get("takings", 0))), INK, false])
+	out.append([LANG.f("GOODS\t-$%d", cost)])
+	out.append([LANG.f("WAGES\t-$%d", int(z.get("wages", 0)))])
 	var net := int(z.get("takings", 0)) - cost - int(z.get("wages", 0))
-	out.append(["NET\t%s$%d" % ["-" if net < 0 else "", absi(net)], Color(0.6, 0.15, 0.2) if net < 0 else INK])
+	out.append([LANG.f("NET\t%s$%d", ["-" if net < 0 else "", absi(net)]), Color(0.6, 0.15, 0.2) if net < 0 else INK])
 	# All the camp's places today, to set this one against.
 	var all := 0
 	if CoreRoot != null and CoreRoot.get_state() != null:
 		var sites: Dictionary = CoreRoot.get_state().biz.get("sites", {})
 		for k in sites:
 			all += int(((sites[k] as Dictionary).get("today", {}) as Dictionary).get("takings", 0))
-	out.append(["ALL PLACES\t$%d" % all, FADED])
+	out.append([LANG.f("ALL PLACES\t$%d", all), FADED])
 	out.append(["- - - - - - - - - -", FADED])
 	var stars := 1 + (1 if avg >= 65 else 0) + (1 if avg >= 88 else 0)
 	if n <= 0:
@@ -159,12 +160,12 @@ func _paint_note(c: Control) -> void:
 	c.draw_rect(Rect2(r.position + Vector2(2, 2), r.size), Color(0, 0, 0, 0.35))
 	c.draw_rect(r, Color(0.86, 0.82, 0.68))
 	var pencil := Color(0.24, 0.22, 0.26)
-	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(r.position.x + 6, r.position.y + 12), "MARK", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, FADED)
+	c.draw_string(RETRO_UI.FONT_TEXT, Vector2(r.position.x + 6, r.position.y + 12), tr("MARK"), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, FADED)
 	var g := str(m["grade"])
 	var col := Color(0.16, 0.42, 0.14) if g in ["A", "B"] else (Color(0.62, 0.12, 0.08) if g in ["D", "E"] else pencil)
 	c.draw_string(RETRO_UI.FONT_BIG, Vector2(r.position.x + 6, r.position.y + 36), g, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, col)
 	var y := r.position.y + 52
-	for l in _wrap_note(str(m["advice"]), r.size.x - 12):
+	for l in _wrap_note(tr(str(m["advice"])), r.size.x - 12):
 		c.draw_string(RETRO_UI.FONT_TEXT, Vector2(r.position.x + 6, y), l, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, pencil)
 		y += 10
 

@@ -8,6 +8,7 @@ extends Control
 ## with their names (os_shell.scores("mosquito")).
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const BOARD = preload("res://scripts/os98/apps/score_board.gd")
 const HEAD_H := 40
 const BITES := 5
@@ -124,7 +125,7 @@ func _tick_play(delta: float) -> void:
 				_mumble = ["Mm... itchy...", "Nngh.", "...stop it, Pepa...", "*scratch scratch*", "Mmph!"][_rng.randi_range(0, 4)]
 				_bugs.remove_at(i)
 				if _bites >= BITES:
-					_over("He is awake. He is not happy. Score %d." % _score)
+					_over(LANG.f("He is awake. He is not happy. Score %d.", _score))
 					return
 			continue
 		var p: Vector2 = b["p"]
@@ -178,7 +179,7 @@ func _gui_input(e: InputEvent) -> void:
 		_mumble = ["OW!", "Wha-?", "Who did that?!"][mini(_slaps - 1, 2)]
 		_shell.play("ding", -12.0)
 		if _slaps >= SLAPS:
-			_over("You slapped him awake. Score %d." % _score)
+			_over(LANG.f("You slapped him awake. Score %d.", _score))
 	accept_event()
 
 
@@ -240,15 +241,16 @@ func _draw() -> void:
 	if not _slap.is_empty():
 		_draw_hand(_slap["p"])
 	if _mumble != "":
-		var mw := T.FONT_BOLD.get_string_size(_mumble, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		var mumble := tr(_mumble)
+		var mw := T.FONT_BOLD.get_string_size(mumble, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		var mr := Rect2(f + Vector2(-mw * 0.5 - 6, -92), Vector2(mw + 12, 18))
 		if _state == "over":
 			mr = Rect2(Vector2(floorf((s.x - mw) * 0.5) - 6, s.y - 92), Vector2(mw + 12, 18))
 		draw_rect(mr, T.WHITE)
 		draw_rect(mr, T.DARK, false, 1.0)
-		draw_string(T.FONT_BOLD, mr.position + Vector2(6, 13), _mumble, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		draw_string(T.FONT_BOLD, mr.position + Vector2(6, 13), mumble, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	if _state == "ready":
-		var msg := "Swat the mosquitoes. Do not slap the camper."
+		var msg := tr("Swat the mosquitoes. Do not slap the camper.")
 		var w := T.FONT_BOLD.get_string_size(msg, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		draw_rect(Rect2(floorf((s.x - w) * 0.5) - 8, s.y - 96, w + 16, 22), Color(0, 0, 0, 0.6))
 		draw_string(T.FONT_BOLD, Vector2(floorf((s.x - w) * 0.5), s.y - 80), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(255, 230, 120))
@@ -292,6 +294,6 @@ func _draw_head() -> void:
 	draw_rect(Rect2(0, HEAD_H - 2, w, 2), Color8(250, 200, 40))
 	draw_string(T.FONT_BOLD, Vector2(10, 26), "KOMAR 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(250, 200, 40))
 	var top: Array = _shell.scores("mosquito")
-	var info := "SWATTED %d     BITES %d/%d     SLAPS %d/%d     BEST %s" % [_score, _bites, BITES, _slaps, SLAPS, str(top[0][1]) if not top.is_empty() else "-"]
+	var info := LANG.f("SWATTED %d     BITES %d/%d     SLAPS %d/%d     BEST %s", [_score, _bites, BITES, _slaps, SLAPS, str(top[0][1]) if not top.is_empty() else "-"])
 	var tx := 26.0 + T.FONT_BOLD.get_string_size("KOMAR 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2).x
 	draw_string(T.FONT, Vector2(tx, 25), info, HORIZONTAL_ALIGNMENT_LEFT, w - tx - 6, T.FONT_SIZE, Color8(200, 210, 230))

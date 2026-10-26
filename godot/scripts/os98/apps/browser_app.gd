@@ -16,6 +16,7 @@ extends Control
 ## strip shows from the second tab, a click picks one, the middle button or its x closes it.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const WEB = preload("res://scripts/os98/web_pages.gd")
 const ICONS = preload("res://scripts/os98/apps/browser_icons.gd")
@@ -142,7 +143,7 @@ func _build() -> void:
 	# The menu bar.
 	var mx := 4.0
 	for m in ["File", "View", "Go", "Favorites", "Help"]:
-		var w := T.FONT.get_string_size(m, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 12.0
+		var w := T.FONT.get_string_size(tr(m), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 12.0
 		add_child(_menu_title(m, Vector2(mx, 1), Vector2(w, MENU_H - 2)))
 		mx += w
 
@@ -372,16 +373,17 @@ func _cool(id: String, text: String, cb: Callable, pos: Vector2, sz: Vector2) ->
 			c.draw_style_box(T.box("thin_raised", T.FACE), Rect2(Vector2.ZERO, sz))
 		var o := Vector2(1, 1) if down else Vector2.ZERO
 		var ip := Vector2(floorf((sz.x - ICONS.S) * 0.5), 3) + o
-		var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		var label := tr(text)
+		var tw := T.FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		var tp := Vector2(floorf((sz.x - tw) * 0.5), sz.y - 5) + o
 		if dis:
 			c.draw_texture(ICONS.get_icon(id, false), ip + Vector2(1, 1), Color(1, 1, 1, 0.9))
 			c.draw_texture(ICONS.get_icon(id, false), ip, Color(0.55, 0.55, 0.55, 0.6))
-			c.draw_string(T.FONT, tp + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
-			c.draw_string(T.FONT, tp, text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
+			c.draw_string(T.FONT, tp + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
+			c.draw_string(T.FONT, tp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
 		else:
 			c.draw_texture(ICONS.get_icon(id, hov), ip)
-			c.draw_string(T.FONT, tp, text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+			c.draw_string(T.FONT, tp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	)
 	return c
 
@@ -401,7 +403,8 @@ func _set_tool_enabled(id: String, on: bool) -> void:
 
 
 func _link_button(text: String, target: String) -> Control:
-	var w := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 26.0
+	var label := tr(text)
+	var w := T.FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 26.0
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(w, 20)
 	c.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -424,7 +427,7 @@ func _link_button(text: String, target: String) -> Control:
 		if bool(c.get_meta("hover")):
 			c.draw_style_box(T.box("thin_raised", T.FACE), Rect2(Vector2.ZERO, c.size))
 		c.draw_texture_rect(ICONS.get_icon("page", bool(c.get_meta("hover"))), Rect2(3, 2, 16, 16), false)
-		c.draw_string(T.FONT, Vector2(22, 14), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		c.draw_string(T.FONT, Vector2(22, 14), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	)
 	return c
 
@@ -451,7 +454,7 @@ func _draw_status(bar: Control) -> void:
 	bar.draw_circle(gc + Vector2(-2, -1), 2.5, Color8(60, 170, 70))
 	bar.draw_circle(gc + Vector2(3, 2), 2.0, Color8(60, 170, 70))
 	bar.draw_arc(gc, 6.0, 0, TAU, 16, T.DARK, 1.0)
-	var zone := "Internet" if _shell.is_online() else "Offline"
+	var zone := tr("Internet") if _shell.is_online() else tr("Offline")
 	bar.draw_string(T.FONT, zone_r.position + Vector2(22, 13), zone, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 
 
@@ -543,9 +546,10 @@ func _menu_title(text: String, pos: Vector2, sz: Vector2) -> Control:
 			c.draw_style_box(T.box("well", T.FACE), Rect2(Vector2.ZERO, sz))
 		elif bool(c.get_meta("hover")):
 			c.draw_style_box(T.box("thin_raised", T.FACE), Rect2(Vector2.ZERO, sz))
-		c.draw_string(T.FONT, Vector2(6, 12), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		var label := tr(text)
+		c.draw_string(T.FONT, Vector2(6, 12), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 		# The underlined access key.
-		var w := T.FONT.get_string_size(text.substr(0, 1), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		var w := T.FONT.get_string_size(label.substr(0, 1), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		c.draw_rect(Rect2(6, 14, w, 1), T.TEXT)
 	)
 	return c
@@ -586,7 +590,7 @@ func _open_menu(title: String, at: Vector2) -> void:
 	var entries := _menu_entries(title)
 	var w := 150.0
 	for e in entries:
-		w = maxf(w, T.FONT.get_string_size(str(e[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 44.0)
+		w = maxf(w, T.FONT.get_string_size(tr(str(e[0])), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 44.0)
 	var h := 4.0
 	for e in entries:
 		h += 8.0 if e[0] == "-" else 18.0
@@ -620,7 +624,7 @@ func _open_menu(title: String, at: Vector2) -> void:
 			_menu.add_child(sep)
 			y += 8.0
 			continue
-		_menu.add_child(_menu_item(str(e[0]), e[1], Vector2(2, y), Vector2(w - 4, 18), title == "Favorites" or title == "History"))
+		_menu.add_child(_menu_item(tr(str(e[0])), e[1], Vector2(2, y), Vector2(w - 4, 18), title == "Favorites" or title == "History"))
 		y += 18.0
 	for c in get_children():
 		if c is Control and c.has_meta("hover"):
@@ -755,7 +759,7 @@ func _describe(target: String) -> String:
 
 func _title_of(key: String) -> String:
 	if key.begins_with("search?q="):
-		return "Search: " + key.trim_prefix("search?q=").uri_decode()
+		return LANG.f("Search: %s", key.trim_prefix("search?q=").uri_decode())
 	return str(WEB.PAGES.get(key, {}).get("title", "http://www." + key))
 
 
@@ -935,11 +939,13 @@ func _show(key: String) -> void:
 		sb = st
 	_page.add_theme_stylebox_override("normal", sb)
 	_page.add_theme_color_override("default_color", Color.html(str(page.get("fg", "#000000"))))
-	_set_page(_expand(str(page.get("body", "")), str(page.get("link", "#0000ee")), key))
+	# The page in the warden's language before its links are made ({site|Label} kept by
+	# the lookup: lang._forms).
+	_set_page(_expand(tr(str(page.get("body", ""))), str(page.get("link", "#0000ee")), key))
 	_page.scroll_to_line(0)
 	_page.visible_ratio = 0.0
 	_reveal = 0.0
-	_win.title = "%s - Beeternet Explorer" % str(page.get("title", key))
+	_win.title = "%s - Beeternet Explorer" % tr(str(page.get("title", key)))
 	if _tabbar != null:
 		_tabbar.queue_redraw()
 	_status_idle = "Done" if _pictures.is_empty() else "Downloading picture 1 of %d..." % _pictures.size()
@@ -1003,15 +1009,15 @@ func _on_link(target: String) -> void:
 		if post == null or post.stage() != "":
 			_load(_url, false)
 			return
-		_shell.message_box("PC Servis Hlubocany", tr("Order the monitor and the second card for $%d?\n\nThe money is taken from the camp's account.") % post.PRICE, "question", ["Order", "Cancel"], func(b: String):
+		_shell.message_box("PC Servis Hlubocany", LANG.f("Order the monitor and the second card for $%d?\n\nThe money is taken from the camp's account.", post.PRICE), "question", ["Order", "Cancel"], func(b: String):
 			if b != "Order":
 				return
 			if post.order():
 				_shell.play("click", -8.0)
 				_load(_url, false)
-				_shell.message_box("PC Servis Hlubocany", tr("Thank you. Order no. %d.\n\nThe post brings it in a few hours.") % post.order_no(), "info")
+				_shell.message_box("PC Servis Hlubocany", LANG.f("Thank you. Order no. %d.\n\nThe post brings it in a few hours.", post.order_no()), "info")
 			else:
-				_shell.message_box("PC Servis Hlubocany", tr("The payment was refused.\n\nThe camp has $%d.") % CoreRoot.get_money(), "error")
+				_shell.message_box("PC Servis Hlubocany", LANG.f("The payment was refused.\n\nThe camp has $%d.", CoreRoot.get_money()), "error")
 		)
 		return
 	# A SoftSklad licence: paid from the camp's money, the download appears.
@@ -1155,7 +1161,7 @@ func _draw_tabs() -> void:
 		if on:
 			c.draw_rect(Rect2(r.position.x + 1, c.size.y - 1, r.size.x - 2, 1), T.LIGHT)
 		c.draw_texture_rect(ICONS.get_icon("page"), Rect2(r.position.x + 3, r.position.y + 1, 16, 16), false)
-		c.draw_string(T.FONT_BOLD if on else T.FONT, Vector2(r.position.x + 21, r.position.y + 13), _tab_title(i), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 36, T.FONT_SIZE, T.TEXT)
+		c.draw_string(T.FONT_BOLD if on else T.FONT, Vector2(r.position.x + 21, r.position.y + 13), tr(_tab_title(i)), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 36, T.FONT_SIZE, T.TEXT)
 		# The x that closes it.
 		var x := Vector2(r.end.x - 11, r.position.y + 5)
 		for k in 5:

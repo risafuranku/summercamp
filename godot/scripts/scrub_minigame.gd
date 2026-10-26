@@ -15,6 +15,7 @@ signal closed
 
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const LANG = preload("res://scripts/lang.gd")
 const BOWL := "res://assets/textury/closeup/wc_bowl.png"
 const DIRT := "res://assets/textury/closeup/wc_dirt.png"
 const SFX := "res://assets/sfx/rooms/"
@@ -344,7 +345,7 @@ func _draw_over(c: Control) -> void:
 	var clean := int(round((1.0 - _left) * 100.0))
 	var font: Font = RETRO_UI.FONT_BIG
 	var fs := RETRO_UI.SIZE_BIG * int(_k)
-	var txt := "SPOTLESS" if _done_t >= 0.0 else "CLEAN %d%%" % clean
+	var txt := tr("SPOTLESS") if _done_t >= 0.0 else LANG.f("CLEAN %d%%", clean)
 	var col := Color(0.6, 1.0, 0.65) if _done_t >= 0.0 else Color(0.95, 0.9, 0.7)
 	var w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var at := (_origin + Vector2(PIC.x * _k - w - 8 * _k, PIC.y * _k + 14 * _k)).floor()

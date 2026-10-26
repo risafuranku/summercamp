@@ -113,7 +113,7 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 	# The picture nods now and then (a pixel), so the eye goes to it.
 	var nod := -1.0 if int(_t * 2.0 + float(hash(str(row.get("id", ""))) % 7)) % 6 == 0 else 0.0
 	_icon(TEX % str(row.get("kind", "")), at + (ICON_AT + Vector2(0, nod)) * u, u)
-	var word := str(row.get("word", "")).to_upper()
+	var word := tr(str(row.get("word", ""))).to_upper()
 	var room := (PLATE.x - WORD_AT.x - 2.0) * u
 	while word.length() > 1 and f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		word = word.substr(0, word.length() - 1)

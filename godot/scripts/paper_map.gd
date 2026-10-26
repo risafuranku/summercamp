@@ -8,6 +8,7 @@ extends CanvasLayer
 ## what to do next.
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const LANG = preload("res://scripts/lang.gd")
 const ROOM_RULES = preload("res://core/systems/room_rules.gd")
 
 const PAPER := Color(0.86, 0.80, 0.64)
@@ -143,7 +144,7 @@ func _collect() -> Dictionary:
 	var hud = _main.get("_hud_manager")
 	var objective := str(hud.get("_objective_text").text) if hud != null and hud.get("_objective_text") != null else ""
 	if not objective.is_empty():
-		todo.append(objective)
+		todo.append(tr(objective))
 	# The day's events and guests waiting to be served are circled like the night's jobs.
 	var de = _main.get("_day_events")
 	if de != null and de.has_method("open_events"):
@@ -156,9 +157,9 @@ func _collect() -> Dictionary:
 	var biz = im.get("business") if im != null else null
 	if biz != null and biz.has_method("waiting_sites"):
 		for s in biz.waiting_sites():
-			jobs.append({"kind": "serve", "coord": s["coord"], "title": "%s: %d waiting for an order" % [s["title"], int(s["n"])], "where": "serve them at the counter"})
+			jobs.append({"kind": "serve", "coord": s["coord"], "title": LANG.f("%s: %d waiting for an order", [tr(str(s["title"])), int(s["n"])]), "where": "serve them at the counter"})
 	for j in jobs:
-		todo.append("%s - %s" % [j.get("title", ""), j.get("where", "")])
+		todo.append("%s - %s" % [tr(str(j.get("title", ""))), tr(str(j.get("where", "")))])
 	return {"w": w, "h": h, "lake": lake, "trees": trees, "paths": paths, "buildings": buildings,
 		"rooms": rooms, "broken": broken, "jobs": jobs, "waiting": waiting, "coming": coming,
 		"gate": GuestManager.get_gate_coord(), "todo": todo, "corn_gate": _corn_gate_coord(grid)}
@@ -240,7 +241,7 @@ func _draw_map() -> void:
 	var sheet := Vector2(plan.x + 64.0 + fs * 3.0, plan.y + header + footer + 40.0)
 	# A narrow sheet (a narrow screen, the bag open): the title smaller to fit beside the
 	# date; still too wide, the sheet wider with the plan in its middle.
-	var sub_w := font.get_string_size("site plan - V. 1996", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 2.0 + 64.0
+	var sub_w := font.get_string_size(tr("site plan - V. 1996"), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 2.0 + 64.0
 	var ts := int(fs * 1.8)
 	while ts > fs and title.get_string_size("KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, ts).x + sub_w > sheet.x:
 		ts -= 1
@@ -253,7 +254,7 @@ func _draw_map() -> void:
 	_draw_paper(Rect2(origin, sheet))
 	var o := origin + Vector2(32.0 + floorf(extra * 0.5), header + 12.0)
 	_canvas.draw_string(title, origin + Vector2(32, fs * 2.2), "KEMP CERNE JEZERO", HORIZONTAL_ALIGNMENT_LEFT, -1, ts, PENCIL)
-	var sub := "site plan - V. 1996"
+	var sub := tr("site plan - V. 1996")
 	var sw := font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	_canvas.draw_string(font, origin + Vector2(sheet.x - 32 - sw, fs * 2.2), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL.lightened(0.35))
 
@@ -308,14 +309,14 @@ func _draw_map() -> void:
 		_canvas.draw_rect(Rect2(r.position + Vector2(2, 3), r.size), Color(0, 0, 0, 0.18))
 		_canvas.draw_rect(r, fill)
 		_canvas.draw_rect(r, PENCIL, false, 2.0)
-		var label := str(NAMES.get(t, t.to_upper()))
+		var label := tr(str(NAMES.get(t, t.to_upper())))
 		# Lodgings by their number: TENT 1, CABIN 2, CARAVAN 1 (the keys say T1, C2, V1).
 		if t in ROOM_TYPES and GuestManager != null and GuestManager.room_number(key) > 0:
-			label = GuestManager.room_label(key).to_upper()
+			label = tr(GuestManager.room_label(key)).to_upper()
 		if label != "":
 			labels.append([label, r])
 		if broken.has(key):
-			_stamp(r, "BROKEN", INK_RED, fs)
+			_stamp(r, tr("BROKEN"), INK_RED, fs)
 
 	# Names: inside the block if they fit, else below, above, right or left of it,
 	# wherever they do not cover another name or building; left out if nowhere fits.
@@ -358,7 +359,7 @@ func _draw_map() -> void:
 		for i in 5:
 			var y := gp.y - cell * 2.0 + i * cell
 			_canvas.draw_line(Vector2(gp.x + 6, y), Vector2(gp.x + 6 + cell * 0.5, y - cell * 0.6), Color(0.62, 0.55, 0.22), 2.0)
-		_canvas.draw_string(font, gp + Vector2(6, cell * 2.2 + fs), "CORN", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
+		_canvas.draw_string(font, gp + Vector2(6, cell * 2.2 + fs), tr("CORN"), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
 		corn_p = gp + Vector2(cell * 0.6, 0)
 
 	# What needs you (tonight's jobs, the day's events, guests waiting at a counter):
@@ -378,7 +379,7 @@ func _draw_map() -> void:
 	var gp := _to_sheet(o, cell, Vector2(g) + Vector2(0.5, 0.0), w, h)
 	_canvas.draw_line(gp - Vector2(cell, 0), gp + Vector2(cell, 0), Color(0.88, 0.84, 0.70), 5.0)
 	_canvas.draw_line(gp - Vector2(cell, 0), gp + Vector2(cell, 0), INK_RED, 2.0)
-	var gl := "GATE" if int(_data["waiting"]) == 0 else "GATE - %d AT RECEPTION" % int(_data["waiting"])
+	var gl := tr("GATE") if int(_data["waiting"]) == 0 else LANG.f("GATE - %d AT RECEPTION", int(_data["waiting"]))
 	var gw := font.get_string_size(gl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	_canvas.draw_string(font, gp + Vector2(-gw * 0.5, fs + 6), gl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, INK_RED if int(_data["waiting"]) > 0 else PENCIL)
 
@@ -388,7 +389,7 @@ func _draw_map() -> void:
 	for line in _data["todo"]:
 		lines.append(str(line))
 	if int(_data["coming"]) > 0:
-		lines.append("%d more on the road" % int(_data["coming"]))
+		lines.append(LANG.f("%d more on the road", int(_data["coming"])))
 	for line in lines.slice(0, 3):
 		var wrapped: Array = _wrap("- " + line, plan.x, font, fs)
 		_canvas.draw_string(font, Vector2(o.x, y), str(wrapped[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
@@ -396,10 +397,11 @@ func _draw_map() -> void:
 	var lx := o.x
 	var ly2 := origin.y + sheet.y - 18.0
 	for row in [[ROOM_READY, "ready"], [ROOM_DIRTY, "dirty"], [ROOM_UNMADE, "not made up"], [ROOM_TAKEN, "guests in"]]:
+		var word := tr(str(row[1]))
 		_canvas.draw_rect(Rect2(lx, ly2 - fs * 0.8, fs * 0.9, fs * 0.9), row[0])
 		_canvas.draw_rect(Rect2(lx, ly2 - fs * 0.8, fs * 0.9, fs * 0.9), PENCIL, false, 1.0)
-		_canvas.draw_string(font, Vector2(lx + fs * 1.3, ly2), str(row[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
-		lx += fs * 1.3 + font.get_string_size(str(row[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 1.4
+		_canvas.draw_string(font, Vector2(lx + fs * 1.3, ly2), word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, PENCIL)
+		lx += fs * 1.3 + font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * 1.4
 
 
 const ROOM_READY := Color(0.56, 0.78, 0.46)

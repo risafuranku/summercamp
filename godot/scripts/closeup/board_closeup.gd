@@ -218,7 +218,7 @@ func _paint_sheet(c: Control, r: Rect2, line: float) -> void:
 func _paint_held(c: Control, n: Dictionary) -> void:
 	c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0, 0, 0, 0.62))
 	var src: Rect2 = n["rect"]
-	var lines := str(n["text"]).split("\n")
+	var lines := tr(str(n["text"])).split("\n")
 	var font: Font = RETRO_UI.FONT_LABEL if str(n.get("font", "")) == "label" else RETRO_UI.FONT_TEXT
 	var widest := 0.0
 	for l in lines:

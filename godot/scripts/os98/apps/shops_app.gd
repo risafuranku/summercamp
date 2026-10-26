@@ -10,6 +10,7 @@ extends Control
 ## warden) installs with a click; the rest run below and keep their place when you switch.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const PAGE = preload("res://scripts/os98/os_page.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const APPS := [["pub_app", "pub"], ["bistro_app", "rest"], ["shop_app", "vecerka"], ["corn_app", "corn"], ["staff_app", "staff"]]
@@ -156,7 +157,7 @@ func _on_do() -> void:
 		return
 	var info: Dictionary = RULES.info(kind)
 	var app_id := _cur
-	_shell.message_box("SoftSklad", tr("Buy a licence for %s for $%d?\n\nThe money is taken from the camp's account.") % [str(info.get("app_name", "")), int(info.get("licence", 0))], "question", ["Buy", "Cancel"], func(b: String):
+	_shell.message_box("SoftSklad", LANG.f("Buy a licence for %s for $%d?\n\nThe money is taken from the camp's account.", [str(info.get("app_name", "")), int(info.get("licence", 0))]), "question", ["Buy", "Cancel"], func(b: String):
 		if b != "Buy" or not is_instance_valid(self):
 			return
 		if CoreRoot.actions.biz_buy_licence(kind):
@@ -164,7 +165,7 @@ func _on_do() -> void:
 			_shell.install_program(app_id, false)
 			_switch(app_id)
 		else:
-			_shell.message_box("SoftSklad", tr("The payment was refused.\n\nThe camp has $%d.") % CoreRoot.get_money(), "error")
+			_shell.message_box("SoftSklad", LANG.f("The payment was refused.\n\nThe camp has $%d.", CoreRoot.get_money()), "error")
 	)
 
 
@@ -192,7 +193,7 @@ func _draw_strip() -> void:
 		c.draw_texture_rect(_shell.icon(str(_shell.PROGRAMS[id]["icon"]), true), Rect2(r.position + Vector2(5, 3) + o, Vector2(16, 16)), false, Color.WHITE if installed else Color(1, 1, 1, 0.45))
 		var label := str(_shell.PROGRAMS[id]["title"])
 		c.draw_string(T.FONT, r.position + Vector2(26, 15) + o, label, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 64, T.FONT_SIZE, T.TEXT if installed else T.TEXT_DISABLED)
-		var tag := "" if installed else ("install" if lic else "buy")
+		var tag := "" if installed else (tr("install") if lic else tr("buy"))
 		if tag != "":
 			var tw := T.FONT.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 			c.draw_string(T.FONT, Vector2(r.end.x - tw - 6, r.position.y + 15) + o, tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(0, 110, 0) if lic else T.SHADOW)
@@ -222,19 +223,19 @@ func _draw_empty() -> void:
 	var info: Dictionary = RULES.info(kind)
 	var col := {"pub": Color8(110, 28, 16), "rest": Color8(22, 82, 40), "vecerka": Color8(150, 20, 20), "corn": Color8(150, 110, 0), "staff": Color8(70, 54, 30)}.get(kind, T.NAVY) as Color
 	c.draw_rect(Rect2(0, 0, s.x, 34), col)
-	c.draw_string(T.FONT_BOLD, Vector2(12, 22), "%s  -  %s" % [str(_shell.PROGRAMS[_cur]["title"]), str(info.get("name", ""))], HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
+	c.draw_string(T.FONT_BOLD, Vector2(12, 22), "%s  -  %s" % [str(_shell.PROGRAMS[_cur]["title"]), tr(str(info.get("name", "")))], HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
 	c.draw_texture(_shell.icon(str(_shell.PROGRAMS[_cur]["icon"])), Vector2(floorf(s.x * 0.5 - 16), 60))
 	var lines: Array = []
 	if _licensed(kind):
-		lines = ["The licence is paid. The program is not on this computer yet."]
+		lines = [tr("The licence is paid. The program is not on this computer yet.")]
 	elif kind == "staff":
-		lines = ["Your own staff from this desk: who you take on, what each of them",
-			"sees to, their lockers and their day.",
-			"A licence costs $%d, paid once." % int(info.get("licence", 0))]
+		lines = [tr("Your own staff from this desk: who you take on, what each of them"),
+			tr("sees to, their lockers and their day."),
+			LANG.f("A licence costs $%d, paid once.", int(info.get("licence", 0)))]
 	else:
-		lines = ["Run the %s from this desk: stock, orders to the wholesaler," % str(info.get("name", "business")).to_lower(),
-			"staff and the takings, on one screen.",
-			"A licence costs $%d, paid once." % int(info.get("licence", 0))]
+		lines = [LANG.f("Run the %s from this desk: stock, orders to the wholesaler,", tr(str(info.get("name", "business"))).to_lower()),
+			tr("staff and the takings, on one screen."),
+			LANG.f("A licence costs $%d, paid once.", int(info.get("licence", 0)))]
 	var y := 118.0
 	for l in lines:
 		var tw := T.FONT.get_string_size(str(l), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x

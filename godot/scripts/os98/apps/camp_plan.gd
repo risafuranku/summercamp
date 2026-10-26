@@ -210,7 +210,7 @@ func _draw_building(b: Dictionary, o: Vector2, cell: float) -> void:
 	if bool(b["broken"]):
 		draw_line(r.position, r.end, DIRTY, 2.0)
 		draw_line(Vector2(r.end.x, r.position.y), Vector2(r.position.x, r.end.y), DIRTY, 2.0)
-	var label := str(b["label"])
+	var label := tr(str(b["label"]))
 	if label != "":
 		# A room's number always (a tent is one cell: it runs over, outlined); a service's
 		# name only where it fits.

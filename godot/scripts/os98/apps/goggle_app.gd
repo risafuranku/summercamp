@@ -12,6 +12,7 @@ extends Control
 ## be there), big on a click, and what people also searched for (Agrostroj's site).
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const GOGGLE = preload("res://scripts/reviews/goggle.gd")
 const STAR_DIR := "res://assets/textury/os98/web/"
 const BANNER := "res://assets/textury/os98/web/spotless_banner.png"
@@ -201,9 +202,9 @@ func _ask_removal(id: int) -> void:
 			var r: Dictionary = m.goggle_remove(id) if m != null and m.has_method("goggle_remove") else {}
 			if bool(r.get("ok", false)):
 				_shell.play("ding", -8.0)
-				_notice = "SpotlessName Ltd: booked. $%d paid." % int(r.get("cost", 0))
+				_notice = LANG.f("SpotlessName Ltd: booked. $%d paid.", int(r.get("cost", 0)))
 			elif str(r.get("reason", "")) == "money":
-				_notice = "SpotlessName Ltd: payment declined."
+				_notice = tr("SpotlessName Ltd: payment declined.")
 			_notice_until = Time.get_ticks_msec() / 1000.0 + 5.0
 			_canvas.queue_redraw())
 
@@ -223,7 +224,7 @@ func _draw_page() -> void:
 	_draw_bar(c, w)
 	_draw_head(c, w)
 	if g == null:
-		_text(c, T.FONT, Vector2(20, BAR_H + HEAD_H + 30), "The page cannot be displayed.", T.TEXT)
+		_text(c, T.FONT, Vector2(20, BAR_H + HEAD_H + 30), tr("The page cannot be displayed."), T.TEXT)
 		return
 	var top := BAR_H + HEAD_H + 4.0
 	_draw_place(c, g, Rect2(8, top, LEFT_W, h - top - 6))
@@ -235,7 +236,7 @@ func _draw_page() -> void:
 func _draw_bar(c: Control, w: float) -> void:
 	c.draw_rect(Rect2(0, 0, w, BAR_H), T.FACE)
 	c.draw_rect(Rect2(0, BAR_H - 1, w, 1), T.SHADOW)
-	_text(c, T.FONT, Vector2(6, 15), "Address", T.TEXT)
+	_text(c, T.FONT, Vector2(6, 15), tr("Address"), T.TEXT)
 	var r := Rect2(56, 3, w - 62, 16)
 	c.draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), r)
 	_text(c, T.FONT, Vector2(r.position.x + 4, 15), "http://www.goggle.cz/places?q=camp+cerne+jezero+hlubocany", T.TEXT)
@@ -254,13 +255,13 @@ func _draw_head(c: Control, w: float) -> void:
 		x += T.FONT_BOLD.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
 	if icon != null:
 		c.draw_texture_rect(icon, Rect2(x + 2, y + 2, 28, 28), false)
-	_text(c, T.FONT, Vector2(12, y + 38), "Places", GREY)
+	_text(c, T.FONT, Vector2(12, y + 38), tr("Places"), GREY)
 	var box := Rect2(LEFT_W + 22, y + 8, w - LEFT_W - 140, 20)
 	c.draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), box)
-	_text(c, T.FONT, Vector2(box.position.x + 5, box.position.y + 14), "camp cerne jezero hlubocany", T.TEXT)
+	_text(c, T.FONT, Vector2(box.position.x + 5, box.position.y + 14), tr("camp cerne jezero hlubocany"), T.TEXT)
 	var btn := Rect2(box.end.x + 6, box.position.y - 1, 104, 22)
 	c.draw_style_box(T.box("raised", T.FACE, Vector4.ZERO), btn)
-	_text(c, T.FONT, Vector2(btn.position.x + 12, btn.position.y + 15), "Goggle Search", T.TEXT)
+	_text(c, T.FONT, Vector2(btn.position.x + 12, btn.position.y + 15), tr("Goggle Search"), T.TEXT)
 	c.draw_rect(Rect2(0, BAR_H + HEAD_H, w, 1), Color8(60, 100, 200))
 
 
@@ -269,18 +270,18 @@ func _draw_place(c: Control, g, r: Rect2) -> void:
 	var day := _day()
 	var x := r.position.x
 	var y := r.position.y + 4
-	_text(c, T.FONT_BOLD, Vector2(x, y + 12), "Camp Cerne Jezero", T.TEXT, 14)
-	_text(c, T.FONT, Vector2(x, y + 27), "Campground  -  Hlubocany", GREY)
+	_text(c, T.FONT_BOLD, Vector2(x, y + 12), tr("Camp Cerne Jezero"), T.TEXT, 14)
+	_text(c, T.FONT, Vector2(x, y + 27), tr("Campground  -  Hlubocany"), GREY)
 	y += 36
 	var n: int = g.count()
 	var rating: float = g.rating(day)
 	if n == 0:
-		_text(c, T.FONT, Vector2(x, y + 22), "No reviews yet.", GREY)
+		_text(c, T.FONT, Vector2(x, y + 22), tr("No reviews yet."), GREY)
 		y += 34
 	else:
 		_text(c, T.FONT_BOLD, Vector2(x, y + 30), "%.1f" % rating, T.TEXT, 32)
 		_draw_stars(c, Vector2(x + 58, y + 8), rating, 16)
-		_text(c, T.FONT, Vector2(x + 58, y + 38), "%d review%s" % [n, "" if n == 1 else "s"], Color8(26, 13, 171))
+		_text(c, T.FONT, Vector2(x + 58, y + 38), LANG.f("%d review%s", [n, "" if n == 1 else "s"]), Color8(26, 13, 171))
 		y += 46
 		var hist: Array = g.histogram()
 		var top_n := 1
@@ -298,8 +299,8 @@ func _draw_place(c: Control, g, r: Rect2) -> void:
 		var fr := Rect2(x, y, r.size.x, 30)
 		c.draw_rect(fr, Color8(255, 236, 236))
 		c.draw_rect(Rect2(fr.position, Vector2(3, fr.size.y)), RED)
-		_text(c, T.FONT_BOLD, Vector2(x + 8, y + 13), "Unusual review activity", RED)
-		_text(c, T.FONT, Vector2(x + 8, y + 26), "on this listing has been detected.", RED)
+		_text(c, T.FONT_BOLD, Vector2(x + 8, y + 13), tr("Unusual review activity"), RED)
+		_text(c, T.FONT, Vector2(x + 8, y + 26), tr("on this listing has been detected."), RED)
 		y += 34
 	y += 8
 	_draw_banner(c, g, Rect2(x, y, r.size.x, BANNER_H))
@@ -319,12 +320,12 @@ func _draw_banner(c: Control, g, r: Rect2) -> void:
 	var tx := r.position.x + r.size.x * 0.45 + 2.0
 	var ty := r.position.y
 	var blink := int(Time.get_ticks_msec() / 500) % 2 == 0
-	_text(c, T.FONT_BOLD, Vector2(tx, ty + 17), "Bad review?", Color8(200, 0, 0) if blink else Color8(0, 0, 160))
-	_text(c, T.FONT_BOLD, Vector2(tx, ty + 32), "GONE by", T.TEXT)
-	_text(c, T.FONT_BOLD, Vector2(tx, ty + 45), "morning!", T.TEXT)
+	_text(c, T.FONT_BOLD, Vector2(tx, ty + 17), tr("Bad review?"), Color8(200, 0, 0) if blink else Color8(0, 0, 160))
+	_text(c, T.FONT_BOLD, Vector2(tx, ty + 32), tr("GONE by"), T.TEXT)
+	_text(c, T.FONT_BOLD, Vector2(tx, ty + 45), tr("morning!"), T.TEXT)
 	_text(c, T.FONT, Vector2(tx, ty + 61), "SpotlessName Ltd", Color8(0, 0, 140))
-	_text(c, T.FONT, Vector2(tx, ty + 74), "from $%d" % int(g.removal_cost()), T.TEXT)
-	_text(c, T.FONT, Vector2(tx, ty + 88), "Discreet. Fast. Legal*", Color8(60, 60, 60), 10)
+	_text(c, T.FONT, Vector2(tx, ty + 74), LANG.f("from $%d", int(g.removal_cost())), T.TEXT)
+	_text(c, T.FONT, Vector2(tx, ty + 88), tr("Discreet. Fast. Legal*"), Color8(60, 60, 60), 10)
 
 
 ## Stavitel software's partner programme: what the next guests open in Builder 98.
@@ -333,13 +334,13 @@ func _draw_partner(c: Control, g, r: Rect2) -> void:
 	c.draw_style_box(T.box("field", Color8(255, 252, 230), Vector4.ZERO), r)
 	var x := r.position.x + 6
 	var y := r.position.y + 14
-	_text(c, T.FONT_BOLD, Vector2(x, y), "Builder 98 partner camps", Color8(120, 70, 0))
+	_text(c, T.FONT_BOLD, Vector2(x, y), tr("Builder 98 partner camps"), Color8(120, 70, 0))
 	y += 15
 	if nt.is_empty():
-		_text(c, T.FONT, Vector2(x, y), "Every blueprint is yours.", T.TEXT)
+		_text(c, T.FONT, Vector2(x, y), tr("Every blueprint is yours."), T.TEXT)
 		return
 	var pad: Texture2D = _art.get(PADLOCK)
-	_text(c, T.FONT_BOLD, Vector2(x, y), "%d guests in the camp" % int(nt["guests"]), T.TEXT)
+	_text(c, T.FONT_BOLD, Vector2(x, y), LANG.f("%d guests in the camp", int(nt["guests"])), T.TEXT)
 	y += 15
 	var items: Array = nt["items"]
 	var col_w := (r.size.x - 12.0) * 0.5
@@ -350,7 +351,7 @@ func _draw_partner(c: Control, g, r: Rect2) -> void:
 			break
 		if pad != null:
 			c.draw_texture_rect(pad, Rect2(ix, iy - 11, 12, 12), false)
-		_text(c, T.FONT, Vector2(ix + 15, iy), str(NAMES.get(str(items[i]), str(items[i]))), T.TEXT)
+		_text(c, T.FONT, Vector2(ix + 15, iy), tr(str(NAMES.get(str(items[i]), str(items[i])))), T.TEXT)
 
 
 ## The reviews: the sort tabs, a page of them, the page numbers.
@@ -358,20 +359,22 @@ func _draw_reviews(c: Control, g, r: Rect2) -> void:
 	var day := _day()
 	var x := r.position.x
 	var y := r.position.y + 4
-	_text(c, T.FONT_BOLD, Vector2(x, y + 12), "Reviews", T.TEXT, 14)
+	_text(c, T.FONT_BOLD, Vector2(x, y + 12), tr("Reviews"), T.TEXT, 14)
 	var tx := x + 74.0
 	for s in [["newest", "Newest"], ["lowest", "Lowest"], ["highest", "Highest"]]:
-		var tw := T.FONT.get_string_size(str(s[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 14
+		var label := tr(str(s[1]))
+		var tw := T.FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 14
 		var tr := Rect2(tx, y, tw, 18)
 		var on: bool = _sort == str(s[0])
 		c.draw_style_box(T.box("pressed" if on else "raised", Color8(232, 232, 232) if on else T.FACE, Vector4.ZERO), tr)
-		_text(c, T.FONT, Vector2(tx + 7, y + 13), str(s[1]), T.TEXT)
+		_text(c, T.FONT, Vector2(tx + 7, y + 13), label, T.TEXT)
 		_hits.append([tr, "sort:" + str(s[0])])
 		tx += tw + 4
-	var pw := T.FONT.get_string_size("Photos", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 14
+	var photos := tr("Photos")
+	var pw := T.FONT.get_string_size(photos, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 14
 	var pr := Rect2(tx + 10, y, pw, 18)
 	c.draw_style_box(T.box("pressed" if _view == "photos" else "raised", Color8(232, 232, 232) if _view == "photos" else T.FACE, Vector4.ZERO), pr)
-	_text(c, T.FONT, Vector2(pr.position.x + 7, y + 13), "Photos", T.TEXT)
+	_text(c, T.FONT, Vector2(pr.position.x + 7, y + 13), photos, T.TEXT)
 	_hits.append([pr, "view:photos"])
 	tx = pr.end.x + 4
 	if _notice != "" and Time.get_ticks_msec() / 1000.0 < _notice_until:
@@ -393,7 +396,7 @@ func _draw_reviews(c: Control, g, r: Rect2) -> void:
 		_draw_card(c, g, list[i], Rect2(x, y, r.size.x, card_h - 4), day)
 		y += card_h
 	if list.is_empty():
-		_text(c, T.FONT, Vector2(x, y + 14), "Be the first to review this place.", GREY)
+		_text(c, T.FONT, Vector2(x, y + 14), tr("Be the first to review this place."), GREY)
 	_draw_pages(c, Rect2(x, r.end.y - 30, r.size.x, 28), pages)
 
 
@@ -408,13 +411,13 @@ func _draw_card(c: Control, g, e: Dictionary, r: Rect2, day: int) -> void:
 	_text(c, T.FONT_BOLD, Vector2(tx, y + 12), str(e["name"]), Color8(26, 13, 171))
 	var helpful := int(e.get("helpful", 0))
 	if helpful > 0:
-		var ht := "%d found this helpful" % helpful
+		var ht := LANG.f("%d found this helpful", helpful)
 		var hw := T.FONT.get_string_size(ht, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
 		_text(c, T.FONT, Vector2(r.end.x - hw - 2, y + 12), ht, GREY, 10)
 	_draw_stars(c, Vector2(tx, y + 16), float(e["stars"]), 11)
-	_text(c, T.FONT, Vector2(tx + 64, y + 26), _when(int(e["day"]), day) + ("  (edited)" if bool(e.get("edited", false)) and str(e["text"]).contains("EDIT:") else ""), GREY)
+	_text(c, T.FONT, Vector2(tx + 64, y + 26), _when(int(e["day"]), day) + (tr("  (edited)") if bool(e.get("edited", false)) and str(e["text"]).contains("EDIT:") else ""), GREY)
 	var ty := y + 42.0
-	var lines := _wrap(str(e["text"]), r.size.x - 40.0)
+	var lines := _wrap(tr(str(e["text"])), r.size.x - 40.0)
 	if lines.size() > 3:
 		# Longer than the card: cut on the third line, as the page does.
 		lines = lines.slice(0, 3)
@@ -430,27 +433,28 @@ func _draw_card(c: Control, g, e: Dictionary, r: Rect2, day: int) -> void:
 		ans = str(e["ghost_reply"])
 	if ans != "" and ty < r.end.y - 30:
 		c.draw_rect(Rect2(tx, ty - 9, 2, 22), Color8(200, 200, 200))
-		_text(c, T.FONT_BOLD, Vector2(tx + 6, ty), "Response from the owner", GREY, 10)
-		var ow := T.FONT_BOLD.get_string_size("Response from the owner", HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+		var resp := tr("Response from the owner")
+		_text(c, T.FONT_BOLD, Vector2(tx + 6, ty), resp, GREY, 10)
+		var ow := T.FONT_BOLD.get_string_size(resp, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
 		c.draw_rect(Rect2(tx + 12 + ow, ty - 9, 34, 11), Color8(26, 80, 170))
-		_text(c, T.FONT_BOLD, Vector2(tx + 15 + ow, ty), "Owner", T.WHITE, 10)
-		_text(c, T.FONT, Vector2(tx + 6, ty + 12), _wrap(ans, r.size.x - 50.0)[0], Color8(70, 70, 70))
+		_text(c, T.FONT_BOLD, Vector2(tx + 15 + ow, ty), tr("Owner"), T.WHITE, 10)
+		_text(c, T.FONT, Vector2(tx + 6, ty + 12), _wrap(tr(ans), r.size.x - 50.0)[0], Color8(70, 70, 70))
 		ty += 26
 	# What you can do about it.
 	var by := r.end.y - 18.0
 	var bx := tx
 	if int(e["removing"]) >= 0:
-		_chip(c, Vector2(bx, by), "Removal booked: gone by morning", Color8(0, 110, 140))
+		_chip(c, Vector2(bx, by), tr("Removal booked: gone by morning"), Color8(0, 110, 140))
 	elif bool(e["flagged"]):
-		_chip(c, Vector2(bx, by), "Reported to Goggle", RED)
+		_chip(c, Vector2(bx, by), tr("Reported to Goggle"), RED)
 	else:
 		if str(e["reply"]) == "" and str(e.get("ghost_reply", "")) == "":
-			bx = _button(c, Vector2(bx, by), "Reply", "reply:%d" % int(e["id"])) + 4
+			bx = _button(c, Vector2(bx, by), tr("Reply"), "reply:%d" % int(e["id"])) + 4
 		if int(e["stars"]) <= 3:
-			bx = _button(c, Vector2(bx, by), "Remove  $%d" % int(g.removal_cost()), "remove:%d" % int(e["id"])) + 4
+			bx = _button(c, Vector2(bx, by), LANG.f("Remove  $%d", int(g.removal_cost())), "remove:%d" % int(e["id"])) + 4
 	if _replying == int(e["id"]):
-		bx = _button(c, Vector2(bx + 8, by), "Apologise", "answer:%d:sorry" % int(e["id"])) + 4
-		_button(c, Vector2(bx, by), "Blame the weather", "answer:%d:weather" % int(e["id"]))
+		bx = _button(c, Vector2(bx + 8, by), tr("Apologise"), "answer:%d:sorry" % int(e["id"])) + 4
+		_button(c, Vector2(bx, by), tr("Blame the weather"), "answer:%d:weather" % int(e["id"]))
 	c.draw_rect(Rect2(x, r.end.y + 1, r.size.x, 1), Color8(232, 232, 232))
 
 
@@ -470,7 +474,7 @@ func _draw_photos(c: Control, r: Rect2) -> void:
 			c.draw_texture_rect(big, br, false)
 		c.draw_rect(br, Color8(0, 0, 0), false, 1.0)
 		_hits.append([br, "photo:-1"])
-		_text(c, T.FONT, Vector2(br.position.x, br.end.y + 14), "Photo by %s  -  a year ago" % str(ph[1]), GREY)
+		_text(c, T.FONT, Vector2(br.position.x, br.end.y + 14), LANG.f("Photo by %s  -  a year ago", str(ph[1])), GREY)
 		var bx := br.end.x - 70.0
 		if _photo > 0:
 			_button(c, Vector2(bx, br.end.y + 3), "<", "photo:%d" % (_photo - 1))
@@ -487,7 +491,7 @@ func _draw_photos(c: Control, r: Rect2) -> void:
 		_hits.append([pr, "photo:%d" % i])
 		_text(c, T.FONT, Vector2(pr.position.x, pr.end.y + 12), str(ph[1]), GREY, 10)
 	y += (th + 22.0) * 2.0 + 6.0
-	_text(c, T.FONT_BOLD, Vector2(x, y + 12), "People also searched for", T.TEXT)
+	_text(c, T.FONT_BOLD, Vector2(x, y + 12), tr("People also searched for"), T.TEXT)
 	y += 20
 	var aw := r.size.x / float(ALSO.size())
 	for i in ALSO.size():
@@ -502,7 +506,7 @@ func _draw_photos(c: Control, r: Rect2) -> void:
 			_hits.append([name_r, "also:%d" % i])
 		_draw_stars(c, Vector2(ax, y + 16), float(a[2]), 9)
 		_text(c, T.FONT, Vector2(ax + 52, y + 25), "%.1f (%d)" % [float(a[2]), int(a[3])], GREY, 10)
-		_text(c, T.FONT, Vector2(ax, y + 38), str(a[1]), GREY, 10)
+		_text(c, T.FONT, Vector2(ax, y + 38), tr(str(a[1])), GREY, 10)
 
 
 ## G o o o g l e, a letter o for each page, the page's number under it.
@@ -590,15 +594,15 @@ func _wrap(s: String, w: float) -> Array:
 
 func _when(d: int, today: int) -> String:
 	if d <= 0:
-		return "a year ago"
+		return tr("a year ago")
 	var ago := today - d
 	if ago <= 0:
-		return "today"
+		return tr("today")
 	if ago == 1:
-		return "yesterday"
+		return tr("yesterday")
 	if ago < 7:
-		return "%d days ago" % ago
-	return "%d weeks ago" % (ago / 7)
+		return LANG.f("%d days ago", ago)
+	return LANG.f("%d weeks ago", ago / 7)
 
 
 ## The reviewer's face: the top of their figure, small.

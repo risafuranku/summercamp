@@ -10,6 +10,7 @@ extends Control
 ## `_cover_lines(id)`. Everything here is the system's own wording: plain, about files.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const PAGE = preload("res://scripts/os98/os_page.gd")
 const PROGRESS = preload("res://scripts/os98/os_progress.gd")
 const LIST_W := 168
@@ -210,14 +211,14 @@ func _card_rect(i: int) -> Rect2:
 ## What the folder pane says about a program: the lines under its name.
 func _describe(id: String) -> Array:
 	var info: Array = _shell.PROGRAM_INFO.get(id, ["", "", ""])
-	var out: Array = ["Application"]
+	var out: Array = [tr("Application")]
 	if str(info[0]) != "":
-		out.append(str(info[0]))
+		out.append(tr(str(info[0])))
 	if str(info[1]) != "":
-		out.append("Version %s" % info[1])
+		out.append(LANG.f("Version %s", info[1]))
 	if str(info[2]) != "":
-		out.append("Modified: %s" % info[2])
-	out.append("Size: %d KB" % int(_shell.PROGRAMS[id].get("kb", 0)))
+		out.append(LANG.f("Modified: %s", info[2]))
+	out.append(LANG.f("Size: %d KB", int(_shell.PROGRAMS[id].get("kb", 0))))
 	return out
 
 
@@ -229,7 +230,7 @@ func _draw_list() -> void:
 	c.draw_rect(Rect2(s.x - 1, 0, 1, s.y), T.SHADOW)
 	# The folder's name, big, and the rule of colours under it.
 	c.draw_texture(_shell.icon(str(head[1])), Vector2(8, 8))
-	c.draw_string(T.FONT_BOLD, Vector2(46, 34), str(head[0]), HORIZONTAL_ALIGNMENT_LEFT, s.x - 50, T.FONT_SIZE * 2, T.TEXT)
+	c.draw_string(T.FONT_BOLD, Vector2(46, 34), tr(str(head[0])), HORIZONTAL_ALIGNMENT_LEFT, s.x - 50, T.FONT_SIZE * 2, T.TEXT)
 	var rule_w := s.x - 16
 	for x in int(rule_w):
 		var k := float(x) / rule_w
@@ -249,7 +250,7 @@ func _draw_list() -> void:
 		var name_col := T.WHITE if on else (T.TEXT if ready else T.TEXT_DISABLED)
 		c.draw_string(T.FONT_BOLD, r.position + Vector2(42, 18), str(_shell.PROGRAMS[id]["title"]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 46, T.FONT_SIZE, name_col)
 		var p: float = _shell.install_progress(id)
-		var st := ("Installing... %d%%" % int(p * 100.0)) if p >= 0.0 else (_card_status(id) if ready else "Not installed")
+		var st := LANG.f("Installing... %d%%", int(p * 100.0)) if p >= 0.0 else (tr(_card_status(id)) if ready else tr("Not installed"))
 		c.draw_string(T.FONT, r.position + Vector2(42, 33), st, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 46, T.FONT_SIZE, Color8(200, 210, 255) if on else T.SHADOW)
 	# Under the list: what the picked one is, as Properties would say.
 	var y := HEAD_H + 12 + es.size() * (CARD_H + 2)
@@ -261,8 +262,8 @@ func _draw_list() -> void:
 			c.draw_string(T.FONT, Vector2(8, y), str(l), HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.TEXT)
 			y += 14
 	else:
-		c.draw_string(T.FONT, Vector2(8, y + 8), "Select an item to view its description.", HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.TEXT)
-	c.draw_string(T.FONT, Vector2(8, s.y - 8), "%d object(s)" % es.size(), HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.SHADOW)
+		c.draw_string(T.FONT, Vector2(8, y + 8), tr("Select an item to view its description."), HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.TEXT)
+	c.draw_string(T.FONT, Vector2(8, s.y - 8), LANG.f("%d object(s)", es.size()), HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.SHADOW)
 
 
 func _list_input(e: InputEvent) -> void:
@@ -295,6 +296,6 @@ func _draw_cover() -> void:
 	c.draw_texture(_shell.icon(str(_shell.PROGRAMS[_cur]["icon"])), box.position + Vector2(16, 34))
 	var y := box.position.y + 46
 	for l in _cover_lines(_cur):
-		c.draw_string(T.FONT, Vector2(box.position.x + 60, y), str(l), HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 70, T.FONT_SIZE, T.TEXT)
+		c.draw_string(T.FONT, Vector2(box.position.x + 60, y), tr(str(l)), HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 70, T.FONT_SIZE, T.TEXT)
 		y += 15
-	c.draw_string(T.FONT, Vector2(box.position.x + 60, box.position.y + 168), "From: http://www.%s/  (%s)" % [_shell.PROGRAMS[_cur]["site"], _shell.PROGRAMS[_cur]["file"]], HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 70, T.FONT_SIZE, T.SHADOW)
+	c.draw_string(T.FONT, Vector2(box.position.x + 60, box.position.y + 168), LANG.f("From: http://www.%s/  (%s)", [_shell.PROGRAMS[_cur]["site"], _shell.PROGRAMS[_cur]["file"]]), HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 70, T.FONT_SIZE, T.SHADOW)

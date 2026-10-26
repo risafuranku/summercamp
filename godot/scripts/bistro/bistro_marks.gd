@@ -15,6 +15,7 @@ extends Control
 ## Stepped like the rest of the room (12 a second).
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const LANG = preload("res://scripts/lang.gd")
 const RULES = preload("res://core/systems/bistro_rules.gd")
 const LAYOUT = preload("res://scripts/bistro/bistro_layout.gd")
 const KITCHEN = preload("res://scripts/bistro/kitchen.gd")
@@ -174,7 +175,7 @@ func _draw_guests() -> void:
 			var k := float(l["t"]) / 2.4
 			var col := RETRO_UI.C_AMBER_LIGHT
 			col.a = 1.0 - k * k
-			_text((at as Vector2) + Vector2(-8, -10 - k * 18.0), "+$%d" % int(l["amount"]), col, true)
+			_text((at as Vector2) + Vector2(-8, -10 - k * 18.0), LANG.money("+$%d" % int(l["amount"])), col, true)
 			# And how they liked it: one to three stars over the head.
 			var stars := int(l.get("stars", 0))
 			for i in 3:
@@ -254,9 +255,9 @@ func _draw_stations(room: String, tix: Array) -> void:
 				var gs: Dictionary = kitchen.grill_state(key)
 				if bool(gs["burning"]):
 					_smoke(at + Vector2(0, 30), Color(0.35, 0.33, 0.32))
-					_badge(at, "mark_pan", "BURNING", true)
+					_badge(at, "mark_pan", tr("BURNING"), true)
 				elif bool(gs["ready"]):
-					_badge(at, "mark_pan", "TURN", false)
+					_badge(at, "mark_pan", tr("TURN"), false)
 				else:
 					var want := 0
 					for t in kitchen.tickets(key, "pass"):
@@ -268,7 +269,7 @@ func _draw_stations(room: String, tix: Array) -> void:
 				if not soups.is_empty():
 					_badge(at, "mark_ticket", str(soups.size()), _oldest_band(soups) == 2)
 				elif int(s["soup"]["level"]) <= 2:
-					_badge(at, "mark_pot", "SOUP", true)
+					_badge(at, "mark_pot", tr("SOUP"), true)
 			"floor":
 				# The plates waiting on the hatch, and the bottles wanted.
 				var out: Array = kitchen.tickets(key, "floor")
@@ -283,17 +284,17 @@ func _draw_stations(room: String, tix: Array) -> void:
 					_badge(at, "mark_wash", str(int(pl["dirty"])), int(pl["clean"]) == 0)
 			"potatoes":
 				if kitchen.prep(key, "chips_raw") < 2:
-					_badge(at, "mark_potato", "LOW", kitchen.prep(key, "chips_raw") == 0)
+					_badge(at, "mark_potato", tr("LOW"), kitchen.prep(key, "chips_raw") == 0)
 			"breading":
 				if kitchen.prep(key, "cheese_raw") + kitchen.prep(key, "cheese_bad") < 2:
-					_badge(at, "mark_slice", "LOW", kitchen.prep(key, "cheese_raw") + kitchen.prep(key, "cheese_bad") == 0)
+					_badge(at, "mark_slice", tr("LOW"), kitchen.prep(key, "cheese_raw") + kitchen.prep(key, "cheese_bad") == 0)
 	if room == "kitchen":
 		# The cellar's trays run low: over its door.
 		var low := kitchen.prep(key, "chips_raw") == 0 or kitchen.prep(key, "cheese_raw") + kitchen.prep(key, "cheese_bad") == 0
 		if low:
 			var door = _project(root.global_transform * Vector3(3.0, 2.35, 1.45))
 			if door != null:
-				_badge(door, "mark_potato", "CELLAR", false)
+				_badge(door, "mark_potato", tr("CELLAR"), false)
 
 
 func _stove(at: Vector2, s: Dictionary) -> void:
@@ -347,9 +348,9 @@ func _pot(at: Vector2, pot: Dictionary) -> void:
 	if level > 0 and (c > 0.75 or kitchen.burnt_flash.has(key)):
 		_smoke(at + Vector2(0, 30), Color(0.35, 0.33, 0.32))
 	var warn := level > 0 and c > 0.6
-	var label := str(level) if level > 0 else "EMPTY"
+	var label := str(level) if level > 0 else tr("EMPTY")
 	if warn:
-		label = "STIR"
+		label = tr("STIR")
 	_badge(at, "mark_pot", label, warn or level == 0)
 	if level > 0:
 		var r := Rect2(at + Vector2(-12, 2), Vector2(24, 3)).abs()

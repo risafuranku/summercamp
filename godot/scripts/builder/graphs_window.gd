@@ -7,6 +7,7 @@ extends Control
 ## _day_graph (scripts/builder/day_graph.gd), today's point live.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const SIZE := Vector2(440, 268)
 const PAGES := [["money", "Cash"], ["guests", "Guests"], ["mood", "Mood"], ["rating", "Goggle"], ["takings", "Takings"]]
 const KINDS := [["pub", "Pub", Color8(150, 80, 30)], ["rest", "Bistro", Color8(190, 30, 30)], ["vecerka", "Jednota", Color8(30, 70, 190)], ["corn", "Corn stand", Color8(200, 160, 0)]]
@@ -105,16 +106,17 @@ func _draw() -> void:
 	var band := Rect2(3, 3, s.x - 6, 17)
 	for i in int(ceil(band.size.x / 8.0)):
 		draw_rect(Rect2(band.position.x + i * 8, band.position.y, minf(8.0, band.size.x - i * 8), band.size.y), T.TITLE_A.lerp(T.TITLE_B, float(i * 8) / band.size.x))
-	draw_string(T.FONT_BOLD, band.position + Vector2(4, 13), "Graphs", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
+	draw_string(T.FONT_BOLD, band.position + Vector2(4, 13), tr("Graphs"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
 	# The pages.
 	var tx := 8.0
 	for p in PAGES:
-		var tw := T.FONT.get_string_size(str(p[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 14
-		var tr := Rect2(tx, 24, tw, 18)
+		var pname := tr(str(p[1]))
+		var tw := T.FONT.get_string_size(pname, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 14
+		var tab := Rect2(tx, 24, tw, 18)
 		var on := page == str(p[0])
-		draw_style_box(T.box("pressed" if on else "raised", Color8(232, 232, 232) if on else T.FACE, Vector4.ZERO), tr)
-		draw_string(T.FONT, Vector2(tx + 7, 37), str(p[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
-		_hits.append([tr, "page:" + str(p[0])])
+		draw_style_box(T.box("pressed" if on else "raised", Color8(232, 232, 232) if on else T.FACE, Vector4.ZERO), tab)
+		draw_string(T.FONT, Vector2(tx + 7, 37), pname, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		_hits.append([tab, "page:" + str(p[0])])
 		tx += tw + 3
 	var chart := Rect2(46, 52, s.x - 60, s.y - 52 - 44)
 	draw_rect(chart, T.WHITE)
@@ -178,10 +180,10 @@ func _draw() -> void:
 	var lx := chart.position.x
 	var ly := s.y - 14.0
 	if lines.is_empty():
-		draw_string(T.FONT, Vector2(lx, ly), "Nothing to draw yet.", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
+		draw_string(T.FONT, Vector2(lx, ly), tr("Nothing to draw yet."), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
 	for l in lines:
 		var off: bool = l.size() > 3 and bool(_hidden.get(str(l[3]), false))
-		var nm := str(l[0])
+		var nm := tr(str(l[0]))
 		var nw := T.FONT.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		draw_rect(Rect2(lx, ly - 8, 10, 8), l[1] if not off else Color8(200, 200, 200))
 		draw_string(T.FONT, Vector2(lx + 14, ly), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT if not off else T.SHADOW)
@@ -203,6 +205,6 @@ func _fmt(v: float) -> String:
 		return "%.1f" % v
 	if page == "money" or page == "takings":
 		if absf(v) >= 1000.0:
-			return "$%dk" % int(round(v / 1000.0))
-		return "$%d" % int(round(v))
+			return LANG.f("$%dk", int(round(v / 1000.0)))
+		return LANG.money("$%d" % int(round(v)))
 	return str(int(round(v)))

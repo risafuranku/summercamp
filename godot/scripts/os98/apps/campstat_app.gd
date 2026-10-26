@@ -12,6 +12,7 @@ extends Control
 ## Downloaded from campgrid.cz and installed.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const TABS := [["today", "Today"], ["power", "Power"], ["bills", "Bills"], ["night", "Night"], ["upkeep", "Upkeep"], ["money", "Money"], ["reviews", "Reviews"]]
 const RED := Color8(176, 0, 0)
 const AMBER := Color8(160, 112, 0)
@@ -178,16 +179,16 @@ func _draw_head() -> void:
 	_glyph(c, "power", Vector2(8, 12), 1.0)
 	c.draw_string(T.FONT_BOLD, Vector2(30, 19), "CampStat 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color(0, 0, 0, 0.5))
 	c.draw_string(T.FONT_BOLD, Vector2(29, 18), "CampStat 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, T.WHITE)
-	c.draw_string(T.FONT, Vector2(30, 33), "CampGrid s.r.o.  /  Hlubocany District Power", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(190, 205, 255))
+	c.draw_string(T.FONT, Vector2(30, 33), tr("CampGrid s.r.o.  /  Hlubocany District Power"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(190, 205, 255))
 	# Status lights on the right, each in its own well.
 	var x := w - 4.0
 	var grid_on := not _snap.is_empty() and not bool(_snap.get("power_cut_active", false))
 	var overdue := int(_snap.get("overdue_count", 0))
 	var unpaid := int(_snap.get("unpaid_count", 0))
 	var wells := [
-		["BILLS", "%d DUE" % unpaid if overdue == 0 else "%d LATE" % overdue, RED if overdue > 0 else (AMBER if unpaid > 0 else GREEN)],
-		["DAY %d" % int(_snap.get("day", CoreRoot.get_day() if CoreRoot != null else 0)), str(_snap.get("time", "--:--")), Color8(0, 0, 0, 0)],
-		["GRID", "ON" if grid_on else ("NO LINK" if _snap.is_empty() else "OFF"), GREEN if grid_on else RED],
+		[tr("BILLS"), LANG.f("%d DUE", unpaid) if overdue == 0 else LANG.f("%d LATE", overdue), RED if overdue > 0 else (AMBER if unpaid > 0 else GREEN)],
+		[LANG.f("DAY %d", int(_snap.get("day", CoreRoot.get_day() if CoreRoot != null else 0))), str(_snap.get("time", "--:--")), Color8(0, 0, 0, 0)],
+		[tr("GRID"), tr("ON") if grid_on else (tr("NO LINK") if _snap.is_empty() else tr("OFF")), GREEN if grid_on else RED],
 	]
 	for wl in wells:
 		var bw := 74.0
@@ -219,23 +220,23 @@ func _alert() -> Array:
 	if _notice != "" and Time.get_ticks_msec() / 1000.0 < _notice_until:
 		return [_notice, _notice_col]
 	if _snap.is_empty():
-		return ["No connection to the meter.", RED]
+		return [tr("No connection to the meter."), RED]
 	if bool(_snap.get("power_cut_active", false)):
-		var warn := "POWER CUT: pay every overdue bill to get the grid back."
+		var warn := tr("POWER CUT: pay every overdue bill to get the grid back.")
 		if bool(_snap.get("ups_active", false)):
 			var sec := maxi(0, int(ceil(float(_snap.get("ups_seconds_left", 0.0)))))
-			warn += "  UPS %02d:%02d left." % [sec / 60, sec % 60]
+			warn += LANG.f("  UPS %02d:%02d left.", [sec / 60, sec % 60])
 		return [warn, RED]
 	var overdue := int(_snap.get("overdue_count", 0))
 	if overdue > 0:
-		return ["%d overdue bill%s. The utility cuts the power for overdue bills: see Bills." % [overdue, "" if overdue == 1 else "s"], RED]
+		return [LANG.f("%d overdue bill%s. The utility cuts the power for overdue bills: see Bills.", [overdue, "" if overdue == 1 else "s"]), RED]
 	var unpaid := int(_snap.get("unpaid_count", 0))
 	if unpaid > 0:
-		return ["%d bill%s waiting to be paid (see Bills)." % [unpaid, "" if unpaid == 1 else "s"], AMBER]
+		return [LANG.f("%d bill%s waiting to be paid (see Bills).", [unpaid, "" if unpaid == 1 else "s"]), AMBER]
 	var broken := _broken_count()
 	if broken > 0:
-		return ["%d building%s broken down (see Upkeep)." % [broken, "" if broken == 1 else "s"], AMBER]
-	return ["All in order. Bills are issued every day at %s for the day before." % _issue_time(), GREY]
+		return [LANG.f("%d building%s broken down (see Upkeep).", [broken, "" if broken == 1 else "s"]), AMBER]
+	return [LANG.f("All in order. Bills are issued every day at %s for the day before.", _issue_time()), GREY]
 
 
 func _broken_count() -> int:
@@ -265,7 +266,7 @@ func _draw_nav() -> void:
 		c.draw_style_box(T.box("pressed" if on else "raised", Color8(208, 208, 224) if on else T.FACE, Vector4.ZERO), r)
 		var off := Vector2(1, 1) if on else Vector2.ZERO
 		_glyph(c, id, r.position + Vector2(6, 9) + off, 1.0)
-		c.draw_string(T.FONT_BOLD if on else T.FONT, r.position + Vector2(28, 21) + off, str(TABS[i][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.NAVY if on else T.TEXT)
+		c.draw_string(T.FONT_BOLD if on else T.FONT, r.position + Vector2(28, 21) + off, tr(str(TABS[i][1])), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.NAVY if on else T.TEXT)
 		var badge := _badge(id)
 		if not badge.is_empty():
 			var br := Rect2(r.end.x - 18, r.position.y + 4, 14, 12)
@@ -437,7 +438,7 @@ func _lcd(y: float, cells: Array) -> float:
 		var x := r.position.x + 6 + cw * i
 		if i > 0:
 			c.draw_rect(Rect2(x - 4, r.position.y + 6, 1, r.size.y - 12), LCD_DIM)
-		c.draw_string(T.FONT, Vector2(x + 2, r.position.y + 14), str(cells[i][0]).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, cw - 6, T.FONT_SIZE, LCD_DIM)
+		c.draw_string(T.FONT, Vector2(x + 2, r.position.y + 14), tr(str(cells[i][0])).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, cw - 6, T.FONT_SIZE, LCD_DIM)
 		var col: Color = cells[i][2] if cells[i].size() > 2 else LCD_ON
 		c.draw_string(T.FONT_MONO, Vector2(x + 2, r.position.y + 34), str(cells[i][1]), HORIZONTAL_ALIGNMENT_LEFT, cw - 6, T.FONT_MONO_SIZE, col)
 		drawn_chars += str(cells[i][1]).length()
@@ -462,7 +463,7 @@ func _table(y: float, cols: Array, rows: Array, row_h := 18.0) -> float:
 	for i in cols.size():
 		var hr := Rect2(x, y, widths[i], 18)
 		c.draw_style_box(T.box("raised", T.FACE, Vector4.ZERO), hr)
-		_text(Vector2(x + 4, y + 3), str(cols[i][0]), T.TEXT, false, widths[i] - 8, cols[i][2])
+		_text(Vector2(x + 4, y + 3), tr(str(cols[i][0])), T.TEXT, false, widths[i] - 8, cols[i][2])
 		x += widths[i]
 	y += 18.0
 	var body := Rect2(x0, y, full, maxf(row_h, row_h * rows.size()))
@@ -589,7 +590,7 @@ func _glyph(c: Control, id: String, p: Vector2, _k: float) -> void:
 ## The camp on one page: the money, and every thing that wants doing with the button
 ## that does it (or the program that does it). The page the program opens on.
 func _page_today(y: float) -> float:
-	y = _title(y, "TODAY", "day %d, %s" % [int(_snap.get("day", CoreRoot.get_day() if CoreRoot != null else 1)), str(_snap.get("time", "--:--"))])
+	y = _title(y, tr("TODAY"), LANG.f("day %d, %s", [int(_snap.get("day", CoreRoot.get_day() if CoreRoot != null else 1)), str(_snap.get("time", "--:--"))]))
 	var unpaid := int(_snap.get("unpaid_total", 0))
 	var guests := 0
 	var state = CoreRoot.get_state() if CoreRoot != null else null
@@ -597,26 +598,26 @@ func _page_today(y: float) -> float:
 		for g in state.guests:
 			if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
 				guests += maxi(1, int(g.get("party_size", 1)))
-	y = _lcd(y, [["Cash", "$" + _shell._group(CoreRoot.get_money() if CoreRoot != null else 0)], ["Bills to pay", "$%d" % unpaid, Color8(255, 90, 70) if int(_snap.get("overdue_count", 0)) > 0 else LCD_ON], ["Guests in camp", str(guests)]])
+	y = _lcd(y, [["Cash", LANG.money("$" + _shell._group(CoreRoot.get_money() if CoreRoot != null else 0))], ["Bills to pay", LANG.money("$%d" % unpaid), Color8(255, 90, 70) if int(_snap.get("overdue_count", 0)) > 0 else LCD_ON], ["Guests in camp", str(guests)]])
 	var rows: Array = []
 	# The bills.
 	var overdue := int(_snap.get("overdue_count", 0))
 	var un := int(_snap.get("unpaid_count", 0))
 	if bool(_snap.get("power_cut_active", false)):
-		rows.append([{"chip": "POWER CUT", "c": RED}, "Every overdue bill must be paid to get the grid back.", {"btn": "Pay all $%d" % unpaid, "act": "payall://"}])
+		rows.append([{"chip": tr("POWER CUT"), "c": RED}, tr("Every overdue bill must be paid to get the grid back."), {"btn": LANG.f("Pay all $%d", unpaid), "act": "payall://"}])
 	elif un > 0:
-		rows.append([{"chip": "%d LATE" % overdue if overdue > 0 else "%d DUE" % un, "c": RED if overdue > 0 else AMBER}, "Electricity: $%d to pay." % unpaid, {"btn": "Pay all $%d" % unpaid, "act": "payall://"}])
+		rows.append([{"chip": LANG.f("%d LATE", overdue) if overdue > 0 else LANG.f("%d DUE", un), "c": RED if overdue > 0 else AMBER}, LANG.f("Electricity: $%d to pay.", unpaid), {"btn": LANG.f("Pay all $%d", unpaid), "act": "payall://"}])
 	else:
-		rows.append([{"chip": "PAID", "c": GREEN}, "No electricity bills waiting.", ""])
+		rows.append([{"chip": tr("PAID"), "c": GREEN}, tr("No electricity bills waiting."), ""])
 	# Upkeep.
 	var broken := _broken_count()
 	var jobs := int(_upkeep.get("crew_jobs", 0))
 	if jobs > 0:
 		var night := bool(_upkeep.get("night", false))
-		rows.append([{"chip": "%d BROKEN" % broken if broken > 0 else "%d WORN" % jobs, "c": RED if broken > 0 else AMBER}, "Repairs waiting for the crew." if not night else "Repairs waiting (the crew comes by day).",
-			{"btn": "Crew $%d" % int(_upkeep.get("crew_cost", 0)), "act": "crew://all", "on": not night}])
+		rows.append([{"chip": LANG.f("%d BROKEN", broken) if broken > 0 else LANG.f("%d WORN", jobs), "c": RED if broken > 0 else AMBER}, tr("Repairs waiting for the crew.") if not night else tr("Repairs waiting (the crew comes by day)."),
+			{"btn": LANG.f("Crew $%d", int(_upkeep.get("crew_cost", 0))), "act": "crew://all", "on": not night}])
 	elif not _upkeep.is_empty():
-		rows.append([{"chip": "GOOD", "c": GREEN}, "Everything is in working order.", ""])
+		rows.append([{"chip": tr("GOOD"), "c": GREEN}, tr("Everything is in working order."), ""])
 	# Guests: at the desk, on the way, rooms to make up.
 	if GuestManager != null and GuestManager.has_method("get_arrivals"):
 		var at_gate := 0
@@ -632,9 +633,9 @@ func _page_today(y: float) -> float:
 					if not bool((room as Dictionary).get("ready", false)):
 						not_ready += 1
 		if at_gate > 0:
-			rows.append([{"chip": "%d AT DESK" % at_gate, "c": RED}, "Guests are waiting at reception. Check them in.", {"btn": "GuestRack", "act": "tab://guestrack"}])
+			rows.append([{"chip": LANG.f("%d AT DESK", at_gate), "c": RED}, tr("Guests are waiting at reception. Check them in."), {"btn": "GuestRack", "act": "tab://guestrack"}])
 		if coming > 0:
-			rows.append([{"chip": "%d COMING" % coming, "c": T.NAVY}, ("Rooms not ready for them: %d." % not_ready) if not_ready > 0 else "Their rooms are ready.", {"btn": "GuestRack", "act": "tab://guestrack"}])
+			rows.append([{"chip": LANG.f("%d COMING", coming), "c": T.NAVY}, LANG.f("Rooms not ready for them: %d.", not_ready) if not_ready > 0 else tr("Their rooms are ready."), {"btn": "GuestRack", "act": "tab://guestrack"}])
 		# Which ones, by their numbers; the button shows the first on GuestRack's plan.
 		var dirty: Array = []
 		var keys := GuestManager.get_accommodation_states().keys()
@@ -647,13 +648,13 @@ func _page_today(y: float) -> float:
 			var names: Array = []
 			for key in dirty:
 				names.append(GuestManager.room_short(key))
-			var line := "%s %s to clean before anyone can have %s." % [", ".join(names.slice(0, 6)) + (" ..." if names.size() > 6 else ""),
-				"is" if names.size() == 1 else "are", "it" if names.size() == 1 else "them"]
-			rows.append([{"chip": "%d DIRTY" % dirty.size(), "c": AMBER}, line, {"btn": "Show", "act": "map://%s" % dirty[0]}])
+			var line := LANG.f("%s is to clean before anyone can have it." if names.size() == 1 else "%s are to clean before anyone can have them.",
+				", ".join(names.slice(0, 6)) + (" ..." if names.size() > 6 else ""))
+			rows.append([{"chip": LANG.f("%d DIRTY", dirty.size()), "c": AMBER}, line, {"btn": tr("Show"), "act": "map://%s" % dirty[0]}])
 	# The mail.
 	var unread := EmailManager.get_unread_count() if EmailManager != null else 0
 	if unread > 0:
-		rows.append([{"chip": "%d NEW" % unread, "c": T.NAVY}, "Unread mail (bookings come by mail).", {"btn": "CampMail", "act": "tab://mail"}])
+		rows.append([{"chip": LANG.f("%d NEW", unread), "c": T.NAVY}, tr("Unread mail (bookings come by mail)."), {"btn": "CampMail", "act": "tab://mail"}])
 	# Tonight.
 	var tot: Dictionary = _forecast.get("totals", {}) if _forecast.get("totals", {}) is Dictionary else {}
 	var certain := int(tot.get("guaranteed_spawns", 0))
@@ -661,17 +662,17 @@ func _page_today(y: float) -> float:
 	if m != null and m.has_method("camp_rule") and not bool(m.camp_rule("threats")):
 		pass
 	elif certain > 0:
-		rows.append([{"chip": "TONIGHT", "c": RED}, "Something is certain to come tonight. Read the procedures.", {"btn": "Night", "act": "page://night"}])
+		rows.append([{"chip": tr("TONIGHT"), "c": RED}, tr("Something is certain to come tonight. Read the procedures."), {"btn": tr("Night"), "act": "page://night"}])
 	elif float(tot.get("expected_spawns", 0.0)) > 0.3:
-		rows.append([{"chip": "TONIGHT", "c": AMBER}, "Tonight may not be quiet (%.1f expected)." % float(tot.get("expected_spawns", 0.0)), {"btn": "Night", "act": "page://night"}])
+		rows.append([{"chip": tr("TONIGHT"), "c": AMBER}, LANG.f("Tonight may not be quiet (%.1f expected).", float(tot.get("expected_spawns", 0.0))), {"btn": tr("Night"), "act": "page://night"}])
 	y = _table(y, [["", 96, HORIZONTAL_ALIGNMENT_LEFT], ["What wants doing", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 100, HORIZONTAL_ALIGNMENT_CENTER]], rows, 22.0)
-	return _para(y, "CampGrid customer line 0663 30 199, weekdays 7:00-15:30.", GREY)
+	return _para(y, tr("CampGrid customer line 0663 30 199, weekdays 7:00-15:30."), GREY)
 
 
 func _pay_all() -> void:
 	var m: Node = _shell.main_node()
 	if m == null or not m.has_method("request_pay_electricity_bill"):
-		_set_notice("The utility does not answer.", RED)
+		_set_notice(tr("The utility does not answer."), RED)
 		return
 	var paid := 0
 	var short := false
@@ -691,7 +692,7 @@ func _pay_all() -> void:
 	refresh()
 	if paid > 0:
 		_shell.play("click")
-		_set_notice("Paid. -$%d" % paid, GREEN)
+		_set_notice(LANG.f("Paid. -$%d", paid), GREEN)
 	if short:
 		_shell.message_box("CampStat 98", "Not enough money to pay every bill.\n\nPaid what could be paid ($%d)." % paid, "error")
 
@@ -699,13 +700,13 @@ func _pay_all() -> void:
 # ── power ────────────────────────────────────────────────────────────────────
 
 func _page_power(y: float) -> float:
-	y = _title(y, "POWER DRAW", "Tariff $%.2f per kWh, standing charge $%d a day" % [float(_snap.get("rate_per_kwh", 0.0)), int(_snap.get("base_fee", 0))])
+	y = _title(y, tr("POWER DRAW"), LANG.f("Tariff $%.2f per kWh, standing charge $%d a day", [float(_snap.get("rate_per_kwh", 0.0)), int(_snap.get("base_fee", 0))]))
 	if _snap.is_empty():
-		return _para(y, "No reading from the meter.", RED)
-	y = _lcd(y, [["Load today", "%.1f kWh" % float(_snap.get("daily_kwh_total", 0.0))], ["Energy", "$%d" % int(_snap.get("daily_cost_energy", 0))], ["Bill tomorrow", "$%d" % int(_snap.get("daily_cost_total", 0))]])
+		return _para(y, tr("No reading from the meter."), RED)
+	y = _lcd(y, [["Load today", "%.1f kWh" % float(_snap.get("daily_kwh_total", 0.0))], ["Energy", LANG.money("$%d" % int(_snap.get("daily_cost_energy", 0)))], ["Bill tomorrow", LANG.money("$%d" % int(_snap.get("daily_cost_total", 0)))]])
 	var lines: Array = _snap.get("consumption_lines", []) if _snap.get("consumption_lines", []) is Array else []
 	if lines.is_empty():
-		return _para(y, "Nothing on the grid yet.", GREY)
+		return _para(y, tr("Nothing on the grid yet."), GREY)
 	var top := 0.001
 	for l in lines:
 		if l is Dictionary:
@@ -716,8 +717,8 @@ func _page_power(y: float) -> float:
 			continue
 		var l: Dictionary = l_any
 		var kwh := maxf(0.0, float(l.get("kwh_per_day", 0.0)))
-		rows.append([str(l.get("label", "?")).strip_edges(), _coord(l.get("coord", Vector2i.ZERO)), str(maxi(0, int(l.get("power_units", 0)))),
-			"%.1f" % kwh, "$%d" % maxi(0, int(l.get("cost_per_day", 0))), {"bar": kwh / top, "c": Color8(200, 150, 0)}])
+		rows.append([tr(str(l.get("label", "?")).strip_edges()), _coord(l.get("coord", Vector2i.ZERO)), str(maxi(0, int(l.get("power_units", 0)))),
+			"%.1f" % kwh, LANG.money("$%d" % maxi(0, int(l.get("cost_per_day", 0)))), {"bar": kwh / top, "c": Color8(200, 150, 0)}])
 	return _table(y, [["Building", 0, HORIZONTAL_ALIGNMENT_LEFT], ["Tile", 50, HORIZONTAL_ALIGNMENT_CENTER], ["Units", 46, HORIZONTAL_ALIGNMENT_RIGHT],
 		["kWh/day", 62, HORIZONTAL_ALIGNMENT_RIGHT], ["$/day", 50, HORIZONTAL_ALIGNMENT_RIGHT], ["Share", 90, HORIZONTAL_ALIGNMENT_LEFT]], rows)
 
@@ -726,16 +727,16 @@ func _page_power(y: float) -> float:
 
 func _page_bills(y: float) -> float:
 	var grace: int = maxi(1, int(_snap.get("bill_grace_days", 3)))
-	y = _title(y, "ELECTRICITY BILLS", "Hlubocany District Power")
+	y = _title(y, tr("ELECTRICITY BILLS"), tr("Hlubocany District Power"))
 	if _snap.is_empty():
-		return _para(y, "No connection to the utility.", RED)
+		return _para(y, tr("No connection to the utility."), RED)
 	var overdue_total := maxi(0, int(_snap.get("overdue_total", 0)))
-	y = _lcd(y, [["Unpaid", "$%d" % maxi(0, int(_snap.get("unpaid_total", 0)))], ["Overdue", "$%d" % overdue_total, Color8(255, 90, 70) if overdue_total > 0 else LCD_ON], ["Pay within", "%d days" % grace]])
+	y = _lcd(y, [["Unpaid", LANG.money("$%d" % maxi(0, int(_snap.get("unpaid_total", 0))))], ["Overdue", LANG.money("$%d" % overdue_total), Color8(255, 90, 70) if overdue_total > 0 else LCD_ON], ["Pay within", LANG.f("%d days", grace)]])
 	if bool(_snap.get("power_cut_active", false)):
-		y = _para(y, "The grid is off until every overdue bill is paid.", RED, PAD, true)
+		y = _para(y, tr("The grid is off until every overdue bill is paid."), RED, PAD, true)
 	var bills: Array = _snap.get("bills", []) if _snap.get("bills", []) is Array else []
 	if bills.is_empty():
-		return _para(y, "No bills yet. The first one comes on day 2 at %s." % _issue_time(), GREY)
+		return _para(y, LANG.f("No bills yet. The first one comes on day 2 at %s.", _issue_time()), GREY)
 	var rows: Array = []
 	for b_any in bills:
 		if not (b_any is Dictionary):
@@ -751,40 +752,40 @@ func _page_bills(y: float) -> float:
 			col = RED if overdue else AMBER
 		var act: Variant = ""
 		if not paid and not id.is_empty():
-			act = {"btn": "Pay now" if overdue else "Pay", "act": "pay://" + id}
-		rows.append([{"t": "Day %d" % int(b.get("service_day", 0)), "b": true}, "%.1f kWh" % maxf(0.0, float(b.get("kwh_total", 0.0))),
-			{"t": "$%d" % maxi(0, int(b.get("amount", 0))), "b": true}, {"chip": word, "c": col},
-			"day %d, %s" % [int(b.get("due_day", 0)), _due(int(b.get("days_left", 0)), paid, overdue)], act])
+			act = {"btn": tr("Pay now") if overdue else tr("Pay"), "act": "pay://" + id}
+		rows.append([{"t": LANG.f("Day %d", int(b.get("service_day", 0))), "b": true}, "%.1f kWh" % maxf(0.0, float(b.get("kwh_total", 0.0))),
+			{"t": LANG.money("$%d" % maxi(0, int(b.get("amount", 0)))), "b": true}, {"chip": tr(word), "c": col},
+			LANG.f("day %d, %s", [int(b.get("due_day", 0)), _due(int(b.get("days_left", 0)), paid, overdue)]), act])
 	y = _table(y, [["Bill", 54, HORIZONTAL_ALIGNMENT_LEFT], ["Used", 70, HORIZONTAL_ALIGNMENT_RIGHT], ["Amount", 58, HORIZONTAL_ALIGNMENT_RIGHT],
 		["Status", 74, HORIZONTAL_ALIGNMENT_LEFT], ["Due", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 70, HORIZONTAL_ALIGNMENT_CENTER]], rows, 20.0)
 	var unpaid_all := maxi(0, int(_snap.get("unpaid_total", 0)))
 	if unpaid_all > 0:
-		_button(Rect2(PAD, y, 160, 24), "Pay all  $%d" % unpaid_all, "payall://")
+		_button(Rect2(PAD, y, 160, 24), LANG.f("Pay all  $%d", unpaid_all), "payall://")
 		y += 32.0
-	return _para(y, "A bill comes every day at %s for the day before. An overdue bill cuts the power to the lamps and the buildings; this computer then runs on its UPS for six minutes." % _issue_time(), GREY)
+	return _para(y, LANG.f("A bill comes every day at %s for the day before. An overdue bill cuts the power to the lamps and the buildings; this computer then runs on its UPS for six minutes.", _issue_time()), GREY)
 
 
 func _due(days_left: int, paid: bool, overdue: bool) -> String:
 	if paid:
-		return "paid"
+		return tr("paid")
 	if overdue:
-		return "%d day(s) late" % absi(days_left)
+		return LANG.f("%d day(s) late", absi(days_left))
 	if days_left <= 0:
-		return "today"
-	return "1 day left" if days_left == 1 else "%d days left" % days_left
+		return tr("today")
+	return tr("1 day left") if days_left == 1 else LANG.f("%d days left", days_left)
 
 
 func _pay(bill_id: String) -> void:
 	var m: Node = _shell.main_node()
 	if m == null or not m.has_method("request_pay_electricity_bill"):
-		_set_notice("The utility does not answer.", RED)
+		_set_notice(tr("The utility does not answer."), RED)
 		return
 	var r = m.request_pay_electricity_bill(bill_id)
 	var res: Dictionary = r if r is Dictionary else {}
 	refresh()
 	if bool(res.get("ok", false)):
 		_shell.play("click")
-		_set_notice("Paid. -$%d" % maxi(0, int(res.get("amount", 0))), GREEN)
+		_set_notice(LANG.f("Paid. -$%d", maxi(0, int(res.get("amount", 0)))), GREEN)
 		return
 	var msg := "The payment did not go through."
 	match str(res.get("reason", "")):
@@ -800,12 +801,12 @@ func _pay(bill_id: String) -> void:
 # ── night ────────────────────────────────────────────────────────────────────
 
 func _page_night(y: float) -> float:
-	y = _title(y, "TONIGHT", "who is in the camp, and what that brings")
+	y = _title(y, tr("TONIGHT"), tr("who is in the camp, and what that brings"))
 	var m: Node = _shell.main_node()
 	if m != null and m.has_method("camp_rule") and not bool(m.camp_rule("threats")):
-		y = _para(y, "Night threats are switched off in this camp (sandbox). The nights are quiet: nobody turns, nothing comes to the window.", GREEN)
+		y = _para(y, tr("Night threats are switched off in this camp (sandbox). The nights are quiet: nobody turns, nothing comes to the window."), GREEN)
 	elif not bool(_forecast.get("ok", false)):
-		y = _para(y, "No forecast.", RED)
+		y = _para(y, tr("No forecast."), RED)
 	else:
 		var totals: Dictionary = _forecast.get("totals", {}) if _forecast.get("totals", {}) is Dictionary else {}
 		var safe := int(_forecast.get("safe_count", 3))
@@ -819,27 +820,28 @@ func _page_night(y: float) -> float:
 			var e: Dictionary = e_any
 			var tier := str(e.get("chance_tier", "none"))
 			var prob := float(e.get("chance_probability", 0.0))
-			var verdict := "quiet"
+			var verdict := tr("quiet")
 			var col := GREEN
 			if int(e.get("guaranteed_spawns", 0)) > 0:
-				verdict = "CERTAIN x%d" % int(e.get("guaranteed_spawns", 0))
+				verdict = LANG.f("CERTAIN x%d", int(e.get("guaranteed_spawns", 0)))
 				col = RED
 				prob = 1.0
 			elif not (tier == "none" or tier.is_empty()):
-				verdict = "%s %d%%" % [tier.to_upper(), int(round(prob * 100.0))]
+				verdict = "%s %d%%" % [tr(tier).to_upper(), int(round(prob * 100.0))]
 				col = AMBER if prob < 0.4 else RED
-			rows.append([str(e.get("label", "?")), str(int(e.get("count", 0))), {"bar": prob, "c": col}, {"chip": verdict, "c": col}])
+			rows.append([tr(str(e.get("label", "?"))), str(int(e.get("count", 0))), {"bar": prob, "c": col}, {"chip": verdict, "c": col}])
 		y = _table(y, [["Kind of guest", 0, HORIZONTAL_ALIGNMENT_LEFT], ["In camp", 56, HORIZONTAL_ALIGNMENT_RIGHT], ["Odds", 110, HORIZONTAL_ALIGNMENT_LEFT], ["Tonight", 104, HORIZONTAL_ALIGNMENT_LEFT]], rows)
-		y = _para(y, "Each kind of guest is quiet up to %d in the camp. More of one kind raise that kind's odds: a mixed camp is a quieter camp." % safe, GREY)
+		y = _para(y, LANG.f("Each kind of guest is quiet up to %d in the camp. More of one kind raise that kind's odds: a mixed camp is a quieter camp.", safe), GREY)
 	y += 6.0
 	y = _night_log(y)
-	y = _title(y, "STAFF PROCEDURES (NIGHT)", "rev. 3, do not remove from terminal")
+	y = _title(y, tr("STAFF PROCEDURES (NIGHT)"), tr("rev. 3, do not remove from terminal"))
 	for row in NIGHT_PROCEDURES:
-		_text(Vector2(PAD, y), str(row[0]), T.TEXT, true)
-		var kw := T.FONT_BOLD.get_string_size(str(row[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
-		_text(Vector2(PAD + kw + 6, y), "->  " + str(row[1]), RED, true)
-		y = _para(y + LINE, str(row[2]), T.TEXT, PAD + 12) + 4.0
-	return _para(y, "Incidents are not to be reported to guests. Incidents are not to be reported.", GREY)
+		var what := tr(str(row[0]))
+		_text(Vector2(PAD, y), what, T.TEXT, true)
+		var kw := T.FONT_BOLD.get_string_size(what, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		_text(Vector2(PAD + kw + 6, y), "->  " + tr(str(row[1])), RED, true)
+		y = _para(y + LINE, tr(str(row[2])), T.TEXT, PAD + 12) + 4.0
+	return _para(y, tr("Incidents are not to be reported to guests. Incidents are not to be reported."), GREY)
 
 
 ## The night director's log of the night before, and what the camp is like tonight
@@ -852,9 +854,9 @@ func _night_log(y: float) -> float:
 	if m.has_method("_director_context"):
 		var dom: int = d.dominant(m._director_context())
 		var hint: String = d.ARCH_HINTS[dom] if dom >= 0 else "The camp is empty. The woods are not."
-		y = _title(y, "THE CAMP TONIGHT")
-		y = _para(y, hint, AMBER) + 6.0
-	y = _title(y, "LAST NIGHT'S LOG", "motion log, previous operator's script")
+		y = _title(y, tr("THE CAMP TONIGHT"))
+		y = _para(y, tr(hint), AMBER) + 6.0
+	y = _title(y, tr("LAST NIGHT'S LOG"), tr("motion log, previous operator's script"))
 	var lines: Array = d.last_log if not d.last_log.is_empty() else []
 	var c := _canvas
 	var h := maxf(1, lines.size()) * LINE + 8.0
@@ -879,13 +881,13 @@ func _night_log(y: float) -> float:
 
 ## Worst first. Below 50% a building can break; broken ones serve nobody.
 func _page_upkeep(y: float) -> float:
-	y = _title(y, "UPKEEP", "worst first")
+	y = _title(y, tr("UPKEEP"), tr("worst first"))
 	if _upkeep.is_empty():
-		return _para(y, "No maintenance data.", RED)
-	y = _para(y, "Below 50% a building can break down, and broken buildings serve no one. Walk up to one and hold R to service or repair it, or send the crew.", GREY) + 4.0
+		return _para(y, tr("No maintenance data."), RED)
+	y = _para(y, tr("Below 50% a building can break down, and broken buildings serve no one. Walk up to one and hold R to service or repair it, or send the crew."), GREY) + 4.0
 	var rows_in: Array = _upkeep.get("rows", [])
 	if rows_in.is_empty():
-		return _para(y, "Nothing built that needs looking after yet.", GREY)
+		return _para(y, tr("Nothing built that needs looking after yet."), GREY)
 	var rows: Array = []
 	for r_any in rows_in:
 		var r: Dictionary = r_any
@@ -903,20 +905,20 @@ func _page_upkeep(y: float) -> float:
 			col = AMBER
 			word = "WORN"
 		var c = r.get("coord", null)
-		var map_btn: Variant = {"btn": "Show", "act": "map://%d:%d" % [c.x, c.y]} if c is Vector2i else ""
-		rows.append([str(r.get("label", "?")), {"bar": 0.0 if broken else cond, "c": col}, "%d%%" % int(round(cond * 100.0)), {"chip": word, "c": col},
-			"%s $%d" % ["repair" if broken else "service", int(r.get("cost", 0))], map_btn])
+		var map_btn: Variant = {"btn": tr("Show"), "act": "map://%d:%d" % [c.x, c.y]} if c is Vector2i else ""
+		rows.append([tr(str(r.get("label", "?"))), {"bar": 0.0 if broken else cond, "c": col}, "%d%%" % int(round(cond * 100.0)), {"chip": tr(word), "c": col},
+			LANG.money("%s $%d" % [tr("repair") if broken else tr("service"), int(r.get("cost", 0))]), map_btn])
 	y = _table(y, [["Building", 0, HORIZONTAL_ALIGNMENT_LEFT], ["Condition", 100, HORIZONTAL_ALIGNMENT_LEFT], ["", 36, HORIZONTAL_ALIGNMENT_RIGHT],
 		["State", 64, HORIZONTAL_ALIGNMENT_LEFT], ["Cost", 82, HORIZONTAL_ALIGNMENT_RIGHT], ["", 44, HORIZONTAL_ALIGNMENT_CENTER]], rows, 20.0)
 	var jobs := int(_upkeep.get("crew_jobs", 0))
 	if jobs <= 0:
-		return _para(y, "Everything is in working order.", GREEN, PAD, true)
+		return _para(y, tr("Everything is in working order."), GREEN, PAD, true)
 	var night := bool(_upkeep.get("night", false))
-	_button(Rect2(PAD, y, 220, 24), "Call the maintenance crew", "crew://all", not night)
-	_text(Vector2(PAD + 230, y + 5), "%d job(s), $%d" % [jobs, int(_upkeep.get("crew_cost", 0))], T.TEXT, true)
+	_button(Rect2(PAD, y, 220, 24), tr("Call the maintenance crew"), "crew://all", not night)
+	_text(Vector2(PAD + 230, y + 5), LANG.f("%d job(s), $%d", [jobs, int(_upkeep.get("crew_cost", 0))]), T.TEXT, true)
 	y += 30.0
 	if night:
-		y = _para(y, "The crew does not come out after dark.", GREY)
+		y = _para(y, tr("The crew does not come out after dark."), GREY)
 	return y
 
 
@@ -927,7 +929,7 @@ func _crew() -> void:
 	var res: Dictionary = m.request_maintenance_crew()
 	refresh()
 	if bool(res.get("ok", false)):
-		_set_notice("The crew did %d job(s). -$%d" % [int(res.get("jobs", 0)), int(res.get("amount", 0))], GREEN)
+		_set_notice(LANG.f("The crew did %d job(s). -$%d", [int(res.get("jobs", 0)), int(res.get("amount", 0))]), GREEN)
 		return
 	match str(res.get("reason", "")):
 		"night":
@@ -935,13 +937,13 @@ func _crew() -> void:
 		"insufficient_funds":
 			_shell.message_box("CampStat 98", "Not enough money for the crew ($%d)." % int(res.get("amount", 0)), "error")
 		_:
-			_set_notice("Nothing for the crew to do.", GREY)
+			_set_notice(tr("Nothing for the crew to do."), GREY)
 
 
 # ── money ────────────────────────────────────────────────────────────────────
 
 func _page_money(y: float) -> float:
-	y = _title(y, "MONEY", "day %d" % int(_snap.get("day", CoreRoot.get_day())))
+	y = _title(y, tr("MONEY"), LANG.f("day %d", int(_snap.get("day", CoreRoot.get_day()))))
 	var passive := 0
 	var breakdown: Array = []
 	var m: Node = _shell.main_node()
@@ -960,21 +962,21 @@ func _page_money(y: float) -> float:
 				guests += 1
 				guests_income += maxi(1, int(g_any.get("daily_income", 1)))
 	var total := guests_income + passive
-	y = _lcd(y, [["Cash", "$" + _shell._group(CoreRoot.get_money())], ["Income a day", "$%d" % total], ["Guests paying", str(guests)]])
+	y = _lcd(y, [["Cash", LANG.money("$" + _shell._group(CoreRoot.get_money()))], ["Income a day", LANG.money("$%d" % total)], ["Guests paying", str(guests)]])
 	y = _week_chart(y)
 	var top := float(maxi(1, maxi(guests_income, passive)))
 	var rows: Array = [
-		["Guests (%d)" % guests, {"t": "$%d" % guests_income, "b": true}, {"bar": guests_income / top, "c": GREEN}],
-		["Facilities", {"t": "$%d" % passive, "b": true}, {"bar": passive / top, "c": T.NAVY}],
-		[{"t": "Total a day", "b": true}, {"t": "$%d" % total, "b": true}, ""],
+		[LANG.f("Guests (%d)", guests), {"t": LANG.money("$%d" % guests_income), "b": true}, {"bar": guests_income / top, "c": GREEN}],
+		[tr("Facilities"), {"t": LANG.money("$%d" % passive), "b": true}, {"bar": passive / top, "c": T.NAVY}],
+		[{"t": tr("Total a day"), "b": true}, {"t": LANG.money("$%d" % total), "b": true}, ""],
 	]
 	y = _table(y, [["Income", 0, HORIZONTAL_ALIGNMENT_LEFT], ["a day", 80, HORIZONTAL_ALIGNMENT_RIGHT], ["", 150, HORIZONTAL_ALIGNMENT_LEFT]], rows)
 	if not breakdown.is_empty():
 		var brows: Array = []
 		for l in breakdown:
-			brows.append([str(l)])
+			brows.append([tr(str(l))])
 		y = _table(y, [["Facilities", 0, HORIZONTAL_ALIGNMENT_LEFT]], brows)
-	return _para(y, "Electricity is billed separately (see Bills).", GREY)
+	return _para(y, tr("Electricity is billed separately (see Bills)."), GREY)
 
 
 ## The last seven days: what guests paid (green), what the electricity cost (amber),
@@ -1011,10 +1013,10 @@ func _week_chart(y: float) -> float:
 	for v2 in cash.values():
 		ctop = maxf(ctop, float(v2))
 		cbot = minf(cbot, float(v2))
-	_text(Vector2(PAD, y), "THE LAST SEVEN DAYS", T.NAVY, true)
-	_text(Vector2(PAD + 150, y), "guests paid", GREEN)
-	_text(Vector2(PAD + 230, y), "electricity", AMBER)
-	_text(Vector2(PAD + 304, y), "cash", T.NAVY)
+	_text(Vector2(PAD, y), tr("THE LAST SEVEN DAYS"), T.NAVY, true)
+	_text(Vector2(PAD + 150, y), tr("guests paid"), GREEN)
+	_text(Vector2(PAD + 230, y), tr("electricity"), AMBER)
+	_text(Vector2(PAD + 304, y), tr("cash"), T.NAVY)
 	y += 16.0
 	var r := Rect2(PAD, y, c.size.x - PAD * 2, 110)
 	c.draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), r)
@@ -1034,7 +1036,7 @@ func _week_chart(y: float) -> float:
 		var bw := floorf(cw * 0.3)
 		c.draw_rect(Rect2(x + cw * 0.5 - bw - 1, plot.end.y - hi, bw, hi), GREEN)
 		c.draw_rect(Rect2(x + cw * 0.5 + 1, plot.end.y - hp, bw, hp), Color8(220, 160, 20))
-		_text(Vector2(x, plot.end.y + 3), Season.weekday_short(d5) if d5 != today else "today", GREY, false, cw, HORIZONTAL_ALIGNMENT_CENTER)
+		_text(Vector2(x, plot.end.y + 3), tr(Season.weekday_short(d5)) if d5 != today else tr("today"), GREY, false, cw, HORIZONTAL_ALIGNMENT_CENTER)
 		if cash.has(d5):
 			var k2 := (float(cash[d5]) - cbot) / maxf(1.0, ctop - cbot)
 			pts.append(Vector2(x + cw * 0.5, plot.end.y - plot.size.y * (0.08 + 0.84 * k2)))
@@ -1043,7 +1045,7 @@ func _week_chart(y: float) -> float:
 	for p in pts:
 		c.draw_rect(Rect2(p - Vector2(2, 2), Vector2(4, 4)), T.NAVY)
 	if n == 1 and income.is_empty() and power.is_empty():
-		_text(Vector2(plot.position.x + 8, plot.position.y + 8), "The first day. The graph fills in as the days go.", GREY)
+		_text(Vector2(plot.position.x + 8, plot.position.y + 8), tr("The first day. The graph fills in as the days go."), GREY)
 	return r.end.y + 10.0
 
 
@@ -1052,22 +1054,22 @@ func _week_chart(y: float) -> float:
 func _page_reviews(y: float) -> float:
 	var state = CoreRoot.get_state() if CoreRoot != null else null
 	var reviews: Array = state.guest_reviews if state != null else []
-	y = _title(y, "GUEST REVIEWS", "what they wrote when they left")
+	y = _title(y, tr("GUEST REVIEWS"), tr("what they wrote when they left"))
 	if reviews.is_empty():
-		return _para(y, "No reviews yet. Guests write one when they leave.", GREY)
+		return _para(y, tr("No reviews yet. Guests write one when they leave."), GREY)
 	var total := 0.0
 	for r in reviews:
 		if r is Dictionary:
 			total += float(r.get("rating", 0))
 	var avg := total / float(reviews.size())
-	y = _lcd(y, [["Average", "%.1f / 5" % avg], ["Reviews", str(reviews.size())], ["Newest", "day %d" % int((reviews[reviews.size() - 1] as Dictionary).get("day", 0)) if reviews[reviews.size() - 1] is Dictionary else "-"]])
+	y = _lcd(y, [["Average", "%.1f / 5" % avg], ["Reviews", str(reviews.size())], ["Newest", LANG.f("day %d", int((reviews[reviews.size() - 1] as Dictionary).get("day", 0))) if reviews[reviews.size() - 1] is Dictionary else "-"]])
 	for i in range(reviews.size() - 1, maxi(-1, reviews.size() - 31), -1):
 		var r: Dictionary = reviews[i] if reviews[i] is Dictionary else {}
 		var rating := clampi(int(r.get("rating", 0)), 0, 5)
 		_stars(Vector2(PAD, y + 7), rating, 5.0)
 		_text(Vector2(PAD + 64, y), str(r.get("name", "Guest")), T.TEXT, true)
-		_text(Vector2(PAD, y), "day %d" % int(r.get("day", 0)), GREY, false, _canvas.size.x - PAD * 2, HORIZONTAL_ALIGNMENT_RIGHT)
-		y = _para(y + LINE + 2, str(r.get("text", "")), T.TEXT, PAD + 12)
+		_text(Vector2(PAD, y), LANG.f("day %d", int(r.get("day", 0))), GREY, false, _canvas.size.x - PAD * 2, HORIZONTAL_ALIGNMENT_RIGHT)
+		y = _para(y + LINE + 2, tr(str(r.get("text", ""))), T.TEXT, PAD + 12)
 		_canvas.draw_rect(Rect2(PAD, y + 2, _canvas.size.x - PAD * 2, 1), Color8(220, 220, 220))
 		y += 8.0
 	return y

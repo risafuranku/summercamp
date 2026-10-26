@@ -34,6 +34,7 @@ const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const GOD = preload("res://scripts/god/god_cursor.gd")
 const RETRO = preload("res://scripts/retro_materials.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const VIEW_SHADER := preload("res://materials/builder3d_view.gdshader")
 const PLATE_SHADER := preload("res://materials/builder3d_plate.gdshader")
 const GHOST_SHADER := preload("res://materials/builder3d_ghost.gdshader")
@@ -1371,10 +1372,10 @@ func _draw_demolish_outline(cv: Control) -> void:
 	var bad := false
 	if not sum.is_empty():
 		if int(sum["count"]) == 0:
-			tag = tr("%dx%d  nothing to clear") % [rect.size.x, rect.size.y]
+			tag = LANG.f("%dx%d  nothing to clear", [rect.size.x, rect.size.y])
 			bad = true
 		else:
-			tag = tr("%dx%d  clear %d  $%d") % [rect.size.x, rect.size.y, int(sum["tiles"]), int(sum["fee"])]
+			tag = LANG.f("%dx%d  clear %d  $%d", [rect.size.x, rect.size.y, int(sum["tiles"]), int(sum["fee"])])
 			if int(CoreRoot.get_money()) < int(sum["fee"]):
 				bad = true
 	var top := pts[0]
@@ -1402,12 +1403,12 @@ func _draw_tags() -> void:
 				n_new += 1
 			elif int(e[1]) == 2:
 				blocked = true
-		var tag := tr("%d tiles  $%d") % [n_new, n_new * cost]
+		var tag := LANG.f("%d tiles  $%d", [n_new, n_new * cost])
 		var bad := n_new == 0 or n_new > afford
 		if n_new == 0:
 			tag = tr("Nothing new") if not blocked else tr("Blocked")
 		elif n_new > afford:
-			tag = tr("%d tiles  $%d - money for %d") % [n_new, n_new * cost, afford]
+			tag = LANG.f("%d tiles  $%d - money for %d", [n_new, n_new * cost, afford])
 		_tag_at(_cell_world(Vector2(line.back()[0])), tag, bad)
 		return
 	if sel == "" or sel == "path" or sel == "demolish":
@@ -1419,7 +1420,7 @@ func _draw_tags() -> void:
 				n += 1
 		var each: int = panel._get_cost(sel)
 		var afford_all := int(CoreRoot.get_money()) >= n * each
-		var t2 := tr("%d x $%d = $%d") % [n, each, n * each] if afford_all else tr("$%d - no money for all") % (n * each)
+		var t2 := LANG.f("%d x $%d = $%d", [n, each, n * each]) if afford_all else LANG.f("$%d - no money for all", n * each)
 		_tag_at(_cell_world(Vector2((panel.get("_row_line") as Array).back()[0])), t2, not afford_all or n == 0)
 		return
 	var coord: Vector2i = panel.get("_ghost_coord") if bool(panel.get("_ghost_locked")) else panel.hover_coord
@@ -1429,11 +1430,11 @@ func _draw_tags() -> void:
 	var fit: bool = panel._can_place(coord, fp, sel)
 	var pay: bool = panel._has_money(sel)
 	var cost1: int = panel._get_cost(sel)
-	var t1 := "$%d" % cost1
+	var t1 := LANG.money("$%d" % cost1)
 	if not fit:
 		t1 = tr(panel._blocked_reason(coord, fp))
 	elif not pay:
-		t1 = tr("$%d - no money") % cost1
+		t1 = LANG.f("$%d - no money", cost1)
 	_tag_at(_foot_world(coord, fp) + Vector3(0, _ghost_h + 0.4, 0), t1, not (fit and pay))
 
 

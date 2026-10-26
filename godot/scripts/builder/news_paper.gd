@@ -50,14 +50,14 @@ func _draw_news() -> void:
 	draw_rect(Rect2(Vector2(3, 3), s), Color(0, 0, 0, 0.35))
 	draw_rect(Rect2(Vector2.ZERO, s), PAPER)
 	draw_rect(Rect2(Vector2.ZERO, s), INK, false, 1.0)
-	_center(T.FONT_BOLD, "HLUBOCANY COURIER", 26, 30)
+	_center(T.FONT_BOLD, tr("HLUBOCANY COURIER"), 26, 30)
 	draw_rect(Rect2(10, 38, s.x - 20, 1), INK)
-	draw_string(T.FONT, Vector2(12, 50), Season.date_long(_day()), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, INK)
-	var ex := "EXTRA  -  50 hal"
+	draw_string(T.FONT, Vector2(12, 50), tr(Season.date_long(_day())), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, INK)
+	var ex := tr("EXTRA  -  50 hal")
 	draw_string(T.FONT, Vector2(s.x - 12 - T.FONT.get_string_size(ex, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x, 50), ex, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, INK)
 	draw_rect(Rect2(10, 54, s.x - 20, 2), INK)
 	var y := 74.0
-	for l in _wrap(str(item.get("title", "")), T.FONT_BOLD, 16, s.x - 24):
+	for l in _wrap(tr(str(item.get("title", ""))), T.FONT_BOLD, 16, s.x - 24):
 		_center(T.FONT_BOLD, l, 16, y)
 		y += 18.0
 	y += 4.0
@@ -70,7 +70,7 @@ func _draw_news() -> void:
 		draw_texture_rect(_halftone, Rect2(pic.position + ((pic.size - d) * 0.5).floor(), d), false)
 	draw_rect(pic, INK, false, 1.0)
 	var ty := y + 10.0
-	for l in _wrap(str(item.get("text", "")), T.FONT, T.FONT_SIZE, s.x - 160):
+	for l in _wrap(tr(str(item.get("text", ""))), T.FONT, T.FONT_SIZE, s.x - 160):
 		draw_string(T.FONT, Vector2(142, ty), l, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, INK)
 		ty += 13.0
 
@@ -84,21 +84,21 @@ func _draw_diploma() -> void:
 		draw_rect(Rect2(Vector2.ZERO, s), PAPER)
 	draw_rect(Rect2(Vector2.ZERO, s), Color8(90, 80, 60), false, 2.0)
 	var y := 70.0
-	_center(T.FONT_BOLD, "DIPLOMA", 24, y)
+	_center(T.FONT_BOLD, tr("DIPLOMA"), 24, y)
 	y += 34.0
-	for l in _wrap(str(item.get("title", "")), T.FONT_BOLD, 14, s.x - 60):
+	for l in _wrap(tr(str(item.get("title", ""))), T.FONT_BOLD, 14, s.x - 60):
 		_center(T.FONT_BOLD, l, 14, y)
 		y += 17.0
 	y += 10.0
-	_center(T.FONT, "awarded to", 12, y)
+	_center(T.FONT, tr("awarded to"), 12, y)
 	y += 18.0
 	_center(T.FONT_BOLD, _camp_title(), 14, y)
 	y += 22.0
-	for l in _wrap(str(item.get("text", "")), T.FONT, 12, s.x - 70):
+	for l in _wrap(tr(str(item.get("text", ""))), T.FONT, 12, s.x - 70):
 		_center(T.FONT, l, 12, y)
 		y += 14.0
-	_center(T.FONT, "District Office Pelhrimov", 10, s.y - 64)
-	_center(T.FONT, Season.date_long(int(item.get("day", _day()))), 10, s.y - 52)
+	_center(T.FONT, tr("District Office Pelhrimov"), 10, s.y - 64)
+	_center(T.FONT, tr(Season.date_long(int(item.get("day", _day())))), 10, s.y - 52)
 
 
 ## The camp's name as painted on its board by the gate (main.camp_name()).

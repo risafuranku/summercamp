@@ -958,10 +958,10 @@ func _refresh_arrivals() -> void:
 		var room_parts: Array[String] = []
 		var all_ready := not rooms.is_empty()
 		for r in rooms:
-			room_parts.append(str((r as Dictionary).get("label", "")).to_upper())
+			room_parts.append(tr(str((r as Dictionary).get("label", ""))).to_upper())
 			if not bool((r as Dictionary).get("ready", false)):
 				all_ready = false
-		var ready_word := "READY" if all_ready else "NOT READY"
+		var ready_word := tr("READY") if all_ready else tr("NOT READY")
 		var room_text := "%s  %s" % [", ".join(room_parts), ready_word]
 		var room_l := _caption("  " + room_text, RETRO_UI.C_GREEN if all_ready else RETRO_UI.C_RED_LIGHT)
 		_arrivals_box.add_child(room_l)
@@ -1012,7 +1012,8 @@ func _build_card() -> void:
 	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(grid)
 	for row in NEED_ROWS:
-		var cap := _caption(str(row[1]))
+		# In context: "WASH" is a need here, the pub's washer elsewhere.
+		var cap := _caption(tr(str(row[1]), "need"))
 		cap.custom_minimum_size = Vector2(_vp(22), 0)
 		grid.add_child(cap)
 		var bar := _segment_bar(10, RETRO_UI.C_GREEN, RETRO_UI.C_RED)
@@ -1179,7 +1180,11 @@ func _refresh_clock() -> void:
 	_clock_value.text = _time_str
 	# The date, not a day count: the month runs 19 September - 19 October 1998.
 	var dt := Season.date_of(_day)
-	_clock_caption.text = "%d %s" % [int(dt["d"]), str(Season.MONTH_NAMES[int(dt["m"]) - 1]).substr(0, 3).to_upper()]
+	# Czech writes the date as numbers ("19. 9."): its months have no three-letter forms.
+	if TranslationServer.get_locale().begins_with("cs"):
+		_clock_caption.text = "%d. %d." % [int(dt["d"]), int(dt["m"])]
+	else:
+		_clock_caption.text = "%d %s" % [int(dt["d"]), str(Season.MONTH_NAMES[int(dt["m"]) - 1]).substr(0, 3).to_upper()]
 	_clock_phase.text = str(PHASE_LABELS[_phase])
 	var cap_col := RETRO_UI.C_BONE_DIM
 	var clock_col := RETRO_UI.C_BONE
@@ -1190,7 +1195,8 @@ func _refresh_clock() -> void:
 		clock_col = RETRO_UI.C_NIGHT
 	_clock_phase.add_theme_color_override("font_color", cap_col)
 	_clock_value.add_theme_color_override("font_color", clock_col)
-	_weather_label.text = str(WEATHER_LABELS[_weather])
+	# (In context: "CLEAR" is the sky's here, the risk's under the lamps, a button's at the till.)
+	_weather_label.text = tr(str(WEATHER_LABELS[_weather]), "weather")
 	if snowing and _weather >= 3 and _weather <= 5:
 		_weather_label.text = ["LT SNOW", "SNOW", "BLIZZARD"][_weather - 3]
 	_weather_label.add_theme_color_override("font_color", RETRO_UI.C_RED_LIGHT if _weather == WEATHER_LABELS.size() - 1 else RETRO_UI.C_BLUE)
@@ -1278,14 +1284,14 @@ func _refresh_risk() -> void:
 func _risk_footer(level: int) -> String:
 	var worst := _worst_risk_entry(_risk_payload)
 	if level <= 0 or worst.is_empty():
-		return str(RISK_LEVEL_LABELS[level])
+		return tr(str(RISK_LEVEL_LABELS[level]), "risk")
 	var name_id := str(worst.get("archetype", ""))
 	var short := str(RISK_SHORT_NAMES.get(name_id, str(worst.get("label", "?")).to_upper().left(5)))
 	if int(worst.get("guaranteed_spawns", 0)) > 0:
 		return "%s SURE" % short
 	var pct := int(round(float(worst.get("chance_probability", 0.0)) * 100.0))
 	if pct <= 0:
-		return str(RISK_LEVEL_LABELS[level])
+		return tr(str(RISK_LEVEL_LABELS[level]), "risk")
 	return "%s %d%%" % [short, pct]
 
 
@@ -1327,14 +1333,14 @@ func _refresh_card() -> void:
 	_card_name.text = str(_card_info.get("name", "Guest"))
 	var archetype := str(_card_info.get("archetype", "")).replace("_", " ").to_upper()
 	var party := int(_card_info.get("party_size", 1))
-	_card_sub.text = "%s  x%d  %s" % [archetype, party, str(_card_info.get("mood_label", "")).to_upper()]
+	_card_sub.text = "%s  x%d  %s" % [tr(archetype), party, tr(str(_card_info.get("mood_label", "")).to_upper())]
 	var mood := float(_card_info.get("mood", 60.0))
 	var needs: Dictionary = _card_info.get("needs", {})
 	_card_face.set_state(mood, 1.0 - float(needs.get("safety", 80.0)) / 100.0)
 	for key in _card_bars.keys():
 		(_card_bars[key]).set_value(float(needs.get(key, 70.0)) / 100.0)
 	var thought := str(_card_info.get("thought", "")).strip_edges()
-	_card_quote.text = "\"%s\"" % thought if not thought.is_empty() else ""
+	_card_quote.text = "\"%s\"" % tr(thought) if not thought.is_empty() else ""
 	_card_quote.visible = not thought.is_empty()
 	_card_panel.size = Vector2(_vp(CARD_WIDTH_VP), 0)
 	_stack_right_column()
@@ -1548,7 +1554,7 @@ func _draw_waypoint() -> void:
 		_draw_chevron(at + dir * (absf(bob) + s), dir, c, dark)
 	var text := "%dM" % int(round(dist))
 	if not _waypoint_label.is_empty():
-		text = "%s %s" % [_waypoint_label.to_upper(), text]
+		text = "%s %s" % [tr(_waypoint_label).to_upper(), text]
 	var font := RETRO_UI.FONT_LABEL
 	var fsize := RETRO_UI.SIZE_LABEL * _scale
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x

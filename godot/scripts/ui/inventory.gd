@@ -936,7 +936,7 @@ func _draw_hint(it: Dictionary, mouse: Vector2) -> void:
 	var verb := str(VERBS.get(str(it["id"]), ""))
 	if verb == "":
 		return
-	var txt := "E  %s" % verb
+	var txt := "E  %s" % tr(verb)
 	if KINDS.get(str(it["id"]), {}).has("n"):
 		txt += "  (%d)" % int(it.get("n", 1))
 	var c := _canvas

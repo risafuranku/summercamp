@@ -13,6 +13,7 @@ extends Control
 ## Now and then a notice comes up that is neither, and will not close.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const SHIFT_SEC := 40.0
 const HEAD_H := 46
 const POP := Vector2(214, 96)
@@ -239,11 +240,11 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, w, HEAD_H), Color8(250, 214, 40))
 	draw_rect(Rect2(0, HEAD_H - 2, w, 2), Color8(120, 90, 0))
 	draw_string(T.FONT_BOLD, Vector2(10, 20), "KlikBanka 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(150, 0, 0))
-	draw_string(T.FONT, Vector2(12, 38), "Bohemia Online pays you to look at adverts.", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(80, 40, 0))
+	draw_string(T.FONT, Vector2(12, 38), tr("Bohemia Online pays you to look at adverts."), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(80, 40, 0))
 	var cells := [
-		["TODAY", "$%d" % _shell.job_done("adclick")],
-		["SHIFT", ("0:%02d" % int(ceil(SHIFT_SEC - _t))) if _state == "shift" else "-"],
-		["PAY", "$%d" % maxi(0, _ok - 2 * _bad)],
+		[tr("TODAY"), LANG.money("$%d" % _shell.job_done("adclick"))],
+		[tr("SHIFT"), ("0:%02d" % int(ceil(SHIFT_SEC - _t))) if _state == "shift" else "-"],
+		[tr("PAY"), LANG.money("$%d" % maxi(0, _ok - 2 * _bad))],
 	]
 	var x := w - 4.0
 	for i in range(cells.size() - 1, -1, -1):
@@ -274,9 +275,9 @@ func _draw_area() -> void:
 	c.draw_style_box(T.box("window", T.FACE), box)
 	var lines: Array = []
 	if _state == "done":
-		lines = ["SHIFT OVER", "Confirmed %d adverts, missed %d." % [_ok, _missed], "Mistakes: %d  (-$%d)" % [_bad, 2 * _bad], "Paid into the camp's account: $%d" % _paid]
+		lines = [tr("SHIFT OVER"), LANG.f("Confirmed %d adverts, missed %d.", [_ok, _missed]), LANG.f("Mistakes: %d  (-$%d)", [_bad, 2 * _bad]), LANG.f("Paid into the camp's account: $%d", _paid)]
 	else:
-		lines = ["HOW IT WORKS", "Adverts pop up for 40 seconds.", "A real advert: click its OK.  ($1)", "A prize, a virus, a chain letter: close it (x).", "Click their button and it costs you $2."]
+		lines = [tr("HOW IT WORKS"), tr("Adverts pop up for 40 seconds."), tr("A real advert: click its OK.  ($1)"), tr("A prize, a virus, a chain letter: close it (x)."), tr("Click their button and it costs you $2.")]
 	var y := box.position.y + 24
 	for i in lines.size():
 		c.draw_string(T.FONT_BOLD if i == 0 else T.FONT, Vector2(box.position.x + 18, y), str(lines[i]), HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 30, T.FONT_SIZE, T.NAVY if i == 0 else T.TEXT)
@@ -298,13 +299,13 @@ func _draw_pop(c: Control, p: Dictionary) -> void:
 		b = Color8(90, 90, 90)
 	c.draw_rect(band, a)
 	c.draw_rect(Rect2(band.position + Vector2(band.size.x * 0.5, 0), Vector2(band.size.x * 0.5, band.size.y)), b)
-	c.draw_string(T.FONT_BOLD, band.position + Vector2(4, 12), str(p["title"]), HORIZONTAL_ALIGNMENT_LEFT, band.size.x - 24, T.FONT_SIZE, T.WHITE)
+	c.draw_string(T.FONT_BOLD, band.position + Vector2(4, 12), tr(str(p["title"])), HORIZONTAL_ALIGNMENT_LEFT, band.size.x - 24, T.FONT_SIZE, T.WHITE)
 	var cr := _close_rect(r)
 	c.draw_style_box(T.box("raised", T.FACE, Vector4.ZERO), cr)
 	for i in 5:
 		c.draw_rect(Rect2(cr.position + Vector2(4 + i, 3 + i), Vector2(2, 1)), T.DARK)
 		c.draw_rect(Rect2(cr.position + Vector2(8 - i, 3 + i), Vector2(2, 1)), T.DARK)
-	var head := str(p["head"])
+	var head := tr(str(p["head"]))
 	var head_col := Color8(0, 0, 128)
 	if kind == "scam":
 		head_col = Color8(220, 0, 0) if fmod(age, 0.5) < 0.25 else Color8(255, 120, 0)
@@ -312,13 +313,13 @@ func _draw_pop(c: Control, p: Dictionary) -> void:
 		head_col = Color8(20, 20, 20)
 	c.draw_string(T.FONT_BOLD, r.position + Vector2(10, 35), head, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 20, T.FONT_SIZE, head_col)
 	var y := r.position.y + 50
-	for l in str(p["body"]).split("\n"):
+	for l in tr(str(p["body"])).split("\n"):
 		c.draw_string(T.FONT, Vector2(r.position.x + 10, y), l, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 20, T.FONT_SIZE, T.TEXT)
 		y += 13
 	var br := _btn_rect(r)
 	var face := Color8(255, 230, 60) if kind == "scam" else T.FACE
 	c.draw_style_box(T.box("raised", face, Vector4.ZERO), br)
-	c.draw_string(T.FONT_BOLD, br.position + Vector2(0, 14), str(p["btn"]), HORIZONTAL_ALIGNMENT_CENTER, br.size.x, T.FONT_SIZE, T.TEXT)
+	c.draw_string(T.FONT_BOLD, br.position + Vector2(0, 14), tr(str(p["btn"])), HORIZONTAL_ALIGNMENT_CENTER, br.size.x, T.FONT_SIZE, T.TEXT)
 	# How long it stays: a thin line along the bottom that shrinks.
 	var left := clampf(1.0 - age / float(p["life"]), 0.0, 1.0)
 	c.draw_rect(Rect2(r.position.x + 3, r.end.y - 4, (r.size.x - 6) * left, 1), Color8(0, 0, 0, 90))

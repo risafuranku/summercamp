@@ -19,6 +19,7 @@ extends "res://scripts/business/station3d.gd"
 
 const BOWLING := preload("res://scripts/bowling/bowling.gd")
 const BOARD_TEXT := preload("res://scripts/bowling/board_text.gd")
+const LANG := preload("res://scripts/lang.gd")
 const BTEX := "res://assets/textury/bowling/"
 const GEAR_AT := Vector2(200, 200)
 const GEAR_R := 115.0
@@ -208,8 +209,8 @@ func ticket_items(t: Dictionary) -> Array:
 func checklist(_t: Dictionary) -> Array:
 	var need := int(TUGS.get(_jam_kind, 3))
 	return [
-		{"text": tr("Pull it out %d/%d") % [mini(_tugs, need), need], "state": "done" if _step in ["crank", "lever"] else "todo"},
-		{"text": tr("Crank it back %d/%d") % [mini(int(_turned / TAU), TURNS), TURNS], "state": "done" if _step == "lever" else "todo"},
+		{"text": LANG.f("Pull it out %d/%d", [mini(_tugs, need), need]), "state": "done" if _step in ["crank", "lever"] else "todo"},
+		{"text": LANG.f("Crank it back %d/%d", [mini(int(_turned / TAU), TURNS), TURNS]), "state": "done" if _step == "lever" else "todo"},
 		{"text": tr("Pull the lever"), "state": "todo"},
 	]
 
@@ -228,7 +229,7 @@ func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
 		var sc := minf(1.0, 20.0 / maxf(ic.get_width(), ic.get_height()))
 		var isz := (ic.get_size() * sc).floor()
 		c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - isz.x) * 0.5), 12 + floorf((20.0 - isz.y) * 0.5)), isz), false)
-	var word := "STOP"
+	var word := tr("STOP")
 	var ww := f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 	c.draw_string(f, Vector2(maxf(1.0, floorf((size.x - ww) * 0.5)), 40), word, HORIZONTAL_ALIGNMENT_LEFT, size.x - 2, 8, Color(0.62, 0.08, 0.05))
 	var band := int(t.get("band", 0))

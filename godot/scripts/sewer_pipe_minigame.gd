@@ -1501,7 +1501,7 @@ func _draw_map() -> void:
 		_ink.draw_string(font, p + Vector2(3.0, -3.0) * s, _label(c), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(ink, 0.7))
 	# entry
 	var ep: Vector2 = to_px.call(_entry)
-	_ink.draw_string(RETRO_UI.FONT_LABEL, ep + Vector2(-14.0, 14.0) * s, "LADDER", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+	_ink.draw_string(RETRO_UI.FONT_LABEL, ep + Vector2(-14.0, 14.0) * s, tr("LADDER"), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
 	# leak (none marked when nothing is broken: you came down just to see)
 	var red := Color(0.72, 0.08, 0.06, 0.95)
 	for l in ([] if explore else _leaks):
@@ -1517,8 +1517,8 @@ func _draw_map() -> void:
 		var mp: Vector2 = (to_px.call(lm["a"]) + to_px.call(lm["b"])) * 0.5
 		_ink.draw_string(font, mp + Vector2(-2.0, 10.0) * s, str(LANDMARK_MAP_GLYPH[lm["kind"]]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.25, 0.22, 0.2, 0.9))
 	# The controls, as the last worker scribbled them in the margin (no HUD bar down here).
-	_ink.draw_string(font, r.position + Vector2(margin.x, margin.y * 0.45), "junctions: A/D look in a side pipe, W crawl in (or point + click). S look behind. F torch. E clamp, ladder.", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.2, 0.18, 0.3, 0.75))
-	_ink.draw_string(font, r.position + Vector2(margin.x, h - margin.y * 0.35), "it cant see. it hears you crawl + the clamp. stand still, keep the light on it. water runs from the leak. - P.", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.2, 0.18, 0.3, 0.8))
+	_ink.draw_string(font, r.position + Vector2(margin.x, margin.y * 0.45), tr("junctions: A/D look in a side pipe, W crawl in (or point + click). S look behind. F torch. E clamp, ladder."), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.2, 0.18, 0.3, 0.75))
+	_ink.draw_string(font, r.position + Vector2(margin.x, h - margin.y * 0.35), tr("it cant see. it hears you crawl + the clamp. stand still, keep the light on it. water runs from the leak. - P."), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.2, 0.18, 0.3, 0.8))
 
 
 # ── play ──────────────────────────────────────────────────────────────────────

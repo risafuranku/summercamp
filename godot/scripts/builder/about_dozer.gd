@@ -6,6 +6,7 @@ extends Control
 ## The pictures are Builder's own (its toolbar bulldozer, the map's tent).
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const CELL := 14.0
 const DOZER := "res://assets/textury/builder/tb2_bulldoze.png"
@@ -100,4 +101,4 @@ func _draw() -> void:
 			draw_texture_rect(_dozer, dr, false)
 	else:
 		draw_rect(dr, Color8(230, 160, 0))
-	draw_string(T.FONT, Vector2(0, field.end.y + 12), "Tents flattened: %d" % _flat, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+	draw_string(T.FONT, Vector2(0, field.end.y + 12), LANG.f("Tents flattened: %d", _flat), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)

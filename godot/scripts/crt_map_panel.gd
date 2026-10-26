@@ -12,6 +12,7 @@ signal building_clicked(info: Dictionary)
 signal guest_clicked(guest_id: int)
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
@@ -2010,13 +2011,13 @@ func _draw_overlay(origin: Vector2, tile_w: float, tile_h: float, lights: Array)
 			_bfx.draw_area(_cv, iso_c, cells, tile_w, tile_h, v[2], _time, false, 0.42)
 			# Under the building (the room badges are over it).
 			var c := _cell_to_iso_f(Vector2(o) + Vector2(fp) * 0.5 - Vector2(0.5, 0.5), origin, tile_w, tile_h) + Vector2(0, tile_h * (0.5 + 0.5 * maxf(fp.x, fp.y)) + 4.0)
-			var text := str(v[1])
+			var text := tr(str(v[1]))
 			var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 			var rr := Rect2((c - Vector2(tw * 0.5 + 3, 6)).floor(), Vector2(tw + 6, 13))
 			_cv.draw_rect(rr, Color(0, 0, 0, 0.72))
 			_cv.draw_string(T.FONT, rr.position + Vector2(3, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, (v[2] as Color).lightened(0.35))
 	# The key, bottom left.
-	var label := "%s   (O: next)" % str(OVERLAY_NAMES.get(overlay, overlay)).capitalize()
+	var label := LANG.f("%s   (O: next)", tr(str(OVERLAY_NAMES.get(overlay, overlay))).capitalize())
 	var lw := T.FONT_BOLD.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 	var lr := Rect2(Vector2(6, size.y - 22), Vector2(lw + 12, 16))
 	_cv.draw_rect(lr, Color(0, 0, 0, 0.7))
@@ -2122,7 +2123,7 @@ func _draw_hover_card() -> void:
 	if not _is_valid_coord(hover_coord) or selected_building != "" or _pan_dragging:
 		return
 	var text := _describe(hover_coord)
-	if text == "" or text.ends_with("Forest floor"):
+	if text == "" or text.ends_with(tr("Forest floor")):
 		return
 	var m := get_local_mouse_position() + Vector2(14, 16)
 	var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
@@ -2936,11 +2937,11 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 		var dir = _rotation_to_screen_dir(_rotation_steps, tile_w, tile_h)
 		_draw_direction_arrow(center + Vector2(0.0, -tile_h * 0.10), dir, tile_h, Color(0.66, 0.90, 1.0, 0.98))
 	# The price on a little tag, red when it does not fit or you cannot pay.
-	var tag := "$%d" % _get_cost(selected_building)
+	var tag := LANG.money("$%d" % _get_cost(selected_building))
 	if not can_fit:
-		tag = _blocked_reason(coord, footprint)
+		tag = tr(_blocked_reason(coord, footprint))
 	elif not can_afford:
-		tag = "$%d - no money" % _get_cost(selected_building)
+		tag = LANG.f("$%d - no money", _get_cost(selected_building))
 	var tw := T.FONT.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 	var tp := (center + Vector2(tile_w * 0.45, -tile_h * 1.4)).floor()
 	_cv.draw_rect(Rect2(tp, Vector2(tw + 6, 14)), T.TOOLTIP if can_place else Color8(255, 210, 210))
@@ -2969,12 +2970,12 @@ func _draw_path_drag_preview(origin: Vector2, tile_w: float, tile_h: float) -> v
 	_bfx.draw_area(_cv, iso_c, groups[PATH_NEW], tile_w, tile_h, _bfx.AMBER, _time, false, 0.30)
 	_bfx.draw_area(_cv, iso_c, groups[PATH_BLOCKED], tile_w, tile_h, _bfx.RED, _time, true, 0.22)
 	_bfx.draw_area(_cv, iso_c, groups[3], tile_w, tile_h, _bfx.RED, _time, false, 0.14)
-	var tag := "%d %s  $%d" % [n_new, "tile" if n_new == 1 else "tiles", n_new * cost]
+	var tag := LANG.f("%d %s  $%d", [n_new, "tile" if n_new == 1 else "tiles", n_new * cost])
 	var bad := n_new == 0 or n_new > afford
 	if n_new == 0:
-		tag = "Nothing new" if groups[PATH_BLOCKED].is_empty() else "Blocked"
+		tag = tr("Nothing new") if groups[PATH_BLOCKED].is_empty() else tr("Blocked")
 	elif n_new > afford:
-		tag += " - money for %d" % afford
+		tag += LANG.f(" - money for %d", afford)
 	var end: Vector2i = _path_line.back()[0]
 	_draw_tag(iso_c.call(Vector2(end)) + Vector2(tile_w * 0.45, -tile_h * 1.4), tag, bad)
 
@@ -2995,7 +2996,7 @@ func _draw_row_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	var cost := n * _get_cost(selected_building)
 	var afford := int(CoreRoot.get_money()) >= cost
 	var last: Vector2i = _row_line.back()[0]
-	var tag := "%d x $%d = $%d" % [n, _get_cost(selected_building), cost] if afford else "$%d - no money for all" % cost
+	var tag := LANG.f("%d x $%d = $%d", [n, _get_cost(selected_building), cost]) if afford else LANG.f("$%d - no money for all", cost)
 	_draw_tag(_footprint_center_iso(last, Vector2i.ONE, origin, tile_w, tile_h) + Vector2(tile_w * 0.45, -tile_h * 1.4), tag, not afford or n == 0)
 
 
@@ -3059,17 +3060,17 @@ func _draw_demolish_rect(rect: Rect2i, origin: Vector2, tile_w: float, tile_h: f
 	var bad := false
 	if not sum.is_empty():
 		if int(sum["count"]) == 0:
-			tag += "  nothing to clear"
+			tag = LANG.f("%dx%d  nothing to clear", [rect.size.x, rect.size.y])
 			bad = true
 		else:
-			tag += "  clear %d  $%d" % [int(sum["tiles"]), int(sum["fee"])]
+			tag = LANG.f("%dx%d  clear %d  $%d", [rect.size.x, rect.size.y, int(sum["tiles"]), int(sum["fee"])])
 			if int(sum["refund"]) > 0:
-				tag += "  +$%d back" % int(sum["refund"])
+				tag += LANG.f("  +$%d back", int(sum["refund"]))
 			if int(CoreRoot.get_money()) < int(sum["fee"]):
-				tag += " - no money"
+				tag += tr(" - no money")
 				bad = true
 		if chosen and not bad:
-			tag += "  (click it / Enter)"
+			tag += tr("  (click it / Enter)")
 	var top := pts[0]
 	for p in pts:
 		if p.y < top.y:
@@ -3133,7 +3134,7 @@ func _draw_rotation_panel() -> void:
 			color = T.NAVY
 		_draw_panel_arrow(arrow.get("pos", center), arrow.get("dir", Vector2.RIGHT), color)
 
-	var label = ROTATION_LABELS[active]
+	var label := tr(ROTATION_LABELS[active])
 	var lw := T.FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 	_cv.draw_string(T.FONT, panel_rect.position + Vector2((panel_size.x - lw) * 0.5, panel_size.y - 5.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 
@@ -3760,7 +3761,7 @@ func _draw_fx(origin: Vector2, tile_w: float, tile_h: float) -> void:
 					else:
 						_cv.draw_circle(q, tile_h * (0.14 + k * 0.18), Color(0.62, 0.56, 0.46, 0.55 * (1.0 - k)))
 			"pop":
-				var txt := str(f["text"])
+				var txt := tr(str(f["text"]))
 				var q := (p + Vector2(0, -tile_h * (1.2 + k * 1.6))).floor()
 				var col: Color = f["color"]
 				col.a = 1.0 - maxf(0.0, k - 0.6) / 0.4
@@ -4157,10 +4158,10 @@ func _describe(coord: Vector2i) -> String:
 					var key := "%d:%d" % [o.x, o.y]
 					var rs: Dictionary = GuestManager.get_room_state(key)
 					var st := "guests" if bool(rs.get("occupied", false)) else ({"ready": "ready", "dirty": "dirty", "unprepared": "not made up"}.get(str(rs.get("status", "")), "") as String)
-					return GuestManager.room_label(key) + (("  -  " + st) if st != "" else "")
+					return tr(GuestManager.room_label(key)) + (("  -  " + tr(st)) if st != "" else "")
 	if coord == _buried_tile() and (what == "Forest floor" or what == "Pine tree"):
-		return "%d:%d  %s  -  Something is buried here" % [coord.x, coord.y, what]
-	return "%d:%d  %s" % [coord.x, coord.y, what]
+		return LANG.f("%d:%d  %s  -  Something is buried here", [coord.x, coord.y, tr(what)])
+	return "%d:%d  %s" % [coord.x, coord.y, tr(what)]
 
 
 

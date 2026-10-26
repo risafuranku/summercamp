@@ -143,11 +143,11 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 		if ic != null:
 			var sc := minf(8.0 / ic.get_width(), 8.0 / ic.get_height())
 			c.draw_texture_rect(ic, Rect2(Vector2(r.position.x + 3, y - 7), (ic.get_size() * sc).floor()), false, Color(1, 1, 1, 1.0 if rung.has(i) else 0.45))
-		var short := str(SHORT.get(g, g.to_upper()))
+		var short := tr(str(SHORT.get(g, g.to_upper())))
 		if RULES.is_parcel(g):
 			var pp := g.split(":")
-			short = "%s %dG" % [str(pp[1]).substr(0, 5).to_upper(), int(pp[2])] if pp.size() >= 3 else "DELI"
-		c.draw_string(f, Vector2(r.position.x + 13, y), tr(short), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
+			short = "%s %dG" % [tr(str(pp[1]).to_upper()).substr(0, 5), int(pp[2])] if pp.size() >= 3 else tr("DELI")
+		c.draw_string(f, Vector2(r.position.x + 13, y), short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
 		var price := "%d" % RULES.item_price(g)
 		var pw := f.get_string_size(price, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 		c.draw_string(f, Vector2(r.end.x - 4 - pw, y), price, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)

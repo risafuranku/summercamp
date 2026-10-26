@@ -41,6 +41,7 @@ signal stranger_refused
 
 const TEX := "res://assets/textury/desk/"
 const SEASON = preload("res://core/systems/season.gd")
+const LANG = preload("res://scripts/lang.gd")
 const SFX_FLICKER := "res://assets/sfx/splash/neon_sputter.mp3"
 ## The night scares by how bad tonight is (pressure below 0.3, below 0.6, above).
 const SCARES := [["forest", "bench"], ["window", "ceiling", "bench"], ["door", "counter", "window", "ceiling"]]
@@ -402,8 +403,8 @@ func _greeting() -> String:
 	var lodging := str((rooms[0] as Dictionary).get("label", "a tent")) if not rooms.is_empty() else "a tent"
 	var n := int(_guest.get("party_size", 1))
 	var lines := [
-		"Good evening. %s, we booked %s." % [str(_guest.get("name", "")), lodging.to_lower()] if not _is_day() else "Hello. %s, we have a booking. %s." % [str(_guest.get("name", "")), lodging],
-		"%s. %s, %d of us." % [str(_guest.get("name", "")), lodging, n],
+		LANG.f("Good evening. %s, we booked %s.", [str(_guest.get("name", "")), tr(lodging).to_lower()]) if not _is_day() else LANG.f("Hello. %s, we have a booking. %s.", [str(_guest.get("name", "")), tr(lodging)]),
+		LANG.f("%s. %s, %d of us.", [str(_guest.get("name", "")), tr(lodging), n]),
 	]
 	return lines[absi(int(_guest.get("id", 0))) % lines.size()]
 
@@ -500,7 +501,7 @@ func _roll_scare() -> void:
 
 
 func _say_line(text: String) -> void:
-	_say = text
+	_say = tr(text)
 	_say_shown = 0.0
 
 
@@ -899,7 +900,7 @@ func _drop_key(key: String, p: Vector2) -> void:
 		wanted.append(str((r as Dictionary).get("key", "")))
 	if not wanted.has(key):
 		var mine := str(((_guest.get("rooms", []) as Array)[0] as Dictionary).get("label", "")) if not (_guest.get("rooms", []) as Array).is_empty() else "something else"
-		_say_line("That is not ours. We booked %s." % mine)
+		_say_line(LANG.f("That is not ours. We booked %s.", tr(mine)))
 		_play("wrong", -4.0)
 		_hang_back(key, -10.0)
 		_shake = 1.0
@@ -1464,7 +1465,7 @@ func _lean(key: String) -> float:
 ## A strip of Dymo tape above the hook: the lodging's short name punched into it, the
 ## letters stretched white.
 func _draw_label(c: Control, hook: Vector2, k: Dictionary, lifted := false) -> void:
-	var text := str(k.get("short", k.get("key", ""))).to_upper()
+	var text := tr(str(k.get("short", k.get("key", "")))).to_upper()
 	var tw := F_TINY.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 	var w := maxf(11.0, tw + 4.0)
 	var r := Rect2((hook + Vector2(-floorf(w * 0.5), -HOOK_IN_CELL.y)).floor(), Vector2(w, 7))
@@ -1513,7 +1514,7 @@ func _draw_stamp_tool(c: Control, kind: String, pos: Vector2, lifted: bool) -> v
 	else:
 		c.draw_rect(Rect2(pos + Vector2(14, 0), Vector2(14, 22)), Color8(90, 60, 40))
 		c.draw_rect(Rect2(pos + Vector2(4, 22), Vector2(34, 12)), Color8(40, 40, 40))
-	var label := "CHECKED IN" if kind == "in" else "REFUSED"
+	var label := tr("CHECKED IN") if kind == "in" else tr("REFUSED")
 	var w := F_TINY.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 	F_TINY.draw_string(c.get_canvas_item(), pos + Vector2(floorf((STAMP_SIZE.x - w) * 0.5), STAMP_SIZE.y + 6), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(240, 230, 200))
 
@@ -1547,7 +1548,7 @@ func _draw_card(c: Control, pos: Vector2) -> void:
 		c.draw_rect(Rect2(pos, CARD_SIZE), Color8(120, 130, 110), false, 1.0)
 	var card: Dictionary = _guest.get("card", {})
 	var ci := c.get_canvas_item()
-	F_SILK.draw_string(ci, pos + Vector2(50, 11), "IDENTITY CARD", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(60, 70, 60))
+	F_SILK.draw_string(ci, pos + Vector2(50, 11), tr("IDENTITY CARD"), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(60, 70, 60))
 	# The photo: the guest's own face, washed out, or nothing at all.
 	var photo := Rect2(pos + Vector2(12, 18), Vector2(33, 35))
 	var tex2 := _guest_tex()
@@ -1559,12 +1560,12 @@ func _draw_card(c: Control, pos: Vector2) -> void:
 	var lab := Color8(90, 100, 90)
 	var val := PAPER_TEXT
 	var x := pos.x + 52.0
-	F_TINY.draw_string(ci, Vector2(x, pos.y + 20), "SURNAME", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, lab)
+	F_TINY.draw_string(ci, Vector2(x, pos.y + 20), tr("SURNAME"), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, lab)
 	F_SILK.draw_string(ci, Vector2(x, pos.y + 27), str(card.get("surname", "")), HORIZONTAL_ALIGNMENT_LEFT, 54, 8, val)
-	F_TINY.draw_string(ci, Vector2(x, pos.y + 34), "NAME", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, lab)
+	F_TINY.draw_string(ci, Vector2(x, pos.y + 34), tr("NAME"), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, lab)
 	F_SILK.draw_string(ci, Vector2(x, pos.y + 41), str(card.get("first", "")), HORIZONTAL_ALIGNMENT_LEFT, 54, 8, val)
-	F_TINY.draw_string(ci, Vector2(x, pos.y + 49), "BORN %s" % str(card.get("born", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, val)
-	F_TINY.draw_string(ci, Vector2(x, pos.y + 56), "VALID %s" % str(card.get("valid", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, val)
+	F_TINY.draw_string(ci, Vector2(x, pos.y + 49), LANG.f("BORN %s", str(card.get("born", ""))), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, val)
+	F_TINY.draw_string(ci, Vector2(x, pos.y + 56), LANG.f("VALID %s", str(card.get("valid", ""))), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, val)
 	F_TINY.draw_string(ci, Vector2(pos.x + 12, pos.y + 61), str(card.get("town", "")), HORIZONTAL_ALIGNMENT_LEFT, 38, 8, val)
 	F_TINY.draw_string(ci, Vector2(x, pos.y + 64), str(card.get("number", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(150, 30, 30))
 
@@ -1581,18 +1582,19 @@ func _draw_slip(c: Control, pos: Vector2) -> void:
 	var ink := Color8(40, 40, 52)
 	var lines := [
 		"CAMPMAIL 98",
-		"BOOKING CONFIRMED",
+		tr("BOOKING CONFIRMED"),
 		"",
-		"NAME     %s" % str(_guest.get("name", "")).to_upper(),
-		"PERSONS  %d" % int(_guest.get("party_size", 1)),
-		"NIGHTS   %d" % int(_guest.get("stay_nights", 1)),
+		LANG.f("NAME     %s", str(_guest.get("name", "")).to_upper()),
+		LANG.f("PERSONS  %d", int(_guest.get("party_size", 1))),
+		LANG.f("NIGHTS   %d", int(_guest.get("stay_nights", 1))),
 	]
 	var rooms: Array = _guest.get("rooms", [])
 	for i in rooms.size():
-		lines.append(("LODGING  " if i == 0 else "         ") + str((rooms[i] as Dictionary).get("label", "")).to_upper())
+		var lodging := tr(str((rooms[i] as Dictionary).get("label", ""))).to_upper()
+		lines.append(LANG.f("LODGING  %s", lodging) if i == 0 else "         " + lodging)
 	lines.append("")
-	lines.append("KEMP CERNE JEZERO")
-	lines.append("HLUBOCANY DISTRICT")
+	lines.append(tr("KEMP CERNE JEZERO"))
+	lines.append(tr("HLUBOCANY DISTRICT"))
 	for l in lines:
 		F_TINY.draw_string(ci, Vector2(x, y), str(l), HORIZONTAL_ALIGNMENT_LEFT, SLIP_SIZE.x - 22, 8, ink)
 		y += 9.0
@@ -1600,7 +1602,7 @@ func _draw_slip(c: Control, pos: Vector2) -> void:
 
 func _draw_stamp_mark(c: Control, at: Vector2, kind: String, rot: float) -> void:
 	var col := STAMP_GREEN if kind == "in" else STAMP_RED
-	var label := "CHECKED IN" if kind == "in" else "REFUSED"
+	var label := tr("CHECKED IN") if kind == "in" else tr("REFUSED")
 	var w := F_STAMP.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x + 10.0
 	var hgt := 18.0
 	c.draw_set_transform(at, rot)

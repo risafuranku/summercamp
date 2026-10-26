@@ -284,8 +284,8 @@ func close() -> void:
 
 
 func say(who: String, text: String) -> void:
-	_who = who
-	_text = text
+	_who = tr(who)
+	_text = tr(text)
 	_shown = 0
 	_type = 0.0
 

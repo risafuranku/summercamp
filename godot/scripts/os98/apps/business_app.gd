@@ -19,6 +19,7 @@ extends Control
 ## os98/photos/<slug>.png); the rest is the system's own chrome.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const PAGES := [["stock", "Stock"], ["order", "Order"], ["staff", "Staff"], ["gear", "Gear"], ["books", "Books"]]
@@ -101,7 +102,7 @@ func _site_label(key: String) -> String:
 			n += 1
 			if str(k) == key:
 				break
-	var name := str(RULES.info(kind).get("name", ""))
+	var name := tr(str(RULES.info(kind).get("name", "")))
 	return name if _count_kind(kind) <= 1 else "%s %d" % [name, n]
 
 
@@ -178,7 +179,7 @@ func _click(id: String) -> void:
 		var n := int(o.get(g, 0)) + (1 if id.begins_with("plus:") else -1)
 		var room := _room(_site, g)
 		if n > room:
-			_say("No room on the shelves for more %s." % str(RULES.goods(kind)[g]["label"]).to_lower(), RED)
+			_say(LANG.f("No room on the shelves for more %s.", tr(str(RULES.goods(kind)[g]["label"])).to_lower()), RED)
 			_shell.play("ding", -8.0)
 			return
 		o[g] = clampi(n, 0, room)
@@ -193,7 +194,7 @@ func _click(id: String) -> void:
 			if b != "Yes":
 				return
 			if CoreRoot.actions.biz_buy_gear(key, gid):
-				_say("%s bought." % str(gd.get("label", "")), GREEN)
+				_say(LANG.f("%s bought.", tr(str(gd.get("label", "")))), GREEN)
 				_shell.play("ding", -10.0)
 			else:
 				_shell.message_box(str(info["app_name"]), "The purchase of $%d could not be made.\n\nThe camp has $%d." % [int(gd.get("price", 0)), CoreRoot.get_money()], "error")
@@ -210,7 +211,7 @@ func _click(id: String) -> void:
 				_shell.message_box("SoftSklad", "The order of $%d could not be sent.\n\nThe camp has $%d." % [cost, CoreRoot.get_money()], "error")
 				return
 			_order.clear()
-			_say("Order sent: $%d. One van in the morning." % cost, GREEN)
+			_say(LANG.f("Order sent: $%d. One van in the morning.", cost), GREEN)
 			_shell.play("ding", -10.0)
 		"hire":
 			var ap := BUSINESS.applicants(_site)
@@ -219,7 +220,7 @@ func _click(id: String) -> void:
 			var p: Dictionary = ap[_candidate % ap.size()]
 			if CoreRoot.actions.biz_hire(_site, p, CoreRoot.get_day()):
 				_crew_pick = str(p["slug"])
-				_say("%s starts today." % str(p["name"]), GREEN)
+				_say(LANG.f("%s starts today.", str(p["name"])), GREEN)
 		"job", "shift":
 			var who := _crew_of(_crew_pick)
 			if who.is_empty():
@@ -246,14 +247,14 @@ func _click(id: String) -> void:
 				if b == "Yes":
 					CoreRoot.actions.biz_fire(key2, slug)
 					_crew_pick = ""
-					_say("%s has been let go." % str(who2.get("name", "")), T.TEXT_DISABLED)
+					_say(LANG.f("%s has been let go.", str(who2.get("name", ""))), T.TEXT_DISABLED)
 					queue_redraw())
 		"late":
 			CoreRoot.actions.biz_set_late(_site, not bool(s.get("late", false)))
 		"bin":
 			var n2: int = CoreRoot.actions.biz_bin(_site)
 			if n2 > 0:
-				_say("%d written off as waste." % n2, T.TEXT)
+				_say(LANG.f("%d written off as waste.", n2), T.TEXT)
 
 
 func _crew_of(slug: String) -> Dictionary:
@@ -379,7 +380,7 @@ func _draw() -> void:
 			draw_style_box(T.box("thin_raised", T.FACE, Vector4.ZERO), r)
 		var off := Vector2(1, 1) if _page == id else Vector2.ZERO
 		_icon(id if id != "gear" else "staff", r.position + Vector2(6, 6) + off)
-		_t(r.position + Vector2(26, 18) + off, str(PAGES[i][1]))
+		_t(r.position + Vector2(26, 18) + off, tr(str(PAGES[i][1])))
 		_hit("page:" + id, r)
 	draw_line(Vector2(0, BAR_H - 1), Vector2(size.x, BAR_H - 1), T.SHADOW)
 	draw_line(Vector2(0, BAR_H), Vector2(size.x, BAR_H), T.WHITE)
@@ -392,7 +393,7 @@ func _draw() -> void:
 	if app_icon != null:
 		draw_texture(app_icon, band.position + Vector2(5, 4))
 	_t(band.position + Vector2(26, 16), "SoftSklad  -  %s" % str(info.get("app_name", "")), T.WHITE, true)
-	_tr(band.end.x - 8, band.position.y + 16, "Cash $%d" % (CoreRoot.get_money() if CoreRoot != null else 0), T.WHITE, true)
+	_tr(band.end.x - 8, band.position.y + 16, LANG.f("Cash $%d", CoreRoot.get_money() if CoreRoot != null else 0), T.WHITE, true)
 	# The places: a tab each.
 	var tx := 4.0
 	var ty := band.end.y + 3
@@ -413,7 +414,7 @@ func _draw() -> void:
 	var site: Dictionary = BUSINESS.site(_site) if _site != "" else {}
 	if site.is_empty():
 		draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), m)
-		_tc(m, "There is no %s in the camp." % str(info.get("name", "")).to_lower(), T.SHADOW)
+		_tc(m, LANG.f("There is no %s in the camp.", tr(str(info.get("name", ""))).to_lower()), T.SHADOW)
 	else:
 		match _page:
 			"stock":
@@ -431,14 +432,14 @@ func _draw() -> void:
 
 func _draw_status(site: Dictionary) -> void:
 	var y := size.y - STATUS_H
-	var cells := [[_notice if _notice != "" else "Ready", size.x - 4 - 90 - 100 - 130], ["Day %d" % (CoreRoot.get_day() if CoreRoot != null else 0), 86]]
+	var cells := [[_notice if _notice != "" else tr("Ready"), size.x - 4 - 90 - 100 - 130], [LANG.f("Day %d", CoreRoot.get_day() if CoreRoot != null else 0), 86]]
 	var orders := 0
 	if CoreRoot != null:
 		for o in CoreRoot.get_state().biz.get("orders", []):
 			if str(o.get("key", "")) == _site:
 				orders += 1
-	cells.append(["On the van: %d" % orders, 96])
-	cells.append([("%d at work" % BUSINESS.crew_now(_site).size()) if not site.is_empty() else "", 126])
+	cells.append([LANG.f("On the van: %d", orders), 96])
+	cells.append([(LANG.f("%d at work", BUSINESS.crew_now(_site).size())) if not site.is_empty() else "", 126])
 	var x := 2.0
 	for i in cells.size():
 		var r := Rect2(x, y, float(cells[i][1]), STATUS_H - 2)
@@ -452,7 +453,7 @@ func _list(m: Rect2, cols: Array) -> void:
 	draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), m)
 	var x := m.position.x + 2
 	for c in cols:
-		_header(Rect2(x, m.position.y + 2, float(c[1]), 18), str(c[0]), bool(c[2]) if c.size() > 2 else false)
+		_header(Rect2(x, m.position.y + 2, float(c[1]), 18), tr(str(c[0])), bool(c[2]) if c.size() > 2 else false)
 		x += float(c[1])
 	if x < m.end.x - 2:
 		_header(Rect2(x, m.position.y + 2, m.end.x - 2 - x, 18), "")
@@ -488,8 +489,8 @@ func _draw_stock(m: Rect2, site: Dictionary) -> void:
 		var warn := _load(ICONS + "tb_warning.png")
 		if low and warn != null:
 			draw_texture_rect(warn, Rect2(_col_x(lm, cols, 0) + 2, y + 1, 14, 14), false)
-		_t(Vector2(_col_x(lm, cols, 0) + 18, y + 13), str(d["label"]), col)
-		_tr(_col_x(lm, cols, 2) - 6, y + 13, "%d %s" % [n, str(d["unit"])], col)
+		_t(Vector2(_col_x(lm, cols, 0) + 18, y + 13), tr(str(d["label"])), col)
+		_tr(_col_x(lm, cols, 2) - 6, y + 13, "%d %s" % [n, tr(str(d["unit"]))], col)
 		_blocks(Rect2(_col_x(lm, cols, 2) + 4, y + 3, 122, minf(12.0, rh - 4)), float(n) / float(maxi(1, RULES.cap_of(kind, g, site))), RED if low else T.NAVY)
 		var off := int((site.get("spoiled", {}) as Dictionary).get(g, 0))
 		_tr(_col_x(lm, cols, 4) - 6, y + 13, "%d" % off if off > 0 else "-", RED if off > 0 else T.SHADOW)
@@ -507,8 +508,8 @@ func _draw_stock(m: Rect2, site: Dictionary) -> void:
 	var spoiled := 0
 	for g in site.get("spoiled", {}):
 		spoiled += int(site["spoiled"][g])
-	_t(foot.position + Vector2(6, 16), "Today: %d sold, $%d" % [int(site["today"]["sold"]), int(site["today"]["takings"])])
-	_button(Rect2(foot.end.x - 128, foot.position.y + 1, 124, 22), "Write off (%d)" % spoiled, "bin", spoiled > 0)
+	_t(foot.position + Vector2(6, 16), LANG.f("Today: %d sold, $%d", [int(site["today"]["sold"]), int(site["today"]["takings"])]))
+	_button(Rect2(foot.end.x - 128, foot.position.y + 1, 124, 22), LANG.f("Write off (%d)", spoiled), "bin", spoiled > 0)
 
 
 func _draw_order(m: Rect2, site: Dictionary) -> void:
@@ -527,9 +528,9 @@ func _draw_order(m: Rect2, site: Dictionary) -> void:
 		var due: int = BUSINESS.on_order(_site, g)
 		var room := _room(_site, g)
 		var packs := int(o.get(g, 0))
-		_t(Vector2(_col_x(lm, cols, 0) + 5, y + 13), str(d["label"]))
-		_t(Vector2(_col_x(lm, cols, 1) + 5, y + 13), "%d %s" % [int(d["pack"]), str(d["unit"])], T.SHADOW)
-		_tr(_col_x(lm, cols, 3) - 6, y + 13, "$%d" % int(d["pack_cost"]))
+		_t(Vector2(_col_x(lm, cols, 0) + 5, y + 13), tr(str(d["label"])))
+		_t(Vector2(_col_x(lm, cols, 1) + 5, y + 13), "%d %s" % [int(d["pack"]), tr(str(d["unit"]))], T.SHADOW)
+		_tr(_col_x(lm, cols, 3) - 6, y + 13, LANG.money("$%d" % int(d["pack_cost"])))
 		_tr(_col_x(lm, cols, 4) - 6, y + 13, "%d" % have)
 		_tr(_col_x(lm, cols, 5) - 6, y + 13, "%d" % room, RED if room == 0 else T.TEXT)
 		var sx := _col_x(lm, cols, 5) + 6
@@ -538,24 +539,24 @@ func _draw_order(m: Rect2, site: Dictionary) -> void:
 		draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), Rect2(sx + 18, y + 1, 30, bh))
 		_tc(Rect2(sx + 18, y + 1, 30, bh), "%d" % packs, T.TEXT, packs > 0)
 		_button(Rect2(sx + 50, y + 1, 16, bh), "+", "plus:" + g, room > 0)
-		_tr(_col_x(lm, cols, 7) - 6, y + 13, "$%d" % (packs * int(d["pack_cost"])) if packs > 0 else "-", T.TEXT if packs > 0 else T.SHADOW)
+		_tr(_col_x(lm, cols, 7) - 6, y + 13, LANG.money("$%d" % (packs * int(d["pack_cost"]))) if packs > 0 else "-", T.TEXT if packs > 0 else T.SHADOW)
 		if due > 0:
 			_t(Vector2(_col_x(lm, cols, 7) + 6, y + 13), "+%d" % due, GREEN)
 		i += 1
 	# The foot: every place's part of the order, one van, the total, the cash.
 	var cost := _order_total()
 	var foot := Rect2(m.position.x, lm.end.y + 8, m.size.x, 48)
-	_group(foot, "Order for the camp")
+	_group(foot, tr("Order for the camp"))
 	var parts: Array = []
 	for key in _order:
 		var k2 := str(BUSINESS.site(str(key)).get("kind", ""))
 		var c2 := RULES.goods_cost(k2, _order[key])
 		if c2 > 0:
-			parts.append("%s $%d" % [_site_label(str(key)), c2])
-	_t(foot.position + Vector2(12, 22), ", ".join(parts) if not parts.is_empty() else "Nothing yet", T.SHADOW)
-	_t(foot.position + Vector2(12, 38), "One van $%d   Total $%d" % [RULES.DELIVERY_FEE if cost > 0 else 0, cost], RED if cost > CoreRoot.get_money() else T.TEXT, true)
-	_button(Rect2(foot.end.x - 186, foot.position.y + 14, 84, 24), "Clear", "clear", cost > 0)
-	_button(Rect2(foot.end.x - 96, foot.position.y + 14, 88, 24), "Send order", "send", cost > RULES.DELIVERY_FEE)
+			parts.append(LANG.money("%s $%d" % [_site_label(str(key)), c2]))
+	_t(foot.position + Vector2(12, 22), ", ".join(parts) if not parts.is_empty() else tr("Nothing yet"), T.SHADOW)
+	_t(foot.position + Vector2(12, 38), LANG.f("One van $%d   Total $%d", [RULES.DELIVERY_FEE if cost > 0 else 0, cost]), RED if cost > CoreRoot.get_money() else T.TEXT, true)
+	_button(Rect2(foot.end.x - 186, foot.position.y + 14, 84, 24), tr("Clear"), "clear", cost > 0)
+	_button(Rect2(foot.end.x - 96, foot.position.y + 14, 88, 24), tr("Send order"), "send", cost > RULES.DELIVERY_FEE)
 
 
 ## An ID photo in its sunken frame.
@@ -576,7 +577,7 @@ func _draw_staff(m: Rect2, site: Dictionary) -> void:
 	var lb := Rect2(left.position + Vector2(8, 14), Vector2(left.size.x - 16, 6 * ROW_H + 4))
 	draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), lb)
 	if crew.is_empty():
-		_t(lb.position + Vector2(6, 15), "Nobody. You serve by hand.", RED)
+		_t(lb.position + Vector2(6, 15), tr("Nobody. You serve by hand."), RED)
 	for i in mini(crew.size(), 6):
 		var p: Dictionary = crew[i]
 		var r := Rect2(lb.position.x + 2, lb.position.y + 2 + i * ROW_H, lb.size.x - 4, ROW_H)
@@ -587,28 +588,28 @@ func _draw_staff(m: Rect2, site: Dictionary) -> void:
 		var fg := T.WHITE if sel else T.TEXT
 		var away := int(p.get("absent", -1)) == day
 		_t(r.position + Vector2(4, 13), str(p.get("name", "")), RED if away and not sel else fg)
-		_t(r.position + Vector2(118, 13), RULES.role_label(kind, str(p.get("role", ""))), fg)
-		_t(r.position + Vector2(196, 13), "Late" if str(p.get("shift", "day")) == "late" else "Day", fg)
-		var tag := "Away" if away else ("Owed $%d" % int(p.get("owed", 0)) if int(p.get("owed", 0)) > 0 else "$%d" % RULES.shift_pay(p))
+		_t(r.position + Vector2(118, 13), tr(RULES.role_label(kind, str(p.get("role", "")))), fg)
+		_t(r.position + Vector2(196, 13), tr("Late") if str(p.get("shift", "day")) == "late" else tr("Day"), fg)
+		var tag := tr("Away") if away else (LANG.f("Owed $%d", int(p.get("owed", 0))) if int(p.get("owed", 0)) > 0 else LANG.money("$%d" % RULES.shift_pay(p)))
 		_tr(r.end.x - 4, r.position.y + 13, tag, (RED if (away or int(p.get("owed", 0)) > 0) and not sel else fg))
 		_hit("crew:" + slug, r)
 	var by := lb.end.y + 8
 	var picked := not _crew_of(_crew_pick).is_empty()
-	_button(Rect2(left.position.x + 8, by, 80, 22), "Job", "job", picked)
-	_button(Rect2(left.position.x + 92, by, 80, 22), "Shift", "shift", picked)
-	_button(Rect2(left.position.x + 176, by, 80, 22), "Let go", "fire", picked)
+	_button(Rect2(left.position.x + 8, by, 80, 22), tr("Job"), "job", picked)
+	_button(Rect2(left.position.x + 92, by, 80, 22), tr("Shift"), "shift", picked)
+	_button(Rect2(left.position.x + 176, by, 80, 22), tr("Let go"), "fire", picked)
 	# What the one picked is like (their speed and temper: what the guests get from them).
 	if picked:
 		var pp := _crew_of(_crew_pick)
-		var ways: Array = [RULES.SPEED_WORD[clampi(int(pp.get("speed", 1)), 0, 2)], str(RULES.TEMPER_WORD.get(str(pp.get("temper", "flat")), ""))]
+		var ways: Array = [tr(RULES.SPEED_WORD[clampi(int(pp.get("speed", 1)), 0, 2)]), tr(str(RULES.TEMPER_WORD.get(str(pp.get("temper", "flat")), "")))]
 		_t(Vector2(left.position.x + 8, by + 38), "  ".join(ways), T.TEXT)
 	if not bool(site.get("late", false)):
-		_t(Vector2(left.position.x + 8, by + 56 if picked else by + 40), "Shuts at 20:00", T.SHADOW)
+		_t(Vector2(left.position.x + 8, by + 56 if picked else by + 40), tr("Shuts at 20:00"), T.SHADOW)
 	# Who is asking today.
-	_group(right, "Asking today")
+	_group(right, tr("Asking today"))
 	var ap := BUSINESS.applicants(_site)
 	if ap.is_empty():
-		_t(right.position + Vector2(12, 30), "Nobody.", T.SHADOW)
+		_t(right.position + Vector2(12, 30), tr("Nobody."), T.SHADOW)
 		return
 	var alb := Rect2(right.position + Vector2(8, 14), Vector2(right.size.x - 16, ap.size() * ROW_H + 4))
 	draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), alb)
@@ -618,16 +619,16 @@ func _draw_staff(m: Rect2, site: Dictionary) -> void:
 		if sel2:
 			draw_rect(r2, T.NAVY)
 		_t(r2.position + Vector2(4, 13), str(ap[i]["name"]), T.WHITE if sel2 else T.TEXT)
-		_tr(r2.end.x - 4, r2.position.y + 13, "$%d" % int(ap[i]["wage"]), T.WHITE if sel2 else T.TEXT)
+		_tr(r2.end.x - 4, r2.position.y + 13, LANG.money("$%d" % int(ap[i]["wage"])), T.WHITE if sel2 else T.TEXT)
 		_hit("cand:%d" % i, r2)
 	var p2: Dictionary = ap[_candidate % ap.size()]
 	var pr := Rect2(right.position + Vector2(8, alb.end.y - right.position.y + 8), Vector2(52, 66))
 	_photo(pr, str(p2["slug"]))
 	var ty := pr.position.y + 12
 	for line in p2.get("refs", []):
-		_t(Vector2(pr.end.x + 8, ty), str(line), T.TEXT)
+		_t(Vector2(pr.end.x + 8, ty), tr(str(line)), T.TEXT)
 		ty += 16
-	_button(Rect2(pr.end.x + 8, pr.end.y - 22, 90, 22), "Take on", "hire")
+	_button(Rect2(pr.end.x + 8, pr.end.y - 22, 90, 22), tr("Take on"), "hire")
 
 
 func _draw_gear(m: Rect2, site: Dictionary) -> void:
@@ -640,13 +641,13 @@ func _draw_gear(m: Rect2, site: Dictionary) -> void:
 		var g: Dictionary = gear[id]
 		var y := m.position.y + 22 + i * 26
 		var owned := RULES.has_gear(site, str(id))
-		_t(Vector2(_col_x(m, cols, 0) + 6, y + 15), str(g["label"]), T.SHADOW if owned else T.TEXT, not owned)
-		_t(Vector2(_col_x(m, cols, 1) + 6, y + 15), str(g["what"]), T.SHADOW if owned else T.TEXT)
+		_t(Vector2(_col_x(m, cols, 0) + 6, y + 15), tr(str(g["label"])), T.SHADOW if owned else T.TEXT, not owned)
+		_t(Vector2(_col_x(m, cols, 1) + 6, y + 15), tr(str(g["what"])), T.SHADOW if owned else T.TEXT)
 		if owned:
-			_tr(_col_x(m, cols, 3) - 6, y + 15, "Installed", GREEN)
+			_tr(_col_x(m, cols, 3) - 6, y + 15, tr("Installed"), GREEN)
 		else:
-			_tr(_col_x(m, cols, 3) - 6, y + 15, "$%d" % int(g["price"]))
-			_button(Rect2(_col_x(m, cols, 3) + 6, y + 2, 60, 22), "Buy", "buy:" + str(id), CoreRoot.get_money() >= int(g["price"]))
+			_tr(_col_x(m, cols, 3) - 6, y + 15, LANG.money("$%d" % int(g["price"])))
+			_button(Rect2(_col_x(m, cols, 3) + 6, y + 2, 60, 22), tr("Buy"), "buy:" + str(id), CoreRoot.get_money() >= int(g["price"]))
 		i += 1
 
 
@@ -660,33 +661,33 @@ func _draw_books(m: Rect2, site: Dictionary) -> void:
 		var key: String = rows[i][1]
 		var a := int(round(float((site["today"] as Dictionary).get(key, 0))))
 		var bad := key in ["lost", "waste", "short"]
-		_t(Vector2(tm.position.x + 7, y + 13), str(rows[i][0]))
-		_tr(_col_x(tm, cols, 2) - 6, y + 13, "%s%d" % [rows[i][2], a], RED if bad and a > 0 else T.TEXT)
-		_tr(_col_x(tm, cols, 3) - 6, y + 13, "%s%d" % [rows[i][2], int(round(float((site["yesterday"] as Dictionary).get(key, 0))))])
+		_t(Vector2(tm.position.x + 7, y + 13), tr(str(rows[i][0])))
+		_tr(_col_x(tm, cols, 2) - 6, y + 13, LANG.money("%s%d" % [rows[i][2], a]), RED if bad and a > 0 else T.TEXT)
+		_tr(_col_x(tm, cols, 3) - 6, y + 13, LANG.money("%s%d" % [rows[i][2], int(round(float((site["yesterday"] as Dictionary).get(key, 0))))]))
 	# The average, the evening.
 	var g := Rect2(tm.position.x, tm.end.y + 12, tm.size.x, m.end.y - tm.end.y - 12)
-	_group(g, "The place")
+	_group(g, tr("The place"))
 	var n := int(site.get("all_orders", 0))
-	_t(g.position + Vector2(12, 22), "Orders rated: %d" % n)
+	_t(g.position + Vector2(12, 22), LANG.f("Orders rated: %d", n))
 	if n > 0:
-		_t(g.position + Vector2(12, 40), "Average score: %d%%" % int(round(float(site.get("all_score", 0)) / float(n))), T.TEXT, true)
+		_t(g.position + Vector2(12, 40), LANG.f("Average score: %d%%", int(round(float(site.get("all_score", 0)) / float(n)))), T.TEXT, true)
 	# The last shift's Z report: its mark and the one thing to mend.
 	var z: Dictionary = site.get("zreport", {}) if site.get("zreport", {}) is Dictionary else {}
 	if not z.is_empty():
 		var mark: Dictionary = {"grade": z["grade"], "advice": z.get("advice", "")} if z.has("grade") else RULES.day_grade(z)
 		var gr := str(mark["grade"])
-		_t(g.position + Vector2(150, 22), "Last shift: %s" % gr, GREEN if gr in ["A", "B"] else (RED if gr in ["D", "E"] else T.TEXT), true)
-		var adv := str(mark["advice"])
+		_t(g.position + Vector2(150, 22), LANG.f("Last shift: %s", gr), GREEN if gr in ["A", "B"] else (RED if gr in ["D", "E"] else T.TEXT), true)
+		var adv := tr(str(mark["advice"]))
 		while adv.length() > 4 and _w(adv) > g.size.x - 162:
 			adv = adv.substr(0, adv.length() - 4) + "..."
 		_t(g.position + Vector2(150, 40), adv, T.SHADOW)
 	var late := bool(site.get("late", false))
-	_t(g.position + Vector2(12, 62), "Open till %s" % ("23:00" if late else "20:00"))
-	_button(Rect2(g.position.x + 12, g.position.y + 70, 120, 22), "Shut at 20:00" if late else "Open late", "late")
+	_t(g.position + Vector2(12, 62), LANG.f("Open till %s", "23:00" if late else "20:00"))
+	_button(Rect2(g.position.x + 12, g.position.y + 70, 120, 22), tr("Shut at 20:00") if late else tr("Open late"), "late")
 	# The chart: the takings of the last seven days.
 	var ch := Rect2(tm.end.x + 10, m.position.y, m.end.x - tm.end.x - 10, m.size.y)
 	draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), ch)
-	_t(ch.position + Vector2(8, 16), "Takings, last 7 days", T.TEXT, true)
+	_t(ch.position + Vector2(8, 16), tr("Takings, last 7 days"), T.TEXT, true)
 	var days: Array = (site.get("history", []) as Array).duplicate()
 	days.append(site["today"])
 	while days.size() > 7:
@@ -721,4 +722,4 @@ func _draw_books(m: Rect2, site: Dictionary) -> void:
 	draw_rect(Rect2(ch.end.x - 92, ch.position.y + 8, 8, 8), T.NAVY)
 	_t(Vector2(ch.end.x - 80, ch.position.y + 16), "$", T.SHADOW)
 	draw_rect(Rect2(ch.end.x - 60, ch.position.y + 8, 8, 8), RED)
-	_t(Vector2(ch.end.x - 48, ch.position.y + 16), "Lost", T.SHADOW)
+	_t(Vector2(ch.end.x - 48, ch.position.y + 16), tr("Lost"), T.SHADOW)

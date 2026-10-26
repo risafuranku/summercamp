@@ -25,6 +25,7 @@ extends Control
 signal desktop_ready
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const BUILDER_WARMUP = preload("res://scripts/builder/warmup.gd")
 const WINDOW = preload("res://scripts/os98/os_window.gd")
 const PAGE = preload("res://scripts/os98/os_page.gd")
@@ -867,7 +868,7 @@ func install_program(app_id: String, from_setup := true) -> void:
 
 ## A small dialog. kind: info / warning / error / question. `cb` gets the button text.
 func message_box(p_title: String, text: String, kind := "info", buttons := ["OK"], cb: Callable = Callable()) -> void:
-	var lines := text.split("\n")
+	var lines := tr(text).split("\n")
 	var w := 0.0
 	for l in lines:
 		w = maxf(w, T.FONT.get_string_size(l, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x)
@@ -1404,28 +1405,28 @@ func _draw_cover(c: Control, id: String, kind: String) -> void:
 	for i in int(ceil(band.size.x / 8.0)):
 		c.draw_rect(Rect2(band.position.x + i * 8, band.position.y, minf(8.0, band.size.x - i * 8), band.size.y), T.TITLE_A.lerp(T.TITLE_B, float(i * 8) / band.size.x))
 	var title := str(PROGRAMS.get(id, {}).get("title", TAB_TITLES.get(id, id)))
-	c.draw_string(T.FONT_BOLD, band.position + Vector2(5, 13), title if kind == "install" else title + " - site licence", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
+	c.draw_string(T.FONT_BOLD, band.position + Vector2(5, 13), title if kind == "install" else title + tr(" - site licence"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
 	var ic := icon(str(PROGRAMS.get(id, {}).get("icon", "setup")))
 	c.draw_texture(ic, box.position + Vector2(18, 34))
 	var x := box.position.x + 64
 	var y := box.position.y + 44
 	if kind == "install":
 		var info: Dictionary = PROGRAMS[id]
-		c.draw_string(T.FONT_BOLD, Vector2(x, y), "%s is not installed on this computer." % title, HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 80, T.FONT_SIZE, T.TEXT)
+		c.draw_string(T.FONT_BOLD, Vector2(x, y), LANG.f("%s is not installed on this computer.", title), HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 80, T.FONT_SIZE, T.TEXT)
 		y += 20
-		for line in str(info.get("blurb", "")).split("\n"):
+		for line in tr(str(info.get("blurb", ""))).split("\n"):
 			c.draw_string(T.FONT, Vector2(x, y), line, HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 80, T.FONT_SIZE, T.TEXT)
 			y += 14
 		y += 6
-		c.draw_string(T.FONT, Vector2(x, y), "From: http://www.%s/   %s, %d KB" % [info["site"], info["file"], int(info["kb"])], HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 80, T.FONT_SIZE, T.SHADOW)
+		c.draw_string(T.FONT, Vector2(x, y), LANG.f("From: http://www.%s/   %s, %d KB", [info["site"], info["file"], int(info["kb"])]), HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 80, T.FONT_SIZE, T.SHADOW)
 	else:
-		c.draw_string(T.FONT_BOLD, Vector2(x, y), "Builder 98 cannot be used now.", HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 80, T.FONT_SIZE, T.TEXT)
+		c.draw_string(T.FONT_BOLD, Vector2(x, y), tr("Builder 98 cannot be used now."), HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 80, T.FONT_SIZE, T.TEXT)
 		y += 20
 		for line in ["The site licence for recreational facilities permits", "use between 06:30 and 20:00 only (Act no. 455/1991,", "schedule 3). Your plan is kept. It opens again", "in the morning."]:
-			c.draw_string(T.FONT, Vector2(x, y), line, HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 80, T.FONT_SIZE, T.TEXT)
+			c.draw_string(T.FONT, Vector2(x, y), tr(line), HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 80, T.FONT_SIZE, T.TEXT)
 			y += 14
 		y += 6
-		c.draw_string(T.FONT, Vector2(x, y), "Now: %s" % _clock_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
+		c.draw_string(T.FONT, Vector2(x, y), LANG.f("Now: %s", _clock_text()), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
 
 
 # ── dialogs (message boxes, Run, Display) ────────────────────────────────────
@@ -1739,9 +1740,9 @@ func _draw_boot() -> void:
 				if l == "TABLE":
 					y = _draw_config_table(y)
 					continue
-				_boot.draw_string(BIOS_FONT, Vector2(16, y), l, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(170, 170, 170))
+				_boot.draw_string(BIOS_FONT, Vector2(16, y), tr(l), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(170, 170, 170))
 				y += 16
-			_boot.draw_string(BIOS_FONT, Vector2(16, 462), "Press DEL to enter SETUP.  Any other key: get on with it.", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(170, 170, 170))
+			_boot.draw_string(BIOS_FONT, Vector2(16, 462), tr("Press DEL to enter SETUP.  Any other key: get on with it."), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(170, 170, 170))
 			# Energy star style badge, top right: two words in a box.
 			_boot.draw_rect(Rect2(520, 16, 104, 40), Color8(0, 120, 60), false, 2.0)
 			_boot.draw_string(BIOS_FONT, Vector2(530, 34), "FIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color8(0, 170, 90))
@@ -1773,12 +1774,12 @@ func _draw_boot() -> void:
 					_boot.draw_rect(Rect2(x, band.position.y, step, band.size.y), col)
 					x += step
 		Boot.SAFE_OFF:
-			var msg := "It is now safe to turn off\n     your computer."
+			var msg := tr("It is now safe to turn off\n     your computer.")
 			var y2 := 220.0
 			for l in msg.split("\n"):
 				_boot.draw_string(T.FONT_BOLD, Vector2(220, y2), l, HORIZONTAL_ALIGNMENT_LEFT, -1, 12 * 2, Color8(255, 140, 0))
 				y2 += 30
-			_boot.draw_string(T.FONT, Vector2(214, 300), "(click to start it again)", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(140, 90, 0))
+			_boot.draw_string(T.FONT, Vector2(214, 300), tr("(click to start it again)"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(140, 90, 0))
 
 
 ## The maker's loading bar: a dark sunken slot, amber blocks that come in fits and
@@ -1907,7 +1908,7 @@ func _build_taskbar() -> void:
 		var o := Vector2(1, 1) if on else Vector2.ZERO
 		if _start_logo_tex != null:
 			_start_btn.draw_texture_rect(_start_logo_tex, Rect2(Vector2(4, 4) + o, Vector2(32, 32)), false)
-		_start_btn.draw_string(T.FONT_BOLD, Vector2(37, 25) + o, "Start", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		_start_btn.draw_string(T.FONT_BOLD, Vector2(37, 25) + o, tr("Start"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	)
 	_start_btn.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
@@ -2396,7 +2397,7 @@ func _menu_item(text: String, tex: Texture2D, pos: Vector2, sz: Vector2, arrow: 
 			c.draw_rect(Rect2(Vector2.ZERO, sz), T.NAVY)
 		if tex != null:
 			c.draw_texture_rect(tex, Rect2(Vector2(4, (sz.y - icon_px) * 0.5), Vector2(icon_px, icon_px)), false)
-		c.draw_string(T.FONT, Vector2(icon_px + 12, sz.y * 0.5 + 4), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE if hov else T.TEXT)
+		c.draw_string(T.FONT, Vector2(icon_px + 12, sz.y * 0.5 + 4), tr(text), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE if hov else T.TEXT)
 		if arrow:
 			var ax := sz.x - 10
 			var ay := sz.y * 0.5

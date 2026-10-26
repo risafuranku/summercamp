@@ -18,6 +18,7 @@ signal program_requested(app_id: String)
 signal splash_finished
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const MAP_PANEL_SCRIPT = preload("res://scripts/crt_map_panel.gd")
 const MAP3D_SCRIPT = preload("res://scripts/builder/map3d.gd")
@@ -1107,7 +1108,7 @@ func _stay_line(id: int) -> String:
 	for g in st.guests:
 		if g is Dictionary and int(g.get("id", -2)) == id:
 			var n := int(g.get("stay_nights", 1))
-			return "%d night%s, $%d paid" % [n, "" if n == 1 else "s", int(g.get("income_paid_total", 0))]
+			return LANG.f("%d night%s, $%d paid", [n, "" if n == 1 else "s", int(g.get("income_paid_total", 0))])
 	return ""
 
 
@@ -1122,7 +1123,7 @@ func _draw_guest_card() -> void:
 	if g.is_empty():
 		return
 	var party := int(g.get("party_size", 1))
-	var title := str(g.get("name", "Guest")) + ("  and %d more" % (party - 1) if party > 1 else "")
+	var title := str(g.get("name", "Guest")) + (LANG.f("  and %d more", party - 1) if party > 1 else "")
 	c.draw_string(T.FONT_BOLD, band.position + Vector2(4, 13), title, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, T.FONT_SIZE, T.WHITE)
 	# Their face: the top of their figure.
 	var face := _guest_face(str(g.get("sprite_path", "")))
@@ -1136,15 +1137,15 @@ func _draw_guest_card() -> void:
 	if lodg is Vector2i and (lodg as Vector2i).x >= 0 and GuestManager != null:
 		room = GuestManager.room_label("%d:%d" % [lodg.x, lodg.y])
 	var stay := _stay_line(_gcard_id)
-	c.draw_string(T.FONT, Vector2(x, y), (room if room != "" else "No room") + ("  -  " + stay if stay != "" else ""), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 26, T.FONT_SIZE, Color8(60, 60, 110))
-	c.draw_string(T.FONT_BOLD, Vector2(x, y + 14), "%s, %s" % [str(g.get("mood_label", "")), _doing(g)], HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 8, T.FONT_SIZE, Color8(40, 70, 170))
+	c.draw_string(T.FONT, Vector2(x, y), (tr(room) if room != "" else tr("No room")) + ("  -  " + stay if stay != "" else ""), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 26, T.FONT_SIZE, Color8(60, 60, 110))
+	c.draw_string(T.FONT_BOLD, Vector2(x, y + 14), "%s, %s" % [tr(str(g.get("mood_label", ""))), tr(_doing(g))], HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 8, T.FONT_SIZE, Color8(40, 70, 170))
 	# Six needs, two columns of little bars.
 	var needs: Dictionary = g.get("needs", {})
 	for i in NEED_SHORT.size():
 		var nx := x + float(i % 2) * 106.0
 		var ny := y + 24.0 + float(i / 2) * 13.0
 		var v := clampf(float(needs.get(NEED_SHORT[i][0], 100.0)) / 100.0, 0.0, 1.0)
-		c.draw_string(T.FONT, Vector2(nx, ny + 9), str(NEED_SHORT[i][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
+		c.draw_string(T.FONT, Vector2(nx, ny + 9), tr(str(NEED_SHORT[i][1])), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
 		var bar := Rect2(nx + 34, ny + 1, 62, 8)
 		c.draw_rect(bar, Color8(60, 60, 60))
 		var col := Color8(40, 170, 40) if v > 0.6 else (Color8(220, 160, 0) if v > 0.3 else Color8(200, 30, 20))
@@ -1152,7 +1153,7 @@ func _draw_guest_card() -> void:
 	# What they last thought.
 	var thought := _gcard_odd if _gcard_odd != "" else str(g.get("thought", ""))
 	if thought != "":
-		T.FONT.draw_multiline_string(c.get_canvas_item(), Vector2(8, s.y - 36), char(34) + thought + char(34), HORIZONTAL_ALIGNMENT_LEFT, s.x - 96, T.FONT_SIZE, 2, Color8(70, 50, 30))
+		T.FONT.draw_multiline_string(c.get_canvas_item(), Vector2(8, s.y - 36), char(34) + tr(thought) + char(34), HORIZONTAL_ALIGNMENT_LEFT, s.x - 96, T.FONT_SIZE, 2, Color8(70, 50, 30))
 
 
 func _guest_face(path: String) -> Texture2D:
@@ -1191,34 +1192,34 @@ func _refresh_inspector() -> void:
 	# Lodgings: the room, who is in it, how many beds, what is still to do.
 	var lodging := t.begins_with("tent") or t.begins_with("cabin") or t.begins_with("caravan")
 	if lodging and GuestManager != null:
-		v["sub"] = GuestManager.room_label(key)
+		v["sub"] = tr(GuestManager.room_label(key))
 		var rs: Dictionary = GuestManager.get_room_state(key)
 		var st := str(rs.get("status", ""))
 		var who := _guests_in(key)
 		var beds := int(def.capacity) if def != null else 0
 		if bool(rs.get("occupied", false)) or not who.is_empty():
-			lines.append(["Guests", "%s  (%d/%d)" % [", ".join(who.slice(0, 2)), who.size(), beds] if not who.is_empty() else "taken", Color8(40, 70, 170)])
+			lines.append([tr("Guests"), "%s  (%d/%d)" % [", ".join(who.slice(0, 2)), who.size(), beds] if not who.is_empty() else tr("taken"), Color8(40, 70, 170)])
 		else:
-			lines.append(["Room", {"ready": "ready, %d bed%s" % [beds, "" if beds == 1 else "s"], "dirty": "DIRTY: clean it", "unprepared": "not made up yet"}.get(st, st), Color8(0, 110, 0) if st == "ready" else Color8(170, 0, 0)])
+			lines.append([tr("Room"), {"ready": LANG.f("ready, %d bed%s", [beds, "" if beds == 1 else "s"]), "dirty": tr("DIRTY: clean it"), "unprepared": tr("not made up yet")}.get(st, st), Color8(0, 110, 0) if st == "ready" else Color8(170, 0, 0)])
 	elif t == "path":
 		# A path: whether it is lit; the lamp is put on it from here.
 		var lit := bool(_insp.get("lamp", false))
-		v["title"] = "Path with a lamp" if lit else "Path"
+		v["title"] = tr("Path with a lamp") if lit else tr("Path")
 		v["icon"] = _tool_art("lamp_post" if lit else "path")
-		v["sub"] = str(BLURBS["lamp_post" if lit else "path"])
-		lines.append(["Light", "lit at night" if lit else "dark at night", Color8(0, 110, 0) if lit else Color8(150, 100, 0)])
+		v["sub"] = tr(str(BLURBS["lamp_post" if lit else "path"]))
+		lines.append([tr("Light"), tr("lit at night") if lit else tr("dark at night"), Color8(0, 110, 0) if lit else Color8(150, 100, 0)])
 	elif BLURBS.has(_base_type(t)):
-		v["sub"] = str(BLURBS[_base_type(t)])
+		v["sub"] = tr(str(BLURBS[_base_type(t)]))
 	# A toilet or shower block: how clean it is (the guests' use soils it).
 	if t == "toilet_block" or t == "shower_block":
 		var cell: Dictionary = CoreRoot.get_state().grid.cells.get(o, {})
 		var clean := float(cell.get("maintenance", 1.0))
-		lines.append(["Clean", "FILTHY" if clean < UPKEEP_RULES.FILTHY else "%d%%" % int(round(clean * 100.0)), Color8(170, 0, 0) if clean < UPKEEP_RULES.FILTHY else (Color8(150, 100, 0) if clean < 0.7 else Color8(0, 110, 0))])
+		lines.append([tr("Clean"), tr("FILTHY") if clean < UPKEEP_RULES.FILTHY else "%d%%" % int(round(clean * 100.0)), Color8(170, 0, 0) if clean < UPKEEP_RULES.FILTHY else (Color8(150, 100, 0) if clean < 0.7 else Color8(0, 110, 0))])
 	# A business: today in its books (what it took, how many it served).
 	var biz: Dictionary = (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).get(key, {}) if CoreRoot.get_state().biz is Dictionary else {}
 	if not biz.is_empty():
 		var today: Dictionary = biz.get("today", {})
-		lines.append(["Today", "$%d, %d served" % [int(today.get("takings", 0)), int(today.get("sold", 0))], Color8(0, 110, 0)])
+		lines.append([tr("Today"), LANG.f("$%d, %d served", [int(today.get("takings", 0)), int(today.get("sold", 0))]), Color8(0, 110, 0)])
 	# Wear and repairs.
 	var crew_cost := 0
 	var worn := false
@@ -1227,7 +1228,7 @@ func _refresh_inspector() -> void:
 			if Vector2i(r["coord"]) == o:
 				var cond := float(r.get("condition", 1.0))
 				var broken := bool(r.get("broken", false))
-				lines.append(["Condition", "BROKEN" if broken else "%d%%" % int(round(cond * 100.0)), Color8(170, 0, 0) if broken or cond < 0.5 else (Color8(150, 100, 0) if cond < UPKEEP_RULES.WORN_CONDITION else Color8(0, 110, 0))])
+				lines.append([tr("Condition"), tr("BROKEN") if broken else "%d%%" % int(round(cond * 100.0)), Color8(170, 0, 0) if broken or cond < 0.5 else (Color8(150, 100, 0) if cond < UPKEEP_RULES.WORN_CONDITION else Color8(0, 110, 0))])
 				v["cond"] = 0.0 if broken else cond
 				worn = broken or cond < 0.999
 				crew_cost = int(ceil(float(r.get("cost", 0)) * UPKEEP_RULES.CREW_PREMIUM))
@@ -1238,7 +1239,7 @@ func _refresh_inspector() -> void:
 		for l in (m.get_electricity_ui_snapshot() as Dictionary).get("consumption_lines", []):
 			if (l as Dictionary).get("coord", null) == o:
 				kwh = float(l.get("kwh_per_day", 0.0))
-		lines.append(["Power", "%.1f kWh a day" % kwh, Color8(150, 100, 0)])
+		lines.append([tr("Power"), LANG.f("%.1f kWh a day", kwh), Color8(150, 100, 0)])
 	v["lines"] = lines
 	_insp_view = v
 	# The buttons.
@@ -1304,10 +1305,10 @@ func _base_type(t: String) -> String:
 
 
 func _nice_type(t: String, def) -> String:
-	var name := str(SHORT_NAMES.get(_base_type(t), def.display_name.split(" (")[0] if def != null else t))
+	var name := tr(str(SHORT_NAMES.get(_base_type(t), def.display_name.split(" (")[0] if def != null else t)))
 	var lv := t.get_slice("_", 1)
 	if (t.begins_with("tent") or t.begins_with("cabin") or t.begins_with("caravan")) and lv.is_valid_int():
-		name += "  Lv%s" % lv
+		name += LANG.f("  Lv%s", lv)
 	return name
 
 
@@ -1425,9 +1426,9 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 	var box_side := 46.0 if w >= 130 else 36.0
 	var text_x := box_side + 8.0
 	var text_w := float(w) - text_x - 3.0
-	var label := str(SHORT_NAMES.get(type, type))
+	var label := tr(str(SHORT_NAMES.get(type, type)))
 	if T.FONT_BOLD.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x > text_w:
-		label = str(TINY_NAMES.get(type, label))
+		label = tr(str(TINY_NAMES.get(type, label)))
 	c.mouse_filter = Control.MOUSE_FILTER_STOP
 	c.tooltip_text = _tooltip(type)
 	c.set_meta("hover", false)
@@ -1469,15 +1470,15 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 				c.draw_texture_rect(_padlock, Rect2(Vector2(4, c.size.y - 20), Vector2(16, 16)), false)
 			c.draw_string(T.FONT_BOLD, Vector2(text_x, 17), label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
 			if lock.has("registered"):
-				c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), "Registered", HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
-				c.draw_string(T.FONT, Vector2(text_x, 47), "copies only", HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
+				c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), tr("Registered"), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
+				c.draw_string(T.FONT, Vector2(text_x, 47), tr("copies only"), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
 				return
 			# The guests in the camp it waits for.
-			c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), "%d guests" % int(lock["guests"]), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
-			c.draw_string(T.FONT, Vector2(text_x, 47), "in the camp", HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
+			c.draw_string(T.FONT_BOLD, Vector2(text_x, 32), LANG.f("%d guests", int(lock["guests"])), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(150, 100, 0))
+			c.draw_string(T.FONT, Vector2(text_x, 47), tr("in the camp"), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT_DISABLED)
 			return
 		c.draw_string(T.FONT_BOLD, Vector2(text_x, 17) + o, label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT)
-		c.draw_string(T.FONT, Vector2(text_x, 32) + o, "$%d" % _cost(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
+		c.draw_string(T.FONT, Vector2(text_x, 32) + o, LANG.money("$%d" % _cost(type)), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
 		c.draw_string(T.FONT, Vector2(text_x, 47) + o, _stat_line(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(70, 70, 90))
 	)
 	c.gui_input.connect(func(e):
@@ -1494,9 +1495,9 @@ func _stat_line(type: String) -> String:
 		return ""
 	var bits: Array = []
 	if int(def.capacity) > 0:
-		bits.append("%d bed%s" % [int(def.capacity), "" if int(def.capacity) == 1 else "s"])
+		bits.append(LANG.f("%d bed%s", [int(def.capacity), "" if int(def.capacity) == 1 else "s"]))
 	if int(def.power_use) > 0:
-		bits.append("power")
+		bits.append(tr("power"))
 	if def.footprint != Vector2i.ONE:
 		bits.append("%dx%d" % [def.footprint.x, def.footprint.y])
 	# What a business fills, the most first (the guests' needs: food, drink, fun, wash).
@@ -1507,7 +1508,7 @@ func _stat_line(type: String) -> String:
 				fills.append([float(def.guest_services[need]), {"hunger": "food", "thirst": "drink", "fun": "fun", "hygiene": "wash"}.get(str(need), str(need))])
 		fills.sort_custom(func(a, b) -> bool: return float(a[0]) > float(b[0]))
 		if not fills.is_empty():
-			bits.push_front(", ".join(fills.map(func(f) -> String: return str(f[1]))))
+			bits.push_front(", ".join(fills.map(func(f) -> String: return tr(str(f[1])))))
 	return ", ".join(bits)
 
 
@@ -1537,11 +1538,11 @@ func _build_splash() -> void:
 		var tp := Vector2(floorf((sz.x - tw) * 0.5), 58)
 		_splash.draw_string(T.FONT_BOLD, tp + Vector2(3, 3), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.7))
 		_splash.draw_string(T.FONT_BOLD, tp, title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(255, 214, 90))
-		var sub := "Stavitel software  -  site planning for recreational facilities"
+		var sub := tr("Stavitel software  -  site planning for recreational facilities")
 		var sw := T.FONT.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		_splash.draw_string(T.FONT, Vector2(floorf((sz.x - sw) * 0.5) + 1, 79), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color(0, 0, 0, 0.8))
 		_splash.draw_string(T.FONT, Vector2(floorf((sz.x - sw) * 0.5), 78), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
-		var line: String = SPLASH_LINES[clampi(int(_splash_t / SPLASH_SEC * SPLASH_LINES.size()), 0, SPLASH_LINES.size() - 1)]
+		var line: String = tr(SPLASH_LINES[clampi(int(_splash_t / SPLASH_SEC * SPLASH_LINES.size()), 0, SPLASH_LINES.size() - 1)])
 		var lw := T.FONT.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		_splash.draw_rect(Rect2(floorf((sz.x - 260) * 0.5), sz.y - 66, 260, 40), Color(0, 0, 0, 0.55))
 		_splash.draw_string(T.FONT, Vector2(floorf((sz.x - lw) * 0.5), sz.y - 52), line, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
@@ -1590,14 +1591,14 @@ func _draw_info() -> void:
 		_info.draw_rect(Rect2(6, 6, 56, 54), Color8(40, 56, 40))
 		_info.draw_texture_rect(icon, Rect2(Vector2(8, 7) + ((Vector2(52, 52) - d) * 0.5).floor(), d), false)
 	var x := 70.0
-	_info.draw_string(T.FONT_BOLD, Vector2(x, 17), str(SHORT_NAMES.get(t, t)), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+	_info.draw_string(T.FONT_BOLD, Vector2(x, 17), tr(str(SHORT_NAMES.get(t, t))), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	var cost := _cost(t)
 	if cost > 0:
 		var afford := CoreRoot.get_money() >= cost
-		var ct := "$%d" % cost
+		var ct := LANG.money("$%d" % cost)
 		var cw := T.FONT_BOLD.get_string_size(ct, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		_info.draw_string(T.FONT_BOLD, Vector2(_info.size.x - cw - 8, 17), ct, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(0, 110, 0) if afford else Color8(170, 0, 0))
-	T.FONT.draw_multiline_string(_info.get_canvas_item(), Vector2(x, 31), str(BLURBS.get(t, "")), HORIZONTAL_ALIGNMENT_LEFT, _info.size.x - x - 8, T.FONT_SIZE, 2, T.TEXT)
+	T.FONT.draw_multiline_string(_info.get_canvas_item(), Vector2(x, 31), tr(str(BLURBS.get(t, ""))), HORIZONTAL_ALIGNMENT_LEFT, _info.size.x - x - 8, T.FONT_SIZE, 2, T.TEXT)
 	var stats := _stat_line(t)
 	if stats != "":
 		_info.draw_string(T.FONT, Vector2(x, 60), stats, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(60, 60, 110))
@@ -1709,12 +1710,15 @@ func _tick_odo(delta: float) -> void:
 
 func _draw_odo() -> void:
 	var v := maxf(0.0, _odo_v)
+	# In Czech the wheels count crowns (lang.gd CROWNS_PER_DOLLAR).
+	if LANG.is_czech():
+		v *= LANG.CROWNS_PER_DOLLAR
 	var whole := int(floor(v))
 	var frac := v - float(whole)
 	var col := Color8(80, 255, 80)
 	if _odo_flash > 0.0:
 		col = Color8(170, 255, 140) if _odo_dir > 0 else Color8(255, 96, 80)
-	var text := "$" + _group(whole)
+	var text := LANG.group_thousands(whole) + " Kč" if LANG.is_czech() else "$" + _group(whole)
 	var cw := 7.0
 	var h := _odo.size.y
 	var x := _odo.size.x
@@ -2198,7 +2202,7 @@ func _show_news(item: Dictionary) -> void:
 			pic = _item_icon(str(NEWS_PICTURES[key]))
 	if _ticker != null:
 		var diploma := str(item.get("kind", "")) == "diploma"
-		_ticker.add(("Your camp won a diploma: %s." if diploma else "Hlubocany Courier: %s") % str(item.get("title", "")).rstrip("."), "medal" if diploma else "cabin")
+		_ticker.add(LANG.f("Your camp won a diploma: %s." if diploma else "Hlubocany Courier: %s", tr(str(item.get("title", ""))).rstrip(".")), "medal" if diploma else "cabin")
 	_news_open = load("res://scripts/builder/news_paper.gd").new()
 	_news_open.setup(item, pic)
 	add_child(_news_open)
@@ -2376,7 +2380,7 @@ func _draw_unlock(c: Control, type: String, text_x: float, text_w: float, label:
 		else:
 			k = floorf(k * UNLOCK_SEC * 12.0) / (UNLOCK_SEC * 12.0)
 	c.draw_string(T.FONT_BOLD, Vector2(text_x, 17) + o, label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT)
-	c.draw_string(T.FONT, Vector2(text_x, 32) + o, "$%d" % _cost(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
+	c.draw_string(T.FONT, Vector2(text_x, 32) + o, LANG.money("$%d" % _cost(type)), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
 	c.draw_string(T.FONT, Vector2(text_x, 47) + o, _stat_line(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(70, 70, 90))
 	if k < 1.0:
 		# The grey off in steps; the padlock springs and drops out of the card.

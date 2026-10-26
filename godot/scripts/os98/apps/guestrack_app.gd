@@ -11,6 +11,7 @@ extends Control
 ## On some evenings the register has one row more than the camp has guests.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const PLAN = preload("res://scripts/os98/apps/camp_plan.gd")
 const NEEDS = preload("res://core/systems/guest_needs_system.gd")
 const UNBOOKED_FROM_HOUR := 18
@@ -297,7 +298,7 @@ func refresh() -> void:
 	_tabs.set_tab_title(0, "Guests (%d)" % (int(ov.get("active", 0)) + int(ov.get("sleep", 0))))
 	_tabs.set_tab_title(1, "Arrivals (%d)" % arrivals.size() if not arrivals.is_empty() else "Arrivals")
 	_tabs.set_tab_title(2, "Rooms (%d to do)" % to_do if to_do > 0 else "Rooms")
-	_banner.set_meta("clock", "Day %d  %02d:%02d" % [day, hour, int(data.get("minute", 0))])
+	_banner.set_meta("clock", LANG.f("Day %d  %02d:%02d", [day, hour, int(data.get("minute", 0))]))
 	_banner.queue_redraw()
 	match _tabs.current_tab:
 		0:
@@ -428,7 +429,7 @@ func _short_of(needs: Dictionary) -> String:
 		if float(needs.get(k, 100.0)) < NEEDS.SEEK_THRESHOLD:
 			rows.append([float(needs[k]), str(NEED_WORDS.get(k, k))])
 	rows.sort_custom(func(a, b) -> bool: return float(a[0]) < float(b[0]))
-	return ", ".join(rows.map(func(r) -> String: return str(r[1])))
+	return ", ".join(rows.map(func(r) -> String: return tr(str(r[1]))))
 
 
 var _need_icons: Dictionary = {}
@@ -481,10 +482,10 @@ func _fill_arrivals(rows: Array) -> void:
 				# What is still to do in it, as the room's own list has it.
 				for t in GuestManager.get_room_state(str(room.get("key", ""))).get("remaining", []):
 					todo.append(str(t.get("label", t.get("id", ""))))
-		it.set_text(4, ", ".join(labels))
+		it.set_text(4, ", ".join(labels.map(func(x) -> String: return tr(str(x)))))
 		it.set_text(5, "yes" if ready else "NO")
 		it.set_custom_color(5, GREEN if ready else RED)
-		it.set_text(6, ", ".join(todo) if not todo.is_empty() else ("-" if ready else "make it up"))
+		it.set_text(6, ", ".join(todo.map(func(x) -> String: return tr(str(x)))) if not todo.is_empty() else ("-" if ready else "make it up"))
 		if not todo.is_empty():
 			it.set_custom_color(6, AMBER)
 		_stripe(it, i, 7)
@@ -524,8 +525,9 @@ func _fill_rooms() -> void:
 		var names: Array = []
 		for t in rs.get("remaining", []):
 			names.append(str(t.get("label", t.get("id", ""))))
-		it.set_text(3, ", ".join(names))
-		it.set_tooltip_text(3, ", ".join(names))
+		var names_in := ", ".join(names.map(func(x) -> String: return tr(str(x))))
+		it.set_text(3, names_in)
+		it.set_tooltip_text(3, names_in)
 		_stripe(it, i, 4)
 		i += 1
 	var sel = _plan.focus if _plan != null else Vector2i(-1, -1)
@@ -561,7 +563,7 @@ func _draw_banner() -> void:
 	for k in 3:
 		_banner.draw_rect(Rect2(o + Vector2(5 + k * 5, 21 + (k % 2)), Vector2(4, 1)), T.WHITE)
 	_banner.draw_string(T.FONT_BOLD, Vector2(40, 15), "GuestRack 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
-	_banner.draw_string(T.FONT, Vector2(40, 28), "District Office Hlubocany - register of persons staying overnight", HORIZONTAL_ALIGNMENT_LEFT, s.x - 140, T.FONT_SIZE, Color8(210, 240, 210))
+	_banner.draw_string(T.FONT, Vector2(40, 28), tr("District Office Hlubocany - register of persons staying overnight"), HORIZONTAL_ALIGNMENT_LEFT, s.x - 140, T.FONT_SIZE, Color8(210, 240, 210))
 	var clock := str(_banner.get_meta("clock", ""))
 	var w := T.FONT_BOLD.get_string_size(clock, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 	_banner.draw_string(T.FONT_BOLD, Vector2(s.x - w - 8, 15), clock, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
@@ -575,7 +577,7 @@ func _draw_counters() -> void:
 	for i in n:
 		var r := Rect2(i * (w + 4), 0, w, _counters.size.y)
 		_counters.draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), r)
-		_counters.draw_string(T.FONT, r.position + Vector2(6, 14), labels[i], HORIZONTAL_ALIGNMENT_LEFT, w - 8, T.FONT_SIZE, T.SHADOW)
+		_counters.draw_string(T.FONT, r.position + Vector2(6, 14), tr(labels[i]), HORIZONTAL_ALIGNMENT_LEFT, w - 8, T.FONT_SIZE, T.SHADOW)
 		var v := str(_counter_values[i])
 		var col: Color = cols[i]
 		if i == 3 and v == "0":
@@ -608,23 +610,23 @@ func _draw_card() -> void:
 	var s := _card.size
 	_card.draw_style_box(T.box("field", Color8(255, 255, 238), Vector4.ZERO), Rect2(Vector2.ZERO, s))
 	if _card_guest.is_empty():
-		_card.draw_string(T.FONT, Vector2(8, 20), "Pick a guest.", HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.SHADOW)
+		_card.draw_string(T.FONT, Vector2(8, 20), tr("Pick a guest."), HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.SHADOW)
 		return
 	var g := _card_guest
 	var mood := float(g.get("mood", 60.0))
 	_card.draw_texture_rect(_face_icon(mood, 32), Rect2(8, 8, 32, 32), false)
 	_card.draw_string(T.FONT_BOLD, Vector2(46, 20), str(g.get("name", "Guest")), HORIZONTAL_ALIGNMENT_LEFT, s.x - 52, T.FONT_SIZE, T.TEXT)
-	_card.draw_string(T.FONT, Vector2(46, 34), "%s, %s" % [_kind(str(g.get("archetype", ""))), str(g.get("mood_label", "")).to_lower()], HORIZONTAL_ALIGNMENT_LEFT, s.x - 52, T.FONT_SIZE, T.SHADOW)
+	_card.draw_string(T.FONT, Vector2(46, 34), "%s, %s" % [tr(_kind(str(g.get("archetype", "")))), tr(str(g.get("mood_label", ""))).to_lower()], HORIZONTAL_ALIGNMENT_LEFT, s.x - 52, T.FONT_SIZE, T.SHADOW)
 	var y := 52.0
-	_card.draw_string(T.FONT, Vector2(8, y), "Room: %s" % str(g.get("room", "-")), HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.TEXT)
+	_card.draw_string(T.FONT, Vector2(8, y), LANG.f("Room: %s", tr(str(g.get("room", "-")))), HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.TEXT)
 	y += 14
-	_card.draw_string(T.FONT, Vector2(8, y), "Leaves in: %s" % str(g.get("leaves", "-")), HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.TEXT)
+	_card.draw_string(T.FONT, Vector2(8, y), LANG.f("Leaves in: %s", tr(str(g.get("leaves", "-")))), HORIZONTAL_ALIGNMENT_LEFT, s.x - 16, T.FONT_SIZE, T.TEXT)
 	y += 10
 	var needs: Dictionary = g.get("needs", {})
 	for k in NEEDS.NEEDS:
 		y += 14
 		var v := clampf(float(needs.get(k, 50.0)) / 100.0, 0.0, 1.0)
-		_card.draw_string(T.FONT, Vector2(8, y), str(NEEDS.NEED_LABELS.get(k, k)), HORIZONTAL_ALIGNMENT_LEFT, 64, T.FONT_SIZE, T.TEXT)
+		_card.draw_string(T.FONT, Vector2(8, y), tr(str(NEEDS.NEED_LABELS.get(k, k))), HORIZONTAL_ALIGNMENT_LEFT, 64, T.FONT_SIZE, T.TEXT)
 		var bar := Rect2(74, y - 9, s.x - 84, 9)
 		_card.draw_rect(bar, Color8(220, 220, 220))
 		_card.draw_rect(Rect2(bar.position, Vector2(bar.size.x * v, bar.size.y)), GREEN if v > 0.55 else (AMBER if v > 0.3 else RED))
@@ -632,7 +634,7 @@ func _draw_card() -> void:
 	var thought := str(g.get("thought", "")).strip_edges()
 	if not thought.is_empty() and int(g.get("thought_age", 9999)) < 240:
 		y += 22
-		var lines := _wrap("\"%s\"" % thought, s.x - 16)
+		var lines := _wrap("\"%s\"" % tr(thought), s.x - 16)
 		for l in lines.slice(0, 5):
 			_card.draw_string(T.FONT, Vector2(8, y), l, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(60, 60, 120))
 			y += 13

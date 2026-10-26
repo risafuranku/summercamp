@@ -19,6 +19,7 @@ const LAYOUT := preload("res://scripts/bowling/bowling_layout.gd")
 const RETRO_UI := preload("res://scripts/ui/retro_ui.gd")
 const PROFILES := preload("res://scripts/profiles.gd")
 const INTERIOR_LOOK := preload("res://scripts/interior_look.gd")
+const LANG := preload("res://scripts/lang.gd")
 const HAND_HOLD := "res://assets/textury/hands/bowl_hold.png"
 const HAND_RELEASE := "res://assets/textury/hands/bowl_release.png"
 const PAPER := "res://assets/textury/bistro/ticket.png"
@@ -339,7 +340,7 @@ func _draw_card(size: Vector2, k: float) -> void:
 			_ui.draw_string(f, b.position + Vector2(2, 21) * k, str(int(fr["total"])), HORIZONTAL_ALIGNMENT_LEFT, box.x - 2 * k, fs, red)
 	# The last game's total, a while after it ended.
 	if _final >= 0 and _t - _final_t < 4.0:
-		var s := tr("Game: %d") % _final
+		var s := LANG.f("Game: %d", _final)
 		var sw := RETRO_UI.FONT_BIG.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, int(10 * k)).x
 		_ui.draw_string(RETRO_UI.FONT_BIG, Vector2((size.x - sw) * 0.5, r.end.y + 16 * k), s, HORIZONTAL_ALIGNMENT_LEFT, -1, int(10 * k), RETRO_UI.C_AMBER_LIGHT)
 

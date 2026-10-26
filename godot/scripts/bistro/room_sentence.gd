@@ -22,6 +22,7 @@ func _ready() -> void:
 
 ## What the pointer is over now ("" nothing).
 func hover(text: String) -> void:
+	text = tr(text)
 	if text != _hover:
 		_hover = text
 		queue_redraw()
@@ -29,7 +30,7 @@ func hover(text: String) -> void:
 
 ## A line said about something: typed out, then gone after a while.
 func say(text: String) -> void:
-	_line = text
+	_line = tr(text)
 	_shown = 0.0
 	_line_t = 0.0
 	queue_redraw()

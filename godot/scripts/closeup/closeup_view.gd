@@ -109,8 +109,8 @@ func close_view() -> void:
 
 
 func say(who: String, text: String, typewriter := true) -> void:
-	strip_who = who
-	strip_text = text
+	strip_who = tr(who)
+	strip_text = tr(text)
 	strip_shown = 0 if typewriter else -1
 	_type_acc = 0.0
 

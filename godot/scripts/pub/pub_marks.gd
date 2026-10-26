@@ -14,6 +14,7 @@ extends Control
 ## Stepped like the rest of the room (12 a second).
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const LANG = preload("res://scripts/lang.gd")
 const PUB = preload("res://core/systems/pub_rules.gd")
 const LAYOUT = preload("res://scripts/pub/pub_layout.gd")
 const MARK_DIR := "res://assets/textury/ui/"
@@ -147,7 +148,7 @@ func _draw_guests() -> void:
 			var k := float(l["t"]) / 2.4
 			var col := RETRO_UI.C_AMBER_LIGHT
 			col.a = 1.0 - k * k
-			_text((at as Vector2) + Vector2(-8, -10 - k * 18.0), "+$%d" % int(l["amount"]), col, true)
+			_text((at as Vector2) + Vector2(-8, -10 - k * 18.0), LANG.money("+$%d" % int(l["amount"])), col, true)
 			continue
 		if str(h.get("state", "")) != "seat":
 			continue
@@ -215,13 +216,13 @@ func _draw_stations(room: String, tix: Array) -> void:
 		match str(id):
 			"tap":
 				if trouble != "" and tap_n > 0:
-					_badge(at, "mark_keg", {"dry": "NO BEER", "empty": "KEG", "off": "KEG"}.get(trouble, "KEG"), true)
+					_badge(at, "mark_keg", tr({"dry": "NO BEER", "empty": "KEG", "off": "KEG"}.get(trouble, "KEG")), true)
 				elif int(mugs["clean"]) == 0 and tap_n > 0:
-					_badge(at, "mark_dirty", "NO MUGS", true)
+					_badge(at, "mark_dirty", tr("NO MUGS"), true)
 				elif tap_n > 0:
-					_badge(at, "mark_mug", str(tap_n) + ("  BILL %d" % n_bills if n_bills > 0 else ""), red_tap)
+					_badge(at, "mark_mug", str(tap_n) + ("  " + LANG.f("BILL %d", n_bills) if n_bills > 0 else ""), red_tap)
 				elif n_bills > 0:
-					_badge(at, "mark_mug", "BILL %d" % n_bills, false)
+					_badge(at, "mark_mug", LANG.f("BILL %d", n_bills), false)
 			"back":
 				if bar_n > 0:
 					_badge(at, "mark_shot", str(bar_n), red_bar)
@@ -230,17 +231,17 @@ func _draw_stations(room: String, tix: Array) -> void:
 					_badge(at, "mark_dirty", str(int(mugs["dirty"])), int(mugs["clean"]) == 0)
 			"keg":
 				if trouble == "empty":
-					_badge(at, "mark_keg", "SPENT", true)
+					_badge(at, "mark_keg", tr("SPENT"), true)
 				elif trouble == "off":
-					_badge(at, "mark_keg", "OFF", true)
+					_badge(at, "mark_keg", tr("OFF"), true)
 				elif trouble == "dry":
-					_badge(at, "mark_keg", "NO BEER", true)
+					_badge(at, "mark_keg", tr("NO BEER"), true)
 				elif PUB.gas_band(gas) != "OK":
-					_badge(at, "mark_keg", "GAS " + PUB.gas_band(gas), PUB.gas_band(gas) == "HIGH" or gas < PUB.GAS_LOW - 0.1)
+					_badge(at, "mark_keg", LANG.f("GAS %s", tr(PUB.gas_band(gas))), PUB.gas_band(gas) == "HIGH" or gas < PUB.GAS_LOW - 0.1)
 	if room == "bar" and (trouble == "empty" or trouble == "off" or PUB.gas_band(gas) != "OK"):
 		var door = _project(root.global_transform * CELLAR_DOOR)
 		if door != null:
-			_badge(door, "mark_keg", "CELLAR", trouble != "")
+			_badge(door, "mark_keg", tr("CELLAR"), trouble != "")
 
 
 func _badge(at: Vector2, icon: String, text: String, alarm: bool) -> void:

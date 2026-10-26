@@ -10,6 +10,7 @@ extends Control
 ## After dark the count at the top is one more than the line.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const BOARD = preload("res://scripts/os98/apps/score_board.gd")
 const HEAD_H := 40
@@ -106,7 +107,7 @@ func _begin() -> void:
 	_rank = -1
 	# A moment to find the arrow keys before they set off.
 	_step = -0.9
-	_say("Off we go!")
+	_say(tr("Off we go!"))
 	_start.visible = false
 
 
@@ -172,19 +173,19 @@ func _move() -> void:
 	_dir = _next_dir
 	var head: Vector2i = _body[0] + _dir
 	if _trees.has(head):
-		_end(DEATHS_TREE[_rng.randi_range(0, DEATHS_TREE.size() - 1)])
+		_end(tr(DEATHS_TREE[_rng.randi_range(0, DEATHS_TREE.size() - 1)]))
 		return
 	var hit := _body.find(head)
 	if hit >= 0 and hit < _body.size() - 1:
 		var who: String = NAMES[hit % NAMES.size()]
 		var line: String = DEATHS_SELF[_rng.randi_range(0, DEATHS_SELF.size() - 1)]
-		_end(line % ([who, who] if line.count("%s") == 2 else [who]))
+		_end(LANG.f(line, [who, who] if line.count("%s") == 2 else [who]))
 		return
 	_body.insert(0, head)
 	if head == _kid:
 		_score += 10
 		_shirts.append(SHIRTS[_kid_shirt])
-		_say("%s joined the group." % NAMES[(_body.size() - 2) % NAMES.size()])
+		_say(LANG.f("%s joined the group.", NAMES[(_body.size() - 2) % NAMES.size()]))
 		_shell.play("click", -12.0)
 		_place_kid()
 	else:
@@ -192,7 +193,7 @@ func _move() -> void:
 	if head == _shroom:
 		_score += 5
 		_shroom = Vector2i(-1, -1)
-		_say("A cep! +5")
+		_say(tr("A cep! +5"))
 		_shell.play("click", -14.0)
 
 
@@ -206,9 +207,9 @@ func _end(why: String) -> void:
 	_shell.play("ding", -8.0)
 	var kids := _body.size() - 1
 	var counted := kids + (1 if _night() else 0)
-	_msg = "%s  You brought %d back." % [why, kids]
+	_msg = LANG.f("%s  You brought %d back.", [why, kids])
 	if counted != kids:
-		_msg = "%s  You counted %d. You brought %d back." % [why, counted, kids]
+		_msg = LANG.f("%s  You counted %d. You brought %d back.", [why, counted, kids])
 	_msg_t = 999.0
 	_rank = _shell.add_score("hike", _score) if _score > 0 else -1
 	_start.visible = true
@@ -256,7 +257,7 @@ func _draw() -> void:
 		draw_rect(r, Color(0, 0, 0, 0.65))
 		draw_string(T.FONT_BOLD, r.position + Vector2(8, 14), _msg, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(255, 230, 120))
 	if _state == "ready" and _start.text != "Carry on":
-		var hint := "Arrow keys lead the group. Pick up the children who wandered off."
+		var hint := tr("Arrow keys lead the group. Pick up the children who wandered off.")
 		var hw := T.FONT.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		draw_rect(Rect2(floorf((s.x - hw) * 0.5) - 8, _origin.y + 240, hw + 16, 22), Color(0, 0, 0, 0.6))
 		draw_string(T.FONT, Vector2(floorf((s.x - hw) * 0.5), _origin.y + 255), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
@@ -300,4 +301,4 @@ func _draw_head() -> void:
 	var shown := kids + (1 if _night() and _state != "ready" else 0)
 	var top: Array = _shell.scores("hike")
 	var tx := 26.0 + T.FONT_BOLD.get_string_size("VYLET 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2).x
-	draw_string(T.FONT, Vector2(tx, 25), "GROUP %d     SCORE %d     BEST %s" % [shown, _score, str(top[0][1]) if not top.is_empty() else "-"], HORIZONTAL_ALIGNMENT_LEFT, w - tx - 6, T.FONT_SIZE, Color8(220, 230, 200))
+	draw_string(T.FONT, Vector2(tx, 25), LANG.f("GROUP %d     SCORE %d     BEST %s", [shown, _score, str(top[0][1]) if not top.is_empty() else "-"]), HORIZONTAL_ALIGNMENT_LEFT, w - tx - 6, T.FONT_SIZE, Color8(220, 230, 200))

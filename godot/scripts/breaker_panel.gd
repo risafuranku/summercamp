@@ -20,6 +20,7 @@ signal closed
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const NIGHTMARE_FX = preload("res://scripts/night/nightmare_fx.gd")
+const LANG = preload("res://scripts/lang.gd")
 const SFX := "res://assets/sfx/power/"
 const CIRCUITS := ["LAMPS N", "LAMPS S", "OFFICE", "FOOD", "WASH", "PUMP"]
 ## Two-line labels under the switches (the one-line ones ran into each other).
@@ -38,7 +39,7 @@ var _hold_timer := -1.0
 var _flash := 0.0
 var _done := false
 var _done_t := 0.0
-var _status := "The main has tripped. The camp is dark."
+var _status := tr("The main has tripped. The camp is dark.")
 var _hum: AudioStreamPlayer
 var _one: AudioStreamPlayer
 var _hit_main := Rect2()
@@ -95,7 +96,7 @@ func open(fault_index: int, boy_tier := 0) -> void:
 	_sparks.clear()
 	_lever = 0.0
 	_needle = 0.0
-	_status = "The main has tripped. The camp is dark."
+	_status = tr("The main has tripped. The camp is dark.")
 	visible = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_board.queue_redraw()
@@ -180,10 +181,10 @@ func _input(event: InputEvent) -> void:
 				if _hum.stream is AudioStreamMP3:
 					(_hum.stream as AudioStreamMP3).loop = true
 				_hum.play()
-				_status = "Main on..."
+				_status = tr("Main on...")
 			else:
 				_hum.stop()
-				_status = "Main off."
+				_status = tr("Main off.")
 		else:
 			for i in _hit_breakers.size():
 				if _hit_breakers[i].has_point(p):
@@ -203,14 +204,14 @@ func _trip() -> void:
 	_trips += 1
 	for k in 14:
 		_sparks.append({"p": Vector2(25, 50), "v": Vector2(randf_range(-90, 90), randf_range(-140, -30)), "t": randf_range(0.3, 0.8)})
-	_status = "It threw the main again. Something on one of these circuits." if _trips < 3 else "It threw again. Something smells burnt in here."
+	_status = tr("It threw the main again. Something on one of these circuits.") if _trips < 3 else tr("It threw again. Something smells burnt in here.")
 
 
 func _finish() -> void:
 	_done = true
 	_done_t = 0.0
 	_play("board_restored.mp3", 1.0)
-	_status = "Done. The main holds. %s stays off until Novotny has looked at it." % CIRCUIT_NAMES[_fault]
+	_status = LANG.f("Done. The main holds. %s stays off until Novotny has looked at it.", tr(CIRCUIT_NAMES[_fault]))
 	fixed.emit(_fault)
 	get_tree().create_timer(3.4).timeout.connect(close)
 
@@ -507,8 +508,9 @@ func _draw_board() -> void:
 		_board.draw_rect(R.call(x - 1.5, LED_Y - 1.5, 3, 3), led)
 		if powered:
 			_board.draw_rect(R.call(x - 3, LED_Y - 3, 6, 6), Color(0.5, 1.0, 0.4, 0.22))
-		var lw: float = RETRO_UI.FONT_TEXT.get_string_size(SHORT[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 8 * int(k)).x
-		_board.draw_string(RETRO_UI.FONT_TEXT, (P.call(x, LABEL_Y) - Vector2(lw * 0.5, 0)).floor(), SHORT[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 8 * int(k), Color(0.15, 0.13, 0.12))
+		var short := tr(SHORT[i])
+		var lw: float = RETRO_UI.FONT_TEXT.get_string_size(short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8 * int(k)).x
+		_board.draw_string(RETRO_UI.FONT_TEXT, (P.call(x, LABEL_Y) - Vector2(lw * 0.5, 0)).floor(), short, HORIZONTAL_ALIGNMENT_LEFT, -1, 8 * int(k), Color(0.15, 0.13, 0.12))
 		if _hover == i:
 			_board.draw_rect(R.call(x - 9, 103, 18, 31), Color(1.0, 0.85, 0.3, 0.8), false, k)
 		_hit_breakers.append(R.call(x - 9, 103, 18, 31))
@@ -532,7 +534,7 @@ func _draw_board() -> void:
 	# The strip under the picture: what is happening, or the note when you point at it.
 	_board.draw_rect(R.call(0, PIC_SIZE.y, PIC_SIZE.x, STRIP), Color(0.06, 0.05, 0.04))
 	_board.draw_rect(R.call(0, PIC_SIZE.y, PIC_SIZE.x, 1), RETRO_UI.C_PLATE_LIGHT * Color(1, 1, 1, 0.5))
-	var lines := _wrap(NOTE if over_note else _status, 74)
+	var lines := _wrap(tr(NOTE) if over_note else _status, 74)
 	for li in mini(lines.size(), 3):
 		_board.draw_string(RETRO_UI.FONT_TEXT, P.call(6, PIC_SIZE.y + 10 + li * 8).floor(), lines[li], HORIZONTAL_ALIGNMENT_LEFT, -1, 8 * int(k), RETRO_UI.C_BONE if over_note else Color(0.95, 0.85, 0.5))
 
@@ -561,11 +563,11 @@ func _draw_board() -> void:
 		var band: Rect2 = R.call(26, 96, PIC_SIZE.x - 52, 40)
 		_board.draw_rect(band, Color(0.04, 0.16, 0.06, 0.86 * a))
 		_board.draw_rect(band, Color(0.45, 0.95, 0.5, a), false, maxf(1.0, k))
-		var t1 := "POWER BACK ON"
+		var t1 := tr("POWER BACK ON")
 		var fs := RETRO_UI.SIZE_BIG * int(k)
 		var w1 := RETRO_UI.FONT_BIG.get_string_size(t1, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		_board.draw_string(RETRO_UI.FONT_BIG, (band.position + Vector2((band.size.x - w1) * 0.5, 18 * k)).floor(), t1, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.62, 1.0, 0.6, a))
-		var t2 := "JOB DONE"
+		var t2 := tr("JOB DONE")
 		var fs2 := 8 * int(k)
 		var w2 := RETRO_UI.FONT_TEXT.get_string_size(t2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
 		_board.draw_string(RETRO_UI.FONT_TEXT, (band.position + Vector2((band.size.x - w2) * 0.5, 32 * k)).floor(), t2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, Color(0.9, 0.95, 0.8, a))

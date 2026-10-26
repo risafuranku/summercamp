@@ -7,6 +7,7 @@ extends Control
 ## file is. A file in the bin has to be restored before it can be read.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const FILES = preload("res://scripts/os98/os_files.gd")
 const IMAGES := {"IMG0043.JPG": "res://assets/textury/os98/img0043.png"}
 const PLACES := [
@@ -181,7 +182,7 @@ func _layout() -> void:
 func _draw_places() -> void:
 	var c := _places
 	c.draw_style_box(T.box("field", Color8(232, 236, 244), Vector4.ZERO), Rect2(Vector2.ZERO, c.size))
-	c.draw_string(T.FONT_BOLD, Vector2(8, 16), "Places", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.NAVY)
+	c.draw_string(T.FONT_BOLD, Vector2(8, 16), tr("Places"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.NAVY)
 	for i in PLACES.size():
 		var r := Rect2(4, 24 + i * 40, c.size.x - 8, 38)
 		var on := _place_of(_path) == str(PLACES[i][0])
@@ -191,10 +192,10 @@ func _draw_places() -> void:
 		if ic == "bin" and not _shell.bin_items().is_empty():
 			ic = "bin_full"
 		c.draw_texture(_shell.icon(ic), r.position + Vector2(2, 3))
-		c.draw_string(T.FONT, r.position + Vector2(38, 23), str(PLACES[i][1]), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 40, T.FONT_SIZE, T.WHITE if on else T.TEXT)
+		c.draw_string(T.FONT, r.position + Vector2(38, 23), tr(str(PLACES[i][1])), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 40, T.FONT_SIZE, T.WHITE if on else T.TEXT)
 	# Web View: the folder's name over the coloured rule, then what the picked file is.
 	var y := 24.0 + PLACES.size() * 40 + 14
-	var folder := "Recycle Bin" if _path == "BIN" else ("(C:)" if _path == "C:\\" else _path.trim_suffix("\\").get_slice("\\", _path.trim_suffix("\\").get_slice_count("\\") - 1))
+	var folder := tr("Recycle Bin") if _path == "BIN" else ("(C:)" if _path == "C:\\" else _path.trim_suffix("\\").get_slice("\\", _path.trim_suffix("\\").get_slice_count("\\") - 1))
 	c.draw_string(T.FONT_BOLD, Vector2(8, y + 10), folder, HORIZONTAL_ALIGNMENT_LEFT, c.size.x - 16, T.FONT_SIZE, T.TEXT)
 	var rule_w := c.size.x - 16
 	for x in int(rule_w):
@@ -203,17 +204,17 @@ func _draw_places() -> void:
 		c.draw_rect(Rect2(8 + x, y + 16, 1, 2), col)
 	y += 34
 	if _file == "":
-		c.draw_multiline_string(T.FONT, Vector2(8, y), "Select an item to view its description.", HORIZONTAL_ALIGNMENT_LEFT, c.size.x - 16, T.FONT_SIZE, -1, T.TEXT)
+		c.draw_multiline_string(T.FONT, Vector2(8, y), tr("Select an item to view its description."), HORIZONTAL_ALIGNMENT_LEFT, c.size.x - 16, T.FONT_SIZE, -1, T.TEXT)
 		return
 	c.draw_string(T.FONT_BOLD, Vector2(8, y), _file, HORIZONTAL_ALIGNMENT_LEFT, c.size.x - 16, T.FONT_SIZE, T.TEXT)
 	y += 16
-	var lines: Array = [_kind_label(_file)]
+	var lines: Array = [tr(_kind_label(_file))]
 	if FILES.MODIFIED.has(_file):
-		lines.append("Modified: %s" % FILES.MODIFIED[_file])
+		lines.append(LANG.f("Modified: %s", FILES.MODIFIED[_file]))
 	if not (_path != "BIN" and _shell.is_dir(_full(_file))):
-		lines.append("Size: %d KB" % FILES.size_kb(_file))
+		lines.append(LANG.f("Size: %d KB", FILES.size_kb(_file)))
 	if _path == "BIN":
-		lines.append("Original location:")
+		lines.append(tr("Original location:"))
 		lines.append("  C:\\VERA")
 	for l in lines:
 		c.draw_string(T.FONT, Vector2(8, y), str(l), HORIZONTAL_ALIGNMENT_LEFT, c.size.x - 16, T.FONT_SIZE, T.TEXT)

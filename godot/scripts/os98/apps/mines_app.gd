@@ -65,7 +65,7 @@ func _draw() -> void:
 	var r := Rect2(_top.position - Vector2(8, 8), Vector2(W * CELL + 22, 46 + H * CELL + 22))
 	draw_rect(Rect2(Vector2.ZERO, size), Color8(0, 104, 104))
 	draw_style_box(T.box("window", T.FACE), r)
-	draw_string(T.FONT, Vector2(r.position.x, r.end.y + 18), "Left click opens, right click flags.", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, T.FONT_SIZE, T.WHITE)
+	draw_string(T.FONT, Vector2(r.position.x, r.end.y + 18), tr("Left click opens, right click flags."), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, T.FONT_SIZE, T.WHITE)
 	if _shell != null:
 		BOARD.draw(self, Vector2(r.end.x + 16, r.position.y), "Best Times", _shell.scores("mines"), "s", _rank)
 

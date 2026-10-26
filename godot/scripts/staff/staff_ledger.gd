@@ -16,6 +16,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 const RULES := preload("res://core/systems/staff_rules.gd")
 const BRT := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
+const LANG := preload("res://scripts/lang.gd")
 const PIC := "res://assets/textury/closeup/ledger.png"
 const PARTS := "res://assets/textury/closeup/parts/"
 const PHOTOS := "res://assets/textury/os98/photos/"
@@ -60,7 +61,7 @@ func _opened() -> void:
 	if crew.is_empty():
 		say("", tr("Nobody works here yet. Somebody is asking: the HIRE page."))
 	else:
-		say("", tr("%d on the books, %d lockers.") % [crew.size(), RULES.gear_count(_st(), "locker")])
+		say("", LANG.f("%d on the books, %d lockers.", [crew.size(), RULES.gear_count(_st(), "locker")]))
 
 
 func _st() -> Dictionary:
@@ -219,9 +220,9 @@ func _clicked(id: String) -> void:
 			var g: Dictionary = RULES.GEAR.get(_gear_pick, {})
 			if CoreRoot.actions.staff_buy_gear(_gear_pick):
 				_stamp(tr("BOUGHT"))
-				say("", tr("%s. It is in.") % tr(str(g.get("label", ""))))
+				say("", LANG.f("%s. It is in.", tr(str(g.get("label", "")))))
 			else:
-				say("", tr("That is $%d. The camp has not got it.") % RULES.gear_price(_st(), _gear_pick))
+				say("", LANG.f("That is $%d. The camp has not got it.", RULES.gear_price(_st(), _gear_pick)))
 
 
 func _stamp(text: String) -> void:
@@ -317,7 +318,7 @@ func _paint(c: Control) -> void:
 		if hovered() == "tab:" + PAGES[i]:
 			c.draw_rect(rr, Color(1, 0.9, 0.5, 0.18))
 	_text(c, LEFT.position + Vector2(0, 8), tr("STAFFROOM"), INK, 10, RETRO_UI.FONT_BIG)
-	_right(c, LEFT.end.x, LEFT.position.y + 8, tr("Day %d") % CoreRoot.get_day(), PENCIL)
+	_right(c, LEFT.end.x, LEFT.position.y + 8, LANG.f("Day %d", CoreRoot.get_day()), PENCIL)
 	match _page:
 		"staff":
 			_paint_staff(c)
@@ -362,13 +363,13 @@ func _paint_staff(c: Control) -> void:
 			where = "OWED"
 		_right(c, LEFT.end.x, y, tr(where).substr(0, 9), RED if where in ["OWED", "In a guest bed"] else PENCIL)
 	var lockers := RULES.gear_count(_st(), "locker")
-	_text(c, Vector2(LEFT.position.x, 172), tr("Lockers %d / %d") % [crew.size(), lockers], PENCIL)
+	_text(c, Vector2(LEFT.position.x, 172), LANG.f("Lockers %d / %d", [crew.size(), lockers]), PENCIL)
 	var who := _who(_picked)
 	if who.is_empty():
 		_text(c, RIGHT.position + Vector2(0, 21), tr("Pick one."), PENCIL)
 		return
 	_text(c, RIGHT.position + Vector2(0, 8), str(who.get("name", "")).replace("Mrs ", "Mrs."), INK)
-	_text(c, RIGHT.position + Vector2(0, 19), tr("$%d a day") % RULES.wage_of(who), PENCIL)
+	_text(c, RIGHT.position + Vector2(0, 19), LANG.f("$%d a day", RULES.wage_of(who)), PENCIL)
 	var jobs: Dictionary = who.get("jobs", RULES.default_jobs())
 	_text(c, RIGHT.position + Vector2(0, 30), tr("Sees to:"), PENCIL)
 	for i in RULES.JOBS.size():
@@ -404,8 +405,8 @@ func _paint_hire(c: Control) -> void:
 		c.draw_texture_rect(ph, pr, false)
 	c.draw_rect(pr.grow(1.0), PENCIL, false, 1.0)
 	_text(c, Vector2(pr.end.x + 4, 58), str(p2["name"]).replace("Mrs ", "Mrs."), INK)
-	_text(c, Vector2(pr.end.x + 4, 68), tr("$%d a day") % int(p2["wage"]), INK)
-	_text(c, Vector2(pr.end.x + 4, 78), tr("%d of %d") % [_candidate % ap.size() + 1, ap.size()], PENCIL)
+	_text(c, Vector2(pr.end.x + 4, 68), LANG.f("$%d a day", int(p2["wage"])), INK)
+	_text(c, Vector2(pr.end.x + 4, 78), LANG.f("%d of %d", [_candidate % ap.size() + 1, ap.size()]), PENCIL)
 	var y2 := 102.0
 	for line in p2.get("refs", []):
 		y2 = _wrap_at(c, Vector2(RIGHT.position.x, y2), tr(str(line)), RIGHT.size.x, INK, 8.0)
@@ -436,7 +437,7 @@ func _paint_room(c: Control) -> void:
 	if price <= 0:
 		_text(c, RIGHT.position + Vector2(0, 100), tr("No room for more."), GREEN)
 	else:
-		_text(c, RIGHT.position + Vector2(0, 100), tr("$%d") % price, INK, 10, RETRO_UI.FONT_BIG)
+		_text(c, RIGHT.position + Vector2(0, 100), LANG.f("$%d", price), INK, 10, RETRO_UI.FONT_BIG)
 		_pencil_button(c, _rbutton(0), tr("BUY"), GREEN, "buy")
 
 
@@ -462,6 +463,6 @@ func _paint_day(c: Control) -> void:
 	for p in _crew():
 		wages += RULES.wage_of(p)
 	_text(c, RIGHT.position + Vector2(0, 21), tr("Wages tonight"), PENCIL)
-	_text(c, RIGHT.position + Vector2(0, 36), tr("$%d") % wages, INK, 10, RETRO_UI.FONT_BIG)
-	_text(c, RIGHT.position + Vector2(0, 56), tr("Jobs today %d") % int(st.get("done_n", 0)), INK)
-	_text(c, RIGHT.position + Vector2(0, 68), tr("Yesterday %d") % int(st.get("done_y", 0)), PENCIL)
+	_text(c, RIGHT.position + Vector2(0, 36), LANG.f("$%d", wages), INK, 10, RETRO_UI.FONT_BIG)
+	_text(c, RIGHT.position + Vector2(0, 56), LANG.f("Jobs today %d", int(st.get("done_n", 0))), INK)
+	_text(c, RIGHT.position + Vector2(0, 68), LANG.f("Yesterday %d", int(st.get("done_y", 0))), PENCIL)

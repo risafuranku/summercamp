@@ -16,6 +16,7 @@ extends Control
 ## (export_persistent_state) so a reboot does not reset the night.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const RATE := 4                 # $ for a perfect card
 const FIELDS := ["Surname", "First name", "Born in", "Stayed at"]
 const SURNAMES := ["NOVAK", "DVORAK", "SVOBODA", "CERNY", "PROCHAZKA", "KUCERA", "VESELY", "HORAK", "NEMEC", "POKORNY", "MAREK", "POSPISIL", "HAJEK", "KRAL", "JELINEK", "RUZICKA", "BENES", "FIALA", "SEDLACEK", "DOLEZAL", "ZEMAN", "KOLAR", "NAVRATIL", "CERMAK", "VANEK", "URBAN", "BLAZEK", "KRIZ", "KOVAR", "BARTOS"]
@@ -98,8 +99,8 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, w, HEAD_H), Color8(60, 40, 30))
 	draw_rect(Rect2(0, HEAD_H - 2, w, 2), Color8(190, 60, 50))
 	draw_string(T.FONT_BOLD, Vector2(10, 20), "DataPunch 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(236, 226, 196))
-	draw_string(T.FONT, Vector2(12, 38), "Okresni urad Hlubocany - register transcription 1961-1989", HORIZONTAL_ALIGNMENT_LEFT, w - 170, T.FONT_SIZE, Color8(210, 190, 160))
-	var cells := [["TONIGHT", "%d" % _done_tonight()], ["A CARD", "$%d" % RATE]]
+	draw_string(T.FONT, Vector2(12, 38), tr("Okresni urad Hlubocany - register transcription 1961-1989"), HORIZONTAL_ALIGNMENT_LEFT, w - 170, T.FONT_SIZE, Color8(210, 190, 160))
+	var cells := [[tr("TONIGHT"), "%d" % _done_tonight()], [tr("A CARD"), LANG.money("$%d" % RATE)]]
 	var x := w - 4.0
 	for i in range(cells.size() - 1, -1, -1):
 		x -= 70.0
@@ -242,7 +243,7 @@ func _draw_card() -> void:
 	c.draw_string(f, card.position + Vector2(card.size.x - 52, 16), "c. %04d" % (int(_cur.get("seed", 0)) % 9000 + 1000), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(80, 70, 60))
 	var y := card.position.y + 46.0
 	for k in FIELDS:
-		c.draw_string(f, Vector2(card.position.x + 8, y), str(k).to_upper() + ":", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(90, 80, 70))
+		c.draw_string(f, Vector2(card.position.x + 8, y), tr(str(k)).to_upper() + ":", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(90, 80, 70))
 		var val := str(_cur.get(k, ""))
 		if bool(_cur.get("hand", false)):
 			# In ink: each letter a little off its line.
@@ -254,13 +255,14 @@ func _draw_card() -> void:
 		else:
 			c.draw_string(T.FONT, Vector2(card.position.x + 96, y), val, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(20, 20, 20))
 		y += 26.0
-	var note := str(_cur.get("note", ""))
+	var note := tr(str(_cur.get("note", "")))
 	if note != "":
 		c.draw_string(T.FONT_BOLD, Vector2(card.position.x + 96, card.end.y - 8), note, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(150, 20, 20))
 	if _stamp_t > 0.0:
 		var col := Color8(40, 110, 50) if _stamp.begins_with("FILED") else Color8(170, 30, 30)
 		col.a = clampf(_stamp_t, 0.0, 1.0)
-		var w := T.FONT_BOLD.get_string_size(_stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2).x
+		var stamp := tr(_stamp)
+		var w := T.FONT_BOLD.get_string_size(stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2).x
 		var r := Rect2(card.get_center() - Vector2(w * 0.5 + 8, 16), Vector2(w + 16, 26))
 		c.draw_rect(r, col, false, 2.0)
-		c.draw_string(T.FONT_BOLD, r.position + Vector2(8, 19), _stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, col)
+		c.draw_string(T.FONT_BOLD, r.position + Vector2(8, 19), stamp, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, col)

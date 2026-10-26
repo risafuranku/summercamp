@@ -12,6 +12,7 @@ extends Control
 ## Some photographs the district counted one more on than there is.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const PAY := 3
 const HEAD_H := 46
 const PHOTO := Vector2(420, 262)
@@ -222,8 +223,8 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, w, HEAD_H), Color8(70, 90, 50))
 	draw_rect(Rect2(0, HEAD_H - 2, w, 2), Color8(30, 40, 20))
 	draw_string(T.FONT_BOLD, Vector2(10, 20), "SectiTo 98", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(240, 230, 170))
-	draw_string(T.FONT, Vector2(12, 38), "District Office Hlubocany - survey of property from the air", HORIZONTAL_ALIGNMENT_LEFT, w - 170, T.FONT_SIZE, Color8(210, 220, 190))
-	var cells := [["TODAY", "%d" % _shell.job_done("census")], ["TIME", ("%d s" % int(ceil(_limit - _time))) if _state == "ask" else "-"]]
+	draw_string(T.FONT, Vector2(12, 38), tr("District Office Hlubocany - survey of property from the air"), HORIZONTAL_ALIGNMENT_LEFT, w - 170, T.FONT_SIZE, Color8(210, 220, 190))
+	var cells := [[tr("TODAY"), "%d" % _shell.job_done("census")], [tr("TIME"), ("%d s" % int(ceil(_limit - _time))) if _state == "ask" else "-"]]
 	var x := w - 4.0
 	for i in range(cells.size() - 1, -1, -1):
 		x -= 70.0
@@ -243,7 +244,7 @@ func _draw_photo() -> void:
 	var pr := Rect2(o, PHOTO)
 	if _state == "idle":
 		c.draw_rect(pr, Color8(40, 40, 40))
-		c.draw_string(T.FONT, o + Vector2(PHOTO.x * 0.5 - 90, PHOTO.y * 0.5), "No photograph on the light box.", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(170, 170, 170))
+		c.draw_string(T.FONT, o + Vector2(PHOTO.x * 0.5 - 90, PHOTO.y * 0.5), tr("No photograph on the light box."), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(170, 170, 170))
 		return
 	c.draw_rect(pr, Color8(84, 110, 52))
 	var rng := RandomNumberGenerator.new()
@@ -277,7 +278,7 @@ func _draw_photo() -> void:
 			n += 1
 			c.draw_arc(_extra + o, 9.0, 0, TAU, 16, Color8(255, 240, 0), 1.0)
 			c.draw_string(T.FONT, _extra + o + Vector2(8, -6), str(n), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(255, 240, 0))
-	c.draw_string(T.FONT, Vector2(6, c.size.y - 8), "No. %04d   %s   scale 1:2000" % [_photo_no, SUBJECTS[_subject]["where"]], HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(60, 60, 140))
+	c.draw_string(T.FONT, Vector2(6, c.size.y - 8), LANG.f("No. %04d   %s   scale 1:2000", [_photo_no, tr(str(SUBJECTS[_subject]["where"]))]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(60, 60, 140))
 
 
 func _draw_item(c: Control, it: Dictionary, o: Vector2) -> void:

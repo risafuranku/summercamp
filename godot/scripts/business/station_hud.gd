@@ -36,6 +36,7 @@ const RETRO_UI := preload("res://scripts/ui/retro_ui.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const PROFILES := preload("res://scripts/profiles.gd")
+const LANG := preload("res://scripts/lang.gd")
 const W := 640
 const H := 360
 const BAR_H := 24
@@ -684,7 +685,7 @@ func _draw_card() -> void:
 	var ok := bool(_card.get("ok", true))
 	var title := tr(str(_card.get("what", ""))).to_upper()
 	if not ok:
-		_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, r.position.y + 14), (tr("%s SENT BACK") % title) if title != "" else tr("SENT BACK"), HORIZONTAL_ALIGNMENT_LEFT, CARD.x - 12, 8, Color(0.62, 0.08, 0.05))
+		_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, r.position.y + 14), (LANG.f("%s SENT BACK", title)) if title != "" else tr("SENT BACK"), HORIZONTAL_ALIGNMENT_LEFT, CARD.x - 12, 8, Color(0.62, 0.08, 0.05))
 		var notes: Array = _card.get("notes", [])
 		var ly := r.position.y + 30
 		for n in notes.slice(0, 3):
@@ -710,10 +711,10 @@ func _draw_card() -> void:
 		if tex == null:
 			continue
 		_c.draw_texture_rect(tex, Rect2(Vector2(x + i * 14, r.end.y - 30), Vector2(12, 12)), false)
-	_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x + 46, r.end.y - 20), "+$%d" % int(_card.get("amount", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.1, 0.4, 0.12))
+	_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x + 46, r.end.y - 20), LANG.money("+$%d" % int(_card.get("amount", 0))), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.1, 0.4, 0.12))
 	var tip := int(_card.get("tip", 0)) + int(_card.get("bonus", 0))
 	if tip > 0:
-		_c.draw_string(f, Vector2(x + 76, r.end.y - 20), tr("TIP $%d") % tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
+		_c.draw_string(f, Vector2(x + 76, r.end.y - 20), LANG.f("TIP $%d", tip), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
 	_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(x, r.end.y - 6), _word(_card), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.55, 0.1, 0.08) if stars >= 3 else ink)
 
 
@@ -741,14 +742,14 @@ func _draw_pops() -> void:
 			lines.append([tr("SENT BACK"), RETRO_UI.C_RED, RETRO_UI.FONT_LABEL])
 		else:
 			lines.append([_word(v) + "  %d%%" % int(v.get("score", 0)), RETRO_UI.C_AMBER_LIGHT if int(v.get("stars", 0)) >= 3 else RETRO_UI.C_BONE, RETRO_UI.FONT_LABEL])
-			var money := "+$%d" % int(v.get("amount", 0))
+			var money := LANG.money("+$%d" % int(v.get("amount", 0)))
 			var tip := int(v.get("tip", 0)) + int(v.get("bonus", 0))
 			if tip > 0:
-				money += "  " + tr("TIP $%d") % tip
+				money += "  " + LANG.f("TIP $%d", tip)
 			lines.append([money, RETRO_UI.C_GREEN, RETRO_UI.FONT_TEXT])
 			var run := int(v.get("combo", 0))
 			if run >= RULES.COMBO_FROM:
-				lines.append([tr("x%d IN A ROW") % run, Color(1.0, 0.86, 0.36), RETRO_UI.FONT_LABEL])
+				lines.append([LANG.f("x%d IN A ROW", run), Color(1.0, 0.86, 0.36), RETRO_UI.FONT_LABEL])
 		# The stars over it all.
 		var stars := int(v.get("stars", 0)) if ok else 0
 		var sw := 3 * 13

@@ -9,6 +9,7 @@ signal minimize_requested
 signal activated
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const FRAME := 4
 const TITLE_H := 18
 const BTN := Vector2(16, 14)
@@ -115,7 +116,7 @@ func _draw() -> void:
 		draw_texture_rect(icon, Rect2(tr.position.x + 2, tr.position.y + 1, 16, 16), false)
 		text_x += 18
 	var fg := T.WHITE if active else Color8(212, 208, 200)
-	draw_string(T.FONT_BOLD, Vector2(text_x, tr.position.y + 13), title, HORIZONTAL_ALIGNMENT_LEFT, tr.size.x - 70, T.FONT_SIZE, fg)
+	draw_string(T.FONT_BOLD, Vector2(text_x, tr.position.y + 13), LANG.t(title), HORIZONTAL_ALIGNMENT_LEFT, tr.size.x - 70, T.FONT_SIZE, fg)
 	for id in _button_rects():
 		_draw_caption_button(id, _button_rects()[id])
 

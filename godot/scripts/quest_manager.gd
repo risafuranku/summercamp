@@ -511,7 +511,7 @@ func _push_tracker() -> void:
 	var step: Dictionary = STEPS[_index]
 	var reward := int(step.get("reward", 0))
 	hud.set_objective({
-		"title": "%s %d/%d" % [TRACKER_TITLE, _completed.size() + 1, STEPS.size()],
+		"title": "%s %d/%d" % [tr(TRACKER_TITLE), _completed.size() + 1, STEPS.size()],
 		"text": str(step["text"]),
 		"hint": str(step.get("hint", "")),
 		"reward": "$%d" % reward if reward > 0 else "",

@@ -58,14 +58,14 @@ static func date_short(day: int) -> String:
 	return "%d.%d." % [dt["d"], dt["m"]]
 
 
-## "Saturday 19 September"
+## "Saturday 19 September" (in Czech "Sobota 19. září": each word looked up).
 static func date_long(day: int) -> String:
 	var dt := date_of(day)
-	return "%s %d %s" % [WEEKDAYS[int(dt["wd"])], dt["d"], MONTH_NAMES[int(dt["m"]) - 1]]
+	return TranslationServer.translate("%s %d %s") % [TranslationServer.translate(WEEKDAYS[int(dt["wd"])]), dt["d"], TranslationServer.translate(MONTH_NAMES[int(dt["m"]) - 1])]
 
 
 static func weekday_short(day: int) -> String:
-	return str(WEEKDAYS[int(date_of(day)["wd"])]).substr(0, 3)
+	return TranslationServer.translate(str(WEEKDAYS[int(date_of(day)["wd"])]).substr(0, 3))
 
 
 ## 0 at the start of day 1, 1 at the end of the last day.

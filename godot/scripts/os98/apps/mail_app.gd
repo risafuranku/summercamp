@@ -275,16 +275,17 @@ func _cool(id: String, text: String, cb: Callable, pos: Vector2, sz: Vector2) ->
 			c.draw_style_box(T.box("thin_raised", T.FACE), Rect2(Vector2.ZERO, sz))
 		var o := Vector2(1, 1) if down else Vector2.ZERO
 		var ip := Vector2(floorf((sz.x - ICONS.S) * 0.5), 3) + o
-		var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
+		var label := tr(text)
+		var tw := T.FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		var tp := Vector2(floorf((sz.x - tw) * 0.5), sz.y - 5) + o
 		if dis:
 			c.draw_texture(ICONS.get_icon(id, false), ip + Vector2(1, 1), Color(1, 1, 1, 0.9))
 			c.draw_texture(ICONS.get_icon(id, false), ip, Color(0.55, 0.55, 0.55, 0.6))
-			c.draw_string(T.FONT, tp + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
-			c.draw_string(T.FONT, tp, text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
+			c.draw_string(T.FONT, tp + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
+			c.draw_string(T.FONT, tp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.SHADOW)
 		else:
 			c.draw_texture(ICONS.get_icon(id, hov), ip)
-			c.draw_string(T.FONT, tp, text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+			c.draw_string(T.FONT, tp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	)
 	return c
 
@@ -443,11 +444,11 @@ func _draw_header() -> void:
 		["From:", MY_ADDRESS if sent else str(_current.get("from", "?"))],
 		["To:", str(_current.get("to", "")) if sent else MY_ADDRESS],
 		["Date:", _long_date(_current)],
-		["Subject:", str(_current.get("subject", ""))],
+		["Subject:", tr(str(_current.get("subject", "")))],
 	]
 	var y := 12.0
 	for r in rows:
-		c.draw_string(T.FONT_BOLD, Vector2(6, y), str(r[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		c.draw_string(T.FONT_BOLD, Vector2(6, y), tr(str(r[0])), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 		c.draw_string(T.FONT, Vector2(60, y), str(r[1]), HORIZONTAL_ALIGNMENT_LEFT, c.size.x - 66, T.FONT_SIZE, T.TEXT)
 		y += 12.0
 	var att := _attachment_name(_current)
@@ -456,7 +457,7 @@ func _draw_header() -> void:
 		var icon: Texture2D = _shell.icon("image" if att.ends_with(".GIF") else "txt", true)
 		if icon != null:
 			c.draw_texture_rect(icon, Rect2(60, y - 5, 16, 16), false)
-		c.draw_string(T.FONT_BOLD, Vector2(6, y + 7), "Attach:", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
+		c.draw_string(T.FONT_BOLD, Vector2(6, y + 7), tr("Attach:"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 		c.draw_string(T.FONT, Vector2(80, y + 7), "%s (%d KB)" % [att, 4 + absi(att.hash()) % 18], HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(0, 0, 160))
 
 
@@ -469,7 +470,7 @@ func _show_message(mail: Dictionary) -> void:
 		refresh_tools()
 		return
 	_body.clear()
-	var text := _esc(str(mail.get("body", "")).strip_edges())
+	var text := _esc(_body_in_language(str(mail.get("body", ""))).strip_edges())
 	# Quoted lines in the colour CampMail gave them.
 	var lines := text.split("\n")
 	var out := ""
@@ -818,6 +819,20 @@ func _long_date(mail: Dictionary) -> String:
 func _short_sender(s: String) -> String:
 	var i := s.find("<")
 	return s.substr(0, i).strip_edges() if i > 0 else s
+
+
+## The body in the warden's language (append_text translates nothing): the letter filled in
+## is found by its template, and a P.S. the mail got after it was filled (email_manager:
+## where they would like to sleep) is looked up apart.
+func _body_in_language(body: String) -> String:
+	var ps := body.rfind("
+
+P.S. ")
+	if ps >= 0:
+		return tr(body.substr(0, ps)) + "
+
+P.S. " + tr(body.substr(ps + 7))
+	return tr(body)
 
 
 func _esc(s: String) -> String:

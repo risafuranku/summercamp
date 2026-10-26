@@ -9,6 +9,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## screen tears now and then. What it shows you, you can remember for down there (the
 ## worker's paper map does not show where you are either).
 
+const LANG := preload("res://scripts/lang.gd")
 const PIC := "res://assets/textury/closeup/amber_terminal.png"
 const AMBER := Color(1.0, 0.66, 0.16)
 const AMBER_DIM := Color(0.62, 0.36, 0.06)
@@ -49,7 +50,7 @@ func _opened() -> void:
 	if bool(network.get("explore", false)) or faults.is_empty():
 		say("", "The screen hums. Nothing on it is blinking.")
 	else:
-		say("", "Pressure loss. %d %s down there." % [faults.size(), "place" if faults.size() == 1 else "places"])
+		say("", LANG.t_n(faults.size(), "Pressure loss. %d place down there.", "Pressure loss. %d places down there."))
 
 
 func _faults() -> Array:
@@ -102,7 +103,7 @@ func _paint(c: Control) -> void:
 	if _tear_t >= 0.0:
 		tear = sin(_tear_t * 40.0) * 3.0
 	var shown := int(_typed)
-	var lines := ["ZVS-84  SEWER CONTROL", "LESNA CAMP  NET A1-F5"]
+	var lines := [tr("ZVS-84  SEWER CONTROL"), tr("LESNA CAMP  NET A1-F5")]
 	var drawn := 0
 	for i in lines.size():
 		var txt: String = lines[i]
@@ -152,15 +153,16 @@ func _paint(c: Control) -> void:
 	# The status lines.
 	var sy := gy + 4.0 * ch + 10.0
 	if faults.is_empty():
-		c.draw_string(f, Vector2(x0, sy), "STATUS  NO FAULTS", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+		c.draw_string(f, Vector2(x0, sy), tr("STATUS  NO FAULTS"), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
 	else:
-		var row_txt := "FAULT "
+		var row_txt := ""
 		for l in faults:
 			row_txt += " %s-%s" % [_label(l[0]), _label(l[1])]
+		row_txt = LANG.f("FAULT %s", row_txt)
 		c.draw_string(f, Vector2(x0, sy), row_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
 		if blink:
-			c.draw_string(f, Vector2(x0, sy + 8.0), "PRESSURE LOSS", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
-	var last := "LADDER %s" % _label(entry)
+			c.draw_string(f, Vector2(x0, sy + 8.0), tr("PRESSURE LOSS"), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)
+	var last := LANG.f("LADDER %s", _label(entry))
 	if _motion != Vector2i(-1, -1):
-		last += "   MOTION %s" % _label(_motion)
+		last += "   " + LANG.f("MOTION %s", _label(_motion))
 	c.draw_string(f, Vector2(x0, sy + 16.0), last + ("  _" if blink else ""), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, dim)

@@ -13,6 +13,7 @@ extends Control
 ## Drawn in the 98 look like its siblings (business_app.gd); nothing scrolls.
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const LANG = preload("res://scripts/lang.gd")
 const RULES := preload("res://core/systems/staff_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const LEDGER := preload("res://scripts/staff/staff_ledger.gd")
@@ -147,14 +148,14 @@ func _click(id: String) -> void:
 		var gid := id.substr(4)
 		var price := RULES.gear_price(_st(), gid)
 		var label := tr(str(RULES.GEAR[gid]["label"]))
-		_shell.message_box(tr("Personal 98"), tr("Buy a %s for $%d?") % [label.to_lower(), price], "question", [tr("Yes"), tr("No")], func(b: String):
+		_shell.message_box(tr("Personal 98"), LANG.f("Buy a %s for $%d?", [label.to_lower(), price]), "question", [tr("Yes"), tr("No")], func(b: String):
 			if b != tr("Yes"):
 				return
 			if CoreRoot.actions.staff_buy_gear(gid):
-				_say(tr("%s bought: it is in the staffroom.") % label, GREEN)
+				_say(LANG.f("%s bought: it is in the staffroom.", label), GREEN)
 				_shell.play("ding", -10.0)
 			else:
-				_shell.message_box(tr("Personal 98"), tr("The purchase of $%d could not be made.\n\nThe camp has $%d.") % [price, CoreRoot.get_money()], "error")
+				_shell.message_box(tr("Personal 98"), LANG.f("The purchase of $%d could not be made.\n\nThe camp has $%d.", [price, CoreRoot.get_money()]), "error")
 			queue_redraw())
 		return
 	match id:
@@ -171,18 +172,18 @@ func _click(id: String) -> void:
 			var p: Dictionary = ap[_candidate % ap.size()]
 			if CoreRoot.actions.staff_hire(p, CoreRoot.get_day()):
 				_pick = str(p["slug"])
-				_say(tr("%s starts tomorrow at seven.") % str(p["name"]), GREEN)
+				_say(LANG.f("%s starts tomorrow at seven.", str(p["name"])), GREEN)
 				_shell.play("ding", -10.0)
 		"fire":
 			var who := _who(_pick)
 			if who.is_empty():
 				return
 			var slug := _pick
-			_shell.message_box(tr("Personal 98"), tr("Let %s go?") % str(who.get("name", "")), "question", [tr("Yes"), tr("No")], func(b: String):
+			_shell.message_box(tr("Personal 98"), LANG.f("Let %s go?", str(who.get("name", ""))), "question", [tr("Yes"), tr("No")], func(b: String):
 				if b == tr("Yes"):
 					CoreRoot.actions.staff_fire(slug)
 					_pick = ""
-					_say(tr("%s has been let go.") % str(who.get("name", "")), T.TEXT_DISABLED)
+					_say(LANG.f("%s has been let go.", str(who.get("name", ""))), T.TEXT_DISABLED)
 					queue_redraw())
 
 
@@ -293,7 +294,7 @@ func _draw() -> void:
 	if app_icon != null:
 		draw_texture_rect(app_icon, Rect2(band.position + Vector2(5, 4), Vector2(16, 16)), false)
 	_t(band.position + Vector2(26, 16), "SoftSklad  -  Personal 98", T.WHITE, true)
-	_tr(band.end.x - 8, band.position.y + 16, tr("Cash $%d") % (CoreRoot.get_money() if CoreRoot != null else 0), T.WHITE, true)
+	_tr(band.end.x - 8, band.position.y + 16, LANG.f("Cash $%d", CoreRoot.get_money() if CoreRoot != null else 0), T.WHITE, true)
 	var m := Rect2(4, band.end.y + 6, size.x - 8, size.y - band.end.y - 10 - STATUS_H - 2)
 	if not _has_room() and _crew().is_empty() and _page != "hire":
 		draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), m)
@@ -315,8 +316,8 @@ func _draw() -> void:
 func _draw_status() -> void:
 	var y := size.y - STATUS_H
 	var st := _st()
-	var cells := [[_notice if _notice != "" else tr("Ready"), size.x - 4 - 90 - 140], [tr("Day %d") % (CoreRoot.get_day() if CoreRoot != null else 0), 86],
-		[tr("Lockers %d / %d") % [_crew().size(), RULES.gear_count(st, "locker")], 136]]
+	var cells := [[_notice if _notice != "" else tr("Ready"), size.x - 4 - 90 - 140], [LANG.f("Day %d", CoreRoot.get_day() if CoreRoot != null else 0), 86],
+		[LANG.f("Lockers %d / %d", [_crew().size(), RULES.gear_count(st, "locker")]), 136]]
 	var x := 2.0
 	for i in cells.size():
 		var r := Rect2(x, y, float(cells[i][1]), STATUS_H - 2)
@@ -348,7 +349,7 @@ func _draw_staff(m: Rect2) -> void:
 		_t(r.position + Vector2(4, 13), str(p.get("name", "")), fg)
 		var where := LEDGER.whereabouts(p, acts.get(slug, {}))
 		_t(r.position + Vector2(118, 13), tr(where), (RED if where == "In a guest bed" and not sel else fg))
-		var tag := (tr("Owed $%d") % int(p.get("owed", 0))) if int(p.get("owed", 0)) > 0 else tr("$%d") % RULES.wage_of(p)
+		var tag := (LANG.f("Owed $%d", int(p.get("owed", 0)))) if int(p.get("owed", 0)) > 0 else LANG.f("$%d", RULES.wage_of(p))
 		_tr(r.end.x - 4, r.position.y + 13, tag, (RED if int(p.get("owed", 0)) > 0 and not sel else fg))
 		_hit("crew:" + slug, r)
 	_button(Rect2(left.position.x + 8, lb.end.y + 8, 90, 22), tr("Let go"), "fire", not _who(_pick).is_empty())
@@ -385,17 +386,17 @@ func _draw_hire(m: Rect2) -> void:
 		if sel:
 			draw_rect(r2, T.NAVY)
 		_t(r2.position + Vector2(4, 13), str(ap[i]["name"]), T.WHITE if sel else T.TEXT)
-		_tr(r2.end.x - 4, r2.position.y + 13, tr("$%d") % int(ap[i]["wage"]), T.WHITE if sel else T.TEXT)
+		_tr(r2.end.x - 4, r2.position.y + 13, LANG.f("$%d", int(ap[i]["wage"])), T.WHITE if sel else T.TEXT)
 		_hit("cand:%d" % i, r2)
 	var free := RULES.gear_count(_st(), "locker") - _crew().size()
-	_t(Vector2(left.position.x + 12, alb.end.y + 22), tr("Lockers free: %d") % maxi(0, free), GREEN if free > 0 else RED)
+	_t(Vector2(left.position.x + 12, alb.end.y + 22), LANG.f("Lockers free: %d", maxi(0, free)), GREEN if free > 0 else RED)
 	_t(Vector2(left.position.x + 12, alb.end.y + 40), tr("They come at 7:00, go home at 20:00."), T.SHADOW)
 	_group(right, tr("Papers"))
 	var p2: Dictionary = ap[_candidate % ap.size()]
 	var pr := Rect2(right.position + Vector2(12, 18), Vector2(52, 66))
 	_photo(pr, str(p2["slug"]))
 	_t(Vector2(pr.end.x + 10, pr.position.y + 14), str(p2["name"]), T.TEXT, true)
-	_t(Vector2(pr.end.x + 10, pr.position.y + 32), tr("$%d a day") % int(p2["wage"]))
+	_t(Vector2(pr.end.x + 10, pr.position.y + 32), LANG.f("$%d a day", int(p2["wage"])))
 	var ty := pr.end.y + 18
 	for line in p2.get("refs", []):
 		_t(Vector2(right.position.x + 12, ty), tr(str(line)), T.TEXT)
@@ -419,10 +420,10 @@ func _draw_lockers(m: Rect2) -> void:
 			draw_texture_rect(t, Rect2(pic.position + (pic.size - sz * k) * 0.5, sz * k), false)
 		var tx := pic.end.x + 14
 		_t(Vector2(tx, r.position.y + 30), tr(str(d["what"])), T.TEXT)
-		_t(Vector2(tx, r.position.y + 52), tr("In the staffroom: %d of %d") % [RULES.gear_count(st, id), int(d["max"])], T.TEXT, true)
+		_t(Vector2(tx, r.position.y + 52), LANG.f("In the staffroom: %d of %d", [RULES.gear_count(st, id), int(d["max"])]), T.TEXT, true)
 		var price := RULES.gear_price(st, id)
 		if price > 0:
-			_t(Vector2(tx, r.position.y + 72), tr("$%d") % price, T.TEXT)
+			_t(Vector2(tx, r.position.y + 72), LANG.f("$%d", price), T.TEXT)
 			_button(Rect2(tx + 70, r.position.y + 58, 80, 22), tr("Buy"), "buy:" + id, CoreRoot.get_money() >= price and _has_room())
 		else:
 			_t(Vector2(tx, r.position.y + 72), tr("No room for more."), GREEN)
@@ -451,5 +452,5 @@ func _draw_today(m: Rect2) -> void:
 	for p in _crew():
 		wages += RULES.wage_of(p)
 	var fy := m.end.y - 12
-	_t(Vector2(m.position.x + 10, fy), tr("Jobs today: %d   yesterday: %d") % [int(st.get("done_n", 0)), int(st.get("done_y", 0))], T.TEXT, true)
-	_tr(m.end.x - 10, fy, tr("Wages tonight: $%d") % wages, T.TEXT, true)
+	_t(Vector2(m.position.x + 10, fy), LANG.f("Jobs today: %d   yesterday: %d", [int(st.get("done_n", 0)), int(st.get("done_y", 0))]), T.TEXT, true)
+	_tr(m.end.x - 10, fy, LANG.f("Wages tonight: $%d", wages), T.TEXT, true)
