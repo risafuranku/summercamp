@@ -1046,7 +1046,8 @@ imperfect human Build-engine textures."*
 - **The hands** work the kitchen by job (below, "The hands"): one at the cellar fills
   the trays, one at the stove turns and racks the slices and minds the basket and the pot,
   one at the pass plates whatever ticket it has everything ready for, one at the sink
-  washes up. What nobody does is yours; a warden at a hand's station works beside them.
+  washes up. What nobody does is yours; a warden at a hand's station has it, and the hand
+  goes where the kitchen most wants them (below, the stand: "The hands work beside you").
 
 ### The pub (2026-10-20)
 
@@ -1145,12 +1146,23 @@ the stations in 3D, like the bistro's and the pub's.*
   unless a warden is at it; then at the free station that most wants doing (the bowl
   running low, cobs ordered at the counter, drinks), never two at one; nothing wanted,
   aside. Their name is on that station's tab; going there you come first and they move
-  (`cornstand.crew_places`, worked out the same way on every machine).
+  (`scripts/business/crew_places.gd`, worked out the same way on every machine). The pub,
+  the bistro and the Jednota the same (26. 10.), each saying how much a station wants
+  doing (`station_need`: beers and bills at the bar, dirty mugs, a keg to change; plates
+  on the hatch, tickets at the pass, sausages and slices wanted that are not on the fire,
+  the trays low; the queue, deli orders, boxes for empty places). The bistro's pass puts
+  the plates on the hatch while anybody minds the floor, a warden too.
 - **The hands come and go** (all the businesses', playtest 25. 10.): after the night they
   come up from the stop on the road outside the barrier and walk to their place (a door:
   in and gone; the stand: they wait behind the counter till seven), and when their shift
   is over they walk out through the gate to the road (`scripts/business/hands_commute.gd`,
-  drawn from the clock and the books on every machine, the staffroom hands' way).
+  drawn from the clock and the books on every machine, the staffroom hands' way). Their
+  own bus (26. 10.): the works run, SLUZEBNI on its board, at the camp stop at 6:42 after
+  the night and after the closings at 20:45 and 23:45 (`bus_timetable.STAFF_ARRIVE`; not
+  on the poles, takes nobody else: "Staff only. Yours is the 380."); a late hand comes off
+  the 380's last run and takes their time to be in a few minutes before the shift. One
+  still on the way when the place opens is not at work yet (`business_runtime.arriving`):
+  nobody at their station till they get there.
 - **For four**: one warden a station (the other gets the husking: "Jana is at the
   counter"); the pot, the bowl and what was served are ops every machine applies
   (`scripts/corn/cornstand.gd`, `Coop.send_place`).

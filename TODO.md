@@ -7,7 +7,7 @@
 ## PLAYTEST 2026-10-25 — the user's notes (verbatim, then the note in brackets; tick with the commit)
 
 - [x] R1  (2db3947d) „po otevření dveře chatky při animaci je tam zeď a projdu zdí. budova s elektřinou totéž“ (the door's walk-in: a wall drawn in the doorway during the swing, then you pass through it; cabin + the generator shed)
-- [ ] R2  „na 60fps/hz mi stíny pořád hodně clippují/glitchují“ (shadow flicker/acne at 60 Hz)
+- [x] R2  „na 60fps/hz mi stíny pořád hodně clippují/glitchují“ (shadow flicker/acne at 60 Hz; not reproduced, let go: the user 26. 10.)
 - [x] R3  „z dálky jsou číslka chatek na cedulkách utopené pod modrou texturou, u stanů a karavanů a obecně nápisů tatáž chyba“ (signs/labels sink under the surface at distance: depth/retro pull)
 - [x] R4  „při úklidových aktivitách kde je třeba pohyb kurzoru, změň kurzor na šipky které naznačují jaký pohyb hra očekává“ (gesture work: the cursor shows the expected motion)
 - [x] R5  (38f6fc96) „odstranit psa v builderu“
@@ -36,10 +36,10 @@
 - [x] R28 „zákazníci chodí do fronty několikrát po sobě (3× porce): cooldown, výjimečně přidat; wait time hrozně krátký: než dojdu, ubývá pomaleji, a celkově navýšit“
 - [x] R29 „stánek s kukuřicí má zepředu neprůhlednou texturu?“
 - [x] R30 „mám JENOM DVA HOSTY a celý den je obsluhuju u kukuřice, furt se tam točí. big rework“
-- [x] R31 „staff u kukuřice stojí špatně otočený, potřebuje animace obsluhování; večer odchází přes vrátnici na bus, ranním busem přijedou na otevření kempu“ (a turned stand turned them away: their way is the camp's now; serving, they lean over and the cob goes over; every business's hands come up from the stop after the night and go out through the gate after their shift, hands_commute.gd. The 380 has no run then (5:37 is still night, the last leaves 19:10): ask the user about a works bus)
+- [x] R31 „staff u kukuřice stojí špatně otočený, potřebuje animace obsluhování; večer odchází přes vrátnici na bus, ranním busem přijedou na otevření kempu“ (a turned stand turned them away: their way is the camp's now; serving, they lean over and the cob goes over; every business's hands come up from the stop after the night and go out through the gate after their shift, hands_commute.gd. Their own works bus since 26. 10. (the user: yes): SLUZEBNI at the camp stop at 6:42, 20:45 and 23:45, bus_timetable.STAFF_ARRIVE; the late hands come off the 380's last run; still on the way when the place opens they are not at work yet)
 - [x] R32 „venku světelný bug: určitým směrem totálně pure black a hrozně se to seká, pootočím se a zase vidím“ (D3D12 ran out of its resource descriptor heap after a long session: draws failed, the console spammed errors every frame; max_resource_descriptors 65536 -> 524288)
 - [x] R33 „kaluže na zemi clippují s texturou země a vypadají spíš jako olej“
-- [x] R34 „když je brigádník u minihry, nech mě pracovat společně s ním jako jiný hráč: obsazuje stanice, já můžu kamkoliv a mám přednost, on je vždy tam, kde je potřeba a kde nejsem já“ (the corn stand: a hand at your station moves to the one that most wants doing, their name on its tab; cornstand.crew_places. The pub, the bistro and the Jednota still keep their hands to their jobs: next)
+- [x] R34 „když je brigádník u minihry, nech mě pracovat společně s ním jako jiný hráč: obsazuje stanice, já můžu kamkoliv a mám přednost, on je vždy tam, kde je potřeba a kde nejsem já“ (the corn stand: a hand at your station moves to the one that most wants doing, their name on its tab; the pub, the bistro and the Jednota the same since 26. 10.: scripts/business/crew_places.gd, each place's station_need)
 - [x] R35 „otexturovat závoru, možnost změnit název kempu klávesou E na ceduli před kempem“
 - [x] R36 „na recepci mezi telefonem a deskami leží bílý čtverec, vždy na něj kliknu omylem“
 - [x] R37 „na stanici 2 counter u kukuřice zmizí HUD uvařenosti kukuřic, na trojce taky“
@@ -55,7 +55,7 @@
 - [x] R47 „nové klepání kamery při sprintu je sračka, lineární nahoru a dolů šíleně rychlé“ (f8b0f9d1: 23-37 Hz sines out, a runner's cadence, a sprung nod)
 - [x] R48 „v kukuřici se chci moct rozhlédnout i nahoru a dolů“
 - [x] R49 „víc kukuřic na pultu: vždy jedna na servírování a zbytek bokem, třeba tři; koupit odkládací tácek na další 3“
-- [ ] R50 „staffroom kotelna: clippuje výhled z okna a S mě nevrátí do staffroomu, ale vykopne ven“ (S fixed; the window not reproduced yet: ask when)
+- [x] R50 „staffroom kotelna: clippuje výhled z okna a S mě nevrátí do staffroomu, ale vykopne ven“ (S fixed; the window not reproduced, let go: the user 26. 10.)
 - [x] R51 „cestu zlevnit na 5“
 - [x] R52 „světlo na recepci neodpovídá venkovnímu počasí“
 - [x] R53 „task list na hajzlech rozdělit pro každou kabinku zvlášť“
