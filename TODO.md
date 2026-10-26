@@ -69,8 +69,8 @@
 - [x] R61 „krev z očí zmizí a stéká pořád dokola: nech ji stéct a zůstat až do healu, pak fade out; PC display je přes tuto krev“
 - [x] R62 „sewers incident (celá minihra) měl být jeden z nočních útoků táty s klukem“ (check the earlier decision: TODO/DESIGN/memory)
 - [x] R63 „u ztracených týpků v kukuřici nech třeba tak každé čtvrté ‚heloooo‘“ (lost guests in the corn: the call far rarer)
-- [ ] R64 „v sewers jsou pořád špatně odhlučněné zvuky zvenčí“
-- [ ] R65 „na nějakých stropech křižovatek v sewers jsou furt modré obdélníky“
+- [x] R64 „v sewers jsou pořád špatně odhlučněné zvuky zvenčí“ (only the outdoor bus was turned down: the camp's sounds that stand somewhere, the radio through the office walls, the pylons, the corn, the bus, guests, played on; down the shaft the camp's listener is off)
+- [x] R65 „na nějakých stropech křižovatek v sewers jsou furt modré obdélníky“ (the street grate in a junction's crown: its picture's square glowed whole; cut round, only its slots glow)
 - [x] R66 „savegame si nepamatuje zapnutý počítač. zkontroluj i coop“ (the save had it, the load never read it: now on at its desktop with its programs, no boot; the monitor's own switch is kept too; joining a camp whose PC is on came up on an empty desktop, now its programs)
 - [x] R67 „karavan nejde otočit o 90 stupňů, pouze 180“ (an oblong building's footprint turns with it now, GridModel.turned: the caravan, the pitch, the bowling stand across on a quarter turn, through upgrades, saves and both Builder views)
 - [x] R68 „přes den pomalá regenerace HP“

@@ -1609,6 +1609,14 @@ func _update_interior_audio_ducking(should_duck: bool, underground := false) -> 
 	var was := _interior_audio_level
 	_interior_audio_level = level
 	_interior_audio_is_ducked = level > 0
+	# Down the shaft the camp's sounds that stand somewhere (the radio through the office
+	# walls, the pylons, the corn, the bus, the guests and whatever walks over the manhole)
+	# are not heard at all: the camp's own listener is off; the outdoor bus's dull rumble
+	# below is all that is left of it (playtest 25. 10., twice: "the sounds from outside
+	# are still badly muffled in the sewers"; only that bus was turned down).
+	var camp_vp := get_viewport()
+	if camp_vp is SubViewport:
+		(camp_vp as SubViewport).audio_listener_enable_3d = level < 2
 	_ensure_outdoor_ambience_bus()
 	if _outdoor_ambience_bus_index < 0 or _outdoor_ambience_bus_index >= AudioServer.get_bus_count():
 		return

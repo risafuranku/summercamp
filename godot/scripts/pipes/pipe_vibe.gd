@@ -312,10 +312,15 @@ func _grate(c: Vector2i, r: RandomNumberGenerator) -> void:
 		m.albedo_texture = load(GRATE)
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
-		# The slots glow with what comes through them.
+		# Round as the grate is (the picture's square round it is cut away), and only the
+		# slots glow with what comes through them: the whole square glowed, a blue
+		# rectangle on the crown (playtest 25. 10.).
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		m.emission_enabled = true
-		m.emission = Color(0.35, 0.4, 0.5)
-		m.emission_energy_multiplier = 0.6
+		m.emission = Color(0.7, 0.8, 1.0)
+		m.emission_energy_multiplier = 1.0
+		m.emission_texture = m.albedo_texture
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 		mi.material_override = m
 		mi.position = Vector3(p.x, top - 0.02, p.z)
 		mi.rotation.y = r.randf_range(0.0, TAU)
