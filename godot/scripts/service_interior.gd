@@ -3464,7 +3464,7 @@ func _bistro_sentence(collider: Node, door: String) -> String:
 		return ("%s is at %s" % [who, label]) if who != "" else ("Look at %s" % label if station == "machine" else "Use %s" % label)
 	var name := _meta_up(collider, "bistro_name")
 	if name != "":
-		return "Look at the " + name
+		return "Look at %s" % tr("the " + name, "look")
 	if _node_has_click_type(collider, "service_ledger"):
 		return "Open the books"
 	if _node_has_click_type(collider, "service_stock"):

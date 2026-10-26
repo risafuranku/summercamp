@@ -28851,3 +28851,134 @@ msgstr "Stan úr. 3"
 #. manual
 msgid "Toilet Block"
 msgstr "Záchody"
+
+#. bistro look names (service_interior._bistro_sentence)
+msgid "look|the Kofola tap"
+msgstr "pípa s Kofolou"
+
+msgid "look|the antlers"
+msgstr "parohy"
+
+msgid "look|the ashtray"
+msgstr "popelník"
+
+msgid "look|the baskets"
+msgstr "košíky"
+
+msgid "look|the beer mats"
+msgstr "pivní tácky"
+
+msgid "look|the boar"
+msgstr "kanec"
+
+msgid "look|the bread rack"
+msgstr "regál na pečivo"
+
+msgid "look|the brewery sign"
+msgstr "cedule pivovaru"
+
+msgid "look|the broom"
+msgstr "koště"
+
+msgid "look|the cake case"
+msgstr "vitrína se zákusky"
+
+msgid "look|the calendar"
+msgstr "kalendář"
+
+msgid "look|the cartons"
+msgstr "kartony"
+
+msgid "look|the cigarettes"
+msgstr "cigarety"
+
+msgid "look|the clock"
+msgstr "hodiny"
+
+msgid "look|the coal"
+msgstr "uhlí"
+
+msgid "look|the coat stand"
+msgstr "věšák"
+
+msgid "look|the cooler"
+msgstr "chlazení piva"
+
+msgid "look|the crate of empties"
+msgstr "basa prázdných lahví"
+
+msgid "look|the deer"
+msgstr "jelen"
+
+msgid "look|the drain"
+msgstr "odtok"
+
+msgid "look|the empties"
+msgstr "prázdné lahve"
+
+msgid "look|the fly paper"
+msgstr "mucholapka"
+
+msgid "look|the freezer"
+msgstr "mraznička"
+
+msgid "look|the fridge"
+msgstr "lednice"
+
+msgid "look|the hatch"
+msgstr "výdejní okénko"
+
+msgid "look|the jars"
+msgstr "sklenice"
+
+msgid "look|the knives"
+msgstr "nože"
+
+msgid "look|the locker"
+msgstr "skříňka"
+
+msgid "look|the menu board"
+msgstr "tabule s nabídkou"
+
+msgid "look|the mouse trap"
+msgstr "past na myši"
+
+msgid "look|the mushroom chart"
+msgstr "plakát s houbami"
+
+msgid "look|the oak barrel"
+msgstr "dubový sud"
+
+msgid "look|the oil drum"
+msgstr "barel"
+
+msgid "look|the pennants"
+msgstr "vlaječky"
+
+msgid "look|the poster"
+msgstr "plakát"
+
+msgid "look|the radio"
+msgstr "rádio"
+
+msgid "look|the regulars' table"
+msgstr "štamgastský stůl"
+
+msgid "look|the slate"
+msgstr "tabule dlužníků"
+
+msgid "look|the slops"
+msgstr "kbelík s pomyjemi"
+
+msgid "look|the stove"
+msgstr "kamna"
+
+msgid "look|the television"
+msgstr "televize"
+
+msgid "look|the tins"
+msgstr "plechovky"
+
+msgid "look|the window"
+msgstr "okno"
+
