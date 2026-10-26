@@ -72,7 +72,7 @@
 - [ ] R64 „v sewers jsou pořád špatně odhlučněné zvuky zvenčí“
 - [ ] R65 „na nějakých stropech křižovatek v sewers jsou furt modré obdélníky“
 - [x] R66 „savegame si nepamatuje zapnutý počítač. zkontroluj i coop“ (the save had it, the load never read it: now on at its desktop with its programs, no boot; the monitor's own switch is kept too; joining a camp whose PC is on came up on an empty desktop, now its programs)
-- [ ] R67 „karavan nejde otočit o 90 stupňů, pouze 180“
+- [x] R67 „karavan nejde otočit o 90 stupňů, pouze 180“ (an oblong building's footprint turns with it now, GridModel.turned: the caravan, the pitch, the bowling stand across on a quarter turn, through upgrades, saves and both Builder views)
 - [x] R68 „přes den pomalá regenerace HP“
 - [x] R69 „karavan má nefunkční okna zvenčí, nemá otexturovanou stěnu, kde se připojuje k vozidlu“ (the room's walls were solid, so from outside every window showed the wall's boards: openings cut, the windows across the van show the camp beyond it; the round ends in the sides' skin, done up with a red band all round as in the Builder)
 - [x] R70 „opět se děje bug, že interiér mi totálně jančí s myší a lítá mi pohled všude možně. děje se nyní v karavanu. hodně oken v karavanu je dost náročných na HW, nejde to udělat šikovněji?“ (the rooms' sway after the cursor was an Euler spring that blew up under ~19 fps: stepped exactly now; the windows share one view since ec04c923: Lv3 caravan at 1920x1080 holds 50 fps, worst frame 23 ms)

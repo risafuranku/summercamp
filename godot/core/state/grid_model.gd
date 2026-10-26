@@ -84,6 +84,21 @@ func world_to_grid(world_pos: Vector3) -> Vector2i:
 	return Vector2i(int(floor((world_pos.x - mc.x) / tile_size)), int(floor((world_pos.z - mc.z) / tile_size)))
 
 
+## A building's footprint turned `rot` quarter turns: an oblong one stands across on an odd
+## turn (the caravan, the pitch, the bowling; playtest 25. 10.: "the caravan turns only
+## 180 degrees, not 90"). Its model is built along its own footprint and the structure
+## turned; the cells it takes, its middle and its tag are this.
+static func turned(fp: Vector2i, rot: int) -> Vector2i:
+	return Vector2i(fp.y, fp.x) if wrapi(rot, 0, 4) % 2 == 1 else fp
+
+
+## The footprint of the building on `coord` as it stands (turned), `fallback` (its
+## definition's) for a cell that does not say.
+func footprint_of(coord: Vector2i, fallback := Vector2i.ONE) -> Vector2i:
+	var fp = (cells.get(coord, {}) as Dictionary).get("fp", null)
+	return fp if fp is Vector2i else fallback
+
+
 func get_footprint_center(origin: Vector2i, footprint: Vector2i) -> Vector3:
 	var mc = get_map_min_corner()
 	return Vector3(mc.x + ((origin.x + (footprint.x * 0.5)) * tile_size), 0.0, mc.z + ((origin.y + (footprint.y * 0.5)) * tile_size))
@@ -222,13 +237,17 @@ func get_cell_data(coord: Vector2i) -> Dictionary:
 	return cells.get(coord, {})
 
 
-func occupy_cell(coord: Vector2i, type: String, id: String, root_coord: Vector2i) -> void:
+## `fp`: the building's footprint as it stands (turned), kept on its cells when it is more
+## than one tile (footprint_of).
+func occupy_cell(coord: Vector2i, type: String, id: String, root_coord: Vector2i, fp := Vector2i.ONE) -> void:
 	cells[coord] = {
 		"type": type,
 		"id": id,
 		"root_coord": root_coord,
 		"maintenance": 1.0
 	}
+	if fp != Vector2i.ONE:
+		cells[coord]["fp"] = fp
 
 
 func free_cell(coord: Vector2i) -> void:

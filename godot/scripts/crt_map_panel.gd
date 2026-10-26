@@ -692,8 +692,6 @@ func setup(new_grid_manager, new_building_manager) -> void:
 func set_selected_building(new_type: String) -> void:
 	var normalized = new_type.strip_edges()
 	selected_building = normalized
-	if _turns_round_only(selected_building) and _rotation_steps % 2 == 1:
-		_rotation_steps -= 1
 	_ghost_locked = false
 	_ghost_coord = Vector2i(-1, -1)
 	_pending_build_wait = false
@@ -1069,7 +1067,7 @@ func _handle_structure_press(local_pos: Vector2) -> void:
 
 	# One click builds, as in every tycoon game since 1994; the preview under the
 	# cursor already says where, which way and whether it fits.
-	var footprint = _get_footprint(selected_building)
+	var footprint = _placing_footprint()
 	if not _can_place(coord, footprint, selected_building):
 		_emit_status("%s does not fit here." % _display_name(selected_building), STATUS_DENY)
 		_deny_fx(coord, "Blocked")
@@ -1316,11 +1314,8 @@ func _rotate_building(step: int) -> void:
 	if selected_building == "" or selected_building == "path" or selected_building == "demolish":
 		_emit_status("Select a structure to rotate.", STATUS_DENY)
 		return
-	# An oblong one (a caravan, the pitch) only turns round: its footprint stays as it is.
-	if _turns_round_only(selected_building):
-		_rotation_steps = wrapi(_rotation_steps - _rotation_steps % 2 + (2 if step >= 0 else -2), 0, 4)
-	else:
-		_rotation_steps = wrapi(_rotation_steps + step, 0, 4)
+	# (An oblong one stands across on a quarter turn: its footprint turns with it.)
+	_rotation_steps = wrapi(_rotation_steps + step, 0, 4)
 	_ghost_locked = false
 	if EventBus.has_signal("RequestRotate"):
 		EventBus.RequestRotate.emit(1 if step >= 0 else -1)
@@ -1877,7 +1872,10 @@ func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void
 		if c.x < 0:
 			continue
 		var def = CoreRoot.registry.get_def(StringName(str(acc.get("building_type", "")))) if CoreRoot != null else null
+		var gm0 = _grid_model()
 		var fp: Vector2i = def.footprint if def != null else Vector2i.ONE
+		if gm0 != null:
+			fp = gm0.footprint_of(c, fp)
 		var p := _cell_to_iso_f(Vector2(c) + Vector2(fp) * 0.5 - Vector2(0.5, 0.5), origin, tile_w, tile_h) - Vector2(0, tile_h * 1.25)
 		var text: String = GuestManager.room_short(str(key))
 		var fs := T.FONT_SIZE
@@ -2004,7 +2002,7 @@ func _draw_overlay(origin: Vector2, tile_w: float, tile_h: float, lights: Array)
 			var cell: Dictionary = gm.cells.get(o, {}) if gm != null else {}
 			var def = CoreRoot.registry.get_def(StringName(str(cell.get("type", "")))) if CoreRoot != null and CoreRoot.registry != null and cell.has("type") else null
 			if def != null:
-				fp = def.footprint
+				fp = gm.footprint_of(o, def.footprint)
 			var cells: Array = []
 			for y in maxi(1, fp.y):
 				for x in maxi(1, fp.x):
@@ -2910,7 +2908,7 @@ func _draw_ghost_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	var coord = _ghost_coord if _ghost_locked else hover_coord
 	if not _is_valid_coord(coord):
 		return
-	var footprint = _get_footprint(selected_building)
+	var footprint = _placing_footprint()
 	var can_fit = _can_place(coord, footprint, selected_building)
 	var can_afford = _has_money(selected_building)
 	var can_place = can_fit and can_afford
@@ -3128,11 +3126,8 @@ func _draw_rotation_panel() -> void:
 	for id in 4:
 		var sd := _rotation_to_screen_dir(id, 2.0, 1.0)
 		arrows.append({"id": id, "pos": center + Vector2(sd.x * 20.0, sd.y * 18.0), "dir": sd})
-	var round_only := _turns_round_only(selected_building)
 	for arrow in arrows:
 		var arrow_id = int(arrow.get("id", -1))
-		if round_only and arrow_id % 2 == 1:
-			continue
 		var color = T.SHADOW
 		if arrow_id == active:
 			color = T.NAVY
@@ -3467,12 +3462,10 @@ func _get_footprint(building_type: String) -> Vector2i:
 	return Vector2i.ONE
 
 
-## Oblong footprints turn only half round (building_manager.gd turns them so too).
-func _turns_round_only(building_type: String) -> bool:
-	if not _supports_rotation(building_type):
-		return false
-	var fp := _get_footprint(building_type)
-	return fp.x != fp.y
+## The footprint of what is being placed, turned the way it is turned now (an oblong one,
+## the caravan, the pitch, the bowling, stands across on a quarter turn).
+func _placing_footprint() -> Vector2i:
+	return GridModel.turned(_get_footprint(selected_building), _rotation_steps)
 
 
 func _supports_rotation(building_type: String) -> bool:

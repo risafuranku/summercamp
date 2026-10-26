@@ -819,7 +819,7 @@ func _update_plates() -> void:
 			var coord: Vector2i = panel.get("_ghost_coord") if bool(panel.get("_ghost_locked")) else hover
 			if panel._is_valid_coord(coord):
 				_local_grid(coord)
-				var fp: Vector2i = panel._get_footprint(sel)
+				var fp: Vector2i = panel._placing_footprint()
 				var fit: bool = panel._can_place(coord, fp, sel)
 				var pay: bool = panel._has_money(sel)
 				var col := BLUE if fit and pay else (AMBER if fit else RED)
@@ -861,7 +861,7 @@ func _fp_of(gm, o: Vector2i) -> Vector2i:
 	if cell.has("type") and CoreRoot != null and CoreRoot.registry != null:
 		var def = CoreRoot.registry.get_def(StringName(str(cell["type"])))
 		if def != null:
-			return def.footprint
+			return gm.footprint_of(o, def.footprint)
 	return Vector2i.ONE
 
 
@@ -904,7 +904,7 @@ func _update_ghost(delta: float) -> void:
 		_ghost_rise = 0.0
 	_ghost_rise = minf(1.0, _ghost_rise + delta / 0.3)
 	_ghost.visible = show
-	var fp: Vector2i = panel._get_footprint(sel)
+	var fp: Vector2i = panel._placing_footprint()
 	if show:
 		var fit: bool = panel._can_place(coord, fp, sel)
 		var pay: bool = panel._has_money(sel)
@@ -981,8 +981,6 @@ func _turn_of(type: String) -> float:
 	if not panel._supports_rotation(type):
 		return 0.0
 	var r := wrapi(int(panel.get("_rotation_steps")), 0, 4)
-	if panel._turns_round_only(type) and r % 2 == 1:
-		r -= 1
 	return deg_to_rad(float(r) * 90.0)
 
 
@@ -1112,13 +1110,10 @@ func _on_built(type: String, pos: Vector2i, rot: int) -> void:
 		return
 	var made := _ghost_model(type)
 	var node: Node3D = made[0]
-	var fp: Vector2i = panel._get_footprint(type)
+	var fp: Vector2i = GridModel.turned(panel._get_footprint(type), rot)
 	var turn := 0.0
 	if panel._supports_rotation(type):
-		var r := wrapi(rot, 0, 4)
-		if fp.x != fp.y and r % 2 == 1:
-			r -= 1
-		turn = deg_to_rad(float(r) * 90.0)
+		turn = deg_to_rad(float(wrapi(rot, 0, 4)) * 90.0)
 	node.transform = Transform3D(Basis(Vector3.UP, turn), _foot_world(pos, fp))
 	var mat: ShaderMaterial = made[2]
 	mat.set_shader_parameter("tint", Color(1.0, 0.95, 0.7))
@@ -1274,6 +1269,7 @@ func _draw_badges(cv: Control) -> void:
 		var def = CoreRoot.registry.get_def(StringName(str(acc.get("building_type", "")))) if CoreRoot != null else null
 		var fp: Vector2i = def.footprint if def != null else Vector2i.ONE
 		var info: Dictionary = panel.structure_at(c)
+		fp = info.get("footprint", fp) if info.get("footprint", null) is Vector2i else fp
 		var top := _height_of(info.get("root")) if info.has("root") else 2.0
 		var p := screen_of(_foot_world(c, fp) + Vector3(0, top + 0.5, 0))
 		if p == Vector2.INF or not Rect2(Vector2.ZERO, size).has_point(p):
@@ -1429,7 +1425,7 @@ func _draw_tags() -> void:
 	var coord: Vector2i = panel.get("_ghost_coord") if bool(panel.get("_ghost_locked")) else panel.hover_coord
 	if not panel._is_valid_coord(coord):
 		return
-	var fp: Vector2i = panel._get_footprint(sel)
+	var fp: Vector2i = panel._placing_footprint()
 	var fit: bool = panel._can_place(coord, fp, sel)
 	var pay: bool = panel._has_money(sel)
 	var cost1: int = panel._get_cost(sel)

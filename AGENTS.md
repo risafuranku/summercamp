@@ -714,6 +714,12 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   over (the head's y, pitch and roll sampled while sprinting: reversals a second, the biggest
   second difference): the sprint is 3.6 steps a second, 4 cm, the nod a soft spring kicked
   per foot (player_controller RUN_NOD_*).
+- **A building's footprint turns with it** (playtest 25. 10.: "the caravan turns only 180
+  degrees"): an oblong one (2x1, 3x5) stands across on an odd quarter turn. The tiles it
+  takes, its middle and its `grid_footprint` meta are `GridModel.turned(def.footprint, rot)`;
+  its model is built along its own footprint and the structure turned. A placed one's
+  footprint is the cell's `fp` (`grid.footprint_of(origin, def.footprint)`) or the meta,
+  never `def.footprint` alone; `building_manager.place_building_at(origin, type, rot)`.
 - **A spring stepped by the frame must hold at any frame time** (playtest 25. 10.: in the
   caravan "the view flies everywhere with the mouse"): `interior_look`'s sway was a stiff
   spring (w 16) stepped by Euler, unstable over 52 ms a frame, and the caravan's windows

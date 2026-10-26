@@ -1627,9 +1627,9 @@ func _handle_replace_upgrade(origin: Vector2i, old_type: String, new_type: Strin
 	if not _building_manager.remove_structure(tile.occupant):
 		_refund_upgrade_cost(cost)
 		return
-	var placed_ok = _building_manager.place_building_at(origin, new_type)
+	var placed_ok = _building_manager.place_building_at(origin, new_type, preserved_rotation)
 	if not placed_ok:
-		_building_manager.place_building_at(origin, old_type)
+		_building_manager.place_building_at(origin, old_type, preserved_rotation)
 		_refund_upgrade_cost(cost)
 		return
 

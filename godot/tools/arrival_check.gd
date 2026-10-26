@@ -57,7 +57,8 @@ func _ready() -> void:
 	_expect(_at_gate.size() == 1, "reaching the barrier is announced")
 	var snap: Array = GuestManager.get_guest_life_snapshot()
 	_expect(snap.size() == 1 and str(snap[0]["activity"].get("kind", "")) == "wait_gate", "the party waits at reception")
-	_run_minutes(50)
+	# (Past the guests' patience at the desk: 75 minutes since 22. 10., it was 50.)
+	_run_minutes(int(GuestManager.GATE_COMPLAIN_MINUTES) + 5)
 	_expect(_checked_in.is_empty(), "nobody is let in while the room is not ready")
 	_expect(str(GuestManager.get_guest_life_snapshot()[0]["thought"]).contains("desk"), "a long wait is complained about")
 

@@ -376,7 +376,7 @@ static func collect_facilities(grid, registry, flags: Dictionary) -> Array:
 			"services": def.guest_services,
 			"capacity": int(def.guest_capacity),
 			"use_minutes": maxi(4, int(def.use_minutes)),
-			"footprint": def.footprint,
+			"footprint": cell.get("fp", def.footprint),
 			"working": working,
 			"reason": reason,
 			# How clean it is (the toilets and showers get dirty with use).

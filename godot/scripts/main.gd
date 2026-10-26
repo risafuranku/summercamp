@@ -6625,7 +6625,7 @@ func _rebuild_core_cells_from_visual_structures() -> void:
 				var coord := origin + Vector2i(ox, oy)
 				if not state.grid.is_in_bounds(coord):
 					continue
-				state.grid.occupy_cell(coord, building_id, instance_id, origin)
+				state.grid.occupy_cell(coord, building_id, instance_id, origin, footprint)
 				var cell = state.grid.cells.get(coord, {})
 				if cell is Dictionary:
 					var cell_dict := cell as Dictionary

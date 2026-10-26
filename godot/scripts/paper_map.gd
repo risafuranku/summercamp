@@ -114,6 +114,7 @@ func _collect() -> Dictionary:
 		var def = CoreRoot.registry.get_def(StringName(t)) if CoreRoot.registry != null else null
 		if def != null:
 			fp = def.footprint
+		fp = cell.get("fp", fp)
 		buildings.append({"type": t, "at": root, "fp": fp})
 	# The reception has no builder cell; find it in the scene.
 	var reception: Node = _main.find_child("MainBuilding", true, false)

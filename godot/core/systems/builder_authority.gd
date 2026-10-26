@@ -104,7 +104,7 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 			if str((_state.grid.cells[c] as Dictionary).get("type", "")) == normalized_type:
 				EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "only_one")
 				return
-	var footprint = _resolve_footprint(normalized_type)
+	var footprint := GridModel.turned(_resolve_footprint(normalized_type), normalized_rot)
 	if not _state.grid.can_place_footprint(pos, footprint):
 		EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "blocked_or_out_of_bounds")
 		return

@@ -2469,6 +2469,9 @@ func _update_inview(delta: float) -> void:
 		var w3d = main.get("_world_3d") if main != null else null
 		if w3d is Node3D and (w3d as Node3D).is_inside_tree():
 			cam = (w3d as Node3D).get_viewport().get_camera_3d()
+		# (Loading a save: the camp's camera is out of the tree for a frame or two.)
+		if cam != null and not cam.is_inside_tree():
+			cam = null
 		if _inview_reception == null or not is_instance_valid(_inview_reception):
 			var scene := get_tree().current_scene
 			_inview_reception = scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null

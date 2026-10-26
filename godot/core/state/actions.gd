@@ -41,7 +41,7 @@ func place_building(building_id: String, origin: Vector2i, footprint: Vector2i =
 	for y in range(footprint.y):
 		for x in range(footprint.x):
 			var tile = origin + Vector2i(x, y)
-			_state.grid.occupy_cell(tile, building_id, instance_id, origin)
+			_state.grid.occupy_cell(tile, building_id, instance_id, origin, footprint)
 	
 	# 4. Notify
 	# EventBus should be global

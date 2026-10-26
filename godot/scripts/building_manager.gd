@@ -330,14 +330,16 @@ func get_footprint_for_building(building_type: String) -> Vector2i:
 func place_building_at_visual_only(origin: Vector2i, building_id: String, rotation_steps: int) -> void:
 	# Calls the legacy placement logic which instantiates the node and updates grid_manager
 	# We ignore the return value because Actions should have guaranteed validity.
-	var placed_ok := place_building_at(origin, building_id)
+	var placed_ok := place_building_at(origin, building_id, rotation_steps)
 	if placed_ok:
 		_apply_structure_rotation_at(origin, building_id, rotation_steps)
 		
 	if building_manager_has_remove_logic() and false: # Just to use the helper to avoid warning if not unused
 		pass 
 
-func place_building_at(origin: Vector2i, building_type: String) -> bool:
+## `rotation`: quarter turns; an oblong one takes its footprint turned (GridModel.turned).
+func place_building_at(origin: Vector2i, building_type: String, rotation := 0) -> bool:
+	_turn = wrapi(rotation, 0, 4)
 	if building_type.begins_with("tent_"):
 		var level = 1
 		var parts = building_type.split("_")
@@ -413,11 +415,7 @@ func _apply_structure_rotation_at(origin: Vector2i, building_type: String, rotat
 		structure.set_meta("build_rotation", 0)
 		return
 	var normalized_rotation = wrapi(int(rotation_steps), 0, 4)
-	# An oblong one (a caravan, the pitch) turns only round about its middle: a quarter
-	# turn would not fit its footprint.
-	var fp = get_footprint_for_building(building_type)
-	if fp.x != fp.y and normalized_rotation % 2 == 1:
-		normalized_rotation -= 1
+	# (An oblong one takes its footprint turned with it: place_building_at.)
 	structure.set_meta("build_rotation", normalized_rotation)
 	structure.rotation.y = deg_to_rad(float(normalized_rotation) * 90.0)
 
@@ -923,11 +921,16 @@ func _get_lamp_beam_texture() -> Texture2D:
 	return _lamp_beam_texture
 
 
+## The quarter turns of the building place_building_at is placing (its oblong footprint
+## turned for the grid; the model is built along its own and the structure turned).
+var _turn := 0
+
+
 func _place_caravan_at(origin: Vector2i, level: int = 1) -> bool:
 	_ensure_structures_root()
 	if _grid_manager == null:
 		return false
-	var footprint = Vector2i(2, 1)
+	var footprint := GridModel.turned(Vector2i(2, 1), _turn)
 	if not _grid_manager.can_place_footprint(origin, footprint):
 		return false
 	var lv := clampi(level, 1, 3)
@@ -962,15 +965,17 @@ func _place_placeholder_at(origin: Vector2i, building_type: String, footprint: V
 	_ensure_structures_root()
 	if _grid_manager == null:
 		return false
-	if not _grid_manager.can_place_footprint(origin, footprint):
+	# The tiles it takes, turned; `footprint` stays the model's own.
+	var cells := GridModel.turned(footprint, _turn)
+	if not _grid_manager.can_place_footprint(origin, cells):
 		return false
 
 	var structure = StaticBody3D.new()
 	structure.name = "Placeholder_%s" % building_type
 	structure.add_to_group(group_name)
-	_tag_structure(structure, origin, footprint, building_type, false)
+	_tag_structure(structure, origin, cells, building_type, false)
 	_structures_root.add_child(structure)
-	structure.position = _grid_manager.get_footprint_center(origin, footprint) + Vector3(0.0, -0.05, 0.0)
+	structure.position = _grid_manager.get_footprint_center(origin, cells) + Vector3(0.0, -0.05, 0.0)
 
 	# Modelled after the Builder's pixel art (scripts/building_models.gd).
 	if BUILDING_MODELS.has_model(building_type):
@@ -991,7 +996,7 @@ func _place_placeholder_at(origin: Vector2i, building_type: String, footprint: V
 		elif group_name == "services":
 			mcondition = "service"
 		_set_structure_condition_internal(structure, _default_condition_for_type(mcondition))
-		_grid_manager.occupy_footprint(origin, footprint, structure)
+		_grid_manager.occupy_footprint(origin, cells, structure)
 		return true
 
 	var ts = _grid_manager.tile_size
@@ -1145,7 +1150,7 @@ func _place_placeholder_at(origin: Vector2i, building_type: String, footprint: V
 	elif group_name == "attractions":
 		condition_type = "attraction"
 	_set_structure_condition_internal(structure, _default_condition_for_type(condition_type))
-	_grid_manager.occupy_footprint(origin, footprint, structure)
+	_grid_manager.occupy_footprint(origin, cells, structure)
 	return true
 
 
