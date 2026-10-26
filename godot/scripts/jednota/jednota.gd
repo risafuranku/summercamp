@@ -28,6 +28,7 @@ const RULES := preload("res://core/systems/jednota_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const BIZ_RULES := preload("res://core/systems/business_rules.gd")
+const CREW_PLACES := preload("res://scripts/business/crew_places.gd")
 
 ## A record changed (key, what: "shelf", "trolley", "picked", "served", "gone").
 signal changed(key: String, what: String)
@@ -562,7 +563,8 @@ func _save(key: String) -> void:
 
 
 ## The hands at the Jednota (DESIGN.md §7b, the hands), one piece of work at a time as their
-## speed allows; now and then one goes wrong:
+## speed allows; now and then one goes wrong. Each works a station (crew_places: their own
+## job's, or beside you where it is wanted while you are at theirs):
 ##   till, till2  the first in the queue (the second till, gear: the second in it too); the
 ##                change counted right, or a coin over now and then
 ##   shelves      a box off the trolley onto the emptiest place it has a box for (one
@@ -570,7 +572,61 @@ func _save(key: String) -> void:
 ##   store        a box made up for the place that will run out first; what went off
 ##                thrown out (the pallet truck, gear: twice as quick)
 ##   deli         cuts the oldest deli order to about its weight and wraps it
+const ROLE_AT := {"till": "till", "till2": "till2", "shelves": "shelves", "store": "store", "deli": "deli"}
+## Where a hand may go to help, the queue first.
+const CREW_STATIONS := ["till", "till2", "deli", "shelves", "store"]
+
+
+## slug -> the station that hand works now ("" aside), at `key`.
+func crew_places(key: String) -> Dictionary:
+	var crew: Array = BUSINESS.crew_now(key)
+	if crew.is_empty():
+		return {}
+	var busy: Array = CREW_PLACES.wardens_at(get_tree(), key, "service") if is_inside_tree() else []
+	return CREW_PLACES.places(crew, ROLE_AT, CREW_STATIONS, busy, func(st: String) -> float: return station_need(key, st))
+
+
+## How much a station of the Jednota wants doing now (0 nothing): the queue at the tills,
+## deli orders, boxes on the trolley for places with room (more for an empty one), what
+## went off and the places that will run out first.
+func station_need(key: String, st: String) -> float:
+	match st:
+		"till":
+			var q := tickets(key).size()
+			return 0.0 if q == 0 or till_held(key) else 0.5 + 0.25 * float(q)
+		"till2":
+			var q2 := tickets(key).size()
+			return 0.5 + 0.25 * float(q2 - 1) if BUSINESS.has_gear(key, "till2") and q2 >= 2 else 0.0
+		"deli":
+			var n := deli_tickets(key).size()
+			return 0.0 if n == 0 else 0.6 + 0.3 * float(n)
+		"shelves":
+			var places_with_room := 0
+			var empty := false
+			for g in RULES.all_goods():
+				if int(trolley(key).get(g, 0)) <= 0 or int(shelf(key).get(g, 0)) >= cap(key):
+					continue
+				places_with_room += 1
+				empty = empty or int(shelf(key).get(g, 0)) <= 0
+			return 0.0 if places_with_room == 0 else 0.2 + 0.1 * float(places_with_room) + (0.3 if empty else 0.0)
+		"store":
+			var books := BUSINESS.site(key)
+			for g in (books.get("spoiled", {}) as Dictionary):
+				if int(books["spoiled"][g]) > 0:
+					return 0.4
+			var best_have := 999
+			for g in RULES.all_goods():
+				if backroom(key, g) <= 0 or int(trolley(key).get(g, 0)) >= RULES.BOX:
+					continue
+				best_have = mini(best_have, int(shelf(key).get(g, 0)) + int(trolley(key).get(g, 0)))
+			if best_have >= cap(key) + RULES.BOX:
+				return 0.0
+			return 0.15 + 0.3 * (1.0 - clampf(float(best_have) / float(maxi(1, cap(key))), 0.0, 1.0))
+	return 0.0
+
+
 func _crew_work(key: String, crew: Array) -> void:
+	var places := crew_places(key)
 	for p in crew:
 		var id := key + "/" + str(p.get("slug", ""))
 		var left := float(_crew_t.get(id, 0.0)) - 1.0
@@ -580,7 +636,7 @@ func _crew_work(key: String, crew: Array) -> void:
 		var speed := clampi(int(p.get("speed", 1)), 0, 2)
 		var slip := _rng.randf() < float(BIZ_RULES.SPEED_SLIP[speed]) + (0.05 if str(p.get("temper", "")) == "sour" else 0.0)
 		var did := false
-		var role := str(p.get("role", ""))
+		var role := str(places.get(str(p.get("slug", "")), ""))
 		match role:
 			"till":
 				# A warden at the till: the hand leaves it to them.

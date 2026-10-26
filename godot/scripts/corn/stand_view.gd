@@ -22,6 +22,7 @@ const STATION_HUD = preload("res://scripts/business/station_hud.gd")
 const LAYOUT = preload("res://scripts/corn/stand_layout.gd")
 const LEDGER = preload("res://scripts/business/ledger_closeup.gd")
 const BUSINESS = preload("res://scripts/business/business_runtime.gd")
+const CREW_PLACES = preload("res://scripts/business/crew_places.gd")
 const RULES = preload("res://core/systems/business_rules.gd")
 
 var building_key := ""
@@ -44,8 +45,6 @@ func _init() -> void:
 	# Under your hand at the station (station_hands.gd, 95) and the frame (96).
 	layer = 94
 	add_to_group("closeup")  # the hands are on it (pockets.gd)
-	# Which station this warden is at (cornstand.warden_stations: the hands keep off it).
-	add_to_group("corn_stand_view")
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
@@ -218,12 +217,7 @@ func _hands_at() -> Dictionary:
 	var cs := get_tree().get_first_node_in_group("cornstands") if is_inside_tree() else null
 	if cs == null:
 		return out
-	var places: Dictionary = cs.crew_places(building_key)
-	for p in BUSINESS.crew_now(building_key):
-		var at := str(places.get(str(p.get("slug", "")), ""))
-		if at != "":
-			out[at] = str(p.get("name", "")).split(" ")[0]
-	return out
+	return CREW_PLACES.names_at(BUSINESS.crew_now(building_key), cs.crew_places(building_key))
 
 
 func _open_station(id: String) -> void:

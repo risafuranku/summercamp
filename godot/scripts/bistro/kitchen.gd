@@ -36,6 +36,7 @@ const RULES := preload("res://core/systems/bistro_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const BIZ_RULES := preload("res://core/systems/business_rules.gd")
+const CREW_PLACES := preload("res://scripts/business/crew_places.gd")
 
 ## A station's state changed (key, what: "prep", "pan", "pot", "served"...).
 signal changed(key: String, what: String)
@@ -782,22 +783,106 @@ func _save(key: String) -> void:
 		"proto_taken": int(s["proto"]["taken"]), "soup": int(s["soup"]["level"])})
 
 
-## The hands in the kitchen, each at their job (DESIGN.md §7b, the hands), one piece of
-## work at a time as their speed allows; now and then one goes wrong (a slice left to burn,
-## a badly breaded one, six dumplings for four, a plate dropped):
-##   cellar  raw chips and breaded slices onto the trays, off the shelves
-##   stove   turns the slices, racks the golden ones, bins the black ones, minds the
-##           basket and the pot
-##   pass    plates the oldest ticket it has everything ready for, and sends it out
-##   sink    washes the dirty plates
-##   grill   puts sausages on, turns them, racks the brown ones, bins the black ones
-##   bufet   ladles the soup of the day and opens the bottles over the counter
-## A warden at the same station works alongside them (the stove's slices are the same).
+## The hands in the kitchen (DESIGN.md §7b, the hands), one piece of work at a time as
+## their speed allows; now and then one goes wrong (a slice left to burn, a badly breaded
+## one, six dumplings for four, a plate dropped). Each works a station (crew_places: their
+## own job's, or beside you where it is wanted while you are at theirs):
+##   potatoes  raw chips and breaded slices onto the trays, off the shelves (the cellar's)
+##   stove     turns the slices, racks the golden ones, bins the black ones, minds the
+##             basket and the pot
+##   pass      plates the oldest ticket it has everything ready for, and sends it out
+##   sink      washes the dirty plates
+##   grill     puts sausages on, turns them, racks the brown ones, bins the black ones
+##   bufet     ladles the soup of the day and opens the bottles over the counter
+##   floor     takes the plates off the hatch to the tables, opens the bottles
 ## Seconds till each hand's next piece of work: "key/slug" -> seconds.
 var _crew_t: Dictionary = {}
+const ROLE_AT := {"pass": "pass", "floor": "floor", "stove": "stove", "cellar": "potatoes", "sink": "sink", "grill": "grill", "bufet": "bufet"}
+## Where a hand may go to help, the guests' end first (a tie goes to who waits at a table).
+const CREW_STATIONS := ["floor", "pass", "bufet", "grill", "stove", "potatoes", "sink"]
+
+
+## slug -> the station that hand works now ("" aside), at `key`.
+func crew_places(key: String) -> Dictionary:
+	var crew: Array = BUSINESS.crew_now(key)
+	if crew.is_empty():
+		return {}
+	return CREW_PLACES.places(crew, ROLE_AT, CREW_STATIONS, _wardens_at(key), func(st: String) -> float: return station_need(key, st))
+
+
+func _wardens_at(key: String) -> Array:
+	return CREW_PLACES.wardens_at(get_tree(), key, "service") if is_inside_tree() else []
+
+
+## How much a station of the bistro wants doing now (0 nothing): plates waiting on the
+## hatch and bottles wanted, tickets to plate, the soup, sausages and slices wanted that
+## are not on the rack or the fire yet, the trays of the cellar low, dirty plates.
+func station_need(key: String, st: String) -> float:
+	var s := site(key)
+	match st:
+		"floor":
+			var n := 0.0
+			for t in tickets(key, "floor"):
+				n += 0.6 if bool(t.get("hatched", false)) else 0.3
+			return n
+		"pass":
+			var n_pass := tickets(key, "pass").size()
+			return 0.0 if n_pass == 0 or int(plates(key)["clean"]) <= 0 else 0.4 + 0.2 * float(n_pass)
+		"bufet":
+			var n_soup := tickets(key, "bufet").size()
+			var low := 0.3 if int(s["soup"]["level"]) < 3 and BUSINESS.stock_of(key, "soup") > 0 and n_soup > 0 else 0.0
+			return (0.4 * float(n_soup) if int(s["soup"]["level"]) > 0 else 0.0) + low
+		"grill":
+			var on := 0
+			for slot in s["grill"]:
+				if not (slot as Dictionary).is_empty():
+					on += 1
+			return 0.35 * float(on) + 0.3 * float(maxi(0, _wanted(key, "sausage") - prep(key, "sausage") - on))
+		"stove":
+			var cooking := 0
+			for slot in s["pan"]:
+				if not (slot as Dictionary).is_empty():
+					cooking += 1
+			var b: Dictionary = s["basket"]
+			var frying := int(b["n"]) if str(b["st"]) == "down" else 0
+			var need := 0.35 * float(cooking) + (0.4 if str(b["st"]) == "down" else 0.0)
+			need += 0.3 * float(maxi(0, _wanted(key, "cheese") - prep(key, "cheese") - cooking))
+			need += 0.3 * float(maxi(0, _wanted(key, "fries") - prep(key, "fries") - frying))
+			if _wanted(key, "goulash") > 0 and int(s["pot"]["level"]) < 2 and BUSINESS.stock_of(key, "goulash") > 0:
+				need += 0.3
+			return need
+		"potatoes":
+			var need2 := 0.0
+			if prep(key, "chips_raw") < 6 and BUSINESS.stock_of(key, "potatoes") > 0:
+				need2 += 0.1 + 0.05 * float(6 - prep(key, "chips_raw"))
+			if prep(key, "cheese_raw") + prep(key, "cheese_bad") < 4 and BUSINESS.stock_of(key, "cheese") > 0:
+				need2 += 0.1 + 0.05 * float(4 - prep(key, "cheese_raw") - prep(key, "cheese_bad"))
+			return need2
+		"sink":
+			var pl: Dictionary = plates(key)
+			if int(pl["dirty"]) <= 0:
+				return 0.0
+			return minf(1.0, 0.12 * float(pl["dirty"])) + (0.6 if int(pl["clean"]) <= 0 else 0.0)
+	return 0.0
+
+
+## How many of `part` the tickets at the pass want.
+func _wanted(key: String, part: String) -> int:
+	var n := 0
+	for t in tickets(key, "pass"):
+		n += int((t["parts"] as Dictionary).get(part, 0))
+	return n
+
+
+## Somebody minds the floor: a hand works it now, or a warden is at it (the pass then
+## puts the plates on the hatch for them; nobody, and the pass's hand carries them out).
+func _floor_minded(key: String, places: Dictionary) -> bool:
+	return places.values().has("floor") or _wardens_at(key).has("floor")
 
 
 func _crew_work(key: String, crew: Array) -> void:
+	var places := crew_places(key)
+	var floor_minded := _floor_minded(key, places)
 	for p in crew:
 		var id := key + "/" + str(p.get("slug", ""))
 		var left := float(_crew_t.get(id, 0.0)) - 1.0
@@ -807,19 +892,19 @@ func _crew_work(key: String, crew: Array) -> void:
 		var speed := clampi(int(p.get("speed", 1)), 0, 2)
 		var slip := randf() < float(BIZ_RULES.SPEED_SLIP[speed]) + (0.05 if str(p.get("temper", "")) == "sour" else 0.0)
 		var did := false
-		match str(p.get("role", "")):
-			"cellar":
+		match str(places.get(str(p.get("slug", "")), "")):
+			"potatoes":
 				did = _crew_cellar(key, slip)
 			"stove":
 				did = _crew_stove(key, slip)
 			"pass":
-				did = _crew_pass(key, p, slip)
+				did = _crew_pass(key, p, slip, floor_minded)
 			"sink":
 				did = _crew_sink(key, slip)
 			"grill":
 				did = _crew_grill(key, slip)
 			"bufet":
-				did = _crew_bufet(key, p, slip, _has_role(crew, "floor"))
+				did = _crew_bufet(key, p, slip, floor_minded)
 			"floor":
 				did = _crew_floor(key, p, slip)
 		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) if did else 1.0
@@ -1002,9 +1087,9 @@ func _crew_stove(key: String, slip: bool) -> bool:
 
 
 ## The oldest ticket it has everything ready for, plated and sent out.
-func _crew_pass(key: String, p: Dictionary, slip: bool) -> bool:
+func _crew_pass(key: String, p: Dictionary, slip: bool, floor_minded := false) -> bool:
 	# Nobody on the floor: what waits on the hatch goes out first (the pass's hand carries).
-	if not _has_role(BUSINESS.crew_now(key), "floor"):
+	if not floor_minded:
 		for t in tickets(key, "floor"):
 			if bool(t.get("hatched", false)):
 				serve_hatch(key, t, str(p.get("name", "")))
@@ -1057,9 +1142,9 @@ func _crew_pass(key: String, p: Dictionary, slip: bool) -> bool:
 			for q in qs:
 				cook += float(q)
 			cook /= float(qs.size())
-		# A hand on the floor takes it out from the hatch; without one the pass's hand
+		# Somebody on the floor takes it out from the hatch; without them the pass's hand
 		# carries it out as before.
-		if _has_role(BUSINESS.crew_now(key), "floor"):
+		if floor_minded:
 			to_hatch(key, t, parts, cook)
 		else:
 			serve(key, t, parts, cook, str(p.get("name", "")))

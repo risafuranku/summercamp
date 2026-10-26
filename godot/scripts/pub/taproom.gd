@@ -31,6 +31,7 @@ const ORDERS := preload("res://scripts/food/orders.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const BIZ_RULES := preload("res://core/systems/business_rules.gd")
 const FUN := preload("res://core/systems/pub_fun.gd")
+const CREW_PLACES := preload("res://scripts/business/crew_places.gd")
 ## Days a keg keeps on the line before it is flat (twice as long with the keg cooler).
 const KEG_DAYS := 3
 
@@ -641,20 +642,61 @@ func _save(key: String) -> void:
 		"tapped": int(k.get("tapped", 0))})
 
 
-## The hands at the pub, each at their job (DESIGN.md §7b, the hands), one piece of work
-## at a time as their speed allows; now and then one goes wrong (a pour short or over,
-## a mug dropped, the gas left wrong):
-##   tap     pours the oldest beer ordered (a fair pour, never a perfect one)
-##   bar     pours the shots and the kofola
+## The hands at the pub (DESIGN.md §7b, the hands), one piece of work at a time as their
+## speed allows; now and then one goes wrong (a pour short or over, a mug dropped, the gas
+## left wrong). Each works a station (crew_places: their own job's, or beside you where it
+## is wanted while you are at theirs):
+##   tap     pours the oldest beer ordered (a fair pour, never a perfect one), takes bills
+##   back    pours the shots and the kofola, takes bills
 ##   wash    washes the mugs (the glass washer, bought, does it alone)
-##   cellar  changes a spent or flat keg and sets the gas right
+##   keg     changes a spent or flat keg and sets the gas right
 var _crew_t: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
+const ROLE_AT := {"tap": "tap", "bar": "back", "wash": "wash", "cellar": "keg"}
+const CREW_STATIONS := ["tap", "back", "keg", "wash"]
+
+
+## slug -> the station that hand works now ("" aside), at `key`.
+func crew_places(key: String) -> Dictionary:
+	var crew: Array = BUSINESS.crew_now(key)
+	if crew.is_empty():
+		return {}
+	var busy: Array = CREW_PLACES.wardens_at(get_tree(), key, "service") if is_inside_tree() else []
+	return CREW_PLACES.places(crew, ROLE_AT, CREW_STATIONS, busy, func(st: String) -> float: return station_need(key, st))
+
+
+## How much a station of the pub wants doing now (0 nothing): beers and drinks ordered and
+## bills waiting at the bar, dirty mugs (the more the fewer clean), a keg to change.
+func station_need(key: String, st: String) -> float:
+	var n_bills := bills(key).size()
+	match st:
+		"tap", "back":
+			var n := 0
+			if st == "back" or (tap_trouble(key) in ["", "flat"] and int(mugs(key)["clean"]) > 0):
+				for t in tickets(key):
+					if RULES.kind(str(t["drink"])) == ("tap" if st == "tap" else "bar"):
+						n += 1
+			return (0.5 + 0.25 * float(n) if n > 0 else 0.0) + 0.4 * float(n_bills)
+		"wash":
+			if BUSINESS.has_gear(key, "glasswasher"):
+				return 0.0
+			var m: Dictionary = mugs(key)
+			if int(m["dirty"]) <= 0:
+				return 0.0
+			return minf(1.0, 0.15 * float(m["dirty"])) + (0.6 if int(m["clean"]) <= 0 else 0.0)
+		"keg":
+			var k: Dictionary = keg(key)
+			if BUSINESS.stock_of(key, "beer") > 0 and (str(k["pallet"]) != "full" or int(k["line"]) <= 0 or is_flat(key)):
+				return 1.2
+			if float(k["gas"]) < RULES.GAS_LOW or float(k["gas"]) > RULES.GAS_HIGH:
+				return 0.8
+	return 0.0
 
 
 func _crew_work(key: String, crew: Array) -> void:
 	if BUSINESS.has_gear(key, "glasswasher"):
 		_glasswasher(key)
+	var places := crew_places(key)
 	for p in crew:
 		var id := key + "/" + str(p.get("slug", ""))
 		var left := float(_crew_t.get(id, 0.0)) - 1.0
@@ -664,21 +706,22 @@ func _crew_work(key: String, crew: Array) -> void:
 		var speed := clampi(int(p.get("speed", 1)), 0, 2)
 		var slip := _rng.randf() < float(BIZ_RULES.SPEED_SLIP[speed]) + (0.05 if str(p.get("temper", "")) == "sour" else 0.0)
 		var did := false
-		match str(p.get("role", "")):
+		var at := str(places.get(str(p.get("slug", "")), ""))
+		match at:
 			"tap":
 				did = _crew_bill(key, slip) or _crew_pour(key, p, "tap", slip, speed)
-			"bar":
+			"back":
 				did = _crew_bill(key, slip) or _crew_pour(key, p, "bar", slip, speed)
 			"wash":
 				did = _crew_wash(key, slip)
-			"cellar":
+			"keg":
 				did = _crew_cellar(key)
 		# Two taps (gear): the tap's hand draws two at once.
-		if did and str(p.get("role", "")) == "tap" and BUSINESS.has_gear(key, "tap2"):
+		if did and at == "tap" and BUSINESS.has_gear(key, "tap2"):
 			_crew_pour(key, p, "tap", slip, speed)
-		var k := 0.7 if str(p.get("role", "")) in ["tap", "bar"] else 1.0
+		var k := 0.7 if at in ["tap", "back"] else 1.0
 		# The quick coupler (gear): a keg changed in a moment.
-		if str(p.get("role", "")) == "cellar" and BUSINESS.has_gear(key, "coupler"):
+		if at == "keg" and BUSINESS.has_gear(key, "coupler"):
 			k = 0.4
 		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) * k if did else 1.0
 

@@ -340,63 +340,25 @@ func _save(key: String) -> void:
 ##   counter  puts husked cobs in the pot, takes a done one out, butters and salts it to
 ##            the order (the salt off now and then) and hands it over; a soft one they
 ##            throw away
-## The hands work beside you as another warden would (the user 25. 10.: "let me work
-## together with him like another player: he takes stations, I can go anywhere and come
-## first, he is always where he is needed and where I am not"): each to their own job's
-## station unless a warden is at it (you come first), then to the free station that most
-## wants doing (the bowl running low, cobs waiting at the counter, drinks ordered), never
-## two to one; with nothing wanted, aside. Worked out the same way on every machine (the
-## wardens' stations are in their room states, the orders and the bowl are the stand's
-## own records), so the figures stand where the work is done.
+## The hands work beside you as another warden would (scripts/business/crew_places.gd):
+## each at their own station unless a warden is at it, then where it is most wanted (the
+## bowl running low, cobs waiting at the counter, drinks ordered); nothing wanted, aside.
+const CREW_PLACES := preload("res://scripts/business/crew_places.gd")
 const STATIONS := ["husk", "counter", "drinks"]
+const ROLE_AT := {"husk": "husk", "counter": "counter", "drinks": "drinks"}
 
 
 ## slug -> the station that hand works now ("" aside), at `key`.
 func crew_places(key: String) -> Dictionary:
-	var out := {}
 	var crew: Array = BUSINESS.crew_now(key)
 	if crew.is_empty():
-		return out
-	var busy := warden_stations(key)
-	var taken := {}
-	var wanting: Array = []
-	for p in crew:
-		var own := str(p.get("role", ""))
-		if STATIONS.has(own) and not busy.has(own) and not taken.has(own):
-			taken[own] = true
-			out[str(p.get("slug", ""))] = own
-		else:
-			wanting.append(p)
-	for p in wanting:
-		var best := ""
-		var best_need := 0.0
-		for st in STATIONS:
-			if busy.has(st) or taken.has(st):
-				continue
-			var need := station_need(key, st)
-			if need > best_need:
-				best_need = need
-				best = st
-		if best != "":
-			taken[best] = true
-		out[str(p.get("slug", ""))] = best
-	return out
+		return {}
+	return CREW_PLACES.places(crew, ROLE_AT, STATIONS, warden_stations(key), func(st: String) -> float: return station_need(key, st))
 
 
-## The stations wardens are at here: this machine's open one and the others' rooms.
+## The stations wardens are at here: this machine's and the others'.
 func warden_stations(key: String) -> Array:
-	var out: Array = []
-	var sv = get_tree().get_first_node_in_group("corn_stand_view") if is_inside_tree() else null
-	if sv != null and is_instance_valid(sv) and str(sv.get("building_key")) == key and sv.has_method("_station_open"):
-		var open := str(sv.call("_station_open"))
-		if open != "":
-			out.append(open)
-	if Coop.is_active():
-		for pid in Coop.others():
-			var room: Dictionary = Coop.state_of(pid).get("room", {})
-			if str(room.get("k", "")) == key and str(room.get("t", "")) == "corn":
-				out.append(str(room.get("w", "")))
-	return out
+	return CREW_PLACES.wardens_at(get_tree(), key, "corn") if is_inside_tree() else []
 
 
 ## How much a station wants doing now (0 nothing).

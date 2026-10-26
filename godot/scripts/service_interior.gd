@@ -2505,8 +2505,10 @@ func _stop_life() -> void:
 	_marks = null
 
 
-## The hands at their jobs in the rooms (scripts/business/crew_figures.gd).
+## The hands at their jobs in the rooms (scripts/business/crew_figures.gd), each where the
+## place has them now (crew_places: beside you, where the work is, while you are at theirs).
 const CREW_FIGURES = preload("res://scripts/business/crew_figures.gd")
+const CREW_PLACES = preload("res://scripts/business/crew_places.gd")
 var _crew: Node3D
 ## Which station each of the bistro's jobs is worked at, and where the hand steps back to
 ## when a warden takes it (behind the warden, out of the camera's way).
@@ -2541,6 +2543,7 @@ func _start_crew() -> void:
 				if root != null:
 					spots[role] = {"root": root, "pos": st["stand"], "station": st_id, "aside": BISTRO_ASIDE.get(st_id, Vector3(0.8, 0, 0.8)), "note": (st["mark"] as Vector3) - Vector3(0, 0.45, 0)}
 			_crew.busy_of = func() -> Array: return [_station_open()] + _bistro_taken().keys()
+			_crew.place_of = _crew_place_of(BISTRO_ROLE_AT)
 		"pub":
 			for role in PUB_ROLE_AT:
 				var pst_id: String = PUB_ROLE_AT[role]
@@ -2550,6 +2553,7 @@ func _start_crew() -> void:
 					spots[role] = {"root": proot, "pos": pst["stand"], "station": pst_id, "aside": PUB_ASIDE.get(pst_id, Vector3(0.6, 0, 0)), "clear_of": PUB_CLEAR_OF.get(pst_id, []), "note": (pst["mark"] as Vector3) - Vector3(0, 0.45, 0)}
 			_crew.busy_of = func() -> Array: return [_station_open()] + _bistro_taken().keys()
 			_crew.open_of = func() -> String: return _station_open()
+			_crew.place_of = _crew_place_of(PUB_ROLE_AT)
 		"vecerka":
 			for role in JEDNOTA_ROLE_AT:
 				var jst_id: String = JEDNOTA_ROLE_AT[role]
@@ -2562,9 +2566,52 @@ func _start_crew() -> void:
 				spots["till2"] = {"root": _vecerka_shop_root, "pos": JEDNOTA_LAYOUT.TILL2_STAND, "station": ""}
 			_crew.busy_of = func() -> Array: return [_station_open()] + _bistro_taken().keys()
 			_crew.open_of = func() -> String: return _station_open()
+			var jobs := JEDNOTA_ROLE_AT.duplicate()
+			jobs["till2"] = "till2"
+			_crew.place_of = _crew_place_of(jobs)
 	_crew.spots = spots
 	add_child(_crew)
 	_crew.refresh()
+
+
+## The place's own records (the kitchen, the taproom, the Jednota).
+func _crew_biz() -> Node:
+	match _current_profile:
+		"rest":
+			return get_tree().get_first_node_in_group("kitchens")
+		"pub":
+			return TAPROOM.of(get_tree())
+		"vecerka":
+			return JEDNOTA.of(get_tree())
+	return null
+
+
+## person -> the place in the rooms (a role of the figures' spots: `role_at` is role ->
+## station, as the place's own ROLE_AT) of the station the place has them at now, "" aside;
+## one it has no word on (the one who worked here before, at night) at their own.
+func _crew_place_of(role_at: Dictionary) -> Callable:
+	var at_role := {}
+	for role in role_at:
+		at_role[str(role_at[role])] = str(role)
+	var key := _upkeep_key
+	return func(p: Dictionary) -> String:
+		var biz := _crew_biz()
+		if biz == null or not is_instance_valid(biz) or not biz.has_method("crew_places"):
+			return str(p.get("role", ""))
+		var places: Dictionary = biz.crew_places(key)
+		var slug := str(p.get("slug", ""))
+		if not places.has(slug):
+			return str(p.get("role", ""))
+		return str(at_role.get(str(places[slug]), ""))
+
+
+## station -> the first name of the hand at it now (the frame's tabs say so).
+func _crew_hands() -> Dictionary:
+	var biz := _crew_biz()
+	if biz == null or _upkeep_key == "" or not biz.has_method("crew_places"):
+		return {}
+	var business := load("res://scripts/business/business_runtime.gd")
+	return CREW_PLACES.names_at(business.crew_now(_upkeep_key), biz.crew_places(_upkeep_key))
 
 
 ## The marks over the places where work waits, for this pub, bistro or Jednota.
@@ -2822,6 +2869,7 @@ func _open_station(id: String) -> void:
 	hud.set("station", st)
 	hud.set("tabs", _room_tabs())
 	hud.set("taken", _bistro_taken())
+	hud.set("hands", _crew_hands())
 	hud.set("view_size", Vector2(_viewport.size))
 	hud.call("clear_say")
 	hud.visible = true
@@ -3231,6 +3279,7 @@ func _bistro_tick(delta: float) -> void:
 			_update_menu_board()
 		if _station_hud != null and is_instance_valid(_station_hud) and _station_hud.visible:
 			_station_hud.set("taken", _bistro_taken())
+			_station_hud.set("hands", _crew_hands())
 	var k = get_tree().get_first_node_in_group("kitchens")
 	if k != null and _upkeep_key != "" and _taken_t == 0.5:
 		# A new ticket clips onto the rail: heard in any room of the bistro.
@@ -3260,6 +3309,7 @@ func _pub_tick(delta: float) -> void:
 	_apply_pub_gear()
 	if _station_hud != null and is_instance_valid(_station_hud) and _station_hud.visible:
 		_station_hud.set("taken", _bistro_taken())
+		_station_hud.set("hands", _crew_hands())
 	var tr = TAPROOM.of(get_tree())
 	if tr == null or _upkeep_key == "":
 		return
@@ -3337,6 +3387,7 @@ func _jednota_tick(delta: float) -> void:
 	_apply_jednota_gear()
 	if _station_hud != null and is_instance_valid(_station_hud) and _station_hud.visible:
 		_station_hud.set("taken", _bistro_taken())
+		_station_hud.set("hands", _crew_hands())
 	var shop = JEDNOTA.of(get_tree())
 	if shop == null or _upkeep_key == "":
 		return
