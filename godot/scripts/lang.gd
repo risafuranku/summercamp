@@ -48,6 +48,8 @@ var _re_wrap: RegEx
 var _re_spec: RegEx
 var _re_forms: RegEx
 var _re_money: RegEx
+var _re_digit: RegEx
+var _re_spec_up: RegEx
 
 ## Crowns to the dollar (1998: a beer 10 Kč, a pack of Start 20 Kč, the electrician 600 Kč).
 const CROWNS_PER_DOLLAR := 10
@@ -93,6 +95,33 @@ static func is_czech() -> bool:
 ## Translated outside a Node (static code): the same lookup as tr().
 static func t(text: String) -> String:
 	return TranslationServer.translate(text)
+
+
+## A format string translated and filled: f("%d night%s, $%d paid", [n, s, paid]). Drawn
+## text wants this, not tr(text) % vals: a lookup picks the translation's forms
+## ({noc|noci|nocí}) before the numbers are in, and a slot the code fills with an English
+## ending ({noc|noci|nocí|%s}: a fourth form never chosen) would be gone before the
+## values come. Here the values go in first, then the forms are chosen by them.
+static func f(text: String, vals = []) -> String:
+	var args: Array = vals if vals is Array else [vals]
+	var raw := ""
+	if current != "en":
+		_ensure()
+		raw = _cs._raw(text)
+	if raw == "":
+		var plain := text % args if not args.is_empty() else text
+		return TranslationServer.translate(plain) if current != "en" else plain
+	# Each value written as the English asks (%02d, %.1f), then put in as a filled lookup
+	# does: in order or by {k}, what the Czech leaves out left out.
+	var strs: Array[String] = []
+	for m in _cs._re_spec.search_all(text):
+		if m.get_string(1) == "%":
+			continue
+		if strs.size() >= args.size():
+			break
+		strs.append(("%" + m.get_string(1)) % args[strs.size()])
+	var out: String = _cs._fill(raw, strs)
+	return _cs.crowns(out) if out.contains("$") else out
 
 
 ## A count with its noun: t_n(3, "%d guest", "%d guests") -> "3 hosté". The catalogue
@@ -164,6 +193,8 @@ func _init() -> void:
 	_re_spec = RegEx.create_from_string("%(%|[-+ 0]*[0-9]*(?:\\.[0-9]+)?[dsfxXc])")
 	_re_forms = RegEx.create_from_string("\\{([^{}|]*\\|[^{}]*)\\}")
 	_re_money = RegEx.create_from_string("\\$ ?((?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.[0-9]+)?)(?:-([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+))?")
+	_re_digit = RegEx.create_from_string("[0-9]")
+	_re_spec_up = RegEx.create_from_string("%[-+ 0]*[0-9]*(?:\\.[0-9]+)?[SDF]")
 
 
 func _read(path: String) -> void:
@@ -217,7 +248,7 @@ func _take(e: Dictionary) -> void:
 	_exact[id] = to
 	var up := id.to_upper()
 	if up != id and not _upper.has(up):
-		_upper[up] = to.to_upper()
+		_upper[up] = _to_upper(to)
 	if _re_spec.search(id) != null:
 		_add_template(id, to)
 
@@ -268,7 +299,7 @@ func _add_template(id: String, to: String) -> void:
 	if up != id:
 		var re_up := RegEx.create_from_string(_upper_pattern(pattern))
 		if re_up.is_valid():
-			_templates.append({"re": re_up, "lit": lit.to_upper(), "to": to.to_upper(), "specs": specs, "upper": true})
+			_templates.append({"re": re_up, "lit": lit.to_upper(), "to": _to_upper(to), "specs": specs, "upper": true})
 
 
 func _upper_pattern(pattern: String) -> String:
@@ -291,6 +322,15 @@ func _upper_pattern(pattern: String) -> String:
 	return out
 
 
+## A translation upper-cased for an UPPER-CASE msgid, its workings kept: the values'
+## places (%s, not %S), the forms' {g:...} and the {k} (an upper %S showed raw: "STAN %S").
+func _to_upper(to: String) -> String:
+	var out := to.to_upper()
+	for m in _re_spec_up.search_all(out):
+		out = out.replace(m.get_string(0), m.get_string(0).to_lower())
+	return out.replace("{G:", "{g:")
+
+
 func _escape(s: String) -> String:
 	var out := ""
 	for c in s:
@@ -311,8 +351,14 @@ func _letter_count(s: String) -> int:
 
 # ── the lookup ─────────────────────────────────────────────────────────────────
 
-func _get_message(src_message: StringName, _context: StringName) -> StringName:
+func _get_message(src_message: StringName, context: StringName) -> StringName:
 	var s := String(src_message)
+	# tr(text, context): a word that means another thing there ("CLEAR" the sky's, the
+	# risk's, a till's button), the catalogue's "context|text" first.
+	if context != &"":
+		var in_context = _exact.get(String(context) + "|" + s)
+		if in_context != null:
+			return StringName(_forms(in_context, []))
 	var hit = _memo.get(s)
 	if hit == null:
 		hit = _find(s, true)
@@ -341,6 +387,14 @@ static func _form_index(n: int) -> int:
 	return 0 if n == 1 else 1 if n >= 2 and n <= 4 else 2
 
 
+## The translation of the msgid `s` as the catalogue has it (its forms not chosen yet), or "".
+func _raw(s: String) -> String:
+	var to = _exact.get(s)
+	if to == null:
+		to = _upper.get(s)
+	return str(to) if to != null else ""
+
+
 ## The translation of `s`, or "".
 func _find(s: String, deep: bool) -> String:
 	if s.strip_edges() == "":
@@ -351,12 +405,24 @@ func _find(s: String, deep: bool) -> String:
 	to = _upper.get(s)
 	if to != null:
 		return _forms(to, [])
+	# A word the code lower-cased for the middle of a sentence ("rolls", "the pub"): its
+	# msgid as it is written, answered lower-case too.
+	if s.length() > 1 and s == s.to_lower() and s[0] != s[0].to_upper():
+		var cap = _exact.get(s[0].to_upper() + s.substr(1))
+		if cap != null:
+			var low := _forms(cap, [])
+			return low[0].to_lower() + low.substr(1) if low != "" else ""
 	# Wrapped in what is not a word.
 	var m := _re_wrap.search(s)
 	if m != null and (m.get_string(1) != "" or m.get_string(3) != "") and m.get_string(2) != "":
 		var core := _find(m.get_string(2), deep)
 		if core != "":
 			return m.get_string(1) + core + m.get_string(3)
+		# A sentence keeps its full stop in the catalogue ("> The envelope icon on the desktop.").
+		if m.get_string(1) != "" and m.get_string(3) != "":
+			core = _find(m.get_string(2) + m.get_string(3), deep)
+			if core != "":
+				return m.get_string(1) + core
 	if deep:
 		var t := _from_template(s)
 		if t != "":
@@ -390,7 +456,8 @@ func _from_template(s: String) -> String:
 		for k in specs.size():
 			var v := m.get_string(k + 1)
 			if str(specs[k]).right(1) == "s":
-				var tv := _find(v, false)
+				# A count filled in as text ("3 guests") is a template of its own.
+				var tv := _find(v, v != s and _re_digit.search(v) != null)
 				if tv != "":
 					v = tv.to_upper() if bool(e["upper"]) else tv
 			vals.append(v)
@@ -426,7 +493,11 @@ func _forms(text: String, _vals: Array) -> String:
 	for m in _re_forms.search_all(text):
 		var body := m.get_string(1)
 		out += text.substr(at, m.get_start() - at)
-		if body.begins_with("g:"):
+		var first := body.get_slice("|", 0)
+		if not body.begins_with("g:") and (first.contains(".") or first.contains("/") or first.contains(":")):
+			# A web page's link ({bohemia-online.cz|Bohemia Online}), not forms.
+			out += m.get_string(0)
+		elif body.begins_with("g:"):
 			var g := body.substr(2).split("|")
 			out += g[1] if feminine and g.size() > 1 else g[0]
 		else:

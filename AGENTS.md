@@ -856,8 +856,11 @@ game in Czech; from now on everything we make, in English and Czech".
   as is, `cs.po.import` = keep) and answers every lookup the engine makes: Controls,
   Label3D and RichTextLabel translate their own text, so most code needs no change. The
   lookup also answers an UPPER-CASE copy of a msgid (menus upper-case their rows), a
-  formatted one ("3 CAMPS" from the msgid "%d CAMPS": the values carried over, a %s value
-  looked up itself), a line wrapped in non-words ("<  Plum  >") and text line by line.
+  lower-case one ("rolls" for the msgid "Rolls": a word the code lower-cased for the middle
+  of a sentence), a formatted one ("3 CAMPS" from the msgid "%d CAMPS": the values carried
+  over, a %s value looked up itself, "3 guests" in it too), a line wrapped in non-words
+  ("<  Plum  >") and text line by line. A web page's link `{site.cz|Label}` is not taken
+  for forms (a first part with `.`, `/` or `:`).
 - **The language is the warden's**: `profiles.gd` "lang" ("en"/"cs"), the flags on the
   WARDEN page (a new warden starts on them; the system's language is the default),
   `LANG.apply()` when a warden is chosen. `-- --lang=cs` on the command line overrides it
@@ -867,7 +870,14 @@ game in Czech; from now on everything we make, in English and Czech".
     engine: pass `tr(text)` (in static code `LANG.t(text)`). Translate *before*
     `to_upper()`, padding, measuring or cutting it.
   - Text put together from pieces ("Hello " + name) is never found: write it as one
-    format string, `tr("Hello %s") % name`.
+    format string. Drawn: `LANG.f("Hello %s", [name])` (26. 10.), not `tr(fmt) % vals`:
+    a lookup chooses a translation's `{a|b|c}` forms before the numbers are in (always
+    the 5+ form), and a translation may leave out a `%s` the code fills with an English
+    ending (`"%d bill%s"` -> `"%d {účet|účty|účtů}"`, or `{noc|noci|nocí|%s}`: a fourth
+    form never chosen) or put the values in by `{k}`; `LANG.f` writes each value as the
+    English asks, fills them in as a formatted lookup does and then chooses the forms.
+    Text set on a Label/Button is translated by the engine after it is filled (the same
+    filling), so `label.text = fmt % vals` is fine there.
   - A count with a noun: `LANG.t_n(n, "%d guest", "%d guests")` (Czech has three forms:
     1, 2-4, 5+), or in the translation `{host|hosté|hostů}` after the number.
   - Czech past tense has a gender: `{g:zemřel|zemřela}` in a translation takes the warden

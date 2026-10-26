@@ -100,18 +100,31 @@ func _catalogue() -> void:
 		var to: String = t._exact[id]
 		var a := _kinds(spec, id)
 		var b := _kinds(spec, to)
-		var ok := a == b
+		var ok := a == b or _drops_only_text(a, b)
 		if to.contains("{0}"):
-			# by index: each value once as {k}, no % left over
+			# by index: each value once as {k}, no % left over (a text value the code fills
+			# with an English ending may be left out, as in order)
 			ok = b.is_empty()
 			for k in a.size():
-				ok = ok and to.contains("{%d}" % k)
+				ok = ok and (to.contains("{%d}" % k) or a[k] == "s")
 		if not ok:
 			bad += 1
 			if bad <= 20:
 				print("FAIL values differ: %s -> %s" % [JSON.stringify(id), JSON.stringify(to)])
 	_fails += bad
 	print("catalogue: %d translations, %d templates, %d plurals" % [t._exact.size(), t._templates.size(), t._plural.size()])
+
+
+## The translation keeps the values in order but leaves out some %s (the English endings
+## the code fills in, "%d bill%s": the lookup's filling drops what is left over).
+func _drops_only_text(a: Array, b: Array) -> bool:
+	var i := 0
+	for k in a:
+		if i < b.size() and b[i] == k:
+			i += 1
+		elif k != "s":
+			return false
+	return i == b.size()
 
 
 func _kinds(spec: RegEx, s: String) -> Array:
