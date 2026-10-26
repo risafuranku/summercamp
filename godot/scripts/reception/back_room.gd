@@ -20,15 +20,18 @@ const SFX := "res://assets/sfx/backroom/"
 const TESTCARD := "res://assets/textury/camp/tv_testcard.png"
 const PROGRAMME := "res://assets/textury/camp/tv_programme.png"
 
-## The room: x from -5.6 to -2.6, z from -0.2 to 2.6 (the office's left wall is x -2.55).
-const CENTRE := Vector3(-4.1, 0.05, 1.2)
-const SIZE := Vector3(3.0, 2.5, 2.8)
+## The room: x from -5.6 to -2.6, z from -2.6 to 2.6, the whole side of the building
+## (the office's left wall is x -2.55; ReceptionLayout.BACK_Z). The bed with its
+## nightstand and the wardrobe at the front end under the window, the set, the drawers,
+## the coats and the books at the back, the floor between them where the door comes in.
+const CENTRE := Vector3(-4.1, 0.05, 0.0)
+const SIZE := Vector3(3.0, 2.5, 5.2)
 const DOOR_Z := 1.28
 ## Where you stand just inside the door, and the view from there (toward the bed).
 const STAND := Vector3(-3.15, 1.48, 1.32)
-const BED := Vector3(-5.1, 0.05, 0.85)
+const BED := Vector3(-5.1, 0.05, -1.55)
 const TV := Vector3(-5.0, 0.81, 2.36)
-const CLOCK := Vector3(-4.38, 0.61, -0.02)
+const CLOCK := Vector3(-4.38, 0.61, -2.42)
 
 var root: Node3D
 ## The window over the bed (out onto the gate lane): its view quad, its velvet drapes.
@@ -90,8 +93,8 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	K.prop(root, "pillow", BED + o + Vector3(0, 0.55, -0.72))
 	K.slab(root, Vector3(0.86, 0.06, 1.25), BED + o + Vector3(0, 0.57, 0.28), K.surface("blanket_check", 0.6), "Blanket")
 	K.slab(root, Vector3(0.05, 0.36, 1.25), BED + o + Vector3(-0.44, 0.42, 0.28), K.surface("blanket_check", 0.6), "BlanketSide")
-	K.prop(root, "nightstand", Vector3(-4.38, 0.05, -0.02) + o, 0.0)
-	_prop("lamp", "lantern", Vector3(-4.24, 0.6, -0.08) + o, 0.0)
+	K.prop(root, "nightstand", Vector3(-4.38, 0.05, -2.42) + o, 0.0)
+	_prop("lamp", "lantern", Vector3(-4.24, 0.6, -2.48) + o, 0.0)
 	_prop("tv", "tv_small", TV + o, 180.0)
 	K.prop(root, "dresser", Vector3(-5.0, 0.05, 2.36) + o, 180.0)
 	# The camp's megaphone on the floor by the chest of drawers (take it: the bag).
@@ -108,7 +111,7 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 		mbody.position = megaphone.position + Vector3(0, 0.21, 0)
 		root.add_child(mbody)
 		hot["megaphone"] = {"body": mbody, "meshes": [megaphone]}
-	K.prop(root, "wardrobe", Vector3(-3.15, 0.05, 0.12) + o, 0.0)
+	K.prop(root, "wardrobe", Vector3(-3.15, 0.05, -2.28) + o, 0.0)
 	K.prop(root, "coat_hooks", Vector3(-2.66, 1.55, 2.2) + o, -90.0)
 	K.cutout(root, "coat_hook", Vector2(0.42, 0.62), Vector3(-2.64, 0.86, 2.2) + o, -90.0, false, "Coat")
 	# The chair with yesterday's clothes thrown over it (a Grok sprite, turned to you).
@@ -116,10 +119,10 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	K.picture(root, "picture_deer", Vector2(0.36, 0.48), Vector3(-5.0, 1.62, 2.54) + o, 180.0, "BackPicture")
 	# Lived in: Vera and Karel at the lake over the nightstand, the shelf of old books,
 	# the slippers by the bed, the light on the ceiling.
-	K.picture(root, "photo_family", Vector2(0.3, 0.4), Vector3(-4.42, 1.44, -0.188) + o, 0.0, "FamilyPhoto")
+	K.picture(root, "photo_family", Vector2(0.3, 0.4), Vector3(-4.42, 1.44, -2.588) + o, 0.0, "FamilyPhoto")
 	K.slab(root, Vector3(0.64, 0.64, 0.1), Vector3(-3.95, 1.56, 2.55) + o, K.surface("planks_dark", 0.5), "BookShelfBack")
 	K.picture(root, "bookshelf", Vector2(0.62, 0.62), Vector3(-3.95, 1.56, 2.498) + o, 180.0, "BookShelf")
-	_flat("slippers", Vector2(0.36, 0.36), Vector3(-4.48, 0.008, 1.5) + o, false, "Slippers")
+	_flat("slippers", Vector2(0.36, 0.36), Vector3(-4.48, 0.008, -0.9) + o, false, "Slippers")
 	_ceiling_lamp = _flat("ceiling_lamp", Vector2(0.38, 0.38), Vector3(0.0, SIZE.y - 0.005, 0.0), true, "CeilingLamp")
 
 	_build_tv_screen()
@@ -130,14 +133,14 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	lamp.light_energy = 0.9
 	lamp.omni_range = 3.6
 	lamp.omni_attenuation = 1.3
-	lamp.position = Vector3(-4.24, 0.95, -0.02) + o
+	lamp.position = Vector3(-4.24, 0.95, -2.42) + o
 	lamp.shadow_enabled = true
 	root.add_child(lamp)
 	bulb = OmniLight3D.new()
 	bulb.light_color = Color(0.95, 0.88, 0.7)
 	bulb.light_energy = 0.35
 	bulb.omni_range = 4.2
-	bulb.position = Vector3(-4.1, 2.3, 1.2) + o
+	bulb.position = Vector3(-4.1, 2.3, 0.0) + o
 	root.add_child(bulb)
 	tv_light = OmniLight3D.new()
 	tv_light.light_color = Color(0.62, 0.72, 1.0)

@@ -94,7 +94,8 @@ var sleep
 ## A whole turn (playtest 2026-10-17): the doorway back to the office is behind you.
 var look_back = INTERIOR_LOOK.new(180.0, 26.0, 38.0)
 var look_store = INTERIOR_LOOK.new(175.0, 28.0, 40.0)
-var back_base_rot := Vector3(deg_to_rad(-11.0), deg_to_rad(101.0), 0.0)
+## Toward the bed and its window at the front end, the room's length beside it.
+var back_base_rot := Vector3(deg_to_rad(-11.0), deg_to_rad(52.0), 0.0)
 
 var _door_pivot: Node3D
 var _store_pivot: Node3D

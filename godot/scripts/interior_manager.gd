@@ -1840,7 +1840,7 @@ const COOP_DESK_SPOT := Vector3(1.15, 0.84, 0.74)
 const COOP_BOARD_SPOT := Vector3(1.98, 0.0, -0.45)
 const COOP_PHONE_SPOT := Vector3(1.42, 0.0, 0.8)
 ## The back room's bed (back_room.BED), the mattress's top.
-const COOP_BED := Vector3(-5.1, 0.5, 0.85)
+const COOP_BED := Vector3(-5.1, 0.5, -1.55)
 ## From the office's own spot to the doorway and through it (the floor under the camera's
 ## way in reception_extras.go_back_room / go_store), to the room's spot.
 const COOP_OFFICE_WAYS := {

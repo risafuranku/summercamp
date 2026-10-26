@@ -16,10 +16,10 @@ extends RefCounted
 ##
 ##          local -X (west)                                   local +X (east, the gate lane)
 ##   +--------------------------------------+---------------------------+
-##   |  office 5 x 5            |  back room 3 x 2.8 (bed under the     |
-##   |  keys  counter   PC      |  east window)                         |
-##   |                          +---------------------------------------+
-##   +--[door]-------[window]---+-------------------------------------- +   front +Z
+##   |  office 5 x 5            |  back room 3 x 5.2, the whole side of |
+##   |  keys  counter   PC      |  the building (the bed under the east |
+##   |                          |  window at its front end)             |
+##   +--[door]-------[window]---+---------------------------------------+   front +Z
 ##
 ## Behind the office (room +Z, the building's back) a lean-to store of rough boards
 ## under its own tin roof, through the door in the office's back wall: the linen, the
@@ -30,7 +30,9 @@ extends RefCounted
 const OFFICE_X := Vector2(-2.6, 2.6)
 const OFFICE_Z := Vector2(-2.6, 2.6)
 const BACK_X := Vector2(-5.65, -2.6)
-const BACK_Z := Vector2(-0.25, 2.65)
+## (The back room takes the whole side: it was 2.9 m of it and the rest of the building
+## was walls round nothing, playtest 25. 10.: "a phantom space, the room is small".)
+const BACK_Z := Vector2(-2.6, 2.65)
 const WALL_H := 3.0
 const ROOF_RISE := 1.35
 
@@ -41,7 +43,7 @@ const OFFICE_WINDOW_CENTER := Vector3(-0.4, 1.68, -2.51)
 const OFFICE_WINDOW_SIZE := Vector2(1.86, 1.38)
 ## The back room's window: in its far wall (room x -5.6), over the bed, looking out over
 ## the gate lane toward the barrier.
-const BACK_WINDOW_CENTER := Vector3(-5.6, 1.42, 0.86)
+const BACK_WINDOW_CENTER := Vector3(-5.6, 1.42, -1.54)
 const BACK_WINDOW_SIZE := Vector2(0.96, 0.86)   # along z, height
 
 ## The store behind the office: the door in the back wall (x, the opening's width), the

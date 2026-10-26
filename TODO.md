@@ -46,7 +46,7 @@
 - [x] R38 „velký cumulative layout shift při otevírání stavebních toolbarů v Builderu“
 - [x] R39 „neuklizený nebo neustlaný stan, chatku atd. ukazuj jako notifikaci s ikonou vpravo“
 - [x] R40 „animace odemknutí nových věcí v Builderu a pár náhledů těch nejlepších, ať hráč ví, že dosáhl achievementu“ (NEW BLUEPRINTS window with the three best of the tier coming up one after another; padlocks drop off their cards, NEW sticker till first picked; the tier's paper shows its best building)
-- [ ] R41 „recepce nedává smysl perspektivně: okno pokojíčku a pokojíček nesedí s interiérem, je to malé, vzniká phantom prostor“
+- [x] R41 „recepce nedává smysl perspektivně: okno pokojíčku a pokojíček nesedí s interiérem, je to malé, vzniká phantom prostor“ (the building's left side was walls round 2.4 m of nothing: the back room takes the whole side now, 3 x 5.2 m, the bed and its window at the front end, the set and the drawers at the back. The Builder's pictures of the reception still have the side window where it was)
 - [x] R42 „i když zhasnu všechna světla, pořád je světelný kruh kolem zářivky na stropě a není tma; přes den je tam málo světla. Pořádně oprav světlo na recepci“ (repeated: verify with measured pixel values, lights off / on, day / night)
 - [x] R43 „v sewers se lze v zatáčce otočit za sebe, to je špatně“
 - [x] R44 „v sewers jde slyšet ambience zvenčí“
