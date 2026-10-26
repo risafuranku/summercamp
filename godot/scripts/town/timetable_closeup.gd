@@ -10,6 +10,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## ways) differ; somebody has ringed the last bus in red marker. The strip under says it
 ## in English.
 
+const LANG := preload("res://scripts/lang.gd")
 const TIMES = preload("res://scripts/town/bus_timetable.gd")
 const PIC := "res://assets/textury/town/closeup_timetable.png"
 const SFX_TAP := "res://assets/sfx/rednecksfx/rrtick.wav"
@@ -43,7 +44,7 @@ func _opened() -> void:
 		var times: Array = []
 		for t in col["times"]:
 			times.append(TIMES.hm(float(t)))
-		said.append("%s %s" % [col["en"], ", ".join(times)])
+		said.append("%s %s" % [tr(str(col["en"])), ", ".join(times)])
 	if sh.has("also"):
 		said.append(str(sh["also"]))
 	say("", "Your watch: %s. Line 380 %s." % [TIMES.hm(h), "; ".join(said)], false)
@@ -77,7 +78,7 @@ func _sheet() -> Dictionary:
 				"stops": [[-1, "Lstiboř", false], [0, "Liblice", false], [down_prist, "Přistoupim,rozc.", true],
 					[ride, "Černé jezero,kemp", false]],
 				"notes": small + ["Směr Lstiboř:"] + _pairs(TIMES.TOWN_THROUGH),
-				"also": "to Lstibor %s" % ", ".join(TIMES.TOWN_THROUGH.map(func(t): return TIMES.hm(float(t))))}
+				"also": LANG.f("to Lstibor %s", ", ".join(TIMES.TOWN_THROUGH.map(func(t): return TIMES.hm(float(t)))))}
 	return {"name": "Černé jezero, kemp", "towards": "Přistoupim, Liblice",
 		"cols": [{"head": ["Pracovní", "dny"], "en": "to Liblice", "times": TIMES.CAMP_LEAVE},
 			{"head": ["Sobota,", "neděle"], "en": "", "times": TIMES.CAMP_LEAVE}],

@@ -22875,8 +22875,14 @@ msgid "PAIRS %d / %d     TURNS %d     BEST %s"
 msgstr "PÁRY %d / %d     TAHY %d     REKORD %s"
 
 #: scripts/os98/apps/games_app.gd:31
-msgid "Best: %d%s, %s"
-msgstr "Rekord: %d%s, %s"
+msgid "Best: %d s, %s"
+msgstr "Rekord: %d s, %s"
+
+msgid "Best: %d turns, %s"
+msgstr "Rekord: %d {tah|tahy|tahů}, %s"
+
+msgid "Best: %d, %s"
+msgstr "Rekord: %d, %s"
 
 #: scripts/os98/apps/games_app.gd:37
 msgid "KOMAR 98  -  shareware"

@@ -27,8 +27,8 @@ func _card_status(id: String) -> String:
 	var rows: Array = _shell.scores(id)
 	if rows.is_empty():
 		return ""
-	var unit := {"mines": " s", "pexeso": " turns"}.get(id, "") as String
-	return "Best: %d%s, %s" % [int(rows[0][1]), unit, str(rows[0][0])]
+	var fmt := {"mines": "Best: %d s, %s", "pexeso": "Best: %d turns, %s"}.get(id, "Best: %d, %s") as String
+	return fmt % [int(rows[0][1]), str(rows[0][0])]
 
 
 func _cover_lines(id: String) -> Array:

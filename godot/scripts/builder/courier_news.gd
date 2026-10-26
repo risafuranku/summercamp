@@ -64,7 +64,14 @@ func _news(out: Array, id: String, n: int, story := "", stars := "") -> void:
 	fired.append(id)
 	var s: Array = STORIES[story if story != "" else id]
 	var num := stars if stars != "" else str(n)
-	out.append({"kind": "news", "id": id, "title": str(s[0]).replace("{n}", num), "text": str(s[1]).replace("{n}", num)})
+	# The English with {n} kept and the number beside it: translated first, filled after
+	# (part()), so the Czech has the whole sentence to find.
+	out.append({"kind": "news", "id": id, "title": str(s[0]), "text": str(s[1]), "n": num})
+
+
+## An item's title or text in the player's language, its number filled in.
+static func part(item: Dictionary, key: String) -> String:
+	return TranslationServer.translate(str(item.get(key, ""))).replace("{n}", str(item.get("n", "")))
 
 
 func _diploma(out: Array, id: String) -> void:

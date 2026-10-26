@@ -7,6 +7,7 @@ extends Control
 ## away (the next one, if there is one, comes up).
 
 const T = preload("res://scripts/os98/os_theme.gd")
+const COURIER = preload("res://scripts/builder/courier_news.gd")
 const DIPLOMA := "res://assets/textury/builder/diploma.png"
 const INK := Color8(24, 22, 20)
 const PAPER := Color8(240, 234, 214)
@@ -57,7 +58,7 @@ func _draw_news() -> void:
 	draw_string(T.FONT, Vector2(s.x - 12 - T.FONT.get_string_size(ex, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x, 50), ex, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, INK)
 	draw_rect(Rect2(10, 54, s.x - 20, 2), INK)
 	var y := 74.0
-	for l in _wrap(tr(str(item.get("title", ""))), T.FONT_BOLD, 16, s.x - 24):
+	for l in _wrap(COURIER.part(item, "title"), T.FONT_BOLD, 16, s.x - 24):
 		_center(T.FONT_BOLD, l, 16, y)
 		y += 18.0
 	y += 4.0
@@ -70,7 +71,7 @@ func _draw_news() -> void:
 		draw_texture_rect(_halftone, Rect2(pic.position + ((pic.size - d) * 0.5).floor(), d), false)
 	draw_rect(pic, INK, false, 1.0)
 	var ty := y + 10.0
-	for l in _wrap(tr(str(item.get("text", ""))), T.FONT, T.FONT_SIZE, s.x - 160):
+	for l in _wrap(COURIER.part(item, "text"), T.FONT, T.FONT_SIZE, s.x - 160):
 		draw_string(T.FONT, Vector2(142, ty), l, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, INK)
 		ty += 13.0
 
@@ -86,7 +87,7 @@ func _draw_diploma() -> void:
 	var y := 70.0
 	_center(T.FONT_BOLD, tr("DIPLOMA"), 24, y)
 	y += 34.0
-	for l in _wrap(tr(str(item.get("title", ""))), T.FONT_BOLD, 14, s.x - 60):
+	for l in _wrap(COURIER.part(item, "title"), T.FONT_BOLD, 14, s.x - 60):
 		_center(T.FONT_BOLD, l, 14, y)
 		y += 17.0
 	y += 10.0
@@ -94,7 +95,7 @@ func _draw_diploma() -> void:
 	y += 18.0
 	_center(T.FONT_BOLD, _camp_title(), 14, y)
 	y += 22.0
-	for l in _wrap(tr(str(item.get("text", ""))), T.FONT, 12, s.x - 70):
+	for l in _wrap(COURIER.part(item, "text"), T.FONT, 12, s.x - 70):
 		_center(T.FONT, l, 12, y)
 		y += 14.0
 	_center(T.FONT, tr("District Office Pelhrimov"), 10, s.y - 64)

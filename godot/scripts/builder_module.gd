@@ -2202,7 +2202,7 @@ func _show_news(item: Dictionary) -> void:
 			pic = _item_icon(str(NEWS_PICTURES[key]))
 	if _ticker != null:
 		var diploma := str(item.get("kind", "")) == "diploma"
-		_ticker.add(LANG.f("Your camp won a diploma: %s." if diploma else "Hlubocany Courier: %s", tr(str(item.get("title", ""))).rstrip(".")), "medal" if diploma else "cabin")
+		_ticker.add(LANG.f("Your camp won a diploma: %s." if diploma else "Hlubocany Courier: %s", load("res://scripts/builder/courier_news.gd").part(item, "title").rstrip(".")), "medal" if diploma else "cabin")
 	_news_open = load("res://scripts/builder/news_paper.gd").new()
 	_news_open.setup(item, pic)
 	add_child(_news_open)

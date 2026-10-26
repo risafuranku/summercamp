@@ -417,7 +417,7 @@ func _draw_card(c: Control, g, e: Dictionary, r: Rect2, day: int) -> void:
 	_draw_stars(c, Vector2(tx, y + 16), float(e["stars"]), 11)
 	_text(c, T.FONT, Vector2(tx + 64, y + 26), _when(int(e["day"]), day) + (tr("  (edited)") if bool(e.get("edited", false)) and str(e["text"]).contains("EDIT:") else ""), GREY)
 	var ty := y + 42.0
-	var lines := _wrap(tr(str(e["text"])), r.size.x - 40.0)
+	var lines := _wrap(_review_text(str(e["text"])), r.size.x - 40.0)
 	if lines.size() > 3:
 		# Longer than the card: cut on the third line, as the page does.
 		lines = lines.slice(0, 3)
@@ -627,3 +627,12 @@ func _face(arch: String) -> Texture2D:
 		tex = ImageTexture.create_from_image(bg)
 	_faces[key] = tex
 	return tex
+
+
+## A review in the player's language: an apology's EDIT (goggle.gd) added to the end of
+## its text, each half translated on its own.
+func _review_text(text: String) -> String:
+	var at := text.find(" EDIT: ")
+	if at < 0:
+		return tr(text)
+	return tr(text.substr(0, at)) + tr(text.substr(at))

@@ -298,11 +298,11 @@ How it works: AGENTS.md §8. Left: `python tools/i18n/extract.py --stats` / `--t
   events, night jobs, the director's log, Vera's checklist, the businesses and their
   stations, Papa's slip, the Z report
 - [x] Liblice, the bus (the driver is already Czech), Pristoupim, the phone book
-- [ ] Text put together from pieces in code: find them in Czech shots, make them one
-  format string (left 26. 10.: service_interior's room sentence "Look at the " + name and
-  "Use %s"; games_app/jobs_app card status; courier_news fills {n} before the paper; the
-  clock's "precisely"; town_trip's "to Liblice 5:30"; Goggle's " EDIT:" appended; the
-  DataPunch/register hand font has no Czech accents)
+- [x] Text put together from pieces in code (26. 10.): the businesses' "Look at" names
+  by a look| context, games_app's best per unit, courier_news filled after tr
+  (`courier_news.part`), Goggle's EDIT translated as its own half, the timetable's
+  "to Liblice" before the times; the clock's "precisely" and the jobs' cards already
+  went whole; every bitmap font has the Czech letters
 - [ ] Pictures with words (signs, posters, the web's pictures, the Builder's splash) and
   English voices (the phone, the electrician): Czech versions through locale remaps
 - [x] Money in Czech: crowns (the user, 21. 10.), $1 = 10 Kč in `lang.gd` (`crowns()`,
