@@ -259,6 +259,27 @@ func _start_crew(r: Node3D, key: String) -> void:
 	_crew.set("spots", spots)
 	_crew.set("busy_of", _busy)
 	r.add_child(_crew)
+	# Served over the counter (by a hand or by you): the hand's lean and the cob (or the
+	# cup) going over to the first in the line, on every machine (cornstand.handed).
+	var cs := get_tree().get_first_node_in_group("cornstands") if is_inside_tree() else null
+	if cs != null and cs.has_signal("handed") and not cs.is_connected("handed", _on_handed):
+		cs.connect("handed", _on_handed)
+
+
+const SERVED_COB := "res://assets/textury/corn/cob_napkin.png"
+const SERVED_CUP := "res://assets/textury/corn/cup_tea.png"
+
+
+func _on_handed(key: String, tid: String, _rec: Dictionary) -> void:
+	if key != _key or _crew == null or not is_instance_valid(_crew):
+		return
+	var drink := tid.ends_with(":d")
+	var tex_path := SERVED_CUP if drink else SERVED_COB
+	var thing: Texture2D = load(tex_path) if ResourceLoader.exists(tex_path) else null
+	var h := 0.12 if drink else 0.22
+	if drink and _crew.hand_over("drinks", thing, QUEUE[0], h):
+		return
+	_crew.hand_over("counter", thing, QUEUE[0], h)
 
 
 ## The stand's stations somebody is at: here, or another warden (their room's job).

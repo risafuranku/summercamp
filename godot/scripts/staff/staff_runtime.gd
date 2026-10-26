@@ -211,6 +211,19 @@ func _path(a: Vector3, b: Vector3) -> PackedVector3Array:
 	return out
 
 
+## The way between two places in the camp, for others who walk it as the hands do (the
+## businesses' hands to and from the bus: scripts/business/hands_commute.gd).
+func way(a: Vector3, b: Vector3) -> PackedVector3Array:
+	if not _nav_ok:
+		_rebuild_nav()
+	return _path(a, b)
+
+
+## The road outside the barrier, where the hands come in from (world, on the ground).
+func road_spot() -> Vector3:
+	return _gate()
+
+
 static func _length(path: PackedVector3Array) -> float:
 	var d := 0.0
 	for i in range(1, path.size()):

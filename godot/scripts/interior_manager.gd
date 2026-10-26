@@ -25,6 +25,9 @@ const BUSINESS_RUNTIME = preload("res://scripts/business/business_runtime.gd")
 var business: Node
 ## The staffroom's hands at work (scripts/staff/staff_runtime.gd).
 const STAFF_RUNTIME = preload("res://scripts/staff/staff_runtime.gd")
+## The businesses' hands to work by the morning bus and home through the gate.
+const HANDS_COMMUTE = preload("res://scripts/business/hands_commute.gd")
+var _hands_commute: Node
 var staff: Node
 ## Autumn leaves blown about in the wind (scripts/ambient/wind_life.gd).
 const WIND_LIFE_SCRIPT = preload("res://scripts/ambient/wind_life.gd")
@@ -203,6 +206,10 @@ func setup(
 		staff = STAFF_RUNTIME.new()
 		staff.name = "StaffRuntime"
 		add_child(staff)
+	if _hands_commute == null:
+		_hands_commute = HANDS_COMMUTE.new()
+		_hands_commute.name = "HandsCommute"
+		add_child(_hands_commute)
 	if lodge_bed == null:
 		lodge_bed = LODGE_BED.new()
 		lodge_bed.name = "LodgeBed"

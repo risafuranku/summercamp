@@ -1116,7 +1116,14 @@ the stations in 3D, like the bistro's and the pub's.*
 - **The hands at the stand**: the husk's takes cobs from the crate and husks them into the
   bowl (one dropped now and then), the counter's puts them in the pot as wanted, takes a
   done one out, butters it and salts it to the order (the salt off now and then) and hands
-  it over; a soft one they throw away.
+  it over; a soft one they throw away. Handing over is seen (playtest 25. 10.): the hand
+  leans in over the counter and the cob (or the cup) goes over to the first in the line in
+  steps, twelve a second (`crew_figures.hand_over`, on `cornstand.handed`, every machine).
+- **The hands come and go** (all the businesses', playtest 25. 10.): after the night they
+  come up from the stop on the road outside the barrier and walk to their place (a door:
+  in and gone; the stand: they wait behind the counter till seven), and when their shift
+  is over they walk out through the gate to the road (`scripts/business/hands_commute.gd`,
+  drawn from the clock and the books on every machine, the staffroom hands' way).
 - **For four**: one warden a station (the other gets the husking: "Jana is at the
   counter"); the pot, the bowl and what was served are ops every machine applies
   (`scripts/corn/cornstand.gd`, `Coop.send_place`).

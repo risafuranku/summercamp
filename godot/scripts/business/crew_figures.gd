@@ -46,6 +46,7 @@ static func tex(name: String) -> Texture2D:
 
 
 func _process(delta: float) -> void:
+	_tick_hand_overs(delta)
 	# The picture for where you look from, twelve times a second (the room's camera moves).
 	_view_acc += delta
 	if _view_acc >= 1.0 / 12.0:
@@ -94,14 +95,20 @@ func refresh() -> void:
 		var pos: Vector3 = spot["pos"]
 		if aside:
 			pos += (spot.get("aside", Vector3(0.7, 0, 0.4)) as Vector3)
-		fig.position = pos
+		fig.set_meta("base_pos", pos)
+		fig.set_meta("aside", aside)
+		fig.set_meta("role", role)
+		fig.position = pos + _lean_of(slug)
 		if fig.has_meta("doom"):
 			var d: DOOM = fig.get_meta("doom")
 			d.set_anim("stand" if aside or not d.has_anim("work") else "work")
 			# Toward their station: the mark (the note's place) over it, else as they were.
+			# (The figure's way is the camp's: the room's own turn put on it. At a turned
+			# corn stand they stood facing away: playtest 25. 10.)
 			var to: Vector3 = (spot.get("note", pos) as Vector3) - pos
 			if Vector2(to.x, to.z).length() > 0.05:
-				d.face(to)
+				var room := spot["root"] as Node3D
+				d.face(room.global_basis * to if room.is_inside_tree() else to)
 			fig.visible = true
 			continue
 		var t := tex(slug if aside else slug + "_work")
@@ -122,6 +129,80 @@ func refresh() -> void:
 			_figs.erase(slug)
 
 
+# ── handing over ────────────────────────────────────────────────────────────
+# A hand serving: they lean in over their counter and back, and what they serve goes over
+# to whoever takes it, in steps, twelve a second (the user 25. 10.: "the staff at the corn
+# needs an animation of serving"; their sets are a standing and a working pose).
+const LEAN_M := 0.13
+const LEAN_SEC := 0.55
+const OVER_SEC := 0.42
+var _leans: Dictionary = {}     # slug -> [seconds in, the way they lean (room space)]
+var _overs: Array = []          # {sprite, from, to, t}
+
+
+## The hand at `role` hands `thing` over to `to` (room space, on the floor): false when
+## nobody is at that place (away, or standing aside for a warden).
+func hand_over(role: String, thing: Texture2D, to: Vector3, height_m := 0.2) -> bool:
+	for slug in _figs:
+		var fig: Sprite3D = _figs[slug]
+		if not is_instance_valid(fig) or not fig.visible or str(fig.get_meta("role", "")) != role or bool(fig.get_meta("aside", true)):
+			continue
+		var spot: Dictionary = spots[role]
+		var base: Vector3 = fig.get_meta("base_pos", fig.position)
+		var way: Vector3 = (spot.get("note", base) as Vector3) - base
+		way.y = 0.0
+		way = way.normalized() if way.length() > 0.01 else Vector3(0, 0, 1)
+		_leans[slug] = [0.0, way]
+		if thing != null:
+			var spr := Sprite3D.new()
+			spr.texture = thing
+			spr.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+			spr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			spr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			spr.shaded = true
+			spr.pixel_size = height_m / float(maxi(1, thing.get_height()))
+			var from := base + way * 0.45 + Vector3(0, 1.0, 0)
+			spr.position = from
+			(spot["root"] as Node3D).add_child(spr)
+			_overs.append({"sprite": spr, "from": from, "to": to + Vector3(0, 1.05, 0), "t": -LEAN_SEC * 0.4})
+		return true
+	return false
+
+
+func _lean_of(slug: String) -> Vector3:
+	if not _leans.has(slug):
+		return Vector3.ZERO
+	var l: Array = _leans[slug]
+	var k := clampf(float(l[0]) / LEAN_SEC, 0.0, 1.0)
+	# In and back on one swell, in steps as the sprites move.
+	k = floorf(k * 7.0) / 7.0
+	return (l[1] as Vector3) * LEAN_M * sin(k * PI)
+
+
+func _tick_hand_overs(delta: float) -> void:
+	for slug in _leans.keys():
+		var l: Array = _leans[slug]
+		l[0] = float(l[0]) + delta
+		var fig: Sprite3D = _figs.get(slug, null)
+		if fig != null and is_instance_valid(fig):
+			fig.position = (fig.get_meta("base_pos", fig.position) as Vector3) + _lean_of(slug)
+		if float(l[0]) >= LEAN_SEC:
+			_leans.erase(slug)
+	for o in _overs.duplicate():
+		o["t"] = float(o["t"]) + delta
+		var spr: Sprite3D = o["sprite"]
+		if not is_instance_valid(spr):
+			_overs.erase(o)
+			continue
+		var k := clampf(float(o["t"]) / OVER_SEC, 0.0, 1.0)
+		k = floorf(k * OVER_SEC * 12.0) / maxf(1.0, OVER_SEC * 12.0)
+		spr.visible = float(o["t"]) >= 0.0
+		spr.position = (o["from"] as Vector3).lerp(o["to"], k) + Vector3(0, 0.12 * sin(k * PI), 0)
+		if float(o["t"]) >= OVER_SEC + 0.15:
+			spr.queue_free()
+			_overs.erase(o)
+
+
 func _make(slug: String) -> Sprite3D:
 	var s := Sprite3D.new()
 	s.name = "Hand_" + slug
@@ -138,6 +219,11 @@ func _make(slug: String) -> Sprite3D:
 
 
 func clear() -> void:
+	for o in _overs:
+		if is_instance_valid(o["sprite"]):
+			(o["sprite"] as Node).queue_free()
+	_overs.clear()
+	_leans.clear()
 	for slug in _figs:
 		if is_instance_valid(_figs[slug]):
 			(_figs[slug] as Node).queue_free()
