@@ -3833,10 +3833,10 @@ func _start_life() -> void:
 		settings = kept_settings
 	_life = SERVICE_LIFE.new()
 	_life.name = "ServiceLife"
+	_life.set("open_of", func() -> String: return _station_open())
 	if _current_profile == "vecerka":
 		_life.set("queue_spots", JEDNOTA_LAYOUT.QUEUE)
 		_life.set("queue2_spots", JEDNOTA_LAYOUT.QUEUE2)
-		_life.set("open_of", func() -> String: return _station_open())
 	root.add_child(_life)
 	_life.setup(_current_profile, _upkeep_key, seats, settings, door)
 

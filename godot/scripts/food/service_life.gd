@@ -143,6 +143,10 @@ static func seats_of(p: String, root: Node3D) -> Dictionary:
 				# top, just in front of it so the seat does not cut through the legs.
 				var stool_top := _top_near(root, "BarStool", Vector3(x, 0.05, -0.6), 0.78)
 				seats.append({"pos": Vector3(x, stool_top - 0.45, -0.36), "table": -1})
+			# On their feet at the LUCKY 7 and at the darts line (pub_layout STATIONS), facing
+			# the machine, the board; grown-ups only; out of the way of who works the station.
+			seats.append({"pos": Vector3(-2.35, 0.05, -1.3), "face": Vector3(0, 0, -1), "stand": true, "still": true, "adult": true, "clear_of": ["slot"], "aside": Vector3(-1.75, 0.05, -0.45)})
+			seats.append({"pos": Vector3(-0.6, 0.05, -1.0), "face": Vector3(-1, 0, 0), "stand": true, "still": true, "adult": true, "clear_of": ["darts"], "aside": Vector3(-0.35, 0.05, -0.15)})
 		"rest":
 			var tj := 0
 			for t: Vector3 in BISTRO_LAYOUT.TABLES:
@@ -245,7 +249,7 @@ func _refresh(first := false) -> void:
 			seen[k] = true
 			if _people.has(k):
 				continue
-			var seat := _free_seat()
+			var seat := _free_seat(POSES.member_path(str(g.get("archetype", "")), str(g.get("sprite_path", "")), i).contains("kid"))
 			if seat < 0:
 				continue
 			_people[k] = _spawn(g, seat, visit, i, first or entry == Vector3.INF)
@@ -258,14 +262,14 @@ func _refresh(first := false) -> void:
 			_out_visits.erase(v)
 
 
-func _free_seat() -> int:
+func _free_seat(child := false) -> int:
 	var taken := {}
 	for p in _people.values():
 		taken[int(p["seat"])] = true
 	var order: Array = range(seats.size())
 	order.shuffle()
 	for i in order:
-		if not taken.has(i):
+		if not taken.has(i) and not (child and bool((seats[i] as Dictionary).get("adult", false))):
 			return i
 	return -1
 
@@ -469,6 +473,10 @@ func _animate() -> void:
 		if bool(p["stand"]) and open_of.is_valid() and (s.get("clear_of", []) as Array).has(str(open_of.call())):
 			# Where a station is worked: out of its way.
 			node.position = s.get("aside", s["pos"])
+			continue
+		if bool(p["stand"]) and bool(s.get("still", false)):
+			# At the machine, at the line: where they stand, facing it.
+			node.position = s["pos"]
 			continue
 		if bool(p["stand"]):
 			# Browsing: a small step along the rack now and then, a turn of the head.
