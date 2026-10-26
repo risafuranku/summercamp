@@ -399,19 +399,22 @@ func set_meter(s: Sprite3D, fill: float, zone := Vector2(-1, -1), col := RETRO_U
 	var w := img.get_width()
 	var h := img.get_height()
 	var on := not blink or int(_t * 4.0) % 2 == 0
-	var filled := clampi(int(round(clampf(fill, 0.0, 1.0) * float(h - 2))), 0, h - 2)
-	var sig := "%d|%.2f|%.2f|%s|%s" % [filled, zone.x, zone.y, col.to_html(), on]
+	# The HUD's LED segments (RETRO_UI.draw_segments): two pixels each and a gap, the
+	# window to aim at lit dim green, lit ones with their one-pixel highlight.
+	var segs := maxi(1, (h - 1) / 3)
+	var lit := int(ceil(clampf(fill, 0.0, 1.0) * float(segs) - 0.001)) if on else 0
+	var sig := "%d|%.2f|%.2f|%s" % [lit, zone.x, zone.y, col.to_html()]
 	if sig == str(s.get_meta("meter_sig")):
 		return
 	s.set_meta("meter_sig", sig)
-	img.fill(Color(0.05, 0.04, 0.03, 1.0))
-	img.fill_rect(Rect2i(1, 1, w - 2, h - 2), Color(0.2, 0.17, 0.13, 1.0))
-	if zone.x >= 0.0:
-		var z0 := int(round(zone.x * float(h - 2)))
-		var z1 := int(round(zone.y * float(h - 2)))
-		img.fill_rect(Rect2i(1, h - 1 - z1, w - 2, maxi(1, z1 - z0)), Color(0.24, 0.42, 0.18, 1.0))
-	if on and filled > 0:
-		img.fill_rect(Rect2i(1, h - 1 - filled, w - 2, filled), col)
+	img.fill(Color(0.03, 0.025, 0.02, 1.0))
+	for i in segs:
+		var y0 := h - 1 - (i + 1) * 3 + 1
+		var mid := (float(i) + 0.5) / float(segs)
+		var c := col if i < lit else (Color(0.16, 0.26, 0.12, 1.0) if zone.x >= 0.0 and mid >= zone.x and mid <= zone.y else Color(0.12, 0.11, 0.10, 1.0))
+		img.fill_rect(Rect2i(1, y0, w - 2, 2), c)
+		if i < lit:
+			img.fill_rect(Rect2i(1, y0, w - 2, 1), col.lightened(0.35))
 	(s.texture as ImageTexture).update(img)
 
 
@@ -520,9 +523,84 @@ func _set_hover(id: String, verb: String, what = null) -> void:
 		_glint_off()
 
 
+# ── the next step, lit in its own shape (station_hud: the hint) ─────────────
+# The thing to do next breathes warm, softly, in the shape of its picture (a sprite) or
+# of its place on the surface (a rect); the pointer over it gives it the hover's glint.
+var _hint_on = null          # the Sprite3D lit, or the rect's key
+var _hint_hot: MeshInstance3D
+static var _hint_mats: Dictionary = {}
+
+
+func show_hint(h: Dictionary) -> void:
+	var n = h.get("node", null)
+	if n is Sprite3D and is_instance_valid(n) and (n as Sprite3D).texture != null:
+		if _hint_on is Sprite3D and _hint_on == n:
+			return
+		_hint_off()
+		if not (_glint_on is Sprite3D and _glint_on == n):
+			(n as Sprite3D).material_overlay = _hint_mat((n as Sprite3D).texture)
+		_hint_on = n
+		return
+	if h.has("rect") and not h.has("node"):
+		var r: Rect2 = h["rect"]
+		var key := "%s" % r
+		if _hint_on is String and str(_hint_on) == key:
+			return
+		_hint_off()
+		if _hint_hot == null:
+			_hint_hot = MeshInstance3D.new()
+			_hint_hot.name = "HintGlow"
+			_hint_hot.set_meta("retro_skip", true)
+			add_child(_hint_hot)
+		var q := PlaneMesh.new() if surf_flat else QuadMesh.new()
+		var size := Vector2(metres_x(r.size.x), r.size.y / DESIGN.y * surf_size.y)
+		if q is PlaneMesh:
+			(q as PlaneMesh).size = size
+		else:
+			(q as QuadMesh).size = size
+		_hint_hot.mesh = q
+		_hint_hot.position = local_at(r.get_center(), 0.005)
+		_hint_hot.material_override = _hint_mat(null)
+		_hint_hot.visible = true
+		_hint_on = key
+		return
+	_hint_off()
+
+
+func _hint_off() -> void:
+	if _hint_on is Sprite3D and is_instance_valid(_hint_on) and not (_glint_on is Sprite3D and _glint_on == _hint_on):
+		(_hint_on as Sprite3D).material_overlay = null
+	_hint_on = null
+	if _hint_hot != null and is_instance_valid(_hint_hot):
+		_hint_hot.visible = false
+
+
+## The breathing light: the hover glint's shader, warm and soft, sparkling a little.
+func _hint_mat(mask: Texture2D) -> ShaderMaterial:
+	var id := mask.get_instance_id() if mask != null else 0
+	var m: ShaderMaterial = _hint_mats.get(id, null)
+	if m == null:
+		m = ShaderMaterial.new()
+		m.shader = SPRITE_GLINT
+		if mask == null:
+			var img := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+			img.fill(Color.WHITE)
+			mask = ImageTexture.create_from_image(img)
+		m.set_shader_parameter("mask", mask)
+		if ResourceLoader.exists(GLINT_TEX):
+			m.set_shader_parameter("glint", load(GLINT_TEX))
+			m.set_shader_parameter("has_glint", true)
+		m.set_shader_parameter("tint", Color(1.0, 0.72, 0.3, 1.0))
+		m.set_shader_parameter("wash", 0.34)
+		m.set_shader_parameter("sparkle", 0.35)
+		_hint_mats[id] = m
+	return m
+
+
 func _glint_off() -> void:
 	if _glint_on is Sprite3D and is_instance_valid(_glint_on):
-		(_glint_on as Sprite3D).material_overlay = null
+		# The pointer gone off the next step: it goes back to breathing.
+		(_glint_on as Sprite3D).material_overlay = _hint_mat((_glint_on as Sprite3D).texture) if _hint_on is Sprite3D and _glint_on == _hint_on else null
 	_glint_on = null
 	_glint.clear()
 	_hot.visible = false
@@ -688,6 +766,7 @@ func close_station() -> void:
 	_closing()
 	_open = false
 	_glint_off()
+	_hint_off()
 	_hover = ""
 	_hover_verb = ""
 	if _rail != null and is_instance_valid(_rail):
@@ -920,10 +999,8 @@ func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
 		c.draw_string(f, Vector2(maxf(1.0, floorf((size.x - ww) * 0.5)), 38), word, HORIZONTAL_ALIGNMENT_LEFT, size.x - 2, 8, Color(0.16, 0.12, 0.1))
 	var band := int(t.get("band", 0))
 	var col: Color = [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][clampi(band, 0, 2)]
-	var bar := Rect2(2, size.y - 5, size.x - 4, 3)
-	c.draw_rect(bar, Color(0.1, 0.08, 0.06))
-	if band < 2 or int(_t * 4.0) % 2 == 0:
-		c.draw_rect(Rect2(bar.position, Vector2(ceilf(bar.size.x * left), bar.size.y)), col)
+	var bar := Rect2(3, size.y - 5, size.x - 6, 3)
+	RETRO_UI.draw_segments(c, bar, left if band < 2 or int(_t * 4.0) % 2 == 0 else 0.0, 6, col)
 	if bool(t.get("picked", false)):
 		c.draw_rect(Rect2(Vector2.ZERO, size), Color(0.62, 0.42, 0.08), false, 1.0)
 
@@ -950,9 +1027,7 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 			c.draw_texture_rect(ic, Rect2(Vector2(r.end.x - isz.x - 4, r.position.y + 18), isz), false)
 	var band := int(t.get("band", 0))
 	var bar := Rect2(r.position.x + 27, r.position.y + 19, r.size.x - 58, 4)
-	c.draw_rect(bar.grow(1.0), Color(0.1, 0.08, 0.06, 0.9))
-	if band < 2 or int(_t * 4.0) % 2 == 0:
-		c.draw_rect(Rect2(bar.position, Vector2(ceilf(bar.size.x * left), bar.size.y)), [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][clampi(band, 0, 2)])
+	RETRO_UI.draw_segments(c, bar, left if band < 2 or int(_t * 4.0) % 2 == 0 else 0.0, 8, [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][clampi(band, 0, 2)])
 	var ink := Color(0.16, 0.12, 0.1)
 	var ok := Color(0.1, 0.45, 0.12)
 	var bad := Color(0.62, 0.08, 0.05)

@@ -60,6 +60,31 @@ static var _tex_cache: Dictionary = {}
 
 ## Integer UI scale for a viewport: 240 vertical virtual pixels, like the world, but
 ## never wider than `min_width_vp` virtual pixels fit (4:3 windows get a smaller scale).
+## The HUD's segment bar (SegmentBar: STAMINA, LIGHT) drawn into any canvas, in that
+## canvas's own pixels: the stations' timers, a ticket's patience, the score slip
+## (playtest 25. 10.: "nicer progress bars, to go with the main HUD"). Lit segments with
+## their one-pixel highlight, the rest dark; `vertical` fills from the bottom up. `band`
+## (from, to: 0..1) marks segments of a window to aim at, unlit in `band_col`.
+static func draw_segments(ci: CanvasItem, r: Rect2, value: float, segments: int, col: Color, vertical := false, off := Color(0.12, 0.11, 0.10, 1.0), band := Vector2(-1, -1), band_col := Color(0.16, 0.26, 0.12, 1.0)) -> void:
+	segments = maxi(1, segments)
+	var length := r.size.y if vertical else r.size.x
+	var gap := 1.0
+	var seg := maxf(1.0, floorf((length - gap * float(segments - 1)) / float(segments)))
+	var used := seg * float(segments) + gap * float(segments - 1)
+	var start := floorf((length - used) * 0.5)
+	var lit := int(ceil(clampf(value, 0.0, 1.0) * float(segments) - 0.001))
+	ci.draw_rect(r.grow(1.0), Color(0.03, 0.025, 0.02, 0.95))
+	for i in segments:
+		var a := start + float(i) * (seg + gap)
+		var piece := Rect2(r.position.x + a, r.position.y, seg, r.size.y) if not vertical else Rect2(r.position.x, r.end.y - a - seg, r.size.x, seg)
+		var mid := (float(i) + 0.5) / float(segments)
+		var c := col if i < lit else (band_col if band.x >= 0.0 and mid >= band.x and mid <= band.y else off)
+		ci.draw_rect(piece, c)
+		if i < lit:
+			var hi := Rect2(piece.position, Vector2(piece.size.x, 1.0)) if vertical or piece.size.y > 2.0 else Rect2(piece.position, Vector2(1.0, piece.size.y))
+			ci.draw_rect(hi, col.lightened(0.35))
+
+
 static func ui_scale(viewport_height: float, viewport_width: float = 0.0, min_width_vp: float = 420.0) -> int:
 	var s := int(floor(viewport_height / 240.0))
 	if viewport_width > 0.0:

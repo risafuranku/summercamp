@@ -84,7 +84,7 @@
 - [x] R76 „účty mají být obdélníkové papírky s čárkami, ne… hermelíny?“
 - [x] R77 „můžu se rozhlížet nahoru, ale už ne dolů“ (pub stations)
 - [x] R78 „odstraň sprites s flaškou v ruce. flaška zůstává vždy na pultu, do ruky ji nedávej. nikdy nikde“
-- [ ] R79 „pro všechny minihry/obsluhování hezčí hover UI než ty hnusné rámečky, i progress bary; ať to sedí k main HUD“
+- [x] R79 „pro všechny minihry/obsluhování hezčí hover UI než ty hnusné rámečky, i progress bary; ať to sedí k main HUD“ (no corner brackets: the next step breathes warm in its own shape; every bar at the stations is the HUD's LED segments, the timers on a bevelled plate; all the businesses' stations)
 - [x] R80 „posunem doprava se ze 4 na 1 dostat NESMÍM“ (station tabs: no wrap-around)
 - [x] R81 „přepnutí z baru na sklep při obsluze přehraje animaci, jak jdeš od pultu až do sklepa, ať to trvá; a zpátky taktéž“
 

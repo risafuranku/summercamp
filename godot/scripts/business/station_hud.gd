@@ -223,6 +223,8 @@ func _refresh_hint() -> void:
 		_hint_t = 0.0
 	_hint = h
 	_hint_rect = Rect2()
+	if station != null and is_instance_valid(station) and station.has_method("show_hint"):
+		station.call("show_hint", h)
 	if h.is_empty():
 		return
 	if h.has("tab"):
@@ -499,6 +501,8 @@ func _draw_tab(i: int, cur: String) -> void:
 	var lit := int(_alerts.get(id, 0))
 	var down := id == cur
 	var bg := RETRO_UI.C_PLATE_DARK if down else (Color(0.36, 0.31, 0.24) if _hover == "#tab:" + id else Color(0.2, 0.18, 0.15))
+	if not down and _hint.has("tab") and str(_hint["tab"]) == id:
+		bg = bg.lerp(Color(0.6, 0.42, 0.1), 0.5 + 0.5 * sin(_t * 5.0))
 	if lit == 2 and not down and int(_t * 5.0) % 2 == 0:
 		# Something burns there: it blinks red.
 		bg = Color(0.55, 0.12, 0.06)
@@ -620,14 +624,9 @@ func _draw_counts() -> void:
 func _draw_hint() -> void:
 	if _hint.is_empty() or _hint_rect.size == Vector2.ZERO and _hint_rect.position == Vector2.ZERO:
 		return
-	var r := _hint_rect.grow(3.0 + 2.0 * sin(_t * 5.0))
-	var col := Color(1.0, 0.82, 0.3, 0.55 + 0.35 * sin(_t * 5.0))
-	var len := minf(8.0, minf(r.size.x, r.size.y) * 0.4)
-	for corner in [[r.position, Vector2(1, 1)], [Vector2(r.end.x, r.position.y), Vector2(-1, 1)], [r.end, Vector2(-1, -1)], [Vector2(r.position.x, r.end.y), Vector2(1, -1)]]:
-		var p: Vector2 = corner[0]
-		var d: Vector2 = corner[1]
-		_c.draw_rect(Rect2(p + Vector2(minf(0.0, d.x * len), minf(0.0, d.y) * 2.0), Vector2(len, 2)).abs(), col)
-		_c.draw_rect(Rect2(p + Vector2(minf(0.0, d.x) * 2.0, minf(0.0, d.y * len)), Vector2(2, len)).abs(), col)
+	# (No frame drawn round it: the thing itself breathes warm in its own shape in the
+	# room, station3d.show_hint, and a button or a tab glows as SERVE does; the corner
+	# brackets read as a web page's, playtest 25. 10.)
 	if _idle < IDLE_GHOST or _hint.has("tab") or _hint.has("ui"):
 		return
 	# The ghost glove: where to click, what to drag where, what to hold or rub.
@@ -696,10 +695,8 @@ func _draw_card() -> void:
 		var v := clampf(float(row[1]), 0.0, 1.0)
 		_c.draw_string(f, Vector2(x, ry + 7), tr(str(row[0])), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
 		var bar := Rect2(x + 44, ry + 1, CARD.x - 58, 5)
-		_c.draw_rect(bar.grow(1.0), Color(0.1, 0.08, 0.06))
-		_c.draw_rect(bar, Color(0.3, 0.26, 0.2))
 		var col: Color = RETRO_UI.C_GREEN if v >= 0.8 else (RETRO_UI.C_AMBER if v >= 0.5 else RETRO_UI.C_RED)
-		_c.draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * v), bar.size.y)), col)
+		RETRO_UI.draw_segments(_c, bar, v, 10, col)
 		ry += 11
 	var stars := int(_card.get("stars", 1))
 	var shown := clampi(int((_card_t - 0.2) * 7.0), 0, 3)
@@ -822,12 +819,14 @@ func _draw_mirror() -> void:
 	var rows: Array = mirror_of.call() if mirror_of.is_valid() else []
 	if rows.is_empty():
 		return
-	var cw := 14.0
-	var w := 6.0 + rows.size() * cw
-	var h := 40.0
+	# A plate of the frame's own (bevelled as its buttons), a column of the HUD's LED
+	# segments a thing (the done window lit dim green to aim at).
+	var cw := 15.0
+	var w := 7.0 + rows.size() * cw
+	var h := 44.0
 	var r := Rect2(6, H - BAR_H - h - 22, w, h)
-	_c.draw_rect(r.grow(1.0), Color(0.03, 0.025, 0.02, 0.9))
-	_c.draw_rect(r, Color(0.14, 0.12, 0.1, 0.9))
+	_c.draw_rect(r, Color(0.2, 0.18, 0.15))
+	_bevel(r, false)
 	for i in rows.size():
 		var row: Dictionary = rows[i]
 		var x := r.position.x + 4 + i * cw
@@ -835,17 +834,12 @@ func _draw_mirror() -> void:
 		if ic != null:
 			var isz := ic.get_size()
 			var sc := minf(1.0, 12.0 / maxf(isz.x, isz.y))
-			_c.draw_texture_rect(ic, Rect2(Vector2(x, r.position.y + 2), (isz * sc).floor()), false)
-		var bar := Rect2(x + 3, r.position.y + 16, 5, h - 19)
-		_c.draw_rect(bar.grow(1.0), Color(0.02, 0.02, 0.02))
-		_c.draw_rect(bar, Color(0.2, 0.17, 0.13))
-		var zone: Vector2 = row.get("zone", Vector2(-1, -1))
-		if zone.x >= 0.0:
-			_c.draw_rect(Rect2(bar.position.x, bar.end.y - bar.size.y * zone.y, bar.size.x, bar.size.y * (zone.y - zone.x)), Color(0.24, 0.42, 0.18))
+			var isz2 := (isz * sc).floor()
+			_c.draw_texture_rect(ic, Rect2(Vector2(x + floorf((cw - 2.0 - isz2.x) * 0.5), r.position.y + 3), isz2), false)
+		var bar := Rect2(x + 3, r.position.y + 18, 6, h - 22)
 		var fill := clampf(float(row.get("fill", 0.0)), 0.0, 1.0)
-		if not bool(row.get("blink", false)) or int(_t * 4.0) % 2 == 0:
-			var fh := floorf(bar.size.y * fill)
-			_c.draw_rect(Rect2(bar.position.x, bar.end.y - fh, bar.size.x, fh), row.get("col", RETRO_UI.C_AMBER))
+		var on := not bool(row.get("blink", false)) or int(_t * 4.0) % 2 == 0
+		RETRO_UI.draw_segments(_c, bar, fill if on else 0.0, 6, row.get("col", RETRO_UI.C_AMBER), true, Color(0.12, 0.11, 0.10), row.get("zone", Vector2(-1, -1)))
 
 
 func _bevel(r: Rect2, down: bool) -> void:

@@ -1409,10 +1409,17 @@ disagree, this wins (the older lines say so).*
   the guest (or their ticket), the guest says a line, the slip slides in at the side for a
   moment; three good ones in a row and more is a run (x3) with a little on top of the tip
   (`business_rules.combo_bonus`), the one new money in the brief besides the prepared goods.
-- **The next step lit** (each station's `next_hint`): a frame breathing round what to do
-  now (a spot, a tab, SERVE); standing still a while a see-through glove shows the gesture
-  (click, drag, hold, rub). No text tutorial. Options "Work hints" switches it off (the
-  warden's, `profiles.gd`).
+- **The next step lit** (each station's `next_hint`): what to do now breathes warm in its
+  own shape in the room (the hover's glint shader, softer: `station3d.show_hint`; a spot of
+  the surface as a patch of it), a tab or SERVE glows; no frame drawn round anything (the
+  corner brackets read as a web page's, playtest 25. 10.). Standing still a while a
+  see-through glove shows the gesture (click, drag, hold, rub). No text tutorial. Options
+  "Work hints" switches it off (the warden's, `profiles.gd`).
+- **Every bar is the HUD's** (playtest 25. 10.: "nicer progress bars, to go with the main
+  HUD"): the tickets' patience, the timers' plate (bevelled as the frame's buttons, a
+  column a thing with its done window lit dim green), the slip's WAIT / MADE / COOKING and
+  the meters standing in the rooms (the tap's pour, the keg, the grill) are LED segments
+  as STAMINA and LIGHT are (`RETRO_UI.draw_segments`, `station3d.set_meter`).
 - **Smooth**: the camera's glide to a station, the tickets sliding on the rail, things set
   down hop, plates, cobs and bottles fly to the guest in an arc. Only the gloved hand stays
   Duke 3D, frame by frame (the old "camera in steps, twelve a second" is gone).
