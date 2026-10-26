@@ -41,6 +41,9 @@ const TIME_DAY: int = 0
 const TIME_EVENING: int = 1
 const TIME_NIGHT: int = 2
 const INTERIOR_RENDER_MIN_SIZE := Vector2i(960, 540)
+## The eye's field: the room's, the bathroom's (a metre and a half across: wider).
+const ROOM_FOV := 68.0
+const BATH_FOV := 80.0
 const CABIN_GUEST_SPRITE_PIXEL_SIZE := 0.0032
 const CABIN_GUEST_TARGET_HEIGHT := 1.62
 const CABIN_GUEST_STAND_POINTS := [
@@ -1072,7 +1075,7 @@ func _build_cabin_room() -> void:
 	_interior_camera.name = "CabinCamera"
 	_interior_camera.position = Vector3(0.0, 1.5, 1.0)
 	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
-	_interior_camera.fov = 68.0
+	_interior_camera.fov = ROOM_FOV
 	_interior_camera.current = true
 	_cabin_root.add_child(_interior_camera)
 
@@ -1619,11 +1622,14 @@ func _set_cabin_room(room: String, update_camera: bool = true) -> void:
 			var bw: float = CABIN_LAYOUT.annex_box(2).size.x - CABIN_LAYOUT.WALL_T
 			# (From the doorway itself: the room is a metre and a half across.)
 			_interior_camera.position = Vector3(bo.x - bw * 0.5 - 0.06, CABIN_LAYOUT.ROOM_FLOOR + 1.5, CABIN_LAYOUT.bath_door_z(_cabin_level))
-			_interior_camera.rotation_degrees = Vector3(-9.0, -90.0, 0.0)
+			_interior_camera.rotation_degrees = Vector3(-6.0, -90.0, 0.0)
+			# Wider: the whole little room from its door, the ceiling and the tiles too.
+			_interior_camera.fov = BATH_FOV
 		else:
 			# Just in by the front door, looking in at the back window.
 			_interior_camera.position = Vector3(0.0, CABIN_LAYOUT.ROOM_FLOOR + 1.47, CABIN_LAYOUT.inner(_cabin_level).y * 0.5 - 0.42)
 			_interior_camera.rotation_degrees = Vector3(MAIN_PITCH_DEG, 0.0, 0.0)
+			_interior_camera.fov = ROOM_FOV
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()
 
