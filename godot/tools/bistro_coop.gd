@@ -42,6 +42,8 @@ func _ready() -> void:
 			["eval", KS + ".act(" + SI + "._upkeep_key, 'prep', ['cheese', 2])"],
 			["eval", KS + ".act(" + SI + "._upkeep_key, 'prep', ['fries', 2])"],
 			["eval", KS + ".act(" + SI + "._upkeep_key, 'prep', ['dumpling', 8])"],
+			# The grill's too (the first ticket can be a klobasa since the grill came).
+			["eval", KS + ".act(" + SI + "._upkeep_key, 'prep', ['sausage', 2])"],
 			["eval", SI + "._open_station('pass')"], ["wait", 1.0],
 			["eval", "['BISTRO host tickets', " + KS + ".tickets(" + SI + "._upkeep_key).size()]"],
 			["eval", SI + "._stations['pass'].debug_build_picked()"], ["wait", 0.3],

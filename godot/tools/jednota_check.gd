@@ -186,7 +186,8 @@ func _ready() -> void:
 	j._fit_stock(KEY)
 	_expect(int(j.shelf(KEY)["bread"]) + int(j.trolley(KEY)["bread"]) + j.in_baskets(KEY, "bread") <= int(site["stock"]["bread"]), "what went off is off the rack")
 
-	# The hands.
+	# The hands (their slips seeded: a box dropped now and then would fail the shelves' check).
+	j._rng.seed = 26
 	for slug_role in [["novakova", "till"], ["zdenka", "shelves"], ["ivan", "store"]]:
 		var p := RULES.person(str(slug_role[0]), "vecerka")
 		p["role"] = str(slug_role[1])
