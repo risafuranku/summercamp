@@ -69,7 +69,9 @@ func _on_tick(dt: float) -> void:
 				_hurt(_hit)
 				_charging = false
 				_rest_until = _elapsed + 25.0
-				_body.global_position = _perimeter[_seg]
+				# (The hit can end the night and take the body with it.)
+				if is_instance_valid(_body):
+					_body.global_position = _perimeter[_seg]
 				return
 			_move(to.normalized() * _charge_speed * dt, 0.28, dt)
 			return

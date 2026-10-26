@@ -409,6 +409,9 @@ func _find(s: String, deep: bool) -> String:
 	# msgid as it is written, answered lower-case too.
 	if s.length() > 1 and s == s.to_lower() and s[0] != s[0].to_upper():
 		var cap = _exact.get(s[0].to_upper() + s.substr(1))
+		if cap == null:
+			# A name of several words ("shower block" for "Shower Block").
+			cap = _exact.get(s.capitalize())
 		if cap != null:
 			var low := _forms(cap, [])
 			return low[0].to_lower() + low.substr(1) if low != "" else ""

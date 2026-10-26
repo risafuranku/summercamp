@@ -28763,3 +28763,91 @@ msgstr "špinavé"
 #. manual
 msgid "yes"
 msgstr "ano"
+
+#. manual
+msgid "Cabin Lv1"
+msgstr "Chatka úr. 1"
+
+#. manual
+msgid "Cabin Lv2"
+msgstr "Chatka úr. 2"
+
+#. manual
+msgid "Cabin Lv3"
+msgstr "Chatka úr. 3"
+
+#. manual
+msgid "Caravan Lv1"
+msgstr "Karavan úr. 1"
+
+#. manual
+msgid "Caravan Lv2"
+msgstr "Karavan úr. 2"
+
+#. manual
+msgid "Caravan Lv3"
+msgstr "Karavan úr. 3"
+
+#. manual
+msgid "Dumpsters"
+msgstr "Kontejnery"
+
+#. manual
+msgid "Flower Bed"
+msgstr "Záhon"
+
+#. manual
+msgid "Garden Gnome"
+msgstr "Zahradní trpaslík"
+
+#. manual
+msgid "Lake Slide"
+msgstr "Skluzavka do jezera"
+
+#. manual
+msgid "Lamp Post"
+msgstr "Lampa"
+
+#. manual
+msgid "Mega Gnome"
+msgstr "Mega trpaslík"
+
+#. manual
+msgid "Picnic Table"
+msgstr "Piknikový stůl"
+
+#. manual
+msgid "Ping-Pong Table"
+msgstr "Pingpongový stůl"
+
+#. manual
+msgid "Generator"
+msgstr "Agregát"
+
+#. manual
+msgid "Restaurant"
+msgstr "Restaurace"
+
+#. manual
+msgid "Shower Block"
+msgstr "Sprchy"
+
+#. manual
+msgid "Sports Field"
+msgstr "Sportoviště"
+
+#. manual
+msgid "Tent Lv1"
+msgstr "Stan úr. 1"
+
+#. manual
+msgid "Tent Lv2"
+msgstr "Stan úr. 2"
+
+#. manual
+msgid "Tent Lv3"
+msgstr "Stan úr. 3"
+
+#. manual
+msgid "Toilet Block"
+msgstr "Záchody"

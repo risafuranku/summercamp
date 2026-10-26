@@ -589,10 +589,11 @@ func get_hint_for_structure(structure: Node3D) -> String:
 		var origin: Vector2i = structure.get_meta("grid_origin", Vector2i(-999, -999))
 		var cell: Dictionary = state.grid.cells.get(origin, {}) if state != null and state.grid != null else {}
 		var condition := float(cell.get("maintenance", 1.0))
+		# (Each piece in the warden's language: put together they are found by nothing.)
 		if condition < MAINT_RULES.FILTHY:
-			hint += " - filthy, clean it"
+			hint = tr(hint) + tr(" - filthy, clean it")
 		elif condition < 0.9:
-			hint += " - needs cleaning"
+			hint = tr(hint) + tr(" - needs cleaning")
 	return hint
 
 
