@@ -10,6 +10,7 @@ const SLOP_BUCKET_POS := Vector3(1.32, 0.05, 1.05)
 ## The bed: frame centre on the floor, and the top of its mattress.
 const BED_POS := CABIN_LAYOUT.BED
 const BED_TOP := CABIN_LAYOUT.BED_TOP
+const STAFFROOM = preload("res://scripts/staff/staffroom.gd")
 ## Surfaces per cabin level: walls, floor, ceiling (assets/textury/camp).
 const LEVEL_SURFACES := {
 	1: ["planks_grey", "planks_red", "planks_grey"],
@@ -55,6 +56,10 @@ var _interior_camera: Camera3D
 var _cabin_root: Node3D
 var _guest_visual_root: Node3D
 var _guest_occupants: Array = []
+## A staffroom hand asleep in this cabin's bed (staff_runtime: rest at "bed:<key>"), lying
+## on it as in the staffroom; looked for once a second, in the room and through its window.
+var _sleeper: Sprite3D = null
+var _sleeper_t := 0.0
 var _room_env: Environment
 var _main_light: OmniLight3D
 ## The small fridge (level 2 and up) while there is power: its compressor runs a while
@@ -138,6 +143,54 @@ func _notification(what: int) -> void:
 
 func is_open() -> bool:
 	return _is_open
+
+
+func _update_sleeper(delta: float) -> void:
+	_sleeper_t -= delta
+	if _sleeper_t > 0.0:
+		return
+	_sleeper_t = 1.0
+	var cabin: Node = _anchor if _is_open else _inview_cabin
+	var slug := _sleeper_in(cabin)
+	if slug == "":
+		if _sleeper != null and is_instance_valid(_sleeper):
+			_sleeper.visible = false
+		return
+	if _cabin_root == null or not is_instance_valid(_cabin_root):
+		return
+	if _sleeper == null or not is_instance_valid(_sleeper):
+		_sleeper = Sprite3D.new()
+		_sleeper.name = "Sleeper"
+		_sleeper.pixel_size = STAFFROOM.PERSON_M / 128.0
+		_sleeper.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_sleeper.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		_sleeper.shaded = false
+		_cabin_root.add_child(_sleeper)
+	if str(_sleeper.get_meta("slug", "")) != slug:
+		_sleeper.set_meta("slug", slug)
+		# On the mattress, the head at the pillow (the back).
+		var at := Vector3(BED_POS.x, BED_TOP + 0.05 - STAFFROOM.PLAN.MATTRESS_SIZE.y, BED_POS.z + 0.1)
+		STAFFROOM._place(_sleeper, slug, "lie", at, at + Vector3(0, 0, -1))
+	_sleeper.visible = _sleeper.texture != null
+
+
+## The hand resting in this cabin's bed, or "".
+static func _sleeper_in(cabin: Node) -> String:
+	if cabin == null or not is_instance_valid(cabin) or CoreRoot == null or CoreRoot.get_state() == null:
+		return ""
+	var c = cabin.get_meta("grid_origin", null)
+	if not (c is Vector2i):
+		return ""
+	var spot := "bed:%d:%d" % [(c as Vector2i).x, (c as Vector2i).y]
+	var st = CoreRoot.get_state().biz.get("staff", {})
+	var acts = (st as Dictionary).get("act", {}) if st is Dictionary else {}
+	if not (acts is Dictionary):
+		return ""
+	for slug in acts:
+		var a = acts[slug]
+		if a is Dictionary and str(a.get("do", "")) == "rest" and str(a.get("spot", "")) == spot:
+			return str(slug)
+	return ""
 
 
 func set_is_day(is_day: bool) -> void:
@@ -423,6 +476,7 @@ func close_cabin() -> void:
 
 
 func _process(delta: float) -> void:
+	_update_sleeper(delta)
 	if not _is_open:
 		_update_inview(delta)
 		return
