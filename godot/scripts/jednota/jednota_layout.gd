@@ -297,6 +297,11 @@ static func shop_outside(parent: Node3D, host) -> void:
 	shop(parent, host)
 	K.strip_for_outside(parent)
 	K.open_windows(parent, WINDOWS)
+	# The rack's goods are its station's (laid by the shop's records, inside): from the camp
+	# the rack is seen stocked (business/room_lights.gd hides them when it is bare).
+	var goods := room_picture(parent, "res://assets/textury/camp/shop_shelf_goods.png", RACK_SIZE, RACK_AT + Vector3(0, 0, 0.01), 0.0, "RackGoods")
+	if goods != null:
+		goods.set_meta("rack_goods", true)
 
 
 ## A picture standing on the floor against a wall (a rack, a fridge), on a box as deep

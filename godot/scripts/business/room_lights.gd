@@ -37,6 +37,15 @@ func _process(delta: float) -> void:
 		_key = _site_key()
 	if _crew == null and _key != "" and room != null and layout != null and not roles.is_empty():
 		_start_crew()
+	# The Jednota's rack as stocked as its records say (jednota_layout.shop_outside).
+	if room != null and records_group == "jednotas" and _key != "":
+		var shop := get_tree().get_first_node_in_group("jednotas")
+		var goods := room.get_node_or_null("RackGoods") as Node3D
+		if shop != null and goods != null and shop.has_method("shelf"):
+			var units := 0
+			for g in (shop.shelf(_key) as Dictionary):
+				units += int(shop.shelf(_key)[g])
+			goods.visible = units > 0
 	# The hands' figures on the room's layer, lit by its lights (building_models.ROOM_LAYER).
 	if room != null:
 		for c in room.get_children():
