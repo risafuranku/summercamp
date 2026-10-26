@@ -543,6 +543,16 @@ The hunters (§5) come from the night roll; everything around them is played by 
   things and the night tightens. A near-empty camp with you inside all night still gets a
   few small things, never a big one.
 - **Who counts**: every guest checked in, awake or asleep (at night they all sleep).
+- **Runs** (the user 25. 10.: "the radio acted up, Silent Guy's face flashed and the fuses
+  went: more chances of such runs"): after a small event, sometimes (6 % at UNEASE up to
+  32 % at MANIFESTATION) one or two more follow within 0.7-2.6 s each, drawn from what fits
+  where you are (`RUNS`: in the office the radio, a face for two frames, the tube
+  stuttering, a knock, the insects; outdoors a lamp, the face, a twig, a call, a door);
+  the breaker may end a run (30 %), once a night and not when it went tonight or last
+  night (`night_jobs.trip_breaker_now`). The face is whose the camp brings: the Silent
+  Man's for the quiet ones, the Girl's for the drinkers, the Photographer's for the
+  families. Never behind a big one; after a run the night breathes. Random, never a
+  script: which, when and whether is the director's draw.
 
 | Event | Where you are | Archetype | What remains |
 | --- | --- | --- | --- |

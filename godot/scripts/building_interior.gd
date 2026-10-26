@@ -3357,6 +3357,17 @@ func _fluoro_glow(lit: bool) -> void:
 			_fluoro_hum.stop()
 
 
+## The tube stutters and comes back (the night's director, a run of things at once); not
+## when it is off or there is no power.
+func flicker_lights() -> void:
+	if not _office_lights_on or not _fluoro_lit or _ceiling_light == null or not _grid_power_available:
+		return
+	# (Not over one already going: it would end on its dimmed step.)
+	if _fluoro_tween != null and is_instance_valid(_fluoro_tween) and _fluoro_tween.is_running():
+		return
+	_fluoro_flicker(_ceiling_light.light_energy)
+
+
 ## Blink, dark, blink, blink, on (in the game's own steps), the room's light with it.
 func _fluoro_flicker(energy: float) -> void:
 	if _fluoro_tween != null and is_instance_valid(_fluoro_tween):

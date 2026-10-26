@@ -70,6 +70,10 @@ const EVENTS := {
 	"hush_drop":     {"places": ["out_dark", "out_lit", "office", "back_room"], "cost": 1.5, "min": State.UNEASE, "cd": 120.0, "arch": [A.OBSERVER, A.MIMIC, A.DISTURBER, A.HUNTER], "next": [], "w": 0.8},
 	"door_bang":     {"places": ["out_dark", "out_lit"], "cost": 2.5, "min": State.UNEASE, "cd": 160.0, "arch": [A.DISTURBER, A.MIMIC], "next": ["call_far"], "w": 0.9},
 	"backroom_steps": {"places": ["office"], "cost": 3.0, "min": State.SUSPICION, "cd": 260.0, "arch": [A.MIMIC, A.HUNTER], "next": ["wall_brush"], "w": 1.0},
+	# Only ever close behind something else, in a run (RUNS).
+	"face_flash":    {"places": [], "cost": 2.0, "min": State.SUSPICION, "cd": 240.0, "arch": [A.OBSERVER, A.MIMIC, A.DISTURBER, A.HUNTER], "next": [], "w": 0.0, "run": true},
+	"lights_stutter": {"places": [], "cost": 1.0, "min": State.UNEASE, "cd": 90.0, "arch": [A.DISTURBER, A.MIMIC], "next": [], "w": 0.0, "run": true},
+	"breaker_trip":  {"places": [], "cost": 4.0, "min": State.ESCALATION, "cd": 9999.0, "arch": [A.DISTURBER, A.HUNTER], "next": [], "w": 0.0, "run": true},
 	"guest_out":     {"places": ["out_dark", "out_lit"], "cost": 6.0, "min": State.SUSPICION, "cd": 1200.0, "arch": [A.MIMIC, A.OBSERVER], "next": ["call_far"], "w": 1.1, "needs": ["guest_sleeping"], "hours": [0.0, 4.5], "nightly": 0.35},
 	"far_light":     {"places": ["out_dark", "out_lit"], "cost": 5.0, "min": State.SUSPICION, "cd": 420.0, "arch": [A.OBSERVER], "next": ["call_far"], "w": 1.0},
 	"room_sounds":   {"places": ["out_dark", "out_lit"], "cost": 4.0, "min": State.UNEASE, "cd": 300.0, "arch": [A.MIMIC, A.HUNTER, A.OBSERVER], "next": ["steps_behind"], "w": 2.0, "needs": ["haunted_near"]},
@@ -97,7 +101,31 @@ const LOG_LINES := {
 	"hush_drop": "the insects stopped all at once",
 	"door_bang": "a cabin door banged; nobody came out",
 	"backroom_steps": "steps in the back room, which was empty",
+	"face_flash": "a face for a moment where there was none",
+	"lights_stutter": "the office tube stuttered",
+	"breaker_trip": "the main breaker went, right after",
 }
+
+
+## Now and then one thing comes with others close behind it (the user 25. 10.: "the radio
+## acted up, Silent Guy's face flashed and then the fuses went: more such 'random'
+## moments, more chances of such runs"). After an event, by how far the night has gone,
+## one or two more within seconds, drawn from what fits where you are; each once in a
+## run, at their cost; then the night breathes. The breaker only as a run's last, once a
+## night, and not when it went last night or tonight already (ctx can_trip).
+const RUNS := {
+	"office": ["radio_bleed", "face_flash", "lights_stutter", "breaker_trip", "knock", "hush_drop"],
+	"back_room": ["face_flash", "lights_stutter", "breaker_trip", "wall_brush", "hush_drop"],
+	"out_dark": ["face_flash", "twig_snap", "hush_drop", "breaker_trip", "call_far", "door_bang"],
+	"out_lit": ["lamp_out", "face_flash", "twig_snap", "hush_drop", "breaker_trip", "call_far"],
+}
+const RUN_CHANCE := {State.UNEASE: 0.06, State.SUSPICION: 0.14, State.ESCALATION: 0.24, State.MANIFESTATION: 0.32}
+const RUN_GAP := Vector2(0.7, 2.6)
+## A run's breaker: as its last beat, this often (most runs leave the lights alone).
+const RUN_BREAKER := 0.3
+## The beats still to come: [{id, t (night seconds)}].
+var _run: Array = []
+var _breaker_run_night := -1
 ## What the camp's character means for you (the same page, before the night).
 const ARCH_HINTS := [
 	"It keeps to the edges and does not like to be looked at. Look straight at what you see.",
@@ -186,6 +214,7 @@ func begin_night(night_index: int) -> void:
 	_pending_check.clear()
 	_next_any = 20.0
 	_last_place = ""
+	_run.clear()
 
 
 ## Every frame. ctx: {night (bool), quiet (bool: a quiet night), hour, place, pos (Vector3),
@@ -207,6 +236,15 @@ func tick(delta: float, ctx: Dictionary) -> String:
 		window_looks += delta
 	_check_reactions(ctx)
 	budget = minf(BUDGET_MAX, budget + delta * _budget_rate(ctx))
+	# A run under way: its next beat when due, if you are still where it fits.
+	if not _run.is_empty() and _t >= float(_run[0]["t"]):
+		var beat: Dictionary = _run.pop_front()
+		var bid := str(beat["id"])
+		if not bool(ctx.get("quiet", false)) and not SAFE_PLACES.has(place) and state != State.CONFRONTATION and (RUNS.get(place, []) as Array).has(bid) and _beat_ok(bid, ctx):
+			last_reason = "%s: in a run" % bid
+			_fire(bid, ctx, true)
+			return bid
+		_run.clear()
 	_decide_in -= delta
 	# Coming in from outside is a moment of its own: the room may have changed.
 	var entering := bool(ctx.get("entering", false))
@@ -225,7 +263,51 @@ func tick(delta: float, ctx: Dictionary) -> String:
 	var id := _draw(ctx, entering)
 	if id != "":
 		_fire(id, ctx)
+		_maybe_run(id, ctx)
 	return id
+
+
+## After `id`: perhaps one or two more close behind it (RUNS).
+func _maybe_run(id: String, ctx: Dictionary) -> void:
+	var place := str(ctx.get("place", ""))
+	var pool: Array = (RUNS.get(place, []) as Array).duplicate()
+	# (Never behind a big one: after that the night breathes, RECOVERY.)
+	if pool.is_empty() or float(EVENTS[id]["cost"]) >= BIG_COST or _rng.randf() >= float(RUN_CHANCE.get(state, 0.0)):
+		return
+	pool.erase(id)
+	pool.erase("breaker_trip")
+	var beats: Array = []
+	var n := 1 if _rng.randf() < 0.55 else 2
+	for _i in 8:
+		if beats.size() >= n or pool.is_empty():
+			break
+		var b: String = pool[_rng.randi_range(0, pool.size() - 1)]
+		pool.erase(b)
+		if _beat_ok(b, ctx) and _t >= float(_cooldown_until.get(b, -1.0)):
+			beats.append(b)
+	if (RUNS.get(place, []) as Array).has("breaker_trip") and _beat_ok("breaker_trip", ctx) and _rng.randf() < RUN_BREAKER:
+		beats.append("breaker_trip")
+	var at := _t
+	for b in beats:
+		at += _rng.randf_range(RUN_GAP.x, RUN_GAP.y)
+		_run.append({"id": b, "t": at})
+	if not beats.is_empty():
+		# After the run, the night breathes.
+		_next_any = maxf(_next_any, at + float(GAP.get(state, 40.0)))
+
+
+func _beat_ok(b: String, ctx: Dictionary) -> bool:
+	var e: Dictionary = EVENTS.get(b, {})
+	if e.is_empty() or int(e["min"]) > int(state):
+		return false
+	for need in e.get("needs", []):
+		if not bool(ctx.get(need, false)):
+			return false
+	if b == "breaker_trip":
+		return bool(ctx.get("can_trip", false)) and _breaker_run_night != _night
+	if b == "face_flash":
+		return int(tonight.get(b, 0)) < 2
+	return true
 
 
 func _budget_rate(ctx: Dictionary) -> float:
@@ -363,9 +445,12 @@ func _draw(ctx: Dictionary, entering: bool) -> String:
 	return str(c.keys().back())
 
 
-func _fire(id: String, ctx: Dictionary) -> void:
+func _fire(id: String, ctx: Dictionary, in_run := false) -> void:
 	var e: Dictionary = EVENTS[id]
-	budget -= float(e["cost"])
+	# A run's beats ride on the first one's cost (half each), and set no gap of their own.
+	budget = maxf(0.0, budget - float(e["cost"]) * (0.5 if in_run else 1.0))
+	if id == "breaker_trip":
+		_breaker_run_night = _night
 	tonight[id] = int(tonight.get(id, 0)) + 1
 	ever[id] = int(ever.get(id, 0)) + 1
 	last_id = id
@@ -374,7 +459,10 @@ func _fire(id: String, ctx: Dictionary) -> void:
 		_chain[n] = _t + CHAIN_SECONDS
 	if float(e["cost"]) >= BIG_COST:
 		_recover_until = _t + _rng.randf_range(RECOVERY_SECONDS.x, RECOVERY_SECONDS.y)
-	_next_any = _t + float(GAP.get(state, 40.0)) * _rng.randf_range(0.8, 1.4)
+	if not in_run:
+		_next_any = _t + float(GAP.get(state, 40.0)) * _rng.randf_range(0.8, 1.4)
+	else:
+		_next_any = maxf(_next_any, _t + float(GAP.get(state, 40.0)) * 0.6)
 	recent.append({"id": id, "t": _t, "place": str(ctx.get("place", "")), "why": last_reason})
 	var hr := float(ctx.get("hour", 0.0))
 	log.append({"time": "%02d:%02d" % [int(hr) % 24, int((hr - floor(hr)) * 60.0)], "id": id})

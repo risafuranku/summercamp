@@ -15271,87 +15271,87 @@ msgstr ""
 
 #: scripts/night/night_director.gd:79
 msgid "tapping on the office window"
-msgstr ""
+msgstr "ťukání na okno kanceláře"
 
 #: scripts/night/night_director.gd:80
 msgid "a person outside the office window, facing it"
-msgstr ""
+msgstr "postava za oknem kanceláře, čelem k němu"
 
 #: scripts/night/night_director.gd:81
 msgid "knocking at the office door. Nobody. Wet prints on the step"
-msgstr ""
+msgstr "klepání na dveře kanceláře. Nikdo. Mokré stopy na schodku"
 
 #: scripts/night/night_director.gd:82
 msgid "knocking at the office door: two, then one"
-msgstr ""
+msgstr "klepání na dveře kanceláře: dvakrát, pak jednou"
 
 #: scripts/night/night_director.gd:83
 msgid "the office door handle tried from outside"
-msgstr ""
+msgstr "někdo zvenku zkoušel kliku kanceláře"
 
 #: scripts/night/night_director.gd:84
 msgid "the office phone rang. Breathing on the line"
-msgstr ""
+msgstr "v kanceláři zazvonil telefon. Na lince dech"
 
 #: scripts/night/night_director.gd:85
 msgid "something along the back room's outer wall"
-msgstr ""
+msgstr "něco podél venkovní stěny zadní místnosti"
 
 #: scripts/night/night_director.gd:86
 msgid "the radio lost the station"
-msgstr ""
+msgstr "rádio ztratilo stanici"
 
 #: scripts/night/night_director.gd:87
 msgid "the office not as it was left"
-msgstr ""
+msgstr "kancelář jinak, než jak zůstala"
 
 #: scripts/night/night_director.gd:88
 msgid "a lamp went out by itself, then came back"
-msgstr ""
+msgstr "lampa sama zhasla a pak se zase rozsvítila"
 
 #: scripts/night/night_director.gd:89
 msgid "steps following the night staff across the camp"
-msgstr ""
+msgstr "kroky za noční službou přes celý kemp"
 
 #: scripts/night/night_director.gd:90
 msgid "a call from the woods"
-msgstr ""
+msgstr "volání z lesa"
 
 #: scripts/night/night_director.gd:91
 msgid "a person crossing the camp in the dark. Prints"
-msgstr ""
+msgstr "postava přešla kemp potmě. Stopy"
 
 #: scripts/night/night_director.gd:92
 msgid "something at the edge of the camp"
-msgstr ""
+msgstr "něco na okraji kempu"
 
 #: scripts/night/night_director.gd:93
 msgid "movement in a guest's cabin while they slept"
-msgstr ""
+msgstr "pohyb v chatce hosta, zatímco spal"
 
 #: scripts/night/night_director.gd:94
 msgid "a light in the woods where there is no lamp"
-msgstr ""
+msgstr "světlo v lese, kde žádná lampa není"
 
 #: scripts/night/night_director.gd:95
 msgid "a branch snapped in the dark near the night staff"
-msgstr ""
+msgstr "potmě u noční služby praskla větev"
 
 #: scripts/night/night_director.gd:96
 msgid "%s stood at the edge of the trees, facing the office. In the morning: never got up"
-msgstr ""
+msgstr "%s u kraje stromů, čelem ke kanceláři. Ráno už z postele nevstává"
 
 #: scripts/night/night_director.gd:97
 msgid "the insects stopped all at once"
-msgstr ""
+msgstr "hmyz najednou zmlkl"
 
 #: scripts/night/night_director.gd:98
 msgid "a cabin door banged; nobody came out"
-msgstr ""
+msgstr "bouchly dveře chatky; nikdo nevyšel"
 
 #: scripts/night/night_director.gd:99
 msgid "steps in the back room, which was empty"
-msgstr ""
+msgstr "kroky v zadní místnosti, která byla prázdná"
 
 #: scripts/night/night_director.gd:103
 msgid "It keeps to the edges and does not like to be looked at. Look straight at what you see."
@@ -19753,7 +19753,7 @@ msgstr ""
 
 #: scripts/os98/apps/campstat_app.gd:864
 msgid "NOTHING LOGGED."
-msgstr ""
+msgstr "NIC ZAZNAMENÁNO."
 
 #: scripts/os98/apps/campstat_app.gd:882
 msgid "UPKEEP"
@@ -25912,3 +25912,12 @@ msgstr "Velkoobchod pro kemp. Podepište a vyložím to."
 
 msgid "Right. It's going on the shelves."
 msgstr "Dobře. Jde to do regálů."
+
+msgid "a face for a moment where there was none"
+msgstr "na okamžik tvář tam, kde žádná nebyla"
+
+msgid "the office tube stuttered"
+msgstr "zářivka v kanceláři zablikala"
+
+msgid "the main breaker went, right after"
+msgstr "hned potom vypadl hlavní jistič"

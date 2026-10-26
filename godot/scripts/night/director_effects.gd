@@ -12,6 +12,7 @@ extends Node
 const DIR := "res://assets/sfx/director/"
 ## A person, dark: one of us, standing where nobody should (not the hunters' own shapes).
 const FIGURE_TEX := "res://assets/textury/npc/host1.png"
+const NIGHTMARE_FX := preload("res://scripts/night/nightmare_fx.gd")
 const FOOTPRINTS := "res://assets/textury/mess/dirt_footprints.png"
 const STEPS_SFX := "res://assets/sfx/grassfootsteps.mp3"
 
@@ -129,7 +130,37 @@ func run(id: String, ctx: Dictionary) -> Vector3:
 			var om = main.get("_omens")
 			if om != null and om.has_method("play_now"):
 				om.play_now(ctx.get("pos", Vector3.ZERO), main.call("_omen_context") if main.has_method("_omen_context") else {})
+		"face_flash":
+			_face_flash()
+		"lights_stutter":
+			if bi != null and bi.has_method("flicker_lights"):
+				bi.flicker_lights()
+		"breaker_trip":
+			# The camp's own breaker, as a night's job (the machine that runs the camp).
+			var nj = main.get("_night_jobs")
+			if nj != null and nj.has_method("trip_breaker_now") and Coop.sim_here():
+				nj.trip_breaker_now()
 	return Vector3.INF
+
+
+## A face for two frames, whose depends on who is in the camp tonight (the director's
+## strongest archetype): the quiet ones bring the Silent Man's, the drinkers and the girls
+## the Girl's, the families and the tramps the Photographer's.
+const FACES := ["res://assets/textury/npc/sm_face.png", "res://assets/textury/npc/girl_face_b.png", "res://assets/textury/npc/ph_face_peel.png", "res://assets/textury/npc/sm_face.png"]
+
+
+func _face_flash() -> void:
+	var w: Array = director.get("arch_weights") if director != null else [1.0, 0.0, 0.0, 0.0]
+	var top := 0
+	for i in w.size():
+		if float(w[i]) > float(w[top]):
+			top = i
+	var path: String = FACES[clampi(top, 0, FACES.size() - 1)]
+	if not ResourceLoader.exists(path):
+		return
+	var fx: Node = NIGHTMARE_FX.get_for(main)
+	if fx != null and fx.has_method("subliminal"):
+		fx.subliminal(load(path), 2, randf_range(0.9, 1.15), Color(1, 1, 1, 0.75))
 
 
 func _process(delta: float) -> void:

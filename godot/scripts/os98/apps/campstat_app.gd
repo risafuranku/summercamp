@@ -861,11 +861,11 @@ func _night_log(y: float) -> float:
 	var r := Rect2(PAD, y, c.size.x - PAD * 2, h)
 	c.draw_style_box(T.box("field", LCD_BG, Vector4.ZERO), r)
 	if lines.is_empty():
-		c.draw_string(T.FONT, Vector2(r.position.x + 6, r.position.y + 15), "NOTHING LOGGED.", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, LCD_DIM)
+		c.draw_string(T.FONT, Vector2(r.position.x + 6, r.position.y + 15), tr("NOTHING LOGGED."), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, LCD_DIM)
 	else:
 		for i in lines.size():
 			var e: Dictionary = lines[i]
-			var line := str(d.LOG_LINES.get(str(e.get("id", "")), str(e.get("id", ""))))
+			var line := tr(str(d.LOG_LINES.get(str(e.get("id", "")), str(e.get("id", "")))))
 			if line.contains("%s"):
 				line = line % str(e.get("who", "A guest"))
 			var ly := r.position.y + 15 + i * LINE

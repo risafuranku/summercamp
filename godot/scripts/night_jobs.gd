@@ -122,6 +122,41 @@ func on_dawn() -> void:
 	changed.emit()
 
 
+## The breaker goes now (the night director's runs: one thing close behind another): a
+## breaker job like the night's own, when the camp has a board to trip, it is not off
+## already and has not gone tonight or last night (`can_trip_breaker`).
+func trip_breaker_now() -> bool:
+	if not can_trip_breaker() or _last_minute < 0:
+		return false
+	var job := _make("breaker", _last_minute)
+	_jobs.append(job)
+	_start(job)
+	_last_breaker_night = _planned_night
+	return str(job["state"]) == "open"
+
+
+## (Asked every frame by the director's context: the camp's board looked for every 2 s.)
+var _has_board := false
+var _board_seen_ms := -100000
+
+
+func can_trip_breaker() -> bool:
+	if breaker_tripped or _planned_night <= QUIET_NIGHTS:
+		return false
+	var now := Time.get_ticks_msec()
+	if now - _board_seen_ms > 2000:
+		_board_seen_ms = now
+		_has_board = _available_kinds().has("breaker")
+	if not _has_board:
+		return false
+	if _last_breaker_night >= _planned_night - 1:
+		return false
+	for j in _jobs:
+		if str(j.get("kind", "")) == "breaker":
+			return false
+	return true
+
+
 func open_jobs() -> Array:
 	var out: Array = []
 	for job in _jobs:

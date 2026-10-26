@@ -28,7 +28,7 @@
 - [x] R20 „při sprintu více camera shake“
 - [x] R21 „zmenšit Silent Guyovo oči ve tmě. když na něj posvítíš, na 3 s ti vypadne baterka, pak se rozbliká a zapne. víc silent guyů = musíš si vybrat, na koho posvítit; lehce hustý efekt“
 - [x] R22 „odstraň stahování/připojování přes beeternet při koupi licence do SoftSkladu, ať to celé probíhá v okně SoftSkladu“
-- [ ] R23 „radio blbne, probliknul ksicht silent guye, a do toho vypadly pojistky. takových ‚náhodných‘ momentů víc, víc šancí na takové sekvence“ (the director: more chances for stacked omens)
+- [x] R23 „radio blbne, probliknul ksicht silent guye, a do toho vypadly pojistky. takových ‚náhodných‘ momentů víc, víc šancí na takové sekvence“ (the director's runs: after a small event one or two more within seconds, a face of whoever the camp brings, the tube stuttering, the breaker at the end now and then; DESIGN §5g Runs. The night log is in Czech now too)
 - [x] R24 „z brigády opisování odstraň čísla, nech jen písmena“
 - [x] R25 „brigády se zasekly na ‚done for today‘. ať jsou přístupné nonstop, bez limitu“
 - [x] R26 „recepce uvnitř zvenku svítí, i když jsou shozené pojistky“

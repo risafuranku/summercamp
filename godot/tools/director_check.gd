@@ -35,7 +35,7 @@ func _ctx(hour: float, place: String, extra := {}) -> Dictionary:
 	var c := {"night": hour >= 21.0 or hour < 5.5, "quiet": false, "hour": hour, "place": place, "pos": Vector3.ZERO,
 		"pressure": 3.0, "guests_by_arch": {"drunk": 2, "quiet_guy": 1, "family": 1}, "admitted": 0, "hunting": 1,
 		"hunter_near_m": INF, "dark": false, "lamp_near": true, "walking": true, "window_open": true,
-		"looking_at_window": false, "entering": false}
+		"looking_at_window": false, "entering": false, "can_trip": true}
 	c.merge(extra, true)
 	return c
 
@@ -49,7 +49,7 @@ func _night(d, seconds: float, place_of: Callable, extra := {}) -> Array:
 		var hour := fmod(22.0 + t / seconds * 6.0, 24.0)
 		var id: String = d.tick(dt, _ctx(hour, str(place_of.call(t)), extra))
 		if id != "":
-			fired.append({"id": id, "t": t, "cost": float(DIRECTOR.EVENTS[id]["cost"]), "place": str(place_of.call(t))})
+			fired.append({"id": id, "t": t, "cost": float(DIRECTOR.EVENTS[id]["cost"]), "place": str(place_of.call(t)), "run": str(d.last_reason).ends_with("in a run")})
 		t += dt
 	return fired
 
@@ -72,6 +72,7 @@ func _run() -> void:
 
 	# A busy night, in and out of the office: some things, never too much, spent right.
 	var counts := []
+	var runs := 0
 	for seed in [21, 22, 23, 24, 25]:
 		d = DIRECTOR.new(seed)
 		d.begin_night(5)
@@ -80,15 +81,28 @@ func _run() -> void:
 		print("  seed %d: %s" % [seed, ", ".join(f.map(func(e): return "%s@%d" % [e["id"], int(e["t"])]))])
 		for i in range(1, f.size()):
 			_expect(f[i]["id"] != f[i - 1]["id"], "the same event twice in a row (%s, seed %d)" % [f[i]["id"], seed])
-			if f[i]["id"] != "room_changed":
+			if bool(f[i]["run"]):
+				# A run's beat: close behind the one before it, within the run's gap.
+				runs += 1
+				var gap := float(f[i]["t"]) - float(f[i - 1]["t"])
+				_expect(gap >= DIRECTOR.RUN_GAP.x - 0.3 and gap <= DIRECTOR.RUN_GAP.y + 0.3, "a run's beat %.1f s after the one before (seed %d)" % [gap, seed])
+			elif f[i]["id"] != "room_changed":
 				_expect(float(f[i]["t"]) - float(f[i - 1]["t"]) >= 14.0, "two things within %.0f s (seed %d)" % [float(f[i]["t"]) - float(f[i - 1]["t"]), seed])
 			if float(f[i - 1]["cost"]) >= DIRECTOR.BIG_COST:
 				_expect(float(f[i]["t"]) - float(f[i - 1]["t"]) >= DIRECTOR.RECOVERY_SECONDS.x - 0.5, "no breather after %s (seed %d)" % [f[i - 1]["id"], seed])
+		var trips := 0
 		for e in f:
 			var places: Array = DIRECTOR.EVENTS[e["id"]]["places"]
-			_expect(places.has(e["place"]) or places.has("entering"), "%s happened in the %s" % [e["id"], e["place"]])
+			if bool(e["run"]):
+				_expect((DIRECTOR.RUNS.get(e["place"], []) as Array).has(e["id"]), "%s in a run in the %s" % [e["id"], e["place"]])
+			else:
+				_expect(places.has(e["place"]) or places.has("entering"), "%s happened in the %s" % [e["id"], e["place"]])
+			if e["id"] == "breaker_trip":
+				trips += 1
+		_expect(trips <= 1, "the breaker went %d times in a night (seed %d)" % [trips, seed])
 		_expect(d.budget >= -0.001, "the budget went below zero (seed %d)" % seed)
-	print("DIRECTOR CHECK: busy nights fired %s" % str(counts))
+	print("DIRECTOR CHECK: busy nights fired %s, %d of it in runs" % [str(counts), runs])
+	_expect(runs > 0, "no run of things close together in five busy nights")
 	for c in counts:
 		_expect(c >= 3 and c <= 16, "a busy night fired %d things (want 3-16)" % c)
 

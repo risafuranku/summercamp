@@ -642,6 +642,8 @@ func _director_context() -> Dictionary:
 		"window_open": curtain == null or float(curtain.get("open")) > 0.5,
 		"looking_at_window": bi != null and bi.has_method("is_looking_at_window") and bi.is_looking_at_window(),
 		"entering": entering,
+		# A run of things may end in the breaker going (night_director.RUNS).
+		"can_trip": _night_jobs != null and _night_jobs.has_method("can_trip_breaker") and _night_jobs.can_trip_breaker(),
 	}
 
 
