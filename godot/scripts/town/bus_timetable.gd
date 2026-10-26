@@ -36,6 +36,14 @@ const TOWN_THROUGH := [6.0 + 10.0 / 60.0 + RIDE_HOURS, 10.25 + RIDE_HOURS, 13.75
 ## midnight.
 const WORKS_TOWN := 23.0 + 46.0 / 60.0
 const WORKS_CAMP := 0.0 + 6.0 / 60.0
+## The hands' bus (the user 26. 10.: the businesses' people come by bus for the opening
+## and go home by bus after their shift, and the 380 does not run then): a works run,
+## SLUZEBNI on its board, down to the camp stop after the night (the 380 is gone by
+## then), after the day's closing and after the late shift's; it stands a few minutes and
+## goes back up. Not the line: the poles do not print it and it takes nobody but them
+## (scripts/business/hands_commute.gd walks them in from it and out to it).
+const STAFF_ARRIVE := [6.0 + 42.0 / 60.0, 20.0 + 45.0 / 60.0, 23.0 + 45.0 / 60.0]
+const STAFF_LEAVE := [6.0 + 47.0 / 60.0, 20.0 + 55.0 / 60.0, 23.0 + 55.0 / 60.0]
 ## Lstibor, for the printed sheet: where the bus for the camp starts, and where the one
 ## from the camp ends.
 const LSTIBOR_LEAVE := [5.5 - 21.0 / 60.0, 9.0 + 14.0 / 60.0, 13.0 - 16.0 / 60.0, 18.5 - 21.0 / 60.0]

@@ -2,16 +2,19 @@ extends Node
 
 ## The businesses' hands come in by the morning bus and go home through the gate (the user
 ## 25. 10.: "the staff at the corn ... in the evening they leave through the gate for the
-## bus, they come by the morning bus for the camp's opening"). Drawn from the clock on
-## every machine, with no state of its own (who works today is the books', the hour is the
-## camp's), so in co-op both wardens see the same hand at the same place:
-##   in    a day hand comes up from the stop on the road outside the barrier after the
-##         night (DAY_IN, a little apart) and walks to their place; a late hand walks in
-##         for the evening shift. A building's hand goes in at its door and is gone; the
-##         corn stand's stands at their place behind the counter till it opens (then
-##         crew_figures has them at work). (The 380's first run is at 5:37, still the
-##         night: they are not about the camp in the dark before they open.)
-##   out   when their shift is over, from their place the same way out to the road
+## bus, they come by the morning bus for the camp's opening"; 26. 10.: their own bus).
+## Drawn from the clock on every machine, with no state of its own (who works today is
+## the books', the hour is the camp's), so in co-op both wardens see the same hand at the
+## same place:
+##   in    a day hand comes up from the stop through the barrier off the works bus after
+##         the night (bus_timetable.STAFF_ARRIVE; a little apart) and walks to their place;
+##         a late hand comes off the 380's last run and walks in for the evening shift. A
+##         building's hand goes in at its door and is gone; the corn stand's stands at
+##         their place behind the counter till it opens. Still on the way when it opens,
+##         they are not at work yet (business_runtime.crew_now leaves them out: nobody at
+##         the counter, no figure behind it) till they get there.
+##   out   when their shift is over, from their place the same way out to the road, for
+##         the works bus after the closing (the day's and the late shift's)
 ## The way is the staffroom hands' (staff_runtime.way: the guests' grid, quicker on the
 ## paths); the figures the businesses' own (their Doom sets, standing, bobbing a step).
 
@@ -21,14 +24,16 @@ const DOOM := preload("res://scripts/figures/doom_figure.gd")
 const DOOR_ANIM := preload("res://scripts/attractions/door_anim.gd")
 const CREW := preload("res://scripts/business/crew_figures.gd")
 const STAND := preload("res://scripts/business/corn_stand_life.gd")
+const TIMES := preload("res://scripts/town/bus_timetable.gd")
 const PERSON_M := 1.74
 ## Their pace: the guests' 1.35 m/s, in metres a game minute (1.25 game minutes a second).
 const M_PER_MIN := 1.35 / 1.25
-## When the day hands come up from the stop: after the night (it ends at 6:30), before
-## they open at seven.
-const DAY_IN := 6.62
-## A late hand comes in this long before the evening shift (game minutes).
-const LATE_EARLY_MIN := 25.0
+## When the day hands come through the barrier: the works bus at the stop after the night
+## (it ends at 6:30), and the few steps up from it.
+const DAY_IN: float = TIMES.STAFF_ARRIVE[0] + 2.0 / 60.0
+## A late hand: off the 380's last run in (it stands at the camp till after six).
+static func _late_in() -> float:
+	return float(TIMES.CAMP_ARRIVE[TIMES.CAMP_ARRIVE.size() - 1]) + 2.0 / 60.0
 const BOB_HZ := 2.4
 
 var _figs: Dictionary = {}      # "key/slug" -> Sprite3D
@@ -118,7 +123,7 @@ func _now_walking(h: float) -> Array:
 			var shift := str(p.get("shift", "day"))
 			# A little apart, off the bus one after another.
 			var lag := float(n % 4) * 1.5 / 60.0
-			var come := (DAY_IN + lag) if shift == "day" else (float(RULES.DAY_CLOSE) - LATE_EARLY_MIN / 60.0 + lag)
+			var come := (DAY_IN + lag) if shift == "day" else (_late_in() + lag)
 			var opens := float(BUSINESS.OPEN_HOUR) if shift == "day" else float(RULES.DAY_CLOSE)
 			var ends := (float(RULES.DAY_CLOSE) if shift == "day" else float(RULES.LATE_CLOSE)) + lag
 			if shift == "late" and not late:
@@ -126,8 +131,12 @@ func _now_walking(h: float) -> Array:
 			var id := "%s/%s" % [key, slug]
 			var path_in := _way(id + "/in/%d" % day, sr, road, place["at"])
 			var walk_h := maxf(1.0, _len(path_in) / M_PER_MIN) / 60.0
+			# A late hand off the 380 takes their time at the stop: in a few minutes before
+			# their shift (not standing by the day's hand at the stand for an hour).
+			if shift == "late":
+				come = maxf(come, opens - walk_h - 5.0 / 60.0 + lag)
 			if h >= come and h < come + walk_h:
-				out.append({"id": id, "slug": slug, "path": path_in, "k": (h - come) / walk_h})
+				out.append({"id": id, "slug": slug, "path": path_in, "k": (h - come) / walk_h, "in": true, "key": str(key)})
 			elif bool(place.get("stays", false)) and h >= come + walk_h and h < opens:
 				out.append({"id": id, "slug": slug, "path": PackedVector3Array([place["at"], place["at"] + (place.get("face", Vector3.FORWARD) as Vector3) * 0.2]), "k": 0.0, "standing": true})
 			elif h >= ends:
@@ -167,8 +176,15 @@ func _draw(delta: float) -> void:
 	var m := _main()
 	var world: Node3D = m.get("_world_3d") if m != null else null
 	if world == null:
+		BUSINESS.arriving = {}
 		return
 	var walking := _now_walking(_hour())
+	# Who is still on the way in: not at work yet (business_runtime.crew_now).
+	var arriving := {}
+	for w in walking:
+		if bool(w.get("in", false)):
+			arriving[str(w["id"])] = true
+	BUSINESS.arriving = arriving
 	var seen := {}
 	_view += delta
 	var view_now := _view >= 1.0 / 12.0
@@ -202,6 +218,10 @@ func _draw(delta: float) -> void:
 			if is_instance_valid(_figs[id]):
 				(_figs[id] as Node).queue_free()
 			_figs.erase(id)
+
+
+func _exit_tree() -> void:
+	BUSINESS.arriving = {}
 
 
 func _make(slug: String) -> Sprite3D:

@@ -23483,7 +23483,7 @@ msgstr ""
 #: scripts/town/bus_ride.gd:876 scripts/town/bus_ride.gd:1500
 #. uses 2
 msgid "Driver: \"%s\""
-msgstr ""
+msgstr "Řidič: „%s“"
 
 #: scripts/town/bus_ride.gd:1148 scripts/town/bus_ride.gd:1627 scripts/town/pump_closeup.gd:58 scripts/town/pump_closeup.gd:164 (+1)
 #. uses 5
@@ -24957,7 +24957,7 @@ msgstr ""
 
 #: scripts/town/town_trip.gd:1072
 msgid "Driver: \"Lstibor. Yours is the other side, to the camp.\""
-msgstr ""
+msgstr "Řidič: „Lstiboř. Váš jede z druhé strany, do kempu.“"
 
 #: scripts/town/town_trip.gd:1267
 msgid "No room in the bag for a ticket."
@@ -25933,3 +25933,6 @@ msgstr "a %d {další|další|dalších} v katalogu"
 
 msgid "NEW"
 msgstr "NOVÉ"
+
+msgid "Driver: \"Staff only. Yours is the 380.\""
+msgstr "Řidič: „Služební, jen pro personál. Vy jedete třistaosmdesátkou.“"

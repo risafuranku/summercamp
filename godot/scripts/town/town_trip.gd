@@ -775,6 +775,9 @@ func _run_stop(stop: String, bus: Node3D, delta: float, h: float) -> void:
 		bus.set_stop(plan["stop_id"])
 		if arriving:
 			bus.play("res://assets/sfx/bus/arrive.mp3", -10.0)
+	elif str(bus.destination) != str(plan["dest"]):
+		# The clock put on (a save loaded): the run it is now, the hands' or the line's.
+		bus.destination = plan["dest"]
 	# The driver smokes outside while it stands at the end of the line (the camp) or in
 	# Lesna before going up to the camp.
 	bus.set_driver_out(standing and plan["stop_id"] != "town_through")
@@ -871,6 +874,9 @@ func _make_runs(stop: String) -> Array:
 		var road := _road()
 		for i in TIMES.CAMP_ARRIVE.size():
 			runs.append({"arrive": TIMES.CAMP_ARRIVE[i], "leave": TIMES.CAMP_LEAVE[i], "in": road.bus_arrive_path(), "out": road.bus_leave_path(), "pose": road.bus_stop_pose(), "dest": "LIBLICE", "stop_id": "camp"})
+		# The hands' works runs (bus_timetable.STAFF_ARRIVE).
+		for i in TIMES.STAFF_ARRIVE.size():
+			runs.append({"arrive": TIMES.STAFF_ARRIVE[i], "leave": TIMES.STAFF_LEAVE[i], "in": road.bus_arrive_path(), "out": road.bus_leave_path(), "pose": road.bus_stop_pose(), "dest": "SLUZEBNI", "stop_id": "camp"})
 	else:
 		for i in TIMES.TOWN_ARRIVE.size():
 			runs.append({"arrive": TIMES.TOWN_ARRIVE[i], "leave": TIMES.TOWN_LEAVE[i], "in": _town.bus_arrive_path("to_camp"), "out": _town.bus_leave_path("to_camp"), "pose": _town.bus_pose("to_camp"), "dest": "KEMP", "stop_id": "town"})
@@ -1075,6 +1081,10 @@ func _board(stop_id: String) -> void:
 	var at_hamlet := stop_id.begins_with("hamlet")
 	var bus = _hamlet.bus_for(stop_id) if at_hamlet else (_camp_bus if stop_id == "camp" else _town_bus)
 	if bus == null or not bus.is_door_open():
+		return
+	# The hands' works run takes nobody but them.
+	if str(bus.destination) == "SLUZEBNI":
+		_say(tr("Driver: \"Staff only. Yours is the 380.\""))
 		return
 	_boarding_stop = stop_id
 	# The bus waits while you are on it.

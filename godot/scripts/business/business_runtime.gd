@@ -372,7 +372,8 @@ static func price_k(key: String) -> float:
 	return 1.25 if shift_now(site(key)) == "late" else 1.0
 
 
-## Who of a place's hands is working now (on this shift, came in today): the crew records.
+## Who of a place's hands is working now (on this shift, came in today, got here): the
+## crew records.
 static func crew_now(key: String) -> Array:
 	var s := site(key)
 	var out: Array = []
@@ -383,9 +384,14 @@ static func crew_now(key: String) -> Array:
 		return out
 	var day := CoreRoot.get_day() if CoreRoot != null else 0
 	for p in s.get("crew", []):
-		if str(p.get("shift", "day")) == now and int(p.get("absent", -1)) != day:
+		if str(p.get("shift", "day")) == now and int(p.get("absent", -1)) != day and not arriving.has(key + "/" + str(p.get("slug", ""))):
 			out.append(p)
 	return out
+
+
+## "key/slug" of the hands still on their way in from the bus (hands_commute.gd, from the
+## clock: the same on every machine).
+static var arriving: Dictionary = {}
 
 
 ## What the hand at `role` (on now) does to the mood of a guest they serve (the brief of
