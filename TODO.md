@@ -39,7 +39,7 @@
 - [x] R31 „staff u kukuřice stojí špatně otočený, potřebuje animace obsluhování; večer odchází přes vrátnici na bus, ranním busem přijedou na otevření kempu“ (a turned stand turned them away: their way is the camp's now; serving, they lean over and the cob goes over; every business's hands come up from the stop after the night and go out through the gate after their shift, hands_commute.gd. The 380 has no run then (5:37 is still night, the last leaves 19:10): ask the user about a works bus)
 - [x] R32 „venku světelný bug: určitým směrem totálně pure black a hrozně se to seká, pootočím se a zase vidím“ (D3D12 ran out of its resource descriptor heap after a long session: draws failed, the console spammed errors every frame; max_resource_descriptors 65536 -> 524288)
 - [x] R33 „kaluže na zemi clippují s texturou země a vypadají spíš jako olej“
-- [ ] R34 „když je brigádník u minihry, nech mě pracovat společně s ním jako jiný hráč: obsazuje stanice, já můžu kamkoliv a mám přednost, on je vždy tam, kde je potřeba a kde nejsem já“
+- [x] R34 „když je brigádník u minihry, nech mě pracovat společně s ním jako jiný hráč: obsazuje stanice, já můžu kamkoliv a mám přednost, on je vždy tam, kde je potřeba a kde nejsem já“ (the corn stand: a hand at your station moves to the one that most wants doing, their name on its tab; cornstand.crew_places. The pub, the bistro and the Jednota still keep their hands to their jobs: next)
 - [x] R35 „otexturovat závoru, možnost změnit název kempu klávesou E na ceduli před kempem“
 - [x] R36 „na recepci mezi telefonem a deskami leží bílý čtverec, vždy na něj kliknu omylem“
 - [x] R37 „na stanici 2 counter u kukuřice zmizí HUD uvařenosti kukuřic, na trojce taky“

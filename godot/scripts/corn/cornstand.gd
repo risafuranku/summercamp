@@ -340,7 +340,82 @@ func _save(key: String) -> void:
 ##   counter  puts husked cobs in the pot, takes a done one out, butters and salts it to
 ##            the order (the salt off now and then) and hands it over; a soft one they
 ##            throw away
+## The hands work beside you as another warden would (the user 25. 10.: "let me work
+## together with him like another player: he takes stations, I can go anywhere and come
+## first, he is always where he is needed and where I am not"): each to their own job's
+## station unless a warden is at it (you come first), then to the free station that most
+## wants doing (the bowl running low, cobs waiting at the counter, drinks ordered), never
+## two to one; with nothing wanted, aside. Worked out the same way on every machine (the
+## wardens' stations are in their room states, the orders and the bowl are the stand's
+## own records), so the figures stand where the work is done.
+const STATIONS := ["husk", "counter", "drinks"]
+
+
+## slug -> the station that hand works now ("" aside), at `key`.
+func crew_places(key: String) -> Dictionary:
+	var out := {}
+	var crew: Array = BUSINESS.crew_now(key)
+	if crew.is_empty():
+		return out
+	var busy := warden_stations(key)
+	var taken := {}
+	var wanting: Array = []
+	for p in crew:
+		var own := str(p.get("role", ""))
+		if STATIONS.has(own) and not busy.has(own) and not taken.has(own):
+			taken[own] = true
+			out[str(p.get("slug", ""))] = own
+		else:
+			wanting.append(p)
+	for p in wanting:
+		var best := ""
+		var best_need := 0.0
+		for st in STATIONS:
+			if busy.has(st) or taken.has(st):
+				continue
+			var need := station_need(key, st)
+			if need > best_need:
+				best_need = need
+				best = st
+		if best != "":
+			taken[best] = true
+		out[str(p.get("slug", ""))] = best
+	return out
+
+
+## The stations wardens are at here: this machine's open one and the others' rooms.
+func warden_stations(key: String) -> Array:
+	var out: Array = []
+	var sv = get_tree().get_first_node_in_group("corn_stand_view") if is_inside_tree() else null
+	if sv != null and is_instance_valid(sv) and str(sv.get("building_key")) == key and sv.has_method("_station_open"):
+		var open := str(sv.call("_station_open"))
+		if open != "":
+			out.append(open)
+	if Coop.is_active():
+		for pid in Coop.others():
+			var room: Dictionary = Coop.state_of(pid).get("room", {})
+			if str(room.get("k", "")) == key and str(room.get("t", "")) == "corn":
+				out.append(str(room.get("w", "")))
+	return out
+
+
+## How much a station wants doing now (0 nothing).
+func station_need(key: String, st: String) -> float:
+	match st:
+		"husk":
+			if BUSINESS.stock_of(key, "cobs") <= 0:
+				return 0.0
+			return maxf(0.0, float(8 - bowl(key)) / 8.0)
+		"counter":
+			var cobs := tickets(key, "cob").size()
+			return 0.0 if cobs == 0 else 0.5 + 0.25 * float(cobs) + (0.5 if not pot(key).is_empty() else 0.0)
+		"drinks":
+			return 0.4 * float(tickets(key, "drink").size())
+	return 0.0
+
+
 func _crew_work(key: String, crew: Array) -> void:
+	var places := crew_places(key)
 	for p in crew:
 		var id := key + "/" + str(p.get("slug", ""))
 		var left := float(_crew_t.get(id, 0.0)) - 1.0
@@ -350,18 +425,19 @@ func _crew_work(key: String, crew: Array) -> void:
 		var speed := clampi(int(p.get("speed", 1)), 0, 2)
 		var slip := _rng.randf() < float(BIZ_RULES.SPEED_SLIP[speed]) + (0.05 if str(p.get("temper", "")) == "sour" else 0.0)
 		var did := false
-		match str(p.get("role", "")):
+		var at := str(places.get(str(p.get("slug", "")), ""))
+		match at:
 			"husk":
 				did = _crew_husk(key, slip)
 			"counter":
 				did = _crew_counter(key, slip)
-				# Nothing for the pot: a drink meanwhile, unless a hand is on the drinks.
-				if not did and not _has_role(crew, "drinks"):
+				# Nothing for the pot: a drink meanwhile, unless somebody is on the drinks.
+				if not did and not places.values().has("drinks") and not warden_stations(key).has("drinks"):
 					did = _crew_drink(key, slip)
 			"drinks":
 				did = _crew_drink(key, slip)
 		var k := 1.0
-		if str(p.get("role", "")) == "husk" and BUSINESS.has_gear(key, "table"):
+		if at == "husk" and BUSINESS.has_gear(key, "table"):
 			k = 0.6
 		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) * k if did else 1.0
 

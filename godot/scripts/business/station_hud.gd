@@ -51,6 +51,9 @@ var station: Node
 var tabs: Array = []
 ## Other wardens at this place's stations: id -> name.
 var taken: Dictionary = {}
+## station id -> the name of the hand working it now (shown on its tab; you may still go
+## there, they make way: cornstand.crew_places).
+var hands: Dictionary = {}
 ## -> [{icon: Texture2D, fill, zone: Vector2, col: Color, blink: bool}] (the timers).
 var mirror_of: Callable
 ## (station id) -> 0, 1 (something waits there), 2 (it burns): the tabs blink.
@@ -427,6 +430,8 @@ func _tab_text(i: int) -> String:
 	var id := str(tabs[i][0])
 	if str(taken.get(id, "")) != "":
 		return str(taken[id]).to_upper().substr(0, 8)
+	if str(hands.get(id, "")) != "":
+		return str(hands[id]).to_upper().substr(0, 8)
 	return tr(str(tabs[i][1])).to_upper()
 
 

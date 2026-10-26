@@ -258,6 +258,9 @@ func _start_crew(r: Node3D, key: String) -> void:
 		spots[role] = {"root": r, "pos": CREW_AT[role], "station": role, "aside": CREW_ASIDE[role], "note": (CREW_AT[role] as Vector3) + Vector3(0, 1.25, 0.5)}
 	_crew.set("spots", spots)
 	_crew.set("busy_of", _busy)
+	_crew.set("place_of", func(p: Dictionary) -> String:
+		var cs := get_tree().get_first_node_in_group("cornstands") if is_inside_tree() else null
+		return str((cs.crew_places(key) as Dictionary).get(str(p.get("slug", "")), "")) if cs != null else str(p.get("role", "")))
 	r.add_child(_crew)
 	# Served over the counter (by a hand or by you): the hand's lean and the cob (or the
 	# cup) going over to the first in the line, on every machine (cornstand.handed).

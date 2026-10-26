@@ -44,6 +44,8 @@ func _init() -> void:
 	# Under your hand at the station (station_hands.gd, 95) and the frame (96).
 	layer = 94
 	add_to_group("closeup")  # the hands are on it (pockets.gd)
+	# Which station this warden is at (cornstand.warden_stations: the hands keep off it).
+	add_to_group("corn_stand_view")
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
@@ -210,6 +212,20 @@ func _taken() -> Dictionary:
 	return out
 
 
+## The hands working the stations now: station -> first name (their tabs say so).
+func _hands_at() -> Dictionary:
+	var out := {}
+	var cs := get_tree().get_first_node_in_group("cornstands") if is_inside_tree() else null
+	if cs == null:
+		return out
+	var places: Dictionary = cs.crew_places(building_key)
+	for p in BUSINESS.crew_now(building_key):
+		var at := str(places.get(str(p.get("slug", "")), ""))
+		if at != "":
+			out[at] = str(p.get("name", "")).split(" ")[0]
+	return out
+
+
 func _open_station(id: String) -> void:
 	if not _stations.has(id):
 		return
@@ -239,6 +255,7 @@ func _open_station(id: String) -> void:
 	_hud.set("station", st)
 	_hud.set("tabs", _tabs())
 	_hud.set("taken", _taken())
+	_hud.set("hands", _hands_at())
 	_hud.set("view_size", Vector2(_view.size))
 	_hud.call("clear_say")
 	_hud.visible = true
@@ -267,6 +284,7 @@ func _process(delta: float) -> void:
 	if _taken_t <= 0.0:
 		_taken_t = 0.5
 		_hud.set("taken", _taken())
+		_hud.set("hands", _hands_at())
 		_hud.set("tabs", _tabs())
 		_hud.set("view_size", Vector2(_view.size))
 		# The drinks went off the menu while you were at them.

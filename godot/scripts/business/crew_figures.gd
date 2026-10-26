@@ -25,6 +25,10 @@ var key := ""
 var spots: Dictionary = {}
 ## -> [station ids a warden is at now]
 var busy_of: Callable
+## person -> the place (a role of `spots`) they work now, "" aside: where a place moves its
+## hands about to work beside the wardens (the corn stand: cornstand.crew_places). Unset,
+## each at their own job's place, aside while a warden is at it.
+var place_of: Callable
 ## -> the station open on this machine ("" none): a hand standing between its camera and
 ## its counter steps aside too (spot "clear_of": the stations whose view they would block).
 var open_of: Callable
@@ -77,9 +81,14 @@ func refresh() -> void:
 				people.append(p)
 	for p in people:
 		var role := str(p.get("role", ""))
+		var slug := str(p.get("slug", ""))
+		var moved := ""
+		if place_of.is_valid():
+			moved = str(place_of.call(p))
+			if moved != "" and spots.has(moved) and not want.has(moved):
+				role = moved
 		if not spots.has(role):
 			continue
-		var slug := str(p.get("slug", ""))
 		if want.has(role):
 			continue
 		want[role] = slug
@@ -92,6 +101,9 @@ func refresh() -> void:
 			(spot["root"] as Node3D).add_child(fig)
 			_figs[slug] = fig
 		var aside := (str(spot.get("station", "")) != "" and busy.has(str(spot["station"]))) or (open != "" and (spot.get("clear_of", []) as Array).has(open))
+		# Moved about and nothing wanted anywhere: aside, at their own place.
+		if place_of.is_valid() and moved == "":
+			aside = true
 		var pos: Vector3 = spot["pos"]
 		if aside:
 			pos += (spot.get("aside", Vector3(0.7, 0, 0.4)) as Vector3)

@@ -1139,6 +1139,13 @@ the stations in 3D, like the bistro's and the pub's.*
   it over; a soft one they throw away. Handing over is seen (playtest 25. 10.): the hand
   leans in over the counter and the cob (or the cup) goes over to the first in the line in
   steps, twelve a second (`crew_figures.hand_over`, on `cornstand.handed`, every machine).
+- **The hands work beside you** (the stand, playtest 25. 10.: "let me work together with
+  him like another player: he takes stations, I can go anywhere and come first, he is
+  always where he is needed and where I am not"): each hand at their own job's station
+  unless a warden is at it; then at the free station that most wants doing (the bowl
+  running low, cobs ordered at the counter, drinks), never two at one; nothing wanted,
+  aside. Their name is on that station's tab; going there you come first and they move
+  (`cornstand.crew_places`, worked out the same way on every machine).
 - **The hands come and go** (all the businesses', playtest 25. 10.): after the night they
   come up from the stop on the road outside the barrier and walk to their place (a door:
   in and gone; the stand: they wait behind the counter till seven), and when their shift
