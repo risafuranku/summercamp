@@ -34,8 +34,13 @@ const HOT_SECONDS := 4.0
 ## 18. 10.: "terrible clipping of the textures, mostly in interiors").
 const B_FLAT := 3
 const B_ROOM := 4
-const AFFINE_BY_BUCKET := [AFFINE, AFFINE * 0.3, 0.0, 0.0, 0.0]
-const AFFINE_TRIPLANAR := [AFFINE * 0.7, AFFINE * 0.2, 0.0, 0.0, 0.0]
+const AFFINE_BY_BUCKET := [AFFINE, AFFINE * 0.3, 0.0, 0.0, 0.0, 0.0]
+const AFFINE_TRIPLANAR := [AFFINE * 0.7, AFFINE * 0.2, 0.0, 0.0, 0.0, 0.0]
+## Lettering's own bucket: neither swims nor snaps (the playtest of 30. 10.: "the signs
+## with a number or a text on them flicker unreadably"). A sign's board, a lodging's plate,
+## a poster: meta "retro_text" from the code that makes it, or a picture named for it.
+const B_TEXT := 5
+const TEXT_PICTURES := ["sign", "poster", "noticeboard", "lettering", "label", "menu_board", "timetable"]
 
 var enabled := true
 var _shaders: Dictionary = {}       # variant key -> Shader
@@ -327,6 +332,8 @@ func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 	if not rid.is_valid():
 		return
 	var big := _bucket(mi)
+	if big != B_ROOM and _is_text(mi):
+		big = B_TEXT
 	# (A flat thing's own say counts too: the rain's puddles over the bumps of the ground.)
 	var pull := _pull_of(mi) if big != B_FLAT or mi.has_meta("retro_pull") else 0.0
 	var over := mi.material_override
@@ -394,6 +401,66 @@ func _bucket(mi: MeshInstance3D) -> int:
 	if longest > 6.0:
 		return 1
 	return 0
+
+
+## Lettering or a plate it is on (see B_TEXT).
+static func _is_text(mi: MeshInstance3D) -> bool:
+	if mi.has_meta("retro_text"):
+		return true
+	var mat := mi.material_override as StandardMaterial3D
+	if mat == null and mi.mesh != null and mi.mesh.get_surface_count() > 0:
+		mat = mi.get_active_material(0) as StandardMaterial3D
+	if mat == null or mat.albedo_texture == null:
+		return false
+	var f := mat.albedo_texture.resource_path.get_file().to_lower()
+	for w in TEXT_PICTURES:
+		if f.contains(w):
+			return true
+	return false
+
+
+## A sign's letters (Label3D) drawn from a font with mipmaps, read nearest up close and
+## averaged far off: nearest from a few metres, the small letters broke up anew every step
+## you took. One copy of each font.
+static var _sign_fonts: Dictionary = {}
+
+
+static func sign_font(f: Font) -> Font:
+	if f == null:
+		return null
+	var id := f.get_instance_id()
+	if not _sign_fonts.has(id):
+		var c := f.duplicate()
+		if c is FontFile:
+			(c as FontFile).generate_mipmaps = true
+		_sign_fonts[id] = c
+	return _sign_fonts[id]
+
+
+## A sign's letters twice as heavy: the same text again one font pixel to the right and
+## one down (copies of it, its children). From a few metres a stroke of one font pixel is
+## under one of the game's screen pixels and dropped out as you walked ("1" read ":").
+static func bold(l: Label3D) -> void:
+	for off in [Vector3(1, 0, 0), Vector3(0, -1, 0), Vector3(1, -1, 0)]:
+		var c := Label3D.new()
+		c.name = "Bold"
+		c.text = l.text
+		c.font = l.font
+		c.font_size = l.font_size
+		c.pixel_size = l.pixel_size
+		c.modulate = l.modulate
+		c.outline_size = 0
+		c.shaded = l.shaded
+		c.double_sided = l.double_sided
+		c.texture_filter = l.texture_filter
+		c.alpha_cut = l.alpha_cut
+		c.horizontal_alignment = l.horizontal_alignment
+		c.vertical_alignment = l.vertical_alignment
+		c.position = off * l.pixel_size + Vector3(0, 0, -0.0005)
+		c.set_meta("retro_skip", true)
+		l.add_child(c)
+		# A changed number (a renumbering) is the copies' too.
+		l.set_meta("bold_copies", true)
 
 
 ## Drawn by a viewport with a world of its own: a room, the bus, the pipes.

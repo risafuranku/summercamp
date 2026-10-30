@@ -254,8 +254,9 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 		_box(r, "Post", Vector3(0.1, 2.45, 0.1), Vector3(x, 1.32, front + 1.02), _wood())
 	_box(r, "Step", Vector3(1.4, 0.16, 0.5), Vector3(door_x, 0.08, front + 0.3), _psx_mat(Color(0.6, 0.6, 0.58), "stone"))
 	# The sign over the windows, barrels, a crate of empties, a satellite dish and the aerial.
-	_box(r, "SignBoard", Vector3(1.6, 0.42, 0.05), Vector3(0.9, 2.85, front + 0.05), _flat(Color(0.2, 0.14, 0.1)))
-	_label(r, "HOSPODA", Vector3(0.9, 2.85, front + 0.085), 0.24, Color(0.96, 0.84, 0.5))
+	# (Bigger letters from 30. 10.: at 24 cm the name broke up from the path.)
+	_box(r, "SignBoard", Vector3(1.9, 0.5, 0.05), Vector3(0.9, 2.85, front + 0.05), _flat(Color(0.2, 0.14, 0.1)))
+	_label(r, "HOSPODA", Vector3(0.9, 2.85, front + 0.085), 0.32, Color(0.96, 0.84, 0.5))
 	# The barrels and the empties out by the annex, clear of the door.
 	for i in 3:
 		_cyl(r, "Barrel%d" % i, 0.28, 0.75, Vector3(2.3 + i * 0.62, 0.48, front + 0.5 + (i % 2) * 0.2), _psx_mat(Color(0.5, 0.36, 0.22), "decor_wood"))
@@ -1711,16 +1712,17 @@ func _label(r: Node3D, text: String, pos: Vector3, height_m: float, color: Color
 	var l := Label3D.new()
 	l.text = text
 	if ResourceLoader.exists(FONT):
-		l.font = load(FONT)
+		l.font = load("res://scripts/retro_materials.gd").sign_font(load(FONT))
 	l.font_size = 16
 	l.pixel_size = height_m / 16.0
 	l.modulate = color
 	l.outline_size = 0
-	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	l.double_sided = false
 	l.position = pos
 	l.rotation.y = yaw
 	r.add_child(l)
+	load("res://scripts/retro_materials.gd").bold(l)
 	# The board it is painted on stays behind it (retro_materials pulls thin boards forward).
 	var behind := pos - Basis(Vector3.UP, yaw) * Vector3(0, 0, 0.05)
 	for c in r.get_children():
@@ -1730,6 +1732,7 @@ func _label(r: Node3D, text: String, pos: Vector3, height_m: float, color: Color
 			var half: Vector3 = (mi.mesh as BoxMesh).size * 0.5 + Vector3(0.02, 0.02, 0.06)
 			if absf(local.x) <= half.x and absf(local.y) <= half.y and absf(local.z) <= half.z:
 				mi.set_meta("retro_no_pull", true)
+				mi.set_meta("retro_text", true)
 	return l
 
 

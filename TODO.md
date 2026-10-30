@@ -1,8 +1,42 @@
 # TODO — Cursed Camp Manager Simulator
 
-*Updated: 2026-10-25. Vision: DESIGN.md. What exists: PRODUCT.md.*
+*Updated: 2026-10-30. Vision: DESIGN.md. What exists: PRODUCT.md.*
 
 ---
+
+## PLAYTEST 2026-10-30 — the user's notes (verbatim, then the note in brackets; tick with the commit)
+
+- [x] S1  (5fe737ee) „V češtině je přeložený i název hry, to je špatně.“ (the title stays as it is in Czech)
+- [x] S2  (5fe737ee) „V češtině je přeložený i sandbox, to je špatně.“ (Sandbox stays Sandbox)
+- [x] S3  (5fe737ee) „V češtině není přeložený night threads, weather, day events, breakdown, money. Prostě tady ty nastavení v menu nejsou přeložený.“ (the sandbox's settings)
+- [x] S4  (5fe737ee) „v sandboxu je blbý nastavení peněz. 12,5 tisíce je default a 100 tisíc je pak strašně moc. Dej pak třeba 25 tisíc a třeba 50 tisíc a pak třeba 100 tisíc a pak třeba 500 tisíc… ať to jsou fakt reální možnosti“ (12 500 default, 25 000, 50 000, 100 000, 500 000)
+- [x] S5  (5fe737ee) „Generating a Fresh Camp taky není přeložený.“
+- [ ] S6  „bylo mi řečeno, že celá hra je přeložená. Proč je tam tolik nepřeložených věcí, kurva?“ (not done until every screen was seen in Czech: a log of every lookup that found nothing while the scenarios run in Czech, a scan of drawn literals, the menus shot in Czech)
+- [ ] S7  „první mail v sandboxu… je tam hrozně moc textu, je to hrozně jednotvárný… odrážky, ikony, symboly… To vůbec není zábavné sdělování informaci hráči.“
+- [ ] S8  „v mailu mít třeba nějaký hypertextový odkazy, že třeba v Builderu udělejte tohle a tohle a rovnou na to slovo můžu kliknout a otevře se mi ten Builder“
+- [ ] S9  „Předělat loading screen Builderu, je to strašnej AI slop. Chceme něco, co vypadá fakt jako autentický reálnej program z 90. let.“
+- [x] S10 (5fe737ee) „Nahoře v submenu z programu, třeba v Builderu, jak je tam nahoře nápověda a tak dále, nefunguje mi na nich kurzor. Kurzor mi zůstane stát a nehejbe se přes ty submenus.“
+- [x] S11 (5fe737ee) „Odstranit hudbu z Builderu… překrývá se s tím rádiem“
+- [ ] S12 „Udělat lepší ikonky na kategorie Builderu nahoře a nějak to líp roztřídit… proč si tam můžeš postavit sewers, když sewers jsou dávno daný“
+- [x] S13 (5fe737ee) „Výhled z oken je furt zpožděnej… půlvteřinová prodleva za mým pohledem… vidím tam černý rámy toho okna, jak to opožděně letí za mým pohledem. Musíme sjednotit jedna ku jedný pohyb vnitřku a exteriéru.“
+- [x] S14 (5fe737ee) „Registrace Builderu… jakmile kliknu na zaregistrovat, tak se mi odečtou prachy, zahraje fanfára a mám to zaregistrovaný. Nebudu čekat na žádnej mail.“
+- [ ] S15 „Strašně hodně všude problikávají ještě textury… když to dělají i cedulky, na kterých je číslo nebo text, tak je to strašně nečitelný“
+- [ ] S16 „furt blikají ty stíny… když jdu kolem stromů, tak všechny ty stíny pod stromama totálně blikají, kroutějí se, voblujou… ty stíny voblovat nesmějí“ (reproduce it walking past trees, measured frame to frame)
+- [ ] S17 „uklízení postelí je furt totální bolest… občas to má malej hitbox… vyjedu z toho hitboxu a musím začít zase znova… i to vytírání a různý uklízení… je to nesplnitelný“
+- [ ] S18 „Kytky jsou voxelový sračky… vygeneroval hezký sprity kytek jako z Build enginu. Nic nebude voxelový, všechno bude otexturovaný.“
+- [ ] S19 „poladit, jak chodějí hosté, jak chodějí maily hostů… ze začátku, i když mám peníze, postavím spoustu stanů, spoustu chatek, mám prázdnej camp a nikdo nechce jezdit“
+- [x] S20 (5fe737ee) „Odstranit zhora ty divný keci o změně počasí. Že se mění počasí, si všimne hráč sám.“
+- [ ] S21 „remake-nout proces check-inu… 3D minihra, stejně jako v kukuřici, v hospodě… čitelně se pokládaly věci na stůl… vzít razítko… klíče visely na háčku na zdi… šlo hrát v té místnosti“
+- [ ] S22 „Program 5 na počítači je Google. Předělej to na… českej seznam, devadesátkovej, ale pojmenuj to Atlas… červeno-černý“
+- [ ] S23 „na Atlasu udělej možnost koupit si reklamy… banery… přijde o nějaký procenta víc mailů, na nějakou dobu… podobně jak v Rollercoaster Tycoonu“ (earlier in the same notes: other advertising later, „na to mám pak větší plány“; asked 30. 10.: the Atlas banners now, nothing else)
+- [x] S24 (5fe737ee) „na startu hry tam mám mít nějaký už recenze… od začátku hry máme nula recenzí v sandboxu“
+- [ ] S25 „minihra kukuřice… když ji loupu, je hrozně malá, hrozně nízko a není natočená na kameru… ať ta minihra zabírá víc obrazovky… hlavně čumíš na tu kukuřici a nahoře vidíš trochu zákazníky, myší nahoru se na ně podíváš, dolů zpátky“
+- [x] S26 (5fe737ee) „Když něco nechám označenýho v Builderu 3D kurzorem, tak pořád tu svítící označenou kostičku vidím, i když tam chodím z první osoby“
+- [ ] S27 „před recepcí, jak je ta pergola… malinkou žárovku, fakt žlutě svítící… když je bouřka, může trochu blikat, houpat se“
+- [ ] S28 „Na recepci… když klikneš na lavičku, půjdeš k ní… budeš na té pozici a budeš moct koukat z okna do kempu nebo zpátky na svoji recepci“
+- [ ] S29 „vygenerovat sprity hráčů, všech čtyř, z více úhlů: jak checkinujou, jak jsou u počítače… úhel zepředu, když kouká z okna nebo od lavičky… z pokojíčku“ (Grok: a sample first)
+- [x] S30 (5fe737ee) „jak jdu do postele v pokojíčku, nesmí být, že tam zalítnu jak duch. Musím normálně dojít ve výšce hlavy k té posteli a tam si lehnu.“
+- [x] S31 (5fe737ee) „lehnul jsem si do postele, dal escape, uložit a ukončit… v menu mi zapípal budík, otevřel jsem oči a najednou jsem byl v menu“
 
 ## PLAYTEST 2026-10-25 — the user's notes (verbatim, then the note in brackets; tick with the commit)
 

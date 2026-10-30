@@ -19,7 +19,7 @@ extends RefCounted
 ## A blueprint tier: the guests in the camp at once it needs, what it opens. The corn
 ## stand is there from the first day: cheap food and a drink when nothing else is open.
 const TIERS := [
-	{"guests": 0, "items": ["tent_1", "cabin_1", "toilet_block", "shower_block", "corn_stand", "sewer", "bonfire", "bench", "flower_bed", "picnic_table", "path", "lamp_post"]},
+	{"guests": 0, "items": ["tent_1", "cabin_1", "toilet_block", "shower_block", "corn_stand", "bonfire", "bench", "flower_bed", "picnic_table", "path", "lamp_post"]},
 	{"guests": 10, "items": ["pub", "caravan_1", "hammock", "gnome", "sports_field"]},
 	{"guests": 20, "items": ["restaurant", "playground", "ping_pong", "flagpole", "upgrade:2"]},
 	{"guests": 30, "items": ["vecerka", "lake_slide"]},

@@ -70,6 +70,10 @@ func _sync(s: Node3D) -> void:
 		var label := sign.find_child("Number", true, false) as Label3D
 		if label != null:
 			label.text = str(no)
+			# Its heavier copies (retro_materials.bold) the same number.
+			for c in label.get_children():
+				if c is Label3D:
+					(c as Label3D).text = str(no)
 
 
 ## The marker over a room that wants doing (empty and dirty, or not made up).
@@ -160,8 +164,8 @@ func _make_stake(s: Node3D) -> Node3D:
 	root.rotation = Vector3(0.0, -0.25, 0.05)
 	s.add_child(root)
 	_box(root, Vector3(0.06, 0.74, 0.06), Vector3(0, 0.37, 0), _wood_mat())
-	_box(root, Vector3(0.46, 0.34, 0.03), Vector3(0, 0.74, 0.03), _wood_mat())
-	_box(root, Vector3(0.4, 0.28, 0.032), Vector3(0, 0.74, 0.036), _board_mat())
+	_box(root, Vector3(0.46, 0.34, 0.03), Vector3(0, 0.74, 0.03), _wood_mat()).set_meta("retro_text", true)
+	_box(root, Vector3(0.4, 0.28, 0.032), Vector3(0, 0.74, 0.036), _board_mat()).set_meta("retro_text", true)
 	var label := _label(Color(0.16, 0.1, 0.06), 0.03)
 	label.position = Vector3(0, 0.735, 0.054)
 	root.add_child(label)
@@ -175,8 +179,10 @@ func _make_plate(s: Node3D) -> Node3D:
 	var at = s.get_meta("number_plate", null)
 	root.transform = at if at is Transform3D else Transform3D(Basis(), Vector3(0.8, 1.6, 1.0))
 	s.add_child(root)
-	_box(root, Vector3(0.36, 0.28, 0.015), Vector3(0, 0, 0), _rim_mat())
-	_box(root, Vector3(0.32, 0.24, 0.02), Vector3(0, 0, 0.004), _enamel_mat())
+	# The rim and the enamel 4 mm apart: snapped each its own way they fought (the rim
+	# flashed through the blue, the number broke up): lettering, they stay put.
+	_box(root, Vector3(0.36, 0.28, 0.015), Vector3(0, 0, 0), _rim_mat()).set_meta("retro_text", true)
+	_box(root, Vector3(0.32, 0.24, 0.02), Vector3(0, 0, 0.004), _enamel_mat()).set_meta("retro_text", true)
 	var label := _label(Color(0.96, 0.96, 0.92), 0.024)
 	label.position = Vector3(0, -0.008, 0.016)
 	root.add_child(label)
@@ -186,15 +192,16 @@ func _make_plate(s: Node3D) -> Node3D:
 func _label(col: Color, px: float) -> Label3D:
 	var l := Label3D.new()
 	l.name = "Number"
-	l.font = FONT
+	l.font = load("res://scripts/retro_materials.gd").sign_font(FONT)
 	l.font_size = 8
 	l.pixel_size = px
 	l.modulate = col
 	l.outline_size = 0
 	l.shaded = true
 	l.double_sided = false
-	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	l.alpha_cut = Label3D.ALPHA_CUT_DISCARD
+	load("res://scripts/retro_materials.gd").bold(l)
 	return l
 
 

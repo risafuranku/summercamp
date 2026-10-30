@@ -24,16 +24,20 @@ const MAP_PANEL_SCRIPT = preload("res://scripts/crt_map_panel.gd")
 const MAP3D_SCRIPT = preload("res://scripts/builder/map3d.gd")
 const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
 ## Keys (the panel's 1-9 are the computer's tabs; S stands you up, D leans you out).
-const CATEGORY_KEYS := {KEY_F1: "housing", KEY_F2: "services", KEY_F3: "fun", KEY_F4: "decor", KEY_F5: "utilities"}
+const CATEGORY_KEYS := {KEY_F1: "housing", KEY_F2: "washrooms", KEY_F3: "food", KEY_F4: "fun", KEY_F5: "decor"}
 const TOOL_KEYS := {KEY_B: "demolish", KEY_P: "path", KEY_L: "lamp_post"}
 const OVERLAY_SHORT := {"": "Off", "condition": "Wear", "power": "Power", "rooms": "Rooms", "light": "Light"}
 
+## Sorted the way a camp is planned (the user 30. 10.: "sort it better, why is the sewer
+## still there when the camp has it from the start"): beds, washrooms with the staff's
+## room, the businesses (food, drink, the lanes), fun, decor; each with its own picture
+## (Grok bld_cats).
 const CATEGORIES: Array = [
-	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/tb_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
-	{"id": "services", "label": "Services", "icon": "res://assets/textury/builder/tb_services.png", "items": ["toilet_block", "shower_block", "restaurant", "pub", "corn_stand", "vecerka", "bowling"]},
-	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/tb_fun.png", "items": ["bonfire", "sports_field", "lake_slide", "playground", "ping_pong", "hammock"]},
-	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/tb_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole", "mega_gnome"]},
-	{"id": "utilities", "label": "Utilities", "icon": "res://assets/textury/builder/tb_utilities.png", "items": ["sewer", "staffroom"]},
+	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/cat_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
+	{"id": "washrooms", "label": "Washrooms & staff", "icon": "res://assets/textury/builder/cat_facilities.png", "items": ["toilet_block", "shower_block", "staffroom"]},
+	{"id": "food", "label": "Businesses", "icon": "res://assets/textury/builder/cat_food.png", "items": ["corn_stand", "pub", "restaurant", "vecerka", "bowling"]},
+	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/cat_fun.png", "items": ["bonfire", "sports_field", "playground", "ping_pong", "hammock", "lake_slide"]},
+	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/cat_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole", "mega_gnome"]},
 ]
 
 ## Catalogue pictures (the map has its own, isometric).
@@ -68,7 +72,7 @@ const ITEM_ICONS := {
 const TINY_NAMES := {
 	"sports_field": "Pitch", "lake_slide": "Slide", "playground": "Swings", "picnic_table": "Picnic",
 	"flower_bed": "Flowers", "toilet_block": "WC", "shower_block": "Showers", "restaurant": "Bistro",
-	"ping_pong": "Pingpong", "corn_stand": "Corn",
+	"ping_pong": "Pingpong", "corn_stand": "Corn", "hammock": "Hammock", "mega_gnome": "Mega gnome",
 }
 ## Card size in the catalogue strip: as wide as this, narrower when there are more of
 ## them than fit (the strip never scrolls: every card of a catalogue is on screen).
@@ -421,7 +425,7 @@ func _build_toolbar() -> void:
 	var fk := 1
 	for cat in CATEGORIES:
 		var cat_icon := _texture(str(cat["icon"]).replace("/tb_", "/tb2_"))
-		var b := _tool_button(cat_icon if cat_icon != null else _texture(str(cat["icon"])), "%s  (F%d)" % [str(cat["label"]), fk])
+		var b := _tool_button(cat_icon if cat_icon != null else _texture(str(cat["icon"])), "%s  (F%d)" % [tr(str(cat["label"])), fk])
 		fk += 1
 		var cid: String = cat["id"]
 		b.pressed.connect(func(): _open_category("" if _active_cat == cid else cid))
@@ -1403,11 +1407,13 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 	c.custom_minimum_size = Vector2(w, 58)
 	# Narrow cards: a smaller picture, and the shortest name if the short one is too long.
 	var box_side := 46.0 if w >= 130 else 36.0
-	var text_x := box_side + 8.0
-	var text_w := float(w) - text_x - 3.0
+	var text_x := box_side + 6.0
+	var text_w := float(w) - text_x - 2.0
 	var label := tr(str(SHORT_NAMES.get(type, type)))
+	# The shortest name (its own word where a language has one: "tiny|", the Czech
+	# "Hamaka"), not a name cut off at the card's edge (the playtest of 30. 10.).
 	if T.FONT_BOLD.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x > text_w:
-		label = tr(str(TINY_NAMES.get(type, label)))
+		label = tr(str(TINY_NAMES.get(type, SHORT_NAMES.get(type, type))), "tiny")
 	c.mouse_filter = Control.MOUSE_FILTER_STOP
 	c.tooltip_text = _tooltip(type)
 	c.set_meta("hover", false)
@@ -1458,13 +1464,21 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 			return
 		c.draw_string(T.FONT_BOLD, Vector2(text_x, 17) + o, label, HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT)
 		c.draw_string(T.FONT, Vector2(text_x, 32) + o, LANG.money("$%d" % _cost(type)), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, T.TEXT if afford else Color8(160, 0, 0))
-		c.draw_string(T.FONT, Vector2(text_x, 47) + o, _stat_line(type), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(70, 70, 90))
+		c.draw_string(T.FONT, Vector2(text_x, 47) + o, _fit_line(_stat_line(type), text_w), HORIZONTAL_ALIGNMENT_LEFT, text_w, T.FONT_SIZE, Color8(70, 70, 90))
 	)
 	c.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			_select("" if _selected == type else type)
 	)
 	return c
+
+
+## A line of "a, b, c" that fits `w`: the last parts dropped, never a word cut off.
+static func _fit_line(line: String, w: float) -> String:
+	var parts := line.split(", ")
+	while parts.size() > 1 and T.FONT.get_string_size(", ".join(parts), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x > w:
+		parts.remove_at(parts.size() - 1)
+	return ", ".join(parts)
 
 
 ## One short line under the price: beds, power, size.

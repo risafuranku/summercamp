@@ -39,6 +39,11 @@ float gust_front(vec2 p, float t) {
 }
 
 void vertex() {
+	// The sun's shadow pass (its view is orthographic): the tree as it stands, no sway and
+	// no shiver. Snapped to a 150-line grid in the light's view, and that view going with
+	// you, every shadow under the trees jumped and twisted as you walked (the playtest of
+	// 30. 10.: "the shadows must not wobble"; retro_materials.gd had it already).
+	bool shadow_pass = PROJECTION_MATRIX[3][3] > 0.5;
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	float h = clamp(VERTEX.y / height, 0.0, 1.6);
 	float phase = origin.x * 0.37 + origin.z * 0.29;
@@ -55,10 +60,12 @@ void vertex() {
 	vec3 off_world = vec3(wind_dir.x * bend + f, -abs(bend) * 0.12, wind_dir.y * bend + f * 0.6);
 	v_wpos = wp;
 	v_up = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz).y;
-	VERTEX += inverse(mat3(MODEL_MATRIX)) * off_world;
+	if (!shadow_pass) {
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * off_world;
+	}
 	// The PS1's shiver: vertices on a coarse screen grid (scripts/retro_materials.gd).
 	vec4 clip = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(VERTEX, 1.0));
-	if (clip.w > 0.05) {
+	if (clip.w > 0.05 && !shadow_pass) {
 		vec2 grid = vec2(150.0 * VIEWPORT_SIZE.x / max(VIEWPORT_SIZE.y, 1.0), 150.0) * 0.5;
 		vec2 ndc = floor(clip.xy / clip.w * grid + 0.5) / grid;
 		clip.xy = ndc * clip.w;

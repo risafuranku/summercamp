@@ -4957,11 +4957,11 @@ msgstr ""
 
 #: scripts/builder_module.gd:1473
 msgid "Registered"
-msgstr "Jen pro"
+msgstr "Jen plná"
 
 #: scripts/builder_module.gd:1474
 msgid "copies only"
-msgstr "registrované"
+msgstr "verze"
 
 #: scripts/builder_module.gd:1477 scripts/business/business_runtime.gd:530
 #. uses 2
@@ -29015,3 +29015,15 @@ msgstr "loni v létě"
 #. a review's signature: only the word is translated, names stay
 msgid "reviewer|anonymous"
 msgstr "anonym"
+
+#. Builder 98: a category (builder_module.CATEGORIES)
+msgid "Washrooms & staff"
+msgstr "Hygiena a personál"
+
+#. Builder 98: a card's shortest name (builder_module.TINY_NAMES)
+msgid "tiny|Hammock"
+msgstr "Hamaka"
+
+#. Builder 98: a card's shortest name (builder_module.TINY_NAMES)
+msgid "tiny|Mega gnome"
+msgstr "Gnóm XL"
