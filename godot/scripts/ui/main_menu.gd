@@ -159,8 +159,10 @@ var _nc_about: Label
 var _nc_warn: Label
 var _nc_opts: Dictionary = {}
 const NC_RULE_TEXT := {"threats": "Night threats", "weather": "Weather", "events": "Day events", "wear": "Breakdowns", "money": "Money"}
-## A sandbox camp's starting till (0: the usual).
-const NC_MONEY := [0, 10000, 100000]
+## A sandbox camp's starting till (0: the usual, $1,250), in steps that each mean
+## something to play with (the user 30. 10.: "real choices, not the usual and then far
+## too much": 12 500, 25 000, 50 000, 100 000 and 500 000 crowns).
+const NC_MONEY := [0, 2500, 5000, 10000, 50000]
 var _camps_page: Control
 var _camps_title
 var _tiles: Array[Control] = []
@@ -280,7 +282,7 @@ func refresh_saves() -> void:
 func show_loading(message: String) -> void:
 	if _loading == null:
 		return
-	_loading_label.text = message.trim_suffix("...").to_upper()
+	_loading_label.text = tr(message).trim_suffix("...").to_upper()
 	# The camp it is about, under the bar.
 	_loading_tip.text = PROFILES.profile_name().to_upper() if PROFILES.has_profile() else ""
 	_loading_t = 0.0
@@ -1393,10 +1395,13 @@ func _paint_nc_rules() -> void:
 		var value := ""
 		if id == "money":
 			var m := int(_nc_rules.get("money", 0))
-			value = "$" + _money(m if m > 0 else BALANCE_CONFIG.STARTING_MONEY)
+			value = tr("$" + _money(m if m > 0 else BALANCE_CONFIG.STARTING_MONEY))
 		else:
-			value = "On" if bool(_nc_rules.get(id, true)) else "Off"
-		b.text = "%s: %s" % [NC_RULE_TEXT[id], value]
+			value = tr("On") if bool(_nc_rules.get(id, true)) else tr("Off")
+		# Each half translated on its own (the whole "Weather: On" was in no catalogue:
+		# the playtest of 30. 10.), the button not asked again.
+		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		b.text = "%s: %s" % [tr(str(NC_RULE_TEXT[id])), value]
 		b.add_theme_color_override("font_color", RETRO_UI.C_BONE if id == "money" or bool(_nc_rules.get(id, true)) else RETRO_UI.C_BONE_DIM)
 
 

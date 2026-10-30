@@ -168,10 +168,7 @@ var _coin_cd := 0.0
 var _coin_scan := 0.0
 var _takings_seen: Dictionary = {}
 var _paid: Dictionary = {}       # coord -> amount waiting to fly (batched)
-## Builder's own tune (a General MIDI loop, assets/sfx/builder/music.ogg): toward the
-## evening and on a bad night's eve it goes a little flat and slow.
-const MUSIC := "res://assets/sfx/builder/music.ogg"
-const MUSIC_DB := -19.0
+## No tune of its own: it played over the office's radio (the user 30. 10.).
 ## The tool in hand on the pointer over the map (os_shell.tool_cursor).
 const TOOL_CURSORS := {
 	"demolish": "res://assets/textury/builder/tb2_bulldoze.png",
@@ -181,9 +178,6 @@ const TOOL_CURSORS := {
 	"*": "res://assets/textury/builder/cur_blueprint.png",
 }
 var _cursor_tex: Dictionary = {}
-var _music: AudioStreamPlayer
-var _music_btn: Button
-var _music_t := 0.0
 var _clock: Label
 var _tool_buttons: Dictionary = {}
 var _cat_buttons: Dictionary = {}
@@ -515,21 +509,6 @@ func _build_toolbar() -> void:
 		_click()
 		_set_overlay(str(_map_panel.OVERLAYS[(_map_panel.OVERLAYS.find(_map_panel.overlay) + 1) % _map_panel.OVERLAYS.size()])))
 	row.add_child(_overlay_btn)
-	# The music on and off (remembered by the PC).
-	_music_btn = Button.new()
-	_music_btn.focus_mode = Control.FOCUS_NONE
-	_music_btn.custom_minimum_size = Vector2(34, 34)
-	_music_btn.expand_icon = true
-	_music_btn.add_theme_constant_override("icon_max_width", 26)
-	_music_btn.tooltip_text = "Music"
-	_music_btn.icon = _music_icon(bool(_shell_stored("builder_music_off", false)))
-	if _music_btn.icon == null:
-		_music_btn.text = "Music"
-	_flat_style(_music_btn)
-	_music_btn.pressed.connect(func():
-		_click()
-		_toggle_music())
-	row.add_child(_music_btn)
 	# The Graphs window (G).
 	var gb := Button.new()
 	gb.focus_mode = Control.FOCUS_NONE
@@ -1649,7 +1628,6 @@ func _process(delta: float) -> void:
 	_tick_news(delta)
 	_tick_guest_card(delta)
 	_tick_coins(delta)
-	_tick_music(delta)
 	_tick_ambience(delta)
 	_tick_cursor()
 	_tick_walk(delta)
@@ -1834,40 +1812,6 @@ func _draw_coins() -> void:
 		_coin_layer.draw_texture_rect(_coin_tex, Rect2((p - Vector2(w, sz.y) * 0.5).floor(), Vector2(w, sz.y)), false)
 
 
-func _tick_music(delta: float) -> void:
-	if _music == null:
-		if not ResourceLoader.exists(MUSIC):
-			return
-		_music = AudioStreamPlayer.new()
-		var s = load(MUSIC)
-		if s is AudioStreamOggVorbis:
-			(s as AudioStreamOggVorbis).loop = true
-		_music.stream = s
-		_music.volume_db = MUSIC_DB
-		add_child(_music)
-	var off := bool(_shell_stored("builder_music_off", false))
-	var shell = _shell_node()
-	var dist := float(shell.call("sound_db")) if shell != null and shell.has_method("sound_db") else 0.0
-	var want := is_visible_in_tree() and not off and _splash == null and dist > -60.0
-	if want and not _music.playing:
-		_music.play()
-	elif not want and _music.playing:
-		_music.stop()
-	if not _music.playing:
-		return
-	_music_t += delta
-	# Flat and slow toward the evening (18:00 to the lock at 20:00), more on a bad night's eve.
-	var main = get_tree().current_scene if get_tree() != null else null
-	var h := float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 12.0
-	var dusk := clampf((h - 18.0) / 2.0, 0.0, 1.0)
-	var hud = main.get("_hud_manager") if main != null else null
-	var risk := int(hud.get("_risk_level_index")) if hud != null and hud.get("_risk_level_index") != null else 0
-	var flat := dusk * 0.05 + (0.02 if risk >= 3 else 0.0)
-	var wow := sin(_music_t * 0.8) * 0.004 * (1.0 + 6.0 * flat)
-	_music.pitch_scale = clampf(1.0 - flat + wow, 0.85, 1.05)
-	_music.volume_db = MUSIC_DB + dist
-
-
 func _tick_ambience(delta: float) -> void:
 	_amb_t -= delta
 	if _amb_t <= 0.0:
@@ -1976,52 +1920,24 @@ func _register_dialog() -> void:
 	if _sw.registered:
 		message_requested.emit("Register Builder 98", "This copy of Builder 98 is registered\nto Camp Cerne Jezero.\n\nThank you!", "info")
 		return
-	if _sw.key == "":
-		confirm_requested.emit("Register Builder 98", "Register Builder 98 for $99?\n\nStavitel software mails your key the next morning.", func():
-			if not CoreRoot.actions.spend_money(load("res://scripts/builder/shareware.gd").PRICE):
-				message_requested.emit("Register Builder 98", "The camp has not got $99.", "error")
-				return
-			var key: String = _sw.order(CoreRoot.get_day())
-			_save_sw()
-			_mail_tomorrow("key", key)
-			_map_panel._emit_status("Registration ordered: the key comes by mail tomorrow.", 1))
-		return
-	# Ordered: before its mail has come there is nothing to fill in.
-	var m := _main()
-	var hour := float(m.get("_time_of_day_hours")) if m != null and m.get("_time_of_day_hours") != null else 12.0
-	if not _sw.key_arrived(CoreRoot.get_day(), hour):
-		message_requested.emit("Register Builder 98", "Registration ordered.\n\nStavitel software mails your key the next morning.", "info")
-		return
-	# The key from the mail, filled in: one OK.
-	var win = shell.call("_make_dialog", "b98reg", "Register Builder 98", null, Rect2(Vector2(150, 160), Vector2(330, 120)))
-	win.can_minimize = false
-	var c: Control = win.content
-	var l := Label.new()
-	l.text = "Your key from Stavitel software's mail:"
-	l.position = Vector2(12, 10)
-	c.add_child(l)
-	var edit := LineEdit.new()
-	edit.position = Vector2(12, 34)
-	edit.size = Vector2(300, 22)
-	edit.text = _sw.key
-	c.add_child(edit)
-	var ok := Button.new()
-	ok.text = "OK"
-	ok.position = Vector2(126, 64)
-	ok.size = Vector2(75, 23)
-	c.add_child(ok)
-	var go := func():
-		var good: bool = _sw.register(edit.text)
+	# One click: the money goes, a fanfare, registered (the user 30. 10.: "no waiting for
+	# a mail till the next day"). A copy ordered the old way, its key still in the post,
+	# is registered the same at once.
+	var done := func():
+		var key: String = _sw.order(CoreRoot.get_day())
+		_sw.register(key)
 		_save_sw()
-		shell.call("_close_window", win)
-		if good:
-			message_requested.emit("Builder 98", "Thank you for registering Builder 98!\n\nRegistered to: Camp Cerne Jezero\nThe Mega gnome is in the Decor catalogue.", "info")
-			_open_category(_active_cat)
-		else:
-			message_requested.emit("Builder 98", "That key is not valid.", "error")
-	ok.pressed.connect(go)
-	edit.text_submitted.connect(func(_t): go.call())
-	ok.grab_focus.call_deferred()
+		_map_panel._play("diploma", -9.0)
+		message_requested.emit("Builder 98", "Thank you for registering Builder 98!\n\nRegistered to: Camp Cerne Jezero\nThe Mega gnome is in the Decor catalogue.", "info")
+		_open_category(_active_cat)
+	if _sw.key != "":
+		done.call()
+		return
+	confirm_requested.emit("Register Builder 98", "Register Builder 98 for $99?", func():
+		if not CoreRoot.actions.spend_money(load("res://scripts/builder/shareware.gd").PRICE):
+			message_requested.emit("Register Builder 98", "The camp has not got $99.", "error")
+			return
+		done.call())
 
 
 func _cheat_key(ch: String) -> void:
@@ -2416,21 +2332,6 @@ func turn_view(step: int) -> void:
 	var s := _shell_node()
 	if s != null:
 		s.call("store", "builder_view", int(_map_panel.view_rot))
-
-
-func _toggle_music() -> void:
-	var s := _shell_node()
-	if s == null:
-		return
-	var off := not bool(s.call("stored", "builder_music_off", false))
-	s.call("store", "builder_music_off", off)
-	if _music_btn != null:
-		_music_btn.icon = _music_icon(off)
-
-
-func _music_icon(off: bool) -> Texture2D:
-	var p := "res://assets/textury/builder/tb2_music_%s.png" % ("off" if off else "on")
-	return load(p) if ResourceLoader.exists(p) else null
 
 
 func _refresh_info() -> void:

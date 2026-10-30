@@ -2,8 +2,8 @@ extends CanvasLayer
 
 ## Going to bed in the room behind the office (scripts/reception/back_room.gd).
 ##
-## You lie down, the lamp goes off and the little set at the foot of the bed is the only
-## light; you watch it for a moment, your eyes close (a couple of heavy blinks first),
+## You walk up to the bed at your own height (bed_side), sit and lie down, the lamp goes
+## off and the little set at the foot of the bed is the only light; you watch it for a moment, your eyes close (a couple of heavy blinks first),
 ## the night passes in the dark with the clock ticking, and you wake to the alarm: the
 ## clock's green digits in the dark until you stop it, then the room again.
 ## Any key or click skips ahead: during the falling asleep straight to the alarm, at
@@ -18,17 +18,25 @@ extends CanvasLayer
 signal finished
 
 const SEVEN_SEG = preload("res://scripts/ui/seven_seg.gd")
+const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const SFX := "res://assets/sfx/backroom/"
+const SFX_STEPS := "res://assets/sfx/rooms/steps_wood.mp3"
+## Walking up to the bed (metres a second), the head's bob in step.
+const WALK_SPEED := 1.1
 const VFD_LIT := Color(0.56, 1.0, 0.86)
 const VFD_GHOST := Color(0.16, 0.3, 0.26, 0.35)
 
-enum { IDLE, LIE, WATCH, LIDS, DARK, ALARM, WAKE }
+enum { IDLE, LIE, WATCH, LIDS, DARK, ALARM, WAKE, WALK }
 
 var camera: Camera3D
 var lie_pos: Vector3
 var lie_rot: Vector3
 var stand_pos: Vector3
 var stand_rot: Vector3
+## Where you stand beside the bed (your eye, room space) and what you look at there (the
+## pillow): walked to first, at your own height; INF lies down from where you are.
+var bed_side := Vector3.INF
+var bed_look := Vector3.INF
 var lamp: Callable
 var tv_focus: Callable
 var fast_forward: Callable
@@ -48,6 +56,8 @@ var _tick: AudioStreamPlayer
 var _alarm: AudioStreamPlayer
 var _one: AudioStreamPlayer
 var _ff_started := false
+var _steps: AudioStreamPlayer
+var _walk_dur := 1.0
 
 
 func _init() -> void:
@@ -63,6 +73,7 @@ func _ready() -> void:
 	add_child(_overlay)
 	_tick = _player(SFX + "clock_tick.mp3", -16.0, true)
 	_alarm = _player(SFX + "alarm.mp3", -9.0, true)
+	_steps = _player(SFX_STEPS, -13.0, true)
 	_one = AudioStreamPlayer.new()
 	add_child(_one)
 	visible = false
@@ -115,8 +126,29 @@ func start() -> void:
 	_from_rot = camera.rotation
 	_ff_started = false
 	_lids = 0.0
+	# Across the room on foot first (the playtest of 30. 10.: not floating to the bed).
+	if bed_side != Vector3.INF and Vector2(bed_side.x - _from_pos.x, bed_side.z - _from_pos.z).length() > 0.3:
+		_walk_dur = clampf(_from_pos.distance_to(bed_side) / WALK_SPEED, 0.5, 4.0)
+		_enter(WALK)
+		if _steps.stream != null:
+			_steps.play()
+		return
 	_enter(LIE)
 	_sfx("bed_creak.mp3", -6.0)
+
+
+## Stopped where it was (the game went to the menu): no alarm, no morning, no overlay.
+func abort() -> void:
+	if _phase == IDLE:
+		return
+	_phase = IDLE
+	_lids = 0.0
+	_alarm_fade = 0.0
+	for p in [_tick, _alarm, _one, _steps]:
+		if p != null:
+			p.stop()
+	visible = false
+	_overlay.queue_redraw()
 
 
 func _enter(p: int) -> void:
@@ -156,6 +188,31 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	match _phase:
+		WALK:
+			# Up to the bed at your own height, a step's bob in the head; turned to the
+			# way first, then to the pillow as you come up to it.
+			var k := clampf(_t / _walk_dur, 0.0, 1.0)
+			var e := k * k * (3.0 - 2.0 * k)
+			var at := _from_pos.lerp(bed_side, e)
+			at.y += sin(_t * TAU * 1.8) * 0.016 * sin(k * PI)
+			camera.position = at
+			var way := bed_side - _from_pos
+			var way_yaw := atan2(-way.x, -way.z)
+			var look := (bed_look if bed_look != Vector3.INF else lie_pos) - bed_side
+			var end_yaw := atan2(-look.x, -look.z)
+			var end_pitch := atan2(look.y, Vector2(look.x, look.z).length())
+			var turn := clampf(_t / 0.35, 0.0, 1.0)
+			var settle := clampf((k - 0.55) / 0.45, 0.0, 1.0)
+			settle = settle * settle * (3.0 - 2.0 * settle)
+			var yaw := lerp_angle(lerp_angle(_from_rot.y, way_yaw, turn), end_yaw, settle)
+			var pitch := lerpf(lerpf(_from_rot.x, deg_to_rad(-6.0), turn), end_pitch, settle)
+			camera.rotation = Vector3(pitch, yaw, 0.0)
+			if k >= 1.0:
+				_steps.stop()
+				_from_pos = camera.position
+				_from_rot = camera.rotation
+				_enter(LIE)
+				_sfx("bed_creak.mp3", -6.0)
 		LIE:
 			# Sit on the edge, then lie back, eyes on the set at the foot of the bed.
 			var k := clampf(_t / 1.6, 0.0, 1.0)
@@ -229,7 +286,8 @@ func _input(event: InputEvent) -> void:
 	if not press:
 		return
 	match _phase:
-		LIE, WATCH, LIDS, DARK:
+		WALK, LIE, WATCH, LIDS, DARK:
+			_steps.stop()
 			_enter(ALARM)
 			if woke_early.is_valid():
 				woke_early.call()
@@ -297,8 +355,11 @@ func _draw_clock(s: Vector2) -> void:
 	var blink := fmod(_t, 1.0) < 0.6
 	var lit := Color(VFD_LIT, a * (1.0 if blink or _t < 0.5 else 0.25))
 	SEVEN_SEG.draw_text(_overlay, pos, h, text, lit, Color(VFD_GHOST, VFD_GHOST.a * a), true)
-	# AL and the PM dot, small.
-	var small := floorf(h * 0.12)
-	_overlay.draw_rect(Rect2(pos + Vector2(-pad.x * 0.6, h * 0.1), Vector2(small, small)), Color(VFD_LIT, a * 0.9))
-	var font := _overlay.get_theme_default_font()
-	_overlay.draw_string(font, pos + Vector2(-pad.x * 0.6 + small * 1.6, h * 0.1 + small), "AL", HORIZONTAL_ALIGNMENT_LEFT, -1, int(small * 1.4), Color(VFD_LIT, a * 0.8))
+	# AL over its dot, small, in the window's margin left of the digits (it ran into the
+	# first digit).
+	var small := floorf(h * 0.1)
+	var margin_x := pos.x - pad.x + 4.0
+	_overlay.draw_rect(Rect2(Vector2(margin_x + 2.0, pos.y + h * 0.42), Vector2(small, small)), Color(VFD_LIT, a * 0.9))
+	var font: Font = RETRO_UI.FONT_LABEL
+	var fs := maxi(8, int(small * 1.2))
+	_overlay.draw_string(font, Vector2(margin_x, pos.y + h * 0.36), "AL", HORIZONTAL_ALIGNMENT_LEFT, pad.x - 6.0, fs, Color(VFD_LIT, a * 0.8))

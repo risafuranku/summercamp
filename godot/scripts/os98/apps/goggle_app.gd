@@ -408,7 +408,7 @@ func _draw_card(c: Control, g, e: Dictionary, r: Rect2, day: int) -> void:
 		c.draw_texture_rect(face, Rect2(x, y + 2, 28, 28), false)
 	c.draw_rect(Rect2(x, y + 2, 28, 28), Color8(180, 180, 180), false, 1.0)
 	var tx := x + 36.0
-	_text(c, T.FONT_BOLD, Vector2(tx, y + 12), str(e["name"]), Color8(26, 13, 171))
+	_text(c, T.FONT_BOLD, Vector2(tx, y + 12), tr(str(e["name"]), "reviewer"), Color8(26, 13, 171))
 	var helpful := int(e.get("helpful", 0))
 	if helpful > 0:
 		var ht := LANG.f("%d found this helpful", helpful)

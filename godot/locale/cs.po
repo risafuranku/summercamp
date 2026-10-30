@@ -9660,7 +9660,7 @@ msgstr "Spí v ní %s."
 #: scripts/main.gd:83 scripts/ui/studio_splash.gd:34
 #. uses 2
 msgid "Cursed Camp Manager Simulator"
-msgstr "Prokletý kemp – simulátor správce"
+msgstr "Cursed Camp Manager Simulator"
 
 #: scripts/main.gd:307
 msgid "Waking the camp"
@@ -10177,7 +10177,7 @@ msgstr "Vytvářím nový kemp..."
 
 #: scripts/main.gd:4814
 msgid "A story camp cannot be hosted. Only sandbox camps are for two."
-msgstr "Kemp z příběhu nejde hostit. Ve dvou jde hrát jen volná hra."
+msgstr "Kemp z příběhu nejde hostit. Ve dvou jde hrát jen sandbox."
 
 #: scripts/main.gd:4821
 msgid "Opening the camp..."
@@ -22055,7 +22055,7 @@ msgstr "kdo je v kempu a co to přinese"
 
 #: scripts/os98/apps/campstat_app.gd:807
 msgid "Night threats are switched off in this camp (sandbox). The nights are quiet: nobody turns, nothing comes to the window."
-msgstr "Noční hrozby jsou v tomto kempu vypnuté (volná hra). Noci jsou klidné: nikdo se nepromění, k oknu nic nepřijde."
+msgstr "Noční hrozby jsou v tomto kempu vypnuté (sandbox). Noci jsou klidné: nikdo se nepromění, k oknu nic nepřijde."
 
 #: scripts/os98/apps/campstat_app.gd:809
 msgid "No forecast."
@@ -27580,12 +27580,12 @@ msgstr ""
 #: scripts/ui/boot_screen.gd:125 scripts/ui/main_menu.gd:335 scripts/ui/retro_menu.gd:705
 #. uses 3
 msgid "CURSED CAMP"
-msgstr "PROKLETÝ KEMP"
+msgstr "CURSED CAMP"
 
 #: scripts/ui/boot_screen.gd:129 scripts/ui/main_menu.gd:342
 #. uses 2
 msgid "M A N A G E R   S I M U L A T O R"
-msgstr "S I M U L Á T O R   S P R Á V C E"
+msgstr "M A N A G E R   S I M U L A T O R"
 
 #: scripts/ui/boot_screen.gd:142
 msgid "WAKING THE CAMP"
@@ -27932,7 +27932,7 @@ msgstr "Příběh"
 
 #: scripts/ui/main_menu.gd:1136
 msgid "Sandbox"
-msgstr "Volná hra"
+msgstr "Sandbox"
 
 #: scripts/ui/main_menu.gd:1153
 msgid "Generate"
@@ -27954,7 +27954,7 @@ msgstr "%s  DEN %d  $%s"
 #: scripts/ui/main_menu.gd:1246 scripts/ui/main_menu.gd:1322
 #. uses 2
 msgid "SANDBOX"
-msgstr "VOLNÁ HRA"
+msgstr "SANDBOX"
 
 #: scripts/ui/main_menu.gd:1246 scripts/ui/main_menu.gd:1322
 #. uses 2
@@ -27963,7 +27963,7 @@ msgstr "PŘÍBĚH"
 
 #: scripts/ui/main_menu.gd:1252
 msgid "NO SANDBOX CAMPS YET. "
-msgstr "ZATÍM ŽÁDNÉ KEMPY VOLNÉ HRY. "
+msgstr "ZATÍM ŽÁDNÉ SANDBOXOVÉ KEMPY. "
 
 #: scripts/ui/main_menu.gd:1252
 msgid "STORY CAMPS ARE FOR ONE WARDEN."
@@ -28013,11 +28013,11 @@ msgstr "KEMP TETY VĚRY: JEJÍ MAILY, JEJÍ SEZNAM, OKRESNÍ INSPEKCE 31. DEN. N
 
 #: scripts/ui/main_menu.gd:1373
 msgid "A STORY CAMP IS FOR ONE WARDEN: IT CANNOT BE PLAYED IN CO-OP. HOST A SANDBOX CAMP (UP TO FOUR)."
-msgstr "PŘÍBĚH JE PRO JEDNOHO SPRÁVCE, V CO-OPU HO HRÁT NEJDE. HOSTUJ KEMP VOLNÉ HRY (AŽ PRO ČTYŘI)."
+msgstr "PŘÍBĚH JE PRO JEDNOHO SPRÁVCE, V CO-OPU HO HRÁT NEJDE. HOSTUJ SANDBOXOVÝ KEMP (AŽ PRO ČTYŘI)."
 
 #: scripts/ui/main_menu.gd:1375
 msgid "CO-OP CAMPS ARE SANDBOX CAMPS (THE STORY IS FOR ONE WARDEN). NO DEADLINE. YOU SET THE RULES:"
-msgstr "KEMPY V CO-OPU JSOU VOLNÁ HRA (PŘÍBĚH JE PRO JEDNOHO SPRÁVCE). BEZ TERMÍNU. PRAVIDLA URČUJEŠ TY:"
+msgstr "KEMPY V CO-OPU JSOU SANDBOXOVÉ (PŘÍBĚH JE PRO JEDNOHO SPRÁVCE). BEZ TERMÍNU. PRAVIDLA URČUJEŠ TY:"
 
 #: scripts/ui/main_menu.gd:1398
 msgid "On"
@@ -28988,3 +28988,30 @@ msgstr "plechovky"
 msgid "look|the window"
 msgstr "okno"
 
+#. the boot's steps (world_generator.gd, texture_style.gd)
+msgid "Laying the ground"
+msgstr "Upravuje se terén"
+
+#. the boot's steps (world_generator.gd, texture_style.gd)
+msgid "Raising the office"
+msgstr "Staví se kancelář"
+
+#. the boot's steps (world_generator.gd, texture_style.gd)
+msgid "Planting the spruces"
+msgstr "Sázejí se smrky"
+
+#. the boot's steps (world_generator.gd, texture_style.gd)
+msgid "Sorting the textures"
+msgstr "Třídí se textury"
+
+#. Builder 98: registered at once (builder_module._register_dialog)
+msgid "Register Builder 98 for $99?"
+msgstr "Zaregistrovat Builder 98 za $99?"
+
+#. CampStat: an old review's day (campstat_app._review_day)
+msgid "last summer"
+msgstr "loni v létě"
+
+#. a review's signature: only the word is translated, names stay
+msgid "reviewer|anonymous"
+msgstr "anonym"

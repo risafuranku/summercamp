@@ -894,6 +894,12 @@ func _play_steps() -> void:
 
 ## Back to the office at once (the interior is opened again, or closed).
 func reset_to_office() -> void:
+	# Left while lying in the back room (Save and quit to the menu): the night is not
+	# slept, the alarm does not go off over the menu (the playtest of 30. 10.).
+	if sleep != null and sleep.is_running():
+		sleep.abort()
+		back.set_lamp(_lamp_before_sleep)
+		_office_call("cancel_sleep", [], null)
 	if _walk != null and is_instance_valid(_walk):
 		_walk.kill()
 	_leaving = false
@@ -937,8 +943,11 @@ func _try_sleep() -> void:
 	sleep.camera = camera
 	sleep.lie_pos = lie[0]
 	sleep.lie_rot = lie[1]
-	# Up again facing the door out to the office (shut over the night).
-	sleep.stand_pos = BACK_ROOM.STAND + Vector3(-0.9, 0.0, -0.2)
+	# Walked up to its side at your own height, the pillow in front of you; up again in the
+	# morning at the same place, facing the door out to the office (shut over the night).
+	sleep.bed_side = Vector3(BACK_ROOM.BED.x + 0.95, BACK_ROOM.STAND.y, BACK_ROOM.BED.z - 0.1)
+	sleep.bed_look = BACK_ROOM.BED + Vector3(0.0, 0.62, -0.35)
+	sleep.stand_pos = sleep.bed_side
 	var to_door: Vector3 = BACK_DOORWAY - sleep.stand_pos
 	sleep.stand_rot = Vector3(deg_to_rad(-4.0), atan2(-to_door.x, -to_door.z), 0.0)
 	_lamp_before_sleep = bool(back.lamp_on)

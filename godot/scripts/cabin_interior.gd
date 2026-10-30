@@ -153,8 +153,9 @@ func _update_sleeper(delta: float) -> void:
 	if _sleeper_t > 0.0:
 		return
 	_sleeper_t = 1.0
-	var cabin: Node = _anchor if _is_open else _inview_cabin
-	var slug := _sleeper_in(cabin)
+	var cabin = _anchor if _is_open else _inview_cabin
+	# (The cabin looked into may be gone: pulled down, the camp cleared.)
+	var slug := _sleeper_in(cabin) if cabin != null and is_instance_valid(cabin) else ""
 	if slug == "":
 		if _sleeper != null and is_instance_valid(_sleeper):
 			_sleeper.visible = false
@@ -178,10 +179,10 @@ func _update_sleeper(delta: float) -> void:
 
 
 ## The hand resting in this cabin's bed, or "".
-static func _sleeper_in(cabin: Node) -> String:
-	if cabin == null or not is_instance_valid(cabin) or CoreRoot == null or CoreRoot.get_state() == null:
+static func _sleeper_in(cabin) -> String:
+	if cabin == null or not is_instance_valid(cabin) or not (cabin is Node) or CoreRoot == null or CoreRoot.get_state() == null:
 		return ""
-	var c = cabin.get_meta("grid_origin", null)
+	var c = cabin.get_meta("grid_origin") if cabin.has_meta("grid_origin") else null
 	if not (c is Vector2i):
 		return ""
 	var spot := "bed:%d:%d" % [(c as Vector2i).x, (c as Vector2i).y]

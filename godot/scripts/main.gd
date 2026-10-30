@@ -3651,39 +3651,7 @@ func _set_weather_state(new_state: int) -> void:
 		_interior_manager.sync_weather(_weather_state)
 	if GuestManager != null and GuestManager.has_method("set_camp_weather"):
 		GuestManager.set_camp_weather(_weather_state)
-	_announce_weather(_weather_state)
-
-
-const WEATHER_ANNOUNCEMENTS := {
-	WEATHER_CLEAR: ["The sky clears.", 1],
-	WEATHER_WINDY: ["The wind picks up.", 0],
-	WEATHER_FOG: ["Fog is rolling in off the lake.", 2],
-	WEATHER_LIGHT_RAIN: ["It starts to drizzle. The bonfire is out.", 2],
-	WEATHER_RAIN: ["Rain. Outdoor attractions are closed until it stops.", 2],
-	WEATHER_STORM: ["A storm breaks over the camp.", 3],
-	WEATHER_EVENT: ["The air turns red. That is not weather.", 3],
-}
-var _last_announced_weather: int = -1
-
-
-## One feed line per weather change during play, so the HUD readout is never the only
-## sign that the rules (closed attractions) just changed.
-func _announce_weather(state: int) -> void:
-	if state == _last_announced_weather:
-		return
-	if (state == WEATHER_LIGHT_RAIN or state == WEATHER_RAIN or state == WEATHER_STORM) and Season.precip_is_snow(_day_index, _time_of_day_hours):
-		_last_announced_weather = state
-		if _hud_manager != null:
-			_hud_manager.push_status(["Snowflakes. The first ones settle on the path.", "It is snowing. The path is going white.", "A blizzard. You can barely see the lights."][state - WEATHER_LIGHT_RAIN], 2)
-		return
-	var first := _last_announced_weather < 0
-	_last_announced_weather = state
-	if first or _menu_mode or not _gameplay_started or _hud_manager == null:
-		return
-	var entry: Array = WEATHER_ANNOUNCEMENTS.get(state, [])
-	if entry.is_empty():
-		return
-	_hud_manager.push_status(str(entry[0]), int(entry[1]), "weather")
+	# No line in the feed for it: the player sees the weather change (the user 30. 10.).
 
 
 func _setup_audio() -> void:

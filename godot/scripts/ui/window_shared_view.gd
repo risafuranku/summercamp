@@ -14,6 +14,12 @@ extends Node
 ## HIDE_LAYER only), else its own walls stood in front of every window; the next frame
 ## nobody asks for the view it is given back to the camp as it was.
 ##
+## One to one with the room (the playtest of 30. 10.: "the view out lags half a second
+## behind my look, the window's frames fly after it"): the camera is put where the eye is
+## at the last moment before the frame is drawn (RenderingServer.frame_pre_draw: after
+## every script, tween and walk has moved the eye this frame), and the view's viewport
+## hangs under the room's own, so it is drawn before the room that reads it.
+##
 ## Every room gets it the same way (window_portal.gd does it for its windows):
 ##   var view = WINDOW_SHARED_VIEW.for_host(room_node)   # one per room script
 ##   pane material: view.pane_material(...)  (or window_portal.use_shared)
@@ -29,6 +35,12 @@ var _hidden: Array = []      # [GeometryInstance3D, its layers]
 var _anchor: Node3D
 var _offered := false
 var _quiet := 0
+## What the last offer asked for, the camera put from it just before the frame is drawn.
+var _eye: Camera3D
+var _room: Node3D
+var _xform := Transform3D()
+## The tools' before and after (false: the camera put at the offer, as it used to be).
+static var sync_at_draw := true
 
 
 ## The view of `host` (a room's script node), made the first time it is asked for.
@@ -97,10 +109,38 @@ func offer(eye: Camera3D, room: Node3D, xform: Transform3D, world: World3D, buil
 		cam.size = eye.size * nk
 		cam.frustum_offset = eye.frustum_offset * nk
 	cam.global_transform = xform * (room.global_transform.affine_inverse() * eye.global_transform)
+	_eye = eye
+	_room = room
+	_xform = xform
+	# Drawn before the room that reads it: its viewport under the room's.
+	if sync_at_draw and room_vp != null and vp.get_parent() != room_vp:
+		vp.reparent(room_vp, false)
 	_hide_building(building)
 
 
+func _enter_tree() -> void:
+	if not RenderingServer.frame_pre_draw.is_connected(_put_camera):
+		RenderingServer.frame_pre_draw.connect(_put_camera)
+
+
+## The eye as it is when the frame is drawn, straight to the renderer (a transform set now
+## would reach it only with the next frame's notifications).
+func _put_camera() -> void:
+	if not sync_at_draw or not _offered_last or _eye == null or not is_instance_valid(_eye) or _room == null or not is_instance_valid(_room):
+		return
+	if not _eye.is_inside_tree() or not _room.is_inside_tree() or not cam.is_inside_tree():
+		return
+	var t := _xform * (_room.global_transform.affine_inverse() * _eye.global_transform)
+	cam.global_transform = t
+	RenderingServer.camera_set_transform(cam.get_camera_rid(), t)
+
+
+## Offered this frame (kept past _process, which clears _offered, for _put_camera).
+var _offered_last := false
+
+
 func _process(_delta: float) -> void:
+	_offered_last = _offered
 	if _offered:
 		_quiet = 0
 		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -140,4 +180,9 @@ func _show_building() -> void:
 
 
 func _exit_tree() -> void:
+	if RenderingServer.frame_pre_draw.is_connected(_put_camera):
+		RenderingServer.frame_pre_draw.disconnect(_put_camera)
 	_show_building()
+	# The viewport hung under a room's goes with this node.
+	if vp != null and is_instance_valid(vp) and vp.get_parent() != self:
+		vp.queue_free()

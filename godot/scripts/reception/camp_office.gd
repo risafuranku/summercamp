@@ -106,6 +106,13 @@ func in_bed() -> bool:
 	return _in_bed
 
 
+## The game left while you lay there (Save and quit): nobody in bed, no night passing.
+func cancel_sleep() -> void:
+	_in_bed = false
+	_night_started = false
+	_sleep_left = 0.0
+
+
 ## Your eyes may close: alone, at once; in co-op once every other warden is in bed too.
 func may_sleep() -> bool:
 	return not Coop.has_partner() or _partner_in_bed()

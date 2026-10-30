@@ -209,6 +209,7 @@ func _ready() -> void:
 	_plates.material_override = pm
 	_plates.extra_cull_margin = 16384.0
 	_vp.add_child(_plates)
+	_eye_only(_plates)
 	if EventBus.has_signal("BuildConfirmed"):
 		EventBus.BuildConfirmed.connect(_on_built)
 	resized.connect(_fit)
@@ -896,6 +897,7 @@ func _update_ghost(delta: float) -> void:
 			_ghost_h = float(made[1])
 			_ghost_mat = made[2]
 			_vp.add_child(_ghost)
+			_eye_only(_ghost)
 			_ghost.visible = false
 		_ghost_seen = false
 	if _ghost == null:
@@ -926,6 +928,7 @@ func _update_ghost(delta: float) -> void:
 	while _row_ghosts.size() < mini(cells.size(), 40):
 		var g := _ghost.duplicate() as Node3D
 		_vp.add_child(g)
+		_eye_only(g)
 		_row_ghosts.append(g)
 	for i in _row_ghosts.size():
 		var rg: Node3D = _row_ghosts[i]
@@ -954,6 +957,7 @@ func _show_front(sel: String, coord: Vector2i, fp: Vector2i, on: bool, tint: Col
 		_front_arrow.material_override = _front_mat
 		_front_arrow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_vp.add_child(_front_arrow)
+		_eye_only(_front_arrow)
 	var b := Basis(Vector3.UP, _turn_of(sel))
 	var half := float(fp.y) * _ts() * 0.5
 	_front_arrow.transform = Transform3D(b, _foot_world(coord, fp) + b * Vector3(0.0, 0.08, half + 0.3))
@@ -1105,6 +1109,16 @@ func _lamp(root: Node3D) -> void:
 	root.add_child(head)
 
 
+## Only the Builder's eye sees what it draws over the camp: its plates, the blueprint
+## under the pointer, the arrow of its front (the playtest of 30. 10.: a lit blueprint left
+## in the Builder stood in the camp you walk in); every other camera leaves BUILDER_EYE out.
+static func _eye_only(n: Node) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).layers = GOD.BUILDER_EYE
+	for c in n.find_children("*", "VisualInstance3D", true, false):
+		(c as VisualInstance3D).layers = GOD.BUILDER_EYE
+
+
 ## A thing built while the view is on rises where it lands, as its blueprint, and goes.
 func _on_built(type: String, pos: Vector2i, rot: int) -> void:
 	if _mode != 2 or type == "path" or type == "" or _rising.size() > 24:
@@ -1120,6 +1134,7 @@ func _on_built(type: String, pos: Vector2i, rot: int) -> void:
 	mat.set_shader_parameter("tint", Color(1.0, 0.95, 0.7))
 	mat.set_shader_parameter("rise", 0.0)
 	_vp.add_child(node)
+	_eye_only(node)
 	_rising.append({"node": node, "mat": mat, "t": 0.0})
 
 

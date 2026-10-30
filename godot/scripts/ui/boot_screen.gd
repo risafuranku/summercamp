@@ -146,6 +146,6 @@ func _ready() -> void:
 
 func set_status(text: String, progress: float) -> void:
 	if _status != null:
-		_status.text = text.to_upper()
+		_status.text = tr(text).to_upper()
 	if _bar != null:
 		_bar.set_value(progress)

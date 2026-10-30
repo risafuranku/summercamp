@@ -286,6 +286,8 @@ func _input(event: InputEvent) -> void:
 		if ev is InputEventMouseMotion:
 			var sc := 640.0 / maxf(1.0, _rect.size.x * absf(_corners[1].x - _corners[0].x))
 			(ev as InputEventMouseMotion).relative = (event as InputEventMouseMotion).relative * sc
+		if ui != null and ui.has_method("point_at"):
+			ui.point_at(at)
 		vp.push_input(ev, true)
 		get_viewport().set_input_as_handled()
 		return

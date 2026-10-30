@@ -1052,27 +1052,32 @@ func _week_chart(y: float) -> float:
 # ── reviews ──────────────────────────────────────────────────────────────────
 
 func _page_reviews(y: float) -> float:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	var reviews: Array = state.guest_reviews if state != null else []
+	# The camp's page as the world sees it (scripts/reviews/goggle.gd): last summer's
+	# reviews are there from the first day, the guests' come on top (the user 30. 10.:
+	# "from the start of a sandbox zero reviews"), what was taken down is not.
+	var main := get_tree().current_scene if get_tree() != null else null
+	var g = main.get("_goggle") if main != null else null
+	var reviews: Array = g.shown() if g != null else []
 	y = _title(y, tr("GUEST REVIEWS"), tr("what they wrote when they left"))
 	if reviews.is_empty():
 		return _para(y, tr("No reviews yet. Guests write one when they leave."), GREY)
-	var total := 0.0
-	for r in reviews:
-		if r is Dictionary:
-			total += float(r.get("rating", 0))
-	var avg := total / float(reviews.size())
-	y = _lcd(y, [["Average", "%.1f / 5" % avg], ["Reviews", str(reviews.size())], ["Newest", LANG.f("day %d", int((reviews[reviews.size() - 1] as Dictionary).get("day", 0))) if reviews[reviews.size() - 1] is Dictionary else "-"]])
-	for i in range(reviews.size() - 1, maxi(-1, reviews.size() - 31), -1):
-		var r: Dictionary = reviews[i] if reviews[i] is Dictionary else {}
-		var rating := clampi(int(r.get("rating", 0)), 0, 5)
+	var newest: Dictionary = reviews[0]
+	y = _lcd(y, [["Average", "%.1f / 5" % float(g.average())], ["Reviews", str(reviews.size())], ["Newest", _review_day(int(newest.get("day", 0)))]])
+	for i in mini(30, reviews.size()):
+		var r: Dictionary = reviews[i]
+		var rating := clampi(int(r.get("stars", 0)), 0, 5)
 		_stars(Vector2(PAD, y + 7), rating, 5.0)
-		_text(Vector2(PAD + 64, y), str(r.get("name", "Guest")), T.TEXT, true)
-		_text(Vector2(PAD, y), LANG.f("day %d", int(r.get("day", 0))), GREY, false, _canvas.size.x - PAD * 2, HORIZONTAL_ALIGNMENT_RIGHT)
+		_text(Vector2(PAD + 64, y), tr(str(r.get("name", "Guest")), "reviewer"), T.TEXT, true)
+		_text(Vector2(PAD, y), _review_day(int(r.get("day", 0))), GREY, false, _canvas.size.x - PAD * 2, HORIZONTAL_ALIGNMENT_RIGHT)
 		y = _para(y + LINE + 2, tr(str(r.get("text", ""))), T.TEXT, PAD + 12)
 		_canvas.draw_rect(Rect2(PAD, y + 2, _canvas.size.x - PAD * 2, 1), Color8(220, 220, 220))
 		y += 8.0
 	return y
+
+
+## When a review went up: the day, or last summer for the page's old ones (day <= 0).
+func _review_day(day: int) -> String:
+	return tr("last summer") if day <= 0 else LANG.f("day %d", day)
 
 
 func _coord(v: Variant) -> String:

@@ -167,6 +167,8 @@ var _tray_net: TextureRect
 var _start_menu: Control
 var _boot: Control
 var _cursor: Control
+## The arrow's canvas layer: over the viewport's embedded windows (Godot draws those at 1024).
+const CURSOR_LAYER := 1100
 ## A program's tool on the pointer (Builder 98: the bulldozer, the path, the lamp, the
 ## blueprint): drawn small beside the arrow, the arrow's tip still where the click goes.
 var tool_cursor: Texture2D = null:
@@ -263,10 +265,16 @@ func _ready() -> void:
 	add_child(_boot)
 	_cursor = Control.new()
 	_cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_cursor.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_cursor.size = SCREEN
 	_cursor.draw.connect(_draw_cursor)
 	_cursor.z_index = 100
-	add_child(_cursor)
+	# On a layer of its own over everything on the screen, the menus' popups too (they
+	# are windows of the screen's viewport, drawn over its canvas: the arrow went under).
+	var top := CanvasLayer.new()
+	top.name = "CursorLayer"
+	top.layer = CURSOR_LAYER
+	add_child(top)
+	top.add_child(_cursor)
 	# Installed from elsewhere (tools, the quest's debug): show it here too.
 	EventBus.program_installed.connect(func(id: String):
 		if PROGRAMS.has(id) and not _is_program_unlocked(id):
@@ -2501,6 +2509,16 @@ func _input(event: InputEvent) -> void:
 			return
 	if event is InputEventMouseButton and event.pressed and _start_menu.visible and not _point_in_start_menu(event.position) and not Rect2(_start_btn.global_position - global_position, _start_btn.size).has_point(event.position):
 		_close_start_menu()
+
+
+## Where the pointer is on the screen, told by whoever brings the mouse to it (the room's
+## monitor, the staffroom's laptop) before the event goes in: while a menu's popup is
+## open it takes the motion and _input never sees it, so the drawn arrow stood still
+## over the menus (the playtest of 30. 10.).
+func point_at(p: Vector2) -> void:
+	if p != _mouse:
+		_mouse = p
+		_cursor.queue_redraw()
 
 
 func _point_in_start_menu(p: Vector2) -> bool:

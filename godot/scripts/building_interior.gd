@@ -1498,7 +1498,8 @@ func _exit_crt_view() -> void:
 	if _crt_ui != null:
 		_crt_ui.set_meta("look_away", false)
 		# Up from the desk, the camera's legs go back in (the next sitting starts with S).
-		var b = _crt_ui.get_meta("builder_walk", null)
+		# (get_meta with a null default still errors when it is not there.)
+		var b = _crt_ui.get_meta("builder_walk") if _crt_ui.has_meta("builder_walk") else null
 		if b != null and is_instance_valid(b):
 			b.call("end_walk")
 	_crt_active = false
@@ -1622,7 +1623,7 @@ func _crt_rest_rot(pos: Vector3) -> Vector3:
 ## Builder's camera on WASD (its legged camera button), on the screen you look at: the
 ## left hand is on the map, S does not stand you up.
 func _crt_keys_taken() -> bool:
-	var b = _crt_ui.get_meta("builder_walk", null) if _crt_ui != null else null
+	var b = _crt_ui.get_meta("builder_walk") if _crt_ui != null and _crt_ui.has_meta("builder_walk") else null
 	return b != null and is_instance_valid(b) and bool(b.call("walk_keys"))
 
 
@@ -1714,6 +1715,8 @@ func _forward_input_to_crt(event: InputEventMouse) -> void:
 	if new_ev is InputEventMouseMotion:
 		var rel_scale = _get_main_to_crt_scale()
 		new_ev.relative = Vector2(event.relative.x * rel_scale.x, event.relative.y * rel_scale.y)
+	if _crt_ui != null and _crt_ui.has_method("point_at"):
+		_crt_ui.point_at(vp_pos)
 	_crt_viewport.push_input(new_ev, true)
 
 
@@ -2484,7 +2487,8 @@ func _update_inview(delta: float) -> void:
 		if cam != null and _inview_reception != null and not _glass_cache.is_empty():
 			for k in PANES:
 				var g = _glass_cache.get(k)
-				if g is MeshInstance3D and is_instance_valid(g) and (g as MeshInstance3D).is_visible_in_tree():
+				# (Going to the menu the old camp leaves the tree: a Node3D out of it still says visible.)
+				if g is MeshInstance3D and is_instance_valid(g) and (g as MeshInstance3D).is_inside_tree() and (g as MeshInstance3D).is_visible_in_tree():
 					var to_eye: Vector3 = cam.global_position - (g as MeshInstance3D).global_position
 					if to_eye.length() < INVIEW_RANGE and _pane_faces(g, to_eye):
 						on = true

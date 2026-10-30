@@ -35,6 +35,10 @@ const FLAGS := {"en": "res://assets/textury/ui/flag_en.png", "cs": "res://assets
 const FEMININE_FIGURES := [2, 3]
 
 static var current := "en"
+## The audit (`-- --lang-audit`, the tools): every text asked for in Czech that found no
+## translation, with what asked for it first, kept till dump_missing() writes them out.
+static var audit := false
+static var missing: Dictionary = {}
 ## The warden playing is a woman: {g:...|...} takes its second form.
 static var feminine := false
 static var _cs = null
@@ -134,6 +138,7 @@ static func t_n(n: int, one: String, many: String) -> String:
 static func _ensure() -> void:
 	if _cs != null:
 		return
+	audit = OS.get_cmdline_user_args().has("--lang-audit")
 	_cs = (load(SCRIPT_PATH) as GDScript).new()
 	_cs.locale = "cs"
 	_cs._read(PO)
@@ -371,7 +376,49 @@ func _get_message(src_message: StringName, context: StringName) -> StringName:
 		if _memo.size() > 20000:
 			_memo.clear()
 		_memo[s] = hit
+		if audit and hit == "" and not missing.has(s) and _wants_words(s):
+			missing[s] = _asker()
 	return StringName(hit) if hit != "" else StringName()
+
+
+## English words in it (not a number, a key, a path, a name already in Czech).
+static func _wants_words(s: String) -> bool:
+	if s.length() < 2 or s.begins_with("res://") or s.begins_with("user://"):
+		return false
+	for ch in "ěščřžýáíéůúťďňóĚŠČŘŽÝÁÍÉŮÚŤĎŇÓ":
+		if s.contains(ch):
+			return false
+	var letters := 0
+	for i in s.length():
+		var c := s.unicode_at(i)
+		if (c >= 65 and c <= 90) or (c >= 97 and c <= 122):
+			letters += 1
+			if letters >= 2:
+				return true
+		else:
+			letters = 0
+	return false
+
+
+## The script and line that asked (the first frame outside this file).
+static func _asker() -> String:
+	for f in get_stack():
+		var src := str(f.get("source", ""))
+		if not src.ends_with("lang.gd"):
+			return "%s:%d" % [src.get_file(), int(f.get("line", 0))]
+	return "(engine)"
+
+
+## The audit written out: one line each, sorted, "text<TAB>first asker".
+static func dump_missing(path: String) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		return
+	var keys := missing.keys()
+	keys.sort()
+	for k in keys:
+		f.store_line("%s\t%s" % [str(k).replace("\n", "\\n"), missing[k]])
+	f.close()
 
 
 func _get_plural_message(src_message: StringName, src_plural_message: StringName, n: int, _context: StringName) -> StringName:
