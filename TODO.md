@@ -11,19 +11,19 @@
 - [x] S3  (5fe737ee) „V češtině není přeložený night threads, weather, day events, breakdown, money. Prostě tady ty nastavení v menu nejsou přeložený.“ (the sandbox's settings)
 - [x] S4  (5fe737ee) „v sandboxu je blbý nastavení peněz. 12,5 tisíce je default a 100 tisíc je pak strašně moc. Dej pak třeba 25 tisíc a třeba 50 tisíc a pak třeba 100 tisíc a pak třeba 500 tisíc… ať to jsou fakt reální možnosti“ (12 500 default, 25 000, 50 000, 100 000, 500 000)
 - [x] S5  (5fe737ee) „Generating a Fresh Camp taky není přeložený.“
-- [ ] S6  „bylo mi řečeno, že celá hra je přeložená. Proč je tam tolik nepřeložených věcí, kurva?“ (not done until every screen was seen in Czech: a log of every lookup that found nothing while the scenarios run in Czech, a scan of drawn literals, the menus shot in Czech)
+- [ ] S6  (started 30. 10.: `-- --lang-audit` in lang.gd logs every Czech lookup that found nothing (LANG.dump_missing); the title screen and the new camp walked through and clean; still to walk: the HUD, every PC program, the businesses, the closeups, the night)  „bylo mi řečeno, že celá hra je přeložená. Proč je tam tolik nepřeložených věcí, kurva?“ (not done until every screen was seen in Czech: a log of every lookup that found nothing while the scenarios run in Czech, a scan of drawn literals, the menus shot in Czech)
 - [ ] S7  „první mail v sandboxu… je tam hrozně moc textu, je to hrozně jednotvárný… odrážky, ikony, symboly… To vůbec není zábavné sdělování informaci hráči.“
 - [ ] S8  „v mailu mít třeba nějaký hypertextový odkazy, že třeba v Builderu udělejte tohle a tohle a rovnou na to slovo můžu kliknout a otevře se mi ten Builder“
-- [ ] S9  „Předělat loading screen Builderu, je to strašnej AI slop. Chceme něco, co vypadá fakt jako autentický reálnej program z 90. let.“
+- [ ] S9  (the splash is tools/artgen os_art.py bld_splash -> assets/textury/builder/splash.png) „Předělat loading screen Builderu, je to strašnej AI slop. Chceme něco, co vypadá fakt jako autentický reálnej program z 90. let.“
 - [x] S10 (5fe737ee) „Nahoře v submenu z programu, třeba v Builderu, jak je tam nahoře nápověda a tak dále, nefunguje mi na nich kurzor. Kurzor mi zůstane stát a nehejbe se přes ty submenus.“
 - [x] S11 (5fe737ee) „Odstranit hudbu z Builderu… překrývá se s tím rádiem“
-- [ ] S12 „Udělat lepší ikonky na kategorie Builderu nahoře a nějak to líp roztřídit… proč si tam můžeš postavit sewers, když sewers jsou dávno daný“
+- [x] S12 (a7659ba6) „Udělat lepší ikonky na kategorie Builderu nahoře a nějak to líp roztřídit… proč si tam můžeš postavit sewers, když sewers jsou dávno daný“
 - [x] S13 (5fe737ee) „Výhled z oken je furt zpožděnej… půlvteřinová prodleva za mým pohledem… vidím tam černý rámy toho okna, jak to opožděně letí za mým pohledem. Musíme sjednotit jedna ku jedný pohyb vnitřku a exteriéru.“
 - [x] S14 (5fe737ee) „Registrace Builderu… jakmile kliknu na zaregistrovat, tak se mi odečtou prachy, zahraje fanfára a mám to zaregistrovaný. Nebudu čekat na žádnej mail.“
-- [ ] S15 „Strašně hodně všude problikávají ještě textury… když to dělají i cedulky, na kterých je číslo nebo text, tak je to strašně nečitelný“
-- [ ] S16 „furt blikají ty stíny… když jdu kolem stromů, tak všechny ty stíny pod stromama totálně blikají, kroutějí se, voblujou… ty stíny voblovat nesmějí“ (reproduce it walking past trees, measured frame to frame)
-- [ ] S17 „uklízení postelí je furt totální bolest… občas to má malej hitbox… vyjedu z toho hitboxu a musím začít zase znova… i to vytírání a různý uklízení… je to nesplnitelný“
-- [ ] S18 „Kytky jsou voxelový sračky… vygeneroval hezký sprity kytek jako z Build enginu. Nic nebude voxelový, všechno bude otexturovaný.“
+- [x] S15 (a7659ba6) „Strašně hodně všude problikávají ještě textury… když to dělají i cedulky, na kterých je číslo nebo text, tak je to strašně nečitelný“
+- [x] S16 (a7659ba6) „furt blikají ty stíny… když jdu kolem stromů, tak všechny ty stíny pod stromama totálně blikají, kroutějí se, voblujou… ty stíny voblovat nesmějí“ (reproduce it walking past trees, measured frame to frame)
+- [ ] S17 (next: scripts/interior_prep.gd and its tasks: once a stroke has started, keep counting it while the button is held, wherever the pointer goes; less motion asked) „uklízení postelí je furt totální bolest… občas to má malej hitbox… vyjedu z toho hitboxu a musím začít zase znova… i to vytírání a různý uklízení… je to nesplnitelný“
+- [ ] S18 (Grok: a sample of Build-style flower sprites first) „Kytky jsou voxelový sračky… vygeneroval hezký sprity kytek jako z Build enginu. Nic nebude voxelový, všechno bude otexturovaný.“
 - [ ] S19 „poladit, jak chodějí hosté, jak chodějí maily hostů… ze začátku, i když mám peníze, postavím spoustu stanů, spoustu chatek, mám prázdnej camp a nikdo nechce jezdit“
 - [x] S20 (5fe737ee) „Odstranit zhora ty divný keci o změně počasí. Že se mění počasí, si všimne hráč sám.“
 - [ ] S21 „remake-nout proces check-inu… 3D minihra, stejně jako v kukuřici, v hospodě… čitelně se pokládaly věci na stůl… vzít razítko… klíče visely na háčku na zdi… šlo hrát v té místnosti“
@@ -37,6 +37,7 @@
 - [ ] S29 „vygenerovat sprity hráčů, všech čtyř, z více úhlů: jak checkinujou, jak jsou u počítače… úhel zepředu, když kouká z okna nebo od lavičky… z pokojíčku“ (Grok: a sample first)
 - [x] S30 (5fe737ee) „jak jdu do postele v pokojíčku, nesmí být, že tam zalítnu jak duch. Musím normálně dojít ve výšce hlavy k té posteli a tam si lehnu.“
 - [x] S31 (5fe737ee) „lehnul jsem si do postele, dal escape, uložit a ukončit… v menu mi zapípal budík, otevřel jsem oči a najednou jsem byl v menu“
+- [ ] S32 (found 30. 10. in the shots, not the user's) the HUD's markers on the right overlap their distance labels when two are near ("BRANCH" over "CABIN 15M")
 
 ## PLAYTEST 2026-10-25 — the user's notes (verbatim, then the note in brackets; tick with the commit)
 
